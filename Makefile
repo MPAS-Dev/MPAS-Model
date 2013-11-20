@@ -7,8 +7,8 @@ dummy:
 
 xlf:
 	( $(MAKE) all \
-	"FC_PARALLEL = mpxlf90" \
-	"CC_PARALLEL = mpcc" \
+	"FC_PARALLEL = mpixlf90" \
+	"CC_PARALLEL = mpicc" \
 	"FC_SERIAL = xlf90" \
 	"CC_SERIAL = xlc" \
 	"FFLAGS_OPT = -O3 -qrealsize=8" \
