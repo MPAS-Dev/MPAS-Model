@@ -36,6 +36,34 @@ ftn:
 	"USE_PAPI = $(USE_PAPI)" \
 	"CPPFLAGS = $(MODEL_FORMULATION) -D_MPI -DUNDERSCORE" )
 
+titan-pgi:
+	( $(MAKE) all \
+	"FC_PARALLEL = ftn" \
+	"CC_PARALLEL = cc" \
+	"FC_SERIAL = ftn" \
+	"CC_SERIAL = cc" \
+	"FFLAGS_OPT = -r8 -O3 -byteswapio -Mfree" \
+	"CFLAGS_OPT = -O3" \
+	"LDFLAGS_OPT = " \
+	"CORE = $(CORE)" \
+	"DEBUG = $(DEBUG)" \
+	"USE_PAPI = $(USE_PAPI)" \
+	"CPPFLAGS = $(MODEL_FORMULATION) -D_MPI -DUNDERSCORE" )
+
+titan-cray:
+	( $(MAKE) all \
+	"FC_PARALLEL = ftn" \
+	"CC_PARALLEL = cc" \
+	"FC_SERIAL = ftn" \
+	"CC_SERIAL = gcc" \
+	"FFLAGS_OPT = -s integer32 -default64 -O3 -f free -N 255 -em -ef" \
+	"CFLAGS_OPT = -O3" \
+	"LDFLAGS_OPT = -O3" \
+	"CORE = $(CORE)" \
+	"DEBUG = $(DEBUG)" \
+	"USE_PAPI = $(USE_PAPI)" \
+	"CPPFLAGS = $(MODEL_FORMULATION) -D_MPI -DUNDERSCORE" )
+
 pgi:
 	( $(MAKE) all \
 	"FC_PARALLEL = mpif90" \
