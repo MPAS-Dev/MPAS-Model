@@ -58,7 +58,6 @@ module ocn_okubo_weiss
    public :: ocn_setup_packages_okubo_weiss, &
              ocn_init_okubo_weiss, &
              ocn_compute_okubo_weiss, &
-             ocn_write_okubo_weiss, &
              ocn_restart_okubo_weiss, &
              ocn_finalize_okubo_weiss
 
@@ -1671,54 +1670,6 @@ contains
       err = 0
 
    end subroutine ocn_restart_okubo_weiss!}}}
-
-!***********************************************************************
-!
-!  routine ocn_write_okubo_weiss
-!
-!> \brief   MPAS-Ocean analysis output
-!> \author  Andre Schmeisser
-!> \date    August 2014
-!> \details 
-!>  This routine writes all output for this MPAS-Ocean analysis member.
-!>  At this time this is just a stub, and all analysis output is written
-!>  to the output file specified by config_output_name.
-!
-!-----------------------------------------------------------------------
-
-   subroutine ocn_write_okubo_weiss(domain, err)!{{{
-
-      !-----------------------------------------------------------------
-      !
-      ! input variables
-      !
-      !-----------------------------------------------------------------
-
-      type (domain_type), intent(in) :: domain
-
-      !-----------------------------------------------------------------
-      !
-      ! input/output variables
-      !
-      !-----------------------------------------------------------------
-
-      !-----------------------------------------------------------------
-      !
-      ! output variables
-      !
-      !-----------------------------------------------------------------
-
-      integer, intent(out) :: err !< Output: error flag
-
-      !-----------------------------------------------------------------
-      !
-      ! local variables
-      !
-      !-----------------------------------------------------------------
-
-      err = 0
-
-   end subroutine ocn_write_okubo_weiss!}}}
 
 !***********************************************************************
 !
