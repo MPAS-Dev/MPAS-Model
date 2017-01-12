@@ -25,9 +25,6 @@
 !global variables:
  integer,public:: isice,iswater,isurban
 
- integer,parameter:: frac_seaice      = 0       ! = 1: treats seaice as fractional field.
-                                                ! = 0: ice/no-ice flag. 
-
 !This module reads the file LANDUSE.TBL which defines the land type of each cell, depending on
 !the origin of the input data, as defined by the value of the variable "sfc_input_data".
 !Laura D. Fowler (send comments to laura@ucar.edu).
@@ -72,6 +69,8 @@
 ! * in subroutine landuse_int_forMPAS, added the initialization of variable ust to a very small value. this was
 !   needed when the surface layer scheme was updated to that used in WRF version 3.8.1
 !   Laura D. Fowler (laura@ucar.edu) / 2016-10-27.
+! * removed the parameter frac_seaice which is not used anymore and has been replaced with config_frac_seaice. 
+!   Laura D. Fowler (laura@ucar.edu) / 2017-01-11.
 
 
  contains
