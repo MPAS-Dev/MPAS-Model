@@ -23,7 +23,7 @@
  public:: landuse_init_forMPAS
 
 !global variables:
- integer,public:: isice,iswater,isurban
+ integer,public:: isurban
 
 !This module reads the file LANDUSE.TBL which defines the land type of each cell, depending on
 !the origin of the input data, as defined by the value of the variable "sfc_input_data".
@@ -71,6 +71,8 @@
 !   Laura D. Fowler (laura@ucar.edu) / 2016-10-27.
 ! * removed the parameter frac_seaice which is not used anymore and has been replaced with config_frac_seaice. 
 !   Laura D. Fowler (laura@ucar.edu) / 2017-01-11.
+! * now use isice and iswater initialized in the init file instead of initialized in mpas_atmphys_landuse.F.
+!   Laura D. Fowler (laura@ucar.edu) / 2017-01-13.
 
 
  contains
@@ -97,6 +99,7 @@
  character(len=StrKIND),pointer:: mminlu
 
  integer,pointer:: nCells
+ integer,pointer:: isice,iswater
  integer,dimension(:),pointer:: ivgtyp
  integer,dimension(:),pointer:: landmask
 
@@ -129,19 +132,21 @@
  call mpas_pool_get_config(configs,'config_do_restart' ,config_do_restart )
  call mpas_pool_get_config(configs,'config_frac_seaice',config_frac_seaice)
  call mpas_pool_get_config(configs,'config_sfc_albedo' ,config_sfc_albedo )
- call mpas_pool_get_array(sfc_input,'mminlu',mminlu)
 
  call mpas_pool_get_dimension(mesh,'nCells',nCells)
 
  call mpas_pool_get_array(mesh,'latCell',latCell)
  
- call mpas_pool_get_array(sfc_input,'landmask'  , landmask  )
- call mpas_pool_get_array(sfc_input,'ivgtyp'    , ivgtyp    )
- call mpas_pool_get_array(sfc_input,'snoalb'    , snoalb    )
- call mpas_pool_get_array(sfc_input,'snowc'     , snowc     )
- call mpas_pool_get_array(sfc_input,'xice'      , xice      )
- call mpas_pool_get_array(sfc_input,'xland'     , xland     )
- call mpas_pool_get_array(sfc_input,'sfc_albbck', albbck    )
+ call mpas_pool_get_array(sfc_input,'mminlu'    ,mminlu  )
+ call mpas_pool_get_array(sfc_input,'isice'     ,isice   )
+ call mpas_pool_get_array(sfc_input,'iswater'   ,iswater )
+ call mpas_pool_get_array(sfc_input,'landmask'  ,landmask)
+ call mpas_pool_get_array(sfc_input,'ivgtyp'    ,ivgtyp  )
+ call mpas_pool_get_array(sfc_input,'snoalb'    ,snoalb  )
+ call mpas_pool_get_array(sfc_input,'snowc'     ,snowc   )
+ call mpas_pool_get_array(sfc_input,'xice'      ,xice    )
+ call mpas_pool_get_array(sfc_input,'xland'     ,xland   )
+ call mpas_pool_get_array(sfc_input,'sfc_albbck',albbck  )
 
  nullify(mavail)
  nullify(ust)
@@ -202,27 +207,17 @@
 !      if(is .lt. luseas) call mpas_log_write('')
     enddo
 
-!defines the index isurban, iswater and, isice as a function of sfc_input_data:
+!defines the index isurban as a function of sfc_input_data:
     sfc_input_select: select case(trim(lutype))
        case('OLD')
-          iswater = 7
-          isice   = 11
           isurban = 1
        case('USGS')
-          iswater = 16
-          isice   = 24
           isurban = 1
        case('MODIFIED_IGBP_MODIS_NOAH')
-          iswater = 17
-          isice   = 15
           isurban = 13
        case('SiB')
-          iswater = 15
-          isice   = 16
           isurban = 11
        case('LW12')
-          iswater = 2
-          isice   = 3
           isurban = 1
        case default
     end select sfc_input_select
