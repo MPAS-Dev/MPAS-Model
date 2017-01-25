@@ -21,6 +21,8 @@ USE module_model_constants
 ! VEGETATION PARAMETERS
         INTEGER :: LUCATS , BARE
         INTEGER :: NATURAL
+!--- added temporarily to read the new VEGPARM.TBL data (Laura D. Fowler / 2017-01-24):
+        INTEGER :: LOW_DENSITY_RESIDENTIAL, HIGH_DENSITY_RESIDENTIAL, HIGH_INTENSITY_INDUSTRIAL
         integer, PARAMETER :: NLUS=50
         CHARACTER(LEN=256) LUTYPE
         INTEGER, DIMENSION(1:NLUS) :: NROTBL
@@ -29,7 +31,10 @@ USE module_model_constants
                                     EMISSMINTBL, EMISSMAXTBL,                     &
                                     LAIMINTBL, LAIMAXTBL,                         &
                                     Z0MINTBL, Z0MAXTBL,                           &
-                                    ALBEDOMINTBL, ALBEDOMAXTBL
+                                    ALBEDOMINTBL, ALBEDOMAXTBL,                   &
+!--- added temporarily to read the new VEGPARM.TBL data (Laura D. Fowler / 2017-01-24):
+                                    ZTOPVTBL,ZBOTVTBL
+
         REAL ::   TOPT_DATA,CMCMAX_DATA,CFACTR_DATA,RSMAX_DATA
 
 ! SOIL PARAMETERS
