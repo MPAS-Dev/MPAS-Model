@@ -84,6 +84,8 @@
 !   Laura D. Fowler (laura@ucar.edu) / 2016-10-03.
 ! * now use isice and iswater initialized in the init file instead of initialized in mpas_atmphys_landuse.F.
 !   Laura D. Fowler (laura@ucar.edu) / 2017-01-13.
+! * updated the call to subroutine lsm as we updated the Noah LSM scheme to WRF version 3.9.0.
+!   Laura D. Fowler (laura@ucar.edu) / 2017-01-30.
 ! * since we removed the local variable lsm_scheme from mpas_atmphys_vars.F, now defines lsm_scheme as a
 !   pointer to config_lsm_scheme.
 !   Laura D. Fowler (laura@ucar.edu) / 2017-02-16.
@@ -168,6 +170,16 @@
  if(.not.allocated(t2m_p)       ) allocate(t2m_p(ims:ime,jms:jme)       )
  if(.not.allocated(th2m_p)      ) allocate(th2m_p(ims:ime,jms:jme)      )
  if(.not.allocated(q2_p)        ) allocate(q2_p(ims:ime,jms:jme)        )
+ if(.not.allocated(flxsnow_p)   ) allocate(flxsnow_p(ims:ime,jms:jme)   )
+ if(.not.allocated(fvbsnow_p)   ) allocate(fvbsnow_p(ims:ime,jms:jme)   )
+ if(.not.allocated(fbursnow_p)  ) allocate(fbursnow_p(ims:ime,jms:jme)  )
+ if(.not.allocated(fgsnsnow_p)  ) allocate(fgsnsnow_p(ims:ime,jms:jme)  )
+ if(.not.allocated(frc_urb_p)   ) allocate(frc_urb_p(ims:ime,jms:jme)   )
+ if(.not.allocated(ust_urb_p)   ) allocate(ust_urb_p(ims:ime,jms:jme)   )
+ if(.not.allocated(utype_urb_p) ) allocate(utype_urb_p(ims:ime,jms:jme) )
+ if(.not.allocated(infxsrt_p)   ) allocate(infxsrt_p(ims:ime,jms:jme)   )
+ if(.not.allocated(sfcheadrt_p) ) allocate(sfcheadrt_p(ims:ime,jms:jme) )
+ if(.not.allocated(soldrain_p)  ) allocate(soldrain_p(ims:ime,jms:jme)  )
 
  if(config_frac_seaice) then
     if(.not.allocated(tsk_sea)) allocate(tsk_sea(ims:ime,jms:jme))
@@ -243,6 +255,16 @@
  if(allocated(t2m_p)       ) deallocate(t2m_p       )
  if(allocated(th2m_p)      ) deallocate(th2m_p      )
  if(allocated(q2_p)        ) deallocate(q2_p        )
+ if(allocated(flxsnow_p)   ) deallocate(flxsnow_p   )
+ if(allocated(fvbsnow_p)   ) deallocate(fvbsnow_p   )
+ if(allocated(fbursnow_p)  ) deallocate(fbursnow_p  )
+ if(allocated(fgsnsnow_p)  ) deallocate(fgsnsnow_p  )
+ if(allocated(frc_urb_p)   ) deallocate(frc_urb_p   )
+ if(allocated(ust_urb_p)   ) deallocate(ust_urb_p   )
+ if(allocated(utype_urb_p) ) deallocate(utype_urb_p )
+ if(allocated(infxsrt_p)   ) deallocate(infxsrt_p   )
+ if(allocated(sfcheadrt_p) ) deallocate(sfcheadrt_p )
+ if(allocated(soldrain_p)  ) deallocate(soldrain_p  )
 
  if(config_frac_seaice) then
     if(allocated(chs_sea) ) deallocate(chs_sea )
@@ -424,7 +446,24 @@
     xice_p(i,j)       = xice(i)
     xland_p(i,j)      = xland(i)
 
-    qz0_p(i,j) = 0._RKIND
+    qz0_p(i,j)        = 0._RKIND
+
+    !initialization of arrays to run the UA Noah LSM snow cover parameterization:
+    flxsnow_p(i,j)    = 0._RKIND
+    fvbsnow_p(i,j)    = 0._RKIND
+    fbursnow_p(i,j)   = 0._RKIND
+    fgsnsnow_p(i,j)   = 0._RKIND
+
+    !initialization of arrays to run the Noah LSM urban parameterization (not currently
+    frc_urb_p(i,j)    = 0._RKIND
+    ust_urb_p(i,j)    = 0._RKIND
+    utype_urb_p(i,j)  = low_density_residential
+
+    !initialization of arrays to run the Noah LSM hydrological parameterization (not currently
+    !implemented in MPAS):
+    infxsrt_p(i,j)    = 0._RKIND
+    sfcheadrt_p(i,j)  = 0._RKIND
+    soldrain_p(i,j)   = 0._RKIND
  enddo
  enddo
 
@@ -748,40 +787,46 @@
     case("noah")
        call mpas_timer_start('Noah')
        call lsm( &
-                dz8w      = dz_p      , p8w3d     = pres2_hyd_p  , t3d       = t_p          , &  
-                qv3d      = qv_p      , xland     = xland_p      , xice      = xice_p       , &
-                ivgtyp    = ivgtyp_p  , isltyp    = isltyp_p     , tmn       = tmn_p        , &
-                vegfra    = vegfra_p  , shdmin    = shdmin_p     , shdmax    = shdmax_p     , &
-                snoalb    = snoalb_p  , glw       = glw_p        , gsw       = gsw_p        , &
-                swdown    = swdown_p  , rainbl    = rainbl_p     , embck     = sfc_emibck_p , & 
-                sr        = sr_p      , qgh       = qgh_p        , cpm       = cpm_p        , &
-                qz0       = qz0_p     , tsk       = tsk_p        , hfx       = hfx_p        , & 
-                qfx       = qfx_p     , lh        = lh_p         , grdflx    = grdflx_p     , &
-                qsfc      = qsfc_p    , cqs2      = cqs2_p       , chs       = chs_p        , &
-                chs2      = chs2_p    , snow      = snow_p       , snowc     = snowc_p      , &
-                snowh     = snowh_p   , canwat    = canwat_p     , smstav    = smstav_p     , &
-                smstot    = smstot_p  , sfcrunoff = sfcrunoff_p  , udrunoff  = udrunoff_p   , &               
-                acsnom    = acsnom_p  , acsnow    = acsnow_p     , snotime   = snotime_p    , &
-                snopcx    = snopcx_p  , emiss     = sfc_emiss_p  , rib       = br_p         , &
-                potevp    = potevp_p  , albedo    = sfc_albedo_p , albbck    = sfc_albbck_p , &
-                z0        = z0_p      , znt       = znt_p        , lai       = lai_p        , &
-                noahres   = noahres_p , chklowq   = chklowq_p    , sh2o      = sh2o_p       , &
-                smois     = smois_p   , tslb      = tslb_p       , smcrel    = smcrel_p     , &
-                dzs       = dzs_p     , isurban   = isurban      , isice     = isice        , &                
-                rovcp     = rcp       , dt        = dt_pbl       , myj       = myj          , &
-                itimestep = itimestep , frpcpn    = frpcpn       , rdlai2d   = rdlai2d      , &
-                xice_threshold   = xice_threshold    ,                                        &
-                usemonalb        = config_sfc_albedo ,                                        &
-                mminlu           = mminlu ,                                                   &
-                num_soil_layers  = num_soils    ,                                             &         
-                num_roof_layers  = num_soils    ,                                             &
-                num_wall_layers  = num_soils    ,                                             &
-                num_road_layers  = num_soils    ,                                             &
-                num_urban_layers = num_soils    ,                                             &
-                sf_urban_physics = sf_urban_physics   ,                                       &
-                ids = ids , ide = ide , jds = jds , jde = jde , kds = kds , kde = kde ,       &
-                ims = ims , ime = ime , jms = jms , jme = jme , kms = kms , kme = kme ,       &
-                its = its , ite = ite , jts = jts , jte = jte , kts = kts , kte = kte         &
+                dz8w        = dz_p        , p8w3d       = pres2_hyd_p  , t3d       = t_p          , &
+                qv3d        = qv_p        , xland       = xland_p      , xice      = xice_p       , &
+                ivgtyp      = ivgtyp_p    , isltyp      = isltyp_p     , tmn       = tmn_p        , &
+                vegfra      = vegfra_p    , shdmin      = shdmin_p     , shdmax    = shdmax_p     , &
+                snoalb      = snoalb_p    , glw         = glw_p        , gsw       = gsw_p        , &
+                swdown      = swdown_p    , rainbl      = rainbl_p     , embck     = sfc_emibck_p , &
+                sr          = sr_p        , qgh         = qgh_p        , cpm       = cpm_p        , &
+                qz0         = qz0_p       , tsk         = tsk_p        , hfx       = hfx_p        , &
+                qfx         = qfx_p       , lh          = lh_p         , grdflx    = grdflx_p     , &
+                qsfc        = qsfc_p      , cqs2        = cqs2_p       , chs       = chs_p        , &
+                chs2        = chs2_p      , snow        = snow_p       , snowc     = snowc_p      , &
+                snowh       = snowh_p     , canwat      = canwat_p     , smstav    = smstav_p     , &
+                smstot      = smstot_p    , sfcrunoff   = sfcrunoff_p  , udrunoff  = udrunoff_p   , &
+                acsnom      = acsnom_p    , acsnow      = acsnow_p     , snotime   = snotime_p    , &
+                snopcx      = snopcx_p    , emiss       = sfc_emiss_p  , rib       = br_p         , &
+                potevp      = potevp_p    , albedo      = sfc_albedo_p , albbck    = sfc_albbck_p , &
+                z0          = z0_p        , znt         = znt_p        , lai       = lai_p        , &
+                noahres     = noahres_p   , chklowq     = chklowq_p    , sh2o      = sh2o_p       , &
+                smois       = smois_p     , tslb        = tslb_p       , smcrel    = smcrel_p     , &
+                dzs         = dzs_p       , isurban     = isurban      , isice     = isice        , &
+                rovcp       = rcp         , dt          = dt_pbl       , myj       = myj          , &
+                itimestep   = itimestep   , frpcpn      = frpcpn       , rdlai2d   = rdlai2d      , &
+                opt_thcnd   = opt_thcnd   , ua_phys     = ua_phys      , flx4_2d   = flxsnow_p    , &
+                fvb_2d      = fvbsnow_p   , fbur_2d     = fbursnow_p   , fgsn_2d   = fgsnsnow_p   , &
+                utype_urb2d = utype_urb_p , frc_urb2d   = frc_urb_p    , ust_urb2d = ust_urb_p    , &
+                infxsrt     = infxsrt_p   , sfcheadrt   = sfcheadrt_p  , soldrain  = soldrain_p   , &
+                fasdas      = fasdas      , julian      = 0            , julyr     = 0            , &
+                xice_threshold   = xice_threshold    ,                                              &
+                usemonalb        = config_sfc_albedo ,                                              &
+                mminlu           = mminlu ,                                                         &
+                num_soil_layers  = num_soils ,                                                      &
+                num_roof_layers  = num_soils ,                                                      &
+                num_wall_layers  = num_soils ,                                                      &
+                num_road_layers  = num_soils ,                                                      &
+                num_urban_layers = num_soils ,                                                      &
+                num_urban_hi     = num_soils ,                                                      &
+                sf_urban_physics = sf_urban_physics ,                                               &
+                ids = ids , ide = ide , jds = jds , jde = jde , kds = kds , kde = kde ,             &
+                ims = ims , ime = ime , jms = jms , jme = jme , kms = kms , kme = kme ,             &
+                its = its , ite = ite , jts = jts , jte = jte , kts = kts , kte = kte               &
                )
 
        call sfcdiags( &
