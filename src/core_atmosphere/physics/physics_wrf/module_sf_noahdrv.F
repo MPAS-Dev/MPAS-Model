@@ -6,6 +6,10 @@
 ! * added the definition of FATAL_ERROR to use physics_error_fatal. use mpas_atmphys_date_time instead of
 !   module_model_ra_gfdleta.
 !   Laura D. Fowler (laura@ucar.edu) / 2017-01-27.
+! * changed the intent of some variables from intent(out) to intent(inout). This was also done in our original
+!   implementation of the land surface scheme.
+!   Laura D. Fowler (laura@ucar.edu) / 2017-01-30.
+
 
 !=================================================================================================================
 MODULE module_sf_noahdrv
@@ -314,7 +318,7 @@ CONTAINS
                                                          TSLB     ! TSLB     STEMP
 
    REAL,     DIMENSION( ims:ime , 1:num_soil_layers, jms:jme ), &
-             INTENT(OUT)     ::                         SMCREL
+             INTENT(INOUT)     ::                       SMCREL
 
    REAL,    DIMENSION( ims:ime, jms:jme )                     , &
             INTENT(INOUT)    ::                            TSK, & !was TGB (temperature)
@@ -344,16 +348,16 @@ CONTAINS
                                                         ALBEDO, &
                                                            ZNT
    REAL,    DIMENSION( ims:ime, jms:jme )                     , &
-            INTENT(OUT)      ::                         NOAHRES
+            INTENT(INOUT)    ::                         NOAHRES
    INTEGER, INTENT(IN)       ::                         OPT_THCND
 
 ! Noah UA changes
    LOGICAL,                                INTENT(IN)  :: UA_PHYS
-   REAL,    DIMENSION( ims:ime, jms:jme ), INTENT(OUT) :: FLX4_2D,FVB_2D,FBUR_2D,FGSN_2D
+   REAL,    DIMENSION( ims:ime, jms:jme ), INTENT(INOUT) :: FLX4_2D,FVB_2D,FBUR_2D,FGSN_2D
    REAL                                                :: FLX4,FVB,FBUR,FGSN
 
    REAL,    DIMENSION( ims:ime, jms:jme )                     , &
-               INTENT(OUT)    ::                        CHKLOWQ
+               INTENT(INOUT)  ::                        CHKLOWQ
    REAL,    DIMENSION( ims:ime, jms:jme ), INTENT(INOUT) :: LAI
    REAL,DIMENSION(IMS:IME,JMS:JME),INTENT(IN) ::        QZ0
 
@@ -2492,7 +2496,7 @@ SUBROUTINE lsm_mosaic(DZ8W,QV3D,P8W3D,T3D,TSK,                      &
                                                          TSLB     ! TSLB     STEMP
 
    REAL,     DIMENSION( ims:ime , 1:num_soil_layers, jms:jme ), &
-             INTENT(OUT)     ::                         SMCREL
+             INTENT(INOUT)     ::                       SMCREL
 
    REAL,    DIMENSION( ims:ime, jms:jme )                     , &
             INTENT(INOUT)    ::                            TSK, & !was TGB (temperature)
@@ -2522,16 +2526,16 @@ SUBROUTINE lsm_mosaic(DZ8W,QV3D,P8W3D,T3D,TSK,                      &
                                                         ALBEDO, &
                                                            ZNT
    REAL,    DIMENSION( ims:ime, jms:jme )                     , &
-            INTENT(OUT)      ::                         NOAHRES
+            INTENT(INOUT)    ::                         NOAHRES
    INTEGER,                                INTENT(IN)  :: OPT_THCND
 
 ! Noah UA changes
    LOGICAL,                                INTENT(IN)  :: UA_PHYS
-   REAL,    DIMENSION( ims:ime, jms:jme ), INTENT(OUT) :: FLX4_2D,FVB_2D,FBUR_2D,FGSN_2D
+   REAL,    DIMENSION( ims:ime, jms:jme ), INTENT(INOUT) :: FLX4_2D,FVB_2D,FBUR_2D,FGSN_2D
    REAL                                                :: FLX4,FVB,FBUR,FGSN
 
    REAL,    DIMENSION( ims:ime, jms:jme )                     , &
-               INTENT(OUT)    ::                        CHKLOWQ
+               INTENT(INOUT)  ::                        CHKLOWQ
    REAL,    DIMENSION( ims:ime, jms:jme ), INTENT(INOUT) :: LAI
    REAL,DIMENSION(IMS:IME,JMS:JME),INTENT(IN) ::        QZ0
 
