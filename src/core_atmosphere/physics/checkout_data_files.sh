@@ -19,7 +19,7 @@
 #
 ################################################################################
 
-mpas_vers="4.0"
+mpas_vers="6.0"
 
 if [ -s physics_wrf/files/COMPATIBILITY ]; then
 
@@ -55,14 +55,14 @@ fi
 #
 which git
 if [ $? -eq 0 ]; then
-   echo "*** trying git to obtain WRF physics tables ***"
-   git clone git://github.com/MPAS-Dev/MPAS-Data.git
+   echo "*** trying git to obtain Laura WRF physics tables ***"
+   git clone git://github.com/ldfowler58/MPAS-Data.git
    if [ $? -eq 0 ]; then
       mv MPAS-Data/atmosphere/physics_wrf/files/* physics_wrf/files
       rm -rf MPAS-Data
       exit 0
    else
-      echo "*** failed to obtain WRF physics tables using git ***"
+      echo "*** failed to obtain Laura WRF physics tables using git ***"
    fi
 else
    echo "*** git not in path ***"
