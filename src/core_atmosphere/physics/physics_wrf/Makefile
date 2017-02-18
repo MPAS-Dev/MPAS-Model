@@ -35,6 +35,8 @@ OBJS = \
 	module_sf_noahdrv.o              \
 	module_sf_noahlsm.o              \
 	module_sf_noahlsm_glacial_only.o \
+	module_sf_noah_seaice.o          \
+	module_sf_noah_seaice_drv.o      \
 	module_sf_oml.o                  \
 	module_sf_sfclay.o               \
 	module_sf_urban.o
@@ -87,6 +89,9 @@ module_sf_noahdrv.o: \
 
 module_sf_noahlsm_glacial_only.o: \
 	module_sf_noahlsm.o
+
+module_sf_noah_seaice_drv.o: \
+	module_sf_noah_seaice.o
 
 clean:
 	$(RM) *.f90 *.o *.mod
