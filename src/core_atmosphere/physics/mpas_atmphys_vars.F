@@ -98,6 +98,8 @@
 ! * removed the initialization local variable microp_scheme. microp_scheme is no longer needed and can be
 !   replaced replaced with config_microp_scheme.
 !   Laura D. Fowler (laura@ucar.edu) / 2017-02-16.
+! * add variables and arrays needed to the parameterization of seaice in the updated Noah land surface scheme.
+!   Laura D. Fowler (laura@ucar.edu) / 2017-02-19.
 
 
 !=================================================================================================================
@@ -469,6 +471,34 @@
     tsq_p,            &!liquid water potential temperature variance                                          [K^2]
     sh3d_p,           &!stability function for heat                                                            [-]
     elpbl_p            !length scale from PBL                                                                  [m]
+
+!=================================================================================================================
+!... variables and arrays related to parameterization of seaice:
+!=================================================================================================================
+
+ integer,parameter:: &
+    seaice_albedo_opt    = 0           !option to set albedo over sea ice.
+                                       !0 = seaice albedo is constant set in seaice_albedo_default.
+                                       !1 = seaice albedo is f(Tair,Tskin,Tsnow), following Mill (2011).
+                                       !2 = seaice albedo is read in from input variable albsi.
+ integer,parameter:: &
+    seaice_thickness_opt = 0           !option for treating seaice thickness.
+                                       !0 = seaice thickness is constant set in seaice_thickness_default.
+                                       !1 = seaice_thickness is read in from input variable icedepth.
+ integer,parameter:: &
+    seaice_snowdepth_opt = 0           !option for treating snow depth on sea ice.
+                                       !0=snow depth is bounded by seaice_snowdepth_min and seaice_snowdepth_max.
+
+ real(kind=RKIND),parameter:: &
+    seaice_albedo_default     =  0.65,&!default value of seaice albedo for seaice_albedo_opt=0.
+    seaice_thickness_default  = 3.0,  &!default value of seaice thickness for seaice_thickness_opt=0
+    seaice_snowdepth_max      = 1.e10,&!maximum allowed accumulation of snow (m) on sea ice.
+    seaice_snowdepth_min      = 0.001  !minimum snow depth (m) on sea ice.
+
+ real(kind=RKIND),dimension(:,:),allocatable:: &
+    albsi_p,          &!surface albedo over seaice                                                             [-]
+    snowsi_p,         &!snow depth over seaice                                                                 [m]
+    icedepth_p         !seaice thickness                                                                       [m]
 
 !=================================================================================================================
 !... variables and arrays related to parameterization of short-wave radiation:

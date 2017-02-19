@@ -18,6 +18,7 @@
 
 !wrf physics
  use module_sf_noahdrv
+ use module_sf_noah_seaice_drv
  use module_sf_sfcdiags
  
  implicit none
@@ -89,6 +90,9 @@
 ! * since we removed the local variable lsm_scheme from mpas_atmphys_vars.F, now defines lsm_scheme as a
 !   pointer to config_lsm_scheme.
 !   Laura D. Fowler (laura@ucar.edu) / 2017-02-16.
+! * added call to seaice_noah to include the parameterization of seaice for the updated Noah land surface
+!   scheme.
+!   Laura D. Fowler (laura@ucar.edu) / 2017-02-19.
 
 !
 ! DOCUMENTATION:
@@ -182,8 +186,11 @@
  if(.not.allocated(soldrain_p)  ) allocate(soldrain_p(ims:ime,jms:jme)  )
 
  if(config_frac_seaice) then
-    if(.not.allocated(tsk_sea)) allocate(tsk_sea(ims:ime,jms:jme))
-    if(.not.allocated(tsk_ice)) allocate(tsk_ice(ims:ime,jms:jme))
+    if(.not.allocated(tsk_sea)   ) allocate(tsk_sea(ims:ime,jms:jme)   )
+    if(.not.allocated(tsk_ice)   ) allocate(tsk_ice(ims:ime,jms:jme)   )
+    if(.not.allocated(albsi_p)   ) allocate(albsi_p(ims:ime,jms:jme)   )
+    if(.not.allocated(icedepth_p)) allocate(icedepth_p(ims:ime,jms:jme))
+    if(.not.allocated(snowsi_p)  ) allocate(snowsi_p(ims:ime,jms:jme)  )
  endif
 
  end subroutine allocate_lsm
@@ -267,17 +274,20 @@
  if(allocated(soldrain_p)  ) deallocate(soldrain_p  )
 
  if(config_frac_seaice) then
-    if(allocated(chs_sea) ) deallocate(chs_sea )
-    if(allocated(chs2_sea)) deallocate(chs2_sea)
-    if(allocated(cqs2_sea)) deallocate(cqs2_sea)
-    if(allocated(cpm_sea) ) deallocate(cpm_sea )
-    if(allocated(hfx_sea) ) deallocate(hfx_sea )
-    if(allocated(qfx_sea) ) deallocate(qfx_sea )
-    if(allocated(qgh_sea) ) deallocate(qgh_sea )
-    if(allocated(qsfc_sea)) deallocate(qsfc_sea)
-    if(allocated(lh_sea)  ) deallocate(lh_sea  )
-    if(allocated(tsk_sea) ) deallocate(tsk_sea )
-    if(allocated(tsk_ice) ) deallocate(tsk_ice )
+    if(allocated(chs_sea)   ) deallocate(chs_sea   )
+    if(allocated(chs2_sea)  ) deallocate(chs2_sea  )
+    if(allocated(cqs2_sea)  ) deallocate(cqs2_sea  )
+    if(allocated(cpm_sea)   ) deallocate(cpm_sea   )
+    if(allocated(hfx_sea)   ) deallocate(hfx_sea   )
+    if(allocated(qfx_sea)   ) deallocate(qfx_sea   )
+    if(allocated(qgh_sea)   ) deallocate(qgh_sea   )
+    if(allocated(qsfc_sea)  ) deallocate(qsfc_sea  )
+    if(allocated(lh_sea)    ) deallocate(lh_sea    )
+    if(allocated(tsk_sea)   ) deallocate(tsk_sea   )
+    if(allocated(tsk_ice)   ) deallocate(tsk_ice   )
+    if(allocated(albsi_p)   ) deallocate(albsi_p   )
+    if(allocated(icedepth_p)) deallocate(icedepth_p)
+    if(allocated(snowsi_p)  ) deallocate(snowsi_p  )
  endif
 
  end subroutine deallocate_lsm
@@ -467,10 +477,10 @@
  enddo
  enddo
 
-!modify the surface albedo and surface emissivity, and surface temperatures over sea-ice points:
  if(config_frac_seaice) then
     do j = jts,jte
     do i = its,ite
+       !modify the surface albedo and surface emissivity, and surface temperatures over sea-ice points:
        if(xice(i).ge.xice_threshold .and. xice(i).le.1._RKIND) then
           sfc_albedo_p(i,j) = (sfc_albedo(i) - 0.08_RKIND*(1._RKIND-xice(i))) / xice(i)
           sfc_emiss_p(i,j)  = (sfc_emiss(i) - 0.98_RKIND*(1._RKIND-xice(i))) / xice(i)
@@ -488,6 +498,18 @@
     do j = jts,jte
     do i = its,ite
        tsk_p(i,j) = tsk_ice(i,j)
+    enddo
+    enddo
+
+    !initialize the surface albedo, the surface albedo over snow-covered seaice, and the
+    !seaice thickness. note that in the subroutine physics init, we already checked that
+    !albsi, snowsi, and icedepth are not read from input files since this option is not
+    !yet available:
+    do j = jts,jte
+    do i = its,ite
+       albsi_p(i,j)    = seaice_albedo_default
+       icedepth_p(i,j) = seaice_thickness_default
+       snowsi_p(i,j)   = seaice_snowdepth_min
     enddo
     enddo
  endif
@@ -763,7 +785,7 @@
  type(mpas_pool_type),intent(inout):: sfc_input
 
 !local pointers:
- logical,pointer:: config_sfc_albedo
+ logical,pointer:: config_sfc_albedo,config_frac_seaice
  character(len=StrKIND),pointer:: lsm_scheme
  character(len=StrKIND),pointer:: mminlu
  integer,pointer:: isice
@@ -772,7 +794,8 @@
 !call mpas_log_write('')
 !call mpas_log_write('--- enter subroutine driver_lsm:')
 
- call mpas_pool_get_config(configs,'config_sfc_albedo',config_sfc_albedo)
+ call mpas_pool_get_config(configs,'config_sfc_albedo' ,config_sfc_albedo )
+ call mpas_pool_get_config(configs,'config_frac_seaice',config_frac_seaice)
  call mpas_pool_get_config(configs,'config_lsm_scheme',lsm_scheme)
  call mpas_pool_get_array(sfc_input,'mminlu',mminlu)
  call mpas_pool_get_array(sfc_input,'isice' ,isice )
@@ -829,17 +852,37 @@
                 its = its , ite = ite , jts = jts , jte = jte , kts = kts , kte = kte               &
                )
 
-       call sfcdiags( &
-                hfx   = hfx_p  , qfx     = qfx_p   , tsk  = tsk_p , qsfc = qsfc_p , chs = chs_p , &
-                chs2  = chs2_p , cqs2    = cqs2_p  , t2   = t2m_p , th2  = th2m_p , q2  = q2_p  , &
-                psfc  = psfc_p , t3d     = t_p     , qv3d = qv_p  , cp   = cp     , R_d = R_d   , &
-                rovcp = rcp    , ua_phys = ua_phys                                              , & 
-                ids = ids , ide = ide , jds = jds , jde = jde , kds = kds , kde = kde ,           &
-                ims = ims , ime = ime , jms = jms , jme = jme , kms = kms , kme = kme ,           &
-                its = its , ite = ite , jts = jts , jte = jte , kts = kts , kte = kte             &
-                    )
-       call mpas_timer_stop('Noah')
-                
+       if(config_frac_seaice) then
+          call seaice_noah( &
+                dz8w      = dz_p        , p8w3d   = pres2_hyd_p  , t3d      = t_p      , &
+                qv3d      = qv_p        , xice    = xice_p       , snoalb2d = snoalb_p , &
+                glw       = glw_p       , swdown  = swdown_p     , rainbl   = rainbl_p , &
+                sr        = sr_p        , qgh     = qgh_p        , tsk      = tsk_p    , &
+                hfx       = hfx_p       , qfx     = qfx_p        , lh       = lh_p     , &
+                grdflx    = grdflx_p    , potevp  = potevp_p     , qsfc     = qsfc_p   , &
+                emiss     = sfc_emiss_p , albedo  = sfc_albedo_p , rib      = br_p     , &
+                cqs2      = cqs2_p      , chs     = chs_p        , chs2     = chs2_p   , &
+                z02d      = z0_p        , znt     = znt_p        , tslb     = tslb_p   , &
+                snow      = snow_p      , snowc   = snowc_p      , snowh2d  = snowh_p  , &
+                snopcx    = snopcx_p    , acsnow  = acsnow_p     , acsnom   = acsnom_p , &
+                sfcrunoff = sfcrunoff_p , albsi   = albsi_p      , snowsi   = snowsi_p , &
+                icedepth  = icedepth_p  , noahres = noahres_p    , dt       = dt_pbl   , &
+                frpcpn    = frpcpn      ,                                                &
+                seaice_albedo_opt        = seaice_albedo_opt        ,                    &
+                seaice_albedo_default    = seaice_albedo_default    ,                    &
+                seaice_thickness_opt     = seaice_thickness_opt     ,                    &
+                seaice_thickness_default = seaice_thickness_default ,                    &
+                seaice_snowdepth_opt     = seaice_snowdepth_opt     ,                    &
+                seaice_snowdepth_max     = seaice_snowdepth_max     ,                    &
+                seaice_snowdepth_min     = seaice_snowdepth_min     ,                    &
+                xice_threshold           = xice_threshold           ,                    &
+                num_soil_layers          = num_soils                ,                    &
+                sf_urban_physics         = sf_urban_physics         ,                    &
+                ids = ids , ide = ide , jds = jds , jde = jde , kds = kds , kde = kde ,  &
+                ims = ims , ime = ime , jms = jms , jme = jme , kms = kms , kme = kme ,  &
+                its = its , ite = ite , jts = jts , jte = jte , kts = kts , kte = kte    &
+                          )
+       endif
 
     case default
 
