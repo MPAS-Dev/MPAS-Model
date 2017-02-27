@@ -62,5 +62,8 @@
         <var name="iLev_DT" type="integer" dimensions="nCells Time" units="-"
              description="Lowest vertical level at or above dynamic tropopause (.lt.1 if 2 PVU below column; .gt.nLevels if 2PVU above column)"/>
 
+        <var name="inTropo" type="integer" dimensions="nVertLevels nCells Time" units="0/1"
+             description="1 if within troposphere based on EPV flood fill"/>
+
 </var_struct>
 
