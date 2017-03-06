@@ -176,6 +176,7 @@
     qg_p               !graupel mixing ratio                                                [kg/kg]
 
  real(kind=RKIND),dimension(:,:,:),allocatable:: &
+    nc_p,             &!
     ni_p,             &!
     nr_p               !
 
@@ -347,11 +348,7 @@
  real(kind=RKIND),dimension(:,:),allocatable:: &
     ctopo_p,          &!correction to topography                                                               [-]
     ctopo2_p,         &!correction to topography 2                                                             [-]
-    hpbl_p,           &!PBL height                                                                             [m]
-    delta_p,          &!
-    wstar_p,          &!
-    uoce_p,           &!
-    voce_p             !
+    hpbl_p
 
  real(kind=RKIND),dimension(:,:,:),allocatable:: &
     exch_p             !exchange coefficient                                                                   [-]
@@ -370,14 +367,48 @@
     kzq_p              !
 
 !... MYNN PBL scheme (module_bl_mynn.F):
+ integer,parameter:: spp_pbl       = 0          !generate array with random perturbations (0=off,1=on).
  integer,parameter:: grav_settling = 0
+ integer,parameter:: icloud_bl     = 0          !no coupling of subgrid-scale clouds with radiation.
 
- logical,parameter:: bl_mynn_tkeadvect = .false.!
- integer,parameter:: bl_mynn_tkebudget = 0      !
- integer,parameter:: bl_mynn_cloudpdf  = 0      !
+ logical,parameter:: bl_mynn_tkeadvect = .false.!default off; = .true. do MYNN tke advection.
+ integer,parameter:: bl_mynn_tkebudget = 0      !0, default off; = 1 adds MYNN tke budget terms to output.
+ integer,parameter:: bl_mynn_cloudpdf  = 0      !switch to different cloud PDFs to represent subgrid clouds.
+                                                != 0: Sommeria and Deardorf (1977),original.
+                                                != 1: Kuwano et al (2010).
+                                                != 2: Chaboureau and Bechtold (2002).
+ integer,parameter:: bl_mynn_cloudmix  = 1      !option to activate mixing of qc and qi in MYNN.
+                                                != 0: no mixing of qc and qi.
+                                                != 1: mixing of qc and qi.
+ integer,parameter:: bl_mynn_mixlength = 1      !option to change mixing length formulation in MYNN.
+                                                != 0: Nakanishi and Niino (2009),original.
+                                                != 1: RAP/HRRR (default,including BouLac in free atmosphere),
+                                                != 2: experimental (follows Ito et al., 2015,BLM). Well tested
+                                                !     with the edmf options.
+ integer,parameter:: bl_mynn_mixqt     = 0      != 0: mix moisture species separately.
+                                                != 1: mix total water.
+
+!edmf options:
+ integer,parameter:: bl_mynn_edmf      = 0      !option to activate mass-flux scheme (=0:regular MYNN).
+                                                != 0: no edmf,regular MYNN.
+                                                != 1: for StEM.
+                                                != 2: for TEMF.
+ integer,parameter:: bl_mynn_edmf_mom  = 0      !option to activate momentum transport (bl_mynn_edmf >0).
+                                                != 0: option is turned off.
+                                                != 1: option is turned on.
+ integer,parameter:: bl_mynn_edmf_tke  = 0      !option to activate TKE transport (bl_mynn_edmf >0).
+                                                != 0: option is turned off.
+                                                != 1: option is turned on.
+ integer,parameter:: bl_mynn_edmf_part = 0      !option activate areal partitioning of ed and mf.
+                                                != 0: option is turned off.
+                                                != 1: option is turned on.
 
  real(kind=RKIND),dimension(:,:),allocatable:: &
-    vdfg_p             !
+    delta_p,          &
+    uoce_p,           &!
+    voce_p,           &!
+    vdfg_p,           &!
+    wstar_p            !
 
  real(kind=RKIND),dimension(:,:,:),allocatable:: &
     dqke_p,           &!
@@ -390,7 +421,15 @@
     tkepbl_p           !
 
  real(kind=RKIND),dimension(:,:,:),allocatable:: &
-    rniblten_p         !
+    rniblten_p,       &!
+    edmfa_p,          &!
+    edmfw_p,          &!
+    edmfqt_p,         &!
+    edmfthl_p,        &!
+    edmfent_p,        &!
+    edmfqc_p,         &!
+    qcbl_p,           &!
+    cldfrabl_p         !
 
 !=================================================================================================================
 !... variables and arrays related to parameterization of gravity wave drag over orography:

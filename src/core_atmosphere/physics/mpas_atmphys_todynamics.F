@@ -50,6 +50,9 @@
 !   Laura D. Fowler (laura@ucar.edu) / 2016-04-11.
 ! * in subroutine physics_get_tend_work, added the option cu_ntiedtke in the calculation of rucuten_Edge.
 !   Laura D. Fowler (laura@ucar.edu) / 2016-10-28.
+! * in subroutine physics_get_tend_work, added the option bl_mynn_wrf390 for the calculation of the PBL
+!   tendencies when using the PBL parameterization from WRF 3.9.0.
+!   Laura D. Fowler (laura@ucar.edu) / 2017-03-06.
 
 
  contains
@@ -262,6 +265,208 @@
  end subroutine physics_get_tend
 
  !==================================================================================================
+ subroutine physics_addtend_work(block, mesh, nCells, nEdges, nCellsSolve, nEdgesSolve, &
+                                 rk_step, dynamics_substep, &
+                                 config_pbl_scheme, config_convection_scheme, config_radt_lw_scheme, config_radt_sw_scheme, &
+                                 index_qv, index_qc, index_qr, index_qi, index_qs, index_ni, &
+                                 rublten, rvblten, mass_edge, rublten_Edge, tend_u, &
+                                 rucuten, rvcuten, rucuten_Edge, &
+                                 tend_th, tend_scalars, mass, rthblten, rqvblten, rqcblten, rqiblten, rniblten, &
+                                 rthcuten, rqvcuten, rqccuten, rqrcuten, rqicuten, rqscuten, &
+                                 rthratenlw, rthratensw, rthdynten, &
+                                 tend_u_phys, tend_rtheta_adv, tend_diabatic, &
+                                 theta, theta_m, scalars, tend_theta, tend_theta_euler &
+                                )
+!==================================================================================================
+
+    use mpas_atm_dimensions
+ 
+    implicit none
+
+    type(block_type), intent(in) :: block
+    type(mpas_pool_type), intent(in) :: mesh
+    integer, intent(in) :: nCells, nEdges, nCellsSolve, nEdgesSolve
+    integer, intent(in) :: rk_step, dynamics_substep
+    character(len=StrKIND), intent(in) :: config_pbl_scheme
+    character(len=StrKIND), intent(in) :: config_convection_scheme
+    character(len=StrKIND), intent(in) :: config_radt_lw_scheme
+    character(len=StrKIND), intent(in) :: config_radt_sw_scheme
+    integer, intent(in) :: index_qv, index_qc, index_qr, index_qi, index_qs, index_ni
+    real (kind=RKIND), dimension(nVertLevels,nCells+1), intent(in) :: rublten
+    real (kind=RKIND), dimension(nVertLevels,nCells+1), intent(in) :: rvblten
+    real (kind=RKIND), dimension(nVertLevels,nEdges+1), intent(in) :: mass_edge
+    real (kind=RKIND), dimension(nVertLevels,nEdges+1), intent(inout) :: rublten_Edge
+    real (kind=RKIND), dimension(nVertLevels,nEdges+1), intent(inout) :: tend_u
+    real (kind=RKIND), dimension(nVertLevels,nCells+1), intent(in) :: rucuten
+    real (kind=RKIND), dimension(nVertLevels,nCells+1), intent(in) :: rvcuten
+    real (kind=RKIND), dimension(nVertLevels,nEdges+1), intent(inout) :: rucuten_Edge
+    real (kind=RKIND), dimension(nVertLevels,nCells+1), intent(inout) :: tend_th
+    real (kind=RKIND), dimension(num_scalars,nVertLevels,nCells+1), intent(inout) :: tend_scalars
+    real (kind=RKIND), dimension(nVertLevels,nCells+1), intent(in) :: mass
+    real (kind=RKIND), dimension(nVertLevels,nCells+1), intent(in) :: rthblten
+    real (kind=RKIND), dimension(nVertLevels,nCells+1), intent(in) :: rqvblten
+    real (kind=RKIND), dimension(nVertLevels,nCells+1), intent(in) :: rqcblten
+    real (kind=RKIND), dimension(nVertLevels,nCells+1), intent(in) :: rqiblten
+    real (kind=RKIND), dimension(nVertLevels,nCells+1), intent(in) :: rniblten
+    real (kind=RKIND), dimension(nVertLevels,nCells+1), intent(in) :: rthcuten
+    real (kind=RKIND), dimension(nVertLevels,nCells+1), intent(in) :: rqvcuten
+    real (kind=RKIND), dimension(nVertLevels,nCells+1), intent(in) :: rqccuten
+    real (kind=RKIND), dimension(nVertLevels,nCells+1), intent(in) :: rqrcuten
+    real (kind=RKIND), dimension(nVertLevels,nCells+1), intent(in) :: rqicuten
+    real (kind=RKIND), dimension(nVertLevels,nCells+1), intent(in) :: rqscuten
+    real (kind=RKIND), dimension(nVertLevels,nCells+1), intent(in) :: rthratenlw
+    real (kind=RKIND), dimension(nVertLevels,nCells+1), intent(in) :: rthratensw
+    real (kind=RKIND), dimension(nVertLevels,nCells+1), intent(inout) :: rthdynten
+    real (kind=RKIND), dimension(nVertLevels,nEdges+1), intent(inout) :: tend_u_phys
+    real (kind=RKIND), dimension(nVertLevels,nCells+1), intent(in) :: tend_rtheta_adv
+    real (kind=RKIND), dimension(nVertLevels,nCells+1), intent(in) :: tend_diabatic
+    real (kind=RKIND), dimension(nVertLevels,nCells+1), intent(inout) :: theta
+    real (kind=RKIND), dimension(nVertLevels,nCells+1), intent(in) :: theta_m
+    real (kind=RKIND), dimension(num_scalars,nVertLevels,nCells+1), intent(in) :: scalars
+    real (kind=RKIND), dimension(nVertLevels,nCells+1), intent(inout) :: tend_theta
+    real (kind=RKIND), dimension(nVertLevels,nCells+1), intent(in) :: tend_theta_euler
+
+    integer :: i, k
+    real (kind=RKIND) :: coeff
+
+
+    !MGD does this need to happen for GF or Tiedtke?
+    if (config_convection_scheme .eq. 'cu_grell_freitas') then
+       !
+       !save the tendency of the modified potential temperature due to horizontal and vertical advections,
+       !and mixing before adding tendencies due to physics processes (PBL,convection,radiation) for use in
+       !the Grell-GF and new Tiedtke parameterization of convection:
+       !
+       do i = 1, nCellsSolve
+       do k = 1, nVertLevels
+          coeff = 1._RKIND/(1._RKIND + R_v/R_d*scalars(index_qv,k,i))
+          rthdynten(k,i) = coeff*tend_rtheta_adv(k,i)/mass(k,i)
+       enddo
+       enddo
+    end if
+
+
+    !add coupled tendencies due to PBL processes:
+    if (config_pbl_scheme .ne. 'off') then
+       if (rk_step == 1 .and. dynamics_substep == 1) then
+          call tend_toEdges(block,mesh,rublten,rvblten,rublten_Edge)
+
+          !MGD for PV budget? should a similar line be in the cumulus section below?
+          tend_u_phys(1:nVertLevels,1:nEdges) = rublten_Edge(1:nVertLevels,1:nEdges)
+       end if
+
+       do i = 1, nEdgesSolve
+       do k  = 1, nVertLevels
+          tend_u(k,i)=tend_u(k,i)+rublten_Edge(k,i)*mass_edge(k,i)
+       enddo
+       enddo
+
+       do i = 1, nCellsSolve
+       do k = 1, nVertLevels
+          tend_th(k,i) = tend_th(k,i) + rthblten(k,i)*mass(k,i)
+          tend_scalars(index_qv,k,i) = tend_scalars(index_qv,k,i) + rqvblten(k,i)*mass(k,i)
+          tend_scalars(index_qc,k,i) = tend_scalars(index_qc,k,i) + rqcblten(k,i)*mass(k,i)
+          tend_scalars(index_qi,k,i) = tend_scalars(index_qi,k,i) + rqiblten(k,i)*mass(k,i)
+       enddo
+       enddo
+
+       pbl_select: select case (trim(config_pbl_scheme))
+
+          case('bl_mynn','bl_mynn_wrf390')
+
+             do i = 1, nCellsSolve
+             do k = 1, nVertLevels
+                tend_scalars(index_ni,k,i) = tend_scalars(index_ni,k,i) + rniblten(k,i)*mass(k,i)
+             enddo
+             enddo
+   
+          case default         
+
+        end select pbl_select
+    endif
+
+    !add coupled tendencies due to convection:
+    if (config_convection_scheme .ne. 'off') then
+
+       do i = 1, nCellsSolve
+       do k = 1, nVertLevels
+          tend_th(k,i) = tend_th(k,i) + rthcuten(k,i)*mass(k,i)
+          tend_scalars(index_qv,k,i) = tend_scalars(index_qv,k,i) + rqvcuten(k,i)*mass(k,i)
+          tend_scalars(index_qc,k,i) = tend_scalars(index_qc,k,i) + rqccuten(k,i)*mass(k,i)
+          tend_scalars(index_qi,k,i) = tend_scalars(index_qi,k,i) + rqicuten(k,i)*mass(k,i)
+       enddo
+       enddo
+
+        convection_select: select case(config_convection_scheme)
+
+           case('cu_grell_freitas')
+
+              do i = 1, nCellsSolve
+              do k = 1, nVertLevels
+                 coeff = 1._RKIND/(1._RKIND + R_v/R_d*scalars(index_qv,k,i))
+                 rthdynten(k,i) = coeff*(tend_theta(k,i)-tend_theta_euler(k,i) &
+                                - mass(k,i)*tend_diabatic(k,i))/mass(k,i)
+              enddo
+              enddo
+
+
+           case('cu_kain_fritsch')
+              do i = 1, nCellsSolve
+              do k = 1, nVertLevels
+                 tend_scalars(index_qr,k,i) = tend_scalars(index_qr,k,i) + rqrcuten(k,i)*mass(k,i)
+                 tend_scalars(index_qs,k,i) = tend_scalars(index_qs,k,i) + rqscuten(k,i)*mass(k,i)
+              enddo
+              enddo
+    
+           case('cu_tiedtke')
+              if (rk_step == 1 .and. dynamics_substep == 1) then
+                 call tend_toEdges(block,mesh,rucuten,rvcuten,rucuten_Edge)
+                 
+                 tend_u_phys(1:nVertLevels,1:nEdges) = tend_u_phys(1:nVertLevels,1:nEdges) &
+                                                     + rucuten_Edge(1:nVertLevels,1:nEdges)
+              end if
+              do i = 1, nEdgesSolve
+              do k  = 1, nVertLevels
+                 tend_u(k,i)=tend_u(k,i)+rucuten_Edge(k,i)*mass_edge(k,i)
+              enddo
+              enddo
+
+            case default
+        end select convection_select
+    endif
+
+    !add coupled tendencies due to longwave radiation:
+    if (config_radt_lw_scheme .ne. 'off') then
+       do i = 1, nCellsSolve
+       do k = 1, nVertLevels
+          tend_th(k,i) = tend_th(k,i) + rthratenlw(k,i)*mass(k,i)
+       enddo
+       enddo
+    endif
+    
+    !add coupled tendencies due to shortwave radiation:
+    if (config_radt_sw_scheme .ne. 'off') then
+       do i = 1, nCellsSolve
+       do k = 1, nVertLevels
+          tend_th(k,i) = tend_th(k,i) + rthratensw(k,i)*mass(k,i)
+       enddo
+       enddo
+    endif
+
+    !if non-hydrostatic core, convert the tendency for the potential temperature to a
+    !tendency for the modified potential temperature:
+    do i = 1, nCellsSolve
+    do k = 1, nVertLevels
+       theta(k,i) = theta_m(k,i) / (1. + R_v/R_d * scalars(index_qv,k,i))
+       tend_th(k,i) = (1. + R_v/R_d * scalars(index_qv,k,i)) * tend_th(k,i) &
+                       + R_v/R_d * theta(k,i) * tend_scalars(index_qv,k,i)
+       tend_theta(k,i) = tend_theta(k,i) + tend_th(k,i)
+    enddo
+    enddo
+
+ end subroutine physics_addtend_work
+
+ !==================================================================================================
  subroutine physics_get_tend_work(block, mesh, nCells, nEdges, nCellsSolve, nEdgesSolve, &
                                  rk_step, dynamics_substep, &
                                  config_pbl_scheme, config_convection_scheme, config_radt_lw_scheme, config_radt_sw_scheme, &
@@ -351,7 +556,7 @@
 
        pbl_select: select case (trim(config_pbl_scheme))
 
-          case("bl_mynn")
+          case('bl_mynn','bl_mynn_wrf390')
 
              do i = 1, nCellsSolve
              do k = 1, nVertLevels

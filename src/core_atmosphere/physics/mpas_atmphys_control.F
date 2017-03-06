@@ -72,6 +72,8 @@
 ! * modified logic in subroutine physics_tables_init so that the Thompson microphysics tables are read in each
 !   MPI task.
 !   Laura D. Fowler (laura@ucar.edu) / 2016-12-30.
+! * added the options sf_mynn_wrf390 and bl_mynn_wrf390 for the MYNN parameterization from WRF version 3.9.0.
+!   Laura D. Fowler (laura@ucar.edu) / 2017-02-08.
 
 
  contains
@@ -187,9 +189,10 @@
  endif
 
 !pbl scheme:
- if(.not. (config_pbl_scheme .eq. 'off'     .or. &
-           config_pbl_scheme .eq. 'bl_mynn' .or. &
-           config_pbl_scheme .eq. 'bl_ysu')) then
+ if(.not. (config_pbl_scheme .eq. 'off'            .or. &
+           config_pbl_scheme .eq. 'bl_mynn'        .or. &
+           config_pbl_scheme .eq. 'bl_mynn_wrf390' .or. &
+           config_pbl_scheme .eq. 'bl_ysu'         )) then
 
     write(mpas_err_message,'(A,A10)') 'illegal value for pbl_scheme: ', &
           trim(config_pbl_scheme)
@@ -255,8 +258,9 @@
  endif
 
 !surface-layer scheme:
- if(.not. (config_sfclayer_scheme .eq. 'off'     .or. &
-           config_sfclayer_scheme .eq. 'sf_mynn' .or. &
+ if(.not. (config_sfclayer_scheme .eq. 'off'            .or. &
+           config_sfclayer_scheme .eq. 'sf_mynn'        .or. &
+           config_sfclayer_scheme .eq. 'sf_mynn_wrf390' .or. &
            config_sfclayer_scheme .eq. 'sf_monin_obukhov')) then
  
     write(mpas_err_message,'(A,A10)') 'illegal value for surface layer scheme: ', &
@@ -265,6 +269,8 @@
  else
     if(config_pbl_scheme == 'bl_mynn') then
        config_sfclayer_scheme = 'sf_mynn'
+    elseif(config_pbl_scheme == 'bl_mynn_wrf390') then
+       config_sfclayer_scheme = 'sf_mynn_wrf390'
     elseif(config_pbl_scheme == 'bl_ysu') then
        config_sfclayer_scheme = 'sf_monin_obukhov'
     endif

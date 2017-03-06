@@ -152,7 +152,8 @@
  bl_mynn_in = .false.
  bl_ysu_in  = .false.
 
- if(config_pbl_scheme=='bl_mynn') then
+ if(config_pbl_scheme == 'bl_mynn' .or. &
+    config_pbl_scheme == 'bl_mynn_wrf390') then
     bl_mynn_in = .true.
  elseif(config_pbl_scheme == 'bl_ysu') then
     bl_ysu_in = .true.
