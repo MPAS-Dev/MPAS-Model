@@ -1,6 +1,6 @@
 !==================================================================================================
-! copied for implementation in MPAS from WRF version 3.6.1
-! Laura D. Fowler (laura@ucar.edu / 2015-01-06).
+! copied for implementation in MPAS from WRF version 3.9.0.
+! Laura D. Fowler (laura@ucar.edu) / 2017-02-11.
 
 !==================================================================================================
 #define WRF_PORT
