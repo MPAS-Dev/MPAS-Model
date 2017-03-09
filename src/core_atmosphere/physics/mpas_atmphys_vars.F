@@ -373,10 +373,10 @@
 
  logical,parameter:: bl_mynn_tkeadvect = .false.!default off; = .true. do MYNN tke advection.
  integer,parameter:: bl_mynn_tkebudget = 0      !0, default off; = 1 adds MYNN tke budget terms to output.
- integer,parameter:: bl_mynn_cloudpdf  = 0      !switch to different cloud PDFs to represent subgrid clouds.
-                                                != 0: Sommeria and Deardorf (1977),original.
-                                                != 1: Kuwano et al (2010).
-                                                != 2: Chaboureau and Bechtold (2002).
+!integer,parameter:: bl_mynn_cloudpdf  = 0      !switch to different cloud PDFs to represent subgrid clouds.
+!                                               != 0: Sommeria and Deardorf (1977),original.
+!                                               != 1: Kuwano et al (2010).
+!                                               != 2: Chaboureau and Bechtold (2002).
  integer,parameter:: bl_mynn_cloudmix  = 1      !option to activate mixing of qc and qi in MYNN.
                                                 != 0: no mixing of qc and qi.
                                                 != 1: mixing of qc and qi.
@@ -389,10 +389,10 @@
                                                 != 1: mix total water.
 
 !edmf options:
- integer,parameter:: bl_mynn_edmf      = 0      !option to activate mass-flux scheme (=0:regular MYNN).
-                                                != 0: no edmf,regular MYNN.
-                                                != 1: for StEM.
-                                                != 2: for TEMF.
+!integer,parameter:: bl_mynn_edmf      = 0      !option to activate mass-flux scheme (=0:regular MYNN).
+!                                               != 0: no edmf,regular MYNN.
+!                                               != 1: for StEM.
+!                                               != 2: for TEMF.
  integer,parameter:: bl_mynn_edmf_mom  = 0      !option to activate momentum transport (bl_mynn_edmf >0).
                                                 != 0: option is turned off.
                                                 != 1: option is turned on.

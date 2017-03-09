@@ -1921,6 +1921,14 @@
                      description="closure option for shallow convection in Grell-Freitas convection scheme"
                      possible_values="8"/>
 
+                <nml_option_name="config_mynn_cloudpdf" type="integer" default_value="0" in_defaults="false"
+                     description="switch to different cloud PDFs to represent subgrid clouds"
+                     possible_values="`0',`1',`2'"/>
+
+                <nlm_option_name="config_mynn_edmf" type="integer" default_value="0" in_defaults="false"
+                     description="option to activate the PBL eddy diffusivity mass flux scheme"
+                     possible_values="`0',`1',`2'"/>
+
                 <nml_option name="config_bucket_radt" type="real" default_value="1.0e9" in_defaults="false"
                      units="-"
                      description="threshold above which accumulated radiation diagnostics are reset"

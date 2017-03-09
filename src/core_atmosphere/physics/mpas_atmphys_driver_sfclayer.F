@@ -847,6 +847,7 @@
 !local pointers:
  logical,pointer:: config_do_restart,config_frac_seaice
  character(len=StrKIND),pointer:: sfclayer_scheme
+ integer,pointer:: bl_mynn_cloudpdf
  real(kind=RKIND),dimension(:),pointer:: areaCell
 
 !local variables:
@@ -860,6 +861,7 @@
  call mpas_pool_get_config(configs,'config_do_restart'     ,config_do_restart )
  call mpas_pool_get_config(configs,'config_frac_seaice'    ,config_frac_seaice)
  call mpas_pool_get_config(configs,'config_sfclayer_scheme',sfclayer_scheme   )
+ call mpas_pool_get_config(configs,'config_mynn_cloudpdf'  ,bl_mynn_cloudpdf  )
 
  call mpas_pool_get_array(mesh,'areaCell',areaCell)
 

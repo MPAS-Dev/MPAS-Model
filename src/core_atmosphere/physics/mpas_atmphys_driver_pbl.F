@@ -649,6 +649,7 @@
 !local pointers:
  logical,pointer:: config_do_restart
  character(len=StrKIND),pointer:: pbl_scheme
+ integer,pointer:: bl_mynn_cloudpdf,bl_mynn_edmf
 
 !local variables:
  integer:: initflag
@@ -658,8 +659,10 @@
 !call mpas_log_write('')
 !call mpas_log_write('--- enter subroutine driver_pbl:')
 
- call mpas_pool_get_config(configs,'config_do_restart',config_do_restart)
- call mpas_pool_get_config(configs,'config_pbl_scheme',pbl_scheme       )
+ call mpas_pool_get_config(configs,'config_do_restart'   ,config_do_restart)
+ call mpas_pool_get_config(configs,'config_pbl_scheme'   ,pbl_scheme       )
+ call mpas_pool_get_config(configs,'config_mynn_cloudpdf',bl_mynn_cloudpdf )
+ call mpas_pool_get_config(configs,'config_mynn_edmf'    ,bl_mynn_edmf     )
 
 !copy MPAS arrays to local arrays:
  call pbl_from_MPAS(configs,mesh,sfc_input,diag_physics,tend_physics,its,ite)
