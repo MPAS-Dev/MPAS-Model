@@ -7,6 +7,9 @@
 ! * added the definition of FATAL_ERROR to use physics_error_fatal. replaced module_model_constants with
 !   mpas_atmphys_constants.
 !   Laura D. Fowler (laura@ucar.edu) / 2017-01-27.
+! * in subroutine sflx_glacial, replaced the "in" intent with "inout" intent for the variables embrd and albedo.
+!   Laura D. Fowler (laura@ucar.edu) / 2017-03-20.
+
 
 !=================================================================================================================
 MODULE module_sf_noahlsm_glacial_only
@@ -189,7 +192,7 @@ CONTAINS
     REAL, INTENT(IN)   :: DT,DQSDT2,LWDN,PRCP,     &
          &                Q2,Q2SAT,SFCPRS,SFCTMP, SNOALB,          &
          &                SOLNET,TBOT,TH2,ZLVL,FFROZP
-    REAL, INTENT(OUT)  :: EMBRD, ALBEDO
+    REAL, INTENT(INOUT):: EMBRD, ALBEDO
     REAL, INTENT(INOUT):: CH,SNEQV,SNCOVR,SNOWH,T1,Z0BRD,EMISSI,ALB
     REAL, INTENT(INOUT):: SNOTIME1
     REAL, INTENT(INOUT):: RIBB
