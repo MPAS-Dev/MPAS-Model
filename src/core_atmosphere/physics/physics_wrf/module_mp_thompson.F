@@ -1456,6 +1456,11 @@
       CHARACTER*256:: mp_debug
       INTEGER:: nu_c
 
+!     modifications proposed by Ted Mansell for MPAS.
+!     Laura D. Fowler (laura@ucar.edu) / 2017-03-27.
+      real, parameter:: mvd_r_breakup = 1.e-3
+!...  end modifications.
+
 !+---+
 
 
@@ -2220,7 +2225,15 @@
             prr_rcg(k) = MIN(DBLE(rg(k)*odts), prr_rcg(k))
             prg_rcg(k) = -prr_rcg(k)
 !..Put in explicit drop break-up due to collisions.
-            pnr_rcg(k) = -5.*tnr_gacr(idx_g1,idx_g,idx_r1,idx_r)         ! RAIN2M
+!...  modifications to drop break-up due to collision of rain collecting graupel, ad-hoc
+!     change proposed by Ted Mansell for MPAS: basically reduces rain breakup in graupel
+!     collisions when the mean volume diameter of rain is less than 1mm.
+!     Laura D. Fowler (laura@ucar.edu) / 2017-03-27.
+            if ( mvd_r(k) > mvd_r_breakup ) then
+              pnr_rcg(k) = -5.0*tnr_gacr(idx_g1,idx_g,idx_r1,idx_r)       ! RAIN2M
+            else
+              pnr_rcg(k) = -3.0*tnr_gacr(idx_g1,idx_g,idx_r1,idx_r)       ! RAIN2M
+            endif
            endif
           endif
          endif
@@ -4277,7 +4290,7 @@
 
       end subroutine table_ccnAct
 #endif
-!^L
+!
 !+---+-----------------------------------------------------------------+
 !..Retrieve fraction of CCN that gets activated given the model temp,
 !.. vertical velocity, and available CCN concentration.  The lookup
