@@ -11,7 +11,10 @@
 !     Laura D. Fowler (laura@ucar.edu) / 2016-10-29.
 !   * in subroutine mp_gt_driver, moved the initialization of variables Nt_c and mu_c
 !     before initialization of local mixing ratios and number concentrations.
-!     Laura D. Fowler (lara@ucar.edu) / 2916-12-30.
+!     Laura D. Fowler (laura@ucar.edu) / 2016-12-30.
+!   * in subroutine freezeH2O, modified the calculation of the variable prob, following
+!     Greg Thompson for the release of WRF version 3.9.0.
+!     Laura D. Fowler (laura@ucar.edu) / 2017-03-27.
 
 
 !+---+-----------------------------------------------------------------+
@@ -3854,7 +3857,9 @@
                do n2 = nbr, 1, -1
                   N_r(n2) = N0_r*Dr(n2)**mu_r*DEXP(-lamr*Dr(n2))*dtr(n2)
                   vol = massr(n2)*orho_w
-                  prob = 1.0D0 - DEXP(-120.0D0*vol*5.2D-4 * Texp)
+!..Modifications made by Greg Thompson for release of WRF version 3.9.0.
+!                 prob = 1.0D0 - DEXP(-120.0D0*vol*5.2D-4 * Texp)
+                  prob = MAX(0.0D0, 1.0D0 - DEXP(-120.0D0*vol*5.2D-4 * Texp))
                   if (massr(n2) .lt. xm0g) then
                      sumn1 = sumn1 + prob*N_r(n2)
                      sum1 = sum1 + prob*N_r(n2)*massr(n2)
@@ -3880,7 +3885,9 @@
                sumn2 = 0.0d0
                do n = nbc, 1, -1
                   vol = massc(n)*orho_w
-                  prob = 1.0D0 - DEXP(-120.0D0*vol*5.2D-4 * Texp)
+!..Modifications made by Greg Thompson for release of WRF version 3.9.0.
+!                 prob = 1.0D0 - DEXP(-120.0D0*vol*5.2D-4 * Texp)
+                  prob = MAX(0.0D0, 1.0D0 - DEXP(-120.0D0*vol*5.2D-4 * Texp))
                   N_c(n) = N0_c*Dc(n)**nu_c*EXP(-lamc*Dc(n))*dtc(n)
                   sumn2 = MIN(t_Nc(j), sumn2 + prob*N_c(n))
                   sum1 = sum1 + prob*N_c(n)*massc(n)
