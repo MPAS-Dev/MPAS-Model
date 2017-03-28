@@ -6,6 +6,7 @@ dummy:
 	echo "****** compiling physics_wrf ******"
 
 OBJS = \
+<<<<<<< HEAD
 	libmassv.o                       \
 	module_bl_gwdo.o                 \
 	module_bl_mynn.o                 \
@@ -15,6 +16,9 @@ OBJS = \
 	module_cam_shr_kind_mod.o        \
 	module_cam_support.o             \
 	module_cu_gf.mpas.o              \
+	module_cu_gf.mpas.wrf-3.9.0.o    \
+	module_cu_gf_deep.wrf-3.9.0.o    \
+	module_cu_gf_sh.wrf-3.9.0.o      \
 	module_cu_tiedtke.o              \
 	module_cu_ntiedtke.o             \
 	module_cu_kfeta.o                \
@@ -55,6 +59,13 @@ module_bl_mynn.wrf-3.9.0.o: \
 
 module_cam_support.o: \
 	module_cam_shr_kind_mod.o
+
+module_cu_gf_sh.wrf-3.9.0.o: \
+	module_cu_gf_deep.wrf-3.9.0.o
+
+module_cu_gf.mpas.wrf-3.9.0.o:  \
+	module_cu_gf_deep.wrf-3.9.0.o \
+	module_cu_gf_sh.wrf-3.9.0.o
 
 module_mp_thompson.o: \
 	module_mp_radar.o
