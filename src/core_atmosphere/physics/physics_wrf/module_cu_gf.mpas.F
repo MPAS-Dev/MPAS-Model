@@ -3,6 +3,10 @@
 
 MODULE module_cu_gf
 
+ implicit none
+ private
+ public:: cu_grell_freitas
+
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !
 !     This convective parameterization is build to attempt     !
@@ -49,6 +53,11 @@ CONTAINS
 !     -> corrected the calculation of the moisture convergence. the conversion of w to omeg now uses the air
 !        density rho interpolated to w levels.
 !     Laura D. Fowler (laura@ucar.edu) / 2016-04-20.
+!   * made the module "private" and subroutine cu_grell_freitas "public". this may be needed since we plan to
+!     implement GF from WRF version 3.9.0 and the two modules share the same names for some subroutines.
+!     Laura D. Fowler (laura@ucar.edu) / 2017-03-28.
+!   * removed the variable pret from the argument list of subroutine cup_gf_sh.
+!     Laura D. Fowler (laura@ucar.edu) / 2017-03-28.
 
 
  subroutine cu_grell_freitas( &
@@ -404,7 +413,7 @@ CONTAINS
     if(ishallow_g3 == 1 )then
        call cup_gf_sh( &
                xmbs,zo,outqcs,j,aaeq,t2d,q2d,ter11,tshall,qshall,p2d,      &
-               pret,p2d,outts,outqs,dt,itimestep,psur,us,vs,tcrit,ztexec,  &
+               p2d,outts,outqs,dt,itimestep,psur,us,vs,tcrit,ztexec,       &
                zqexec,ccn,ccnclean,rhoi,dx_loc,area_loc,dhdt,kpbli,kbcons, &
                ktops,cupclws,k22s,xlandi,gswi,tscl_kf,xlv,r_v,cp,g,        &
                ichoice_shallow,0,0,ierrs,ierrcs,autoconv,itf,jtf,ktf,      & 
@@ -3489,6 +3498,7 @@ CONTAINS
         ,intent (in  )                   ::                                   &
         dt
      real :: thresh,qmem,qmemf,qmem2,qtest,qmem1
+     integer:: i,k
 !
 ! first do check on vertical heating rate
 !
@@ -4148,7 +4158,7 @@ CONTAINS
       end function
 #if defined(mpas)
    SUBROUTINE CUP_gf_sh(xmb_out,zo,OUTQC,J,AAEQ,T,Q,Z1,                    &
-              TN,QO,PO,PRE,P,OUTT,OUTQ,DTIME,ktau,PSUR,US,VS,    &
+              TN,QO,PO,P,OUTT,OUTQ,DTIME,ktau,PSUR,US,VS,    &
               TCRIT,                                        &
               ztexec,zqexec,ccn,ccnclean,rho,dxCell,areaCell,dhdt, &
               kpbl,kbcon,ktop,cupclws,k22,         &   !-lxz
@@ -4159,7 +4169,7 @@ CONTAINS
                                                 )
 #else
    SUBROUTINE CUP_gf_sh(xmb_out,zo,OUTQC,J,AAEQ,T,Q,Z1,                    &
-              TN,QO,PO,PRE,P,OUTT,OUTQ,DTIME,ktau,PSUR,US,VS,    &
+              TN,QO,PO,P,OUTT,OUTQ,DTIME,ktau,PSUR,US,VS,    &
               TCRIT,                                        &
               ztexec,zqexec,ccn,ccnclean,rho,dx,dhdt,                               &
               kpbl,kbcon,ktop,cupclws,k22,         &   !-lxz
@@ -4187,13 +4197,12 @@ CONTAINS
   ! outtem = output temp tendency (per s)
   ! outq   = output q tendency (per s)
   ! outqc  = output qc tendency (per s)
-  ! pre    = output precip
      real,    dimension (its:ite,kts:kte)                              &
         ,intent (inout  )                   ::                           &
         cupclws,OUTT,OUTQ,OUTQC
      real,    dimension (its:ite)                                      &
         ,intent (out  )                   ::                           &
-        pre,xmb_out
+        xmb_out
      integer,    dimension (its:ite)                                   &
         ,intent (out  )                   ::                           &
         kbcon,ktop,k22
