@@ -238,7 +238,7 @@ CONTAINS
 ! ----------------------------------------------------------------------
     SNDENS = SNEQV / SNOWH
     IF(SNDENS > 1.0) THEN
-       FATAL_ERROR ( 'Physical snow depth is less than snow water equiv.' )
+       FATAL_ERROR( 'Physical snow depth is less than snow water equiv.' )
     ENDIF
 
     CALL CSNOW (SNCOND,SNDENS)

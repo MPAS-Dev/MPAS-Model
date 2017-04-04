@@ -2439,13 +2439,13 @@ CONTAINS
 ! ----------------------------------------------------------------------
 !
                IF (SOILTYP .gt. SLCATS) THEN
-                        FATAL_ERROR ( 'Warning: too many input soil types' )
+                        FATAL_ERROR( 'Warning: too many input soil types' )
                END IF
                IF (VEGTYP .gt. LUCATS) THEN
-                     FATAL_ERROR ( 'Warning: too many input landuse types' )
+                     FATAL_ERROR( 'Warning: too many input landuse types' )
                END IF
                IF (SLOPETYP .gt. SLPCATS) THEN
-                     FATAL_ERROR ( 'Warning: too many input slope types' )
+                     FATAL_ERROR( 'Warning: too many input slope types' )
                END IF
 
 ! ----------------------------------------------------------------------
