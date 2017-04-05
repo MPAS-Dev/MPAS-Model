@@ -79,6 +79,8 @@
 !   Laura D. Fowler (laura@ucar.edu) / 2017-03-09.
 ! * added the convection_permitting_wrf390 suite which is as the original convection_permitting suite, except
 !   that it contains the surface layer and PBL schemes from WRF version 3.9.0.
+! * added the option cu_grell_freitas_wrf390 for the Grell-Freitas parameterization of convection from
+!   WRF version 3.9.0.
 !   Laura D. Fowler (laura@ucar.edu) / 2017-03-09.
 
 
@@ -203,10 +205,11 @@
  endif
 
 !convection scheme:
- if(.not. (config_convection_scheme .eq. 'off'              .or. &
-           config_convection_scheme .eq. 'cu_grell_freitas' .or. &
-           config_convection_scheme .eq. 'cu_kain_fritsch'  .or. &
-           config_convection_scheme .eq. 'cu_tiedtke'       .or. &
+ if(.not. (config_convection_scheme .eq. 'off'                     .or. &
+           config_convection_scheme .eq. 'cu_grell_freitas'        .or. &
+           config_convection_scheme .eq. 'cu_grell_freitas_wrf390' .or. &
+           config_convection_scheme .eq. 'cu_kain_fritsch'         .or. &
+           config_convection_scheme .eq. 'cu_tiedtke'              .or. &
            config_convection_scheme .eq. 'cu_ntiedtke')) then
 
     write(mpas_err_message,'(A,A10)') 'illegal value for config_convection_scheme: ', &

@@ -17,6 +17,7 @@
 
 !wrf physics:
  use module_cu_gf
+ use module_cu_gf_wrf390
  use module_cu_kfeta
  use module_cu_tiedtke
  use module_cu_ntiedtke
@@ -140,7 +141,7 @@
 
  convection_select: select case(convection_scheme)
 
-    case ("cu_grell_freitas")
+    case ("cu_grell_freitas","cu_grell_freitas_wrf390")
        if(.not.allocated(ht_p)           ) allocate(ht_p(ims:ime,jms:jme)               )
        if(.not.allocated(cubot_p)        ) allocate(cubot_p(ims:ime,jms:jme)            )
        if(.not.allocated(cutop_p)        ) allocate(cutop_p(ims:ime,jms:jme)            )
@@ -285,7 +286,7 @@
 
  convection_select: select case(convection_scheme)
 
-    case ("cu_grell_freitas")
+    case ("cu_grell_freitas","cu_grell_freitas_wrf390")
        if(allocated(ht_p)           ) deallocate(ht_p           )
        if(allocated(cubot_p)        ) deallocate(cubot_p        )
        if(allocated(cutop_p)        ) deallocate(cutop_p        )
@@ -424,6 +425,9 @@
 
 !local pointers:
  logical,pointer:: config_do_restart
+ logical,pointer:: gfconv_deepc,gfconv_midlc,gfconv_shalc
+ integer,pointer:: gfconv_closure_deepc,gfconv_closure_midlc,gfconv_closure_shalc
+
  integer,pointer:: gfconv_closure_deep,gfconv_closure_shallow
  character(len=StrKIND),pointer:: convection_scheme
  real(kind=RKIND),pointer:: len_disp
@@ -501,6 +505,50 @@
              its = its , ite = ite , jts = jts , jte = jte , kts = kts , kte = kte        &
                             )
        call mpas_timer_stop('Grell-Freitas')
+
+    case ("cu_grell_freitas_wrf390")
+       write(0,*)
+       write(0,*) '--- enter subroutine cu_grell_freitas_wrf390:'
+       call mpas_pool_get_config(configs,'config_gfconv_deepc',gfconv_deepc)
+       call mpas_pool_get_config(configs,'config_gfconv_midlc',gfconv_midlc)
+       call mpas_pool_get_config(configs,'config_gfconv_shalc',gfconv_shalc)
+       call mpas_pool_get_config(configs,'config_gfconv_closure_deepc',gfconv_closure_deepc)
+       call mpas_pool_get_config(configs,'config_gfconv_closure_midlc',gfconv_closure_midlc)
+       call mpas_pool_get_config(configs,'config_gfconv_closure_shalc',gfconv_closure_shalc)
+       write(0,*) 'gfconv_deepc = ',gfconv_deepc
+       write(0,*) 'gfconv_midlc = ',gfconv_midlc
+       write(0,*) 'gfconv_shalc = ',gfconv_shalc
+       write(0,*) 'gfconv_closure_deepc = ',gfconv_closure_deepc
+       write(0,*) 'gfconv_closure_midlc = ',gfconv_closure_midlc
+       write(0,*) 'gfconv_closure_shalc = ',gfconv_closure_shalc
+
+       call cu_grell_freitas_wrf390( &
+               dt        = dt_dyn               , dx       = dx_p                    , &
+               area      = area_p               , u        = u_p                     , &
+               v         = v_p                  , w        = w_p                     , &
+               t         = t_p                  , q        = qv_p                    , &
+               rho       = rho_p                , p        = pres_hyd_p              , &
+               pi        = pi_p                 , p8w      = pres2_hyd_p             , &
+               dz8w      = dz_p                 , ht       = ht_p                    , &
+               xland     = xland_p              , hfx      = hfx_p                   , &
+               qfx       = qfx_p                , kpbl     = kpbl_p                  , &
+               rthraten  = rthraten_p           , rthften  = rthdynten_p             , &
+               rqvften   = rqvdynten_p          , rqvblten = rqvblten_p              , &
+               rthblten  = rthblten_p           , do_deepc = gfconv_deepc            , &
+               do_midlc  = gfconv_midlc         , do_shalc = gfconv_shalc            , &
+               ichoice   = gfconv_closure_deepc , ichoice_m = gfconv_closure_midlc   , &
+               ichoice_s = gfconv_closure_shalc , xmb_total = xmb_total_p            , &
+               xmb_shalc = xmb_shallow_p        , rthcuten  = rthcuten_p             , &
+               rqvcuten  = rqvcuten_p           , rqccuten  = rqicuten_p             , &
+               rqicuten  = rqicuten_p           , gdc       = qccu_p                 , &
+               gdc2      = qicu_p               , pratec    = pratec_p               , &
+               raincv    = raincv_p             ,                                      &
+               ids = ids , ide = ide , jds = jds , jde = jde , kds = kds , kde = kde , &
+               ims = ims , ime = ime , jms = jms , jme = jme , kms = kds , kme = kme , &
+               its = its , ite = ite , jts = jts , jte = jte , kts = kts , kte = kte   &
+                                   )
+       write(0,*) '--- end subroutine cu_grell_freitas_wrf390.'
+       write(0,*)
 
     case ("cu_kain_fritsch")
        if(itimestep == 1) then
@@ -668,7 +716,7 @@
 
  convection_select: select case(convection_scheme)
 
-    case ("cu_grell_freitas")
+    case ("cu_grell_freitas","cu_grell_freitas_wrf390")
        call mpas_pool_get_config(configs,'config_len_disp',len_disp)
 
        call mpas_pool_get_array(mesh,'areaCell'   ,areaCell   )
@@ -899,7 +947,7 @@
 
  convection_select: select case(convection_scheme)
 
-    case ("cu_grell_freitas")
+    case ("cu_grell_freitas","cu_grell_freitas_wrf390")
        call mpas_pool_get_array(diag_physics,'cubot'        ,cubot        )
        call mpas_pool_get_array(diag_physics,'cutop'        ,cutop        )
        call mpas_pool_get_array(diag_physics,'xmb_total'    ,xmb_total    )
