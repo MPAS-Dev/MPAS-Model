@@ -2,8 +2,9 @@
 ! copied for implementation in MPAS from WRF version 3.9.0:
 
 ! modifications made to sourcecode:
-! * in calls to the subroutines get_cloud_bc and get_zu_zd_pdf_fim, replaced the 2nd argument
-!   with a dummy argument. 
+! * in calls to the subroutines get_cloud_bc and get_zu_zd_pdf_fim, replaced some arguments with
+!   dummy arguments. this change allows to run the calls to the two subroutines in a much faster
+!   way when DEBUG=true using the ifort compiler on yellowstone.ucar.edu.
 !   Laura D. Fowler (laura@ucar.edu) / 2017-03-09.
 
 !=================================================================================================================
@@ -995,8 +996,7 @@ contains
         do k = kts,ktf
            zdo(i,k) = dummy2(k)
         enddo
-!       call get_zu_zd_pdf_fim(0,po_cup(i,:),rand_vmas(i),0.,ipr,xland1(i),zuh2,"DOWN",ierr(i),kdet(i), &
-!                              jmin(i),zdo(i,:),kts,kte,ktf,beta,kpbl(i),csum(i),pmin_lev(i))
+!       call get_zu_zd_pdf_fim(0,po_cup(i,:),rand_vmas(i),0.,ipr,xland1(i),zuh2,"DOWN",ierr(i),kdet(i),jmin(i),zdo(i,:),kts,kte,ktf,beta,kpbl(i),csum(i),pmin_lev(i))
         if(zdo(i,jmin(i)) .lt.1.e-8)then
           zdo(i,jmin(i))=0.
           jmin(i)=jmin(i)-1
@@ -2744,7 +2744,6 @@ contains
      real                                 ::                           &
         x_add,pbcdif,plus,hetest,dz
      real, dimension (its:ite,kts:kte) ::hcot
-
 ! modifications to calls to subroutine get_zu_zd_pdf_fim:
      real,dimension(kts:kte):: dummy1
 ! end modifications.
@@ -3700,7 +3699,6 @@ contains
      real zuh2(40),zh2(40)
      integer :: kklev,i,kk,kbegin,k,kfinalzu
      integer, dimension (its:ite) :: start_level 
-
 ! modifications to calls to subroutine get_zu_zd_pdf_fim:
      real,dimension(kts:kte):: dummy1,dummy2
 ! end modifications.
@@ -3776,7 +3774,7 @@ contains
               zuo(i,k) = dummy2(k)
            enddo
 !          call get_zu_zd_pdf_fim(kklev,p_cup(i,:),rand_vmas(i),zubeg,ipr,xland(i),zuh2,"UP",ierr(i),k22(i), &
-!                                 kfinalzu,zuo(i,:),kts,kte,ktf,beta_u,kstabi(i),csum(i),pmin_lev(i))
+!           kfinalzu,zuo(i,kts:kte),kts,kte,ktf,beta_u,kstabi(i),csum(i),pmin_lev(i))
         endif
       endif ! end deep
       if ( name == 'mid' ) then
@@ -3790,13 +3788,12 @@ contains
               dummy1(k) = p_cup(i,k)
               dummy2(k) = zuo(i,k)
            enddo
-          call get_zu_zd_pdf_fim(kklev,dummy1,rand_vmas(i),zubeg,ipr,xland(i),zuh2,"MID",ierr(i),k22(i), &
+           call get_zu_zd_pdf_fim(kklev,dummy1,rand_vmas(i),zubeg,ipr,xland(i),zuh2,"MID",ierr(i),k22(i), &
                                  kfinalzu,dummy2,kts,kte,ktf,beta_u,kbcon(i),csum(i),pmin_lev(i))
-          do k = kts,ktf
-             zuo(i,k) = dummy2(k)
-          enddo
-!         call get_zu_zd_pdf_fim(kklev,p_cup(i,:),rand_vmas(i),zubeg,ipr,xland(i),zuh2,"MID",ierr(i),k22(i), &
-!                                kfinalzu,zuo(i,:),kts,kte,ktf,beta_u,kbcon(i),csum(i),pmin_lev(i))
+           do k = kts,ktf
+              zuo(i,k) = dummy2(k)
+           enddo
+!         call get_zu_zd_pdf_fim(kklev,p_cup(i,:),rand_vmas(i),zubeg,ipr,xland(i),zuh2,"MID",ierr(i),k22(i),kfinalzu,zuo(i,kts:kte),kts,kte,ktf,beta_u,kbcon(i),csum(i),pmin_lev(i))
 !           kbegin=0
 !           dzh2=(z_cup(i,ktop(i))-z_cup(i,k22(i)))/40.
 !           zh2(1)=z_cup(i,k22(i))
@@ -3824,6 +3821,7 @@ contains
        else
            kfinalzu=ktop(i)
            ktopdby(i)=ktop(i)
+           kklev=ktop(i)
            do k = kts,ktf
               dummy1(k) = p_cup(i,k)
               dummy2(k) = zuo(i,k)
@@ -3834,7 +3832,7 @@ contains
               zuo(i,k) = dummy2(k)
            enddo
 !          call get_zu_zd_pdf_fim(kklev,p_cup(i,:),rand_vmas(i),zubeg,ipr,xland(i),zuh2,"SH2",ierr(i),k22(i), &
-!                                 kfinalzu,zuo(i,kts:kte),kts,kte,ktf,beta_u,kpbl(i),csum(i),pmin_lev(i))
+!            kfinalzu,zuo(i,kts:kte),kts,kte,ktf,beta_u,kpbl(i),csum(i),pmin_lev(i))
 
          endif
          endif ! shal

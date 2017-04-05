@@ -122,18 +122,10 @@ module module_cu_gf_wrf390
  ktf = min(kte,kde-1)
  jtf = min(jte,jde-1)
 
- write(0,*)
- write(0,*) '--- enter subroutine cu_grell_freitas_wrf390:' 
- write(0,*) '--- its = ',its,'  itf =',itf
- write(0,*) '--- jts = ',jts,'  jtf =',jtf
- write(0,*) '--- kts = ',kts,'  ktf =',ktf
- write(0,*)
- write(0,*) '--- do_deepc  =', do_deepc
- write(0,*) '--- do_midlc  =', do_midlc
- write(0,*) '--- do_shalc  =', do_shalc
- write(0,*) '--- ichoice   =', ichoice
- write(0,*) '--- ichoice_m =', ichoice_m
- write(0,*) '--- ichoice_s =', ichoice_s
+!write(0,*) '--- enter subroutine cu_grell_freitas_wrf390:' 
+!write(0,*) '--- its = ',its,'  itf =',itf
+!write(0,*) '--- jts = ',jts,'  jtf =',jtf
+!write(0,*) '--- kts = ',kts,'  ktf =',ktf
 
 !--- initialization for stochastic parameterization:
  rstochcol = 0.
@@ -145,6 +137,9 @@ module module_cu_gf_wrf390
        rstochcol(i,n) = 0.
     enddo
  enddo
+
+!--- initialization of a grid-point:
+ ipr = 1
 
 !--- initialization of inout and ouput variables:
  do j = jts, jte
@@ -213,7 +208,7 @@ module module_cu_gf_wrf390
         xmbs(i)   = 0.
         prets(i)  = 0.
      enddo
-     
+ 
      do k = kts, ktf
         do i = its, itf
            !deep convection:
@@ -305,8 +300,6 @@ module module_cu_gf_wrf390
 
      !--- call to shallow convection:
      if(do_shalc) then
-        write(0,*)
-        write(0,*) '--- enter subroutine cup_gf_sh: shallow convection'
         call cup_gf_sh( &
                  !input variables:
                  zo,t2d,q2d,ter11,tshall,qshall,p2d,psur,dhdt,   &
@@ -326,13 +319,11 @@ module module_cu_gf_wrf390
         do i = its,itf
            if(present(xmb_shalc)) xmb_shalc(i,j) = xmbs(i)
         enddo
-        write(0,*) '--- end subroutine cup_gf_sh: shallow convection'
      endif
 
 
      !--- call to mid-level convection:
      if(do_midlc) then
-        write(0,*) '--- enter subroutine cup_gf: mid-level convection'
         call cup_gf( &
                  itf,ktf,its,ite,kts,kte,                                   &
                  dicycle_m,ichoice_m,ipr,ccn,dt,imidc,kpbli,dhdt,           & 
@@ -350,13 +341,11 @@ module module_cu_gf_wrf390
         enddo
         call neg_check('mid',ipr,dt,qcheck,outqm,outtm,outum,outvm, &
                        outqcm,pretm,its,ite,kts,kte,itf,ktf)
-        write(0,*) '--- end subroutine cup_gf: mid-level convection'
      endif
 
 
      !--- call to deep convection:
      if(do_deepc) then
-        write(0,*) '--- enter subroutine cup_gf: deep convection'
         call cup_gf( &
                  itf,ktf,its,ite,kts,kte,                           &
                  dicycle,ichoice,ipr,ccn,dt,imidd,kpbli,dhdt,       &
@@ -378,7 +367,6 @@ module module_cu_gf_wrf390
         do i = its, itf
            if(present(xmb_total)) xmb_total(i,j) = xmb(i)
         enddo
-        write(0,*) '--- end subroutine cup_gf: deep convection'
     endif
 
 
@@ -414,8 +402,8 @@ module module_cu_gf_wrf390
     enddo
 
  enddo j_loop
- write(0,*) '--- end subroutine cu_grell_freitas_wrf390:' 
- write(0,*)
+!write(0,*) '--- end subroutine cu_grell_freitas_wrf390:' 
+!write(0,*)
 
  end subroutine cu_grell_freitas_wrf390
 

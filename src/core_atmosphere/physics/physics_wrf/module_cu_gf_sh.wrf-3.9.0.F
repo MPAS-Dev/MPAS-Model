@@ -2,7 +2,9 @@
 ! copied for implementation in MPAS from WRF version 3.9.0:
 
 ! modifications made to sourcecode:
-! * in calls to the subroutine get_cloud_bc, replaced the 2nd argument with a dummy argument. 
+! * in calls to the subroutine get_cloud_bc, replaced the 2nd argument with a dummy argument. this change
+!   allows to run the calls to the subroutine get_cloud_bc in a much faster way when DEBUG=true using the
+!   ifort compiler on yellowstone.ucar.edu.
 !   Laura D. Fowler (laura@ucar.edu) / 2017-03-09.
 
 !=================================================================================================================
@@ -800,7 +802,7 @@ contains
 !
       do i=its,itf
        if(ierr(i).eq.0)then
-        xzu(i,1:ktf)=zuo(i,1:ktf)	
+        xzu(i,1:ktf)=zuo(i,1:ktf)       
         do k=start_level(i)+1,ktop(i)
          xhc(i,k)=(xhc(i,k-1)*xzu(i,k-1)-.5*up_massdetro(i,k-1)*xhc(i,k-1)+ &
                           up_massentro(i,k-1)*xhe(i,k-1))   /            &
