@@ -1864,7 +1864,7 @@
                 <nml_option name="config_physics_suite" type="character" default_value="mesoscale_reference" in_defaults="true"
                      units="-"
                      description="Choice of physics suite"
-                     possible_values="`mesoscale_reference',`convection_permitting',`none'"/>
+                     possible_values="`mesoscale_reference',`convection_permitting',`convection_permitting_wrf390',`none'"/>
 
                 <nml_option name="config_microp_scheme" type="character" default_value="suite" in_defaults="false"
                      units="-"
@@ -1921,13 +1921,15 @@
                      description="closure option for shallow convection in Grell-Freitas convection scheme"
                      possible_values="8"/>
 
-                <nml_option_name="config_mynn_cloudpdf" type="integer" default_value="0" in_defaults="false"
+                <nml_option name="config_mynn_cloudpdf" type="integer" default_value="-1" in_defaults="false"
+                     units="-"
                      description="switch to different cloud PDFs to represent subgrid clouds"
-                     possible_values="`0',`1',`2'"/>
+                     possible_values="0,1,2"/>
 
-                <nlm_option_name="config_mynn_edmf" type="integer" default_value="0" in_defaults="false"
+                <nml_option name="config_mynn_edmf" type="integer" default_value="0" in_defaults="false"
+                     units="-"
                      description="option to activate the PBL eddy diffusivity mass flux scheme"
-                     possible_values="`0',`1',`2'"/>
+                     possible_values="0,1"/>
 
                 <nml_option name="config_bucket_radt" type="real" default_value="1.0e9" in_defaults="false"
                      units="-"

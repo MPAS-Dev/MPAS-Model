@@ -154,6 +154,8 @@
     if (trim(config_lsm_scheme)        == 'suite') config_lsm_scheme        = 'noah'
     if (trim(config_pbl_scheme)        == 'suite') config_mynn_cloudpdf     = 0
 
+    if (config_mynn_cloudpdf == -1) config_mynn_cloudpdf = 0
+
  else if (trim(config_physics_suite) == 'convection_permitting_wrf390') then
 
     if (trim(config_microp_scheme)     == 'suite') config_microp_scheme     = 'mp_thompson'
@@ -165,7 +167,8 @@
     if (trim(config_radt_cld_scheme)   == 'suite') config_radt_cld_scheme   = 'cld_fraction'
     if (trim(config_sfclayer_scheme)   == 'suite') config_sfclayer_scheme   = 'sf_mynn_wrf390'
     if (trim(config_lsm_scheme)        == 'suite') config_lsm_scheme        = 'noah'
-    if (trim(config_pbl_scheme)        == 'suite') config_mynn_cloudpdf     = 2
+
+    if (config_mynn_cloudpdf == -1) config_mynn_cloudpdf = 2
 
  else if (trim(config_physics_suite) == 'none') then
 
