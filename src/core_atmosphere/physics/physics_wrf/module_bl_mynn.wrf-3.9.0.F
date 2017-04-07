@@ -3531,8 +3531,8 @@ ENDIF
      REAL, DIMENSION(KTS:KTE)                         ::    rstoch_col
 
 #if defined(mpas)
-    write(mynn_message,fmt='(a)') 'in MYNN driver; at beginning'
-    call physics_message(mynn_message)
+!   write(mynn_message,fmt='(a)') 'in MYNN driver; at beginning'
+!   call physics_message(mynn_message)
 #else
     IF ( wrf_at_debug_level(MYNN_DBG_LVL) ) THEN
         WRITE ( mynn_message , FMT='(A)' ) &
@@ -4152,26 +4152,26 @@ ENDIF
 
              !***  Begin debug prints
 #if defined(mpas)
-             if(sh(k) < 0. .or. sh(k)> 200. .or. &
-              & qke(i,k,j) < -1. .or. qke(i,k,j)> 200. .or. &
-              & el_pbl(i,k,j) < 0. .or. el_pbl(i,k,j)> 2000. .or. &
-              & abs(vt(k)) > 0.8 .or. abs(vq(k)) > 3000. .or. &
-              & exch_m(i,k,j) < 0. .or. exch_m(i,k,j)> 2000. .or. &
-              & vdfg(i,j) < 0. .or. vdfg(i,j)>5. .or. &
-              & abs(hfx(i,j))>1000. .or. abs(qfx(i,j))>.001) then
-                write(0,*) "**SUSPICIOUS VALUES AT: k=",k," sh=",sh(k)
-                write(0,*) " sqw=",sqw(k)," thl=",thl(k)," k_m=",exch_m(i,k,j)
-                write(0,*) " xland=",xland(i,j)," rmol=",rmol(i,j)," ust=",ust(i,j)
-                write(0,*) " qke=",qke(i,k,j)," el=",el_pbl(i,k,j)," tsq=",tsq(i,k,j)
-                write(0,*) " pblh=",pblh(i,j)," u=",u(i,k,j)," v=",v(i,k,j)
-                write(0,*) " vq=",vq(k)," vt=",vt(k)," vdfg=",vdfg(i,j)
-                write(0,*) " hfx=",hfx(i,j)," qfx=",qfx(i,j)
-             endif
-             if(icloud_bl > 0) then
-                if(cldfra_bl(i,k,j) < 0.0 .or. cldfra_bl(i,k,j)> 1.)then
-                   write(0,*) "cldfra_bl=",cldfra_bl(i,k,j)," qc_bl=",qc_bl(i,k,j)
-                endif
-             endif
+!            if(sh(k) < 0. .or. sh(k)> 200. .or. &
+!             & qke(i,k,j) < -1. .or. qke(i,k,j)> 200. .or. &
+!             & el_pbl(i,k,j) < 0. .or. el_pbl(i,k,j)> 2000. .or. &
+!             & abs(vt(k)) > 0.8 .or. abs(vq(k)) > 3000. .or. &
+!             & exch_m(i,k,j) < 0. .or. exch_m(i,k,j)> 2000. .or. &
+!             & vdfg(i,j) < 0. .or. vdfg(i,j)>5. .or. &
+!             & abs(hfx(i,j))>1000. .or. abs(qfx(i,j))>.001) then
+!               write(0,*) "**SUSPICIOUS VALUES AT: k=",k," sh=",sh(k)
+!               write(0,*) " sqw=",sqw(k)," thl=",thl(k)," k_m=",exch_m(i,k,j)
+!               write(0,*) " xland=",xland(i,j)," rmol=",rmol(i,j)," ust=",ust(i,j)
+!               write(0,*) " qke=",qke(i,k,j)," el=",el_pbl(i,k,j)," tsq=",tsq(i,k,j)
+!               write(0,*) " pblh=",pblh(i,j)," u=",u(i,k,j)," v=",v(i,k,j)
+!               write(0,*) " vq=",vq(k)," vt=",vt(k)," vdfg=",vdfg(i,j)
+!               write(0,*) " hfx=",hfx(i,j)," qfx=",qfx(i,j)
+!            endif
+!            if(icloud_bl > 0) then
+!               if(cldfra_bl(i,k,j) < 0.0 .or. cldfra_bl(i,k,j)> 1.)then
+!                  write(0,*) "cldfra_bl=",cldfra_bl(i,k,j)," qc_bl=",qc_bl(i,k,j)
+!               endif
+!            endif
 #else
              IF ( wrf_at_debug_level(3000) ) THEN
                IF ( sh(k) < 0. .OR. sh(k)> 200.)print*,"**SUSPICIOUS VALUES AT: i,j,k=",i,j,k," sh=",sh(k)

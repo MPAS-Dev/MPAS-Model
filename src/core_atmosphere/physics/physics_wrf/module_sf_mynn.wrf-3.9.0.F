@@ -1322,58 +1322,58 @@ CONTAINS
    ENDIF !end ISFFLX option
 
 #if defined(mpas)
-   yesno = 0
-   if(hfx(i) > 1200. .or. hfx(i) < -500.) then
-      write(0,*) "suspicious values in mynn sfclayer", &
-         iter-itmax," iterations",i,j, "hfx: ",hfx(i)
-      yesno = 1
-   endif
-   if(lh(i)  > 1200. .or. lh(i)  < -500.) then
-      write(0,*) "suspicious values in mynn sfclayer", &
-         iter-itmax," iterations",i,j, "lh: ",lh(i)
-      yesno = 1
-   endif
-   if(ust(i) < 0.0 .or. ust(i) > 4.0 ) then
-      write(0,*) "suspicious values in mynn sfclayer", &
-         iter-itmax," iterations",i,j, "ust: ",ust(i)
-      yesno = 1
-   endif
-   if(wstar(i)<0.0 .or. wstar(i) > 6.0) then
-      write(0,*) "suspicious values in mynn sfclayer", &
-         iter-itmax," iterations",i,j, "wstar: ",wstar(i)
-      yesno = 1
-   endif
-   if(rho1d(i)<0.0 .or. rho1d(i) > 1.6 ) then
-      write(0,*) "suspicious values in mynn sfclayer", &
-         iter-itmax," iterations",i,j, "rho: ",rho1d(i)
-      yesno = 1
-   endif
-   if(qsfc(i)*1000. <0.0 .or. qsfc(i)*1000. >40.) then
-      write(0,*) "suspicious values in mynn sfclayer", &
-         iter-itmax," iterations",i,j, "qsfc: ",qsfc(i)
-      yesno = 1
-   endif
-   if(pblh(i)<0. .or. pblh(i)>6000.) then
-      write(0,*) "suspicious values in mynn sfclayer", &                                                              
-         iter-itmax," iterations",i,j, "pblh: ",pblh(i)
-      yesno = 1
-   endif
+!  yesno = 0
+!  if(hfx(i) > 1200. .or. hfx(i) < -500.) then
+!     write(0,*) "suspicious values in mynn sfclayer", &
+!        iter-itmax," iterations",i,j, "hfx: ",hfx(i)
+!     yesno = 1
+!  endif
+!  if(lh(i)  > 1200. .or. lh(i)  < -500.) then
+!     write(0,*) "suspicious values in mynn sfclayer", &
+!        iter-itmax," iterations",i,j, "lh: ",lh(i)
+!     yesno = 1
+!  endif
+!  if(ust(i) < 0.0 .or. ust(i) > 4.0 ) then
+!     write(0,*) "suspicious values in mynn sfclayer", &
+!        iter-itmax," iterations",i,j, "ust: ",ust(i)
+!     yesno = 1
+!  endif
+!  if(wstar(i)<0.0 .or. wstar(i) > 6.0) then
+!     write(0,*) "suspicious values in mynn sfclayer", &
+!        iter-itmax," iterations",i,j, "wstar: ",wstar(i)
+!     yesno = 1
+!  endif
+!  if(rho1d(i)<0.0 .or. rho1d(i) > 1.6 ) then
+!     write(0,*) "suspicious values in mynn sfclayer", &
+!        iter-itmax," iterations",i,j, "rho: ",rho1d(i)
+!     yesno = 1
+!  endif
+!  if(qsfc(i)*1000. <0.0 .or. qsfc(i)*1000. >40.) then
+!     write(0,*) "suspicious values in mynn sfclayer", &
+!        iter-itmax," iterations",i,j, "qsfc: ",qsfc(i)
+!     yesno = 1
+!  endif
+!  if(pblh(i)<0. .or. pblh(i)>6000.) then
+!     write(0,*) "suspicious values in mynn sfclayer", &                                                              
+!        iter-itmax," iterations",i,j, "pblh: ",pblh(i)
+!     yesno = 1
+!  endif
 
-   if(yesno == 1) then
-      write(0,*) " other info:"
-      write(0,1001) "regime:",regime(i)," z/l:",zol(i)," u*:",ust(i),&
-                    " tstar:",mol(i)
-      write(0,1002) "psim:",psim(i)," psih:",psih(i)," w*:",wstar(i),&
-                    " dthv:",thv1d(i)-thvgb(i)
-      write(0,1003) "cpm:",cpm(i)," rho1d:",rho1d(i)," l:",&
-                    zol(i)/za(i)," dth:",th1d(i)-thgb(i)
-      write(0,1004) "z0/zt:",zratio(i)," z0:",znt(i)," zt:",z_t(i),&
-                    " za:",za(i)
-      write(0,1005) "re:",restar," mavail:",mavail(i)," qsfc(i):",&
-                    qsfc(i)," qvsh(i):",qvsh(i)
-      write(0,*) "psix=",psix," z0:",znt(i)," t1d(i):",t1d(i)
-      write(0,*) "============================================="
-   endif
+!  if(yesno == 1) then
+!     write(0,*) " other info:"
+!     write(0,1001) "regime:",regime(i)," z/l:",zol(i)," u*:",ust(i),&
+!                   " tstar:",mol(i)
+!     write(0,1002) "psim:",psim(i)," psih:",psih(i)," w*:",wstar(i),&
+!                   " dthv:",thv1d(i)-thvgb(i)
+!     write(0,1003) "cpm:",cpm(i)," rho1d:",rho1d(i)," l:",&
+!                   zol(i)/za(i)," dth:",th1d(i)-thgb(i)
+!     write(0,1004) "z0/zt:",zratio(i)," z0:",znt(i)," zt:",z_t(i),&
+!                   " za:",za(i)
+!     write(0,1005) "re:",restar," mavail:",mavail(i)," qsfc(i):",&
+!                   qsfc(i)," qvsh(i):",qvsh(i)
+!     write(0,*) "psix=",psix," z0:",znt(i)," t1d(i):",t1d(i)
+!     write(0,*) "============================================="
+!  endif
 #else
    IF ( wrf_at_debug_level(3000) ) THEN
       yesno = 0
