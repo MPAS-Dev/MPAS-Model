@@ -6,7 +6,6 @@ dummy:
 	echo "****** compiling physics_wrf ******"
 
 OBJS = \
-<<<<<<< HEAD
 	libmassv.o                       \
 	module_bl_gwdo.o                 \
 	module_bl_mynn.o                 \
