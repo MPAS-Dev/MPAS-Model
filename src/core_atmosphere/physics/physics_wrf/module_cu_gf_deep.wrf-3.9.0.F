@@ -3872,6 +3872,7 @@ contains
    fzu = gamma(alpha + beta)/(gamma(alpha)*gamma(beta))
   do k=kb_adj,min(kte,kt)
       kratio= (p(k)-p(kb_adj))/(p(kt)-p(kb_adj)) !float(k)/float(kt+1)
+      kratio= min(kratio,1.0)
       zu(k) = zubeg+FZU*kratio**(alpha-1.0) * (1.0-kratio)**(beta-1.0)
    enddo
 
@@ -3896,6 +3897,7 @@ contains
    fzu = gamma(alpha + beta)/(gamma(alpha)*gamma(beta))
   do k=kb_adj,min(kte,kt)
       kratio= (p(k)-p(kb_adj))/(p(kt)-p(kb_adj)) !float(k)/float(kt+1)
+      kratio= min(kratio,1.0)
       zu(k) = zubeg+FZU*kratio**(alpha-1.0) * (1.0-kratio)**(beta-1.0)
    enddo
    if(maxval(zu(kts:min(ktf,kt+1))).gt.0.)  &
@@ -3930,6 +3932,7 @@ contains
    fzu = gamma(alpha + beta)/(gamma(alpha)*gamma(beta))
   do k=kb_adj,min(kte,kt)
       kratio= (p(k)-p(kb_adj))/(p(kt)-p(kb_adj)) !float(k)/float(kt+1)
+      kratio= min(kratio,1.0)
       zu(k) = zubeg+FZU*kratio**(alpha-1.0) * (1.0-kratio)**(beta-1.0)
    enddo
    if(maxval(zu(kts:min(ktf,kt+1))).gt.0.)  &
@@ -3963,6 +3966,7 @@ contains
   zu(:)=0.
   do k=2,min(kt,ktf)
       kratio= (p(k)-p(1))/(p(kt)-p(1))
+      kratio= min(kratio,1.0)
       zu(k) = FZU*kratio**(alpha-1.0) * (1.0-kratio)**(beta-1.0)
    enddo
 !   if(maxloc(zuh(:),1).ge.kpbli)then
