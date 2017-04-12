@@ -160,8 +160,8 @@ module module_cu_gf_wrf390
           rthcuten(i,k,j) = 0.
           rqvcuten(i,k,j) = 0.
           rqccuten(i,k,j) = 0.
-          gdc(i,k,j)      = 0.
           if(present(rqicuten)) rqicuten(i,k,j) = 0.
+          if(present(gdc))  gdc(i,k,j)  = 0.
           if(present(gdc2)) gdc2(i,k,j) = 0.
 
           if(present(rucuten)) rucuten(i,k,j) = 0.
