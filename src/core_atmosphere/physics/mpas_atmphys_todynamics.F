@@ -53,6 +53,8 @@
 ! * in subroutine physics_get_tend_work, added the option bl_mynn_wrf390 for the calculation of the PBL
 !   tendencies when using the PBL parameterization from WRF 3.9.0.
 !   Laura D. Fowler (laura@ucar.edu) / 2017-03-06.
+! * in subroutine physics_get_tend_work, added the option cu_grell_freitas_wrf390 for the calculation of the
+!   u- and v- convective tendencies when using the Grell-Freitas parameterization from WRF 3.9.0.
 
 
  contains
@@ -591,7 +593,7 @@
               enddo
               enddo
     
-           case('cu_tiedtke','cu_ntiedtke')
+           case('cu_tiedtke','cu_ntiedtke','cu_grell_freitas_wrf390')
               if (rk_step == 1 .and. dynamics_substep == 1) then
                  call tend_toEdges(block,mesh,rucuten,rvcuten,rucuten_Edge)
                  
