@@ -102,6 +102,11 @@ module mpas_init_atm_gwd
       integer (kind=I1KIND) :: sum_landuse
       real (kind=RKIND) :: sum_var
 
+     ! MW: added variables for smoothing variance
+      integer, dimension(:,:), pointer:: cellsOnCell
+      real (kind=RKIND) :: sum_landuse, sum_var
+      
+
 
       allocate(topo(topo_x,topo_y))
       allocate(landuse(topo_x,topo_y))
@@ -179,6 +184,7 @@ module mpas_init_atm_gwd
          call mpas_log_write('Error reading global 30-arc-sec landuse for GWD statistics', messageType=MPAS_LOG_ERR)
          return
       end if
+write(0,*) 'min/max landuse = ', minval(landuse), maxval(landuse)
 
       !
       ! It is possible that this code is called before the mesh fields have been scaled
@@ -429,6 +435,37 @@ module mpas_init_atm_gwd
 
    end function read_global_30s_landuse
 
+   !***********************************************************************
+   !
+   !  MW:function get dominant land use in cell 
+   !----------------------------------------------------------------------
+    real (kind=RKIND) function get_dom_landuse 
+
+      implicit none
+
+      integer :: i, j      
+      real (kind=RKIND) :: xland
+      xland = 0.0
+
+      ! MW: get dominant land/water mask in the box
+      do j=1,ny
+      do i=1,nx
+         if (box_landuse(i,j) /= WATER) then
+            xland = xland + 1.0
+         end if
+      end do
+      end do
+      xland = xland / real(nx*ny,kind=RKIND)
+
+      if (xland >= 0.5_RKIND) then
+         get_dom_landuse = 1.0_RKIND
+      else
+         get_dom_landuse = 0.0_RKIND
+      end if 
+
+   end function get_dom_landuse 
+
+
 
    !***********************************************************************
    !
@@ -570,6 +607,7 @@ module mpas_init_atm_gwd
       ! Compute mean topography in the extracted box
       !
       box_mean = box_mean / real(nx*ny, RKIND)
+
 
    end subroutine get_box
 
