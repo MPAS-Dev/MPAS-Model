@@ -8,11 +8,14 @@ DIAGNOSTIC_MODULES = \
 	isobaric_diagnostics.o \
 	convective_diagnostics.o \
 	pv_diagnostics.o \
+	reflectivity_diagnostics.o \
 	soundings.o \
 
 isobaric_diagnostics.o: mpas_atm_diagnostics_utils.o
 
 convective_diagnostics.o: mpas_atm_diagnostics_utils.o
+
+reflectivity_diagnostics.o: mpas_atm_diagnostics_utils.o
 
 pv_diagnostics.o: mpas_atm_diagnostics_utils.o
 

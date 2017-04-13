@@ -393,13 +393,13 @@
  
     !ensure that we only call compute_radar_reflectivity() if we are using an MPS that supports
     !the computation of simulated radar reflectivity:
-    if(trim(microp_scheme) == "mp_wsm6"     .or. &
-       trim(microp_scheme) == "mp_thompson") then
-       call compute_radar_reflectivity(configs,diag_physics,its,ite)
-    else
-       call mpas_log_write('*** NOTICE: NOT computing simulated radar reflectivity')
-       call mpas_log_write('            since WSM6 or Thompson microphysics scheme was not selected')
-    end if
+    !if(trim(microp_scheme) == "mp_wsm6"     .or. &
+    !  trim(microp_scheme) == "mp_thompson") then
+    !  call compute_radar_reflectivity(configs,diag_physics,its,ite)
+    !else
+    !  write(0,*) '*** NOTICE: NOT computing simulated radar reflectivity'
+    !  write(0,*) '            since WSM6 or Thompson microphysics scheme was not selected'
+    !end if
 
     !calculate the relative humidity over water if the temperature is strictly greater than 0.C,
     !over ice otherwise.
