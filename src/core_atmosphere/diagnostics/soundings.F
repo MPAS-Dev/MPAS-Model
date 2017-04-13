@@ -29,6 +29,8 @@ module soundings
     character (len=StrKIND), allocatable, dimension(:) :: stationNames
 
     type (MPAS_clock_type), pointer :: simulationClock
+    character(len=StrKIND+1) :: soundingPath
+    character(len=StrKIND), pointer :: config_sounding_output_path
 
     real (kind=RKIND) :: pi_const = 2.0_RKIND * asin(1.0_RKIND)
 
@@ -88,6 +90,7 @@ module soundings
         call mpas_pool_get_subpool(all_pools, 'diag', diag)
 
         call mpas_pool_get_config(configs, 'config_sounding_interval', soundingInterval)
+        call mpas_pool_get_config(configs, 'config_sounding_output_path', config_sounding_output_path)
 
         if (trim(soundingInterval) == 'none') then
             return
@@ -222,6 +225,7 @@ module soundings
         integer :: yyyy, mm, dd, h, m, s
         character(len=StrKIND) :: fname
         character(len=10) :: stid
+        integer :: istat
 
 
         if (MPAS_is_alarm_ringing(simulationClock, 'soundingAlarm')) then
@@ -246,8 +250,13 @@ module soundings
                 if (stationOwned(iStn)) then
 !                    call mpas_log_write('Writing sounding for station '//trim(stationNames(iStn)))
 
-                    write(fname,'(a,i4.4,i2.2,i2.2,i2.2,i2.2,a)') trim(stationNames(iStn))//'.', yyyy, mm, dd, h, m, '.snd'
-                    open(97,file=trim(fname),form='formatted',status='replace')
+                    write(fname,'(a,i4.4,i2.2,i2.2,i2.2,i2.2,a)') trim(soundingPath)//trim(stationNames(iStn))//'.',&
+                                                                  yyyy, mm, dd, h, m, '.snd'
+                    open(97,file=trim(fname),form='formatted',status='replace',iostat=istat)
+                    if (istat /= 0) then
+                        write(stderrUnit,*) 'Error: Could not create sounding file '//trim(fname)
+                        cycle
+                    end if
 
                     write(stid,'(a)') trim(stationNames(iStn))
 

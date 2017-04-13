@@ -9,4 +9,9 @@
              description="Interval between writing of soundings. A value of 'none' disables writing of soundings."
              possible_values="'[DDD_]hh:mm:ss' or 'none'"/>
 
+        <nml_option name="config_sounding_output_path" type="character" default_value="./" in_defaults="true"
+             units="-"
+             description="Path to the location where sounding output files will be written."
+             possible_values="Any writable path on the filesystem"/>
+
 </nml_record>
