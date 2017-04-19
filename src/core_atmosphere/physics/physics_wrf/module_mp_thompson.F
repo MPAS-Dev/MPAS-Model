@@ -15,6 +15,10 @@
 !   * in subroutine freezeH2O, modified the calculation of the variable prob, following
 !     Greg Thompson for the release of WRF version 3.9.0.
 !     Laura D. Fowler (laura@ucar.edu) / 2017-03-27.
+!   * in subroutine mp_gt_driver, added the variables vqr, vqi, vqs, and vqg to output the
+!     mean mass-weighted fall velocities of rain, cloud ice, snow, and graupel to compute
+!     diagnostics of lightning flash rates.
+!     Laura D. Fowler (laura@ucar.edu) / 2017-04-19.
 
 
 !+---+-----------------------------------------------------------------+
@@ -981,6 +985,7 @@
                               refl_10cm, diagflag, do_radar_ref,      &
                               re_cloud, re_ice, re_snow,              &
                               has_reqc, has_reqi, has_reqs,           &
+                              vqr,vqi,vqs,vqg,                        &
 #if defined(mpas)
                               ntc,muc,rainprod,evapprod, &
 #endif
@@ -1015,6 +1020,8 @@
                           rainprod,evapprod
       REAL, DIMENSION(ims:ime, kms:kme, jms:jme), INTENT(INOUT), OPTIONAL:: &
                           refl_10cm
+      REAL, DIMENSION(ims:ime, kms:kme, jms:jme), INTENT(INOUT), OPTIONAL:: &
+                          vqr,vqi,vqs,vqg
 #else
       REAL, DIMENSION(ims:ime, kms:kme, jms:jme), INTENT(INOUT)::       &
                           refl_10cm
@@ -1029,8 +1036,8 @@
                           t1d, p1d, w1d, dz1d, rho, dBZ
       REAL, DIMENSION(kts:kte):: re_qc1d, re_qi1d, re_qs1d
 #if defined(mpas)
-      REAL, DIMENSION(kts:kte):: &
-                          rainprod1d, evapprod1d
+      REAL, DIMENSION(kts:kte):: rainprod1d, evapprod1d
+      REAL, DIMENSION(kts:kte):: vqr1d,vqi1d,vqs1d,vqg1d
 #endif
       REAL, DIMENSION(its:ite, jts:jte):: pcp_ra, pcp_sn, pcp_gr, pcp_ic
       REAL:: dt, pptrain, pptsnow, pptgraul, pptice
@@ -1120,6 +1127,12 @@
 #if defined(mpas)
          Nt_c = ntc(i,j)
          mu_c = muc(i,j)
+         do k = kts,kte
+            vqr1d(k) = 0.
+            vqi1d(k) = 0.
+            vqs1d(k) = 0.
+            vqg1d(k) = 0.
+         enddo
 #endif
          do k = kts, kte
             t1d(k) = th(i,k,j)*pii(i,k,j)
@@ -1156,7 +1169,7 @@
                       nr1d, nc1d, nwfa1d, nifa1d, t1d, p1d, w1d, dz1d,  &
                       pptrain, pptsnow, pptgraul, pptice, &
 #if defined(mpas)
-                      rainprod1d, evapprod1d, &
+                      rainprod1d, evapprod1d, vqr1d, vqi1d, vqs1d, vqg1d, &
 #endif
                       kts, kte, dt, i, j)
 
@@ -1205,6 +1218,10 @@
 #if defined(mpas)
             rainprod(i,k,j) = rainprod1d(k)
             evapprod(i,k,j) = evapprod1d(k)
+            if(present(vqr)) vqr(i,k,j) = vqr1d(k)
+            if(present(vqi)) vqi(i,k,j) = vqi1d(k)
+            if(present(vqs)) vqs(i,k,j) = vqs1d(k)
+            if(present(vqg)) vqg(i,k,j) = vqg1d(k)
 #endif
             if (qc1d(k) .gt. qc_max) then
              imax_qc = i
@@ -1351,7 +1368,7 @@
                           nr1d, nc1d, nwfa1d, nifa1d, t1d, p1d, w1d, dzq, &
                           pptrain, pptsnow, pptgraul, pptice, &
 #if defined(mpas)
-                          rainprod, evapprod, &
+                          rainprod, evapprod, vtrk, vtik, vtsk, vtgk, &
 #endif
                           kts, kte, dt, ii, jj)
 

@@ -591,6 +591,10 @@
 			<var name="re_cloud" packages="mp_thompson_in;mp_wsm6_in"/>
 			<var name="re_ice" packages="mp_thompson_in;mp_wsm6_in"/>
 			<var name="re_snow" packages="mp_thompson_in;mp_wsm6_in"/>
+			<var name="vqr" packages="mp_thompson_in;mp_wsm6_in"/>
+			<var name="vqi" packages="mp_thompson_in;mp_wsm6_in"/>
+			<var name="vqs" packages="mp_thompson_in;mp_wsm6_in"/>
+			<var name="vqg" packages="mp_thompson_in;mp_wsm6_in"/>
 			<var name="nt_c" packages="mp_thompson_in"/>
 			<var name="mu_c" packages="mp_thompson_in"/>
 			<var name="initial_time"/>
@@ -1995,6 +1999,11 @@
                      units="s"
                      description="Relaxation time to initial values in 1-d OML"
                      possible_values="Non-negative real values"/>
+
+                <nml_option name="config_lightning_flash" type="logical" default_value="false" in_defaults="false"
+                     units="-"
+                     description="Turns on/off the calculation of storm parameters to compute lightning flash rates"
+                     possible_values=".true. or. false"/>
         </nml_record>
 
         <var_struct name="diag_physics" time_levs="1">
@@ -2073,6 +2082,22 @@
 
                 <var name="evapprod" type="real" dimensions="nVertLevels nCells Time" units="s^{-1}"
                      description="rain evaporation rate"
+                     packages="mp_thompson_in"/>
+
+                <var name="vqr" type="real" dimensions="nVertLevels nCells Time" units="m s^{-1}"
+                     description="mass-weighted mean velocity for rain"
+                     packages="mp_thompson_in"/>
+
+                <var name="vqi" type="real" dimensions="nVertLevels nCells Time" units="m s^{-1}"
+                     description="mass-weighted mean velocity for cloud ice"
+                     packages="mp_thompson_in"/>
+
+                <var name="vqs" type="real" dimensions="nVertLevels nCells Time" units="m s^{-1}"
+                     description="mass-weighted mean velocity for snow"
+                     packages="mp_thompson_in"/>
+
+                <var name="vqg" type="real" dimensions="nVertLevels nCells Time" units="m s^{-1}"
+                     description="mass-weighted mean velocity for graupel"
                      packages="mp_thompson_in"/>
 
                 <var name="re_cloud" type="real" dimensions="nVertLevels nCells Time" units="m"

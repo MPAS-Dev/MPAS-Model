@@ -104,6 +104,9 @@
 !   cells using the surface background albedo (see initialization of sfc_albedo_seaice in subroutine
 !   landuse_init_forMPAS).
 !   Laura D. Fowler (laura@ucar.edu) / 2017-03-02.
+! * added local variables for the mass-weighted mean velocities for rain, cloud ice, snow, and graupel from the
+!   Thompson cloud microphysics scheme.
+!   Laura D. Fowler (laura@ucar.edu) / 2017-04-19.
 
 
 !=================================================================================================================
@@ -260,7 +263,11 @@
     recloud_p,        &!
     reice_p,          &!
     resnow_p,         &!
-    refl10cm_p         !
+    refl10cm_p,       &!
+    vqr_p,            &!mass-weighted mean velocity for rain                                                 [m/s]
+    vqi_p,            &!mass-weighted mean velocity for cloud ice                                            [m/s]
+    vqs_p,            &!mass-weighted mean velocity for snow                                                 [m/s]
+    vqg_p              !mass-weighted mean velocity for graupel                                              [m/s]
 
 !=================================================================================================================
 !... variables and arrays related to parameterization of convection:

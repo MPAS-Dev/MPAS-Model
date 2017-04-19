@@ -84,6 +84,10 @@
 ! * since we removed the local variable microp_scheme from mpas_atmphys_vars.F, now defines microp_scheme as a
 !   pointer to config_microp_scheme.
 !   Laura D. Fowler (laura@ucar.edu) / 2917-02-16.
+! * added saving diagnostics of the mass-weighted mean velocities for rain, cloud ice, snow, and graupel from
+!   the Thompson cloud microphysics scheme.
+!   Laura D. Fowler (laura@ucar.edu) / 2017-04-19.
+
 
 !--- initialization option for WSM6 from WRF version 3.8.1. this option could also be set as a namelist parameter.
  integer,parameter:: hail_opt = 0
@@ -155,6 +159,12 @@
 
           if(.not.allocated(rainprod_p)) allocate(rainprod_p(ims:ime,kms:kme,jms:jme))
           if(.not.allocated(evapprod_p)) allocate(evapprod_p(ims:ime,kms:kme,jms:jme))
+
+          !mass-weigthed mean velocities:
+          if(.not.allocated(vqr_p)) allocate(vqr_p(ims:ime,kms:kme,jms:jme))
+          if(.not.allocated(vqi_p)) allocate(vqi_p(ims:ime,kms:kme,jms:jme))
+          if(.not.allocated(vqs_p)) allocate(vqs_p(ims:ime,kms:kme,jms:jme))
+          if(.not.allocated(vqg_p)) allocate(vqg_p(ims:ime,kms:kme,jms:jme))
 
        case default
 
@@ -229,6 +239,12 @@
 
           if(allocated(rainprod_p)) deallocate(rainprod_p)
           if(allocated(evapprod_p)) deallocate(evapprod_p)
+
+          !mass-weigthed mean velocities:
+          if(allocated(vqr_p)) deallocate(vqr_p)
+          if(allocated(vqi_p)) deallocate(vqi_p)
+          if(allocated(vqs_p)) deallocate(vqs_p)
+          if(allocated(vqg_p)) deallocate(vqg_p)
 
        case default
 
@@ -352,7 +368,8 @@
                   sr        = sr_p        , rainprod   = rainprod_p   , evapprod   = evapprod_p   , &
                   re_cloud  = recloud_p   , re_ice     = reice_p      , re_snow    = resnow_p     , &
                   has_reqc  = has_reqc    , has_reqi   = has_reqi     , has_reqs   = has_reqs     , &
-                  ntc       = ntc_p       , muc        = muc_p        ,                             &
+                  ntc       = ntc_p       , muc        = muc_p        , vqr        = vqr_p        , &
+                  vqi       = vqi_p       , vqs        = vqs_p        , vqg        = vqg_p        , &
                   ids = ids , ide = ide , jds = jds , jde = jde , kds = kds , kde = kde           , &
                   ims = ims , ime = ime , jms = jms , jme = jme , kms = kms , kme = kme           , &
                   its = its , ite = ite , jts = jts , jte = jte , kts = kts , kte = kte             &
@@ -550,11 +567,11 @@
     !accumulated precipitation:
     rainnc(i) = rainnc(i) + rainncv(i)
 
-   if(l_acrain .and. config_bucket_rainnc.gt.0._RKIND .and. &
-      rainnc(i).gt.config_bucket_rainnc) then
-      i_rainnc(i) = i_rainnc(i) + 1
-      rainnc(i)   = rainnc(i) - config_bucket_rainnc
-   endif
+    if(l_acrain .and. config_bucket_rainnc.gt.0._RKIND .and. &
+       rainnc(i).gt.config_bucket_rainnc) then
+       i_rainnc(i) = i_rainnc(i) + 1
+       rainnc(i)   = rainnc(i) - config_bucket_rainnc
+    endif
  
  enddo
  enddo

@@ -67,6 +67,9 @@
 ! * added the initialization of local variables needed in the parameterization of the MYNN surface layer scheme
 !   and planetary boundary layer scheme from WRF 3.9.0.
 !   Laura D. Fowler (laura@ucar.edu) / 2017-02-08.
+! * added saving diagnostics of the mass-weighted mean velocities for rain, cloud ice, snow, and graupel from
+!   the Thompson cloud microphysics scheme.
+!   Laura D. Fowler (laura@ucar.edu) / 2017-04-19.
 
 
  contains
@@ -606,6 +609,10 @@
              recloud_p(i,k,j)  = re_cloud(k,i)
              reice_p(i,k,j)    = re_ice(k,i)
              resnow_p(i,k,j)   = re_snow(k,i)
+             vqr_p(i,k,j) = 0._RKIND
+             vqi_p(i,k,j) = 0._RKIND
+             vqs_p(i,k,j) = 0._RKIND
+             vqg_p(i,k,j) = 0._RKIND
           enddo
           enddo
           enddo
@@ -650,6 +657,7 @@
  real(kind=RKIND),dimension(:,:),pointer  :: ni,nr
  real(kind=RKIND),dimension(:,:),pointer  :: rainprod,evapprod
  real(kind=RKIND),dimension(:,:),pointer  :: re_cloud,re_ice,re_snow
+ real(kind=RKIND),dimension(:,:),pointer  :: vqr,vqi,vqs,vqg
  real(kind=RKIND),dimension(:,:,:),pointer:: scalars
 
 !local variables:
@@ -768,6 +776,11 @@
           ni   => scalars(index_ni,:,:)
           nr   => scalars(index_nr,:,:)
 
+          call mpas_pool_get_array(diag_physics,'vqr',vqr)
+          call mpas_pool_get_array(diag_physics,'vqi',vqi)
+          call mpas_pool_get_array(diag_physics,'vqs',vqs)
+          call mpas_pool_get_array(diag_physics,'vqg',vqg)
+
           do j = jts, jte
           do k = kts, kte
           do i = its, ite
@@ -778,6 +791,10 @@
              re_cloud(k,i) = recloud_p(i,k,j)
              re_ice(k,i)   = reice_p(i,k,j)
              re_snow(k,i)  = resnow_p(i,k,j)
+             vqr(k,i) = vqr_p(i,k,j)
+             vqi(k,i) = vqi_p(i,k,j)
+             vqs(k,i) = vqs_p(i,k,j)
+             vqg(k,i) = vqg_p(i,k,j)
           enddo
           enddo
           enddo
