@@ -16,6 +16,9 @@
 <!-- soundings -->
 #include "Registry_soundings.xml"
 
+<!-- lightning flash rate diagnostics -->
+#include "Registry_lightning.xml"
+
 <!-- ******************************* -->
 <!-- End includes from diagnostics -->
 <!-- ******************************* -->

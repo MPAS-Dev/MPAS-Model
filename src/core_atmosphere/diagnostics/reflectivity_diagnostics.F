@@ -14,6 +14,10 @@
                               mpas_pool_get_dimension, &
                               mpas_pool_get_subpool
  use mpas_atm_diagnostics_utils,only: mpas_field_will_be_written
+ use module_lightning_flash_diagnostics,only: config_lightning_flash,        &
+                                              diag_lightning,                &
+                                              lightning_diagnostics_compute, &
+                                              lightning_diagnostics_setup
 
 !from physics and physics_wrf directories:
  use mpas_atmphys_constants,only: R_v,R_d,t00
@@ -34,7 +38,6 @@
  type(mpas_clock_type),pointer:: clock
 
  character(len=StrKIND),pointer:: microp_scheme
-
 
 !module_reflectivity_diagnostics compute the reflectivity diagnostics for the WSM6 and Thompson cloud microphysics
 !schemes.
@@ -61,6 +64,12 @@
  call mpas_pool_get_subpool(all_pools,'diag_physics',diag_physics)
 
  call mpas_pool_get_config(configs,'config_microp_scheme',microp_scheme)
+
+!added calculation of storm parameters for calculation of lightning flash rates:
+ call mpas_pool_get_config(configs,'config_lightning_flash',config_lightning_flash)
+ if(config_lightning_flash) then
+    call lightning_diagnostics_setup(all_pools,simulation_clock)
+ endif
 
  end subroutine reflectivity_diagnostics_setup
 
@@ -89,18 +98,23 @@
  need_refl10cm_1km_max = mpas_field_will_be_written('refl10cm_1km_max')
  need_any_diags = need_any_diags .or. need_refl10cm_1km_max
 
- if(need_any_diags) &
+ if(config_lightning_flash) then
+    call reflectivity_diagnostics(mesh,state,1,diag,diag_physics,diag_lightning)
+    call lightning_diagnostics_compute()
+ elseif(.not.config_lightning_flash .and. need_any_diags) then
     call reflectivity_diagnostics(mesh,state,1,diag,diag_physics)
+ endif
 
  end subroutine reflectivity_diagnostics_compute
 
 !-----------------------------------------------------------------------------------------------------------------
- subroutine reflectivity_diagnostics(mesh,state,time_lev,diag,diag_physics)
+ subroutine reflectivity_diagnostics(mesh,state,time_lev,diag,diag_physics,diag_lightning)
 !-----------------------------------------------------------------------------------------------------------------
 
 !input arguments:
  type(mpas_pool_type),intent(in):: mesh
  type(mpas_pool_type),intent(in):: state
+ type(mpas_pool_type),intent(in),optional:: diag_lightning
  integer,intent(in):: time_lev
 
 !inout arguments:
@@ -113,6 +127,8 @@
  integer:: iCell,k,kts,kte,kp,j
 
  real(kind=RKIND),dimension(:),pointer    :: refl10cm_max,refl10cm_1km,refl10cm_1km_max
+ real(kind=RKIND),dimension(:,:),pointer  :: refl10cm
+
  real(kind=RKIND),dimension(:,:),pointer  :: zgrid 
  real(kind=RKIND),dimension(:,:),pointer  :: pressure_b,pressure_p,exner,theta_m
  real(kind=RKIND),dimension(:,:),pointer  :: qv,qc,qr,qs,qg,nr
@@ -122,6 +138,8 @@
  real(kind=RKIND),dimension(:),allocatable:: qv1d,qc1d,qr1d,qs1d,qg1d,t1d,p1d,nr1d,dBZ1d,zp
 
 !-----------------------------------------------------------------------------------------------------------------
+ write(0,*)
+ write(0,*) '--- enter subroutine reflectivity_diagnostics: lightning_flash = ',config_lightning_flash
 
  call mpas_pool_get_dimension(mesh,'nCells'     ,nCells     )
  call mpas_pool_get_dimension(mesh,'nVertLevels',nVertLevels)
@@ -194,6 +212,19 @@
           w2 = 1.0 - w1
           refl10cm_1km(iCell) = w1*dBZ1d(kp) + w2*dBZ1d(kp+1)
           refl10cm_1km_max(iCell) = max(refl10cm_1km_max(iCell),refl10cm_1km(iCell))
+
+          if(present(diag_lightning)) then
+             call mpas_pool_get_array(diag_lightning,'refl10cm',refl10cm)
+             if(config_lightning_flash) then
+                do k = kts,kte
+                   refl10cm(k,iCell) = dbZ1d(k)
+                enddo
+             else
+                do k = kts,kte
+                   refl10cm(k,iCell) = 0._RKIND
+                enddo
+             endif
+          endif
        enddo
 
     case ("mp_thompson")
@@ -231,6 +262,20 @@
           w2 = 1.0 - w1
           refl10cm_1km(iCell) = w1*dBZ1d(kp) + w2*dBZ1d(kp+1)
           refl10cm_1km_max(iCell) = max(refl10cm_1km_max(iCell),refl10cm_1km(iCell))
+
+          if(present(diag_lightning)) then
+             call mpas_pool_get_array(diag_lightning,'refl10cm',refl10cm)
+             if(config_lightning_flash) then
+                do k = kts,kte
+                   refl10cm(k,iCell) = dbZ1d(k)
+                enddo
+             else
+                do k = kts,kte
+                   refl10cm(k,iCell) = 0._RKIND
+                enddo
+             endif
+          endif
+
        enddo
 
        if(allocated(qc1d)) deallocate(qc1d)

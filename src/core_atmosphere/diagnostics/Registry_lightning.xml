@@ -1,0 +1,67 @@
+<!-- ******************************* -->
+<!-- Lightning rate diagnostics      -->
+<!-- ******************************* -->
+
+<var_struct name="diag_lightning" time_levs="1">
+
+        <var name="refl10cm" type="real" dimensions="nVertLevels nCells Time" units="dBZ"
+             description="10cm radar reflectivity"/>
+
+        <var name="precip_ice_mass" type="real" dimensions="nCells Time" units="kg"
+             description="Precipitation ice mass"/>
+
+        <var name="precip_snow_mass" type="real" dimensions="nCells Time" units="kg"
+             description="Precipitation snow mass"/>
+
+        <var name="precip_graupel_mass" type="real" dimensions="nCells Time" units="kg"
+             description="Precipitation graupel mass"/>
+
+        <var name="ice_water_path" type="real" dimensions="nCells Time" units="kg m^{-2}"
+             description="Vertically-integrated ice water path"/>
+
+        <var name="snow_path" type="real" dimensions="nCells Time" units="kg m^{-2}"
+             description="Vertically-integrated snow path"/>
+
+        <var name="graupel_path" type="real" dimensions="nCells Time" units="kg m^{-2}"
+             description="Vertically-integrated graupel path"/>
+
+        <var name="pice_massflux" type="real" dimensions="nCells Time" units="kg m s^{-1}"
+             description="Precipitation ice mass flux"/>
+
+        <var name="npice_massflux" type="real" dimensions="nCells Time" units="kg m s^{-1}"
+             description="Non-precipitation ice mass flux"/>
+
+        <var name="updraft_volume" type="real" dimensions="nCells Time" units="m^{3}"
+             description="Updraft volume"/>
+
+        <var name="cloud_top_height" type="real" dimensions="nCells Time" units="m"
+             description="Cloud top height"/>
+
+        <var name="max_vvel" type="real" dimensions="nCells Time" units="m s^{-1}"
+             description="Maximum vertical velocity"/>
+
+        <var name="dbz35_volume" type="real" dimensions="nCells Time" units="km^{3}"
+             description="Volume of 35dBZ 10cm reflectivity"/>
+
+        <var name="precip_ice_flashrate" type="real" dimensions="nCells Time" units="# mn^{-1}"
+             description="Lightning flash rate as function of precipitation ice mass"/>
+
+        <var name="ice_path_flashrate" type="real" dimensions="nCells Time" units="# mn^{-1}"
+             description="Lightning flash rate as function of ice water path"/>
+
+        <var name="updraft_vol_flashrate" type="real" dimensions="nCells Time" units="# mn^{-1}"
+             description="Lightning flash rate as function of updraft volume"/>
+
+        <var name="npice_massflux_flashrate" type="real" dimensions="nCells Time" units="# mn^{-1}"
+             description="Lightning flash rate as function of ice mass flux"/>
+
+        <var name="cloud_toph_flashrate" type="real" dimensions="nCells Time" units="# mn^{-1}"
+             description="Lightning flash rate as function of cloud top height"/>
+
+        <var name="dbz35_flashrate" type="real" dimensions="nCells Time" units="# mn^{-1}"
+             description="Lightning flash rate as function of 35dBZ reflectivity"/>
+
+        <var name="max_vvel_flashrate" type="real" dimensions="nCells Time" units="# mn^{-1}"
+             description="Lightning flash rate as function of max. vertical velocity"/>
+
+</var_struct>
