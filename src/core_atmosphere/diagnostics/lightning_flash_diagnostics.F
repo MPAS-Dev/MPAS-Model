@@ -201,7 +201,7 @@
  enddo
 
 
-!--- calculation of the ice path flash rate:
+!--- calculation of the ice path flash rate. iwp,swp,ang gwp are in kg/m2. iwp_fr is in fl. per min: 
  if(need_iwp_fr) then
     write(0,*)
     write(0,*) '--- ice path flash rate:'
@@ -217,7 +217,7 @@
        iwp_fr(iCell) = 0._RKIND
 
        do k = 1, nVertLevels
-          dz = zgrid(k+1,iCell) - zgrid(k,iCell)
+          dz = zgrid(k+1,iCell)-zgrid(k,iCell)
           rho_a = zz(k,iCell)*rho_zz(k,iCell)
 
           if(tp(k,iCell) .lt. 263.15 .and. refl10cm(k,iCell) .gt. 25.) then
@@ -226,17 +226,17 @@
              gwp(iCell) = gwp(iCell) + qg(k,iCell)*rho_a*dz
           endif
        enddo
-
        twp   = iwp(iCell)+swp(iCell)+gwp(iCell)
-       frate = 33.33*twp - 0.17
+       frate = 33.33*twp - 0.17 !frate is in fl./km2/day).
+       iwp_fr(iCell) = iwp_fr(iCell)*area(iCell)*1.e-06/1440.
        iwp_fr(iCell) = max(frate,0._RKIND)
-       iwp_fr(iCell) = iwp_fr(iCell)/1440.
     enddo
     write(0,*) '--- end ice path flash rate'
  endif
 
 
-!--- calculation of the precipitation ice mass, snow mass, and graupel mass flahs rate:
+!--- calculation of the precipitation ice mass, snow mass, and graupel mass flash rate. pim_imass,
+!    pim_smass,and pim_gmass are in kg. pim_fr is in fl. per min):
  if(need_pim_fr) then
     write(0,*)
     write(0,*) '--- precipitation ice mass flash rate:'
@@ -288,16 +288,18 @@
        cldtoph_fr(iCell) = 0._RKIND
 
        do k = 1, nVertLevels
-          if(tp(k,iCell) .lt. 273.15 .and. refl10cm(k,iCell) .gt. 25.) then
-             dz = zgrid(k,iCell) - zgrid(1,iCell)
+          if(tp(k,iCell) .lt. 273.15 .and. refl10cm(k,iCell) .gt. 20.) then
+             dz = zgrid(k,iCell)-zgrid(1,iCell)
              if(dz .gt. cld_toph(iCell)) cld_toph(iCell) = dz
           endif
        enddo
+       cld_toph(iCell) = cld_toph(iCell)*1.e-03
        if(xland(iCell) < 1.5_RKIND) then
           cldtoph_fr(iCell) = 3.44e-05*(cld_toph(iCell)**4.9) 
        elseif(xland(iCell) >= 2._RKIND) then
           cldtoph_fr(iCell) = 6.57e-06*(cld_toph(iCell)**4.9)
        endif
+!      cldtoph_fr(iCell) = cldtoph_fr(iCell)/60.
     enddo
     write(0,*) '--- end cloud top height flash rate'
  endif
@@ -322,9 +324,8 @@
              endif
           endif
        enddo
-
        upvol_fr(iCell) = 0.0337e-09*updraft_vol(iCell)
-       upvol_fr(iCell) = max(upvol_fr(iCell),0._RKIND)
+!      upvol_fr(iCell) = upvol_fr(iCell)/60.
     enddo
     write(0,*) '--- end updraft volume flash rate'
  endif
@@ -348,6 +349,7 @@
        elseif(xland(iCell) >= 2._RKIND) then
           max_vvel_fr(iCell) = 6.4e-04*(max_vvel(iCell)**1.73)
        endif
+!      max_vvel_fr(iCell) = max_vvel_fr(iCell)/60.
     enddo
     write(0,*) '--- end maximum vertical velocity flash rate'
  endif
@@ -367,13 +369,13 @@
        do k = 1, nVertLevels
           if(tp(k,iCell).lt.268.15 .and. tp(k,iCell).gt.233.15) then
              if(refl10cm(k,iCell) .gt. 35.) then
-                dz = (zgrid(k+1,iCell) - zgrid(k,iCell))*area(iCell)
-                dbz35_vol(iCell) = dbz35_vol(iCell) + dz*1.e-09
+                dz = (zgrid(k+1,iCell)-zgrid(k,iCell))*area(iCell)
+                dbz35_vol(iCell) = dbz35_vol(iCell)+dz*1.e-09
              endif
           endif
        enddo
-
        dbz35_fr(iCell) = 7.2e-02*dbz35_vol(iCell)
+!      dbz35_fr(iCell) = dbz35_fr(iCell)/60.
     enddo
     write(0,*) '--- end 35dBZ 10cm reflectivity flash rate'
  endif
@@ -415,7 +417,7 @@
        endif
 
        !--- flash rate:
-       npiceflx_fr(iCell) = npice_flx(iCell)*6.58e-7*area(iCell)
+       npiceflx_fr(iCell) = npice_flx(iCell)*6.58e-7
     enddo
     write(0,*) '--- end non-precipitating ice massflux flash rate'
  endif
