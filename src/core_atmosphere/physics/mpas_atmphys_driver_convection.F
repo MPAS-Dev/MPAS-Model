@@ -92,6 +92,9 @@
 ! * since we removed the local variable convection_scheme from mpas_atmphys_vars.F, now defines convection_scheme
 !   as a pointer to config_convection_scheme.
 !   Laura D. Fowler (laura@ucar.edu) / 2917-02-16.
+! * renamed the variables xmb_total_p and xmb_shallow_p to xmb_deepc_p and xmb_shalc_p, respectively. Added the
+!   variable xmb_midlc_p as the cloud base mass flux for mid-level convection.
+!   Laura D. Fowler (laura@ucar.edu) / 2017-04-24.
 
 
  contains
@@ -167,8 +170,9 @@
        if(.not.allocated(rucuten_p)      ) allocate(rucuten_p(ims:ime,kms:kme,jms:jme)  )
        if(.not.allocated(rvcuten_p)      ) allocate(rvcuten_p(ims:ime,kms:kme,jms:jme)  )
 
-       if(.not.allocated(xmb_total_p)    ) allocate(xmb_total_p(ims:ime,jms:jme)        )
-       if(.not.allocated(xmb_shallow_p)  ) allocate(xmb_shallow_p(ims:ime,jms:jme)      )
+       if(.not.allocated(xmb_deepc_p)    ) allocate(xmb_deepc_p(ims:ime,jms:jme)        )
+       if(.not.allocated(xmb_midlc_p)    ) allocate(xmb_midlc_p(ims:ime,jms:jme)        )
+       if(.not.allocated(xmb_shalc_p)    ) allocate(xmb_shalc_p(ims:ime,jms:jme)        )
 
        if(.not.allocated(qccu_p)         ) allocate(qccu_p(ims:ime,kms:kme,jms:jme)     )
        if(.not.allocated(qicu_p)         ) allocate(qicu_p(ims:ime,kms:kme,jms:jme)     )
@@ -311,8 +315,9 @@
        if(allocated(rucuten_p)      ) deallocate(rucuten_p      )
        if(allocated(rvcuten_p)      ) deallocate(rvcuten_p      )
 
-       if(allocated(xmb_total_p)    ) deallocate(xmb_total_p    )
-       if(allocated(xmb_shallow_p)  ) deallocate(xmb_shallow_p  )
+       if(allocated(xmb_deepc_p)    ) deallocate(xmb_deepc_p    )
+       if(allocated(xmb_midlc_p)    ) deallocate(xmb_midlc_p    )
+       if(allocated(xmb_shalc_p)    ) deallocate(xmb_shalc_p    )
 
        if(allocated(qccu_p)         ) deallocate(qccu_p         )
        if(allocated(qicu_p)         ) deallocate(qicu_p         )
@@ -493,7 +498,7 @@
              pratec          = pratec_p               , htop          = cutop_p         , &
              hbot            = cubot_p                , k22_shallow   = k22_shallow_p   , & 
              kbcon_shallow   = kbcon_shallow_p        , ktop_shallow  = ktop_shallow_p  , & 
-             xmb_total       = xmb_total_p            , xmb_shallow   = xmb_shallow_p   , &
+             xmb_total       = xmb_deepc_p            , xmb_shallow   = xmb_shalc_p     , &
              gdc             = qccu_p                 , gdc2          = qicu_p          , &
              rthcuten        = rthcuten_p             , rqvcuten      = rqvcuten_p      , & 
              rqccuten        = rqccuten_p             , rqicuten      = rqicuten_p      , &
@@ -537,9 +542,10 @@
                rthblten  = rthblten_p           , do_deepc = gfconv_deepc            , &
                do_midlc  = gfconv_midlc         , do_shalc = gfconv_shalc            , &
                ichoice   = gfconv_closure_deepc , ichoice_m = gfconv_closure_midlc   , &
-               ichoice_s = gfconv_closure_shalc , xmb_total = xmb_total_p            , &
-               xmb_shalc = xmb_shallow_p        , rthcuten  = rthcuten_p             , &
-               rqvcuten  = rqvcuten_p           , rqccuten  = rqccuten_p             , &
+               ichoice_s = gfconv_closure_shalc , xmb_deepc = xmb_deepc_p            , &
+               xmb_midlc = xmb_midlc_p          , xmb_shalc = xmb_shalc_p            , &
+               rthcuten  = rthcuten_p                                                , &
+               rqvcuten  = rqvcuten_p           , rqccuten  = rqicuten_p             , &
                rqicuten  = rqicuten_p           , rucuten   = rucuten_p              , &
                rvcuten   = rvcuten_p            , gdc       = qccu_p                 , &
                gdc2      = qicu_p               , pratec    = pratec_p               , &
@@ -677,7 +683,7 @@
  real(kind=RKIND),dimension(:),pointer  :: areaCell,meshDensity
  real(kind=RKIND),dimension(:),pointer  :: nca,cubot,cutop,cuprec,raincv
  real(kind=RKIND),dimension(:),pointer  :: gsw,hfx,qfx,xland
- real(kind=RKIND),dimension(:),pointer  :: xmb_total,xmb_shallow
+ real(kind=RKIND),dimension(:),pointer  :: xmb_deepc,xmb_midlc,xmb_shalc
  real(kind=RKIND),dimension(:,:),pointer:: zgrid
  real(kind=RKIND),dimension(:,:),pointer:: qc_cu,qi_cu
  real(kind=RKIND),dimension(:,:),pointer:: w0avg
@@ -732,8 +738,9 @@
        call mpas_pool_get_array(diag_physics,'kpbl'         ,kpbl         )
        call mpas_pool_get_array(diag_physics,'cubot'        ,cubot        )
        call mpas_pool_get_array(diag_physics,'cutop'        ,cutop        )
-       call mpas_pool_get_array(diag_physics,'xmb_total'    ,xmb_total    )
-       call mpas_pool_get_array(diag_physics,'xmb_shallow'  ,xmb_shallow  )
+       call mpas_pool_get_array(diag_physics,'xmb_deepc'    ,xmb_deepc    )
+       call mpas_pool_get_array(diag_physics,'xmb_midlc'    ,xmb_midlc    )
+       call mpas_pool_get_array(diag_physics,'xmb_shalc'    ,xmb_shalc    )
        call mpas_pool_get_array(diag_physics,'k22_shallow'  ,k22_shallow  )
        call mpas_pool_get_array(diag_physics,'kbcon_shallow',kbcon_shallow)
        call mpas_pool_get_array(diag_physics,'ktop_shallow' ,ktop_shallow )
@@ -763,8 +770,9 @@
           cubot_p(i,j)         = cubot(i)
           cutop_p(i,j)         = cutop(i)
 
-          xmb_total_p(i,j)     = xmb_total(i)
-          xmb_shallow_p(i,j)   = xmb_shallow(i)
+          xmb_deepc_p(i,j)     = xmb_deepc(i)
+          xmb_midlc_p(i,j)     = xmb_midlc(i)
+          xmb_shalc_p(i,j)     = xmb_shalc(i)
 
           k22_shallow_p(i,j)   = k22_shallow(i)
           kbcon_shallow_p(i,j) = kbcon_shallow(i)
@@ -915,7 +923,7 @@
  character(len=StrKIND),pointer:: convection_scheme
  integer,dimension(:),pointer:: k22_shallow,kbcon_shallow,ktop_shallow,ktop_deep
  real(kind=RKIND),dimension(:),pointer  :: nca,cubot,cutop,cuprec,raincv
- real(kind=RKIND),dimension(:),pointer  :: xmb_total,xmb_shallow
+ real(kind=RKIND),dimension(:),pointer  :: xmb_deepc,xmb_midlc,xmb_shalc
  real(kind=RKIND),dimension(:,:),pointer:: qc_cu,qi_cu
  real(kind=RKIND),dimension(:,:),pointer:: w0avg
  real(kind=RKIND),dimension(:,:),pointer:: rthcuten,rqvcuten,rqccuten,rqicuten,rqrcuten,rqscuten
@@ -951,8 +959,9 @@
     case ("cu_grell_freitas","cu_grell_freitas_wrf390")
        call mpas_pool_get_array(diag_physics,'cubot'        ,cubot        )
        call mpas_pool_get_array(diag_physics,'cutop'        ,cutop        )
-       call mpas_pool_get_array(diag_physics,'xmb_total'    ,xmb_total    )
-       call mpas_pool_get_array(diag_physics,'xmb_shallow'  ,xmb_shallow  )
+       call mpas_pool_get_array(diag_physics,'xmb_deepc'    ,xmb_deepc    )
+       call mpas_pool_get_array(diag_physics,'xmb_midlc'    ,xmb_midlc    )
+       call mpas_pool_get_array(diag_physics,'xmb_shalc'    ,xmb_shalc    )
        call mpas_pool_get_array(diag_physics,'k22_shallow'  ,k22_shallow  )
        call mpas_pool_get_array(diag_physics,'kbcon_shallow',kbcon_shallow)
        call mpas_pool_get_array(diag_physics,'ktop_shallow' ,ktop_shallow )
@@ -967,8 +976,9 @@
        do i = its,ite
           cubot(i)         = cubot_p(i,j)
           cutop(i)         = cutop_p(i,j)
-          xmb_total(i)     = xmb_total_p(i,j)
-          xmb_shallow(i)   = xmb_shallow_p(i,j)
+          xmb_deepc(i)     = xmb_deepc_p(i,j)
+          xmb_midlc(i)     = xmb_midlc_p(i,j)
+          xmb_shalc(i)     = xmb_shalc_p(i,j)
           k22_shallow(i)   = k22_shallow_p(i,j)
           kbcon_shallow(i) = kbcon_shallow_p(i,j)
           ktop_shallow(i)  = ktop_shallow_p(i,j)

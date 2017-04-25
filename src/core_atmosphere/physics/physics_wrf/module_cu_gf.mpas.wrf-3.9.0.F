@@ -37,10 +37,13 @@ module module_cu_gf_wrf390
                do_deepc,do_midlc,do_shalc,             &
                ichoice,ichoice_m,ichoice_s,            &
                kbcon_deepc,ktop_deepc,k22_deepc,       &
-               xmb_total,xmb_shalc,                    &
+               kbcon_midlc,ktop_midlc,k22_midlc,       &
+               kbcon_shalc,ktop_shalc,k22_shalc,       &
+               xmb_deepc,xmb_midlc,xmb_shalc,          &
                rthcuten,rqvcuten,rqccuten,             &
                rqicuten,rucuten,rvcuten,gdc,gdc2,      &
-               pratec,raincv,                          &
+               pratec,pratecm,pratecs,raincv,raincvm,  &
+               raincvs,                                &
                ids,ide,jds,jde,kds,kde,                &
                ims,ime,jms,jme,kms,kme,                &
                its,ite,jts,jte,kts,kte                 &
@@ -64,9 +67,12 @@ module module_cu_gf_wrf390
 
 !inout variables:
  integer,intent(inout),dimension(ims:ime,jms:jme),optional:: k22_deepc,kbcon_deepc,ktop_deepc
+ integer,intent(inout),dimension(ims:ime,jms:jme),optional:: k22_midlc,kbcon_midlc,ktop_midlc
+ integer,intent(inout),dimension(ims:ime,jms:jme),optional:: k22_shalc,kbcon_shalc,ktop_shalc
 
  real,intent(inout),dimension(ims:ime,jms:jme):: raincv,pratec
- real,intent(inout),dimension(ims:ime,jms:jme),optional:: xmb_total,xmb_shalc
+ real,intent(inout),dimension(ims:ime,jms:jme),optional:: raincvs,raincvm,pratecs,pratecm
+ real,intent(inout),dimension(ims:ime,jms:jme),optional:: xmb_deepc,xmb_midlc,xmb_shalc
 
  real,intent(inout),dimension(ims:ime,kms:kme,jms:jme):: rthcuten,rqvcuten,rqccuten
  real,intent(inout),dimension(ims:ime,kms:kme,jms:jme),optional:: rucuten,rvcuten
@@ -147,12 +153,23 @@ module module_cu_gf_wrf390
        if(present(k22_deepc)  ) k22_deepc(i,j)   = 0
        if(present(kbcon_deepc)) kbcon_deepc(i,j) = 0
        if(present(ktop_deepc) ) ktop_deepc(i,j)  = 0
+       if(present(k22_midlc)  ) k22_midlc(i,j)   = 0
+       if(present(kbcon_midlc)) kbcon_midlc(i,j) = 0
+       if(present(ktop_midlc) ) ktop_midlc(i,j)  = 0
+       if(present(k22_shalc)  ) k22_shalc(i,j)   = 0
+       if(present(kbcon_shalc)) kbcon_shalc(i,j) = 0
+       if(present(ktop_shalc) ) ktop_shalc(i,j)  = 0
 
        raincv(i,j)  = 0.
        pratec (i,j) = 0.
+       if(present(raincvm)) raincvm(i,j) = 0.
+       if(present(raincvs)) raincvs(i,j) = 0.
+       if(present(pratecm)) pratecm(i,j) = 0.
+       if(present(pratecs)) pratecs(i,j) = 0.
 
+       if(present(xmb_deepc)) xmb_deepc(i,j) = 0.
+       if(present(xmb_midlc)) xmb_midlc(i,j) = 0.
        if(present(xmb_shalc)) xmb_shalc(i,j) = 0.
-       if(present(xmb_total)) xmb_total(i,j) = 0.
     enddo
 
     do k = kts, kte
@@ -317,7 +334,10 @@ module module_cu_gf_wrf390
                        outqcs,prets,its,ite,kts,kte,itf,ktf)
 
         do i = its,itf
-           if(present(xmb_shalc)) xmb_shalc(i,j) = xmbs(i)
+           if(present(k22_shalc)  ) k22_shalc(i,j)   = k22s(i)
+           if(present(kbcon_shalc)) kbcon_shalc(i,j) = kbcons(i)
+           if(present(ktop_shalc) ) ktop_shalc(i,j)  = ktops(i)
+           if(present(xmb_shalc)  ) xmb_shalc(i,j)   = xmbs(i)
         enddo
      endif
 
@@ -341,6 +361,13 @@ module module_cu_gf_wrf390
         enddo
         call neg_check('mid',ipr,dt,qcheck,outqm,outtm,outum,outvm, &
                        outqcm,pretm,its,ite,kts,kte,itf,ktf)
+
+        do i = its,itf
+           if(present(k22_midlc)  ) k22_midlc(i,j)   = k22m(i)
+           if(present(kbcon_midlc)) kbcon_midlc(i,j) = kbconm(i)
+           if(present(ktop_midlc) ) ktop_midlc(i,j)  = ktopm(i)
+           if(present(xmb_midlc)  ) xmb_midlc(i,j)   = xmbm(i)
+        enddo
      endif
 
 
@@ -365,7 +392,10 @@ module module_cu_gf_wrf390
                        outqc,pret,its,ite,kts,kte,itf,ktf)
 
         do i = its, itf
-           if(present(xmb_total)) xmb_total(i,j) = xmb(i)
+           if(present(k22_deepc)  ) k22_deepc(i,j)   = k22(i)
+           if(present(kbcon_deepc)) kbcon_deepc(i,j) = kbcon(i)
+           if(present(ktop_deepc) ) ktop_deepc(i,j)  = ktop(i)
+           if(present(xmb_deepc)  ) xmb_deepc(i,j)   = xmb(i)
         enddo
     endif
 
@@ -374,6 +404,11 @@ module module_cu_gf_wrf390
     do i = its, itf
        pratec(i,j) = pret(i) + pretm(i) + prets(i)
        raincv(i,j) = pratec(i,j)*dt
+
+       if(present(pratecs)) pratecs(i,j) = prets(i)
+       if(present(pratecm)) pratecm(i,j) = pretm(i)
+       if(present(raincvs)) raincvs(i,j) = prets(i)*dt
+       if(present(raincvm)) raincvm(i,j) = pretm(i)*dt
     enddo
 
     !... always save the tendencies of potential temperature, water vapor,  and cloud water.

@@ -774,8 +774,9 @@
 			<var name="kbcon_shallow"/>
 			<var name="ktop_shallow"/>
 			<var name="ktop_deep"/>
-			<var name="xmb_total"/>
-			<var name="xmb_shallow"/>
+			<var name="xmb_deepc"/>
+			<var name="xmb_midlc"/>
+			<var name="xmb_shalc"/>
 			<var name="qc_cu"/>
 			<var name="qi_cu"/>
 			<var name="rthcuten"/>
@@ -2175,11 +2176,15 @@
                      description="index of highest level of deep convection in Grell-Freitas convection scheme"
                      packages="cu_grell_freitas_in"/>
 
-                <var name="xmb_total" type="real" dimensions="nCells Time" units="kg m^{-2} s^{-1}"
-                     description="cloud-base mass flux"
+                <var name="xmb_deepc" type="real" dimensions="nCells Time" units="kg m^{-2} s^{-1}"
+                     description="cloud-base mass flux for deep convection"
                      packages="cu_grell_freitas_in"/>
 
-                <var name="xmb_shallow" type="real" dimensions="nCells Time" units="kg m^{-2} s^{-1}"
+                <var name="xmb_midlc" type="real" dimensions="nCells Time" units="kg m^{-2} s^{-1}"
+                     description="cloud-base mass flux for mid-level convection"
+                     packages="cu_grell_freitas_in"/>
+
+                <var name="xmb_shalc" type="real" dimensions="nCells Time" units="kg m^{-2} s^{-1}"
                      description="cloud base mass flux for shallow convection"
                      packages="cu_grell_freitas_in"/>
 

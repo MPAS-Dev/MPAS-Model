@@ -107,6 +107,9 @@
 ! * added local variables for the mass-weighted mean velocities for rain, cloud ice, snow, and graupel from the
 !   Thompson cloud microphysics scheme.
 !   Laura D. Fowler (laura@ucar.edu) / 2017-04-19.
+! * renamed the variables xmb_total_p and xmb_shallow_p to xmb_deepc_p and xmb_shalc_p, respectively. Added the
+!   variable xmb_midlc_p as the cloud base mass flux for mid-level convection.
+!   Laura D. Fowler (laura@ucar.edu) / 2017-04-24.
 
 
 !=================================================================================================================
@@ -319,8 +322,9 @@
     ktop_deep_p        !
 
  real(kind=RKIND),dimension(:,:),allocatable:: &
-    xmb_total_p,      &!
-    xmb_shallow_p      !
+    xmb_deepc_p,      &!
+    xmb_midlc_p,      &!
+    xmb_shalc_p        !
 
  real(kind=RKIND),dimension(:,:,:),allocatable:: &
     rthdynten_p,      &!
