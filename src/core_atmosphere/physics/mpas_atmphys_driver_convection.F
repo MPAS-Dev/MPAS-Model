@@ -539,7 +539,7 @@
                ichoice   = gfconv_closure_deepc , ichoice_m = gfconv_closure_midlc   , &
                ichoice_s = gfconv_closure_shalc , xmb_total = xmb_total_p            , &
                xmb_shalc = xmb_shallow_p        , rthcuten  = rthcuten_p             , &
-               rqvcuten  = rqvcuten_p           , rqccuten  = rqicuten_p             , &
+               rqvcuten  = rqvcuten_p           , rqccuten  = rqccuten_p             , &
                rqicuten  = rqicuten_p           , rucuten   = rucuten_p              , &
                rvcuten   = rvcuten_p            , gdc       = qccu_p                 , &
                gdc2      = qicu_p               , pratec    = pratec_p               , &
