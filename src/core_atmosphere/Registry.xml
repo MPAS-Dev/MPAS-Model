@@ -640,8 +640,14 @@
 			<var name="sr"/>
 			<var name="i_rainc"/>
 			<var name="cuprec"/>
+			<var name="cuprecm"/>
+			<var name="cuprecs"/>
 			<var name="rainc"/>
+			<var name="raincm"/>
+			<var name="raincs"/>
 			<var name="raincv"/>
+			<var name="raincvm"/>
+			<var name="raincvs"/>
 			<var name="nca"/>
 			<var name="cubot"/>
 			<var name="cutop"/>
@@ -2174,6 +2180,30 @@
 
                 <var name="ktop_deep" type="integer" dimensions="nCells Time" units="unitless"
                      description="index of highest level of deep convection in Grell-Freitas convection scheme"
+                     packages="cu_grell_freitas_in"/>
+
+                <var name="cuprecm" type="real" dimensions="nCells Time" units="mm s^{-1}"
+                     description="convective precipitation rate for mid-level convection""
+                     packages="cu_grell_freitas_in"/>
+
+                <var name="cuprecs" type="real" dimensions="nCells Time" units="mm s^{-1}"
+                     description="convective precipitation rate for shallow convection""
+                     packages="cu_grell_freitas_in"/>
+
+                <var name="raincm" type="real" dimensions="nCells Time" units="mm"
+                     description="accumulated convective precipitation for mid-level convection"
+                     packages="cu_grell_freitas_in"/>
+
+                <var name="raincs" type="real" dimensions="nCells Time" units="mm"
+                     description="accumulated convective precipitation for shallow convection"
+                     packages="cu_grell_freitas_in"/>
+
+                <var name="raincvm" type="real" dimensions="nCells Time" units="mm"
+                     description="time-step convective precipitation for mid-level convection"
+                     packages="cu_grell_freitas_in"/>
+
+                <var name="raincvs" type="real" dimensions="nCells Time" units="mm"
+                     description="time-step convective precipitation for shallow convection"
                      packages="cu_grell_freitas_in"/>
 
                 <var name="xmb_deepc" type="real" dimensions="nCells Time" units="kg m^{-2} s^{-1}"

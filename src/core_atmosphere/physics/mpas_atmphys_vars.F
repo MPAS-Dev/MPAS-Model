@@ -110,6 +110,10 @@
 ! * renamed the variables xmb_total_p and xmb_shallow_p to xmb_deepc_p and xmb_shalc_p, respectively. Added the
 !   variable xmb_midlc_p as the cloud base mass flux for mid-level convection.
 !   Laura D. Fowler (laura@ucar.edu) / 2017-04-24.
+! * added the variables pratecm_p,pratecs_p,raincm_p,raincs_p,raincvm_p,and raincvs_p to save diagnostics of the
+!   instantaneous and accumulated precipitation for mid-level and shallow convection from the Grell-Freitas
+!   convection scheme.
+!   Laura D. Fowler (laura@ucar.edu) / 2017-04-25.
 
 
 !=================================================================================================================
@@ -322,6 +326,12 @@
     ktop_deep_p        !
 
  real(kind=RKIND),dimension(:,:),allocatable:: &
+    pratecm_p,        &!
+    pratecs_p,        &!
+    raincm_p,         &!
+    raincs_p,         &!
+    raincvm_p,        &!
+    raincvs_p,        &!
     xmb_deepc_p,      &!
     xmb_midlc_p,      &!
     xmb_shalc_p        !
