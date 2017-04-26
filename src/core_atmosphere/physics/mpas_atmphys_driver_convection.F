@@ -99,6 +99,10 @@
 !   instantaneous and accumulated precipitation for mid-level and shallow convection from the Grell-Freitas
 !   convection scheme.
 !   Laura D. Fowler (laura@ucar.edu) / 2017-04-25.
+! * added the variables k22_deepc_p,k22_midlc_p,k22_shalc_p,kbcon_deepc_p,kbcon_midlc_p,kbcon_shalc_p,
+!   ktop_deepc_p,ktop_midlc_p,and ktop_shalc_p to save diagnostics of the k22, cloud-base, and cloud_top levels
+!   for deep, mid-level, and shallow convection from the Grell-Freitas convection scheme.
+!   Laura D. Fowler (laura@ucar.edu) / 2017-04-26.
 
 
  contains
@@ -153,11 +157,15 @@
        if(.not.allocated(cubot_p)        ) allocate(cubot_p(ims:ime,jms:jme)            )
        if(.not.allocated(cutop_p)        ) allocate(cutop_p(ims:ime,jms:jme)            )
        if(.not.allocated(kpbl_p)         ) allocate(kpbl_p(ims:ime,jms:jme)             )
-       if(.not.allocated(k22_shallow_p)  ) allocate(k22_shallow_p(ims:ime,jms:jme)      )
-       if(.not.allocated(kbcon_shallow_p)) allocate(kbcon_shallow_p(ims:ime,jms:jme)    )
-       if(.not.allocated(ktop_shallow_p) ) allocate(ktop_shallow_p(ims:ime,jms:jme)     )
-       if(.not.allocated(kbot_shallow_p) ) allocate(kbot_shallow_p(ims:ime,jms:jme)     )
-       if(.not.allocated(ktop_deep_p)    ) allocate(ktop_deep_p(ims:ime,jms:jme)        )
+       if(.not.allocated(k22_deepc_p)    ) allocate(k22_deepc_p(ims:ime,jms:jme)        )
+       if(.not.allocated(k22_midlc_p)    ) allocate(k22_midlc_p(ims:ime,jms:jme)        )
+       if(.not.allocated(k22_shalc_p)    ) allocate(k22_shalc_p(ims:ime,jms:jme)        )
+       if(.not.allocated(kbcon_deepc_p)  ) allocate(kbcon_deepc_p(ims:ime,jms:jme)      )
+       if(.not.allocated(kbcon_midlc_p)  ) allocate(kbcon_midlc_p(ims:ime,jms:jme)      )
+       if(.not.allocated(kbcon_shalc_p)  ) allocate(kbcon_shalc_p(ims:ime,jms:jme)      )
+       if(.not.allocated(ktop_deepc_p)   ) allocate(ktop_deepc_p(ims:ime,jms:jme)       )
+       if(.not.allocated(ktop_midlc_p)   ) allocate(ktop_midlc_p(ims:ime,jms:jme)       )
+       if(.not.allocated(ktop_shalc_p)   ) allocate(ktop_shalc_p(ims:ime,jms:jme)       )
 
        if(.not.allocated(dx_p)           ) allocate(dx_p(ims:ime,jms:jme)               )
        if(.not.allocated(area_p)         ) allocate(area_p(ims:ime,jms:jme)             )
@@ -307,11 +315,15 @@
        if(allocated(cubot_p)        ) deallocate(cubot_p        )
        if(allocated(cutop_p)        ) deallocate(cutop_p        )
        if(allocated(kpbl_p)         ) deallocate(kpbl_p         )
-       if(allocated(k22_shallow_p)  ) deallocate(k22_shallow_p  )
-       if(allocated(kbcon_shallow_p)) deallocate(kbcon_shallow_p)
-       if(allocated(ktop_shallow_p) ) deallocate(ktop_shallow_p )
-       if(allocated(kbot_shallow_p) ) deallocate(kbot_shallow_p )
-       if(allocated(ktop_deep_p)    ) deallocate(ktop_deep_p    )
+       if(allocated(k22_deepc_p)    ) deallocate(k22_deepc_p    )
+       if(allocated(k22_midlc_p)    ) deallocate(k22_midlc_p    )
+       if(allocated(k22_shalc_p)    ) deallocate(k22_shalc_p    )
+       if(allocated(kbcon_deepc_p)  ) deallocate(kbcon_deepc_p  )
+       if(allocated(kbcon_midlc_p)  ) deallocate(kbcon_midlc_p  )
+       if(allocated(kbcon_shalc_p)  ) deallocate(kbcon_shalc_p  )
+       if(allocated(ktop_deepc_p)   ) deallocate(ktop_deepc_p   )
+       if(allocated(ktop_midlc_p)   ) deallocate(ktop_midlc_p   )
+       if(allocated(ktop_shalc_p)   ) deallocate(ktop_shalc_p   )
 
        if(allocated(dx_p)           ) deallocate(dx_p           )
        if(allocated(area_p)         ) deallocate(area_p         )
@@ -515,8 +527,8 @@
              rqvften         = rqvdynten_p            , rthraten      = rthraten_p      , &
              kpbl            = kpbl_p                 , raincv        = raincv_p        , &
              pratec          = pratec_p               , htop          = cutop_p         , &
-             hbot            = cubot_p                , k22_shallow   = k22_shallow_p   , & 
-             kbcon_shallow   = kbcon_shallow_p        , ktop_shallow  = ktop_shallow_p  , & 
+             hbot            = cubot_p                , k22_shallow   = k22_shalc_p     , & 
+             kbcon_shallow   = kbcon_shalc_p          , ktop_shallow  = ktop_shalc_p    , & 
              xmb_total       = xmb_deepc_p            , xmb_shallow   = xmb_shalc_p     , &
              gdc             = qccu_p                 , gdc2          = qicu_p          , &
              rthcuten        = rthcuten_p             , rqvcuten      = rqvcuten_p      , & 
@@ -547,32 +559,37 @@
        write(0,*) 'gfconv_closure_shalc = ',gfconv_closure_shalc
 
        call cu_grell_freitas_wrf390( &
-               dt        = dt_dyn               , dx       = dx_p                    , &
-               area      = area_p               , u        = u_p                     , &
-               v         = v_p                  , w        = w_p                     , &
-               t         = t_p                  , q        = qv_p                    , &
-               rho       = rho_p                , p        = pres_hyd_p              , &
-               pi        = pi_p                 , p8w      = pres2_hyd_p             , &
-               dz8w      = dz_p                 , ht       = ht_p                    , &
-               xland     = xland_p              , hfx      = hfx_p                   , &
-               qfx       = qfx_p                , kpbl     = kpbl_p                  , &
-               rthraten  = rthraten_p           , rthften  = rthdynten_p             , &
-               rqvften   = rqvdynten_p          , rqvblten = rqvblten_p              , &
-               rthblten  = rthblten_p           , do_deepc = gfconv_deepc            , &
-               do_midlc  = gfconv_midlc         , do_shalc = gfconv_shalc            , &
-               ichoice   = gfconv_closure_deepc , ichoice_m = gfconv_closure_midlc   , &
-               ichoice_s = gfconv_closure_shalc , xmb_deepc = xmb_deepc_p            , &
-               xmb_midlc = xmb_midlc_p          , xmb_shalc = xmb_shalc_p            , &
-               raincv    = raincv_p             , raincvm   = raincvm_p              , &
-               raincvs   = raincvs_p            , pratec    = pratec_p               , &
-               pratecm   = pratecm_p            , pratecs   = pratecs_p              , &
-               rthcuten  = rthcuten_p           , rqvcuten  = rqvcuten_p             , &
-               rqccuten  = rqccuten_p           , rqicuten  = rqicuten_p             , &
-               rucuten   = rucuten_p            , rvcuten   = rvcuten_p              , &
-               gdc       = qccu_p               , gdc2      = qicu_p                 , &
-               ids = ids , ide = ide , jds = jds , jde = jde , kds = kds , kde = kde , &
-               ims = ims , ime = ime , jms = jms , jme = jme , kms = kds , kme = kme , &
-               its = its , ite = ite , jts = jts , jte = jte , kts = kts , kte = kte   &
+               dt          = dt_dyn               , dx          = dx_p                 , &
+               area        = area_p               , u           = u_p                  , &
+               v           = v_p                  , w           = w_p                  , &
+               t           = t_p                  , q           = qv_p                 , &
+               rho         = rho_p                , p           = pres_hyd_p           , &
+               pi          = pi_p                 , p8w         = pres2_hyd_p          , &
+               dz8w        = dz_p                 , ht          = ht_p                 , &
+               xland       = xland_p              , hfx         = hfx_p                , &
+               qfx         = qfx_p                , kpbl        = kpbl_p               , &
+               rthraten    = rthraten_p           , rthften     = rthdynten_p          , &
+               rqvften     = rqvdynten_p          , rqvblten    = rqvblten_p           , &
+               rthblten    = rthblten_p           , do_deepc    = gfconv_deepc         , &
+               do_midlc    = gfconv_midlc         , do_shalc    = gfconv_shalc         , &
+               ichoice     = gfconv_closure_deepc , ichoice_m   = gfconv_closure_midlc , &
+               ichoice_s   = gfconv_closure_shalc , kbcon_deepc = kbcon_deepc_p        , &
+               ktop_deepc  = ktop_deepc_p         , k22_deepc   = k22_deepc_p          , &
+               kbcon_midlc = kbcon_midlc_p        , ktop_midlc  = ktop_midlc_p         , &
+               k22_midlc   = k22_midlc_p          , kbcon_shalc = kbcon_shalc_p        , &
+               ktop_shalc  = ktop_shalc_p         , k22_shalc   = k22_shalc_p          , & 
+               xmb_deepc   = xmb_deepc_p          , xmb_midlc   = xmb_midlc_p          , &
+               xmb_shalc   = xmb_shalc_p          , raincv      = raincv_p             , &
+               raincvm     = raincvm_p            , raincvs     = raincvs_p            , &
+               pratec      = pratec_p             , pratecm     = pratecm_p            , &
+               pratecs     = pratecs_p            , rthcuten    = rthcuten_p           , &
+               rqvcuten    = rqvcuten_p           , rqccuten    = rqccuten_p           , &
+               rqicuten    = rqicuten_p           , rucuten     = rucuten_p            , &
+               rvcuten     = rvcuten_p            , gdc         = qccu_p               , &
+               gdc2        = qicu_p                                                    , &
+               ids = ids , ide = ide , jds = jds , jde = jde , kds = kds , kde = kde   , &
+               ims = ims , ime = ime , jms = jms , jme = jme , kms = kds , kme = kme   , &
+               its = its , ite = ite , jts = jts , jte = jte , kts = kts , kte = kte     &
                                    )
        write(0,*) '--- end subroutine cu_grell_freitas_wrf390.'
        write(0,*)
@@ -699,7 +716,10 @@
 
 !local pointers:
  character(len=StrKIND),pointer:: convection_scheme
- integer,dimension(:),pointer:: kpbl,k22_shallow,kbcon_shallow,ktop_shallow,ktop_deep
+ integer,dimension(:),pointer:: kpbl
+ integer,dimension(:),pointer:: k22_deepc,k22_midlc,k22_shalc
+ integer,dimension(:),pointer:: kbcon_deepc,kbcon_midlc,kbcon_shalc
+ integer,dimension(:),pointer:: ktop_deepc,ktop_midlc,ktop_shalc
  real(kind=RKIND),dimension(:),pointer  :: areaCell,meshDensity
  real(kind=RKIND),dimension(:),pointer  :: nca,cubot,cutop,cuprec,raincv
  real(kind=RKIND),dimension(:),pointer  :: gsw,hfx,qfx,xland
@@ -756,25 +776,30 @@
 
        call mpas_pool_get_array(sfc_input,'xland',xland)
 
-       call mpas_pool_get_array(diag_physics,'gsw'          ,gsw          )
-       call mpas_pool_get_array(diag_physics,'hfx'          ,hfx          )
-       call mpas_pool_get_array(diag_physics,'qfx'          ,qfx          )
-       call mpas_pool_get_array(diag_physics,'kpbl'         ,kpbl         )
-       call mpas_pool_get_array(diag_physics,'cubot'        ,cubot        )
-       call mpas_pool_get_array(diag_physics,'cutop'        ,cutop        )
-       call mpas_pool_get_array(diag_physics,'xmb_deepc'    ,xmb_deepc    )
-       call mpas_pool_get_array(diag_physics,'xmb_midlc'    ,xmb_midlc    )
-       call mpas_pool_get_array(diag_physics,'xmb_shalc'    ,xmb_shalc    )
-       call mpas_pool_get_array(diag_physics,'k22_shallow'  ,k22_shallow  )
-       call mpas_pool_get_array(diag_physics,'kbcon_shallow',kbcon_shallow)
-       call mpas_pool_get_array(diag_physics,'ktop_shallow' ,ktop_shallow )
-       call mpas_pool_get_array(diag_physics,'ktop_deep'    ,ktop_deep    )
-       call mpas_pool_get_array(diag_physics,'cuprecm'      ,cuprecm      )
-       call mpas_pool_get_array(diag_physics,'cuprecs'      ,cuprecs      )
-       call mpas_pool_get_array(diag_physics,'raincvm'      ,raincvm      )
-       call mpas_pool_get_array(diag_physics,'raincvs'      ,raincvs      )
-       call mpas_pool_get_array(diag_physics,'qc_cu'        ,qc_cu        )
-       call mpas_pool_get_array(diag_physics,'qi_cu'        ,qi_cu        )
+       call mpas_pool_get_array(diag_physics,'gsw'        ,gsw        )
+       call mpas_pool_get_array(diag_physics,'hfx'        ,hfx        )
+       call mpas_pool_get_array(diag_physics,'qfx'        ,qfx        )
+       call mpas_pool_get_array(diag_physics,'kpbl'       ,kpbl       )
+       call mpas_pool_get_array(diag_physics,'cubot'      ,cubot      )
+       call mpas_pool_get_array(diag_physics,'cutop'      ,cutop      )
+       call mpas_pool_get_array(diag_physics,'xmb_deepc'  ,xmb_deepc  )
+       call mpas_pool_get_array(diag_physics,'xmb_midlc'  ,xmb_midlc  )
+       call mpas_pool_get_array(diag_physics,'xmb_shalc'  ,xmb_shalc  )
+       call mpas_pool_get_array(diag_physics,'k22_deepc'  ,k22_deepc  )
+       call mpas_pool_get_array(diag_physics,'k22_midlc'  ,k22_midlc  )
+       call mpas_pool_get_array(diag_physics,'k22_shalc'  ,k22_shalc  )
+       call mpas_pool_get_array(diag_physics,'kbcon_deepc',kbcon_deepc)
+       call mpas_pool_get_array(diag_physics,'kbcon_midlc',kbcon_midlc)
+       call mpas_pool_get_array(diag_physics,'kbcon_shalc',kbcon_shalc)
+       call mpas_pool_get_array(diag_physics,'ktop_deepc' ,ktop_deepc )
+       call mpas_pool_get_array(diag_physics,'ktop_midlc' ,ktop_midlc )
+       call mpas_pool_get_array(diag_physics,'ktop_shalc' ,ktop_shalc )
+       call mpas_pool_get_array(diag_physics,'cuprecm'    ,cuprecm    )
+       call mpas_pool_get_array(diag_physics,'cuprecs'    ,cuprecs    )
+       call mpas_pool_get_array(diag_physics,'raincvm'    ,raincvm    )
+       call mpas_pool_get_array(diag_physics,'raincvs'    ,raincvs    )
+       call mpas_pool_get_array(diag_physics,'qc_cu'      ,qc_cu      )
+       call mpas_pool_get_array(diag_physics,'qi_cu'      ,qi_cu      )
 
        call mpas_pool_get_array(tend_physics,'rqvblten'  ,rqvblten  )
        call mpas_pool_get_array(tend_physics,'rqvdynten' ,rqvdynten )
@@ -788,28 +813,33 @@
        do j = jts,jte
        do i = its,ite
           dx_p(i,j) = len_disp / meshDensity(i)**0.25
-          area_p(i,j)          = areaCell(i)
-          ht_p(i,j)            = zgrid(1,i)
-          xland_p(i,j)         = xland(i)
-          gsw_p(i,j)           = gsw(i)
-          hfx_p(i,j)           = hfx(i)
-          qfx_p(i,j)           = qfx(i)
-          kpbl_p(i,j)          = kpbl(i)
-          cubot_p(i,j)         = cubot(i)
-          cutop_p(i,j)         = cutop(i)
+          area_p(i,j)        = areaCell(i)
+          ht_p(i,j)          = zgrid(1,i)
+          xland_p(i,j)       = xland(i)
+          gsw_p(i,j)         = gsw(i)
+          hfx_p(i,j)         = hfx(i)
+          qfx_p(i,j)         = qfx(i)
+          kpbl_p(i,j)        = kpbl(i)
+          cubot_p(i,j)       = cubot(i)
+          cutop_p(i,j)       = cutop(i)
 
-          xmb_deepc_p(i,j)     = xmb_deepc(i)
-          xmb_midlc_p(i,j)     = xmb_midlc(i)
-          xmb_shalc_p(i,j)     = xmb_shalc(i)
-          pratecm_p(i,j)       = cuprecm(i)
-          pratecs_p(i,j)       = cuprecs(i)
-          raincvm_p(i,j)       = raincvm(i)
-          raincvs_p(i,j)       = raincvs(i)
+          xmb_deepc_p(i,j)   = xmb_deepc(i)
+          xmb_midlc_p(i,j)   = xmb_midlc(i)
+          xmb_shalc_p(i,j)   = xmb_shalc(i)
+          pratecm_p(i,j)     = cuprecm(i)
+          pratecs_p(i,j)     = cuprecs(i)
+          raincvm_p(i,j)     = raincvm(i)
+          raincvs_p(i,j)     = raincvs(i)
 
-          k22_shallow_p(i,j)   = k22_shallow(i)
-          kbcon_shallow_p(i,j) = kbcon_shallow(i)
-          ktop_shallow_p(i,j)  = ktop_shallow(i)
-          ktop_deep_p(i,j)     = ktop_deep(i)
+          k22_deepc_p(i,j)   = k22_deepc(i)
+          k22_midlc_p(i,j)   = k22_midlc(i)
+          k22_shalc_p(i,j)   = k22_shalc(i)
+          kbcon_deepc_p(i,j) = kbcon_deepc(i)
+          kbcon_midlc_p(i,j) = kbcon_midlc(i)
+          kbcon_shalc_p(i,j) = kbcon_shalc(i)
+          ktop_deepc_p(i,j)  = ktop_deepc(i)
+          ktop_midlc_p(i,j)  = ktop_midlc(i)
+          ktop_shalc_p(i,j)  = ktop_shalc(i)
 
           do k = kts,kte
              qccu_p(i,k,j)      = qc_cu(k,i)
@@ -953,7 +983,9 @@
 
 !local pointers:
  character(len=StrKIND),pointer:: convection_scheme
- integer,dimension(:),pointer:: k22_shallow,kbcon_shallow,ktop_shallow,ktop_deep
+ integer,dimension(:),pointer:: k22_deepc,k22_midlc,k22_shalc
+ integer,dimension(:),pointer:: kbcon_deepc,kbcon_midlc,kbcon_shalc
+ integer,dimension(:),pointer:: ktop_deepc,ktop_midlc,ktop_shalc
  real(kind=RKIND),dimension(:),pointer  :: nca,cubot,cutop,cuprec,raincv
  real(kind=RKIND),dimension(:),pointer  :: xmb_deepc
  real(kind=RKIND),dimension(:,:),pointer:: qc_cu,qi_cu
@@ -993,21 +1025,26 @@
  convection_select: select case(convection_scheme)
 
     case ("cu_grell_freitas","cu_grell_freitas_wrf390")
-       call mpas_pool_get_array(diag_physics,'cubot'        ,cubot        )
-       call mpas_pool_get_array(diag_physics,'cutop'        ,cutop        )
-       call mpas_pool_get_array(diag_physics,'xmb_deepc'    ,xmb_deepc    )
-       call mpas_pool_get_array(diag_physics,'xmb_midlc'    ,xmb_midlc    )
-       call mpas_pool_get_array(diag_physics,'xmb_shalc'    ,xmb_shalc    )
-       call mpas_pool_get_array(diag_physics,'k22_shallow'  ,k22_shallow  )
-       call mpas_pool_get_array(diag_physics,'kbcon_shallow',kbcon_shallow)
-       call mpas_pool_get_array(diag_physics,'ktop_shallow' ,ktop_shallow )
-       call mpas_pool_get_array(diag_physics,'ktop_deep'    ,ktop_deep    )
-       call mpas_pool_get_array(diag_physics,'cuprecm'      ,cuprecm      )
-       call mpas_pool_get_array(diag_physics,'cuprecs'      ,cuprecs      )
-       call mpas_pool_get_array(diag_physics,'raincvm'      ,raincvm      )
-       call mpas_pool_get_array(diag_physics,'raincvs'      ,raincvs      )
-       call mpas_pool_get_array(diag_physics,'qc_cu'        ,qc_cu        )
-       call mpas_pool_get_array(diag_physics,'qi_cu'        ,qi_cu        )
+       call mpas_pool_get_array(diag_physics,'cubot'      ,cubot      )
+       call mpas_pool_get_array(diag_physics,'cutop'      ,cutop      )
+       call mpas_pool_get_array(diag_physics,'xmb_deepc'  ,xmb_deepc  )
+       call mpas_pool_get_array(diag_physics,'xmb_midlc'  ,xmb_midlc  )
+       call mpas_pool_get_array(diag_physics,'xmb_shalc'  ,xmb_shalc  )
+       call mpas_pool_get_array(diag_physics,'k22_deepc'  ,k22_deepc  )
+       call mpas_pool_get_array(diag_physics,'k22_midlc'  ,k22_midlc  )
+       call mpas_pool_get_array(diag_physics,'k22_shalc'  ,k22_shalc  )
+       call mpas_pool_get_array(diag_physics,'kbcon_deepc',kbcon_deepc)
+       call mpas_pool_get_array(diag_physics,'kbcon_midlc',kbcon_midlc)
+       call mpas_pool_get_array(diag_physics,'kbcon_shalc',kbcon_shalc)
+       call mpas_pool_get_array(diag_physics,'ktop_deepc' ,ktop_deepc )
+       call mpas_pool_get_array(diag_physics,'ktop_midlc' ,ktop_midlc )
+       call mpas_pool_get_array(diag_physics,'ktop_shalc' ,ktop_shalc )
+       call mpas_pool_get_array(diag_physics,'cuprecm'    ,cuprecm    )
+       call mpas_pool_get_array(diag_physics,'cuprecs'    ,cuprecs    )
+       call mpas_pool_get_array(diag_physics,'raincvm'    ,raincvm    )
+       call mpas_pool_get_array(diag_physics,'raincvs'    ,raincvs    )
+       call mpas_pool_get_array(diag_physics,'qc_cu'      ,qc_cu      )
+       call mpas_pool_get_array(diag_physics,'qi_cu'      ,qi_cu      )
 
        call mpas_pool_get_array(tend_physics,'rucuten',rucuten)
        call mpas_pool_get_array(tend_physics,'rvcuten',rvcuten)
@@ -1023,10 +1060,16 @@
           cuprecs(i)       = pratecs_p(i,j)
           raincvm(i)       = raincvm_p(i,j)
           raincvs(i)       = raincvs_p(i,j)
-          k22_shallow(i)   = k22_shallow_p(i,j)
-          kbcon_shallow(i) = kbcon_shallow_p(i,j)
-          ktop_shallow(i)  = ktop_shallow_p(i,j)
-          ktop_deep(i)     = ktop_deep_p(i,j)
+
+          k22_deepc(i)   = k22_deepc_p(i,j)
+          k22_midlc(i)   = k22_midlc_p(i,j)
+          k22_shalc(i)   = k22_shalc_p(i,j)
+          kbcon_deepc(i) = kbcon_deepc_p(i,j)
+          kbcon_midlc(i) = kbcon_midlc_p(i,j)
+          kbcon_shalc(i) = kbcon_shalc_p(i,j)
+          ktop_deepc(i)  = ktop_deepc_p(i,j)
+          ktop_midlc(i)  = ktop_midlc_p(i,j)
+          ktop_shalc(i)  = ktop_shalc_p(i,j)
 
           do k = kts,kte
              qc_cu(k,i)    = qccu_p(i,k,j)

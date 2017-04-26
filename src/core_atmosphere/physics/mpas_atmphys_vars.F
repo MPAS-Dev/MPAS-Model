@@ -114,6 +114,10 @@
 !   instantaneous and accumulated precipitation for mid-level and shallow convection from the Grell-Freitas
 !   convection scheme.
 !   Laura D. Fowler (laura@ucar.edu) / 2017-04-25.
+! * added the variables k22_deepc_p,k22_midlc_p,k22_shalc_p,kbcon_deepc_p,kbcon_midlc_p,kbcon_shalc_p,
+!   ktop_deepc_p,ktop_midlc_p,and ktop_shalc_p to save diagnostics of the k22, cloud-base, and cloud_top levels
+!   for deep, mid-level, and shallow convection from the Grell-Freitas convection scheme.
+!   Laura D. Fowler (laura@ucar.edu) / 2017-04-26.
 
 
 !=================================================================================================================
@@ -319,11 +323,15 @@
     integer, parameter:: ishallow  = 1 !shallow convection used with grell scheme.
 
  integer,dimension(:,:),allocatable:: &
-    k22_shallow_p,    &!
-    kbcon_shallow_p,  &!
-    ktop_shallow_p,   &!
-    kbot_shallow_p,   &!
-    ktop_deep_p        !
+    k22_deepc_p,      &!
+    k22_midlc_p,      &!
+    k22_shalc_p,      &!
+    kbcon_deepc_p,    &!
+    kbcon_midlc_p,    &!
+    kbcon_shalc_p,    &!
+    ktop_deepc_p,     &!
+    ktop_midlc_p,     &!
+    ktop_shalc_p
 
  real(kind=RKIND),dimension(:,:),allocatable:: &
     pratecm_p,        &!

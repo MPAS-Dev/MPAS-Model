@@ -776,10 +776,15 @@
 			<var name="xicem"/>
 			<var name="z0"/>
 			<var name="zs"/>
-			<var name="k22_shallow"/>
-			<var name="kbcon_shallow"/>
-			<var name="ktop_shallow"/>
-			<var name="ktop_deep"/>
+			<var name="k22_deepc"/>
+			<var name="kbcon_deepc"/>
+			<var name="ktop_deepc"/>
+			<var name="k22_midlc"/>
+			<var name="kbcon_midlc"/>
+			<var name="ktop_midlc"/>
+			<var name="k22_shalc"/>
+			<var name="kbcon_shalc"/>
+			<var name="ktop_shalc"/>
 			<var name="xmb_deepc"/>
 			<var name="xmb_midlc"/>
 			<var name="xmb_shalc"/>
@@ -2166,20 +2171,40 @@
 
 
                 <!-- ... GRELL-FREITAS ONLY: -->
-                <var name="k22_shallow" type="integer" dimensions="nCells Time" units="unitless"
-                     description="index of convection at k22 level in Grell-Freitas convection scheme"
+                <var name="k22_deepc" type="integer" dimensions="nCells Time" units="unitless"
+                     description="k22 level for deep convection in the Grell-Freitas convection scheme"
                      packages="cu_grell_freitas_in"/>
 
-                <var name="kbcon_shallow" type="integer" dimensions="nCells Time" units="unitless"
-                     description="index of lowest level of shallow convection in Grell-Freitas convection scheme"
+                <var name="k22_midlc" type="integer" dimensions="nCells Time" units="unitless"
+                     description="k22 level for mid-level convection in the Grell-Freitas convection scheme"
                      packages="cu_grell_freitas_in"/>
 
-                <var name="ktop_shallow" type="integer" dimensions="nCells Time" units="unitless"
-                     description="index of highest level of shallow convection in Grell-Freitas convection scheme"
+                <var name="k22_shalc" type="integer" dimensions="nCells Time" units="unitless"
+                     description="k22 level for shallow convection in the Grell-Freitas convection scheme"
                      packages="cu_grell_freitas_in"/>
 
-                <var name="ktop_deep" type="integer" dimensions="nCells Time" units="unitless"
-                     description="index of highest level of deep convection in Grell-Freitas convection scheme"
+                <var name="kbcon_deepc" type="integer" dimensions="nCells Time" units="unitless"
+                     description="cloud-base level for deep convection in the Grell-Freitas convection scheme"
+                     packages="cu_grell_freitas_in"/>
+
+                <var name="kbcon_midlc" type="integer" dimensions="nCells Time" units="unitless"
+                     description="cloud-base level for mid-level convection in the Grell-Freitas convection scheme"
+                     packages="cu_grell_freitas_in"/>
+
+                <var name="kbcon_shalc" type="integer" dimensions="nCells Time" units="unitless"
+                     description="cloud-base level for shallow convection in the Grell-Freitas convection scheme"
+                     packages="cu_grell_freitas_in"/>
+
+                <var name="ktop_deepc" type="integer" dimensions="nCells Time" units="unitless"
+                     description="cloud-top level for deep convection in the Grell-Freitas convection scheme"
+                     packages="cu_grell_freitas_in"/>
+
+                <var name="ktop_midlc" type="integer" dimensions="nCells Time" units="unitless"
+                     description="cloud-top level for mid-level convection in the Grell-Freitas convection scheme"
+                     packages="cu_grell_freitas_in"/>
+
+                <var name="ktop_shalc" type="integer" dimensions="nCells Time" units="unitless"
+                     description="cloud-top level for shallow convection in the Grell-Freitas convection scheme"
                      packages="cu_grell_freitas_in"/>
 
                 <var name="cuprecm" type="real" dimensions="nCells Time" units="mm s^{-1}"
