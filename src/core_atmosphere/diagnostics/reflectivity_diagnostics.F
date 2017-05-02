@@ -17,6 +17,7 @@
  use module_lightning_flash_diagnostics,only: config_lightning_flash,        &
                                               diag_lightning,                &
                                               lightning_diagnostics_compute, &
+                                              need_lightning_diagnostics,    &
                                               lightning_diagnostics_setup
 
 !from physics and physics_wrf directories:
@@ -98,10 +99,10 @@
  need_refl10cm_1km_max = mpas_field_will_be_written('refl10cm_1km_max')
  need_any_diags = need_any_diags .or. need_refl10cm_1km_max
 
- if(config_lightning_flash) then
+ if(config_lightning_flash .and. need_lightning_diagnostics()) then
     call reflectivity_diagnostics(mesh,state,1,diag,diag_physics,diag_lightning)
     call lightning_diagnostics_compute()
- elseif(.not.config_lightning_flash .and. need_any_diags) then
+ elseif(need_any_diags) then
     call reflectivity_diagnostics(mesh,state,1,diag,diag_physics)
  endif
 
