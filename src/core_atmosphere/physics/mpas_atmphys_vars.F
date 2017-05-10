@@ -115,9 +115,14 @@
 !   convection scheme.
 !   Laura D. Fowler (laura@ucar.edu) / 2017-04-25.
 ! * added the variables k22_deepc_p,k22_midlc_p,k22_shalc_p,kbcon_deepc_p,kbcon_midlc_p,kbcon_shalc_p,
-!   ktop_deepc_p,ktop_midlc_p,and ktop_shalc_p to save diagnostics of the k22, cloud-base, and cloud_top levels
-!   for deep, mid-level, and shallow convection from the Grell-Freitas convection scheme.
+!   ktop_deepc_p,ktop_midlc_p,and ktop_shalc_p to save diagnostics of the k22,cloud-base,and cloud-top levels
+!   for deep,mid-level,and shallow convection from the Grell-Freitas convection scheme.
 !   Laura D. Fowler (laura@ucar.edu) / 2017-04-26.
+! * added the variable weights_clos_p to save the weights of the individual closures to the cloud base mass flux
+!   for deep convection from the Grell-Freitas convection scheme.
+! * added the variable pratecd_p,raincvd_p,and raincd_p to save diagnostics of the instantaneous and accumulated
+!   precipitation for deep convection from the Grell-Freitas convection scheme.
+!   Laura D. Fowler (laura@ucar.edu) / 2017-04-25.
 
 
 !=================================================================================================================
@@ -334,15 +339,21 @@
     ktop_shalc_p
 
  real(kind=RKIND),dimension(:,:),allocatable:: &
+    pratecd_p,        &!
     pratecm_p,        &!
     pratecs_p,        &!
+    raincd_p,         &!
     raincm_p,         &!
     raincs_p,         &!
+    raincvd_p,        &!
     raincvm_p,        &!
     raincvs_p,        &!
     xmb_deepc_p,      &!
     xmb_midlc_p,      &!
     xmb_shalc_p        !
+
+ real(kind=RKIND),dimension(:,:,:),allocatable:: &
+    weights_clos_p     !
 
  real(kind=RKIND),dimension(:,:,:),allocatable:: &
     rthdynten_p,      &!

@@ -8,6 +8,8 @@
 !   Laura D. Fowler (laura@ucar.edu) / 2017-03-09.
 ! * added final corrections to the sourcecode before release of WRF version 3.9.0.
 !   Laura D. Fowler (laura@ucar.edu) / 2017-03-09.
+! * added outputs of the cloud-base mass fluxes for the 16 individual closures.
+!   Laura D. Fowler (laura@ucar.edu) / 2017-05-10.
 
 !=================================================================================================================
 #if defined(mpas)
@@ -114,6 +116,7 @@ contains
                                 ! more is possible, talk to developer or
                                 ! implement yourself. pattern is expected to be
                                 ! betwee -1 and +1
+              ,xf_ens_out    &  !
 #if ( WRF_DFI_RADAR == 1 )
               ,do_capsuppress,cap_suppress_j    &             
 #endif
@@ -342,9 +345,12 @@ contains
      real,    dimension (its:ite,kts:kte) :: dtempdz
      integer, dimension (its:ite,kts:kte) ::  k_inv_layers 
  
+! MPAS:
 ! modifications to calls to subroutine get_zu_zd_pdf_fim:
      real,dimension(kts:kte):: dummy1,dummy2
-! end modifications.
+! outputs the mass flux closures:
+     real,intent(inout),dimension(its:ite,1:maxens3):: xf_ens_out
+! end MPAS.
 
 ! rainevap from sas
      real zuh2(40)
@@ -376,6 +382,15 @@ contains
 !     lambau=0.
 !     pgcon=-.55
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+! MPAS:
+      do i = its, itf
+      do k = 1, maxens3
+         xf_ens_out(i,k) = 0.
+      enddo
+      enddo
+! end MPAS.
+
       ztexec(:)     = 0.
       zqexec(:)     = 0.
       zws(:)        = 0.
@@ -1739,7 +1754,7 @@ contains
             sig,closure_n,xland1,xmbm_in,xmbs_in,                        &
             ichoice,imid,ipr,itf,ktf,                                    &
             its,ite, kts,kte,                                            &
-            dicycle,xf_dicycle )
+            dicycle,xf_dicycle,xf_ens_out)
       k=1
       do i=its,itf
           if(ierr(i).eq.0 .and.pre(i).gt.0.) then
@@ -2456,8 +2471,6 @@ contains
 
      real, dimension (its:ite) :: ens_adj
 
-
-
 !
        ens_adj(:)=1.
        xff_dicycle = 0.
@@ -3133,7 +3146,7 @@ contains
               sig,closure_n,xland1,xmbm_in,xmbs_in,                         &
               ichoice,imid,ipr,itf,ktf,                                     &
               its,ite, kts,kte,                                             &
-              dicycle,xf_dicycle )
+              dicycle,xf_dicycle,xf_ens_out)
 
    IMPLICIT NONE
 !
@@ -3193,6 +3206,8 @@ contains
         ierr,ierr2,ierr3
      integer, intent(IN) :: DICYCLE
      real,    intent(IN), dimension (its:ite) :: xf_dicycle
+
+     real,intent(inout),dimension(its:ite,1:maxens3):: xf_ens_out
 !
 !  local variables in this routine
 !
@@ -3243,6 +3258,7 @@ contains
          xmb_ave(i)=0.
          do n=1,maxens3
           k=k+1
+          xf_ens_out(i,n) = xf_ens(i,n)
           xmb_ave(i)=xmb_ave(i)+xf_ens(i,n)
          enddo
          xmb_ave(i)=xmb_ave(i)/float(k)
@@ -3251,15 +3267,29 @@ contains
             xmb_ave(i)=xmb_ave(i)-max(0.,xmbm_in(i),xmbs_in(i))
             xmb_ave(i)=max(0.,xmb_ave(i))
          else if (dicycle == 1) then
+            if(xmb_ave(i)-xf_dicycle(i) .le. xmb_ave(i)) then
+               do n = 1, maxens3
+                  xf_ens_out(i,n) = xf_ens_out(i,n)-xf_dicycle(i)
+               enddo
+            endif
             xmb_ave(i)=min(xmb_ave(i),xmb_ave(i) - xf_dicycle(i))
             xmb_ave(i)=max(0.,xmb_ave(i))
+            if(xmb_ave(i) .eq. 0.) then
+               do n = 1, maxens3
+                  xf_ens_out(i,n) = 0.
+               enddo
+            endif
          endif
+
 ! --- Now use proper count of how many closures were actually
 !       used in cup_forcing_ens (including screening of some
 !       closures over water) to properly normalize xmb
            clos_wei=16./max(1.,closure_n(i))
          xmb_ave(i)=min(xmb_ave(i),100.)
          xmb(i)=clos_wei*sig(i)*xmb_ave(i)
+         do n = 1, maxens3
+            xf_ens_out(i,n) = clos_wei*sig(i)*xf_ens_out(i,n)
+         enddo
 
            if(xmb(i) < 1.e-16)then
               ierr(i)=19

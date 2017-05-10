@@ -46,6 +46,8 @@
                      description="dimension of CAM radiation absorption save array"/>
                 <dim name="nVertLevelsP2"      definition="nVertLevels+2"
                      description="Two more than the number of atmospheric layers"/>
+                <dim name="nClosures"          definition="16"
+                     description="Number of closures in the Grell-Freitas convection scheme"/>
         </dims>
 
 
@@ -640,15 +642,22 @@
 			<var name="sr"/>
 			<var name="i_rainc"/>
 			<var name="cuprec"/>
+			<var name="cuprecd"/>
 			<var name="cuprecm"/>
 			<var name="cuprecs"/>
 			<var name="rainc"/>
+			<var name="raincd"/>
 			<var name="raincm"/>
 			<var name="raincs"/>
 			<var name="raincv"/>
+			<var name="raincvd"/>
 			<var name="raincvm"/>
 			<var name="raincvs"/>
 			<var name="nca"/>
+			<var name="weights_closures"/>
+			<var name="i_raincd_closures"/>
+			<var name="raincd_closures"/>
+			<var name="raincvd_closures"/>
 			<var name="cubot"/>
 			<var name="cutop"/>
 			<var name="w0avg"/>
@@ -2207,6 +2216,10 @@
                      description="cloud-top level for shallow convection in the Grell-Freitas convection scheme"
                      packages="cu_grell_freitas_in"/>
 
+                <var name="cuprecd" type="real" dimensions="nCells Time" units="mm s^{-1}"
+                     description="convective precipitation rate for deep convection""
+                     packages="cu_grell_freitas_in"/>
+
                 <var name="cuprecm" type="real" dimensions="nCells Time" units="mm s^{-1}"
                      description="convective precipitation rate for mid-level convection""
                      packages="cu_grell_freitas_in"/>
@@ -2215,12 +2228,20 @@
                      description="convective precipitation rate for shallow convection""
                      packages="cu_grell_freitas_in"/>
 
+                <var name="raincd" type="real" dimensions="nCells Time" units="mm"
+                     description="accumulated convective precipitation for deep convection"
+                     packages="cu_grell_freitas_in"/>
+
                 <var name="raincm" type="real" dimensions="nCells Time" units="mm"
                      description="accumulated convective precipitation for mid-level convection"
                      packages="cu_grell_freitas_in"/>
 
                 <var name="raincs" type="real" dimensions="nCells Time" units="mm"
                      description="accumulated convective precipitation for shallow convection"
+                     packages="cu_grell_freitas_in"/>
+
+                <var name="raincvd" type="real" dimensions="nCells Time" units="mm"
+                     description="time-step convective precipitation for deep convection"
                      packages="cu_grell_freitas_in"/>
 
                 <var name="raincvm" type="real" dimensions="nCells Time" units="mm"
@@ -2251,6 +2272,21 @@
                      description="in-cloud cloud ice mixing ratio in Grell-Freitas cloud model"
                      packages="cu_grell_freitas_in"/>
 
+                <var name="i_raincd_closures" type="integer" dimensions="nClosures nCells Time" units="unitless"
+                     description="incidence of acc. deep conv. precipitation greater than config_bucket_rainc for each GF closure"
+                     packages="cu_grell_freitas_in"/>
+
+                <var name="raincd_closures" type="real" dimensions="nClosures nCells Time" units="mm"
+                     description="accumulated convective precipitation for deep convection for each GF closure"
+                     packages="cu_grell_freitas_in"/>
+
+                <var name="raincvd_closures" type="real" dimensions="nClosures nCells Time" units="mm"
+                     description="time-step convective precipitation for deep convection for each GF closure"
+                     packages="cu_grell_freitas_in"/>
+
+                <var name="weights_closures" type="real" dimensions="nClosures nCells Time" units="unitless"
+                     description="weights of each closure for deep convection for each GF closure"
+                     packages="cu_grell_freitas_in"/>
 
                 <!-- ... KAIN_FRITSCH AND GRELL-FREITAS: -->
                 <var name="cubot" type="real" dimensions="nCells Time" units="unitless"
