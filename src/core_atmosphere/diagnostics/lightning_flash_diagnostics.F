@@ -26,8 +26,11 @@
 
 ! add-ons and modifications to sourcecode:
 ! ----------------------------------------
-! * corrected the calculation of the lightning flash rate as a function od the ice path.
-!   laura D. Fowler (laura@ucar.edu) / 2017-05-03.
+! * corrected the calculation of the lightning flash rate as a function of the ice path.
+!   Laura D. Fowler (laura@ucar.edu) / 2017-05-03.
+! * corrected the calculation of the lightning flash rate as a function of the non precipitating
+!   total ice massflux.
+!   Laura D. Fowler (laura@ucar.edu) / 2017-05-12.
 
 
  logical,pointer,public:: config_lightning_flash
@@ -430,7 +433,8 @@
        endif
 
        !--- flash rate:
-       npiceflx_fr(iCell) = npice_flx(iCell)*6.58e-7
+       npiceflx_fr(iCell) = npice_flx(iCell)*area(iCell)*6.58e-7
+       npiceflx_fr(iCell) = npice_flx(iCell)*60.
     enddo
     write(0,*) '--- end non-precipitating ice massflux flash rate'
  endif
