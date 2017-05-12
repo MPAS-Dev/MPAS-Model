@@ -31,6 +31,9 @@
 ! * corrected the calculation of the lightning flash rate as a function of the non precipitating
 !   total ice massflux.
 !   Laura D. Fowler (laura@ucar.edu) / 2017-05-12.
+! * added diagnostics of the lightning threat levels 1, 2, and 3 following the calculation of ltg1, ltg2,
+!   and ltg3 from module_diag_misc.F provided by Glen Romine.
+!   Laura D. Fowler (laura@ucar.edu) / 2017-05-12.
 
 
  logical,pointer,public:: config_lightning_flash
@@ -44,13 +47,14 @@
  type(mpas_pool_type),pointer :: sfc_input
  type(mpas_clock_type),pointer:: clock
 
- logical:: need_pim_fr
  logical:: need_iwp_fr
  logical:: need_cldtoph_fr
+ logical:: need_pim_fr
  logical:: need_upvol_fr
  logical:: need_dbz35_fr
  logical:: need_max_vvel_fr
  logical:: need_npiceflx_fr
+ logical:: need_ltg_threat
 
 
  contains
@@ -95,6 +99,7 @@
  need_dbz35_fr    = .false. 
  need_max_vvel_fr = .false.
  need_npiceflx_fr = .false.
+ need_ltg_threat  = .false.
 
  need_iwp_fr      = mpas_field_will_be_written('ice_path_flashrate')
  need_any_diags   = need_any_diags .or. need_iwp_fr
@@ -110,6 +115,12 @@
  need_any_diags   = need_any_diags .or. need_max_vvel_fr
  need_npiceflx_fr = mpas_field_will_be_written('npice_massflux_flashrate')
  need_any_diags   = need_any_diags .or. need_npiceflx_fr
+ need_ltg_threat  = mpas_field_will_be_written('lightning_threat1')
+ need_any_diags   = need_any_diags .or. need_ltg_threat
+ need_ltg_threat  = mpas_field_will_be_written('lightning_threat2')
+ need_any_diags   = need_any_diags .or. need_ltg_threat
+ need_ltg_threat  = mpas_field_will_be_written('lightning_threat3')
+ need_any_diags   = need_any_diags .or. need_ltg_threat
 
  return
 
@@ -149,6 +160,12 @@
 
  integer:: iCell,k,k440
 
+ real(kind=RKIND),parameter:: coef1 = 0.042*1000.*1.22*20.0
+ real(kind=RKIND),parameter:: coef2 = 0.20*1.22
+ real(kind=RKIND),parameter:: clim1 = 1.50
+ real(kind=RKIND),parameter:: clim2 = 0.40*1.22
+ real(kind=RKIND),parameter:: clim3 = 0.02*1.22
+
  real(kind=RKIND),dimension(:),pointer    :: area
  real(kind=RKIND),dimension(:),pointer    :: xland
  real(kind=RKIND),dimension(:,:),pointer  :: zgrid,zz
@@ -165,10 +182,11 @@
  real(kind=RKIND),dimension(:),pointer  :: dbz35_vol,dbz35_fr
  real(kind=RKIND),dimension(:),pointer  :: max_vvel,max_vvel_fr
  real(kind=RKIND),dimension(:),pointer  :: npice_flx,npiceflx_fr
+ real(kind=RKIND),dimension(:),pointer  :: ltg1,ltg2,ltg3
  real(kind=RKIND),dimension(:,:),pointer:: refl10cm
 
- real(kind=RKIND):: dz,rho_a,twp,frate
- real(kind=RKIND),dimension(:),allocatable  :: dp
+ real(kind=RKIND):: dz,qghalf,rho_a,rmax,thalf,tiwp,twp,frate
+ real(kind=RKIND),dimension(:),allocatable  :: dp,ltg
  real(kind=RKIND),dimension(:,:),allocatable:: tp,pres
 
 !-----------------------------------------------------------------------------------------------------------------
@@ -438,7 +456,54 @@
     enddo
     write(0,*) '--- end non-precipitating ice massflux flash rate'
  endif
- 202 format(2i7,5(1x,e15.8))
+
+
+!--- calculation of the lightning threats:
+ if(need_ltg_threat) then
+    write(0,*)
+    write(0,*) '--- lightning threats:'
+    call mpas_pool_get_array(diag_lightning,'lightning_threat1',ltg1)
+    call mpas_pool_get_array(diag_lightning,'lightning_threat2',ltg2)
+    call mpas_pool_get_array(diag_lightning,'lightning_threat3',ltg3)
+
+    if(.not.allocated(ltg)) allocate(ltg(1:nVertLevels))
+
+    do iCell = 1, nCells
+       ltg1(iCell) = 0._RKIND
+       ltg2(iCell) = 0._RKIND
+       ltg3(iCell) = 0._RKIND
+
+       !--- Lightning threat 1:
+       ltg(1:nVertLevels) = 0._RKIND
+       do k = 2, nVertLevels
+          thalf = 0.5_RKIND*(tp(k-1,iCell)+tp(k,iCell))
+
+          if(thalf .lt. 258.15) then
+             qghalf = 0.5_RKIND*(qg(k-1,iCell)+qg(k,iCell))
+             ltg(k) = coef1*vvel(k,iCell)*qghalf
+          endif
+       enddo
+       ltg1(iCell) = maxval(ltg(1:nVertLevels))
+       if(ltg1(iCell) .lt. clim1) ltg1(iCell) = 0._RKIND
+
+       !--- Lightning threat 2:
+       tiwp = 0._RKIND
+       do k = 1, nVertLevels
+          dz = zgrid(k+1,iCell)-zgrid(k,iCell)
+          rho_a = zz(k,iCell)*rho_zz(k,iCell)
+          tiwp  = tiwp + (qi(k,iCell)+qs(k,iCell)+qg(k,iCell))*rho_a*dz
+       enddo
+       ltg2(iCell) = coef2*tiwp
+       if(ltg2(iCell) .lt. clim2) ltg2(iCell) = 0._RKIND
+
+       !--- Lightning threat 3:
+       ltg3(iCell) = 0.90*ltg1(iCell) + 0.10*ltg2(iCell)
+    enddo
+
+    if(allocated(ltg)) deallocate(ltg)
+    write(0,*) '--- end lightning threats:'
+ endif
+ 202 format(2i7,10(1x,e15.8))
 
 
 !--- deallocation of local arrays:

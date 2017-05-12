@@ -34,7 +34,7 @@
         <var name="updraft_volume" type="real" dimensions="nCells Time" units="m^{3}"
              description="Updraft volume"/>
 
-        <var name="cloud_top_height" type="real" dimensions="nCells Time" units="m"
+        <var name="cloud_top_height" type="real" dimensions="nCells Time" units="km"
              description="Cloud top height"/>
 
         <var name="max_vvel" type="real" dimensions="nCells Time" units="m s^{-1}"
@@ -63,5 +63,14 @@
 
         <var name="max_vvel_flashrate" type="real" dimensions="nCells Time" units="fl. mn^{-1}"
              description="Lightning flash rate as function of max. vertical velocity"/>
+
+        <var name="lightning_threat1" type="real" dimensions="nCells Time" units="unitless"
+             description="Lightning threat 1"/>
+
+        <var name="lightning_threat2" type="real" dimensions="nCells Time" units="unitless"
+             description="Lightning threat 2"/>
+
+        <var name="lightning_threat3" type="real" dimensions="nCells Time" units="unitless"
+             description="Lightning threat 3"/>
 
 </var_struct>
