@@ -20,9 +20,10 @@ module mpas_pool_routines
 
    use mpas_kind_types
    use mpas_derived_types
+   use mpas_io_units
    use mpas_field_routines
    use mpas_threading
-   use mpas_log
+   use mpas_abort, only : mpas_dmpar_global_abort
    
    interface mpas_pool_add_field
       module procedure mpas_pool_add_field_0d_real
@@ -79,6 +80,21 @@ module mpas_pool_routines
       module procedure mpas_pool_get_array_3d_int
       module procedure mpas_pool_get_array_0d_char
       module procedure mpas_pool_get_array_1d_char
+   end interface
+
+   interface mpas_pool_get_array_gpu
+      module procedure mpas_pool_get_array_0d_real_gpu
+      module procedure mpas_pool_get_array_1d_real_gpu
+      module procedure mpas_pool_get_array_2d_real_gpu
+      module procedure mpas_pool_get_array_3d_real_gpu
+      module procedure mpas_pool_get_array_4d_real_gpu
+      module procedure mpas_pool_get_array_5d_real_gpu
+      module procedure mpas_pool_get_array_0d_int_gpu
+      module procedure mpas_pool_get_array_1d_int_gpu
+      module procedure mpas_pool_get_array_2d_int_gpu
+      module procedure mpas_pool_get_array_3d_int_gpu
+      module procedure mpas_pool_get_array_0d_char_gpu
+      module procedure mpas_pool_get_array_1d_char_gpu
    end interface
 
    interface mpas_pool_add_config
@@ -4238,6 +4254,25 @@ module mpas_pool_routines
 
    end subroutine mpas_pool_get_array_0d_real!}}}
 
+   subroutine mpas_pool_get_array_0d_real_gpu(inPool, key, scalar, timeLevel)!{{{
+
+      implicit none
+
+      type (mpas_pool_type), intent(in) :: inPool
+      character (len=*), intent(in) :: key
+      real (kind=RKIND), pointer :: scalar
+      integer, intent(in), optional :: timeLevel
+
+      type (field0DReal), pointer :: field
+
+
+      call mpas_pool_get_field_0d_real(inPool, key, field, timeLevel)
+
+      nullify(scalar)
+      if (associated(field)) scalar => field % scalar
+      !$acc enter data copyin(field%scalar)
+   end subroutine mpas_pool_get_array_0d_real_gpu!}}}
+
 
 !-----------------------------------------------------------------------
 !  subroutine mpas_pool_get_array_1d_real
@@ -4268,6 +4303,25 @@ module mpas_pool_routines
 
    end subroutine mpas_pool_get_array_1d_real!}}}
 
+   subroutine mpas_pool_get_array_1d_real_gpu(inPool, key, array, timeLevel)!{{{
+
+      implicit none
+
+      type (mpas_pool_type), intent(in) :: inPool
+      character (len=*), intent(in) :: key
+      real (kind=RKIND), dimension(:), pointer :: array
+      integer, intent(in), optional :: timeLevel
+
+      type (field1DReal), pointer :: field
+
+
+      call mpas_pool_get_field_1d_real(inPool, key, field, timeLevel)
+
+      nullify(array)
+      if (associated(field)) array => field % array
+      !$acc enter data copyin(field%array)
+   end subroutine mpas_pool_get_array_1d_real_gpu!}}}
+
 
 !-----------------------------------------------------------------------
 !  subroutine mpas_pool_get_array_2d_real
@@ -4297,6 +4351,26 @@ module mpas_pool_routines
       if (associated(field)) array => field % array
 
    end subroutine mpas_pool_get_array_2d_real!}}}
+
+   subroutine mpas_pool_get_array_2d_real_gpu(inPool, key, array, timeLevel)!{{{
+
+      implicit none
+
+      type (mpas_pool_type), intent(in) :: inPool
+      character (len=*), intent(in) :: key
+      real (kind=RKIND), dimension(:,:), pointer :: array
+      integer, intent(in), optional :: timeLevel
+
+      type (field2DReal), pointer :: field
+
+
+      call mpas_pool_get_field_2d_real(inPool, key, field, timeLevel)
+
+      nullify(array)
+      if (associated(field)) array => field % array
+      !$acc enter data copyin(field%array)
+
+   end subroutine mpas_pool_get_array_2d_real_gpu!}}}
 
 
 !-----------------------------------------------------------------------
@@ -4329,6 +4403,26 @@ module mpas_pool_routines
    end subroutine mpas_pool_get_array_3d_real!}}}
 
 
+   subroutine mpas_pool_get_array_3d_real_gpu(inPool, key, array, timeLevel)!{{{
+
+      implicit none
+
+      type (mpas_pool_type), intent(in) :: inPool
+      character (len=*), intent(in) :: key
+      real (kind=RKIND), dimension(:,:,:), pointer :: array
+      integer, intent(in), optional :: timeLevel
+
+      type (field3DReal), pointer :: field
+
+
+      call mpas_pool_get_field_3d_real(inPool, key, field, timeLevel)
+
+      nullify(array)
+      if (associated(field)) array => field % array
+      !$acc enter data copyin(field%array)
+
+   end subroutine mpas_pool_get_array_3d_real_gpu!}}}
+
 !-----------------------------------------------------------------------
 !  subroutine mpas_pool_get_array_4d_real
 !
@@ -4357,6 +4451,26 @@ module mpas_pool_routines
       if (associated(field)) array => field % array
 
    end subroutine mpas_pool_get_array_4d_real!}}}
+
+   subroutine mpas_pool_get_array_4d_real_gpu(inPool, key, array, timeLevel)!{{{
+
+      implicit none
+
+      type (mpas_pool_type), intent(in) :: inPool
+      character (len=*), intent(in) :: key
+      real (kind=RKIND), dimension(:,:,:,:), pointer :: array
+      integer, intent(in), optional :: timeLevel
+
+      type (field4DReal), pointer :: field
+
+
+      call mpas_pool_get_field_4d_real(inPool, key, field, timeLevel)
+
+      nullify(array)
+      if (associated(field)) array => field % array
+      !$acc enter data copyin(field%array)
+
+   end subroutine mpas_pool_get_array_4d_real_gpu!}}}
 
 
 !-----------------------------------------------------------------------
@@ -4388,6 +4502,26 @@ module mpas_pool_routines
 
    end subroutine mpas_pool_get_array_5d_real!}}}
 
+   subroutine mpas_pool_get_array_5d_real_gpu(inPool, key, array, timeLevel)!{{{
+
+      implicit none
+
+      type (mpas_pool_type), intent(in) :: inPool
+      character (len=*), intent(in) :: key
+      real (kind=RKIND), dimension(:,:,:,:,:), pointer :: array
+      integer, intent(in), optional :: timeLevel
+
+      type (field5DReal), pointer :: field
+
+
+      call mpas_pool_get_field_5d_real(inPool, key, field, timeLevel)
+
+      nullify(array)
+      if (associated(field)) array => field % array
+      !$acc enter data copyin(field%array)
+
+   end subroutine mpas_pool_get_array_5d_real_gpu!}}}
+
 
 !-----------------------------------------------------------------------
 !  subroutine mpas_pool_get_array_0d_int
@@ -4417,6 +4551,26 @@ module mpas_pool_routines
       if (associated(field)) scalar => field % scalar
 
    end subroutine mpas_pool_get_array_0d_int!}}}
+
+   subroutine mpas_pool_get_array_0d_int_gpu(inPool, key, scalar, timeLevel)!{{{
+
+      implicit none
+
+      type (mpas_pool_type), intent(in) :: inPool
+      character (len=*), intent(in) :: key
+      integer, pointer :: scalar
+      integer, intent(in), optional :: timeLevel
+
+      type (field0DInteger), pointer :: field
+
+
+      call mpas_pool_get_field_0d_int(inPool, key, field, timeLevel)
+
+      nullify(scalar)
+      if (associated(field)) scalar => field % scalar
+      !$acc enter data copyin(field%scalar)
+
+   end subroutine mpas_pool_get_array_0d_int_gpu!}}}
 
 
 !-----------------------------------------------------------------------
@@ -4448,6 +4602,26 @@ module mpas_pool_routines
 
    end subroutine mpas_pool_get_array_1d_int!}}}
 
+   subroutine mpas_pool_get_array_1d_int_gpu(inPool, key, array, timeLevel)!{{{
+
+      implicit none
+
+      type (mpas_pool_type), intent(in) :: inPool
+      character (len=*), intent(in) :: key
+      integer, dimension(:), pointer :: array
+      integer, intent(in), optional :: timeLevel
+
+      type (field1DInteger), pointer :: field
+
+
+      call mpas_pool_get_field_1d_int(inPool, key, field, timeLevel)
+
+      nullify(array)
+      if (associated(field)) array => field % array
+      !$acc enter data copyin(field%array)
+
+   end subroutine mpas_pool_get_array_1d_int_gpu!}}}
+
 
 !-----------------------------------------------------------------------
 !  subroutine mpas_pool_get_array_2d_int
@@ -4477,6 +4651,26 @@ module mpas_pool_routines
       if (associated(field)) array => field % array
 
    end subroutine mpas_pool_get_array_2d_int!}}}
+
+   subroutine mpas_pool_get_array_2d_int_gpu(inPool, key, array, timeLevel)!{{{
+
+      implicit none
+
+      type (mpas_pool_type), intent(in) :: inPool
+      character (len=*), intent(in) :: key
+      integer, dimension(:,:), pointer :: array
+      integer, intent(in), optional :: timeLevel
+
+      type (field2DInteger), pointer :: field
+
+
+      call mpas_pool_get_field_2d_int(inPool, key, field, timeLevel)
+
+      nullify(array)
+      if (associated(field)) array => field % array
+      !$acc enter data copyin(field%array)
+
+   end subroutine mpas_pool_get_array_2d_int_gpu!}}}
 
 
 !-----------------------------------------------------------------------
@@ -4508,6 +4702,26 @@ module mpas_pool_routines
 
    end subroutine mpas_pool_get_array_3d_int!}}}
 
+   subroutine mpas_pool_get_array_3d_int_gpu(inPool, key, array, timeLevel)!{{{
+
+      implicit none
+
+      type (mpas_pool_type), intent(in) :: inPool
+      character (len=*), intent(in) :: key
+      integer, dimension(:,:,:), pointer :: array
+      integer, intent(in), optional :: timeLevel
+
+      type (field3DInteger), pointer :: field
+
+
+      call mpas_pool_get_field_3d_int(inPool, key, field, timeLevel)
+
+      nullify(array)
+      if (associated(field)) array => field % array
+      !$acc enter data copyin(field%array)
+
+   end subroutine mpas_pool_get_array_3d_int_gpu!}}}
+
 
 !-----------------------------------------------------------------------
 !  subroutine mpas_pool_get_array_0d_char
@@ -4538,6 +4752,26 @@ module mpas_pool_routines
 
    end subroutine mpas_pool_get_array_0d_char!}}}
 
+   subroutine mpas_pool_get_array_0d_char_gpu(inPool, key, string, timeLevel)!{{{
+
+      implicit none
+
+      type (mpas_pool_type), intent(in) :: inPool
+      character (len=*), intent(in) :: key
+      character (len=StrKIND), pointer :: string
+      integer, intent(in), optional :: timeLevel
+
+      type (field0DChar), pointer :: field
+
+
+      call mpas_pool_get_field_0d_char(inPool, key, field, timeLevel)
+
+      nullify(string)
+      if (associated(field)) string => field % scalar
+      !$acc enter data copyin(field%scalar)
+
+   end subroutine mpas_pool_get_array_0d_char_gpu!}}}
+
 
 !-----------------------------------------------------------------------
 !  subroutine mpas_pool_get_array_1d_char
@@ -4567,6 +4801,26 @@ module mpas_pool_routines
       if (associated(field)) array => field % array
 
    end subroutine mpas_pool_get_array_1d_char!}}}
+
+   subroutine mpas_pool_get_array_1d_char_gpu(inPool, key, array, timeLevel)!{{{
+
+      implicit none
+
+      type (mpas_pool_type), intent(in) :: inPool
+      character (len=*), intent(in) :: key
+      character (len=StrKIND), dimension(:), pointer :: array
+      integer, intent(in), optional :: timeLevel
+
+      type (field1DChar), pointer :: field
+
+
+      call mpas_pool_get_field_1d_char(inPool, key, field, timeLevel)
+
+      nullify(array)
+      if (associated(field)) array => field % array
+      !$acc enter data copyin(field%array)
+
+   end subroutine mpas_pool_get_array_1d_char_gpu!}}}
 
 
 !-----------------------------------------------------------------------
@@ -5643,48 +5897,48 @@ module mpas_pool_routines
          if ( poolItr % memberType == memberType .and. memberType == MPAS_POOL_CONFIG ) then
             if ( poolItr % dataType == MPAS_POOL_REAL ) then
                call mpas_pool_get_config(inPool, poolItr % memberName, tempReal)
-               call mpas_log_write('      ' // trim(poolItr % memberName) // ' = $r', realArgs=(/tempReal/))
+               write(stderrUnit, *) '      ' // trim(poolItr % memberName) // ' = ', tempReal
             else if ( poolItr % dataType == MPAS_POOL_INTEGER ) then
                call mpas_pool_get_config(inPool, poolItr % memberName, tempInteger)
-               call mpas_log_write('      ' // trim(poolItr % memberName) // ' = $i', intArgs=(/tempInteger/))
+               write(stderrUnit, *) '      ' // trim(poolItr % memberName) // ' = ', tempInteger
             else if ( poolItr % dataType == MPAS_POOL_LOGICAL ) then
                call mpas_pool_get_config(inPool, poolItr % memberName, tempLogical)
                if ( tempLogical ) then
-                  call mpas_log_write('      ' // trim(poolItr % memberName) // ' = .true.')
+                  write(stderrUnit, *) '      ' // trim(poolItr % memberName) // ' = .true.'
                else
-                  call mpas_log_write('      ' // trim(poolItr % memberName) // ' = .false.')
+                  write(stderrUnit, *) '      ' // trim(poolItr % memberName) // ' = .false.'
                end if
             else if ( poolItr % dataType == MPAS_POOL_CHARACTER ) then
                call mpas_pool_get_config(inPool, poolItr % memberName, tempChar)
-               call mpas_log_write('      ' // trim(poolItr % memberName) // ' = ''' // trim(tempChar) // '''')
+               write(stderrUnit, *) '      ' // trim(poolItr % memberName) // ' = ''' // trim(tempChar) // ''''
             end if
          ! Handle packages
          else if (poolItr % memberType == memberType .and. memberType == MPAS_POOL_PACKAGE ) then
             call mpas_pool_get_package(inPool, poolItr % memberName, tempLogical)
             if ( tempLogical ) then
-               call mpas_log_write('      ' // trim(poolItr % memberName) // ' = .true.')
+               write(stderrUnit, *) '      ' // trim(poolItr % memberName) // ' = .true.'
             else
-               call mpas_log_write('      ' // trim(poolItr % memberName) // ' = .false.')
+               write(stderrUnit, *) '      ' // trim(poolItr % memberName) // ' = .false.'
             end if
          ! Handle fields
          else if (poolItr % memberType == memberType .and. memberType == MPAS_POOL_FIELD ) then
-            call mpas_log_write('      ' // trim(poolItr % memberName))
+            write(stderrUnit, *) '      ' // trim(poolItr % memberName)
             if ( poolItr % dataType == MPAS_POOL_REAL) then
-               call mpas_log_write('            Type: Real')
+               write(stderrUnit, *) '            Type: Real'
             else if ( poolItr % dataType == MPAS_POOL_INTEGER) then
-               call mpas_log_write('            Type: Integer')
+               write(stderrUnit, *) '            Type: Integer'
             else if ( poolItr % dataType == MPAS_POOL_CHARACTER) then
-               call mpas_log_write('            Type: Character')
+               write(stderrUnit, *) '            Type: Character'
             else if ( poolItr % dataType == MPAS_POOL_LOGICAL) then
-               call mpas_log_write('            Type: Logical')
+               write(stderrUnit, *) '            Type: Logical'
             end if
-            call mpas_log_write('            Number of dimensions: $i', intArgs=(/poolItr % nDims/))
-            call mpas_log_write('            Number of time levels: $i', intArgs=(/poolItr % nTimeLevels/))
+            write(stderrUnit, *) '            Number of dimensions: ', poolItr % nDims
+            write(stderrUnit, *) '            Number of time levels: ', poolItr % nTimeLevels
          else if (poolItr % memberType == MPAS_POOL_SUBPOOL .and. recurseSubpools ) then
-            call mpas_log_write('   ** Begin subpool: ' // trim(poolItr % memberName))
+            write(stderrUnit, *) '   ** Begin subpool: ' // trim(poolItr % memberName)
             call mpas_pool_get_subpool(inPool, poolItr % memberName, subPool)
             call mpas_pool_print_summary(subPool, memberType, recurseSubpools)
-            call mpas_log_write('   ** End subpool: ' // trim(poolItr % memberName))
+            write(stderrUnit, *) '   ** End subpool: ' // trim(poolItr % memberName)
          end if
       end do
 
@@ -5889,12 +6143,13 @@ module mpas_pool_routines
 
       if (currentErrorLevel == MPAS_POOL_WARN) then
          if ( threadNum == 0 ) then
-            call mpas_log_write(trim(mesg), MPAS_LOG_WARN)
+            write(stderrUnit,*) trim(mesg)
          end if
       else if (currentErrorLevel == MPAS_POOL_FATAL) then
          if ( threadNum == 0 ) then
-            call mpas_log_write(trim(mesg), MPAS_LOG_CRIT)
+            write(stderrUnit,*) trim(mesg)
          end if
+         call mpas_dmpar_global_abort(trim(mesg))
       end if
 
    end subroutine pool_mesg!}}}
@@ -5918,11 +6173,11 @@ module mpas_pool_routines
             head_size = head_size + 1
             ptr => ptr % next
          end do
-         call mpas_log_write('List $i : $i', intArgs=(/i, head_size/) )
+         write(stderrUnit,*) 'List ', i, ' : ', head_size
          total_size = total_size + head_size
       end do
-      call mpas_log_write('----------------')
-      call mpas_log_write('Total: $i', intArgs=(/total_size/))
+      write(stderrUnit,*) '----------------'
+      write(stderrUnit,*) 'Total: ', total_size
 
    end subroutine pool_print_table_size!}}}
 
@@ -5943,35 +6198,34 @@ module mpas_pool_routines
       logical, pointer :: logPtr
       character (len=StrKIND) :: charPtr
 
-      call mpas_log_write('   Constants: ')
-      call mpas_log_write('   Real: $i', intArgs=(/MPAS_POOL_REAL/))
-      call mpas_log_write('   Integer: $i', intArgs=(/MPAS_POOL_INTEGER/))
-      call mpas_log_write('   Logical: $i', intArgs=(/MPAS_POOL_LOGICAL/))
-      call mpas_log_write('   Character: $i', intArgs=(/MPAS_POOL_CHARACTER/))
+      write(stderrUnit, *) '   Constants: '
+      write(stderrUnit, *) '   Real: ', MPAS_POOL_REAL
+      write(stderrUnit, *) '   Integer: ', MPAS_POOL_INTEGER
+      write(stderrUnit, *) '   Logical: ', MPAS_POOL_LOGICAL
+      write(stderrUnit, *) '   Character: ', MPAS_POOL_CHARACTER
 
-!     call mpas_log_write('Pool Size:')
+!     write(stderrUnit, *) 'Pool Size:'
 !     call pool_print_table_size(pool)
 
       call mpas_pool_begin_iteration(pool)
       do while(mpas_pool_get_next_member(pool, poolItr))
 
          if (poolItr % memberType == MPAS_POOL_SUBPOOL) then
-            call mpas_log_write('** Found subpool named: ' // trim(poolItr % memberName))
+            write(stderrUnit, *) '** Found subpool named: ', trim(poolItr % memberName)
             call mpas_pool_get_subpool(pool, trim(poolItr % memberName), subpool)
             call pool_print_members(subpool)
          else if (poolItr % memberType == MPAS_POOL_CONFIG) then
-            call mpas_log_write('   Config Option: ' // trim(poolItr % memberName) // ' $i', intArgs=(/ poolItr % dataType/))
+            write(stderrUnit, *) '   Config Option: ', trim(poolItr % memberName), poolItr % dataType
          else if (poolItr % memberType == MPAS_POOL_DIMENSION) then
-            call mpas_log_write('   Dimension: ' // trim(poolItr % memberName) // ' $i $i', intArgs=(/poolItr % dataType, poolItr % nDims/))
+            write(stderrUnit, *) '   Dimension: ', trim(poolItr % memberName), poolItr % dataType, poolItr % nDims
          else if (poolItr % memberType == MPAS_POOL_PACKAGE) then
-            call mpas_log_write('   Package: ' // trim(poolItr % memberName))
+            write(stderrUnit, *) '   Package: ', trim(poolItr % memberName)
          else if (poolItr % memberType == MPAS_POOL_FIELD) then
-            call mpas_log_write('   Field: ' // trim(poolItr % memberName) // ' $i $i $i', &
-                   intArgs=(/poolItr % dataType, poolItr % nDims, poolItr % nTimeLevels/))
+            write(stderrUnit, *) '   Field: ', trim(poolItr % memberName), poolItr % dataType, poolItr % nDims, poolItr % nTimeLevels
          end if
       end do
-      call mpas_log_write('Done with pool')
-      call mpas_log_write('')
+      write(stderrUnit, *) 'Done with pool'
+      write(stderrUnit, *) ''
 
    end subroutine pool_print_members!}}}
 
