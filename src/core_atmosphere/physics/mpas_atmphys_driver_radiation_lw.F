@@ -318,9 +318,9 @@
 
 !local pointers:
  logical,pointer:: config_o3climatology
+ logical,pointer:: config_microp_re
  character(len=StrKIND),pointer:: radt_lw_scheme
  character(len=StrKIND),pointer:: microp_scheme
- logical,pointer:: config_microp_re
 
  real(kind=RKIND),dimension(:),pointer    :: latCell,lonCell
  real(kind=RKIND),dimension(:),pointer    :: skintemp,snow,xice,xland
@@ -337,10 +337,10 @@
 
 !-----------------------------------------------------------------------------------------------------------------
 
+ call mpas_pool_get_config(configs,'config_microp_re'     ,config_microp_re    )
  call mpas_pool_get_config(configs,'config_o3climatology' ,config_o3climatology)
  call mpas_pool_get_config(configs,'config_radt_lw_scheme',radt_lw_scheme      )
  call mpas_pool_get_config(configs,'config_microp_scheme' ,microp_scheme       )
- call mpas_pool_get_config(configs,'config_microp_re'     ,config_microp_re    )
 
  call mpas_pool_get_array(mesh,'latCell',latCell)
  call mpas_pool_get_array(mesh,'lonCell',lonCell)
@@ -627,9 +627,9 @@
  integer,intent(in):: its,ite
 
 !local pointers:
+ logical,pointer:: config_microp_re
  character(len=StrKIND),pointer:: radt_lw_scheme
  character(len=StrKIND),pointer:: microp_scheme
- logical,pointer:: config_microp_re
 
  real(kind=RKIND),dimension(:),pointer :: glw,lwcf,lwdnb,lwdnbc,lwdnt,lwdntc,lwupb,lwupbc, &
                                           lwupt,lwuptc,olrtoa
@@ -643,9 +643,9 @@
 
 !-----------------------------------------------------------------------------------------------------------------
 
- call mpas_pool_get_config(configs,'config_radt_lw_scheme',radt_lw_scheme  )
- call mpas_pool_get_config(configs,'config_microp_scheme' ,microp_scheme   )
- call mpas_pool_get_config(configs,'config_microp_re'     ,config_microp_re)
+ call mpas_pool_get_config(configs,'config_microp_re',config_microp_re)
+ call mpas_pool_get_config(configs,'config_radt_lw_scheme',radt_lw_scheme)
+ call mpas_pool_get_config(configs,'config_microp_scheme',microp_scheme)
 
  call mpas_pool_get_array(diag_physics,'glw'   ,glw   )
  call mpas_pool_get_array(diag_physics,'lwcf'  ,lwcf  )

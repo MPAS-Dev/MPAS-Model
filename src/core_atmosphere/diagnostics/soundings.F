@@ -254,7 +254,7 @@ module soundings
                                                                   yyyy, mm, dd, h, m, '.snd'
                     open(97,file=trim(fname),form='formatted',status='replace',iostat=istat)
                     if (istat /= 0) then
-                        write(stderrUnit,*) 'Error: Could not create sounding file '//trim(fname)
+                        write(stid,*) 'Error: Could not create sounding file '//trim(fname)
                         cycle
                     end if
 
