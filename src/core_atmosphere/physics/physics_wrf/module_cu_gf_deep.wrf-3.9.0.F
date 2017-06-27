@@ -10,6 +10,8 @@
 !   Laura D. Fowler (laura@ucar.edu) / 2017-03-09.
 ! * added outputs of the cloud-base mass fluxes for the 16 individual closures.
 !   Laura D. Fowler (laura@ucar.edu) / 2017-05-10.
+! * in subroutine cup_forcing_ens_3d, corrected the formulation of closure 14.
+!   Laura D. Fowler (laura@ucar.edu) / 2017-06-27.
 
 !=================================================================================================================
 #if defined(mpas)
@@ -2529,10 +2531,11 @@ contains
              xff_ens3(4)=betajb*xff_ens3(4)
              xff_ens3(5)=xff_ens3(4)
              xff_ens3(6)=xff_ens3(4)
+             xff_ens3(14)=xff_ens3(4)
              if(xff_ens3(4).lt.0.)xff_ens3(4)=0.
              if(xff_ens3(5).lt.0.)xff_ens3(5)=0.
              if(xff_ens3(6).lt.0.)xff_ens3(6)=0.
-             xff_ens3(14)=betajb*xff_ens3(4)
+             if(xff_ens3(14).lt.0.)xff_ens3(14)=0.
              forcing(i,2)=xff_ens3(4)
 !
 !--- more like Krishnamurti et al.; pick max and average values
