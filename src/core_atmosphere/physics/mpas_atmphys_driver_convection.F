@@ -565,8 +565,9 @@
        call mpas_timer_stop('Grell-Freitas')
 
     case ("cu_grell_freitas_wrf390")
-       write(0,*)
-       write(0,*) '--- enter subroutine cu_grell_freitas_wrf390:'
+       call mpas_log_write('')
+       call mpas_log_write('--- enter subroutine cu_grell_freitas_wrf390:')
+
        call mpas_pool_get_config(configs,'config_gfconv_deepc',gfconv_deepc)
        call mpas_pool_get_config(configs,'config_gfconv_midlc',gfconv_midlc)
        call mpas_pool_get_config(configs,'config_gfconv_shalc',gfconv_shalc)
@@ -576,12 +577,12 @@
 
        call mpas_pool_get_dimension(mesh,'nClosures',nclosures)
 
-       write(0,*) 'gfconv_deepc = ',gfconv_deepc
-       write(0,*) 'gfconv_midlc = ',gfconv_midlc
-       write(0,*) 'gfconv_shalc = ',gfconv_shalc
-       write(0,*) 'gfconv_closure_deepc = ',gfconv_closure_deepc
-       write(0,*) 'gfconv_closure_midlc = ',gfconv_closure_midlc
-       write(0,*) 'gfconv_closure_shalc = ',gfconv_closure_shalc
+       call mpas_log_write('gfconv_deepc = $l',logicArgs=(/gfconv_deepc/))
+       call mpas_log_write('gfconv_midlc = $l',logicArgs=(/gfconv_midlc/))
+       call mpas_log_write('gfconv_shalc = $l',logicArgs=(/gfconv_shalc/))
+       call mpas_log_write('gfconv_closure_deepc = $i',intArgs=(/gfconv_closure_deepc/))
+       call mpas_log_write('gfconv_closure_midlc = $i',intArgs=(/gfconv_closure_midlc/))
+       call mpas_log_write('gfconv_closure_shalc = $i',intArgs=(/gfconv_closure_shalc/))
 
        call cu_grell_freitas_wrf390( &
                dt           = dt_dyn               , dx          = dx_p                 , &
@@ -618,8 +619,8 @@
                ims = ims , ime = ime , jms = jms , jme = jme , kms = kds , kme = kme    , &
                its = its , ite = ite , jts = jts , jte = jte , kts = kts , kte = kte      &
                                    )
-       write(0,*) '--- end subroutine cu_grell_freitas_wrf390.'
-       write(0,*)
+       call mpas_log_write('--- end subroutine cu_grell_freitas_wrf390.')
+       call mpas_log_write('')
 
     case ("cu_kain_fritsch")
        if(itimestep == 1) then
