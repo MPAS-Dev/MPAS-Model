@@ -6104,7 +6104,7 @@ module atm_time_integration
                end do
                call mpas_dmpar_min_real(domain % dminfo, scalar_min, global_scalar_min)
                call mpas_dmpar_max_real(domain % dminfo, scalar_max, global_scalar_max)
-               call mpas_log_write(' global min, max scalar $i $r $r', intArgs=(/iScalar/), realArgs=(/global_scalar_min, global_scalar_max/))
+               call mpas_log_write('global min, max scalar $i $r $r', intArgs=(/iScalar/), realArgs=(/global_scalar_min, global_scalar_max/))
             end do
 
             block => block % next
