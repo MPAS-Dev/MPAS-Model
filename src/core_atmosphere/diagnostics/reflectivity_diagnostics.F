@@ -139,8 +139,6 @@
  real(kind=RKIND),dimension(:),allocatable:: qv1d,qc1d,qr1d,qs1d,qg1d,t1d,p1d,nr1d,dBZ1d,zp
 
 !-----------------------------------------------------------------------------------------------------------------
- write(0,*)
- write(0,*) '--- enter subroutine reflectivity_diagnostics: lightning_flash = ',config_lightning_flash
 
  call mpas_pool_get_dimension(mesh,'nCells'     ,nCells     )
  call mpas_pool_get_dimension(mesh,'nVertLevels',nVertLevels)
