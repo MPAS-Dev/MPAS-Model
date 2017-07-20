@@ -223,11 +223,14 @@
     !additional GF precipitation diagnostics:
     call mpas_pool_get_dimension(mesh,'nClosures',nClosures)
     call mpas_pool_get_array(diag_physics,'i_raincd_closures',i_raincd_closures)
-    do iCell = 1, nCellsSolve
-       do n = 1, nClosures
-          i_raincd_closures(n,iCell) = 0
+    nullify(i_raincd_closures)
+    if(associated(i_raincd_closures)) then
+       do iCell = 1, nCellsSolve
+          do n = 1, nClosures
+             i_raincd_closures(n,iCell) = 0
+          enddo
        enddo
-    enddo
+    endif
  endif
 
  if(.not. config_do_restart .and. config_microp_scheme.ne.'off') then
