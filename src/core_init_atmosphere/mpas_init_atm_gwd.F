@@ -439,7 +439,7 @@ write(0,*) 'min/max landuse = ', minval(landuse), maxval(landuse)
    !
    !  MW:function get dominant land use in cell 
    !----------------------------------------------------------------------
-    real (kind=RKIND) function get_dom_landuse 
+    real (kind=RKIND) function get_dom_landuse()
 
       implicit none
 
