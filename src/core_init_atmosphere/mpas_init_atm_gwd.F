@@ -39,6 +39,7 @@ module mpas_init_atm_gwd
    real (kind=RKIND), dimension(:,:), pointer :: dxm   ! Size (meters) in zonal direction of a grid cell
    real (kind=RKIND) :: box_mean                       ! Mean value of topography in box
    integer :: nx, ny                                   ! Dimensions of box covering grid cell
+   integer :: min_landuse, max_landuse
    integer (kind=I1KIND), dimension(:,:), pointer :: landuse         ! Global 30-arc-second landuse
    integer (kind=I1KIND), dimension(:,:), pointer :: box_landuse     ! Subset of landuse covering a grid cell
 
@@ -184,7 +185,9 @@ module mpas_init_atm_gwd
          call mpas_log_write('Error reading global 30-arc-sec landuse for GWD statistics', messageType=MPAS_LOG_ERR)
          return
       end if
-write(0,*) 'min/max landuse = ', minval(landuse), maxval(landuse)
+      min_landuse = minval(landuse)
+      max_landuse = maxval(landuse)
+      call mpas_log_write('min/max landuse = $i $i', intArgs=(/min_landuse,max_landuse/))
 
       !
       ! It is possible that this code is called before the mesh fields have been scaled
