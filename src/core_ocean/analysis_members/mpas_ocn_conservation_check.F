@@ -461,6 +461,7 @@ contains
       call MPAS_pool_get_array(conservationCheckEnergyAMPool, "accumulatedLongWaveHeatFluxUp",   accumulatedLongWaveHeatFluxUp)
       call MPAS_pool_get_array(conservationCheckEnergyAMPool, "accumulatedLongWaveHeatFluxDown", accumulatedLongWaveHeatFluxDown)
       call MPAS_pool_get_array(conservationCheckEnergyAMPool, "accumulatedSeaIceHeatFlux",       accumulatedSeaIceHeatFlux)
+      call MPAS_pool_get_array(conservationCheckEnergyAMPool, "accumulatedShortWaveHeatFlux",    accumulatedShortWaveHeatFlux)
       call MPAS_pool_get_array(conservationCheckEnergyAMPool, "accumulatedMeltingHeatFlux",      accumulatedMeltingHeatFlux)
 
       !-------------------------------------------------------------
