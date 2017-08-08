@@ -446,6 +446,7 @@ contains
       type (MPAS_TimeInterval_type) :: alarmTimeStep
 
       err = 0
+      err_tmp = 0
 
       call mpas_timer_start('analysis_init')
 
@@ -1191,7 +1192,7 @@ contains
       integer :: nameLength, err_tmp
 
       iErr = 0
-       err_tmp = 0
+      err_tmp = 0
 
       nameLength = len_trim(analysisMemberName)
 
