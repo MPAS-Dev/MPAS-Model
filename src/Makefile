@@ -15,7 +15,7 @@ endif
 all: mpas
 
 mpas: $(AUTOCLEAN_DEPS) externals frame ops dycore drver
-	$(LINKER) $(LDFLAGS) -o $(EXE_NAME) driver/*.o -L. -ldycore -lops -lframework $(LIBS) -I./external/esmf_time_f90 -L./external/esmf_time_f90 -lesmf_time -r8 -O3 -byteswapio -Mfree -m64 -Mnofma -Mvect=noaltcode -acc -ta=tesla:cc60
+	$(LINKER) $(LDFLAGS) -o $(EXE_NAME) driver/*.o -L. -ldycore -lops -lframework $(LIBS) -I./external/esmf_time_f90 -L./external/esmf_time_f90 -lesmf_time -r8 -O3 -byteswapio -Mfree -m64 -Mnofma -acc -ta=tesla:cc60
 
 externals: $(AUTOCLEAN_DEPS)
 	( cd external; $(MAKE) FC="$(FC)" SFC="$(SFC)" CC="$(CC)" SCC="$(SCC)" FFLAGS="$(FFLAGS)" CFLAGS="$(CFLAGS)" CPP="$(CPP)" NETCDF="$(NETCDF)" CORE="$(CORE)" all )

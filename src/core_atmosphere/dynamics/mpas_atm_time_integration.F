@@ -2207,7 +2207,7 @@ module atm_time_integration
       c2 = cp * rcv
       resm = (1.0 - epssm) / (1.0 + epssm)
       rdts = 1./dts
-	  
+  
 !$acc data present(rtheta_pp, rtheta_pp_old, ru_p, ruavg, rho_pp, &
 !$acc rw_p, wwavg, &
 !$acc zz, cellsonedge, cqu, dcedge, exner, invdcedge, &
@@ -2281,15 +2281,18 @@ module atm_time_integration
 
       if (small_step == 1) then  ! initialize here on first small timestep.
 !$acc parallel vector_length(32)
-!$acc loop gang
+!$acc loop gang vector
          do iCell=cellStart,cellEnd
             rtheta_pp_old(1:nVertLevels,iCell) = 0.0
          end do
 !$acc end parallel
       else
+!$acc parallel vector_length(32)
+!$acc loop gang vector
         do iCell=cellStart,cellEnd
            rtheta_pp_old(1:nVertLevels,iCell) = rtheta_pp(1:nVertLevels,iCell)
         end do
+!$acc end parallel
       end if
 
 
@@ -4560,8 +4563,8 @@ module atm_time_integration
          ! The integration coefficients were precomputed and stored in defc_a and defc_b
 !!$acc kernels
 
-!$acc parallel vector_length(64)
 if (config_horiz_mixing == "2d_smagorinsky") then
+!$acc parallel vector_length(64)
 !$acc loop gang private(d_diag,d_off_diag)
          do iCell = cellStart,cellEnd
 !$acc cache(d_diag)
@@ -4591,9 +4594,9 @@ if (config_horiz_mixing == "2d_smagorinsky") then
          h_mom_eddy_visc4   = config_visc4_2dsmag * config_len_disp**3
          h_theta_eddy_visc4 = h_mom_eddy_visc4
 
-      end if
 !$acc end parallel
 
+      end if
         ! else
          if(config_horiz_mixing == "2d_fixed") then
 
