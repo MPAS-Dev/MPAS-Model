@@ -18,6 +18,8 @@ module mpas_io
    use pionfatt_mod
    use pio_types
 
+   include "netcdf.inc"
+
 #ifdef SINGLE_PRECISION
    integer, parameter :: PIO_REALKIND = PIO_REAL
 #else

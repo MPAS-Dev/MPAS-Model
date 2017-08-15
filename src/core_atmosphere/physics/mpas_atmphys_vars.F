@@ -604,6 +604,7 @@
     tslb_p             !soil temperature                                                                       [K]
 
  real(kind=RKIND),dimension(:,:),allocatable:: &
+    snow_ratio_p,     &!snow water ratio                                                                       [-]  
     acsnom_p,         &!accumulated melted snow                                                           [kg m-2]
     acsnow_p,         &!accumulated snow                                                                  [kg m-2]
     canwat_p,         &!canopy water                                                                      [kg m-2]

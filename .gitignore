@@ -1,3 +1,22 @@
+libraries/
+software/cmake-3.7.2/
+software/cmake-install/
+software/parallel-netcdf-1.3.1/
+software/parallel-netcdf-1.7.0/
+software/ParallelIO-pio2_2_1/
+software/pio-1.9.23/
+software/pio-2.2.1/
+software/ParallelIO/
+software/PIO_build/
+software/PIO_install/
+dbl2flt/double_to_float_grid
+grid_rotate/grid_rotate
+meshes/
+metis-5.1.0/
+# MPAS-Release-5.0/src/framework/mpas_io.F
+src/core_init_atmosphere/mpas_init_atm_cases.F
+compile.out
+
 # Ignore Files in the MPAS Direcory
 
 # All pre-processed Fortran files in MPAS specific directories
@@ -60,3 +79,4 @@ stream_list.*
 *.i90
 
 src/core_*/inc
+                            

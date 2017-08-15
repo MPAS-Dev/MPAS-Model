@@ -37,6 +37,8 @@ module mpas_atm_diagnostics_manager
         use diagnostic_template, only : diagnostic_template_setup
         use isobaric_diagnostics, only : isobaric_diagnostics_setup
         use convective_diagnostics, only : convective_diagnostics_setup
+        use snowratio_diagnostics, only : snowratio_diagnostics_setup
+        use surface_diagnostics, only : surface_diagnostics_setup
         use pv_diagnostics, only : pv_diagnostics_setup
         use soundings, only : soundings_setup
 
@@ -57,6 +59,8 @@ module mpas_atm_diagnostics_manager
         call diagnostic_template_setup(configs, structs, clock)
         call isobaric_diagnostics_setup(structs, clock)
         call convective_diagnostics_setup(structs, clock)
+        call snowratio_diagnostics_setup(configs, structs)
+        call surface_diagnostics_setup(configs, structs, clock)
         call pv_diagnostics_setup(structs, clock)
         call soundings_setup(configs, structs, clock, dminfo)
 
@@ -102,15 +106,18 @@ module mpas_atm_diagnostics_manager
         use diagnostic_template, only : diagnostic_template_compute
         use isobaric_diagnostics, only : isobaric_diagnostics_compute
         use convective_diagnostics, only : convective_diagnostics_compute
+        use snowratio_diagnostics, only : snowratio_diagnostics_compute
+        use surface_diagnostics, only : surface_diagnostics_compute
         use pv_diagnostics, only : pv_diagnostics_compute
         use soundings, only : soundings_compute
 
         implicit none
-
-
+     
         call diagnostic_template_compute()
         call isobaric_diagnostics_compute()
         call convective_diagnostics_compute()
+        call snowratio_diagnostics_compute()
+        call surface_diagnostics_compute()
         call pv_diagnostics_compute()
         call soundings_compute()
 
@@ -131,12 +138,13 @@ module mpas_atm_diagnostics_manager
 
         use diagnostic_template, only : diagnostic_template_reset
         use convective_diagnostics, only : convective_diagnostics_reset
+        use surface_diagnostics, only : surface_diagnostics_reset
 
         implicit none
 
-
         call diagnostic_template_reset()
         call convective_diagnostics_reset()
+        call surface_diagnostics_reset()
 
     end subroutine mpas_atm_diag_reset
 

@@ -295,6 +295,7 @@ CONTAINS
 !-------------------------------------------------------------------
       REAL,     PARAMETER     ::        XKA=2.4E-5
       REAL,     PARAMETER     ::        PRT=1.
+      REAL,     PARAMETER     ::        PSILIM=-1.
 
       INTEGER,  INTENT(IN )   ::        ids,ide, jds,jde, kds,kde, &
                                         ims,ime, jms,jme, kms,kme, &
@@ -402,9 +403,9 @@ CONTAINS
       REAL    ::  PL,THCON,TVCON,E1
       REAL    ::  ZL,TSKV,DTHVDZ,DTHVM,VCONV,RZOL,RZOL2,RZOL10,ZOL2,ZOL10
       REAL    ::  DTG,PSIX,DTTHX,PSIX10,PSIT,PSIT2,PSIQ,PSIQ2,PSIQ10
-      REAL    ::  FLUXC,VSGD,Z0Q,VISC,RESTAR,CZIL,GZ0OZQ,GZ0OZT
+      REAL    ::  FLUXC,VSGD,Z0Q,VISC,RESTAR,GZ0OZQ,GZ0OZT
       REAL    ::  ZW, ZN1, ZN2
-      REAL    ::  Z0T, CZC
+      REAL    ::  Z0T, CZC, CZIL
 !-------------------------------------------------------------------
       KL=kte
 
@@ -594,13 +595,13 @@ CONTAINS
         REGIME(I)=1.                                                           
         PSIM(I)=-10.*GZ1OZ0(I)                                                   
 !    LOWER LIMIT ON PSI IN STABLE CONDITIONS                                     
-        PSIM(I)=AMAX1(PSIM(I),-10.)                                              
+        PSIM(I)=AMAX1(PSIM(I),PSILIM)                                              
         PSIH(I)=PSIM(I)                                                          
         PSIM10(I)=10./ZA(I)*PSIM(I)
-        PSIM10(I)=AMAX1(PSIM10(I),-10.)                               
+        PSIM10(I)=AMAX1(PSIM10(I),PSILIM)                               
         PSIH10(I)=PSIM10(I)                                          
         PSIM2(I)=2./ZA(I)*PSIM(I)
-        PSIM2(I)=AMAX1(PSIM2(I),-10.)                              
+        PSIM2(I)=AMAX1(PSIM2(I),PSILIM)                              
         PSIH2(I)=PSIM2(I)                                         
 
 !       1.0 over Monin-Obukhov length
@@ -620,14 +621,14 @@ CONTAINS
         REGIME(I)=2.                                                           
         PSIM(I)=-5.0*BR(I)*GZ1OZ0(I)/(1.1-5.0*BR(I))                             
 !    LOWER LIMIT ON PSI IN STABLE CONDITIONS                                     
-        PSIM(I)=AMAX1(PSIM(I),-10.)                                              
+        PSIM(I)=AMAX1(PSIM(I),PSILIM)                                              
 !.....AKB(1976), EQ(16).                                                         
         PSIH(I)=PSIM(I)                                                          
         PSIM10(I)=10./ZA(I)*PSIM(I)
-        PSIM10(I)=AMAX1(PSIM10(I),-10.)                               
+        PSIM10(I)=AMAX1(PSIM10(I),PSILIM)                               
         PSIH10(I)=PSIM10(I)                                          
         PSIM2(I)=2./ZA(I)*PSIM(I)
-        PSIM2(I)=AMAX1(PSIM2(I),-10.)                              
+        PSIM2(I)=AMAX1(PSIM2(I),PSILIM)                              
         PSIH2(I)=PSIM2(I)                                         
 
         ! Linear form: PSIM = -0.5*ZA/L; e.g, see eqn 16 of
@@ -779,7 +780,7 @@ CONTAINS
 ! Garratt (1992) used with values of k = 0.40, Pr = 0.71, and Sc = 0.60
               VISC=(1.32+0.009*(SCR3(I)-273.15))*1.E-5
 !!            VISC=1.5E-5
-              RESTAR=UST(I)*ZNT(I)/VISC
+              RESTAR=MAX(UST(I)*ZNT(I)/VISC, 0.1)
               GZ0OZT=0.40*(7.3*SQRT(SQRT(RESTAR))*SQRT(0.71)-5.)
               GZ0OZQ=0.40*(7.3*SQRT(SQRT(RESTAR))*SQRT(0.60)-5.)
               PSIT=GZ1OZ0(I)-PSIH(I)+GZ0OZT
@@ -795,23 +796,21 @@ CONTAINS
            Cka(I)=(karman/psix)*(karman/psiq)
            Cda(I)=(karman/psix)*(karman/psix)
         ENDIF
-        IF ( PRESENT(IZ0TLND) ) THEN
-           IF ( IZ0TLND.EQ.1 .AND. (XLAND(I)-1.5).LE.0. ) THEN
+!       IF ( PRESENT(IZ0TLND) ) THEN
+           IF (XLAND(I)-1.5.LE.0.AND.DTG.GE.0) THEN
               ZL=ZNT(I)
 !             CZIL RELATED CHANGES FOR LAND
               VISC=(1.32+0.009*(SCR3(I)-273.15))*1.E-5
               RESTAR=UST(I)*ZL/VISC
+              CZIL = 0.20
 !             Modify CZIL according to Chen & Zhang, 2009
-
-              CZIL = 10.0 ** ( -0.40 * ( ZL / 0.07 ) )
-
+!             CZIL = 10.0 ** ( -0.40 * ( ZL / 0.07 ) )
               PSIT=GZ1OZ0(I)-PSIH(I)+CZIL*KARMAN*SQRT(RESTAR)
               PSIQ=GZ1OZ0(I)-PSIH(I)+CZIL*KARMAN*SQRT(RESTAR)
               PSIT2=GZ2OZ0(I)-PSIH2(I)+CZIL*KARMAN*SQRT(RESTAR)
               PSIQ2=GZ2OZ0(I)-PSIH2(I)+CZIL*KARMAN*SQRT(RESTAR)
-
            ENDIF
-        ENDIF
+!       ENDIF
 ! TO PREVENT OSCILLATIONS AVERAGE WITH OLD VALUE 
         UST(I)=0.5*UST(I)+0.5*KARMAN*WSPD(I)/PSIX                                             
 ! TKE coupling: compute ust without vconv for use in tke scheme

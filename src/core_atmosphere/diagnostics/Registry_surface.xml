@@ -1,0 +1,26 @@
+<!-- ******************************* -->
+<!-- Surface diagnostics          -->
+<!-- ******************************* -->
+
+<var_struct name="diag" time_levs="1">
+
+        <var name="dewpoint_2m"       type="real"     dimensions="nCells Time" units="K"
+             description="Dewpoint temperature at 2 meters AGL"/>
+
+        <var name="rain_bucket"       type="real"     dimensions="nCells Time" units="mm"
+             description="Rain bucket that is reset at config_bucket_precip_interval"/>
+
+        <var name="conv_bucket"       type="real"     dimensions="nCells Time" units="mm"
+             description="Convective rain bucket that is reset at config_bucket_precip_interval"/>
+
+        <var name="snow_bucket"       type="real"     dimensions="nCells Time" units="mm"
+             description="Snow bucket that is reset at config_bucket_precip_interval"/>
+
+        <var name="zrain_bucket"      type="real"     dimensions="nCells Time" units="mm"
+             description="Freezing rain bucket that is reset at config_bucket_precip_interval"/>
+
+        <var name="snow_total"        type="real"     dimensions="nCells Time" units="m"
+             description="Snow total using kuchera, cobb, gottlieb or static ratio schemes"/>
+
+</var_struct>
+

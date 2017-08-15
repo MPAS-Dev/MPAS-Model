@@ -995,6 +995,19 @@
 			<var name="meanT_500_300"/>
                         <!-- End isobaric diagnostics defined in diagnostics/Registry_isobaric.xml -->
 
+                        <!-- Begin snow ratio diagnostics defined in diagnostics/Registry_snowratio.xml -->
+                        <var name="snow_ratio"/>
+                        <!-- End snow ratio diagnostics defined in diagnostics/Registry_snowratio.xml -->
+
+                        <!-- Begin surface diagnostics defined in diagnostics/Registry_surface.xml -->
+                        <var name="dewpoint_2m"/>
+                        <var name="rain_bucket"/>
+                        <var name="conv_bucket"/>
+                        <var name="snow_bucket"/>
+                        <var name="zrain_bucket"/>
+                        <var name="snow_total"/>
+                        <!-- End surface diagnostics defined in diagnostics/Registry_surface.xml -->
+
                         <!-- Begin convective diagnostics defined in diagnostics/Registry_convective.xml -->
                         <var name="cape"/>
                         <var name="cin"/>
@@ -1799,6 +1812,11 @@
                      description="time interval between updates of accumulated rain and radiation diagnostics"
                      possible_values="`DD_HH:MM:SS' or `none'"/>
 
+                <nml_option name="config_bucket_precip_interval" type="character" default_value="none"
+                     units="-"
+                     description="time interval between reset of precipitation diagnostics"
+                     possible_values="`DD_HH:MM:SS' or `none'"/>
+
                 <nml_option name="config_physics_suite" type="character" default_value="mesoscale_reference" in_defaults="true"
                      units="-"
                      description="Choice of physics suite"
@@ -1893,6 +1911,12 @@
                      units="s"
                      description="Relaxation time to initial values in 1-d OML"
                      possible_values="Non-negative real values"/>
+
+                <nml_option name="config_snowratio_scheme" type="character" default_value="static" in_defaults="false"
+                     units="-"
+                     description="configuration for snow ratio schemes"
+                     possible_values="'kuchera','cobb','noah','noahmp','static'"/>
+
         </nml_record>
 
         <var_struct name="diag_physics" time_levs="1">

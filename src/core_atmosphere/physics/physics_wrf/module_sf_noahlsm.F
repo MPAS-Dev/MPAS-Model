@@ -59,6 +59,7 @@ CONTAINS
                        COSZ,PRCPRAIN, SOLARDIRECT,                      &    !F
                        TH2,Q2SAT,DQSDT2,                                &    !I
                        VEGTYP,SOILTYP,SLOPETYP,SHDFAC,SHDMIN,SHDMAX,    &    !I
+                       SNOWRATIO,                                       &    !I
                        ALB, SNOALB,TBOT, Z0BRD, Z0, EMISSI, EMBRD,      &    !S
                        CMC,T1,STC,SMC,SH2O,SNOWH,SNEQV,ALBEDO,CH,CM,    &    !H
 ! ----------------------------------------------------------------------
@@ -77,7 +78,7 @@ CONTAINS
                        RDLAI2D,USEMONALB,                               &
                        SNOTIME1,                                        &
                        RIBB,                                            &
-                       SMCWLT,SMCDRY,SMCREF,SMCMAX,NROOT)                    !P
+                       SMCWLT,SMCDRY,SMCREF,SMCMAX,NROOT,DF1,SNUP)           !P
 ! ----------------------------------------------------------------------
 ! SUBROUTINE SFLX - UNIFIED NOAHLSM VERSION 1.0 JULY 2007
 ! ----------------------------------------------------------------------
@@ -179,6 +180,7 @@ CONTAINS
 !  SMC(NSOIL)  TOTAL SOIL MOISTURE CONTENT (VOLUMETRIC FRACTION)
 !  SH2O(NSOIL) UNFROZEN SOIL MOISTURE CONTENT (VOLUMETRIC FRACTION)
 !                NOTE: FROZEN SOIL MOISTURE = SMC - SH2O
+!  SNOWRATIO   SNOW WATER RATIO
 !  SNOWH       ACTUAL SNOW DEPTH (M)
 !  SNEQV       LIQUID WATER-EQUIVALENT SNOW DEPTH (M)
 !                NOTE: SNOW DENSITY = SNEQV/SNOWH
@@ -301,7 +303,7 @@ CONTAINS
                             FFROZP
       REAL, INTENT(INOUT)  :: EMBRD
       REAL, INTENT(INOUT)  :: ALBEDO
-      REAL, INTENT(INOUT):: COSZ, SOLARDIRECT,CH,CM,                        &
+      REAL, INTENT(INOUT):: COSZ, SOLARDIRECT,CH,CM,SNOWRATIO,              &
                             CMC,SNEQV,SNCOVR,SNOWH,T1,XLAI,SHDFAC,Z0BRD,    &
                             EMISSI, ALB
       REAL, INTENT(INOUT):: SNOTIME1
@@ -527,7 +529,7 @@ CONTAINS
 ! UPDATE SNOW DENSITY BASED ON NEW SNOWFALL, USING OLD AND NEW SNOW.
 ! UPDATE SNOW THERMAL CONDUCTIVITY
 ! ----------------------------------------------------------------------
-            CALL SNOW_NEW (SFCTMP,SN_NEW,SNOWH,SNDENS)
+            CALL SNOW_NEW (SFCTMP,SN_NEW,SNOWH,SNDENS,SNOWRATIO)
 !
 ! kmh 09/04/2006 set Snow Density at 0.2 g/cm**3
 ! for "cold permanent ice" or new "dry" snow
@@ -564,7 +566,7 @@ CONTAINS
 ! DETERMINE SNOW FRACTIONAL COVERAGE.
 ! DETERMINE SURFACE ALBEDO MODIFICATION DUE TO SNOWDEPTH STATE.
 ! ----------------------------------------------------------------------
-              CALL SNFRAC (SNEQV,SNUP,SALP,SNOWH,SNCOVR)
+              CALL SNFRAC (SNEQV,SNUP,SALP,SNOWH,SNCOVR,Z0)
 !   Don't limit snow cover fraction over permanent ice kmh 2008/03/25
             if ( ICE == 0 ) then
               SNCOVR = MIN(SNCOVR,0.98)
@@ -2714,7 +2716,7 @@ CONTAINS
 ! ----------------------------------------------------------------------
 
 
-      SUBROUTINE SNFRAC (SNEQV,SNUP,SALP,SNOWH,SNCOVR)
+      SUBROUTINE SNFRAC (SNEQV,SNUP,SALP,SNOWH,SNCOVR,Z0)
 
 ! ----------------------------------------------------------------------
 ! SUBROUTINE SNFRAC
@@ -2727,9 +2729,10 @@ CONTAINS
 ! ----------------------------------------------------------------------
       IMPLICIT NONE
 
-      REAL, INTENT(IN)     :: SNEQV,SNUP,SALP,SNOWH
+      REAL, INTENT(IN)     :: SNEQV,SNUP,SALP,SNOWH,Z0
       REAL, INTENT(INOUT)    :: SNCOVR
       REAL                 :: RSNOW, Z0N
+      REAL                 :: BDSNO, FMELT, MFSNO, Z0G
 
 ! ----------------------------------------------------------------------
 ! SNUP IS VEG-CLASS DEPENDENT SNOWDEPTH THRESHHOLD (SET IN ROUTINE
@@ -2749,6 +2752,14 @@ CONTAINS
 
 !     FORMULATION OF MARSHALL ET AL. 1994
 !        SNCOVR=SNEQV/(SNEQV + 2*Z0N)
+
+!     IF(SNOWH.GT.0.) THEN
+!        MFSNO = 2.50
+!        Z0G = 0.01
+!        BDSNO  = SNEQV  * 1000. / SNOWH
+!        FMELT  = (BDSNO/100.)**MFSNO
+!        SNCOVR = TANH( SNOWH /(2.5* Z0G * FMELT))
+!     ENDIF
 
 ! ----------------------------------------------------------------------
   END SUBROUTINE SNFRAC
@@ -3379,13 +3390,13 @@ CONTAINS
 ! ----------------------------------------------------------------------
       IMPLICIT NONE
       REAL, INTENT(IN)        :: SNCOVR, Z0BRD
-      REAL, INTENT(INOUT)       :: Z0
+      REAL, INTENT(INOUT)     :: Z0
       REAL, PARAMETER         :: Z0S=0.001
       REAL, INTENT(IN)        :: SNOWH
       REAL                    :: BURIAL
       REAL                    :: Z0EFF
 
-!m      Z0 = (1.- SNCOVR)* Z0BRD + SNCOVR * Z0S
+!     Z0 = (1.- SNCOVR)* Z0BRD + SNCOVR * Z0S
       BURIAL = 7.0*Z0BRD - SNOWH
       IF(BURIAL.LE.0.0007) THEN
         Z0EFF = Z0S
@@ -3400,7 +3411,7 @@ CONTAINS
 ! ----------------------------------------------------------------------
 
 
-      SUBROUTINE SNOW_NEW (TEMP,NEWSN,SNOWH,SNDENS)
+      SUBROUTINE SNOW_NEW (TEMP,NEWSN,SNOWH,SNDENS,SNOWRATIO)
 
 ! ----------------------------------------------------------------------
 ! SUBROUTINE SNOW_NEW
@@ -3408,13 +3419,14 @@ CONTAINS
 ! CALCULATE SNOW DEPTH AND DENSITITY TO ACCOUNT FOR THE NEW SNOWFALL.
 ! NEW VALUES OF SNOW DEPTH & DENSITY RETURNED.
 
-! TEMP    AIR TEMPERATURE (K)
-! NEWSN   NEW SNOWFALL (M)
-! SNOWH   SNOW DEPTH (M)
-! SNDENS  SNOW DENSITY (G/CM3=DIMENSIONLESS FRACTION OF H2O DENSITY)
+! TEMP      AIR TEMPERATURE (K)
+! NEWSN     NEW SNOWFALL (M)
+! SNOWH     SNOW DEPTH (M)
+! SNDENS    SNOW DENSITY (G/CM3=DIMENSIONLESS FRACTION OF H2O DENSITY)
+! SNOWRATIO SNOW WATER RATIO
 ! ----------------------------------------------------------------------
       IMPLICIT NONE
-      REAL, INTENT(IN)        :: NEWSN, TEMP
+      REAL, INTENT(IN)        :: NEWSN, TEMP, SNOWRATIO
       REAL, INTENT(INOUT)     :: SNDENS, SNOWH
       REAL                    :: DSNEW, HNEWC, SNOWHC,NEWSNC,TEMPC
 
@@ -3430,12 +3442,18 @@ CONTAINS
 ! AND GLACIERIZED BASIN', 6TH NORDIC HYDROLOGICAL CONFERENCE,
 ! VEMADOLEN, SWEDEN, 1980, 172-177PP.
 !-----------------------------------------------------------------------
-      TEMPC = TEMP -273.15
-      IF (TEMPC <=  -15.) THEN
-         DSNEW = 0.05
-      ELSE
-         DSNEW = 0.05+0.0017* (TEMPC +15.)**1.5
-      END IF
+!     TEMPC = TEMP -273.15
+!     IF (TEMPC <=  -15.) THEN
+!        DSNEW = 0.05
+!     ELSE
+!        DSNEW = 0.05+0.0017* (TEMPC +15.)**1.5
+!     END IF
+
+! ----------------------------------------------------------------------
+! NEW SNOWFALL DENSITY BASED ON DIAGNOSTICS (KUCHERA, COBB, ETC)
+!-----------------------------------------------------------------------
+      DSNEW = 1. / SNOWRATIO
+
 ! ----------------------------------------------------------------------
 ! ADJUSTMENT OF SNOW DENSITY DEPENDING ON NEW SNOWFALL
 ! ----------------------------------------------------------------------

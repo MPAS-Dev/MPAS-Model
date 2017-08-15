@@ -111,6 +111,7 @@
  if(.not.allocated(tslb_p)  ) allocate(tslb_p(ims:ime,1:num_soils,jms:jme)  )
 
 !other arrays:
+ if(.not.allocated(snow_ratio_p)) allocate(snow_ratio_p(ims:ime,jms:jme))
  if(.not.allocated(acsnom_p)    ) allocate(acsnom_p(ims:ime,jms:jme)    )
  if(.not.allocated(acsnow_p)    ) allocate(acsnow_p(ims:ime,jms:jme)    )
  if(.not.allocated(canwat_p)    ) allocate(canwat_p(ims:ime,jms:jme)    )
@@ -186,6 +187,7 @@
  if(allocated(tslb_p)  ) deallocate(tslb_p  )
 
 !other arrays:
+ if(allocated(snow_ratio_p)) deallocate(snow_ratio_p)
  if(allocated(acsnom_p)    ) deallocate(acsnom_p    )
  if(allocated(acsnow_p)    ) deallocate(acsnow_p    )
  if(allocated(canwat_p)    ) deallocate(canwat_p    )
@@ -256,12 +258,13 @@
  end subroutine deallocate_lsm
 
 !=================================================================================================================
- subroutine lsm_from_MPAS(configs,mesh,diag_physics,sfc_input,its,ite)
+ subroutine lsm_from_MPAS(configs,mesh,diag,diag_physics,sfc_input,its,ite)
 !=================================================================================================================
 
 !input arguments:
  type(mpas_pool_type),intent(in):: configs
  type(mpas_pool_type),intent(in):: mesh
+ type(mpas_pool_type),intent(inout):: diag
  type(mpas_pool_type),intent(inout):: diag_physics
  type(mpas_pool_type),intent(inout):: sfc_input
  integer,intent(in):: its,ite
@@ -283,6 +286,7 @@
  real(kind=RKIND),dimension(:),pointer  :: t2m,th2m,q2
  real(kind=RKIND),dimension(:),pointer  :: raincv,rainncv
  real(kind=RKIND),dimension(:,:),pointer:: sh2o,smcrel,smois,tslb,dzs
+ real(kind=RKIND),dimension(:),pointer  :: snow_ratio
 
 !local variables and arrays:
  logical:: do_fill
@@ -294,6 +298,8 @@
  call mpas_pool_get_config(configs,'config_frac_seaice'      ,config_frac_seaice      )
  call mpas_pool_get_config(configs,'config_convection_scheme',config_convection_scheme)
  call mpas_pool_get_config(configs,'config_microp_scheme'    ,config_microp_scheme    )
+
+ call mpas_pool_get_array(diag,'snow_ratio'        ,snow_ratio)
 
  call mpas_pool_get_array(diag_physics,'acsnom'    ,acsnom    )
  call mpas_pool_get_array(diag_physics,'acsnow'    ,acsnow    )
@@ -369,6 +375,7 @@
 
  do j = jts,jte
  do i = its,ite
+    snow_ratio_p(i,j)  = snow_ratio(i)
     acsnom_p(i,j)     = acsnom(i)
     acsnow_p(i,j)     = acsnow(i)
     canwat_p(i,j)     = canwat(i)
@@ -699,17 +706,24 @@
  end subroutine init_lsm
 
 !=================================================================================================================
- subroutine driver_lsm(itimestep,configs,mesh,diag_physics,sfc_input,its,ite)
+ subroutine driver_lsm(itimestep,configs,mesh,state,diag,diag_physics,sfc_input,its,ite)
 !=================================================================================================================
 
 !input arguments:
  type(mpas_pool_type),intent(in):: mesh
  type(mpas_pool_type),intent(in):: configs
+ type(mpas_pool_type),intent(inout):: state
 
  integer,intent(in):: its,ite
  integer,intent(in):: itimestep
+ integer, pointer :: ncells
+ integer, dimension(:), pointer :: cellid
+
+ real(kind=RKIND),dimension(:),pointer    :: latcell,loncell
+ character (len=StrKIND), pointer :: xtime
 
 !inout arguments:
+ type(mpas_pool_type),intent(inout):: diag
  type(mpas_pool_type),intent(inout):: diag_physics
  type(mpas_pool_type),intent(inout):: sfc_input
 
@@ -720,7 +734,11 @@
 !-----------------------------------------------------------------------------------------------------------------
 !write(0,*)
 !write(0,*) '--- enter subroutine driver_lsm:'
-
+ call mpas_pool_get_dimension(mesh, 'nCells', ncells)
+ call mpas_pool_get_array(mesh, 'indexToCellID', cellid)
+ call mpas_pool_get_array(mesh,'latCell',latcell)
+ call mpas_pool_get_array(mesh,'lonCell',loncell)
+ call mpas_pool_get_array(state, 'xtime', xtime, 1)
  call mpas_pool_get_config(configs,'config_sfc_albedo' ,config_sfc_albedo )
  call mpas_pool_get_array(sfc_input,'mminlu',mminlu)
 
@@ -729,7 +747,7 @@
  102 format(3i6,8(1x,e15.8))
 
 !copy MPAS arrays to local arrays:
- call lsm_from_MPAS(configs,mesh,diag_physics,sfc_input,its,ite)
+ call lsm_from_MPAS(configs,mesh,diag,diag_physics,sfc_input,its,ite)
 ! write(0,*) '--- end lsm_from_MPAS'
 
 !call to land-surface scheme:
@@ -748,8 +766,9 @@
                 qfx       = qfx_p     , lh        = lh_p         , grdflx    = grdflx_p     , &
                 qsfc      = qsfc_p    , cqs2      = cqs2_p       , chs       = chs_p        , &
                 chs2      = chs2_p    , snow      = snow_p       , snowc     = snowc_p      , &
+                snow_ratio= snow_ratio_p                                                    , &  
                 snowh     = snowh_p   , canwat    = canwat_p     , smstav    = smstav_p     , &
-                smstot    = smstot_p  , sfcrunoff = sfcrunoff_p  , udrunoff  = udrunoff_p   , &               
+                smstot    = smstot_p  , sfcrunoff = sfcrunoff_p  , udrunoff  = udrunoff_p   , & 
                 acsnom    = acsnom_p  , acsnow    = acsnow_p     , snotime   = snotime_p    , &
                 snopcx    = snopcx_p  , emiss     = sfc_emiss_p  , rib       = br_p         , &
                 potevp    = potevp_p  , albedo    = sfc_albedo_p , albbck    = sfc_albbck_p , &
@@ -770,7 +789,9 @@
                 sf_urban_physics = sf_urban_physics   ,                                       &
                 ids = ids , ide = ide , jds = jds , jde = jde , kds = kds , kde = kde ,       &
                 ims = ims , ime = ime , jms = jms , jme = jme , kms = kms , kme = kme ,       &
-                its = its , ite = ite , jts = jts , jte = jte , kts = kts , kte = kte         &
+                its = its , ite = ite , jts = jts , jte = jte , kts = kts , kte = kte ,       &
+                ncells = ncells , cellid = cellid , latcell = latcell , loncell = loncell ,   &
+                xtime = xtime , t2 = t2m_p                                                    &
                )
 
        call sfcdiags( &
@@ -778,8 +799,8 @@
                 chs2  = chs2_p , cqs2    = cqs2_p  , t2   = t2m_p , th2  = th2m_p , q2  = q2_p  , &
                 psfc  = psfc_p , t3d     = t_p     , qv3d = qv_p  , cp   = cp     , R_d = R_d   , &
                 rovcp = rcp    , ua_phys = ua_phys                                              , & 
-                ids = ids , ide = ide , jds = jds , jde = jde , kds = kds , kde = kde ,           &
-                ims = ims , ime = ime , jms = jms , jme = jme , kms = kms , kme = kme ,           &
+                ids = ids , ide = ide , jds = jds , jde = jde , kds = kds , kde = kde           , &
+                ims = ims , ime = ime , jms = jms , jme = jme , kms = kms , kme = kme           , &
                 its = its , ite = ite , jts = jts , jte = jte , kts = kts , kte = kte             &
                     )
                 

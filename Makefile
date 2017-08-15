@@ -141,8 +141,8 @@ ifort:
 	"CC_PARALLEL = mpicc" \
 	"CXX_PARALLEL = mpicxx" \
 	"FC_SERIAL = ifort" \
-	"CC_SERIAL = icc" \
-	"CXX_SERIAL = icpc" \
+	"CC_SERIAL = gcc" \
+	"CXX_SERIAL = g++" \
 	"FFLAGS_PROMOTION = -real-size 64" \
 	"FFLAGS_OPT = -O3 -convert big_endian -FR" \
 	"CFLAGS_OPT = -O3" \
@@ -352,7 +352,7 @@ intel-nersc:
 	"CC_PARALLEL = cc" \
 	"CXX_PARALLEL = CC" \
 	"FC_SERIAL = ftn" \
-	"CC_SERIAL = cc" \
+	"CC_SERIAL = gcc" \
 	"CXX_SERIAL = CC" \
 	"FFLAGS_PROMOTION = -real-size 64" \
 	"FFLAGS_OPT = -O3 -convert big_endian -FR" \

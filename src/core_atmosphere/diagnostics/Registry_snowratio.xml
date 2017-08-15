@@ -1,0 +1,11 @@
+<!-- ******************************* -->
+<!-- Snow ratio diagnostics          -->
+<!-- ******************************* -->
+
+<var_struct name="diag" time_levs="1">
+
+        <var name="snow_ratio"        type="real"     dimensions="nCells Time" units="ratio"
+             description="Snow ratio using kuchera, cobb, gottlieb, or static ratio schemes"/>
+
+</var_struct>
+

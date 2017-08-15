@@ -274,7 +274,7 @@
        call allocate_lsm(config_frac_seaice)
 !$OMP PARALLEL DO
        do thread=1,nThreads
-          call driver_lsm(itimestep,block%configs,mesh,diag_physics,sfc_input, &
+          call driver_lsm(itimestep,block%configs,mesh,state,diag,diag_physics,sfc_input, &
                           cellSolveThreadStart(thread), cellSolveThreadEnd(thread))
        end do
 !$OMP END PARALLEL DO

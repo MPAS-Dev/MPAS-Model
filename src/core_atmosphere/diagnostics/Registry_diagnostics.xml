@@ -16,6 +16,12 @@
 <!-- soundings -->
 #include "Registry_soundings.xml"
 
+<!-- 2-m Dewpoint -->
+#include "Registry_surface.xml"
+
+<!-- snow ratio diagnostics -->
+#include "Registry_snowratio.xml"
+
 <!-- ******************************* -->
 <!-- End includes from diagnostics -->
 <!-- ******************************* -->

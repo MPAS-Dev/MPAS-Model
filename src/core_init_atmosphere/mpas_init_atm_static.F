@@ -42,6 +42,8 @@
  character(len=StrKIND) :: fname
  character(len=StrKIND), pointer :: config_geog_data_path
  character(len=StrKIND), pointer :: config_landuse_data
+ ! James Cipriani, TWC, 03/22/2017 --> for VIIRS green vegetation fraction data
+ character(len=StrKIND), pointer :: config_greenfrac_data
  character(len=StrKIND+1) :: geog_data_path      ! same as config_geog_data_path, but guaranteed to have a trailing slash
  character(len=StrKIND+1) :: geog_sub_path       ! subdirectory names in config_geog_data_path, with trailing slash
 
@@ -101,6 +103,8 @@
 
  call mpas_pool_get_config(configs, 'config_geog_data_path', config_geog_data_path)
  call mpas_pool_get_config(configs, 'config_landuse_data', config_landuse_data)
+ ! James Cipriani, TWC, 03/22/2017
+ call mpas_pool_get_config(configs, 'config_greenfrac_data', config_greenfrac_data)
 
  write(geog_data_path, '(a)') config_geog_data_path
  i = len_trim(geog_data_path)
@@ -659,69 +663,142 @@ if (rarray(i,j,1) == 0) cycle
 !
 ! Interpolate GREENFRAC
 !
- nx = 1256
- ny = 1256
- nz = 12
- isigned     = 0
- endian      = 0
- wordsize    = 1
- scalefactor = 1.0
- allocate(rarray(nx,ny,nz))
- allocate(vegfra(-2:2503,-2:1253,12))
- greenfrac(:,:) = 0.0
 
- call map_set(PROJ_LATLON, proj,    &
-              latinc = 0.144_RKIND, &
-              loninc = 0.144_RKIND, &
-              knowni = 1.0_RKIND,   &
-              knownj = 1.0_RKIND,   &
-              lat1 = -89.928_RKIND, &
-              lon1 = -179.928_RKIND)
+ ! James Cipriani, TWC, 03/23/2017 --> CASE select for either VIIRS or 16 km default GVF
+ greenfrac_select: select case(trim(config_greenfrac_data))
 
- write(fname,'(a,i5.5,a1,i5.5,a1,i5.5,a1,i5.5)') trim(geog_data_path)// &
-       'greenfrac/',1,'-',1250,'.',1,'-',1250
- write(0,*) trim(fname)
+    case("modis")
 
- call read_geogrid(fname,len_trim(fname),rarray,nx,ny,nz,isigned,endian, & 
-                   scalefactor,wordsize,istatus)
- call init_atm_check_read_error(istatus,fname)
- vegfra(-2:1250,-2:1253,1:12) = rarray(1:1253,1:1256,1:12)
+       nx = 1256
+       ny = 1256
+       nz = 12
+       isigned     = 0
+       endian      = 0
+       wordsize    = 1
+       scalefactor = 1.0
+       allocate(rarray(nx,ny,nz))
+       allocate(vegfra(-2:2503,-2:1253,12))
+       greenfrac(:,:) = 0.0
 
- write(fname,'(a,i5.5,a1,i5.5,a1,i5.5,a1,i5.5)') trim(geog_data_path)// &
-       'greenfrac/',1251,'-',2500,'.',1,'-',1250
- write(0,*) trim(fname)
+       call map_set(PROJ_LATLON, proj,    &
+                    latinc = 0.144_RKIND, &
+                    loninc = 0.144_RKIND, &
+                    knowni = 1.0_RKIND,   &
+                    knownj = 1.0_RKIND,   &
+                    lat1 = -89.928_RKIND, &
+                    lon1 = -179.928_RKIND)
 
- call read_geogrid(fname,len_trim(fname),rarray,nx,ny,nz,isigned,endian, &
-                   scalefactor,wordsize,istatus)
- call init_atm_check_read_error(istatus,fname)
- vegfra(1251:2503,-2:1253,1:12) = rarray(4:1256,1:1256,1:12)
+       write(fname,'(a,i5.5,a1,i5.5,a1,i5.5,a1,i5.5)') trim(geog_data_path)// &
+             'greenfrac/',1,'-',1250,'.',1,'-',1250
+       write(0,*) trim(fname)
 
- do iCell = 1,nCells
+       call read_geogrid(fname,len_trim(fname),rarray,nx,ny,nz,isigned,endian, & 
+                         scalefactor,wordsize,istatus)
+       call init_atm_check_read_error(istatus,fname)
+       vegfra(-2:1250,-2:1253,1:12) = rarray(1:1253,1:1256,1:12)
 
-    if (landmask(iCell) == 1) then
-       lat = latCell(iCell) * DEG_PER_RAD
-       lon = lonCell(iCell) * DEG_PER_RAD
-       call latlon_to_ij(proj, lat, lon, x, y)
-       if(x < 0.5) then
-          lon = lon + 360.0
-          call latlon_to_ij(proj, lat, lon, x, y)
-       else if(x >= 2500.5) then
-          lon = lon - 360.0
-          call latlon_to_ij(proj, lat, lon, x, y)
-       end if
-       if (y < 1.0) y = 1.0
-       if (y > 1249.0) y = 1249.0
-       do k = 1,12
-          greenfrac(k,iCell) = interp_sequence(x,y,k,vegfra,-2,2503,-2,1253, &
-                                                 1,12,-1.e30_RKIND,interp_list,1)
-       end do
-    else
-       greenfrac(:,iCell) = 0.0
-    end if
-    shdmin(iCell) = minval(greenfrac(:,iCell))
-    shdmax(iCell) = maxval(greenfrac(:,iCell))
+       write(fname,'(a,i5.5,a1,i5.5,a1,i5.5,a1,i5.5)') trim(geog_data_path)// &
+             'greenfrac/',1251,'-',2500,'.',1,'-',1250
+       write(0,*) trim(fname)
+
+       call read_geogrid(fname,len_trim(fname),rarray,nx,ny,nz,isigned,endian, &
+                         scalefactor,wordsize,istatus)
+       call init_atm_check_read_error(istatus,fname)
+       vegfra(1251:2503,-2:1253,1:12) = rarray(4:1256,1:1256,1:12)
+
+       do iCell = 1,nCells
+
+          if (landmask(iCell) == 1) then
+             lat = latCell(iCell) * DEG_PER_RAD
+             lon = lonCell(iCell) * DEG_PER_RAD
+             call latlon_to_ij(proj, lat, lon, x, y)
+             if(x < 0.5) then
+                lon = lon + 360.0
+                call latlon_to_ij(proj, lat, lon, x, y)
+             else if(x >= 2500.5) then
+                lon = lon - 360.0
+                call latlon_to_ij(proj, lat, lon, x, y)
+             end if
+             if (y < 1.0) y = 1.0
+             if (y > 1249.0) y = 1249.0
+             do k = 1,12
+                greenfrac(k,iCell) = interp_sequence(x,y,k,vegfra,-2,2503,-2,1253, &
+                                                    1,12,-1.e30_RKIND,interp_list,1)
+             end do
+          else
+             greenfrac(:,iCell) = 0.0
+          end if
+          shdmin(iCell) = minval(greenfrac(:,iCell))
+          shdmax(iCell) = maxval(greenfrac(:,iCell))
       
- end do
+       end do
+
+    ! Now the VIIRS data ...
+
+    case("viirs")
+
+       ! tile_bdr = 0  ....  different from MODIS greenfrac (tile_bdr = 3)
+       nx = 10000
+       ny = 5000
+       nz = 12
+       isigned     = 0
+       endian      = 0
+       wordsize    = 1
+       scalefactor = 1.0
+       allocate(rarray(nx,ny,nz))
+       allocate(vegfra(1:10000,1:5000,12))
+       greenfrac(:,:) = 0.0
+
+       call map_set(PROJ_LATLON, proj,    &
+                    latinc = 0.036_RKIND, &
+                    loninc = 0.036_RKIND, &
+                    knowni = 1.0_RKIND,   &
+                    knownj = 1.0_RKIND,   &
+                    lat1 = -89.982_RKIND, &
+                    lon1 = -179.982_RKIND)
+
+       write(fname,'(a,i5.5,a1,i5.5,a1,i5.5,a1,i5.5)') trim(geog_data_path)// &
+             'greenfrac_viirsgvf/',1,'-',10000,'.',1,'-',5000
+       write(0,*) trim(fname)
+
+       call read_geogrid(fname,len_trim(fname),rarray,nx,ny,nz,isigned,endian, &
+                         scalefactor,wordsize,istatus)
+       call init_atm_check_read_error(istatus,fname)
+       vegfra(1:10000,1:5000,1:12) = rarray(1:10000,1:5000,1:12)   
+
+       do iCell = 1,nCells
+
+          if (landmask(iCell) == 1) then
+             lat = latCell(iCell) * DEG_PER_RAD
+             lon = lonCell(iCell) * DEG_PER_RAD
+             call latlon_to_ij(proj, lat, lon, x, y)
+             if(x < 0.5) then
+                lon = lon + 360.0
+                call latlon_to_ij(proj, lat, lon, x, y)
+             else if(x >= 10000.5) then
+                lon = lon - 360.0
+                call latlon_to_ij(proj, lat, lon, x, y)
+             end if
+             if (y < 1.0) y = 1.0
+             if (y > 4999.0) y = 4999.0
+             do k = 1,12
+                ! James Cipriani, TWC, 06/26/2017 --> msgval == 1.e-5_RKIND
+                greenfrac(k,iCell) = interp_sequence(x,y,k,vegfra,1,10000,1,5000, &
+                                                    1,12,1.e-5_RKIND,interp_list,1)
+             end do
+          else
+             greenfrac(:,iCell) = 0.0
+          end if
+          shdmin(iCell) = minval(greenfrac(:,iCell))
+          shdmax(iCell) = maxval(greenfrac(:,iCell))
+
+       end do
+
+    case default
+
+ end select greenfrac_select
+
+ ! DEALLOCATE arrays
  deallocate(rarray)
  deallocate(vegfra)
  write(0,*) '--- end interpolate GREENFRAC'

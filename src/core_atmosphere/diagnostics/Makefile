@@ -8,6 +8,8 @@ DIAGNOSTIC_MODULES = \
 	isobaric_diagnostics.o \
 	convective_diagnostics.o \
 	pv_diagnostics.o \
+        snowratio_diagnostics.o \
+        surface_diagnostics.o \
 	soundings.o \
 
 isobaric_diagnostics.o: mpas_atm_diagnostics_utils.o
@@ -15,6 +17,10 @@ isobaric_diagnostics.o: mpas_atm_diagnostics_utils.o
 convective_diagnostics.o: mpas_atm_diagnostics_utils.o
 
 pv_diagnostics.o: mpas_atm_diagnostics_utils.o
+
+snowratio_diagnostics.o: mpas_atm_diagnostics_utils.o
+
+surface_diagnostics.o: mpas_atm_diagnostics_utils.o
 
 soundings.o:
 
@@ -24,7 +30,7 @@ soundings.o:
 
 OBJS = mpas_atm_diagnostics_manager.o mpas_atm_diagnostics_utils.o
 
-all: $(DIAGNOSTIC_MODULS) $(OBJS)
+all: $(DIAGNOSTIC_MODULES) $(OBJS)
 
 mpas_atm_diagnostics_manager.o: mpas_atm_diagnostics_utils.o $(DIAGNOSTIC_MODULES)
 
