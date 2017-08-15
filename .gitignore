@@ -13,7 +13,6 @@ dbl2flt/double_to_float_grid
 grid_rotate/grid_rotate
 meshes/
 metis-5.1.0/
-# MPAS-Release-5.0/src/framework/mpas_io.F
 src/core_init_atmosphere/mpas_init_atm_cases.F
 compile.out
 
