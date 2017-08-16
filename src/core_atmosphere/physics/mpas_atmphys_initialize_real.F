@@ -49,7 +49,8 @@
 ! * In subroutine physics_init_seaice, assign the sea-ice land use category as a function of
 !   the land use category input file (MODIS OR USGS).
 !   Dominikus Heinzeller (IMK) / 2014-07-24.
-
+!   added case('NLCD40') to use NLCD40 for landusef in Noah Mosaic
+!   Patrick Campbell (campbell.patrickc@epa.gov)  2017-08-03
 
  contains
 
@@ -646,6 +647,8 @@
     case('USGS')
        isice_lu = 24
     case('MODIFIED_IGBP_MODIS_NOAH')
+       isice_lu = 15
+    case('NLCD40')
        isice_lu = 15
     case default
        CALL physics_error_fatal ('Invalid Land Use Dataset '//trim(config_landuse_data))

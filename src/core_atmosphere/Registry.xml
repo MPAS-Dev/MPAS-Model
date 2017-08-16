@@ -36,6 +36,12 @@
                      description="The number of months in a year"/>
                 <dim name="nSoilLevels"        definition="namelist:num_soil_layers"
                      description="The number of soil layers used by the land-surface scheme"/>
+                <dim name="nLandCat"           definition="namelist:num_land_cat"
+                     description="The number of mosaic tiles used by the land-surface scheme"/>
+                <dim name="nMosaicCat"           definition="namelist:config_mosaic_cat"
+                     description="The number of land categories used by the land-surface scheme"/>
+                <dim name="nMosaicCat3D"           definition="nMosaicCat*nSoilLevels"
+                     description="The number of land categories used by the land-surface scheme"/>
                 <dim name="nLags"              definition="namelist:input_soil_temperature_lag"
                      description="The number of days affecting the deep soil temperature"/>
                 <dim name="nOznLevels"         definition="namelist:noznlev"
@@ -447,6 +453,7 @@
 			<var name="surface_pressure"/>
 			<var name="isltyp"/>
 			<var name="ivgtyp"/>
+                        <var name="landusef"/>
 			<var name="mminlu"/>
 			<var name="landmask"/>
 			<var name="shdmin"/>
@@ -762,7 +769,8 @@
 			<var name="ozmixm"/>
 			<var name="isltyp"/>
 			<var name="ivgtyp"/>
-			<var name="mminlu"/>
+                        <var name="landusef"/>
+                        <var name="mminlu"/>
 			<var name="landmask"/>
 			<var name="shdmin"/>
 			<var name="shdmax"/>
@@ -802,9 +810,32 @@
 			<var name="h_oml_initial"/>
 			<var name="hu_oml"/>
 			<var name="hv_oml"/>
+                        <!-- Begin Noah LSM Mosaic variables -->
+                        <var name="landusef2"/>
+                        <var name="mosaic_cat_index"/>
+                        <var name="TSK_mosaic"/>
+                        <var name="CANWAT_mosaic"/>
+                        <var name="SNOW_mosaic"/>
+                        <var name="SNOWH_mosaic"/>
+                        <var name="SNOWC_mosaic"/>
+                        <var name="ALBEDO_mosaic"/>
+                        <var name="ALBBCK_mosaic"/>
+                        <var name="EMISS_mosaic"/>
+                        <var name="EMBCK_mosaic"/>
+                        <var name="ZNT_mosaic"/>
+                        <var name="Z0_mosaic"/>
+                        <var name="QSFC_mosaic"/>
+			<var name="HFX_mosaic"/>
+                        <var name="QFX_mosaic"/>
+			<var name="LH_mosaic"/>
+			<var name="GRDFLX_mosaic"/>
+			<var name="SNOTIME_mosaic"/>
+                        <var name="TSLB_mosaic"/>
+			<var name="SMOIS_mosaic"/>
+			<var name="SH2O_mosaic"/>
 		</stream>
-
-		<stream name="output" 
+  
+                <stream name="output" 
                         type="output" 
                         filename_template="history.$Y-$M-$D_$h.$m.$s.nc" 
                         output_interval="6:00:00"
@@ -923,7 +954,38 @@
 			<var name="tslb"/>
 		</stream>
 
-		<stream name="diagnostics" 
+                <stream name="mosaic" 
+                        type="output" 
+                        filename_template="mosaic.$Y-$M-$D_$h.$m.$s.nc" 
+                        output_interval="6:00:00"
+                        runtime_format="separate_file">
+
+                        <var name="landusef"/>
+                        <var name="landusef2"/>
+                        <var name="mosaic_cat_index"/>
+                        <var name="TSK_mosaic"/>
+                        <var name="CANWAT_mosaic"/>
+                        <var name="SNOW_mosaic"/>
+                        <var name="SNOWH_mosaic"/>
+                        <var name="SNOWC_mosaic"/>
+                        <var name="ALBEDO_mosaic"/>
+                        <var name="ALBBCK_mosaic"/>
+                        <var name="EMISS_mosaic"/>
+                        <var name="EMBCK_mosaic"/>
+                        <var name="ZNT_mosaic"/>
+                        <var name="Z0_mosaic"/>
+                        <var name="QSFC_mosaic"/>
+			<var name="HFX_mosaic"/>
+                        <var name="QFX_mosaic"/>
+			<var name="LH_mosaic"/>
+			<var name="GRDFLX_mosaic"/>
+			<var name="SNOTIME_mosaic"/>
+                        <var name="TSLB_mosaic"/>
+			<var name="SMOIS_mosaic"/>
+			<var name="SH2O_mosaic"/>
+		</stream>
+		
+                <stream name="diagnostics" 
                         type="output" 
                         filename_template="diag.$Y-$M-$D_$h.$m.$s.nc" 
                         output_interval="3:00:00"
@@ -1697,6 +1759,11 @@
                      units="-"
                      description="number of soil layers in Noah land surface scheme"
                      possible_values="Positive integers. For Noah LSM, must be set to 4."/>
+               
+                <nml_option name="num_land_cat" type="integer" default_value="40" in_defaults="false"
+                     units="-"
+                     description="number of land categories used in land surface scheme"
+                     possible_values="Positive integer values."/>
 
                 <nml_option name="months" type="integer" default_value="12" in_defaults="false"
                      units="-"
@@ -1726,6 +1793,16 @@
                      units="-"
                      description="logical for configuration of fractional sea-ice"
                      possible_values=".true. for sea-ice between 0 or 1; .false. for sea-ice equal to 0 or 1 (flag)."/>
+
+                <nml_option name="config_surface_mosaic" type="logical" default_value="false" in_defaults="false"
+                     units="-"
+                     description="logical for configuration of noah lsm mosaic"
+                     possible_values=".true. for noah lsm mosaic on; .false. for noah lsm mosaic off (flag)."/>
+              
+                <nml_option name="config_mosaic_cat" type="integer" default_value="3" in_defaults="false"
+                     units="-"
+                     description="integer number of noah mosaic tiles "
+                     possible_values="Positive integers"/>
 
                 <nml_option name="config_sfc_albedo" type="logical" default_value="true" in_defaults="false"
                      units="-"
@@ -1856,6 +1933,11 @@
                      units="-"
                      description="configuration for surface layer-scheme"
                      possible_values="`suite',`sf_monin_obukhov',`sf_mynn',`off'"/>
+
+                <nml_option name="config_landuse_data" type="character" default_value="USGS"
+                     units="-"
+                     description="The land use classification to use"
+                     possible_values="`USGS' or `MODIFIED\_IGBP\_MODIS\_NOAH' or `NLCD40'"/>
 
                 <nml_option name="config_gfconv_closure_deep" type="integer" default_value="0" in_defaults="false"
                      units="-"
@@ -2887,6 +2969,117 @@
 
                 <var name="tslb" type="real" dimensions="nSoilLevels nCells Time" units="K"
                      description="soil layer temperature"/>
+                
+                <var name="landusef" type="real" dimensions="nLandCat nCells" units="unitless"
+                     description="grid cell fractional landuse"/>
+
+                <var name="landusef2" type="real" dimensions="nLandCat nCells" units="unitless"
+                     description="sorted landuse fraction"/>
+
+                <var name="mosaic_cat_index" type="integer" dimensions="nLandCat nCells Time" units="unitless"
+                     description="index of sorted landuse category"/>
+    
+                <var name="TSK_mosaic" type="real" dimensions="nMosaicCat nCells Time" units="K"
+                     description="SKIN/VEGETATION TEMPERATURE"/>
+
+                <var name="CANWAT_mosaic" type="real" dimensions="nMosaicCat nCells Time" units="kg m^{-2}"
+                     description="CANOPY WATER"/>
+
+                <var name="SNOW_mosaic" type="real" dimensions="nMosaicCat nCells Time" units="kg m^{-2}"
+                     description="SNOW WATER EQUIVALENT"/>
+
+                <var name="SNOWH_mosaic" type="real" dimensions="nMosaicCat nCells Time" units="m"
+                     description="PHYSICAL SNOW DEPTH"/>
+
+                <var name="SNOWC_mosaic" type="real" dimensions="nMosaicCat nCells Time" units="unitless"
+                     description="FLAG INDICATING SNOW COVERAGE"/>
+
+                <var name="ALBEDO_mosaic" type="real" dimensions="nMosaicCat nCells Time" units="unitless"
+                     description="albedo"/>
+
+                <var name="ALBBCK_mosaic" type="real" dimensions="nMosaicCat nCells Time" units="unitless"
+                     description="background albedo"/>
+
+                <var name="EMISS_mosaic" type="real" dimensions="nMosaicCat nCells Time" units="unitless"
+                     description="emissivity"/>
+
+                <var name="EMBCK_mosaic" type="real" dimensions="nMosaicCat nCells Time" units="unitless"
+                     description="background emissivity"/>
+
+                <var name="ZNT_mosaic" type="real" dimensions="nMosaicCat nCells Time" units="m"
+                     description="time varying roughness length"/>
+
+                <var name="Z0_mosaic" type="real" dimensions="nMosaicCat nCells Time" units="m"
+                     description="background roughness length"/>
+
+                <var name="QSFC_mosaic" type="real" dimensions="nMosaicCat nCells Time" units="unitless"
+                     description="SPECIFIC HUMIDITY AT LOWER BOUNDARY"/>
+
+                <var name="HFX_mosaic" type="real" dimensions="nMosaicCat nCells Time" units="unitless"
+                     description="UPWARD HEAT FLUX AT THE SURFACE"/>
+
+                <var name="QFX_mosaic" type="real" dimensions="nMosaicCat nCells Time" units="kg/m2/s"
+                     description="UPWARD MOISTURE FLUX AT THE SURFACE"/>
+
+                <var name="LH_mosaic" type="real" dimensions="nMosaicCat nCells Time" units="W/m2"
+                     description="LATENT HEAT FLUX AT THE SURFACE"/>
+
+                <var name="GRDFLX_mosaic" type="real" dimensions="nMosaicCat nCells Time" units="W/m2"
+                     description="GROUND HEAT FLUX"/>
+
+                <var name="SNOTIME_mosaic" type="real" dimensions="nMosaicCat nCells Time" units="unitless"
+                     description="initial number of time-steps since last snow fall"/>
+
+                <var name="TR_URB2D_mosaic" type="real" dimensions="nMosaicCat nCells Time" units="K"
+                     description="ROOF TEMPERATURE"/>
+
+                <var name="TB_URB2D_mosaic" type="real" dimensions="nMosaicCat nCells Time" units="K"
+                     description="WALL TEMPERATURE"/>
+
+                <var name="TG_URB2D_mosaic" type="real" dimensions="nMosaicCat nCells Time" units="K"
+                     description="GROUND TEMPERATURE"/>
+
+                <var name="TC_URB2D_mosaic" type="real" dimensions="nMosaicCat nCells Time" units="K"
+                     description="CANYON TEMPERATURE"/>
+
+                <var name="QC_URB2D_mosaic" type="real" dimensions="nMosaicCat nCells Time" units="kg/kg"
+                     description="CANYON SPECIFIC HUMIDITY"/>
+
+                <var name="SH_URB2D_mosaic" type="real" dimensions="nMosaicCat nCells Time" units="W/m2"
+                     description="UPWARD HEAT FLUX AT THE SURFACE"/>
+
+                <var name="LH_URB2D_mosaic" type="real" dimensions="nMosaicCat nCells Time" units="kg/m2/s"
+                     description="LATENT HEAT FLUX AT THE SURFACE"/>
+
+                <var name="G_URB2D_mosaic" type="real" dimensions="nMosaicCat nCells Time" units="W/m2"
+                     description="GROUND HEAT FLUX  AT THE SURFACE"/>
+
+                <var name="RN_URB2D_mosaic" type="real" dimensions="nMosaicCat nCells Time" units="W/m2"
+                     description="NET RADIATION"/>
+
+                <var name="TS_URB2D_mosaic" type="real" dimensions="nMosaicCat nCells Time" units="K"
+                     description="URBAN TEMPERATURE"/>
+
+                <var name="TS_RUL2D_mosaic" type="real" dimensions="nMosaicCat nCells Time" units="K"
+                     description="RURAL TEMPERATURE"/>
+
+                <var name="TSLB_mosaic" type="real" dimensions="nMosaicCat nCells Time" units="K"
+                     description="SOIL TEMPERATURE"/>
+
+                <var name="SMOIS_mosaic" type="real" dimensions="nMosaicCat3D nCells Time" units="m3/m3"
+                     description="SOIL MOISTURE"/>
+
+                <var name="SH2O_mosaic" type="real" dimensions="nMosaicCat3D nCells Time" units="m3/m3"
+                     description="SOIL LIQUID WATER"/>
+
+                <var name="TRL_URB3D_mosaic" type="real" dimensions="nMosaicCat3D nCells Time" units="K"
+                     description="ROOF LAYER TEMPERATURE"/>
+
+                <var name="TBL_URB3D_mosaic" type="real" dimensions="nMosaicCat3D nCells Time" units="K"
+                     description="WALL LAYER TEMPERATURE"/>
+
+                <var name="TGL_URB3D_mosaic" type="real" dimensions="nMosaicCat3D nCells Time" units="K"
+                     description="ROAD LAYER TEMPERATURE"/>
 
 
                 <!-- ================================================================================================== -->

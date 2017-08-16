@@ -68,7 +68,8 @@
 ! * moved the declarations of arrays delta_p,wstar_p,uoce_p,and voce_p since they are now used in both modules
 !   module_bl_ysu.F and module_bl_mynn.F.
 !   Laura D. Fowler (laura@ucar.edu) / 20016-10-27.
-
+!   Added Noah Mosaic Variables 
+!   Patrick Campbell (campbell.patrickc@epa.gov)  2017-08-03
 
 !=================================================================================================================
 !list of physics parameterizations:
@@ -589,20 +590,44 @@
                        !albedos as functions of the land surface scheme.
 
  integer,public:: &
-    num_soils          !number of soil layers                                                                  [-]
-    
+    num_soils,         &!number of soil layers                                                                  [-]
+    num_landu,         &!number of landuse classes                                                              [-]
+    num_mosaic_cat,    &!number of user selected mosaic categories                                              [-]  !PCC For Mosaic
+    num_mosaic_cat3d    !number of user selected mosaic categories * num_soils                                  [-]  !PCC For Mosaic
  integer,dimension(:,:),allocatable:: &
     isltyp_p,         &!dominant soil type category                                                            [-]
     ivgtyp_p           !dominant vegetation category                                                           [-]
-
+ integer,dimension(:,:,:),allocatable:: &
+    mosaic_cat_index_p  !mosaic category land use tile index                                                    [-]  !PCC For Mosaic 
  real(kind=RKIND),dimension(:),allocatable:: &
     dzs_p              !thickness of soil layers                                                               [m]
  real(kind=RKIND),dimension(:,:,:),allocatable:: &
-    smcrel_p,         &!soil moisture threshold below which transpiration starts to stress                     [-]
-    sh2o_p,           &!unfrozen soil moisture content                                       [volumetric fraction]
-    smois_p,          &!soil moisture                                                        [volumetric fraction]
-    tslb_p             !soil temperature                                                                       [K]
-
+    smcrel_p,           &!soil moisture threshold below which transpiration starts to stress                     [-]
+    sh2o_p,             &!unfrozen soil moisture content                                       [volumetric fraction]
+    smois_p,            &!soil moisture                                                        [volumetric fraction]
+    tslb_p,             &!soil temperature                                                                       [K]
+    landusef_p,         &!fractional landuse                                                                     [-]PCC For Mosaic...
+    landusef2_p,        &!fractional landuse mosaic                                                              [-]         
+    TSK_mosaic_p,       &!ground or water surface temperature mosaic						 [K]			     
+    CANWAT_mosaic_p,    &!canopy water                                                                       [kg/m2]
+    SNOW_mosaic_p,      &!snow water equivalent								     [kg/m2]
+    SNOWH_mosaic_p,     &!physical snow depth									 [m] 
+    SNOWC_mosaic_p,     &!flag indicating snow coverage                                                          [-]
+    ALBEDO_mosaic_p,    &!albedo                                                                                 [-]
+    ALBBCK_mosaic_p,    &!background albedo 									 [-]
+    EMISS_mosaic_p,     &!emissivity mosaic									 [-]
+    EMBCK_mosaic_p,    &!background emissivity 									 [-]
+    ZNT_mosaic_p,       &!time dependent roughness length 							 [m]
+    Z0_mosaic_p,        &!time indenpendent roughness length							 [m]
+    QSFC_mosaic_p,      &!surface mixing ratio 								     [kg/kg]
+    HFX_mosaic_p,       &!upward heat flux at the surface 						      [W/m2]
+    QFX_mosaic_p,       &!upward moisture flux at the surface					           [kg/m2/s]
+    LH_mosaic_p,        &!latent heat flux at the surface                                                     [W/m2]  
+    GRDFLX_mosaic_p,    &!ground heat flux                						      [W/m2]
+    SNOTIME_mosaic_p,   &!initial number of time steps since last snowfall                                       [-]
+    TSLB_mosaic_p,      &!soil temperature                                                                       [K]
+    SH2O_mosaic_p,      &!soil water content                                                                 [m3/m3]
+    SMOIS_mosaic_p       !soil moisture                                                                      [m3/m3]
  real(kind=RKIND),dimension(:,:),allocatable:: &
     acsnom_p,         &!accumulated melted snow                                                           [kg m-2]
     acsnow_p,         &!accumulated snow                                                                  [kg m-2]
