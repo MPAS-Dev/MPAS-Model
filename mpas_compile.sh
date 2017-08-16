@@ -201,7 +201,7 @@ echo "******************"
 
 cd $MPAS_ROOT
 
-# edit 2 MPAS files ...
+# edit 1 MPAS file ...
 
 if [[ ${USE_PIO2_MPAS} == "false" ]]; then
     sed -i -e 's/.*netcdf.inc.*/   !include "netcdf.inc"/' src/framework/mpas_io.F
