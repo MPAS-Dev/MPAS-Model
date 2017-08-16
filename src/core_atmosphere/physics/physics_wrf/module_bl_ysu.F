@@ -441,7 +441,7 @@ contains
    real,parameter    ::  phifac = 8.,sfcfrac = 0.1
    real,parameter    ::  d1 = 0.02, d2 = 0.05, d3 = 0.001
    real,parameter    ::  h1 = 0.33333335, h2 = 0.6666667
-   real,parameter    ::  zfmin = 1.e-8,aphi5 = 5.,aphi16 = 16.
+   real,parameter    ::  ckz = 0.001,zfmin = 1.e-8,aphi5 = 5.,aphi16 = 16.
    real,parameter    ::  tmin=1.e-2
    real,parameter    ::  gamcrt = 3.,gamcrq = 2.e-3
    real,parameter    ::  xka = 2.4e-5
@@ -521,8 +521,7 @@ contains
                                                                           del, &
                                                                           dza, &
                                                                           dzq, &
-                                                                        xkzom, &
-                                                                        xkzoh, &
+                                                                         xkzo, &
                                                                            za
 !
    real,    dimension( its:ite )             ::                                &
@@ -743,8 +742,7 @@ contains
    enddo
    do k = kts,klpbl-1
      do i = its,ite
-       xkzom(i,k) = xkzminm
-       xkzoh(i,k) = xkzminh
+       xkzo(i,k) = ckz*dza(i,k+1)
      enddo
    enddo
 !
@@ -1125,9 +1123,9 @@ contains
          prnum0 = prnum0/(1.+prfac2*karman*sfcfrac)
          prnum =  1. + (prnum0-1.)*exp(prnumfac)
          xkzh(i,k) = xkzm(i,k)/prnum
-         xkzm(i,k) = xkzm(i,k)+xkzom(i,k)
-         xkzh(i,k) = xkzh(i,k)+xkzoh(i,k)
-         xkzq(i,k) = xkzq(i,k)+xkzoh(i,k)
+         xkzm(i,k) = max(xkzm(i,k),xkzo(i,k))
+         xkzh(i,k) = max(xkzh(i,k),xkzo(i,k))
+         xkzq(i,k) = max(xkzq(i,k),xkzo(i,k))
          xkzm(i,k) = min(xkzm(i,k),xkzmax)
          xkzh(i,k) = min(xkzh(i,k),xkzmax)
          xkzq(i,k) = min(xkzq(i,k),xkzmax)
@@ -1175,8 +1173,8 @@ contains
            xkzm(i,k) = xkzh(i,k)*prnum
          endif
 !
-         xkzm(i,k) = xkzm(i,k)+xkzom(i,k)
-         xkzh(i,k) = xkzh(i,k)+xkzoh(i,k)
+         xkzm(i,k) = max(xkzm(i,k),xkzo(i,k))
+         xkzh(i,k) = max(xkzh(i,k),xkzo(i,k))
          xkzm(i,k) = min(xkzm(i,k),xkzmax)
          xkzh(i,k) = min(xkzh(i,k),xkzmax)
          xkzml(i,k) = xkzm(i,k)
@@ -1215,7 +1213,7 @@ contains
        elseif(pblflg(i).and.k.ge.kpbl(i).and.entfac(i,k).lt.4.6) then
          xkzh(i,k) = -we(i)*dza(i,kpbl(i))*exp(-entfac(i,k))
          xkzh(i,k) = sqrt(xkzh(i,k)*xkzhl(i,k))
-         xkzh(i,k) = max(xkzh(i,k),xkzoh(i,k))
+         xkzh(i,k) = max(xkzh(i,k),xkzo(i,k))
          xkzh(i,k) = min(xkzh(i,k),xkzmax)
          f1(i,k+1) = thx(i,k+1)-300.
        else
@@ -1306,7 +1304,7 @@ contains
        elseif(pblflg(i).and.k.ge.kpbl(i).and.entfac(i,k).lt.4.6) then
          xkzq(i,k) = -we(i)*dza(i,kpbl(i))*exp(-entfac(i,k))
          xkzq(i,k) = sqrt(xkzq(i,k)*xkzhl(i,k))
-         xkzq(i,k) = max(xkzq(i,k),xkzoh(i,k))
+         xkzq(i,k) = max(xkzq(i,k),xkzo(i,k))
          xkzq(i,k) = min(xkzq(i,k),xkzmax)
          f3(i,k+1,1) = qx(i,k+1)
        else
@@ -1418,7 +1416,7 @@ contains
        elseif(pblflg(i).and.k.ge.kpbl(i).and.entfac(i,k).lt.4.6) then
          xkzm(i,k) = prpbl(i)*xkzh(i,k)
          xkzm(i,k) = sqrt(xkzm(i,k)*xkzml(i,k))
-         xkzm(i,k) = max(xkzm(i,k),xkzom(i,k))
+         xkzm(i,k) = max(xkzm(i,k),xkzo(i,k))
          xkzm(i,k) = min(xkzm(i,k),xkzmax)
          f1(i,k+1) = ux(i,k+1)
          f2(i,k+1) = vx(i,k+1)
