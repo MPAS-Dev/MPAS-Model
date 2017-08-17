@@ -48,6 +48,8 @@ if [[ $distribution == "3.0.101-0.46.1_1.0502.8871-cray_ari_s" ]]; then
     rm -rf $PIO
     mkdir $PIO
     cd $MPAS_ROOT/software
+    rm -rf ParallelIO/
+    rm -rf PIO_build/
 
     git clone git@github.com:NCAR/ParallelIO.git ./ParallelIO
     cd ParallelIO

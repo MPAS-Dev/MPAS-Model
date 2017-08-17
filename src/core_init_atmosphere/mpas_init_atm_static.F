@@ -44,7 +44,9 @@
  character(len=StrKIND), pointer :: config_landuse_data
  ! James Cipriani, TWC, 03/22/2017 --> for VIIRS green vegetation fraction data
  character(len=StrKIND), pointer :: config_greenfrac_data
+ character(len=StrKIND), pointer :: config_greenfrac_data_path
  character(len=StrKIND+1) :: geog_data_path      ! same as config_geog_data_path, but guaranteed to have a trailing slash
+ character(len=StrKIND+1) :: greenfrac_data_path ! same as config_greenfrac_data_path, but guaranteed to have a trailing slash
  character(len=StrKIND+1) :: geog_sub_path       ! subdirectory names in config_geog_data_path, with trailing slash
 
  integer:: isice_lu,iswater_lu,ismax_lu
@@ -105,11 +107,18 @@
  call mpas_pool_get_config(configs, 'config_landuse_data', config_landuse_data)
  ! James Cipriani, TWC, 03/22/2017
  call mpas_pool_get_config(configs, 'config_greenfrac_data', config_greenfrac_data)
+ call mpas_pool_get_config(configs, 'config_greenfrac_data_path', config_greenfrac_data_path)
 
  write(geog_data_path, '(a)') config_geog_data_path
  i = len_trim(geog_data_path)
  if (geog_data_path(i:i) /= '/') then
     geog_data_path(i+1:i+1) = '/'
+ end if
+
+ write(greenfrac_data_path, '(a)') config_greenfrac_data_path
+ i = len_trim(greenfrac_data_path)
+ if (greenfrac_data_path(i:i) /= '/') then
+    greenfrac_data_path(i+1:i+1) = '/'
  end if
 
 !
@@ -688,8 +697,8 @@ if (rarray(i,j,1) == 0) cycle
                     lat1 = -89.928_RKIND, &
                     lon1 = -179.928_RKIND)
 
-       write(fname,'(a,i5.5,a1,i5.5,a1,i5.5,a1,i5.5)') trim(geog_data_path)// &
-             'greenfrac/',1,'-',1250,'.',1,'-',1250
+       write(fname,'(a,i5.5,a1,i5.5,a1,i5.5,a1,i5.5)') trim(greenfrac_data_path), &
+             1,'-',1250,'.',1,'-',1250
        write(0,*) trim(fname)
 
        call read_geogrid(fname,len_trim(fname),rarray,nx,ny,nz,isigned,endian, & 
@@ -697,8 +706,8 @@ if (rarray(i,j,1) == 0) cycle
        call init_atm_check_read_error(istatus,fname)
        vegfra(-2:1250,-2:1253,1:12) = rarray(1:1253,1:1256,1:12)
 
-       write(fname,'(a,i5.5,a1,i5.5,a1,i5.5,a1,i5.5)') trim(geog_data_path)// &
-             'greenfrac/',1251,'-',2500,'.',1,'-',1250
+       write(fname,'(a,i5.5,a1,i5.5,a1,i5.5,a1,i5.5)') trim(greenfrac_data_path), &
+             1251,'-',2500,'.',1,'-',1250
        write(0,*) trim(fname)
 
        call read_geogrid(fname,len_trim(fname),rarray,nx,ny,nz,isigned,endian, &
@@ -757,8 +766,8 @@ if (rarray(i,j,1) == 0) cycle
                     lat1 = -89.982_RKIND, &
                     lon1 = -179.982_RKIND)
 
-       write(fname,'(a,i5.5,a1,i5.5,a1,i5.5,a1,i5.5)') trim(geog_data_path)// &
-             'greenfrac_viirsgvf/',1,'-',10000,'.',1,'-',5000
+       write(fname,'(a,i5.5,a1,i5.5,a1,i5.5,a1,i5.5)') trim(greenfrac_data_path), &
+             1,'-',10000,'.',1,'-',5000
        write(0,*) trim(fname)
 
        call read_geogrid(fname,len_trim(fname),rarray,nx,ny,nz,isigned,endian, &
