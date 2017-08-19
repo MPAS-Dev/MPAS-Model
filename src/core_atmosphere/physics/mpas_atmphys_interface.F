@@ -70,6 +70,12 @@
 ! * added saving diagnostics of the mass-weighted mean velocities for rain, cloud ice, snow, and graupel from
 !   the Thompson cloud microphysics scheme.
 !   Laura D. Fowler (laura@ucar.edu) / 2017-04-19.
+! * added the cloud microphysics tendencies of potential temperature, water vapor, cloud water, rain, cloud ice,
+!   snow, and graupel. In subroutine microphysics_from_MPAS, initialize the tendencies to potential temperature,
+!   water vapor, and condensates prior to call to cloud microphysics. In subroutine microphysics_to_MPAS, finish
+!   the calculation of the different tendencies with updated values of potential temperature, water vapor, and
+!   condensates after call to cloud microphysics.
+!   Laura D. Fowler (laura@ucar.edu) / 2017-08-19.
 
 
  contains
@@ -481,7 +487,7 @@
  end subroutine MPAS_to_physics
 
 !=================================================================================================================
- subroutine microphysics_from_MPAS(configs,mesh,state,time_lev,diag,diag_physics,its,ite)
+ subroutine microphysics_from_MPAS(configs,mesh,state,time_lev,diag,diag_physics,tend_physics,its,ite)
 !=================================================================================================================
 
 !input variables:
@@ -493,6 +499,9 @@
 
  integer,intent(in):: its,ite
  integer:: time_lev
+
+!inout variables:
+ type(mpas_pool_type),intent(inout):: tend_physics
 
 !local pointers:
  character(len=StrKIND),pointer:: microp_scheme
@@ -506,6 +515,7 @@
  real(kind=RKIND),dimension(:,:),pointer  :: ni,nr
  real(kind=RKIND),dimension(:,:),pointer  :: rainprod,evapprod
  real(kind=RKIND),dimension(:,:),pointer  :: re_cloud,re_ice,re_snow
+ real(kind=RKIND),dimension(:,:),pointer  :: rthmpten,rqvmpten,rqcmpten,rqrmpten,rqimpten,rqsmpten,rqgmpten
  real(kind=RKIND),dimension(:,:,:),pointer:: scalars
 
 !local variables:
@@ -529,6 +539,14 @@
  call mpas_pool_get_array(diag_physics,'re_cloud',re_cloud)
  call mpas_pool_get_array(diag_physics,'re_ice'  ,re_ice  )
  call mpas_pool_get_array(diag_physics,'re_snow' ,re_snow )
+
+ call mpas_pool_get_array(tend_physics,'rthmpten',rthmpten)
+ call mpas_pool_get_array(tend_physics,'rqvmpten',rqvmpten)
+ call mpas_pool_get_array(tend_physics,'rqcmpten',rqcmpten)
+ call mpas_pool_get_array(tend_physics,'rqrmpten',rqrmpten)
+ call mpas_pool_get_array(tend_physics,'rqimpten',rqimpten)
+ call mpas_pool_get_array(tend_physics,'rqsmpten',rqsmpten)
+ call mpas_pool_get_array(tend_physics,'rqgmpten',rqgmpten)
 
  call mpas_pool_get_array(state,'rho_zz' ,rho_zz ,time_lev)
  call mpas_pool_get_array(state,'theta_m',theta_m,time_lev)
@@ -625,10 +643,31 @@
 
  end select microp_select_init
 
+!begin calculation of the cloud microphysics tendencies:
+ microp_select_tend: select case(microp_scheme)
+
+    case ("mp_thompson","mp_wsm6")
+       do k = kts,kte
+       do i = its,ite
+          rthmpten(k,i) = theta_m(k,i)/(1._RKIND+R_v/R_d*max(0._RKIND,qv(k,i)))
+          rqvmpten(k,i) = qv(k,i)
+          rqcmpten(k,i) = qc(k,i)
+          rqrmpten(k,i) = qr(k,i)
+          rqimpten(k,i) = qi(k,i)
+          rqsmpten(k,i) = qs(k,i)
+          rqgmpten(k,i) = qg(k,i)
+       enddo
+       enddo
+
+    case default
+
+ end select microp_select_tend
+
  end subroutine microphysics_from_MPAS
 
 !=================================================================================================================
- subroutine microphysics_to_MPAS(configs,mesh,state,time_lev,diag,diag_physics,tend,itimestep,its,ite)
+ subroutine microphysics_to_MPAS(configs,mesh,state,time_lev,diag,diag_physics,tend_physics,tend, &
+                                 itimestep,its,ite)
 !=================================================================================================================
 
 !input variables:
@@ -643,6 +682,7 @@
  type(mpas_pool_type),intent(inout):: diag
  type(mpas_pool_type),intent(inout):: tend
  type(mpas_pool_type),intent(inout):: diag_physics
+ type(mpas_pool_type),intent(inout):: tend_physics
 
 !local pointers:
  character(len=StrKIND),pointer:: microp_scheme
@@ -657,6 +697,7 @@
  real(kind=RKIND),dimension(:,:),pointer  :: ni,nr
  real(kind=RKIND),dimension(:,:),pointer  :: rainprod,evapprod
  real(kind=RKIND),dimension(:,:),pointer  :: re_cloud,re_ice,re_snow
+ real(kind=RKIND),dimension(:,:),pointer  :: rthmpten,rqvmpten,rqcmpten,rqrmpten,rqimpten,rqsmpten,rqgmpten
  real(kind=RKIND),dimension(:,:),pointer  :: vqr,vqi,vqs,vqg
  real(kind=RKIND),dimension(:,:,:),pointer:: scalars
 
@@ -685,6 +726,14 @@
  call mpas_pool_get_array(diag_physics,'re_cloud',re_cloud)
  call mpas_pool_get_array(diag_physics,'re_ice'  ,re_ice  )
  call mpas_pool_get_array(diag_physics,'re_snow' ,re_snow )
+
+ call mpas_pool_get_array(tend_physics,'rthmpten',rthmpten)
+ call mpas_pool_get_array(tend_physics,'rqvmpten',rqvmpten)
+ call mpas_pool_get_array(tend_physics,'rqcmpten',rqcmpten)
+ call mpas_pool_get_array(tend_physics,'rqrmpten',rqrmpten)
+ call mpas_pool_get_array(tend_physics,'rqimpten',rqimpten)
+ call mpas_pool_get_array(tend_physics,'rqsmpten',rqsmpten)
+ call mpas_pool_get_array(tend_physics,'rqgmpten',rqgmpten)
 
  call mpas_pool_get_array(tend,'tend_sfc_pressure',tend_sfc_pressure)
 
@@ -806,6 +855,26 @@
     case default
 
  end select microp_select_init
+
+!end calculation of the cloud microphysics tendencies:
+ microp_select_tend: select case(microp_scheme)
+
+    case ("mp_thompson","mp_wsm6")
+       do k = kts,kte
+       do i = its,ite
+          rthmpten(k,i) = (theta_m(k,i)/(1._RKIND+R_v/R_d*max(0._RKIND,qv(k,i)))-rthmpten(k,i))/dt_dyn
+          rqvmpten(k,i) = (qv(k,i)-rqvmpten(k,i))/dt_dyn
+          rqcmpten(k,i) = (qc(k,i)-rqcmpten(k,i))/dt_dyn
+          rqrmpten(k,i) = (qr(k,i)-rqrmpten(k,i))/dt_dyn
+          rqimpten(k,i) = (qi(k,i)-rqimpten(k,i))/dt_dyn
+          rqsmpten(k,i) = (qs(k,i)-rqsmpten(k,i))/dt_dyn
+          rqgmpten(k,i) = (qg(k,i)-rqgmpten(k,i))/dt_dyn
+       enddo
+       enddo
+
+    case default
+
+ end select microp_select_tend
 
  end subroutine microphysics_to_MPAS
 

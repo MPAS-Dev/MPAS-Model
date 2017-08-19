@@ -799,6 +799,13 @@
 			<var name="xmb_shalc"/>
 			<var name="qc_cu"/>
 			<var name="qi_cu"/>
+			<var name="rthmpten"/>
+			<var name="rqvmpten"/>
+			<var name="rqcmpten"/>
+			<var name="rqrmpten"/>
+			<var name="rqimpten"/>
+			<var name="rqsmpten"/>
+			<var name="rqgmpten"/>
 			<var name="rthcuten"/>
 			<var name="rqvcuten"/>
 			<var name="rqccuten"/>
@@ -2947,6 +2954,38 @@
 
         <var_struct name="tend_physics" time_levs="1">
  
+                <!-- ================================================================================================== -->
+                <!-- TENDENCIES FROM PARAMETERIZATION OF CLOUD MICROPHYSICS:                                            -->
+                <!-- ================================================================================================== -->
+
+                <var name="rthmpten" type="real" dimensions="nVertLevels nCells Time" units="K s^{-1}"
+                     description="tendency of potential temperature due to cloud microphysics"
+                     packages="mp_wsm6_in;mp_thompson_in"/>
+
+                <var name="rqvmpten" type="real" dimensions="nVertLevels nCells Time" units="kg kg^{-1} s^{-1}"
+                     description="tendency of water vapor mixing ratio due to cloud microphysics"
+                     packages="mp_wsm6_in;mp_thompson_in"/>
+
+                <var name="rqcmpten" type="real" dimensions="nVertLevels nCells Time" units="kg kg^{-1} s^{-1}"
+                     description="tendency of cloud water mixing ratio due to cloud microphysics"
+                     packages="mp_wsm6_in;mp_thompson_in"/>
+
+                <var name="rqrmpten" type="real" dimensions="nVertLevels nCells Time" units="kg kg^{-1} s^{-1}"
+                     description="tendency of rain mixing ratio due to cloud microphysics"
+                     packages="mp_wsm6_in;mp_thompson_in"/>
+
+                <var name="rqimpten" type="real" dimensions="nVertLevels nCells Time" units="kg kg^{-1} s^{-1}"
+                     description="tendency of cloud ice mixing ratio due to cloud microphysics"
+                     packages="mp_wsm6_in;mp_thompson_in"/>
+
+                <var name="rqsmpten" type="real" dimensions="nVertLevels nCells Time" units="kg kg^{-1} s^{-1}"
+                     description="tendency of snow mixing ratio due to cloud microphysics"
+                     packages="mp_wsm6_in;mp_thompson_in"/>
+
+                <var name="rqgmpten" type="real" dimensions="nVertLevels nCells Time" units="kg kg^{-1} s^{-1}"
+                     description="tendency of graupel mixing ratio due to cloud microphysics"
+                     packages="mp_wsm6_in;mp_thompson_in"/>
+
                 <!-- ================================================================================================== -->
                 <!-- TENDENCIES FROM PARAMETERIZATION OF CONVECTION:                                                    -->
                 <!-- ================================================================================================== -->
