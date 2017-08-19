@@ -12,6 +12,11 @@
 !   Laura D. Fowler (laura@ucar.edu) / 2017-05-10.
 ! * in subroutine cup_forcing_ens_3d, corrected the formulation of closure 14.
 !   Laura D. Fowler (laura@ucar.edu) / 2017-06-27.
+! * at the bottom of subroutine cup_gf, set k22, kbcon, and cupclw to zero when there is no mid-level
+!   or deep convection.
+!   Laura D. Fowler (laura@ucar.edu) / 2017-08-04.
+! * at the bottom of subroutine rates_up_pdf, removed the line kklev=ktop(i) when name='shallow'.
+!   Laura D. Fowler (laura@ucar.edu) / 2017-08-04.
 
 !=================================================================================================================
 #if defined(mpas)
@@ -185,7 +190,7 @@ contains
          Q,QO,zuo,zdo
      real, dimension (its:ite)                                         &
         ,intent (in   )                   ::                           &
-        area,dx,ccn,Z1,PSUR,xland
+        dx,ccn,Z1,PSUR,xland
      real, dimension (its:ite)                                         &
         ,intent (inout   )                ::                           &
         mconv
@@ -347,19 +352,26 @@ contains
      real,    dimension (its:ite,kts:kte) :: dtempdz
      integer, dimension (its:ite,kts:kte) ::  k_inv_layers 
  
-! MPAS:
-! modifications to calls to subroutine get_zu_zd_pdf_fim:
-     real,dimension(kts:kte):: dummy1,dummy2
-! outputs the mass flux closures:
-     real,intent(inout),dimension(its:ite,1:maxens3):: xf_ens_out
-! end MPAS.
-
 ! rainevap from sas
      real zuh2(40)
      real, dimension (its:ite) :: rntot,delqev,delq2,qevap,rn,qcond
      real :: rain,t1,q1,elocp,evef,el2orc,evfact,evfactl,g_rain,e_dn,c_up
      real :: pgeoh,dts,fp,fpi,pmin,x_add,beta,beta_u
      real :: cbeg,cmid,cend,const_a,const_b,const_c
+
+!--- MPAS (added actual area of individual grid cells. modified calls to the subroutines
+!    get_cloud_bc and get_zu_zd_pdf_fim. output the mass flux for individual closures):
+      real,intent(in),dimension(its:ite):: area
+      real,intent(inout),dimension(its:ite,1:maxens3):: xf_ens_out
+      real,dimension(kts:kte):: dummy1,dummy2
+
+      do i = its,itf
+         do k = 1, maxens3
+            xf_ens_out(i,k) = 0.
+         enddo
+      enddo
+!--- MPAS end.
+
       flux_tun(:)=fluxtune
 !      if(imid.eq.1)flux_tun(:)=fluxtune+.5
       pmin=150.
@@ -384,15 +396,6 @@ contains
 !     lambau=0.
 !     pgcon=-.55
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
-! MPAS:
-      do i = its, itf
-      do k = 1, maxens3
-         xf_ens_out(i,k) = 0.
-      enddo
-      enddo
-! end MPAS.
-
       ztexec(:)     = 0.
       zqexec(:)     = 0.
       zws(:)        = 0.
@@ -651,7 +654,7 @@ contains
       do i=its,itf
        IF(ierr(I).eq.0)THEN
          x_add = xlv*zqexec(i)+cp*ztexec(i)
-         do k = kts,ktf
+         do k = kts,kte
             dummy1(k) = he_cup(i,k)
             dummy2(k) = heo_cup(i,k)
          enddo
@@ -699,7 +702,7 @@ contains
 !
             start_level(i)=k22(i)
             x_add = xlv*zqexec(i)+cp*ztexec(i)
-            do k = kts,ktf
+            do k = kts,kte
                dummy1(k) = he_cup(i,k)
             enddo
             call get_cloud_bc(kte,dummy1,hkb (i),k22(i),x_add)
@@ -1009,13 +1012,13 @@ contains
         cdd(i,jmin(i))=0.
         dd_massdetro(i,:)=0.
         dd_massentro(i,:)=0.
-        do k = kts,ktf
+        do k = kts,kte
            dummy1(k) = po_cup(i,k)
            dummy2(k) = zdo(i,k)
         enddo
         call get_zu_zd_pdf_fim(0,dummy1,rand_vmas(i),0.,ipr,xland1(i),zuh2,"DOWN",ierr(i),kdet(i), &
                                jmin(i),dummy2,kts,kte,ktf,beta,kpbl(i),csum(i),pmin_lev(i))
-        do k = kts,ktf
+        do k = kts,kte
            zdo(i,k) = dummy2(k)
         enddo
 !       call get_zu_zd_pdf_fim(0,po_cup(i,:),rand_vmas(i),0.,ipr,xland1(i),zuh2,"DOWN",ierr(i),kdet(i),jmin(i),zdo(i,:),kts,kte,ktf,beta,kpbl(i),csum(i),pmin_lev(i))
@@ -1584,7 +1587,7 @@ contains
       do i=its,itf
         if(ierr(i).eq.0)then
          x_add = xlv*zqexec(i)+cp*ztexec(i)
-         do k = kts,ktf
+         do k = kts,kte
             dummy1(k) = xhe_cup(i,k)
          enddo
          call get_cloud_bc(kte,dummy1,xhkb (i),k22(i),x_add)
@@ -1767,6 +1770,8 @@ contains
                outv(i,k)=dellv(i,k)*xmb(i)
              enddo
           elseif(ierr(i).ne.0 .or. pre(i).eq.0.)then
+             k22(i)=0
+             kbcon(i)=0
              ktop(i)=0
              do k=kts,kte
                outt(i,k)=0.
@@ -1774,6 +1779,7 @@ contains
                outqc(i,k)=0.
                outu(i,k)=0.
                outv(i,k)=0.
+               cupclw(i,k)=0.
              enddo
           endif
       enddo
@@ -2473,6 +2479,8 @@ contains
 
      real, dimension (its:ite) :: ens_adj
 
+
+
 !
        ens_adj(:)=1.
        xff_dicycle = 0.
@@ -2765,9 +2773,10 @@ contains
      real                                 ::                           &
         x_add,pbcdif,plus,hetest,dz
      real, dimension (its:ite,kts:kte) ::hcot
-! modifications to calls to subroutine get_zu_zd_pdf_fim:
+
+!--- MPAS (modified call to the subroutine get_cloud_bc):
      real,dimension(kts:kte):: dummy1
-! end modifications.
+!--- MPAS end.
 !
 !--- DETERMINE THE LEVEL OF CONVECTIVE CLOUD BASE  - KBCON
 !
@@ -2827,7 +2836,7 @@ contains
         KBCON(I)=K22(I)+1
 !==     since k22 has be changed, HKB has to be re-calculated
         x_add = xlv*zqexec(i)+cp*ztexec(i)
-        do k = kts,ktf
+        do k = kts,kte
            dummy1(k) = he_cup(i,k)
         enddo
         call get_cloud_bc(kte,dummy1,hkb (i),k22(i),x_add)
@@ -3210,7 +3219,9 @@ contains
      integer, intent(IN) :: DICYCLE
      real,    intent(IN), dimension (its:ite) :: xf_dicycle
 
+!--- MPAS (output the mass flux for individual closures):
      real,intent(inout),dimension(its:ite,1:maxens3):: xf_ens_out
+!--- MPAS end.
 !
 !  local variables in this routine
 !
@@ -3458,9 +3469,9 @@ contains
      real,    dimension (kts:kte)         ::                       &
         prop_b
 !
-! modifications to calls to subroutine get_zu_zd_pdf_fim:
+!--- MPAS (modified call to the subroutine get_cloud_bc):
      real,dimension(kts:kte):: dummy1
-! end modifications.
+!--- MPAS end.
 !
         prop_b(kts:kte)=0
         iall=0
@@ -3494,7 +3505,7 @@ contains
       do i=its,itf
       if(ierr(i).eq.0)then
          start_level=k22(i)
-         do k = kts,ktf
+         do k = kts,kte
             dummy1(k) = qe_cup(i,k)
          enddo
          call get_cloud_bc(kte,dummy1,qaver,k22(i))
@@ -3737,9 +3748,9 @@ contains
      real zuh2(40),zh2(40)
      integer :: kklev,i,kk,kbegin,k,kfinalzu
      integer, dimension (its:ite) :: start_level 
-! modifications to calls to subroutine get_zu_zd_pdf_fim:
+!--- MPAS (modified to calls to the subroutine get_zu_zd_pdf_fim):
      real,dimension(kts:kte):: dummy1,dummy2
-! end modifications.
+!--- MPAS end.
      !
      zustart=.1
      dbythresh= 1. !.0.95 ! 0.85, 0.6
@@ -3802,13 +3813,13 @@ contains
 !           call get_zu_zd_pdf_fim(ipr,xland(i),zuh2,"UP",ierr(i),start_level(i),             &
 !           call get_zu_zd_pdf_fim(rand_vmas(i),zubeg,ipr,xland(i),zuh2,"UP",ierr(i),kbcon(i), &
 !            kfinalzu,zuo(i,kts:kte),kts,kte,ktf,beta_u,kpbl(i),csum(i),pmin_lev(i))
-           do k = kts,ktf
+           do k = kts,kte
               dummy1(k) = p_cup(i,k)
               dummy2(k) = zuo(i,k)
            enddo
            call get_zu_zd_pdf_fim(kklev,dummy1,rand_vmas(i),zubeg,ipr,xland(i),zuh2,"UP",ierr(i),k22(i), &
                                   kfinalzu,dummy2,kts,kte,ktf,beta_u,kstabi(i),csum(i),pmin_lev(i))
-           do k = kts,ktf
+           do k = kts,kte
               zuo(i,k) = dummy2(k)
            enddo
 !          call get_zu_zd_pdf_fim(kklev,p_cup(i,:),rand_vmas(i),zubeg,ipr,xland(i),zuh2,"UP",ierr(i),k22(i), &
@@ -3822,13 +3833,13 @@ contains
        else
            kfinalzu=ktop(i)
            ktopdby(i)=ktop(i)+1
-           do k = kts,ktf
+           do k = kts,kte
               dummy1(k) = p_cup(i,k)
               dummy2(k) = zuo(i,k)
            enddo
            call get_zu_zd_pdf_fim(kklev,dummy1,rand_vmas(i),zubeg,ipr,xland(i),zuh2,"MID",ierr(i),k22(i), &
                                  kfinalzu,dummy2,kts,kte,ktf,beta_u,kbcon(i),csum(i),pmin_lev(i))
-           do k = kts,ktf
+           do k = kts,kte
               zuo(i,k) = dummy2(k)
            enddo
 !         call get_zu_zd_pdf_fim(kklev,p_cup(i,:),rand_vmas(i),zubeg,ipr,xland(i),zuh2,"MID",ierr(i),k22(i),kfinalzu,zuo(i,kts:kte),kts,kte,ktf,beta_u,kbcon(i),csum(i),pmin_lev(i))
@@ -3859,14 +3870,13 @@ contains
        else
            kfinalzu=ktop(i)
            ktopdby(i)=ktop(i)
-           kklev=ktop(i)
-           do k = kts,ktf
+           do k = kts,kte
               dummy1(k) = p_cup(i,k)
               dummy2(k) = zuo(i,k)
            enddo
            call get_zu_zd_pdf_fim(kklev,dummy1,rand_vmas(i),zubeg,ipr,xland(i),zuh2,"SH2",ierr(i),k22(i), &
                                   kfinalzu,dummy2,kts,kte,ktf,beta_u,kpbl(i),csum(i),pmin_lev(i))
-           do k = kts,ktf
+           do k = kts,kte
               zuo(i,k) = dummy2(k)
            enddo
 !          call get_zu_zd_pdf_fim(kklev,p_cup(i,:),rand_vmas(i),zubeg,ipr,xland(i),zuh2,"SH2",ierr(i),k22(i), &

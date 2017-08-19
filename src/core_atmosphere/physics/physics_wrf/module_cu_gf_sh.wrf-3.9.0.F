@@ -6,6 +6,8 @@
 !   allows to run the calls to the subroutine get_cloud_bc in a much faster way when DEBUG=true using the
 !   ifort compiler on yellowstone.ucar.edu.
 !   Laura D. Fowler (laura@ucar.edu) / 2017-03-09.
+! * at the bottom of subroutine cup_gf_sh, reset cupclw to zero when there is no shallow convection.
+!   Laura D. Fowler (laura@ucar.edu) / 2017-08-04.
 
 !=================================================================================================================
 ! module cup_gf_sh will call shallow convection as described in Grell and
@@ -232,9 +234,9 @@ contains
      integer, dimension (its:ite,kts:kte) ::  k_inv_layers 
      integer, dimension (its:ite) ::  start_level
 
-! modifications to calls to subroutine get_zu_zd_pdf_fim:
+!--- MPAS (modified calls to the subroutines get_cloud_bc and get_zu_zd_pdf_fim):
      real,dimension(kts:kte):: dummy1,dummy2
-! end modifications.
+!--- MPAS end.
 
      start_level(:)=0
      rand_vmas(:)=0.
@@ -385,7 +387,7 @@ contains
       do i=its,itf
        if(ierr(I).eq.0)then
              x_add = xlv*zqexec(i)+cp*ztexec(i)
-             do k = kts,ktf
+             do k = kts,kte
                 dummy1(k) = he_cup(i,k)
                 dummy2(k) = heo_cup(i,k)
              enddo
@@ -423,7 +425,7 @@ contains
          IF(ierr(I) == 0)THEN
             start_level(i)=k22(i)
             x_add = xlv*zqexec(i)+cp*ztexec(i)
-            do k = kts,ktf
+            do k = kts,kte
                dummy1(k) = he_cup(i,k)
             enddo
             call get_cloud_bc(kte,dummy1,hkb (i),k22(i),x_add)
@@ -563,7 +565,7 @@ contains
              go to 42
          endif
 !
-         do k = kts,ktf
+         do k = kts,kte
             dummy1(k) = qo_cup(i,k)
          enddo
          call get_cloud_bc(kte,dummy1,qaver,k22(i))
@@ -802,7 +804,7 @@ contains
 !
       do i=its,itf
        if(ierr(i).eq.0)then
-        xzu(i,1:ktf)=zuo(i,1:ktf)       
+        xzu(i,1:ktf)=zuo(i,1:ktf)
         do k=start_level(i)+1,ktop(i)
          xhc(i,k)=(xhc(i,k-1)*xzu(i,k-1)-.5*up_massdetro(i,k-1)*xhc(i,k-1)+ &
                           up_massentro(i,k-1)*xhe(i,k-1))   /            &
@@ -874,6 +876,7 @@ contains
            outt (i,:)=0.
            outq (i,:)=0.
            outqc(i,:)=0.
+           cupclw(i,:)=0.
         else if(ierr(i).eq.0)then
           xmb_out(i)=xmb(i)
 ! 

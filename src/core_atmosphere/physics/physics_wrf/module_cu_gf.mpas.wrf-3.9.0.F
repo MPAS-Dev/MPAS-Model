@@ -2,11 +2,17 @@
 ! MPAS driver for the Grell-Freitas parameterization of convection from WRF version 3.9.0:
 ! Laura D. Fowler (laura@ucar.edu) / 2017-03-09.
 
+! modified made to sourcecode:
+! * for shallow, middle-level, and deep convection, added the arrays cutens, cutenm, and cutens that are used to
+!   set to zero outputs (precipitation, massflux, tendencies,...) when precipitation or massflux are negative.
+!   cutens, cutenm, and cuten are technically not needed, but they prevent occurences of spurious data when local
+!   variables are not properly reset to zero when convective clouds are removed inside the subroutines cup_gf_sh
+!   and cup_gf. cutens, cutenm, and cuten will be removed in a future revision of the driver.
+!   Laura D. Fowler (laura@ucar.edu) / 2017-08-08.
+
 !=================================================================================================================
-!WRF:MODEL_LAYER:PHYSICS
-!
-#if defined(mpas)
-module module_cu_gf_wrf390
+ module module_cu_gf_wrf390
+ use mpas_log
  use mpas_atmphys_constants,only: cp,g=>gravity,r_v=>R_v,xlv
  use module_cu_gf_deep_wrf390,only: cup_gf,neg_check,autoconv,aeroevap
  use module_cu_gf_sh_wrf390,only: cup_gf_sh
@@ -14,18 +20,6 @@ module module_cu_gf_wrf390
  implicit none
  private
  public:: cu_grell_freitas_wrf390
-
-#else
- module module_cu_gf_wrfdrv
- use module_gfs_physcons, g => con_g,                           &
-                          cp => con_cp,                         &
-                          xlv => con_hvap,                      &
-                          r_v => con_rv
- use module_cu_gf_deep, only: cup_gf,neg_check,autoconv,aeroevap
- use module_cu_gf_sh, only: cup_gf_sh
-
- implicit none
-#endif
 
  contains
 
@@ -89,12 +83,14 @@ module module_cu_gf_wrf390
  integer:: kb,kt
  integer,dimension(its:ite):: ierr,ierrm,ierrs
  integer,dimension(its:ite):: k22,kbcon,ktop,k22m,kbconm,ktopm,k22s,kbcons,ktops
- integer,dimension(its:ite):: kpbli,cactiv,csum
+ integer,dimension(its:ite):: kpbli,cactiv
 
  real:: dq
+ real,dimension(its:ite):: areai,dxi
  real,dimension(its:ite):: hfxi,qfxi,psur,ter11,xlandi
  real,dimension(its:ite):: ccn,mconv
- real,dimension(its:ite):: pret,pretm,prets,xmb,xmbm,xmbs
+ real,dimension(its:ite):: cuten,cutenm,cutens
+ real,dimension(its:ite):: pret,pretm,prets,edt,edtm,xmb,xmbm,xmbs
  real,dimension(its:ite):: dummy
 
  real,dimension(its:ite,10):: forcing,forcingm
@@ -102,7 +98,7 @@ module module_cu_gf_wrf390
  real,dimension(its:ite,kts:kte):: q2d,t2d,p2d,rhoi,us,vs,omeg,zo
  real,dimension(its:ite,kts:kte):: qcheck
 
- real,dimension(its:ite,kts:kte):: cnvwt,cnvwtm,edt,edtm,zd,zdm,zu,zum,zus
+ real,dimension(its:ite,kts:kte):: cnvwt,cnvwtm,zd,zdm,zu,zum,zus
  real,dimension(its:ite,kts:kte):: tshall,qshall,dhdt,tn,qo
 
  real,dimension(its:ite,kts:kte):: outt,outq,outqc,cupclw,outu,outv
@@ -132,11 +128,6 @@ module module_cu_gf_wrf390
  itf = min(ite,ide-1)
  ktf = min(kte,kde-1)
  jtf = min(jte,jde-1)
-
-!write(0,*) '--- enter subroutine cu_grell_freitas_wrf390:' 
-!write(0,*) '--- its = ',its,'  itf =',itf
-!write(0,*) '--- jts = ',jts,'  jtf =',jtf
-!write(0,*) '--- kts = ',kts,'  ktf =',ktf
 
 !--- initialization for stochastic parameterization:
  rstochcol = 0.
@@ -206,13 +197,12 @@ module module_cu_gf_wrf390
 
     !--- initialization of local variables:
     do i = its, itf
-       !deep convection:
-       csum(i)  = 0
-       ccn(i)   = ccn0
-       mconv(i) = 0.
-       forcing(i,:)  = 0.
-       forcingm(i,:) = 0.
+       cactiv(i) = 0
+       ccn(i)    = ccn0
+       mconv(i)  = 0.
 
+       !deep convection:
+       forcing(i,:)  = 0.
        ierrc(i) = " "
        ierr(i)  = 0
        kbcon(i) = 0
@@ -220,8 +210,11 @@ module module_cu_gf_wrf390
        k22(i)   = 0
        xmb(i)   = 0.
        pret(i)  = 0.
+       edt(i)   = 0.
+       cuten(i) = 0.
 
        !mid-level convection:
+       forcingm(i,:) = 0.
        ierrcm(i) = " "
        ierrm(i)  = 0
        kbconm(i) = 0
@@ -229,6 +222,8 @@ module module_cu_gf_wrf390
        k22m(i)   = 0
        xmbm(i)   = 0.
        pretm(i)  = 0.
+       edtm(i)   = 0.
+       cutenm(i) = 0.
        dummy(i)  = 0.
 
        !shallow convection:
@@ -239,13 +234,21 @@ module module_cu_gf_wrf390
        k22s(i)   = 0
        xmbs(i)   = 0.
        prets(i)  = 0.
+       cutens(i) = 0.
+    enddo
+
+    do k = 1, nclos
+       do i = its, itf
+          xf_ens(i,k) = 0.
+       enddo
     enddo
 
     do k = kts, ktf
        do i = its, itf
-          !deep convection:
           qcheck(i,k) = 0.
           omeg(i,k)   = 0.
+
+          !deep convection:
           outt(i,k)   = 0.
           outu(i,k)   = 0.
           outv(i,k)   = 0.
@@ -253,7 +256,6 @@ module module_cu_gf_wrf390
           outqc(i,k)  = 0.
           cupclw(i,k) = 0.
           cnvwt(i,k)  = 0.
-          edt(i,k)    = 0.
           zd(i,k)     = 0.
           zu(i,k)     = 0.
 
@@ -264,6 +266,9 @@ module module_cu_gf_wrf390
           outqm(i,k)   = 0.
           outqcm(i,k)  = 0.
           cupclwm(i,k) = 0.
+          cnvwtm(i,k)  = 0.
+          zdm(i,k)     = 0.
+          zum(i,k)     = 0.
 
           !shallow convection:
           outts(i,k)   = 0.
@@ -277,6 +282,8 @@ module module_cu_gf_wrf390
     enddo
 
     do i = its, itf
+       areai(i)  = area(i,j)
+       dxi(i)    = dx(i,j)
        xlandi(i) = xland(i,j)
        ter11(i)  = max(0.,ht(i,j))
        zo(i,kts) = ter11(i) + 0.5*dz8w(i,1,j)
@@ -313,25 +320,24 @@ module module_cu_gf_wrf390
        enddo
     enddo
 
-    !--- calculation of the moisture convergence:
-    do k = kts+1, ktf
+    !--- calculation of the moisture convergence: we do not need to calculate
+    !the moisture convergence since it is initialized to zero and calculated
+    !in the subroutine cup_gf. Also,now follow exactly the calculation of omeg,
+    !as in WRF 3.9.0:
+!   do k = kts+1, ktf
+!      do i = its, itf
+!         omeg(i,k) = -g*0.5*(rho(i,k,j)+rho(i,k-1,j))*w(i,k,j)
+!      enddo
+!   enddo
+    do k = kts, ktf
        do i = its, itf
-          omeg(i,k) = -g*0.5*(rho(i,k,j)+rho(i,k-1,j))*w(i,k,j)
+          omeg(i,k) = -g*rho(i,k,j)*w(i,k,j)
        enddo
-    enddo
-
-    do k = kts+1, ktf
-       do i = its, itf
-          dq = (q2d(i,k)-q2d(i,k-1))
-          mconv(i) = mconv(i) + omeg(i,k)*dq/g
-       enddo
-    enddo
-    do i = its, itf
-       if(mconv(i) .lt. 0.) mconv(i) = 0.
     enddo
 
     !--- call to shallow convection:
     if(do_shalc) then
+       call mpas_log_write("--- enter subroutine cup_gf_sh:")
        call cup_gf_sh( &
                 !input variables:
                 zo,t2d,q2d,ter11,tshall,qshall,p2d,psur,dhdt,   &
@@ -349,21 +355,32 @@ module module_cu_gf_wrf390
                       outqcs,prets,its,ite,kts,kte,itf,ktf)
 
        do i = its,itf
+          if(xmbs(i) .gt. 0.) then
+             cutens(i) = 1.
+          else
+             k22s(i)   = 0
+             kbcons(i) = 0
+             ktops(i)  = 0
+             xmbs(i)   = 0.
+             prets(i)  = 0.
+          endif
           if(present(k22_shalc)  ) k22_shalc(i,j)   = k22s(i)
           if(present(kbcon_shalc)) kbcon_shalc(i,j) = kbcons(i)
           if(present(ktop_shalc) ) ktop_shalc(i,j)  = ktops(i)
           if(present(xmb_shalc)  ) xmb_shalc(i,j)   = xmbs(i)
        enddo
+       call mpas_log_write("--- end subroutine cup_gf_sh:")
     endif
 
 
     !--- call to mid-level convection:
     if(do_midlc) then
+       call mpas_log_write("--- enter subroutine cup_gf: middle")
        call cup_gf( &
                 itf,ktf,its,ite,kts,kte,                                   &
                 dicycle_m,ichoice_m,ipr,ccn,dt,imidc,kpbli,dhdt,           &
                 xlandi,zo,forcingm,t2d,q2d,ter11,tshall,qshall,p2d,        &
-                psur,us,vs,rhoi,hfxi,qfxi,area,dx,mconv,omeg,cactiv,       &
+                psur,us,vs,rhoi,hfxi,qfxi,areai,dxi,mconv,omeg,cactiv,     &
                 cnvwtm,zum,zdm,edtm,xmbm,dummy,xmbs,pretm,outum,outvm,     &
                 outtm,outqm,outqcm,kbconm,ktopm,k22m,cupclwm,ierrm,ierrcm, &
                 rand_mom,rand_vmas,rand_clos,nranflag,xf_ens               &
@@ -378,24 +395,35 @@ module module_cu_gf_wrf390
                       outqcm,pretm,its,ite,kts,kte,itf,ktf)
 
        do i = its, itf
+          if(pretm(i) .gt. 0.) then
+             cutenm(i) = 1.
+          else
+             k22m(i)   = 0
+             kbconm(i) = 0
+             ktopm(i)  = 0
+             xmbm(i)   = 0.
+             pretm(i)  = 0.
+          endif
           if(present(k22_midlc)  ) k22_midlc(i,j)   = k22m(i)
           if(present(kbcon_midlc)) kbcon_midlc(i,j) = kbconm(i)
           if(present(ktop_midlc) ) ktop_midlc(i,j)  = ktopm(i)
           if(present(xmb_midlc)  ) xmb_midlc(i,j)   = xmbm(i)
        enddo
+       call mpas_log_write("--- end subroutine cup_gf: middle")
     endif
 
 
     !--- call to deep convection:
     if(do_deepc) then
+       call mpas_log_write("--- enter subroutine cup_gf: deep")
        call cup_gf( &
-                itf,ktf,its,ite,kts,kte,                           &
-                dicycle,ichoice,ipr,ccn,dt,imidd,kpbli,dhdt,       &
-                xlandi,zo,forcing,t2d,q2d,ter11,tn,qo,p2d,         &
-                psur,us,vs,rhoi,hfxi,qfxi,area,dx,mconv,omeg,csum, &
-                cnvwt,zu,zd,edt,xmb,xmbm,xmbs,pret,outu,outv,      &
-                outt,outq,outqc,kbcon,ktop,k22,cupclw,ierr,ierrc,  &
-                rand_mom,rand_vmas,rand_clos,nranflag,xf_ens       &
+                itf,ktf,its,ite,kts,kte,                               &
+                dicycle,ichoice,ipr,ccn,dt,imidd,kpbli,dhdt,           &
+                xlandi,zo,forcing,t2d,q2d,ter11,tn,qo,p2d,             &
+                psur,us,vs,rhoi,hfxi,qfxi,areai,dxi,mconv,omeg,cactiv, &
+                cnvwt,zu,zd,edt,xmb,xmbm,xmbs,pret,outu,outv,          &
+                outt,outq,outqc,kbcon,ktop,k22,cupclw,ierr,ierrc,      &
+                rand_mom,rand_vmas,rand_clos,nranflag,xf_ens           &
                   )
 
        do k = kts, ktf
@@ -407,6 +435,15 @@ module module_cu_gf_wrf390
                       outqc,pret,its,ite,kts,kte,itf,ktf)
 
        do i = its, itf
+          if(pret(i) .gt. 0.) then
+             cuten(i) = 1.
+          else
+             k22(i)   = 0
+             kbcon(i) = 0
+             ktop(i)  = 0
+             xmb(i)   = 0.
+             pret(i)  = 0.
+          endif
           if(present(k22_deepc)  ) k22_deepc(i,j)   = k22(i)
           if(present(kbcon_deepc)) kbcon_deepc(i,j) = kbcon(i)
           if(present(ktop_deepc) ) ktop_deepc(i,j)  = ktop(i)
@@ -421,30 +458,30 @@ module module_cu_gf_wrf390
              enddo
           enddo
        endif
+       call mpas_log_write("--- end subroutine cup_gf: deep")
     endif
-
 
     !... precipitation:
     do i = its, itf
-       pratec(i,j) = pret(i) + pretm(i) + prets(i)
+       pratec(i,j) = cuten(i)*pret(i) + cutenm(i)*pretm(i) + prets(i)
        raincv(i,j) = pratec(i,j)*dt
 
-       if(present(pratecs)) pratecs(i,j) = prets(i)
-       if(present(pratecm)) pratecm(i,j) = pretm(i)
-       if(present(pratecd)) pratecd(i,j) = pret(i)
-       if(present(raincvs)) raincvs(i,j) = prets(i)*dt
-       if(present(raincvm)) raincvm(i,j) = pretm(i)*dt
-       if(present(raincvd)) raincvd(i,j) = pret(i)*dt
+       if(present(pratecs)) pratecs(i,j) = cutens(i)*prets(i)
+       if(present(pratecm)) pratecm(i,j) = cutenm(i)*pretm(i)
+       if(present(pratecd)) pratecd(i,j) = cuten(i) *pret(i)
+       if(present(raincvs)) raincvs(i,j) = cutens(i)*prets(i)*dt
+       if(present(raincvm)) raincvm(i,j) = cutenm(i)*pretm(i)*dt
+       if(present(raincvd)) raincvd(i,j) = cuten(i) *pret(i)*dt
     enddo
 
     !... always save the tendencies of potential temperature, water vapor,  and cloud water.
     !... the tendency for cloud ice is optional.
     do k = kts, ktf
        do i = its, itf
-          rthcuten(i,k,j) = (outt(i,k) + outtm(i,k) + outts(i,k))/pi(i,k,j)
-          rqvcuten(i,k,j) = outq(i,k) + outqm(i,k) + outqs(i,k)
-          rqccuten(i,k,j) = outqc(i,k) + outqcm(i,k) + outqcs(i,k)
-          if(present(gdc)) gdc(i,k,j) = cupclw(i,k) + cupclwm(i,k) + cupclws(i,k)
+          rthcuten(i,k,j) = (cuten(i)*outt(i,k) + cutenm(i)*outtm(i,k) + cutens(i)*outts(i,k))/pi(i,k,j)
+          rqvcuten(i,k,j) = cuten(i)*outq(i,k) + cutenm(i)*outqm(i,k) + cutens(i)*outqs(i,k)
+          rqccuten(i,k,j) = cuten(i)*outqc(i,k) + cutenm(i)*outqcm(i,k) + cutens(i)*outqcs(i,k)
+          if(present(gdc)) gdc(i,k,j) = cuten(i)*cupclw(i,k) + cutenm(i)*cupclwm(i,k) + cutens(i)*cupclws(i,k)
 
           if(present(rqicuten)) then
              if(t2d(i,k) .lt. tcrit) then
@@ -457,22 +494,15 @@ module module_cu_gf_wrf390
              endif
           endif
 
-          if(present(rucuten)) rucuten(i,k,j)  = outum(i,k) + outu(i,k)
-          if(present(rvcuten)) rvcuten(i,k,j)  = outvm(i,k) + outv(i,k)
+          if(present(rucuten)) rucuten(i,k,j)  = cutenm(i)*outum(i,k) + cuten(i)*outu(i,k)
+          if(present(rvcuten)) rvcuten(i,k,j)  = cutenm(i)*outvm(i,k) + cuten(i)*outv(i,k)
        enddo
     enddo
 
  enddo j_loop
-!write(0,*) '--- end subroutine cu_grell_freitas_wrf390:' 
-!write(0,*)
 
  end subroutine cu_grell_freitas_wrf390
 
 !=================================================================================================================
-#if defined(mpas)
-end module module_cu_gf_wrf390
-#else
-end module module_cu_gf_wrfdrv
-#endif
+ end module module_cu_gf_wrf390
 !=================================================================================================================
-
