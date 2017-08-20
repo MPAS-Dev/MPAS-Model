@@ -548,18 +548,19 @@
  type(mpas_pool_type),intent(inout):: diag_physics
 
 !local pointers:
- real(kind=RKIND),dimension(:),pointer:: refl10cm_max,refl10cm_1km,refl10cm_1km_max
+ real(kind=RKIND),dimension(:),pointer:: refl10cm_max,refl10cm_1km,refl10cm_1km_max,cuprec
 
 !local variables and arrays:
  integer:: i,j,k,kp
  real(kind=RKIND),dimension(:),allocatable:: qv1d,qc1d,qr1d,qs1d,qg1d,t1d,p1d,nr1d,dBZ1d,zp
- real(kind=RKIND):: w1,w2
+ real(kind=RKIND):: w1,w2,grprec,totprec
 
 !-----------------------------------------------------------------------------------------------------------------
 
  call mpas_pool_get_array(diag_physics,'refl10cm_max',refl10cm_max)
  call mpas_pool_get_array(diag_physics,'refl10cm_1km',refl10cm_1km)
  call mpas_pool_get_array(diag_physics,'refl10cm_1km_max',refl10cm_1km_max)
+ call mpas_pool_get_array(diag_physics,'cuprec',cuprec)
 
  microp_select: select case(microp_scheme)
 
@@ -597,7 +598,11 @@
              dBZ1d(k) = max(-35._RKIND,dBZ1d(k))
              if(zp(k) .lt. 1000.) kp = k
           enddo
-          refl10cm_max(i) = maxval(dBZ1d(:))
+          refl10cm_max(i) = maxval(dBZ1d(kp:kte))
+          grprec = ((10.**(refl10cm_max(i)/10.)/300.)**(1./1.4))/3600.
+          totprec = grprec + cuprec(i)
+          if(totprec .ge. 1.e-6) refl10cm_max(i) = 10.*log10(300.*((totprec*3600.)**1.4))
+
           w1 = (zp(kp+1)-1000.)/(zp(kp+1)-zp(kp))
           w2 = 1.0 - w1
           refl10cm_1km(i) = w1*dBZ1d(kp) + w2*dBZ1d(kp+1)
@@ -648,7 +653,11 @@
              dBZ1d(k) = max(-35._RKIND,dBZ1d(k))
              if(zp(k) .lt. 1000.) kp = k
           enddo
-          refl10cm_max(i) = maxval(dBZ1d(:))
+          refl10cm_max(i) = maxval(dBZ1d(kp:kte))
+          grprec = ((10.**(refl10cm_max(i)/10.)/300.)**(1./1.4))/3600.
+          totprec = grprec + cuprec(i) 
+          if(totprec .ge. 1.e-6) refl10cm_max(i) = 10.*log10(300.*((totprec*3600.)**1.4))
+
           w1 = (zp(kp+1)-1000.)/(zp(kp+1)-zp(kp))
           w2 = 1.0 - w1
           refl10cm_1km(i) = w1*dBZ1d(kp) + w2*dBZ1d(kp+1)
