@@ -8,6 +8,8 @@
 !   Laura D. Fowler (laura@ucar.edu) / 2017-02-11..
 ! * change the name of some of the subroutine names so that we can also run sf_mynn from WRF 3.6.1.
 !   Laura D. Fowler (laura@ucar.edu) / 2016-02-11.
+! * corrected the initialization of the variable dx.
+!   Laura D. Fowler (laura@ucar.edu) / 2017-08-30.
 
 !=================================================================================================================
 
@@ -116,24 +118,9 @@ CONTAINS
 !-------------------------------------------------------------------
 #if defined(mpas)
    SUBROUTINE SFCLAY_mynn_wrf390(                                  &
-                     U3D,V3D,T3D,QV3D,P3D,dz8w,                    &
-                     CP,G,ROVCP,R,XLV,PSFCPA,CHS,CHS2,CQS2,CPM,    &
-                     ZNT,UST,PBLH,MAVAIL,ZOL,MOL,REGIME,PSIM,PSIH, &
-                     XLAND,HFX,QFX,LH,TSK,FLHC,FLQC,QGH,QSFC,RMOL, &
-                     U10,V10,TH2,T2,Q2,SNOWH,                      &
-                     GZ1OZ0,WSPD,BR,ISFFLX,dxCell,                 &
-                     SVP1,SVP2,SVP3,SVPT0,EP1,EP2,                 &
-                     KARMAN,itimestep,ch,th3d,pi3d,qc3d,rho3d,     &
-                     tsq,qsq,cov,sh3d,el_pbl,qcg,                  &
-                     icloud_bl,qc_bl,cldfra_bl,                    &
-                     spp_pbl,pattern_spp_pbl,                      &
-                     ids,ide, jds,jde, kds,kde,                    &
-                     ims,ime, jms,jme, kms,kme,                    &
-                     its,ite, jts,jte, kts,kte,                    &
-                     ustm,ck,cka,cd,cda,isftcflx,iz0tlnd,          &
-                     bl_mynn_cloudpdf)
 #else
    SUBROUTINE SFCLAY_mynn(                                         &
+#endif
                      U3D,V3D,T3D,QV3D,P3D,dz8w,                    &
                      CP,G,ROVCP,R,XLV,PSFCPA,CHS,CHS2,CQS2,CPM,    &
                      ZNT,UST,PBLH,MAVAIL,ZOL,MOL,REGIME,PSIM,PSIH, &
@@ -150,7 +137,6 @@ CONTAINS
                      its,ite, jts,jte, kts,kte,                    &
                      ustm,ck,cka,cd,cda,isftcflx,iz0tlnd,          &
                      bl_mynn_cloudpdf)
-#endif
 !-------------------------------------------------------------------
       IMPLICIT NONE
 !-------------------------------------------------------------------
@@ -264,8 +250,7 @@ CONTAINS
       REAL,     INTENT(IN)   ::        EP1,EP2,KARMAN
 #if defined(mpas)
       real,intent(in):: cp,g,rovcp,r,xlv
-      real,dimension(ims:ime,jms:jme),intent(in):: dxCell
-      real:: dx
+      real,dimension(ims:ime,jms:jme),intent(in):: dx
 #else
       REAL,     INTENT(IN)   ::        CP,G,ROVCP,R,XLV,DX
 #endif
@@ -422,12 +407,20 @@ CONTAINS
                   dummy12(k)=0.0
                 endif
                 dummy13(k)=0.0     !sgm
-#if defined(mpas)
-                dx = dxCell(i,j)
-#endif
               ENDDO
 
               ! NOTE: The last grid number is kts+1 instead of kte.
+#if defined(mpas)
+              CALL mym_condensation_wrf390 (kts,kts+1,dx(i,j), &
+                   &            dummy1,dummy2,dummy3,   &
+                   &            dummy4,dummy5,dummy6,   &
+                   &            dummy7,dummy8,dummy9,   &
+                   &            dummy10,bl_mynn_cloudpdf,&
+                   &            dummy11,dummy12,        &
+                   &            PBLH(i,j),HFX(i,j),     &
+                   &            vt(kts:kts+1), vq(kts:kts+1), &
+                   &            dummy14,dummy13)
+#else
               CALL mym_condensation_wrf390 (kts,kts+1, dx, &
                    &            dummy1,dummy2,dummy3,   &
                    &            dummy4,dummy5,dummy6,   &
@@ -437,7 +430,7 @@ CONTAINS
                    &            PBLH(i,j),HFX(i,j),     &
                    &            vt(kts:kts+1), vq(kts:kts+1), &
                    &            dummy14,dummy13)
-
+#endif
 !              ! NOTE: The last grid number is kts+1 instead of kte.
 !              CALL mym_condensation (kts,kts+1, dx,     &
 !                   &            dz8w(i,kts:kts+1,j),    &
@@ -455,12 +448,41 @@ CONTAINS
 !                   &           cldfra_bl2D(i,kts:kts+1),& !JOE-subgrid BL clouds
 !                   &            PBLH(i,j),HFX(i,j),     & !JOE-subgrid BL clouds
 !                   &            vt(kts:kts+1), vq(kts:kts+1), &
- !                  &            th,sgm)
+!                   &            th,sgm)
               vt1(i) = vt(kts)
               vq1(i) = vq(kts)
            ENDDO
         ENDIF
 
+#if defined(mpas)
+        CALL SFCLAY1D_mynn(                                           &
+                J,U1D,V1D,T1D,QV1D,P1D,dz8w1d,rho1d,                  &
+                U1D2,V1D2,dz2w1d,                                     &
+                CP,G,ROVCP,R,XLV,PSFCPA(ims,j),CHS(ims,j),CHS2(ims,j),&
+                CQS2(ims,j),CPM(ims,j),PBLH(ims,j), RMOL(ims,j),      &
+                ZNT(ims,j),UST(ims,j),MAVAIL(ims,j),ZOL(ims,j),       &
+                MOL(ims,j),REGIME(ims,j),PSIM(ims,j),PSIH(ims,j),     &
+                XLAND(ims,j),HFX(ims,j),QFX(ims,j),TSK(ims,j),        &
+                U10(ims,j),V10(ims,j),TH2(ims,j),T2(ims,j),           &
+                Q2(ims,j),FLHC(ims,j),FLQC(ims,j),SNOWH(ims,j),       &
+                QGH(ims,j),QSFC(ims,j),LH(ims,j),                     &
+                GZ1OZ0(ims,j),WSPD(ims,j),BR(ims,j),ISFFLX,dx(ims,j), &
+                SVP1,SVP2,SVP3,SVPT0,EP1,EP2,KARMAN,                  &
+                ch(ims,j),vt1,vq1,qc1d,qcg(ims,j),                    &
+                itimestep,                                            &
+!JOE-begin additional output
+                z0zt_ratio(ims,j),wstar(ims,j),                       &
+                qstar(ims,j),resist(ims,j),logres(ims,j),             &
+!JOE-end
+                rstoch1D,                                             &
+                ids,ide, jds,jde, kds,kde,                            &
+                ims,ime, jms,jme, kms,kme,                            &
+                its,ite, jts,jte, kts,kte                             &
+                ,isftcflx,iz0tlnd,                                    &
+                USTM(ims,j),CK(ims,j),CKA(ims,j),                     &
+                CD(ims,j),CDA(ims,j)                                  &
+                                                                   )
+#else
         CALL SFCLAY1D_mynn(                                        &
                 J,U1D,V1D,T1D,QV1D,P1D,dz8w1d,rho1d,               &
                 U1D2,V1D2,dz2w1d,                                  &
@@ -488,6 +510,7 @@ CONTAINS
                 USTM(ims,j),CK(ims,j),CKA(ims,j),                  &
                 CD(ims,j),CDA(ims,j)                               &
                                                                    )
+#endif
 
       ENDDO
 
@@ -533,7 +556,12 @@ CONTAINS
       REAL,     PARAMETER  :: XKA=2.4E-5   !molecular diffusivity
       REAL,     PARAMETER  :: PRT=1.       !prandlt number
       REAL,     INTENT(IN) :: SVP1,SVP2,SVP3,SVPT0,EP1,EP2
+#if defined(mpas)
+      REAL,     INTENT(IN) :: KARMAN,CP,G,ROVCP,R,XLV
+      REAL,     DIMENSION( ims:ime ), INTENT(IN) :: DX
+#else
       REAL,     INTENT(IN) :: KARMAN,CP,G,ROVCP,R,XLV,DX
+#endif
 
 !-----------------------------
 ! NAMELIST OPTIONS
@@ -740,7 +768,11 @@ CONTAINS
          ! Mahrt and Sun low-res correction
          ! (for 13 km ~ 0.37 m/s; for 3 km == 0 m/s)
          !--------------------------------------------------------
+#if defined(mpas)
+         VSGD = 0.32 * (max(dx(i)/5000.-1.,0.))**.33
+#else
          VSGD = 0.32 * (max(dx/5000.-1.,0.))**.33
+#endif
          WSPD(I)=SQRT(WSPD(I)*WSPD(I)+WSTAR(I)*WSTAR(I)+vsgd*vsgd)
          WSPD(I)=MAX(WSPD(I),wmin)
 

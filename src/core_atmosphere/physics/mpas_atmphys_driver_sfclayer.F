@@ -82,6 +82,8 @@
 !   Laura D. Fowler (laura@ucar.edu) / 2917-02-16.
 ! * added the implementation of the MYNN surface layer scheme from WRF 3.9.0.
 !   Laura D. Fowler (laura@ucar.edu) / 2017-03-06.
+! * corrected the initialization of the variable dx in the call to the subroutine sfclay_mynn_wrf390.
+!   Laura D. Fowler (laura@ucar.edu) / 2017-08-30.
 
 
  contains
@@ -1014,7 +1016,7 @@
                    gz1oz0    = gz1oz0_p   , wspd      = wspd_p     , br        = br_p       , &
                    isfflx    = isfflx     , svp1      = svp1       , svp2      = svp2       , & 
                    svp3      = svp3       , svpt0     = svpt0      , ep1       = ep_1       , &
-                   ep2       = ep_2       , karman    = karman     , dxCell    = dx_p       , &
+                   ep2       = ep_2       , karman    = karman     , dx        = dx_p       , &
                    ustm      = ustm_p     , ck        = ck_p       , cka       = cka_p      , &
                    cd        = cd_p       , cda       = cda_p      , isftcflx  = isftcflx   , & 
                    iz0tlnd   = iz0tlnd    , itimestep = initflag   , ch        = ch_p       , &
@@ -1047,7 +1049,7 @@
                       gz1oz0    = gz1oz0_sea , wspd      = wspd_sea   , br        = br_sea     , &
                       isfflx    = isfflx     , svp1      = svp1       , svp2      = svp2       , & 
                       svp3      = svp3       , svpt0     = svpt0      , ep1       = ep_1       , &
-                      ep2       = ep_2       , karman    = karman     , dxCell    = dx_p       , &
+                      ep2       = ep_2       , karman    = karman     , dx        = dx_p       , &
                       ustm      = ustm_sea   , ck        = ck_sea     , cka       = cka_sea    , &
                       cd        = cd_sea     , cda       = cda_sea    , isftcflx  = isftcflx   , & 
                       iz0tlnd   = iz0tlnd    , itimestep = initflag   , ch        = ch_sea     , &
