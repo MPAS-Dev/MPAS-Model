@@ -17,6 +17,9 @@
 !   Laura D. Fowler (laura@ucar.edu) / 2017-08-04.
 ! * at the bottom of subroutine rates_up_pdf, removed the line kklev=ktop(i) when name='shallow'.
 !   Laura D. Fowler (laura@ucar.edu) / 2017-08-04.
+! * in subroutine get_inversion_layers, corrected the initialization of the index k prior to the loop that
+!   computes k_inv_layers. this corrects occurrences of the array sec_deriv not being calculated for kk-1. 
+!   Laura D. Fowler (laura@ucar.edu) / 2017-08-31.
 
 !=================================================================================================================
 #if defined(mpas)
@@ -4156,7 +4159,8 @@ contains
         
          ilev=max(kts+2,kstart(i)+1)
          ix=1
-         k=ilev
+!        k=ilev
+         k=max(kts+3,ilev)
          DO WHILE (ilev < kend_p3(i)) !(z_cup(i,ilev)<15000.)
            do kk=k,kend_p3(i)+2 !k,ktf-2
              
