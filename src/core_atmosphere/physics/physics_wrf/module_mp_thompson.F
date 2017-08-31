@@ -19,6 +19,10 @@
 !     mean mass-weighted fall velocities of rain, cloud ice, snow, and graupel to compute
 !     diagnostics of lightning flash rates.
 !     Laura D. Fowler (laura@ucar.edu) / 2017-04-19.
+!   * in subroutine mp_gt_driver, changed the declarations of arrays vqg1d, vqid1,vqr1d, and vqs1d,
+!     from (kts:kte) to (kts:kte+1) to match the dimensions of arrays vtgk, vtik, vtsk, and vtrk, in
+!     subroutine mp_thompson.
+!     Laura D. Fowler (laura@ucar.edu) / 2017-08-31.
 
 
 !+---+-----------------------------------------------------------------+
@@ -985,9 +989,9 @@
                               refl_10cm, diagflag, do_radar_ref,      &
                               re_cloud, re_ice, re_snow,              &
                               has_reqc, has_reqi, has_reqs,           &
-                              vqr,vqi,vqs,vqg,                        &
 #if defined(mpas)
-                              ntc,muc,rainprod,evapprod, &
+                              ntc,muc,rainprod,evapprod,              &
+                              vqr,vqi,vqs,vqg,                        &
 #endif
                               ids,ide, jds,jde, kds,kde, &             ! domain dims
                               ims,ime, jms,jme, kms,kme, &             ! memory dims
@@ -1037,7 +1041,7 @@
       REAL, DIMENSION(kts:kte):: re_qc1d, re_qi1d, re_qs1d
 #if defined(mpas)
       REAL, DIMENSION(kts:kte):: rainprod1d, evapprod1d
-      REAL, DIMENSION(kts:kte):: vqr1d,vqi1d,vqs1d,vqg1d
+      REAL, DIMENSION(kts:kte+1):: vqr1d,vqi1d,vqs1d,vqg1d
 #endif
       REAL, DIMENSION(its:ite, jts:jte):: pcp_ra, pcp_sn, pcp_gr, pcp_ic
       REAL:: dt, pptrain, pptsnow, pptgraul, pptice
@@ -1128,11 +1132,17 @@
          Nt_c = ntc(i,j)
          mu_c = muc(i,j)
          do k = kts,kte
+            rainprod1d(k) = 0.
+            evapprod1d(k) = 0.
             vqr1d(k) = 0.
             vqi1d(k) = 0.
             vqs1d(k) = 0.
             vqg1d(k) = 0.
          enddo
+         vqr1d(kte+1) = 0.
+         vqi1d(kte+1) = 0.
+         vqs1d(kte+1) = 0.
+         vqg1d(kte+1) = 0.
 #endif
          do k = kts, kte
             t1d(k) = th(i,k,j)*pii(i,k,j)
