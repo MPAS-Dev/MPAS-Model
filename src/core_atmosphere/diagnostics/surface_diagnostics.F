@@ -28,6 +28,8 @@ module surface_diagnostics
 
     private
 
+    real (kind=RKIND), pointer :: config_dt
+
     contains
 
 
@@ -63,12 +65,13 @@ module surface_diagnostics
         type (MPAS_time_type) :: now
 
         simulationClock => simulation_clock
-
+        
         call mpas_pool_get_subpool(all_pools, 'mesh', mesh)
         call mpas_pool_get_subpool(all_pools, 'state', state)
         call mpas_pool_get_subpool(all_pools, 'diag', diag)
         call mpas_pool_get_subpool(all_pools, 'diag_physics', diag_physics)
         call mpas_pool_get_config(configs, 'config_bucket_precip_interval', config_bucket_precip_interval)
+        call mpas_pool_get_config(configs, 'config_dt', config_dt)
 
         if (trim(config_bucket_precip_interval) == 'none') then
             return
@@ -98,9 +101,10 @@ module surface_diagnostics
 
         use mpas_constants, only : rvord
         use mpas_pool_routines, only : mpas_pool_get_dimension, mpas_pool_get_array
+        use mpas_derived_types, only : mpas_pool_type
 
         implicit none
-
+    
         integer :: iCell, k
         integer, pointer :: nCells
 
@@ -117,6 +121,7 @@ module surface_diagnostics
         real (kind=RKIND), dimension(:), pointer :: snow_bucket
         real (kind=RKIND), dimension(:), pointer :: zrain_bucket
         real (kind=RKIND), dimension(:), pointer :: snow_total
+        real (kind=RKIND), dimension(:), pointer :: refl10cm_prate
 
         ! Surface diagnostics (in)
         real (kind=RKIND), dimension(:), pointer :: psfc
@@ -126,7 +131,7 @@ module surface_diagnostics
         real (kind=RKIND), dimension(:), pointer :: dewpoint_2m
 
         ! Surface diagnostics (local)
-        real (kind=RKIND) :: evp
+        real (kind=RKIND) :: evp, prate
 
         ! Diagnostics (shared in)
         real (kind=RKIND), dimension(:), pointer :: t2m
@@ -146,6 +151,7 @@ module surface_diagnostics
         call mpas_pool_get_array(diag, 'surface_pressure', psfc)
         call mpas_pool_get_array(diag_physics, 'q2', q2)
         call mpas_pool_get_array(diag, 'dewpoint_2m', dewpoint_2m)
+        call mpas_pool_get_array(diag, 'refl10cm_prate', refl10cm_prate)
 
         do iCell = 1,nCells
 
@@ -157,6 +163,10 @@ module surface_diagnostics
                 zrain_bucket(iCell) = zrain_bucket(iCell) + max(0., rainncv(iCell) + raincv(iCell) - snowncv(iCell) - graupelncv(iCell))
             end if
             snow_total(iCell) = snow_total(iCell) + (snowncv(iCell) + graupelncv(iCell)) * snow_ratio(iCell) * 0.001
+
+            refl10cm_prate(iCell) = 0.
+            prate = (rainncv(iCell) + raincv(iCell)) / config_dt
+            if(prate .ge. 1.e-6) refl10cm_prate(iCell) = 10.*log10(300.*((prate*3600.)**1.4))
 
             ! Surface diagnostics
             evp = 0.01_RKIND * psfc(iCell) * q2(iCell) / (q2(iCell) + 0.622_RKIND)              

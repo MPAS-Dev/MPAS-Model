@@ -22,5 +22,8 @@
         <var name="snow_total"        type="real"     dimensions="nCells Time" units="m"
              description="Snow total using kuchera, cobb, gottlieb or static ratio schemes"/>
 
+        <var name="refl10cm_prate"    type="real"     dimensions="nCells Time" units="dBZ"
+             description="Reflectivity derived from surface total precipitation rate"/>
+
 </var_struct>
 

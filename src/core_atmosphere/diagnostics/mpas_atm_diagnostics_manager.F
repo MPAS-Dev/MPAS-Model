@@ -103,6 +103,7 @@ module mpas_atm_diagnostics_manager
     !-----------------------------------------------------------------------
     subroutine mpas_atm_diag_compute()
 
+        use mpas_derived_types, only : mpas_pool_type
         use diagnostic_template, only : diagnostic_template_compute
         use isobaric_diagnostics, only : isobaric_diagnostics_compute
         use convective_diagnostics, only : convective_diagnostics_compute
@@ -112,7 +113,7 @@ module mpas_atm_diagnostics_manager
         use soundings, only : soundings_compute
 
         implicit none
-     
+
         call diagnostic_template_compute()
         call isobaric_diagnostics_compute()
         call convective_diagnostics_compute()

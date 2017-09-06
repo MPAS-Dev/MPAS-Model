@@ -1006,6 +1006,7 @@
                         <var name="snow_bucket"/>
                         <var name="zrain_bucket"/>
                         <var name="snow_total"/>
+                        <var name="refl10cm_prate"/>
                         <!-- End surface diagnostics defined in diagnostics/Registry_surface.xml -->
 
                         <!-- Begin convective diagnostics defined in diagnostics/Registry_convective.xml -->
