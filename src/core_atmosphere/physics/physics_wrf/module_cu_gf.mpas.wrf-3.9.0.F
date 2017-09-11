@@ -9,6 +9,8 @@
 !   variables are not properly reset to zero when convective clouds are removed inside the subroutines cup_gf_sh
 !   and cup_gf. cutens, cutenm, and cuten will be removed in a future revision of the driver.
 !   Laura D. Fowler (laura@ucar.edu) / 2017-08-08.
+! * for shallow, middle-level, and deep convection, added diagnostics of the updraft and downdraft massflux.
+!   Laura D. Fowler (laura@ucar.edu) / 2017-09-11.
 
 !=================================================================================================================
  module module_cu_gf_wrf390
@@ -25,22 +27,27 @@
 
 !-----------------------------------------------------------------------------------------------------------------
  subroutine cu_grell_freitas_wrf390( &
-               dt,dx,area,u,v,w,t,q,rho,p,pi,p8w,dz8w,     &
-               ht,xland,hfx,qfx,kpbl,rthraten,rthften,     &
-               rqvften,rqvblten,rthblten,                  &
-               do_deepc,do_midlc,do_shalc,                 &
-               ichoice,ichoice_m,ichoice_s,                &
-               kbcon_deepc,ktop_deepc,k22_deepc,           &
-               kbcon_midlc,ktop_midlc,k22_midlc,           &
-               kbcon_shalc,ktop_shalc,k22_shalc,           &
-               xmb_deepc,xmb_midlc,xmb_shalc,              &
-               rthcuten,rqvcuten,rqccuten,                 &
-               rqicuten,rucuten,rvcuten,gdc,gdc2,          &
-               pratec,pratecd,pratecm,pratecs,raincv,      &
-               raincvd,raincvm,raincvs,nclos,weights_clos, &
-               ids,ide,jds,jde,kds,kde,                    &
-               ims,ime,jms,jme,kms,kme,                    &
-               its,ite,jts,jte,kts,kte                     &
+               dt,dx,area,u,v,w,t,q,rho,p,pi,p8w,dz8w,       &
+               ht,xland,hfx,qfx,kpbl,rthraten,rthften,       &
+               rqvften,rqvblten,rthblten,                    &
+               do_deepc,do_midlc,do_shalc,                   &
+               ichoice,ichoice_m,ichoice_s,                  &
+               kbcon_deepc,ktop_deepc,k22_deepc,             &
+               kbcon_midlc,ktop_midlc,k22_midlc,             &
+               kbcon_shalc,ktop_shalc,k22_shalc,             &
+               xmb_deepc,xmb_midlc,xmb_shalc,                &
+               zu_deepc,zd_deepc,zu_midlc,zd_midlc,          &
+               zu_shalc,rthcuten,rqvcuten,rqccuten,          &
+               rqicuten,rucuten,rvcuten,rthcuten_deepc,      &
+               rqvcuten_deepc,rqccuten_deepc,rqicuten_deepc, &
+               rthcuten_midlc,rqvcuten_midlc,rqccuten_midlc, &
+               rqicuten_midlc,rthcuten_shalc,rqvcuten_shalc, &
+               rqccuten_shalc,rqicuten_shalc,gdc,gdc2,       &
+               pratec,pratecd,pratecm,pratecs,raincv,        &
+               raincvd,raincvm,raincvs,nclos,weights_clos,   &
+               ids,ide,jds,jde,kds,kde,                      &
+               ims,ime,jms,jme,kms,kme,                      &
+               its,ite,jts,jte,kts,kte                       &
                                    )
 !-----------------------------------------------------------------------------------------------------------------
 
@@ -72,7 +79,11 @@
  real,intent(inout),dimension(ims:ime,kms:kme,jms:jme):: rthcuten,rqvcuten,rqccuten
  real,intent(inout),dimension(ims:ime,kms:kme,jms:jme),optional:: rucuten,rvcuten
  real,intent(inout),dimension(ims:ime,kms:kme,jms:jme),optional:: gdc,gdc2,rqicuten
-
+ real,intent(inout),dimension(ims:ime,kms:kme,jms:jme),optional:: zu_deepc,zd_deepc,zu_midlc,zd_midlc,zu_shalc
+ real,intent(inout),dimension(ims:ime,kms:kme,jms:jme),optional:: rthcuten_deepc,rqvcuten_deepc,rqccuten_deepc, &
+                                                                  rqicuten_deepc,rthcuten_midlc,rqvcuten_midlc, &
+                                                                  rqccuten_midlc,rqicuten_midlc,rthcuten_shalc, &
+                                                                  rqvcuten_shalc,rqccuten_shalc,rqicuten_shalc
  real,intent(inout),dimension(ims:ime,1:nclos,jms:jme),optional:: weights_clos
 
 !local variables:
@@ -181,6 +192,25 @@
 
           if(present(rucuten)) rucuten(i,k,j) = 0.
           if(present(rvcuten)) rvcuten(i,k,j) = 0.
+
+          if(present(zu_deepc)) zu_deepc(i,k,j) = 0.
+          if(present(zd_deepc)) zd_deepc(i,k,j) = 0.
+          if(present(zu_midlc)) zu_midlc(i,k,j) = 0.
+          if(present(zd_midlc)) zd_midlc(i,k,j) = 0.
+          if(present(zu_shalc)) zu_shalc(i,k,j) = 0.
+
+          if(present(rthcuten_deepc)) rthcuten_deepc(i,k,j) = 0.
+          if(present(rqvcuten_deepc)) rqvcuten_deepc(i,k,j) = 0.
+          if(present(rqccuten_deepc)) rqccuten_deepc(i,k,j) = 0.
+          if(present(rqicuten_deepc)) rqicuten_deepc(i,k,j) = 0.
+          if(present(rthcuten_midlc)) rthcuten_midlc(i,k,j) = 0.
+          if(present(rqvcuten_midlc)) rqvcuten_midlc(i,k,j) = 0.
+          if(present(rqccuten_midlc)) rqccuten_midlc(i,k,j) = 0.
+          if(present(rqicuten_midlc)) rqicuten_midlc(i,k,j) = 0.
+          if(present(rthcuten_shalc)) rthcuten_shalc(i,k,j) = 0.
+          if(present(rqvcuten_shalc)) rqvcuten_shalc(i,k,j) = 0.
+          if(present(rqccuten_shalc)) rqccuten_shalc(i,k,j) = 0.
+          if(present(rqicuten_shalc)) rqicuten_shalc(i,k,j) = 0.
        enddo
     enddo
 
@@ -337,6 +367,7 @@
 
     !--- call to shallow convection:
     if(do_shalc) then
+       call mpas_log_write("  ")
        call mpas_log_write("--- enter subroutine cup_gf_sh:")
        call cup_gf_sh( &
                 !input variables:
@@ -375,6 +406,7 @@
 
     !--- call to mid-level convection:
     if(do_midlc) then
+       call mpas_log_write("  ")
        call mpas_log_write("--- enter subroutine cup_gf: middle")
        call cup_gf( &
                 itf,ktf,its,ite,kts,kte,                                   &
@@ -415,6 +447,7 @@
 
     !--- call to deep convection:
     if(do_deepc) then
+       call mpas_log_write("  ")
        call mpas_log_write("--- enter subroutine cup_gf: deep")
        call cup_gf( &
                 itf,ktf,its,ite,kts,kte,                               &
@@ -483,6 +516,16 @@
           rqccuten(i,k,j) = cuten(i)*outqc(i,k) + cutenm(i)*outqcm(i,k) + cutens(i)*outqcs(i,k)
           if(present(gdc)) gdc(i,k,j) = cuten(i)*cupclw(i,k) + cutenm(i)*cupclwm(i,k) + cutens(i)*cupclws(i,k)
 
+          if(present(rthcuten_deepc)) rthcuten_deepc(i,k,j) = cuten(i)*outt(i,k)
+          if(present(rqvcuten_deepc)) rqvcuten_deepc(i,k,j) = cuten(i)*outq(i,k)
+          if(present(rqccuten_deepc)) rqccuten_deepc(i,k,j) = cuten(i)*outqc(i,k)
+          if(present(rthcuten_midlc)) rthcuten_midlc(i,k,j) = cutenm(i)*outtm(i,k)
+          if(present(rqvcuten_midlc)) rqvcuten_midlc(i,k,j) = cutenm(i)*outqm(i,k)
+          if(present(rqccuten_midlc)) rqccuten_midlc(i,k,j) = cutenm(i)*outqcm(i,k)
+          if(present(rthcuten_shalc)) rthcuten_shalc(i,k,j) = cutens(i)*outts(i,k)
+          if(present(rqvcuten_shalc)) rqvcuten_shalc(i,k,j) = cutens(i)*outqs(i,k)
+          if(present(rqccuten_shalc)) rqccuten_shalc(i,k,j) = cutens(i)*outqcs(i,k)
+
           if(present(rqicuten)) then
              if(t2d(i,k) .lt. tcrit) then
                 rqicuten(i,k,j) = rqccuten(i,k,j)
@@ -491,11 +534,29 @@
                    gdc2(i,k,j) = gdc(i,k,j)
                    gdc(i,k,j)  = 0.
                 endif
+                if(present(rqicuten_deepc)) then
+                   rqicuten_deepc(i,k,j) = rqccuten_deepc(i,k,j)
+                   rqccuten_deepc(i,k,j) = 0.
+                endif
+                if(present(rqicuten_midlc)) then
+                   rqicuten_midlc(i,k,j) = rqccuten_midlc(i,k,j)
+                   rqccuten_midlc(i,k,j) = 0.
+                endif
+                if(present(rqicuten_shalc)) then
+                   rqicuten_shalc(i,k,j) = rqccuten_shalc(i,k,j)
+                   rqccuten_shalc(i,k,j) = 0.
+                endif
              endif
           endif
 
           if(present(rucuten)) rucuten(i,k,j)  = cutenm(i)*outum(i,k) + cuten(i)*outu(i,k)
           if(present(rvcuten)) rvcuten(i,k,j)  = cutenm(i)*outvm(i,k) + cuten(i)*outv(i,k)
+
+          if(present(zu_deepc)) zu_deepc(i,k,j) = cuten(i)*zu(i,k)
+          if(present(zd_deepc)) zd_deepc(i,k,j) = cuten(i)*zd(i,k)
+          if(present(zu_midlc)) zu_midlc(i,k,j) = cutenm(i)*zum(i,k)
+          if(present(zd_midlc)) zd_midlc(i,k,j) = cutenm(i)*zdm(i,k)
+          if(present(zu_shalc)) zu_shalc(i,k,j) = cutens(i)*zus(i,k)
        enddo
     enddo
 

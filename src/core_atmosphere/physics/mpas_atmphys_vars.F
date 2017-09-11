@@ -123,7 +123,9 @@
 ! * added the variable pratecd_p,raincvd_p,and raincd_p to save diagnostics of the instantaneous and accumulated
 !   precipitation for deep convection from the Grell-Freitas convection scheme.
 !   Laura D. Fowler (laura@ucar.edu) / 2017-04-25.
-
+! * for the Grell-Freitas scheme, added diagnostics of the updraft and downdraft massflux, and tendencies for
+!   shallow, mid-level, and deep convection, separately.
+!   Laura D. Fowler (laura@ucar.edu) / 2017-09-11.
 
 !=================================================================================================================
 !wrf-variables:these variables are needed to keep calls to different physics parameterizations
@@ -358,7 +360,26 @@
  real(kind=RKIND),dimension(:,:,:),allocatable:: &
     rthdynten_p,      &!
     qccu_p,           &!
-    qicu_p             !
+    qicu_p,           &!
+    zu_deepc_p,       &!
+    zd_deepc_p,       &!
+    zu_midlc_p,       &!
+    zd_midlc_p,       &!
+    zu_shalc_p         !
+
+ real(kind=RKIND),dimension(:,:,:),allocatable:: &
+    rthcuten_deepc_p, &!
+    rthcuten_midlc_p, &!
+    rthcuten_shalc_p, &!
+    rqvcuten_deepc_p, &!
+    rqvcuten_midlc_p, &!
+    rqvcuten_shalc_p, &!
+    rqccuten_deepc_p, &!
+    rqccuten_midlc_p, &!
+    rqccuten_shalc_p, &!
+    rqicuten_deepc_p, &!
+    rqicuten_midlc_p, &!
+    rqicuten_shalc_p
 
  real(kind=RKIND),dimension(:,:,:),allocatable:: &
     rthraten_p         !
