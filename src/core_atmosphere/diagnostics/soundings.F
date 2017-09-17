@@ -214,7 +214,7 @@ module soundings
         integer :: iStn, k
         integer, pointer :: nVertLevels, index_qv
         real (kind=RKIND), dimension(:,:), pointer :: pressure_base, pressure_p, uReconstructZonal, uReconstructMeridional, zgrid, &
-                                                      theta_m, exner
+                                                      theta_m, exner, theta, thetav
         real (kind=RKIND), dimension(:,:,:), pointer :: scalars
         real (kind=RKIND) :: tmpc, tdpc, dir, spd, rh, log_rh, qvs, pres
         type (MPAS_time_type) :: now
@@ -234,6 +234,7 @@ module soundings
             call MPAS_pool_get_array(mesh, 'zgrid', zgrid)
             call MPAS_pool_get_array(state, 'scalars', scalars, 1)
             call MPAS_pool_get_array(state, 'theta_m', theta_m, 1)
+            call MPAS_pool_get_array(state, 'theta', theta, 1)
             call MPAS_pool_get_array(diag, 'pressure_base', pressure_base)
             call MPAS_pool_get_array(diag, 'pressure_p', pressure_p)
             call MPAS_pool_get_array(diag, 'exner', exner)
@@ -244,19 +245,19 @@ module soundings
 
             do iStn=1,nSoundings
                 if (stationOwned(iStn)) then
-!                    write(stderrUnit,*) 'Writing sounding for station '//trim(stationNames(iStn))
 
+                    ! J. Cipriani, TWC / IBM (09/2017) -- modified for input to SkewT python module
                     write(fname,'(a,i4.4,i2.2,i2.2,i2.2,i2.2,a)') trim(stationNames(iStn))//'.', yyyy, mm, dd, h, m, '.snd'
                     open(97,file=trim(fname),form='formatted',status='replace')
 
                     write(stid,'(a)') trim(stationNames(iStn))
 
-                    write(97,'(a)') '  SNPARM = PRES;HGHT;TMPC;DWPC;DRCT;SPED;'
+                    write(97,'(a,f6.2,a,f7.2,a,i2.2,a,i2.2,a,i2.2,a,i4.4)') stid//' Forecast at LAT=', stationLats(iStn), ', LON=', stationLons(iStn), ': ', h, 'Z ', dd, ' ', mm, ' ', yyyy 
                     write(97,'(a)') ''
-                    write(97,'(a,i2.2,i2.2,i2.2,a,i2.2,i2.2)') ' STID = '//stid//'  STNM = 99999       TIME = ', mod(yyyy,100), mm, dd,'/', h, m
-                    write(97,'(a,f6.2,a,f7.2,a)') ' SLAT = ', stationLats(iStn), '      SLON = ', stationLons(iStn), '     SELV =    -999'
-                    write(97,'(a)') ''
-                    write(97,'(a)') '      PRES      HGHT     TMPC     DWPC     DRCT     SPED'
+                    write(97,'(a)') '--------------------------------------------------------'
+                    write(97,'(a)') '   PRES   HGHT   TEMP   DWPT   RELH   MIXR   DRCT   SKNT'
+                    write(97,'(a)') '    hPa     m      C      C      %    g/kg    deg   knot'
+                    write(97,'(a)') '--------------------------------------------------------'
 
                     do k=1,nVertLevels
                         tmpc = theta_m(k,stationCells(iStn)) / (1.0_RKIND + rvord * scalars(index_qv,k,stationCells(iStn))) * exner(k,stationCells(iStn))
@@ -281,13 +282,16 @@ module soundings
                             end if
                             dir = dir * 180.0_RKIND / pi_const
                         end if
-                        write(97,'(f10.2,f10.2,f9.2,f9.2,f9.2,f9.2)') &
+                        write(97,'(f10.2,f10.2,f9.2,f9.2,f9.2,f9.2,f9.2,f9.2)') &
                                     pres, &
                                     0.5 * (zgrid(k,stationCells(iStn)) + zgrid(k+1,stationCells(iStn))), &               ! Avg to layer midpoint
                                     tmpc, &
                                     tdpc, &
+                                    100.*rh, &
+                                    scalars(index_qv,k,stationCells(iStn))*1000., & 
                                     dir, &
-                                    spd
+                                    spd/0.514444    ! speed in knots
+                                    
                     end do
 
                     close(97)
