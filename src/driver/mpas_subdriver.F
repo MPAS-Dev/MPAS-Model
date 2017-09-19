@@ -39,6 +39,14 @@ module mpas_subdriver
    type (dm_info), pointer :: dminfo
    type (domain_type), pointer :: domain_ptr
 
+   type mpas_coupler_type
+      integer :: role
+      integer :: intracomm
+      integer :: intercomm
+   end type mpas_coupler_type
+
+   type (mpas_coupler_type) :: mpas_cpl
+
    contains
 
 
@@ -151,11 +159,16 @@ module mpas_subdriver
 
       call mpas_allocate_domain(domain_ptr)
 
+      call mpas_coupler_init(mpas_cpl)
+write(0,*) 'My role is ', mpas_cpl % role
+
       !
       ! Initialize infrastructure
       !
-      call mpas_framework_init_phase1(domain_ptr % dminfo)
+      call mpas_framework_init_phase1(domain_ptr % dminfo, mpi_comm=mpas_cpl%intracomm)
 
+
+      if (mpas_cpl % role == 1) then
 
 #ifdef CORE_ATMOSPHERE
       call atm_setup_core(corelist)
@@ -326,6 +339,8 @@ module mpas_subdriver
 
       call mpas_timer_stop('initialize')
 
+      end if
+
    end subroutine mpas_init
 
 
@@ -335,9 +350,16 @@ module mpas_subdriver
 
       integer :: iErr
 
+      if (mpas_cpl % role == 1) then
+write(0,*) 'Calling core_run()'
+
       iErr = domain_ptr % core % core_run(domain_ptr)
       if ( iErr /= 0 ) then
          call mpas_dmpar_global_abort('ERROR: Core run failed for core ' // trim(domain_ptr % core % coreName))
+      end if
+
+      else
+write(0,*) 'Doing something else...'
       end if
 
    end subroutine mpas_run
@@ -352,6 +374,8 @@ module mpas_subdriver
 
       integer :: iErr
 
+
+      if (mpas_cpl % role == 1) then
 
       !
       ! Finalize core
@@ -379,6 +403,12 @@ module mpas_subdriver
       call MPAS_stream_mgr_finalize(domain_ptr % streamManager)
 
       call mpas_framework_finalize(domain_ptr % dminfo, domain_ptr)
+
+      end if
+
+      call mpas_coupler_sync(mpas_cpl)
+
+      call mpas_coupler_finalize(mpas_cpl)
 
       deallocate(corelist % domainlist)
       deallocate(corelist)
@@ -463,5 +493,91 @@ module mpas_subdriver
       end do
 
    end subroutine add_stream_attributes
+
+   subroutine mpas_coupler_init(cpl)
+
+#ifdef _MPI
+#ifndef NOMPIMOD
+      use mpi
+#endif
+#endif
+
+      implicit none
+
+      type (mpas_coupler_type), intent(inout) :: cpl
+
+      integer :: comm_size
+      integer :: comm_rank
+      integer :: ierr
+
+#ifdef _MPI
+#ifdef NOMPIMOD
+      include 'mpif.h'
+#endif
+
+      call MPI_Init(ierr)
+
+      call MPI_Comm_rank(MPI_COMM_WORLD, comm_rank, ierr)
+      call MPI_Comm_size(MPI_COMM_WORLD, comm_size, ierr)
+
+      cpl % role = mod(comm_rank, 2)
+      cpl % intercomm = MPI_COMM_WORLD
+      call MPI_Comm_split(cpl % intercomm, cpl % role, (comm_rank / 2), cpl % intracomm, ierr)
+#else
+      ! Somehow handle this for non-MPI builds
+#endif
+
+   end subroutine mpas_coupler_init
+
+   subroutine mpas_coupler_finalize(cpl)
+
+#ifdef _MPI
+#ifndef NOMPIMOD
+      use mpi
+#endif
+#endif
+
+      implicit none
+
+      type (mpas_coupler_type), intent(inout) :: cpl
+
+      integer :: ierr
+
+#ifdef _MPI
+#ifdef NOMPIMOD
+      include 'mpif.h'
+#endif
+
+      call MPI_Finalize(ierr)
+#else
+      ! Somehow handle this for non-MPI builds
+#endif
+
+   end subroutine mpas_coupler_finalize
+
+   subroutine mpas_coupler_sync(cpl)
+
+#ifdef _MPI
+#ifndef NOMPIMOD
+      use mpi
+#endif
+#endif
+
+      implicit none
+
+      type (mpas_coupler_type), intent(inout) :: cpl
+
+      integer :: ierr
+
+#ifdef _MPI
+#ifdef NOMPIMOD
+      include 'mpif.h'
+#endif
+
+#else
+      ! Somehow handle this for non-MPI builds
+#endif
+
+   end subroutine mpas_coupler_sync
 
 end module mpas_subdriver
