@@ -1470,7 +1470,6 @@ module mpas_stream_manager
             end if
         end if
 
-        
         if ( threadNum == 0 ) then
            if (local_direction == MPAS_STREAM_INPUT .or. local_direction == MPAS_STREAM_INPUT_OUTPUT) then
                if (associated(stream)) then
@@ -1743,7 +1742,7 @@ module mpas_stream_manager
     !-----------------------------------------------------------------------
     !  routine MPAS_stream_mgr_get_property_int
     !
-    !> \brief Sets a property of a stream in an MPAS stream manager.
+    !> \brief Gets a property of a stream in an MPAS stream manager.
     !> \author Michael Duda, Doug Jacobsen
     !> \date   13 June 2014
     !> \details
@@ -1807,7 +1806,7 @@ module mpas_stream_manager
     !-----------------------------------------------------------------------
     !  routine MPAS_stream_mgr_get_property_char
     !
-    !> \brief Sets a property of a stream in an MPAS stream manager.
+    !> \brief Gets a property of a stream in an MPAS stream manager.
     !> \author Michael Duda, Doug Jacobsen
     !> \date   13 June 2014
     !> \details
@@ -1917,7 +1916,7 @@ module mpas_stream_manager
     !-----------------------------------------------------------------------
     !  routine MPAS_stream_mgr_get_property_logical
     !
-    !> \brief Sets a property of a stream in an MPAS stream manager.
+    !> \brief Gets a property of a stream in an MPAS stream manager.
     !> \author Michael Duda, Doug Jacobsen
     !> \date   13 June 2014
     !> \details
@@ -2992,7 +2991,7 @@ module mpas_stream_manager
                    ! Look for exact record (in the case of overwriting)
                    ! This also gets the number of records in the file.
                    stream % nRecords = MPAS_seekStream(stream % stream, now_string, MPAS_STREAM_EXACT_TIME, actualWhen, maxRecords, local_ierr)
-                   STREAM_DEBUG_WRITE(' -- Seeked record is: $i with current records equal to $i and an error of $i' COMMA intArgs=(/stream % nRecords COMMA maxRecords, local_ierr/))
+                   STREAM_DEBUG_WRITE(' -- Seeked record is: $i with current records equal to $i and an error of $i' COMMA intArgs=(/stream % nRecords COMMA maxRecords COMMA local_ierr/))
     
                    if ( stream % nRecords == 0 ) then
                        ! If we didn't find an exact time, set record to point to the end of the file.
@@ -3077,7 +3076,6 @@ module mpas_stream_manager
                        ! Look for exact record (in the case of overwriting)
                        ! This also gets the number of records in the file.
                        stream % nRecords = MPAS_seekStream(stream % stream, now_string, MPAS_STREAM_EXACT_TIME, actualWhen, maxRecords, local_ierr)
-                       STREAM_DEBUG_WRITE(' -- Seeked record is: ' COMMA stream % nRecords COMMA ' with current records equal to ' COMMA maxRecords COMMA ' and an error of ' COMMA local_ierr)
                        STREAM_DEBUG_WRITE(' -- Seeked record is: $i with current records equal to $i and an error of $i' COMMA intArgs=(/stream % nRecords COMMA maxRecords COMMA local_ierr/))
            
                        if ( stream % nRecords == 0 ) then
@@ -5554,7 +5552,7 @@ subroutine stream_mgr_create_stream_c(manager_c, streamID_c, direction_c, filena
     use mpas_c_interfacing, only : mpas_c_to_f_string
     use iso_c_binding, only : c_char, c_int, c_ptr, c_f_pointer
     use mpas_derived_types, only : MPAS_streamManager_type, &
-                                        MPAS_STREAM_MGR_NOERR, MPAS_STREAM_PROPERTY_FILENAME, &
+                                        MPAS_STREAM_MGR_NOERR, MPAS_STREAM_PROPERTY_FILENAME, MPAS_STREAM_PROPERTY_ACTIVE, &
                                         MPAS_STREAM_PROPERTY_FILENAME_INTV, MPAS_STREAM_PROPERTY_REF_TIME, &
                                         MPAS_STREAM_PROPERTY_RECORD_INTV, MPAS_STREAM_PROPERTY_PRECISION, &
                                         MPAS_STREAM_PROPERTY_CLOBBER, MPAS_STREAM_CLOBBER_NEVER, MPAS_STREAM_CLOBBER_APPEND, &
@@ -5666,6 +5664,10 @@ subroutine stream_mgr_create_stream_c(manager_c, streamID_c, direction_c, filena
 
     if (trim(filename_interval) /= 'none') then
         call MPAS_stream_mgr_set_property(manager, streamID, MPAS_STREAM_PROPERTY_FILENAME_INTV, filename_interval, ierr=ierr)
+    end if
+
+    if (direction_c == 4) then
+       call MPAS_stream_mgr_set_property(manager, streamID, MPAS_STREAM_PROPERTY_ACTIVE, .false., ierr=ierr)
     end if
 
     if (ierr == MPAS_STREAM_MGR_NOERR) then
@@ -5908,7 +5910,6 @@ subroutine stream_mgr_add_pkg_c(manager_c, streamID_c, package_c, ierr_c) bind(c
 
     type (MPAS_streamManager_type), pointer :: manager
     character(len=StrKIND) :: streamID, package
-    integer :: idirection
     integer :: ierr
 
 
