@@ -42,6 +42,7 @@
  character(len=StrKIND) :: fname
  character(len=StrKIND), pointer :: config_geog_data_path
  character(len=StrKIND), pointer :: config_landuse_data
+ character(len=StrKIND), pointer :: config_topo_data
  ! James Cipriani, TWC, 03/22/2017 --> for VIIRS green vegetation fraction data
  character(len=StrKIND), pointer :: config_greenfrac_data
  character(len=StrKIND), pointer :: config_greenfrac_data_path
@@ -61,6 +62,9 @@
       
  real(kind=4):: scalefactor
  real(kind=4),dimension(:,:,:),allocatable:: rarray
+
+ real(kind=RKIND):: start_lat
+ real(kind=RKIND):: start_lon
 
  real(kind=RKIND):: lat,lon,x,y
  real(kind=RKIND):: lat_pt,lon_pt
@@ -105,6 +109,7 @@
 
  call mpas_pool_get_config(configs, 'config_geog_data_path', config_geog_data_path)
  call mpas_pool_get_config(configs, 'config_landuse_data', config_landuse_data)
+ call mpas_pool_get_config(configs, 'config_topo_data', config_topo_data)
  ! James Cipriani, TWC, 03/22/2017
  call mpas_pool_get_config(configs, 'config_greenfrac_data', config_greenfrac_data)
  call mpas_pool_get_config(configs, 'config_greenfrac_data_path', config_greenfrac_data_path)
@@ -248,13 +253,32 @@
  nhs(:) = 0
  ter(:) = 0.0
 
+ start_lat = -89.99583
+ select case(trim(config_topo_data))
+    case('GTOPO30')
+       write(0,*) 'Using GTOPO30 terrain dataset'
+       geog_sub_path = 'topo_30s/'
+       start_lon = -179.99583
+    case('GMTED2010')
+       write(0,*) 'Using GMTED2010 terrain dataset'
+       geog_sub_path = 'topo_gmted2010_30s/'
+       start_lon = 0.004166667
+    case('default')
+       call mpas_dmpar_global_abort('*****************************************************************', deferredAbort=.true.)
+       call mpas_dmpar_global_abort('Invalid topography dataset '''//trim(config_topo_data) &
+                                              //''' selected for config_topo_data',                      deferredAbort=.true.)
+       call mpas_dmpar_global_abort('   Possible options are: ''GTOPO30'', ''GMTED2010''',               deferredAbort=.true.)
+       call mpas_dmpar_global_abort('*****************************************************************', deferredAbort=.true.)
+       call mpas_dmpar_global_abort('Please correct the namelist.')
+ end select
+
  do jTileStart = 1,20401,ny-6
     jTileEnd = jTileStart + ny - 1 - 6
 
     do iTileStart=1,42001,nx-6
        iTileEnd = iTileStart + nx - 1 - 6
-       write(fname,'(a,i5.5,a1,i5.5,a1,i5.5,a1,i5.5)') trim(geog_data_path)// &
-             'topo_30s/',iTileStart,'-',iTileEnd,'.',jTileStart,'-',jTileEnd
+       write(fname,'(a,i5.5,a1,i5.5,a1,i5.5,a1,i5.5)') trim(geog_data_path)//trim(geog_sub_path), &
+                    iTileStart,'-',iTileEnd,'.',jTileStart,'-',jTileEnd
        write(0,*) trim(fname)
 
        call read_geogrid(fname,len_trim(fname),rarray,nx,ny,nz,isigned,endian, &
@@ -264,8 +288,8 @@
        iPoint = 1
        do j=4,ny-3
        do i=4,nx-3
-          lat_pt = -89.99583  + (jTileStart + j - 5) * 0.0083333333
-          lon_pt = -179.99583 + (iTileStart + i - 5) * 0.0083333333
+          lat_pt = start_lat + (jTileStart + j - 5) * 0.0083333333
+          lon_pt = start_lon + (iTileStart + i - 5) * 0.0083333333
           lat_pt = lat_pt * PI / 180.0
           lon_pt = lon_pt * PI / 180.0
 
