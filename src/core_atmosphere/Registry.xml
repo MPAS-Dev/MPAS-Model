@@ -3063,7 +3063,7 @@
                 <var name="TS_RUL2D_mosaic" type="real" dimensions="nMosaicCat nCells Time" units="K"
                      description="RURAL TEMPERATURE"/>
 
-                <var name="TSLB_mosaic" type="real" dimensions="nMosaicCat nCells Time" units="K"
+                <var name="TSLB_mosaic" type="real" dimensions="nMosaicCat3D nCells Time" units="K"
                      description="SOIL TEMPERATURE"/>
 
                 <var name="SMOIS_mosaic" type="real" dimensions="nMosaicCat3D nCells Time" units="m3/m3"
