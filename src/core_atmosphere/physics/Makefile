@@ -97,6 +97,7 @@ mpas_atmphys_driver_convection.o: \
 	mpas_atmphys_vars.o \
 	./physics_wrf/module_cu_gf.mpas.o \
 	./physics_wrf/module_cu_kfeta.o \
+        ./physics_wrf/module_cu_kfetams.o \
 	./physics_wrf/module_cu_tiedtke.o \
 	./physics_wrf/module_cu_ntiedtke.o
 

@@ -2621,7 +2621,7 @@ CONTAINS
        enddo
 
        nens=0
-       irandom=1
+       irandom=0
        fens4=float(ens4)
 
 !--- LARGE SCALE FORCING

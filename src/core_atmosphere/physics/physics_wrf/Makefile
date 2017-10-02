@@ -17,6 +17,7 @@ OBJS = \
 	module_cu_tiedtke.o            \
 	module_cu_ntiedtke.o           \
 	module_cu_kfeta.o              \
+        module_cu_kfetams.o            \
 	module_mp_kessler.o            \
 	module_mp_radar.o              \
 	module_mp_thompson.o           \

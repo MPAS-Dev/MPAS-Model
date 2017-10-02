@@ -174,10 +174,11 @@
  endif
 
 !convection scheme:
- if(.not. (config_convection_scheme .eq. 'off'              .or. &
-           config_convection_scheme .eq. 'cu_grell_freitas' .or. &
-           config_convection_scheme .eq. 'cu_kain_fritsch'  .or. &
-           config_convection_scheme .eq. 'cu_tiedtke'       .or. &
+ if(.not. (config_convection_scheme .eq. 'off'                 .or. &
+           config_convection_scheme .eq. 'cu_grell_freitas'    .or. &
+           config_convection_scheme .eq. 'cu_kain_fritsch'     .or. &
+           config_convection_scheme .eq. 'cu_kain_fritsch_ms'  .or. &
+           config_convection_scheme .eq. 'cu_tiedtke'          .or. &
            config_convection_scheme .eq. 'cu_ntiedtke')) then
 
     write(mpas_err_message,'(A,A10)') 'illegal value for config_convection_scheme: ', &

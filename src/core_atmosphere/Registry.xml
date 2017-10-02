@@ -347,6 +347,7 @@
                 <package name="mp_wsm6_in" description="parameterization of WSM6 cloud microphysics."/>
                 <package name="cu_grell_freitas_in" description="parameterization of Grell-Freitas convection."/>
                 <package name="cu_kain_fritsch_in" description="parameterization of Kain-Fritsch convection."/>
+                <package name="cu_kain_fritsch_ms_in" description="parameterization of Multi-Scale Kain-Fritsch convection."/>
                 <package name="cu_tiedtke_in" description="parameterization of Tiedtke convection."/>
                 <package name="bl_ysu_in" description="parameterization of YSU Planetary Boundary Layer."/>
                 <package name="bl_mynn_in" description="parameterization of MYNN Planetary Boundary Layer."/>
@@ -1831,7 +1832,7 @@
                 <nml_option name="config_convection_scheme" type="character" default_value="suite" in_defaults="false"
                      units="-"
                      description="configuration for convection schemes"
-                     possible_values="`suite',`cu_kain_fritsch',`cu_tiedtke',`cu_ntiedtke',`cu_grell_freitas',`off'"/>
+                     possible_values="`suite',`cu_kain_fritsch',`cu_kain_fritsch_ms',`cu_tiedtke',`cu_ntiedtke',`cu_grell_freitas',`off'"/>
 
                 <nml_option name="config_lsm_scheme" type="character" default_value="suite" in_defaults="false"
                      units="-"
@@ -2031,29 +2032,51 @@
 
                 <var name="i_rainc" type="integer" dimensions="nCells Time" units="unitless"
                      description="incidence of accumulated convective precipitation greater than config_bucket_rainc"
-                     packages="cu_grell_freitas_in;cu_kain_fritsch_in;cu_tiedtke_in"/>
+                     packages="cu_grell_freitas_in;cu_kain_fritsch_in;cu_kain_fritsch_ms_in;cu_tiedtke_in"/>
 
                 <var name="cuprec" type="real" dimensions="nCells Time" units="mm s^{-1}"
                      description="convective precipitation rate"
-                     packages="cu_grell_freitas_in;cu_kain_fritsch_in;cu_tiedtke_in"/>
+                     packages="cu_grell_freitas_in;cu_kain_fritsch_in;cu_kain_fritsch_ms_in;cu_tiedtke_in"/>
 
                 <var name="rainc" type="real" dimensions="nCells Time" units="mm"
                      description="accumulated convective precipitation"
-                     packages="cu_grell_freitas_in;cu_kain_fritsch_in;cu_tiedtke_in"/>
+                     packages="cu_grell_freitas_in;cu_kain_fritsch_in;cu_kain_fritsch_ms_in;cu_tiedtke_in"/>
 
                 <var name="raincv" type="real" dimensions="nCells Time" units="mm"
                      description="time-step convective precipitation"
-                     packages="cu_grell_freitas_in;cu_kain_fritsch_in;cu_tiedtke_in"/>
+                     packages="cu_grell_freitas_in;cu_kain_fritsch_in;cu_kain_fritsch_ms_in;cu_tiedtke_in"/>
 
 
                 <!-- ... KAIN_FRITSCH ONLY: -->
                 <var name="nca" type="real" dimensions="nCells Time" units="s"
                      description="relaxation time for KF parameterization of convection"
-                     packages="cu_kain_fritsch_in"/>
+                     packages="cu_kain_fritsch_in;cu_kain_fritsch_ms_in"/>
 
                 <var name="w0avg" type="real" dimensions="nVertLevels nCells Time" units="m s^{-1}"
                      description="time running-averaged vertical velocity"
-                     packages="cu_kain_fritsch_in"/>
+                     packages="cu_kain_fritsch_in;cu_kain_fritsch_ms_in"/>
+
+
+                <!-- ... KAIN_FRITSCH MULTI-SCALE ONLY: -->
+                <var name="cldfra_sh_kf" type="real" dimensions="nVertLevels nCells Time" units="unitless"
+                     description="shallow convection cloud fraction from Kain-Fritsch Multi-Scale"
+                     packages="cu_kain_fritsch_ms_in"/>
+
+                <var name="cldfra_dp_kf" type="real" dimensions="nVertLevels nCells Time" units="unitless"
+                     description="deep convection cloud fraction from Kain-Fritsch Multi-Scale"
+                     packages="cu_kain_fritsch_ms_in"/>
+
+                <var name="qc_kf" type="real" dimensions="nVertLevels nCells Time" units="kg kg^{-1}"
+                     description="in-cloud cloud water mixing ratio from Kain-Fritsch Multi-Scale cloud model"
+                     packages="cu_kain_fritsch_ms_in"/>
+
+                <var name="qi_kf" type="real" dimensions="nVertLevels nCells Time" units="kg kg^{-1}"
+                     description="in-cloud cloud ice mixing ratio from Kain-Fritsch Multi-Scale cloud model"
+                     packages="cu_kain_fritsch_ms_in"/>
+
+                <var name="w_up" type="real" dimensions="nVertLevels nCells Time" units="m s^{-1}"
+                     description="effective subgrid velocity from Kain-Fritsch Multi-Scale"
+                     packages="cu_kain_fritsch_ms_in"/>
 
 
                 <!-- ... GRELL-FREITAS ONLY: -->
@@ -2093,11 +2116,11 @@
                 <!-- ... KAIN_FRITSCH AND GRELL-FREITAS: -->
                 <var name="cubot" type="real" dimensions="nCells Time" units="unitless"
                      description="index of highest level of convection"
-                     packages="cu_grell_freitas_in;cu_kain_fritsch_in"/>
+                     packages="cu_grell_freitas_in;cu_kain_fritsch_in;cu_kain_fritsch_ms_in"/>
 
                 <var name="cutop" type="real" dimensions="nCells Time" units="unitless"
                      description="index of lowest level of convection"
-                     packages="cu_grell_freitas_in;cu_kain_fritsch_in"/>
+                     packages="cu_grell_freitas_in;cu_kain_fritsch_in;cu_kain_fritsch_ms_in"/>
 
 
                 <!-- ================================================================================================== -->
@@ -2716,35 +2739,36 @@
 
                 <var name="rthcuten" type="real" dimensions="nVertLevels nCells Time" units="K s^{-1}"
                      description="tendency of potential temperature due to cumulus convection"
-                     packages="cu_grell_freitas_in;cu_kain_fritsch_in;cu_tiedtke_in"/>
+                     packages="cu_grell_freitas_in;cu_kain_fritsch_in;cu_kain_fritsch_ms_in;cu_tiedtke_in"/>
 
                 <var name="rqvcuten" type="real" dimensions="nVertLevels nCells Time" units="kg kg^{-1} s^{-1}"
                      description="tendency of water vapor mixing ratio due to cumulus convection"
-                     packages="cu_grell_freitas_in;cu_kain_fritsch_in;cu_tiedtke_in"/>
+                     packages="cu_grell_freitas_in;cu_kain_fritsch_in;cu_kain_fritsch_ms_in;cu_tiedtke_in"/>
 
                 <var name="rqccuten" type="real" dimensions="nVertLevels nCells Time" units="kg kg^{-1} s^{-1}"
                      description="tendency of cloud water mixing ratio due to cumulus convection"
-                     packages="cu_grell_freitas_in;cu_kain_fritsch_in;cu_tiedtke_in"/>
+                     packages="cu_grell_freitas_in;cu_kain_fritsch_in;cu_kain_fritsch_ms_in;cu_tiedtke_in"/>
 
                 <var name="rqicuten" type="real" dimensions="nVertLevels nCells Time" units="kg kg^{-1} s^{-1}"
                      description="tendency of cloud ice mixing ratio due to cumulus convection"
-                     packages="cu_grell_freitas_in;cu_kain_fritsch_in;cu_tiedtke_in"/>
+                     packages="cu_grell_freitas_in;cu_kain_fritsch_in;cu_kain_fritsch_ms_in;cu_tiedtke_in"/>
 
 
                 <!-- KAIN_FRITSCH: -->
                 <var name="rqrcuten" type="real" dimensions="nVertLevels nCells Time" units="kg kg^{-1} s^{-1}"
                      description="tendency of rain mixing ratio due to cumulus convection"
-                     packages="cu_kain_fritsch_in"/>
+                     packages="cu_kain_fritsch_in;cu_kain_fritsch_ms_in"/>
 
                 <var name="rqscuten" type="real" dimensions="nVertLevels nCells Time" units="kg kg^{-1} s^{-1}"
                      description="tendency of snow mixing ratio due to cumulus convection"
-                     packages="cu_kain_fritsch_in"/>
+                     packages="cu_kain_fritsch_in;cu_kain_fritsch_ms_in"/>
 
-                <!-- TIEDTKE AND GRELL -->
+                <!-- TIEDTKE, GRELL, AND KAIN_FRITSCH MULTI-SCALE -->
                 <var name="rqvdynten" type="real" dimensions="nVertLevels nCells Time" units="kg kg^{-1} s^{-1}"
                      description="tendency of water vapor due to horizontal and vertical advections"
-                     packages="cu_grell_freitas_in;cu_tiedtke_in"/>
+                     packages="cu_grell_freitas_in;cu_tiedtke_in;cu_kain_fritsch_ms_in"/>
 
+                <!-- TIEDTKE AND GRELL -->
                 <var name="rthdynten" type="real" dimensions="nVertLevels nCells Time" units="K s^{-1}"
                      description="tendency of temperature due to horizontal and vertical advections"
                      packages="cu_grell_freitas_in;cu_tiedtke_in"/>

@@ -264,11 +264,19 @@
     cutop_p,          &!highest convective level                                                [-]
     nca_p              !counter for cloud relaxation time                                       [-]
  real(kind=RKIND),dimension(:,:,:),allocatable:: &
-    w0avg_p          !
+    w0avg_p            !
 
  real(kind=RKIND),dimension(:,:,:),allocatable:: &
     rqrcuten_p,       &!
     rqscuten_p         !
+
+!... kain fritsch multi-scale specific arrays:
+real(kind=RKIND),dimension(:,:,:),allocatable:: &
+    cldfra_sh_kf_p,   &!
+    cldfra_dp_kf_p,   &!
+    qc_kf_p,          &!
+    qi_kf_p,          &!
+    w_up_p             !
 
 !... tiedtke specific arrays:
  real(kind=RKIND),dimension(:,:,:),allocatable:: &

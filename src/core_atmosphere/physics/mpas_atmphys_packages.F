@@ -37,7 +37,7 @@
  character(len=StrKIND),pointer:: config_convection_scheme
  character(len=StrKIND),pointer:: config_pbl_scheme
  logical,pointer:: mp_kessler_in,mp_thompson_in,mp_wsm6_in
- logical,pointer:: cu_grell_freitas_in,cu_kain_fritsch_in,cu_tiedtke_in
+ logical,pointer:: cu_grell_freitas_in,cu_kain_fritsch_in,cu_kain_fritsch_ms_in,cu_tiedtke_in
  logical,pointer:: bl_mynn_in,bl_ysu_in
 
  integer :: ierr
@@ -100,11 +100,15 @@
  nullify(cu_kain_fritsch_in)
  call mpas_pool_get_package(packages,'cu_kain_fritsch_inActive',cu_kain_fritsch_in)
 
+ nullify(cu_kain_fritsch_ms_in)
+ call mpas_pool_get_package(packages,'cu_kain_fritsch_ms_inActive',cu_kain_fritsch_ms_in)
+
  nullify(cu_tiedtke_in)
  call mpas_pool_get_package(packages,'cu_tiedtke_inActive',cu_tiedtke_in)
 
- if(.not.associated(cu_grell_freitas_in) .or. &
-    .not.associated(cu_kain_fritsch_in)  .or. &
+ if(.not.associated(cu_grell_freitas_in)    .or. &
+    .not.associated(cu_kain_fritsch_in)     .or. &
+    .not.associated(cu_kain_fritsch_ms_in)  .or. &
     .not.associated(cu_tiedtke_in)     ) then
     write(stderrUnit,*) '===================================================================================='
     write(stderrUnit,*) '* Error while setting up packages for convection options in atmosphere core.'
@@ -113,14 +117,17 @@
     return
  endif
 
- cu_grell_freitas_in = .false.
- cu_kain_fritsch_in  = .false.
- cu_tiedtke_in       = .false.
+ cu_grell_freitas_in    = .false.
+ cu_kain_fritsch_in     = .false.
+ cu_kain_fritsch_ms_in  = .false.
+ cu_tiedtke_in          = .false.
 
  if(config_convection_scheme=='cu_grell_freitas') then
     cu_grell_freitas_in = .true.
  elseif(config_convection_scheme == 'cu_kain_fritsch') then
     cu_kain_fritsch_in = .true.
+ elseif(config_convection_scheme == 'cu_kain_fritsch_ms') then
+    cu_kain_fritsch_ms_in = .true.
  elseif(config_convection_scheme == 'cu_tiedtke' .or. &
         config_convection_scheme == 'cu_ntiedtke') then
     cu_tiedtke_in = .true.
@@ -128,6 +135,7 @@
 
  write(0,*) '    cu_grell_freitas_in     = ', cu_grell_freitas_in
  write(0,*) '    cu_kain_fritsch_in      = ', cu_kain_fritsch_in
+ write(0,*) '    cu_kain_fritsch_ms_in   = ', cu_kain_fritsch_ms_in
  write(0,*) '    cu_tiedtke_in           = ', cu_tiedtke_in
 
 !--- initialization of all packages for parameterizations of surface layer and planetary boundary layer:

@@ -569,8 +569,15 @@
               enddo
               enddo
 
-
            case('cu_kain_fritsch')
+              do i = 1, nCellsSolve
+              do k = 1, nVertLevels
+                 tend_scalars(index_qr,k,i) = tend_scalars(index_qr,k,i) + rqrcuten(k,i)*mass(k,i)
+                 tend_scalars(index_qs,k,i) = tend_scalars(index_qs,k,i) + rqscuten(k,i)*mass(k,i)
+              enddo
+              enddo
+
+           case('cu_kain_fritsch_ms')
               do i = 1, nCellsSolve
               do k = 1, nVertLevels
                  tend_scalars(index_qr,k,i) = tend_scalars(index_qr,k,i) + rqrcuten(k,i)*mass(k,i)
@@ -744,6 +751,14 @@
         convection_select: select case(convection_scheme)
 
            case('cu_kain_fritsch')
+              do i = 1, nCellsSolve
+              do k = 1, nVertLevels
+                 tend_scalars(index_qr,k,i) = tend_scalars(index_qr,k,i) + rqrcuten(k,i)*mass(k,i)
+                 tend_scalars(index_qs,k,i) = tend_scalars(index_qs,k,i) + rqscuten(k,i)*mass(k,i)
+              enddo
+              enddo
+
+           case('cu_kain_fritsch_ms')
               do i = 1, nCellsSolve
               do k = 1, nVertLevels
                  tend_scalars(index_qr,k,i) = tend_scalars(index_qr,k,i) + rqrcuten(k,i)*mass(k,i)

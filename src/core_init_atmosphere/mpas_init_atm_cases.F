@@ -196,12 +196,12 @@ module init_atm_cases
                !     will have convex partitions, it's safer to just stop if multiple MPI tasks are
                !     detected when performing the static_interp step.
                !  
-               if (domain % dminfo % nprocs > 1) then
-                 call mpas_dmpar_global_abort('****************************************************************', deferredAbort=.true.)
-                 call mpas_dmpar_global_abort('Error: Interpolation of static fields does not work in parallel.', deferredAbort=.true.)
-                 call mpas_dmpar_global_abort('Please run the static_interp step using only a single MPI task.',  deferredAbort=.true.)
-                 call mpas_dmpar_global_abort('****************************************************************')
-               end if
+!              if (domain % dminfo % nprocs > 1) then
+!                call mpas_dmpar_global_abort('****************************************************************', deferredAbort=.true.)
+!                call mpas_dmpar_global_abort('Error: Interpolation of static fields does not work in parallel.', deferredAbort=.true.)
+!                call mpas_dmpar_global_abort('Please run the static_interp step using only a single MPI task.',  deferredAbort=.true.)
+!                call mpas_dmpar_global_abort('****************************************************************')
+!              end if
 
                call init_atm_static(mesh, block_ptr % dimensions, block_ptr % configs)
                call init_atm_static_orogwd(mesh, block_ptr % dimensions, block_ptr % configs)
