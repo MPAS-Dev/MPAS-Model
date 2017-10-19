@@ -1,3 +1,13 @@
+!=================================================================================================================
+! copied for implementation in MPAS from WRF version 3.7.1:
+
+! modifications made to sourcecode:
+! * added REFSCL for scale aware reference grid
+!   set minimum TIMEC=TADVEC per WRF 3.9.1
+!   set trigger options (1 = Kain-fritsch, 2 = Bechtold, 3 = Moisture convergence)
+!   Brett A. Wilt (brett.wilt@weather.com) / 2017-10-12.
+!=================================================================================================================
+
 MODULE module_cu_kfetams
 
 !  USE module_wrf_error
@@ -270,8 +280,7 @@ CONTAINS
    ENDDO
    lastdt = dt
 
-! New trigger function
-     IF (trigger.eq.2) THEN
+     IF (trigger.eq.3) THEN
 !
 ! calculate 9-point average of moisture advection and temperature using halo (Horizontal)
 !
@@ -494,7 +503,7 @@ CONTAINS
                W0AVG1D(K) =W0AVG(I,K,J)
                DZ1D(k)=dz8w(I,K,J)
 
-               IF (trigger.eq.2) THEN
+               IF (trigger.eq.3) THEN
                   tpart_h1D(K) =tpart_h(I,K,J)
                   tpart_v1D(K) =tpart_v(I,K,J)
                ELSE
@@ -502,7 +511,7 @@ CONTAINS
                   tpart_v1D(K) = 0.
                ENDIF
             ENDDO
-            CALL KF_eta_PARA(I, J,                  &
+            CALL KF_eta_ms_PARA(I, J,               &
                  U1D,V1D,T1D,QV1D,P1D,DZ1D,W0AVG1D, &
                  tpart_h1D,tpart_v1D,               &
                  trigger,                           &
@@ -570,7 +579,7 @@ CONTAINS
    END SUBROUTINE KF_eta_ms_CPS
 ! ****************************************************************************
 !-----------------------------------------------------------
-   SUBROUTINE KF_eta_PARA (I, J,                           &
+   SUBROUTINE KF_eta_ms_PARA (I, J,                        &
                       U0,V0,T0,QV0,P0,DZQ,W0AVG1D,         &
                       TPART_H0,TPART_V0,                   &
                       trigger,                             &
@@ -721,7 +730,7 @@ CONTAINS
                  QSS,PPTMLT,DTMELT,RHH,EVAC,BINC
 !
       INTEGER :: INDLU,NU,NUCHM,NNN,KLFS
-   REAL    :: CHMIN,PM15,CHMAX,DTRH,RAD,DPPP
+   REAL    :: CHMIN,PM15,CHMAX,PERT,RAD,DPPP
    REAL    :: TVDIFF,DTTOT,ABSOMG,ABSOMGTC,FRDP
 !ckay
    REAL    :: xcldfra,UMF_new,DMF_new,FXM_new
@@ -750,7 +759,7 @@ CONTAINS
       REAL :: u00,qslcl,rhlcl,dqssdt    !jfb
       CHARACTER*1024 message
 !
-      DATA REFSCL/25.E3/
+      DATA REFSCL/15.E3/
       DATA P00,T00/1.E5,273.16/
       DATA RLF/3.339E5/
       DATA RHIC,RHBC/1.,0.90/
@@ -997,45 +1006,39 @@ usl:   DO
           TENV=T0(K)+(T0(KLCL)-T0(K))*DLP
           QENV=Q0(K)+(Q0(KLCL)-Q0(K))*DLP
           TVEN=TENV*(1.+0.608*QENV)
-!     
-! ww: this needs to be initialized
-          DTRH = 0.
 
-! Bechtold 2001 trigger with my Beta parameter
-          DTLCL = W0AVG1D(KLCL)/Scale_Fac
-          if(DTLCL.lt.0.0) then
-             tempKay = -1.0
-             DTLCL = tempKay * DTLCL
-             DTLCL = (DTLCL)**0.3333
-          else
-             tempKay = 1.0
-             DTLCL = tempKay * DTLCL
-             DTLCL = (DTLCL)**0.3333
-          end if
+! Testing random temperature perturbation
+!         CALL RANDOM_NUMBER(PERT)
+!         PERT = -0.50*PERT
+          PERT = 0.
 
-          DTLCL = 6.0 * tempKay * DTLCL 
-!
-! old trigger
-! Stick with the old trigger for now... CGM July 2015
-!
-          IF(ZLCL.LT.2.E3)THEN        ! Kain (2004) Eq. 2
-            WKLCL=0.02*ZLCL/2.E3
-          ELSE
-            WKLCL=0.02                ! units of m/s
+! Kain trigger
+          IF(TRIGGER.EQ.1) THEN
+            IF(ZLCL.LT.2.E3)THEN 
+              WKLCL=0.02*ZLCL/2.E3
+            ELSE
+              WKLCL=0.02 
+            ENDIF
+            WKL=(W0AVG1D(K)+(W0AVG1D(KLCL)-W0AVG1D(K))*DLP)*DX/25.E3-WKLCL
+            IF(WKL.LE.0.)THEN
+              DTLCL=0.
+            ELSE
+              DTLCL=4.64*WKL**0.33 
+            ENDIF
+! Bechtold trigger
+          ELSEIF(TRIGGER.EQ.2) THEN
+            WKL = (W0AVG1D(K)+(W0AVG1D(KLCL)-W0AVG1D(K))*DLP)*DX/25.E3
+            if(WKL.LE.0.) then
+               DTLCL = 0.
+            else
+               DTLCL = 6.0*WKL**0.33
+            end if
+! Moisture convergence trigger
+          ELSEIF(TRIGGER.EQ.3) THEN
+            DTLCL=AMAX1(TPART_H0(KLCL)+TPART_V0(KLCL),0.0)
           ENDIF
-          WKL=(W0AVG1D(K)+(W0AVG1D(KLCL)-W0AVG1D(K))*DLP)*DX/REFSCL-WKLCL
-          IF(WKL.LT.0.0001)THEN
-            DTLCL=0.
-          ELSE
-            DTLCL=4.64*WKL**0.33      ! Kain (2004) Eq. 1
-          ENDIF
 
-
-!         IF(ISHALL.EQ.1)IPRNT=.TRUE.
-!         IPRNT=.TRUE.
-!         IF(TLCL+DTLCL.GT.TENV)GOTO 45
-
-           IF(TLCL+DTLCL.LT.TENV)THEN
+          IF(TLCL+DTLCL+PERT.LT.TENV)THEN
 !
 ! Parcel not buoyant, CYCLE back to start of trigger and evaluate next potential
 ! USL...
@@ -1052,7 +1055,7 @@ usl:   DO
 !
 !...modify calculation of initial parcel vertical velocity...jsk 11/26/97
 !
-            DTTOT = DTLCL+DTRH
+            DTTOT = DTLCL+PERT
             IF(DTTOT.GT.1.E-4)THEN
               GDT=2.*G*DTTOT*500./TVEN     ! Kain (2004) Eq. 3  (sort of)
               WLCL=1.+0.5*SQRT(GDT)
@@ -1363,7 +1366,7 @@ updraft:    DO NK=K,KL-1
 !   FIRST BECOMES NEGATIVE...
 !     
             LTOP=NK
-            CLDHGT(LC)=Z0(LTOP)-ZLCL 
+            CLDHGT(LC)=Z0(LTOP)-ZLCL
 !
 !...Instead of using the same minimum cloud height (for deep convection)
 !...everywhere, try specifying minimum cloud depth as a function of TLCL...
@@ -1665,37 +1668,37 @@ updraft:    DO NK=K,KL-1
 !ckay
 !new dynTau based on subcloud layer scales : note Z0(KPBL)=altitude of source layer
 
-         TIMEC = Amax1(CHMIN,CLDHGT(LC))
-         TIMEC = TIMEC*Scale_Fac
+        TIMEC = Amax1(CHMIN,CLDHGT(LC))
+        TIMEC = TIMEC*Scale_Fac
 
 !ckay SCLvel = SubCloudLayerVELOCITY = Wsb
-         SCLvel = WSTAR(I,J)**3
-         ZLCL_KAY = amax1(ZLCL,Z0(KPBL))
-         SCLvel = SCLvel/PBLH(I,J)
-         SCLvel = SCLvel*ZLCL_kay   
-         SCLvel = SCLvel**0.333   ! Wsb=SubCloudLayerVelocity for ConvectivePBL
-         if(ZOL(i,J).le.0.0) then
-           FRC2=3.8*Ust(I,J)*Ust(I,J)
-           FRC2 = FRC2 + 0.22*SCLvel*SCLvel
-           zz_kay = -1.0*ZOL(I,j)
-           ZLCL_KAY = zz_kay**(2./3.)
-           ZLCL_KAY = ZLCL_KAY * (1.9*Ust(I,J)*Ust(I,J))
-           FRC2 = FRC2 + ZLCL_KAY
-         else
-           FRC2=3.8*Ust(I,J)*Ust(I,J)
-         end if 
+        SCLvel = WSTAR(I,J)**3.
+        ZLCL_KAY = amax1(ZLCL,Z0(KPBL))
+        SCLvel = SCLvel/PBLH(I,J)
+        SCLvel = SCLvel*ZLCL_kay   
+        SCLvel = SCLvel**0.333   ! Wsb=SubCloudLayerVelocity for ConvectivePBL
+        if(ZOL(i,J).le.0.0) then
+          FRC2=3.8*Ust(I,J)*Ust(I,J)
+          FRC2 = FRC2 + 0.22*SCLvel*SCLvel
+          zz_kay = -1.0*ZOL(I,j)
+          ZLCL_KAY = zz_kay**(2./3.)
+          ZLCL_KAY = ZLCL_KAY * (1.9*Ust(I,J)*Ust(I,J))
+          FRC2 = FRC2 + ZLCL_KAY
+        else
+          FRC2=3.8*Ust(I,J)*Ust(I,J)
+        end if 
 
-          FRC2 = SQRT(FRC2)  
-          SCLvel =  FRC2  ! Wsb=new subcloud layer velocity scale for all conditions
+        FRC2 = SQRT(FRC2)  
+        SCLvel =  FRC2  ! Wsb=new subcloud layer velocity scale for all conditions
 
-         if(ABE.le.0.0) ABE = 1.0 
-         TIMEC = TIMEC/((0.03*SCLvel*ABE)**0.3333)
+        if(ABE.le.0.0) ABE = 1.0 
+        TIMEC = TIMEC/((0.03*SCLvel*ABE)**0.333)
 
 !ckay: this dynTau is good for the Deep as well as Shallow Cu clouds
-        TIMEC = AMAX1(DT, TIMEC)
- 
-         NIC=NINT(TIMEC/DT)
-         TIMEC=FLOAT(NIC)*DT
+        TIMEC = AMAX1(TADVEC, TIMEC)
+
+        NIC=NINT(TIMEC/DT)
+        TIMEC=FLOAT(NIC)*DT
 !     
 !...COMPUTE WIND SHEAR AND PRECIPITATION EFFICIENCY.
 !     
@@ -2512,10 +2515,10 @@ iter:     DO NCOUNT=1,10
          write(98,*)
 !        write(98,*)'At t(h), I, J =',float(NTSD)*72./3600.,I,J
          write(message,*)'P(LC), DTP, WKL, WKLCL =',p0(LC)/100.,       &
-                     TLCL+DTLCL+dtrh-TENV,WKL,WKLCL
+                     TLCL+DTLCL+PERT-TENV,WKL,WKLCL
          call wrf_message(message)
-         write(message,*)'TLCL, DTLCL, DTRH, TENV =',TLCL,DTLCL,       &
-                      DTRH,TENV   
+         write(message,*)'TLCL, DTLCL, PERT, TENV =',TLCL,DTLCL,       &
+                      PERT,TENV   
          call wrf_message(message)
          WRITE(message,1025)KLCL,ZLCL,DTLCL,LTOP,P0(LTOP),IFLAG,       &
          TMIX-T00,PMIX,QMIX,ABE
@@ -2672,7 +2675,7 @@ iter:     DO NCOUNT=1,10
         IF(TADVEC.LT.TIMEC)NIC=NINT(TADVEC/DT)
         NCA(I,J) = REAL(NIC)*DT
         IF(ISHALL.EQ.1)THEN
-           TIMEC = 2400.
+!          TIMEC = 2400.
            NCA(I,J) = CUDT*60.
            NSHALL = NSHALL+1
         ENDIF
@@ -2699,7 +2702,7 @@ iter:     DO NCOUNT=1,10
 !
 !...IF ICE PHASE IS NOT ALLOWED, MELT ALL FROZEN HYDROMETEORS...
 !
-          IF(warm_rain)THEN
+          IF(.NOT. F_QI .and. warm_rain)THEN
 
             CPM=CP*(1.+0.887*QG(K))
             TG(K)=TG(K)-(QIG(K)+QSG(K))*RLF/CPM
@@ -2707,7 +2710,7 @@ iter:     DO NCOUNT=1,10
             DQIDT(K)=0.
             DQRDT(K)=(QRG(K)+QSG(K)-QR0(K)-QS0(K))/TIMEC
             DQSDT(K)=0.
-          ELSEIF(.NOT. F_QS)THEN
+          ELSEIF(.NOT. F_QI .and. .not. warm_rain)THEN
 !
 !...IF ICE PHASE IS ALLOWED, BUT MIXED PHASE IS NOT, MELT FROZEN HYDROMETEORS
 !...BELOW THE MELTING LEVEL, FREEZE LIQUID WATER ABOVE THE MELTING LEVEL
@@ -2722,22 +2725,22 @@ iter:     DO NCOUNT=1,10
             DQIDT(K)=0.
             DQRDT(K)=(QRG(K)+QSG(K)-QR0(K)-QS0(K))/TIMEC
             DQSDT(K)=0.
-          ELSEIF(F_QS) THEN
+          ELSEIF(F_QI) THEN
 !
 !...IF MIXED PHASE HYDROMETEORS ARE ALLOWED, FEED BACK CONVECTIVE TENDENCIES
 !...OF HYDROMETEORS DIRECTLY...
 !
             DQCDT(K)=(QLG(K)-QL0(K))/TIMEC
-            DQSDT(K)=(QSG(K)-QS0(K))/TIMEC
+            DQIDT(K)=(QIG(K)-QI0(K))/TIMEC
             DQRDT(K)=(QRG(K)-QR0(K))/TIMEC
-            IF (F_QI) THEN
-               DQIDT(K)=(QIG(K)-QI0(K))/TIMEC
+            IF (F_QS) THEN
+               DQSDT(K)=(QSG(K)-QS0(K))/TIMEC
             ELSE
-               DQSDT(K)=DQSDT(K)+(QIG(K)-QI0(K))/TIMEC
+               DQIDT(K)=DQIDT(K)+(QSG(K)-QS0(K))/TIMEC
             ENDIF
           ELSE
 !              PRINT *,'THIS COMBINATION OF IMOIST, IEXICE, IICE NOT ALLOWED!'
-              CALL wrf_error_fatal ( 'KAIN-FRITSCH, THIS MICROPHYSICS CHOICE IS NOT ALLOWED' )
+!             CALL wrf_error_fatal ( 'KAIN-FRITSCH, THIS COMBINATION OF IMOIST, IEXICE, IICE NOT ALLOWED' )
           ENDIF
           DTDT(K)=(TG(K)-T0(K))/TIMEC
           DQDT(K)=(QG(K)-Q0(K))/TIMEC
@@ -2792,7 +2795,7 @@ iter:     DO NCOUNT=1,10
       CUBOT(I,J)=REAL(LCL)
 !
 !-----------------------------------------------------------------------
-   END SUBROUTINE  KF_eta_PARA
+   END SUBROUTINE  KF_eta_ms_PARA
 !********************************************************************
 ! ***********************************************************************
    SUBROUTINE TPMIX2(p,thes,tu,qu,qliq,qice,qnewlq,qnewic,XLV1,XLV0)
