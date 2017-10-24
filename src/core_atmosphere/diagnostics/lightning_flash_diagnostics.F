@@ -8,6 +8,7 @@
 !=================================================================================================================
  module module_lightning_flash_diagnostics
  use mpas_kind_types
+ use mpas_log
  use mpas_derived_types
  use mpas_pool_routines,only: mpas_pool_get_array,     &
                               mpas_pool_get_config,    &
@@ -68,8 +69,8 @@
  type(MPAS_clock_type),pointer:: simulation_clock
 
 !-----------------------------------------------------------------------------------------------------------------
- write(0,*)
- write(0,*) '--- enter subroutine lightning_diagnostics_setup:'
+!call mpas_log_write(' ')
+!call mpas_log_write('--- enter subroutine lightning_diagnostics_setup:')
 
  clock => simulation_clock
 
@@ -80,7 +81,7 @@
  call mpas_pool_get_subpool(all_pools,'sfc_input'     ,sfc_input     )
  call mpas_pool_get_subpool(all_pools,'diag_lightning',diag_lightning)
 
- write(0,*) '--- end subroutine lightning_diagnostics_setup:'
+!call mpas_log_write('--- end subroutine lightning_diagnostics_setup.')
 
  end subroutine lightning_diagnostics_setup
 
@@ -129,13 +130,13 @@
 !-----------------------------------------------------------------------------------------------------------------
  subroutine lightning_diagnostics_compute()
 !-----------------------------------------------------------------------------------------------------------------
-!write(0,*)
- write(0,*) '--- enter subroutine lightning_diagnostics_compute:'
+!call mpas_log_write(' ')
+!call mpas_log-write('--- enter subroutine lightning_diagnostics_compute:')
 
  call lightning_diagnostics(mesh,state,1,diag,diag_physics,sfc_input,diag_lightning)
 
- write(0,*) '--- end subroutine lightning_diagnostics_compute:'
- write(0,*)
+!call mpas_log-write('--- end subroutine lightning_diagnostics_compute.')
+!call mpas_log_write(' ')
 
  end subroutine lightning_diagnostics_compute
 
@@ -190,7 +191,7 @@
  real(kind=RKIND),dimension(:,:),allocatable:: tp,pres
 
 !-----------------------------------------------------------------------------------------------------------------
- write(0,*) '--- enter subroutine lightning_diagnostics:'
+!call mpas_log_write('--- enter subroutine lightning_diagnostics:')
 
  call mpas_pool_get_dimension(mesh,'nCells'     ,nCells     )
  call mpas_pool_get_dimension(mesh,'nVertLevels',nVertLevels)
@@ -237,8 +238,8 @@
 
 !--- calculation of the ice path flash rate. iwp,swp,ang gwp are in kg/m2. iwp_fr is in fl. per min: 
  if(need_iwp_fr) then
-    write(0,*)
-    write(0,*) '--- ice path flash rate:'
+!   call mpas_log_write(' ')
+!   call mpas_log_write('--- ice path flash rate:')
     call mpas_pool_get_array(diag_lightning,'ice_water_path',iwp)
     call mpas_pool_get_array(diag_lightning,'snow_path'     ,swp)
     call mpas_pool_get_array(diag_lightning,'graupel_path'  ,gwp)
@@ -265,15 +266,15 @@
        frate = max(frate,0._RKIND)
        iwp_fr(iCell) = frate*area(iCell)*1.e-06/1440.
     enddo
-    write(0,*) '--- end ice path flash rate'
+!   call mpas_log_write('--- end ice path flash rate.')
  endif
 
 
 !--- calculation of the precipitation ice mass, snow mass, and graupel mass flash rate. pim_imass,
 !    pim_smass,and pim_gmass are in kg. pim_fr is in fl. per min):
  if(need_pim_fr) then
-    write(0,*)
-    write(0,*) '--- precipitation ice mass flash rate:'
+!   call mpas_log_write(' ')
+!   call mpas_log_write('--- precipitation ice mass flash rate:')
     call mpas_pool_get_array(diag_physics,'vqi',vqi)
     call mpas_pool_get_array(diag_physics,'vqs',vqs)
     call mpas_pool_get_array(diag_physics,'vqg',vqg)
@@ -306,14 +307,14 @@
        frate = twp*3.4e-08 - 18.1
        pim_fr(iCell) = max(frate,0._RKIND)
     enddo
-    write(0,*) '--- end precipitation ice mass flash rate'
+!   call mpas_log_write('--- end precipitation ice mass flash rate.')
  endif
 
 
 !--- calculation of the cloud top height flash rate:
  if(need_cldtoph_fr) then
-    write(0,*)
-    write(0,*) '--- cloud top height flash rate:'
+!   call mpas_log_write(' ')
+!   call mpas_log_write('--- cloud top height flash rate:')
     call mpas_pool_get_array(sfc_input,'xland',xland)
     call mpas_pool_get_array(diag_lightning,'cloud_top_height',cld_toph)
     call mpas_pool_get_array(diag_lightning,'cloud_toph_flashrate',cldtoph_fr)
@@ -335,14 +336,14 @@
        endif
 !      cldtoph_fr(iCell) = cldtoph_fr(iCell)/60.
     enddo
-    write(0,*) '--- end cloud top height flash rate'
+!   call mpas_log_write('--- end cloud top height flash rate.')
  endif
 
 
 !--- calculation of the updraft volume flash rate:
  if(need_upvol_fr) then
-    write(0,*)
-    write(0,*) '--- updraft volume flash rate:'
+!   call mpas_log_write(' ')
+!   call mpas_log_write('--- updraft volume flash rate:')
     call mpas_pool_get_array(diag_lightning,'updraft_volume',updraft_vol)
     call mpas_pool_get_array(diag_lightning,'updraft_vol_flashrate',upvol_fr)
 
@@ -361,14 +362,14 @@
        upvol_fr(iCell) = 0.0337e-09*updraft_vol(iCell)
 !      upvol_fr(iCell) = upvol_fr(iCell)/60.
     enddo
-    write(0,*) '--- end updraft volume flash rate'
+!   call mpas_log_write('--- end updraft volume flash rate.')
  endif
 
 
 !--- calculation of the maximum vertical velocity flash rate:
  if(need_max_vvel_fr) then
-    write(0,*)
-    write(0,*) '--- maximum vertical velocity flash rate:'
+!   call mpas_log_write(' ')
+!   call mpas_log_write('--- maximum vertical velocity flash rate:')
     call mpas_pool_get_array(sfc_input,'xland',xland)
     call mpas_pool_get_array(diag_lightning,'max_vvel',max_vvel)
     call mpas_pool_get_array(diag_lightning,'max_vvel_flashrate',max_vvel_fr)
@@ -385,14 +386,14 @@
        endif
 !      max_vvel_fr(iCell) = max_vvel_fr(iCell)/60.
     enddo
-    write(0,*) '--- end maximum vertical velocity flash rate'
+!   call mpas_log_write('--- end maximum vertical velocity flash rate.')
  endif
 
 
 !--- calculation of the volume of 35dBZ 10cm reflectivity flash rate:
  if(need_dbz35_fr) then 
-    write(0,*)
-    write(0,*) '--- 35dBZ 10cm reflectivity flash rate:'
+!   call mpas_log_write(' ')
+!   call mpas_log_write('--- 35dBZ 10cm reflectivity flash rate:')
     call mpas_pool_get_array(diag_lightning,'dbz35_volume',dbz35_vol)
     call mpas_pool_get_array(diag_lightning,'dbz35_flashrate',dbz35_fr)
 
@@ -411,14 +412,14 @@
        dbz35_fr(iCell) = 7.2e-02*dbz35_vol(iCell)
 !      dbz35_fr(iCell) = dbz35_fr(iCell)/60.
     enddo
-    write(0,*) '--- end 35dBZ 10cm reflectivity flash rate'
+!   call mpas_log_write('--- end 35dBZ 10cm reflectivity flash rate.')
  endif
 
 
 !--- calculation of the precipitating and non-precipitating ice massflux flash rate:
  if(need_npiceflx_fr) then
-    write(0,*)
-    write(0,*) '--- non-precipitating ice massflux flash rate:'
+!   call mpas_log_write(' ')
+!   call mpas_log_write('--- non-precipitating ice massflux flash rate:')
     call mpas_pool_get_array(mesh,'areaCell',area)
     call mpas_pool_get_array(diag_physics,'vqi',vqi)
     call mpas_pool_get_array(diag_physics,'vqs',vqs)
@@ -454,14 +455,14 @@
        npiceflx_fr(iCell) = npice_flx(iCell)*area(iCell)*6.58e-7
        npiceflx_fr(iCell) = npice_flx(iCell)*60.
     enddo
-    write(0,*) '--- end non-precipitating ice massflux flash rate'
+!   call mpas_log_write('--- end non-precipitating ice massflux flash rate.')
  endif
 
 
 !--- calculation of the lightning threats:
  if(need_ltg_threat) then
-    write(0,*)
-    write(0,*) '--- lightning threats:'
+!   call mpas_log_write(' ')
+!   call mpas_log_write('--- lightning threats:')
     call mpas_pool_get_array(diag_lightning,'lightning_threat1',ltg1)
     call mpas_pool_get_array(diag_lightning,'lightning_threat2',ltg2)
     call mpas_pool_get_array(diag_lightning,'lightning_threat3',ltg3)
@@ -501,7 +502,7 @@
     enddo
 
     if(allocated(ltg)) deallocate(ltg)
-    write(0,*) '--- end lightning threats:'
+!   call mpas_log_write('--- end lightning threats.')
  endif
  202 format(2i7,10(1x,e15.8))
 
@@ -511,7 +512,7 @@
  if(allocated(pres)) deallocate(pres)
  if(allocated(tp)  ) deallocate(tp  )
 
- write(0,*) '--- end subroutine lightning_diagnostics:'
+!call mpas_log_write('--- end subroutine lightning_diagnostics.')
 
  end subroutine lightning_diagnostics
 
