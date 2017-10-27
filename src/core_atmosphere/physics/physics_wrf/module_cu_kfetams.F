@@ -250,7 +250,6 @@ CONTAINS
    TST=float(NTST*2)
    W0AVGfctr = (TST-1.)
    W0den = TST
-   print*,'TST=',TST
 
    DO J = jts,jte
       DO K=kts,kte
