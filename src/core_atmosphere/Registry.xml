@@ -1794,6 +1794,11 @@
                      description="time interval between calls to parameterization of convection"
                      possible_values="`DD_HH:MM:SS' or `none'"/>
 
+                <nml_option name="config_w0avg_dt" type="real" default_value="0.0"
+                     units="s"
+                     description="w0avg time step, seconds"
+                     possible_values="Positive real values"/>
+
                 <nml_option name="config_pbl_interval" type="character" default_value="none" in_defaults="false"
                      units="-"
                      description="time interval between calls to parameterization of planetary boundary layer"

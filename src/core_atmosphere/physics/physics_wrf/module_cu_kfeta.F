@@ -185,180 +185,131 @@ CONTAINS
 
 
 !----------------------
-   NTST=STEPCU
-   TST=float(NTST*2)
    flag_qr = .FALSE.
    flag_qi = .FALSE.
    flag_qs = .FALSE.
    IF ( PRESENT(F_QR) ) flag_qr = F_QR
    IF ( PRESENT(F_QI) ) flag_qi = F_QI
    IF ( PRESENT(F_QS) ) flag_qs = F_QS
-!
+
    if (lastdt < 0) then
       lastdt = dt
    endif
-   
-   if (ADAPT_STEP_FLAG) then
-      W0AVGfctr = 2 * MAX(CUDT*60,dt) - dt
-      W0fctr = dt
-      W0den = 2 * MAX(CUDT*60,dt)
-   else
-      W0AVGfctr = (TST-1.)
-      W0fctr = 1.
-      W0den = TST
-   endif
 
-  DO J = jts,jte
+   NTST=STEPCU
+   TST=float(NTST*2)
+   W0AVGfctr = (TST-1.)
+   W0den = TST
+   print*,'TST=',TST
+
+   DO J = jts,jte
       DO K=kts,kte
          DO I= its,ite
-!            SCR1=-5.0E-4*G*rho(I,K,J)*(w(I,K,J)+w(I,K+1,J))
-!            TV=T(I,K,J)*(1.+EP1*QV(I,K,J))
-!            RHOE=Pcps(I,K,J)/(R*TV)
-!            W0=-101.9368*SCR1/RHOE
             W0=0.5*(w(I,K,J)+w(I,K+1,J))
-
-!           Old:            
-!
-!            W0AVG(I,K,J)=(W0AVG(I,K,J)*(TST-1.)+W0)/TST            
-!
-!           New, to support adaptive time step:
-!
-            W0AVG(I,K,J) = ( W0AVG(I,K,J) * W0AVGfctr + W0 * W0fctr ) / W0den
+            W0AVG(I,K,J) = ( W0AVG(I,K,J) * W0AVGfctr + W0 ) / W0den
          ENDDO
       ENDDO
    ENDDO
    lastdt = dt
 
-            
-!
-!...CHECK FOR CONVECTIVE INITIATION EVERY 5 MINUTES (OR NTST/2)...
-!
-!----------------------
+   DO J = jts,jte
+   DO I= its,ite
+      CU_ACT_FLAG(i,j) = .true.
+   ENDDO
+   ENDDO
 
-!
-! Modified for adaptive time step
-!
-   if (ADAPT_STEP_FLAG) then
-      if ( (KTAU .eq. 1) .or. (cudt .eq. 0) .or. &
-           ( CURR_SECS + dt >= &
-           ( int( CURR_SECS / ( cudt * 60 ) ) + 1 ) * cudt * 60 ) ) then
-         run_param = .TRUE.
-      else
-         run_param = .FALSE.
-      endif
+   DO J = jts,jte
+     DO I=its,ite
 
-   else
-      if (MOD(KTAU,NTST) .EQ. 0 .or. KTAU .eq. 1) then
-         run_param = .TRUE.
-      else
-         run_param = .FALSE.
-      endif
-   endif
-
-   if (run_param) then
-!
-     DO J = jts,jte
-     DO I= its,ite
-        CU_ACT_FLAG(i,j) = .true.
-     ENDDO
-     ENDDO
-
-     DO J = jts,jte
-       DO I=its,ite
-          
-
-         IF ( NCA(I,J) .ge. 0.5*DT ) then
-            CU_ACT_FLAG(i,j) = .false.
-         ELSE
+       IF ( NCA(I,J) .ge. 0.5*DT ) then
+          CU_ACT_FLAG(i,j) = .false.
+       ELSE
 
 #if defined(mpas)
-            dxsq = areaCell(i,j)
-            dx   = dxCell(i,j)
-!           write(0,201) j,i,dxsq,dx
-!           201 format(i3,i8,2(1x,e15.8))
+          dxsq = areaCell(i,j)
+          dx   = dxCell(i,j)
 #endif
-            DO k=kts,kte
-               DQDT(k)=0.
-               DQIDT(k)=0.
-               DQCDT(k)=0.
-               DQRDT(k)=0.
-               DQSDT(k)=0.
-               DTDT(k)=0.
-            ENDDO
-            RAINCV(I,J)=0.
-            CUTOP(I,J)=KTS
-            CUBOT(I,J)=KTE+1
-            PRATEC(I,J)=0.
+          DO k=kts,kte
+             DQDT(k)=0.
+             DQIDT(k)=0.
+             DQCDT(k)=0.
+             DQRDT(k)=0.
+             DQSDT(k)=0.
+             DTDT(k)=0.
+          ENDDO
+          RAINCV(I,J)=0.
+          CUTOP(I,J)=KTS
+          CUBOT(I,J)=KTE+1
+          PRATEC(I,J)=0.
 !
 ! assign vars from 3D to 1D
 
+          DO K=kts,kte
+             U1D(K) =U(I,K,J)
+             V1D(K) =V(I,K,J)
+             T1D(K) =T(I,K,J)
+             RHO1D(K) =rho(I,K,J)
+             QV1D(K)=QV(I,K,J)
+             P1D(K) =Pcps(I,K,J)
+             W0AVG1D(K) =W0AVG(I,K,J)
+             DZ1D(k)=dz8w(I,K,J)
+          ENDDO
+          CALL KF_eta_PARA(I, J,                  &
+               U1D,V1D,T1D,QV1D,P1D,DZ1D,         &
+               W0AVG1D,DT,DX,DXSQ,RHO1D,          &
+               XLV0,XLV1,XLS0,XLS1,CP,R,G,        &
+               EP2,SVP1,SVP2,SVP3,SVPT0,          &
+               DQDT,DQIDT,DQCDT,DQRDT,DQSDT,DTDT, &
+               RAINCV,PRATEC,NCA,                 &
+               flag_QI,flag_QS,warm_rain,         &
+               CUTOP,CUBOT,CUDT,                  &
+               ids,ide, jds,jde, kds,kde,         &
+               ims,ime, jms,jme, kms,kme,         &
+               its,ite, jts,jte, kts,kte)
+          IF(PRESENT(rthcuten).AND.PRESENT(rqvcuten)) THEN
             DO K=kts,kte
-               U1D(K) =U(I,K,J)
-               V1D(K) =V(I,K,J)
-               T1D(K) =T(I,K,J)
-               RHO1D(K) =rho(I,K,J)
-               QV1D(K)=QV(I,K,J)
-               P1D(K) =Pcps(I,K,J)
-               W0AVG1D(K) =W0AVG(I,K,J)
-               DZ1D(k)=dz8w(I,K,J)
+               RTHCUTEN(I,K,J)=DTDT(K)/pi(I,K,J)
+               RQVCUTEN(I,K,J)=DQDT(K)
             ENDDO
-            CALL KF_eta_PARA(I, J,                  &
-                 U1D,V1D,T1D,QV1D,P1D,DZ1D,         &
-                 W0AVG1D,DT,DX,DXSQ,RHO1D,          &
-                 XLV0,XLV1,XLS0,XLS1,CP,R,G,        &
-                 EP2,SVP1,SVP2,SVP3,SVPT0,          &
-                 DQDT,DQIDT,DQCDT,DQRDT,DQSDT,DTDT, &
-                 RAINCV,PRATEC,NCA,                 &
-                 flag_QI,flag_QS,warm_rain,         &
-                 CUTOP,CUBOT,CUDT,                  &
-                 ids,ide, jds,jde, kds,kde,         &
-                 ims,ime, jms,jme, kms,kme,         &
-                 its,ite, jts,jte, kts,kte)
-            IF(PRESENT(rthcuten).AND.PRESENT(rqvcuten)) THEN
+          ENDIF
+
+          IF(PRESENT(rqrcuten).AND.PRESENT(rqccuten)) THEN
+            IF( F_QR )THEN
               DO K=kts,kte
-                 RTHCUTEN(I,K,J)=DTDT(K)/pi(I,K,J)
-                 RQVCUTEN(I,K,J)=DQDT(K)
+                 RQRCUTEN(I,K,J)=DQRDT(K)
+                 RQCCUTEN(I,K,J)=DQCDT(K)
+              ENDDO
+            ELSE
+! This is the case for Eta microphysics without 3d rain field
+              DO K=kts,kte
+                 RQRCUTEN(I,K,J)=0.
+                 RQCCUTEN(I,K,J)=DQRDT(K)+DQCDT(K)
               ENDDO
             ENDIF
-
-            IF(PRESENT(rqrcuten).AND.PRESENT(rqccuten)) THEN
-              IF( F_QR )THEN
-                DO K=kts,kte
-                   RQRCUTEN(I,K,J)=DQRDT(K)
-                   RQCCUTEN(I,K,J)=DQCDT(K)
-                ENDDO
-              ELSE
-! This is the case for Eta microphysics without 3d rain field
-                DO K=kts,kte
-                   RQRCUTEN(I,K,J)=0.
-                   RQCCUTEN(I,K,J)=DQRDT(K)+DQCDT(K)
-                ENDDO
-              ENDIF
-            ENDIF
+          ENDIF
 
 !......     QSTEN STORES GRAUPEL TENDENCY IF IT EXISTS, OTHERISE SNOW (V2)
 
 
-            IF(PRESENT( rqicuten )) THEN
-              IF ( F_QI ) THEN
-                DO K=kts,kte
-                   RQICUTEN(I,K,J)=DQIDT(K)
-                ENDDO
-              ENDIF
+          IF(PRESENT( rqicuten )) THEN
+            IF ( F_QI ) THEN
+              DO K=kts,kte
+                 RQICUTEN(I,K,J)=DQIDT(K)
+              ENDDO
             ENDIF
+          ENDIF
 
-            IF(PRESENT( rqscuten )) THEN
-              IF ( F_QS ) THEN
-                DO K=kts,kte
-                   RQSCUTEN(I,K,J)=DQSDT(K)
-                ENDDO
-              ENDIF
+          IF(PRESENT( rqscuten )) THEN
+            IF ( F_QS ) THEN
+              DO K=kts,kte
+                 RQSCUTEN(I,K,J)=DQSDT(K)
+              ENDDO
             ENDIF
-!
-         ENDIF 
-       ENDDO     ! i-loop
-     ENDDO       ! j-loop
-   ENDIF         ! run_param
+          ENDIF
+ 
+       ENDIF 
+     ENDDO     ! i-loop
+   ENDDO       ! j-loop
 !
    END SUBROUTINE KF_eta_CPS
 ! ****************************************************************************

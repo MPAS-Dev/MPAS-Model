@@ -386,6 +386,7 @@
  integer,pointer:: nCellsSolve,nSoilLevels,nVertLevels
 
  real(kind=RKIND),pointer:: config_dt
+ real(kind=RKIND),pointer:: dt_w0avg
 
 !local variables:
  type(MPAS_Time_Type):: startTime,alarmStartTime
@@ -419,7 +420,7 @@
  call mpas_pool_get_config(configs,'config_microp_re'        ,config_microp_re        )
 
  call mpas_pool_get_config(configs,'config_dt',config_dt)
-
+ call mpas_pool_get_config(configs,'config_w0avg_dt',dt_w0avg)
 
  call mpas_pool_get_dimension(mesh,'cam_dim1'   ,cam_dim1   )
  call mpas_pool_get_dimension(mesh,'nMonths'    ,nMonths    )
@@ -691,7 +692,11 @@
  write(0,*) '--- n_microp  = ', n_microp
 !... convection:
  l_conv = .false.
- n_cu   = nint(dt_cu/dt_dyn)
+ if(trim(convection_scheme)=='cu_kain_fritsch' .or. trim(convection_scheme)=='cu_kain_fritsch_ms') then
+    n_cu = nint(dt_w0avg/dt_dyn)
+ else
+    n_cu = nint(dt_cu/dt_dyn)
+ endif
  n_cu   = max(n_cu,1)
 !... radiation:
  l_radtlw = .false.

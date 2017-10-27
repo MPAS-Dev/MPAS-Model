@@ -227,7 +227,6 @@ CONTAINS
    integer :: trigger = 1
    REAL    :: lastdt = -1.0
    REAL    :: W0AVGfctr, W0fctr, W0den
-   LOGICAL :: run_param
 
 !
 #if !(defined(mpas))
@@ -236,51 +235,34 @@ CONTAINS
 
 
 !----------------------
-   NTST=STEPCU
-   TST=float(NTST*2)
    flag_qr = .FALSE.
    flag_qi = .FALSE.
    flag_qs = .FALSE.
    IF ( PRESENT(F_QR) ) flag_qr = F_QR
    IF ( PRESENT(F_QI) ) flag_qi = F_QI
    IF ( PRESENT(F_QS) ) flag_qs = F_QS
-!
+ 
    if (lastdt < 0) then
       lastdt = dt
    endif
 
-   if (ADAPT_STEP_FLAG) then
-      W0AVGfctr = 2 * MAX(CUDT*60,dt) - dt
-      W0fctr = dt
-      W0den = 2 * MAX(CUDT*60,dt)
-   else
-      W0AVGfctr = (TST-1.)
-      W0fctr = 1.
-      W0den = TST
-   endif
+   NTST=STEPCU
+   TST=float(NTST*2)
+   W0AVGfctr = (TST-1.)
+   W0den = TST
+   print*,'TST=',TST
 
-  DO J = jts,jte
+   DO J = jts,jte
       DO K=kts,kte
          DO I= its,ite
-!            SCR1=-5.0E-4*G*rho(I,K,J)*(w(I,K,J)+w(I,K+1,J))
-!            TV=T(I,K,J)*(1.+EP1*QV(I,K,J))
-!            RHOE=Pcps(I,K,J)/(R*TV)
-!            W0=-101.9368*SCR1/RHOE
             W0=0.5*(w(I,K,J)+w(I,K+1,J))
-
-!           Old:            
-!
-!            W0AVG(I,K,J)=(W0AVG(I,K,J)*(TST-1.)+W0)/TST            
-!
-!           New, to support adaptive time step:
-!
-            W0AVG(I,K,J) = ( W0AVG(I,K,J) * W0AVGfctr + W0 * W0fctr ) / W0den
+            W0AVG(I,K,J) = ( W0AVG(I,K,J) * W0AVGfctr + W0 ) / W0den
          ENDDO
       ENDDO
    ENDDO
    lastdt = dt
 
-     IF (trigger.eq.3) THEN
+   IF (trigger.eq.3) THEN
 !
 ! calculate 9-point average of moisture advection and temperature using halo (Horizontal)
 !
@@ -424,34 +406,8 @@ CONTAINS
          tpart_v(i,kte,j)= tpart_v(i,kte-1,j)    ! highest level
         ENDDO
         ENDDO
-     ENDIF       ! endif (trigger.eq.2)          
-!
-!...CHECK FOR CONVECTIVE INITIATION EVERY 5 MINUTES (OR NTST/2)...
-!
-!----------------------
+   ENDIF
 
-!
-! Modified for adaptive time step
-!
-   if (ADAPT_STEP_FLAG) then
-      if ( (KTAU .eq. 1) .or. (cudt .eq. 0) .or. &
-           ( CURR_SECS + dt >= &
-           ( int( CURR_SECS / ( cudt * 60 ) ) + 1 ) * cudt * 60 ) ) then
-         run_param = .TRUE.
-      else
-         run_param = .FALSE.
-      endif
-
-   else
-      if (MOD(KTAU,NTST) .EQ. 0 .or. KTAU .eq. 1) then
-         run_param = .TRUE.
-      else
-         run_param = .FALSE.
-      endif
-   endif
-
-   if (run_param) then
-!
      DO J = jts,jte
      DO I= its,ite
         CU_ACT_FLAG(i,j) = .true.
@@ -469,8 +425,6 @@ CONTAINS
 #if defined(mpas)
             dxsq = areaCell(i,j)
             dx   = dxCell(i,j)
-!           write(0,201) j,i,dxsq,dx
-!           201 format(i3,i8,2(1x,e15.8))
 #endif
             DO k=kts,kte
                DQDT(k)=0.
@@ -570,11 +524,10 @@ CONTAINS
                 ENDDO
               ENDIF
             ENDIF
-!
+ 
          ENDIF
        ENDDO     ! i-loop
      ENDDO       ! j-loop
-   ENDIF         ! run_param
 !
    END SUBROUTINE KF_eta_ms_CPS
 ! ****************************************************************************
