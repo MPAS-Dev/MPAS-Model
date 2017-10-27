@@ -98,9 +98,9 @@ module snowratio_diagnostics
 
         real (kind=RKIND), parameter :: snow_ratio_default = 1.
         real (kind=RKIND), parameter :: snow_ratio_static = 10.
-        real (kind=RKIND), parameter :: snow_ratio_min = 4.
+        real (kind=RKIND), parameter :: snow_ratio_min = 5.
         real (kind=RKIND), parameter :: snow_ratio_max = 20.
-        real (kind=RKIND), parameter :: rh_cloud_base = 80.
+        real (kind=RKIND), parameter :: rh_cloud_base = 85.
         real (kind=RKIND), parameter :: rh_cloud_top = 70.
 
         call mpas_pool_get_array(diag, 'snow_ratio', snow_ratio)
@@ -191,8 +191,8 @@ module snowratio_diagnostics
 !          cobb_table(31)=7.5
 
            ! modified cobb table
-           cobb_table(1)=4.0
-           cobb_table(2)=5.5
+           cobb_table(1)=5.0
+           cobb_table(2)=6.0
            cobb_table(3)=7.0
            cobb_table(4)=7.5
            cobb_table(5)=8.0
