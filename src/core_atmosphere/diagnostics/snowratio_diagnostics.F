@@ -94,7 +94,6 @@ module snowratio_diagnostics
         real (kind=RKIND), dimension(:), pointer :: snowncv
         real (kind=RKIND), dimension(:), pointer :: graupelncv
         real (kind=RKIND), dimension(:,:), pointer :: w
-        real (kind=RKIND), dimension(:), pointer :: t2m
         real (kind=RKIND), dimension(:), allocatable :: cobb_table
 
         real (kind=RKIND), parameter :: snow_ratio_default = 1.
@@ -117,17 +116,16 @@ module snowratio_diagnostics
            call mpas_pool_get_array(diag, 'exner', exner)
            call mpas_pool_get_array(diag, 'pressure_base', pressure_b)
            call mpas_pool_get_array(diag, 'pressure_p', pressure_p)     
-           call mpas_pool_get_array(diag_physics, 't2m', t2m)
            call mpas_pool_get_array(diag_physics, 'snowncv', snowncv)
            call mpas_pool_get_array(diag_physics, 'graupelncv', graupelncv)
 
            do iCell = 1, nCells
               snow_ratio(iCell) = snow_ratio_default
               if (snowncv(iCell)+graupelncv(iCell) <= 0) cycle
-              temperature_max = t2m(iCell)
+              temperature_max = -1.e6
               do k = 1, nVertLevels
                  pressure = (pressure_p(k,iCell)+pressure_b(k,iCell))/100._RKIND
-                 if (pressure >= 500) then
+                 if (k == 1 .or. pressure >= 500) then
                     temperature = (theta_m(k,iCell)/(1._RKIND+rvord*scalars(index_qv,k,iCell)))*exner(k,iCell)
                     temperature_max = max(temperature_max, temperature)
                  else
