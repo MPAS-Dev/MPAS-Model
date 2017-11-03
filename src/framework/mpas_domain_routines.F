@@ -51,6 +51,7 @@ module mpas_domain_routines
       allocate(dom % clock)
       allocate(dom % streamManager)
       allocate(dom % ioContext)
+      allocate(dom % mpas_cpl)
 
       call mpas_pool_create_pool(dom % configs)
       call mpas_pool_create_pool(dom % packages)
@@ -137,6 +138,7 @@ module mpas_domain_routines
       call mpas_pool_destroy_pool(dom % packages)
       deallocate(dom % clock)
       deallocate(dom % ioContext)
+      deallocate(dom % mpas_cpl)
 
    end subroutine mpas_deallocate_domain!}}}
 
