@@ -2083,7 +2083,7 @@ iter:     DO NCOUNT=1,10
             IF(NK.EQ.1)THEN                             ! JSK MODS
 !              PRINT *,' PROBLEM WITH KF SCHEME:  ' ! JSK MODS
 !              PRINT *,'QG = 0 AT THE SURFACE!!!!!!!'    ! JSK MODS
-              CALL wrf_error_fatal ( 'QG, QG(NK).LT.0') ! JSK MODS
+!              CALL wrf_error_fatal ( 'QG, QG(NK).LT.0') ! JSK MODS
             ENDIF                                       ! JSK MODS
             NK1=NK+1
             IF(NK.EQ.LTOP)THEN
