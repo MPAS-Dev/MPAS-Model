@@ -2160,6 +2160,10 @@
                      description="vertical diffusion coefficient of water vapor and cloud condensates"
                      packages="bl_mynn_in;bl_ysu_in"/>
 
+                <var name="tke_pbl" type="real" dimensions="nVertLevels nCells Time" units="m^{2} s^{-2}"
+                     description="turbulent kinetic energy from PBL"
+                     packages="bl_mynn_in;bl_ysu_in"/>
+
 
                 <!-- YSU PBL SCHEME: -->
                 <var name="exch_h" type="real" dimensions="nVertLevels nCells Time" units="m^{2} s^{-1}"
@@ -2190,10 +2194,6 @@
 
                 <var name="tsq" type="real" dimensions="nVertLevels nCells Time" units="K^{2}"
                      description="liquid water potential temperature variance"
-                     packages="bl_mynn_in"/>
-
-                <var name="tke_pbl" type="real" dimensions="nVertLevels nCells Time" units="m^{2} s^{-2}"
-                     description="turbulent kinetic energy from PBL"
                      packages="bl_mynn_in"/>
 
                 <var name="dqke" type="real" dimensions="nVertLevels nCells Time" units="m^{2} s^{-2}"

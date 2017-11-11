@@ -35,7 +35,7 @@ contains
                   wstar,delta,                                                 &
                   u10,v10,                                                     &
                   uoce,voce,                                                   &
-                  rthraten,ysu_topdown_pblmix,                                 &
+                  rthraten,tke_pbl,ysu_topdown_pblmix,                         &
                   ctopo,ctopo2,                                                &
                   ids,ide, jds,jde, kds,kde,                                   &
                   ims,ime, jms,jme, kms,kme,                                   &
@@ -154,6 +154,9 @@ contains
                                                                      rthblten, &
                                                                      rqvblten, &
                                                                      rqcblten
+
+   real,     dimension( ims:ime, kms:kme, jms:jme )                          , &
+             intent(inout)   ::                                       tke_pbl
 !
    real,     dimension( ims:ime, kms:kme, jms:jme )                          , &
              intent(inout)   ::                                        exch_h
@@ -320,6 +323,7 @@ contains
               ,u10=u10(ims,j),v10=v10(ims,j)                                   &
               ,uox=uoce(ims,j),vox=voce(ims,j)                                 &
               ,rthraten=rthraten(ims,kms,j),p2diORG=p3di(ims,kms,j)            &
+              ,tke_pbl=tke_pbl(ims,kms,j)                                      &
               ,ysu_topdown_pblmix=ysu_topdown_pblmix                           &
               ,ctopo=ctopo(ims,j),ctopo2=ctopo2(ims,j)                         &
 #if defined(mpas)
@@ -360,6 +364,7 @@ contains
                   u10,v10,                                                     &
                   uox,vox,                                                     &
                   rthraten,p2diORG,                                            &
+                  tke_pbl,                                                     &
                   ysu_topdown_pblmix,                                          &
                   ctopo,ctopo2,                                                &
                   ids,ide, jds,jde, kds,kde,                                   &
@@ -480,6 +485,9 @@ contains
 !
    real,     dimension( its:ite, kts:kte )                                   , &
              intent(in   )   ::                                           p2d
+
+   real,     dimension( its:ite, kts:kte )                                   , &
+             intent(inout)   ::                                       tke_pbl
 !
    real,     dimension( ims:ime )                                            , &
              intent(inout)   ::                                           ust, &
@@ -583,7 +591,7 @@ contains
    real    ::  ss,ri,qmean,tmean,alph,chi,zk,rl2,dk,sri
    real    ::  brint,dtodsd,dtodsu,rdz,dsdzt,dsdzq,dsdz2,rlamdz
    real    ::  utend,vtend,ttend,qtend
-   real    ::  dtstep,govrthv
+   real    ::  dtstep,govrthv,c
    real    ::  cont, conq, conw, conwrc
 !
 
@@ -689,6 +697,7 @@ contains
    vtnp(its:ite,:) = 0.
    ttnp(its:ite,:) = 0.
    qtnp(its:ite,:) = 0.
+   tke_pbl(its:ite,:) = 0.
 !
    do i = its,ite
      wspd1(i) = sqrt( (ux(i,1)-uox(i))*(ux(i,1)-uox(i)) + (vx(i,1)-vox(i))*(vx(i,1)-vox(i)) )+1.e-9
@@ -1129,6 +1138,11 @@ contains
          xkzm(i,k) = min(xkzm(i,k),xkzmax)
          xkzh(i,k) = min(xkzh(i,k),xkzmax)
          xkzq(i,k) = min(xkzq(i,k),xkzmax)
+
+! implicit tke
+         c = zfac(i,k)**pfac*0.425 + (1. - zfac(i,k)**pfac)
+         tke_pbl(i,k)=(xkzm(i,k)/max(1.,c*zq(i,k+1)*zfac(i,k)**pfac))**2
+
        endif
      enddo
    enddo
@@ -1179,8 +1193,17 @@ contains
          xkzh(i,k) = min(xkzh(i,k),xkzmax)
          xkzml(i,k) = xkzm(i,k)
          xkzhl(i,k) = xkzh(i,k)
+
+! implicit tke
+         tke_pbl(i,k)=(xkzm(i,k)/max(1.,(zk*rlamdz/(rlamdz+zk))))**2
+
        endif
      enddo
+   enddo
+
+! implicit tke lower boundary condition
+   do i = its,ite
+     tke_pbl(i,kts)=5.20*ust(i)*ust(i)*0.5
    enddo
 !
 !     compute tridiagonal matrix elements for heat

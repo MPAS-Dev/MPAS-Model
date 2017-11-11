@@ -353,7 +353,8 @@ real(kind=RKIND),dimension(:,:,:),allocatable:: &
  real(kind=RKIND),dimension(:,:,:),allocatable:: &
     kzh_p,            &!
     kzm_p,            &!
-    kzq_p              !
+    kzq_p,            &!
+    tkepbl_p
 
 !... MYNN PBL scheme (module_bl_mynn.F):
  integer,parameter:: grav_settling = 0
@@ -372,8 +373,7 @@ real(kind=RKIND),dimension(:,:,:),allocatable:: &
     qke_p,            &!
     qkeadv_p,         &!
     qshear_p,         &!
-    qwt_p,            &!
-    tkepbl_p           !
+    qwt_p              !
 
  real(kind=RKIND),dimension(:,:,:),allocatable:: &
     rniblten_p         !

@@ -84,6 +84,7 @@
  if(.not.allocated(wstar_p)) allocate(wstar_p(ims:ime,jms:jme))
  if(.not.allocated(uoce_p) ) allocate(uoce_p(ims:ime,jms:jme) )
  if(.not.allocated(voce_p) ) allocate(voce_p(ims:ime,jms:jme) )
+ if(.not.allocated(tkepbl_p)) allocate(tkepbl_p(ims:ime,kms:kme,jms:jme))
 
 
  !tendencies:
@@ -130,7 +131,6 @@
        if(.not.allocated(tsq_p)   ) allocate(tsq_p(ims:ime,kms:kme,jms:jme)   )
        if(.not.allocated(qkeadv_p)) allocate(qkeadv_p(ims:ime,kms:kme,jms:jme))
        if(.not.allocated(elpbl_p) ) allocate(elpbl_p(ims:ime,kms:kme,jms:jme) )
-       if(.not.allocated(tkepbl_p)) allocate(tkepbl_p(ims:ime,kms:kme,jms:jme))
        if(.not.allocated(sh3d_p)  ) allocate(sh3d_p(ims:ime,kms:kme,jms:jme)  )
 
        if(.not.allocated(dqke_p)  ) allocate(dqke_p(ims:ime,kms:kme,jms:jme)  )
@@ -163,6 +163,7 @@
  if(allocated(wstar_p)) deallocate(wstar_p)
  if(allocated(uoce_p) ) deallocate(uoce_p )
  if(allocated(voce_p) ) deallocate(voce_p )
+ if(allocated(tkepbl_p)) deallocate(tkepbl_p)
 
  !tendencies:
  if(allocated(rublten_p) ) deallocate(rublten_p )
@@ -208,7 +209,6 @@
        if(allocated(tsq_p)   ) deallocate(tsq_p   )
        if(allocated(qkeadv_p)) deallocate(qkeadv_p)
        if(allocated(elpbl_p) ) deallocate(elpbl_p )
-       if(allocated(tkepbl_p)) deallocate(tkepbl_p)
        if(allocated(sh3d_p)  ) deallocate(sh3d_p  )
        if(allocated(dqke_p)  ) deallocate(dqke_p  )
        if(allocated(qbuoy_p) ) deallocate(qbuoy_p )
@@ -243,6 +243,7 @@
 !local pointers:
  real(kind=RKIND),dimension(:),pointer:: hfx,hpbl,qfx,ust,wspd,xland,znt
  real(kind=RKIND),dimension(:),pointer:: delta,wstar
+ real(kind=RKIND),dimension(:,:),pointer:: tke_pbl
 
 !local pointers for YSU scheme:
  logical,pointer:: config_ysu_pblmix
@@ -253,18 +254,19 @@
  real(kind=RKIND),pointer:: len_disp
  real(kind=RKIND),dimension(:),pointer  :: meshDensity
  real(kind=RKIND),dimension(:),pointer  :: ch,qsfc,qcg,rmol,skintemp
- real(kind=RKIND),dimension(:,:),pointer:: cov,qke,qsq,tsq,sh3d,tke_pbl,qke_adv,el_pbl
+ real(kind=RKIND),dimension(:,:),pointer:: cov,qke,qsq,tsq,sh3d,qke_adv,el_pbl
 
 !-----------------------------------------------------------------------------------------------------------------
 
- call mpas_pool_get_array(diag_physics,'hfx'   ,hfx   )
- call mpas_pool_get_array(diag_physics,'hpbl'  ,hpbl  )
- call mpas_pool_get_array(diag_physics,'qfx'   ,qfx   )
- call mpas_pool_get_array(diag_physics,'ust'   ,ust   )
- call mpas_pool_get_array(diag_physics,'wspd'  ,wspd  )
- call mpas_pool_get_array(diag_physics,'znt'   ,znt   )
- call mpas_pool_get_array(diag_physics,'delta' ,delta )
- call mpas_pool_get_array(diag_physics,'wstar' ,wstar )
+ call mpas_pool_get_array(diag_physics,'hfx'   ,hfx      )
+ call mpas_pool_get_array(diag_physics,'hpbl'  ,hpbl     )
+ call mpas_pool_get_array(diag_physics,'qfx'   ,qfx      )
+ call mpas_pool_get_array(diag_physics,'ust'   ,ust      )
+ call mpas_pool_get_array(diag_physics,'wspd'  ,wspd     )
+ call mpas_pool_get_array(diag_physics,'znt'   ,znt      )
+ call mpas_pool_get_array(diag_physics,'delta' ,delta    )
+ call mpas_pool_get_array(diag_physics,'wstar' ,wstar    )
+ call mpas_pool_get_array(diag_physics,'tke_pbl',tke_pbl )
 
  call mpas_pool_get_array(sfc_input   ,'xland' ,xland )
 
@@ -287,17 +289,25 @@
  enddo
  enddo
 
+ do j = jts,jte
+ do k = kts,kte
+ do i = its,ite
+    tkepbl_p(i,k,j)   = tke_pbl(k,i)
+ enddo
+ enddo
+ enddo
+
  pbl_select: select case (trim(pbl_scheme))
 
     case("bl_ysu")
        call mpas_pool_get_config(configs,'config_ysu_pblmix',config_ysu_pblmix)
 
-       call mpas_pool_get_array(diag_physics,'br'    ,br    )
-       call mpas_pool_get_array(diag_physics,'fm'    ,fm    )
-       call mpas_pool_get_array(diag_physics,'fh'    ,fh    )
-       call mpas_pool_get_array(diag_physics,'regime',regime)
-       call mpas_pool_get_array(diag_physics,'u10'   ,u10   )
-       call mpas_pool_get_array(diag_physics,'v10'   ,v10   )
+       call mpas_pool_get_array(diag_physics,'br'    ,br       )
+       call mpas_pool_get_array(diag_physics,'fm'    ,fm       )
+       call mpas_pool_get_array(diag_physics,'fh'    ,fh       )
+       call mpas_pool_get_array(diag_physics,'regime',regime   )
+       call mpas_pool_get_array(diag_physics,'u10'   ,u10      )
+       call mpas_pool_get_array(diag_physics,'v10'   ,v10      )
 
        call mpas_pool_get_array(tend_physics,'rthratenlw',rthratenlw)
        call mpas_pool_get_array(tend_physics,'rthratensw',rthratensw)
@@ -345,7 +355,6 @@
        call mpas_pool_get_array(diag_physics,'qke_adv',qke_adv  )
        call mpas_pool_get_array(diag_physics,'qsq'    ,qsq      )
        call mpas_pool_get_array(diag_physics,'tsq'    ,tsq      )
-       call mpas_pool_get_array(diag_physics,'tke_pbl',tke_pbl  )
        call mpas_pool_get_array(diag_physics,'sh3d'   ,sh3d     )
 
        do j = jts,jte
@@ -369,7 +378,6 @@
           qke_p(i,k,j)      = qke(k,i)
           qsq_p(i,k,j)      = qsq(k,i)
           tsq_p(i,k,j)      = tsq(k,i)
-          tkepbl_p(i,k,j)   = tke_pbl(k,i)
           qkeadv_p(i,k,j)   = qke_adv(k,i)
           sh3d_p(i,k,j)     = sh3d(k,i)
           rniblten_p(i,k,j) = 0._RKIND
@@ -425,25 +433,26 @@
  real(kind=RKIND),dimension(:),pointer  :: hpbl
  real(kind=RKIND),dimension(:,:),pointer:: kzh,kzm,kzq
  real(kind=RKIND),dimension(:,:),pointer:: rublten,rvblten,rthblten,rqvblten,rqcblten,rqiblten, &
-                                           rniblten
+                                           rniblten,tke_pbl
 
 !local pointers for YSU scheme:
  real(kind=RKIND),dimension(:,:),pointer:: exch_h
 
 !local pointers for MYNN scheme:
  real(kind=RKIND),dimension(:),pointer  :: delta,wstar
- real(kind=RKIND),dimension(:,:),pointer:: cov,qke,qsq,tsq,sh3d,tke_pbl,qke_adv,el_pbl,dqke,qbuoy, &
+ real(kind=RKIND),dimension(:,:),pointer:: cov,qke,qsq,tsq,sh3d,qke_adv,el_pbl,dqke,qbuoy,      &
                                            qdiss,qshear,qwt
 
 !-----------------------------------------------------------------------------------------------------------------
 
- call mpas_pool_get_array(diag_physics,'kpbl' ,kpbl )
- call mpas_pool_get_array(diag_physics,'hpbl' ,hpbl )
- call mpas_pool_get_array(diag_physics,'kzh'  ,kzh  )
- call mpas_pool_get_array(diag_physics,'kzm'  ,kzm  )
- call mpas_pool_get_array(diag_physics,'kzq'  ,kzq  )
- call mpas_pool_get_array(diag_physics,'delta',delta)
- call mpas_pool_get_array(diag_physics,'wstar',wstar)
+ call mpas_pool_get_array(diag_physics,'kpbl' ,kpbl       )
+ call mpas_pool_get_array(diag_physics,'hpbl' ,hpbl       )
+ call mpas_pool_get_array(diag_physics,'kzh'  ,kzh        )
+ call mpas_pool_get_array(diag_physics,'kzm'  ,kzm        )
+ call mpas_pool_get_array(diag_physics,'kzq'  ,kzq        )
+ call mpas_pool_get_array(diag_physics,'delta',delta      )
+ call mpas_pool_get_array(diag_physics,'wstar',wstar      )
+ call mpas_pool_get_array(diag_physics,'tke_pbl' ,tke_pbl )
 
  call mpas_pool_get_array(tend_physics,'rublten' ,rublten )
  call mpas_pool_get_array(tend_physics,'rvblten' ,rvblten )
@@ -474,6 +483,8 @@
     kzh(k,i) = kzh_p(i,k,j)
     kzm(k,i) = kzm_p(i,k,j)
     kzq(k,i) = kzq_p(i,k,j)
+
+    tke_pbl(k,i)  = tkepbl_p(i,k,j)
  enddo
  enddo
  enddo
@@ -498,7 +509,6 @@
        call mpas_pool_get_array(diag_physics,'qke_adv' ,qke_adv )
        call mpas_pool_get_array(diag_physics,'qsq'     ,qsq     )
        call mpas_pool_get_array(diag_physics,'tsq'     ,tsq     )
-       call mpas_pool_get_array(diag_physics,'tke_pbl' ,tke_pbl )
        call mpas_pool_get_array(diag_physics,'sh3d'    ,sh3d    )
        call mpas_pool_get_array(diag_physics,'dqke'    ,dqke    )
        call mpas_pool_get_array(diag_physics,'qbuoy'   ,qbuoy   )
@@ -516,7 +526,6 @@
           qsq(k,i)      = qsq_p(i,k,j)
           tsq(k,i)      = tsq_p(i,k,j)
           sh3d(k,i)     = sh3d_p(i,k,j)
-          tke_pbl(k,i)  = tkepbl_p(i,k,j)
           qke_adv(k,i)  = qkeadv_p(i,k,j)
           !... outputs:
           dqke(k,i)     = dqke_p(i,k,j)
@@ -593,7 +602,7 @@
                  voce     = voce_p     , rthraten = rthraten_p  , u10      = u10_p      , &
                  v10      = v10_p      , ctopo    = ctopo_p     , ctopo2   = ctopo2_p   , &
                  regime   = regime_p   , rho      = rho_p       , kzhout   = kzh_p      , &
-                 kzmout   = kzm_p      , kzqout   = kzq_p       ,                         & 
+                 kzmout   = kzm_p      , kzqout   = kzq_p       , tke_pbl  = tkepbl_p   , & 
                  ysu_topdown_pblmix = ysu_pblmix ,                                        &
                  ids = ids , ide = ide , jds = jds , jde = jde , kds = kds , kde = kde  , &
                  ims = ims , ime = ime , jms = jms , jme = jme , kms = kms , kme = kme  , &
