@@ -39,6 +39,7 @@ module mpas_atm_diagnostics_manager
         use convective_diagnostics, only : convective_diagnostics_setup
         use snowratio_diagnostics, only : snowratio_diagnostics_setup
         use surface_diagnostics, only : surface_diagnostics_setup
+        use deformation_diagnostics, only : deformation_diagnostics_setup
         use pv_diagnostics, only : pv_diagnostics_setup
         use soundings, only : soundings_setup
 
@@ -61,6 +62,7 @@ module mpas_atm_diagnostics_manager
         call convective_diagnostics_setup(structs, clock)
         call snowratio_diagnostics_setup(configs, structs)
         call surface_diagnostics_setup(configs, structs, clock)
+        call deformation_diagnostics_setup(structs)
         call pv_diagnostics_setup(structs, clock)
         call soundings_setup(configs, structs, clock, dminfo)
 
@@ -103,12 +105,12 @@ module mpas_atm_diagnostics_manager
     !-----------------------------------------------------------------------
     subroutine mpas_atm_diag_compute()
 
-        use mpas_derived_types, only : mpas_pool_type
         use diagnostic_template, only : diagnostic_template_compute
         use isobaric_diagnostics, only : isobaric_diagnostics_compute
         use convective_diagnostics, only : convective_diagnostics_compute
         use snowratio_diagnostics, only : snowratio_diagnostics_compute
         use surface_diagnostics, only : surface_diagnostics_compute
+        use deformation_diagnostics, only : deformation_diagnostics_compute
         use pv_diagnostics, only : pv_diagnostics_compute
         use soundings, only : soundings_compute
 
@@ -119,6 +121,7 @@ module mpas_atm_diagnostics_manager
         call convective_diagnostics_compute()
         call snowratio_diagnostics_compute()
         call surface_diagnostics_compute()
+        call deformation_diagnostics_compute()
         call pv_diagnostics_compute()
         call soundings_compute()
 

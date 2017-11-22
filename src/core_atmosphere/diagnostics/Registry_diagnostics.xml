@@ -22,6 +22,9 @@
 <!-- snow ratio diagnostics -->
 #include "Registry_snowratio.xml"
 
+<!-- deformation diagnostics -->
+#include "Registry_deformation.xml"
+
 <!-- ******************************* -->
 <!-- End includes from diagnostics -->
 <!-- ******************************* -->
