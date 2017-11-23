@@ -148,5 +148,5 @@ module deformation_diagnostics
     end subroutine deformation_diagnostics_cleanup
 
 
-end module deformation_diagnostic
+end module deformation_diagnostics
 
