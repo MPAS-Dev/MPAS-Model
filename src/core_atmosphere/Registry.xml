@@ -939,7 +939,7 @@
 			<var name="t2m"/>
 			<var name="th2m"/>
 
-                        <!-- Begin isobaric diagnostics defined in diagnostics/Registry_isobaric.xml -->
+            <!-- Begin isobaric diagnostics defined in diagnostics/Registry_isobaric.xml -->
 			<var name="mslp"/>
 			<var name="relhum_200hPa"/>
 			<var name="relhum_250hPa"/>
@@ -994,41 +994,45 @@
 			<var name="z_isobaric"/>
 			<var name="z_iso_levels"/>
 			<var name="meanT_500_300"/>
-                        <!-- End isobaric diagnostics defined in diagnostics/Registry_isobaric.xml -->
+            <!-- End isobaric diagnostics defined in diagnostics/Registry_isobaric.xml -->
 
-                        <!-- Begin snow ratio diagnostics defined in diagnostics/Registry_snowratio.xml -->
-                        <var name="snow_ratio"/>
-                        <!-- End snow ratio diagnostics defined in diagnostics/Registry_snowratio.xml -->
+            <!-- Begin snow ratio diagnostics defined in diagnostics/Registry_snowratio.xml -->
+            <var name="snow_ratio"/>
+            <!-- End snow ratio diagnostics defined in diagnostics/Registry_snowratio.xml -->
+            
+            <!-- Begin deformation diagnostics defined in diagnostics/Registry_deformation.xml -->
+            <var name="deformation"/>
+            <!-- End deformation diagnostics defined in diagnostics/Registry_deformation.sxml -->
 
-                        <!-- Begin surface diagnostics defined in diagnostics/Registry_surface.xml -->
-                        <var name="dewpoint_2m"/>
-                        <var name="rain_bucket"/>
-                        <var name="conv_bucket"/>
-                        <var name="snow_bucket"/>
-                        <var name="zrain_bucket"/>
-                        <var name="snow_total"/>
-                        <var name="refl10cm_prate"/>
-                        <!-- End surface diagnostics defined in diagnostics/Registry_surface.xml -->
+            <!-- Begin surface diagnostics defined in diagnostics/Registry_surface.xml -->
+            <var name="dewpoint_2m"/>
+            <var name="rain_bucket"/>
+            <var name="conv_bucket"/>
+            <var name="snow_bucket"/>
+            <var name="zrain_bucket"/>
+            <var name="snow_total"/>
+            <var name="refl10cm_prate"/>
+            <!-- End surface diagnostics defined in diagnostics/Registry_surface.xml -->
 
-                        <!-- Begin convective diagnostics defined in diagnostics/Registry_convective.xml -->
-                        <var name="cape"/>
-                        <var name="cin"/>
-                        <var name="lcl"/>
-                        <var name="lfc"/>
-                        <var name="srh_0_1km"/>
-                        <var name="srh_0_3km"/>
-                        <var name="uzonal_surface"/>
-                        <var name="uzonal_1km"/>
-                        <var name="uzonal_6km"/>
-                        <var name="umeridional_surface"/>
-                        <var name="umeridional_1km"/>
-                        <var name="umeridional_6km"/>
-                        <var name="temperature_surface"/>
-                        <var name="dewpoint_surface"/>
+            <!-- Begin convective diagnostics defined in diagnostics/Registry_convective.xml -->
+            <var name="cape"/>
+            <var name="cin"/>
+            <var name="lcl"/>
+            <var name="lfc"/>
+            <var name="srh_0_1km"/>
+            <var name="srh_0_3km"/>
+            <var name="uzonal_surface"/>
+            <var name="uzonal_1km"/>
+            <var name="uzonal_6km"/>
+            <var name="umeridional_surface"/>
+            <var name="umeridional_1km"/>
+            <var name="umeridional_6km"/>
+            <var name="temperature_surface"/>
+            <var name="dewpoint_surface"/>
 			<var name="updraft_helicity_max"/>
 			<var name="w_velocity_max"/>
 			<var name="wind_speed_level1_max"/>
-                        <!-- End convective diagnostics defined in diagnostics/Registry_convective.xml -->
+            <!-- End convective diagnostics defined in diagnostics/Registry_convective.xml -->
 
 			<var name="t_oml"/>
 			<var name="t_oml_initial"/>
