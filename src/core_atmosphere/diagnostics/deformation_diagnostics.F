@@ -74,6 +74,7 @@ module deformation_diagnostics
     subroutine deformation_diagnostics_compute()
 
         use mpas_pool_routines, only : mpas_pool_get_dimension, mpas_pool_get_array
+        use mpas_atm_diagnostics_utils, only : MPAS_field_will_be_written
 
         implicit none
 
@@ -92,48 +93,48 @@ module deformation_diagnostics
 
         integer :: iEdge, iCell, k, e
 
+        if ( MPAS_field_will_be_written('deformation') ) then
+            ! Mesh information
+            call mpas_pool_get_dimension(mesh, 'nCells', nCells)
+            call mpas_pool_get_dimension(mesh, 'nVertLevels', nVertLevels)
+            call mpas_pool_get_array(mesh, 'nEdgesOnCell', nEdgesOnCell)
+            call mpas_pool_get_array(mesh, 'edgesOnCell', edgesOnCell)
 
-        ! Mesh information
-        call mpas_pool_get_dimension(mesh, 'nCells', nCells)
-        call mpas_pool_get_dimension(mesh, 'nVertLevels', nVertLevels)
-        call mpas_pool_get_array(mesh, 'nEdgesOnCell', nEdgesOnCell)
-        call mpas_pool_get_array(mesh, 'edgesOnCell', edgesOnCell)
+            ! States and diagnostics, integration coefficients
+            call mpas_pool_get_array(state, 'u', u, 2)
+            call mpas_pool_get_array(diag, 'v', v)
+            call mpas_pool_get_array(mesh, 'defc_a', defc_a)
+            call mpas_pool_get_array(mesh, 'defc_b', defc_b)
 
-        ! States and diagnostics, integration coefficients
-        call mpas_pool_get_array(state, 'u', u, 2)
-        call mpas_pool_get_array(diag, 'v', v)
-        call mpas_pool_get_array(mesh, 'defc_a', defc_a)
-        call mpas_pool_get_array(mesh, 'defc_b', defc_b)
+            ! Target array
+            call mpas_pool_get_array(diag, 'deformation', deformation)
 
-        ! Target array
-        call mpas_pool_get_array(diag, 'deformation', deformation)
+            ! Allocate arrays for holding diagonal and off-diagonal deformation terms
+            allocate(d_diag(nVertLevels))
+            allocate(d_off_diag(nVertLevels))
 
-        ! Allocate arrays for holding diagonal and off-diagonal deformation terms
-        allocate(d_diag(nVertLevels))
-        allocate(d_off_diag(nVertLevels))
+            do iCell=1,nCells
+                d_diag(:) = 0.0
+                d_off_diag(:) = 0.0
 
-        do iCell=1,nCells
-            d_diag(:) = 0.0
-            d_off_diag(:) = 0.0
+                ! Integrate over edges around the cell
+                do iEdge=1,nEdgesOnCell(iCell)
+                    e = edgesOnCell(iEdge,iCell)
+                    d_diag(:)     = d_diag(:)     + defc_a(iEdge,iCell)*u(:,e) - &
+                                                    defc_b(iEdge,iCell)*v(:,e)
+                    d_off_diag(:) = d_off_diag(:) + defc_b(iEdge,iCell)*u(:,e) + &
+                                                    defc_a(iEdge,iCell)*v(:,e)
+                end do
 
-            ! Integrate over edges around the cell
-            do iEdge=1,nEdgesOnCell(iCell)
-                e = edgesOnCell(iEdge,iCell)
-                d_diag(:)     = d_diag(:)     + defc_a(iEdge,iCell)*u(:,e) - &
-                                                defc_b(iEdge,iCell)*v(:,e)
-                d_off_diag(:) = d_off_diag(:) + defc_b(iEdge,iCell)*u(:,e) + &
-                                                defc_a(iEdge,iCell)*v(:,e)
+                ! Combine the diagonal and off-diagonal terms
+                deformation(:,iCell) = sqrt(d_diag(:)**2 + d_off_diag(:)**2)
             end do
 
-            ! Combine the diagonal and off-diagonal terms
-            deformation(:,iCell) = sqrt(d_diag(:)**2 + d_off_diag(:)**2)
-        end do
-
-        deallocate(d_diag)
-        deallocate(d_off_diag)
+            deallocate(d_diag)
+            deallocate(d_off_diag)
+        end if
 
     end subroutine deformation_diagnostics_compute
-
 
 
     subroutine deformation_diagnostics_reset()
