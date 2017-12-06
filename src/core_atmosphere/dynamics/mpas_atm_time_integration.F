@@ -26,7 +26,11 @@ module atm_time_integration
 #endif
 
    use mpas_atm_iau  
+
+#ifdef MPAS_OPENACC
    use openacc
+#endif
+
    integer :: timerid, secs, u_secs
 
    ! Used to store physics tendencies for dynamics variables
@@ -212,11 +216,15 @@ module atm_time_integration
       real (kind=RKIND), dimension(:,:), pointer :: gpu_rtheta_pp, gpu_divergence_3d, gpu_u_1, gpu_u_2, gpu_w_1, gpu_w_2
       real (kind=RKIND), dimension(:,:), pointer :: gpu_tend_u, gpu_ru_p, gpu_rw_p, gpu_rho_pp, gpu_pv_edge, gpu_rho_edge
       real (kind=RKIND), dimension(:,:,:), pointer :: gpu_scalars_1
+
+#ifdef MPAS_OPENACC
       integer :: rrpk_rank, rrpk_devices, rrpk_local_gpu_id
       rrpk_rank = domain % dminfo % my_proc_id
       rrpk_devices =  acc_get_num_devices(acc_device_nvidia)
       rrpk_local_gpu_id = mod(rrpk_rank,rrpk_devices)
       call acc_set_device_num(rrpk_local_gpu_id,acc_device_nvidia)
+#endif
+
       !
       ! Retrieve configuration options
       !
