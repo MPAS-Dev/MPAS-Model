@@ -189,7 +189,6 @@ module atm_time_integration
       type (field2DReal), pointer :: pressure_p_field
       type (field2DReal), pointer :: rtheta_p_field
       type (field2DReal), pointer :: rtheta_pp_field
-      type (field2DReal), pointer :: divergence_3d_field
       type (field2DReal), pointer :: tend_u_field
       type (field2DReal), pointer :: u_field
       type (field2DReal), pointer :: w_field
@@ -209,7 +208,7 @@ module atm_time_integration
       logical, parameter :: debug = .false.
 
       real (kind=RKIND), dimension(:,:), pointer :: gpu_theta_m_1, gpu_theta_m_2, gpu_pressure_p, gpu_rtheta_p, gpu_exner
-      real (kind=RKIND), dimension(:,:), pointer :: gpu_rtheta_pp, gpu_divergence_3d, gpu_u_1, gpu_u_2, gpu_w_1, gpu_w_2
+      real (kind=RKIND), dimension(:,:), pointer :: gpu_rtheta_pp, gpu_u_1, gpu_u_2, gpu_w_1, gpu_w_2
       real (kind=RKIND), dimension(:,:), pointer :: gpu_tend_u, gpu_ru_p, gpu_rw_p, gpu_rho_pp, gpu_pv_edge, gpu_rho_edge
       real (kind=RKIND), dimension(:,:,:), pointer :: gpu_scalars_1
       integer :: rrpk_rank, rrpk_devices, rrpk_local_gpu_id
@@ -757,13 +756,8 @@ module atm_time_integration
 
                call mpas_pool_get_subpool(domain % blocklist % structs, 'diag', diag)
                call mpas_pool_get_array_gpu(diag,'rtheta_pp',gpu_rtheta_pp)
-               call mpas_pool_get_array_gpu(diag,'divergence_3d',gpu_divergence_3d)
-!$acc update host(gpu_rtheta_pp,gpu_divergence_3d)
                call mpas_pool_get_field(diag, 'rtheta_pp', rtheta_pp_field)
                call mpas_dmpar_exch_halo_field(rtheta_pp_field, (/ 1 /))
-               call mpas_pool_get_field(diag, 'divergence_3d', divergence_3d_field)
-               call mpas_dmpar_exch_halo_field(divergence_3d_field, (/ 1 /))
-!$acc update device(gpu_rtheta_pp,gpu_divergence_3d)
 
             end do  ! end of acoustic steps loop
 
@@ -2059,7 +2053,6 @@ module atm_time_integration
       call mpas_pool_get_array_gpu(diag, 'ruAvg', ruAvg)
       call mpas_pool_get_array_gpu(diag, 'wwAvg', wwAvg)
       call mpas_pool_get_array_gpu(diag, 'rho_pp', rho_pp)
-!      call mpas_pool_get_array_gpu(diag, 'divergence_3d', divergence_3d)
       call mpas_pool_get_array_gpu(diag, 'cofwt', cofwt)
       call mpas_pool_get_array_gpu(diag, 'coftz', coftz)
       call mpas_pool_get_array_gpu(diag, 'cofrz', cofrz)
@@ -2147,7 +2140,6 @@ module atm_time_integration
       real (kind=RKIND), dimension(nVertLevels,nCells+1) :: rtheta_pp
 
       real (kind=RKIND), dimension(nVertLevels,nCells+1) :: rtheta_pp_old
-!      real (kind=RKIND), dimension(nVertLevels,nCells+1) :: divergence_3d
       real (kind=RKIND), dimension(nVertLevels,nCells+1) :: zz
       real (kind=RKIND), dimension(nVertLevels,nCells+1) :: exner
       real (kind=RKIND), dimension(nVertLevels,nEdges+1) :: cqu
