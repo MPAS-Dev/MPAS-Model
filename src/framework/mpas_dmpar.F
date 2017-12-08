@@ -4683,6 +4683,29 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
       type (field2DReal), pointer :: field
       integer, dimension(:), pointer :: compactHaloInfo
 
+
+      integer :: infosize
+      integer :: i
+      integer :: idx
+
+
+      !
+      ! Determine number of elements we will need in compactHaloInfo
+      !
+      infosize = 3
+
+      allocate(compactHaloInfo(infosize))
+
+      !
+      ! Add field dimensionality and dimensions
+      !
+      compactHaloInfo(1) = 2    ! Dimensionality of the field
+      idx = 2
+      do i=1,compactHaloInfo(1)
+         compactHaloInfo(idx) = size(field % array, i)
+         idx = idx + 1
+      end do
+
    end subroutine mpas_dmpar_compact_halo_info_2d_real !}}}
 
 
@@ -4704,6 +4727,29 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
 
       type (field3DReal), pointer :: field
       integer, dimension(:), pointer :: compactHaloInfo
+
+
+      integer :: infosize
+      integer :: i
+      integer :: idx
+
+
+      !
+      ! Determine number of elements we will need in compactHaloInfo
+      !
+      infosize = 4
+
+      allocate(compactHaloInfo(infosize))
+
+      !
+      ! Add field dimensionality and dimensions
+      !
+      compactHaloInfo(1) = 3    ! Dimensionality of the field
+      idx = 2
+      do i=1,compactHaloInfo(1)
+         compactHaloInfo(idx) = size(field % array, i)
+         idx = idx + 1
+      end do
 
    end subroutine mpas_dmpar_compact_halo_info_3d_real !}}}
 
@@ -5444,11 +5490,12 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
 !>  region.
 !
 !-----------------------------------------------------------------------
-   subroutine mpas_dmpar_exch_halo_2d_real_acc(field, haloLayersIn) !{{{
+   subroutine mpas_dmpar_exch_halo_2d_real_acc(field, compactHaloInfo, haloLayersIn) !{{{
 
       implicit none
 
       type (field2dReal), pointer :: field !< Input: Field to communicate
+      integer, dimension(:), intent(in) :: compactHaloInfo !< Input: Information needed to construct communications lists, etc.
       integer, dimension(:), intent(in), optional :: haloLayersIn !< Input: List of halo layers to communicate. Defaults to all
 
       type (dm_info), pointer :: dminfo
@@ -5461,9 +5508,7 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
       integer, dimension(2) :: dimsizes
 
 
-      do i=1,2
-         dimsizes(i) = size(field % array, i)
-      end do
+      dimsizes(1:2) = compactHaloInfo(2:3)
 
       dminfo => field % block % domain % dminfo
 
@@ -5581,11 +5626,12 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
 !>  region.
 !
 !-----------------------------------------------------------------------
-   subroutine mpas_dmpar_exch_halo_3d_real_acc(field, haloLayersIn) !{{{
+   subroutine mpas_dmpar_exch_halo_3d_real_acc(field, compactHaloInfo, haloLayersIn) !{{{
 
       implicit none
 
       type (field3dReal), pointer :: field !< Input: Field to communicate
+      integer, dimension(:), intent(in) :: compactHaloInfo !< Input: Information needed to construct communications lists, etc.
       integer, dimension(:), intent(in), optional :: haloLayersIn !< Input: List of halo layers to communicate. Defaults to all
 
       type (dm_info), pointer :: dminfo
@@ -5598,9 +5644,7 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
       integer, dimension(3) :: dimsizes
 
 
-      do i=1,3
-         dimsizes(i) = size(field % array, i)
-      end do
+      dimsizes(1:3) = compactHaloInfo(2:4)
 
       dminfo => field % block % domain % dminfo
 
