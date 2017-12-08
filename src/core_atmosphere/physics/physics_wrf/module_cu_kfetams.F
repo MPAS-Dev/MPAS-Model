@@ -523,7 +523,6 @@ CONTAINS
                 ENDDO
               ENDIF
             ENDIF
- 
          ENDIF
        ENDDO     ! i-loop
      ENDDO       ! j-loop
@@ -1612,7 +1611,9 @@ updraft:    DO NK=K,KL-1
         WSPD(KLCL)=SQRT(U0(KLCL)*U0(KLCL)+V0(KLCL)*V0(KLCL))
         WSPD(L5)=SQRT(U0(L5)*U0(L5)+V0(L5)*V0(L5))
         WSPD(LTOP)=SQRT(U0(LTOP)*U0(LTOP)+V0(LTOP)*V0(LTOP))
-        VCONV=.5*(WSPD(KLCL)+WSPD(L5))
+!...Limit VCONV to a minimum of 1 m/s to avoid instabilities
+!...  with extremely large TIMEC.  Todd Hutchinson 12/8/2017
+        VCONV=AMAX1(1.0,.5*(WSPD(KLCL)+WSPD(L5)))
 !...for ETA model, DX is a function of location...
         TIMEC=DX/VCONV
         TADVEC=TIMEC
@@ -1643,7 +1644,7 @@ updraft:    DO NK=K,KL-1
         FRC2 = SQRT(FRC2)  
         SCLvel =  FRC2  ! Wsb=new subcloud layer velocity scale for all conditions
 
-        if(ABE.le.0.0) ABE = 1.0 
+        if(ABE.le.1.0) ABE = 1.0 
         TIMEC = TIMEC/((0.03*SCLvel*ABE)**0.333)
 
 !ckay: this dynTau is good for the Deep as well as Shallow Cu clouds
@@ -2077,7 +2078,7 @@ iter:     DO NCOUNT=1,10
 !     
 !...CHECK TO SEE IF MIXING RATIO DIPS BELOW ZERO ANYWHERE;  IF SO, BORROW
 !...MOISTURE FROM ADJACENT LAYERS TO BRING IT BACK UP ABOVE ZERO...
-!     
+!    
         DO NK=1,LTOP
           IF(QG(NK).LT.0.)THEN
             IF(NK.EQ.1)THEN                             ! JSK MODS
