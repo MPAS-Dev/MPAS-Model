@@ -113,9 +113,19 @@ include 'mpif.h'
    public :: mpas_dmpar_exch_group_full_halo_exch
    public :: mpas_dmpar_field_halo_exch
 
+   interface mpas_dmpar_compact_halo_info
+      module procedure mpas_dmpar_compact_halo_info_2d_real
+      module procedure mpas_dmpar_compact_halo_info_3d_real
+   end interface mpas_dmpar_compact_halo_info
+
+   public :: mpas_dmpar_compact_halo_info
+
+   private :: mpas_dmpar_compact_halo_info_2d_real
+   private :: mpas_dmpar_compact_halo_info_3d_real
+
    interface mpas_dmpar_exch_halo_acc
-        module procedure mpas_dmpar_exch_halo_2d_real_acc
-        module procedure mpas_dmpar_exch_halo_3d_real_acc
+      module procedure mpas_dmpar_exch_halo_2d_real_acc
+      module procedure mpas_dmpar_exch_halo_3d_real_acc
    end interface mpas_dmpar_exch_halo_acc
 
    public :: mpas_dmpar_exch_halo_acc
@@ -4652,6 +4662,51 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
      end if
 
    end subroutine mpas_dmpar_alltoall_field5d_real!}}}
+
+
+!-----------------------------------------------------------------------
+!  routine mpas_dmpar_compact_halo_info_2d_real
+!
+!> \brief Compacts information needed for halo exchanges
+!> \author Michael Duda
+!> \date 7 December 2017
+!> \details
+!>  This routine extracts all information needed to perform a halo exchange
+!>  from dynamic data types and places it into a single, contiguous array
+!>  for use by the mpas_dmpar_exch_halo_acc routines.
+!
+!-----------------------------------------------------------------------
+   subroutine mpas_dmpar_compact_halo_info_2d_real(field, compactHaloInfo) !{{{
+
+      implicit none
+
+      type (field2DReal), pointer :: field
+      integer, dimension(:), pointer :: compactHaloInfo
+
+   end subroutine mpas_dmpar_compact_halo_info_2d_real !}}}
+
+
+!-----------------------------------------------------------------------
+!  routine mpas_dmpar_compact_halo_info_3d_real
+!
+!> \brief Compacts information needed for halo exchanges
+!> \author Michael Duda
+!> \date 7 December 2017
+!> \details
+!>  This routine extracts all information needed to perform a halo exchange
+!>  from dynamic data types and places it into a single, contiguous array
+!>  for use by the mpas_dmpar_exch_halo_acc routines.
+!
+!-----------------------------------------------------------------------
+   subroutine mpas_dmpar_compact_halo_info_3d_real(field, compactHaloInfo) !{{{
+
+      implicit none
+
+      type (field3DReal), pointer :: field
+      integer, dimension(:), pointer :: compactHaloInfo
+
+   end subroutine mpas_dmpar_compact_halo_info_3d_real !}}}
+
 
 !-----------------------------------------------------------------------
 !  routine mpas_dmpar_exch_halo_field1d_integer
