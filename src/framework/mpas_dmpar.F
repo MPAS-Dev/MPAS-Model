@@ -5506,11 +5506,12 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
 !>  region.
 !
 !-----------------------------------------------------------------------
-   subroutine mpas_dmpar_exch_halo_2d_real_acc(field, compactHaloInfo, haloLayersIn) !{{{
+   subroutine mpas_dmpar_exch_halo_2d_real_acc(field, array, compactHaloInfo, haloLayersIn) !{{{
 
       implicit none
 
       type (field2dReal), pointer :: field !< Input: Field to communicate
+      real (kind=RKIND), dimension(:,:), intent(inout) :: array !< Input: Array storage for field whose halo will be communicated
       integer, dimension(:), intent(in) :: compactHaloInfo !< Input: Information needed to construct communications lists, etc.
       integer, dimension(:), intent(in), optional :: haloLayersIn !< Input: List of halo layers to communicate. Defaults to all
 
@@ -5572,7 +5573,7 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
             if(exchListPtr % endPointID == commListPtr % procID) then
               do  i = 1, exchListPtr % nList
                 do j = 1, dimSizes(1)
-                  commListPtr % rbuffer((exchListPtr % destList(i)-1) * dimSizes(1) + j + bufferOffset) = field % array(j, exchListPtr % srcList(i))
+                  commListPtr % rbuffer((exchListPtr % destList(i)-1) * dimSizes(1) + j + bufferOffset) = array(j, exchListPtr % srcList(i))
                   nAdded = nAdded + 1
                 end do
               end do
@@ -5600,7 +5601,7 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
             if(exchListPtr % endPointID == commListPtr % procID) then
               do i = 1, exchListPtr % nList
                 do j = 1, dimSizes(1)
-                  field % array(j, exchListPtr % destList(i)) = commListPtr % rbuffer((exchListPtr % srcList(i)-1)*dimSizeS(1) + j + bufferOffset)
+                  array(j, exchListPtr % destList(i)) = commListPtr % rbuffer((exchListPtr % srcList(i)-1)*dimSizeS(1) + j + bufferOffset)
                 end do
               end do
               nAdded = max(nAdded, maxval(exchListPtr % srcList) * dimSizes(1))
@@ -5645,11 +5646,12 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
 !>  region.
 !
 !-----------------------------------------------------------------------
-   subroutine mpas_dmpar_exch_halo_3d_real_acc(field, compactHaloInfo, haloLayersIn) !{{{
+   subroutine mpas_dmpar_exch_halo_3d_real_acc(field, array, compactHaloInfo, haloLayersIn) !{{{
 
       implicit none
 
       type (field3dReal), pointer :: field !< Input: Field to communicate
+      real (kind=RKIND), dimension(:,:,:), intent(inout) :: array !< Input: Array storage for field whose halo will be communicated
       integer, dimension(:), intent(in) :: compactHaloInfo !< Input: Information needed to construct communications lists, etc.
       integer, dimension(:), intent(in), optional :: haloLayersIn !< Input: List of halo layers to communicate. Defaults to all
 
@@ -5713,7 +5715,7 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
                 do j = 1, dimSizes(2)
                   do k = 1, dimSizes(1)
                     commListPtr % rbuffer((exchListPtr % destList(i)-1) * dimSizes(1) * dimSizes(2) &
-                        + (j-1) * dimSizes(1) + k  + bufferOffset) = field % array(k, j, exchListPtr % srcList(i))
+                        + (j-1) * dimSizes(1) + k  + bufferOffset) = array(k, j, exchListPtr % srcList(i))
                     nAdded = nAdded + 1
                   end do
                 end do
@@ -5743,7 +5745,7 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
               do i = 1, exchListPtr % nList
                 do j = 1, dimSizes(2)
                   do k = 1, dimSizes(1)
-                    field % array(k, j, exchListPtr % destList(i)) = commListPtr % rbuffer((exchListPtr % srcList(i)-1)*dimSizes(1) * dimSizes(2) &
+                    array(k, j, exchListPtr % destList(i)) = commListPtr % rbuffer((exchListPtr % srcList(i)-1)*dimSizes(1) * dimSizes(2) &
                                                                          + (j-1)*dimSizes(1) + k + bufferOffset)
                   end do
                 end do
