@@ -4692,7 +4692,7 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
       !
       ! Determine number of elements we will need in compactHaloInfo
       !
-      infosize = 5
+      infosize = 6
 
       allocate(compactHaloInfo(infosize))
 
@@ -4712,6 +4712,12 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
       compactHaloInfo(idx) = field % block % domain % dminfo % comm
       idx = idx + 1
       compactHaloInfo(idx) = field % block % domain % dminfo % my_proc_id
+      idx = idx + 1
+
+      !
+      ! Add number of halo layers
+      !
+      compactHaloInfo(idx) = size(field % sendList % halos)
       idx = idx + 1
 
    end subroutine mpas_dmpar_compact_halo_info_2d_real !}}}
@@ -4745,7 +4751,7 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
       !
       ! Determine number of elements we will need in compactHaloInfo
       !
-      infosize = 6
+      infosize = 7
 
       allocate(compactHaloInfo(infosize))
 
@@ -4765,6 +4771,12 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
       compactHaloInfo(idx) = field % block % domain % dminfo % comm
       idx = idx + 1
       compactHaloInfo(idx) = field % block % domain % dminfo % my_proc_id
+      idx = idx + 1
+
+      !
+      ! Add number of halo layers
+      !
+      compactHaloInfo(idx) = size(field % sendList % halos)
       idx = idx + 1
 
    end subroutine mpas_dmpar_compact_halo_info_3d_real !}}}
@@ -5539,7 +5551,7 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
           haloLayers(iHalo) = haloLayersIn(iHalo)
         end do
       else
-        nHaloLayers = size(field % sendList % halos)
+        nHaloLayers = compactHaloInfo(6)
         allocate(haloLayers(nHaloLayers))
         do iHalo = 1, nHaloLayers
           haloLayers(iHalo) = iHalo
@@ -5679,7 +5691,7 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
           haloLayers(iHalo) = haloLayersIn(iHalo)
         end do
       else
-        nHaloLayers = size(field % sendList % halos)
+        nHaloLayers = compactHaloInfo(7)
         allocate(haloLayers(nHaloLayers))
         do iHalo = 1, nHaloLayers
           haloLayers(iHalo) = iHalo
