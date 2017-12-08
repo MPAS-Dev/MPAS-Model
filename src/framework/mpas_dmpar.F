@@ -5444,24 +5444,20 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
         bufferOffset = 0
         do iHalo = 1, nHaloLayers
           nAdded = 0
-          fieldCursor => field
-          do while(associated(fieldCursor))
-            exchListPtr => fieldCursor % sendList % halos(haloLayers(iHalo)) % exchList
-            do while(associated(exchListPtr))
-              if(exchListPtr % endPointID == commListPtr % procID) then
-                do  i = 1, exchListPtr % nList
-                  do j = 1, fieldCursor % dimSizes(1)
-                    commListPtr % rbuffer((exchListPtr % destList(i)-1) * fieldCursor % dimSizes(1) + j + bufferOffset) = fieldCursor % array(j, exchListPtr % srcList(i))
-                    nAdded = nAdded + 1
-                  end do
+          exchListPtr => field % sendList % halos(haloLayers(iHalo)) % exchList
+          do while(associated(exchListPtr))
+            if(exchListPtr % endPointID == commListPtr % procID) then
+              do  i = 1, exchListPtr % nList
+                do j = 1, field % dimSizes(1)
+                  commListPtr % rbuffer((exchListPtr % destList(i)-1) * field % dimSizes(1) + j + bufferOffset) = field % array(j, exchListPtr % srcList(i))
+                  nAdded = nAdded + 1
                 end do
-              end if
+              end do
+            end if
 
-              exchListPtr => exchListPtr % next
-            end do
-
-            fieldCursor => fieldCursor % next
+            exchListPtr => exchListPtr % next
           end do
+
           bufferOffset = bufferOffset + nAdded
         end do
 
@@ -5471,28 +5467,23 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
 #endif
 
       ! Handle local copy. If MPI is off, then only local copies are performed.
-      fieldCursor => field
-      do while(associated(fieldCursor))
-        do iHalo = 1, nHaloLayers
-          exchListPtr => fieldCursor % copyList % halos(haloLayers(iHalo)) % exchList
+      do iHalo = 1, nHaloLayers
+        exchListPtr => field % copyList % halos(haloLayers(iHalo)) % exchList
 
-          do while(associated(exchListPtr))
-            fieldCursor2 => field
-            do while(associated(fieldCursor2))
-              if(exchListPtr % endPointID == fieldCursor2 % block % localBlockID) then
-                do i = 1, exchListPtr % nList
-                  fieldCursor2 % array(:, exchListPtr % destList(i)) = fieldCursor % array(:, exchListPtr % srcList(i))
-                end do
-              end if
+        do while(associated(exchListPtr))
+          fieldCursor2 => field
+          do while(associated(fieldCursor2))
+            if(exchListPtr % endPointID == fieldCursor2 % block % localBlockID) then
+              do i = 1, exchListPtr % nList
+                fieldCursor2 % array(:, exchListPtr % destList(i)) = field % array(:, exchListPtr % srcList(i))
+              end do
+            end if
 
-              fieldCursor2 => fieldCursor2 % next
-            end do
-
-            exchListPtr => exchListPtr % next
+            fieldCursor2 => fieldCursor2 % next
           end do
-        end do
 
-        fieldCursor => fieldCursor % next
+          exchListPtr => exchListPtr % next
+        end do
       end do
 
 #ifdef _MPI
@@ -5504,23 +5495,19 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
         bufferOffset = 0
         do iHalo = 1, nHaloLayers
           nAdded = 0
-          fieldCursor => field
-          do while(associated(fieldCursor))
-            exchListPtr => fieldCursor % recvList % halos(haloLayers(iHalo)) % exchList
-            do while(associated(exchListPtr))
-              if(exchListPtr % endPointID == commListPtr % procID) then
-                do i = 1, exchListPtr % nList
-                  do j = 1, fieldCursor % dimSizes(1)
-                    fieldCursor % array(j, exchListPtr % destList(i)) = commListPtr % rbuffer((exchListPtr % srcList(i)-1)*fieldCursor % dimSizeS(1) + j + bufferOffset)
-                  end do
+          exchListPtr => field % recvList % halos(haloLayers(iHalo)) % exchList
+          do while(associated(exchListPtr))
+            if(exchListPtr % endPointID == commListPtr % procID) then
+              do i = 1, exchListPtr % nList
+                do j = 1, field % dimSizes(1)
+                  field % array(j, exchListPtr % destList(i)) = commListPtr % rbuffer((exchListPtr % srcList(i)-1)*field % dimSizeS(1) + j + bufferOffset)
                 end do
-                nAdded = max(nAdded, maxval(exchListPtr % srcList) * fieldCursor % dimSizes(1))
-              end if
-              exchListPtr => exchListPtr % next
-            end do
-
-            fieldCursor => fieldCursor % next
+              end do
+              nAdded = max(nAdded, maxval(exchListPtr % srcList) * field % dimSizes(1))
+            end if
+            exchListPtr => exchListPtr % next
           end do
+
           bufferOffset = bufferOffset + nAdded
         end do
         commListPtr => commListPtr % next
@@ -5613,27 +5600,23 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
         bufferOffset = 0
         do iHalo = 1, nHaloLayers
           nAdded = 0
-          fieldCursor => field
-          do while(associated(fieldCursor))
-            exchListPtr => fieldCursor % sendList % halos(haloLayers(iHalo)) % exchList
-            do while(associated(exchListPtr))
-              if(exchListPtr % endPointID == commListPtr % procID) then
-                do  i = 1, exchListPtr % nList
-                  do j = 1, fieldCursor % dimSizes(2)
-                    do k = 1, fieldCursor % dimSizes(1)
-                      commListPtr % rbuffer((exchListPtr % destList(i)-1) * fieldCursor % dimSizes(1) * fieldCursor % dimSizes(2) &
-                          + (j-1) * fieldCursor % dimSizes(1) + k  + bufferOffset) = fieldCursor % array(k, j, exchListPtr % srcList(i))
-                      nAdded = nAdded + 1
-                    end do
+          exchListPtr => field % sendList % halos(haloLayers(iHalo)) % exchList
+          do while(associated(exchListPtr))
+            if(exchListPtr % endPointID == commListPtr % procID) then
+              do  i = 1, exchListPtr % nList
+                do j = 1, field % dimSizes(2)
+                  do k = 1, field % dimSizes(1)
+                    commListPtr % rbuffer((exchListPtr % destList(i)-1) * field % dimSizes(1) * field % dimSizes(2) &
+                        + (j-1) * field % dimSizes(1) + k  + bufferOffset) = field % array(k, j, exchListPtr % srcList(i))
+                    nAdded = nAdded + 1
                   end do
                 end do
-              end if
+              end do
+            end if
 
-              exchListPtr => exchListPtr % next
-            end do
-
-            fieldCursor => fieldCursor % next
+            exchListPtr => exchListPtr % next
           end do
+
           bufferOffset = bufferOffset + nAdded
         end do
 
@@ -5643,28 +5626,23 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
 #endif
 
       ! Handle local copy. If MPI is off, then only local copies are performed.
-      fieldCursor => field
-      do while(associated(fieldCursor))
-        do iHalo = 1, nHaloLayers
-          exchListPtr => fieldCursor % copyList % halos(haloLayers(iHalo)) % exchList
+      do iHalo = 1, nHaloLayers
+        exchListPtr => field % copyList % halos(haloLayers(iHalo)) % exchList
 
-          do while(associated(exchListPtr))
-            fieldCursor2 => field
-            do while(associated(fieldCursor2))
-              if(exchListPtr % endPointID == fieldCursor2 % block % localBlockID) then
-                do i = 1, exchListPtr % nList
-                  fieldCursor2 % array(:, :, exchListPtr % destList(i)) = fieldCursor % array(:, :, exchListPtr % srcList(i))
-                end do
-              end if
+        do while(associated(exchListPtr))
+          fieldCursor2 => field
+          do while(associated(fieldCursor2))
+            if(exchListPtr % endPointID == fieldCursor2 % block % localBlockID) then
+              do i = 1, exchListPtr % nList
+                fieldCursor2 % array(:, :, exchListPtr % destList(i)) = field % array(:, :, exchListPtr % srcList(i))
+              end do
+            end if
 
-              fieldCursor2 => fieldCursor2 % next
-            end do
-
-            exchListPtr => exchListPtr % next
+            fieldCursor2 => fieldCursor2 % next
           end do
-        end do
 
-        fieldCursor => fieldCursor % next
+          exchListPtr => exchListPtr % next
+        end do
       end do
 
 #ifdef _MPI
@@ -5676,26 +5654,22 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
         bufferOffset = 0
         do iHalo = 1, nHaloLayers
           nAdded = 0
-          fieldCursor => field
-          do while(associated(fieldCursor))
-            exchListPtr => fieldCursor % recvList % halos(haloLayers(iHalo)) % exchList
-            do while(associated(exchListPtr))
-              if(exchListPtr % endPointID == commListPtr % procID) then
-                do i = 1, exchListPtr % nList
-                  do j = 1, fieldCursor % dimSizes(2)
-                    do k = 1, fieldCursor % dimSizes(1)
-                      fieldCursor % array(k, j, exchListPtr % destList(i)) = commListPtr % rbuffer((exchListPtr % srcList(i)-1)*fieldCursor % dimSizes(1) * fieldCursor % dimSizes(2) &
-                                                                           + (j-1)*fieldCursor % dimSizes(1) + k + bufferOffset)
-                    end do
+          exchListPtr => field % recvList % halos(haloLayers(iHalo)) % exchList
+          do while(associated(exchListPtr))
+            if(exchListPtr % endPointID == commListPtr % procID) then
+              do i = 1, exchListPtr % nList
+                do j = 1, field % dimSizes(2)
+                  do k = 1, field % dimSizes(1)
+                    field % array(k, j, exchListPtr % destList(i)) = commListPtr % rbuffer((exchListPtr % srcList(i)-1)*field % dimSizes(1) * field % dimSizes(2) &
+                                                                         + (j-1)*field % dimSizes(1) + k + bufferOffset)
                   end do
                 end do
-                nAdded = max(nAdded, maxval(exchListPtr % srcList) * fieldCursor % dimSizes(1) * fieldCursor % dimSizes(2))
-              end if
-              exchListPtr => exchListPtr % next
-            end do
-
-            fieldCursor => fieldCursor % next
+              end do
+              nAdded = max(nAdded, maxval(exchListPtr % srcList) * field % dimSizes(1) * field % dimSizes(2))
+            end if
+            exchListPtr => exchListPtr % next
           end do
+
           bufferOffset = bufferOffset + nAdded
         end do
         commListPtr => commListPtr % next
