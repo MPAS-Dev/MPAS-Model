@@ -4692,7 +4692,7 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
       !
       ! Determine number of elements we will need in compactHaloInfo
       !
-      infosize = 3
+      infosize = 5
 
       allocate(compactHaloInfo(infosize))
 
@@ -4705,6 +4705,14 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
          compactHaloInfo(idx) = size(field % array, i)
          idx = idx + 1
       end do
+
+      !
+      ! Add MPI info
+      !
+      compactHaloInfo(idx) = field % block % domain % dminfo % comm
+      idx = idx + 1
+      compactHaloInfo(idx) = field % block % domain % dminfo % my_proc_id
+      idx = idx + 1
 
    end subroutine mpas_dmpar_compact_halo_info_2d_real !}}}
 
@@ -4737,7 +4745,7 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
       !
       ! Determine number of elements we will need in compactHaloInfo
       !
-      infosize = 4
+      infosize = 6
 
       allocate(compactHaloInfo(infosize))
 
@@ -4750,6 +4758,14 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
          compactHaloInfo(idx) = size(field % array, i)
          idx = idx + 1
       end do
+
+      !
+      ! Add MPI info
+      !
+      compactHaloInfo(idx) = field % block % domain % dminfo % comm
+      idx = idx + 1
+      compactHaloInfo(idx) = field % block % domain % dminfo % my_proc_id
+      idx = idx + 1
 
    end subroutine mpas_dmpar_compact_halo_info_3d_real !}}}
 
@@ -5498,7 +5514,6 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
       integer, dimension(:), intent(in) :: compactHaloInfo !< Input: Information needed to construct communications lists, etc.
       integer, dimension(:), intent(in), optional :: haloLayersIn !< Input: List of halo layers to communicate. Defaults to all
 
-      type (dm_info), pointer :: dminfo
       type (mpas_exchange_list), pointer :: exchListPtr
       type (mpas_communication_list), pointer :: sendList, recvList, commListPtr
       integer :: mpi_ierr
@@ -5506,11 +5521,15 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
       integer :: bufferOffset, nAdded
       integer, dimension(:), pointer :: haloLayers
       integer, dimension(2) :: dimsizes
+      integer :: mpi_comm, mpi_proc_id
 
 
+      !
+      ! Unpack fields from the compacted halo info array
+      !
       dimsizes(1:2) = compactHaloInfo(2:3)
-
-      dminfo => field % block % domain % dminfo
+      mpi_comm = compactHaloInfo(4)
+      mpi_proc_id = compactHaloInfo(5)
 
       if(present(haloLayersIn)) then
         nHaloLayers = size(haloLayersIn)
@@ -5535,7 +5554,7 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
       do while(associated(commListPtr))
         allocate(commListPtr % rbuffer(commListPtr % nList))
         nullify(commListPtr % ibuffer)
-        call MPI_Irecv(commListPtr % rbuffer, commListPtr % nList, MPI_REALKIND, commListPtr % procID, commListPtr % procID, dminfo % comm, commListPtr % reqID, mpi_ierr)
+        call MPI_Irecv(commListPtr % rbuffer, commListPtr % nList, MPI_REALKIND, commListPtr % procID, commListPtr % procID, mpi_comm, commListPtr % reqID, mpi_ierr)
 
         commListPtr => commListPtr % next
       end do
@@ -5565,7 +5584,7 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
           bufferOffset = bufferOffset + nAdded
         end do
 
-        call MPI_Isend(commListPtr % rbuffer, commListPtr % nList, MPI_REALKIND, commListPtr % procID, dminfo % my_proc_id, dminfo % comm, commListPtr % reqID, mpi_ierr)
+        call MPI_Isend(commListPtr % rbuffer, commListPtr % nList, MPI_REALKIND, commListPtr % procID, mpi_proc_id, mpi_comm, commListPtr % reqID, mpi_ierr)
         commListPtr => commListPtr % next
       end do
 
@@ -5634,7 +5653,6 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
       integer, dimension(:), intent(in) :: compactHaloInfo !< Input: Information needed to construct communications lists, etc.
       integer, dimension(:), intent(in), optional :: haloLayersIn !< Input: List of halo layers to communicate. Defaults to all
 
-      type (dm_info), pointer :: dminfo
       type (mpas_exchange_list), pointer :: exchListPtr
       type (mpas_communication_list), pointer :: sendList, recvList, commListPtr
       integer :: mpi_ierr
@@ -5642,11 +5660,15 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
       integer :: bufferOffset, nAdded
       integer, dimension(:), pointer :: haloLayers
       integer, dimension(3) :: dimsizes
+      integer :: mpi_comm, mpi_proc_id
 
 
+      !
+      ! Unpack fields from the compacted halo info array
+      !
       dimsizes(1:3) = compactHaloInfo(2:4)
-
-      dminfo => field % block % domain % dminfo
+      mpi_comm = compactHaloInfo(5)
+      mpi_proc_id = compactHaloInfo(6)
 
       if(present(haloLayersIn)) then
         nHaloLayers = size(haloLayersIn)
@@ -5671,7 +5693,7 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
       do while(associated(commListPtr))
         allocate(commListPtr % rbuffer(commListPtr % nList))
         nullify(commListPtr % ibuffer)
-        call MPI_Irecv(commListPtr % rbuffer, commListPtr % nList, MPI_REALKIND, commListPtr % procID, commListPtr % procID, dminfo % comm, commListPtr % reqID, mpi_ierr)
+        call MPI_Irecv(commListPtr % rbuffer, commListPtr % nList, MPI_REALKIND, commListPtr % procID, commListPtr % procID, mpi_comm, commListPtr % reqID, mpi_ierr)
 
         commListPtr => commListPtr % next
       end do
@@ -5704,7 +5726,7 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
           bufferOffset = bufferOffset + nAdded
         end do
 
-        call MPI_Isend(commListPtr % rbuffer, commListPtr % nList, MPI_REALKIND, commListPtr % procID, dminfo % my_proc_id, dminfo % comm, commListPtr % reqID, mpi_ierr)
+        call MPI_Isend(commListPtr % rbuffer, commListPtr % nList, MPI_REALKIND, commListPtr % procID, mpi_proc_id, mpi_comm, commListPtr % reqID, mpi_ierr)
         commListPtr => commListPtr % next
       end do
 
