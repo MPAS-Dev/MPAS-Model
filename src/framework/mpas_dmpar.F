@@ -5397,14 +5397,18 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
       integer, dimension(:), intent(in), optional :: haloLayersIn !< Input: List of halo layers to communicate. Defaults to all
 
       type (dm_info), pointer :: dminfo
-      type (field2dReal), pointer :: fieldCursor, fieldCursor2
       type (mpas_exchange_list), pointer :: exchListPtr
       type (mpas_communication_list), pointer :: sendList, recvList, commListPtr
       integer :: mpi_ierr
       integer :: nHaloLayers, iHalo, i, j
       integer :: bufferOffset, nAdded
       integer, dimension(:), pointer :: haloLayers
+      integer, dimension(2) :: dimsizes
 
+
+      do i=1,2
+         dimsizes(i) = size(field % array, i)
+      end do
 
       dminfo => field % block % domain % dminfo
 
@@ -5424,7 +5428,7 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
 
 #ifdef _MPI
       ! Setup Communication Lists
-      call mpas_dmpar_build_comm_lists(field % sendList, field % recvList, haloLayers, field % dimsizes, sendList, recvList)
+      call mpas_dmpar_build_comm_lists(field % sendList, field % recvList, haloLayers, dimsizes, sendList, recvList)
 
       ! Allocate space in recv lists, and initiate mpi_irecv calls
       commListPtr => recvList
@@ -5448,8 +5452,8 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
           do while(associated(exchListPtr))
             if(exchListPtr % endPointID == commListPtr % procID) then
               do  i = 1, exchListPtr % nList
-                do j = 1, field % dimSizes(1)
-                  commListPtr % rbuffer((exchListPtr % destList(i)-1) * field % dimSizes(1) + j + bufferOffset) = field % array(j, exchListPtr % srcList(i))
+                do j = 1, dimSizes(1)
+                  commListPtr % rbuffer((exchListPtr % destList(i)-1) * dimSizes(1) + j + bufferOffset) = field % array(j, exchListPtr % srcList(i))
                   nAdded = nAdded + 1
                 end do
               end do
@@ -5476,11 +5480,11 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
           do while(associated(exchListPtr))
             if(exchListPtr % endPointID == commListPtr % procID) then
               do i = 1, exchListPtr % nList
-                do j = 1, field % dimSizes(1)
-                  field % array(j, exchListPtr % destList(i)) = commListPtr % rbuffer((exchListPtr % srcList(i)-1)*field % dimSizeS(1) + j + bufferOffset)
+                do j = 1, dimSizes(1)
+                  field % array(j, exchListPtr % destList(i)) = commListPtr % rbuffer((exchListPtr % srcList(i)-1)*dimSizeS(1) + j + bufferOffset)
                 end do
               end do
-              nAdded = max(nAdded, maxval(exchListPtr % srcList) * field % dimSizes(1))
+              nAdded = max(nAdded, maxval(exchListPtr % srcList) * dimSizes(1))
             end if
             exchListPtr => exchListPtr % next
           end do
@@ -5530,14 +5534,18 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
       integer, dimension(:), intent(in), optional :: haloLayersIn !< Input: List of halo layers to communicate. Defaults to all
 
       type (dm_info), pointer :: dminfo
-      type (field3dReal), pointer :: fieldCursor, fieldCursor2
       type (mpas_exchange_list), pointer :: exchListPtr
       type (mpas_communication_list), pointer :: sendList, recvList, commListPtr
       integer :: mpi_ierr
       integer :: nHaloLayers, iHalo, i, j, k
       integer :: bufferOffset, nAdded
       integer, dimension(:), pointer :: haloLayers
+      integer, dimension(3) :: dimsizes
 
+
+      do i=1,3
+         dimsizes(i) = size(field % array, i)
+      end do
 
       dminfo => field % block % domain % dminfo
 
@@ -5557,7 +5565,7 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
 
 #ifdef _MPI
       ! Setup Communication Lists
-      call mpas_dmpar_build_comm_lists(field % sendList, field % recvList, haloLayers, field % dimsizes, sendList, recvList)
+      call mpas_dmpar_build_comm_lists(field % sendList, field % recvList, haloLayers, dimsizes, sendList, recvList)
 
       ! Allocate space in recv lists, and initiate mpi_irecv calls
       commListPtr => recvList
@@ -5581,10 +5589,10 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
           do while(associated(exchListPtr))
             if(exchListPtr % endPointID == commListPtr % procID) then
               do  i = 1, exchListPtr % nList
-                do j = 1, field % dimSizes(2)
-                  do k = 1, field % dimSizes(1)
-                    commListPtr % rbuffer((exchListPtr % destList(i)-1) * field % dimSizes(1) * field % dimSizes(2) &
-                        + (j-1) * field % dimSizes(1) + k  + bufferOffset) = field % array(k, j, exchListPtr % srcList(i))
+                do j = 1, dimSizes(2)
+                  do k = 1, dimSizes(1)
+                    commListPtr % rbuffer((exchListPtr % destList(i)-1) * dimSizes(1) * dimSizes(2) &
+                        + (j-1) * dimSizes(1) + k  + bufferOffset) = field % array(k, j, exchListPtr % srcList(i))
                     nAdded = nAdded + 1
                   end do
                 end do
@@ -5612,14 +5620,14 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
           do while(associated(exchListPtr))
             if(exchListPtr % endPointID == commListPtr % procID) then
               do i = 1, exchListPtr % nList
-                do j = 1, field % dimSizes(2)
-                  do k = 1, field % dimSizes(1)
-                    field % array(k, j, exchListPtr % destList(i)) = commListPtr % rbuffer((exchListPtr % srcList(i)-1)*field % dimSizes(1) * field % dimSizes(2) &
-                                                                         + (j-1)*field % dimSizes(1) + k + bufferOffset)
+                do j = 1, dimSizes(2)
+                  do k = 1, dimSizes(1)
+                    field % array(k, j, exchListPtr % destList(i)) = commListPtr % rbuffer((exchListPtr % srcList(i)-1)*dimSizes(1) * dimSizes(2) &
+                                                                         + (j-1)*dimSizes(1) + k + bufferOffset)
                   end do
                 end do
               end do
-              nAdded = max(nAdded, maxval(exchListPtr % srcList) * field % dimSizes(1) * field % dimSizes(2))
+              nAdded = max(nAdded, maxval(exchListPtr % srcList) * dimSizes(1) * dimSizes(2))
             end if
             exchListPtr => exchListPtr % next
           end do
