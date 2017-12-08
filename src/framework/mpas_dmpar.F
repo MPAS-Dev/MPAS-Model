@@ -4879,6 +4879,16 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
 !>  This routine extracts all information needed to perform a halo exchange
 !>  from dynamic data types and places it into a single, contiguous array
 !>  for use by the mpas_dmpar_exch_halo_acc routines.
+!>  The resulting compactHaloInfo array has the following elements:
+!>    1 - The dimensionality of the field
+!>    2 - Dimension 1 of the field (i.e., the left-most dimension)
+!>    3 - Dimension 2 of the field
+!>    4 - Dimension 3 of the field
+!>    5 - Dimension 4 of the field
+!>    6 - Dimension 5 of the field
+!>    7 - The MPI communicator
+!>    8 - The MPI rank of the current process
+!>    9 - The number of halo layers for the field
 !
 !-----------------------------------------------------------------------
    subroutine mpas_dmpar_compact_halo_info_2d_real(field, compactHaloInfo) !{{{
@@ -4897,9 +4907,10 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
       !
       ! Determine number of elements we will need in compactHaloInfo
       !
-      infosize = 6
+      infosize = 9
 
       allocate(compactHaloInfo(infosize))
+      compactHaloInfo(:) = 0
 
       !
       ! Add field dimensionality and dimensions
@@ -4914,6 +4925,7 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
       !
       ! Add MPI info
       !
+      idx = 7
       compactHaloInfo(idx) = field % block % domain % dminfo % comm
       idx = idx + 1
       compactHaloInfo(idx) = field % block % domain % dminfo % my_proc_id
@@ -4938,6 +4950,16 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
 !>  This routine extracts all information needed to perform a halo exchange
 !>  from dynamic data types and places it into a single, contiguous array
 !>  for use by the mpas_dmpar_exch_halo_acc routines.
+!>  The resulting compactHaloInfo array has the following elements:
+!>    1 - The dimensionality of the field
+!>    2 - Dimension 1 of the field (i.e., the left-most dimension)
+!>    3 - Dimension 2 of the field
+!>    4 - Dimension 3 of the field
+!>    5 - Dimension 4 of the field
+!>    6 - Dimension 5 of the field
+!>    7 - The MPI communicator
+!>    8 - The MPI rank of the current process
+!>    9 - The number of halo layers for the field
 !
 !-----------------------------------------------------------------------
    subroutine mpas_dmpar_compact_halo_info_3d_real(field, compactHaloInfo) !{{{
@@ -4956,9 +4978,10 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
       !
       ! Determine number of elements we will need in compactHaloInfo
       !
-      infosize = 7
+      infosize = 9
 
       allocate(compactHaloInfo(infosize))
+      compactHaloInfo(:) = 0
 
       !
       ! Add field dimensionality and dimensions
@@ -4973,6 +4996,7 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
       !
       ! Add MPI info
       !
+      idx = 7
       compactHaloInfo(idx) = field % block % domain % dminfo % comm
       idx = idx + 1
       compactHaloInfo(idx) = field % block % domain % dminfo % my_proc_id
@@ -5746,8 +5770,8 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
       ! Unpack fields from the compacted halo info array
       !
       dimsizes(1:2) = compactHaloInfo(2:3)
-      mpi_comm = compactHaloInfo(4)
-      mpi_proc_id = compactHaloInfo(5)
+      mpi_comm = compactHaloInfo(7)
+      mpi_proc_id = compactHaloInfo(8)
 
       if(present(haloLayersIn)) then
         nHaloLayers = size(haloLayersIn)
@@ -5756,7 +5780,7 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
           haloLayers(iHalo) = haloLayersIn(iHalo)
         end do
       else
-        nHaloLayers = compactHaloInfo(6)
+        nHaloLayers = compactHaloInfo(9)
         allocate(haloLayers(nHaloLayers))
         do iHalo = 1, nHaloLayers
           haloLayers(iHalo) = iHalo
@@ -5886,8 +5910,8 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
       ! Unpack fields from the compacted halo info array
       !
       dimsizes(1:3) = compactHaloInfo(2:4)
-      mpi_comm = compactHaloInfo(5)
-      mpi_proc_id = compactHaloInfo(6)
+      mpi_comm = compactHaloInfo(7)
+      mpi_proc_id = compactHaloInfo(8)
 
       if(present(haloLayersIn)) then
         nHaloLayers = size(haloLayersIn)
@@ -5896,7 +5920,7 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
           haloLayers(iHalo) = haloLayersIn(iHalo)
         end do
       else
-        nHaloLayers = compactHaloInfo(7)
+        nHaloLayers = compactHaloInfo(9)
         allocate(haloLayers(nHaloLayers))
         do iHalo = 1, nHaloLayers
           haloLayers(iHalo) = iHalo
