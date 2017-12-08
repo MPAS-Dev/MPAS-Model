@@ -5464,29 +5464,6 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
         call MPI_Isend(commListPtr % rbuffer, commListPtr % nList, MPI_REALKIND, commListPtr % procID, dminfo % my_proc_id, dminfo % comm, commListPtr % reqID, mpi_ierr)
         commListPtr => commListPtr % next
       end do
-#endif
-
-      ! Handle local copy. If MPI is off, then only local copies are performed.
-      do iHalo = 1, nHaloLayers
-        exchListPtr => field % copyList % halos(haloLayers(iHalo)) % exchList
-
-        do while(associated(exchListPtr))
-          fieldCursor2 => field
-          do while(associated(fieldCursor2))
-            if(exchListPtr % endPointID == fieldCursor2 % block % localBlockID) then
-              do i = 1, exchListPtr % nList
-                fieldCursor2 % array(:, exchListPtr % destList(i)) = field % array(:, exchListPtr % srcList(i))
-              end do
-            end if
-
-            fieldCursor2 => fieldCursor2 % next
-          end do
-
-          exchListPtr => exchListPtr % next
-        end do
-      end do
-
-#ifdef _MPI
 
       ! Wait for mpi_irecv to finish, and unpack data from buffer
       commListPtr => recvList
@@ -5623,29 +5600,6 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
         call MPI_Isend(commListPtr % rbuffer, commListPtr % nList, MPI_REALKIND, commListPtr % procID, dminfo % my_proc_id, dminfo % comm, commListPtr % reqID, mpi_ierr)
         commListPtr => commListPtr % next
       end do
-#endif
-
-      ! Handle local copy. If MPI is off, then only local copies are performed.
-      do iHalo = 1, nHaloLayers
-        exchListPtr => field % copyList % halos(haloLayers(iHalo)) % exchList
-
-        do while(associated(exchListPtr))
-          fieldCursor2 => field
-          do while(associated(fieldCursor2))
-            if(exchListPtr % endPointID == fieldCursor2 % block % localBlockID) then
-              do i = 1, exchListPtr % nList
-                fieldCursor2 % array(:, :, exchListPtr % destList(i)) = field % array(:, :, exchListPtr % srcList(i))
-              end do
-            end if
-
-            fieldCursor2 => fieldCursor2 % next
-          end do
-
-          exchListPtr => exchListPtr % next
-        end do
-      end do
-
-#ifdef _MPI
 
       ! Wait for mpi_irecv to finish, and unpack data from buffer
       commListPtr => recvList
