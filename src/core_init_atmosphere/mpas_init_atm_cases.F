@@ -2508,7 +2508,7 @@ module init_atm_cases
       integer :: nInterpPoints, ndims
 
       integer :: nfglevels_actual
-      integer, pointer :: index_qv
+      integer, pointer :: index_qv, index_qc
 
       integer, dimension(5) :: interp_list
       real (kind=RKIND) :: maskval
@@ -2582,6 +2582,7 @@ module init_atm_cases
 
       !  calculation of the water vapor mixing ratio:
       real (kind=RKIND) :: sh_max,sh_min,global_sh_max,global_sh_min
+      real (kind=RKIND) :: qc_max,qc_min,global_qc_max,global_qc_min
 
       character (len=StrKIND), pointer :: config_met_prefix
       character (len=StrKIND), pointer :: config_start_time
@@ -2620,6 +2621,7 @@ module init_atm_cases
       real (kind=RKIND), dimension(:,:), pointer :: rho
       real (kind=RKIND), dimension(:,:), pointer :: relhum
       real (kind=RKIND), dimension(:,:), pointer :: spechum
+      real (kind=RKIND), dimension(:,:), pointer :: clwmr
       real (kind=RKIND), dimension(:,:), pointer :: ru
       real (kind=RKIND), dimension(:,:), pointer :: rw
       real (kind=RKIND), dimension(:), pointer :: precipw
@@ -2638,6 +2640,7 @@ module init_atm_cases
       real (kind=RKIND), dimension(:,:), pointer :: z_fg
       real (kind=RKIND), dimension(:,:), pointer :: t_fg
       real (kind=RKIND), dimension(:,:), pointer :: rh_fg
+      real (kind=RKIND), dimension(:,:), pointer :: qc_fg
       real (kind=RKIND), dimension(:,:), pointer :: sh_fg
       real (kind=RKIND), dimension(:,:), pointer :: gfs_z
       real (kind=RKIND), dimension(:,:), pointer :: p_fg
@@ -2730,6 +2733,7 @@ module init_atm_cases
       call mpas_pool_get_array(diag, 'surface_pressure', surface_pressure)
       call mpas_pool_get_array(diag, 'relhum', relhum)
       call mpas_pool_get_array(diag, 'spechum', spechum)
+      call mpas_pool_get_array(diag, 'clwmr', clwmr)
       call mpas_pool_get_array(diag, 'ru', ru)
       call mpas_pool_get_array(diag, 'rw', rw)
 
@@ -2774,6 +2778,7 @@ module init_atm_cases
       call mpas_pool_get_array(fg, 'z', z_fg)
       call mpas_pool_get_array(fg, 't', t_fg)
       call mpas_pool_get_array(fg, 'rh', rh_fg)
+      call mpas_pool_get_array(fg, 'qc', qc_fg)
       call mpas_pool_get_array(fg, 'sh', sh_fg)
       call mpas_pool_get_array(fg, 'gfs_z', gfs_z)
       call mpas_pool_get_array(fg, 'p', p_fg)
@@ -2783,6 +2788,7 @@ module init_atm_cases
       nz = nz1 + 1
 
       call mpas_pool_get_dimension(state, 'index_qv', index_qv)
+      call mpas_pool_get_dimension(state, 'index_qc', index_qc)
 
       xnutr = 0.
       zd = 12000.
@@ -3340,6 +3346,7 @@ write(0,*) 'minval, maxval of LANDSEA = ', minval(maskslab), maxval(maskslab)
              trim(field % field) == 'TT' .or. &
              trim(field % field) == 'RH' .or. &
              trim(field % field) == 'SPECHUMD' .or. &
+             trim(field % field) == 'QC' .or. &
              trim(field % field) == 'GHT' .or. &
              trim(field % field) == 'PMSL' .or. &
              trim(field % field) == 'PSFC' .or. &
@@ -3453,6 +3460,7 @@ write(0,*) 'minval, maxval of LANDSEA = ', minval(maskslab), maxval(maskslab)
             !
             ! Horizontally interpolate the field at level k
             !
+
             if (trim(field % field) == 'UU') then
 write(0,*) 'Interpolating U at ', k, vert_level(k)
 
@@ -3517,6 +3525,13 @@ write(0,*) 'Interpolating SPECHUMD at ', k, vert_level(k)
                latPoints => latCell
                lonPoints => lonCell
                call mpas_pool_get_array(fg, 'sh', destField2d)
+               ndims = 2
+            else if (trim(field % field) == 'QC') then
+write(0,*) 'Interpolating QC at ', k, vert_level(k)
+               nInterpPoints = nCells
+               latPoints => latCell
+               lonPoints => lonCell
+               call mpas_pool_get_array(fg, 'qc', destField2d)
                ndims = 2
             else if (trim(field % field) == 'GHT') then
 write(0,*) 'Interpolating GHT at ', k, vert_level(k)
@@ -4156,6 +4171,7 @@ write(0,*) 'Interpolating SKINTEMP'
       call mpas_pool_get_array(fg, 'v', v_fg)
       call mpas_pool_get_array(fg, 't', t_fg)
       call mpas_pool_get_array(fg, 'rh', rh_fg)
+      call mpas_pool_get_array(fg, 'qc', qc_fg)
 !      u10(:) = 0.0
 !      v10(:) = 0.0
       q2(:) = 0.0
@@ -4523,6 +4539,24 @@ write(0,*) 'PROCESSING OMLD'
          end do
 
 
+         ! QC: if first-guess values are negative, set those values to zero before
+         ! vertical interpolation.
+         sorted_arr(:,:) = -999.0
+         clwmr(:,iCell) = 0._RKIND
+         do k = 1, nfglevels_actual
+            sorted_arr(1,k) = z_fg(k,iCell)
+            if (vert_level(k) == 200100.0) sorted_arr(1,k) = 99999.0
+            sorted_arr(2,k) = max(0._RKIND,qc_fg(k,iCell))
+         end do
+         call mpas_quicksort(nfglevels_actual, sorted_arr)
+         do k = nVertLevels, 1, -1
+            target_z = 0.5 * (zgrid(k,iCell) + zgrid(k+1,iCell))
+            clwmr(k,iCell) = vertical_interp(target_z, nfglevels_actual-1, &
+                                        sorted_arr(:,1:nfglevels_actual-1), order=1, extrap=0)
+            if (target_z < z_fg(1,iCell) .and. k < nVertLevels) clwmr(k,iCell) = clwmr(k+1,iCell)
+         end do
+
+
          ! GHT
          sorted_arr(:,:) = -999.0
          do k = 1, nfglevels_actual
@@ -4644,11 +4678,11 @@ write(0,*) 'PROCESSING OMLD'
 
          do k = 1, nVertLevels
             do iCell = 1, nCells
-!              es = svp1*10.*exp(svp2*(t(k,iCell)-svpt0)/(t(k,iCell)-svp3))
-!              es = min(es,0.99*0.01*pressure(k,iCell))
-!              rs = 0.622*es*100. / (pressure(k,iCell)-es*100.)
                rs = rslf(pressure(k,iCell),t(k,iCell))
-               if(t(k,iCell) .lt. svpt0) rs = rsif(pressure(k,iCell),t(k,iCell))
+               !--- 2017-12-11 Brett Wilt (brett.wilt@weather.com)
+               !--- relhum from gfs, ecmwf, cfsv2 adjusted by ungrib and relative to saturation over water only
+               !--- disabling next line for saturation over ice for t < 273.15
+               !--- if(t(k,iCell) .lt. svpt0) rs = rsif(pressure(k,iCell),t(k,iCell))
                scalars(index_qv,k,iCell) = 0.01_RKIND*rs*relhum(k,iCell)
              enddo
          enddo
@@ -4662,6 +4696,29 @@ write(0,*) 'PROCESSING OMLD'
             enddo
          enddo
       endif
+
+
+      ! Diagnose the cloud water mixing ratios:
+      global_qc_min = 0._RKIND
+      global_qc_max = 0._RKIND
+      qc_min = minval(clwmr(:,1:nCellsSolve))
+      qc_max = maxval(clwmr(:,1:nCellsSolve))
+      call mpas_dmpar_min_real(dminfo,qc_min,global_qc_min)
+      call mpas_dmpar_max_real(dminfo,qc_max,global_qc_max)
+      write(0,*)
+      write(0,*) '--- global_qc_min = ', global_qc_min
+      write(0,*) '--- global_qc_max = ', global_qc_max
+      write(0,*)
+
+      !--- use the interpolated first-guess cloud water mixing ratio:
+      write(0,*) ' *** initializing cloud water mixing ratio using first-guess cloud water mixing ratio'
+      write(0,*)
+      do k = 1, nVertLevels
+         do iCell = 1, nCells
+            scalars(index_qc,k,iCell) = clwmr(k,iCell)
+         enddo
+      enddo
+
 
       !
       ! Diagnose fields needed in initial conditions file (u, w, rho, theta)
