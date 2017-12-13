@@ -2323,8 +2323,8 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
 
       ! We only need the product of all dimension sizes (except the last), so calculate that now
       dimSizeProduct = 1
-      do iDimen = 1, size(dimsizes) - 1
-         dimSizeProduct = dimSizeProduct * dimsizes(iDimen)
+      do iDimen = 1, compactHaloInfo(1) - 1
+         dimSizeProduct = dimSizeProduct * compactHaloInfo(iDimen+1)   ! Dimensions start at index 2 
       enddo
 
       ! Get size of haloLayers array
