@@ -4890,9 +4890,9 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
 !>    8 - The MPI rank of the current process
 !>    9 - The number of halo layers for the field
 !>   10 - The number of endpoints to send to
-!>   11 - foreach (send endpoint) { foreach (halolayer) {nList srcList(1:nList) destList(1:nList)} }
+!>   11 - foreach (send endpoint) { endPointID foreach (halolayer) {nList srcList(1:nList) destList(1:nList)} }
 !>   12 - The maximum number of endpoints to recv from for any halo layer
-!>   13 - foreach (recv endpoint) { foreach (halolayer) {nList srcList(1:nList) destList(1:nList)} }
+!>   13 - foreach (recv endpoint) { endPointID foreach (halolayer) {nList srcList(1:nList) destList(1:nList)} }
 !
 !-----------------------------------------------------------------------
    subroutine mpas_dmpar_compact_halo_info_2d_real(field, compactHaloInfo) !{{{
@@ -5030,7 +5030,8 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
       !
       ! Compute the number of elements we will need in compactHaloInfo
       !
-      infosize = 11 + nHaloLayers * nSendEndpoints + nHaloLayers * nRecvEndpoints + totSendListSize + totRecvListSize
+      infosize = 11 + nSendEndpoints + nHaloLayers * nSendEndpoints + totSendListSize &
+                    + nRecvEndpoints + nHaloLayers * nRecvEndpoints + totRecvListSize
 
       allocate(compactHaloInfo(infosize))
       compactHaloInfo(:) = 0
@@ -5067,9 +5068,11 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
       idx = idx + 1
 
       !
-      ! 11: foreach (endpoint) { foreach (halolayer) {nList srcList(1:nList) destList(1:nList)} }
+      ! 11: foreach (endpoint) { endPointID foreach (halolayer) {nList srcList(1:nList) destList(1:nList)} }
       !
       do iendpt=1,nSendEndpoints
+         compactHaloInfo(idx) = sendEndpoints(iendpt)
+         idx = idx + 1
          do i=1,nHaloLayers
             sendListCursor => field % sendList
             do while (associated(sendListCursor))
@@ -5106,9 +5109,11 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
       idx = idx + 1
 
       !
-      ! 13: foreach (endpoint) { foreach (halolayer) {nList srcList(1:nList) destList(1:nList)} }
+      ! 13: foreach (endpoint) { endPointID foreach (halolayer) {nList srcList(1:nList) destList(1:nList)} }
       !
       do iendpt=1,nRecvEndpoints
+         compactHaloInfo(idx) = recvEndpoints(iendpt)
+         idx = idx + 1
          do i=1,nHaloLayers
             recvListCursor => field % recvList
             do while (associated(recvListCursor))
@@ -5162,9 +5167,9 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
 !>    8 - The MPI rank of the current process
 !>    9 - The number of halo layers for the field
 !>   10 - The number of endpoints to send to
-!>   11 - foreach (send endpoint) { foreach (halolayer) {nList srcList(1:nList) destList(1:nList)} }
+!>   11 - foreach (send endpoint) { endPointID foreach (halolayer) {nList srcList(1:nList) destList(1:nList)} }
 !>   12 - The maximum number of endpoints to recv from for any halo layer
-!>   13 - foreach (recv endpoint) { foreach (halolayer) {nList srcList(1:nList) destList(1:nList)} }
+!>   13 - foreach (recv endpoint) { endPointID foreach (halolayer) {nList srcList(1:nList) destList(1:nList)} }
 !
 !-----------------------------------------------------------------------
    subroutine mpas_dmpar_compact_halo_info_3d_real(field, compactHaloInfo) !{{{
@@ -5302,7 +5307,8 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
       !
       ! Compute the number of elements we will need in compactHaloInfo
       !
-      infosize = 11 + nHaloLayers * nSendEndpoints + nHaloLayers * nRecvEndpoints + totSendListSize + totRecvListSize
+      infosize = 11 + nSendEndpoints + nHaloLayers * nSendEndpoints + totSendListSize &
+                    + nRecvEndpoints + nHaloLayers * nRecvEndpoints + totRecvListSize
 
       allocate(compactHaloInfo(infosize))
       compactHaloInfo(:) = 0
@@ -5342,6 +5348,8 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
       ! 11: foreach (endpoint) { foreach (halolayer) {nList srcList(1:nList) destList(1:nList)} }
       !
       do iendpt=1,nSendEndpoints
+         compactHaloInfo(idx) = sendEndpoints(iendpt)
+         idx = idx + 1
          do i=1,nHaloLayers
             sendListCursor => field % sendList
             do while (associated(sendListCursor))
@@ -5381,6 +5389,8 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
       ! 13: foreach (endpoint) { foreach (halolayer) {nList srcList(1:nList) destList(1:nList)} }
       !
       do iendpt=1,nRecvEndpoints
+         compactHaloInfo(idx) = recvEndpoints(iendpt)
+         idx = idx + 1
          do i=1,nHaloLayers
             recvListCursor => field % recvList
             do while (associated(recvListCursor))
