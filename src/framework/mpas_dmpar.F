@@ -6096,11 +6096,10 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
 !>  region.
 !
 !-----------------------------------------------------------------------
-   subroutine mpas_dmpar_exch_halo_2d_real_acc(field, array, compactHaloInfo, haloLayersIn) !{{{
+   subroutine mpas_dmpar_exch_halo_2d_real_acc(array, compactHaloInfo, haloLayersIn) !{{{
 
       implicit none
 
-      type (field2dReal), pointer :: field !< Input: Field to communicate
       real (kind=RKIND), dimension(:,:), intent(inout) :: array !< Input: Array storage for field whose halo will be communicated
       integer, dimension(:), intent(in) :: compactHaloInfo !< Input: Information needed to construct communications lists, etc.
       integer, dimension(:), intent(in), optional :: haloLayersIn !< Input: List of halo layers to communicate. Defaults to all
@@ -6108,7 +6107,8 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
       type (mpas_exchange_list), pointer :: exchListPtr
       type (mpas_communication_list), pointer :: sendList, recvList, commListPtr
       integer :: mpi_ierr
-      integer :: nHaloLayers, iHalo, i, j
+      integer :: nHaloLayers, iHalo, i, j, idx
+      integer :: nFieldHaloLayers, iFieldHalo, nList
       integer :: bufferOffset, nAdded
       integer, dimension(:), pointer :: haloLayers
       integer, dimension(2) :: dimsizes
@@ -6136,6 +6136,8 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
         end do
       end if
 
+      nFieldHaloLayers = compactHaloInfo(9)
+
 #ifdef _MPI
       ! Setup Communication Lists
       call mpas_dmpar_build_comm_lists_acc(compactHaloInfo, haloLayers, sendList, recvList)
@@ -6152,55 +6154,110 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
 
       ! Allocate space in send lists, copy data into buffer, and initiate mpi_isend calls
       commListPtr => sendList
+      idx = 11   ! First endPointID to send to
       do while(associated(commListPtr))
         allocate(commListPtr % rbuffer(commListPtr % nList))
         nullify(commListPtr % ibuffer)
         bufferOffset = 0
+        if (commListPtr % procID /= compactHaloInfo(idx)) then
+           call mpas_log_write('Mismatch in endpoints between compactHaloInfo and commListPtr', messageType=MPAS_LOG_CRIT)
+        end if
+        idx = idx + 1   ! Now, idx points to the nList value of the first halo layer for the field
+        iFieldHalo = 1
+        nList = compactHaloInfo(idx)
         do iHalo = 1, nHaloLayers
           nAdded = 0
-          exchListPtr => field % sendList % halos(haloLayers(iHalo)) % exchList
-          do while(associated(exchListPtr))
-            if(exchListPtr % endPointID == commListPtr % procID) then
-              do  i = 1, exchListPtr % nList
-                do j = 1, dimSizes(1)
-                  commListPtr % rbuffer((exchListPtr % destList(i)-1) * dimSizes(1) + j + bufferOffset) = array(j, exchListPtr % srcList(i))
-                  nAdded = nAdded + 1
-                end do
-              end do
-            end if
 
-            exchListPtr => exchListPtr % next
+          ! Get to the correct position in compactHaloInfo for haloLayers(iHalo)
+          do while (haloLayers(iHalo) /= iFieldHalo)
+             call mpas_log_write('Skipping halo layer $i', intArgs=(/iFieldHalo/))
+             idx = idx + 2 * nList + 1   ! Advance idx to the nList value of the next halo layer for the field
+             iFieldHalo = iFieldHalo + 1
+             if (iFieldHalo > nFieldHaloLayers) then
+                call mpas_log_write('Ran out of halos while searching for halo layer $i', intArgs=(/haloLayers(iHalo)/), messageType=MPAS_LOG_CRIT)
+             end if
+             nList = compactHaloInfo(idx)
           end do
+
+          do  i = 1, nList
+             do j = 1, dimSizes(1)
+                commListPtr % rbuffer((compactHaloInfo(idx + nList + i)-1) * dimSizes(1) + j + bufferOffset) = array(j, compactHaloInfo(idx + i))
+                nAdded = nAdded + 1
+             end do
+          end do
+
+          idx = idx + 2 * nList + 1   ! Advance idx to the nList value of the next halo layer for the field
+          nList = compactHaloInfo(idx)
+          iFieldHalo = iFieldHalo + 1
 
           bufferOffset = bufferOffset + nAdded
         end do
 
         call MPI_Isend(commListPtr % rbuffer, commListPtr % nList, MPI_REALKIND, commListPtr % procID, mpi_proc_id, mpi_comm, commListPtr % reqID, mpi_ierr)
+
+        do while (iFieldHalo <= nFieldHaloLayers)
+          idx = idx + 2 * nList + 1   ! Advance idx to the nList value of the next halo layer for the field
+          iFieldHalo = iFieldHalo + 1
+          if (iFieldHalo <= nFieldHaloLayers) then
+             nList = compactHaloInfo(idx)
+          end if
+        end do
+
         commListPtr => commListPtr % next
       end do
 
+      ! Now, idx should point to the index in compactHaloInfo holding the number of receive endpoints
+
       ! Wait for mpi_irecv to finish, and unpack data from buffer
       commListPtr => recvList
+      idx = idx + 1   ! First endPointID to receive from
       do while(associated(commListPtr))
         call MPI_Wait(commListPtr % reqID, MPI_STATUS_IGNORE, mpi_ierr)
         bufferOffset = 0
+        if (commListPtr % procID /= compactHaloInfo(idx)) then
+           call mpas_log_write('Mismatch in endpoints between compactHaloInfo and commListPtr', messageType=MPAS_LOG_CRIT)
+        end if
+        idx = idx + 1   ! Now, idx points to the nList value of the first halo layer for the field
+        iFieldHalo = 1
+        nList = compactHaloInfo(idx)
         do iHalo = 1, nHaloLayers
           nAdded = 0
-          exchListPtr => field % recvList % halos(haloLayers(iHalo)) % exchList
-          do while(associated(exchListPtr))
-            if(exchListPtr % endPointID == commListPtr % procID) then
-              do i = 1, exchListPtr % nList
-                do j = 1, dimSizes(1)
-                  array(j, exchListPtr % destList(i)) = commListPtr % rbuffer((exchListPtr % srcList(i)-1)*dimSizeS(1) + j + bufferOffset)
-                end do
-              end do
-              nAdded = max(nAdded, maxval(exchListPtr % srcList) * dimSizes(1))
-            end if
-            exchListPtr => exchListPtr % next
+
+          ! Get to the correct position in compactHaloInfo for haloLayers(iHalo)
+          do while (haloLayers(iHalo) /= iFieldHalo)
+             call mpas_log_write('Skipping halo layer $i', intArgs=(/iFieldHalo/))
+             idx = idx + 2 * nList + 1   ! Advance idx to the nList value of the next halo layer for the field
+             iFieldHalo = iFieldHalo + 1
+             if (iFieldHalo > nFieldHaloLayers) then
+                call mpas_log_write('Ran out of halos while searching for halo layer $i', intArgs=(/haloLayers(iHalo)/), messageType=MPAS_LOG_CRIT)
+             end if
+             nList = compactHaloInfo(idx)
           end do
+
+          do i = 1, nList
+             do j = 1, dimSizes(1)
+                array(j, compactHaloInfo(idx + nList + i)) = commListPtr % rbuffer((compactHaloInfo(idx + i)-1)*dimSizeS(1) + j + bufferOffset)
+             end do
+          end do
+          nAdded = max(nAdded, maxval(compactHaloInfo(idx+1:idx+nList)) * dimSizes(1))
+
+          idx = idx + 2 * nList + 1   ! Advance idx to the nList value of the next halo layer for the field
+          iFieldHalo = iFieldHalo + 1
+          if (iFieldHalo <= nFieldHaloLayers) then
+             nList = compactHaloInfo(idx)
+          end if
 
           bufferOffset = bufferOffset + nAdded
         end do
+
+        do while (iFieldHalo <= nFieldHaloLayers)
+          idx = idx + 2 * nList + 1   ! Advance idx to the nList value of the next halo layer for the field
+          iFieldHalo = iFieldHalo + 1
+          if (iFieldHalo <= nFieldHaloLayers) then
+             nList = compactHaloInfo(idx)
+          end if
+        end do
+
         commListPtr => commListPtr % next
       end do
 
@@ -6236,11 +6293,10 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
 !>  region.
 !
 !-----------------------------------------------------------------------
-   subroutine mpas_dmpar_exch_halo_3d_real_acc(field, array, compactHaloInfo, haloLayersIn) !{{{
+   subroutine mpas_dmpar_exch_halo_3d_real_acc(array, compactHaloInfo, haloLayersIn) !{{{
 
       implicit none
 
-      type (field3dReal), pointer :: field !< Input: Field to communicate
       real (kind=RKIND), dimension(:,:,:), intent(inout) :: array !< Input: Array storage for field whose halo will be communicated
       integer, dimension(:), intent(in) :: compactHaloInfo !< Input: Information needed to construct communications lists, etc.
       integer, dimension(:), intent(in), optional :: haloLayersIn !< Input: List of halo layers to communicate. Defaults to all
@@ -6248,7 +6304,8 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
       type (mpas_exchange_list), pointer :: exchListPtr
       type (mpas_communication_list), pointer :: sendList, recvList, commListPtr
       integer :: mpi_ierr
-      integer :: nHaloLayers, iHalo, i, j, k
+      integer :: nHaloLayers, iHalo, i, j, k, idx
+      integer :: nFieldHaloLayers, iFieldHalo, nList
       integer :: bufferOffset, nAdded
       integer, dimension(:), pointer :: haloLayers
       integer, dimension(3) :: dimsizes
@@ -6276,6 +6333,8 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
         end do
       end if
 
+      nFieldHaloLayers = compactHaloInfo(9)
+
 #ifdef _MPI
       ! Setup Communication Lists
       call mpas_dmpar_build_comm_lists_acc(compactHaloInfo, haloLayers, sendList, recvList)
@@ -6292,61 +6351,114 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
 
       ! Allocate space in send lists, copy data into buffer, and initiate mpi_isend calls
       commListPtr => sendList
+      idx = 11   ! First endPointID to send to
       do while(associated(commListPtr))
         allocate(commListPtr % rbuffer(commListPtr % nList))
         nullify(commListPtr % ibuffer)
         bufferOffset = 0
+        if (commListPtr % procID /= compactHaloInfo(idx)) then
+           call mpas_log_write('Mismatch in endpoints between compactHaloInfo and commListPtr', messageType=MPAS_LOG_CRIT)
+        end if
+        idx = idx + 1   ! Now, idx points to the nList value of the first halo layer for the field
+        iFieldHalo = 1
+        nList = compactHaloInfo(idx)
         do iHalo = 1, nHaloLayers
           nAdded = 0
-          exchListPtr => field % sendList % halos(haloLayers(iHalo)) % exchList
-          do while(associated(exchListPtr))
-            if(exchListPtr % endPointID == commListPtr % procID) then
-              do  i = 1, exchListPtr % nList
-                do j = 1, dimSizes(2)
-                  do k = 1, dimSizes(1)
-                    commListPtr % rbuffer((exchListPtr % destList(i)-1) * dimSizes(1) * dimSizes(2) &
-                        + (j-1) * dimSizes(1) + k  + bufferOffset) = array(k, j, exchListPtr % srcList(i))
-                    nAdded = nAdded + 1
-                  end do
-                end do
-              end do
-            end if
 
-            exchListPtr => exchListPtr % next
+          ! Get to the correct position in compactHaloInfo for haloLayers(iHalo)
+          do while (haloLayers(iHalo) /= iFieldHalo)
+             call mpas_log_write('Skipping halo layer $i', intArgs=(/iFieldHalo/))
+             idx = idx + 2 * nList + 1   ! Advance idx to the nList value of the next halo layer for the field
+             iFieldHalo = iFieldHalo + 1
+             if (iFieldHalo > nFieldHaloLayers) then
+                call mpas_log_write('Ran out of halos while searching for halo layer $i', intArgs=(/haloLayers(iHalo)/), messageType=MPAS_LOG_CRIT)
+             end if
+             nList = compactHaloInfo(idx)
           end do
+
+          do  i = 1, nList
+             do j = 1, dimSizes(2)
+                do k = 1, dimSizes(1)
+                   commListPtr % rbuffer((compactHaloInfo(idx + nList + i)-1) * dimSizes(1) * dimSizes(2) + (j-1) * dimSizes(1) + k + bufferOffset) = array(k, j, compactHaloInfo(idx + i))
+                   nAdded = nAdded + 1
+                end do
+             end do
+          end do
+
+          idx = idx + 2 * nList + 1   ! Advance idx to the nList value of the next halo layer for the field
+          nList = compactHaloInfo(idx)
+          iFieldHalo = iFieldHalo + 1
 
           bufferOffset = bufferOffset + nAdded
         end do
 
         call MPI_Isend(commListPtr % rbuffer, commListPtr % nList, MPI_REALKIND, commListPtr % procID, mpi_proc_id, mpi_comm, commListPtr % reqID, mpi_ierr)
+
+        do while (iFieldHalo <= nFieldHaloLayers)
+          idx = idx + 2 * nList + 1   ! Advance idx to the nList value of the next halo layer for the field
+          iFieldHalo = iFieldHalo + 1
+          if (iFieldHalo <= nFieldHaloLayers) then
+             nList = compactHaloInfo(idx)
+          end if
+        end do
+
         commListPtr => commListPtr % next
       end do
 
+      ! Now, idx should point to the index in compactHaloInfo holding the number of receive endpoints
+
       ! Wait for mpi_irecv to finish, and unpack data from buffer
       commListPtr => recvList
+      idx = idx + 1   ! First endPointID to receive from
       do while(associated(commListPtr))
         call MPI_Wait(commListPtr % reqID, MPI_STATUS_IGNORE, mpi_ierr)
         bufferOffset = 0
+        if (commListPtr % procID /= compactHaloInfo(idx)) then
+           call mpas_log_write('Mismatch in endpoints between compactHaloInfo and commListPtr', messageType=MPAS_LOG_CRIT)
+        end if
+        idx = idx + 1   ! Now, idx points to the nList value of the first halo layer for the field
+        iFieldHalo = 1
+        nList = compactHaloInfo(idx)
         do iHalo = 1, nHaloLayers
           nAdded = 0
-          exchListPtr => field % recvList % halos(haloLayers(iHalo)) % exchList
-          do while(associated(exchListPtr))
-            if(exchListPtr % endPointID == commListPtr % procID) then
-              do i = 1, exchListPtr % nList
-                do j = 1, dimSizes(2)
-                  do k = 1, dimSizes(1)
-                    array(k, j, exchListPtr % destList(i)) = commListPtr % rbuffer((exchListPtr % srcList(i)-1)*dimSizes(1) * dimSizes(2) &
-                                                                         + (j-1)*dimSizes(1) + k + bufferOffset)
-                  end do
-                end do
-              end do
-              nAdded = max(nAdded, maxval(exchListPtr % srcList) * dimSizes(1) * dimSizes(2))
-            end if
-            exchListPtr => exchListPtr % next
+
+          ! Get to the correct position in compactHaloInfo for haloLayers(iHalo)
+          do while (haloLayers(iHalo) /= iFieldHalo)
+             call mpas_log_write('Skipping halo layer $i', intArgs=(/iFieldHalo/))
+             idx = idx + 2 * nList + 1   ! Advance idx to the nList value of the next halo layer for the field
+             iFieldHalo = iFieldHalo + 1
+             if (iFieldHalo > nFieldHaloLayers) then
+                call mpas_log_write('Ran out of halos while searching for halo layer $i', intArgs=(/haloLayers(iHalo)/), messageType=MPAS_LOG_CRIT)
+             end if
+             nList = compactHaloInfo(idx)
           end do
+
+          do i = 1, nList
+             do j = 1, dimSizes(2)
+                do k = 1, dimSizes(1)
+                   array(k, j, compactHaloInfo(idx + nList + i)) = commListPtr % rbuffer((compactHaloInfo(idx + i)-1)*dimSizes(1)*dimSizes(2) + (j-1)*dimSizes(1) + k + bufferOffset)
+                end do
+             end do
+          end do
+          nAdded = max(nAdded, maxval(compactHaloInfo(idx+1:idx+nList)) * dimSizes(1) * dimSizes(2))
+
+          idx = idx + 2 * nList + 1   ! Advance idx to the nList value of the next halo layer for the field
+          iFieldHalo = iFieldHalo + 1
+          if (iFieldHalo <= nFieldHaloLayers) then
+             nList = compactHaloInfo(idx)
+          end if
 
           bufferOffset = bufferOffset + nAdded
         end do
+
+        do while (iFieldHalo <= nFieldHaloLayers)
+          idx = idx + 2 * nList + 1   ! Advance idx to the nList value of the next halo layer for the field
+          iFieldHalo = iFieldHalo + 1
+          if (iFieldHalo <= nFieldHaloLayers) then
+             nList = compactHaloInfo(idx)
+          end if
+        end do
+
         commListPtr => commListPtr % next
       end do
 
