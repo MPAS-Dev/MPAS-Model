@@ -6170,7 +6170,6 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
 
           ! Get to the correct position in compactHaloInfo for haloLayers(iHalo)
           do while (haloLayers(iHalo) /= iFieldHalo)
-             call mpas_log_write('Skipping halo layer $i', intArgs=(/iFieldHalo/))
              idx = idx + 2 * nList + 1   ! Advance idx to the nList value of the next halo layer for the field
              iFieldHalo = iFieldHalo + 1
              if (iFieldHalo > nFieldHaloLayers) then
@@ -6225,7 +6224,6 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
 
           ! Get to the correct position in compactHaloInfo for haloLayers(iHalo)
           do while (haloLayers(iHalo) /= iFieldHalo)
-             call mpas_log_write('Skipping halo layer $i', intArgs=(/iFieldHalo/))
              idx = idx + 2 * nList + 1   ! Advance idx to the nList value of the next halo layer for the field
              iFieldHalo = iFieldHalo + 1
              if (iFieldHalo > nFieldHaloLayers) then
@@ -6367,7 +6365,6 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
 
           ! Get to the correct position in compactHaloInfo for haloLayers(iHalo)
           do while (haloLayers(iHalo) /= iFieldHalo)
-             call mpas_log_write('Skipping halo layer $i', intArgs=(/iFieldHalo/))
              idx = idx + 2 * nList + 1   ! Advance idx to the nList value of the next halo layer for the field
              iFieldHalo = iFieldHalo + 1
              if (iFieldHalo > nFieldHaloLayers) then
@@ -6424,7 +6421,6 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
 
           ! Get to the correct position in compactHaloInfo for haloLayers(iHalo)
           do while (haloLayers(iHalo) /= iFieldHalo)
-             call mpas_log_write('Skipping halo layer $i', intArgs=(/iFieldHalo/))
              idx = idx + 2 * nList + 1   ! Advance idx to the nList value of the next halo layer for the field
              iFieldHalo = iFieldHalo + 1
              if (iFieldHalo > nFieldHaloLayers) then
