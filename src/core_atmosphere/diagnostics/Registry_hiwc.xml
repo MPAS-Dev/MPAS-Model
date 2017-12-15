@@ -1,0 +1,14 @@
+<!-- *************************************************************** -->
+<!-- HIWC diagnostics                                                -->
+<!--                                                                 -->
+<!-- Created by Cathryn Meyer, December / 2017                           -->
+<!-- Copyright (c) 2017 The Weather Company. All rights reserved.    -->
+<!-- *************************************************************** -->
+
+<var_struct name="diag" time_levs="1">
+    
+    <var name="hiwc" type="real" dimensions="nCells Time" units="NA"
+         description="High-altitude Ice Water Content"/>
+    
+</var_struct>
+
