@@ -243,6 +243,12 @@ module ocn_time_integration_split
          tracersGroupTend,      &! tendencies for tracer groups
          activeTracersTend       ! active tracer tendencies
 
+      real (kind=RKIND), dimension(:,:,:), pointer :: &
+        IRFTracersHorAdvTend,      &
+        IRFTracersVertAdvTend,        &
+        IRFTracerSurfaceFluxTend,              &
+        IRFTracersNonLocalTend
+
       ! Forcing pool
       real (kind=RKIND), dimension(:), pointer :: tidalPotentialEta
 
@@ -415,6 +421,7 @@ module ocn_time_integration_split
                end do
                !$omp end do
                !$omp end parallel
+
             end if
          end if
       end do
@@ -1685,6 +1692,20 @@ module ocn_time_integration_split
                !$omp end parallel
             endif
 
+            if ( config_use_IRFTracers ) then
+               !$omp parallel
+               !$omp do schedule(runtime) private(k)
+               do iCell = 1, nCells
+                  do k= 1, maxLevelCell(iCell)
+                     IRFTracersHorAdvTend(:,k,iCell) = IRFTracersHorAdvTend(:,k,iCell) / layerThicknessNew(k,iCell)
+                     IRFTracersVertAdvTend(:,k,iCell)  = IRFTracersVertAdvTend(:,k,iCell) / layerThicknessNew(k,iCell)
+                     IRFTracersNonLocalTend(:,k,iCell) = IRFTracersNonLocalTend(:,k,iCell) / layerThicknessNew(k,iCell)
+                  end do
+               end do
+               !$omp end do
+               !$omp end parallel
+            endif
+
             call mpas_pool_begin_iteration(tracersPool)
             do while (mpas_pool_get_next_member(tracersPool, &
                                                 groupItr) )
@@ -1923,6 +1944,28 @@ module ocn_time_integration_split
          end do
          !$omp end do
          !$omp end parallel
+      end if
+
+      if ( config_use_IRFTracers ) then
+         call mpas_pool_begin_iteration(tracersPool)
+         do while ( mpas_pool_get_next_member(tracersPool, groupItr) )
+            if ( groupItr % memberType == MPAS_POOL_FIELD ) then
+                  ! Reset Impulse Response Functions to original value
+                  if ( trim(groupItr % memberName) == 'IRFTracers' ) then
+                  call mpas_pool_get_array(tracersPool, groupItr % memberName, tracersGroupCur, 1)
+                  call mpas_pool_get_array(tracersPool, groupItr % memberName, tracersGroupNew, 2)
+                     !$omp parallel
+                     !$omp do schedule(runtime) private(k)
+                     do iCell = 1, nCells
+                        do k = 1, maxLevelCell(iCell)
+                           tracersGroupNew(:,k,iCell) = tracersGroupCur(:,k,iCell)
+                        end do
+                     end do
+                     !$omp end do
+                     !$omp end parallel
+                  end if
+            end if
+         end do
       end if
 
       call ocn_diagnostic_solve(dt, statePool, forcingPool, meshPool, &

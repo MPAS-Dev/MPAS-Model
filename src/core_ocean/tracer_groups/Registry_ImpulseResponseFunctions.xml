@@ -1,0 +1,894 @@
+	<nml_record name="tracer_forcing_IRFTracers">
+		<nml_option name="config_use_IRFTracers" type="logical" default_value=".false." units="unitless"
+			description="if true, the 'IRFGRP' category is enabled for the run"
+			possible_values=".true. or .false."
+		/>
+		<nml_option name="config_use_IRFTracers_surface_bulk_forcing" type="logical" default_value=".false." units="unitless"
+			description="if true, surface bulk forcing from coupler is added to surfaceTracerFlux in 'IRFGRP' category"
+			possible_values=".true. or .false."
+		/>
+		<nml_option name="config_use_IRFTracers_surface_restoring" type="logical" default_value=".false." units="unitless"
+			description="if true, surface restoring source is applied to tracers in 'IRFGRP' category"
+			possible_values=".true. or .false."
+		/>
+		<nml_option name="config_use_IRFTracers_interior_restoring" type="logical" default_value=".false." units="unitless"
+			description="if true, interior restoring source is applied to tracers in 'IRFGRP' category"
+			possible_values=".true. or .false."
+		/>
+		<nml_option name="config_use_IRFTracers_exponential_decay" type="logical" default_value=".false." units="unitless"
+			description="if true, exponential decay source is applied to tracers in 'IRFGRP' category"
+			possible_values=".true. or .false."
+		/>
+		<nml_option name="config_use_IRFTracers_idealAge_forcing" type="logical" default_value=".false." units="unitless"
+			description="if true, idealAge forcing source is applied to tracers in 'IRFGRP' category"
+			possible_values=".true. or .false."
+		/>
+		<nml_option name="config_use_IRFTracers_ttd_forcing" type="logical" default_value=".false." units="unitless"
+			description="if true, transit time distribution forcing source is applied to tracers in 'IRFGRP' category"
+			possible_values=".true. or .false."
+		/>
+		<nml_option name="config_use_IRFTracers_surface_value" type="logical" default_value=".false." units="unitless"
+			description="if true, surface value is computed for 'IRFGRP' category"
+			possible_values=".true. or .false."
+		/>
+		<nml_option name="config_use_IRFTracers_sea_ice_coupling" type="logical" default_value=".false." units="unitless"
+			description="if true, couple IRF fields with sea ice"
+			possible_values=".true. or .false."
+		/>
+	</nml_record>
+
+	<packages>
+		<package name="IRFTracersPKG" description="This package includes variables required to include IRFGRP."/>
+		<package name="IRFTracersBulkRestoringPKG" description="This package includes variables required to compute bulk restoring on the IRF tracer group."/>
+		<package name="IRFTracersSurfaceRestoringPKG" description="This package includes variables required to compute surface restoring on the IRF tracer group."/>
+		<package name="IRFTracersInteriorRestoringPKG" description="This package includes variables required to compute interior restoring on the IRF tracer group."/>
+		<package name="IRFTracersExponentialDecayPKG" description="This package includes variables required to compute exponential decay on the IRF tracer group."/>
+		<package name="IRFTracersIdealAgePKG" description="This package includes variables required to compute ideal age forcing on the IRF tracer group."/>
+		<package name="IRFTracersTTDPKG" description="This package includes variables required to compute transit-time distribution forcing on the IRF tracer group."/>
+		<package name="IRFTracerBudgetPKG" description="This package includes variables required to compute IRF tracer budget"/>
+	</packages>
+
+	<var_struct name="state" time_levs="2">
+		<var_struct name="tracers" time_levs="2">
+			<var_array name="IRFTracers" dimensions="nVertLevels nCells Time" type="real" packages="IRFTracersPKG" >
+				 <var name="IRF_1" array_group="IRFGRP" units="IRF unit m^{-3}"/>
+				 <var name="IRF_2" array_group="IRFGRP" units="IRF unit m^{-3}"/>
+				 <var name="IRF_3" array_group="IRFGRP" units="IRF unit m^{-3}"/>
+				 <var name="IRF_4" array_group="IRFGRP" units="IRF unit m^{-3}"/>
+				 <var name="IRF_5" array_group="IRFGRP" units="IRF unit m^{-3}"/>
+				 <var name="IRF_6" array_group="IRFGRP" units="IRF unit m^{-3}"/>
+				 <var name="IRF_7" array_group="IRFGRP" units="IRF unit m^{-3}"/>
+				 <var name="IRF_8" array_group="IRFGRP" units="IRF unit m^{-3}"/>
+				 <var name="IRF_9" array_group="IRFGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_10" array_group="IRFGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_11" array_group="IRFGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_12" array_group="IRFGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_13" array_group="IRFGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_14" array_group="IRFGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_15" array_group="IRFGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_16" array_group="IRFGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_17" array_group="IRFGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_18" array_group="IRFGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_19" array_group="IRFGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_20" array_group="IRFGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_21" array_group="IRFGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_22" array_group="IRFGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_23" array_group="IRFGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_24" array_group="IRFGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_25" array_group="IRFGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_26" array_group="IRFGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_27" array_group="IRFGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_28" array_group="IRFGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_29" array_group="IRFGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_30" array_group="IRFGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_31" array_group="IRFGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_32" array_group="IRFGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_33" array_group="IRFGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_34" array_group="IRFGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_35" array_group="IRFGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_36" array_group="IRFGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_37" array_group="IRFGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_38" array_group="IRFGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_39" array_group="IRFGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_40" array_group="IRFGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_41" array_group="IRFGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_42" array_group="IRFGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_43" array_group="IRFGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_44" array_group="IRFGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_45" array_group="IRFGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_46" array_group="IRFGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_47" array_group="IRFGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_48" array_group="IRFGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_49" array_group="IRFGRP" units="IRF unit m^{-3}"/>
+			</var_array>
+		</var_struct>
+	</var_struct>
+
+	<var_struct name="tend" time_levs="1">
+		<var_struct name="tracersTend" time_levs="1">
+			<var_array name="IRFTracersTend" type="real" dimensions="nVertLevels nCells Time" packages="IRFTracersPKG">
+				 <var name="IRF_1Tend" array_group="IRFGRP" units="IRF unit m^{-3} s^{-1}"/>
+				 <var name="IRF_2Tend" array_group="IRFGRP" units="IRF unit m^{-3} s^{-1}"/>
+				 <var name="IRF_3Tend" array_group="IRFGRP" units="IRF unit m^{-3} s^{-1}"/>
+				 <var name="IRF_4Tend" array_group="IRFGRP" units="IRF unit m^{-3} s^{-1}"/>
+				 <var name="IRF_5Tend" array_group="IRFGRP" units="IRF unit m^{-3} s^{-1}"/>
+				 <var name="IRF_6Tend" array_group="IRFGRP" units="IRF unit m^{-3} s^{-1}"/>
+				 <var name="IRF_7Tend" array_group="IRFGRP" units="IRF unit m^{-3} s^{-1}"/>
+				 <var name="IRF_8Tend" array_group="IRFGRP" units="IRF unit m^{-3} s^{-1}"/>
+				 <var name="IRF_9Tend" array_group="IRFGRP" units="IRF unit m^{-3} s^{-1}"/>
+				<var name="IRF_10Tend" array_group="IRFGRP" units="IRF unit m^{-3} s^{-1}"/>
+				<var name="IRF_11Tend" array_group="IRFGRP" units="IRF unit m^{-3} s^{-1}"/>
+				<var name="IRF_12Tend" array_group="IRFGRP" units="IRF unit m^{-3} s^{-1}"/>
+				<var name="IRF_13Tend" array_group="IRFGRP" units="IRF unit m^{-3} s^{-1}"/>
+				<var name="IRF_14Tend" array_group="IRFGRP" units="IRF unit m^{-3} s^{-1}"/>
+				<var name="IRF_15Tend" array_group="IRFGRP" units="IRF unit m^{-3} s^{-1}"/>
+				<var name="IRF_16Tend" array_group="IRFGRP" units="IRF unit m^{-3} s^{-1}"/>
+				<var name="IRF_17Tend" array_group="IRFGRP" units="IRF unit m^{-3} s^{-1}"/>
+				<var name="IRF_18Tend" array_group="IRFGRP" units="IRF unit m^{-3} s^{-1}"/>
+				<var name="IRF_19Tend" array_group="IRFGRP" units="IRF unit m^{-3} s^{-1}"/>
+				<var name="IRF_20Tend" array_group="IRFGRP" units="IRF unit m^{-3} s^{-1}"/>
+				<var name="IRF_21Tend" array_group="IRFGRP" units="IRF unit m^{-3} s^{-1}"/>
+				<var name="IRF_22Tend" array_group="IRFGRP" units="IRF unit m^{-3} s^{-1}"/>
+				<var name="IRF_23Tend" array_group="IRFGRP" units="IRF unit m^{-3} s^{-1}"/>
+				<var name="IRF_24Tend" array_group="IRFGRP" units="IRF unit m^{-3} s^{-1}"/>
+				<var name="IRF_25Tend" array_group="IRFGRP" units="IRF unit m^{-3} s^{-1}"/>
+				<var name="IRF_26Tend" array_group="IRFGRP" units="IRF unit m^{-3} s^{-1}"/>
+				<var name="IRF_27Tend" array_group="IRFGRP" units="IRF unit m^{-3} s^{-1}"/>
+				<var name="IRF_28Tend" array_group="IRFGRP" units="IRF unit m^{-3} s^{-1}"/>
+				<var name="IRF_29Tend" array_group="IRFGRP" units="IRF unit m^{-3} s^{-1}"/>
+				<var name="IRF_30Tend" array_group="IRFGRP" units="IRF unit m^{-3} s^{-1}"/>
+				<var name="IRF_31Tend" array_group="IRFGRP" units="IRF unit m^{-3} s^{-1}"/>
+				<var name="IRF_32Tend" array_group="IRFGRP" units="IRF unit m^{-3} s^{-1}"/>
+				<var name="IRF_33Tend" array_group="IRFGRP" units="IRF unit m^{-3} s^{-1}"/>
+				<var name="IRF_34Tend" array_group="IRFGRP" units="IRF unit m^{-3} s^{-1}"/>
+				<var name="IRF_35Tend" array_group="IRFGRP" units="IRF unit m^{-3} s^{-1}"/>
+				<var name="IRF_36Tend" array_group="IRFGRP" units="IRF unit m^{-3} s^{-1}"/>
+				<var name="IRF_37Tend" array_group="IRFGRP" units="IRF unit m^{-3} s^{-1}"/>
+				<var name="IRF_38Tend" array_group="IRFGRP" units="IRF unit m^{-3} s^{-1}"/>
+				<var name="IRF_39Tend" array_group="IRFGRP" units="IRF unit m^{-3} s^{-1}"/>
+				<var name="IRF_40Tend" array_group="IRFGRP" units="IRF unit m^{-3} s^{-1}"/>
+				<var name="IRF_41Tend" array_group="IRFGRP" units="IRF unit m^{-3} s^{-1}"/>
+				<var name="IRF_42Tend" array_group="IRFGRP" units="IRF unit m^{-3} s^{-1}"/>
+				<var name="IRF_43Tend" array_group="IRFGRP" units="IRF unit m^{-3} s^{-1}"/>
+				<var name="IRF_44Tend" array_group="IRFGRP" units="IRF unit m^{-3} s^{-1}"/>
+				<var name="IRF_45Tend" array_group="IRFGRP" units="IRF unit m^{-3} s^{-1}"/>
+				<var name="IRF_46Tend" array_group="IRFGRP" units="IRF unit m^{-3} s^{-1}"/>
+				<var name="IRF_47Tend" array_group="IRFGRP" units="IRF unit m^{-3} s^{-1}"/>
+				<var name="IRF_48Tend" array_group="IRFGRP" units="IRF unit m^{-3} s^{-1}"/>
+				<var name="IRF_49Tend" array_group="IRFGRP" units="IRF unit m^{-3} s^{-1}"/>
+			</var_array>
+		</var_struct>
+	</var_struct>
+
+	<var_struct name="forcing" time_levs="1">
+		<var_struct name="tracersSurfaceFlux" time_levs="1">
+			<var_array name="IRFTracersSurfaceFlux" type="real" dimensions="nCells Time" packages="IRFTracersPKG">
+				 <var name="IRF_1SurfaceFlux" array_group="IRFSurfaceFluxGRP" units="IRF unit m^{-3}"/>
+				 <var name="IRF_2SurfaceFlux" array_group="IRFSurfaceFluxGRP" units="IRF unit m^{-3}"/>
+				 <var name="IRF_3SurfaceFlux" array_group="IRFSurfaceFluxGRP" units="IRF unit m^{-3}"/>
+				 <var name="IRF_4SurfaceFlux" array_group="IRFSurfaceFluxGRP" units="IRF unit m^{-3}"/>
+				 <var name="IRF_5SurfaceFlux" array_group="IRFSurfaceFluxGRP" units="IRF unit m^{-3}"/>
+				 <var name="IRF_6SurfaceFlux" array_group="IRFSurfaceFluxGRP" units="IRF unit m^{-3}"/>
+				 <var name="IRF_7SurfaceFlux" array_group="IRFSurfaceFluxGRP" units="IRF unit m^{-3}"/>
+				 <var name="IRF_8SurfaceFlux" array_group="IRFSurfaceFluxGRP" units="IRF unit m^{-3}"/>
+				 <var name="IRF_9SurfaceFlux" array_group="IRFSurfaceFluxGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_10SurfaceFlux" array_group="IRFSurfaceFluxGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_11SurfaceFlux" array_group="IRFSurfaceFluxGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_12SurfaceFlux" array_group="IRFSurfaceFluxGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_13SurfaceFlux" array_group="IRFSurfaceFluxGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_14SurfaceFlux" array_group="IRFSurfaceFluxGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_15SurfaceFlux" array_group="IRFSurfaceFluxGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_16SurfaceFlux" array_group="IRFSurfaceFluxGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_17SurfaceFlux" array_group="IRFSurfaceFluxGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_18SurfaceFlux" array_group="IRFSurfaceFluxGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_19SurfaceFlux" array_group="IRFSurfaceFluxGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_20SurfaceFlux" array_group="IRFSurfaceFluxGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_21SurfaceFlux" array_group="IRFSurfaceFluxGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_22SurfaceFlux" array_group="IRFSurfaceFluxGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_23SurfaceFlux" array_group="IRFSurfaceFluxGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_24SurfaceFlux" array_group="IRFSurfaceFluxGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_25SurfaceFlux" array_group="IRFSurfaceFluxGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_26SurfaceFlux" array_group="IRFSurfaceFluxGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_27SurfaceFlux" array_group="IRFSurfaceFluxGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_28SurfaceFlux" array_group="IRFSurfaceFluxGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_29SurfaceFlux" array_group="IRFSurfaceFluxGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_30SurfaceFlux" array_group="IRFSurfaceFluxGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_31SurfaceFlux" array_group="IRFSurfaceFluxGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_32SurfaceFlux" array_group="IRFSurfaceFluxGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_33SurfaceFlux" array_group="IRFSurfaceFluxGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_34SurfaceFlux" array_group="IRFSurfaceFluxGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_35SurfaceFlux" array_group="IRFSurfaceFluxGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_36SurfaceFlux" array_group="IRFSurfaceFluxGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_37SurfaceFlux" array_group="IRFSurfaceFluxGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_38SurfaceFlux" array_group="IRFSurfaceFluxGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_39SurfaceFlux" array_group="IRFSurfaceFluxGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_40SurfaceFlux" array_group="IRFSurfaceFluxGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_41SurfaceFlux" array_group="IRFSurfaceFluxGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_42SurfaceFlux" array_group="IRFSurfaceFluxGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_43SurfaceFlux" array_group="IRFSurfaceFluxGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_44SurfaceFlux" array_group="IRFSurfaceFluxGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_45SurfaceFlux" array_group="IRFSurfaceFluxGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_46SurfaceFlux" array_group="IRFSurfaceFluxGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_47SurfaceFlux" array_group="IRFSurfaceFluxGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_48SurfaceFlux" array_group="IRFSurfaceFluxGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_49SurfaceFlux" array_group="IRFSurfaceFluxGRP" units="IRF unit m^{-3}"/>
+			</var_array>
+			<var_array name="IRFTracersSurfaceFluxRunoff" type="real" dimensions="nCells Time" packages="IRFTracersPKG">
+				 <var name="IRF_1SurfaceFluxRunoff" array_group="IRFSurfaceFluxRunoffGRP" units="IRF unit m^{-3}"/>
+				 <var name="IRF_2SurfaceFluxRunoff" array_group="IRFSurfaceFluxRunoffGRP" units="IRF unit m^{-3}"/>
+				 <var name="IRF_3SurfaceFluxRunoff" array_group="IRFSurfaceFluxRunoffGRP" units="IRF unit m^{-3}"/>
+				 <var name="IRF_4SurfaceFluxRunoff" array_group="IRFSurfaceFluxRunoffGRP" units="IRF unit m^{-3}"/>
+				 <var name="IRF_5SurfaceFluxRunoff" array_group="IRFSurfaceFluxRunoffGRP" units="IRF unit m^{-3}"/>
+				 <var name="IRF_6SurfaceFluxRunoff" array_group="IRFSurfaceFluxRunoffGRP" units="IRF unit m^{-3}"/>
+				 <var name="IRF_7SurfaceFluxRunoff" array_group="IRFSurfaceFluxRunoffGRP" units="IRF unit m^{-3}"/>
+				 <var name="IRF_8SurfaceFluxRunoff" array_group="IRFSurfaceFluxRunoffGRP" units="IRF unit m^{-3}"/>
+				 <var name="IRF_9SurfaceFluxRunoff" array_group="IRFSurfaceFluxRunoffGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_10SurfaceFluxRunoff" array_group="IRFSurfaceFluxRunoffGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_11SurfaceFluxRunoff" array_group="IRFSurfaceFluxRunoffGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_12SurfaceFluxRunoff" array_group="IRFSurfaceFluxRunoffGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_13SurfaceFluxRunoff" array_group="IRFSurfaceFluxRunoffGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_14SurfaceFluxRunoff" array_group="IRFSurfaceFluxRunoffGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_15SurfaceFluxRunoff" array_group="IRFSurfaceFluxRunoffGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_16SurfaceFluxRunoff" array_group="IRFSurfaceFluxRunoffGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_17SurfaceFluxRunoff" array_group="IRFSurfaceFluxRunoffGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_18SurfaceFluxRunoff" array_group="IRFSurfaceFluxRunoffGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_19SurfaceFluxRunoff" array_group="IRFSurfaceFluxRunoffGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_20SurfaceFluxRunoff" array_group="IRFSurfaceFluxRunoffGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_21SurfaceFluxRunoff" array_group="IRFSurfaceFluxRunoffGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_22SurfaceFluxRunoff" array_group="IRFSurfaceFluxRunoffGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_23SurfaceFluxRunoff" array_group="IRFSurfaceFluxRunoffGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_24SurfaceFluxRunoff" array_group="IRFSurfaceFluxRunoffGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_25SurfaceFluxRunoff" array_group="IRFSurfaceFluxRunoffGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_26SurfaceFluxRunoff" array_group="IRFSurfaceFluxRunoffGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_27SurfaceFluxRunoff" array_group="IRFSurfaceFluxRunoffGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_28SurfaceFluxRunoff" array_group="IRFSurfaceFluxRunoffGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_29SurfaceFluxRunoff" array_group="IRFSurfaceFluxRunoffGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_30SurfaceFluxRunoff" array_group="IRFSurfaceFluxRunoffGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_31SurfaceFluxRunoff" array_group="IRFSurfaceFluxRunoffGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_32SurfaceFluxRunoff" array_group="IRFSurfaceFluxRunoffGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_33SurfaceFluxRunoff" array_group="IRFSurfaceFluxRunoffGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_34SurfaceFluxRunoff" array_group="IRFSurfaceFluxRunoffGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_35SurfaceFluxRunoff" array_group="IRFSurfaceFluxRunoffGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_36SurfaceFluxRunoff" array_group="IRFSurfaceFluxRunoffGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_37SurfaceFluxRunoff" array_group="IRFSurfaceFluxRunoffGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_38SurfaceFluxRunoff" array_group="IRFSurfaceFluxRunoffGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_39SurfaceFluxRunoff" array_group="IRFSurfaceFluxRunoffGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_40SurfaceFluxRunoff" array_group="IRFSurfaceFluxRunoffGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_41SurfaceFluxRunoff" array_group="IRFSurfaceFluxRunoffGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_42SurfaceFluxRunoff" array_group="IRFSurfaceFluxRunoffGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_43SurfaceFluxRunoff" array_group="IRFSurfaceFluxRunoffGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_44SurfaceFluxRunoff" array_group="IRFSurfaceFluxRunoffGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_45SurfaceFluxRunoff" array_group="IRFSurfaceFluxRunoffGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_46SurfaceFluxRunoff" array_group="IRFSurfaceFluxRunoffGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_47SurfaceFluxRunoff" array_group="IRFSurfaceFluxRunoffGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_48SurfaceFluxRunoff" array_group="IRFSurfaceFluxRunoffGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_49SurfaceFluxRunoff" array_group="IRFSurfaceFluxRunoffGRP" units="IRF unit m^{-3}"/>
+			</var_array>
+			<var_array name="IRFTracersSurfaceFluxRemoved" type="real" dimensions="nCells Time" packages="IRFTracersPKG">
+				 <var name="IRF_1SurfaceFluxRemoved" array_group="IRFSurfaceFluxRemovedGRP" units="IRF unit m^{-3}"/>
+				 <var name="IRF_2SurfaceFluxRemoved" array_group="IRFSurfaceFluxRemovedGRP" units="IRF unit m^{-3}"/>
+				 <var name="IRF_3SurfaceFluxRemoved" array_group="IRFSurfaceFluxRemovedGRP" units="IRF unit m^{-3}"/>
+				 <var name="IRF_4SurfaceFluxRemoved" array_group="IRFSurfaceFluxRemovedGRP" units="IRF unit m^{-3}"/>
+				 <var name="IRF_5SurfaceFluxRemoved" array_group="IRFSurfaceFluxRemovedGRP" units="IRF unit m^{-3}"/>
+				 <var name="IRF_6SurfaceFluxRemoved" array_group="IRFSurfaceFluxRemovedGRP" units="IRF unit m^{-3}"/>
+				 <var name="IRF_7SurfaceFluxRemoved" array_group="IRFSurfaceFluxRemovedGRP" units="IRF unit m^{-3}"/>
+				 <var name="IRF_8SurfaceFluxRemoved" array_group="IRFSurfaceFluxRemovedGRP" units="IRF unit m^{-3}"/>
+				 <var name="IRF_9SurfaceFluxRemoved" array_group="IRFSurfaceFluxRemovedGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_10SurfaceFluxRemoved" array_group="IRFSurfaceFluxRemovedGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_11SurfaceFluxRemoved" array_group="IRFSurfaceFluxRemovedGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_12SurfaceFluxRemoved" array_group="IRFSurfaceFluxRemovedGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_13SurfaceFluxRemoved" array_group="IRFSurfaceFluxRemovedGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_14SurfaceFluxRemoved" array_group="IRFSurfaceFluxRemovedGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_15SurfaceFluxRemoved" array_group="IRFSurfaceFluxRemovedGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_16SurfaceFluxRemoved" array_group="IRFSurfaceFluxRemovedGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_17SurfaceFluxRemoved" array_group="IRFSurfaceFluxRemovedGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_18SurfaceFluxRemoved" array_group="IRFSurfaceFluxRemovedGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_19SurfaceFluxRemoved" array_group="IRFSurfaceFluxRemovedGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_20SurfaceFluxRemoved" array_group="IRFSurfaceFluxRemovedGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_21SurfaceFluxRemoved" array_group="IRFSurfaceFluxRemovedGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_22SurfaceFluxRemoved" array_group="IRFSurfaceFluxRemovedGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_23SurfaceFluxRemoved" array_group="IRFSurfaceFluxRemovedGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_24SurfaceFluxRemoved" array_group="IRFSurfaceFluxRemovedGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_25SurfaceFluxRemoved" array_group="IRFSurfaceFluxRemovedGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_26SurfaceFluxRemoved" array_group="IRFSurfaceFluxRemovedGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_27SurfaceFluxRemoved" array_group="IRFSurfaceFluxRemovedGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_28SurfaceFluxRemoved" array_group="IRFSurfaceFluxRemovedGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_29SurfaceFluxRemoved" array_group="IRFSurfaceFluxRemovedGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_30SurfaceFluxRemoved" array_group="IRFSurfaceFluxRemovedGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_31SurfaceFluxRemoved" array_group="IRFSurfaceFluxRemovedGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_32SurfaceFluxRemoved" array_group="IRFSurfaceFluxRemovedGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_33SurfaceFluxRemoved" array_group="IRFSurfaceFluxRemovedGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_34SurfaceFluxRemoved" array_group="IRFSurfaceFluxRemovedGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_35SurfaceFluxRemoved" array_group="IRFSurfaceFluxRemovedGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_36SurfaceFluxRemoved" array_group="IRFSurfaceFluxRemovedGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_37SurfaceFluxRemoved" array_group="IRFSurfaceFluxRemovedGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_38SurfaceFluxRemoved" array_group="IRFSurfaceFluxRemovedGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_39SurfaceFluxRemoved" array_group="IRFSurfaceFluxRemovedGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_40SurfaceFluxRemoved" array_group="IRFSurfaceFluxRemovedGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_41SurfaceFluxRemoved" array_group="IRFSurfaceFluxRemovedGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_42SurfaceFluxRemoved" array_group="IRFSurfaceFluxRemovedGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_43SurfaceFluxRemoved" array_group="IRFSurfaceFluxRemovedGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_44SurfaceFluxRemoved" array_group="IRFSurfaceFluxRemovedGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_45SurfaceFluxRemoved" array_group="IRFSurfaceFluxRemovedGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_46SurfaceFluxRemoved" array_group="IRFSurfaceFluxRemovedGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_47SurfaceFluxRemoved" array_group="IRFSurfaceFluxRemovedGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_48SurfaceFluxRemoved" array_group="IRFSurfaceFluxRemovedGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_49SurfaceFluxRemoved" array_group="IRFSurfaceFluxRemovedGRP" units="IRF unit m^{-3}"/>
+			</var_array>
+		</var_struct>
+		<var_struct name="tracersSurfaceRestoringFields" time_levs="1">
+			<var_array name="IRFTracersPistonVelocity" type="real" dimensions="nCells Time" packages="IRFTracersSurfaceRestoringPKG">
+				<var name="IRF_1PistonVelocity" array_group="IRFPVGRP" units="m s^{-1}"
+				 <var name="IRF_1PistonVelocity" array_group="IRFPVGRP" units="IRF unit m^{-3}"/>
+				 <var name="IRF_2PistonVelocity" array_group="IRFPVGRP" units="IRF unit m^{-3}"/>
+				 <var name="IRF_3PistonVelocity" array_group="IRFPVGRP" units="IRF unit m^{-3}"/>
+				 <var name="IRF_4PistonVelocity" array_group="IRFPVGRP" units="IRF unit m^{-3}"/>
+				 <var name="IRF_5PistonVelocity" array_group="IRFPVGRP" units="IRF unit m^{-3}"/>
+				 <var name="IRF_6PistonVelocity" array_group="IRFPVGRP" units="IRF unit m^{-3}"/>
+				 <var name="IRF_7PistonVelocity" array_group="IRFPVGRP" units="IRF unit m^{-3}"/>
+				 <var name="IRF_8PistonVelocity" array_group="IRFPVGRP" units="IRF unit m^{-3}"/>
+				 <var name="IRF_9PistonVelocity" array_group="IRFPVGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_10PistonVelocity" array_group="IRFPVGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_11PistonVelocity" array_group="IRFPVGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_12PistonVelocity" array_group="IRFPVGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_13PistonVelocity" array_group="IRFPVGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_14PistonVelocity" array_group="IRFPVGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_15PistonVelocity" array_group="IRFPVGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_16PistonVelocity" array_group="IRFPVGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_17PistonVelocity" array_group="IRFPVGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_18PistonVelocity" array_group="IRFPVGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_19PistonVelocity" array_group="IRFPVGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_20PistonVelocity" array_group="IRFPVGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_21PistonVelocity" array_group="IRFPVGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_22PistonVelocity" array_group="IRFPVGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_23PistonVelocity" array_group="IRFPVGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_24PistonVelocity" array_group="IRFPVGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_25PistonVelocity" array_group="IRFPVGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_26PistonVelocity" array_group="IRFPVGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_27PistonVelocity" array_group="IRFPVGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_28PistonVelocity" array_group="IRFPVGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_29PistonVelocity" array_group="IRFPVGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_30PistonVelocity" array_group="IRFPVGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_31PistonVelocity" array_group="IRFPVGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_32PistonVelocity" array_group="IRFPVGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_33PistonVelocity" array_group="IRFPVGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_34PistonVelocity" array_group="IRFPVGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_35PistonVelocity" array_group="IRFPVGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_36PistonVelocity" array_group="IRFPVGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_37PistonVelocity" array_group="IRFPVGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_38PistonVelocity" array_group="IRFPVGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_39PistonVelocity" array_group="IRFPVGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_40PistonVelocity" array_group="IRFPVGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_41PistonVelocity" array_group="IRFPVGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_42PistonVelocity" array_group="IRFPVGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_43PistonVelocity" array_group="IRFPVGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_44PistonVelocity" array_group="IRFPVGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_45PistonVelocity" array_group="IRFPVGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_46PistonVelocity" array_group="IRFPVGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_47PistonVelocity" array_group="IRFPVGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_48PistonVelocity" array_group="IRFPVGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_49PistonVelocity" array_group="IRFPVGRP" units="IRF unit m^{-3}"/>
+			</var_array>
+			<var_array name="IRFTracersSurfaceRestoringValue" type="real" dimensions="nCells Time" packages="IRFTracersSurfaceRestoringPKG">
+				 <var name="IRF_1SurfaceRestoringValue" array_group="IRFSRVGRP" units="IRF unit m^{-3}"/>
+				 <var name="IRF_2SurfaceRestoringValue" array_group="IRFSRVGRP" units="IRF unit m^{-3}"/>
+				 <var name="IRF_3SurfaceRestoringValue" array_group="IRFSRVGRP" units="IRF unit m^{-3}"/>
+				 <var name="IRF_4SurfaceRestoringValue" array_group="IRFSRVGRP" units="IRF unit m^{-3}"/>
+				 <var name="IRF_5SurfaceRestoringValue" array_group="IRFSRVGRP" units="IRF unit m^{-3}"/>
+				 <var name="IRF_6SurfaceRestoringValue" array_group="IRFSRVGRP" units="IRF unit m^{-3}"/>
+				 <var name="IRF_7SurfaceRestoringValue" array_group="IRFSRVGRP" units="IRF unit m^{-3}"/>
+				 <var name="IRF_8SurfaceRestoringValue" array_group="IRFSRVGRP" units="IRF unit m^{-3}"/>
+				 <var name="IRF_9SurfaceRestoringValue" array_group="IRFSRVGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_10SurfaceRestoringValue" array_group="IRFSRVGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_11SurfaceRestoringValue" array_group="IRFSRVGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_12SurfaceRestoringValue" array_group="IRFSRVGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_13SurfaceRestoringValue" array_group="IRFSRVGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_14SurfaceRestoringValue" array_group="IRFSRVGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_15SurfaceRestoringValue" array_group="IRFSRVGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_16SurfaceRestoringValue" array_group="IRFSRVGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_17SurfaceRestoringValue" array_group="IRFSRVGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_18SurfaceRestoringValue" array_group="IRFSRVGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_19SurfaceRestoringValue" array_group="IRFSRVGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_20SurfaceRestoringValue" array_group="IRFSRVGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_21SurfaceRestoringValue" array_group="IRFSRVGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_22SurfaceRestoringValue" array_group="IRFSRVGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_23SurfaceRestoringValue" array_group="IRFSRVGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_24SurfaceRestoringValue" array_group="IRFSRVGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_25SurfaceRestoringValue" array_group="IRFSRVGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_26SurfaceRestoringValue" array_group="IRFSRVGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_27SurfaceRestoringValue" array_group="IRFSRVGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_28SurfaceRestoringValue" array_group="IRFSRVGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_29SurfaceRestoringValue" array_group="IRFSRVGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_30SurfaceRestoringValue" array_group="IRFSRVGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_31SurfaceRestoringValue" array_group="IRFSRVGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_32SurfaceRestoringValue" array_group="IRFSRVGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_33SurfaceRestoringValue" array_group="IRFSRVGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_34SurfaceRestoringValue" array_group="IRFSRVGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_35SurfaceRestoringValue" array_group="IRFSRVGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_36SurfaceRestoringValue" array_group="IRFSRVGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_37SurfaceRestoringValue" array_group="IRFSRVGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_38SurfaceRestoringValue" array_group="IRFSRVGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_39SurfaceRestoringValue" array_group="IRFSRVGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_40SurfaceRestoringValue" array_group="IRFSRVGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_41SurfaceRestoringValue" array_group="IRFSRVGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_42SurfaceRestoringValue" array_group="IRFSRVGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_43SurfaceRestoringValue" array_group="IRFSRVGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_44SurfaceRestoringValue" array_group="IRFSRVGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_45SurfaceRestoringValue" array_group="IRFSRVGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_46SurfaceRestoringValue" array_group="IRFSRVGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_47SurfaceRestoringValue" array_group="IRFSRVGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_48SurfaceRestoringValue" array_group="IRFSRVGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_49SurfaceRestoringValue" array_group="IRFSRVGRP" units="IRF unit m^{-3}"/>
+			</var_array>
+		</var_struct>
+		<var_struct name="tracersInteriorRestoringFields" time_levs="1">
+			<var_array name="IRFTracersInteriorRestoringRate" type="real" dimensions="nVertLevels nCells Time" packages="IRFTracersInteriorRestoringPKG">
+				 <var name="IRF_1InteriorRestoringRate" array_group="IRFIRRGRP" units="IRF unit m^{-3}"/>
+				 <var name="IRF_2InteriorRestoringRate" array_group="IRFIRRGRP" units="IRF unit m^{-3}"/>
+				 <var name="IRF_3InteriorRestoringRate" array_group="IRFIRRGRP" units="IRF unit m^{-3}"/>
+				 <var name="IRF_4InteriorRestoringRate" array_group="IRFIRRGRP" units="IRF unit m^{-3}"/>
+				 <var name="IRF_5InteriorRestoringRate" array_group="IRFIRRGRP" units="IRF unit m^{-3}"/>
+				 <var name="IRF_6InteriorRestoringRate" array_group="IRFIRRGRP" units="IRF unit m^{-3}"/>
+				 <var name="IRF_7InteriorRestoringRate" array_group="IRFIRRGRP" units="IRF unit m^{-3}"/>
+				 <var name="IRF_8InteriorRestoringRate" array_group="IRFIRRGRP" units="IRF unit m^{-3}"/>
+				 <var name="IRF_9InteriorRestoringRate" array_group="IRFIRRGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_10InteriorRestoringRate" array_group="IRFIRRGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_11InteriorRestoringRate" array_group="IRFIRRGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_12InteriorRestoringRate" array_group="IRFIRRGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_13InteriorRestoringRate" array_group="IRFIRRGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_14InteriorRestoringRate" array_group="IRFIRRGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_15InteriorRestoringRate" array_group="IRFIRRGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_16InteriorRestoringRate" array_group="IRFIRRGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_17InteriorRestoringRate" array_group="IRFIRRGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_18InteriorRestoringRate" array_group="IRFIRRGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_19InteriorRestoringRate" array_group="IRFIRRGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_20InteriorRestoringRate" array_group="IRFIRRGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_21InteriorRestoringRate" array_group="IRFIRRGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_22InteriorRestoringRate" array_group="IRFIRRGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_23InteriorRestoringRate" array_group="IRFIRRGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_24InteriorRestoringRate" array_group="IRFIRRGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_25InteriorRestoringRate" array_group="IRFIRRGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_26InteriorRestoringRate" array_group="IRFIRRGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_27InteriorRestoringRate" array_group="IRFIRRGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_28InteriorRestoringRate" array_group="IRFIRRGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_29InteriorRestoringRate" array_group="IRFIRRGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_30InteriorRestoringRate" array_group="IRFIRRGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_31InteriorRestoringRate" array_group="IRFIRRGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_32InteriorRestoringRate" array_group="IRFIRRGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_33InteriorRestoringRate" array_group="IRFIRRGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_34InteriorRestoringRate" array_group="IRFIRRGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_35InteriorRestoringRate" array_group="IRFIRRGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_36InteriorRestoringRate" array_group="IRFIRRGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_37InteriorRestoringRate" array_group="IRFIRRGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_38InteriorRestoringRate" array_group="IRFIRRGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_39InteriorRestoringRate" array_group="IRFIRRGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_40InteriorRestoringRate" array_group="IRFIRRGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_41InteriorRestoringRate" array_group="IRFIRRGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_42InteriorRestoringRate" array_group="IRFIRRGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_43InteriorRestoringRate" array_group="IRFIRRGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_44InteriorRestoringRate" array_group="IRFIRRGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_45InteriorRestoringRate" array_group="IRFIRRGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_46InteriorRestoringRate" array_group="IRFIRRGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_47InteriorRestoringRate" array_group="IRFIRRGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_48InteriorRestoringRate" array_group="IRFIRRGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_49InteriorRestoringRate" array_group="IRFIRRGRP" units="IRF unit m^{-3}"/>
+			</var_array>
+			<var_array name="IRFTracersInteriorRestoringValue" type="real" dimensions="nVertLevels nCells Time" packages="IRFTracersInteriorRestoringPKG">
+				 <var name="IRF_1InteriorRestoringValue" array_group="IRFIRVGRP" units="IRF unit m^{-3}"/>
+				 <var name="IRF_2InteriorRestoringValue" array_group="IRFIRVGRP" units="IRF unit m^{-3}"/>
+				 <var name="IRF_3InteriorRestoringValue" array_group="IRFIRVGRP" units="IRF unit m^{-3}"/>
+				 <var name="IRF_4InteriorRestoringValue" array_group="IRFIRVGRP" units="IRF unit m^{-3}"/>
+				 <var name="IRF_5InteriorRestoringValue" array_group="IRFIRVGRP" units="IRF unit m^{-3}"/>
+				 <var name="IRF_6InteriorRestoringValue" array_group="IRFIRVGRP" units="IRF unit m^{-3}"/>
+				 <var name="IRF_7InteriorRestoringValue" array_group="IRFIRVGRP" units="IRF unit m^{-3}"/>
+				 <var name="IRF_8InteriorRestoringValue" array_group="IRFIRVGRP" units="IRF unit m^{-3}"/>
+				 <var name="IRF_9InteriorRestoringValue" array_group="IRFIRVGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_10InteriorRestoringValue" array_group="IRFIRVGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_11InteriorRestoringValue" array_group="IRFIRVGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_12InteriorRestoringValue" array_group="IRFIRVGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_13InteriorRestoringValue" array_group="IRFIRVGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_14InteriorRestoringValue" array_group="IRFIRVGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_15InteriorRestoringValue" array_group="IRFIRVGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_16InteriorRestoringValue" array_group="IRFIRVGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_17InteriorRestoringValue" array_group="IRFIRVGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_18InteriorRestoringValue" array_group="IRFIRVGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_19InteriorRestoringValue" array_group="IRFIRVGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_20InteriorRestoringValue" array_group="IRFIRVGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_21InteriorRestoringValue" array_group="IRFIRVGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_22InteriorRestoringValue" array_group="IRFIRVGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_23InteriorRestoringValue" array_group="IRFIRVGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_24InteriorRestoringValue" array_group="IRFIRVGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_25InteriorRestoringValue" array_group="IRFIRVGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_26InteriorRestoringValue" array_group="IRFIRVGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_27InteriorRestoringValue" array_group="IRFIRVGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_28InteriorRestoringValue" array_group="IRFIRVGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_29InteriorRestoringValue" array_group="IRFIRVGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_30InteriorRestoringValue" array_group="IRFIRVGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_31InteriorRestoringValue" array_group="IRFIRVGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_32InteriorRestoringValue" array_group="IRFIRVGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_33InteriorRestoringValue" array_group="IRFIRVGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_34InteriorRestoringValue" array_group="IRFIRVGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_35InteriorRestoringValue" array_group="IRFIRVGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_36InteriorRestoringValue" array_group="IRFIRVGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_37InteriorRestoringValue" array_group="IRFIRVGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_38InteriorRestoringValue" array_group="IRFIRVGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_39InteriorRestoringValue" array_group="IRFIRVGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_40InteriorRestoringValue" array_group="IRFIRVGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_41InteriorRestoringValue" array_group="IRFIRVGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_42InteriorRestoringValue" array_group="IRFIRVGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_43InteriorRestoringValue" array_group="IRFIRVGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_44InteriorRestoringValue" array_group="IRFIRVGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_45InteriorRestoringValue" array_group="IRFIRVGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_46InteriorRestoringValue" array_group="IRFIRVGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_47InteriorRestoringValue" array_group="IRFIRVGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_48InteriorRestoringValue" array_group="IRFIRVGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_49InteriorRestoringValue" array_group="IRFIRVGRP" units="IRF unit m^{-3}"/>
+			</var_array>
+		</var_struct>
+		<var_struct name="tracersExponentialDecayFields" time_levs="1">
+			<var_array name="IRFTracersExponentialDecayRate" type="real" dimensions="Time" packages="IRFTracersExponentialDecayPKG">
+				 <var name="IRF_1ExponentialDecayRate" array_group="IRFEDRGRP" units="IRF unit m^{-3}"/>
+				 <var name="IRF_2ExponentialDecayRate" array_group="IRFEDRGRP" units="IRF unit m^{-3}"/>
+				 <var name="IRF_3ExponentialDecayRate" array_group="IRFEDRGRP" units="IRF unit m^{-3}"/>
+				 <var name="IRF_4ExponentialDecayRate" array_group="IRFEDRGRP" units="IRF unit m^{-3}"/>
+				 <var name="IRF_5ExponentialDecayRate" array_group="IRFEDRGRP" units="IRF unit m^{-3}"/>
+				 <var name="IRF_6ExponentialDecayRate" array_group="IRFEDRGRP" units="IRF unit m^{-3}"/>
+				 <var name="IRF_7ExponentialDecayRate" array_group="IRFEDRGRP" units="IRF unit m^{-3}"/>
+				 <var name="IRF_8ExponentialDecayRate" array_group="IRFEDRGRP" units="IRF unit m^{-3}"/>
+				 <var name="IRF_9ExponentialDecayRate" array_group="IRFEDRGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_10ExponentialDecayRate" array_group="IRFEDRGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_11ExponentialDecayRate" array_group="IRFEDRGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_12ExponentialDecayRate" array_group="IRFEDRGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_13ExponentialDecayRate" array_group="IRFEDRGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_14ExponentialDecayRate" array_group="IRFEDRGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_15ExponentialDecayRate" array_group="IRFEDRGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_16ExponentialDecayRate" array_group="IRFEDRGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_17ExponentialDecayRate" array_group="IRFEDRGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_18ExponentialDecayRate" array_group="IRFEDRGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_19ExponentialDecayRate" array_group="IRFEDRGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_20ExponentialDecayRate" array_group="IRFEDRGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_21ExponentialDecayRate" array_group="IRFEDRGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_22ExponentialDecayRate" array_group="IRFEDRGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_23ExponentialDecayRate" array_group="IRFEDRGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_24ExponentialDecayRate" array_group="IRFEDRGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_25ExponentialDecayRate" array_group="IRFEDRGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_26ExponentialDecayRate" array_group="IRFEDRGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_27ExponentialDecayRate" array_group="IRFEDRGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_28ExponentialDecayRate" array_group="IRFEDRGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_29ExponentialDecayRate" array_group="IRFEDRGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_30ExponentialDecayRate" array_group="IRFEDRGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_31ExponentialDecayRate" array_group="IRFEDRGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_32ExponentialDecayRate" array_group="IRFEDRGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_33ExponentialDecayRate" array_group="IRFEDRGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_34ExponentialDecayRate" array_group="IRFEDRGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_35ExponentialDecayRate" array_group="IRFEDRGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_36ExponentialDecayRate" array_group="IRFEDRGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_37ExponentialDecayRate" array_group="IRFEDRGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_38ExponentialDecayRate" array_group="IRFEDRGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_39ExponentialDecayRate" array_group="IRFEDRGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_40ExponentialDecayRate" array_group="IRFEDRGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_41ExponentialDecayRate" array_group="IRFEDRGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_42ExponentialDecayRate" array_group="IRFEDRGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_43ExponentialDecayRate" array_group="IRFEDRGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_44ExponentialDecayRate" array_group="IRFEDRGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_45ExponentialDecayRate" array_group="IRFEDRGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_46ExponentialDecayRate" array_group="IRFEDRGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_47ExponentialDecayRate" array_group="IRFEDRGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_48ExponentialDecayRate" array_group="IRFEDRGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_49ExponentialDecayRate" array_group="IRFEDRGRP" units="IRF unit m^{-3}"/>
+			</var_array>
+		</var_struct>
+		<var_struct name="tracersIdealAgeFields" time_levs="1">
+			<var_array name="IRFTracersIdealAgeMask" type="real" dimensions="nCells Time" packages="IRFTracersIdealAgePKG">
+				 <var name="IRF_1IdealAgeMask" array_group="IRFGRP" units="IRF unit m^{-3}"/>
+				 <var name="IRF_2IdealAgeMask" array_group="IRFGRP" units="IRF unit m^{-3}"/>
+				 <var name="IRF_3IdealAgeMask" array_group="IRFGRP" units="IRF unit m^{-3}"/>
+				 <var name="IRF_4IdealAgeMask" array_group="IRFGRP" units="IRF unit m^{-3}"/>
+				 <var name="IRF_5IdealAgeMask" array_group="IRFGRP" units="IRF unit m^{-3}"/>
+				 <var name="IRF_6IdealAgeMask" array_group="IRFGRP" units="IRF unit m^{-3}"/>
+				 <var name="IRF_7IdealAgeMask" array_group="IRFGRP" units="IRF unit m^{-3}"/>
+				 <var name="IRF_8IdealAgeMask" array_group="IRFGRP" units="IRF unit m^{-3}"/>
+				 <var name="IRF_9IdealAgeMask" array_group="IRFGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_10IdealAgeMask" array_group="IRFGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_11IdealAgeMask" array_group="IRFGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_12IdealAgeMask" array_group="IRFGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_13IdealAgeMask" array_group="IRFGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_14IdealAgeMask" array_group="IRFGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_15IdealAgeMask" array_group="IRFGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_16IdealAgeMask" array_group="IRFGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_17IdealAgeMask" array_group="IRFGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_18IdealAgeMask" array_group="IRFGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_19IdealAgeMask" array_group="IRFGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_20IdealAgeMask" array_group="IRFGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_21IdealAgeMask" array_group="IRFGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_22IdealAgeMask" array_group="IRFGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_23IdealAgeMask" array_group="IRFGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_24IdealAgeMask" array_group="IRFGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_25IdealAgeMask" array_group="IRFGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_26IdealAgeMask" array_group="IRFGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_27IdealAgeMask" array_group="IRFGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_28IdealAgeMask" array_group="IRFGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_29IdealAgeMask" array_group="IRFGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_30IdealAgeMask" array_group="IRFGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_31IdealAgeMask" array_group="IRFGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_32IdealAgeMask" array_group="IRFGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_33IdealAgeMask" array_group="IRFGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_34IdealAgeMask" array_group="IRFGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_35IdealAgeMask" array_group="IRFGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_36IdealAgeMask" array_group="IRFGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_37IdealAgeMask" array_group="IRFGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_38IdealAgeMask" array_group="IRFGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_39IdealAgeMask" array_group="IRFGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_40IdealAgeMask" array_group="IRFGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_41IdealAgeMask" array_group="IRFGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_42IdealAgeMask" array_group="IRFGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_43IdealAgeMask" array_group="IRFGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_44IdealAgeMask" array_group="IRFGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_45IdealAgeMask" array_group="IRFGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_46IdealAgeMask" array_group="IRFGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_47IdealAgeMask" array_group="IRFGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_48IdealAgeMask" array_group="IRFGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_49IdealAgeMask" array_group="IRFGRP" units="IRF unit m^{-3}"/>
+			</var_array>
+		</var_struct>
+		<var_struct name="tracersTTDFields" time_levs="1">
+			<var_array name="IRFTracersTTDMask" type="real" dimensions="nCells Time" packages="IRFTracersTTDPKG">
+				 <var name="IRF_1TTDMask" array_group="IRFGRP" units="IRF unit m^{-3}"/>
+				 <var name="IRF_2TTDMask" array_group="IRFGRP" units="IRF unit m^{-3}"/>
+				 <var name="IRF_3TTDMask" array_group="IRFGRP" units="IRF unit m^{-3}"/>
+				 <var name="IRF_4TTDMask" array_group="IRFGRP" units="IRF unit m^{-3}"/>
+				 <var name="IRF_5TTDMask" array_group="IRFGRP" units="IRF unit m^{-3}"/>
+				 <var name="IRF_6TTDMask" array_group="IRFGRP" units="IRF unit m^{-3}"/>
+				 <var name="IRF_7TTDMask" array_group="IRFGRP" units="IRF unit m^{-3}"/>
+				 <var name="IRF_8TTDMask" array_group="IRFGRP" units="IRF unit m^{-3}"/>
+				 <var name="IRF_9TTDMask" array_group="IRFGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_10TTDMask" array_group="IRFGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_11TTDMask" array_group="IRFGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_12TTDMask" array_group="IRFGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_13TTDMask" array_group="IRFGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_14TTDMask" array_group="IRFGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_15TTDMask" array_group="IRFGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_16TTDMask" array_group="IRFGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_17TTDMask" array_group="IRFGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_18TTDMask" array_group="IRFGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_19TTDMask" array_group="IRFGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_20TTDMask" array_group="IRFGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_21TTDMask" array_group="IRFGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_22TTDMask" array_group="IRFGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_23TTDMask" array_group="IRFGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_24TTDMask" array_group="IRFGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_25TTDMask" array_group="IRFGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_26TTDMask" array_group="IRFGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_27TTDMask" array_group="IRFGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_28TTDMask" array_group="IRFGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_29TTDMask" array_group="IRFGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_30TTDMask" array_group="IRFGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_31TTDMask" array_group="IRFGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_32TTDMask" array_group="IRFGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_33TTDMask" array_group="IRFGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_34TTDMask" array_group="IRFGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_35TTDMask" array_group="IRFGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_36TTDMask" array_group="IRFGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_37TTDMask" array_group="IRFGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_38TTDMask" array_group="IRFGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_39TTDMask" array_group="IRFGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_40TTDMask" array_group="IRFGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_41TTDMask" array_group="IRFGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_42TTDMask" array_group="IRFGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_43TTDMask" array_group="IRFGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_44TTDMask" array_group="IRFGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_45TTDMask" array_group="IRFGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_46TTDMask" array_group="IRFGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_47TTDMask" array_group="IRFGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_48TTDMask" array_group="IRFGRP" units="IRF unit m^{-3}"/>
+				<var name="IRF_49TTDMask" array_group="IRFGRP" units="IRF unit m^{-3}"/>
+			</var_array>
+		</var_struct>
+	</var_struct>
+
+	<var_struct name="diagnostics" time_levs="1">
+		<var_array name="IRFTracersNonLocalTend" type="real" dimensions="nVertLevels nCells Time" packages="IRFTracerBudgetPKG">
+			 <var name="IRF_1NonLocalTend" array_group="IRFTracersNonLocalTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			 <var name="IRF_2NonLocalTend" array_group="IRFTracersNonLocalTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			 <var name="IRF_3NonLocalTend" array_group="IRFTracersNonLocalTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			 <var name="IRF_4NonLocalTend" array_group="IRFTracersNonLocalTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			 <var name="IRF_5NonLocalTend" array_group="IRFTracersNonLocalTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			 <var name="IRF_6NonLocalTend" array_group="IRFTracersNonLocalTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			 <var name="IRF_7NonLocalTend" array_group="IRFTracersNonLocalTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			 <var name="IRF_8NonLocalTend" array_group="IRFTracersNonLocalTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			 <var name="IRF_9NonLocalTend" array_group="IRFTracersNonLocalTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			<var name="IRF_10NonLocalTend" array_group="IRFTracersNonLocalTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			<var name="IRF_11NonLocalTend" array_group="IRFTracersNonLocalTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			<var name="IRF_12NonLocalTend" array_group="IRFTracersNonLocalTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			<var name="IRF_13NonLocalTend" array_group="IRFTracersNonLocalTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			<var name="IRF_14NonLocalTend" array_group="IRFTracersNonLocalTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			<var name="IRF_15NonLocalTend" array_group="IRFTracersNonLocalTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			<var name="IRF_16NonLocalTend" array_group="IRFTracersNonLocalTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			<var name="IRF_17NonLocalTend" array_group="IRFTracersNonLocalTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			<var name="IRF_18NonLocalTend" array_group="IRFTracersNonLocalTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			<var name="IRF_19NonLocalTend" array_group="IRFTracersNonLocalTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			<var name="IRF_20NonLocalTend" array_group="IRFTracersNonLocalTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			<var name="IRF_21NonLocalTend" array_group="IRFTracersNonLocalTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			<var name="IRF_22NonLocalTend" array_group="IRFTracersNonLocalTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			<var name="IRF_23NonLocalTend" array_group="IRFTracersNonLocalTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			<var name="IRF_24NonLocalTend" array_group="IRFTracersNonLocalTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			<var name="IRF_25NonLocalTend" array_group="IRFTracersNonLocalTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			<var name="IRF_26NonLocalTend" array_group="IRFTracersNonLocalTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			<var name="IRF_27NonLocalTend" array_group="IRFTracersNonLocalTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			<var name="IRF_28NonLocalTend" array_group="IRFTracersNonLocalTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			<var name="IRF_29NonLocalTend" array_group="IRFTracersNonLocalTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			<var name="IRF_30NonLocalTend" array_group="IRFTracersNonLocalTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			<var name="IRF_31NonLocalTend" array_group="IRFTracersNonLocalTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			<var name="IRF_32NonLocalTend" array_group="IRFTracersNonLocalTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			<var name="IRF_33NonLocalTend" array_group="IRFTracersNonLocalTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			<var name="IRF_34NonLocalTend" array_group="IRFTracersNonLocalTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			<var name="IRF_35NonLocalTend" array_group="IRFTracersNonLocalTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			<var name="IRF_36NonLocalTend" array_group="IRFTracersNonLocalTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			<var name="IRF_37NonLocalTend" array_group="IRFTracersNonLocalTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			<var name="IRF_38NonLocalTend" array_group="IRFTracersNonLocalTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			<var name="IRF_39NonLocalTend" array_group="IRFTracersNonLocalTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			<var name="IRF_40NonLocalTend" array_group="IRFTracersNonLocalTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			<var name="IRF_41NonLocalTend" array_group="IRFTracersNonLocalTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			<var name="IRF_42NonLocalTend" array_group="IRFTracersNonLocalTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			<var name="IRF_43NonLocalTend" array_group="IRFTracersNonLocalTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			<var name="IRF_44NonLocalTend" array_group="IRFTracersNonLocalTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			<var name="IRF_45NonLocalTend" array_group="IRFTracersNonLocalTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			<var name="IRF_46NonLocalTend" array_group="IRFTracersNonLocalTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			<var name="IRF_47NonLocalTend" array_group="IRFTracersNonLocalTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			<var name="IRF_48NonLocalTend" array_group="IRFTracersNonLocalTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			<var name="IRF_49NonLocalTend" array_group="IRFTracersNonLocalTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+		</var_array>
+		<var_array name="IRFTracersHorAdvTend" type="real" dimensions="nVertLevels nCells Time" packages="IRFTracerBudgetPKG">
+			 <var name="IRF_1HorAdvTend" array_group="IRFTracersHorAdvTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			 <var name="IRF_2HorAdvTend" array_group="IRFTracersHorAdvTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			 <var name="IRF_3HorAdvTend" array_group="IRFTracersHorAdvTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			 <var name="IRF_4HorAdvTend" array_group="IRFTracersHorAdvTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			 <var name="IRF_5HorAdvTend" array_group="IRFTracersHorAdvTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			 <var name="IRF_6HorAdvTend" array_group="IRFTracersHorAdvTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			 <var name="IRF_7HorAdvTend" array_group="IRFTracersHorAdvTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			 <var name="IRF_8HorAdvTend" array_group="IRFTracersHorAdvTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			 <var name="IRF_9HorAdvTend" array_group="IRFTracersHorAdvTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			<var name="IRF_10HorAdvTend" array_group="IRFTracersHorAdvTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			<var name="IRF_11HorAdvTend" array_group="IRFTracersHorAdvTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			<var name="IRF_12HorAdvTend" array_group="IRFTracersHorAdvTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			<var name="IRF_13HorAdvTend" array_group="IRFTracersHorAdvTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			<var name="IRF_14HorAdvTend" array_group="IRFTracersHorAdvTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			<var name="IRF_15HorAdvTend" array_group="IRFTracersHorAdvTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			<var name="IRF_16HorAdvTend" array_group="IRFTracersHorAdvTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			<var name="IRF_17HorAdvTend" array_group="IRFTracersHorAdvTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			<var name="IRF_18HorAdvTend" array_group="IRFTracersHorAdvTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			<var name="IRF_19HorAdvTend" array_group="IRFTracersHorAdvTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			<var name="IRF_20HorAdvTend" array_group="IRFTracersHorAdvTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			<var name="IRF_21HorAdvTend" array_group="IRFTracersHorAdvTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			<var name="IRF_22HorAdvTend" array_group="IRFTracersHorAdvTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			<var name="IRF_23HorAdvTend" array_group="IRFTracersHorAdvTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			<var name="IRF_24HorAdvTend" array_group="IRFTracersHorAdvTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			<var name="IRF_25HorAdvTend" array_group="IRFTracersHorAdvTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			<var name="IRF_26HorAdvTend" array_group="IRFTracersHorAdvTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			<var name="IRF_27HorAdvTend" array_group="IRFTracersHorAdvTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			<var name="IRF_28HorAdvTend" array_group="IRFTracersHorAdvTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			<var name="IRF_29HorAdvTend" array_group="IRFTracersHorAdvTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			<var name="IRF_30HorAdvTend" array_group="IRFTracersHorAdvTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			<var name="IRF_31HorAdvTend" array_group="IRFTracersHorAdvTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			<var name="IRF_32HorAdvTend" array_group="IRFTracersHorAdvTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			<var name="IRF_33HorAdvTend" array_group="IRFTracersHorAdvTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			<var name="IRF_34HorAdvTend" array_group="IRFTracersHorAdvTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			<var name="IRF_35HorAdvTend" array_group="IRFTracersHorAdvTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			<var name="IRF_36HorAdvTend" array_group="IRFTracersHorAdvTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			<var name="IRF_37HorAdvTend" array_group="IRFTracersHorAdvTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			<var name="IRF_38HorAdvTend" array_group="IRFTracersHorAdvTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			<var name="IRF_39HorAdvTend" array_group="IRFTracersHorAdvTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			<var name="IRF_40HorAdvTend" array_group="IRFTracersHorAdvTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			<var name="IRF_41HorAdvTend" array_group="IRFTracersHorAdvTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			<var name="IRF_42HorAdvTend" array_group="IRFTracersHorAdvTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			<var name="IRF_43HorAdvTend" array_group="IRFTracersHorAdvTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			<var name="IRF_44HorAdvTend" array_group="IRFTracersHorAdvTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			<var name="IRF_45HorAdvTend" array_group="IRFTracersHorAdvTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			<var name="IRF_46HorAdvTend" array_group="IRFTracersHorAdvTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			<var name="IRF_47HorAdvTend" array_group="IRFTracersHorAdvTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			<var name="IRF_48HorAdvTend" array_group="IRFTracersHorAdvTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			<var name="IRF_49HorAdvTend" array_group="IRFTracersHorAdvTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+		</var_array>
+		<var_array name="IRFTracersVertAdvTend" type="real" dimensions="nVertLevels nCells Time" packages="IRFTracerBudgetPKG">
+			 <var name="IRF_1VertAdvTend" array_group="IRFTracersVertAdvTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			 <var name="IRF_2VertAdvTend" array_group="IRFTracersVertAdvTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			 <var name="IRF_3VertAdvTend" array_group="IRFTracersVertAdvTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			 <var name="IRF_4VertAdvTend" array_group="IRFTracersVertAdvTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			 <var name="IRF_5VertAdvTend" array_group="IRFTracersVertAdvTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			 <var name="IRF_6VertAdvTend" array_group="IRFTracersVertAdvTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			 <var name="IRF_7VertAdvTend" array_group="IRFTracersVertAdvTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			 <var name="IRF_8VertAdvTend" array_group="IRFTracersVertAdvTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			 <var name="IRF_9VertAdvTend" array_group="IRFTracersVertAdvTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			<var name="IRF_10VertAdvTend" array_group="IRFTracersVertAdvTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			<var name="IRF_11VertAdvTend" array_group="IRFTracersVertAdvTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			<var name="IRF_12VertAdvTend" array_group="IRFTracersVertAdvTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			<var name="IRF_13VertAdvTend" array_group="IRFTracersVertAdvTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			<var name="IRF_14VertAdvTend" array_group="IRFTracersVertAdvTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			<var name="IRF_15VertAdvTend" array_group="IRFTracersVertAdvTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			<var name="IRF_16VertAdvTend" array_group="IRFTracersVertAdvTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			<var name="IRF_17VertAdvTend" array_group="IRFTracersVertAdvTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			<var name="IRF_18VertAdvTend" array_group="IRFTracersVertAdvTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			<var name="IRF_19VertAdvTend" array_group="IRFTracersVertAdvTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			<var name="IRF_20VertAdvTend" array_group="IRFTracersVertAdvTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			<var name="IRF_21VertAdvTend" array_group="IRFTracersVertAdvTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			<var name="IRF_22VertAdvTend" array_group="IRFTracersVertAdvTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			<var name="IRF_23VertAdvTend" array_group="IRFTracersVertAdvTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			<var name="IRF_24VertAdvTend" array_group="IRFTracersVertAdvTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			<var name="IRF_25VertAdvTend" array_group="IRFTracersVertAdvTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			<var name="IRF_26VertAdvTend" array_group="IRFTracersVertAdvTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			<var name="IRF_27VertAdvTend" array_group="IRFTracersVertAdvTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			<var name="IRF_28VertAdvTend" array_group="IRFTracersVertAdvTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			<var name="IRF_29VertAdvTend" array_group="IRFTracersVertAdvTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			<var name="IRF_30VertAdvTend" array_group="IRFTracersVertAdvTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			<var name="IRF_31VertAdvTend" array_group="IRFTracersVertAdvTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			<var name="IRF_32VertAdvTend" array_group="IRFTracersVertAdvTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			<var name="IRF_33VertAdvTend" array_group="IRFTracersVertAdvTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			<var name="IRF_34VertAdvTend" array_group="IRFTracersVertAdvTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			<var name="IRF_35VertAdvTend" array_group="IRFTracersVertAdvTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			<var name="IRF_36VertAdvTend" array_group="IRFTracersVertAdvTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			<var name="IRF_37VertAdvTend" array_group="IRFTracersVertAdvTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			<var name="IRF_38VertAdvTend" array_group="IRFTracersVertAdvTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			<var name="IRF_39VertAdvTend" array_group="IRFTracersVertAdvTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			<var name="IRF_40VertAdvTend" array_group="IRFTracersVertAdvTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			<var name="IRF_41VertAdvTend" array_group="IRFTracersVertAdvTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			<var name="IRF_42VertAdvTend" array_group="IRFTracersVertAdvTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			<var name="IRF_43VertAdvTend" array_group="IRFTracersVertAdvTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			<var name="IRF_44VertAdvTend" array_group="IRFTracersVertAdvTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			<var name="IRF_45VertAdvTend" array_group="IRFTracersVertAdvTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			<var name="IRF_46VertAdvTend" array_group="IRFTracersVertAdvTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			<var name="IRF_47VertAdvTend" array_group="IRFTracersVertAdvTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			<var name="IRF_48VertAdvTend" array_group="IRFTracersVertAdvTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			<var name="IRF_49VertAdvTend" array_group="IRFTracersVertAdvTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+		</var_array>
+		<var_array name="IRFTracersVertMixTend" type="real" dimensions="nVertLevels nCells Time" packages="IRFTracerBudgetPKG">
+			 <var name="IRF_1VertMixTend" array_group="IRFTracersVertMixTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			 <var name="IRF_2VertMixTend" array_group="IRFTracersVertMixTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			 <var name="IRF_3VertMixTend" array_group="IRFTracersVertMixTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			 <var name="IRF_4VertMixTend" array_group="IRFTracersVertMixTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			 <var name="IRF_5VertMixTend" array_group="IRFTracersVertMixTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			 <var name="IRF_6VertMixTend" array_group="IRFTracersVertMixTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			 <var name="IRF_7VertMixTend" array_group="IRFTracersVertMixTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			 <var name="IRF_8VertMixTend" array_group="IRFTracersVertMixTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			 <var name="IRF_9VertMixTend" array_group="IRFTracersVertMixTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			<var name="IRF_10VertMixTend" array_group="IRFTracersVertMixTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			<var name="IRF_11VertMixTend" array_group="IRFTracersVertMixTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			<var name="IRF_12VertMixTend" array_group="IRFTracersVertMixTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			<var name="IRF_13VertMixTend" array_group="IRFTracersVertMixTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			<var name="IRF_14VertMixTend" array_group="IRFTracersVertMixTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			<var name="IRF_15VertMixTend" array_group="IRFTracersVertMixTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			<var name="IRF_16VertMixTend" array_group="IRFTracersVertMixTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			<var name="IRF_17VertMixTend" array_group="IRFTracersVertMixTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			<var name="IRF_18VertMixTend" array_group="IRFTracersVertMixTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			<var name="IRF_19VertMixTend" array_group="IRFTracersVertMixTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			<var name="IRF_20VertMixTend" array_group="IRFTracersVertMixTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			<var name="IRF_21VertMixTend" array_group="IRFTracersVertMixTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			<var name="IRF_22VertMixTend" array_group="IRFTracersVertMixTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			<var name="IRF_23VertMixTend" array_group="IRFTracersVertMixTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			<var name="IRF_24VertMixTend" array_group="IRFTracersVertMixTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			<var name="IRF_25VertMixTend" array_group="IRFTracersVertMixTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			<var name="IRF_26VertMixTend" array_group="IRFTracersVertMixTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			<var name="IRF_27VertMixTend" array_group="IRFTracersVertMixTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			<var name="IRF_28VertMixTend" array_group="IRFTracersVertMixTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			<var name="IRF_29VertMixTend" array_group="IRFTracersVertMixTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			<var name="IRF_30VertMixTend" array_group="IRFTracersVertMixTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			<var name="IRF_31VertMixTend" array_group="IRFTracersVertMixTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			<var name="IRF_32VertMixTend" array_group="IRFTracersVertMixTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			<var name="IRF_33VertMixTend" array_group="IRFTracersVertMixTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			<var name="IRF_34VertMixTend" array_group="IRFTracersVertMixTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			<var name="IRF_35VertMixTend" array_group="IRFTracersVertMixTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			<var name="IRF_36VertMixTend" array_group="IRFTracersVertMixTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			<var name="IRF_37VertMixTend" array_group="IRFTracersVertMixTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			<var name="IRF_38VertMixTend" array_group="IRFTracersVertMixTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			<var name="IRF_39VertMixTend" array_group="IRFTracersVertMixTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			<var name="IRF_40VertMixTend" array_group="IRFTracersVertMixTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			<var name="IRF_41VertMixTend" array_group="IRFTracersVertMixTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			<var name="IRF_42VertMixTend" array_group="IRFTracersVertMixTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			<var name="IRF_43VertMixTend" array_group="IRFTracersVertMixTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			<var name="IRF_44VertMixTend" array_group="IRFTracersVertMixTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			<var name="IRF_45VertMixTend" array_group="IRFTracersVertMixTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			<var name="IRF_46VertMixTend" array_group="IRFTracersVertMixTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			<var name="IRF_47VertMixTend" array_group="IRFTracersVertMixTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			<var name="IRF_48VertMixTend" array_group="IRFTracersVertMixTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			<var name="IRF_49VertMixTend" array_group="IRFTracersVertMixTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+		</var_array>
+	</var_struct>
