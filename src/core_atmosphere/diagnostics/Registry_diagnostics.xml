@@ -25,6 +25,9 @@
 <!-- deformation diagnostics -->
 #include "Registry_deformation.xml"
 
+<!-- hiwc diagnostics -->
+#include "Registry_hiwc.xml"
+
 <!-- ******************************* -->
 <!-- End includes from diagnostics -->
 <!-- ******************************* -->

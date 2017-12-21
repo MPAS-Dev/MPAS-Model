@@ -12,8 +12,9 @@
 
 module hiwc_diagnostics
 
-    use mpas_derived_types, only : MPAS_pool_type
-    use mpas_kind_types, only : RKIND
+    use mpas_derived_types
+    use mpas_kind_types
+    use mpas_constants
 
     type (MPAS_pool_type), pointer :: mesh
     type (MPAS_pool_type), pointer :: state
@@ -82,6 +83,9 @@ module hiwc_diagnostics
         integer, pointer :: nCells, nVertLevels, nEdges
         integer, dimension(:), pointer :: nEdgesOnCell
         integer, dimension(:,:), pointer :: edgesOnCell
+        real (kind=RKIND), dimension(:), pointer :: qi_200hPa
+        real (kind=RKIND), dimension(:), pointer :: qi_250hPa
+        real (kind=RKIND), dimension(:), pointer :: virtualT_400hPa
 
         real(kind=RKIND) :: w200, w250
 
@@ -89,7 +93,7 @@ module hiwc_diagnostics
         real (kind=RKIND), parameter :: warm_boundary_temp = -15.
         real (kind=RKIND), parameter :: cold_boundary_temp = -17.
 
-        real (kind=RKIND), dimension(:,:), pointer :: hiwc
+        real (kind=RKIND), dimension(:), pointer :: hiwc
 
         integer :: iEdge, iCell, k, e
 
@@ -99,22 +103,20 @@ module hiwc_diagnostics
             
             ! Get cloud ice mixing ratio at 200hPa and 250hPa 
             ! and virtual Temperature at 400 hPa
-            call interp_diagnostics(mesh, state, 1, diag)
+            call interp_diagnostics(mesh, state, 1, diag, qi_200hPa, qi_250hPa, virtualT_400hPa)
 
             ! Target array
             call mpas_pool_get_array(diag, 'hiwc', hiwc)
 
-            ! Allocate arrays for holding diagonal and off-diagonal deformation terms
-
             do iCell=1,nCells
-                w200 = MIN(1.0, MAX(0.0, 
-                           (warm_boundary_temp - virtualT_400hPa(iCell)) / 
+                w200 = MIN(1.0, MAX(0.0, &
+                           (warm_boundary_temp - virtualT_400hPa(iCell)) / &
                            (warm_boundary_temp - cold_boundary_temp) ) )
 
                 w250 = 1.0 - w200
-                hiwc(iCell) = MAX(0, MIN(3.0, 
-                                  ( (w250 * qi_250hPa * 1.0E6 + 
-                                     w200 * qi_200hPa * 1.0E6) - 25 ) / 80 ) )
+                hiwc(iCell) = MAX(0, MIN(3.0, &
+                                  ( (w250 * qi_250hPa(iCell) * 1.0E6 + &
+                                     w200 * qi_200hPa(iCell) * 1.0E6) - 25 ) / 80 ) )
 
             end do
 
@@ -124,7 +126,7 @@ module hiwc_diagnostics
 
 
    !==================================================================================================
-    subroutine interp_diagnostics(mesh, state, time_lev, diag)
+    subroutine interp_diagnostics(mesh, state, time_lev, diag, qi_200hPa, qi_250hPa, virtualT_400hPa)
    !==================================================================================================
 
        !input arguments:
@@ -141,7 +143,7 @@ module hiwc_diagnostics
         integer :: nVertLevelsP1
         integer, pointer :: index_qv, num_scalars
        
-        type (field2DReal), pointer:: pressure_p_field
+        real (kind=RKIND), dimension(:,:), pointer:: pressure_p_field
        
         real (kind=RKIND), dimension(:,:), pointer :: exner
         real (kind=RKIND), dimension(:,:), pointer :: qi, qv, theta_m
@@ -149,16 +151,16 @@ module hiwc_diagnostics
         real (kind=RKIND), dimension(:,:), pointer :: pressure_b, pressure_p 
         real (kind=RKIND), dimension(:,:,:), pointer :: scalars
        
-        real (kind=RKIND), dimension(:), pointer :: qi_200hPa
-        real (kind=RKIND), dimension(:), pointer :: qi_250hPa
+        !real (kind=RKIND), dimension(:), pointer :: qi_200hPa
+        !real (kind=RKIND), dimension(:), pointer :: qi_250hPa
         real (kind=RKIND), dimension(:), pointer :: temperature_400hPa
         real (kind=RKIND), dimension(:), pointer :: qv_400hPa
-        real (kind=RKIND), dimension(:), pointer :: virtualT_400hPa
+        !real (kind=RKIND), dimension(:), pointer :: virtualT_400hPa
 
         real (kind=RKIND), dimension(:,:), allocatable :: pressure, temperature
        !local interpolated fields:
         integer :: nIntP
-        real (kind=RKIND), dimension(:,:), allocatable :: field_in,press_in
+        real (kind=RKIND), dimension(:,:), allocatable :: field_in,press_in,qi_in,qv_in
         real (kind=RKIND), dimension(:,:), allocatable :: field_interp,press_interp
 
         call mpas_pool_get_dimension(mesh, 'nCells', nCells)
@@ -180,11 +182,11 @@ module hiwc_diagnostics
         call mpas_pool_get_array(diag, 'pressure_base', pressure_b)
         call mpas_pool_get_array(diag, 'pressure_p', pressure_p)
 
-        call mpas_pool_get_array(diag, 'virtualT_400hPa', virtualT_400hPa)
-        call mpas_pool_get_array(diag, 'qi_200hPa', qi_200hPa)
-        call mpas_pool_get_array(diag, 'qi_250hPa', qi_250hPa)
-        call mpas_pool_get_array(diag, 'temperature_400hPa', temperature_400hPa)
-        call mpas_pool_get_array(diag, 'qv_400hPa', qv_400hPa)
+        !call mpas_pool_get_array(diag, 'virtualT_400hPa', virtualT_400hPa)
+        !call mpas_pool_get_array(diag, 'qi_200hPa', qi_200hPa)
+        !call mpas_pool_get_array(diag, 'qi_250hPa', qi_250hPa)
+        !call mpas_pool_get_array(diag, 'temperature_400hPa', temperature_400hPa)
+        !call mpas_pool_get_array(diag, 'qv_400hPa', qv_400hPa)
 
         if(.not.allocated(pressure)    ) allocate(pressure(nVertLevels,nCells)      )
         if(.not.allocated(temperature) ) allocate(temperature(nVertLevels,nCells)   )
@@ -388,7 +390,7 @@ module hiwc_diagnostics
     end subroutine hiwc_diagnostics_reset
 
 
-    subroutine deformation_hiwc_cleanup()
+    subroutine hiwc_diagnostics_cleanup()
         implicit none
         ! Nothing to cleanup for hiwc
     end subroutine hiwc_diagnostics_cleanup
