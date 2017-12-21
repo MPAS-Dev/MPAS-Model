@@ -18,6 +18,16 @@ module mpas_intracoupler
 
 contains
 
+    integer function component_role(self)
+
+        implicit none
+
+        class (mpas_coupler_type), intent(in) :: self
+
+        component_role = mod(self % mpi_rank, 2)
+
+    end function component_role
+
 
     !-----------------------------------------------------------------------
     !  routine MPAS_coupler_init
@@ -34,6 +44,10 @@ contains
     !
     !-----------------------------------------------------------------------
     subroutine MPAS_coupler_init(cpl, mpicomm)
+
+#ifdef MPAS_OPENMP
+        use omp_lib
+#endif
 
 #ifdef _MPI
 #ifndef NOMPIMOD
@@ -68,9 +82,16 @@ contains
         call MPI_Comm_rank(intercomm, comm_rank, ierr)
         call MPI_Comm_size(intercomm, comm_size, ierr)
 
-        cpl % role = mod(comm_rank, 2)
+        cpl % role => component_role
         cpl % intercomm = intercomm
-        call MPI_Comm_split(cpl % intercomm, cpl % role, (comm_rank / 2), cpl % intracomm, ierr)
+        cpl % mpi_rank = comm_rank
+#ifdef MPAS_OPENMP
+        cpl % thread_id = omp_get_thread_num()
+#else
+        cpl % thread_id = 0
+#endif
+
+        call MPI_Comm_split(cpl % intercomm, cpl % role(), comm_rank, cpl % intracomm, ierr)
 #else
         ! Somehow handle this for non-MPI builds
 #endif

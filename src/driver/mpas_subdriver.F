@@ -52,6 +52,7 @@ module mpas_subdriver
       use mpas_bootstrapping, only : mpas_bootstrap_framework_phase1, mpas_bootstrap_framework_phase2
       use mpas_log
       use mpas_intracoupler, only : MPAS_coupler_init
+      use mpas_derived_types, only : mpas_coupler_type
  
       implicit none
 
@@ -83,6 +84,7 @@ module mpas_subdriver
       character(len=StrKIND) :: iotype
       logical :: streamsExists
       integer :: mesh_iotype
+      type (mpas_coupler_type), pointer :: mpas_cpl
 
       interface
          subroutine xml_stream_parser(xmlname, mgr_p, comm, ierr) bind(c)
@@ -154,15 +156,16 @@ module mpas_subdriver
       call mpas_allocate_domain(domain_ptr)
 
       call MPAS_coupler_init(domain_ptr % mpas_cpl)
-write(0,*) 'My role is ', domain_ptr % mpas_cpl % role
+      mpas_cpl => domain_ptr % mpas_cpl
+write(0,*) 'My role is ', mpas_cpl % role()
 
       !
       ! Initialize infrastructure
       !
-      call mpas_framework_init_phase1(domain_ptr % dminfo, mpi_comm=domain_ptr%mpas_cpl%intracomm)
+      call mpas_framework_init_phase1(domain_ptr % dminfo, mpi_comm=mpas_cpl % intracomm)
 
 
-      if (domain_ptr%mpas_cpl % role == 1) then
+      if (mpas_cpl % role() == 1) then
 
 #ifdef CORE_ATMOSPHERE
       call atm_setup_core(corelist)
@@ -340,11 +343,15 @@ write(0,*) 'My role is ', domain_ptr % mpas_cpl % role
 
    subroutine mpas_run()
 
+      use mpas_derived_types, only : mpas_coupler_type
+
       implicit none
 
+      type (mpas_coupler_type), pointer :: mpas_cpl
       integer :: iErr
 
-      if (domain_ptr % mpas_cpl % role == 1) then
+      mpas_cpl => domain_ptr % mpas_cpl
+      if (mpas_cpl % role() == 1) then
 write(0,*) 'Calling core_run()'
 
       iErr = domain_ptr % core % core_run(domain_ptr)
@@ -364,13 +371,16 @@ write(0,*) 'Doing something else...'
       use mpas_stream_manager, only : MPAS_stream_mgr_finalize
       use mpas_log, only : mpas_log_finalize
       use mpas_intracoupler, only : MPAS_coupler_sync, MPAS_coupler_finalize
+      use mpas_derived_types, only: mpas_coupler_type
 
       implicit none
 
+      type (mpas_coupler_type), pointer :: mpas_cpl
       integer :: iErr
 
 
-      if (domain_ptr % mpas_cpl % role == 1) then
+      mpas_cpl => domain_ptr % mpas_cpl
+      if (mpas_cpl % role() == 1) then
 
       !
       ! Finalize core
@@ -401,9 +411,9 @@ write(0,*) 'Doing something else...'
 
       end if
 
-      call mpas_coupler_sync(domain_ptr % mpas_cpl)
+      call mpas_coupler_sync(mpas_cpl)
 
-      call mpas_coupler_finalize(domain_ptr % mpas_cpl)
+      call mpas_coupler_finalize(mpas_cpl)
 
       call mpas_deallocate_domain(domain_ptr)
 
