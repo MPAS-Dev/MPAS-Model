@@ -197,7 +197,7 @@ module atm_core_interface
    !-----------------------------------------------------------------------
    function atm_setup_log(logInfo, domain) result(iErr)!{{{
 
-      use mpas_derived_types, only : mpas_log_type, domain_type
+      use mpas_derived_types, only : mpas_log_type, domain_type, mpas_coupler_type
       use mpas_log, only : mpas_log_init, mpas_log_open
 
       implicit none
@@ -208,6 +208,7 @@ module atm_core_interface
 
       ! Local variables
       integer :: local_err
+      type (mpas_coupler_type), pointer :: mpas_cpl
 
       iErr = 0
 
@@ -218,6 +219,13 @@ module atm_core_interface
       ! Set core specific options here
       ! (At present, there are not any.  There could eventually be choices about the file naming conventions
       !  or other settings controlling behavior.)
+
+      !
+      ! Make log filenames specific to the role of each MPI task
+      !
+      mpas_cpl => domain % mpas_cpl
+      write(logInfo % outputLog % filename, '(a,i2.2,a,i4.4,a)') 'log.atmosphere.role', mpas_cpl % role(), '.', domain % dminfo % my_proc_id, '.out'
+      write(logInfo % errorLog % filename, '(a,i2.2,a,i4.4,a)') 'log.atmosphere.role', mpas_cpl % role(), '.', domain % dminfo % my_proc_id, '.err'
 
       ! After core has had a chance to modify log defaults, open the output log
       call mpas_log_open(err=local_err)
