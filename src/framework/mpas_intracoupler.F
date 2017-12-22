@@ -169,6 +169,8 @@ contains
         include 'mpif.h'
 #endif
 
+        call MPI_Barrier(cpl % intercomm, ierr)
+
 #else
         ! Somehow handle this for non-MPI builds
 #endif
