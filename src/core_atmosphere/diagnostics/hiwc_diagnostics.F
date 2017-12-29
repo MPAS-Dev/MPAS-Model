@@ -114,16 +114,19 @@ module hiwc_diagnostics
                            (warm_boundary_temp - cold_boundary_temp) ) )
 
                 w250 = 1.0 - w200
-                hiwc(iCell) = MAX(0, MIN(3.0, &
+                hiwc(iCell) = MAX(0.0, MIN(3.0, &
                                   ( (w250 * qi_250hPa(iCell) * 1.0E6 + &
-                                     w200 * qi_200hPa(iCell) * 1.0E6) - 25 ) / 80 ) )
+                                     w200 * qi_200hPa(iCell) * 1.0E6) - 25. ) / 80. ) )
 
             end do
 
         end if
 
-    end subroutine hiwc_diagnostics_compute
+        deallocate(qi_200hPa)
+        deallocate(qi_250hPa)
+        deallocate(virtualT_400hPa)
 
+    end subroutine hiwc_diagnostics_compute
 
    !==================================================================================================
     subroutine interp_diagnostics(mesh, state, time_lev, diag, qi_200hPa, qi_250hPa, virtualT_400hPa)
@@ -137,6 +140,11 @@ module hiwc_diagnostics
        !inout arguments:
         type (mpas_pool_type), intent(inout) :: diag
        
+       !output arguments:
+        real (kind=RKIND), dimension(:), intent(out), allocatable :: qi_200hPa
+        real (kind=RKIND), dimension(:), intent(out), allocatable :: qi_250hPa
+        real (kind=RKIND), dimension(:), intent(out), allocatable :: virtualT_400hPa
+
        !local variables:
         integer :: iCell,iVert,iVertD,k,kk
         integer, pointer :: nCells, nCellsSolve, nVertLevels, nVertices, vertexDegree
@@ -151,11 +159,8 @@ module hiwc_diagnostics
         real (kind=RKIND), dimension(:,:), pointer :: pressure_b, pressure_p 
         real (kind=RKIND), dimension(:,:,:), pointer :: scalars
        
-        !real (kind=RKIND), dimension(:), pointer :: qi_200hPa
-        !real (kind=RKIND), dimension(:), pointer :: qi_250hPa
         real (kind=RKIND), dimension(:), pointer :: temperature_400hPa
         real (kind=RKIND), dimension(:), pointer :: qv_400hPa
-        !real (kind=RKIND), dimension(:), pointer :: virtualT_400hPa
 
         real (kind=RKIND), dimension(:,:), allocatable :: pressure, temperature
        !local interpolated fields:
@@ -236,9 +241,13 @@ module hiwc_diagnostics
             qv_in(iCell,kk) = qv(k,iCell)
         enddo
         enddo
+        if(.not.allocated(qi_200hPa)) allocate(qi_200hPa(nCells))
+        if(.not.allocated(qi_250hPa)) allocate(qi_250hPa(nCells))
         call interp_tofixed_pressure(nCells,nVertLevels,nIntP,press_in,qi_in,press_interp,field_interp)
-        qi_200hPa(1:nCells) = field_interp(1:nCells,1)
-        qi_250hPa(1:nCells) = field_interp(1:nCells,2)
+        do iCell = 1, nCells
+            qi_200hPa(iCell) = field_interp(iCell,1)
+            qi_250hPa(iCell) = field_interp(iCell,2)
+        enddo
        
         if(allocated(qi_in)) deallocate(qi_in)       
         if(allocated(field_interp)) deallocate(field_interp)
@@ -256,7 +265,7 @@ module hiwc_diagnostics
         temperature_400hPa(1:nCells) = field_interp(1:nCells,1)
 
         ! Calculate virtual temperature at 400mb     
-        !call compute_virtual_temperature(temperature_400hPa, qv_400hPa, virtualT)
+        call compute_virtual_temperature(temperature_400hPa, qv_400hPa, virtualT_400hPa)
      
      
         deallocate(qv_in)
@@ -283,27 +292,33 @@ module hiwc_diagnostics
    !>  will compute the virtual temperature
    !
    !----------------------------------------------------------------------- 
-    subroutine compute_virtual_temperature(temperature, mixing_ratio, virtualT)
+    subroutine compute_virtual_temperature(t, mr, vt)
    
        implicit none
    
-       real(kind=RKIND), dimension(:), intent(out) :: virtualT
-       real(kind=RKIND), dimension(:), intent(in) :: temperature
-       real(kind=RKIND), dimension(:), intent(in) :: mixing_ratio
+       real(kind=RKIND), dimension(:), intent(out), allocatable :: vt
+       real(kind=RKIND), dimension(:), intent(in) :: t
+       real(kind=RKIND), dimension(:), intent(in) :: mr
    
        integer :: nCells
        integer :: iCell, k
-   
+       real :: Rd = 287.
+       real :: Rv = 461.5
+       real :: eps, inveps
+       eps = Rd / Rv    !0.622 dimensionless
+       inveps = 1. / eps
+
        !
        ! Get dimensions of input arrays
        !
-       nCells = size(temperature, 1) 
-   
+       nCells = size(t, 1) 
+       if(.not.allocated(vt)) allocate(vt(nCells)) 
+
        !
        !
        do iCell=1,nCells
    
-          virtualT(iCell) = 0.0  
+          vt(iCell) = t(iCell) * (1.0 + mr(iCell) * inveps) / (1.0 + mr(iCell))
       
        end do
    
