@@ -83,9 +83,9 @@ module hiwc_diagnostics
         integer, pointer :: nCells, nVertLevels, nEdges
         integer, dimension(:), pointer :: nEdgesOnCell
         integer, dimension(:,:), pointer :: edgesOnCell
-        real (kind=RKIND), dimension(:), pointer :: qi_200hPa
-        real (kind=RKIND), dimension(:), pointer :: qi_250hPa
-        real (kind=RKIND), dimension(:), pointer :: virtualT_400hPa
+        real (kind=RKIND), dimension(:), allocatable :: qi_200hPa
+        real (kind=RKIND), dimension(:), allocatable :: qi_250hPa
+        real (kind=RKIND), dimension(:), allocatable :: virtualT_400hPa
 
         real(kind=RKIND) :: w200, w250
 
