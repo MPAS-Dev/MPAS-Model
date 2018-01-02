@@ -14,6 +14,7 @@ module hiwc_diagnostics
 
     use mpas_derived_types
     use mpas_kind_types
+    use mpas_pool_routines
     use mpas_constants
 
     type (MPAS_pool_type), pointer :: mesh
@@ -151,8 +152,6 @@ module hiwc_diagnostics
         integer :: nVertLevelsP1
         integer, pointer :: index_qv, num_scalars
        
-        real (kind=RKIND), dimension(:,:), pointer:: pressure_p_field
-       
         real (kind=RKIND), dimension(:,:), pointer :: exner
         real (kind=RKIND), dimension(:,:), pointer :: qi, qv, theta_m
 
@@ -180,18 +179,10 @@ module hiwc_diagnostics
 
         call mpas_pool_get_array(state, 'theta_m', theta_m, time_lev)
         call mpas_pool_get_array(state, 'scalars', scalars, time_lev)
-        call mpas_pool_get_field(diag, 'pressure_p', pressure_p_field)
-        call mpas_dmpar_exch_halo_field(pressure_p_field)
        
         call mpas_pool_get_array(diag, 'exner', exner)
         call mpas_pool_get_array(diag, 'pressure_base', pressure_b)
         call mpas_pool_get_array(diag, 'pressure_p', pressure_p)
-
-        !call mpas_pool_get_array(diag, 'virtualT_400hPa', virtualT_400hPa)
-        !call mpas_pool_get_array(diag, 'qi_200hPa', qi_200hPa)
-        !call mpas_pool_get_array(diag, 'qi_250hPa', qi_250hPa)
-        !call mpas_pool_get_array(diag, 'temperature_400hPa', temperature_400hPa)
-        !call mpas_pool_get_array(diag, 'qv_400hPa', qv_400hPa)
 
         if(.not.allocated(pressure)    ) allocate(pressure(nVertLevels,nCells)      )
         if(.not.allocated(temperature) ) allocate(temperature(nVertLevels,nCells)   )
