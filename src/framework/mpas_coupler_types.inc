@@ -2,7 +2,8 @@
         integer :: intracomm
         integer :: intercomm
         logical :: initialized_mpi
-        integer :: mpi_rank
+        integer :: intercomm_rank
+        integer :: intercomm_size
         integer :: thread_id
         procedure(mpas_coupler_role_function), pointer, pass(self) :: role
         procedure(mpas_coupler_roleleader_function), pointer, pass(self) :: role_leader

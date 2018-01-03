@@ -76,7 +76,8 @@ contains
         cpl % role => core % component_role
         cpl % role_leader => core % component_role_leader
         cpl % intercomm = intercomm
-        cpl % mpi_rank = comm_rank
+        cpl % intercomm_rank = comm_rank
+        cpl % intercomm_size = comm_size
 #ifdef MPAS_OPENMP
         cpl % thread_id = omp_get_thread_num()
 #else
