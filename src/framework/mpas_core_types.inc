@@ -175,6 +175,7 @@
 
       ! Core component role function pointers
       procedure (mpas_coupler_role_function), pointer, nopass :: component_role
+      procedure (mpas_coupler_roleleader_function), pointer, nopass :: component_role_leader
 
       ! core_type is a linked list
       type (core_type), pointer :: next => null()

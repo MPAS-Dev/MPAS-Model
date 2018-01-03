@@ -53,6 +53,7 @@ module ocn_core_interface
       core % setup_block => ocn_setup_block
       core % setup_namelist => ocn_setup_namelists
       core % component_role => ocn_component_role
+      core % component_role_leader => ocn_component_role_leader
 
       core % Conventions = 'MPAS'
       core % source = 'MPAS'
@@ -84,6 +85,33 @@ module ocn_core_interface
       ocn_component_role = 0
 
    end function ocn_component_role !}}}
+
+
+   !***********************************************************************
+   !
+   !  routine ocn_component_role_leader
+   !
+   !> \brief Identifies the "leader" task for a given role
+   !> \author Michael Duda
+   !> \date 3 January 2018
+   !> \details 
+   !>  Given a role, this function returns the MPI task that acts as the leader
+   !>  for that role. This is needed to establish MPI intercommunicators
+   !>  between two roles.
+   !
+   !-----------------------------------------------------------------------
+   integer function ocn_component_role_leader(self, role) !{{{
+
+      use mpas_derived_types, only : mpas_coupler_type
+
+      implicit none
+
+      class (mpas_coupler_type), intent(in) :: self
+      integer, intent(in) :: role
+
+      ocn_component_role_leader = 0
+
+   end function ocn_component_role_leader !}}}
 
 
    !***********************************************************************

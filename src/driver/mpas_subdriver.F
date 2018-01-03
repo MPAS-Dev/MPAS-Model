@@ -180,6 +180,7 @@ module mpas_subdriver
       call MPAS_coupler_init(corelist, domain_ptr % mpas_cpl)
       mpas_cpl => domain_ptr % mpas_cpl
 write(0,*) 'My role is ', mpas_cpl % role()
+write(0,*) 'Role leader is ', mpas_cpl % role_leader(mpas_cpl % role())
 
       if (mpas_cpl % role() == 0) then
 

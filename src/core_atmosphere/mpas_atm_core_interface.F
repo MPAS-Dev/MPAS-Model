@@ -52,6 +52,7 @@ module atm_core_interface
       core % setup_block => atm_setup_block
       core % setup_namelist => atm_setup_namelists
       core % component_role => atm_component_role
+      core % component_role_leader => atm_component_role_leader
 
       core % Conventions = 'MPAS'
       core % source = 'MPAS'
@@ -84,6 +85,33 @@ module atm_core_interface
       atm_component_role = mod(self % mpi_rank, 2)
 
    end function atm_component_role
+
+
+   !***********************************************************************
+   !
+   !  routine atm_component_role_leader
+   !
+   !> \brief Identifies the "leader" task for a given role
+   !> \author Michael Duda
+   !> \date 3 January 2018
+   !> \details 
+   !>  Given a role, this function returns the MPI task that acts as the leader
+   !>  for that role. This is needed to establish MPI intercommunicators
+   !>  between two roles.
+   !
+   !-----------------------------------------------------------------------
+   integer function atm_component_role_leader(self, role)
+
+      use mpas_derived_types, only : mpas_coupler_type
+
+      implicit none
+
+      class (mpas_coupler_type), intent(in) :: self
+      integer, intent(in) :: role
+
+      atm_component_role_leader = 42
+
+   end function atm_component_role_leader
 
 
    !***********************************************************************

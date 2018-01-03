@@ -74,6 +74,7 @@ contains
         call MPI_Comm_size(intercomm, comm_size, ierr)
 
         cpl % role => core % component_role
+        cpl % role_leader => core % component_role_leader
         cpl % intercomm = intercomm
         cpl % mpi_rank = comm_rank
 #ifdef MPAS_OPENMP
