@@ -155,44 +155,58 @@ module mpas_subdriver
 
       call mpas_allocate_domain(domain_ptr)
 
+#ifdef CORE_ATMOSPHERE
+      call atm_setup_core(corelist)
+#endif
+#ifdef CORE_CICE
+      call cice_setup_core(corelist)
+#endif
+#ifdef CORE_INIT_ATMOSPHERE
+      call init_atm_setup_core(corelist)
+#endif
+#ifdef CORE_LANDICE
+      call li_setup_core(corelist)
+#endif
+#ifdef CORE_OCEAN
+      call ocn_setup_core(corelist)
+#endif
+#ifdef CORE_SW
+      call sw_setup_core(corelist)
+#endif
+#ifdef CORE_TEST
+      call test_setup_core(corelist)
+#endif
+
       call MPAS_coupler_init(domain_ptr % mpas_cpl)
       mpas_cpl => domain_ptr % mpas_cpl
 write(0,*) 'My role is ', mpas_cpl % role()
+
+      if (mpas_cpl % role() == 1) then
 
       !
       ! Initialize infrastructure
       !
       call mpas_framework_init_phase1(domain_ptr % dminfo, mpi_comm=mpas_cpl % intracomm)
 
-
-      if (mpas_cpl % role() == 1) then
-
 #ifdef CORE_ATMOSPHERE
-      call atm_setup_core(corelist)
       call atm_setup_domain(domain_ptr)
 #endif
 #ifdef CORE_CICE
-      call cice_setup_core(corelist)
       call cice_setup_domain(domain_ptr)
 #endif
 #ifdef CORE_INIT_ATMOSPHERE
-      call init_atm_setup_core(corelist)
       call init_atm_setup_domain(domain_ptr)
 #endif
 #ifdef CORE_LANDICE
-      call li_setup_core(corelist)
       call li_setup_domain(domain_ptr)
 #endif
 #ifdef CORE_OCEAN
-      call ocn_setup_core(corelist)
       call ocn_setup_domain(domain_ptr)
 #endif
 #ifdef CORE_SW
-      call sw_setup_core(corelist)
       call sw_setup_domain(domain_ptr)
 #endif
 #ifdef CORE_TEST
-      call test_setup_core(corelist)
       call test_setup_domain(domain_ptr)
 #endif
 
