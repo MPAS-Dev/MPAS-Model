@@ -7,7 +7,7 @@
 !
 module mpas_intracoupler
 
-    use mpas_derived_types, only : mpas_coupler_type
+    use mpas_derived_types, only : mpas_coupler_type, core_type
 
     private
 
@@ -17,16 +17,6 @@ module mpas_intracoupler
 
 
 contains
-
-    integer function component_role(self)
-
-        implicit none
-
-        class (mpas_coupler_type), intent(in) :: self
-
-        component_role = mod(self % mpi_rank, 2)
-
-    end function component_role
 
 
     !-----------------------------------------------------------------------
@@ -43,7 +33,7 @@ contains
     !>  the intercommunicator that will be used for communication between groups.
     !
     !-----------------------------------------------------------------------
-    subroutine MPAS_coupler_init(cpl, mpicomm)
+    subroutine MPAS_coupler_init(core, cpl, mpicomm)
 
 #ifdef MPAS_OPENMP
         use omp_lib
@@ -57,6 +47,7 @@ contains
 
         implicit none
 
+        type (core_type), intent(in) :: core
         type (mpas_coupler_type), intent(inout) :: cpl
         integer, intent(in), optional :: mpicomm
 
@@ -82,7 +73,7 @@ contains
         call MPI_Comm_rank(intercomm, comm_rank, ierr)
         call MPI_Comm_size(intercomm, comm_size, ierr)
 
-        cpl % role => component_role
+        cpl % role => core % component_role
         cpl % intercomm = intercomm
         cpl % mpi_rank = comm_rank
 #ifdef MPAS_OPENMP

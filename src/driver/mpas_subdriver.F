@@ -177,11 +177,11 @@ module mpas_subdriver
       call test_setup_core(corelist)
 #endif
 
-      call MPAS_coupler_init(domain_ptr % mpas_cpl)
+      call MPAS_coupler_init(corelist, domain_ptr % mpas_cpl)
       mpas_cpl => domain_ptr % mpas_cpl
 write(0,*) 'My role is ', mpas_cpl % role()
 
-      if (mpas_cpl % role() == 1) then
+      if (mpas_cpl % role() == 0) then
 
       !
       ! Initialize infrastructure
@@ -365,7 +365,7 @@ write(0,*) 'My role is ', mpas_cpl % role()
       integer :: iErr
 
       mpas_cpl => domain_ptr % mpas_cpl
-      if (mpas_cpl % role() == 1) then
+      if (mpas_cpl % role() == 0) then
 write(0,*) 'Calling core_run()'
 
       iErr = domain_ptr % core % core_run(domain_ptr)
@@ -394,7 +394,7 @@ write(0,*) 'Doing something else...'
 
 
       mpas_cpl => domain_ptr % mpas_cpl
-      if (mpas_cpl % role() == 1) then
+      if (mpas_cpl % role() == 0) then
 
       !
       ! Finalize core

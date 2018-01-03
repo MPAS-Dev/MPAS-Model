@@ -48,12 +48,38 @@ module li_core_interface
       core % setup_decomposed_dimensions => li_setup_decomposed_dimensions
       core % setup_block => li_setup_block
       core % setup_namelist => li_setup_namelists
+      core % component_role => li_component_role
 
       core % Conventions = 'MPAS'
       core % source = 'MPAS'
 #include "inc/core_variables.inc"
 
    end subroutine li_setup_core!}}}
+
+
+   !***********************************************************************
+   !
+   !  routine li_component_role
+   !
+   !> \brief Define roles for each MPI task and OpenMP thread
+   !> \author Michael Duda
+   !> \date 2 January 2018
+   !> \details 
+   !>  This routine returns an integer value representing the "role" for
+   !>  any given MPI task and OpenMP thread.
+   !
+   !-----------------------------------------------------------------------
+   integer function li_component_role(self) !{{{
+
+      use mpas_derived_types, only : mpas_coupler_type
+
+      implicit none
+
+      class (mpas_coupler_type), intent(in) :: self
+
+      li_component_role = 0
+
+   end function li_component_role !}}}
 
 
    !***********************************************************************

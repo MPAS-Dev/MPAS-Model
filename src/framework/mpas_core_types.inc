@@ -173,6 +173,9 @@
       procedure (mpas_setup_derived_dimensions_function), pointer, nopass :: setup_derived_dimensions => null()
       procedure (mpas_setup_decomposed_dimensions_function), pointer, nopass :: setup_decomposed_dimensions => null()
 
+      ! Core component role function pointers
+      procedure (mpas_coupler_role_function), pointer, nopass :: component_role
+
       ! core_type is a linked list
       type (core_type), pointer :: next => null()
    end type core_type

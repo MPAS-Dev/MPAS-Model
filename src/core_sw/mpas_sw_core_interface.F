@@ -47,12 +47,38 @@ module sw_core_interface
       core % setup_decomposed_dimensions => sw_setup_decomposed_dimensions
       core % setup_block => sw_setup_block
       core % setup_namelist => sw_setup_namelists
+      core % component_role => sw_component_role
 
       core % Conventions = 'MPAS'
       core % source = 'MPAS'
 #include "inc/core_variables.inc"
 
    end subroutine sw_setup_core!}}}
+
+
+   !***********************************************************************
+   !
+   !  routine sw_component_role
+   !
+   !> \brief Define roles for each MPI task and OpenMP thread
+   !> \author Michael Duda
+   !> \date 2 January 2018
+   !> \details 
+   !>  This routine returns an integer value representing the "role" for
+   !>  any given MPI task and OpenMP thread.
+   !
+   !-----------------------------------------------------------------------
+   integer function sw_component_role(self)
+
+      use mpas_derived_types, only : mpas_coupler_type
+
+      implicit none
+
+      class (mpas_coupler_type), intent(in) :: self
+
+      sw_component_role = 0
+
+   end function sw_component_role
 
 
    !***********************************************************************

@@ -51,6 +51,7 @@ module atm_core_interface
       core % setup_decomposed_dimensions => atm_setup_decomposed_dimensions
       core % setup_block => atm_setup_block
       core % setup_namelist => atm_setup_namelists
+      core % component_role => atm_component_role
 
       core % Conventions = 'MPAS'
       core % source = 'MPAS'
@@ -58,6 +59,31 @@ module atm_core_interface
 #include "inc/core_variables.inc"
 
    end subroutine atm_setup_core
+
+
+   !***********************************************************************
+   !
+   !  routine atm_component_role
+   !
+   !> \brief Define roles for each MPI task and OpenMP thread
+   !> \author Michael Duda
+   !> \date 2 January 2018
+   !> \details 
+   !>  This routine returns an integer value representing the "role" for
+   !>  any given MPI task and OpenMP thread.
+   !
+   !-----------------------------------------------------------------------
+   integer function atm_component_role(self)
+
+      use mpas_derived_types, only : mpas_coupler_type
+
+      implicit none
+
+      class (mpas_coupler_type), intent(in) :: self
+
+      atm_component_role = mod(self % mpi_rank, 2)
+
+   end function atm_component_role
 
 
    !***********************************************************************
