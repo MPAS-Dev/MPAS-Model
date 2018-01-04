@@ -150,10 +150,10 @@ module hiwc_diagnostics
         integer :: iCell,iVert,iVertD,k,kk
         integer, pointer :: nCells, nCellsSolve, nVertLevels, nVertices, vertexDegree
         integer :: nVertLevelsP1
-        integer, pointer :: index_qv, num_scalars
+        integer, pointer :: index_qv, index_qi, num_scalars
        
         real (kind=RKIND), dimension(:,:), pointer :: exner
-        real (kind=RKIND), dimension(:,:), pointer :: qi, qv, theta_m
+        real (kind=RKIND), dimension(:,:), pointer :: theta_m
 
         real (kind=RKIND), dimension(:,:), pointer :: pressure_b, pressure_p 
         real (kind=RKIND), dimension(:,:,:), pointer :: scalars
@@ -171,9 +171,8 @@ module hiwc_diagnostics
         call mpas_pool_get_dimension(mesh, 'nVertLevels', nVertLevels)
         call mpas_pool_get_dimension(mesh, 'nVertices', nVertices)
         call mpas_pool_get_dimension(state, 'index_qv', index_qv)
+        call mpas_pool_get_dimension(state, 'index_qi', index_qi)
         call mpas_pool_get_dimension(state, 'num_scalars', num_scalars)
-        call mpas_pool_get_array(state, 'qi', qi, time_lev)
-        call mpas_pool_get_array(state, 'qv', qv, time_lev)
        
         nVertLevelsP1 = nVertLevels + 1
 
@@ -228,8 +227,8 @@ module hiwc_diagnostics
         do iCell = 1, nCells
         do k = 1, nVertLevels
             kk = nVertLevels+1-k
-            qi_in(iCell,kk) = qi(k,iCell)
-            qv_in(iCell,kk) = qv(k,iCell)
+            qi_in(iCell,kk) = scalars(index_qi,kk,iCell)
+            qv_in(iCell,kk) = scalars(index_qv,kk,iCell)
         enddo
         enddo
         if(.not.allocated(qi_200hPa)) allocate(qi_200hPa(nCells))
