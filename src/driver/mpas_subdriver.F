@@ -182,7 +182,6 @@ module mpas_subdriver
 write(0,*) 'My role is ', mpas_cpl % role()
 write(0,*) 'Role leader is ', mpas_cpl % role_leader(mpas_cpl % role())
 
-      if (mpas_cpl % role() == 0) then
 
       !
       ! Initialize infrastructure
@@ -351,7 +350,6 @@ write(0,*) 'Role leader is ', mpas_cpl % role_leader(mpas_cpl % role())
 
       call mpas_timer_stop('initialize')
 
-      end if
 
    end subroutine mpas_init
 
@@ -362,20 +360,11 @@ write(0,*) 'Role leader is ', mpas_cpl % role_leader(mpas_cpl % role())
 
       implicit none
 
-      type (mpas_coupler_type), pointer :: mpas_cpl
       integer :: iErr
-
-      mpas_cpl => domain_ptr % mpas_cpl
-      if (mpas_cpl % role() == 0) then
-write(0,*) 'Calling core_run()'
 
       iErr = domain_ptr % core % core_run(domain_ptr)
       if ( iErr /= 0 ) then
          call mpas_dmpar_global_abort('ERROR: Core run failed for core ' // trim(domain_ptr % core % coreName))
-      end if
-
-      else
-write(0,*) 'Doing something else...'
       end if
 
    end subroutine mpas_run
@@ -395,7 +384,6 @@ write(0,*) 'Doing something else...'
 
 
       mpas_cpl => domain_ptr % mpas_cpl
-      if (mpas_cpl % role() == 0) then
 
       !
       ! Finalize core
@@ -423,8 +411,6 @@ write(0,*) 'Doing something else...'
       call MPAS_stream_mgr_finalize(domain_ptr % streamManager)
 
       call mpas_framework_finalize(domain_ptr % dminfo, domain_ptr)
-
-      end if
 
       call mpas_coupler_sync(mpas_cpl)
 
