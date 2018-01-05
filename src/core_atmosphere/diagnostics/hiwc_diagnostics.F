@@ -81,9 +81,7 @@ module hiwc_diagnostics
 
         implicit none
 
-        integer, pointer :: nCells, nVertLevels, nEdges
-        integer, dimension(:), pointer :: nEdgesOnCell
-        integer, dimension(:,:), pointer :: edgesOnCell
+        integer, pointer :: nCells, nVertLevels
         real (kind=RKIND), dimension(:), allocatable :: qi_200hPa
         real (kind=RKIND), dimension(:), allocatable :: qi_250hPa
         real (kind=RKIND), dimension(:), allocatable :: virtualT_400hPa
@@ -96,12 +94,15 @@ module hiwc_diagnostics
 
         real (kind=RKIND), dimension(:), pointer :: hiwc
 
-        integer :: iEdge, iCell, k, e
+        integer :: iCell, k
 
         if ( MPAS_field_will_be_written('hiwc') ) then
             ! Mesh information
             call mpas_pool_get_dimension(mesh, 'nCells', nCells)
-            
+            allocate(virtualT_400hPa(nCells))    
+            allocate(qi_200hPa(nCells))
+            allocate(qi_250hPa(nCells))
+
             ! Get cloud ice mixing ratio at 200hPa and 250hPa 
             ! and virtual Temperature at 400 hPa
             call interp_diagnostics(mesh, state, 1, diag, qi_200hPa, qi_250hPa, virtualT_400hPa)
@@ -142,9 +143,9 @@ module hiwc_diagnostics
         type (mpas_pool_type), intent(inout) :: diag
        
        !output arguments:
-        real (kind=RKIND), dimension(:), intent(out), allocatable :: qi_200hPa
-        real (kind=RKIND), dimension(:), intent(out), allocatable :: qi_250hPa
-        real (kind=RKIND), dimension(:), intent(out), allocatable :: virtualT_400hPa
+        real (kind=RKIND), dimension(:), intent(out) :: qi_200hPa
+        real (kind=RKIND), dimension(:), intent(out) :: qi_250hPa
+        real (kind=RKIND), dimension(:), intent(out) :: virtualT_400hPa
 
        !local variables:
         integer :: iCell,iVert,iVertD,k,kk
@@ -164,7 +165,7 @@ module hiwc_diagnostics
         real (kind=RKIND), dimension(:,:), allocatable :: pressure, temperature
        !local interpolated fields:
         integer :: nIntP
-        real (kind=RKIND), dimension(:,:), allocatable :: field_in,press_in,qi_in,qv_in
+        real (kind=RKIND), dimension(:,:), allocatable :: press_in,qi_in,qv_in
         real (kind=RKIND), dimension(:,:), allocatable :: field_interp,press_interp
 
         call mpas_pool_get_dimension(mesh, 'nCells', nCells)
@@ -197,9 +198,6 @@ module hiwc_diagnostics
         do iCell = 1,nCells
         do k = 1,nVertLevels
             temperature(k,iCell) = (theta_m(k,iCell)/(1._RKIND+rvord*scalars(index_qv,k,iCell)))*exner(k,iCell) 
-            ! Vapor pressure (NB: pressure here is already in hPa)
-            !evp = pressure(k,iCell) * scalars(index_qv,k,iCell) / (scalars(index_qv,k,iCell) + 0.622_RKIND)
-            !evp = max(evp, 1.0e-8_RKIND)
         enddo
         enddo
        
@@ -231,8 +229,8 @@ module hiwc_diagnostics
             qv_in(iCell,kk) = scalars(index_qv,kk,iCell)
         enddo
         enddo
-        if(.not.allocated(qi_200hPa)) allocate(qi_200hPa(nCells))
-        if(.not.allocated(qi_250hPa)) allocate(qi_250hPa(nCells))
+        !if(.not.allocated(qi_200hPa)) allocate(qi_200hPa(nCells))
+        !if(.not.allocated(qi_250hPa)) allocate(qi_250hPa(nCells))
         call interp_tofixed_pressure(nCells,nVertLevels,nIntP,press_in,qi_in,press_interp,field_interp)
         do iCell = 1, nCells
             qi_200hPa(iCell) = field_interp(iCell,1)
@@ -255,9 +253,11 @@ module hiwc_diagnostics
         temperature_400hPa(1:nCells) = field_interp(1:nCells,1)
 
         ! Calculate virtual temperature at 400mb     
-        call compute_virtual_temperature(temperature_400hPa, qv_400hPa, virtualT_400hPa)
-     
-     
+        !call compute_virtual_temperature(temperature_400hPa, qv_400hPa, virtualT_400hPa)
+        do iCell = 1, nCells
+            virtualT_400hPa(iCell) = temperature_400hPa(iCell) * (1.0 + qv_400hPa(iCell) * inveps) / (1.0 + qv_400hPa(iCell))
+        enddo
+ 
         deallocate(qv_in)
         deallocate(field_interp)
         deallocate(press_in)
@@ -265,7 +265,6 @@ module hiwc_diagnostics
       
         if(allocated(temperature) ) deallocate(temperature )
         if(allocated(pressure)    ) deallocate(pressure    )
-       
    
     end subroutine interp_diagnostics
 
@@ -286,7 +285,7 @@ module hiwc_diagnostics
    
        implicit none
    
-       real(kind=RKIND), dimension(:), intent(out), allocatable :: vt
+       real(kind=RKIND), dimension(:), intent(out) :: vt
        real(kind=RKIND), dimension(:), intent(in) :: t
        real(kind=RKIND), dimension(:), intent(in) :: mr
    
@@ -302,7 +301,7 @@ module hiwc_diagnostics
        ! Get dimensions of input arrays
        !
        nCells = size(t, 1) 
-       if(.not.allocated(vt)) allocate(vt(nCells)) 
+       !if(.not.allocated(vt)) allocate(vt(nCells)) 
 
        !
        !
