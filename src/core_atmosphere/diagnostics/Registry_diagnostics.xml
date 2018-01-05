@@ -25,6 +25,9 @@
 <!-- deformation diagnostics -->
 #include "Registry_deformation.xml"
 
+<!-- unstagger diagnostics -->
+#include "Registry_unstagger.xml"
+
 <!-- ******************************* -->
 <!-- End includes from diagnostics -->
 <!-- ******************************* -->

@@ -40,6 +40,7 @@ module mpas_atm_diagnostics_manager
         use snowratio_diagnostics, only : snowratio_diagnostics_setup
         use surface_diagnostics, only : surface_diagnostics_setup
         use deformation_diagnostics, only : deformation_diagnostics_setup
+        use unstagger_diagnostics, only : unstagger_diagnostics_setup
         use pv_diagnostics, only : pv_diagnostics_setup
         use soundings, only : soundings_setup
 
@@ -63,6 +64,7 @@ module mpas_atm_diagnostics_manager
         call snowratio_diagnostics_setup(configs, structs)
         call surface_diagnostics_setup(configs, structs, clock)
         call deformation_diagnostics_setup(structs)
+        call unstagger_diagnostics_setup(structs)
         call pv_diagnostics_setup(structs, clock)
         call soundings_setup(configs, structs, clock, dminfo)
 
@@ -111,6 +113,7 @@ module mpas_atm_diagnostics_manager
         use snowratio_diagnostics, only : snowratio_diagnostics_compute
         use surface_diagnostics, only : surface_diagnostics_compute
         use deformation_diagnostics, only : deformation_diagnostics_compute
+        use unstagger_diagnostics, only : unstagger_diagnostics_compute
         use pv_diagnostics, only : pv_diagnostics_compute
         use soundings, only : soundings_compute
 
@@ -122,6 +125,7 @@ module mpas_atm_diagnostics_manager
         call snowratio_diagnostics_compute()
         call surface_diagnostics_compute()
         call deformation_diagnostics_compute()
+        call unstagger_diagnostics_compute()
         call pv_diagnostics_compute()
         call soundings_compute()
 
