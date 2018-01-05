@@ -122,11 +122,11 @@ module hiwc_diagnostics
 
             end do
 
-        end if
+            if(allocated(qi_200hPa)) deallocate(qi_200hPa)
+            if(allocated(qi_250hPa)) deallocate(qi_250hPa)
+            if(allocated(virtualT_400hPa)) deallocate(virtualT_400hPa)
 
-        deallocate(qi_200hPa)
-        deallocate(qi_250hPa)
-        deallocate(virtualT_400hPa)
+        end if
 
     end subroutine hiwc_diagnostics_compute
 
@@ -165,7 +165,7 @@ module hiwc_diagnostics
         real (kind=RKIND), dimension(:,:), allocatable :: pressure, temperature
        !local interpolated fields:
         integer :: nIntP
-        real (kind=RKIND), dimension(:,:), allocatable :: press_in,qi_in,qv_in
+        real (kind=RKIND), dimension(:,:), allocatable :: press_in,qi_in,qv_in,temp_in
         real (kind=RKIND), dimension(:,:), allocatable :: field_interp,press_interp
 
         call mpas_pool_get_dimension(mesh, 'nCells', nCells)
@@ -211,33 +211,30 @@ module hiwc_diagnostics
         enddo
        
         if(.not.allocated(press_in)) allocate(press_in(nCells,nVertLevels))
+        if(.not.allocated(temp_in)) allocate(temp_in(nCells,nVertLevels))
+        if(.not.allocated(qi_in)) allocate(qi_in(nCells,nVertLevels))
+        if(.not.allocated(qv_in)) allocate(qv_in(nCells,nVertLevels))
+
         do iCell = 1, nCells
         do k = 1, nVertLevels
            kk = nVertLevels+1-k
            press_in(iCell,kk) = pressure(k,iCell)
+           temp_in(iCell,kk) = temperature(k,iCell)
+           ! Cloud Ice and Water Vapor Mixing Ratios
+           qi_in(iCell,kk) = scalars(index_qi,kk,iCell)
+           qv_in(iCell,kk) = scalars(index_qv,kk,iCell)
         enddo
         enddo
-       
-        if(.not.allocated(qi_in)) allocate(qi_in(nCells,nVertLevels))
-        if(.not.allocated(qv_in)) allocate(qv_in(nCells,nVertLevels))
 
-       ! Cloud Ice and Water Vapor Mixing Ratios
-        do iCell = 1, nCells
-        do k = 1, nVertLevels
-            kk = nVertLevels+1-k
-            qi_in(iCell,kk) = scalars(index_qi,kk,iCell)
-            qv_in(iCell,kk) = scalars(index_qv,kk,iCell)
-        enddo
-        enddo
-        !if(.not.allocated(qi_200hPa)) allocate(qi_200hPa(nCells))
-        !if(.not.allocated(qi_250hPa)) allocate(qi_250hPa(nCells))
         call interp_tofixed_pressure(nCells,nVertLevels,nIntP,press_in,qi_in,press_interp,field_interp)
         do iCell = 1, nCells
             qi_200hPa(iCell) = field_interp(iCell,1)
             qi_250hPa(iCell) = field_interp(iCell,2)
         enddo
-       
-        if(allocated(qi_in)) deallocate(qi_in)       
+      
+        if(allocated(temperature) ) deallocate(temperature )
+        if(allocated(pressure)    ) deallocate(pressure    ) 
+        if(allocated(qi_in)       ) deallocate(qi_in)       
         if(allocated(field_interp)) deallocate(field_interp)
         if(allocated(press_interp)) deallocate(press_interp)
        
@@ -249,7 +246,7 @@ module hiwc_diagnostics
         press_interp(:,1) = 400.0_RKIND
         call interp_tofixed_pressure(nCells,nVertLevels,1,press_in,qv_in,press_interp,field_interp)
         qv_400hPa(1:nCells) = field_interp(1:nCells,1)
-        call interp_tofixed_pressure(nCells,nVertLevels,1,press_in,temperature,press_interp,field_interp)
+        call interp_tofixed_pressure(nCells,nVertLevels,1,press_in,temp_in,press_interp,field_interp)
         temperature_400hPa(1:nCells) = field_interp(1:nCells,1)
 
         ! Calculate virtual temperature at 400mb     
@@ -259,13 +256,11 @@ module hiwc_diagnostics
         enddo
  
         deallocate(qv_in)
-        deallocate(field_interp)
         deallocate(press_in)
+        deallocate(temp_in)
         deallocate(press_interp)
-      
-        if(allocated(temperature) ) deallocate(temperature )
-        if(allocated(pressure)    ) deallocate(pressure    )
-   
+        deallocate(field_interp)
+
     end subroutine interp_diagnostics
 
 
