@@ -7,13 +7,14 @@
 !
 module mpas_intracoupler
 
-    use mpas_derived_types, only : mpas_coupler_type, core_type
+    use mpas_derived_types, only : mpas_coupler_type, core_type, MPAS_MAX_COUPLER_PAIRINGS
 
     private
 
     public :: MPAS_coupler_init, &
               MPAS_coupler_finalize, &
-              MPAS_coupler_sync
+              MPAS_coupler_sync, &
+              MPAS_coupler_create_pairing
 
 
 contains
@@ -83,6 +84,7 @@ contains
 #else
         cpl % thread_id = 0
 #endif
+        allocate(cpl % pairings(MPAS_MAX_COUPLER_PAIRINGS))
 
         call MPI_Comm_split(cpl % intercomm, cpl % role(), comm_rank, cpl % intracomm, ierr)
 #else
@@ -105,6 +107,8 @@ contains
     !-----------------------------------------------------------------------
     subroutine MPAS_coupler_finalize(cpl)
 
+        use mpas_dmpar, only : mpas_dmpar_finalize, mpas_dmpar_destroy_mulithalo_exchange_list
+
 #ifdef _MPI
 #ifndef NOMPIMOD
        use mpi, only : MPI_Finalize
@@ -115,12 +119,23 @@ contains
 
         type (mpas_coupler_type), intent(inout) :: cpl
 
+        integer :: i
         integer :: ierr
 
 #ifdef _MPI
 #ifdef NOMPIMOD
         include 'mpif.h'
 #endif
+
+        do i=1,size(cpl % pairings)
+            if (cpl % pairings(i) % isValid) then
+                call mpas_dmpar_finalize(cpl % pairings(i) % dminfo)
+                call mpas_dmpar_destroy_mulithalo_exchange_list(cpl % pairings(i) % sendList)
+                call mpas_dmpar_destroy_mulithalo_exchange_list(cpl % pairings(i) % recvList)
+                call mpas_dmpar_destroy_mulithalo_exchange_list(cpl % pairings(i) % copyList)
+            end if
+        end do
+        deallocate(cpl % pairings)
 
         if (cpl % initialized_mpi) then
             call MPI_Finalize(ierr)
@@ -169,5 +184,166 @@ contains
 #endif
 
     end subroutine MPAS_coupler_sync
+
+
+    !-----------------------------------------------------------------------
+    !  routine MPAS_coupler_create_pairing
+    !
+    !> \brief  Establish communication pathways to or from another role
+    !> \author Michael Duda
+    !> \date   3 January 2018
+    !> \details
+    !>  Returns a handle to a "pairing" of this role with another role, with
+    !>  the ability to either send to or receive from the paired role, depending
+    !>  on the value of the "direction" argument.
+    !
+    !-----------------------------------------------------------------------
+    function MPAS_coupler_create_pairing(cpl, direction, destination_role, indices, ierr) result(handle)
+
+        use mpas_derived_types, only : field1DInteger, MPAS_COUPLER_INCOMING, dm_info
+        use mpas_dmpar, only : mpas_dmpar_init, mpas_dmpar_init_multihalo_exchange_list, mpas_dmpar_get_exch_list
+        use mpas_field_routines, only : mpas_duplicate_field, mpas_deallocate_field
+
+#ifdef _MPI
+#ifndef NOMPIMOD
+        use mpi
+#endif
+#endif
+
+        implicit none
+
+        type (mpas_coupler_type), intent(inout) :: cpl
+        integer, intent(in) :: direction
+        integer, intent(in) :: destination_role
+        type (field1DInteger), intent(in), target :: indices
+        integer, intent(out), optional :: ierr
+
+        integer :: handle
+
+#ifdef _MPI
+#ifdef NOMPIMOD
+        include 'mpif.h'
+#endif
+
+        integer :: i
+        integer :: tag
+        integer :: intercomm
+        integer :: intracomm
+        integer :: mpi_ierr
+        type (field1DInteger), pointer :: indices_copy
+        type (field1DInteger), pointer :: empty
+        type (dm_info), pointer :: dminfo_save
+
+!
+! Possible errors: invalid direction, destination role is my own
+!
+
+
+        if (present(ierr)) then
+!TODO: define error codes for intracoupler
+            ierr = 0
+        end if
+
+        !
+        ! Find next available handle
+        !
+        handle = -1
+        do i=1,size(cpl % pairings)
+            if (.not. cpl % pairings(i) % isValid) then
+                handle = i
+                exit
+            end if
+        end do
+
+        if (handle == -1 .and. present(ierr)) then
+            ierr = -1
+            return
+        end if
+
+        !
+        ! Set up MPI intercommunicator
+        !
+!TODO: cleverly choose a unique tag for each pairing
+        tag = 42
+        call MPI_Intercomm_create(cpl % intracomm, 0, cpl % intercomm, cpl % role_leader(destination_role), tag, intercomm, mpi_ierr)
+        if (mpi_ierr /= MPI_SUCCESS) then
+            if (present(ierr)) then
+                handle = -1
+                ierr = -1
+                return
+            end if
+        end if
+
+        if (direction == MPAS_COUPLER_INCOMING) then
+            call MPI_Intercomm_merge(intercomm, .false., intracomm, mpi_ierr)
+        else
+            call MPI_Intercomm_merge(intercomm, .true., intracomm, mpi_ierr)
+        end if
+
+        !
+        ! Set up dm_info structure
+        !
+        call mpas_dmpar_init(cpl % pairings(handle) % dminfo, mpi_comm=intracomm)
+
+!
+! Concerns: this routine is not thread safe, since we temporarily modify the dminfo pointer in the domain type
+!
+
+        !
+        ! Set up multihalo exchange lists
+        !
+        call mpas_duplicate_field(indices, indices_copy)
+
+        nullify(indices_copy % sendList)
+        nullify(indices_copy % recvList)
+        nullify(indices_copy % copyList)
+        call mpas_dmpar_init_multihalo_exchange_list(indices_copy % sendList, 1)
+        call mpas_dmpar_init_multihalo_exchange_list(indices_copy % recvList, 1)
+        call mpas_dmpar_init_multihalo_exchange_list(indices_copy % copyList, 1)
+
+        allocate(empty)
+        allocate(empty % array(0))
+!TODO: make this work for multiple blocks
+        nullify(empty % prev)
+        nullify(empty % next)
+        empty % dimsizes(1) = 0
+        empty % block => indices_copy % block
+        empty % sendList => indices_copy % sendList
+        empty % recvList => indices_copy % recvList
+        empty % copyList => indices_copy % copyList
+
+        ! Temporarily swap in dminfo based on merged intercommunicator
+        dminfo_save => indices_copy % block % domain % dminfo
+        indices_copy % block % domain % dminfo => cpl % pairings(handle) % dminfo
+
+        ! Fill out sendList, recvList, copyList
+        if (direction == MPAS_COUPLER_INCOMING) then
+            call mpas_dmpar_get_exch_list(1, empty, indices_copy)
+        else
+            call mpas_dmpar_get_exch_list(1, indices_copy, empty)
+        end if
+
+        ! Reset dminfo pointer
+        indices_copy % block % domain % dminfo => dminfo_save
+
+        cpl % pairings(handle) % sendList => indices_copy % sendList
+        cpl % pairings(handle) % recvList => indices_copy % recvList
+        cpl % pairings(handle) % copyList => indices_copy % copyList
+        
+        call mpas_deallocate_field(indices_copy)
+        deallocate(empty % array)
+        deallocate(empty)
+
+
+        !
+        ! Finish set-up of pairing structure
+        !
+        cpl % pairings(handle) % direction = direction
+        cpl % pairings(handle) % isValid = .true.
+#else
+        ! Somehow handle this for non-MPI builds
+#endif
+
+    end function MPAS_coupler_create_pairing
 
 end module mpas_intracoupler
