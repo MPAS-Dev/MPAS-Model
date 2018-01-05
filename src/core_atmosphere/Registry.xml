@@ -1004,6 +1004,10 @@
             <var name="deformation"/>
             <!-- End deformation diagnostics defined in diagnostics/Registry_deformation.sxml -->
 
+            <!-- Begin hiwc diagnostics defined in diagnostics/Registry_hiwc.xml -->
+            <var name="hiwc"/>
+            <!-- End hiwc diagnostics defined in diagnostics/Registry_hiwc.xml -->
+
             <!-- Begin surface diagnostics defined in diagnostics/Registry_surface.xml -->
             <var name="dewpoint_2m"/>
             <var name="rain_bucket"/>
