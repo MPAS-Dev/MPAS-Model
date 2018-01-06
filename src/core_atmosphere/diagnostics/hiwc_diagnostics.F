@@ -159,8 +159,8 @@ module hiwc_diagnostics
         real (kind=RKIND), dimension(:,:), pointer :: pressure_b, pressure_p 
         real (kind=RKIND), dimension(:,:,:), pointer :: scalars
        
-        real (kind=RKIND), dimension(:), pointer :: temperature_400hPa
-        real (kind=RKIND), dimension(:), pointer :: qv_400hPa
+        real (kind=RKIND), dimension(:), allocatable :: temperature_400hPa
+        real (kind=RKIND), dimension(:), allocatable :: qv_400hPa
 
         real (kind=RKIND), dimension(:,:), allocatable :: pressure, temperature
        !local interpolated fields:
@@ -244,10 +244,17 @@ module hiwc_diagnostics
 
         ! We only interpolate T and qv to 400mb
         press_interp(:,1) = 400.0_RKIND
+        allocate(qv_400hPa(nCells))
+        allocate(temperature_400hPa(nCells))
         call interp_tofixed_pressure(nCells,nVertLevels,1,press_in,qv_in,press_interp,field_interp)
-        qv_400hPa(1:nCells) = field_interp(1:nCells,1)
+    ! This is the segfaulting line:
+        do iCell=1, nCells
+            qv_400hPa(iCell) = field_interp(iCell,1)
+        enddo
         call interp_tofixed_pressure(nCells,nVertLevels,1,press_in,temp_in,press_interp,field_interp)
-        temperature_400hPa(1:nCells) = field_interp(1:nCells,1)
+        do iCell=1, nCells
+            temperature_400hPa(iCell) = field_interp(iCell,1)
+        enddo
 
         ! Calculate virtual temperature at 400mb     
         !call compute_virtual_temperature(temperature_400hPa, qv_400hPa, virtualT_400hPa)
@@ -255,6 +262,8 @@ module hiwc_diagnostics
             virtualT_400hPa(iCell) = temperature_400hPa(iCell) * (1.0 + qv_400hPa(iCell) * inveps) / (1.0 + qv_400hPa(iCell))
         enddo
  
+        deallocate(qv_400hPa)
+        deallocate(temperature_400hPa)
         deallocate(qv_in)
         deallocate(press_in)
         deallocate(temp_in)
