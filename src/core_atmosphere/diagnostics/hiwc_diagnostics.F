@@ -247,7 +247,6 @@ module hiwc_diagnostics
         allocate(qv_400hPa(nCells))
         allocate(temperature_400hPa(nCells))
         call interp_tofixed_pressure(nCells,nVertLevels,1,press_in,qv_in,press_interp,field_interp)
-    ! This is the segfaulting line:
         do iCell=1, nCells
             qv_400hPa(iCell) = field_interp(iCell,1)
         enddo
