@@ -41,15 +41,25 @@ module unstagger_diagnostics
     subroutine unstagger_diagnostics_setup(all_pools)
 
         use mpas_derived_types, only : MPAS_pool_type, MPAS_clock_type
-        use mpas_pool_routines, only : mpas_pool_get_subpool
+        use mpas_pool_routines, only : mpas_pool_get_subpool, mpas_pool_get_dimension, mpas_pool_get_array
+        use mpas_atm_diagnostics_utils, only : MPAS_field_will_be_written
 
         implicit none
 
         type (MPAS_pool_type), pointer :: all_pools
 
+        integer, pointer :: nVertLevels
+        real (kind=RKIND), dimension(:,:), pointer :: z, z_unstag
+
         call mpas_pool_get_subpool(all_pools, 'mesh', mesh)
         call mpas_pool_get_subpool(all_pools, 'state', state)
         call mpas_pool_get_subpool(all_pools, 'diag', diag)
+
+        ! Unstagger zgrid into zgrid_unstag
+        call mpas_pool_get_dimension(mesh, 'nVertLevels', nVertLevels)
+        call mpas_pool_get_array(mesh, 'zgrid', z)
+        call mpas_pool_get_array(diag, 'zgrid_unstag', z_unstag)
+        z_unstag(:,:) = 0.5 * (z(2:nVertLevels+1,:) + z(1:nVertLevels,:))
 
     end subroutine unstagger_diagnostics_setup
 
@@ -82,22 +92,13 @@ module unstagger_diagnostics
         real (kind=RKIND), dimension(:,:), pointer :: w, z
         real (kind=RKIND), dimension(:,:), pointer :: w_unstag, z_unstag
 
-        if ( MPAS_field_will_be_written('w_unstag') .or. &
-             MPAS_field_will_be_written('zgrid_unstag') ) then
-
-            ! Mesh information
+        if ( MPAS_field_will_be_written('w_unstag') ) then
             call mpas_pool_get_dimension(mesh, 'nVertLevels', nVertLevels)
 
-            ! States and diagnostics, integration coefficients
+            ! Unstagger w into w_unstag
             call mpas_pool_get_array(state, 'w', w, 1)
-            call mpas_pool_get_array(mesh, 'zgrid', z)
-
-            ! Target array
             call mpas_pool_get_array(diag, 'w_unstag', w_unstag)
-            call mpas_pool_get_array(diag, 'zgrid_unstag', z_unstag)
-
             w_unstag(:,:) = 0.5 * (w(2:nVertLevels+1,:) + w(1:nVertLevels,:))
-            z_unstag(:,:) = 0.5 * (z(2:nVertLevels+1,:) + z(1:nVertLevels,:))
         end if
 
     end subroutine unstagger_diagnostics_compute
