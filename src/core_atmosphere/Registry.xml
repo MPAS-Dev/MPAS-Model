@@ -444,6 +444,7 @@
 			<var name="isltyp"/>
 			<var name="ivgtyp"/>
 			<var name="mminlu"/>
+            <var name="ter"/>
 			<var name="landmask"/>
 			<var name="shdmin"/>
 			<var name="shdmax"/>
