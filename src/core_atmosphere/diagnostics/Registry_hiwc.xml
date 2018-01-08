@@ -7,7 +7,7 @@
 
 <var_struct name="diag" time_levs="1">
     
-    <var name="hiwc" type="real" dimensions="nCells Time" units="NA"
+    <var name="hiwc" type="real" dimensions="nCells Time" units="0-3 index"
          description="High-altitude Ice Water Content"/>
     
 </var_struct>
