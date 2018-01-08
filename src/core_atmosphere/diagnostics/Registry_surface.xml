@@ -24,6 +24,9 @@
 
         <var name="refl10cm_prate"    type="real"     dimensions="nCells Time" units="dBZ"
              description="Reflectivity derived from surface total precipitation rate"/>
+        
+        <var name="ncuprec"    type="real"     dimensions="nCells Time" units="mm s^{-1}"
+             description="Non-convective total grid-scale precipitation rate"/>
 
 </var_struct>
 

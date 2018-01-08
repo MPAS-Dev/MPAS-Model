@@ -122,6 +122,7 @@ module surface_diagnostics
         real (kind=RKIND), dimension(:), pointer :: zrain_bucket
         real (kind=RKIND), dimension(:), pointer :: snow_total
         real (kind=RKIND), dimension(:), pointer :: refl10cm_prate
+        real (kind=RKIND), dimension(:), pointer :: ncuprec
 
         ! Surface diagnostics (in)
         real (kind=RKIND), dimension(:), pointer :: psfc
@@ -152,6 +153,7 @@ module surface_diagnostics
         call mpas_pool_get_array(diag_physics, 'q2', q2)
         call mpas_pool_get_array(diag, 'dewpoint_2m', dewpoint_2m)
         call mpas_pool_get_array(diag, 'refl10cm_prate', refl10cm_prate)
+        call mpas_pool_get_array(diag, 'ncuprec', ncuprec)
 
         do iCell = 1,nCells
 
@@ -163,6 +165,9 @@ module surface_diagnostics
                 zrain_bucket(iCell) = zrain_bucket(iCell) + max(0., rainncv(iCell) + raincv(iCell) - snowncv(iCell) - graupelncv(iCell))
             end if
             snow_total(iCell) = snow_total(iCell) + (snowncv(iCell) + graupelncv(iCell)) * snow_ratio(iCell) * 0.001
+
+            ! Non-convective grid-scale precipitation rate diagnostics
+            ncuprec(iCell) = rainncv(iCell) / config_dt
 
             refl10cm_prate(iCell) = 0.
             prate = (rainncv(iCell) + raincv(iCell)) / config_dt
