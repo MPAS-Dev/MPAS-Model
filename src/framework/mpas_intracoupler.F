@@ -195,10 +195,16 @@ contains
     !> \details
     !>  Returns a handle to a "pairing" of this role with another role, with
     !>  the ability to either send to or receive from the paired role, depending
-    !>  on the value of the "direction" argument.
+    !>  on the value of the "direction" argument. The "indices" argument is
+    !>  a field containg the global indices to be communicated and is likely
+    !>  to be either indexToCellID, indexToVertexID, or indexToEdgeID.
+    !>  The "nIndices" argument determines how many of the global indices will
+    !>  be communicated, and is likely to be either nCellsSolve, nVerticesSolve,
+    !>  or nEdgesSolve, since at present the transfer of a field between paired
+    !>  roles is expected to take place for only owned elements.
     !
     !-----------------------------------------------------------------------
-    function MPAS_coupler_create_pairing(cpl, direction, destination_role, indices, ierr) result(handle)
+    function MPAS_coupler_create_pairing(cpl, direction, destination_role, indices, nIndices, ierr) result(handle)
 
         use mpas_derived_types, only : field1DInteger, MPAS_COUPLER_INCOMING, dm_info
         use mpas_dmpar, only : mpas_dmpar_init, mpas_dmpar_init_multihalo_exchange_list, mpas_dmpar_get_exch_list
@@ -215,6 +221,7 @@ contains
         type (mpas_coupler_type), intent(inout) :: cpl
         integer, intent(in) :: direction
         integer, intent(in) :: destination_role
+        integer, intent(in) :: nIndices
         type (field1DInteger), intent(in), target :: indices
         integer, intent(out), optional :: ierr
 
@@ -293,6 +300,10 @@ contains
         ! Set up multihalo exchange lists
         !
         call mpas_duplicate_field(indices, indices_copy)
+        indices_copy % dimsizes(1) = nIndices
+        deallocate(indices_copy % array)
+        allocate(indices_copy % array(1:nIndices))
+        indices_copy % array(1:nIndices) = indices % array(1:nIndices)
 
         nullify(indices_copy % sendList)
         nullify(indices_copy % recvList)
