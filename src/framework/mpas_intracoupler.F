@@ -14,8 +14,13 @@ module mpas_intracoupler
     public :: MPAS_coupler_init, &
               MPAS_coupler_finalize, &
               MPAS_coupler_sync, &
-              MPAS_coupler_create_pairing
+              MPAS_coupler_create_pairing, &
+              MPAS_coupler_transfer_field
 
+    interface MPAS_coupler_transfer_field
+        module procedure MPAS_coupler_transfer_field_r1
+        module procedure MPAS_coupler_transfer_field_r2
+    end interface
 
 contains
 
@@ -356,5 +361,145 @@ contains
 #endif
 
     end function MPAS_coupler_create_pairing
+
+
+    !-----------------------------------------------------------------------
+    !  routine MPAS_coupler_transfer_field_r1
+    !
+    !> \brief  Establish communication pathways to or from another role
+    !> \author Michael Duda
+    !> \date   3 January 2018
+    !> \details
+    !>  Returns a handle to a "pairing" of this role with another role, with
+    !>  the ability to either send to or receive from the paired role, depending
+    !>  on the value of the "direction" argument.
+    !
+    !-----------------------------------------------------------------------
+    subroutine MPAS_coupler_transfer_field_r1(cpl, handle, field, ierr)
+
+        use mpas_derived_types, only : field1DReal, MPAS_COUPLER_INCOMING, dm_info, mpas_multihalo_exchange_list
+        use mpas_dmpar, only : mpas_dmpar_exch_halo_field
+
+        implicit none
+
+        type (mpas_coupler_type), intent(inout) :: cpl
+        integer, intent(in) :: handle
+        type (field1DReal), pointer :: field
+        integer, intent(out), optional :: ierr
+
+        type (dm_info), pointer :: dminfo_save
+        type (mpas_multihalo_exchange_list), pointer :: sendList_save
+        type (mpas_multihalo_exchange_list), pointer :: recvList_save
+        type (mpas_multihalo_exchange_list), pointer :: copyList_save
+
+        !
+        ! Make sure handle is valid
+        !
+        if (handle <= 0 .or. handle > size(cpl % pairings)) then
+            if (present(ierr)) then
+                ierr = 1
+            end if
+            return
+        else if (.not. cpl % pairings(handle) % isValid) then
+            if (present(ierr)) then
+                ierr = 1
+            end if
+            return
+        end if
+
+        dminfo_save => field % block % domain % dminfo
+        sendList_save => field % sendList
+        recvList_save => field % recvList
+        copyList_save => field % copyList
+
+        field % block % domain % dminfo => cpl % pairings(handle) % dminfo
+        field % sendList => cpl % pairings(handle) % sendList
+        field % recvList => cpl % pairings(handle) % recvList
+        field % copyList => cpl % pairings(handle) % copyList
+
+        call mpas_dmpar_exch_halo_field(field)
+
+        field % block % domain % dminfo => dminfo_save
+        field % sendList => sendList_save
+        field % recvList => recvList_save
+        field % copyList => copyList_save
+
+        if (present(ierr)) then
+!TODO: define error codes for intracoupler
+            ierr = 0
+        end if
+
+    end subroutine MPAS_coupler_transfer_field_r1
+
+
+    !-----------------------------------------------------------------------
+    !  routine MPAS_coupler_transfer_field_r2
+    !
+    !> \brief  Establish communication pathways to or from another role
+    !> \author Michael Duda
+    !> \date   3 January 2018
+    !> \details
+    !>  Returns a handle to a "pairing" of this role with another role, with
+    !>  the ability to either send to or receive from the paired role, depending
+    !>  on the value of the "direction" argument.
+    !
+    !-----------------------------------------------------------------------
+    subroutine MPAS_coupler_transfer_field_r2(cpl, handle, field, ierr)
+
+        use mpas_derived_types, only : field2DReal, MPAS_COUPLER_INCOMING, dm_info, mpas_multihalo_exchange_list
+        use mpas_dmpar, only : mpas_dmpar_exch_halo_field
+
+        implicit none
+
+        type (mpas_coupler_type), intent(inout) :: cpl
+        integer, intent(in) :: handle
+        type (field2DReal), pointer :: field
+        integer, intent(out), optional :: ierr
+
+        type (dm_info), pointer :: dminfo_save
+        type (mpas_multihalo_exchange_list), pointer :: sendList_save
+        type (mpas_multihalo_exchange_list), pointer :: recvList_save
+        type (mpas_multihalo_exchange_list), pointer :: copyList_save
+
+        !
+        ! Make sure handle is valid
+        !
+        if (handle <= 0 .or. handle > size(cpl % pairings)) then
+            if (present(ierr)) then
+                ierr = 1
+            end if
+            return
+        else if (.not. cpl % pairings(handle) % isValid) then
+            if (present(ierr)) then
+                ierr = 1
+            end if
+            return
+        end if
+
+        dminfo_save => field % block % domain % dminfo
+        sendList_save => field % sendList
+        recvList_save => field % recvList
+        copyList_save => field % copyList
+
+        field % block % domain % dminfo => cpl % pairings(handle) % dminfo
+        field % sendList => cpl % pairings(handle) % sendList
+        field % recvList => cpl % pairings(handle) % recvList
+        field % copyList => cpl % pairings(handle) % copyList
+
+
+        call mpas_dmpar_exch_halo_field(field)
+
+
+        field % block % domain % dminfo => dminfo_save
+        field % sendList => sendList_save
+        field % recvList => recvList_save
+        field % copyList => copyList_save
+
+        if (present(ierr)) then
+!TODO: define error codes for intracoupler
+            ierr = 0
+        end if
+
+    end subroutine MPAS_coupler_transfer_field_r2
 
 end module mpas_intracoupler
