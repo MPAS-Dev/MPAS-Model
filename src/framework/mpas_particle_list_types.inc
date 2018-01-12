@@ -7,7 +7,7 @@
        type (mpas_pool_type), pointer :: haloDataPool => NULL()
        ! pool containing particle data not needing to be passed
        ! between processors
-       type (mpas_pool_type), pointer :: nonhaloDataPool => NULL()
+       !type (mpas_pool_type), pointer :: nonhaloDataPool => NULL()
     end type mpas_particle_type
 
     ! just a list of particles (main unit that code operates on)
