@@ -764,8 +764,10 @@ module atm_time_integration
 
                call mpas_pool_get_subpool(domain % blocklist % structs, 'diag', diag)
                call mpas_pool_get_array_gpu(diag,'rtheta_pp',gpu_rtheta_pp)
+!$acc update host(gpu_rtheta_pp)
                call mpas_pool_get_field(diag, 'rtheta_pp', rtheta_pp_field)
                call mpas_dmpar_exch_halo_field(rtheta_pp_field, (/ 1 /))
+!$acc update device(gpu_rtheta_pp)
 
             end do  ! end of acoustic steps loop
 
@@ -1485,6 +1487,12 @@ module atm_time_integration
 !$acc end parallel
 
 !$acc end data
+
+!$acc update host(ru, ru_save, rw, rw_save, &
+!$acc rtheta_p,rtheta_p_save,rho_p,rho_p_save, &
+!$acc rho_zz_old_split, &
+!$acc u_1,u_2,w_1,w_2,theta_m_1,theta_m_2,rho_zz_1,rho_zz_2)
+
    end subroutine atm_rk_integration_setup_work
 
 
@@ -1586,6 +1594,8 @@ module atm_time_integration
 !$acc end parallel
 !!$acc update device(qtot,cqw,cqu)
 !$acc end data
+
+!$acc update host(scalars,cqw,cqu, qtot)
 
    end subroutine atm_compute_moist_coefficients
 
@@ -1812,6 +1822,10 @@ module atm_time_integration
 
 !$acc end data
 
+!$acc update host(cofrz, gamma_tri, a_tri, alpha_tri, &
+!$acc coftz, cofwr, cofwt, cofwz, &
+!$acc rdzw, cqw, fzm, fzp, p, pb, qtot, rb, rdzu, rt, rtb, t, zz)
+
    end subroutine atm_compute_vert_imp_coefs_work
 
 
@@ -1982,6 +1996,10 @@ module atm_time_integration
       end do
 !$acc end parallel
 !$acc end data
+
+!$acc update host(w_tend, &
+!$acc edgesoncell, edgesoncell_sign, fzm, fzp,nedgesoncell, u_tend, &
+!$acc zb3_cell, zb_cell, zz)
 
    end subroutine atm_set_smlstep_pert_variables_work
 
@@ -2406,6 +2424,15 @@ module atm_time_integration
       end do !  end of loop over cells
 !$acc end parallel
 !$acc end data
+
+!$acc update host(rtheta_pp, rtheta_pp_old, ru_p, ruavg, rho_pp, &
+!$acc rw_p, wwavg, &
+!$acc zz, cellsonedge, cqu, dcedge, exner, invdcedge, &
+!$acc tend_ru, zxu, tend_rho, a_tri, alpha_tri, cofrz, &
+!$acc coftz, cofwr, cofwt, cofwz, dss, dvedge, edgesoncell, edgesoncell_sign, &
+!$acc fzm, fzp, gamma_tri, invareacell, nedgesoncell, rdzw, rho_zz, rw, &
+!$acc rw_save, tend_rho, tend_rt, tend_rw, theta_m, w)
+
    end subroutine atm_advance_acoustic_step_work
 
 
@@ -2733,6 +2760,14 @@ module atm_time_integration
       end do
 !$acc end parallel
 !$acc end data
+
+!$acc update host(rho_zz, exner, pressure_p, rho_p, rtheta_p, rw, theta_m, w, &
+!$acc wwavg, ru, ruavg, u, &
+!$acc exner_base, fzm, fzp, rho_base, rho_p_save, rho_pp, rt_diabatic_tend, &
+!$acc rtheta_base, rtheta_p_save, rtheta_pp, rw_p, rw_save, zz, cellsonedge, &
+!$acc ru_p, ru_save, edgesoncell, edgesoncell_sign, nedgesoncell, zb3_cell, &
+!$acc zb_cell)
+
    end subroutine atm_recover_large_step_variables_work
 
 
@@ -5423,6 +5458,22 @@ if (config_horiz_mixing == "2d_smagorinsky") then
       end do
 !$acc end parallel
 !$acc end data
+
+!$acc update host(kdiff, h_divergence, dpdz, tend_rho, tend_u_euler, &
+!$acc tend_u, delsq_u, delsq_vorticity, delsq_divergence, &
+!$acc tend_w, delsq_w, tend_w_euler, tend_theta, &
+!$acc delsq_theta, tend_theta_euler, &
+!$acc defc_a, defc_b, edgesoncell, nedgesoncell, u, v, &
+!$acc dvedge, edgesoncell_sign, invareacell, ru, qtot, rb, rdzw, rr_save, rw, &
+!$acc tend_rho_physics, cellsonedge, cqu, invdcedge, pp, zxu, zz, &
+!$acc fzm, fzp, edgesonedge, ke, nedgesonedge, pv_edge, rho_edge, weightsonedge, &
+!$acc divergence, invdvedge, meshscalingdel2, verticesonedge, vorticity, &
+!$acc dcedge, edgesonvertex, edgesonvertex_sign, invareatriangle, &
+!$acc meshscalingdel4, zgrid, angleedge, u_init, tend_ru_physics, adv_coefs, &
+!$acc adv_coefs_3rd, advcellsforedge, nadvcellsforedge, w, cqw, rdzu, rho_zz, &
+!$acc theta_m, theta_m_save, rt_diabatic_tend, tend_rtheta_physics, t_init, &
+!$acc rw_save,tend_rtheta_adv)
+
    end subroutine atm_compute_dyn_tend_work
 
       subroutine atm_compute_dyn_tend_work_rk23(nCells, nEdges, nVertices, nVertLevels_dummy, &
@@ -6027,6 +6078,24 @@ if (config_horiz_mixing == "2d_smagorinsky") then
 !$acc end parallel
 
 !$acc end data
+
+!$acc update host(cellsonedge,dvedge,edgesoncell, &
+!$acc tend_ru_physics, &
+!$acc tend_rtheta_physics, &
+!$acc edgesoncell_sign,fzm,fzp,invareacell,nedgesoncell &
+!$acc ,ru,rw,u,edgesonedge, &
+!$acc invdcedge,ke,nedgesonedge, &
+!$acc pv_edge,rdzw,rho_edge, &
+!$acc weightsonedge,adv_coefs,adv_coefs_3rd,advcellsforedge, &
+!$acc w,rdzu, tend_w_euler, &
+!$acc theta_m,ru_save,theta_m_save,tend_u_euler, &
+!$acc nadvcellsforedge,rho_zz, &
+!$acc rt_diabatic_tend,rw_save, &
+!$acc tend_theta_euler,  &
+!$acc h_divergence,tend_u, &
+!$acc tend_theta,tend_w,&
+!$acc tend_rtheta_adv)
+
    end subroutine atm_compute_dyn_tend_work_rk23
    
 
@@ -6472,6 +6541,16 @@ if (config_horiz_mixing == "2d_smagorinsky") then
 !$acc end parallel
       end if  ! apvm upwinding
 !$acc end data
+
+!$acc update host(h_edge,  vorticity, divergence, ke, &
+!$acc ke_vertex, v, pv_vertex, pv_edge, pv_cell, gradpvn, &
+!$acc gradpvt, ke_edge, &
+!$acc cellsonedge, dcedge, dvedge, h, u, edgesonvertex, &
+!$acc edgesonvertex_sign, invareatriangle, edgesoncell, &
+!$acc edgesoncell_sign, invareacell, nedgesoncell, &
+!$acc kiteareasonvertex, kiteforcell, verticesoncell, edgesonedge, &
+!$acc nedgesonedge, weightsonedge, fvertex, verticesonedge, &
+!$acc invdcedge, invdvedge)
 
 
 
@@ -7249,10 +7328,14 @@ if (config_horiz_mixing == "2d_smagorinsky") then
 !$acc end parallel
 !$acc update host(u_2,w_2)
       end if
-
+!$acc update host(rw, ru, rho_p, rho_zz_1)
 
 !$acc end data
 
+!$acc update host(ru, ru_save, rw, rw_save, &
+!$acc rtheta_p,rtheta_p_save,rho_p,rho_p_save, &
+!$acc rho_zz_old_split,ruAvg,ruAvg_split, wwAvg, wwAvg_split, &
+!$acc u_1,u_2,w_1,w_2,theta_m_1,theta_m_2,rho_zz_1,rho_zz_2)
 
    end subroutine atm_rk_dynamics_substep_finish_work
    subroutine summarize_timestep(domain)
