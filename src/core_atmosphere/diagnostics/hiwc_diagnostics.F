@@ -92,7 +92,7 @@ module hiwc_diagnostics
         real (kind=RKIND), parameter :: warm_boundary_temp = -15.
         real (kind=RKIND), parameter :: cold_boundary_temp = -17.
 
-        real (kind=RKIND), dimension(:), pointer :: hiwc
+        integer, dimension(:), pointer :: hiwc
 
         integer :: iCell, k
 
@@ -116,9 +116,9 @@ module hiwc_diagnostics
                            (warm_boundary_temp - cold_boundary_temp) ) )
 
                 w250 = 1.0 - w200
-                hiwc(iCell) = MAX(0.0, MIN(3.0, &
+                hiwc(iCell) = NINT(MAX(0.0, MIN(3.0, &
                                   ( (w250 * qi_250hPa(iCell) * 1.0E6 + &
-                                     w200 * qi_200hPa(iCell) * 1.0E6) - 25. ) / 80. ) )
+                                     w200 * qi_200hPa(iCell) * 1.0E6) - 25. ) / 80. ) ) )
 
             end do
 
