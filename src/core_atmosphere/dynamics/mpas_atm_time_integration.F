@@ -767,6 +767,32 @@ module atm_time_integration
                call mpas_pool_get_field(diag, 'rtheta_pp', rtheta_pp_field)
                call mpas_dmpar_exch_halo_field(rtheta_pp_field, (/ 1 /))
 
+
+!  complete update of horizontal momentum by including 3d divergence damping at
+!  the end of the acoustic step
+
+               call mpas_timer_start('atm_divergence_damping_3d')
+               block => domain % blocklist
+               do while (associated(block))
+                  call mpas_pool_get_subpool(block % structs, 'mesh', mesh)
+                  call mpas_pool_get_subpool(block % structs, 'state', state)
+                  call mpas_pool_get_subpool(block % structs, 'diag', diag)
+
+                  call mpas_pool_get_dimension(block % dimensions, 'nThreads', nThreads)
+                  call mpas_pool_get_dimension(block % dimensions, 'edgeThreadStart', edgeThreadStart)
+                  call mpas_pool_get_dimension(block % dimensions, 'edgeThreadEnd', edgeThreadEnd)
+
+!$OMP PARALLEL DO
+                  do thread=1,nThreads
+                     call atm_divergence_damping_3d( state, diag, mesh, block % configs, rk_sub_timestep(rk_step), &
+                                                     edgeThreadStart(thread), edgeThreadEnd(thread) )
+                  end do
+!$OMP END PARALLEL DO
+
+                  block => block % next
+               end do
+               call mpas_timer_stop('atm_divergence_damping_3d')
+
             end do  ! end of acoustic steps loop
 
             !CR: SMALLER STENCIL?: call mpas_dmpar_exch_halo_field(block % diag % rw_p, (/ 1 /))
@@ -2408,6 +2434,111 @@ module atm_time_integration
 !$acc end data
    end subroutine atm_advance_acoustic_step_work
 
+subroutine atm_divergence_damping_3d( state, diag, mesh, configs, dts, edgeStart, edgeEnd )
+
+      !  This subroutine updates the horizontal momentum with the 3d divergence
+      !  damping component.
+
+      implicit none
+
+      type (mpas_pool_type), intent(inout) :: state
+      type (mpas_pool_type), intent(inout) :: diag
+      type (mpas_pool_type), intent(inout) :: mesh
+      type (mpas_pool_type), intent(in) :: configs
+      real (kind=RKIND), intent(in) :: dts
+      integer, intent(in) :: edgeStart, edgeEnd
+
+      real (kind=RKIND), dimension(:,:), pointer :: theta_m, ru_p, rtheta_pp, rtheta_pp_old
+!      real (kind=RKIND), dimension(:), pointer :: dcEdge
+      real (kind=RKIND), pointer :: smdiv, config_len_disp
+
+      integer, dimension(:,:), pointer :: cellsOnEdge
+      integer, pointer :: nCellsSolve, nCells, nEdges
+      integer, pointer :: nVertLevels
+
+      call mpas_pool_get_array_gpu(mesh, 'cellsOnEdge', cellsOnEdge)
+!      call mpas_pool_get_array(mesh, 'dcEdge', dcEdge)
+      call mpas_pool_get_array_gpu(state, 'theta_m', theta_m, 1)
+      call mpas_pool_get_array_gpu(diag, 'rtheta_pp', rtheta_pp)
+      call mpas_pool_get_array_gpu(diag, 'rtheta_pp_old', rtheta_pp_old)
+      call mpas_pool_get_array_gpu(diag, 'ru_p', ru_p)
+
+      call mpas_pool_get_dimension(mesh, 'nCellsSolve', nCellsSolve)
+      call mpas_pool_get_dimension(mesh, 'nVertLevels', nVertLevels)
+      call mpas_pool_get_dimension(mesh, 'nCells', nCells)
+      call mpas_pool_get_dimension(mesh, 'nEdges', nEdges)
+
+      call mpas_pool_get_config(configs, 'config_smdiv', smdiv)
+      call mpas_pool_get_config(configs, 'config_len_disp', config_len_disp)
+
+        call atm_divergence_damping_3d_work(nCells, nEdges, nCellsSolve, &
+                                cellsOnEdge, theta_m, rtheta_pp, rtheta_pp_old,&
+                                ru_p, edgeStart, edgeEnd, dts, smdiv, &
+                                config_len_disp)
+
+
+   end subroutine atm_divergence_damping_3d
+
+   subroutine atm_divergence_damping_3d_work(nCells, nEdges, nCellsSolve, &
+                                cellsOnEdge, theta_m, rtheta_pp, rtheta_pp_old,&
+                                ru_p, edgeStart, edgeEnd, dts, smdiv, &
+                                config_len_disp)
+
+   use mpas_atm_dimensions
+
+   implicit none
+
+   ! Arguments
+   integer, intent(in) :: nCells, nEdges, nCellsSolve
+      real (kind=RKIND), intent(in) :: dts
+   real (kind=RKIND), dimension(nVertLevels,nCells+1) :: rtheta_pp
+   real (kind=RKIND), dimension(nVertLevels,nCells+1) :: rtheta_pp_old
+   real (kind=RKIND), dimension(nVertLevels,nEdges+1) :: ru_p
+   real (kind=RKIND), dimension(nVertLevels,nCells+1) :: theta_m
+   integer, dimension(2,nEdges+1) :: cellsOnEdge
+   real (kind=RKIND) :: smdiv, config_len_disp
+   integer, intent(in) :: edgeStart, edgeEnd
+
+   real (kind=RKIND) :: divCell1, divCell2, rdts, coef_divdamp
+   integer :: cell1, cell2, iEdge, k
+
+      rdts = 1.0_RKIND / dts
+      coef_divdamp = 2.0_RKIND * smdiv * config_len_disp * rdts
+
+!$acc data present(rtheta_pp, rtheta_pp_old, &
+!$acc ru_p, theta_m, cellsOnEdge)
+!$acc parallel num_workers(8) vector_length(16)
+!$acc loop gang worker private(cell1, cell2, divCell1, divCell2)
+      do iEdge=edgeStart,edgeEnd ! MGD do we really just need edges touching owned cells?
+
+         cell1 = cellsOnEdge(1,iEdge)
+         cell2 = cellsOnEdge(2,iEdge)
+
+         ! update edges for block-owned cells
+         if (cell1 <= nCellsSolve .or. cell2 <= nCellsSolve ) then
+
+!DIR$ IVDEP
+            do k=1,nVertLevels
+
+!!  unscaled 3d divergence damping
+!!               divCell1 = -(rtheta_pp(k,cell1)-rtheta_pp_old(k,cell1))*rdts
+!!               divCell2 = -(rtheta_pp(k,cell2)-rtheta_pp_old(k,cell2))*rdts
+!!               ru_p(k,iEdge) = ru_p(k,iEdge) + 2.*smdiv*dcEdge(iEdge)*(divCell2-divCell1) &
+!!                                                      /(theta_m(k,cell1)+theta_m(k,cell2))
+
+!!  scaled 3d divergence damping
+               divCell1 = -(rtheta_pp(k,cell1)-rtheta_pp_old(k,cell1))
+               divCell2 = -(rtheta_pp(k,cell2)-rtheta_pp_old(k,cell2))
+               ru_p(k,iEdge) = ru_p(k,iEdge) + coef_divdamp*(divCell2-divCell1) &
+                                                      /(theta_m(k,cell1)+theta_m(k,cell2))
+
+            end do
+         end if ! edges for block-owned cells
+      end do ! end loop over edges
+!$acc end parallel
+!$acc end data
+
+   end subroutine atm_divergence_damping_3d_work
 
    subroutine atm_recover_large_step_variables( state, diag, tend, mesh, configs, dt, ns, rk_step, &
                                        cellStart, cellEnd, vertexStart, vertexEnd, edgeStart, edgeEnd, &
