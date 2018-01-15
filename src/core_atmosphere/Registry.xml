@@ -1004,6 +1004,11 @@
             <!-- Begin deformation diagnostics defined in diagnostics/Registry_deformation.xml -->
             <var name="deformation"/>
             <!-- End deformation diagnostics defined in diagnostics/Registry_deformation.sxml -->
+            
+            <!-- Begin unstagger diagnostics defined in diagnostics/Registry_unstagger.xml -->
+            <var name="zgrid_unstag"/>
+            <var name="w_unstag"/>
+            <!-- End unstagger diagnostics defined in diagnostics/Registry_unstagger.sxml -->
 
             <!-- Begin surface diagnostics defined in diagnostics/Registry_surface.xml -->
             <var name="dewpoint_2m"/>
