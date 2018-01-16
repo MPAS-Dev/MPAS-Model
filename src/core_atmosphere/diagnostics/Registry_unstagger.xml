@@ -1,0 +1,17 @@
+<!-- *************************************************************** -->
+<!-- Unstaggering certain fields for postprocessing                  -->
+<!--                                                                 -->
+<!-- Created by John Wong, November / 2017                           -->
+<!-- Copyright (c) 2017 The Weather Company. All rights reserved.    -->
+<!-- *************************************************************** -->
+
+<var_struct name="diag" time_levs="1">
+    
+    <var name="zgrid_unstag" type="real" dimensions="nVertLevels nCells" units="m MSL"
+    description="Geometric height at vertical cell center"/>
+    
+    <var name="w_unstag" type="real" dimensions="nVertLevels nCells Time" units="m s^{-1}"
+    description="Vertical velocity at vertical cell center"/>
+    
+</var_struct>
+

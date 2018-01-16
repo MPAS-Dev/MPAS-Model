@@ -41,6 +41,7 @@ module mpas_atm_diagnostics_manager
         use surface_diagnostics, only : surface_diagnostics_setup
         use deformation_diagnostics, only : deformation_diagnostics_setup
         use hiwc_diagnostics, only : hiwc_diagnostics_setup
+        use unstagger_diagnostics, only : unstagger_diagnostics_setup
         use pv_diagnostics, only : pv_diagnostics_setup
         use soundings, only : soundings_setup
 
@@ -65,6 +66,7 @@ module mpas_atm_diagnostics_manager
         call surface_diagnostics_setup(configs, structs, clock)
         call deformation_diagnostics_setup(structs)
         call hiwc_diagnostics_setup(structs)
+        call unstagger_diagnostics_setup(structs)
         call pv_diagnostics_setup(structs, clock)
         call soundings_setup(configs, structs, clock, dminfo)
 
@@ -114,6 +116,7 @@ module mpas_atm_diagnostics_manager
         use surface_diagnostics, only : surface_diagnostics_compute
         use deformation_diagnostics, only : deformation_diagnostics_compute
         use hiwc_diagnostics, only : hiwc_diagnostics_compute
+        use unstagger_diagnostics, only : unstagger_diagnostics_compute
         use pv_diagnostics, only : pv_diagnostics_compute
         use soundings, only : soundings_compute
 
@@ -126,6 +129,7 @@ module mpas_atm_diagnostics_manager
         call surface_diagnostics_compute()
         call deformation_diagnostics_compute()
         call hiwc_diagnostics_compute()
+        call unstagger_diagnostics_compute()
         call pv_diagnostics_compute()
         call soundings_compute()
 

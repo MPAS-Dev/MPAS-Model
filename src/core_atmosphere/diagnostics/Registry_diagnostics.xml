@@ -28,6 +28,9 @@
 <!-- hiwc diagnostics -->
 #include "Registry_hiwc.xml"
 
+<!-- unstagger diagnostics -->
+#include "Registry_unstagger.xml"
+
 <!-- ******************************* -->
 <!-- End includes from diagnostics -->
 <!-- ******************************* -->
