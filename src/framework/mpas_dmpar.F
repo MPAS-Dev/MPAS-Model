@@ -6160,7 +6160,10 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
         nullify(commListPtr % ibuffer)
         bufferOffset = 0
         if (commListPtr % procID /= compactHaloInfo(idx)) then
+#if defined(MPAS_DEBUG) && !defined(MPAS_OPENACC)
            call mpas_log_write('Mismatch in endpoints between compactHaloInfo and commListPtr', messageType=MPAS_LOG_CRIT)
+#endif
+           return
         end if
         idx = idx + 1   ! Now, idx points to the nList value of the first halo layer for the field
         iFieldHalo = 1
@@ -6173,7 +6176,10 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
              idx = idx + 2 * nList + 1   ! Advance idx to the nList value of the next halo layer for the field
              iFieldHalo = iFieldHalo + 1
              if (iFieldHalo > nFieldHaloLayers) then
+#if defined(MPAS_DEBUG) && !defined(MPAS_OPENACC)
                 call mpas_log_write('Ran out of halos while searching for halo layer $i', intArgs=(/haloLayers(iHalo)/), messageType=MPAS_LOG_CRIT)
+#endif
+                return
              end if
              nList = compactHaloInfo(idx)
           end do
@@ -6214,7 +6220,10 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
         call MPI_Wait(commListPtr % reqID, MPI_STATUS_IGNORE, mpi_ierr)
         bufferOffset = 0
         if (commListPtr % procID /= compactHaloInfo(idx)) then
+#if defined(MPAS_DEBUG) && !defined(MPAS_OPENACC)
            call mpas_log_write('Mismatch in endpoints between compactHaloInfo and commListPtr', messageType=MPAS_LOG_CRIT)
+#endif
+           return
         end if
         idx = idx + 1   ! Now, idx points to the nList value of the first halo layer for the field
         iFieldHalo = 1
@@ -6227,7 +6236,10 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
              idx = idx + 2 * nList + 1   ! Advance idx to the nList value of the next halo layer for the field
              iFieldHalo = iFieldHalo + 1
              if (iFieldHalo > nFieldHaloLayers) then
+#if defined(MPAS_DEBUG) && !defined(MPAS_OPENACC)
                 call mpas_log_write('Ran out of halos while searching for halo layer $i', intArgs=(/haloLayers(iHalo)/), messageType=MPAS_LOG_CRIT)
+#endif
+                return
              end if
              nList = compactHaloInfo(idx)
           end do
@@ -6355,7 +6367,10 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
         nullify(commListPtr % ibuffer)
         bufferOffset = 0
         if (commListPtr % procID /= compactHaloInfo(idx)) then
+#if defined(MPAS_DEBUG) && !defined(MPAS_OPENACC)
            call mpas_log_write('Mismatch in endpoints between compactHaloInfo and commListPtr', messageType=MPAS_LOG_CRIT)
+#endif
+           return
         end if
         idx = idx + 1   ! Now, idx points to the nList value of the first halo layer for the field
         iFieldHalo = 1
@@ -6368,7 +6383,10 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
              idx = idx + 2 * nList + 1   ! Advance idx to the nList value of the next halo layer for the field
              iFieldHalo = iFieldHalo + 1
              if (iFieldHalo > nFieldHaloLayers) then
+#if defined(MPAS_DEBUG) && !defined(MPAS_OPENACC)
                 call mpas_log_write('Ran out of halos while searching for halo layer $i', intArgs=(/haloLayers(iHalo)/), messageType=MPAS_LOG_CRIT)
+#endif
+                return
              end if
              nList = compactHaloInfo(idx)
           end do
@@ -6411,7 +6429,10 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
         call MPI_Wait(commListPtr % reqID, MPI_STATUS_IGNORE, mpi_ierr)
         bufferOffset = 0
         if (commListPtr % procID /= compactHaloInfo(idx)) then
+#if defined(MPAS_DEBUG) && !defined(MPAS_OPENACC)
            call mpas_log_write('Mismatch in endpoints between compactHaloInfo and commListPtr', messageType=MPAS_LOG_CRIT)
+#endif
+           return
         end if
         idx = idx + 1   ! Now, idx points to the nList value of the first halo layer for the field
         iFieldHalo = 1
@@ -6424,7 +6445,10 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
              idx = idx + 2 * nList + 1   ! Advance idx to the nList value of the next halo layer for the field
              iFieldHalo = iFieldHalo + 1
              if (iFieldHalo > nFieldHaloLayers) then
+#if defined(MPAS_DEBUG) && !defined(MPAS_OPENACC)
                 call mpas_log_write('Ran out of halos while searching for halo layer $i', intArgs=(/haloLayers(iHalo)/), messageType=MPAS_LOG_CRIT)
+#endif
+                return
              end if
              nList = compactHaloInfo(idx)
           end do
