@@ -166,7 +166,7 @@
     if (trim(config_radt_lw_scheme)    == 'suite') config_radt_lw_scheme    = 'rrtmg_lw'
     if (trim(config_radt_sw_scheme)    == 'suite') config_radt_sw_scheme    = 'rrtmg_sw'
     if (trim(config_radt_cld_scheme)   == 'suite') config_radt_cld_scheme   = 'cld_fraction'
-    if (trim(config_sfclayer_scheme)   == 'suite') config_sfclayer_scheme   = 'sf_mynn_wrf390'
+    if (trim(config_sfclayer_scheme)   == 'suite') config_sfclayer_scheme   = 'sf_mynn'
     if (trim(config_lsm_scheme)        == 'suite') config_lsm_scheme        = 'noah'
 
     if (config_mynn_cloudpdf == -1) config_mynn_cloudpdf = 2
@@ -294,7 +294,6 @@
 !surface-layer scheme:
  if(.not. (config_sfclayer_scheme .eq. 'off'            .or. &
            config_sfclayer_scheme .eq. 'sf_mynn'        .or. &
-           config_sfclayer_scheme .eq. 'sf_mynn_wrf390' .or. &
            config_sfclayer_scheme .eq. 'sf_monin_obukhov')) then
  
     write(mpas_err_message,'(A,A10)') 'illegal value for surface layer scheme: ', &
@@ -307,7 +306,7 @@
        config_sfclayer_scheme = 'sf_mynn'
        config_mynn_cloudpdf   = 0
     elseif(config_pbl_scheme == 'bl_mynn_wrf390') then
-       config_sfclayer_scheme = 'sf_mynn_wrf390'
+       config_sfclayer_scheme = 'sf_mynn'
        config_mynn_cloudpdf   = 2
     elseif(config_pbl_scheme == 'bl_ysu') then
        config_sfclayer_scheme = 'sf_monin_obukhov'

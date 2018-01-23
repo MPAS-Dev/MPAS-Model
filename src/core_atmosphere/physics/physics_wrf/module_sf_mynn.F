@@ -10,13 +10,16 @@
 !   Laura D. Fowler (laura@ucar.edu) / 2016-02-11.
 ! * corrected the initialization of the variable dx.
 !   Laura D. Fowler (laura@ucar.edu) / 2017-08-30.
+! * reversed the name of some of the subroutine names to their original name, after removing module_sf_mynn.F
+!   from WRF version 3.6.1.
+!   Laura D. Fowler (laura@ucar.edu) / 2018-01-23.
 
 !=================================================================================================================
 
 #define MYNN_DBG_LVL 3000
 !WRF:MODEL_LAYER:PHYSICS
 !
-MODULE module_sf_mynn_wrf390
+MODULE module_sf_mynn
 
 !-------------------------------------------------------------------
 !Modifications implemented by Joseph Olson NOAA/GSD/AMB - CU/CIRES
@@ -77,8 +80,8 @@ MODULE module_sf_mynn_wrf390
 
   implicit none
   private
-  public:: mynn_sf_init_driver_wrf390, &
-           sfclay_mynn_wrf390
+  public:: mynn_sf_init_driver, &
+           sfclay_mynn
 #else
   USE module_model_constants, only: &
        &p1000mb, cp, xlv, ep_2
@@ -103,7 +106,7 @@ MODULE module_sf_mynn_wrf390
 CONTAINS
 
 !-------------------------------------------------------------------
-  SUBROUTINE mynn_sf_init_driver_wrf390(allowed_to_read)
+  SUBROUTINE mynn_sf_init_driver(allowed_to_read)
 
     LOGICAL, INTENT(in) :: allowed_to_read
 
@@ -113,14 +116,10 @@ CONTAINS
        
     CALL sfclayinit(allowed_to_read)
 
-  END SUBROUTINE mynn_sf_init_driver_wrf390
+  END SUBROUTINE mynn_sf_init_driver
 
 !-------------------------------------------------------------------
-#if defined(mpas)
-   SUBROUTINE SFCLAY_mynn_wrf390(                                  &
-#else
    SUBROUTINE SFCLAY_mynn(                                         &
-#endif
                      U3D,V3D,T3D,QV3D,P3D,dz8w,                    &
                      CP,G,ROVCP,R,XLV,PSFCPA,CHS,CHS2,CQS2,CPM,    &
                      ZNT,UST,PBLH,MAVAIL,ZOL,MOL,REGIME,PSIM,PSIH, &
@@ -514,11 +513,7 @@ CONTAINS
 
       ENDDO
 
-#if defined(mpas)
-    END SUBROUTINE SFCLAY_mynn_wrf390
-#else
     END SUBROUTINE SFCLAY_MYNN
-#endif
 
 !-------------------------------------------------------------------
    SUBROUTINE SFCLAY1D_mynn(                                       &
@@ -2152,4 +2147,4 @@ END SUBROUTINE SFCLAY1D_mynn
     END SUBROUTINE Li_etal_2010
 !--------------------------------------------------------------------
 
-END MODULE module_sf_mynn_wrf390
+END MODULE module_sf_mynn

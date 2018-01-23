@@ -36,7 +36,6 @@ OBJS = \
 	module_sf_bep_bem.o              \
 	module_sf_sfcdiags.o             \
 	module_sf_mynn.o                 \
-	module_sf_mynn.wrf-3.9.0.o       \
 	module_sf_noahdrv.o              \
 	module_sf_noahlsm.o              \
 	module_sf_noahlsm_glacial_only.o \
@@ -91,10 +90,6 @@ module_sf_bep_bem.o: \
 	module_sf_urban.o
 
 module_sf_mynn.o: \
-	module_bl_mynn.o \
-	module_sf_sfclay.o
-
-module_sf_mynn.wrf-3.9.0.o: \
 	module_bl_mynn.wrf-3.9.0.o \
 	module_sf_sfclay.o
 
