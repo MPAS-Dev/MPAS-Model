@@ -85,6 +85,9 @@
 ! * removed the options sf_mynn_wrf390 and bl_mynn_wrf390. The options sf_mynn and bl_mynn now point to the
 !   surface and PBL schemes from WRF version 3.9.0 instead of version 3.6.1.
 !   Laura D. Fowler (laura@ucar.edu) / 2018-01-24.
+! * removed the suite convection_permitting_wrf390. The suite convection_permitting now points to the surface
+!   layer scheme and PBL scheme from WRF version 3.9.0 instead of version 3.6.1
+!   Laura D. Fowler (laura@ucar.edu) / 2018-01-24.
 
 
  contains
@@ -150,20 +153,6 @@
 
     if (trim(config_microp_scheme)     == 'suite') config_microp_scheme     = 'mp_thompson'
     if (trim(config_convection_scheme) == 'suite') config_convection_scheme = 'cu_grell_freitas'
-    if (trim(config_pbl_scheme)        == 'suite') config_pbl_scheme        = 'bl_mynn'
-    if (trim(config_gwdo_scheme)       == 'suite') config_gwdo_scheme       = 'bl_ysu_gwdo'
-    if (trim(config_radt_lw_scheme)    == 'suite') config_radt_lw_scheme    = 'rrtmg_lw'
-    if (trim(config_radt_sw_scheme)    == 'suite') config_radt_sw_scheme    = 'rrtmg_sw'
-    if (trim(config_radt_cld_scheme)   == 'suite') config_radt_cld_scheme   = 'cld_fraction'
-    if (trim(config_sfclayer_scheme)   == 'suite') config_sfclayer_scheme   = 'sf_mynn'
-    if (trim(config_lsm_scheme)        == 'suite') config_lsm_scheme        = 'noah'
-
-    if (config_mynn_cloudpdf == -1) config_mynn_cloudpdf = 0
-
- else if (trim(config_physics_suite) == 'convection_permitting_wrf390') then
-
-    if (trim(config_microp_scheme)     == 'suite') config_microp_scheme     = 'mp_thompson'
-    if (trim(config_convection_scheme) == 'suite') config_convection_scheme = 'cu_grell_freitas_wrf390'
     if (trim(config_pbl_scheme)        == 'suite') config_pbl_scheme        = 'bl_mynn'
     if (trim(config_gwdo_scheme)       == 'suite') config_gwdo_scheme       = 'bl_ysu_gwdo'
     if (trim(config_radt_lw_scheme)    == 'suite') config_radt_lw_scheme    = 'rrtmg_lw'
