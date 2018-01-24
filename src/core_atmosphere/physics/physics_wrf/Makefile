@@ -9,7 +9,6 @@ OBJS = \
 	libmassv.o                       \
 	module_bl_gwdo.o                 \
 	module_bl_mynn.o                 \
-	module_bl_mynn.wrf-3.9.0.o       \
 	module_bl_ysu.o                  \
 	module_cam_error_function.o      \
 	module_cam_shr_kind_mod.o        \
@@ -52,9 +51,6 @@ physics_wrf: $(OBJS)
 module_bl_mynn.o: \
 	module_cam_error_function.o
 
-module_bl_mynn.wrf-3.9.0.o: \
-	module_cam_error_function.o
-
 module_cam_support.o: \
 	module_cam_shr_kind_mod.o
 
@@ -90,7 +86,7 @@ module_sf_bep_bem.o: \
 	module_sf_urban.o
 
 module_sf_mynn.o: \
-	module_bl_mynn.wrf-3.9.0.o \
+	module_bl_mynn.o \
 	module_sf_sfclay.o
 
 module_sf_noahdrv.o: \

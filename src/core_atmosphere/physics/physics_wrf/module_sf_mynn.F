@@ -76,7 +76,7 @@ MODULE module_sf_mynn
         xlv,           &
         ep_2
   use module_sf_sfclay,only: sfclayinit
-  use module_bl_mynn_wrf390, only: tv0, mym_condensation_wrf390
+  use module_bl_mynn, only: tv0, mym_condensation
 
   implicit none
   private
@@ -87,7 +87,7 @@ MODULE module_sf_mynn
        &p1000mb, cp, xlv, ep_2
 
   USE module_sf_sfclay, ONLY: sfclayinit
-  USE module_bl_mynn_wrf390,   only: tv0, mym_condensation
+  USE module_bl_mynn,   only: tv0, mym_condensation
   USE module_wrf_error
 !-------------------------------------------------------------------
   IMPLICIT NONE
@@ -410,7 +410,7 @@ CONTAINS
 
               ! NOTE: The last grid number is kts+1 instead of kte.
 #if defined(mpas)
-              CALL mym_condensation_wrf390 (kts,kts+1,dx(i,j), &
+              CALL mym_condensation (kts,kts+1,dx(i,j), &
                    &            dummy1,dummy2,dummy3,   &
                    &            dummy4,dummy5,dummy6,   &
                    &            dummy7,dummy8,dummy9,   &
@@ -420,7 +420,7 @@ CONTAINS
                    &            vt(kts:kts+1), vq(kts:kts+1), &
                    &            dummy14,dummy13)
 #else
-              CALL mym_condensation_wrf390 (kts,kts+1, dx, &
+              CALL mym_condensation (kts,kts+1, dx,     &
                    &            dummy1,dummy2,dummy3,   &
                    &            dummy4,dummy5,dummy6,   &
                    &            dummy7,dummy8,dummy9,   &
@@ -447,41 +447,12 @@ CONTAINS
 !                   &           cldfra_bl2D(i,kts:kts+1),& !JOE-subgrid BL clouds
 !                   &            PBLH(i,j),HFX(i,j),     & !JOE-subgrid BL clouds
 !                   &            vt(kts:kts+1), vq(kts:kts+1), &
-!                   &            th,sgm)
+ !                  &            th,sgm)
               vt1(i) = vt(kts)
               vq1(i) = vq(kts)
            ENDDO
         ENDIF
 
-#if defined(mpas)
-        CALL SFCLAY1D_mynn(                                           &
-                J,U1D,V1D,T1D,QV1D,P1D,dz8w1d,rho1d,                  &
-                U1D2,V1D2,dz2w1d,                                     &
-                CP,G,ROVCP,R,XLV,PSFCPA(ims,j),CHS(ims,j),CHS2(ims,j),&
-                CQS2(ims,j),CPM(ims,j),PBLH(ims,j), RMOL(ims,j),      &
-                ZNT(ims,j),UST(ims,j),MAVAIL(ims,j),ZOL(ims,j),       &
-                MOL(ims,j),REGIME(ims,j),PSIM(ims,j),PSIH(ims,j),     &
-                XLAND(ims,j),HFX(ims,j),QFX(ims,j),TSK(ims,j),        &
-                U10(ims,j),V10(ims,j),TH2(ims,j),T2(ims,j),           &
-                Q2(ims,j),FLHC(ims,j),FLQC(ims,j),SNOWH(ims,j),       &
-                QGH(ims,j),QSFC(ims,j),LH(ims,j),                     &
-                GZ1OZ0(ims,j),WSPD(ims,j),BR(ims,j),ISFFLX,dx(ims,j), &
-                SVP1,SVP2,SVP3,SVPT0,EP1,EP2,KARMAN,                  &
-                ch(ims,j),vt1,vq1,qc1d,qcg(ims,j),                    &
-                itimestep,                                            &
-!JOE-begin additional output
-                z0zt_ratio(ims,j),wstar(ims,j),                       &
-                qstar(ims,j),resist(ims,j),logres(ims,j),             &
-!JOE-end
-                rstoch1D,                                             &
-                ids,ide, jds,jde, kds,kde,                            &
-                ims,ime, jms,jme, kms,kme,                            &
-                its,ite, jts,jte, kts,kte                             &
-                ,isftcflx,iz0tlnd,                                    &
-                USTM(ims,j),CK(ims,j),CKA(ims,j),                     &
-                CD(ims,j),CDA(ims,j)                                  &
-                                                                   )
-#else
         CALL SFCLAY1D_mynn(                                        &
                 J,U1D,V1D,T1D,QV1D,P1D,dz8w1d,rho1d,               &
                 U1D2,V1D2,dz2w1d,                                  &
@@ -509,7 +480,6 @@ CONTAINS
                 USTM(ims,j),CK(ims,j),CKA(ims,j),                  &
                 CD(ims,j),CDA(ims,j)                               &
                                                                    )
-#endif
 
       ENDDO
 
