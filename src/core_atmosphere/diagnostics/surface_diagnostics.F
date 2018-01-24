@@ -160,7 +160,7 @@ module surface_diagnostics
             ! Precipitation diagnostics
             rain_bucket(iCell) = rain_bucket(iCell) + max(0., rainncv(iCell) - snowncv(iCell) - graupelncv(iCell))
             conv_bucket(iCell) = conv_bucket(iCell) + raincv(iCell)
-            snow_bucket(iCell) = snow_bucket(iCell) + snowncv(iCell) + graupelncv(iCell)
+            snow_bucket(iCell) = snow_bucket(iCell) + (snowncv(iCell) + graupelncv(iCell)) * snow_ratio(iCell)
             if (t2m(iCell) < 273.16) then
                 zrain_bucket(iCell) = zrain_bucket(iCell) + max(0., rainncv(iCell) + raincv(iCell) - snowncv(iCell) - graupelncv(iCell))
             end if
