@@ -16,7 +16,6 @@
 
 !wrf physics:
  use module_bl_mynn
- use module_bl_mynn_wrf390
  use module_bl_ysu
 
  implicit none
@@ -69,6 +68,9 @@
 !   Laura D. Fowler (laura@ucar.edu) / 2017-02-16.
 ! * added the implementation of the MYNN PBL scheme from WRF 3.9.0.
 !   Laura D. Fowler (laura@ucar.edu) / 2017-03-06.
+! * removed the option bl_mynn_wrf390.  The option bl_mynn now points to the PBL scheme from WRF version 3.9.0
+!   instead of version 3.6.1.
+!   Laura D. Fowler (laura@ucar.edu) / 20180-01-24.
 
 
  contains
@@ -131,7 +133,7 @@
        if(.not.allocated(exch_p)    ) allocate(exch_p(ims:ime,kms:kme,jms:jme)    )
        if(.not.allocated(rthraten_p)) allocate(rthraten_p(ims:ime,kms:kme,jms:jme))
 
-    case("bl_mynn","bl_mynn_wrf390")
+    case("bl_mynn")
        if(.not.allocated(dx_p)  ) allocate(dx_p(ims:ime,jms:jme)  )
        if(.not.allocated(ch_p)  ) allocate(ch_p(ims:ime,jms:jme)  )
        if(.not.allocated(qcg_p) ) allocate(qcg_p(ims:ime,jms:jme) )
@@ -155,7 +157,6 @@
        if(.not.allocated(qwt_p)     ) allocate(qwt_p(ims:ime,kms:kme,jms:jme)     )
        if(.not.allocated(rniblten_p)) allocate(rniblten_p(ims:ime,kms:kme,jms:jme))
 
-       !added local variables needed in the call to mynn_bl_driver_wrf390: 
        if(.not.allocated(qcbl_p)    ) allocate(qcbl_p(ims:ime,kms:kme,jms:jme)    )
        if(.not.allocated(cldfrabl_p)) allocate(cldfrabl_p(ims:ime,kms:kme,jms:jme))
        if(.not.allocated(edmfa_p)   ) allocate(edmfa_p(ims:ime,kms:kme,jms:jme)   )
@@ -227,7 +228,7 @@
        if(allocated(exch_p)    ) deallocate(exch_p    )
        if(allocated(rthraten_p)) deallocate(rthraten_p)
 
-    case("bl_mynn","bl_mynn_wrf390")
+    case("bl_mynn")
        if(allocated(dx_p)  ) deallocate(dx_p  )
        if(allocated(ch_p)  ) deallocate(ch_p  )
        if(allocated(qcg_p) ) deallocate(qcg_p )
@@ -251,7 +252,6 @@
        if(allocated(qwt_p)     ) deallocate(qwt_p     )
        if(allocated(rniblten_p)) deallocate(rniblten_p)
 
-       !added local variables needed in the call to mynn_bl_driver_wrf390: 
        if(allocated(qcbl_p)    ) deallocate(qcbl_p    )
        if(allocated(cldfrabl_p)) deallocate(cldfrabl_p)
        if(allocated(edmfa_p)   ) deallocate(edmfa_p   )
@@ -379,7 +379,7 @@
        enddo
        enddo
 
-    case("bl_mynn","bl_mynn_wrf390")
+    case("bl_mynn")
        call mpas_pool_get_config(configs,'config_len_disp',len_disp)
        call mpas_pool_get_array(mesh,'meshDensity',meshDensity)
 
@@ -566,7 +566,7 @@
        enddo
        enddo
 
-    case("bl_mynn","bl_mynn_wrf390")
+    case("bl_mynn")
        call mpas_pool_get_array(diag_physics,'el_pbl'    ,el_pbl    )
        call mpas_pool_get_array(diag_physics,'cov'       ,cov       )
        call mpas_pool_get_array(diag_physics,'qke'       ,qke       )
@@ -697,41 +697,8 @@
                 )
        call mpas_timer_stop('YSU')
 
-    case("bl_mynn")
-       call mpas_timer_start('MYNN_pbl')
+   case("bl_mynn")
        call  mynn_bl_driver ( &
-                 p        = pres_hyd_p  , exner    = pi_p        , ps       = psfc_p     , &
-                 th       = th_p        , dz       = dz_p        , u        = u_p        , &
-                 v        = v_p         , qv       = qv_p        , qc       = qc_p       , &
-                 qi       = qi_p        , qni      = ni_p        , rho      = rho_p      , &
-                 du       = rublten_p   , dv       = rvblten_p   , dth      = rthblten_p , &
-                 dqv      = rqvblten_p  , dqc      = rqcblten_p  , dqi      = rqiblten_p , &
-                 dqni     = rniblten_p  , flag_qc  = f_qc        , flag_qnc = f_qnc      , &
-                 flag_qi  = f_qi        , flag_qni = f_qni       , kpbl     = kpbl_p     , &
-                 pblh     = hpbl_p      , xland    = xland_p     , ts       = tsk_p      , &
-                 hfx      = hfx_p       , qfx      = qfx_p       , ch       = ch_p       , &
-                 sh3d     = sh3d_p      , tsq      = tsq_p       , qsq      = qsq_p      , &
-                 cov      = cov_p       , el_pbl   = elpbl_p     , qsfc     = qsfc_p     , &
-                 qcg      = qcg_p       , ust      = ust_p       , rmol     = rmol_p     , &
-                 wspd     = wspd_p      , wstar    = wstar_p     , delta    = delta_p    , &
-                 delt     = dt_pbl      , k_h      = kzh_p       , k_m      = kzm_p      , &
-                 k_q      = kzq_p       , uoce     = uoce_p      , voce     = voce_p     , &
-                 qke      = qke_p       , qke_adv  = qkeadv_p    , vdfg     = vdfg_p     , &
-                 tke_pbl  = tkepbl_p    , dqke     = dqke_p      , qwt      = qwt_p      , &
-                 qshear   = qshear_p    , qbuoy    = qbuoy_p     , qdiss    = qdiss_p    , &
-                 initflag          = initflag          ,                                   &
-                 grav_settling     = grav_settling     ,                                   &
-                 bl_mynn_cloudpdf  = bl_mynn_cloudpdf  ,                                   &
-                 bl_mynn_tkeadvect = bl_mynn_tkeadvect ,                                   &
-                 bl_mynn_tkebudget = bl_mynn_tkebudget ,                                   &
-                 ids = ids , ide = ide , jds = jds , jde = jde , kds = kds , kde = kde   , &
-                 ims = ims , ime = ime , jms = jms , jme = jme , kms = kms , kme = kme   , &
-                 its = its , ite = ite , jts = jts , jte = jte , kts = kts , kte = kte     &
-                            )
-       call mpas_timer_stop('MYNN_pbl')
-
-   case("bl_mynn_wrf390")
-       call  mynn_bl_driver_wrf390 ( &
                  p         = pres_hyd_p  , exner     = pi_p        , ps        = psfc_p     , &
                  th        = th_p        , t3d       = t_p         , dz        = dz_p       , &
                  dxCell    = dx_p        , u         = u_p         , v         = v_p        , &

@@ -82,6 +82,9 @@
 ! * added the option cu_grell_freitas_wrf390 for the Grell-Freitas parameterization of convection from
 !   WRF version 3.9.0.
 !   Laura D. Fowler (laura@ucar.edu) / 2017-03-09.
+! * removed the options sf_mynn_wrf390 and bl_mynn_wrf390. The options sf_mynn and bl_mynn now point to the
+!   surface and PBL schemes from WRF version 3.9.0 instead of version 3.6.1.
+!   Laura D. Fowler (laura@ucar.edu) / 2018-01-24.
 
 
  contains
@@ -161,7 +164,7 @@
 
     if (trim(config_microp_scheme)     == 'suite') config_microp_scheme     = 'mp_thompson'
     if (trim(config_convection_scheme) == 'suite') config_convection_scheme = 'cu_grell_freitas_wrf390'
-    if (trim(config_pbl_scheme)        == 'suite') config_pbl_scheme        = 'bl_mynn_wrf390'
+    if (trim(config_pbl_scheme)        == 'suite') config_pbl_scheme        = 'bl_mynn'
     if (trim(config_gwdo_scheme)       == 'suite') config_gwdo_scheme       = 'bl_ysu_gwdo'
     if (trim(config_radt_lw_scheme)    == 'suite') config_radt_lw_scheme    = 'rrtmg_lw'
     if (trim(config_radt_sw_scheme)    == 'suite') config_radt_sw_scheme    = 'rrtmg_sw'
@@ -218,10 +221,9 @@
  endif
 
 !pbl scheme:
- if(.not. (config_pbl_scheme .eq. 'off'            .or. &
-           config_pbl_scheme .eq. 'bl_mynn'        .or. &
-           config_pbl_scheme .eq. 'bl_mynn_wrf390' .or. &
-           config_pbl_scheme .eq. 'bl_ysu'         )) then
+ if(.not. (config_pbl_scheme .eq. 'off'     .or. &
+           config_pbl_scheme .eq. 'bl_mynn' .or. &
+           config_pbl_scheme .eq. 'bl_ysu')) then
 
     write(mpas_err_message,'(A,A10)') 'illegal value for pbl_scheme: ', &
           trim(config_pbl_scheme)
@@ -229,8 +231,7 @@
 
     !ensure that config_mynn_cloudpdf is correctly defined as a function of
     !the MYNN version of the PBL scheme:
-    if(config_pbl_scheme .eq. 'bl_mynn'       ) config_mynn_cloudpdf = 0
-    if(config_pbl_scheme .eq. 'bl_mynn_wrf390') config_mynn_cloudpdf = 2
+    if(config_pbl_scheme .eq. 'bl_mynn') config_mynn_cloudpdf = 2
 
  endif
 
@@ -303,9 +304,6 @@
     !ensure that config_sfclayer_scheme is properly chosen and that config_mynn_cloudpdf is
     !correctly defined as a function of the PBL scheme:
     if(config_pbl_scheme == 'bl_mynn') then
-       config_sfclayer_scheme = 'sf_mynn'
-       config_mynn_cloudpdf   = 0
-    elseif(config_pbl_scheme == 'bl_mynn_wrf390') then
        config_sfclayer_scheme = 'sf_mynn'
        config_mynn_cloudpdf   = 2
     elseif(config_pbl_scheme == 'bl_ysu') then

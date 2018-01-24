@@ -76,6 +76,9 @@
 !   the calculation of the different tendencies with updated values of potential temperature, water vapor, and
 !   condensates after call to cloud microphysics.
 !   Laura D. Fowler (laura@ucar.edu) / 2017-08-19.
+! * removed the option bl_mynn_wrf390. The options sf_mynn and bl_mynn now point to the surface and PBL
+!   schemes from WRF version 3.9.0 instead of version 3.6.1.
+!   Laura D. Fowler (laura@ucar.edu) / 2018-01-24.
 
 
  contains
@@ -127,7 +130,7 @@
  if(.not.allocated(qg_p)   ) allocate(qg_p(ims:ime,kms:kme,jms:jme)   )
 
  pbl_select: select case (trim(pbl_scheme))
-    case("bl_mynn","bl_mynn_wrf390")
+    case("bl_mynn")
        if(.not.allocated(nc_p)) allocate(nc_p(ims:ime,kms:kme,jms:jme))
        if(.not.allocated(ni_p)) allocate(ni_p(ims:ime,kms:kme,jms:jme))
 
@@ -192,7 +195,7 @@
  if(allocated(qg_p)    ) deallocate(qg_p    )
 
  pbl_select: select case (trim(pbl_scheme))
-    case("bl_mynn","bl_mynn_wrf390")
+    case("bl_mynn")
        if(allocated(nc_p)) deallocate(nc_p)
        if(allocated(ni_p)) deallocate(ni_p)
 
@@ -333,7 +336,7 @@
  enddo
 
  pbl_select: select case (trim(pbl_scheme))
-    case("bl_mynn","bl_mynn_wrf390")
+    case("bl_mynn")
        call mpas_pool_get_dimension(state,'index_nc',index_nc)
        call mpas_pool_get_dimension(state,'index_ni',index_ni)
        nc => scalars(index_nc,:,:)

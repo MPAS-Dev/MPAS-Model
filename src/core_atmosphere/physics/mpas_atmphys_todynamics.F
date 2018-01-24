@@ -34,6 +34,8 @@
 ! ----------------------------------------
 ! * cleaned-up subroutines physics_get_tend and physics_get_tend_work.
 !   Laura D. Fowler (laura@ucar.edu) / 2018-01-23.
+! * removed the option bl_mynn_wrf390.
+!   Laura D. Fowler (laura@ucar.edu) / 2018-01-24.
 
 
  contains
@@ -303,7 +305,7 @@
     enddo
 
     pbl_select: select case (trim(pbl_scheme))
-       case('bl_mynn','bl_mynn_wrf390')
+       case('bl_mynn')
 
           do i = 1, nCellsSolve
           do k = 1, nVertLevels
