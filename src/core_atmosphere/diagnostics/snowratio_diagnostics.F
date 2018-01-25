@@ -81,7 +81,7 @@ module snowratio_diagnostics
         integer, pointer :: nCells, nVertLevels, index_qv
 
         real (kind=RKIND) :: temperature_max, pressure, temperature, w_layer, w_max
-        real (kind=RKIND) :: cobb_index, cobb_interp, cobb_srk, snow_ratio_tmp
+        real (kind=RKIND) :: cobb_index, cobb_interp, cobb_srk, snow_ratio_tmp, graupel_frc
         real (kind=RKIND) :: dz_layer, weighting_factor, weighting_factor_sum
         real (kind=RKIND), dimension(:), pointer :: snow_ratio
         real (kind=RKIND), dimension(:,:), pointer :: z
@@ -98,10 +98,10 @@ module snowratio_diagnostics
 
         real (kind=RKIND), parameter :: snow_ratio_default = 1.
         real (kind=RKIND), parameter :: snow_ratio_static = 10.
-        real (kind=RKIND), parameter :: snow_ratio_min = 5.
+        real (kind=RKIND), parameter :: snow_ratio_min = 4.
         real (kind=RKIND), parameter :: snow_ratio_max = 20.
-        real (kind=RKIND), parameter :: rh_cloud_base = 85.
-        real (kind=RKIND), parameter :: rh_cloud_top = 70.
+        real (kind=RKIND), parameter :: snow_to_graupel = 0.40
+        real (kind=RKIND), parameter :: rh_cloud = 70.
 
         call mpas_pool_get_array(diag, 'snow_ratio', snow_ratio)
 
@@ -122,10 +122,10 @@ module snowratio_diagnostics
            do iCell = 1, nCells
               snow_ratio(iCell) = snow_ratio_default
               if (snowncv(iCell)+graupelncv(iCell) <= 0) cycle
-              temperature_max = -1.e6
+              temperature_max = (theta_m(1,iCell)/(1._RKIND+rvord*scalars(index_qv,1,iCell)))*exner(1,iCell)
               do k = 1, nVertLevels
                  pressure = (pressure_p(k,iCell)+pressure_b(k,iCell))/100._RKIND
-                 if (k == 1 .or. pressure >= 500) then
+                 if (pressure >= 500) then
                     temperature = (theta_m(k,iCell)/(1._RKIND+rvord*scalars(index_qv,k,iCell)))*exner(k,iCell)
                     temperature_max = max(temperature_max, temperature)
                  else
@@ -137,6 +137,9 @@ module snowratio_diagnostics
               else
                  snow_ratio(iCell) = 12.0+(271.16-temperature_max)
               end if
+              ! reduce snow ratio for graupel
+              graupel_frc = max(0.,min( 1., graupelncv(iCell) / (snowncv(iCell) + graupelncv(iCell))))
+              snow_ratio(iCell) = graupel_frc*max(snow_ratio_min,snow_ratio(iCell)*snow_to_graupel)+(1.-graupel_frc)*snow_ratio(iCell)
               snow_ratio(iCell) = max(snow_ratio_min, min(snow_ratio_max, snow_ratio(iCell)))
            end do
 
@@ -157,42 +160,9 @@ module snowratio_diagnostics
 
            allocate(cobb_table(31))
 
-           ! cobb table 2005
-!          cobb_table(1)=4.0
-!          cobb_table(2)=5.5
-!          cobb_table(3)=7.0
-!          cobb_table(4)=7.5
-!          cobb_table(5)=8.0
-!          cobb_table(6)=8.5
-!          cobb_table(7)=9.0
-!          cobb_table(8)=9.5
-!          cobb_table(9)=10.0
-!          cobb_table(10)=11.0
-!          cobb_table(11)=12.0
-!          cobb_table(12)=14.5
-!          cobb_table(13)=17.0
-!          cobb_table(14)=20.0
-!          cobb_table(15)=23.0
-!          cobb_table(16)=24.0
-!          cobb_table(17)=25.0
-!          cobb_table(18)=24.0
-!          cobb_table(19)=23.0
-!          cobb_table(20)=20.0
-!          cobb_table(21)=17.0
-!          cobb_table(22)=14.5
-!          cobb_table(23)=12.0
-!          cobb_table(24)=10.5
-!          cobb_table(25)=9.0
-!          cobb_table(26)=8.0
-!          cobb_table(27)=7.5
-!          cobb_table(28)=7.0
-!          cobb_table(29)=7.0
-!          cobb_table(30)=7.0
-!          cobb_table(31)=7.5
-
            ! modified cobb table
-           cobb_table(1)=5.0
-           cobb_table(2)=6.0
+           cobb_table(1)=4.0
+           cobb_table(2)=5.5
            cobb_table(3)=7.0
            cobb_table(4)=7.5
            cobb_table(5)=8.0
@@ -214,83 +184,78 @@ module snowratio_diagnostics
            cobb_table(21)=16.0
            cobb_table(22)=14.0
            cobb_table(23)=12.0
-           cobb_table(24)=10.5
-           cobb_table(25)=9.0
-           cobb_table(26)=8.0
-           cobb_table(27)=7.5
+           cobb_table(24)=10.0
+           cobb_table(25)=8.5
+           cobb_table(26)=7.5
+           cobb_table(27)=7.0
            cobb_table(28)=7.0
            cobb_table(29)=7.0
            cobb_table(30)=7.0
            cobb_table(31)=7.5
 
            do iCell = 1, nCells
+
+              ! set background snow ratio
               snow_ratio(iCell) = snow_ratio_default
               if (snowncv(iCell)+graupelncv(iCell) <= 0) cycle
-              ! check for cloud layer
+              snow_ratio(iCell) = snow_ratio_static
+
+              ! find cloud base, cloud top, and maximum vertical motion
               k_cloud_base = 0
               k_cloud_top = 0
               w_max = 0.
               do k = 1, nVertLevels-1
-                 temperature = (theta_m(k,iCell)/(1._RKIND+rvord*scalars(index_qv,k,iCell)))*exner(k,iCell)-273.15
-                 if (temperature <= 0) then
-                    if (k_cloud_base == 0 .and. relhum(k,iCell) >= rh_cloud_base) then          
-                       ! cloud base level
-                       k_cloud_base = k
-                    else if (k_cloud_base > 0 .and. relhum(k,iCell) < rh_cloud_top) then     
-                       ! cloud top level
-                       k_cloud_top = k-1
-                       exit
-                    end if
-                    if (k_cloud_base > 0) then
-                       ! cloud maximum upward vertical motion
-                       w_layer = 0.5*(w(k+1,iCell)+w(k,iCell))
-                       w_max = max(w_max, w_layer)
-                    end if
+                 w_layer = 0.5*(w(k+1,iCell)+w(k,iCell))
+                 if (relhum(k,iCell) >= rh_cloud .and. w_layer .gt. 0) then
+                    w_max = max(w_max, w_layer)
+                    if (k_cloud_base == 0) k_cloud_base = k
+                    k_cloud_top = k
+                 end if
+              end do
+              if (w_max <= 0) cycle
+
+              ! weighting factor sum
+              weighting_factor_sum = 0.
+              do k = k_cloud_base, k_cloud_top
+                 w_layer = 0.5*(w(k+1,iCell)+w(k,iCell))
+                 if (w_layer > 0) then
+                    dz_layer = z(k+1,iCell)-z(k,iCell)
+                    weighting_factor = w_layer*dz_layer
+                   !weighting_factor = w_layer*(w_layer/w_max)**2*dz_layer
+                    weighting_factor_sum = weighting_factor_sum + weighting_factor
                  end if
               end do
 
-              if (k_cloud_base == 0 .or. w_max <= 0) then
-                 ! if no cloud found or no upward vertical motion, set snow ratio to static value
-                 snow_ratio(iCell) = snow_ratio_static
-              else
-                 ! weighting factor sum
-                 weighting_factor_sum = 0.
-                 do k = k_cloud_base, k_cloud_top
-                    w_layer = 0.5*(w(k+1,iCell)+w(k,iCell))
-                    if (w_layer > 0) then
-                       dz_layer = z(k+1,iCell)-z(k,iCell)
-                       weighting_factor = w_layer*(w_layer/w_max)**2*dz_layer
-                       weighting_factor_sum = weighting_factor_sum + weighting_factor        
+              ! compute cobb snow ratio
+              snow_ratio_tmp = 0.
+              do k = k_cloud_base, k_cloud_top
+                 w_layer = 0.5*(w(k+1,iCell)+w(k,iCell))
+                 if (w_layer > 0) then
+                    ! temperature (C)
+                    temperature = (theta_m(k,iCell)/(1._RKIND+rvord*scalars(index_qv,k,iCell)))*exner(k,iCell)-273.15
+                    ! interpolate cobb snow ratio table using temperature
+                    if (temperature >= 0) then
+                       cobb_srk=cobb_table(1)
+                    elseif (temperature <= -30) then
+                       cobb_srk=cobb_table(31)
+                    else
+                       cobb_index = abs(temperature)+1.
+                       cobb_interp = cobb_index-int(cobb_index)
+                       cobb_srk = cobb_interp*cobb_table(int(cobb_index+1.))+(1.-cobb_interp)*cobb_table(int(cobb_index))
                     end if
-                 end do
-
-                 ! compute cobb snow ratio
-                 snow_ratio_tmp = 0.
-                 do k = k_cloud_base, k_cloud_top
-                    w_layer = 0.5*(w(k+1,iCell)+w(k,iCell))
-                    if (w_layer > 0) then
-                       ! temperature (C)
-                       temperature = (theta_m(k,iCell)/(1._RKIND+rvord*scalars(index_qv,k,iCell)))*exner(k,iCell)-273.15
-                       ! interpolate cobb snow ratio table using temperature
-                       if (temperature >= 0) then
-                          cobb_srk=cobb_table(1)
-                       elseif (temperature <= -30) then
-                          cobb_srk=cobb_table(31)
-                       else
-                          cobb_index = abs(temperature)+1.
-                          cobb_interp = cobb_index-int(cobb_index)
-                          cobb_srk = cobb_interp*cobb_table(int(cobb_index+1.))+(1.-cobb_interp)*cobb_table(int(cobb_index))
-                       end if
-                       ! weight layer cobb snow ratio by upward vertical motion contribution       
-                       dz_layer = z(k+1,iCell)-z(k,iCell)
-                       weighting_factor = w_layer*(w_layer/w_max)**2*dz_layer
-                       snow_ratio_tmp = snow_ratio_tmp+cobb_srk*weighting_factor/weighting_factor_sum
-                    end if
-                 end do
-                 snow_ratio(iCell) = snow_ratio_tmp
-              end if
-              snow_ratio(iCell) = max(snow_ratio_min, min(snow_ratio_max, snow_ratio(iCell)))       
+                    ! weight layer cobb snow ratio by upward vertical motion contribution       
+                    dz_layer = z(k+1,iCell)-z(k,iCell)
+                    weighting_factor = w_layer*dz_layer
+                   !weighting_factor = w_layer*(w_layer/w_max)**2*dz_layer
+                    snow_ratio_tmp = snow_ratio_tmp+cobb_srk*weighting_factor/weighting_factor_sum
+                 end if
+              end do
+              ! reduce snow ratio for graupel
+              graupel_frc = max(0.,min( 1., graupelncv(iCell) / (snowncv(iCell) + graupelncv(iCell))))
+              snow_ratio_tmp = graupel_frc*max(snow_ratio_min,snow_ratio_tmp*snow_to_graupel)+(1.-graupel_frc)*snow_ratio_tmp
+              snow_ratio(iCell) = max(snow_ratio_min, min(snow_ratio_max, snow_ratio_tmp))
            end do
+
            deallocate(cobb_table)
 
         ! noah snow ratio (gottlieb)
@@ -313,6 +278,9 @@ module snowratio_diagnostics
               else
                  snow_ratio(iCell) = 1./(0.05+0.0017*(temperature+15.)**1.5)
               end if
+              ! reduce snow ratio for graupel
+              graupel_frc = max(0.,min( 1., graupelncv(iCell) / (snowncv(iCell) + graupelncv(iCell))))
+              snow_ratio(iCell) = graupel_frc*max(snow_ratio_min,snow_ratio(iCell)*snow_to_graupel)+(1.-graupel_frc)*snow_ratio(iCell)
               snow_ratio(iCell) = max(snow_ratio_min, min(snow_ratio_max, snow_ratio(iCell)))           
            end do
 
@@ -332,6 +300,9 @@ module snowratio_diagnostics
               if (snowncv(iCell)+graupelncv(iCell) <= 0) cycle
               temperature = (theta_m(1,iCell)/(1._RKIND+rvord*scalars(index_qv,1,iCell)))*exner(1,iCell)-273.15
               snow_ratio(iCell) = 1000./(67.92+51.25*exp(temperature/2.59))
+              ! reduce snow ratio for graupel
+              graupel_frc = max(0.,min( 1., graupelncv(iCell) / (snowncv(iCell) + graupelncv(iCell))))
+              snow_ratio(iCell) = graupel_frc*max(snow_ratio_min,snow_ratio(iCell)*snow_to_graupel)+(1.-graupel_frc)*snow_ratio(iCell)
               snow_ratio(iCell) = max(snow_ratio_min, min(snow_ratio_max, snow_ratio(iCell)))
            end do
 
@@ -346,6 +317,10 @@ module snowratio_diagnostics
               snow_ratio(iCell) = snow_ratio_default
               if (snowncv(iCell)+graupelncv(iCell) <= 0) cycle
               snow_ratio(iCell) = snow_ratio_static
+              ! reduce snow ratio for graupel
+              graupel_frc = max(0.,min( 1., graupelncv(iCell) / (snowncv(iCell) + graupelncv(iCell))))
+              snow_ratio(iCell) = graupel_frc*max(snow_ratio_min,snow_ratio(iCell)*snow_to_graupel)+(1.-graupel_frc)*snow_ratio(iCell)
+              snow_ratio(iCell) = max(snow_ratio_min, min(snow_ratio_max, snow_ratio(iCell)))
            end do
 
         end if
