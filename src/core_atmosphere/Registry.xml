@@ -1058,7 +1058,7 @@
             type="output"
             filename_template="accum.$Y-$M-$D_$h.$m.$s.nc"
             output_interval="00:15:00"
-            clobber mode="append"
+            clobber_mode="append"
             runtime_format="separate_file">
             <!-- 15-minute accumulation -->
             <var name="precip15m"/>
@@ -1070,7 +1070,7 @@
             type="output"
             filename_template="accum.$Y-$M-$D_$h.$m.$s.nc"
             output_interval="00:30:00"
-            clobber mode="append"
+            clobber_mode="append"
             runtime_format="separate_file">
             <!-- 30-minute accumulation -->
             <var name="precip30m"/>
