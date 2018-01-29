@@ -10,7 +10,7 @@
 
 module accumulated_diagnostics
 
-    use mpas_kind_types, only : RKIND, StrKIND
+    use mpas_kind_types, only : RKIND
     use mpas_derived_types, only : MPAS_pool_type, MPAS_clock_type
 
     type (MPAS_pool_type), pointer :: mesh
@@ -46,12 +46,11 @@ module accumulated_diagnostics
     !-----------------------------------------------------------------------
     subroutine accumulated_diagnostics_setup(configs, all_pools, simulation_clock)
 
-        use mpas_derived_types, only : MPAS_pool_type, MPAS_clock_type, MPAS_STREAM_OUTPUT, MPAS_STREAM_INPUT, &
-                                       MPAS_STREAM_INPUT_OUTPUT
-        use mpas_pool_routines, only : mpas_pool_get_subpool, mpas_pool_get_config, mpas_pool_get_dimension
-        use mpas_atm_diagnostics_utils, only : mpas_stream_inclusion_count
-        use mpas_timekeeping, only : MPAS_timeInterval_type, MPAS_time_type, MPAS_set_timeInterval, &                                         
-                                     MPAS_get_clock_time, MPAS_add_clock_alarm, MPAS_NOW   
+        use mpas_derived_types, only : MPAS_pool_type, MPAS_clock_type
+        use mpas_pool_routines, only : mpas_pool_get_subpool, mpas_pool_get_dimension
+        use mpas_timekeeping, only : MPAS_timeInterval_type, MPAS_time_type, operator (+), &
+                                     MPAS_get_clock_time, MPAS_set_timeInterval, &
+                                     MPAS_add_clock_alarm, MPAS_NOW
 
         implicit none
 
@@ -106,6 +105,7 @@ module accumulated_diagnostics
     subroutine accumulated_diagnostics_update()
 
         use mpas_pool_routines, only : mpas_pool_get_dimension, mpas_pool_get_array
+        use mpas_timekeeping, only : MPAS_is_alarm_ringing
 
         implicit none
     
@@ -113,7 +113,7 @@ module accumulated_diagnostics
         integer, pointer :: nCells
 
         ! Precipitation diagnostics (in)
-        real (kind=RKIND), dimension(:), pointer :: rainncv, raincv, snowncv, graupelncv, snow_ratio
+        real (kind=RKIND), dimension(:), pointer :: t2m, rainncv, raincv, snowncv, graupelncv, snow_ratio
 
         ! Precipitation accumulations (inout)
         real (kind=RKIND), dimension(:), pointer :: precip15m, snow15m, ice15m, ice_total
@@ -172,13 +172,13 @@ module accumulated_diagnostics
 
         ! Every 30 minutes, copy 30-min total accum to hourly buckets
         if (MPAS_is_alarm_ringing(simulationClock, 'acc30mAlarm')) then
-            call increment_bucket('precip30m', precip01h_00)
-            call increment_bucket('snow30m', snow01h_00)
-            call increment_bucket('ice30m', ice01h_00)
+            call increment_bucket_arr('precip30m', precip01h_00)
+            call increment_bucket_arr('snow30m', snow01h_00)
+            call increment_bucket_arr('ice30m', ice01h_00)
 
-            call increment_bucket('precip30m', precip01h_30)
-            call increment_bucket('snow30m', snow01h_30)
-            call increment_bucket('ice30m', ice01h_30)
+            call increment_bucket_arr('precip30m', precip01h_30)
+            call increment_bucket_arr('snow30m', snow01h_30)
+            call increment_bucket_arr('ice30m', ice01h_30)
         end if
 
     end subroutine accumulated_diagnostics_update
@@ -202,11 +202,11 @@ module accumulated_diagnostics
         real (kind=RKIND), dimension(:), pointer :: bucket_in, bucket_out
 
         call mpas_pool_get_array(diag, key_out, bucket_out)
-        call increment_bucket(key_in, bucket_out)
+        call increment_bucket_arr(key_in, bucket_out)
     end subroutine increment_bucket
 
     !-----------------------------------------------------------------------
-    !  routine increment_bucket
+    !  routine increment_bucket_arr
     !
     !> \brief Adds the value from one array to another
     !> \author John Wong
@@ -215,17 +215,17 @@ module accumulated_diagnostics
     !>  Adds the vaule from an array referenced by key_in to array_out
     !
     !-----------------------------------------------------------------------
-    subroutine increment_bucket(key_in, array_out)
+    subroutine increment_bucket_arr(key_in, array_out)
         use mpas_pool_routines, only : mpas_pool_get_array
 
         implicit none
         character (len=*), intent(in) :: key_in
-        real (kind=RKIND), dimension(:), intent(in)  :: array_out
+        real (kind=RKIND), dimension(:), intent(inout)  :: array_out
         real (kind=RKIND), dimension(:), pointer :: bucket_in
 
         call mpas_pool_get_array(diag, key_in, bucket_in)
         array_out(:) = array_out(:) + bucket_in(:)
-    end subroutine increment_bucket
+    end subroutine increment_bucket_arr
 
     !-----------------------------------------------------------------------
     !  routine accumulated_diagnostics_compute
@@ -242,6 +242,7 @@ module accumulated_diagnostics
 
         use mpas_pool_routines, only : mpas_pool_get_array
         use mpas_atm_diagnostics_utils, only : MPAS_field_will_be_written
+        use mpas_timekeeping, only : MPAS_is_alarm_ringing
 
         implicit none
 
@@ -326,18 +327,18 @@ module accumulated_diagnostics
 
         ! Reset hourly buckets at :00
         if (MPAS_is_alarm_ringing(simulationClock, 'acc01h_00Alarm')) then
-            call reset_bucket(precip01h_00)
-            call reset_bucket(snow01h_00)
-            call reset_bucket(ice01h_00)
+            call reset_bucket_arr(precip01h_00)
+            call reset_bucket_arr(snow01h_00)
+            call reset_bucket_arr(ice01h_00)
 
             call MPAS_reset_clock_alarm(simulationClock, 'acc01h_00Alarm')
         end if
 
         ! Reset hourly buckets at :30
         if (MPAS_is_alarm_ringing(simulationClock, 'acc01h_30Alarm')) then
-            call reset_bucket(precip01h_30)
-            call reset_bucket(snow01h_30)
-            call reset_bucket(ice01h_30)
+            call reset_bucket_arr(precip01h_30)
+            call reset_bucket_arr(snow01h_30)
+            call reset_bucket_arr(ice01h_30)
 
             call MPAS_reset_clock_alarm(simulationClock, 'acc01h_30Alarm')
         end if
@@ -356,12 +357,12 @@ module accumulated_diagnostics
         bucket(:) = 0._RKIND
     end subroutine reset_bucket
 
-    subroutine reset_bucket(bucket)
+    subroutine reset_bucket_arr(bucket)
         implicit none
-        real (kind=RKIND), dimension(:), intent(in) :: bucket
+        real (kind=RKIND), dimension(:), intent(inout) :: bucket
 
         bucket(:) = 0._RKIND
-    end subroutine reset_bucket
+    end subroutine reset_bucket_arr
 
     !-----------------------------------------------------------------------
     !  routine accumulated_diagnostics_cleanup
