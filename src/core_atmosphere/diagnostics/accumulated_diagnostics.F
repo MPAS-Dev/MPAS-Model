@@ -6,7 +6,14 @@
 ! distributed with this code, or at http://mpas-dev.github.com/license.html
 !
 ! John Wong, TWC / IBM, 01/27/2018
-! This routine computes diagnostics of accumulated variables.
+! This module provides subroutines for computing diagnostics of accumulated variables
+! valid at prescribed intervals.
+!
+! * 15-minute accumulated total precipitation, snow, and ice every 15 minutes
+! * 30-minute accumulated total precipitation, snow, and ice every 30 minutes
+! * Houry accumulated total precipitation, snow, and ice at :00 and :30
+! * Total ice accumulation since model start time
+!
 
 module accumulated_diagnostics
 
@@ -219,9 +226,6 @@ module accumulated_diagnostics
     !
     !-----------------------------------------------------------------------
     subroutine accumulated_diagnostics_compute()
-
-        use mpas_pool_routines, only : mpas_pool_get_array
-        use mpas_atm_diagnostics_utils, only : MPAS_field_will_be_written
         use mpas_timekeeping, only : MPAS_is_alarm_ringing
 
         implicit none
@@ -235,66 +239,55 @@ module accumulated_diagnostics
         alarm30  = MPAS_is_alarm_ringing(simulationClock, 'acc01h_30Alarm')
 
         ! Precip
-        if ( MPAS_field_will_be_written('precip30m') ) then
-            call mpas_pool_get_array(diag, 'precip30m', precip)
-            if (alarm30m) then
-                precip(:) = precip30m(:)
-            else
-                precip(:) = 0.0_RKIND
-            end if
-        end if
-        if ( MPAS_field_will_be_written('precip01h') ) then
-            call mpas_pool_get_array(diag, 'precip01h', precip)
-            if (alarm00) then
-                precip(:) = precip01h_00(:)
-            else if (alarm30) then
-                precip(:) = precip01h_30(:)
-            else
-                precip(:) = 0.0_RKIND
-            end if
-        end if
+        call output_choice('precip30m', alarm30m, precip30m)
+        call output_choice('precip01h', alarm00, precip01h_00, alarm30, precip01h_30)
 
         ! Snow
-        if ( MPAS_field_will_be_written('snow30m') ) then
-            call mpas_pool_get_array(diag, 'snow30m', snow)
-            if (alarm30m) then
-                snow(:) = snow30m(:)
-            else
-                snow(:) = 0.0_RKIND
-            end if
-        end if
-        if ( MPAS_field_will_be_written('snow01h') ) then
-            call mpas_pool_get_array(diag, 'snow01h', snow)
-            if (alarm00) then
-                snow(:) = snow01h_00(:)
-            else if (alarm30) then
-                snow(:) = snow01h_30(:)
-            else
-                snow(:) = 0.0_RKIND
-            end if
-        end if
+        call output_choice('snow30m', alarm30m, snow30m)
+        call output_choice('snow01h', alarm00, snow01h_00, alarm30, snow01h_30)
 
         ! Ice
-        if ( MPAS_field_will_be_written('ice30m') ) then
-            call mpas_pool_get_array(diag, 'ice30m', ice)
-            if (alarm30m) then
-                ice(:) = ice30m(:)
-            else
-                ice(:) = 0.0_RKIND
-            end if
-        end if
-        if ( MPAS_field_will_be_written('ice01h') ) then
-            call mpas_pool_get_array(diag, 'ice01h', ice)
-            if (alarm00) then
-                ice(:) = ice01h_00(:)
-            else if (alarm30) then
-                ice(:) = ice01h_30(:)
-            else
-                ice(:) = 0.0_RKIND
-            end if
-        end if
+        call output_choice('ice30m', alarm30m, ice30m)
+        call output_choice('ice01h', alarm00, ice01h_00, alarm30, ice01h_30)
 
     end subroutine accumulated_diagnostics_compute
+
+
+    !-----------------------------------------------------------------------
+    !  routine output_choice
+    !
+    !> \brief Sets the field to input arrays based on the given conditions
+    !> \author John Wong
+    !> \date   27 Jan 2017
+    !> \details
+    !>  Sets the array referenced by field to the values in arr1 or arr2
+    !>  depending on the corresponding conditions cond1 and cond2. If
+    !>  neither condition is true, the field is reset using reset_bucket_arr.
+    !
+    !-----------------------------------------------------------------------
+    subroutine output_choice(field, cond1, arr1, cond2, arr2)
+        use mpas_pool_routines, only : mpas_pool_get_array
+        use mpas_atm_diagnostics_utils, only : MPAS_field_will_be_written
+        implicit none
+
+        character (len=*), intent(in) :: field
+        logical, intent(in) :: cond1
+        logical, intent(in), optional :: cond2
+        real (kind=RKIND), allocatable, dimension(:), intent(in) :: arr1
+        real (kind=RKIND), allocatable, dimension(:), intent(in), optional :: arr2
+        real (kind=RKIND), dimension(:), pointer :: arr
+
+        if ( MPAS_field_will_be_written(field) ) then
+            call mpas_pool_get_array(diag, field, arr)
+            if (cond1 .and. allocated(arr1)) then
+                arr(:) = arr1(:)
+            else if (present(cond2) .and. cond2 .and. allocated(arr2)) then
+                arr(:) = arr2(:)
+            else
+                call reset_bucket_arr(arr)
+            end if
+        end if
+    end subroutine output_choice
 
     !-----------------------------------------------------------------------
     !  routine accumulated_diagnostics_reset
@@ -350,22 +343,38 @@ module accumulated_diagnostics
     end subroutine accumulated_diagnostics_reset
 
 
-    subroutine reset_bucket(key)
+    !-----------------------------------------------------------------------
+    !  routine reset_bucket
+    !
+    !> \brief Sets the array to value
+    !> \author John Wong
+    !> \date   29 Jan 2017
+    !> \details
+    !>  Sets all the values in an array to the given value, or zero if omitted.
+    !
+    !-----------------------------------------------------------------------
+    subroutine reset_bucket(key, value)
         use mpas_pool_routines, only : mpas_pool_get_array
 
         implicit none
         character (len=*), intent(in) :: key
+        real (kind=RKIND), intent(in), optional :: value
         real (kind=RKIND), dimension(:), pointer :: bucket
 
         call mpas_pool_get_array(diag, key, bucket)
-        bucket(:) = 0._RKIND
+        call reset_bucket_arr(bucket, value)
     end subroutine reset_bucket
 
-    subroutine reset_bucket_arr(bucket)
+    subroutine reset_bucket_arr(bucket, value)
         implicit none
         real (kind=RKIND), dimension(:), intent(inout) :: bucket
+        real (kind=RKIND), intent(in), optional :: value
 
-        bucket(:) = 0._RKIND
+        if ( present(value) ) then
+            bucket(:) = value
+        else
+            bucket(:) = 0._RKIND
+        endif
     end subroutine reset_bucket_arr
 
     !-----------------------------------------------------------------------
