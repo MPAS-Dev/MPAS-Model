@@ -1034,14 +1034,10 @@
             <var name="precip30m"/>
             <var name="snow30m"/>
             <var name="ice30m"/>
-            <!-- Hourly accumulation at :00, invalid at :30 -->
-            <var name="precip01h_00"/>
-            <var name="snow01h_00"/>
-            <var name="ice01h_00"/>
-            <!-- Hourly accumulation at :30, invalid at :00 -->
-            <var name="precip01h_30"/>
-            <var name="snow01h_30"/>
-            <var name="ice01h_30"/>
+            <!-- Hourly accumulation. Valid at :00 and :30 -->
+            <var name="precip01h"/>
+            <var name="snow01h"/>
+            <var name="ice01h"/>
             <!-- End accumulated diagnostics defined in diagnostics/Registry_accumulated.xml -->
 
             <!-- Begin convective diagnostics defined in diagnostics/Registry_convective.xml -->

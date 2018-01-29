@@ -8,28 +8,22 @@
          description="15-minute accumulated total precip"/>
     <var name="precip30m"       type="real"     dimensions="nCells Time" units="mm"
          description="30-minute accumulated total precip"/>
-    <var name="precip01h_00"       type="real"     dimensions="nCells Time" units="mm"
+    <var name="precip01h"       type="real"     dimensions="nCells Time" units="mm"
          description="Hourly accumulated total precip at :00"/>
-    <var name="precip01h_30"       type="real"     dimensions="nCells Time" units="mm"
-         description="Hourly accumulated total precip at :30"/>
          
     <var name="snow15m"       type="real"     dimensions="nCells Time" units="mm"
          description="15-minute accumulated snow and graupel"/>
     <var name="snow30m"       type="real"     dimensions="nCells Time" units="mm"
          description="30-minute accumulated snow and graupel"/>
-    <var name="snow01h_00"       type="real"     dimensions="nCells Time" units="mm"
+    <var name="snow01h"       type="real"     dimensions="nCells Time" units="mm"
          description="Hourly accumulated snow and graupel at :00"/>
-    <var name="snow01h_30"       type="real"     dimensions="nCells Time" units="mm"
-         description="Hourly accumulated snow and graupel at :30"/>
          
      <var name="ice15m"       type="real"     dimensions="nCells Time" units="mm"
          description="15-minute accumulated freezing rain"/>
      <var name="ice30m"       type="real"     dimensions="nCells Time" units="mm"
          description="30-minute accumulated freezing rain"/>
-     <var name="ice01h_00"       type="real"     dimensions="nCells Time" units="mm"
-         description="Hourly accumulated freezing rain at :00"/>
-     <var name="ice01h_30"       type="real"     dimensions="nCells Time" units="mm"
-         description="Hourly accumulated freezing rain at :30"/>
+     <var name="ice01h"       type="real"     dimensions="nCells Time" units="mm"
+         description="Hourly accumulated freezing rain"/>
      <var name="ice_total"       type="real"     dimensions="nCells Time" units="mm"
          description="Accumulated freezing precipitation"/>
          
