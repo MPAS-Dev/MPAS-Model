@@ -1024,6 +1024,25 @@
             <var name="refl10cm_prate"/>
             <var name="ncuprec"/>
             <!-- End surface diagnostics defined in diagnostics/Registry_surface.xml -->
+            
+            <!-- Begin accumulated diagnostics defined in diagnostics/Registry_accumulated.xml -->
+            <!-- 15-minute accumulation -->
+            <var name="precip15m"/>
+            <var name="snow15m"/>
+            <var name="ice15m"/>
+            <!-- 30-minute accumulation -->
+            <var name="precip30m"/>
+            <var name="snow30m"/>
+            <var name="ice30m"/>
+            <!-- Hourly accumulation at :00, invalid at :30 -->
+            <var name="precip01h_00"/>
+            <var name="snow01h_00"/>
+            <var name="ice01h_00"/>
+            <!-- Hourly accumulation at :30, invalid at :00 -->
+            <var name="precip01h_30"/>
+            <var name="snow01h_30"/>
+            <var name="ice01h_30"/>
+            <!-- End accumulated diagnostics defined in diagnostics/Registry_accumulated.xml -->
 
             <!-- Begin convective diagnostics defined in diagnostics/Registry_convective.xml -->
             <var name="cape"/>
@@ -1053,38 +1072,6 @@
 			<var name="hu_oml"/>
 			<var name="hv_oml"/>
 		</stream>
-        
-        <stream name="accum15m"
-            type="output"
-            filename_template="accum.$Y-$M-$D_$h.$m.$s.nc"
-            output_interval="00:15:00"
-            clobber_mode="append"
-            runtime_format="separate_file">
-            <!-- 15-minute accumulation -->
-            <var name="precip15m"/>
-            <var name="snow15m"/>
-            <var name="ice15m"/>
-        </stream>
-        
-        <stream name="accum30m"
-            type="output"
-            filename_template="accum.$Y-$M-$D_$h.$m.$s.nc"
-            output_interval="00:30:00"
-            clobber_mode="append"
-            runtime_format="separate_file">
-            <!-- 30-minute accumulation -->
-            <var name="precip30m"/>
-            <var name="snow30m"/>
-            <var name="ice30m"/>
-            <!-- Hourly accumulation at :00, invalid at :30 -->
-            <var name="precip01h_00"/>
-            <var name="snow01h_00"/>
-            <var name="ice01h_00"/>
-            <!-- Hourly accumulation at :30, invalid at :00 -->
-            <var name="precip01h_30"/>
-            <var name="snow01h_30"/>
-            <var name="ice01h_30"/>
-        </stream>
 
 		<stream name="surface" 
                         type="input" 
