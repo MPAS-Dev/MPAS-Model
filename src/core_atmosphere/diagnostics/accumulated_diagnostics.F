@@ -162,6 +162,12 @@ module accumulated_diagnostics
             ! Ice/freezing rain accumulation
             if (t2m(iCell) < 273.16) then
                 ice = precip - snow
+                ! Rainfall is multipled by factors of 0.8, and 0.66 
+                !   in order to reduce the amount of ice accumulation
+                !   depending on temperature.  These were best guesses
+                !   as to how much ice would aggregate on surfaces 
+                !   at given temperatures.  These certainly could
+                !   be better tuned.
                 if (t2m(iCell) < 270.37) then ! 27 F
                     ice = ice * 0.8
                 else
