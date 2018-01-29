@@ -28,6 +28,7 @@ module accumulated_diagnostics
 
     private
 
+    real (kind=RKIND), allocatable, dimension(:) :: precip30m, snow30m, ice30m
     real (kind=RKIND), allocatable, dimension(:) :: precip01h_00, snow01h_00, ice01h_00
     real (kind=RKIND), allocatable, dimension(:) :: precip01h_30, snow01h_30, ice01h_30
 
@@ -72,6 +73,9 @@ module accumulated_diagnostics
 
         ! Allocate internal buckets for hourly accumulation
         call mpas_pool_get_dimension(mesh, 'nCells', nCells)
+        allocate(precip30m(nCells))
+        allocate(snow30m(nCells))
+        allocate(ice30m(nCells))
         allocate(precip01h_00(nCells))
         allocate(snow01h_00(nCells))
         allocate(ice01h_00(nCells))
@@ -161,24 +165,22 @@ module accumulated_diagnostics
             end if
         end do
 
-
-
         ! Every 15 minutes, copy 15-min total accum to 30-min buckets
         if (MPAS_is_alarm_ringing(simulationClock, 'acc15mAlarm')) then
-            call increment_bucket('precip15m', 'precip30m')
-            call increment_bucket('snow15m', 'snow30m')
-            call increment_bucket('ice15m', 'ice30m')
+            call increment_bucket('precip15m', precip30m)
+            call increment_bucket('snow15m', snow30m)
+            call increment_bucket('ice15m', ice30m)
         end if
 
         ! Every 30 minutes, copy 30-min total accum to hourly buckets
         if (MPAS_is_alarm_ringing(simulationClock, 'acc30mAlarm')) then
-            call increment_bucket_arr('precip30m', precip01h_00)
-            call increment_bucket_arr('snow30m', snow01h_00)
-            call increment_bucket_arr('ice30m', ice01h_00)
+            precip01h_00(:) = precip01h_00(:) + precip30m(:)
+            snow01h_00(:) = snow01h_00(:) + snow30m(:)
+            ice01h_00(:) = ice01h_00(:) + ice30m(:)
 
-            call increment_bucket_arr('precip30m', precip01h_30)
-            call increment_bucket_arr('snow30m', snow01h_30)
-            call increment_bucket_arr('ice30m', ice01h_30)
+            precip01h_30(:) = precip01h_30(:) + precip30m(:)
+            snow01h_30(:) = snow01h_30(:) + snow30m(:)
+            ice01h_30(:) = ice01h_30(:) + ice30m(:)
         end if
 
     end subroutine accumulated_diagnostics_update
@@ -190,32 +192,10 @@ module accumulated_diagnostics
     !> \author John Wong
     !> \date   27 Jan 2017
     !> \details
-    !>  Adds the vaule from an array referenced by key_in to an array
-    !>  referenced by key_out.
-    !
-    !-----------------------------------------------------------------------
-    subroutine increment_bucket(key_in, key_out)
-        use mpas_pool_routines, only : mpas_pool_get_array
-
-        implicit none
-        character (len=*), intent(in) :: key_in, key_out
-        real (kind=RKIND), dimension(:), pointer :: bucket_in, bucket_out
-
-        call mpas_pool_get_array(diag, key_out, bucket_out)
-        call increment_bucket_arr(key_in, bucket_out)
-    end subroutine increment_bucket
-
-    !-----------------------------------------------------------------------
-    !  routine increment_bucket_arr
-    !
-    !> \brief Adds the value from one array to another
-    !> \author John Wong
-    !> \date   27 Jan 2017
-    !> \details
     !>  Adds the vaule from an array referenced by key_in to array_out
     !
     !-----------------------------------------------------------------------
-    subroutine increment_bucket_arr(key_in, array_out)
+    subroutine increment_bucket(key_in, array_out)
         use mpas_pool_routines, only : mpas_pool_get_array
 
         implicit none
@@ -225,7 +205,7 @@ module accumulated_diagnostics
 
         call mpas_pool_get_array(diag, key_in, bucket_in)
         array_out(:) = array_out(:) + bucket_in(:)
-    end subroutine increment_bucket_arr
+    end subroutine increment_bucket
 
     !-----------------------------------------------------------------------
     !  routine accumulated_diagnostics_compute
@@ -246,49 +226,73 @@ module accumulated_diagnostics
 
         implicit none
 
-        real (kind=RKIND), dimension(:), pointer :: precip01h, snow01h, ice01h
-        logical :: alarm00, alarm30
+        real (kind=RKIND), dimension(:), pointer :: precip, snow, ice
+        logical :: alarm30m, alarm00, alarm30
 
         ! Determine which internal bucket to use for output
-        alarm00 = MPAS_is_alarm_ringing(simulationClock, 'acc01h_00Alarm')
-        alarm30 = MPAS_is_alarm_ringing(simulationClock, 'acc01h_30Alarm')
+        alarm30m = MPAS_is_alarm_ringing(simulationClock, 'acc30mAlarm')
+        alarm00  = MPAS_is_alarm_ringing(simulationClock, 'acc01h_00Alarm')
+        alarm30  = MPAS_is_alarm_ringing(simulationClock, 'acc01h_30Alarm')
 
         ! Precip
-        if ( MPAS_field_will_be_written('precip01h') ) then
-            call mpas_pool_get_array(diag, 'precip01h', precip01h)
-            if (alarm00) then
-                precip01h(:) = precip01h_00(:)
-            else if (alarm30) then
-                precip01h(:) = precip01h_30(:)
+        if ( MPAS_field_will_be_written('precip30m') ) then
+            call mpas_pool_get_array(diag, 'precip30m', precip)
+            if (alarm30m) then
+                precip(:) = precip30m(:)
             else
-                precip01h(:) = 0.0_RKIND
+                precip(:) = 0.0_RKIND
+            end if
+        end if
+        if ( MPAS_field_will_be_written('precip01h') ) then
+            call mpas_pool_get_array(diag, 'precip01h', precip)
+            if (alarm00) then
+                precip(:) = precip01h_00(:)
+            else if (alarm30) then
+                precip(:) = precip01h_30(:)
+            else
+                precip(:) = 0.0_RKIND
             end if
         end if
 
         ! Snow
-        if ( MPAS_field_will_be_written('snow01h') ) then
-            call mpas_pool_get_array(diag, 'snow01h', snow01h)
-            if (alarm00) then
-                snow01h(:) = snow01h_00(:)
-            else if (alarm30) then
-                snow01h(:) = snow01h_30(:)
+        if ( MPAS_field_will_be_written('snow30m') ) then
+            call mpas_pool_get_array(diag, 'snow30m', snow)
+            if (alarm30m) then
+                snow(:) = snow30m(:)
             else
-                snow01h(:) = 0.0_RKIND
+                snow(:) = 0.0_RKIND
+            end if
+        end if
+        if ( MPAS_field_will_be_written('snow01h') ) then
+            call mpas_pool_get_array(diag, 'snow01h', snow)
+            if (alarm00) then
+                snow(:) = snow01h_00(:)
+            else if (alarm30) then
+                snow(:) = snow01h_30(:)
+            else
+                snow(:) = 0.0_RKIND
             end if
         end if
 
         ! Ice
-        if ( MPAS_field_will_be_written('ice01h') ) then
-            call mpas_pool_get_array(diag, 'ice01h', ice01h)
-            if (alarm00) then
-                ice01h(:) = ice01h_00(:)
-            else if (alarm30) then
-                ice01h(:) = ice01h_30(:)
+        if ( MPAS_field_will_be_written('ice30m') ) then
+            call mpas_pool_get_array(diag, 'ice30m', ice)
+            if (alarm30m) then
+                ice(:) = ice30m(:)
             else
-                ice01h(:) = 0.0_RKIND
+                ice(:) = 0.0_RKIND
             end if
         end if
-
+        if ( MPAS_field_will_be_written('ice01h') ) then
+            call mpas_pool_get_array(diag, 'ice01h', ice)
+            if (alarm00) then
+                ice(:) = ice01h_00(:)
+            else if (alarm30) then
+                ice(:) = ice01h_30(:)
+            else
+                ice(:) = 0.0_RKIND
+            end if
+        end if
 
     end subroutine accumulated_diagnostics_compute
 
@@ -318,9 +322,9 @@ module accumulated_diagnostics
 
         ! Reset 30-minute buckets
         if (MPAS_is_alarm_ringing(simulationClock, 'acc30mAlarm')) then
-            call reset_bucket('precip30m')
-            call reset_bucket('snow30m')
-            call reset_bucket('ice30m')
+            call reset_bucket_arr(precip30m)
+            call reset_bucket_arr(snow30m)
+            call reset_bucket_arr(ice30m)
 
             call MPAS_reset_clock_alarm(simulationClock, 'acc30mAlarm')
         end if
@@ -379,6 +383,9 @@ module accumulated_diagnostics
     subroutine accumulated_diagnostics_cleanup()
         implicit none
 
+        deallocate(precip30m)
+        deallocate(snow30m)
+        deallocate(ice30m)
         deallocate(precip01h_00)
         deallocate(snow01h_00)
         deallocate(ice01h_00)
