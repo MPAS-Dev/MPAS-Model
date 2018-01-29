@@ -40,6 +40,7 @@ module mpas_atm_diagnostics_manager
         use snowratio_diagnostics, only : snowratio_diagnostics_setup
         use surface_diagnostics, only : surface_diagnostics_setup
         use deformation_diagnostics, only : deformation_diagnostics_setup
+        use accumulated_diagnostics, only : accumulated_diagnostics_setup
         use hiwc_diagnostics, only : hiwc_diagnostics_setup
         use unstagger_diagnostics, only : unstagger_diagnostics_setup
         use pv_diagnostics, only : pv_diagnostics_setup
@@ -64,6 +65,7 @@ module mpas_atm_diagnostics_manager
         call convective_diagnostics_setup(structs, clock)
         call snowratio_diagnostics_setup(configs, structs)
         call surface_diagnostics_setup(configs, structs, clock)
+        call accumulated_diagnostics_setup(configs, structs, clock)
         call deformation_diagnostics_setup(structs)
         call hiwc_diagnostics_setup(structs)
         call unstagger_diagnostics_setup(structs)
@@ -87,12 +89,14 @@ module mpas_atm_diagnostics_manager
 
         use diagnostic_template, only : diagnostic_template_update
         use convective_diagnostics, only : convective_diagnostics_update
+        use accumulated_diagnostics, only : accumulated_diagnostics_update
 
         implicit none
 
 
         call diagnostic_template_update()
         call convective_diagnostics_update()
+        call accumulated_diagnostics_update()
 
     end subroutine mpas_atm_diag_update
 
@@ -151,12 +155,14 @@ module mpas_atm_diagnostics_manager
         use diagnostic_template, only : diagnostic_template_reset
         use convective_diagnostics, only : convective_diagnostics_reset
         use surface_diagnostics, only : surface_diagnostics_reset
+        use accumulated_diagnostics, only : accumulated_diagnostics_reset
 
         implicit none
 
         call diagnostic_template_reset()
         call convective_diagnostics_reset()
         call surface_diagnostics_reset()
+        call accumulated_diagnostics_reset()
 
     end subroutine mpas_atm_diag_reset
 

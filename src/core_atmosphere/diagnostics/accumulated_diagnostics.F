@@ -21,12 +21,10 @@ module accumulated_diagnostics
     type (MPAS_clock_type), pointer :: simulationClock
 
     public :: accumulated_diagnostics_setup, &
-              accumulated_diagnostics_compute, &
+              accumulated_diagnostics_update, &
               accumulated_diagnostics_reset
 
-    private
-
-    real (kind=RKIND), pointer :: config_dt
+    private :: increment_bucket, reset_bucket
 
     contains
 
@@ -55,7 +53,6 @@ module accumulated_diagnostics
         type (MPAS_pool_type), pointer :: configs
         type (MPAS_pool_type), pointer :: all_pools
         type (MPAS_clock_type), pointer :: simulation_clock
-        character(len=StrKIND), pointer :: config_bucket_precip_interval
 
         type (MPAS_timeInterval_type) :: intv15, intv30, intv1h
         type (MPAS_time_type) :: now
@@ -66,8 +63,6 @@ module accumulated_diagnostics
         call mpas_pool_get_subpool(all_pools, 'state', state)
         call mpas_pool_get_subpool(all_pools, 'diag', diag)
         call mpas_pool_get_subpool(all_pools, 'diag_physics', diag_physics)
-        call mpas_pool_get_config(configs, 'config_bucket_precip_interval', config_bucket_precip_interval)
-        call mpas_pool_get_config(configs, 'config_dt', config_dt)
 
         if (trim(config_bucket_precip_interval) == 'none') then
             return
@@ -135,7 +130,8 @@ module accumulated_diagnostics
         do iCell = 1,nCells
 
             ! Precipitation accumulation
-            precip15m(iCell) = precip15m(iCell) + max(0., rainncv(iCell) + raincv(iCell))
+            precip = max(0., rainncv(iCell) + raincv(iCell))
+            precip15m(iCell) = precip15m(iCell) + precip
 
             ! Snow accumulation
             snow = snowncv(iCell) + graupelncv(iCell)
