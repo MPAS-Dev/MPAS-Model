@@ -35,9 +35,9 @@ module accumulated_diagnostics
 
     private
 
-    real (kind=RKIND), allocatable, dimension(:) :: precip30m, snow30m, ice30m
-    real (kind=RKIND), allocatable, dimension(:) :: precip01h_00, snow01h_00, ice01h_00
-    real (kind=RKIND), allocatable, dimension(:) :: precip01h_30, snow01h_30, ice01h_30
+    ! Dimensions shall be nCells x 3 time levels for 30min, 01h_00, and 01h_30
+    integer, parameter :: nTimes = 3
+    real (kind=RKIND), allocatable, dimension(:,:) :: arain, arainc, arainnc, asnow, aice
 
     contains
 
@@ -80,15 +80,11 @@ module accumulated_diagnostics
 
         ! Allocate internal buckets for hourly accumulation
         call mpas_pool_get_dimension(mesh, 'nCells', nCells)
-        allocate(precip30m(nCells))
-        allocate(snow30m(nCells))
-        allocate(ice30m(nCells))
-        allocate(precip01h_00(nCells))
-        allocate(snow01h_00(nCells))
-        allocate(ice01h_00(nCells))
-        allocate(precip01h_30(nCells))
-        allocate(snow01h_30(nCells))
-        allocate(ice01h_30(nCells))
+        allocate(arain(nCells, nTimes))
+        allocate(arainc(nCells, nTimes))
+        allocate(arainnc(nCells, nTimes))
+        allocate(asnow(nCells, nTimes))
+        allocate(aice(nCells, nTimes))
 
         ! Set precipitation bucket alarm for resets
         call MPAS_set_timeInterval(intv15, M=15)
@@ -127,9 +123,10 @@ module accumulated_diagnostics
         real (kind=RKIND), dimension(:), pointer :: t2m, rainncv, raincv, snowncv, graupelncv, snow_ratio
 
         ! Precipitation accumulations (inout)
-        real (kind=RKIND), dimension(:), pointer :: precip15m, snow15m, ice15m, ice_total
+        real (kind=RKIND), dimension(:), pointer :: rain15m, rainc15m, rainnc15m
+        real (kind=RKIND), dimension(:), pointer :: snow15m, ice15m, ice_total
 
-        real (kind=RKIND) :: precip, snow, ice
+        real (kind=RKIND) :: rain, snow, ice
 
         call mpas_pool_get_dimension(mesh, 'nCells', nCells)
         call mpas_pool_get_array(diag_physics, 't2m', t2m)
@@ -139,8 +136,10 @@ module accumulated_diagnostics
         call mpas_pool_get_array(diag_physics, 'graupelncv', graupelncv)
         call mpas_pool_get_array(diag, 'snow_ratio', snow_ratio)
 
-        ! Total precipiation (convective + non-convective, incl frozen)
-        call mpas_pool_get_array(diag, 'precip15m', precip15m)
+        ! Precipiation (convective + non-convective, incl frozen)
+        call mpas_pool_get_array(diag, 'rain15m', rain15m)
+        call mpas_pool_get_array(diag, 'rainc15m', rainc15m)
+        call mpas_pool_get_array(diag, 'rainnc15m', rainnc15m)
 
         ! Snow (+graupel)
         call mpas_pool_get_array(diag, 'snow15m', snow15m)
@@ -152,16 +151,18 @@ module accumulated_diagnostics
         do iCell = 1,nCells
 
             ! Precipitation accumulation
-            precip = max(0., rainncv(iCell) + raincv(iCell))
-            precip15m(iCell) = precip15m(iCell) + precip
+            rain = raincv(iCell) + rainncv(iCell)
+            rainc15m(iCell) = rainc15m(iCell) + raincv(iCell)
+            rainnc15m(iCell) = rainnc15m(iCell) + rainncv(iCell)
 
             ! Snow accumulation
             snow = snowncv(iCell) + graupelncv(iCell)
             snow15m(iCell) = snow15m(iCell) + snow * snow_ratio(iCell)
 
             ! Ice/freezing rain accumulation
+            ice = 0._RKIND
             if (t2m(iCell) < 273.16) then
-                ice = precip - snow
+                ice = rain - snow
                 ! Rainfall is multipled by factors of 0.8, and 0.66 
                 !   in order to reduce the amount of ice accumulation
                 !   depending on temperature.  These were best guesses
@@ -176,49 +177,36 @@ module accumulated_diagnostics
                 ice15m(iCell) = ice15m(iCell) + ice
                 ice_total(iCell) = ice_total(iCell) + ice
             end if
+
+            ! Final non-frozen precipitation
+            rain15m(iCell) = rain15m(iCell) + rain - snow - ice
         end do
 
         ! Every 15 minutes, copy 15-min total accum to 30-min buckets
         if (MPAS_is_alarm_ringing(simulationClock, 'acc15mAlarm')) then
-            call increment_bucket('precip15m', precip30m)
-            call increment_bucket('snow15m', snow30m)
-            call increment_bucket('ice15m', ice30m)
+            arain(:,1)   = arain(:,1)   + rain15m(:)
+            arainc(:,1)  = arainc(:,1)  + rainc15m(:)
+            arainnc(:,1) = arainnc(:,1) + rainnc15m(:)
+            asnow(:,1)   = asnow(:,1)   + snow15m(:)
+            aice(:,1)    = aice(:,1)    + ice15m(:)
         end if
 
         ! Every 30 minutes, copy 30-min total accum to hourly buckets
         if (MPAS_is_alarm_ringing(simulationClock, 'acc30mAlarm')) then
-            precip01h_00(:) = precip01h_00(:) + precip30m(:)
-            snow01h_00(:) = snow01h_00(:) + snow30m(:)
-            ice01h_00(:) = ice01h_00(:) + ice30m(:)
+            arain(:,2)   = arain(:,2)   + arain(:,1)
+            arainc(:,2)  = arainc(:,2)  + arainc(:,1)
+            arainnc(:,2) = arainnc(:,2) + arainnc(:,1)
+            asnow(:,2)   = asnow(:,2)   + asnow(:,1)
+            aice(:,2)    = aice(:,2)    + aice(:,1)
 
-            precip01h_30(:) = precip01h_30(:) + precip30m(:)
-            snow01h_30(:) = snow01h_30(:) + snow30m(:)
-            ice01h_30(:) = ice01h_30(:) + ice30m(:)
+            arain(:,3)   = arain(:,3)   + arain(:,1)
+            arainc(:,3)  = arainc(:,3)  + arainc(:,1)
+            arainnc(:,3) = arainnc(:,3) + arainnc(:,1)
+            asnow(:,3)   = asnow(:,3)   + asnow(:,1)
+            aice(:,3)    = aice(:,3)    + aice(:,1)
         end if
 
     end subroutine accumulated_diagnostics_update
-
-    !-----------------------------------------------------------------------
-    !  routine increment_bucket
-    !
-    !> \brief Adds the value from one array to another
-    !> \author John Wong
-    !> \date   27 Jan 2017
-    !> \details
-    !>  Adds the vaule from an array referenced by key_in to array_out
-    !
-    !-----------------------------------------------------------------------
-    subroutine increment_bucket(key_in, array_out)
-        use mpas_pool_routines, only : mpas_pool_get_array
-
-        implicit none
-        character (len=*), intent(in) :: key_in
-        real (kind=RKIND), dimension(:), intent(inout)  :: array_out
-        real (kind=RKIND), dimension(:), pointer :: bucket_in
-
-        call mpas_pool_get_array(diag, key_in, bucket_in)
-        array_out(:) = array_out(:) + bucket_in(:)
-    end subroutine increment_bucket
 
     !-----------------------------------------------------------------------
     !  routine accumulated_diagnostics_compute
@@ -244,17 +232,25 @@ module accumulated_diagnostics
         alarm00  = MPAS_is_alarm_ringing(simulationClock, 'acc01h_00Alarm')
         alarm30  = MPAS_is_alarm_ringing(simulationClock, 'acc01h_30Alarm')
 
-        ! Precip
-        call output_choice('precip30m', alarm30m, precip30m)
-        call output_choice('precip01h', alarm00, precip01h_00, alarm30, precip01h_30)
+        ! Rain (non-frozen)
+        call output_choice('rain30m', alarm30m, arain(:,1))
+        call output_choice('rain01h', alarm00, arain(:,2), alarm30, arain(:,3))
+
+        ! Rain (convective)
+        call output_choice('rainc30m', alarm30m, arainc(:,1))
+        call output_choice('rainc01h', alarm00, arainc(:,2), alarm30, arainc(:,3))
+
+        ! Rain (non-convective)
+        call output_choice('rainnc30m', alarm30m, arainnc(:,1))
+        call output_choice('rainnc01h', alarm00, arainnc(:,2), alarm30, arainnc(:,3))
 
         ! Snow
-        call output_choice('snow30m', alarm30m, snow30m)
-        call output_choice('snow01h', alarm00, snow01h_00, alarm30, snow01h_30)
+        call output_choice('snow30m', alarm30m, asnow(:,1))
+        call output_choice('snow01h', alarm00, asnow(:,2), alarm30, asnow(:,3))
 
         ! Ice
-        call output_choice('ice30m', alarm30m, ice30m)
-        call output_choice('ice01h', alarm00, ice01h_00, alarm30, ice01h_30)
+        call output_choice('ice30m', alarm30m, aice(:,1))
+        call output_choice('ice01h', alarm00, aice(:,2), alarm30, aice(:,3))
 
     end subroutine accumulated_diagnostics_compute
 
@@ -312,7 +308,9 @@ module accumulated_diagnostics
 
         ! Reset 15-minute buckets
         if (MPAS_is_alarm_ringing(simulationClock, 'acc15mAlarm')) then
-            call reset_bucket('precip15m')
+            call reset_bucket('rain15m')
+            call reset_bucket('rainc15m')
+            call reset_bucket('rainnc15m')
             call reset_bucket('snow15m')
             call reset_bucket('ice15m')
 
@@ -321,27 +319,33 @@ module accumulated_diagnostics
 
         ! Reset 30-minute buckets
         if (MPAS_is_alarm_ringing(simulationClock, 'acc30mAlarm')) then
-            call reset_bucket_arr(precip30m)
-            call reset_bucket_arr(snow30m)
-            call reset_bucket_arr(ice30m)
+            call reset_bucket_arr(arain(:,1))
+            call reset_bucket_arr(arainc(:,1))
+            call reset_bucket_arr(arainnc(:,1))
+            call reset_bucket_arr(asnow(:,1))
+            call reset_bucket_arr(aice(:,1))
 
             call MPAS_reset_clock_alarm(simulationClock, 'acc30mAlarm')
         end if
 
         ! Reset hourly buckets at :00
         if (MPAS_is_alarm_ringing(simulationClock, 'acc01h_00Alarm')) then
-            call reset_bucket_arr(precip01h_00)
-            call reset_bucket_arr(snow01h_00)
-            call reset_bucket_arr(ice01h_00)
+            call reset_bucket_arr(arain(:,2))
+            call reset_bucket_arr(arainc(:,2))
+            call reset_bucket_arr(arainnc(:,2))
+            call reset_bucket_arr(asnow(:,2))
+            call reset_bucket_arr(aice(:,2))
 
             call MPAS_reset_clock_alarm(simulationClock, 'acc01h_00Alarm')
         end if
 
         ! Reset hourly buckets at :30
         if (MPAS_is_alarm_ringing(simulationClock, 'acc01h_30Alarm')) then
-            call reset_bucket_arr(precip01h_30)
-            call reset_bucket_arr(snow01h_30)
-            call reset_bucket_arr(ice01h_30)
+            call reset_bucket_arr(arain(:,3))
+            call reset_bucket_arr(arainc(:,3))
+            call reset_bucket_arr(arainnc(:,3))
+            call reset_bucket_arr(asnow(:,3))
+            call reset_bucket_arr(aice(:,3))
 
             call MPAS_reset_clock_alarm(simulationClock, 'acc01h_30Alarm')
         end if
@@ -398,15 +402,11 @@ module accumulated_diagnostics
     subroutine accumulated_diagnostics_cleanup()
         implicit none
 
-        deallocate(precip30m)
-        deallocate(snow30m)
-        deallocate(ice30m)
-        deallocate(precip01h_00)
-        deallocate(snow01h_00)
-        deallocate(ice01h_00)
-        deallocate(precip01h_30)
-        deallocate(snow01h_30)
-        deallocate(ice01h_30)
+        deallocate(arain)
+        deallocate(arainc)
+        deallocate(arainnc)
+        deallocate(asnow)
+        deallocate(aice)
     end subroutine accumulated_diagnostics_cleanup
 
 end module accumulated_diagnostics

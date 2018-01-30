@@ -1027,15 +1027,21 @@
             
             <!-- Begin accumulated diagnostics defined in diagnostics/Registry_accumulated.xml -->
             <!-- 15-minute accumulation -->
-            <var name="precip15m"/>
+            <var name="rain15m"/>
+            <var name="rainc15m"/>
+            <var name="rainnc15m"/>
             <var name="snow15m"/>
             <var name="ice15m"/>
             <!-- 30-minute accumulation -->
-            <var name="precip30m"/>
+            <var name="rain30m"/>
+            <var name="rainc30m"/>
+            <var name="rainnc30m"/>
             <var name="snow30m"/>
             <var name="ice30m"/>
             <!-- Hourly accumulation. Valid at :00 and :30 -->
-            <var name="precip01h"/>
+            <var name="rain01h"/>
+            <var name="rainc01h"/>
+            <var name="rainnc01h"/>
             <var name="snow01h"/>
             <var name="ice01h"/>
             <!-- End accumulated diagnostics defined in diagnostics/Registry_accumulated.xml -->

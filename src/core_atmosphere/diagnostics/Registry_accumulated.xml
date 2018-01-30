@@ -7,13 +7,28 @@
 <!-- model start time. 30-minute and hourly accumulated diagnostics are -->
 <!-- valid every 30 minutes.         -->
 <var_struct name="diag" time_levs="1">
-    
-    <var name="precip15m"       type="real"     dimensions="nCells Time" units="mm"
-         description="15-minute accumulated total precip"/>
-    <var name="precip30m"       type="real"     dimensions="nCells Time" units="mm"
-         description="30-minute accumulated total precip"/>
-    <var name="precip01h"       type="real"     dimensions="nCells Time" units="mm"
-         description="Hourly accumulated total precip"/>
+
+
+    <var name="rain15m"       type="real"     dimensions="nCells Time" units="mm"
+        description="15-minute accumulated non-frozen precip"/>
+    <var name="rain30m"       type="real"     dimensions="nCells Time" units="mm"
+        description="30-minute accumulated non-frozen precip"/>
+    <var name="rain01h"       type="real"     dimensions="nCells Time" units="mm"
+        description="Hourly accumulated non-frozen precip"/>
+
+    <var name="rainc15m"       type="real"     dimensions="nCells Time" units="mm"
+         description="15-minute accumulated convective precip"/>
+    <var name="rainc30m"       type="real"     dimensions="nCells Time" units="mm"
+         description="30-minute accumulated convective precip"/>
+    <var name="rainc01h"       type="real"     dimensions="nCells Time" units="mm"
+         description="Hourly accumulated convective precip"/>
+         
+    <var name="rainnc15m"       type="real"     dimensions="nCells Time" units="mm"
+         description="15-minute accumulated grid-scale precip"/>
+    <var name="rainnc30m"       type="real"     dimensions="nCells Time" units="mm"
+         description="30-minute accumulated grid-scale precip"/>
+    <var name="rainnc01h"       type="real"     dimensions="nCells Time" units="mm"
+         description="Hourly accumulated grid-scale precip"/>
          
     <var name="snow15m"       type="real"     dimensions="nCells Time" units="mm"
          description="15-minute accumulated snow and graupel"/>
