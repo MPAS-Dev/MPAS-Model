@@ -8,7 +8,6 @@
 !=================================================================================================================
  module mpas_atmphys_driver_gwdo
  use mpas_kind_types
- use mpas_derived_types
  use mpas_pool_routines
 
  use mpas_atmphys_constants
@@ -267,12 +266,16 @@
  type(mpas_pool_type),intent(inout):: tend_physics
 
 !local variables:
+ character(len=StrKIND),pointer:: gwdo_scheme
+
  integer:: i,iCell,iEdge
  real(kind=RKIND),dimension(:),allocatable:: dx_max
 
 !-----------------------------------------------------------------------------------------------------------------
 !call mpas_log_write('')
 !call mpas_log_write('--- enter subroutine driver_gwdo:')
+
+ call mpas_pool_get_config(configs,'config_gwdo_scheme',gwdo_scheme)
 
 !copy MPAS arrays to local arrays:
  call gwdo_from_MPAS(configs,mesh,sfc_input,diag_physics,tend_physics,its,ite)

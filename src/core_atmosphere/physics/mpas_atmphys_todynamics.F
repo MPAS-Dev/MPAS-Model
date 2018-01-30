@@ -8,12 +8,10 @@
 !=================================================================================================================
  module mpas_atmphys_todynamics
  use mpas_kind_types
- use mpas_derived_types
  use mpas_pool_routines
  use mpas_dmpar
 
  use mpas_atmphys_constants, only: R_d,R_v,degrad
- use mpas_atmphys_vars, only: pbl_scheme,convection_scheme
 
  implicit none
  private
@@ -522,7 +520,7 @@
        enddo
        enddo
 
-       pbl_select: select case (trim(pbl_scheme))
+       pbl_select: select case (trim(config_pbl_scheme))
 
           case("bl_mynn")
 
@@ -549,7 +547,7 @@
        enddo
        enddo
 
-        convection_select: select case(convection_scheme)
+        convection_select: select case(config_convection_scheme)
 
            case('cu_grell_freitas')
 
@@ -706,7 +704,7 @@
        enddo
        enddo
 
-       pbl_select: select case (trim(pbl_scheme))
+       pbl_select: select case (trim(config_pbl_scheme))
 
           case("bl_mynn")
 
@@ -733,7 +731,7 @@
        enddo
        enddo
 
-        convection_select: select case(convection_scheme)
+        convection_select: select case(config_convection_scheme)
 
            case('cu_kain_fritsch')
               do i = 1, nCellsSolve

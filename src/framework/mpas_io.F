@@ -12,6 +12,10 @@ module mpas_io
    use mpas_dmpar
    use mpas_log
 
+#ifndef USE_PIO2
+      use netcdf_nf_data
+#endif
+
    use pio
    use piolib_mod
    use pionfatt_mod
