@@ -275,15 +275,15 @@ module accumulated_diagnostics
         character (len=*), intent(in) :: field
         logical, intent(in) :: cond1
         logical, intent(in), optional :: cond2
-        real (kind=RKIND), allocatable, dimension(:), intent(in) :: arr1
-        real (kind=RKIND), allocatable, dimension(:), intent(in), optional :: arr2
+        real (kind=RKIND), dimension(:), intent(in) :: arr1
+        real (kind=RKIND), dimension(:), intent(in), optional :: arr2
         real (kind=RKIND), dimension(:), pointer :: arr
 
         if ( MPAS_field_will_be_written(field) ) then
             call mpas_pool_get_array(diag, field, arr)
-            if (cond1 .and. allocated(arr1)) then
+            if (cond1) then
                 arr(:) = arr1(:)
-            else if (present(cond2) .and. cond2 .and. allocated(arr2)) then
+            else if (present(cond2) .and. cond2) then
                 arr(:) = arr2(:)
             else
                 call reset_bucket_arr(arr)
