@@ -600,7 +600,7 @@
              dBZ1d(k) = max(-35._RKIND,dBZ1d(k))
              if(zp(k) .lt. 1000.) kp = k
           enddo
-          refl10cm(i,kts:kte) = dBZ1d(kts:kte)
+          refl10cm(kts:kte,i) = dBZ1d(kts:kte)
           refl10cm_max(i) = maxval(dBZ1d(kp:kte))
           grprec = ((10.**(refl10cm_max(i)/10.)/300.)**(1./1.4))/3600.
           totprec = grprec + cuprec(i)
@@ -656,7 +656,7 @@
              dBZ1d(k) = max(-35._RKIND,dBZ1d(k))
              if(zp(k) .lt. 1000.) kp = k
           enddo
-          refl10cm(i,kts:kte) = dBZ1d(kts:kte)
+          refl10cm(kts:kte,i) = dBZ1d(kts:kte)
           refl10cm_max(i) = maxval(dBZ1d(kp:kte))
           grprec = ((10.**(refl10cm_max(i)/10.)/300.)**(1./1.4))/3600.
           totprec = grprec + cuprec(i) 
