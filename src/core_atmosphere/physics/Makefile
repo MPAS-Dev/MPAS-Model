@@ -16,7 +16,6 @@ OBJS_init = \
 	mpas_atmphys_utilities.o
 
 OBJS = \
-	mpas_atmphys_camrad_init.o         \
 	mpas_atmphys_control.o             \
 	mpas_atmphys_driver.o              \
 	mpas_atmphys_driver_cloudiness.o   \
@@ -61,10 +60,6 @@ core_physics: core_physics_wrf
 phys_interface: $(OBJS)
 
 # DEPENDENCIES:
-mpas_atmphys_camrad_init.o: \
-	mpas_atmphys_constants.o \
-	mpas_atmphys_utilities.o
-
 mpas_atmphys_control.o: \
 	mpas_atmphys_utilities.o \
 	mpas_atmphys_vars.o
@@ -118,7 +113,6 @@ mpas_atmphys_driver_pbl.o: \
 	mpas_atmphys_vars.o
 
 mpas_atmphys_driver_radiation_lw.o: \
-	mpas_atmphys_camrad_init.o \
 	mpas_atmphys_constants.o \
 	mpas_atmphys_driver_radiation_sw.o \
 	mpas_atmphys_manager.o \
@@ -126,7 +120,6 @@ mpas_atmphys_driver_radiation_lw.o: \
 	mpas_atmphys_vars.o
 
 mpas_atmphys_driver_radiation_sw.o: \
-	mpas_atmphys_camrad_init.o \
 	mpas_atmphys_constants.o \
 	mpas_atmphys_manager.o \
 	mpas_atmphys_rrtmg_swinit.o \

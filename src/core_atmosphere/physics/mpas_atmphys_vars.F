@@ -126,6 +126,8 @@
 ! * for the Grell-Freitas scheme, added diagnostics of the updraft and downdraft massflux, and tendencies for
 !   shallow, mid-level, and deep convection, separately.
 !   Laura D. Fowler (laura@ucar.edu) / 2017-09-11.
+! * removed all local variables needed to run the CAM longwave and shortwave radiation codes.
+!   Laura D. Fowler (laura@ucar.edu) / 2018-02-01.
 ! * removed the variables rqvdynblten and rthdynblten since they actually are the same variables as rqvblten and
 !   rthblten.
 !   Laura D. Fowler (laura@ucar.edu) /2018-02-26.
@@ -139,7 +141,6 @@
  logical:: l_radtlw                   !controls call to longwave radiation parameterization.
  logical:: l_radtsw                   !controls call to shortwave radiation parameterization.
  logical:: l_conv                     !controls call to convective parameterization.
- logical:: l_camlw                    !controls when to save local CAM LW abs and ems arrays.
  logical:: l_diags                    !controls when to calculate physics diagnostics.
  logical:: l_acrain                   !when .true., limit to accumulated rain is applied.
  logical:: l_acradt                   !when .true., limit to lw and sw radiation is applied.
@@ -225,6 +226,11 @@
 !=================================================================================================================
 !... variables related to ozone climatlogy:
 !=================================================================================================================
+
+ integer:: num_oznlevels
+
+ real(kind=RKIND),dimension(:),allocatable:: &
+    pin_p              !pressure levels for ozone concentration                                [Pa]
 
  real(kind=RKIND),dimension(:,:,:),allocatable:: &
     o3clim_p           !climatological ozone volume mixing ratio                         [???]
@@ -672,43 +678,6 @@
     rrecloud_p,       &!effective radius for cloud water calculated in rrtmg_lwrad             [mu]
     rreice_p,         &!effective radius for cloud ice calculated in rrmtg_lwrad               [mu]
     rresnow_p         !effective radius for snow calculated in rrtmg_lwrad                    [mu]
-
-!=================================================================================================================
-!... variables and arrays related to parameterization of long- and short-wave radiation needed
-!    only by the "CAM" radiation codes:
-!=================================================================================================================
-
- logical:: doabsems
-
- integer:: cam_abs_dim1
- integer:: cam_abs_dim2
- integer:: num_moist
- integer:: num_aerosols
- integer:: num_aerlevels
- integer:: num_oznlevels
-
- real(kind=RKIND),dimension(:),allocatable:: &
-    pin_p,            &!pressure levels for ozone concentration                                [Pa]
-    m_hybi_p           !hybrid levels for aerosols                                             [-]
-
- real(kind=RKIND),dimension(:,:),allocatable:: &
-    m_psn_p,          &!
-    m_psp_p            !
-
- real(kind=RKIND),dimension(:,:,:,:),allocatable:: &
-    aerosolcn_p,      &!
-    aerosolcp_p        !
-
- real(kind=RKIND),dimension(:,:,:),allocatable:: &
-    emstot_p,         &!total emissivity                                                        [-]
-    cemiss_p,         &!cloud emissivity for ISCCP                                              [-]
-    taucldc_p,        &!cloud water optical depth for ISCCP                                     [-]
-    taucldi_p          !cloud ice optical depth for ISCCP                                       [-]    
-
- real(kind=RKIND),dimension(:,:,:,:),allocatable:: &
-    abstot_p,         &!total layer absorptivity                                                [-]
-    absnxt_p,         &!total nearest layer absorptivity                                        [-]
-    ozmixm_p           !ozone mixing ratio.
 
 !=================================================================================================================
 !.. variables and arrays related to cloudiness:

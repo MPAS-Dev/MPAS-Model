@@ -22,7 +22,7 @@
  use mpas_atmphys_constants
  use mpas_atmphys_interface
  use mpas_atmphys_update
- use mpas_atmphys_vars, only: l_camlw,l_conv,l_radtlw,l_radtsw
+ use mpas_atmphys_vars, only: l_conv,l_radtlw,l_radtsw
  use mpas_timer
 
  implicit none

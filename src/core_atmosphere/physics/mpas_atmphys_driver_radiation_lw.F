@@ -14,12 +14,10 @@
  use mpas_atmphys_driver_radiation_sw, only: radconst
  use mpas_atmphys_constants
  use mpas_atmphys_manager, only: gmt,curr_julday,julday,year
- use mpas_atmphys_camrad_init
  use mpas_atmphys_rrtmg_lwinit
  use mpas_atmphys_vars
 
 !wrf physics:
- use module_ra_cam            
  use module_ra_rrtmg_lw
  use module_ra_rrtmg_vinterp
 
@@ -28,8 +26,7 @@
  public:: allocate_radiation_lw,   &
           deallocate_radiation_lw, &
           driver_radiation_lw,     &
-          init_radiation_lw,       &
-          radiation_camlw_to_MPAS
+          init_radiation_lw
 
 
 !MPAS driver for parameterization of longwave radiation codes.
@@ -45,11 +42,9 @@
 ! driver_radiation_lw    : main driver (called from subroutine physics_driver).
 ! radiation_lw_from_MPAS : initialize local arrays.
 ! radiation_lw_to_MPAS   : copy local arrays to MPAS arrays.
-! radiation_camlw_to_MPAS: save local arrays (absorption, emission) for CAM lw radiation code.
 !
 ! WRF physics called from driver_radiation_lw:
 ! --------------------------------------------
-! * module_ra_cam        : CAM long wave radiation code.
 ! * module_ra_rrtmg_lw   : RRTMG long wave radiation code.
 !
 ! add-ons and modifications to sourcecode:
@@ -136,7 +131,6 @@
  if(.not.allocated(rthratenlw_p) ) allocate(rthratenlw_p(ims:ime,kms:kme,jms:jme) )
 
  radiation_lw_select: select case (trim(radt_lw_scheme))
-
     case("rrtmg_lw")
 
        if(.not.allocated(recloud_p)    ) allocate(recloud_p(ims:ime,kms:kme,jms:jme)       )
@@ -157,50 +151,7 @@
        if(.not.allocated(pin_p)        ) allocate(pin_p(num_oznlevels)                     )
        if(.not.allocated(o3clim_p)     ) allocate(o3clim_p(ims:ime,1:num_oznlevels,jms:jme))
 
-    case("cam_lw")
-       if(.not.allocated(xlat_p)       ) allocate(xlat_p(ims:ime,jms:jme)               )
-       if(.not.allocated(xlon_p)       ) allocate(xlon_p(ims:ime,jms:jme)               )
-       if(.not.allocated(gsw_p)        ) allocate(gsw_p(ims:ime,jms:jme)                )
-       if(.not.allocated(swcf_p)       ) allocate(swcf_p(ims:ime,jms:jme)               )
-       if(.not.allocated(swdnb_p)      ) allocate(swdnb_p(ims:ime,jms:jme)              )
-       if(.not.allocated(swdnbc_p)     ) allocate(swdnbc_p(ims:ime,jms:jme)             )
-       if(.not.allocated(swdnt_p)      ) allocate(swdnt_p(ims:ime,jms:jme)              )
-       if(.not.allocated(swdntc_p)     ) allocate(swdntc_p(ims:ime,jms:jme)             )
-       if(.not.allocated(swupb_p)      ) allocate(swupb_p(ims:ime,jms:jme)              )
-       if(.not.allocated(swupbc_p)     ) allocate(swupbc_p(ims:ime,jms:jme)             )
-       if(.not.allocated(swupt_p)      ) allocate(swupt_p(ims:ime,jms:jme)              )
-       if(.not.allocated(swuptc_p)     ) allocate(swuptc_p(ims:ime,jms:jme)             )
-       if(.not.allocated(coszr_p)      ) allocate(coszr_p(ims:ime,jms:jme)              )
-       if(.not.allocated(sfc_albedo_p) ) allocate(sfc_albedo_p(ims:ime,jms:jme)         )
-       if(.not.allocated(rthratensw_p) ) allocate(rthratensw_p(ims:ime,kms:kme,jms:jme) )
-
-       if(.not.allocated(cemiss_p)     ) allocate(cemiss_p(ims:ime,kms:kme,jms:jme)     )
-       if(.not.allocated(taucldc_p)    ) allocate(taucldc_p(ims:ime,kms:kme,jms:jme)    )
-       if(.not.allocated(taucldi_p)    ) allocate(taucldi_p(ims:ime,kms:kme,jms:jme)    )
-
-       if(.not.allocated(pin_p)        ) allocate(pin_p(num_oznlevels)                  )
-       if(.not.allocated(ozmixm_p) ) &
-          allocate(ozmixm_p(ims:ime,1:num_oznlevels,jms:jme,num_months) )
-       
-       if(.not.allocated(m_hybi_p)     ) allocate(m_hybi_p(num_aerlevels)               )
-       if(.not.allocated(m_psn_p)      ) allocate(m_psn_p(ims:ime,jms:jme)              )
-       if(.not.allocated(m_psp_p)      ) allocate(m_psp_p(ims:ime,jms:jme)              )
-       if(.not.allocated(aerosolcn_p)  ) &
-          allocate(aerosolcn_p(ims:ime,1:num_aerlevels,jms:jme,num_aerosols) )
-       if(.not.allocated(aerosolcp_p)  ) &
-          allocate(aerosolcp_p(ims:ime,1:num_aerlevels,jms:jme,num_aerosols) )
-
-       !allocate these arrays on the first time step, only:
-       if(xtime_s .lt. 1.e-12) then
-          if(.not.allocated(emstot_p) ) allocate(emstot_p(ims:ime,kms:kme,jms:jme) )
-          if(.not.allocated(abstot_p) ) &
-             allocate(abstot_p(ims:ime,kms:kme,cam_abs_dim2,jms:jme) )
-          if(.not.allocated(absnxt_p) ) &
-             allocate(absnxt_p(ims:ime,kms:kme,cam_abs_dim1,jms:jme) )
-       endif
-
     case default
-
  end select radiation_lw_select
 
  end subroutine allocate_radiation_lw
@@ -241,7 +192,6 @@
  if(allocated(rthratenlw_p) ) deallocate(rthratenlw_p )
 
  radiation_lw_select: select case (trim(radt_lw_scheme))
-
     case("rrtmg_lw")
        if(allocated(recloud_p)    ) deallocate(recloud_p    )
        if(allocated(reice_p)      ) deallocate(reice_p      )
@@ -258,39 +208,7 @@
        if(allocated(pin_p)        ) deallocate(pin_p        )
        if(allocated(o3clim_p)     ) deallocate(o3clim_p     )
 
-    case("cam_lw")
-       if(allocated(pin_p)        ) deallocate(pin_p        )
-       if(allocated(m_hybi_p)     ) deallocate(m_hybi_p     )          
-
-       if(allocated(xlat_p)       ) deallocate(xlat_p       )
-       if(allocated(xlon_p)       ) deallocate(xlon_p       )
-
-       if(allocated(gsw_p)        ) deallocate(gsw_p        )
-       if(allocated(swcf_p)       ) deallocate(swcf_p       )
-       if(allocated(swdnb_p)      ) deallocate(swdnb_p      )
-       if(allocated(swdnbc_p)     ) deallocate(swdnbc_p     )
-       if(allocated(swdnt_p)      ) deallocate(swdnt_p      )
-       if(allocated(swdntc_p)     ) deallocate(swdntc_p     )
-       if(allocated(swupb_p)      ) deallocate(swupb_p      )
-       if(allocated(swupbc_p)     ) deallocate(swupbc_p     )
-       if(allocated(swupt_p)      ) deallocate(swupt_p      )
-       if(allocated(swuptc_p)     ) deallocate(swuptc_p     )
-       if(allocated(coszr_p)      ) deallocate(coszr_p      )
-       if(allocated(sfc_albedo_p) ) deallocate(sfc_albedo_p )
-       if(allocated(rthratensw_p) ) deallocate(rthratensw_p )
-
-       if(allocated(cemiss_p)     ) deallocate(cemiss_p     )
-       if(allocated(ozmixm_p)     ) deallocate(ozmixm_p     )
-       if(allocated(taucldc_p)    ) deallocate(taucldc_p    )
-       if(allocated(taucldi_p)    ) deallocate(taucldi_p    )
-       
-       if(allocated(m_psn_p)      ) deallocate(m_psn_p      )
-       if(allocated(m_psp_p)      ) deallocate(m_psp_p      )
-       if(allocated(aerosolcn_p)  ) deallocate(aerosolcn_p  )
-       if(allocated(aerosolcp_p)  ) deallocate(aerosolcp_p  )
-
     case default
-
  end select radiation_lw_select
 
  end subroutine deallocate_radiation_lw
@@ -324,11 +242,11 @@
 
  real(kind=RKIND),dimension(:),pointer    :: latCell,lonCell
  real(kind=RKIND),dimension(:),pointer    :: skintemp,snow,xice,xland
- real(kind=RKIND),dimension(:),pointer    :: m_ps,pin
+ real(kind=RKIND),dimension(:),pointer    :: pin
  real(kind=RKIND),dimension(:),pointer    :: sfc_albedo,sfc_emiss
- real(kind=RKIND),dimension(:,:),pointer  :: cldfrac,m_hybi,o3clim,o3vmr
+ real(kind=RKIND),dimension(:,:),pointer  :: cldfrac,o3clim,o3vmr
  real(kind=RKIND),dimension(:,:),pointer  :: re_cloud,re_ice,re_snow
- real(kind=RKIND),dimension(:,:,:),pointer:: aerosols,ozmixm
+ real(kind=RKIND),dimension(:,:,:),pointer:: ozmixm
 
 !local variables and arrays:
  integer:: ncols,nlevs
@@ -344,8 +262,6 @@
 
  call mpas_pool_get_array(mesh,'latCell',latCell)
  call mpas_pool_get_array(mesh,'lonCell',lonCell)
-
- call mpas_pool_get_array(state,'aerosols',aerosols,time_lev)
 
  call mpas_pool_get_array(sfc_input,'skintemp',skintemp)
  call mpas_pool_get_array(sfc_input,'snow'    ,snow    )
@@ -413,7 +329,6 @@
  enddo
 
  radiation_lw_select: select case (trim(radt_lw_scheme))
-
     case("rrtmg_lw")
        microp_select: select case(microp_scheme)
           case("mp_thompson","mp_wsm6")
@@ -516,99 +431,7 @@
           enddo
        endif
 
-    case("cam_lw")
-       do j = jts,jte
-       do i = its,ite
-          xlat_p(i,j) = latCell(i) / degrad
-          xlon_p(i,j) = lonCell(i) / degrad
-          sfc_albedo_p(i,j) = sfc_albedo(i)
-
-          coszr_p(i,j)      = 0.0_RKIND
-          gsw_p(i,j)        = 0.0_RKIND
-          swcf_p(i,j)       = 0.0_RKIND
-          swdnb_p(i,j)      = 0.0_RKIND
-          swdnbc_p(i,j)     = 0.0_RKIND
-          swdnt_p(i,j)      = 0.0_RKIND
-          swdntc_p(i,j)     = 0.0_RKIND
-          swupb_p(i,j)      = 0.0_RKIND
-          swupbc_p(i,j)     = 0.0_RKIND
-          swupt_p(i,j)      = 0.0_RKIND
-          swuptc_p(i,j)     = 0.0_RKIND
-       enddo
-       do k = kts,kte
-       do i = its,ite
-          rthratensw_p(i,k,j) = 0.0_RKIND
-          cemiss_p(i,k,j)     = 0.0_RKIND
-          taucldc_p(i,k,j)    = 0.0_RKIND
-          taucldi_p(i,k,j)    = 0.0_RKIND
-       enddo
-       enddo
-       enddo
-
-       !On the first time-step of each model run, the local arrays absnxt_p, absnst_p,
-       !and emstot_p are filled with the MPAS arrays abstot, absnxt, and emstot. If it
-       !is a new run, these three arrays will be initialized to zero;If a restart run,
-       !these three arrays will be filled with the restart values.
-       if(xtime_s .lt. 1.e-12) then
-          do j = jts,jte
-          do n = 1,cam_abs_dim1
-          do k = kts,kte
-          do i = its,ite
-             absnxt_p(i,k,n,j) = 0.0_RKIND
-          enddo
-          enddo
-          enddo
-          do n = 1,cam_abs_dim2
-          do k = kts,kte+1
-          do i = its,ite
-              abstot_p(i,k,n,j) = 0.0_RKIND
-          enddo
-          enddo
-          enddo
-          do k = kts,kte+1
-          do i = its,ite
-             emstot_p(i,k,j) = 0.0_RKIND
-          enddo
-          enddo
-          enddo
-       endif
-
-       !ozone mixing ratio:
-       do k = 1, num_oznlevels
-          pin_p(k) = pin(k)
-       enddo
-       do n = 1, num_months
-          do j = jts,jte
-          do k = 1, num_oznlevels
-          do i = its,ite
-             ozmixm_p(i,k,j,n) = ozmixm(n,k,i)
-          enddo
-          enddo
-          enddo
-       enddo
-       !aerosol mixing ratio:
-       do k = 1, num_aerlevels
-          m_hybi_p(k) = m_hybi(k,1)
-       enddo
-       do i = its,ite
-       do j = jts,jte
-          m_psp_p(i,j) = m_ps(i)
-          m_psn_p(i,j) = m_ps(i)
-       enddo
-       enddo
-       do n = 1,num_aerosols
-       do j = jts,jte
-       do k = 1, num_aerlevels
-       do i = its,ite
-          aerosolcp_p(i,k,j,n) = aerosols(n,k,i)
-          aerosolcn_p(i,k,j,n) = aerosols(n,k,i)
-       enddo
-       enddo
-       enddo
-       enddo
-
     case default
-
  end select radiation_lw_select
 
  end subroutine radiation_lw_from_MPAS
@@ -722,54 +545,7 @@
  end subroutine radiation_lw_to_MPAS
 
 !=================================================================================================================
- subroutine radiation_camlw_to_MPAS(diag_physics,its,ite)
-!=================================================================================================================
-
-!input arguments:
- type(mpas_pool_type),intent(inout):: diag_physics
-
- integer,intent(in):: its,ite
-
-!local variables:
- integer:: i,j,k,n
-
-!local pointers:
- real(kind=RKIND),dimension(:,:),pointer  :: emstot
- real(kind=RKIND),dimension(:,:,:),pointer:: absnxt,abstot
-
-!-----------------------------------------------------------------------------------------------------------------
-
- call mpas_pool_get_array(diag_physics,'absnxt',absnxt)
- call mpas_pool_get_array(diag_physics,'abstot',abstot)
- call mpas_pool_get_array(diag_physics,'emstot',emstot)
-
-!call mpas_log_write('--- writing absnxt,abstot,and emstot to restart = $l', logicArgs=(/l_camlw/))
- do j = jts,jte
- do n = 1,cam_abs_dim1
- do k = kts,kte
- do i = its,ite
-    absnxt(k,n,i) = absnxt_p(i,k,n,j)
- enddo
- enddo
- enddo
- do n = 1,cam_abs_dim2
- do k = kts,kte+1
- do i = its,ite
-    abstot(k,n,i) = abstot_p(i,k,n,j)
- enddo
- enddo
- enddo
- do k = kts,kte+1
- do i = its,ite
-    emstot(k,i) = emstot_p(i,k,j)
- enddo
- enddo
- enddo
-
- end subroutine radiation_camlw_to_MPAS
-
-!=================================================================================================================
- subroutine init_radiation_lw(dminfo,configs,mesh,atm_input,diag,diag_physics,state,time_lev)
+ subroutine init_radiation_lw(dminfo,configs,mesh,atm_input,diag,state,time_lev)
 !=================================================================================================================
 
 !input arguments:
@@ -793,15 +569,10 @@
  call mpas_pool_get_config(configs,'config_radt_lw_scheme',radt_lw_scheme)
 
  radiation_lw_select: select case (trim(radt_lw_scheme))
-
     case ("rrtmg_lw")
        call rrtmg_initlw_forMPAS(dminfo)
-
-    case("cam_lw")
-       call camradinit(dminfo,mesh,atm_input,diag,diag_physics,state,time_lev)
     
     case default
-
  end select radiation_lw_select
 
  end subroutine init_radiation_lw
@@ -845,7 +616,6 @@
 
 !call to longwave radiation scheme:
  radiation_lw_select: select case (trim(radt_lw_scheme))
-
     case ("rrtmg_lw")
        o3input = 0
        if(config_o3climatology) o3input = 2
@@ -874,73 +644,7 @@
                        )
        call mpas_timer_stop('RRTMG_lw')
 
-    case ("cam_lw")
-       xtime_m = xtime_s/60.
-
-! This should be OMP MASTER with barrier afterwards or OMP SINGLE, since declin and solcon
-! are global variables in mpas_atmphys_vars.F and race conditions may occur otherwise!
-!$OMP SINGLE
-       !... calculates solar declination:
-       call radconst(declin,solcon,curr_julday,degrad,dpd)
-!$OMP END SINGLE
-
-!... convert the radiation time_step to minutes:
-       radt = dt_radtlw/60.
-
-!      call mpas_log_write('--- enter subroutine camrad_lw: doabsems=$l',logicArgs=(/doabsems/))
-       call mpas_timer_start('CAMRAD_lw')
-       call camrad( dolw = .true. , dosw = .false. ,                                         &
-                p_phy         = pres_hyd_p    , p8w           = pres2_hyd_p   ,              &
-                pi_phy        = pi_p          , t_phy         = t_p           ,              &
-                z             = zmid_p        , dz8w          = dz_p          ,              &            
-                rthratenlw    = rthratenlw_p  , rthratensw    = rthratensw_p  ,              &
-                swupt         = swupt_p       , swuptc        = swuptc_p      ,              &
-                swdnt         = swdnt_p       , swdntc        = swdntc_p      ,              &
-                lwupt         = lwupt_p       , lwuptc        = lwuptc_p      ,              &
-                lwdnt         = lwdnt_p       , lwdntc        = lwdntc_p      ,              &
-                swupb         = swupb_p       , swupbc        = swupbc_p      ,              &
-                swdnb         = swdnb_p       , swdnbc        = swdnbc_p      ,              &
-                lwupb         = lwupb_p       , lwupbc        = lwupbc_p      ,              &
-                lwdnb         = lwdnb_p       , lwdnbc        = lwdnbc_p      ,              &
-                swcf          = swcf_p        , lwcf          = lwcf_p        ,              &
-                gsw           = gsw_p         , glw           = glw_p         ,              &
-                olr           = olrtoa_p      , cemiss        = cemiss_p      ,              &
-                taucldc       = taucldc_p     , taucldi       = taucldi_p     ,              & 
-                coszr         = coszr_p       , albedo        = sfc_albedo_p  ,              & 
-                emiss         = sfc_emiss_p   , tsk           = tsk_p         ,              & 
-                xlat          = xlat_p        , xlong         = xlon_p        ,              &
-                rho_phy       = rho_p         , qv3d          = qv_p          ,              & 
-                qc3d          = qc_p          , qr3d          = qr_p          ,              &
-                qi3d          = qi_p          , qs3d          = qs_p          ,              &
-                qg3d          = qg_p          , f_qv          = f_qv          ,              &
-                f_qc          = f_qc          , f_qr          = f_qr          ,              &
-                f_qi          = f_qi          , f_qs          = f_qs          ,              &
-                f_qg          = f_qg          , f_ice_phy     = f_ice         ,              &
-                f_rain_phy    = f_rain        , cldfra        = cldfrac_p     ,              &
-                xland         = xland_p       , xice          = xice_p        ,              &
-                num_months    = num_months    , levsiz        = num_oznlevels ,              & 
-                pin0          = pin_p         , ozmixm        = ozmixm_p      ,              &
-                paerlev       = num_aerlevels , naer_c        = num_aerosols  ,              &
-                m_psp         = m_psp_p       , m_psn         = m_psn_p       ,              &
-                aerosolcp     = aerosolcp_p   , aerosolcn     = aerosolcn_p   ,              &
-                m_hybi0       = m_hybi_p      , snow          = snow_p        ,              &
-                cam_abs_dim1  = cam_abs_dim1  , cam_abs_dim2  = cam_abs_dim2  ,              &
-                gmt           = gmt           , yr            = year          ,              &
-                julday        = julday        , julian        = curr_julday   ,              &
-                dt            = dt_dyn        , xtime         = xtime_m       ,              &
-                declin        = declin        , solcon        = solcon        ,              &
-                radt          = radt          , degrad        = degrad        ,              &
-                n_cldadv      = 3             , abstot_3d     = abstot_p      ,              &
-                absnxt_3d     = absnxt_p      , emstot_3d     = emstot_p      ,              &
-                doabsems      = doabsems      ,                                              &
-                ids = ids , ide = ide , jds = jds , jde = jde , kds = kds , kde = kde ,      &
-                ims = ims , ime = ime , jms = jms , jme = jme , kms = kms , kme = kme ,      &
-                its = its , ite = ite , jts = jts , jte = jte , kts = kts , kte = kte        &
-                  )
-       call mpas_timer_stop('CAMRAD_lw')
-
     case default
-
  end select radiation_lw_select
 
 !copy local arrays to MPAS grid:

@@ -88,6 +88,8 @@
 ! * removed the suite convection_permitting_wrf390. The suite convection_permitting now points to the surface
 !   layer scheme and PBL scheme from WRF version 3.9.0 instead of version 3.6.1
 !   Laura D. Fowler (laura@ucar.edu) / 2018-01-24.
+! * removed the options cam_lw and cam_sw.
+!   Laura D. Fowler (laura@ucar.edu) / 2018-02-01.
 
 
  contains
@@ -236,7 +238,6 @@
 
 !lw radiation scheme:
  if(.not. (config_radt_lw_scheme .eq. 'off'    .or. &
-           config_radt_lw_scheme .eq. 'cam_lw' .or. &
            config_radt_lw_scheme .eq. 'rrtmg_lw')) then
  
     write(mpas_err_message,'(A,A10)') 'illegal value for longwave radiation scheme: ', &
@@ -247,7 +248,6 @@
 
 !sw radiation scheme:
  if(.not. (config_radt_sw_scheme .eq. 'off'    .or. &
-           config_radt_sw_scheme .eq. 'cam_sw' .or. &
            config_radt_sw_scheme .eq. 'rrtmg_sw')) then
  
     write(mpas_err_message,'(A,A10)') 'illegal value for shortwave radiation _scheme: ', &

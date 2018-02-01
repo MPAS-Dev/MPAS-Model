@@ -40,10 +40,6 @@
                      description="The number of days affecting the deep soil temperature"/>
                 <dim name="nOznLevels"         definition="namelist:noznlev"
                      description="The number of prescribed pressure levels for input climatological ozone volume mixing ratios"/>
-                <dim name="nAerLevels"         definition="namelist:naerlev"
-                     description="number of prescribed pressure levels for input climatological aerosol mixing ratio"/>
-                <dim name="cam_dim1"           definition="namelist:camdim1"
-                     description="dimension of CAM radiation absorption save array"/>
                 <dim name="nVertLevelsP2"      definition="nVertLevels+2"
                      description="Two more than the number of atmospheric layers"/>
                 <dim name="nClosures"          definition="16"
@@ -1397,6 +1393,7 @@
 
                 <var name="north" type="real" dimensions="R3 nCells" units="unitless"
                      description="Cartesian components of the unit vector pointing north"/>
+
         </var_struct>
 
         <var_struct name="state" time_levs="2">
@@ -1452,44 +1449,6 @@
                              packages="mp_thompson_in"/>
                 </var_array>
 
-                <var_array name="aerosols" type="real" dimensions="nAerLevels nCells Time">
-                        <var name="sul"     array_group="aer_cam" units="kg m^{-3}"
-                             description="Sulfate soluble (SUL) aerosol concentration"/>
-
-                        <var name="sslt"    array_group="aer_cam" units="kg m^{-3}"
-                             description="Sea-salt (SSLT) aerosol concentration"/>
-
-                        <var name="dust1"   array_group="aer_cam" units="kg m^{-3}"
-                             description="Dust type 1 (DUST1) aerosol concentration"/>
-
-                        <var name="dust2"   array_group="aer_cam" units="kg m^{-3}"
-                             description="Dust type 2 (DUST2) aerosol concentration"/>
-
-                        <var name="dust3"   array_group="aer_cam" units="kg m^{-3}"
-                             description="Dust type 3 (DUST3) aerosol concentration"/>
-
-                        <var name="dust4"   array_group="aer_cam" units="kg m^{-3}"
-                             description="Dust type 4 (DUST4) aerosol concentration"/>
-
-                        <var name="ocpho"   array_group="aer_cam" units="kg m^{-3}"
-                             description="Hydrophobic organic carbon (OCPHO) aerosol concentration"/>
-
-                        <var name="bcpho"   array_group="aer_cam" units="kg m^{-3}"
-                             description="Hydrophobic black carbon (BCPHO) aerosol concentration"/>
-
-                        <var name="ocphi"   array_group="aer_cam" units="kg m^{-3}"
-                             description="Hydrophilic organic carbon (OCPHI) aerosol concentration"/>
-
-                        <var name="bcphi"   array_group="aer_cam" units="kg m^{-3}"
-                             description="Hydrophilic black carbon (BCPHI) aerosol concentration"/>
-
-                        <var name="bg"      array_group="aer_cam" units="kg m^{-3}"
-                             description="Background (BG) aerosol concentration"/>
-
-                        <var name="volc"    array_group="aer_cam" units="kg m^{-3}"
-                             description="Volcanic (VOLC) aerosol concentration"/>
-
-                </var_array>
         </var_struct>
 
         <var_struct name="diag" time_levs="1">
@@ -1801,21 +1760,11 @@
                      description="number of months per year"
                      possible_values="Positive integer values. DO NOT CHANGE."/>
 
-                <!-- ... DIMENSION NEEDED FOR OZONE AND AEROSOLS CONCENTRATIONS IN THE CAM LONGWAVE AND SHORTWAVE -->
-                <!-- ... RADIATION PARAMETERIZATIONS.                                                             -->
+                <!-- ... DIMENSION NEEDED FOR CLIMATOLOGICAL OZONE MIXING RATIO IN THE RRTMG LONGWAVE AND SHORTWAVE -->
+                <!-- ... RADIATION PARAMETERIZATIONS.                                                               -->
                 <nml_option name="noznlev" type="integer" default_value="59" in_defaults="false"
                      units="-"
                      description="number of prescribed pressure levels for input climatological ozone volume mixing ratios"
-                     possible_values="Positive integers"/>
-
-                <nml_option name="naerlev" type="integer" default_value="29" in_defaults="false"
-                     units="-"
-                     description="number of prescribed pressure levels for input climatological aerosol mixing ratio"
-                     possible_values="Positive integers"/>
-
-                <nml_option name="camdim1" type="integer" default_value="4" in_defaults="false"
-                     units="-"
-                     description="dimension of CAM radiation absorption save array"
                      possible_values="Positive integers"/>
 
                 <!-- NAMELIST VARIABLES ADDED FOR PHYSICS CONFIGURATION: -->
@@ -1890,11 +1839,6 @@
                      description="time interval between calls to parameterization of planetary boundary layer"
                      possible_values="`DD_HH:MM:SS' or `none'"/>
 
-                <nml_option name="config_camrad_abs_update" type="character" default_value="06:00:00" in_defaults="false"
-                     units="-"
-                     description="time interval between updates of absorption/emission coefficients in CAM radiation"
-                     possible_values="`DD_HH:MM:SS' or `none'"/>
-
                 <nml_option name="config_greeness_update" type="character" default_value="24:00:00" in_defaults="false"
                      units="-"
                      description="time interval between updates of greeness fraction"
@@ -1943,12 +1887,12 @@
                 <nml_option name="config_radt_lw_scheme" type="character" default_value="suite" in_defaults="false"
                      units="-"
                      description="configuration for long-wave radiation schemes"
-                     possible_values="`suite',`rrtmg_lw',`cam_lw',`off'"/>
+                     possible_values="`suite',`rrtmg_lw',`off'"/>
 
                 <nml_option name="config_radt_sw_scheme" type="character" default_value="suite" in_defaults="false"
                      units="-"
                      description="configuration for short-wave radiation schemes"
-                     possible_values="`suite',`rrtmg_sw',`cam_sw',`off'"/>
+                     possible_values="`suite',`rrtmg_sw',`off'"/>
 
                 <nml_option name="config_sfclayer_scheme" type="character" default_value="suite" in_defaults="false"
                      units="-"
@@ -2836,27 +2780,6 @@
 
 
                 <!-- ================================================================================================== -->
-                <!-- ... ADDITIONAL "RADIATION" ARRAYS NEEDED ONLY IN THE "CAM" LW AND SW RADIATION CODES:              -->
-                <!-- ================================================================================================== -->
-
-                <var name="m_hybi" type="real" dimensions="nAerLevels nCells" units="unitless"
-                     description="Matched hybi (needs to be re-checked)"/>
-
-                <var name="m_ps" type="real" dimensions="nCells Time" units="Pa"
-                     description="Surface pressure from match on MPAS grid"/>
-
-                <!-- INFRARED ABSORPTION: -->
-                <var name="absnxt" type="real" dimensions="nVertLevels cam_dim1 nCells Time" units="-"
-                     description="Total nearest layer absorptivity"/>
-
-                <var name="abstot" type="real" dimensions="nVertLevelsP1 nVertLevelsP1 nCells Time" units="-"
-                     description="Total absorptivity"/>
-
-                <var name="emstot" type="real" dimensions="nVertLevelsP1 nCells Time" units="-"
-                     description="Total emissivity"/>
-
-
-                <!-- ================================================================================================== -->
                 <!-- ... ADDITIONAL OZONE ARRAYS NEEDED ONLY IN THE LW AND SW RADIATION CODES:                          -->
                 <!-- ================================================================================================== -->
 
@@ -3169,7 +3092,7 @@
 
 
         <var_struct name="atm_input" time_levs="1">
-                <!-- Monthly mean ozone climatology used in the CAM and RRTMG radiation codes -->
+                <!-- Monthly mean ozone climatology used in the RRTMG radiation codes -->
                 <var name="pin" type="real"  dimensions="nOznLevels" units="Pa"
                      description="fixed pressure levels at which climatological ozone is defined"/>
 

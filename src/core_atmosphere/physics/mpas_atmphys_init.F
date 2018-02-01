@@ -64,6 +64,8 @@
 ! * removed the calculation of the variable dcEdge_m which is no longer needed in the different physics
 !   parameterizations.
 !   Laura D. Fowler (laura@ucar.edu) / 2016-10-18.
+! * removed all sourcecode related to the initialization of the CAM longwave and shortwave radiation codes.
+!   laura D. Fowler (laura@ucar.edu) / 2018-02-01.
 
 
  contains
@@ -377,28 +379,12 @@
 !initialization of shortwave radiation processes:
  init_done = .false.
  if(config_radt_sw_scheme.ne.'off') then
-    if(trim(config_radt_sw_scheme) .eq. 'cam_sw') then
-       call init_radiation_sw(dminfo,configs,mesh,atm_input,diag,diag_physics,state,time_lev)
-       init_done = .true.
-    else
-       call init_radiation_sw(dminfo,configs)
-    endif
+    call init_radiation_sw(dminfo,configs)
  endif
 
-!initialization of longwave radiation processes: if we run the CAM radiation codes, the initia
-!lization of the longwave and shortwave parameterizations is the same, and needs to be called
-!only once:
+!initialization of longwave radiation processes:
  if(config_radt_lw_scheme.ne.'off') then    
-    if(trim(config_radt_lw_scheme) .eq. 'cam_lw') then
-       if(.not. init_done) then
-          call init_radiation_lw(dminfo,configs,mesh,atm_input,diag,diag_physics,state,time_lev)
-       else
-!          call mpas_log_write('')
-!          call mpas_log_write('--- camrad lw initialization done above')
-       endif
-    else
-       call init_radiation_lw(dminfo,configs)
-    endif
+    call init_radiation_lw(dminfo,configs)
  endif
 
 ! call mpas_log_write('')
