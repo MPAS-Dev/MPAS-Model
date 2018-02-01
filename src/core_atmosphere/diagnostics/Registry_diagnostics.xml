@@ -19,6 +19,9 @@
 <!-- 2-m Dewpoint -->
 #include "Registry_surface.xml"
 
+<!-- Fixed accumulation diagnostics -->
+#include "Registry_accumulated.xml"
+
 <!-- snow ratio diagnostics -->
 #include "Registry_snowratio.xml"
 
