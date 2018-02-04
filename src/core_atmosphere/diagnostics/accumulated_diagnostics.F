@@ -121,12 +121,14 @@ module accumulated_diagnostics
 
         ! Precipitation diagnostics (in)
         real (kind=RKIND), dimension(:), pointer :: t2m, rainncv, raincv, snowncv, graupelncv, snow_ratio
+        real (kind=RKIND), dimension(:), pointer :: u10, v10
 
         ! Precipitation accumulations (inout)
         real (kind=RKIND), dimension(:), pointer :: rain15m, rainc15m, rainnc15m
         real (kind=RKIND), dimension(:), pointer :: snow15m, ice15m, ice_total
+        real (kind=RKIND), dimension(:), pointer :: wspd15m
 
-        real (kind=RKIND) :: rain, snow, ice
+        real (kind=RKIND) :: rain, snow, ice, wspd
 
         call mpas_pool_get_dimension(mesh, 'nCells', nCells)
         call mpas_pool_get_array(diag_physics, 't2m', t2m)
@@ -135,6 +137,9 @@ module accumulated_diagnostics
         call mpas_pool_get_array(diag_physics, 'snowncv', snowncv)
         call mpas_pool_get_array(diag_physics, 'graupelncv', graupelncv)
         call mpas_pool_get_array(diag, 'snow_ratio', snow_ratio)
+
+        call mpas_pool_get_array(diag_physics, 'u10', u10)
+        call mpas_pool_get_array(diag_physics, 'v10', v10)
 
         ! Precipiation (convective + non-convective, incl frozen)
         call mpas_pool_get_array(diag, 'rain15m', rain15m)
@@ -147,6 +152,9 @@ module accumulated_diagnostics
         ! Ice accretion (freezing rain)
         call mpas_pool_get_array(diag, 'ice15m', ice15m)
         call mpas_pool_get_array(diag, 'ice_total', ice_total)
+
+        ! Wind speed
+        call mpas_pool_get_array(diag, 'wspd10_max15m', wspd15m)
 
         do iCell = 1,nCells
 
@@ -180,6 +188,10 @@ module accumulated_diagnostics
 
             ! Final non-frozen precipitation
             rain15m(iCell) = rain15m(iCell) + rain - snow - ice
+
+            ! Wind speed
+            wspd = sqrt(u10(iCell)*u10(iCell) + v10(iCell)*v10(iCell))
+            wspd15m(iCell) = max(wspd15m(iCell), wspd)
         end do
 
         ! Every 15 minutes, copy 15-min total accum to 30-min buckets
@@ -313,6 +325,7 @@ module accumulated_diagnostics
             call reset_bucket('rainnc15m')
             call reset_bucket('snow15m')
             call reset_bucket('ice15m')
+            call reset_bucket('wspd10_max15m')
 
             call MPAS_reset_clock_alarm(simulationClock, 'acc15mAlarm')
         end if
