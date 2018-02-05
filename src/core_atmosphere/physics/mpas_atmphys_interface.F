@@ -79,6 +79,9 @@
 ! * removed the option bl_mynn_wrf390. The options sf_mynn and bl_mynn now point to the surface and PBL
 !   schemes from WRF version 3.9.0 instead of version 3.6.1.
 !   Laura D. Fowler (laura@ucar.edu) / 2018-01-24.
+! * in subroutines microphysics_from_MPAS and microphysics_to_MPAS, restored the option mp_thompson_aerosols
+!   in the Thompson cloud microphysics scheme.
+!   Laura D. Fowler (laura@ucar.edu) / 2018-02-05.
 
 
  contains
@@ -509,13 +512,13 @@
 !local pointers:
  character(len=StrKIND),pointer:: microp_scheme
  integer,pointer:: index_qv,index_qc,index_qr,index_qi,index_qs,index_qg
- integer,pointer:: index_ni,index_nr
- real(kind=RKIND),dimension(:),pointer    :: nt_c,mu_c
+ integer,pointer:: index_nc,index_ni,index_nr,index_nwfa,index_nifa
+ real(kind=RKIND),dimension(:),pointer    :: nwfa2d,nt_c,mu_c
  real(kind=RKIND),dimension(:,:),pointer  :: zgrid,w
  real(kind=RKIND),dimension(:,:),pointer  :: zz,exner,pressure_b
  real(kind=RKIND),dimension(:,:),pointer  :: rho_zz,theta_m,pressure_p
  real(kind=RKIND),dimension(:,:),pointer  :: qv,qc,qr,qi,qs,qg
- real(kind=RKIND),dimension(:,:),pointer  :: ni,nr
+ real(kind=RKIND),dimension(:,:),pointer  :: nc,ni,nr,nifa,nwfa
  real(kind=RKIND),dimension(:,:),pointer  :: rainprod,evapprod
  real(kind=RKIND),dimension(:,:),pointer  :: re_cloud,re_ice,re_snow
  real(kind=RKIND),dimension(:,:),pointer  :: rthmpten,rqvmpten,rqcmpten,rqrmpten,rqimpten,rqsmpten,rqgmpten
@@ -535,14 +538,6 @@
  call mpas_pool_get_array(diag,'pressure_base',pressure_b)
  call mpas_pool_get_array(diag,'pressure_p'   ,pressure_p)
 
- call mpas_pool_get_array(diag_physics,'nt_c'    ,nt_c    )
- call mpas_pool_get_array(diag_physics,'mu_c'    ,mu_c    )
- call mpas_pool_get_array(diag_physics,'rainprod',rainprod)
- call mpas_pool_get_array(diag_physics,'evapprod',evapprod)
- call mpas_pool_get_array(diag_physics,'re_cloud',re_cloud)
- call mpas_pool_get_array(diag_physics,'re_ice'  ,re_ice  )
- call mpas_pool_get_array(diag_physics,'re_snow' ,re_snow )
-
  call mpas_pool_get_array(tend_physics,'rthmpten',rthmpten)
  call mpas_pool_get_array(tend_physics,'rqvmpten',rqvmpten)
  call mpas_pool_get_array(tend_physics,'rqcmpten',rqcmpten)
@@ -555,19 +550,14 @@
  call mpas_pool_get_array(state,'theta_m',theta_m,time_lev)
  call mpas_pool_get_array(state,'w'      ,w      ,time_lev)
 
- call mpas_pool_get_dimension(state,'index_qv'  ,index_qv  )
- call mpas_pool_get_dimension(state,'index_qc'  ,index_qc  )
- call mpas_pool_get_dimension(state,'index_qr'  ,index_qr  )
- call mpas_pool_get_dimension(state,'index_qi'  ,index_qi  )
- call mpas_pool_get_dimension(state,'index_qs'  ,index_qs  )
- call mpas_pool_get_dimension(state,'index_qg'  ,index_qg  )
- call mpas_pool_get_dimension(state,'index_ni'  ,index_ni  )
- call mpas_pool_get_dimension(state,'index_nr'  ,index_nr  )
+ call mpas_pool_get_dimension(state,'index_qv',index_qv)
+ call mpas_pool_get_dimension(state,'index_qc',index_qc)
+ call mpas_pool_get_dimension(state,'index_qr',index_qr)
 
  call mpas_pool_get_array(state,'scalars',scalars,time_lev)
- qv   => scalars(index_qv,:,:)
- qc   => scalars(index_qc,:,:)
- qr   => scalars(index_qr,:,:)
+ qv => scalars(index_qv,:,:)
+ qc => scalars(index_qc,:,:)
+ qr => scalars(index_qr,:,:)
 
 !initialize variables needed in the cloud microphysics schemes:
  do j = jts, jte
@@ -592,11 +582,13 @@
 
 !additional initialization as function of cloud microphysics scheme:
  microp_select_init: select case(microp_scheme)
-
-    case ("mp_thompson","mp_wsm6")
-       qi   => scalars(index_qi,:,:)
-       qs   => scalars(index_qs,:,:)
-       qg   => scalars(index_qg,:,:)
+    case ("mp_thompson","mp_thompson_aerosols","mp_wsm6")
+       call mpas_pool_get_dimension(state,'index_qi',index_qi)
+       call mpas_pool_get_dimension(state,'index_qs',index_qs)
+       call mpas_pool_get_dimension(state,'index_qg',index_qg)
+       qi => scalars(index_qi,:,:)
+       qs => scalars(index_qs,:,:)
+       qg => scalars(index_qg,:,:)
 
        do j = jts, jte
        do k = kts, kte
@@ -609,22 +601,43 @@
        enddo
 
     microp2_select: select case(microp_scheme)
+       case("mp_thompson","mp_thompson_aerosols")
+          call mpas_pool_get_dimension(state,'index_nc'  ,index_nc  )
+          call mpas_pool_get_dimension(state,'index_ni'  ,index_ni  )
+          call mpas_pool_get_dimension(state,'index_nr'  ,index_nr  )
+          call mpas_pool_get_dimension(state,'index_nifa',index_nifa)
+          call mpas_pool_get_dimension(state,'index_nwfa',index_nwfa)
 
-       case("mp_thompson")
+          call mpas_pool_get_array(diag_physics,'nwfa2d'  ,nwfa2d  )
+          call mpas_pool_get_array(diag_physics,'nt_c'    ,nt_c    )
+          call mpas_pool_get_array(diag_physics,'mu_c'    ,mu_c    )
+          call mpas_pool_get_array(diag_physics,'rainprod',rainprod)
+          call mpas_pool_get_array(diag_physics,'evapprod',evapprod)
+          call mpas_pool_get_array(diag_physics,'re_cloud',re_cloud)
+          call mpas_pool_get_array(diag_physics,'re_ice'  ,re_ice  )
+          call mpas_pool_get_array(diag_physics,'re_snow' ,re_snow )
+
+          nc   => scalars(index_nc,:,:)
           ni   => scalars(index_ni,:,:)
           nr   => scalars(index_nr,:,:)
+          nifa => scalars(index_nifa,:,:)
+          nwfa => scalars(index_nwfa,:,:)
 
           do j = jts,jte
           do i = its,ite
              muc_p(i,j) = mu_c(i)
              ntc_p(i,j) = nt_c(i)
+             nwfa2d_p(i,j) = nwfa2d(i)
           enddo
           enddo
           do j = jts, jte
           do k = kts, kte
           do i = its, ite
-             ni_p(i,k,j) = ni(k,i)
-             nr_p(i,k,j) = nr(k,i)
+             nc_p(i,k,j)   = nc(k,i)
+             ni_p(i,k,j)   = ni(k,i)
+             nr_p(i,k,j)   = nr(k,i)
+             nifa_p(i,k,j) = nifa(k,i)
+             nwfa_p(i,k,j) = nwfa(k,i)
              rainprod_p(i,k,j) = rainprod(k,i)
              evapprod_p(i,k,j) = evapprod(k,i)
              recloud_p(i,k,j)  = re_cloud(k,i)
@@ -639,17 +652,15 @@
           enddo
 
        case default
-
     end select microp2_select
 
     case default
-
  end select microp_select_init
 
 !begin calculation of the cloud microphysics tendencies:
  microp_select_tend: select case(microp_scheme)
 
-    case ("mp_thompson","mp_wsm6")
+    case ("mp_thompson","mp_thompson_aerosols","mp_wsm6")
        do k = kts,kte
        do i = its,ite
           rthmpten(k,i) = theta_m(k,i)/(1._RKIND+R_v/R_d*max(0._RKIND,qv(k,i)))
@@ -690,14 +701,14 @@
 !local pointers:
  character(len=StrKIND),pointer:: microp_scheme
  integer,pointer:: index_qv,index_qc,index_qr,index_qi,index_qs,index_qg
- integer,pointer:: index_ni,index_nr
+ integer,pointer:: index_nc,index_ni,index_nr,index_nifa,index_nwfa
  real(kind=RKIND),dimension(:),pointer    :: surface_pressure,tend_sfc_pressure
  real(kind=RKIND),dimension(:,:),pointer  :: zgrid
  real(kind=RKIND),dimension(:,:),pointer  :: zz,exner,exner_b,pressure_b,rtheta_p,rtheta_b
  real(kind=RKIND),dimension(:,:),pointer  :: rho_zz,theta_m,pressure_p
  real(kind=RKIND),dimension(:,:),pointer  :: rt_diabatic_tend
  real(kind=RKIND),dimension(:,:),pointer  :: qv,qc,qr,qi,qs,qg
- real(kind=RKIND),dimension(:,:),pointer  :: ni,nr
+ real(kind=RKIND),dimension(:,:),pointer  :: nc,ni,nr,nifa,nwfa
  real(kind=RKIND),dimension(:,:),pointer  :: rainprod,evapprod
  real(kind=RKIND),dimension(:,:),pointer  :: re_cloud,re_ice,re_snow
  real(kind=RKIND),dimension(:,:),pointer  :: rthmpten,rqvmpten,rqcmpten,rqrmpten,rqimpten,rqsmpten,rqgmpten
@@ -724,12 +735,6 @@
  call mpas_pool_get_array(diag,'rtheta_p'        ,rtheta_p        )
  call mpas_pool_get_array(diag,'surface_pressure',surface_pressure)
 
- call mpas_pool_get_array(diag_physics,'rainprod',rainprod)
- call mpas_pool_get_array(diag_physics,'evapprod',evapprod)
- call mpas_pool_get_array(diag_physics,'re_cloud',re_cloud)
- call mpas_pool_get_array(diag_physics,'re_ice'  ,re_ice  )
- call mpas_pool_get_array(diag_physics,'re_snow' ,re_snow )
-
  call mpas_pool_get_array(tend_physics,'rthmpten',rthmpten)
  call mpas_pool_get_array(tend_physics,'rqvmpten',rqvmpten)
  call mpas_pool_get_array(tend_physics,'rqcmpten',rqcmpten)
@@ -743,19 +748,14 @@
  call mpas_pool_get_array(state,'rho_zz' ,rho_zz ,time_lev)
  call mpas_pool_get_array(state,'theta_m',theta_m,time_lev)
 
- call mpas_pool_get_dimension(state,'index_qv'  ,index_qv  )
- call mpas_pool_get_dimension(state,'index_qc'  ,index_qc  )
- call mpas_pool_get_dimension(state,'index_qr'  ,index_qr  )
- call mpas_pool_get_dimension(state,'index_qi'  ,index_qi  )
- call mpas_pool_get_dimension(state,'index_qs'  ,index_qs  )
- call mpas_pool_get_dimension(state,'index_qg'  ,index_qg  )
- call mpas_pool_get_dimension(state,'index_ni'  ,index_ni  )
- call mpas_pool_get_dimension(state,'index_nr'  ,index_nr  )
+ call mpas_pool_get_dimension(state,'index_qv',index_qv)
+ call mpas_pool_get_dimension(state,'index_qc',index_qc)
+ call mpas_pool_get_dimension(state,'index_qr',index_qr)
 
  call mpas_pool_get_array(state,'scalars',scalars,time_lev)
- qv   => scalars(index_qv,:,:)
- qc   => scalars(index_qc,:,:)
- qr   => scalars(index_qr,:,:)
+ qv => scalars(index_qv,:,:)
+ qc => scalars(index_qc,:,:)
+ qr => scalars(index_qr,:,:)
 
  call mpas_pool_get_array(tend,'rt_diabatic_tend',rt_diabatic_tend)
 
@@ -806,11 +806,13 @@
 
 !variables specific to different cloud microphysics schemes:
  microp_select_init: select case(microp_scheme)
-
-    case ("mp_thompson","mp_wsm6")
-       qi   => scalars(index_qi,:,:)
-       qs   => scalars(index_qs,:,:)
-       qg   => scalars(index_qg,:,:)
+    case ("mp_thompson","mp_thompson_aerosols","mp_wsm6")
+       call mpas_pool_get_dimension(state,'index_qi',index_qi)
+       call mpas_pool_get_dimension(state,'index_qs',index_qs)
+       call mpas_pool_get_dimension(state,'index_qg',index_qg)
+       qi => scalars(index_qi,:,:)
+       qs => scalars(index_qs,:,:)
+       qg => scalars(index_qg,:,:)
 
        do j = jts, jte
        do k = kts, kte
@@ -823,19 +825,34 @@
        enddo
 
     microp2_select: select case(microp_scheme)
+       case("mp_thompson","mp_thompson_aerosols")
+          call mpas_pool_get_dimension(state,'index_nc'  ,index_nc  )
+          call mpas_pool_get_dimension(state,'index_ni'  ,index_ni  )
+          call mpas_pool_get_dimension(state,'index_nr'  ,index_nr  )
+          call mpas_pool_get_dimension(state,'index_nifa',index_nifa)
+          call mpas_pool_get_dimension(state,'index_nwfa',index_nwfa)
 
-       case("mp_thompson")
-          ni   => scalars(index_ni,:,:)
-          nr   => scalars(index_nr,:,:)
+          call mpas_pool_get_array(diag_physics,'rainprod',rainprod)
+          call mpas_pool_get_array(diag_physics,'evapprod',evapprod)
+          call mpas_pool_get_array(diag_physics,'re_cloud',re_cloud)
+          call mpas_pool_get_array(diag_physics,'re_ice'  ,re_ice  )
+          call mpas_pool_get_array(diag_physics,'re_snow' ,re_snow )
 
           call mpas_pool_get_array(diag_physics,'vqr',vqr)
           call mpas_pool_get_array(diag_physics,'vqi',vqi)
           call mpas_pool_get_array(diag_physics,'vqs',vqs)
           call mpas_pool_get_array(diag_physics,'vqg',vqg)
 
+          nc => scalars(index_nc,:,:)
+          ni => scalars(index_ni,:,:)
+          nr => scalars(index_nr,:,:)
+          nifa => scalars(index_nifa,:,:)
+          nwfa => scalars(index_nwfa,:,:)
+
           do j = jts, jte
           do k = kts, kte
           do i = its, ite
+             nc(k,i) = nc_p(i,k,j)
              ni(k,i) = ni_p(i,k,j)
              nr(k,i) = nr_p(i,k,j)
              rainprod(k,i) = rainprod_p(i,k,j)
@@ -852,17 +869,15 @@
           enddo
 
        case default
-
     end select microp2_select
 
     case default
-
  end select microp_select_init
 
 !end calculation of the cloud microphysics tendencies:
  microp_select_tend: select case(microp_scheme)
 
-    case ("mp_thompson","mp_wsm6")
+    case ("mp_thompson","mp_thompson_aerosols","mp_wsm6")
        do k = kts,kte
        do i = its,ite
           rthmpten(k,i) = (theta_m(k,i)/(1._RKIND+R_v/R_d*max(0._RKIND,qv(k,i)))-rthmpten(k,i))/dt_dyn

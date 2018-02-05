@@ -107,10 +107,10 @@
 !..Declaration of constants for assumed CCN/IN aerosols when none in
 !.. the input data.  Look inside the init routine for modifications
 !.. due to surface land-sea points or vegetation characteristics.
-      REAL, PARAMETER, PRIVATE:: naIN0 = 1.5E6
-      REAL, PARAMETER, PRIVATE:: naIN1 = 0.5E6
-      REAL, PARAMETER, PRIVATE:: naCCN0 = 300.0E6
-      REAL, PARAMETER, PRIVATE:: naCCN1 = 50.0E6
+      REAL, PARAMETER, PUBLIC:: naIN0 = 1.5E6
+      REAL, PARAMETER, PUBLIC:: naIN1 = 0.5E6
+      REAL, PARAMETER, PUBLIC:: naCCN0 = 300.0E6
+      REAL, PARAMETER, PUBLIC:: naCCN1 = 50.0E6
 
 !..Generalized gamma distributions for rain, graupel and cloud ice.
 !.. N(D) = N_0 * D**mu * exp(-lamda*D);  mu=0 is exponential.
@@ -245,12 +245,12 @@
       INTEGER, PARAMETER, PRIVATE:: ntb_i1 = 55
       INTEGER, PARAMETER, PRIVATE:: ntb_t = 9
       INTEGER, PRIVATE:: nic1, nic2, nii2, nii3, nir2, nir3, nis2, nig2, nig3
-      INTEGER, PARAMETER, PRIVATE:: ntb_arc = 7
-      INTEGER, PARAMETER, PRIVATE:: ntb_arw = 9
-      INTEGER, PARAMETER, PRIVATE:: ntb_art = 7
-      INTEGER, PARAMETER, PRIVATE:: ntb_arr = 5
-      INTEGER, PARAMETER, PRIVATE:: ntb_ark = 4
-      INTEGER, PARAMETER, PRIVATE:: ntb_IN = 55
+      INTEGER, PARAMETER, PUBLIC:: ntb_arc = 7
+      INTEGER, PARAMETER, PUBLIC:: ntb_arw = 9
+      INTEGER, PARAMETER, PUBLIC:: ntb_art = 7
+      INTEGER, PARAMETER, PUBLIC:: ntb_arr = 5
+      INTEGER, PARAMETER, PUBLIC:: ntb_ark = 4
+      INTEGER, PARAMETER, PUBLIC:: ntb_IN = 55
       INTEGER, PRIVATE:: niIN2
 
       DOUBLE PRECISION, DIMENSION(nbins+1):: xDx

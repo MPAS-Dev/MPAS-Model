@@ -26,7 +26,7 @@
  public:: allocate_microphysics,   &
           deallocate_microphysics, &
           driver_microphysics,     &
-          microphysics_init
+          init_microphysics
 
 
 !MPAS driver for parameterization of cloud microphysics processes.
@@ -87,6 +87,8 @@
 ! * added saving diagnostics of the mass-weighted mean velocities for rain, cloud ice, snow, and graupel from
 !   the Thompson cloud microphysics scheme.
 !   Laura D. Fowler (laura@ucar.edu) / 2017-04-19.
+! * restored the option mp_thompson_aerosols in the Thompson cloud microphysics scheme.
+!   Laura D. Fowler (laura@ucar.edu) / 2018-02-05.
 
 
 !--- initialization option for WSM6 from WRF version 3.8.1. this option could also be set as a namelist parameter.
@@ -130,7 +132,7 @@
 
  microp_select: select case(microp_scheme)
 
-    case ("mp_thompson","mp_wsm6")
+    case ("mp_thompson","mp_thompson_aerosols","mp_wsm6")
        !mass mixing ratios:
        if(.not.allocated(qi_p)        ) allocate(qi_p(ims:ime,kms:kme,jms:jme))
        if(.not.allocated(qs_p)        ) allocate(qs_p(ims:ime,kms:kme,jms:jme))
@@ -150,12 +152,16 @@
 
     microp2_select: select case(microp_scheme)
 
-       case("mp_thompson")
-          !number concentrations:
-          if(.not.allocated(ntc_p)) allocate(ntc_p(ims:ime,jms:jme))
-          if(.not.allocated(muc_p)) allocate(muc_p(ims:ime,jms:jme))
-          if(.not.allocated(ni_p) ) allocate(ni_p(ims:ime,kms:kme,jms:jme))
-          if(.not.allocated(nr_p) ) allocate(nr_p(ims:ime,kms:kme,jms:jme))
+       case("mp_thompson","mp_thompson_aerosols")
+          if(.not.allocated(ntc_p)   ) allocate(ntc_p(ims:ime,jms:jme)   )
+          if(.not.allocated(muc_p)   ) allocate(muc_p(ims:ime,jms:jme)   )
+          if(.not.allocated(nwfa2d_p)) allocate(nwfa2d_p(ims:ime,jms:jme))
+
+          if(.not.allocated(nc_p)  ) allocate(nc_p(ims:ime,kms:kme,jms:jme)  )
+          if(.not.allocated(ni_p)  ) allocate(ni_p(ims:ime,kms:kme,jms:jme)  )
+          if(.not.allocated(nr_p)  ) allocate(nr_p(ims:ime,kms:kme,jms:jme)  )
+          if(.not.allocated(nifa_p)) allocate(nifa_p(ims:ime,kms:kme,jms:jme))
+          if(.not.allocated(nwfa_p)) allocate(nwfa_p(ims:ime,kms:kme,jms:jme))
 
           if(.not.allocated(rainprod_p)) allocate(rainprod_p(ims:ime,kms:kme,jms:jme))
           if(.not.allocated(evapprod_p)) allocate(evapprod_p(ims:ime,kms:kme,jms:jme))
@@ -210,7 +216,7 @@
 
  microp_select: select case(microp_scheme)
 
-    case ("mp_thompson","mp_wsm6")
+    case ("mp_thompson","mp_thompson_aerosols","mp_wsm6")
        !mass mixing ratios:
        if(allocated(qi_p)         ) deallocate(qi_p         )
        if(allocated(qs_p)         ) deallocate(qs_p         )
@@ -230,12 +236,16 @@
 
     microp2_select: select case(microp_scheme)
 
-       case("mp_thompson")
+       case("mp_thompson","mp_thompson_aerosols")
           !number concentrations:
-          if(allocated(ntc_p)) deallocate(ntc_p)
-          if(allocated(muc_p)) deallocate(muc_p)
-          if(allocated(ni_p) ) deallocate(ni_p )
-          if(allocated(nr_p) ) deallocate(nr_p )
+          if(allocated(ntc_p)   ) deallocate(ntc_p   )
+          if(allocated(muc_p)   ) deallocate(muc_p   )
+          if(allocated(nwfa2d_p)) deallocate(nwfa2d_p)
+          if(allocated(nc_p)    ) deallocate(nc_p    )
+          if(allocated(ni_p)    ) deallocate(ni_p    )
+          if(allocated(nr_p)    ) deallocate(nr_p    )
+          if(allocated(nifa_p)  ) deallocate(nifa_p  )
+          if(allocated(nwfa_p)  ) deallocate(nwfa_p  )
 
           if(allocated(rainprod_p)) deallocate(rainprod_p)
           if(allocated(evapprod_p)) deallocate(evapprod_p)
@@ -257,7 +267,7 @@
  end subroutine deallocate_microphysics
 
 !=================================================================================================================
- subroutine microphysics_init(dminfo,configs,mesh,sfc_input,diag_physics)
+ subroutine init_microphysics(dminfo,configs,mesh,state,time_lev,sfc_input,diag_physics)
 !=================================================================================================================
 
 !input arguments:
@@ -265,31 +275,40 @@
  type(mpas_pool_type),intent(in):: configs
  type(mpas_pool_type),intent(in):: mesh
  type(mpas_pool_type),intent(in):: sfc_input
+ integer,intent(in):: time_lev
 
 !inout arguments:
  type(mpas_pool_type),intent(inout):: diag_physics
+ type(mpas_pool_type),intent(inout):: state
 
 !local pointer:
  character(len=StrKIND),pointer:: microp_scheme
 
 !-----------------------------------------------------------------------------------------------------------------
-
+ call mpas_log_write(' ')
+ call mpas_log_write('--- enter subroutine init_microphysics:')
  call mpas_pool_get_config(configs,'config_microp_scheme',microp_scheme)
 
-  microp_select: select case(microp_scheme)
+ microp_select: select case(microp_scheme)
 
-     case("mp_thompson")
-        call thompson_init(l_mp_tables)
-        call init_thompson_clouddroplets_forMPAS(mesh,sfc_input,diag_physics)
+    case("mp_thompson")
+       call thompson_init(l_mp_tables)
+       call init_thompson_clouddroplets_forMPAS(mesh,sfc_input,diag_physics)
 
-     case("mp_wsm6")
-        call wsm6init(rho_a,rho_r,rho_s,cliq,cpv,hail_opt,.false.)
+    case("mp_thompson_aerosols")
+       call thompson_init(l_mp_tables)
+       call init_thompson_clouddroplets_forMPAS(mesh,sfc_input,diag_physics)
+       call init_thompson_aerosols_forMPAS(dminfo,mesh,state,time_lev,diag_physics)
 
-     case default
+    case("mp_wsm6")
+       call wsm6init(rho_a,rho_r,rho_s,cliq,cpv,hail_opt,.false.)
+
+    case default
     
-  end select microp_select
+ end select microp_select
+ call mpas_log_write('--- end subroutine init_microphysics:')
 
- end subroutine microphysics_init
+ end subroutine init_microphysics
 
 !=================================================================================================================
  subroutine driver_microphysics(configs,mesh,state,time_lev,diag,diag_physics,tend_physics,tend,itimestep,its,ite)
@@ -378,6 +397,31 @@
        istep = istep + 1
        enddo
        call mpas_timer_stop('Thompson')
+
+       case ("mp_thompson_aerosols")
+          istep = 1
+          do while (istep .le. n_microp)
+          call mp_gt_driver( &
+                  th        = th_p        , qv         = qv_p         , qc         = qc_p         , &
+                  qr        = qr_p        , qi         = qi_p         , qs         = qs_p         , &
+                  qg        = qg_p        , ni         = ni_p         , nr         = nr_p         , &
+                  pii       = pi_p        , p          = pres_p       , dz         = dz_p         , &
+                  w         = w_p         , dt_in      = dt_microp    , itimestep  = itimestep    , &
+                  rainnc    = rainnc_p    , rainncv    = rainncv_p    , snownc     = snownc_p     , &
+                  snowncv   = snowncv_p   , graupelnc  = graupelnc_p  , graupelncv = graupelncv_p , &
+                  sr        = sr_p        , rainprod   = rainprod_p   , evapprod   = evapprod_p   , &
+                  re_cloud  = recloud_p   , re_ice     = reice_p      , re_snow    = resnow_p     , &
+                  has_reqc  = has_reqc    , has_reqi   = has_reqi     , has_reqs   = has_reqs     , &
+                  nc        = nc_p        , nifa       = nifa_p       , nwfa       = nwfa_p       , &
+                  nwfa2d    = nwfa2d_p    , ntc        = ntc_p        , muc        = muc_p        , &
+                  vqr       = vqr_p       , vqi        = vqi_p        , vqs        = vqs_p        , & 
+                  vqg       = vqg_p                                                               , &
+                  ids = ids , ide = ide , jds = jds , jde = jde , kds = kds , kde = kde           , &
+                  ims = ims , ime = ime , jms = jms , jme = jme , kms = kms , kme = kme           , &
+                  its = its , ite = ite , jts = jts , jte = jte , kts = kts , kte = kte             &
+                           )
+          istep = istep + 1
+          enddo
 
     case ("mp_wsm6")
        call mpas_timer_start('WSM6')

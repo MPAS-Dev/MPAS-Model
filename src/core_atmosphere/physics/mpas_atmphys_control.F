@@ -90,6 +90,8 @@
 !   Laura D. Fowler (laura@ucar.edu) / 2018-01-24.
 ! * removed the options cam_lw and cam_sw.
 !   Laura D. Fowler (laura@ucar.edu) / 2018-02-01.
+! * added the option mp_thompson_aerosols.
+!   Laura D. Fowler (laura@ucar.edu) / 2018-01-31.
 
 
  contains
@@ -186,9 +188,10 @@
  end if
 
 !cloud microphysics scheme:
- if(.not. (config_microp_scheme .eq. 'off'         .or. &
-           config_microp_scheme .eq. 'mp_kessler'  .or. &
-           config_microp_scheme .eq. 'mp_thompson' .or. &
+ if(.not. (config_microp_scheme .eq. 'off'                  .or. &
+           config_microp_scheme .eq. 'mp_kessler'           .or. &
+           config_microp_scheme .eq. 'mp_thompson'          .or. &
+           config_microp_scheme .eq. 'mp_thompson_aerosols' .or. &
            config_microp_scheme .eq. 'mp_wsm6')) then
 
     write(mpas_err_message,'(A,A10)') 'illegal value for config_microp_scheme:', &
@@ -419,7 +422,8 @@
  if(dminfo % my_proc_id == IO_NODE) then
 
     call mpas_pool_get_config(configs,'config_microp_scheme',config_microp_scheme)
-    if(config_microp_scheme /= "mp_thompson") return
+    if(config_microp_scheme /= "mp_thompson" .or. &
+       config_microp_scheme /= "mp_thompson_aerosols") return
 
     l_qr_acr_qg = .false.
     l_qr_acr_qs = .false.

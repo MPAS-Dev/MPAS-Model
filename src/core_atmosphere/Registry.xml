@@ -595,6 +595,7 @@
 			<var name="vqg" packages="mp_thompson_in;mp_wsm6_in"/>
 			<var name="nt_c" packages="mp_thompson_in"/>
 			<var name="mu_c" packages="mp_thompson_in"/>
+			<var name="nwfa2d" packages="mp_thompson_in"/>
 			<var name="initial_time"/>
 			<var name="xtime"/>
 			<var name="u"/>
@@ -1438,7 +1439,7 @@
 
                         <var name="nc" array_group="number" units="nb kg^{-1}"
                              description="Cloud water number concentration"
-                             packages="bl_mynn_in"/>
+                             packages="bl_mynn_in;mp_thompson_in"/>
 
                         <var name="ni" array_group="number" units="nb kg^{-1}"
                              description="Cloud ice number concentration"
@@ -1446,6 +1447,14 @@
 
                         <var name="nr" array_group="number" units="nb kg^{-1}"
                              description="Rain number concentration"
+                             packages="mp_thompson_in"/>
+
+                        <var name="nwfa" array_group="aerosols" units="nb kg^{-1}"
+                             description="water-friendly aerosol number concentration"
+                             packages="mp_thompson_in"/>
+
+                        <var name="nifa" array_group="aerosols" units="nb kg^{-1}"
+                             description="ice-friendly aerosol number concentration"
                              packages="mp_thompson_in"/>
                 </var_array>
 
@@ -1728,6 +1737,13 @@
                              description="Tendency of rain number concentration multiplied by dry air density divided by d(zeta)/dz"
                              packages="mp_thompson_in"/>
 
+                        <var name="tend_nwfa" name_in_code="nwfa" array_group="aerosols" units="nb kg^{-1} s^{-1}"
+                             description="Tendency of water-friendly aerosol number concentration"
+                             packages="mp_thompson_in"/>
+
+                        <var name="tend_nifa" name_in_code="nifa" array_group="aerosols" units="nb kg^{-1} s^{-1}"
+                             description="Tendency of ice-friendly aerosol number concentration"
+                             packages="mp_thompson_in"/>
                 </var_array>
         </var_struct>
 
@@ -2102,6 +2118,10 @@
 
                 <var name="mu_c" type="real" dimensions="nCells" units="unitless"
                      description="gamma shape parameter"
+                     packages="mp_thompson_in"/>
+
+                <var name="nwfa2d" type="real" dimensions="nCells Time" units="nb kg^{-1} s^{-1}"
+                     description="surface aerosol number concentration"
                      packages="mp_thompson_in"/>
 
                 <var name="sr" type="real" dimensions="nCells Time" units="unitless"

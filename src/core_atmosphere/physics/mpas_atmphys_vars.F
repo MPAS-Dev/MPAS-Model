@@ -128,6 +128,9 @@
 !   Laura D. Fowler (laura@ucar.edu) / 2017-09-11.
 ! * removed all local variables needed to run the CAM longwave and shortwave radiation codes.
 !   Laura D. Fowler (laura@ucar.edu) / 2018-02-01.
+! * added the local variables nwfa2d_p,nwfa_p,and nifa_p to run the Thompson cloud microphysics scheme with CCN
+!   and IN nucleation.
+!   Laura D. Fowler (laura@ucar.edu) / 2018-02-02.
 ! * removed the variables rqvdynblten and rthdynblten since they actually are the same variables as rqvblten and
 !   rthblten.
 !   Laura D. Fowler (laura@ucar.edu) /2018-02-26.
@@ -283,9 +286,12 @@
     has_reqs
 
  real(kind=RKIND),dimension(:,:),allocatable:: &
+    nwfa2d_p,         &!
     ntc_p,            &!
     muc_p              !
  real(kind=RKIND),dimension(:,:,:),allocatable:: &
+    nifa_p,           &!
+    nwfa_p,           &!
     rainprod_p,       &!
     evapprod_p,       &!
     recloud_p,        &!

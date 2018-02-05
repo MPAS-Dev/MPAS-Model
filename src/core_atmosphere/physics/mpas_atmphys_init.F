@@ -65,7 +65,9 @@
 !   parameterizations.
 !   Laura D. Fowler (laura@ucar.edu) / 2016-10-18.
 ! * removed all sourcecode related to the initialization of the CAM longwave and shortwave radiation codes.
-!   laura D. Fowler (laura@ucar.edu) / 2018-02-01.
+!   Laura D. Fowler (laura@ucar.edu) / 2018-02-01.
+! * restored the initialization of aerosols for the Thompson cloud microphysics scheme.
+!   Laura D. Fowler (laura@ucar.edu) / 2018--02-05.
 
 
  contains
@@ -134,8 +136,8 @@
  integer:: iCell,iLag,n
 
 !-----------------------------------------------------------------------------------------------------------------
-! call mpas_log_write('')
-! call mpas_log_write('--- enter subroutine physics_init:')
+!call mpas_log_write('')
+!call mpas_log_write('--- enter subroutine physics_init:')
 
  call mpas_pool_get_config(configs,'config_do_restart'       ,config_do_restart       )
  call mpas_pool_get_config(configs,'config_o3climatology'    ,config_o3climatology    )
@@ -365,7 +367,7 @@
 
 !initialization of cloud microphysics processes:
  if(config_microp_scheme .ne. 'off') &
-    call microphysics_init(dminfo,configs,mesh,sfc_input,diag_physics)
+    call init_microphysics(dminfo,configs,mesh,state,time_lev,sfc_input,diag_physics)
 
 !initialization of surface layer processes:
  if(config_sfclayer_scheme .ne. 'off') call init_sfclayer(configs)
