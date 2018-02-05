@@ -532,9 +532,6 @@
                         <var name="q2" packages="met_stage_out"/>
                         <var name="rh2" packages="met_stage_out"/>
                         <var name="t2m" packages="met_stage_out"/>
-                        <var name="nifa_clim" packages="met_stage_out"/>
-                        <var name="nwfa_clim" packages="met_stage_out"/>
-                        <var name="pwif_clim" packages="met_stage_out"/>
 		</stream>
 
 		<stream name="surface" 
