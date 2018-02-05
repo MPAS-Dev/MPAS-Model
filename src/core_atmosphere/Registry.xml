@@ -1048,6 +1048,7 @@
             <var name="snow01h"/>
             <var name="ice01h"/>
             <var name="lh01h"/>
+            <var name="swdnb01h"/>
             <!-- End accumulated diagnostics defined in diagnostics/Registry_accumulated.xml -->
 
             <!-- Begin convective diagnostics defined in diagnostics/Registry_convective.xml -->

@@ -52,6 +52,9 @@
      <var name="lh01h"         type="real"    dimensions="nCells Time" units="W m^{-2}"
          description="Hourly average latent heat flux at the surface"/>
          
+     <var name="swdnb01h"    type="real"    dimensions="nCells Time" units="W m^{-2}"
+         description="Hourly average all-sky downward surface shortwave radiation flux"/>
+         
     
 </var_struct>
 

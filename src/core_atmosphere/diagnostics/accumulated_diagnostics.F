@@ -40,7 +40,14 @@ module accumulated_diagnostics
     real (kind=RKIND), allocatable, dimension(:,:) :: arain, arainc, arainnc, asnow, aice
     real (kind=RKIND), allocatable, dimension(:,:) :: alh
 
+    ! 15-minute history in the past hour
+    integer, parameter :: nHistory = 5
+    real (kind=RKIND), allocatable, dimension(:,:) :: acswdnb_hist
+    integer, allocatable, dimension(:,:) :: i_acswdnb_hist
+
+    real    :: bucket_radt         ! bucket size for accumulated radiation
     integer :: i_lh01h_00, i_lh01h_30   ! Incidence of latent heat accumulation
+    integer :: iHistory ! Index to current point in time
 
     contains
 
@@ -58,7 +65,7 @@ module accumulated_diagnostics
     subroutine accumulated_diagnostics_setup(configs, all_pools, simulation_clock)
 
         use mpas_derived_types, only : MPAS_pool_type, MPAS_clock_type
-        use mpas_pool_routines, only : mpas_pool_get_subpool, mpas_pool_get_dimension
+        use mpas_pool_routines, only : mpas_pool_get_subpool, mpas_pool_get_dimension, mpas_pool_get_config
         use mpas_timekeeping, only : MPAS_timeInterval_type, MPAS_time_type, operator (+), &
                                      MPAS_get_clock_time, MPAS_set_timeInterval, &
                                      MPAS_add_clock_alarm, MPAS_NOW
@@ -90,6 +97,12 @@ module accumulated_diagnostics
         allocate(aice(nCells, nTimes))
         allocate(alh(nCells, 2:nTimes))
 
+        ! Allocate historical buffers
+        allocate(acswdnb_hist(nCells, 0:nHistory-1))
+        allocate(i_acswdnb_hist(nCells, 0:nHistory-1))
+        acswdnb_hist(:,:) = 0._RKIND
+        i_acswdnb_hist(:,:) = 0
+
         ! Set precipitation bucket alarm for resets
         call MPAS_set_timeInterval(intv15, M=15)
         now = MPAS_get_clock_time(simulationClock, MPAS_NOW)
@@ -100,8 +113,13 @@ module accumulated_diagnostics
         call MPAS_add_clock_alarm(simulationClock, 'acc01h_00Alarm', now, alarmTimeInterval=intv1h)
         call MPAS_add_clock_alarm(simulationClock, 'acc01h_30Alarm', now + intv30, alarmTimeInterval=intv1h)
 
+        ! Config
+        call mpas_pool_get_config(configs, 'config_bucket_radt', bucket_radt)
+
+        ! Initialize counters
         i_lh01h_00 = 0
         i_lh01h_30 = 0
+        iHistory = 0
 
     end subroutine accumulated_diagnostics_setup
 
@@ -118,6 +136,7 @@ module accumulated_diagnostics
     !-----------------------------------------------------------------------
     subroutine accumulated_diagnostics_update()
         use mpas_pool_routines, only : mpas_pool_get_array
+        use mpas_timekeeping, only : MPAS_is_alarm_ringing
 
         implicit none
 
@@ -142,6 +161,13 @@ module accumulated_diagnostics
         i_lh01h_30 = i_lh01h_30 + 1
         alh(:,2) = alh(:,2) + lh(:)
         alh(:,3) = alh(:,3) + lh(:)
+
+        ! Update shortwave historical accumulated values
+        if (MPAS_is_alarm_ringing(simulationClock, 'acc15mAlarm')) then
+            iHistory = (iHistory + 1)%nHistory
+            call mpas_pool_get_array(diag_physics, 'acswdnb', acswdnb(:,iHistory))
+            call mpas_pool_get_array(diag_physics, 'i_acswdnb', i_acswdnb_hist(:,iHistory))
+        end if
 
     end subroutine accumulated_diagnostics_update
 
@@ -302,6 +328,9 @@ module accumulated_diagnostics
         call output_choice('lh01h', alarm00, alh(:,2), alarm30, alh(:,3), &
                             div1=i_lh01h_00, div2=i_lh01h_30)
 
+        ! Downward shortwave flux
+        call output_dff('swdnb01h', 4, acswdnb_hist, i_acswdnb_hist, bucket_radt, div=3600)
+
     end subroutine accumulated_diagnostics_compute
 
 
@@ -353,6 +382,46 @@ module accumulated_diagnostics
             end if
         end if
     end subroutine output_choice
+
+    !-----------------------------------------------------------------------
+    !  routine output_dff
+    !
+    !> \brief Sets the field to input arrays by taking a diff back history
+    !> \author John Wong
+    !> \date   27 Jan 2017
+    !> \details
+    !>  Sets the array referenced by field to the difference in historical array
+    !>  plus an optional integer overflow bucket. An optional divider can be
+    !>  provided to divide the final array.
+    !
+    !-----------------------------------------------------------------------
+    subroutine output_dff(field, steps, historical, i_bucket, bucket_size, div)
+        use mpas_pool_routines, only : mpas_pool_get_array
+        use mpas_atm_diagnostics_utils, only : MPAS_field_will_be_written
+        implicit none
+
+        character (len=*), intent(in) :: field
+        integer, intent(in) :: steps                              ! number of time steps
+        real (kind=RKIND), dimension(:), intent(in) :: historical ! historical real array
+        integer, dimension(:), intent(in), optional :: i_bucket   ! historical integer buckets
+        real (kind=RKIND), intent(in), optional :: bucket_size    ! bucket sizes
+        real (kind=RKIND), intent(in), optional :: div            ! divider
+
+        real (kind=RKIND), dimension(:), pointer :: arr           ! output array
+
+        integer :: iHist0
+
+        if ( MPAS_field_will_be_written(field) ) then
+            call mpas_pool_get_array(diag, field, arr)
+            iHist0 = (iHistory + nHistory - steps)%nHistory
+            arr(:) = historical(:,iHistory) - historical(:,iHist0)
+            arr(:) = arr(:) + (ibucket(:,iHistory) - ibucket(:,iHist0))*bucket_size
+            if (present(div)) then
+                arr(:) = arr(:)/div
+            end if
+        end if
+
+    end subroutine output_dff
 
     !-----------------------------------------------------------------------
     !  routine accumulated_diagnostics_reset
@@ -478,6 +547,8 @@ module accumulated_diagnostics
         deallocate(asnow)
         deallocate(aice)
         deallocate(alh)
+        deallocate(acswdnb_hist)
+        deallocate(i_acswdnb_hist)
     end subroutine accumulated_diagnostics_cleanup
 
 end module accumulated_diagnostics
