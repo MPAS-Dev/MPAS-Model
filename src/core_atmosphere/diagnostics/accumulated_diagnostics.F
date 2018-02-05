@@ -35,19 +35,21 @@ module accumulated_diagnostics
 
     private
 
-    ! Dimensions shall be nCells x 3 time levels for 30min, 01h_00, and 01h_30
-    integer, parameter :: nTimes = 3
-    real (kind=RKIND), allocatable, dimension(:,:) :: arain, arainc, arainnc, asnow, aice
-    real (kind=RKIND), allocatable, dimension(:,:) :: alh
-
-    ! 15-minute history in the past hour
+    ! 15-minute history in the past hour + current
     integer, parameter :: nHistory = 5
-    real (kind=RKIND), allocatable, dimension(:,:) :: acswdnb_hist
-    integer, allocatable, dimension(:,:) :: i_acswdnb_hist
+    integer :: iHistory
+    ! Total accumulation since model start every 15 minutes, i.e. total = arr(:,t1)-arr(:,t0)
+    real (kind=RKIND), allocatable, dimension(:,:) :: acswdnb, rainc, rainnc
+    ! Total incidence of overflow buckets every 15 minutes
+    integer, allocatable, dimension(:,:) :: i_acswdnb, i_rainc, i_rainnc
+    ! 15-minute calculated accumulations, i.e. total = SUM{arr(:,...)}
+    real (kind=RKIND), allocatable, dimension(:,:) :: lh15m, rain15m, snow15m, ice15m
 
-    real    :: bucket_radt         ! bucket size for accumulated radiation
-    integer :: i_lh01h_00, i_lh01h_30   ! Incidence of latent heat accumulation
-    integer :: iHistory ! Index to current point in time
+    ! Model configurations
+    integer, pointer :: nCells
+    real (kind=RKIND), pointer :: bucket_rainc, bucket_rainnc ! rain buckets
+    real (kind=RKIND), pointer :: bucket_radt     ! bucket size for accumulated radiation
+    real (kind=RKIND), pointer :: dt              ! model timestep size
 
     contains
 
@@ -66,7 +68,7 @@ module accumulated_diagnostics
 
         use mpas_derived_types, only : MPAS_pool_type, MPAS_clock_type
         use mpas_pool_routines, only : mpas_pool_get_subpool, mpas_pool_get_dimension, mpas_pool_get_config
-        use mpas_timekeeping, only : MPAS_timeInterval_type, MPAS_time_type, operator (+), &
+        use mpas_timekeeping, only : MPAS_timeInterval_type, MPAS_time_type, &
                                      MPAS_get_clock_time, MPAS_set_timeInterval, &
                                      MPAS_add_clock_alarm, MPAS_NOW
 
@@ -76,10 +78,9 @@ module accumulated_diagnostics
         type (MPAS_pool_type), pointer :: all_pools
         type (MPAS_clock_type), pointer :: simulation_clock
 
-        type (MPAS_timeInterval_type) :: intv15, intv30, intv1h
+        type (MPAS_timeInterval_type) :: intv15
         type (MPAS_time_type) :: now
 
-        integer, pointer :: nCells
 
         simulationClock => simulation_clock
         
@@ -90,38 +91,46 @@ module accumulated_diagnostics
 
         ! Allocate internal buckets for hourly accumulation
         call mpas_pool_get_dimension(mesh, 'nCells', nCells)
-        allocate(arain(nCells, nTimes))
-        allocate(arainc(nCells, nTimes))
-        allocate(arainnc(nCells, nTimes))
-        allocate(asnow(nCells, nTimes))
-        allocate(aice(nCells, nTimes))
-        allocate(alh(nCells, 2:nTimes))
 
         ! Allocate historical buffers
-        allocate(acswdnb_hist(nCells, 0:nHistory-1))
-        allocate(i_acswdnb_hist(nCells, 0:nHistory-1))
-        acswdnb_hist(:,:) = 0._RKIND
-        i_acswdnb_hist(:,:) = 0
+        iHistory = 0
+        call init_history_real(acswdnb)
+        call init_history_int(i_acswdnb)
+        call init_history_real(rainc)
+        call init_history_int(i_rainc)
+        call init_history_real(rainnc)
+        call init_history_int(i_rainnc)
+        call init_history_real(rain15m)
+        call init_history_real(snow15m)
+        call init_history_real(ice15m)
+        call init_history_real(lh15m)
 
         ! Set precipitation bucket alarm for resets
         call MPAS_set_timeInterval(intv15, M=15)
         now = MPAS_get_clock_time(simulationClock, MPAS_NOW)
         call MPAS_add_clock_alarm(simulationClock, 'acc15mAlarm', now, alarmTimeInterval=intv15)
-        call MPAS_set_timeInterval(intv30, M=30)
-        call MPAS_add_clock_alarm(simulationClock, 'acc30mAlarm', now, alarmTimeInterval=intv30)
-        call MPAS_set_timeInterval(intv1h, H=1)
-        call MPAS_add_clock_alarm(simulationClock, 'acc01h_00Alarm', now, alarmTimeInterval=intv1h)
-        call MPAS_add_clock_alarm(simulationClock, 'acc01h_30Alarm', now + intv30, alarmTimeInterval=intv1h)
 
         ! Config
         call mpas_pool_get_config(configs, 'config_bucket_radt', bucket_radt)
-
-        ! Initialize counters
-        i_lh01h_00 = 0
-        i_lh01h_30 = 0
-        iHistory = 0
+        call mpas_pool_get_config(configs, 'config_bucket_rainc', bucket_rainc)
+        call mpas_pool_get_config(configs, 'config_bucket_rainnc', bucket_rainnc)
+        call mpas_pool_get_config(configs, 'config_dt', dt)
 
     end subroutine accumulated_diagnostics_setup
+
+    subroutine init_history_real(arr)
+        real (kind=RKIND), allocatable, dimension(:,:), intent(inout) :: arr
+
+        allocate(arr(nCells, 0:nHistory-1))
+        arr(:,:) = 0._RKIND
+    end subroutine
+
+    subroutine init_history_int(arr)
+        integer, allocatable, dimension(:,:), intent(inout) :: arr
+
+        allocate(arr(nCells, 0:nHistory-1))
+        arr(:,:) = 0
+    end subroutine
 
 
     !-----------------------------------------------------------------------
@@ -140,8 +149,13 @@ module accumulated_diagnostics
 
         implicit none
 
-        real (kind=RKIND), dimension(:), pointer :: u10, v10, lh, wspd15m
+        real (kind=RKIND), dimension(:), pointer :: u10, v10, lhflx, wspd15m, arr
         real (kind=RKIND) :: wspd
+
+        integer :: iHistp1, iCell
+
+        ! Next step in the history array
+        iHistp1 = mod((iHistory + 1),nHistory)
 
         ! Precip buckets
         call accumulate_precips()
@@ -155,21 +169,46 @@ module accumulated_diagnostics
             wspd15m(iCell) = max(wspd15m(iCell), wspd)
         end do
 
-        ! Incrementing latent heat flux for hourly averaging at :00 and :30
-        call mpas_pool_get_array(diag_physics, 'lh', lh) ! in
-        i_lh01h_00 = i_lh01h_00 + 1
-        i_lh01h_30 = i_lh01h_30 + 1
-        alh(:,2) = alh(:,2) + lh(:)
-        alh(:,3) = alh(:,3) + lh(:)
+        ! Incrementing latent heat for hourly averaging
+        call mpas_pool_get_array(diag_physics, 'lh', lhflx) ! in
+        lh15m(:,iHistp1) = lh15m(:,iHistp1) + lhflx * dt
 
-        ! Update shortwave historical accumulated values
+        ! Step forward in time and copy accumulated values
         if (MPAS_is_alarm_ringing(simulationClock, 'acc15mAlarm')) then
-            iHistory = (iHistory + 1)%nHistory
-            call mpas_pool_get_array(diag_physics, 'acswdnb', acswdnb(:,iHistory))
-            call mpas_pool_get_array(diag_physics, 'i_acswdnb', i_acswdnb_hist(:,iHistory))
+            iHistory = iHistp1
+            call copy_diag_real('acswdnb', acswdnb)
+            call copy_diag_int('i_acswdnb', i_acswdnb)
+            call copy_diag_real('rainc', rainc)
+            call copy_diag_int('i_rainc', i_rainc)
+            call copy_diag_real('rainnc', rainnc)
+            call copy_diag_int('i_rainnc', i_rainnc)
         end if
 
     end subroutine accumulated_diagnostics_update
+
+    subroutine copy_diag_real(field, arr_out)
+        use mpas_pool_routines, only : mpas_pool_get_array
+        implicit none
+
+        character (len=*), intent(in) :: field
+        real (kind=RKIND), dimension(:,:), intent(inout) :: arr_out
+        real (kind=RKIND), dimension(:), pointer :: arr
+
+        call mpas_pool_get_array(diag_physics, field, arr)
+        arr_out(:,iHistory) = arr(:)
+    end subroutine
+
+    subroutine copy_diag_int(field, arr_out)
+        use mpas_pool_routines, only : mpas_pool_get_array
+        implicit none
+
+        character (len=*), intent(in) :: field
+        integer, dimension(:,:), intent(inout) :: arr_out
+        integer, dimension(:), pointer :: arr
+
+        call mpas_pool_get_array(diag_physics, field, arr)
+        arr_out(:,iHistory) = arr(:)
+    end subroutine
 
     !-----------------------------------------------------------------------
     !  routine accumulate_precips
@@ -196,10 +235,13 @@ module accumulated_diagnostics
         real (kind=RKIND), dimension(:), pointer :: t2m
 
         ! Precipitation accumulations (inout)
-        real (kind=RKIND), dimension(:), pointer :: rain15m, rainc15m, rainnc15m
-        real (kind=RKIND), dimension(:), pointer :: snow15m, ice15m, ice_total
+        real (kind=RKIND), dimension(:), pointer :: ice_total
 
         real (kind=RKIND) :: rain, snow, ice
+        integer :: iHistp1
+
+        ! Next step in the history array
+        iHistp1 = mod((iHistory + 1), nHistory)
 
         call mpas_pool_get_dimension(mesh, 'nCells', nCells)
         call mpas_pool_get_array(diag_physics, 't2m', t2m)
@@ -209,28 +251,17 @@ module accumulated_diagnostics
         call mpas_pool_get_array(diag_physics, 'graupelncv', graupelncv)
         call mpas_pool_get_array(diag, 'snow_ratio', snow_ratio)
 
-        ! Precipiation (convective + non-convective, incl frozen)
-        call mpas_pool_get_array(diag, 'rain15m', rain15m)
-        call mpas_pool_get_array(diag, 'rainc15m', rainc15m)
-        call mpas_pool_get_array(diag, 'rainnc15m', rainnc15m)
-
-        ! Snow (+graupel)
-        call mpas_pool_get_array(diag, 'snow15m', snow15m)
-
         ! Ice accretion (freezing rain)
-        call mpas_pool_get_array(diag, 'ice15m', ice15m)
         call mpas_pool_get_array(diag, 'ice_total', ice_total)
 
         do iCell = 1,nCells
 
             ! Precipitation accumulation
             rain = raincv(iCell) + rainncv(iCell)
-            rainc15m(iCell) = rainc15m(iCell) + raincv(iCell)
-            rainnc15m(iCell) = rainnc15m(iCell) + rainncv(iCell)
 
             ! Snow accumulation
             snow = snowncv(iCell) + graupelncv(iCell)
-            snow15m(iCell) = snow15m(iCell) + snow * snow_ratio(iCell)
+            snow15m(iCell,iHistp1) = snow15m(iCell,iHistp1) + snow * snow_ratio(iCell)
 
             ! Ice/freezing rain accumulation
             ice = 0._RKIND
@@ -247,37 +278,13 @@ module accumulated_diagnostics
                 else
                     ice = ice * 0.66
                 end if
-                ice15m(iCell) = ice15m(iCell) + ice
+                ice15m(iCell,iHistp1) = ice15m(iCell,iHistp1) + ice
                 ice_total(iCell) = ice_total(iCell) + ice
             end if
 
             ! Final non-frozen precipitation
-            rain15m(iCell) = rain15m(iCell) + rain - snow - ice
+            rain15m(iCell,iHistp1) = rain15m(iCell,iHistp1) + rain - snow - ice
         end do
-
-        ! Every 15 minutes, copy 15-min total accum to 30-min buckets
-        if (MPAS_is_alarm_ringing(simulationClock, 'acc15mAlarm')) then
-            arain(:,1)   = arain(:,1)   + rain15m(:)
-            arainc(:,1)  = arainc(:,1)  + rainc15m(:)
-            arainnc(:,1) = arainnc(:,1) + rainnc15m(:)
-            asnow(:,1)   = asnow(:,1)   + snow15m(:)
-            aice(:,1)    = aice(:,1)    + ice15m(:)
-        end if
-
-        ! Every 30 minutes, copy 30-min total accum to hourly buckets
-        if (MPAS_is_alarm_ringing(simulationClock, 'acc30mAlarm')) then
-            arain(:,2)   = arain(:,2)   + arain(:,1)
-            arainc(:,2)  = arainc(:,2)  + arainc(:,1)
-            arainnc(:,2) = arainnc(:,2) + arainnc(:,1)
-            asnow(:,2)   = asnow(:,2)   + asnow(:,1)
-            aice(:,2)    = aice(:,2)    + aice(:,1)
-
-            arain(:,3)   = arain(:,3)   + arain(:,1)
-            arainc(:,3)  = arainc(:,3)  + arainc(:,1)
-            arainnc(:,3) = arainnc(:,3) + arainnc(:,1)
-            asnow(:,3)   = asnow(:,3)   + asnow(:,1)
-            aice(:,3)    = aice(:,3)    + aice(:,1)
-        end if
     end subroutine accumulate_precips
 
     !-----------------------------------------------------------------------
@@ -292,119 +299,64 @@ module accumulated_diagnostics
     !
     !-----------------------------------------------------------------------
     subroutine accumulated_diagnostics_compute()
-        use mpas_timekeeping, only : MPAS_is_alarm_ringing
-
         implicit none
 
-        real (kind=RKIND), dimension(:), pointer :: precip, snow, ice
-        logical :: alarm30m, alarm00, alarm30
-
-        ! Determine which internal bucket to use for output
-        alarm30m = MPAS_is_alarm_ringing(simulationClock, 'acc30mAlarm')
-        alarm00  = MPAS_is_alarm_ringing(simulationClock, 'acc01h_00Alarm')
-        alarm30  = MPAS_is_alarm_ringing(simulationClock, 'acc01h_30Alarm')
-
         ! Rain (non-frozen)
-        call output_choice('rain30m', alarm30m, arain(:,1))
-        call output_choice('rain01h', alarm00, arain(:,2), alarm30, arain(:,3))
+        call output_accum('rain15m', 1, rain15m)
+        call output_accum('rain30m', 2, rain15m)
+        call output_accum('rain01h', 4, rain15m)
 
         ! Rain (convective)
-        call output_choice('rainc30m', alarm30m, arainc(:,1))
-        call output_choice('rainc01h', alarm00, arainc(:,2), alarm30, arainc(:,3))
+        call output_diff('rainc15m', 1, rainc, i_rainc, bucket_rainc)
+        call output_diff('rainc30m', 2, rainc, i_rainc, bucket_rainc)
+        call output_diff('rainc01h', 4, rainc, i_rainc, bucket_rainc)
 
         ! Rain (non-convective)
-        call output_choice('rainnc30m', alarm30m, arainnc(:,1))
-        call output_choice('rainnc01h', alarm00, arainnc(:,2), alarm30, arainnc(:,3))
+        call output_diff('rainnc15m', 1, rainnc, i_rainnc, bucket_rainnc)
+        call output_diff('rainnc30m', 2, rainnc, i_rainnc, bucket_rainnc)
+        call output_diff('rainnc01h', 4, rainnc, i_rainnc, bucket_rainnc)
 
         ! Snow
-        call output_choice('snow30m', alarm30m, asnow(:,1))
-        call output_choice('snow01h', alarm00, asnow(:,2), alarm30, asnow(:,3))
+        call output_accum('snow15m', 1, snow15m)
+        call output_accum('snow30m', 2, snow15m)
+        call output_accum('snow01h', 4, snow15m)
 
         ! Ice
-        call output_choice('ice30m', alarm30m, aice(:,1))
-        call output_choice('ice01h', alarm00, aice(:,2), alarm30, aice(:,3))
+        call output_accum('ice15m', 1, ice15m)
+        call output_accum('ice30m', 2, ice15m)
+        call output_accum('ice01h', 4, ice15m)
 
-        ! Latent heat flux
-        call output_choice('lh01h', alarm00, alh(:,2), alarm30, alh(:,3), &
-                            div1=i_lh01h_00, div2=i_lh01h_30)
+        ! Latent heat flux, averaging
+        call output_accum('lh01h', 4, lh15m, div=3600._RKIND)
 
-        ! Downward shortwave flux
-        call output_dff('swdnb01h', 4, acswdnb_hist, i_acswdnb_hist, bucket_radt, div=3600)
+        ! Downward shortwave flux, averaging
+        call output_diff('swdnb01h', 4, acswdnb, i_acswdnb, bucket_radt, div=3600._RKIND)
 
     end subroutine accumulated_diagnostics_compute
 
-
     !-----------------------------------------------------------------------
-    !  routine output_choice
-    !
-    !> \brief Sets the field to input arrays based on the given conditions
-    !> \author John Wong
-    !> \date   27 Jan 2017
-    !> \details
-    !>  Sets the array referenced by field to the values in arr1 or arr2
-    !>  depending on the corresponding conditions cond1 and cond2. If
-    !>  neither condition is true, the field is reset using reset_bucket_arr.
-    !>  Optional dividers can be provided for dividing the final array.
-    !
-    !-----------------------------------------------------------------------
-    subroutine output_choice(field, cond1, arr1, cond2, arr2, div1, div2)
-        use mpas_pool_routines, only : mpas_pool_get_array
-        use mpas_atm_diagnostics_utils, only : MPAS_field_will_be_written
-        implicit none
-
-        character (len=*), intent(in) :: field
-        logical, intent(in) :: cond1
-        logical, intent(in), optional :: cond2
-        real (kind=RKIND), dimension(:), intent(in) :: arr1
-        real (kind=RKIND), dimension(:), intent(in), optional :: arr2
-        real (kind=RKIND), dimension(:), pointer :: arr
-        integer, intent(in), optional :: div1, div2
-
-        if ( MPAS_field_will_be_written(field) ) then
-            call mpas_pool_get_array(diag, field, arr)
-            if (cond1) then
-                ! Condition 1 satisfied, settting arr to arr1 with optional divider div1
-                if (present(div1)) then
-                    arr(:) = arr1(:)/div1
-                else
-                    arr(:) = arr1(:)
-                end if
-            else if (present(cond2) .and. cond2) then
-                ! Condition 2 satisfied, settting arr to arr2 with optional divider div2
-                if (present(div2)) then
-                    arr(:) = arr2(:)/div2
-                else
-                    arr(:) = arr2(:)
-                end if
-            else
-                ! Neither condition is satistified, setting to empty
-                call reset_bucket_arr(arr)
-            end if
-        end if
-    end subroutine output_choice
-
-    !-----------------------------------------------------------------------
-    !  routine output_dff
+    !  routine output_diff
     !
     !> \brief Sets the field to input arrays by taking a diff back history
     !> \author John Wong
-    !> \date   27 Jan 2017
+    !> \date   5 Feb 2017
     !> \details
     !>  Sets the array referenced by field to the difference in historical array
     !>  plus an optional integer overflow bucket. An optional divider can be
-    !>  provided to divide the final array.
+    !>  provided to divide the final array. Used when the historical array
+    !>  is provided as total accum up from start to current time step.
     !
     !-----------------------------------------------------------------------
-    subroutine output_dff(field, steps, historical, i_bucket, bucket_size, div)
+    subroutine output_diff(field, steps, historical, i_bucket, bucket_size, div)
         use mpas_pool_routines, only : mpas_pool_get_array
         use mpas_atm_diagnostics_utils, only : MPAS_field_will_be_written
         implicit none
 
         character (len=*), intent(in) :: field
         integer, intent(in) :: steps                              ! number of time steps
-        real (kind=RKIND), dimension(:), intent(in) :: historical ! historical real array
-        integer, dimension(:), intent(in), optional :: i_bucket   ! historical integer buckets
-        real (kind=RKIND), intent(in), optional :: bucket_size    ! bucket sizes
+        real (kind=RKIND), dimension(:,:), intent(in) :: historical ! historical accum array
+        integer, dimension(:,:), intent(in), optional :: i_bucket   ! historical bucket incidence
+        real (kind=RKIND), intent(in), optional :: bucket_size    ! bucket size
         real (kind=RKIND), intent(in), optional :: div            ! divider
 
         real (kind=RKIND), dimension(:), pointer :: arr           ! output array
@@ -413,15 +365,57 @@ module accumulated_diagnostics
 
         if ( MPAS_field_will_be_written(field) ) then
             call mpas_pool_get_array(diag, field, arr)
-            iHist0 = (iHistory + nHistory - steps)%nHistory
+            iHist0 = mod((iHistory + nHistory - steps),nHistory)
             arr(:) = historical(:,iHistory) - historical(:,iHist0)
-            arr(:) = arr(:) + (ibucket(:,iHistory) - ibucket(:,iHist0))*bucket_size
+            if (present(i_bucket) .and. present(bucket_size)) then
+                arr(:) = arr(:) + (i_bucket(:,iHistory) - i_bucket(:,iHist0))*bucket_size
+            end if
             if (present(div)) then
                 arr(:) = arr(:)/div
             end if
         end if
 
-    end subroutine output_dff
+    end subroutine output_diff
+
+    !-----------------------------------------------------------------------
+    !  routine output_accum
+    !
+    !> \brief Sets the field to input arrays by accumulating back history
+    !> \author John Wong
+    !> \date   5 Feb 2017
+    !> \details
+    !>  Sets the array referenced by field to the accumulation from the
+    !>  historical array backwards. Used when the historical array is
+    !>  provided as the total accum for the last 15 minutes only.
+    !
+    !-----------------------------------------------------------------------
+    subroutine output_accum(field, steps, historical, div)
+        use mpas_pool_routines, only : mpas_pool_get_array
+        use mpas_atm_diagnostics_utils, only : MPAS_field_will_be_written
+        implicit none
+
+        character (len=*), intent(in) :: field
+        integer, intent(in) :: steps                                ! number of time steps
+        real (kind=RKIND), dimension(:,:), intent(in) :: historical ! historical accum array
+        real (kind=RKIND), intent(in), optional :: div              ! divider
+
+        real (kind=RKIND), dimension(:), pointer :: arr           ! output array
+
+        integer :: iHist0, iStep
+
+        if ( MPAS_field_will_be_written(field) ) then
+            call mpas_pool_get_array(diag, field, arr)
+            arr(:) = historical(:,iHistory)
+            do iStep = 1, steps-1
+                iHist0 = mod((iHistory + nHistory - iStep), nHistory)
+                arr(:) = arr(:) + historical(:,iHist0)
+            end do
+            if (present(div)) then
+                arr(:) = arr(:)/div
+            end if
+        end if
+
+    end subroutine output_accum
 
     !-----------------------------------------------------------------------
     !  routine accumulated_diagnostics_reset
@@ -440,55 +434,10 @@ module accumulated_diagnostics
 
         ! Reset 15-minute buckets
         if (MPAS_is_alarm_ringing(simulationClock, 'acc15mAlarm')) then
-            call reset_bucket('rain15m')
-            call reset_bucket('rainc15m')
-            call reset_bucket('rainnc15m')
-            call reset_bucket('snow15m')
-            call reset_bucket('ice15m')
             call reset_bucket('wspd10_max15m')
 
             call MPAS_reset_clock_alarm(simulationClock, 'acc15mAlarm')
         end if
-
-        ! Reset 30-minute buckets
-        if (MPAS_is_alarm_ringing(simulationClock, 'acc30mAlarm')) then
-            call reset_bucket_arr(arain(:,1))
-            call reset_bucket_arr(arainc(:,1))
-            call reset_bucket_arr(arainnc(:,1))
-            call reset_bucket_arr(asnow(:,1))
-            call reset_bucket_arr(aice(:,1))
-
-            call MPAS_reset_clock_alarm(simulationClock, 'acc30mAlarm')
-        end if
-
-        ! Reset hourly buckets at :00
-        if (MPAS_is_alarm_ringing(simulationClock, 'acc01h_00Alarm')) then
-            call reset_bucket_arr(arain(:,2))
-            call reset_bucket_arr(arainc(:,2))
-            call reset_bucket_arr(arainnc(:,2))
-            call reset_bucket_arr(asnow(:,2))
-            call reset_bucket_arr(aice(:,2))
-            call reset_bucket_arr(alh(:,2))
-
-            i_lh01h_00 = 0
-
-            call MPAS_reset_clock_alarm(simulationClock, 'acc01h_00Alarm')
-        end if
-
-        ! Reset hourly buckets at :30
-        if (MPAS_is_alarm_ringing(simulationClock, 'acc01h_30Alarm')) then
-            call reset_bucket_arr(arain(:,3))
-            call reset_bucket_arr(arainc(:,3))
-            call reset_bucket_arr(arainnc(:,3))
-            call reset_bucket_arr(asnow(:,3))
-            call reset_bucket_arr(aice(:,3))
-            call reset_bucket_arr(alh(:,3))
-
-            i_lh01h_30 = 0
-
-            call MPAS_reset_clock_alarm(simulationClock, 'acc01h_30Alarm')
-        end if
-   
     end subroutine accumulated_diagnostics_reset
 
 
@@ -541,14 +490,16 @@ module accumulated_diagnostics
     subroutine accumulated_diagnostics_cleanup()
         implicit none
 
-        deallocate(arain)
-        deallocate(arainc)
-        deallocate(arainnc)
-        deallocate(asnow)
-        deallocate(aice)
-        deallocate(alh)
-        deallocate(acswdnb_hist)
-        deallocate(i_acswdnb_hist)
+        deallocate(rain15m)
+        deallocate(snow15m)
+        deallocate(ice15m)
+        deallocate(lh15m)
+        deallocate(acswdnb)
+        deallocate(i_acswdnb)
+        deallocate(rainc)
+        deallocate(i_rainc)
+        deallocate(rainnc)
+        deallocate(i_rainc)
     end subroutine accumulated_diagnostics_cleanup
 
 end module accumulated_diagnostics
