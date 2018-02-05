@@ -38,6 +38,9 @@ module accumulated_diagnostics
     ! Dimensions shall be nCells x 3 time levels for 30min, 01h_00, and 01h_30
     integer, parameter :: nTimes = 3
     real (kind=RKIND), allocatable, dimension(:,:) :: arain, arainc, arainnc, asnow, aice
+    real (kind=RKIND), allocatable, dimension(:,:) :: alh
+
+    integer :: i_lh01h_00, i_lh01h_30   ! Incidence of latent heat accumulation
 
     contains
 
@@ -85,6 +88,7 @@ module accumulated_diagnostics
         allocate(arainnc(nCells, nTimes))
         allocate(asnow(nCells, nTimes))
         allocate(aice(nCells, nTimes))
+        allocate(alh(nCells, 2:nTimes))
 
         ! Set precipitation bucket alarm for resets
         call MPAS_set_timeInterval(intv15, M=15)
@@ -95,6 +99,9 @@ module accumulated_diagnostics
         call MPAS_set_timeInterval(intv1h, H=1)
         call MPAS_add_clock_alarm(simulationClock, 'acc01h_00Alarm', now, alarmTimeInterval=intv1h)
         call MPAS_add_clock_alarm(simulationClock, 'acc01h_30Alarm', now + intv30, alarmTimeInterval=intv1h)
+
+        i_lh01h_00 = 0
+        i_lh01h_30 = 0
 
     end subroutine accumulated_diagnostics_setup
 
@@ -110,7 +117,46 @@ module accumulated_diagnostics
     !
     !-----------------------------------------------------------------------
     subroutine accumulated_diagnostics_update()
+        use mpas_pool_routines, only : mpas_pool_get_array
 
+        implicit none
+
+        real (kind=RKIND), dimension(:), pointer :: u10, v10, lh, wspd15m
+        real (kind=RKIND) :: wspd
+
+        ! Precip buckets
+        call accumulate_precips()
+
+        ! Wind speed
+        call mpas_pool_get_array(diag_physics, 'u10', u10) ! in
+        call mpas_pool_get_array(diag_physics, 'v10', v10) ! in
+        call mpas_pool_get_array(diag, 'wspd10_max15m', wspd15m) !inout
+        do iCell = 1,nCells
+            wspd = sqrt(u10(iCell)*u10(iCell) + v10(iCell)*v10(iCell))
+            wspd15m(iCell) = max(wspd15m(iCell), wspd)
+        end do
+
+        ! Incrementing latent heat flux for hourly averaging at :00 and :30
+        call mpas_pool_get_array(diag_physics, 'lh', lh) ! in
+        i_lh01h_00 = i_lh01h_00 + 1
+        i_lh01h_30 = i_lh01h_30 + 1
+        alh(:,2) = alh(:,2) + lh(:)
+        alh(:,3) = alh(:,3) + lh(:)
+
+    end subroutine accumulated_diagnostics_update
+
+    !-----------------------------------------------------------------------
+    !  routine accumulate_precips
+    !
+    !> \brief  Resolve internal buckets for output
+    !> \author John Wong
+    !> \date   27 Jan 2017
+    !> \details
+    !>  Copy internal buckets of different output offset to the output
+    !>  variables.
+    !
+    !-----------------------------------------------------------------------
+    subroutine accumulate_precips()
         use mpas_pool_routines, only : mpas_pool_get_dimension, mpas_pool_get_array
         use mpas_timekeeping, only : MPAS_is_alarm_ringing
 
@@ -120,15 +166,14 @@ module accumulated_diagnostics
         integer, pointer :: nCells
 
         ! Precipitation diagnostics (in)
-        real (kind=RKIND), dimension(:), pointer :: t2m, rainncv, raincv, snowncv, graupelncv, snow_ratio
-        real (kind=RKIND), dimension(:), pointer :: u10, v10
+        real (kind=RKIND), dimension(:), pointer :: rainncv, raincv, snowncv, graupelncv, snow_ratio
+        real (kind=RKIND), dimension(:), pointer :: t2m
 
         ! Precipitation accumulations (inout)
         real (kind=RKIND), dimension(:), pointer :: rain15m, rainc15m, rainnc15m
         real (kind=RKIND), dimension(:), pointer :: snow15m, ice15m, ice_total
-        real (kind=RKIND), dimension(:), pointer :: wspd15m
 
-        real (kind=RKIND) :: rain, snow, ice, wspd
+        real (kind=RKIND) :: rain, snow, ice
 
         call mpas_pool_get_dimension(mesh, 'nCells', nCells)
         call mpas_pool_get_array(diag_physics, 't2m', t2m)
@@ -137,9 +182,6 @@ module accumulated_diagnostics
         call mpas_pool_get_array(diag_physics, 'snowncv', snowncv)
         call mpas_pool_get_array(diag_physics, 'graupelncv', graupelncv)
         call mpas_pool_get_array(diag, 'snow_ratio', snow_ratio)
-
-        call mpas_pool_get_array(diag_physics, 'u10', u10)
-        call mpas_pool_get_array(diag_physics, 'v10', v10)
 
         ! Precipiation (convective + non-convective, incl frozen)
         call mpas_pool_get_array(diag, 'rain15m', rain15m)
@@ -152,9 +194,6 @@ module accumulated_diagnostics
         ! Ice accretion (freezing rain)
         call mpas_pool_get_array(diag, 'ice15m', ice15m)
         call mpas_pool_get_array(diag, 'ice_total', ice_total)
-
-        ! Wind speed
-        call mpas_pool_get_array(diag, 'wspd10_max15m', wspd15m)
 
         do iCell = 1,nCells
 
@@ -171,10 +210,10 @@ module accumulated_diagnostics
             ice = 0._RKIND
             if (t2m(iCell) < 273.16) then
                 ice = rain - snow
-                ! Rainfall is multipled by factors of 0.8, and 0.66 
+                ! Rainfall is multipled by factors of 0.8, and 0.66
                 !   in order to reduce the amount of ice accumulation
                 !   depending on temperature.  These were best guesses
-                !   as to how much ice would aggregate on surfaces 
+                !   as to how much ice would aggregate on surfaces
                 !   at given temperatures.  These certainly could
                 !   be better tuned.
                 if (t2m(iCell) < 270.37) then ! 27 F
@@ -188,10 +227,6 @@ module accumulated_diagnostics
 
             ! Final non-frozen precipitation
             rain15m(iCell) = rain15m(iCell) + rain - snow - ice
-
-            ! Wind speed
-            wspd = sqrt(u10(iCell)*u10(iCell) + v10(iCell)*v10(iCell))
-            wspd15m(iCell) = max(wspd15m(iCell), wspd)
         end do
 
         ! Every 15 minutes, copy 15-min total accum to 30-min buckets
@@ -217,8 +252,7 @@ module accumulated_diagnostics
             asnow(:,3)   = asnow(:,3)   + asnow(:,1)
             aice(:,3)    = aice(:,3)    + aice(:,1)
         end if
-
-    end subroutine accumulated_diagnostics_update
+    end subroutine accumulate_precips
 
     !-----------------------------------------------------------------------
     !  routine accumulated_diagnostics_compute
@@ -264,6 +298,10 @@ module accumulated_diagnostics
         call output_choice('ice30m', alarm30m, aice(:,1))
         call output_choice('ice01h', alarm00, aice(:,2), alarm30, aice(:,3))
 
+        ! Latent heat flux
+        call output_choice('lh01h', alarm00, alh(:,2), alarm30, alh(:,3), &
+                            div1=i_lh01h_00, div2=i_lh01h_30)
+
     end subroutine accumulated_diagnostics_compute
 
 
@@ -277,9 +315,10 @@ module accumulated_diagnostics
     !>  Sets the array referenced by field to the values in arr1 or arr2
     !>  depending on the corresponding conditions cond1 and cond2. If
     !>  neither condition is true, the field is reset using reset_bucket_arr.
+    !>  Optional dividers can be provided for dividing the final array.
     !
     !-----------------------------------------------------------------------
-    subroutine output_choice(field, cond1, arr1, cond2, arr2)
+    subroutine output_choice(field, cond1, arr1, cond2, arr2, div1, div2)
         use mpas_pool_routines, only : mpas_pool_get_array
         use mpas_atm_diagnostics_utils, only : MPAS_field_will_be_written
         implicit none
@@ -290,14 +329,26 @@ module accumulated_diagnostics
         real (kind=RKIND), dimension(:), intent(in) :: arr1
         real (kind=RKIND), dimension(:), intent(in), optional :: arr2
         real (kind=RKIND), dimension(:), pointer :: arr
+        integer, intent(in), optional :: div1, div2
 
         if ( MPAS_field_will_be_written(field) ) then
             call mpas_pool_get_array(diag, field, arr)
             if (cond1) then
-                arr(:) = arr1(:)
+                ! Condition 1 satisfied, settting arr to arr1 with optional divider div1
+                if (present(div1)) then
+                    arr(:) = arr1(:)/div1
+                else
+                    arr(:) = arr1(:)
+                end if
             else if (present(cond2) .and. cond2) then
-                arr(:) = arr2(:)
+                ! Condition 2 satisfied, settting arr to arr2 with optional divider div2
+                if (present(div2)) then
+                    arr(:) = arr2(:)/div2
+                else
+                    arr(:) = arr2(:)
+                end if
             else
+                ! Neither condition is satistified, setting to empty
                 call reset_bucket_arr(arr)
             end if
         end if
@@ -348,6 +399,9 @@ module accumulated_diagnostics
             call reset_bucket_arr(arainnc(:,2))
             call reset_bucket_arr(asnow(:,2))
             call reset_bucket_arr(aice(:,2))
+            call reset_bucket_arr(alh(:,2))
+
+            i_lh01h_00 = 0
 
             call MPAS_reset_clock_alarm(simulationClock, 'acc01h_00Alarm')
         end if
@@ -359,6 +413,9 @@ module accumulated_diagnostics
             call reset_bucket_arr(arainnc(:,3))
             call reset_bucket_arr(asnow(:,3))
             call reset_bucket_arr(aice(:,3))
+            call reset_bucket_arr(alh(:,3))
+
+            i_lh01h_30 = 0
 
             call MPAS_reset_clock_alarm(simulationClock, 'acc01h_30Alarm')
         end if
@@ -420,6 +477,7 @@ module accumulated_diagnostics
         deallocate(arainnc)
         deallocate(asnow)
         deallocate(aice)
+        deallocate(alh)
     end subroutine accumulated_diagnostics_cleanup
 
 end module accumulated_diagnostics

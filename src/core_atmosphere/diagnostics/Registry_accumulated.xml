@@ -49,6 +49,9 @@
      <var name="wspd10_max15m" type="real"    dimensions="nCells Time" units="m s^{-1}"
          description="15-minute maximum 10-meter wind speed"/>
          
+     <var name="lh01h"         type="real"    dimensions="nCells Time" units="W m^{-2}"
+         description="Hourly average latent heat flux at the surface"/>
+         
     
 </var_struct>
 
