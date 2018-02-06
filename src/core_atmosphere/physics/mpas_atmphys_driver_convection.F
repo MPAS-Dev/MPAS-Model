@@ -109,6 +109,8 @@
 ! * for the Grell-Freitas scheme, added diagnostics of the updraft and downdraft massflux, and tendencies for
 !   shallow, mid-level, and deep convection, separately.
 !   Laura D. Fowler (laura@ucar.edu) / 2017-09-11.
+! * updated the Kain-Fritsch convection scheme to that in WRF version 3.9.1.
+!   Laura D. Fowler (laura@ucar.edu) / 2018-02-05.
 ! * in subroutine convection_from_MPAS, rewrote the initialization of variables needed to run the Tiedtke and
 !   nTiedtke convection scheme. now use "association" so that the schemes can be run without full physics for
 !   testing purposes.
@@ -240,14 +242,23 @@
        enddo
 
     case ("cu_kain_fritsch")
-       if(.not.allocated(dx_p)       ) allocate(dx_p(ims:ime,jms:jme)              )
-       if(.not.allocated(area_p)     ) allocate(area_p(ims:ime,jms:jme)            )
-       if(.not.allocated(nca_p)      ) allocate(nca_p(ims:ime,jms:jme)             )
-       if(.not.allocated(cubot_p)    ) allocate(cubot_p(ims:ime,jms:jme)           )
-       if(.not.allocated(cutop_p)    ) allocate(cutop_p(ims:ime,jms:jme)           ) 
-       if(.not.allocated(w0avg_p)    ) allocate(w0avg_p(ims:ime,kms:kme,jms:jme)   )
-       if(.not.allocated(rqrcuten_p) ) allocate(rqrcuten_p(ims:ime,kms:kme,jms:jme))
-       if(.not.allocated(rqscuten_p) ) allocate(rqscuten_p(ims:ime,kms:kme,jms:jme))
+       if(.not.allocated(dx_p)           ) allocate(dx_p(ims:ime,jms:jme)                   )
+       if(.not.allocated(area_p)         ) allocate(area_p(ims:ime,jms:jme)                 )
+       if(.not.allocated(nca_p)          ) allocate(nca_p(ims:ime,jms:jme)                  )
+       if(.not.allocated(cubot_p)        ) allocate(cubot_p(ims:ime,jms:jme)                )
+       if(.not.allocated(cutop_p)        ) allocate(cutop_p(ims:ime,jms:jme)                )
+       if(.not.allocated(timec_p)        ) allocate(timec_p(ims:ime,jms:jme)                )
+       if(.not.allocated(w0avg_p)        ) allocate(w0avg_p(ims:ime,kms:kme,jms:jme)        )
+       if(.not.allocated(qccu_p)         ) allocate(qccu_p(ims:ime,kms:kme,jms:jme)         )
+       if(.not.allocated(qicu_p)         ) allocate(qicu_p(ims:ime,kms:kme,jms:jme)         )
+       if(.not.allocated(cldfrac_deepc_p)) allocate(cldfrac_deepc_p(ims:ime,kms:kme,jms:jme))
+       if(.not.allocated(cldfrac_shalc_p)) allocate(cldfrac_shalc_p(ims:ime,kms:kme,jms:jme))
+       if(.not.allocated(rqrcuten_p)     ) allocate(rqrcuten_p(ims:ime,kms:kme,jms:jme)     )
+       if(.not.allocated(rqscuten_p)     ) allocate(rqscuten_p(ims:ime,kms:kme,jms:jme)     )
+       if(.not.allocated(udr_kf_p)       ) allocate(udr_kf_p(ims:ime,kms:kme,jms:jme)       )
+       if(.not.allocated(ddr_kf_p)       ) allocate(ddr_kf_p(ims:ime,kms:kme,jms:jme)       )
+       if(.not.allocated(uer_kf_p)       ) allocate(uer_kf_p(ims:ime,kms:kme,jms:jme)       )
+       if(.not.allocated(der_kf_p)       ) allocate(der_kf_p(ims:ime,kms:kme,jms:jme)       )
 
        do i = its,ite
        do j = jts,jte
@@ -389,14 +400,23 @@
        if(allocated(weights_clos_p) ) deallocate(weights_clos_p )
 
     case ("cu_kain_fritsch")
-       if(allocated(dx_p)         ) deallocate(dx_p         )
-       if(allocated(area_p)       ) deallocate(area_p       )
-       if(allocated(nca_p)        ) deallocate(nca_p        )
-       if(allocated(cubot_p)      ) deallocate(cubot_p      )
-       if(allocated(cutop_p)      ) deallocate(cutop_p      ) 
-       if(allocated(w0avg_p)      ) deallocate(w0avg_p      )
-       if(allocated(rqrcuten_p)   ) deallocate(rqrcuten_p   )
-       if(allocated(rqscuten_p)   ) deallocate(rqscuten_p   )
+       if(allocated(dx_p)           ) deallocate(dx_p           )
+       if(allocated(area_p)         ) deallocate(area_p         )
+       if(allocated(nca_p)          ) deallocate(nca_p          )
+       if(allocated(cubot_p)        ) deallocate(cubot_p        )
+       if(allocated(cutop_p)        ) deallocate(cutop_p        )
+       if(allocated(timec_p)        ) deallocate(timec_p        )
+       if(allocated(w0avg_p)        ) deallocate(w0avg_p        )
+       if(allocated(qccu_p)         ) deallocate(qccu_p         )
+       if(allocated(qicu_p)         ) deallocate(qicu_p         )
+       if(allocated(cldfrac_deepc_p)) deallocate(cldfrac_deepc_p)
+       if(allocated(cldfrac_shalc_p)) deallocate(cldfrac_shalc_p)
+       if(allocated(rqrcuten_p)     ) deallocate(rqrcuten_p     )
+       if(allocated(rqscuten_p)     ) deallocate(rqscuten_p     )
+       if(allocated(udr_kf_p)       ) deallocate(udr_kf_p       )
+       if(allocated(ddr_kf_p)       ) deallocate(ddr_kf_p       )
+       if(allocated(uer_kf_p)       ) deallocate(uer_kf_p       )
+       if(allocated(der_kf_p)       ) deallocate(der_kf_p       )
 
     case ("cu_tiedtke","cu_ntiedtke")
        if(allocated(hfx_p)  ) deallocate(hfx_p  )
@@ -648,33 +668,37 @@
           ktau = itimestep + 1
        endif
 
-       call mpas_timer_start('Kain-Fritsch')
-       call  kf_eta_cps ( &
-             pcps            = pres_hyd_p      , t         = t_p        ,            &
-             dt              = dt_dyn          , ktau      = ktau       ,            &
-             dxCell          = dx_p            , areaCell  = area_p     ,            &
-             cudt            = cudt            , curr_secs = curr_secs  ,            & 
-             adapt_step_flag = adapt_step_flag , rho       = rho_p      ,            &
-             raincv          = raincv_p        , pratec    = pratec_p   ,            &
-             nca             = nca_p           , u         = u_p        ,            &
-             v               = v_p             , th        = th_p       ,            &
-             pi              = pi_p            , w         = w_p        ,            &
-             dz8w            = dz_p            , w0avg     = w0avg_p    ,            &
-             xlv0            = xlv0            , xlv1      = xlv1       ,            &
-             xls0            = xls0            , xls1      = xls1       ,            &
-             cp              = cp              , r         = r_d        ,            &
-             g               = gravity         , ep1       = ep_1       ,            &
-             ep2             = ep_2            , svp1      = svp1       ,            &
-             svp2            = svp2            , svp3      = svp3       ,            &
-             svpt0           = svpt0           , stepcu    = n_cu       ,            &
-             cu_act_flag     = cu_act_flag     , warm_rain = warm_rain  ,            &
-             cutop           = cutop_p         , cubot     = cubot_p    ,            &
-             qv              = qv_p            , f_qv      = f_qv       ,            &
-             f_qc            = f_qc            , f_qr      = f_qr       ,            &
-             f_qi            = f_qi            , f_qs      = f_qs       ,            &
-             rthcuten        = rthcuten_p      , rqvcuten  = rqvcuten_p ,            &
-             rqccuten        = rqccuten_p      , rqrcuten  = rqrcuten_p ,            &
-             rqicuten        = rqicuten_p      , rqscuten  = rqscuten_p ,            &
+       call kf_eta_cps( &
+             pcps         = pres_hyd_p      , t               = t_p             ,    &
+             dt           = dt_dyn          , ktau            = ktau            ,    &
+             dxCell       = dx_p            , areaCell        = area_p          ,    &
+             cudt         = cudt            , adapt_step_flag = adapt_step_flag ,    &
+             rho          = rho_p           , raincv          = raincv_p        ,    &
+             pratec       = pratec_p        , nca             = nca_p           ,    &
+             u            = u_p             , v               = v_p             ,    &
+             th           = th_p            , pi              = pi_p            ,    &
+             w            = w_p             , dz8w            = dz_p            ,    &
+             w0avg        = w0avg_p         , xlv0            = xlv0            ,    &
+             xlv1         = xlv1            , xls0            = xls0            ,    &
+             xls1         = xls1            , cp              = cp              ,    &
+             r            = r_d             , g               = gravity         ,    &
+             ep1          = ep_1            , ep2             = ep_2            ,    &
+             svp1         = svp1            , svp2            = svp2            ,    &
+             svp3         = svp3            , svpt0           = svpt0           ,    &
+             stepcu       = n_cu            , cu_act_flag     = cu_act_flag     ,    &
+             warm_rain    = warm_rain       , cutop           = cutop_p         ,    &
+             cubot        = cubot_p         , qv              = qv_p            ,    &
+             f_qv         = f_qv            , f_qc            = f_qc            ,    &
+             f_qr         = f_qr            , f_qi            = f_qi            ,    &
+             f_qs         = f_qs            , kf_edrates      = kf_edrates      ,    &
+             timec_kf     = timec_p         , qc_kf           = qccu_p          ,    &
+             qi_kf        = qicu_p          , cldfra_dp_kf    = cldfrac_deepc_p ,    &
+             cldfra_sh_kf = cldfrac_shalc_p , udr_kf          = udr_kf_p        ,    &
+             ddr_kf       = ddr_kf_p        , uer_kf          = uer_kf_p        ,    &
+             der_kf       = der_kf_p        , rthcuten        = rthcuten_p      ,    &
+             rqvcuten     = rqvcuten_p      , rqccuten        = rqccuten_p      ,    &
+             rqrcuten     = rqrcuten_p      , rqicuten        = rqicuten_p      ,    &
+             rqscuten     = rqscuten_p         ,                                     &
              ids = ids , ide = ide , jds = jds , jde = jde , kds = kds , kde = kde , &
              ims = ims , ime = ime , jms = jms , jme = jme , kms = kds , kme = kme , &
              its = its , ite = ite , jts = jts , jte = jte , kts = kts , kte = kte   &
@@ -768,12 +792,14 @@
  integer,dimension(:),pointer:: kbcon_deepc,kbcon_midlc,kbcon_shalc
  integer,dimension(:),pointer:: ktop_deepc,ktop_midlc,ktop_shalc
  real(kind=RKIND),dimension(:),pointer  :: areaCell,meshDensity
- real(kind=RKIND),dimension(:),pointer  :: nca,cubot,cutop,cuprec,raincv
+ real(kind=RKIND),dimension(:),pointer  :: nca,timec,cubot,cutop,cuprec,raincv
  real(kind=RKIND),dimension(:),pointer  :: gsw,hfx,qfx,xland
  real(kind=RKIND),dimension(:),pointer  :: xmb_deepc
  real(kind=RKIND),dimension(:,:),pointer:: zgrid
  real(kind=RKIND),dimension(:,:),pointer:: qc_cu,qi_cu
+ real(kind=RKIND),dimension(:,:),pointer:: cldfrac_deepc,cldfrac_shalc
  real(kind=RKIND),dimension(:,:),pointer:: zu_deepc,zd_deepc,zu_midlc,zd_midlc,zu_shalc
+ real(kind=RKIND),dimension(:,:),pointer:: udr_kf,uer_kf,ddr_kf,der_kf
  real(kind=RKIND),dimension(:,:),pointer:: w0avg
  real(kind=RKIND),dimension(:,:),pointer:: rthcuten,rqvcuten,rqccuten,rqicuten,rqrcuten,rqscuten 
  real(kind=RKIND),dimension(:,:),pointer:: rthblten,rthdynten,rthratenlw,rthratensw
@@ -952,10 +978,19 @@
        call mpas_pool_get_array(mesh,'areaCell',areaCell)
        call mpas_pool_get_array(mesh,'meshDensity',meshDensity)
 
-       call mpas_pool_get_array(diag_physics,'cubot'   ,cubot   )
-       call mpas_pool_get_array(diag_physics,'cutop'   ,cutop   )
-       call mpas_pool_get_array(diag_physics,'nca'     ,nca     )
-       call mpas_pool_get_array(diag_physics,'w0avg'   ,w0avg   )
+       call mpas_pool_get_array(diag_physics,'cubot' ,cubot )
+       call mpas_pool_get_array(diag_physics,'cutop' ,cutop )
+       call mpas_pool_get_array(diag_physics,'nca'   ,nca   )
+       call mpas_pool_get_array(diag_physics,'w0avg' ,w0avg )
+       call mpas_pool_get_array(diag_physics,'timec' ,timec )
+       call mpas_pool_get_array(diag_physics,'udr_kf',udr_kf)
+       call mpas_pool_get_array(diag_physics,'uer_kf',uer_kf)
+       call mpas_pool_get_array(diag_physics,'ddr_kf',ddr_kf)
+       call mpas_pool_get_array(diag_physics,'der_kf',der_kf)
+       call mpas_pool_get_array(diag_physics,'qc_cu' ,qc_cu )
+       call mpas_pool_get_array(diag_physics,'qi_cu' ,qi_cu )
+       call mpas_pool_get_array(diag_physics,'cldfrac_deepc',cldfrac_deepc)
+       call mpas_pool_get_array(diag_physics,'cldfrac_shalc',cldfrac_shalc)
 
        call mpas_pool_get_array(tend_physics,'rqrcuten',rqrcuten)
        call mpas_pool_get_array(tend_physics,'rqscuten',rqscuten)
@@ -967,10 +1002,19 @@
           area_p(i,j)  = areaCell(i)
           cubot_p(i,j) = cubot(i)
           cutop_p(i,j) = cutop(i)
+          timec_p(i,j) = timec(i)
 
           do k = kts,kte
-             rqrcuten_p(i,k,j) = rqrcuten(k,i)
-             rqscuten_p(i,k,j) = rqscuten(k,i)
+             udr_kf_p(i,k,j)        = udr_kf(k,i)
+             uer_kf_p(i,k,j)        = uer_kf(k,i)
+             ddr_kf_p(i,k,j)        = ddr_kf(k,i)
+             der_kf_p(i,k,j)        = der_kf(k,i)
+             qccu_p(i,k,j)          = qc_cu(k,i)
+             qicu_p(i,k,j)          = qi_cu(k,i)
+             cldfrac_deepc_p(i,k,j) = cldfrac_deepc(k,i)
+             cldfrac_shalc_p(i,k,j) = cldfrac_shalc(k,i)
+             rqrcuten_p(i,k,j)      = rqrcuten(k,i)
+             rqscuten_p(i,k,j)      = rqscuten(k,i)
           enddo
 
           !decreases the characteristic time period that convection remains active. When nca_p
@@ -1083,10 +1127,12 @@
  integer,dimension(:),pointer:: k22_deepc,k22_midlc,k22_shalc
  integer,dimension(:),pointer:: kbcon_deepc,kbcon_midlc,kbcon_shalc
  integer,dimension(:),pointer:: ktop_deepc,ktop_midlc,ktop_shalc
- real(kind=RKIND),dimension(:),pointer  :: nca,cubot,cutop,cuprec,raincv
+ real(kind=RKIND),dimension(:),pointer  :: nca,timec,cubot,cutop,cuprec,raincv
  real(kind=RKIND),dimension(:),pointer  :: xmb_deepc
  real(kind=RKIND),dimension(:,:),pointer:: qc_cu,qi_cu
+ real(kind=RKIND),dimension(:,:),pointer:: cldfrac_deepc,cldfrac_shalc
  real(kind=RKIND),dimension(:,:),pointer:: zu_deepc,zd_deepc,zu_midlc,zd_midlc,zu_shalc
+ real(kind=RKIND),dimension(:,:),pointer:: udr_kf,uer_kf,ddr_kf,der_kf
  real(kind=RKIND),dimension(:,:),pointer:: w0avg
  real(kind=RKIND),dimension(:,:),pointer:: rthcuten,rqvcuten,rqccuten,rqicuten,rqrcuten,rqscuten
  real(kind=RKIND),dimension(:,:),pointer:: rucuten,rvcuten
@@ -1236,6 +1282,16 @@
        call mpas_pool_get_array(diag_physics,'cutop',cutop)
        call mpas_pool_get_array(diag_physics,'nca'  ,nca  )
        call mpas_pool_get_array(diag_physics,'w0avg',w0avg)
+       call mpas_pool_get_array(diag_physics,'timec' ,timec )
+       call mpas_pool_get_array(diag_physics,'udr_kf',udr_kf)
+       call mpas_pool_get_array(diag_physics,'uer_kf',uer_kf)
+       call mpas_pool_get_array(diag_physics,'ddr_kf',ddr_kf)
+       call mpas_pool_get_array(diag_physics,'der_kf',der_kf)
+       call mpas_pool_get_array(diag_physics,'qc_cu' ,qc_cu )
+       call mpas_pool_get_array(diag_physics,'qi_cu' ,qi_cu )
+       call mpas_pool_get_array(diag_physics,'cldfrac_deepc',cldfrac_deepc)
+       call mpas_pool_get_array(diag_physics,'cldfrac_shalc',cldfrac_shalc)
+
 
        call mpas_pool_get_array(tend_physics,'rqrcuten',rqrcuten)
        call mpas_pool_get_array(tend_physics,'rqscuten',rqscuten)
@@ -1245,10 +1301,19 @@
           cubot(i) = cubot_p(i,j)
           cutop(i) = cutop_p(i,j)
           nca(i)   = nca_p(i,j)
+          timec(i) = timec_p(i,j)
           do k = kts, kte
-             w0avg(k,i)    = w0avg_p(i,k,j)
-             rqrcuten(k,i) = rqrcuten_p(i,k,j)
-             rqscuten(k,i) = rqscuten_p(i,k,j)
+             w0avg(k,i)         = w0avg_p(i,k,j)
+             udr_kf(k,i)        = udr_kf_p(i,k,j)
+             uer_kf(k,i)        = uer_kf_p(i,k,j)
+             ddr_kf(k,i)        = ddr_kf_p(i,k,j)
+             der_kf(k,i)        = der_kf_p(i,k,j)
+             qc_cu(k,i)         = qccu_p(i,k,j)
+             qi_cu(k,i)         = qicu_p(i,k,j)
+             cldfrac_deepc(k,i) = cldfrac_deepc_p(i,k,j)
+             cldfrac_shalc(k,i) = cldfrac_shalc_p(i,k,j)
+             rqrcuten(k,i)      = rqrcuten_p(i,k,j)
+             rqscuten(k,i)      = rqscuten_p(i,k,j)
           enddo                          
        enddo
        enddo

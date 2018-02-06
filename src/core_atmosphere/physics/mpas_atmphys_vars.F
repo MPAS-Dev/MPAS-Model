@@ -131,6 +131,9 @@
 ! * added the local variables nwfa2d_p,nwfa_p,and nifa_p to run the Thompson cloud microphysics scheme with CCN
 !   and IN nucleation.
 !   Laura D. Fowler (laura@ucar.edu) / 2018-02-02.
+! * added local variables needed to run the updated version of the Kain-Fritsch parameterization of convection,
+!   copied from WRF version 3.9.1.1.
+!   Laura D. Fowler (laura@ucar.edu) / 2018-02-05.
 ! * removed the variables rqvdynblten and rthdynblten since they actually are the same variables as rqvblten and
 !   rthblten.
 !   Laura D. Fowler (laura@ucar.edu) /2018-02-26.
@@ -323,12 +326,23 @@
     rqicuten_p         !
 
 !... kain fritsch specific arrays:
+ integer,parameter:: kf_edrates = 1  ! = 0: default option.
+                                     ! = 1: output entrainment/detrainment rates.
+
  real(kind=RKIND),dimension(:,:),allocatable::   &
-    cubot_p,          &!lowest convective level                                                 [-]
-    cutop_p,          &!highest convective level                                                [-]
-    nca_p              !counter for cloud relaxation time                                       [-]
+    cubot_p,          &!lowest convective level                                                                [-]
+    cutop_p,          &!highest convective level                                                               [-]
+    nca_p,            &!counter for cloud relaxation time                                                      [-]
+    timec_p            !convective time-scale                                                                  [s]
+
  real(kind=RKIND),dimension(:,:,:),allocatable:: &
-    w0avg_p          !
+    w0avg_p,          &!
+    cldfrac_deepc_p,  &!
+    cldfrac_shalc_p,  &!
+    udr_kf_p,         &!
+    ddr_kf_p,         &!
+    uer_kf_p,         &!
+    der_kf_p           !
 
  real(kind=RKIND),dimension(:,:,:),allocatable:: &
     rqrcuten_p,       &!

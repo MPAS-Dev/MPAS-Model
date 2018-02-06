@@ -655,6 +655,11 @@
 			<var name="raincvm"/>
 			<var name="raincvs"/>
 			<var name="nca"/>
+			<var name="timec"/>
+			<var name="udr_kf"/>
+			<var name="ddr_kf"/>
+			<var name="uer_kf"/>
+			<var name="der_kf"/>
 			<var name="weights_closures"/>
 			<var name="i_raincd_closures"/>
 			<var name="raincd_closures"/>
@@ -806,6 +811,8 @@
 			<var name="zu_shalc"/>
 			<var name="qc_cu"/>
 			<var name="qi_cu"/>
+			<var name="cldfrac_deepc"/>
+			<var name="cldfrac_shalc"/>
 			<var name="rthmpten"/>
 			<var name="rqvmpten"/>
 			<var name="rqcmpten"/>
@@ -2252,14 +2259,6 @@
                      description="cloud base mass flux for shallow convection"
                      packages="cu_grell_freitas_in"/>
 
-                <var name="qc_cu" type="real" dimensions="nVertLevels nCells Time" units="kg kg^{-1}"
-                     description="in-cloud cloud water mixing ratio in Grell-Freitas cloud model"
-                     packages="cu_grell_freitas_in"/>
-
-                <var name="qi_cu" type="real" dimensions="nVertLevels nCells Time" units="kg kg^{-1}"
-                     description="in-cloud cloud ice mixing ratio in Grell-Freitas cloud model"
-                     packages="cu_grell_freitas_in"/>
-
                 <var name="zu_deepc" type="real" dimensions="nVertLevels nCells Time" units="kg m^{-2}"
                      description="upward mass flux for deep convection"
                      packages="cu_grell_freitas_in"/>
@@ -2305,6 +2304,42 @@
                      description="index of lowest level of convection"
                      packages="cu_grell_freitas_in;cu_kain_fritsch_in"/>
 
+                <var name="qc_cu" type="real" dimensions="nVertLevels nCells Time" units="kg kg^{-1}"
+                     description="in-cloud cloud water mixing ratio in Grell-Freitas cloud model"
+                     packages="cu_grell_freitas_in;cu_kain_fritsch_in"/>
+
+                <var name="qi_cu" type="real" dimensions="nVertLevels nCells Time" units="kg kg^{-1}"
+                     description="in-cloud cloud ice mixing ratio in Grell-Freitas cloud model"
+                     packages="cu_grell_freitas_in;cu_kain_fritsch_in"/>
+
+                <!-- ... KAIN_FRITSCH MSKF ONLY: -->
+                <var name="timec" type="real" dimensions="nCells Time" units="s"
+                     description="convective timescale in Kain-Fritsch convection scheme"
+                     packages="cu_kain_fritsch_in"/>
+
+                <var name="cldfrac_deepc"  type="real" dimensions="nVertLevels nCells Time" units="unitless"
+                     description="convective cloud fraction for deep convection in MSKF"
+                     packages="cu_kain_fritsch_in"/>
+
+                <var name="cldfrac_shalc" type="real" dimensions="nVertLevels nCells Time" units="unitless"
+                     description="convective cloud fraction for shallow convection in MSKF"/>
+                     packages="cu_kain_fritsch_in"/>
+
+                <var name="udr_kf" type="real" dimensions="nVertLevels nCells Time" units="kg s^{-1}"
+                     description="updraft detrainment rate in Kain-Fritsch convection scheme"
+                     packages="cu_kain_fritsch_in"/>
+
+                <var name="uer_kf" type="real" dimensions="nVertLevels nCells Time" units="kg s^{-1}"
+                     description="updraft entrainment rate in Kain-Fritsch convection scheme"
+                     packages="cu_kain_fritsch_in"/>
+
+                <var name="ddr_kf" type="real" dimensions="nVertLevels nCells Time" units="kg s^{-1}"
+                     description="downdraft detrainment rate in Kain-Fritsch convection scheme"
+                     packages="cu_kain_fritsch_in"/>
+
+                <var name="der_kf" type="real" dimensions="nVertLevels nCells Time" units="kg s^{-1}"
+                     description="downdraft entrainment rate in Kain-Fritsch convection scheme"
+                     packages="cu_kain_fritsch_in"/>
 
                 <!-- ================================================================================================== -->
                 <!-- ... PARAMETERIZATION OF PLANETARY BOUNDARY LAYER PROCESSES:                                        -->
