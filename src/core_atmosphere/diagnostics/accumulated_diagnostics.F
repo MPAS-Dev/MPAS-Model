@@ -499,7 +499,7 @@ module accumulated_diagnostics
         deallocate(rainc)
         deallocate(i_rainc)
         deallocate(rainnc)
-        deallocate(i_rainc)
+        deallocate(i_rainnc)
     end subroutine accumulated_diagnostics_cleanup
 
 end module accumulated_diagnostics
