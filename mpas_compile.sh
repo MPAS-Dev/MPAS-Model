@@ -14,7 +14,7 @@ echo "Linux distribution = $distribution"
 
 export serial_FC
 
-if [[ $distribution == "3.0.101-0.46.1_1.0502.8871-cray_ari_s" ]]; then
+if [[ $distribution = *"cray"* ]]; then
 
     module swap PrgEnv-cray PrgEnv-intel
     module load cray-netcdf
