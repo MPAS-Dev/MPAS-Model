@@ -2475,7 +2475,10 @@
                      description="all-sky downward surface shortwave radiation flux"/>
 
                 <var name="swdnbc" type="real" dimensions="nCells Time" units="W m^{-2}"
-                     description="clear-sky downward surface shortwave radiation flux"/>                
+                     description="clear-sky downward surface shortwave radiation flux"/>
+                     
+                <var name="swdnbdn" type="real" dimensions="nCells Time" units="W m^{-2}"
+                     description="all-sky downward direct normal surface shortwave radiation flux"/>
 
                 <var name="swdnt" type="real" dimensions="nCells Time" units="W m^{-2}"
                      description="all-sky downward top-of-atmosphere shortwave radiation flux"/>
@@ -2634,7 +2637,7 @@
                 <var name="rre_ice" type="real" dimensions="nVertLevels nCells Time" units="microns"
                      description="effective radius of cloud ice crystals calculated in RRTMG radiation"/>
 
-                <var name="rre_snow" type="real" dimensions="nVertLevels nCells Time"/>
+                <var name="rre_snow" type="real" dimensions="nVertLevels nCells Time"
                      description="effective radius of cloud ice crystals calculated in RRTMG radiation"/>
 
 

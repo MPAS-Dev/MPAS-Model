@@ -476,6 +476,7 @@ real(kind=RKIND),dimension(:,:,:),allocatable:: &
     swcf_p,           &!shortwave cloud forcing at top-of-atmosphere                        [W m-2]
     swdnb_p,          &!all-sky downwelling shortwave flux at bottom-of-atmosphere          [J m-2]
     swdnbc_p,         &!clear-sky downwelling shortwave flux at bottom-of-atmosphere        [J m-2]
+    swdnbdn_p,        &!all-sky downwelling direct normal shortwave flux at bottom-of-atmosphere [J m-2]
     swdnt_p,          &!all-sky downwelling shortwave flux at top-of-atmosphere             [J m-2]
     swdntc_p,         &!clear-sky downwelling shortwave flux at top-of-atmosphere           [J m-2]
     swupb_p,          &!all-sky upwelling shortwave flux at bottom-of-atmosphere            [J m-2]

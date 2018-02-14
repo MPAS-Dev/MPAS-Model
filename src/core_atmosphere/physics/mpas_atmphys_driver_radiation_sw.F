@@ -80,6 +80,8 @@
 ! * in subroutines radiation_sw_from_MPAS, revised the initialization of re_cloud, re_ice, re_snow, to
 !   handle the case when the cloud microphysics parameterization is turned off, i.e. config_microp_scheme='off'.
 !   Laura D. Fowler (laura@ucar.edu) / 2017-02-10.
+! * added all-sky downward shortwave radiation flux to MPAS registry for output
+!   John Wong (johnwong@us.ibm.com) / 2018-02-14.
 
 
  contains
@@ -111,6 +113,7 @@
  if(.not.allocated(swcf_p)       ) allocate(swcf_p(ims:ime,jms:jme)               )
  if(.not.allocated(swdnb_p)      ) allocate(swdnb_p(ims:ime,jms:jme)              )
  if(.not.allocated(swdnbc_p)     ) allocate(swdnbc_p(ims:ime,jms:jme)             )
+ if(.not.allocated(swdnbdn_p)    ) allocate(swdnbdn_p(ims:ime,jms:jme)            )
  if(.not.allocated(swdnt_p)      ) allocate(swdnt_p(ims:ime,jms:jme)              )
  if(.not.allocated(swdntc_p)     ) allocate(swdntc_p(ims:ime,jms:jme)             )
  if(.not.allocated(swupb_p)      ) allocate(swupb_p(ims:ime,jms:jme)              )
@@ -210,6 +213,7 @@
  if(allocated(swcf_p)       ) deallocate(swcf_p       )
  if(allocated(swdnb_p)      ) deallocate(swdnb_p      )
  if(allocated(swdnbc_p)     ) deallocate(swdnbc_p     )
+ if(allocated(swdnbdn_p)    ) deallocate(swdnbdn_p    )
  if(allocated(swdnt_p)      ) deallocate(swdnt_p      )
  if(allocated(swdntc_p)     ) deallocate(swdntc_p     )
  if(allocated(swupb_p)      ) deallocate(swupb_p      )
@@ -371,6 +375,7 @@
     swcf_p(i,j)     = 0.0_RKIND
     swdnb_p(i,j)    = 0.0_RKIND
     swdnbc_p(i,j)   = 0.0_RKIND
+    swdnbdn_p(i,j)  = 0.0_RKIND
     swdnt_p(i,j)    = 0.0_RKIND
     swdntc_p(i,j)   = 0.0_RKIND
     swupb_p(i,j)    = 0.0_RKIND
@@ -568,7 +573,7 @@
  integer:: i,j,k,n
 
 !local pointers:
- real(kind=RKIND),dimension(:),pointer  :: coszr,gsw,swcf,swdnb,swdnbc,swdnt,swdntc, &
+ real(kind=RKIND),dimension(:),pointer  :: coszr,gsw,swcf,swdnb,swdnbc,swdnbdn,swdnt,swdntc, &
                                            swupb,swupbc,swupt,swuptc
  real(kind=RKIND),dimension(:,:),pointer:: rthratensw
 
@@ -579,6 +584,7 @@
  call mpas_pool_get_array(diag_physics,'swcf'      ,swcf      )
  call mpas_pool_get_array(diag_physics,'swdnb'     ,swdnb     )
  call mpas_pool_get_array(diag_physics,'swdnbc'    ,swdnbc    )
+ call mpas_pool_get_array(diag_physics,'swdnbdn'   ,swdnbdn   )
  call mpas_pool_get_array(diag_physics,'swdnt'     ,swdnt     )
  call mpas_pool_get_array(diag_physics,'swdntc'    ,swdntc    )
  call mpas_pool_get_array(diag_physics,'swupb'     ,swupb     )
@@ -595,6 +601,7 @@
     swcf(i)   = swcf_p(i,j)
     swdnb(i)  = swdnb_p(i,j)
     swdnbc(i) = swdnbc_p(i,j)
+    swdnbdn(i) = swdnbdn_p(i,j)
     swdnt(i)  = swdnt_p(i,j)
     swdntc(i) = swdntc_p(i,j)
     swupb(i)  = swupb_p(i,j)
@@ -730,6 +737,7 @@
               re_snow    = resnow_p     , swupt      = swupt_p       , swuptc   = swuptc_p , &
               swdnt      = swdnt_p      , swdntc     = swdntc_p      , swupb    = swupb_p  , &
               swupbc     = swupbc_p     , swdnb      = swdnb_p       , swdnbc   = swdnbc_p , &
+              swdnbdn = swdnbdn_p, & ! diagnostics only
               ids = ids , ide = ide , jds = jds , jde = jde , kds = kds , kde = kde ,        &
               ims = ims , ime = ime , jms = jms , jme = jme , kms = kms , kme = kme ,        &
               its = its , ite = ite , jts = jts , jte = jte , kts = kts , kte = kte          &
