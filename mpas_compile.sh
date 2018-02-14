@@ -28,7 +28,7 @@ if [[ $distribution = *"cray"* ]]; then
     export PNETCDF=$PARALLEL_NETCDF_DIR
     export PNETCDF_PATH=$PARALLEL_NETCDF_DIR
     export PIO=$MPAS_ROOT/software/PIO_install
-    export CMAKE_PATH=/mnt/lustre/shared_data/cmake-install/bin
+    export CMAKE=`which cmake`
     export F77=ftn
     export serial_FC=ftn
     export FC=ftn
@@ -57,7 +57,7 @@ if [[ $distribution = *"cray"* ]]; then
     cd ..
     mkdir PIO_build
     cd PIO_build
-    $CMAKE_PATH/cmake -DNetCDF_C_PATH=$NETCDF -DNetCDF_Fortran_PATH=$NETCDF -DPnetCDF_PATH=$PNETCDF -DHDF5_PATH=$HDF5_DIR \
+    $CMAKE -DNetCDF_C_PATH=$NETCDF -DNetCDF_Fortran_PATH=$NETCDF -DPnetCDF_PATH=$PNETCDF -DHDF5_PATH=$HDF5_DIR \
         -DCMAKE_INSTALL_PREFIX=$PIO -DPIO_ENABLE_TIMING=OFF $PIOSRC
     make
     make install
