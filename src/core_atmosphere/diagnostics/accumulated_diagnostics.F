@@ -7,12 +7,10 @@
 !
 ! John Wong, TWC / IBM, 01/27/2018
 ! This module provides subroutines for computing diagnostics of accumulated variables
-! valid at prescribed intervals.
+! valid every 15 minutes
 !
-! * 15-minute accumulated total precipitation, snow, and ice every 15 minutes
-! * 30-minute accumulated total precipitation, snow, and ice every 30 minutes
-! * Houry accumulated total precipitation, snow, and ice at :00 and :30
-! * Total ice accumulation since model start time
+! * Every 15 minutes, accumulated grid-scale precip, convective precip, rainfall, snow, and ice
+! * Total ice accumulation and rainfall
 !
 
 module accumulated_diagnostics
