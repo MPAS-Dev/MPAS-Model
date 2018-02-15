@@ -189,7 +189,7 @@ module accumulated_diagnostics
         implicit none
 
         character (len=*), intent(in) :: field
-        real (kind=RKIND), dimension(:,:), intent(inout) :: arr_out
+        real (kind=RKIND), dimension(nCells,0:nHistory-1), intent(inout) :: arr_out
         real (kind=RKIND), dimension(:), pointer :: arr
 
         call mpas_pool_get_array(diag_physics, field, arr)
@@ -201,7 +201,7 @@ module accumulated_diagnostics
         implicit none
 
         character (len=*), intent(in) :: field
-        integer, dimension(:,:), intent(inout) :: arr_out
+        integer, dimension(nCells,0:nHistory-1), intent(inout) :: arr_out
         integer, dimension(:), pointer :: arr
 
         call mpas_pool_get_array(diag_physics, field, arr)
@@ -352,8 +352,8 @@ module accumulated_diagnostics
 
         character (len=*), intent(in) :: field
         integer, intent(in) :: steps                              ! number of time steps
-        real (kind=RKIND), dimension(:,:), intent(in) :: historical ! historical accum array
-        integer, dimension(:,:), intent(in), optional :: i_bucket   ! historical bucket incidence
+        real (kind=RKIND), dimension(nCells,0:nHistory-1), intent(in) :: historical ! historical accum array
+        integer, dimension(nCells,0:nHistory-1), intent(in), optional :: i_bucket   ! historical bucket incidence
         real (kind=RKIND), intent(in), optional :: bucket_size    ! bucket size
         real (kind=RKIND), intent(in), optional :: div            ! divider
 
@@ -394,7 +394,7 @@ module accumulated_diagnostics
 
         character (len=*), intent(in) :: field
         integer, intent(in) :: steps                                ! number of time steps
-        real (kind=RKIND), dimension(:,:), intent(in) :: historical ! historical accum array
+        real (kind=RKIND), dimension(nCells,0:nHistory-1), intent(in) :: historical ! historical accum array
         real (kind=RKIND), intent(in), optional :: div              ! divider
 
         real (kind=RKIND), dimension(:), pointer :: arr           ! output array
