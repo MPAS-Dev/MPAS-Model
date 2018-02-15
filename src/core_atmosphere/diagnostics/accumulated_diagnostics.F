@@ -15,7 +15,7 @@
 
 module accumulated_diagnostics
 
-    use mpas_kind_types, only : RKIND
+    use mpas_kind_types, only : RKIND, StrKIND
     use mpas_derived_types, only : MPAS_pool_type, MPAS_clock_type
 
     type (MPAS_pool_type), pointer :: mesh
@@ -45,6 +45,7 @@ module accumulated_diagnostics
 
     ! Model configurations
     integer, pointer :: nCells
+    character(len=StrKIND), pointer::  config_bucket_update
     real (kind=RKIND), pointer :: bucket_rainc, bucket_rainnc ! rain buckets
     real (kind=RKIND), pointer :: bucket_radt     ! bucket size for accumulated radiation
     real (kind=RKIND), pointer :: dt              ! model timestep size
@@ -109,6 +110,7 @@ module accumulated_diagnostics
         call MPAS_add_clock_alarm(simulationClock, 'acc15mAlarm', now, alarmTimeInterval=intv15)
 
         ! Config
+        call mpas_pool_get_config(configs, 'config_bucket_update', config_bucket_update)
         call mpas_pool_get_config(configs, 'config_bucket_radt', bucket_radt)
         call mpas_pool_get_config(configs, 'config_bucket_rainc', bucket_rainc)
         call mpas_pool_get_config(configs, 'config_bucket_rainnc', bucket_rainnc)
@@ -171,6 +173,9 @@ module accumulated_diagnostics
         call mpas_pool_get_array(diag_physics, 'lh', lhflx) ! in
         lh15m(:,iHistp1) = lh15m(:,iHistp1) + lhflx * dt
 
+        ! Update acswdnb and i_acswdnb if needed
+        call accumulate_radiation()
+
         ! Step forward in time and copy accumulated values
         if (MPAS_is_alarm_ringing(simulationClock, 'acc15mAlarm')) then
             iHistory = iHistp1
@@ -183,6 +188,30 @@ module accumulated_diagnostics
         end if
 
     end subroutine accumulated_diagnostics_update
+
+    subroutine accumulate_radiation()
+        use mpas_pool_routines, only : mpas_pool_get_config, mpas_pool_get_array
+        implicit none
+
+        integer, dimension(:), pointer  :: i_acswdnb
+        real(kind=RKIND), dimension(:), pointer:: swdnb, acswdnb
+
+        if (config_bucket_update == 'none') then
+            ! radiations are not accumulated if config_bucket_update is set to none
+            call mpas_pool_get_array(diag_physics,'i_acswdnb' , i_acswdnb )
+            call mpas_pool_get_array(diag_physics,'acswdnb'   , acswdnb   )
+            call mpas_pool_get_array(diag_physics,'swdnb'     , swdnb     )
+
+            acswdnb(:)  = acswdnb(:) + swdnb(:)*dt
+            if (bucket_radt .gt. 0._RKIND) then
+                where (acswdnb(:) .gt. bucket_radt)
+                    acswdnb(:) = acswdnb(:) - bucket_radt
+                    i_acswdnb(:) = i_acswdnb(:) + 1
+                end where
+            end if
+        end if
+
+    end subroutine accumulate_radiation
 
     subroutine copy_diag_real(field, arr_out)
         use mpas_pool_routines, only : mpas_pool_get_array
@@ -427,51 +456,20 @@ module accumulated_diagnostics
     !-----------------------------------------------------------------------
     subroutine accumulated_diagnostics_reset()
         use mpas_timekeeping, only : MPAS_is_alarm_ringing, MPAS_reset_clock_alarm
-
+        use mpas_pool_routines, only : mpas_pool_get_array
         implicit none
+
+        real (kind=RKIND), dimension(:), pointer :: bucket
 
         ! Reset 15-minute buckets
         if (MPAS_is_alarm_ringing(simulationClock, 'acc15mAlarm')) then
-            call reset_bucket('wspd10_max15m')
+            call mpas_pool_get_array(diag, 'wspd10_max15m', bucket)
+            bucket(:) = 0._RKIND
 
             call MPAS_reset_clock_alarm(simulationClock, 'acc15mAlarm')
         end if
     end subroutine accumulated_diagnostics_reset
 
-
-    !-----------------------------------------------------------------------
-    !  routine reset_bucket
-    !
-    !> \brief Sets the array to value
-    !> \author John Wong
-    !> \date   29 Jan 2017
-    !> \details
-    !>  Sets all the values in an array to the given value, or zero if omitted.
-    !
-    !-----------------------------------------------------------------------
-    subroutine reset_bucket(key, value)
-        use mpas_pool_routines, only : mpas_pool_get_array
-
-        implicit none
-        character (len=*), intent(in) :: key
-        real (kind=RKIND), intent(in), optional :: value
-        real (kind=RKIND), dimension(:), pointer :: bucket
-
-        call mpas_pool_get_array(diag, key, bucket)
-        call reset_bucket_arr(bucket, value)
-    end subroutine reset_bucket
-
-    subroutine reset_bucket_arr(bucket, value)
-        implicit none
-        real (kind=RKIND), dimension(:), intent(inout) :: bucket
-        real (kind=RKIND), intent(in), optional :: value
-
-        if ( present(value) ) then
-            bucket(:) = value
-        else
-            bucket(:) = 0._RKIND
-        endif
-    end subroutine reset_bucket_arr
 
     !-----------------------------------------------------------------------
     !  routine accumulated_diagnostics_cleanup
