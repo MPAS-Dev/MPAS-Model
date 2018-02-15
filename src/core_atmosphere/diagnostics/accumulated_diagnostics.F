@@ -15,7 +15,7 @@
 
 module accumulated_diagnostics
 
-    use mpas_kind_types, only : RKIND, StrKIND
+    use mpas_kind_types, only : RKIND
     use mpas_derived_types, only : MPAS_pool_type, MPAS_clock_type
 
     type (MPAS_pool_type), pointer :: mesh
@@ -37,15 +37,14 @@ module accumulated_diagnostics
     integer, parameter :: nHistory = 5
     integer :: iHistory
     ! Total accumulation since model start every 15 minutes, i.e. total = arr(:,t1)-arr(:,t0)
-    real (kind=RKIND), allocatable, dimension(:,:) :: acswdnb, rainc, rainnc
+    real (kind=RKIND), allocatable, dimension(:,:) :: rainc, rainnc
     ! Total incidence of overflow buckets every 15 minutes
-    integer, allocatable, dimension(:,:) :: i_acswdnb, i_rainc, i_rainnc
+    integer, allocatable, dimension(:,:) :: i_rainc, i_rainnc
     ! 15-minute calculated accumulations, i.e. total = SUM{arr(:,...)}
-    real (kind=RKIND), allocatable, dimension(:,:) :: lh15m, rain15m, snow15m, ice15m
+    real (kind=RKIND), allocatable, dimension(:,:) :: lh15m, rain15m, snow15m, ice15m, sw15m
 
     ! Model configurations
     integer, pointer :: nCells
-    character(len=StrKIND), pointer::  config_bucket_update
     real (kind=RKIND), pointer :: bucket_rainc, bucket_rainnc ! rain buckets
     real (kind=RKIND), pointer :: bucket_radt     ! bucket size for accumulated radiation
     real (kind=RKIND), pointer :: dt              ! model timestep size
@@ -93,8 +92,6 @@ module accumulated_diagnostics
 
         ! Allocate historical buffers
         iHistory = 0
-        call init_history_real(acswdnb)
-        call init_history_int(i_acswdnb)
         call init_history_real(rainc)
         call init_history_int(i_rainc)
         call init_history_real(rainnc)
@@ -103,6 +100,7 @@ module accumulated_diagnostics
         call init_history_real(snow15m)
         call init_history_real(ice15m)
         call init_history_real(lh15m)
+        call init_history_real(sw15m)
 
         ! Set precipitation bucket alarm for resets
         call MPAS_set_timeInterval(intv15, M=15)
@@ -110,7 +108,6 @@ module accumulated_diagnostics
         call MPAS_add_clock_alarm(simulationClock, 'acc15mAlarm', now, alarmTimeInterval=intv15)
 
         ! Config
-        call mpas_pool_get_config(configs, 'config_bucket_update', config_bucket_update)
         call mpas_pool_get_config(configs, 'config_bucket_radt', bucket_radt)
         call mpas_pool_get_config(configs, 'config_bucket_rainc', bucket_rainc)
         call mpas_pool_get_config(configs, 'config_bucket_rainnc', bucket_rainnc)
@@ -149,7 +146,7 @@ module accumulated_diagnostics
 
         implicit none
 
-        real (kind=RKIND), dimension(:), pointer :: u10, v10, lhflx, wspd15m, arr
+        real (kind=RKIND), dimension(:), pointer :: u10, v10, lhflx, wspd15m, swdnb, arr
         real (kind=RKIND) :: wspd
 
         integer :: iHistp1, iCell
@@ -171,16 +168,15 @@ module accumulated_diagnostics
 
         ! Incrementing latent heat for hourly averaging
         call mpas_pool_get_array(diag_physics, 'lh', lhflx) ! in
-        lh15m(:,iHistp1) = lh15m(:,iHistp1) + lhflx * dt
+        lh15m(:,iHistp1) = lh15m(:,iHistp1) + lhflx(:) * dt
 
         ! Update acswdnb and i_acswdnb if needed
-        call accumulate_radiation()
+        call mpas_pool_get_array(diag_physics, 'swdnb', swdnb) ! in
+        sw15m(:,iHistp1) = sw15m(:,iHistp1) + swdnb(:) * dt
 
         ! Step forward in time and copy accumulated values
         if (MPAS_is_alarm_ringing(simulationClock, 'acc15mAlarm')) then
             iHistory = iHistp1
-            call copy_diag_real('acswdnb', acswdnb)
-            call copy_diag_int('i_acswdnb', i_acswdnb)
             call copy_diag_real('rainc', rainc)
             call copy_diag_int('i_rainc', i_rainc)
             call copy_diag_real('rainnc', rainnc)
@@ -188,30 +184,6 @@ module accumulated_diagnostics
         end if
 
     end subroutine accumulated_diagnostics_update
-
-    subroutine accumulate_radiation()
-        use mpas_pool_routines, only : mpas_pool_get_config, mpas_pool_get_array
-        implicit none
-
-        integer, dimension(:), pointer  :: i_acswdnb
-        real(kind=RKIND), dimension(:), pointer:: swdnb, acswdnb
-
-        if (config_bucket_update == 'none') then
-            ! radiations are not accumulated if config_bucket_update is set to none
-            call mpas_pool_get_array(diag_physics,'i_acswdnb' , i_acswdnb )
-            call mpas_pool_get_array(diag_physics,'acswdnb'   , acswdnb   )
-            call mpas_pool_get_array(diag_physics,'swdnb'     , swdnb     )
-
-            acswdnb(:)  = acswdnb(:) + swdnb(:)*dt
-            if (bucket_radt .gt. 0._RKIND) then
-                where (acswdnb(:) .gt. bucket_radt)
-                    acswdnb(:) = acswdnb(:) - bucket_radt
-                    i_acswdnb(:) = i_acswdnb(:) + 1
-                end where
-            end if
-        end if
-
-    end subroutine accumulate_radiation
 
     subroutine copy_diag_real(field, arr_out)
         use mpas_pool_routines, only : mpas_pool_get_array
@@ -357,7 +329,7 @@ module accumulated_diagnostics
         call output_accum('lh01h', 4, lh15m, div=3600._RKIND)
 
         ! Downward shortwave flux, averaging
-        call output_diff('swdnb01h', 4, acswdnb, i_acswdnb, bucket_radt, div=3600._RKIND)
+        call output_accum('swdnb01h', 4, sw15m, div=3600._RKIND)
 
     end subroutine accumulated_diagnostics_compute
 
@@ -490,8 +462,7 @@ module accumulated_diagnostics
         deallocate(snow15m)
         deallocate(ice15m)
         deallocate(lh15m)
-        deallocate(acswdnb)
-        deallocate(i_acswdnb)
+        deallocate(sw15m)
         deallocate(rainc)
         deallocate(i_rainc)
         deallocate(rainnc)
