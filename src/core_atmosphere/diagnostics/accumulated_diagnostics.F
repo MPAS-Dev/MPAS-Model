@@ -41,7 +41,7 @@ module accumulated_diagnostics
     ! Total incidence of overflow buckets every 15 minutes
     integer, allocatable, dimension(:,:) :: i_rainc, i_rainnc
     ! 15-minute calculated accumulations, i.e. total = SUM{arr(:,...)}
-    real (kind=RKIND), allocatable, dimension(:,:) :: lh15m, rain15m, snow15m, ice15m, sw15m
+    real (kind=RKIND), allocatable, dimension(:,:) :: lh15m, rain15m, snow15m, ice15m, sw15m, dni15m
 
     ! Model configurations
     integer, pointer :: nCells
@@ -101,6 +101,7 @@ module accumulated_diagnostics
         call init_history_real(ice15m)
         call init_history_real(lh15m)
         call init_history_real(sw15m)
+        call init_history_real(dni15m)
 
         ! Set precipitation bucket alarm for resets
         call MPAS_set_timeInterval(intv15, M=15)
@@ -146,7 +147,7 @@ module accumulated_diagnostics
 
         implicit none
 
-        real (kind=RKIND), dimension(:), pointer :: u10, v10, lhflx, wspd15m, swdnb, arr
+        real (kind=RKIND), dimension(:), pointer :: u10, v10, lhflx, wspd15m, swdnb, swdnbdn, arr
         real (kind=RKIND) :: wspd
 
         integer :: iHistp1, iCell
@@ -170,9 +171,11 @@ module accumulated_diagnostics
         call mpas_pool_get_array(diag_physics, 'lh', lhflx) ! in
         lh15m(:,iHistp1) = lh15m(:,iHistp1) + lhflx(:) * dt
 
-        ! Update acswdnb and i_acswdnb if needed
-        call mpas_pool_get_array(diag_physics, 'swdnb', swdnb) ! in
-        sw15m(:,iHistp1) = sw15m(:,iHistp1) + swdnb(:) * dt
+        ! Update swdnb and swdnbdn, total and direct normal shortwave
+        call mpas_pool_get_array(diag_physics,   'swdnb',   swdnb) ! in
+        call mpas_pool_get_array(diag_physics, 'swdnbdn', swdnbdn) ! in
+        sw15m(:,iHistp1)  =  sw15m(:,iHistp1) +   swdnb(:) * dt
+        dni15m(:,iHistp1) = dni15m(:,iHistp1) + swdnbdn(:) * dt
 
         ! Step forward in time and copy accumulated values
         if (MPAS_is_alarm_ringing(simulationClock, 'acc15mAlarm')) then
@@ -329,7 +332,8 @@ module accumulated_diagnostics
         call output_accum('lh01h', 4, lh15m, div=3600._RKIND)
 
         ! Downward shortwave flux, averaging
-        call output_accum('swdnb01h', 4, sw15m, div=3600._RKIND)
+        call output_accum(  'swdnb01h', 4,  sw15m, div=3600._RKIND)
+        call output_accum('swdnbdn01h', 4, dni15m, div=3600._RKIND)
 
     end subroutine accumulated_diagnostics_compute
 
@@ -463,6 +467,7 @@ module accumulated_diagnostics
         deallocate(ice15m)
         deallocate(lh15m)
         deallocate(sw15m)
+        deallocate(dni15m)
         deallocate(rainc)
         deallocate(i_rainc)
         deallocate(rainnc)
