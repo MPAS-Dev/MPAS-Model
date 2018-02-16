@@ -14,7 +14,7 @@ echo "Linux distribution = $distribution"
 
 export serial_FC
 
-if [[ $distribution == "3.0.101-0.46.1_1.0502.8871-cray_ari_s" ]]; then
+if [[ $distribution = *"cray"* ]]; then
 
     module swap PrgEnv-cray PrgEnv-intel
     module load cray-netcdf
@@ -28,7 +28,7 @@ if [[ $distribution == "3.0.101-0.46.1_1.0502.8871-cray_ari_s" ]]; then
     export PNETCDF=$PARALLEL_NETCDF_DIR
     export PNETCDF_PATH=$PARALLEL_NETCDF_DIR
     export PIO=$MPAS_ROOT/software/PIO_install
-    export CMAKE_PATH=/mnt/lustre/shared_data/cmake-install/bin
+    export CMAKE=`which cmake`
     export F77=ftn
     export serial_FC=ftn
     export FC=ftn
@@ -57,7 +57,7 @@ if [[ $distribution == "3.0.101-0.46.1_1.0502.8871-cray_ari_s" ]]; then
     cd ..
     mkdir PIO_build
     cd PIO_build
-    $CMAKE_PATH/cmake -DNetCDF_C_PATH=$NETCDF -DNetCDF_Fortran_PATH=$NETCDF -DPnetCDF_PATH=$PNETCDF -DHDF5_PATH=$HDF5_DIR \
+    $CMAKE -DNetCDF_C_PATH=$NETCDF -DNetCDF_Fortran_PATH=$NETCDF -DPnetCDF_PATH=$PNETCDF -DHDF5_PATH=$HDF5_DIR \
         -DCMAKE_INSTALL_PREFIX=$PIO -DPIO_ENABLE_TIMING=OFF $PIOSRC
     make
     make install

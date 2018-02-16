@@ -89,7 +89,7 @@
                                   i_aclwupb,i_aclwupbc,i_aclwupt,i_aclwuptc
 
  real(kind=RKIND),pointer:: bucket_radt
- real(kind=RKIND),dimension(:),pointer:: swdnb,swdnbc,swdnt,swdntc,  &
+ real(kind=RKIND),dimension(:),pointer:: swdnb,swdnbc,swdnbdn,swdnt,swdntc,  &
                                          swupb,swupbc,swupt,swuptc,  &
                                          lwdnb,lwdnbc,lwdnt,lwdntc,  &
                                          lwupb,lwupbc,lwupt,lwuptc
@@ -143,6 +143,7 @@
 
  call mpas_pool_get_array(diag_physics,'swdnb'     , swdnb     )
  call mpas_pool_get_array(diag_physics,'swdnbc'    , swdnbc    )
+ call mpas_pool_get_array(diag_physics,'swdnbdn'   , swdnbdn   )
  call mpas_pool_get_array(diag_physics,'swdnt'     , swdnt     )
  call mpas_pool_get_array(diag_physics,'swdntc'    , swdntc    )
  call mpas_pool_get_array(diag_physics,'swupb'     , swupb     )
