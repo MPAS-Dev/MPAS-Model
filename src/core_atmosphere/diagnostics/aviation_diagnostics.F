@@ -1,4 +1,4 @@
-!  hiwc_diagnostics.F
+!  aviation_diagnostics.F
 !
 !  Created by Cathryn Meyer, December / 2017
 !  Copyright (c) 2017 The Weather Company. All rights reserved.
@@ -10,7 +10,7 @@
 !
 !----------------------------------------------------------------------->
 
-module hiwc_diagnostics
+module aviation_diagnostics
 
     use mpas_derived_types
     use mpas_kind_types
@@ -21,11 +21,11 @@ module hiwc_diagnostics
     type (MPAS_pool_type), pointer :: state
     type (MPAS_pool_type), pointer :: diag
 
-    public :: hiwc_diagnostics_setup, &
-              hiwc_diagnostics_update, &
-              hiwc_diagnostics_compute, &
-              hiwc_diagnostics_reset, &
-              hiwc_diagnostics_cleanup
+    public :: aviation_diagnostics_setup, &
+              aviation_diagnostics_update, &
+              aviation_diagnostics_compute, &
+              aviation_diagnostics_reset, &
+              aviation_diagnostics_cleanup
 
     private
 
@@ -33,16 +33,16 @@ module hiwc_diagnostics
 
 
     !-----------------------------------------------------------------------
-    !  routine hiwc_diagnostics_setup
+    !  routine aviation_diagnostics_setup
     !
-    !> \brief   Initialize the hiwc_diagnostics module
+    !> \brief   Initialize the aviation_diagnostics module
     !> \author  Meyer
     !> \date    Dec 2017
     !> \details
     !>  Initialize the diagnostic module.
     !
     !-----------------------------------------------------------------------
-    subroutine hiwc_diagnostics_setup(all_pools)
+    subroutine aviation_diagnostics_setup(all_pools)
 
         use mpas_derived_types, only : MPAS_pool_type, MPAS_clock_type
         use mpas_pool_routines, only : mpas_pool_get_subpool
@@ -55,17 +55,17 @@ module hiwc_diagnostics
         call mpas_pool_get_subpool(all_pools, 'state', state)
         call mpas_pool_get_subpool(all_pools, 'diag', diag)
 
-    end subroutine hiwc_diagnostics_setup
+    end subroutine aviation_diagnostics_setup
 
 
-    subroutine hiwc_diagnostics_update()
+    subroutine aviation_diagnostics_update()
         implicit none
         ! Nothing to update (every timestep) for hiwc
-    end subroutine hiwc_diagnostics_update
+    end subroutine aviation_diagnostics_update
 
 
     !-----------------------------------------------------------------------
-    !  routine hiwc_diagnostics_compute
+    !  routine aviation_diagnostics_compute
     !
     !> \brief  Compute HIWC for model output
     !> \author Cathryn Meyer
@@ -74,7 +74,7 @@ module hiwc_diagnostics
     !>  Compute HIWC before model output is written.
     !
     !-----------------------------------------------------------------------
-    subroutine hiwc_diagnostics_compute()
+    subroutine aviation_diagnostics_compute()
 
         use mpas_pool_routines, only : mpas_pool_get_dimension, mpas_pool_get_array
         use mpas_atm_diagnostics_utils, only : MPAS_field_will_be_written
@@ -128,7 +128,7 @@ module hiwc_diagnostics
 
         end if
 
-    end subroutine hiwc_diagnostics_compute
+    end subroutine aviation_diagnostics_compute
 
    !==================================================================================================
     subroutine interp_diagnostics(mesh, state, time_lev, diag, qi_200hPa, qi_250hPa, virtualT_400hPa)
@@ -391,16 +391,16 @@ module hiwc_diagnostics
 
 
 
-    subroutine hiwc_diagnostics_reset()
+    subroutine aviation_diagnostics_reset()
         implicit none
         ! Nothing to reset for hiwc
-    end subroutine hiwc_diagnostics_reset
+    end subroutine aviation_diagnostics_reset
 
 
-    subroutine hiwc_diagnostics_cleanup()
+    subroutine aviation_diagnostics_cleanup()
         implicit none
         ! Nothing to cleanup for hiwc
-    end subroutine hiwc_diagnostics_cleanup
+    end subroutine aviation_diagnostics_cleanup
 
-end module hiwc_diagnostics
+end module aviation_diagnostics
 

@@ -1012,9 +1012,9 @@
             <var name="w_unstag"/>
             <!-- End unstagger diagnostics defined in diagnostics/Registry_unstagger.sxml -->
 
-            <!-- Begin hiwc diagnostics defined in diagnostics/Registry_hiwc.xml -->
+            <!-- Begin aviation diagnostics defined in diagnostics/Registry_aviation.xml -->
             <var name="hiwc"/>
-            <!-- End hiwc diagnostics defined in diagnostics/Registry_hiwc.xml -->
+            <!-- End aviation diagnostics defined in diagnostics/Registry_aviation.xml -->
 
             <!-- Begin surface diagnostics defined in diagnostics/Registry_surface.xml -->
             <var name="dewpoint_2m"/>

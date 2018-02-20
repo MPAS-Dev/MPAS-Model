@@ -28,8 +28,8 @@
 <!-- deformation diagnostics -->
 #include "Registry_deformation.xml"
 
-<!-- hiwc diagnostics -->
-#include "Registry_hiwc.xml"
+<!-- aviation diagnostics -->
+#include "Registry_aviation.xml"
 
 <!-- unstagger diagnostics -->
 #include "Registry_unstagger.xml"
