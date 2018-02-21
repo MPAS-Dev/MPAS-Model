@@ -19,7 +19,7 @@ module aviation_diagnostics
 
     type (MPAS_pool_type), pointer :: mesh
     type (MPAS_pool_type), pointer :: state
-    type (MPAS_pool_type), pointer :: diag
+    type (MPAS_pool_type), pointer :: diag, diag_physics, sfc_input
 
     public :: aviation_diagnostics_setup, &
               aviation_diagnostics_update, &
@@ -28,6 +28,8 @@ module aviation_diagnostics
               aviation_diagnostics_cleanup
 
     private
+
+    logical :: is_needed_avcnvmsk
 
     contains
 
@@ -43,9 +45,9 @@ module aviation_diagnostics
     !
     !-----------------------------------------------------------------------
     subroutine aviation_diagnostics_setup(all_pools)
-
-        use mpas_derived_types, only : MPAS_pool_type, MPAS_clock_type
+        use mpas_derived_types, only : MPAS_pool_type, MPAS_clock_type, MPAS_STREAM_OUTPUT
         use mpas_pool_routines, only : mpas_pool_get_subpool
+        use mpas_atm_diagnostics_utils, only : mpas_stream_inclusion_count
 
         implicit none
 
@@ -54,20 +56,37 @@ module aviation_diagnostics
         call mpas_pool_get_subpool(all_pools, 'mesh', mesh)
         call mpas_pool_get_subpool(all_pools, 'state', state)
         call mpas_pool_get_subpool(all_pools, 'diag', diag)
+        call mpas_pool_get_subpool(all_pools, 'diag_physics', diag_physics)
+        call mpas_pool_get_subpool(all_pools, 'sfc_input', sfc_input)
+
+        is_needed_avcnvmsk = (mpas_stream_inclusion_count('avcnvmsk', direction=MPAS_STREAM_OUTPUT) > 0)
 
     end subroutine aviation_diagnostics_setup
 
 
+    !-----------------------------------------------------------------------
+    !  routine aviation_diagnostics_update
+    !
+    !> \brief  Update aviation diagnostics
+    !> \author Cathryn Meyer
+    !> \date   Dec 2017
+    !> \details
+    !>  Update aviation diagnostics at each timestep
+    !
+    !-----------------------------------------------------------------------
     subroutine aviation_diagnostics_update()
         implicit none
-        ! Nothing to update (every timestep) for hiwc
+
+        if (is_needed_avcnvmsk) then
+            call update_avcnvmsk()
+        end if
     end subroutine aviation_diagnostics_update
 
 
     !-----------------------------------------------------------------------
     !  routine aviation_diagnostics_compute
     !
-    !> \brief  Compute HIWC for model output
+    !> \brief  Compute aviation diagnostics for model output
     !> \author Cathryn Meyer
     !> \date   Dec 2017
     !> \details
@@ -129,6 +148,91 @@ module aviation_diagnostics
         end if
 
     end subroutine aviation_diagnostics_compute
+
+    !-----------------------------------------------------------------------
+    !  routine update_avcnvmsk
+    !
+    !> \brief  Update Aviation Convective Mask
+    !> \author John Wong
+    !> \date   Feb 2017
+    !> \details Update convective masks for TWC aviation diagnostics at each
+    !>          timestep
+    !
+    !-----------------------------------------------------------------------
+    subroutine update_avcnvmsk()
+
+        use mpas_pool_routines, only : mpas_pool_get_dimension, mpas_pool_get_array
+
+        implicit none
+
+! ---------------
+        integer, pointer :: nCells, nVertLevels
+        real (kind=RKIND), dimension(:,:), pointer :: refl10cm, z, w ! in
+        real (kind=RKIND), dimension(:), pointer :: z0, rainncv, cutop ! in
+        real (kind=RKIND), dimension(:), pointer :: avcnvmsk ! out
+
+        integer :: iCell, k, k_echotop
+        real :: dbzmax, wmax, echotop, wgt, w_fct, dbz_fct, et_fct
+
+        real, parameter :: dbzcrit_min = 18.0
+        real, parameter :: dbzcrit_max = 60.0
+        real, parameter :: pcpcrit_min = 0.0       ! timestep precip, mm
+        real, parameter :: wcrit_min   = 0.30      ! updraft, m/s
+        real, parameter :: wcrit_max   = 20.
+        real, parameter :: etcrit_min  = 7620.0    ! echo top, m, = 25000ft
+        real, parameter :: etcrit_max  = 18288.0   ! = 60000ft
+
+! --------------
+
+        call mpas_pool_get_dimension(mesh, 'nCells', nCells)
+        call mpas_pool_get_dimension(mesh, 'nVertLevels', nVertLevels)
+        call mpas_pool_get_array(diag_physics, 'refl10cm', refl10cm)
+        call mpas_pool_get_array(diag_physics, 'cutop', cutop)
+        call mpas_pool_get_array(diag_physics, 'rainncv', rainncv)
+        call mpas_pool_get_array(state, 'w', w, 1)
+        call mpas_pool_get_array(diag, 'zgrid_unstag', z)
+        call mpas_pool_get_array(sfc_input, 'ter', z0)
+        call mpas_pool_get_array(diag, 'avcnvmsk', avcnvmsk)
+
+        do iCell=1,nCells
+            ! Find the max reflectivity and max updraft
+            dbzmax = MAXVAL(refl10cm(iCell,:))
+            wmax = MAXVAL(w(iCell,:))
+
+            ! Find the convective top either as echo top or parameterized convective top
+            k_echotop = 1
+            if (dbzmax > dbzcrit_min) then
+                do k=1,nVertLevels-1
+                    if (refl10cm(iCell,k) > dbzcrit_min) then
+                        k_echotop = k
+                    end if
+                end do
+            end if
+            k_echotop = MAX(k_echotop, MIN(nVertLevels-1, int(cutop(iCell))))
+
+            ! Convert echotop index to height AGL
+            if (k_echotop <= 1) then
+                echotop = 0.
+            else
+                ! Linearly interpolate to find the echotop height between two levels
+                wgt = (refl10cm(iCell,k_echotop)-dbzcrit_min) / &
+                      (refl10cm(iCell,k_echotop)-refl10cm(iCell,k_echotop+1))
+                wgt = MAX(0., MIN(1., wgt))
+                echotop = wgt * z(iCell,k_echotop+1) + (1.-wgt) * z(iCell,k_echotop) ! MSL
+                echotop = echotop - z0(iCell) ! AGL
+            end if
+
+            ! Calculate convective mask
+            if( rainncv(iCell).ge.pcpcrit_min .and. wmax.ge.wcrit_min .and. echotop.ge.etcrit_min ) then
+                w_fct   = MAX(0., MIN(1., (wmax-wcrit_min)/(wcrit_max-wcrit_min)))
+                dbz_fct = MAX(0., MIN(1., (dbzmax-dbzcrit_min)/(dbzcrit_max-dbzcrit_min)))
+                et_fct  = MAX(0., MIN(1., (echotop-etcrit_min)/(etcrit_max-etcrit_min)))
+
+                avcnvmsk(iCell) = MAX(avcnvmsk(iCell), 1.+w_fct+dbz_fct+et_fct )
+            end if
+        end do
+
+    end subroutine
 
    !==================================================================================================
     subroutine interp_diagnostics(mesh, state, time_lev, diag, qi_200hPa, qi_250hPa, virtualT_400hPa)
@@ -392,8 +496,17 @@ module aviation_diagnostics
 
 
     subroutine aviation_diagnostics_reset()
+        use mpas_atm_diagnostics_utils, only : MPAS_field_will_be_written
+        use mpas_pool_routines, only : mpas_pool_get_array
+
         implicit none
-        ! Nothing to reset for hiwc
+
+        real (kind=RKIND), dimension(:), pointer :: avcnvmsk
+
+        if (is_needed_avcnvmsk .and. MPAS_field_will_be_written('avcnvmsk')) then
+            call mpas_pool_get_array(diag, 'avcnvmsk', avcnvmsk)
+            avcnvmsk(:) = 0._RKIND
+        end if
     end subroutine aviation_diagnostics_reset
 
 
@@ -403,4 +516,6 @@ module aviation_diagnostics
     end subroutine aviation_diagnostics_cleanup
 
 end module aviation_diagnostics
+
+
 
