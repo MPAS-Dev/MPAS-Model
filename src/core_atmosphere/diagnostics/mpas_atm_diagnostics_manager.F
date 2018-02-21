@@ -41,7 +41,7 @@ module mpas_atm_diagnostics_manager
         use surface_diagnostics, only : surface_diagnostics_setup
         use deformation_diagnostics, only : deformation_diagnostics_setup
         use accumulated_diagnostics, only : accumulated_diagnostics_setup
-        use hiwc_diagnostics, only : hiwc_diagnostics_setup
+        use aviation_diagnostics, only : aviation_diagnostics_setup
         use unstagger_diagnostics, only : unstagger_diagnostics_setup
         use pv_diagnostics, only : pv_diagnostics_setup
         use soundings, only : soundings_setup
@@ -67,7 +67,7 @@ module mpas_atm_diagnostics_manager
         call surface_diagnostics_setup(configs, structs, clock)
         call accumulated_diagnostics_setup(configs, structs, clock)
         call deformation_diagnostics_setup(structs)
-        call hiwc_diagnostics_setup(structs)
+        call aviation_diagnostics_setup(structs)
         call unstagger_diagnostics_setup(structs)
         call pv_diagnostics_setup(structs, clock)
         call soundings_setup(configs, structs, clock, dminfo)
@@ -90,6 +90,7 @@ module mpas_atm_diagnostics_manager
         use diagnostic_template, only : diagnostic_template_update
         use convective_diagnostics, only : convective_diagnostics_update
         use accumulated_diagnostics, only : accumulated_diagnostics_update
+        use aviation_diagnostics, only : aviation_diagnostics_update
 
         implicit none
 
@@ -97,6 +98,7 @@ module mpas_atm_diagnostics_manager
         call diagnostic_template_update()
         call convective_diagnostics_update()
         call accumulated_diagnostics_update()
+        call aviation_diagnostics_update()
 
     end subroutine mpas_atm_diag_update
 
@@ -120,7 +122,7 @@ module mpas_atm_diagnostics_manager
         use surface_diagnostics, only : surface_diagnostics_compute
         use accumulated_diagnostics, only : accumulated_diagnostics_compute
         use deformation_diagnostics, only : deformation_diagnostics_compute
-        use hiwc_diagnostics, only : hiwc_diagnostics_compute
+        use aviation_diagnostics, only : aviation_diagnostics_compute
         use unstagger_diagnostics, only : unstagger_diagnostics_compute
         use pv_diagnostics, only : pv_diagnostics_compute
         use soundings, only : soundings_compute
@@ -134,7 +136,7 @@ module mpas_atm_diagnostics_manager
         call surface_diagnostics_compute()
         call accumulated_diagnostics_compute()
         call deformation_diagnostics_compute()
-        call hiwc_diagnostics_compute()
+        call aviation_diagnostics_compute()
         call unstagger_diagnostics_compute()
         call pv_diagnostics_compute()
         call soundings_compute()
@@ -157,6 +159,7 @@ module mpas_atm_diagnostics_manager
         use diagnostic_template, only : diagnostic_template_reset
         use convective_diagnostics, only : convective_diagnostics_reset
         use surface_diagnostics, only : surface_diagnostics_reset
+        use aviation_diagnostics, only : aviation_diagnostics_reset
         use accumulated_diagnostics, only : accumulated_diagnostics_reset
 
         implicit none
@@ -165,6 +168,7 @@ module mpas_atm_diagnostics_manager
         call convective_diagnostics_reset()
         call surface_diagnostics_reset()
         call accumulated_diagnostics_reset()
+        call aviation_diagnostics_reset()
 
     end subroutine mpas_atm_diag_reset
 

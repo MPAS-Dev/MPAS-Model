@@ -12,7 +12,7 @@ DIAGNOSTIC_MODULES = \
 	surface_diagnostics.o \
     accumulated_diagnostics.o \
 	deformation_diagnostics.o \
-	hiwc_diagnostics.o \
+	aviation_diagnostics.o \
     unstagger_diagnostics.o \
 	soundings.o \
 
@@ -30,7 +30,7 @@ accumulated_diagnostics.o: mpas_atm_diagnostics_utils.o
 
 deformation_diagnostics.o: mpas_atm_diagnostics_utils.o
 
-hiwc_diagnostics.o: mpas_atm_diagnostics_utils.o
+aviation_diagnostics.o: mpas_atm_diagnostics_utils.o
 
 unstagger_diagnostics.o: mpas_atm_diagnostics_utils.o
 
