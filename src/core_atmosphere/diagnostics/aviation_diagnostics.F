@@ -31,6 +31,11 @@ module aviation_diagnostics
 
     logical :: is_needed_avcnvmsk
 
+    ! Smoothing
+    integer, parameter :: smooth_radius = 3 ! Radius for HIWC smoothing, 0 = no smoothing
+    integer, dimension(:,:), allocatable :: neighborhood
+    integer, dimension(:), allocatable :: nNeighbors
+
     contains
 
 
@@ -61,7 +66,85 @@ module aviation_diagnostics
 
         is_needed_avcnvmsk = (mpas_stream_inclusion_count('avcnvmsk', direction=MPAS_STREAM_OUTPUT) > 0)
 
+        ! Initialize smoother
+        if (mpas_stream_inclusion_count('hiwc', direction=MPAS_STREAM_OUTPUT) > 0 .and. &
+            smooth_radius > 0) then
+            call initialize_hiwc_smoother()
+        end if
+
     end subroutine aviation_diagnostics_setup
+
+
+    subroutine initialize_hiwc_smoother
+        use mpas_pool_routines, only : mpas_pool_get_dimension
+
+        implicit none
+
+        integer, allocatable, dimension(:) :: tmpNeighbors
+
+        integer, pointer :: nCells, maxEdges
+        integer, dimension(:,:), pointer :: cellsOnCell
+        integer, dimension(:), pointer :: nEdgesOnCell
+        integer :: iRadius, maxNeighborhood, iCell, nn
+
+        call mpas_pool_get_dimension(mesh, 'nCells', nCells)
+        call mpas_pool_get_dimension(mesh, 'maxEdges', maxEdges)
+
+        ! Calculate upper bound for neighborhood size
+        maxNeighborhood = 1
+        do iRadius=1,smooth_radius
+            maxNeighborhood = 1 + maxEdges * maxNeighborhood
+        end do
+
+        ! Allocate smoother mapping
+        allocate(tmpNeighbors(maxNeighborhood))
+        allocate(neighborhood(maxNeighborhood, nCells))
+        allocate(nNeighbors(nCells))
+
+        ! Define the neighborhood for each cell
+        do iCell=1,nCells
+            nn = 1
+            call find_neighbors(iCell, cellsOnCell, nEdgesOnCell, smooth_radius, tmpNeighbors, nn)
+            nNeighbors(iCell) = nn
+            neighborhood(1:nn,iCell) = tmpNeighbors(1:nn)
+        end do
+
+        deallocate(tmpNeighbors)
+
+    end subroutine initialize_hiwc_smoother
+
+    ! Finds all neighbors within radius from iCenter
+    subroutine find_neighbors(iCenter, cellsOnCell, nEdgesOnCell, radius, neighborhood, nNeighbors)
+
+        integer, intent(in) :: iCenter, radius
+        integer, dimension(:,:), intent(in) :: cellsOnCell
+        integer, dimension(:), intent(in) :: nEdgesOnCell
+        integer, dimension(:), intent(out) :: neighborhood
+        integer, intent(out) :: nNeighbors
+        integer :: itr_start, itr_end, iRadius, iCell, iNeighbor, cell, iCur
+        logical :: found
+
+        nNeighbors = 1
+        itr_start = 1
+        itr_end = 1
+
+        neighborhood(1) = iCenter
+        do iRadius=1,radius
+            do iCell=itr_start,itr_end
+                ! Check each neighbor in cellsOnCell
+                do iNeighbor=1,nEdgesOnCell(neighborhood(iCell))
+                    cell = cellsOnCell(iCell,iNeighbor)
+                    if (.not.ANY(neighborhood(1:nNeighbors) == cell)) then
+                        nNeighbors = nNeighbors + 1
+                        neighborhood(nNeighbors) = cell
+                    end if
+                end do
+            end do
+            itr_start = itr_end + 1
+            itr_end = nNeighbors
+        end do
+
+    end subroutine
 
 
     !-----------------------------------------------------------------------
@@ -145,9 +228,34 @@ module aviation_diagnostics
             if(allocated(qi_250hPa)) deallocate(qi_250hPa)
             if(allocated(virtualT_400hPa)) deallocate(virtualT_400hPa)
 
+            if (smooth_radius > 0) then
+                call smooth(hiwc, nCells)
+            end if
+
         end if
 
     end subroutine aviation_diagnostics_compute
+
+    ! Simple mean smoothing within smooth_radius
+    subroutine smooth(hiwc, nCells)
+        implicit none
+
+        real (kind=RKIND), dimension(:), pointer, intent(inout) :: hiwc
+        integer, intent(in) :: nCells
+        real (kind=RKIND), allocatable, dimension(:) :: smoothed
+
+        integer :: iCell, iNeighbor
+
+        allocate(smoothed(nCells))
+        do iCell=1,nCells
+            smoothed(iCell) = 0.0
+            do iNeighbor=1,nNeighbors(iCell)
+                smoothed(iCell) = smoothed(iCell) + hiwc(neighborhood(iNeighbor, iCell))
+            end do
+            hiwc(iCell) = smoothed(iCell)/nNeighbors(iCell)
+        end do
+        deallocate(smoothed)
+    end subroutine
 
     !-----------------------------------------------------------------------
     !  routine update_avcnvmsk
@@ -512,7 +620,9 @@ module aviation_diagnostics
 
     subroutine aviation_diagnostics_cleanup()
         implicit none
-        ! Nothing to cleanup for hiwc
+
+        if (allocated(neighborhood)) deallocate(neighborhood)
+        if (allocated(nNeighbors))   deallocate(nNeighbors)
     end subroutine aviation_diagnostics_cleanup
 
 end module aviation_diagnostics
