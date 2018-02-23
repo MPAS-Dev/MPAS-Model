@@ -32,7 +32,7 @@ module aviation_diagnostics
     logical :: is_needed_avcnvmsk
 
     ! Smoothing
-    integer, parameter :: smooth_radius = 3 ! Radius for HIWC smoothing, 0 = no smoothing
+    integer :: smooth_radius ! Radius for HIWC smoothing, 0 = no smoothing
     integer, dimension(:,:), allocatable :: neighborhood
     integer, dimension(:), allocatable :: nNeighbors
 
@@ -51,10 +51,12 @@ module aviation_diagnostics
     !-----------------------------------------------------------------------
     subroutine aviation_diagnostics_setup(all_pools)
         use mpas_derived_types, only : MPAS_pool_type, MPAS_clock_type, MPAS_STREAM_OUTPUT
-        use mpas_pool_routines, only : mpas_pool_get_subpool
+        use mpas_pool_routines, only : mpas_pool_get_subpool, mpas_pool_get_array
         use mpas_atm_diagnostics_utils, only : mpas_stream_inclusion_count
 
         implicit none
+
+        real (kind=RKIND), dimension(:), pointer :: invAreaCell 
 
         type (MPAS_pool_type), pointer :: all_pools
 
@@ -66,10 +68,13 @@ module aviation_diagnostics
 
         is_needed_avcnvmsk = (mpas_stream_inclusion_count('avcnvmsk', direction=MPAS_STREAM_OUTPUT) > 0)
 
-        ! Initialize smoother
-        if (mpas_stream_inclusion_count('hiwc', direction=MPAS_STREAM_OUTPUT) > 0 .and. &
-            smooth_radius > 0) then
-            call initialize_hiwc_smoother()
+        ! Initialize smoother if necessary
+        if (mpas_stream_inclusion_count('hiwc', direction=MPAS_STREAM_OUTPUT) > 0) then
+            call mpas_pool_get_array(mesh, 'invAreaCell', invAreaCell)
+            smooth_radius = NINT(invAreaCell(1) * 9.161e9) ! area with radius of 3x18km
+            if (smooth_radius > 0) then
+                call initialize_hiwc_smoother()
+            end if
         end if
 
     end subroutine aviation_diagnostics_setup
