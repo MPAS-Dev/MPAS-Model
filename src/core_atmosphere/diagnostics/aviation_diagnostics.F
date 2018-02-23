@@ -76,7 +76,7 @@ module aviation_diagnostics
 
 
     subroutine initialize_hiwc_smoother
-        use mpas_pool_routines, only : mpas_pool_get_dimension
+        use mpas_pool_routines, only : mpas_pool_get_dimension, mpas_pool_get_array
 
         implicit none
 
@@ -89,11 +89,13 @@ module aviation_diagnostics
 
         call mpas_pool_get_dimension(mesh, 'nCells', nCells)
         call mpas_pool_get_dimension(mesh, 'maxEdges', maxEdges)
+        call mpas_pool_get_array(mesh, 'cellsOnCell', cellsOnCell)
+        call mpas_pool_get_array(mesh, 'nEdgesOnCell', nEdgesOnCell)
 
         ! Calculate upper bound for neighborhood size
         maxNeighborhood = 1
         do iRadius=1,smooth_radius
-            maxNeighborhood = 1 + maxEdges * maxNeighborhood
+            maxNeighborhood = maxNeighborhood + iRadius * maxEdges
         end do
 
         ! Allocate smoother mapping
@@ -121,7 +123,7 @@ module aviation_diagnostics
         integer, dimension(:), intent(in) :: nEdgesOnCell
         integer, dimension(:), intent(out) :: neighborhood
         integer, intent(out) :: nNeighbors
-        integer :: itr_start, itr_end, iRadius, iCell, iNeighbor, cell, iCur
+        integer :: itr_start, itr_end, iRadius, itr_cell, iNeighbor, cell, iCur
         logical :: found
 
         nNeighbors = 1
@@ -130,10 +132,10 @@ module aviation_diagnostics
 
         neighborhood(1) = iCenter
         do iRadius=1,radius
-            do iCell=itr_start,itr_end
+            do itr_cell=itr_start,itr_end
                 ! Check each neighbor in cellsOnCell
-                do iNeighbor=1,nEdgesOnCell(neighborhood(iCell))
-                    cell = cellsOnCell(iCell,iNeighbor)
+                do iNeighbor=1,nEdgesOnCell(neighborhood(itr_cell))
+                    cell = cellsOnCell(iNeighbor,neighborhood(itr_cell))
                     if (.not.ANY(neighborhood(1:nNeighbors) == cell)) then
                         nNeighbors = nNeighbors + 1
                         neighborhood(nNeighbors) = cell
