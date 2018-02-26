@@ -109,6 +109,10 @@
 ! * for the Grell-Freitas scheme, added diagnostics of the updraft and downdraft massflux, and tendencies for
 !   shallow, mid-level, and deep convection, separately.
 !   Laura D. Fowler (laura@ucar.edu) / 2017-09-11.
+! * in subroutine convection_from_MPAS, rewrote the initialization of variables needed to run the Tiedtke and
+!   nTiedtke convection scheme. now use "association" so that the schemes can be run without full physics for
+!   testing purposes.
+!   Laura D. Fowler (laura@ucar.edu) / 2018-02-26.
 
 
  contains
@@ -262,19 +266,13 @@
        enddo
 
     case ("cu_tiedtke","cu_ntiedtke")
-       if(.not.allocated(hfx_p)        ) allocate(hfx_p(ims:ime,jms:jme)                )
-       if(.not.allocated(qfx_p)        ) allocate(qfx_p(ims:ime,jms:jme)                )
-       if(.not.allocated(xland_p)      ) allocate(xland_p(ims:ime,jms:jme)              )
-       if(.not.allocated(rucuten_p)    ) allocate(rucuten_p(ims:ime,kms:kme,jms:jme)    )
-       if(.not.allocated(rvcuten_p)    ) allocate(rvcuten_p(ims:ime,kms:kme,jms:jme)    )
-
-       do i = its,ite
-       do j = jts,jte
-          hfx_p(i,j)   = 0._RKIND
-          qfx_p(i,j)   = 0._RKIND
-          xland_p(i,j) = 0._RKIND
-       enddo
-       enddo
+       if(.not.allocated(hfx_p)  ) allocate(hfx_p(ims:ime,jms:jme)  )
+       if(.not.allocated(qfx_p)  ) allocate(qfx_p(ims:ime,jms:jme)  )
+       if(.not.allocated(xland_p)) allocate(xland_p(ims:ime,jms:jme))
+       if(.not.allocated(rqvdynten_p)) allocate(rqvdynten_p(ims:ime,kms:kme,jms:jme))
+       if(.not.allocated(rqvblten_p) ) allocate(rqvblten_p(ims:ime,kms:kme,jms:jme) )
+       if(.not.allocated(rucuten_p)  ) allocate(rucuten_p(ims:ime,kms:kme,jms:jme)  )
+       if(.not.allocated(rvcuten_p)  ) allocate(rvcuten_p(ims:ime,kms:kme,jms:jme)  )
 
        do i = its,ite
        do k = kts,kte
@@ -286,36 +284,13 @@
        enddo
 
        cu_tiedtke_select: select case(convection_scheme)
-
-          case ("cu_tiedtke")
-             if(.not.allocated(rqvdynten_p)  ) allocate(rqvdynten_p(ims:ime,kms:kme,jms:jme)  )
-             if(.not.allocated(rqvdynblten_p)) allocate(rqvdynblten_p(ims:ime,kms:kme,jms:jme))
-
-             do i = its,ite
-             do k = kts,kte
-             do j = jts,jte
-                rqvdynten_p(i,k,j)   = 0._RKIND
-                rqvdynblten_p(i,k,j) = 0._RKIND
-             enddo
-             enddo
-             enddo
-
           case("cu_ntiedtke")
-             if(.not.allocated(dx_p)     ) allocate(dx_p(ims:ime,jms:jme)             )
-             if(.not.allocated(rqvften_p)) allocate(rqvften_p(ims:ime,kms:kme,jms:jme))
-             if(.not.allocated(rthften_p)) allocate(rthften_p(ims:ime,kms:kme,jms:jme))
-
-             do i = its,ite
-             do k = kts,kte
-             do j = jts,jte
-                rqvften_p(i,k,j) = 0._RKIND
-                rthften_p(i,k,j) = 0._RKIND
-             enddo
-             enddo
-             enddo
-
+             if(.not.allocated(dx_p)) allocate(dx_p(ims:ime,jms:jme))
+             if(.not.allocated(rthdynten_p)) allocate(rthdynten_p(ims:ime,kms:kme,jms:jme))
+             if(.not.allocated(rthblten_p) ) allocate(rthblten_p(ims:ime,kms:kme,jms:jme) )
+             if(.not.allocated(rqvften_p)  ) allocate(rqvften_p(ims:ime,kms:kme,jms:jme)  )
+             if(.not.allocated(rthften_p)  ) allocate(rthften_p(ims:ime,kms:kme,jms:jme)  )
            case default
-
        end select cu_tiedtke_select
 
     case default
@@ -424,25 +399,22 @@
        if(allocated(rqscuten_p)   ) deallocate(rqscuten_p   )
 
     case ("cu_tiedtke","cu_ntiedtke")
-       if(allocated(hfx_p)        ) deallocate(hfx_p        )
-       if(allocated(qfx_p)        ) deallocate(qfx_p        )
-       if(allocated(xland_p)      ) deallocate(xland_p      )
-       if(allocated(rucuten_p)    ) deallocate(rucuten_p    )
-       if(allocated(rvcuten_p)    ) deallocate(rvcuten_p    )
+       if(allocated(hfx_p)  ) deallocate(hfx_p  )
+       if(allocated(qfx_p)  ) deallocate(qfx_p  )
+       if(allocated(xland_p)) deallocate(xland_p)
+       if(allocated(rqvdynten_p)) deallocate(rqvdynten_p)
+       if(allocated(rqvblten_p) ) deallocate(rqvblten_p )
+       if(allocated(rucuten_p)  ) deallocate(rucuten_p  )
+       if(allocated(rvcuten_p)  ) deallocate(rvcuten_p  )
 
        cu_tiedtke_select: select case(convection_scheme)
-
-          case ("cu_tiedtke")
-             if(allocated(rqvdynten_p)  ) deallocate(rqvdynten_p  )
-             if(allocated(rqvdynblten_p)) deallocate(rqvdynblten_p)
-
           case ("cu_ntiedtke")
-             if(allocated(dx_p)     ) deallocate(dx_p)
-             if(allocated(rqvften_p)) deallocate(rqvften_p)
-             if(allocated(rthften_p)) deallocate(rthften_p)
-
+             if(allocated(dx_p)) deallocate(dx_p)
+             if(allocated(rthdynten_p)) deallocate(rthdynten_p)
+             if(allocated(rthblten_p) ) deallocate(rthblten_p )
+             if(allocated(rqvften_p)  ) deallocate(rqvften_p  )
+             if(allocated(rthften_p)  ) deallocate(rthften_p  )
           case default
-
        end select cu_tiedtke_select
 
     case default
@@ -721,7 +693,7 @@
              w           = w_p           , qv3d      = qv_p          ,               &
              qc3d        = qc_p          , qi3d      = qi_p          ,               &
              pi3d        = pi_p          , rho3d     = rho_p         ,               &
-             qvften      = rqvdynten_p   , qvpblten  = rqvdynblten_p ,               &
+             qvften      = rqvdynten_p   , qvpblten  = rqvblten_p    ,               &
              dz8w        = dz_p          , xland     = xland_p       ,               &
              cu_act_flag = cu_act_flag   , f_qv      = f_qv          ,               &
              f_qc        = f_qc          , f_qr      = f_qr          ,               &
@@ -1013,69 +985,74 @@
        enddo
 
     case ("cu_tiedtke","cu_ntiedtke")
+       nullify(hfx)
+       nullify(qfx)
        call mpas_pool_get_array(sfc_input,'xland',xland)
        call mpas_pool_get_array(diag_physics,'hfx',hfx)
        call mpas_pool_get_array(diag_physics,'qfx',qfx)
 
+       nullify(rqvblten )
+       nullify(rqvdynten)
        call mpas_pool_get_array(tend_physics,'rqvblten' ,rqvblten )
        call mpas_pool_get_array(tend_physics,'rqvdynten',rqvdynten)
        call mpas_pool_get_array(tend_physics,'rucuten'  ,rucuten  )
        call mpas_pool_get_array(tend_physics,'rvcuten'  ,rvcuten  )
 
        do j = jts,jte
-       do i = its,ite
-          xland_p(i,j) = xland(i)
-          hfx_p(i,j)   = hfx(i)
-          qfx_p(i,j)   = qfx(i)
-       enddo
+          do i = its,ite
+             xland_p(i,j) = xland(i)
+             hfx_p(i,j)   = 0._RKIND
+             qfx_p(i,j)   = 0._RKIND
+             if(associated(hfx) .and. associated(qfx)) then
+                hfx_p(i,j)   = hfx(i)
+                qfx_p(i,j)   = qfx(i)
+             endif
+          enddo
+          do k = kts,kte
+          do i = its,ite
+             rqvblten_p(i,k,j)  = 0._RKIND
+             rqvdynten_p(i,k,j) = 0._RKIND
+             if(associated(rqvblten) ) rqvblten_p(i,k,j)  = rqvblten(k,i)
+             if(associated(rqvdynten)) rqvdynten_p(i,k,j) = rqvdynten(k,i)
 
-       do k = kts,kte
-       do i = its,ite
-          rucuten_p(i,k,j) = rucuten(k,i)
-          rvcuten_p(i,k,j) = rvcuten(k,i)
-       enddo
-       enddo
+             rucuten_p(i,k,j) = rucuten(k,i)
+             rvcuten_p(i,k,j) = rvcuten(k,i)
+          enddo  
+          enddo
        enddo
 
        cu_tiedtke_select: select case(convection_scheme)
-
-          case ("cu_tiedtke")
-             do j = jts,jte
-             do k = kts,kte
-             do i = its,ite
-                rqvdynblten_p(i,k,j) = rqvblten(k,i) 
-                rqvdynten_p(i,k,j)   = rqvdynten(k,i)
-             enddo
-             enddo
-             enddo
- 
           case("cu_ntiedtke")
              call mpas_pool_get_config(configs,'config_len_disp',len_disp)
              call mpas_pool_get_array(mesh,'meshDensity',meshDensity)
 
-             call mpas_pool_get_array(tend_physics,'rqvdynten' ,rqvdynten )
-             call mpas_pool_get_array(tend_physics,'rqvblten'  ,rqvblten  )
+             nullify(rthdynten)
+             nullify(rthblten)
+             nullify(rthratenlw)
+             nullify(rthratensw)
              call mpas_pool_get_array(tend_physics,'rthdynten' ,rthdynten )
              call mpas_pool_get_array(tend_physics,'rthblten'  ,rthblten  )
              call mpas_pool_get_array(tend_physics,'rthratenlw',rthratenlw)
              call mpas_pool_get_array(tend_physics,'rthratensw',rthratensw)
              
              do j = jts,jte
-             do i = its,ite
-                dx_p(i,j) = len_disp / meshDensity(i)**0.25
-             enddo
+                do i = its,ite
+                   dx_p(i,j) = len_disp / meshDensity(i)**0.25
+                enddo
+                do k = kts,kte
+                do i = its,ite
+                   rthften_p(i,k,j) = 0._RKIND
+                   rqvften_p(i,k,j) = rqvdynten_p(i,k,j) + rqvblten_p(i,k,j)
 
-             do k = kts,kte
-             do i = its,ite
-                rqvften_p(i,k,j) = rqvdynten(k,i) + rqvblten(k,i)
-                rthften_p(i,k,j) = (rthdynten(k,i) + rthblten(k,i) &
-                                 + rthratenlw(k,i) + rthratensw(k,i)) * pi_p(i,k,j) 
+                   if(associated(rthdynten)) rthften_p(i,k,j) = rthdynten(k,i)
+                   if(associated(rthblten))  rthften_p(i,k,j) = rthften_p(i,k,j) + rthblten(k,i)
+                   if(associated(rthratenlw) .and. associated(rthratensw)) &
+                      rthften_p(i,k,j) = rthften_p(i,k,j) + rthratenlw(k,i) + rthratensw(k,i)
+                   rthften_p(i,k,j) = rthften_p(i,k,j)*pi_p(i,k,j) 
+                enddo
+                enddo
              enddo
-             enddo
-             enddo
-
           case default
-
        end select cu_tiedtke_select
 
     case default

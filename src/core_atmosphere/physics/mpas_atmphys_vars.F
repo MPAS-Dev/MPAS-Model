@@ -126,6 +126,10 @@
 ! * for the Grell-Freitas scheme, added diagnostics of the updraft and downdraft massflux, and tendencies for
 !   shallow, mid-level, and deep convection, separately.
 !   Laura D. Fowler (laura@ucar.edu) / 2017-09-11.
+! * removed the variables rqvdynblten and rthdynblten since they actually are the same variables as rqvblten and
+!   rthblten.
+!   Laura D. Fowler (laura@ucar.edu) /2018-02-26.
+
 
 !=================================================================================================================
 !wrf-variables:these variables are needed to keep calls to different physics parameterizations
@@ -358,6 +362,7 @@
     weights_clos_p     !
 
  real(kind=RKIND),dimension(:,:,:),allocatable:: &
+    rqvdynten_p,      &!
     rthdynten_p,      &!
     qccu_p,           &!
     qicu_p,           &!
@@ -383,12 +388,6 @@
 
  real(kind=RKIND),dimension(:,:,:),allocatable:: &
     rthraten_p         !
-
-!... grell and tiedkte specific arrays:
- real(kind=RKIND),dimension(:,:,:),allocatable:: &
-    rqvdynten_p,      &!
-    rqvdynblten_p,    &!
-    rthdynblten_p      !
 
 !... ntiedtke specific arrays:
  real(kind=RKIND),dimension(:,:,:),allocatable:: &
