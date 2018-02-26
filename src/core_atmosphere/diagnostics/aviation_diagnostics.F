@@ -71,7 +71,7 @@ module aviation_diagnostics
         ! Initialize smoother if necessary
         if (mpas_stream_inclusion_count('hiwc', direction=MPAS_STREAM_OUTPUT) > 0) then
             call mpas_pool_get_array(mesh, 'invAreaCell', invAreaCell)
-            smooth_radius = NINT(invAreaCell(1) * 9.161e9) ! area with radius of 3x18km
+            smooth_radius = NINT(SQRT(invAreaCell(1) * 9.161e9)) ! area with radius of 3x18km
             if (smooth_radius > 0) then
                 call initialize_hiwc_smoother()
             end if
