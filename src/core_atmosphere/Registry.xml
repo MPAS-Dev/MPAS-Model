@@ -1425,24 +1425,19 @@
                              description="Water vapor mixing ratio"/>
 
                         <var name="qc" array_group="moist" units="kg kg^{-1}"
-                             description="Cloud water mixing ratio"
-                             packages="bl_mynn_in;bl_ysu_in;cu_tiedtke_in;mp_kessler_in;mp_thompson_in;mp_wsm6_in"/>
+                             description="Cloud water mixing ratio"/>
 
                         <var name="qr" array_group="moist" units="kg kg^{-1}"
-                             description="Rain water mixing ratio"
-                             packages="mp_kessler_in;mp_thompson_in;mp_wsm6_in"/>
+                             description="Rain water mixing ratio"/>
 
                         <var name="qi" array_group="moist" units="kg kg^{-1}"
-                             description="Ice mixing ratio"
-                             packages="bl_mynn_in;bl_ysu_in;cu_tiedtke_in;mp_thompson_in;mp_wsm6_in"/>
+                             description="Ice mixing ratio"/>
 
                         <var name="qs" array_group="moist" units="kg kg^{-1}"
-                             description="Snow mixing ratio"
-                             packages="mp_thompson_in;mp_wsm6_in"/>
+                             description="Snow mixing ratio"/>
 
                         <var name="qg" array_group="moist" units="kg kg^{-1}"
-                             description="Graupel mixing ratio"
-                             packages="mp_thompson_in;mp_wsm6_in"/>
+                             description="Graupel mixing ratio"/>
 
                         <var name="nc" array_group="number" units="nb kg^{-1}"
                              description="Cloud water number concentration"
