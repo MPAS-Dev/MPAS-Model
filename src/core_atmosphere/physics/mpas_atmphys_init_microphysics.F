@@ -35,6 +35,9 @@
 !   using the climatological GOCART data,do not recalculate nifa and nwfa using an exponential profile of CCN and
 !   IN as a function of height.
 !   Laura D. Fowler (laura@ucar.edu) / 2016-05-27.
+! * modified the subroutine init_thompson_aerosols_forMPAS for exact restartibility when using the microphysics
+!   option "mp_thompson_aerosols".
+!   Laura D. Fowler (laura@ucar.edu) / 2018-02-23.
 
 
  contains
@@ -86,12 +89,13 @@
  end subroutine init_thompson_clouddroplets_forMPAS 
 
 !=================================================================================================================
- subroutine init_thompson_aerosols_forMPAS(dminfo,mesh,state,time_lev,diag_physics)
+ subroutine init_thompson_aerosols_forMPAS(do_restart,dminfo,mesh,state,time_lev,diag_physics)
 !=================================================================================================================
 
 !input variables:
  type(dm_info),intent(in):: dminfo
  type(mpas_pool_type),intent(in):: mesh
+ logical,intent(in):: do_restart
  integer,intent(in):: time_lev
 
 !inout variables:
@@ -123,6 +127,15 @@
  call mpas_log_write('--- enter subroutine init_thompson_aerosols_forMPAS:')
 
  is_aerosol_aware = .true.
+
+!... read a static file containing CCN activation of aerosols. The data were created from a parcel model by
+!... Feingold & Heymsfield with further changes by Eidhammer and Kriedenweis.
+ call table_ccnAct(dminfo)
+ call mpas_log_write('--- end read table_ccnAct:')
+
+!... if do_restart is true, then we do not need to check the initialization of nwfa, nifa, and nwfa2d. If false,
+!    then, we proceed with the initialization:
+ if(do_restart) return
 
  call mpas_pool_get_dimension(mesh,'nCellsSolve',nCellsSolve)
  call mpas_pool_get_dimension(mesh,'nVertLevels',nVertLevels)
@@ -240,11 +253,6 @@
     nwfa2d(iCell) = 10.0**(LOG10(nwfa(1,iCell)*1.E-6)-3.69897)
     nwfa2d(iCell) = nwfa2d(iCell)*h_01*1.E6
  enddo
-
-!... read a static file containing CCN activation of aerosols. The data were created from a parcel model by
-!... Feingold & Heymsfield with further changes by Eidhammer and Kriedenweis.
- call table_ccnAct(dminfo)
- call mpas_log_write('--- end read table_ccnAct:')
 
 !... deallocate local arrays:
  if(allocated(hgt)) deallocate(hgt)

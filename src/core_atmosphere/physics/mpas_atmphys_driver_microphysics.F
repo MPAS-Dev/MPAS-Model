@@ -89,6 +89,9 @@
 !   Laura D. Fowler (laura@ucar.edu) / 2017-04-19.
 ! * restored the option mp_thompson_aerosols in the Thompson cloud microphysics scheme.
 !   Laura D. Fowler (laura@ucar.edu) / 2018-02-05.
+! * in subroutine init_microphysics, modified to the call to the subroutine init_thompson_aerosols_forMPAS for
+!   exact restartibility when using the microphysics option "mp_thompson_aerosols".
+!   Laura D. Fowler (laura@ucar.edu) / 2018-02-23.
 
 
 !--- initialization option for WSM6 from WRF version 3.8.1. this option could also be set as a namelist parameter.
@@ -282,12 +285,14 @@
  type(mpas_pool_type),intent(inout):: state
 
 !local pointer:
+ logical,pointer:: do_restart
  character(len=StrKIND),pointer:: microp_scheme
 
 !-----------------------------------------------------------------------------------------------------------------
  call mpas_log_write(' ')
  call mpas_log_write('--- enter subroutine init_microphysics:')
  call mpas_pool_get_config(configs,'config_microp_scheme',microp_scheme)
+ call mpas_pool_get_config(configs,'config_do_restart   ',do_restart   )
 
  microp_select: select case(microp_scheme)
 
@@ -298,7 +303,7 @@
     case("mp_thompson_aerosols")
        call thompson_init(l_mp_tables)
        call init_thompson_clouddroplets_forMPAS(mesh,sfc_input,diag_physics)
-       call init_thompson_aerosols_forMPAS(dminfo,mesh,state,time_lev,diag_physics)
+       call init_thompson_aerosols_forMPAS(do_restart,dminfo,mesh,state,time_lev,diag_physics)
 
     case("mp_wsm6")
        call wsm6init(rho_a,rho_r,rho_s,cliq,cpv,hail_opt,.false.)
