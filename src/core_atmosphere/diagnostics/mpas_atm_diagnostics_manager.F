@@ -188,14 +188,15 @@ module mpas_atm_diagnostics_manager
         use mpas_atm_diagnostics_utils, only : mpas_atm_diag_utils_finalize
         use diagnostic_template, only : diagnostic_template_cleanup
         use accumulated_diagnostics, only : accumulated_diagnostics_cleanup
+        use aviation_diagnostics, only : aviation_diagnostics_cleanup
         use soundings, only : soundings_cleanup
 
         implicit none
 
-
         call diagnostic_template_cleanup()
         call soundings_cleanup()
         call accumulated_diagnostics_cleanup()
+        call aviation_diagnostics_cleanup()
 
         !
         ! Take care of any needed cleanup in the diagnostics utility module

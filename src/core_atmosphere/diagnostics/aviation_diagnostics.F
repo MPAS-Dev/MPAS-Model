@@ -31,6 +31,11 @@ module aviation_diagnostics
 
     logical :: is_needed_avcnvmsk
 
+    ! Smoothing
+    integer :: smooth_radius ! Radius for HIWC smoothing, 0 = no smoothing
+    integer, dimension(:,:), allocatable :: neighborhood
+    integer, dimension(:), allocatable :: nNeighbors
+
     contains
 
 
@@ -46,10 +51,12 @@ module aviation_diagnostics
     !-----------------------------------------------------------------------
     subroutine aviation_diagnostics_setup(all_pools)
         use mpas_derived_types, only : MPAS_pool_type, MPAS_clock_type, MPAS_STREAM_OUTPUT
-        use mpas_pool_routines, only : mpas_pool_get_subpool
+        use mpas_pool_routines, only : mpas_pool_get_subpool, mpas_pool_get_array
         use mpas_atm_diagnostics_utils, only : mpas_stream_inclusion_count
 
         implicit none
+
+        real (kind=RKIND), dimension(:), pointer :: invAreaCell 
 
         type (MPAS_pool_type), pointer :: all_pools
 
@@ -61,7 +68,90 @@ module aviation_diagnostics
 
         is_needed_avcnvmsk = (mpas_stream_inclusion_count('avcnvmsk', direction=MPAS_STREAM_OUTPUT) > 0)
 
+        ! Initialize smoother if necessary
+        if (mpas_stream_inclusion_count('hiwc', direction=MPAS_STREAM_OUTPUT) > 0) then
+            call mpas_pool_get_array(mesh, 'invAreaCell', invAreaCell)
+            smooth_radius = NINT(SQRT(invAreaCell(1) * 9.161e9)) ! area with radius of 3x18km
+            if (smooth_radius > 0) then
+                call initialize_hiwc_smoother()
+            end if
+        end if
+
     end subroutine aviation_diagnostics_setup
+
+
+    subroutine initialize_hiwc_smoother
+        use mpas_pool_routines, only : mpas_pool_get_dimension, mpas_pool_get_array
+
+        implicit none
+
+        integer, allocatable, dimension(:) :: tmpNeighbors
+
+        integer, pointer :: nCells, maxEdges
+        integer, dimension(:,:), pointer :: cellsOnCell
+        integer, dimension(:), pointer :: nEdgesOnCell
+        integer :: iRadius, maxNeighborhood, iCell, nn
+
+        call mpas_pool_get_dimension(mesh, 'nCells', nCells)
+        call mpas_pool_get_dimension(mesh, 'maxEdges', maxEdges)
+        call mpas_pool_get_array(mesh, 'cellsOnCell', cellsOnCell)
+        call mpas_pool_get_array(mesh, 'nEdgesOnCell', nEdgesOnCell)
+
+        ! Calculate upper bound for neighborhood size
+        maxNeighborhood = 1
+        do iRadius=1,smooth_radius
+            maxNeighborhood = maxNeighborhood + iRadius * maxEdges
+        end do
+
+        ! Allocate smoother mapping
+        allocate(tmpNeighbors(maxNeighborhood))
+        allocate(neighborhood(maxNeighborhood, nCells))
+        allocate(nNeighbors(nCells))
+
+        ! Define the neighborhood for each cell
+        do iCell=1,nCells
+            nn = 1
+            call find_neighbors(iCell, cellsOnCell, nEdgesOnCell, smooth_radius, tmpNeighbors, nn)
+            nNeighbors(iCell) = nn
+            neighborhood(1:nn,iCell) = tmpNeighbors(1:nn)
+        end do
+
+        deallocate(tmpNeighbors)
+
+    end subroutine initialize_hiwc_smoother
+
+    ! Finds all neighbors within radius from iCenter
+    subroutine find_neighbors(iCenter, cellsOnCell, nEdgesOnCell, radius, neighborhood, nNeighbors)
+
+        integer, intent(in) :: iCenter, radius
+        integer, dimension(:,:), intent(in) :: cellsOnCell
+        integer, dimension(:), intent(in) :: nEdgesOnCell
+        integer, dimension(:), intent(out) :: neighborhood
+        integer, intent(out) :: nNeighbors
+        integer :: itr_start, itr_end, iRadius, itr_cell, iNeighbor, cell, iCur
+        logical :: found
+
+        nNeighbors = 1
+        itr_start = 1
+        itr_end = 1
+
+        neighborhood(1) = iCenter
+        do iRadius=1,radius
+            do itr_cell=itr_start,itr_end
+                ! Check each neighbor in cellsOnCell
+                do iNeighbor=1,nEdgesOnCell(neighborhood(itr_cell))
+                    cell = cellsOnCell(iNeighbor,neighborhood(itr_cell))
+                    if (.not.ANY(neighborhood(1:nNeighbors) == cell)) then
+                        nNeighbors = nNeighbors + 1
+                        neighborhood(nNeighbors) = cell
+                    end if
+                end do
+            end do
+            itr_start = itr_end + 1
+            itr_end = nNeighbors
+        end do
+
+    end subroutine
 
 
     !-----------------------------------------------------------------------
@@ -104,6 +194,7 @@ module aviation_diagnostics
         real (kind=RKIND), dimension(:), allocatable :: qi_200hPa
         real (kind=RKIND), dimension(:), allocatable :: qi_250hPa
         real (kind=RKIND), dimension(:), allocatable :: virtualT_400hPa
+        real (kind=RKIND), dimension(:), allocatable :: hiwc_calc
 
         real(kind=RKIND) :: w200, w250
 
@@ -121,13 +212,12 @@ module aviation_diagnostics
             allocate(virtualT_400hPa(nCells))    
             allocate(qi_200hPa(nCells))
             allocate(qi_250hPa(nCells))
+            allocate(hiwc_calc(nCells))
 
             ! Get cloud ice mixing ratio at 200hPa and 250hPa 
             ! and virtual Temperature at 400 hPa
             call interp_diagnostics(mesh, state, 1, diag, qi_200hPa, qi_250hPa, virtualT_400hPa)
 
-            ! Target array
-            call mpas_pool_get_array(diag, 'hiwc', hiwc)
 
             do iCell=1,nCells
                 w200 = MIN(1.0, MAX(0.0, &
@@ -135,9 +225,9 @@ module aviation_diagnostics
                            (warm_boundary_temp - cold_boundary_temp) ) )
 
                 w250 = 1.0 - w200
-                hiwc(iCell) = NINT(MAX(0.0, MIN(3.0, &
-                                  ( (w250 * qi_250hPa(iCell) * 1.0E6 + &
-                                     w200 * qi_200hPa(iCell) * 1.0E6) - 25. ) / 80. ) ) )
+                hiwc_calc(iCell) = MAX(0.0, MIN(3.0, &
+                                    ( (w250 * qi_250hPa(iCell) * 1.0E6 +  &
+                                       w200 * qi_200hPa(iCell) * 1.0E6) - 25. ) / 80. ))
 
             end do
 
@@ -145,9 +235,40 @@ module aviation_diagnostics
             if(allocated(qi_250hPa)) deallocate(qi_250hPa)
             if(allocated(virtualT_400hPa)) deallocate(virtualT_400hPa)
 
+            if (smooth_radius > 0) then
+                call smooth(hiwc_calc, nCells)
+            end if
+
+            ! Round to the nearest integer for output array
+            call mpas_pool_get_array(diag, 'hiwc', hiwc)
+            hiwc(:) = NINT(hiwc_calc(:))
+
+            deallocate(hiwc_calc)
+
         end if
 
     end subroutine aviation_diagnostics_compute
+
+    ! Simple mean smoothing within smooth_radius
+    subroutine smooth(arr, nCells)
+        implicit none
+
+        real (kind=RKIND), dimension(:), intent(inout) :: arr
+        integer, intent(in) :: nCells
+        real (kind=RKIND), allocatable, dimension(:) :: smoothed
+
+        integer :: iCell, iNeighbor
+
+        allocate(smoothed(nCells))
+        do iCell=1,nCells
+            smoothed(iCell) = 0.0
+            do iNeighbor=1,nNeighbors(iCell)
+                smoothed(iCell) = smoothed(iCell) + arr(neighborhood(iNeighbor, iCell))
+            end do
+            arr(iCell) = smoothed(iCell)/nNeighbors(iCell)
+        end do
+        deallocate(smoothed)
+    end subroutine
 
     !-----------------------------------------------------------------------
     !  routine update_avcnvmsk
@@ -196,14 +317,14 @@ module aviation_diagnostics
 
         do iCell=1,nCells
             ! Find the max reflectivity and max updraft
-            dbzmax = MAXVAL(refl10cm(iCell,:))
-            wmax = MAXVAL(w(iCell,:))
+            dbzmax = MAXVAL(refl10cm(:,iCell))
+            wmax = MAXVAL(w(:,iCell))
 
             ! Find the convective top either as echo top or parameterized convective top
             k_echotop = 1
             if (dbzmax > dbzcrit_min) then
                 do k=1,nVertLevels-1
-                    if (refl10cm(iCell,k) > dbzcrit_min) then
+                    if (refl10cm(k,iCell) > dbzcrit_min) then
                         k_echotop = k
                     end if
                 end do
@@ -215,10 +336,10 @@ module aviation_diagnostics
                 echotop = 0.
             else
                 ! Linearly interpolate to find the echotop height between two levels
-                wgt = (refl10cm(iCell,k_echotop)-dbzcrit_min) / &
-                      (refl10cm(iCell,k_echotop)-refl10cm(iCell,k_echotop+1))
+                wgt = (refl10cm(k_echotop,iCell) - dbzcrit_min) / &
+                      (refl10cm(k_echotop,iCell) - refl10cm(k_echotop+1,iCell))
                 wgt = MAX(0., MIN(1., wgt))
-                echotop = wgt * z(iCell,k_echotop+1) + (1.-wgt) * z(iCell,k_echotop) ! MSL
+                echotop = wgt * z(k_echotop+1,iCell) + (1.-wgt) * z(k_echotop,iCell) ! MSL
                 echotop = echotop - z0(iCell) ! AGL
             end if
 
@@ -512,7 +633,9 @@ module aviation_diagnostics
 
     subroutine aviation_diagnostics_cleanup()
         implicit none
-        ! Nothing to cleanup for hiwc
+
+        if (allocated(neighborhood)) deallocate(neighborhood)
+        if (allocated(nNeighbors))   deallocate(nNeighbors)
     end subroutine aviation_diagnostics_cleanup
 
 end module aviation_diagnostics
