@@ -66,15 +66,6 @@ include 'mpif.h'
    public :: mpas_dmpar_init
    public :: mpas_dmpar_finalize
    public :: mpas_dmpar_abort
-   public :: mpas_dmpar_bcast_int
-   public :: mpas_dmpar_bcast_ints
-   public :: mpas_dmpar_bcast_real
-   public :: mpas_dmpar_bcast_reals
-   public :: mpas_dmpar_bcast_double
-   public :: mpas_dmpar_bcast_doubles
-   public :: mpas_dmpar_bcast_logical
-   public :: mpas_dmpar_bcast_char
-   public :: mpas_dmpar_bcast_chars
    public :: mpas_dmpar_sum_int
    public :: mpas_dmpar_sum_real
    public :: mpas_dmpar_min_int
@@ -117,6 +108,36 @@ include 'mpif.h'
    public :: mpas_dmpar_exch_group_reuse_halo_exch
    public :: mpas_dmpar_exch_group_destroy_reusable_buffers
 
+   interface mpas_dmpar_bcast
+      module procedure mpas_dmpar_bcast_int
+      module procedure mpas_dmpar_bcast_ints
+      module procedure mpas_dmpar_bcast_real
+      module procedure mpas_dmpar_bcast_reals
+#ifndef SINGLE_PRECISION
+      module procedure mpas_dmpar_bcast_real4
+      module procedure mpas_dmpar_bcast_real4s
+#else
+      module procedure mpas_dmpar_bcast_double
+      module procedure mpas_dmpar_bcast_doubles
+#endif
+      module procedure mpas_dmpar_bcast_logical
+      module procedure mpas_dmpar_bcast_char
+      module procedure mpas_dmpar_bcast_chars
+   end interface
+
+   public :: mpas_dmpar_bcast
+
+   public :: mpas_dmpar_bcast_int
+   public :: mpas_dmpar_bcast_ints
+   public :: mpas_dmpar_bcast_real
+   public :: mpas_dmpar_bcast_reals
+   public :: mpas_dmpar_bcast_real4
+   public :: mpas_dmpar_bcast_real4s
+   public :: mpas_dmpar_bcast_double
+   public :: mpas_dmpar_bcast_doubles
+   public :: mpas_dmpar_bcast_logical
+   public :: mpas_dmpar_bcast_char
+   public :: mpas_dmpar_bcast_chars
 
    interface mpas_dmpar_alltoall_field
       module procedure mpas_dmpar_alltoall_field1d_integer
@@ -509,6 +530,83 @@ include 'mpif.h'
 #endif
 
    end subroutine mpas_dmpar_bcast_reals!}}}
+
+!-----------------------------------------------------------------------
+!  routine mpas_dmpar_bcast_real4
+!
+!> \brief MPAS dmpar broadcast 4-byte real routine.
+!> \author Michael Duda
+!> \date   26 February 2018
+!> \details
+!>  This routine broadcasts a 4-byte real to all processors in the communicator.
+!>  An optional argument specifies the source node; else broadcast from IO_NODE.
+!
+!-----------------------------------------------------------------------
+   subroutine mpas_dmpar_bcast_real4(dminfo, r, proc)!{{{
+
+      implicit none
+
+      type (dm_info), intent(in) :: dminfo !< Input: Domain information
+      real (kind=R4KIND), intent(inout) :: r !< Input/Output: Real to be broadcast
+      integer, intent(in), optional :: proc  !< optional argument indicating which processor to broadcast from
+
+#ifdef _MPI
+      integer :: mpi_ierr, source
+      integer :: threadNum
+
+      threadNum = mpas_threading_get_thread_num()
+
+      if ( threadNum == 0 ) then
+         if (present(proc)) then
+            source = proc
+         else
+            source = IO_NODE
+         endif
+
+         call MPI_Bcast(r, 1, MPI_REAL4, source, dminfo % comm, mpi_ierr)
+      end if
+#endif
+
+   end subroutine mpas_dmpar_bcast_real4!}}}
+
+!-----------------------------------------------------------------------
+!  routine mpas_dmpar_bcast_real4s
+!
+!> \brief MPAS dmpar broadcast 4-byte reals routine.
+!> \author Michael Duda
+!> \date   26 February 2018
+!> \details
+!>  This routine broadcasts an array of 4-byte reals to all processors in the communicator.
+!>  An optional argument specifies the source node; else broadcast from IO_NODE.
+!
+!-----------------------------------------------------------------------
+   subroutine mpas_dmpar_bcast_real4s(dminfo, n, rarray, proc)!{{{
+
+      implicit none
+
+      type (dm_info), intent(in) :: dminfo !< Input: Domain information
+      integer, intent(in) :: n !< Input: Length of array
+      real (kind=R4KIND), dimension(n), intent(inout) :: rarray !< Input/Output: Array of reals to be broadcast
+      integer, intent(in), optional :: proc  !< optional argument indicating which processor to broadcast from
+
+#ifdef _MPI
+      integer :: mpi_ierr, source
+      integer :: threadNum
+
+      threadNum = mpas_threading_get_thread_num()
+
+      if ( threadNum == 0 ) then
+         if (present(proc)) then
+            source = proc
+         else
+            source = IO_NODE
+         endif
+
+         call MPI_Bcast(rarray, n, MPI_REAL4, source, dminfo % comm, mpi_ierr)
+      end if
+#endif
+
+   end subroutine mpas_dmpar_bcast_real4s!}}}
 
 !-----------------------------------------------------------------------
 !  routine mpas_dmpar_bcast_double
