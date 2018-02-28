@@ -53,6 +53,8 @@ if [[ $distribution = *"cray"* ]]; then
 
     git clone git@github.com:NCAR/ParallelIO.git ./ParallelIO
     cd ParallelIO
+    # fix because someone at NCAR made ParallelIO incompatible with MPAS on 02/15
+    git checkout 7c92c489015430233727169d861a5aa1534763ec
     export PIOSRC=`pwd`
     cd ..
     mkdir PIO_build

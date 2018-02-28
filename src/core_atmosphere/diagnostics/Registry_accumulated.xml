@@ -43,8 +43,20 @@
          description="30-minute accumulated freezing rain"/>
      <var name="ice01h"       type="real"     dimensions="nCells Time" units="mm"
          description="Hourly accumulated freezing rain"/>
-     <var name="ice_total"       type="real"     dimensions="nCells Time" units="mm"
+     <var name="ice_total"    type="real"     dimensions="nCells Time" units="mm"
          description="Accumulated freezing precipitation"/>
+         
+     <var name="wspd10_max15m" type="real"    dimensions="nCells Time" units="m s^{-1}"
+         description="15-minute maximum 10-meter wind speed"/>
+         
+     <var name="lh01h"         type="real"    dimensions="nCells Time" units="W m^{-2}"
+         description="Hourly average latent heat flux at the surface"/>
+         
+     <var name="swdnb01h"    type="real"    dimensions="nCells Time" units="W m^{-2}"
+         description="Hourly average all-sky downward surface shortwave radiation flux"/>
+         
+     <var name="swdnbdn01h" type="real" dimensions="nCells Time" units="W m^{-2}"
+         description="Hourly average all-sky downward direct normal surface shortwave radiation flux"/>
          
     
 </var_struct>
