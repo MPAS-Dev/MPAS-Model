@@ -442,7 +442,7 @@ module aviation_diagnostics
             interp_to_p = field_in(nlev)
         else
             do k = 1,nlev-1
-                if ( p_out .lt. p_in(k) ) then
+                if ( p_out .gt. p_in(k+1) ) then
                     dpu = p_out - p_in(k)
                     dpl = p_in(k+1) - p_out
                     interp_to_p = (field_in(k) * dpl + field_in(k+1) * dpu)/(dpl + dpu)
