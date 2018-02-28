@@ -359,24 +359,22 @@ module aviation_diagnostics
     subroutine interp_diagnostics(qi_200hPa, qi_250hPa, virtualT_400hPa)
    !==================================================================================================
 
-       !output arguments:
+        ! output arguments:
         real (kind=RKIND), dimension(:), intent(out) :: qi_200hPa
         real (kind=RKIND), dimension(:), intent(out) :: qi_250hPa
         real (kind=RKIND), dimension(:), intent(out) :: virtualT_400hPa
 
-       !local variables:
-        integer :: iCell,iVert,iVertD,k,kk
+        ! local variables:
+        integer :: iCell
         integer, pointer :: nCells, nVertLevels
         integer, pointer :: index_qv, index_qi
-       
-        real (kind=RKIND), dimension(:,:), pointer :: exner
-        real (kind=RKIND), dimension(:,:), pointer :: theta_m
 
-        real (kind=RKIND), dimension(:,:), pointer :: pressure_b, pressure_p 
+        ! prognostics
+        real (kind=RKIND), dimension(:,:), pointer :: exner, theta_m, pressure_b, pressure_p
         real (kind=RKIND), dimension(:,:,:), pointer :: scalars
-       
-        real (kind=RKIND), dimension(:), allocatable :: t_400hPa, qv_400hPa
 
+        ! diagnostics
+        real (kind=RKIND), dimension(:), allocatable :: t_400hPa, qv_400hPa
         real (kind=RKIND), dimension(:,:), allocatable :: pressure, temperature
 
         call mpas_pool_get_dimension(mesh, 'nCells', nCells)
@@ -394,16 +392,16 @@ module aviation_diagnostics
         allocate(pressure(nVertLevels,nCells)      )
         allocate(temperature(nVertLevels,nCells)   )
        
-        !calculation of total pressure at cell centers (at mass points):
+        ! Calculation of total pressure at cell centers (at mass points):
         pressure(:,:) = (pressure_p(:,:) + pressure_b(:,:)) / 100._RKIND
               
-        !calculation of temperature at cell centers:
+        ! Calculation of temperature at cell centers:
         temperature(:,:) = theta_m(:,:)/(1._RKIND+rvord*scalars(index_qv,:,:)) * exner(:,:)
 
         allocate(qv_400hPa(nCells))
         allocate(t_400hPa(nCells))
        
-        !interpolation to fixed pressure levels for fields located at cells centers and at mass points:
+        ! Interpolation to fixed pressure levels for fields located at cells centers and at mass points:
         do iCell = 1, nCells
             qi_200hPa(iCell) = interp_to_p(nVertLevels, scalars(index_qi,:,iCell), pressure(:,iCell), 200._RKIND)
             qi_250hPa(iCell) = interp_to_p(nVertLevels, scalars(index_qi,:,iCell), pressure(:,iCell), 250._RKIND)
