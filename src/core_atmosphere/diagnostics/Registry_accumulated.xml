@@ -1,0 +1,63 @@
+<!-- ******************************* -->
+<!-- Accumulated diagnostics         -->
+<!-- ******************************* -->
+
+
+<!-- 15-minute accumulated diagnostics are valid every 15 minutes since -->
+<!-- model start time. 30-minute and hourly accumulated diagnostics are -->
+<!-- valid every 30 minutes.         -->
+<var_struct name="diag" time_levs="1">
+
+
+    <var name="rain15m"       type="real"     dimensions="nCells Time" units="mm"
+        description="15-minute accumulated non-frozen precip"/>
+    <var name="rain30m"       type="real"     dimensions="nCells Time" units="mm"
+        description="30-minute accumulated non-frozen precip"/>
+    <var name="rain01h"       type="real"     dimensions="nCells Time" units="mm"
+        description="Hourly accumulated non-frozen precip"/>
+
+    <var name="rainc15m"       type="real"     dimensions="nCells Time" units="mm"
+         description="15-minute accumulated convective precip"/>
+    <var name="rainc30m"       type="real"     dimensions="nCells Time" units="mm"
+         description="30-minute accumulated convective precip"/>
+    <var name="rainc01h"       type="real"     dimensions="nCells Time" units="mm"
+         description="Hourly accumulated convective precip"/>
+         
+    <var name="rainnc15m"       type="real"     dimensions="nCells Time" units="mm"
+         description="15-minute accumulated grid-scale precip"/>
+    <var name="rainnc30m"       type="real"     dimensions="nCells Time" units="mm"
+         description="30-minute accumulated grid-scale precip"/>
+    <var name="rainnc01h"       type="real"     dimensions="nCells Time" units="mm"
+         description="Hourly accumulated grid-scale precip"/>
+         
+    <var name="snow15m"       type="real"     dimensions="nCells Time" units="mm"
+         description="15-minute accumulated snow and graupel"/>
+    <var name="snow30m"       type="real"     dimensions="nCells Time" units="mm"
+         description="30-minute accumulated snow and graupel"/>
+    <var name="snow01h"       type="real"     dimensions="nCells Time" units="mm"
+         description="Hourly accumulated snow and graupel"/>
+         
+     <var name="ice15m"       type="real"     dimensions="nCells Time" units="mm"
+         description="15-minute accumulated freezing rain"/>
+     <var name="ice30m"       type="real"     dimensions="nCells Time" units="mm"
+         description="30-minute accumulated freezing rain"/>
+     <var name="ice01h"       type="real"     dimensions="nCells Time" units="mm"
+         description="Hourly accumulated freezing rain"/>
+     <var name="ice_total"    type="real"     dimensions="nCells Time" units="mm"
+         description="Accumulated freezing precipitation"/>
+         
+     <var name="wspd10_max15m" type="real"    dimensions="nCells Time" units="m s^{-1}"
+         description="15-minute maximum 10-meter wind speed"/>
+         
+     <var name="lh01h"         type="real"    dimensions="nCells Time" units="W m^{-2}"
+         description="Hourly average latent heat flux at the surface"/>
+         
+     <var name="swdnb01h"    type="real"    dimensions="nCells Time" units="W m^{-2}"
+         description="Hourly average all-sky downward surface shortwave radiation flux"/>
+         
+     <var name="swdnbdn01h" type="real" dimensions="nCells Time" units="W m^{-2}"
+         description="Hourly average all-sky downward direct normal surface shortwave radiation flux"/>
+         
+    
+</var_struct>
+

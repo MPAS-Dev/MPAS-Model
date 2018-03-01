@@ -1,5 +1,5 @@
 <!-- *************************************************************** -->
-<!-- HIWC diagnostics                                                -->
+<!-- Aviation diagnostics                                                -->
 <!--                                                                 -->
 <!-- Created by Cathryn Meyer, December / 2017                           -->
 <!-- Copyright (c) 2017 The Weather Company. All rights reserved.    -->
@@ -9,6 +9,9 @@
     
     <var name="hiwc" type="integer" dimensions="nCells Time" units="0-3 index"
          description="High-altitude Ice Water Content"/>
+         
+    <var name="avcnvmsk" type="real" dimensions="nCells Time" units="fraction"
+         description="Aviation convective mask"/>
     
 </var_struct>
 

@@ -549,6 +549,7 @@
 
 !local pointers:
  real(kind=RKIND),dimension(:),pointer:: refl10cm_max,refl10cm_1km,refl10cm_1km_max,cuprec
+ real(kind=RKIND),dimension(:,:),pointer:: refl10cm
 
 !local variables and arrays:
  integer:: i,j,k,kp
@@ -557,6 +558,7 @@
 
 !-----------------------------------------------------------------------------------------------------------------
 
+ call mpas_pool_get_array(diag_physics,'refl10cm',refl10cm)
  call mpas_pool_get_array(diag_physics,'refl10cm_max',refl10cm_max)
  call mpas_pool_get_array(diag_physics,'refl10cm_1km',refl10cm_1km)
  call mpas_pool_get_array(diag_physics,'refl10cm_1km_max',refl10cm_1km_max)
@@ -598,6 +600,7 @@
              dBZ1d(k) = max(-35._RKIND,dBZ1d(k))
              if(zp(k) .lt. 1000.) kp = k
           enddo
+          refl10cm(kts:kte,i) = dBZ1d(kts:kte)
           refl10cm_max(i) = maxval(dBZ1d(kp:kte))
           grprec = ((10.**(refl10cm_max(i)/10.)/300.)**(1./1.4))/3600.
           totprec = grprec + cuprec(i)
@@ -653,6 +656,7 @@
              dBZ1d(k) = max(-35._RKIND,dBZ1d(k))
              if(zp(k) .lt. 1000.) kp = k
           enddo
+          refl10cm(kts:kte,i) = dBZ1d(kts:kte)
           refl10cm_max(i) = maxval(dBZ1d(kp:kte))
           grprec = ((10.**(refl10cm_max(i)/10.)/300.)**(1./1.4))/3600.
           totprec = grprec + cuprec(i) 
