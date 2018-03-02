@@ -218,10 +218,9 @@ module surface_diagnostics
             conv_bucket(:) = 0.
             snow_bucket(:) = 0.
             zrain_bucket(:) = 0.
+            call MPAS_reset_clock_alarm(simulationClock, 'precipAlarm')
         end if
 
-        call MPAS_reset_clock_alarm(simulationClock, 'precipAlarm')
-   
     end subroutine surface_diagnostics_reset
 
 end module surface_diagnostics
