@@ -76,7 +76,7 @@ module accumulated_diagnostics
         type (MPAS_pool_type), pointer :: all_pools
         type (MPAS_clock_type), pointer :: simulation_clock
 
-        type (MPAS_timeInterval_type) :: intv15
+        type (MPAS_timeInterval_type) :: intv15, intv60
         type (MPAS_time_type) :: now
 
 
@@ -105,8 +105,10 @@ module accumulated_diagnostics
 
         ! Set precipitation bucket alarm for resets
         call MPAS_set_timeInterval(intv15, M=15)
+        call MPAS_set_timeInterval(intv60, M=60)
         now = MPAS_get_clock_time(simulationClock, MPAS_NOW)
         call MPAS_add_clock_alarm(simulationClock, 'acc15mAlarm', now, alarmTimeInterval=intv15)
+        call MPAS_add_clock_alarm(simulationClock, 'acc01hAlarm', now, alarmTimeInterval=intv60)
 
         ! Config
         call mpas_pool_get_config(configs, 'config_bucket_radt', bucket_radt)
@@ -147,7 +149,7 @@ module accumulated_diagnostics
 
         implicit none
 
-        real (kind=RKIND), dimension(:), pointer :: u10, v10, lhflx, wspd15m, swdnb, swdnbdn, arr
+        real (kind=RKIND), dimension(:), pointer :: u10, v10, lhflx, wspd01h, swdnb, swdnbdn, arr
         real (kind=RKIND) :: wspd
 
         integer :: iHistp1, iCell
@@ -161,10 +163,10 @@ module accumulated_diagnostics
         ! Wind speed
         call mpas_pool_get_array(diag_physics, 'u10', u10) ! in
         call mpas_pool_get_array(diag_physics, 'v10', v10) ! in
-        call mpas_pool_get_array(diag, 'wspd10_max15m', wspd15m) !inout
+        call mpas_pool_get_array(diag, 'wspd10_max01h', wspd01h) !inout
         do iCell = 1,nCells
             wspd = sqrt(u10(iCell)*u10(iCell) + v10(iCell)*v10(iCell))
-            wspd15m(iCell) = max(wspd15m(iCell), wspd)
+            wspd01h(iCell) = max(wspd01h(iCell), wspd)
         end do
 
         ! Incrementing latent heat for hourly averaging
@@ -438,11 +440,11 @@ module accumulated_diagnostics
         real (kind=RKIND), dimension(:), pointer :: bucket
 
         ! Reset 15-minute buckets
-        if (MPAS_is_alarm_ringing(simulationClock, 'acc15mAlarm')) then
-            call mpas_pool_get_array(diag, 'wspd10_max15m', bucket)
+        if (MPAS_is_alarm_ringing(simulationClock, 'acc01hAlarm')) then
+            call mpas_pool_get_array(diag, 'wspd10_max01h', bucket)
             bucket(:) = 0._RKIND
 
-            call MPAS_reset_clock_alarm(simulationClock, 'acc15mAlarm')
+            call MPAS_reset_clock_alarm(simulationClock, 'acc01hAlarm')
         end if
     end subroutine accumulated_diagnostics_reset
 

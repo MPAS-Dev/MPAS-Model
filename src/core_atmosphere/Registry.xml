@@ -1035,7 +1035,7 @@
             <var name="rainnc15m"/>
             <var name="snow15m"/>
             <var name="ice15m"/>
-            <var name="wspd10_max15m"/>
+            <var name="wspd10_max01h"/>
             <!-- 30-minute accumulation -->
             <var name="rain30m"/>
             <var name="rainc30m"/>
