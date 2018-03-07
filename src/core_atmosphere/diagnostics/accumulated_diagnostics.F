@@ -182,10 +182,18 @@ module accumulated_diagnostics
         ! Step forward in time and copy accumulated values
         if (MPAS_is_alarm_ringing(simulationClock, 'acc15mAlarm')) then
             iHistory = iHistp1
+            iHistp1 = mod((iHistory + 1),nHistory)
             call copy_diag_real('rainc', rainc)
             call copy_diag_int('i_rainc', i_rainc)
             call copy_diag_real('rainnc', rainnc)
             call copy_diag_int('i_rainnc', i_rainnc)
+
+            sw15m(:,iHistp1)    = 0.0
+            dni15m(:,iHistp1)   = 0.0
+            lh15m(:,iHistp1)    = 0.0
+            rainc15m(:,iHistp1) = 0.0
+            snow15m(:,iHistp1)  = 0.0
+            ice15m(:,iHistp1)   = 0.0
         end if
 
     end subroutine accumulated_diagnostics_update
