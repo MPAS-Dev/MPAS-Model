@@ -5,7 +5,7 @@
 ! Additional copyright and license information can be found in the LICENSE file
 ! distributed with this code, or at http://mpas-dev.github.com/license.html
 !
-#define DM_BCAST_MACRO(A) call mpas_dmpar_bcast_reals(dminfo,size(A),A)
+#define DM_BCAST_MACRO(A) call mpas_dmpar_bcast_real4s(dminfo,size(A),A)
 
 !=================================================================================================================
  module mpas_atmphys_init_microphysics
@@ -38,6 +38,8 @@
 ! * modified the subroutine init_thompson_aerosols_forMPAS for exact restartibility when using the microphysics
 !   option "mp_thompson_aerosols".
 !   Laura D. Fowler (laura@ucar.edu) / 2018-02-23.
+! * changed the definition of DM_BCAST_MACRO to compile table_ccnAct with the default DOUBLE PRECISION.
+!   Laura D. Fowler (laura@ucar.edu) / 2018-03-07.
 
 
  contains
