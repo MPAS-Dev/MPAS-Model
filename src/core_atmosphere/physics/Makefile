@@ -10,12 +10,13 @@ dummy:
 	echo "****** compiling physics ******"
 
 OBJS_init = \
-	mpas_atmphys_constants.o     \
-	mpas_atmphys_date_time.o     \
-	mpas_atmphys_functions.o     \
+	mpas_atmphys_constants.o  \
+	mpas_atmphys_date_time.o  \
+	mpas_atmphys_functions.o  \
 	mpas_atmphys_utilities.o
 
 OBJS = \
+	mpas_atmphys_compute_diagnostics.o \
 	mpas_atmphys_control.o             \
 	mpas_atmphys_driver.o              \
 	mpas_atmphys_driver_cloudiness.o   \
@@ -60,6 +61,10 @@ core_physics: core_physics_wrf
 phys_interface: $(OBJS)
 
 # DEPENDENCIES:
+mpas_atmphys_compute_diagnostics.o: \
+	mpas_atmphys_constants.o \
+	../diagnostics/mpas_atm_diagnostics_utils.o
+
 mpas_atmphys_control.o: \
 	mpas_atmphys_utilities.o \
 	mpas_atmphys_vars.o

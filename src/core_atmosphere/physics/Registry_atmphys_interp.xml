@@ -1,0 +1,209 @@
+<!-- ========================================================================================================= -->
+<!-- physics diagnostics:                                                                                      -->
+<!-- ========================================================================================================= -->
+<var_struct name="diag_physics_vavg" time_levs="1">
+
+        <var name="qv_vavg" type="real" dimensions="nCells Time" units="kg m^{-2}"
+             description="vertically-averaged water vapor mixing ratio"/>
+
+        <var name="qc_vavg" type="real" dimensions="nCells Time" units="kg m^{-2}"
+             description="vertically-averaged cloud water mixing ratio"/>
+
+        <var name="qr_vavg" type="real" dimensions="nCells Time" units="kg m^{-2}"
+             description="vertically-averaged rain mixing ratio"/>
+
+        <var name="qi_vavg" type="real" dimensions="nCells Time" units="kg m^{-2}"
+             description="vertically-averaged cloud ice mixing ratio"/>
+
+        <var name="qs_vavg" type="real" dimensions="nCells Time" units="kg m^{-2}"
+             description="vertically-averaged snow mixing ratio"/>
+
+        <var name="qg_vavg" type="real" dimensions="nCells Time" units="kg m^{-2}"
+             description="vertically-averaged graupel mixing ratio"/>
+
+        <var name="qcf_vavg" type="real" dimensions="nCells Time" units="kg m^{-2}"
+             description="vertically-averaged cloud-weighted cloud water mixing ratio"/>
+
+        <var name="qrf_vavg" type="real" dimensions="nCells Time" units="kg m^{-2}"
+             description="vertically-averaged cloud-weighted rain mixing ratio"/>
+
+        <var name="qif_vavg" type="real" dimensions="nCells Time" units="kg m^{-2}"
+             description="vertically-averaged cloud-weighted cloud ice mixing ratio"/>
+
+        <var name="qsf_vavg" type="real" dimensions="nCells Time" units="kg m^{-2}"
+             description="vertically-averaged cloud-weighted snow mixing ratio"/>
+
+        <var name="qgf_vavg" type="real" dimensions="nCells Time" units="kg m^{-2}"
+             description="vertically-averaged cloud-weighted graupel mixing ratio"/>
+
+        <var name="cld_max" type="real" dimensions="nCells Time" units="-"
+             description="maximum cloud fraction"/>
+
+</var_struct>
+
+<var_struct name="diag_physics_interp" time_levs="1">
+
+        <var name="t_interp" type="real" dimensions="nFGLevels nCells Time" units="K"
+             description="temperature interpolated to fixed pressure levels"/>
+
+        <var name="qv_interp" type="real" dimensions="nFGLevels nCells Time" units="kg kg^{-1}"
+             description="water vapor mixing ratio interpolated to fixed pressure levels"/>
+
+        <var name="qc_interp" type="real" dimensions="nFGLevels nCells Time" units="kg kg^{-1}"
+             description="cloud water mixing ratio interpolated to fixed pressure levels"/>
+
+        <var name="qr_interp" type="real" dimensions="nFGLevels nCells Time" units="kg kg^{-1}"
+             description="rain mixing ratio interpolated to fixed pressure levels"/>
+
+        <var name="qi_interp" type="real" dimensions="nFGLevels nCells Time" units="kg kg^{-1}"
+             description="cloud ice mixing ratio interpolated to fixed pressure levels"/>
+
+        <var name="qs_interp" type="real" dimensions="nFGLevels nCells Time" units="kg kg^{-1}"
+             description="snow mixing ratio interpolated to fixed pressure levels"/>
+
+        <var name="qg_interp" type="real" dimensions="nFGLevels nCells Time" units="kg kg^{-1}"
+             description="graupel mixing ratio interpolated to fixed pressure levels"/>
+
+        <var name="qcf_interp" type="real" dimensions="nFGLevels nCells Time" units="kg kg^{-1}"
+             description="cld-weighted cloud water mixing ratio interpolated to fixed pressure levels"/>
+
+        <var name="qrf_interp" type="real" dimensions="nFGLevels nCells Time" units="kg kg^{-1}"
+             description="cld-weighted rain mixing ratio interpolated to fixed pressure levels"/>
+
+        <var name="qif_interp" type="real" dimensions="nFGLevels nCells Time" units="kg kg^{-1}"
+             description="cld-weighted cloud ice mixing ratio interpolated to fixed pressure levels"/>
+
+        <var name="qsf_interp" type="real" dimensions="nFGLevels nCells Time" units="kg kg^{-1}"
+             description="cld-weighted snow mixing ratio interpolated to fixed pressure levels"/>
+
+        <var name="qgf_interp" type="real" dimensions="nFGLevels nCells Time" units="kg kg^{-1}"
+             description="cld-weighted graupel mixing ratio interpolated to fixed pressure levels"/>
+
+        <var name="cld_interp" type="real" dimensions="nFGLevels nCells Time" units="-"
+             description="cloud fraction interpolated to fixed pressure levels"/>
+
+</var_struct>
+
+<var_struct name="tend_physics_vavg" time_levs="1">
+
+        <var name="dtcup_vavg" type="real" dimensions="nCells Time" units="K s^{-1}"
+             description="convective tendency of temperature"/>
+
+        <var name="dqvcup_vavg" type="real" dimensions="nCells Time" units="kg m^{-2} s^{-1}"
+             description="vertically-integrated convective tendency of water vapor mr"/>
+
+        <var name="dqccup_vavg" type="real" dimensions="nCells Time" units="kg m^{-2} s^{-1}"
+             description="vertically-integrated convective tendency of cloud water mr"/>
+
+        <var name="dqrcup_vavg" type="real" dimensions="nCells Time" units="kg m^{-2} s^{-1}"
+             description="vertically-integrated convective tendency of rain mr"/>
+
+        <var name="dqicup_vavg" type="real" dimensions="nCells Time" units="kg m^{-2} s^{-1}"
+             description="vertically-integrated convective tendency of cloud ice mr"/>
+
+        <var name="dqscup_vavg" type="real" dimensions="nCells Time" units="kg m^{-2} s^{-1}"
+             description="vertically-integrated convective tendency of snow mr"/>
+
+        <var name="dtmp_vavg" type="real" dimensions="nCells Time" units="K s^{-1}"
+             description="vertically-integrated microphysics tendency of temperature"/>
+
+        <var name="dqvmp_vavg" type="real" dimensions="nCells Time" units="kg m^{-2} s^{-1}"
+             description="vertically-integrated microphysics tendency of water vapor mr"/>
+
+        <var name="dqcmp_vavg" type="real" dimensions="nCells Time" units="kg m^{-2} s^{-1}"
+             description="vertically-integrated microphysics tendency of cloud water mr"/>
+
+        <var name="dqrmp_vavg" type="real" dimensions="nCells Time" units="kg m^{-2} s^{-1}"
+             description="vertically-integrated microphysics tendency of rain mr"/>
+
+        <var name="dqimp_vavg" type="real" dimensions="nCells Time" units="kg m^{-2} s^{-1}"
+             description="vertically-integrated microphysics tendency of cloud ice mr"/>
+
+        <var name="dqsmp_vavg" type="real" dimensions="nCells Time" units="kg m^{-2} s^{-1}"
+             description="vertically-integrated microphysics tendency of snow mr"/>
+
+        <var name="dqgmp_vavg" type="real" dimensions="nCells Time" units="kg m^{-2} s^{-1}"
+             description="vertically-integrated microphysics tendency of graupel mr"/>
+
+        <var name="dtbl_vavg" type="real" dimensions="nCells Time" units="K s^{-1}"
+             description="vertically-integrated PBL tendency of temperature"/>
+
+        <var name="dqvbl_vavg" type="real" dimensions="nCells Time" units="kg m^{-2} s^{-1}"
+             description="vertically-integrated PBL tendency of water vapor mr"/>
+
+        <var name="dqcbl_vavg" type="real" dimensions="nCells Time" units="kg m^{-2} s^{-1}"
+             description="vertically-integrated PBL tendency of cloud water mr"/>
+
+        <var name="dqibl_vavg" type="real" dimensions="nCells Time" units="kg m^{-2} s^{-1}"
+             description="vertically-integrated PBL tendency of cloud ice mr"/>
+
+        <var name="dtlw_vavg" type="real" dimensions="nCells Time" units="K s^{-1}"
+             description="vertically-integrated lw radiation tendency of temperature"/>
+
+        <var name="dtsw_vavg" type="real" dimensions="nCells Time" units="K s^{-1}"
+             description="vertically-integrated sw radiation tendency of temperature"/>
+
+</var_struct>
+
+<var_struct name="tend_physics_interp" time_levs="1">
+
+        <var name="dtcup_interp" type="real" dimensions="nFGLevels nCells Time" units="K s^{-1}"
+             description="convective tendency of temperature interpolated to fixed pressure levels"/>
+
+        <var name="dqvcup_interp" type="real" dimensions="nFGLevels nCells Time" units="kg kg^{-1} s^{-1}"
+             description="convective tendency of water vapor mr interpolated to fixed pressure levels"/>
+
+        <var name="dqccup_interp" type="real" dimensions="nFGLevels nCells Time" units="kg kg^{-1} s^{-1}"
+             description="convective tendency of cloud water mr interpolated to fixed pressure levels"/>
+
+        <var name="dqrcup_interp" type="real" dimensions="nFGLevels nCells Time" units="kg kg^{-1} s^{-1}"
+             description="convective tendency of rain mr interpolated to fixed pressure levels"/>
+
+        <var name="dqicup_interp" type="real" dimensions="nFGLevels nCells Time" units="kg kg^{-1} s^{-1}"
+             description="convective tendency of cloud ice mr interpolated to fixed pressure levels"/>
+
+        <var name="dqscup_interp" type="real" dimensions="nFGLevels nCells Time" units="kg kg^{-1} s^{-1}"
+             description="convective tendency of snow mr interpolated to fixed pressure levels"/>
+
+        <var name="dtmp_interp" type="real" dimensions="nFGLevels nCells Time" units="K s^{-1}"
+             description="microphysics tendency of temperature interpolated to fixed pressure levels"/>
+
+        <var name="dqvmp_interp" type="real" dimensions="nFGLevels nCells Time" units="kg kg^{-1} s^{-1}"
+             description="microphysics tendency of water vapor mr interpolated to fixed pressure levels"/>
+
+        <var name="dqcmp_interp" type="real" dimensions="nFGLevels nCells Time" units="kg kg^{-1} s^{-1}"
+             description="microphysics tendency of cloud water mr interpolated to fixed pressure levels"/>
+
+        <var name="dqrmp_interp" type="real" dimensions="nFGLevels nCells Time" units="kg kg^{-1} s^{-1}"
+             description="microphysics tendency of rain mr interpolated to fixed pressure levels"/>
+
+        <var name="dqimp_interp" type="real" dimensions="nFGLevels nCells Time" units="kg kg^{-1} s^{-1}"
+             description="microphysics tendency of cloud ice mr interpolated to fixed pressure levels"/>
+
+        <var name="dqsmp_interp" type="real" dimensions="nFGLevels nCells Time" units="kg kg^{-1} s^{-1}"
+             description="microphysics tendency of snow mr interpolated to fixed pressure levels"/>
+
+        <var name="dqgmp_interp" type="real" dimensions="nFGLevels nCells Time" units="kg kg^{-1} s^{-1}"
+             description="microphysics tendency of graupel mr interpolated to fixed pressure levels"/>
+
+        <var name="dtbl_interp" type="real" dimensions="nFGLevels nCells Time" units="K s^{-1}"
+             description="PBL tendency of temperature interpolated to fixed pressure levels"/>
+
+        <var name="dqvbl_interp" type="real" dimensions="nFGLevels nCells Time" units="kg kg^{-1} s^{-1}"
+             description="PBL tendency of water vapor mr interpolated to fixed pressure levels"/>
+
+        <var name="dqcbl_interp" type="real" dimensions="nFGLevels nCells Time" units="kg kg^{-1} s^{-1}"
+             description="PBL tendency of cloud water mr interpolated to fixed pressure levels"/>
+
+        <var name="dqibl_interp" type="real" dimensions="nFGLevels nCells Time" units="kg kg^{-1} s^{-1}"
+             description="PBL tendency of cloud ice mr interpolated to fixed pressure levels"/>
+
+        <var name="dtlw_interp" type="real" dimensions="nFGLevels nCells Time" units="K s^{-1}"
+             description="lw radiation tendency of potential temperature interpolated to fixed pressure levels"/>
+
+        <var name="dtsw_interp" type="real" dimensions="nFGLevels nCells Time" units="K s^{-1}"
+             description="sw radiation tendency of temperature interpolated to fixed pressure levels"/>
+
+</var_struct>
+
+<!-- ========================================================================================================= -->

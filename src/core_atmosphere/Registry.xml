@@ -28,6 +28,8 @@
                      description="A constant value of 21"/>
                 <dim name="R3"                 definition="3"
                      description="The dimensionality of vectors in $\Re^3$"/>
+                <dim name="nFGLevels"
+                     description="The number of atmospheric levels in the first-guess dataset"/>
                 <dim name="nVertLevels"
                      description="The number of atmospheric layers"/>
                 <dim name="nVertLevelsP1"      definition="nVertLevels+1"
@@ -454,6 +456,7 @@
 			<var name="defc_a"/>
 			<var name="defc_b"/>
 			<var name="coeffs_reconstruct"/>
+			<var name="p_fg"/>
 			<var_array name="scalars"/>
 			<var name="initial_time"/>
 			<var name="xtime"/>
@@ -583,6 +586,7 @@
 			<var name="coeffs_reconstruct"/>
 			<var name="east"/>
 			<var name="north"/>
+			<var name="p_fg"/>
 			<var_array name="scalars"/>
 			<var name="rainprod" packages="mp_thompson_in"/>
 			<var name="evapprod" packages="mp_thompson_in"/>
@@ -3286,5 +3290,16 @@
 <!-- **************************************************************************************** -->
 
 #include "diagnostics/Registry_diagnostics.xml"
+
+        <!-- ================================================================================================== -->
+        <!-- ... FIRST-GUESS DATA NEEDED FOR INTERPOLATION OF PHYSICS DIAGNOSTICS:                              -->
+        <!-- ================================================================================================== -->
+
+        <var_struct name="fg" time_levs="1">
+
+                <var name="p_fg" type="real" dimensions="nFGLevels nCells Time" units="Pa"
+                     description="First-guess pressures"/>
+
+        </var_struct>
 
 </registry>
