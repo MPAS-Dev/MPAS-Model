@@ -656,6 +656,7 @@
 			<var name="raincvs"/>
 			<var name="nca"/>
 			<var name="timec"/>
+			<var name="w_deepc"/>
 			<var name="udr_kf"/>
 			<var name="ddr_kf"/>
 			<var name="uer_kf"/>
@@ -2315,6 +2316,10 @@
                 <!-- ... KAIN_FRITSCH MSKF ONLY: -->
                 <var name="timec" type="real" dimensions="nCells Time" units="s"
                      description="convective timescale in Kain-Fritsch convection scheme"
+                     packages="cu_kain_fritsch_in"/>
+
+                <var name="w_deepc" type="real" dimensions="nVertLevels nCells Time" units="m s^{-1}"
+                     description="effective subgrid scale vertical velocity in Kain-Fritsch convection scheme"
                      packages="cu_kain_fritsch_in"/>
 
                 <var name="cldfrac_deepc"  type="real" dimensions="nVertLevels nCells Time" units="unitless"

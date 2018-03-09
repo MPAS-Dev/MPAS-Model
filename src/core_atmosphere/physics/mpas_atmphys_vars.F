@@ -134,6 +134,9 @@
 ! * added local variables needed to run the updated version of the Kain-Fritsch parameterization of convection,
 !   copied from WRF version 3.9.1.1.
 !   Laura D. Fowler (laura@ucar.edu) / 2018-02-05.
+! * added local variables needed to run the scale-aware parameterization of the Kain-Fritsch parameterization of
+!   convection.
+!   Laura D. Fowler (laura@ucar.edu) / 2018-02-05.
 ! * removed the variables rqvdynblten and rthdynblten since they actually are the same variables as rqvblten and
 !   rthblten.
 !   Laura D. Fowler (laura@ucar.edu) /2018-02-26.
@@ -337,6 +340,7 @@
 
  real(kind=RKIND),dimension(:,:,:),allocatable:: &
     w0avg_p,          &!
+    w_deepc_p,        &!
     cldfrac_deepc_p,  &!
     cldfrac_shalc_p,  &!
     udr_kf_p,         &!

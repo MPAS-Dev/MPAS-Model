@@ -17,9 +17,10 @@ OBJS = \
 	module_cu_gf.mpas.wrf-3.9.0.o    \
 	module_cu_gf_deep.wrf-3.9.0.o    \
 	module_cu_gf_sh.wrf-3.9.0.o      \
-	module_cu_tiedtke.o              \
-	module_cu_ntiedtke.o             \
 	module_cu_kfeta.o                \
+	module_cu_mskf.o                 \
+	module_cu_ntiedtke.o             \
+	module_cu_tiedtke.o              \
 	module_mp_kessler.o              \
 	module_mp_radar.o                \
 	module_mp_thompson.o             \
