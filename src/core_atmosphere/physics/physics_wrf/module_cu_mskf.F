@@ -13,6 +13,9 @@
 ! * do not use the "shall" option for WRFCuP (I am not sure what this option is actually used for). do not use
 !   the new trigger option based on the 9-point average of moisture advection.
 !   Laura D. Fowler (laura@ucar.edu) / 2018-01-26.
+! * check the maximum value of TIMEC against DT instead of against TADVEC. At low spatial resolution, TADVEC can
+!   be quite large, leading to irrealistic values of TIMEC and MPAS to crash.
+!   Laura D. Fowler (laura@ucar.edu) / 2018-03-09.
 
 !=================================================================================================================
 MODULE module_cu_mskf
@@ -1543,7 +1546,8 @@ updraft:    DO NK=K,KL-1
          TIMEC = TIMEC/((0.03*SCLvel*ABE)**0.3333)
 
 !ckay: this dynTau is good for the Deep as well as Shallow Cu clouds
-        TIMEC = AMAX1(TADVEC, TIMEC)
+!       TIMEC = AMAX1(TADVEC, TIMEC)
+        TIMEC = AMAX1(DT, TIMEC)
 
          NIC=NINT(TIMEC/DT)
          TIMEC=FLOAT(NIC)*DT
