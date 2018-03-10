@@ -83,6 +83,7 @@
  character(len=StrKIND),public:: radt_lw_scheme
  character(len=StrKIND),public:: radt_sw_scheme
  character(len=StrKIND),public:: sfclayer_scheme
+ character(len=StrKIND),public:: snowratio_scheme
 
 !=================================================================================================================
 !wrf-variables:these variables are needed to keep calls to different physics parameterizations

@@ -289,7 +289,7 @@ module aviation_diagnostics
 ! ---------------
         integer, pointer :: nCells, nVertLevels
         real (kind=RKIND), dimension(:,:), pointer :: refl10cm, z, w ! in
-        real (kind=RKIND), dimension(:), pointer :: z0, rainncv, cutop ! in
+        real (kind=RKIND), dimension(:), pointer :: z0, rainncv ! in
         real (kind=RKIND), dimension(:), pointer :: avcnvmsk ! out
 
         integer :: iCell, k, k_echotop
@@ -308,7 +308,6 @@ module aviation_diagnostics
         call mpas_pool_get_dimension(mesh, 'nCells', nCells)
         call mpas_pool_get_dimension(mesh, 'nVertLevels', nVertLevels)
         call mpas_pool_get_array(diag_physics, 'refl10cm', refl10cm)
-        call mpas_pool_get_array(diag_physics, 'cutop', cutop)
         call mpas_pool_get_array(diag_physics, 'rainncv', rainncv)
         call mpas_pool_get_array(state, 'w', w, 1)
         call mpas_pool_get_array(diag, 'zgrid_unstag', z)
@@ -329,7 +328,6 @@ module aviation_diagnostics
                     end if
                 end do
             end if
-            k_echotop = MAX(k_echotop, MIN(nVertLevels-1, int(cutop(iCell))))
 
             ! Convert echotop index to height AGL
             if (k_echotop <= 1) then
