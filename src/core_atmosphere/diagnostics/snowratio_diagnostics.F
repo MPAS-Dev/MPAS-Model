@@ -81,7 +81,7 @@ module snowratio_diagnostics
         integer, pointer :: nCells, nVertLevels, index_qv
 
         real (kind=RKIND) :: temperature_max, pressure, temperature, w_layer, w_max
-        real (kind=RKIND) :: cobb_index, cobb_interp, cobb_srk, snow_ratio_tmp, graupel_frc
+        real (kind=RKIND) :: cobb_index, cobb_interp, cobb_srk, snow_ratio_tmp
         real (kind=RKIND) :: dz_layer, weighting_factor, weighting_factor_sum
         real (kind=RKIND), dimension(:), pointer :: snow_ratio
         real (kind=RKIND), dimension(:,:), pointer :: z
