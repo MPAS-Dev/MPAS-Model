@@ -98,9 +98,8 @@ module snowratio_diagnostics
 
         real (kind=RKIND), parameter :: snow_ratio_default = 1.
         real (kind=RKIND), parameter :: snow_ratio_static = 10.
-        real (kind=RKIND), parameter :: snow_ratio_min = 4.
-        real (kind=RKIND), parameter :: snow_ratio_max = 20.
-        real (kind=RKIND), parameter :: snow_to_graupel = 0.40
+        real (kind=RKIND), parameter :: snow_ratio_min = 6.
+        real (kind=RKIND), parameter :: snow_ratio_max = 18.
         real (kind=RKIND), parameter :: rh_cloud = 70.
 
         call mpas_pool_get_array(diag, 'snow_ratio', snow_ratio)
@@ -137,9 +136,6 @@ module snowratio_diagnostics
               else
                  snow_ratio(iCell) = 12.0+(271.16-temperature_max)
               end if
-              ! reduce snow ratio for graupel
-              graupel_frc = max(0.,min( 1., graupelncv(iCell) / (snowncv(iCell) + graupelncv(iCell))))
-              snow_ratio(iCell) = graupel_frc*max(snow_ratio_min,snow_ratio(iCell)*snow_to_graupel)+(1.-graupel_frc)*snow_ratio(iCell)
               snow_ratio(iCell) = max(snow_ratio_min, min(snow_ratio_max, snow_ratio(iCell)))
            end do
 
@@ -161,8 +157,8 @@ module snowratio_diagnostics
            allocate(cobb_table(31))
 
            ! modified cobb table
-           cobb_table(1)=4.0
-           cobb_table(2)=5.5
+           cobb_table(1)=6.0
+           cobb_table(2)=6.5
            cobb_table(3)=7.0
            cobb_table(4)=7.5
            cobb_table(5)=8.0
@@ -172,26 +168,26 @@ module snowratio_diagnostics
            cobb_table(9)=10.0
            cobb_table(10)=11.0
            cobb_table(11)=12.0
-           cobb_table(12)=14.0
-           cobb_table(13)=16.0
-           cobb_table(14)=17.0
-           cobb_table(15)=18.0
-           cobb_table(16)=19.0
-           cobb_table(17)=20.0
-           cobb_table(18)=19.0
-           cobb_table(19)=18.0
-           cobb_table(20)=17.0
-           cobb_table(21)=16.0
-           cobb_table(22)=14.0
+           cobb_table(12)=13.0
+           cobb_table(13)=14.0
+           cobb_table(14)=15.0
+           cobb_table(15)=16.0
+           cobb_table(16)=17.0
+           cobb_table(17)=18.0
+           cobb_table(18)=17.0
+           cobb_table(19)=16.0
+           cobb_table(20)=15.0
+           cobb_table(21)=14.0
+           cobb_table(22)=13.0
            cobb_table(23)=12.0
-           cobb_table(24)=10.0
-           cobb_table(25)=8.5
-           cobb_table(26)=7.5
-           cobb_table(27)=7.0
-           cobb_table(28)=7.0
+           cobb_table(24)=11.0
+           cobb_table(25)=10.0
+           cobb_table(26)=9.0
+           cobb_table(27)=8.0
+           cobb_table(28)=7.5
            cobb_table(29)=7.0
-           cobb_table(30)=7.0
-           cobb_table(31)=7.5
+           cobb_table(30)=7.5
+           cobb_table(31)=8.0
 
            do iCell = 1, nCells
 
@@ -250,9 +246,6 @@ module snowratio_diagnostics
                     snow_ratio_tmp = snow_ratio_tmp+cobb_srk*weighting_factor/weighting_factor_sum
                  end if
               end do
-              ! reduce snow ratio for graupel
-              graupel_frc = max(0.,min( 1., graupelncv(iCell) / (snowncv(iCell) + graupelncv(iCell))))
-              snow_ratio_tmp = graupel_frc*max(snow_ratio_min,snow_ratio_tmp*snow_to_graupel)+(1.-graupel_frc)*snow_ratio_tmp
               snow_ratio(iCell) = max(snow_ratio_min, min(snow_ratio_max, snow_ratio_tmp))
            end do
 
@@ -278,9 +271,6 @@ module snowratio_diagnostics
               else
                  snow_ratio(iCell) = 1./(0.05+0.0017*(temperature+15.)**1.5)
               end if
-              ! reduce snow ratio for graupel
-              graupel_frc = max(0.,min( 1., graupelncv(iCell) / (snowncv(iCell) + graupelncv(iCell))))
-              snow_ratio(iCell) = graupel_frc*max(snow_ratio_min,snow_ratio(iCell)*snow_to_graupel)+(1.-graupel_frc)*snow_ratio(iCell)
               snow_ratio(iCell) = max(snow_ratio_min, min(snow_ratio_max, snow_ratio(iCell)))           
            end do
 
@@ -300,9 +290,6 @@ module snowratio_diagnostics
               if (snowncv(iCell)+graupelncv(iCell) <= 0) cycle
               temperature = (theta_m(1,iCell)/(1._RKIND+rvord*scalars(index_qv,1,iCell)))*exner(1,iCell)-273.15
               snow_ratio(iCell) = 1000./(67.92+51.25*exp(temperature/2.59))
-              ! reduce snow ratio for graupel
-              graupel_frc = max(0.,min( 1., graupelncv(iCell) / (snowncv(iCell) + graupelncv(iCell))))
-              snow_ratio(iCell) = graupel_frc*max(snow_ratio_min,snow_ratio(iCell)*snow_to_graupel)+(1.-graupel_frc)*snow_ratio(iCell)
               snow_ratio(iCell) = max(snow_ratio_min, min(snow_ratio_max, snow_ratio(iCell)))
            end do
 
@@ -317,9 +304,6 @@ module snowratio_diagnostics
               snow_ratio(iCell) = snow_ratio_default
               if (snowncv(iCell)+graupelncv(iCell) <= 0) cycle
               snow_ratio(iCell) = snow_ratio_static
-              ! reduce snow ratio for graupel
-              graupel_frc = max(0.,min( 1., graupelncv(iCell) / (snowncv(iCell) + graupelncv(iCell))))
-              snow_ratio(iCell) = graupel_frc*max(snow_ratio_min,snow_ratio(iCell)*snow_to_graupel)+(1.-graupel_frc)*snow_ratio(iCell)
               snow_ratio(iCell) = max(snow_ratio_min, min(snow_ratio_max, snow_ratio(iCell)))
            end do
 
