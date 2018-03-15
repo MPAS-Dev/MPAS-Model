@@ -71,7 +71,8 @@ module aviation_diagnostics
         ! Initialize smoother if necessary
         if (mpas_stream_inclusion_count('hiwc', direction=MPAS_STREAM_OUTPUT) > 0) then
             call mpas_pool_get_array(mesh, 'invAreaCell', invAreaCell)
-            smooth_radius = NINT(SQRT(invAreaCell(1) * 9.161e9)) ! area with radius of 3x18km
+            ! Area with radius = 3x18km in from RPM = 9.161e9
+            smooth_radius = NINT(SQRT(invAreaCell(1) * 9.161e9))/2
             if (smooth_radius > 0) then
                 call initialize_hiwc_smoother()
             end if
@@ -87,12 +88,13 @@ module aviation_diagnostics
 
         integer, allocatable, dimension(:) :: tmpNeighbors
 
-        integer, pointer :: nCells, maxEdges
+        integer, pointer :: nCells, nCellsSolve, maxEdges
         integer, dimension(:,:), pointer :: cellsOnCell
         integer, dimension(:), pointer :: nEdgesOnCell
         integer :: iRadius, maxNeighborhood, iCell, nn
 
         call mpas_pool_get_dimension(mesh, 'nCells', nCells)
+        call mpas_pool_get_dimension(mesh, 'nCellsSolve', nCellsSolve)
         call mpas_pool_get_dimension(mesh, 'maxEdges', maxEdges)
         call mpas_pool_get_array(mesh, 'cellsOnCell', cellsOnCell)
         call mpas_pool_get_array(mesh, 'nEdgesOnCell', nEdgesOnCell)
@@ -105,13 +107,13 @@ module aviation_diagnostics
 
         ! Allocate smoother mapping
         allocate(tmpNeighbors(maxNeighborhood))
-        allocate(neighborhood(maxNeighborhood, nCells))
-        allocate(nNeighbors(nCells))
+        allocate(neighborhood(maxNeighborhood, nCellsSolve))
+        allocate(nNeighbors(nCellsSolve))
 
         ! Define the neighborhood for each cell
-        do iCell=1,nCells
+        do iCell=1,nCellsSolve
             nn = 1
-            call find_neighbors(iCell, cellsOnCell, nEdgesOnCell, smooth_radius, tmpNeighbors, nn)
+            call find_neighbors(iCell, cellsOnCell, nCells, nEdgesOnCell, smooth_radius, tmpNeighbors, nn)
             nNeighbors(iCell) = nn
             neighborhood(1:nn,iCell) = tmpNeighbors(1:nn)
         end do
@@ -121,19 +123,20 @@ module aviation_diagnostics
     end subroutine initialize_hiwc_smoother
 
     ! Finds all neighbors within radius from iCenter
-    subroutine find_neighbors(iCenter, cellsOnCell, nEdgesOnCell, radius, neighborhood, nNeighbors)
+    subroutine find_neighbors(iCenter, cellsOnCell, nCells, nEdgesOnCell, radius, neighborhood, nNeighbors)
 
-        integer, intent(in) :: iCenter, radius
+        integer, intent(in) :: iCenter, radius, nCells
         integer, dimension(:,:), intent(in) :: cellsOnCell
         integer, dimension(:), intent(in) :: nEdgesOnCell
         integer, dimension(:), intent(out) :: neighborhood
         integer, intent(out) :: nNeighbors
-        integer :: itr_start, itr_end, iRadius, itr_cell, iNeighbor, cell, iCur
+        integer :: itr_start, itr_end, iRadius, itr_cell, iNeighbor, cell, iCur, nCellsP1
         logical :: found
 
         nNeighbors = 1
         itr_start = 1
         itr_end = 1
+        nCellsP1 = nCells + 1
 
         neighborhood(1) = iCenter
         do iRadius=1,radius
@@ -141,7 +144,7 @@ module aviation_diagnostics
                 ! Check each neighbor in cellsOnCell
                 do iNeighbor=1,nEdgesOnCell(neighborhood(itr_cell))
                     cell = cellsOnCell(iNeighbor,neighborhood(itr_cell))
-                    if (.not.ANY(neighborhood(1:nNeighbors) == cell)) then
+                    if (.not.ANY(neighborhood(1:nNeighbors) == cell) .and. cell.ne.nCellsP1) then
                         nNeighbors = nNeighbors + 1
                         neighborhood(nNeighbors) = cell
                     end if
@@ -190,7 +193,7 @@ module aviation_diagnostics
 
         implicit none
 
-        integer, pointer :: nCells, nVertLevels
+        integer, pointer :: nCells, nCellsSolve, nVertLevels
         real (kind=RKIND), dimension(:), allocatable :: qi_200hPa
         real (kind=RKIND), dimension(:), allocatable :: qi_250hPa
         real (kind=RKIND), dimension(:), allocatable :: virtualT_400hPa
@@ -209,6 +212,7 @@ module aviation_diagnostics
         if ( MPAS_field_will_be_written('hiwc') ) then
             ! Mesh information
             call mpas_pool_get_dimension(mesh, 'nCells', nCells)
+            call mpas_pool_get_dimension(mesh, 'nCellsSolve', nCellsSolve)
             allocate(virtualT_400hPa(nCells))    
             allocate(qi_200hPa(nCells))
             allocate(qi_250hPa(nCells))
@@ -236,12 +240,12 @@ module aviation_diagnostics
             if(allocated(virtualT_400hPa)) deallocate(virtualT_400hPa)
 
             if (smooth_radius > 0) then
-                call smooth(hiwc_calc, nCells)
+                call smooth(hiwc_calc, nCellsSolve)
             end if
 
             ! Round to the nearest integer for output array
             call mpas_pool_get_array(diag, 'hiwc', hiwc)
-            hiwc(:) = NINT(hiwc_calc(:))
+            hiwc(1:nCellsSolve) = NINT(hiwc_calc(1:nCellsSolve))
 
             deallocate(hiwc_calc)
 
@@ -250,24 +254,22 @@ module aviation_diagnostics
     end subroutine aviation_diagnostics_compute
 
     ! Simple mean smoothing within smooth_radius
-    subroutine smooth(arr, nCells)
+    subroutine smooth(arr, nCellsSolve)
         implicit none
 
         real (kind=RKIND), dimension(:), intent(inout) :: arr
-        integer, intent(in) :: nCells
-        real (kind=RKIND), allocatable, dimension(:) :: smoothed
+        integer, intent(in) :: nCellsSolve
+        real (kind=RKIND), dimension(nCellsSolve) :: smoothed
 
         integer :: iCell, iNeighbor
 
-        allocate(smoothed(nCells))
-        do iCell=1,nCells
+        do iCell=1,nCellsSolve
             smoothed(iCell) = 0.0
             do iNeighbor=1,nNeighbors(iCell)
                 smoothed(iCell) = smoothed(iCell) + arr(neighborhood(iNeighbor, iCell))
             end do
-            arr(iCell) = smoothed(iCell)/nNeighbors(iCell)
         end do
-        deallocate(smoothed)
+        arr(1:nCellsSolve) = smoothed(1:nCellsSolve)/nNeighbors(1:nCellsSolve)
     end subroutine
 
     !-----------------------------------------------------------------------
@@ -358,6 +360,8 @@ module aviation_diagnostics
    !==================================================================================================
     subroutine interp_diagnostics(qi_200hPa, qi_250hPa, virtualT_400hPa)
    !==================================================================================================
+        use mpas_derived_types, only : field2DReal, field3DReal
+        use mpas_dmpar, only : mpas_dmpar_exch_halo_field
 
         ! output arguments:
         real (kind=RKIND), dimension(:), intent(out) :: qi_200hPa
@@ -376,6 +380,24 @@ module aviation_diagnostics
         ! diagnostics
         real (kind=RKIND), dimension(:), allocatable :: t_400hPa, qv_400hPa
         real (kind=RKIND), dimension(:,:), allocatable :: pressure, temperature
+
+        type (field3DReal), pointer :: scalar_f
+        type (field2DReal), pointer :: theta_f, exner_f, pb_f, pp_f
+
+        ! Halo needs to be exchanged if smoothing is performed
+        if (smooth_radius > 0) then
+            call mpas_pool_get_field(state, 'scalars', scalar_f)
+            call mpas_pool_get_field(state, 'theta_m', theta_f)
+            call mpas_pool_get_field(diag , 'exner',   exner_f)
+            call mpas_pool_get_field(diag , 'pressure_base', pb_f)
+            call mpas_pool_get_field(diag , 'pressure_p', pp_f)
+
+            call mpas_dmpar_exch_halo_field(scalar_f)
+            call mpas_dmpar_exch_halo_field(theta_f)
+            call mpas_dmpar_exch_halo_field(exner_f)
+            call mpas_dmpar_exch_halo_field(pb_f)
+            call mpas_dmpar_exch_halo_field(pp_f)
+        end if
 
         call mpas_pool_get_dimension(mesh, 'nCells', nCells)
         call mpas_pool_get_dimension(mesh, 'nVertLevels', nVertLevels)
