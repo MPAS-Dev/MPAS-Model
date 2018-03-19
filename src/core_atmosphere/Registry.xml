@@ -725,6 +725,7 @@
 			<var name="dtauy3d"/>
 			<var name="rubldiff"/>
 			<var name="rvbldiff"/>
+			<var name="cldfrac"/>
 			<var name="i_acswdnb"/>
 			<var name="i_acswdnbc"/>
 			<var name="i_acswdnt"/>

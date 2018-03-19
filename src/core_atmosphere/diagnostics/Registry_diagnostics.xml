@@ -21,7 +21,7 @@
 
 <!-- physics diagnostics: vertically-averaged diagnostics and -->
 <!-- diagnostics interpolated to fixed pressure levels.       -->
-#include "../physics/Registry_atmphys_interp.xml"
+#include "../physics/Registry_atmphys_diagnostics.xml"
 
 <!-- ******************************* -->
 <!-- End includes from diagnostics -->
