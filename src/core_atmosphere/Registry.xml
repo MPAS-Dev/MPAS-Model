@@ -2322,7 +2322,7 @@
                      packages="cu_kain_fritsch_in"/>
 
                 <var name="cldfrac_shalc" type="real" dimensions="nVertLevels nCells Time" units="unitless"
-                     description="convective cloud fraction for shallow convection in MSKF"/>
+                     description="convective cloud fraction for shallow convection in MSKF"
                      packages="cu_kain_fritsch_in"/>
 
                 <var name="udr_kf" type="real" dimensions="nVertLevels nCells Time" units="kg s^{-1}"
