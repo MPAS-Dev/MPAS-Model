@@ -67,6 +67,12 @@ module atm_time_integration
    real (kind=RKIND), allocatable, dimension(:,:) :: ke_edge
 !$acc declare create(ke_vertex,ke_edge)
 
+   ! Compacted information about halo exchange communication; used by OpenACC-enabled halo exchange routines
+   integer, dimension(:), pointer :: compactHaloInfo_c_v       ! Cells * Vertical levels
+   integer, dimension(:), pointer :: compactHaloInfo_c_vP1     ! Cells * Vertical levels Plus 1
+   integer, dimension(:), pointer :: compactHaloInfo_e_v       ! Edges * Vertical levels
+   integer, dimension(:), pointer :: compactHaloInfo_c_v_s     ! Cells * Vertical levels * Scalars
+
       
    contains
 
@@ -94,6 +100,24 @@ module atm_time_integration
       type (field3DReal), pointer :: field_3d_ptr
 
 
+      !
+      ! Set up compacted halo info arrays. The exact fields used here do not matter, so long
+      !   as they have the correct dimensions.
+      !
+      call mpas_pool_get_subpool(domain % blocklist % structs, 'state', state)
+
+      call mpas_pool_get_field(state, 'rho_zz', field_2d_ptr, 1)
+      call mpas_dmpar_compact_halo_info(field_2d_ptr, compactHaloInfo_c_v)
+
+      call mpas_pool_get_field(state, 'w', field_2d_ptr, 1)
+      call mpas_dmpar_compact_halo_info(field_2d_ptr, compactHaloInfo_c_vP1)
+
+      call mpas_pool_get_field(state, 'scalars', field_3d_ptr, 1)
+      call mpas_dmpar_compact_halo_info(field_3d_ptr, compactHaloInfo_c_v_s)
+
+      call mpas_pool_get_field(state, 'u', field_2d_ptr, 1)
+      call mpas_dmpar_compact_halo_info(field_2d_ptr, compactHaloInfo_e_v)
+
    end subroutine mpas_atm_dynamics_init
 
 
@@ -114,6 +138,14 @@ module atm_time_integration
 
       type (domain_type), intent(inout) :: domain
 
+
+      !
+      ! Free memory used by compacted halo info arrays.
+      !
+      deallocate(compactHaloInfo_c_v)
+      deallocate(compactHaloInfo_c_vP1)
+      deallocate(compactHaloInfo_c_v_s)
+      deallocate(compactHaloInfo_e_v)
 
    end subroutine mpas_atm_dynamics_finalize
 
@@ -247,9 +279,6 @@ module atm_time_integration
       real (kind=RKIND), dimension(:,:), pointer :: pv_edge
       real (kind=RKIND), dimension(:,:), pointer :: rho_edge
 
-      type (field2DReal), pointer :: field_2d_ptr
-      type (field3DReal), pointer :: field_3d_ptr
-
       real (kind=RKIND), dimension(:,:), pointer :: w
       real (kind=RKIND), dimension(:,:), pointer :: u, uReconstructZonal, uReconstructMeridional, uReconstructX, uReconstructY, uReconstructZ
       real (kind=RKIND), dimension(:,:,:), pointer :: scalars, scalars_1, scalars_2
@@ -262,12 +291,6 @@ module atm_time_integration
       real (kind=RKIND), dimension(:,:), pointer :: gpu_rtheta_pp, gpu_u_1, gpu_u_2, gpu_w_1, gpu_w_2
       real (kind=RKIND), dimension(:,:), pointer :: gpu_tend_u, gpu_ru_p, gpu_rw_p, gpu_rho_pp, gpu_pv_edge, gpu_rho_edge
       real (kind=RKIND), dimension(:,:,:), pointer :: gpu_scalars_1
-
-      integer, dimension(:), pointer :: compactHaloInfo_c_v       ! Cells * Vertical levels
-      integer, dimension(:), pointer :: compactHaloInfo_c_vP1     ! Cells * Vertical levels Plus 1
-      integer, dimension(:), pointer :: compactHaloInfo_e_v       ! Edges * Vertical levels
-      integer, dimension(:), pointer :: compactHaloInfo_c_v_s     ! Cells * Vertical levels * Scalars
-
 
 #ifdef MPAS_OPENACC
       integer :: rrpk_rank, rrpk_devices, rrpk_local_gpu_id
@@ -299,22 +322,6 @@ module atm_time_integration
       !
       call mpas_pool_get_subpool(domain % blocklist % structs, 'state', state)
       call mpas_pool_get_subpool(domain % blocklist % structs, 'diag', diag)
-
-      !
-      ! Set up compacted halo info arrays. The exact fields used here do not matter, so long
-      !   as they have the correct dimensions.
-      !
-      call mpas_pool_get_field(state, 'rho_zz', field_2d_ptr, 1)
-      call mpas_dmpar_compact_halo_info(field_2d_ptr, compactHaloInfo_c_v)
-
-      call mpas_pool_get_field(state, 'w', field_2d_ptr, 1)
-      call mpas_dmpar_compact_halo_info(field_2d_ptr, compactHaloInfo_c_vP1)
-
-      call mpas_pool_get_field(state, 'scalars', field_3d_ptr, 1)
-      call mpas_dmpar_compact_halo_info(field_3d_ptr, compactHaloInfo_c_v_s)
-
-      call mpas_pool_get_field(state, 'u', field_2d_ptr, 1)
-      call mpas_dmpar_compact_halo_info(field_2d_ptr, compactHaloInfo_e_v)
 
 
       call mpas_pool_get_array_gpu(state,'theta_m',gpu_theta_m_1,1)
@@ -1436,11 +1443,6 @@ module atm_time_integration
       ! of the 'exner' exchange with other exchanges.
       !
 #endif
-
-      deallocate(compactHaloInfo_c_v)
-      deallocate(compactHaloInfo_c_vP1)
-      deallocate(compactHaloInfo_c_v_s)
-      deallocate(compactHaloInfo_e_v)
 
       call mpas_timer_start('atm_rk_summary')
       call summarize_timestep(domain)
