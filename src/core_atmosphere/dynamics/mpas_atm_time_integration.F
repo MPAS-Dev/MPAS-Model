@@ -71,6 +71,53 @@ module atm_time_integration
    contains
 
 
+   !-----------------------------------------------------------------------
+   !  routine MPAS_atm_dynamics_init
+   !
+   !> \brief Initialize the dynamics component
+   !> \author Michael Duda
+   !> \date   23 March 2018
+   !> \details
+   !>  Prepare the dynamics component of MPAS-Atmosphere for time integration.
+   !>  This may involve allocating dynamics-local storage, and setting up
+   !>  OpenACC-optimized communication structures.
+   !
+   !-----------------------------------------------------------------------
+   subroutine mpas_atm_dynamics_init(domain)
+
+      implicit none
+
+      type (domain_type), intent(inout) :: domain
+
+      type (mpas_pool_type), pointer :: state
+      type (field2DReal), pointer :: field_2d_ptr
+      type (field3DReal), pointer :: field_3d_ptr
+
+
+   end subroutine mpas_atm_dynamics_init
+
+
+   !-----------------------------------------------------------------------
+   !  routine MPAS_atm_dynamics_finalize
+   !
+   !> \brief Finalize the dynamics component
+   !> \author Michael Duda
+   !> \date   23 March 2018
+   !> \details
+   !>  Free up dynamics-local memory and shut down infrastructure used
+   !>  only in the dynamics component of MPAS-Atmosphere.
+   !
+   !-----------------------------------------------------------------------
+   subroutine mpas_atm_dynamics_finalize(domain)
+
+      implicit none
+
+      type (domain_type), intent(inout) :: domain
+
+
+   end subroutine mpas_atm_dynamics_finalize
+
+
    subroutine atm_timestep(domain, dt, timeStamp, itimestep)
    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 
    ! Advance model state forward in time by the specified time step
