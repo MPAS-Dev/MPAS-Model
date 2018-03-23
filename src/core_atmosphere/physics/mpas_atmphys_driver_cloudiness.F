@@ -8,8 +8,8 @@
 !=================================================================================================================
  module mpas_atmphys_driver_cloudiness
  use mpas_kind_types
- use mpas_pool_routines
- use mpas_timer, only : mpas_timer_start, mpas_timer_stop
+ use mpas_pool_routines,only: mpas_pool_type,mpas_pool_get_array,mpas_pool_get_config
+ use mpas_timer,only: mpas_timer_start,mpas_timer_stop
 
  use mpas_atmphys_constants, only: ep_2
  use mpas_atmphys_vars
@@ -51,7 +51,11 @@
 !   Laura D. Fowler (laura@ucar.edu) / 2016-07-05.
 ! * since we removed the local variable radt_cld_scheme from mpas_atmphys_vars.F, now defines radt_cld_scheme
 !   as a pointer to config_radt_cld_scheme.
-!   Laura D. Fowler (laura@ucar.edu) / 2917-02-16.
+!   Laura D. Fowler (laura@ucar.edu) / 2017-02-16.
+! * in subroutine cloudiness_to_MPAS, added the convective cloud fraction from deep and shallow convection to
+!   the grid-scale cloud fraction. added the cloud water and ice mixing ratios from convection to the grid-scale
+!   cloud water and ice mixing ratios used in the long-wave and short-wave radiation codes.
+!   Laura D. Fowler (laura@ucar.edu) / 2018-03-22.
 
 
  contains
@@ -138,7 +142,7 @@
  end subroutine cloudiness_from_MPAS
 
 !=================================================================================================================
- subroutine cloudiness_to_MPAS(diag_physics,its,ite)
+ subroutine cloudiness_to_MPAS(cld_scheme,diag_physics,its,ite)
 !=================================================================================================================
 
 !input arguments:
@@ -148,22 +152,79 @@
  type(mpas_pool_type),intent(inout):: diag_physics
 
 !local variables and pointers:
+ character(len=StrKIND),intent(in):: cld_scheme
  integer:: i,j,k
 
- real(kind=RKIND),dimension(:,:),pointer:: cldfrac
+ real(kind=RKIND),dimension(:,:),pointer:: cldfrac,cldfrac_deepc,cldfrac_shalc
+ real(kind=RKIND),dimension(:,:),pointer:: qc_cu,qi_cu
+ real(kind=RKIND),dimension(:,:),allocatable:: cldfrac_cu
 
 !-----------------------------------------------------------------------------------------------------------------
 
+ nullify(cldfrac)
+ nullify(cldfrac_deepc)
+ nullify(cldfrac_shalc)
  call mpas_pool_get_array(diag_physics,'cldfrac',cldfrac)
+ call mpas_pool_get_array(diag_physics,'cldfrac_deepc',cldfrac_deepc)
+ call mpas_pool_get_array(diag_physics,'cldfrac_shalc',cldfrac_shalc)
 
- do j = jts,jte
- do k = kts,kte
- do i = its,ite
-    cldfrac(k,i) = cldfrac_p(i,k,j)
- enddo
- enddo
- enddo
- 
+ nullify(qc_cu)
+ nullify(qi_cu)
+ call mpas_pool_get_array(diag_physics,'qc_cu',qc_cu)
+ call mpas_pool_get_array(diag_physics,'qi_cu',qi_cu)
+
+!in most cases, when we compute the cloud fraction, we want to compute the cloud fraction for grid-scale
+!processes. as the cloud fraction from convective parameterizations is not always available, we query if
+!it is available after computing the grid-scale cloud fraction:
+ if(associated(cldfrac)) then
+    do j = jts,jte
+       do k = kts,kte
+       do i = its,ite
+          cldfrac(k,i) = cldfrac_p(i,k,j)
+       enddo
+       enddo
+    enddo
+ else
+    do j = jts,jte
+       do k = kts,kte
+       do i = its,ite
+          cldfrac(k,i) = 0._RKIND
+       enddo
+       enddo
+    enddo
+ endif
+
+!add the convective cloud fraction to the grid-scale cloud fraction,  and the convective cloud water and ice
+!mixing ratios to the grid-scale cloud water and ice mixing ratios if the option to compute the grid-scale
+!cloud fraction is different than cld_incidence.
+ cld_fraction_select: select case (trim(cld_scheme))
+
+    case("cld_fraction","cld_fraction_thompson")
+       if(associated(cldfrac) .and. associated(cldfrac_deepc)) then
+          if(.not.allocated(cldfrac_cu)) allocate(cldfrac_cu(kms:kme,ims:ime))
+          do k = kts,kte
+          do i = its,ite
+             cldfrac_cu(k,i) = cldfrac_deepc(k,i) + cldfrac_shalc(k,i)
+             cldfrac(k,i) = (1._RKIND-cldfrac_cu(k,i))*cldfrac(k,i)
+             cldfrac(k,i) = cldfrac(k,i) + cldfrac_cu(k,i)
+             cldfrac(k,i) = amin1(1._RKIND,cldfrac(k,i))
+          enddo
+          enddo
+
+          do j = jts,jte
+             do k = kts,kte
+             do i = its,ite
+                qcrad_p(i,k,j) = qcrad_p(i,k,j) + qc_cu(k,i)*cldfrac_cu(k,i)
+                qirad_p(i,k,j) = qirad_p(i,k,j) + qi_cu(k,i)*cldfrac_cu(k,i)
+             enddo
+             enddo
+          enddo
+          if(allocated(cldfrac_cu)) deallocate(cldfrac_cu)
+       endif
+
+    case default
+ end select cld_fraction_select
+
  end subroutine cloudiness_to_MPAS
 
 !=================================================================================================================
@@ -181,7 +242,7 @@
  type(mpas_pool_type),intent(inout):: diag_physics
 
 !local variables and pointers:
- character(len=StrKIND),pointer:: radt_cld_scheme
+ character(len=StrKIND),pointer:: cld_scheme
 
  integer:: i,j,k
 
@@ -189,12 +250,12 @@
 !call mpas_log_write('')
 !call mpas_log_write('--- enter subroutine driver_cloudiness:')
 
- call mpas_pool_get_config(configs,'config_radt_cld_scheme',radt_cld_scheme)
+ call mpas_pool_get_config(configs,'config_radt_cld_scheme',cld_scheme)
 
 !copy MPAS arrays to local arrays:
  call cloudiness_from_MPAS(configs,mesh,diag_physics,sfc_input,its,ite)
 
- cld_fraction_select: select case (trim(radt_cld_scheme))
+ cld_fraction_select: select case (trim(cld_scheme))
     case("cld_incidence")
       call mpas_timer_start('calc_cldincidence')
       call calc_cldincidence(cldfrac_p,qcrad_p,qirad_p,f_qc,f_qi,its,ite)
@@ -222,7 +283,7 @@
  end select cld_fraction_select
 
 !copy local arrays to MPAS grid:
- call cloudiness_to_MPAS(diag_physics,its,ite)
+ call cloudiness_to_MPAS(cld_scheme,diag_physics,its,ite)
 
 !call mpas_log_write('--- end subroutine driver_cloudiness.')
 
