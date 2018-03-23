@@ -72,6 +72,7 @@ module atm_time_integration
    integer, dimension(:), pointer :: compactHaloInfo_c_vP1     ! Cells * Vertical levels Plus 1
    integer, dimension(:), pointer :: compactHaloInfo_e_v       ! Edges * Vertical levels
    integer, dimension(:), pointer :: compactHaloInfo_c_v_s     ! Cells * Vertical levels * Scalars
+   integer, dimension(:), pointer :: compactHaloInfo_c_2_v     ! Cells * 2 * Vertical levels
 
       
    contains
@@ -98,6 +99,7 @@ module atm_time_integration
       type (mpas_pool_type), pointer :: state
       type (field2DReal), pointer :: field_2d_ptr
       type (field3DReal), pointer :: field_3d_ptr
+      integer, pointer :: nCells, nVertLevels
 
 
       !
@@ -117,6 +119,24 @@ module atm_time_integration
 
       call mpas_pool_get_field(state, 'u', field_2d_ptr, 1)
       call mpas_dmpar_compact_halo_info(field_2d_ptr, compactHaloInfo_e_v)
+
+      allocate(field_3d_ptr)
+      call mpas_pool_get_dimension(state, 'nCells', nCells)
+      call mpas_pool_get_dimension(state, 'nVertLevels', nVertLevels)
+      field_3d_ptr % block => domain % blocklist
+      field_3d_ptr % dimSizes(1) = nVertLevels
+      field_3d_ptr % dimSizes(2) = 2
+      field_3d_ptr % dimSizes(3) = nCells
+      field_3d_ptr % sendList => domain % blocklist % parinfo % cellsToSend
+      field_3d_ptr % recvList => domain % blocklist % parinfo % cellsToRecv
+      field_3d_ptr % copyList => domain % blocklist % parinfo % cellsToCopy
+      field_3d_ptr % prev => null()
+      field_3d_ptr % next => null()
+      field_3d_ptr % isActive = .true.
+      allocate(field_3d_ptr % array(nVertLevels, 2, nCells+1))
+      call mpas_dmpar_compact_halo_info(field_3d_ptr, compactHaloInfo_c_2_v)
+      deallocate(field_3d_ptr % array)
+      deallocate(field_3d_ptr)
 
    end subroutine mpas_atm_dynamics_init
 
@@ -146,6 +166,7 @@ module atm_time_integration
       deallocate(compactHaloInfo_c_vP1)
       deallocate(compactHaloInfo_c_v_s)
       deallocate(compactHaloInfo_e_v)
+      deallocate(compactHaloInfo_c_2_v)
 
    end subroutine mpas_atm_dynamics_finalize
 
@@ -3763,9 +3784,6 @@ module atm_time_integration
       real (kind=RKIND), dimension(nVertLevels,nEdges+1), intent(inout) :: flux_upwind_tmp, flux_tmp
       type (field3DReal), pointer :: scalars_old_field
 
-      type (field3DReal), pointer :: tempField
-      type (field3DReal), target :: tempFieldTarget
-
 
       integer, parameter :: SCALE_IN = 1, SCALE_OUT = 2
 
@@ -3828,9 +3846,7 @@ module atm_time_integration
 
 !$OMP BARRIER
 !$OMP MASTER
-      call mpas_dmpar_compact_halo_info(scalars_old_field, compactHaloInfo)
-      call mpas_dmpar_exch_halo_acc(scalars_old, compactHaloInfo)
-      deallocate(compactHaloInfo)
+      call mpas_dmpar_exch_halo_acc(scalars_old, compactHaloInfo_c_v_s)
 !$OMP END MASTER
 !$OMP BARRIER
 
@@ -4141,23 +4157,7 @@ module atm_time_integration
          !
 !$OMP BARRIER
 !$OMP MASTER
-         tempField => tempFieldTarget
-
-         tempField % block => block
-         tempField % dimSizes(1) = nVertLevels
-         tempField % dimSizes(2) = 2
-         tempField % dimSizes(3) = nCells
-         tempField % sendList => block % parinfo % cellsToSend
-         tempField % recvList => block % parinfo % cellsToRecv
-         tempField % copyList => block % parinfo % cellsToCopy
-         tempField % prev => null()
-         tempField % next => null()
-         tempField % isActive = .true.
-
-         tempField % array => scale_arr
-         call mpas_dmpar_compact_halo_info(tempField, compactHaloInfo)
-         call mpas_dmpar_exch_halo_acc(scale_arr, compactHaloInfo, (/ 1 /))
-         deallocate(compactHaloInfo)
+         call mpas_dmpar_exch_halo_acc(scale_arr, compactHaloInfo_c_2_v, (/ 1 /))
 !$OMP END MASTER
 !$OMP BARRIER
 
