@@ -98,7 +98,8 @@
 ! * added initialization of variables has_reqc,has_reqi,and has_reqs needed in the calls to radiation codes
 !   rrtmg_lwrad and rrmtg_swrad.
 !   Laura D. Fowler (laura@ucar.edu) / 2016-07-007.
-
+!   Added Noah Mosaic LSM dimensions.
+!   Patrick Campbell (campbell.patrickc@epa.gov)  2017-08-03
 
  contains
 
@@ -383,7 +384,7 @@
  integer,pointer:: cam_dim1
  integer,pointer:: nMonths
  integer,pointer:: nAerosols,nAerLevels,nOznLevels
- integer,pointer:: nCellsSolve,nSoilLevels,nVertLevels
+ integer,pointer:: nCellsSolve,nSoilLevels,nVertLevels,nLandCat,nMosaicCat,nMosaicCat3D
 
  real(kind=RKIND),pointer:: config_dt
 
@@ -428,8 +429,10 @@
  call mpas_pool_get_dimension(mesh,'nCellsSolve',nCellsSolve)
  call mpas_pool_get_dimension(mesh,'nCellsSolve',nCellsSolve)
  call mpas_pool_get_dimension(mesh,'nSoilLevels',nSoilLevels)
+ call mpas_pool_get_dimension(mesh,'nLandCat'   ,nLandCat   )
+ call mpas_pool_get_dimension(mesh,'nMosaicCat' ,nMosaicCat )
+ call mpas_pool_get_dimension(mesh,'nMosaicCat3D'   ,nMosaicCat3D)
  call mpas_pool_get_dimension(mesh,'nVertLevels',nVertLevels)
-
  call mpas_pool_get_dimension(state,'num_aerosols',nAerosols)
 
 !initialization of gmt, julian day, and alarms:
@@ -661,6 +664,9 @@
 !initialization local physics variables:
  num_months = nMonths
  num_soils  = nSoilLevels
+ num_landu  = nLandCat
+ num_mosaic_cat = nMosaicCat
+ num_mosaic_cat3d = nMosaicCat3D
 
  convection_scheme = trim(config_convection_scheme)
  lsm_scheme        = trim(config_lsm_scheme)

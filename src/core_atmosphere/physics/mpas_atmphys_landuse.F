@@ -73,7 +73,8 @@
 ! * in subroutine landuse_int_forMPAS, added the initialization of variable ust to a very small value. this was
 !   needed when the surface layer scheme was updated to that used in WRF version 3.8.1
 !   Laura D. Fowler (laura@ucar.edu) / 2016-10-27.
-
+!   Added case('NLCD40') for Noah Mosaic Option
+!   Patrick Campbell, campbell.patrickc@epa.gov 2017-08-03
 
  contains
 
@@ -226,6 +227,10 @@
           iswater = 2
           isice   = 3
           isurban = 1
+       case('NLCD40')
+          iswater = 17
+          isice   = 15
+          isurban = 22
        case default
     end select sfc_input_select
  endif

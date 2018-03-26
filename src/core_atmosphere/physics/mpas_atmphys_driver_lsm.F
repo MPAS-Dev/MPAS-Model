@@ -82,7 +82,8 @@
 !   Laura D. Fowler (laura@ucar.edu) / 2016-05-11.
 ! * added the calculation of surface variables over seaice cells when config_frac_seaice is set to true.
 !   Laura D. Fowler (laura@ucar.edu) / 2016-10-03.
-
+! * added the allocations and call to use Noah LSM with Mosaic tiling. 
+!   Patrick C. Campbell (campbell.patrickc@epa.gov) / 2017-03-27.
 !
 ! DOCUMENTATION:
 ! ./physics_wrf/module_sf_noahdrv.F: main driver for the "NOAH" land-surface parameterization.
@@ -110,6 +111,9 @@
  if(.not.allocated(smois_p) ) allocate(smois_p(ims:ime,1:num_soils,jms:jme) )
  if(.not.allocated(tslb_p)  ) allocate(tslb_p(ims:ime,1:num_soils,jms:jme)  )
 
+!array for landuse fraction
+ if(.not.allocated(landusef_p)) allocate(landusef_p(ims:ime,1:num_landu,jms:jme))
+ 
 !other arrays:
  if(.not.allocated(acsnom_p)    ) allocate(acsnom_p(ims:ime,jms:jme)    )
  if(.not.allocated(acsnow_p)    ) allocate(acsnow_p(ims:ime,jms:jme)    )
@@ -164,6 +168,31 @@
  if(.not.allocated(th2m_p)      ) allocate(th2m_p(ims:ime,jms:jme)      )
  if(.not.allocated(q2_p)        ) allocate(q2_p(ims:ime,jms:jme)        )
 
+!additional arrays for mosaic lsm
+if(.not.allocated(mosaic_cat_index_p)     ) allocate(mosaic_cat_index_p(ims:ime,1:num_landu,jms:jme)     )  !PCC Mosaic Variables...
+if(.not.allocated(landusef2_p)            ) allocate(landusef2_p(ims:ime,1:num_landu,jms:jme)            )
+if(.not.allocated(TSK_mosaic_p)           ) allocate(TSK_mosaic_p(ims:ime,1:num_mosaic_cat,jms:jme)      )
+if(.not.allocated(QSFC_mosaic_p)          ) allocate(QSFC_mosaic_p(ims:ime,1:num_mosaic_cat,jms:jme)     )
+if(.not.allocated(CANWAT_mosaic_p)        ) allocate(CANWAT_mosaic_p(ims:ime,1:num_mosaic_cat,jms:jme)   ) 
+if(.not.allocated(SNOW_mosaic_p)          ) allocate(SNOW_mosaic_p(ims:ime,1:num_mosaic_cat,jms:jme)     )
+if(.not.allocated(SNOWH_mosaic_p)         ) allocate(SNOWH_mosaic_p(ims:ime,1:num_mosaic_cat,jms:jme)    )
+if(.not.allocated(SNOWC_mosaic_p)         ) allocate(SNOWC_mosaic_p(ims:ime,1:num_mosaic_cat,jms:jme)    )
+if(.not.allocated(ALBEDO_mosaic_p)        ) allocate(ALBEDO_mosaic_p(ims:ime,1:num_mosaic_cat,jms:jme)   )
+if(.not.allocated(ALBBCK_mosaic_p)        ) allocate(ALBBCK_mosaic_p(ims:ime,1:num_mosaic_cat,jms:jme)   )
+if(.not.allocated(EMISS_mosaic_p)         ) allocate(EMISS_mosaic_p(ims:ime,1:num_mosaic_cat,jms:jme)    )
+if(.not.allocated(EMBCK_mosaic_p)         ) allocate(EMBCK_mosaic_p(ims:ime,1:num_mosaic_cat,jms:jme)    )
+if(.not.allocated(ZNT_mosaic_p)           ) allocate(ZNT_mosaic_p(ims:ime,1:num_mosaic_cat,jms:jme)      )
+if(.not.allocated(Z0_mosaic_p)            ) allocate(Z0_mosaic_p(ims:ime,1:num_mosaic_cat,jms:jme)       )
+if(.not.allocated(HFX_mosaic_p)           ) allocate(HFX_mosaic_p(ims:ime,1:num_mosaic_cat,jms:jme)      )
+if(.not.allocated(QFX_mosaic_p)           ) allocate(QFX_mosaic_p(ims:ime,1:num_mosaic_cat,jms:jme)      )
+if(.not.allocated(LH_mosaic_p)            ) allocate(LH_mosaic_p(ims:ime,1:num_mosaic_cat,jms:jme)       )
+if(.not.allocated(GRDFLX_mosaic_p)        ) allocate(GRDFLX_mosaic_p(ims:ime,1:num_mosaic_cat,jms:jme)   )
+if(.not.allocated(SNOTIME_mosaic_p)       ) allocate(SNOTIME_mosaic_p(ims:ime,1:num_mosaic_cat,jms:jme)  )
+if(.not.allocated(TSLB_mosaic_p)          ) allocate(TSLB_mosaic_p(ims:ime,1:num_mosaic_cat3d,jms:jme)   )
+if(.not.allocated(SMOIS_mosaic_p)         ) allocate(SMOIS_mosaic_p(ims:ime,1:num_mosaic_cat3d,jms:jme)  )
+if(.not.allocated(SH2O_mosaic_p)          ) allocate(SH2O_mosaic_p(ims:ime,1:num_mosaic_cat3d,jms:jme)   )
+
+
  if(config_frac_seaice) then
     if(.not.allocated(tsk_sea)) allocate(tsk_sea(ims:ime,jms:jme))
     if(.not.allocated(tsk_ice)) allocate(tsk_ice(ims:ime,jms:jme))
@@ -184,6 +213,9 @@
  if(allocated(sh2o_p)  ) deallocate(sh2o_p  )
  if(allocated(smois_p) ) deallocate(smois_p )
  if(allocated(tslb_p)  ) deallocate(tslb_p  )
+
+!array for landuse fraction
+ if(allocated(landusef_p)) deallocate(landusef_p)
 
 !other arrays:
  if(allocated(acsnom_p)    ) deallocate(acsnom_p    )
@@ -239,6 +271,32 @@
  if(allocated(th2m_p)      ) deallocate(th2m_p      )
  if(allocated(q2_p)        ) deallocate(q2_p        )
 
+!additional arrays for mosaic lsm
+if(allocated(mosaic_cat_index_p)     ) deallocate(mosaic_cat_index_p)  !PCC Mosaic Variables...
+if(allocated(landusef2_p)            ) deallocate(landusef2_p       )
+if(allocated(TSK_mosaic_p)           ) deallocate(TSK_mosaic_p      )
+if(allocated(QSFC_mosaic_p)          ) deallocate(QSFC_mosaic_p     )
+if(allocated(CANWAT_mosaic_p)        ) deallocate(CANWAT_mosaic_p   ) 
+if(allocated(SNOW_mosaic_p)          ) deallocate(SNOW_mosaic_p     )
+if(allocated(SNOWH_mosaic_p)         ) deallocate(SNOWH_mosaic_p    )
+if(allocated(SNOWC_mosaic_p)         ) deallocate(SNOWC_mosaic_p    )
+if(allocated(ALBEDO_mosaic_p)        ) deallocate(ALBEDO_mosaic_p   )
+if(allocated(ALBBCK_mosaic_p)        ) deallocate(ALBBCK_mosaic_p   )
+if(allocated(EMISS_mosaic_p)         ) deallocate(EMISS_mosaic_p    )
+if(allocated(EMBCK_mosaic_p)         ) deallocate(EMBCK_mosaic_p    )
+if(allocated(ZNT_mosaic_p)           ) deallocate(ZNT_mosaic_p      )
+if(allocated(Z0_mosaic_p)            ) deallocate(Z0_mosaic_p       )
+if(allocated(HFX_mosaic_p)           ) deallocate(HFX_mosaic_p      )
+if(allocated(QFX_mosaic_p)           ) deallocate(QFX_mosaic_p      )
+if(allocated(LH_mosaic_p)            ) deallocate(LH_mosaic_p       )
+if(allocated(GRDFLX_mosaic_p)        ) deallocate(GRDFLX_mosaic_p   )
+if(allocated(SNOTIME_mosaic_p)       ) deallocate(SNOTIME_mosaic_p  )
+if(allocated(TSLB_mosaic_p)          ) deallocate(TSLB_mosaic_p     )
+if(allocated(SMOIS_mosaic_p)         ) deallocate(SMOIS_mosaic_p    )
+if(allocated(SH2O_mosaic_p)          ) deallocate(SH2O_mosaic_p     )
+
+
+
  if(config_frac_seaice) then
     if(allocated(chs_sea) ) deallocate(chs_sea )
     if(allocated(chs2_sea)) deallocate(chs2_sea)
@@ -282,7 +340,14 @@
                                            skintemp,vegfra,xice,xland
  real(kind=RKIND),dimension(:),pointer  :: t2m,th2m,q2
  real(kind=RKIND),dimension(:),pointer  :: raincv,rainncv
- real(kind=RKIND),dimension(:,:),pointer:: sh2o,smcrel,smois,tslb,dzs
+ real(kind=RKIND),dimension(:,:),pointer:: sh2o,smcrel,smois,tslb,dzs,landusef
+
+!Mosaic
+!local pointers
+ integer,dimension(:,:),pointer:: mosaic_cat_index
+ real(kind=RKIND),dimension(:,:),pointer:: landusef2,TSK_mosaic,QSFC_mosaic, CANWAT_mosaic, SNOW_mosaic,SNOWH_mosaic, SNOWC_mosaic, &
+                                            ALBEDO_mosaic,ALBBCK_mosaic, EMISS_mosaic, EMBCK_mosaic, ZNT_mosaic, Z0_mosaic, HFX_mosaic,QFX_mosaic, &
+                                            LH_mosaic,GRDFLX_mosaic,SNOTIME_mosaic,TSLB_mosaic,SMOIS_mosaic,SH2O_mosaic
 
 !local variables and arrays:
  logical:: do_fill
@@ -349,6 +414,31 @@
  call mpas_pool_get_array(sfc_input,'smcrel'       ,smcrel    )
  call mpas_pool_get_array(sfc_input,'smois'        ,smois     )
  call mpas_pool_get_array(sfc_input,'tslb'         ,tslb      )
+ call mpas_pool_get_array(sfc_input,'landusef'     ,landusef  )
+
+ call mpas_pool_get_array(sfc_input,'mosaic_cat_index',mosaic_cat_index)!for lsm_mosaic_init (PCC)
+ call mpas_pool_get_array(sfc_input,'landusef2',landusef2)!for lsm_mosaic_init (PCC)
+ call mpas_pool_get_array(sfc_input,'TSK_mosaic' , TSK_mosaic )  !for lsm_mosaic_init (PCC)
+ call mpas_pool_get_array(sfc_input,'CANWAT_mosaic' , CANWAT_mosaic )  !for lsm_mosaic_init (PCC)
+ call mpas_pool_get_array(sfc_input,'SNOW_mosaic' , SNOW_mosaic )  !for lsm_mosaic_init (PCC)
+ call mpas_pool_get_array(sfc_input,'SNOWH_mosaic' , SNOWH_mosaic )  !for lsm_mosaic_init (PCC)
+ call mpas_pool_get_array(sfc_input,'SNOWC_mosaic' , SNOWC_mosaic )  !for lsm_mosaic_init (PCC)
+ call mpas_pool_get_array(sfc_input,'ALBEDO_mosaic' , ALBEDO_mosaic )  !for lsm_mosaic_init (PCC)
+ call mpas_pool_get_array(sfc_input,'ALBBCK_mosaic' , ALBBCK_mosaic )  !for lsm_mosaic_init (PCC)
+ call mpas_pool_get_array(sfc_input,'EMISS_mosaic' , EMISS_mosaic )  !for lsm_mosaic_init (PCC)
+ call mpas_pool_get_array(sfc_input,'EMBCK_mosaic' , EMBCK_mosaic )  !for lsm_mosaic_init (PCC)
+ call mpas_pool_get_array(sfc_input,'ZNT_mosaic' , ZNT_mosaic )  !for lsm_mosaic_init (PCC)
+ call mpas_pool_get_array(sfc_input,'Z0_mosaic' , Z0_mosaic )  !for lsm_mosaic_init (PCC)
+ call mpas_pool_get_array(sfc_input,'TSLB_mosaic' , TSLB_mosaic )  !for lsm_mosaic_init (PCC)
+ call mpas_pool_get_array(sfc_input,'SMOIS_mosaic' , SMOIS_mosaic )  !for lsm_mosaic_init (PCC)
+ call mpas_pool_get_array(sfc_input,'SH2O_mosaic' , SH2O_mosaic )  !for lsm_mosaic_init (PCC)
+ call mpas_pool_get_array(sfc_input,'QSFC_mosaic' , QSFC_mosaic )  !for lsm_mosaic_init (PCC)
+ call mpas_pool_get_array(sfc_input,'HFX_mosaic' , HFX_mosaic )  !for lsm_mosaic_init (PCC)
+ call mpas_pool_get_array(sfc_input,'QFX_mosaic' , QFX_mosaic )  !for lsm_mosaic_init (PCC)
+ call mpas_pool_get_array(sfc_input,'LH_mosaic' ,  LH_mosaic )  !for lsm_mosaic_init (PCC)
+ call mpas_pool_get_array(sfc_input,'GRDFLX_mosaic' , GRDFLX_mosaic )  !for lsm_mosaic_init (PCC)
+ call mpas_pool_get_array(sfc_input,'SNOTIME_mosaic' , SNOTIME_mosaic )  !for lsm_mosaic_init (PCC)
+ 
 
 !In Registry.xml, dzs is a function of nCells. In the Noah lsm scheme, dzs is independent
 !of cell locations:
@@ -366,6 +456,53 @@
  enddo
  enddo
  enddo
+
+ do j = jts,jte
+ do n = 1,num_mosaic_cat3d
+ do i = its,ite
+    TSLB_mosaic_p(i,n,j)    = TSLB_mosaic(n,i)    !for lsm_mosaic_init (PCC)
+    SMOIS_mosaic_p(i,n,j)   = SMOIS_mosaic(n,i)   !for lsm_mosaic_init (PCC)
+    SH2O_mosaic_p(i,n,j)    = SH2O_mosaic(n,i)    !for lsm_mosaic_init (PCC)
+ enddo
+ enddo
+ enddo
+
+
+
+ do j = jts,jte
+ do n = 1,num_landu
+ do i = its,ite
+    landusef_p(i,n,j) = landusef(n,i)
+    landusef2_p(i,n,j) = landusef2(n,i)                !for lsm_mosaic_init (PCC)
+    mosaic_cat_index_p(i,n,j) = mosaic_cat_index(n,i)  !for lsm_mosaic_init (PCC)
+ enddo
+ enddo
+ enddo
+
+ do j = jts,jte
+ do n = 1,num_mosaic_cat
+ do i = its,ite
+    TSK_mosaic_p(i,n,j)      = TSK_mosaic(n,i)      !for lsm_mosaic_init (PCC)
+    CANWAT_mosaic_p(i,n,j)   = CANWAT_mosaic(n,i)   !for lsm_mosaic_init (PCC)
+    SNOW_mosaic_p(i,n,j)     = SNOW_mosaic(n,i)     !for lsm_mosaic_init (PCC)
+    SNOWH_mosaic_p(i,n,j)    = SNOWH_mosaic(n,i)    !for lsm_mosaic_init (PCC)
+    SNOWC_mosaic_p(i,n,j)    = SNOWC_mosaic(n,i)    !for lsm_mosaic_init (PCC)
+    ALBEDO_mosaic_p(i,n,j)   = ALBEDO_mosaic(n,i)   !for lsm_mosaic_init (PCC)
+    ALBBCK_mosaic_p(i,n,j)   = ALBBCK_mosaic(n,i)   !for lsm_mosaic_init (PCC)
+    EMISS_mosaic_p(i,n,j)    = EMISS_mosaic(n,i)    !for lsm_mosaic_init (PCC)
+    EMBCK_mosaic_p(i,n,j)   = EMBCK_mosaic(n,i)     !for lsm_mosaic_init (PCC)
+    ZNT_mosaic_p(i,n,j)      = ZNT_mosaic(n,i)      !for lsm_mosaic_init (PCC)
+    Z0_mosaic_p(i,n,j)       = Z0_mosaic(n,i)       !for lsm_mosaic_init (PCC)
+    QSFC_mosaic_p(i,n,j)     = QSFC_mosaic(n,i)     !for lsm_mosaic_init (PCC)
+    HFX_mosaic_p(i,n,j)      = HFX_mosaic(n,i)      !for lsm_mosaic_init (PCC)
+    QFX_mosaic_p(i,n,j)      = QFX_mosaic(n,i)      !for lsm_mosaic_init (PCC)
+    LH_mosaic_p(i,n,j)       = LH_mosaic(n,i)       !for lsm_mosaic_init (PCC)
+    GRDFLX_mosaic_p(i,n,j)   = GRDFLX_mosaic(n,i)   !for lsm_mosaic_init (PCC)
+    SNOTIME_mosaic_p(i,n,j)  = SNOTIME_mosaic(n,i)  !for lsm_mosaic_init (PCC)
+ enddo
+ enddo
+ enddo
+
 
  do j = jts,jte
  do i = its,ite
@@ -511,7 +648,15 @@
                                            skintemp,vegfra,xice,xland
  real(kind=RKIND),dimension(:),pointer  :: t2m,th2m,q2                                           
  real(kind=RKIND),dimension(:),pointer  :: raincv,rainncv
- real(kind=RKIND),dimension(:,:),pointer:: sh2o,smcrel,smois,tslb
+ real(kind=RKIND),dimension(:,:),pointer:: sh2o,smcrel,smois,tslb, landusef
+
+ 
+!Mosaic
+!local pointers
+ integer,dimension(:,:),pointer:: mosaic_cat_index
+ real(kind=RKIND),dimension(:,:),pointer:: landusef2,TSK_mosaic,QSFC_mosaic, CANWAT_mosaic, SNOW_mosaic,SNOWH_mosaic, SNOWC_mosaic, &
+                                            ALBEDO_mosaic,ALBBCK_mosaic, EMISS_mosaic, EMBCK_mosaic, ZNT_mosaic, Z0_mosaic, HFX_mosaic,QFX_mosaic, &
+                                            LH_mosaic,GRDFLX_mosaic,SNOTIME_mosaic,TSLB_mosaic,SMOIS_mosaic,SH2O_mosaic
 
 !local variables and arrays:
  integer:: ip,iEdg
@@ -577,6 +722,32 @@
  call mpas_pool_get_array(sfc_input,'smcrel'       ,smcrel    )
  call mpas_pool_get_array(sfc_input,'smois'        ,smois     )
  call mpas_pool_get_array(sfc_input,'tslb'         ,tslb      )
+ call mpas_pool_get_array(sfc_input,'landusef'     ,landusef  )
+
+
+ call mpas_pool_get_array(sfc_input,'mosaic_cat_index',mosaic_cat_index)!for lsm_mosaic_init (PCC)
+ call mpas_pool_get_array(sfc_input,'landusef2',landusef2)!for lsm_mosaic_init (PCC)
+ call mpas_pool_get_array(sfc_input,'TSK_mosaic' , TSK_mosaic )  !for lsm_mosaic_init (PCC)
+ call mpas_pool_get_array(sfc_input,'CANWAT_mosaic' , CANWAT_mosaic )  !for lsm_mosaic_init (PCC)
+ call mpas_pool_get_array(sfc_input,'SNOW_mosaic' , SNOW_mosaic )  !for lsm_mosaic_init (PCC)
+ call mpas_pool_get_array(sfc_input,'SNOWH_mosaic' , SNOWH_mosaic )  !for lsm_mosaic_init (PCC)
+ call mpas_pool_get_array(sfc_input,'SNOWC_mosaic' , SNOWC_mosaic )  !for lsm_mosaic_init (PCC)
+ call mpas_pool_get_array(sfc_input,'ALBEDO_mosaic' , ALBEDO_mosaic )  !for lsm_mosaic_init (PCC)
+ call mpas_pool_get_array(sfc_input,'ALBBCK_mosaic' , ALBBCK_mosaic )  !for lsm_mosaic_init (PCC)
+ call mpas_pool_get_array(sfc_input,'EMISS_mosaic' , EMISS_mosaic )  !for lsm_mosaic_init (PCC)
+ call mpas_pool_get_array(sfc_input,'EMBCK_mosaic' , EMBCK_mosaic )  !for lsm_mosaic_init (PCC)
+ call mpas_pool_get_array(sfc_input,'ZNT_mosaic' , ZNT_mosaic )  !for lsm_mosaic_init (PCC)
+ call mpas_pool_get_array(sfc_input,'Z0_mosaic' , Z0_mosaic )  !for lsm_mosaic_init (PCC)
+ call mpas_pool_get_array(sfc_input,'TSLB_mosaic' , TSLB_mosaic )  !for lsm_mosaic_init (PCC)
+ call mpas_pool_get_array(sfc_input,'SMOIS_mosaic' , SMOIS_mosaic )  !for lsm_mosaic_init (PCC)
+ call mpas_pool_get_array(sfc_input,'SH2O_mosaic' , SH2O_mosaic )  !for lsm_mosaic_init (PCC)
+ call mpas_pool_get_array(sfc_input,'QSFC_mosaic' , QSFC_mosaic )  !for lsm_mosaic_init (PCC)
+ call mpas_pool_get_array(sfc_input,'HFX_mosaic' , HFX_mosaic )  !for lsm_mosaic_init (PCC)
+ call mpas_pool_get_array(sfc_input,'QFX_mosaic' , QFX_mosaic )  !for lsm_mosaic_init (PCC)
+ call mpas_pool_get_array(sfc_input,'LH_mosaic' ,  LH_mosaic )  !for lsm_mosaic_init (PCC)
+ call mpas_pool_get_array(sfc_input,'GRDFLX_mosaic' , GRDFLX_mosaic )  !for lsm_mosaic_init (PCC)
+ call mpas_pool_get_array(sfc_input,'SNOTIME_mosaic' , SNOTIME_mosaic )  !for lsm_mosaic_init (PCC)
+ 
 
  do j = jts,jte
  do n = 1,num_soils
@@ -588,6 +759,53 @@
  enddo
  enddo
  enddo
+
+ do j = jts,jte
+ do n = 1,num_mosaic_cat3d
+ do i = its,ite
+    TSLB_mosaic(n,i)  = TSLB_mosaic_p(i,n,j)       !for lsm_mosaic_init (PCC)
+    SMOIS_mosaic(n,i) = SMOIS_mosaic_p(i,n,j)      !for lsm_mosaic_init (PCC)
+    SH2O_mosaic(n,i)  = SH2O_mosaic_p(i,n,j)       !for lsm_mosaic_init (PCC)
+ enddo
+ enddo
+ enddo
+
+
+ do j = jts,jte
+ do n = 1,num_landu
+ do i = its,ite
+    landusef(n,i)         = landusef_p(i,n,j)
+    landusef2(n,i)        = landusef2_p(i,n,j)               !for lsm_mosaic_init (PCC)
+    mosaic_cat_index(n,i) = mosaic_cat_index_p(i,n,j)        !for lsm_mosaic_init (PCC)
+ enddo
+ enddo
+ enddo
+
+
+ do j = jts,jte
+ do n = 1,num_mosaic_cat
+ do i = its,ite
+    TSK_mosaic(n,i)    = TSK_mosaic_p(i,n,j)        !for lsm_mosaic_init (PCC)
+    CANWAT_mosaic(n,i) = CANWAT_mosaic_p(i,n,j)     !for lsm_mosaic_init (PCC)
+    SNOW_mosaic(n,i)   = SNOW_mosaic_p(i,n,j)       !for lsm_mosaic_init (PCC)
+    SNOWH_mosaic(n,i)  = SNOWH_mosaic_p(i,n,j)      !for lsm_mosaic_init (PCC)
+    SNOWC_mosaic(n,i)  = SNOWC_mosaic_p(i,n,j)      !for lsm_mosaic_init (PCC)
+    ALBEDO_mosaic(n,i) = ALBEDO_mosaic_p(i,n,j)     !for lsm_mosaic_init (PCC)
+    ALBBCK_mosaic(n,i) = ALBBCK_mosaic_p(i,n,j)     !for lsm_mosaic_init (PCC)
+    EMISS_mosaic(n,i)  = EMISS_mosaic_p(i,n,j)      !for lsm_mosaic_init (PCC)
+    EMBCK_mosaic(n,i) = EMBCK_mosaic_p(i,n,j)     !for lsm_mosaic_init (PCC)
+    ZNT_mosaic(n,i)    = ZNT_mosaic_p(i,n,j)        !for lsm_mosaic_init (PCC)
+    Z0_mosaic(n,i)     = Z0_mosaic_p(i,n,j)         !for lsm_mosaic_init (PCC)
+    QSFC_mosaic(n,i)   = QSFC_mosaic_p(i,n,j)       !for lsm_mosaic_init (PCC)
+    HFX_mosaic(n,i)    = HFX_mosaic_p(i,n,j)        !for lsm_mosaic_init (PCC)
+    QFX_mosaic(n,i)    = QFX_mosaic_p(i,n,j)        !for lsm_mosaic_init (PCC)
+    LH_mosaic(n,i)     = LH_mosaic_p(i,n,j)         !for lsm_mosaic_init (PCC)
+    GRDFLX_mosaic(n,i) = GRDFLX_mosaic_p(i,n,j)     !for lsm_mosaic_init (PCC)
+    SNOTIME_mosaic(n,i)= SNOTIME_mosaic_p(i,n,j)    !for lsm_mosaic_init (PCC)
+ enddo
+ enddo
+ enddo
+
 
  do j = jts,jte
  do i = its,ite
@@ -669,7 +887,6 @@
     enddo
     enddo
  endif
-
  end subroutine lsm_to_MPAS
  
 !=================================================================================================================
@@ -680,7 +897,7 @@
  type(dm_info),intent(in):: dminfo
  type(mpas_pool_type):: mesh
  type(mpas_pool_type),intent(in):: configs
-
+ 
 !inout arguments:
  type(mpas_pool_type),intent(inout):: diag_physics
  type(mpas_pool_type),intent(inout):: sfc_input
@@ -691,7 +908,7 @@
 
     case ("noah")
        call noah_init_forMPAS(dminfo,mesh,configs,diag_physics,sfc_input)
-    
+       
     case default
  
  end select lsm_select
@@ -708,6 +925,7 @@
 
  integer,intent(in):: its,ite
  integer,intent(in):: itimestep
+ 
 
 !inout arguments:
  type(mpas_pool_type),intent(inout):: diag_physics
@@ -717,13 +935,48 @@
  logical,pointer:: config_sfc_albedo
  character(len=StrKIND),pointer:: mminlu
 
+!Mosaic
+!local pointers
+ logical,pointer::config_surface_mosaic
+ integer,pointer:: config_mosaic_cat
+ integer,dimension(:,:),pointer:: mosaic_cat_index
+ real(kind=RKIND),dimension(:,:),pointer:: landusef2,TSK_mosaic,QSFC_mosaic, CANWAT_mosaic, SNOW_mosaic,SNOWH_mosaic, SNOWC_mosaic, &
+                                            ALBEDO_mosaic,ALBBCK_mosaic, EMISS_mosaic, EMBCK_mosaic, ZNT_mosaic, Z0_mosaic, HFX_mosaic,QFX_mosaic, &
+                                            LH_mosaic,GRDFLX_mosaic,SNOTIME_mosaic,TSLB_mosaic,SMOIS_mosaic,SH2O_mosaic
+!local
+integer:: config_surface_mosaic_yes
+ 
 !-----------------------------------------------------------------------------------------------------------------
 !write(0,*)
 !write(0,*) '--- enter subroutine driver_lsm:'
 
- call mpas_pool_get_config(configs,'config_sfc_albedo' ,config_sfc_albedo )
+ call mpas_pool_get_config(configs,'config_sfc_albedo'     ,config_sfc_albedo    )
+ call mpas_pool_get_config(configs,'config_surface_mosaic' ,config_surface_mosaic)
+ call mpas_pool_get_config(configs,'config_mosaic_cat'     ,config_mosaic_cat)
  call mpas_pool_get_array(sfc_input,'mminlu',mminlu)
-
+ call mpas_pool_get_array(sfc_input,'mosaic_cat_index',mosaic_cat_index)
+ call mpas_pool_get_array(sfc_input,'landusef2',landusef2)
+ call mpas_pool_get_array(sfc_input,'TSK_mosaic' , TSK_mosaic )  !for lsm_mosaic_init (PCC)
+ call mpas_pool_get_array(sfc_input,'CANWAT_mosaic' , CANWAT_mosaic )  !for lsm_mosaic_init (PCC)
+ call mpas_pool_get_array(sfc_input,'SNOW_mosaic' , SNOW_mosaic )  !for lsm_mosaic_init (PCC)
+ call mpas_pool_get_array(sfc_input,'SNOWH_mosaic' , SNOWH_mosaic )  !for lsm_mosaic_init (PCC)
+ call mpas_pool_get_array(sfc_input,'SNOWC_mosaic' , SNOWC_mosaic )  !for lsm_mosaic_init (PCC)
+ call mpas_pool_get_array(sfc_input,'ALBEDO_mosaic' , ALBEDO_mosaic )  !for lsm_mosaic_init (PCC)
+ call mpas_pool_get_array(sfc_input,'ALBBCK_mosaic' , ALBBCK_mosaic )  !for lsm_mosaic_init (PCC)
+ call mpas_pool_get_array(sfc_input,'EMISS_mosaic' , EMISS_mosaic )  !for lsm_mosaic_init (PCC)
+ call mpas_pool_get_array(sfc_input,'EMBCK_mosaic' , EMBCK_mosaic )  !for lsm_mosaic_init (PCC)
+ call mpas_pool_get_array(sfc_input,'ZNT_mosaic' , ZNT_mosaic )  !for lsm_mosaic_init (PCC)
+ call mpas_pool_get_array(sfc_input,'Z0_mosaic' , Z0_mosaic )  !for lsm_mosaic_init (PCC)
+ call mpas_pool_get_array(sfc_input,'TSLB_mosaic' , TSLB_mosaic )  !for lsm_mosaic_init (PCC)
+ call mpas_pool_get_array(sfc_input,'SMOIS_mosaic' , SMOIS_mosaic )  !for lsm_mosaic_init (PCC)
+ call mpas_pool_get_array(sfc_input,'SH2O_mosaic' , SH2O_mosaic )  !for lsm_mosaic_init (PCC)
+ call mpas_pool_get_array(sfc_input,'QSFC_mosaic' , QSFC_mosaic )  !for lsm_mosaic_init (PCC)
+ call mpas_pool_get_array(sfc_input,'HFX_mosaic' , HFX_mosaic )  !for lsm_mosaic_init (PCC)
+ call mpas_pool_get_array(sfc_input,'QFX_mosaic' , QFX_mosaic )  !for lsm_mosaic_init (PCC)
+ call mpas_pool_get_array(sfc_input,'LH_mosaic' ,  LH_mosaic )  !for lsm_mosaic_init (PCC)
+ call mpas_pool_get_array(sfc_input,'GRDFLX_mosaic' , GRDFLX_mosaic )  !for lsm_mosaic_init (PCC)
+ call mpas_pool_get_array(sfc_input,'SNOTIME_mosaic' , SNOTIME_mosaic )  !for lsm_mosaic_init (PCC)
+ 
 !formats:
  101 format(2i6,8(1x,e15.8))
  102 format(3i6,8(1x,e15.8))
@@ -736,7 +989,57 @@
  lsm_select: select case (trim(lsm_scheme))
 
     case("noah")
-       call lsm( &
+ if(config_surface_mosaic) then
+config_surface_mosaic_yes = 1
+       call lsm_mosaic( &
+                dz8w      = dz_p      , p8w3d     = pres2_hyd_p  , t3d       = t_p          , &  
+                qv3d      = qv_p      , xland     = xland_p      , xice      = xice_p       , &
+                ivgtyp    = ivgtyp_p  , isltyp    = isltyp_p     , tmn       = tmn_p        , &
+                vegfra    = vegfra_p  , shdmin    = shdmin_p     , shdmax    = shdmax_p     , &
+                snoalb    = snoalb_p  , glw       = glw_p        , gsw       = gsw_p        , &
+                swdown    = swdown_p  , rainbl    = rainbl_p     , embck     = sfc_emibck_p , & 
+                sr        = sr_p      , qgh       = qgh_p        , cpm       = cpm_p        , &
+                qz0       = qz0_p     , tsk       = tsk_p        , hfx       = hfx_p        , & 
+                qfx       = qfx_p     , lh        = lh_p         , grdflx    = grdflx_p     , &
+                qsfc      = qsfc_p    , cqs2      = cqs2_p       , chs       = chs_p        , &
+                chs2      = chs2_p    , snow      = snow_p       , snowc     = snowc_p      , &
+                snowh     = snowh_p   , canwat    = canwat_p     , smstav    = smstav_p     , &
+                smstot    = smstot_p  , sfcrunoff = sfcrunoff_p  , udrunoff  = udrunoff_p   , &               
+                acsnom    = acsnom_p  , acsnow    = acsnow_p     , snotime   = snotime_p    , &
+                snopcx    = snopcx_p  , emiss     = sfc_emiss_p  , rib       = br_p         , &
+                potevp    = potevp_p  , albedo    = sfc_albedo_p , albbck    = sfc_albbck_p , &
+                z0        = z0_p      , znt       = znt_p        , lai       = lai_p        , &
+                noahres   = noahres_p , chklowq   = chklowq_p    , sh2o      = sh2o_p       , &
+                smois     = smois_p   , tslb      = tslb_p       , smcrel    = smcrel_p     , &
+                dzs       = dzs_p     , isurban   = isurban      , isice     = isice        , &                
+                rovcp     = rcp       , dt        = dt_pbl       , myj       = myj          , &
+                itimestep = itimestep , frpcpn    = frpcpn       , rdlai2d   = rdlai2d      , &
+                xice_threshold   = xice_threshold    ,                                        &
+                usemonalb        = config_sfc_albedo ,                                        &
+                mminlu           = mminlu ,                                                   &
+                NLCAT = num_landu,landusef = landusef_p, landusef2 = landusef2_p,                                                                        & ! danli mosaic
+                sf_surface_mosaic = config_surface_mosaic_yes, mosaic_cat = config_mosaic_cat, mosaic_cat_index = mosaic_cat_index_p,  	 & ! danli mosaic 
+                TSK_mosaic = TSK_mosaic_p, QSFC_mosaic = QSFC_mosaic_p,                        	                          			 & ! danli mosaic 
+                TSLB_mosaic = TSLB_mosaic_p, SMOIS_mosaic = SMOIS_mosaic_p, SH2O_mosaic = SH2O_mosaic_p,           	                                 & ! danli mosaic 
+                CANWAT_mosaic = CANWAT_mosaic_p, SNOW_mosaic = SNOW_mosaic_p,                      		                                         & ! danli mosaic
+                SNOWH_mosaic = SNOWH_mosaic_p, SNOWC_mosaic = SNOWC_mosaic_p,                      			                                 & ! danli mosaic 
+                ALBEDO_mosaic = ALBEDO_mosaic_p, ALBBCK_mosaic = ALBBCK_mosaic_p,                    			                         & ! danli mosaic
+                EMISS_mosaic = EMISS_mosaic_p, EMBCK_mosaic = EMBCK_mosaic_p,                     			                                 & ! danli mosaic
+                ZNT_mosaic = ZNT_mosaic_p, Z0_mosaic = Z0_mosaic_p,                          			                                 & ! danli mosaic 
+                HFX_mosaic = HFX_mosaic_p, QFX_mosaic = QFX_mosaic_p,                          			                                 & ! danli mosaic
+                LH_mosaic = LH_mosaic_p, GRDFLX_mosaic = GRDFLX_mosaic_p, SNOTIME_mosaic = SNOTIME_mosaic_p,                                           & ! danli mosaic
+                num_soil_layers  = num_soils    ,                                             &         
+                num_roof_layers  = num_soils    ,                                             &
+                num_wall_layers  = num_soils    ,                                             &
+                num_road_layers  = num_soils    ,                                             &
+                num_urban_layers = num_soils    ,                                             &
+                sf_urban_physics = sf_urban_physics   ,                                       &
+                ids = ids , ide = ide , jds = jds , jde = jde , kds = kds , kde = kde ,       &
+                ims = ims , ime = ime , jms = jms , jme = jme , kms = kms , kme = kme ,       &
+                its = its , ite = ite , jts = jts , jte = jte , kts = kts , kte = kte         &
+               )
+ elseif(.not.config_surface_mosaic) then
+      call lsm( &
                 dz8w      = dz_p      , p8w3d     = pres2_hyd_p  , t3d       = t_p          , &  
                 qv3d      = qv_p      , xland     = xland_p      , xice      = xice_p       , &
                 ivgtyp    = ivgtyp_p  , isltyp    = isltyp_p     , tmn       = tmn_p        , &
@@ -772,7 +1075,7 @@
                 ims = ims , ime = ime , jms = jms , jme = jme , kms = kms , kme = kme ,       &
                 its = its , ite = ite , jts = jts , jte = jte , kts = kts , kte = kte         &
                )
-
+ endif
        call sfcdiags( &
                 hfx   = hfx_p  , qfx     = qfx_p   , tsk  = tsk_p , qsfc = qsfc_p , chs = chs_p , &
                 chs2  = chs2_p , cqs2    = cqs2_p  , t2   = t2m_p , th2  = th2m_p , q2  = q2_p  , &
