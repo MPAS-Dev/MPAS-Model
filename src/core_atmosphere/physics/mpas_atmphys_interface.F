@@ -82,6 +82,11 @@
 ! * in subroutines microphysics_from_MPAS and microphysics_to_MPAS, restored the option mp_thompson_aerosols
 !   in the Thompson cloud microphysics scheme.
 !   Laura D. Fowler (laura@ucar.edu) / 2018-02-05.
+! * changed all instances of pbl_scheme to bl_scheme. changed all instances of microp_scheme to mp_scheme.
+!   Laura D. Fowler (laura@ucar.edu) / 2018-02-06.
+! * in subroutine MPAS_to_physics, added the initialization of arrays nifa_p and nwfa_p for the calculation of
+!   aerosol optical depths when using the Thompson cloud microphysics scheme.
+!   Laura D. Fowler (laura@ucar.edu) / 2018-04-06.
 
 
  contains
@@ -95,11 +100,13 @@
  type(mpas_pool_type),intent(in):: configs
 
 !local pointers:
- character(len=StrKIND),pointer:: pbl_scheme
+ character(len=StrKIND),pointer:: bl_scheme, &
+                                  mp_scheme
 
 !-----------------------------------------------------------------------------------------------------------------
 
- call mpas_pool_get_config(configs,'config_pbl_scheme',pbl_scheme)
+ call mpas_pool_get_config(configs,'config_pbl_scheme',bl_scheme)
+ call mpas_pool_get_config(configs,'config_microp_scheme',mp_scheme)
 
  if(.not.allocated(psfc_p) ) allocate(psfc_p(ims:ime,jms:jme)         )
  if(.not.allocated(ptop_p) ) allocate(ptop_p(ims:ime,jms:jme)         )
@@ -132,14 +139,21 @@
  if(.not.allocated(qs_p)   ) allocate(qs_p(ims:ime,kms:kme,jms:jme)   )
  if(.not.allocated(qg_p)   ) allocate(qg_p(ims:ime,kms:kme,jms:jme)   )
 
- pbl_select: select case (trim(pbl_scheme))
+ bl_select: select case(trim(bl_scheme))
     case("bl_mynn")
        if(.not.allocated(nc_p)) allocate(nc_p(ims:ime,kms:kme,jms:jme))
        if(.not.allocated(ni_p)) allocate(ni_p(ims:ime,kms:kme,jms:jme))
 
     case default
+ end select bl_select
 
- end select pbl_select
+ mp_select: select case(trim(mp_scheme))
+    case("mp_thompson","mp_thompson_aerosol")
+       if(.not.allocated(nifa_p)) allocate(nifa_p(ims:ime,kms:kme,jms:jme))
+       if(.not.allocated(nwfa_p)) allocate(nwfa_p(ims:ime,kms:kme,jms:jme))
+
+    case default
+ end select mp_select
 
 !... arrays used for calculating the hydrostatic pressure and exner function:
  if(.not.allocated(psfc_hyd_p)  ) allocate(psfc_hyd_p(ims:ime,jms:jme)          )
@@ -160,51 +174,60 @@
  type(mpas_pool_type),intent(in):: configs
 
 !local pointers:
- character(len=StrKIND),pointer:: pbl_scheme
+ character(len=StrKIND),pointer:: bl_scheme, &
+                                  mp_scheme
 
 !-----------------------------------------------------------------------------------------------------------------
 
- call mpas_pool_get_config(configs,'config_pbl_scheme',pbl_scheme)
+ call mpas_pool_get_config(configs,'config_pbl_scheme',bl_scheme)
+ call mpas_pool_get_config(configs,'config_microp_scheme',mp_scheme)
 
- if(allocated(psfc_p)  ) deallocate(psfc_p  )
- if(allocated(ptop_p)  ) deallocate(ptop_p  )
+ if(allocated(psfc_p) ) deallocate(psfc_p )
+ if(allocated(ptop_p) ) deallocate(ptop_p )
 
- if(allocated(u_p)     ) deallocate(u_p     )
- if(allocated(v_p)     ) deallocate(v_p     )
- if(allocated(fzm_p)   ) deallocate(fzm_p   )
- if(allocated(fzp_p)   ) deallocate(fzp_p   )
- if(allocated(zz_p)    ) deallocate(zz_p    )
- if(allocated(pres_p)  ) deallocate(pres_p  )
- if(allocated(pi_p)    ) deallocate(pi_p    )
- if(allocated(z_p)     ) deallocate(z_p     )
- if(allocated(zmid_p)  ) deallocate(zmid_p  )
- if(allocated(dz_p)    ) deallocate(dz_p    )
- if(allocated(t_p)     ) deallocate(t_p     )
- if(allocated(th_p)    ) deallocate(th_p    )
- if(allocated(al_p)    ) deallocate(al_p    )
- if(allocated(rho_p)   ) deallocate(rho_p   ) 
- if(allocated(rh_p)    ) deallocate(rh_p    ) 
- if(allocated(znu_p)   ) deallocate(znu_p   )
+ if(allocated(u_p)    ) deallocate(u_p    )
+ if(allocated(v_p)    ) deallocate(v_p    )
+ if(allocated(fzm_p)  ) deallocate(fzm_p  )
+ if(allocated(fzp_p)  ) deallocate(fzp_p  )
+ if(allocated(zz_p)   ) deallocate(zz_p   )
+ if(allocated(pres_p) ) deallocate(pres_p )
+ if(allocated(pi_p)   ) deallocate(pi_p   )
+ if(allocated(z_p)    ) deallocate(z_p    )
+ if(allocated(zmid_p) ) deallocate(zmid_p )
+ if(allocated(dz_p)   ) deallocate(dz_p   )
+ if(allocated(t_p)    ) deallocate(t_p    )
+ if(allocated(th_p)   ) deallocate(th_p   )
+ if(allocated(al_p)   ) deallocate(al_p   )
+ if(allocated(rho_p)  ) deallocate(rho_p  )
+ if(allocated(rh_p)   ) deallocate(rh_p   )
+ if(allocated(znu_p)  ) deallocate(znu_p  )
 
- if(allocated(w_p)     ) deallocate(w_p     )
- if(allocated(pres2_p) ) deallocate(pres2_p )
- if(allocated(t2_p)    ) deallocate(t2_p    )
+ if(allocated(w_p)    ) deallocate(w_p    )
+ if(allocated(pres2_p)) deallocate(pres2_p)
+ if(allocated(t2_p)   ) deallocate(t2_p   )
 
- if(allocated(qv_p)    ) deallocate(qv_p    )
- if(allocated(qc_p)    ) deallocate(qc_p    )
- if(allocated(qr_p)    ) deallocate(qr_p    )
- if(allocated(qi_p)    ) deallocate(qi_p    )
- if(allocated(qs_p)    ) deallocate(qs_p    )
- if(allocated(qg_p)    ) deallocate(qg_p    )
+ if(allocated(qv_p)   ) deallocate(qv_p   )
+ if(allocated(qc_p)   ) deallocate(qc_p   )
+ if(allocated(qr_p)   ) deallocate(qr_p   )
+ if(allocated(qi_p)   ) deallocate(qi_p   )
+ if(allocated(qs_p)   ) deallocate(qs_p   )
+ if(allocated(qg_p)   ) deallocate(qg_p   )
 
- pbl_select: select case (trim(pbl_scheme))
+ bl_select: select case(trim(bl_scheme))
     case("bl_mynn")
        if(allocated(nc_p)) deallocate(nc_p)
        if(allocated(ni_p)) deallocate(ni_p)
 
     case default
+ end select bl_select
 
- end select pbl_select
+ mp_select: select case(trim(mp_scheme))
+    case("mp_thompson","mp_thompson_aerosol")
+       if(allocated(nifa_p)) deallocate(nifa_p)
+       if(allocated(nwfa_p)) deallocate(nwfa_p)
+
+    case default
+ end select mp_select
 
  if(allocated(psfc_hyd_p)  ) deallocate(psfc_hyd_p  )
  if(allocated(psfc_hydd_p) ) deallocate(psfc_hydd_p )
@@ -233,10 +256,11 @@
  type(mpas_pool_type),intent(inout):: diag_physics
 
 !local pointers:
- character(len=StrKIND),pointer:: pbl_scheme
+ character(len=StrKIND),pointer:: bl_scheme, &
+                                  mp_scheme
 
  integer,pointer:: index_qv,index_qc,index_qr,index_qi,index_qs,index_qg
- integer,pointer:: index_nc,index_ni
+ integer,pointer:: index_nc,index_ni,index_nifa,index_nwfa
 
  real(kind=RKIND),dimension(:),pointer    :: latCell,lonCell
  real(kind=RKIND),dimension(:),pointer    :: fzm,fzp,rdzw
@@ -245,7 +269,7 @@
  real(kind=RKIND),dimension(:,:),pointer  :: zz,exner,pressure_b,rtheta_p,rtheta_b
  real(kind=RKIND),dimension(:,:),pointer  :: rho_zz,theta_m,pressure_p,u,v,w
  real(kind=RKIND),dimension(:,:),pointer  :: qv,qc,qr,qi,qs,qg
- real(kind=RKIND),dimension(:,:),pointer  :: nc,ni
+ real(kind=RKIND),dimension(:,:),pointer  :: nc,ni,nifa,nwfa
  real(kind=RKIND),dimension(:,:,:),pointer:: scalars
 
 !local variables:
@@ -266,7 +290,8 @@
 !call mpas_log_write('kts=$i kte=$i',intArgs=(/kts,kte/))
 
 !initialization:
- call mpas_pool_get_config(configs,'config_pbl_scheme',pbl_scheme)
+ call mpas_pool_get_config(configs,'config_pbl_scheme',bl_scheme)
+ call mpas_pool_get_config(configs,'config_microp_scheme',mp_scheme)
 
  call mpas_pool_get_array(mesh,'latCell',latCell)
  call mpas_pool_get_array(mesh,'lonCell',lonCell)
@@ -338,7 +363,7 @@
  enddo
  enddo
 
- pbl_select: select case (trim(pbl_scheme))
+ bl_select: select case(trim(bl_scheme))
     case("bl_mynn")
        call mpas_pool_get_dimension(state,'index_nc',index_nc)
        call mpas_pool_get_dimension(state,'index_ni',index_ni)
@@ -355,8 +380,26 @@
        enddo
 
     case default
+ end select bl_select
 
- end select pbl_select
+ mp_select: select case(trim(mp_scheme))
+    case("mp_thompson","mp_thompson_aerosols")
+       call mpas_pool_get_dimension(state,'index_nifa',index_nifa)
+       call mpas_pool_get_dimension(state,'index_nwfa',index_nwfa)
+       nifa => scalars(index_nifa,:,:)
+       nwfa => scalars(index_nwfa,:,:)
+
+       do j = jts,jte
+       do k = kts,kte
+       do i = its,ite
+          nifa_p(i,k,j) = max(0.,nifa(k,i))
+          nwfa_p(i,k,j) = max(0.,nwfa(k,i))
+       enddo
+       enddo
+       enddo
+
+    case default
+ end select mp_select
 
 !calculation of the surface pressure using hydrostatic assumption down to the surface::
  do j = jts,jte
@@ -510,7 +553,7 @@
  type(mpas_pool_type),intent(inout):: tend_physics
 
 !local pointers:
- character(len=StrKIND),pointer:: microp_scheme
+ character(len=StrKIND),pointer:: mp_scheme
  integer,pointer:: index_qv,index_qc,index_qr,index_qi,index_qs,index_qg
  integer,pointer:: index_nc,index_ni,index_nr,index_nwfa,index_nifa
  real(kind=RKIND),dimension(:),pointer    :: nwfa2d,nt_c,mu_c
@@ -529,7 +572,7 @@
 
 !-----------------------------------------------------------------------------------------------------------------
 
- call mpas_pool_get_config(configs,'config_microp_scheme',microp_scheme)
+ call mpas_pool_get_config(configs,'config_microp_scheme',mp_scheme)
 
  call mpas_pool_get_array(mesh,'zgrid',zgrid)
  call mpas_pool_get_array(mesh,'zz'   ,zz   )
@@ -581,7 +624,7 @@
  enddo
 
 !additional initialization as function of cloud microphysics scheme:
- microp_select_init: select case(microp_scheme)
+ mp_select: select case(mp_scheme)
     case ("mp_thompson","mp_thompson_aerosols","mp_wsm6")
        call mpas_pool_get_dimension(state,'index_qi',index_qi)
        call mpas_pool_get_dimension(state,'index_qs',index_qs)
@@ -600,7 +643,7 @@
        enddo
        enddo
 
-    microp2_select: select case(microp_scheme)
+    mp2_select: select case(mp_scheme)
        case("mp_thompson","mp_thompson_aerosols")
           call mpas_pool_get_dimension(state,'index_nc'  ,index_nc  )
           call mpas_pool_get_dimension(state,'index_ni'  ,index_ni  )
@@ -652,14 +695,13 @@
           enddo
 
        case default
-    end select microp2_select
+    end select mp2_select
 
     case default
- end select microp_select_init
+ end select mp_select
 
 !begin calculation of the cloud microphysics tendencies:
- microp_select_tend: select case(microp_scheme)
-
+ mp_tend_select: select case(mp_scheme)
     case ("mp_thompson","mp_thompson_aerosols","mp_wsm6")
        do k = kts,kte
        do i = its,ite
@@ -674,8 +716,7 @@
        enddo
 
     case default
-
- end select microp_select_tend
+ end select mp_tend_select
 
  end subroutine microphysics_from_MPAS
 
@@ -699,7 +740,7 @@
  type(mpas_pool_type),intent(inout):: tend_physics
 
 !local pointers:
- character(len=StrKIND),pointer:: microp_scheme
+ character(len=StrKIND),pointer:: mp_scheme
  integer,pointer:: index_qv,index_qc,index_qr,index_qi,index_qs,index_qg
  integer,pointer:: index_nc,index_ni,index_nr,index_nifa,index_nwfa
  real(kind=RKIND),dimension(:),pointer    :: surface_pressure,tend_sfc_pressure
@@ -722,7 +763,7 @@
 
 !-----------------------------------------------------------------------------------------------------------------
 
- call mpas_pool_get_config(configs,'config_microp_scheme',microp_scheme)
+ call mpas_pool_get_config(configs,'config_microp_scheme',mp_scheme)
 
  call mpas_pool_get_array(mesh,'zz'   ,zz   )
  call mpas_pool_get_array(mesh,'zgrid',zgrid)
@@ -805,7 +846,7 @@
  enddo
 
 !variables specific to different cloud microphysics schemes:
- microp_select_init: select case(microp_scheme)
+ mp_select: select case(mp_scheme)
     case ("mp_thompson","mp_thompson_aerosols","mp_wsm6")
        call mpas_pool_get_dimension(state,'index_qi',index_qi)
        call mpas_pool_get_dimension(state,'index_qs',index_qs)
@@ -824,7 +865,7 @@
        enddo
        enddo
 
-    microp2_select: select case(microp_scheme)
+    mp2_select: select case(mp_scheme)
        case("mp_thompson","mp_thompson_aerosols")
           call mpas_pool_get_dimension(state,'index_nc'  ,index_nc  )
           call mpas_pool_get_dimension(state,'index_ni'  ,index_ni  )
@@ -869,13 +910,13 @@
           enddo
 
        case default
-    end select microp2_select
+    end select mp2_select
 
     case default
- end select microp_select_init
+ end select mp_select
 
 !end calculation of the cloud microphysics tendencies:
- microp_select_tend: select case(microp_scheme)
+ mp_tend_select: select case(mp_scheme)
 
     case ("mp_thompson","mp_thompson_aerosols","mp_wsm6")
        do k = kts,kte
@@ -891,8 +932,7 @@
        enddo
 
     case default
-
- end select microp_select_tend
+ end select mp_tend_select
 
  end subroutine microphysics_to_MPAS
 
