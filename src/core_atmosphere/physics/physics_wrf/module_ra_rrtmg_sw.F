@@ -9840,6 +9840,10 @@ use module_ra_rrtmg_vinterp,only: vinterp_ozn
 !>     microphysics scheme as inputs to the subroutine rrtmg_swrad. revised the initialization of arrays rel,
 !>     rei, and res, accordingly.
 !>     Laura D. Fowler (laura@ucar.edu) / 2016-07-07.
+!>   * added the optional arguments, tauaer3d, ssaaer3d, and asyaer3d to include the optical depth, single
+!>     scattering albedo, and asymmetry factor of aerosols. to date, the only kind of aerosols included in MPAS
+!>     are the "water-friendly" and "ice-friendly" aerosols used in the Thompson cloud microphysics scheme.
+!>     Laura D. Fowler (laura@ucar.edu) / 2018-04-05.
 !MPAS specfic end.
 
 #else
@@ -9873,6 +9877,7 @@ CONTAINS
                        noznlevels,pin,o3clim,gsw,swcf,rthratensw,      &
                        has_reqc,has_reqi,has_reqs,re_cloud,            &
                        re_ice,re_snow,                                 &
+                       tauaer3d,ssaaer3d,asyaer3d,                     &
                        swupt, swuptc, swdnt, swdntc,                   &
                        swupb, swupbc, swdnb, swdnbc,                   &
                        swupflx, swupflxc, swdnflx, swdnflxc,           &
@@ -9907,6 +9912,11 @@ CONTAINS
  integer,intent(in):: noznlevels
  real,intent(in),dimension(1:noznlevels),optional:: pin
  real,intent(in),dimension(ims:ime,1:noznlevels,jms:jme),optional:: o3clim
+
+!--- additional input arguments of the aerosol optical depth, single scattering albedo, and asymmetry factor. to
+!    date, the only kind of aerosols included in MPAS are the "water-friendly" and "ice-friendly" aerosols used
+!    in the Thompson cloud microphysics scheme:
+ real,intent(in),dimension(ims:ime,kms:kme,jms:jme,1:nbndsw),optional:: tauaer3d,ssaaer3d,asyaer3d
 
 !--- inout arguments:
  real,intent(inout),dimension(ims:ime,jms:jme):: coszr,gsw,swcf
@@ -10364,13 +10374,23 @@ CONTAINS
                       fsfcmcl)
 
           !--- initialization of aerosol optical properties:
-          do nb = 1, nbndsw
-             do k = kts, kte+1
-                tauaer(ncol,k,nb) = 0.
-                ssaaer(ncol,k,nb) = 1.
-                asmaer(ncol,k,nb) = 0.
+          if(present(tauaer3d) .and. present(ssaaer3d) .and. present(asyaer3d)) then
+             do nb = 1, nbndsw
+                do k = kts, kte+1
+                   tauaer(ncol,k,nb) = tauaer3d(i,k,j,nb)
+                   ssaaer(ncol,k,nb) = ssaaer3d(i,k,j,nb)
+                   asmaer(ncol,k,nb) = asyaer3d(i,k,j,nb)
+                enddo
              enddo
-          enddo
+          else
+             do nb = 1, nbndsw
+                do k = kts, kte+1
+                   tauaer(ncol,k,nb) = 0.
+                   ssaaer(ncol,k,nb) = 1.
+                   asmaer(ncol,k,nb) = 0.
+                enddo
+             enddo
+          endif
 
           do na = 1, naerec
              do k = kts, kte+1
