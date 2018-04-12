@@ -704,7 +704,7 @@
 
 ! J. Cipriani, 04/02/2018, IBM/TWC:  fix for excessive relative humidity computations
 ! Only a diagnostic, so should have no impact on model solution
- real(kind=RKIND):: tempc, rh, qvsl, qvsi
+ real(kind=RKIND):: tempc, qvsl, qvsi
  real(kind=RKIND),dimension(:),allocatable:: qv1d,qvs1d,t1d,p1d
 
 !-----------------------------------------------------------------------------------------------------------------
@@ -731,14 +731,14 @@
        ! J. Cipriani, 04/02/2018, IBM/TWC:  adapted from RHUM computed in module_radiation_driver.F (WRF-3.9.1.1)
        qvsl = rslf(p1d(k),t1d(k))
        qvsi = rsif(p1d(k),t1d(k))
-       if (tempc .ge. -12.0) then
+       if (tempc .ge. -12.0_RKIND) then
           qvs1d(k) = qvsl
-       elseif (tempc .lt. -20.0) then
+       elseif (tempc .lt. -20.0_RKIND) then
           qvs1d(k) = qvsi
        else
-          qvs1d(k) = qvsl - (qvsl-qvsi)*(-12.0-tempc)/(-12.0+20.)
+          qvs1d(k) = qvsl - (qvsl-qvsi)*(-12.0_RKIND-tempc)/(-12.0_RKIND+20._RKIND)
        end if
-       relhum(k,i) = max(0.01,min(qv1d(k) / qvs1d(k),0.9999))
+       relhum(k,i) = max(0.01_RKIND,min(qv1d(k) / qvs1d(k),0.9999_RKIND))
        relhum(k,i) = relhum(k,i) * 100._RKIND
     enddo
  enddo

@@ -93,8 +93,8 @@ module surface_diagnostics
     !> \author James Cipriani / Brett Wilt
     !> \date   24 March 2017
     !> \details
-    !>  This routine computes surface diagnostics ... 2 m dew point for now ...
-    !>    dewpoint_2m
+    !>  This routine computes surface diagnostics ... 2 m dew point, RH ...
+    !>    dewpoint_2m, rh2m
     !
     !-----------------------------------------------------------------------
     subroutine surface_diagnostics_compute()
@@ -102,6 +102,7 @@ module surface_diagnostics
         use mpas_constants, only : rvord
         use mpas_pool_routines, only : mpas_pool_get_dimension, mpas_pool_get_array
         use mpas_derived_types, only : mpas_pool_type
+        use module_mp_thompson, only : rsif, rslf
 
         implicit none
     
@@ -130,9 +131,10 @@ module surface_diagnostics
    
         ! Surface diagnostics (inout)
         real (kind=RKIND), dimension(:), pointer :: dewpoint_2m
+        real (kind=RKIND), dimension(:), pointer :: rh2m
 
         ! Surface diagnostics (local)
-        real (kind=RKIND) :: evp, prate
+        real (kind=RKIND) :: evp, prate, q2si, q2sl, t2mC, q2s
 
         ! Diagnostics (shared in)
         real (kind=RKIND), dimension(:), pointer :: t2m
@@ -152,6 +154,7 @@ module surface_diagnostics
         call mpas_pool_get_array(diag, 'surface_pressure', psfc)
         call mpas_pool_get_array(diag_physics, 'q2', q2)
         call mpas_pool_get_array(diag, 'dewpoint_2m', dewpoint_2m)
+        call mpas_pool_get_array(diag, 'rh2m', rh2m)
         call mpas_pool_get_array(diag, 'refl10cm_prate', refl10cm_prate)
         call mpas_pool_get_array(diag, 'ncuprec', ncuprec)
 
@@ -179,8 +182,22 @@ module surface_diagnostics
 
             ! Dewpoint temperature following Bolton (1980)
             dewpoint_2m(iCell) = (243.5_RKIND * log(evp/6.112_RKIND)) / (17.67_RKIND - log(evp/6.112_RKIND)) 
-            dewpoint_2m(iCell) = dewpoint_2m(iCell) + 273.15
+            dewpoint_2m(iCell) = dewpoint_2m(iCell) + 273.15_RKIND
             dewpoint_2m(iCell) = min(dewpoint_2m(iCell), t2m(iCell))
+
+            ! Relative Humidity at 2-m
+            q2sl = rslf(psfc(iCell),t2m(iCell))
+            q2si = rsif(psfc(iCell),t2m(iCell))
+            t2mC = t2m(iCell) - 273.16_RKIND
+            if (t2mC .ge. -12.0_RKIND) then
+               q2s = q2sl
+            elseif (t2mC .lt. -20.0_RKIND) then
+               q2s = q2si
+            else
+               q2s = q2sl - (q2sl-q2si)*(-12.0_RKIND-t2mC)/(-12.0_RKIND+20._RKIND)
+            end if
+            rh2m(iCell) = max(0.01_RKIND,min(q2(iCell) / q2s,0.9999_RKIND))
+            rh2m(iCell) = rh2m(iCell) * 100._RKIND 
 
         end do
 
