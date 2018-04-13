@@ -37,6 +37,9 @@
         <var name="temperature_1000hPa" type="real" dimensions="nCells Time" units="K"
              description="Temperature vertically interpolated to 1000 hPa"/>
 
+        <var name="relhum_100hPa" type="real" dimensions="nCells Time" units="percent"
+             description="Relative humidity vertically interpolated to 100 hPa"/>
+
         <var name="relhum_150hPa" type="real" dimensions="nCells Time" units="percent"
              description="Relative humidity vertically interpolated to 150 hPa"/>
 
