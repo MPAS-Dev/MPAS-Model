@@ -449,6 +449,8 @@ module accumulated_diagnostics
             rain15m(:,iHistp1) = 0.0
             snow15m(:,iHistp1) = 0.0
             ice15m(:,iHistp1)  = 0.0
+
+            call MPAS_reset_clock_alarm(simulationClock, 'acc15mAlarm')
         end if
 
         ! Reset hourly

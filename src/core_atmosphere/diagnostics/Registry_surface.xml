@@ -4,6 +4,9 @@
 
 <var_struct name="diag" time_levs="1">
 
+        <var name="rh2m"       type="real"     dimensions="nCells Time" units="%"
+             description="Relative Humidity at 2 meters AGL"/>
+
         <var name="dewpoint_2m"       type="real"     dimensions="nCells Time" units="K"
              description="Dewpoint temperature at 2 meters AGL"/>
 

@@ -322,7 +322,6 @@ module snowratio_diagnostics
 
         end if
 
-
         ! update snow ratio
         if (snowratio_scheme_count > 0) then
            snow_ratio(:) = snow_ratio_total(:) / snowratio_scheme_count
