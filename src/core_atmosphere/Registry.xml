@@ -1,5 +1,5 @@
 <?xml version="1.0"?>
-<registry model="mpas" core="atmosphere" core_abbrev="atm" version="5.3">
+<registry model="mpas" core="atmosphere" core_abbrev="atm" version="6.0">
 
 <!-- **************************************************************************************** -->
 <!-- ************************************** Dimensions ************************************** -->
@@ -436,8 +436,6 @@
 			<var name="rho"/>
 			<var name="theta"/>
 			<var name="relhum"/>
-			<var name="exner_base"/>
-			<var name="pressure_base"/>
 			<var name="rho_base"/>
 			<var name="theta_base"/>
 			<var name="surface_pressure"/>
