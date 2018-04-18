@@ -105,7 +105,7 @@ module module_cu_ntiedtke
 !     entrdd: average entrainment & detrainment rate for downdrafts
 !     ------
 !
-      parameter(entrdd = 2.0e-4)
+      parameter(entrdd = 2.5e-4)
 !
 !     cmfcmax:   maximum massflux value allowed for updrafts etc
 !     -------
@@ -140,7 +140,7 @@ module module_cu_ntiedtke
 !
 !     coefficient for pressure gradient intensity
 !     (0.7 - 1.0 is recommended in this vesion of Tiedtke scheme) 
-      parameter(pgcoef=0.7)
+      parameter(pgcoef=1.0)
 !     -------
 !
       logical :: nonequil
@@ -595,24 +595,24 @@ contains
 !
       real ztmst,fliq,fice,ztc,zalf,tt
       integer i,j,k,lq,km,km1
-      real dt,ztpp1
-      real zew,zqs,zcor
-      real scale_tau(lq),scale_mf(lq),pi
+      real dt,ztpp1,pi,zew,zqs,zcor
+      real scale_tau(lq),scale_mf(lq),scale_ref
       integer iscale 
 !
 ! ww: factors to scale adjustment time and conv mass fluxes
 !
       iscale = 1
       pi = 3.1415926
+      scale_ref = 12000.
       do j=1,lq
-         scale_tau(j) = 1.+1.33e-5*dx(j)
-         scale_mf(j)  = 1.
-         if (dx(j).lt.15000. .and. iscale.eq.1) then
-            scale_tau(j) = max(scale_tau(j), 1./tan(0.4*dx(j)/pi/15000.)-1./tan(0.4/pi))
-            scale_mf(j)  = (1.+ log10(15000./dx(j)))**3
-!           scale_mf(j)  = scale_tau(j)
-!print *, 'scale_tau = ', scale_tau(j)
-         end if
+        scale_tau(j) = 1.
+        scale_mf(j) = 1.
+        if (iscale.eq.1.and.dx(j).lt.scale_ref) then
+!         scale_tau(j) = max(scale_tau(j), (1.+log(scale_ref/dx(j)))**2)
+!         scale_mf(j) = max(scale_mf(j), (1.+log(scale_ref/dx(j)))**2)
+          scale_tau(j) = max(scale_tau(j), scale_ref/dx(j))
+          scale_mf(j) = max(scale_mf(j), scale_ref/dx(j))
+        end if
       end do
 !
       ztmst=dt
@@ -1044,28 +1044,26 @@ contains
       end do
 
       do jl=1,klon
-       if(ldcum(jl).and.ktype(jl).eq.1) then
-           ikb = kcbot(jl)
-           ikt = kctop(jl)
-!          ztau = ztauc(jl) * (1.+1.33e-5*dx(jl))
+        if(ldcum(jl).and.ktype(jl).eq.1) then
+          ikb = kcbot(jl)
+          ikt = kctop(jl)
 ! ww: scale the adjustment time
-           ztau = ztauc(jl) * scale_tau(jl)
-           ztau = max(ztmst,ztau)
-           ztau = max(360.,ztau)
-!          ztau = min(10800.,ztau)
-           if(nonequil) then
-             zcape2(jl)= max(0.,zcape2(jl))
-             zcape(jl) = max(0.,min(zcape1(jl)-zcape2(jl),5000.))
-           else
-             zcape(jl) = max(0.,min(zcape1(jl),5000.))
-           end if
-           zheat(jl) = max(1.e-4,zheat(jl))
-           zmfub1(jl) = (zcape(jl)*zmfub(jl))/(zheat(jl)*ztau)
-!          zmfub1(jl) = max(zmfub1(jl),0.001)
-           zmfub1(jl) = max(zmfub1(jl),0.00001)
-           zmfmax=(paph(jl,ikb)-paph(jl,ikb-1))*zcons2
-           zmfub1(jl)=min(zmfub1(jl),zmfmax)
-       end if
+          ztau = ztauc(jl)*(1.+1.33e-5*dx(jl))
+          ztau = max(720.,ztmst,ztau)
+          ztau = min(10800.,ztau)
+          ztau = ztau*scale_tau(jl)
+          if(nonequil) then
+            zcape2(jl)= max(0.,zcape2(jl))
+            zcape(jl) = max(0.,min(zcape1(jl)-zcape2(jl),5000.))
+          else
+            zcape(jl) = max(0.,min(zcape1(jl),5000.))
+          end if
+          zheat(jl) = max(1.e-4,zheat(jl))
+          zmfub1(jl) = (zcape(jl)*zmfub(jl))/(zheat(jl)*ztau)
+          zmfub1(jl) = max(zmfub1(jl),0.001/scale_tau(jl))
+          zmfmax=(paph(jl,ikb)-paph(jl,ikb-1))*zcons2
+          zmfub1(jl)=min(zmfub1(jl),zmfmax)
+        end if
       end do
 !
 !*  6.2   recalculate convective fluxes due to effect of
@@ -2567,8 +2565,8 @@ contains
             if ( plu(jl,jk) > zdshrd )then
               zwu = min(15.0,sqrt(2.*max(0.1,kup(jl,jk+1))))
 ! ww
-              zprcon = zprcdgw/(0.75*zwu)/scale_mf(jl)
-!             zprcon = zprcdgw/(0.75*zwu)
+!             zprcon = zprcdgw/(0.75*zwu)/scale_mf(jl)
+              zprcon = zprcdgw/(0.75*zwu)
 ! PARAMETERS FOR BERGERON-FINDEISEN PROCESS (T < -5C)
               zdt = min(rtber-rtice,max(rtber-ptu(jl,jk),0.))
               zcbf = 1. + z_cprc2*sqrt(zdt)
@@ -3800,8 +3798,6 @@ contains
      &                          *rcpd
             pqu(jl,kk+1)=pqen(jl,kk)
             plu(jl,kk+1)=0.
-!           zzzmb=max(cmfcmin,-pverv(jl,kk)*zrg)
-!           zzzmb=min(zzzmb,cmfcmax)
 ! ww: scale mass flux for mid-level conv
             zzzmb=-pverv(jl,kk)*zrg
             zzzmb=zzzmb/scale_mf(jl)
