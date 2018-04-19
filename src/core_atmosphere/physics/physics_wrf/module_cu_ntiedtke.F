@@ -140,7 +140,7 @@ module module_cu_ntiedtke
 !
 !     coefficient for pressure gradient intensity
 !     (0.7 - 1.0 is recommended in this vesion of Tiedtke scheme) 
-      parameter(pgcoef=1.0)
+      parameter(pgcoef=0.7)
 !     -------
 !
       logical :: nonequil
