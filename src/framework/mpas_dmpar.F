@@ -2348,6 +2348,7 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
          commListPtr => commListPtr % next
          nullify(commListPtr % next)
          commListPtr % procID = endPointID
+         commListPtr % nList = 0
 
          do iHalo=1,compactHaloInfo(9)
             do i=1,nHaloLayers
@@ -2373,6 +2374,7 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
          commListPtr => commListPtr % next
          nullify(commListPtr % next)
          commListPtr % procID = endPointID
+         commListPtr % nList = 0
 
          do iHalo=1,compactHaloInfo(9)
             do i=1,nHaloLayers
