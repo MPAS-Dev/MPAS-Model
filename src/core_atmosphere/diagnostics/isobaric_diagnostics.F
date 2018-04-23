@@ -415,10 +415,11 @@ module isobaric_diagnostics
         real (kind=RKIND), dimension(:,:), allocatable :: dewpoint
        
        !local interpolated fields:
-        integer :: nIntP
+        integer :: nIntP, nIntP_rh
         real (kind=RKIND) :: w1,w2,z0,z1,z2
         real (kind=RKIND), dimension(:,:), allocatable :: field_in,press_in
-        real (kind=RKIND), dimension(:,:), allocatable :: field_interp,press_interp
+        real (kind=RKIND), dimension(:,:), allocatable :: field_interp,field_interp_rh
+        real (kind=RKIND), dimension(:,:), allocatable :: press_interp,press_interp_rh
         
        !--------------------------------------------------------------------------------------------------
        
@@ -637,40 +638,37 @@ module isobaric_diagnostics
         end if
        
        !interpolation to fixed pressure levels for fields located at cells centers and at mass points:
-        if (NEED_RELHUM) then
-           nIntP = 12
-        else
-           nIntP = 7
-        end if
-
+        nIntP = 7
         if(.not.allocated(field_interp)) allocate(field_interp(nCells,nIntP) )
         if(.not.allocated(press_interp)) allocate(press_interp(nCells,nIntP) )
         do iCell = 1, nCells
-           if (NEED_RELHUM) then
-              ! levels for RH
-              press_interp(iCell,1) = 100.0_RKIND
-              press_interp(iCell,2) = 150.0_RKIND
-              press_interp(iCell,3) = 200.0_RKIND
-              press_interp(iCell,4) = 250.0_RKIND
-              press_interp(iCell,5) = 300.0_RKIND
-              press_interp(iCell,6) = 400.0_RKIND
-              press_interp(iCell,7) = 500.0_RKIND
-              press_interp(iCell,8) = 600.0_RKIND
-              press_interp(iCell,9) = 700.0_RKIND
-              press_interp(iCell,10) = 850.0_RKIND
-              press_interp(iCell,11) = 925.0_RKIND
-              press_interp(iCell,12) = 1000.0_RKIND
-           else
-              ! levels for TMP, U, V, W, HGT, DPT
-              press_interp(iCell,1) = 200.0_RKIND
-              press_interp(iCell,2) = 250.0_RKIND
-              press_interp(iCell,3) = 500.0_RKIND
-              press_interp(iCell,4) = 700.0_RKIND
-              press_interp(iCell,5) = 850.0_RKIND
-              press_interp(iCell,6) = 925.0_RKIND
-              press_interp(iCell,7) = 1000.0_RKIND
-           end if
+           press_interp(iCell,1) = 200.0_RKIND
+           press_interp(iCell,2) = 250.0_RKIND
+           press_interp(iCell,3) = 500.0_RKIND
+           press_interp(iCell,4) = 700.0_RKIND
+           press_interp(iCell,5) = 850.0_RKIND
+           press_interp(iCell,6) = 925.0_RKIND
+           press_interp(iCell,7) = 1000.0_RKIND
         enddo
+
+        ! Relative humidity has 12 levels instead of 7
+        nIntP_rh = 12
+        if (NEED_RELHUM) then
+            if(.not.allocated(field_interp_rh)) allocate(field_interp_rh(nCells,nIntP_rh) )
+            if(.not.allocated(press_interp_rh)) allocate(press_interp_rh(nCells,nIntP_rh) )
+            press_interp_rh(:,1) = 100.0_RKIND
+            press_interp_rh(:,2) = 150.0_RKIND
+            press_interp_rh(:,3) = 200.0_RKIND
+            press_interp_rh(:,4) = 250.0_RKIND
+            press_interp_rh(:,5) = 300.0_RKIND
+            press_interp_rh(:,6) = 400.0_RKIND
+            press_interp_rh(:,7) = 500.0_RKIND
+            press_interp_rh(:,8) = 600.0_RKIND
+            press_interp_rh(:,9) = 700.0_RKIND
+            press_interp_rh(:,10) = 850.0_RKIND
+            press_interp_rh(:,11) = 925.0_RKIND
+            press_interp_rh(:,12) = 1000.0_RKIND
+        end if
        
         if(.not.allocated(press_in)) allocate(press_in(nCells,nVertLevels))
         do iCell = 1, nCells
@@ -710,19 +708,19 @@ module isobaric_diagnostics
                field_in(iCell,kk) = relhum(k,iCell)
             enddo
             enddo
-            call interp_tofixed_pressure(nCells,nVertLevels,nIntP,press_in,field_in,press_interp,field_interp)
-            relhum_100hPa(1:nCells) = field_interp(1:nCells,1)
-            relhum_150hPa(1:nCells) = field_interp(1:nCells,2)
-            relhum_200hPa(1:nCells) = field_interp(1:nCells,3)
-            relhum_250hPa(1:nCells) = field_interp(1:nCells,4)
-            relhum_300hPa(1:nCells) = field_interp(1:nCells,5)
-            relhum_400hPa(1:nCells) = field_interp(1:nCells,6)
-            relhum_500hPa(1:nCells) = field_interp(1:nCells,7)
-            relhum_600hPa(1:nCells) = field_interp(1:nCells,8)
-            relhum_700hPa(1:nCells) = field_interp(1:nCells,9)
-            relhum_850hPa(1:nCells) = field_interp(1:nCells,10)
-            relhum_925hPa(1:nCells) = field_interp(1:nCells,11)
-            relhum_1000hPa(1:nCells) = field_interp(1:nCells,12)
+            call interp_tofixed_pressure(nCells,nVertLevels,nIntP_rh,press_in,field_in,press_interp_rh,field_interp_rh)
+            relhum_100hPa(1:nCells) = field_interp_rh(1:nCells,1)
+            relhum_150hPa(1:nCells) = field_interp_rh(1:nCells,2)
+            relhum_200hPa(1:nCells) = field_interp_rh(1:nCells,3)
+            relhum_250hPa(1:nCells) = field_interp_rh(1:nCells,4)
+            relhum_300hPa(1:nCells) = field_interp_rh(1:nCells,5)
+            relhum_400hPa(1:nCells) = field_interp_rh(1:nCells,6)
+            relhum_500hPa(1:nCells) = field_interp_rh(1:nCells,7)
+            relhum_600hPa(1:nCells) = field_interp_rh(1:nCells,8)
+            relhum_700hPa(1:nCells) = field_interp_rh(1:nCells,9)
+            relhum_850hPa(1:nCells) = field_interp_rh(1:nCells,10)
+            relhum_925hPa(1:nCells) = field_interp_rh(1:nCells,11)
+            relhum_1000hPa(1:nCells) = field_interp_rh(1:nCells,12)
            ! write(0,*) '--- end interpolate relative humidity:'
         end if
        
