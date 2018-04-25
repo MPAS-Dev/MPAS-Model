@@ -299,6 +299,30 @@
 !local variables and arrays:
  logical:: log_microphysics
  integer:: i,icell,icount,istep,j,k,kk
+ 
+!Calculate dtheta_dt_mp (NS: 2018-04-24)
+!Store theta, call microphysics->updates theta, calculate tendency
+ integer, pointer :: nCells, nVertLevels, index_qv
+ real(kind=RKIND) :: rvord
+ real(kind=RKIND), dimension(:,:), pointer :: dtheta_dt_mp, theta_m
+ real (kind=RKIND), dimension(:,:,:), pointer :: scalars
+
+ call mpas_pool_get_dimension(mesh, 'nCells', nCells)
+ call mpas_pool_get_dimension(mesh, 'nVertLevels', nVertLevels)
+ call mpas_pool_get_dimension(state, 'index_qv', index_qv)
+ 
+ call mpas_pool_get_array(state, 'theta_m', theta_m, time_lev)
+ call mpas_pool_get_array(diag, 'dtheta_dt_mp', dtheta_dt_mp)
+ call mpas_pool_get_array(state, 'scalars', scalars, time_lev)
+ 
+ !initialize to theta before microphysics call. 
+ !I think the physics call actually updates variables, not generate a tendency.
+ rvord = R_v/R_d
+ do icell=1,nCells
+  do k=1,nVertLevels
+    dtheta_dt_mp(k,icell) = theta_m(k,icell) / (1._RKIND + rvord * scalars(index_qv,k,icell))
+  end do
+ end do
 
 !-----------------------------------------------------------------------------------------------------------------
 !call mpas_log_write('')
@@ -413,6 +437,18 @@
 !... copy updated cloud microphysics variables from the wrf-physics grid back to the geodesic-
 !    dynamics grid:
  call microphysics_to_MPAS(configs,mesh,state,time_lev,diag,diag_physics,tend,itimestep,its,ite)
+
+!Calculate dtheta_dt_mp (NS: 2018-04-24)
+!From stored dtheta_dt_mp, calculate changeInTheta/timeStep
+!TODO: Figure out dt_microp vs dt_dyn
+ call mpas_pool_get_array(state, 'theta_m', theta_m, time_lev)
+ call mpas_pool_get_array(diag, 'dtheta_dt_mp', dtheta_dt_mp)
+ call mpas_pool_get_array(state, 'scalars', scalars, time_lev)
+ do icell=1,nCells
+  do k=1,nVertLevels
+    dtheta_dt_mp(k,icell) = ( theta_m(k,icell)/(1._RKIND+rvord*scalars(index_qv,k,icell)) - dtheta_dt_mp(k,icell) )/(dt_microp)
+  end do
+ end do
 
 !... deallocation of all microphysics arrays:
 !$OMP BARRIER
