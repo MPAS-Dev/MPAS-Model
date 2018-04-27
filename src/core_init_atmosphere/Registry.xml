@@ -235,6 +235,11 @@
                      description="Whether to switch sea-ice threshold from 0.5 to 0.02"
                      possible_values="true or false"/>
 
+                <nml_option name="config_seaice_threshold"           type="real"       default_value="271.4"
+                     units="K"
+                     description="Temperature threshold for seaice conversion (xice_tsk_threshold in MPAS and seaice_threshold in WRF)"
+                     possible_values="Positive real values"/>
+
         </nml_record>
 
         <nml_record name="io" in_defaults="true">

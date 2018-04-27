@@ -1965,7 +1965,7 @@
                 <nml_option name="config_snowratio_scheme" type="character" default_value="static" in_defaults="false"
                      units="-"
                      description="configuration for snow ratio schemes"
-                     possible_values="'kuchera','cobb','noah','noahmp','static'"/>
+                     possible_values="'kuchera','cobb','noahsp','noahmp','static'"/>
 
         </nml_record>
 
