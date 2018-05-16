@@ -124,7 +124,8 @@
 ! * in subroutine physics_run_init, removed the initialization of the local variable microp_scheme.
 !   microp_scheme is no longer needed and can be replaced with config_microp_scheme.
 !   Laura D. Fowler (laura@ucar.edu) / 2017-02-16.
-
+!   Added Noah Mosaic LSM dimensions.
+!   Patrick Campbell (campbell.patrickc@epa.gov)  2017-08-03
 
  contains
 
@@ -404,7 +405,7 @@
  integer,pointer:: cam_dim1
  integer,pointer:: nMonths
  integer,pointer:: nAerosols,nAerLevels,nOznLevels
- integer,pointer:: nCellsSolve,nSoilLevels,nVertLevels
+ integer,pointer:: nCellsSolve,nSoilLevels,nVertLevels,nLandCat,nMosaicCat,nMosaicCat3D
 
  real(kind=RKIND),pointer:: config_dt
 
@@ -438,14 +439,17 @@
  call mpas_pool_get_config(configs,'config_dt',config_dt)
 
 
- call mpas_pool_get_dimension(mesh,'cam_dim1'   ,cam_dim1   )
- call mpas_pool_get_dimension(mesh,'nMonths'    ,nMonths    )
- call mpas_pool_get_dimension(mesh,'nAerLevels' ,nAerLevels )
- call mpas_pool_get_dimension(mesh,'nOznLevels' ,nOznLevels )
- call mpas_pool_get_dimension(mesh,'nCellsSolve',nCellsSolve)
- call mpas_pool_get_dimension(mesh,'nCellsSolve',nCellsSolve)
- call mpas_pool_get_dimension(mesh,'nSoilLevels',nSoilLevels)
- call mpas_pool_get_dimension(mesh,'nVertLevels',nVertLevels)
+ call mpas_pool_get_dimension(mesh,'cam_dim1'    ,cam_dim1   )
+ call mpas_pool_get_dimension(mesh,'nMonths'     ,nMonths    )
+ call mpas_pool_get_dimension(mesh,'nAerLevels'  ,nAerLevels )
+ call mpas_pool_get_dimension(mesh,'nOznLevels'  ,nOznLevels )
+ call mpas_pool_get_dimension(mesh,'nCellsSolve' ,nCellsSolve)
+ call mpas_pool_get_dimension(mesh,'nCellsSolve' ,nCellsSolve)
+ call mpas_pool_get_dimension(mesh,'nSoilLevels' ,nSoilLevels)
+ call mpas_pool_get_dimension(mesh,'nLandCat'    ,nLandCat   )
+ call mpas_pool_get_dimension(mesh,'nMosaicCat'  ,nMosaicCat )
+ call mpas_pool_get_dimension(mesh,'nMosaicCat3D',nMosaicCat3D)
+ call mpas_pool_get_dimension(mesh,'nVertLevels' ,nVertLevels)
 
  call mpas_pool_get_dimension(state,'num_aerosols',nAerosols)
 
@@ -671,6 +675,9 @@
 !initialization local physics variables:
  num_months = nMonths
  num_soils  = nSoilLevels
+ num_landu  = nLandCat
+ num_mosaic_cat = nMosaicCat
+ num_mosaic_cat3d = nMosaicCat3D
 
  if(trim(config_lsm_scheme) .eq. "noah") sf_surface_physics = 2 
 
