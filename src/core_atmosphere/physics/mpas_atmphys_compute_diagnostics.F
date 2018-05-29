@@ -55,6 +55,13 @@
  logical:: need_dtlw_interp,need_dtsw_interp
 
 
+! add-ons and modifications to sourcecode:
+! ----------------------------------------
+! * in subroutine atmphys_compute_tendencies_vavg, corrected the calculation of the verticall-averaged tendencies
+!   of temperature (dtcup_vavg,dtmp_vavg,dtbl_vavg,dtlw_vavg,dtsw_vavg).
+!   Laura D. Fowler (laura@ucar.edu) / 2018-05-29.
+
+
  contains
 
 
@@ -101,7 +108,7 @@
     call atmphys_diagnostics_interp(mesh,state,1,fg,diag,diag_physics,diag_physics_interp)
 
  if(need_atmphys_tendencies_vavg()) &
-    call atmphys_compute_tendencies_vavg(mesh,state,1,tend_physics,tend_physics_vavg)
+    call atmphys_compute_tendencies_vavg(mesh,state,1,diag,tend_physics,tend_physics_vavg)
 
  if(need_atmphys_tendencies_interp()) &
     call atmphys_tendencies_interp(mesh,fg,diag,tend_physics,tend_physics_interp)
@@ -566,12 +573,13 @@
  end subroutine atmphys_diagnostics_interp
 
 !=================================================================================================================
- subroutine atmphys_compute_tendencies_vavg(mesh,state,time_lev,tend_physics,tend_physics_vavg)
+ subroutine atmphys_compute_tendencies_vavg(mesh,state,time_lev,diag,tend_physics,tend_physics_vavg)
 !=================================================================================================================
 
 !input arguments:
  type(mpas_pool_type),intent(in):: mesh
  type(mpas_pool_type),intent(in):: state
+ type(mpas_pool_type),intent(in):: diag
  type(mpas_pool_type),intent(in):: tend_physics
  integer,intent(in):: time_lev
 
@@ -583,14 +591,14 @@
  integer,pointer:: nCellsSolve,nVertLevels
  integer,pointer:: index_qv
 
- real:: dz,rhoa,sumr
+ real:: dz,rhoa,rhoat,sumr
  real(kind=RKIND),dimension(:),pointer    :: dtcup_vavg,dqvcup_vavg,dqccup_vavg,dqrcup_vavg, &
                                              dqicup_vavg,dqscup_vavg
  real(kind=RKIND),dimension(:),pointer    :: dtmp_vavg,dqvmp_vavg,dqcmp_vavg,dqrmp_vavg, &
                                              dqimp_vavg,dqsmp_vavg,dqgmp_vavg
  real(kind=RKIND),dimension(:),pointer    :: dtbl_vavg,dqvbl_vavg,dqcbl_vavg,dqibl_vavg
  real(kind=RKIND),dimension(:),pointer    :: dtlw_vavg,dtsw_vavg                                         
- real(kind=RKIND),dimension(:,:),pointer  :: rho_zz,zgrid,zz
+ real(kind=RKIND),dimension(:,:),pointer  :: exner,rho_zz,zgrid,zz
  real(kind=RKIND),dimension(:,:),pointer  :: qv
  real(kind=RKIND),dimension(:,:),pointer  :: dtcup,dqvcup,dqccup,dqrcup,dqicup,dqscup
  real(kind=RKIND),dimension(:,:),pointer  :: dtmp,dqvmp,dqcmp,dqrmp,dqimp,dqsmp,dqgmp
@@ -609,6 +617,8 @@
 
  call mpas_pool_get_array(mesh,'zz'   ,zz   )
  call mpas_pool_get_array(mesh,'zgrid',zgrid)
+
+ call mpas_pool_get_array(diag,'exner',exner)
 
  call mpas_pool_get_array(state,'rho_zz' ,rho_zz ,time_lev)
  call mpas_pool_get_array(state,'scalars',scalars,time_lev)
@@ -708,13 +718,14 @@
 
        sumr = 0._RKIND
        do k = 1, nVertLevels
-          dz   = zgrid(k+1,iCell)-zgrid(k,iCell)
-          rhoa = zz(k,iCell)*rho_zz(k,iCell)
-          rhoa = rhoa*(1._RKIND+qv(k,iCell))
-          sumr = sumr+rhoa*dz
+          dz    = zgrid(k+1,iCell)-zgrid(k,iCell)
+          rhoa  = zz(k,iCell)*rho_zz(k,iCell)
+          rhoa  = rhoa*(1._RKIND+qv(k,iCell))
+          rhoat = rhoa*exner(k,iCell)
+          sumr  = sumr+rhoa*dz
 
           !--- vertically-averaged convective tendencies:
-          dtcup_vavg(iCell)  = dtcup_vavg(iCell)  + dtcup(k,iCell)*rhoa*dz
+          dtcup_vavg(iCell)  = dtcup_vavg(iCell)  + dtcup(k,iCell)*rhoat*dz
           dqvcup_vavg(iCell) = dqvcup_vavg(iCell) + dqvcup(k,iCell)*rhoa*dz
           dqccup_vavg(iCell) = dqccup_vavg(iCell) + dqccup(k,iCell)*rhoa*dz
           dqicup_vavg(iCell) = dqicup_vavg(iCell) + dqicup(k,iCell)*rhoa*dz
@@ -731,11 +742,7 @@
              rhoa = rhoa*(1._RKIND+qv(k,iCell))
 
              !--- vertically-averaged convective tendencies:
-             dtcup_vavg(iCell)  = dtcup_vavg(iCell)  + dtcup(k,iCell)*rhoa*dz
-             dqvcup_vavg(iCell) = dqvcup_vavg(iCell) + dqvcup(k,iCell)*rhoa*dz
-             dqccup_vavg(iCell) = dqccup_vavg(iCell) + dqccup(k,iCell)*rhoa*dz
              dqrcup_vavg(iCell) = dqrcup_vavg(iCell) + dqrcup(k,iCell)*rhoa*dz
-             dqicup_vavg(iCell) = dqicup_vavg(iCell) + dqicup(k,iCell)*rhoa*dz
              dqscup_vavg(iCell) = dqscup_vavg(iCell) + dqscup(k,iCell)*rhoa*dz
           enddo
        endif
@@ -754,13 +761,14 @@
 
        sumr = 0._RKIND
        do k = 1, nVertLevels
-          dz   = zgrid(k+1,iCell)-zgrid(k,iCell)
-          rhoa = zz(k,iCell)*rho_zz(k,iCell)
-          rhoa = rhoa*(1._RKIND+qv(k,iCell))
-          sumr = sumr+rhoa*dz
+          dz    = zgrid(k+1,iCell)-zgrid(k,iCell)
+          rhoa  = zz(k,iCell)*rho_zz(k,iCell)
+          rhoa  = rhoa*(1._RKIND+qv(k,iCell))
+          rhoat = rhoa*exner(k,iCell)
+          sumr  = sumr+rhoa*dz
 
           !--- vertically-integrated grid-scale tendencies:
-          dtmp_vavg(iCell)  = dtmp_vavg(iCell)  + dtmp(k,iCell)*rhoa*dz
+          dtmp_vavg(iCell)  = dtmp_vavg(iCell)  + dtmp(k,iCell)*rhoat*dz
           dqvmp_vavg(iCell) = dqvmp_vavg(iCell) + dqvmp(k,iCell)*rhoa*dz
           dqcmp_vavg(iCell) = dqcmp_vavg(iCell) + dqcmp(k,iCell)*rhoa*dz
           dqrmp_vavg(iCell) = dqrmp_vavg(iCell) + dqrmp(k,iCell)*rhoa*dz
@@ -781,13 +789,14 @@
 
        sumr = 0._RKIND
        do k = 1, nVertLevels
-          dz   = zgrid(k+1,iCell)-zgrid(k,iCell)
-          rhoa = zz(k,iCell)*rho_zz(k,iCell)
-          rhoa = rhoa*(1._RKIND+qv(k,iCell))
-          sumr = sumr+rhoa*dz
+          dz    = zgrid(k+1,iCell)-zgrid(k,iCell)
+          rhoa  = zz(k,iCell)*rho_zz(k,iCell)
+          rhoa  = rhoa*(1._RKIND+qv(k,iCell))
+          rhoat = rhoa*exner(k,iCell)
+          sumr  = sumr+rhoa*dz
 
           !--- vertically-integrated PBL tendencies:       
-          dtbl_vavg(iCell)  = dtbl_vavg(iCell)  + dtbl(k,iCell)*rhoa*dz
+          dtbl_vavg(iCell)  = dtbl_vavg(iCell)  + dtbl(k,iCell)*rhoat*dz
           dqvbl_vavg(iCell) = dqvbl_vavg(iCell) + dqvbl(k,iCell)*rhoa*dz
           dqcbl_vavg(iCell) = dqcbl_vavg(iCell) + dqcbl(k,iCell)*rhoa*dz
           dqibl_vavg(iCell) = dqibl_vavg(iCell) + dqibl(k,iCell)*rhoa*dz
@@ -802,13 +811,14 @@
 
        sumr = 0._RKIND
        do k = 1, nVertLevels
-          dz   = zgrid(k+1,iCell)-zgrid(k,iCell)
-          rhoa = zz(k,iCell)*rho_zz(k,iCell)
-          rhoa = rhoa*(1._RKIND+qv(k,iCell))
-          sumr = sumr+rhoa*dz
+          dz    = zgrid(k+1,iCell)-zgrid(k,iCell)
+          rhoa  = zz(k,iCell)*rho_zz(k,iCell)
+          rhoa  = rhoa*(1._RKIND+qv(k,iCell))
+          rhoat = rhoa*exner(k,iCell)
+          sumr  = sumr+rhoa*dz
 
           !--- vertically-integrated lw radiation tendency:
-          dtlw_vavg(iCell) = dtlw_vavg(iCell)  + dtlw(k,iCell)*rhoa*dz
+          dtlw_vavg(iCell) = dtlw_vavg(iCell)  + dtlw(k,iCell)*rhoat*dz
        enddo
        dtlw_vavg(iCell) = dtlw_vavg(iCell)/sumr
     enddo
@@ -820,13 +830,14 @@
 
        sumr = 0._RKIND
        do k = 1, nVertLevels
-          dz   = zgrid(k+1,iCell)-zgrid(k,iCell)
-          rhoa = zz(k,iCell)*rho_zz(k,iCell)
-          rhoa = rhoa*(1._RKIND+qv(k,iCell))
-          sumr = sumr+rhoa*dz
+          dz    = zgrid(k+1,iCell)-zgrid(k,iCell)
+          rhoa  = zz(k,iCell)*rho_zz(k,iCell)
+          rhoa  = rhoa*(1._RKIND+qv(k,iCell))
+          rhoat = rhoa*exner(k,iCell)
+          sumr  = sumr+rhoa*dz
 
           !--- vertically-integrated lw radiation tendency:
-          dtsw_vavg(iCell) = dtsw_vavg(iCell)  + dtsw(k,iCell)*rhoa*dz
+          dtsw_vavg(iCell) = dtsw_vavg(iCell)  + dtsw(k,iCell)*rhoat*dz
        enddo
        dtsw_vavg(iCell) = dtsw_vavg(iCell)/sumr
     enddo
