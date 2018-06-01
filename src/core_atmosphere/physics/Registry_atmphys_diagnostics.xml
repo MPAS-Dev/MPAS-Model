@@ -46,6 +46,9 @@
         <var name="t_interp" type="real" dimensions="nFGLevels nCells Time" units="K"
              description="temperature interpolated to fixed pressure levels"/>
 
+        <var name="rh_interp" type="real" dimensions="nFGLevels nCells Time" units="-"
+             description="relative humidity interpolated to fixed pressure levels"/>
+
         <var name="qv_interp" type="real" dimensions="nFGLevels nCells Time" units="kg kg^{-1}"
              description="water vapor mixing ratio interpolated to fixed pressure levels"/>
 

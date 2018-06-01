@@ -15,6 +15,7 @@
                               mpas_pool_get_subpool
  use mpas_atm_diagnostics_utils,only: mpas_field_will_be_written
  use mpas_atmphys_constants,only: R_v,R_d
+ use mpas_atmphys_functions,only: rsif,rslf
 
  implicit none
  private
@@ -60,6 +61,9 @@
 ! * in subroutine atmphys_compute_tendencies_vavg, corrected the calculation of the verticall-averaged tendencies
 !   of temperature (dtcup_vavg,dtmp_vavg,dtbl_vavg,dtlw_vavg,dtsw_vavg).
 !   Laura D. Fowler (laura@ucar.edu) / 2018-05-29.
+! * in subroutine atmphys_diagnostics_interp, added the relative humidity interpolated to fixed pressure
+!   levels.
+!   Laura D. Fowler (laura@ucar.edu) / 2018-06-01.
 
 
  contains
@@ -249,7 +253,7 @@
 
 !local variabl_interpes, arrays, and pointers:
  integer:: iCell,k,kk,nIntP
- integer,pointer:: nCellsSolve,nFGLevels,nVertLevels
+ integer,pointer:: nCells,nCellsSolve,nFGLevels,nVertLevels
  integer,pointer:: index_qv,index_qc,index_qr,index_qi,index_qs,index_qg
 
  real(kind=RKIND),dimension(:,:),pointer  :: p_fg
@@ -258,10 +262,11 @@
  real(kind=RKIND),dimension(:,:),pointer  :: pressure_b,pressure_p,exner
  real(kind=RKIND),dimension(:,:),pointer  :: qv_interp,qc_interp,qr_interp,qi_interp,qs_interp,qg_interp
  real(kind=RKIND),dimension(:,:),pointer  :: qcf_interp,qrf_interp,qif_interp,qsf_interp,qgf_interp
- real(kind=RKIND),dimension(:,:),pointer  :: cld_interp,t_interp
+ real(kind=RKIND),dimension(:,:),pointer  :: cld_interp,rh_interp,t_interp
  real(kind=RKIND),dimension(:,:,:),pointer:: scalars
 
 !local interpolated fields:
+ real(kind=RKIND),dimension(:,:),allocatable:: rh_in
  real(kind=RKIND),dimension(:,:),allocatable:: field_in,press_in
  real(kind=RKIND),dimension(:,:),allocatable:: field_interp,press_interp
 
@@ -269,6 +274,7 @@
  call mpas_log_write(' ')
  call mpas_log_write('--- enter subroutine atmphys_diagnostics_interp:')
 
+ call mpas_pool_get_dimension(mesh,'nCells'     ,nCells)
  call mpas_pool_get_dimension(mesh,'nCellsSolve',nCellsSolve)
  call mpas_pool_get_dimension(mesh,'nFGLevels'  ,nFGLevels  )
  call mpas_pool_get_dimension(mesh,'nVertLevels',nVertLevels)
@@ -301,6 +307,7 @@
  nullify(qs_interp)
  nullify(qg_interp)
  nullify(t_interp )
+ nullify(rh_interp)
  call mpas_pool_get_array(diag_physics_interp,'qv_interp',qv_interp)
  call mpas_pool_get_array(diag_physics_interp,'qc_interp',qc_interp)
  call mpas_pool_get_array(diag_physics_interp,'qr_interp',qr_interp)
@@ -308,6 +315,7 @@
  call mpas_pool_get_array(diag_physics_interp,'qs_interp',qs_interp)
  call mpas_pool_get_array(diag_physics_interp,'qg_interp',qg_interp)
  call mpas_pool_get_array(diag_physics_interp,'t_interp' ,t_interp )
+ call mpas_pool_get_array(diag_physics_interp,'rh_interp',rh_interp)
 
  nullify(qcf_interp)
  nullify(qrf_interp)
@@ -366,6 +374,25 @@
     enddo
  enddo
 !call mpas_log_write('--- end interpolate temperature:')
+
+!--- rh_interp:
+ if(.not.allocated(rh_in)) allocate(rh_in(nVertLevels,nCells+1))
+ call compute_rh(nCells,nCellsSolve,nVertLevels,pressure_b,pressure_p,exner,theta_m,qv,rh_in)
+ do k = 1, nVertLevels
+    kk = nVertLevels+1-k
+    do iCell = 1, nCellsSolve
+       field_in(iCell,kk) = rh_in(k,iCell)
+    enddo
+ enddo
+ call interp_tofixed_pressure(nCellsSolve,nVertLevels,nIntP,press_in,field_in,press_interp,field_interp)
+ do k = 1, nIntP
+    kk = nIntp+1-k
+    do iCell = 1, nCellsSolve
+       rh_interp(k,iCell) = field_interp(iCell,kk)
+    enddo
+ enddo
+ if(allocated(rh_in)) deallocate(rh_in)
+!call mpas_log_write('--- end interpolate relative humidity:')
 
 !--- qv_interp:
  do k = 1, nVertLevels
@@ -1701,6 +1728,56 @@
  enddo
 
  end subroutine interp_tofixed_pressure
+
+!=================================================================================================================
+ subroutine compute_rh(nCells,nCellsSolve,nVertLevels,pressure_b,pressure_p,exner,theta_m,qv,rh)
+!=================================================================================================================
+
+!input arguments:
+ integer,intent(in):: nCells,nCellsSolve,nVertLevels
+ real(kind=RKIND),intent(in),dimension(nVertLevels,nCells+1):: pressure_b,pressure_p,exner,theta_m,qv
+
+!output arguments:
+ real(kind=RKIND),intent(out),dimension(nVertLevels,nCells+1):: rh
+
+!local variables and array:
+ integer:: iCell,k
+
+ real(kind=RKIND):: tempc
+ real(kind=RKIND),dimension(:),allocatable:: qv1d,qvs1d,t1d,p1d
+
+!-----------------------------------------------------------------------------------------------------------------
+
+ do k = 1, nVertLevels
+    do iCell = 1, nCellsSolve
+       rh(k,iCell) = 0._RKIND
+    enddo
+ enddo
+
+ if(.not.allocated(p1d)  ) allocate(p1d(nVertLevels)  )
+ if(.not.allocated(t1d)  ) allocate(t1d(nVertLevels)  )
+ if(.not.allocated(qv1d) ) allocate(qv1d(nVertLevels) )
+ if(.not.allocated(qvs1d)) allocate(qvs1d(nVertLevels))
+
+ do iCell = 1, nCellsSolve
+    do k = 1, nVertLevels
+       p1d(k)   = pressure_p(k,iCell) + pressure_b(k,iCell)
+       t1d(k)   = theta_m(k,iCell)*exner(k,iCell)/(1._RKIND+R_v/R_d*qv(k,iCell))
+       qv1d(k)  = qv(k,iCell)
+       tempc    = t1d(k) - 273.16_RKIND
+       qvs1d(k) = rslf(p1d(k),t1d(k))
+       if(tempc .le. 0._RKIND) qvs1d(k) = rsif(p1d(k),t1d(k))
+
+       rh(k,iCell) = qv1d(k) / qvs1d(k)
+    enddo
+ enddo
+
+ if(allocated(p1d)  ) deallocate(p1d  )
+ if(allocated(t1d)  ) deallocate(t1d  )
+ if(allocated(qv1d) ) deallocate(qv1d )
+ if(allocated(qvs1d)) deallocate(qvs1d)
+
+ end subroutine compute_rh
 
 !=================================================================================================================
  end module mpas_atmphys_compute_diagnostics

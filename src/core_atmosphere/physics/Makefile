@@ -63,6 +63,7 @@ phys_interface: $(OBJS)
 # DEPENDENCIES:
 mpas_atmphys_compute_diagnostics.o: \
 	mpas_atmphys_constants.o \
+	mpas_atmphys_functions.o \
 	../diagnostics/mpas_atm_diagnostics_utils.o
 
 mpas_atmphys_control.o: \
