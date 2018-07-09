@@ -1,0 +1,32 @@
+<!-- *************************************************************** -->
+<!-- Diagnostics for MPAS-Turbulence calculations                    -->
+<!--                                                                 -->
+<!-- Created by John Wong, November / 2017                           -->
+<!-- Copyright (c) 2017 The Weather Company. All rights reserved.    -->
+<!-- *************************************************************** -->
+
+<var_struct name="diag" time_levs="1">
+    
+    <var name="div_tend" type="real" dimensions="nVertLevels nCells Time" units="s^{-2}"
+        description="Horizontal divergence tendency"/>
+    
+    <var name="deformation" type="real" dimensions="nVertLevels nCells Time" units="s^{-1}"
+         description="Horizontal deformation"/>
+         
+    <var name="windspeed" type="real" dimensions="nVertLevels nCells Time" units="m s^{-1}"
+         description="Horizontal wind speed diagnostic from reconstructed values at cell centers"/>
+         
+    <var name="windshear" type="real" dimensions="nVertLevels nCells Time" units="s^{-1}"
+         description="Vertical wind shear in height z coordinate"/>
+         
+    <var name="richno" type="real" dimensions="nVertLevels nCells Time" units="-"
+        description="Richardson number"/>
+        
+    <var name="richno_tw" type="real" dimensions="nVertLevels nCells Time" units="-"
+        description="Richardson number approximated using thermal wind relation"/>
+    
+    <var name="mwtds" type="real" dimensions="nCells Time" units="-"
+        description="Sharman and Pearson near-surface factor for mountain wave turbulence diagnostics."/>
+    
+</var_struct>
+

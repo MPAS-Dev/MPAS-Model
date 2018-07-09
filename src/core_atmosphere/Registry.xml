@@ -920,6 +920,27 @@
 			<var name="smois"/>
 			<var name="tslb"/>
 		</stream>
+        
+        <stream name="turbulence" type="output"
+                filename_template="turbulence.$Y-$M-$D_$h.$m.$s.nc"
+                output_interval="3:00:00"
+                runtime_format="separate_file">
+            <var name="xtime"/>
+            <var name="zgrid"/>
+            <var name="pressure"/>
+            <var name="divergence"/>
+            <var name="div_tend"/>
+            <var name="vorticity"/>
+            <var name="deformation"/>
+            <var name="windspeed"/>
+            <var name="windshear"/>
+            <var name="uReconstructZonal"/>
+            <var name="uReconstructMeridional"/>
+            <var name="richno"/>
+            <var name="richno_tw"/>
+            <var name="mwtds"/>
+        </stream>
+
 
 		<stream name="diagnostics" 
                         type="output" 
@@ -1002,10 +1023,6 @@
             <!-- Begin snow ratio diagnostics defined in diagnostics/Registry_snowratio.xml -->
             <var name="snow_ratio"/>
             <!-- End snow ratio diagnostics defined in diagnostics/Registry_snowratio.xml -->
-            
-            <!-- Begin deformation diagnostics defined in diagnostics/Registry_deformation.xml -->
-            <var name="deformation"/>
-            <!-- End deformation diagnostics defined in diagnostics/Registry_deformation.sxml -->
             
             <!-- Begin unstagger diagnostics defined in diagnostics/Registry_unstagger.xml -->
             <var name="zgrid_unstag"/>

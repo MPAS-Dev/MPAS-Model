@@ -25,8 +25,8 @@
 <!-- snow ratio diagnostics -->
 #include "Registry_snowratio.xml"
 
-<!-- deformation diagnostics -->
-#include "Registry_deformation.xml"
+<!-- turbulence diagnostics -->
+#include "Registry_turbulence.xml"
 
 <!-- aviation diagnostics -->
 #include "Registry_aviation.xml"
