@@ -926,7 +926,7 @@
                 output_interval="3:00:00"
                 runtime_format="separate_file">
             <var name="xtime"/>
-            <var name="zgrid"/>
+            <var name="zgrid_unstag"/>
             <var name="pressure"/>
             <var name="divergence"/>
             <var name="div_tend"/>
@@ -934,10 +934,13 @@
             <var name="deformation"/>
             <var name="windspeed"/>
             <var name="windshear"/>
+            <var name="windshear_tw"/>
             <var name="uReconstructZonal"/>
             <var name="uReconstructMeridional"/>
             <var name="richno"/>
             <var name="richno_tw"/>
+            <var name="invrichno"/>
+            <var name="invrichno_tw"/>
             <var name="mwtds"/>
         </stream>
 

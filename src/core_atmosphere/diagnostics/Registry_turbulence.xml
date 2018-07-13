@@ -17,16 +17,39 @@
          description="Horizontal wind speed diagnostic from reconstructed values at cell centers"/>
          
     <var name="windshear" type="real" dimensions="nVertLevels nCells Time" units="s^{-1}"
-         description="Vertical wind shear in height z coordinate"/>
+         description="Vertical wind shear from reconstructed values in height coordinate at u levels"/>
+         
+    <var name="windshear_tw" type="real" dimensions="nVertLevels nCells Time" units="s^{-1}"
+    description="Vertical wind shear approximated thermal wind relation"/>
          
     <var name="richno" type="real" dimensions="nVertLevels nCells Time" units="-"
         description="Richardson number"/>
         
     <var name="richno_tw" type="real" dimensions="nVertLevels nCells Time" units="-"
         description="Richardson number approximated using thermal wind relation"/>
+        
+    <var name="invrichno" type="real" dimensions="nVertLevels nCells Time" units="-"
+        description="Inversed Richardson number"/>
+        
+    <var name="invrichno_tw" type="real" dimensions="nVertLevels nCells Time" units="-"
+        description="Inversed Richardson number approximated using thermal wind relation"/>
     
     <var name="mwtds" type="real" dimensions="nCells Time" units="-"
         description="Sharman and Pearson near-surface factor for mountain wave turbulence diagnostics."/>
+        
+    <var name="gradTmpIso" type="real" dimensions="nVertLevels nCells Time" units="K m^{-1}"
+        description="Temperature gradient computed along pressure levels"/>
     
+</var_struct>
+
+<!-- Scratch space needed for temperature gradient and thermal wind calculations-->
+<var_struct name="turbDiagnosticsScratch" time_levs="1">
+    <var name="gradTmpIso_n" persistence="scratch" type="real" dimensions="nVertLevels nEdges Time" />
+    <var name="gradTmpIsoXYZ" persistence="scratch" type="real" dimensions="THREE nVertLevels nCells Time" />
+    <var name="gradTmpIsoZonal"  persistence="scratch"type="real" dimensions="nVertLevels nCells Time" />
+    <var name="gradTmpIsoMeridional" persistence="scratch" type="real" dimensions="nVertLevels nCells Time" />
+    <var name="gradTmpIsoSq" persistence="scratch" type="real" dimensions="nVertLevels nCells Time" />
+    <var name="bruntvaisalaSq" persistence="scratch" type="real" dimensions="nVertLevels nCells Time" />
+    <var name="invHeight" persistence="scratch" type="real" dimensions="nVertLevels nCells Time" />
 </var_struct>
 
