@@ -11,17 +11,18 @@ module turbulence_diagnostics
 
     use mpas_derived_types, only : MPAS_pool_type
     use mpas_kind_types, only : RKIND
-    use mpas_pool_routines, only : mpas_pool_get_array, mpas_pool_get_dimension
+    use mpas_pool_routines
     use mpas_constants
     use mpas_field_routines
 
     type (MPAS_pool_type), pointer :: mesh, state, diag, scratch
+    real (kind=RKIND), pointer :: dt
     integer, pointer :: nCells, nCellsSolve, nVertLevels, nEdges, nEdgesSolve
 
     logical :: stream_div_tend, stream_mwtds
     real (kind=RKIND), dimension(:,:), allocatable :: div_old, div_save ! divergence from the previous time step
-    real (kind=RKIND), dimension(:), allocatable :: mwtds_terfac ! terrain factor for mwtds
-    integer, dimension(:), allocatable :: mwtds_windtop ! top layer less than 1500m
+    real (kind=RKIND), dimension(:)  , allocatable :: mwtds_terfac ! terrain factor for mwtds
+    integer          , dimension(:)  , allocatable :: mwtds_windtop ! top layer less than 1500m
 
     ! For interpolation
     real (kind=RKIND), dimension(:), pointer :: fzm, fzp
@@ -48,15 +49,14 @@ module turbulence_diagnostics
     !>  Initialize the diagnostic module.
     !
     !-----------------------------------------------------------------------
-    subroutine turbulence_diagnostics_setup(all_pools)
+    subroutine turbulence_diagnostics_setup(configs, all_pools)
 
         use mpas_derived_types, only : MPAS_pool_type, MPAS_clock_type
-        use mpas_pool_routines, only : mpas_pool_get_subpool
         use mpas_atm_diagnostics_utils, only : mpas_stream_inclusion_count
 
         implicit none
 
-        type (MPAS_pool_type), pointer :: all_pools
+        type (MPAS_pool_type), pointer :: all_pools, configs
 
         call mpas_pool_get_subpool(all_pools, 'mesh', mesh)
         call mpas_pool_get_subpool(all_pools, 'state', state)
@@ -68,6 +68,7 @@ module turbulence_diagnostics
         call mpas_pool_get_dimension(mesh, 'nEdges', nEdges)
         call mpas_pool_get_dimension(mesh, 'nEdgesSolve', nEdgesSolve)
         call mpas_pool_get_dimension(mesh, 'nVertLevels', nVertLevels)
+        call mpas_pool_get_config(configs, 'config_dt', dt)
 
         ! Interpolation constants
         call mpas_pool_get_array(mesh, 'fzm', fzm)
@@ -79,8 +80,8 @@ module turbulence_diagnostics
         ! Allocate scratch space for diagnostics
         if (mpas_stream_inclusion_count('div_tend', direction=MPAS_STREAM_OUTPUT) > 0) then
             stream_div_tend = .true.
-            allocate(div_save(nVertLevels,nCells))
-            allocate(div_old(nVertLevels,nCells))
+            allocate(div_save(nVertLevels,nCells+1))
+            allocate(div_old(nVertLevels,nCells+1))
 
             div_old(:,:) = 0._RKIND
         else
@@ -135,24 +136,24 @@ module turbulence_diagnostics
 
         implicit none
 
-        logical :: need_windspeed, need_windshear, need_windsh_tw
+        logical :: need_windspeed, need_windshear, need_windsh_tw, need_gradTemp
         logical :: need_def, need_div_tend, need_ri, need_ritw, need_mwtds
 
         ! Scratch spaces
-        type(field2DReal), pointer :: nsq_f, invH_f
+        type(field2DReal), pointer :: nsq_f, invH_f, gTsq_f
         real (kind=RKIND), dimension(:,:), pointer :: nsq, invH
 
-        need_ri        = MPAS_field_will_be_written('richno') .or. MPAS_field_will_be_written('invrichno')
-        need_mwtds     = stream_mwtds .and. MPAS_field_will_be_written('mwtds')
-        need_windspeed = MPAS_field_will_be_written('windspeed')
-        need_windshear = need_ri .or. MPAS_field_will_be_written('windshear')
-        need_def       = MPAS_field_will_be_written('deformation')
-        need_div_tend  = stream_div_tend .and. MPAS_field_will_be_written('div_tend')
+        need_ri        = ( MPAS_field_will_be_written('richno') .or. MPAS_field_will_be_written('invrichno') )
+        need_mwtds     = ( stream_mwtds .and. MPAS_field_will_be_written('mwtds') )
+        need_windspeed = ( MPAS_field_will_be_written('windspeed') )
+        need_windshear = ( need_ri .or. MPAS_field_will_be_written('windshear') )
+        need_def       = ( MPAS_field_will_be_written('deformation') )
+        need_div_tend  = ( stream_div_tend .and. MPAS_field_will_be_written('div_tend') )
 
         ! Temperature gradient/thermal wind
-        need_ritw      = MPAS_field_will_be_written('richno_tw') .or. MPAS_field_will_be_written('invrichno_tw')
-        need_windsh_tw = need_ritw .or. MPAS_field_will_be_written('windshear_tw')
-        need_gradTemp  = need_windsh_tw .or. MPAS_field_will_be_written('gradTmpIso')
+        need_ritw      = ( MPAS_field_will_be_written('richno_tw') .or. MPAS_field_will_be_written('invrichno_tw') )
+        need_windsh_tw = ( need_ritw .or. MPAS_field_will_be_written('windshear_tw') )
+        need_gradTemp  = ( need_windsh_tw .or. MPAS_field_will_be_written('gradTmpIso') )
 
         ! Scratch space for shared diagnostics
         call mpas_pool_get_field(scratch, 'bruntvaisalaSq', nsq_f)
@@ -183,7 +184,7 @@ module turbulence_diagnostics
         end if
 
         if (need_gradTemp) then
-            call mpas_pool_get_field(scratch, 'gradTmpIsoSq', gTsq_f)
+            call mpas_pool_get_field(scratch, 'gradTmpSq', gTsq_f)
             call mpas_allocate_scratch_field(gTsq_f, .true.)
             call gradTemp_compute()
             call thermal_wind_compute()
@@ -196,6 +197,7 @@ module turbulence_diagnostics
 
         call mpas_deallocate_scratch_field(nsq_f, .true.)
         call mpas_deallocate_scratch_field(invH_f, .true.)
+
     end subroutine turbulence_diagnostics_compute
 
 
@@ -247,21 +249,19 @@ module turbulence_diagnostics
     ! Compute the brunt-vaisala frequency (squared)
     subroutine buoyancy_compute(Nsquared)
         real (kind=RKIND), dimension(:,:), intent(out) :: Nsquared
-        type(field2DReal), pointer :: rdz_f
         real (kind=RKIND), dimension(:,:), pointer :: theta, rdz
-        real (kind=RKIND), dimension(:), allocatable :: dtheta
+        real (kind=RKIND), dimension(:), allocatable :: dth
         integer :: iCell
 
         allocate(dth(nVertLevels))
-        call mpas_pool_get_field(scratch, 'invHeight', rdz_f)
-        rdz => rdz_f % array
-        mpas_pool_get_array(diag, 'theta', theta)
+        call mpas_pool_get_array(scratch, 'invHeight', rdz)
+        call mpas_pool_get_array(diag, 'theta', theta)
         do iCell = 1,nCells
             call compute_vert_diff_u_u(theta(:,iCell), dth)
             Nsquared(:,iCell) = gravity/theta(:,iCell) * dth(:) * rdz(:,iCell)
         end do
         deallocate(dth)
-    end subroutine
+    end subroutine buoyancy_compute
 
 !-----------------------------------------------------------------------------------
 ! Wind speed, wind shears
@@ -281,7 +281,6 @@ module turbulence_diagnostics
 
         ! inputs
         real (kind=RKIND), dimension(:,:), pointer :: u, v, rdz
-        type(field2DReal), pointer :: rdz_f
 
         ! output
         real (kind=RKIND), dimension(:,:), pointer :: windspeed, windshear
@@ -299,8 +298,7 @@ module turbulence_diagnostics
 
         allocate(du(nVertLevels))
         allocate(dv(nVertLevels))
-        call mpas_pool_get_field(scratch, 'invHeight', rdz_f)
-        rdz => rdz_f % array
+        call mpas_pool_get_array(scratch, 'invHeight', rdz)
 
         do iCell = 1, nCellsSolve
             ! Associate uc,vc with the current column
@@ -332,8 +330,6 @@ module turbulence_diagnostics
     !
     !-----------------------------------------------------------------------
     subroutine deformation_compute()
-
-        use mpas_pool_routines, only : mpas_pool_get_array
 
         implicit none
 
@@ -393,16 +389,10 @@ module turbulence_diagnostics
 ! Divergence tendency
 
     subroutine divtend_compute()
-
         real (kind=RKIND), dimension(:,:), pointer :: div_tend
-        real (kind=RKIND), pointer :: dt
-
-        call mpas_pool_get_config(configs, 'config_dt', dt)
         call mpas_pool_get_array(diag, 'div_tend', div_tend)
-
         div_tend = (div_old - div_save) / dt
-
-    end subroutine divtend_compute()
+    end subroutine divtend_compute
 
 !-----------------------------------------------------------------------------------
 ! Richardson numbers
@@ -410,29 +400,27 @@ module turbulence_diagnostics
     subroutine richno_compute()
 
         ! inputs
-        real (kind=RKIND), dimension(:,:), pointer :: shear
+        real (kind=RKIND), dimension(:,:), pointer :: shear, nsq
         type(field2DReal), pointer :: nsq_f
-        real (kind=RKIND), dimension(:,:) :: nsq
 
         ! outputs
         real (kind=RKIND), dimension(:,:), pointer :: ri, invri
 
         ! Local variables
         integer :: iCell, k
-        real (kind=RKIND) :: shearsq, nsq_cell
+        real (kind=RKIND) :: shearsq
 
-        mpas_pool_get_array(diag, 'windshear', shear)
-        mpas_pool_get_array(diag, 'richno', ri)
-        mpas_pool_get_array(diag, 'invrichno', invri)
+        call mpas_pool_get_array(diag, 'windshear', shear)
+        call mpas_pool_get_array(diag, 'richno', ri)
+        call mpas_pool_get_array(diag, 'invrichno', invri)
         call mpas_pool_get_field(scratch, 'bruntvaisalaSq', nsq_f)
         nsq => nsq_f % array
 
         do iCell = 1,nCellsSolve
             do k = 1, nVertLevels
-                nsq_v = nsq(k,iCell)
                 shearsq = shear(k,iCell)*shear(k,iCell)
-                richno(k,iCell) = nsq_cell/max(shearsq,1.0e-15_RKIND)
-                invrichno(k,iCell) = shearsq/max(nsq_cell,1.0e-15_RKIND)
+                ri(k,iCell) = nsq(k,iCell)/max(shearsq,1.0e-15_RKIND)
+                invri(k,iCell) = shearsq/max(nsq(k,iCell),1.0e-15_RKIND)
             end do
         end do
     end subroutine richno_compute
@@ -444,12 +432,12 @@ module turbulence_diagnostics
 
         use mpas_dmpar, only : mpas_dmpar_exch_halo_field
         use mpas_derived_types, only : field3DReal, field2DReal
+        use mpas_vector_reconstruction, only : mpas_reconstruct
 
         ! inputs
         real (kind=RKIND), dimension(:,:), pointer :: exner, theta_m, pressure_b, pressure_p
         real (kind=RKIND), dimension(:,:,:), pointer :: scalars
         integer, pointer :: index_qv
-        real (kind=RKIND), dimension(:), pointer :: temperature, pressure
         real (kind=RKIND), dimension(:), pointer :: rdzw, invDcEdge
 
         ! fields for halo exchanges
@@ -495,7 +483,7 @@ module turbulence_diagnostics
 
         ! Prepare scratch space
         call mpas_pool_get_field(scratch, 'gradTmp_n', gTn_f)
-        call mpas_pool_get_field(scratch, 'gradTmpXYZ', gTX_f)
+        call mpas_pool_get_field(scratch, 'gradTmpXYZ', gTXYZ_f)
         call mpas_pool_get_field(scratch, 'gradTmpZonal', gTzonal_f)
         call mpas_pool_get_field(scratch, 'gradTmpMeridional', gTmeridional_f)
         call mpas_pool_get_field(scratch, 'gradTmpSq', gTsq_f)
@@ -512,8 +500,8 @@ module turbulence_diagnostics
         gTsq => gTsq_f % array
 
         ! Compute primary diagnostics
-        allocate(pressure(nVertLevels,nCells)      )
-        allocate(temperature(nVertLevels,nCells)   )
+        allocate(pressure(nVertLevels,nCells+1)      )
+        allocate(temperature(nVertLevels,nCells+1)   )
         pressure(:,:) = pressure_p(:,:) + pressure_b(:,:)
         temperature(:,:) = theta_m(:,:)/(1._RKIND+rvord*scalars(index_qv,:,:)) * exner(:,:)
 
@@ -522,7 +510,7 @@ module turbulence_diagnostics
         allocate(dp(nVertLevels))
         allocate(dTdp(nVertLevels,nCells))
         do iCell = 1,nCells
-            call compute_vert_diff_u_u(T(:,iCell), dT)
+            call compute_vert_diff_u_u(temperature(:,iCell), dT)
             call compute_vert_diff_u_u(pressure(:,iCell), dp)
             dTdp(:,iCell) = dT/dp
         end do
@@ -530,12 +518,12 @@ module turbulence_diagnostics
         deallocate(dp)
 
         ! Compute gradients alone edges
-        allocate(temperature2(nVertLevels))
+        allocate(temperature2(nVertLevels)) ! holds T at cell2
         do iEdge = 1,nEdgesSolve
             cell1 = cellsOnEdge(1,iEdge)
             cell2 = cellsOnEdge(2,iEdge)
             temperature2 = temperature(:,cell2) + &
-                    (pressure(:,cell2)-pressure(:,cell1)) * (dTdp(:,cell2)+dTdp(:,cell1))*0.5)
+                    (pressure(:,cell2)-pressure(:,cell1)) * (dTdp(:,cell2)+dTdp(:,cell1))*0.5
             gTn(:,iEdge) = (temperature2(:)-temperature(:,cell1)) * invDcEdge(iEdge)
         end do
         deallocate(temperature2)
@@ -564,10 +552,8 @@ module turbulence_diagnostics
     ! Compute thermal wind derived wind shear and richardson number
     subroutine thermal_wind_compute()
 
-        type(field2DReal), pointer :: nsq_f, rdz_f, gTsq_f
-        real (kind=RKIND), dimension(:,:) :: nsq, rdz, gTsq
-
-        real (kind=RKIND), dimension(:,:) :: shear_tw, richno_tw, invrichno_tw
+        real (kind=RKIND), dimension(:,:), pointer :: nsq, rdz, gTsq
+        real (kind=RKIND), dimension(:,:), pointer :: shear_tw, richno_tw, invrichno_tw
 
         real (kind=RKIND) :: invHRGradTsq, fCellsq, NfCellsq
         real (kind=RKIND), dimension(:), allocatable :: richno_n, richno_d
@@ -575,16 +561,13 @@ module turbulence_diagnostics
 
         ! diagnostics
         call mpas_pool_get_array(diag, 'windshear_tw', shear_tw)
-        call mpas_pool_get_array(diag, 'richno_tw', richno_tw
+        call mpas_pool_get_array(diag, 'richno_tw', richno_tw)
         call mpas_pool_get_array(diag, 'invrichno_tw', invrichno_tw)
 
         ! scratch fields
-        call mpas_pool_get_field(scratch, 'gradTmpSq', gTsq_f)
-        call mpas_pool_get_field(scratch, 'bruntvaisalaSq', nsq_f)
-        call mpas_pool_get_field(scratch, 'invHeight', rdz_f)
-        gTsq=> gTsq_f % array
-        nsq => nsq_f % array
-        rdz => rdz_f % array
+        call mpas_pool_get_array(scratch, 'gradTmpSq', gTsq)
+        call mpas_pool_get_array(scratch, 'bruntvaisalaSq', nsq)
+        call mpas_pool_get_array(scratch, 'invHeight', rdz)
 
         allocate(richno_n(nVertLevels))
         allocate(richno_d(nVertLevels))
@@ -609,9 +592,11 @@ module turbulence_diagnostics
 ! Mountain wave near-surface diagnostic (ds)
 
     ! Compute the terrain gradient at cell centers
-    subroutine compute_terrain_gradient(gradTer)
+    subroutine compute_terrain_gradient(ter, gradTer)
+        use mpas_vector_reconstruction, only : mpas_reconstruct
+
         real (kind=RKIND), dimension(:), intent(out) :: gradTer
-        real (kind=RKIND), dimension(:,:), pointer :: cellsOnEdge, zgrid
+        integer          , dimension(:,:), pointer :: cellsOnEdge
         real (kind=RKIND), dimension(:), pointer :: invDcEdge, ter
 
         real (kind=RKIND), dimension(:), allocatable :: gradTer_edge, gTX, gTY, gTZ
@@ -621,7 +606,6 @@ module turbulence_diagnostics
 
         call mpas_pool_get_array(mesh, 'cellsOnEdge', cellsOnEdge)
         call mpas_pool_get_array(mesh, 'invDcEdge', invDcEdge)
-        call mpas_pool_get_array(mesh, 'zgrid', zgrid)
 
         allocate(gradTer_edge(nEdges))
         allocate(gTX(nCells))
@@ -630,12 +614,12 @@ module turbulence_diagnostics
         allocate(gTzonal(nCells))
         allocate(gTmeridional(nCells))
 
-        ter = zgrid(1,:)
         do iEdge = 1, nEdgesSolve
             cell1 = cellsOnEdge(1,iEdge)
             cell2 = cellsOnEdge(2,iEdge)
-            gradTer_edge(iEdge) = (ter(cell2)-ter(cell1)) * invDcEdge
+            gradTer_edge(iEdge) = (ter(cell2)-ter(cell1)) * invDcEdge(iEdge)
         end do
+
         call mpas_reconstruct(mesh, gradTer_edge, gTX, gTY, gTZ, gTzonal, gTmeridional)
         gradTer = sqrt(gTzonal*gTzonal + gTmeridional*gTmeridional)
 
@@ -663,11 +647,11 @@ module turbulence_diagnostics
         call mpas_pool_get_array(mesh, 'zgrid', zgrid)
         ter => zgrid(1,:)
 
-        call compute_terrain_gradient(gradTer)
+        call compute_terrain_gradient(ter,gradTer)
 
         do iCell = 1,nCellsSolve
             ! Compute the terrain height factor
-            if ter(iCell) < heightThreshold .and. gradTer(iCell) < gradThreshold then
+            if (ter(iCell) < heightThreshold .and. gradTer(iCell) < gradThreshold) then
                 mwtds_terfac(iCell) = 0.0_RKIND
             else
                 mwtds_terfac(iCell) = min(terfacMin, ter(iCell))
@@ -675,7 +659,7 @@ module turbulence_diagnostics
 
             ! Find the last level less than windtopThreshold
             k = 1
-            do while(zgrid(k+1,iCell) .lt. windtopThreshold)
+            do while((zgrid(k+1,iCell)-ter(iCell)) .lt. windtopThreshold)
                 k = k + 1
             end do
             mwtds_windtop(iCell) = k
