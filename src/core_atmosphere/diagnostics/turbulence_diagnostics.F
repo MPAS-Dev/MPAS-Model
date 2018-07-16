@@ -153,7 +153,7 @@ module turbulence_diagnostics
         ! Temperature gradient/thermal wind
         need_ritw      = ( MPAS_field_will_be_written('richno_tw') .or. MPAS_field_will_be_written('invrichno_tw') )
         need_windsh_tw = ( need_ritw .or. MPAS_field_will_be_written('windshear_tw') )
-        need_gradTemp  = ( need_windsh_tw .or. MPAS_field_will_be_written('gradTmpIso') )
+        need_gradTemp  = ( need_windsh_tw .or. MPAS_field_will_be_written('gradTmp') )
 
         ! Scratch space for shared diagnostics
         call mpas_pool_get_field(scratch, 'bruntvaisalaSq', nsq_f)
@@ -401,7 +401,6 @@ module turbulence_diagnostics
 
         ! inputs
         real (kind=RKIND), dimension(:,:), pointer :: shear, nsq
-        type(field2DReal), pointer :: nsq_f
 
         ! outputs
         real (kind=RKIND), dimension(:,:), pointer :: ri, invri
@@ -413,8 +412,7 @@ module turbulence_diagnostics
         call mpas_pool_get_array(diag, 'windshear', shear)
         call mpas_pool_get_array(diag, 'richno', ri)
         call mpas_pool_get_array(diag, 'invrichno', invri)
-        call mpas_pool_get_field(scratch, 'bruntvaisalaSq', nsq_f)
-        nsq => nsq_f % array
+        call mpas_pool_get_array(scratch, 'bruntvaisalaSq', nsq)
 
         do iCell = 1,nCellsSolve
             do k = 1, nVertLevels
@@ -445,48 +443,44 @@ module turbulence_diagnostics
         type (field2DReal), pointer :: theta_f, exner_f, pb_f, pp_f
 
         ! outputs
-        real (kind=RKIND), dimension(:,:), pointer :: gradTmpIso
+        real (kind=RKIND), dimension(:,:), pointer :: gradTmp
 
         ! scratch
-        type(field3DReal), pointer :: gTXYZ_f
-        type(field2DReal), pointer :: gTn_f, gTzonal_f, gTmeridional_f, gTsq_f
+        type (field3DReal), pointer :: gTXYZ_f
+        type (field2DReal), pointer :: gTn_f, gTzonal_f, gTmeridional_f, gTsq_f
         real (kind=RKIND), dimension(:,:), pointer :: gTn, gTX, gTY, gTZ, gTzonal, gTmeridional, gTsq
+        real (kind=RKIND), dimension(:,:), pointer :: zgrid, rdz, zxu
 
         ! local variables
         integer, dimension(:,:), pointer :: cellsOnEdge
-        real (kind=RKIND), dimension(:,:), allocatable :: pressure, temperature, dTdp
-        real (kind=RKIND), dimension(:), allocatable :: dT, dp, temperature2
-        integer :: iCell, iEdge, k, cell1, cell2
+        real (kind=RKIND), dimension(:,:), allocatable :: temperature, dTdz
+        real (kind=RKIND), dimension(:), allocatable :: dT, temperature2
+        integer :: iCell, iEdge, k, cell1, cell2, nVertLevelsP1
 
         ! Exhange halos for prognostics
         call mpas_pool_get_field(state, 'scalars', scalar_f)
         call mpas_pool_get_field(state, 'theta_m', theta_f)
         call mpas_pool_get_field(diag , 'exner',   exner_f)
-        call mpas_pool_get_field(diag , 'pressure_base', pb_f)
-        call mpas_pool_get_field(diag , 'pressure_p', pp_f)
 
         call mpas_dmpar_exch_halo_field(scalar_f)
         call mpas_dmpar_exch_halo_field(theta_f)
         call mpas_dmpar_exch_halo_field(exner_f)
-        call mpas_dmpar_exch_halo_field(pb_f)
-        call mpas_dmpar_exch_halo_field(pp_f)
 
         ! Get the actual variables
         call mpas_pool_get_array(mesh, 'cellsOnEdge', cellsOnEdge)
         call mpas_pool_get_array(mesh, 'invDcEdge', invDcEdge)
+        call mpas_pool_get_array(mesh, 'zxu', zxu)
         call mpas_pool_get_dimension(state, 'index_qv', index_qv)
         call mpas_pool_get_array(state, 'theta_m', theta_m, 1)
         call mpas_pool_get_array(state, 'scalars', scalars, 1)
         call mpas_pool_get_array(diag, 'exner', exner)
-        call mpas_pool_get_array(diag, 'pressure_base', pressure_b)
-        call mpas_pool_get_array(diag, 'pressure_p', pressure_p)
+        call mpas_pool_get_array(scratch, 'invHeight', rdz)
 
         ! Prepare scratch space
         call mpas_pool_get_field(scratch, 'gradTmp_n', gTn_f)
         call mpas_pool_get_field(scratch, 'gradTmpXYZ', gTXYZ_f)
         call mpas_pool_get_field(scratch, 'gradTmpZonal', gTzonal_f)
         call mpas_pool_get_field(scratch, 'gradTmpMeridional', gTmeridional_f)
-        call mpas_pool_get_field(scratch, 'gradTmpSq', gTsq_f)
         call mpas_allocate_scratch_field(gTn_f, .true.)
         call mpas_allocate_scratch_field(gTXYZ_f, .true.)
         call mpas_allocate_scratch_field(gTzonal_f, .true.)
@@ -497,34 +491,28 @@ module turbulence_diagnostics
         gTZ => gTXYZ_f % array(3,:,:)
         gTzonal => gTzonal_f % array
         gTmeridional => gTmeridional_f % array
-        gTsq => gTsq_f % array
 
         ! Compute primary diagnostics
-        allocate(pressure(nVertLevels,nCells+1)      )
         allocate(temperature(nVertLevels,nCells+1)   )
-        pressure(:,:) = pressure_p(:,:) + pressure_b(:,:)
         temperature(:,:) = theta_m(:,:)/(1._RKIND+rvord*scalars(index_qv,:,:)) * exner(:,:)
 
-        ! Compute dT/dp
+        ! Compute dT/dz
         allocate(dT(nVertLevels))
-        allocate(dp(nVertLevels))
-        allocate(dTdp(nVertLevels,nCells))
+        allocate(dTdz(nVertLevels,nCells))
         do iCell = 1,nCells
             call compute_vert_diff_u_u(temperature(:,iCell), dT)
-            call compute_vert_diff_u_u(pressure(:,iCell), dp)
-            dTdp(:,iCell) = dT/dp
+            dTdz(:,iCell) = dT * rdz(:,iCell)
         end do
         deallocate(dT)
-        deallocate(dp)
 
         ! Compute gradients alone edges
         allocate(temperature2(nVertLevels)) ! holds T at cell2
+        nVertLevelsP1 = nVertLevels + 1
         do iEdge = 1,nEdgesSolve
             cell1 = cellsOnEdge(1,iEdge)
             cell2 = cellsOnEdge(2,iEdge)
-            temperature2 = temperature(:,cell2) + &
-                    (pressure(:,cell2)-pressure(:,cell1)) * (dTdp(:,cell2)+dTdp(:,cell1))*0.5
-            gTn(:,iEdge) = (temperature2(:)-temperature(:,cell1)) * invDcEdge(iEdge)
+            gTn(:,iEdge) = (temperature(:,cell2) - temperature(:,cell1)) * invDcEdge(iEdge) &
+                            - 0.5 * (dTdz(:,cell2) + dTdz(:,cell1)) * zxu(:,iEdge)
         end do
         deallocate(temperature2)
 
@@ -532,14 +520,14 @@ module turbulence_diagnostics
         call mpas_reconstruct(mesh, gTn, gTX, gTY, gTZ, gTzonal, gTmeridional)
 
         ! Compute the final gradient
-        call mpas_pool_get_array(diag, 'gradTmpIso', gradTmpIso)
+        call mpas_pool_get_array(diag, 'gradTmp', gradTmp)
+        call mpas_pool_get_array(scratch, 'gradTmpSq', gTsq)
         gTsq(:,:) = gTzonal * gTzonal + gTmeridional * gTmeridional
-        gradTmpIso = sqrt(gTsq)
+        gradTmp = sqrt(gTsq)
 
         ! Cleanup
-        deallocate(pressure)
         deallocate(temperature)
-        deallocate(dTdp)
+        deallocate(dTdz)
 
         ! Release scratch space
         call mpas_deallocate_scratch_field(gTn_f, .true.)
@@ -685,7 +673,7 @@ module turbulence_diagnostics
         do iCell = 1,nCellsSolve
             bltop = mwtds_windtop(iCell)
             wspd(1:bltop) = sqrt(uz(1:bltop,iCell)**2 + um(1:bltop,iCell)**2)
-            mwtds(iCell) = maxval(wspd(1:k)) * mwtds_terfac(iCell)
+            mwtds(iCell) = maxval(wspd(1:bltop)) * mwtds_terfac(iCell)
         end do
         deallocate(wspd)
     end subroutine mwtds_compute

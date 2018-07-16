@@ -37,8 +37,8 @@
     <var name="mwtds" type="real" dimensions="nCells Time" units="-"
         description="Sharman and Pearson near-surface factor for mountain wave turbulence diagnostics."/>
         
-    <var name="gradTmpIso" type="real" dimensions="nVertLevels nCells Time" units="K m^{-1}"
-        description="Temperature gradient computed along pressure levels"/>
+    <var name="gradTmp" type="real" dimensions="nVertLevels nCells Time" units="K m^{-1}"
+        description="Horizontal temperature gradient"/>
     
 </var_struct>
 
