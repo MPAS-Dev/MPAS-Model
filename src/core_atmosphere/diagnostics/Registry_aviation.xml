@@ -12,6 +12,9 @@
          
     <var name="avcnvmsk" type="real" dimensions="nCells Time" units="fraction"
          description="Aviation convective mask"/>
+
+    <var name="echotop" type="real" dimensions="nCells Time" units="ft/1000"
+         description="Aviation echo top"/>
     
 </var_struct>
 

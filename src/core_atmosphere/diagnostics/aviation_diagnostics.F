@@ -30,6 +30,7 @@ module aviation_diagnostics
     private
 
     logical :: is_needed_avcnvmsk
+    logical :: is_needed_echotop
 
     ! Smoothing
     integer :: smooth_radius ! Radius for HIWC smoothing, 0 = no smoothing
@@ -67,6 +68,7 @@ module aviation_diagnostics
         call mpas_pool_get_subpool(all_pools, 'sfc_input', sfc_input)
 
         is_needed_avcnvmsk = (mpas_stream_inclusion_count('avcnvmsk', direction=MPAS_STREAM_OUTPUT) > 0)
+        is_needed_echotop = (mpas_stream_inclusion_count('echotop', direction=MPAS_STREAM_OUTPUT) > 0)
 
         ! Initialize smoother if necessary
         if (mpas_stream_inclusion_count('hiwc', direction=MPAS_STREAM_OUTPUT) > 0) then
@@ -170,9 +172,10 @@ module aviation_diagnostics
     subroutine aviation_diagnostics_update()
         implicit none
 
-        if (is_needed_avcnvmsk) then
+        if (is_needed_avcnvmsk .or. is_needed_echotop) then
             call update_avcnvmsk()
         end if
+
     end subroutine aviation_diagnostics_update
 
 
@@ -290,20 +293,23 @@ module aviation_diagnostics
 
 ! ---------------
         integer, pointer :: nCells, nVertLevels
-        real (kind=RKIND), dimension(:,:), pointer :: refl10cm, z, w ! in
+        real (kind=RKIND), dimension(:,:), pointer :: refl10cm, z, w   ! in
         real (kind=RKIND), dimension(:), pointer :: z0, rainncv, cutop ! in
-        real (kind=RKIND), dimension(:), pointer :: avcnvmsk ! out
+        real (kind=RKIND), dimension(:), pointer :: avcnvmsk  ! out
+        real (kind=RKIND), dimension(:), pointer :: echotop ! out
 
         integer :: iCell, k, k_echotop
-        real :: dbzmax, wmax, echotop, wgt, w_fct, dbz_fct, et_fct
+        real :: dbzmax, wmax, wgt, w_fct, dbz_fct, et_fct, et
 
         real, parameter :: dbzcrit_min = 18.0
         real, parameter :: dbzcrit_max = 60.0
         real, parameter :: pcpcrit_min = 0.0       ! timestep precip, mm
         real, parameter :: wcrit_min   = 0.30      ! updraft, m/s
         real, parameter :: wcrit_max   = 20.
-        real, parameter :: etcrit_min  = 7620.0    ! echo top, m, = 25000ft
-        real, parameter :: etcrit_max  = 18288.0   ! = 60000ft
+!       real, parameter :: etcrit_min  = 7620.0    ! echo top, m, = 25000ft
+!       real, parameter :: etcrit_max  = 18288.0   ! = 60000ft
+        real, parameter :: etcrit_min  = 25.       ! echo top, = 25000ft
+        real, parameter :: etcrit_max  = 60.       ! = 60000ft
 
 ! --------------
 
@@ -316,6 +322,7 @@ module aviation_diagnostics
         call mpas_pool_get_array(diag, 'zgrid_unstag', z)
         call mpas_pool_get_array(sfc_input, 'ter', z0)
         call mpas_pool_get_array(diag, 'avcnvmsk', avcnvmsk)
+        call mpas_pool_get_array(diag, 'echotop', echotop)
 
         do iCell=1,nCells
             ! Find the max reflectivity and max updraft
@@ -335,22 +342,21 @@ module aviation_diagnostics
 
             ! Convert echotop index to height AGL
             if (k_echotop <= 1) then
-                echotop = 0.
+                et = 0.
             else
                 ! Linearly interpolate to find the echotop height between two levels
                 wgt = (refl10cm(k_echotop,iCell) - dbzcrit_min) / &
                       (refl10cm(k_echotop,iCell) - refl10cm(k_echotop+1,iCell))
                 wgt = MAX(0., MIN(1., wgt))
-                echotop = wgt * z(k_echotop+1,iCell) + (1.-wgt) * z(k_echotop,iCell) ! MSL
-                echotop = echotop - z0(iCell) ! AGL
+                et = ((wgt*z(k_echotop+1,iCell)+(1.-wgt)*z(k_echotop,iCell))-z0(iCell))*3.28084*0.001
             end if
+            echotop(iCell)=MAX(echotop(iCell),et)
 
             ! Calculate convective mask
-            if( rainncv(iCell).ge.pcpcrit_min .and. wmax.ge.wcrit_min .and. echotop.ge.etcrit_min ) then
+            if( rainncv(iCell).ge.pcpcrit_min .and. wmax.ge.wcrit_min .and. et.ge.etcrit_min ) then
                 w_fct   = MAX(0., MIN(1., (wmax-wcrit_min)/(wcrit_max-wcrit_min)))
                 dbz_fct = MAX(0., MIN(1., (dbzmax-dbzcrit_min)/(dbzcrit_max-dbzcrit_min)))
-                et_fct  = MAX(0., MIN(1., (echotop-etcrit_min)/(etcrit_max-etcrit_min)))
-
+                et_fct  = MAX(0., MIN(1., (et-etcrit_min)/(etcrit_max-etcrit_min)))
                 avcnvmsk(iCell) = MAX(avcnvmsk(iCell), 1.+w_fct+dbz_fct+et_fct )
             end if
         end do
@@ -482,11 +488,17 @@ module aviation_diagnostics
         implicit none
 
         real (kind=RKIND), dimension(:), pointer :: avcnvmsk
+        real (kind=RKIND), dimension(:), pointer :: echotop
 
         if (is_needed_avcnvmsk .and. MPAS_field_will_be_written('avcnvmsk')) then
             call mpas_pool_get_array(diag, 'avcnvmsk', avcnvmsk)
             avcnvmsk(:) = 0._RKIND
         end if
+        if (is_needed_echotop .and. MPAS_field_will_be_written('echotop')) then
+            call mpas_pool_get_array(diag, 'echotop', echotop)
+            echotop(:) = 0._RKIND
+        end if
+
     end subroutine aviation_diagnostics_reset
 
 
