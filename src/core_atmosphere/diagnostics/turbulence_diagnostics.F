@@ -454,8 +454,8 @@ module turbulence_diagnostics
         ! local variables
         integer, dimension(:,:), pointer :: cellsOnEdge
         real (kind=RKIND), dimension(:,:), allocatable :: temperature, dTdz
-        real (kind=RKIND), dimension(:), allocatable :: dT, temperature2
-        integer :: iCell, iEdge, k, cell1, cell2, nVertLevelsP1
+        real (kind=RKIND), dimension(:), allocatable :: dT
+        integer :: iCell, iEdge, k, cell1, cell2
 
         ! Exhange halos for prognostics
         call mpas_pool_get_field(state, 'scalars', scalar_f)
@@ -506,15 +506,12 @@ module turbulence_diagnostics
         deallocate(dT)
 
         ! Compute gradients alone edges
-        allocate(temperature2(nVertLevels)) ! holds T at cell2
-        nVertLevelsP1 = nVertLevels + 1
         do iEdge = 1,nEdgesSolve
             cell1 = cellsOnEdge(1,iEdge)
             cell2 = cellsOnEdge(2,iEdge)
             gTn(:,iEdge) = (temperature(:,cell2) - temperature(:,cell1)) * invDcEdge(iEdge) &
                             - 0.5 * (dTdz(:,cell2) + dTdz(:,cell1)) * zxu(:,iEdge)
         end do
-        deallocate(temperature2)
 
         ! Reconstruct to cell center
         call mpas_reconstruct(mesh, gTn, gTX, gTY, gTZ, gTzonal, gTmeridional)
@@ -543,7 +540,7 @@ module turbulence_diagnostics
         real (kind=RKIND), dimension(:,:), pointer :: nsq, rdz, gTsq
         real (kind=RKIND), dimension(:,:), pointer :: shear_tw, richno_tw, invrichno_tw
 
-        real (kind=RKIND) :: invHRGradTsq, fCellsq, NfCellsq
+        real (kind=RKIND) :: fCellsq
         real (kind=RKIND), dimension(:), allocatable :: richno_n, richno_d
         integer :: iCell, k
 
@@ -639,7 +636,7 @@ module turbulence_diagnostics
 
         do iCell = 1,nCellsSolve
             ! Compute the terrain height factor
-            if (ter(iCell) < heightThreshold .and. gradTer(iCell) < gradThreshold) then
+            if (ter(iCell) < heightThreshold .or. gradTer(iCell) < gradThreshold) then
                 mwtds_terfac(iCell) = 0.0_RKIND
             else
                 mwtds_terfac(iCell) = min(terfacMin, ter(iCell))
@@ -660,7 +657,7 @@ module turbulence_diagnostics
     subroutine mwtds_compute()
         real (kind=RKIND), dimension(:), pointer :: mwtds
         real (kind=RKIND), dimension(:,:), pointer :: uz, um
-        real (Kind=RKIND), dimension(:), allocatable :: wspd
+        real (Kind=RKIND), dimension(:), allocatable :: wspdsq
         integer :: iCell, bltop
 
         nVertLevelsP1 = nVertLevels + 1
@@ -669,11 +666,11 @@ module turbulence_diagnostics
         call mpas_pool_get_array(diag, 'uReconstructZonal', uz)
         call mpas_pool_get_array(diag, 'uReconstructMeridional', um)
 
-        allocate(wspd(nVertLevels))
+        allocate(wspdsq(nVertLevels))
         do iCell = 1,nCellsSolve
             bltop = mwtds_windtop(iCell)
-            wspd(1:bltop) = sqrt(uz(1:bltop,iCell)**2 + um(1:bltop,iCell)**2)
-            mwtds(iCell) = maxval(wspd(1:bltop)) * mwtds_terfac(iCell)
+            wspdsq(1:bltop) = uz(1:bltop,iCell)**2 + um(1:bltop,iCell)**2
+            mwtds(iCell) = sqrt(maxval(wspdsq(1:bltop))) * mwtds_terfac(iCell)
         end do
         deallocate(wspd)
     end subroutine mwtds_compute
