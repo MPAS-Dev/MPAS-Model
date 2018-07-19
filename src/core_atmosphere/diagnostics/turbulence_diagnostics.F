@@ -140,7 +140,7 @@ module turbulence_diagnostics
         logical :: need_def, need_div_tend, need_ri, need_ritw, need_mwtds
 
         ! Scratch spaces
-        type(field2DReal), pointer :: nsq_f, invH_f, gTsq_f
+        type(field2DReal), pointer :: nsq_f, invH_f, gTsq_f, temp_f
         real (kind=RKIND), dimension(:,:), pointer :: nsq, invH
 
         need_ri        = ( MPAS_field_will_be_written('richno') .or. MPAS_field_will_be_written('invrichno') )
@@ -184,11 +184,14 @@ module turbulence_diagnostics
         end if
 
         if (need_gradTemp) then
+            call mpas_pool_get_field(scratch, 'temperature', temp_f)
             call mpas_pool_get_field(scratch, 'gradTmpSq', gTsq_f)
             call mpas_allocate_scratch_field(gTsq_f, .true.)
+            call mpas_allocate_scratch_field(temp_f, .true.)
             call gradTemp_compute()
             call thermal_wind_compute()
             call mpas_deallocate_scratch_field(gTsq_f, .true.)
+            call mpas_deallocate_scratch_field(temp_f, .true.)
         end if
 
         if (need_mwtds) then
@@ -449,11 +452,11 @@ module turbulence_diagnostics
         type (field3DReal), pointer :: gTXYZ_f
         type (field2DReal), pointer :: gTn_f, gTzonal_f, gTmeridional_f, gTsq_f
         real (kind=RKIND), dimension(:,:), pointer :: gTn, gTX, gTY, gTZ, gTzonal, gTmeridional, gTsq
-        real (kind=RKIND), dimension(:,:), pointer :: zgrid, rdz, zxu
+        real (kind=RKIND), dimension(:,:), pointer :: temperature, zgrid, rdz, zxu
 
         ! local variables
         integer, dimension(:,:), pointer :: cellsOnEdge
-        real (kind=RKIND), dimension(:,:), allocatable :: temperature, dTdz
+        real (kind=RKIND), dimension(:,:), allocatable :: dTdz
         real (kind=RKIND), dimension(:), allocatable :: dT
         integer :: iCell, iEdge, k, cell1, cell2
 
@@ -475,6 +478,7 @@ module turbulence_diagnostics
         call mpas_pool_get_array(state, 'scalars', scalars, 1)
         call mpas_pool_get_array(diag, 'exner', exner)
         call mpas_pool_get_array(scratch, 'invHeight', rdz)
+        call mpas_pool_get_array(scratch, 'temperature', temperature)
 
         ! Prepare scratch space
         call mpas_pool_get_field(scratch, 'gradTmp_n', gTn_f)
@@ -493,7 +497,6 @@ module turbulence_diagnostics
         gTmeridional => gTmeridional_f % array
 
         ! Compute primary diagnostics
-        allocate(temperature(nVertLevels,nCells+1)   )
         temperature(:,:) = theta_m(:,:)/(1._RKIND+rvord*scalars(index_qv,:,:)) * exner(:,:)
 
         ! Compute dT/dz
@@ -503,7 +506,6 @@ module turbulence_diagnostics
             call compute_vert_diff_u_u(temperature(:,iCell), dT)
             dTdz(:,iCell) = dT * rdz(:,iCell)
         end do
-        deallocate(dT)
 
         ! Compute gradients alone edges
         do iEdge = 1,nEdgesSolve
@@ -523,7 +525,6 @@ module turbulence_diagnostics
         gradTmp = sqrt(gTsq)
 
         ! Cleanup
-        deallocate(temperature)
         deallocate(dTdz)
 
         ! Release scratch space
@@ -537,12 +538,14 @@ module turbulence_diagnostics
     ! Compute thermal wind derived wind shear and richardson number
     subroutine thermal_wind_compute()
 
-        real (kind=RKIND), dimension(:,:), pointer :: nsq, rdz, gTsq
+        real (kind=RKIND), dimension(:,:), pointer :: nsq, rdz, gTsq, temperature
         real (kind=RKIND), dimension(:,:), pointer :: shear_tw, richno_tw, invrichno_tw
 
         real (kind=RKIND) :: fCellsq
         real (kind=RKIND), dimension(:), allocatable :: richno_n, richno_d
         integer :: iCell, k
+
+        call mpas_pool_get_array(scratch, 'temperature', temperature)
 
         ! diagnostics
         call mpas_pool_get_array(diag, 'windshear_tw', shear_tw)
@@ -560,7 +563,7 @@ module turbulence_diagnostics
         fCellsq = omega * omega ! Use omega to approximate f
         do iCell = 1,nCellsSolve
             richno_n = nsq(:,iCell) * fCellsq
-            richno_d = gTsq(:,iCell)*(rgas * rdz(:,iCell))**2
+            richno_d = gTsq(:,iCell) * (gravity / temperature(:,iCell))**2
             shear_tw(:,iCell) = sqrt(richno_d/fCellsq)
             do k = 1,nVertLevels
                 richno_tw(k,iCell) = richno_n(k) / max(richno_d(k),1.0e-15_RKIND)
@@ -672,7 +675,7 @@ module turbulence_diagnostics
             wspdsq(1:bltop) = uz(1:bltop,iCell)**2 + um(1:bltop,iCell)**2
             mwtds(iCell) = sqrt(maxval(wspdsq(1:bltop))) * mwtds_terfac(iCell)
         end do
-        deallocate(wspd)
+        deallocate(wspdsq)
     end subroutine mwtds_compute
 
 end module turbulence_diagnostics

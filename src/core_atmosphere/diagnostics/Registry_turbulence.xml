@@ -45,11 +45,12 @@
 <!-- Scratch space needed for temperature gradient and thermal wind calculations-->
 <var_struct name="turbDiagnosticsScratch" time_levs="1">
     <var name="gradTmp_n" persistence="scratch" type="real" dimensions="nVertLevels nEdges Time" />
-    <var name="gradTmpXYZ" persistence="scratch" type="real" dimensions="THREE nVertLevels nCells Time" />
+    <var name="gradTmpXYZ" persistence="scratch" type="real" dimensions="R3 nVertLevels nCells Time" />
     <var name="gradTmpZonal"  persistence="scratch"type="real" dimensions="nVertLevels nCells Time" />
     <var name="gradTmpMeridional" persistence="scratch" type="real" dimensions="nVertLevels nCells Time" />
     <var name="gradTmpSq" persistence="scratch" type="real" dimensions="nVertLevels nCells Time" />
     <var name="bruntvaisalaSq" persistence="scratch" type="real" dimensions="nVertLevels nCells Time" />
     <var name="invHeight" persistence="scratch" type="real" dimensions="nVertLevels nCells Time" />
+    <var name="temperature" persistence="scratch" type="real" dimensions="nVertLevels nCells Time" />
 </var_struct>
 
