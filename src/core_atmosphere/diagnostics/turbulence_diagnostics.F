@@ -104,6 +104,7 @@ module turbulence_diagnostics
         end if
 
         nTurbulenceLevels = kTurbulenceTop()
+        write(0,*) 'Turbulence top is set to level ', nTurbulenceLevels
 
     end subroutine
 
@@ -232,13 +233,16 @@ module turbulence_diagnostics
 
     ! Find turbulence top to reduce computation
     function kTurbulenceTop()
-        real (kind=RKIND), dimension(:,:), pointer :: zgrid
-        integer :: kTurbulenceTop
+        real (kind=RKIND), dimension(:), pointer :: dzu
+        real (kind=RKIND) :: z
+        integer :: k, kTurbulenceTop
 
-        call mpas_pool_get_array(mesh, 'zgrid', zgrid)
-
-        do kTurbulenceTop=1,nVertLevels
-            if (MINVAL(zgrid(kTurbulenceTop,:)) .gt. turbulenceTop) then
+        call mpas_pool_get_array(mesh, 'dzu', dzu)
+        kTurbulenceTop = nVertLevels
+        do k=1,nVertLevels
+            z = z + dzu(k)
+            if (z .gt. turbulenceTop) then
+                kTurbulenceTop=k
                 return
             end if
         end do
