@@ -19,6 +19,10 @@ module turbulence_diagnostics
     real (kind=RKIND), pointer :: dt
     integer, pointer :: nCells, nCellsSolve, nVertLevels, nEdges, nEdgesSolve
 
+    ! Top for turbulence calculations
+    real (kind=RKIND), parameter :: turbulenceTop = 18288 ! m ~ FL600, top of class A airspace
+    integer :: nTurbulenceLevels
+
     logical :: stream_div_tend, stream_mwtds
     real (kind=RKIND), dimension(:,:), allocatable :: div_old, div_save ! divergence from the previous time step
     real (kind=RKIND), dimension(:)  , allocatable :: mwtds_terfac ! terrain factor for mwtds
@@ -77,6 +81,8 @@ module turbulence_diagnostics
         call mpas_pool_get_array(mesh, 'cf2', cf2)
         call mpas_pool_get_array(mesh, 'cf3', cf3)
 
+        call initializeArrays()
+
         ! Allocate scratch space for diagnostics
         if (mpas_stream_inclusion_count('div_tend', direction=MPAS_STREAM_OUTPUT) > 0) then
             stream_div_tend = .true.
@@ -97,6 +103,8 @@ module turbulence_diagnostics
             stream_mwtds = .false.
         end if
 
+        nTurbulenceLevels = kTurbulenceTop()
+
     end subroutine
 
 
@@ -115,8 +123,8 @@ module turbulence_diagnostics
 
         if (stream_div_tend) then
             call mpas_pool_get_array(diag, 'divergence', divergence)
-            div_save(:,:) = div_old(:,:)
-            div_old(:,:) = divergence(:,:)
+            div_save(1:nTurbulenceLevels,:) = div_old(1:nTurbulenceLevels,:)
+            div_old(1:nTurbulenceLevels,:) = divergence(1:nTurbulenceLevels,:)
         end if
     end subroutine turbulence_diagnostics_update
 
@@ -222,6 +230,44 @@ module turbulence_diagnostics
 !-----------------------------------------------------------------------------------
 ! Helper methods
 
+    ! Find turbulence top to reduce computation
+    function kTurbulenceTop()
+        real (kind=RKIND), dimension(:,:), pointer :: zgrid
+        integer :: kTurbulenceTop
+
+        call mpas_pool_get_array(mesh, 'zgrid', zgrid)
+
+        do kTurbulenceTop=1,nVertLevels
+            if (MINVAL(zgrid(kTurbulenceTop,:)) .gt. turbulenceTop) then
+                return
+            end if
+        end do
+    end function kTurbulenceTop
+
+    ! Initialize 3D arrays to zero
+    subroutine initializeArrays()
+        real (kind=RKIND), dimension(:,:), pointer :: p
+
+        call mpas_pool_get_array(diag, 'gradTmp', p)
+        p(:,:) = 0._RKIND
+        call mpas_pool_get_array(diag, 'windspeed', p)
+        p(:,:) = 0._RKIND
+        call mpas_pool_get_array(diag, 'windshear', p)
+        p(:,:) = 0._RKIND
+        call mpas_pool_get_array(diag, 'deformation', p)
+        p(:,:) = 0._RKIND
+        call mpas_pool_get_array(diag, 'div_tend', p)
+        p(:,:) = 0._RKIND
+        call mpas_pool_get_array(diag, 'richno', p)
+        p(:,:) = 0._RKIND
+        call mpas_pool_get_array(diag, 'invrichno', p)
+        p(:,:) = 0._RKIND
+        call mpas_pool_get_array(diag, 'richno_tw', p)
+        p(:,:) = 0._RKIND
+        call mpas_pool_get_array(diag, 'invrichno_tw', p)
+        p(:,:) = 0._RKIND
+    end subroutine
+
     ! Precompute layer height
     subroutine layer_height_compute(rheight)
         real (kind=RKIND), dimension(:,:), pointer :: zz
@@ -237,16 +283,17 @@ module turbulence_diagnostics
     end subroutine layer_height_compute
 
     ! Compute vertical differences at u from variables at u levels
-    subroutine compute_vert_diff_u_u(uc, duc)
-        real (kind=RKIND), dimension(nVertLevels), intent(IN) :: uc ! column variable at u levels
-        real (kind=RKIND), dimension(nVertLevels), intent(OUT) :: duc ! d(uc) at u levels
+    subroutine compute_vert_diff_u_u(uc, duc, nz)
+        integer, intent(in) :: nz
+        real (kind=RKIND), dimension(nz), intent(IN) :: uc ! column variable at u levels
+        real (kind=RKIND), dimension(nz), intent(OUT) :: duc ! d(uc) at u levels
         integer :: k
 
         duc(1) = fzm(2) * uc(2) + fzp(2) * uc(1) - (cf1 * uc(1) + cf2 * uc(2) + cf3 * uc(3))
-        do k=2, nVertLevels-1
+        do k=2, nz-1
             duc(k) = fzm(k+1) * uc(k+1) + (fzp(k+1) - fzm(k)) * uc(k) - fzp(k) * uc(k-1)
         end do
-        duc(nVertLevels) = duc(nVertLevels-1)
+        duc(nz) = duc(nz-1)
     end subroutine compute_vert_diff_u_u
 
     ! Compute the brunt-vaisala frequency (squared)
@@ -260,7 +307,7 @@ module turbulence_diagnostics
         call mpas_pool_get_array(scratch, 'invHeight', rdz)
         call mpas_pool_get_array(diag, 'theta', theta)
         do iCell = 1,nCells
-            call compute_vert_diff_u_u(theta(:,iCell), dth)
+            call compute_vert_diff_u_u(theta(:,iCell), dth, nVertLevels)
             Nsquared(:,iCell) = gravity/theta(:,iCell) * dth(:) * rdz(:,iCell)
         end do
         deallocate(dth)
@@ -299,22 +346,22 @@ module turbulence_diagnostics
         call mpas_pool_get_array(diag, 'windspeed', windspeed)
         call mpas_pool_get_array(diag, 'windshear', windshear)
 
-        allocate(du(nVertLevels))
-        allocate(dv(nVertLevels))
+        allocate(du(nTurbulenceLevels))
+        allocate(dv(nTurbulenceLevels))
         call mpas_pool_get_array(scratch, 'invHeight', rdz)
 
         do iCell = 1, nCellsSolve
             ! Associate uc,vc with the current column
-            uc => u(1:nVertLevels,iCell)
-            vc => v(1:nVertLevels,iCell)
+            uc => u(1:nTurbulenceLevels,iCell)
+            vc => v(1:nTurbulenceLevels,iCell)
 
             ! Wind speed
-            windspeed(1:nVertLevels,iCell) = sqrt(uc * uc + vc * vc)
+            windspeed(1:nTurbulenceLevels,iCell) = sqrt(uc * uc + vc * vc)
 
             ! Wind shear at cell centers
-            call compute_vert_diff_u_u(uc, du)
-            call compute_vert_diff_u_u(vc, dv)
-            windshear(1:nVertLevels,iCell) = sqrt(du*du + dv*dv) * rdz(1:nVertLevels,iCell)
+            call compute_vert_diff_u_u(uc, du, nTurbulenceLevels)
+            call compute_vert_diff_u_u(vc, dv, nTurbulenceLevels)
+            windshear(1:nTurbulenceLevels,iCell) = sqrt(du*du + dv*dv) * rdz(1:nTurbulenceLevels,iCell)
         end do
     end subroutine speed_shear_compute
 
@@ -365,8 +412,8 @@ module turbulence_diagnostics
         call mpas_pool_get_array(diag, 'deformation', deformation)
 
         ! Allocate arrays for holding diagonal and off-diagonal deformation terms
-        allocate(d_diag(nVertLevels))
-        allocate(d_off_diag(nVertLevels))
+        allocate(d_diag(nTurbulenceLevels))
+        allocate(d_off_diag(nTurbulenceLevels))
 
         do iCell=1,nCellsSolve
             d_diag(:) = 0.0
@@ -375,12 +422,14 @@ module turbulence_diagnostics
             ! Integrate over edges around the cell
             do iEdge=1,nEdgesOnCell(iCell)
                 e = edgesOnCell(iEdge,iCell)
-                d_diag(:)     = d_diag(:)     + defc_a(iEdge,iCell)*u(:,e) - defc_b(iEdge,iCell)*v(:,e)
-                d_off_diag(:) = d_off_diag(:) + defc_b(iEdge,iCell)*u(:,e) + defc_a(iEdge,iCell)*v(:,e)
+                d_diag(:)     = d_diag(:)     + defc_a(iEdge,iCell)*u(1:nTurbulenceLevels,e) &
+                                              - defc_b(iEdge,iCell)*v(1:nTurbulenceLevels,e)
+                d_off_diag(:) = d_off_diag(:) + defc_b(iEdge,iCell)*u(1:nTurbulenceLevels,e) &
+                                              + defc_a(iEdge,iCell)*v(1:nTurbulenceLevels,e)
             end do
 
             ! Combine the diagonal and off-diagonal terms
-            deformation(:,iCell) = sqrt(d_diag(:)**2 + d_off_diag(:)**2)
+            deformation(1:nTurbulenceLevels,iCell) = sqrt(d_diag(:)**2 + d_off_diag(:)**2)
         end do
 
         deallocate(d_diag)
@@ -394,7 +443,7 @@ module turbulence_diagnostics
     subroutine divtend_compute()
         real (kind=RKIND), dimension(:,:), pointer :: div_tend
         call mpas_pool_get_array(diag, 'div_tend', div_tend)
-        div_tend = (div_old - div_save) / dt
+        div_tend(1:nTurbulenceLevels,:) = (div_old(1:nTurbulenceLevels,:) - div_save(1:nTurbulenceLevels,:)) / dt
     end subroutine divtend_compute
 
 !-----------------------------------------------------------------------------------
@@ -418,7 +467,7 @@ module turbulence_diagnostics
         call mpas_pool_get_array(scratch, 'bruntvaisalaSq', nsq)
 
         do iCell = 1,nCellsSolve
-            do k = 1, nVertLevels
+            do k = 1,nTurbulenceLevels
                 shearsq = shear(k,iCell)*shear(k,iCell)
                 ri(k,iCell) = nsq(k,iCell)/max(shearsq,1.0e-15_RKIND)
                 invri(k,iCell) = shearsq/max(nsq(k,iCell),1.0e-15_RKIND)
@@ -503,7 +552,7 @@ module turbulence_diagnostics
         allocate(dT(nVertLevels))
         allocate(dTdz(nVertLevels,nCells))
         do iCell = 1,nCells
-            call compute_vert_diff_u_u(temperature(:,iCell), dT)
+            call compute_vert_diff_u_u(temperature(:,iCell), dT, nVertLevels)
             dTdz(:,iCell) = dT * rdz(:,iCell)
         end do
 
@@ -522,7 +571,7 @@ module turbulence_diagnostics
         call mpas_pool_get_array(diag, 'gradTmp', gradTmp)
         call mpas_pool_get_array(scratch, 'gradTmpSq', gTsq)
         gTsq(:,:) = gTzonal * gTzonal + gTmeridional * gTmeridional
-        gradTmp = sqrt(gTsq)
+        gradTmp(1:nTurbulenceLevels,:) = sqrt(gTsq(1:nTurbulenceLevels,:))
 
         ! Cleanup
         deallocate(dTdz)
@@ -557,15 +606,15 @@ module turbulence_diagnostics
         call mpas_pool_get_array(scratch, 'bruntvaisalaSq', nsq)
         call mpas_pool_get_array(scratch, 'invHeight', rdz)
 
-        allocate(richno_n(nVertLevels))
-        allocate(richno_d(nVertLevels))
+        allocate(richno_n(nTurbulenceLevels))
+        allocate(richno_d(nTurbulenceLevels))
 
         fCellsq = omega * omega ! Use omega to approximate f
         do iCell = 1,nCellsSolve
-            richno_n = nsq(:,iCell) * fCellsq
-            richno_d = gTsq(:,iCell) * (gravity / temperature(:,iCell))**2
-            shear_tw(:,iCell) = sqrt(richno_d/fCellsq)
-            do k = 1,nVertLevels
+            richno_n = nsq(1:nTurbulenceLevels,iCell) * fCellsq
+            richno_d = gTsq(1:nTurbulenceLevels,iCell) * (gravity / temperature(1:nTurbulenceLevels,iCell))**2
+            shear_tw(1:nTurbulenceLevels,iCell) = sqrt(richno_d/fCellsq)
+            do k = 1,nTurbulenceLevels
                 richno_tw(k,iCell) = richno_n(k) / max(richno_d(k),1.0e-15_RKIND)
                 invrichno_tw(k,iCell) = richno_d(k) / max(richno_n(k),1.0e-15_RKIND)
             end do
