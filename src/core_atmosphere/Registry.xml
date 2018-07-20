@@ -1036,6 +1036,7 @@
             <!-- Begin aviation diagnostics defined in diagnostics/Registry_aviation.xml -->
             <var name="hiwc"/>
             <var name="avcnvmsk"/>
+            <var name="echotop"/>
             <!-- End aviation diagnostics defined in diagnostics/Registry_aviation.xml -->
 
             <!-- Begin surface diagnostics defined in diagnostics/Registry_surface.xml -->
