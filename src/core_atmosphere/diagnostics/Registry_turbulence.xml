@@ -39,6 +39,9 @@
         
     <var name="gradTmp" type="real" dimensions="nVertLevels nCells Time" units="K m^{-1}"
         description="Horizontal temperature gradient"/>
+        
+    <var name="iawind" type="real" dimensions="nVertLevels nCells Time" units="m s^{-2}"
+        description="Inertial advective wind"/>
     
 </var_struct>
 

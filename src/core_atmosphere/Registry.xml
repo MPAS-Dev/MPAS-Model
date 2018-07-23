@@ -943,6 +943,7 @@
             <var name="invrichno_tw"/>
             <var name="mwtds"/>
             <var name="gradTmp"/>
+            <var name="iawind"/>
         </stream>
 
 

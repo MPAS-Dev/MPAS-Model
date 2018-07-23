@@ -146,7 +146,7 @@ module turbulence_diagnostics
         implicit none
 
         logical :: need_windspeed, need_windshear, need_windsh_tw, need_gradTemp
-        logical :: need_def, need_div_tend, need_ri, need_ritw, need_mwtds
+        logical :: need_def, need_div_tend, need_ri, need_ritw, need_mwtds, need_iawind
 
         ! Scratch spaces
         type(field2DReal), pointer :: nsq_f, invH_f, gTsq_f, temp_f
@@ -158,6 +158,7 @@ module turbulence_diagnostics
         need_windshear = ( need_ri .or. MPAS_field_will_be_written('windshear') )
         need_def       = ( MPAS_field_will_be_written('deformation') )
         need_div_tend  = ( stream_div_tend .and. MPAS_field_will_be_written('div_tend') )
+        need_iawind    = ( MPAS_field_will_be_written('iawind') )
 
         ! Temperature gradient/thermal wind
         need_ritw      = ( MPAS_field_will_be_written('richno_tw') .or. MPAS_field_will_be_written('invrichno_tw') )
@@ -205,6 +206,10 @@ module turbulence_diagnostics
 
         if (need_mwtds) then
             call mwtds_compute()
+        end if
+
+        if (need_iawind) then
+            call iawind_compute()
         end if
 
         call mpas_deallocate_scratch_field(nsq_f, .true.)
@@ -269,6 +274,8 @@ module turbulence_diagnostics
         call mpas_pool_get_array(diag, 'richno_tw', p)
         p(:,:) = 0._RKIND
         call mpas_pool_get_array(diag, 'invrichno_tw', p)
+        p(:,:) = 0._RKIND
+        call mpas_pool_get_array(diag, 'iawind', p)
         p(:,:) = 0._RKIND
     end subroutine
 
@@ -730,5 +737,106 @@ module turbulence_diagnostics
         end do
         deallocate(wspdsq)
     end subroutine mwtds_compute
+
+!-----------------------------------------------------------------------------------
+! Inertial advective wind diagnostic
+
+    subroutine iawind_compute
+        use mpas_derived_types, only : field3DReal, field2DReal
+        use mpas_vector_reconstruction, only : mpas_reconstruct
+
+        ! scratch
+        type (field3DReal), pointer :: gTXYZ_f
+        type (field2DReal), pointer :: gTn_f, gTzonal_f, gTmeridional_f, gTsq_f
+        real (kind=RKIND), dimension(:,:), pointer :: gTn, gTX, gTY, gTZ, gTzonal, gTmeridional
+
+        ! input
+        real (kind=RKIND), dimension(:,:), pointer :: u, v, zxu, rdz
+        integer          , dimension(:,:), pointer :: cellsOnEdge
+        real (kind=RKIND), dimension(:)  , pointer :: invDcEdge
+        ! output
+        real (kind=RKIND), dimension(:,:), pointer :: iawind
+
+        ! Local variables
+        real (kind=RKIND), dimension(:,:), allocatable :: dudz, dvdz
+        real (kind=RKIND), dimension(:), allocatable :: du, dv
+        integer :: iCell, iEdge, cell1, cell2, nT
+
+        ! Top of calculations performed for turbulence
+        nT = nTurbulenceLevels
+
+        ! Allocate scratch space for gradient reconstruction
+        call mpas_pool_get_field(scratch, 'gradTmp_n', gTn_f)
+        call mpas_pool_get_field(scratch, 'gradTmpXYZ', gTXYZ_f)
+        call mpas_pool_get_field(scratch, 'gradTmpZonal', gTzonal_f)
+        call mpas_pool_get_field(scratch, 'gradTmpMeridional', gTmeridional_f)
+        call mpas_allocate_scratch_field(gTn_f, .true.)
+        call mpas_allocate_scratch_field(gTXYZ_f, .true.)
+        call mpas_allocate_scratch_field(gTzonal_f, .true.)
+        call mpas_allocate_scratch_field(gTmeridional_f, .true.)
+        gTn => gTn_f % array
+        gTX => gTXYZ_f % array(1,:,:)
+        gTY => gTXYZ_f % array(2,:,:)
+        gTZ => gTXYZ_f % array(3,:,:)
+        gTzonal => gTzonal_f % array
+        gTmeridional => gTmeridional_f % array
+
+        ! Get u, v
+        call mpas_pool_get_array(diag, 'uReconstructZonal', u)
+        call mpas_pool_get_array(diag, 'uReconstructMeridional', v)
+        call mpas_pool_get_array(mesh, 'invDcEdge', invDcEdge)
+        call mpas_pool_get_array(mesh, 'zxu', zxu)
+        call mpas_pool_get_array(scratch, 'invHeight', rdz)
+        call mpas_pool_get_array(mesh, 'cellsOnEdge', cellsOnEdge)
+
+        ! Compute du/dz and dv/dz
+        allocate(du(nVertLevels))
+        allocate(dv(nVertLevels))
+        allocate(dudz(nVertLevels, nCells))
+        allocate(dvdz(nVertLevels, nCells))
+        do iCell = 1,nCells
+            call compute_vert_diff_u_u(u(:,iCell), du, nVertLevels)
+            call compute_vert_diff_u_u(v(:,iCell), dv, nVertLevels)
+            dudz(:,iCell) = du * rdz(:,iCell)
+            dvdz(:,iCell) = dv * rdz(:,iCell)
+        end do
+
+        call mpas_pool_get_array(diag, 'iawind', iawind)
+
+        ! Compute for u * dudx
+        do iEdge = 1,nEdgesSolve
+            cell1 = cellsOnEdge(1,iEdge)
+            cell2 = cellsOnEdge(2,iEdge)
+            gTn(:,iEdge) = (u(:,cell2) - u(:,cell1)) * invDcEdge(iEdge) &
+                            - 0.5 * (dudz(:,cell2) + dudz(:,cell1)) * zxu(:,iEdge)
+        end do
+        call mpas_reconstruct(mesh, gTn, gTX, gTY, gTZ, gTzonal, gTmeridional)
+        iawind(1:nT,:) = (u(1:nT,:) * gTzonal(1:nT,:))**2
+
+        ! Compute for v * dvdy
+        do iEdge = 1,nEdgesSolve
+            cell1 = cellsOnEdge(1,iEdge)
+            cell2 = cellsOnEdge(2,iEdge)
+            gTn(:,iEdge) = (v(:,cell2) - v(:,cell1)) * invDcEdge(iEdge) &
+                        - 0.5 * (dvdz(:,cell2) + dvdz(:,cell1)) * zxu(:,iEdge)
+        end do
+        call mpas_reconstruct(mesh, gTn, gTX, gTY, gTZ, gTzonal, gTmeridional)
+        iawind(1:nT,:) = iawind(1:nT,:) + (v(1:nT,:) * gTmeridional(1:nT,:))**2
+
+        ! Finalize iawind
+        iawind(1:nT,:) = sqrt(iawind(1:nT,:))/omega
+
+        ! Clean up
+        deallocate(du)
+        deallocate(dv)
+        deallocate(dudz)
+        deallocate(dvdz)
+
+        ! Release scratch space
+        call mpas_deallocate_scratch_field(gTn_f, .true.)
+        call mpas_deallocate_scratch_field(gTXYZ_f, .true.)
+        call mpas_deallocate_scratch_field(gTzonal_f, .true.)
+        call mpas_deallocate_scratch_field(gTmeridional_f, .true.)
+    end subroutine iawind_compute
 
 end module turbulence_diagnostics
