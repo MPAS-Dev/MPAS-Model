@@ -928,6 +928,7 @@
             <var name="xtime"/>
             <var name="zgrid_unstag"/>
             <var name="pressure"/>
+            <var name="temperature"/>
             <var name="divergence"/>
             <var name="div_tend"/>
             <var name="vorticity"/>

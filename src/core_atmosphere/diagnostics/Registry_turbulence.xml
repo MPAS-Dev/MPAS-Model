@@ -7,6 +7,8 @@
 
 <var_struct name="diag" time_levs="1">
     
+    <var name="temperature" type="real" dimensions="nVertLevels nCells Time" units="K"/>
+    
     <var name="div_tend" type="real" dimensions="nVertLevels nCells Time" units="s^{-2}"
         description="Horizontal divergence tendency"/>
     
@@ -54,6 +56,5 @@
     <var name="gradTmpSq" persistence="scratch" type="real" dimensions="nVertLevels nCells Time" />
     <var name="bruntvaisalaSq" persistence="scratch" type="real" dimensions="nVertLevels nCells Time" />
     <var name="invHeight" persistence="scratch" type="real" dimensions="nVertLevels nCells Time" />
-    <var name="temperature" persistence="scratch" type="real" dimensions="nVertLevels nCells Time" />
 </var_struct>
 

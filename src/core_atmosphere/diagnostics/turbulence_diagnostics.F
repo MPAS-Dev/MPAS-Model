@@ -164,6 +164,7 @@ module turbulence_diagnostics
         need_ritw      = ( MPAS_field_will_be_written('richno_tw') .or. MPAS_field_will_be_written('invrichno_tw') )
         need_windsh_tw = ( need_ritw .or. MPAS_field_will_be_written('windshear_tw') )
         need_gradTemp  = ( need_windsh_tw .or. MPAS_field_will_be_written('gradTmp') )
+        need_temp      = ( MPAS_field_will_be_written('temperature') )
 
         ! Scratch space for shared diagnostics
         call mpas_pool_get_field(scratch, 'bruntvaisalaSq', nsq_f)
@@ -193,15 +194,12 @@ module turbulence_diagnostics
             call richno_compute()
         end if
 
-        if (need_gradTemp) then
-            call mpas_pool_get_field(scratch, 'temperature', temp_f)
+        if (need_gradTemp .or. need_temp) then
             call mpas_pool_get_field(scratch, 'gradTmpSq', gTsq_f)
             call mpas_allocate_scratch_field(gTsq_f, .true.)
-            call mpas_allocate_scratch_field(temp_f, .true.)
             call gradTemp_compute()
             call thermal_wind_compute()
             call mpas_deallocate_scratch_field(gTsq_f, .true.)
-            call mpas_deallocate_scratch_field(temp_f, .true.)
         end if
 
         if (need_mwtds) then
@@ -538,7 +536,7 @@ module turbulence_diagnostics
         call mpas_pool_get_array(state, 'scalars', scalars, 1)
         call mpas_pool_get_array(diag, 'exner', exner)
         call mpas_pool_get_array(scratch, 'invHeight', rdz)
-        call mpas_pool_get_array(scratch, 'temperature', temperature)
+        call mpas_pool_get_array(diag, 'temperature', temperature)
 
         ! Prepare scratch space
         call mpas_pool_get_field(scratch, 'gradTmp_n', gTn_f)
@@ -605,7 +603,7 @@ module turbulence_diagnostics
         real (kind=RKIND), dimension(:), allocatable :: richno_n, richno_d
         integer :: iCell, k
 
-        call mpas_pool_get_array(scratch, 'temperature', temperature)
+        call mpas_pool_get_array(diag, 'temperature', temperature)
 
         ! diagnostics
         call mpas_pool_get_array(diag, 'windshear_tw', shear_tw)
