@@ -1277,6 +1277,14 @@
 					description="This flag is intended for the expert user.  If false, forward model will error out if time given by config_start_time (or Restart_timestamp file if config_start_time='file') does not match any xtime strings in the restart file.  If true, forward model will read in record with xtime nearest to config_start_time.  Note that the restart file name is still given by config_start_time (or Restart_timestamp file), regardless of the state of this flag."
 					possible_values=".true. or .false."
 		/>
+		<nml_option name="config_debug_split_explicit" type="logical" default_value=".false." units="unitless"
+					description="If true, output ssh from split explicit (1 proc only)."
+					possible_values=".true. or .false."
+		/>
+		<nml_option name="config_debug_split_explicit_filename" type="character" default_value="debugSplitExplicitSSH.dat" units="unitless"
+					description="File name for output for debugging split explicit."
+					possible_values="Any acceptable filename pattern."
+		/>
 	</nml_record>
 	<nml_record name="constrain_Haney_number" mode="init">
 		<nml_option name="config_use_rx1_constraint" type="logical" default_value=".false." units="unitless"

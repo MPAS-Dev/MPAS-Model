@@ -31,6 +31,7 @@ module ocn_time_integration_split
    use mpas_threading
    use mpas_timekeeping
    use mpas_log
+   use mpas_io_units
 
    use ocn_tendency
    use ocn_diagnostics
@@ -62,7 +63,7 @@ module ocn_time_integration_split
 
    character (len=*), parameter :: subcycleGroupName = 'subcycleFields'
    character (len=*), parameter :: finalBtrGroupName = 'finalBtrFields'
-   integer :: nBtrSubcycles
+   integer :: nBtrSubcycles, debugSplitExplicitUnit
 
    contains
 
@@ -141,6 +142,7 @@ module ocn_time_integration_split
       logical, pointer :: config_use_cvmix_kpp
       logical, pointer :: config_use_tracerGroup
       logical, pointer :: config_compute_active_tracer_budgets
+      logical, pointer :: config_debug_split_explicit
 
       character (len=StrKIND), pointer :: config_land_ice_flux_mode
 
@@ -257,6 +259,7 @@ module ocn_time_integration_split
       call mpas_pool_get_config(domain % configs, 'config_num_halos', config_num_halos)
 
       call mpas_pool_get_config(domain % configs, 'config_compute_active_tracer_budgets', config_compute_active_tracer_budgets)
+      call mpas_pool_get_config(domain % configs, 'config_debug_split_explicit', config_debug_split_explicit)
       allocate(n_bcl_iter(config_n_ts_iter))
 
       !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -918,6 +921,16 @@ module ocn_time_integration_split
                                           + dt / nBtrSubcycles * sshTend(iCell) / areaCell(iCell)
                 end do
                 !$omp end do
+
+                if (config_debug_split_explicit) then
+                  ! add in write statement for debugging to print to a standard text file (get single strip out) 4.000
+                  ! add in a new line each time for the write statement
+                  do iCell=1,nCells,4  ! Write ever fourth entry, meant for periodic with four-wide
+                    write(debugSplitExplicitUnit,"(ES32.16)", advance='no') sshSubcycleNew(iCell) 
+                  end do
+                  write(debugSplitExplicitUnit, *) ' '
+                  flush(debugSplitExplicitUnit)
+                end if
 
                 !! asarje: changed to avoid redundant computations when config_btr_solve_SSH2 is true
 
@@ -1964,6 +1977,8 @@ module ocn_time_integration_split
 
       integer :: iErr
       integer (kind=I8KIND) :: nBtrSubcyclesI8
+      logical, pointer :: config_debug_split_explicit
+      character(len=StrKIND), pointer :: config_debug_split_explicit_filename
 
       call mpas_pool_get_config(domain % configs, 'config_do_restart', config_do_restart)
 
@@ -1971,6 +1986,10 @@ module ocn_time_integration_split
       call mpas_pool_get_config(domain % configs, 'config_time_integrator', config_time_integrator)
       call mpas_pool_get_config(domain % configs, 'config_btr_dt', config_btr_dt)
       call mpas_pool_get_config(domain % configs, 'config_dt', config_dt)
+      call mpas_pool_get_config(domain % configs, 'config_debug_split_explicit', config_debug_split_explicit)
+      call mpas_pool_get_config(domain % configs, &
+                                'config_debug_split_explicit_filename', &
+                                config_debug_split_explicit_filename)
 
       nowTime = mpas_get_clock_time(domain % clock, MPAS_NOW, ierr)
       call mpas_set_timeInterval( zeroInterval, S=0 )
@@ -2091,6 +2110,15 @@ module ocn_time_integration_split
 
          block => block % next
          end do
+      end if
+
+      if (config_debug_split_explicit) then
+            ! Open up temporary file
+            CALL mpas_new_unit(debugSplitExplicitUnit)
+            ! Note that it presumes we are running on a single core here ...
+            OPEN (UNIT=debugSplitExplicitUnit, &
+                  FILE=TRIM(config_debug_split_explicit_filename), FORM='FORMATTED', &
+                  STATUS='UNKNOWN')
       end if
 
    end subroutine ocn_time_integration_split_init!}}}
