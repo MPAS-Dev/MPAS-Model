@@ -23,7 +23,7 @@ module turbulence_diagnostics
     real (kind=RKIND), parameter :: turbulenceTop = 18288 ! m ~ FL600, top of class A airspace
     integer :: nTurbulenceLevels
 
-    logical :: stream_div_tend, stream_fronto, stream_mwtds
+    logical :: stream_ellrod3, stream_fronto, stream_mwtds
     real (kind=RKIND), dimension(:,:), allocatable :: div_old, div_save ! divergence from the previous time step
     real (kind=RKIND), dimension(:,:), allocatable :: th_old, th_save ! theta from previous time step
     real (kind=RKIND), dimension(:)  , allocatable :: mwtds_terfac ! terrain factor for mwtds
@@ -85,19 +85,21 @@ module turbulence_diagnostics
         call initializeArrays()
 
         ! Allocate scratch space for diagnostics
-        if (mpas_stream_inclusion_count('div_tend', direction=MPAS_STREAM_OUTPUT) > 0) then
-            stream_div_tend = .true.
+        if (mpas_stream_inclusion_count('ellrod3', direction=MPAS_STREAM_OUTPUT) > 0) then
+            stream_ellrod3 = .true.
             allocate(div_save(nVertLevels,nCells+1))
             allocate(div_old(nVertLevels,nCells+1))
 
-            div_old(:,:) = 0._RKIND
+            div_save(:,:) = 0._RKIND
         else
-            stream_div_tend = .false.
+            stream_ellrod3 = .false.
         end if
         if (mpas_stream_inclusion_count('frontogenesis', direction=MPAS_STREAM_OUTPUT) > 0) then
             stream_fronto = .true.
             allocate(th_save(nVertLevels,nCells+1))
             allocate(th_old(nVertLevels,nCells+1))
+
+            th_save(:,:) = 0._RKIND
         else
             stream_fronto = .false.
         end if
@@ -131,7 +133,7 @@ module turbulence_diagnostics
         real (kind=RKIND), dimension(:,:), pointer :: divergence
         real (kind=RKIND), dimension(:,:), pointer :: theta
 
-        if (stream_div_tend) then
+        if (stream_ellrod3) then
             call mpas_pool_get_array(diag, 'divergence', divergence)
             div_old(1:nTurbulenceLevels,:)  = div_save(1:nTurbulenceLevels,:)
             div_save(1:nTurbulenceLevels,:) = divergence(1:nTurbulenceLevels,:)
@@ -160,7 +162,7 @@ module turbulence_diagnostics
         implicit none
 
         logical :: need_windspeed, need_windshear, need_temp, need_windsh_tw, need_gradTemp
-        logical :: need_def, need_div_tend, need_ri, need_ritw, need_mwtds, need_iawind, need_fronto
+        logical :: need_def, need_ellrod3, need_ri, need_ritw, need_mwtds, need_iawind, need_fronto
 
         ! Scratch spaces
         type(field2DReal), pointer :: nsq_f, invH_f, gTsq_f, temp_f
@@ -169,9 +171,9 @@ module turbulence_diagnostics
         need_ri        = ( MPAS_field_will_be_written('richno') .or. MPAS_field_will_be_written('invrichno') )
         need_mwtds     = ( stream_mwtds .and. MPAS_field_will_be_written('mwtds') )
         need_windspeed = ( MPAS_field_will_be_written('windspeed') )
-        need_windshear = ( need_ri .or. MPAS_field_will_be_written('windshear') )
-        need_def       = ( MPAS_field_will_be_written('deformation') )
-        need_div_tend  = ( stream_div_tend .and. MPAS_field_will_be_written('div_tend') )
+        need_ellrod3   = ( stream_ellrod3 .and. MPAS_field_will_be_written('ellrod3') )
+        need_windshear = ( need_ri .or. need_ellrod3 .or. MPAS_field_will_be_written('windshear') )
+        need_def       = ( need_ellrod3 .or. MPAS_field_will_be_written('deformation') )
         need_iawind    = ( MPAS_field_will_be_written('iawind') )
         need_fronto    = ( MPAS_field_will_be_written('frontogenesis') )
 
@@ -201,8 +203,8 @@ module turbulence_diagnostics
             call deformation_compute()
         end if
 
-        if (need_div_tend) then
-            call divtend_compute()
+        if (need_ellrod3) then
+            call ellrod3_compute()
         end if
 
         if (need_ri) then
@@ -284,7 +286,7 @@ module turbulence_diagnostics
         p(:,:) = 0._RKIND
         call mpas_pool_get_array(diag, 'deformation', p)
         p(:,:) = 0._RKIND
-        call mpas_pool_get_array(diag, 'div_tend', p)
+        call mpas_pool_get_array(diag, 'ellrod3', p)
         p(:,:) = 0._RKIND
         call mpas_pool_get_array(diag, 'richno', p)
         p(:,:) = 0._RKIND
@@ -472,11 +474,18 @@ module turbulence_diagnostics
 !-----------------------------------------------------------------------------------
 ! Divergence tendency
 
-    subroutine divtend_compute()
-        real (kind=RKIND), dimension(:,:), pointer :: div_tend
-        call mpas_pool_get_array(diag, 'div_tend', div_tend)
-        div_tend(1:nTurbulenceLevels,:) = (div_save(1:nTurbulenceLevels,:) - div_old(1:nTurbulenceLevels,:)) / dt
-    end subroutine divtend_compute
+    subroutine ellrod3_compute()
+        real (kind=RKIND), dimension(:,:), pointer :: ellrod3, vws, def
+        integer :: nT
+        real (kind=RKIND), parameter :: CDVT = 1000._RKIND
+
+        call mpas_pool_get_array(diag, 'windshear', vws)
+        call mpas_pool_get_array(diag, 'deformation', def)
+        call mpas_pool_get_array(diag, 'ellrod3', ellrod3)
+
+        nT = nTurbulenceLevels
+        ellrod3(1:nT,:) =  vws(1:nT,:) * def(1:nT,:) + (div_save(1:nT,:) - div_old(1:nT,:)) * CDVT/dt
+    end subroutine ellrod3_compute
 
 !-----------------------------------------------------------------------------------
 ! Richardson numbers

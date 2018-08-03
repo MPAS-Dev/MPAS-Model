@@ -9,9 +9,6 @@
     
     <var name="temperature" type="real" dimensions="nVertLevels nCells Time" units="K"/>
     
-    <var name="div_tend" type="real" dimensions="nVertLevels nCells Time" units="s^{-2}"
-        description="Horizontal divergence tendency"/>
-    
     <var name="deformation" type="real" dimensions="nVertLevels nCells Time" units="s^{-1}"
          description="Horizontal deformation"/>
          
@@ -47,6 +44,9 @@
     
     <var name="frontogenesis" type ="real" dimensions="nVertLevels nCells Time" units="K m s{-1}"
         description="Frontogenesis function as potential temperature gradient tendency"/>
+        
+    <var name="ellrod3" type="real" dimensions="nVertLevels nCells Time" units="s^{-2}"
+        description="Ellrod-Knox turbulence index"/>
     
 </var_struct>
 

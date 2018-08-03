@@ -930,7 +930,6 @@
             <var name="pressure"/>
             <var name="temperature"/>
             <var name="divergence"/>
-            <var name="div_tend"/>
             <var name="vorticity"/>
             <var name="deformation"/>
             <var name="windspeed"/>
@@ -946,6 +945,7 @@
             <var name="gradTmp"/>
             <var name="iawind"/>
             <var name="frontogenesis"/>
+            <var name="ellrod3"/>
         </stream>
 
 
