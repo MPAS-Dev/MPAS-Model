@@ -45,7 +45,7 @@
     <var name="iawind" type="real" dimensions="nVertLevels nCells Time" units="m s^{-2}"
         description="Inertial advective wind"/>
     
-    <var name="frontogen" type ="real" dimensions="nVertLevels nCells Time" units="K m s{-1}"
+    <var name="frontogenesis" type ="real" dimensions="nVertLevels nCells Time" units="K m s{-1}"
         description="Frontogenesis function as potential temperature gradient tendency"/>
     
 </var_struct>

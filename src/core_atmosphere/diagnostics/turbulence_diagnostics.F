@@ -94,7 +94,7 @@ module turbulence_diagnostics
         else
             stream_div_tend = .false.
         end if
-        if (mpas_stream_inclusion_count('frontogen', direction=MPAS_STREAM_OUTPUT) > 0) then
+        if (mpas_stream_inclusion_count('frontogenesis', direction=MPAS_STREAM_OUTPUT) > 0) then
             stream_fronto = .true.
             allocate(th_save(nVertLevels,nCells+1))
             allocate(th_old(nVertLevels,nCells+1))
@@ -173,7 +173,7 @@ module turbulence_diagnostics
         need_def       = ( MPAS_field_will_be_written('deformation') )
         need_div_tend  = ( stream_div_tend .and. MPAS_field_will_be_written('div_tend') )
         need_iawind    = ( MPAS_field_will_be_written('iawind') )
-        need_fronto    = ( MPAS_field_will_be_written('frontogen') )
+        need_fronto    = ( MPAS_field_will_be_written('frontogenesis') )
 
         ! Temperature gradient/thermal wind
         need_ritw      = ( MPAS_field_will_be_written('richno_tw') .or. MPAS_field_will_be_written('invrichno_tw') )
@@ -296,7 +296,7 @@ module turbulence_diagnostics
         p(:,:) = 0._RKIND
         call mpas_pool_get_array(diag, 'iawind', p)
         p(:,:) = 0._RKIND
-        call mpas_pool_get_array(diag, 'frontogen', p)
+        call mpas_pool_get_array(diag, 'frontogenesis', p)
         p(:,:) = 0._RKIND
     end subroutine
 
@@ -877,7 +877,7 @@ module turbulence_diagnostics
         integer          , dimension(:,:), pointer :: cellsOnEdge
         real (kind=RKIND), dimension(:)  , pointer :: invDcEdge
         ! output
-        real (kind=RKIND), dimension(:,:), pointer :: frontogen
+        real (kind=RKIND), dimension(:,:), pointer :: frontogenesis
 
         ! Local variables
         real (kind=RKIND), dimension(:,:), allocatable :: dthdz
@@ -927,8 +927,8 @@ module turbulence_diagnostics
         end do
         call mpas_reconstruct(mesh, gTn, gTX, gTY, gTZ, gTzonal, gTmeridional)
 
-        call mpas_pool_get_array(diag, 'frontogen', frontogen)
-        frontogen(1:nT,:) = sqrt(gTzonal(1:nT,:)**2 + gTmeridional(1:nT,:)**2)
+        call mpas_pool_get_array(diag, 'frontogenesis', frontogenesis)
+        frontogenesis(1:nT,:) = sqrt(gTzonal(1:nT,:)**2 + gTmeridional(1:nT,:)**2)
 
 
         ! Compute dth/dz (old)
@@ -945,10 +945,10 @@ module turbulence_diagnostics
                             - 0.5 * (dthdz(:,cell2) + dthdz(:,cell1)) * zxu(:,iEdge)
         end do
         call mpas_reconstruct(mesh, gTn, gTX, gTY, gTZ, gTzonal, gTmeridional)
-        frontogen(1:nT,:) = frontogen(1:nT,:) - sqrt(gTzonal(1:nT,:)**2 + gTmeridional(1:nT,:)**2)
+        frontogenesis(1:nT,:) = frontogenesis(1:nT,:) - sqrt(gTzonal(1:nT,:)**2 + gTmeridional(1:nT,:)**2)
 
         ! Finalize frontogenesis
-        frontogen = abs(frontogen/dt)
+        frontogenesis = abs(frontogenesis/dt)
 
         ! Clean up
         deallocate(dth)
