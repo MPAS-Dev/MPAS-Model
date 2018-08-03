@@ -945,6 +945,7 @@
             <var name="mwtds"/>
             <var name="gradTmp"/>
             <var name="iawind"/>
+            <var name="frontogen"/>
         </stream>
 
 
