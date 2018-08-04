@@ -6098,16 +6098,17 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
 !>  region.
 !
 !-----------------------------------------------------------------------
-   subroutine mpas_dmpar_exch_halo_2d_real_acc(array, compactHaloInfo, haloLayersIn) !{{{
+   subroutine mpas_dmpar_exch_halo_2d_real_acc(array, compactHaloInfo, sendList, recvList, haloLayersIn) !{{{
 
       implicit none
 
       real (kind=RKIND), dimension(:,:), intent(inout) :: array !< Input: Array storage for field whose halo will be communicated
       integer, dimension(:), intent(in) :: compactHaloInfo !< Input: Information needed to construct communications lists, etc.
+      type (mpas_communication_list), pointer :: sendList, recvList
       integer, dimension(:), intent(in), optional :: haloLayersIn !< Input: List of halo layers to communicate. Defaults to all
 
       type (mpas_exchange_list), pointer :: exchListPtr
-      type (mpas_communication_list), pointer :: sendList, recvList, commListPtr
+      type (mpas_communication_list), pointer :: commListPtr
       integer :: mpi_ierr
       integer :: nHaloLayers, iHalo, i, j, idx
       integer :: nFieldHaloLayers, iFieldHalo, nList
@@ -6143,13 +6144,17 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
 #ifdef _MPI
       !$acc enter data copyin(compactHaloInfo,dimsizes)
       ! Setup Communication Lists
-      call mpas_dmpar_build_comm_lists_acc(compactHaloInfo, haloLayers, sendList, recvList)
+      if (.not. associated(sendList) .and. .not. associated(recvList)) then
+         call mpas_dmpar_build_comm_lists_acc(compactHaloInfo, haloLayers, sendList, recvList)
+      end if
 
       ! Allocate space in recv lists, and initiate mpi_irecv calls
       commListPtr => recvList
       do while(associated(commListPtr))
-        allocate(tempRBuffer(commListPtr % nList))
-        commListPtr % rbuffer => tempRBuffer
+        if (.not. associated(commListPtr % rbuffer)) then
+           allocate(tempRBuffer(commListPtr % nList))
+           commListPtr % rbuffer => tempRBuffer
+        end if
         nullify(commListPtr % ibuffer)
         !$acc enter data create(tempRBuffer)
         commListPtr => commListPtr % next
@@ -6168,9 +6173,11 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
       commListPtr => sendList
       idx = 11   ! First endPointID to send to
       do while(associated(commListPtr))
-        allocate(tempRBuffer(commListPtr % nList))
-        !$acc enter data create(tempRBuffer,array)
-        commListPtr % rbuffer => tempRBuffer
+        if (.not. associated(commListPtr % rbuffer)) then
+           allocate(tempRBuffer(commListPtr % nList))
+           !$acc enter data create(tempRBuffer,array)
+           commListPtr % rbuffer => tempRBuffer
+        end if
         nullify(commListPtr % ibuffer)
         bufferOffset = 0
         if (commListPtr % procID /= compactHaloInfo(idx)) then
@@ -6204,7 +6211,6 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
           do  i = 1, nList
              do j = 1, dimSizes(1)
                 tempRBuffer((compactHaloInfo(idx + nList + i)-1) * dimSizes(1) + j + bufferOffset) = array(j, compactHaloInfo(idx + i))
-!                nAdded = nAdded + 1
              end do
           end do
           !$acc end parallel
@@ -6303,23 +6309,6 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
         call MPI_Wait(commListPtr % reqID, MPI_STATUS_IGNORE, mpi_ierr)
         commListPtr => commListPtr % next
       end do
-
-      commListPtr => sendList
-      do while(associated(commListPtr))
-         tempRBuffer => commListPtr%rbuffer
-         !$acc exit data delete(tempRBuffer)
-         commListPtr => commListPtr % next
-      end do
-      commListPtr => recvList
-      do while(associated(commListPtr))
-         tempRBuffer => commListPtr%rbuffer
-         !$acc exit data delete(tempRBuffer)
-         commListPtr => commListPtr % next
-      end do
-     ! Destroy commLists.
-     call mpas_dmpar_destroy_communication_list(sendList)
-     call mpas_dmpar_destroy_communication_list(recvList)
-      !$acc exit data delete(compactHaloInfo)
 #endif
 
      deallocate(haloLayers)
@@ -6342,16 +6331,17 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
 !>  region.
 !
 !-----------------------------------------------------------------------
-   subroutine mpas_dmpar_exch_halo_3d_real_acc(array, compactHaloInfo, haloLayersIn) !{{{
+   subroutine mpas_dmpar_exch_halo_3d_real_acc(array, compactHaloInfo, sendList, recvList, haloLayersIn) !{{{
 
       implicit none
 
       real (kind=RKIND), dimension(:,:,:), intent(inout) :: array !< Input: Array storage for field whose halo will be communicated
       integer, dimension(:), intent(in) :: compactHaloInfo !< Input: Information needed to construct communications lists, etc.
+      type (mpas_communication_list), pointer :: sendList, recvList
       integer, dimension(:), intent(in), optional :: haloLayersIn !< Input: List of halo layers to communicate. Defaults to all
 
       type (mpas_exchange_list), pointer :: exchListPtr
-      type (mpas_communication_list), pointer :: sendList, recvList, commListPtr
+      type (mpas_communication_list), pointer :: commListPtr
       integer :: mpi_ierr
       integer :: nHaloLayers, iHalo, i, j, k, idx
       integer :: nFieldHaloLayers, iFieldHalo, nList
@@ -6359,7 +6349,7 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
       integer, dimension(:), pointer :: haloLayers
       integer, dimension(3) :: dimsizes
       integer :: mpi_comm, mpi_proc_id
-      real, dimension(:), pointer :: tempRBuffer
+      real (kind=RKIND), dimension(:), pointer :: tempRBuffer
 
       !
       ! Unpack fields from the compacted halo info array
@@ -6386,14 +6376,18 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
 
 #ifdef _MPI
       ! Setup Communication Lists
-      call mpas_dmpar_build_comm_lists_acc(compactHaloInfo, haloLayers, sendList, recvList)
+      if (.not. associated(sendList) .and. .not. associated(recvList)) then
+         call mpas_dmpar_build_comm_lists_acc(compactHaloInfo, haloLayers, sendList, recvList)
+      end if
 
       ! Allocate space in recv lists, and initiate mpi_irecv calls
       commListPtr => recvList
       do while(associated(commListPtr))
-        allocate(tempRBuffer(commListPtr % nList))
-        !$acc enter data create(tempRBuffer)
-        commListPtr % rbuffer =>tempRBuffer
+        if (.not. associated(commListPtr % rbuffer)) then
+           allocate(tempRBuffer(commListPtr % nList))
+           !$acc enter data create(tempRBuffer)
+           commListPtr % rbuffer =>tempRBuffer
+        end if
         nullify(commListPtr % ibuffer)
         !$acc host_data use_device(tempRBuffer)
         call MPI_Irecv(tempRBuffer, commListPtr % nList, MPI_REALKIND, commListPtr % procID, commListPtr % procID, mpi_comm, commListPtr % reqID, mpi_ierr)
@@ -6405,9 +6399,11 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
       commListPtr => sendList
       idx = 11   ! First endPointID to send to
       do while(associated(commListPtr))
-        allocate(tempRBuffer(commListPtr % nList))
-        !$acc enter data create(tempRBuffer)
-        commListPtr % rbuffer =>tempRBuffer
+        if (.not. associated(commListPtr % rbuffer)) then
+           allocate(tempRBuffer(commListPtr % nList))
+           !$acc enter data create(tempRBuffer)
+           commListPtr % rbuffer =>tempRBuffer
+        end if
         nullify(commListPtr % ibuffer)
         bufferOffset = 0
         if (commListPtr % procID /= compactHaloInfo(idx)) then
@@ -6442,7 +6438,6 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
              do j = 1, dimSizes(2)
                 do k = 1, dimSizes(1)
                    tempRBuffer((compactHaloInfo(idx + nList + i)-1) * dimSizes(1) * dimSizes(2) + (j-1) * dimSizes(1) + k + bufferOffset) = array(k, j, compactHaloInfo(idx + i))
-!                   nAdded = nAdded + 1
                 end do
              end do
           end do
@@ -6542,22 +6537,6 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
         call MPI_Wait(commListPtr % reqID, MPI_STATUS_IGNORE, mpi_ierr)
         commListPtr => commListPtr % next
       end do
-
-      commListPtr => sendList
-      do while(associated(commListPtr))
-        tempRBuffer => commListPtr%rbuffer
-        !$acc exit data delete(tempRBuffer)
-        commListPtr => commListPtr % next
-      end do
-      commListPtr => recvList
-      do while(associated(commListPtr))
-        tempRBuffer => commListPtr%rbuffer
-        !$acc exit data delete(tempRBuffer)
-        commListPtr => commListPtr % next
-      end do
-     ! Destroy commLists.
-     call mpas_dmpar_destroy_communication_list(sendList)
-     call mpas_dmpar_destroy_communication_list(recvList)
 #endif
 
      deallocate(haloLayers)

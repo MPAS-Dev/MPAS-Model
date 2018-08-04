@@ -813,6 +813,8 @@
  real(kind=RKIND), dimension(:,:), pointer :: east, north, edgeNormalVectors
 
  integer, dimension(:), pointer :: compactHaloInfo
+ type (mpas_communication_list), pointer :: sendList => null()
+ type (mpas_communication_list), pointer :: recvList => null()
  
 !-----------------------------------------------------------------------------------------------------------------
 
@@ -839,9 +841,11 @@
  tempField % isActive = .true.
 
  call mpas_dmpar_compact_halo_info(tempField, compactHaloInfo)
- call mpas_dmpar_exch_halo_acc(Ux_tend, compactHaloInfo)
- call mpas_dmpar_exch_halo_acc(Uy_tend, compactHaloInfo)
+ call mpas_dmpar_exch_halo_acc(Ux_tend, compactHaloInfo, sendList, recvList)
+ call mpas_dmpar_exch_halo_acc(Uy_tend, compactHaloInfo, sendList, recvList)
  deallocate(compactHaloInfo)
+ call mpas_dmpar_destroy_communication_list(sendList)
+ call mpas_dmpar_destroy_communication_list(recvList)
 
  do iEdge = 1, nEdges
     cell1 = cellsOnEdge(1,iEdge)
