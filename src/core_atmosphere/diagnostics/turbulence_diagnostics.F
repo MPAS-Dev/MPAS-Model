@@ -484,7 +484,7 @@ module turbulence_diagnostics
         call mpas_pool_get_array(diag, 'ellrod3', ellrod3)
 
         nT = nTurbulenceLevels
-        ellrod3(1:nT,:) =  vws(1:nT,:) * def(1:nT,:) + (div_save(1:nT,:) - div_old(1:nT,:)) * CDVT/dt
+        ellrod3(1:nT,:) =  vws(1:nT,:) * def(1:nT,:) + abs(div_save(1:nT,:) - div_old(1:nT,:)) * CDVT/dt
     end subroutine ellrod3_compute
 
 !-----------------------------------------------------------------------------------
