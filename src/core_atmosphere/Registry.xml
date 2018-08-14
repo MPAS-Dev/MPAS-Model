@@ -725,6 +725,7 @@
 			<var name="q2"/>
 			<var name="t2m"/>
 			<var name="th2m"/>
+			<var name="precipw"/>
 			<var name="dusfcg"/>
 			<var name="dvsfcg"/>
 			<var name="dtaux3d"/>
