@@ -772,12 +772,14 @@ module turbulence_diagnostics
 ! Inertial advective wind diagnostic
 
     subroutine iawind_compute
+
+        use mpas_dmpar, only : mpas_dmpar_exch_halo_field
         use mpas_derived_types, only : field3DReal, field2DReal
         use mpas_vector_reconstruction, only : mpas_reconstruct
 
         ! scratch
         type (field3DReal), pointer :: gTXYZ_f
-        type (field2DReal), pointer :: gTn_f, gTzonal_f, gTmeridional_f, gTsq_f
+        type (field2DReal), pointer :: gTn_f, gTzonal_f, gTmeridional_f, gTsq_f, um_f, uz_f
         real (kind=RKIND), dimension(:,:), pointer :: gTn, gTX, gTY, gTZ, gTzonal, gTmeridional
 
         ! input
@@ -794,6 +796,12 @@ module turbulence_diagnostics
 
         ! Top of calculations performed for turbulence
         nT = nTurbulenceLevels
+
+        ! Exchange u and v halos for gradient calculations
+        call mpas_pool_get_field(diag, 'uReconstructZonal', uz_f)
+        call mpas_pool_get_field(diag, 'uReconstructMeridional', um_f)
+        call mpas_dmpar_exch_halo_field(uz_f)
+        call mpas_dmpar_exch_halo_field(um_f)
 
         ! Allocate scratch space for gradient reconstruction
         call mpas_pool_get_field(scratch, 'gradTmp_n', gTn_f)
