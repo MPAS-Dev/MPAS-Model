@@ -53,7 +53,7 @@ module mpas_atm_diagnostics_manager
         call mpas_atm_diag_utils_init(stream_mgr)
 
         call diagnostic_template_setup(configs, structs, clock)
-        call isobaric_diagnostics_setup(structs, clock)
+        call isobaric_diagnostics_setup(configs, structs, clock)
         call convective_diagnostics_setup(structs, clock)
         call pv_diagnostics_setup(structs, clock)
         call soundings_setup(configs, structs, clock, dminfo)
