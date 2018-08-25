@@ -945,6 +945,7 @@
             <var name="gradTmp"/>
             <var name="iawind"/>
             <var name="frontogenesis"/>
+            <var name="ellrod2"/>
             <var name="ellrod3"/>
         </stream>
 

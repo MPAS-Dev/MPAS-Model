@@ -45,6 +45,9 @@
     <var name="frontogenesis" type ="real" dimensions="nVertLevels nCells Time" units="K m s{-1}"
         description="Frontogenesis function as potential temperature gradient tendency"/>
         
+    <var name="ellrod2" type="real" dimensions="nVertLevels nCells Time" units="s^{-2}"
+        description="Ellrod-Knapp turbulence index"/>
+        
     <var name="ellrod3" type="real" dimensions="nVertLevels nCells Time" units="s^{-2}"
         description="Ellrod-Knox turbulence index"/>
     

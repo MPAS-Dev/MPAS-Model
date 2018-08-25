@@ -162,7 +162,7 @@ module turbulence_diagnostics
         implicit none
 
         logical :: need_windspeed, need_windshear, need_temp, need_windsh_tw, need_gradTemp
-        logical :: need_def, need_ellrod3, need_ri, need_ritw, need_mwtds, need_iawind, need_fronto
+        logical :: need_def, need_ellrod2, need_ellrod3, need_ri, need_ritw, need_mwtds, need_iawind, need_fronto
 
         ! Scratch spaces
         type(field2DReal), pointer :: nsq_f, invH_f, gTsq_f, temp_f
@@ -171,9 +171,10 @@ module turbulence_diagnostics
         need_ri        = ( MPAS_field_will_be_written('richno') .or. MPAS_field_will_be_written('invrichno') )
         need_mwtds     = ( stream_mwtds .and. MPAS_field_will_be_written('mwtds') )
         need_windspeed = ( MPAS_field_will_be_written('windspeed') )
+        need_ellrod2   = ( MPAS_field_will_be_written('ellrod2') )
         need_ellrod3   = ( stream_ellrod3 .and. MPAS_field_will_be_written('ellrod3') )
         need_windshear = ( need_ri .or. need_ellrod3 .or. MPAS_field_will_be_written('windshear') )
-        need_def       = ( need_ellrod3 .or. MPAS_field_will_be_written('deformation') )
+        need_def       = ( need_ellrod2 .or. need_ellrod3 .or. MPAS_field_will_be_written('deformation') )
         need_iawind    = ( MPAS_field_will_be_written('iawind') )
         need_fronto    = ( MPAS_field_will_be_written('frontogenesis') )
 
@@ -201,6 +202,10 @@ module turbulence_diagnostics
 
         if ( need_def ) then
             call deformation_compute()
+        end if
+
+        if (need_ellrod2) then
+            call ellrod2_compute()
         end if
 
         if (need_ellrod3) then
@@ -472,7 +477,20 @@ module turbulence_diagnostics
     end subroutine deformation_compute
 
 !-----------------------------------------------------------------------------------
-! Divergence tendency
+! Ellrod indices
+
+    subroutine ellrod2_compute()
+        real (kind=RKIND), dimension(:,:), pointer :: ellrod2, vws, def, div
+        integer :: nT
+
+        call mpas_pool_get_array(diag, 'windshear', vws)
+        call mpas_pool_get_array(diag, 'deformation', def)
+        call mpas_pool_get_array(diag, 'divergence', div)
+        call mpas_pool_get_array(diag, 'ellrod2', ellrod2)
+
+        nT = nTurbulenceLevels
+        ellrod2(1:nT,:) = vws(1:nT,:) * (def(1:nT,:) - div(1:nT,:))
+    end subroutine ellrod2_compute
 
     subroutine ellrod3_compute()
         real (kind=RKIND), dimension(:,:), pointer :: ellrod3, vws, def
