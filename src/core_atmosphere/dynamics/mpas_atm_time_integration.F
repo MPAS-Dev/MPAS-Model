@@ -1808,10 +1808,10 @@ module atm_time_integration
       real (kind=RKIND) :: dtseps, c2, qtotal, rcv
       real (kind=RKIND), dimension( nVertLevels ,nCells+1) :: b_tri, c_tri
 
+!$acc declare create(b_tri,c_tri)
 !$acc data present(cofrz, gamma_tri, a_tri, alpha_tri, &
 !$acc coftz, cofwr, cofwt, cofwz, &
-!$acc rdzw, cqw, fzm, fzp, p, pb, qtot, rb, rdzu, rt, rtb, t, zz)&
-!$acc create(b_tri,c_tri)
+!$acc rdzw, cqw, fzm, fzp, p, pb, qtot, rb, rdzu, rt, rtb, t, zz)
   
       !  set coefficients
       dtseps = .5*dts*(1.+epssm)
