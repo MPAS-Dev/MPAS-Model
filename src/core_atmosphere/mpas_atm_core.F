@@ -14,6 +14,10 @@ module atm_core
 
    type (MPAS_Clock_type), pointer :: clock
 
+   type (mpas_coupler_type), pointer :: mpas_cpl
+   integer, private :: cells_to_rad_handle, cells_from_rad_handle
+   integer, parameter, private :: ROLE_INTEGRATE = 0, ROLE_RADIATION = 1
+
 
    contains
 
@@ -26,6 +30,7 @@ module atm_core
       use mpas_atm_dimensions, only : mpas_atm_set_dims
       use mpas_atm_diagnostics_manager, only : mpas_atm_diag_setup
       use mpas_atm_threading, only : mpas_atm_threading_init
+      use mpas_intracoupler, only : MPAS_coupler_create_pairing
 
       implicit none
 
@@ -44,12 +49,29 @@ module atm_core
       type (mpas_pool_type), pointer :: mesh
       type (mpas_pool_type), pointer :: diag
       type (field2DReal), pointer :: u_field, pv_edge_field, ru_field, rw_field
+      type (field1DInteger), pointer :: indexToCellID
       character (len=StrKIND), pointer :: xtime
       type (MPAS_Time_Type) :: startTime
 
-      integer, pointer :: nVertLevels, maxEdges, maxEdges2, num_scalars
+      integer, pointer :: nCellsSolve, nVertLevels, maxEdges, maxEdges2, num_scalars
 
       ierr = 0
+
+
+      mpas_cpl => domain % mpas_cpl
+
+      block => domain % blocklist
+      call mpas_pool_get_subpool(block % structs, 'mesh', mesh)
+      call mpas_pool_get_field(mesh, 'indexToCellID', indexToCellID)
+      call mpas_pool_get_dimension(mesh, 'nCellsSolve', nCellsSolve)
+
+      if (mpas_cpl % role() == ROLE_INTEGRATE) then
+         cells_to_rad_handle = MPAS_coupler_create_pairing(mpas_cpl, MPAS_COUPLER_OUTGOING, ROLE_RADIATION, indexToCellID, nCellsSolve)
+         cells_from_rad_handle = MPAS_coupler_create_pairing(mpas_cpl, MPAS_COUPLER_INCOMING, ROLE_RADIATION, indexToCellID, nCellsSolve)
+      else if (mpas_cpl % role() == ROLE_RADIATION) then
+         cells_to_rad_handle = MPAS_coupler_create_pairing(mpas_cpl, MPAS_COUPLER_INCOMING, ROLE_INTEGRATE, indexToCellID, nCellsSolve)
+         cells_from_rad_handle = MPAS_coupler_create_pairing(mpas_cpl, MPAS_COUPLER_OUTGOING, ROLE_INTEGRATE, indexToCellID, nCellsSolve)
+      end if
 
 
       !
@@ -855,9 +877,9 @@ module atm_core
 
 #ifdef DO_PHYSICS
       !proceed with physics if moist_physics is set to true:
-      if(moist_physics) then
-         call physics_timetracker(domain,dt,clock,itimestep,xtime_s)
-         call physics_driver(domain,itimestep,xtime_s)
+      if (moist_physics) then
+         call physics_timetracker(domain, dt, clock, itimestep, xtime_s)
+         call physics_driver(domain, itimestep, xtime_s, mpas_cpl, cells_to_rad_handle, cells_from_rad_handle)
       endif
 #endif
 

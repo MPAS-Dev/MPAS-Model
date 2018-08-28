@@ -24,10 +24,13 @@
  use mpas_atmphys_update
  use mpas_atmphys_vars, only: l_camlw,l_conv,l_radtlw,l_radtsw
  use mpas_timer
+ use mpas_derived_types, only : mpas_coupler_type
 
  implicit none
  private
  public:: physics_driver
+
+ integer, parameter, private :: ROLE_INTEGRATE = 0, ROLE_RADIATION = 1
 
 
 !MPAS top physics driver.
@@ -103,12 +106,17 @@
 
 
 !=================================================================================================================
- subroutine physics_driver(domain,itimestep,xtime_s)
+ subroutine physics_driver(domain,itimestep,xtime_s,mpas_cpl,cells_to_rad_handle,cells_from_rad_handle)
 !=================================================================================================================
+
+ use mpas_intracoupler, only : MPAS_coupler_sync
 
 !input arguments:
  integer,intent(in):: itimestep
  real(kind=RKIND),intent(in):: xtime_s
+
+ type (mpas_coupler_type), pointer :: mpas_cpl
+ integer, intent(in) :: cells_to_rad_handle, cells_from_rad_handle
 
 !inout arguments:
  type(domain_type),intent(inout):: domain
@@ -200,6 +208,12 @@
     end do
 !$OMP END PARALLEL DO
 
+
+    ! ===============================================================================================
+    call MPAS_coupler_sync(mpas_cpl) !===============================================================
+    ! ===============================================================================================
+
+
     !call to cloud scheme:
     if(l_radtlw .or. l_radtsw) then
        call allocate_cloudiness
@@ -214,14 +228,22 @@
     !call to short wave radiation scheme:
     if(l_radtsw) then
        time_lev = 1
-       call allocate_radiation_sw(block%configs,xtime_s)
+       if (mpas_cpl % role() == ROLE_RADIATION) then
+          call mpas_log_write('ALLOCATING SWRAD FIELDS')
+          call allocate_radiation_sw(block%configs,xtime_s)
+       end if
 !$OMP PARALLEL DO
        do thread=1,nThreads
           call driver_radiation_sw(itimestep,block%configs,mesh,state,time_lev,diag_physics, &
                                    atm_input,sfc_input,tend_physics,xtime_s, &
+                                   mpas_cpl, cells_to_rad_handle, cells_from_rad_handle, &
                                    cellSolveThreadStart(thread), cellSolveThreadEnd(thread))
        end do
 !$OMP END PARALLEL DO
+       if (mpas_cpl % role() == ROLE_RADIATION) then
+          call mpas_log_write('DEALLOCATING SWRAD FIELDS')
+          call deallocate_radiation_sw(block%configs)
+       end if
     endif
 
     !call to long wave radiation scheme:
@@ -235,6 +257,7 @@
                                    cellSolveThreadStart(thread), cellSolveThreadEnd(thread))
        end do
 !$OMP END PARALLEL DO
+       call deallocate_radiation_lw(block%configs)
     endif
 
     !call to accumulate long- and short-wave diagnostics if needed:
@@ -250,8 +273,12 @@
     !deallocate all radiation arrays:
     if(config_radt_sw_scheme.ne.'off' .or. config_radt_lw_scheme.ne.'off') &
        call deallocate_cloudiness
-    if(config_radt_sw_scheme.ne.'off') call deallocate_radiation_sw(block%configs)
-    if(config_radt_lw_scheme.ne.'off') call deallocate_radiation_lw(block%configs)
+
+
+    ! ===============================================================================================
+    call MPAS_coupler_sync(mpas_cpl) !===============================================================
+    ! ===============================================================================================
+
 
     !call to surface-layer scheme:
     if(config_sfclayer_scheme .ne. 'off') then
