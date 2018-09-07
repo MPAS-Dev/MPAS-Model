@@ -25,7 +25,7 @@ module atm_time_integration
    use mpas_atmphys_utilities
 #endif
 
-   use mpas_atm_iau  
+   use mpas_atm_iau 
 
 #ifdef MPAS_OPENACC
    use openacc
@@ -42,14 +42,13 @@ module atm_time_integration
    real (kind=RKIND), allocatable, dimension(:,:) :: delsq_theta, delsq_w, delsq_divergence
 !$acc declare create(delsq_theta, delsq_w, delsq_divergence)
    real (kind=RKIND), allocatable, dimension(:,:) :: delsq_u
-!   real (kind=RKIND), allocatable, dimension(:,:) :: delsq_circulation    ! no longer used -> removed 
    real (kind=RKIND), allocatable, dimension(:,:) :: delsq_vorticity
    real (kind=RKIND), allocatable, dimension(:,:) :: dpdz
 !$acc declare create(delsq_u,delsq_vorticity,dpdz)
 
    ! Used in atm_advance_scalars
    real (kind=RKIND), dimension(:,:,:), allocatable :: horiz_flux_array
-
+!$acc declare create(horiz_flux_array)
 
    ! Used in atm_advance_scalars_mono
    real (kind=RKIND), dimension(:,:), allocatable :: scalar_old_arr, scalar_new_arr
@@ -61,6 +60,9 @@ module atm_time_integration
    real (kind=RKIND), dimension(:,:), allocatable :: wdtn_arr
    real (kind=RKIND), dimension(:,:), allocatable :: rho_zz_int
    real (kind=RKIND), dimension(:,:,:), allocatable :: scalar_tend_array
+!$acc declare create(scalar_old_arr, scalar_new_arr,s_max_arr, s_min_arr)
+!$acc declare create(scale_array, flux_array, flux_upwind_tmp_arr, flux_tmp_arr)
+!$acc declare create(wdtn_arr, rho_zz_int, scalar_tend_array)
 
    ! Used in compute_solve_diagnostics
    real (kind=RKIND), allocatable, dimension(:,:) :: ke_vertex
@@ -100,6 +102,14 @@ module atm_time_integration
       type (field2DReal), pointer :: field_2d_ptr
       type (field3DReal), pointer :: field_3d_ptr
       integer, pointer :: nCells, nVertLevels
+
+#ifdef MPAS_OPENACC
+      integer :: rank, devices, local_gpu_id
+      rank = domain % dminfo % my_proc_id
+      devices =  acc_get_num_devices(acc_device_nvidia)
+      local_gpu_id = mod(rank,devices)
+      call acc_set_device_num(local_gpu_id,acc_device_nvidia)
+#endif
 
 
       !
@@ -313,13 +323,6 @@ module atm_time_integration
       real (kind=RKIND), dimension(:,:), pointer :: gpu_tend_u, gpu_ru_p, gpu_rw_p, gpu_rho_pp, gpu_pv_edge, gpu_rho_edge
       real (kind=RKIND), dimension(:,:,:), pointer :: gpu_scalars_1, gpu_scalars_2
 
-#ifdef MPAS_OPENACC
-      integer :: rrpk_rank, rrpk_devices, rrpk_local_gpu_id
-      rrpk_rank = domain % dminfo % my_proc_id
-      rrpk_devices =  acc_get_num_devices(acc_device_nvidia)
-      rrpk_local_gpu_id = mod(rrpk_rank,rrpk_devices)
-      call acc_set_device_num(rrpk_local_gpu_id,acc_device_nvidia)
-#endif
 
       !
       ! Retrieve configuration options
@@ -354,13 +357,9 @@ module atm_time_integration
       call mpas_pool_get_dimension(state, 'nVertices', nVertices)
 
       allocate(qtot(nVertLevels,nCells+1))
-!      qtot(:,nCells+1) = 0.0_RKIND
       allocate(tend_rtheta_physics(nVertLevels,nCells+1))
-!      tend_rtheta_physics(:,nCells+1) = 0.0_RKIND
       allocate(tend_rho_physics(nVertLevels,nCells+1))
-!      tend_rho_physics(:,nCells+1) = 0.0_RKIND
       allocate(tend_ru_physics(nVertLevels,nEdges+1))
-!      tend_ru_physics(:,nEdges+1) = 0.0_RKIND
 
       !
       ! Initialize RK weights
@@ -409,7 +408,6 @@ module atm_time_integration
 
       end if
 
-      !halo exchange calls. This works both for CPU and GPU.
       call mpas_pool_get_array_gpu(state,'theta_m',gpu_theta_m_1,1)
       call mpas_pool_get_array_gpu(state,'scalars',gpu_scalars_1,1)
       call mpas_pool_get_array_gpu(diag,'pressure_p',gpu_pressure_p)
@@ -550,9 +548,7 @@ module atm_time_integration
                allocate(delsq_vorticity(nVertLevels,nVertices+1))
                allocate(dpdz(nVertLevels,nCells+1))
                allocate(ke_vertex(nVertLevels,nVertices+1))
-!               ke_vertex(:,nVertices+1) = 0.0_RKIND
                allocate(ke_edge(nVertLevels,nEdges+1))
-!               ke_edge(:,nEdges+1) = 0.0_RKIND
 
       DYNAMICS_SUBSTEPS : do dynamics_substep = 1, dynamics_split
 
@@ -674,20 +670,12 @@ module atm_time_integration
                call mpas_pool_get_dimension(block % dimensions, 'edgeSolveThreadStart', edgeSolveThreadStart)
                call mpas_pool_get_dimension(block % dimensions, 'edgeSolveThreadEnd', edgeSolveThreadEnd)
 
-!               allocate(delsq_theta(nVertLevels,nCells+1))
-!               delsq_theta(:,nCells+1) = 0.0_RKIND
-!               allocate(delsq_w(nVertLevels,nCells+1))
-!               delsq_w(:,nCells+1) = 0.0_RKIND
-!!               allocate(qtot(nVertLevels,nCells+1))  ! initializing this earlier in solution sequence
-!               allocate(delsq_divergence(nVertLevels,nCells+1))
-!               delsq_divergence(:,nCells+1) = 0.0_RKIND
-!               allocate(delsq_u(nVertLevels,nEdges+1))
-!               delsq_u(:,nEdges+1) = 0.0_RKIND
-!!               allocate(delsq_circulation(nVertLevels,nVertices+1))  ! no longer used -> removed 
-!               allocate(delsq_vorticity(nVertLevels,nVertices+1))
-!               delsq_vorticity(:,nVertices+1) = 0.0_RKIND
-!               allocate(dpdz(nVertLevels,nCells+1))
-!               dpdz(:,nCells+1) = 0.0_RKIND
+              delsq_theta(:,nCells+1) = 0.0_RKIND
+              delsq_w(:,nCells+1) = 0.0_RKIND
+              delsq_divergence(:,nCells+1) = 0.0_RKIND
+              delsq_u(:,nEdges+1) = 0.0_RKIND
+              delsq_vorticity(:,nVertices+1) = 0.0_RKIND
+              dpdz(:,nCells+1) = 0.0_RKIND
 
 !$OMP PARALLEL DO
                do thread=1,nThreads
@@ -934,9 +922,6 @@ module atm_time_integration
 
             call mpas_pool_get_array_gpu(state, 'u',gpu_u_2, 2)
             call mpas_dmpar_exch_halo_acc(gpu_u_2, compactHaloInfo_e_v)
-
-            !call mpas_pool_get_array(state, 'u', u, 2)
-            !call mpas_dmpar_exch_halo_acc(u, compactHaloInfo_e_v)
 
 
             ! scalar advection: RK3 scheme of Skamarock and Gassmann (2011). 
@@ -1195,10 +1180,8 @@ module atm_time_integration
                deallocate(ke_edge)
                deallocate(delsq_theta)
                deallocate(delsq_w)
-!!               deallocate(qtot)  ! deallocation after dynamics step complete, see below
                deallocate(delsq_divergence)
                deallocate(delsq_u)
-!!               deallocate(delsq_circulation)    ! no longer used -> removed 
                deallocate(delsq_vorticity)
                deallocate(dpdz)
 
@@ -1365,8 +1348,6 @@ module atm_time_integration
          call mpas_pool_get_subpool(block % structs, 'mesh', mesh)
 
          call mpas_pool_get_array_gpu(state, 'u', u, 2)
-!         call mpas_pool_get_array_gpu(state, 'u', gpu_u_2, 2)
-
          call mpas_pool_get_array_gpu(diag, 'uReconstructX', uReconstructX)
          call mpas_pool_get_array_gpu(diag, 'uReconstructY', uReconstructY)
          call mpas_pool_get_array_gpu(diag, 'uReconstructZ', uReconstructZ)
@@ -1808,10 +1789,10 @@ module atm_time_integration
       real (kind=RKIND) :: dtseps, c2, qtotal, rcv
       real (kind=RKIND), dimension( nVertLevels ,nCells+1) :: b_tri, c_tri
 
+!$acc declare create(b_tri,c_tri)
 !$acc data present(cofrz, gamma_tri, a_tri, alpha_tri, &
 !$acc coftz, cofwr, cofwt, cofwz, &
-!$acc rdzw, cqw, fzm, fzp, p, pb, qtot, rb, rdzu, rt, rtb, t, zz)&
-!$acc create(b_tri,c_tri)
+!$acc rdzw, cqw, fzm, fzp, p, pb, qtot, rb, rdzu, rt, rtb, t, zz)
   
       !  set coefficients
       dtseps = .5*dts*(1.+epssm)
@@ -2053,6 +2034,7 @@ module atm_time_integration
 !$acc data present(w_tend, &
 !$acc edgesoncell, edgesoncell_sign, fzm, fzp,nedgesoncell, u_tend, &
 !$acc zb3_cell, zb_cell, zz)
+
 !$acc parallel num_workers(8) vector_length(32)
 !$acc loop gang worker private(iEdge, flux)
       do iCell=cellSolveStart,cellSolveEnd
@@ -2496,6 +2478,7 @@ module atm_time_integration
       end do !  end of loop over cells
 !$acc end parallel
 !$acc end data
+
    end subroutine atm_advance_acoustic_step_work
 
    subroutine atm_divergence_damping_3d( state, diag, mesh, configs, dts, edgeStart, edgeEnd )
@@ -2571,6 +2554,7 @@ module atm_time_integration
 
 !$acc data present(rtheta_pp, rtheta_pp_old, &
 !$acc ru_p, theta_m, cellsOnEdge)
+
 !$acc parallel num_workers(8) vector_length(16)
 !$acc loop gang worker private(cell1, cell2, divCell1, divCell2)
       do iEdge=edgeStart,edgeEnd ! MGD do we really just need edges touching owned cells?
@@ -2928,6 +2912,7 @@ module atm_time_integration
       end do
 !$acc end parallel
 !$acc end data
+
    end subroutine atm_recover_large_step_variables_work
 
 
@@ -3465,23 +3450,36 @@ module atm_time_integration
       end if
       weight_time_old = 1. - weight_time_new
 
+!$acc data present(adv_coefs, uhAvg, adv_coefs_3rd, &
+!$acc advCellsForEdge, scalar_new, &
+!$acc scalar_tend_save,horiz_flux_arr,edgesoncell_sign, &
+!$acc invAreaCell, wwAvg, fnm, fnp,edgesoncell,scalar_old, &
+!$acc nadvcellsforedge, rho_zz_old, rho_zz_new, &
+!$acc nedgesoncell,rdnw) copyin(horiz_flux_arr,wdtn)
 
+!$acc parallel vector_length(32)
+!$acc loop gang worker vector private(ica,scalar_weight2)
       do iEdge=edgeStart,edgeEnd
+
+!$acc cache(ica)
 
          select case(nAdvCellsForEdge(iEdge))
 
          case(10)
 
+!$acc loop vector collapse(2)
             do j=1,10
 !DIR$ IVDEP
                do k=1,nVertLevels
                   scalar_weight2(k,j) = adv_coefs(j,iEdge) + sign(1.0_RKIND,uhAvg(k,iEdge))*adv_coefs_3rd(j,iEdge)
                end do
             end do
+!$acc loop vector shortloop
             do j=1,10
                ica(j) = advCellsForEdge(j,iEdge)
             end do
 !DIR$ IVDEP
+!$acc loop vector collapse(2)
             do k = 1,nVertLevels
 !DIR$ IVDEP
                do iScalar = 1,num_scalars
@@ -3501,10 +3499,18 @@ module atm_time_integration
 
          case default
 
-            horiz_flux_arr(:,:,iEdge) = 0.0
+!$acc loop vector collapse(2)
+            do i = 1,nVertlevels
+               do j =1,num_scalars
+                  horiz_flux_arr(j,i,iEdge) =0.0
+               end do
+            end do
+!            horiz_flux_arr(:,:,iEdge) = 0.0
+!$acc loop vector
             do j=1,nAdvCellsForEdge(iEdge)
                iAdvCell = advCellsForEdge(j,iEdge)
 !DIR$ IVDEP
+!$acc loop vector
                do k=1,nVertLevels
                   scalar_weight = adv_coefs(j,iEdge) + sign(1.0_RKIND,uhAvg(k,iEdge))*adv_coefs_3rd(j,iEdge)
 !DIR$ IVDEP
@@ -3516,24 +3522,32 @@ module atm_time_integration
 
          end select
       end do
-
+!$acc end parallel
 !$OMP BARRIER
 
 !  scalar update, for each column sum fluxes over horizontal edges, add physics tendency, and add vertical flux divergence in update.
 
-      
+!$acc parallel vector_length(32)
+!$acc loop gang worker private(scalar_tend_column)
       do iCell=cellSolveStart,cellSolveEnd
 #ifndef DO_PHYSICS
             scalar_tend_save(:,:,iCell) = 0.0  !  testing purposes - we have no sources or sinks
 #endif
-            scalar_tend_column(1:num_scalars,1:nVertlevels) = 0.
-
+!$acc loop vector collapse(2)
+             do i =1,nVertlevels
+                do j = 1,num_scalars
+                   scalar_tend_column(j,i) = 0.0
+                end do
+            end do
+!            scalar_tend_column(1:num_scalars,1:nVertlevels) = 0.
+!$acc loop seq
             do i=1,nEdgesOnCell(iCell)
                iEdge = edgesOnCell(i,iCell)
 
                ! here we add the horizontal flux divergence into the scalar tendency.
                ! note that the scalar tendency is modified.
 !DIR$ IVDEP
+!$acc loop vector collapse(2)
                do k=1,nVertLevels
 !DIR$ IVDEP
                   do iScalar=1,num_scalars
@@ -3545,6 +3559,7 @@ module atm_time_integration
             end do
 
 !DIR$ IVDEP
+!$acc loop vector collapse(2)
             do k=1,nVertLevels
 !DIR$ IVDEP
                do iScalar=1,num_scalars
@@ -3560,11 +3575,13 @@ module atm_time_integration
          wdtn(:,nVertLevels+1) = 0.0
 
          k = 2
+!$acc loop seq
          do iScalar=1,num_scalars
             wdtn(iScalar,k) = wwAvg(k,iCell)*(fnm(k)*scalar_new(iScalar,k,iCell)+fnp(k)*scalar_new(iScalar,k-1,iCell))
          end do
           
 !DIR$ IVDEP
+!$acc loop vector collapse(2)
          do k=3,nVertLevels-1
 !DIR$ IVDEP
             do iScalar=1,num_scalars
@@ -3574,14 +3591,17 @@ module atm_time_integration
             end do
          end do
          k = nVertLevels
+!$acc loop seq
          do iScalar=1,num_scalars
             wdtn(iScalar,k) = wwAvg(k,iCell)*(fnm(k)*scalar_new(iScalar,k,iCell)+fnp(k)*scalar_new(iScalar,k-1,iCell))
          end do
 
 !DIR$ IVDEP
+!$acc loop vector
          do k=1,nVertLevels
             rho_zz_new_inv = 1.0_RKIND / (weight_time_old*rho_zz_old(k,iCell) + weight_time_new*rho_zz_new(k,iCell))
 !DIR$ IVDEP
+!$acc loop seq
             do iScalar=1,num_scalars
                scalar_new(iScalar,k,iCell) = (   scalar_old(iScalar,k,iCell)*rho_zz_old(k,iCell) &
                      + dt*( scalar_tend_column(iScalar,k) -rdnw(k)*(wdtn(iScalar,k+1)-wdtn(iScalar,k)) ) ) * rho_zz_new_inv
@@ -3589,7 +3609,8 @@ module atm_time_integration
          end do
 
       end do
-
+!$acc end parallel
+!$acc end data
    end subroutine atm_advance_scalars_work_new
 
 
@@ -3813,6 +3834,19 @@ module atm_time_integration
       !  Note, however, that we enforce positive-definiteness in this update.
       !  The transport will maintain this positive definite solution and optionally, shape preservation (monotonicity).
 
+!$acc data present(uhAvg,wwAvg,scalar_tend, &
+!$acc rho_zz_old,rho_zz_new,scalars_old, &
+!$acc invAreaCell,dvEdge,cellsOnEdge,cellsOnCell, &
+!$acc edgesOnCell,edgesOnCell_sign,nEdgesOnCell,fnm, &
+!$acc fnp,rdnw,nAdvCellsForEdge,advCellsForEdge,adv_coefs, &
+!$acc adv_coefs_3rd, scalars_new) copy (flux_arr, swa, ica) copyin(rho_zz_int, scalar_new, wdtn, &
+!$acc scale_arr, scalar_old, flux_upwind_tmp, &
+!$acc s_min, s_max, flux_tmp) copyout(scalar_new, rho_zz_int, wdtn, scale_arr,flux_upwind_tmp,&
+!$acc flux_tmp, flux_upwind_arr)
+
+!$acc parallel vector_length(32)
+!$acc loop gang vector collapse(3)
+
       do iCell=cellSolveStart,cellSolveEnd
 !DIR$ IVDEP
       do k = 1,nVertLevels
@@ -3829,7 +3863,7 @@ module atm_time_integration
       end do
       end do
       end do
-
+!$acc end parallel
 
 !$OMP BARRIER
 !$OMP MASTER
@@ -3847,21 +3881,30 @@ module atm_time_integration
          end if
 
          !  begin with update of density
+!$acc parallel vector_length(32)
+!$acc loop gang vector
          do iCell=cellStart,cellEnd
             rho_zz_int(:,iCell) = 0.0
          end do
+!$acc end parallel
+
 !$OMP BARRIER
+!$acc parallel vector_length(32)
+!$acc loop gang vector
          do iCell=cellSolveStart,cellSolveEnd
+!$acc loop vector
             do i=1,nEdgesOnCell(iCell)
                iEdge = edgesOnCell(i,iCell)
    
 !DIR$ IVDEP
+!$acc loop vector
                do k=1,nVertLevels
                   rho_zz_int(k,iCell) = rho_zz_int(k,iCell) - edgesOnCell_sign(i,iCell) * uhAvg(k,iEdge) * dvEdge(iEdge) * invAreaCell(iCell)
                end do
                
             end do
          end do
+!$acc loop collapse(2)
          do iCell=cellSolveStart,cellSolveEnd
 !DIR$ IVDEP
             do k=1,nVertLevels
@@ -3869,12 +3912,14 @@ module atm_time_integration
             end do
          end do
 !$OMP BARRIER
+!$acc end parallel
       end if
 
       ! next, do one scalar at a time
 
       do iScalar = 1, num_scalars
-
+!$acc parallel vector_length(32)
+!$acc loop gang vector collapse(2)
          do iCell=cellStart,cellEnd
 !DIR$ IVDEP
             do k=1,nVertLevels
@@ -3882,12 +3927,14 @@ module atm_time_integration
                scalar_new(k,iCell) = scalars_new(iScalar,k,iCell)
             end do
          end do
-
+!$acc end parallel
 !$OMP BARRIER
 
 #ifdef DEBUG_TRANSPORT
          scmin = scalar_old(1,1)
          scmax = scalar_old(1,1)
+!$acc parallel vector_length(32)
+!$acc loop vector collapse(2)
          do iCell = 1, nCells
          do k=1, nVertLevels
             scmin = min(scmin,scalar_old(k,iCell))
@@ -3898,12 +3945,14 @@ module atm_time_integration
 
          scmin = scalar_new(1,1)
          scmax = scalar_new(1,1)
+!$acc loop vector collapse(2)
          do iCell = 1, nCells
          do k=1, nVertLevels
             scmin = min(scmin,scalar_new(k,iCell))
             scmax = max(scmax,scalar_new(k,iCell))
          end do
          end do
+!$acc end parallel
          call mpas_log_write(' scmin, scmin new in ', realArgs=(/scmin,scmax/))
 #endif
 
@@ -3911,6 +3960,8 @@ module atm_time_integration
          !
          !  vertical flux divergence, and min and max bounds for flux limiter
          !
+!$acc parallel vector_length(32)
+!$acc loop gang worker
          do iCell=cellSolveStart,cellSolveEnd
 
             ! zero flux at top and bottom
@@ -3927,6 +3978,7 @@ module atm_time_integration
             s_min(k,iCell) = min(scalar_old(k-1,iCell),scalar_old(k,iCell),scalar_old(k+1,iCell))
              
 !DIR$ IVDEP
+!$acc loop vector
             do k=3,nVertLevels-1
                wdtn(k,iCell) = flux3( scalar_new(k-2,iCell),scalar_new(k-1,iCell),  &
                                       scalar_new(k  ,iCell),scalar_new(k+1,iCell),  &
@@ -3949,6 +4001,7 @@ module atm_time_integration
             select case(nEdgesOnCell(iCell))
             case(6)
 !DIR$ IVDEP
+!$acc loop vector
                do k=1, nVertLevels
                   s_max(k,iCell) = max(s_max(k,iCell), &
                        scalar_old(k, cellsOnCell(1,iCell)), &
@@ -3967,6 +4020,7 @@ module atm_time_integration
                enddo
 
             case default
+!$acc loop vector collapse(2)
                do i=1, nEdgesOnCell(iCell)
 !DIR$ IVDEP
                   do k=1, nVertLevels
@@ -3977,13 +4031,14 @@ module atm_time_integration
             end select
 
          end do
-
+!$acc end parallel
 !$OMP BARRIER
 
          !
          !  horizontal flux divergence
          !
-
+!$acc parallel vector_length(32)
+!$acc loop gang vector
          do iEdge=edgeStart,edgeEnd
 
             cell1 = cellsOnEdge(1,iEdge)
@@ -3996,11 +4051,13 @@ module atm_time_integration
                ! be sure to see additional declarations near top of subroutine
                select case(nAdvCellsForEdge(iEdge))
                case(10)
+!$acc loop vector
                   do jj=1,10
                      ica(jj)    = advCellsForEdge(jj,iEdge)
                      swa(jj,1)  = adv_coefs(jj,iEdge) + adv_coefs_3rd(jj,iEdge)
                      swa(jj,2)  = adv_coefs(jj,iEdge) - adv_coefs_3rd(jj,iEdge)
                   enddo
+!$acc loop vector
                   do k=1,nVertLevels
                      ii = merge(1, 2, uhAvg(k,iEdge) > 0)
                      flux_arr(k,iEdge) = uhAvg(k,iEdge)*( &
@@ -4012,12 +4069,15 @@ module atm_time_integration
                   enddo
 
                case default
+!$acc loop vector
                   do k=1,nVertLevels
                      flux_arr(k,iEdge) = 0.0_RKIND
                   enddo
+!$acc loop vector
                   do i=1,nAdvCellsForEdge(iEdge)
                      iCell = advCellsForEdge(i,iEdge)
 !DIR$ IVDEP
+!$acc loop vector
                      do k=1,nVertLevels
                         scalar_weight = uhAvg(k,iEdge)*(adv_coefs(i,iEdge) + sign(1.0_RKIND,uhAvg(k,iEdge))*adv_coefs_3rd(i,iEdge))
                         flux_arr(k,iEdge) = flux_arr(k,iEdge) + scalar_weight* scalar_new(k,iCell)
@@ -4028,27 +4088,31 @@ module atm_time_integration
             end if
 
          end do
-
+!$acc end parallel
 !$OMP BARRIER
 
          !
          !  vertical flux divergence for upwind update, we will put upwind update into scalar_new, and put factor of dt in fluxes
          !
-
+!$acc parallel vector_length(32)
+!$acc loop gang vector
          do iCell=cellSolveStart,cellSolveEnd
 
             k = 1
             scalar_new(k,iCell) = scalar_old(k,iCell) * rho_zz_old(k,iCell)
 
 !DIR$ IVDEP
+!$acc loop vector
             do k = 2, nVertLevels
                scalar_new(k,iCell) = scalar_old(k,iCell)*rho_zz_old(k,iCell)
                flux_upwind_arr(k) = dt*(max(0.0_RKIND,wwAvg(k,iCell))*scalar_old(k-1,iCell) + min(0.0_RKIND,wwAvg(k,iCell))*scalar_old(k,iCell))
             end do
+!$acc loop vector
             do k = 1, nVertLevels-1
                scalar_new(k,iCell) = scalar_new(k,iCell) - flux_upwind_arr(k+1)*rdnw(k)
             end do
 !DIR$ IVDEP
+!$acc loop vector
             do k = 2, nVertLevels
                scalar_new(k  ,iCell) = scalar_new(k  ,iCell) + flux_upwind_arr(k)*rdnw(k)
                wdtn(k,iCell) = dt*wdtn(k,iCell) - flux_upwind_arr(k)
@@ -4061,34 +4125,43 @@ module atm_time_integration
             !
 
 !DIR$ IVDEP
+!$acc loop vector
             do k=1,nVertLevels
                scale_arr(k,SCALE_IN, iCell) = - rdnw(k)*(min(0.0_RKIND,wdtn(k+1,iCell))-max(0.0_RKIND,wdtn(k,iCell)))
                scale_arr(k,SCALE_OUT,iCell) = - rdnw(k)*(max(0.0_RKIND,wdtn(k+1,iCell))-min(0.0_RKIND,wdtn(k,iCell)))
             end do
 
          end do
-
+!$acc end parallel
          !
          !  horizontal flux divergence for upwind update
          !
 
          !  upwind flux computation
+!$acc parallel vector_length(32)
+!$acc loop gang vector
          do iEdge=edgeStart,edgeEnd
             cell1 = cellsOnEdge(1,iEdge)
             cell2 = cellsOnEdge(2,iEdge)
 !DIR$ IVDEP
+!$acc loop vector
             do k=1, nVertLevels
                flux_upwind_tmp(k,iEdge) = dvEdge(iEdge) * dt *   &
                       (max(0.0_RKIND,uhAvg(k,iEdge))*scalar_old(k,cell1) + min(0.0_RKIND,uhAvg(k,iEdge))*scalar_old(k,cell2))
                flux_tmp(k,iEdge) = dt * flux_arr(k,iEdge) - flux_upwind_tmp(k,iEdge)
             end do
          end do
+!$acc end parallel
 !$OMP BARRIER
+!$acc parallel vector_length(32)
+!$acc loop gang vector
          do iCell=cellSolveStart,cellSolveEnd
+!$acc loop vector
             do i=1,nEdgesOnCell(iCell)
                iEdge = edgesOnCell(i,iCell)
 
 !DIR$ IVDEP
+!$acc loop vector
                do k=1, nVertLevels
                   scalar_new(k,iCell) = scalar_new(k,iCell) - edgesOnCell_sign(i,iCell) * flux_upwind_tmp(k,iEdge) * invAreaCell(iCell)
  
@@ -4100,7 +4173,7 @@ module atm_time_integration
 
             end do
          end do
-
+!$acc end parallel
          !
          !  next, the limiter
          !
@@ -4109,6 +4182,8 @@ module atm_time_integration
          ! worked through algebra and found equivalent form
          ! added benefit that it should address ifort single prec overflow issue
       if (local_advance_density) then
+!$acc parallel vector_length(32)
+!$acc loop gang vector collapse(2)
          do iCell=cellSolveStart,cellSolveEnd
 !DIR$ IVDEP
             do k = 1, nVertLevels
@@ -4122,7 +4197,10 @@ module atm_time_integration
                scale_arr(k,SCALE_OUT,iCell) = min( 1.0_RKIND, max( 0.0_RKIND, scale_factor) )
             end do
          end do
+!$acc end parallel
       else
+!$acc parallel vector_length(32)
+!$acc loop gang vector collapse(2)
          do iCell=cellSolveStart,cellSolveEnd
 !DIR$ IVDEP
             do k = 1, nVertLevels
@@ -4136,6 +4214,7 @@ module atm_time_integration
                scale_arr(k,SCALE_OUT,iCell) = min( 1.0_RKIND, max( 0.0_RKIND, scale_factor) )
             end do
          end do
+!$acc end parallel
       end if
 
          !
@@ -4148,11 +4227,15 @@ module atm_time_integration
 !$OMP END MASTER
 !$OMP BARRIER
 
+
+!$acc parallel vector_length(32)
+!$acc loop gang vector
          do iEdge=edgeStart,edgeEnd
             cell1 = cellsOnEdge(1,iEdge)
             cell2 = cellsOnEdge(2,iEdge)
             if (cell1 <= nCellsSolve .or. cell2 <= nCellsSolve) then  ! only for owned cells
 !DIR$ IVDEP
+!$acc loop vector
                do k=1, nVertLevels
                   flux_upwind = dvEdge(iEdge) * dt *   &
                          (max(0.0_RKIND,uhAvg(k,iEdge))*scalar_old(k,cell1) + min(0.0_RKIND,uhAvg(k,iEdge))*scalar_old(k,cell2))
@@ -4160,18 +4243,21 @@ module atm_time_integration
                end do
             end if
          end do
-
+!$acc end parallel
          !
          !  rescale the fluxes
          !
 
          ! moved assignment to scalar_new from separate loop (see commented code below)
          ! into the following loops. Avoids having to save elements of flux array
+!$acc parallel vector_length(32)
+!$acc loop gang vector
          do iEdge=edgeStart,edgeEnd
             cell1 = cellsOnEdge(1,iEdge)
             cell2 = cellsOnEdge(2,iEdge)
             if (cell1 <= nCellsSolve .or. cell2 <= nCellsSolve) then
 !DIR$ IVDEP
+!$acc loop vector
                do k = 1, nVertLevels
                   flux = flux_arr(k,iEdge)
                   flux = max(0.0_RKIND,flux) * min(scale_arr(k,SCALE_OUT,cell1), scale_arr(k,SCALE_IN, cell2)) &
@@ -4180,12 +4266,14 @@ module atm_time_integration
                end do
             end if
          end do
+!$acc end parallel
  
         !
         ! rescale the vertical flux
         !
 !$OMP BARRIER
- 
+!$acc parallel vector_length(32)
+!$acc loop gang vector collapse(2)
          do iCell=cellSolveStart,cellSolveEnd
 !DIR$ IVDEP
             do k = 2, nVertLevels
@@ -4195,15 +4283,19 @@ module atm_time_integration
                wdtn(k,iCell) = flux
             end do
          end do
-
+!$acc end parallel
 
          !
          !  do the scalar update now that we have the fluxes
          !
+!$acc parallel vector_length(32)
+!$acc loop gang vector
          do iCell=cellSolveStart,cellSolveEnd
+!$acc loop vector
             do i=1,nEdgesOnCell(iCell)
                iEdge = edgesOnCell(i,iCell)
 !DIR$ IVDEP
+!$acc loop vector
                do k=1,nVertLevels
                   scalar_new(k,iCell) = scalar_new(k,iCell) - edgesOnCell_sign(i,iCell)*flux_arr(k,iEdge) * invAreaCell(iCell)
                end do
@@ -4211,20 +4303,24 @@ module atm_time_integration
 
       if (local_advance_density) then
 !DIR$ IVDEP
+!$acc loop vector
             do k=1,nVertLevels
                scalar_new(k,iCell) = (   scalar_new(k,iCell) + (-rdnw(k)*(wdtn(k+1,iCell)-wdtn(k,iCell)) ) )/rho_zz_int(k,iCell)
             end do
       else
 !DIR$ IVDEP
+!$acc loop vector
             do k=1,nVertLevels
                scalar_new(k,iCell) = (   scalar_new(k,iCell) + (-rdnw(k)*(wdtn(k+1,iCell)-wdtn(k,iCell)) ) )/rho_zz_new(k,iCell)
             end do
       end if
          end do
-
+!$acc end parallel
 #ifdef DEBUG_TRANSPORT
          scmin = scalar_new(1,1)
          scmax = scalar_new(1,1)
+!$acc parallel vector_length(32)
+!$acc loop gang collapse(2)
          do iCell = 1, nCellsSolve
          do k=1, nVertLevels
             scmax = max(scmax,scalar_new(k,iCell))
@@ -4237,6 +4333,7 @@ module atm_time_integration
             end if
          end do
          end do
+!$acc end parallel
          call mpas_log_write(' scmin, scmax new out $r $r',realArgs=(/scmin,scmax/))
          call mpas_log_write(' icell_min, k_min ', intArgs=(/icellmax, kmax/))
 #endif
@@ -4244,15 +4341,16 @@ module atm_time_integration
          ! the update should be positive definite. but roundoff can sometimes leave small negative values
          ! hence the enforcement of PD in the copy back to the model state.
 !$OMP BARRIER
-
+!$acc parallel vector_length(32)
+!$acc loop collapse(2)
          do iCell=cellStart,cellEnd
             do k=1, nVertLevels
                scalars_new(iScalar,k,iCell) = max(0.0_RKIND,scalar_new(k,iCell))
             end do
          end do
-
+!$acc end parallel
       end do !  loop over scalars
-
+!$acc end data
    end subroutine atm_advance_scalars_mono_work
 
 
@@ -7428,10 +7526,10 @@ if (config_horiz_mixing == "2d_smagorinsky") then
 
 !$acc end data
 
-!!$acc update host(ru, ru_save, rw, rw_save, &
-!!$acc rtheta_p,rtheta_p_save,rho_p,rho_p_save, &
-!!$acc rho_zz_old_split,ruAvg,ruAvg_split, wwAvg, wwAvg_split, &
-!!$acc u_1,u_2,w_1,w_2,theta_m_1,theta_m_2,rho_zz_1,rho_zz_2)
+!$acc update host(ru, ru_save, rw, rw_save, &
+!$acc rtheta_p,rtheta_p_save,rho_p,rho_p_save, &
+!$acc rho_zz_old_split,ruAvg,ruAvg_split, wwAvg, wwAvg_split, &
+!$acc u_1,u_2,w_1,w_2,theta_m_1,theta_m_2,rho_zz_1,rho_zz_2)
 
 
    end subroutine atm_rk_dynamics_substep_finish_work
