@@ -1337,6 +1337,13 @@ module atm_time_integration
 
       end if
 
+#ifdef MPAS_OPENACC_UPDATE_HOST
+!$acc update host(gpu_theta_m_1, gpu_theta_m_2, gpu_pressure_p, gpu_rtheta_p,gpu_exner, &
+!$acc gpu_rtheta_pp, gpu_u_1, gpu_u_2, gpu_w_1, gpu_w_2, &
+!$acc gpu_tend_u, gpu_ru_p, gpu_rw_p, gpu_rho_pp, gpu_pv_edge, gpu_rho_edge, &
+!$acc gpu_scalars_1, gpu_scalars_2)
+#endif
+
       !
       ! reconstruct full velocity vectors at cell centers:
       !
