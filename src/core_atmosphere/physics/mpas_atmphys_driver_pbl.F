@@ -646,9 +646,9 @@
                  th       = th_p        , dz       = dz_p        , u        = u_p        , &
                  v        = v_p         , qv       = qv_p        , qc       = qc_p       , &
                  qi       = qi_p        , qni      = ni_p        , rho      = rho_p      , &
-                 du       = rublten_p   , dv       = rvblten_p   , dth      = rthblten_p , &
-                 dqv      = rqvblten_p  , dqc      = rqcblten_p  , dqi      = rqiblten_p , &
-                 dqni     = rniblten_p  , flag_qc  = f_qc        , flag_qnc = f_qnc      , &
+                 rublten  = rublten_p   , rvblten  = rvblten_p   , rthblten = rthblten_p , &
+                 rqvblten = rqvblten_p  , rqcblten = rqcblten_p  , rqiblten = rqiblten_p , &
+                 rqniblten= rniblten_p  , flag_qc  = f_qc        , flag_qnc = f_qnc      , &
                  flag_qi  = f_qi        , flag_qni = f_qni       , kpbl     = kpbl_p     , &
                  pblh     = hpbl_p      , xland    = xland_p     , ts       = tsk_p      , &
                  hfx      = hfx_p       , qfx      = qfx_p       , ch       = ch_p       , &
@@ -656,8 +656,8 @@
                  cov      = cov_p       , el_pbl   = elpbl_p     , qsfc     = qsfc_p     , &
                  qcg      = qcg_p       , ust      = ust_p       , rmol     = rmol_p     , &
                  wspd     = wspd_p      , wstar    = wstar_p     , delta    = delta_p    , &
-                 delt     = dt_pbl      , k_h      = kzh_p       , k_m      = kzm_p      , &
-                 k_q      = kzq_p       , uoce     = uoce_p      , voce     = voce_p     , &
+                 delt     = dt_pbl      , exch_h   = kzh_p       , exch_m   = kzm_p      , &
+                 uoce     = uoce_p      , voce     = voce_p     , &
                  qke      = qke_p       , qke_adv  = qkeadv_p    , vdfg     = vdfg_p     , &
                  tke_pbl  = tkepbl_p    , dqke     = dqke_p      , qwt      = qwt_p      , &
                  qshear   = qshear_p    , qbuoy    = qbuoy_p     , qdiss    = qdiss_p    , &
@@ -668,7 +668,12 @@
                  bl_mynn_tkebudget = bl_mynn_tkebudget ,                                   &
                  ids = ids , ide = ide , jds = jds , jde = jde , kds = kds , kde = kde   , &
                  ims = ims , ime = ime , jms = jms , jme = jme , kms = kms , kme = kme   , &
-                 its = its , ite = ite , jts = jts , jte = jte , kts = kts , kte = kte     &
+                 its = its , ite = ite , jts = jts , jte = jte , kts = kts , kte = kte   , &
+                 dx  = 0.0,  &
+                 bl_mynn_mixlength = 0, icloud_bl = 0,  &
+                 bl_mynn_edmf = 0, bl_mynn_edmf_mom = 0, bl_mynn_edmf_tke = 0,  &
+                 bl_mynn_edmf_part = 0, bl_mynn_cloudmix = 0, bl_mynn_mixqt = 0,  &
+                 spp_pbl = 0    &
                             )
        call mpas_timer_stop('MYNN_pbl')
 
