@@ -11,6 +11,9 @@
 ! * reversed the name of some of the subroutine names to their original name, after removing module_bl_mynn.F
 !   from WRF version 3.6.1.
 !   Laura D. Fowler (laura@ucar.edu) / 2018-01-23.
+! * now pass the TKE closure level (bl_mynn_closure) through the argument list (levflag was previously not
+!   initialized correctly).
+!   Laura D. Fowler (laura@ucar.edu) / 2018-09-19.
 
 !=================================================================================================================
 
@@ -3330,6 +3333,7 @@ ENDIF
        &el_pbl,                         &
        &dqke,qWT,qSHEAR,qBUOY,qDISS,    & !JOE-TKE BUDGET
        &wstar,delta,                    & !JOE-added for grims
+       &bl_mynn_closure,                &
        &bl_mynn_tkebudget,              &
        &bl_mynn_cloudpdf,Sh3D,          &
        &bl_mynn_mixlength,              &
@@ -3392,6 +3396,7 @@ ENDIF
     INTEGER, INTENT(in) :: initflag
     !INPUT NAMELIST OPTIONS:
     INTEGER, INTENT(in) :: grav_settling
+    INTEGER, INTENT(in) :: bl_mynn_closure
     INTEGER, INTENT(in) :: bl_mynn_tkebudget
     INTEGER, INTENT(in) :: bl_mynn_cloudpdf
     INTEGER, INTENT(in) :: bl_mynn_mixlength
@@ -3537,7 +3542,8 @@ ENDIF
     ITF=MIN0(ITE,IDE-1)
     KTF=MIN0(KTE,KDE-1)
 
-    levflag=mynn_level
+!   levflag=mynn_level
+    levflag=bl_mynn_closure
 
     IF (bl_mynn_edmf > 0) THEN
       ! setup random seed
