@@ -674,8 +674,8 @@ module turbulence_diagnostics
             richno_d = gTsq(1:nTurbulenceLevels,iCell) * (gravity / temperature(1:nTurbulenceLevels,iCell))**2
             shear_tw(1:nTurbulenceLevels,iCell) = sqrt(richno_d/fCellsq)
             do k = 1,nTurbulenceLevels
-                richno_tw(k,iCell) = richno_n(k) / max(richno_d(k),1.0e-15_RKIND)
-                invrichno_tw(k,iCell) = richno_d(k) / max(richno_n(k),1.0e-15_RKIND)
+                richno_tw(k,iCell) = max(richno_n(k) / max(richno_d(k),1.0e-15_RKIND), 1.e-3_RKIND)
+                invrichno_tw(k,iCell) = min(richno_d(k) / max(richno_n(k),1.0e-15_RKIND), 1.e+3_RKIND)
             end do
         end do
 
