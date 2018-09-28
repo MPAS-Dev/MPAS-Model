@@ -117,15 +117,20 @@ elif [[ $distribution == "2.6.32-279.14.1.el6.x86_64" ]]; then
     echo "(1) Building Parallel IO"
     echo "*************************"
 
+    cd $MPAS_ROOT/software/
+    wget https://github.com/NCAR/ParallelIO/archive/pio1_9_23.tar.gz
+    tar -xvzf pio1_9_23.tar.gz
+    cd ParallelIO-pio1_9_23/pio
+    git clone git@github.com:/PARALLELIO/genf90.git bin
+    git clone git@github.com:/CESM-Development/CMake_Fortran_utils.git cmake
+
     rm -rf $PIO
     mkdir $PIO
-
     cd $PIO
     ${CMAKE_PATH}/cmake -DNETCDF_C_DIR=$NETCDF -DNETCDF_Fortran_DIR=$NETCDF -DPNETCDF_DIR=$PNETCDF -DCMAKE_VERBOSE_MAKEFILE=1 $PIOSRC
     # need to edit the CMakeCache.txt file --> with a sed command
     sed -i -e "s/.*PIO_DEFINITIONS.*/PIO_DEFINITIONS:STRING=-D_NETCDF;-D_PNETCDF;-DUSEMPIIO;-D_NOUSEMCT;-D_USEBOX;-DNO_MPIMOD/" CMakeCache.txt
     make
-
     
 elif [[ $os_name == "Darwin" ]]; then
     # Mac (Darwin version 16.6.0)
@@ -185,15 +190,20 @@ elif [[ $os_name == "Darwin" ]]; then
     echo "(1) Building Parallel IO"
     echo "*************************"
 
+    cd $MPAS_ROOT/software/
+    wget https://github.com/NCAR/ParallelIO/archive/pio1_9_23.tar.gz
+    tar -xvzf pio1_9_23.tar.gz
+    cd ParallelIO-pio1_9_23/pio
+    git clone git@github.com:/PARALLELIO/genf90.git bin
+    git clone git@github.com:/CESM-Development/CMake_Fortran_utils.git cmake
+
     rm -rf $PIO
     mkdir $PIO
-
     cd $PIO
     ${CMAKE_PATH}/cmake -DNETCDF_C_DIR=$NETCDF -DNETCDF_Fortran_DIR=$NETCDF -DPNETCDF_DIR=$PNETCDF -DCMAKE_VERBOSE_MAKEFILE=1 $PIOSRC
     # need to edit the CMakeCache.txt file --> with a sed command
     sed -i -e "s/.*PIO_DEFINITIONS.*/PIO_DEFINITIONS:STRING=-D_NETCDF;-D_PNETCDF;-DUSEMPIIO;-D_NOUSEMCT;-D_USEBOX;-DNO_MPIMOD/" CMakeCache.txt
     make
-
 
 fi
 
