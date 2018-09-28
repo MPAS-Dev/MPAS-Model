@@ -10,6 +10,7 @@ software/ParallelIO/
 software/PIO_build/
 software/PIO_install/
 software/pio1_9_23.tar.gz
+software/ParallelIO-pio1_9_23/
 dbl2flt/double_to_float_grid
 grid_rotate/grid_rotate
 meshes/
