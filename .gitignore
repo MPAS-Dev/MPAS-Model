@@ -9,11 +9,13 @@ software/pio-2.2.1/
 software/ParallelIO/
 software/PIO_build/
 software/PIO_install/
+software/pio1_9_23.tar.gz
 dbl2flt/double_to_float_grid
 grid_rotate/grid_rotate
 meshes/
 metis-5.1.0/
 src/core_init_atmosphere/mpas_init_atm_cases.F
+src/framework/mpas_io.F
 compile.out
 
 # Ignore Files in the MPAS Direcory
