@@ -118,6 +118,7 @@ elif [[ $distribution == "2.6.32-279.14.1.el6.x86_64" ]]; then
     echo "*************************"
 
     cd $MPAS_ROOT/software/
+    rm -rf ParallelIO-pio1_9_23/ pio1_9_23.tar.gz
     wget https://github.com/NCAR/ParallelIO/archive/pio1_9_23.tar.gz
     tar -xvzf pio1_9_23.tar.gz
     cd ParallelIO-pio1_9_23/pio
@@ -191,6 +192,7 @@ elif [[ $os_name == "Darwin" ]]; then
     echo "*************************"
 
     cd $MPAS_ROOT/software/
+    rm -rf ParallelIO-pio1_9_23/ pio1_9_23.tar.gz
     wget https://github.com/NCAR/ParallelIO/archive/pio1_9_23.tar.gz
     tar -xvzf pio1_9_23.tar.gz
     cd ParallelIO-pio1_9_23/pio
