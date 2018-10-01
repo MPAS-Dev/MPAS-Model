@@ -27,6 +27,8 @@ module mpas_io_units
 
    integer, parameter :: maxUnits = 99
    logical, dimension(0:maxUnits), save :: unitsInUse
+   integer, parameter :: unformatted_min = 95
+   integer, parameter :: unformatted_max = 99
 
    public :: mpas_new_unit, mpas_release_unit
 
@@ -44,15 +46,29 @@ module mpas_io_units
 !> the unit number
 !
 !-----------------------------------------------------------------------
-    subroutine mpas_new_unit(newUnit)!{{{
+    subroutine mpas_new_unit(newUnit, unformatted)!{{{
         integer, intent(inout) :: newUnit
+        logical, optional, intent(in) :: unformatted
 
-        integer :: i
+        integer :: i, minsearch, maxsearch, limit_type
 
         logical :: opened
 
         newUnit = -1
-        do i = 1, maxUnits
+
+        limit_type = 1
+        if ( present(unformatted) ) then
+           if ( unformatted ) limit_type = 2
+        end if
+        if ( limit_type == 2 ) then
+           minsearch = unformatted_min
+           maxsearch = unformatted_max
+        else
+           minsearch = 1
+           maxsearch = maxUnits
+        end if
+
+        do i = minsearch, maxsearch
             if (.not. unitsInUse(i)) then
                 inquire(i, opened=opened)
                 if (opened) then
