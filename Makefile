@@ -610,6 +610,14 @@ else
 	CONTINUE=true
 endif # END IF BUILT CORE CHECK
 
+ifeq "$(SHARELIB)" "true"
+	FFLAGS += "-fPIC"
+	CFLAGS += "-fPIC"
+	CXXFLAGS += "-fPIC"
+	override CPPFLAGS += "-fPIC"
+	LDFLAGS += "-fPIC"
+endif #SHARELIB IF
+
 ifneq ($(wildcard namelist.$(NAMELIST_SUFFIX)), ) # Check for generated namelist file.
 	NAMELIST_MESSAGE="A default namelist file (namelist.$(NAMELIST_SUFFIX).defaults) has been generated, but namelist.$(NAMELIST_SUFFIX) has not been modified."
 else
