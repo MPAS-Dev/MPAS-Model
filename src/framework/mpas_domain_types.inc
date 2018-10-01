@@ -34,4 +34,7 @@
 
       ! Domain_type is a linked list
       type (domain_type), pointer :: next => null()
+
+      ! Unique global ID number for this domain
+      integer :: domainID
    end type domain_type

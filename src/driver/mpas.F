@@ -11,11 +11,14 @@ program mpas
 
    implicit none
 
-   call mpas_init()
+   type (core_type), pointer :: corelist
+   type (domain_type), pointer :: domain_ptr
 
-   call mpas_run() 
+   call mpas_init(corelist,domain_ptr)
 
-   call mpas_finalize()
+   call mpas_run(domain_ptr) 
+
+   call mpas_finalize(corelist,domain_ptr)
 
    stop
 
