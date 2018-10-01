@@ -204,6 +204,10 @@ module turbulence_diagnostics
             call deformation_compute()
         end if
 
+        if ( need_ngm1 ) then
+            call ngm_compute()
+        end if
+
         if (need_ellrod2) then
             call ellrod2_compute()
         end if
@@ -285,12 +289,13 @@ module turbulence_diagnostics
 
         call mpas_pool_get_array(diag, 'gradTmp', p)
         p(:,:) = 0._RKIND
-
+        call mpas_pool_get_array(diag, 'ngm1', p)
+        p(:,:) = 0._RKIND
         call mpas_pool_get_array(diag, 'windshear', p)
         p(:,:) = 0._RKIND
         call mpas_pool_get_array(diag, 'deformation', p)
         p(:,:) = 0._RKIND
-        call mpas_pool_get_array(diag, 'ellrod3', p)
+        call mpas_pool_get_array(diag, 'ellrod2', p)
         p(:,:) = 0._RKIND
         call mpas_pool_get_array(diag, 'richno', p)
         p(:,:) = 0._RKIND
