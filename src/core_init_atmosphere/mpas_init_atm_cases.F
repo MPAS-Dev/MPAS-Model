@@ -2574,7 +2574,7 @@ module init_atm_cases
       real (kind=RKIND), dimension(nVertLevels + 1) :: zz_1d, zgrid_1d, hx_1d
       real (kind=RKIND), dimension(nVertLevels) :: flux_zonal
       real (kind=RKIND), dimension(nlat, nVertLevels) :: u_2d, etavs_2d
-      real (kind=RKIND), dimension(nVertLevels + 1) :: fsum
+      real (kind=RKIND), dimension(nVertLevels + 1) :: fsum, zeta_levels
       real (kind=RKIND), dimension(nlat) :: lat_2d
       real (kind=RKIND) :: dlat
       real (kind=RKIND) :: z_edge, z_edge3, d2fdx2_cell1, d2fdx2_cell2
@@ -2586,19 +2586,21 @@ module init_atm_cases
 
       character (len=StrKIND), pointer :: config_met_prefix
       character (len=StrKIND), pointer :: config_start_time
+      character (len=StrKIND), pointer :: config_zeta_levels
+      real (kind=RKIND), pointer :: config_dzmin
+      real (kind=RKIND), pointer :: config_ztop
+      real (kind=RKIND), pointer :: config_coef_3rd_order
       logical, pointer :: config_met_interp
       logical, pointer :: config_vertical_grid
       integer, pointer :: config_nsmterrain
       integer, pointer :: config_nsm
-      real (kind=RKIND), pointer :: config_dzmin
-      real (kind=RKIND), pointer :: config_ztop
+      logical, pointer :: config_use_defined_zw
       logical, pointer :: config_tc_vertical_grid
       logical, pointer :: config_use_spechumd
       integer, pointer :: config_nfglevels
       integer, pointer :: config_nfgsoillevels
       logical, pointer :: config_smooth_surfaces
       integer, pointer :: config_theta_adv_order
-      real (kind=RKIND), pointer :: config_coef_3rd_order
 
       character (len=StrKIND), pointer :: config_extrap_airtemp
       integer :: extrap_airtemp
@@ -2669,6 +2671,8 @@ module init_atm_cases
       call mpas_pool_get_config(configs, 'config_nsm', config_nsm)
       call mpas_pool_get_config(configs, 'config_dzmin', config_dzmin)
       call mpas_pool_get_config(configs, 'config_ztop', config_ztop)
+      call mpas_pool_get_config(configs, 'config_use_defined_zw', config_use_defined_zw)
+      call mpas_pool_get_config(configs, 'config_zeta_levels', config_zeta_levels)
       call mpas_pool_get_config(configs, 'config_tc_vertical_grid', config_tc_vertical_grid)
       call mpas_pool_get_config(configs, 'config_use_spechumd', config_use_spechumd)
       call mpas_pool_get_config(configs, 'config_nfglevels', config_nfglevels)
@@ -2950,8 +2954,26 @@ write(0,*) 'USING ECMWF TERRAIN...'
       write(0,*) "max ter = ", hm
 
 !     Metrics for hybrid coordinate and vertical stretching
+!     J. Cipriani, IBM / TWC, 08/30/2018
+!     Allow the user to specify their own vertical (zeta) levels (nVertLevels + 1)
+!     It is up to the end user to ensure that ztop matches zw(top) and that
+!     their custom zw distribution is of the same dimensionality as n_vert+1
 
-      if (config_tc_vertical_grid) then
+      if (config_use_defined_zw) then
+
+         write(0,*) 'Setting up vertical levels according to the custom zeta levels in namelist.init_atmosphere'
+
+         ! read comma-separated string of specified zeta levels
+         read (unit=config_zeta_levels,fmt=*) zeta_levels
+
+         zt = config_ztop
+         dz = zt/float(nz1)
+         do k=1,nz
+            zw(k) = zeta_levels(k)
+            if (k > 1) dzw(k-1) = zw(k)-zw(k-1)
+         end do
+
+      else if (config_tc_vertical_grid) then
 
          write(0,*) 'Setting up vertical levels as in 2014 TC experiments'
 
