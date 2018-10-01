@@ -176,9 +176,12 @@ module mpas_log
       mpas_log_info % taskID = domain % dminfo % my_proc_id
       mpas_log_info % nTasks = domain % dminfo % nprocs
 
-      ! Store the domain number
+      ! Store the domain number and initialized_mpi
       !   This will be used to number the log files
       mpas_log_info % domainID = domain % domainID
+
+      !   This will be used to decide whether to abort MPI
+      mpas_log_info % initialized_mpi = domain % dminfo % initialized_mpi
 
       ! Set log file to be active or not based on master/nonmaster task and optimized/debug build
       !   * Optimized build: Only master task log is active
@@ -847,7 +850,13 @@ module mpas_log
       deallocate(mpas_log_info)
 
 #ifdef _MPI
-      call MPI_Abort(MPI_COMM_WORLD, mpi_errcode, mpi_ierr)
+      !
+      ! Only if MPI was initialized by MPAS should we call MPI_Abort
+      ! Otherwise, MPI was initialized outside of MPAS and we should not abort on MPI_COMM_WORLD
+      !
+      if ( mpas_log_info % initialized_mpi ) then
+         call MPI_Abort(MPI_COMM_WORLD, mpi_errcode, mpi_ierr)
+      end if
 #else
       stop
 #endif

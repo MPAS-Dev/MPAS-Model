@@ -349,7 +349,13 @@ include 'mpif.h'
 #ifdef _MPI
       integer :: mpi_ierr, mpi_errcode
 
-      call MPI_Abort(dminfo % comm, mpi_errcode, mpi_ierr)
+      !
+      ! Only if MPI was initialized by MPAS should we call MPI_Abort
+      ! Otherwise, MPI was initialized outside of MPAS and we should not abort on MPI_COMM_WORLD
+      !
+      if ( dminfo % initialized_mpi ) then
+         call MPI_Abort(dminfo % comm, mpi_errcode, mpi_ierr)
+      end if
 #endif
 
       stop
