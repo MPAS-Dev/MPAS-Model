@@ -161,7 +161,7 @@ module turbulence_diagnostics
 
         implicit none
 
-        logical :: need_windspeed, need_windshear, need_temp, need_windsh_tw, need_gradTemp
+        logical :: need_windshear, need_temp, need_windsh_tw, need_gradTemp, need_ngm1
         logical :: need_def, need_ellrod2, need_ellrod3, need_ri, need_ritw, need_mwtds, need_iawind, need_fronto
 
         ! Scratch spaces
@@ -170,11 +170,11 @@ module turbulence_diagnostics
 
         need_ri        = ( MPAS_field_will_be_written('richno') .or. MPAS_field_will_be_written('invrichno') )
         need_mwtds     = ( stream_mwtds .and. MPAS_field_will_be_written('mwtds') )
-        need_windspeed = ( MPAS_field_will_be_written('windspeed') )
+        need_ngm1      = ( MPAS_field_will_be_written('ngm1') )
         need_ellrod2   = ( MPAS_field_will_be_written('ellrod2') )
         need_ellrod3   = ( stream_ellrod3 .and. MPAS_field_will_be_written('ellrod3') )
         need_windshear = ( need_ri .or. need_ellrod3 .or. MPAS_field_will_be_written('windshear') )
-        need_def       = ( need_ellrod2 .or. need_ellrod3 .or. MPAS_field_will_be_written('deformation') )
+        need_def       = ( need_ngm1 .or. need_ellrod2 .or. need_ellrod3 .or. MPAS_field_will_be_written('deformation') )
         need_iawind    = ( MPAS_field_will_be_written('iawind') )
         need_fronto    = ( MPAS_field_will_be_written('frontogenesis') )
 
@@ -196,7 +196,7 @@ module turbulence_diagnostics
         call layer_height_compute(invH)
         call buoyancy_compute(nsq)
 
-        if ( need_windspeed .or. need_windshear .or. need_windsh_tw ) then
+        if ( need_windshear .or. need_windsh_tw ) then
             call speed_shear_compute()
         end if
 
@@ -285,8 +285,7 @@ module turbulence_diagnostics
 
         call mpas_pool_get_array(diag, 'gradTmp', p)
         p(:,:) = 0._RKIND
-        call mpas_pool_get_array(diag, 'windspeed', p)
-        p(:,:) = 0._RKIND
+
         call mpas_pool_get_array(diag, 'windshear', p)
         p(:,:) = 0._RKIND
         call mpas_pool_get_array(diag, 'deformation', p)
@@ -372,7 +371,7 @@ module turbulence_diagnostics
         real (kind=RKIND), dimension(:,:), pointer :: u, v, rdz
 
         ! output
-        real (kind=RKIND), dimension(:,:), pointer :: windspeed, windshear
+        real (kind=RKIND), dimension(:,:), pointer :: windshear
 
         ! Local variables
         integer :: iCell, k
@@ -382,7 +381,6 @@ module turbulence_diagnostics
         call mpas_pool_get_array(diag, 'uReconstructMeridional', v)
         call mpas_pool_get_array(diag, 'uReconstructZonal', u)
 
-        call mpas_pool_get_array(diag, 'windspeed', windspeed)
         call mpas_pool_get_array(diag, 'windshear', windshear)
 
         allocate(du(nTurbulenceLevels))
@@ -393,9 +391,6 @@ module turbulence_diagnostics
             ! Associate uc,vc with the current column
             uc => u(1:nTurbulenceLevels,iCell)
             vc => v(1:nTurbulenceLevels,iCell)
-
-            ! Wind speed
-            windspeed(1:nTurbulenceLevels,iCell) = sqrt(uc * uc + vc * vc)
 
             ! Wind shear at cell centers
             call compute_vert_diff_u_u(uc, du, nTurbulenceLevels)
@@ -475,6 +470,35 @@ module turbulence_diagnostics
         deallocate(d_off_diag)
 
     end subroutine deformation_compute
+
+!-----------------------------------------------------------------------------------
+! NGM indices
+
+    subroutine ngm_compute()
+
+        implicit none
+
+        ! input
+        real (kind=RKIND), dimension(:,:), pointer :: u, v, deformation
+
+        ! output
+        real (kind=RKIND), dimension(:,:), pointer :: ngm1 ! wspd x |def|
+
+        ! Local variables
+        integer :: iCell, nT
+
+        call mpas_pool_get_array(diag, 'uReconstructMeridional', v)
+        call mpas_pool_get_array(diag, 'uReconstructZonal', u)
+        call mpas_pool_get_array(diag, 'deformation', deformation)
+
+        call mpas_pool_get_array(diag, 'ngm1', ngm1)
+
+        nT = nTurbulenceLevels
+        do iCell=1,nCellsSolve
+            ngm1(1:nT,iCell) = sqrt(u(1:nT,iCell)**2 + v(1:nT,iCell)**2) * deformation(1:nT,iCell)
+        end do
+
+    end subroutine ngm_compute
 
 !-----------------------------------------------------------------------------------
 ! Ellrod indices

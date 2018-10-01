@@ -12,9 +12,6 @@
     <var name="deformation" type="real" dimensions="nVertLevels nCells Time" units="s^{-1}"
          description="Horizontal deformation"/>
          
-    <var name="windspeed" type="real" dimensions="nVertLevels nCells Time" units="m s^{-1}"
-         description="Horizontal wind speed diagnostic from reconstructed values at cell centers"/>
-         
     <var name="windshear" type="real" dimensions="nVertLevels nCells Time" units="s^{-1}"
          description="Vertical wind shear from reconstructed values in height coordinate at u levels"/>
          
@@ -50,6 +47,9 @@
         
     <var name="ellrod3" type="real" dimensions="nVertLevels nCells Time" units="s^{-2}"
         description="Ellrod-Knox turbulence index"/>
+        
+    <var name="ngm1" type="real" dimensions="nVertLevels nCells Time" units="s^{-2}"
+        description="NGM1 turbulence index"/>
     
 </var_struct>
 
