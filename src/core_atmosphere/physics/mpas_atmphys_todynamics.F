@@ -442,13 +442,13 @@
     character(len=StrKIND), intent(in) :: config_radt_lw_scheme
     character(len=StrKIND), intent(in) :: config_radt_sw_scheme
     integer, intent(in) :: index_qv, index_qc, index_qr, index_qi, index_qs, index_ni
-    real (kind=RKIND), dimension(nVertLevels,nCells+1), intent(in) :: rublten
-    real (kind=RKIND), dimension(nVertLevels,nCells+1), intent(in) :: rvblten
+    real (kind=RKIND), dimension(nVertLevels,nCells+1), intent(inout) :: rublten
+    real (kind=RKIND), dimension(nVertLevels,nCells+1), intent(inout) :: rvblten
     real (kind=RKIND), dimension(nVertLevels,nEdges+1), intent(in) :: mass_edge
     real (kind=RKIND), dimension(nVertLevels,nEdges+1), intent(inout) :: rublten_Edge
     real (kind=RKIND), dimension(nVertLevels,nEdges+1), intent(inout) :: tend_u
-    real (kind=RKIND), dimension(nVertLevels,nCells+1), intent(in) :: rucuten
-    real (kind=RKIND), dimension(nVertLevels,nCells+1), intent(in) :: rvcuten
+    real (kind=RKIND), dimension(nVertLevels,nCells+1), intent(inout) :: rucuten
+    real (kind=RKIND), dimension(nVertLevels,nCells+1), intent(inout) :: rvcuten
     real (kind=RKIND), dimension(nVertLevels,nEdges+1), intent(inout) :: rucuten_Edge
     real (kind=RKIND), dimension(nVertLevels,nCells+1), intent(inout) :: tend_th
     real (kind=RKIND), dimension(num_scalars,nVertLevels,nCells+1), intent(inout) :: tend_scalars
@@ -644,13 +644,13 @@
     character(len=StrKIND), intent(in) :: config_radt_lw_scheme
     character(len=StrKIND), intent(in) :: config_radt_sw_scheme
     integer, intent(in) :: index_qv, index_qc, index_qr, index_qi, index_qs, index_ni
-    real (kind=RKIND), dimension(nVertLevels,nCells+1), intent(in) :: rublten
-    real (kind=RKIND), dimension(nVertLevels,nCells+1), intent(in) :: rvblten
+    real (kind=RKIND), dimension(nVertLevels,nCells+1), intent(inout) :: rublten
+    real (kind=RKIND), dimension(nVertLevels,nCells+1), intent(inout) :: rvblten
     real (kind=RKIND), dimension(nVertLevels,nEdges+1), intent(in) :: mass_edge
     real (kind=RKIND), dimension(nVertLevels,nEdges+1), intent(inout) :: rublten_Edge
     real (kind=RKIND), dimension(nVertLevels,nEdges+1), intent(inout) :: tend_u
-    real (kind=RKIND), dimension(nVertLevels,nCells+1), intent(in) :: rucuten
-    real (kind=RKIND), dimension(nVertLevels,nCells+1), intent(in) :: rvcuten
+    real (kind=RKIND), dimension(nVertLevels,nCells+1), intent(inout) :: rucuten
+    real (kind=RKIND), dimension(nVertLevels,nCells+1), intent(inout) :: rvcuten
     real (kind=RKIND), dimension(nVertLevels,nEdges+1), intent(inout) :: rucuten_Edge
     real (kind=RKIND), dimension(nVertLevels,nCells+1), intent(inout) :: tend_th
     real (kind=RKIND), dimension(num_scalars,nVertLevels,nCells+1), intent(inout) :: tend_scalars
@@ -797,7 +797,7 @@
 !input arguments:
  type(block_type),intent(in),target:: block
  type(mpas_pool_type),intent(in):: mesh
- real(kind=RKIND),intent(in),dimension(:,:),target:: Ux_tend,Uy_tend 
+ real(kind=RKIND),intent(inout),dimension(:,:),target:: Ux_tend,Uy_tend 
 
 !output arguments:
  real(kind=RKIND),intent(out),dimension(:,:):: U_tend
@@ -810,9 +810,11 @@
  integer,pointer:: nCells,nCellsSolve,nEdges
  integer,dimension(:,:),pointer:: cellsOnEdge
 
- real(kind=RKIND),dimension(:,:),pointer:: Ux_tend_halo,Uy_tend_halo
  real(kind=RKIND), dimension(:,:), pointer :: east, north, edgeNormalVectors
 
+ integer, dimension(:), pointer :: compactHaloInfo
+ type (mpas_communication_list), pointer :: sendList => null()
+ type (mpas_communication_list), pointer :: recvList => null()
  
 !-----------------------------------------------------------------------------------------------------------------
 
@@ -826,44 +828,43 @@
 
  call mpas_pool_get_array(mesh, 'cellsOnEdge', cellsOnEdge)
 
- Ux_tend_halo => Ux_tend
- Uy_tend_halo => Uy_tend
-
  tempField => tempFieldTarget 
  tempField % block => block
  tempField % dimSizes(1) = nVertLevels
- tempField % dimSizes(2) = nCellsSolve
+ tempField % dimSizes(2) = nCells
  tempField % sendList => block % parinfo % cellsToSend
  tempField % recvList => block % parinfo % cellsToRecv
  tempField % copyList => block % parinfo % cellsToCopy
+ tempField % array => Ux_tend
  tempField % prev => null()
  tempField % next => null()
  tempField % isActive = .true.
 
- tempField % array => Ux_tend_halo
- call mpas_dmpar_exch_halo_field(tempField)
- 
- tempField % array => Uy_tend_halo
- call mpas_dmpar_exch_halo_field(tempField)
+ call mpas_dmpar_compact_halo_info(tempField, compactHaloInfo)
+ call mpas_dmpar_exch_halo_acc(Ux_tend, compactHaloInfo, sendList, recvList)
+ call mpas_dmpar_exch_halo_acc(Uy_tend, compactHaloInfo, sendList, recvList)
+ deallocate(compactHaloInfo)
+ call mpas_dmpar_destroy_communication_list(sendList)
+ call mpas_dmpar_destroy_communication_list(recvList)
 
  do iEdge = 1, nEdges
     cell1 = cellsOnEdge(1,iEdge)
     cell2 = cellsOnEdge(2,iEdge)
                            
-    U_tend(:,iEdge) =  Ux_tend_halo(:,cell1) * 0.5 * (edgeNormalVectors(1,iEdge) * east(1,cell1)   &
-                                                   +  edgeNormalVectors(2,iEdge) * east(2,cell1)   &
-                                                   +  edgeNormalVectors(3,iEdge) * east(3,cell1))  &
-                     + Uy_tend_halo(:,cell1) * 0.5 * (edgeNormalVectors(1,iEdge) * north(1,cell1)   &
-                                                   +  edgeNormalVectors(2,iEdge) * north(2,cell1)   &
-                                                   +  edgeNormalVectors(3,iEdge) * north(3,cell1))  &
-                     + Ux_tend_halo(:,cell2) * 0.5 * (edgeNormalVectors(1,iEdge) * east(1,cell2)   &
-                                                   +  edgeNormalVectors(2,iEdge) * east(2,cell2)   &
-                                                   +  edgeNormalVectors(3,iEdge) * east(3,cell2))  &
-                     + Uy_tend_halo(:,cell2) * 0.5 * (edgeNormalVectors(1,iEdge) * north(1,cell2)   &
-                                                   +  edgeNormalVectors(2,iEdge) * north(2,cell2)   &
-                                                   +  edgeNormalVectors(3,iEdge) * north(3,cell2))
+    U_tend(:,iEdge) =  Ux_tend(:,cell1) * 0.5 * (edgeNormalVectors(1,iEdge) * east(1,cell1)   &
+                                              +  edgeNormalVectors(2,iEdge) * east(2,cell1)   &
+                                              +  edgeNormalVectors(3,iEdge) * east(3,cell1))  &
+                     + Uy_tend(:,cell1) * 0.5 * (edgeNormalVectors(1,iEdge) * north(1,cell1)  &
+                                              +  edgeNormalVectors(2,iEdge) * north(2,cell1)  &
+                                              +  edgeNormalVectors(3,iEdge) * north(3,cell1)) &
+                     + Ux_tend(:,cell2) * 0.5 * (edgeNormalVectors(1,iEdge) * east(1,cell2)   &
+                                              +  edgeNormalVectors(2,iEdge) * east(2,cell2)   &
+                                              +  edgeNormalVectors(3,iEdge) * east(3,cell2))  &
+                     + Uy_tend(:,cell2) * 0.5 * (edgeNormalVectors(1,iEdge) * north(1,cell2)  &
+                                              +  edgeNormalVectors(2,iEdge) * north(2,cell2)  &
+                                              +  edgeNormalVectors(3,iEdge) * north(3,cell2))
  end do
- 
+
  end subroutine tend_toEdges
 
 !=================================================================================================================
