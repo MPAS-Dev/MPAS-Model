@@ -161,7 +161,7 @@ module atm_time_integration
       integer :: rrpk_rank, rrpk_devices, rrpk_local_gpu_id
       rrpk_rank = domain % dminfo % my_proc_id
       rrpk_devices =  acc_get_num_devices(acc_device_nvidia)
-      rrpk_local_gpu_id = mod(rrpk_rank,2)
+      rrpk_local_gpu_id = mod(rrpk_rank,rrpk_devices)
       call acc_set_device_num(rrpk_local_gpu_id,acc_device_nvidia)
 #endif
 !$acc enter data copyin(compactHaloInfo_c_v,compactHaloInfo_c_vP1,compactHaloInfo_c_v_s,compactHaloInfo_e_v, compactHaloInfo_c_2_v)
