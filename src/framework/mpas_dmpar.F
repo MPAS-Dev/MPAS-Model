@@ -6388,6 +6388,7 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
            !$acc enter data create(tempRBuffer)
            commListPtr % rbuffer =>tempRBuffer
         end if
+        tempRBuffer => commListPtr % rbuffer 
         nullify(commListPtr % ibuffer)
         !$acc host_data use_device(tempRBuffer)
         call MPI_Irecv(tempRBuffer, commListPtr % nList, MPI_REALKIND, commListPtr % procID, commListPtr % procID, mpi_comm, commListPtr % reqID, mpi_ierr)
