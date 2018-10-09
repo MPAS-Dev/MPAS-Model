@@ -28,7 +28,7 @@ contains
 
   subroutine add_warning(warning)
 
-    character(len=*), intent(in) :: &
+    character(len=char_len_long), intent(in) :: &
          warning ! warning to add to array of warnings
 
     ! number of array elements to increase size of warnings array if that array has run out of space
