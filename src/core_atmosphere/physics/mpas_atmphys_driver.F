@@ -204,6 +204,7 @@
 !$OMP PARALLEL DO
     do thread=1,nThreads
        call MPAS_to_physics(block%configs,mesh,state,time_lev,diag,diag_physics, &
+                            mpas_cpl, cells_to_rad_handle, cells_from_rad_handle, &
                             cellSolveThreadStart(thread), cellSolveThreadEnd(thread))
     end do
 !$OMP END PARALLEL DO
@@ -280,6 +281,7 @@
     ! ===============================================================================================
 
 
+if (mpas_cpl % role() == ROLE_INTEGRATE) then
     !call to surface-layer scheme:
     if(config_sfclayer_scheme .ne. 'off') then
        call allocate_sfclayer(block%configs)
@@ -317,7 +319,6 @@
        end do
 !$OMP END PARALLEL DO
        call deallocate_pbl(block%configs)
-
     endif
 
     !call to gravity wave drag over orography scheme:
@@ -358,6 +359,7 @@
        end do
 !$OMP END PARALLEL DO
     end if
+end if
 
     !deallocate arrays shared by all physics parameterizations:
     call deallocate_forall_physics(block%configs)
