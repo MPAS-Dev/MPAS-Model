@@ -250,15 +250,22 @@
     !call to long wave radiation scheme:
     if(l_radtlw) then
        time_lev = 1
-       call allocate_radiation_lw(block%configs,xtime_s)
+       if (mpas_cpl % role() == ROLE_RADIATION) then
+          call mpas_log_write('ALLOCATING LWRAD FIELDS')
+          call allocate_radiation_lw(block%configs,xtime_s)
+       end if
 !$OMP PARALLEL DO
        do thread=1,nThreads
           call driver_radiation_lw(xtime_s,block%configs,mesh,state,time_lev,diag_physics, &
                                    atm_input,sfc_input,tend_physics, &
+                                   mpas_cpl, cells_to_rad_handle, cells_from_rad_handle, &
                                    cellSolveThreadStart(thread), cellSolveThreadEnd(thread))
        end do
 !$OMP END PARALLEL DO
-       call deallocate_radiation_lw(block%configs)
+       if (mpas_cpl % role() == ROLE_RADIATION) then
+          call mpas_log_write('DEALLOCATING LWRAD FIELDS')
+          call deallocate_radiation_lw(block%configs)
+       end if
     endif
 
     !call to accumulate long- and short-wave diagnostics if needed:

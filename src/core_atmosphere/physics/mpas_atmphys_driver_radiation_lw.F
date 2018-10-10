@@ -9,6 +9,7 @@
  module mpas_atmphys_driver_radiation_lw
  use mpas_kind_types
  use mpas_pool_routines
+ use mpas_intracoupler, only : mpas_coupler_transfer_field
 
  use mpas_atmphys_driver_radiation_sw, only: radconst
  use mpas_atmphys_constants
@@ -30,6 +31,7 @@
           init_radiation_lw,       &
           radiation_camlw_to_MPAS
 
+ integer, parameter, private :: ROLE_INTEGRATE = 0, ROLE_RADIATION = 1
 
 !MPAS driver for parameterization of longwave radiation codes.
 !Laura D. Fowler (send comments to laura@ucar.edu).
@@ -296,7 +298,7 @@
 
 !=================================================================================================================
  subroutine radiation_lw_from_MPAS(xtime_s,configs,mesh,state,time_lev,diag_physics,atm_input, &
-                                   sfc_input,its,ite)
+                                   sfc_input,mpas_cpl,cells_to_rad_handle,cells_from_rad_handle,its,ite)
 !=================================================================================================================
 
 !input arguments:
@@ -305,6 +307,9 @@
  type(mpas_pool_type),intent(in):: state
  type(mpas_pool_type),intent(in):: atm_input
  type(mpas_pool_type),intent(in):: sfc_input
+
+ type (mpas_coupler_type), pointer :: mpas_cpl
+ integer, intent(in) :: cells_to_rad_handle, cells_from_rad_handle
 
  integer,intent(in):: its,ite
  integer,intent(in):: time_lev
@@ -329,9 +334,18 @@
  real(kind=RKIND),dimension(:,:),pointer  :: re_cloud,re_ice,re_snow
  real(kind=RKIND),dimension(:,:,:),pointer:: aerosols,ozmixm
 
+ type (field1DReal) ,pointer :: latCellField, lonCellField
+ type (field1DReal) ,pointer :: skintempField, snowField, xiceField, xlandField
+ type (field1DReal) ,pointer :: m_psField, pinField
+ type (field1DReal) ,pointer :: sfc_albedoField, sfc_emissField
+ type (field2DReal) ,pointer :: cldfracField, m_hybiField, o3climField, o3vmrField
+ type (field2DReal) ,pointer :: re_cloudField, re_iceField, re_snowField
+ type (field3DReal) ,pointer :: aerosolsField, ozmixmField
+
 !local variables and arrays:
  integer:: ncols,nlevs
  integer:: i,j,k,n
+ integer :: ierr
  real(kind=RKIND),dimension(:,:),allocatable:: p2d,o32d
 
 !-----------------------------------------------------------------------------------------------------------------
@@ -345,16 +359,31 @@
  call mpas_pool_get_array(mesh,'lonCell',lonCell)
  call mpas_pool_get_array(mesh,'m_hybi' ,m_hybi )
 
+ call mpas_pool_get_field(mesh,'latCell',latCellField)
+ call mpas_pool_get_field(mesh,'lonCell',lonCellField)
+ call mpas_pool_get_field(mesh,'m_hybi' ,m_hybiField )
+
  call mpas_pool_get_array(state,'m_ps'    ,m_ps    ,time_lev)
  call mpas_pool_get_array(state,'aerosols',aerosols,time_lev)
+
+ call mpas_pool_get_field(state,'m_ps'    ,m_psField    ,time_lev)
+ call mpas_pool_get_field(state,'aerosols',aerosolsField,time_lev)
 
  call mpas_pool_get_array(sfc_input,'skintemp',skintemp)
  call mpas_pool_get_array(sfc_input,'snow'    ,snow    )
  call mpas_pool_get_array(sfc_input,'xice'    ,xice    )
  call mpas_pool_get_array(sfc_input,'xland'   ,xland   )
 
+ call mpas_pool_get_field(sfc_input,'skintemp',skintempField)
+ call mpas_pool_get_field(sfc_input,'snow'    ,snowField    )
+ call mpas_pool_get_field(sfc_input,'xice'    ,xiceField    )
+ call mpas_pool_get_field(sfc_input,'xland'   ,xlandField   )
+
  call mpas_pool_get_array(atm_input,'pin'     ,pin     )
  call mpas_pool_get_array(atm_input,'ozmixm'  ,ozmixm  )
+
+! call mpas_pool_get_field(atm_input,'pin'     ,pinField     )
+! call mpas_pool_get_field(atm_input,'ozmixm'  ,ozmixmField  )
 
  call mpas_pool_get_array(diag_physics,'sfc_albedo',sfc_albedo)
  call mpas_pool_get_array(diag_physics,'sfc_emiss' ,sfc_emiss )
@@ -362,6 +391,32 @@
  call mpas_pool_get_array(diag_physics,'o3clim'    ,o3clim    )
  call mpas_pool_get_array(diag_physics,'o3vmr'     ,o3vmr     )
 
+ call mpas_pool_get_field(diag_physics,'sfc_albedo',sfc_albedoField)
+ call mpas_pool_get_field(diag_physics,'sfc_emiss' ,sfc_emissField )
+ call mpas_pool_get_field(diag_physics,'cldfrac'   ,cldfracField   )
+ call mpas_pool_get_field(diag_physics,'o3clim'    ,o3climField    )
+ call mpas_pool_get_field(diag_physics,'o3vmr'     ,o3vmrField     )
+
+ call MPAS_coupler_transfer_field(mpas_cpl, cells_to_rad_handle, latCellField, ierr=ierr)
+ call MPAS_coupler_transfer_field(mpas_cpl, cells_to_rad_handle, lonCellField, ierr=ierr)
+ call MPAS_coupler_transfer_field(mpas_cpl, cells_to_rad_handle, m_hybiField, ierr=ierr)
+ call MPAS_coupler_transfer_field(mpas_cpl, cells_to_rad_handle, m_psField, ierr=ierr)
+ call MPAS_coupler_transfer_field(mpas_cpl, cells_to_rad_handle, aerosolsField, ierr=ierr)
+ call MPAS_coupler_transfer_field(mpas_cpl, cells_to_rad_handle, skintempField, ierr=ierr)
+
+ call MPAS_coupler_transfer_field(mpas_cpl, cells_to_rad_handle, snowField, ierr=ierr)
+ call MPAS_coupler_transfer_field(mpas_cpl, cells_to_rad_handle, xiceField, ierr=ierr)
+ call MPAS_coupler_transfer_field(mpas_cpl, cells_to_rad_handle, xlandField, ierr=ierr)
+! call MPAS_coupler_transfer_field(mpas_cpl, cells_to_rad_handle, pinField, ierr=ierr)
+! call MPAS_coupler_transfer_field(mpas_cpl, cells_to_rad_handle, ozmixmField, ierr=ierr)
+ call MPAS_coupler_transfer_field(mpas_cpl, cells_to_rad_handle, sfc_albedoField, ierr=ierr)
+
+ call MPAS_coupler_transfer_field(mpas_cpl, cells_to_rad_handle, sfc_emissField, ierr=ierr)
+ call MPAS_coupler_transfer_field(mpas_cpl, cells_to_rad_handle, cldfracField, ierr=ierr)
+ call MPAS_coupler_transfer_field(mpas_cpl, cells_to_rad_handle, o3climField, ierr=ierr)
+ call MPAS_coupler_transfer_field(mpas_cpl, cells_to_rad_handle, o3vmrField, ierr=ierr)
+
+ if (mpas_cpl % role() == ROLE_RADIATION) then
  do j = jts,jte
  do i = its,ite
     sfc_emiss_p(i,j) = sfc_emiss(i)
@@ -608,11 +663,12 @@
     case default
 
  end select radiation_lw_select
+ end if
 
  end subroutine radiation_lw_from_MPAS
 
 !=================================================================================================================
- subroutine radiation_lw_to_MPAS(configs,diag_physics,tend_physics,its,ite)
+ subroutine radiation_lw_to_MPAS(configs,diag_physics,tend_physics,mpas_cpl,cells_to_rad_handle,cells_from_rad_handle,its,ite)
 !=================================================================================================================
 
 !input arguments:
@@ -621,6 +677,9 @@
 !inout arguments:
  type(mpas_pool_type),intent(inout):: diag_physics
  type(mpas_pool_type),intent(inout):: tend_physics
+
+ type (mpas_coupler_type), pointer :: mpas_cpl
+ integer, intent(in) :: cells_to_rad_handle, cells_from_rad_handle
 
  integer,intent(in):: its,ite
 
@@ -634,9 +693,15 @@
  real(kind=RKIND),dimension(:,:),pointer:: rthratenlw
  real(kind=RKIND),dimension(:,:),pointer:: rre_cloud,rre_ice,rre_snow
 
+ type (field1DReal), pointer :: glwField, lwcfField, lwdnbField, lwdnbcField, lwdntField, lwdntcField, &
+                                lwupbField, lwupbcField, lwuptField, lwuptcField, olrtoaField
+ type (field2DReal), pointer :: rthratenlwField
+ type (field2DReal), pointer :: rre_cloudField, rre_iceField, rre_snowField
+
 !local variables and arrays:
  integer:: nlay,pcols
  integer:: i,j,k
+ integer :: ierr
  real(kind=RKIND),dimension(:,:),allocatable:: p1d
 
 !-----------------------------------------------------------------------------------------------------------------
@@ -659,6 +724,21 @@
 
  call mpas_pool_get_array(tend_physics,'rthratenlw',rthratenlw)
 
+ call mpas_pool_get_field(diag_physics,'glw'   ,glwField   )
+ call mpas_pool_get_field(diag_physics,'lwcf'  ,lwcfField  )
+ call mpas_pool_get_field(diag_physics,'lwdnb' ,lwdnbField )
+ call mpas_pool_get_field(diag_physics,'lwdnbc',lwdnbcField)
+ call mpas_pool_get_field(diag_physics,'lwdnt' ,lwdntField )
+ call mpas_pool_get_field(diag_physics,'lwdntc',lwdntcField)
+ call mpas_pool_get_field(diag_physics,'lwupb' ,lwupbField )
+ call mpas_pool_get_field(diag_physics,'lwupbc',lwupbcField)
+ call mpas_pool_get_field(diag_physics,'lwupt' ,lwuptField )
+ call mpas_pool_get_field(diag_physics,'lwuptc',lwuptcField)
+ call mpas_pool_get_field(diag_physics,'olrtoa',olrtoaField)
+
+ call mpas_pool_get_field(tend_physics,'rthratenlw',rthratenlwField)
+
+ if (mpas_cpl % role() == ROLE_RADIATION) then
  do j = jts,jte
  do i = its,ite
     glw(i)    = glw_p(i,j)
@@ -690,6 +770,7 @@
              call mpas_pool_get_array(diag_physics,'rre_cloud',rre_cloud)
              call mpas_pool_get_array(diag_physics,'rre_ice'  ,rre_ice  )
              call mpas_pool_get_array(diag_physics,'rre_snow' ,rre_snow )
+
              if(config_microp_re) then
                 do j = jts,jte
                 do k = kts,kte
@@ -716,6 +797,20 @@
        end select microp_select
 
  end select radiation_lw_select
+ end if
+
+ call MPAS_coupler_transfer_field(mpas_cpl, cells_from_rad_handle, glwField   , ierr=ierr)
+ call MPAS_coupler_transfer_field(mpas_cpl, cells_from_rad_handle, lwcfField  , ierr=ierr)
+ call MPAS_coupler_transfer_field(mpas_cpl, cells_from_rad_handle, lwdnbField , ierr=ierr)
+ call MPAS_coupler_transfer_field(mpas_cpl, cells_from_rad_handle, lwdnbcField, ierr=ierr)
+ call MPAS_coupler_transfer_field(mpas_cpl, cells_from_rad_handle, lwdntField , ierr=ierr)
+ call MPAS_coupler_transfer_field(mpas_cpl, cells_from_rad_handle, lwdntcField, ierr=ierr)
+ call MPAS_coupler_transfer_field(mpas_cpl, cells_from_rad_handle, lwupbField , ierr=ierr)
+ call MPAS_coupler_transfer_field(mpas_cpl, cells_from_rad_handle, lwupbcField, ierr=ierr)
+ call MPAS_coupler_transfer_field(mpas_cpl, cells_from_rad_handle, lwuptField , ierr=ierr)
+ call MPAS_coupler_transfer_field(mpas_cpl, cells_from_rad_handle, lwuptcField, ierr=ierr)
+ call MPAS_coupler_transfer_field(mpas_cpl, cells_from_rad_handle, olrtoaField, ierr=ierr)
+ call MPAS_coupler_transfer_field(mpas_cpl, cells_from_rad_handle, rthratenlwField, ierr=ierr)
 
  end subroutine radiation_lw_to_MPAS
 
@@ -805,12 +900,16 @@
 
 !=================================================================================================================
  subroutine driver_radiation_lw(xtime_s,configs,mesh,state,time_lev,diag_physics,atm_input, &
-                                sfc_input,tend_physics,its,ite)
+                                sfc_input,tend_physics,mpas_cpl,cells_to_rad_handle,cells_from_rad_handle,its,ite)
 !=================================================================================================================
 
 !input arguments:
  type(mpas_pool_type),intent(in):: mesh
  type(mpas_pool_type),intent(in):: configs
+
+ type (mpas_coupler_type), pointer :: mpas_cpl
+ integer, intent(in) :: cells_to_rad_handle, cells_from_rad_handle
+
  integer,intent(in):: its,ite
 
  integer,intent(in):: time_lev
@@ -838,7 +937,11 @@
  call mpas_pool_get_config(configs,'config_radt_lw_scheme',radt_lw_scheme      )
 
 !copy MPAS arrays to local arrays:
- call radiation_lw_from_MPAS(xtime_s,configs,mesh,state,time_lev,diag_physics,atm_input,sfc_input,its,ite)
+ call radiation_lw_from_MPAS(xtime_s,configs,mesh,state,time_lev,diag_physics,atm_input,sfc_input,mpas_cpl,cells_to_rad_handle,cells_from_rad_handle,its,ite)
+
+ if (mpas_cpl % role() == ROLE_RADIATION) then
+
+ call mpas_log_write('RUNNING LW RADIATION SCHEME')
 
 !call to longwave radiation scheme:
  radiation_lw_select: select case (trim(radt_lw_scheme))
@@ -931,9 +1034,10 @@
     case default
 
  end select radiation_lw_select
+ end if
 
 !copy local arrays to MPAS grid:
- call radiation_lw_to_MPAS(configs,diag_physics,tend_physics,its,ite)
+ call radiation_lw_to_MPAS(configs,diag_physics,tend_physics,mpas_cpl,cells_to_rad_handle,cells_from_rad_handle,its,ite)
 
 !call mpas_log_write('--- end subroutine driver_radiation_lw.')
 
