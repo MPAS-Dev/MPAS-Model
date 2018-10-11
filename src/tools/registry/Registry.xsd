@@ -103,6 +103,9 @@
 						<!-- The output_interval is required if type contains output. It defines the standard interval for how often the stream manager should handle this stream.
 							 Valid options are "YYYY-MM-DD_hh:mm:ss", "initial_only", or "none" -->
 						<xs:attribute name="output_interval"  type="xs:string" use="optional"/>
+                                                <!-- The output_stop specifies when to stop writing output.  Valid options are "YYYY-MM-DD_hh:mm:ss" or "none".
+                                                     "none" indicates that data should be written through to the end of the run, and is the default. -->
+                                                <xs:attribute name="output_stop"  type="xs:string" use="optional"/>
 						<!-- The input_interval is required if type contains output. It defines the standard interval for how often the stream manager should handle this stream.
 							 Valid options are "YYYY-MM-DD_hh:mm:ss", "initial_only", or "none" -->
 						<xs:attribute name="input_interval"  type="xs:string" use="optional"/>

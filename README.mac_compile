@@ -1,0 +1,17 @@
+1. Manually install PIO2:
+ cd $MPAS/software
+ git clone git@github.com:NCAR/ParallelIO.git
+  cd ParallelIO
+  export PIOSRC=`pwd`
+  cd ..
+  mkdir pio_build
+  cd pio_build
+  export CC=mpicc
+  export FC=mpif90
+  cmake -DNetCDF_C_PATH=$NETCDF -DNetCDF_Fortran_PATH=$NETCDF -DPnetCDF_PATH=$PNETCDF \
+        -DCMAKE_INSTALL_PREFIX=${MPAS}/libraries -DPIO_ENABLE_TIMING=OFF $PIOSRC
+  make
+  make install
+
+2. Install parallel netcdf
+I can't remember how, because I already had it setup in $MPAS/libraries
