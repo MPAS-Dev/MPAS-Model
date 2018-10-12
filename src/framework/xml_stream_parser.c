@@ -29,7 +29,7 @@ void stream_mgr_create_stream_c(void *, const char *, int *, const char *, const
 void mpas_stream_mgr_add_field_c(void *, const char *, const char *, const char *, int *);
 void mpas_stream_mgr_add_immutable_stream_fields_c(void *, const char *, const char *, const char *, int *);
 void mpas_stream_mgr_add_pool_c(void *, const char *, const char *, const char *, int *);
-void stream_mgr_add_alarm_c(void *, const char *, const char *, const char *, const char *, int *);
+void stream_mgr_add_alarm_c(void *, const char *, const char *, const char *, const char *, const char *, int *);
 void stream_mgr_add_pkg_c(void *, const char *, const char *, int *);
 
 
@@ -337,7 +337,8 @@ int par_read(char *fname, int *mpi_comm, char **xml_buf, size_t *bufsize)
  *********************************************************************************/
 int attribute_check(ezxml_t stream)
 {
-	const char *s_name, *s_type, *s_filename, *s_filename_intv, *s_input, *s_output, *s_ref_time;
+	const char *s_name, *s_type, *s_filename, *s_filename_intv, *s_input, *s_output, 
+            *s_stop, *s_ref_time;
 	char msgbuf[MSGSIZE];
 	int i, len, nextchar;
 
@@ -347,6 +348,7 @@ int attribute_check(ezxml_t stream)
 	s_filename_intv = ezxml_attr(stream, "filename_interval");
 	s_input = ezxml_attr(stream, "input_interval");
 	s_output = ezxml_attr(stream, "output_interval");
+        s_stop = ezxml_attr(stream, "output_stop");
 	s_ref_time = ezxml_attr(stream, "reference_time");
 
 
@@ -1024,9 +1026,11 @@ void xml_stream_parser(char *fname, void *manager, int *mpi_comm, int *status)
 	const char *compstreamname_const, *structname_const;
 	const char *streamID, *filename_template, *filename_interval, *direction, *varfile, *fieldname_const, *reference_time, *record_interval, *streamname_const, *precision;
 	const char *interval_in, *interval_out, *packagelist;
+        const char *stopInterval_out;
 	const char *clobber;
 	const char *iotype;
-	const char *streamID2, *interval_in2, *interval_out2;
+	const char *streamID2, *interval_in2, *interval_out2, *stopInterval_out2;
+        char stopInterval_out_string[256];
 	char interval_name[256];
 	char match_stream_name[256];
 	char *packages, *package;
@@ -1081,13 +1085,14 @@ void xml_stream_parser(char *fname, void *manager, int *mpi_comm, int *status)
 		interval_in2 = ezxml_attr(stream_xml, "input_interval");
 		interval_out = ezxml_attr(stream_xml, "output_interval");
 		interval_out2 = ezxml_attr(stream_xml, "output_interval");
+                stopInterval_out = ezxml_attr(stream_xml, "output_stop");
+                stopInterval_out2 = ezxml_attr(stream_xml, "output_stop");
 		reference_time = ezxml_attr(stream_xml, "reference_time");
 		record_interval = ezxml_attr(stream_xml, "record_interval");
 		precision = ezxml_attr(stream_xml, "precision");
 		packagelist = ezxml_attr(stream_xml, "packages");
 		clobber = ezxml_attr(stream_xml, "clobber_mode");
 		iotype = ezxml_attr(stream_xml, "io_type");
-
 		/* Extract the input interval, if it refer to other streams */
 		if ( interval_in ) {
 			sprintf(interval_type, "input_interval");
@@ -1106,6 +1111,26 @@ void xml_stream_parser(char *fname, void *manager, int *mpi_comm, int *status)
 			}
 		}
 
+                /* Extract the stop interval, if it refer to other streams */
+
+                fprintf(stderr,"calling stopInterval_out: %s\n",stopInterval_out);
+                if ( stopInterval_out ) {
+                        sprintf(interval_type, "output_stop");
+                        *status = extract_stream_interval(stopInterval_out, interval_type, &stopInterval_out2, streamID, streams);
+                        if ( *status != 0 ) {
+                                return;
+                        }
+                }
+
+                /*
+                 * In case stopInterval_out was not set, set it to "none"
+                 */
+                if (stopInterval_out == NULL)
+                {
+                    sprintf(stopInterval_out_string,"none");
+                } else {
+                    sprintf(stopInterval_out_string, stopInterval_out);
+                }
 		/* Setup filename_interval correctly.
 		 *
 		 * If filename_interval is not explicitly set...
@@ -1172,6 +1197,7 @@ void xml_stream_parser(char *fname, void *manager, int *mpi_comm, int *status)
 		fprintf(stderr, " -----  found immutable stream \"%s\" in %s  -----\n", streamID, fname);
 		fprintf(stderr, "        %-20s%s\n", "filename template:", filename_template);
 		fprintf(stderr, "        %-20s%s\n", "filename interval:", filename_interval_string);
+                fprintf(stderr, "        %-20s%s\n", "output stop time:", stopInterval_out_string);
 
 		/* NB: These clobber constants must match those in the mpas_stream_manager module! */
 		iclobber = 0;
@@ -1296,7 +1322,7 @@ void xml_stream_parser(char *fname, void *manager, int *mpi_comm, int *status)
 
 		/* Possibly add an input alarm for this stream */
 		if (itype == 3 || itype == 1) {
-			stream_mgr_add_alarm_c(manager, streamID, "input", "start", interval_in2, &err);
+			stream_mgr_add_alarm_c(manager, streamID, "input", "start", interval_in2, "none", &err);
 			if (err != 0) {
 				*status = 1;
 				return;
@@ -1310,7 +1336,7 @@ void xml_stream_parser(char *fname, void *manager, int *mpi_comm, int *status)
 
 		/* Possibly add an output alarm for this stream */
 		if (itype == 3 || itype == 2) {
-			stream_mgr_add_alarm_c(manager, streamID, "output", "start", interval_out2, &err);
+			stream_mgr_add_alarm_c(manager, streamID, "output", "start", interval_out2, stopInterval_out_string, &err);
 			if (err != 0) {
 				*status = 1;
 				return;
@@ -1363,6 +1389,8 @@ void xml_stream_parser(char *fname, void *manager, int *mpi_comm, int *status)
 		interval_in2 = ezxml_attr(stream_xml, "input_interval");
 		interval_out = ezxml_attr(stream_xml, "output_interval");
 		interval_out2 = ezxml_attr(stream_xml, "output_interval");
+                stopInterval_out = ezxml_attr(stream_xml, "output_stop");
+                stopInterval_out2 = ezxml_attr(stream_xml, "output_stop");
 		reference_time = ezxml_attr(stream_xml, "reference_time");
 		record_interval = ezxml_attr(stream_xml, "record_interval");
 		precision = ezxml_attr(stream_xml, "precision");
@@ -1388,6 +1416,25 @@ void xml_stream_parser(char *fname, void *manager, int *mpi_comm, int *status)
 			}
 		}
 
+                /* Extract the stop interval, if it refer to other streams */
+                if ( stopInterval_out ) {
+			sprintf(interval_type, "output_stop");
+			*status = extract_stream_interval(stopInterval_out, interval_type, &stopInterval_out2, streamID, streams);
+			if ( *status != 0 ) {
+				return;
+			}
+		}
+
+                /*
+                 * In case stopInterval_out was not set, set it to "none"
+                 */
+                if (stopInterval_out == NULL)
+                {
+                    sprintf(stopInterval_out_string,"none");
+                } else {
+                    sprintf(stopInterval_out_string, stopInterval_out2);
+                }
+	
 		/* Setup filename_interval correctly.
 		 *
 		 * If filename_interval is not explicitly set...
@@ -1454,6 +1501,7 @@ void xml_stream_parser(char *fname, void *manager, int *mpi_comm, int *status)
 		fprintf(stderr, " -----  found stream \"%s\" in %s  -----\n", streamID, fname);
 		fprintf(stderr, "        %-20s%s\n", "filename template:", filename_template);
 		fprintf(stderr, "        %-20s%s\n", "filename interval:", filename_interval_string);
+                fprintf(stderr, "        %-20s%s\n", "output stop time:", stopInterval_out_string);
 
 		/* NB: These clobber constants must match those in the mpas_stream_manager module! */
 		iclobber = 0;
@@ -1578,7 +1626,7 @@ void xml_stream_parser(char *fname, void *manager, int *mpi_comm, int *status)
 
 		/* Possibly add an input alarm for this stream */
 		if (itype == 3 || itype == 1) {
-			stream_mgr_add_alarm_c(manager, streamID, "input", "start", interval_in2, &err);
+			stream_mgr_add_alarm_c(manager, streamID, "input", "start", interval_in2, "none", &err);
 			if (err != 0) {
 				*status = 1;
 				return;
@@ -1592,7 +1640,7 @@ void xml_stream_parser(char *fname, void *manager, int *mpi_comm, int *status)
 
 		/* Possibly add an output alarm for this stream */
 		if (itype == 3 || itype == 2) {
-			stream_mgr_add_alarm_c(manager, streamID, "output", "start", interval_out2, &err);
+			stream_mgr_add_alarm_c(manager, streamID, "output", "start", interval_out2, stopInterval_out_string, &err);
 			if (err != 0) {
 				*status = 1;
 				return;

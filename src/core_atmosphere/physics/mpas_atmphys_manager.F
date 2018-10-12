@@ -556,6 +556,9 @@
  if (config_sst_update) then
     call MPAS_stream_mgr_get_property(stream_manager, 'surface', MPAS_STREAM_PROPERTY_RECORD_INTV, stream_interval, &
                                       direction=MPAS_STREAM_INPUT, ierr=ierr)
+    if (trim(stream_interval) .eq. "none") &
+        call physics_error_fatal('subroutine physics_init: No time interval found for sstupdate, maybe '// &
+                                  'config_sst_update should be set to false?')
     call mpas_set_timeInterval(alarmTimeStep,timeString=stream_interval,ierr=ierr)
     alarmStartTime = startTime
     call mpas_add_clock_alarm(clock,sfcbdyAlarmID,alarmStartTime,alarmTimeStep,ierr=ierr)

@@ -489,6 +489,7 @@
                         filename_template="restart.$Y-$M-$D_$h.$m.$s.nc" 
                         input_interval="initial_only" 
                         output_interval="1_00:00:00" 
+                        output_stop="none"
                         immutable="true">
 
 			<var name="latCell"/>
@@ -806,6 +807,7 @@
                         type="output" 
                         filename_template="history.$Y-$M-$D_$h.$m.$s.nc" 
                         output_interval="6:00:00"
+                        output_stop="none"
                         runtime_format="separate_file">
 
 			<var name="latCell"/>
