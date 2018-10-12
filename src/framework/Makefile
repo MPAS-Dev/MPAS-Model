@@ -35,7 +35,8 @@ OBJS = mpas_kind_types.o \
        regex_matching.o \
        mpas_field_accessor.o \
        mpas_log.o \
-       mpas_intracoupler.o
+       mpas_intracoupler.o \
+       rtc_timer.o
     
 
 all: framework $(DEPS)
