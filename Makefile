@@ -96,7 +96,7 @@ pgi:
 	"LDFLAGS_DEBUG = -O0 -g -Mbounds -Mchkptr -Ktrap=divz,fp,inv,ovf -traceback" \
 	"FFLAGS_OMP = -mp" \
 	"CFLAGS_OMP = -mp" \
-	"FFLAGS_ACC = -Mnofma -acc -ta=tesla:cc60,pinned -Minfo=accel" \
+	"FFLAGS_ACC = -Mnofma -acc -ta=tesla:cc70,pinned -Minfo=accel" \
 	"CFLAGS_ACC =" \
 	"CORE = $(CORE)" \
 	"DEBUG = $(DEBUG)" \
