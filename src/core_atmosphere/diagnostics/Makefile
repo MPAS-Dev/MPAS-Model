@@ -10,9 +10,10 @@ DIAGNOSTIC_MODULES = \
 	pv_diagnostics.o \
 	snowratio_diagnostics.o \
 	surface_diagnostics.o \
+    accumulated_diagnostics.o \
 	deformation_diagnostics.o \
-	hiwc_diagnostics.o \
-  unstagger_diagnostics.o \
+	aviation_diagnostics.o \
+    unstagger_diagnostics.o \
 	soundings.o \
 
 isobaric_diagnostics.o: mpas_atm_diagnostics_utils.o
@@ -25,9 +26,11 @@ snowratio_diagnostics.o: mpas_atm_diagnostics_utils.o
 
 surface_diagnostics.o: mpas_atm_diagnostics_utils.o
 
+accumulated_diagnostics.o: mpas_atm_diagnostics_utils.o
+
 deformation_diagnostics.o: mpas_atm_diagnostics_utils.o
 
-hiwc_diagnostics.o: mpas_atm_diagnostics_utils.o
+aviation_diagnostics.o: mpas_atm_diagnostics_utils.o
 
 unstagger_diagnostics.o: mpas_atm_diagnostics_utils.o
 

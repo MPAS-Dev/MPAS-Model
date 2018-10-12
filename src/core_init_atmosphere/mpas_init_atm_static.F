@@ -517,21 +517,9 @@ if (rarray(i,j,1) == 0) cycle
 ! CORRECT INCONSISTENT SOIL AND LAND USE DATA
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
  do iCell = 1,nCells
-    if (lu_index(iCell) == iswater_lu .or. &
-        soilcat_top(iCell) == 14 .or. &
-        soilcat_bot(iCell) == 14) then
-        if (lu_index(iCell) /= iswater_lu) then
-            write(0,*) 'Turning lu_index into water at ', iCell
-            lu_index(iCell) = iswater_lu
-        end if
-        if (soilcat_top(iCell) /= 14) then
-            write(0,*) 'Turning soilcat_top into water at ', iCell
-            soilcat_top(iCell) = 14
-        end if
-        if (soilcat_bot(iCell) /= 14) then
-            write(0,*) 'Turning soilcat_bot into water at ', iCell
-            soilcat_bot(iCell) = 14
-        end if
+    if (lu_index(iCell) == iswater_lu) then
+        soilcat_bot(iCell) = 14
+        soilcat_top(iCell) = 14
     end if
  end do
 

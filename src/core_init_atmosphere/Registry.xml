@@ -162,6 +162,16 @@
                      description="Model top height"
                      possible_values="Positive real values"/>
 
+                <nml_option name="config_use_defined_zw"        type="logical"       default_value="false"
+                     units="-"
+                     description="Whether or not to use custom zeta levels"
+                     possible_values="true or false"/>
+
+                <nml_option name="config_zeta_levels"           type="character"     default_value="0"
+                     units="m"
+                     description="Model zeta levels in meters (default_value should not be trusted or used)"
+                     possible_values="Comma-separated character values (m)"/>
+
                 <nml_option name="config_nsmterrain"            type="integer"       default_value="1"
                      units="-"
                      description="Number of smoothing passes to apply to the interpolated terrain field"
@@ -234,6 +244,11 @@
                      units="-"
                      description="Whether to switch sea-ice threshold from 0.5 to 0.02"
                      possible_values="true or false"/>
+
+                <nml_option name="config_seaice_threshold"           type="real"       default_value="271.4"
+                     units="K"
+                     description="Temperature threshold for seaice conversion (xice_tsk_threshold in MPAS and seaice_threshold in WRF)"
+                     possible_values="Positive real values"/>
 
         </nml_record>
 

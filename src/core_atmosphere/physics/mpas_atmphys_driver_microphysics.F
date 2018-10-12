@@ -549,6 +549,7 @@
 
 !local pointers:
  real(kind=RKIND),dimension(:),pointer:: refl10cm_max,refl10cm_1km,refl10cm_1km_max,cuprec
+ real(kind=RKIND),dimension(:,:),pointer:: refl10cm
 
 !local variables and arrays:
  integer:: i,j,k,kp
@@ -557,6 +558,7 @@
 
 !-----------------------------------------------------------------------------------------------------------------
 
+ call mpas_pool_get_array(diag_physics,'refl10cm',refl10cm)
  call mpas_pool_get_array(diag_physics,'refl10cm_max',refl10cm_max)
  call mpas_pool_get_array(diag_physics,'refl10cm_1km',refl10cm_1km)
  call mpas_pool_get_array(diag_physics,'refl10cm_1km_max',refl10cm_1km_max)
@@ -598,6 +600,7 @@
              dBZ1d(k) = max(-35._RKIND,dBZ1d(k))
              if(zp(k) .lt. 1000.) kp = k
           enddo
+          refl10cm(kts:kte,i) = dBZ1d(kts:kte)
           refl10cm_max(i) = maxval(dBZ1d(kp:kte))
           grprec = ((10.**(refl10cm_max(i)/10.)/300.)**(1./1.4))/3600.
           totprec = grprec + cuprec(i)
@@ -653,6 +656,7 @@
              dBZ1d(k) = max(-35._RKIND,dBZ1d(k))
              if(zp(k) .lt. 1000.) kp = k
           enddo
+          refl10cm(kts:kte,i) = dBZ1d(kts:kte)
           refl10cm_max(i) = maxval(dBZ1d(kp:kte))
           grprec = ((10.**(refl10cm_max(i)/10.)/300.)**(1./1.4))/3600.
           totprec = grprec + cuprec(i) 
@@ -698,7 +702,9 @@
 !local variables and arrays:
  integer:: i,j,k
 
- real(kind=RKIND):: tempc, rh
+! J. Cipriani, 04/02/2018, IBM/TWC:  fix for excessive relative humidity computations
+! Only a diagnostic, so should have no impact on model solution
+ real(kind=RKIND):: tempc, qvsl, qvsi
  real(kind=RKIND),dimension(:),allocatable:: qv1d,qvs1d,t1d,p1d
 
 !-----------------------------------------------------------------------------------------------------------------
@@ -721,10 +727,18 @@
        p1d(k)  = pres_p(i,k,j)
        t1d(k)  = th_p(i,k,j) * pi_p(i,k,j)
        tempc   = t1d(k) - 273.16_RKIND
-       qvs1d(k) = rslf(p1d(k),t1d(k))
-       if(tempc .le. 0._RKIND) qvs1d(k) = rsif(p1d(k),t1d(k))
        qv1d(k) = qv_p(i,k,j)
-       relhum(k,i) = qv1d(k) / qvs1d(k)
+       ! J. Cipriani, 04/02/2018, IBM/TWC:  adapted from RHUM computed in module_radiation_driver.F (WRF-3.9.1.1)
+       qvsl = rslf(p1d(k),t1d(k))
+       qvsi = rsif(p1d(k),t1d(k))
+       if (tempc .ge. -12.0_RKIND) then
+          qvs1d(k) = qvsl
+       elseif (tempc .lt. -20.0_RKIND) then
+          qvs1d(k) = qvsi
+       else
+          qvs1d(k) = qvsl - (qvsl-qvsi)*(-12.0_RKIND-tempc)/(-12.0_RKIND+20._RKIND)
+       end if
+       relhum(k,i) = max(0.01_RKIND,min(qv1d(k) / qvs1d(k),0.9999_RKIND))
        relhum(k,i) = relhum(k,i) * 100._RKIND
     enddo
  enddo

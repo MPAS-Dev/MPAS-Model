@@ -26,6 +26,7 @@ module isobaric_diagnostics
 
     logical :: need_mslp, &
                need_relhum_200, need_relhum_250, need_relhum_500, need_relhum_700, need_relhum_850, need_relhum_925, need_relhum_1000, &
+               need_relhum_100, need_relhum_150, need_relhum_300, need_relhum_400, need_relhum_600, &
                need_dewpoint_200, need_dewpoint_250, need_dewpoint_500, need_dewpoint_700, need_dewpoint_850, need_dewpoint_925, need_dewpoint_1000, &
                need_temp_200, need_temp_250, need_temp_500, need_temp_700, need_temp_850, need_temp_925, need_temp_1000, &
                need_height_200, need_height_250, need_height_500, need_height_700, need_height_850, need_height_925, need_height_1000, &
@@ -102,15 +103,30 @@ module isobaric_diagnostics
 
         need_mslp = MPAS_field_will_be_written('mslp')
         need_any_diags = need_any_diags .or. need_mslp
+        need_relhum_100 = MPAS_field_will_be_written('relhum_100hPa')
+        need_relhum = need_relhum .or. need_relhum_100
+        need_any_diags = need_any_diags .or. need_relhum_100
+        need_relhum_150 = MPAS_field_will_be_written('relhum_150hPa')
+        need_relhum = need_relhum .or. need_relhum_150
+        need_any_diags = need_any_diags .or. need_relhum_150
         need_relhum_200 = MPAS_field_will_be_written('relhum_200hPa')
         need_relhum = need_relhum .or. need_relhum_200
         need_any_diags = need_any_diags .or. need_relhum_200
         need_relhum_250 = MPAS_field_will_be_written('relhum_250hPa')
         need_relhum = need_relhum .or. need_relhum_250
         need_any_diags = need_any_diags .or. need_relhum_250
+        need_relhum_300 = MPAS_field_will_be_written('relhum_300hPa')
+        need_relhum = need_relhum .or. need_relhum_300
+        need_any_diags = need_any_diags .or. need_relhum_300
+        need_relhum_400 = MPAS_field_will_be_written('relhum_400hPa')
+        need_relhum = need_relhum .or. need_relhum_400
+        need_any_diags = need_any_diags .or. need_relhum_400
         need_relhum_500 = MPAS_field_will_be_written('relhum_500hPa')
         need_relhum = need_relhum .or. need_relhum_500
         need_any_diags = need_any_diags .or. need_relhum_500
+        need_relhum_600 = MPAS_field_will_be_written('relhum_600hPa')
+        need_relhum = need_relhum .or. need_relhum_600
+        need_any_diags = need_any_diags .or. need_relhum_600
         need_relhum_700 = MPAS_field_will_be_written('relhum_700hPa')
         need_relhum = need_relhum .or. need_relhum_700
         need_any_diags = need_any_diags .or. need_relhum_700
@@ -328,9 +344,14 @@ module isobaric_diagnostics
         real (kind=RKIND), dimension(:), pointer :: temperature_925hPa
         real (kind=RKIND), dimension(:), pointer :: temperature_1000hPa
        
+        real (kind=RKIND), dimension(:), pointer :: relhum_100hPa
+        real (kind=RKIND), dimension(:), pointer :: relhum_150hPa
         real (kind=RKIND), dimension(:), pointer :: relhum_200hPa
         real (kind=RKIND), dimension(:), pointer :: relhum_250hPa
+        real (kind=RKIND), dimension(:), pointer :: relhum_300hPa
+        real (kind=RKIND), dimension(:), pointer :: relhum_400hPa
         real (kind=RKIND), dimension(:), pointer :: relhum_500hPa
+        real (kind=RKIND), dimension(:), pointer :: relhum_600hPa
         real (kind=RKIND), dimension(:), pointer :: relhum_700hPa
         real (kind=RKIND), dimension(:), pointer :: relhum_850hPa
         real (kind=RKIND), dimension(:), pointer :: relhum_925hPa
@@ -394,10 +415,11 @@ module isobaric_diagnostics
         real (kind=RKIND), dimension(:,:), allocatable :: dewpoint
        
        !local interpolated fields:
-        integer :: nIntP
+        integer :: nIntP, nIntP_rh
         real (kind=RKIND) :: w1,w2,z0,z1,z2
         real (kind=RKIND), dimension(:,:), allocatable :: field_in,press_in
-        real (kind=RKIND), dimension(:,:), allocatable :: field_interp,press_interp
+        real (kind=RKIND), dimension(:,:), allocatable :: field_interp,field_interp_rh
+        real (kind=RKIND), dimension(:,:), allocatable :: press_interp,press_interp_rh
         
        !--------------------------------------------------------------------------------------------------
        
@@ -450,9 +472,14 @@ module isobaric_diagnostics
         call mpas_pool_get_array(diag, 'temperature_925hPa', temperature_925hPa)
         call mpas_pool_get_array(diag, 'temperature_1000hPa', temperature_1000hPa)
        
+        call mpas_pool_get_array(diag, 'relhum_100hPa', relhum_100hPa)
+        call mpas_pool_get_array(diag, 'relhum_150hPa', relhum_150hPa)
         call mpas_pool_get_array(diag, 'relhum_200hPa', relhum_200hPa)
         call mpas_pool_get_array(diag, 'relhum_250hPa', relhum_250hPa)
+        call mpas_pool_get_array(diag, 'relhum_300hPa', relhum_300hPa)
+        call mpas_pool_get_array(diag, 'relhum_400hPa', relhum_400hPa)
         call mpas_pool_get_array(diag, 'relhum_500hPa', relhum_500hPa)
+        call mpas_pool_get_array(diag, 'relhum_600hPa', relhum_600hPa)
         call mpas_pool_get_array(diag, 'relhum_700hPa', relhum_700hPa)
         call mpas_pool_get_array(diag, 'relhum_850hPa', relhum_850hPa)
         call mpas_pool_get_array(diag, 'relhum_925hPa', relhum_925hPa)
@@ -623,6 +650,25 @@ module isobaric_diagnostics
            press_interp(iCell,6) = 925.0_RKIND
            press_interp(iCell,7) = 1000.0_RKIND
         enddo
+
+        ! Relative humidity has 12 levels instead of 7
+        nIntP_rh = 12
+        if (NEED_RELHUM) then
+            if(.not.allocated(field_interp_rh)) allocate(field_interp_rh(nCells,nIntP_rh) )
+            if(.not.allocated(press_interp_rh)) allocate(press_interp_rh(nCells,nIntP_rh) )
+            press_interp_rh(:,1) = 100.0_RKIND
+            press_interp_rh(:,2) = 150.0_RKIND
+            press_interp_rh(:,3) = 200.0_RKIND
+            press_interp_rh(:,4) = 250.0_RKIND
+            press_interp_rh(:,5) = 300.0_RKIND
+            press_interp_rh(:,6) = 400.0_RKIND
+            press_interp_rh(:,7) = 500.0_RKIND
+            press_interp_rh(:,8) = 600.0_RKIND
+            press_interp_rh(:,9) = 700.0_RKIND
+            press_interp_rh(:,10) = 850.0_RKIND
+            press_interp_rh(:,11) = 925.0_RKIND
+            press_interp_rh(:,12) = 1000.0_RKIND
+        end if
        
         if(.not.allocated(press_in)) allocate(press_in(nCells,nVertLevels))
         do iCell = 1, nCells
@@ -662,14 +708,19 @@ module isobaric_diagnostics
                field_in(iCell,kk) = relhum(k,iCell)
             enddo
             enddo
-            call interp_tofixed_pressure(nCells,nVertLevels,nIntP,press_in,field_in,press_interp,field_interp)
-            relhum_200hPa(1:nCells) = field_interp(1:nCells,1)
-            relhum_250hPa(1:nCells) = field_interp(1:nCells,2)
-            relhum_500hPa(1:nCells) = field_interp(1:nCells,3)
-            relhum_700hPa(1:nCells) = field_interp(1:nCells,4)
-            relhum_850hPa(1:nCells) = field_interp(1:nCells,5)
-            relhum_925hPa(1:nCells) = field_interp(1:nCells,6)
-            relhum_1000hPa(1:nCells) = field_interp(1:nCells,7)
+            call interp_tofixed_pressure(nCells,nVertLevels,nIntP_rh,press_in,field_in,press_interp_rh,field_interp_rh)
+            relhum_100hPa(1:nCells) = field_interp_rh(1:nCells,1)
+            relhum_150hPa(1:nCells) = field_interp_rh(1:nCells,2)
+            relhum_200hPa(1:nCells) = field_interp_rh(1:nCells,3)
+            relhum_250hPa(1:nCells) = field_interp_rh(1:nCells,4)
+            relhum_300hPa(1:nCells) = field_interp_rh(1:nCells,5)
+            relhum_400hPa(1:nCells) = field_interp_rh(1:nCells,6)
+            relhum_500hPa(1:nCells) = field_interp_rh(1:nCells,7)
+            relhum_600hPa(1:nCells) = field_interp_rh(1:nCells,8)
+            relhum_700hPa(1:nCells) = field_interp_rh(1:nCells,9)
+            relhum_850hPa(1:nCells) = field_interp_rh(1:nCells,10)
+            relhum_925hPa(1:nCells) = field_interp_rh(1:nCells,11)
+            relhum_1000hPa(1:nCells) = field_interp_rh(1:nCells,12)
            ! write(0,*) '--- end interpolate relative humidity:'
         end if
        
