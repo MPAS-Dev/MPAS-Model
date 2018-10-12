@@ -1002,7 +1002,8 @@ CONTAINS
               piacr(i,k) = pi**2*avtr*n0r*denr*xni(i,k)*denfac(i,k)            &
                           *g6pbr*rslope3(i,k,1)*rslope3(i,k,1)                 &
                           *rslopeb(i,k,1)/24./den(i,k)
-              piacr(i,k) = min(piacr(i,k),qrs(i,k,1)/dtcld)
+!             piacr(i,k) = min(piacr(i,k),qrs(i,k,1)/dtcld)
+              piacr(i,k) = 0.
             endif
 !-------------------------------------------------------------
 ! psaci: Accretion of cloud ice by snow [HDC 10]
@@ -1073,7 +1074,8 @@ CONTAINS
                     +.5*rslope2(i,k,1)*rslope2(i,k,1)*rslope3(i,k,2)
             psacr(i,k) = pi**2*n0r*n0s*n0sfac(i,k)*abs(vt2ave-vt2r)            &
                         *(denr/den(i,k))*acrfac
-            psacr(i,k) = min(psacr(i,k),qrs(i,k,1)/dtcld)
+!           psacr(i,k) = min(psacr(i,k),qrs(i,k,1)/dtcld)
+            psacr(i,k) = 0.
           endif
 !-------------------------------------------------------------
 ! pgacr: Accretion of rain by graupel [HL A12] [LFO 42]
@@ -1085,7 +1087,8 @@ CONTAINS
                     +.5*rslope2(i,k,1)*rslope2(i,k,1)*rslope3(i,k,3)
             pgacr(i,k) = pi**2*n0r*n0g*abs(vt2ave-vt2r)*(denr/den(i,k))        &
                         *acrfac
-            pgacr(i,k) = min(pgacr(i,k),qrs(i,k,1)/dtcld)
+!           pgacr(i,k) = min(pgacr(i,k),qrs(i,k,1)/dtcld)
+            pgacr(i,k) = 0.
           endif
 !
 !-------------------------------------------------------------

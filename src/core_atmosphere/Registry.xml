@@ -599,6 +599,7 @@
 			<var name="tday_accum"/>
 			<var name="tyear_mean"/>
 			<var name="tyear_accum"/>
+            <var name="refl10cm"/>
 			<var name="refl10cm_max"/>
 			<var name="i_rainnc"/>
 			<var name="rainncv"/>
@@ -932,6 +933,7 @@
 			<var name="olrtoa"/>
 			<var name="rainc"/>
 			<var name="rainnc"/>
+            <var name="refl10cm"/>
 			<var name="refl10cm_max"/>
 			<var name="refl10cm_1km"/>
 			<var name="refl10cm_1km_max"/>
@@ -1012,9 +1014,11 @@
             <var name="w_unstag"/>
             <!-- End unstagger diagnostics defined in diagnostics/Registry_unstagger.sxml -->
 
-            <!-- Begin hiwc diagnostics defined in diagnostics/Registry_hiwc.xml -->
+            <!-- Begin aviation diagnostics defined in diagnostics/Registry_aviation.xml -->
             <var name="hiwc"/>
-            <!-- End hiwc diagnostics defined in diagnostics/Registry_hiwc.xml -->
+            <var name="avcnvmsk"/>
+            <var name="echotop"/>
+            <!-- End aviation diagnostics defined in diagnostics/Registry_aviation.xml -->
 
             <!-- Begin surface diagnostics defined in diagnostics/Registry_surface.xml -->
             <var name="dewpoint_2m"/>
@@ -1026,6 +1030,31 @@
             <var name="refl10cm_prate"/>
             <var name="ncuprec"/>
             <!-- End surface diagnostics defined in diagnostics/Registry_surface.xml -->
+            
+            <!-- Begin accumulated diagnostics defined in diagnostics/Registry_accumulated.xml -->
+            <!-- 15-minute accumulation -->
+            <var name="rain15m"/>
+            <var name="rainc15m"/>
+            <var name="rainnc15m"/>
+            <var name="snow15m"/>
+            <var name="ice15m"/>
+            <var name="wspd10_max01h"/>
+            <!-- 30-minute accumulation -->
+            <var name="rain30m"/>
+            <var name="rainc30m"/>
+            <var name="rainnc30m"/>
+            <var name="snow30m"/>
+            <var name="ice30m"/>
+            <!-- Hourly accumulation. Valid at :00 and :30 -->
+            <var name="rain01h"/>
+            <var name="rainc01h"/>
+            <var name="rainnc01h"/>
+            <var name="snow01h"/>
+            <var name="ice01h"/>
+            <var name="lh01h"/>
+            <var name="swdnb01h"/>
+            <var name="swdnbdn01h"/>
+            <!-- End accumulated diagnostics defined in diagnostics/Registry_accumulated.xml -->
 
             <!-- Begin convective diagnostics defined in diagnostics/Registry_convective.xml -->
             <var name="cape"/>
@@ -1939,7 +1968,7 @@
                 <nml_option name="config_snowratio_scheme" type="character" default_value="static" in_defaults="false"
                      units="-"
                      description="configuration for snow ratio schemes"
-                     possible_values="'kuchera','cobb','noah','noahmp','static'"/>
+                     possible_values="'kuchera','cobb','noahsp','noahmp','static'"/>
 
         </nml_record>
 
@@ -1973,6 +2002,10 @@
                 <!-- ... PARAMETERIZATION OF CLOUD MICROPHYSICS:                                                        -->
                 <!-- ================================================================================================== -->
 
+                <var name="refl10cm" type="real" dimensions="nVertLevels nCells Time" units="dBZ"
+                     description="10 cm radar reflectivity"
+                     packages="mp_thompson_in;mp_wsm6_in"/>
+                     
                 <var name="refl10cm_max" type="real" dimensions="nCells Time" units="dBZ"
                      description="10 cm maximum radar reflectivity"
                      packages="mp_thompson_in;mp_wsm6_in"/>
@@ -2450,7 +2483,10 @@
                      description="all-sky downward surface shortwave radiation flux"/>
 
                 <var name="swdnbc" type="real" dimensions="nCells Time" units="W m^{-2}"
-                     description="clear-sky downward surface shortwave radiation flux"/>                
+                     description="clear-sky downward surface shortwave radiation flux"/>
+                     
+                <var name="swdnbdn" type="real" dimensions="nCells Time" units="W m^{-2}"
+                     description="all-sky downward direct normal surface shortwave radiation flux"/>
 
                 <var name="swdnt" type="real" dimensions="nCells Time" units="W m^{-2}"
                      description="all-sky downward top-of-atmosphere shortwave radiation flux"/>
@@ -2609,7 +2645,7 @@
                 <var name="rre_ice" type="real" dimensions="nVertLevels nCells Time" units="microns"
                      description="effective radius of cloud ice crystals calculated in RRTMG radiation"/>
 
-                <var name="rre_snow" type="real" dimensions="nVertLevels nCells Time"/>
+                <var name="rre_snow" type="real" dimensions="nVertLevels nCells Time"
                      description="effective radius of cloud ice crystals calculated in RRTMG radiation"/>
 
 

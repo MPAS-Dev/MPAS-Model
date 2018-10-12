@@ -37,14 +37,29 @@
         <var name="temperature_1000hPa" type="real" dimensions="nCells Time" units="K"
              description="Temperature vertically interpolated to 1000 hPa"/>
 
+        <var name="relhum_100hPa" type="real" dimensions="nCells Time" units="percent"
+             description="Relative humidity vertically interpolated to 100 hPa"/>
+
+        <var name="relhum_150hPa" type="real" dimensions="nCells Time" units="percent"
+             description="Relative humidity vertically interpolated to 150 hPa"/>
+
         <var name="relhum_200hPa" type="real" dimensions="nCells Time" units="percent"
              description="Relative humidity vertically interpolated to 200 hPa"/>
 
         <var name="relhum_250hPa" type="real" dimensions="nCells Time" units="percent"
              description="Relative humidity vertically interpolated to 250 hPa"/>
 
+        <var name="relhum_300hPa" type="real" dimensions="nCells Time" units="percent"
+             description="Relative humidity vertically interpolated to 300 hPa"/>
+
+        <var name="relhum_400hPa" type="real" dimensions="nCells Time" units="percent"
+             description="Relative humidity vertically interpolated to 400 hPa"/>
+
         <var name="relhum_500hPa" type="real" dimensions="nCells Time" units="percent"
              description="Relative humidity vertically interpolated to 500 hPa"/>
+
+        <var name="relhum_600hPa" type="real" dimensions="nCells Time" units="percent"
+             description="Relative humidity vertically interpolated to 600 hPa"/>
 
         <var name="relhum_700hPa" type="real" dimensions="nCells Time" units="percent"
              description="Relative humidity vertically interpolated to 700 hPa"/>

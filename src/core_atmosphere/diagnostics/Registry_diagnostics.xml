@@ -19,14 +19,17 @@
 <!-- 2-m Dewpoint -->
 #include "Registry_surface.xml"
 
+<!-- Fixed accumulation diagnostics -->
+#include "Registry_accumulated.xml"
+
 <!-- snow ratio diagnostics -->
 #include "Registry_snowratio.xml"
 
 <!-- deformation diagnostics -->
 #include "Registry_deformation.xml"
 
-<!-- hiwc diagnostics -->
-#include "Registry_hiwc.xml"
+<!-- aviation diagnostics -->
+#include "Registry_aviation.xml"
 
 <!-- unstagger diagnostics -->
 #include "Registry_unstagger.xml"

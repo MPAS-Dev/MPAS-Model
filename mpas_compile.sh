@@ -14,7 +14,7 @@ echo "Linux distribution = $distribution"
 
 export serial_FC
 
-if [[ $distribution == "3.0.101-0.46.1_1.0502.8871-cray_ari_s" ]]; then
+if [[ $distribution = *"cray"* ]]; then
 
     module swap PrgEnv-cray PrgEnv-intel
     module load cray-netcdf
@@ -28,7 +28,7 @@ if [[ $distribution == "3.0.101-0.46.1_1.0502.8871-cray_ari_s" ]]; then
     export PNETCDF=$PARALLEL_NETCDF_DIR
     export PNETCDF_PATH=$PARALLEL_NETCDF_DIR
     export PIO=$MPAS_ROOT/software/PIO_install
-    export CMAKE_PATH=/mnt/lustre/shared_data/cmake-install/bin
+    export CMAKE=`which cmake`
     export F77=ftn
     export serial_FC=ftn
     export FC=ftn
@@ -53,11 +53,13 @@ if [[ $distribution == "3.0.101-0.46.1_1.0502.8871-cray_ari_s" ]]; then
 
     git clone git@github.com:NCAR/ParallelIO.git ./ParallelIO
     cd ParallelIO
+    # fix because someone at NCAR made ParallelIO incompatible with MPAS on 02/15
+    git checkout 7c92c489015430233727169d861a5aa1534763ec
     export PIOSRC=`pwd`
     cd ..
     mkdir PIO_build
     cd PIO_build
-    $CMAKE_PATH/cmake -DNetCDF_C_PATH=$NETCDF -DNetCDF_Fortran_PATH=$NETCDF -DPnetCDF_PATH=$PNETCDF -DHDF5_PATH=$HDF5_DIR \
+    $CMAKE -DNetCDF_C_PATH=$NETCDF -DNetCDF_Fortran_PATH=$NETCDF -DPnetCDF_PATH=$PNETCDF -DHDF5_PATH=$HDF5_DIR \
         -DCMAKE_INSTALL_PREFIX=$PIO -DPIO_ENABLE_TIMING=OFF $PIOSRC
     make
     make install
@@ -115,15 +117,21 @@ elif [[ $distribution == "2.6.32-279.14.1.el6.x86_64" ]]; then
     echo "(1) Building Parallel IO"
     echo "*************************"
 
+    cd $MPAS_ROOT/software/
+    rm -rf ParallelIO-pio1_9_23/ pio1_9_23.tar.gz
+    wget https://github.com/NCAR/ParallelIO/archive/pio1_9_23.tar.gz
+    tar -xvzf pio1_9_23.tar.gz
+    cd ParallelIO-pio1_9_23/pio
+    git clone git@github.com:/PARALLELIO/genf90.git bin
+    git clone git@github.com:/CESM-Development/CMake_Fortran_utils.git cmake
+
     rm -rf $PIO
     mkdir $PIO
-
     cd $PIO
     ${CMAKE_PATH}/cmake -DNETCDF_C_DIR=$NETCDF -DNETCDF_Fortran_DIR=$NETCDF -DPNETCDF_DIR=$PNETCDF -DCMAKE_VERBOSE_MAKEFILE=1 $PIOSRC
     # need to edit the CMakeCache.txt file --> with a sed command
     sed -i -e "s/.*PIO_DEFINITIONS.*/PIO_DEFINITIONS:STRING=-D_NETCDF;-D_PNETCDF;-DUSEMPIIO;-D_NOUSEMCT;-D_USEBOX;-DNO_MPIMOD/" CMakeCache.txt
     make
-
     
 elif [[ $os_name == "Darwin" ]]; then
     # Mac (Darwin version 16.6.0)
@@ -183,15 +191,21 @@ elif [[ $os_name == "Darwin" ]]; then
     echo "(1) Building Parallel IO"
     echo "*************************"
 
+    cd $MPAS_ROOT/software/
+    rm -rf ParallelIO-pio1_9_23/ pio1_9_23.tar.gz
+    wget https://github.com/NCAR/ParallelIO/archive/pio1_9_23.tar.gz
+    tar -xvzf pio1_9_23.tar.gz
+    cd ParallelIO-pio1_9_23/pio
+    git clone git@github.com:/PARALLELIO/genf90.git bin
+    git clone git@github.com:/CESM-Development/CMake_Fortran_utils.git cmake
+
     rm -rf $PIO
     mkdir $PIO
-
     cd $PIO
     ${CMAKE_PATH}/cmake -DNETCDF_C_DIR=$NETCDF -DNETCDF_Fortran_DIR=$NETCDF -DPNETCDF_DIR=$PNETCDF -DCMAKE_VERBOSE_MAKEFILE=1 $PIOSRC
     # need to edit the CMakeCache.txt file --> with a sed command
     sed -i -e "s/.*PIO_DEFINITIONS.*/PIO_DEFINITIONS:STRING=-D_NETCDF;-D_PNETCDF;-DUSEMPIIO;-D_NOUSEMCT;-D_USEBOX;-DNO_MPIMOD/" CMakeCache.txt
     make
-
 
 fi
 
