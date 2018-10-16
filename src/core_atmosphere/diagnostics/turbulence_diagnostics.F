@@ -557,8 +557,8 @@ module turbulence_diagnostics
         do iCell = 1,nCellsSolve
             do k = 1,nTurbulenceLevels
                 shearsq = shear(k,iCell)*shear(k,iCell)
-                ri(k,iCell) = nsq(k,iCell)/max(shearsq,1.0e-15_RKIND)
-                invri(k,iCell) = shearsq/max(nsq(k,iCell),1.0e-15_RKIND)
+                ri(k,iCell) = max(nsq(k,iCell)/max(shearsq,1.0e-15_RKIND),1e-3_RKIND)
+                invri(k,iCell) = min(shearsq/max(nsq(k,iCell),1.0e-15_RKIND),1e+3_RKIND)
             end do
         end do
     end subroutine richno_compute
