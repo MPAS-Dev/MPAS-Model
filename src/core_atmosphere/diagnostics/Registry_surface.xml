@@ -10,6 +10,12 @@
         <var name="dewpoint_2m"       type="real"     dimensions="nCells Time" units="K"
              description="Dewpoint temperature at 2 meters AGL"/>
 
+        <var name="apcp_bucket"       type="real"     dimensions="nCells Time" units="mm"
+             description="Convective + Non-Convective Rain bucket that is reset at config_bucket_precip_interval"/>
+
+        <var name="apcp_bucket2"       type="real"     dimensions="nCells Time" units="mm"
+             description="Convective + Non-Convective Rain bucket that is reset at config_bucket2_precip_interval"/>
+
         <var name="rain_bucket"       type="real"     dimensions="nCells Time" units="mm"
              description="Rain bucket that is reset at config_bucket_precip_interval"/>
 

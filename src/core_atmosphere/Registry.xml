@@ -1022,6 +1022,8 @@
 
             <!-- Begin surface diagnostics defined in diagnostics/Registry_surface.xml -->
             <var name="dewpoint_2m"/>
+            <var name="apcp_bucket"/>
+            <var name="apcp_bucket2"/>
             <var name="rain_bucket"/>
             <var name="conv_bucket"/>
             <var name="snow_bucket"/>
@@ -1868,6 +1870,11 @@
                 <nml_option name="config_bucket_precip_interval" type="character" default_value="none"
                      units="-"
                      description="time interval between reset of precipitation diagnostics"
+                     possible_values="`DD_HH:MM:SS' or `none'"/>
+
+                <nml_option name="config_bucket2_precip_interval" type="character" default_value="none"
+                     units="-"
+                     description="2nd of two time intervals between reset of precipitation diagnostics"
                      possible_values="`DD_HH:MM:SS' or `none'"/>
 
                 <nml_option name="config_physics_suite" type="character" default_value="mesoscale_reference" in_defaults="true"
