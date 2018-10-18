@@ -25,7 +25,8 @@ MEMBERS = mpas_ocn_global_stats.o \
           mpas_ocn_rpn_calculator.o \
           mpas_ocn_transect_transport.o\
           mpas_ocn_eddy_product_variables.o\
-          mpas_ocn_moc_streamfunction.o
+          mpas_ocn_moc_streamfunction.o\
+          mpas_ocn_schism.o
 
 all: $(OBJS)
 
@@ -38,6 +39,8 @@ mpas_ocn_particle_list.o:
 mpas_ocn_lagrangian_particle_tracking_reset.o:
 
 mpas_ocn_lagrangian_particle_tracking.o: mpas_ocn_particle_list.o mpas_ocn_lagrangian_particle_tracking_interpolations.o mpas_ocn_lagrangian_particle_tracking_reset.o
+
+mpas_ocn_schism.o:
 
 clean:
 	$(RM) *.o *.i *.mod *.f90
