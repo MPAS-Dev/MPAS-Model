@@ -648,6 +648,11 @@ endif
 ifdef MPAS_EXTERNAL_CPPFLAGS
 	override CPPFLAGS += $(MPAS_EXTERNAL_CPPFLAGS)
 endif
+
+###Add SCHISM lib
+LIBS += -L/global/homes/y/yinglong/SCHISM/svn/trunk/src/ -lschism -L/global/homes/y/yinglong/SCHISM/svn/trunk/src/ParMetis-3.1-Sep2010.cray/ -lparmetis -lmetis
+FCINCLUDES += -I/global/homes/y/yinglong/SCHISM/svn/trunk/src/o/svn.CORI/
+
 ####################################################
 
 ifeq ($(wildcard src/core_$(CORE)), ) # CHECK FOR EXISTENCE OF CORE DIRECTORY

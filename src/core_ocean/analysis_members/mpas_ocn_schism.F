@@ -56,9 +56,13 @@ module ocn_schism
    use ocn_constants
    use ocn_diagnostics_routines
 
+   use schism_msgp, only: parallel_init,parallel_finalize,parallel_abort
+
    implicit none
    private
    save
+
+   integer :: iths,ntime
 
    !--------------------------------------------------------------------
    !
@@ -129,8 +133,12 @@ contains
       ! local variables
       !
       !-----------------------------------------------------------------
+      !integer :: iths,ntime
 
-      err = 0
+  call parallel_init(domain % dminfo % comm)
+  call schism_init(iths,ntime)
+
+  err = 0
 
    end subroutine ocn_init_schism!}}}
 
@@ -194,6 +202,8 @@ contains
 
       real (kind=RKIND), dimension(:), pointer ::  areaCell, dcEdge, dvEdge
 
+      integer :: it
+
       err = 0
 
       dminfo = domain % dminfo
@@ -253,6 +263,10 @@ contains
          block => block % next
       end do
 
+      !SCHISM
+      do it=iths+1,iths+2 !ntime
+        call schism_step(it)
+      enddo !it
    end subroutine ocn_compute_schism!}}}
 
 !***********************************************************************
@@ -345,6 +359,7 @@ contains
       !
       !-----------------------------------------------------------------
 
+      call schism_finalize
       err = 0
 
    end subroutine ocn_finalize_schism!}}}

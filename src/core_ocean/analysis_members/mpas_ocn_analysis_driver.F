@@ -190,6 +190,7 @@ contains
       call mpas_pool_add_config(analysisMemberList, 'transectTransport', 1)
       call mpas_pool_add_config(analysisMemberList, 'eddyProductVariables', 1)
       call mpas_pool_add_config(analysisMemberList, 'mocStreamfunction', 1)
+      call mpas_pool_add_config(analysisMemberList, 'schism', 1)
 !     call mpas_pool_add_config(analysisMemberList, 'temPlate', 1)
 
       ! DON'T EDIT BELOW HERE
