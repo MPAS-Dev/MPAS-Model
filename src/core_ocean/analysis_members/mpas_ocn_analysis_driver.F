@@ -1048,8 +1048,8 @@ contains
          call ocn_bootstrap_pointwise_stats(domain, err_tmp)
       else if ( analysisMemberName(1:nameLength) == 'transectTransport' ) then
         call ocn_init_transect_transport(domain, err_tmp)
-     else if ( analysisMemberName(1:nameLength) == 'schism' ) then
-        call ocn_init_schism(domain, err_tmp)
+      else if ( analysisMemberName(1:nameLength) == 'schism' ) then
+!        call ocn_init_schism(domain, err_tmp)
 !     else if ( analysisMemberName(1:nameLength) == 'temPlate' ) then
 !        call ocn_init_TEM_PLATE(domain, err_tmp)
       end if
