@@ -437,7 +437,7 @@ contains
        !If landice cavity add land ice pressure back in for rest of code.
          if ( associated(landIcePressure) ) THEN
            do iCell = 1,nCellsSolve
-             pressure(1,iCell) = pressure(1,iCell) - landIcePressure(iCell)
+             pressure(1,iCell) = pressure(1,iCell) + landIcePressure(iCell)
            enddo
          endif
 
