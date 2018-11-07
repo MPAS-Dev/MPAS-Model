@@ -78,7 +78,7 @@
 		/>
 	</var_struct>
 <var_struct name="mixedLayerDepthAMScratch" time_levs="1">
-▸\▸\<var name="workArrayPressure"
+▸\▸\<var name="pressureAdjustedForLandIceScratch"
 ▸\▸\▸\ persistence="scratch"
 ▸\▸\▸\ type="real"
 ▸\▸\▸\ dimensions="nVertLevels nCells Time"

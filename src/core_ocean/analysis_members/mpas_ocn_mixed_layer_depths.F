@@ -174,7 +174,7 @@ contains
       logical,pointer :: tThresholdFlag, dThresholdFlag
       logical,pointer :: tGradientFlag, dGradientFlag
 !      real (kind=RKIND), dimension(:), pointer ::  areaCell
-      type(field2DReal), pointer :: workArrayField
+      type(field2DReal), pointer :: pressureAdjustedForLandIceScratchField
       real (kind=RKIND), dimension(:,:), pointer :: pressureAdjustedForLandIce 
 
       real (kind=RKIND), dimension(:), pointer :: tThresholdMLD, tGradientMLD
@@ -227,9 +227,9 @@ contains
 
          !Use work array for storing of pressure, potentially modified by landIce
          call mpas_pool_get_subpool(block % structs, 'mixedLayerDepthsAMScratch', scratchPool)
-         call mpas_pool_get_field(scratchPool, 'workArrayPressure', workArrayField)
-         call mpas_allocate_scratch_field(workArrayField, .true.)
-         pressureAdjustedForLandIce => workArrayField % array
+         call mpas_pool_get_field(scratchPool, 'pressureAdjustedForLandIceScratch', pressureAdjustedForLandIceField)
+         call mpas_allocate_scratch_field(pressureAdjustedForLandIceField, .true.)
+         pressureAdjustedForLandIce => pressureAdjustedForLandIceField % array
 
          call mpas_pool_get_dimension(block % dimensions, 'nVertLevels', nVertLevels)
          call mpas_pool_get_dimension(block % dimensions, 'nCellsSolve', nCellsSolve)
@@ -448,7 +448,7 @@ contains
          deallocate(densityGradient)
        endif !if(densitygradientflag)
 
-         call mpas_deallocate_scratch_field(workArrayField, .true.)
+         call mpas_deallocate_scratch_field(pressureAdjustedForLandIceField, .true.)
          block => block % next
       end do
 
