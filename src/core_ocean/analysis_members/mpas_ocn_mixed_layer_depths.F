@@ -161,6 +161,7 @@ contains
       type (mpas_pool_type), pointer :: diagnosticsPool
       type (mpas_pool_type), pointer :: tracersPool
       type (mpas_pool_type), pointer :: mixedLayerDepthsAM
+      type (mpas_pool_type), pointer :: forcingPool
 
       ! Here are some example variables which may be needed for your analysis member
       integer, pointer :: nVertLevels, nCellsSolve
@@ -173,7 +174,7 @@ contains
       logical,pointer :: tGradientFlag, dGradientFlag
 !      real (kind=RKIND), dimension(:), pointer ::  areaCell
       real (kind=RKIND), dimension(:), pointer :: tThresholdMLD, tGradientMLD
-      real (kind=RKIND), dimension(:), pointer :: dThresholdMLD, dGradientMLD
+      real (kind=RKIND), dimension(:), pointer :: dThresholdMLD, dGradientMLD, landIcePressure
       real (kind=RKIND), dimension(:,:,:), pointer :: tracers
       real (kind=RKIND), dimension(:,:), pointer :: zTop, zMid, pressure
       real (kind=RKIND), dimension(:,:), pointer :: potentialDensity
@@ -216,6 +217,7 @@ contains
          call mpas_pool_get_subpool(block % structs, 'state', statePool)
          call mpas_pool_get_subpool(block % structs, 'mesh', meshPool)
          call mpas_pool_get_subpool(block % structs, 'diagnostics', diagnosticsPool)
+         call mpas_pool_get_subpool(block % structs, 'forcing', forcingPool)
          call mpas_pool_get_subpool(block % structs, 'mixedLayerDepthsAM', mixedLayerDepthsAMPool)
          call mpas_pool_get_subpool(statePool, 'tracers', tracersPool)
 
@@ -230,11 +232,18 @@ contains
          call mpas_pool_get_array(diagnosticsPool, 'potentialDensity', &
                         potentialDensity)
          call mpas_pool_get_array(diagnosticsPool, 'pressure', pressure)
+         call mpas_pool_get_array(forcingPool, 'landIcePressure', landIcePressure)
          call mpas_pool_get_array(diagnosticsPool, 'zMid', zMid)
          call mpas_pool_get_array(diagnosticsPool, 'zTop', zTop)
          call mpas_pool_get_array(meshPool, 'latCell', latCell)
          call mpas_pool_get_array(meshPool, 'lonCell', lonCell)
 
+         !If landice cavity remove land ice pressure to search for ML depth
+         if ( associated(landIcePressure) ) THEN
+           do iCell = 1,nCellsSolve
+             pressure(1,iCell) = pressure(1,iCell) - landIcePressure(iCell)
+           enddo
+         endif
 
          if(tThresholdFlag) then
             call mpas_pool_get_array(mixedLayerDepthsAMPool, 'tThreshMLD',tThresholdMLD)
@@ -424,6 +433,14 @@ contains
 
          deallocate(densityGradient)
        endif !if(densitygradientflag)
+
+       !If landice cavity add land ice pressure back in for rest of code.
+         if ( associated(landIcePressure) ) THEN
+           do iCell = 1,nCellsSolve
+             pressure(1,iCell) = pressure(1,iCell) - landIcePressure(iCell)
+           enddo
+         endif
+
 
          block => block % next
       end do
