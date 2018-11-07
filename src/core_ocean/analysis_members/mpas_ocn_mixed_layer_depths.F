@@ -162,6 +162,7 @@ contains
       type (mpas_pool_type), pointer :: tracersPool
       type (mpas_pool_type), pointer :: mixedLayerDepthsAM
       type (mpas_pool_type), pointer :: forcingPool
+      type (mpas_pool_type), pointer :: scratchPool
 
       ! Here are some example variables which may be needed for your analysis member
       integer, pointer :: nVertLevels, nCellsSolve
@@ -173,6 +174,9 @@ contains
       logical,pointer :: tThresholdFlag, dThresholdFlag
       logical,pointer :: tGradientFlag, dGradientFlag
 !      real (kind=RKIND), dimension(:), pointer ::  areaCell
+      type(field2DReal), pointer :: workArrayField
+      real (kind=RKIND), dimension(:,:), pointer :: workArray
+
       real (kind=RKIND), dimension(:), pointer :: tThresholdMLD, tGradientMLD
       real (kind=RKIND), dimension(:), pointer :: dThresholdMLD, dGradientMLD, landIcePressure
       real (kind=RKIND), dimension(:,:,:), pointer :: tracers
@@ -221,6 +225,12 @@ contains
          call mpas_pool_get_subpool(block % structs, 'mixedLayerDepthsAM', mixedLayerDepthsAMPool)
          call mpas_pool_get_subpool(statePool, 'tracers', tracersPool)
 
+         !Use work array for storing of pressure, potentially modified by landIce
+         call mpas_pool_get_subpool(block % structs, 'mixedLayerDepthsAMScratch', scratchPool)
+         call mpas_pool_get_field(scratchPool, 'workArrayPressure', workArrayField)
+         call mpas_allocate_scratch_field(workArrayField, .true.)
+         workArray => workArrayField % array
+
          call mpas_pool_get_dimension(block % dimensions, 'nVertLevels', nVertLevels)
          call mpas_pool_get_dimension(block % dimensions, 'nCellsSolve', nCellsSolve)
 
@@ -238,10 +248,13 @@ contains
          call mpas_pool_get_array(meshPool, 'latCell', latCell)
          call mpas_pool_get_array(meshPool, 'lonCell', lonCell)
 
+         workArray(:,:) = pressure(:,:)
          !If landice cavity remove land ice pressure to search for ML depth
          if ( associated(landIcePressure) ) THEN
            do iCell = 1,nCellsSolve
-             pressure(1,iCell) = pressure(1,iCell) - landIcePressure(iCell)
+             do k = 1,maxLevelCell(iCell)
+                workArray(k,iCell) = workArray(k,iCell) - landIcePressure(iCell)
+             enddo
            enddo
          endif
 
@@ -255,9 +268,9 @@ contains
                found_temp_mld = .false.
 
                do k=1, maxLevelCell(iCell)-1
-                  if(pressure(k+1,iCell) > refPress) then
+                  if(workArray(k+1,iCell) > refPress) then
                      localvals(2:3)=tracers(index_temperature,k:k+1,iCell)
-                     localvals(5:6)=pressure(k:k+1,iCell)
+                     localvals(5:6)=workArray(k:k+1,iCell)
 
                      call interp_bw_levels(localVals(2),localVals(3), &
                                    localVals(5),localVals(6),refPress,interp_local,                &
@@ -298,9 +311,9 @@ contains
                found_den_mld = .false.
 
                do k=1, maxLevelCell(iCell)-1
-                  if(pressure(k+1,iCell) > refPress) then
+                  if(workArray(k+1,iCell) > refPress) then
                      localvals(2:3)=potentialDensity(k:k+1,iCell)
-                     localvals(5:6)=pressure(k:k+1,iCell)
+                     localvals(5:6)=workArray(k:k+1,iCell)
 
                      call interp_bw_levels(localVals(2),localVals(3), &
                                    localVals(5),localVals(6),refPress,interp_local,                &
@@ -348,7 +361,7 @@ contains
                found_temp_mld=.false.
 
                do k=2,maxLevelCell(iCell)-1
-                     dz=abs(pressure(k-1,iCell)-pressure(k,iCell))
+                     dz=abs(workArray(k-1,iCell)-workArray(k,iCell))
                      temperatureGradient(k,1) = abs(tracers(index_temperature,k-1,iCell) - tracers(index_temperature,k,iCell)) / dz
                      temperatureGradient(k,2) = k
                enddo
@@ -399,7 +412,7 @@ contains
                found_den_mld=.false.
 
                do k=2,maxLevelCell(iCell)-1
-                     dz=abs(pressure(k-1,iCell)-pressure(k,iCell))
+                     dz=abs(workArray(k-1,iCell)-workArray(k,iCell))
                      densityGradient(k,1) = abs(potentialDensity(k-1,iCell)-potentialDensity(k,iCell)) / dz
                      densityGradient(k,2) = k
                enddo
@@ -434,14 +447,7 @@ contains
          deallocate(densityGradient)
        endif !if(densitygradientflag)
 
-       !If landice cavity add land ice pressure back in for rest of code.
-         if ( associated(landIcePressure) ) THEN
-           do iCell = 1,nCellsSolve
-             pressure(1,iCell) = pressure(1,iCell) + landIcePressure(iCell)
-           enddo
-         endif
-
-
+         call mpas_deallocate_scratch_field(workArrayField, .true.)
          block => block % next
       end do
 
