@@ -175,7 +175,7 @@ contains
       logical,pointer :: tGradientFlag, dGradientFlag
 !      real (kind=RKIND), dimension(:), pointer ::  areaCell
       type(field2DReal), pointer :: workArrayField
-      real (kind=RKIND), dimension(:,:), pointer :: workArray
+      real (kind=RKIND), dimension(:,:), pointer :: pressureAdjustedForLandIce 
 
       real (kind=RKIND), dimension(:), pointer :: tThresholdMLD, tGradientMLD
       real (kind=RKIND), dimension(:), pointer :: dThresholdMLD, dGradientMLD, landIcePressure
@@ -229,7 +229,7 @@ contains
          call mpas_pool_get_subpool(block % structs, 'mixedLayerDepthsAMScratch', scratchPool)
          call mpas_pool_get_field(scratchPool, 'workArrayPressure', workArrayField)
          call mpas_allocate_scratch_field(workArrayField, .true.)
-         workArray => workArrayField % array
+         pressureAdjustedForLandIce => workArrayField % array
 
          call mpas_pool_get_dimension(block % dimensions, 'nVertLevels', nVertLevels)
          call mpas_pool_get_dimension(block % dimensions, 'nCellsSolve', nCellsSolve)
@@ -248,12 +248,13 @@ contains
          call mpas_pool_get_array(meshPool, 'latCell', latCell)
          call mpas_pool_get_array(meshPool, 'lonCell', lonCell)
 
-         workArray(:,:) = pressure(:,:)
+         pressureAdjustedForLandIce(:,:) = pressure(:,:)
          !If landice cavity remove land ice pressure to search for ML depth
          if ( associated(landIcePressure) ) THEN
            do iCell = 1,nCellsSolve
              do k = 1,maxLevelCell(iCell)
-                workArray(k,iCell) = workArray(k,iCell) - landIcePressure(iCell)
+                pressureAdjustedForLandIce(k,iCell) = pressureAdjustedForLandIce(k,iCell)   &
+                                                        - landIcePressure(iCell)
              enddo
            enddo
          endif
@@ -268,9 +269,9 @@ contains
                found_temp_mld = .false.
 
                do k=1, maxLevelCell(iCell)-1
-                  if(workArray(k+1,iCell) > refPress) then
+                  if(pressureAdjustedForLandIce(k+1,iCell) > refPress) then
                      localvals(2:3)=tracers(index_temperature,k:k+1,iCell)
-                     localvals(5:6)=workArray(k:k+1,iCell)
+                     localvals(5:6)=pressureAdjustedForLandIce(k:k+1,iCell)
 
                      call interp_bw_levels(localVals(2),localVals(3), &
                                    localVals(5),localVals(6),refPress,interp_local,                &
@@ -311,9 +312,9 @@ contains
                found_den_mld = .false.
 
                do k=1, maxLevelCell(iCell)-1
-                  if(workArray(k+1,iCell) > refPress) then
+                  if(pressureAdjustedForLandIce(k+1,iCell) > refPress) then
                      localvals(2:3)=potentialDensity(k:k+1,iCell)
-                     localvals(5:6)=workArray(k:k+1,iCell)
+                     localvals(5:6)=pressureAdjustedForLandIce(k:k+1,iCell)
 
                      call interp_bw_levels(localVals(2),localVals(3), &
                                    localVals(5),localVals(6),refPress,interp_local,                &
@@ -361,7 +362,7 @@ contains
                found_temp_mld=.false.
 
                do k=2,maxLevelCell(iCell)-1
-                     dz=abs(workArray(k-1,iCell)-workArray(k,iCell))
+                     dz=abs(pressureAdjustedForLandIce(k-1,iCell)-pressureAdjustedForLandIce(k,iCell))
                      temperatureGradient(k,1) = abs(tracers(index_temperature,k-1,iCell) - tracers(index_temperature,k,iCell)) / dz
                      temperatureGradient(k,2) = k
                enddo
@@ -412,7 +413,7 @@ contains
                found_den_mld=.false.
 
                do k=2,maxLevelCell(iCell)-1
-                     dz=abs(workArray(k-1,iCell)-workArray(k,iCell))
+                     dz=abs(pressureAdjustedForLandIce(k-1,iCell)-pressureAdjustedForLandIce(k,iCell))
                      densityGradient(k,1) = abs(potentialDensity(k-1,iCell)-potentialDensity(k,iCell)) / dz
                      densityGradient(k,2) = k
                enddo
