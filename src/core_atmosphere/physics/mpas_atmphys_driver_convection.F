@@ -270,6 +270,7 @@
              if(.not.allocated(dx_p)     ) allocate(dx_p(ims:ime,jms:jme)             )
              if(.not.allocated(rqvften_p)) allocate(rqvften_p(ims:ime,kms:kme,jms:jme))
              if(.not.allocated(rthften_p)) allocate(rthften_p(ims:ime,kms:kme,jms:jme))
+             if(.not.allocated(ust_p)    ) allocate(ust_p(ims:ime,jms:jme)            )
 
              do i = its,ite
              do k = kts,kte
@@ -382,6 +383,7 @@
              if(allocated(dx_p)     ) deallocate(dx_p)
              if(allocated(rqvften_p)) deallocate(rqvften_p)
              if(allocated(rthften_p)) deallocate(rthften_p)
+             if(allocated(ust_p)    ) deallocate(ust_p    )
 
           case default
 
@@ -658,7 +660,7 @@
              pratec    = pratec_p    , qfx         = qfx_p       ,                   &
              hfx       = hfx_p       , xland       = xland_p     ,                   &
              dx        = dx_p        , u3d         = u_p         ,                   &
-             v3d       = v_p         , w           = w_p         ,                   &
+             v3d       = v_p         , w3d         = w_p         ,                   &
              qv3d      = qv_p        , qc3d        = qc_p        ,                   &
              qi3d      = qi_p        , pi3d        = pi_p        ,                   &
              rho3d     = rho_p       , qvften      = rqvften_p   ,                   &
@@ -668,7 +670,7 @@
              f_qs      = f_qs        , rthcuten    = rthcuten_p  ,                   &
              rqvcuten  = rqvcuten_p  , rqccuten    = rqccuten_p  ,                   &
              rqicuten  = rqicuten_p  , rucuten     = rucuten_p   ,                   &
-             rvcuten   = rvcuten_p   ,                                               &
+             rvcuten   = rvcuten_p   , ust         = ust_p       ,                   &
              ids = ids , ide = ide , jds = jds , jde = jde , kds = kds , kde = kde , &
              ims = ims , ime = ime , jms = jms , jme = jme , kms = kds , kme = kme , &
              its = its , ite = ite , jts = jts , jte = jte , kts = kts , kte = kte   &
@@ -961,10 +963,12 @@
              call mpas_pool_get_array(tend_physics,'rthblten'  ,rthblten  )
              call mpas_pool_get_array(tend_physics,'rthratenlw',rthratenlw)
              call mpas_pool_get_array(tend_physics,'rthratensw',rthratensw)
+             call mpas_pool_get_array(diag_physics,'ust'       ,ust       )
              
              do j = jts,jte
              do i = its,ite
                 dx_p(i,j) = len_disp / meshDensity(i)**0.25
+                ust_p(i,j) = ust(i)
              enddo
 
              do k = kts,kte
