@@ -994,6 +994,7 @@ CONTAINS
               acrfac = 2.*rslope3(i,k,1)+2.*diameter*rslope2(i,k,1)            &
                       +diameter**2*rslope(i,k,1)
               praci(i,k) = pi*qci(i,k,2)*n0r*abs(vt2r-vt2i)*acrfac/4.
+              praci(i,k) = praci(i,k)*min(max(0.0,qrs(i,k,1)/qci(i,k,2)),1.)**2
               praci(i,k) = min(praci(i,k),qci(i,k,2)/dtcld)
 !-------------------------------------------------------------
 ! piacr: Accretion of rain by cloud ice [HL A19] [LFO 26]
@@ -1002,8 +1003,8 @@ CONTAINS
               piacr(i,k) = pi**2*avtr*n0r*denr*xni(i,k)*denfac(i,k)            &
                           *g6pbr*rslope3(i,k,1)*rslope3(i,k,1)                 &
                           *rslopeb(i,k,1)/24./den(i,k)
-!             piacr(i,k) = min(piacr(i,k),qrs(i,k,1)/dtcld)
-              piacr(i,k) = 0.
+              piacr(i,k) = piacr(i,k)*min(max(0.0,qci(i,k,2)/qrs(i,k,1)),1.)**2
+              piacr(i,k) = min(piacr(i,k),qrs(i,k,1)/dtcld)
             endif
 !-------------------------------------------------------------
 ! psaci: Accretion of cloud ice by snow [HDC 10]
@@ -1033,16 +1034,20 @@ CONTAINS
 !        (T<T0: C->S, and T>=T0: C->R)
 !-------------------------------------------------------------
           if(qrs(i,k,2).gt.qcrmin.and.qci(i,k,1).gt.qmin) then
-            psacw(i,k) = min(pacrc*n0sfac(i,k)*rslope3(i,k,2)*rslopeb(i,k,2)   &    
-                        *qci(i,k,1)*denfac(i,k),qci(i,k,1)/dtcld)
+            psacw(i,k) = pacrc*n0sfac(i,k)*rslope3(i,k,2)*rslopeb(i,k,2)       &    
+                        *qci(i,k,1)*denfac(i,k)
+            psacw(i,k) = psacw(i,k)*min(max(0.0,qrs(i,k,2)/qci(i,k,1)),1.)**2
+            psacw(i,k) = min(psacw(i,k),qci(i,k,1)/dtcld)
           endif
 !-------------------------------------------------------------
 ! pgacw: Accretion of cloud water by graupel [HL A6] [LFO 40]
 !        (T<T0: C->G, and T>=T0: C->R)
 !-------------------------------------------------------------
           if(qrs(i,k,3).gt.qcrmin.and.qci(i,k,1).gt.qmin) then
-            pgacw(i,k) = min(pacrg*rslope3(i,k,3)*rslopeb(i,k,3)               &
-                        *qci(i,k,1)*denfac(i,k),qci(i,k,1)/dtcld)
+            pgacw(i,k) = pacrg*rslope3(i,k,3)*rslopeb(i,k,3)                   &
+                        *qci(i,k,1)*denfac(i,k)
+            pgacw(i,k) = pgacw(i,k)*min(max(0.0,qrs(i,k,3)/qci(i,k,1)),1.)**2
+            pgacw(i,k) = min(pgacw(i,k),qci(i,k,1)/dtcld)
           endif
 !-------------------------------------------------------------
 ! paacw: Accretion of cloud water by averaged snow/graupel 
@@ -1063,6 +1068,7 @@ CONTAINS
                       +.5*rslope2(i,k,2)*rslope2(i,k,2)*rslope3(i,k,1)
               pracs(i,k) = pi**2*n0r*n0s*n0sfac(i,k)*abs(vt2r-vt2ave)          &
                           *(dens/den(i,k))*acrfac
+              pracs(i,k) = pracs(i,k)*min(max(0.0,qrs(i,k,1)/qrs(i,k,2)),1.)**2
               pracs(i,k) = min(pracs(i,k),qrs(i,k,2)/dtcld)
             endif
 !-------------------------------------------------------------
@@ -1074,8 +1080,8 @@ CONTAINS
                     +.5*rslope2(i,k,1)*rslope2(i,k,1)*rslope3(i,k,2)
             psacr(i,k) = pi**2*n0r*n0s*n0sfac(i,k)*abs(vt2ave-vt2r)            &
                         *(denr/den(i,k))*acrfac
-!           psacr(i,k) = min(psacr(i,k),qrs(i,k,1)/dtcld)
-            psacr(i,k) = 0.
+            psacr(i,k) = psacr(i,k)*min(max(0.0,qrs(i,k,2)/qrs(i,k,1)),1.)**2
+            psacr(i,k) = min(psacr(i,k),qrs(i,k,1)/dtcld)
           endif
 !-------------------------------------------------------------
 ! pgacr: Accretion of rain by graupel [HL A12] [LFO 42]
@@ -1087,8 +1093,8 @@ CONTAINS
                     +.5*rslope2(i,k,1)*rslope2(i,k,1)*rslope3(i,k,3)
             pgacr(i,k) = pi**2*n0r*n0g*abs(vt2ave-vt2r)*(denr/den(i,k))        &
                         *acrfac
-!           pgacr(i,k) = min(pgacr(i,k),qrs(i,k,1)/dtcld)
-            pgacr(i,k) = 0.
+            pgacr(i,k) = pgacr(i,k)*min(max(0.0,qrs(i,k,3)/qrs(i,k,1)),1.)**2
+            pgacr(i,k) = min(pgacr(i,k),qrs(i,k,1)/dtcld)
           endif
 !
 !-------------------------------------------------------------
