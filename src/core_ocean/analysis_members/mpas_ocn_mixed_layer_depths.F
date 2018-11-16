@@ -174,7 +174,7 @@ contains
       logical,pointer :: tThresholdFlag, dThresholdFlag
       logical,pointer :: tGradientFlag, dGradientFlag
 !      real (kind=RKIND), dimension(:), pointer ::  areaCell
-      type(field2DReal), pointer :: pressureAdjustedForLandIceScratchField
+      type(field2DReal), pointer :: pressureAdjustedForLandIceField
       real (kind=RKIND), dimension(:,:), pointer :: pressureAdjustedForLandIce 
 
       real (kind=RKIND), dimension(:), pointer :: tThresholdMLD, tGradientMLD
@@ -226,7 +226,7 @@ contains
          call mpas_pool_get_subpool(statePool, 'tracers', tracersPool)
 
          !Use work array for storing of pressure, potentially modified by landIce
-         call mpas_pool_get_subpool(block % structs, 'mixedLayerDepthsAMScratch', scratchPool)
+         call mpas_pool_get_subpool(block % structs, 'mixedLayerDepthAMScratch', scratchPool)
          call mpas_pool_get_field(scratchPool, 'pressureAdjustedForLandIceScratch', pressureAdjustedForLandIceField)
          call mpas_allocate_scratch_field(pressureAdjustedForLandIceField, .true.)
          pressureAdjustedForLandIce => pressureAdjustedForLandIceField % array
