@@ -178,7 +178,7 @@ contains
       real (kind=RKIND), dimension(:,:), pointer :: pressureAdjustedForLandIce 
 
       real (kind=RKIND), dimension(:), pointer :: tThresholdMLD, tGradientMLD
-      real (kind=RKIND), dimension(:), pointer :: dThresholdMLD, dGradientMLD, landIcePressure
+      real (kind=RKIND), dimension(:), pointer :: dThresholdMLD, dGradientMLD, landIcePressure,modifySSHMask
       real (kind=RKIND), dimension(:,:,:), pointer :: tracers
       real (kind=RKIND), dimension(:,:), pointer :: zTop, zMid, pressure
       real (kind=RKIND), dimension(:,:), pointer :: potentialDensity
@@ -243,6 +243,7 @@ contains
                         potentialDensity)
          call mpas_pool_get_array(diagnosticsPool, 'pressure', pressure)
          call mpas_pool_get_array(forcingPool, 'landIcePressure', landIcePressure)
+         call mpas_pool_get_array(forcingPool, 'modifySSHMask', modifySSHMask)
          call mpas_pool_get_array(diagnosticsPool, 'zMid', zMid)
          call mpas_pool_get_array(diagnosticsPool, 'zTop', zTop)
          call mpas_pool_get_array(meshPool, 'latCell', latCell)
@@ -300,6 +301,13 @@ contains
 ! if the mixed layer depth is not found, it is set to the depth of the bottom most level
                    if(.not. found_temp_mld) tThresholdMLD(iCell) = abs(zMid(maxLevelCell(iCell),iCell))
                enddo !iCell
+
+               if (associated(modifySSHMask) ) THEN
+                  do iCell = 1, nCellsSolve
+                     tThresholdMLD(iCell) = tThresholdMLD(iCell) - abs(zTop(1,iCell))*modifySSHMask(iCell)
+                  enddo
+               endif
+
           endif !end tThresh MLD search
 
          if(dThresholdFlag) then
@@ -344,6 +352,13 @@ contains
                     if(.not. found_den_mld) dThresholdMLD(iCell) = abs(zMid(maxLevelCell(iCell),iCell))
 
              enddo !iCell
+
+             if (associated(landIceMask) ) THEN
+               do iCell = 1, nCellsSolve
+                  dThresholdMLD(iCell) = dThresholdMLD(iCell) - abs(zTop(1,iCell))*landIceMask(iCell)
+               enddo
+             endif
+
 
         endif !end dThresh MLD search
 
@@ -396,6 +411,14 @@ contains
 
          enddo !icell
 
+         !normalize MLD to top of ice cavity
+         if (associated(landIceMask) ) THEN
+           do iCell = 1, nCellsSolve
+             tGradientMLD(iCell) = tGradientMLD(iCell) - abs(zTop(1,iCell))*landIceMask(iCell)
+           enddo
+         endif
+
+
          deallocate(temperatureGradient)
 
        endif !if(temperaturegradientflag)
@@ -445,13 +468,18 @@ contains
 
          enddo !icell
 
+         if (associated(landIceMask) ) THEN
+           do iCell = 1, nCellsSolve
+             dGradientMLD(iCell) = dGradientMLD(iCell) - abs(zTop(1,iCell))*landIceMask(iCell)
+           enddo
+         endif
+
          deallocate(densityGradient)
        endif !if(densitygradientflag)
 
          call mpas_deallocate_scratch_field(pressureAdjustedForLandIceField, .true.)
          block => block % next
       end do
-
 
       ! Even though some variables do not include an index that is decomposed amongst
       ! domain partitions, we assign them within a block loop so that all blocks have the
