@@ -177,8 +177,9 @@ contains
       type(field2DReal), pointer :: pressureAdjustedForLandIceField
       real (kind=RKIND), dimension(:,:), pointer :: pressureAdjustedForLandIce 
 
-      real (kind=RKIND), dimension(:), pointer :: tThresholdMLD, tGradientMLD
-      real (kind=RKIND), dimension(:), pointer :: dThresholdMLD, dGradientMLD, landIcePressure,modifySSHMask
+      real (kind=RKIND), dimension(:), pointer :: tThresholdMLD, tGradientMLD, landIceDraft
+      real (kind=RKIND), dimension(:), pointer :: dThresholdMLD, dGradientMLD, landIcePressure
+      integer, dimension(:), pointer :: landIceMask 
       real (kind=RKIND), dimension(:,:,:), pointer :: tracers
       real (kind=RKIND), dimension(:,:), pointer :: zTop, zMid, pressure
       real (kind=RKIND), dimension(:,:), pointer :: potentialDensity
@@ -243,7 +244,8 @@ contains
                         potentialDensity)
          call mpas_pool_get_array(diagnosticsPool, 'pressure', pressure)
          call mpas_pool_get_array(forcingPool, 'landIcePressure', landIcePressure)
-         call mpas_pool_get_array(forcingPool, 'modifySSHMask', modifySSHMask)
+         call mpas_pool_get_array(forcingPool, 'landIceDraft', landIceDraft)
+         call mpas_pool_get_array(forcingPool, 'landIceMask', landIceMask)
          call mpas_pool_get_array(diagnosticsPool, 'zMid', zMid)
          call mpas_pool_get_array(diagnosticsPool, 'zTop', zTop)
          call mpas_pool_get_array(meshPool, 'latCell', latCell)
@@ -302,9 +304,9 @@ contains
                    if(.not. found_temp_mld) tThresholdMLD(iCell) = abs(zMid(maxLevelCell(iCell),iCell))
                enddo !iCell
 
-               if (associated(modifySSHMask) ) THEN
+               if (associated(landIceMask) ) THEN
                   do iCell = 1, nCellsSolve
-                     tThresholdMLD(iCell) = tThresholdMLD(iCell) - abs(zTop(1,iCell))*modifySSHMask(iCell)
+                     tThresholdMLD(iCell) = tThresholdMLD(iCell) - abs(landIceDraft(iCell))*landIceMask(iCell)
                   enddo
                endif
 
@@ -355,8 +357,10 @@ contains
 
              if (associated(landIceMask) ) THEN
                do iCell = 1, nCellsSolve
-                  dThresholdMLD(iCell) = dThresholdMLD(iCell) - abs(zTop(1,iCell))*landIceMask(iCell)
+                  dThresholdMLD(iCell) = dThresholdMLD(iCell) - abs(landIceDraft(iCell))*landIceMask(iCell)
                enddo
+
+
              endif
 
 
@@ -414,7 +418,7 @@ contains
          !normalize MLD to top of ice cavity
          if (associated(landIceMask) ) THEN
            do iCell = 1, nCellsSolve
-             tGradientMLD(iCell) = tGradientMLD(iCell) - abs(zTop(1,iCell))*landIceMask(iCell)
+             tGradientMLD(iCell) = tGradientMLD(iCell) - abs(landIceDraft(iCell))*landIceMask(iCell)
            enddo
          endif
 
@@ -470,7 +474,7 @@ contains
 
          if (associated(landIceMask) ) THEN
            do iCell = 1, nCellsSolve
-             dGradientMLD(iCell) = dGradientMLD(iCell) - abs(zTop(1,iCell))*landIceMask(iCell)
+             dGradientMLD(iCell) = dGradientMLD(iCell) - abs(landIceDraft(iCell))*landIceMask(iCell)
            enddo
          endif
 
