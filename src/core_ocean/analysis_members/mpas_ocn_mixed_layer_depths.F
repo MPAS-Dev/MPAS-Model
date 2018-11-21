@@ -177,8 +177,8 @@ contains
       type(field2DReal), pointer :: pressureAdjustedForLandIceField
       real (kind=RKIND), dimension(:,:), pointer :: pressureAdjustedForLandIce 
 
-      real (kind=RKIND), dimension(:), pointer :: tThresholdMLD, tGradientMLD, landIceDraft
-      real (kind=RKIND), dimension(:), pointer :: dThresholdMLD, dGradientMLD, landIcePressure
+      real (kind=RKIND), dimension(:), pointer :: tThreshMLD, tGradientMLD, landIceDraft
+      real (kind=RKIND), dimension(:), pointer :: dThreshMLD, dGradientMLD, landIcePressure
       integer, dimension(:), pointer :: landIceMask 
       real (kind=RKIND), dimension(:,:,:), pointer :: tracers
       real (kind=RKIND), dimension(:,:), pointer :: zTop, zMid, pressure
@@ -263,7 +263,7 @@ contains
          endif
 
          if(tThresholdFlag) then
-            call mpas_pool_get_array(mixedLayerDepthsAMPool, 'tThreshMLD',tThresholdMLD)
+            call mpas_pool_get_array(mixedLayerDepthsAMPool, 'tThreshMLD',tThreshMLD)
             do iCell = 1,nCellsSolve
 
                !Initialize RefIndex for cases of very shallow columns
@@ -294,26 +294,26 @@ contains
                         call interp_bw_levels(localVals(2),localVals(3), dV, dVp1, tempThresh,     &
                                    interp_local, mldTemp)!,dVm1, localVals(1))
                         mldTemp=max(mldTemp,zMid(k+1,iCell)) !make sure MLD isn't deeper than zMid(k+1)
-                        tThresholdMLD(iCell)=abs(min(mldTemp,zMid(k,iCell))) !MLD should be deeper than zMid(k)
+                        tThreshMLD(iCell)=abs(min(mldTemp,zMid(k,iCell))) !MLD should be deeper than zMid(k)
                         found_temp_mld = .true.
                         exit
                      endif
                 enddo
 
 ! if the mixed layer depth is not found, it is set to the depth of the bottom most level
-                   if(.not. found_temp_mld) tThresholdMLD(iCell) = abs(zMid(maxLevelCell(iCell),iCell))
+                   if(.not. found_temp_mld) tThreshMLD(iCell) = abs(zMid(maxLevelCell(iCell),iCell))
                enddo !iCell
 
                if (associated(landIceMask) ) THEN
                   do iCell = 1, nCellsSolve
-                     tThresholdMLD(iCell) = tThresholdMLD(iCell) - abs(landIceDraft(iCell))*landIceMask(iCell)
+                     tThreshMLD(iCell) = tThreshMLD(iCell) - abs(landIceDraft(iCell))*landIceMask(iCell)
                   enddo
                endif
 
           endif !end tThresh MLD search
 
          if(dThresholdFlag) then
-            call mpas_pool_get_array(mixedLayerDepthsAMPool, 'dThreshMLD',dThresholdMLD)
+            call mpas_pool_get_array(mixedLayerDepthsAMPool, 'dThreshMLD',dThreshMLD)
 
             do iCell = 1,nCellsSolve
 
@@ -343,7 +343,7 @@ contains
                         call interp_bw_levels(localVals(2),localVals(3), dV, dVp1, denThresh,     &
                                    interp_local, mldTemp)!, dVm1, localVals(1))
                         mldTemp=max(mldTemp,zMid(k+1,iCell)) !make sure MLD isn't deeper than zMid(k+1)
-                        dThresholdMLD(iCell)=abs(min(mldTemp,zMid(k,iCell))) !MLD should be deeper than zMid(k)
+                        dThreshMLD(iCell)=abs(min(mldTemp,zMid(k,iCell))) !MLD should be deeper than zMid(k)
                         found_den_mld = .true.
                         exit
                      endif
@@ -351,13 +351,13 @@ contains
 
 ! if the mixed layer depth is not found, it is set to the depth of the bottom most level
 
-                    if(.not. found_den_mld) dThresholdMLD(iCell) = abs(zMid(maxLevelCell(iCell),iCell))
+                    if(.not. found_den_mld) dThreshMLD(iCell) = abs(zMid(maxLevelCell(iCell),iCell))
 
              enddo !iCell
 
              if (associated(landIceMask) ) THEN
                do iCell = 1, nCellsSolve
-                  dThresholdMLD(iCell) = dThresholdMLD(iCell) - abs(landIceDraft(iCell))*landIceMask(iCell)
+                  dThreshMLD(iCell) = dThreshMLD(iCell) - abs(landIceDraft(iCell))*landIceMask(iCell)
                enddo
 
 
