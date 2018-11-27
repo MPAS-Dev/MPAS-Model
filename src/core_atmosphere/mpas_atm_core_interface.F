@@ -83,7 +83,11 @@ module atm_core_interface
       class (mpas_coupler_type), intent(in) :: self
 
 
-      atm_component_role = self % intercomm_rank / (self % intercomm_size / 2)
+      if (self % intercomm_size == 1) then
+         atm_component_role = self % intercomm_rank
+      else
+         atm_component_role = self % intercomm_rank / (self % intercomm_size / 2)
+      end if
 
    end function atm_component_role
 
@@ -111,7 +115,11 @@ module atm_core_interface
       integer, intent(in) :: role
 
 
-      atm_component_role_leader = role * (self % intercomm_size / 2)
+      if (self % intercomm_size == 1) then
+         atm_component_role_leader = role
+      else
+         atm_component_role_leader = role * (self % intercomm_size / 2)
+      end if
 
    end function atm_component_role_leader
 
