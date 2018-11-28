@@ -599,7 +599,7 @@
 			<var name="tday_accum"/>
 			<var name="tyear_mean"/>
 			<var name="tyear_accum"/>
-            <var name="refl10cm"/>
+			<var name="refl10cm"/>
 			<var name="refl10cm_max"/>
 			<var name="i_rainnc"/>
 			<var name="rainncv"/>
@@ -624,6 +624,8 @@
                         <var name="tsq"/>
                         <var name="tke_pbl"/>
                         <var name="wstar"/>
+			<var name="hgamt"/>
+			<var name="hgamq"/>
                         <var name="delta"/>
                         <var name="el_pbl"/>
                         <var name="ch"/>
@@ -2234,6 +2236,14 @@
                 <!-- YSU PBL SCHEME: -->
                 <var name="exch_h" type="real" dimensions="nVertLevels nCells Time" units="m^{2} s^{-1}"
                      description="exchange coefficient"
+                     packages="bl_ysu_in"/>
+
+                <var name="hgamt" type="real" dimensions="nCells Time" units="K"
+                     description="thermal perturbation"
+                     packages="bl_ysu_in"/>
+
+                <var name="hgamq" type="real" dimensions="nCells Time" units="kg kg^{-1}"
+                     description="moisture perturbation"
                      packages="bl_ysu_in"/>
 
 

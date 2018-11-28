@@ -33,6 +33,7 @@ contains
                   dt,kpbl2d,                                                   &
                   exch_h,                                                      &
                   wstar,delta,                                                 &
+                  hgamt,hgamq,                                                 &
                   u10,v10,                                                     &
                   uoce,voce,                                                   &
                   rthraten,tke_pbl,ysu_topdown_pblmix,                         &
@@ -184,6 +185,8 @@ contains
    real,     dimension( ims:ime, jms:jme )                                   , &
              intent(inout)   ::                                           znt, &
                                                                           ust, &
+                                                                        hgamt, &
+                                                                        hgamq, &
                                                                          hpbl, &
                                                                           wspd
 !
@@ -310,6 +313,7 @@ contains
               ,ep1=ep1,ep2=ep2,karman=karman                                   &
               ,dz8w2d=dz8w(ims,kms,j)                                          &
               ,psfcpa=psfc(ims,j),znt=znt(ims,j),ust=ust(ims,j)                &
+              ,hgamt=hgamt(ims,j),hgamq=hgamq(ims,j)                           &
               ,hpbl=hpbl(ims,j)                                                &
               ,regime=regime(ims,j),psim=psim(ims,j)                           &
               ,psih=psih(ims,j),xland=xland(ims,j)                             &
@@ -355,7 +359,7 @@ contains
                   utnp,vtnp,ttnp,qtnp,ndiff,                                   &
                   cp,g,rovcp,rd,rovg,ep1,ep2,karman,xlv,rv,                    &
                   dz8w2d,psfcpa,                                               &
-                  znt,ust,hpbl,psim,psih,                                      &
+                  znt,ust,hgamt,hgamq,hpbl,psim,psih,                          &
                   xland,hfx,qfx,wspd,br,                                       &
                   dusfc,dvsfc,dtsfc,dqsfc,                                     &
                   dt,rcl,kpbl1d,                                               &
@@ -491,6 +495,8 @@ contains
 !
    real,     dimension( ims:ime )                                            , &
              intent(inout)   ::                                           ust, &
+                                                                        hgamt, &
+                                                                        hgamq, &
                                                                          hpbl, &
                                                                           znt
    real,     dimension( ims:ime )                                            , &
@@ -537,7 +543,6 @@ contains
                                                                        govrth, &
                                                                   zl1,thermal, &
                                                                        wscale, &
-                                                                  hgamt,hgamq, &
                                                                     brdn,brup, &
                                                                     phim,phih, &
                                                                   dusfc,dvsfc, &
