@@ -11,7 +11,7 @@ DIAGNOSTIC_MODULES = \
 	snowratio_diagnostics.o \
 	surface_diagnostics.o \
     accumulated_diagnostics.o \
-	deformation_diagnostics.o \
+	turbulence_diagnostics.o \
 	aviation_diagnostics.o \
     unstagger_diagnostics.o \
 	soundings.o \
@@ -28,7 +28,7 @@ surface_diagnostics.o: mpas_atm_diagnostics_utils.o
 
 accumulated_diagnostics.o: mpas_atm_diagnostics_utils.o
 
-deformation_diagnostics.o: mpas_atm_diagnostics_utils.o
+turbulence_diagnostics.o: mpas_atm_diagnostics_utils.o
 
 aviation_diagnostics.o: mpas_atm_diagnostics_utils.o
 

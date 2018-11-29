@@ -39,7 +39,7 @@ module mpas_atm_diagnostics_manager
         use convective_diagnostics, only : convective_diagnostics_setup
         use snowratio_diagnostics, only : snowratio_diagnostics_setup
         use surface_diagnostics, only : surface_diagnostics_setup
-        use deformation_diagnostics, only : deformation_diagnostics_setup
+        use turbulence_diagnostics, only : turbulence_diagnostics_setup
         use accumulated_diagnostics, only : accumulated_diagnostics_setup
         use aviation_diagnostics, only : aviation_diagnostics_setup
         use unstagger_diagnostics, only : unstagger_diagnostics_setup
@@ -66,7 +66,7 @@ module mpas_atm_diagnostics_manager
         call snowratio_diagnostics_setup(configs, structs)
         call surface_diagnostics_setup(configs, structs, clock)
         call accumulated_diagnostics_setup(configs, structs, clock)
-        call deformation_diagnostics_setup(structs)
+        call turbulence_diagnostics_setup(configs, structs)
         call aviation_diagnostics_setup(structs)
         call unstagger_diagnostics_setup(structs)
         call pv_diagnostics_setup(structs, clock)
@@ -91,6 +91,7 @@ module mpas_atm_diagnostics_manager
         use convective_diagnostics, only : convective_diagnostics_update
         use accumulated_diagnostics, only : accumulated_diagnostics_update
         use aviation_diagnostics, only : aviation_diagnostics_update
+        use turbulence_diagnostics, only : turbulence_diagnostics_update
 
         implicit none
 
@@ -99,6 +100,7 @@ module mpas_atm_diagnostics_manager
         call convective_diagnostics_update()
         call accumulated_diagnostics_update()
         call aviation_diagnostics_update()
+        call turbulence_diagnostics_update()
 
     end subroutine mpas_atm_diag_update
 
@@ -121,7 +123,7 @@ module mpas_atm_diagnostics_manager
         use snowratio_diagnostics, only : snowratio_diagnostics_compute
         use surface_diagnostics, only : surface_diagnostics_compute
         use accumulated_diagnostics, only : accumulated_diagnostics_compute
-        use deformation_diagnostics, only : deformation_diagnostics_compute
+        use turbulence_diagnostics, only : turbulence_diagnostics_compute
         use aviation_diagnostics, only : aviation_diagnostics_compute
         use unstagger_diagnostics, only : unstagger_diagnostics_compute
         use pv_diagnostics, only : pv_diagnostics_compute
@@ -135,7 +137,7 @@ module mpas_atm_diagnostics_manager
         call snowratio_diagnostics_compute()
         call surface_diagnostics_compute()
         call accumulated_diagnostics_compute()
-        call deformation_diagnostics_compute()
+        call turbulence_diagnostics_compute()
         call aviation_diagnostics_compute()
         call unstagger_diagnostics_compute()
         call pv_diagnostics_compute()
@@ -189,6 +191,7 @@ module mpas_atm_diagnostics_manager
         use diagnostic_template, only : diagnostic_template_cleanup
         use accumulated_diagnostics, only : accumulated_diagnostics_cleanup
         use aviation_diagnostics, only : aviation_diagnostics_cleanup
+        use turbulence_diagnostics, only : turbulence_diagnostics_cleanup
         use soundings, only : soundings_cleanup
 
         implicit none
@@ -197,6 +200,7 @@ module mpas_atm_diagnostics_manager
         call soundings_cleanup()
         call accumulated_diagnostics_cleanup()
         call aviation_diagnostics_cleanup()
+        call turbulence_diagnostics_cleanup()
 
         !
         ! Take care of any needed cleanup in the diagnostics utility module
