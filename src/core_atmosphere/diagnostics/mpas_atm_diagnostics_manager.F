@@ -39,6 +39,7 @@ module mpas_atm_diagnostics_manager
         use convective_diagnostics, only : convective_diagnostics_setup
         use snowratio_diagnostics, only : snowratio_diagnostics_setup
         use surface_diagnostics, only : surface_diagnostics_setup
+        use wind_diagnostics, only : wind_diagnostics_setup
         use turbulence_diagnostics, only : turbulence_diagnostics_setup
         use accumulated_diagnostics, only : accumulated_diagnostics_setup
         use aviation_diagnostics, only : aviation_diagnostics_setup
@@ -65,6 +66,7 @@ module mpas_atm_diagnostics_manager
         call convective_diagnostics_setup(structs, clock)
         call snowratio_diagnostics_setup(configs, structs)
         call surface_diagnostics_setup(configs, structs, clock)
+        call wind_diagnostics_setup(structs)
         call accumulated_diagnostics_setup(configs, structs, clock)
         call turbulence_diagnostics_setup(configs, structs)
         call aviation_diagnostics_setup(structs)
@@ -122,6 +124,7 @@ module mpas_atm_diagnostics_manager
         use convective_diagnostics, only : convective_diagnostics_compute
         use snowratio_diagnostics, only : snowratio_diagnostics_compute
         use surface_diagnostics, only : surface_diagnostics_compute
+        use wind_diagnostics, only : wind_diagnostics_compute
         use accumulated_diagnostics, only : accumulated_diagnostics_compute
         use turbulence_diagnostics, only : turbulence_diagnostics_compute
         use aviation_diagnostics, only : aviation_diagnostics_compute
@@ -136,6 +139,7 @@ module mpas_atm_diagnostics_manager
         call convective_diagnostics_compute()
         call snowratio_diagnostics_compute()
         call surface_diagnostics_compute()
+        call wind_diagnostics_compute()
         call accumulated_diagnostics_compute()
         call turbulence_diagnostics_compute()
         call aviation_diagnostics_compute()

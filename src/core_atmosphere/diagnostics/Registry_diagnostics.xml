@@ -19,6 +19,9 @@
 <!-- 2-m Dewpoint -->
 #include "Registry_surface.xml"
 
+<!-- wind diagnostics -->
+#include "Registry_wind.xml"
+
 <!-- Fixed accumulation diagnostics -->
 #include "Registry_accumulated.xml"
 

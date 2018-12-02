@@ -599,7 +599,7 @@
 			<var name="tday_accum"/>
 			<var name="tyear_mean"/>
 			<var name="tyear_accum"/>
-            <var name="refl10cm"/>
+			<var name="refl10cm"/>
 			<var name="refl10cm_max"/>
 			<var name="i_rainnc"/>
 			<var name="rainncv"/>
@@ -1057,6 +1057,15 @@
             <var name="refl10cm_prate"/>
             <var name="ncuprec"/>
             <!-- End surface diagnostics defined in diagnostics/Registry_surface.xml -->
+
+            <!-- Begin wind diagnostics defined in diagnostics/Registry_wind.xml -->
+            <var name="uzonal_60m"/>
+            <var name="umeridional_60m"/>
+            <var name="uzonal_80m"/>
+            <var name="umeridional_80m"/>
+            <var name="uzonal_100m"/>
+            <var name="umeridional_100m"/>
+            <!-- End wind diagnostics defined in diagnostics/Registry_wind.xml -->
             
             <!-- Begin accumulated diagnostics defined in diagnostics/Registry_accumulated.xml -->
             <!-- 15-minute accumulation -->
