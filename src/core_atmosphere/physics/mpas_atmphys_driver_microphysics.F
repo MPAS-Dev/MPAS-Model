@@ -9,7 +9,7 @@
  module mpas_atmphys_driver_microphysics
  use mpas_kind_types
  use mpas_pool_routines
- use mpas_timer, only : mpas_timer_start, mpas_timer_stop
+ use mpas_timer,only: mpas_timer_start,mpas_timer_stop
  
  use mpas_atmphys_constants
  use mpas_atmphys_init_microphysics
@@ -363,7 +363,7 @@
  microp_select: select case(microp_scheme)
     
     case ("mp_kessler")
-       call mpas_timer_start('Kessler')
+       call mpas_timer_start('mp_kessler')
        call kessler( &
                   t        = th_p      , qv    = qv_p  , qc     = qc_p     ,                &
                   qr       = qr_p      , rho   = rho_p , pii    = pi_p     ,                &
@@ -376,11 +376,11 @@
                   ims = ims , ime = ime , jms = jms , jme = jme , kms = kms , kme = kme   , &
                   its = its , ite = ite , jts = jts , jte = jte , kts = kts , kte = kte     &
                    )
-       call mpas_timer_stop('Kessler')
+       call mpas_timer_stop('mp_kessler')
 
     case ("mp_thompson")
        istep = 1
-       call mpas_timer_start('Thompson')
+       call mpas_timer_start('mp_thompson')
        do while (istep .le. n_microp)
        call mp_gt_driver( &
                   th        = th_p        , qv         = qv_p         , qc         = qc_p         , &
@@ -401,7 +401,7 @@
                            )
        istep = istep + 1
        enddo
-       call mpas_timer_stop('Thompson')
+       call mpas_timer_stop('mp_thompson')
 
        case ("mp_thompson_aerosols")
           istep = 1
@@ -429,7 +429,7 @@
           enddo
 
     case ("mp_wsm6")
-       call mpas_timer_start('WSM6')
+       call mpas_timer_start('mp_wsm6')
        call wsm6( &
                   th       = th_p        , q          = qv_p         , qc       = qc_p      , &
                   qr       = qr_p        , qi         = qi_p         , qs       = qs_p      , &
@@ -449,7 +449,7 @@
                   ims = ims , ime = ime , jms = jms , jme = jme , kms = kms , kme = kme     , &
                   its = its , ite = ite , jts = jts , jte = jte , kts = kts , kte = kte       &
                )
-       call mpas_timer_stop('WSM6')
+       call mpas_timer_stop('mp_wsm6')
 
     case default
        

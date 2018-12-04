@@ -222,7 +222,6 @@
                     rucuten,rvcuten,rthcuten,rqvcuten,rqccuten,rqrcuten,rqicuten,rqscuten,       &                     
                     rthratenlw,rthratensw,rublten_Edge,rucuten_Edge,                             &
                     tend_th,tend_theta,tend_scalars,tend_u,tend_u_phys)
->>>>>>> * In ./src/core_atmosphere/physics/mpas_atmphys_todynamics.F, made a major clean-up
 !=================================================================================================================
 
 !input arguments:
@@ -366,7 +365,6 @@
     enddo
  endif
 
-    
 !add coupled tendencies due to shortwave radiation:
  if(radt_sw_scheme .ne. 'off') then
     do i = 1, nCellsSolve

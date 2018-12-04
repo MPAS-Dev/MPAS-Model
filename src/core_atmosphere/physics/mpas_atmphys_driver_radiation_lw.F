@@ -9,7 +9,7 @@
  module mpas_atmphys_driver_radiation_lw
  use mpas_kind_types
  use mpas_pool_routines
- use mpas_timer, only : mpas_timer_start, mpas_timer_stop
+ use mpas_timer,only: mpas_timer_start,mpas_timer_stop
 
  use mpas_atmphys_driver_radiation_sw, only: radconst
  use mpas_atmphys_constants
@@ -276,8 +276,6 @@
  call mpas_pool_get_array(diag_physics,'cldfrac'   ,cldfrac   )
  call mpas_pool_get_array(diag_physics,'o3clim'    ,o3clim    )
  call mpas_pool_get_array(diag_physics,'o3vmr'     ,o3vmr     )
- call mpas_pool_get_array(diag_physics,'m_hybi'    ,m_hybi    )
- call mpas_pool_get_array(diag_physics,'m_ps'      ,m_ps      )
 
  do j = jts,jte
  do i = its,ite
@@ -553,7 +551,6 @@
  type(mpas_pool_type),intent(in):: configs
  type(mpas_pool_type),intent(in),optional:: mesh
  type(mpas_pool_type),intent(in),optional:: diag
- type(mpas_pool_type),intent(in),optional:: diag_physics
 
  integer,intent(in),optional:: time_lev
 
@@ -571,7 +568,7 @@
  radiation_lw_select: select case (trim(radt_lw_scheme))
     case ("rrtmg_lw")
        call rrtmg_initlw_forMPAS(dminfo)
-    
+
     case default
  end select radiation_lw_select
 
@@ -620,7 +617,7 @@
        o3input = 0
        if(config_o3climatology) o3input = 2
 
-       call mpas_timer_start('RRTMG_lw')
+       call mpas_timer_start('rrtmg_lwrad')
        call rrtmg_lwrad( &
             p3d        = pres_hyd_p    , p8w       = pres2_hyd_p , pi3d     = pi_p     , &
             t3d        = t_p           , t8w       = t2_p        , dz8w     = dz_p     , &
@@ -642,7 +639,7 @@
             ims = ims , ime = ime , jms = jms , jme = jme , kms = kms , kme = kme ,      &
             its = its , ite = ite , jts = jts , jte = jte , kts = kts , kte = kte        &
                        )
-       call mpas_timer_stop('RRTMG_lw')
+       call mpas_timer_stop('rrtmg_lwrad')
 
     case default
  end select radiation_lw_select

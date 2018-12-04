@@ -1751,12 +1751,12 @@
                              description="Tendency of rain number concentration multiplied by dry air density divided by d(zeta)/dz"
                              packages="mp_thompson_in"/>
 
-                        <var name="tend_nwfa" name_in_code="nwfa" array_group="aerosols" units="nb kg^{-1} s^{-1}"
-                             description="Tendency of water-friendly aerosol number concentration"
+                        <var name="tend_nwfa" name_in_code="nwfa" array_group="aerosols" units="nb m^{-3} s^{-1}"
+                             description="Tendency of water-friendly aerosol number concentration multiplied by dry air density divided by d(zeta)/dz"
                              packages="mp_thompson_in"/>
 
-                        <var name="tend_nifa" name_in_code="nifa" array_group="aerosols" units="nb kg^{-1} s^{-1}"
-                             description="Tendency of ice-friendly aerosol number concentration"
+                        <var name="tend_nifa" name_in_code="nifa" array_group="aerosols" units="nb m^{-3} s^{-1}"
+                             description="Tendency of ice-friendly aerosol number concentration multiplied by dry air density divided by d(zeta)/dz"
                              packages="mp_thompson_in"/>
                 </var_array>
         </var_struct>
