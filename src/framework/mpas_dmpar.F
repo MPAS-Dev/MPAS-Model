@@ -104,10 +104,6 @@ include 'mpif.h'
    public :: mpas_dmpar_exch_group_full_halo_exch
    public :: mpas_dmpar_field_halo_exch
 
-   public :: mpas_dmpar_exch_group_build_reusable_buffers
-   public :: mpas_dmpar_exch_group_reuse_halo_exch
-   public :: mpas_dmpar_exch_group_destroy_reusable_buffers
-
    interface mpas_dmpar_bcast
       module procedure mpas_dmpar_bcast_int
       module procedure mpas_dmpar_bcast_ints
@@ -138,6 +134,10 @@ include 'mpif.h'
    public :: mpas_dmpar_bcast_logical
    public :: mpas_dmpar_bcast_char
    public :: mpas_dmpar_bcast_chars
+   public :: mpas_dmpar_exch_group_build_reusable_buffers
+   public :: mpas_dmpar_exch_group_reuse_halo_exch
+   public :: mpas_dmpar_exch_group_destroy_reusable_buffers
+
 
    interface mpas_dmpar_alltoall_field
       module procedure mpas_dmpar_alltoall_field1d_integer

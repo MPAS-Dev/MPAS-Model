@@ -502,6 +502,7 @@
                         <var_array name="scalars" packages="met_stage_out"/>
                         <var name="u" packages="met_stage_out"/>
                         <var name="w" packages="met_stage_out"/>
+                        <var name="p_fg" packages="met_stage_out"/>
                         <var name="dz" packages="met_stage_out"/>
                         <var name="dzs" packages="met_stage_out"/>
                         <var name="zs" packages="met_stage_out"/>
