@@ -600,7 +600,7 @@ contains
 !     dxref = 15000.
 ! bw -->  increased dxref to get slight scaling at 15km based
 ! bw -->  on both statistical and visual dbz representation
-      dxref = 18000.
+      dxref = 17500.
       do j=1,lq
         if (dx(j).lt.dxref .and. iscale.eq.1) then
           scale_tau(j) = (1.+log(dxref/dx(j)))**2
