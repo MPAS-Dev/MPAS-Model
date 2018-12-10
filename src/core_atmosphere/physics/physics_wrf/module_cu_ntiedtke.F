@@ -2581,7 +2581,7 @@ contains
 !             zdshrd = 6.e-4
             end if
             ikb=kcbot(jl)
-            if ( ktype(jl).and.plu(jl,jk) > zdshrd ) then
+            if ( ktype(jl).ne.2.and.plu(jl,jk)>zdshrd ) then
               zwu = min(15.0,sqrt(2.*max(0.1,kup(jl,jk+1))))
               zprcon = zprcdgw/(0.75*zwu)
 ! PARAMETERS FOR BERGERON-FINDEISEN PROCESS (T < -5C)
