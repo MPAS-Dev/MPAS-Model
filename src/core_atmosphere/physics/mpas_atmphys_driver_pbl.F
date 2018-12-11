@@ -113,8 +113,6 @@
        if(.not.allocated(u10_p)   ) allocate(u10_p(ims:ime,jms:jme)         )
        if(.not.allocated(v10_p)   ) allocate(v10_p(ims:ime,jms:jme)         )
        if(.not.allocated(exch_p)  ) allocate(exch_p(ims:ime,kms:kme,jms:jme))
-       if(.not.allocated(hgamt_p) ) allocate(hgamt_p(ims:ime,jms:jme)       )
-       if(.not.allocated(hgamq_p) ) allocate(hgamq_p(ims:ime,jms:jme)       )
        !from radiation schemes:
        if(.not.allocated(rthraten_p)) allocate(rthraten_p(ims:ime,kms:kme,jms:jme))
 
@@ -193,8 +191,6 @@
        if(allocated(u10_p)   ) deallocate(u10_p   )
        if(allocated(v10_p)   ) deallocate(v10_p   )
        if(allocated(exch_p)  ) deallocate(exch_p  )
-       if(allocated(hgamt_p) ) deallocate(hgamt_p )
-       if(allocated(hgamq_p) ) deallocate(hgamq_p )
        !from radiation schemes:
        if(allocated(rthraten_p)) deallocate(rthraten_p)
 
@@ -251,7 +247,7 @@
 
 !local pointers for YSU scheme:
  logical,pointer:: config_ysu_pblmix
- real(kind=RKIND),dimension(:),pointer:: br,fh,fm,regime,u10,v10,hgamt,hgamq
+ real(kind=RKIND),dimension(:),pointer:: br,fh,fm,regime,u10,v10
  real(kind=RKIND),dimension(:,:),pointer:: rthratenlw,rthratensw
 
 !local pointers for MYNN scheme:
@@ -312,8 +308,6 @@
        call mpas_pool_get_array(diag_physics,'regime',regime   )
        call mpas_pool_get_array(diag_physics,'u10'   ,u10      )
        call mpas_pool_get_array(diag_physics,'v10'   ,v10      )
-       call mpas_pool_get_array(diag_physics,'hgamt' ,hgamt    )
-       call mpas_pool_get_array(diag_physics,'hgamq' ,hgamq    )
 
        call mpas_pool_get_array(tend_physics,'rthratenlw',rthratenlw)
        call mpas_pool_get_array(tend_physics,'rthratensw',rthratensw)
@@ -330,8 +324,6 @@
           regime_p(i,j) = regime(i)
           u10_p(i,j)    = u10(i)
           v10_p(i,j)    = v10(i)
-          hgamt_p(i,j)  = hgamt(i)
-          hgamq_p(i,j)  = hgamq(i)
           !initialization for YSU PBL scheme:
           ctopo_p(i,j)  = 1._RKIND
           ctopo2_p(i,j) = 1._RKIND
@@ -444,7 +436,6 @@
                                            rniblten,tke_pbl
 
 !local pointers for YSU scheme:
- real(kind=RKIND),dimension(:),pointer  :: hgamt,hgamq
  real(kind=RKIND),dimension(:,:),pointer:: exch_h
 
 !local pointers for MYNN scheme:
@@ -502,15 +493,6 @@
 
     case("bl_ysu")
        call mpas_pool_get_array(diag_physics,'exch_h',exch_h)
-       call mpas_pool_get_array(diag_physics,'hgamt' ,hgamt )
-       call mpas_pool_get_array(diag_physics,'hgamq' ,hgamq )
-
-       do j = jts,jte
-       do i = its,ite
-          hgamt(i) = hgamt_p(i,j)
-          hgamq(i) = hgamq_p(i,j)
-       enddo
-       enddo
 
        do j = jts,jte
        do k = kts,kte
@@ -616,8 +598,7 @@
                  psih     = psih_p     , xland    = xland_p     , hfx      = hfx_p      , &
                  qfx      = qfx_p      , wspd     = wspd_p      , br       = br_p       , &
                  dt       = dt_pbl     , kpbl2d   = kpbl_p      , exch_h   = exch_p     , &
-                 wstar    = wstar_p    , delta    = delta_p     , hgamt    = hgamt_p    , &
-                 hgamq    = hgamq_p    , uoce     = uoce_p                              , &
+                 wstar    = wstar_p    , delta    = delta_p     , uoce     = uoce_p     , &
                  voce     = voce_p     , rthraten = rthraten_p  , u10      = u10_p      , &
                  v10      = v10_p      , ctopo    = ctopo_p     , ctopo2   = ctopo2_p   , &
                  regime   = regime_p   , rho      = rho_p       , kzhout   = kzh_p      , &
