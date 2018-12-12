@@ -2575,10 +2575,8 @@ contains
 ! generation from small water contents.
             if ( lndj(jl).eq.1 ) then
               zdshrd = 5.e-4
-!             zdshrd = 1.e-3
             else
               zdshrd = 3.e-4
-!             zdshrd = 6.e-4
             end if
             ikb=kcbot(jl)
             if ( ktype(jl).ne.2.and.plu(jl,jk)>zdshrd ) then
