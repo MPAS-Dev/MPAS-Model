@@ -28,6 +28,8 @@
  public:: allocate_radiation_lw,   &
           deallocate_radiation_lw, &
           driver_radiation_lw,     &
+          lagged_driver_radiation_lw,     &
+          radiation_lw_from_MPAS,     &
           init_radiation_lw,       &
           radiation_camlw_to_MPAS
 
@@ -668,7 +670,7 @@
  end subroutine radiation_lw_from_MPAS
 
 !=================================================================================================================
- subroutine radiation_lw_to_MPAS(configs,diag_physics,tend_physics,mpas_cpl,cells_to_rad_handle,cells_from_rad_handle,its,ite)
+ subroutine radiation_lw_to_MPAS(configs,diag_physics,tend_physics,mpas_cpl,cells_to_rad_handle,cells_from_rad_handle,transfer_fields,its,ite)
 !=================================================================================================================
 
 !input arguments:
@@ -680,6 +682,7 @@
 
  type (mpas_coupler_type), pointer :: mpas_cpl
  integer, intent(in) :: cells_to_rad_handle, cells_from_rad_handle
+ logical, intent(in) :: transfer_fields
 
  integer,intent(in):: its,ite
 
@@ -799,6 +802,63 @@
  end select radiation_lw_select
  end if
 
+ if (transfer_fields) then
+    call MPAS_coupler_transfer_field(mpas_cpl, cells_from_rad_handle, glwField   , ierr=ierr)
+    call MPAS_coupler_transfer_field(mpas_cpl, cells_from_rad_handle, lwcfField  , ierr=ierr)
+    call MPAS_coupler_transfer_field(mpas_cpl, cells_from_rad_handle, lwdnbField , ierr=ierr)
+    call MPAS_coupler_transfer_field(mpas_cpl, cells_from_rad_handle, lwdnbcField, ierr=ierr)
+    call MPAS_coupler_transfer_field(mpas_cpl, cells_from_rad_handle, lwdntField , ierr=ierr)
+    call MPAS_coupler_transfer_field(mpas_cpl, cells_from_rad_handle, lwdntcField, ierr=ierr)
+    call MPAS_coupler_transfer_field(mpas_cpl, cells_from_rad_handle, lwupbField , ierr=ierr)
+    call MPAS_coupler_transfer_field(mpas_cpl, cells_from_rad_handle, lwupbcField, ierr=ierr)
+    call MPAS_coupler_transfer_field(mpas_cpl, cells_from_rad_handle, lwuptField , ierr=ierr)
+    call MPAS_coupler_transfer_field(mpas_cpl, cells_from_rad_handle, lwuptcField, ierr=ierr)
+    call MPAS_coupler_transfer_field(mpas_cpl, cells_from_rad_handle, olrtoaField, ierr=ierr)
+    call MPAS_coupler_transfer_field(mpas_cpl, cells_from_rad_handle, rthratenlwField, ierr=ierr)
+ end if
+
+ end subroutine radiation_lw_to_MPAS
+
+!=================================================================================================================
+ subroutine lagged_radiation_lw_to_MPAS(configs,diag_physics,tend_physics,mpas_cpl,cells_to_rad_handle,cells_from_rad_handle,its,ite)
+!=================================================================================================================
+
+!input arguments:
+ type(mpas_pool_type),intent(in):: configs
+
+!inout arguments:
+ type(mpas_pool_type),intent(inout):: diag_physics
+ type(mpas_pool_type),intent(inout):: tend_physics
+
+ type (mpas_coupler_type), pointer :: mpas_cpl
+ integer, intent(in) :: cells_to_rad_handle, cells_from_rad_handle
+
+ integer,intent(in):: its,ite
+
+!local pointers:
+ type (field1DReal), pointer :: glwField, lwcfField, lwdnbField, lwdnbcField, lwdntField, lwdntcField, &
+                                lwupbField, lwupbcField, lwuptField, lwuptcField, olrtoaField
+ type (field2DReal), pointer :: rthratenlwField
+ type (field2DReal), pointer :: rre_cloudField, rre_iceField, rre_snowField
+
+!local variables and arrays:
+ integer :: ierr
+
+!-----------------------------------------------------------------------------------------------------------------
+
+ call mpas_pool_get_field(diag_physics,'glw'   ,glwField   )
+ call mpas_pool_get_field(diag_physics,'lwcf'  ,lwcfField  )
+ call mpas_pool_get_field(diag_physics,'lwdnb' ,lwdnbField )
+ call mpas_pool_get_field(diag_physics,'lwdnbc',lwdnbcField)
+ call mpas_pool_get_field(diag_physics,'lwdnt' ,lwdntField )
+ call mpas_pool_get_field(diag_physics,'lwdntc',lwdntcField)
+ call mpas_pool_get_field(diag_physics,'lwupb' ,lwupbField )
+ call mpas_pool_get_field(diag_physics,'lwupbc',lwupbcField)
+ call mpas_pool_get_field(diag_physics,'lwupt' ,lwuptField )
+ call mpas_pool_get_field(diag_physics,'lwuptc',lwuptcField)
+ call mpas_pool_get_field(diag_physics,'olrtoa',olrtoaField)
+ call mpas_pool_get_field(tend_physics,'rthratenlw',rthratenlwField)
+
  call MPAS_coupler_transfer_field(mpas_cpl, cells_from_rad_handle, glwField   , ierr=ierr)
  call MPAS_coupler_transfer_field(mpas_cpl, cells_from_rad_handle, lwcfField  , ierr=ierr)
  call MPAS_coupler_transfer_field(mpas_cpl, cells_from_rad_handle, lwdnbField , ierr=ierr)
@@ -812,7 +872,7 @@
  call MPAS_coupler_transfer_field(mpas_cpl, cells_from_rad_handle, olrtoaField, ierr=ierr)
  call MPAS_coupler_transfer_field(mpas_cpl, cells_from_rad_handle, rthratenlwField, ierr=ierr)
 
- end subroutine radiation_lw_to_MPAS
+ end subroutine lagged_radiation_lw_to_MPAS
 
 !=================================================================================================================
  subroutine radiation_camlw_to_MPAS(diag_physics,its,ite)
@@ -899,16 +959,18 @@
  end subroutine init_radiation_lw
 
 !=================================================================================================================
- subroutine driver_radiation_lw(xtime_s,configs,mesh,state,time_lev,diag_physics,atm_input, &
-                                sfc_input,tend_physics,mpas_cpl,cells_to_rad_handle,cells_from_rad_handle,its,ite)
+ subroutine driver_radiation_lw(itimestep,xtime_s,configs,mesh,state,time_lev,diag_physics,atm_input, &
+                                sfc_input,tend_physics,mpas_cpl,cells_to_rad_handle,cells_from_rad_handle,do_transfer,its,ite)
 !=================================================================================================================
 
 !input arguments:
+ integer, intent(in) :: itimestep
  type(mpas_pool_type),intent(in):: mesh
  type(mpas_pool_type),intent(in):: configs
 
  type (mpas_coupler_type), pointer :: mpas_cpl
  integer, intent(in) :: cells_to_rad_handle, cells_from_rad_handle
+ logical, intent(in) :: do_transfer
 
  integer,intent(in):: its,ite
 
@@ -935,9 +997,6 @@
 
  call mpas_pool_get_config(configs,'config_o3climatology' ,config_o3climatology)
  call mpas_pool_get_config(configs,'config_radt_lw_scheme',radt_lw_scheme      )
-
-!copy MPAS arrays to local arrays:
- call radiation_lw_from_MPAS(xtime_s,configs,mesh,state,time_lev,diag_physics,atm_input,sfc_input,mpas_cpl,cells_to_rad_handle,cells_from_rad_handle,its,ite)
 
  if (mpas_cpl % role() == ROLE_RADIATION) then
 
@@ -1037,11 +1096,54 @@
  end if
 
 !copy local arrays to MPAS grid:
- call radiation_lw_to_MPAS(configs,diag_physics,tend_physics,mpas_cpl,cells_to_rad_handle,cells_from_rad_handle,its,ite)
+ call radiation_lw_to_MPAS(configs,diag_physics,tend_physics,mpas_cpl,cells_to_rad_handle,cells_from_rad_handle,do_transfer,its,ite)
 
 !call mpas_log_write('--- end subroutine driver_radiation_lw.')
 
  end subroutine driver_radiation_lw
+
+!=================================================================================================================
+ subroutine lagged_driver_radiation_lw(itimestep,xtime_s,configs,mesh,state,time_lev,diag_physics,atm_input, &
+                                sfc_input,tend_physics,mpas_cpl,cells_to_rad_handle,cells_from_rad_handle,its,ite)
+!=================================================================================================================
+
+!input arguments:
+ integer, intent(in) :: itimestep
+ type(mpas_pool_type),intent(in):: mesh
+ type(mpas_pool_type),intent(in):: configs
+
+ type (mpas_coupler_type), pointer :: mpas_cpl
+ integer, intent(in) :: cells_to_rad_handle, cells_from_rad_handle
+
+ integer,intent(in):: its,ite
+
+ integer,intent(in):: time_lev
+ real(kind=RKIND),intent(in):: xtime_s
+
+!inout arguments:
+ type(mpas_pool_type),intent(inout):: state
+ type(mpas_pool_type),intent(inout):: diag_physics
+ type(mpas_pool_type),intent(inout):: atm_input
+ type(mpas_pool_type),intent(inout):: sfc_input
+ type(mpas_pool_type),intent(inout):: tend_physics
+
+!local pointers:
+ logical,pointer:: config_o3climatology
+ character(len=StrKIND),pointer:: radt_lw_scheme
+
+!local variables:
+ integer:: o3input
+ real(kind=RKIND):: radt,xtime_m
+
+!-----------------------------------------------------------------------------------------------------------------
+!call mpas_log_write(' --- enter subroutine driver_radiation_lw: ')
+
+ call mpas_pool_get_config(configs,'config_o3climatology' ,config_o3climatology)
+ call mpas_pool_get_config(configs,'config_radt_lw_scheme',radt_lw_scheme      )
+
+ call lagged_radiation_lw_to_MPAS(configs,diag_physics,tend_physics,mpas_cpl,cells_to_rad_handle,cells_from_rad_handle,its,ite)
+
+ end subroutine lagged_driver_radiation_lw
 
 !=================================================================================================================
  end module mpas_atmphys_driver_radiation_lw

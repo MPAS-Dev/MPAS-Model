@@ -890,7 +890,6 @@ module atm_core
 #endif
 
       if (mpas_cpl % role() == ROLE_INTEGRATE) then
-         call mpas_log_write('DYNAMICS')
          call atm_timestep(domain, dt, timeStamp, itimestep)
       end if
 

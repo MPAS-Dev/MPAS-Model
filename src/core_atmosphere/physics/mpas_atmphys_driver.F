@@ -201,6 +201,33 @@
     !physics prep step:
     time_lev = 1
 
+    !
+    ! For timesteps other than the first, we transfer previous radiation tendencies back to integration tasks
+    !
+    if ((itimestep > 1) .and. (l_radtsw .or. l_radtlw)) then
+!$OMP PARALLEL DO
+       do thread=1,nThreads
+          call lagged_driver_radiation_sw(itimestep,block%configs,mesh,state,time_lev,diag_physics, &
+                                   atm_input,sfc_input,tend_physics,xtime_s, &
+                                   mpas_cpl, cells_to_rad_handle, cells_from_rad_handle, &
+                                   cellSolveThreadStart(thread), cellSolveThreadEnd(thread))
+       end do
+!$OMP END PARALLEL DO
+
+!$OMP PARALLEL DO
+       do thread=1,nThreads
+          call lagged_driver_radiation_lw(itimestep,xtime_s,block%configs,mesh,state,time_lev,diag_physics, &
+                                   atm_input,sfc_input,tend_physics, &
+                                   mpas_cpl, cells_to_rad_handle, cells_from_rad_handle, &
+                                   cellSolveThreadStart(thread), cellSolveThreadEnd(thread))
+       end do
+!$OMP END PARALLEL DO
+    end if
+
+
+    !
+    ! For all timesteps, we transfer MPAS state to physics
+    !
 !$OMP PARALLEL DO
     do thread=1,nThreads
        call MPAS_to_physics(block%configs,mesh,state,time_lev,diag,diag_physics, &
@@ -214,9 +241,6 @@
 
     !call to cloud scheme:
     if(l_radtlw .or. l_radtsw) then
-       ! ===============================================================================================
-       call MPAS_coupler_sync(mpas_cpl) !===============================================================
-       ! ===============================================================================================
 
        call allocate_cloudiness
 !$OMP PARALLEL DO
@@ -228,43 +252,51 @@
     endif
 
     !call to short wave radiation scheme:
-    if(l_radtsw) then
-       time_lev = 1
+    if(l_radtsw .or. l_radtlw) then
        if (mpas_cpl % role() == ROLE_RADIATION) then
-          call mpas_log_write('ALLOCATING SWRAD FIELDS')
           call allocate_radiation_sw(block%configs,xtime_s)
+          call allocate_radiation_lw(block%configs,xtime_s)
        end if
+
+       time_lev = 1
+
+       !
+       ! For all timesteps, we transfer MPAS radiation-specific fields to physics
+       !
+!$OMP PARALLEL DO
+       do thread=1,nThreads
+          call radiation_sw_from_MPAS(block%configs,mesh,state,time_lev,diag_physics,atm_input,sfc_input,xtime_s, &
+                                      mpas_cpl,cells_to_rad_handle,cells_from_rad_handle, &
+                                      cellSolveThreadStart(thread),cellSolveThreadEnd(thread))
+          call radiation_lw_from_MPAS(xtime_s,block%configs,mesh,state,time_lev,diag_physics,atm_input,sfc_input, &
+                                      mpas_cpl,cells_to_rad_handle,cells_from_rad_handle, &
+                                      cellSolveThreadStart(thread),cellSolveThreadEnd(thread))
+       end do
+!$OMP END PARALLEL DO
+
 !$OMP PARALLEL DO
        do thread=1,nThreads
           call driver_radiation_sw(itimestep,block%configs,mesh,state,time_lev,diag_physics, &
                                    atm_input,sfc_input,tend_physics,xtime_s, &
                                    mpas_cpl, cells_to_rad_handle, cells_from_rad_handle, &
+                                   (itimestep == 1), &
                                    cellSolveThreadStart(thread), cellSolveThreadEnd(thread))
        end do
 !$OMP END PARALLEL DO
-       if (mpas_cpl % role() == ROLE_RADIATION) then
-          call mpas_log_write('DEALLOCATING SWRAD FIELDS')
-          call deallocate_radiation_sw(block%configs)
-       end if
-    endif
 
     !call to long wave radiation scheme:
-    if(l_radtlw) then
-       time_lev = 1
-       if (mpas_cpl % role() == ROLE_RADIATION) then
-          call mpas_log_write('ALLOCATING LWRAD FIELDS')
-          call allocate_radiation_lw(block%configs,xtime_s)
-       end if
 !$OMP PARALLEL DO
        do thread=1,nThreads
-          call driver_radiation_lw(xtime_s,block%configs,mesh,state,time_lev,diag_physics, &
+          call driver_radiation_lw(itimestep,xtime_s,block%configs,mesh,state,time_lev,diag_physics, &
                                    atm_input,sfc_input,tend_physics, &
                                    mpas_cpl, cells_to_rad_handle, cells_from_rad_handle, &
+                                   (itimestep == 1), &
                                    cellSolveThreadStart(thread), cellSolveThreadEnd(thread))
        end do
 !$OMP END PARALLEL DO
+
        if (mpas_cpl % role() == ROLE_RADIATION) then
-          call mpas_log_write('DEALLOCATING LWRAD FIELDS')
+          call deallocate_radiation_sw(block%configs)
           call deallocate_radiation_lw(block%configs)
        end if
     endif
@@ -283,12 +315,6 @@
     if(config_radt_sw_scheme.ne.'off' .or. config_radt_lw_scheme.ne.'off') &
        call deallocate_cloudiness
 
-
-    if(l_radtlw .or. l_radtsw) then
-       ! ===============================================================================================
-       call MPAS_coupler_sync(mpas_cpl) !===============================================================
-       ! ===============================================================================================
-    end if
 
 if (mpas_cpl % role() == ROLE_INTEGRATE) then
     !call to surface-layer scheme:
