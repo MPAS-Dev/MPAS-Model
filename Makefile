@@ -670,7 +670,7 @@ endif
 endif
 
 
-compiler_test:
+openmp_test:
 ifeq "$(OPENMP)" "true"
 	@echo "Testing compiler for OpenMP support"
 	@echo "#include <omp.h>" > conftest.c; echo "int main() { int n = omp_get_num_threads(); return 0; }" >> conftest.c; $(SCC) $(CFLAGS) -o conftest.out conftest.c || \
@@ -686,8 +686,44 @@ ifeq "$(OPENMP)" "true"
 	@rm -fr conftest.*
 endif
 
+pio_test:
+	@echo "Checking PIO installation"
+	@echo "program pio1; use pio; integer, parameter :: MPAS_IO_OFFSET_KIND = PIO_OFFSET; end program" > pio1.f90
+	@echo "program pio2; use pio; integer, parameter :: MPAS_IO_OFFSET_KIND = PIO_OFFSET_KIND; end program" > pio2.f90
 
-mpas_main: compiler_test
+	@echo ; $(FC) -I$(PIO) $(FCINCLUDES) $(FFLAGS) -o pio1.out pio1.f90 &> /dev/null || $(FC) -I$(PIO) $(FCINCLUDES) $(FFLAGS) -o pio2.out pio2.f90 &> /dev/null || \
+		(echo "************ ERROR ************"; \
+		 echo "No PIO version appears to be installed!"; \
+		 echo "If it is installed, make you sure the PIO enviornment variable points to the install directory"; \
+		 echo "csh or tcsh users:"; \
+		 echo "> setenv PIO /path/to/pio"; \
+		 echo "bash users:"; \
+		 echo "> export PIO=/path/to/pio"; \
+		 echo "************ ERROR ************"; \
+		 rm -rf pio*.*; exit 1);
+
+	@echo "There is a version if PIO installed..."; rm -rf pio*.out
+
+	@echo "Checking PIO version compatability..."
+ifeq "$(USE_PIO2)" "true"
+	@echo "USE_PIO2="$(USE_PIO2) "... checking to see if PIO Version 2 is installed"
+	@echo ; ($(FC) $(FCINCLUDES) $(FFLAGS) -o pio2.out pio2.f90 &> /dev/null) || \
+	(echo "************ ERROR ************"; \
+	 echo "PIO Version 1 is installed - Did you mean to set USE_PIO2=true in your make command?"; \
+	 echo "************ ERROR ************"; \
+	 rm -rf pio*.*; exit 1)
+else
+	@echo "USE_PIO2 is not set checking to see if PIO version 1 is installed"
+	@echo ; ($(FC) -L$(PIO) $(FCINCLUDES) $(FFLAGS) -o pio1.out pio1.f90 &> /dev/null) || \
+	(echo "************ ERROR ************"; \
+	 echo "PIO Version 2 is installed, but USE_PIO2=true was not specified in your make command"; \
+	 echo ">make ifort CORE=core_name USE_PIO2=true"; \
+	 echo "************ ERROR ************"; \
+	 rm -rf pio*.*; exit 1)
+endif
+	@rm -rf pio*.*
+
+mpas_main: openmp_test pio_test
 ifeq "$(AUTOCLEAN)" "true"
 	$(RM) .mpas_core_*
 endif
