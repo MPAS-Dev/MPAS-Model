@@ -143,7 +143,7 @@
 ! call mpas_log_write('    end subroutine esinti')
  
 !initialization of ozone mixing ratios:
- call oznini(mesh,atm_input)
+ call oznini(dminfo,mesh,atm_input)
 ! call mpas_log_write('    end subroutine oznini')
 
 !initialization of aerosol concentrations:
@@ -736,13 +736,14 @@
  end subroutine aer_optics_initialize
 
 !=================================================================================================================
- subroutine oznini(mesh,atm_input)
+ subroutine oznini(dminfo,mesh,atm_input)
 !=================================================================================================================
 
 !This subroutine assumes a uniform distribution of ozone concentration. It should be replaced
 !with monthly climatology varying ozone distribution.
 
 !input arguments:
+ type(dm_info):: dminfo
  type(mpas_pool_type),intent(in):: mesh
 
 !inout arguments:
@@ -778,10 +779,15 @@
  call mpas_pool_get_array(atm_input,'ozmixm',ozmixm)
 
 !-- read in ozone pressure data:
- call mpas_new_unit(read_unit)
- if(read_unit < 0) &
-    call physics_error_fatal('module_ra_cam: oznini: Cannot find unused '//&
-                             'fortran unit to read in lookup table.')
+ if(dminfo % my_proc_id == IO_NODE) then
+    call mpas_new_unit(read_unit)
+    if(read_unit < 0) &
+       call physics_error_fatal('module_ra_cam: oznini: Cannot find unused '//&
+                                'fortran unit to read in lookup table.')
+ end if
+
+!distribute unit to other processors:
+ call mpas_dmpar_bcast_int(dminfo,read_unit)
 
  open(read_unit,file='OZONE_PLEV.TBL',action='READ',status='OLD',iostat=istat)
  if(istat /= open_ok) &
@@ -823,7 +829,9 @@
  enddo
  close(read_unit)
 
- call mpas_release_unit(read_unit)
+ if(dminfo % my_proc_id == IO_NODE) then
+    call mpas_release_unit(read_unit)
+ end if
 
 !INTERPOLATION OF INPUT OZONE DATA TO MPAS GRID:
 !call mpas_log_write('max latCell= $r', realArgs=(/maxval(latCell)/degrad/))

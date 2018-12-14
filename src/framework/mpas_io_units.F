@@ -25,10 +25,10 @@ module mpas_io_units
 
    private
 
-   integer, parameter :: maxUnits = 99
+   integer, parameter :: maxUnits = 200
    logical, dimension(0:maxUnits), save :: unitsInUse
-   integer, parameter :: unformatted_min = 95
-   integer, parameter :: unformatted_max = 99
+   integer, parameter :: unformatted_min = 101
+   integer, parameter :: unformatted_max = maxUnits
 
    public :: mpas_new_unit, mpas_release_unit
 
@@ -65,7 +65,7 @@ module mpas_io_units
            maxsearch = unformatted_max
         else
            minsearch = 1
-           maxsearch = maxUnits
+           maxsearch = unformatted_min - 1
         end if
 
         do i = minsearch, maxsearch
