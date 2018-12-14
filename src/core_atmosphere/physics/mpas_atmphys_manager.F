@@ -20,7 +20,7 @@
 
  implicit none
  private
- public:: physics_timetracker,physics_run_init
+ public:: physics_timetracker,physics_run_init,physics_run_finalize
 
  integer, public:: year                 !Current year.
  integer, public:: julday               !Initial Julian day.
@@ -755,6 +755,153 @@
  call mpas_log_write('--- has_reqs  = $i', intArgs=(/has_reqs/))
 
  end subroutine physics_run_init
+
+!=================================================================================================================
+ subroutine physics_run_finalize(configs,clock,stream_manager)
+!=================================================================================================================
+
+!input arguments:
+ type(mpas_pool_type),intent(in):: configs
+ type(MPAS_Clock_type):: clock
+ type (MPAS_streamManager_type), intent(inout) :: stream_manager
+
+!local pointers:
+ character(len=StrKIND),pointer:: config_convection_scheme,      &
+                                  config_lsm_scheme,             &
+                                  config_microp_scheme,          &
+                                  config_radt_lw_scheme,         &
+                                  config_radt_sw_scheme
+
+ character(len=StrKIND),pointer:: config_conv_interval,          &
+                                  config_pbl_interval,           &
+                                  config_radtlw_interval,        &
+                                  config_radtsw_interval,        &
+                                  config_bucket_update,          &
+                                  config_camrad_abs_update,      &
+                                  config_greeness_update
+
+ logical,pointer:: config_sst_update
+ logical,pointer:: config_frac_seaice
+ logical,pointer:: config_microp_re
+
+ character(len=StrKIND) :: stream_interval
+ integer:: ierr
+
+!-----------------------------------------------------------------------------------------------------------------
+!call mpas_log_write('')
+!call mpas_log_write('--- enter subroutine physics_run_finalize:')
+
+ call mpas_pool_get_config(configs,'config_convection_scheme',config_convection_scheme)
+ call mpas_pool_get_config(configs,'config_lsm_scheme'       ,config_lsm_scheme       )
+ call mpas_pool_get_config(configs,'config_microp_scheme'    ,config_microp_scheme    )
+ call mpas_pool_get_config(configs,'config_radt_lw_scheme'   ,config_radt_lw_scheme   )
+ call mpas_pool_get_config(configs,'config_radt_sw_scheme'   ,config_radt_sw_scheme   )
+
+ call mpas_pool_get_config(configs,'config_conv_interval'    ,config_conv_interval    )
+ call mpas_pool_get_config(configs,'config_pbl_interval'     ,config_pbl_interval     )
+ call mpas_pool_get_config(configs,'config_radtlw_interval'  ,config_radtlw_interval  )
+ call mpas_pool_get_config(configs,'config_radtsw_interval'  ,config_radtsw_interval  )
+ call mpas_pool_get_config(configs,'config_bucket_update'    ,config_bucket_update    )
+ call mpas_pool_get_config(configs,'config_camrad_abs_update',config_camrad_abs_update)
+ call mpas_pool_get_config(configs,'config_greeness_update'  ,config_greeness_update  )
+ call mpas_pool_get_config(configs,'config_sst_update'       ,config_sst_update       )
+ call mpas_pool_get_config(configs,'config_frac_seaice'      ,config_frac_seaice      )
+ call mpas_pool_get_config(configs,'config_microp_re'        ,config_microp_re        )
+
+!remove alarms for calling the longwave and shortwave radiation schemes, the convection schemes,
+!and the PBL schemes:
+
+ if(trim(config_radtlw_interval) /= "none") then
+    call mpas_remove_clock_alarm(clock,radtlwAlarmID,ierr=ierr)
+    if(ierr /= 0) &
+       call physics_error_fatal('subroutine physics_run_finalize: error removing radtlwAlarmID')
+ endif
+
+ if(trim(config_radtsw_interval) /= "none") then
+    call mpas_remove_clock_alarm(clock,radtswAlarmID,ierr=ierr)
+    if(ierr /= 0) &
+       call physics_error_fatal('subroutine physics_run_finalize: error removing alarm radtsw')
+ endif
+
+ if(trim(config_conv_interval) /= "none") then
+    call mpas_remove_clock_alarm(clock,convAlarmID,ierr=ierr)
+    if(ierr /= 0) &
+       call physics_error_fatal('subroutine physics_init: error removing convAlarmID')
+ endif
+
+ if(trim(config_pbl_interval) /= "none") then
+    call mpas_remove_clock_alarm(clock,pblAlarmID,ierr=ierr)
+    if(ierr /= 0) &
+       call physics_error_fatal('subroutine physics_init: error removing pblAlarmID')
+ endif
+
+!remove alarm for updating the background surface albedo and the greeness fraction:
+ call mpas_remove_clock_alarm(clock,greenAlarmID,ierr=ierr)
+    if(ierr /= 0) &
+       call physics_error_fatal('subroutine physics_init: error removing alarm greeness')
+
+!remove alarm for updating the surface boundary conditions:
+ if (config_sst_update) then
+    call mpas_remove_clock_alarm(clock,sfcbdyAlarmID,ierr=ierr)
+    if(ierr /= 0) &
+       call physics_error_fatal('subroutine physics_init: error removing alarm sfcbdy')
+ endif
+
+!remove alarm to update the ozone path length, the trace gas path length, the total emissivity,
+!and the total absorptivity in the "CAM" long-wave radiation codes.
+ if(trim(config_radt_lw_scheme) .eq. "cam_lw" .or. &
+    trim(config_radt_sw_scheme) .eq. "cam_sw" ) then
+    call mpas_remove_clock_alarm(clock,camAlarmID,ierr=ierr)
+    if(ierr /= 0) &
+       call physics_error_fatal('subroutine physics_init: error removing alarm CAM')
+ endif
+
+!remove alarm to write the "CAM" local arrays absnst_p, absnxt_p, and emstot_p to the MPAS arrays
+!for writing to the restart file at the bottom of the time-step:
+ if(trim(config_radt_lw_scheme) .eq. "cam_lw" ) then
+    call MPAS_stream_mgr_get_property(stream_manager, 'restart', MPAS_STREAM_PROPERTY_RECORD_INTV, stream_interval, &
+                                      direction=MPAS_STREAM_OUTPUT, ierr=ierr)
+    if(trim(stream_interval) /= 'none') then
+       call mpas_remove_clock_alarm(clock,camlwAlarmID,ierr=ierr)
+       if(ierr /= 0) &
+          call physics_error_fatal('subroutine physics_init: error removing alarm CAMLW')
+    endif
+ endif
+
+!remove alarm to check if the accumulated rain due to cloud microphysics and convection is
+!greater than its maximum allowed value:
+ if(config_bucket_update /= "none") then
+    call mpas_remove_clock_alarm(clock,acrainAlarmID,ierr=ierr)
+       if(ierr /= 0) &
+          call physics_error_fatal('subroutine physics_init: error removing alarm rain limit')
+ endif
+
+!remove alarm to check if the accumulated radiation diagnostics due to long- and short-wave radiation
+!is greater than its maximum allowed value:
+ if(config_bucket_update /= "none") then
+    call mpas_remove_clock_alarm(clock,acradtAlarmID,ierr=ierr)
+       if(ierr /= 0) &
+          call physics_error_fatal('subroutine physics_init: error removing alarm radiation limit')
+ endif
+
+!remove alarm to calculate physics diagnostics on IO outpt only:
+ call MPAS_stream_mgr_get_property(stream_manager, 'output', MPAS_STREAM_PROPERTY_RECORD_INTV, stream_interval, &
+                                   direction=MPAS_STREAM_OUTPUT, ierr=ierr)
+ if(trim(stream_interval) /= 'none') then   
+    call mpas_remove_clock_alarm(clock,diagAlarmID,ierr=ierr)
+    if(ierr /= 0) &
+       call physics_error_fatal('subroutine physics_init: error removing alarm diag')
+ else
+    call MPAS_stream_mgr_get_property(stream_manager, 'diagnostics', MPAS_STREAM_PROPERTY_RECORD_INTV, stream_interval, &
+                                      direction=MPAS_STREAM_OUTPUT, ierr=ierr)
+    if(trim(stream_interval) /= 'none') then
+       call mpas_remove_clock_alarm(clock,diagAlarmID,ierr=ierr)
+       if(ierr /= 0) &
+          call physics_error_fatal('subroutine physics_init: error removing alarm diag')
+    end if
+ endif
+
+ end subroutine physics_run_finalize
 
 !=================================================================================================================
  end module mpas_atmphys_manager
