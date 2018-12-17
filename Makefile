@@ -611,11 +611,11 @@ else
 endif # END IF BUILT CORE CHECK
 
 ifeq "$(SHARELIB)" "true"
-	FFLAGS += "-fPIC"
-	CFLAGS += "-fPIC"
-	CXXFLAGS += "-fPIC"
-	override CPPFLAGS += "-fPIC"
-	LDFLAGS += "-fPIC"
+	FFLAGS += -fPIC
+	CFLAGS += -fPIC
+	CXXFLAGS += -fPIC
+	override CPPFLAGS += -fPIC
+	LDFLAGS += -fPIC
 endif #SHARELIB IF
 
 ifneq ($(wildcard namelist.$(NAMELIST_SUFFIX)), ) # Check for generated namelist file.
