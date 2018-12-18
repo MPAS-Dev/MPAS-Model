@@ -113,7 +113,7 @@ module module_cu_ntiedtke
 !     momtrans: momentum transport method
 !     ( 1 = IFS40r1 method; 2 = new method )
 !
-      parameter(momtrans = 2 )
+      parameter(momtrans = 2)
 !     -------
 !
 !     coefficient for pressure gradient intensity
@@ -321,7 +321,8 @@ contains
 
       integer, dimension(its:ite) ::                                    &
                                         kbot,                           &
-                                        ktop
+                                        ktop,                           &
+                                        ktype
 
       integer ::                                                        &
                                         i,                              &
@@ -433,7 +434,7 @@ contains
 !
 !########################################################################
       call tiecnvn(u1,v1,w1,t1,q1,q2,q3,q1b,t1b,ghtl,ghti,omg,prsl,prsi,evap,heatflux,  &
-                  rn,slimsk,im,kx,kx1,delt,dx,ust1,wst1,hgamt1,hgamq1)
+                  rn,slimsk,im,kx,kx1,delt,dx,ust1,wst1,hgamt1,hgamq1,ktype)
 
       do i=its,ite
          raincv(i,j)=rn(i)/stepcu
@@ -444,10 +445,17 @@ contains
       do k=kts,kte
         zz = kte-pp
         do i=its,ite
-          rthcuten(i,k,j)=(t1(i,zz)-t3d(i,k,j))/pi3d(i,k,j)*rdelt
-          rqvcuten(i,k,j)=(q1(i,zz)-qv3d(i,k,j))*rdelt
-          rucuten(i,k,j) =(u1(i,zz)-u3d(i,k,j))*rdelt
-          rvcuten(i,k,j) =(v1(i,zz)-v3d(i,k,j))*rdelt
+          if(ktype(i).eq.0) then
+            rthcuten(i,k,j)=0.
+            rqvcuten(i,k,j)=0.
+            rucuten(i,k,j)=0.
+            rvcuten(i,k,j)=0.
+          else
+            rthcuten(i,k,j)=(t1(i,zz)-t3d(i,k,j))/pi3d(i,k,j)*rdelt
+            rqvcuten(i,k,j)=(q1(i,zz)-qv3d(i,k,j))*rdelt
+            rucuten(i,k,j) =(u1(i,zz)-u3d(i,k,j))*rdelt
+            rvcuten(i,k,j) =(v1(i,zz)-v3d(i,k,j))*rdelt
+          endif
         enddo
         pp = pp + 1
       enddo
@@ -458,7 +466,11 @@ contains
           do k=kts,kte
             zz = kte-pp
             do i=its,ite
-              rqccuten(i,k,j)=(q2(i,zz)-qc3d(i,k,j))*rdelt
+              if(ktype(i).eq.0) then
+                rqccuten(i,k,j)=0.
+              else
+                rqccuten(i,k,j)=(q2(i,zz)-qc3d(i,k,j))*rdelt
+              endif
             enddo
             pp = pp + 1
           enddo
@@ -471,7 +483,11 @@ contains
           do k=kts,kte
             zz = kte-pp
             do i=its,ite
-              rqicuten(i,k,j)=(q3(i,zz)-qi3d(i,k,j))*rdelt
+              if(ktype(i).eq.0) then
+                rqicuten(i,k,j)=0.
+              else
+                rqicuten(i,k,j)=(q3(i,zz)-qi3d(i,k,j))*rdelt
+              endif
             enddo
             pp = pp + 1
           enddo
@@ -563,7 +579,7 @@ contains
 !-----------------------------------------------------------------
       subroutine tiecnvn(pu,pv,pw,pt,pqv,pqc,pqi,pqvf,ptf,poz,pzz,pomg, &
      &         pap,paph,evap,hfx,zprecc,lndj,lq,km,km1,dt,dx,ust,wst,   &
-     &         hgamt,hgamq)
+     &         hgamt,hgamq,ktype)
 !-----------------------------------------------------------------
 !  this is the interface between the model and the mass 
 !  flux convection module
@@ -600,7 +616,7 @@ contains
 !     dxref = 15000.
 ! bw -->  increased dxref to get slight scaling at 15km based
 ! bw -->  on both statistical and visual dbz representation
-      dxref = 17500.
+      dxref = 18000.
       do j=1,lq
         if (dx(j).lt.dxref .and. iscale.eq.1) then
           scale_tau(j) = (1.+log(dxref/dx(j)))**2
@@ -683,7 +699,7 @@ contains
 !
       do k=1,km
         do j=1,lq
-          pt(j,k)=  ztp1(j,k)+(ptte(j,k)-ztt(j,k))*ztmst
+          pt(j,k)=ztp1(j,k)+(ptte(j,k)-ztt(j,k))*ztmst
           zqp1(j,k)=zqp1(j,k)+(pqte(j,k)-zqq(j,k))*ztmst
           pqv(j,k)=zqp1(j,k)/(1.0-zqp1(j,k))
         end do
@@ -841,8 +857,8 @@ contains
       real     zalfaw,zalv,zqalv,zc5ldcp,zc4les,zhsat,zgam,zzz,zhhat
       real     zpbmpt,zro,zdz,zdp,zeps,zfac,wspeed
       integer  jl,jk,ik
-      integer  ikb,ikt,icum,itopm2
-      real     ztmst,ztau,zerate,zderate,zmfa
+      integer  ikb,ikt,ikm,icum,itopm2
+      real     ztmst,ztau,ztaua,zerate,zderate,zmfa,wspdb,wspdm
       real     zmfs(klon),pmean(klev),zlon
       real     zduten,zdvten,ztdis,pgf_u,pgf_v
 !-------------------------------------------
@@ -1015,11 +1031,11 @@ contains
         zmfub1(jl)=zmfub(jl)
     
         ztauc(jl)  = (zgeoh(jl,ikt)-zgeoh(jl,ikb)) / &
-                   ((2.+ min(15.0,wup(jl)))*g)
+                   ((2.+ min(10.0,wup(jl)))*g)
         if(lndj(jl) .eq. 0) then 
           upbl(jl) = 2.+ upbl(jl)/(paph(jl,klev+1)-paph(jl,ikb))
           ztaubl(jl) = (zgeoh(jl,ikb)-zgeoh(jl,klev+1))/(g*upbl(jl))
-          ztaubl(jl) = min(360., ztaubl(jl))
+          ztaubl(jl) = min(720., ztaubl(jl))
         else
           ztaubl(jl) = ztauc(jl)
         end if
@@ -1054,10 +1070,13 @@ contains
        if(ldcum(jl).and.ktype(jl).eq.1) then
            ikb = kcbot(jl)
            ikt = kctop(jl)
-           ztau = ztauc(jl)*scale_tau(jl)
-           ztau = max(ztmst,ztau)
-           ztau = max(360.,ztau)
-!          ztau = min(10800.,ztau)
+           ikm = int((ikb+ikt)*0.5)
+           wspdb = sqrt(puen(jl,ikb)**2+pven(jl,ikb)**2)
+           wspdm = sqrt(puen(jl,ikm)**2+pven(jl,ikm)**2)
+           ztaua = dx(jl)/max(1.,(wspdb+wspdm)*0.50)
+           ztau = max(720.,ztaua,ztmst,ztauc(jl))
+           ztau = min(10800.,ztau)
+           ztau = ztau*scale_tau(jl)
            if(nonequil) then
              zcape2(jl)= max(0.,zcape2(jl))
              zcape(jl) = max(0.,min(zcape1(jl)-zcape2(jl),5000.))/scale_mf(jl)**0.5
@@ -2580,7 +2599,7 @@ contains
             end if
             ikb=kcbot(jl)
             if ( ktype(jl).ne.2.and.plu(jl,jk)>zdshrd ) then
-              zwu = min(15.0,sqrt(2.*max(0.1,kup(jl,jk+1))))
+              zwu = min(10.0,sqrt(2.*max(0.1,kup(jl,jk+1))))
               zprcon = zprcdgw/(0.75*zwu)
 ! PARAMETERS FOR BERGERON-FINDEISEN PROCESS (T < -5C)
               zdt = min(rtber-rtice,max(rtber-ptu(jl,jk),0.))
@@ -2615,7 +2634,7 @@ contains
               zvv = zalfaw*zvw + (1.-zalfaw)*zvi
               zrold = zlrain(jl,jk) - zprecip(jl)
               zc = zprecip(jl)
-              zwu = min(15.0,sqrt(2.*max(0.1,kup(jl,jk))))
+              zwu = min(10.0,sqrt(2.*max(0.1,kup(jl,jk))))
               zd = zvv/zwu
               zint = exp(-zd)
               zrnew = zrold*zint + zc/zd*(1.-zint)
