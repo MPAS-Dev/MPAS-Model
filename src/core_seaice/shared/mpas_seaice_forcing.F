@@ -2071,11 +2071,13 @@ contains
     type(domain_type) :: domain
 
     logical, pointer :: &
-         config_use_forcing
+         config_use_forcing, &
+         config_use_data_icebergs
 
     call MPAS_pool_get_config(domain % configs, "config_use_forcing", config_use_forcing)
+    call MPAS_pool_get_config(domain % configs, "config_use_data_icebergs", config_use_data_icebergs)
 
-    if (config_use_forcing) then
+    if (config_use_forcing .or. config_use_data_icebergs) then
 
        call MPAS_forcing_write_restart_times(seaiceForcingGroups)
 
