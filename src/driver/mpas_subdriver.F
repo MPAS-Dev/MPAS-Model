@@ -154,8 +154,8 @@ module mpas_subdriver
 
       call mpas_allocate_domain(domain_ptr)
 
-      if (present(mpi_comm)) domainID = domainID + 1
-      domain_ptr % domainID = domainID + 1
+      domainID = domainID + 1
+      domain_ptr % domainID = domainID
 
       !
       ! Initialize infrastructure
@@ -362,7 +362,7 @@ module mpas_subdriver
    end subroutine mpas_run
 
 
-   subroutine mpas_finalize(corelist,domain_ptr)
+   subroutine mpas_finalize(corelist, domain_ptr)
 
       use mpas_stream_manager, only : MPAS_stream_mgr_finalize
       use mpas_log, only : mpas_log_finalize, mpas_log_info

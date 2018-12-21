@@ -349,7 +349,9 @@ include 'mpif.h'
 #ifdef _MPI
       integer :: mpi_ierr, mpi_errcode
 
-      call MPI_Abort(dminfo % comm, mpi_errcode, mpi_ierr)
+      if ( dminfo % initialized_mpi ) then
+         call MPI_Abort(dminfo % comm, mpi_errcode, mpi_ierr)
+      end if
 #endif
 
       stop
