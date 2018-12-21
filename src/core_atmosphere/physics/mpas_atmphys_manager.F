@@ -766,22 +766,16 @@
  type (MPAS_streamManager_type), intent(inout) :: stream_manager
 
 !local pointers:
- character(len=StrKIND),pointer:: config_convection_scheme,      &
-                                  config_lsm_scheme,             &
-                                  config_microp_scheme,          &
-                                  config_radt_lw_scheme,         &
+ character(len=StrKIND),pointer:: config_radt_lw_scheme,         &
                                   config_radt_sw_scheme
 
  character(len=StrKIND),pointer:: config_conv_interval,          &
                                   config_pbl_interval,           &
                                   config_radtlw_interval,        &
                                   config_radtsw_interval,        &
-                                  config_bucket_update,          &
-                                  config_camrad_abs_update,      &
-                                  config_greeness_update
+                                  config_bucket_update
 
  logical,pointer:: config_sst_update
- logical,pointer:: config_frac_seaice
  logical,pointer:: config_microp_re
 
  character(len=StrKIND) :: stream_interval
@@ -791,9 +785,6 @@
 !call mpas_log_write('')
 !call mpas_log_write('--- enter subroutine physics_run_finalize:')
 
- call mpas_pool_get_config(configs,'config_convection_scheme',config_convection_scheme)
- call mpas_pool_get_config(configs,'config_lsm_scheme'       ,config_lsm_scheme       )
- call mpas_pool_get_config(configs,'config_microp_scheme'    ,config_microp_scheme    )
  call mpas_pool_get_config(configs,'config_radt_lw_scheme'   ,config_radt_lw_scheme   )
  call mpas_pool_get_config(configs,'config_radt_sw_scheme'   ,config_radt_sw_scheme   )
 
@@ -802,10 +793,7 @@
  call mpas_pool_get_config(configs,'config_radtlw_interval'  ,config_radtlw_interval  )
  call mpas_pool_get_config(configs,'config_radtsw_interval'  ,config_radtsw_interval  )
  call mpas_pool_get_config(configs,'config_bucket_update'    ,config_bucket_update    )
- call mpas_pool_get_config(configs,'config_camrad_abs_update',config_camrad_abs_update)
- call mpas_pool_get_config(configs,'config_greeness_update'  ,config_greeness_update  )
  call mpas_pool_get_config(configs,'config_sst_update'       ,config_sst_update       )
- call mpas_pool_get_config(configs,'config_frac_seaice'      ,config_frac_seaice      )
  call mpas_pool_get_config(configs,'config_microp_re'        ,config_microp_re        )
 
 !remove alarms for calling the longwave and shortwave radiation schemes, the convection schemes,
