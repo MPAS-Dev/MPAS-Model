@@ -274,6 +274,7 @@
              if(.not.allocated(wstar_p)  ) allocate(wstar_p(ims:ime,jms:jme)          )
              if(.not.allocated(hgamt_p)  ) allocate(hgamt_p(ims:ime,jms:jme)          )
              if(.not.allocated(hgamq_p)  ) allocate(hgamq_p(ims:ime,jms:jme)          )
+             if(.not.allocated(entpbl_p) ) allocate(entpbl_p(ims:ime,jms:jme)         )
 
              do i = its,ite
              do k = kts,kte
@@ -390,6 +391,7 @@
              if(allocated(wstar_p)  ) deallocate(wstar_p  )
              if(allocated(hgamt_p)  ) deallocate(hgamt_p  )
              if(allocated(hgamq_p)  ) deallocate(hgamq_p  )
+             if(allocated(entpbl_p) ) deallocate(entpbl_p )
 
           case default
 
@@ -678,7 +680,7 @@
              rqicuten  = rqicuten_p  , rucuten     = rucuten_p   ,                   &
              rvcuten   = rvcuten_p   , ust         = ust_p       ,                   &
              wstar     = wstar_p     , hgamt       = hgamt_p     ,                   &
-             hgamq     = hgamq_p     ,                                               &
+             hgamq     = hgamq_p     , entpbl      = entpbl_p    ,                   &
              ids = ids , ide = ide , jds = jds , jde = jde , kds = kds , kde = kde , &
              ims = ims , ime = ime , jms = jms , jme = jme , kms = kds , kme = kme , &
              its = its , ite = ite , jts = jts , jte = jte , kts = kts , kte = kte   &
@@ -717,7 +719,7 @@
  real(kind=RKIND),dimension(:),pointer  :: nca,cubot,cutop,cuprec,raincv
  real(kind=RKIND),dimension(:),pointer  :: gsw,hfx,qfx,xland
  real(kind=RKIND),dimension(:),pointer  :: xmb_total,xmb_shallow
- real(kind=RKIND),dimension(:),pointer  :: ust,wstar,zol,hpbl,hgamt,hgamq
+ real(kind=RKIND),dimension(:),pointer  :: ust,wstar,zol,hpbl,hgamt,hgamq,entpbl
  real(kind=RKIND),dimension(:,:),pointer:: zgrid
  real(kind=RKIND),dimension(:,:),pointer:: qc_cu,qi_cu
  real(kind=RKIND),dimension(:,:),pointer:: w0avg
@@ -975,6 +977,7 @@
              call mpas_pool_get_array(diag_physics,'wstar'     ,wstar     )
              call mpas_pool_get_array(diag_physics,'hgamt'     ,hgamt     )
              call mpas_pool_get_array(diag_physics,'hgamq'     ,hgamq     )
+             call mpas_pool_get_array(diag_physics,'entpbl'    ,entpbl    )
              
              do j = jts,jte
              do i = its,ite
@@ -983,6 +986,7 @@
                 wstar_p(i,j) =wstar(i)
                 hgamt_p(i,j) = hgamt(i)
                 hgamq_p(i,j) = hgamq(i)
+                entpbl_p(i,j) = entpbl(i)
              enddo
 
              do k = kts,kte

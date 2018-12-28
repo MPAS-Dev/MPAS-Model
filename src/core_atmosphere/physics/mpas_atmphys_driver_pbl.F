@@ -115,6 +115,7 @@
        if(.not.allocated(exch_p)  ) allocate(exch_p(ims:ime,kms:kme,jms:jme))
        if(.not.allocated(hgamt_p) ) allocate(hgamt_p(ims:ime,jms:jme)       )
        if(.not.allocated(hgamq_p) ) allocate(hgamq_p(ims:ime,jms:jme)       )
+       if(.not.allocated(entpbl_p)) allocate(entpbl_p(ims:ime,jms:jme)      )
        !from radiation schemes:
        if(.not.allocated(rthraten_p)) allocate(rthraten_p(ims:ime,kms:kme,jms:jme))
 
@@ -195,6 +196,7 @@
        if(allocated(exch_p)  ) deallocate(exch_p  )
        if(allocated(hgamt_p) ) deallocate(hgamt_p )
        if(allocated(hgamq_p) ) deallocate(hgamq_p )
+       if(allocated(entpbl_p)) deallocate(entpbl_p)
        !from radiation schemes:
        if(allocated(rthraten_p)) deallocate(rthraten_p)
 
@@ -251,7 +253,7 @@
 
 !local pointers for YSU scheme:
  logical,pointer:: config_ysu_pblmix
- real(kind=RKIND),dimension(:),pointer:: br,fh,fm,regime,u10,v10,hgamt,hgamq
+ real(kind=RKIND),dimension(:),pointer:: br,fh,fm,regime,u10,v10,hgamt,hgamq,entpbl
  real(kind=RKIND),dimension(:,:),pointer:: rthratenlw,rthratensw
 
 !local pointers for MYNN scheme:
@@ -306,14 +308,15 @@
     case("bl_ysu")
        call mpas_pool_get_config(configs,'config_ysu_pblmix',config_ysu_pblmix)
 
-       call mpas_pool_get_array(diag_physics,'br'    ,br       )
-       call mpas_pool_get_array(diag_physics,'fm'    ,fm       )
-       call mpas_pool_get_array(diag_physics,'fh'    ,fh       )
-       call mpas_pool_get_array(diag_physics,'regime',regime   )
-       call mpas_pool_get_array(diag_physics,'u10'   ,u10      )
-       call mpas_pool_get_array(diag_physics,'v10'   ,v10      )
-       call mpas_pool_get_array(diag_physics,'hgamt' ,hgamt    )
-       call mpas_pool_get_array(diag_physics,'hgamq' ,hgamq    )
+       call mpas_pool_get_array(diag_physics,'br'     ,br       )
+       call mpas_pool_get_array(diag_physics,'fm'     ,fm       )
+       call mpas_pool_get_array(diag_physics,'fh'     ,fh       )
+       call mpas_pool_get_array(diag_physics,'regime' ,regime   )
+       call mpas_pool_get_array(diag_physics,'u10'    ,u10      )
+       call mpas_pool_get_array(diag_physics,'v10'    ,v10      )
+       call mpas_pool_get_array(diag_physics,'hgamt'  ,hgamt    )
+       call mpas_pool_get_array(diag_physics,'hgamq'  ,hgamq    )
+       call mpas_pool_get_array(diag_physics,'entpbl' ,entpbl   )
 
        call mpas_pool_get_array(tend_physics,'rthratenlw',rthratenlw)
        call mpas_pool_get_array(tend_physics,'rthratensw',rthratensw)
@@ -332,6 +335,7 @@
           v10_p(i,j)    = v10(i)
           hgamt_p(i,j)  = hgamt(i)
           hgamq_p(i,j)  = hgamq(i)
+          entpbl_p(i,j) = entpbl(i)
           !initialization for YSU PBL scheme:
           ctopo_p(i,j)  = 1._RKIND
           ctopo2_p(i,j) = 1._RKIND
@@ -444,7 +448,7 @@
                                            rniblten,tke_pbl
 
 !local pointers for YSU scheme:
- real(kind=RKIND),dimension(:),pointer  :: hgamt,hgamq
+ real(kind=RKIND),dimension(:),pointer  :: hgamt,hgamq,entpbl
  real(kind=RKIND),dimension(:,:),pointer:: exch_h
 
 !local pointers for MYNN scheme:
@@ -501,14 +505,16 @@
  pbl_select: select case (trim(pbl_scheme))
 
     case("bl_ysu")
-       call mpas_pool_get_array(diag_physics,'exch_h',exch_h)
-       call mpas_pool_get_array(diag_physics,'hgamt' ,hgamt )
-       call mpas_pool_get_array(diag_physics,'hgamq' ,hgamq )
+       call mpas_pool_get_array(diag_physics,'exch_h' ,exch_h )
+       call mpas_pool_get_array(diag_physics,'hgamt'  ,hgamt  )
+       call mpas_pool_get_array(diag_physics,'hgamq'  ,hgamq  )
+       call mpas_pool_get_array(diag_physics,'entpbl' ,entpbl )
 
        do j = jts,jte
        do i = its,ite
           hgamt(i) = hgamt_p(i,j)
           hgamq(i) = hgamq_p(i,j)
+          entpbl(i) = entpbl_p(i,j)
        enddo
        enddo
 
@@ -617,7 +623,7 @@
                  qfx      = qfx_p      , wspd     = wspd_p      , br       = br_p       , &
                  dt       = dt_pbl     , kpbl2d   = kpbl_p      , exch_h   = exch_p     , &
                  wstar    = wstar_p    , delta    = delta_p     , hgamt    = hgamt_p    , &
-                 hgamq    = hgamq_p    , uoce     = uoce_p                              , &
+                 hgamq    = hgamq_p    , entpbl   = entpbl_p    , uoce     = uoce_p     , &
                  voce     = voce_p     , rthraten = rthraten_p  , u10      = u10_p      , &
                  v10      = v10_p      , ctopo    = ctopo_p     , ctopo2   = ctopo2_p   , &
                  regime   = regime_p   , rho      = rho_p       , kzhout   = kzh_p      , &

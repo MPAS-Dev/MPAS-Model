@@ -83,7 +83,7 @@ module module_cu_ntiedtke
 !     entrdd: average entrainment & detrainment rate for downdrafts
 !     ------
 !
-      parameter(entrdd = 2.0e-4)
+      parameter(entrdd = 2.5e-4)
 !
 !     cmfcmax:   maximum massflux value allowed for updrafts etc
 !     -------
@@ -145,7 +145,7 @@ contains
                 ,u3d,v3d,w3d,t3d,qv3d,qc3d,qi3d,pi3d,rho3d      &
                 ,qvften,thften                                  &
                 ,dz8w,pcps,p8w,xland,cu_act_flag,dx,ust         &
-                ,wstar,hgamt,hgamq                              &
+                ,wstar,hgamt,hgamq,entpbl                       &
                 ,ids,ide, jds,jde, kds,kde                      &
                 ,ims,ime, jms,jme, kms,kme                      &
                 ,its,ite, jts,jte, kts,kte                      &
@@ -251,7 +251,8 @@ contains
                                         ust,                            &
                                       wstar,                            &
                                       hgamt,                            &
-                                      hgamq
+                                      hgamq,                            &
+                                     entpbl
 
 !--------------------------- optional vars ----------------------------
 
@@ -291,7 +292,8 @@ contains
                                         ust1,                           &
                                         wst1,                           &
                                       hgamt1,                           &
-                                      hgamq1
+                                      hgamq1,                           &
+                                     entpbl1
 
       integer  , dimension(its:ite) ::  slimsk
 
@@ -430,11 +432,12 @@ contains
         wst1(i)    = wstar(i,j)
         hgamt1(i)  = hgamt(i,j)
         hgamq1(i)  = hgamq(i,j)
+        entpbl1(i) = entpbl(i,j)
       enddo
 !
 !########################################################################
       call tiecnvn(u1,v1,w1,t1,q1,q2,q3,q1b,t1b,ghtl,ghti,omg,prsl,prsi,evap,heatflux,  &
-                  rn,slimsk,im,kx,kx1,delt,dx,ust1,wst1,hgamt1,hgamq1,ktype)
+                  rn,slimsk,im,kx,kx1,delt,dx,ust1,wst1,hgamt1,hgamq1,entpbl1,ktype)
 
       do i=its,ite
          raincv(i,j)=rn(i)/stepcu
@@ -579,7 +582,7 @@ contains
 !-----------------------------------------------------------------
       subroutine tiecnvn(pu,pv,pw,pt,pqv,pqc,pqi,pqvf,ptf,poz,pzz,pomg, &
      &         pap,paph,evap,hfx,zprecc,lndj,lq,km,km1,dt,dx,ust,wst,   &
-     &         hgamt,hgamq,ktype)
+     &         hgamt,hgamq,entpbl,ktype)
 !-----------------------------------------------------------------
 !  this is the interface between the model and the mass 
 !  flux convection module
@@ -601,7 +604,7 @@ contains
      &     zqsat(lq,km),   pqc(lq,km),   pqi(lq,km),   zrain(lq)
       real pqvf(lq,km),    ptf(lq,km)
       real dx(lq),         ust(lq)
-      real wst(lq),        hgamt(lq),    hgamq(lq)
+      real wst(lq),        hgamt(lq),    hgamq(lq),    entpbl(lq)
       integer icbot(lq),   ictop(lq),    ktype(lq),    lndj(lq)
       logical locum(lq)
 !
@@ -673,16 +676,16 @@ contains
 !*    2.     call 'cumastrn'(master-routine for cumulus parameterization)
 !
       call cumastrn        &
-     &    (lq,       km,       km1,      km-1,    ztp1          ,&
-     &     zqp1,     pum1,     pvm1,     pwm1,    pverv,   zqsat,&
-     &     pqhfl,    ztmst,    pap,      paph,    pgeo, &
-     &     ptte,     pqte,     pvom,     pvol,    prsfc,&
-     &     pssfc,    locum,                             &
-     &     ktype,    icbot,    ictop,    ztu,     zqu,  &
-     &     zlu,      zlude,    zmfu,     zmfd,    zrain,&
-     &     pcte,     phhfl,    lndj,     pgeoh,   dx,   &
-     &     ust,      wst,      hgamt,    hgamq,   scale_tau,     &
-     &     scale_mf)
+     &    (lq,        km,       km1,      km-1,    ztp1          ,&
+     &     zqp1,      pum1,     pvm1,     pwm1,    pverv,   zqsat,&
+     &     pqhfl,     ztmst,    pap,      paph,    pgeo,          &
+     &     ptte,      pqte,     pvom,     pvol,    prsfc,         &
+     &     pssfc,     locum,                                      &
+     &     ktype,     icbot,    ictop,    ztu,     zqu,           &
+     &     zlu,       zlude,    zmfu,     zmfd,    zrain,         &
+     &     pcte,      phhfl,    lndj,     pgeoh,   dx,            &
+     &     ust,       wst,      hgamt,    hgamq,   entpbl,        &
+     &     scale_tau, scale_mf)
 !
 !     to include the cloud water and cloud ice detrained from convection
 !
@@ -730,16 +733,16 @@ contains
 !           subroutine cumastrn
 !***********************************************************
       subroutine cumastrn  &
-     &    (klon,     klev,     klevp1,   klevm1,   pten, &
-     &     pqen,     puen,     pven,     pwen,     pverv,    pqsen,&
-     &     pqhfl,    ztmst,    pap,      paph,     pgeo, &
-     &     ptte,     pqte,     pvom,     pvol,     prsfc,& 
-     &     pssfc,    ldcum,                              &
-     &     ktype,    kcbot,    kctop,    ptu,      pqu,&
-     &     plu,      plude,    pmfu,     pmfd,     prain,&
-     &     pcte,     phhfl,    lndj,     zgeoh,    dx,   &
-     &     ust,      wst,      hgamt,    hgamq,    scale_tau,      &
-     &     scale_mf)
+     &    (klon,      klev,     klevp1,   klevm1,   pten,           &
+     &     pqen,      puen,     pven,     pwen,     pverv,    pqsen,&
+     &     pqhfl,     ztmst,    pap,      paph,     pgeo,           &
+     &     ptte,      pqte,     pvom,     pvol,     prsfc,          & 
+     &     pssfc,     ldcum,                                        &
+     &     ktype,     kcbot,    kctop,    ptu,      pqu,            &
+     &     plu,       plude,    pmfu,     pmfd,     prain,          &
+     &     pcte,      phhfl,    lndj,     zgeoh,    dx,             &
+     &     ust,       wst,      hgamt,    hgamq,    entpbl,         &
+     &     scale_tau, scale_mf)
       implicit none
 !
 !***cumastrn*  master routine for cumulus massflux-scheme
@@ -809,7 +812,7 @@ contains
      &         pap(klon,klev),         paph(klon,klevp1),&
      &         pverv(klon,klev),       pqhfl(klon),&
      &         phhfl(klon),            ust(klon),&
-     &         wst(klon),&
+     &         wst(klon),              entpbl(klon),&
      &         hgamt(klon),            hgamq(klon)
       real     ptu(klon,klev),         pqu(klon,klev),&
      &         plu(klon,klev),         plude(klon,klev),&
@@ -893,7 +896,7 @@ contains
      &      pten,     lndj,         ptu,     pqu,      ilab,&
      &      ldcum,    kcbot,     ictop0,    ktype,    wbase,&
      &      plu,      kdpl,         ust,    wst,      hgamt,&
-     &      hgamq,    scale_mf,     pwen )
+     &      hgamq,    entpbl,  scale_mf,    pwen )
 
 !*         (b) assign the first guess mass flux at cloud base
 !              ------------------------------------------
@@ -1031,7 +1034,7 @@ contains
         zmfub1(jl)=zmfub(jl)
     
         ztauc(jl)  = (zgeoh(jl,ikt)-zgeoh(jl,ikb)) / &
-                   ((2.+ min(10.0,wup(jl)))*g)
+                   ((2.+ min(15.0,wup(jl)))*g)
         if(lndj(jl) .eq. 0) then 
           upbl(jl) = 2.+ upbl(jl)/(paph(jl,klev+1)-paph(jl,ikb))
           ztaubl(jl) = (zgeoh(jl,ikb)-zgeoh(jl,klev+1))/(g*upbl(jl))
@@ -1079,9 +1082,9 @@ contains
            ztau = ztau*scale_tau(jl)
            if(nonequil) then
              zcape2(jl)= max(0.,zcape2(jl))
-             zcape(jl) = max(0.,min(zcape1(jl)-zcape2(jl),5000.))/scale_mf(jl)**0.5
+             zcape(jl) = max(0.,min(zcape1(jl)-zcape2(jl),5000.))
            else
-             zcape(jl) = max(0.,min(zcape1(jl),5000.))/scale_mf(jl)**0.5
+             zcape(jl) = max(0.,min(zcape1(jl),5000.))
            end if
            zheat(jl) = max(1.e-4,zheat(jl))
            zmfub1(jl) = (zcape(jl)*zmfub(jl))/(zheat(jl)*ztau)
@@ -1627,7 +1630,7 @@ contains
      &      pten,    lndj,       cutu,     cuqu,    culab,&
      &     ldcum,   cubot,      cutop,    ktype,    wbase,&
      &      culu,    kdpl,        ust,      wst,    hgamt,&
-     &     hgamq,scale_mf,       pwen )
+     &     hgamq,  entpbl,   scale_mf,      pwen )
 !      zhang & wang      iprc           2011-2013
 !***purpose.
 !   --------
@@ -1684,7 +1687,7 @@ contains
       integer  kctop(klon),kcbot(klon)
 
       real     qfx(klon),hfx(klon),ust(klon)
-      real     wst(klon),hgamt(klon),hgamq(klon)
+      real     wst(klon),hgamt(klon),hgamq(klon),entpbl(klon)
       real     zph(klon)
       integer  lndj(klon)
       logical  loflag(klon), deepflag(klon), resetflag(klon)
@@ -1698,7 +1701,7 @@ contains
 
 ! local variables
       real     zqold(klon)
-      real     deltt,deltq,sflx
+      real     deltt,deltq,deltt_min,deltq_min,sflx
       real     eta(klon),dz(klon),coef(klon)
       real     dhen(klon,klev), dh(klon,klev)
       real     plude(klon,klev)
@@ -1720,6 +1723,9 @@ contains
       integer  jl,jk,ik,icall,levels
       logical  needreset, lldcum(klon)
 !--------------------------------------------------------------
+
+      deltt_min = 0.2
+      deltq_min = 1.e-4
 
       do jl=1,klon
         kcbot(jl)=klev
@@ -1767,8 +1773,8 @@ contains
 ! bw -->  link shallow cumulus to pbl physics --> hfx, qfx, hgamt, hgamq, wst
         sflx = hfx(jl)*rcpd+vtmpc1*pten(jl,klev)*qfx(jl)
         if(sflx.gt.0.) then
-          deltt = hgamt(jl)
-          deltq = hgamq(jl)
+          deltt = max(deltt_min,hgamt(jl))
+          deltq = max(deltq_min,hgamq(jl))
           kup(jl,klev) = 0.5*(wst(jl)**2)
           pqu(jl,klev)= pqenh(jl,klev) + deltq
           dhen(jl,klev)= pgeoh(jl,klev) + ptenh(jl,klev)*cpd
@@ -1795,7 +1801,10 @@ contains
 ! the next levels, we use the variables at the first level as initial values
       do jl=1,klon
       if(loflag(jl)) then
-        eta(jl) = 0.8/(pgeo(jl,jk)*zrg)+2.e-4
+!       eta(jl) = 0.8/(pgeo(jl,jk)*zrg)+2.e-4
+! bw 
+! bw --> link shallow cumulus entrainment to pbl physics --> entpbl
+        eta(jl) = entpbl(jl)
         dz(jl)  = (pgeoh(jl,jk)-pgeoh(jl,jk+1))*zrg
 !       coef(jl) = min(1.,0.5*eta(jl)*dz(jl))
 ! bw --> removing 0.5 factor to increase entrainment, filter dbz noise,
@@ -1928,8 +1937,8 @@ contains
 !----------------------------------------------------------
 ! we check the parcel starting level by level
 ! assume the mix-layer is 60hPa
-      deltt = 0.2
-      deltq = 1.0e-4
+      deltt = deltt_min
+      deltq = deltq_min
       do jl=1,klon
         deepflag(jl) = .false.
       end do
@@ -2599,7 +2608,7 @@ contains
             end if
             ikb=kcbot(jl)
             if ( ktype(jl).ne.2.and.plu(jl,jk)>zdshrd ) then
-              zwu = min(10.0,sqrt(2.*max(0.1,kup(jl,jk+1))))
+              zwu = min(15.0,sqrt(2.*max(0.1,kup(jl,jk+1))))
               zprcon = zprcdgw/(0.75*zwu)
 ! PARAMETERS FOR BERGERON-FINDEISEN PROCESS (T < -5C)
               zdt = min(rtber-rtice,max(rtber-ptu(jl,jk),0.))
@@ -2634,7 +2643,7 @@ contains
               zvv = zalfaw*zvw + (1.-zalfaw)*zvi
               zrold = zlrain(jl,jk) - zprecip(jl)
               zc = zprecip(jl)
-              zwu = min(10.0,sqrt(2.*max(0.1,kup(jl,jk))))
+              zwu = min(15.0,sqrt(2.*max(0.1,kup(jl,jk))))
               zd = zvv/zwu
               zint = exp(-zd)
               zrnew = zrold*zint + zc/zd*(1.-zint)

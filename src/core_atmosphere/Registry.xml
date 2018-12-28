@@ -626,6 +626,7 @@
                         <var name="wstar"/>
                         <var name="hgamt"/>
                         <var name="hgamq"/>
+                        <var name="entpbl"/>
                         <var name="delta"/>
                         <var name="el_pbl"/>
                         <var name="ch"/>
@@ -2269,6 +2270,10 @@
 
                 <var name="hgamq" type="real" dimensions="nCells Time" units="kg kg^{-1}"
                      description="moisture perturbation"
+                     packages="bl_ysu_in"/>
+
+                <var name="entpbl" type="real" dimensions="nCells Time" units="m^{-1}"
+                     description="entrainment from PBL"
                      packages="bl_ysu_in"/>
 
 

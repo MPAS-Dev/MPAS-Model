@@ -339,6 +339,7 @@ real(kind=RKIND),dimension(:,:,:),allocatable:: &
     wstar_p,          &!
     hgamt_p,          &!
     hgamq_p,          &!
+    entpbl_p,         &!
     uoce_p,           &!
     voce_p             !
 
