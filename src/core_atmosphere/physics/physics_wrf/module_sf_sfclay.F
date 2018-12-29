@@ -780,7 +780,7 @@ CONTAINS
 ! Garratt (1992) used with values of k = 0.40, Pr = 0.71, and Sc = 0.60
               VISC=(1.32+0.009*(SCR3(I)-273.15))*1.E-5
 !!            VISC=1.5E-5
-              RESTAR=MAX(UST(I)*ZNT(I)/VISC, 0.1)
+              RESTAR=UST(I)*ZNT(I)/VISC
               GZ0OZT=0.40*(7.3*SQRT(SQRT(RESTAR))*SQRT(0.71)-5.)
               GZ0OZQ=0.40*(7.3*SQRT(SQRT(RESTAR))*SQRT(0.60)-5.)
               PSIT=GZ1OZ0(I)-PSIH(I)+GZ0OZT
