@@ -16,6 +16,7 @@ module isobaric_diagnostics
     type (MPAS_pool_type), pointer :: mesh
     type (MPAS_pool_type), pointer :: state
     type (MPAS_pool_type), pointer :: diag
+    type (MPAS_pool_type), pointer :: sfc_input
 
     type (MPAS_clock_type), pointer :: clock
 
@@ -67,6 +68,7 @@ module isobaric_diagnostics
         call mpas_pool_get_subpool(all_pools, 'mesh', mesh)
         call mpas_pool_get_subpool(all_pools, 'state', state)
         call mpas_pool_get_subpool(all_pools, 'diag', diag)
+        call mpas_pool_get_subpool(all_pools, 'sfc_input', sfc_input)
    
     end subroutine isobaric_diagnostics_setup
 
@@ -335,6 +337,8 @@ module isobaric_diagnostics
         real (kind=RKIND), dimension(:,:), pointer :: t_isobaric
         real (kind=RKIND), dimension(:,:), pointer :: z_isobaric
         real (kind=RKIND), dimension(:), pointer :: meanT_500_300
+        real (kind=RKIND), dimension(:), pointer :: surface_pressure
+        real (kind=RKIND), dimension(:), pointer :: height_terrain
        
         real (kind=RKIND), dimension(:), pointer :: temperature_200hPa
         real (kind=RKIND), dimension(:), pointer :: temperature_250hPa
@@ -453,6 +457,7 @@ module isobaric_diagnostics
         call mpas_pool_get_array(diag, 'exner', exner)
         call mpas_pool_get_array(diag, 'pressure_base', pressure_b)
         call mpas_pool_get_array(diag, 'pressure_p', pressure_p)
+        call mpas_pool_get_array(diag, 'surface_pressure', surface_pressure)
         call mpas_pool_get_array(diag, 'vorticity', vorticity)
         call mpas_pool_get_array(diag, 'uReconstructMeridional', umeridional)
         call mpas_pool_get_array(diag, 'uReconstructZonal', uzonal)
@@ -534,6 +539,7 @@ module isobaric_diagnostics
         call mpas_pool_get_array(diag, 'vorticity_1000hPa', vorticity_1000hPa)
        
         call mpas_pool_get_array(diag, 'mslp', mslp)
+        call mpas_pool_get_array(sfc_input, 'ter', height_terrain)
        
         if(.not.allocated(pressure)    ) allocate(pressure(nVertLevels,nCells)      )
         if(.not.allocated(pressureCp1) ) allocate(pressureCp1(nVertLevels,nCells+1) )
@@ -890,13 +896,13 @@ module isobaric_diagnostics
        
         if (need_mslp) then
             !... compute SLP (requires temp, height, pressure, qvapor)
-             call compute_slp(nCells, nVertLevels, num_scalars, temperature, height, pressure, index_qv, scalars, mslp)
-             mslp(:) = mslp(:) * 100.0   ! Convert from hPa to Pa
-            !... alternative way
-            !do iCell = 1, nCells
-            !   mslp(iCell) = diag % surface_pressure % array(iCell) + 11.38*height(1,iCell)
-            !   mslp(iCell) = mslp(iCell)/100.
-            !enddo
+            !call compute_slp(nCells, nVertLevels, num_scalars, temperature, height, pressure, index_qv, scalars, mslp)
+            !mslp(:) = mslp(:) * 100.0   ! Convert from hPa to Pa
+            !
+            ! BAW 2018-12-30 --> tests show compute_slp approach generates universal bias, switch to wrf post-processing approach
+             do iCell = 1, nCells
+                mslp(iCell) = surface_pressure(iCell)*(1.-(0.0065*height_terrain(iCell))/((temperature(1,iCell)-273.15)+0.0065*height_terrain(iCell)+273.15))**-5.257
+             enddo
         end if
     
     
