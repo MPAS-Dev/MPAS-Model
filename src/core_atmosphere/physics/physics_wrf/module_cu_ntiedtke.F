@@ -132,7 +132,7 @@ module module_cu_ntiedtke
 !     switches for deep, mid, shallow convections, downdraft, and momentum transport
 !     ------------------
       logical :: lmfpen,lmfmid,lmfscv,lmfdd,lmfdudv
-      parameter(lmfpen=.true.,lmfmid=.true.,lmfscv=.true.,lmfdd=.true.,lmfdudv=.false.)
+      parameter(lmfpen=.true.,lmfmid=.true.,lmfscv=.true.,lmfdd=.true.,lmfdudv=.true.)
 !--------------------
 !#################### end of variables definition##########################
 !-----------------------------------------------------------------------
