@@ -50,7 +50,7 @@ module mpas_io_units
         integer, intent(inout) :: newUnit
         logical, optional, intent(in) :: unformatted
 
-        integer :: i, minsearch, maxsearch, limit_type
+        integer :: i, minsearch, maxsearch
 
         logical :: opened
 
