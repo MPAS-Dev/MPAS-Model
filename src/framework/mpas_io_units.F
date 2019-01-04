@@ -28,7 +28,7 @@ module mpas_io_units
    integer, parameter :: maxUnits = 99
    logical, dimension(0:maxUnits), save :: unitsInUse
    integer, parameter :: unformatted_min = 95
-   integer, parameter :: unformatted_max = 99
+   integer, parameter :: unformatted_max = maxUnits
 
    public :: mpas_new_unit, mpas_release_unit
 
@@ -56,16 +56,13 @@ module mpas_io_units
 
         newUnit = -1
 
-        limit_type = 1
+        minsearch = 1
+        maxsearch = unformatted_min - 1
         if ( present(unformatted) ) then
-           if ( unformatted ) limit_type = 2
-        end if
-        if ( limit_type == 2 ) then
-           minsearch = unformatted_min
-           maxsearch = unformatted_max
-        else
-           minsearch = 1
-           maxsearch = maxUnits
+           if ( unformatted ) then
+              minsearch = unformatted_min
+              maxsearch = unformatted_max
+           end if
         end if
 
         do i = minsearch, maxsearch
