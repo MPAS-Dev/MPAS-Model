@@ -74,8 +74,9 @@
 !
 ! subroutines in mpas_atmphys_manager:
 ! ------------------------------------
-! physics_timetracker: check alarms and update boundary conditions if needed.
-! physics_run_init   : create and initialize alarms used for physics parameterizations.
+! physics_timetracker : check alarms and update boundary conditions if needed.
+! physics_run_init    : create and initialize alarms used for physics parameterizations.
+! physics_run_finalize: remove alarms used for physics parameterizations.
 !
 ! add-ons and modifications to sourcecode:
 ! ----------------------------------------
