@@ -1228,7 +1228,7 @@ module atm_core
    !-----------------------------------------------------------------------
    subroutine mpas_atm_run_compatibility(dminfo, blockList, streamManager, ierr)
 
-      use mpas_atmphys_control, only : physics_compatibility_check
+      use mpas_atmphys_control, only : physics_compatibility_check, sst_update_check
 
       implicit none
 
@@ -1245,6 +1245,9 @@ module atm_core
       call physics_compatibility_check(dminfo, blockList, streamManager, local_ierr)
       ierr = ierr + local_ierr
 
+      ! SST Update Interval Check - /physics/mpas_atmphys_control.F
+      call sst_update_check(blockList, streamManager, local_ierr)
+      ierr = ierr + local_ierr
 
    end subroutine mpas_atm_run_compatibility
 

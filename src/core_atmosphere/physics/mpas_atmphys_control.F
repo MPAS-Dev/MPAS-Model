@@ -13,13 +13,15 @@
 
  use mpas_atmphys_utilities
  use mpas_atmphys_vars, only: l_mp_tables
+ use mpas_stream_manager
 
  implicit none
  private
  public:: physics_namelist_check, &
           physics_registry_init,  &
           physics_tables_init,    &
-          physics_compatibility_check
+          physics_compatibility_check, &
+          sst_update_check
 
  logical,public:: moist_physics
 
@@ -492,6 +494,72 @@
  end if
 
  end subroutine physics_compatibility_check
+
+!=================================================================================================================
+!  routine sst_update_check()
+!
+!> \brief Sea Surface Interval Update Check
+!> \author Miles Curry
+!> \date   January 2019
+!> \details
+!>  This routine checks that the user has correctly set the SST update options,
+!>  by setting the `config_sst_update` namelist option equal to `true` .AND.
+!>  by setting the `input_interal` surface stream variable in streams.atmosphere
+!>  to a valid HH:MM:SS update time.
+!>
+ subroutine sst_update_check(blockList, streamManager, ierr)
+!=================================================================================================================
+
+ implicit none
+
+ ! Input Variables
+ type (block_type), pointer :: blockList
+ type (MPAS_streamManager_type), pointer :: streamManager
+ integer, intent(out) :: ierr
+
+ ! Local Variables
+ logical,pointer:: config_sst_update
+ character(len=StrKIND) :: stream_interval
+
+ ierr = 0
+
+ call mpas_pool_get_config(blocklist % configs, 'config_sst_update', config_sst_update)
+ call MPAS_stream_mgr_get_property(streamManager, 'surface', MPAS_STREAM_PROPERTY_RECORD_INTV, stream_interval, &
+                                   direction=MPAS_STREAM_INPUT, ierr=ierr)
+
+ if ( config_sst_update .AND. stream_interval == 'none' ) then
+    call mpas_log_write('*******************************************************************************', &
+                        messageType=MPAS_LOG_ERR)
+    call mpas_log_write("'config_sst_update' in the physics section of the namelist.atmosphere file was set", &
+                    messageType=MPAS_LOG_ERR)
+    call mpas_log_write("to 'true', but the 'input_interval' in the surface stream of the streams.atmosphere", &
+                    messageType=MPAS_LOG_ERR)
+    call mpas_log_write("file has not been set.", &
+                    messageType=MPAS_LOG_ERR)
+    call mpas_log_write("Please set the update interval to a valid DD_HH:MM:SS interval or turn 'config_sst_update'", &
+                    messageType=MPAS_LOG_ERR)
+    call mpas_log_write("to 'false'.", &
+                    messageType=MPAS_LOG_ERR)
+    call mpas_log_write('*******************************************************************************', &
+                        messageType=MPAS_LOG_ERR)
+    ierr = ierr + 1
+ endif
+ if ( .NOT. config_sst_update .AND. stream_interval /= 'none' ) then
+    call mpas_log_write('*******************************************************************************', &
+                        messageType=MPAS_LOG_WARN)
+    call mpas_log_write("'config_sst_update' was set to 'false' but the surface update interval has", &
+                    messageType=MPAS_LOG_WARN)
+    call mpas_log_write("been set. This stream is still being read in, but not being applied to the model.", &
+                    messageType=MPAS_LOG_WARN)
+    call mpas_log_write("To update surface tempeature at that interval please set 'config_sst_update'", &
+                    messageType=MPAS_LOG_WARN)
+    call mpas_log_write("in namelist.atmosphere file to 'true'.", &
+                    messageType=MPAS_LOG_WARN)
+    call mpas_log_write("*******************************************************************************", &
+                        messageType=MPAS_LOG_WARN)
+ endif
+
+ end subroutine sst_update_check
 
 !=================================================================================================================
  end module mpas_atmphys_control
