@@ -148,7 +148,7 @@
  end select bl_select
 
  mp_select: select case(trim(mp_scheme))
-    case("mp_thompson","mp_thompson_aerosol")
+    case("mp_thompson","mp_thompson_aerosols")
        if(.not.allocated(nifa_p)) allocate(nifa_p(ims:ime,kms:kme,jms:jme))
        if(.not.allocated(nwfa_p)) allocate(nwfa_p(ims:ime,kms:kme,jms:jme))
 
@@ -222,7 +222,7 @@
  end select bl_select
 
  mp_select: select case(trim(mp_scheme))
-    case("mp_thompson","mp_thompson_aerosol")
+    case("mp_thompson","mp_thompson_aerosols")
        if(allocated(nifa_p)) deallocate(nifa_p)
        if(allocated(nwfa_p)) deallocate(nwfa_p)
 
