@@ -446,6 +446,44 @@
 					possible_values="Any positive real value."
 		/>
 	</nml_record>
+	<nml_record name="superParameterization" mode="forward">
+		<nml_option name="config_use_les_for_vmix" type="logical" default_value=".false." units="NA"
+					description="If true, a large eddy simulation model will be used for mixing tendencies."
+					possible_values=".true. or .false."
+		/>
+		<nml_option name="config_les_dz" type="real" default_value="1.0" units="m"
+					description="thickness of first layer in LES"
+					possible_values="positive real numbers"
+		/>
+		<nml_option name="config_les_nz" type="integer" default_value="128" units="NA"
+					description="number of gridpoints in vertical for LES"
+					possible_values="positive integers"
+		/>
+		<nml_option name="config_les_dt_data_output" type="real" default_value="99999999.0" units="s"
+					description="time interval in seconds for output of LES 3-D data volumes, reserved for debugging only"
+					possible_values="positive real numbers"
+		/>
+		<nml_option name="config_les_dt_disturb" type="real" default_value="120.0" units="s"
+					description="time in seconds to apply noise disturbance to LES for faster initialization"
+					possible_values="positive real numbers"
+		/>
+		<nml_option name="config_les_dt_data_output_av" type="real" default_value="99999999.0" units="s"
+					description="time interval to output LES average data, reserved for debugging only"
+					possible_values="positive real numbers"
+		/>
+		<nml_option name="config_les_dt_dopr" type="real" default_value="99999999.0" units="s"
+					description="time interval to write profile data from LES, reserved for debugging only."
+					possible_values="positive real numbers"
+		/>
+		<nml_option name="config_les_end_time" type="real" default_value="10800.0" units="s"
+		       			description="length of LES run in seconds for each grid cell"
+					possible_values="positive real numbers"
+		/>
+		<nml_option name="config_les_dt_dots" type="real" default_value="99999999.0" units="s"
+					description="time interval to write LES time series data, reserved for debugging only."
+					possible_values="positive real numbers"
+		/>
+	</nml_record>	
 	<nml_record name="cvmix" mode="forward">
 		<nml_option name="config_use_cvmix" type="logical" default_value=".false." units="NA"
 					description="If true, use the Community Vertical MIXing routines to compute vertical diffusivity and viscosity"
@@ -2329,8 +2367,27 @@
 			 description="Barotropic thickness flux at each edge, used to advance sea surface height in each subcycle of stage 2 of the split-explicit algorithm."
 			 packages="forwardMode;analysisMode"
 		/>
-
-		<var name="velocityX" type="real" dimensions="nVertLevels nCells Time" units="m s^{-1}"
+		<var name="stressX" type="real" dimensions="nCells Time" units="m s^{-1}"
+			 description="component of horizontal surface stress in the x-direction (cartesian)"
+			 packages="forwardMode;analysisMode"
+		/>
+		<var name="stressY" type="real" dimensions="nCells Time" units="m s^{-1}"
+			 description="component of horizontal surface stress in the y-direction (cartesian)"
+			 packages="forwardMode;analysisMode"
+		/>
+		<var name="stressZ" type="real" dimensions="nCells Time" units="m s^{-1}"
+			 description="component of horizontal surface stress in the z-direction (cartesian)"
+			 packages="forwardMode;analysisMode"
+		/>
+		<var name="stressZonal" type="real" dimensions="nCells Time" units="m s^{-1}"
+			 description="component of horizontal surface stress in the eastward direction"
+			 packages="forwardMode;analysisMode"
+		/>
+		<var name="stressMeridional" type="real" dimensions="nCells Time" units="m s^{-1}"
+			 description="component of horizontal surface stress in the northward direction"
+			 packages="forwardMode;analysisMode"
+		/>
+                <var name="velocityX" type="real" dimensions="nVertLevels nCells Time" units="m s^{-1}"
 			 description="component of horizontal velocity in the x-direction (cartesian)"
 			 packages="forwardMode;analysisMode"
 		/>
@@ -2438,6 +2495,26 @@
 		<var name="vertDiffTopOfCell" type="real" dimensions="nVertLevelsP1 nCells Time" units="m^2 s^{-1}"
 			 description="vertical diffusion defined at the cell center (horizontally) and top (vertically)"
 			 packages="forwardMode;analysisMode"
+		/>
+		<var name="tIncrementLES" type="real" dimensions="nVertLevels nCells Time" units="C s^{-1}"
+			description="temperature tendency from LES"
+			packages="forwardMode;analysisMode"
+		/>
+		<var name="sIncrementLES" type="real" dimensions="nVertLevels nCells Time" units="PSU s^{-1}"
+			description="salinity tendency from LES"
+			packages="forwardMode;analysisMode"
+		/>
+		<var name="uIncrementLES" type="real" dimensions="nVertLevels nCells Time" units="m s^{-2}"
+			description="zonal Velocity increment from LES"
+			packages="forwardMode;analysisMode"
+		/>
+		<var name="vIncrementLES" type="real" dimensions="nVertLevels nCells Time" units="m s^{-2}"
+			description="meridional Velocity increment from LES"
+			packages="forwardMode;analysisMode"
+		/>
+		<var name="normalVelocityIncrementLES" type="real" dimensions="nVertLevels nEdges Time" units="m s^{-2}"
+			description="normal velocity increment from LES"
+			packages="forwardMode;analysisMode"
 		/>
 		<var name="bulkRichardsonNumber" type="real" dimensions="nVertLevels nCells Time" units="nondimensional"
 			 description="CVMix/KPP: bulk Richardson number"

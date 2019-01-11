@@ -32,12 +32,14 @@ module ocn_time_integration_split
    use mpas_timekeeping
    use mpas_log
 
+
    use ocn_tendency
    use ocn_diagnostics
    use ocn_gm
 
    use ocn_equation_of_state
    use ocn_vmix
+   use ocn_vmix_LES
    use ocn_time_average_coupled
 
    use ocn_effective_density_in_land_ice
@@ -131,7 +133,7 @@ module ocn_time_integration_split
       integer, pointer :: config_n_bcl_iter_mid, config_n_bcl_iter_beg, config_n_bcl_iter_end
       integer, pointer :: config_n_ts_iter, config_btr_subcycle_loop_factor
       integer, pointer :: config_n_btr_cor_iter, config_num_halos
-      logical, pointer :: config_use_standardGM
+      logical, pointer :: config_use_standardGM, config_use_les_for_vmix
 
       logical, pointer :: config_use_freq_filtered_thickness, config_btr_solve_SSH2, config_filter_btr_mode
       logical, pointer :: config_vel_correction, config_prescribe_velocity, config_prescribe_thickness
@@ -249,6 +251,7 @@ module ocn_time_integration_split
 
       call mpas_pool_get_config(domain % configs, 'config_num_halos', config_num_halos)
 
+      call mpas_pool_get_config(domain % configs, 'config_use_les_for_vmix', config_use_les_for_vmix)
       call mpas_pool_get_config(domain % configs, 'config_compute_active_tracer_budgets', config_compute_active_tracer_budgets)
       allocate(n_bcl_iter(config_n_ts_iter))
 
@@ -270,6 +273,8 @@ module ocn_time_integration_split
          call mpas_pool_get_subpool(statePool, 'tracers', tracersPool)
          call mpas_pool_get_subpool(block % structs, 'mesh', meshPool)
          call mpas_pool_get_subpool(block % structs, 'diagnostics', diagnosticsPool)
+         call mpas_pool_get_subpool(block % structs, 'forcing', forcingPool)
+
 
          call mpas_pool_get_array(statePool, 'normalBaroclinicVelocity', normalBaroclinicVelocityCur, 1)
          call mpas_pool_get_array(statePool, 'normalBarotropicVelocity', normalBarotropicVelocityCur, 1)
@@ -292,6 +297,8 @@ module ocn_time_integration_split
          call mpas_pool_get_array(statePool, 'lowFreqDivergence', lowFreqDivergenceNew, 2)
 
          call mpas_pool_get_array(diagnosticsPool, 'vertAleTransportTop', vertAleTransportTop)
+         call mpas_pool_get_array(diagnosticsPool, 'velocityZonal', velocityZonal)
+         call mpas_pool_get_array(diagnosticsPool, 'velocityMeridional', velocityMeridional)
 
          call mpas_pool_get_array(meshPool, 'maxLevelCell', maxLevelCell)
          call mpas_pool_get_dimension(tracersPool, 'index_salinity', indexSalinity)
@@ -377,6 +384,11 @@ module ocn_time_integration_split
       n_bcl_iter(1) = config_n_bcl_iter_beg
       n_bcl_iter(config_n_ts_iter) = config_n_bcl_iter_end
 
+      if (config_use_les_for_vmix) then
+          call ocn_vmix_les_interface(meshPool, statePool, forcingPool,  &
+                                        diagnosticsPool, dt, err, 2)
+      endif
+
       do split_explicit_step = 1, config_n_ts_iter
          call mpas_timer_start('se loop')
 
@@ -385,6 +397,7 @@ module ocn_time_integration_split
          call mpas_pool_get_subpool(domain % blocklist % structs, 'diagnostics', diagnosticsPool)
 
          call mpas_threading_barrier()
+
          ! ---  update halos for diagnostic ocean boundayr layer depth
          if (config_use_cvmix_kpp) then
             call mpas_timer_start("se halo diag obd")
@@ -1771,7 +1784,11 @@ module ocn_time_integration_split
         if (config_use_standardGM) then
            call ocn_gm_compute_Bolus_velocity(diagnosticsPool, meshPool, scratchPool)
         end if
-        call ocn_vmix_implicit(dt, meshPool, diagnosticsPool, statePool, forcingPool, scratchPool, err, 2)
+        if ( .not. config_use_les_for_vmix) then
+           call ocn_vmix_implicit(dt, meshPool, diagnosticsPool, statePool, forcingPool, scratchPool, err, 2)
+        else
+           call ocn_vmix_LES_apply_tend(meshPool, statePool, forcingPool, diagnosticsPool, 2)
+        end if
 
         block => block % next
       end do
@@ -1785,7 +1802,6 @@ module ocn_time_integration_split
       call mpas_timer_start('se vmix halos')
       call mpas_pool_get_subpool(domain % blocklist % structs, 'state', statePool)
       call mpas_pool_get_subpool(statePool, 'tracers', tracersPool)
-
 
       call mpas_timer_start('se vmix halos normalVelFld')
       call mpas_dmpar_field_halo_exch(domain, 'normalVelocity', timeLevel=2)

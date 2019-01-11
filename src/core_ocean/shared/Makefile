@@ -32,6 +32,7 @@ OBJS = mpas_ocn_init_routines.o \
 	   mpas_ocn_vmix_coefs_tanh.o \
 	   mpas_ocn_vmix_coefs_redi.o \
 	   mpas_ocn_vmix_cvmix.o \
+	   mpas_ocn_vmix_palm.o \
 	   mpas_ocn_tendency.o \
 	   mpas_ocn_tracer_hmix.o \
 	   mpas_ocn_tracer_hmix_del2.o \
@@ -161,6 +162,8 @@ mpas_ocn_constants.o:
 mpas_ocn_forcing.o: mpas_ocn_constants.o mpas_ocn_forcing_restoring.o
 
 mpas_ocn_surface_bulk_forcing.o: mpas_ocn_constants.o mpas_ocn_equation_of_state.o
+
+mpas_ocn_vmix_palm.o: mpas_ocn_surface_bulk_forcing.o 
 
 mpas_ocn_surface_land_ice_fluxes.o: mpas_ocn_constants.o mpas_ocn_equation_of_state.o
 
