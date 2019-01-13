@@ -17,6 +17,8 @@
  use mpas_atmphys_vars
  
 !wrf physics:
+ use module_mp_thompson_aerosols
+ use module_ra_rrtmg_sw_aerosols
  use module_ra_rrtmg_sw
 
  implicit none
@@ -80,7 +82,11 @@
 !   Laura D. Fowler (laura@ucar.edu) / 2017-02-10.
 ! * since we removed the local variable radt_sw_scheme from mpas_atmphys_vars.F, now defines radt_sw_scheme
 !   as a pointer to config_radt_sw_scheme.
-!   Laura D. Fowler (laura@ucar.edu) / 2917-02-16.
+!   Laura D. Fowler (laura@ucar.edu) / 2017-02-16.
+! * in subroutine radiation_sw_from_MPAS, added the calculation of the optical properties of "water-friendly" and
+!   "ice-friendly" aerosols from the Thompson cloud microphysics scheme for use in the RRTMG short-wave radiation
+!   code.
+!   Laura D. Fowler (laura@ucar.edu) / 2019-01-13.
 
 
  contains
@@ -95,10 +101,12 @@
  real(kind=RKIND),intent(in):: xtime_s
 
 !local pointers:
- character(len=StrKIND),pointer:: radt_sw_scheme
+ character(len=StrKIND),pointer:: mp_scheme, &
+                                  radt_sw_scheme
 
 !-----------------------------------------------------------------------------------------------------------------
 
+ call mpas_pool_get_config(configs,'config_microp_scheme',mp_scheme)
  call mpas_pool_get_config(configs,'config_radt_sw_scheme',radt_sw_scheme)
 
  if(.not.allocated(f_ice)        ) allocate(f_ice(ims:ime,kms:kme,jms:jme)        )
@@ -150,6 +158,20 @@
        if(.not.allocated(pin_p)        ) allocate(pin_p(num_oznlevels)                     )
        if(.not.allocated(o3clim_p)     ) allocate(o3clim_p(ims:ime,1:num_oznlevels,jms:jme))
 
+       if(.not.allocated(tauaer_p)     ) allocate(tauaer_p(ims:ime,kms:kme,jms:jme,nbndsw) )
+       if(.not.allocated(ssaaer_p)     ) allocate(ssaaer_p(ims:ime,kms:kme,jms:jme,nbndsw) )
+       if(.not.allocated(asyaer_p)     ) allocate(asyaer_p(ims:ime,kms:kme,jms:jme,nbndsw) )
+
+       aerosol_select: select case(mp_scheme)
+          case("mp_thompson_aerosols")
+             if(.not.allocated(ht_p)       ) allocate(ht_p(ims:ime,jms:jme)       )
+             if(.not.allocated(taer_type_p)) allocate(taer_type_p(ims:ime,jms:jme))
+             if(.not.allocated(taod5502d_p)) allocate(taod5502d_p(ims:ime,jms:jme))
+             if(.not.allocated(taod5503d_p)) allocate(taod5503d_p(ims:ime,kms:kme,jms:jme))
+
+          case default
+       end select aerosol_select
+
     case default
  end select radiation_sw_select
 
@@ -163,10 +185,12 @@
  type(mpas_pool_type),intent(in):: configs
 
 !local pointers:
- character(len=StrKIND),pointer:: radt_sw_scheme
+ character(len=StrKIND),pointer:: mp_scheme, &
+                                  radt_sw_scheme
 
 !-----------------------------------------------------------------------------------------------------------------
 
+ call mpas_pool_get_config(configs,'config_microp_scheme',mp_scheme)
  call mpas_pool_get_config(configs,'config_radt_sw_scheme',radt_sw_scheme)
 
  if(allocated(f_ice)        ) deallocate(f_ice        )
@@ -211,6 +235,21 @@
        if(allocated(pin_p)        ) deallocate(pin_p        )
        if(allocated(o3clim_p)     ) deallocate(o3clim_p     )
 
+       if(allocated(taod5503d_p)  ) deallocate(taod5503d_p  )
+       if(allocated(tauaer_p)     ) deallocate(tauaer_p     )
+       if(allocated(ssaaer_p)     ) deallocate(ssaaer_p     )
+       if(allocated(asyaer_p)     ) deallocate(asyaer_p     )
+
+       aerosol_select: select case(mp_scheme)
+          case("mp_thompson","mp_thompson_aerosols")
+             if(allocated(ht_p)       ) deallocate(ht_p       )
+             if(allocated(taer_type_p)) deallocate(taer_type_p)
+             if(allocated(taod5502d_p)) deallocate(taod5502d_p)
+             if(allocated(taod5503d_p)) deallocate(taod5503d_p)
+
+          case default
+       end select aerosol_select
+
     case default
  end select radiation_sw_select
 
@@ -247,6 +286,8 @@
  real(kind=RKIND),dimension(:),pointer    :: skintemp,snow,xice,xland
  real(kind=RKIND),dimension(:),pointer    :: pin
  real(kind=RKIND),dimension(:),pointer    :: sfc_albedo,sfc_emiss
+ real(kind=RKIND),dimension(:),pointer    :: taod5502d
+ real(kind=RKIND),dimension(:,:),pointer  :: zgrid
  real(kind=RKIND),dimension(:,:),pointer  :: cldfrac,o3clim
  real(kind=RKIND),dimension(:,:),pointer  :: re_cloud,re_ice,re_snow
  real(kind=RKIND),dimension(:,:,:),pointer:: ozmixm
@@ -326,11 +367,23 @@
  enddo
  enddo
 
+ do n = 1,nbndsw
+ do j = jts,jte
+ do k = kts,kte
+ do i = its,ite
+    tauaer_p(i,k,j,n) = 0._RKIND
+    ssaaer_p(i,k,j,n) = 1._RKIND
+    asyaer_p(i,k,j,n) = 0._RKIND
+ enddo
+ enddo
+ enddo
+ enddo
+
  radiation_sw_select: select case (trim(radt_sw_scheme))
 
     case("rrtmg_sw")
        microp_select: select case(microp_scheme)
-          case("mp_thompson","mp_wsm6")
+          case("mp_thompson","mp_thompson_aerosols","mp_wsm6")
              if(config_microp_re) then
                 call mpas_pool_get_array(diag_physics,'re_cloud',re_cloud)
                 call mpas_pool_get_array(diag_physics,'re_ice'  ,re_ice  )
@@ -363,6 +416,76 @@
 
           case default          
        end select microp_select
+
+       aerosol_select: select case(microp_scheme)
+          case("mp_thompson_aerosols")
+             call mpas_pool_get_array(mesh,'zgrid',zgrid)
+             call mpas_pool_get_array(diag_physics,'taod5502d',taod5502d)
+
+             do j = jts,jte
+             do i = its,ite
+                ht_p(i,j) = zgrid(1,i)
+                if(xland_p(i,j)==1._RKIND) then
+                   taer_type_p(i,j) = 1
+                elseif(xland_p(i,j)==2._RKIND) then
+                   taer_type_p(i,j) = 3
+                endif
+             enddo
+             enddo
+
+             !--- calculation of the 550 nm optical depth of the water- and ice-friendly aerosols:
+             call gt_aod( &
+                     p_phy = pres_hyd_p , dz8w = dz_p   , t_phy     = t_p         , qvapor = qv_p , &
+                     nwfa  = nwfa_p     , nifa = nifa_p , taod5503d = taod5503d_p ,                 &
+                     ims = ims , ime = ime , jms = jms , jme = jme , kms = kms , kme = kme ,        &
+                     its = its , ite = ite , jts = jts , jte = jte , kts = kts , kte = kte          &
+                        )
+
+             do j = jts,jte
+             do i = its,ite
+                taod5502d_p(i,j) = 0._RKIND
+                do k = kts,kte
+                   taod5502d_p(i,j) = taod5502d_p(i,j) + taod5503d_p(i,k,j)
+                enddo
+                taod5502d(i) = taod5502d_p(i,j)
+             enddo
+             enddo
+
+             !--- calculation of the spectral optical depth, single-scattering albedo, and asymmetry factor
+             !as a function of the 550 nm optical depth of the water- and ice-friendly aerosols:
+             call calc_aerosol_rrtmg_sw( &
+                               ht       = ht_p         , dz8w     = dz_p        , &
+                               p        = pres_hyd_p   , t3d      = t_p         , &
+                               qv3d     = qv_p         , tauaer   = tauaer_p    , &
+                               ssaaer   = ssaaer_p     , asyaer   = asyaer_p    , &
+                               aod5502d = taod5502d_p  , aod5503d = taod5503d_p , &
+                               aer_type = taer_type_p  ,                                               &
+                               aer_aod550_opt = taer_aod550_opt , aer_angexp_opt = taer_angexp_opt   , &
+                               aer_ssa_opt    = taer_ssa_opt    , aer_asy_opt    = taer_asy_opt      , &
+                               aer_aod550_val = aer_aod550_val  , aer_angexp_val = aer_angexp_val    , &
+                               aer_ssa_val    = aer_ssa_val     , aer_asy_val    = aer_asy_val       , &
+                               ims = ims , ime = ime , jms = jms , jme = jme , kms = kms , kme = kme , &
+                               its = its , ite = ite , jts = jts , jte = jte , kts = kts , kte = kte   &
+                                        )
+
+!            call mpas_log_write(' ')
+!            call mpas_log_write('--- end subroutine calc_aerosol_rrtmg_sw:')
+!            do j = jts,jte
+!            do i = its,ite
+!               do k = kts,kte
+!                  call mpas_log_write('$i $i $r $r $r $r $r $r $r $r $r',intArgs=(/i,k/), &
+!                            realArgs=(/taod5503d_p(i,k,j),(tauaer_p(i,k,j,n),n=1,8)/))
+!                  call mpas_log_write('$i $i $r $r $r $r $r $r $r $r $r',intArgs=(/i,k/), &
+!                            realArgs=(/taod5503d_p(i,k,j),(ssaaer_p(i,k,j,n),n=1,8)/))
+!                  call mpas_log_write('$i $i $r $r $r $r $r $r $r $r $r',intArgs=(/i,k/), &
+!                            realArgs=(/taod5503d_p(i,k,j),(asyaer_p(i,k,j,n),n=1,8)/))
+!               enddo
+!               call mpas_log_write(' ')
+!            enddo
+!            enddo
+
+          case default
+       end select aerosol_select
 
        do j = jts,jte
        do k = kts,kte+2
