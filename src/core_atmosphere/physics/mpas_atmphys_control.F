@@ -20,7 +20,7 @@
  public:: physics_namelist_check, &
           physics_registry_init,  &
           physics_tables_init,    &
-          physics_compatibility_check, &
+          gwdo_static_check, &
           sst_update_check
 
  logical,public:: moist_physics
@@ -421,23 +421,21 @@
  end subroutine physics_tables_init
 
 !=================================================================================================================
-!  routine physics_compatibility_check()
+!  routine gwdo_static_check()
 !
-!> \brief Checks physics input fields and options for compatibility
+!> \brief Checks that GWDO static fields are present if GWDO scheme will be run
 !> \author Miles Curry and Michael Duda
 !> \date   25 October 2018
-!> \details
-!>  This routine checks the input fields and run-time options provided
-!>  by the user for compatibility. For example, two run-time options may
-!>  be mutually exclusive, or an option may require that a certain input
-!>  field is provided. The checks performed by this routine are only for
-!>  physics related fields and options.
+!> \details This routine checks that the GWDO static fields var2d, con, oa{1,2,3,4}, and ol{1,2,3,4}
+!>  are non-zero (and therefore, assumed to be present and valid) if the GWDO scheme is to be used in
+!>	the simulation. 
 !>
-!>  A value of 0 is returned if there are no incompatibilities among
-!>  the provided input fields and run-time options, and a non-zero value
-!>  otherwise.
+!>  A value of 0 is returned in ierr if the GWDO scheme will be used and the static fields
+!>	appear to be valid, or if no GWDO scheme will be used. Otherwise, a value of 1 is
+!>  is returned.
 !>
- subroutine physics_compatibility_check(dminfo, blockList, streamManager, ierr)
+!>
+ subroutine gwdo_static_check(dminfo, blockList, streamManager, ierr)
 !=================================================================================================================
 
  implicit none
@@ -493,7 +491,7 @@
 
  end if
 
- end subroutine physics_compatibility_check
+ end subroutine gwdo_static_check
 
 !=================================================================================================================
 !  routine sst_update_check()
