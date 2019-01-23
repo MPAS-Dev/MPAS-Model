@@ -753,6 +753,9 @@ if (rarray(i,j,1) == 0) cycle
           shdmax(iCell) = maxval(greenfrac(:,iCell))
       
        end do
+       ! DEALLOCATE arrays
+       deallocate(rarray)
+       deallocate(vegfra)
 
     ! Now the VIIRS data ...
 
@@ -814,14 +817,14 @@ if (rarray(i,j,1) == 0) cycle
           shdmax(iCell) = maxval(greenfrac(:,iCell))
 
        end do
+       ! DEALLOCATE arrays
+       deallocate(rarray)
+       deallocate(vegfra)
 
     case default
 
  end select greenfrac_select
 
- ! DEALLOCATE arrays
- deallocate(rarray)
- deallocate(vegfra)
  write(0,*) '--- end interpolate GREENFRAC'
 
 

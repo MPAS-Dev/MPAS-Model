@@ -33,6 +33,7 @@ contains
                   dt,kpbl2d,                                                   &
                   exch_h,                                                      &
                   wstar,delta,                                                 &
+                  hgamt,hgamq,entpbl,                                          &
                   u10,v10,                                                     &
                   uoce,voce,                                                   &
                   rthraten,tke_pbl,ysu_topdown_pblmix,                         &
@@ -184,6 +185,9 @@ contains
    real,     dimension( ims:ime, jms:jme )                                   , &
              intent(inout)   ::                                           znt, &
                                                                           ust, &
+                                                                        hgamt, &
+                                                                        hgamq, &
+                                                                       entpbl, &
                                                                          hpbl, &
                                                                           wspd
 !
@@ -310,7 +314,8 @@ contains
               ,ep1=ep1,ep2=ep2,karman=karman                                   &
               ,dz8w2d=dz8w(ims,kms,j)                                          &
               ,psfcpa=psfc(ims,j),znt=znt(ims,j),ust=ust(ims,j)                &
-              ,hpbl=hpbl(ims,j)                                                &
+              ,hgamt=hgamt(ims,j),hgamq=hgamq(ims,j)                           &
+              ,entpbl=entpbl(ims,j),hpbl=hpbl(ims,j)                           &
               ,regime=regime(ims,j),psim=psim(ims,j)                           &
               ,psih=psih(ims,j),xland=xland(ims,j)                             &
               ,hfx=hfx(ims,j),qfx=qfx(ims,j)                                   &
@@ -355,7 +360,7 @@ contains
                   utnp,vtnp,ttnp,qtnp,ndiff,                                   &
                   cp,g,rovcp,rd,rovg,ep1,ep2,karman,xlv,rv,                    &
                   dz8w2d,psfcpa,                                               &
-                  znt,ust,hpbl,psim,psih,                                      &
+                  znt,ust,hgamt,hgamq,entpbl,hpbl,psim,psih,                   &
                   xland,hfx,qfx,wspd,br,                                       &
                   dusfc,dvsfc,dtsfc,dqsfc,                                     &
                   dt,rcl,kpbl1d,                                               &
@@ -491,6 +496,10 @@ contains
 !
    real,     dimension( ims:ime )                                            , &
              intent(inout)   ::                                           ust, &
+                                                                        wstar, &
+                                                                        hgamt, &
+                                                                        hgamq, &
+                                                                       entpbl, &
                                                                          hpbl, &
                                                                           znt
    real,     dimension( ims:ime )                                            , &
@@ -537,7 +546,6 @@ contains
                                                                        govrth, &
                                                                   zl1,thermal, &
                                                                        wscale, &
-                                                                  hgamt,hgamq, &
                                                                     brdn,brup, &
                                                                     phim,phih, &
                                                                   dusfc,dvsfc, &
@@ -596,7 +604,6 @@ contains
 !
 
    real, dimension( its:ite, kts:kte )     ::                wscalek,wscalek2
-   real, dimension( ims:ime )              ::                           wstar
    real, dimension( ims:ime )              ::                           delta
    real, dimension( its:ite, kts:kte )     ::                     xkzml,xkzhl, &
                                                                zfacent,entfac
@@ -1204,6 +1211,7 @@ contains
 ! implicit tke lower boundary condition
    do i = its,ite
      tke_pbl(i,kts)=5.20*ust(i)*ust(i)*0.5
+     entpbl(i) = max(0.,-1.0*we(i))
    enddo
 !
 !     compute tridiagonal matrix elements for heat

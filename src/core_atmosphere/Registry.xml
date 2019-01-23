@@ -489,6 +489,7 @@
                         filename_template="restart.$Y-$M-$D_$h.$m.$s.nc" 
                         input_interval="initial_only" 
                         output_interval="1_00:00:00" 
+                        output_stop="none"
                         immutable="true">
 
 			<var name="latCell"/>
@@ -598,7 +599,7 @@
 			<var name="tday_accum"/>
 			<var name="tyear_mean"/>
 			<var name="tyear_accum"/>
-            <var name="refl10cm"/>
+			<var name="refl10cm"/>
 			<var name="refl10cm_max"/>
 			<var name="i_rainnc"/>
 			<var name="rainncv"/>
@@ -623,6 +624,9 @@
                         <var name="tsq"/>
                         <var name="tke_pbl"/>
                         <var name="wstar"/>
+                        <var name="hgamt"/>
+                        <var name="hgamq"/>
+                        <var name="entpbl"/>
                         <var name="delta"/>
                         <var name="el_pbl"/>
                         <var name="ch"/>
@@ -806,6 +810,7 @@
                         type="output" 
                         filename_template="history.$Y-$M-$D_$h.$m.$s.nc" 
                         output_interval="6:00:00"
+                        output_stop="none"
                         runtime_format="separate_file">
 
 			<var name="latCell"/>
@@ -1045,6 +1050,8 @@
 
             <!-- Begin surface diagnostics defined in diagnostics/Registry_surface.xml -->
             <var name="dewpoint_2m"/>
+            <var name="apcp_bucket"/>
+            <var name="apcp_bucket2"/>
             <var name="rain_bucket"/>
             <var name="conv_bucket"/>
             <var name="snow_bucket"/>
@@ -1053,6 +1060,15 @@
             <var name="refl10cm_prate"/>
             <var name="ncuprec"/>
             <!-- End surface diagnostics defined in diagnostics/Registry_surface.xml -->
+
+            <!-- Begin wind diagnostics defined in diagnostics/Registry_wind.xml -->
+            <var name="uzonal_60m"/>
+            <var name="umeridional_60m"/>
+            <var name="uzonal_80m"/>
+            <var name="umeridional_80m"/>
+            <var name="uzonal_100m"/>
+            <var name="umeridional_100m"/>
+            <!-- End wind diagnostics defined in diagnostics/Registry_wind.xml -->
             
             <!-- Begin accumulated diagnostics defined in diagnostics/Registry_accumulated.xml -->
             <!-- 15-minute accumulation -->
@@ -1893,6 +1909,11 @@
                      description="time interval between reset of precipitation diagnostics"
                      possible_values="`DD_HH:MM:SS' or `none'"/>
 
+                <nml_option name="config_bucket2_precip_interval" type="character" default_value="none"
+                     units="-"
+                     description="2nd of two time intervals between reset of precipitation diagnostics"
+                     possible_values="`DD_HH:MM:SS' or `none'"/>
+
                 <nml_option name="config_physics_suite" type="character" default_value="mesoscale_reference" in_defaults="true"
                      units="-"
                      description="Choice of physics suite"
@@ -2241,6 +2262,18 @@
                 <!-- YSU PBL SCHEME: -->
                 <var name="exch_h" type="real" dimensions="nVertLevels nCells Time" units="m^{2} s^{-1}"
                      description="exchange coefficient"
+                     packages="bl_ysu_in"/>
+
+                <var name="hgamt" type="real" dimensions="nCells Time" units="K"
+                     description="thermal perturbation"
+                     packages="bl_ysu_in"/>
+
+                <var name="hgamq" type="real" dimensions="nCells Time" units="kg kg^{-1}"
+                     description="moisture perturbation"
+                     packages="bl_ysu_in"/>
+
+                <var name="entpbl" type="real" dimensions="nCells Time" units="m^{-1}"
+                     description="entrainment from PBL"
                      packages="bl_ysu_in"/>
 
 

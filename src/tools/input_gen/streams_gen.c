@@ -319,7 +319,7 @@ int generate_streams(ezxml_t registry, FILE* fd, char *stream_file_prefix, int o
 
 void write_stream_header(ezxml_t stream_xml, FILE *fd){/*{{{*/
 	const char *name, *type, *immutable, *filename_template, *filename_interval, *packages, *record_interval;
-	const char *reference_time, *clobber_mode, *precision, *input_interval, *output_interval, *io_type;
+	const char *reference_time, *clobber_mode, *precision, *input_interval, *output_interval, *output_stop, *io_type;
 
 	char spacing[1024];
 
@@ -331,6 +331,7 @@ void write_stream_header(ezxml_t stream_xml, FILE *fd){/*{{{*/
 	clobber_mode = ezxml_attr(stream_xml, "clobber_mode");
 	input_interval = ezxml_attr(stream_xml, "input_interval");
 	output_interval = ezxml_attr(stream_xml, "output_interval");
+        output_stop = ezxml_attr(stream_xml, "output_stop");
 	record_interval = ezxml_attr(stream_xml, "record_interval");
 	precision = ezxml_attr(stream_xml, "precision");
 	io_type = ezxml_attr(stream_xml, "io_type");
@@ -375,6 +376,9 @@ void write_stream_header(ezxml_t stream_xml, FILE *fd){/*{{{*/
 	if ( output_interval != NULL ) {
 		fprintf(fd, "\n%soutput_interval=\"%s\"", spacing, output_interval);
 	}
+        if ( output_stop != NULL ) {
+            fprintf(fd, "\n%soutput_stop=\"%s\"", spacing, output_stop);
+        }
 
 	if (immutable != NULL && strcmp(immutable, "true") == 0){
 		fprintf(fd, " />\n\n");

@@ -337,6 +337,9 @@ real(kind=RKIND),dimension(:,:,:),allocatable:: &
     hpbl_p,           &!PBL height                                                                             [m]
     delta_p,          &!
     wstar_p,          &!
+    hgamt_p,          &!
+    hgamq_p,          &!
+    entpbl_p,         &!
     uoce_p,           &!
     voce_p             !
 

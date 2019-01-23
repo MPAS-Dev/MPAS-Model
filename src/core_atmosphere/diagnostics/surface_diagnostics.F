@@ -60,8 +60,9 @@ module surface_diagnostics
         type (MPAS_pool_type), pointer :: all_pools
         type (MPAS_clock_type), pointer :: simulation_clock
         character(len=StrKIND), pointer :: config_bucket_precip_interval
+        character(len=StrKIND), pointer :: config_bucket2_precip_interval
 
-        type (MPAS_timeInterval_type) :: intv
+        type (MPAS_timeInterval_type) :: intv,intv2
         type (MPAS_time_type) :: now
 
         simulationClock => simulation_clock
@@ -71,16 +72,26 @@ module surface_diagnostics
         call mpas_pool_get_subpool(all_pools, 'diag', diag)
         call mpas_pool_get_subpool(all_pools, 'diag_physics', diag_physics)
         call mpas_pool_get_config(configs, 'config_bucket_precip_interval', config_bucket_precip_interval)
+        call mpas_pool_get_config(configs, 'config_bucket2_precip_interval', config_bucket2_precip_interval)
         call mpas_pool_get_config(configs, 'config_dt', config_dt)
 
         if (trim(config_bucket_precip_interval) == 'none') then
             return
         end if
 
-        ! Set precipitation bucket alarm
+        if (trim(config_bucket2_precip_interval) == 'none') then
+            return
+        end if
+
+        ! Set 1st precipitation bucket alarm
         call MPAS_set_timeInterval(intv, timeString=trim(config_bucket_precip_interval))                                                                    
+        ! Set 2nd precipitation bucket alarm
+        call MPAS_set_timeInterval(intv2, timeString=trim(config_bucket2_precip_interval))                                                                   
         now = MPAS_get_clock_time(simulationClock, MPAS_NOW)
+        ! Set 1st precipitation bucket alarm
         call MPAS_add_clock_alarm(simulationClock, 'precipAlarm', now, alarmTimeInterval=intv)
+        ! Set 2nd precipitation bucket alarm
+        call MPAS_add_clock_alarm(simulationClock, 'precipAlarm2', now, alarmTimeInterval=intv2)
 
     end subroutine surface_diagnostics_setup
 
@@ -117,6 +128,8 @@ module surface_diagnostics
         real (kind=RKIND), dimension(:), pointer :: snow_ratio
 
         ! Precipitation diagnostics (inout)
+        real (kind=RKIND), dimension(:), pointer :: apcp_bucket
+        real (kind=RKIND), dimension(:), pointer :: apcp_bucket2
         real (kind=RKIND), dimension(:), pointer :: rain_bucket
         real (kind=RKIND), dimension(:), pointer :: conv_bucket
         real (kind=RKIND), dimension(:), pointer :: snow_bucket
@@ -148,6 +161,8 @@ module surface_diagnostics
         call mpas_pool_get_array(diag, 'rain_bucket', rain_bucket)
         call mpas_pool_get_array(diag, 'conv_bucket', conv_bucket)
         call mpas_pool_get_array(diag, 'snow_bucket', snow_bucket)
+        call mpas_pool_get_array(diag, 'apcp_bucket', apcp_bucket)
+        call mpas_pool_get_array(diag, 'apcp_bucket2', apcp_bucket2)
         call mpas_pool_get_array(diag, 'zrain_bucket', zrain_bucket)
         call mpas_pool_get_array(diag, 'snow_total', snow_total)
         call mpas_pool_get_array(diag, 'snow_ratio', snow_ratio)
@@ -161,6 +176,8 @@ module surface_diagnostics
         do iCell = 1,nCells
 
             ! Precipitation diagnostics
+            apcp_bucket(iCell) = apcp_bucket(iCell) + raincv(iCell) + rainncv(iCell)
+            apcp_bucket2(iCell) = apcp_bucket2(iCell) + raincv(iCell) + rainncv(iCell)
             rain_bucket(iCell) = rain_bucket(iCell) + max(0., rainncv(iCell) - snowncv(iCell) - graupelncv(iCell))
             conv_bucket(iCell) = conv_bucket(iCell) + raincv(iCell)
             snow_bucket(iCell) = snow_bucket(iCell) + snowncv(iCell) + graupelncv(iCell)
@@ -225,17 +242,29 @@ module surface_diagnostics
         real (kind=RKIND), dimension(:), pointer :: conv_bucket
         real (kind=RKIND), dimension(:), pointer :: snow_bucket
         real (kind=RKIND), dimension(:), pointer :: zrain_bucket
+        real (kind=RKIND), dimension(:), pointer :: apcp_bucket
+        real (kind=RKIND), dimension(:), pointer :: apcp_bucket2
 
+        ! 1st of two precip alarms
         if (MPAS_is_alarm_ringing(simulationClock, 'precipAlarm')) then
             call mpas_pool_get_array(diag, 'rain_bucket', rain_bucket) 
             call mpas_pool_get_array(diag, 'conv_bucket', conv_bucket)
             call mpas_pool_get_array(diag, 'snow_bucket', snow_bucket)
             call mpas_pool_get_array(diag, 'zrain_bucket', zrain_bucket)                               
+            call mpas_pool_get_array(diag, 'apcp_bucket', apcp_bucket)                               
             rain_bucket(:) = 0.
             conv_bucket(:) = 0.
             snow_bucket(:) = 0.
             zrain_bucket(:) = 0.
+            apcp_bucket(:) = 0.
             call MPAS_reset_clock_alarm(simulationClock, 'precipAlarm')
+        end if
+
+        ! 2nd of two precip alarms
+        if (MPAS_is_alarm_ringing(simulationClock, 'precipAlarm2')) then
+            call mpas_pool_get_array(diag, 'apcp_bucket2', apcp_bucket2)
+            apcp_bucket2(:) = 0.
+            call MPAS_reset_clock_alarm(simulationClock, 'precipAlarm2')
         end if
 
     end subroutine surface_diagnostics_reset

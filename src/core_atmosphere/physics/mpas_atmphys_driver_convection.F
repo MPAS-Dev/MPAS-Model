@@ -270,6 +270,11 @@
              if(.not.allocated(dx_p)     ) allocate(dx_p(ims:ime,jms:jme)             )
              if(.not.allocated(rqvften_p)) allocate(rqvften_p(ims:ime,kms:kme,jms:jme))
              if(.not.allocated(rthften_p)) allocate(rthften_p(ims:ime,kms:kme,jms:jme))
+             if(.not.allocated(ust_p)    ) allocate(ust_p(ims:ime,jms:jme)            )
+             if(.not.allocated(wstar_p)  ) allocate(wstar_p(ims:ime,jms:jme)          )
+             if(.not.allocated(hgamt_p)  ) allocate(hgamt_p(ims:ime,jms:jme)          )
+             if(.not.allocated(hgamq_p)  ) allocate(hgamq_p(ims:ime,jms:jme)          )
+             if(.not.allocated(entpbl_p) ) allocate(entpbl_p(ims:ime,jms:jme)         )
 
              do i = its,ite
              do k = kts,kte
@@ -382,6 +387,11 @@
              if(allocated(dx_p)     ) deallocate(dx_p)
              if(allocated(rqvften_p)) deallocate(rqvften_p)
              if(allocated(rthften_p)) deallocate(rthften_p)
+             if(allocated(ust_p)    ) deallocate(ust_p    )
+             if(allocated(wstar_p)  ) deallocate(wstar_p  )
+             if(allocated(hgamt_p)  ) deallocate(hgamt_p  )
+             if(allocated(hgamq_p)  ) deallocate(hgamq_p  )
+             if(allocated(entpbl_p) ) deallocate(entpbl_p )
 
           case default
 
@@ -658,7 +668,7 @@
              pratec    = pratec_p    , qfx         = qfx_p       ,                   &
              hfx       = hfx_p       , xland       = xland_p     ,                   &
              dx        = dx_p        , u3d         = u_p         ,                   &
-             v3d       = v_p         , w           = w_p         ,                   &
+             v3d       = v_p         , w3d         = w_p         ,                   &
              qv3d      = qv_p        , qc3d        = qc_p        ,                   &
              qi3d      = qi_p        , pi3d        = pi_p        ,                   &
              rho3d     = rho_p       , qvften      = rqvften_p   ,                   &
@@ -668,7 +678,9 @@
              f_qs      = f_qs        , rthcuten    = rthcuten_p  ,                   &
              rqvcuten  = rqvcuten_p  , rqccuten    = rqccuten_p  ,                   &
              rqicuten  = rqicuten_p  , rucuten     = rucuten_p   ,                   &
-             rvcuten   = rvcuten_p   ,                                               &
+             rvcuten   = rvcuten_p   , ust         = ust_p       ,                   &
+             wstar     = wstar_p     , hgamt       = hgamt_p     ,                   &
+             hgamq     = hgamq_p     , entpbl      = entpbl_p    ,                   &
              ids = ids , ide = ide , jds = jds , jde = jde , kds = kds , kde = kde , &
              ims = ims , ime = ime , jms = jms , jme = jme , kms = kds , kme = kme , &
              its = its , ite = ite , jts = jts , jte = jte , kts = kts , kte = kte   &
@@ -707,7 +719,7 @@
  real(kind=RKIND),dimension(:),pointer  :: nca,cubot,cutop,cuprec,raincv
  real(kind=RKIND),dimension(:),pointer  :: gsw,hfx,qfx,xland
  real(kind=RKIND),dimension(:),pointer  :: xmb_total,xmb_shallow
- real(kind=RKIND),dimension(:),pointer  :: ust,wstar,zol,hpbl
+ real(kind=RKIND),dimension(:),pointer  :: ust,wstar,zol,hpbl,hgamt,hgamq,entpbl
  real(kind=RKIND),dimension(:,:),pointer:: zgrid
  real(kind=RKIND),dimension(:,:),pointer:: qc_cu,qi_cu
  real(kind=RKIND),dimension(:,:),pointer:: w0avg
@@ -961,17 +973,27 @@
              call mpas_pool_get_array(tend_physics,'rthblten'  ,rthblten  )
              call mpas_pool_get_array(tend_physics,'rthratenlw',rthratenlw)
              call mpas_pool_get_array(tend_physics,'rthratensw',rthratensw)
+             call mpas_pool_get_array(diag_physics,'ust'       ,ust       )
+             call mpas_pool_get_array(diag_physics,'wstar'     ,wstar     )
+             call mpas_pool_get_array(diag_physics,'hgamt'     ,hgamt     )
+             call mpas_pool_get_array(diag_physics,'hgamq'     ,hgamq     )
+             call mpas_pool_get_array(diag_physics,'entpbl'    ,entpbl    )
              
              do j = jts,jte
              do i = its,ite
                 dx_p(i,j) = len_disp / meshDensity(i)**0.25
+                ust_p(i,j) = ust(i)
+                wstar_p(i,j) =wstar(i)
+                hgamt_p(i,j) = hgamt(i)
+                hgamq_p(i,j) = hgamq(i)
+                entpbl_p(i,j) = entpbl(i)
              enddo
 
              do k = kts,kte
              do i = its,ite
                 rqvften_p(i,k,j) = rqvdynten(k,i) + rqvblten(k,i)
                 rthften_p(i,k,j) = (rthdynten(k,i) + rthblten(k,i) &
-                                 + rthratenlw(k,i) + rthratensw(k,i)) * pi_p(i,k,j) 
+                                 + rthratenlw(k,i) + rthratensw(k,i)) * pi_p(i,k,j)
              enddo
              enddo
              enddo

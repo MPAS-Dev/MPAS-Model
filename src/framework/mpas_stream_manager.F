@@ -5810,7 +5810,7 @@ subroutine stream_mgr_add_immutable_stream_fields_c(manager_c, streamID_c, refSt
 end subroutine stream_mgr_add_immutable_stream_fields_c !}}}
 
 
-subroutine stream_mgr_add_alarm_c(manager_c, streamID_c, direction_c, alarmTime_c, alarmInterval_c, ierr_c) bind(c) !{{{
+subroutine stream_mgr_add_alarm_c(manager_c, streamID_c, direction_c, alarmTime_c, alarmInterval_c, alarmStopInterval_c, ierr_c) bind(c) !{{{
 
     use mpas_c_interfacing, only : mpas_c_to_f_string
     use iso_c_binding, only : c_char, c_int, c_ptr, c_f_pointer
@@ -5818,7 +5818,7 @@ subroutine stream_mgr_add_alarm_c(manager_c, streamID_c, direction_c, alarmTime_
                                         MPAS_STREAM_MGR_NOERR, MPAS_STREAM_INPUT, MPAS_STREAM_OUTPUT, MPAS_START_TIME
     use mpas_stream_manager, only : MPAS_stream_mgr_get_clock, MPAS_stream_mgr_add_alarm
     use mpas_kind_types, only : StrKIND
-    use mpas_timekeeping, only : mpas_add_clock_alarm, mpas_set_time, mpas_set_timeInterval, mpas_get_clock_time
+    use mpas_timekeeping, only : mpas_add_clock_alarm, mpas_set_time, mpas_set_timeInterval, mpas_get_clock_time, operator (-)
 
     implicit none
 
@@ -5827,16 +5827,16 @@ subroutine stream_mgr_add_alarm_c(manager_c, streamID_c, direction_c, alarmTime_
     character(kind=c_char) :: direction_c(*)
     character(kind=c_char) :: alarmTime_c(*)
     character(kind=c_char) :: alarmInterval_c(*)
+    character(kind=c_char) :: alarmStopInterval_c(*)
     integer(kind=c_int) :: ierr_c
 
     type (MPAS_streamManager_type), pointer :: manager
     type (MPAS_Clock_type), pointer :: clock
-    character(len=StrKIND) :: streamID, direction, alarmID, alarmTime, alarmInterval
+    character(len=StrKIND) :: streamID, direction, alarmID, alarmTime, alarmInterval, alarmStopInterval
     type (MPAS_Time_type) :: alarmTime_local
-    type (MPAS_TimeInterval_type) :: alarmInterval_local
+    type (MPAS_TimeInterval_type) :: alarmInterval_local, alarmStopInterval_local
     integer :: idirection
     integer :: ierr
-
 
     ierr = 0
 
@@ -5845,6 +5845,7 @@ subroutine stream_mgr_add_alarm_c(manager_c, streamID_c, direction_c, alarmTime_
     call mpas_c_to_f_string(direction_c, direction)
     call mpas_c_to_f_string(alarmTime_c, alarmTime)
     call mpas_c_to_f_string(alarmInterval_c, alarmInterval)
+    call mpas_c_to_f_string(alarmStopInterval_c, alarmStopInterval)
     write(alarmID, '(a)') trim(streamID)//'_'//trim(direction)
 
     ! Nothing to do for this stream
@@ -5870,7 +5871,14 @@ subroutine stream_mgr_add_alarm_c(manager_c, streamID_c, direction_c, alarmTime_
         call mpas_add_clock_alarm(clock, alarmID, alarmTime_local, ierr=ierr)
     else
         call mpas_set_timeInterval(alarmInterval_local, timeString=alarmInterval)
-        call mpas_add_clock_alarm(clock, alarmID, alarmTime_local, alarmTimeInterval=alarmInterval_local, ierr=ierr)
+        if (trim(alarmStopInterval) == 'none') then
+             call mpas_add_clock_alarm(clock, alarmID, alarmTime_local, &
+                 alarmTimeInterval=alarmInterval_local, ierr=ierr)
+        else
+            call mpas_set_timeInterval(alarmStopInterval_local, timeString=alarmStopInterval)
+            call mpas_add_clock_alarm(clock, alarmID, alarmTime_local, alarmTimeInterval=alarmInterval_local, &
+                                  alarmStopInterval=alarmStopInterval_local,ierr=ierr)
+        end if
     end if
 
     call MPAS_stream_mgr_add_alarm(manager, streamID, alarmID, idirection, ierr=ierr)

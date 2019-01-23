@@ -471,8 +471,7 @@ module mpas_timekeeping
    end function mpas_get_clock_time
 
 
-   subroutine mpas_add_clock_alarm(clock, alarmID, alarmTime, alarmTimeInterval, ierr)
-! TODO: possibly add a stop time for recurring alarms
+   subroutine mpas_add_clock_alarm(clock, alarmID, alarmTime, alarmTimeInterval, alarmStopInterval, ierr)
 
       implicit none
 
@@ -480,6 +479,7 @@ module mpas_timekeeping
       character (len=*), intent(in) :: alarmID
       type (MPAS_Time_type), intent(in) :: alarmTime
       type (MPAS_TimeInterval_type), intent(in), optional :: alarmTimeInterval
+      type (MPAS_TimeInterval_type), intent(in), optional :: alarmStopInterval
       integer, intent(out), optional :: ierr
 
       type (MPAS_Alarm_type), pointer :: alarmPtr
@@ -540,6 +540,12 @@ module mpas_timekeeping
             alarmPtr % isRecurring = .false.
             alarmPtr % prevRingTime = alarmTime
          end if
+         if (present(alarmStopInterval)) then
+             alarmPtr % isOutputStopSet = .true.
+             alarmPtr % ringStopInterval = alarmStopInterval
+         else
+             alarmPtr % isOutputStopSet = .false.
+         endif
          if (present(ierr)) then
             if (ierr == ESMF_SUCCESS) ierr = 0
          end if
@@ -729,6 +735,8 @@ module mpas_timekeeping
                
                write(stderrUnit,*) 'isSet', alarmPtr % isSet
 
+               write(stderrUnit,*) 'isOutputStopSet', alarmPtr % isOutputStopSet
+
                call mpas_get_time(alarmPtr % ringTime, dateTimeString=printString, ierr=ierr)
                write(stderrUnit,*) 'ringTime', printString
 
@@ -737,6 +745,9 @@ module mpas_timekeeping
 
                call mpas_get_timeInterval(alarmPtr % ringTimeInterval, timeString=printString, ierr=ierr)
                write(stderrUnit,*) 'ringTimeInterval', printString
+
+               call mpas_get_timeInterval(alarmPtr % ringStopInterval, timeString=printString, ierr=ierr)
+               write(stderrUnit,*) 'ringStopInterval', printString
                
                exit
             end if
@@ -822,10 +833,11 @@ module mpas_timekeeping
       
       type (MPAS_Time_type) :: alarmNow
       type (MPAS_Time_type) :: alarmThreshold
+      type (MPAS_Time_type) :: stopThreshold
 
       alarmNow = mpas_get_clock_time(clock, MPAS_NOW, ierr)
-      alarmThreshold = alarmPtr % ringTime 
-      
+      alarmThreshold = alarmPtr % ringTime
+     
       mpas_in_ringing_envelope = .false.      
                
       if(clock % direction == MPAS_FORWARD) then
@@ -838,10 +850,22 @@ module mpas_timekeeping
             alarmThreshold = alarmPtr % prevRingTime + alarmPtr % ringTimeInterval
          end if
 
-         if (alarmThreshold <= alarmNow) then
-            mpas_in_ringing_envelope = .true.
-         end if
-      else
+        if (alarmPtr % isOutputStopSet) then
+             ! First, if we have an outputStop time, make sure that Now is both prior to stop and alarmThreshold
+             !   (from interval) is within range.
+             stopThreshold = mpas_get_clock_time(clock, MPAS_START_TIME, ierr) + alarmPtr % ringStopInterval
+             if ( (alarmNow <= stopThreshold) .and. (alarmThreshold <= alarmNow) ) then
+                 mpas_in_ringing_envelope = .true.
+             endif
+         else
+             ! Next, since there is not otuput stop, simply make sure that Now is within alarmThreshold
+             !   (from interval) is within range.
+             if (alarmThreshold <= alarmNow) then
+                 mpas_in_ringing_envelope = .true.
+             endif
+         endif
+
+     else
 
          if (present(interval)) then
             alarmNow = alarmNow - interval; 
@@ -851,10 +875,21 @@ module mpas_timekeeping
             alarmThreshold = alarmPtr % prevRingTime - alarmPtr % ringTimeInterval
          end if
             
-         if (alarmThreshold >= alarmNow) then
-            mpas_in_ringing_envelope = .true.
-         end if
-      end if
+         if (alarmPtr % isOutputStopSet) then
+             ! First, if we have an outputStop time, make sure that Now is both prior to stop and alarmThreshold
+             !   (from interval) is within range.
+             stopThreshold = mpas_get_clock_time(clock, MPAS_START_TIME, ierr) - alarmPtr % ringStopInterval
+             if ( (alarmNow >= stopThreshold) .and. (alarmThreshold >= alarmNow) ) then
+                 mpas_in_ringing_envelope = .true.
+             endif
+         else
+             ! Next, since there is not otuput stop, simply make sure that Now is within alarmThreshold
+             !   (from interval) is within range.
+             if (alarmThreshold <= alarmNow) then
+                 mpas_in_ringing_envelope = .true.
+             endif
+         endif
+     end if
 
    end function mpas_in_ringing_envelope
 
