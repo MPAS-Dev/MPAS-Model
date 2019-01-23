@@ -87,6 +87,10 @@
 !   "ice-friendly" aerosols from the Thompson cloud microphysics scheme for use in the RRTMG short-wave radiation
 !   code.
 !   Laura D. Fowler (laura@ucar.edu) / 2019-01-13.
+! * in subroutine driver_radiation_sw, modified the argument list in the call to subroutine rrtmg_sw to include
+!   the optical properties of "water-friendly" and "ice-friendly" aerosols from the Thompson cloud microphysics
+!   scheme.
+!   Laura D. Fowler (laura@ucar.edu) / 2019-01-23.
 
 
  contains
@@ -367,6 +371,7 @@
  enddo
  enddo
 
+ aer_opt = 0
  do n = 1,nbndsw
  do j = jts,jte
  do k = kts,kte
@@ -422,6 +427,7 @@
              call mpas_pool_get_array(mesh,'zgrid',zgrid)
              call mpas_pool_get_array(diag_physics,'taod5502d',taod5502d)
 
+             aer_opt = 3
              do j = jts,jte
              do i = its,ite
                 ht_p(i,j) = zgrid(1,i)
@@ -704,9 +710,11 @@
               o3clim     = o3clim_p     , gsw        = gsw_p         , swcf     = swcf_p   , &
               rthratensw = rthratensw_p , has_reqc   = has_reqc      , has_reqi = has_reqi , &
               has_reqs   = has_reqs     , re_cloud   = recloud_p     , re_ice   = reice_p  , &
-              re_snow    = resnow_p     , swupt      = swupt_p       , swuptc   = swuptc_p , &
-              swdnt      = swdnt_p      , swdntc     = swdntc_p      , swupb    = swupb_p  , &
-              swupbc     = swupbc_p     , swdnb      = swdnb_p       , swdnbc   = swdnbc_p , &
+              re_snow    = resnow_p     , aer_opt    = aer_opt       , tauaer3d = tauaer_p , &
+              ssaaer3d   = ssaaer_p     , asyaer3d   = asyaer_p      , swupt    = swupt_p  , &
+              swuptc     = swuptc_p     , swdnt      = swdnt_p       , swdntc   = swdntc_p , &
+              swupb      = swupb_p      , swupbc     = swupbc_p      , swdnb    = swdnb_p  , &
+              swdnbc     = swdnbc_p     ,                                                    &
               ids = ids , ide = ide , jds = jds , jde = jde , kds = kds , kde = kde ,        &
               ims = ims , ime = ime , jms = jms , jme = jme , kms = kms , kme = kme ,        &
               its = its , ite = ite , jts = jts , jte = jte , kts = kts , kte = kte          &

@@ -142,6 +142,8 @@
 !   Laura D. Fowler (laura@ucar.edu) / 2018-02-26.
 ! * added local variables needed to the calculation of the optical properties of aerosols.
 !   Laura D. Fowler (laura@ucar.edu) / 2019-01-13.
+! * added the option aer_opt needed to the calculation of the optical properties of aerosols.
+!   Laura D. Fowler (laura@ucar.edu) / 2019-01-23.
 
 
 !=================================================================================================================
@@ -645,6 +647,8 @@
  integer,parameter:: taer_angexp_opt = 3!input option for nwfa, nifa aerosol Angstrom exponent.
  integer,parameter:: taer_ssa_opt    = 3!input option for nwfa, nifa aerosol single-scattering albedo.
  integer,parameter:: taer_asy_opt    = 3!input option for nwfa, nifa aerosol asymmetry factor.
+
+ integer:: aer_opt                      !=[0,3]  : 0 for no aerosols, 3 for "water-" and "ice-friendly" aerosols.
  integer,dimension(:,:),allocatable:: &
                      taer_type_p        !=[1,2,3]: 1 for rural, 2 is urban and 3 is maritime in WRF. In MPAS,
                                         !aer_type is initialized as a function of landmask (=1 over land; =2 over
