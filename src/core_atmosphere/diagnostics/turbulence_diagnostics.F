@@ -105,8 +105,8 @@ module turbulence_diagnostics
         end if
         if (mpas_stream_inclusion_count('mwtds', direction=MPAS_STREAM_OUTPUT) > 0) then
             stream_mwtds = .true.
-            allocate(mwtds_terfac(nCells))
-            allocate(mwtds_windtop(nCells))
+            allocate(mwtds_terfac(nCells+1))
+            allocate(mwtds_windtop(nCells+1))
 
             call prepare_mwtds_terfac()
         else
@@ -454,7 +454,7 @@ module turbulence_diagnostics
         allocate(d_diag(nTurbulenceLevels))
         allocate(d_off_diag(nTurbulenceLevels))
 
-        do iCell=1,nCellsSolve
+        do iCell=1,nCells
             d_diag(:) = 0.0
             d_off_diag(:) = 0.0
 
@@ -499,7 +499,7 @@ module turbulence_diagnostics
         call mpas_pool_get_array(diag, 'ngm1', ngm1)
 
         nT = nTurbulenceLevels
-        do iCell=1,nCellsSolve
+        do iCell=1,nCells
             ngm1(1:nT,iCell) = sqrt(u(1:nT,iCell)**2 + v(1:nT,iCell)**2) * deformation(1:nT,iCell)
         end do
 
@@ -554,7 +554,7 @@ module turbulence_diagnostics
         call mpas_pool_get_array(diag, 'invrichno', invri)
         call mpas_pool_get_array(scratch, 'bruntvaisalaSq', nsq)
 
-        do iCell = 1,nCellsSolve
+        do iCell = 1,nCells
             do k = 1,nTurbulenceLevels
                 shearsq = shear(k,iCell)*shear(k,iCell)
                 ri(k,iCell) = max(nsq(k,iCell)/max(shearsq,1.0e-15_RKIND),1e-3_RKIND)
@@ -645,7 +645,7 @@ module turbulence_diagnostics
         end do
 
         ! Compute gradients alone edges
-        do iEdge = 1,nEdgesSolve
+        do iEdge = 1,nCells
             cell1 = cellsOnEdge(1,iEdge)
             cell2 = cellsOnEdge(2,iEdge)
             gTn(:,iEdge) = (temperature(:,cell2) - temperature(:,cell1)) * invDcEdge(iEdge) &
@@ -698,7 +698,7 @@ module turbulence_diagnostics
         allocate(richno_d(nTurbulenceLevels))
 
         fCellsq = omega * omega ! Use omega to approximate f
-        do iCell = 1,nCellsSolve
+        do iCell = 1,nCells
             richno_n = nsq(1:nTurbulenceLevels,iCell) * fCellsq
             richno_d = gTsq(1:nTurbulenceLevels,iCell) * (gravity / temperature(1:nTurbulenceLevels,iCell))**2
             shear_tw(1:nTurbulenceLevels,iCell) = sqrt(richno_d/fCellsq)
@@ -732,14 +732,14 @@ module turbulence_diagnostics
         call mpas_pool_get_array(mesh, 'cellsOnEdge', cellsOnEdge)
         call mpas_pool_get_array(mesh, 'invDcEdge', invDcEdge)
 
-        allocate(gradTer_edge(nEdges))
-        allocate(gTX(nCells))
-        allocate(gTY(nCells))
-        allocate(gTZ(nCells))
-        allocate(gTzonal(nCells))
-        allocate(gTmeridional(nCells))
+        allocate(gradTer_edge(nEdges+1))
+        allocate(gTX(nCells+1))
+        allocate(gTY(nCells+1))
+        allocate(gTZ(nCells+1))
+        allocate(gTzonal(nCells+1))
+        allocate(gTmeridional(nCells+1))
 
-        do iEdge = 1, nEdgesSolve
+        do iEdge = 1, nCells
             cell1 = cellsOnEdge(1,iEdge)
             cell2 = cellsOnEdge(2,iEdge)
             gradTer_edge(iEdge) = (ter(cell2)-ter(cell1)) * invDcEdge(iEdge)
@@ -768,13 +768,13 @@ module turbulence_diagnostics
         real (kind=RKIND), parameter :: terfacMin = 2750.0 ! m
         real (kind=RKIND), parameter :: windtopThreshold = 1500.0 ! m
 
-        allocate(gradTer(nCells))
+        allocate(gradTer(nCells+1))
         call mpas_pool_get_array(mesh, 'zgrid', zgrid)
         ter => zgrid(1,:)
 
         call compute_terrain_gradient(ter,gradTer)
 
-        do iCell = 1,nCellsSolve
+        do iCell = 1,nCells
             ! Compute the terrain height factor
             if (ter(iCell) < heightThreshold .or. gradTer(iCell) < gradThreshold) then
                 mwtds_terfac(iCell) = 0.0_RKIND
@@ -807,7 +807,7 @@ module turbulence_diagnostics
         call mpas_pool_get_array(diag, 'uReconstructMeridional', um)
 
         allocate(wspdsq(nVertLevels))
-        do iCell = 1,nCellsSolve
+        do iCell = 1,nCells
             bltop = mwtds_windtop(iCell)
             wspdsq(1:bltop) = uz(1:bltop,iCell)**2 + um(1:bltop,iCell)**2
             mwtds(iCell) = sqrt(maxval(wspdsq(1:bltop))) * mwtds_terfac(iCell)
@@ -877,8 +877,8 @@ module turbulence_diagnostics
         ! Compute du/dz and dv/dz
         allocate(du(nVertLevels))
         allocate(dv(nVertLevels))
-        allocate(dudz(nVertLevels, nCells))
-        allocate(dvdz(nVertLevels, nCells))
+        allocate(dudz(nVertLevels, nCells+1))
+        allocate(dvdz(nVertLevels, nCells+1))
         do iCell = 1,nCells
             call compute_vert_diff_u_u(u(:,iCell), du, nVertLevels)
             call compute_vert_diff_u_u(v(:,iCell), dv, nVertLevels)
@@ -889,7 +889,7 @@ module turbulence_diagnostics
         call mpas_pool_get_array(diag, 'iawind', iawind)
 
         ! Compute for u * dudx
-        do iEdge = 1,nEdgesSolve
+        do iEdge = 1,nCells
             cell1 = cellsOnEdge(1,iEdge)
             cell2 = cellsOnEdge(2,iEdge)
             gTn(:,iEdge) = (u(:,cell2) - u(:,cell1)) * invDcEdge(iEdge) &
@@ -899,7 +899,7 @@ module turbulence_diagnostics
         iawind(1:nT,:) = (u(1:nT,:) * gTzonal(1:nT,:))**2
 
         ! Compute for v * dvdy
-        do iEdge = 1,nEdgesSolve
+        do iEdge = 1,nCells
             cell1 = cellsOnEdge(1,iEdge)
             cell2 = cellsOnEdge(2,iEdge)
             gTn(:,iEdge) = (v(:,cell2) - v(:,cell1)) * invDcEdge(iEdge) &
@@ -974,7 +974,7 @@ module turbulence_diagnostics
         call mpas_pool_get_array(mesh, 'cellsOnEdge', cellsOnEdge)
 
         allocate(dth(nVertLevels))
-        allocate(dthdz(nVertLevels, nCells))
+        allocate(dthdz(nVertLevels, nCells+1))
 
         ! Compute dth/dz (save)
         do iCell = 1,nCells
@@ -983,7 +983,7 @@ module turbulence_diagnostics
         end do
 
         ! Compute for GradTh (save)
-        do iEdge = 1,nEdgesSolve
+        do iEdge = 1,nCells
             cell1 = cellsOnEdge(1,iEdge)
             cell2 = cellsOnEdge(2,iEdge)
             gTn(:,iEdge) = (th_save(:,cell2) - th_save(:,cell1)) * invDcEdge(iEdge) &
@@ -1002,7 +1002,7 @@ module turbulence_diagnostics
         end do
 
         ! Compute for GradTh (save)
-        do iEdge = 1,nEdgesSolve
+        do iEdge = 1,nCells
             cell1 = cellsOnEdge(1,iEdge)
             cell2 = cellsOnEdge(2,iEdge)
             gTn(:,iEdge) = (th_old(:,cell2) - th_old(:,cell1)) * invDcEdge(iEdge) &
