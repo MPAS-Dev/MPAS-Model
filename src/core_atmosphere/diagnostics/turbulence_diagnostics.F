@@ -645,7 +645,7 @@ module turbulence_diagnostics
         end do
 
         ! Compute gradients alone edges
-        do iEdge = 1,nCells
+        do iEdge = 1,nEdges
             cell1 = cellsOnEdge(1,iEdge)
             cell2 = cellsOnEdge(2,iEdge)
             gTn(:,iEdge) = (temperature(:,cell2) - temperature(:,cell1)) * invDcEdge(iEdge) &
@@ -739,7 +739,7 @@ module turbulence_diagnostics
         allocate(gTzonal(nCells+1))
         allocate(gTmeridional(nCells+1))
 
-        do iEdge = 1, nCells
+        do iEdge = 1, nEdges
             cell1 = cellsOnEdge(1,iEdge)
             cell2 = cellsOnEdge(2,iEdge)
             gradTer_edge(iEdge) = (ter(cell2)-ter(cell1)) * invDcEdge(iEdge)
@@ -889,7 +889,7 @@ module turbulence_diagnostics
         call mpas_pool_get_array(diag, 'iawind', iawind)
 
         ! Compute for u * dudx
-        do iEdge = 1,nCells
+        do iEdge = 1,nEdges
             cell1 = cellsOnEdge(1,iEdge)
             cell2 = cellsOnEdge(2,iEdge)
             gTn(:,iEdge) = (u(:,cell2) - u(:,cell1)) * invDcEdge(iEdge) &
@@ -899,7 +899,7 @@ module turbulence_diagnostics
         iawind(1:nT,:) = (u(1:nT,:) * gTzonal(1:nT,:))**2
 
         ! Compute for v * dvdy
-        do iEdge = 1,nCells
+        do iEdge = 1,nEdges
             cell1 = cellsOnEdge(1,iEdge)
             cell2 = cellsOnEdge(2,iEdge)
             gTn(:,iEdge) = (v(:,cell2) - v(:,cell1)) * invDcEdge(iEdge) &
@@ -983,7 +983,7 @@ module turbulence_diagnostics
         end do
 
         ! Compute for GradTh (save)
-        do iEdge = 1,nCells
+        do iEdge = 1,nEdges
             cell1 = cellsOnEdge(1,iEdge)
             cell2 = cellsOnEdge(2,iEdge)
             gTn(:,iEdge) = (th_save(:,cell2) - th_save(:,cell1)) * invDcEdge(iEdge) &
@@ -1002,7 +1002,7 @@ module turbulence_diagnostics
         end do
 
         ! Compute for GradTh (save)
-        do iEdge = 1,nCells
+        do iEdge = 1,nEdges
             cell1 = cellsOnEdge(1,iEdge)
             cell2 = cellsOnEdge(2,iEdge)
             gTn(:,iEdge) = (th_old(:,cell2) - th_old(:,cell1)) * invDcEdge(iEdge) &
