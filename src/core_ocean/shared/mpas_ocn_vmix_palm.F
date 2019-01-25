@@ -136,11 +136,13 @@ contains
       integer, dimension(:), pointer :: nCellsArray, nEdgesArray
 
       logical, pointer :: config_use_les_for_vmix, config_use_ecosysTracers
-      real (kind=RKIND), pointer :: config_les_dz, config_les_nz, config_les_dt_data_output,   &
+      real (kind=RKIND), pointer :: config_les_dz, config_les_dt_data_output,   &
                                     config_les_dt_disturb, config_les_dt_data_output_av,       &
                                     config_les_dt_dopr, config_les_end_time,                   &
                                     config_les_dt_dots, config_flux_attenuation_coefficient,   &
                                     config_flux_attenuation_coefficient_runoff
+
+      integer, pointer :: config_les_nz
 
       real (kind=RKIND), dimension(:), allocatable :: zonalAverage, meridionalAverage 
       real (kind=RKIND) :: fac, dep1, dep2, fracAbsorbed, fracAbsorbedRunoff,  &
@@ -191,7 +193,7 @@ contains
 
       call mpas_pool_get_array(tracersSurfaceFluxPool, "activeTracersSurfaceFlux", tracerGroupSurfaceFlux)
       call mpas_pool_get_array(tracersSurfaceFluxPool, "activeTracersSurfaceFluxRunoff", tracerGroupSurfaceFluxRunoff)
-      call mpas_pool_get_array(tracersSurfaceFluxPool, "activeTracersSurfaceFluxRemoved", tracerGroupSurfaceFluxRunoff)
+      call mpas_pool_get_array(tracersSurfaceFluxPool, "activeTracersSurfaceFluxRemoved", tracerGroupSurfaceFluxRemoved)
       call mpas_pool_get_array(forcingPool, "surfaceThicknessFlux", surfaceThicknessFlux)
       call mpas_pool_get_array(forcingPool, "surfaceThicknessFluxRunoff", surfaceThicknessFluxRunoff)
       call mpas_pool_get_array(meshPool, 'fCell', fCell)
@@ -273,16 +275,17 @@ contains
          ws_sfc = tracerGroupSurfaceFlux(indexSalinity, iCell) - fracAbsorbed * surfaceThicknessFlux(iCell) *  &
                         activeTracers(indexSalinity,1,iCell)
 
-         uw_sfc = sign(sqrt(stressZonal(iCell) / rho_sw), stressZonal(iCell))
-         
-         vw_sfc = sign(sqrt(stressMeridional(iCell) / rho_sw), stressMeridional(iCell))
+         uw_sfc = sign(sqrt(abs(stressZonal(iCell)) / rho_sw), stressZonal(iCell))
+        
+         vw_sfc = sign(sqrt(abs(stressMeridional(iCell)) / rho_sw), stressMeridional(iCell))
 
          nLevs = maxLevelCell(iCell)
 
+         print *, 'nz = ', config_les_nz, 'dz = ',config_les_dz
          call palm(activeTracers(1,:nLevs,iCell), activeTracers(2,:nLevs,iCell),               &
                 velocityZonal(:nLevs,iCell), velocityMeridional(:nLevs,iCell),                 &
                 layerThickness(:nLevs,iCell), fCell(iCell), nLevs,                             &
-                wt_sfc, penetrativeTemperatureFlux(iCell), ws_sfc, uw_sfc, vw_sfc,             &
+                -wt_sfc, penetrativeTemperatureFlux(iCell), ws_sfc, uw_sfc, vw_sfc,             &
                 fac, dep1, dep2, config_les_dz, config_les_nz, config_les_dt_data_output,      &
                 config_les_dt_disturb, config_les_dt_data_output_av, config_les_dt_dopr,       &
                 config_les_end_time, config_les_dt_dots, tIncrementLES(:nLevs,iCell),          &
@@ -387,7 +390,7 @@ contains
       call mpas_pool_get_dimension(tracersPool, 'index_salinity', indexSalinity)
 
       call mpas_pool_get_array(meshPool, 'maxLevelCell', maxLevelCell)
-      call mpas_pool_get_array(meshPool, 'maxLevelEdge', maxLevelEdge)
+      call mpas_pool_get_array(meshPool, 'maxLevelEdgeTop', maxLevelEdge)
 
       call mpas_pool_get_array(diagnosticsPool, 'tIncrementLES', tIncrementLES)
       call mpas_pool_get_array(diagnosticsPool, 'sIncrementLES', sIncrementLES)

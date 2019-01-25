@@ -4,6 +4,8 @@ cvmix
 BGC
 .BGC_all
 .*.zip
+.les_all
+les
 
 # Ignore processed registry files.
 */Registry_processed.xml
