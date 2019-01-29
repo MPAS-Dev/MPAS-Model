@@ -102,7 +102,7 @@ module snowratio_diagnostics
         real (kind=RKIND), parameter :: snow_ratio_default = 1.
         real (kind=RKIND), parameter :: snow_ratio_static = 10.
         real (kind=RKIND), parameter :: snow_ratio_min = 6.
-        real (kind=RKIND), parameter :: snow_ratio_max = 16.
+        real (kind=RKIND), parameter :: snow_ratio_max = 18.
         real (kind=RKIND), parameter :: rh_cloud = 70.
 
         call mpas_pool_get_dimension(mesh, 'nCells', nCells)
@@ -189,21 +189,21 @@ module snowratio_diagnostics
            cobb_table(7)=9.0
            cobb_table(8)=9.5
            cobb_table(9)=10.0
-           cobb_table(10)=10.5
-           cobb_table(11)=11.0
-           cobb_table(12)=11.5
-           cobb_table(13)=12.0
-           cobb_table(14)=13.0
-           cobb_table(15)=14.0
-           cobb_table(16)=15.0
-           cobb_table(17)=16.0
-           cobb_table(18)=15.0
-           cobb_table(19)=14.0
-           cobb_table(20)=13.0
-           cobb_table(21)=12.0
-           cobb_table(22)=11.5
-           cobb_table(23)=11.0
-           cobb_table(24)=10.5
+           cobb_table(10)=11.0
+           cobb_table(11)=12.0
+           cobb_table(12)=13.0
+           cobb_table(13)=14.0
+           cobb_table(14)=15.0
+           cobb_table(15)=16.0
+           cobb_table(16)=17.0
+           cobb_table(17)=18.0
+           cobb_table(18)=17.0
+           cobb_table(19)=16.0
+           cobb_table(20)=15.0
+           cobb_table(21)=14.0
+           cobb_table(22)=13.0
+           cobb_table(23)=12.0
+           cobb_table(24)=11.0
            cobb_table(25)=10.0
            cobb_table(26)=9.0
            cobb_table(27)=8.0
