@@ -338,7 +338,7 @@ module aviation_diagnostics
                     end if
                 end do
             end if
-            ! k_echotop = MAX(k_echotop, MIN(nVertLevels-1, int(cutop(iCell))))
+            k_echotop = MAX(k_echotop, MIN(nVertLevels-1, int(cutop(iCell))))
 
             ! Convert echotop index to height AGL
             if (k_echotop <= 1) then
