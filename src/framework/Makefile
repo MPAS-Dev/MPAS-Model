@@ -102,11 +102,6 @@ mpas_stream_manager.o: mpas_io_streams.o mpas_timekeeping.o mpas_derived_types.o
 
 mpas_forcing.o: mpas_derived_types.o mpas_timekeeping.o mpas_stream_manager.o mpas_log.o mpas_io_units.o
 
-mpas_c_interfacing.o:
-
-xml_stream_parser.o: xml_stream_parser.c
-	$(CC) $(CFLAGS) $(CPPFLAGS) $(CPPINCLUDES) -I../external/ezxml -c xml_stream_parser.c
-
 mpas_field_accessor.o: mpas_derived_types.o mpas_kind_types.o mpas_pool_routines.o mpas_log.o
 
 clean:
@@ -121,7 +116,7 @@ ifeq "$(GEN_F90)" "true"
 	$(CPP) $(CPPFLAGS) $(CPPINCLUDES) $< > $*.f90
 	$(FC) $(FFLAGS) -c $*.f90 $(FCINCLUDES) -I../external/esmf_time_f90
 else
-	$(FC) $(CPPFLAGS) $(FFLAGS) -c $*.F $(CPPINCLUDES) $(FCINCLUDES) -I../external/esmf_time_f90
+	$(FC) $(CPPFLAGS) $(FFLAGS) -c $< $(CPPINCLUDES) $(FCINCLUDES) -I../external/esmf_time_f90
 endif
 
 .c.o:

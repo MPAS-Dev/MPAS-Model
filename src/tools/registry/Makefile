@@ -14,16 +14,6 @@ ezxml:
 parse: $(OBJS)
 	$(CC) $(CPPFLAGS) $(CFLAGS) $(EZXML_PATH)/ezxml.o  -I$(EZXML_PATH) -o $@ $(OBJS)
 
-parse.o:
-
-dictionary.o:
-
-gen_inc.o:
-
-fortprintf.o:
-
-utility.o:
-
 clean:
 	$(RM) *.o parse
 	@# Certain systems with intel compilers generate *.i files
