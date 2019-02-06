@@ -60,17 +60,9 @@ mpas_init_atm_cases.o: \
 
 mpas_init_atm_hinterp.o: mpas_init_atm_queue.o mpas_init_atm_bitarray.o
 
-mpas_advection.o: 
-
-mpas_init_atm_read_met.o:
-
-read_geogrid.o:
-
-mpas_init_atm_llxy.o:
-
 mpas_init_atm_core_interface.o: mpas_init_atm_core.o
 
-mpas_init_atm_core.o: mpas_advection.o mpas_init_atm_cases.o
+mpas_init_atm_core.o: mpas_init_atm_cases.o
 
 mpas_init_atm_static.o: \
 	mpas_atm_advection.o \
@@ -102,7 +94,7 @@ ifeq "$(GEN_F90)" "true"
 	$(CPP) $(CPPFLAGS) $(CPPINCLUDES) $< > $*.f90
 	$(FC) $(FFLAGS) -c $*.f90 $(FCINCLUDES) -I../framework -I../operators  -I../external/esmf_time_f90
 else
-	$(FC) $(CPPFLAGS) $(FFLAGS) -c $*.F $(CPPINCLUDES) $(FCINCLUDES) -I../framework -I../operators  -I../external/esmf_time_f90
+	$(FC) $(CPPFLAGS) $(FFLAGS) -c $< $(CPPINCLUDES) $(FCINCLUDES) -I../framework -I../operators  -I../external/esmf_time_f90
 endif
 
 .c.o:

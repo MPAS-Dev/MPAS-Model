@@ -16,15 +16,13 @@ convective_diagnostics.o: mpas_atm_diagnostics_utils.o
 
 pv_diagnostics.o: mpas_atm_diagnostics_utils.o
 
-soundings.o:
-
 
 ################### Generally no need to modify below here ###################
 
 
 OBJS = mpas_atm_diagnostics_manager.o mpas_atm_diagnostics_utils.o
 
-all: $(DIAGNOSTIC_MODULS) $(OBJS)
+all: $(DIAGNOSTIC_MODULES) $(OBJS)
 
 mpas_atm_diagnostics_manager.o: mpas_atm_diagnostics_utils.o $(DIAGNOSTIC_MODULES)
 
@@ -40,5 +38,5 @@ ifeq "$(GEN_F90)" "true"
 	$(CPP) $(CPPFLAGS) $(PHYSICS) $(CPPINCLUDES) $< > $*.f90
 	$(FC) $(FFLAGS) -c $*.f90 $(FCINCLUDES) -I../../framework -I../../operators -I../dynamics -I../physics -I../physics/physics_wrf -I../../external/esmf_time_f90
 else
-	$(FC) $(CPPFLAGS) $(PHYSICS) $(FFLAGS) -c $*.F $(CPPINCLUDES) $(FCINCLUDES) -I../../framework -I../../operators -I../dynamics -I../physics -I../physics/physics_wrf -I../../external/esmf_time_f90
+	$(FC) $(CPPFLAGS) $(PHYSICS) $(FFLAGS) -c $< $(CPPINCLUDES) $(FCINCLUDES) -I../../framework -I../../operators -I../dynamics -I../physics -I../physics/physics_wrf -I../../external/esmf_time_f90
 endif
