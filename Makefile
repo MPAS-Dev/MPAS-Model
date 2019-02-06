@@ -401,41 +401,37 @@ FCINCLUDES =
 LIBS = 
 ifneq ($(wildcard $(PIO)/lib), ) # Check for newer PIO version
 ifeq "$(USE_PIO2)" "true"
-	CPPINCLUDES = -DUSE_PIO2 -I$(PIO)/include
-	FCINCLUDES = -DUSE_PIO2 -I$(PIO)/include
+	CPPINCLUDES = -DUSE_PIO2
+	FCINCLUDES = -I$(PIO)/include
 	LIBS = -L$(PIO)/lib -lpiof -lpioc
 ifneq ($(wildcard $(PIO)/lib/libgptl.a), ) # Check for GPTL library for PIO2
 	LIBS += -lgptl
 endif
 else
-	CPPINCLUDES = -I$(PIO)/include
+	CPPINCLUDES = 
 	FCINCLUDES = -I$(PIO)/include
 	LIBS = -L$(PIO)/lib -lpio
 endif
 else
 ifeq "$(USE_PIO2)" "true"
-	CPPINCLUDES = -DUSE_PIO2 -I$(PIO)/include
-	FCINCLUDES = -DUSE_PIO2 -I$(PIO)/include
+	CPPINCLUDES = -DUSE_PIO2
+	FCINCLUDES = -I$(PIO)/include
 	LIBS = -L$(PIO) -lpiof -lpioc
 ifneq ($(wildcard $(PIO)/libgptl.a), ) # Check for GPTL library for PIO2
 	LIBS += -lgptl
 endif
 else
-	CPPINCLUDES = -I$(PIO)
+	CPPINCLUDES = 
 	FCINCLUDES = -I$(PIO)
 	LIBS = -L$(PIO) -lpio
 endif
 endif
 
 ifneq "$(PNETCDF)" ""
-	CPPINCLUDES += -I$(PNETCDF)/include
-	FCINCLUDES += -I$(PNETCDF)/include
 	LIBS += -L$(PNETCDF)/lib -lpnetcdf
 endif
 
 ifneq "$(NETCDF)" ""
-	CPPINCLUDES += -I$(NETCDF)/include
-	FCINCLUDES += -I$(NETCDF)/include
 	LIBS += -L$(NETCDF)/lib
 	NCLIB = -lnetcdf
 	NCLIBF = -lnetcdff
