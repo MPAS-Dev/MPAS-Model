@@ -136,7 +136,7 @@ contains
                 ,raincv,pratec,qfx,znu                          &
                 ,u3d,v3d,w,t3d,qv3d,qc3d,qi3d,pi3d,rho3d        &
                 ,qvften,qvpblten                                &
-                ,dz8w,pcps,p8w,xland,cu_act_flag                &
+                ,dz8w,pcps,p8w,xland,dx,cubot,cutop,cu_act_flag &
                 ,ids,ide, jds,jde, kds,kde                      &
                 ,ims,ime, jms,jme, kms,kme                      &
                 ,its,ite, jts,jte, kts,kte                      &
@@ -208,13 +208,21 @@ contains
 
       real,    intent(in) ::                                            &
                                         dt
-
+#if defined(mpas)
+      real,    dimension(ims:ime, jms:jme), intent(in) ::               &
+                                        dx
+#elif defined(wrfmodel)
+      real,    intent(in) ::            dx
+#endif
 
       real,    dimension(ims:ime, jms:jme), intent(in) ::               &
                                         xland
 
       real,    dimension(ims:ime, jms:jme), intent(inout) ::            &
                                         raincv, pratec
+
+      real,    dimension(ims:ime, jms:jme), intent(out) ::              &
+                                        cubot, cutop
 
       logical, dimension(ims:ime,jms:jme), intent(inout) ::             &
                                         cu_act_flag
@@ -433,7 +441,7 @@ contains
       enddo
 !########################################################################
       call tiecnv(u1,v1,t1,q1,q2,q3,q1b,q1bl,ght,omg,prsl,prsi,evap,             &
-                  rn,slimsk,ktype,im,kx,kx+1,sig1,delt)                 
+                  rn,slimsk,ktype,im,kx,kx+1,sig1,delt,dx,cubot,cutop)                 
 
       do i=its,ite
          raincv(i,j)=rn(i)/stepcu
@@ -556,8 +564,9 @@ contains
 !********************************************************
 !        subroutine tiecnv
 !********************************************************
-      subroutine tiecnv(pu,pv,pt,pqv,pqc,pqi,pqvf,pqvbl,poz,pomg,  &
-               pap,paph,evap,zprecc,lndj,ktype,lq,km,km1,sig1,dt)
+      subroutine tiecnv(pu,pv,pt,pqv,pqc,pqi,pqvf,pqvbl,poz,pomg,   &
+               pap,paph,evap,zprecc,lndj,ktype,lq,km,km1,sig1,dt,   &
+               dx,cubot,cutop)
 !-----------------------------------------------------------------
 !  this is the interface between the meso-scale model and the mass 
 !  flux convection module
@@ -580,8 +589,10 @@ contains
 !mpas specific (Laura D. Fowler/2016-08-18):
       real sig(km1)
       real sig1(lq,km)
+      real dx(lq)
 #else
       real sig(km1),sig1(km)
+      real dx
 #endif
       integer icbot(lq),   ictop(lq),     ktype(lq),   lndj(lq)
       real  dt
@@ -592,6 +603,28 @@ contains
       integer i,j,k,lq,lp,km,km1
 !     real tlucua
 !     external tlucua
+
+!bw --------------------------------------------------
+      integer iscale
+      real scale_aware(lq),dxref
+      real cubot(lq),cutop(lq)
+
+      iscale = 1
+      dxref = 15000.
+
+      do j=1,lq
+        scale_aware(j) = 1.
+#if defined(mpas)
+        if (iscale.eq.1.and.dx(j).lt.dxref) then
+          scale_aware(j) = (1.+log(dxref/dx(j)))**2
+        end if
+#else
+        if (iscale.eq.1.and.dx.lt.dxref) then
+          scale_aware(j) = (1.+log(dxref/dx))**2
+        end if
+#endif
+      end do
+!bw --------------------------------------------------
 
       ztmst=dt
 !  masv flux diagnostics.
@@ -647,7 +680,7 @@ contains
           ktype,    icbot,    ictop,    ztu,     zqu,    &
           zlu,      zlude,    zmfu,     zmfd,    zrain,  &
           psrain,   psevap,   psheat,   psdiss,  psmelt, &
-          pcte,     sig1,     lndj)
+          pcte,     sig1,     lndj,     scale_aware    )
 !
 !     to include the cloud water and cloud ice detrained from convection
 !
@@ -685,7 +718,16 @@ contains
       end do
       do j=1,lq
         zprecc(j)=amax1(0.0,(prsfc(j)+pssfc(j))*ztmst)
+!bw
+        if(ktype(j).eq.1) then
+          cubot(j)=float(km-icbot(j))
+          cutop(j)=float(km-max(1,ictop(j)))
+        else
+          cubot(j)=0.
+          cutop(j)=0.
+        endif
       end do
+!bw
       if (lmfdudv) then
         do  k=1,km
           do j=1,lq
@@ -715,7 +757,7 @@ contains
           ktype,    kcbot,    kctop,    ptu,      pqu,   &
           plu,      plude,    pmfu,     pmfd,     prain, &
           psrain,   psevap,   psheat,   psdiss,   psmelt,& 
-          pcte,     sig1,     lndj)
+          pcte,     sig1,     lndj,     scale_aware     )
 !
 !***cumastr*  master routine for cumulus massflux-scheme
 !     m.tiedtke      e.c.m.w.f.     1986/1987/1989
@@ -837,6 +879,7 @@ contains
 #else
       real     sig1(klev)
 #endif
+      real scale_aware(klon)
       integer  ilab(klon,klev),        idtop(klon),   &
               ictop0(klon),           ilwmin(klon)    
       integer  kcbot(klon),            kctop(klon),   &
@@ -985,7 +1028,10 @@ contains
         if (ihmin(jl).lt.ictop0(jl)) ihmin(jl) = ictop0(jl)
       end if
       if(ktype(jl).eq.1) then
-        zentr(jl)=entrpen
+!       zentr(jl)=entrpen
+!bw
+        zentr(jl)=entrpen*scale_aware(jl)
+!bw
       else
         zentr(jl)=entrscv
       endif
@@ -1002,7 +1048,7 @@ contains
           zuu,      zvu,      pmfu,     zmfub,    zentr,   &
           zmfus,    zmfuq,    zmful,    plude,    zdmfup,  &
           kcbot,    kctop,    ictop0,   icum,     ztmst,   &
-          ihmin,    zhhatt,   zqsenh)
+          ihmin,    zhhatt,   zqsenh,   scale_aware      )
       if(icum.eq.0) return
 !*     (c) check cloud depth and change entrainment rate accordingly
 !          calculate precipitation rate (for downdraft calculation)
@@ -1084,7 +1130,10 @@ contains
        enddo
 !
        if(zrelh(jl).ge.crirh) then
-         zht=max(0.0,(zcape(jl)-0.0))/(ztau*zheat(jl))
+!        zht=max(0.0,(zcape(jl)-0.0))/(ztau*zheat(jl))
+!bw
+         zht=max(0.0,(zcape(jl)-0.0))/(ztau*scale_aware(jl)*zheat(jl))
+!bw
          zmfub1(jl)=max(zmfub(jl)*zht,0.01)
          zmfmax=(paph(jl,ikb)-paph(jl,ikb-1))*zcons2
          zmfub1(jl)=min(zmfub1(jl),zmfmax)
@@ -1164,7 +1213,7 @@ contains
           zuu,      zvu,      pmfu,     zmfub,    zentr,  &
           zmfus,    zmfuq,    zmful,    plude,    zdmfup, &
           kcbot,    kctop,    ictop0,   icum,     ztmst,  &
-          ihmin,    zhhatt,   zqsenh)
+          ihmin,    zhhatt,   zqsenh,   scale_aware     )
 !----------------------------------------------------------
 !*    7.0      determine final convective fluxes in 'cuflx'
 !----------------------------------------------------------
@@ -1521,7 +1570,7 @@ contains
           puu,      pvu,      pmfu,     pmfub,    pentr,  &
           pmfus,    pmfuq,    pmful,    plude,    pdmfup, & 
           kcbot,    kctop,    kctop0,   kcum,     ztmst,  &
-          khmin,    phhatt,   pqsenh)
+          khmin,    phhatt,   pqsenh,   scale_aware     )
 !     this routine does the calculations for cloud ascents
 !     for cumulus parameterization
 !     m.tiedtke         e.c.m.w.f.     7/86 modif.  12/89
@@ -1628,6 +1677,7 @@ contains
               kctop(klon),            kctop0(klon),      &
               khmin(klon)
       logical  ldcum(klon),            loflag(klon)
+      real    scale_aware(klon)
 !--------------------------------
 !*    1.       specify parameters
 !--------------------------------
@@ -1714,7 +1764,8 @@ contains
           pgeo,     pgeoh,    ldcum,    ktype,   klab,  &
           pmfu,     pmfub,    pentr,    kcbot,   ptu,   &
           pqu,      plu,      puu,     pvu,      pmfus, &
-          pmfuq,    pmful,    pdmfup,  zmfuu,    zmfuv)
+          pmfuq,    pmful,    pdmfup,  zmfuu,    zmfuv, &
+          scale_aware                                 )
       endif
       is=0
       do jl=1,klon
@@ -2673,7 +2724,8 @@ contains
           pgeo,     pgeoh,    ldcum,   ktype,  klab,  &
           pmfu,     pmfub,    pentr,   kcbot,  ptu,   &
           pqu,      plu,      puu,     pvu,    pmfus, &
-          pmfuq,    pmful,    pdmfup,  pmfuu,  pmfuv) 
+          pmfuq,    pmful,    pdmfup,  pmfuu,  pmfuv, &
+          scale_aware                               ) 
 !      m.tiedtke         e.c.m.w.f.     12/89
 !***purpose.
 !   --------
@@ -2697,20 +2749,21 @@ contains
       integer   klon, klev, klevp1
       integer   klevm1,kk, jl
       real      zzzmb
-      real     pten(klon,klev),        pqen(klon,klev),  &
+      real    pten(klon,klev),        pqen(klon,klev),   &
               puen(klon,klev),        pven(klon,klev),   &
               pqsen(klon,klev),       pverv(klon,klev),  & 
               pgeo(klon,klev),        pgeoh(klon,klev)
-      real     ptu(klon,klev),         pqu(klon,klev),   &
+      real    ptu(klon,klev),         pqu(klon,klev),    &
               puu(klon,klev),         pvu(klon,klev),    &
               plu(klon,klev),         pmfu(klon,klev),   &
               pmfub(klon),            pentr(klon),       &
               pmfus(klon,klev),       pmfuq(klon,klev),  &
               pmful(klon,klev),       pdmfup(klon,klev), &
               pmfuu(klon),            pmfuv(klon)
-      integer  ktype(klon),            kcbot(klon),      &
+      integer ktype(klon),            kcbot(klon),       &
               klab(klon,klev)
-      logical  ldcum(klon)
+      logical ldcum(klon)
+      real    scale_aware(klon)
 !--------------------------------------------------------
 !*    1.      calculate entrainment and detrainment rates
 ! -------------------------------------------------------
@@ -2723,7 +2776,10 @@ contains
             plu(jl,kk+1)=0.
             zzzmb=max(cmfcmin,-pverv(jl,kk)/g)
             zzzmb=min(zzzmb,cmfcmax)
-            pmfub(jl)=zzzmb
+!           pmfub(jl)=zzzmb
+!bw
+            pmfub(jl)=zzzmb/scale_aware(jl)
+!bw
             pmfu(jl,kk+1)=pmfub(jl)
             pmfus(jl,kk+1)=pmfub(jl)*(cpd*ptu(jl,kk+1)+pgeoh(jl,kk+1))
             pmfuq(jl,kk+1)=pmfub(jl)*pqu(jl,kk+1)
@@ -2732,7 +2788,10 @@ contains
             kcbot(jl)=kk
             klab(jl,kk+1)=1
             ktype(jl)=3
-            pentr(jl)=entrmid
+!           pentr(jl)=entrmid
+!bw
+            pentr(jl)=entrmid*scale_aware(jl)
+!bw
                if(lmfdudv) then
                   puu(jl,kk+1)=puen(jl,kk)
                   pvu(jl,kk+1)=pven(jl,kk)

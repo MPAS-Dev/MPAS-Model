@@ -2145,6 +2145,12 @@
                      description="time-step convective precipitation"
                      packages="cu_grell_freitas_in;cu_kain_fritsch_in;cu_kain_fritsch_ms_in;cu_tiedtke_in"/>
 
+                <var name="cubot" type="real" dimensions="nCells Time" units="unitless" default_value="0" in_defaults="false"
+                     description="index of highest level of convection"/>
+
+                <var name="cutop" type="real" dimensions="nCells Time" units="unitless" default_value="0" in_defaults="false"
+                     description="index of lowest level of convection"/>
+
 
                 <!-- ... KAIN_FRITSCH ONLY: -->
                 <var name="nca" type="real" dimensions="nCells Time" units="s"
@@ -2210,16 +2216,6 @@
                 <var name="qi_cu" type="real" dimensions="nVertLevels nCells Time" units="kg kg^{-1}"
                      description="in-cloud cloud ice mixing ratio in Grell-Freitas cloud model"
                      packages="cu_grell_freitas_in"/>
-
-
-                <!-- ... KAIN_FRITSCH AND GRELL-FREITAS: -->
-                <var name="cubot" type="real" dimensions="nCells Time" units="unitless"
-                     description="index of highest level of convection"
-                     packages="cu_grell_freitas_in;cu_kain_fritsch_in;cu_kain_fritsch_ms_in"/>
-
-                <var name="cutop" type="real" dimensions="nCells Time" units="unitless"
-                     description="index of lowest level of convection"
-                     packages="cu_grell_freitas_in;cu_kain_fritsch_in;cu_kain_fritsch_ms_in"/>
 
 
                 <!-- ================================================================================================== -->

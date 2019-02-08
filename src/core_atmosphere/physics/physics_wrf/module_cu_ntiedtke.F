@@ -46,19 +46,29 @@
 module module_cu_ntiedtke
 
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+#if defined(mpas)
      use mpas_atmphys_constants, only: rd=>R_d, rv=>R_v, &
    &       cpd=>cp, alv=>xlv, als=>xls, alf=>xlf, g=>gravity
+#else
+     use module_model_constants, only:rd=>r_d, rv=>r_v, &
+   &       cpd=>cp, alv=>xlv, als=>xls, alf=>xlf, t13=>Prandtl, g
+#endif
 
      implicit none
      real,private :: rcpd,vtmpc1,tmelt,                &
              c1es,c2es,c3les,c3ies,c4les,c4ies,c5les,c5ies,zrg
+#if defined(mpas)
      real,private :: t13
+#endif
      real,private :: r5alvcp,r5alscp,ralvdcp,ralsdcp,ralfdcp,rtwat,rtber,rtice 
      real,private :: entrdd,cmfcmax,cmfcmin,cmfdeps,zdnoprc,cprcon,pgcoef
      integer,private :: momtrans
 
      parameter(         &
+#if defined(mpas)
+! parameter not present in mpas_atmphy_constants
       t13=1.0/3.0,      &
+#endif
       rcpd=1.0/cpd,     &
       tmelt=273.16,     &
       zrg=1.0/g,        &
@@ -83,7 +93,7 @@ module module_cu_ntiedtke
 !     entrdd: average entrainment & detrainment rate for downdrafts
 !     ------
 !
-      parameter(entrdd = 2.5e-4)
+      parameter(entrdd = 2.0e-4)
 !
 !     cmfcmax:   maximum massflux value allowed for updrafts etc
 !     -------
@@ -144,8 +154,8 @@ contains
                 ,raincv,pratec,qfx,hfx                          &
                 ,u3d,v3d,w3d,t3d,qv3d,qc3d,qi3d,pi3d,rho3d      &
                 ,qvften,thften                                  &
-                ,dz8w,pcps,p8w,xland,cu_act_flag,dx,ust         &
-                ,wstar,hgamt,hgamq,entpbl                       &
+                ,dz8w,pcps,p8w,xland,cu_act_flag,cubot,cutop    &
+                ,dx,ust,wstar,hgamt,hgamq,entpbl                &
                 ,ids,ide, jds,jde, kds,kde                      &
                 ,ims,ime, jms,jme, kms,kme                      &
                 ,its,ite, jts,jte, kts,kte                      &
@@ -225,6 +235,9 @@ contains
 
       real,    dimension(ims:ime, jms:jme), intent(inout) ::            &
                                         raincv, pratec
+
+      real,    dimension(ims:ime, jms:jme), intent(out) ::              &
+                                        cubot, cutop
 
       logical, dimension(ims:ime,jms:jme), intent(inout) ::             &
                                         cu_act_flag
@@ -437,7 +450,8 @@ contains
 !
 !########################################################################
       call tiecnvn(u1,v1,w1,t1,q1,q2,q3,q1b,t1b,ghtl,ghti,omg,prsl,prsi,evap,heatflux,  &
-                  rn,slimsk,im,kx,kx1,delt,dx,ust1,wst1,hgamt1,hgamq1,entpbl1,ktype)
+                  rn,slimsk,im,kx,kx1,delt,dx,ust1,wst1,hgamt1,hgamq1,entpbl1,ktype,    &
+                  cubot,cutop)
 
       do i=its,ite
          raincv(i,j)=rn(i)/stepcu
@@ -582,7 +596,7 @@ contains
 !-----------------------------------------------------------------
       subroutine tiecnvn(pu,pv,pw,pt,pqv,pqc,pqi,pqvf,ptf,poz,pzz,pomg, &
      &         pap,paph,evap,hfx,zprecc,lndj,lq,km,km1,dt,dx,ust,wst,   &
-     &         hgamt,hgamq,entpbl,ktype)
+     &         hgamt,hgamq,entpbl,ktype,cubot,cutop)
 !-----------------------------------------------------------------
 !  this is the interface between the model and the mass 
 !  flux convection module
@@ -612,7 +626,7 @@ contains
       integer i,j,k,lq,km,km1
       real dt,ztpp1
       real zew,zqs,zcor,dxref
-      real scale_tau(lq),scale_mf(lq)
+      real scale_tau(lq),scale_mf(lq),cubot(lq),cutop(lq)
       integer iscale
 
       iscale = 1
@@ -710,6 +724,13 @@ contains
 
       do j=1,lq
         zprecc(j)=amax1(0.0,(prsfc(j)+pssfc(j))*ztmst)
+        if(ktype(j).eq.1) then
+          cubot(j)=float(km-icbot(j))
+          cutop(j)=float(km-max(1,ictop(j)))
+        else
+          cubot(j)=0.
+          cutop(j)=0.
+        endif
       end do
 
       if (lmfdudv) then
@@ -1038,7 +1059,7 @@ contains
         if(lndj(jl) .eq. 0) then 
           upbl(jl) = 2.+ upbl(jl)/(paph(jl,klev+1)-paph(jl,ikb))
           ztaubl(jl) = (zgeoh(jl,ikb)-zgeoh(jl,klev+1))/(g*upbl(jl))
-          ztaubl(jl) = min(720., ztaubl(jl))
+          ztaubl(jl) = min(300.,ztaubl(jl))
         else
           ztaubl(jl) = ztauc(jl)
         end if
@@ -1077,7 +1098,7 @@ contains
            wspdb = sqrt(puen(jl,ikb)**2+pven(jl,ikb)**2)
            wspdm = sqrt(puen(jl,ikm)**2+pven(jl,ikm)**2)
            ztaua = dx(jl)/max(1.,(wspdb+wspdm)*0.50)
-           ztau = max(720.,ztaua,ztmst,ztauc(jl))
+           ztau = max(360.,ztmst,ztauc(jl))
            ztau = min(10800.,ztau)
            ztau = ztau*scale_tau(jl)
            if(nonequil) then

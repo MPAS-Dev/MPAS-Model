@@ -228,6 +228,9 @@
        enddo
 
     case ("cu_tiedtke","cu_ntiedtke")
+       if(.not.allocated(cubot_p)      ) allocate(cubot_p(ims:ime,jms:jme)              )
+       if(.not.allocated(cutop_p)      ) allocate(cutop_p(ims:ime,jms:jme)              )
+       if(.not.allocated(dx_p)         ) allocate(dx_p(ims:ime,jms:jme)                 )
        if(.not.allocated(hfx_p)        ) allocate(hfx_p(ims:ime,jms:jme)                )
        if(.not.allocated(qfx_p)        ) allocate(qfx_p(ims:ime,jms:jme)                )
        if(.not.allocated(xland_p)      ) allocate(xland_p(ims:ime,jms:jme)              )
@@ -236,6 +239,8 @@
 
        do i = its,ite
        do j = jts,jte
+          cubot_p(i,j) = DBLE(kte+1)
+          cutop_p(i,j) = DBLE(kts)
           hfx_p(i,j)   = 0._RKIND
           qfx_p(i,j)   = 0._RKIND
           xland_p(i,j) = 0._RKIND
@@ -267,7 +272,6 @@
              enddo
 
           case("cu_ntiedtke")
-             if(.not.allocated(dx_p)     ) allocate(dx_p(ims:ime,jms:jme)             )
              if(.not.allocated(rqvften_p)) allocate(rqvften_p(ims:ime,kms:kme,jms:jme))
              if(.not.allocated(rthften_p)) allocate(rthften_p(ims:ime,kms:kme,jms:jme))
              if(.not.allocated(ust_p)    ) allocate(ust_p(ims:ime,jms:jme)            )
@@ -371,6 +375,9 @@
        if(allocated(rqvften_p)     ) deallocate(rqvften_p     )
 
     case ("cu_tiedtke","cu_ntiedtke")
+       if(allocated(cubot_p)      ) deallocate(cubot_p      )
+       if(allocated(cutop_p)      ) deallocate(cutop_p      )
+       if(allocated(dx_p)         ) deallocate(dx_p         )
        if(allocated(hfx_p)        ) deallocate(hfx_p        )
        if(allocated(qfx_p)        ) deallocate(qfx_p        )
        if(allocated(xland_p)      ) deallocate(xland_p      )
@@ -384,7 +391,6 @@
              if(allocated(rqvdynblten_p)) deallocate(rqvdynblten_p)
 
           case ("cu_ntiedtke")
-             if(allocated(dx_p)     ) deallocate(dx_p)
              if(allocated(rqvften_p)) deallocate(rqvften_p)
              if(allocated(rthften_p)) deallocate(rthften_p)
              if(allocated(ust_p)    ) deallocate(ust_p    )
@@ -648,9 +654,11 @@
              pi3d        = pi_p          , rho3d     = rho_p         ,               &
              qvften      = rqvdynten_p   , qvpblten  = rqvdynblten_p ,               &
              dz8w        = dz_p          , xland     = xland_p       ,               &
-             cu_act_flag = cu_act_flag   , f_qv      = f_qv          ,               &
-             f_qc        = f_qc          , f_qr      = f_qr          ,               &
-             f_qi        = f_qi          , f_qs      = f_qs          ,               &
+             dx          = dx_p          , cubot       = cubot_p     ,               &
+             cutop       = cutop_p       , cu_act_flag = cu_act_flag ,               &
+             f_qv        = f_qv          , f_qc        = f_qc        ,               &
+             f_qr        = f_qr          , f_qi        = f_qi        ,               &
+             f_qs        = f_qs                                      ,               &
              rthcuten    = rthcuten_p    , rqvcuten  = rqvcuten_p    ,               &
              rqccuten    = rqccuten_p    , rqicuten  = rqicuten_p    ,               &
              rucuten     = rucuten_p     , rvcuten   = rvcuten_p     ,               &
@@ -673,6 +681,7 @@
              qi3d      = qi_p        , pi3d        = pi_p        ,                   &
              rho3d     = rho_p       , qvften      = rqvften_p   ,                   &
              thften    = rthften_p   , cu_act_flag = cu_act_flag ,                   &
+             cutop     = cutop_p     , cubot       = cubot_p     ,                   &
              f_qv      = f_qv        , f_qc        = f_qc        ,                   &
              f_qr      = f_qr        , f_qi        = f_qi        ,                   &
              f_qs      = f_qs        , rthcuten    = rthcuten_p  ,                   &
@@ -927,6 +936,12 @@
        enddo
 
     case ("cu_tiedtke","cu_ntiedtke")
+       call mpas_pool_get_config(configs,'config_len_disp',len_disp)
+       call mpas_pool_get_array(mesh,'meshDensity',meshDensity)
+
+       call mpas_pool_get_array(diag_physics,'cubot',cubot)
+       call mpas_pool_get_array(diag_physics,'cutop',cutop)
+
        call mpas_pool_get_array(sfc_input,'xland',xland)
        call mpas_pool_get_array(diag_physics,'hfx',hfx)
        call mpas_pool_get_array(diag_physics,'qfx',qfx)
@@ -938,9 +953,12 @@
 
        do j = jts,jte
        do i = its,ite
+          dx_p(i,j) = len_disp / meshDensity(i)**0.25
           xland_p(i,j) = xland(i)
           hfx_p(i,j)   = hfx(i)
           qfx_p(i,j)   = qfx(i)
+          cubot_p(i,j) = cubot(i)
+          cutop_p(i,j) = cutop(i)
        enddo
 
        do k = kts,kte
@@ -964,9 +982,6 @@
              enddo
  
           case("cu_ntiedtke")
-             call mpas_pool_get_config(configs,'config_len_disp',len_disp)
-             call mpas_pool_get_array(mesh,'meshDensity',meshDensity)
-
              call mpas_pool_get_array(tend_physics,'rqvdynten' ,rqvdynten )
              call mpas_pool_get_array(tend_physics,'rqvblten'  ,rqvblten  )
              call mpas_pool_get_array(tend_physics,'rthdynten' ,rthdynten )
@@ -981,7 +996,6 @@
              
              do j = jts,jte
              do i = its,ite
-                dx_p(i,j) = len_disp / meshDensity(i)**0.25
                 ust_p(i,j) = ust(i)
                 wstar_p(i,j) =wstar(i)
                 hgamt_p(i,j) = hgamt(i)
@@ -1157,8 +1171,17 @@
        enddo
 
     case ("cu_tiedtke","cu_ntiedtke")
+       call mpas_pool_get_array(diag_physics,'cubot',cubot)
+       call mpas_pool_get_array(diag_physics,'cutop',cutop)
        call mpas_pool_get_array(tend_physics,'rucuten',rucuten)
        call mpas_pool_get_array(tend_physics,'rvcuten',rvcuten)
+
+       do j = jts,jte
+       do i = its,ite
+          cubot(i) = cubot_p(i,j)
+          cutop(i) = cutop_p(i,j)
+       enddo
+       enddo
 
        do j = jts,jte
        do k = kts,kte
