@@ -59,7 +59,7 @@ module ocn_time_integration
    !
    !--------------------------------------------------------------------
 
-    logical :: rk4On, splitOn
+    logical :: rk4On, splitOn, forwardEulerOn
 
    contains
 
@@ -106,6 +106,8 @@ module ocn_time_integration
 
       if (rk4On) then
          call ocn_time_integrator_rk4(domain, dt)
+      elseif (forwardEulerOn) then
+         call ocn_time_integrator_forward_euler(domain, dt)
       elseif (splitOn) then
          call ocn_time_integrator_split(domain, dt)
      endif
@@ -146,11 +148,14 @@ module ocn_time_integration
 
       call mpas_pool_get_config(ocnConfigs, 'config_time_integrator', config_time_integrator)
 
+      forwardEulerOn = .false.
       rk4On = .false.
       splitOn = .false.
 
       if (trim(config_time_integrator) == 'RK4') then
           rk4On = .true.
+      elseif (trim(config_time_integrator) == 'forward_euler') then
+          forwardEulerOn = .true.
       elseif (trim(config_time_integrator) == 'split_explicit' &
           .or.trim(config_time_integrator) == 'unsplit_explicit') then
           splitOn = .true.
