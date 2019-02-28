@@ -97,6 +97,28 @@ contains
     real (kind=RKIND), parameter :: eps=1.0e-12
     real (kind=RKIND), parameter :: pi = 4.0_RKIND*ATAN(1.0_RKIND)
 
+
+    ! Define config variable pointers
+    character (len=StrKIND), pointer :: config_init_configuration, config_vertical_grid
+    integer, pointer :: config_hurricane_vert_levels
+    real (kind=RKIND), pointer :: config_hurricane_min_depth
+    real (kind=RKIND), pointer :: config_hurricane_max_depth
+    logical, pointer :: config_hurricane_use_gaussian_hump
+    real (kind=RKIND), pointer :: config_hurricane_gaussian_lon_center
+    real (kind=RKIND), pointer :: config_hurricane_gaussian_lat_center
+    real (kind=RKIND), pointer :: config_hurricane_gaussian_width
+    real (kind=RKIND), pointer :: config_hurricane_gaussian_hump_amplitude
+    real (kind=RKIND), pointer :: config_hurricane_gaussian_slr_amp
+    logical, pointer :: config_use_wetting_drying
+    real (kind=RKIND), pointer :: config_drying_min_cell_height
+
+    real (kind=RKIND), pointer :: config_land_z_limit, config_land_drag, &
+                                  config_marsh_z_limit, config_marsh_drag, &
+                                  config_channel_drag
+
+    logical, pointer :: config_use_variable_drag
+
+
     ! Define dimension pointers
     integer, pointer :: nCellsSolve, nEdgesSolve, nVerticesSolve, nVertLevels, nVertLevelsP1
     integer, pointer :: index_temperature, index_salinity
@@ -117,6 +139,31 @@ contains
     iErr = 0
 
     if(config_init_configuration .ne. trim('hurricane')) return
+
+    ! Get config flag settings
+    call mpas_pool_get_config(ocnConfigs, 'config_vertical_grid', config_vertical_grid)
+    call mpas_pool_get_config(ocnConfigs, 'config_hurricane_vert_levels', config_hurricane_vert_levels)
+    call mpas_pool_get_config(ocnConfigs, 'config_hurricane_min_depth', config_hurricane_min_depth)
+    call mpas_pool_get_config(ocnConfigs, 'config_hurricane_max_depth', config_hurricane_max_depth)
+
+    call mpas_pool_get_config(ocnConfigs, 'config_hurricane_use_gaussian_hump', config_hurricane_use_gaussian_hump)
+    call mpas_pool_get_config(ocnConfigs, 'config_hurricane_gaussian_lon_center', config_hurricane_gaussian_lon_center)
+    call mpas_pool_get_config(ocnConfigs, 'config_hurricane_gaussian_lat_center', config_hurricane_gaussian_lat_center)
+    call mpas_pool_get_config(ocnConfigs, 'config_hurricane_gaussian_width', config_hurricane_gaussian_width)
+    call mpas_pool_get_config(ocnConfigs, 'config_hurricane_gaussian_hump_amplitude', config_hurricane_gaussian_hump_amplitude)
+    call mpas_pool_get_config(ocnConfigs, 'config_hurricane_gaussian_slr_amp', config_hurricane_gaussian_slr_amp)
+
+    call mpas_pool_get_config(ocnConfigs, 'config_hurricane_land_z_limit', config_land_z_limit)
+    call mpas_pool_get_config(ocnConfigs, 'config_hurricane_marsh_z_limit', config_marsh_z_limit)
+    call mpas_pool_get_config(ocnConfigs, 'config_hurricane_land_drag', config_land_drag)
+    call mpas_pool_get_config(ocnConfigs, 'config_hurricane_marsh_drag', config_marsh_drag)
+    call mpas_pool_get_config(ocnConfigs, 'config_hurricane_channel_drag', config_channel_drag)
+
+    ! wetting and drying parameters
+    call mpas_pool_get_config(ocnConfigs, 'config_drying_min_cell_height', config_drying_min_cell_height)
+    call mpas_pool_get_config(ocnConfigs, 'config_use_wetting_drying', config_use_wetting_drying)
+
+    call mpas_pool_get_config(ocnConfigs, 'config_use_variable_drag', config_use_variable_drag)
 
     ! Determine vertical grid for configuration
     call mpas_pool_get_subpool(domain % blocklist % structs, 'mesh', meshPool)

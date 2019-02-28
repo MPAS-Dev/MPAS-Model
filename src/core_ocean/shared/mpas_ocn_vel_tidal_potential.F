@@ -48,8 +48,8 @@ module ocn_vel_tidal_potential
    public :: ocn_vel_tidal_potential_tend, &
              ocn_compute_tidal_potential_forcing, &
              ocn_vel_tidal_potential_init, &
-             tidal_constituent_factors
-
+             tidal_constituent_factors, &
+             ocn_vel_tidal_potential_init
    !--------------------------------------------------------------------
    !
    ! Private module variables

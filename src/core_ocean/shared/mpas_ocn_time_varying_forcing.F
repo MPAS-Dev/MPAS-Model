@@ -336,6 +336,9 @@ contains
          windStressCoefficientLimit
 
     real(kind=RKIND), pointer:: &
+
+        config_forcing_ramp, &
+        config_forcing_ramp_delay, &
         daysSinceStartOfSim
 
     integer, pointer :: &
@@ -344,6 +347,9 @@ contains
     integer :: &
          iCell
 
+
+    call MPAS_pool_get_config(block % configs, "config_time_varying_atmospheric_forcing_ramp", config_forcing_ramp)
+    call MPAS_pool_get_config(block % configs, "config_time_varying_atmospheric_forcing_ramp_delay", config_forcing_ramp_delay)
     call MPAS_pool_get_subpool(block % structs, "mesh", mesh)
     call MPAS_pool_get_subpool(block % structs, "forcing", forcingPool)
     call MPAS_pool_get_subpool(block % structs, "timeVaryingForcing", timeVaryingForcingPool)
@@ -363,6 +369,7 @@ contains
 
     rhoAir = 1.225_RKIND
     windStressCoefficientLimit = 0.0035_RKIND
+
 
     if (daysSinceStartOfSim >= config_time_varying_atmospheric_forcing_ramp_delay) then
       ramp = tanh((2.0_RKIND*(daysSinceStartOfSim-config_time_varying_atmospheric_forcing_ramp_delay)) &

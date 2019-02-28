@@ -204,6 +204,8 @@ contains
       call mpas_pool_add_config(analysisMemberList, 'sedimentFluxIndex', 1)
       call mpas_pool_add_config(analysisMemberList, 'sedimentTransport', 1)
       call mpas_pool_add_config(analysisMemberList, 'harmonicAnalysis', 1)
+      call mpas_pool_add_config(analysisMemberList, 'sedimentFluxIndex', 1)
+      call mpas_pool_add_config(analysisMemberList, 'sedimentTransport', 1)
 !     call mpas_pool_add_config(analysisMemberList, 'temPlate', 1)
 
       ! DON'T EDIT BELOW HERE
