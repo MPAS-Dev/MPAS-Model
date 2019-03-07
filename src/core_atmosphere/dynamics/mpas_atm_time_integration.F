@@ -1394,12 +1394,12 @@ module atm_time_integration
                !scalar_tend_array(:,:,nCells+1) = 0.0_RKIND
                if (rk_step < 3 .or. (.not. config_monotonic .and. .not. config_positive_definite)) then
                   allocate(horiz_flux_array(num_scalars,nVertLevels,nEdges+1))
-                  horiz_flux_array(:,:,nEdges+1) = 0.0_RKIND
+                  !horiz_flux_array(:,:,nEdges+1) = 0.0_RKIND
                else
                   allocate(flux_upwind_tmp_arr(nVertLevels,nEdges+1))
-                  flux_upwind_tmp_arr(:,nEdges+1) = 0.0_RKIND
+                  !flux_upwind_tmp_arr(:,nEdges+1) = 0.0_RKIND
                   allocate(flux_tmp_arr(nVertLevels,nEdges+1))
-                  flux_tmp_arr(:,nEdges+1) = 0.0_RKIND
+                  !flux_tmp_arr(:,nEdges+1) = 0.0_RKIND
                end if
 
 !$acc parallel
