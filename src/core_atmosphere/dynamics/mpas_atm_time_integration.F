@@ -1452,7 +1452,7 @@ module atm_time_integration
          call mpas_pool_get_array_gpu(diag, 'uReconstructZonal', uReconstructZonal)
          call mpas_pool_get_array_gpu(diag, 'uReconstructMeridional', uReconstructMeridional)
 
-         call mpas_reconstruct(mesh, u,                &
+         call mpas_reconstruct_gpu(mesh, u,                &
                                uReconstructX,          &
                                uReconstructY,          &
                                uReconstructZ,          &
