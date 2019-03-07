@@ -355,6 +355,9 @@ module atm_time_integration
       real (kind=RKIND), dimension(:,:), pointer :: gpu_tend_u, gpu_ru_p, gpu_rw_p, gpu_rho_pp, gpu_pv_edge, gpu_rho_edge
       real (kind=RKIND), dimension(:,:,:), pointer :: gpu_scalars_1, gpu_scalars_2
 
+      ! Local variables for indexing
+      integer :: levelsIdx, scalarsIdx
+      integer :: tmpnum_scalars, tmpnCells, tmpnVertLevels, tmpnEdges
 
       !
       ! Retrieve configuration options
@@ -1022,6 +1025,10 @@ module atm_time_integration
                   call mpas_pool_get_dimension(mesh, 'nVertLevels', nVertLevels)
                   call mpas_pool_get_dimension(state, 'num_scalars', num_scalars)
 
+                  tmpnCells = nCells
+                  tmpnEdges = nEdges
+                  tmpnVertLevels = nVertLevels
+                  tmpnum_scalars = num_scalars
                   call mpas_pool_get_dimension(block % dimensions, 'nThreads', nThreads)
 
                   call mpas_pool_get_dimension(block % dimensions, 'cellThreadStart', cellThreadStart)
@@ -1040,27 +1047,62 @@ module atm_time_integration
                   call mpas_pool_get_dimension(block % dimensions, 'edgeSolveThreadEnd', edgeSolveThreadEnd)
 
                   allocate(scalar_old_arr(nVertLevels,nCells+1))
-                  scalar_old_arr(:,nCells+1) = 0.0_RKIND
+                  !scalar_old_arr(:,nCells+1) = 0.0_RKIND
                   allocate(scalar_new_arr(nVertLevels,nCells+1))
-                  scalar_new_arr(:,nCells+1) = 0.0_RKIND
+                  !scalar_new_arr(:,nCells+1) = 0.0_RKIND
                   allocate(s_max_arr(nVertLevels,nCells+1))
-                  s_max_arr(:,nCells+1) = 0.0_RKIND
+                  !s_max_arr(:,nCells+1) = 0.0_RKIND
                   allocate(s_min_arr(nVertLevels,nCells+1))
-                  s_min_arr(:,nCells+1) = 0.0_RKIND
+                  !s_min_arr(:,nCells+1) = 0.0_RKIND
                   allocate(scale_array(nVertLevels,2,nCells+1))
-                  scale_array(:,:,nCells+1) = 0.0_RKIND
+                  !scale_array(:,:,nCells+1) = 0.0_RKIND
                   allocate(flux_array(nVertLevels,nEdges+1))
-                  flux_array(:,nEdges+1) = 0.0_RKIND
+                  !flux_array(:,nEdges+1) = 0.0_RKIND
                   allocate(wdtn_arr(nVertLevels+1,nCells+1))
-                  wdtn_arr(:,nCells+1) = 0.0_RKIND
+                  !wdtn_arr(:,nCells+1) = 0.0_RKIND
                   if (rk_step < 3 .or. (.not. config_monotonic .and. .not. config_positive_definite)) then
                      allocate(horiz_flux_array(num_scalars,nVertLevels,nEdges+1))
-                     horiz_flux_array(:,:,nEdges+1) = 0.0_RKIND
+                     !horiz_flux_array(:,:,nEdges+1) = 0.0_RKIND
                   else
                      allocate(flux_upwind_tmp_arr(nVertLevels,nEdges+1))
-                     flux_upwind_tmp_arr(:,nEdges+1) = 0.0_RKIND
+                     !flux_upwind_tmp_arr(:,nEdges+1) = 0.0_RKIND
                      allocate(flux_tmp_arr(nVertLevels,nEdges+1))
-                     flux_tmp_arr(:,nEdges+1) = 0.0_RKIND
+                     !flux_tmp_arr(:,nEdges+1) = 0.0_RKIND
+                  end if
+
+!$acc parallel
+!$acc loop gang worker vector
+                  do levelsIdx=1,tmpnVertLevels
+                     scalar_old_arr(levelsIdx,tmpnCells+1) = 0.0_RKIND
+                     scalar_new_arr(levelsIdx,tmpnCells+1) = 0.0_RKIND
+                     s_max_arr(levelsIdx,tmpnCells+1) = 0.0_RKIND
+                     s_min_arr(levelsIdx,tmpnCells+1) = 0.0_RKIND
+                     scale_array(levelsIdx,1,tmpnCells+1) = 0.0_RKIND
+                     scale_array(levelsIdx,2,tmpnCells+1) = 0.0_RKIND
+                     flux_array(levelsIdx,tmpnEdges+1) = 0.0_RKIND
+                     wdtn_arr(levelsIdx,tmpnCells+1) = 0.0_RKIND
+                  enddo
+!$acc end parallel
+!$acc parallel num_gangs(1) num_workers(1) vector_length(1)
+                  wdtn_arr(tmpnVertLevels+1,tmpnCells+1) = 0.0_RKIND
+!$acc end parallel
+                  if (rk_step < 3 .or. (.not. config_monotonic .and. .not. config_positive_definite)) then
+!$acc parallel
+!$acc loop gang worker vector collapse(2)
+                     do levelsIdx=1,tmpnVertLevels
+                        do scalarsIdx=1,tmpnum_scalars
+                           horiz_flux_array(scalarsIdx,levelsIdx,tmpnEdges+1) = 0.0_RKIND
+                        enddo
+                     enddo
+!$acc end parallel
+                  else
+!$acc parallel
+!$acc loop gang worker vector
+                     do levelsIdx=1,tmpnVertLevels
+                        flux_upwind_tmp_arr(levelsIdx,tmpnEdges+1) = 0.0_RKIND
+                        flux_tmp_arr(levelsIdx,tmpnEdges+1) = 0.0_RKIND
+                     enddo
+!$acc end parallel
                   end if
 
                   !
@@ -1311,6 +1353,10 @@ module atm_time_integration
                call mpas_pool_get_dimension(mesh, 'nVertLevels', nVertLevels)
                call mpas_pool_get_dimension(state, 'num_scalars', num_scalars)
 
+               tmpnCells = nCells
+               tmpnEdges = nEdges
+               tmpnVertLevels = nVertLevels
+               tmpnum_scalars = num_scalars
                call mpas_pool_get_dimension(block % dimensions, 'nThreads', nThreads)
 
                call mpas_pool_get_dimension(block % dimensions, 'cellThreadStart', cellThreadStart)
@@ -1329,23 +1375,23 @@ module atm_time_integration
                call mpas_pool_get_dimension(block % dimensions, 'edgeSolveThreadEnd', edgeSolveThreadEnd)
 
                allocate(scalar_old_arr(nVertLevels,nCells+1))
-               scalar_old_arr(:,nCells+1) = 0.0_RKIND
+               !scalar_old_arr(:,nCells+1) = 0.0_RKIND
                allocate(scalar_new_arr(nVertLevels,nCells+1))
-               scalar_new_arr(:,nCells+1) = 0.0_RKIND
+               !scalar_new_arr(:,nCells+1) = 0.0_RKIND
                allocate(s_max_arr(nVertLevels,nCells+1))
-               s_max_arr(:,nCells+1) = 0.0_RKIND
+               !s_max_arr(:,nCells+1) = 0.0_RKIND
                allocate(s_min_arr(nVertLevels,nCells+1))
-               s_min_arr(:,nCells+1) = 0.0_RKIND
+               !s_min_arr(:,nCells+1) = 0.0_RKIND
                allocate(scale_array(nVertLevels,2,nCells+1))
-               scale_array(:,:,nCells+1) = 0.0_RKIND
+               !scale_array(:,:,nCells+1) = 0.0_RKIND
                allocate(flux_array(nVertLevels,nEdges+1))
-               flux_array(:,nEdges+1) = 0.0_RKIND
+               !flux_array(:,nEdges+1) = 0.0_RKIND
                allocate(wdtn_arr(nVertLevels+1,nCells+1))
-               wdtn_arr(:,nCells+1) = 0.0_RKIND
+               !wdtn_arr(:,nCells+1) = 0.0_RKIND
                allocate(rho_zz_int(nVertLevels,nCells+1))
-               rho_zz_int(:,nCells+1) = 0.0_RKIND
+               !rho_zz_int(:,nCells+1) = 0.0_RKIND
                allocate(scalar_tend_array(num_scalars,nVertLevels,nCells+1))
-               scalar_tend_array(:,:,nCells+1) = 0.0_RKIND
+               !scalar_tend_array(:,:,nCells+1) = 0.0_RKIND
                if (rk_step < 3 .or. (.not. config_monotonic .and. .not. config_positive_definite)) then
                   allocate(horiz_flux_array(num_scalars,nVertLevels,nEdges+1))
                   horiz_flux_array(:,:,nEdges+1) = 0.0_RKIND
@@ -1355,6 +1401,47 @@ module atm_time_integration
                   allocate(flux_tmp_arr(nVertLevels,nEdges+1))
                   flux_tmp_arr(:,nEdges+1) = 0.0_RKIND
                end if
+
+!$acc parallel
+!$acc loop gang worker
+                  do levelsIdx=1,tmpnVertLevels
+                     scalar_old_arr(levelsIdx,tmpnCells+1) = 0.0_RKIND
+                     scalar_new_arr(levelsIdx,tmpnCells+1) = 0.0_RKIND
+                     s_max_arr(levelsIdx,tmpnCells+1) = 0.0_RKIND
+                     s_min_arr(levelsIdx,tmpnCells+1) = 0.0_RKIND
+                     scale_array(levelsIdx,1,tmpnCells+1) = 0.0_RKIND
+                     scale_array(levelsIdx,2,tmpnCells+1) = 0.0_RKIND
+                     flux_array(levelsIdx,tmpnEdges+1) = 0.0_RKIND
+                     wdtn_arr(levelsIdx,tmpnCells+1) = 0.0_RKIND
+                     rho_zz_int(levelsIdx,tmpnCells+1) = 0.0_RKIND
+!$acc loop gang vector
+                     do scalarsIdx=1,tmpnum_scalars
+                        scalar_tend_array(scalarsIdx,levelsIdx,tmpnCells+1) = 0.0_RKIND
+                     enddo
+                  enddo
+!$acc end parallel
+!$acc parallel num_gangs(1) num_workers(1) vector_length(1)
+                  wdtn_arr(tmpnVertLevels+1,tmpnCells+1) = 0.0_RKIND
+!$acc end parallel
+                  if (rk_step < 3 .or. (.not. config_monotonic .and. .not. config_positive_definite)) then
+!$acc parallel
+!$acc loop gang worker vector collapse(2)
+                     do levelsIdx=1,tmpnVertLevels
+                        do scalarsIdx=1,tmpnum_scalars
+                           horiz_flux_array(scalarsIdx,levelsIdx,tmpnEdges+1) = 0.0_RKIND
+                        enddo
+                     enddo
+!$acc end parallel
+                  else
+!$acc parallel
+!$acc loop gang worker vector
+                     do levelsIdx=1,tmpnVertLevels
+                        flux_upwind_tmp_arr(levelsIdx,tmpnEdges+1) = 0.0_RKIND
+                        flux_tmp_arr(levelsIdx,tmpnEdges+1) = 0.0_RKIND
+                     enddo
+!$acc end parallel
+                  end if
+
 
                !
                ! Note: The advance_scalars_mono routine can be used without limiting, and thus, encompasses 
@@ -3563,7 +3650,7 @@ module atm_time_integration
 !$acc scalar_tend_save,horiz_flux_arr,edgesoncell_sign, &
 !$acc invAreaCell, wwAvg, fnm, fnp,edgesoncell,scalar_old, &
 !$acc nadvcellsforedge, rho_zz_old, rho_zz_new, &
-!$acc nedgesoncell,rdnw) copyin(horiz_flux_arr,wdtn)
+!$acc nedgesoncell,rdnw,horiz_flux_arr) create(wdtn)
 
 !$acc parallel vector_length(32)
 !$acc loop gang worker vector private(ica,scalar_weight2)
@@ -3947,10 +4034,9 @@ module atm_time_integration
 !$acc invAreaCell,dvEdge,cellsOnEdge,cellsOnCell, &
 !$acc edgesOnCell,edgesOnCell_sign,nEdgesOnCell,fnm, &
 !$acc fnp,rdnw,nAdvCellsForEdge,advCellsForEdge,adv_coefs, &
-!$acc adv_coefs_3rd, scalars_new) copy (flux_arr, swa, ica) copyin(rho_zz_int, scalar_new, wdtn, &
-!$acc scale_arr, scalar_old, flux_upwind_tmp, &
-!$acc s_min, s_max, flux_tmp) copyout(scalar_new, rho_zz_int, wdtn, scale_arr,flux_upwind_tmp,&
-!$acc flux_tmp, flux_upwind_arr)
+!$acc adv_coefs_3rd, scalars_new, flux_arr, rho_zz_int, &
+!$acc scalar_new, wdtn, scale_arr, scalar_old, flux_upwind_tmp, &
+!$acc s_min, s_max, flux_tmp) create(swa, ica, flux_upwind_arr)
 
 !$acc parallel vector_length(32)
 !$acc loop gang vector collapse(3)
