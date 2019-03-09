@@ -75,9 +75,7 @@ module aviation_diagnostics
             call mpas_pool_get_array(mesh, 'invAreaCell', invAreaCell)
             ! Area with radius = 3x18km in from RPM = 9.161e9
             smooth_radius = NINT(SQRT(invAreaCell(1) * 9.161e9))/2
-            if (smooth_radius > 0) then
-                call initialize_hiwc_smoother()
-            end if
+            call initialize_hiwc_smoother()
         end if
 
     end subroutine aviation_diagnostics_setup
@@ -390,20 +388,23 @@ module aviation_diagnostics
         type (field3DReal), pointer :: scalar_f
         type (field2DReal), pointer :: theta_f, exner_f, pb_f, pp_f
 
-        ! Halo needs to be exchanged if smoothing is performed
-        if (smooth_radius > 0) then
-            call mpas_pool_get_field(state, 'scalars', scalar_f)
-            call mpas_pool_get_field(state, 'theta_m', theta_f)
-            call mpas_pool_get_field(diag , 'exner',   exner_f)
-            call mpas_pool_get_field(diag , 'pressure_base', pb_f)
-            call mpas_pool_get_field(diag , 'pressure_p', pp_f)
+        ! Halo needs to be exchanged to support smoothing 
+        ! While it might seem that this would only need to be
+        !   done if smoothing is performed (i.e., smooth_radius > 0)
+        !   a deadlock would occur if one mpi rank required smoothing,
+        !   but another did not. Discovered 3/9/2019, TH.
+        call mpas_pool_get_field(state, 'scalars', scalar_f)
+        call mpas_pool_get_field(state, 'theta_m', theta_f)
+        call mpas_pool_get_field(diag , 'exner',   exner_f)
+        call mpas_pool_get_field(diag , 'pressure_base', pb_f)
+        call mpas_pool_get_field(diag , 'pressure_p', pp_f)
 
-            call mpas_dmpar_exch_halo_field(scalar_f)
-            call mpas_dmpar_exch_halo_field(theta_f)
-            call mpas_dmpar_exch_halo_field(exner_f)
-            call mpas_dmpar_exch_halo_field(pb_f)
-            call mpas_dmpar_exch_halo_field(pp_f)
-        end if
+        call mpas_dmpar_exch_halo_field(scalar_f)
+        call mpas_dmpar_exch_halo_field(theta_f)
+        call mpas_dmpar_exch_halo_field(exner_f)
+        call mpas_dmpar_exch_halo_field(pb_f)
+        call mpas_dmpar_exch_halo_field(pp_f)
+        !end if
 
         call mpas_pool_get_dimension(mesh, 'nCells', nCells)
         call mpas_pool_get_dimension(mesh, 'nVertLevels', nVertLevels)
