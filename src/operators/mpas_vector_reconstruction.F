@@ -365,6 +365,7 @@ module mpas_vector_reconstruction
 
     ! loop over cell centers
     !!!$omp do schedule(runtime)
+!$acc data present(uReconstructX, uReconstructY, uReconstructZ, u, coeffs_reconstruct, uReconstructZonal, uReconstructMeridional, includeHalos)
 !$acc parallel
 !$acc loop gang worker vector
     do iCell = 1, tmpnCells
@@ -420,6 +421,7 @@ module mpas_vector_reconstruction
 !$acc end parallel
       !!!$omp end do
     end if
+!$acc end data
 
   end subroutine mpas_reconstruct_2d_gpu!}}}
 
