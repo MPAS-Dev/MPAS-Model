@@ -140,8 +140,8 @@ module turbulence_diagnostics
         end if
         if (stream_fronto) then
             call mpas_pool_get_array(diag, 'theta', theta)
-            th_old(1:nTurbulenceLevels,:)  = th_save(1:nTurbulenceLevels,:)
-            th_save(1:nTurbulenceLevels,:) = theta(1:nTurbulenceLevels,:)
+            th_old(1:nTurbulenceLevels+1,:)  = th_save(1:nTurbulenceLevels+1,:)
+            th_save(1:nTurbulenceLevels+1,:) = theta(1:nTurbulenceLevels+1,:)
         end if
     end subroutine turbulence_diagnostics_update
 
