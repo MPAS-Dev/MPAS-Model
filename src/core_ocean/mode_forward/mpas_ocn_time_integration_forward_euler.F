@@ -145,103 +145,102 @@ module ocn_time_integration_forward_euler
 
       block => domain % blocklist
       do while (associated(block))
-      call mpas_pool_get_dimension(block % dimensions, 'nCells', nCells)
-      call mpas_pool_get_dimension(block % dimensions, 'nEdges', nEdges)
-
-      call mpas_pool_get_subpool(block % structs, 'state', statePool)
-      call mpas_pool_get_subpool(block % structs, 'tend', tendPool)
-      call mpas_pool_get_subpool(block % structs, 'mesh', meshPool)
-
-      call mpas_pool_get_subpool(statePool, 'tracers', tracersPool)
-      call mpas_pool_get_subpool(tendPool, 'tracersTend', tracersTendPool)
-
-      call mpas_pool_get_array(statePool, 'normalVelocity', normalVelocityCur, 1)
-      call mpas_pool_get_array(statePool, 'normalVelocity', normalVelocityNew, 2)
-      call mpas_pool_get_array(statePool, 'layerThickness', layerThicknessCur, 1)
-      call mpas_pool_get_array(statePool, 'layerThickness', layerThicknessNew, 2)
-
-      call mpas_pool_get_array(tendPool, 'normalVelocity', normalVelocityTend)
-      call mpas_pool_get_array(tendPool, 'layerThickness', layerThicknessTend)
-
-      call mpas_pool_get_array(meshPool, 'maxLevelCell', maxLevelCell)
-
-      call mpas_pool_get_subpool(block % structs, 'verticalMesh', verticalMeshPool)
-      call mpas_pool_get_subpool(block % structs, 'diagnostics', diagnosticsPool)
-      call mpas_pool_get_subpool(block % structs, 'forcing', forcingPool)
-      call mpas_pool_get_subpool(block % structs, 'shortwave', swForcingPool)
-      call mpas_pool_get_subpool(block % structs, 'scratch', scratchPool)
-      call mpas_pool_get_array(statePool, 'ssh', sshCur, 1)
-
-      call mpas_pool_get_array(diagnosticsPool, 'layerThicknessEdge', layerThicknessEdge)
-      call mpas_pool_get_array(diagnosticsPool, 'vertAleTransportTop', vertAleTransportTop)
-      call mpas_pool_get_array(diagnosticsPool, 'normalTransportVelocity', normalTransportVelocity)
-
+         call mpas_pool_get_dimension(block % dimensions, 'nCells', nCells)
+         call mpas_pool_get_dimension(block % dimensions, 'nEdges', nEdges)
+   
+         call mpas_pool_get_subpool(block % structs, 'state', statePool)
+         call mpas_pool_get_subpool(block % structs, 'tend', tendPool)
+         call mpas_pool_get_subpool(block % structs, 'mesh', meshPool)
+   
+         call mpas_pool_get_subpool(statePool, 'tracers', tracersPool)
+         call mpas_pool_get_subpool(tendPool, 'tracersTend', tracersTendPool)
+   
+         call mpas_pool_get_array(statePool, 'normalVelocity', normalVelocityCur, 1)
+         call mpas_pool_get_array(statePool, 'normalVelocity', normalVelocityNew, 2)
+         call mpas_pool_get_array(statePool, 'layerThickness', layerThicknessCur, 1)
+         call mpas_pool_get_array(statePool, 'layerThickness', layerThicknessNew, 2)
+   
+         call mpas_pool_get_array(tendPool, 'normalVelocity', normalVelocityTend)
+         call mpas_pool_get_array(tendPool, 'layerThickness', layerThicknessTend)
+   
+         call mpas_pool_get_array(meshPool, 'maxLevelCell', maxLevelCell)
+   
+         call mpas_pool_get_subpool(block % structs, 'verticalMesh', verticalMeshPool)
+         call mpas_pool_get_subpool(block % structs, 'diagnostics', diagnosticsPool)
+         call mpas_pool_get_subpool(block % structs, 'forcing', forcingPool)
+         call mpas_pool_get_subpool(block % structs, 'shortwave', swForcingPool)
+         call mpas_pool_get_subpool(block % structs, 'scratch', scratchPool)
+         call mpas_pool_get_array(statePool, 'ssh', sshCur, 1)
+   
+         call mpas_pool_get_array(diagnosticsPool, 'layerThicknessEdge', layerThicknessEdge)
+         call mpas_pool_get_array(diagnosticsPool, 'vertAleTransportTop', vertAleTransportTop)
+         call mpas_pool_get_array(diagnosticsPool, 'normalTransportVelocity', normalTransportVelocity)
+   
          call ocn_vert_transport_velocity_top(meshPool, verticalMeshPool, scratchPool, &
             layerThicknessCur,layerThicknessEdge, normalVelocityCur, &
             sshCur, dt, &
             vertAleTransportTop, err)
-      call mpas_threading_barrier()
-
-      call ocn_tend_vel(tendPool, statePool, forcingPool, diagnosticsPool, meshPool, scratchPool, 1)
-      call mpas_threading_barrier()
-
-         call ocn_vert_transport_velocity_top(meshPool, verticalMeshPool, scratchPool, &
-            layerThicknessCur, layerThicknessEdge, normalTransportVelocity, &
-            sshCur, dt, &
-            vertAleTransportTop, err)
-      call mpas_threading_barrier()
-
-      call ocn_tend_thick(tendPool, forcingPool, diagnosticsPool, meshPool)
-
-      call mpas_threading_barrier()
-
-      call ocn_tend_tracer(tendPool, statePool, forcingPool, diagnosticsPool, meshPool, swForcingPool, &
-                           scratchPool, dt, activeTracersOnlyIn=.false., timeLevelIn=1)
-      call mpas_threading_barrier()
-
-      call mpas_threading_barrier()
-      !$omp do schedule(runtime) private(k)
-      do iCell = 1, nCells
-         do k = 1, maxLevelCell(iCell)
-            layerThicknessNew(k, iCell) = layerThicknessCur(k, iCell) + dt * layerThicknessTend(k, iCell)
+         call mpas_threading_barrier()
+   
+         call ocn_tend_vel(tendPool, statePool, forcingPool, diagnosticsPool, meshPool, scratchPool, 1)
+         call mpas_threading_barrier()
+   
+            call ocn_vert_transport_velocity_top(meshPool, verticalMeshPool, scratchPool, &
+               layerThicknessCur, layerThicknessEdge, normalTransportVelocity, &
+               sshCur, dt, &
+               vertAleTransportTop, err)
+         call mpas_threading_barrier()
+   
+         call ocn_tend_thick(tendPool, forcingPool, diagnosticsPool, meshPool)
+   
+         call mpas_threading_barrier()
+   
+         call ocn_tend_tracer(tendPool, statePool, forcingPool, diagnosticsPool, meshPool, swForcingPool, &
+                              scratchPool, dt, activeTracersOnlyIn=.false., timeLevelIn=1)
+         call mpas_threading_barrier()
+   
+         call mpas_threading_barrier()
+         !$omp do schedule(runtime) private(k)
+         do iCell = 1, nCells
+            do k = 1, maxLevelCell(iCell)
+               layerThicknessNew(k, iCell) = layerThicknessCur(k, iCell) + dt * layerThicknessTend(k, iCell)
+            end do
          end do
-      end do
-      !$omp end do
-
-
-      call ocn_tend_vel(tendPool, statePool, forcingPool, diagnosticsPool, meshPool, scratchPool, 1)
-
-      !$omp do schedule(runtime)
-      do iEdge = 1, nEdges
-         normalVelocityNew(:, iEdge) = normalVelocityCur(:, iEdge) + dt * normalVelocityTend(:, iEdge)
-      end do
-      !$omp end do
-
-      call mpas_pool_begin_iteration(tracersPool)
-      do while ( mpas_pool_get_next_member(tracersPool, groupItr) )
-         if ( groupItr % memberType == MPAS_POOL_FIELD ) then
-            configName = 'config_use_' // trim(groupItr % memberName)
-            call mpas_pool_get_config(block % configs, configName, config_use_tracerGroup)
-
-            if ( config_use_tracerGroup ) then
-               call mpas_pool_get_array(tracersPool, groupItr % memberName, tracersGroupCur, 1)
-               call mpas_pool_get_array(tracersPool, groupItr % memberName, tracersGroupNew, 2)
-
-               modifiedGroupName = trim(groupItr % memberName) // 'Tend'
-               call mpas_pool_get_array(tracersTendPool, modifiedGroupName, tracersGroupTend)
-               if ( associated(tracersGroupNew) .and. associated(tracersGroupTend) ) then
-                  !$omp do schedule(runtime) private(k)
-                  do iCell = 1, nCells
-                     do k = 1, maxLevelCell(iCell)
-                        tracersGroupNew(:, k, iCell) = tracersGroupCur(:, k, iCell) + dt &
-                                                * tracersGroupTend(:, k, iCell)
+         !$omp end do
+   
+         call ocn_tend_vel(tendPool, statePool, forcingPool, diagnosticsPool, meshPool, scratchPool, 1)
+   
+         !$omp do schedule(runtime)
+         do iEdge = 1, nEdges
+            normalVelocityNew(:, iEdge) = normalVelocityCur(:, iEdge) + dt * normalVelocityTend(:, iEdge)
+         end do
+         !$omp end do
+   
+         call mpas_pool_begin_iteration(tracersPool)
+         do while ( mpas_pool_get_next_member(tracersPool, groupItr) )
+            if ( groupItr % memberType == MPAS_POOL_FIELD ) then
+               configName = 'config_use_' // trim(groupItr % memberName)
+               call mpas_pool_get_config(block % configs, configName, config_use_tracerGroup)
+   
+               if ( config_use_tracerGroup ) then
+                  call mpas_pool_get_array(tracersPool, groupItr % memberName, tracersGroupCur, 1)
+                  call mpas_pool_get_array(tracersPool, groupItr % memberName, tracersGroupNew, 2)
+   
+                  modifiedGroupName = trim(groupItr % memberName) // 'Tend'
+                  call mpas_pool_get_array(tracersTendPool, modifiedGroupName, tracersGroupTend)
+                  if ( associated(tracersGroupNew) .and. associated(tracersGroupTend) ) then
+                     !$omp do schedule(runtime) private(k)
+                     do iCell = 1, nCells
+                        do k = 1, maxLevelCell(iCell)
+                           tracersGroupNew(:, k, iCell) = tracersGroupCur(:, k, iCell) + dt &
+                                                   * tracersGroupTend(:, k, iCell)
+                        end do
                      end do
-                  end do
-                  !$omp end do
+                     !$omp end do
+                  end if
                end if
             end if
-         end if
-      end do
+         end do
 
          block => block % next
       end do
