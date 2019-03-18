@@ -201,6 +201,9 @@ module ocn_time_integration_forward_euler
                               scratchPool, dt, activeTracersOnlyIn=.false., timeLevelIn=1)
          call mpas_threading_barrier()
    
+         !--------------------------------------------------------------------
+         ! Update layer thickness
+         !--------------------------------------------------------------------
          !$omp do schedule(runtime) private(k)
          do iCell = 1, nCells
             do k = 1, maxLevelCell(iCell)
@@ -209,14 +212,18 @@ module ocn_time_integration_forward_euler
          end do
          !$omp end do
    
-         call ocn_tend_vel(tendPool, statePool, forcingPool, diagnosticsPool, meshPool, scratchPool, 1)
-   
+         !--------------------------------------------------------------------
+         ! Update velocity
+         !--------------------------------------------------------------------
          !$omp do schedule(runtime)
          do iEdge = 1, nEdges
             normalVelocityNew(:, iEdge) = normalVelocityCur(:, iEdge) + dt * normalVelocityTend(:, iEdge)
          end do
          !$omp end do
    
+         !--------------------------------------------------------------------
+         ! Update tracers
+         !--------------------------------------------------------------------
          call mpas_pool_begin_iteration(tracersPool)
          do while ( mpas_pool_get_next_member(tracersPool, groupItr) )
             if ( groupItr % memberType == MPAS_POOL_FIELD ) then
