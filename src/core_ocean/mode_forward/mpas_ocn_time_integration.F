@@ -33,6 +33,7 @@ module ocn_time_integration
    use ocn_constants
    use ocn_time_integration_rk4
    use ocn_time_integration_split
+   use ocn_time_integration_forward_euler
 
    implicit none
    private
