@@ -87,24 +87,56 @@ module ocn_time_integration_forward_euler
       type (domain_type), intent(inout) :: domain !< Input/Output: domain information
       real (kind=RKIND), intent(in) :: dt !< Input: timestep
 
-      type (block_type) :: block
+      type (block_type), pointer :: block
 
       integer, pointer :: nCells, nEdges
-      integer :: iCell, iEdge, k
+      integer :: iCell, iEdge, k, i, err
 
-      type (mpas_pool_type), pointer :: statePool, tendPool, meshPool
-      type (mpas_pool_type), pointer :: tracersPool, tracersTendPool
+      type (mpas_pool_type), pointer :: tendPool
+      type (mpas_pool_type), pointer :: tracersTendPool
+      type (mpas_pool_type), pointer :: statePool
+      type (mpas_pool_type), pointer :: tracersPool
+      type (mpas_pool_type), pointer :: meshPool
+      type (mpas_pool_type), pointer :: diagnosticsPool
+      type (mpas_pool_type), pointer :: verticalMeshPool
+      type (mpas_pool_type), pointer :: forcingPool
+      type (mpas_pool_type), pointer :: scratchPool
+      type (mpas_pool_type), pointer :: swForcingPool
 
       real (kind=RKIND), dimension(:, :), pointer :: normalVelocityNew, normalVelocityTend
       real (kind=RKIND), dimension(:, :), pointer :: layerThicknessNew, layerThicknessTend
-      real (kind=RKIND), dimension(:, :), pointer :: highFreqThicknessNew, highFreqThicknessTend
-      real (kind=RKIND), dimension(:, :), pointer :: lowFreqDivergenceNew, lowFreqDivergenceTend
-
-      real (kind=RKIND), dimension(:, :, :), pointer :: tracersGroupNew, tracersGroupTend
+      real (kind=RKIND), dimension(:, :), pointer :: layerThicknessCur, normalVelocityCur
+      real (kind=RKIND), dimension(:, :, :), pointer :: tracersGroupCur, tracersGroupNew, tracersGroupTend
+      real (kind=RKIND), dimension(:), pointer :: sshCur
 
       integer, dimension(:), pointer :: maxLevelCell
 
+!      ! Diagnostics Array Pointers
+      real (kind=RKIND), dimension(:,:), pointer :: layerThicknessEdge
+      real (kind=RKIND), dimension(:,:), pointer :: vertAleTransportTop
+      real (kind=RKIND), dimension(:,:), pointer :: normalTransportVelocity, normalGMBolusVelocity
+      real (kind=RKIND), dimension(:,:), pointer :: velocityX, velocityY, velocityZ
+      real (kind=RKIND), dimension(:,:), pointer :: velocityZonal, velocityMeridional
+      real (kind=RKIND), dimension(:), pointer :: gradSSH
+      real (kind=RKIND), dimension(:), pointer :: gradSSHX, gradSSHY, gradSSHZ
+      real (kind=RKIND), dimension(:), pointer :: gradSSHZonal, gradSSHMeridional
+      real (kind=RKIND), dimension(:,:), pointer :: surfaceVelocity, sshGradient
+
+!      ! Diagnostics Indices
+      integer, pointer :: indexSurfaceVelocityZonal, indexSurfaceVelocityMeridional
+      integer, pointer :: indexSSHGradientZonal, indexSSHGradientMeridional
+
+!      ! Config options
+      logical, pointer :: config_prescribe_velocity, config_prescribe_thickness
+      logical, pointer :: config_use_standardGM
+      logical, pointer :: config_use_cvmix_kpp
       logical, pointer :: config_use_tracerGroup
+      logical, pointer :: config_disable_thick_all_tend
+      logical, pointer :: config_disable_vel_all_tend
+      logical, pointer :: config_disable_tr_all_tend
+      real (kind=RKIND), pointer :: config_mom_del4
+      character (len=StrKIND), pointer :: config_land_ice_flux_mode
+
       type (mpas_pool_iterator_type) :: groupItr
       character (len=StrKIND) :: modifiedGroupName
       character (len=StrKIND) :: configName
@@ -136,6 +168,7 @@ module ocn_time_integration_forward_euler
       call mpas_pool_get_subpool(block % structs, 'verticalMesh', verticalMeshPool)
       call mpas_pool_get_subpool(block % structs, 'diagnostics', diagnosticsPool)
       call mpas_pool_get_subpool(block % structs, 'forcing', forcingPool)
+      call mpas_pool_get_subpool(block % structs, 'shortwave', swForcingPool)
       call mpas_pool_get_subpool(block % structs, 'scratch', scratchPool)
       call mpas_pool_get_array(statePool, 'ssh', sshCur, 1)
 
@@ -144,7 +177,7 @@ module ocn_time_integration_forward_euler
       call mpas_pool_get_array(diagnosticsPool, 'normalTransportVelocity', normalTransportVelocity)
 
          call ocn_vert_transport_velocity_top(meshPool, verticalMeshPool, scratchPool, &
-            layerThicknessCur,layerThicknessEdge, normalVelocityProvis, &
+            layerThicknessCur,layerThicknessEdge, normalVelocityCur, &
             sshCur, dt, &
             vertAleTransportTop, err)
       call mpas_threading_barrier()
@@ -191,6 +224,7 @@ module ocn_time_integration_forward_euler
             call mpas_pool_get_config(block % configs, configName, config_use_tracerGroup)
 
             if ( config_use_tracerGroup ) then
+               call mpas_pool_get_array(tracersPool, groupItr % memberName, tracersGroupCur, 1)
                call mpas_pool_get_array(tracersPool, groupItr % memberName, tracersGroupNew, 2)
 
                modifiedGroupName = trim(groupItr % memberName) // 'Tend'
@@ -817,27 +851,8 @@ module ocn_time_integration_forward_euler
          block => block % next
       end do
 
-      if (trim(config_land_ice_flux_mode) == 'coupled') then
-         call mpas_timer_start("Forward Euler-effective density halo")
-         call mpas_pool_get_subpool(domain % blocklist % structs, 'state', statePool)
-         call mpas_pool_get_field(statePool, 'effectiveDensityInLandIce', effectiveDensityField, 2)
-         call mpas_dmpar_exch_halo_field(effectiveDensityField)
-         call mpas_timer_stop("Forward Euler-effective density halo")
-      end if
-
       call mpas_timer_stop("Forward Euler-cleaup phase")
 
-      call mpas_threading_barrier()
-
-      block => domain % blocklist
-      do while(associated(block))
-         call mpas_pool_get_subpool(block % structs, 'provis_state', provisStatePool)
-
-         call mpas_pool_destroy_pool(provisStatePool)
-
-         call mpas_pool_remove_subpool(block % structs, 'provis_state')
-         block => block % next
-      end do
       call mpas_threading_barrier()
 
    end subroutine ocn_time_integrator_forward_euler!}}}
@@ -1257,7 +1272,7 @@ module ocn_time_integration_forward_euler
 
       real (kind=RKIND), dimension(:, :), pointer :: layerThicknessNew, normalVelocityNew
       real (kind=RKIND), dimension(:, :), pointer :: normalTransportVelocity, normalGMBolusVelocity
-      real (kind=RKIND), dimension(:, :, :), pointer :: tracersGroupNew
+      real (kind=RKIND), dimension(:, :, :), pointer :: tracersGroupNew, tracersGroupCur
 
       integer, dimension(:), pointer :: maxLevelCell
 
