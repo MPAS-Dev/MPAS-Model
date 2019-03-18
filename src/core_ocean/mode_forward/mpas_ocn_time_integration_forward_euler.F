@@ -176,6 +176,9 @@ module ocn_time_integration_forward_euler
          call mpas_pool_get_array(diagnosticsPool, 'vertAleTransportTop', vertAleTransportTop)
          call mpas_pool_get_array(diagnosticsPool, 'normalTransportVelocity', normalTransportVelocity)
    
+         !--------------------------------------------------------------------
+         ! Compute tendencies for velocity
+         !--------------------------------------------------------------------
          call ocn_vert_transport_velocity_top(meshPool, verticalMeshPool, scratchPool, &
             layerThicknessCur,layerThicknessEdge, normalVelocityCur, &
             sshCur, dt, &
@@ -185,21 +188,19 @@ module ocn_time_integration_forward_euler
          call ocn_tend_vel(tendPool, statePool, forcingPool, diagnosticsPool, meshPool, scratchPool, 1)
          call mpas_threading_barrier()
    
-            call ocn_vert_transport_velocity_top(meshPool, verticalMeshPool, scratchPool, &
-               layerThicknessCur, layerThicknessEdge, normalTransportVelocity, &
-               sshCur, dt, &
-               vertAleTransportTop, err)
+         call ocn_vert_transport_velocity_top(meshPool, verticalMeshPool, scratchPool, &
+            layerThicknessCur, layerThicknessEdge, normalTransportVelocity, &
+            sshCur, dt, &
+            vertAleTransportTop, err)
          call mpas_threading_barrier()
    
          call ocn_tend_thick(tendPool, forcingPool, diagnosticsPool, meshPool)
-   
          call mpas_threading_barrier()
    
          call ocn_tend_tracer(tendPool, statePool, forcingPool, diagnosticsPool, meshPool, swForcingPool, &
                               scratchPool, dt, activeTracersOnlyIn=.false., timeLevelIn=1)
          call mpas_threading_barrier()
    
-         call mpas_threading_barrier()
          !$omp do schedule(runtime) private(k)
          do iCell = 1, nCells
             do k = 1, maxLevelCell(iCell)
@@ -320,7 +321,7 @@ module ocn_time_integration_forward_euler
          call mpas_pool_get_array(diagnosticsPool, 'surfaceVelocity', surfaceVelocity)
          call mpas_pool_get_array(diagnosticsPool, 'SSHGradient', SSHGradient)
 
-
+         call mpas_pool_get_config(block % configs, 'config_prescribe_velocity', config_prescribe_velocity)
          if (config_prescribe_velocity) then
             !$omp do schedule(runtime)
             do iEdge = 1, nEdges
@@ -329,6 +330,7 @@ module ocn_time_integration_forward_euler
             !$omp end do
          end if
 
+         call mpas_pool_get_config(block % configs, 'config_prescribe_thickness', config_prescribe_thickness)
          if (config_prescribe_thickness) then
             !$omp do schedule(runtime)
             do iCell = 1, nCells
@@ -354,6 +356,7 @@ module ocn_time_integration_forward_euler
          call mpas_threading_barrier()
 
          ! Compute normalGMBolusVelocity and the tracer transport velocity
+         call mpas_pool_get_config(block % configs, 'config_use_standardGM', config_use_standardGM)
          if (config_use_standardGM) then
              call ocn_gm_compute_Bolus_velocity(diagnosticsPool, meshPool, scratchPool)
          end if
