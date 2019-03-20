@@ -53,18 +53,18 @@
 <!-- ************************************** Namelists *************************************** -->
 <!-- **************************************************************************************** -->
 
-        <nml_record name="nhyd_model" in_defaults="true">
-                <nml_option name="config_time_integration" type="character" default_value="SRK3" in_defaults="false"
+        <nml_record name="nhyd_model" in_defaults="true" used_by="cam">
+                <nml_option name="config_time_integration" type="character" default_value="SRK3" in_defaults="false" used_by="cam"
                      units="-"
                      description="Time integration scheme"
                      possible_values="`SRK3'"/>
 
-                <nml_option name="config_time_integration_order" type="integer" default_value="2"
+                <nml_option name="config_time_integration_order" type="integer" default_value="2" used_by="cam"
                      units="-"
                      description="Order for RK time integration"
                      possible_values="2 or 3"/>
 
-                <nml_option name="config_dt" type="real" default_value="720.0"
+                <nml_option name="config_dt" type="real" default_value="720.0" used_by="cam"
                      units="s"
                      description="Model time step, seconds"
                      possible_values="Positive real values"/>
@@ -89,169 +89,169 @@
                      description="Length of model simulation"
                      possible_values="[DDD_]hh:mm:ss"/>
 
-                <nml_option name="config_split_dynamics_transport" type="logical" default_value="true"
+                <nml_option name="config_split_dynamics_transport" type="logical" default_value="true" used_by="cam"
                      units="-"
                      description="Whether to super-cycle scalar transport"
                      possible_values="Logical values"/>
 
-                <nml_option name="config_number_of_sub_steps" type="integer" default_value="2"
+                <nml_option name="config_number_of_sub_steps" type="integer" default_value="2" used_by="cam"
                      units="-"
                      description="Number of acoustic steps per full RK step"
                      possible_values="Positive, even integer values, typically 2 or 6 depending on transport splitting"/>
 
-                <nml_option name="config_dynamics_split_steps" type="integer" default_value="3"
+                <nml_option name="config_dynamics_split_steps" type="integer" default_value="3" used_by="cam"
                      units="-"
                      description="When config\_split\_dynamics\_transport = T, the number of RK steps per transport step"
                      possible_values="Positive integer values"/>
 
-                <nml_option name="config_h_mom_eddy_visc2" type="real" default_value="0.0"
+                <nml_option name="config_h_mom_eddy_visc2" type="real" default_value="0.0" used_by="cam"
                      units="m^2 s^{-1}"
                      description="$\nabla^2$ eddy viscosity for horizontal diffusion of momentum"
                      possible_values="Positive real values"/>
 
-                <nml_option name="config_h_mom_eddy_visc4" type="real" default_value="0.0"
+                <nml_option name="config_h_mom_eddy_visc4" type="real" default_value="0.0" used_by="cam"
                      units="m^4 s^{-1}"
                      description="$\nabla^4$ eddy hyper-viscosity for horizontal diffusion of momentum"
                      possible_values="Positive real values"/>
 
-                <nml_option name="config_v_mom_eddy_visc2" type="real" default_value="0.0"
+                <nml_option name="config_v_mom_eddy_visc2" type="real" default_value="0.0" used_by="cam"
                      units="m^2 s^{-1}"
                      description="$\nabla^2$ eddy viscosity for vertical diffusion of momentum"
                      possible_values="Positive real values"/>
 
-                <nml_option name="config_h_theta_eddy_visc2" type="real" default_value="0.0"
+                <nml_option name="config_h_theta_eddy_visc2" type="real" default_value="0.0" used_by="cam"
                      units="m^2 s^{-1}"
                      description="$\nabla^2$ eddy viscosity for horizontal diffusion of theta"
                      possible_values="Positive real values"/>
 
-                <nml_option name="config_h_theta_eddy_visc4" type="real" default_value="0.0"
+                <nml_option name="config_h_theta_eddy_visc4" type="real" default_value="0.0" used_by="cam"
                      units="m^4 s^{-1}"
                      description="$\nabla^4$ eddy hyper-viscosity for horizontal diffusion of theta"
                      possible_values="Positive real values"/>
 
-                <nml_option name="config_v_theta_eddy_visc2" type="real" default_value="0.0"
+                <nml_option name="config_v_theta_eddy_visc2" type="real" default_value="0.0" used_by="cam"
                      units="m^2 s^{-1}"
                      description="$\nabla^2$ eddy viscosity for vertical diffusion of theta"
                      possible_values="Positive real values"/>
 
-                <nml_option name="config_horiz_mixing" type="character" default_value="2d_smagorinsky"
+                <nml_option name="config_horiz_mixing" type="character" default_value="2d_smagorinsky" used_by="cam"
                      units="-"
                      description="Formulation of horizontal mixing"
                      possible_values="`2d_fixed' or `2d_smagorinsky'"/>
 
-                <nml_option name="config_len_disp" type="real" default_value="120000.0"
+                <nml_option name="config_len_disp" type="real" default_value="120000.0" used_by="cam"
                      units="m"
                      description="Horizontal length scale, used by the Smagorinsky formulation of horizontal diffusion and by 3-d divergence damping"
                      possible_values="Positive real values"/>
 
-                <nml_option name="config_visc4_2dsmag" type="real" default_value="0.05"
+                <nml_option name="config_visc4_2dsmag" type="real" default_value="0.05" used_by="cam"
                      units="-"
                      description="Scaling coefficient of $\delta x^3$ to obtain $\nabla^4$ diffusion coefficient"
                      possible_values="Non-negative real values"/>
 
-                <nml_option name="config_del4u_div_factor" type="real" default_value="10.0" in_defaults="false"
+                <nml_option name="config_del4u_div_factor" type="real" default_value="10.0" in_defaults="false" used_by="cam"
                      units="-"
                      description="Scaling factor for the divergent component of $\nabla^4 u$ calculation"
                      possible_values="Positive real values"/>
 
-                <nml_option name="config_w_adv_order" type="integer" default_value="3"
+                <nml_option name="config_w_adv_order" type="integer" default_value="3" used_by="cam"
                      units="-"
                      description="Horizontal advection order for w"
                      possible_values="2, 3, or 4"/>
 
-                <nml_option name="config_theta_adv_order" type="integer" default_value="3"
+                <nml_option name="config_theta_adv_order" type="integer" default_value="3" used_by="cam"
                      units="-"
                      description="Horizontal advection order for theta"
                      possible_values="2, 3, or 4"/>
 
-                <nml_option name="config_scalar_adv_order" type="integer" default_value="3"
+                <nml_option name="config_scalar_adv_order" type="integer" default_value="3" used_by="cam"
                      units="-"
                      description="Horizontal advection order for scalars"
                      possible_values="2, 3, or 4"/>
 
-                <nml_option name="config_u_vadv_order" type="integer" default_value="3"
+                <nml_option name="config_u_vadv_order" type="integer" default_value="3" used_by="cam"
                      units="-"
                      description="Vertical advection order for normal velocities (u)"
                      possible_values="2, 3, or 4"/>
 
-                <nml_option name="config_w_vadv_order" type="integer" default_value="3"
+                <nml_option name="config_w_vadv_order" type="integer" default_value="3" used_by="cam"
                      units="-"
                      description="Vertical advection order for w"
                      possible_values="2, 3, or 4"/>
 
-                <nml_option name="config_theta_vadv_order" type="integer" default_value="3"
+                <nml_option name="config_theta_vadv_order" type="integer" default_value="3" used_by="cam"
                      units="-"
                      description="Vertical advection order for theta"
                      possible_values="2, 3, or 4"/>
 
-                <nml_option name="config_scalar_vadv_order" type="integer" default_value="3"
+                <nml_option name="config_scalar_vadv_order" type="integer" default_value="3" used_by="cam"
                      units="-"
                      description="Vertical advection order for scalars"
                      possible_values="2, 3, or 4"/>
 
-                <nml_option name="config_scalar_advection" type="logical" default_value="true"
+                <nml_option name="config_scalar_advection" type="logical" default_value="true" used_by="cam"
                      units="-"
                      description="Whether to advect scalar fields"
                      possible_values=".true. or .false."/>
 
-                <nml_option name="config_positive_definite" type="logical" default_value="false"
+                <nml_option name="config_positive_definite" type="logical" default_value="false" used_by="cam"
                      units="-"
                      description="Whether to enable positive-definite advection of scalars"
                      possible_values=".true. or .false."/>
 
-                <nml_option name="config_monotonic" type="logical" default_value="true"
+                <nml_option name="config_monotonic" type="logical" default_value="true" used_by="cam"
                      units="-"
                      description="Whether to enable monotonic limiter in scalar advection"
                      possible_values=".true. or .false."/>
 
-                <nml_option name="config_coef_3rd_order" type="real" default_value="0.25"
+                <nml_option name="config_coef_3rd_order" type="real" default_value="0.25" used_by="cam"
                      units="-"
                      description="Upwinding coefficient in the 3rd order advection scheme"
                      possible_values="0 $\leq$ config_coef_3rd_order $\leq$ 1"/>
 
-                <nml_option name="config_smagorinsky_coef" type="real" default_value="0.125" in_defaults="false"
+                <nml_option name="config_smagorinsky_coef" type="real" default_value="0.125" in_defaults="false" used_by="cam"
                      units="-"
                      description="Dimensionless empirical parameter relating the strain tensor to the eddy viscosity in the Smagorinsky turbulence model"
                      possible_values="Real values typically in the range 0.1 to 0.4"/>
 
-                <nml_option name="config_mix_full" type="logical" default_value="true" in_defaults="false"
+                <nml_option name="config_mix_full" type="logical" default_value="true" in_defaults="false" used_by="cam"
                      units="-"
                      description="Mix full $\theta$ and $u$ fields, or mix perturbation from intitial state"
                      possible_values=".true. or .false."/>
 
-                <nml_option name="config_epssm" type="real" default_value="0.1"
+                <nml_option name="config_epssm" type="real" default_value="0.1" used_by="cam"
                      units="-"
                      description="Off-centering parameter for the vertically implicit acoustic integration"
                      possible_values="Positive real values"/>
 
-                <nml_option name="config_smdiv" type="real" default_value="0.1"
+                <nml_option name="config_smdiv" type="real" default_value="0.1" used_by="cam"
                      units="-"
                      description="3-d divergence damping coefficient"
                      possible_values="Positive real values"/>
 
-                <nml_option name="config_apvm_upwinding" type="real" default_value="0.5" in_defaults="false"
+                <nml_option name="config_apvm_upwinding" type="real" default_value="0.5" in_defaults="false" used_by="cam"
                      units="-"
                      description="Amount of upwinding in APVM"
                      possible_values="0 $\leq$ config_apvm_upwinding $\leq$ 1"/>
 
-                <nml_option name="config_h_ScaleWithMesh" type="logical" default_value="true" in_defaults="false"
+                <nml_option name="config_h_ScaleWithMesh" type="logical" default_value="true" in_defaults="false" used_by="cam"
                      units="-"
                      description="Scale eddy viscosities with mesh-density function for horizontal diffusion"
                      possible_values=".true. or .false."/>
 
-                <nml_option name="config_num_halos" type="integer" default_value="2" in_defaults="false"
+                <nml_option name="config_num_halos" type="integer" default_value="2" in_defaults="false" used_by="cam"
                      units="-"
                      description="Number of halo layers for fields"
                      possible_values="Integer values, typically 2 or 3; DO NOT CHANGE"/>
         </nml_record>
 
-        <nml_record name="damping" in_defaults="true">
-                <nml_option name="config_zd" type="real" default_value="22000.0"
+        <nml_record name="damping" in_defaults="true" used_by="cam">
+                <nml_option name="config_zd" type="real" default_value="22000.0" used_by="cam"
                      units="m"
                      description="Height MSL to begin w-damping profile"
                      possible_values="Positive real values"/>
 
-                <nml_option name="config_xnutr" type="real" default_value="0.2"
+                <nml_option name="config_xnutr" type="real" default_value="0.2" used_by="cam"
                      units="-"
                      description="Maximum w-damping coefficient at model top"
                      possible_values="0 $\leq$ config_xnutr $\leq$ 1"/>
@@ -274,8 +274,8 @@
                      possible_values="Integer valued, $\leq$ (\# MPI tasks) / config_pio_num_iotasks"/>
         </nml_record>
 
-        <nml_record name="decomposition" in_defaults="true">
-                <nml_option name="config_block_decomp_file_prefix" type="character" default_value="x1.40962.graph.info.part."
+        <nml_record name="decomposition" in_defaults="true" used_by="cam">
+                <nml_option name="config_block_decomp_file_prefix" type="character" default_value="x1.40962.graph.info.part." used_by="cam"
                      units="-"
                      description="Prefix of graph decomposition file, to be suffixed with the MPI task count"
                      possible_values="Any valid filename"/>
@@ -296,8 +296,8 @@
                      possible_values="Any valid filename"/>
         </nml_record>
 
-        <nml_record name="restart" in_defaults="true">
-                <nml_option name="config_do_restart" type="logical" default_value="false"
+        <nml_record name="restart" in_defaults="true" used_by="cam">
+                <nml_option name="config_do_restart" type="logical" default_value="false" used_by="cam"
                      units="-"
                      description="Whether this run of the model is to restart from a previous restart file or not"
                      possible_values=".true. or .false."/>
@@ -308,18 +308,18 @@
                      possible_values=".true. or .false."/>
         </nml_record>
 
-        <nml_record name="printout" in_defaults="true">
-                <nml_option name="config_print_global_minmax_vel" type="logical" default_value="true"
+        <nml_record name="printout" in_defaults="true" used_by="cam">
+                <nml_option name="config_print_global_minmax_vel" type="logical" default_value="true" used_by="cam"
                      units="-"
                      description="Whether to print the global min/max of horizontal normal velocity and vertical velocity each timestep"
                      possible_values=".true. or .false."/>
 
-                <nml_option name="config_print_detailed_minmax_vel" type="logical" default_value="false"
+                <nml_option name="config_print_detailed_minmax_vel" type="logical" default_value="false" used_by="cam"
                      units="-"
                      description="Whether to print the global min/max of horizontal normal velocity and vertical velocity each timestep, along with the location in the domain where those extrema occurred"
                      possible_values=".true. or .false."/>
 
-                <nml_option name="config_print_global_minmax_sca" type="logical" default_value="false" in_defaults="false"
+                <nml_option name="config_print_global_minmax_sca" type="logical" default_value="false" in_defaults="false" used_by="cam"
                      units="-"
                      description="Whether to print the global min/max of scalar fields each timestep"
                      possible_values=".true. or .false."/>
