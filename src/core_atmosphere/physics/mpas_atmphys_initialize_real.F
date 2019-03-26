@@ -599,7 +599,7 @@
  real(kind=RKIND),dimension(:,:),pointer:: tslb,smois,sh2o,smcrel
 
  logical, pointer :: config_frac_seaice
- character(len=StrKIND),pointer:: config_landuse_data
+ character(len=StrKIND),pointer:: mminlu
  integer:: isice_lu
 
 !note that this threshold is also defined in module_physics_vars.F.It is defined here to avoid
@@ -613,10 +613,11 @@
 !call mpas_log_write('--- enter physics_init_seaice:')
 
  call mpas_pool_get_config(configs, 'config_frac_seaice', config_frac_seaice)
- call mpas_pool_get_config(configs, 'config_landuse_data', config_landuse_data)
 
  call mpas_pool_get_dimension(dims, 'nCellsSolve', nCellsSolve)
  call mpas_pool_get_dimension(dims, 'nSoilLevels', nSoilLevels)
+
+ call mpas_pool_get_array(mesh, 'mminlu', mminlu)
 
  call mpas_pool_get_array(mesh, 'landmask', landmask)
  call mpas_pool_get_array(mesh, 'lu_index', ivgtyp)
@@ -636,7 +637,7 @@
  call mpas_pool_get_array(input, 'smcrel', smcrel)
 
 !define the land use category for sea-ice as a function of the land use category input file:
- sfc_input_select1: select case(trim(config_landuse_data))
+ sfc_input_select1: select case(trim(mminlu))
     case('OLD')
        isice_lu = 11
     case('USGS')
@@ -644,7 +645,7 @@
     case('MODIFIED_IGBP_MODIS_NOAH')
        isice_lu = 15
     case default
-       CALL physics_error_fatal ('Invalid Land Use Dataset '//trim(config_landuse_data))
+       CALL physics_error_fatal ('Invalid Land Use Dataset '//trim(mminlu))
  end select sfc_input_select1
  call mpas_log_write('--- isice_lu   = $i', intArgs=(/isice_lu/))
 
