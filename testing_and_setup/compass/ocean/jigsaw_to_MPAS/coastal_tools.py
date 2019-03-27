@@ -177,6 +177,7 @@ default_params = {
 
     # Path to bathymetry data and name of file
     "nc_file": "./earth_relief_15s.nc",
+    "nc_vars": ["lon","lat","z"],
 
     # Bounding box of coastal refinement region
     "region_box": Continental_US,
@@ -235,6 +236,7 @@ def coastal_refined_mesh(params, cell_width=None, lon_grd=None, lat_grd=None):  
     # Get coastlines from bathy/topo  data set
     coastlines = extract_coastlines(
         params["nc_file"],
+        params["nc_vars"],
         params["region_box"],
         params["z_contour"],
         params["n_longest"],
@@ -331,7 +333,7 @@ def create_background_mesh(grd_box, ddeg, mesh_type, dx_min, dx_max,  # {{{
 ##############################################################
 
 
-def extract_coastlines(nc_file, region_box, z_contour=0, n_longest=10,   # {{{
+def extract_coastlines(nc_file, nc_vars, region_box, z_contour=0, n_longest=10,   # {{{
                        plot_option=False, plot_box=[], call=None):
 
     print "Extract coastlines"
@@ -339,9 +341,9 @@ def extract_coastlines(nc_file, region_box, z_contour=0, n_longest=10,   # {{{
 
     # Open NetCDF file and read cooordintes
     nc_fid = Dataset(nc_file, "r")
-    lon = nc_fid.variables['lon'][:]
-    lat = nc_fid.variables['lat'][:]
-    bathy_data = nc_fid.variables['z']
+    lon = nc_fid.variables[nc_vars[0]][:]
+    lat = nc_fid.variables[nc_vars[1]][:]
+    bathy_data = nc_fid.variables[nc_vars[2]]
 
     # Get coastlines for refined region
     coastline_list = []
