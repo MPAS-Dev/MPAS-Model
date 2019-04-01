@@ -442,7 +442,7 @@ module turbulence_diagnostics
         call mpas_pool_get_array(mesh, 'edgesOnCell', edgesOnCell)
 
         ! States and diagnostics, integration coefficients
-        call mpas_pool_get_array(state, 'u', u, 2)
+        call mpas_pool_get_array(state, 'u', u, 1)
         call mpas_pool_get_array(diag, 'v', v)
         call mpas_pool_get_array(mesh, 'defc_a', defc_a)
         call mpas_pool_get_array(mesh, 'defc_b', defc_b)
