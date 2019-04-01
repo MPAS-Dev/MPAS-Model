@@ -1,0 +1,42 @@
+<?xml version="1.0"?>
+<config case="init_step1">
+
+  <add_link source_path="mpas_tools" source="mesh_tools/periodic_hex/namelist.input" dest="namelist.input.default"/>
+  <add_link source_path="mpas_tools" source="mesh_tools/periodic_hex/periodic_grid" dest="periodic_hex"/>
+
+	<add_executable source="mesh_converter" dest="MpasMeshConverter.x"/>
+
+	<run_script name="run.py">
+		<step executable="cp">
+			<argument flag="">namelist.input.default</argument>
+			<argument flag="">namelist.input</argument>
+		</step>
+<!-- may be a better way to do this instead of sed -->    
+		<step executable="sed">
+			<argument flag="">-i</argument>
+	<!--		<argument flag="">""</argument> 
+			<argument flag="">s/nx.*=.*/nx = 99,/</argument> -->
+			<argument flag="">s/nx.*=.*/nx = 99,/g</argument>
+			<argument flag="">namelist.input</argument>
+		</step>
+		<step executable="sed">
+			<argument flag="">-i</argument>
+		<!--	<argument flag="">""</argument>
+			<argument flag="">s/ny.*=.*/ny = 100,/</argument> -->
+			<argument flag="">s/ny.*=.*/ny = 100,/g</argument>
+			<argument flag="">namelist.input</argument>
+		</step>
+		<step executable="sed">
+			<argument flag="">-i</argument>
+		<!--	<argument flag="">""</argument>
+			<argument flag="">s/dc.*=.*/dc = 100,/</argument> -->
+			<argument flag="">s/dc.*=.*/dc = 100,/g</argument>
+			<argument flag="">namelist.input</argument>
+		</step>
+		<step executable="./periodic_hex">
+		</step>
+		<step executable="./MpasMeshConverter.x">
+			<argument flag="">grid.nc</argument>
+		</step>
+	</run_script>
+</config>
