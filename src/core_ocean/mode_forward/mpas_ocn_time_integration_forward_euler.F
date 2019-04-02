@@ -145,6 +145,7 @@ module ocn_time_integration_forward_euler
 
       block => domain % blocklist
       do while (associated(block))
+         ! set pointers !{{{
          call mpas_pool_get_dimension(block % dimensions, 'nCells', nCells)
          call mpas_pool_get_dimension(block % dimensions, 'nEdges', nEdges)
    
@@ -175,9 +176,10 @@ module ocn_time_integration_forward_euler
          call mpas_pool_get_array(diagnosticsPool, 'layerThicknessEdge', layerThicknessEdge)
          call mpas_pool_get_array(diagnosticsPool, 'vertAleTransportTop', vertAleTransportTop)
          call mpas_pool_get_array(diagnosticsPool, 'normalTransportVelocity', normalTransportVelocity)
+         !}}}
    
          !--------------------------------------------------------------------
-         ! Compute tendencies for velocity
+         ! Compute tendencies
          !--------------------------------------------------------------------
          call ocn_vert_transport_velocity_top(meshPool, verticalMeshPool, scratchPool, &
             layerThicknessCur,layerThicknessEdge, normalVelocityCur, &
@@ -349,7 +351,7 @@ module ocn_time_integration_forward_euler
          call ocn_diagnostic_solve(dt, statePool, forcingPool, meshPool, diagnosticsPool, scratchPool, tracersPool, 2)
          call mpas_threading_barrier()
 
-         ! Update the effective desnity in land ice if we're coupling to land ice
+         ! Update the effective density in land ice if we're coupling to land ice
          call ocn_effective_density_in_land_ice_update(meshPool, forcingPool, statePool, scratchPool, err)
 
          ! ------------------------------------------------------------------
