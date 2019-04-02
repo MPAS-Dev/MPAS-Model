@@ -141,6 +141,7 @@ module ocn_time_integration_split
       logical, pointer :: config_use_cvmix_kpp
       logical, pointer :: config_use_tracerGroup
       logical, pointer :: config_compute_active_tracer_budgets
+      logical, pointer :: config_reset_debugTracers_at_surface
 
       character (len=StrKIND), pointer :: config_land_ice_flux_mode
 
@@ -257,6 +258,7 @@ module ocn_time_integration_split
       call mpas_pool_get_config(domain % configs, 'config_num_halos', config_num_halos)
 
       call mpas_pool_get_config(domain % configs, 'config_compute_active_tracer_budgets', config_compute_active_tracer_budgets)
+      call mpas_pool_get_config(domain % configs, 'config_reset_debugTracers_at_surface', config_reset_debugTracers_at_surface)
       allocate(n_bcl_iter(config_n_ts_iter))
 
       !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -1690,6 +1692,17 @@ module ocn_time_integration_split
                               end do
                            end do
                            !$omp end do
+                        end if
+
+                        ! Reset debugTracers to fixed value at the surface
+                        if ( trim(groupItr % memberName) == 'debugTracers' ) then
+                           if (config_reset_debugTracers_at_surface) then
+                              !$omp do schedule(runtime)
+                              do iCell = 1, nCells
+                                 tracersGroupNew(indexSalinity,1,iCell) = 1.0_RKIND
+                              end do
+                              !$omp end do
+                           end if
                         end if
 
                      end if

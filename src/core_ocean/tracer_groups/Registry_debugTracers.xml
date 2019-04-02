@@ -3,6 +3,10 @@
 			description="if true, the 'debugTracers' category is enabled for the run"
 			possible_values=".true. or .false."
 		/>
+		<nml_option name="config_reset_debugTracers_at_surface" type="logical" default_value=".false." units="unitless"
+			description="if true, the reset 'debugTracers' at the surface"
+			possible_values=".true. or .false."
+		/>
 		<nml_option name="config_use_debugTracers_surface_bulk_forcing" type="logical" default_value=".false." units="unitless"
 			description="if true, surface bulk forcing from coupler is added to surfaceTracerFlux in 'debugTracers' category"
 			possible_values=".true. or .false."
