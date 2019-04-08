@@ -10,6 +10,7 @@
  use mpas_kind_types
  use mpas_pool_routines,only: mpas_pool_type,mpas_pool_get_array,mpas_pool_get_config
  use mpas_timer,only: mpas_timer_start,mpas_timer_stop
+ use mpas_log
 
  use mpas_atmphys_constants, only: ep_2
  use mpas_atmphys_vars
@@ -56,6 +57,8 @@
 !   the grid-scale cloud fraction. added the cloud water and ice mixing ratios from convection to the grid-scale
 !   cloud water and ice mixing ratios used in the long-wave and short-wave radiation codes.
 !   Laura D. Fowler (laura@ucar.edu) / 2018-03-22.
+! * updated the call to subroutine cal_cldfra3, now that cal_cldfra3 has been updated to WRF-4.1
+!   Laura D. Fowler (laura@ucar.edu) / 2019-04-08.
 
 
  contains
@@ -246,6 +249,9 @@
 
  integer:: i,j,k
 
+ real(kind=RKIND):: land,gridkm
+ real(kind=RKIND),dimension(:),allocatable:: p_1d,t_1d,qv_1d,qc_1d,qi_1d,qs_1d,dz_1d,cf_1d
+
 !-----------------------------------------------------------------------------------------------------------------
 !call mpas_log_write('')
 !call mpas_log_write('--- enter subroutine driver_cloudiness:')
@@ -268,14 +274,54 @@
 
     case("cld_fraction_thompson")
       call mpas_timer_start('cal_cldfra3')
-      call cal_cldfra3( &
-           cldfra = cldfrac_p , qv     = qvrad_p    , qc = qcrad_p , qi  = qirad_p , &
-           qs     = qsrad_p   , p      = pres_hyd_p , t  = t_p     , rho = rho_p   , &
-           xland  = xland_p   , gridkm = dx_p       ,                                &
-           ids = ids , ide = ide , jds = jds , jde = jde , kds = kds , kde = kde ,   &
-           ims = ims , ime = ime , jms = jms , jme = jme , kms = kds , kme = kme ,   &
-           its = its , ite = ite , jts = jts , jte = jte , kts = kts , kte = kte     &
-                      )
+
+      if(.not.allocated(p_1d) ) allocate(p_1d(kts:kte) )
+      if(.not.allocated(t_1d) ) allocate(t_1d(kts:kte) )
+      if(.not.allocated(qv_1d)) allocate(qv_1d(kts:kte))
+      if(.not.allocated(qc_1d)) allocate(qc_1d(kts:kte))
+      if(.not.allocated(qi_1d)) allocate(qi_1d(kts:kte))
+      if(.not.allocated(qs_1d)) allocate(qs_1d(kts:kte))
+      if(.not.allocated(dz_1d)) allocate(dz_1d(kts:kte))
+      if(.not.allocated(cf_1d)) allocate(cf_1d(kts:kte))
+
+      do j = jts,jte
+      do i = its,ite
+
+         gridkm = dx_p(i,j)*0.001_RKIND
+         land   = xland_p(i,j)
+         do k = kts,kte
+            p_1d(k)  = pres_hyd_p(i,k,j)
+            t_1d(k)  = t_p(i,k,j)
+            qv_1d(k) = qvrad_p(i,k,j)
+            qc_1d(k) = qcrad_p(i,k,j)
+            qi_1d(k) = qirad_p(i,k,j)
+            qs_1d(k) = qsrad_p(i,k,j)
+            dz_1d(k) = dz_p(i,k,j)
+            cf_1d(k) = cldfrac_p(i,k,j)
+         enddo
+
+         call cal_cldfra3(cf_1d,qv_1d,qc_1d,qi_1d,qs_1d,dz_1d,p_1d, t_1d, &
+                          land,gridkm,.false.,1.5,kts,kte,.false.)
+
+         do k = kts,kte
+            qcrad_p(i,k,j)   = qc_1d(k)
+            qirad_p(i,k,j)   = qi_1d(k)
+            qsrad_p(i,k,j)   = qs_1d(k)
+            cldfrac_p(i,k,j) = cf_1d(k)
+         enddo
+
+      enddo
+      enddo
+
+      if(allocated(p_1d) ) deallocate(p_1d)
+      if(allocated(t_1d) ) deallocate(t_1d)
+      if(allocated(qv_1d)) deallocate(qv_1d)
+      if(allocated(qc_1d)) deallocate(qc_1d)
+      if(allocated(qi_1d)) deallocate(qi_1d)
+      if(allocated(qs_1d)) deallocate(qs_1d)
+      if(allocated(dz_1d)) deallocate(dz_1d)
+      if(allocated(cf_1d)) deallocate(cf_1d)
+
       call mpas_timer_stop('cal_cldfra3')
 
     case default
