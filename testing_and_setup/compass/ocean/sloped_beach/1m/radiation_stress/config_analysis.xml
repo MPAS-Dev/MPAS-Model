@@ -1,0 +1,11 @@
+<?xml version="1.0"?>
+<config case="analysis">
+	<add_link source_path="script_configuration_dir" source="plot_sloped_beach.py" dest="plot_sloped_beach.py"/>
+	<add_link source="../forward/output.nc" dest="output.nc"/>
+	<add_link source="../init/exact_solution.nc" dest="exact_solution.nc"/>
+
+	<run_script name="run.py">
+		<step executable="./plot_sloped_beach.py">
+		</step>
+	</run_script>
+</config>

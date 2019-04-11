@@ -25,7 +25,8 @@ TEST_CASES = mpas_ocn_init_baroclinic_channel.o \
              mpas_ocn_init_isomip.o \
              mpas_ocn_init_isomip_plus.o \
              mpas_ocn_init_hurricane.o \
-             mpas_ocn_init_tidal_boundary.o
+             mpas_ocn_init_tidal_boundary.o \
+             mpas_ocn_init_sloped_beach.o
              #mpas_ocn_init_TEMPLATE.o
 
 all: init_mode
@@ -79,6 +80,8 @@ mpas_ocn_init_ziso.o: $(UTILS)
 mpas_ocn_init_hurricane.o: $(UTILS)
 
 mpas_ocn_init_tidal_boundary.o: $(UTILS)
+
+mpas_ocn_init_sloped_beach.o: $(UTILS)
 
 #mpas_ocn_init_TEMPLATE.o: $(UTILS)
 

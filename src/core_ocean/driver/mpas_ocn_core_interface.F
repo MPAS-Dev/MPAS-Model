@@ -125,6 +125,7 @@ module ocn_core_interface
       logical, pointer :: gmActive
       logical, pointer :: timeVaryingAtmosphericForcingPKGActive
       logical, pointer :: timeVaryingLandIceForcingPKGActive
+      logical, pointer :: waveRadiationStressPKGActive 
 
       type (mpas_pool_iterator_type) :: pkgItr
       logical, pointer :: packageActive
@@ -151,6 +152,7 @@ module ocn_core_interface
       logical, pointer :: config_use_standardGM
       logical, pointer :: config_use_time_varying_atmospheric_forcing
       logical, pointer :: config_use_time_varying_land_ice_forcing
+      logical, pointer :: config_use_wave_radiation_stress_forcing
 
       character (len=StrKIND), pointer :: config_time_integrator
       character (len=StrKIND), pointer :: config_ocean_run_mode
@@ -318,6 +320,15 @@ module ocn_core_interface
       call mpas_pool_get_config(configPool, 'config_use_time_varying_land_ice_forcing', config_use_time_varying_land_ice_forcing)
       if (config_use_time_varying_land_ice_forcing) then
          timeVaryingLandIceForcingPKGActive = .true.
+      endif
+
+      !
+      ! test for wave radiation stress forcing
+      !
+      call mpas_pool_get_package(packagePool, 'waveRadiationStressPKGActive', waveRadiationStressPKGActive)
+      call mpas_pool_get_config(configPool, 'config_use_wave_radiation_stress_forcing', config_use_wave_radiation_stress_forcing)
+      if (config_use_wave_radiation_stress_forcing) then
+         waveRadiationStressPKGActive = .true.
       endif
 
       !

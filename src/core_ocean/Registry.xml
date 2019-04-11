@@ -740,6 +740,10 @@
 					description="The length scale of exponential decay of river runoff. Fluxes are multiplied by $e^{z/\gamma}$, where this coefficient is $\gamma$."
 					possible_values="Any positive real number."
 		/>
+		<nml_option name="config_use_wave_radiation_stress_forcing" type="logical" default_value=".false." units="unitless"
+					description="Controls if wave radiation stress forcing is used."
+					possible_values=".true. or .false."
+		/>
 	</nml_record>
 	<nml_record name="time_varying_forcing" mode="init;forward">
 		<nml_option name="config_use_time_varying_atmospheric_forcing" type="logical" default_value=".false." units="unitless"
@@ -957,7 +961,6 @@
 					possible_values="Any positive real number"
 		/>
 	</nml_record>
-
 	<nml_record name="advection" mode="forward">
 		<nml_option name="config_vert_tracer_adv" type="character" default_value="stencil" units="unitless"
 					description="Method for interpolating tracer values from layer centers to layer edges"
@@ -1356,7 +1359,7 @@
 		<package name="timeVaryingAtmosphericForcingPKG" description="This package includes variables required for time varying atmospheric forcing"/>
 		<package name="timeVaryingLandIceForcingPKG" description="This package includes variavles required for time varying land-ice forcing"/>
 		<package name="variableShortwave" description="This package includes variables required to compute spatially variable shortwave extinction coefficients"/>
-
+		<package name="waveRadiationStressPKG" description="This package includes variables required for wave radiation stress forcing"/>
 		<package name="splitTimeIntegrator" description="This package includes variables required for either the split or unsplit explicit time integrators."/>
 		<package name="thicknessFilter" description="This package includes variables required for frequency filtered thickness."/>
 		<package name="windStressBulkPKG" description="This package includes varibles required for bulk wind stress forcing."/>
@@ -2854,6 +2857,10 @@
 		<var name="pressureAdjustedSSH" type="real" dimensions="nCells Time" units="m"
 			 description="sea surface height adjusted by sea surface pressure"
 		/>
+		<var name="waveRadiationStressXXdx" type="real" dimensions="nEdges Time" units="kg s^{-2}"
+			 description="x derivative of wave radiation stress xx component"
+			 packages="waveRadiationStressPKG"
+		/>
 	</var_struct>
 	<var_struct name="shortwave" time_levs="1">
 		<!-- **********************************************************************
@@ -3171,6 +3178,21 @@
 			 description="surface pressure forcing due to weight of frazil ice"
 			 packages="frazilIce"
 		/>
+    
+		<!-- Input fields for wave radiation stress forcing -->
+		<var name="waveRadiationStressXX" type="real" dimensions="nCells Time" units="kg s^{-2}"
+			 description="Depth averaged wave radiation stress xx component"
+			 packages="waveRadiationStressPKG"
+		/>
+		<var name="waveRadiationStressXY" type="real" dimensions="nCells Time" units="kg s^{-2}"
+			 description="Depth averaged wave radiation stress xy component"
+			 packages="waveRadiationStressPKG"
+		/>
+		<var name="waveRadiationStressYY" type="real" dimensions="nCells Time" units="kg s^{-2}"
+			 description="Depth averaged wave radiation stress yy component"
+			 packages="waveRadiationStressPKG"
+		/>
+
 	</var_struct>
 	<var_struct name="timeVaryingForcing" time_levs="1">
 		<var name="windSpeedU" type="real" dimensions="nCells Time" units="m/s"
