@@ -1398,7 +1398,7 @@ void xml_stream_parser(char *fname, void *manager, int *mpi_comm, int *status)
 				return;
 			}
 #endif
-			if (parse_interval(interval_in2, &pints, &npints) == 0) {
+			if (parse_interval(interval_out2, &pints, &npints) == 0) {
 				for (i = 0; i < npints; ++i) {
 					snprintf(msgbuf, MSGSIZE, "call imm add_alarm with %s[%d]\n", "output", i);
 					mpas_log_write_c(msgbuf, "MPAS_LOG_OUT");
@@ -2101,8 +2101,6 @@ parse_interval(const char *str, struct interval **sint, int *n)
 
 	while(*str) *n += *(str++) == delim[0];
 	++*n;
-	snprintf(msgbuf, MSGSIZE, "*n = %d", *n);
-	mpas_log_write_c(msgbuf, "MPAS_LOG_OUT");
 
 	*sint = malloc(*n * sizeof(**sint));
 	if (!*sint) {
