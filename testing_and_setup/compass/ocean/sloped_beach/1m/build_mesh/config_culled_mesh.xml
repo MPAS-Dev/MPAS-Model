@@ -1,0 +1,12 @@
+<?xml version="1.0"?>
+<config case="culled_mesh">
+
+	<add_link source="../base_mesh/base_mesh.nc" dest="base_mesh.nc"/>
+
+	<run_script name="run.py">
+		<step executable="MpasCellCuller.x">
+			<argument flag="">base_mesh.nc</argument>
+			<argument flag="">culled_mesh.nc</argument>
+		</step>
+	</run_script>
+</config>

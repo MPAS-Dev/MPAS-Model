@@ -1,0 +1,20 @@
+       <dims>
+               <dim name="nSolPts" definition="1000" units="unitless"
+                        description="The number of solution points."
+               />
+	</dims>
+	<nml_record name="sloped_beach" mode="init" configuration="sloped_beach">
+		<nml_option name="config_sloped_beach_vert_levels" type="integer" default_value="20" units="unitless"
+			description="Number of vertical levels in sloped_beach test case. Typical values are 10 and 20."
+			possible_values="Any positive integer number greater than 0."
+		/>
+	</nml_record>
+        <var_struct name="exact_solution" time_levs="1">
+                <var name="xTransect" type="real" dimensions="nSolPts" units="meters"
+                         description="Solution points along the x-axis"
+                />
+                <var name="sshExact" type="real" dimensions="nSolPts" units="meters"
+                         description="Exact solution values"
+                />
+        </var_struct>
+

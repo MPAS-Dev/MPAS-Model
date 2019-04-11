@@ -1,0 +1,57 @@
+<?xml version="1.0"?>
+<config case="forward">
+	<add_link source="../init/ocean.nc" dest="input.nc"/>
+	<add_link source="../init/forcing.nc" dest="forcing.nc"/>
+	<add_link source="../init/graph.info" dest="graph.info"/>
+
+	<add_executable source="model" dest="ocean_model"/>
+
+
+	<namelist name="namelist.ocean" mode="forward">
+		<option name="config_time_integrator">'RK4'</option>
+		<option name="config_dt">'00:00:00.1'</option>
+		<option name="config_use_wave_radiation_stress_forcing">.true.</option>
+	</namelist>
+
+	<streams name="streams.ocean" keep="immutable" mode="forward">
+		<stream name="mesh">
+			<attribute name="filename_template">input.nc</attribute>
+		</stream>
+		<stream name="input">
+			<attribute name="filename_template">input.nc</attribute>
+		</stream>
+                <stream name="forcing_data">
+                        <attribute name="filename_template">forcing.nc</attribute>
+                        <attribute name="type">input</attribute>
+                        <attribute name="input_interval">initial_only</attribute>
+                        <add_contents>
+                                <member name="waveRadiationStressXX" type="var"/>
+                                <member name="waveRadiationStressXY" type="var"/>
+                                <member name="waveRadiationStressYY" type="var"/>
+                        </add_contents>
+                </stream>
+		<template file="minimal_output.xml" path_base="script_core_dir" path="templates/streams"/>
+		<stream name="output">
+			<attribute name="output_interval">00-00-00_01:00:00</attribute>
+                        <add_contents>
+                                <member name="ssh" type="var"/>
+                                <member name="kineticEnergyCell" type="var"/>
+                                <member name="waveRadiationStressXXdx" type="var"/>
+                        </add_contents>
+                        <remove_contents>
+                                <member name="tracers"/>
+                        </remove_contents>
+		</stream>
+		<stream name="restart">
+			<attribute name="output_interval">00-00-10_00:00:00</attribute>
+		</stream>
+	</streams>
+
+	<run_script name="run.py">
+		<step executable="gpmetis">
+			<argument flag="graph.info">18</argument>
+		</step>
+
+		<model_run procs="18" threads="1" namelist="namelist.ocean" streams="streams.ocean"/>
+	</run_script>
+</config>

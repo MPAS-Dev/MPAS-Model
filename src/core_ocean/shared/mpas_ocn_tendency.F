@@ -60,6 +60,7 @@ module ocn_tendency
    use ocn_vmix
    use ocn_wetting_drying
    use ocn_tidal_potential_forcing
+   use ocn_vel_forcing_radiation_stress
 
    implicit none
    private
@@ -223,7 +224,8 @@ contains
 
       type (mpas_pool_type), pointer :: tracersPool
 
-      real (kind=RKIND), dimension(:), pointer :: surfaceStress, surfaceStressMagnitude, surfaceFluxAttenuationCoefficient, ssh
+      real (kind=RKIND), dimension(:), pointer :: surfaceStress, surfaceStressMagnitude, surfaceFluxAttenuationCoefficient, ssh, &
+        waveRadiationStressXX, waveRadiationStressXY, waveRadiationStressYY
       real (kind=RKIND), dimension(:), pointer :: tidalPotentialEta 
       real (kind=RKIND), dimension(:,:), pointer :: &
         layerThicknessEdge, normalVelocity, tangentialVelocity, density, potentialDensity, zMid, pressure, &
@@ -299,6 +301,12 @@ contains
       call mpas_pool_get_array(forcingPool, 'surfaceStressMagnitude', surfaceStressMagnitude)
 
       call mpas_pool_get_array(diagnosticsPool, 'wettingVelocity', wettingVelocity)
+
+      call mpas_pool_get_array(forcingPool, 'waveRadiationStressXX', waveRadiationStressXX)
+      call mpas_pool_get_array(forcingPool, 'waveRadiationStressXY', waveRadiationStressXY)
+      call mpas_pool_get_array(forcingPool, 'waveRadiationStressYY', waveRadiationStressYY)
+
+
       !
       ! velocity tendency: start accumulating tendency terms
       !
@@ -405,6 +413,11 @@ contains
          tend_normalVelocity(:, iEdge) = tend_normalVelocity(:, iEdge) * (1.0_RKIND - wettingVelocity(:, iEdge))
       end do
       !$omp end do
+      ! velocity tendency: wave radiation stress 
+      !
+      call ocn_vel_forcing_radiation_stress_tend(meshPool, diagnosticsPool, &
+                                                 waveRadiationStressXX, waveRadiationStressXY, waveRadiationStressYY, & 
+                                                 layerThicknessEdge,tend_normalVelocity, err)
 
       !
       ! velocity tendency: vertical mixing d/dz( nu_v du/dz))
