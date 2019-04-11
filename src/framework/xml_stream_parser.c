@@ -26,10 +26,10 @@
  *  Interface routines for building streams at run-time; defined in mpas_stream_manager.F
  */
 void stream_mgr_create_stream_c(void *, const char *, int *, const char *, const char *, const char *, const char *, int *, int *, int *, int *, int *);
-void mpas_stream_mgr_add_field_c(void *, const char *, const char *, const char *, int *);
-void mpas_stream_mgr_add_immutable_stream_fields_c(void *, const char *, const char *, const char *, int *);
-void mpas_stream_mgr_add_pool_c(void *, const char *, const char *, const char *, int *);
-void stream_mgr_add_alarm_c(void *, const char *, const char *, const char *, const char *, int *);
+void stream_mgr_add_field_c(void *, const char *, const char *, const char *, int *);
+void stream_mgr_add_immutable_stream_fields_c(void *, const char *, const char *, const char *, int *);
+void stream_mgr_add_pool_c(void *, const char *, const char *, const char *, int *);
+void stream_mgr_add_alarm_c(void *, const char *, const char *, const char *, const char *, const char *, int *);
 void stream_mgr_add_pkg_c(void *, const char *, const char *, int *);
 
 
@@ -57,6 +57,20 @@ struct stacknode *head = NULL;
  */
 static char *global_file;
 
+/*
+ * Structure for holding time intervals.
+ */
+struct interval {
+	char *frequency;
+	char *start;
+	char *end;
+};
+
+/*
+ * Local routine for parsing a time interval.
+ */
+static int parse_interval(const char *, struct interval **, int *);
+static int destroy_interval(struct interval **, int *);
 
 /*********************************************************************************
  *
@@ -1074,7 +1088,8 @@ void xml_stream_parser(char *fname, void *manager, int *mpi_comm, int *status)
 	int stream_found, copy_start, copy_from, copy_to;
 	int i;
 	int err;
-
+	int npints = 0;
+	struct interval *pints = NULL;
 
 	packages_local[0] = '\0';
 
@@ -1345,10 +1360,25 @@ void xml_stream_parser(char *fname, void *manager, int *mpi_comm, int *status)
 
 		/* Possibly add an input alarm for this stream */
 		if (itype == 3 || itype == 1) {
+#if 0
 			stream_mgr_add_alarm_c(manager, streamID, "input", "start", interval_in2, &err);
 			if (err != 0) {
 				*status = 1;
 				return;
+			}
+#endif
+			if (parse_interval(interval_in2, &pints, &npints) == 0) {
+				for (i = 0; i < npints; ++i) {
+					snprintf(msgbuf, MSGSIZE, "call imm add_alarm with input %d: %s %s\n", i, pints[i].start, pints[i].frequency);
+					mpas_log_write_c(msgbuf, "MPAS_LOG_OUT");
+					stream_mgr_add_alarm_c(manager, streamID, "input",
+							       pints[i].start, pints[i].frequency, pints[i].end, &err);
+					if (err != 0) {
+						*status = 1;
+						return;
+					}
+				}
+				destroy_interval(&pints, &npints);
 			}
 			if ( strcmp(interval_in, interval_in2) != 0 ) {
 				snprintf(msgbuf, MSGSIZE, "        %-20s%s (%s)", "input alarm:", interval_in, interval_in2);
@@ -1361,10 +1391,25 @@ void xml_stream_parser(char *fname, void *manager, int *mpi_comm, int *status)
 
 		/* Possibly add an output alarm for this stream */
 		if (itype == 3 || itype == 2) {
+#if 0
 			stream_mgr_add_alarm_c(manager, streamID, "output", "start", interval_out2, &err);
 			if (err != 0) {
 				*status = 1;
 				return;
+			}
+#endif
+			if (parse_interval(interval_in2, &pints, &npints) == 0) {
+				for (i = 0; i < npints; ++i) {
+					snprintf(msgbuf, MSGSIZE, "call imm add_alarm with %s[%d]\n", "output", i);
+					mpas_log_write_c(msgbuf, "MPAS_LOG_OUT");
+					stream_mgr_add_alarm_c(manager, streamID, "output",
+							       pints[i].start, pints[i].frequency, pints[i].end, &err);
+					if (err != 0) {
+						*status = 1;
+						return;
+					}
+				}
+				destroy_interval(&pints, &npints);
 			}
 			if ( strcmp(interval_out, interval_out2) != 0 ) {
 				snprintf(msgbuf, MSGSIZE, "        %-20s%s (%s)", "output alarm:", interval_out, interval_out2);
@@ -1654,10 +1699,25 @@ void xml_stream_parser(char *fname, void *manager, int *mpi_comm, int *status)
 
 		/* Possibly add an input alarm for this stream */
 		if (itype == 3 || itype == 1) {
+#if 0
 			stream_mgr_add_alarm_c(manager, streamID, "input", "start", interval_in2, &err);
 			if (err != 0) {
 				*status = 1;
 				return;
+			}
+#endif
+			if (parse_interval(interval_in2, &pints, &npints) == 0) {
+				for (i = 0; i < npints; ++i) {
+					snprintf(msgbuf, MSGSIZE, "call non-imm add_alarm with %s[%d]\n", "input", i);
+					mpas_log_write_c(msgbuf, "MPAS_LOG_OUT");
+					stream_mgr_add_alarm_c(manager, streamID, "input",
+							       pints[i].start, pints[i].frequency, pints[i].end, &err);
+					if (err != 0) {
+						*status = 1;
+						return;
+					}
+				}
+				destroy_interval(&pints, &npints);
 			}
 			if ( strcmp(interval_in, interval_in2) != 0 ) {
 				snprintf(msgbuf, MSGSIZE, "        %-20s%s (%s)", "input alarm:", interval_in, interval_in2);
@@ -1670,10 +1730,25 @@ void xml_stream_parser(char *fname, void *manager, int *mpi_comm, int *status)
 
 		/* Possibly add an output alarm for this stream */
 		if (itype == 3 || itype == 2) {
+#if 0
 			stream_mgr_add_alarm_c(manager, streamID, "output", "start", interval_out2, &err);
 			if (err != 0) {
 				*status = 1;
 				return;
+			}
+#endif
+			if (parse_interval(interval_out2, &pints, &npints) == 0) {
+				for (i = 0; i < npints; ++i) {
+					snprintf(msgbuf, MSGSIZE, "%d: HERE call non-imm add_alarm with %s [%d] %s\n", npints, "output", i, pints[i].frequency);
+					mpas_log_write_c(msgbuf, "MPAS_LOG_OUT");
+					stream_mgr_add_alarm_c(manager, streamID, "output",
+							       pints[i].start, pints[i].frequency, pints[i].end, &err);
+					if (err != 0) {
+						*status = 1;
+						return;
+					}
+				}
+				destroy_interval(&pints, &npints);
 			}
 			if ( strcmp(interval_out, interval_out2) != 0 ) {
 				snprintf(msgbuf, MSGSIZE, "        %-20s%s (%s)", "output alarm:", interval_out, interval_out2);
@@ -1977,4 +2052,124 @@ void xml_stream_get_attributes(char *fname, char *streamname, int *mpi_comm, cha
 		*status = 1;
 		return;
 	}
+}
+
+/*
+ * Parse a time interval tag.
+ *
+ * The XML {input|output}_interval attribute can contain
+ * multiple intervals separated by a semicolon.
+ * An interval can contain a frequency, a start and an
+ * end time (in that order) separated by a commar.
+ * For example:
+ * - "1_00:00:00" once a day.
+ * - "01:00:00,start,1_11:00:00" once an hour, starting at
+ *   the model start and ending a day later at 1100hrs.
+ *
+ * Note a that missing start or end fields are filled in
+ * as "start" and "end".
+ *
+ */
+static int
+parse_interval(const char *str, struct interval **sint, int *n)
+{
+	static const char *delim = ";";
+	static const char *sdelim = ",";
+	int i = 0;
+	int j = 0;
+	char *tmp = NULL;
+	char *s1 = NULL;
+	char *p1 = NULL;
+	char *p2 = NULL;
+	char *tkn = NULL;
+	char *stkn = NULL;
+	char msgbuf[MSGSIZE];
+
+	if (!str) {
+		snprintf(msgbuf, MSGSIZE, "%s: input string was NULL", __func__);
+		mpas_log_write_c(msgbuf, "MPAS_LOG_ERR");
+		return -EINVAL;
+	}
+
+	if (*sint) {
+		snprintf(msgbuf, MSGSIZE, "%s: output pointer was not NULL", __func__);
+		mpas_log_write_c(msgbuf, "MPAS_LOG_ERR");
+		return -EINVAL;
+	}
+
+	tmp = strdup(str);
+
+	while(*str) *n += *(str++) == delim[0];
+	++*n;
+	snprintf(msgbuf, MSGSIZE, "*n = %d", *n);
+	mpas_log_write_c(msgbuf, "MPAS_LOG_OUT");
+
+	*sint = malloc(*n * sizeof(**sint));
+	if (!*sint) {
+		snprintf(msgbuf, MSGSIZE, "%s: unable to malloc", __func__);
+		mpas_log_write_c(msgbuf, "MPAS_LOG_ERR");
+		return -ENOMEM;
+	}
+	memset(*sint, '\0', *n * sizeof(**sint));
+
+	i = 0;
+	s1 = tmp;
+	tkn = strtok_r(s1, delim, &p1);
+	while (tkn) {
+		stkn = strtok_r(tkn, sdelim, &p2);
+		j = 0;
+		while (stkn) {
+			switch(j) {
+				case 0:
+					(*sint)[i].frequency = strdup(stkn);
+					break;
+				case 1:
+					(*sint)[i].start = strdup(stkn);
+					break;
+				case 2:
+					(*sint)[i].end = strdup(stkn);
+					break;
+			}
+			stkn = strtok_r(NULL, sdelim, &p2);
+			++j;
+		}
+		tkn = strtok_r(NULL, delim, &p1);
+		++i;
+	}
+
+	for (i = 0; i < *n; ++i) {
+		if (!(*sint)[i].start) {
+			(*sint)[i].start = strdup("start");
+		}
+		if (!(*sint)[i].end) {
+			(*sint)[i].end = strdup("");
+		}
+	}
+
+	if (tmp) {
+		free(tmp);
+		tmp = NULL;
+	}
+
+	return EXIT_SUCCESS;
+}
+
+/*
+ * Free the parsed interval array and reset the number in it to 0.
+ */
+static int
+destroy_interval(struct interval **ptr, int *n)
+{
+	int i = 0;
+
+	for (i = 0; i < *n; ++i) {
+		free((*ptr)[i].start);
+		free((*ptr)[i].frequency);
+		free((*ptr)[i].end);
+	}
+	free(*ptr);
+	*ptr = NULL;
+	*n = 0;
+
+	return EXIT_SUCCESS;
 }

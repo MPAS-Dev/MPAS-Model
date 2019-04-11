@@ -6009,7 +6009,7 @@ subroutine stream_mgr_add_immutable_stream_fields_c(manager_c, streamID_c, refSt
 end subroutine stream_mgr_add_immutable_stream_fields_c !}}}
 
 
-subroutine stream_mgr_add_alarm_c(manager_c, streamID_c, direction_c, alarmTime_c, alarmInterval_c, ierr_c) bind(c) !{{{
+subroutine stream_mgr_add_alarm_c(manager_c, streamID_c, direction_c, alarmStartTime_c, alarmInterval_c, alarmEndTime_c, ierr_c) bind(c) !{{{
 
     use mpas_c_interfacing, only : mpas_c_to_f_string
     use iso_c_binding, only : c_char, c_int, c_ptr, c_f_pointer
@@ -6027,13 +6027,14 @@ subroutine stream_mgr_add_alarm_c(manager_c, streamID_c, direction_c, alarmTime_
     type (c_ptr) :: manager_c
     character(kind=c_char) :: streamID_c(*)
     character(kind=c_char) :: direction_c(*)
-    character(kind=c_char) :: alarmTime_c(*)
+    character(kind=c_char) :: alarmStartTime_c(*)
     character(kind=c_char) :: alarmInterval_c(*)
+    character(kind=c_char) :: alarmEndTime_c(*)
     integer(kind=c_int) :: ierr_c
 
     type (MPAS_streamManager_type), pointer :: manager
     type (MPAS_Clock_type), pointer :: clock
-    character(len=StrKIND) :: streamID, direction, alarmID, alarmTime, alarmInterval, alarmString
+    character(len=StrKIND) :: streamID, direction, alarmID, alarmStartTime, alarmInterval, alarmString, alarmEndTime
     type (MPAS_Time_type) :: alarmTime_local
     type (MPAS_TimeInterval_type) :: alarmInterval_local
     character(len=StrKIND) :: streamReferenceTimeString
@@ -6048,8 +6049,9 @@ subroutine stream_mgr_add_alarm_c(manager_c, streamID_c, direction_c, alarmTime_
     call c_f_pointer(manager_c, manager)
     call mpas_c_to_f_string(streamID_c, streamID)
     call mpas_c_to_f_string(direction_c, direction)
-    call mpas_c_to_f_string(alarmTime_c, alarmTime)
+    call mpas_c_to_f_string(alarmStartTime_c, alarmStartTime)
     call mpas_c_to_f_string(alarmInterval_c, alarmInterval)
+    call mpas_c_to_f_string(alarmEndTime_c, alarmEndTime)
     write(alarmID, '(a)') trim(streamID)//'_'//trim(direction)
 
     ! Nothing to do for this stream
@@ -6065,17 +6067,17 @@ subroutine stream_mgr_add_alarm_c(manager_c, streamID_c, direction_c, alarmTime_
 
     call MPAS_stream_mgr_get_clock(manager, clock)
 
-    if (trim(alarmTime) == 'start' .and. trim(alarmInterval) == 'final_only') then
+    if (trim(alarmStartTime) == 'start' .and. trim(alarmInterval) == 'final_only') then
         alarmTime_local = mpas_get_clock_time(clock, MPAS_STOP_TIME, ierr=ierr_tmp)
         ierr = ior(ierr, ierr_tmp)
         call mpas_get_time(alarmTime_local, dateTimeString=alarmString)
         call MPAS_stream_mgr_set_property(manager, streamID, MPAS_STREAM_PROPERTY_REF_TIME, alarmString, ierr=ierr_tmp)
         ierr = ior(ierr, ierr_tmp)
-    else if (trim(alarmTime) == 'start') then
+    else if (trim(alarmStartTime) == 'start') then
         alarmTime_local = mpas_get_clock_time(clock, MPAS_START_TIME, ierr=ierr_tmp)
         ierr = ior(ierr, ierr_tmp)
     else
-        call mpas_set_time(alarmTime_local, dateTimeString=alarmTime)
+        call mpas_set_time(alarmTime_local, dateTimeString=alarmStartTime)
     end if
 
     if (trim(alarmInterval) == 'initial_only' .or. trim(alarmInterval) == 'final_only') then
