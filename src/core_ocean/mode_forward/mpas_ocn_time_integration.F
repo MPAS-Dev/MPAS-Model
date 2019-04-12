@@ -33,6 +33,8 @@ module ocn_time_integration
    use ocn_constants
    use ocn_time_integration_rk4
    use ocn_time_integration_split
+   use ocn_time_integration_split_filtered
+   use ocn_time_integration_split_unfiltered
    use ocn_time_integration_forward_euler
 
    implicit none
@@ -60,7 +62,7 @@ module ocn_time_integration
    !
    !--------------------------------------------------------------------
 
-    logical :: rk4On, splitOn, forwardEulerOn
+    character (len=StrKIND), pointer :: config_time_integrator
 
    contains
 
@@ -105,13 +107,21 @@ module ocn_time_integration
       type (MPAS_Time_type) :: xtime_timeType, simulationStartTime_timeType
 
 
-      if (rk4On) then
+      if (trim(config_time_integrator) == 'RK4') then
          call ocn_time_integrator_rk4(domain, dt)
-      elseif (forwardEulerOn) then
+      elseif (trim(config_time_integrator) == 'forward_euler') then
          call ocn_time_integrator_forward_euler(domain, dt)
-      elseif (splitOn) then
+      elseif (trim(config_time_integrator) == 'split_explicit' &
+          .or.trim(config_time_integrator) == 'unsplit_explicit') then
          call ocn_time_integrator_split(domain, dt)
-     endif
+      elseif (trim(config_time_integrator) == 'split_explicit_filtered') then
+         call ocn_time_integrator_split_filtered(domain, dt)
+      elseif (trim(config_time_integrator) == 'split_explicit_unfiltered') then
+         call ocn_time_integrator_split_unfiltered(domain, dt)
+      else
+          call mpas_log_write('Incorrect choice for config_time_integrator:' // trim(config_time_integrator) // &
+             '   Check choices in Registry.xml file.', MPAS_LOG_CRIT)
+      endif
 
      block => domain % blocklist
      do while (associated(block))
@@ -143,28 +153,9 @@ module ocn_time_integration
 
       integer, intent(out) :: err
 
-      character (len=StrKIND), pointer :: config_time_integrator
-
       err = 0
 
       call mpas_pool_get_config(ocnConfigs, 'config_time_integrator', config_time_integrator)
-
-      forwardEulerOn = .false.
-      rk4On = .false.
-      splitOn = .false.
-
-      if (trim(config_time_integrator) == 'RK4') then
-          rk4On = .true.
-      elseif (trim(config_time_integrator) == 'forward_euler') then
-          forwardEulerOn = .true.
-      elseif (trim(config_time_integrator) == 'split_explicit' &
-          .or.trim(config_time_integrator) == 'unsplit_explicit') then
-          splitOn = .true.
-      else
-          err = 1
-          call mpas_log_write('Incorrect choice for config_time_integrator:' // trim(config_time_integrator) // &
-             '   choices are: RK4, split_explicit, unsplit_explicit', MPAS_LOG_CRIT)
-      endif
 
 
    end subroutine ocn_timestep_init!}}}

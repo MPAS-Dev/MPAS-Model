@@ -233,7 +233,7 @@
 		/>
 		<nml_option name="config_time_integrator" type="character" default_value="split_explicit" units="unitless"
 					description="Time integration method."
-					possible_values="'split_explicit', 'RK4', 'unsplit_explicit', 'forward_euler'"
+					possible_values="'split_explicit', 'RK4', 'unsplit_explicit', 'forward_euler', 'split_explicit_filtered', 'split_explicit_unfiltered'"
 		/>
 	</nml_record>
 	<nml_record name="ALE_vertical_grid" mode="forward">

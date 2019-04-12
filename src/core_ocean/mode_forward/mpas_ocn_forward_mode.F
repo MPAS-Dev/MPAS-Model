@@ -36,6 +36,8 @@ module ocn_forward_mode
 
    use ocn_time_integration
    use ocn_time_integration_split
+   use ocn_time_integration_split_filtered
+   use ocn_time_integration_split_unfiltered
    use ocn_tendency
    use ocn_diagnostics
    use ocn_test
@@ -128,6 +130,7 @@ module ocn_forward_mode
       logical, pointer :: config_do_restart, config_read_nearest_restart, config_filter_btr_mode, config_conduct_tests
       character (len=StrKIND), pointer :: config_vert_coord_movement, config_pressure_gradient_type
       character (len=StrKIND), pointer :: config_surface_salinity_monthly_restoring_compute_interval
+      character (len=StrKIND), pointer :: config_time_integrator
 
       real (kind=RKIND), pointer :: config_maxMeshDensity
       logical, pointer :: config_use_surface_salinity_monthly_restoring
@@ -274,7 +277,22 @@ module ocn_forward_mode
 
       call ocn_init_routines_compute_max_level(domain)
 
-      call ocn_time_integration_split_init(domain)
+      call mpas_pool_get_config(ocnConfigs, 'config_time_integrator', config_time_integrator)
+      if (trim(config_time_integrator) == 'RK4') then
+         ! no init needed
+      elseif (trim(config_time_integrator) == 'split_explicit' &
+          .or.trim(config_time_integrator) == 'unsplit_explicit') then
+         call ocn_time_integration_split_init(domain)
+      elseif (trim(config_time_integrator) == 'split_explicit_filtered') then
+         call ocn_time_integration_split_filtered_init(domain)
+      elseif (trim(config_time_integrator) == 'split_explicit_unfiltered') then
+         call ocn_time_integration_split_unfiltered_init(domain)
+      elseif (trim(config_time_integrator) == 'forward_euler') then
+         ! no init needed
+      else
+          call mpas_log_write('Incorrect choice for config_time_integrator:' // trim(config_time_integrator) // &
+             '   Check choices in Registry.xml file.', MPAS_LOG_CRIT)
+      endif
 
       call mpas_log_write(' Vertical coordinate movement is: ' // trim(config_vert_coord_movement))
 
