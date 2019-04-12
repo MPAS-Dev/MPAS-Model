@@ -1369,8 +1369,6 @@ void xml_stream_parser(char *fname, void *manager, int *mpi_comm, int *status)
 #endif
 			if (parse_interval(interval_in2, &pints, &npints) == 0) {
 				for (i = 0; i < npints; ++i) {
-					snprintf(msgbuf, MSGSIZE, "call imm add_alarm with input %d: %s %s\n", i, pints[i].start, pints[i].frequency);
-					mpas_log_write_c(msgbuf, "MPAS_LOG_OUT");
 					stream_mgr_add_alarm_c(manager, streamID, "input",
 							       pints[i].start, pints[i].frequency, pints[i].end, &err);
 					if (err != 0) {
@@ -1400,8 +1398,6 @@ void xml_stream_parser(char *fname, void *manager, int *mpi_comm, int *status)
 #endif
 			if (parse_interval(interval_out2, &pints, &npints) == 0) {
 				for (i = 0; i < npints; ++i) {
-					snprintf(msgbuf, MSGSIZE, "call imm add_alarm with %s[%d]\n", "output", i);
-					mpas_log_write_c(msgbuf, "MPAS_LOG_OUT");
 					stream_mgr_add_alarm_c(manager, streamID, "output",
 							       pints[i].start, pints[i].frequency, pints[i].end, &err);
 					if (err != 0) {
@@ -1708,8 +1704,6 @@ void xml_stream_parser(char *fname, void *manager, int *mpi_comm, int *status)
 #endif
 			if (parse_interval(interval_in2, &pints, &npints) == 0) {
 				for (i = 0; i < npints; ++i) {
-					snprintf(msgbuf, MSGSIZE, "call non-imm add_alarm with %s[%d]\n", "input", i);
-					mpas_log_write_c(msgbuf, "MPAS_LOG_OUT");
 					stream_mgr_add_alarm_c(manager, streamID, "input",
 							       pints[i].start, pints[i].frequency, pints[i].end, &err);
 					if (err != 0) {
@@ -1739,8 +1733,6 @@ void xml_stream_parser(char *fname, void *manager, int *mpi_comm, int *status)
 #endif
 			if (parse_interval(interval_out2, &pints, &npints) == 0) {
 				for (i = 0; i < npints; ++i) {
-					snprintf(msgbuf, MSGSIZE, "%d: HERE call non-imm add_alarm with %s [%d] %s\n", npints, "output", i, pints[i].frequency);
-					mpas_log_write_c(msgbuf, "MPAS_LOG_OUT");
 					stream_mgr_add_alarm_c(manager, streamID, "output",
 							       pints[i].start, pints[i].frequency, pints[i].end, &err);
 					if (err != 0) {
@@ -2067,7 +2059,9 @@ void xml_stream_get_attributes(char *fname, char *streamname, int *mpi_comm, cha
  *   the model start and ending a day later at 1100hrs.
  *
  * Note a that missing start or end fields are filled in
- * as "start" and "end".
+ * as "start" and "".
+ *
+ * A non-zero return value implies an error occured.
  *
  */
 static int
@@ -2088,13 +2082,13 @@ parse_interval(const char *str, struct interval **sint, int *n)
 	if (!str) {
 		snprintf(msgbuf, MSGSIZE, "%s: input string was NULL", __func__);
 		mpas_log_write_c(msgbuf, "MPAS_LOG_ERR");
-		return -EINVAL;
+		return EINVAL;
 	}
 
 	if (*sint) {
 		snprintf(msgbuf, MSGSIZE, "%s: output pointer was not NULL", __func__);
 		mpas_log_write_c(msgbuf, "MPAS_LOG_ERR");
-		return -EINVAL;
+		return EINVAL;
 	}
 
 	tmp = strdup(str);
@@ -2106,7 +2100,7 @@ parse_interval(const char *str, struct interval **sint, int *n)
 	if (!*sint) {
 		snprintf(msgbuf, MSGSIZE, "%s: unable to malloc", __func__);
 		mpas_log_write_c(msgbuf, "MPAS_LOG_ERR");
-		return -ENOMEM;
+		return ENOMEM;
 	}
 	memset(*sint, '\0', *n * sizeof(**sint));
 
