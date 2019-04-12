@@ -6046,6 +6046,8 @@ subroutine stream_mgr_add_alarm_c(manager_c, streamID_c, direction_c, alarmStart
     ierr = 0
     ierr_tmp = 0
 
+    alarmEndTime = ''
+
     call c_f_pointer(manager_c, manager)
     call mpas_c_to_f_string(streamID_c, streamID)
     call mpas_c_to_f_string(direction_c, direction)
@@ -6080,12 +6082,20 @@ subroutine stream_mgr_add_alarm_c(manager_c, streamID_c, direction_c, alarmStart
         call mpas_set_time(alarmStartTime_local, dateTimeString=alarmStartTime)
     end if
 
+    if (len_trim(alarmEndTime) > 0) then
+        call mpas_set_time(alarmEndTime_local, dateTimeString=alarmEndTime)
+    else
+        alarmEndTime_local = mpas_get_clock_time(clock, MPAS_STOP_TIME, ierr=ierr_tmp)
+    end if
+
+
     if (trim(alarmInterval) == 'initial_only' .or. trim(alarmInterval) == 'final_only') then
         call mpas_add_clock_alarm(clock, alarmID, alarmStartTime_local, ierr=ierr_tmp)
         ierr = ior(ierr, ierr_tmp)
     else
         call mpas_set_timeInterval(alarmInterval_local, timeString=alarmInterval)
         call mpas_add_clock_alarm(clock, alarmID, alarmStartTime_local, alarmTimeInterval=alarmInterval_local, ierr=ierr_tmp)
+                                  !alarmEndTime=alarmEndTime_local, ierr=ierr_tmp)
         ierr = ior(ierr, ierr_tmp)
         ! Now calibrate alarm to use the stream's reference time as the time coordinate origin for the stream's output alarm.
         call MPAS_stream_mgr_get_property(manager, streamID, MPAS_STREAM_PROPERTY_REF_TIME, streamReferenceTimeString, ierr=ierr_tmp)
