@@ -841,8 +841,8 @@
  tempField % isActive = .true.
 
  call mpas_dmpar_compact_halo_info(tempField, compactHaloInfo)
- call mpas_dmpar_exch_halo_acc(Ux_tend, compactHaloInfo, sendList, recvList)
- call mpas_dmpar_exch_halo_acc(Uy_tend, compactHaloInfo, sendList, recvList)
+ call mpas_dmpar_exch_halo(Ux_tend, compactHaloInfo, sendList, recvList)
+ call mpas_dmpar_exch_halo(Uy_tend, compactHaloInfo, sendList, recvList)
  deallocate(compactHaloInfo)
  call mpas_dmpar_destroy_communication_list(sendList)
  call mpas_dmpar_destroy_communication_list(recvList)
