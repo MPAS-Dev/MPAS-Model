@@ -6009,7 +6009,7 @@ subroutine stream_mgr_add_immutable_stream_fields_c(manager_c, streamID_c, refSt
 end subroutine stream_mgr_add_immutable_stream_fields_c !}}}
 
 
-subroutine stream_mgr_add_alarm_c(manager_c, streamID_c, direction_c, alarmStartTime_c, alarmInterval_c, alarmEndTime_c, ierr_c) bind(c) !{{{
+subroutine stream_mgr_add_alarm_c(manager_c, streamID_c, direction_c, num_c, alarmStartTime_c, alarmInterval_c, alarmEndTime_c, ierr_c) bind(c) !{{{
 
     use mpas_c_interfacing, only : mpas_c_to_f_string
     use iso_c_binding, only : c_char, c_int, c_ptr, c_f_pointer
@@ -6027,6 +6027,7 @@ subroutine stream_mgr_add_alarm_c(manager_c, streamID_c, direction_c, alarmStart
     type (c_ptr) :: manager_c
     character(kind=c_char) :: streamID_c(*)
     character(kind=c_char) :: direction_c(*)
+    integer(kind=c_int) :: num_c
     character(kind=c_char) :: alarmStartTime_c(*)
     character(kind=c_char) :: alarmInterval_c(*)
     character(kind=c_char) :: alarmEndTime_c(*)
@@ -6054,7 +6055,7 @@ subroutine stream_mgr_add_alarm_c(manager_c, streamID_c, direction_c, alarmStart
     call mpas_c_to_f_string(alarmStartTime_c, alarmStartTime)
     call mpas_c_to_f_string(alarmInterval_c, alarmInterval)
     call mpas_c_to_f_string(alarmEndTime_c, alarmEndTime)
-    write(alarmID, '(a)') trim(streamID)//'_'//trim(direction)
+    write (alarmID, '(4A,I0)') trim(streamID), '_', trim(direction), '_', num_c
 
     ! Nothing to do for this stream
     if (trim(alarmInterval) == 'none') then
@@ -6094,8 +6095,8 @@ subroutine stream_mgr_add_alarm_c(manager_c, streamID_c, direction_c, alarmStart
         ierr = ior(ierr, ierr_tmp)
     else
         call mpas_set_timeInterval(alarmInterval_local, timeString=alarmInterval)
-        call mpas_add_clock_alarm(clock, alarmID, alarmStartTime_local, alarmTimeInterval=alarmInterval_local, ierr=ierr_tmp)
-                                  !alarmEndTime=alarmEndTime_local, ierr=ierr_tmp)
+        call mpas_add_clock_alarm(clock, alarmID, alarmStartTime_local, alarmTimeInterval=alarmInterval_local, &
+                                  alarmEndTime=alarmEndTime_local, ierr=ierr_tmp)
         ierr = ior(ierr, ierr_tmp)
         ! Now calibrate alarm to use the stream's reference time as the time coordinate origin for the stream's output alarm.
         call MPAS_stream_mgr_get_property(manager, streamID, MPAS_STREAM_PROPERTY_REF_TIME, streamReferenceTimeString, ierr=ierr_tmp)

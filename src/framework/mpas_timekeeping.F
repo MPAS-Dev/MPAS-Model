@@ -472,7 +472,6 @@ module mpas_timekeeping
 
 
    subroutine mpas_add_clock_alarm(clock, alarmID, alarmTime, alarmTimeInterval, alarmEndTime, ierr)
-! TODO: possibly add a stop time for recurring alarms
 
       implicit none
 
@@ -541,14 +540,16 @@ module mpas_timekeeping
             alarmPtr % isRecurring = .false.
             alarmPtr % prevRingTime = alarmTime
          end if
+
+         if (present(alarmEndTime)) then
+            alarmPtr % ringEndTime = alarmEndTime
+         end if
+
          if (present(ierr)) then
             if (ierr == ESMF_SUCCESS) ierr = 0
          end if
       end if
 
-!      if (present(alarmEndTime)) then
-!          alarmPtr % ringEndTime = alarmEndTime
-!      end if
 
       !$omp barrier
 

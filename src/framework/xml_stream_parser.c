@@ -29,7 +29,7 @@ void stream_mgr_create_stream_c(void *, const char *, int *, const char *, const
 void stream_mgr_add_field_c(void *, const char *, const char *, const char *, int *);
 void stream_mgr_add_immutable_stream_fields_c(void *, const char *, const char *, const char *, int *);
 void stream_mgr_add_pool_c(void *, const char *, const char *, const char *, int *);
-void stream_mgr_add_alarm_c(void *, const char *, const char *, const char *, const char *, const char *, int *);
+void stream_mgr_add_alarm_c(void *, const char *, const char *, int *, const char *, const char *, const char *, int *);
 void stream_mgr_add_pkg_c(void *, const char *, const char *, int *);
 
 
@@ -1369,7 +1369,7 @@ void xml_stream_parser(char *fname, void *manager, int *mpi_comm, int *status)
 #endif
 			if (parse_interval(interval_in2, &pints, &npints) == 0) {
 				for (i = 0; i < npints; ++i) {
-					stream_mgr_add_alarm_c(manager, streamID, "input",
+					stream_mgr_add_alarm_c(manager, streamID, "input", &i,
 							       pints[i].start, pints[i].frequency, pints[i].end, &err);
 					if (err != 0) {
 						*status = 1;
@@ -1398,7 +1398,7 @@ void xml_stream_parser(char *fname, void *manager, int *mpi_comm, int *status)
 #endif
 			if (parse_interval(interval_out2, &pints, &npints) == 0) {
 				for (i = 0; i < npints; ++i) {
-					stream_mgr_add_alarm_c(manager, streamID, "output",
+					stream_mgr_add_alarm_c(manager, streamID, "output", &i,
 							       pints[i].start, pints[i].frequency, pints[i].end, &err);
 					if (err != 0) {
 						*status = 1;
@@ -1704,7 +1704,7 @@ void xml_stream_parser(char *fname, void *manager, int *mpi_comm, int *status)
 #endif
 			if (parse_interval(interval_in2, &pints, &npints) == 0) {
 				for (i = 0; i < npints; ++i) {
-					stream_mgr_add_alarm_c(manager, streamID, "input",
+					stream_mgr_add_alarm_c(manager, streamID, "input", &i,
 							       pints[i].start, pints[i].frequency, pints[i].end, &err);
 					if (err != 0) {
 						*status = 1;
@@ -1733,7 +1733,7 @@ void xml_stream_parser(char *fname, void *manager, int *mpi_comm, int *status)
 #endif
 			if (parse_interval(interval_out2, &pints, &npints) == 0) {
 				for (i = 0; i < npints; ++i) {
-					stream_mgr_add_alarm_c(manager, streamID, "output",
+					stream_mgr_add_alarm_c(manager, streamID, "output", &i,
 							       pints[i].start, pints[i].frequency, pints[i].end, &err);
 					if (err != 0) {
 						*status = 1;
