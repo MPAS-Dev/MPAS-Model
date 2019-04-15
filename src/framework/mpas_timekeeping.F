@@ -471,8 +471,7 @@ module mpas_timekeeping
    end function mpas_get_clock_time
 
 
-   subroutine mpas_add_clock_alarm(clock, alarmID, alarmTime, alarmTimeInterval, ierr, alarmEndTime)
-   !subroutine mpas_add_clock_alarm(clock, alarmID, alarmTime, alarmTimeInterval, ierr)
+   subroutine mpas_add_clock_alarm(clock, alarmID, alarmTime, alarmTimeInterval, alarmEndTime, ierr)
 ! TODO: possibly add a stop time for recurring alarms
 
       implicit none
@@ -481,8 +480,8 @@ module mpas_timekeeping
       character (len=*), intent(in) :: alarmID
       type (MPAS_Time_type), intent(in) :: alarmTime
       type (MPAS_TimeInterval_type), intent(in), optional :: alarmTimeInterval
-      integer, intent(out), optional :: ierr
       type (MPAS_Time_type), intent(in), optional :: alarmEndTime
+      integer, intent(out), optional :: ierr
 
       type (MPAS_Alarm_type), pointer :: alarmPtr
       integer :: threadNum

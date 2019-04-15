@@ -257,7 +257,7 @@ contains
                call MPAS_stream_mgr_get_property(domain % streamManager, config_AM_stream_name, &
                MPAS_STREAM_PROPERTY_REF_TIME, referenceTimeString, err_tmp)
                call mpas_set_time(referenceTime, dateTimeString=referenceTimeString, ierr=err_tmp)
-               call mpas_add_clock_alarm(domain % clock, alarmName, referenceTime, alarmTimeStep, ierr=err_tmp)
+               call mpas_add_clock_alarm(domain % clock, alarmName, referenceTime, alarmTimeInterval=alarmTimeStep, ierr=err_tmp)
                call mpas_reset_clock_alarm(domain % clock, alarmName, ierr=err_tmp)
             end if
             call mpas_timer_stop(timerName)

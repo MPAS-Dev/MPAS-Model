@@ -147,7 +147,7 @@ module sw_core
       !if (trim(config_stats_interval) /= "none") then      
       !   call mpas_set_timeInterval(alarmTimeStep, timeString=config_stats_interval, ierr=local_err)
       !   alarmStartTime = startTime + alarmTimeStep
-      !   call mpas_add_clock_alarm(core_clock, statsAlarmID, alarmStartTime, alarmTimeStep, ierr=local_err)
+      !   call mpas_add_clock_alarm(core_clock, statsAlarmID, alarmStartTime, alarmInterval=alarmTimeStep, ierr=local_err)
       !end if
 
    end subroutine simulation_clock_init

@@ -484,7 +484,7 @@ contains
                   end if
 
                end if
-               call mpas_add_clock_alarm(domain % clock, alarmName, referenceTime, alarmTimeStep, ierr=err_tmp)
+               call mpas_add_clock_alarm(domain % clock, alarmName, referenceTime, alarmTimeInterval=alarmTimeStep, ierr=err_tmp)
                call mpas_reset_clock_alarm(domain % clock, alarmName, ierr=err_tmp)
             end if
 

@@ -514,7 +514,7 @@ contains
 
     FORCING_DEBUG_WRITE('-- Forcing: create_new_forcing_stream forcingGroup % forcingGroupName: '//trim(forcingGroup % forcingGroupName))
     call mpas_add_clock_alarm(&
-         forcingGroup % forcingClock, forcingStreamNew % forcingAlarmID, forcingAlarmTime, forcingAlarmInterval)
+         forcingGroup % forcingClock, forcingStreamNew % forcingAlarmID, forcingAlarmTime, alarmTimeInterval=forcingAlarmInterval)
 
     ! check no alarms defined on stream
     call mpas_stream_mgr_get_clock(streamManager, streamClock, ierr)

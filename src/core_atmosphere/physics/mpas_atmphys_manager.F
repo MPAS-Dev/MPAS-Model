@@ -470,7 +470,7 @@
  if(trim(config_radtlw_interval) /= "none") then
     call mpas_set_timeInterval(alarmTimeStep,timeString=config_radtlw_interval,ierr=ierr)
     alarmStartTime = startTime
-    call mpas_add_clock_alarm(clock,radtlwAlarmID,alarmStartTime,alarmTimeStep,ierr=ierr)
+    call mpas_add_clock_alarm(clock,radtlwAlarmID,alarmStartTime,alarmTimeInterval=alarmTimeStep,ierr=ierr)
     if(ierr /= 0) &
        call physics_error_fatal('subroutine physics_run_init: error creating radtlwAlarmID')
 
@@ -489,7 +489,7 @@
  if(trim(config_radtsw_interval) /= "none") then
     call mpas_set_timeInterval(alarmTimeStep,timeString=config_radtsw_interval,ierr=ierr)
     alarmStartTime = startTime
-    call mpas_add_clock_alarm(clock,radtswAlarmID,alarmStartTime,alarmTimeStep,ierr=ierr)
+    call mpas_add_clock_alarm(clock,radtswAlarmID,alarmStartTime,alarmTimeInterval=alarmTimeStep,ierr=ierr)
     if(ierr /= 0) &
        call physics_error_fatal('subroutine physics_run_init: error creating alarm radtsw')
 
@@ -508,7 +508,7 @@
  if(trim(config_conv_interval) /= "none") then
     call mpas_set_timeInterval(alarmTimeStep,timeString=config_conv_interval,ierr=ierr)
     alarmStartTime = startTime
-    call mpas_add_clock_alarm(clock,convAlarmID,alarmStartTime,alarmTimeStep,ierr=ierr)
+    call mpas_add_clock_alarm(clock,convAlarmID,alarmStartTime,alarmTimeInterval=alarmTimeStep,ierr=ierr)
     if(ierr /= 0) &
        call physics_error_fatal('subroutine physics_init: error creating convAlarmID')
 
@@ -527,7 +527,7 @@
  if(trim(config_pbl_interval) /= "none") then
     call mpas_set_timeInterval(alarmTimeStep,timeString=config_pbl_interval,ierr=ierr)
     alarmStartTime = startTime
-    call mpas_add_clock_alarm(clock,pblAlarmID,alarmStartTime,alarmTimeStep,ierr=ierr)
+    call mpas_add_clock_alarm(clock,pblAlarmID,alarmStartTime,alarmTimeInterval=alarmTimeStep,ierr=ierr)
     if(ierr /= 0) &
        call physics_error_fatal('subroutine physics_init: error creating pblAlarmID')
 
@@ -546,7 +546,7 @@
 !set alarm for updating the background surface albedo and the greeness fraction:
  call mpas_set_timeInterval(alarmTimeStep,timeString=config_greeness_update,ierr=ierr)
  alarmStartTime = startTime
- call mpas_add_clock_alarm(clock,greenAlarmID,alarmStartTime,alarmTimeStep,ierr=ierr)
+ call mpas_add_clock_alarm(clock,greenAlarmID,alarmStartTime,alarmTimeInterval=alarmTimeStep,ierr=ierr)
     if(ierr /= 0) &
        call physics_error_fatal('subroutine physics_init: error creating alarm greeness')
 
@@ -556,7 +556,7 @@
                                       direction=MPAS_STREAM_INPUT, ierr=ierr)
     call mpas_set_timeInterval(alarmTimeStep,timeString=stream_interval,ierr=ierr)
     alarmStartTime = startTime
-    call mpas_add_clock_alarm(clock,sfcbdyAlarmID,alarmStartTime,alarmTimeStep,ierr=ierr)
+    call mpas_add_clock_alarm(clock,sfcbdyAlarmID,alarmStartTime,alarmTimeInterval=alarmTimeStep,ierr=ierr)
     if(ierr /= 0) &
        call physics_error_fatal('subroutine physics_init: error creating alarm sfcbdy')
  endif
@@ -567,7 +567,7 @@
     trim(config_radt_sw_scheme) .eq. "cam_sw" ) then
     call mpas_set_timeInterval(alarmTimeStep,timeString=config_camrad_abs_update,ierr=ierr)
     alarmStartTime = startTime
-    call mpas_add_clock_alarm(clock,camAlarmID,alarmStartTime,alarmTimeStep,ierr=ierr)
+    call mpas_add_clock_alarm(clock,camAlarmID,alarmStartTime,alarmTimeInterval=alarmTimeStep,ierr=ierr)
     if(ierr /= 0) &
        call physics_error_fatal('subroutine physics_init: error creating alarm CAM')
  endif
@@ -581,7 +581,7 @@
     if(trim(stream_interval) /= 'none') then
        call mpas_set_timeInterval(alarmTimeStep,timeString=stream_interval,ierr=ierr)
        alarmStartTime = startTime + alarmTimeStep
-       call mpas_add_clock_alarm(clock,camlwAlarmID,alarmStartTime,alarmTimeStep,ierr=ierr)
+       call mpas_add_clock_alarm(clock,camlwAlarmID,alarmStartTime,alarmTimeInterval=alarmTimeStep,ierr=ierr)
        if(ierr /= 0) &
           call physics_error_fatal('subroutine physics_init: error creating alarm CAMLW')
     endif
@@ -593,7 +593,7 @@
     call mpas_set_timeInterval(acrainTimeStep,dt=config_dt,ierr=ierr)
     call mpas_set_timeInterval(alarmTimeStep,timeString=config_bucket_update,ierr=ierr)
     alarmStartTime = startTime + alarmTimeStep
-    call mpas_add_clock_alarm(clock,acrainAlarmID,alarmStartTime,alarmTimeStep,ierr=ierr)
+    call mpas_add_clock_alarm(clock,acrainAlarmID,alarmStartTime,alarmTimeInterval=alarmTimeStep,ierr=ierr)
        if(ierr /= 0) &
           call physics_error_fatal('subroutine physics_init: error creating alarm rain limit')
  endif
@@ -604,7 +604,7 @@
     call mpas_set_timeInterval(acradtTimeStep,dt=config_dt,ierr=ierr)
     call mpas_set_timeInterval(alarmTimeStep,timeString=config_bucket_update,ierr=ierr)
     alarmStartTime = startTime + alarmTimeStep
-    call mpas_add_clock_alarm(clock,acradtAlarmID,alarmStartTime,alarmTimeStep,ierr=ierr)
+    call mpas_add_clock_alarm(clock,acradtAlarmID,alarmStartTime,alarmTimeInterval=alarmTimeStep,ierr=ierr)
        if(ierr /= 0) &
           call physics_error_fatal('subroutine physics_init: error creating alarm radiation limit')
  endif
@@ -625,7 +625,7 @@
        end if
     end if
     alarmStartTime = startTime
-    call mpas_add_clock_alarm(clock,diagAlarmID,alarmStartTime,alarmTimeStep,ierr=ierr)
+    call mpas_add_clock_alarm(clock,diagAlarmID,alarmStartTime,alarmTimeInterval=alarmTimeStep,ierr=ierr)
     if(ierr /= 0) &
        call physics_error_fatal('subroutine physics_init: error creating alarm diag')
  else
@@ -634,7 +634,7 @@
     if(trim(stream_interval) /= 'none') then
        call mpas_set_timeInterval(alarmTimeStep,timeString=stream_interval,ierr=ierr)
        alarmStartTime = startTime
-       call mpas_add_clock_alarm(clock,diagAlarmID,alarmStartTime,alarmTimeStep,ierr=ierr)
+       call mpas_add_clock_alarm(clock,diagAlarmID,alarmStartTime,alarmTimeInterval=alarmTimeStep,ierr=ierr)
        if(ierr /= 0) &
           call physics_error_fatal('subroutine physics_init: error creating alarm diag')
     end if
