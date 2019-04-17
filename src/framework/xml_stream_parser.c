@@ -2106,7 +2106,7 @@ parse_interval(const char *str, struct interval **ptr, int *n)
 			(*ptr)[i].start = strdup("start");
 		}
 		if (!(*ptr)[i].end) {
-			(*ptr)[i].end = strdup("");
+			(*ptr)[i].end = strdup("end");
 		}
 	}
 

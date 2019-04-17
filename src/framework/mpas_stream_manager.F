@@ -6091,7 +6091,9 @@ subroutine stream_mgr_add_alarm_c(manager_c, streamID_c, direction_c, num_c, ala
         call mpas_set_time(alarmStartTime_local, dateTimeString=alarmStartTime)
     end if
 
-    if (alarmEndTime(1:1) == '+') then
+    if (trim(alarmEndTime) == 'end') then
+        alarmEndTime_local = model_stop
+    else if (alarmEndTime(1:1) == '+') then
         alarmEndTime = alarmEndTime(2:len_trim(alarmEndTime))
         call mpas_set_timeInterval(delay, timeString=alarmEndTime)
         alarmEndTime_local = alarmStartTime_local + delay
@@ -6100,7 +6102,7 @@ subroutine stream_mgr_add_alarm_c(manager_c, streamID_c, direction_c, num_c, ala
         call mpas_set_timeInterval(delay, timeString=alarmEndTime)
         alarmEndTime_local = alarmStartTime_local - delay
     else
-        alarmEndTime_local = model_stop
+        call mpas_set_time(alarmEndTime_local, dateTimeString=alarmEndTime)
     end if
 
 
