@@ -2027,7 +2027,7 @@ void xml_stream_get_attributes(char *fname, char *streamname, int *mpi_comm, cha
  * end time (in that order) separated by a commar.
  * For example:
  * - "1_00:00:00" once a day.
- * - "01:00:00,start,1_11:00:00" once an hour, starting at
+ * - "01:00:00,start,+1_11:00:00" once an hour, starting at
  *   the model start and ending a day later at 1100hrs.
  *
  * Note a that missing start or end fields are filled in
@@ -2037,7 +2037,7 @@ void xml_stream_get_attributes(char *fname, char *streamname, int *mpi_comm, cha
  *
  */
 static int
-parse_interval(const char *str, struct interval **sint, int *n)
+parse_interval(const char *str, struct interval **ptr, int *n)
 {
 	static const char *delim = ";";
 	static const char *sdelim = ",";
@@ -2057,7 +2057,7 @@ parse_interval(const char *str, struct interval **sint, int *n)
 		return EINVAL;
 	}
 
-	if (*sint) {
+	if (*ptr) {
 		snprintf(msgbuf, MSGSIZE, "%s: output pointer was not NULL", __func__);
 		mpas_log_write_c(msgbuf, "MPAS_LOG_ERR");
 		return EINVAL;
@@ -2068,13 +2068,13 @@ parse_interval(const char *str, struct interval **sint, int *n)
 	while(*str) *n += *(str++) == delim[0];
 	++*n;
 
-	*sint = malloc(*n * sizeof(**sint));
-	if (!*sint) {
+	*ptr = malloc(*n * sizeof(**ptr));
+	if (!*ptr) {
 		snprintf(msgbuf, MSGSIZE, "%s: unable to malloc", __func__);
 		mpas_log_write_c(msgbuf, "MPAS_LOG_ERR");
 		return ENOMEM;
 	}
-	memset(*sint, '\0', *n * sizeof(**sint));
+	memset(*ptr, '\0', *n * sizeof(**ptr));
 
 	i = 0;
 	s1 = tmp;
@@ -2085,13 +2085,13 @@ parse_interval(const char *str, struct interval **sint, int *n)
 		while (stkn) {
 			switch(j) {
 				case 0:
-					(*sint)[i].frequency = strdup(stkn);
+					(*ptr)[i].frequency = strdup(stkn);
 					break;
 				case 1:
-					(*sint)[i].start = strdup(stkn);
+					(*ptr)[i].start = strdup(stkn);
 					break;
 				case 2:
-					(*sint)[i].end = strdup(stkn);
+					(*ptr)[i].end = strdup(stkn);
 					break;
 			}
 			stkn = strtok_r(NULL, sdelim, &p2);
@@ -2102,11 +2102,11 @@ parse_interval(const char *str, struct interval **sint, int *n)
 	}
 
 	for (i = 0; i < *n; ++i) {
-		if (!(*sint)[i].start) {
-			(*sint)[i].start = strdup("start");
+		if (!(*ptr)[i].start) {
+			(*ptr)[i].start = strdup("start");
 		}
-		if (!(*sint)[i].end) {
-			(*sint)[i].end = strdup("");
+		if (!(*ptr)[i].end) {
+			(*ptr)[i].end = strdup("");
 		}
 	}
 
