@@ -6020,7 +6020,7 @@ subroutine stream_mgr_add_alarm_c(manager_c, streamID_c, direction_c, num_c, ala
                                     MPAS_stream_mgr_get_property
     use mpas_kind_types, only : StrKIND
     use mpas_timekeeping, only : mpas_add_clock_alarm, mpas_set_time, mpas_get_time, mpas_set_timeInterval, mpas_get_clock_time, &
-                                 mpas_adjust_alarm_to_reference_time
+                                 mpas_adjust_alarm_to_reference_time, operator(+), operator(-)
 
     implicit none
 
@@ -6036,8 +6036,8 @@ subroutine stream_mgr_add_alarm_c(manager_c, streamID_c, direction_c, num_c, ala
     type (MPAS_streamManager_type), pointer :: manager
     type (MPAS_Clock_type), pointer :: clock
     character(len=StrKIND) :: streamID, direction, alarmID, alarmStartTime, alarmInterval, alarmString, alarmEndTime
-    type (MPAS_Time_type) :: alarmStartTime_local, alarmEndTime_local
-    type (MPAS_TimeInterval_type) :: alarmInterval_local
+    type (MPAS_Time_type) :: alarmStartTime_local, alarmEndTime_local, model_start, model_stop
+    type (MPAS_TimeInterval_type) :: alarmInterval_local, delay
     character(len=StrKIND) :: streamReferenceTimeString
     type (MPAS_Time_type) :: streamReferenceTime
     integer :: idirection
@@ -6046,8 +6046,6 @@ subroutine stream_mgr_add_alarm_c(manager_c, streamID_c, direction_c, num_c, ala
 
     ierr = 0
     ierr_tmp = 0
-
-    alarmEndTime = ''
 
     call c_f_pointer(manager_c, manager)
     call mpas_c_to_f_string(streamID_c, streamID)
@@ -6069,24 +6067,40 @@ subroutine stream_mgr_add_alarm_c(manager_c, streamID_c, direction_c, num_c, ala
     end if
 
     call MPAS_stream_mgr_get_clock(manager, clock)
+    model_start = mpas_get_clock_time(clock, MPAS_START_TIME, ierr=ierr_tmp)
+    ierr = ior(ierr, ierr_tmp)
+    model_stop = mpas_get_clock_time(clock, MPAS_STOP_TIME, ierr=ierr_tmp)
+    ierr = ior(ierr, ierr_tmp)
 
     if (trim(alarmStartTime) == 'start' .and. trim(alarmInterval) == 'final_only') then
-        alarmStartTime_local = mpas_get_clock_time(clock, MPAS_STOP_TIME, ierr=ierr_tmp)
-        ierr = ior(ierr, ierr_tmp)
+        alarmStartTime_local = model_stop
         call mpas_get_time(alarmStartTime_local, dateTimeString=alarmString)
         call MPAS_stream_mgr_set_property(manager, streamID, MPAS_STREAM_PROPERTY_REF_TIME, alarmString, ierr=ierr_tmp)
         ierr = ior(ierr, ierr_tmp)
     else if (trim(alarmStartTime) == 'start') then
-        alarmStartTime_local = mpas_get_clock_time(clock, MPAS_START_TIME, ierr=ierr_tmp)
-        ierr = ior(ierr, ierr_tmp)
+        alarmStartTime_local = model_start
+    else if (alarmStartTime(1:1) == '+') then
+        alarmStartTime = alarmStartTime(2:len_trim(alarmStartTime))
+        call mpas_set_timeInterval(delay, timestring=alarmStartTime)
+        alarmStartTime_local = model_start + delay
+    else if (alarmStartTime(1:1) == '-') then
+        alarmStartTime = alarmStartTime(2:len_trim(alarmStartTime))
+        call mpas_set_timeInterval(delay, timestring=alarmStartTime)
+        alarmStartTime_local = model_start - delay
     else
         call mpas_set_time(alarmStartTime_local, dateTimeString=alarmStartTime)
     end if
 
-    if (len_trim(alarmEndTime) > 0) then
-        call mpas_set_time(alarmEndTime_local, dateTimeString=alarmEndTime)
+    if (alarmEndTime(1:1) == '+') then
+        alarmEndTime = alarmEndTime(2:len_trim(alarmEndTime))
+        call mpas_set_timeInterval(delay, timeString=alarmEndTime)
+        alarmEndTime_local = alarmStartTime_local + delay
+    else if (alarmEndTime(1:1) == '-') then
+        alarmEndTime = alarmEndTime(2:len_trim(alarmEndTime))
+        call mpas_set_timeInterval(delay, timeString=alarmEndTime)
+        alarmEndTime_local = alarmStartTime_local - delay
     else
-        alarmEndTime_local = mpas_get_clock_time(clock, MPAS_STOP_TIME, ierr=ierr_tmp)
+        alarmEndTime_local = model_stop
     end if
 
 

@@ -891,7 +891,15 @@ module mpas_timekeeping
          end if
 
          if (alarmThreshold <= alarmNow) then
-            mpas_in_ringing_envelope = .true.
+             if (associated(alarmPtr % ringEndTime % t % calendar)) then
+                 if (alarmNow <= alarmPtr % ringEndTime) then
+                    mpas_in_ringing_envelope = .true.
+                else
+                    mpas_in_ringing_envelope = .false.
+                end if
+             else
+                mpas_in_ringing_envelope = .true.
+             end if
          end if
       else
 
@@ -904,7 +912,15 @@ module mpas_timekeeping
          end if
             
          if (alarmThreshold >= alarmNow) then
-            mpas_in_ringing_envelope = .true.
+             if (associated(alarmPtr % ringEndTime % t % calendar)) then
+                 if (alarmNow >= alarmPtr % ringEndTime) then
+                    mpas_in_ringing_envelope = .true.
+                else
+                    mpas_in_ringing_envelope = .false.
+                end if
+             else
+                mpas_in_ringing_envelope = .true.
+             end if
          end if
       end if
 
@@ -1407,7 +1423,6 @@ module mpas_timekeeping
 
 
       if (present(timeString) .or. present(dt)) then
-
 
          if(present(dt)) then
             write (timeString_,*) "00:00:", dt         

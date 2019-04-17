@@ -1360,13 +1360,6 @@ void xml_stream_parser(char *fname, void *manager, int *mpi_comm, int *status)
 
 		/* Possibly add an input alarm for this stream */
 		if (itype == 3 || itype == 1) {
-#if 0
-			stream_mgr_add_alarm_c(manager, streamID, "input", "start", interval_in2, &err);
-			if (err != 0) {
-				*status = 1;
-				return;
-			}
-#endif
 			if (parse_interval(interval_in2, &pints, &npints) == 0) {
 				for (i = 0; i < npints; ++i) {
 					stream_mgr_add_alarm_c(manager, streamID, "input", &i,
@@ -1389,13 +1382,6 @@ void xml_stream_parser(char *fname, void *manager, int *mpi_comm, int *status)
 
 		/* Possibly add an output alarm for this stream */
 		if (itype == 3 || itype == 2) {
-#if 0
-			stream_mgr_add_alarm_c(manager, streamID, "output", "start", interval_out2, &err);
-			if (err != 0) {
-				*status = 1;
-				return;
-			}
-#endif
 			if (parse_interval(interval_out2, &pints, &npints) == 0) {
 				for (i = 0; i < npints; ++i) {
 					stream_mgr_add_alarm_c(manager, streamID, "output", &i,
@@ -1695,13 +1681,6 @@ void xml_stream_parser(char *fname, void *manager, int *mpi_comm, int *status)
 
 		/* Possibly add an input alarm for this stream */
 		if (itype == 3 || itype == 1) {
-#if 0
-			stream_mgr_add_alarm_c(manager, streamID, "input", "start", interval_in2, &err);
-			if (err != 0) {
-				*status = 1;
-				return;
-			}
-#endif
 			if (parse_interval(interval_in2, &pints, &npints) == 0) {
 				for (i = 0; i < npints; ++i) {
 					stream_mgr_add_alarm_c(manager, streamID, "input", &i,
@@ -1724,13 +1703,6 @@ void xml_stream_parser(char *fname, void *manager, int *mpi_comm, int *status)
 
 		/* Possibly add an output alarm for this stream */
 		if (itype == 3 || itype == 2) {
-#if 0
-			stream_mgr_add_alarm_c(manager, streamID, "output", "start", interval_out2, &err);
-			if (err != 0) {
-				*status = 1;
-				return;
-			}
-#endif
 			if (parse_interval(interval_out2, &pints, &npints) == 0) {
 				for (i = 0; i < npints; ++i) {
 					stream_mgr_add_alarm_c(manager, streamID, "output", &i,
