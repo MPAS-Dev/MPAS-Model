@@ -51,6 +51,27 @@
  subroutine init_atm_static(mesh, dims, configs)
 !==================================================================================================
 
+ use iso_c_binding, only : c_float, c_int, c_long, c_loc, c_ptr
+
+ use mpas_kd_tree, only : kdnode
+ use mpas_kd_tree, only : mpas_kd_construct
+ use mpas_kd_tree, only : mpas_kd_free
+ use mpas_kd_tree, only : mpas_kd_search
+
+ use mpas_stack, only : node
+ use mpas_stack, only : payload_t
+ use mpas_stack, only : mpas_stack_push
+ use mpas_stack, only : mpas_stack_is_empty
+ use mpas_stack, only : mpas_stack_free
+
+ use mpas_geotile_manager, only : tile_t, hash_table
+ use mpas_geotile_manager, only : mpas_get_tile
+ use mpas_geotile_manager, only : mpas_get_tile_neighbors
+ use mpas_geotile_manager, only : mpas_hash_to_latlon
+ use mpas_geotile_manager, only : mpas_stack_pop_tile
+
+ use mpas_parse_geoindex, only : mpas_parse_index
+
 !inout arguments:
  type (mpas_pool_type), intent(inout) :: mesh
  type (mpas_pool_type), intent(in) :: dims
@@ -62,6 +83,7 @@
                                         ! in the remapping of terrain, land use, and soil category pixels
 
 !local variables:
+ type (mpas_pool_type), pointer :: topo_pool
  type(proj_info):: proj
 
  character(len=StrKIND) :: fname
@@ -90,8 +112,10 @@
  real(kind=c_float),dimension(:,:,:),pointer,contiguous :: rarray
  type(c_ptr) :: rarray_ptr
 
- real(kind=RKIND):: start_lat
- real(kind=RKIND):: start_lon
+ real(kind=RKIND), pointer :: start_lat
+ real(kind=RKIND), pointer :: start_lon
+ real(kind=RKIND), pointer :: start_x
+ real(kind=RKIND), pointer :: start_y
 
  integer, pointer :: supersample_fac
 
@@ -101,7 +125,7 @@
  real(kind=RKIND),dimension(:,:),allocatable  :: maxsnowalb
  real(kind=RKIND),dimension(:,:,:),allocatable:: vegfra
 
- integer, pointer :: nCells, nEdges, nVertices, maxEdges
+ integer, pointer :: nCells, nCellsSolve, nEdges, nVertices, maxEdges
  logical, pointer :: on_a_sphere
  real (kind=RKIND), pointer :: sphere_radius
  
@@ -133,6 +157,40 @@
  character(len=StrKIND), pointer :: mminlu
 
  real (kind=RKIND) :: xPixel, yPixel, zPixel
+
+ type (hash_table), pointer, dimension(:, :) :: hash
+ type (kdnode), dimension(:), allocatable :: kdCords
+ type (kdnode), pointer :: tree => null(), res => null()
+
+ type (node), pointer :: stack => null()
+
+ type (tile_t), pointer :: tile => null()
+ type (tile_t) :: up, down, left, right
+
+ logical :: ALL_PIXELS_MAPPED_TO_HALO_CELLS
+
+ real(kind=RKIND), pointer :: dx, dy
+ integer, pointer :: tile_nx, tile_ny
+ integer, pointer :: tile_bdr
+
+ integer :: nTileX, nTileY ! The number of tiles in each direction
+ integer :: pixel_nx, pixel_ny ! The number of pixel in each direction
+ integer :: num_processed_tiles
+ integer :: cell
+
+ ! To handle possible values that are considerably large then the RKIND
+ ! and to possible take care of differences in order of summation, we will
+ ! briefly hold terrain values in an I8KIND integer array and then convert
+ ! them to RKIND's when they are divided by nhs.
+ !
+ ! This will allow larger values to be held, but will disallow smaller
+ ! resolution terrain values.
+ !
+ ! TODO: Check this and add more detail .
+ !
+ integer (kind=I8KIND), dimension(:), pointer :: ter_integer
+ real (kind=RKIND) :: tval
+
 
 !--------------------------------------------------------------------------------------------------
 
@@ -206,6 +264,7 @@
  call mpas_pool_get_dimension(dims, 'nEdges', nEdges)
  call mpas_pool_get_dimension(dims, 'nVertices', nVertices)
  call mpas_pool_get_dimension(dims, 'maxEdges', maxEdges)
+ call mpas_pool_get_dimension(dims, 'nCellsSolve', nCellsSolve)
 
  xCell = xCell * sphere_radius
  yCell = yCell * sphere_radius
@@ -221,6 +280,25 @@
  areaCell = areaCell * sphere_radius**2.0
  areaTriangle = areaTriangle * sphere_radius**2.0
  kiteAreasOnVertex = kiteAreasOnVertex * sphere_radius**2.0
+
+
+ ! Set up the KD-Tree of Grid Cell Cartisian Coordinates
+ allocate(kdcords(nCells))
+ do i = 1, nCells, 1
+    call convert_lx(x, y, z, sphere_radius, latCell(i), lonCell(i))
+
+    allocate(kdcords(i) % point(3))
+    kdcords(i) % point = (/x, y, z/)
+    kdcords(i) % cell = i
+
+    ! Mark if a cell is a halo cell or not
+    if(i > nCellsSolve) then
+       kdcords(i) % is_halo = .TRUE.
+    else
+       kdcords(i) % is_halo = .FALSE.
+    endif
+ enddo
+ tree => mpas_kd_construct(kdcords, 3)
 
 
 !
@@ -268,32 +346,14 @@
 !
 ! Interpolate HGT
 !
-!nx = 126
-!ny = 126
- nx = 1206
- ny = 1206
- nz = 1
- isigned  = 1
- endian   = 0
- wordsize = 2
- scalefactor = 1.0
- allocate(rarray(nx,ny,nz))
- allocate(nhs(nCells))
- nhs(:) = 0
- ter(:) = 0.0
 
- rarray_ptr = c_loc(rarray)
-
- start_lat = -89.99583
  select case(trim(config_topo_data))
     case('GTOPO30')
        call mpas_log_write('Using GTOPO30 terrain dataset')
        geog_sub_path = 'topo_30s/'
-       start_lon = -179.99583
     case('GMTED2010')
        call mpas_log_write('Using GMTED2010 terrain dataset')
        geog_sub_path = 'topo_gmted2010_30s/'
-       start_lon = 0.004166667
     case('default')
        call mpas_log_write('*****************************************************************', messageType=MPAS_LOG_ERR)
        call mpas_log_write('Invalid topography dataset '''//trim(config_topo_data) &
@@ -303,68 +363,245 @@
        call mpas_log_write('Please correct the namelist.', messageType=MPAS_LOG_CRIT)
  end select
 
- do jTileStart = 1,20401,ny-6
-    jTileEnd = jTileStart + ny - 1 - 6
+ ! Read in the data that describes this geog dataset
+ fname = trim(geog_data_path)//trim(geog_sub_path)
 
-    do iTileStart=1,42001,nx-6
-       iTileEnd = iTileStart + nx - 1 - 6
-       write(fname,'(a,i5.5,a1,i5.5,a1,i5.5,a1,i5.5)') trim(geog_data_path)//trim(geog_sub_path), &
-                    iTileStart,'-',iTileEnd,'.',jTileStart,'-',jTileEnd
-       call mpas_log_write(trim(fname))
-       call mpas_f_to_c_string(fname, c_fname)
+ call mpas_pool_create_pool(topo_pool)
+ call mpas_parse_index(fname, topo_pool)
+ call mpas_pool_get_config(topo_pool, 'dx', dx) ! The distance between two pixels
+ call mpas_pool_get_config(topo_pool, 'dy', dy) ! The distance between two pixels
+ call mpas_pool_get_config(topo_pool, 'tile_x', tile_nx) ! The number of pixels between two tiles
+ call mpas_pool_get_config(topo_pool, 'tile_y', tile_ny) ! The number of pixels between two tiles
+ call mpas_pool_get_config(topo_pool, 'tile_bdr', tile_bdr)
+ call mpas_pool_get_config(topo_pool, 'known_lat', start_lat)
+ call mpas_pool_get_config(topo_pool, 'known_lon', start_lon)
+ call mpas_pool_get_config(topo_pool, 'known_x', start_x)
+ call mpas_pool_get_config(topo_pool, 'known_y', start_y)
+ call mpas_pool_add_config(topo_pool, 'topo_dir_path', fname)
 
-       call read_geogrid(c_fname,rarray_ptr,nx,ny,nz,isigned,endian, &
-                         scalefactor,wordsize,istatus)
-       call init_atm_check_read_error(istatus, fname)
+ ! Initalize the hash table
+ !
+ ! The tile_hash is used when searching, getting and adding tiles.
+ ! See get_tile(...), search_tile(...) and add_tile(...)
+ ! Create a hash table, mapping out each tile for quicker searching as
+ ! well as enabling us to grab a tile's neighbors.
+ !
+ nTileX = int((360. / dx)) / tile_nx
+ nTileY = int((180. / dy)) / tile_ny
+ allocate(hash(0:nTileX, 0:nTileY)) 
 
-       iPoint = 1
-       do j=4,ny-3
-       do i=4,nx-3
-          lat_pt = start_lat + (jTileStart + j - 5) * 0.0083333333
-          lon_pt = start_lon + (iTileStart + i - 5) * 0.0083333333
-          lat_pt = lat_pt * PI / 180.0
-          lon_pt = lon_pt * PI / 180.0
+ ! Add these values to the geo_pool
+ call mpas_pool_add_config(topo_pool, 'nTileX', nTileX)
+ call mpas_pool_add_config(topo_pool, 'nTileY', nTileY)
 
-          iPoint = nearest_cell(lat_pt,lon_pt,iPoint,nCells,maxEdges, &
-                                nEdgesOnCell,cellsOnCell, &
-                                latCell,lonCell)
+ ! Determine the amount of global pixels for this dataset
+ pixel_nx = 360 / dx
+ pixel_ny = 180 / dy
+ call mpas_pool_add_config(topo_pool, 'pixel_nx', pixel_nx)
+ call mpas_pool_add_config(topo_pool, 'pixel_ny', pixel_ny)
 
-          !
-          ! For all but the outermost boundary cells, we can safely assume that the nearest
-          ! model grid cell contains the pixel (else, a different cell would be nearest)
-          !
-          if (bdyMaskCell(iPoint) < nBdyLayers) then
-             ter(iPoint) = ter(iPoint) + rarray(i,j,1)
-             nhs(iPoint) = nhs(iPoint) + 1
+ ! 
+ ! To ensure that we map all pixels of a topography dataset/geo-grid in parallel we have developed
+ ! the following algorithm:
+ !
+ ! We have the following data structures:
+ !  1. A stack - That holds tiles that may or may not need to be processed
+ !  2. A kdtree - That holds the locations of every cell in our decomposition
+ !  3. A hash table - That enables us to see if a tile is loaded, or not
+ !
+ ! A rough description of the algorithm is:
+ !
+ ! Push a single tile on the stack. While the stack is not empty, pop a tile off the
+ ! stack and map its tiles to a mesh cell using the KD tree.
+ !
+ ! If all the pixels in the tile map to halo cells, then don't add that tiles neighbors to
+ ! the stack. If a single pixel does map to a non-halo cell, then add all of its neighbors
+ ! (up, down, left, right) to the stack. 
+ !
+ ! And continue until the stack is empty.
+ !
+ ! An outer loop loops through all nCells to insure that all cells have had terrain values
+ ! mapped to them.
 
-          ! For outermost boundary cells, additional work is needed to verify that the pixel
-          ! actually lies within the nearest cell
-          else
-             zPixel = sphere_radius * sin(lat_pt)                  ! Model cell coordinates assume a "full" sphere radius
-             xPixel = sphere_radius * cos(lon_pt) * cos(lat_pt)    ! at this point, so we need to ues the same radius
-             yPixel = sphere_radius * sin(lon_pt) * cos(lat_pt)    ! for source pixel coordinates
+ ! Pseudocode:
+ !
+ ! for cell in Ncells: 
+ !  if(nhs == 0) 
+ !     load the tile for that cell
+ !     push tile
+ !  do while(stack is not empty)
+ !     pop tile
+ !     if tile == proccseed then 
+ !         cycle
+ !
+ !     mapped_all_to_halo = True
+ !     for pixels in tile:
+ !        tval = tile(pixel)
+ !        call kd_search(pixel, nCell_result)
+ !        ter(nCell_result) += tval 
+ !        nhs(nCell_result) += 1
+ !     
+ !        if (nCell_result < nCellSolve) then
+ !           mapped_all_to_halo = False
+ !
+ !     if(mapped_all_to_halo) then
+ !        pass
+ !     else
+ !        push tile_neighbors_onto_stack
+ !
 
-             if (in_cell(xPixel, yPixel, zPixel, xCell(iPoint), yCell(iPoint), zCell(iPoint), &
-                         nEdgesOnCell(iPoint), verticesOnCell(:,iPoint), xVertex, yVertex, zVertex)) then
+ num_processed_tiles = 0
+ allocate(nhs(nCells))
+ allocate(ter_integer(nCells))
 
-                ter(iPoint) = ter(iPoint) + rarray(i,j,1)
-                nhs(iPoint) = nhs(iPoint) + 1
+ nhs(:) = 0
+ ter(:) = 0
+ ter_integer(:) = 0
 
-             end if
-          end if
-       end do
-       end do
+ do cell = 1, nCells, 1
 
-    end do
- end do
+    ! To insure that all the cells in our decompositions have values, check to see if 
+    ! the nhs for that cells is greater then 0. If it is 0, then we have not added
+    ! any terrain values to it, so push it onto the stack to insure it gets processed.
+    ! 
+    ! For instance if we have a discontinuous decomposition partition.
 
- do iCell = 1,nCells
-    ter(iCell) = ter(iCell) / real(nhs(iCell))
- end do
- deallocate(rarray)
+    if(nhs(cell) == 0) then
+      call mpas_get_tile(latCell(cell), lonCell(cell), tile, hash, topo_pool)
+      stack => mpas_stack_push(stack, tile)
+    endif
+
+    do while( .NOT. mpas_stack_is_empty(stack))
+      tile => null()
+      tile => mpas_stack_pop_tile(stack)
+
+      if ( tile % is_processed ) then
+         cycle
+      else
+         tile % is_processed = .TRUE.
+      endif
+   
+      num_processed_tiles = num_processed_tiles + 1
+      call mpas_log_write("Processing a tile ... $i - "//trim(tile%fname), intArgs=(/num_processed_tiles/))
+
+      ALL_PIXELS_MAPPED_TO_HALO_CELLS = .TRUE.
+
+      ! For each pixel within a tile, calculate its Cartesian coordinate. Then, using its
+      ! Cartesian coordinates, search the KD tree for the mesh cell that is closest and 
+      ! assign that pixels terrain value to that mesh cell.
+      !
+      ! If we find that none of the pixels map a non-halo cell (ie < nCellsSolve) then 
+      ! we know that this tile is outside of our processor decomposition, so most likely
+      ! so is its neighbors, so don't add them to the stack.
+
+      do j = 1 + tile_bdr, tile_ny + tile_bdr, 1
+         do i = 1 + tile_bdr, tile_nx + tile_bdr, 1
+
+            tval = tile % tile(i, j)
+
+            lat_pt = (j - (tile_bdr - 1) + real(tile % y(1)) - 1) * dy + start_lat
+            lon_pt = (i - (tile_bdr - 1) + real(tile % x(1)) - 1) * dx + start_lon
+
+            if (lon_pt < 0) then
+               lon_pt = lon_pt + 360
+            endif
+
+            lat_pt = lat_pt * (pii / 180.0)
+            lon_pt = lon_pt * (pii / 180.0)
+
+            ! Convert the pixel ll x, y to lat, lon and then to Cartesian coordinates
+            ! (tile_bdr - 1) represents the 1 + tile_bdr start, and the later - 1 represent the
+            ! subtraction to achieve zero based.
+            call convert_lx(x, y, z, sphere_radius, lat_pt, lon_pt)
+
+            res => null()
+            call mpas_kd_search(tree, (/x, y, z/), res)
+
+            !
+            ! For all but the outermost boundary cells, we can safely assume that the nearest
+            ! model grid cell contains the pixel (else, a different cell would be nearest)
+            !
+            if (bdyMaskCell(res % cell) < nBdyLayers) then
+               ter_integer(res % cell) = ter_integer(res % cell) + int(tval, kind=I8KIND)
+               nhs(res % cell) = nhs(res % cell) + 1
+
+               ! To insure that the algorithm is not processing tiles that are too far
+               ! outside of its decomposition (i.e. tiles that do not map to any of this MPI
+               ! process' cells, if all the pixels of a completely to halo cells, then we know
+               ! we don't need to add this tiles neighbors to the stack.
+               ! 
+               ! However, if a single pixel maps to one of our cells then to be safe we should
+               ! push on its surrounding tiles.
+               if (res % cell <= nCellsSolve) then
+                  ALL_PIXELS_MAPPED_TO_HALO_CELLS = .FALSE.
+               endif
+
+            ! For outermost boundary cells, additional work is needed to verify that the pixel
+            ! actually lies within the nearest cell
+            else
+               zPixel = sphere_radius * sin(lat_pt)                  ! Model cell coordinates assume a "full" sphere radius
+               xPixel = sphere_radius * cos(lon_pt) * cos(lat_pt)    ! at this point, so we need to ues the same radius
+               yPixel = sphere_radius * sin(lon_pt) * cos(lat_pt)    ! for source pixel coordinates
+
+               if (in_cell(xPixel, yPixel, zPixel, xCell(res % cell), yCell(res % cell), zCell(res % cell), &
+                           nEdgesOnCell(res % cell), verticesOnCell(:,res % cell), xVertex, yVertex, zVertex)) then
+
+                  ter_integer(res % cell) = ter_integer(res % cell) + int(tval, kind=I8KIND)
+                  nhs(res % cell) = nhs(res % cell) + 1
+
+                  ! Similarly, if we have a border cell that is not a halo cell, then we should
+                  ! grab the current tiles surrounding tiles.
+                  if (res % cell <= nCellsSolve) then
+                     ALL_PIXELS_MAPPED_TO_HALO_CELLS = .FALSE.
+                  endif
+
+               endif
+            endif
+         enddo
+      enddo
+
+      if (ALL_PIXELS_MAPPED_TO_HALO_CELLS) then
+         ! Pass - All tiles mapped to its halo cells, so don't add any tiles to the stack
+      else
+         ! Calculate the tile neighbors of the current tile and push them onto the stack
+         call mpas_get_tile_neighbors(tile, up, down, left, right, topo_pool)
+         call push_tile_neighbors(stack, up, down, left, right, hash, topo_pool)
+      endif
+    enddo
+ enddo
+
+ ! Since we are taking an average of all the pixels that map to  a cell, divide each cell's 
+ ! terrain value by the number of pixels that we alloted to it.
+ do i = 1, nCells, 1
+    ter(i) = real(ter_integer(i), kind=R8KIND) / real(nhs(i), kind=R8KIND)
+ enddo
+
+
+ !! Deallocations
  deallocate(nhs)
- call mpas_log_write('--- end interpolate TER')
+ deallocate(ter_integer)
 
+ ! Deallocate the kdcords
+ do i = 1, nCells, 1 ! TODO: Update mpas_kd_tree so we can call that module to free this
+    deallocate(kdcords(i) % point)
+ enddo
+ deallocate(kdcords)
+
+ ! Deallocate the stack
+ call mpas_stack_free(stack, free_payload=.TRUE.)
+
+ ! Use the hash table to deallocate each tile and then the hash itself.
+ do i = 0, nTileX, 1
+    do j = 0, nTileY, 1
+       if(associated(hash(i, j) % ptr)) then
+          deallocate(hash(i, j) % ptr % tile)
+          deallocate(hash(i, j) % ptr)
+       endif
+    enddo
+ enddo
+ deallocate(hash)
+
+ call mpas_log_write('--- end interpolate TER')
 
 !
 ! Interpolate LU_INDEX
@@ -1248,8 +1485,72 @@ if (rarray(i,j,1) == 0) cycle
 
  call mpas_log_write('--- end interpolate ALBEDO12M')
 
-
  end subroutine init_atm_static
+
+ !***********************************************************************
+ !
+ !  subroutine push_tile_neighbors
+ !
+ !> \brief   Push a tiles neighbors onto the stack
+ !> \author  Miles A. Curry
+ !> \date    03/29/2019
+ !> \details 
+ !>  Given that up, down, left, right contain their relevant hashes,
+ !>  (from mpas_get_tile_neighbors) get and push the relevant tiles onto
+ !>  the stack to be processed.
+ !
+ !-----------------------------------------------------------------------
+ subroutine push_tile_neighbors(stack, up, down, left, right, tile_hash, geo_pool)
+
+    use mpas_stack, only : node
+    use mpas_stack, only : payload_t
+    use mpas_stack, only : mpas_stack_is_empty
+    use mpas_stack, only : mpas_stack_push
+
+    use mpas_geotile_manager, only : tile_t, hash_table
+    use mpas_geotile_manager, only : mpas_get_tile
+    use mpas_geotile_manager, only : mpas_hash_to_latlon
+    use mpas_geotile_manager, only : mpas_stack_pop_tile
+
+    implicit none
+
+    type (node), intent(inout), pointer :: stack
+    type (tile_t), intent(inout) :: up
+    type (tile_t), intent(inout) :: down
+    type (tile_t), intent(inout) :: left
+    type (tile_t), intent(inout) :: right
+    type (hash_table), pointer, dimension(:, :), intent(inout) :: tile_hash
+    type (mpas_pool_type), intent(inout), pointer :: geo_pool
+
+    type (tile_t), pointer :: tile
+    real (kind=RKIND) :: lat
+    real (kind=RKIND) :: lon
+
+    ! Right
+    tile => null()
+    call mpas_hash_to_latlon(right % hash_x, right % hash_y, lat, lon, geo_pool)
+    call mpas_get_tile(lat, lon, tile, tile_hash, geo_pool)
+    stack => mpas_stack_push(stack, tile)
+
+    ! Left
+    tile => null()
+    call mpas_hash_to_latlon(left % hash_x, left % hash_y, lat, lon, geo_pool)
+    call mpas_get_tile(lat, lon, tile, tile_hash, geo_pool)
+    stack => mpas_stack_push(stack, tile)
+
+    ! Up
+    tile => null()
+    call mpas_hash_to_latlon(up % hash_x, up % hash_y, lat, lon, geo_pool)
+    call mpas_get_tile(lat, lon, tile, tile_hash, geo_pool)
+    stack => mpas_stack_push(stack, tile)
+    
+    ! Down
+    tile => null()
+    call mpas_hash_to_latlon(down % hash_x, down % hash_y, lat, lon, geo_pool)
+    call mpas_get_tile(lat, lon, tile, tile_hash, geo_pool)
+    stack => mpas_stack_push(stack, tile)
+
+ end subroutine push_tile_neighbors
 
 !==================================================================================================
  subroutine init_atm_check_read_error(istatus, fname)
@@ -1264,6 +1565,32 @@ if (rarray(i,j,1) == 0) cycle
  end if
 
  end subroutine init_atm_check_read_error
+
+ !***********************************************************************
+ !
+ !  function convert_lx
+ !
+ !> \brief   Convert a latitude and longitude to cartisian x, y, z
+ !> \author  Michael G. Duda
+ !> \details 
+ !>  Convert a lat, lon coordinate to an x, y, z using a given radius.
+ !
+ !-----------------------------------------------------------------------
+ subroutine convert_lx(x, y, z, radius, lat, lon)
+
+    implicit none
+
+    real (kind=RKIND), intent(in) :: radius
+    real (kind=RKIND), intent(in) :: lat
+    real (kind=RKIND), intent(in) :: lon
+    real (kind=RKIND), intent(out) :: x, y, z
+
+    z = radius * sin(lat)
+    x = radius * cos(lon) * cos(lat)
+    y = radius * sin(lon) * cos(lat)
+
+ end subroutine convert_lx
+
 
 !==================================================================================================
  integer function nearest_cell(target_lat, target_lon, start_cell, nCells, maxEdges, &
