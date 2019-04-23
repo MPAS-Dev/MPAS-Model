@@ -1,6 +1,7 @@
 .SUFFIXES: .F .o
 
-OBJS = mpas_ocn_forward_mode.o \
+OBJS = mpas_ocn_filter_routines.o \
+       mpas_ocn_forward_mode.o \
        mpas_ocn_time_integration.o \
        mpas_ocn_time_integration_rk4.o \
        mpas_ocn_time_integration_forward_euler.o \
@@ -12,7 +13,7 @@ all: forward_mode
 
 forward_mode: $(OBJS) 
 
-mpas_ocn_time_integration.o: mpas_ocn_time_integration_rk4.o mpas_ocn_time_integration_forward_euler.o mpas_ocn_time_integration_split.o mpas_ocn_time_integration_split_filtered.o mpas_ocn_time_integration_split_unfiltered.o
+mpas_ocn_time_integration.o: mpas_ocn_filter_routines.o mpas_ocn_time_integration_rk4.o mpas_ocn_time_integration_forward_euler.o mpas_ocn_time_integration_split.o mpas_ocn_time_integration_split_filtered.o mpas_ocn_time_integration_split_unfiltered.o
 
 mpas_ocn_time_integration_rk4.o: 
 
@@ -24,7 +25,8 @@ mpas_ocn_time_integration_split_filtered.o:
 
 mpas_ocn_time_integration_split_unfiltered.o: 
 
-mpas_ocn_forward_mode.o: mpas_ocn_time_integration.o \
+mpas_ocn_forward_mode.o: mpas_ocn_filter_routines.o \
+                         mpas_ocn_time_integration.o \
                          mpas_ocn_time_integration_rk4.o \
                          mpas_ocn_time_integration_forward_euler.o \
                          mpas_ocn_time_integration_split_filtered.o \

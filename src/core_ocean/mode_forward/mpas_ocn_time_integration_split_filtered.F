@@ -43,6 +43,8 @@ module ocn_time_integration_split_filtered
 
    use ocn_effective_density_in_land_ice
 
+   use ocn_filter_routines
+
    implicit none
    private
    save
