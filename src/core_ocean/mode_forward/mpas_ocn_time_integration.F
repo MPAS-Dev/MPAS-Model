@@ -1,22 +1,25 @@
-! Copyright (c) 2013,  Los Alamos National Security, LLC (LANS)
-! and the University Corporation for Atmospheric Research (UCAR).
-!
-! Unless noted otherwise source code is licensed under the BSD license.
-! Additional copyright and license information can be found in the LICENSE file
-! distributed with this code, or at http://mpas-dev.github.com/license.html
-!
-!|||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
-!
-!  ocn_time_integration
-!
-!> \brief MPAS ocean time integration driver
-!> \author Mark Petersen, Doug Jacobsen, Todd Ringler
-!> \date   September 2011
-!> \details
-!>  This module contains the main driver routine for calling
-!>  the time integration scheme
-!
-!-----------------------------------------------------------------------
+!-------------------------------------------------------------------------------!
+!                                                                               !
+! Copyright (c) 2013,  Los Alamos National Security, LLC (LANS)                 !
+! and the University Corporation for Atmospheric Research (UCAR).               !
+!                                                                               !
+! Unless noted otherwise source code is licensed under the BSD license.         !
+! Additional copyright and license information can be found in the LICENSE file !
+! distributed with this code, or at http://mpas-dev.github.com/license.html     !
+!                                                                               !
+!-------------------------------------------------------------------------------!
+
+!------------------------------------------------------------!
+!  ocn_time_integration                                      !
+!                                                            !
+!> \brief MPAS ocean time integration driver                 !
+!> \author Mark Petersen, Doug Jacobsen, Todd Ringler        !
+!> \date   September 2011                                    !
+!> \details                                                  !
+!>  This module contains the main driver routine for calling !
+!>  the time integration scheme                              !
+!                                                            !
+!------------------------------------------------------------!
 
 module ocn_time_integration
 
@@ -42,53 +45,55 @@ module ocn_time_integration
    save
 
    public :: ocn_timestep, &
-             ocn_timestep_init
+      ocn_timestep_init
 
-   !--------------------------------------------------------------------
-   !
-   ! Public parameters
-   !
-   !--------------------------------------------------------------------
+   !-------------------!
+   !                   !
+   ! Public parameters !
+   !                   !
+   !-------------------!
 
-   !--------------------------------------------------------------------
-   !
-   ! Public member functions
-   !
-   !--------------------------------------------------------------------
+   !-------------------------!
+   !                         !
+   ! Public member functions !
+   !                         !
+   !-------------------------!
 
-   !--------------------------------------------------------------------
-   !
-   ! Private module variables
-   !
-   !--------------------------------------------------------------------
+   !--------------------------!
+   !                          !
+   ! Private module variables !
+   !                          !
+   !--------------------------!
 
-    character (len=StrKIND), pointer :: config_time_integrator
+   character (len=StrKIND), pointer :: config_time_integrator
 
-   contains
+contains
 
-!|||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
-!
-!  ocn_timestep
-!
-!> \brief MPAS ocean time integration driver
-!> \author Mark Petersen, Doug Jacobsen, Todd Ringler
-!> \date   September 2011
-!> \details
-!>  This routine handles a single timestep for the ocean. It determines
-!>  the time integrator that will be used for the run, and calls the
-!>  appropriate one.
-!
-!-----------------------------------------------------------------------
+!-----------------------------------------------------------------------!
+!                                                                       !
+!  ocn_timestep                                                         !
+!                                                                       !
+!> \brief MPAS ocean time integration driver                            !
+!> \author Mark Petersen, Doug Jacobsen, Todd Ringler                   !
+!> \date   September 2011                                               !
+!> \details                                                             !
+!>  This routine handles a single timestep for the ocean. It determines !
+!>  the time integrator that will be used for the run, and calls the.   !
+!>  appropriate one.                                                    !
+!                                                                       !
+!-----------------------------------------------------------------------!
 
    subroutine ocn_timestep(domain, dt, timeStamp)!{{{
-   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-   ! Advance model state forward in time by the specified time step
-   !
-   ! Input: domain - current model state in time level 1 (e.g., time_levs(1)state%h(:,:))
-   !                 plus mesh meta-data
-   ! Output: domain - upon exit, time level 2 (e.g., time_levs(2)%state%h(:,:)) contains
-   !                  model state advanced forward in time by dt seconds
-   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      !--------------------------------------------------------------------------------------!
+      !                                                                                      !
+      ! Advance model state forward in time by the specified time step                       !
+      !                                                                                      !
+      ! Input: domain - current model state in time level 1 (e.g., time_levs(1)state%h(:,:)) !
+      !                 plus mesh meta-data                                                  !
+      ! Output: domain - upon exit, time level 2 (e.g., time_levs(2)%state%h(:,:)) contains  !
+      !                  model state advanced forward in time by dt seconds                  !
+      !                                                                                      !
+      !--------------------------------------------------------------------------------------!
 
       implicit none
 
@@ -112,40 +117,40 @@ module ocn_time_integration
       elseif (trim(config_time_integrator) == 'forward_euler') then
          call ocn_time_integrator_forward_euler(domain, dt)
       elseif (trim(config_time_integrator) == 'split_explicit' &
-          .or.trim(config_time_integrator) == 'unsplit_explicit') then
+         .or.trim(config_time_integrator) == 'unsplit_explicit') then
          call ocn_time_integrator_split(domain, dt)
       elseif (trim(config_time_integrator) == 'split_explicit_filtered') then
          call ocn_time_integrator_split_filtered(domain, dt)
       elseif (trim(config_time_integrator) == 'split_explicit_unfiltered') then
          call ocn_time_integrator_split_unfiltered(domain, dt)
       else
-          call mpas_log_write('Incorrect choice for config_time_integrator:' // trim(config_time_integrator) // &
-             '   Check choices in Registry.xml file.', MPAS_LOG_CRIT)
+         call mpas_log_write('Incorrect choice for config_time_integrator:' // trim(config_time_integrator) // &
+            '   Check choices in Registry.xml file.', MPAS_LOG_CRIT)
       endif
 
-     block => domain % blocklist
-     do while (associated(block))
-        call mpas_pool_get_subpool(block % structs, 'state', statePool)
-        call mpas_pool_get_subpool(block % structs, 'diagnostics', diagnosticsPool)
-        call mpas_pool_get_subpool(block % structs, 'mesh', meshPool)
+      block => domain % blocklist
+      do while (associated(block))
+         call mpas_pool_get_subpool(block % structs, 'state', statePool)
+         call mpas_pool_get_subpool(block % structs, 'diagnostics', diagnosticsPool)
+         call mpas_pool_get_subpool(block % structs, 'mesh', meshPool)
 
-        call mpas_pool_get_array(diagnosticsPool, 'xtime', xtime)
+         call mpas_pool_get_array(diagnosticsPool, 'xtime', xtime)
 
-        xtime = timeStamp
+         xtime = timeStamp
 
-        ! compute time since start of simulation, in days
-        call mpas_pool_get_array(diagnosticsPool, 'simulationStartTime', simulationStartTime)
-        call mpas_pool_get_array(diagnosticsPool, 'daysSinceStartOfSim',daysSinceStartOfSim)
-        call mpas_set_time(xtime_timeType, dateTimeString=xtime)
-        call mpas_set_time(simulationStartTime_timeType, dateTimeString=simulationStartTime)
-        call mpas_get_timeInterval(xtime_timeType - simulationStartTime_timeType,dt=daysSinceStartOfSim)
+         ! Compute time since start of simulation, in days
+         call mpas_pool_get_array(diagnosticsPool, 'simulationStartTime', simulationStartTime)
+         call mpas_pool_get_array(diagnosticsPool, 'daysSinceStartOfSim',daysSinceStartOfSim)
+         call mpas_set_time(xtime_timeType, dateTimeString=xtime)
+         call mpas_set_time(simulationStartTime_timeType, dateTimeString=simulationStartTime)
+         call mpas_get_timeInterval(xtime_timeType - simulationStartTime_timeType,dt=daysSinceStartOfSim)
 
-        !$omp single
-        daysSinceStartOfSim = daysSinceStartOfSim*days_per_second
-        !$omp end single
+         !$omp single
+         daysSinceStartOfSim = daysSinceStartOfSim*days_per_second
+         !$omp end single
 
-        block => block % next
-     end do
+         block => block % next
+      end do
 
    end subroutine ocn_timestep!}}}
 

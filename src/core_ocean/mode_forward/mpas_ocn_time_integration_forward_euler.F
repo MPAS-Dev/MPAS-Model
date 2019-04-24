@@ -1,21 +1,25 @@
-! Copyright (c) 2013,  Los Alamos National Security, LLC (LANS)
-! and the University Corporation for Atmospheric Research (UCAR).
-!
-! Unless noted otherwise source code is licensed under the BSD license.
-! Additional copyright and license information can be found in the LICENSE file
-! distributed with this code, or at http://mpas-dev.github.com/license.html
-!
-!|||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
-!
-!  ocn_time_integration_forward_euler
-!
-!> \brief MPAS ocean Forward Euler Time integration scheme
-!> \author Mark Petersen, Doug Jacobsen, Todd Ringler
-!> \date   September 2011
-!> \details
-!>  This module contains the Forward Euler time integration routine.
-!
-!-----------------------------------------------------------------------
+!-------------------------------------------------------------------------------!
+!                                                                               !
+! Copyright (c) 2013,  Los Alamos National Security, LLC (LANS)                 !
+! and the University Corporation for Atmospheric Research (UCAR).               !
+!                                                                               !
+! Unless noted otherwise source code is licensed under the BSD license.         !
+! Additional copyright and license information can be found in the LICENSE file !
+! distributed with this code, or at http://mpas-dev.github.com/license.html.    !
+!                                                                               !
+!-------------------------------------------------------------------------------!
+
+!--------------------------------------------------------------------!
+!                                                                    !
+!  ocn_time_integration_forward_euler                                !
+!                                                                    !
+!> \brief MPAS ocean Forward Euler Time integration scheme           !
+!> \author Mark Petersen, Doug Jacobsen, Todd Ringler                !
+!> \date   September 2011                                            !
+!> \details                                                          !
+!>  This module contains the Forward Euler time integration routine. !
+!                                                                    !
+!--------------------------------------------------------------------!
 
 module ocn_time_integration_forward_euler
 
@@ -43,44 +47,44 @@ module ocn_time_integration_forward_euler
    private
    save
 
-   !--------------------------------------------------------------------
-   !
-   ! Public parameters
-   !
-   !--------------------------------------------------------------------
+   !-------------------!
+   !                   !
+   ! Public parameters !
+   !                   !
+   !-------------------!
 
-   !--------------------------------------------------------------------
-   !
-   ! Public member functions
-   !
-   !--------------------------------------------------------------------
+   !-------------------------!
+   !                         !
+   ! Public member functions !
+   !                         !
+   !-------------------------!
 
    public :: ocn_time_integrator_forward_euler
 
-   contains
+contains
 
-!|||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
-!
-!  ocn_time_integrator_forward_euler
-!
-!> \brief MPAS ocean Forward Euler Time integration scheme
-!> \author Mark Petersen, Doug Jacobsen, Todd Ringler
-!> \date   September 2011
-!> \details
-!>  This routine integrates one timestep (dt) using an Forward Euler time integrator.
-!
-!-----------------------------------------------------------------------
+!-------------------------------------------------------------------------------------!
+!                                                                                     !
+!  ocn_time_integrator_forward_euler                                                  !
+!                                                                                     !
+!> \brief MPAS ocean Forward Euler Time integration scheme                            !
+!> \author Mark Petersen, Doug Jacobsen, Todd Ringler                                 !
+!> \date   September 2011                                                             !
+!> \details                                                                           !
+!>  This routine integrates one timestep (dt) using an Forward Euler time integrator. !
+!                                                                                     !
+!-------------------------------------------------------------------------------------!
 
    subroutine ocn_time_integrator_forward_euler(domain, dt)!{{{
-   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-   ! Advance model state forward in time by the specified time step using
-   !   4th order Runge-Kutta
-   !
-   ! Input: domain - current model state in time level 1 (e.g., time_levs(1)state%h(:,:))
-   !                 plus mesh meta-data
-   ! Output: domain - upon exit, time level 2 (e.g., time_levs(2)%state%h(:,:)) contains
-   !                  model state advanced forward in time by dt seconds
-   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      !--------------------------------------------------------------------------------------!
+      ! Advance model state forward in time by the specified time step using                 !
+      !   4th order Runge-Kutta                                                              !
+      !                                                                                      !
+      ! Input: domain - current model state in time level 1 (e.g., time_levs(1)state%h(:,:)) !
+      !                 plus mesh meta-data                                                  !
+      ! Output: domain - upon exit, time level 2 (e.g., time_levs(2)%state%h(:,:)) contains  !
+      !                  model state advanced forward in time by dt seconds                  !
+      !--------------------------------------------------------------------------------------!
 
       implicit none
 
@@ -111,7 +115,7 @@ module ocn_time_integration_forward_euler
 
       integer, dimension(:), pointer :: maxLevelCell
 
-!      ! Diagnostics Array Pointers
+      ! Diagnostics Array Pointers
       real (kind=RKIND), dimension(:,:), pointer :: layerThicknessEdge
       real (kind=RKIND), dimension(:,:), pointer :: vertAleTransportTop
       real (kind=RKIND), dimension(:,:), pointer :: normalTransportVelocity, normalGMBolusVelocity
@@ -122,11 +126,11 @@ module ocn_time_integration_forward_euler
       real (kind=RKIND), dimension(:), pointer :: gradSSHZonal, gradSSHMeridional
       real (kind=RKIND), dimension(:,:), pointer :: surfaceVelocity, sshGradient
 
-!      ! Diagnostics Indices
+      ! Diagnostics Indices
       integer, pointer :: indexSurfaceVelocityZonal, indexSurfaceVelocityMeridional
       integer, pointer :: indexSSHGradientZonal, indexSSHGradientMeridional
 
-!      ! Config options
+      ! Config options
       logical, pointer :: config_prescribe_velocity, config_prescribe_thickness
       logical, pointer :: config_use_standardGM
       logical, pointer :: config_use_cvmix_kpp
@@ -145,67 +149,67 @@ module ocn_time_integration_forward_euler
 
       block => domain % blocklist
       do while (associated(block))
-         ! set pointers !{{{
+         ! Set pointers !{{{
          call mpas_pool_get_dimension(block % dimensions, 'nCells', nCells)
          call mpas_pool_get_dimension(block % dimensions, 'nEdges', nEdges)
-   
+
          call mpas_pool_get_subpool(block % structs, 'state', statePool)
          call mpas_pool_get_subpool(block % structs, 'tend', tendPool)
          call mpas_pool_get_subpool(block % structs, 'mesh', meshPool)
-   
+
          call mpas_pool_get_subpool(statePool, 'tracers', tracersPool)
          call mpas_pool_get_subpool(tendPool, 'tracersTend', tracersTendPool)
-   
+
          call mpas_pool_get_array(statePool, 'normalVelocity', normalVelocityCur, 1)
          call mpas_pool_get_array(statePool, 'normalVelocity', normalVelocityNew, 2)
          call mpas_pool_get_array(statePool, 'layerThickness', layerThicknessCur, 1)
          call mpas_pool_get_array(statePool, 'layerThickness', layerThicknessNew, 2)
-   
+
          call mpas_pool_get_array(tendPool, 'normalVelocity', normalVelocityTend)
          call mpas_pool_get_array(tendPool, 'layerThickness', layerThicknessTend)
-   
+
          call mpas_pool_get_array(meshPool, 'maxLevelCell', maxLevelCell)
-   
+
          call mpas_pool_get_subpool(block % structs, 'verticalMesh', verticalMeshPool)
          call mpas_pool_get_subpool(block % structs, 'diagnostics', diagnosticsPool)
          call mpas_pool_get_subpool(block % structs, 'forcing', forcingPool)
          call mpas_pool_get_subpool(block % structs, 'shortwave', swForcingPool)
          call mpas_pool_get_subpool(block % structs, 'scratch', scratchPool)
          call mpas_pool_get_array(statePool, 'ssh', sshCur, 1)
-   
+
          call mpas_pool_get_array(diagnosticsPool, 'layerThicknessEdge', layerThicknessEdge)
          call mpas_pool_get_array(diagnosticsPool, 'vertAleTransportTop', vertAleTransportTop)
          call mpas_pool_get_array(diagnosticsPool, 'normalTransportVelocity', normalTransportVelocity)
          !}}}
-   
-         !--------------------------------------------------------------------
-         ! Compute tendencies
-         !--------------------------------------------------------------------
+
+         !--------------------!
+         ! Compute tendencies !
+         !--------------------!
          call ocn_vert_transport_velocity_top(meshPool, verticalMeshPool, scratchPool, &
             layerThicknessCur,layerThicknessEdge, normalVelocityCur, &
             sshCur, dt, &
             vertAleTransportTop, err)
          call mpas_threading_barrier()
-   
+
          call ocn_tend_vel(tendPool, statePool, forcingPool, diagnosticsPool, meshPool, scratchPool, 1)
          call mpas_threading_barrier()
-   
+
          call ocn_vert_transport_velocity_top(meshPool, verticalMeshPool, scratchPool, &
             layerThicknessCur, layerThicknessEdge, normalTransportVelocity, &
             sshCur, dt, &
             vertAleTransportTop, err)
          call mpas_threading_barrier()
-   
+
          call ocn_tend_thick(tendPool, forcingPool, diagnosticsPool, meshPool)
          call mpas_threading_barrier()
-   
+
          call ocn_tend_tracer(tendPool, statePool, forcingPool, diagnosticsPool, meshPool, swForcingPool, &
-                              scratchPool, dt, activeTracersOnlyIn=.false., timeLevelIn=1)
+            scratchPool, dt, activeTracersOnlyIn=.false., timeLevelIn=1)
          call mpas_threading_barrier()
-   
-         !--------------------------------------------------------------------
-         ! Update layer thickness
-         !--------------------------------------------------------------------
+
+         !------------------------!
+         ! Update layer thickness !
+         !------------------------!
          !$omp do schedule(runtime) private(k)
          do iCell = 1, nCells
             do k = 1, maxLevelCell(iCell)
@@ -213,29 +217,29 @@ module ocn_time_integration_forward_euler
             end do
          end do
          !$omp end do
-   
-         !--------------------------------------------------------------------
-         ! Update velocity
-         !--------------------------------------------------------------------
+
+         !-----------------!
+         ! Update velocity !
+         !-----------------!
          !$omp do schedule(runtime)
          do iEdge = 1, nEdges
             normalVelocityNew(:, iEdge) = normalVelocityCur(:, iEdge) + dt * normalVelocityTend(:, iEdge)
          end do
          !$omp end do
-   
-         !--------------------------------------------------------------------
-         ! Update tracers
-         !--------------------------------------------------------------------
+
+         !----------------!
+         ! Update tracers !
+         !----------------!
          call mpas_pool_begin_iteration(tracersPool)
          do while ( mpas_pool_get_next_member(tracersPool, groupItr) )
             if ( groupItr % memberType == MPAS_POOL_FIELD ) then
                configName = 'config_use_' // trim(groupItr % memberName)
                call mpas_pool_get_config(block % configs, configName, config_use_tracerGroup)
-   
+
                if ( config_use_tracerGroup ) then
                   call mpas_pool_get_array(tracersPool, groupItr % memberName, tracersGroupCur, 1)
                   call mpas_pool_get_array(tracersPool, groupItr % memberName, tracersGroupNew, 2)
-   
+
                   modifiedGroupName = trim(groupItr % memberName) // 'Tend'
                   call mpas_pool_get_array(tracersTendPool, modifiedGroupName, tracersGroupTend)
                   if ( associated(tracersGroupNew) .and. associated(tracersGroupTend) ) then
@@ -243,7 +247,7 @@ module ocn_time_integration_forward_euler
                      do iCell = 1, nCells
                         do k = 1, maxLevelCell(iCell)
                            tracersGroupNew(:, k, iCell) = tracersGroupCur(:, k, iCell) + dt &
-                                                   * tracersGroupTend(:, k, iCell)
+                              * tracersGroupTend(:, k, iCell)
                         end do
                      end do
                      !$omp end do
@@ -255,24 +259,27 @@ module ocn_time_integration_forward_euler
          block => block % next
       end do
 
-      !
-      !  A little clean up at the end: rescale tracer fields and compute diagnostics for new state
-      !
+      !-------------------------------------------------------------------------------------------!
+      ! A little clean up at the end: rescale tracer fields and compute diagnostics for new state !
+      !-------------------------------------------------------------------------------------------!
       call mpas_timer_start("Forward Euler-cleaup phase")
 
       ! Rescale tracers
       block => domain % blocklist
       do while(associated(block))
-        call ocn_time_integrator_forward_euler_cleanup(block, dt, err)
+         call ocn_time_integrator_forward_euler_cleanup(block, dt, err)
 
-        block => block % next
+         block => block % next
       end do
 
       call mpas_timer_start("Forward Euler-implicit vert mix")
-      ! Update halo on u and tracers, which were just updated for implicit vertical mixing.  If not done,
-      ! this leads to lack of volume conservation.  It is required because halo updates in Forward Euler are only
-      ! conducted on tendencies, not on the velocity and tracer fields.  So this update is required to
-      ! communicate the change due to implicit vertical mixing across the boundary.
+      !--------------------------------------------------------------------------------------------------!
+      ! Update halo on u and tracers, which were just updated for implicit vertical mixing. If not done, !
+      ! this leads to lack of volume conservation.  It is required because halo updates in Forward Euler !
+      ! are only conducted on tendencies, not on the velocity and tracer fields.  So this update is      !
+      ! required to communicate the change due to implicit vertical mixing across the boundary.          !
+      !--------------------------------------------------------------------------------------------------!
+
       call mpas_timer_start("Forward Euler-implicit vert mix halos")
 
       call mpas_pool_get_subpool(domain % blocklist % structs, 'state', statePool)
@@ -354,9 +361,9 @@ module ocn_time_integration_forward_euler
          ! Update the effective density in land ice if we're coupling to land ice
          call ocn_effective_density_in_land_ice_update(meshPool, forcingPool, statePool, scratchPool, err)
 
-         ! ------------------------------------------------------------------
-         ! Accumulating various parameterizations of the transport velocity
-         ! ------------------------------------------------------------------
+         !------------------------------------------------------------------!
+         ! Accumulating various parameterizations of the transport velocity !
+         !------------------------------------------------------------------!
          !$omp do schedule(runtime)
          do iEdge = 1, nEdges
             normalTransportVelocity(:, iEdge) = normalVelocityNew(:, iEdge)
@@ -367,7 +374,7 @@ module ocn_time_integration_forward_euler
          ! Compute normalGMBolusVelocity and the tracer transport velocity
          call mpas_pool_get_config(block % configs, 'config_use_standardGM', config_use_standardGM)
          if (config_use_standardGM) then
-             call ocn_gm_compute_Bolus_velocity(diagnosticsPool, meshPool, scratchPool)
+            call ocn_gm_compute_Bolus_velocity(diagnosticsPool, meshPool, scratchPool)
          end if
          call mpas_threading_barrier()
 
@@ -378,19 +385,19 @@ module ocn_time_integration_forward_euler
             end do
             !$omp end do
          end if
-         ! ------------------------------------------------------------------
-         ! End: Accumulating various parameterizations of the transport velocity
-         ! ------------------------------------------------------------------
+         !-----------------------------------------------------------------------!
+         ! End: Accumulating various parameterizations of the transport velocity !
+         !-----------------------------------------------------------------------!
 
          call mpas_reconstruct(meshPool,  normalVelocityNew, &
-                          velocityX, velocityY, velocityZ,   &
-                          velocityZonal, velocityMeridional, &
-                          includeHalos = .true.)
+            velocityX, velocityY, velocityZ,   &
+            velocityZonal, velocityMeridional, &
+            includeHalos = .true.)
 
          call mpas_reconstruct(meshPool, gradSSH,          &
-                          gradSSHX, gradSSHY, gradSSHZ,    &
-                          gradSSHZonal, gradSSHMeridional, &
-                          includeHalos = .true.)
+            gradSSHX, gradSSHY, gradSSHZ,    &
+            gradSSHZonal, gradSSHMeridional, &
+            includeHalos = .true.)
          call mpas_threading_barrier()
 
          !$omp do schedule(runtime)
@@ -477,9 +484,9 @@ module ocn_time_integration_forward_euler
             if ( associated(tracersGroupNew) ) then
                !$omp do schedule(runtime) private(k)
                do iCell = 1, nCells
-                 do k = 1, maxLevelCell(iCell)
-                   tracersGroupNew(:, k, iCell) = tracersGroupNew(:, k, iCell) / layerThicknessNew(k, iCell)
-                 end do
+                  do k = 1, maxLevelCell(iCell)
+                     tracersGroupNew(:, k, iCell) = tracersGroupNew(:, k, iCell) / layerThicknessNew(k, iCell)
+                  end do
                end do
                !$omp end do
             end if

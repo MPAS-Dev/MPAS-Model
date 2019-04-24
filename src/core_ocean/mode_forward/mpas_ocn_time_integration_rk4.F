@@ -36,7 +36,6 @@ module ocn_time_integration_rk4
    use ocn_equation_of_state
    use ocn_vmix
    use ocn_time_average_coupled
-   use ocn_wetting_drying
 
    use ocn_effective_density_in_land_ice
 
@@ -113,6 +112,8 @@ module ocn_time_integration_rk4
       real (kind=RKIND) :: coef
       real (kind=RKIND), dimension(:,:), pointer :: &
         vertViscTopOfEdge, vertDiffTopOfCell
+      real (kind=RKIND), dimension(:), allocatable:: A,C,uTemp
+      real (kind=RKIND), dimension(:,:), allocatable:: tracersTemp
 
       ! Dimensions
       integer, pointer :: nCells, nEdges, nVertLevels, num_tracers
@@ -127,11 +128,6 @@ module ocn_time_integration_rk4
       logical, pointer :: config_disable_vel_all_tend
       logical, pointer :: config_disable_tr_all_tend
       real (kind=RKIND), pointer :: config_mom_del4
-      real (kind=RKIND), pointer :: config_drying_min_cell_height
-      logical, pointer :: config_use_wetting_drying
-      logical, pointer :: config_verify_not_dry
-      logical, pointer :: config_prevent_drying
-      logical, pointer :: config_zero_drying_velocity
       character (len=StrKIND), pointer :: config_land_ice_flux_mode
 
       ! State indices
@@ -182,7 +178,6 @@ module ocn_time_integration_rk4
 
       ! State/Tend Field Pointers
       type (field2DReal), pointer :: normalVelocityField, layerThicknessField
-      type (field2DReal), pointer :: wettingVelocityField
       type (field3DReal), pointer :: tracersGroupField
 
       ! Tracer Group Iteartion
@@ -202,11 +197,6 @@ module ocn_time_integration_rk4
       call mpas_pool_get_config(domain % configs, 'config_disable_vel_all_tend', config_disable_vel_all_tend)
       call mpas_pool_get_config(domain % configs, 'config_disable_thick_all_tend', config_disable_thick_all_tend)
       call mpas_pool_get_config(domain % configs, 'config_disable_tr_all_tend', config_disable_tr_all_tend)
-      call mpas_pool_get_config(domain % configs, 'config_use_wetting_drying', config_use_wetting_drying)
-      call mpas_pool_get_config(domain % configs, 'config_prevent_drying', config_prevent_drying)
-      call mpas_pool_get_config(domain % configs, 'config_verify_not_dry', config_verify_not_dry)
-      call mpas_pool_get_config(domain % configs, 'config_drying_min_cell_height', config_drying_min_cell_height)
-      call mpas_pool_get_config(domain % configs, 'config_zero_drying_velocity', config_zero_drying_velocity)
 
       !
       ! Initialize time_levs(2) with state at current time
@@ -449,32 +439,12 @@ module ocn_time_integration_rk4
                     * highFreqThicknessTend(:, iCell)
               end do
               !$omp end do
+              call mpas_threading_barrier()
               block => block % next
            end do
 
         endif
 
-        ! require that cells don't dry out
-        if (config_use_wetting_drying) then
-             call mpas_timer_start("RK4-prevent drying")
-
-             ! compute wetting velocity to prevent drying of cell (sets up start of next iterate to not dry)
-             if (config_prevent_drying) then
-               block => domain % blocklist
-                 do while (associated(block))
-                   call ocn_prevent_drying_rk4(block, dt, rk_substep_weights(rk_step), config_zero_drying_velocity, err)
-                   block => block % next
-                 end do
-               ! exchange fields for parallelization
-               call mpas_pool_get_field(statePool, 'normalVelocity', normalVelocityField, 1)
-               call mpas_dmpar_exch_halo_field(normalVelocityField)
-               call mpas_pool_get_field(diagnosticsPool, 'wettingVelocity', wettingVelocityField)
-               call mpas_dmpar_exch_halo_field(wettingVelocityField)
-             end if
-
-             call mpas_timer_stop("RK4-prevent drying")
-             call mpas_threading_barrier()
-        end if
 
         ! Compute tendencies for velocity, thickness, and tracers.
         ! In RK4 notation, we are computing the right hand side f(t,y),
@@ -546,7 +516,7 @@ module ocn_time_integration_rk4
         !    y_{n+1} = y_n + sum ( b_j k_j )
         ! after the fourth iteration.
 
-        call mpas_timer_start("RK4-accumulate update")
+        call mpas_timer_start("RK4-RK4 accumulate update")
 
         block => domain % blocklist
         do while (associated(block))
@@ -555,7 +525,7 @@ module ocn_time_integration_rk4
            block => block % next
         end do
 
-        call mpas_timer_stop("RK4-accumulate update")
+        call mpas_timer_stop("RK4-RK4 accumulate update")
         call mpas_threading_barrier()
 
       end do
@@ -563,30 +533,13 @@ module ocn_time_integration_rk4
       ! END RK loop
       !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-      ! verify that cells are not dry at conclusion of time step
-      if (config_use_wetting_drying) then
-        call mpas_timer_start("RK4- check wet cells")
-
-        ! ensure existing layerThickness is valid
-        if (config_verify_not_dry) then
-          block => domain % blocklist
-            do while (associated(block))
-              call ocn_wetting_drying_verify(block, config_drying_min_cell_height, err)
-              block => block % next
-            end do
-        end if
-
-        call mpas_timer_stop("RK4- check wet cells")
-        call mpas_threading_barrier()
-      end if
-
       call mpas_timer_stop("RK4-main loop")
       call mpas_threading_barrier()
 
       !
       !  A little clean up at the end: rescale tracer fields and compute diagnostics for new state
       !
-      call mpas_timer_start("RK4-cleanup phase")
+      call mpas_timer_start("RK4-cleaup phase")
 
       ! Rescale tracers
       block => domain % blocklist
@@ -689,6 +642,7 @@ module ocn_time_integration_rk4
             normalTransportVelocity(:, iEdge) = normalVelocityNew(:, iEdge)
          end do
          !$omp end do
+         call mpas_threading_barrier()
 
          ! Compute normalGMBolusVelocity and the tracer transport velocity
          if (config_use_standardGM) then
@@ -746,7 +700,7 @@ module ocn_time_integration_rk4
          call mpas_timer_stop("RK4-effective density halo")
       end if
 
-      call mpas_timer_stop("RK4-cleanup phase")
+      call mpas_timer_stop("RK4-cleaup phase")
 
       call mpas_threading_barrier()
 
@@ -822,7 +776,7 @@ module ocn_time_integration_rk4
       endif
       call mpas_threading_barrier()
 
-      call ocn_tend_vel(tendPool, provisStatePool, forcingPool, diagnosticsPool, meshPool, scratchPool, 1, dt)
+      call ocn_tend_vel(tendPool, provisStatePool, forcingPool, diagnosticsPool, meshPool, scratchPool, 1)
       call mpas_threading_barrier()
 
    end subroutine ocn_time_integrator_rk4_compute_vel_tends!}}}
@@ -1023,7 +977,7 @@ module ocn_time_integration_rk4
       endif
       call mpas_threading_barrier()
 
-      call ocn_tend_vel(tendPool, provisStatePool, forcingPool, diagnosticsPool, meshPool, scratchPool, 1, dt)
+      call ocn_tend_vel(tendPool, provisStatePool, forcingPool, diagnosticsPool, meshPool, scratchPool, 1)
       call mpas_threading_barrier()
 
       if (associated(highFreqThicknessProvis)) then
@@ -1071,7 +1025,6 @@ module ocn_time_integration_rk4
       real (kind=RKIND), dimension(:, :), pointer :: layerThicknessCur, layerThicknessProvis, layerThicknessTend
       real (kind=RKIND), dimension(:, :), pointer :: lowFreqDivergenceCur, lowFreqDivergenceProvis, lowFreqDivergenceTend
       real (kind=RKIND), dimension(:, :), pointer :: normalTransportVelocity, normalGMBolusVelocity
-      real (kind=RKIND), dimension(:, :), pointer :: wettingVelocity
 
       real (kind=RKIND), dimension(:, :, :), pointer :: tracersGroupCur, tracersGroupProvis, tracersGroupTend
 
@@ -1122,7 +1075,6 @@ module ocn_time_integration_rk4
       call mpas_pool_get_array(diagnosticsPool, 'normalTransportVelocity', normalTransportVelocity)
       call mpas_pool_get_array(diagnosticsPool, 'normalGMBolusVelocity', normalGMBolusVelocity)
 
-      call mpas_pool_get_array(diagnosticsPool, 'wettingVelocity', wettingVelocity)
       call mpas_threading_barrier()
 
       !$omp do schedule(runtime) private(k)
@@ -1130,7 +1082,6 @@ module ocn_time_integration_rk4
          do k = 1, maxLevelEdgeTop(iEdge)
             normalVelocityProvis(k, iEdge) = normalVelocityCur(k, iEdge) + rkWeight &
                                            * normalVelocityTend(k, iEdge)
-            normalVelocityProvis(k, iEdge) = normalVelocityProvis(k, iEdge) * (1.0_RKIND - wettingVelocity(k, iEdge))
          end do
       end do
       !$omp end do
@@ -1210,6 +1161,7 @@ module ocn_time_integration_rk4
          normalTransportVelocity(:, iEdge) = normalVelocityProvis(:, iEdge)
       end do
       !$omp end do
+      call mpas_threading_barrier()
 
       ! Compute normalGMBolusVelocity, relativeSlope and RediDiffVertCoef if respective flags are turned on
       if (config_use_standardGM) then
@@ -1224,6 +1176,7 @@ module ocn_time_integration_rk4
          end do
          !$omp end do
       end if
+      call mpas_threading_barrier()
       ! ------------------------------------------------------------------
       ! End: Accumulating various parametrizations of the transport velocity
       ! ------------------------------------------------------------------
@@ -1238,14 +1191,13 @@ module ocn_time_integration_rk4
       integer, pointer :: nCells, nEdges
       integer :: iCell, iEdge, k
 
-      type (mpas_pool_type), pointer :: statePool, tendPool, meshPool, diagnosticsPool
+      type (mpas_pool_type), pointer :: statePool, tendPool, meshPool
       type (mpas_pool_type), pointer :: tracersPool, tracersTendPool
 
       real (kind=RKIND), dimension(:, :), pointer :: normalVelocityNew, normalVelocityTend
       real (kind=RKIND), dimension(:, :), pointer :: layerThicknessNew, layerThicknessTend
       real (kind=RKIND), dimension(:, :), pointer :: highFreqThicknessNew, highFreqThicknessTend
       real (kind=RKIND), dimension(:, :), pointer :: lowFreqDivergenceNew, lowFreqDivergenceTend
-      real (kind=RKIND), dimension(:, :), pointer :: wettingVelocity
 
       real (kind=RKIND), dimension(:, :, :), pointer :: tracersGroupNew, tracersGroupTend
 
@@ -1264,7 +1216,6 @@ module ocn_time_integration_rk4
       call mpas_pool_get_subpool(block % structs, 'state', statePool)
       call mpas_pool_get_subpool(block % structs, 'tend', tendPool)
       call mpas_pool_get_subpool(block % structs, 'mesh', meshPool)
-      call mpas_pool_get_subpool(block % structs, 'diagnostics', diagnosticsPool)
 
       call mpas_pool_get_subpool(statePool, 'tracers', tracersPool)
       call mpas_pool_get_subpool(tendPool, 'tracersTend', tracersTendPool)
@@ -1284,7 +1235,6 @@ module ocn_time_integration_rk4
 
       call mpas_pool_get_array(tendPool, 'highFreqThickness', highFreqThicknessTend)
       call mpas_pool_get_array(tendPool, 'lowFreqDivergence', lowFreqDivergenceTend)
-     call mpas_pool_get_array(diagnosticsPool, 'wettingVelocity', wettingVelocity)
 
       call mpas_pool_get_array(meshPool, 'maxLevelCell', maxLevelCell)
 
@@ -1299,7 +1249,6 @@ module ocn_time_integration_rk4
       !$omp do schedule(runtime)
       do iEdge = 1, nEdges
          normalVelocityNew(:, iEdge) = normalVelocityNew(:, iEdge) + rkWeight * normalVelocityTend(:, iEdge)
-         normalVelocityNew(:, iEdge) = normalVelocityNew(:, iEdge) * (1.0_RKIND - wettingVelocity(:, iEdge))
       end do
       !$omp end do
 

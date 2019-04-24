@@ -31,7 +31,6 @@ module ocn_time_integration_split
    use mpas_threading
    use mpas_timekeeping
    use mpas_log
-   use mpas_io_units
 
    use ocn_tendency
    use ocn_diagnostics
@@ -63,7 +62,7 @@ module ocn_time_integration_split
 
    character (len=*), parameter :: subcycleGroupName = 'subcycleFields'
    character (len=*), parameter :: finalBtrGroupName = 'finalBtrFields'
-   integer :: nBtrSubcycles, debugSplitExplicitUnit
+   integer :: nBtrSubcycles
 
    contains
 
@@ -122,6 +121,7 @@ module ocn_time_integration_split
       real (kind=RKIND), dimension(:), allocatable:: uTemp
       real (kind=RKIND), dimension(:), pointer :: btrvel_temp
       type (field1DReal), pointer :: btrvel_tempField
+      real (kind=RKIND), dimension(:,:), allocatable:: tracersTemp
       logical :: activeTracersOnly ! if true only compute tendencies for active tracers  
       integer :: tsIter
       integer :: edgeHaloComputeCounter, cellHaloComputeCounter
@@ -142,7 +142,6 @@ module ocn_time_integration_split
       logical, pointer :: config_use_cvmix_kpp
       logical, pointer :: config_use_tracerGroup
       logical, pointer :: config_compute_active_tracer_budgets
-      logical, pointer :: config_debug_split_explicit
 
       character (len=StrKIND), pointer :: config_land_ice_flux_mode
 
@@ -259,7 +258,6 @@ module ocn_time_integration_split
       call mpas_pool_get_config(domain % configs, 'config_num_halos', config_num_halos)
 
       call mpas_pool_get_config(domain % configs, 'config_compute_active_tracer_budgets', config_compute_active_tracer_budgets)
-      call mpas_pool_get_config(domain % configs, 'config_debug_split_explicit', config_debug_split_explicit)
       allocate(n_bcl_iter(config_n_ts_iter))
 
       !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -399,7 +397,8 @@ module ocn_time_integration_split
 
          call mpas_pool_get_subpool(domain % blocklist % structs, 'diagnostics', diagnosticsPool)
 
-         ! ---  update halos for diagnostic ocean boundary layer depth
+         call mpas_threading_barrier()
+         ! ---  update halos for diagnostic ocean boundayr layer depth
          if (config_use_cvmix_kpp) then
             call mpas_timer_start("se halo diag obd")
             call mpas_dmpar_field_halo_exch(domain, 'boundaryLayerDepth')
@@ -439,12 +438,15 @@ module ocn_time_integration_split
             end do
             call mpas_timer_stop("se freq-filtered-thick computations")
 
+            call mpas_threading_barrier()
+
             call mpas_timer_start("se freq-filtered-thick halo update")
 
             call mpas_dmpar_field_halo_exch(domain, 'tendHighFreqThickness')
             call mpas_dmpar_field_halo_exch(domain, 'tendLowFreqDivergence')
 
             call mpas_timer_stop("se freq-filtered-thick halo update")
+            call mpas_threading_barrier()
 
             block => domain % blocklist
             do while (associated(block))
@@ -504,7 +506,7 @@ module ocn_time_integration_split
 
            call mpas_pool_get_array(diagnosticsPool, 'layerThicknessEdge', layerThicknessEdge)
 
-           call ocn_tend_vel(tendPool, statePool, forcingPool, diagnosticsPool, meshPool, scratchPool, stage1_tend_time, dt)
+           call ocn_tend_vel(tendPool, statePool, forcingPool, diagnosticsPool, meshPool, scratchPool, stage1_tend_time)
 
            block => block % next
          end do
@@ -558,7 +560,7 @@ module ocn_time_integration_split
 
                allocate(uTemp(nVertLevels))
 
-               !$omp do schedule(runtime)
+               !$omp do schedule(runtime) private(cell1, cell2, k, normalThicknessFluxSum, thicknessSum)
                do iEdge = 1, nEdges
                   cell1 = cellsOnEdge(1,iEdge)
                   cell2 = cellsOnEdge(2,iEdge)
@@ -606,6 +608,8 @@ module ocn_time_integration_split
 
                block => block % next
             end do
+
+            call mpas_threading_barrier()
 
             call mpas_timer_start("se halo normalBaroclinicVelocity")
             call mpas_dmpar_field_halo_exch(domain, 'normalBaroclinicVelocity', timeLevel=2)
@@ -757,16 +761,21 @@ module ocn_time_integration_split
             edgeHaloComputeCounter = 0
             neededHalos = 1 + config_n_btr_cor_iter
 
+            call mpas_threading_barrier()
+
             call mpas_timer_start('btr se subcycle loop')
             do j = 1, nBtrSubcycles * config_btr_subcycle_loop_factor
                if(cellHaloComputeCounter < neededHalos) then
 
+                 call mpas_threading_barrier()
                  call mpas_timer_start('se halo subcycle')
                  call mpas_dmpar_exch_group_reuse_halo_exch(domain, subcycleGroupName, timeLevel=oldBtrSubcycleTime)
+                 call mpas_threading_barrier()
                  call mpas_timer_stop('se halo subcycle')
 
                  cellHaloComputeCounter = config_num_halos     - mod( config_num_halos, neededHalos )
                  edgeHaloComputeCounter = config_num_halos + 1 - mod( config_num_halos, neededHalos )
+                 call mpas_threading_barrier()
                end if
 
                !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -804,7 +813,7 @@ module ocn_time_integration_split
                      nEdges = nEdgesPtr
                      nEdges = nEdgesArray( edgeHaloComputeCounter )
 
-                     !$omp do schedule(runtime)
+                     !$omp do schedule(runtime) private(cell1, cell2, CoriolisTerm, i, eoe)
                      do iEdge = 1, nEdges
 
                         temp_mask = edgeMask(1, iEdge)
@@ -922,16 +931,6 @@ module ocn_time_integration_split
                 end do
                 !$omp end do
 
-                if (config_debug_split_explicit) then
-                  ! add in write statement for debugging to print to a standard text file (get single strip out) 4.000
-                  ! add in a new line each time for the write statement
-                  do iCell=1,nCells,4  ! Write ever fourth entry, meant for periodic with four-wide
-                    write(debugSplitExplicitUnit,"(ES32.16)", advance='no') sshSubcycleNew(iCell) 
-                  end do
-                  write(debugSplitExplicitUnit, *) ' '
-                  flush(debugSplitExplicitUnit)
-                end if
-
                 !! asarje: changed to avoid redundant computations when config_btr_solve_SSH2 is true
 
                 if (config_btr_solve_SSH2) then
@@ -1026,7 +1025,7 @@ module ocn_time_integration_split
 
                    nEdges = nEdgesArray( edgeHaloComputeCounter )
 
-                   !$omp do schedule(runtime)
+                   !$omp do schedule(runtime) private(cell1, cell2, eoe, CoriolisTerm, i, sshCell1, sshCell2)
                    do iEdge = 1, nEdges
 
                      ! asarje: added to avoid redundant computations based on mask
@@ -1236,6 +1235,7 @@ module ocn_time_integration_split
             end do ! j=1,nBtrSubcycles
             call mpas_timer_stop('btr se subcycle loop')
 
+            call mpas_threading_barrier()
             call mpas_pool_get_subpool(domain % blocklist % structs, 'scratch', scratchPool)
             call mpas_pool_get_field(scratchPool, 'btrvel_temp', btrvel_tempField)
             call mpas_deallocate_scratch_field(btrvel_tempField, .false.)
@@ -1276,6 +1276,8 @@ module ocn_time_integration_split
             end do  ! block
             call mpas_timer_stop('btr se norm')
 
+            call mpas_threading_barrier()
+
             ! boundary update on F
             call mpas_timer_start("se halo F and btr vel")
             call mpas_dmpar_exch_group_create(domain, finalBtrGroupName)
@@ -1285,10 +1287,11 @@ module ocn_time_integration_split
 
             call mpas_threading_barrier()
             call mpas_dmpar_exch_group_full_halo_exch(domain, finalBtrGroupName)
-            call mpas_threading_barrier()
 
             call mpas_dmpar_exch_group_destroy(domain, finalBtrGroupName)
             call mpas_timer_stop("se halo F and btr vel")
+
+            call mpas_threading_barrier()
 
             ! Check that you can compute SSH using the total sum or the individual increments
             ! over the barotropic subcycles.
@@ -1335,7 +1338,7 @@ module ocn_time_integration_split
                   useVelocityCorrection = 0
                endif
 
-               !$omp do schedule(runtime)
+               !$omp do schedule(runtime) private(k, normalThicknessFluxSum, thicknessSum, normalVelocityCorrection)
                do iEdge = 1, nEdges
 
                   ! velocity for normalVelocityCorrectionection is normalBarotropicVelocity + normalBaroclinicVelocity + uBolus
@@ -1440,12 +1443,16 @@ module ocn_time_integration_split
          end do
          call mpas_timer_stop('se thick tend')
 
+         call mpas_threading_barrier()
+
          ! update halo for thickness tendencies
          call mpas_timer_start("se halo thickness")
 
          call mpas_dmpar_field_halo_exch(domain, 'tendLayerThickness')
 
          call mpas_timer_stop("se halo thickness")
+
+         call mpas_threading_barrier()
 
          call mpas_timer_start('se tracer tend', .false.)
          block => domain % blocklist
@@ -1466,6 +1473,8 @@ module ocn_time_integration_split
          end do
          call mpas_timer_stop('se tracer tend')
 
+         call mpas_threading_barrier()
+
          ! update halo for tracer tendencies
          call mpas_timer_start("se halo tracers")
          call mpas_pool_get_subpool(domain % blocklist % structs, 'tend', tendPool)
@@ -1481,6 +1490,8 @@ module ocn_time_integration_split
             end if
          end do
          call mpas_timer_stop("se halo tracers")
+
+         call mpas_threading_barrier()
 
          call mpas_timer_start('se loop fini')
          block => domain % blocklist
@@ -1796,6 +1807,8 @@ module ocn_time_integration_split
         block => block % next
       end do
 
+      call mpas_threading_barrier()
+
       ! Update halo on u and tracers, which were just updated for implicit vertical mixing.  If not done,
       ! this leads to lack of volume conservation.  It is required because halo updates in stage 3 are only
       ! conducted on tendencies, not on the velocity and tracer fields.  So this update is required to
@@ -1818,6 +1831,8 @@ module ocn_time_integration_split
       call mpas_timer_stop('se vmix halos')
 
       call mpas_timer_stop("se implicit vert mix")
+
+      call mpas_threading_barrier()
 
       call mpas_timer_start('se fini')
       block => domain % blocklist
@@ -1915,6 +1930,7 @@ module ocn_time_integration_split
          !$omp end do
 
          call ocn_time_average_coupled_accumulate(diagnosticsPool, statePool, forcingPool, 2)
+         call mpas_threading_barrier()
 
          if (config_use_standardGM) then
             call ocn_reconstruct_gm_vectors(diagnosticsPool, meshPool)
@@ -1977,8 +1993,6 @@ module ocn_time_integration_split
 
       integer :: iErr
       integer (kind=I8KIND) :: nBtrSubcyclesI8
-      logical, pointer :: config_debug_split_explicit
-      character(len=StrKIND), pointer :: config_debug_split_explicit_filename
 
       call mpas_pool_get_config(domain % configs, 'config_do_restart', config_do_restart)
 
@@ -1986,10 +2000,6 @@ module ocn_time_integration_split
       call mpas_pool_get_config(domain % configs, 'config_time_integrator', config_time_integrator)
       call mpas_pool_get_config(domain % configs, 'config_btr_dt', config_btr_dt)
       call mpas_pool_get_config(domain % configs, 'config_dt', config_dt)
-      call mpas_pool_get_config(domain % configs, 'config_debug_split_explicit', config_debug_split_explicit)
-      call mpas_pool_get_config(domain % configs, &
-                                'config_debug_split_explicit_filename', &
-                                config_debug_split_explicit_filename)
 
       nowTime = mpas_get_clock_time(domain % clock, MPAS_NOW, ierr)
       call mpas_set_timeInterval( zeroInterval, S=0 )
@@ -2110,15 +2120,6 @@ module ocn_time_integration_split
 
          block => block % next
          end do
-      end if
-
-      if (config_debug_split_explicit) then
-            ! Open up temporary file
-            CALL mpas_new_unit(debugSplitExplicitUnit)
-            ! Note that it presumes we are running on a single core here ...
-            OPEN (UNIT=debugSplitExplicitUnit, &
-                  FILE=TRIM(config_debug_split_explicit_filename), FORM='FORMATTED', &
-                  STATUS='UNKNOWN')
       end if
 
    end subroutine ocn_time_integration_split_init!}}}
