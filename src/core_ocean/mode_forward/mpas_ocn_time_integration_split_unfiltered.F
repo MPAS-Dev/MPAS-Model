@@ -641,11 +641,11 @@ contains
          ! END baroclinic iterations on linear Coriolis term !
          !---------------------------------------------------!
 
-         !---------------------------------------------------------------------!
-         !                                                                     !
-         !  Stage 2: Barotropic velocity (2D) prediction, explicitly subcycled !
-         !                                                                     !
-         !---------------------------------------------------------------------!
+         !----------------------------------------------------------------------!
+         !                                                                      !
+         !  Stage 2: Barotropic velocity (2D) prediction, explicitly subcycled  !
+         !                                                                      !
+         !----------------------------------------------------------------------!
 
          call mpas_timer_start("se btr vel")
 

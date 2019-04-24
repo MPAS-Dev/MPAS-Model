@@ -1,3 +1,28 @@
+!-------------------------------------------------------------------------------!
+!                                                                               !
+! Copyright (c) 2013,  Los Alamos National Security, LLC (LANS)                 !
+! and the University Corporation for Atmospheric Research (UCAR).               !
+!                                                                               !
+! Unless noted otherwise source code is licensed under the BSD license.         !
+! Additional copyright and license information can be found in the LICENSE file !
+! distributed with this code, or at http://mpas-dev.github.com/license.html.    !
+!                                                                               !
+!-------------------------------------------------------------------------------!
+
+!-----------------------------------------------------------!
+!                                                           !
+!  ocn_filter_routines                                      !
+!                                                           !
+!> \brief MPAS ocean split explicit time integration scheme !
+!> \author Sid Bishnu                                       !
+!> \date   April 2019                                       !
+!> \details                                                 !
+!>  This module contains routines for determining the       !
+!   primary and secondary weights of various time-averging  ! 
+!   filters.                                                !
+!                                                           !
+!-----------------------------------------------------------!
+
 MODULE ocn_filter_routines
 
 USE mpas_derived_types
@@ -1010,7 +1035,7 @@ CONTAINS
          END IF 
       END DO  
       PrimaryWeights = PrimaryWeights/REAL(nBarotropicTimeSteps,KIND=RKIND) 
-   ELSE IF (FilterType == 'Shchepetkin_SecondOrderAccurate') THEN
+   ELSE IF (FilterType == 'Shchepetkin_second_order_accurate') THEN
       CALL ShchepetkinFilterParameters_SecondOrderAccurate &
            (pShchepetkin,qShchepetkin,.FALSE.,tauStar,tau0,A0,r)
       DO iBarotropicTimeStep = 1, 2*nBarotropicTimeSteps
@@ -1023,7 +1048,7 @@ CONTAINS
          END IF 
       END DO  
       PrimaryWeights = PrimaryWeights/REAL(nBarotropicTimeSteps,KIND=RKIND) 
-   ELSE IF (FilterType == 'Shchepetkin_MinimalDispersion') THEN
+   ELSE IF (FilterType == 'Shchepetkin_minimal_dispersion') THEN
       CALL ShchepetkinFilterParameters_MinimalDispersion &
            (pShchepetkin,qShchepetkin,.FALSE.,tauStar,tau0,A0,r)
       DO iBarotropicTimeStep = 1, 2*nBarotropicTimeSteps
@@ -1187,7 +1212,7 @@ CONTAINS
    INTEGER :: nBarotropicTimeSteps
    REAL(KIND=RKIND), ALLOCATABLE, DIMENSION(:) :: tau, PrimaryWeights, SecondaryWeights   
    
-   FilterType = 'Shchepetkin_SecondOrderAccurate'
+   FilterType = 'Shchepetkin_second_order_accurate'
    nBarotropicTimeSteps = 30
    
    ALLOCATE (tau(1:2*nBarotropicTimeSteps))
@@ -1229,7 +1254,7 @@ CONTAINS
    INTEGER :: nBarotropicTimeSteps
    REAL(KIND=RKIND), ALLOCATABLE, DIMENSION(:) :: tau, PrimaryWeights, SecondaryWeights   
    
-   FilterType = 'Shchepetkin_MinimalDispersion'
+   FilterType = 'Shchepetkin_minimal_dispersion'
    nBarotropicTimeSteps = 30
    
    ALLOCATE (tau(1:2*nBarotropicTimeSteps))

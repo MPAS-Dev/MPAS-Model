@@ -155,6 +155,11 @@ contains
       real (kind=RKIND), pointer :: config_mom_del4, config_btr_gam1_velWt1, config_btr_gam2_SSHWt1
       real (kind=RKIND), pointer :: config_btr_gam3_velWt2
 
+      ! Config options: Barotropic subcycling
+      character (len=StrKIND), pointer :: config_btr_filter_type
+      real (kind=RKIND), pointer :: config_btr_rectangular_filter_range, config_btr_Shchepetkin_filter_param_p, &
+         config_btr_Shchepetkin_filter_param_q
+
       ! Dimensions
       integer :: nCells, nEdges
       integer, pointer :: nCellsPtr, nEdgesPtr, nVertLevels, num_tracersGroup, startIndex, endIndex
@@ -230,6 +235,9 @@ contains
 
       integer :: temp_mask
 
+      ! Primary and Secondary Weights of the Time-Averaging Filter
+      real (kind=RKIND), allocatable, dimension(:) :: tau, PrimaryWeights, SecondaryWeights
+
       call mpas_timer_start("se timestep")
 
       call mpas_pool_get_config(domain % configs, 'config_n_bcl_iter_beg', config_n_bcl_iter_beg)
@@ -243,6 +251,10 @@ contains
       call mpas_pool_get_config(domain % configs, 'config_n_btr_cor_iter', config_n_btr_cor_iter)
       call mpas_pool_get_config(domain % configs, 'config_btr_gam2_SSHWt1', config_btr_gam2_SSHWt1)
       call mpas_pool_get_config(domain % configs, 'config_filter_btr_mode', config_filter_btr_mode)
+      call mpas_pool_get_config(domain % configs, 'config_btr_filter_type', config_btr_filter_type)
+      call mpas_pool_get_config(domain % configs, 'config_btr_rectangular_filter_range', config_btr_rectangular_filter_range)
+      call mpas_pool_get_config(domain % configs, 'config_btr_Shchepetkin_filter_param_p', config_btr_Shchepetkin_filter_param_p)
+      call mpas_pool_get_config(domain % configs, 'config_btr_Shchepetkin_filter_param_q', config_btr_Shchepetkin_filter_param_q)
 
       call mpas_pool_get_config(domain % configs, 'config_mom_del4', config_mom_del4)
       call mpas_pool_get_config(domain % configs, 'config_use_freq_filtered_thickness', config_use_freq_filtered_thickness)
@@ -267,6 +279,15 @@ contains
       call mpas_pool_get_config(domain % configs, 'config_compute_active_tracer_budgets', config_compute_active_tracer_budgets)
       call mpas_pool_get_config(domain % configs, 'config_debug_split_explicit', config_debug_split_explicit)
       allocate(n_bcl_iter(config_n_ts_iter))
+
+      ! Determine the primary and secondary weights of the time-averaging filters
+
+      allocate (tau(1:2*nBtrSubcycles))
+      allocate (PrimaryWeights(1:2*nBtrSubcycles))
+      allocate (SecondaryWeights(1:2*nBtrSubcycles))
+
+      call DetermineFilterWeights(config_btr_filter_type,config_btr_rectangular_filter_range,config_btr_Shchepetkin_filter_param_p, &
+         config_btr_Shchepetkin_filter_param_q,nBtrSubcycles,tau,PrimaryWeights,SecondaryWeights)
 
       !----------------------------------------!
       !                                        !
@@ -643,11 +664,11 @@ contains
          ! END baroclinic iterations on linear Coriolis term !
          !---------------------------------------------------!
 
-         !---------------------------------------------------------------------!
-         !                                                                     !
-         !  Stage 2: Barotropic velocity (2D) prediction, explicitly subcycled !
-         !                                                                     !
-         !---------------------------------------------------------------------!
+         !----------------------------------------------------------------------!
+         !                                                                      !
+         !  Stage 2: Barotropic velocity (2D) prediction, explicitly subcycled  !
+         !                                                                      !
+         !----------------------------------------------------------------------!
 
          call mpas_timer_start("se btr vel")
 
@@ -2006,6 +2027,10 @@ contains
       call mpas_timer_stop("se timestep")
 
       deallocate(n_bcl_iter)
+
+      deallocate (tau)
+      deallocate (PrimaryWeights)
+      deallocate (SecondaryWeights)
 
    end subroutine ocn_time_integrator_split_filtered!}}}
 
