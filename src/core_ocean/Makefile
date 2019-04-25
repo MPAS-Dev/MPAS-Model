@@ -9,7 +9,7 @@ all: shared libcvmix analysis_members libBGC
 	(cd mode_analysis; $(MAKE) FCINCLUDES="$(FCINCLUDES) $(OCEAN_SHARED_INCLUDES)" all )
 	(cd mode_init; $(MAKE) FCINCLUDES="$(FCINCLUDES) $(OCEAN_SHARED_INCLUDES)" all )
 	(cd driver; $(MAKE) FCINCLUDES="$(FCINCLUDES) $(OCEAN_SHARED_INCLUDES)" all )
-	(cd TEOS-10/test; $(MAKE) FCINCLUDES="$(FCINCLUDES) $(OCEAN_SHARED_INCLUDES)" all )
+	(cd TEOS-10/test; make)
 	if [ -e libdycore.a ]; then \
 		($(RM) libdycore.a) \
 	fi
