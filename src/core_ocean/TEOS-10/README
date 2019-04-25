@@ -1,0 +1,38 @@
+==========================================================================
+ Gibbs SeaWater (GSW) Oceanographic Toolbox of TEOS-10 (Fortran)
+==========================================================================
+
+ This is a subset of functions contained in the Gibbs SeaWater (GSW) 
+ Oceanographic Toolbox of TEOS-10.
+
+ Version 1.0 written by David Jackett
+ Modified by Paul Barker (version 3.02)
+ Modified by Glenn Hyland (version 3.04+)
+
+ For help with this Oceanographic Toolbox email: help@teos-10.org
+
+ This software is available from http://www.teos-10.org
+
+==========================================================================
+
+ gsw_data_v3_0.nc
+ NetCDF file that contains the global data set of Absolute Salinity Anomaly
+ Ratio, the global data set of Absolute Salinity Anomaly atlas, and check
+ values and computation accuracy values for use in gsw_check_function.
+ The data set gsw_data_v3_0.nc must not be tampered with.
+
+ gsw_check_function.f90
+ Contains the check functions. We suggest that after downloading, unzipping
+ and installing the toolbox the user runs this program to ensure that the
+ toolbox is installed correctly and there are no conflicts. This toolbox has
+ been tested to compile and run with gfortran.
+
+ cd test
+ make
+ ./gsw_check
+
+ Note that gfortran is the name of the GNU Fortran project, developing a
+ free Fortran 95/2003/2008 compiler for GCC, the GNU Compiler Collection.
+ It is available from http://gcc.gnu.org/fortran/
+
+==========================================================================
