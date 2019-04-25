@@ -92,7 +92,9 @@
 ! * in subroutine init_microphysics, modified to the call to the subroutine init_thompson_aerosols_forMPAS for
 !   exact restartibility when using the microphysics option "mp_thompson_aerosols".
 !   Laura D. Fowler (laura@ucar.edu) / 2018-02-23.
-
+! * updated the call to subroutine mp_gt_driver in conjunction with updating the Thompson cloud microphysics
+!   scheme to WRF-4.1.
+!   Laura D. Fowler (laura@ucar.edu) / 2019-04-25.
 
 !--- initialization option for WSM6 from WRF version 3.8.1. this option could also be set as a namelist parameter.
  integer,parameter:: hail_opt = 0
@@ -158,6 +160,7 @@
        case("mp_thompson","mp_thompson_aerosols")
           if(.not.allocated(ntc_p)   ) allocate(ntc_p(ims:ime,jms:jme)   )
           if(.not.allocated(muc_p)   ) allocate(muc_p(ims:ime,jms:jme)   )
+          if(.not.allocated(nifa2d_p)) allocate(nifa2d_p(ims:ime,jms:jme))
           if(.not.allocated(nwfa2d_p)) allocate(nwfa2d_p(ims:ime,jms:jme))
 
           if(.not.allocated(nc_p)  ) allocate(nc_p(ims:ime,kms:kme,jms:jme)  )
@@ -243,6 +246,7 @@
           !number concentrations:
           if(allocated(ntc_p)   ) deallocate(ntc_p   )
           if(allocated(muc_p)   ) deallocate(muc_p   )
+          if(allocated(nifa2d_p)) deallocate(nifa2d_p)
           if(allocated(nwfa2d_p)) deallocate(nwfa2d_p)
           if(allocated(nc_p)    ) deallocate(nc_p    )
           if(allocated(ni_p)    ) deallocate(ni_p    )
@@ -393,8 +397,7 @@
                   sr        = sr_p        , rainprod   = rainprod_p   , evapprod   = evapprod_p   , &
                   re_cloud  = recloud_p   , re_ice     = reice_p      , re_snow    = resnow_p     , &
                   has_reqc  = has_reqc    , has_reqi   = has_reqi     , has_reqs   = has_reqs     , &
-                  ntc       = ntc_p       , muc        = muc_p        , vqr        = vqr_p        , &
-                  vqi       = vqi_p       , vqs        = vqs_p        , vqg        = vqg_p        , &
+                  ntc       = ntc_p       , muc        = muc_p                                    , &
                   ids = ids , ide = ide , jds = jds , jde = jde , kds = kds , kde = kde           , &
                   ims = ims , ime = ime , jms = jms , jme = jme , kms = kms , kme = kme           , &
                   its = its , ite = ite , jts = jts , jte = jte , kts = kts , kte = kte             &
@@ -403,10 +406,10 @@
        enddo
        call mpas_timer_stop('mp_thompson')
 
-       case ("mp_thompson_aerosols")
-          istep = 1
-          do while (istep .le. n_microp)
-          call mp_gt_driver( &
+    case ("mp_thompson_aerosols")
+       istep = 1
+       do while (istep .le. n_microp)
+       call mp_gt_driver( &
                   th        = th_p        , qv         = qv_p         , qc         = qc_p         , &
                   qr        = qr_p        , qi         = qi_p         , qs         = qs_p         , &
                   qg        = qg_p        , ni         = ni_p         , nr         = nr_p         , &
@@ -418,9 +421,8 @@
                   re_cloud  = recloud_p   , re_ice     = reice_p      , re_snow    = resnow_p     , &
                   has_reqc  = has_reqc    , has_reqi   = has_reqi     , has_reqs   = has_reqs     , &
                   nc        = nc_p        , nifa       = nifa_p       , nwfa       = nwfa_p       , &
-                  nwfa2d    = nwfa2d_p    , ntc        = ntc_p        , muc        = muc_p        , &
-                  vqr       = vqr_p       , vqi        = vqi_p        , vqs        = vqs_p        , & 
-                  vqg       = vqg_p                                                               , &
+                  nifa2d    = nifa2d_p    , nwfa2d     = nwfa2d_p     , ntc        = ntc_p        , &
+                  muc       = muc_p       ,                                                         &
                   ids = ids , ide = ide , jds = jds , jde = jde , kds = kds , kde = kde           , &
                   ims = ims , ime = ime , jms = jms , jme = jme , kms = kms , kme = kme           , &
                   its = its , ite = ite , jts = jts , jte = jte , kts = kts , kte = kte             &

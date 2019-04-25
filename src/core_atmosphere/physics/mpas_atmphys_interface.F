@@ -9,6 +9,7 @@
  module mpas_atmphys_interface
  use mpas_kind_types
  use mpas_pool_routines
+ use mpas_log
 
  use mpas_atmphys_constants
  use mpas_atmphys_vars
@@ -87,6 +88,9 @@
 ! * in subroutine MPAS_to_physics, added the initialization of arrays nifa_p and nwfa_p for the calculation of
 !   aerosol optical depths when using the Thompson cloud microphysics scheme.
 !   Laura D. Fowler (laura@ucar.edu) / 2018-04-06.
+! * in subroutines microphysics_from_MPAS and microphysics_to_MPAS, included the initialization of array nifa_p
+!   for use with the aerosol-aware option of the Thompson cloud microphysics from WRF-4.1.
+!   Laura D. Fowler (laura@ucar.edu) / 2019-04-25.
 
 
  contains
@@ -556,7 +560,7 @@
  character(len=StrKIND),pointer:: mp_scheme
  integer,pointer:: index_qv,index_qc,index_qr,index_qi,index_qs,index_qg
  integer,pointer:: index_nc,index_ni,index_nr,index_nwfa,index_nifa
- real(kind=RKIND),dimension(:),pointer    :: nwfa2d,nt_c,mu_c
+ real(kind=RKIND),dimension(:),pointer    :: nifa2d,nwfa2d,nt_c,mu_c
  real(kind=RKIND),dimension(:,:),pointer  :: zgrid,w
  real(kind=RKIND),dimension(:,:),pointer  :: zz,exner,pressure_b
  real(kind=RKIND),dimension(:,:),pointer  :: rho_zz,theta_m,pressure_p
@@ -651,6 +655,7 @@
           call mpas_pool_get_dimension(state,'index_nifa',index_nifa)
           call mpas_pool_get_dimension(state,'index_nwfa',index_nwfa)
 
+          call mpas_pool_get_array(diag_physics,'nifa2d'  ,nifa2d  )
           call mpas_pool_get_array(diag_physics,'nwfa2d'  ,nwfa2d  )
           call mpas_pool_get_array(diag_physics,'nt_c'    ,nt_c    )
           call mpas_pool_get_array(diag_physics,'mu_c'    ,mu_c    )
@@ -670,6 +675,7 @@
           do i = its,ite
              muc_p(i,j) = mu_c(i)
              ntc_p(i,j) = nt_c(i)
+             nifa2d_p(i,j) = nifa2d(i)
              nwfa2d_p(i,j) = nwfa2d(i)
           enddo
           enddo
@@ -743,6 +749,7 @@
  character(len=StrKIND),pointer:: mp_scheme
  integer,pointer:: index_qv,index_qc,index_qr,index_qi,index_qs,index_qg
  integer,pointer:: index_nc,index_ni,index_nr,index_nifa,index_nwfa
+ real(kind=RKIND),dimension(:),pointer    :: nifa2d,nwfa2d
  real(kind=RKIND),dimension(:),pointer    :: surface_pressure,tend_sfc_pressure
  real(kind=RKIND),dimension(:,:),pointer  :: zgrid
  real(kind=RKIND),dimension(:,:),pointer  :: zz,exner,exner_b,pressure_b,rtheta_p,rtheta_b
@@ -775,6 +782,9 @@
  call mpas_pool_get_array(diag,'rtheta_base'     ,rtheta_b        )
  call mpas_pool_get_array(diag,'rtheta_p'        ,rtheta_p        )
  call mpas_pool_get_array(diag,'surface_pressure',surface_pressure)
+
+ call mpas_pool_get_array(diag_physics,'nifa2d'  ,nifa2d  )
+ call mpas_pool_get_array(diag_physics,'nwfa2d'  ,nwfa2d  )
 
  call mpas_pool_get_array(tend_physics,'rthmpten',rthmpten)
  call mpas_pool_get_array(tend_physics,'rqvmpten',rqvmpten)
@@ -891,6 +901,10 @@
           nwfa => scalars(index_nwfa,:,:)
 
           do j = jts, jte
+          do i = its,ite
+             nifa2d(i) = nifa2d_p(i,j)
+             nwfa2d(i) = nwfa2d_p(i,j)
+          enddo
           do k = kts, kte
           do i = its, ite
              nc(k,i) = nc_p(i,k,j)

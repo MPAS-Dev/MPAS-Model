@@ -144,6 +144,8 @@
 !   Laura D. Fowler (laura@ucar.edu) / 2019-01-13.
 ! * added the option aer_opt needed to the calculation of the optical properties of aerosols.
 !   Laura D. Fowler (laura@ucar.edu) / 2019-01-23.
+! * added the local variables nifa2d_p to run the Thompson cloud microphysics scheme with CCN and IN nucleation.
+!   Laura D. Fowler (laura@ucar.edu) / 2019-04-18.
 
 
 !=================================================================================================================
@@ -296,6 +298,7 @@
     has_reqs
 
  real(kind=RKIND),dimension(:,:),allocatable:: &
+    nifa2d_p,         &!
     nwfa2d_p,         &!
     ntc_p,            &!
     muc_p              !

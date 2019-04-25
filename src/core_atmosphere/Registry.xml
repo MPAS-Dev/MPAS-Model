@@ -600,6 +600,7 @@
 			<var name="nt_c" packages="mp_thompson_in"/>
 			<var name="mu_c" packages="mp_thompson_in"/>
 			<var name="nwfa2d" packages="mp_thompson_in"/>
+			<var name="nifa2d" packages="mp_thompson_in"/>
 			<var name="initial_time"/>
 			<var name="xtime"/>
 			<var name="u"/>
@@ -2140,7 +2141,11 @@
                      packages="mp_thompson_in"/>
 
                 <var name="nwfa2d" type="real" dimensions="nCells Time" units="nb kg^{-1} s^{-1}"
-                     description="surface aerosol number concentration"
+                     description="surface concentration of water-friendly aerosols"
+                     packages="mp_thompson_in"/>
+
+                <var name="nifa2d" type="real" dimensions="nCells Time" units="nb kg^{-1} s^{-1}"
+                     description="surface concentration of ice-friendly aerosols"
                      packages="mp_thompson_in"/>
 
                 <var name="sr" type="real" dimensions="nCells Time" units="unitless"
