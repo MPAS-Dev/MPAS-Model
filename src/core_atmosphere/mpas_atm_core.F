@@ -26,6 +26,7 @@ module atm_core
       use mpas_atm_dimensions, only : mpas_atm_set_dims
       use mpas_atm_diagnostics_manager, only : mpas_atm_diag_setup
       use mpas_atm_threading, only : mpas_atm_threading_init
+      use atm_time_integration, only : mpas_atm_dynamics_init
 
       implicit none
 
@@ -176,6 +177,8 @@ module atm_core
 
       call mpas_atm_diag_setup(domain % streamManager, domain % blocklist % configs, &
                                domain % blocklist % structs, domain % clock, domain % dminfo)
+
+      call mpas_atm_dynamics_init(domain)
 
    end function atm_core_init
 
@@ -880,6 +883,7 @@ module atm_core
       use mpas_timekeeping
       use mpas_atm_diagnostics_manager, only : mpas_atm_diag_cleanup
       use mpas_atm_threading, only : mpas_atm_threading_finalize
+      use atm_time_integration, only : mpas_atm_dynamics_finalize
    
 #ifdef DO_PHYSICS
       use mpas_atmphys_finalize
@@ -906,6 +910,8 @@ module atm_core
             block_ptr => block_ptr%next
          end do
 #endif
+
+      call mpas_atm_dynamics_finalize(domain)
 
       !
       ! Finalize threading

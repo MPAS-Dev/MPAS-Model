@@ -1,7 +1,7 @@
 .SUFFIXES: .F .o
 
-PHYSICS=-DDO_PHYSICS
-#PHYSICS=
+#PHYSICS=-DDO_PHYSICS
+PHYSICS=
 
 OBJS = mpas_atm_core.o \
        mpas_atm_core_interface.o \
