@@ -9,6 +9,7 @@
  module mpas_atmphys_driver_radiation_lw
  use mpas_kind_types
  use mpas_pool_routines
+ use mpas_timer, only : mpas_timer_start, mpas_timer_stop
 
  use mpas_atmphys_driver_radiation_sw, only: radconst
  use mpas_atmphys_constants
@@ -343,9 +344,7 @@
 
  call mpas_pool_get_array(mesh,'latCell',latCell)
  call mpas_pool_get_array(mesh,'lonCell',lonCell)
- call mpas_pool_get_array(mesh,'m_hybi' ,m_hybi )
 
- call mpas_pool_get_array(state,'m_ps'    ,m_ps    ,time_lev)
  call mpas_pool_get_array(state,'aerosols',aerosols,time_lev)
 
  call mpas_pool_get_array(sfc_input,'skintemp',skintemp)
@@ -361,6 +360,8 @@
  call mpas_pool_get_array(diag_physics,'cldfrac'   ,cldfrac   )
  call mpas_pool_get_array(diag_physics,'o3clim'    ,o3clim    )
  call mpas_pool_get_array(diag_physics,'o3vmr'     ,o3vmr     )
+ call mpas_pool_get_array(diag_physics,'m_hybi'    ,m_hybi    )
+ call mpas_pool_get_array(diag_physics,'m_ps'      ,m_ps      )
 
  do j = jts,jte
  do i = its,ite
@@ -431,9 +432,10 @@
                 enddo
                 enddo
              else
-                has_reqc = 0
-                has_reqi = 0
-                has_reqs = 0
+                ! These are set in module mpas_atmphys_manager and should not be set again
+                !has_reqc = 0
+                !has_reqi = 0
+                !has_reqs = 0
                 do j = jts,jte
                 do k = kts,kte
                 do i = its,ite
@@ -767,7 +769,7 @@
  end subroutine radiation_camlw_to_MPAS
 
 !=================================================================================================================
- subroutine init_radiation_lw(dminfo,configs,mesh,atm_input,diag,state,time_lev)
+ subroutine init_radiation_lw(dminfo,configs,mesh,atm_input,diag,diag_physics,state,time_lev)
 !=================================================================================================================
 
 !input arguments:
@@ -775,6 +777,7 @@
  type(mpas_pool_type),intent(in):: configs
  type(mpas_pool_type),intent(in),optional:: mesh
  type(mpas_pool_type),intent(in),optional:: diag
+ type(mpas_pool_type),intent(in),optional:: diag_physics
 
  integer,intent(in),optional:: time_lev
 
@@ -795,7 +798,7 @@
        call rrtmg_initlw_forMPAS(dminfo)
 
     case("cam_lw")
-       call camradinit(dminfo,mesh,atm_input,diag,state,time_lev)
+       call camradinit(dminfo,mesh,atm_input,diag,diag_physics,state,time_lev)
     
     case default
 
@@ -847,6 +850,7 @@
        o3input = 0
        if(config_o3climatology) o3input = 2
 
+       call mpas_timer_start('RRTMG_lw')
        call rrtmg_lwrad( &
             p3d        = pres_hyd_p    , p8w       = pres2_hyd_p , pi3d     = pi_p     , &
             t3d        = t_p           , t8w       = t2_p        , dz8w     = dz_p     , &
@@ -868,17 +872,23 @@
             ims = ims , ime = ime , jms = jms , jme = jme , kms = kms , kme = kme ,      &
             its = its , ite = ite , jts = jts , jte = jte , kts = kts , kte = kte        &
                        )
+       call mpas_timer_stop('RRTMG_lw')
 
     case ("cam_lw")
        xtime_m = xtime_s/60.
 
+! This should be OMP MASTER with barrier afterwards or OMP SINGLE, since declin and solcon
+! are global variables in mpas_atmphys_vars.F and race conditions may occur otherwise!
+!$OMP SINGLE
        !... calculates solar declination:
        call radconst(declin,solcon,curr_julday,degrad,dpd)
+!$OMP END SINGLE
 
 !... convert the radiation time_step to minutes:
        radt = dt_radtlw/60.
 
 !      call mpas_log_write('--- enter subroutine camrad_lw: doabsems=$l',logicArgs=(/doabsems/))
+       call mpas_timer_start('CAMRAD_lw')
        call camrad( dolw = .true. , dosw = .false. ,                                         &
                 p_phy         = pres_hyd_p    , p8w           = pres2_hyd_p   ,              &
                 pi_phy        = pi_p          , t_phy         = t_p           ,              &
@@ -927,6 +937,7 @@
                 ims = ims , ime = ime , jms = jms , jme = jme , kms = kms , kme = kme ,      &
                 its = its , ite = ite , jts = jts , jte = jte , kts = kts , kte = kte        &
                   )
+       call mpas_timer_stop('CAMRAD_lw')
 
     case default
 
