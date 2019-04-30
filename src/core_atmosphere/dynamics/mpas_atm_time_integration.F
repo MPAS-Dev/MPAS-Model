@@ -1610,40 +1610,57 @@ module atm_time_integration
       type (mpas_pool_type), intent(inout) :: mesh
       integer, intent(in) :: cellStart, cellEnd, vertexStart, vertexEnd, edgeStart, edgeEnd
       integer, intent(in) :: cellSolveStart, cellSolveEnd, vertexSolveStart, vertexSolveEnd, edgeSolveStart, edgeSolveEnd
-
-      integer :: iEdge, iCell, k, cell1, cell2, iq
-      integer, pointer :: pnCells, pnEdges, pnVertLevels, pnCellsSolve
-      integer :: nCells, nEdges, nVertLevels, nCellsSolve
+      
+      integer, pointer :: nCells, nEdges, nVertLevels, nCellsSolve
       real (kind=RKIND) :: qtotal
       integer, dimension(:,:), pointer :: cellsOnEdge
-      integer, pointer :: pmoist_start, pmoist_end
-      integer :: moist_start, moist_end
+      integer, pointer :: moist_start, moist_end, num_scalars
       real (kind=RKIND), dimension(:,:,:), pointer :: scalars
       real (kind=RKIND), dimension(:,:), pointer :: cqw
       real (kind=RKIND), dimension(:,:), pointer :: cqu
 
-      call mpas_pool_get_dimension(dims, 'nCells', pnCells)
-      call mpas_pool_get_dimension(dims, 'nEdges', pnEdges)
-      call mpas_pool_get_dimension(dims, 'nVertLevels', pnVertLevels)
-      call mpas_pool_get_dimension(dims, 'nCellsSolve', pnCellsSolve)
-      call mpas_pool_get_dimension(state, 'moist_start', pmoist_start)
-      call mpas_pool_get_dimension(state, 'moist_end', pmoist_end)
+      call mpas_pool_get_dimension(dims, 'nCells', nCells)
+      call mpas_pool_get_dimension(dims, 'nEdges', nEdges)
+      call mpas_pool_get_dimension(dims, 'nVertLevels', nVertLevels)
+      call mpas_pool_get_dimension(dims, 'nCellsSolve', nCellsSolve)
+      call mpas_pool_get_dimension(state, 'moist_start', moist_start)
+      call mpas_pool_get_dimension(state, 'moist_end', moist_end)
+      call mpas_pool_get_dimension(state, 'num_scalars', num_scalars)
 
       call mpas_pool_get_array_gpu(mesh, 'cellsOnEdge', cellsOnEdge)
       call mpas_pool_get_array_gpu(state, 'scalars', scalars, 2)
       call mpas_pool_get_array_gpu(diag, 'cqw', cqw)
       call mpas_pool_get_array_gpu(diag, 'cqu', cqu)
 
-      nCells = pnCells
-      nEdges = pnEdges
-      nVertLevels = pnVertLevels
-      nCellsSolve = pnCellsSolve
-      moist_start = pmoist_start
-      moist_end = pmoist_end
 
+      call atm_compute_moist_coefficients_work(nCells, nEdges, nVertLevels, &
+        nCellsSolve,cellStart, cellEnd, vertexStart, vertexEnd, edgeStart, edgeEnd, &
+        cellSolveStart, cellSolveEnd, vertexSolveStart, vertexSolveEnd, edgeSolveStart, &
+        edgeSolveEnd,moist_start, moist_end, num_scalars, cellsOnEdge, scalars, cqw,cqu )
+
+   end subroutine atm_compute_moist_coefficients
+
+
+   subroutine atm_compute_moist_coefficients_work(nCells, nEdges, nVertLevels,&
+                nCellsSolve,cellStart, cellEnd, vertexStart, vertexEnd, edgeStart, edgeEnd,&
+                cellSolveStart, cellSolveEnd, vertexSolveStart, vertexSolveEnd, edgeSolveStart,&
+                edgeSolveEnd,moist_start, moist_end, num_scalars, cellsOnEdge, scalars, cqw,cqu)
+      implicit none
+
+      integer, intent(in) :: cellStart, cellEnd, vertexStart, vertexEnd, edgeStart, edgeEnd
+      integer, intent(in) :: cellSolveStart, cellSolveEnd, vertexSolveStart, vertexSolveEnd, edgeSolveStart, edgeSolveEnd
+
+      integer :: iEdge, iCell, k, cell1, cell2, iq
+      integer, intent(in) :: nCells, nEdges, nVertLevels, nCellsSolve
+      real (kind=RKIND) :: qtotal
+      integer, intent(in) :: moist_start, moist_end, num_scalars
+      real (kind=RKIND), dimension(num_scalars,nVertLevels,nCells+1) :: scalars
+      real (kind=RKIND), dimension(nVertLevels,nCells+1) :: cqw
+      real (kind=RKIND), dimension(nVertLevels,nEdges+1) :: cqu
+      integer, dimension(2,nEdges+1) :: cellsOnEdge
 !$acc data present(scalars,cqw,cqu, qtot)
 !$acc parallel num_gangs(256)  vector_length(32)
-!$acc loop gang 
+!$acc loop gang
       do iCell = edgeStart,edgeEnd
 !$acc loop vector
          do k = 1,nVertLevels
@@ -1652,7 +1669,7 @@ module atm_time_integration
          end do
 !$acc end parallel
 !$acc parallel num_gangs(256)  vector_length(32)
-!$acc loop gang 
+!$acc loop gang
       do iCell = cellStart,cellEnd
 !$acc loop vector
          do k = 1,nVertLevels
@@ -1678,21 +1695,21 @@ module atm_time_integration
          cell1 = cellsOnEdge(1,iEdge)
          cell2 = cellsOnEdge(2,iEdge)
          if (cell1 <= nCellsSolve .or. cell2 <= nCellsSolve) then
-!$acc loop vector  
+!$acc loop vector
            do k = 1, nVertLevels
                qtotal = 0.0
 !$acc loop seq
                do iq = moist_start, moist_end
-                  qtotal = qtotal + 0.5 * ( scalars(iq, k, cell1) + scalars(iq, k, cell2) )
+                  qtotal = qtotal + 0.5 * ( scalars(iq, k, cell1) + scalars(iq,k, cell2) )
                end do
+               cqu(k,iEdge) = 1.0 / (1.0 + qtotal)
                cqu(k,iEdge) = 1.0 / (1.0 + qtotal)
             end do
          end if
       end do
 !$acc end parallel
 !$acc end data
-
-   end subroutine atm_compute_moist_coefficients
+   end subroutine atm_compute_moist_coefficients_work
 
 
    subroutine atm_compute_vert_imp_coefs(state, mesh, diag, configs, nVertLevels, dts, &
