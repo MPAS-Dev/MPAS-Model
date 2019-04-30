@@ -18,7 +18,7 @@
 module mpas_dmpar
 
 #define COMMA ,
-#define DMPAR_DEBUG_WRITE(M) ! call mpas_log_write(M)
+#define DMPAR_DEBUG_WRITE(M) !call mpas_log_write( M )
 #define DMPAR_WARNING_WRITE(M) call mpas_log_write( M , messageType=MPAS_LOG_WARN)
 #define DMPAR_ERROR_WRITE(M) call mpas_log_write( M , messageType=MPAS_LOG_CRIT)
 
@@ -263,6 +263,10 @@ include 'mpif.h'
 
       if ( present(mpi_comm) ) then
          dminfo % initialized_mpi = .false.
+#ifdef MPAS_OPENMP
+         desiredThreadLevel = MPI_THREAD_FUNNELED
+         call MPI_Query_thread(threadLevel, mpi_ierr)
+#endif
          call MPI_Comm_dup(mpi_comm, dminfo % comm, mpi_ierr)
       else
          dminfo % initialized_mpi = .true.
@@ -9334,6 +9338,7 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
             commListPtr => commListPtr % next 
           end do
         end if
+        !$omp flush
 
         call mpas_threading_barrier()   !! to make sure thread 0 has tested the list before \
                                         !! any thread attempts to read its status
@@ -9599,6 +9604,7 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
          call mpas_threading_barrier()
          commListPtr => commListPtr % next
       end do
+      !$omp end do
 
    end subroutine mpas_dmpar_exch_group_pack_buffer_field1d_integer!}}}
 
@@ -9664,6 +9670,7 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
          call mpas_threading_barrier()
          commListPtr => commListPtr % next
       end do
+      !$omp end do
 
    end subroutine mpas_dmpar_exch_group_pack_buffer_field2d_integer!}}}
 
@@ -9732,6 +9739,7 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
          call mpas_threading_barrier()
          commListPtr => commListPtr % next
       end do
+      !$omp end do
 
    end subroutine mpas_dmpar_exch_group_pack_buffer_field3d_integer!}}}
 
