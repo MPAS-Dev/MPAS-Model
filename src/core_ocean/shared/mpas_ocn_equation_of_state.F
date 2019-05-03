@@ -26,6 +26,7 @@ module ocn_equation_of_state
    use mpas_pool_routines
    use ocn_equation_of_state_linear
    use ocn_equation_of_state_jm
+   use ocn_equation_of_state_teos10
    use ocn_constants
    use mpas_log
 
@@ -56,8 +57,12 @@ module ocn_equation_of_state
    !
    !--------------------------------------------------------------------
 
+<<<<<<< HEAD
    integer ::                   &
       ocnEqStateChoice           ! user choice of eq state method
+=======
+   logical :: linearEos, jmEos, tEos10
+>>>>>>> added teos10 option in config_eos_type and eos.F
 
    integer, parameter ::        &! supported equation of state methods
       ocnEqStateTypeLinear = 1, &! linear equation of state
@@ -157,6 +162,7 @@ contains
          timeLevel = 1
       end if
 
+<<<<<<< HEAD
       call mpas_pool_get_array(diagnosticsPool, 'tracersSurfaceValue', &
                                                  tracersSurfaceValue)
       call mpas_pool_get_subpool  (statePool,   'tracers', &
@@ -215,6 +221,33 @@ contains
       end select
 
       !*** stop timer and exit
+=======
+      call mpas_pool_get_array(diagnosticsPool, 'tracersSurfaceValue', tracersSurfaceValue)
+      call mpas_pool_get_subpool(statePool, 'tracers', tracersPool)
+      call mpas_pool_get_array(tracersPool, 'activeTracers', activeTracers, timeLevel)
+      call mpas_pool_get_dimension(tracersPool, 'index_temperature', indexT)
+      call mpas_pool_get_dimension(tracersPool, 'index_salinity', indexS)
+
+      if (linearEos) then
+
+         call ocn_equation_of_state_linear_density(meshPool, nCells, k_displaced, displacement_type, indexT, indexS, &
+                                                   activeTracers, density, err, tracersSurfaceValue, &
+                                                   thermalExpansionCoeff, salineContractionCoeff)
+
+      elseif (jmEos) then
+
+         call ocn_equation_of_state_jm_density(meshPool, scratchPool, nCells, k_displaced, displacement_type, indexT, indexS, &
+                                               activeTracers, density, err, tracersSurfaceValue, thermalExpansionCoeff, &
+                                               salineContractionCoeff)
+      elseif (tEos10) then
+
+         call ocn_equation_of_state_teos10_density(meshPool, scratchPool, nCells, k_displaced, displacement_type, indexT, indexS, &
+                                               activeTracers, density, err, tracersSurfaceValue, thermalExpansionCoeff, &
+                                               salineContractionCoeff)
+
+
+      endif
+>>>>>>> added teos10 option in config_eos_type and eos.F
 
       call mpas_timer_stop("equation of state")
 
@@ -269,15 +302,22 @@ contains
 
       call mpas_pool_get_config(ocnConfigs, 'config_eos_type', config_eos_type)
 
+<<<<<<< HEAD
       !*** set use choice based on config and call appropriate
       !***  init routine
 
       select case (trim(config_eos_type))
 
       case ('linear','Linear','LINEAR')
+=======
+      linearEos = .false.
+      jmEos = .false.
+      tEos10 = .false.
+>>>>>>> added teos10 option in config_eos_type and eos.F
 
          ocnEqStateChoice  = ocnEqStateTypeLinear
          call ocn_equation_of_state_linear_init(err)
+<<<<<<< HEAD
 
       case ('jm','JM')
 
@@ -288,6 +328,16 @@ contains
 
          call mpas_log_write(&
          'Invalid choice for config_eos_type. Choices are: linear, jm')
+=======
+      elseif (config_eos_type.eq.'jm') then
+         jmEos = .true.
+         call ocn_equation_of_state_jm_init(err)
+      elseif (config_eos_type.eq.'teos10') then
+         tEos10 = .true.
+         call ocn_equation_of_state_teos10_init(err)
+      else
+         call mpas_log_write('Invalid choice for config_eos_type. Choices are: linear, jm, teos10')
+>>>>>>> added teos10 option in config_eos_type and eos.F
          err = 1
 
       end select

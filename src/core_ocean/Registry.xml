@@ -999,7 +999,7 @@
 	<nml_record name="eos">
 		<nml_option name="config_eos_type" type="character" default_value="linear" units="unitless"
 					description="Character string to choose EOS formulation"
-					possible_values="Jackett McDougall EOS = 'jm' and Linear EOS = 'linear'"
+					possible_values="Jackett McDougall EOS = 'jm', Linear EOS = 'linear' and TEOS-10 = 'teos10'"
 		/>
 		<nml_option name="config_open_ocean_freezing_temperature_coeff_0" type="real" default_value="-1.8" units="C"
 					description="The freezing temperature at zero pressure in open ocean."
