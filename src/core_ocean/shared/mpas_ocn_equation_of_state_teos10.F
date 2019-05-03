@@ -218,7 +218,24 @@ contains
 
       integer :: k_test, k_ref
 
+! additional parameters to test TEOS-10
+      real (kind=RKIND) :: &
+         sa_ref, &
+         ct_ref,             &! conservative temp test value
+         rho_ref
+
       err = 0
+
+
+!  set values for TEOS-10 test parameters
+      ct_ref = 12.0_RKIND
+      sa_ref = 33.0_RKIND
+! Print statement inserted for testing TEOS-10
+
+      rho_ref=gsw_rho (sa_ref, ct_ref, pr)
+      call mpas_log_write(' TEOS-10 test; Rho_ref is: $r', &
+                       realArgs=(/ rho_ref/) )
+      print *, "Rho ref is ", rho_ref 
 
       call mpas_pool_get_array(meshPool, 'maxLevelCell', maxLevelCell)
       call mpas_pool_get_array(meshPool, 'refBottomDepth', refBottomDepth)
