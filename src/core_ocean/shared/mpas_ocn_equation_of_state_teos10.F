@@ -7,7 +7,7 @@
 !
 !|||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
 !
-!  ocn_equation_of_state_jm
+!  ocn_equation_of_state_teos10
 !
 !> \brief MPAS ocean Jackett and McDougall equation of state
 !> \author Mark Petersen, modified by Phil Jones
@@ -21,7 +21,7 @@
 !
 !-----------------------------------------------------------------------
 
-module ocn_equation_of_state_jm
+module ocn_equation_of_state_teos10
 
    use mpas_kind_types
    use mpas_derived_types
@@ -46,14 +46,14 @@ module ocn_equation_of_state_jm
    !
    !--------------------------------------------------------------------
 
-   public :: ocn_equation_of_state_jm_density, &
-             ocn_equation_of_state_jm_init
+   public :: ocn_equation_of_state_teos10_density, &
+             ocn_equation_of_state_teos10_init
 
    !*** generic interface for case of density only or density and
    !*** expansion coeffs
-   interface ocn_equation_of_state_jm_density
-      module procedure ocn_equation_of_state_jm_density_only
-      module procedure ocn_equation_of_state_jm_density_exp
+   interface ocn_equation_of_state_teos10_density
+      module procedure ocn_equation_of_state_teos10_density_only
+      module procedure ocn_equation_of_state_teos10_density_exp
    end interface
 
    !--------------------------------------------------------------------
@@ -153,7 +153,7 @@ contains
 
 !***********************************************************************
 !
-!  routine ocn_equation_of_state_jm_density_only
+!  routine ocn_equation_of_state_teos10_density_only
 !
 !> \brief   Calls JM equation of state
 !> \author  Mark Petersen and Todd Ringler, modified Phil Jones
@@ -178,7 +178,7 @@ contains
 !
 !-----------------------------------------------------------------------
 
-   subroutine ocn_equation_of_state_jm_density_only(nVertLevels,      &
+   subroutine ocn_equation_of_state_teos10_density_only(nVertLevels,      &
                                nCells, kDisplaced, displacementType,  &
                                indexT, indexS, tracers, density, err, &
                                tracersSurfaceLayerValue)
@@ -270,7 +270,7 @@ contains
       !if (displacementTypeLocal == 'absolute' .and.   &
       !   (kDisplacedLocal <= 0 .or. kDisplacedLocal > nVertLevels) ) then
       !
-      !   call mpas_log_write('Abort: In equation_of_state_jm' // &
+      !   call mpas_log_write('Abort: In equation_of_state_teos10' // &
       !       ' kDisplaced must be between 1 and nVertLevels for ' // &
       !       'displacementType = absolute', MPAS_LOG_CRIT)
       !endif
@@ -406,11 +406,11 @@ contains
 
    !--------------------------------------------------------------------
 
-   end subroutine ocn_equation_of_state_jm_density_only!}}}
+   end subroutine ocn_equation_of_state_teos10_density_only!}}}
 
 !***********************************************************************
 !
-!  routine ocn_equation_of_state_jm_density
+!  routine ocn_equation_of_state_teos10_density
 !
 !> \brief   Calls JM equation of state
 !> \author  Mark Petersen and Todd Ringler, modified Phil Jones
@@ -435,7 +435,7 @@ contains
 !
 !-----------------------------------------------------------------------
 
-   subroutine ocn_equation_of_state_jm_density_exp(nVertLevels,       &
+   subroutine ocn_equation_of_state_teos10_density_exp(nVertLevels,       &
                                nCells, kDisplaced, displacementType,  &
                                indexT, indexS, tracers, density, err, &
                                thermalExpansionCoeff,                 &
@@ -542,7 +542,7 @@ contains
       !if (displacementTypeLocal == 'absolute' .and.   &
       !   (kDisplacedLocal <= 0 .or. kDisplacedLocal > nVertLevels) ) then
       !
-      !   call mpas_log_write('Abort: In equation_of_state_jm' // &
+      !   call mpas_log_write('Abort: In equation_of_state_teos10' // &
       !       ' kDisplaced must be between 1 and nVertLevels for ' // &
       !       'displacementType = absolute', MPAS_LOG_CRIT)
       !endif
@@ -731,11 +731,11 @@ contains
 
    !--------------------------------------------------------------------
 
-   end subroutine ocn_equation_of_state_jm_density_exp!}}}
+   end subroutine ocn_equation_of_state_teos10_density_exp!}}}
 
 !***********************************************************************
 !
-!  routine ocn_equation_of_state_jm_init
+!  routine ocn_equation_of_state_teos10_init
 !
 !> \brief   Initializes ocean momentum horizontal mixing quantities
 !> \author  Mark Petersen
@@ -748,7 +748,7 @@ contains
 !
 !-----------------------------------------------------------------------
 
-   subroutine ocn_equation_of_state_jm_init(domain, err)!{{{
+   subroutine ocn_equation_of_state_teos10_init(domain, err)!{{{
 
    !--------------------------------------------------------------------
 
@@ -832,11 +832,11 @@ contains
 
    !--------------------------------------------------------------------
 
-   end subroutine ocn_equation_of_state_jm_init!}}}
+   end subroutine ocn_equation_of_state_teos10_init!}}}
 
 !***********************************************************************
 
-end module ocn_equation_of_state_jm
+end module ocn_equation_of_state_teos10
 
 !|||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
 ! vim: foldmethod=marker
