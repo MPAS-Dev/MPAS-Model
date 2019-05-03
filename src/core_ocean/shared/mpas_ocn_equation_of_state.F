@@ -282,6 +282,7 @@ contains
       !-----------------------------------------------------------------
       ! Output variables
       !-----------------------------------------------------------------
+      type (domain_type), intent(inout) :: domain !< Input/Output: domain information
 
       integer, intent(out) :: err
 
@@ -334,7 +335,7 @@ contains
          call ocn_equation_of_state_jm_init(err)
       elseif (config_eos_type.eq.'teos10') then
          tEos10 = .true.
-         call ocn_equation_of_state_teos10_init(err)
+         call ocn_equation_of_state_teos10_init(domain, err)
       else
          call mpas_log_write('Invalid choice for config_eos_type. Choices are: linear, jm, teos10')
 >>>>>>> added teos10 option in config_eos_type and eos.F
