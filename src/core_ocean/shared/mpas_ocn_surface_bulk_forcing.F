@@ -168,14 +168,21 @@ contains
       !
       !-----------------------------------------------------------------
 
-      integer :: iEdge, cell1, cell2, iCell, nCells, nEdges
+      integer :: iEdge, cell1, cell2, iCell, nCells, nEdges, vertex1, vertex2, cell
       integer, dimension(:), pointer :: nCellsArray, nEdgesArray
 
       integer, dimension(:,:), pointer :: cellsOnEdge
-
+      integer, dimension(:,:), pointer :: verticesOnEdge
+      
+      real (kind=RKIND) :: x1, y1, z1
+      real (kind=RKIND) :: x2, y2, z2
+      real (kind=RKIND) :: x3, y3, z3
+      real (kind=RKIND) :: areaWeights(2)
       real (kind=RKIND) :: meridionalAverage, zonalAverage
       real (kind=RKIND), dimension(:), pointer :: angleEdge
       real (kind=RKIND), dimension(:), pointer :: windStressZonal, windStressMeridional
+      real (kind=RKIND), dimension(:), pointer :: xVertex, yVertex, zVertex 
+      real (kind=RKIND), dimension(:), pointer :: xCell, yCell, zCell 
 
       err = 0
 
@@ -188,6 +195,13 @@ contains
 
       call mpas_pool_get_array(meshPool, 'angleEdge', angleEdge)
       call mpas_pool_get_array(meshPool, 'cellsOnEdge', cellsOnEdge)
+      call mpas_pool_get_array(meshPool, 'verticesOnEdge', verticesOnEdge)
+      call mpas_pool_get_array(meshPool, 'xVertex', xVertex)
+      call mpas_pool_get_array(meshPool, 'yVertex', yVertex)
+      call mpas_pool_get_array(meshPool, 'zVertex', zVertex)
+      call mpas_pool_get_array(meshPool, 'xCell', xCell)
+      call mpas_pool_get_array(meshPool, 'yCell', yCell)
+      call mpas_pool_get_array(meshPool, 'zCell', zCell)
 
       call mpas_pool_get_array(forcingPool, 'windStressZonal', windStressZonal)
       call mpas_pool_get_array(forcingPool, 'windStressMeridional', windStressMeridional)
@@ -198,11 +212,36 @@ contains
       ! Convert coupled climate model wind stress to MPAS-O wind stress
       !$omp do schedule(runtime) private(cell1, cell2, zonalAverage, meridionalAverage)
       do iEdge = 1, nEdges
+        vertex1 = verticesOnEdge(1,iEdge)
+        vertex2 = verticesOnEdge(2,iEdge)
+
+        x2 = xVertex(vertex1)
+        y2 = yVertex(vertex1)
+        z2 = zVertex(vertex1)
+
+        x3 = xVertex(vertex2)
+        y3 = yVertex(vertex2)
+        z3 = zVertex(vertex2)
+
+        do iCell = 1,2
+          cell = cellsOnEdge(iCell, iEdge)
+          
+          x1 = xCell(cell)
+          y1 = yCell(cell)
+          z1 = zCell(cell)
+
+          areaWeights(iCell) = 0.5_RKIND*(sqrt(((y2-y1)*(z3-z1)-(y3-y1)*(z2-z1))**2+ &
+                                               ((x3-x1)*(z2-z1)-(x2-x1)*(z3-z1))**2+ &
+                                               ((x2-x1)*(y3-y1)-(x3-x1)*(y2-y1))**2))
+        enddo
+
         cell1 = cellsOnEdge(1, iEdge)
         cell2 = cellsOnEdge(2, iEdge)
 
-        zonalAverage = 0.5_RKIND * (windStressZonal(cell1) + windStressZonal(cell2))
-        meridionalAverage = 0.5_RKIND * (windStressMeridional(cell1) + windStressMeridional(cell2))
+        zonalAverage = (windStressZonal(cell1)*areaWeights(1) + windStressZonal(cell2)*areaWeights(2)) &
+                       /(areaWeights(1)+areaWeights(2))
+        meridionalAverage = (windStressMeridional(cell1)*areaWeights(1) + windStressMeridional(cell2)*areaWeights(2)) &
+                            /(areaWeights(1)+areaWeights(2))
 
         surfaceStress(iEdge) = surfaceStress(iEdge) + cos(angleEdge(iEdge)) * zonalAverage + sin(angleEdge(iEdge)) &
                              * meridionalAverage
