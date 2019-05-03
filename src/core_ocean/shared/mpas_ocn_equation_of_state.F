@@ -241,7 +241,7 @@ contains
                                                salineContractionCoeff)
       elseif (tEos10) then
 
-         call ocn_equation_of_state_teos10_density_only(meshPool, scratchPool, nCells, k_displaced, displacement_type, indexT, indexS, &
+         call ocn_equation_of_state_teos10_density(meshPool, scratchPool, nCells, k_displaced, displacement_type, indexT, indexS, &
                                                activeTracers, density, err, tracersSurfaceValue, thermalExpansionCoeff, &
                                                salineContractionCoeff)
 
