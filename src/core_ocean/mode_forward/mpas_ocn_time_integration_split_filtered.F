@@ -119,8 +119,8 @@ contains
       integer, dimension(:), allocatable :: n_bcl_iter
       type (block_type), pointer :: block
       real (kind=RKIND) :: normalThicknessFluxSum, thicknessSum, flux, sshEdge, hEdge1, &
-         CoriolisTerm, normalVelocityCorrection, temp, temp_h, coef, barotropicThicknessFlux_coeff, sshCell1, sshCell2
-      integer :: useVelocityCorrection, err
+         CoriolisTerm, temp, temp_h, coef, barotropicThicknessFlux_coeff, sshCell1, sshCell2
+      integer :: err
       real (kind=RKIND), dimension(:,:), pointer :: &
          vertViscTopOfEdge, vertDiffTopOfCell
       real (kind=RKIND), dimension(:,:,:), pointer :: tracersGroup
@@ -141,7 +141,7 @@ contains
       logical, pointer :: config_use_standardGM
 
       logical, pointer :: config_use_freq_filtered_thickness, config_btr_solve_SSH2, config_filter_btr_mode
-      logical, pointer :: config_vel_correction, config_prescribe_velocity, config_prescribe_thickness
+      logical, pointer :: config_prescribe_velocity, config_prescribe_thickness
       logical, pointer :: config_disable_thick_all_tend
       logical, pointer :: config_disable_vel_all_tend
       logical, pointer :: config_disable_tr_all_tend
@@ -206,6 +206,7 @@ contains
       real (kind=RKIND), dimension(:), pointer :: gradSSHX, gradSSHY, gradSSHZ
       real (kind=RKIND), dimension(:), pointer :: gradSSHZonal, gradSSHMeridional
       real (kind=RKIND), dimension(:,:), pointer :: surfaceVelocity, SSHGradient
+      real (kind=RKIND), dimension(:), pointer :: BtrAvgOfBaroclinicVelocity, BtrAvgOfGMBolusVelocity
 
       ! Diagnostics Field Pointers
       type (field2DReal), pointer :: normalizedRelativeVorticityEdgeField, divergenceField, relativeVorticityField
@@ -237,6 +238,8 @@ contains
 
       ! Primary and Secondary Weights of the Time-Averaging Filter
       real (kind=RKIND), allocatable, dimension(:) :: tau, PrimaryWeights, SecondaryWeights
+      
+      CALL TestFilterRoutines()
 
       call mpas_timer_start("se timestep")
 
@@ -259,7 +262,6 @@ contains
       call mpas_pool_get_config(domain % configs, 'config_mom_del4', config_mom_del4)
       call mpas_pool_get_config(domain % configs, 'config_use_freq_filtered_thickness', config_use_freq_filtered_thickness)
       call mpas_pool_get_config(domain % configs, 'config_time_integrator', config_time_integrator)
-      call mpas_pool_get_config(domain % configs, 'config_vel_correction', config_vel_correction)
       call mpas_pool_get_config(domain % configs, 'config_disable_vel_all_tend', config_disable_vel_all_tend)
       call mpas_pool_get_config(domain % configs, 'config_disable_thick_all_tend', config_disable_thick_all_tend)
       call mpas_pool_get_config(domain % configs, 'config_disable_tr_all_tend', config_disable_tr_all_tend)
@@ -321,6 +323,7 @@ contains
 
          call mpas_pool_get_array(statePool, 'layerThickness', layerThicknessCur, 1)
          call mpas_pool_get_array(statePool, 'layerThickness', layerThicknessNew, 2)
+         call mpas_pool_get_array(diagnosticsPool, 'layerThicknessEdge', layerThicknessEdge)
 
          call mpas_pool_get_array(statePool, 'highFreqThickness', highFreqThicknessCur, 1)
          call mpas_pool_get_array(statePool, 'highFreqThickness', highFreqThicknessNew, 2)
@@ -331,6 +334,7 @@ contains
          call mpas_pool_get_array(diagnosticsPool, 'vertAleTransportTop', vertAleTransportTop)
 
          call mpas_pool_get_array(meshPool, 'maxLevelCell', maxLevelCell)
+         call mpas_pool_get_array(meshPool, 'maxLevelEdgeTop', maxLevelEdgeTop)
          call mpas_pool_get_dimension(tracersPool, 'index_salinity', indexSalinity)
 
          nCells = nCellsPtr
@@ -340,16 +344,18 @@ contains
 
          !$omp do schedule(runtime) private(k)
          do iEdge = 1, nEdges
-            do k = 1, nVertLevels ! maxLevelEdgeTop % array(iEdge)
-               !-------------------------------------------------------------------!
-               ! The baroclinic velocity needs be recomputed at the beginning of a !
-               ! timestep because the implicit vertical mixing is conducted on the !
-               ! total u. We keep normalBarotropicVelocity from the previous       !
-               ! timestep. Note that normalBaroclinicVelocity may now include a    !
-               ! barotropic component, because the weights layerThickness have     !
-               ! changed. That is OK, because the barotropicForcing variable       !
-               ! subtracts out the barotropic component from the baroclinic.       !
-               !-------------------------------------------------------------------!
+
+            ! Compute barotropic component
+            thicknessSum  = layerThicknessEdge(1,iEdge)
+            normalBarotropicVelocityCur(iEdge) = normalVelocityCur(1,iEdge) * layerThicknessEdge(1,iEdge)
+            do k = 2, maxLevelEdgeTop(iEdge)
+               thicknessSum = thicknessSum + layerThicknessEdge(k,iEdge)
+               normalBarotropicVelocityCur(iEdge) = normalBarotropicVelocityCur(iEdge) + normalVelocityCur(k,iEdge) * layerThicknessEdge(k,iEdge)
+            enddo
+            normalBarotropicVelocityCur(iEdge) = normalBarotropicVelocityCur(iEdge) / thicknessSum
+
+            ! Compute baroclinic component
+            do k = 1, nVertLevels !maxLevelEdgeTop % array(iEdge)
                normalBaroclinicVelocityCur(k,iEdge) = normalVelocityCur(k,iEdge) - normalBarotropicVelocityCur(iEdge)
 
                normalVelocityNew(k,iEdge) = normalVelocityCur(k,iEdge)
@@ -616,11 +622,11 @@ contains
                   ! nonzero value to avoid a NaN.                                             !
                   !---------------------------------------------------------------------------!
                   normalThicknessFluxSum = layerThicknessEdge(1,iEdge) * uTemp(1)
-                  thicknessSum  = layerThicknessEdge(1,iEdge)
+                  thicknessSum = layerThicknessEdge(1,iEdge)
 
                   do k = 2, maxLevelEdgeTop(iEdge)
                      normalThicknessFluxSum = normalThicknessFluxSum + layerThicknessEdge(k,iEdge) * uTemp(k)
-                     thicknessSum  =  thicknessSum + layerThicknessEdge(k,iEdge)
+                     thicknessSum = thicknessSum + layerThicknessEdge(k,iEdge)
                   enddo
                   barotropicForcing(iEdge) = split * normalThicknessFluxSum / thicknessSum / dt
 
@@ -774,8 +780,9 @@ contains
                   ! normalBarotropicVelocitySubcycleOld = normalBarotropicVelocityOld
                   normalBarotropicVelocitySubcycleCur(iEdge) = normalBarotropicVelocityCur(iEdge)
 
-                  ! normalBarotropicVelocityNew = BtrOld  This is the first for the summation
-                  normalBarotropicVelocityNew(iEdge) = normalBarotropicVelocityCur(iEdge)
+                  ! normalBarotropicVelocityNew = BtrOld. This is the first for the summation
+                  ! normalBarotropicVelocityNew(iEdge) = normalBarotropicVelocityCur(iEdge)
+                  normalBarotropicVelocityNew(iEdge) = 0._RKIND
 
                   ! barotropicThicknessFlux = 0
                   barotropicThicknessFlux(iEdge) = 0.0_RKIND
@@ -819,7 +826,7 @@ contains
                !----------------------------------------------!
                ! Barotropic subcycle: VELOCITY PREDICTOR STEP !
                !----------------------------------------------!
-               if (config_btr_gam1_velWt1 > 1.0e-12_RKIND) then  ! only do this part if it is needed in next SSH solve
+               if (config_btr_gam1_velWt1 > 1.0e-12_RKIND) then ! only do this part if it is needed in next SSH solve
                   uPerpTime = oldBtrSubcycleTime
 
                   block => domain % blocklist
@@ -961,7 +968,7 @@ contains
                            + config_btr_gam1_velWt1 * normalBarotropicVelocitySubcycleNew(iEdge)) &
                            * thicknessSum
 
-                        sshTend(iCell) = sshTend(iCell) + edgeSignOncell(i, iCell) * flux * dvEdge(iEdge)
+                        sshTend(iCell) = sshTend(iCell) + edgeSignOnCell(i, iCell) * flux * dvEdge(iEdge)
 
                      end do
 
@@ -976,7 +983,7 @@ contains
                      ! Add in write statement for debugging to print to a standard text file (get single strip out) 4.000 !
                      ! Add in a new line each time for the write statement                                                !
                      !----------------------------------------------------------------------------------------------------!
-                     do iCell=1,nCells,4  ! Write ever fourth entry, meant for periodic with four-wide
+                     do iCell=1,nCells,4 ! Write ever fourth entry, meant for periodic with four-wide
                         write(debugSplitExplicitUnit,"(ES32.16)", advance='no') sshSubcycleNew(iCell)
                      end do
                      write(debugSplitExplicitUnit, *) ' '
@@ -1013,7 +1020,8 @@ contains
                            + config_btr_gam1_velWt1 * normalBarotropicVelocitySubcycleNew(iEdge)) &
                            * thicknessSum
 
-                        barotropicThicknessFlux(iEdge) = barotropicThicknessFlux(iEdge) + flux
+                        ! barotropicThicknessFlux(iEdge) = barotropicThicknessFlux(iEdge) + flux
+                        barotropicThicknessFlux(iEdge) = barotropicThicknessFlux(iEdge) + SecondaryWeights(j) * flux
                      end do
                      !$omp end do
 
@@ -1246,8 +1254,9 @@ contains
                         flux = ((1.0-config_btr_gam3_velWt2) * normalBarotropicVelocitySubcycleCur(iEdge) &
                            + config_btr_gam3_velWt2 * normalBarotropicVelocitySubcycleNew(iEdge)) &
                            * thicknessSum
-
-                        barotropicThicknessFlux(iEdge) = barotropicThicknessFlux(iEdge) + flux
+                           
+                        ! barotropicThicknessFlux(iEdge) = barotropicThicknessFlux(iEdge) + flux
+                        barotropicThicknessFlux(iEdge) = barotropicThicknessFlux(iEdge) + SecondaryWeights(j) * flux                        
                      end do
                      !$omp end do
 
@@ -1273,7 +1282,7 @@ contains
                      newBtrSubcycleTime)
 
                   !-------------------------------------------------------------------------------------------------!
-                  ! normalBarotropicVelocityNew = normalBarotropicVelocityNew + normalBarotropicVelocitySubcycleNEW !
+                  ! normalBarotropicVelocityNew = normalBarotropicVelocityNew + normalBarotropicVelocitySubcycleNew !
                   ! This accumulates the sum. If the Barotropic Coriolis iteration is limited to one, this could be !
                   ! merged with the above code.                                                                     !
                   !-------------------------------------------------------------------------------------------------!
@@ -1283,7 +1292,7 @@ contains
                   !$omp do schedule(runtime)
                   do iEdge = 1, nEdges
                      normalBarotropicVelocityNew(iEdge) = normalBarotropicVelocityNew(iEdge) &
-                        + normalBarotropicVelocitySubcycleNew(iEdge)
+                        + PrimaryWeights(j) * normalBarotropicVelocitySubcycleNew(iEdge)
                   end do ! iEdge
                   !$omp end do
 
@@ -1294,7 +1303,7 @@ contains
                oldBtrSubcycleTime = mod(oldBtrSubcycleTime,2)+1
                newBtrSubcycleTime = mod(newBtrSubcycleTime,2)+1
 
-            end do ! j=1,nBtrSubcycles
+            end do ! j = 1, nBtrSubcycles * config_btr_subcycle_loop_factor
             call mpas_timer_stop('btr se subcycle loop')
 
             call mpas_threading_barrier()
@@ -1324,15 +1333,15 @@ contains
 
                nEdges = nEdgesArray(1)
 
-               !$omp do schedule(runtime)
-               do iEdge = 1, nEdges
-                  barotropicThicknessFlux(iEdge) = barotropicThicknessFlux(iEdge) &
-                     / (nBtrSubcycles * config_btr_subcycle_loop_factor)
-
-                  normalBarotropicVelocityNew(iEdge) = normalBarotropicVelocityNew(iEdge) &
-                     / (nBtrSubcycles * config_btr_subcycle_loop_factor + 1)
-               end do
-               !$omp end do
+               ! !$omp do schedule(runtime)
+               ! do iEdge = 1, nEdges
+               !    barotropicThicknessFlux(iEdge) = barotropicThicknessFlux(iEdge) &
+               !       / (nBtrSubcycles * config_btr_subcycle_loop_factor)
+               !
+               !    normalBarotropicVelocityNew(iEdge) = normalBarotropicVelocityNew(iEdge) &
+               !       / (nBtrSubcycles * config_btr_subcycle_loop_factor + 1)
+               ! end do
+               ! !$omp end do
 
                block => block % next
             end do ! block
@@ -1380,6 +1389,8 @@ contains
                call mpas_pool_get_array(diagnosticsPool, 'normalGMBolusVelocity', normalGMBolusVelocity)
                call mpas_pool_get_array(diagnosticsPool, 'layerThicknessEdge', layerThicknessEdge)
                call mpas_pool_get_array(diagnosticsPool, 'barotropicThicknessFlux', barotropicThicknessFlux)
+               call mpas_pool_get_array(diagnosticsPool, 'BtrAvgOfBaroclinicVelocity', BtrAvgOfBaroclinicVelocity)
+               call mpas_pool_get_array(diagnosticsPool, 'BtrAvgOfGMBolusVelocity', BtrAvgOfGMBolusVelocity)
 
                call mpas_pool_get_array(meshPool, 'maxLevelEdgeTop', maxLevelEdgeTop)
                call mpas_pool_get_array(meshPool, 'edgeMask', edgeMask)
@@ -1387,63 +1398,41 @@ contains
                nEdges = nEdgesPtr
 
                nEdges = nEdgesArray( config_num_halos )
-
-               allocate(uTemp(nVertLevels))
-
-               !------------------------------------------------------------------------------------------------------------!
-               ! Correction velocity normalVelocityCorrection = (Flux - Sum(h u*))/H                                        !
-               ! or, for the full latex version:                                                                            !
-               ! {\bf u}^{corr} = \left( {\overline {\bf F}} - \sum_{k=1}^{N^{edge}} h_{k,*}^{edge} {\bf u}_k^{avg} \right) !
-               ! \left/ \sum_{k=1}^{N^{edge}} h_{k,*}^{edge} \right.                                                        !
-               !------------------------------------------------------------------------------------------------------------!
-               if (config_vel_correction) then
-                  useVelocityCorrection = 1
-               else
-                  useVelocityCorrection = 0
-               endif
-
-               !$omp do schedule(runtime) private(k, normalThicknessFluxSum, thicknessSum, normalVelocityCorrection)
+               
+               !$omp do schedule(runtime) private(k, thicknessSum)
                do iEdge = 1, nEdges
-
-                  ! velocity for normalVelocityCorrectionection is normalBarotropicVelocity + normalBaroclinicVelocity + uBolus
-                  uTemp(:) = normalBarotropicVelocityNew(iEdge) + normalBaroclinicVelocityNew(:,iEdge) &
-                     + normalGMBolusVelocity(:,iEdge)
-
+               
                   !-------------------------------------------------------------------------!
                   ! thicknessSum is initialized outside the loop because on land boundaries !
                   ! maxLevelEdgeTop = 0, but I want to initialize thicknessSum with a       !
                   ! nonzero value to avoid a NaN.                                           !
                   !-------------------------------------------------------------------------!
-                  normalThicknessFluxSum = layerThicknessEdge(1,iEdge) * uTemp(1)
-                  thicknessSum  = layerThicknessEdge(1,iEdge)
+                  thicknessSum = layerThicknessEdge(1,iEdge)
+                  BtrAvgOfBaroclinicVelocity(iEdge) = normalBaroclinicVelocityNew(1,iEdge) * layerThicknessEdge(1,iEdge) 
+                  BtrAvgOfGMBolusVelocity(iEdge) = normalGMBolusVelocity(1,iEdge) * layerThicknessEdge(1,iEdge)
 
                   do k = 2, maxLevelEdgeTop(iEdge)
-                     normalThicknessFluxSum = normalThicknessFluxSum + layerThicknessEdge(k,iEdge) * uTemp(k)
-                     thicknessSum  =  thicknessSum + layerThicknessEdge(k,iEdge)
+                     thicknessSum = thicknessSum + layerThicknessEdge(k,iEdge)
+                     BtrAvgOfBaroclinicVelocity(iEdge) = BtrAvgOfBaroclinicVelocity(iEdge) + normalBaroclinicVelocityNew(k,iEdge) * layerThicknessEdge(k,iEdge) 
+                     BtrAvgOfGMBolusVelocity(iEdge) = BtrAvgOfGMBolusVelocity(iEdge) + normalGMBolusVelocity(k,iEdge) * layerThicknessEdge(k,iEdge)
                   enddo
+                  
+                  BtrAvgOfBaroclinicVelocity(iEdge) = BtrAvgOfBaroclinicVelocity(iEdge) / thicknessSum
+                  BtrAvgOfGMBolusVelocity(iEdge) = BtrAvgOfGMBolusVelocity(iEdge) / thicknessSum
 
-                  normalVelocityCorrection = useVelocityCorrection * (( barotropicThicknessFlux(iEdge) - normalThicknessFluxSum) &
-                     / thicknessSum)
+                  ! Compute barotropic velocity from thickness flux
+                  normalBarotropicVelocityNew(iEdge) = barotropicThicknessFlux(iEdge) / thicknessSum                     
 
                   do k = 1, nVertLevels
-
-                     !---------------------------------------------------------------------------------------------------------!
-                     ! normalTransportVelocity = normalBarotropicVelocity + normalBaroclinicVelocity + normalGMBolusVelocity & !
-                     !                           + normalVelocityCorrection                                                    !
-                     ! This is u used in advective terms for layerThickness and tracers in tendency calls in stage 3.          !
-                     ! mrp note: in QC version, there is an if (config_use_standardGM) on adding normalGMBolusVelocity.        !
-                     ! I think it is not needed because normalGMBolusVelocity=0 when GM not on.                                !
-                     !---------------------------------------------------------------------------------------------------------!
-                     normalTransportVelocity(k,iEdge) &
-                        = edgeMask(k,iEdge) &
-                        *( normalBarotropicVelocityNew(iEdge) + normalBaroclinicVelocityNew(k,iEdge) &
-                        + normalGMBolusVelocity(k,iEdge) + normalVelocityCorrection )
+                     ! Compute transport velocity, used to transport thickness and tracers
+                     normalTransportVelocity(k,iEdge) = edgeMask(k,iEdge) &
+                        *( normalBarotropicVelocityNew(iEdge) &
+                        + normalBaroclinicVelocityNew(k,iEdge) - BtrAvgOfBaroclinicVelocity(iEdge) &
+                        + normalGMBolusVelocity(k,iEdge) - BtrAvgOfGMBolusVelocity(iEdge) )
                   enddo
 
                end do ! iEdge
                !$omp end do
-
-               deallocate(uTemp)
 
                block => block % next
             end do ! block
@@ -1602,6 +1591,8 @@ contains
             call mpas_pool_get_array(tendPool, 'normalVelocity', normalVelocityTend)
             call mpas_pool_get_array(tendPool, 'highFreqThickness', highFreqThicknessTend)
             call mpas_pool_get_array(tendPool, 'lowFreqDivergence', lowFreqDivergenceTend)
+            
+            call mpas_pool_get_array(diagnosticsPool, 'BtrAvgOfBaroclinicVelocity', BtrAvgOfBaroclinicVelocity)
 
             call mpas_pool_get_array(tracersTendPool, 'activeTracersTend', activeTracersTend)
 
@@ -1676,7 +1667,7 @@ contains
                      ! This is u used in next iteration or step.               !
                      !---------------------------------------------------------!
                      normalVelocityNew(k,iEdge) = edgeMask(k,iEdge) * ( normalBarotropicVelocityNew(iEdge) &
-                        + normalBaroclinicVelocityNew(k,iEdge) )
+                        + normalBaroclinicVelocityNew(k,iEdge) - BtrAvgOfBaroclinicVelocity(iEdge) )
 
                   enddo
 

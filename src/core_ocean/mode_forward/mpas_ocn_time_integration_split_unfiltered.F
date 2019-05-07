@@ -593,11 +593,11 @@ contains
                   ! nonzero value to avoid a NaN.                                             !
                   !---------------------------------------------------------------------------!
                   normalThicknessFluxSum = layerThicknessEdge(1,iEdge) * uTemp(1)
-                  thicknessSum  = layerThicknessEdge(1,iEdge)
+                  thicknessSum = layerThicknessEdge(1,iEdge)
 
                   do k = 2, maxLevelEdgeTop(iEdge)
                      normalThicknessFluxSum = normalThicknessFluxSum + layerThicknessEdge(k,iEdge) * uTemp(k)
-                     thicknessSum  =  thicknessSum + layerThicknessEdge(k,iEdge)
+                     thicknessSum = thicknessSum + layerThicknessEdge(k,iEdge)
                   enddo
                   barotropicForcing(iEdge) = split * normalThicknessFluxSum / thicknessSum / dt
 
@@ -751,7 +751,7 @@ contains
                   ! normalBarotropicVelocitySubcycleOld = normalBarotropicVelocityOld
                   normalBarotropicVelocitySubcycleCur(iEdge) = normalBarotropicVelocityCur(iEdge)
 
-                  ! normalBarotropicVelocityNew = BtrOld  This is the first for the summation
+                  ! normalBarotropicVelocityNew = BtrOld. This is the first for the summation
                   normalBarotropicVelocityNew(iEdge) = normalBarotropicVelocityCur(iEdge)
 
                   ! barotropicThicknessFlux = 0
@@ -796,7 +796,7 @@ contains
                !----------------------------------------------!
                ! Barotropic subcycle: VELOCITY PREDICTOR STEP !
                !----------------------------------------------!
-               if (config_btr_gam1_velWt1 > 1.0e-12_RKIND) then  ! only do this part if it is needed in next SSH solve
+               if (config_btr_gam1_velWt1 > 1.0e-12_RKIND) then ! only do this part if it is needed in next SSH solve
                   uPerpTime = oldBtrSubcycleTime
 
                   block => domain % blocklist
@@ -938,7 +938,7 @@ contains
                            + config_btr_gam1_velWt1 * normalBarotropicVelocitySubcycleNew(iEdge)) &
                            * thicknessSum
 
-                        sshTend(iCell) = sshTend(iCell) + edgeSignOncell(i, iCell) * flux * dvEdge(iEdge)
+                        sshTend(iCell) = sshTend(iCell) + edgeSignOnCell(i, iCell) * flux * dvEdge(iEdge)
 
                      end do
 
@@ -953,7 +953,7 @@ contains
                      ! Add in write statement for debugging to print to a standard text file (get single strip out) 4.000 !
                      ! Add in a new line each time for the write statement                                                !
                      !----------------------------------------------------------------------------------------------------!
-                     do iCell=1,nCells,4  ! Write ever fourth entry, meant for periodic with four-wide
+                     do iCell=1,nCells,4 ! Write ever fourth entry, meant for periodic with four-wide
                         write(debugSplitExplicitUnit,"(ES32.16)", advance='no') sshSubcycleNew(iCell)
                      end do
                      write(debugSplitExplicitUnit, *) ' '
@@ -1250,7 +1250,7 @@ contains
                      newBtrSubcycleTime)
 
                   !-------------------------------------------------------------------------------------------------!
-                  ! normalBarotropicVelocityNew = normalBarotropicVelocityNew + normalBarotropicVelocitySubcycleNEW !
+                  ! normalBarotropicVelocityNew = normalBarotropicVelocityNew + normalBarotropicVelocitySubcycleNew !
                   ! This accumulates the sum. If the Barotropic Coriolis iteration is limited to one, this could be !
                   ! merged with the above code.                                                                     !
                   !-------------------------------------------------------------------------------------------------!
@@ -1271,7 +1271,7 @@ contains
                oldBtrSubcycleTime = mod(oldBtrSubcycleTime,2)+1
                newBtrSubcycleTime = mod(newBtrSubcycleTime,2)+1
 
-            end do ! j=1,nBtrSubcycles
+            end do ! j = 1, nBtrSubcycles * config_btr_subcycle_loop_factor
             call mpas_timer_stop('btr se subcycle loop')
 
             call mpas_threading_barrier()
@@ -1392,11 +1392,11 @@ contains
                   ! nonzero value to avoid a NaN.                                           !
                   !-------------------------------------------------------------------------!
                   normalThicknessFluxSum = layerThicknessEdge(1,iEdge) * uTemp(1)
-                  thicknessSum  = layerThicknessEdge(1,iEdge)
+                  thicknessSum = layerThicknessEdge(1,iEdge)
 
                   do k = 2, maxLevelEdgeTop(iEdge)
                      normalThicknessFluxSum = normalThicknessFluxSum + layerThicknessEdge(k,iEdge) * uTemp(k)
-                     thicknessSum  =  thicknessSum + layerThicknessEdge(k,iEdge)
+                     thicknessSum = thicknessSum + layerThicknessEdge(k,iEdge)
                   enddo
 
                   normalVelocityCorrection = useVelocityCorrection * (( barotropicThicknessFlux(iEdge) - normalThicknessFluxSum) &
@@ -2143,7 +2143,7 @@ contains
                   !-------------------------------------------------------------------------!
                   layerThicknessEdge1 = 0.5_RKIND*( layerThickness(1,cell1) + layerThickness(1,cell2) )
                   normalThicknessFluxSum = layerThicknessEdge1 * normalVelocity(1,iEdge)
-                  layerThicknessSum = layerThicknessEdge1
+                  layerthicknessSum = layerThicknessEdge1
 
                   do k=2, maxLevelEdgeTop(iEdge)
                      ! ocn_diagnostic_solve has not yet been called, so compute hEdge just for this edge.
@@ -2151,7 +2151,7 @@ contains
 
                      normalThicknessFluxSum = normalThicknessFluxSum &
                         + layerThicknessEdge1 * normalVelocity(k,iEdge)
-                     layerThicknessSum = layerThicknessSum + layerThicknessEdge1
+                     layerthicknessSum = layerThicknessSum + layerThicknessEdge1
 
                   enddo
                   normalBarotropicVelocity(iEdge) = normalThicknessFluxSum / layerThicknessSum
