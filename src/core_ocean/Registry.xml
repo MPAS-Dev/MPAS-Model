@@ -1129,6 +1129,10 @@
 					description="number of iterations of the velocity corrector step in stage 2"
 					possible_values="any positive integer, but typically 1, 2, or 3"
 		/>
+		<nml_option name="config_vel_correction" type="logical" default_value=".true." units="unitless"
+					description="If true, the velocity correction term is included in the horizontal advection of thickness and tracers"
+					possible_values=".true. or .false."
+		/>
 		<nml_option name="config_btr_subcycle_loop_factor" type="integer" default_value="2" units="unitless"
 					description="Barotropic subcycles proceed from $t$ to $t+n\Delta t$, where $n$ is this configuration option."
 					possible_values="Any positive integer, but typically 1 or 2"
