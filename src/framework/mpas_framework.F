@@ -85,22 +85,31 @@ module mpas_framework
       call mpas_pool_set_error_level(MPAS_POOL_WARN)
 #endif
 
-      call mpas_pool_get_config(domain % configs, 'config_calendar_type', config_calendar_type)
-      call mpas_pool_get_config(domain % configs, 'config_pio_num_iotasks', config_pio_num_iotasks)
-      call mpas_pool_get_config(domain % configs, 'config_pio_stride', config_pio_stride)
-
       if (present(calendar)) then
          call mpas_timekeeping_init(calendar)
       else
+         call mpas_pool_get_config(domain % configs, 'config_calendar_type', config_calendar_type)
          call mpas_timekeeping_init(config_calendar_type)
       end if
 
-      pio_num_iotasks = config_pio_num_iotasks
-      pio_stride = config_pio_stride
-      if (pio_num_iotasks == 0) then
-         pio_num_iotasks = domain % dminfo % nprocs
+      !
+      ! Note: pio_num_iotasks and pio_stride are only used in MPAS_io_init if io_system is
+      !       not present. In stand-alone configurations, we expect that io_system will not
+      !       be present and that pio_num_iotasks and pio_stride will be available from
+      !       the namelist; in other systems, a PIO io_system may be provided.
+      !
+      if (.not. present(io_system)) then
+         call mpas_pool_get_config(domain % configs, 'config_pio_num_iotasks', config_pio_num_iotasks)
+         call mpas_pool_get_config(domain % configs, 'config_pio_stride', config_pio_stride)
+         pio_num_iotasks = config_pio_num_iotasks
+         pio_stride = config_pio_stride
+         if (pio_num_iotasks == 0) then
+            pio_num_iotasks = domain % dminfo % nprocs
+         end if
       end if
+
       domain % ioContext % dminfo => domain % dminfo
+
       call MPAS_io_init(domain % ioContext, pio_num_iotasks, pio_stride, io_system)
 
    end subroutine mpas_framework_init_phase2!}}}
