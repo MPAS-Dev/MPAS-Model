@@ -280,17 +280,17 @@
                      description="Prefix of graph decomposition file, to be suffixed with the MPI task count"
                      possible_values="Any valid filename"/>
 
-                <nml_option name="config_number_of_blocks" type="integer" default_value="0" in_defaults="false"
+                <nml_option name="config_number_of_blocks" type="integer" default_value="0" in_defaults="false" used_by="cam"
                      units="-"
                      description="Number of blocks to assign to each MPI task"
                      possible_values="Positive integer values"/>
 
-                <nml_option name="config_explicit_proc_decomp" type="logical" default_value="false" in_defaults="false"
+                <nml_option name="config_explicit_proc_decomp" type="logical" default_value="false" in_defaults="false" used_by="cam"
                      units="-"
                      description="Whether to use an explicit mapping of blocks to MPI tasks"
                      possible_values=".true. or .false."/>
 
-                <nml_option name="config_proc_decomp_file_prefix" type="character" default_value="graph.info.part." in_defaults="false"
+                <nml_option name="config_proc_decomp_file_prefix" type="character" default_value="graph.info.part." in_defaults="false" used_by="cam"
                      units="-"
                      description="Prefix of block mapping file"
                      possible_values="Any valid filename"/>
@@ -1671,41 +1671,41 @@
 <!-- ================================================================================================== -->
 
 
-        <nml_record name="physics" in_defaults="true">
+        <nml_record name="physics" in_defaults="true" used_by="cam">
                 <!-- NAMELIST VARIABLES ADDED FOR INITIALIZATION OF SURFACE CHARACTERISTICS: -->
                 <nml_option name="input_soil_data" type="character" default_value="STAS" in_defaults="false"
                      units="-"
                      description="input soil use classification"
                      possible_values="`STAS`"/>
 
-                <nml_option name="input_soil_temperature_lag" type="integer" default_value="140" in_defaults="false"
+                <nml_option name="input_soil_temperature_lag" type="integer" default_value="140" in_defaults="false" used_by="cam"
                      units="-"
                      description="days over which the deep soil temperature is computed using skin temperature"
                      possible_values="Positive integers"/>
 
-                <nml_option name="num_soil_layers" type="integer" default_value="4" in_defaults="false"
+                <nml_option name="num_soil_layers" type="integer" default_value="4" in_defaults="false" used_by="cam"
                      units="-"
                      description="number of soil layers in Noah land surface scheme"
                      possible_values="Positive integers. For Noah LSM, must be set to 4."/>
 
-                <nml_option name="months" type="integer" default_value="12" in_defaults="false"
+                <nml_option name="months" type="integer" default_value="12" in_defaults="false" used_by="cam"
                      units="-"
                      description="number of months per year"
                      possible_values="Positive integer values. DO NOT CHANGE."/>
 
                 <!-- ... DIMENSION NEEDED FOR OZONE AND AEROSOLS CONCENTRATIONS IN THE CAM LONGWAVE AND SHORTWAVE -->
                 <!-- ... RADIATION PARAMETERIZATIONS.                                                             -->
-                <nml_option name="noznlev" type="integer" default_value="59" in_defaults="false"
+                <nml_option name="noznlev" type="integer" default_value="59" in_defaults="false" used_by="cam"
                      units="-"
                      description="number of prescribed pressure levels for input climatological ozone volume mixing ratios"
                      possible_values="Positive integers"/>
 
-                <nml_option name="naerlev" type="integer" default_value="29" in_defaults="false"
+                <nml_option name="naerlev" type="integer" default_value="29" in_defaults="false" used_by="cam"
                      units="-"
                      description="number of prescribed pressure levels for input climatological aerosol mixing ratio"
                      possible_values="Positive integers"/>
 
-                <nml_option name="camdim1" type="integer" default_value="4" in_defaults="false"
+                <nml_option name="camdim1" type="integer" default_value="4" in_defaults="false" used_by="cam"
                      units="-"
                      description="dimension of CAM radiation absorption save array"
                      possible_values="Positive integers"/>
