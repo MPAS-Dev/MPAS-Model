@@ -81,9 +81,7 @@ module mpas_geotile_manager
       ! via add tile, which will also give us the tile_t type that contains
       ! that tile.
 
-      if (mpas_search_tile(lat, lon, tile, tile_hash, geo_pool)) then
-         ! pass
-      else
+      if (.not. mpas_search_tile(lat, lon, tile, tile_hash, geo_pool)) then
          call mpas_add_tile(lat, lon, tile, tile_hash, geo_pool)
       endif
 
@@ -133,8 +131,8 @@ module mpas_geotile_manager
 
       mpas_search_tile = .FALSE.
 
-      if (associated(tile_hash( (x-1)/tile_nx , (y-1)/tile_ny ) % ptr)) then
-         tile => tile_hash( (x-1)/tile_nx , (y-1)/tile_ny ) % ptr
+      tile => tile_hash( (x-1)/tile_nx , (y-1)/tile_ny ) % ptr
+      if (associated(tile)) then
          mpas_search_tile = .TRUE.
          return
       endif
@@ -163,7 +161,6 @@ module mpas_geotile_manager
 
       implicit none
 
-<<<<<<< HEAD
       interface
          subroutine read_geogrid(fname, rarray, nx, ny, nz, isigned, endian, &
                                  scalefactor, wordsize, status) bind(C)
@@ -180,21 +177,6 @@ module mpas_geotile_manager
             integer (c_int), intent(inout) :: status
          end subroutine read_geogrid
       end interface
-=======
-   interface
-      integer (c_int) function c_get_tile(file, nx, ny, x_halo, y_halo, word_size, is_signed, tile) bind(C)
-         use iso_c_binding, only : c_int, c_char, c_float, c_ptr
-         character (c_char), intent(in) :: file
-         integer (c_int), intent(in), value :: nx
-         integer (c_int), intent(in), value :: ny
-         integer (c_int), intent(in), value :: x_halo
-         integer (c_int), intent(in), value :: y_halo
-         integer (c_int), intent(in), value :: word_size
-         integer (c_int), intent(in), value :: is_signed
-         type (c_ptr), value :: tile
-      end function c_get_tile
-   end interface
->>>>>>> 8f61fe8... Parallelized Interpolation of Land Use
 
       ! Input values
       real (kind=RKIND), intent(in), value :: lat, lon
@@ -213,11 +195,14 @@ module mpas_geotile_manager
       integer (c_int) :: nx, ny, nz
 
       integer, pointer :: wordsize
-      integer :: x_bdr, y_bdr
-      logical, pointer :: is_signed
-      integer (c_int) :: is_signed_int
+      integer (c_int) :: c_wordsize
 
-      real :: lat_deg, lon_deg
+      integer, pointer :: signed
+      integer (c_int) :: c_isigned
+      integer (c_int) :: status
+      
+      real, pointer :: scalefactor
+      real (c_float) :: c_scalefactor
 
       integer, pointer :: endian
       integer (c_int) :: c_endian
@@ -228,19 +213,18 @@ module mpas_geotile_manager
       call mpas_pool_get_config(geo_pool, 'tile_z', tile_nz)
       call mpas_pool_get_config(geo_pool, 'tile_bdr', tile_bdr)
       call mpas_pool_get_config(geo_pool, 'wordsize', wordsize)
-      call mpas_pool_get_config(geo_pool, 'signed', is_signed)
+      call mpas_pool_get_config(geo_pool, 'signed', signed)
       call mpas_pool_get_config(geo_pool, 'topo_dir_path', topo_dir_path)
       call mpas_pool_get_config(geo_pool, 'endian', endian)
       call mpas_pool_get_config(geo_pool, 'scalefactor', scalefactor)
 
-      if (is_signed) then
-         is_signed_int = 1
-      else
-         is_signed_int = 0
-      endif
-
-      x_bdr = tile_bdr * 2
-      y_bdr = tile_bdr * 2
+      nx = tile_nx
+      ny = tile_ny
+      nz = tile_nz
+      c_wordsize = wordsize
+      c_endian = endian
+      c_scalefactor = scalefactor
+      c_isigned = signed
 
       allocate(tile) ! Allocate the new node 
       allocate(tile%tile(tile_nx + (tile_bdr * 2), tile_ny + (tile_bdr * 2), tile_nz)) ! And its array to hold the tile
@@ -255,7 +239,6 @@ module mpas_geotile_manager
       call read_geogrid(c_fname, tile_ptr, nx, ny, nz, c_isigned, c_endian, c_scalefactor, c_wordsize, status)
       if (status /= 0) then
           call mpas_log_write("Error reading the geogrid "//fname, messageType=MPAS_LOG_CRIT)
-          stop
       endif
 
       tile % fname = fname
@@ -311,11 +294,11 @@ module mpas_geotile_manager
       call mpas_pool_get_config(geo_pool, 'dx', dx)
       call mpas_pool_get_config(geo_pool, 'dy', dy)
 
-      lat = lat * (180.0/pii)
-      lon = lon * (180.0/pii)
+      lat = lat * (180.0_RKIND/pii)
+      lon = lon * (180.0_RKIND/pii)
 
-      if (lon > 180) then
-         lon = lon - 360
+      if (lon > 180.0_RKIND) then
+         lon = lon - 360.0_RKIND
       end if
 
       x(1) = int( ( lon - known_lon) / dx)
@@ -441,12 +424,12 @@ module mpas_geotile_manager
       lat = (real((Y)) * dy ) + known_lat
       lon = (real((X)) * dx ) + known_lon
 
-      if ( lon < 0) then
-         lon = lon + 360
+      if ( lon < 0.0_RKIND) then
+         lon = lon + 360.0_RKIND
       endif
 
-      lat = lat * (pii/180.0)
-      lon = lon * (pii/180.0)
+      lat = lat * (pii/180.0_RKIND)
+      lon = lon * (pii/180.0_RKIND)
 
    end subroutine mpas_hash_to_latlon
 
@@ -492,8 +475,7 @@ module mpas_geotile_manager
             tile => top
             return
          class default
-            write(0,*) "BEERP!"
-            stop
+            call mpas_log_write("Error popping tile from mpas_stack - We got a type we didn't excpet", messageType=MPAS_LOG_CRIT)
       end select
 
    end function mpas_stack_pop_tile

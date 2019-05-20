@@ -88,16 +88,16 @@ module mpas_parse_geoindex
             allocate(int_t)
             read(rhs, *, iostat=READ_STAT, iomsg=READ_ERR_MSG) int_t
             call mpas_pool_add_config(geo_pool, trim(lhs), int_t)
-         ! Booleans
+         ! Booleans - Now assigned to 0 or 1
          else if (lhs == 'signed') then
             if (trim(rhs) == 'yes' .OR. trim(rhs) == 'true' .OR. trim(rhs) == 'True' .OR. trim(rhs) == 'TRUE') then 
-               allocate(bool_t)
-               bool_t = .TRUE.
-               call mpas_pool_add_config(geo_pool, trim(lhs), bool_t)
+               allocate(int_t)
+               int_t = 1
+               call mpas_pool_add_config(geo_pool, trim(lhs), int_t)
             else if (trim(rhs) == 'no' .OR. trim(rhs) == 'false' .OR. trim(rhs) == 'False' .OR. trim(rhs) == 'FALSE') then 
-               allocate(bool_t)
-               bool_t = .FALSE.
-               call mpas_pool_add_config(geo_pool, trim(lhs), bool_t)
+               allocate(int_t)
+               int_t = 0
+               call mpas_pool_add_config(geo_pool, trim(lhs), int_t)
             else
                READ_STAT = -1
                READ_ERR_MSG = "Logical was not correct type"

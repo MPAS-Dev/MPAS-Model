@@ -101,6 +101,8 @@
 
  integer(c_int):: nx,ny,nz
  integer(c_int):: endian,isigned,istatus,wordsize
+ integer :: f_endian
+ integer :: signed
  integer:: i,j,k
  integer :: ii, jj
  integer:: iCell,iEdge,iVtx,iPoint,iTileStart,iTileEnd,jTileStart,jTileEnd
@@ -378,7 +380,7 @@
  call mpas_pool_get_config(geog_pool, 'known_lon', start_lon)
  call mpas_pool_get_config(geog_pool, 'known_x', start_x)
  call mpas_pool_get_config(geog_pool, 'known_y', start_y)
- call mpas_pool_add_config(geog_pool, 'topo_dir_path', fname)
+ call mpas_pool_add_config(geog_pool, 'geog_dir_path', fname)
 
  f_endian = 0
  f_scalefactor = 1.0
@@ -392,8 +394,8 @@
  ! Create a hash table, mapping out each tile for quicker searching as
  ! well as enabling us to grab a tile's neighbors.
  !
- nTileX = int((360. / dx)) / tile_nx
- nTileY = int((180. / dy)) / tile_ny
+ nTileX = int((360.0_RKIND / dx)) / tile_nx
+ nTileY = int((180.0_RKIND / dy)) / tile_ny
  allocate(hash(0:nTileX, 0:nTileY)) 
 
  ! Add these values to the geo_pool
@@ -401,8 +403,8 @@
  call mpas_pool_add_config(geog_pool, 'nTileY', nTileY)
 
  ! Determine the amount of global pixels for this dataset
- pixel_nx = 360 / dx
- pixel_ny = 180 / dy
+ pixel_nx = 360.0_RKIND / dx
+ pixel_ny = 180.0_RKIND / dy
  call mpas_pool_add_config(geog_pool, 'pixel_nx', pixel_nx)
  call mpas_pool_add_config(geog_pool, 'pixel_ny', pixel_ny)
 
@@ -464,7 +466,7 @@
  ter(:) = 0
  ter_integer(:) = 0
 
- do cell = 1, nCells, 1
+ do cell = 1, nCells
 
     ! To insure that all the cells in our decompositions have values, check to see if 
     ! the nhs for that cells is greater then 0. If it is 0, then we have not added
@@ -478,7 +480,6 @@
     endif
 
     do while( .NOT. mpas_stack_is_empty(stack))
-      tile => null()
       tile => mpas_stack_pop_tile(stack)
 
       if ( tile % is_processed ) then
@@ -500,27 +501,26 @@
       ! we know that this tile is outside of our processor decomposition, so most likely
       ! so is its neighbors, so don't add them to the stack.
 
-      do j = 1 + tile_bdr, tile_ny + tile_bdr, 1
-         do i = 1 + tile_bdr, tile_nx + tile_bdr, 1
+      do j = 1 + tile_bdr, tile_ny + tile_bdr
+         do i = 1 + tile_bdr, tile_nx + tile_bdr
 
             tval = tile % tile(i, j, 1)
 
-            lat_pt = (j - (tile_bdr - 1) + real(tile % y(1)) - 1) * dy + start_lat
-            lon_pt = (i - (tile_bdr - 1) + real(tile % x(1)) - 1) * dx + start_lon
+            lat_pt = real((j - (tile_bdr + 1) + tile % y(1) - 1), kind=RKIND) * dy + start_lat
+            lon_pt = real((i - (tile_bdr + 1) + tile % x(1) - 1), kind=RKIND) * dx + start_lon
 
-            if (lon_pt < 0) then
-               lon_pt = lon_pt + 360
+            if (lon_pt < 0.0_RKIND) then
+               lon_pt = lon_pt + 360.0_RKIND
             endif
 
-            lat_pt = lat_pt * (pii / 180.0)
-            lon_pt = lon_pt * (pii / 180.0)
+            lat_pt = lat_pt * (pii / 180.0_RKIND)
+            lon_pt = lon_pt * (pii / 180.0_RKIND)
 
             ! Convert the pixel ll x, y to lat, lon and then to Cartesian coordinates
             ! (tile_bdr - 1) represents the 1 + tile_bdr start, and the later - 1 represent the
             ! subtraction to achieve zero based.
             call convert_lx(x, y, z, sphere_radius, lat_pt, lon_pt)
 
-            res => null()
             call mpas_kd_search(tree, (/x, y, z/), res)
 
             !
@@ -560,15 +560,12 @@
                   if (res % cell <= nCellsSolve) then
                      ALL_PIXELS_MAPPED_TO_HALO_CELLS = .FALSE.
                   endif
-
                endif
             endif
          enddo
       enddo
 
-      if (ALL_PIXELS_MAPPED_TO_HALO_CELLS) then
-         ! Pass - All tiles mapped to its halo cells, so don't add any tiles to the stack
-      else
+      if (.NOT. ALL_PIXELS_MAPPED_TO_HALO_CELLS) then
          ! Calculate the tile neighbors of the current tile and push them onto the stack
          call mpas_get_tile_neighbors(tile, up, down, left, right, geog_pool)
          call push_tile_neighbors(stack, up, down, left, right, hash, geog_pool)
@@ -578,7 +575,7 @@
 
  ! Since we are taking an average of all the pixels that map to  a cell, divide each cell's 
  ! terrain value by the number of pixels that we alloted to it.
- do i = 1, nCells, 1
+ do i = 1, nCells
     ter(i) = real(ter_integer(i), kind=R8KIND) / real(nhs(i), kind=R8KIND)
  enddo
 
@@ -591,8 +588,8 @@
  call mpas_stack_free(stack, free_payload=.TRUE.)
 
  ! Use the hash table to deallocate each tile and then the hash itself.
- do i = 0, nTileX, 1
-    do j = 0, nTileY, 1
+ do i = 0, nTileX
+    do j = 0, nTileY
        if(associated(hash(i, j) % ptr)) then
           deallocate(hash(i, j) % ptr % tile)
           deallocate(hash(i, j) % ptr)
@@ -627,7 +624,6 @@
 
  allocate(tile_bdr)
  tile_bdr = 0
- isigned = .False.
 
  ! Read the index file for the choosen landuse dataset
  fname = trim(geog_data_path)//trim(geog_sub_path)
@@ -643,23 +639,18 @@
  call mpas_pool_get_config(geog_pool, 'known_x', start_x)
  call mpas_pool_get_config(geog_pool, 'known_y', start_y)
  call mpas_pool_add_config(geog_pool, 'tile_bdr', tile_bdr)
- call mpas_pool_add_config(geog_pool, 'topo_dir_path', fname)
- call mpas_pool_add_config(geog_pool, 'signed', isigned_bool)
+ call mpas_pool_add_config(geog_pool, 'geog_dir_path', fname)
 
  f_endian = 0
  f_scalefactor = 1.0
+ signed = 0
  call mpas_pool_add_config(geog_pool, 'endian', f_endian)
  call mpas_pool_add_config(geog_pool, 'scalefactor', f_scalefactor)
+ call mpas_pool_add_config(geog_pool, 'signed', signed)
 
  ! Initalize the hash table
- !
- ! The tile_hash is used when searching, getting and adding tiles.
- ! See get_tile(...), search_tile(...) and add_tile(...)
- ! Create a hash table, mapping out each tile for quicker searching as
- ! well as enabling us to grab a tile's neighbors.
- !
- nTileX = int((360. / dx)) / tile_nx
- nTileY = int((180. / dy)) / tile_ny
+ nTileX = int((360.0_RKIND / dx)) / tile_nx
+ nTileY = int((180.0_RKIND / dy)) / tile_ny
  allocate(hash(0:nTileX, 0:nTileY)) 
 
  call mpas_log_write("nTileX: $i", intArgs=(/nTileX/))
@@ -670,8 +661,8 @@
  call mpas_pool_add_config(geog_pool, 'nTileY', nTileY)
 
  ! Determine the amount of global pixels for this dataset
- pixel_nx = 360 / dx
- pixel_ny = 180 / dy
+ pixel_nx = 360.0_RKIND / dx
+ pixel_ny = 180.0_RKIND / dy
  call mpas_pool_add_config(geog_pool, 'pixel_nx', pixel_nx)
  call mpas_pool_add_config(geog_pool, 'pixel_ny', pixel_ny)
 
@@ -681,9 +672,9 @@
  num_processed_tiles = 0
  allocate(ncat(ismax_lu,nCells))
  ncat(:,:) = 0
- lu_index(:) = 0.0
+ lu_index(:) = 0
 
- do cell = 1, nCells, 1
+ do cell = 1, nCells
 
    if (all(ncat(:,cell) == 0)) then
       call mpas_get_tile(latCell(cell), lonCell(cell), tile, hash, geog_pool)
@@ -691,7 +682,6 @@
    endif
 
    do while ( .NOT. mpas_stack_is_empty(stack))
-      tile => null()
       tile => mpas_stack_pop_tile(stack)
 
       if ( tile % is_processed ) then
@@ -707,16 +697,10 @@
       do j = 1 + tile_bdr, tile_ny + tile_bdr
          do i = 1 + tile_bdr, tile_nx + tile_bdr
 
-            !call mpas_log_write("about to read the tile: ")
-            !write(0,*) tile % tile
-
-            !call mpas_log_write("This Cat: i: $i j: $i - cat: $i ", intArgs=(/i, j, int(tile % tile(i,j))/))
-
-
-            lat_pt = (j - (tile_bdr + 1) + real(tile % y(1)) - 1) * dy + start_lat
-            lon_pt = (i - (tile_bdr + 1) + real(tile % x(1)) - 1) * dx + start_lon
+            lat_pt = real((j - (tile_bdr + 1) + tile % y(1)) - 1, kind=RKIND) * dy + start_lat
+            lon_pt = real((i - (tile_bdr + 1) + tile % x(1)) - 1, kind=RKIND) * dx + start_lon
          
-            if (lon_pt < 0) then
+            if (lon_pt < 0.0_RKIND) then
                lon_pt = lon_pt + 360.0_RKIND
             endif
 
@@ -756,9 +740,7 @@
              end if
          enddo
       enddo
-      if (ALL_PIXELS_MAPPED_TO_HALO_CELLS) then
-         ! Pass - All pixels mapped to a halo cell, so don't add any neighboring tiles to the stack
-      else
+      if (.NOT. ALL_PIXELS_MAPPED_TO_HALO_CELLS) then
          call mpas_get_tile_neighbors(tile, up, down, left, right, geog_pool)
          call push_tile_neighbors(stack, up, down, left, right, hash, geog_pool)
       endif
@@ -815,7 +797,7 @@
  call mpas_pool_get_config(geog_pool, 'known_x', start_x)
  call mpas_pool_get_config(geog_pool, 'known_y', start_y)
  call mpas_pool_add_config(geog_pool, 'tile_bdr', tile_bdr)
- call mpas_pool_add_config(geog_pool, 'topo_dir_path', fname)
+ call mpas_pool_add_config(geog_pool, 'geog_dir_path', fname)
 
  f_endian = 0
  f_scalefactor = 1.0
@@ -1085,7 +1067,7 @@
     call mpas_pool_get_config(geog_pool, 'known_y', start_y)
     call mpas_pool_get_config(geog_pool, 'tile_bdr', tile_bdr)
     call mpas_pool_add_config(geog_pool, 'scalefactor', f_scalefactor)
-    call mpas_pool_add_config(geog_pool, 'topo_dir_path', fname)
+    call mpas_pool_add_config(geog_pool, 'geog_dir_path', fname)
 
     endian = 0
     msgval = real(-999.0,kind=R4KIND)*real(0.01,kind=R4KIND)
@@ -1703,6 +1685,12 @@
  end if
 
  call mpas_log_write('--- end interpolate ALBEDO12M')
+
+ ! Deallocate the kdcords
+ do i = 1, nCells ! TODO: Update mpas_kd_tree so we can call that module to free this
+    deallocate(kdcords(i) % point)
+ enddo
+ deallocate(kdcords)
 
  end subroutine init_atm_static
 
