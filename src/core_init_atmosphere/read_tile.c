@@ -21,6 +21,7 @@
          integer (c_int), intent(in), value :: x_halo
          integer (c_int), intent(in), value :: y_halo
          integer (c_int), intent(in), value :: word_size
+         integer (c_int), intent(in), value :: is_signed
          type (c_ptr), value :: tile
       end function c_get_tile
    end interface
@@ -70,7 +71,8 @@ int c_get_tile(char *file,
                int ny, 
                int x_halo, 
                int y_halo, 
-               int word_size, 
+               int word_size,
+               int is_signed,
                float* tile)
 {
     int fd;                /* File Descriptor */
@@ -105,6 +107,9 @@ int c_get_tile(char *file,
 
     for(i=0; i < narray ; i++){
         switch(word_size) {
+            case 1:
+               tile_1d[i] = (float)(buf[i]);
+               break;
             case 2: 
                 /* Shift the first byte read by 8 bytes to make room for the 
                  * 2nd byte we have read.
@@ -116,9 +121,11 @@ int c_get_tile(char *file,
                  * at the most significant bit (MSB) for an 8-bit value, but it 
                  * needs to bet at the MSB for a 16-bit value.
                  */
-                if(buf[word_size * i] >> 7 == 1)
-                    value -= 1 << ( 8 * word_size);
-                tile_1d[i] = (float) value;
+                if (is_signed) {
+                   if(buf[word_size * i] >> 7 == 1)
+                       value -= 1 << ( 8 * word_size);
+                   tile_1d[i] = (float) value;
+                }
                 break;
         }
     }

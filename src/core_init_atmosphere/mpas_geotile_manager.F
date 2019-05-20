@@ -163,6 +163,7 @@ module mpas_geotile_manager
 
       implicit none
 
+<<<<<<< HEAD
       interface
          subroutine read_geogrid(fname, rarray, nx, ny, nz, isigned, endian, &
                                  scalefactor, wordsize, status) bind(C)
@@ -179,6 +180,21 @@ module mpas_geotile_manager
             integer (c_int), intent(inout) :: status
          end subroutine read_geogrid
       end interface
+=======
+   interface
+      integer (c_int) function c_get_tile(file, nx, ny, x_halo, y_halo, word_size, is_signed, tile) bind(C)
+         use iso_c_binding, only : c_int, c_char, c_float, c_ptr
+         character (c_char), intent(in) :: file
+         integer (c_int), intent(in), value :: nx
+         integer (c_int), intent(in), value :: ny
+         integer (c_int), intent(in), value :: x_halo
+         integer (c_int), intent(in), value :: y_halo
+         integer (c_int), intent(in), value :: word_size
+         integer (c_int), intent(in), value :: is_signed
+         type (c_ptr), value :: tile
+      end function c_get_tile
+   end interface
+>>>>>>> 8f61fe8... Parallelized Interpolation of Land Use
 
       ! Input values
       real (kind=RKIND), intent(in), value :: lat, lon
@@ -198,6 +214,8 @@ module mpas_geotile_manager
 
       integer, pointer :: wordsize
       integer :: x_bdr, y_bdr
+      logical, pointer :: is_signed
+      integer (c_int) :: is_signed_int
 
       real :: lat_deg, lon_deg
 
@@ -210,12 +228,16 @@ module mpas_geotile_manager
       call mpas_pool_get_config(geo_pool, 'tile_z', tile_nz)
       call mpas_pool_get_config(geo_pool, 'tile_bdr', tile_bdr)
       call mpas_pool_get_config(geo_pool, 'wordsize', wordsize)
-      call mpas_pool_get_config(geo_pool, 'signed', signed)
-      call mpas_pool_get_config(geo_pool, 'endian', endian)
-      call mpas_pool_get_config(geo_pool, 'scalefactor', scalefactor)
+      call mpas_pool_get_config(geo_pool, 'signed', is_signed)
       call mpas_pool_get_config(geo_pool, 'topo_dir_path', topo_dir_path)
       call mpas_pool_get_config(geo_pool, 'endian', endian)
       call mpas_pool_get_config(geo_pool, 'scalefactor', scalefactor)
+
+      if (is_signed) then
+         is_signed_int = 1
+      else
+         is_signed_int = 0
+      endif
 
       x_bdr = tile_bdr * 2
       y_bdr = tile_bdr * 2
