@@ -797,72 +797,120 @@
 !
 ! Interpolate SOILCAT_TOP
 !
- nx = 1200
- ny = 1200
- nz = 1
- isigned     = 1
- endian      = 0
- wordsize    = 1
- scalefactor = 1.0
- allocate(rarray(nx,ny,nz))
+   
+ ! Read the index file for the choosen landuse dataset
+ fname = trim(geog_data_path)//'soiltype_top_30s/'
+
+ call mpas_pool_create_pool(geog_pool)
+ call mpas_parse_index(fname, geog_pool)
+ call mpas_pool_get_config(geog_pool, 'dx', dx) ! The distance between two pixels
+ call mpas_pool_get_config(geog_pool, 'dy', dy) ! The distance between two pixels
+ call mpas_pool_get_config(geog_pool, 'tile_x', tile_nx) ! The number of pixels between two tiles
+ call mpas_pool_get_config(geog_pool, 'tile_y', tile_ny) ! The number of pixels between two tiles
+ call mpas_pool_get_config(geog_pool, 'known_lat', start_lat)
+ call mpas_pool_get_config(geog_pool, 'known_lon', start_lon)
+ call mpas_pool_get_config(geog_pool, 'known_x', start_x)
+ call mpas_pool_get_config(geog_pool, 'known_y', start_y)
+ call mpas_pool_add_config(geog_pool, 'tile_bdr', tile_bdr)
+ call mpas_pool_add_config(geog_pool, 'topo_dir_path', fname)
+
+ f_endian = 0
+ f_scalefactor = 1.0
+ signed = 1
+ call mpas_pool_add_config(geog_pool, 'endian', f_endian)
+ call mpas_pool_add_config(geog_pool, 'scalefactor', f_scalefactor)
+ call mpas_pool_add_config(geog_pool, 'signed', signed)
+
+ nTileX = int((360.0_RKIND / dx)) / tile_nx
+ nTileY = int((180.0_RKIND / dy)) / tile_ny
+ allocate(hash(0:nTileX, 0:nTileY))
+
+ call mpas_pool_add_config(geog_pool, 'nTileX', nTileX)
+ call mpas_pool_add_config(geog_pool, 'nTileY', nTileY)
+
+ pixel_nx = 360.0_RKIND / dx
+ pixel_ny = 180.0_RKIND / dy
+ call mpas_pool_add_config(geog_pool, 'pixel_nx', pixel_nx)
+ call mpas_pool_add_config(geog_pool, 'pixel_ny', pixel_ny)
+
  allocate(ncat(16,nCells))
  ncat(:,:) = 0
  soilcat_top(:) = 0.0
 
- rarray_ptr = c_loc(rarray)
+ num_processed_tiles = 0
 
- do jTileStart = 1,20401,ny
-    jTileEnd = jTileStart + ny - 1
+ do cell = 1, nCells
 
-    do iTileStart = 1,42001,nx
-       iTileEnd = iTileStart + nx - 1
-       write(fname,'(a,i5.5,a1,i5.5,a1,i5.5,a1,i5.5)') trim(geog_data_path)// &
-             'soiltype_top_30s/',iTileStart,'-',iTileEnd,'.',jTileStart,'-',jTileEnd
-       call mpas_log_write(trim(fname))
-       call mpas_f_to_c_string(fname, c_fname)
+   if (all(ncat(:,cell) == 0)) then
+      call mpas_get_tile(latCell(cell), lonCell(cell), tile, hash, geog_pool)
+      stack => mpas_stack_push(stack, tile)
+   endif
 
-       call read_geogrid(c_fname,rarray_ptr,nx,ny,nz,isigned,endian, &
-                         scalefactor,wordsize,istatus)
-       call init_atm_check_read_error(istatus, fname)
+   do while ( .NOT. mpas_stack_is_empty(stack))
+      tile => mpas_stack_pop_tile(stack)
 
-       iPoint = 1
-       do j=1,ny
-       do i=1,nx
-          lat_pt = -89.99583  + (jTileStart + j - 2) * 0.0083333333
-          lon_pt = -179.99583 + (iTileStart + i - 2) * 0.0083333333
-          lat_pt = lat_pt * PI / 180.0
-          lon_pt = lon_pt * PI / 180.0
+      if ( tile % is_processed ) then
+         cycle
+      else
+         tile % is_processed = .TRUE.
+      endif
 
-          iPoint = nearest_cell(lat_pt,lon_pt,iPoint,nCells,maxEdges, &
-                                nEdgesOnCell,cellsOnCell, &
-                                latCell,lonCell)
+      ALL_PIXELS_MAPPED_TO_HALO_CELLS = .TRUE.
+      
+      num_processed_tiles = num_processed_tiles + 1
+      call mpas_log_write("Processing a Soil category tile ... $i - "//trim(tile%fname), intArgs=(/num_processed_tiles/))
 
-          !
-          ! For all but the outermost boundary cells, we can safely assume that the nearest
-          ! model grid cell contains the pixel (else, a different cell would be nearest)
-          !
-          if (bdyMaskCell(iPoint) < nBdyLayers) then
-             ncat(int(rarray(i,j,1)),iPoint) = ncat(int(rarray(i,j,1)),iPoint) + 1
+      do j = 1 + tile_bdr, tile_ny + tile_bdr
+         do i = 1 + tile_bdr, tile_nx + tile_bdr
+   
+            lat_pt = real((j - (tile_bdr + 1) + tile % y(1)) - 1, kind=RKIND) * dy + start_lat
+            lon_pt = real((i - (tile_bdr + 1) + tile % x(1)) - 1, kind=RKIND) * dx + start_lon
 
-          ! For outermost boundary cells, additional work is needed to verify that the pixel
-          ! actually lies within the nearest cell
-          else
-             zPixel = sphere_radius * sin(lat_pt)                  ! Model cell coordinates assume a "full" sphere radius
-             xPixel = sphere_radius * cos(lon_pt) * cos(lat_pt)    ! at this point, so we need to ues the same radius
-             yPixel = sphere_radius * sin(lon_pt) * cos(lat_pt)    ! for source pixel coordinates
+            if (lon_pt < 0.0_RKIND) then
+               lon_pt = lon_pt + 360.0_RKIND
+            endif
 
-             if (in_cell(xPixel, yPixel, zPixel, xCell(iPoint), yCell(iPoint), zCell(iPoint), &
-                         nEdgesOnCell(iPoint), verticesOnCell(:,iPoint), xVertex, yVertex, zVertex)) then
+            lat_pt = lat_pt * (pii/180.0_RKIND)
+            lon_pt = lon_pt * (pii/180.0_RKIND)
 
-                ncat(int(rarray(i,j,1)),iPoint) = ncat(int(rarray(i,j,1)),iPoint) + 1
+            call convert_lx(x, y, z, sphere_radius, lat_pt, lon_pt)
+            call mpas_kd_search(tree, (/x, y, z/), res)
 
+             !
+             ! For all but the outermost boundary cells, we can safely assume that the nearest
+             ! model grid cell contains the pixel (else, a different cell would be nearest)
+             !
+             if (bdyMaskCell(res % cell) < nBdyLayers) then
+                ncat(int(tile % tile(i,j,1)), res % cell) = ncat(int(tile % tile(i,j,1)), res % cell) + 1
+
+                if (res % cell <= nCellsSolve) then
+                   ALL_PIXELS_MAPPED_TO_HALO_CELLS = .FALSE.
+                endif
+             ! For outermost boundary cells, additional work is needed to verify that the pixel
+             ! actually lies within the nearest cell
+             else
+                zPixel = sphere_radius * sin(lat_pt)                  ! Model cell coordinates assume a "full" sphere radius
+                xPixel = sphere_radius * cos(lon_pt) * cos(lat_pt)    ! at this point, so we need to ues the same radius
+                yPixel = sphere_radius * sin(lon_pt) * cos(lat_pt)    ! for source pixel coordinates
+
+                if (in_cell(xPixel, yPixel, zPixel, xCell(res % cell), yCell(res % cell), zCell(res % cell), &
+                            nEdgesOnCell(res % cell), verticesOnCell(:,res % cell), xVertex, yVertex, zVertex)) then
+
+                   ncat(int(tile % tile(i,j,1)), res % cell) = ncat(int(tile % tile(i,j,1)), res % cell) + 1
+
+                   if (res % cell <= nCellsSolve) then
+                      ALL_PIXELS_MAPPED_TO_HALO_CELLS = .FALSE.
+                   endif
+                end if
              end if
-          end if
-       end do
-       end do
-
-    end do
- end do
+         enddo
+      enddo
+      if (.not. ALL_PIXELS_MAPPED_TO_HALO_CELLS) then
+         call mpas_get_tile_neighbors(tile, up, down, left, right, geog_pool)
+         call push_tile_neighbors(stack, up, down, left, right, hash, geog_pool)
+      endif
+   enddo
+ enddo
 
  do iCell = 1,nCells
     soilcat_top(iCell) = 1
@@ -872,8 +920,24 @@
        end if
     end do
  end do
- deallocate(rarray)
  deallocate(ncat)
+
+ ! Deallocate the stack
+ call mpas_stack_free(stack, free_payload=.TRUE.)
+
+ ! Use the hash table to deallocate each tile and then the hash itself.
+ do i = 0, nTileX
+    do j = 0, nTileY
+       if(associated(hash(i, j) % ptr)) then
+          deallocate(hash(i, j) % ptr % tile)
+          deallocate(hash(i, j) % ptr)
+       endif
+    enddo
+ enddo
+ deallocate(hash)
+
+ call mpas_pool_destroy_pool(geog_pool)
+
  call mpas_log_write('--- end interpolate SOILCAT_TOP')
 
 
