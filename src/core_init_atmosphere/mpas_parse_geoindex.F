@@ -78,13 +78,16 @@ module mpas_parse_geoindex
             allocate(char_t)
             char_t = rhs   
             call mpas_pool_add_config(geo_pool, trim(lhs), char_t)
+         ! Reals
          else if ( trim(lhs) == 'dx' .OR. trim(lhs) == 'dy' .OR. trim(lhs) == 'known_x' .OR. trim(lhs) == 'known_y' &
-              .OR. trim(lhs) == 'known_lat' .OR. trim(lhs) == 'known_lon') then ! Reals
+              .OR. trim(lhs) == 'known_lat' .OR. trim(lhs) == 'known_lon' .OR. trim(lhs) == 'scale_factor') then
             allocate(real_t)
             read(rhs, *, iostat=READ_STAT, iomsg=READ_ERR_MSG) real_t
             call mpas_pool_add_config(geo_pool, trim(lhs), real_t)
+         ! Integers
          else if (trim(lhs) == 'tile_x' .OR. trim(lhs) == 'tile_y' .OR. trim(lhs) == 'tile_z' .OR. trim(lhs) == 'tile_bdr' &
-             .OR. trim(lhs) == 'wordsize') then ! Integers
+             .OR. trim(lhs) == 'wordsize' .OR. trim(lhs) == 'category_max' .OR. trim(lhs) == 'category_min' &
+             .OR. trim(lhs) == 'missing_value') then
             allocate(int_t)
             read(rhs, *, iostat=READ_STAT, iomsg=READ_ERR_MSG) int_t
             call mpas_pool_add_config(geo_pool, trim(lhs), int_t)
