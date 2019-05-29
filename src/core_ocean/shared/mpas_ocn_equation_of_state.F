@@ -58,11 +58,15 @@ module ocn_equation_of_state
    !--------------------------------------------------------------------
 
 <<<<<<< HEAD
+<<<<<<< HEAD
    integer ::                   &
       ocnEqStateChoice           ! user choice of eq state method
 =======
    logical :: linearEos, jmEos, tEos10
 >>>>>>> added teos10 option in config_eos_type and eos.F
+=======
+   logical :: linearEos, jmEos, teos10
+>>>>>>> restored generic eos.F and added teos10 option
 
    integer, parameter ::        &! supported equation of state methods
       ocnEqStateTypeLinear = 1, &! linear equation of state
@@ -239,12 +243,11 @@ contains
          call ocn_equation_of_state_jm_density(meshPool, scratchPool, nCells, k_displaced, displacement_type, indexT, indexS, &
                                                activeTracers, density, err, tracersSurfaceValue, thermalExpansionCoeff, &
                                                salineContractionCoeff)
-      elseif (tEos10) then
+      elseif (teos10) then
 
          call ocn_equation_of_state_teos10_density(meshPool, scratchPool, nCells, k_displaced, displacement_type, indexT, indexS, &
                                                activeTracers, density, err, tracersSurfaceValue, thermalExpansionCoeff, &
                                                salineContractionCoeff)
-
 
       endif
 >>>>>>> added teos10 option in config_eos_type and eos.F
@@ -268,7 +271,7 @@ contains
 !
 !----------------------------------------------------------------------
 
-   subroutine ocn_equation_of_state_init(domain, err)!{{{
+   subroutine ocn_equation_of_state_init(err)!{{{
 
    !--------------------------------------------------------------------
 
@@ -282,7 +285,6 @@ contains
       !-----------------------------------------------------------------
       ! Output variables
       !-----------------------------------------------------------------
-      type (domain_type), intent(inout) :: domain !< Input/Output: domain information
 
       integer, intent(out) :: err
 
@@ -313,8 +315,12 @@ contains
 =======
       linearEos = .false.
       jmEos = .false.
+<<<<<<< HEAD
       tEos10 = .false.
 >>>>>>> added teos10 option in config_eos_type and eos.F
+=======
+      teos10 = .false.
+>>>>>>> restored generic eos.F and added teos10 option
 
          ocnEqStateChoice  = ocnEqStateTypeLinear
          call ocn_equation_of_state_linear_init(err)
@@ -334,8 +340,8 @@ contains
          jmEos = .true.
          call ocn_equation_of_state_jm_init(err)
       elseif (config_eos_type.eq.'teos10') then
-         tEos10 = .true.
-         call ocn_equation_of_state_teos10_init(domain, err)
+         teos10 = .true.
+         call ocn_equation_of_state_teos10_init(err)
       else
          call mpas_log_write('Invalid choice for config_eos_type. Choices are: linear, jm, teos10')
 >>>>>>> added teos10 option in config_eos_type and eos.F
