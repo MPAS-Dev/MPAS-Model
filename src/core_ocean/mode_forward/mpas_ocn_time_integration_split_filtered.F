@@ -113,7 +113,7 @@ contains
       type (mpas_pool_type), pointer :: swForcingPool
 
       type (dm_info) :: dminfo
-      integer :: iCell, i,k,j, iEdge, cell1, cell2, split_explicit_step, split, &
+      integer :: mpiRank, iCell, i,k,j, iEdge, cell1, cell2, split_explicit_step, split, &
          eoe, oldBtrSubcycleTime, newBtrSubcycleTime, uPerpTime, BtrCorIter, &
          stage1_tend_time
       integer, dimension(:), allocatable :: n_bcl_iter
@@ -239,7 +239,15 @@ contains
       ! Primary and Secondary Weights of the Time-Averaging Filter
       real (kind=RKIND), allocatable, dimension(:) :: tau, PrimaryWeights, SecondaryWeights
       
-      CALL TestFilterRoutines()
+      dminfo = domain % dminfo
+      mpiRank = dminfo % my_proc_id
+      
+      IF (mpiRank == 0) THEN
+         WRITE (*,'(A,I2)') 'Hello from MPI Rank ID: ', mpiRank
+         CALL TestFilterRoutines()
+      END IF
+
+      STOP 
 
       call mpas_timer_start("se timestep")
 

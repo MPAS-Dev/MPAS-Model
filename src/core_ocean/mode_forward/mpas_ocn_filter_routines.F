@@ -43,7 +43,8 @@ CONTAINS
    
    nX = UBOUND(x,1)
    
-   OPEN (UNIT=1, FILE=TRIM(filename)//'.curve', FORM='FORMATTED')
+   OPEN (UNIT=1, FILE=TRIM(filename)//'.curve', ACTION='WRITE', &
+         FORM='FORMATTED')
    
    WRITE (1,*) '#phi'
    
@@ -94,7 +95,8 @@ CONTAINS
    nX = UBOUND(Matrix,1) 
    nY = UBOUND(Matrix,2)
    
-   OPEN (UNIT=1, FILE=TRIM(filename)//'.txt', FORM='FORMATTED')
+   OPEN (UNIT=1, FILE=TRIM(filename)//'.txt', STATUS='NEW', ACTION='WRITE', &
+         FORM='FORMATTED')
    
    DO iX = 1, nX
       DO iY = 1, nY
@@ -1289,7 +1291,7 @@ CONTAINS
    
    IMPLICIT NONE
 
-   CALL TestInverseMatrix()
+!  CALL TestInverseMatrix()
    CALL TestNewtonRaphsonSolverForSystem()
    CALL RunNewtonRaphsonSolverForDeterminingShchepetkinFilterParameters()
    CALL TestNewtonRaphsonSolverForDeterminingShchepetkinFilterEndPoint(2._RKIND, &
