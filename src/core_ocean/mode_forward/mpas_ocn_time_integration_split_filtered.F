@@ -242,12 +242,14 @@ contains
       dminfo = domain % dminfo
       mpiRank = dminfo % my_proc_id
       
+      ! To Do: Move the following section of code within the omp master directives to the subroutine ocn_time_integration_split_filtered_init
+      
+      !$omp master
       IF (mpiRank == 0) THEN
          WRITE (*,'(A,I2)') 'Hello from MPI Rank ID: ', mpiRank
          CALL TestFilterRoutines()
-      END IF
-
-      STOP 
+      END IF 
+      !$omp end master
 
       call mpas_timer_start("se timestep")
 
