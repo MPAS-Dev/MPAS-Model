@@ -13,13 +13,12 @@ endif()
 
 include(${CASEROOT}/Macros.cmake)
 
-# JGF TODO Check for build_options.mk
 set(EXE_NAME ${CORE}_model)
 set(NAMELIST_SUFFIX ${CORE})
 
 # Map the ESM component corresponding to each MPAS core
 if (CORE STREQUAL "ocean")
-  set(COMPONENT ocn)
+  set(COMPONENT "ocn")
 elseif(CORE STREQUAL "landice")
   set(COMPONENT "glc")
 elseif(CORE STREQUAL "seaice")
@@ -44,11 +43,15 @@ if (compile_threaded)
   set(CPPDEFS "${CPPDEFS} -DMPAS_OPENMP")
 endif()
 
-set(INCLUDES "-I${INSTALL_SHAREDPATH}/include -I${INSTALL_SHAREDPATH}/${COMP_INTERFACE}/${ESMFDIR}/${NINST_VALUE}/csm_share -I${NETCDF_PATH}/include -I${INSTALL_SHAREDPATH}/pio -I${PNETCDF_PATH}/include -I${CMAKE_CURRENT_SOURCE_DIR}/external/ezxml")
+set(INCLUDES "-I${INSTALL_SHAREDPATH}/include -I${INSTALL_SHAREDPATH}/${COMP_INTERFACE}/${ESMFDIR}/${NINST_VALUE}/csm_share -I${NETCDF_PATH}/include -I${INSTALL_SHAREDPATH}/pio -I${PNETCDF_PATH}/include -I${CMAKE_CURRENT_SOURCE_DIR}/external/ezxml -I${CMAKE_BINARY_DIR}/framework -I${CMAKE_BINARY_DIR}/operators")
 
+# build_options.mk stuff handled here
 if (CORE STREQUAL "ocean")
   set(CPPDEFS "${CPPDEFS} -DCORE_OCEAN")
-  set(INCLUDES "${INCLUDES} -I${CMAKE_BINARY_DIR}/framework -I${CMAKE_BINARY_DIR}/operators -I${CMAKE_BINARY_DIR}/core_ocean/BGC -I${CMAKE_BINARY_DIR}/core_ocean/shared -I${CMAKE_BINARY_DIR}/core_ocean/analysis_members -I${CMAKE_BINARY_DIR}/core_ocean/cvmix -I${CMAKE_BINARY_DIR}/core_ocean/mode_forward -I${CMAKE_BINARY_DIR}/core_ocean/mode_analysis -I${CMAKE_BINARY_DIR}/core_ocean/mode_init")
+  set(INCLUDES "${INCLUDES} -I${CMAKE_BINARY_DIR}/core_ocean/BGC -I${CMAKE_BINARY_DIR}/core_ocean/shared -I${CMAKE_BINARY_DIR}/core_ocean/analysis_members -I${CMAKE_BINARY_DIR}/core_ocean/cvmix -I${CMAKE_BINARY_DIR}/core_ocean/mode_forward -I${CMAKE_BINARY_DIR}/core_ocean/mode_analysis -I${CMAKE_BINARY_DIR}/core_ocean/mode_init")
+elseif (CORE STREQUAL "seaice")
+  set(CPPDEFS "${CPPDEFS} -DCORE_SEAICE -Dcoupled -DCCSMCOUPLED")
+  set(INCLUDES "${INCLUDES} -I${CMAKE_BINARY_DIR}/core_seaice/column -I${CMAKE_BINARY_DIR}/core_seaice/shared -I${CMAKE_BINARY_DIR}/core_seaice/analysis_members -I${CMAKE_BINARY_DIR}/core_seaice/model_forward")
 endif()
 
 
@@ -126,251 +129,104 @@ list(APPEND RAW_SOURCES
   operators/mpas_geometry_utils.F
 )
 
-# driver (files live in E3SM)
-list(APPEND RAW_SOURCES
-  ../../mpas-ocean/driver/ocn_comp_mct.F
-  ../../mpas-ocean/driver/mpaso_cpl_indices.F
-  ../../mpas-ocean/driver/mpaso_mct_vars.F
-)
+# Make build tools
+set(CMAKE_C_COMPILER ${SCC})
+add_executable(streams_gen tools/input_gen/streams_gen.c tools/input_gen/test_functions.c external/ezxml/ezxml.c)
+target_compile_definitions(streams_gen PRIVATE ${CPPDEFS_LIST})
+target_compile_options(streams_gen PRIVATE "-Uvector")
 
-# dycore
-list(APPEND RAW_SOURCES
-  core_ocean/mode_forward/mpas_ocn_forward_mode.F
-  core_ocean/mode_forward/mpas_ocn_time_integration.F
-  core_ocean/mode_forward/mpas_ocn_time_integration_rk4.F
-  core_ocean/mode_forward/mpas_ocn_time_integration_split.F
+add_executable(namelist_gen tools/input_gen/namelist_gen.c tools/input_gen/test_functions.c external/ezxml/ezxml.c)
+target_compile_definitions(namelist_gen PRIVATE ${CPPDEFS_LIST})
+target_compile_options(namelist_gen PRIVATE "-Uvector")
 
-  core_ocean/mode_analysis/mpas_ocn_analysis_mode.F
+add_executable(parse tools/registry/parse.c tools/registry/dictionary.c tools/registry/gen_inc.c tools/registry/fortprintf.c tools/registry/utility.c external/ezxml/ezxml.c)
+target_compile_definitions(parse PRIVATE ${CPPDEFS_LIST})
+target_compile_options(parse PRIVATE "-Uvector")
+set(CMAKE_C_COMPILER ${MPICC})
 
-  core_ocean/mode_init/mpas_ocn_init_mode.F
-  core_ocean/mode_init/mpas_ocn_init_spherical_utils.F
-  core_ocean/mode_init/mpas_ocn_init_vertical_grids.F
-  core_ocean/mode_init/mpas_ocn_init_cell_markers.F
-  core_ocean/mode_init/mpas_ocn_init_interpolation.F
-  core_ocean/mode_init/mpas_ocn_init_ssh_and_landIcePressure.F
-  core_ocean/mode_init/mpas_ocn_init_baroclinic_channel.F
-  core_ocean/mode_init/mpas_ocn_init_lock_exchange.F
-  core_ocean/mode_init/mpas_ocn_init_dam_break.F
-  core_ocean/mode_init/mpas_ocn_init_internal_waves.F
-  core_ocean/mode_init/mpas_ocn_init_overflow.F
-  core_ocean/mode_init/mpas_ocn_init_cvmix_WSwSBF.F
-  core_ocean/mode_init/mpas_ocn_init_iso.F
-  core_ocean/mode_init/mpas_ocn_init_soma.F
-  core_ocean/mode_init/mpas_ocn_init_ziso.F
-  core_ocean/mode_init/mpas_ocn_init_sub_ice_shelf_2D.F
-  core_ocean/mode_init/mpas_ocn_init_periodic_planar.F
-  core_ocean/mode_init/mpas_ocn_init_ecosys_column.F
-  core_ocean/mode_init/mpas_ocn_init_sea_mount.F
-  core_ocean/mode_init/mpas_ocn_init_global_ocean.F
-  core_ocean/mode_init/mpas_ocn_init_isomip.F
-  core_ocean/mode_init/mpas_ocn_init_isomip_plus.F
-  core_ocean/mode_init/mpas_ocn_init_tidal_boundary.F
-
-  core_ocean/driver/mpas_ocn_core.F
-  core_ocean/driver/mpas_ocn_core_interface.F
-
-  core_ocean/shared/mpas_ocn_init_routines.F
-  core_ocean/shared/mpas_ocn_gm.F
-  core_ocean/shared/mpas_ocn_diagnostics.F
-  core_ocean/shared/mpas_ocn_diagnostics_routines.F
-  core_ocean/shared/mpas_ocn_thick_ale.F
-  core_ocean/shared/mpas_ocn_equation_of_state.F
-  core_ocean/shared/mpas_ocn_equation_of_state_jm.F
-  core_ocean/shared/mpas_ocn_equation_of_state_linear.F
-  core_ocean/shared/mpas_ocn_thick_hadv.F
-  core_ocean/shared/mpas_ocn_thick_vadv.F
-  core_ocean/shared/mpas_ocn_thick_surface_flux.F
-  core_ocean/shared/mpas_ocn_vel_coriolis.F
-  core_ocean/shared/mpas_ocn_vel_vadv.F
-  core_ocean/shared/mpas_ocn_vel_hmix.F
-  core_ocean/shared/mpas_ocn_vel_hmix_del2.F
-  core_ocean/shared/mpas_ocn_vel_hmix_leith.F
-  core_ocean/shared/mpas_ocn_vel_hmix_del4.F
-  core_ocean/shared/mpas_ocn_vel_forcing.F
-  core_ocean/shared/mpas_ocn_vel_forcing_surface_stress.F
-  core_ocean/shared/mpas_ocn_vel_forcing_explicit_bottom_drag.F
-  core_ocean/shared/mpas_ocn_vel_forcing_rayleigh.F
-  core_ocean/shared/mpas_ocn_vel_pressure_grad.F
-  core_ocean/shared/mpas_ocn_vmix.F
-  core_ocean/shared/mpas_ocn_vmix_coefs_const.F
-  core_ocean/shared/mpas_ocn_vmix_coefs_rich.F
-  core_ocean/shared/mpas_ocn_vmix_coefs_tanh.F
-  core_ocean/shared/mpas_ocn_vmix_coefs_redi.F
-  core_ocean/shared/mpas_ocn_vmix_cvmix.F
-  core_ocean/shared/mpas_ocn_tendency.F
-  core_ocean/shared/mpas_ocn_tracer_hmix.F
-  core_ocean/shared/mpas_ocn_tracer_hmix_del2.F
-  core_ocean/shared/mpas_ocn_tracer_hmix_del4.F
-  core_ocean/shared/mpas_ocn_tracer_hmix_redi.F
-  core_ocean/shared/mpas_ocn_tracer_advection.F
-  core_ocean/shared/mpas_ocn_tracer_advection_mono.F
-  core_ocean/shared/mpas_ocn_tracer_advection_std.F
-  core_ocean/shared/mpas_ocn_tracer_nonlocalflux.F
-  core_ocean/shared/mpas_ocn_tracer_short_wave_absorption.F
-  core_ocean/shared/mpas_ocn_tracer_short_wave_absorption_jerlov.F
-  core_ocean/shared/mpas_ocn_tracer_short_wave_absorption_variable.F
-  core_ocean/shared/mpas_ocn_tracer_surface_restoring.F
-  core_ocean/shared/mpas_ocn_tracer_interior_restoring.F
-  core_ocean/shared/mpas_ocn_tracer_exponential_decay.F
-  core_ocean/shared/mpas_ocn_tracer_ideal_age.F
-  core_ocean/shared/mpas_ocn_tracer_TTD.F
-  core_ocean/shared/mpas_ocn_tracer_ecosys.F
-  core_ocean/shared/mpas_ocn_tracer_DMS.F
-  core_ocean/shared/mpas_ocn_tracer_MacroMolecules.F
-  core_ocean/shared/mpas_ocn_high_freq_thickness_hmix_del2.F
-  core_ocean/shared/mpas_ocn_tracer_surface_flux_to_tend.F
-  core_ocean/shared/mpas_ocn_test.F
-  core_ocean/shared/mpas_ocn_constants.F
-  core_ocean/shared/mpas_ocn_forcing.F
-  core_ocean/shared/mpas_ocn_surface_bulk_forcing.F
-  core_ocean/shared/mpas_ocn_surface_land_ice_fluxes.F
-  core_ocean/shared/mpas_ocn_effective_density_in_land_ice.F
-  core_ocean/shared/mpas_ocn_frazil_forcing.F
-  core_ocean/shared/mpas_ocn_tidal_forcing.F
-  core_ocean/shared/mpas_ocn_time_average_coupled.F
-  core_ocean/shared/mpas_ocn_sea_ice.F
-  core_ocean/shared/mpas_ocn_framework_forcing.F
-  core_ocean/shared/mpas_ocn_time_varying_forcing.F
-  core_ocean/shared/mpas_ocn_wetting_drying.F
-)
-
-set(CORE_OCN_BLDDIR ${CMAKE_BINARY_DIR}/core_ocean)
-if (NOT EXISTS ${CORE_OCN_BLDDIR})
-  file(MAKE_DIRECTORY ${CORE_OCN_BLDDIR})
+set(CORE_BLDDIR ${CMAKE_BINARY_DIR}/core_${CORE})
+if (NOT EXISTS ${CORE_BLDDIR})
+  file(MAKE_DIRECTORY ${CORE_BLDDIR})
 endif()
 
-# Get CVMix
-execute_process(COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/core_ocean/get_cvmix.sh
-  WORKING_DIRECTORY ${CORE_OCN_BLDDIR})
-
-# Get BGC
-execute_process(COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/core_ocean/get_BGC.sh
-  WORKING_DIRECTORY ${CORE_OCN_BLDDIR})
-
-# Add CVMix
-list(APPEND RAW_SOURCES
-  core_ocean/cvmix/cvmix_kinds_and_types.F90
-  core_ocean/cvmix/cvmix_background.F90
-  core_ocean/cvmix/cvmix_convection.F90
-  core_ocean/cvmix/cvmix_ddiff.F90
-  core_ocean/cvmix/cvmix_kpp.F90
-  core_ocean/cvmix/cvmix_math.F90
-  core_ocean/cvmix/cvmix_put_get.F90
-  core_ocean/cvmix/cvmix_shear.F90
-  core_ocean/cvmix/cvmix_tidal.F90
-  core_ocean/cvmix/cvmix_utils.F90
-)
-
-# Add BGC
-list(APPEND RAW_SOURCES
-  core_ocean/BGC/BGC_mod.F90
-  core_ocean/BGC/BGC_parms.F90
-  core_ocean/BGC/DMS_mod.F90
-  core_ocean/BGC/DMS_parms.F90
-  core_ocean/BGC/MACROS_mod.F90
-  core_ocean/BGC/MACROS_parms.F90
-  core_ocean/BGC/co2calc.F90
-)
-
-# Add analysis members
-list(APPEND RAW_SOURCES
-  core_ocean/analysis_members/mpas_ocn_global_stats.F
-  core_ocean/analysis_members/mpas_ocn_okubo_weiss.F
-  core_ocean/analysis_members/mpas_ocn_okubo_weiss_eigenvalues.c
-  core_ocean/analysis_members/mpas_ocn_layer_volume_weighted_averages.F
-  core_ocean/analysis_members/mpas_ocn_surface_area_weighted_averages.F
-  core_ocean/analysis_members/mpas_ocn_water_mass_census.F
-  core_ocean/analysis_members/mpas_ocn_meridional_heat_transport.F
-  core_ocean/analysis_members/mpas_ocn_test_compute_interval.F
-  core_ocean/analysis_members/mpas_ocn_high_frequency_output.F
-  core_ocean/analysis_members/mpas_ocn_zonal_mean.F
-  core_ocean/analysis_members/mpas_ocn_lagrangian_particle_tracking_interpolations.F
-  core_ocean/analysis_members/mpas_ocn_particle_list.F
-  core_ocean/analysis_members/mpas_ocn_lagrangian_particle_tracking_reset.F
-  core_ocean/analysis_members/mpas_ocn_lagrangian_particle_tracking.F
-  core_ocean/analysis_members/mpas_ocn_eliassen_palm.F
-  core_ocean/analysis_members/mpas_ocn_time_filters.F
-  core_ocean/analysis_members/mpas_ocn_mixed_layer_depths.F
-  core_ocean/analysis_members/mpas_ocn_pointwise_stats.F
-  core_ocean/analysis_members/mpas_ocn_debug_diagnostics.F
-  core_ocean/analysis_members/mpas_ocn_time_series_stats.F
-  core_ocean/analysis_members/mpas_ocn_regional_stats.F
-  core_ocean/analysis_members/mpas_ocn_rpn_calculator.F
-  core_ocean/analysis_members/mpas_ocn_transect_transport.F
-  core_ocean/analysis_members/mpas_ocn_eddy_product_variables.F
-  core_ocean/analysis_members/mpas_ocn_moc_streamfunction.F
-  core_ocean/analysis_members/mpas_ocn_analysis_driver.F
-)
-
-# Make build tools
-add_executable(streams_gen tools/input_gen/streams_gen.c tools/input_gen/test_functions.c external/ezxml/ezxml.c)
-add_executable(namelist_gen tools/input_gen/namelist_gen.c tools/input_gen/test_functions.c external/ezxml/ezxml.c)
-add_executable(parse tools/registry/parse.c tools/registry/dictionary.c tools/registry/gen_inc.c tools/registry/fortprintf.c tools/registry/utility.c external/ezxml/ezxml.c)
+set(CORE_INPUT_DIR ${CORE_BLDDIR}/default_inputs)
+if (NOT EXISTS ${CORE_INPUT_DIR})
+  file(MAKE_DIRECTORY ${CORE_INPUT_DIR})
+endif()
 
 # Make .inc files
 add_custom_command (
-  OUTPUT ${CORE_OCN_BLDDIR}/Registry_processed.xml
+  OUTPUT ${CORE_BLDDIR}/Registry_processed.xml
   COMMAND cpp -P -traditional ${CPPDEFS_LIST} -Uvector
-  ${CMAKE_CURRENT_SOURCE_DIR}/core_ocean/Registry.xml > Registry_processed.xml
-  DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/core_ocean/Registry.xml
-  WORKING_DIRECTORY ${CORE_OCN_BLDDIR}
+  ${CMAKE_CURRENT_SOURCE_DIR}/core_${CORE}/Registry.xml > Registry_processed.xml
+  DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/core_${CORE}/Registry.xml
+  WORKING_DIRECTORY ${CORE_BLDDIR}
 )
 
-set(INC_DIR ${CORE_OCN_BLDDIR}/inc)
+set(INC_DIR ${CORE_BLDDIR}/inc)
 if (NOT EXISTS ${INC_DIR})
   file(MAKE_DIRECTORY ${INC_DIR})
 endif()
 
 add_custom_command(
   OUTPUT ${INC_DIR}/core_variables.inc
-  COMMAND ${CMAKE_BINARY_DIR}/parse < ${CORE_OCN_BLDDIR}/Registry_processed.xml
-  DEPENDS parse ${CORE_OCN_BLDDIR}/Registry_processed.xml
+  COMMAND ${CMAKE_BINARY_DIR}/parse < ${CORE_BLDDIR}/Registry_processed.xml
+  DEPENDS parse ${CORE_BLDDIR}/Registry_processed.xml
   WORKING_DIRECTORY ${INC_DIR}
 )
 
-# Generate core input
-set(CORE_INPUT_DIR ${CORE_OCN_BLDDIR}/default_inputs)
-if (NOT EXISTS ${CORE_INPUT_DIR})
-  file(MAKE_DIRECTORY ${CORE_INPUT_DIR})
+# Macro for handling nl and st gen
+macro(handle_nl_st_gen)
+  foreach(NL_GEN_ARG IN LISTS NL_GEN_ARGS)
+    separate_arguments(ITEMS UNIX_COMMAND "${NL_GEN_ARG}")
+    list(GET ITEMS 0 ITEM)
+    list(APPEND INPUTS ${ITEM})
+    add_custom_command(
+      OUTPUT ${CORE_INPUT_DIR}/${ITEM}
+      COMMAND ${CMAKE_BINARY_DIR}/namelist_gen ${CORE_BLDDIR}/Registry_processed.xml ${NL_GEN_ARG}
+      DEPENDS namelist_gen ${CORE_BLDDIR}/Registry_processed.xml
+      WORKING_DIRECTORY ${CORE_INPUT_DIR}
+    )
+  endforeach()
+
+  foreach(ST_GEN_ARG IN LISTS ST_GEN_ARGS)
+    separate_arguments(ITEMS UNIX_COMMAND "${ST_GEN_ARG}")
+    list(GET ITEMS 0 ITEM)
+    list(APPEND INPUTS ${ITEM})
+    add_custom_command(
+      OUTPUT ${CORE_INPUT_DIR}/${ITEM}
+      COMMAND ${CMAKE_BINARY_DIR}/streams_gen ${CORE_BLDDIR}/Registry_processed.xml ${ST_GEN_ARG}
+      DEPENDS streams_gen ${CORE_BLDDIR}/Registry_processed.xml
+      WORKING_DIRECTORY ${CORE_INPUT_DIR}
+    )
+  endforeach()
+
+  foreach(INPUT IN LISTS INPUTS)
+    add_custom_command(
+      OUTPUT ${CORE_BLDDIR}/${INPUT}
+      COMMAND ${CMAKE_COMMAND} -E copy ${CORE_INPUT_DIR}/${INPUT} ${CORE_BLDDIR}/${INPUT}
+      DEPENDS ${CORE_INPUT_DIR}/${INPUT}
+      WORKING_DIRECTORY ${CORE_BLDDIR}
+    )
+  endforeach()
+endmacro(handle_nl_st_gen)
+
+include(${CMAKE_CURRENT_SOURCE_DIR}/core_${CORE}/${CORE}.cmake)
+
+# Disable qsmp for some files
+if (FFLAGS MATCHES ".*-qsmp.*")
+  foreach(DISABLE_QSMP_FILE IN LISTS DISABLE_QSMP)
+    get_filename_component(SOURCE_EXT ${DISABLE_QSMP_FILE} EXT)
+    string(REPLACE "${SOURCE_EXT}" ".f90" SOURCE_F90 ${DISABLE_QSMP_FILE})
+    set_property(SOURCE ${CMAKE_BINARY_DIR}/${SOURCE_F90} APPEND_STRING PROPERTY COMPILE_FLAGS " -nosmp")
+  endforeach()
 endif()
-
-set(NL_GEN_ARGS
-  "namelist.ocean"
-  "namelist.ocean.forward mode=forward"
-  "namelist.ocean.analysis mode=analysis"
-  "namelist.ocean.init mode=init"
-  "streams.ocean stream_list.ocean. mutable"
-  "streams.ocean.forward stream_list.ocean.forward. mutable mode=forward"
-  "streams.ocean.analysis stream_list.ocean.analysis. mutable mode=analysis"
-  "streams.ocean.init stream_list.ocean.init. mutable mode=init"
-)
-
-foreach(NL_GEN_ARG IN LISTS NL_GEN_ARGS)
-  separate_arguments(ITEMS UNIX_COMMAND "${NL_GEN_ARG}")
-  list(GET ITEMS 0 ITEM)
-  list(APPEND INPUTS ${ITEM})
-  add_custom_command(
-    OUTPUT ${CORE_INPUT_DIR}/${ITEM}
-    COMMAND ${CMAKE_BINARY_DIR}/namelist_gen ${CORE_OCN_BLDDIR}/Registry_processed.xml ${NL_GEN_ARG}
-    DEPENDS namelist_gen ${CORE_OCN_BLDDIR}/Registry_processed.xml
-    WORKING_DIRECTORY ${CORE_INPUT_DIR}
-  )
-endforeach()
-
-foreach(INPUT IN LISTS INPUTS)
-  add_custom_command(
-    OUTPUT ${CORE_OCN_BLDDIR}/${INPUT}
-    COMMAND ${CMAKE_COMMAND} -E copy ${CORE_INPUT_DIR}/${INPUT} ${CORE_OCN_BLDDIR}/${INPUT}
-    DEPENDS ${CORE_INPUT_DIR}/${INPUT}
-    WORKING_DIRECTORY ${CORE_OCN_BLDDIR}
-  )
-endforeach()
 
 # Run all .F files through cpp to generate the f90 file
 foreach(RAW_SOURCE_FILE IN LISTS RAW_SOURCES)
   get_filename_component(SOURCE_EXT ${RAW_SOURCE_FILE} EXT)
-  if (SOURCE_EXT STREQUAL ".F")
-    string(REPLACE ".F" ".f90" SOURCE_F90 ${RAW_SOURCE_FILE})
+  if ( (SOURCE_EXT STREQUAL ".F" OR SOURCE_EXT STREQUAL ".F90") AND NOT RAW_SOURCE_FILE IN_LIST NO_PREPROCESS)
+    string(REPLACE "${SOURCE_EXT}" ".f90" SOURCE_F90 ${RAW_SOURCE_FILE})
     get_filename_component(DIR_RELATIVE ${SOURCE_F90} DIRECTORY)
     set(DIR_ABSOLUTE ${CMAKE_BINARY_DIR}/${DIR_RELATIVE})
     if (NOT EXISTS ${DIR_ABSOLUTE})
@@ -388,4 +244,3 @@ foreach(RAW_SOURCE_FILE IN LISTS RAW_SOURCES)
 endforeach()
 
 target_sources(${COMPONENT} PRIVATE ${SOURCES})
-
