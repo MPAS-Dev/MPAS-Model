@@ -49,11 +49,43 @@ set(INCLUDES "-I${INSTALL_SHAREDPATH}/include -I${INSTALL_SHAREDPATH}/${COMP_INT
 if (CORE STREQUAL "ocean")
   set(CPPDEFS "${CPPDEFS} -DCORE_OCEAN")
   set(INCLUDES "${INCLUDES} -I${CMAKE_BINARY_DIR}/core_ocean/BGC -I${CMAKE_BINARY_DIR}/core_ocean/shared -I${CMAKE_BINARY_DIR}/core_ocean/analysis_members -I${CMAKE_BINARY_DIR}/core_ocean/cvmix -I${CMAKE_BINARY_DIR}/core_ocean/mode_forward -I${CMAKE_BINARY_DIR}/core_ocean/mode_analysis -I${CMAKE_BINARY_DIR}/core_ocean/mode_init")
+
 elseif (CORE STREQUAL "seaice")
   set(CPPDEFS "${CPPDEFS} -DCORE_SEAICE -Dcoupled -DCCSMCOUPLED")
   set(INCLUDES "${INCLUDES} -I${CMAKE_BINARY_DIR}/core_seaice/column -I${CMAKE_BINARY_DIR}/core_seaice/shared -I${CMAKE_BINARY_DIR}/core_seaice/analysis_members -I${CMAKE_BINARY_DIR}/core_seaice/model_forward")
-endif()
 
+elseif (CORE STREQUAL "landice")
+  set(CPPDEFS "${CPPDEFS} -DCORE_LANDICE")
+  set(INCLUDES "${INCLUDES} -I${CMAKE_BINARY_DIR}/core_landice/shared -I${CMAKE_BINARY_DIR}/core_landice/analysis_members -I${CMAKE_BINARY_DIR}/core_landice/mode_forward")
+
+  #
+  # Check if building with LifeV, Albany, and/or PHG external libraries
+  #
+
+  if (LIFEV)
+    # LifeV can solve L1L2 or FO
+    set(CPPDEFS "${CPPDEFS} -DLIFEV -DUSE_EXTERNAL_L1L2 -DUSE_EXTERNAL_FIRSTORDER -DMPAS_LI_BUILD_INTERFACE")
+  endif()
+
+  # Albany can only solve FO at present
+  if (ALBANY)
+    set(CPPDEFS "${CPPDEFS} -DUSE_EXTERNAL_FIRSTORDER -DMPAS_LI_BUILD_INTERFACE")
+  endif()
+
+  if (LIFEV AND ALBANY)
+    message(FATAL "Compiling with both LifeV and Albany is not allowed at this time.")
+  endif()
+
+  # PHG currently requires LifeV
+  if (PHG AND NOT LIFEV)
+    message(FATAL "Compiling with PHG requires LifeV at this time.")
+  endif()
+
+  # PHG can only Stokes at present
+  if (PHG)
+    set(CPPDEFS "${CPPDEFS} -DUSE_EXTERNAL_STOKES -DMPAS_LI_BUILD_INTERFACE")
+  endif()
+endif()
 
 # Set key CMake variables
 set(CMAKE_Fortran_FLAGS "${FFLAGS} ${INCLUDES}")
