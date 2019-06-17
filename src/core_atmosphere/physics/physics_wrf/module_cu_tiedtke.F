@@ -616,11 +616,13 @@ contains
         scale_aware(j) = 1.
 #if defined(mpas)
         if (iscale.eq.1.and.dx(j).lt.dxref) then
-          scale_aware(j) = (1.+log(dxref/dx(j)))**2
+!         scale_aware(j) = (1.+log(dxref/dx(j)))**2
+          scale_aware(j) = dxref/dx(j)
         end if
 #else
         if (iscale.eq.1.and.dx.lt.dxref) then
-          scale_aware(j) = (1.+log(dxref/dx))**2
+!         scale_aware(j) = (1.+log(dxref/dx))**2
+          scale_aware(j) = dxref/dx
         end if
 #endif
       end do
