@@ -36,6 +36,8 @@ module ocn_forward_mode
 
    use ocn_time_integration
    use ocn_time_integration_split
+   use ocn_time_integration_split_filtered
+   use ocn_time_integration_split_unfiltered
    use ocn_tendency
    use ocn_diagnostics
    use ocn_test
@@ -274,7 +276,22 @@ module ocn_forward_mode
 
       call ocn_init_routines_compute_max_level(domain)
 
-      call ocn_time_integration_split_init(domain)
+      call mpas_pool_get_config(ocnConfigs, 'config_time_integrator', config_time_integrator)
+      if (trim(config_time_integrator) == 'RK4') then
+         ! No init needed
+      elseif (trim(config_time_integrator) == 'split_explicit' &
+         .or.trim(config_time_integrator) == 'unsplit_explicit') then
+         call ocn_time_integration_split_init(domain)
+      elseif (trim(config_time_integrator) == 'split_explicit_filtered') then
+         call ocn_time_integration_split_filtered_init(domain)
+      elseif (trim(config_time_integrator) == 'split_explicit_unfiltered') then
+         call ocn_time_integration_split_unfiltered_init(domain)
+      elseif (trim(config_time_integrator) == 'forward_euler') then
+         ! No init needed
+      else
+         call mpas_log_write('Incorrect choice for config_time_integrator:' // trim(config_time_integrator) // &
+            '   Check choices in Registry.xml file.', MPAS_LOG_CRIT)
+      endif
 
       call mpas_log_write(' Vertical coordinate movement is: ' // trim(config_vert_coord_movement))
 
