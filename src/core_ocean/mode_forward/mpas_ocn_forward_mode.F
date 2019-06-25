@@ -130,6 +130,7 @@ module ocn_forward_mode
       logical, pointer :: config_do_restart, config_read_nearest_restart, config_filter_btr_mode, config_conduct_tests
       character (len=StrKIND), pointer :: config_vert_coord_movement, config_pressure_gradient_type
       character (len=StrKIND), pointer :: config_surface_salinity_monthly_restoring_compute_interval
+      character (len=StrKIND), pointer :: config_time_integrator
 
       real (kind=RKIND), pointer :: config_maxMeshDensity
       logical, pointer :: config_use_surface_salinity_monthly_restoring

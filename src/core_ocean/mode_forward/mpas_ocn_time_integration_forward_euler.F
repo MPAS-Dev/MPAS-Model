@@ -191,7 +191,7 @@ contains
             vertAleTransportTop, err)
          call mpas_threading_barrier()
 
-         call ocn_tend_vel(tendPool, statePool, forcingPool, diagnosticsPool, meshPool, scratchPool, 1)
+         call ocn_tend_vel(tendPool, statePool, forcingPool, diagnosticsPool, meshPool, scratchPool, 1, dt)
          call mpas_threading_barrier()
 
          call ocn_vert_transport_velocity_top(meshPool, verticalMeshPool, scratchPool, &
