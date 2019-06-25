@@ -281,7 +281,8 @@ contains
       real     , dimension(its:ite) ::                  &
                                         rcs,                            &
                                         rn,                             &
-                                        evap
+                                        evap,                           &
+                                        dx1
       integer  , dimension(its:ite) ::  slimsk                         
       
 
@@ -438,10 +439,11 @@ contains
 !
       do i=its,ite
         evap(i) = qfx(i,j)
+        dx1(i) = dx(i,j)
       enddo
 !########################################################################
       call tiecnv(u1,v1,t1,q1,q2,q3,q1b,q1bl,ght,omg,prsl,prsi,evap,             &
-                  rn,slimsk,ktype,im,kx,kx+1,sig1,delt,dx,cubot,cutop)                 
+                  rn,slimsk,ktype,im,kx,kx+1,sig1,delt,dx1,cubot,cutop)                 
 
       do i=its,ite
          raincv(i,j)=rn(i)/stepcu
@@ -610,19 +612,17 @@ contains
       real cubot(lq),cutop(lq)
 
       iscale = 1
-      dxref = 15000.
+      dxref = 18000.
 
       do j=1,lq
         scale_aware(j) = 1.
 #if defined(mpas)
         if (iscale.eq.1.and.dx(j).lt.dxref) then
-!         scale_aware(j) = (1.+log(dxref/dx(j)))**2
-          scale_aware(j) = dxref/dx(j)
+          scale_aware(j) = (1.+log(dxref/dx(j)))**2
         end if
 #else
         if (iscale.eq.1.and.dx.lt.dxref) then
-!         scale_aware(j) = (1.+log(dxref/dx))**2
-          scale_aware(j) = dxref/dx
+          scale_aware(j) = (1.+log(dxref/dx))**2
         end if
 #endif
       end do
