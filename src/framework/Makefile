@@ -112,7 +112,7 @@ xml_stream_parser.o: xml_stream_parser.c
 
 mpas_field_accessor.o: mpas_derived_types.o mpas_kind_types.o mpas_pool_routines.o mpas_log.o
 
-mpas_intracoupler.o: mpas_derived_types.o
+mpas_intracoupler.o: mpas_derived_types.o mpas_dmpar.o mpas_field_routines.o
 
 clean:
 	$(RM) *.o *.mod *.f90 libframework.a
