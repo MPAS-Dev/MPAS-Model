@@ -109,8 +109,6 @@
  subroutine physics_driver(domain,itimestep,xtime_s,mpas_cpl,cells_to_rad_handle,cells_from_rad_handle)
 !=================================================================================================================
 
- use mpas_intracoupler, only : MPAS_coupler_sync
-
 !input arguments:
  integer,intent(in):: itimestep
  real(kind=RKIND),intent(in):: xtime_s
