@@ -113,7 +113,9 @@ contains
 
         real (kind=RKIND), dimension(:), pointer :: surfaceFluxAttenuationCoefficient
         real (kind=RKIND), dimension(:), pointer :: surfaceFluxAttenuationCoefficientRunoff
-        real (kind=RKIND), dimension(:,:), pointer :: layerThickness, fractionAbsorbed, fractionAbsorbedRunoff
+        real (kind=RKIND), dimension(:), pointer :: surfaceFluxAttenuationCoefficientPrecEvapIce
+        real (kind=RKIND), dimension(:,:), pointer :: layerThickness, fractionAbsorbed, fractionAbsorbedRunoff, &
+             fractionAbsorbedPrecEvapIce
 
         integer :: iCell, k, timeLevel, nCells
 
@@ -137,10 +139,16 @@ contains
         call mpas_pool_get_array(diagnosticsPool, 'surfaceFluxAttenuationCoefficientRunoff',  &
                                                    surfaceFluxAttenuationCoefficientRunoff)
 
+        call mpas_pool_get_array(diagnosticsPool, 'surfaceFluxAttenuationCoefficientPrecEvapIce',  &
+                                                   surfaceFluxAttenuationCoefficientPrecEvapIce)
+
         call mpas_pool_get_array(forcingPool, 'fractionAbsorbed', fractionAbsorbed)
         call mpas_pool_get_array(forcingPool, 'fractionAbsorbedRunoff', fractionAbsorbedRunoff)
+        call mpas_pool_get_array(forcingPool, 'fractionAbsorbedPrecEvapIce', fractionAbsorbedPrecEvapIce)
 
         nCells = nCellsArray( 2 )
+
+!  first do surface fluxes that are not associated with thickness fluxes (radiative, sensible, etc)
 
         do iCell = 1, nCells
            zTop = 0.0_RKIND
@@ -166,6 +174,22 @@ contains
               transmissionCoeffBot = ocn_forcing_transmission(zBot, surfaceFluxAttenuationCoefficientRunoff(iCell))
 
               fractionAbsorbedRunoff(k, iCell) = transmissionCoeffTop - transmissionCoeffBot
+
+              zTop = zBot
+              transmissionCoeffTop = transmissionCoeffBot
+           end do
+        end do
+
+!  now do non-runoff thickness fluxes
+
+        do iCell = 1, nCells
+           zTop = 0.0_RKIND
+           transmissionCoeffTop = ocn_forcing_transmission(zTop, surfaceFluxAttenuationCoefficientPrecEvapIce(iCell))
+           do k = 1, maxLevelCell(iCell)
+              zBot = zTop - layerThickness(k,iCell)
+              transmissionCoeffBot = ocn_forcing_transmission(zBot, surfaceFluxAttenuationCoefficientPrecEvapIce(iCell))
+
+              fractionAbsorbedPrecEvapIce(k, iCell) = transmissionCoeffTop - transmissionCoeffBot
 
               zTop = zBot
               transmissionCoeffTop = transmissionCoeffBot

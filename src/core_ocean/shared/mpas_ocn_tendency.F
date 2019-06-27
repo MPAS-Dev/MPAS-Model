@@ -117,7 +117,8 @@ contains
       real (kind=RKIND), dimension(:), pointer :: surfaceThicknessFlux
       real (kind=RKIND), dimension(:), pointer :: surfaceThicknessFluxRunoff
       real (kind=RKIND), dimension(:,:), pointer :: layerThickness, layerThicknessEdge, &
-         vertAleTransportTop, tend_layerThickness, normalTransportVelocity, fractionAbsorbed, fractionAbsorbedRunoff
+         vertAleTransportTop, tend_layerThickness, normalTransportVelocity, fractionAbsorbed, fractionAbsorbedRunoff, &
+         fractionAbsorbedPrecEvapIce
 
       integer, pointer :: nCells
       integer :: err, iCell
@@ -138,6 +139,7 @@ contains
       call mpas_pool_get_array(forcingPool, 'surfaceThicknessFluxRunoff', surfaceThicknessFluxRunoff)
       call mpas_pool_get_array(forcingPool, 'fractionAbsorbed', fractionAbsorbed)
       call mpas_pool_get_array(forcingPool, 'fractionAbsorbedRunoff', fractionAbsorbedRunoff)
+      call mpas_pool_get_array(forcingPool, 'fractionAbsorbedPrecEvapIce', fractionAbsorbedPrecEvapIce)
 
       !
       ! height tendency: start accumulating tendency terms
@@ -179,7 +181,7 @@ contains
       ! surface flux tendency
       !
 
-      call ocn_thick_surface_flux_tend(meshPool, fractionAbsorbed, fractionAbsorbedRunoff, layerThickness,  &
+      call ocn_thick_surface_flux_tend(meshPool, fractionAbsorbedPrecEvapIce, fractionAbsorbedRunoff, layerThickness,  &
          surfaceThicknessFlux, surfaceThicknessFluxRunoff, tend_layerThickness, err)
 
       !

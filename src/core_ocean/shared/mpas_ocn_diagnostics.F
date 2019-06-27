@@ -153,8 +153,10 @@ contains
 
       real (kind=RKIND), pointer :: config_flux_attenuation_coefficient
       real (kind=RKIND), pointer :: config_flux_attenuation_coefficient_runoff
+      real (kind=RKIND), pointer :: config_flux_attenuation_coefficient_prec_evap_ice
       real (kind=RKIND), dimension(:), pointer :: surfaceFluxAttenuationCoefficient
       real (kind=RKIND), dimension(:), pointer :: surfaceFluxAttenuationCoefficientRunoff
+      real (kind=RKIND), dimension(:), pointer :: surfaceFluxAttenuationCoefficientPrecEvapIce
 
       real (kind=RKIND) :: areaTri1, layerThicknessVertexInv, tempRiVal, dcEdge_temp, dvEdge_temp, weightsOnEdge_temp
       real (kind=RKIND), dimension(:), allocatable:: layerThicknessVertexVec
@@ -176,6 +178,8 @@ contains
       call mpas_pool_get_config(ocnConfigs, 'config_flux_attenuation_coefficient', config_flux_attenuation_coefficient)
       call mpas_pool_get_config(ocnConfigs, 'config_flux_attenuation_coefficient_runoff',  &
                                              config_flux_attenuation_coefficient_runoff)
+      call mpas_pool_get_config(ocnConfigs, 'config_flux_attenuation_coefficient_prec_evap_ice',  &
+                                             config_flux_attenuation_coefficient_prec_evap_ice)
       call mpas_pool_get_config(ocnConfigs, 'config_use_wetting_drying', config_use_wetting_drying)
       call mpas_pool_get_config(ocnConfigs, 'config_thickness_flux_type', config_thickness_flux_type)
 
@@ -261,6 +265,8 @@ contains
 
       call mpas_pool_get_array(diagnosticsPool, 'surfaceFluxAttenuationCoefficient', surfaceFluxAttenuationCoefficient)
       call mpas_pool_get_array(diagnosticsPool, 'surfaceFluxAttenuationCoefficientRunoff', surfaceFluxAttenuationCoefficientRunoff)
+      call mpas_pool_get_array(diagnosticsPool, 'surfaceFluxAttenuationCoefficientPrecEvapIce',  &
+           surfaceFluxAttenuationCoefficientPrecEvapIce)
       !
       ! Compute height on cell edges at velocity locations
       !   Namelist options control the order of accuracy of the reconstructed layerThicknessEdge value
@@ -852,6 +858,7 @@ contains
       do iCell = 1, nCells
          surfaceFluxAttenuationCoefficient(iCell) = config_flux_attenuation_coefficient
          surfaceFluxAttenuationCoefficientRunoff(iCell) = config_flux_attenuation_coefficient_runoff
+         surfaceFluxAttenuationCoefficientPrecEvapIce(iCell) = config_flux_attenuation_coefficient_prec_evap_ice
       end do
       !$omp end do
 
@@ -1367,8 +1374,9 @@ contains
       real (kind=RKIND), dimension(:), pointer :: dcEdge, dvEdge, areaCell
       real (kind=RKIND), dimension(:), pointer :: penetrativeTemperatureFlux, surfaceThicknessFlux, &
            surfaceBuoyancyForcing, surfaceFrictionVelocity, penetrativeTemperatureFluxOBL, &
-           normalVelocitySurfaceLayer, surfaceThicknessFluxRunoff
-      real (kind=RKIND), pointer :: config_flux_attenuation_coefficient, config_flux_attenuation_coefficient_runoff
+           normalVelocitySurfaceLayer, surfaceThicknessFluxRunoff, rainFlux, evaporationFlux
+      real (kind=RKIND), pointer :: config_flux_attenuation_coefficient, config_flux_attenuation_coefficient_runoff, &
+           config_flux_attenuation_coefficient_prec_evap_ice
 
       real (kind=RKIND), dimension(:), pointer :: surfaceStress, surfaceStressMagnitude
       real (kind=RKIND), dimension(:,:), pointer ::  &
@@ -1388,7 +1396,8 @@ contains
       ! local
       integer :: iCell, iEdge, i, k, err, timeLevel
       integer, pointer :: indexTempFlux, indexSaltFlux
-      real (kind=RKIND) :: numerator, denominator, turbulentVelocitySquared, fracAbsorbed, fracAbsorbedRunoff
+      real (kind=RKIND) :: numerator, denominator, turbulentVelocitySquared, fracAbsorbedRunoff, &
+           fracAbsorbedPrecEvapIce
       real (kind=RKIND) :: factor, deltaVelocitySquared, delU2, invAreaCell
 
       type (field2DReal), pointer :: densitySurfaceDisplacedField, thermalExpansionCoeffField, salineContractionCoeffField
@@ -1406,6 +1415,8 @@ contains
       call mpas_pool_get_config(ocnConfigs, 'config_flux_attenuation_coefficient', config_flux_attenuation_coefficient)
       call mpas_pool_get_config(ocnConfigs, 'config_flux_attenuation_coefficient_runoff',   &
               config_flux_attenuation_coefficient_runoff)
+      call mpas_pool_get_config(ocnConfigs, 'config_flux_attenuation_coefficient_prec_evap_ice',   &
+              config_flux_attenuation_coefficient_prec_evap_ice)
       ! set the parameter turbulentVelocitySquared
       turbulentVelocitySquared = 0.001_RKIND
 
@@ -1441,6 +1452,8 @@ contains
       call mpas_pool_get_array(forcingPool, 'penetrativeTemperatureFlux', penetrativeTemperatureFlux)
       call mpas_pool_get_array(forcingPool, 'surfaceStress', surfaceStress)
       call mpas_pool_get_array(forcingPool, 'surfaceStressMagnitude', surfaceStressMagnitude)
+      call mpas_pool_get_array(forcingPool, 'rainFlux', rainFlux)
+      call mpas_pool_get_array(forcingPool, 'evaporationFlux', evaporationFlux)
 
       call mpas_pool_get_array(tracersPool, 'activeTracers', activeTracers, 1)
       call mpas_pool_get_array(tracersSurfaceFluxPool, 'activeTracersSurfaceFlux', activeTracersSurfaceFlux)
@@ -1489,19 +1502,25 @@ contains
        !
 
        ! Compute fraction of thickness flux that is in the top model layer
-       fracAbsorbed = 1.0_RKIND - exp( max(-layerThickness(1, iCell) / config_flux_attenuation_coefficient, -100.0_RKIND) )
        fracAbsorbedRunoff = 1.0_RKIND - exp( max(-layerThickness(1, iCell) / config_flux_attenuation_coefficient_runoff, &
                             -100.0_RKIND) )
+       fracAbsorbedPrecEvapIce = 1.0_RKIND - exp( max(-layerThickness(1, iCell) / &
+          config_flux_attenuation_coefficient_prec_evap_ice, -100.0_RKIND) )
+                            
        ! Store the total tracer flux below in nonLocalSurfaceTemperatureFlux for use in the CVMix nonlocal
        ! transport code.  This includes tracer forcing due to thickness
 
        nonLocalSurfaceTracerFlux(indexTempFlux, iCell) = activeTracersSurfaceFlux(indexTempFlux,iCell) &
-               + penetrativeTemperatureFlux(iCell) - penetrativeTemperatureFluxOBL(iCell) - fracAbsorbed * &
-               surfaceThicknessFlux(iCell) * activeTracers(indexTempFlux,1,iCell) + &
-               activeTracersSurfaceFluxRunoff(indexTempFlux,iCell) * fracAbsorbedRunoff
+               + penetrativeTemperatureFlux(iCell) - penetrativeTemperatureFluxOBL(iCell)  &
+               - fracAbsorbedPrecEvapIce * (rainFlux(iCell) + evaporationFlux(iCell)) * &
+                   activeTracers(indexTempFlux,1,iCell)/rho_sw &
+               - fracAbsorbedRunoff * surfaceThicknessFluxRunoff(iCell) * (  &
+                   max(activeTracers(indexTempFlux,1,iCell),0.0_RKIND) &
+                 + min(activeTracers(indexTempFlux,1,iCell),0.0_RKIND)    )/rho_sw
 
        nonLocalSurfaceTracerFlux(indexSaltFlux,iCell) = activeTracersSurfaceFlux(indexSaltFlux,iCell) &
-               - fracAbsorbed * surfaceThicknessFlux(iCell) * activeTracers(indexSaltFlux,1,iCell)
+               - fracAbsorbedPrecEvapIce * surfaceThicknessFlux(iCell) * activeTracers(indexSaltFlux,1,iCell) &
+               - fracAbsorbedRunoff * surfaceThicknessFluxRunoff(iCell) * activeTracers(indexSaltFlux,1,iCell)
 
        surfaceBuoyancyForcing(iCell) =  thermalExpansionCoeff (1,iCell) &
               * nonLocalSurfaceTracerFlux(indexTempFlux,iCell) &

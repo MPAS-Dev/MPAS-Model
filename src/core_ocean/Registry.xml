@@ -724,6 +724,10 @@
 					description="The length scale of exponential decay of river runoff. Fluxes are multiplied by $e^{z/\gamma}$, where this coefficient is $\gamma$."
 					possible_values="Any positive real number."
 		/>
+		<nml_option name="config_flux_attenuation_coefficient_prec_evap_ice" type="real" default_value="0.001" units="m"
+					description="The length scale of exponential decay of non-river runoff thickness fluxes. Fluxes are multiplied by $e^{z/\gamma}$, where this coefficient is $\gamma$."
+					possible_values="Any positive real number."
+		/>
 	</nml_record>
 	<nml_record name="time_varying_forcing" mode="init;forward">
 		<nml_option name="config_use_time_varying_atmospheric_forcing" type="logical" default_value=".false." units="unitless"
@@ -2761,6 +2765,9 @@
 		<var name="surfaceFluxAttenuationCoefficientRunoff" type="real" dimensions="nCells Time" units="m"
 			description="The spatially-dependent length scale of exponential decay of river runoff. Fluxes are multiplied by $e^{z/\gamma}$, where this coefficient is $\gamma$."
 		/>
+		<var name="surfaceFluxAttenuationCoefficientPrecEvapIce" type="real" dimensions="nCells Time" units="m"
+			description="The spatially-dependent length scale of exponential decay of non-river runoff thickness fluxes. Fluxes are multiplied by $e^{z/\gamma}$, where this coefficient is $\gamma$."
+		/>
 		<!-- diagnostic fields for land-ice fluxes -->
 		<var name="landIceFrictionVelocity" type="real" dimensions="nCells Time" units="m s^{-1}"
 			description="The friction velocity $u_*$ under land ice"
@@ -2915,6 +2922,10 @@
 		/>
 		<var name="fractionAbsorbedRunoff" type="real" dimensions="nVertLevels nCells Time" units="fractional"
 			 description="Divergence of transmission through interfaces of surface fluxes below the surface layer at cell centers. These are applied only to river runoff."
+			 packages="forwardMode;analysisMode"
+		/>
+		<var name="fractionAbsorbedPrecEvapIce" type="real" dimensions="nVertLevels nCells Time" units="fractional"
+			 description="Divergence of transmission through interfaces of surface fluxes below the surface layer at cell centers. These are applied only to non-river runoff thickness fluxes."
 			 packages="forwardMode;analysisMode"
 		/>
 

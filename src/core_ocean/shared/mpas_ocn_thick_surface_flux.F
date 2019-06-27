@@ -71,7 +71,7 @@ contains
 !
 !-----------------------------------------------------------------------
 
-   subroutine ocn_thick_surface_flux_tend(meshPool, transmissionCoefficients, transmissionCoefficientsRunoff, &
+   subroutine ocn_thick_surface_flux_tend(meshPool, transmissionCoefficientsPrecEvapIce, transmissionCoefficientsRunoff, &
       layerThickness, surfaceThicknessFlux, surfaceThicknessFluxRunoff, tend, err)!{{{
       !-----------------------------------------------------------------
       !
@@ -83,7 +83,7 @@ contains
          meshPool              !< Input: mesh information
 
       real (kind=RKIND), dimension(:,:), intent(in) :: &
-         transmissionCoefficients,     &!< Input: Coefficients for the transmission of surface fluxes
+         transmissionCoefficientsPrecEvapIce,  &!< Input: Coefficients for transmission of non-runoff surface thickness fluxes
          transmissionCoefficientsRunoff !< Input: Coefficients for the transmission of surface fluxes due to river runoff
 
       real (kind=RKIND), dimension(:,:), intent(in) :: &
@@ -122,7 +122,7 @@ contains
       integer, dimension(:), pointer :: nCellsArray
       integer, dimension(:), pointer :: maxLevelCell
 
-      real (kind=RKIND) :: remainingFlux, remainingFluxRunoff
+      real (kind=RKIND) :: remainingFluxPrecEvapIce, remainingFluxRunoff
 
       err = 0
 
@@ -136,20 +136,21 @@ contains
 
       nCells = nCellsArray( 1 )
 
-      !$omp do schedule(runtime) private(remainingFlux, remainingFluxRunoff, k)
+      !$omp do schedule(runtime) private(remainingFluxPrecEvapIce, remainingFluxRunoff, k)
       do iCell = 1, nCells
-        remainingFlux = 1.0_RKIND
+        remainingFluxPrecEvapIce = 1.0_RKIND
         remainingFluxRunoff = 1.0_RKIND
         do k = 1, maxLevelCell(iCell)
-          remainingFlux = remainingFlux - transmissionCoefficients(k, iCell)
+          remainingFluxPrecEvapIce = remainingFluxPrecEvapIce - transmissionCoefficientsPrecEvapIce(k, iCell)
           remainingFluxRunoff = remainingFluxRunoff - transmissionCoefficientsRunoff(k, iCell)
 
-          tend(k, iCell) = tend(k, iCell) + surfaceThicknessFlux(iCell) * transmissionCoefficients(k, iCell)  &
+          tend(k, iCell) = tend(k, iCell) + surfaceThicknessFlux(iCell) * transmissionCoefficientsPrecEvapIce(k, iCell)  &
                                           + surfaceThicknessFluxRunoff(iCell) * transmissionCoefficientsRunoff(k, iCell)
         end do
 
-        if(maxLevelCell(iCell) > 0 .and. remainingFlux > 0.0_RKIND) then
-          tend(maxLevelCell(iCell), iCell) = tend(maxLevelCell(iCell), iCell) + remainingFlux * surfaceThicknessFlux(iCell)
+        if(maxLevelCell(iCell) > 0 .and. remainingFluxPrecEvapIce > 0.0_RKIND) then
+          tend(maxLevelCell(iCell), iCell) = tend(maxLevelCell(iCell), iCell) &
+             + remainingFluxPrecEvapIce * surfaceThicknessFlux(iCell)
         end if
 
         if(maxLevelCell(iCell) > 0 .and. remainingFluxRunoff > 0.0_RKIND) then
