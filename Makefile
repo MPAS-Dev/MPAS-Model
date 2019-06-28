@@ -426,13 +426,6 @@ FCINCLUDES =
 LIBS = 
 
 #
-# If user has indicated a PIO2 library, define USE_PIO2 pre-processor macro
-#
-ifeq "$(USE_PIO2)" "true"
-	override CPPFLAGS += -DUSE_PIO2
-endif
-
-#
 # Regardless of PIO library version, look for a lib subdirectory of PIO path
 # NB: PIO_LIB is used later, so we don't just set LIBS directly
 #
@@ -577,12 +570,6 @@ ifeq "$(USE_PAPI)" "true"
 else # USE_PAPI IF
 	PAPI_MESSAGE="Papi libraries are off."
 endif # USE_PAPI IF
-
-ifeq "$(USE_PIO2)" "true"
-	PIO_MESSAGE="Using the PIO 2 library."
-else # USE_PIO2 IF
-	PIO_MESSAGE="Using the PIO 1.x library."
-endif # USE_PIO2 IF
 
 ifdef TIMER_LIB
 ifeq "$(TIMER_LIB)" "tau"
@@ -735,42 +722,22 @@ endif
 
 pio_test:
 	@#
-	@# Create two test programs: one that should work with PIO1 and a second that should work with PIO2
+	@# Create pio test program
 	@#
-	@echo "program pio1; use pio; use pionfatt_mod; integer, parameter :: MPAS_IO_OFFSET_KIND = PIO_OFFSET; integer, parameter :: MPAS_INT_FILLVAL = NF_FILL_INT; end program" > pio1.f90
-	@echo "program pio2; use pio; integer, parameter :: MPAS_IO_OFFSET_KIND = PIO_OFFSET_KIND; integer, parameter :: MPAS_INT_FILLVAL = PIO_FILL_INT; end program" > pio2.f90
+	@echo "program pio_test; use pio; integer, parameter :: MPAS_IO_OFFSET_KIND = PIO_OFFSET_KIND; integer, parameter :: MPAS_INT_FILLVAL = PIO_FILL_INT; end program" > pio_test.f90
 
 	@#
 	@# See whether either of the test programs can be compiled
 	@#
 	@echo "Checking for a usable PIO library..."
-	@($(FC) pio1.f90 $(FCINCLUDES) $(FFLAGS) $(LDFLAGS) $(LIBS) -o pio1.out &> /dev/null && echo "=> PIO 1 detected") || \
-	 ($(FC) pio2.f90 $(FCINCLUDES) $(FFLAGS) $(LDFLAGS) $(LIBS) -o pio2.out &> /dev/null && echo "=> PIO 2 detected") || \
+	@($(FC) pio_test.f90 $(FCINCLUDES) $(FFLAGS) $(LDFLAGS) $(LIBS) -o pio_test.out &> /dev/null && echo "=> PIO detected") || \
 	 (echo "************ ERROR ************"; \
 	  echo "Failed to compile a PIO test program"; \
 	  echo "Please ensure the PIO environment variable is set to the PIO installation directory"; \
 	  echo "************ ERROR ************"; \
-	  rm -rf pio[12].f90 pio[12].out; exit 1)
+	  rm -rf pio_test.f90 pio_test.out; exit 1)
 
-	@rm -rf pio[12].out
-
-	@#
-	@# Check that what the user has specified agrees with the PIO library version that was detected
-	@#
-ifeq "$(USE_PIO2)" "true"
-	@($(FC) pio2.f90 $(FCINCLUDES) $(FFLAGS) $(LDFLAGS) $(LIBS) -o pio2.out &> /dev/null) || \
-	(echo "************ ERROR ************"; \
-	 echo "PIO 1 was detected, but USE_PIO2=true was specified in the make command"; \
-	 echo "************ ERROR ************"; \
-	 rm -rf pio[12].f90 pio[12].out; exit 1)
-else
-	@($(FC) pio1.f90 $(FCINCLUDES) $(FFLAGS) $(LDFLAGS) $(LIBS) -o pio1.out &> /dev/null) || \
-	(echo "************ ERROR ************"; \
-	 echo "PIO 2 was detected. Please specify USE_PIO2=true in the make command"; \
-	 echo "************ ERROR ************"; \
-	 rm -rf pio[12].f90 pio[12].out; exit 1)
-endif
-	@rm -rf pio[12].f90 pio[12].out
+	@rm -rf pio_test.out
 
 
 mpas_main: openmp_test pio_test
@@ -890,7 +857,6 @@ errmsg:
 	@echo "                    TIMER_LIB=gptl - Uses gptl for the timer interface instead of the native interface"
 	@echo "                    TIMER_LIB=tau - Uses TAU for the timer interface instead of the native interface"
 	@echo "    OPENMP=true   - builds and links with OpenMP flags. Default is to not use OpenMP."
-	@echo "    USE_PIO2=true - links with the PIO 2 library. Default is to use the PIO 1.x library."
 	@echo "    PRECISION=single - builds with default single-precision real kind. Default is to use double-precision."
 	@echo ""
 	@echo "Ensure that NETCDF, PNETCDF, PIO, and PAPI (if USE_PAPI=true) are environment variables"

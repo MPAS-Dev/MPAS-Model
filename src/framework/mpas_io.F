@@ -23,26 +23,13 @@ module mpas_io
    integer, parameter :: PIO_REALKIND = PIO_DOUBLE
 #endif
 
-#ifdef USE_PIO2
    integer, parameter :: MPAS_INT_FILLVAL = PIO_FILL_INT
-   character, parameter :: MPAS_CHAR_FILLVAL = achar(0)  ! TODO: To be replaced with PIO_FILL_CHAR once PIO2 provides this variable
-#else
-   integer, parameter :: MPAS_INT_FILLVAL = NF_FILL_INT
-   character, parameter :: MPAS_CHAR_FILLVAL = achar(NF_FILL_CHAR)
-#endif
+   character, parameter :: MPAS_CHAR_FILLVAL = achar(PIO_FILL_CHAR)
 
-#ifdef USE_PIO2
 #ifdef SINGLE_PRECISION
    real (kind=RKIND), parameter :: MPAS_REAL_FILLVAL = PIO_FILL_FLOAT
 #else
    real (kind=RKIND), parameter :: MPAS_REAL_FILLVAL = PIO_FILL_DOUBLE
-#endif
-#else
-#ifdef SINGLE_PRECISION
-   real (kind=RKIND), parameter :: MPAS_REAL_FILLVAL = NF_FILL_FLOAT
-#else
-   real (kind=RKIND), parameter :: MPAS_REAL_FILLVAL = NF_FILL_DOUBLE
-#endif
 #endif
 
    interface MPAS_io_get_var
@@ -281,11 +268,7 @@ module mpas_io
             pio_mode = PIO_64BIT_OFFSET
          else if (ioformat == MPAS_IO_NETCDF4) then
             pio_iotype = PIO_iotype_netcdf4p
-#ifdef USE_PIO2
-            pio_mode = 0
-#else
             pio_mode = PIO_64BIT_OFFSET
-#endif
          end if
       end if
 
@@ -1430,11 +1413,7 @@ module mpas_io
 
 !      call mpas_log_write('Checking for unlimited dim')
       if (field_cursor % fieldhandle % has_unlimited_dim) then
-#ifdef USE_PIO2
          call PIO_setframe(handle % pio_file, field_cursor % fieldhandle % field_desc, handle % frame_number)
-#else
-         call PIO_setframe(field_cursor % fieldhandle % field_desc, handle % frame_number)
-#endif
          start1(1) = handle % frame_number
          count1(1) = 1
      
@@ -2348,11 +2327,7 @@ module mpas_io
 
       if (field_cursor % fieldhandle % has_unlimited_dim) then
 
-#ifdef USE_PIO2
          call PIO_setframe(handle % pio_file, field_cursor % fieldhandle % field_desc, handle % frame_number)
-#else
-         call PIO_setframe(field_cursor % fieldhandle % field_desc, handle % frame_number)
-#endif
          start1(1) = handle % frame_number
          count1(1) = 1
      
@@ -3149,11 +3124,7 @@ module mpas_io
       integer :: pio_ierr
       integer :: varid
       integer :: xtype
-#ifdef USE_PIO2
       integer (kind=MPAS_IO_OFFSET_KIND) :: len
-#else
-      integer :: len
-#endif
       type (fieldlist_type), pointer :: field_cursor
       type (attlist_type), pointer :: att_cursor, new_att_node
 
@@ -3288,11 +3259,7 @@ module mpas_io
       integer :: pio_ierr
       integer :: varid
       integer :: xtype
-#ifdef USE_PIO2
       integer (kind=MPAS_IO_OFFSET_KIND) :: len, attlen
-#else
-      integer :: len, attlen
-#endif
       type (fieldlist_type), pointer :: field_cursor
       type (attlist_type), pointer :: att_cursor, new_att_node
 
@@ -3442,11 +3409,7 @@ module mpas_io
       real (kind=R4KIND) :: singleVal
       real (kind=R8KIND) :: doubleVal
       integer :: xtype
-#ifdef USE_PIO2
       integer (kind=MPAS_IO_OFFSET_KIND) :: len
-#else
-      integer :: len
-#endif
       type (fieldlist_type), pointer :: field_cursor
       type (attlist_type), pointer :: att_cursor, new_att_node
 
@@ -3616,11 +3579,7 @@ module mpas_io
       real (kind=R4KIND), dimension(:), allocatable :: singleVal
       real (kind=R8KIND), dimension(:), allocatable :: doubleVal
       integer :: xtype
-#ifdef USE_PIO2
       integer (kind=MPAS_IO_OFFSET_KIND) :: len, attlen
-#else
-      integer :: len, attlen
-#endif
       type (fieldlist_type), pointer :: field_cursor
       type (attlist_type), pointer :: att_cursor, new_att_node
 
@@ -3802,11 +3761,7 @@ module mpas_io
       integer :: pio_ierr
       integer :: varid
       integer :: xtype
-#ifdef USE_PIO2
       integer (kind=MPAS_IO_OFFSET_KIND) :: len
-#else
-      integer :: len
-#endif
       type (fieldlist_type), pointer :: field_cursor
       type (attlist_type), pointer :: att_cursor, new_att_node
 

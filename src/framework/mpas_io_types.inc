@@ -1,8 +1,4 @@
-#ifdef USE_PIO2
    integer, parameter :: MPAS_IO_OFFSET_KIND = PIO_OFFSET_KIND
-#else
-   integer, parameter :: MPAS_IO_OFFSET_KIND = PIO_OFFSET
-#endif
 
    ! File access modes
    integer, parameter :: MPAS_IO_READ  = 1, &
