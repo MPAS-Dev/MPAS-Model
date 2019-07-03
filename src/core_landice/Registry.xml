@@ -217,6 +217,14 @@
 		            description="x value defining region where bmlt_float_flux is applied; melt only where abs(x) is greater than xlimit."
 		            possible_values="Any positive real value"
 		/>
+		<nml_option name="config_temp_diffusive_factor" type="real" default_value="1.0e-5" units="unitless"
+		            description="the factor to estimate diffusivity (kt) in temperate ice from that in cold ice (kc), kt = f * kc"
+		            possible_values="possibly [1e-6, 1e-2]"
+		/>
+		<nml_option name="config_max_water_fraction" type="real" default_value="1.0e-2" units="unitless"
+		            description="the maximum water fraction allowd in the code"
+		            possible_values="theretically (0, 1), but normally it's 0.01"
+		/>
 	</nml_record>
 
 	<nml_record name="physical_parameters" in_defaults="true">
@@ -471,6 +479,7 @@
 
 			<stream name="basicmesh"/>
 			<var name="thickness"/>
+			<var name="basalWaterThickness"/>
 			<var name="bedTopography"/>
 			<var name="temperature"/>
 			<var name="sfcMassBal"/>
@@ -536,6 +545,7 @@
                         <var name="xtime"/>
                         <var name="simulationStartTime"/>
 			<var name="thickness"/>
+			<var name="basalWaterThickness"/>
 			<var name="temperature"/>
                         <var name="surfaceAirTemperature"/>
                         <var name="basalHeatFlux"/>
