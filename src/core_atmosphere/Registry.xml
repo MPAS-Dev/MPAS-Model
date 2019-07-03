@@ -851,7 +851,10 @@
 			<var name="rqvblten"/>
 			<var name="rqcblten"/>
 			<var name="rqiblten"/>
+			<var name="rncblten"/>
 			<var name="rniblten"/>
+			<var name="rnifablten"/>
+			<var name="rnwfablten"/>
 			<var name="rthratensw"/>
 			<var name="rthratenlw"/>
 			<var name="pin"/>
@@ -1462,15 +1465,15 @@
 
                         <var name="nr" array_group="number" units="nb kg^{-1}"
                              description="Rain number concentration"
-                             packages="mp_thompson_in"/>
-
-                        <var name="nwfa" array_group="aerosols" units="nb kg^{-1}"
-                             description="water-friendly aerosol number concentration"
-                             packages="mp_thompson_in"/>
+                             packages="bl_mynn_in;mp_thompson_in"/>
 
                         <var name="nifa" array_group="aerosols" units="nb kg^{-1}"
                              description="ice-friendly aerosol number concentration"
-                             packages="mp_thompson_in"/>
+                             packages="bl_mynn_in;mp_thompson_in"/>
+
+                        <var name="nwfa" array_group="aerosols" units="nb kg^{-1}"
+                             description="water-friendly aerosol number concentration"
+                             packages="bl_mynn_in;mp_thompson_in"/>
                 </var_array>
 
         </var_struct>
@@ -1750,15 +1753,15 @@
 
                         <var name="tend_nr" name_in_code="nr" array_group="number" units="nb m^{-3} s^{-1}"
                              description="Tendency of rain number concentration multiplied by dry air density divided by d(zeta)/dz"
-                             packages="mp_thompson_in"/>
-
-                        <var name="tend_nwfa" name_in_code="nwfa" array_group="aerosols" units="nb m^{-3} s^{-1}"
-                             description="Tendency of water-friendly aerosol number concentration multiplied by dry air density divided by d(zeta)/dz"
-                             packages="mp_thompson_in"/>
+                             packages="bl_mynn_in;mp_thompson_in"/>
 
                         <var name="tend_nifa" name_in_code="nifa" array_group="aerosols" units="nb m^{-3} s^{-1}"
                              description="Tendency of ice-friendly aerosol number concentration multiplied by dry air density divided by d(zeta)/dz"
-                             packages="mp_thompson_in"/>
+                             packages="bl_mynn_in;mp_thompson_in"/>
+
+                        <var name="tend_nwfa" name_in_code="nwfa" array_group="aerosols" units="nb m^{-3} s^{-1}"
+                             description="Tendency of water-friendly aerosol number concentration multiplied by dry air density divided by d(zeta)/dz"
+                             packages="bl_mynn_in;mp_thompson_in"/>
                 </var_array>
         </var_struct>
 
@@ -3154,8 +3157,20 @@
                      description="tendency of cloud ice mixing ratio due to pbl processes"
                      packages="bl_mynn_in;bl_ysu_in"/>
 
+                <var name="rncblten" type="real" dimensions="nVertLevels nCells Time" units="nb kg^{-1} s^{-1}"
+                     description="tendency of cloud water number concentration due to pbl processes"
+                     packages="bl_mynn_in"/>
+
                 <var name="rniblten" type="real" dimensions="nVertLevels nCells Time" units="nb kg^{-1} s^{-1}"
                      description="tendency of cloud ice number concentration due to pbl processes"
+                     packages="bl_mynn_in"/>
+
+                <var name="rnifablten" type="real" dimensions="nVertLevels nCells Time" units="nb kg^{-1} s^{-1}"
+                     description="tendency of ice-friendly aerosol number concentration due to pbl processes"
+                     packages="bl_mynn_in"/>
+
+                <var name="rnwfablten" type="real" dimensions="nVertLevels nCells Time" units="nb kg^{-1} s^{-1}"
+                     description="tendency of water-friendly aerosol number concentration due to pbl processes"
                      packages="bl_mynn_in"/>
 
 	        <!-- MGD should we add packages to the field below? -->

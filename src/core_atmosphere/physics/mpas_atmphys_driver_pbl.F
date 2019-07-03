@@ -73,6 +73,8 @@
 !   Laura D. Fowler (laura@ucar.edu) / 2018-01-24.
 ! * added the TKE closure level (bl_mynn_closure) to the argument list in the call to mynn_bl_driver.
 !   Laura D. Fowler (laura@ucar.edu) / 2018-09-19.
+! * modified module to update the PBL mynn scheme to that from version 4.1.1.
+!   Laura D. Fowler (laura@ucar.edu) / 2019-07-01.
 
 
  contains
@@ -114,6 +116,8 @@
  if(.not.allocated(rqcblten_p)) allocate(rqcblten_p(ims:ime,kms:kme,jms:jme))
  if(.not.allocated(rqiblten_p)) allocate(rqiblten_p(ims:ime,kms:kme,jms:jme))
 
+ if(.not.allocated(rthraten_p)) allocate(rthraten_p(ims:ime,kms:kme,jms:jme))
+
  !exchange coefficients:
  if(.not.allocated(kzh_p)) allocate(kzh_p(ims:ime,kms:kme,jms:jme))
  if(.not.allocated(kzm_p)) allocate(kzm_p(ims:ime,kms:kme,jms:jme))
@@ -132,17 +136,20 @@
        if(.not.allocated(u10_p)   ) allocate(u10_p(ims:ime,jms:jme)         )
        if(.not.allocated(v10_p)   ) allocate(v10_p(ims:ime,jms:jme)         )
 
-       if(.not.allocated(exch_p)    ) allocate(exch_p(ims:ime,kms:kme,jms:jme)    )
-       if(.not.allocated(rthraten_p)) allocate(rthraten_p(ims:ime,kms:kme,jms:jme))
+       if(.not.allocated(exch_p)    ) allocate(exch_p(ims:ime,kms:kme,jms:jme))
 
     case("bl_mynn")
-       if(.not.allocated(dx_p)  ) allocate(dx_p(ims:ime,jms:jme)  )
-       if(.not.allocated(ch_p)  ) allocate(ch_p(ims:ime,jms:jme)  )
-       if(.not.allocated(qcg_p) ) allocate(qcg_p(ims:ime,jms:jme) )
-       if(.not.allocated(qsfc_p)) allocate(qsfc_p(ims:ime,jms:jme))
-       if(.not.allocated(rmol_p)) allocate(rmol_p(ims:ime,jms:jme))
-       if(.not.allocated(tsk_p) ) allocate(tsk_p(ims:ime,jms:jme) )
-       if(.not.allocated(vdfg_p)) allocate(vdfg_p(ims:ime,jms:jme))
+       if(.not.allocated(nupdraft_p)    ) allocate(nupdraft_p(ims:ime,jms:jme)    )
+       if(.not.allocated(ktopbl_shalc_p)) allocate(ktopbl_shalc_p(ims:ime,jms:jme))
+
+       if(.not.allocated(dx_p)     ) allocate(dx_p(ims:ime,jms:jme)     )
+       if(.not.allocated(ch_p)     ) allocate(ch_p(ims:ime,jms:jme)     )
+       if(.not.allocated(qcg_p)    ) allocate(qcg_p(ims:ime,jms:jme)    )
+       if(.not.allocated(qsfc_p)   ) allocate(qsfc_p(ims:ime,jms:jme)   )
+       if(.not.allocated(rmol_p)   ) allocate(rmol_p(ims:ime,jms:jme)   )
+       if(.not.allocated(tsk_p)    ) allocate(tsk_p(ims:ime,jms:jme)    )
+       if(.not.allocated(vdfg_p)   ) allocate(vdfg_p(ims:ime,jms:jme)   )
+       if(.not.allocated(maxmfbl_p)) allocate(maxmfbl_p(ims:ime,jms:jme))
 
        if(.not.allocated(cov_p)     ) allocate(cov_p(ims:ime,kms:kme,jms:jme)     )
        if(.not.allocated(qke_p)     ) allocate(qke_p(ims:ime,kms:kme,jms:jme)     )
@@ -157,7 +164,6 @@
        if(.not.allocated(qdiss_p)   ) allocate(qdiss_p(ims:ime,kms:kme,jms:jme)   )
        if(.not.allocated(qshear_p)  ) allocate(qshear_p(ims:ime,kms:kme,jms:jme)  )
        if(.not.allocated(qwt_p)     ) allocate(qwt_p(ims:ime,kms:kme,jms:jme)     )
-       if(.not.allocated(rniblten_p)) allocate(rniblten_p(ims:ime,kms:kme,jms:jme))
 
        if(.not.allocated(qcbl_p)    ) allocate(qcbl_p(ims:ime,kms:kme,jms:jme)    )
        if(.not.allocated(cldfrabl_p)) allocate(cldfrabl_p(ims:ime,kms:kme,jms:jme))
@@ -168,6 +174,12 @@
        if(.not.allocated(edmfent_p) ) allocate(edmfent_p(ims:ime,kms:kme,jms:jme) )
        if(.not.allocated(edmfqc_p)  ) allocate(edmfqc_p(ims:ime,kms:kme,jms:jme)  )
        if(.not.allocated(qcbl_p)    ) allocate(qcbl_p(ims:ime,kms:kme,jms:jme)    )
+
+       !additional tendencies:
+       if(.not.allocated(rncblten_p)  ) allocate(rncblten_p(ims:ime,kms:kme,jms:jme)  )
+       if(.not.allocated(rniblten_p)  ) allocate(rniblten_p(ims:ime,kms:kme,jms:jme)  )
+       if(.not.allocated(rnifablten_p)) allocate(rnifablten_p(ims:ime,kms:kme,jms:jme))
+       if(.not.allocated(rnwfablten_p)) allocate(rnwfablten_p(ims:ime,kms:kme,jms:jme))
 
     case default
 
@@ -210,6 +222,8 @@
  if(allocated(rqcblten_p)) deallocate(rqcblten_p)
  if(allocated(rqiblten_p)) deallocate(rqiblten_p)
 
+ if(allocated(rthraten_p)) deallocate(rthraten_p)
+
  !exchange coefficients:
  if(allocated(kzh_p)) deallocate(kzh_p)
  if(allocated(kzm_p)) deallocate(kzm_p)
@@ -228,16 +242,19 @@
        if(allocated(u10_p)     ) deallocate(u10_p     )
        if(allocated(v10_p)     ) deallocate(v10_p     )
        if(allocated(exch_p)    ) deallocate(exch_p    )
-       if(allocated(rthraten_p)) deallocate(rthraten_p)
 
     case("bl_mynn")
-       if(allocated(dx_p)  ) deallocate(dx_p  )
-       if(allocated(ch_p)  ) deallocate(ch_p  )
-       if(allocated(qcg_p) ) deallocate(qcg_p )
-       if(allocated(qsfc_p)) deallocate(qsfc_p)
-       if(allocated(rmol_p)) deallocate(rmol_p)
-       if(allocated(tsk_p) ) deallocate(tsk_p )
-       if(allocated(vdfg_p)) deallocate(vdfg_p)
+       if(allocated(nupdraft_p)    ) deallocate(nupdraft_p    )
+       if(allocated(ktopbl_shalc_p)) deallocate(ktopbl_shalc_p)
+
+       if(allocated(dx_p)     ) deallocate(dx_p     )
+       if(allocated(ch_p)     ) deallocate(ch_p     )
+       if(allocated(qcg_p)    ) deallocate(qcg_p    )
+       if(allocated(qsfc_p)   ) deallocate(qsfc_p   )
+       if(allocated(rmol_p)   ) deallocate(rmol_p   )
+       if(allocated(tsk_p)    ) deallocate(tsk_p    )
+       if(allocated(vdfg_p)   ) deallocate(vdfg_p   )
+       if(allocated(maxmfbl_p)) deallocate(maxmfbl_p)
 
        if(allocated(cov_p)     ) deallocate(cov_p     )
        if(allocated(qke_p)     ) deallocate(qke_p     )
@@ -263,6 +280,12 @@
        if(allocated(edmfent_p) ) deallocate(edmfent_p )
        if(allocated(edmfqc_p)  ) deallocate(edmfqc_p  )
        if(allocated(qcbl_p)    ) deallocate(qcbl_p    )
+
+       !additional tendencies:
+       if(allocated(rncblten_p)  ) deallocate(rncblten_p  )
+       if(allocated(rniblten_p)  ) deallocate(rniblten_p  )
+       if(allocated(rnifablten_p)) deallocate(rnifablten_p)
+       if(allocated(rnwfablten_p)) deallocate(rnwfablten_p)
 
     case default
 
@@ -309,16 +332,19 @@
 
  call mpas_pool_get_config(configs,'config_pbl_scheme',pbl_scheme)
 
- call mpas_pool_get_array(diag_physics,'hfx'   ,hfx   )
- call mpas_pool_get_array(diag_physics,'hpbl'  ,hpbl  )
- call mpas_pool_get_array(diag_physics,'qfx'   ,qfx   )
- call mpas_pool_get_array(diag_physics,'ust'   ,ust   )
- call mpas_pool_get_array(diag_physics,'wspd'  ,wspd  )
- call mpas_pool_get_array(diag_physics,'znt'   ,znt   )
- call mpas_pool_get_array(diag_physics,'delta' ,delta )
- call mpas_pool_get_array(diag_physics,'wstar' ,wstar )
+ call mpas_pool_get_array(diag_physics,'hfx'   ,hfx  )
+ call mpas_pool_get_array(diag_physics,'hpbl'  ,hpbl )
+ call mpas_pool_get_array(diag_physics,'qfx'   ,qfx  )
+ call mpas_pool_get_array(diag_physics,'ust'   ,ust  )
+ call mpas_pool_get_array(diag_physics,'wspd'  ,wspd )
+ call mpas_pool_get_array(diag_physics,'znt'   ,znt  )
+ call mpas_pool_get_array(diag_physics,'delta' ,delta)
+ call mpas_pool_get_array(diag_physics,'wstar' ,wstar)
 
- call mpas_pool_get_array(sfc_input   ,'xland' ,xland )
+ call mpas_pool_get_array(tend_physics,'rthratenlw',rthratenlw)
+ call mpas_pool_get_array(tend_physics,'rthratensw',rthratensw)
+
+ call mpas_pool_get_array(sfc_input,'xland',xland)
 
  do j = jts,jte
  do i = its,ite
@@ -337,6 +363,11 @@
     uoce_p(i,j)  = 0._RKIND
     voce_p(i,j)  = 0._RKIND
  enddo
+ do k = kts,kte
+ do i = its,ite
+    rthraten_p(i,k,j) = rthratenlw(k,i) + rthratensw(k,i)
+ enddo
+ enddo
  enddo
 
  pbl_select: select case (trim(pbl_scheme))
@@ -350,9 +381,6 @@
        call mpas_pool_get_array(diag_physics,'regime',regime)
        call mpas_pool_get_array(diag_physics,'u10'   ,u10   )
        call mpas_pool_get_array(diag_physics,'v10'   ,v10   )
-
-       call mpas_pool_get_array(tend_physics,'rthratenlw',rthratenlw)
-       call mpas_pool_get_array(tend_physics,'rthratensw',rthratensw)
 
        ysu_pblmix = 0
        if(config_ysu_pblmix) ysu_pblmix = 1
@@ -376,7 +404,6 @@
        do k = kts,kte
        do i = its,ite
           exch_p(i,k,j)     = 0._RKIND
-          rthraten_p(i,k,j) = rthratenlw(k,i) + rthratensw(k,i) 
        enddo
        enddo
        enddo
@@ -439,15 +466,23 @@
           edmfqt_p(i,k,j)   = edmf_qt(k,i)
           edmfthl_p(i,k,j)  = edmf_thl(k,i)
           edmfw_p(i,k,j)    = edmf_w(k,i)
-          rniblten_p(i,k,j) = 0._RKIND
-
+          !... tendencies:
+          rncblten_p(i,k,j)   = 0._RKIND
+          rniblten_p(i,k,j)   = 0._RKIND
+          rnifablten_p(i,k,j) = 0._RKIND
+          rnwfablten_p(i,k,j) = 0._RKIND
           !... outputs:
-          dqke_p(i,k,j)   = 0._RKIND
-          qbuoy_p(i,k,j)  = 0._RKIND
-          qdiss_p(i,k,j)  = 0._RKIND
-          qshear_p(i,k,j) = 0._RKIND
-          qwt_p(i,k,j)    = 0._RKIND
+          dqke_p(i,k,j)       = 0._RKIND
+          qbuoy_p(i,k,j)      = 0._RKIND
+          qdiss_p(i,k,j)      = 0._RKIND
+          qshear_p(i,k,j)     = 0._RKIND
+          qwt_p(i,k,j)        = 0._RKIND
        enddo
+       enddo
+       do i = its,ite
+          nupdraft_p(i,j)     = 0
+          ktopbl_shalc_p(i,j) = 0
+          maxmfbl_p(i,j)      = 0._RKIND
        enddo
        enddo
 
@@ -458,12 +493,12 @@
  do j = jts,jte
  do k = kts,kte
  do i = its,ite
-    rublten_p(i,k,j)  = 0._RKIND
-    rvblten_p(i,k,j)  = 0._RKIND
-    rthblten_p(i,k,j) = 0._RKIND
-    rqvblten_p(i,k,j) = 0._RKIND
-    rqcblten_p(i,k,j) = 0._RKIND
-    rqiblten_p(i,k,j) = 0._RKIND
+    rublten_p(i,k,j)    = 0._RKIND
+    rvblten_p(i,k,j)    = 0._RKIND
+    rthblten_p(i,k,j)   = 0._RKIND
+    rqvblten_p(i,k,j)   = 0._RKIND
+    rqcblten_p(i,k,j)   = 0._RKIND
+    rqiblten_p(i,k,j)   = 0._RKIND
 
     kzh_p(i,k,j)    = 0._RKIND
     kzm_p(i,k,j)    = 0._RKIND
@@ -497,8 +532,9 @@
 
  real(kind=RKIND),dimension(:),pointer  :: hpbl
  real(kind=RKIND),dimension(:,:),pointer:: kzh,kzm,kzq
- real(kind=RKIND),dimension(:,:),pointer:: rublten,rvblten,rthblten,rqvblten,rqcblten,rqiblten, &
-                                           rniblten
+ real(kind=RKIND),dimension(:,:),pointer:: rublten,rvblten,rthblten,rqvblten,rqcblten,rqiblten
+ real(kind=RKIND),dimension(:,:),pointer:: rncblten,rniblten
+ real(kind=RKIND),dimension(:,:),pointer:: rnifablten,rnwfablten
 
 !local pointers for YSU scheme:
  real(kind=RKIND),dimension(:,:),pointer:: exch_h
@@ -590,7 +626,11 @@
        call mpas_pool_get_array(diag_physics,'edmf_qt'   ,edmf_qt   )
        call mpas_pool_get_array(diag_physics,'edmf_thl'  ,edmf_thl  )
        call mpas_pool_get_array(diag_physics,'edmf_w'    ,edmf_w    )
+
+       call mpas_pool_get_array(tend_physics,'rncblten'  ,rncblten  )
        call mpas_pool_get_array(tend_physics,'rniblten'  ,rniblten  )
+       call mpas_pool_get_array(tend_physics,'rnifablten',rnifablten)
+       call mpas_pool_get_array(tend_physics,'rnwfablten',rnwfablten)
 
        do j = jts,jte
        do k = kts,kte
@@ -617,7 +657,11 @@
           qdiss(k,i)      = qdiss_p(i,k,j)
           qshear(k,i)     = qshear_p(i,k,j)
           qwt(k,i)        = qwt_p(i,k,j)
+
+          rncblten(k,i)   = rncblten_p(i,k,j)
           rniblten(k,i)   = rniblten_p(i,k,j)
+          rnifablten(k,i) = rnifablten_p(i,k,j)
+          rnwfablten(k,i) = rnwfablten_p(i,k,j)
        enddo
        enddo
        enddo
@@ -709,43 +753,47 @@
       call mpas_log_write('--- config_mynn_closure  = $i',intArgs=(/bl_mynn_closure/))
 
       call mpas_timer_start('bl_mynn')
-      call  mynn_bl_driver ( &
-                 p         = pres_hyd_p  , exner     = pi_p        , ps        = psfc_p     , &
-                 th        = th_p        , t3d       = t_p         , dz        = dz_p       , &
-                 dxCell    = dx_p        , u         = u_p         , v         = v_p        , &
-                 w         = w_p         , qv        = qv_p        , qc        = qc_p       , &
-                 qi        = qi_p        , qni       = ni_p        , qnc       = nc_p       , &
-                 rho       = rho_p       , rublten   = rublten_p   , rvblten   = rvblten_p  , &
-                 rthblten  = rthblten_p  , rqvblten  = rqvblten_p  , rqcblten  = rqcblten_p , &
-                 rqiblten  = rqiblten_p  , rqniblten = rniblten_p  , flag_qc   = f_qc       , &
-                 flag_qnc  = f_qnc       , flag_qi   = f_qi        , flag_qni  = f_qni      , &
-                 kpbl      = kpbl_p      , pblh      = hpbl_p      , xland     = xland_p    , &
-                 ts        = tsk_p       , hfx       = hfx_p       , qfx       = qfx_p      , &
-                 ch        = ch_p        , znt       = znt_p       , sh3d      = sh3d_p     , &
-                 tsq       = tsq_p       , qsq       = qsq_p       , cov       = cov_p      , &
-                 el_pbl    = elpbl_p     , qsfc      = qsfc_p      , qcg       = qcg_p      , &
-                 ust       = ust_p       , rmol      = rmol_p      , wspd      = wspd_p     , &
-                 wstar     = wstar_p     , delta     = delta_p     , delt      = dt_pbl     , &
-                 exch_h    = kzh_p       , exch_m    = kzm_p       , uoce      = uoce_p     , &
-                 voce      = voce_p      , qke       = qke_p       , qke_adv   = qkeadv_p   , &
-                 vdfg      = vdfg_p      , tke_pbl   = tkepbl_p    , dqke      = dqke_p     , &
-                 qwt       = qwt_p       , qshear    = qshear_p    , qbuoy     = qbuoy_p    , &
-                 qdiss     = qdiss_p     , qc_bl     = qcbl_p      , cldfra_bl = cldfrabl_p , &
-                 icloud_bl = icloud_bl   , edmf_a    = edmfa_p     , edmf_w    = edmfw_p    , &
-                 edmf_qt   = edmfqt_p    , edmf_thl  = edmfthl_p   , edmf_ent  = edmfent_p  , &
-                 edmf_qc   = edmfqc_p    , initflag  = initflag    ,                          &
-                 grav_settling     = grav_settling     ,                                      &
-                 bl_mynn_closure   = bl_mynn_closure   ,                                      &
-                 bl_mynn_cloudpdf  = bl_mynn_cloudpdf  ,                                      &
-                 bl_mynn_cloudmix  = bl_mynn_cloudmix  ,                                      &
-                 bl_mynn_mixlength = bl_mynn_mixlength ,                                      &
-                 bl_mynn_mixqt     = bl_mynn_mixqt     ,                                      &
-                 bl_mynn_tkeadvect = bl_mynn_tkeadvect ,                                      &
-                 bl_mynn_tkebudget = bl_mynn_tkebudget ,                                      &
-                 bl_mynn_edmf      = bl_mynn_edmf      ,                                      &
-                 bl_mynn_edmf_mom  = bl_mynn_edmf_mom  ,                                      &
-                 bl_mynn_edmf_part = bl_mynn_edmf_part ,                                      &
-                 bl_mynn_edmf_tke  = bl_mynn_edmf_tke  ,                                      &
+      call mynn_bl_driver ( &
+                 p           = pres_hyd_p   , exner        = pi_p           , ps           = psfc_p         , &
+                 th          = th_p         , t3d          = t_p            , dz           = dz_p           , &
+                 dx          = dx_p         , u            = u_p            , v            = v_p            , &
+                 w           = w_p          , qv           = qv_p           , qc           = qc_p           , &
+                 qi          = qi_p         , qnc          = nc_p           , qni          = ni_p           , &
+                 qnifa       = nifa_p       , qnwfa        = nwfa_p         , rho          = rho_p          , &
+                 rublten     = rublten_p    , rvblten      = rvblten_p      , rthblten     = rthblten_p     , &
+                 rqvblten    = rqvblten_p   , rqcblten     = rqcblten_p     , rqiblten     = rqiblten_p     , &
+                 rqncblten   = rncblten_p   , rqniblten    = rniblten_p     , rqnifablten  = rnifablten_p   , &
+                 rqnwfablten = rnwfablten_p , rthraten     = rthraten_p     , flag_qc      = f_qc           , &
+                 flag_qi     = f_qi         , flag_qnc     = f_qnc          , flag_qni     = f_qni          , &
+                 flag_qnifa  = f_qnifa      , flag_qnwfa   = f_qnwfa        , icloud_bl    = icloud_bl      , &
+                 kpbl        = kpbl_p       , pblh         = hpbl_p         , xland        = xland_p        , &
+                 ts          = tsk_p        , hfx          = hfx_p          , qfx          = qfx_p          , &
+                 ch          = ch_p         , znt          = znt_p          , sh3d         = sh3d_p         , &
+                 tsq         = tsq_p        , qsq          = qsq_p          , cov          = cov_p          , &
+                 el_pbl      = elpbl_p      , qsfc         = qsfc_p         , qcg          = qcg_p          , &
+                 ust         = ust_p        , rmol         = rmol_p         , wspd         = wspd_p         , &
+                 wstar       = wstar_p      , delta        = delta_p        , delt         = dt_pbl         , &
+                 exch_h      = kzh_p        , exch_m       = kzm_p          , uoce         = uoce_p         , &
+                 voce        = voce_p       , qke          = qke_p          , qke_adv      = qkeadv_p       , &
+                 vdfg        = vdfg_p       , tke_pbl      = tkepbl_p       , dqke         = dqke_p         , &
+                 qwt         = qwt_p        , qshear       = qshear_p       , qbuoy        = qbuoy_p        , &
+                 qdiss       = qdiss_p      , qc_bl        = qcbl_p         , cldfra_bl    = cldfrabl_p     , &
+                 spp_pbl     = spp_pbl      , nupdraft     = nupdraft_p     , ktop_shallow = ktopbl_shalc_p , &
+                 maxmf       = maxmfbl_p    , edmf_a       = edmfa_p        , edmf_w       = edmfw_p        , &
+                 edmf_qt     = edmfqt_p     , edmf_thl     = edmfthl_p      , edmf_ent     = edmfent_p      , &
+                 edmf_qc     = edmfqc_p     , initflag     = initflag       ,                                 &
+                 grav_settling     = grav_settling       ,                                      &
+                 bl_mynn_closure   = bl_mynn_closure     ,                                      &
+                 bl_mynn_cloudpdf  = bl_mynn_cloudpdf    ,                                      &
+                 bl_mynn_cloudmix  = bl_mynn_cloudmix    ,                                      &
+                 bl_mynn_mixlength = bl_mynn_mixlength   ,                                      &
+                 bl_mynn_mixscalars = bl_mynn_mixscalars ,                                      &
+                 bl_mynn_mixqt     = bl_mynn_mixqt       ,                                      &
+                 bl_mynn_tkeadvect = bl_mynn_tkeadvect   ,                                      &
+                 bl_mynn_tkebudget = bl_mynn_tkebudget   ,                                      &
+                 bl_mynn_edmf      = bl_mynn_edmf        ,                                      &
+                 bl_mynn_edmf_mom  = bl_mynn_edmf_mom    ,                                      &
+                 bl_mynn_edmf_tke  = bl_mynn_edmf_tke    ,                                      &
                  ids = ids , ide = ide , jds = jds , jde = jde , kds = kds , kde = kde      , &
                  ims = ims , ime = ime , jms = jms , jme = jme , kms = kms , kme = kme      , &
                  its = its , ite = ite , jts = jts , jte = jte , kts = kts , kte = kte        &

@@ -91,6 +91,9 @@
 ! * in subroutines microphysics_from_MPAS and microphysics_to_MPAS, included the initialization of array nifa_p
 !   for use with the aerosol-aware option of the Thompson cloud microphysics from WRF-4.1.
 !   Laura D. Fowler (laura@ucar.edu) / 2019-04-25.
+! * added the number concentration of cloud water, and number concentration of water- and "ice-friendly aerosols
+!   to be used in the PBL mynn scheme for transport in PBL and free troposphere.
+!   Laura D. Fowler (laura@ucar.edu) / 2019-07-01.
 
 
  contains
@@ -145,19 +148,14 @@
 
  bl_select: select case(trim(bl_scheme))
     case("bl_mynn")
-       if(.not.allocated(nc_p)) allocate(nc_p(ims:ime,kms:kme,jms:jme))
-       if(.not.allocated(ni_p)) allocate(ni_p(ims:ime,kms:kme,jms:jme))
-
-    case default
- end select bl_select
-
- mp_select: select case(trim(mp_scheme))
-    case("mp_thompson","mp_thompson_aerosols")
+       if(.not.allocated(nc_p)  ) allocate(nc_p(ims:ime,kms:kme,jms:jme)  )
+       if(.not.allocated(ni_p)  ) allocate(ni_p(ims:ime,kms:kme,jms:jme)  )
+       if(.not.allocated(nr_p)  ) allocate(nr_p(ims:ime,kms:kme,jms:jme)  )
        if(.not.allocated(nifa_p)) allocate(nifa_p(ims:ime,kms:kme,jms:jme))
        if(.not.allocated(nwfa_p)) allocate(nwfa_p(ims:ime,kms:kme,jms:jme))
 
     case default
- end select mp_select
+ end select bl_select
 
 !... arrays used for calculating the hydrostatic pressure and exner function:
  if(.not.allocated(psfc_hyd_p)  ) allocate(psfc_hyd_p(ims:ime,jms:jme)          )
@@ -219,19 +217,14 @@
 
  bl_select: select case(trim(bl_scheme))
     case("bl_mynn")
-       if(allocated(nc_p)) deallocate(nc_p)
-       if(allocated(ni_p)) deallocate(ni_p)
-
-    case default
- end select bl_select
-
- mp_select: select case(trim(mp_scheme))
-    case("mp_thompson","mp_thompson_aerosols")
+       if(allocated(nc_p)  ) deallocate(nc_p  )
+       if(allocated(ni_p)  ) deallocate(ni_p  )
+       if(allocated(nr_p)  ) deallocate(nr_p  )
        if(allocated(nifa_p)) deallocate(nifa_p)
        if(allocated(nwfa_p)) deallocate(nwfa_p)
 
     case default
- end select mp_select
+ end select bl_select
 
  if(allocated(psfc_hyd_p)  ) deallocate(psfc_hyd_p  )
  if(allocated(psfc_hydd_p) ) deallocate(psfc_hydd_p )
@@ -264,7 +257,7 @@
                                   mp_scheme
 
  integer,pointer:: index_qv,index_qc,index_qr,index_qi,index_qs,index_qg
- integer,pointer:: index_nc,index_ni,index_nifa,index_nwfa
+ integer,pointer:: index_nc,index_ni,index_nr,index_nifa,index_nwfa
 
  real(kind=RKIND),dimension(:),pointer    :: latCell,lonCell
  real(kind=RKIND),dimension(:),pointer    :: fzm,fzp,rdzw
@@ -273,7 +266,7 @@
  real(kind=RKIND),dimension(:,:),pointer  :: zz,exner,pressure_b,rtheta_p,rtheta_b
  real(kind=RKIND),dimension(:,:),pointer  :: rho_zz,theta_m,pressure_p,u,v,w
  real(kind=RKIND),dimension(:,:),pointer  :: qv,qc,qr,qi,qs,qg
- real(kind=RKIND),dimension(:,:),pointer  :: nc,ni,nifa,nwfa
+ real(kind=RKIND),dimension(:,:),pointer  :: nc,ni,nr,nifa,nwfa
  real(kind=RKIND),dimension(:,:,:),pointer:: scalars
 
 !local variables:
@@ -371,31 +364,21 @@
     case("bl_mynn")
        call mpas_pool_get_dimension(state,'index_nc',index_nc)
        call mpas_pool_get_dimension(state,'index_ni',index_ni)
-       nc => scalars(index_nc,:,:)
-       ni => scalars(index_ni,:,:)
-
-       do j = jts,jte
-       do k = kts,kte
-       do i = its,ite
-          nc_p(i,k,j) = max(0.,nc(k,i))
-          ni_p(i,k,j) = max(0.,ni(k,i))
-       enddo
-       enddo
-       enddo
-
-    case default
- end select bl_select
-
- mp_select: select case(trim(mp_scheme))
-    case("mp_thompson","mp_thompson_aerosols")
+       call mpas_pool_get_dimension(state,'index_nr',index_nr)
        call mpas_pool_get_dimension(state,'index_nifa',index_nifa)
        call mpas_pool_get_dimension(state,'index_nwfa',index_nwfa)
+       nc   => scalars(index_nc,:,:)
+       ni   => scalars(index_ni,:,:)
+       nr   => scalars(index_nr,:,:)
        nifa => scalars(index_nifa,:,:)
        nwfa => scalars(index_nwfa,:,:)
 
        do j = jts,jte
        do k = kts,kte
        do i = its,ite
+          nc_p(i,k,j)   = max(0.,nc(k,i))
+          ni_p(i,k,j)   = max(0.,ni(k,i))
+          nr_p(i,k,j)   = max(0.,nr(k,i))
           nifa_p(i,k,j) = max(0.,nifa(k,i))
           nwfa_p(i,k,j) = max(0.,nwfa(k,i))
        enddo
@@ -403,7 +386,7 @@
        enddo
 
     case default
- end select mp_select
+ end select bl_select
 
 !calculation of the surface pressure using hydrostatic assumption down to the surface::
  do j = jts,jte
@@ -637,12 +620,20 @@
        qs => scalars(index_qs,:,:)
        qg => scalars(index_qg,:,:)
 
+       call mpas_pool_get_array(diag_physics,'re_cloud',re_cloud)
+       call mpas_pool_get_array(diag_physics,'re_ice'  ,re_ice  )
+       call mpas_pool_get_array(diag_physics,'re_snow' ,re_snow )
+
        do j = jts, jte
        do k = kts, kte
        do i = its, ite
           qi_p(i,k,j) = qi(k,i)
           qs_p(i,k,j) = qs(k,i)
           qg_p(i,k,j) = qg(k,i)
+
+          recloud_p(i,k,j) = re_cloud(k,i)
+          reice_p(i,k,j)   = re_ice(k,i)
+          resnow_p(i,k,j)  = re_snow(k,i)
        enddo
        enddo
        enddo
@@ -661,9 +652,6 @@
           call mpas_pool_get_array(diag_physics,'mu_c'    ,mu_c    )
           call mpas_pool_get_array(diag_physics,'rainprod',rainprod)
           call mpas_pool_get_array(diag_physics,'evapprod',evapprod)
-          call mpas_pool_get_array(diag_physics,'re_cloud',re_cloud)
-          call mpas_pool_get_array(diag_physics,'re_ice'  ,re_ice  )
-          call mpas_pool_get_array(diag_physics,'re_snow' ,re_snow )
 
           nc   => scalars(index_nc,:,:)
           ni   => scalars(index_ni,:,:)
@@ -689,9 +677,9 @@
              nwfa_p(i,k,j) = nwfa(k,i)
              rainprod_p(i,k,j) = rainprod(k,i)
              evapprod_p(i,k,j) = evapprod(k,i)
-             recloud_p(i,k,j)  = re_cloud(k,i)
-             reice_p(i,k,j)    = re_ice(k,i)
-             resnow_p(i,k,j)   = re_snow(k,i)
+!            recloud_p(i,k,j)  = re_cloud(k,i)
+!            reice_p(i,k,j)    = re_ice(k,i)
+!            resnow_p(i,k,j)   = re_snow(k,i)
              vqr_p(i,k,j) = 0._RKIND
              vqi_p(i,k,j) = 0._RKIND
              vqs_p(i,k,j) = 0._RKIND
@@ -865,12 +853,20 @@
        qs => scalars(index_qs,:,:)
        qg => scalars(index_qg,:,:)
 
+       call mpas_pool_get_array(diag_physics,'re_cloud',re_cloud)
+       call mpas_pool_get_array(diag_physics,'re_ice'  ,re_ice  )
+       call mpas_pool_get_array(diag_physics,'re_snow' ,re_snow )
+
        do j = jts, jte
        do k = kts, kte
        do i = its, ite
           qi(k,i) = qi_p(i,k,j)
           qs(k,i) = qs_p(i,k,j)
           qg(k,i) = qg_p(i,k,j)
+
+          re_cloud(k,i) = recloud_p(i,k,j)
+          re_ice(k,i)   = reice_p(i,k,j)
+          re_snow(k,i)  = resnow_p(i,k,j)
        enddo
        enddo
        enddo
@@ -885,9 +881,6 @@
 
           call mpas_pool_get_array(diag_physics,'rainprod',rainprod)
           call mpas_pool_get_array(diag_physics,'evapprod',evapprod)
-          call mpas_pool_get_array(diag_physics,'re_cloud',re_cloud)
-          call mpas_pool_get_array(diag_physics,'re_ice'  ,re_ice  )
-          call mpas_pool_get_array(diag_physics,'re_snow' ,re_snow )
 
           call mpas_pool_get_array(diag_physics,'vqr',vqr)
           call mpas_pool_get_array(diag_physics,'vqi',vqi)
@@ -907,14 +900,13 @@
           enddo
           do k = kts, kte
           do i = its, ite
-             nc(k,i) = nc_p(i,k,j)
-             ni(k,i) = ni_p(i,k,j)
-             nr(k,i) = nr_p(i,k,j)
+             nc(k,i)   = nc_p(i,k,j)
+             ni(k,i)   = ni_p(i,k,j)
+             nr(k,i)   = nr_p(i,k,j)
+             nifa(k,i) = nifa_p(i,k,j)
+             nwfa(k,i) = nwfa_p(i,k,j)
              rainprod(k,i) = rainprod_p(i,k,j)
              evapprod(k,i) = evapprod_p(i,k,j)
-             re_cloud(k,i) = recloud_p(i,k,j)
-             re_ice(k,i)   = reice_p(i,k,j)
-             re_snow(k,i)  = resnow_p(i,k,j)
              vqr(k,i) = vqr_p(i,k,j)
              vqi(k,i) = vqi_p(i,k,j)
              vqs(k,i) = vqs_p(i,k,j)
