@@ -834,7 +834,7 @@ module atm_core
       use atm_time_integration
 #ifdef DO_PHYSICS
       use mpas_atmphys_control
-      use mpas_atmphys_driver
+      use mpas_atmphys_driver, only : physics_driver_before_dyn, physics_driver_after_dyn
       use mpas_atmphys_manager
       use mpas_atmphys_update
 #endif
@@ -862,15 +862,33 @@ module atm_core
       xtime_s = (s + s_n / s_d)
 
 
+      !
+      ! All physics, except for explict moist physics.
 #ifdef DO_PHYSICS
       !proceed with physics if moist_physics is set to true:
       if(moist_physics) then
          call physics_timetracker(domain,dt,clock,itimestep,xtime_s)
-         call physics_driver(domain,itimestep,xtime_s)
+         call physics_driver_before_dyn(domain,itimestep,xtime_s)
       endif
 #endif
 
       call atm_timestep(domain, dt, currTime, itimestep)
+
+      !
+      ! This part is the microphysics, which needs to happen after the
+      ! dynamics time stepping.
+#ifdef DO_PHYSICS
+      !proceed with physics if moist_physics is set to true:
+      if(moist_physics) then
+         call physics_driver_after_dyn(domain,itimestep,xtime_s)
+      endif
+#endif
+
+      !
+      ! This is the summary from the physics before the dynamics solver, 
+      ! the accumulated processing of the dynamics, and the final physics
+      ! call after the dynamics completes.
+      call summarize_timestep(domain)
 
    end subroutine atm_do_timestep
    
