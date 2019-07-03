@@ -86,6 +86,9 @@
 ! * removed the option sf_mynn (calling sf_mynn from WRF version 3.6.1), and renamed the option sf_mynn_wrf390
 !   to sf_mynn to update the MYNN surface layer scheme from WRF version 3.6.1 to 3.9.0, as the default option.
 !   Laura D. Fowler (laura@ucar.edu) / 2018-01-23.
+! * updated the calls to sfclay and sfclay_mynn, now that we updated module_sf_sfclay.F and module_sf_mynn.F to
+!   those from WRF version 4.1.1.
+!   Laura D. Fowler (laura@ucar.edu) / 2019-07-01.
 
 
  contains
@@ -808,7 +811,7 @@
  sfclayer_select: select case (trim(sfclayer_scheme))
 
     case("sf_monin_obukhov")
-       call sfclayinit(allowed_to_read)
+       call sfclayinit
 
     case("sf_mynn")
        call mynn_sf_init_driver(allowed_to_read)
@@ -883,14 +886,13 @@
                    rmol     = rmol_p     , u10      = u10_p      , v10      = v10_p      , &
                    th2      = th2m_p     , t2       = t2m_p      , q2       = q2_p       , &
                    gz1oz0   = gz1oz0_p   , wspd     = wspd_p     , br       = br_p       , &
-                   isfflx   = isfflx     , dx       = dx         , svp1     = svp1       , &
+                   isfflx   = isfflx     , dx       = dx_p       , svp1     = svp1       , &
                    svp2     = svp2       , svp3     = svp3       , svpt0    = svpt0      , &
                    ep1      = ep_1       , ep2      = ep_2       , karman   = karman     , &
                    eomeg    = eomeg      , stbolt   = stbolt     , P1000mb  = P0         , &
-                   dxCell   = dx_p       , ustm     = ustm_p     , ck       = ck_p       , & 
-                   cka      = cka_p      , cd       = cd_p       , cda      = cda_p      , & 
-                   isftcflx = isftcflx   , iz0tlnd  = iz0tlnd    ,                         &
-                   scm_force_flux = scm_force_flux               ,                         & 
+                   ustm     = ustm_p     , ck       = ck_p       , cka      = cka_p      , &
+                   cd       = cd_p       , cda      = cda_p      , isftcflx = isftcflx   , &
+                   iz0tlnd  = iz0tlnd    , scm_force_flux = scm_force_flux               , &
                    ids = ids , ide = ide , jds = jds , jde = jde , kds = kds , kde = kde , &
                    ims = ims , ime = ime , jms = jms , jme = jme , kms = kms , kme = kme , &
                    its = its , ite = ite , jts = jts , jte = jte , kts = kts , kte = kte   &
@@ -913,14 +915,13 @@
                       rmol     = rmol_sea   , u10      = u10_sea    , v10      = v10_sea    , &
                       th2      = th2m_sea   ,  t2      = t2m_sea    , q2       = q2_sea     , &
                       gz1oz0   = gz1oz0_sea , wspd     = wspd_sea   , br       = br_sea     , &
-                      isfflx   = isfflx     , dx       = dx         , svp1     = svp1       , &
+                      isfflx   = isfflx     , dx       = dx_p       , svp1     = svp1       , &
                       svp2     = svp2       , svp3     = svp3       , svpt0    = svpt0      , &
                       ep1      = ep_1       , ep2      = ep_2       , karman   = karman     , &
                       eomeg    = eomeg      , stbolt   = stbolt     , P1000mb  = P0         , &
-                      dxCell   = dx_p       , ustm     = ustm_sea   , ck       = ck_sea     , &
-                      cka      = cka_sea    , cd       = cd_sea     , cda      = cda_sea    , &
-                      isftcflx = isftcflx   , iz0tlnd  = iz0tlnd    ,                         &
-                      scm_force_flux = scm_force_flux               ,                         &
+                      ustm     = ustm_p     , ck       = ck_p       , cka      = cka_p      , &
+                      cd       = cd_p       , cda      = cda_p      , isftcflx = isftcflx   , &
+                      iz0tlnd  = iz0tlnd    , scm_force_flux = scm_force_flux               , &
                       ids = ids , ide = ide , jds = jds , jde = jde , kds = kds , kde = kde , &
                       ims = ims , ime = ime , jms = jms , jme = jme , kms = kms , kme = kme , &
                       its = its , ite = ite , jts = jts , jte = jte , kts = kts , kte = kte   &
@@ -956,7 +957,7 @@
                    cov       = cov_p      , tsq       = tsq_p      , qsq       = qsq_p      , &
                    sh3d      = sh3d_p     , el_pbl    = elpbl_p    , qcg       = qcg_p      , &
                    icloud_bl = icloud_bl  , cldfra_bl = cldfrabl_p , qc_bl     = qcbl_p     , &
-                   bl_mynn_cloudpdf = bl_mynn_cloudpdf                                      , &
+                   spp_pbl   = spp_pbl    , bl_mynn_cloudpdf = bl_mynn_cloudpdf             , &
                    ids = ids , ide = ide , jds = jds , jde = jde , kds = kds , kde = kde    , &
                    ims = ims , ime = ime , jms = jms , jme = jme , kms = kms , kme = kme    , &
                    its = its , ite = ite , jts = jts , jte = jte , kts = kts , kte = kte      &
@@ -989,7 +990,7 @@
                       cov       = cov_p      , tsq       = tsq_p      , qsq       = qsq_p      , &
                       sh3d      = sh3d_p     , el_pbl    = elpbl_p    , qcg       = qcg_p      , &
                       icloud_bl = icloud_bl  , cldfra_bl = cldfrabl_p , qc_bl     = qcbl_p     , &
-                      bl_mynn_cloudpdf = bl_mynn_cloudpdf                                      , &
+                      spp_pbl   = spp_pbl    , bl_mynn_cloudpdf = bl_mynn_cloudpdf             , &
                       ids = ids , ide = ide , jds = jds , jde = jde , kds = kds , kde = kde    , &
                       ims = ims , ime = ime , jms = jms , jme = jme , kms = kms , kme = kme    , &
                       its = its , ite = ite , jts = jts , jte = jte , kts = kts , kte = kte      &
