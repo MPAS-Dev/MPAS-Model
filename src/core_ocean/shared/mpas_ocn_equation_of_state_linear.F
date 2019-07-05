@@ -89,11 +89,6 @@ contains
 !>  Potential density (referenced to top layer) can be computed
 !>      using k_displaced=1 and displacement_type = 'absolute'.
 !>
-!>  The density of SST/SSS after adiabatic displacement to each layer
-!>      can be computed using displacement_type = 'surfaceDisplaced'.
-!>
-!>  When using displacement_type = 'surfaceDisplaced', k_displaced is
-!>      ignored and tracersSurfaceLayerValue must be present.
 !
 !-----------------------------------------------------------------------
 
@@ -166,30 +161,8 @@ contains
 
       ! copy some intent(in) into local work space
 
-      !*** if surfaceDisplaced, then compute density at all levels
-      !*** based on input surface values
-
-      if (trim(displacementType) == 'surfaceDisplaced') then
-
-         !$omp do schedule(runtime) private(k)
-         do iCell = 1, nCells
-         do k = 1, nVertLevels
-
-            density(k,iCell) =  ocnEqStateLinearRhoRef &
-                             - ocnEqStateLinearAlpha * &
-                               (tracersSurfaceLayerValue(indexT,iCell) - &
-                                ocnEqStateLinearTref)  &
-                             + ocnEqStateLinearBeta  * &
-                               (tracersSurfaceLayerValue(indexS,iCell) - &
-                                ocnEqStateLinearSref)
-         end do
-         end do
-         !$omp end do
-
-      else  ! all other displacement types
-
-         !$omp do schedule(runtime) private(k)
-         do iCell = 1, nCells
+      !$omp do schedule(runtime) private(k)
+      do iCell = 1, nCells
          do k = 1, nVertLevels
 
             density(k,iCell) = ocnEqStateLinearRhoRef     &
@@ -200,10 +173,8 @@ contains
                                (tracers(indexS,k,iCell) - &
                                 ocnEqStateLinearSref)
          end do
-         end do
-         !$omp end do
-
-      endif
+      end do
+      !$omp end do
 
       !-----------------------------------------------------------------
 
@@ -299,37 +270,8 @@ contains
 
       ! copy some intent(in) into local work space
 
-      !*** if surfaceDisplaced, then compute density at all levels
-      !*** based on input surface values
-      !*** return fixed values of expansion coefficients
-
-      if (trim(displacementType) == 'surfaceDisplaced') then
-
-         !$omp do schedule(runtime) private(k)
-         do iCell = 1, nCells
-         do k = 1, nVertLevels
-
-            density(k,iCell) =  ocnEqStateLinearRhoRef &
-                             - ocnEqStateLinearAlpha * &
-                               (tracersSurfaceLayerValue(indexT,iCell) - &
-                                ocnEqStateLinearTref)  &
-                             + ocnEqStateLinearBeta  * &
-                               (tracersSurfaceLayerValue(indexS,iCell) - &
-                                ocnEqStateLinearSref)
-
-            thermalExpansionCoeff(k,iCell) = ocnEqStateLinearAlpha/ &
-                                             density(k,iCell)
-
-            salineContractionCoeff(k,iCell) = ocnEqStateLinearBeta/ &
-                                              density(k,iCell)
-         end do
-         end do
-         !$omp end do
-
-      else  ! all other displacement types
-
-         !$omp do schedule(runtime) private(k)
-         do iCell = 1, nCells
+      !$omp do schedule(runtime) private(k)
+      do iCell = 1, nCells
          do k = 1, nVertLevels
 
             density(k,iCell) = ocnEqStateLinearRhoRef     &
@@ -346,10 +288,8 @@ contains
             salineContractionCoeff(k,iCell) = ocnEqStateLinearBeta/ &
                                               density(k,iCell)
          end do
-         end do
-         !$omp end do
-
-      endif
+      end do
+      !$omp end do
 
       !-----------------------------------------------------------------
 

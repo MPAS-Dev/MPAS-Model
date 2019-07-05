@@ -170,11 +170,6 @@ contains
 !>  Potential density (referenced to top layer) can be computed
 !>      using kDisplaced=1 and displacementType = 'absolute'.
 !>
-!>  The density of SST/SSS after adiabatic displacement to each layer
-!>      can be computed using displacementType = 'surfaceDisplaced'.
-!>
-!>  When using displacementType = 'surfaceDisplaced', kDisplaced is
-!>      ignored and tracersSurfaceLayerValue must be present.
 !
 !-----------------------------------------------------------------------
 
@@ -258,13 +253,8 @@ contains
       !  NOTE: kDisplaced = 0 or > nVertLevels is incompatible with 'absolute'
       !     so abort if necessary
 
-      if (displacementType == 'surfaceDisplaced') then
-         displacementTypeLocal = 'relative'
-         kDisplacedLocal = 0
-      else
-         displacementTypeLocal = trim(displacementType)
-         kDisplacedLocal = kDisplaced
-      endif
+      displacementTypeLocal = trim(displacementType)
+      kDisplacedLocal = kDisplaced
 
       ! Eliminate this error check for performance reasons
       !if (displacementTypeLocal == 'absolute' .and.   &
@@ -304,36 +294,16 @@ contains
       allocate(tracerSalt(nVertLevels,nCells))
       !$omp end master
       !$omp barrier
-
-      if (displacementType == 'surfaceDisplaced') then
-
-         !$omp do schedule(runtime)
-         do iCell=1,nCells
-         do k=1,nVertLevels
-            tq = min(tracersSurfaceLayerValue(indexT,iCell), &
-                     ocnEqStateTmax)
-            sq = min(tracersSurfaceLayerValue(indexS,iCell), &
-                     ocnEqStateSmax)
-            tracerTemp(k,iCell) = max(tq,ocnEqStateTmin)
-            tracerSalt(k,iCell) = max(sq,ocnEqStateSmin)
-         enddo
-         end do
-         !$omp end do
-
-      else
-
-         !$omp do schedule(runtime)
-         do iCell=1,nCells
+      !$omp do schedule(runtime)
+      do iCell=1,nCells
          do k = 1, nVertLevels
             tq = min(tracers(indexT,k,iCell), ocnEqStateTmax)
             sq = min(tracers(indexS,k,iCell), ocnEqStateSmax)
             tracerTemp(k,iCell) = max(tq,ocnEqStateTmin)
             tracerSalt(k,iCell) = max(sq,ocnEqStateSmin)
          end do
-         end do
-         !$omp end do
-
-      endif
+      end do
+      !$omp end do
 
 #ifdef MPAS_OPENACC
       !$omp master
@@ -427,11 +397,6 @@ contains
 !>  Potential density (referenced to top layer) can be computed
 !>      using kDisplaced=1 and displacementType = 'absolute'.
 !>
-!>  The density of SST/SSS after adiabatic displacement to each layer
-!>      can be computed using displacementType = 'surfaceDisplaced'.
-!>
-!>  When using displacementType = 'surfaceDisplaced', kDisplaced is
-!>      ignored and tracersSurfaceLayerValue must be present.
 !
 !-----------------------------------------------------------------------
 
@@ -530,13 +495,8 @@ contains
       !  NOTE: kDisplaced = 0 or > nVertLevels is incompatible with 'absolute'
       !     so abort if necessary
 
-      if (displacementType == 'surfaceDisplaced') then
-         displacementTypeLocal = 'relative'
-         kDisplacedLocal = 0
-      else
-         displacementTypeLocal = trim(displacementType)
-         kDisplacedLocal = kDisplaced
-      endif
+      displacementTypeLocal = trim(displacementType)
+      kDisplacedLocal = kDisplaced
 
       ! Eliminate this error check for performance reasons
       !if (displacementTypeLocal == 'absolute' .and.   &
@@ -577,35 +537,16 @@ contains
       !$omp end master
       !$omp barrier
 
-      if (displacementType == 'surfaceDisplaced') then
-
-         !$omp do schedule(runtime)
-         do iCell=1,nCells
-         do k=1,nVertLevels
-            tq = min(tracersSurfaceLayerValue(indexT,iCell), &
-                     ocnEqStateTmax)
-            sq = min(tracersSurfaceLayerValue(indexS,iCell), &
-                     ocnEqStateSmax)
-            tracerTemp(k,iCell) = max(tq,ocnEqStateTmin)
-            tracerSalt(k,iCell) = max(sq,ocnEqStateSmin)
-         enddo
-         end do
-         !$omp end do
-
-      else
-
-         !$omp do schedule(runtime)
-         do iCell=1,nCells
+      !$omp do schedule(runtime)
+      do iCell=1,nCells
          do k = 1, nVertLevels
             tq = min(tracers(indexT,k,iCell), ocnEqStateTmax)
             sq = min(tracers(indexS,k,iCell), ocnEqStateSmax)
             tracerTemp(k,iCell) = max(tq,ocnEqStateTmin)
             tracerSalt(k,iCell) = max(sq,ocnEqStateSmin)
          end do
-         end do
-         !$omp end do
-
-      endif
+      end do
+      !$omp end do
 
 #ifdef MPAS_OPENACC
       !$omp master

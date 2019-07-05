@@ -1372,7 +1372,7 @@ contains
 
       real (kind=RKIND), dimension(:), pointer :: surfaceStress, surfaceStressMagnitude
       real (kind=RKIND), dimension(:,:), pointer ::  &
-           layerThickness, zMid, zTop, densitySurfaceDisplaced, density, &
+           layerThickness, zMid, zTop, density, &
            normalVelocity, activeTracersSurfaceFlux, thermalExpansionCoeff, salineContractionCoeff, &
            activeTracersSurfaceFluxRunoff, nonLocalSurfaceTracerFlux
 
@@ -1391,7 +1391,7 @@ contains
       real (kind=RKIND) :: numerator, denominator, turbulentVelocitySquared, fracAbsorbed, fracAbsorbedRunoff
       real (kind=RKIND) :: factor, deltaVelocitySquared, delU2, invAreaCell
 
-      type (field2DReal), pointer :: densitySurfaceDisplacedField, thermalExpansionCoeffField, salineContractionCoeffField
+      type (field2DReal), pointer :: thermalExpansionCoeffField, salineContractionCoeffField
 
       call mpas_timer_start('KPP input fields')
 
@@ -1448,24 +1448,16 @@ contains
       call mpas_pool_get_array(tracersSurfaceFluxPool, 'activeTracersSurfaceFlux', activeTracersSurfaceFlux)
       call mpas_pool_get_array(tracersSurfaceFluxPool, 'activeTracersSurfaceFluxRunoff', activeTracersSurfaceFluxRunoff)
       ! allocate scratch space displaced density computation
-      call mpas_pool_get_field(scratchPool, 'densitySurfaceDisplaced', densitySurfaceDisplacedField)
       call mpas_pool_get_field(scratchPool, 'thermalExpansionCoeff', thermalExpansionCoeffField)
       call mpas_pool_get_field(scratchPool, 'salineContractionCoeff', salineContractionCoeffField)
-      call mpas_allocate_scratch_field(densitySurfaceDisplacedField, .true., .false.)
       call mpas_allocate_scratch_field(thermalExpansionCoeffField, .true., .false.)
       call mpas_allocate_scratch_field(salineContractionCoeffField, .true., .false.)
 
-      densitySurfaceDisplaced => densitySurfaceDisplacedField % array
       thermalExpansionCoeff => thermalExpansionCoeffField % array
       salineContractionCoeff => salineContractionCoeffField % array
 
       ! Only need to compute over the 0 and 1 halos
       nCells = nCellsArray( 3 )
-
-      ! compute EOS by displacing SST/SSS to every vertical layer in column
-      call ocn_equation_of_state_density(statePool, diagnosticsPool, meshPool, scratchPool, nCells, 0, 'surfaceDisplaced', &
-                                         densitySurfaceDisplaced, err, thermalExpansionCoeff, salineContractionCoeff, &
-                                         timeLevel)
 
       !$omp do schedule(runtime)
       do iCell = 1, nCells
@@ -1528,14 +1520,12 @@ contains
        ! compute surface friction velocity
          surfaceFrictionVelocity(iCell) = sqrt(surfaceStressMagnitude(iCell) / rho_sw)
 
-
       enddo
       !$omp end do
 
       ! deallocate scratch space
       call mpas_deallocate_scratch_field(thermalExpansionCoeffField, .true.)
       call mpas_deallocate_scratch_field(salineContractionCoeffField, .true.)
-      call mpas_deallocate_scratch_field(densitySurfaceDisplacedField, .true.)
 
       call mpas_timer_stop('KPP input fields')
 
