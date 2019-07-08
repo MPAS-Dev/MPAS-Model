@@ -94,8 +94,7 @@ contains
 
    subroutine ocn_equation_of_state_linear_density_only(          &
               nVertLevels, nCells, kDisplaced, displacementType,  &
-              indexT, indexS, tracers, density, err,              &
-              tracersSurfaceLayerValue)
+              indexT, indexS, tracers, density, err)
       !{{{
       !-----------------------------------------------------------------
       !
@@ -114,10 +113,6 @@ contains
 
       real (kind=RKIND), dimension(:,:,:), intent(in) :: &
          tracers                  ! array containing T,S for calculation
-
-      real (kind=RKIND), dimension(:,:), intent(in), optional :: &
-         tracersSurfaceLayerValue ! optional sfc tracer values for sfc
-                                  ! displacement option
 
       !-----------------------------------------------------------------
       !
@@ -196,8 +191,7 @@ contains
    subroutine ocn_equation_of_state_linear_density_exp(           &
               nVertLevels, nCells, kDisplaced, displacementType,  &
               indexT, indexS, tracers, density, err,              &
-              thermalExpansionCoeff, salineContractionCoeff,      &
-              tracersSurfaceLayerValue)
+              thermalExpansionCoeff, salineContractionCoeff)
       !{{{
       !-----------------------------------------------------------------
       !
@@ -216,10 +210,6 @@ contains
 
       real (kind=RKIND), dimension(:,:,:), intent(in) :: &
          tracers                  ! array containing T,S for calculation
-
-      real (kind=RKIND), dimension(:,:), intent(in), optional :: &
-         tracersSurfaceLayerValue ! optional sfc tracer values for sfc
-                                  ! displacement option
 
       !-----------------------------------------------------------------
       !

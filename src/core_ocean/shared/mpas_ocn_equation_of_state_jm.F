@@ -175,8 +175,7 @@ contains
 
    subroutine ocn_equation_of_state_jm_density_only(nVertLevels,      &
                                nCells, kDisplaced, displacementType,  &
-                               indexT, indexS, tracers, density, err, &
-                               tracersSurfaceLayerValue)
+                               indexT, indexS, tracers, density, err)
    !{{{
    !--------------------------------------------------------------------
 
@@ -196,9 +195,6 @@ contains
 
       real (kind=RKIND), dimension(:,:,:), intent(in) :: &
          tracers              ! array of tracers including T,S
-
-      real (kind=RKIND), dimension(:,:), intent(in) :: &
-         tracersSurfaceLayerValue
 
       !-----------------------------------------------------------------
       ! Output variables
@@ -404,8 +400,7 @@ contains
                                nCells, kDisplaced, displacementType,  &
                                indexT, indexS, tracers, density, err, &
                                thermalExpansionCoeff,                 &
-                               salineContractionCoeff,                &
-                               tracersSurfaceLayerValue)
+                               salineContractionCoeff)
    !{{{
    !--------------------------------------------------------------------
 
@@ -425,9 +420,6 @@ contains
 
       real (kind=RKIND), dimension(:,:,:), intent(in) :: &
          tracers              ! array of tracers including T,S
-
-      real (kind=RKIND), dimension(:,:), intent(in) :: &
-         tracersSurfaceLayerValue
 
       !-----------------------------------------------------------------
       ! Output variables

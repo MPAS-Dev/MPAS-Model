@@ -54,7 +54,6 @@
 				<member name="potentialDensity" type="var"/>
 				<member name="boundaryLayerDepth" type="var"/>
 				<member name="indexBoundaryLayerDepth" type="var"/>
-				<member name="indexSurfaceLayerDepth" type="var"/>
 				<member name="surfaceFrictionVelocity" type="var"/>
 				<member name="surfaceBuoyancyForcing" type="var"/>
 				<member name="seaIcePressure" type="var"/>

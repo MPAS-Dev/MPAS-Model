@@ -1889,7 +1889,6 @@
 			<var name="boundaryLayerDepth"/>
 			<var name="boundaryLayerDepthEdge"/>
 			<var name="indexBoundaryLayerDepth"/>
-			<var name="indexSurfaceLayerDepth"/>
 			<var name="surfaceFrictionVelocity"/>
 			<var name="windStressZonal"/>
 			<var name="windStressMeridional"/>
@@ -2449,18 +2448,6 @@
 				description="salinity extrapolated to ocean surface"
 			/>
 		</var_array>
-		<var_array name="tracersSurfaceLayerValue" type="real" dimensions="nCells Time" packages="forwardMode;analysisMode">
-			<var name="temperatureSurfaceLayerValue" array_group="surfaceLayerValues" units="degrees Celsius" name_in_code="temperatureSurfaceLayerValue"
-				description="potential temperature averaged over ocean surface layer (generally 0.1 of the ocean boundary layer)"
-			/>
-			<var name="salinitySurfaceLayerValue" array_group="surfaceLayerValues" units="PSU" name_in_code="salinitySurfaceLayerValue"
-				description="salinity averaged over ocean surface layer (generally 0.1 of the ocean boundary layer)"
-			/>
-		</var_array>
-		<var name="normalVelocitySurfaceLayer" type="real" dimensions="nEdges Time" nits="m s^{-1}"
-			 description="normal velocity averaged over ocean surface layer (generally 0.1 of the ocean boundary layer)"
-			 packages="forwardMode;analysisMode"
-		/>
 		<var_array name="surfaceVelocity" type="real" dimensions="nCells Time" packages="forwardMode;analysisMode">
 			<var name="surfaceVelocityZonal" array_group="vel_zonal" units="m s^{-1}"
 				 description="Zonal surface velocity reconstructed at cell centers"
@@ -2754,10 +2741,6 @@
 		</var_array>
 		<var name="indexBoundaryLayerDepth" type="real" dimensions="nCells Time"  units="none"
 			 description="CVMix/KPP: int(indexBoundaryLayerDepth) is vertical layer within which boundaryLayerDepth resides. mod(indexBoundaryLayerDepth) indicates whether boundaryLayerDepth resides above layer center (value = 0.25) or below layer center (value=0.75)"
-			 packages="forwardMode;analysisMode"
-		/>
-		<var name="indexSurfaceLayerDepth" type="real" dimensions="nCells Time" units="none"
-			 description="CVMix/KPP: surface layer entirely encompasses int(indexSurfaceLayerDepth) vertical layers and fraction(indexSurfaceLayerDepth) of the int(indexSurfaceLayerDepth)+1 layer."
 			 packages="forwardMode;analysisMode"
 		/>
 		<var name="surfaceFrictionVelocity" type="real" dimensions="nCells Time"  units="m s^{-1}"

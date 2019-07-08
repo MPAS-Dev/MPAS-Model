@@ -136,7 +136,6 @@ contains
 
       type (mpas_pool_type), pointer :: tracersPool
 
-      real (kind=RKIND), dimension(:,:), pointer :: tracersSurfaceValue
       real (kind=RKIND), dimension(:,:,:), pointer :: activeTracers
       integer :: iCell, k, nVertLevels, indexT, indexS
       integer, pointer :: indexTptr, indexSptr, nVertLevelsPtr
@@ -157,8 +156,6 @@ contains
          timeLevel = 1
       end if
 
-      call mpas_pool_get_array(diagnosticsPool, 'tracersSurfaceValue', &
-                                                 tracersSurfaceValue)
       call mpas_pool_get_subpool  (statePool,   'tracers', &
                                                  tracersPool)
       call mpas_pool_get_array    (tracersPool, 'activeTracers', &
@@ -184,13 +181,11 @@ contains
             call ocn_equation_of_state_linear_density(nVertLevels,  &
                      nCells, kDisplaced, displacement_type,         &
                      indexT, indexS, activeTracers, density, err,   &
-                     thermalExpansionCoeff, salineContractionCoeff, &
-                     tracersSurfaceValue)
+                     thermalExpansionCoeff, salineContractionCoeff)
          else
             call ocn_equation_of_state_linear_density(nVertLevels, &
                      nCells, kDisplaced, displacement_type,        &
-                     indexT, indexS, activeTracers, density, err,  &
-                     tracersSurfaceValue)
+                     indexT, indexS, activeTracers, density, err)
          endif
 
       case (ocnEqStateTypeJM)
@@ -200,14 +195,12 @@ contains
             call ocn_equation_of_state_jm_density(nVertLevels,        &
                      nCells, kDisplaced, displacement_type,           &
                      indexT, indexS, activeTracers, density, err,     &
-                     thermalExpansionCoeff, salineContractionCoeff,   &
-                     tracersSurfaceValue)
+                     thermalExpansionCoeff, salineContractionCoeff)
 
          else
             call ocn_equation_of_state_jm_density(nVertLevels,        &
                      nCells, kDisplaced, displacement_type,           &
-                     indexT, indexS, activeTracers, density, err,     &
-                     tracersSurfaceValue)
+                     indexT, indexS, activeTracers, density, err)
          endif
 
       case default

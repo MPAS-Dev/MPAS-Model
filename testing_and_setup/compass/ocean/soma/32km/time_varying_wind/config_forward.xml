@@ -40,7 +40,6 @@
 				<member name="potentialDensity"/>
 				<member name="boundaryLayerDepth"/>
 				<member name="indexBoundaryLayerDepth"/>
-				<member name="indexSurfaceLayerDepth"/>
 				<member name="maxLevelEdgeTop"/>
 				<member name="vertCoordMovementWeights"/>
 				<member name="edgeMask"/>
