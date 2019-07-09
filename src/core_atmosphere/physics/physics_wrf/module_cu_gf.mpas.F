@@ -2,6 +2,7 @@
 !
 
 MODULE module_cu_gf
+ use mpas_log
 
  implicit none
  private
@@ -58,6 +59,21 @@ CONTAINS
 !     Laura D. Fowler (laura@ucar.edu) / 2017-03-28.
 !   * removed the variable pret from the argument list of subroutine cup_gf_sh.
 !     Laura D. Fowler (laura@ucar.edu) / 2017-03-28.
+!   * in the argument list and sourcecode,renamed the variables k22_shallow,kbcon_shallow,and ktop_shallow to
+!     k22_shalc,kbcon_shalc,and ktop_shalc for the shallow convection scheme. changed the initialization of those
+!     variables to kte,kte,and kts, respectively. added the variables k22_deepc,kbcon_deepc,and ktop_deepc for
+!     deep convection in the argument list.
+!     Laura D. Fowler (laura@ucar.edu) / 2018-09-11.
+!   * in the argument list,added the tendencies of potential temperature,water vapor,cloud water,and cloud
+!     ice mixing ratios for shallow convection (rthcutens,rqvcutens,rqccutens,and rqicutens. also added the in-
+!     cloud cloud water and cloud ice mixing ratios (gdcs2 and gdcs).added initialization of those variables
+!     at the top of the sourcecode.
+!     Laura D. Fowler (laura@ucar.edu) / 2018-09-17.
+!     in the argument list,added the incidence of convection for deep (rinc) and shallow (rincs) convection. also
+!     added the variables nclos and weight_clos to look at the partitioning between the different closures.added
+!     initialization of those variables at the top of the sourcecode. moved the initialization of some of the
+!     loops.
+!     Laura D. Fowler (laura@ucar.edu) / 2018-09-17.
 
 
  subroutine cu_grell_freitas( &
@@ -66,9 +82,12 @@ CONTAINS
               ,xland,ht,hfx,qfx,gsw,rqvften,rthften             &
               ,rthblten,rqvblten,rthraten,kpbl,xlv,cp,g,r_v     &
               ,ichoice_deep,ichoice_shallow,ishallow_g3         &
-              ,htop,hbot,k22_shallow,kbcon_shallow,ktop_shallow &
+              ,htop,hbot,k22_deepc,kbcon_deepc,ktop_deepc       &
+              ,k22_shalc,kbcon_shalc,ktop_shalc                 &
               ,xmb_total,xmb_shallow,raincv,pratec,gdc,gdc2     &
               ,rthcuten,rqvcuten,rqccuten,rqicuten              &
+              ,rthcutens,rqvcutens,rqccutens,rqicutens          &
+              ,gdc2s,gdcs,rinc,rincs,nclos,weights_clos         &
               ,ims, ime, jms, jme, kms,kme                      &
               ,ids, ide, jds, jde, kds,kde                      &
               ,its, ite, jts, jte, kts,kte)
@@ -122,11 +141,22 @@ CONTAINS
 
 
 !inout arguments:
- integer,dimension(ims:ime,jms:jme),intent(inout):: k22_shallow,kbcon_shallow,ktop_shallow
+ integer,dimension(ims:ime,jms:jme),intent(inout):: k22_shalc,k22_deepc,kbcon_shalc,kbcon_deepc, &
+                                                    ktop_shalc,ktop_deepc
 
  real,dimension(ims:ime,jms:jme),intent(inout):: hbot,htop,raincv,pratec,xmb_total,xmb_shallow
  real,dimension(ims:ime,kms:kme,jms:jme),intent(inout):: rthcuten,rqvcuten,rqccuten,rqicuten
  real,dimension(ims:ime,kms:kme,jms:jme),intent(inout),optional:: gdc,gdc2
+
+!additional diagnostics:
+ integer,intent(in):: nclos
+
+ real,dimension(ims:ime,jms:jme),intent(inout),optional:: rinc,rincs
+ real,dimension(ims:ime,kms:kme,jms:jme),intent(inout),optional:: rthcutens,rqvcutens,rqccutens,rqicutens
+ real,dimension(ims:ime,kms:kme,jms:jme),intent(inout),optional:: gdcs,gdc2s
+
+ real,intent(inout),dimension(ims:ime,1:nclos,jms:jme),optional:: weights_clos
+!end additional diagnostics
 
 !local variables:
  character(len=50),dimension(its:ite):: ierrc
@@ -138,7 +168,7 @@ CONTAINS
 
  integer,dimension(its:ite):: ierr,ierrs
  integer,dimension(its:ite):: kpbli
- integer,dimension(its:ite):: kbcon,ktop,k22s,kbcons,ktops
+ integer,dimension(its:ite):: k22,kbcon,ktop,k22s,kbcons,ktops
 
  real:: dp,dq,pahfs,pgeoh,pqhfl,zkhvfl,zrho,zws
  real,dimension(its:ite):: area_loc,dx_loc,tscl_kf
@@ -158,6 +188,8 @@ CONTAINS
  real,dimension (its:ite,1:ens4)         :: mconv
  real,dimension(its:ite,kts:kte,1:ens4)  :: omeg
 
+ real,dimension(its:ite):: outqs_tot,outqcs_tot
+
  itf = min(ite,ide-1)
  ktf = min(kte,kde-1)
  jtf = min(jte,jde-1)
@@ -173,17 +205,20 @@ CONTAINS
 
  do j = jts, jte
     do i = its, ite
-       hbot(i,j)      = real(kte)
-       htop(i,j)      = real(kts)
-       xmb_total(i,j) = 0.
-       raincv(i,j)    = 0.
-       pratec(i,j)    = 0.
+       k22_deepc(i,j)   = kte
+       kbcon_deepc(i,j) = kte
+       ktop_deepc(i,j)  = kts
+       hbot(i,j)        = real(kte)
+       htop(i,j)        = real(kts)
+       xmb_total(i,j)   = 0.
+       raincv(i,j)      = 0.
+       pratec(i,j)      = 0.
 
        !shallow convection:
-       k22_shallow(i,j)   = 0
-       kbcon_shallow(i,j) = 0
-       ktop_shallow(i,j)  = 0
-       xmb_shallow(i,j)   = 0.
+       k22_shalc(i,j)   = kte
+       kbcon_shalc(i,j) = kte
+       ktop_shalc(i,j)  = kts
+       xmb_shallow(i,j) = 0.
     enddo
  enddo
 
@@ -206,6 +241,48 @@ CONTAINS
        enddo
    enddo
  endif
+
+!initialization of additional diagnostics:
+ if(present(rinc) .and. present(rincs)) then
+    do j = jts, jte
+       do i = its, ite
+          rinc(i,j)  = 0.
+          rincs(i,j) = 0.
+       enddo
+    enddo
+ endif
+ if(present(rthcutens) .and. present(rqvcutens) .and. present(rqccutens) .and. present(rqicutens)) then
+    do j = jts,jte
+       do k = kts, kte
+          do i = its, ite
+             rthcutens(i,k,j) = 0.
+             rqvcutens(i,k,j) = 0.
+             rqccutens(i,k,j) = 0.
+             rqicutens(i,k,j) = 0.
+          enddo
+       enddo
+    enddo
+ endif
+ if(present(gdcs) .and. present(gdc2s)) then
+    do j = jts,jte
+       do k = kts, kte
+          do i = its, ite
+             gdcs(i,k,j)  = 0.
+             gdc2s(i,k,j) = 0.
+          enddo
+       enddo
+    enddo
+ endif
+ if(present(weights_clos)) then
+    do j = jts, jte
+       do k = 1, nclos
+          do i = its, ite
+             weights_clos(i,k,j) = 0.
+          enddo
+       enddo
+    enddo
+ endif
+!end initialization of additional diagnostics.
 
  j_loop: do j = jts, jtf
 
@@ -244,6 +321,7 @@ CONTAINS
     do i = its, itf
        ierrc(i)    = " "
        ierr(i)     = 0
+       k22(i)      = 0
        kbcon(i)    = 0
        ktop(i)     = 0
        xmb(i)      = 0.
@@ -379,35 +457,35 @@ CONTAINS
             !- moisture  excess
             zqexec(i)     = max(-1.5*pqhfl/(zrho*zws),0.)
           endif
-        enddo
-     endif  ! use_excess
+       enddo
+    endif  ! use_excess
 
-     do k = kts+1, kte-1
-        do i = its, itf
-           if((p2d(i,1)-p2d(i,k)).gt.150. .and. p2d(i,k).gt.300.) then
-               dp = -.5*(p2d(i,k+1)-p2d(i,k-1))
-               umean(i) = umean(i) + us(i,k)*dp
-               vmean(i) = vmean(i) + vs(i,k)*dp
-               pmean(i) = pmean(i) + dp
-            endif
-        enddo
-     enddo
+    do k = kts+1, kte-1
+       do i = its, itf
+          if((p2d(i,1)-p2d(i,k)).gt.150. .and. p2d(i,k).gt.300.) then
+             dp = -.5*(p2d(i,k+1)-p2d(i,k-1))
+             umean(i) = umean(i) + us(i,k)*dp
+             vmean(i) = vmean(i) + vs(i,k)*dp
+             pmean(i) = pmean(i) + dp
+          endif
+       enddo
+    enddo
 
 !
 !---- CALL CUMULUS PARAMETERIZATION:
 !
-     call cup_gf(zo,outqc,j,aaeq,t2d,q2d,ter11,subm,tn,qo,po,pret,   &
-                 p2d,outt,outq,dt,itimestep,psur,us,vs,tcrit,iens,   &
-                 ztexec,zqexec,ccn,ccnclean,rhoi,dx_loc,area_loc,    &
-                 mconv,omeg,maxiens,maxens,maxens2,maxens3,ensdim,   &
-                 apri_gr,apri_w,apri_mc,apri_st,apri_as,apri_capma,  &
-                 apri_capme,apri_capmi,kbcon,ktop,cupclw,xfi_ens,    &
-                 pri_ens,xlandi,gswi,subt,subq,xlv,r_v,cp,g,         &
-                 ichoice_deep,ipr,jpr,ierrc,ens4,beta,autoconv,      &
-                 aeroevap,itf,jtf,ktf,training,xmb,use_excess,its,   &
-                 ite,jts,jte,kts,kte)
+    call cup_gf(zo,outqc,j,aaeq,t2d,q2d,ter11,subm,tn,qo,po,pret,   &
+                p2d,outt,outq,dt,itimestep,psur,us,vs,tcrit,iens,   &
+                ztexec,zqexec,ccn,ccnclean,rhoi,dx_loc,area_loc,    &
+                mconv,omeg,maxiens,maxens,maxens2,maxens3,ensdim,   &
+                apri_gr,apri_w,apri_mc,apri_st,apri_as,apri_capma,  &
+                apri_capme,apri_capmi,k22,kbcon,ktop,cupclw,xfi_ens,&
+                pri_ens,xlandi,gswi,subt,subq,xlv,r_v,cp,g,         &
+                ichoice_deep,ipr,jpr,ierrc,ens4,beta,autoconv,      &
+                aeroevap,itf,jtf,ktf,training,xmb,use_excess,its,   &
+                ite,jts,jte,kts,kte)
  
-     call neg_check(j,subt,subq,dt,q2d,outq,outt,outqc,pret,its,ite,kts,kte,itf,ktf)
+    call neg_check(j,subt,subq,dt,q2d,outq,outt,outqc,pret,its,ite,kts,kte,itf,ktf)
 
     !... shallow convection:
     if(ishallow_g3 == 1 )then
@@ -420,12 +498,14 @@ CONTAINS
                use_excess_sh,its,ite,jts,jte,kts,kte)
 
        do i = its, ite
-         xmb_shallow(i,j)   = xmbs(i)
-         k22_shallow(i,j)   = k22s(i)
-         kbcon_shallow(i,j) = kbcons(i)
-         ktop_shallow(i,j)  = ktops(i)
-      enddo
-   endif
+          xmb_shallow(i,j) = xmbs(i)
+          if(ktops(i) .gt. 0) then
+             k22_shalc(i,j)   = k22s(i)
+             kbcon_shalc(i,j) = kbcons(i)
+             ktop_shalc(i,j)  = ktops(i)
+          endif
+       enddo
+    endif
 
     do i = its, ite
        xmb_total(i,j) = xmb(i)
@@ -433,6 +513,10 @@ CONTAINS
           cuten(i) = 1.
           pratec(i,j)    = pret(i)
           raincv(i,j)    = pret(i)*dt
+
+          k22_deepc(i,j)   = k22(i)
+          kbcon_deepc(i,j) = kbcon(i)
+          ktop_deepc(i,j)  = ktop(i)
           
           if(ktop(i) > htop(i,j) ) htop(i,j) = ktop(i) + .001
           if(kbcon(i) < hbot(i,j)) hbot(i,j) = kbcon(i) + .001
@@ -457,6 +541,33 @@ CONTAINS
        enddo
     enddo
 
+    !... save additional optional diagnostics:
+    if(present(rinc) .and. present(rincs)) then
+       do i = its, ite
+          if(pret(i) .gt. 0.) rinc(i,j)  = 1.0
+          if(ktops(i) .gt. 0) rincs(i,j) = 1.0
+       enddo
+    endif
+
+    !... save optional diagnostics for shallow convection:
+    if(present(rthcutens) .and. present(rqvcutens) .and. present(rqccutens) .and. present(rqicutens)) then
+       do k = kts, kte
+          do i = its, ite
+             rthcutens(i,k,j) = outts(i,k)/pi(i,k,j)
+             rqvcutens(i,k,j) = outqs(i,k)
+             if(t2d(i,k) .lt. tcrit) then
+                rqccutens(i,k,j) = 0.
+                rqicutens(i,k,j) = outqcs(i,k)
+                if(present(gdcs) .and. present(gdc2s)) gdc2s(i,k,j) = cupclws(i,k)
+             else
+                rqicutens(i,k,j) = 0.
+                rqccutens(i,k,j) = outqcs(i,k)
+                if(present(gdcs) .and. present(gdc2s)) gdcs(i,k,j) = cupclws(i,k)
+             endif
+          enddo
+       enddo
+    endif
+
  enddo j_loop
 
  end subroutine cu_grell_freitas
@@ -471,7 +582,7 @@ CONTAINS
               omeg,maxiens,                                         &
               maxens,maxens2,maxens3,ensdim,                        &
               APR_GR,APR_W,APR_MC,APR_ST,APR_AS,                    &
-              APR_CAPMA,APR_CAPME,APR_CAPMI,kbcon,ktop,cupclw,      & 
+              APR_CAPMA,APR_CAPME,APR_CAPMI,k22,kbcon,ktop,cupclw,  &
               xf_ens,pr_ens,xland,gsw,subt,subq,                    &
               xl,rv,cp,g,ichoice,ipr,jpr,ierrc,ens4,                &
               beta,autoconv,aeroevap,itf,jtf,ktf,training,          &
@@ -489,7 +600,7 @@ CONTAINS
               omeg,maxiens,                          &
               maxens,maxens2,maxens3,ensdim,                           &
               APR_GR,APR_W,APR_MC,APR_ST,APR_AS,                       &
-              APR_CAPMA,APR_CAPME,APR_CAPMI,kbcon,ktop,cupclw,         &   !-lxz
+              APR_CAPMA,APR_CAPME,APR_CAPMI,k22,kbcon,ktop,cupclw,     &   !-lxz
               xf_ens,pr_ens,xland,gsw,subt,subq,               &
               xl,rv,cp,g,ichoice,ipr,jpr,ierrc,ens4,         &
               beta,autoconv,aeroevap,itf,jtf,ktf,training,               &
@@ -541,7 +652,7 @@ CONTAINS
         pre
      integer,    dimension (its:ite)                                   &
         ,intent (out  )                   ::                           &
-        kbcon,ktop
+        k22,kbcon,ktop
 !    integer,    dimension (its:ite)                                   &
 !       ,intent (in  )                   ::                           &
 !       kpbl
@@ -691,7 +802,7 @@ CONTAINS
      real,    dimension (its:ite,1:ens4) ::                                   &
         axx
      integer,    dimension (its:ite) ::                                &
-       kzdown,KDET,K22,KB,JMIN,kstabi,kstabm,K22x,        &   !-lxz
+       kzdown,KDET,KB,JMIN,kstabi,kstabm,K22x,        &   !-lxz
        KBCONx,KBx,KTOPx,ierr,ierr2,ierr3,KBMAX
 
      integer                              ::                           &
@@ -4392,6 +4503,7 @@ CONTAINS
         qrco(i,k)=0.
         cd(i,k)=1.*entr_rate
         dellaqc(i,k)=0.
+        cupclws(i,k)=0.
       enddo
       enddo
 !
@@ -5042,6 +5154,7 @@ CONTAINS
               outt(i,k)=0.
               outq(i,k)=0.
               outqc(i,k)=0.
+              cupclws(i,k)=0.
            enddo
         else if(ierr(i).eq.0)then
 !
@@ -5082,6 +5195,7 @@ CONTAINS
           do k=2,ktop(i)
            outt(i,k)=(dsubt(i,k)+dellat(i,k))*xmb(i)
            outq(i,k)=(dsubq(i,k)+dellaq(i,k))*xmb(i)
+           outqc(i,k)=dellaqc(i,k)*xmb(i)
           enddo
         endif
        enddo

@@ -16,6 +16,11 @@
 ! * check the maximum value of TIMEC against DT instead of against TADVEC. At low spatial resolution, TADVEC can
 !   be quite large, leading to irrealistic values of TIMEC and MPAS to crash.
 !   Laura D. Fowler (laura@ucar.edu) / 2018-03-09.
+! * added diagnostics of the cloud-base and cloud-top for deep and shallow convection. added diagnostics of the
+!   tendencies of temperature,water vapor,cloud water,cloud ice,rain,and snow due to shallow convection. added
+!   diagnostics of the in-cloud cloud liquid water and cloud ice mixing ratios due to shallow convection. also,
+!   added diagnostics of the cloud base mass flux, and incidence of deep and shallow convection.
+!   Laura D. Fowler (laura@ucar.edu) / 2018-11-16.
 
 !=================================================================================================================
 MODULE module_cu_mskf
@@ -89,6 +94,10 @@ CONTAINS
              ,UER_KF,DER_KF                                  &
              ,TIMEC_KF,KF_EDRATES                            &
              ,ZOL,WSTAR,UST,PBLH                             &   !ckay
+             ,kbcon_deepc,kbcon_shalc,ktop_deepc,ktop_shalc  &   !MPAS
+             ,rthcutens,rqvcutens,rqccutens,rqicutens        &
+             ,rqrcutens,rqscutens,qccu_shalc,qicu_shalc      &
+             ,xmb_deepc,xmb_shalc,rinc,rincs                 &
                                                              )
 !
 !-------------------------------------------------------------
@@ -194,6 +203,32 @@ CONTAINS
                                                      UER_KF, &
                                                      DER_KF
 
+!MPAS:
+   INTEGER,  DIMENSION( ims:ime , jms:jme )                , &
+          INTENT(INOUT), OPTIONAL ::                         &
+                                                kbcon_deepc, &
+                                                kbcon_shalc, &
+                                                ktop_deepc , &
+                                                ktop_shalc
+
+   REAL,  DIMENSION( ims:ime , jms:jme )                   , &
+          INTENT(INOUT), OPTIONAL ::                         &
+                                                       rinc, &
+                                                      rincs, &
+                                                  xmb_deepc, &
+                                                  xmb_shalc
+
+   REAL,  DIMENSION( ims:ime , kms:kme , jms:jme )         , &
+          INTENT(INOUT), OPTIONAL ::                         &
+                                                 qccu_shalc, &
+                                                 qicu_shalc, &
+                                                  rthcutens, &
+                                                  rqvcutens, &
+                                                  rqccutens, &
+                                                  rqicutens, &
+                                                  rqrcutens, &
+                                                  rqscutens
+
    REAL,  DIMENSION( ims:ime , jms:jme )                   , &
           INTENT(INOUT) ::                         &
                                                    TIMEC_KF
@@ -236,6 +271,7 @@ CONTAINS
    real:: tst,tv,prs,rhoe,w0,scr1,dx,dxsq,tmp
 
    INTEGER :: i,j,k,NTST
+   INTEGER :: ISHALL
    REAL    :: lastdt = -1.0
    REAL    :: W0AVGfctr, W0fctr, W0den
    
@@ -306,6 +342,41 @@ CONTAINS
          ELSE
             dxsq = areaCell(i,j)
             dx   = dxCell(i,j)
+!MPAS:
+            if(present(kbcon_deepc) .and. present(ktop_deepc)  .and. &
+               present(kbcon_shalc) .and. present(ktop_shalc)) then
+               kbcon_deepc(i,j) = kte+1
+               kbcon_shalc(i,j) = kte+1
+               ktop_deepc(i,j)  = kts
+               ktop_shalc(i,j)  = kts
+            endif
+            if(present(rinc) .and. present(rincs)) then
+               rinc(i,j)  = 0.
+               rincs(i,j) = 0.
+            endif
+            if(present(xmb_deepc) .and. present(xmb_shalc)) then
+               xmb_deepc(i,j) = 0.
+               xmb_shalc(i,j) = 0.
+            endif
+            if(present(qccu_shalc) .and. present(qicu_shalc)) then
+               do k = kts, kte
+                  qccu_shalc(i,k,j) = 0.
+                  qicu_shalc(i,k,j) = 0.
+               enddo
+            endif
+            if(present(rthcutens) .and. present(rqvcutens) .and. &
+               present(rqccutens) .and. present(rqicutens) .and. &
+               present(rqrcutens) .and. present(rqscutens)) then
+               do k = kts, kte
+                  rthcutens(i,k,j) = 0.
+                  rqvcutens(i,k,j) = 0.
+                  rqccutens(i,k,j) = 0.
+                  rqicutens(i,k,j) = 0.
+                  rqrcutens(i,k,j) = 0.
+                  rqscutens(i,k,j) = 0.
+               enddo
+            endif
+!end MPAS.
             DO k=kts,kte
                DQDT(k)=0.
                DQIDT(k)=0.
@@ -365,7 +436,8 @@ CONTAINS
                  UDR_KF,DDR_KF,                     &
                  UER_KF,DER_KF,                     &
                  TIMEC_KF,KF_EDRATES,               &
-                 ZOL,WSTAR,UST,PBLH                 )
+                 ZOL,WSTAR,UST,PBLH,                &
+                 ISHALL                             )
 
             IF(PRESENT(rthcuten).AND.PRESENT(rqvcuten)) THEN
               DO K=kts,kte
@@ -407,6 +479,51 @@ CONTAINS
                 ENDDO
               ENDIF
             ENDIF
+!MPAS:
+            if(present(kbcon_deepc) .and. present(ktop_deepc)  .and. &
+               present(kbcon_shalc) .and. present(ktop_shalc)) then
+               if(ishall.eq.0 .and. raincv(i,j).gt.0.) then
+                  kbcon_deepc(i,j) = nint(cubot(i,j))
+                  ktop_deepc(i,j)  = nint(cutop(i,j))
+               elseif(ishall.eq.1 .and. raincv(i,j).eq.0.) then
+                  kbcon_shalc(i,j) = nint(cubot(i,j))
+                  ktop_shalc(i,j)  = nint(cutop(i,j))
+               endif
+            endif
+            if(present(rinc) .and. present(rincs)) then
+               if(ishall.eq.0 .and. raincv(i,j).gt.0.) then
+                  rinc(i,j) = 1.
+               elseif(ishall.eq.1 .and. raincv(i,j).eq.0.) then
+                  rincs(i,j) = 1.
+               endif
+            endif
+            if(present(xmb_deepc) .and. present(xmb_shalc)) then
+               xmb_deepc(i,j) = 0.
+               xmb_shalc(i,j) = 0.
+            endif
+            if(present(qccu_shalc) .and. present(qicu_shalc)) then
+               if(ishall.eq.1 .and. raincv(i,j).eq.0.) then
+                  do k = kts, kte
+                     qccu_shalc(i,k,j) = qc_kf(i,k,j)
+                     qicu_shalc(i,k,j) = qi_kf(i,k,j)
+                  enddo
+               endif
+            endif
+            if(present(rthcutens) .and. present(rqvcutens)  .and. &
+               present(rqccutens) .and. present(rqicutens)  .and. &
+               present(rqrcutens) .and. present(rqscutens)) then
+               if(ishall.eq.1 .and. raincv(i,j).eq.0.) then
+                  do k = kts, kte
+                     rthcutens(i,k,j) = dtdt(k)/pi(i,k,j)
+                     rqvcutens(i,k,j) = dqdt(k)
+                     rqccutens(i,k,j) = dqcdt(k)
+                     rqicutens(i,k,j) = dqidt(k)
+                     rqrcutens(i,k,j) = dqrdt(k)
+                     rqscutens(i,k,j) = dqsdt(k)
+                  enddo
+               endif
+            endif
+!end MPAS.
 !
          ENDIF 
        ENDDO     ! i-loop
@@ -434,7 +551,8 @@ CONTAINS
                       UDR_KF,DDR_KF,                       &
                       UER_KF,DER_KF,                       &
                       TIMEC_KF,KF_EDRATES,                 &
-                      ZOL,WSTAR,UST,PBLH                   )
+                      ZOL,WSTAR,UST,PBLH,                  &
+                      ISHALL                               )
 !-----------------------------------------------------------
 !***** The KF scheme that is currently used in experimental runs of EMCs 
 !***** Eta model....jsk 8/00
@@ -508,6 +626,8 @@ CONTAINS
 
       REAL, DIMENSION( ims:ime , jms:jme ),                &
             INTENT(INOUT) ::                       PRATEC
+
+      INTEGER, INTENT(OUT)::                       ISHALL
 
       REAL, DIMENSION( ims:ime , jms:jme ),                &
             INTENT(OUT) ::                          CUBOT, &
@@ -600,7 +720,7 @@ CONTAINS
                  LTOPM1,LVF,KSTART,KMIN,LFS,               &
                  ND,NIC,LDB,LDT,ND1,NDK,                   &
                  NM,LMAX,NCOUNT,NOITR,                     &
-                 NSTEP,NTC,NCHM,ISHALL,NSHALL
+                 NSTEP,NTC,NCHM,NSHALL
       LOGICAL :: IPRNT
       REAL :: u00,qslcl,rhlcl,dqssdt    !jfb
       CHARACTER*1024 message
