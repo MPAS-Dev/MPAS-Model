@@ -10,7 +10,7 @@
  use mpas_kind_types
  use mpas_pool_routines
 
- ! For physics_driver_before_dyn
+ ! For physics_part1
  use mpas_atmphys_driver_cloudiness
  use mpas_atmphys_driver_convection
  use mpas_atmphys_driver_gwdo
@@ -21,7 +21,7 @@
  use mpas_atmphys_driver_sfclayer
  use mpas_atmphys_driver_oml
 
- ! For physics_driver_after_dyn
+ ! For physics_part2
  use mpas_atmphys_driver_microphysics
  
  use mpas_atmphys_constants
@@ -32,17 +32,17 @@
 
  implicit none
  private
- public:: physics_driver_before_dyn,physics_driver_after_dyn
+ public:: physics_part1,physics_part2
 
 
 !MPAS top physics driver.
 !Laura D. Fowler (send comments to laura@ucar.edu).
 !2013-05-01.
 !
-! subroutine physics_driver_before_dyn is the top physics driver from which separate drivers for all physics
+! subroutine physics_part1 is the top physics driver from which separate drivers for all physics
 ! parameterizations, except cloud microphysics parameterizations are called.
 !
-! subroutine physics_driver_after_dyn is the top physics driver from which a separate driver for
+! subroutine physics_part2 is the top physics driver from which a separate driver for
 ! cloud microphysics is called.
 !
 ! add-ons and modifications to sourcecode:
@@ -80,7 +80,7 @@
 
 
 !=================================================================================================================
- subroutine physics_driver_before_dyn(domain,itimestep,xtime_s)
+ subroutine physics_part1(domain,itimestep,xtime_s)
 !=================================================================================================================
 
 !input arguments:
@@ -160,9 +160,9 @@
 
 !=================================================================================================================
 !call mpas_log_write('')
-!call mpas_log_write('--- enter subroutine physics_driver_before_dyn:')
+!call mpas_log_write('--- enter subroutine physics_part1:')
 
- call mpas_timer_start('physics_driver_before_dyn')
+ call mpas_timer_start('physics_part1')
 
  call mpas_pool_get_config(domain%configs,'config_convection_scheme',config_convection_scheme)
  call mpas_pool_get_config(domain%configs,'config_gwdo_scheme'      ,config_gwdo_scheme      )
@@ -352,16 +352,16 @@
 
  endif
 
- call mpas_timer_stop('physics_driver_before_dyn')
+ call mpas_timer_stop('physics_part1')
 
-!call mpas_log_write('--- exit subroutine physics_driver_before_dyn:')
+!call mpas_log_write('--- exit subroutine physics_part1:')
 !call mpas_log_write('')
 
- end subroutine physics_driver_before_dyn
+ end subroutine physics_part1
 
 
 !=================================================================================================================
- subroutine physics_driver_after_dyn(domain,itimestep,xtime_s)
+ subroutine physics_part2(domain,itimestep,xtime_s)
 !=================================================================================================================
 
 !input arguments:
@@ -403,9 +403,9 @@
 
 !=================================================================================================================
 !call mpas_log_write('')
-!call mpas_log_write('--- enter subroutine physics_driver_after_dyn:')
+!call mpas_log_write('--- enter subroutine physics_part2:')
 
- call mpas_timer_start('physics_driver_after_dyn')
+ call mpas_timer_start('physics_part2')
 
  call mpas_pool_get_config(domain%configs,'config_microp_scheme'    ,config_microp_scheme    )
 
@@ -472,12 +472,12 @@
 
  endif
 
- call mpas_timer_stop('physics_driver_after_dyn')
+ call mpas_timer_stop('physics_part2')
 
-!call mpas_log_write('--- exit subroutine physics_driver_after_dyn:')
+!call mpas_log_write('--- exit subroutine physics_part2:')
 !call mpas_log_write('')
 
- end subroutine physics_driver_after_dyn
+ end subroutine physics_part2
 
 !=================================================================================================================
  end module mpas_atmphys_driver

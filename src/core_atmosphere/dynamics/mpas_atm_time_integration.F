@@ -83,7 +83,7 @@ module atm_time_integration
    contains
 
 
-   subroutine atm_timestep(domain, dt, nowTime, itimestep)
+   subroutine dynamics_timestep(domain, dt, nowTime, itimestep)
    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 
    ! Advance model state forward in time by the specified time step
    !
@@ -135,7 +135,7 @@ module atm_time_integration
          block => block % next
       end do
 
-   end subroutine atm_timestep
+   end subroutine dynamics_timestep
 
 
    subroutine atm_srk3(domain, dt, itimestep)
@@ -1594,131 +1594,6 @@ module atm_time_integration
 
          block => block % next
       end do
-
-DAVE LBC AFTER MP - NEEDS TO BE MOVED
-      if (config_apply_lbcs) then  ! reset boundary values of rtheta in the specified zone - microphysics has messed with them
-
-         block => domain % blocklist
-         do while (associated(block))
-            call mpas_pool_get_subpool(block % structs, 'state', state)
-            call mpas_pool_get_subpool(block % structs, 'diag', diag)
-            call mpas_pool_get_subpool(block % structs, 'mesh', mesh)
-
-            call mpas_pool_get_dimension(mesh, 'nCells', nCells)
-            call mpas_pool_get_dimension(mesh, 'nVertLevels', nVertLevels)
-            call mpas_pool_get_dimension(block % dimensions, 'nThreads', nThreads)
-
-            call mpas_pool_get_dimension(block % dimensions, 'cellThreadStart', cellThreadStart)
-            call mpas_pool_get_dimension(block % dimensions, 'cellThreadEnd', cellThreadEnd)
-            call mpas_pool_get_dimension(block % dimensions, 'cellSolveThreadStart', cellSolveThreadStart)
-            call mpas_pool_get_dimension(block % dimensions, 'cellSolveThreadEnd', cellSolveThreadEnd)
-
-            allocate(rt_driving_values(nVertLevels,nCells+1))
-            allocate(rho_driving_values(nVertLevels,nCells+1))
-            time_dyn_step = dt  ! end of full timestep values
-
-            rt_driving_values(1:nVertLevels,1:nCells+1) =  mpas_atm_get_bdy_state( clock, domain % blocklist, nVertLevels, nCells, 'rtheta_m', time_dyn_step )
-            rho_driving_values(1:nVertLevels,1:nCells+1) =  mpas_atm_get_bdy_state( clock, domain % blocklist, nVertLevels, nCells, 'rho_zz', time_dyn_step )
-
-!$OMP PARALLEL DO
-            do thread=1,nThreads
-               call atm_bdy_reset_speczone_values( state, diag, mesh, nVertLevels, &
-                                                   rt_driving_values, rho_driving_values,                        &
-                                                   cellThreadStart(thread), cellThreadEnd(thread),               &
-                                                   cellSolveThreadStart(thread), cellSolveThreadEnd(thread) )
-            end do
-!$OMP END PARALLEL DO
-
-            deallocate(rt_driving_values)
-            deallocate(rho_driving_values)
-            block => block % next
-
-         end do
-
-      end if  ! regional_MPAS addition
-
-
-      if (config_apply_lbcs) then  ! adjust boundary values for regional_MPAS scalar transport
-
-         call mpas_pool_get_field(state, 'scalars', scalars_field, 2)  ! need to fill halo for horizontal filter
-         call mpas_dmpar_exch_halo_field(scalars_field)
-
-         block => domain % blocklist
-         do while (associated(block))
-
-            call mpas_pool_get_subpool(block % structs, 'state', state)
-            call mpas_pool_get_subpool(block % structs, 'mesh', mesh)
-   
-            call mpas_pool_get_dimension(mesh, 'nVertLevels', nVertLevels)
-            call mpas_pool_get_dimension(mesh, 'nCells', nCells)
-            call mpas_pool_get_dimension(state, 'num_scalars', num_scalars)
-            allocate(scalars_driving(num_scalars,nVertLevels,nCells+1))
-
-
-            !  get the scalar values driving the regional boundary conditions
-            !
-            call mpas_pool_get_dimension(state, 'index_qv', index_qv)
-            call mpas_pool_get_dimension(state, 'index_qc', index_qc)
-            call mpas_pool_get_dimension(state, 'index_qr', index_qr)
-            call mpas_pool_get_dimension(state, 'index_qi', index_qi)
-            call mpas_pool_get_dimension(state, 'index_qs', index_qs)
-            call mpas_pool_get_dimension(state, 'index_qg', index_qg)  
-            call mpas_pool_get_dimension(state, 'index_nr', index_nr)
-            call mpas_pool_get_dimension(state, 'index_ni', index_ni)
-
-            call mpas_pool_get_dimension(block % dimensions, 'nThreads', nThreads)
-
-            call mpas_pool_get_dimension(block % dimensions, 'cellThreadStart', cellThreadStart)
-            call mpas_pool_get_dimension(block % dimensions, 'cellThreadEnd', cellThreadEnd)
-            call mpas_pool_get_dimension(block % dimensions, 'cellSolveThreadStart', cellSolveThreadStart)
-            call mpas_pool_get_dimension(block % dimensions, 'cellSolveThreadEnd', cellSolveThreadEnd)
-
-            call mpas_pool_get_dimension(block % dimensions, 'vertexThreadStart', vertexThreadStart)
-            call mpas_pool_get_dimension(block % dimensions, 'vertexThreadEnd', vertexThreadEnd)
-            call mpas_pool_get_dimension(block % dimensions, 'vertexSolveThreadStart', vertexSolveThreadStart)
-            call mpas_pool_get_dimension(block % dimensions, 'vertexSolveThreadEnd', vertexSolveThreadEnd)
-
-            if (index_qv > 0) then
-               scalars_driving(index_qv,1:nVertLevels,1:nCells+1) = mpas_atm_get_bdy_state( clock, domain % blocklist, nVertLevels, nCells, 'qv', dt )
-            end if
-            if (index_qc > 0) then
-               scalars_driving(index_qc,1:nVertLevels,1:nCells+1) = mpas_atm_get_bdy_state( clock, domain % blocklist, nVertLevels, nCells, 'qc', dt )
-            end if
-            if (index_qr > 0) then
-               scalars_driving(index_qr,1:nVertLevels,1:nCells+1) = mpas_atm_get_bdy_state( clock, domain % blocklist, nVertLevels, nCells, 'qr', dt )
-            end if
-            if (index_qi > 0) then
-               scalars_driving(index_qi,1:nVertLevels,1:nCells+1) = mpas_atm_get_bdy_state( clock, domain % blocklist, nVertLevels, nCells, 'qi', dt )
-            end if
-            if (index_qs > 0) then
-               scalars_driving(index_qs,1:nVertLevels,1:nCells+1) = mpas_atm_get_bdy_state( clock, domain % blocklist, nVertLevels, nCells, 'qs', dt )
-            end if
-            if (index_qg > 0) then
-               scalars_driving(index_qg,1:nVertLevels,1:nCells+1) = mpas_atm_get_bdy_state( clock, domain % blocklist, nVertLevels, nCells, 'qg', dt )
-            end if
-            if (index_nr > 0) then
-               scalars_driving(index_nr,1:nVertLevels,1:nCells+1) = mpas_atm_get_bdy_state( clock, domain % blocklist, nVertLevels, nCells, 'nr', dt )
-            end if
-            if (index_ni > 0) then
-               scalars_driving(index_ni,1:nVertLevels,1:nCells+1) = mpas_atm_get_bdy_state( clock, domain % blocklist, nVertLevels, nCells, 'ni', dt )
-            end if
-      
-!$OMP PARALLEL DO
-            do thread=1,nThreads
-               call atm_bdy_set_scalars( state, mesh, scalars_driving, nVertLevels, &
-                                         cellThreadStart(thread), cellThreadEnd(thread), &
-                                         cellSolveThreadStart(thread), cellSolveThreadEnd(thread) )
-            end do
-!$OMP END PARALLEL DO
-
-            deallocate(scalars_driving)
-
-            block => block % next
-         end do
-
-      end if  ! regional_MPAS addition
-
-      call summarize_timestep(domain)
 
    end subroutine atm_srk3
 
@@ -6943,5 +6818,194 @@ DAVE LBC AFTER MP - NEEDS TO BE MOVED
       end if
 
    end subroutine summarize_timestep
+
+
+   subroutine dynamics_final_lbc_adjustment(domain, dt)
+   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+   ! For a regional domain, reset the values of rtheta in the specified zone
+   ! (modified by the microphysics scheme), and adjust the boundary values 
+   ! for scalar transport.
+   !
+   ! Input: domain - current model state in time level 1 (e.g., time_levs(1)state%h(:,:))
+   !                 plus grid meta-data
+   ! Output: domain - updated driving rtheta and rho in scpecified zone, and updated
+   !                  scalars in lateral boundary
+   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+      implicit none
+
+      type (domain_type), intent(inout) :: domain
+      real (kind=RKIND), intent(in) :: dt
+
+
+      type (block_type), pointer :: block
+      type (mpas_pool_type), pointer :: state
+
+
+      clock => domain % clock
+      blocklist => domain % blocklist !!! DAVE this seems unnecessary
+
+      call mpas_pool_get_config(domain % blocklist % configs, 'config_apply_lbcs', config_apply_lbcs)
+
+      if (config_apply_lbcs) then  ! reset boundary values of rtheta in the specified zone - microphysics has messed with them
+
+         block => domain % blocklist
+         do while (associated(block))
+            call mpas_pool_get_subpool(block % structs, 'state', state)
+            call mpas_pool_get_subpool(block % structs, 'diag', diag)
+            call mpas_pool_get_subpool(block % structs, 'mesh', mesh)
+
+            call mpas_pool_get_dimension(mesh, 'nCells', nCells)
+            call mpas_pool_get_dimension(mesh, 'nVertLevels', nVertLevels)
+            call mpas_pool_get_dimension(block % dimensions, 'nThreads', nThreads)
+
+            call mpas_pool_get_dimension(block % dimensions, 'cellThreadStart', cellThreadStart)
+            call mpas_pool_get_dimension(block % dimensions, 'cellThreadEnd', cellThreadEnd)
+            call mpas_pool_get_dimension(block % dimensions, 'cellSolveThreadStart', cellSolveThreadStart)
+            call mpas_pool_get_dimension(block % dimensions, 'cellSolveThreadEnd', cellSolveThreadEnd)
+
+            allocate(rt_driving_values(nVertLevels,nCells+1))
+            allocate(rho_driving_values(nVertLevels,nCells+1))
+            time_dyn_step = dt  ! end of full timestep values
+
+            rt_driving_values(1:nVertLevels,1:nCells+1) =  mpas_atm_get_bdy_state( clock, domain % blocklist, nVertLevels, nCells, 'rtheta_m', time_dyn_step )
+            rho_driving_values(1:nVertLevels,1:nCells+1) =  mpas_atm_get_bdy_state( clock, domain % blocklist, nVertLevels, nCells, 'rho_zz', time_dyn_step )
+
+!$OMP PARALLEL DO
+            do thread=1,nThreads
+               call atm_bdy_reset_speczone_values( state, diag, mesh, nVertLevels, &
+                                                   rt_driving_values, rho_driving_values,                        &
+                                                   cellThreadStart(thread), cellThreadEnd(thread),               &
+                                                   cellSolveThreadStart(thread), cellSolveThreadEnd(thread) )
+            end do
+!$OMP END PARALLEL DO
+
+            deallocate(rt_driving_values)
+            deallocate(rho_driving_values)
+            block => block % next
+
+         end do
+
+      end if  ! regional_MPAS addition
+
+
+      if (config_apply_lbcs) then  ! adjust boundary values for regional_MPAS scalar transport
+
+         call mpas_pool_get_field(state, 'scalars', scalars_field, 2)  ! need to fill halo for horizontal filter
+         call mpas_dmpar_exch_halo_field(scalars_field)
+
+         block => domain % blocklist
+         do while (associated(block))
+
+            call mpas_pool_get_subpool(block % structs, 'state', state)
+            call mpas_pool_get_subpool(block % structs, 'mesh', mesh)
+   
+            call mpas_pool_get_dimension(mesh, 'nVertLevels', nVertLevels)
+            call mpas_pool_get_dimension(mesh, 'nCells', nCells)
+            call mpas_pool_get_dimension(state, 'num_scalars', num_scalars)
+            allocate(scalars_driving(num_scalars,nVertLevels,nCells+1))
+
+
+            !  get the scalar values driving the regional boundary conditions
+            !
+            call mpas_pool_get_dimension(state, 'index_qv', index_qv)
+            call mpas_pool_get_dimension(state, 'index_qc', index_qc)
+            call mpas_pool_get_dimension(state, 'index_qr', index_qr)
+            call mpas_pool_get_dimension(state, 'index_qi', index_qi)
+            call mpas_pool_get_dimension(state, 'index_qs', index_qs)
+            call mpas_pool_get_dimension(state, 'index_qg', index_qg)  
+            call mpas_pool_get_dimension(state, 'index_nr', index_nr)
+            call mpas_pool_get_dimension(state, 'index_ni', index_ni)
+
+            call mpas_pool_get_dimension(block % dimensions, 'nThreads', nThreads)
+
+            call mpas_pool_get_dimension(block % dimensions, 'cellThreadStart', cellThreadStart)
+            call mpas_pool_get_dimension(block % dimensions, 'cellThreadEnd', cellThreadEnd)
+            call mpas_pool_get_dimension(block % dimensions, 'cellSolveThreadStart', cellSolveThreadStart)
+            call mpas_pool_get_dimension(block % dimensions, 'cellSolveThreadEnd', cellSolveThreadEnd)
+
+            call mpas_pool_get_dimension(block % dimensions, 'vertexThreadStart', vertexThreadStart)
+            call mpas_pool_get_dimension(block % dimensions, 'vertexThreadEnd', vertexThreadEnd)
+            call mpas_pool_get_dimension(block % dimensions, 'vertexSolveThreadStart', vertexSolveThreadStart)
+            call mpas_pool_get_dimension(block % dimensions, 'vertexSolveThreadEnd', vertexSolveThreadEnd)
+
+            if (index_qv > 0) then
+               scalars_driving(index_qv,1:nVertLevels,1:nCells+1) = mpas_atm_get_bdy_state( clock, domain % blocklist, nVertLevels, nCells, 'qv', dt )
+            end if
+            if (index_qc > 0) then
+               scalars_driving(index_qc,1:nVertLevels,1:nCells+1) = mpas_atm_get_bdy_state( clock, domain % blocklist, nVertLevels, nCells, 'qc', dt )
+            end if
+            if (index_qr > 0) then
+               scalars_driving(index_qr,1:nVertLevels,1:nCells+1) = mpas_atm_get_bdy_state( clock, domain % blocklist, nVertLevels, nCells, 'qr', dt )
+            end if
+            if (index_qi > 0) then
+               scalars_driving(index_qi,1:nVertLevels,1:nCells+1) = mpas_atm_get_bdy_state( clock, domain % blocklist, nVertLevels, nCells, 'qi', dt )
+            end if
+            if (index_qs > 0) then
+               scalars_driving(index_qs,1:nVertLevels,1:nCells+1) = mpas_atm_get_bdy_state( clock, domain % blocklist, nVertLevels, nCells, 'qs', dt )
+            end if
+            if (index_qg > 0) then
+               scalars_driving(index_qg,1:nVertLevels,1:nCells+1) = mpas_atm_get_bdy_state( clock, domain % blocklist, nVertLevels, nCells, 'qg', dt )
+            end if
+            if (index_nr > 0) then
+               scalars_driving(index_nr,1:nVertLevels,1:nCells+1) = mpas_atm_get_bdy_state( clock, domain % blocklist, nVertLevels, nCells, 'nr', dt )
+            end if
+            if (index_ni > 0) then
+               scalars_driving(index_ni,1:nVertLevels,1:nCells+1) = mpas_atm_get_bdy_state( clock, domain % blocklist, nVertLevels, nCells, 'ni', dt )
+            end if
+      
+!$OMP PARALLEL DO
+            do thread=1,nThreads
+               call atm_bdy_set_scalars( state, mesh, scalars_driving, nVertLevels, &
+                                         cellThreadStart(thread), cellThreadEnd(thread), &
+                                         cellSolveThreadStart(thread), cellSolveThreadEnd(thread) )
+            end do
+!$OMP END PARALLEL DO
+
+            deallocate(scalars_driving)
+
+            block => block % next
+         end do
+
+      end if  ! regional_MPAS addition
+
+   end subroutine dynamics_final_lbc_adjustment
+
+
+   subroutine dynamics_update_xtime(domain, dt, nowTime)
+   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+   ! After the end of the time step, advance the model time.
+   !
+   ! Input: domain - current time and timestep
+   ! Output: domain - upon exit, xtime is advanced
+   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+      implicit none
+
+      type (domain_type), intent(inout) :: domain
+      real (kind=RKIND), intent(in) :: dt
+
+
+      type (block_type), pointer :: block
+      type (MPAS_Time_type) :: currTime
+      type (MPAS_TimeInterval_type) :: dtInterval
+      character (len=StrKIND), pointer :: xtime
+      character (len=StrKIND) :: xtime_new
+      type (mpas_pool_type), pointer :: state
+
+
+      call mpas_set_timeInterval(dtInterval, dt=dt)
+      currTime = nowTime + dtInterval
+      call mpas_get_time(currTime, dateTimeString=xtime_new)
+
+      block => domain % blocklist
+      do while (associated(block))
+         call mpas_pool_get_subpool(block % structs, 'state', state)
+         call mpas_pool_get_array(state, 'xtime', xtime, 2)
+         xtime = xtime_new
+         block => block % next
+      end do
+
+   end subroutine dynamics_update_xtime
 
 end module atm_time_integration
