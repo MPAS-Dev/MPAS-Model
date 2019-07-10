@@ -1506,7 +1506,7 @@ contains
                             -100.0_RKIND) )
        fracAbsorbedPrecEvapIce = 1.0_RKIND - exp( max(-layerThickness(1, iCell) / &
           config_flux_attenuation_coefficient_prec_evap_ice, -100.0_RKIND) )
-                            
+
        ! Store the total tracer flux below in nonLocalSurfaceTemperatureFlux for use in the CVMix nonlocal
        ! transport code.  This includes tracer forcing due to thickness
 
@@ -1515,7 +1515,6 @@ contains
                - fracAbsorbedPrecEvapIce * (rainFlux(iCell) + evaporationFlux(iCell)) * &
                    activeTracers(indexTempFlux,1,iCell)/rho_sw &
                - fracAbsorbedRunoff * surfaceThicknessFluxRunoff(iCell) * (  &
-                   max(activeTracers(indexTempFlux,1,iCell),0.0_RKIND) &
                  + min(activeTracers(indexTempFlux,1,iCell),0.0_RKIND)    )/rho_sw
 
        nonLocalSurfaceTracerFlux(indexSaltFlux,iCell) = activeTracersSurfaceFlux(indexSaltFlux,iCell) &
