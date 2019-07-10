@@ -11,15 +11,14 @@ OBJS = mpas_atm_core.o \
 all: physcore dycore diagcore atmcore utilities
 
 core_reg:
-	$(CPP) $(CPPFLAGS) $(CPPINCLUDES) Registry.xml > Registry_processed.xml
+	$(CPP) $(CPPFLAGS) $(CPPINCLUDES) $(PHYSICS) Registry.xml > Registry_processed.xml
 
 core_input_gen:
 	if [ ! -e default_inputs ]; then  mkdir default_inputs; fi
 	( cd default_inputs; $(NL_GEN) ../Registry_processed.xml namelist.atmosphere in_defaults=true )
 	( cd default_inputs; $(ST_GEN) ../Registry_processed.xml streams.atmosphere stream_list.atmosphere. listed )
 
-gen_includes:
-	$(CPP) $(CPPFLAGS) $(CPPINCLUDES) Registry.xml > Registry_processed.xml
+gen_includes: core_reg
 	(if [ ! -d inc ]; then mkdir -p inc; fi) # To generate *.inc files
 	(cd inc; $(REG_PARSE) < ../Registry_processed.xml )
 
@@ -38,7 +37,7 @@ dycore: mpas_atm_dimensions.o physcore
 	( cd dynamics; $(MAKE) all PHYSICS="$(PHYSICS)" )
 
 diagcore: physcore dycore
-	( cd diagnostics; $(MAKE) all )
+	( cd diagnostics; $(MAKE) all PHYSICS="$(PHYSICS)" )
 
 utilities: physcore
 	( cd utils; $(MAKE) all )

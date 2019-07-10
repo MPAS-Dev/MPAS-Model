@@ -516,7 +516,9 @@ module atm_core
          do while (associated(block_ptr))
             call mpas_pool_get_subpool(block_ptr % structs, 'state', state)
             call mpas_pool_get_subpool(block_ptr % structs, 'diag', diag)
+#ifdef DO_PHYSICS
             call mpas_pool_get_subpool(block_ptr % structs, 'diag_physics', diag_physics)
+#endif
             call mpas_pool_get_subpool(block_ptr % structs, 'mesh', mesh)
             call atm_compute_output_diagnostics(state, 1, diag, mesh)
 
@@ -552,7 +554,9 @@ module atm_core
       call mpas_pool_get_subpool(block_ptr % structs, 'mesh', mesh)
       call mpas_pool_get_subpool(block_ptr % structs, 'state', state)
       call mpas_pool_get_subpool(block_ptr % structs, 'diag', diag)
+#ifdef DO_PHYSICS
       call mpas_pool_get_subpool(block_ptr % structs, 'diag_physics', diag_physics)
+#endif
 
       ! During integration, time level 1 stores the model state at the beginning of the
       !   time step, and time level 2 stores the state advanced dt in time by timestep(...)
@@ -621,10 +625,12 @@ module atm_core
            do while (associated(block_ptr))
               call mpas_pool_get_subpool(block_ptr % structs, 'state', state)
               call mpas_pool_get_subpool(block_ptr % structs, 'diag', diag)
+#ifdef DO_PHYSICS
               call mpas_pool_get_subpool(block_ptr % structs, 'diag_physics', diag_physics)
+              call mpas_pool_get_subpool(block_ptr % structs, 'tend_physics', tend_physics)
+#endif
               call mpas_pool_get_subpool(block_ptr % structs, 'mesh', mesh)
               call mpas_pool_get_subpool(block_ptr % structs, 'tend', tend)
-              call mpas_pool_get_subpool(block_ptr % structs, 'tend_physics', tend_physics)
               call atm_compute_output_diagnostics(state, 1, diag, mesh)
 
               block_ptr => block_ptr % next
@@ -640,7 +646,9 @@ module atm_core
 
                call mpas_pool_get_subpool(block_ptr % structs, 'state', state)
                call mpas_pool_get_subpool(block_ptr % structs, 'diag', diag)
+#ifdef DO_PHYSICS
                call mpas_pool_get_subpool(block_ptr % structs, 'diag_physics', diag_physics)
+#endif
                call mpas_pool_get_subpool(block_ptr % structs, 'mesh', mesh)
                call atm_compute_restart_diagnostics(state, 1, diag, mesh)
 
@@ -671,7 +679,9 @@ module atm_core
             do while (associated(block_ptr))
 
                call mpas_pool_get_subpool(block_ptr % structs, 'diag', diag)
+#ifdef DO_PHYSICS
                call mpas_pool_get_subpool(block_ptr % structs, 'diag_physics', diag_physics)
+#endif
                call atm_reset_diagnostics(diag, diag_physics)
 
                block_ptr => block_ptr % next
@@ -692,12 +702,6 @@ module atm_core
          call mpas_atm_diag_reset()
 
          call mpas_stream_mgr_reset_alarms(domain % streamManager, direction=MPAS_STREAM_OUTPUT, ierr=ierr)
-
-         block_ptr => domain % blocklist
-         call mpas_pool_get_subpool(block_ptr % structs, 'mesh', mesh)
-         call mpas_pool_get_subpool(block_ptr % structs, 'state', state)
-         call mpas_pool_get_subpool(block_ptr % structs, 'diag', diag)
-         call mpas_pool_get_subpool(block_ptr % structs, 'diag_physics', diag_physics)
 
       end do
    
@@ -814,14 +818,16 @@ module atm_core
       implicit none
    
       type (mpas_pool_type), intent(inout) :: diag
-      type (mpas_pool_type), intent(inout) :: diag_physics
+      type (mpas_pool_type), pointer :: diag_physics
    
       real (kind=RKIND), dimension(:), pointer :: refl10cm_1km_max
 
+#ifdef DO_PHYSICS
       call mpas_pool_get_array(diag_physics, 'refl10cm_1km_max', refl10cm_1km_max)
       if(associated(refl10cm_1km_max)) then
          refl10cm_1km_max(:) = 0.
       endif
+#endif
    
    end subroutine atm_reset_diagnostics
 

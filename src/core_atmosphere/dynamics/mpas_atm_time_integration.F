@@ -177,7 +177,7 @@ module atm_time_integration
       type (mpas_pool_type), pointer :: diag_physics
       type (mpas_pool_type), pointer :: mesh
       type (mpas_pool_type), pointer :: tend
-      type (mpas_pool_type), pointer :: tend_physics
+      type (mpas_pool_type), pointer :: tend_physics => null()
 
       type (field2DReal), pointer :: theta_m_field
       type (field3DReal), pointer :: scalars_field
@@ -212,8 +212,6 @@ module atm_time_integration
       call mpas_pool_get_config(domain % blocklist % configs, 'config_positive_definite', config_positive_definite)
       call mpas_pool_get_config(domain % blocklist % configs, 'config_monotonic', config_monotonic)
       call mpas_pool_get_config(domain % blocklist % configs, 'config_dt', config_dt)
-      call mpas_pool_get_config(domain % blocklist % configs, 'config_microp_scheme', config_microp_scheme)
-      call mpas_pool_get_config(domain % blocklist % configs, 'config_convection_scheme', config_convection_scheme)
       call mpas_pool_get_config(domain % blocklist % configs, 'config_IAU_option', config_IAU_option)
 
       !  config variables for dynamics-transport splitting, WCS 18 November 2014
@@ -537,7 +535,9 @@ module atm_time_integration
                call mpas_pool_get_subpool(block % structs, 'diag', diag)
                call mpas_pool_get_subpool(block % structs, 'mesh', mesh)
                call mpas_pool_get_subpool(block % structs, 'tend', tend)
+#ifdef DO_PHYSICS
                call mpas_pool_get_subpool(block % structs, 'tend_physics', tend_physics)
+#endif
    
                call mpas_pool_get_dimension(mesh, 'nCells', nCells)
                call mpas_pool_get_dimension(mesh, 'nEdges', nEdges)
@@ -1251,6 +1251,9 @@ module atm_time_integration
          call mpas_pool_get_array(state, 'scalars', scalars_1, 1)
          call mpas_pool_get_array(state, 'scalars', scalars_2, 2)
          call mpas_pool_get_dimension(state, 'index_qv', index_qv)
+
+         call mpas_pool_get_config(block % configs, 'config_microp_scheme', config_microp_scheme)
+         call mpas_pool_get_config(block % configs, 'config_convection_scheme', config_convection_scheme)
 
          call mpas_pool_get_dimension(block % dimensions, 'nThreads', nThreads)
 
@@ -3919,7 +3922,7 @@ module atm_time_integration
       ! Dummy arguments
       !
       type (mpas_pool_type), intent(inout) :: tend
-      type (mpas_pool_type), intent(inout) :: tend_physics
+      type (mpas_pool_type), pointer :: tend_physics
       type (mpas_pool_type), intent(in) :: state
       type (mpas_pool_type), intent(in) :: diag
       type (mpas_pool_type), intent(in) :: mesh
@@ -3950,8 +3953,8 @@ module atm_time_integration
       real (kind=RKIND), dimension(:,:), pointer :: rr_save
 
 
-      real (kind=RKIND), dimension(:,:), pointer :: tend_rtheta_adv  ! needed for Tiedtke convection scheme
-      real (kind=RKIND), dimension(:,:), pointer :: rthdynten  ! needed for Grell-Freitas convection scheme
+      real (kind=RKIND), dimension(:,:), pointer :: tend_rtheta_adv     ! needed for Tiedtke convection scheme
+      real (kind=RKIND), dimension(:,:), pointer :: rthdynten => null() ! needed for Grell-Freitas convection scheme
 
       real (kind=RKIND), dimension(:,:,:), pointer :: scalars
 
@@ -4036,7 +4039,9 @@ module atm_time_integration
       call mpas_pool_get_array(diag, 'exner', exner)
 
       call mpas_pool_get_array(diag, 'tend_rtheta_adv', tend_rtheta_adv)
-      call mpas_pool_get_array(tend_physics, 'rthdynten', rthdynten)
+      if (associated(tend_physics)) then
+         call mpas_pool_get_array(tend_physics, 'rthdynten', rthdynten)
+      end if
 
       call mpas_pool_get_array(mesh, 'weightsOnEdge', weightsOnEdge)
       call mpas_pool_get_array(mesh, 'cellsOnEdge', cellsOnEdge)

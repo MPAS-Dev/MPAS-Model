@@ -32,6 +32,8 @@
                      description="The number of atmospheric layers"/>
                 <dim name="nVertLevelsP1"      definition="nVertLevels+1"
                      description="The number of atmospheric levels, always one more than the number of layers"/>
+
+#ifdef DO_PHYSICS
                 <dim name="nMonths"            definition="namelist:months"
                      description="The number of months in a year"/>
                 <dim name="nSoilLevels"        definition="namelist:num_soil_layers"
@@ -46,6 +48,7 @@
                      description="dimension of CAM radiation absorption save array"/>
                 <dim name="nVertLevelsP2"      definition="nVertLevels+2"
                      description="Two more than the number of atmospheric layers"/>
+#endif
         </dims>
 
 
@@ -439,6 +442,8 @@
 			<var name="rho_base"/>
 			<var name="theta_base"/>
 			<var name="surface_pressure"/>
+
+#ifdef DO_PHYSICS
 			<var name="isltyp"/>
 			<var name="ivgtyp"/>
 			<var name="mminlu"/>
@@ -479,6 +484,7 @@
 			<var name="ol3"/>
 			<var name="ol4"/>
 			<var name="h_oml_initial"/>
+#endif
 		</stream>
 
 		<stream name="restart" 
@@ -555,13 +561,6 @@
 			<var name="east"/>
 			<var name="north"/>
 			<var_array name="scalars"/>
-			<var name="rainprod" packages="mp_thompson_in"/>
-			<var name="evapprod" packages="mp_thompson_in"/>
-			<var name="re_cloud" packages="mp_thompson_in;mp_wsm6_in"/>
-			<var name="re_ice" packages="mp_thompson_in;mp_wsm6_in"/>
-			<var name="re_snow" packages="mp_thompson_in;mp_wsm6_in"/>
-			<var name="nt_c" packages="mp_thompson_in"/>
-			<var name="mu_c" packages="mp_thompson_in"/>
 			<var name="initial_time"/>
 			<var name="xtime"/>
 			<var name="u"/>
@@ -588,6 +587,15 @@
 			<var name="rtheta_p"/>
 			<var name="rho_p"/>
 			<var name="surface_pressure"/>
+
+#ifdef DO_PHYSICS
+			<var name="rainprod" packages="mp_thompson_in"/>
+			<var name="evapprod" packages="mp_thompson_in"/>
+			<var name="re_cloud" packages="mp_thompson_in;mp_wsm6_in"/>
+			<var name="re_ice" packages="mp_thompson_in;mp_wsm6_in"/>
+			<var name="re_snow" packages="mp_thompson_in;mp_wsm6_in"/>
+			<var name="nt_c" packages="mp_thompson_in"/>
+			<var name="mu_c" packages="mp_thompson_in"/>
                         <var name="tend_sfc_pressure"/>
 			<var name="rt_diabatic_tend"/>
 			<var name="nsteps_accum"/>
@@ -797,6 +805,7 @@
 			<var name="h_oml_initial"/>
 			<var name="hu_oml"/>
 			<var name="hv_oml"/>
+#endif
 		</stream>
 
 		<stream name="output" 
@@ -867,6 +876,8 @@
 			<var name="v_pv"/>
 			<var name="theta_pv"/>
 			<var name="vort_pv"/>
+			<var name="iLev_DT"/>
+#ifdef DO_PHYSICS
 			<var name="depv_dt_lw"/>
 			<var name="depv_dt_sw"/>
 			<var name="depv_dt_bl"/>
@@ -878,7 +889,6 @@
 			<var name="depv_dt_fric"/>
 			<var name="depv_dt_diab_pv"/>
 			<var name="depv_dt_fric_pv"/>
-			<var name="iLev_DT"/>
                         <!-- End Ertel PV diagnostics defined in diagnostics/Registry_pv.xml -->
 
 			<var name="i_rainnc"/>
@@ -917,6 +927,7 @@
 			<var name="sh2o"/>
 			<var name="smois"/>
 			<var name="tslb"/>
+#endif
 		</stream>
 
 		<stream name="diagnostics" 
@@ -927,18 +938,6 @@
 
 			<var name="initial_time"/>
 			<var name="xtime"/>
-			<var name="olrtoa"/>
-			<var name="rainc"/>
-			<var name="rainnc"/>
-			<var name="refl10cm_max"/>
-			<var name="refl10cm_1km"/>
-			<var name="refl10cm_1km_max"/>
-			<var name="precipw"/>
-			<var name="u10"/>
-			<var name="v10"/>
-			<var name="q2"/>
-			<var name="t2m"/>
-			<var name="th2m"/>
 
                         <!-- Begin isobaric diagnostics defined in diagnostics/Registry_isobaric.xml -->
 			<var name="mslp"/>
@@ -997,6 +996,21 @@
 			<var name="meanT_500_300"/>
                         <!-- End isobaric diagnostics defined in diagnostics/Registry_isobaric.xml -->
 
+#ifdef DO_PHYSICS
+			<var name="olrtoa"/>
+			<var name="rainc"/>
+			<var name="rainnc"/>
+			<var name="refl10cm_max"/>
+			<var name="refl10cm_1km"/>
+			<var name="refl10cm_1km_max"/>
+			<var name="precipw"/>
+			<var name="u10"/>
+			<var name="v10"/>
+			<var name="q2"/>
+			<var name="t2m"/>
+			<var name="th2m"/>
+#endif
+
                         <!-- Begin convective diagnostics defined in diagnostics/Registry_convective.xml -->
                         <var name="cape"/>
                         <var name="cin"/>
@@ -1017,6 +1031,7 @@
 			<var name="wind_speed_level1_max"/>
                         <!-- End convective diagnostics defined in diagnostics/Registry_convective.xml -->
 
+#ifdef DO_PHYSICS
 			<var name="t_oml"/>
 			<var name="t_oml_initial"/>
 			<var name="t_oml_200m_initial"/>
@@ -1024,6 +1039,7 @@
 			<var name="h_oml_initial"/>
 			<var name="hu_oml"/>
 			<var name="hv_oml"/>
+#endif
 		</stream>
 
 		<stream name="surface" 
@@ -1033,8 +1049,10 @@
                         filename_interval="none"
                         runtime_format="separate_file">
 
+#ifdef DO_PHYSICS
 			<var name="sst"/>
 			<var name="xice"/>
+#endif
 		</stream>
 
 	        <stream name="iau" 
@@ -1357,6 +1375,7 @@
                              packages="mp_thompson_in"/>
                 </var_array>
 
+#ifdef DO_PHYSICS
                 <var_array name="aerosols" type="real" dimensions="nAerLevels nCells Time">
                         <var name="sul"     array_group="aer_cam" units="kg m^{-3}"
                              description="Sulfate soluble (SUL) aerosol concentration"/>
@@ -1395,6 +1414,7 @@
                              description="Volcanic (VOLC) aerosol concentration"/>
 
                 </var_array>
+#endif
         </var_struct>
 
         <var_struct name="diag" time_levs="1">
@@ -1671,6 +1691,7 @@
 <!-- ================================================================================================== -->
 
 
+#ifdef DO_PHYSICS
         <nml_record name="physics" in_defaults="true" used_by="cam">
                 <!-- NAMELIST VARIABLES ADDED FOR INITIALIZATION OF SURFACE CHARACTERISTICS: -->
                 <nml_option name="input_soil_data" type="character" default_value="STAS" in_defaults="false"
@@ -2919,6 +2940,7 @@
                 <var name="ol4" type="real" dimensions="nCells" units="unitless"
                      description="directional asymmetry function of orography"/>
         </var_struct>
+#endif
 
         <var_struct name="tend_iau" time_levs="1" packages="iau">
 			
