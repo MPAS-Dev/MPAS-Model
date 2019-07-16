@@ -1146,7 +1146,11 @@
 					possible_values="between 0 and 1"
 		/>
 		<nml_option name="config_btr_gam3_velWt2" type="real" default_value="1.0" units="unitless"
-					description="Weighting of velocity in the SSH corrector step in stage 2. When zero, previous subcycle time is used; when one, new subcycle time is used."
+					description="Weighting of corrector velocity in the SSH corrector step in stage 2."
+					possible_values="between 0 and 1"
+		/>
+		<nml_option name="config_btr_gam4_velWt2" type="real" default_value="0.0" units="unitless"
+					description="Weighting of predictor velocity in the SSH corrector step in stage 2."
 					possible_values="between 0 and 1"
 		/>
 		<nml_option name="config_btr_solve_SSH2" type="logical" default_value=".false." units="unitless"
