@@ -56,6 +56,8 @@ module soundings
         use mpas_timekeeping, only : MPAS_timeInterval_type, MPAS_time_type, MPAS_set_timeInterval, &
                                      MPAS_get_clock_time, MPAS_add_clock_alarm, MPAS_NOW
         use mpas_dmpar, only : IO_NODE, mpas_dmpar_bcast_int, mpas_dmpar_bcast_logical, mpas_dmpar_bcast_char
+        use mpas_kd_tree, only : kdnode
+        use mpas_kd_tree, only : mpas_kd_construct, mpas_kd_search, mpas_kd_free
 
         implicit none
 
@@ -69,6 +71,8 @@ module soundings
         integer :: i, ierr
         integer :: sndUnit
         real (kind=RKIND) :: station_lat, station_lon
+        real (kind=RKIND) :: stationX, stationY, stationZ
+        real, pointer :: sphere_radius
         character (len=StrKIND) :: tempstr
         character (len=StrKIND) :: station_name
         logical :: exists
@@ -77,9 +81,13 @@ module soundings
         integer, dimension(:), pointer :: nEdgesOnCell
         integer, dimension(:,:), pointer :: cellsOnCell
         real (kind=RKIND), dimension(:), pointer :: latCell, lonCell
+        real (kind=RKIND), dimension(:), pointer :: xCell, yCell, zCell
         type (MPAS_timeInterval_type) :: intv
         type (MPAS_time_type) :: now
 
+        ! KD Tree
+        type (kdnode), pointer :: tree => null(), res => null()
+        type (kdnode), dimension(:), allocatable :: kdcords
 
         simulationClock => simulation_clock
 
@@ -161,6 +169,21 @@ module soundings
         call mpas_pool_get_array(mesh, 'cellsOnCell', cellsOnCell)
         call mpas_pool_get_array(mesh, 'latCell', latCell)
         call mpas_pool_get_array(mesh, 'lonCell', lonCell)
+        call mpas_pool_get_array(mesh, 'xCell', xCell)
+        call mpas_pool_get_array(mesh, 'yCell', yCell)
+        call mpas_pool_get_array(mesh, 'zCell', zCell)
+        call mpas_pool_get_config(mesh, 'sphere_radius', sphere_radius)
+
+
+        ! Setup KD-Tree
+        allocate(kdcords(nCells))
+        do i = 1, nCells
+           allocate(kdcords(i) % point(3))
+           kdcords(i) % point = (/xCell(i), yCell(i), zCell(i)/)
+           kdcords(i) % cell = i
+        enddo
+
+        tree => mpas_kd_construct(kdcords, 3)
 
         nearestCell = nCells
 
@@ -170,8 +193,14 @@ module soundings
             end if
             call mpas_dmpar_bcast_char(dminfo, tempstr)
             read(tempstr, fmt=*) stationLats(i), stationLons(i), stationNames(i)
-            nearestCell = nearest_cell((stationLats(i) * pi_const / 180.0_RKIND), (stationLons(i) * pi_const / 180.0_RKIND), &
-                                       nearestCell, nCells, maxEdges, nEdgesOnCell, cellsOnCell, latCell, lonCell)
+
+            stationZ = sphere_radius * sin(stationLats(i) * pi_const / 180.0_RKIND)
+            stationX = sphere_radius * cos(stationLons(i) * pi_const / 180.0_RKIND) * cos(stationLats(i) * pi_const / 180.0_RKIND)
+            stationY = sphere_radius * sin(stationLons(i) * pi_const / 180.0_RKIND) * cos(stationLats(i) * pi_const / 180.0_RKIND)
+
+            call mpas_kd_search(tree, (/stationX, stationY, stationZ/), res)
+            nearestCell = res % cell
+
             if (nearestCell <= nCellsSolve) then
                 stationOwned(i) = .true.
                 stationCells(i) = nearestCell
