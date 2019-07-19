@@ -72,7 +72,6 @@ module soundings
         integer :: sndUnit
         real (kind=RKIND) :: station_lat, station_lon
         real (kind=RKIND) :: stationX, stationY, stationZ
-        real, pointer :: sphere_radius
         character (len=StrKIND) :: tempstr
         character (len=StrKIND) :: station_name
         logical :: exists
@@ -80,8 +79,11 @@ module soundings
         integer, pointer :: nCells, nCellsSolve, maxEdges
         integer, dimension(:), pointer :: nEdgesOnCell
         integer, dimension(:,:), pointer :: cellsOnCell
+        integer, dimension(:,:), pointer :: verticesOnCell
         real (kind=RKIND), dimension(:), pointer :: latCell, lonCell
         real (kind=RKIND), dimension(:), pointer :: xCell, yCell, zCell
+        real (kind=RKIND), dimension(:), pointer :: xVertex, yVertex, zVertex
+        real (kind=RKIND), pointer :: sphere_radius
         type (MPAS_timeInterval_type) :: intv
         type (MPAS_time_type) :: now
 
@@ -167,13 +169,16 @@ module soundings
         call mpas_pool_get_dimension(mesh, 'maxEdges', maxEdges)
         call mpas_pool_get_array(mesh, 'nEdgesOnCell', nEdgesOnCell)
         call mpas_pool_get_array(mesh, 'cellsOnCell', cellsOnCell)
+        call mpas_pool_get_array(mesh, 'verticesOnCell', verticesOnCell)
         call mpas_pool_get_array(mesh, 'latCell', latCell)
         call mpas_pool_get_array(mesh, 'lonCell', lonCell)
         call mpas_pool_get_array(mesh, 'xCell', xCell)
         call mpas_pool_get_array(mesh, 'yCell', yCell)
         call mpas_pool_get_array(mesh, 'zCell', zCell)
+        call mpas_pool_get_array(mesh, 'xVertex', xVertex)
+        call mpas_pool_get_array(mesh, 'yVertex', yVertex)
+        call mpas_pool_get_array(mesh, 'zVertex', zVertex)
         call mpas_pool_get_config(mesh, 'sphere_radius', sphere_radius)
-
 
         ! Setup KD-Tree
         allocate(kdcords(nCells))
@@ -201,9 +206,14 @@ module soundings
             call mpas_kd_search(tree, (/stationX, stationY, stationZ/), res)
             nearestCell = res % cell
 
-            if (nearestCell <= nCellsSolve) then
-                stationOwned(i) = .true.
-                stationCells(i) = nearestCell
+            if (in_cell(stationX, stationY, stationZ, xCell(nearestCell), yCell(nearestCell), zCell(nearestCell), &
+                        nEdgesOnCell(nearestCell), verticesOnCell(:,nearestCell), xVertex, yVertex, zVertex)) then
+               if (nearestCell <= nCellsSolve) then
+                   stationOwned(i) = .true.
+                   stationCells(i) = nearestCell
+               else
+                   stationOwned(i) = .false.
+               end if
             else
                 stationOwned(i) = .false.
             end if
@@ -214,6 +224,9 @@ module soundings
 
             call mpas_release_unit(sndUnit)
         end if
+
+        call mpas_kd_free(tree)
+        deallocate(kdcords)
 
     end subroutine soundings_setup
 
@@ -420,6 +433,146 @@ module soundings
     
     end function sphere_distance
 
+    !-----------------------------------------------------------------------
+    !  routine mirror_point
+    !
+    !> \brief Finds the "mirror" of a point about a great-circle arc
+    !> \author Michael Duda
+    !> \date   7 March 2019
+    !> \details
+    !>  Given the endpoints of a great-circle arc (A,B) and a point, computes
+    !>  the location of the point on the opposite side of the arc along a great-
+    !>  circle arc that intersects (A,B) at a right angle, and such that the arc
+    !>  between the point and its mirror is bisected by (A,B).
+    !>
+    !>  Assumptions: A, B, and the point to be reflected all lie on the surface
+    !>  of the unit sphere.
+    !
+    !-----------------------------------------------------------------------
+    subroutine mirror_point(xPoint, yPoint, zPoint, xA, yA, zA, xB, yB, zB, xMirror, yMirror, zMirror)
+
+       use mpas_geometry_utils, only : mpas_sphere_angle
+
+       implicit none
+
+       real(kind=RKIND), intent(in) :: xPoint, yPoint, zPoint
+       real(kind=RKIND), intent(in) :: xA, yA, zA
+       real(kind=RKIND), intent(in) :: xB, yB, zB
+       real(kind=RKIND), intent(out) :: xMirror, yMirror, zMirror
+
+       real(kind=RKIND) :: alpha
+
+       !
+       ! Find the spherical angle between arcs AP and AB (where P is the point to be reflected)
+       !
+       alpha = mpas_sphere_angle(xA, yA, zA, xPoint, yPoint, zPoint, xB, yB, zB)
+
+       !
+       ! Rotate the point to be reflected by twice alpha about the vector from the origin to A
+       !
+       call rotate_about_vector(xPoint, yPoint, zPoint, 2.0_RKIND * alpha, 0.0_RKIND, 0.0_RKIND, 0.0_RKIND, &
+                                xA, yA, zA, xMirror, yMirror, zMirror)
+
+    end subroutine mirror_point
+
+
+    !-----------------------------------------------------------------------
+    !  routine rotate_about_vector
+    !
+    !> \brief Rotates a point about a vector in R3
+    !> \author Michael Duda
+    !> \date   7 March 2019
+    !> \details
+    !>  Rotates the point (x,y,z) through an angle theta about the vector
+    !>  originating at (a, b, c) and having direction (u, v, w).
+    !
+    !>  Reference: https://sites.google.com/site/glennmurray/Home/rotation-matrices-and-formulas/rotation-about-an-arbitrary-axis-in-3-dimensions
+    !
+    !-----------------------------------------------------------------------
+    subroutine rotate_about_vector(x, y, z, theta, a, b, c, u, v, w, xp, yp, zp)
+
+       implicit none
+
+       real (kind=RKIND), intent(in) :: x, y, z, theta, a, b, c, u, v, w
+       real (kind=RKIND), intent(out) :: xp, yp, zp
+
+       real (kind=RKIND) :: vw2, uw2, uv2
+       real (kind=RKIND) :: m
+
+       vw2 = v**2.0 + w**2.0
+       uw2 = u**2.0 + w**2.0
+       uv2 = u**2.0 + v**2.0
+       m = sqrt(u**2.0 + v**2.0 + w**2.0)
+
+       xp = (a*vw2 + u*(-b*v-c*w+u*x+v*y+w*z) + ((x-a)*vw2+u*(b*v+c*w-v*y-w*z))*cos(theta) + m*(-c*v+b*w-w*y+v*z)*sin(theta))/m**2.0
+       yp = (b*uw2 + v*(-a*u-c*w+u*x+v*y+w*z) + ((y-b)*uw2+v*(a*u+c*w-u*x-w*z))*cos(theta) + m*( c*u-a*w+w*x-u*z)*sin(theta))/m**2.0
+       zp = (c*uv2 + w*(-a*u-b*v+u*x+v*y+w*z) + ((z-c)*uv2+w*(a*u+b*v-u*x-v*y))*cos(theta) + m*(-b*u+a*v-v*x+u*y)*sin(theta))/m**2.0
+
+    end subroutine rotate_about_vector
+
+
+    !-----------------------------------------------------------------------
+    !  routine in_cell
+    !
+    !> \brief Determines whether a point is within a Voronoi cell
+    !> \author Michael Duda
+    !> \date   7 March 2019
+    !> \details
+    !>  Given a point on the surface of the sphere, the corner points of a Voronoi
+    !>  cell, and the generating point for that Voronoi cell, determines whether
+    !>  the given point is within the Voronoi cell.
+    !
+    !-----------------------------------------------------------------------
+    logical function in_cell(xPoint, yPoint, zPoint, xCell, yCell, zCell, &
+                             nEdgesOnCell, verticesOnCell, xVertex, yVertex, zVertex)
+
+       use mpas_geometry_utils, only : mpas_arc_length
+
+       implicit none
+
+       real(kind=RKIND), intent(in) :: xPoint, yPoint, zPoint
+       real(kind=RKIND), intent(in) :: xCell, yCell, zCell
+       integer, intent(in) :: nEdgesOnCell
+       integer, dimension(:), intent(in) :: verticesOnCell
+       real(kind=RKIND), dimension(:), intent(in) :: xVertex, yVertex, zVertex
+
+       integer :: i
+       integer :: vtx1, vtx2
+       real(kind=RKIND) :: xNeighbor, yNeighbor, zNeighbor
+       real(kind=RKIND) :: inDist, outDist
+       real(kind=RKIND) :: radius
+       real(kind=RKIND) :: radius_inv
+
+       radius = sqrt(xCell * xCell + yCell * yCell + zCell * zCell)
+       radius_inv = 1.0_RKIND / radius
+
+       inDist = mpas_arc_length(xPoint, yPoint, zPoint, xCell, yCell, zCell)
+
+       in_cell = .true.
+
+       do i=1,nEdgesOnCell
+          vtx1 = verticesOnCell(i)
+          vtx2 = verticesOnCell(mod(i,nEdgesOnCell)+1)
+
+          call mirror_point(xCell*radius_inv, yCell*radius_inv, zCell*radius_inv, &
+                            xVertex(vtx1)*radius_inv, yVertex(vtx1)*radius_inv, zVertex(vtx1)*radius_inv, &
+                            xVertex(vtx2)*radius_inv, yVertex(vtx2)*radius_inv, zVertex(vtx2)*radius_inv, &
+                            xNeighbor, yNeighbor, zNeighbor)
+
+          xNeighbor = xNeighbor * radius
+          yNeighbor = yNeighbor * radius
+          zNeighbor = zNeighbor * radius
+
+          outDist = mpas_arc_length(xPoint, yPoint, zPoint, xNeighbor, yNeighbor, zNeighbor)
+
+          if (outDist < inDist) then
+             in_cell = .false.
+             return
+          end if
+
+       end do
+
+    end function in_cell
 
 !=============================================================================================
 !NOTE: functions rslf and rsif are taken from module_mp_thompson temporarily for computing
