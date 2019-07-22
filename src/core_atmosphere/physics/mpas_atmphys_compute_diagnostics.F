@@ -40,6 +40,7 @@
  
  logical:: need_qv_interp,need_qc_interp,need_qr_interp,need_qi_interp,need_qs_interp,need_qg_interp
  logical:: need_qcf_interp,need_qrf_interp,need_qif_interp,need_qsf_interp,need_qgf_interp,need_cld_interp
+ logical:: need_nc_interp,need_ni_interp,need_nr_interp,need_nifa_interp,need_nwfa_interp
 
  logical:: need_dtcup_vavg,need_dqvcup_vavg,need_dqccup_vavg,need_dqrcup_vavg, &
            need_dqicup_vavg,need_dqscup_vavg
@@ -117,7 +118,6 @@
  if(need_atmphys_tendencies_interp()) &
     call atmphys_tendencies_interp(mesh,fg,diag,tend_physics,tend_physics_interp)
 
- call mpas_log_write(' ')
  call mpas_log_write('--- exit subroutine atmphys_diagnostics_compute:')
 
  end subroutine atmphys_compute_diagnostics
@@ -255,14 +255,17 @@
  integer:: iCell,k,kk,nIntP
  integer,pointer:: nCells,nCellsSolve,nFGLevels,nVertLevels
  integer,pointer:: index_qv,index_qc,index_qr,index_qi,index_qs,index_qg
+ integer,pointer:: index_nc,index_ni,index_nr,index_nifa,index_nwfa
 
  real(kind=RKIND),dimension(:,:),pointer  :: p_fg
  real(kind=RKIND),dimension(:,:),pointer  :: cld,theta_m
  real(kind=RKIND),dimension(:,:),pointer  :: qv,qc,qr,qi,qs,qg
+ real(kind=RKIND),dimension(:,:),pointer  :: nc,ni,nr,nifa,nwfa
  real(kind=RKIND),dimension(:,:),pointer  :: pressure_b,pressure_p,exner
  real(kind=RKIND),dimension(:,:),pointer  :: qv_interp,qc_interp,qr_interp,qi_interp,qs_interp,qg_interp
  real(kind=RKIND),dimension(:,:),pointer  :: qcf_interp,qrf_interp,qif_interp,qsf_interp,qgf_interp
  real(kind=RKIND),dimension(:,:),pointer  :: cld_interp,rh_interp,t_interp
+ real(kind=RKIND),dimension(:,:),pointer  :: nc_interp,ni_interp,nr_interp,nifa_interp,nwfa_interp
  real(kind=RKIND),dimension(:,:,:),pointer:: scalars
 
 !local interpolated fields:
@@ -286,6 +289,12 @@
  call mpas_pool_get_dimension(state,'index_qs',index_qs)
  call mpas_pool_get_dimension(state,'index_qg',index_qg)
 
+ call mpas_pool_get_dimension(state,'index_nc',index_nc)
+ call mpas_pool_get_dimension(state,'index_ni',index_ni)
+ call mpas_pool_get_dimension(state,'index_nr',index_nr)
+ call mpas_pool_get_dimension(state,'index_nifa',index_nifa)
+ call mpas_pool_get_dimension(state,'index_nwfa',index_nwfa)
+
  call mpas_pool_get_array(state,'theta_m',theta_m,time_lev)
  call mpas_pool_get_array(state,'scalars',scalars,time_lev)
  qv => scalars(index_qv,:,:)
@@ -294,6 +303,12 @@
  qi => scalars(index_qi,:,:)
  qs => scalars(index_qs,:,:)
  qg => scalars(index_qg,:,:)
+
+ nc => scalars(index_nc,:,:)
+ ni => scalars(index_ni,:,:)
+ nr => scalars(index_nr,:,:)
+ nifa => scalars(index_nifa,:,:)
+ nwfa => scalars(index_nwfa,:,:)
 
  call mpas_pool_get_array(fg,'p_fg',p_fg)
  call mpas_pool_get_array(diag,'pressure_base',pressure_b)
@@ -329,6 +344,17 @@
  call mpas_pool_get_array(diag_physics_interp,'qsf_interp',qsf_interp)
  call mpas_pool_get_array(diag_physics_interp,'qgf_interp',qgf_interp)
  call mpas_pool_get_array(diag_physics_interp,'cld_interp',cld_interp)
+
+ nullify(nc_interp)
+ nullify(ni_interp)
+ nullify(nr_interp)
+ nullify(nifa_interp)
+ nullify(nwfa_interp)
+ call mpas_pool_get_array(diag_physics_interp,'nc_interp'  ,nc_interp  )
+ call mpas_pool_get_array(diag_physics_interp,'ni_interp'  ,ni_interp  )
+ call mpas_pool_get_array(diag_physics_interp,'nr_interp'  ,nr_interp  )
+ call mpas_pool_get_array(diag_physics_interp,'nifa_interp',nifa_interp)
+ call mpas_pool_get_array(diag_physics_interp,'nwfa_interp',nwfa_interp)
 
  call mpas_pool_get_array(diag_physics,'cldfrac',cld)
 
@@ -570,6 +596,86 @@
     enddo
  enddo
 !call mpas_log_write('--- end interpolate qgf:')
+
+!--- nc_interp:
+ do k = 1, nVertLevels
+    kk = nVertLevels+1-k
+    do iCell = 1, nCellsSolve
+       field_in(iCell,kk) = nc(k,iCell)
+    enddo
+ enddo
+ call interp_tofixed_pressure(nCellsSolve,nVertLevels,nIntP,press_in,field_in,press_interp,field_interp)
+ do k = 1, nIntP
+    kk = nIntp+1-k
+    do iCell = 1, nCellsSolve
+       nc_interp(k,iCell) = field_interp(iCell,kk)
+    enddo
+ enddo
+!call mpas_log_write('--- end interpolate nc:')
+
+!--- ni_interp:
+ do k = 1, nVertLevels
+    kk = nVertLevels+1-k
+    do iCell = 1, nCellsSolve
+       field_in(iCell,kk) = ni(k,iCell)
+    enddo
+ enddo
+ call interp_tofixed_pressure(nCellsSolve,nVertLevels,nIntP,press_in,field_in,press_interp,field_interp)
+ do k = 1, nIntP
+    kk = nIntp+1-k
+    do iCell = 1, nCellsSolve
+       ni_interp(k,iCell) = field_interp(iCell,kk)
+    enddo
+ enddo
+!call mpas_log_write('--- end interpolate ni:')
+
+!--- nr_interp:
+ do k = 1, nVertLevels
+    kk = nVertLevels+1-k
+    do iCell = 1, nCellsSolve
+       field_in(iCell,kk) = nr(k,iCell)
+    enddo
+ enddo
+ call interp_tofixed_pressure(nCellsSolve,nVertLevels,nIntP,press_in,field_in,press_interp,field_interp)
+ do k = 1, nIntP
+    kk = nIntp+1-k
+    do iCell = 1, nCellsSolve
+       nr_interp(k,iCell) = field_interp(iCell,kk)
+    enddo
+ enddo
+!call mpas_log_write('--- end interpolate nr:')
+
+!--- nifa_interp:
+ do k = 1, nVertLevels
+    kk = nVertLevels+1-k
+    do iCell = 1, nCellsSolve
+       field_in(iCell,kk) = nifa(k,iCell)
+    enddo
+ enddo
+ call interp_tofixed_pressure(nCellsSolve,nVertLevels,nIntP,press_in,field_in,press_interp,field_interp)
+ do k = 1, nIntP
+    kk = nIntp+1-k
+    do iCell = 1, nCellsSolve
+       nifa_interp(k,iCell) = field_interp(iCell,kk)
+    enddo
+ enddo
+!call mpas_log_write('--- end interpolate nifa:')
+
+!--- nwfa_interp:
+ do k = 1, nVertLevels
+    kk = nVertLevels+1-k
+    do iCell = 1, nCellsSolve
+       field_in(iCell,kk) = nwfa(k,iCell)
+    enddo
+ enddo
+ call interp_tofixed_pressure(nCellsSolve,nVertLevels,nIntP,press_in,field_in,press_interp,field_interp)
+ do k = 1, nIntP
+    kk = nIntp+1-k
+    do iCell = 1, nCellsSolve
+       nwfa_interp(k,iCell) = field_interp(iCell,kk)
+    enddo
+ enddo
+!call mpas_log_write('--- end interpolate nwfa:')
 
 !--- cld_interp:
  do k = 1, nVertLevels
@@ -1475,24 +1581,25 @@
 !-----------------------------------------------------------------------------------------------------------------
  need_any_diags = .false.
 
- need_qv_interp = .false. ; need_qc_interp = .false. ; need_qr_interp = .false. ; need_qi_interp = .false.
- need_qs_interp = .false. ; need_qs_interp = .false.
+ need_qv_interp   = .false. ; need_qc_interp   = .false. ; need_qr_interp  = .false. ; need_qi_interp = .false.
+ need_qs_interp   = .false. ; need_qs_interp   = .false.
+ need_qcf_interp  = .false. ; need_qrf_interp  = .false. ; need_qif_interp = .false.
+ need_qsf_interp  = .false. ; need_qgf_interp  = .false. ; need_cld_interp = .false.
+ need_nc_interp   = .false. ; need_ni_interp   = .false. ; need_nr_interp  = .false.
+ need_nifa_interp = .false. ; need_nwfa_interp = .false.
 
- need_qcf_interp = .false. ; need_qrf_interp = .false. ; need_qif_interp = .false.
- need_qsf_interp = .false. ; need_qgf_interp = .false. ; need_cld_interp = .false.
-
- need_qv_interp = mpas_field_will_be_written('qv_interp')
- need_any_diags = need_any_diags .or. need_qv_interp
- need_qc_interp = mpas_field_will_be_written('qc_interp')
- need_any_diags = need_any_diags .or. need_qc_interp
- need_qr_interp = mpas_field_will_be_written('qr_interp')
- need_any_diags = need_any_diags .or. need_qr_interp
- need_qi_interp = mpas_field_will_be_written('qi_interp')
- need_any_diags = need_any_diags .or. need_qi_interp
- need_qs_interp = mpas_field_will_be_written('qs_interp')
- need_any_diags = need_any_diags .or. need_qs_interp
- need_qg_interp = mpas_field_will_be_written('qg_interp')
- need_any_diags = need_any_diags .or. need_qg_interp
+ need_qv_interp  = mpas_field_will_be_written('qv_interp')
+ need_any_diags  = need_any_diags .or. need_qv_interp
+ need_qc_interp  = mpas_field_will_be_written('qc_interp')
+ need_any_diags  = need_any_diags .or. need_qc_interp
+ need_qr_interp  = mpas_field_will_be_written('qr_interp')
+ need_any_diags  = need_any_diags .or. need_qr_interp
+ need_qi_interp  = mpas_field_will_be_written('qi_interp')
+ need_any_diags  = need_any_diags .or. need_qi_interp
+ need_qs_interp  = mpas_field_will_be_written('qs_interp')
+ need_any_diags  = need_any_diags .or. need_qs_interp
+ need_qg_interp  = mpas_field_will_be_written('qg_interp')
+ need_any_diags  = need_any_diags .or. need_qg_interp
 
  need_qcf_interp = mpas_field_will_be_written('qcf_interp')
  need_any_diags  = need_any_diags .or. need_qcf_interp
@@ -1506,6 +1613,17 @@
  need_any_diags  = need_any_diags .or. need_qgf_interp
  need_cld_interp = mpas_field_will_be_written('cld_interp')
  need_any_diags  = need_any_diags .or. need_cld_interp
+
+ need_nc_interp   = mpas_field_will_be_written('nc_interp')
+ need_any_diags   = need_any_diags .or. need_nc_interp
+ need_ni_interp   = mpas_field_will_be_written('ni_interp')
+ need_any_diags   = need_any_diags .or. need_ni_interp
+ need_nr_interp   = mpas_field_will_be_written('nr_interp')
+ need_any_diags   = need_any_diags .or. need_nr_interp
+ need_nifa_interp = mpas_field_will_be_written('nifa_interp')
+ need_any_diags   = need_any_diags .or. need_nifa_interp
+ need_nwfa_interp = mpas_field_will_be_written('nwfa_interp')
+ need_any_diags   = need_any_diags .or. need_nwfa_interp
 
  end function need_atmphys_diagnostics_interp
 
