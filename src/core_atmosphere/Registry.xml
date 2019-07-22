@@ -465,6 +465,8 @@
 			<var name="rho"/>
 			<var name="theta"/>
 			<var name="relhum"/>
+			<var name="exner_base"/>
+			<var name="pressure_base"/>
 			<var name="rho_base"/>
 			<var name="theta_base"/>
 			<var name="surface_pressure"/>
@@ -593,6 +595,9 @@
 			<var name="re_cloud" packages="mp_thompson_in;mp_wsm6_in"/>
 			<var name="re_ice" packages="mp_thompson_in;mp_wsm6_in"/>
 			<var name="re_snow" packages="mp_thompson_in;mp_wsm6_in"/>
+			<var name="rre_cloud" packages="mp_thompson_in;mp_wsm6_in"/>
+			<var name="rre_ice" packages="mp_thompson_in;mp_wsm6_in"/>
+			<var name="rre_snow" packages="mp_thompson_in;mp_wsm6_in"/>
 			<var name="vqr" packages="mp_thompson_in;mp_wsm6_in"/>
 			<var name="vqi" packages="mp_thompson_in;mp_wsm6_in"/>
 			<var name="vqs" packages="mp_thompson_in;mp_wsm6_in"/>
@@ -643,6 +648,12 @@
 			<var name="graupelnc"/>
 			<var name="sr"/>
 			<var name="i_rainc"/>
+			<var name="rinc_deepc"/>
+			<var name="rinc_shalc"/>
+			<var name="rinc_overlap"/>
+			<var name="acrinc_deepc"/>
+			<var name="acrinc_shalc"/>
+			<var name="acrinc_overlap"/>
 			<var name="cuprec"/>
 			<var name="cuprecd"/>
 			<var name="cuprecm"/>
@@ -750,6 +761,14 @@
 			<var name="acswupbc"/>
 			<var name="acswupt"/>
 			<var name="acswuptc"/>
+			<var name="swdnb"/>
+			<var name="swdnbc"/>
+			<var name="swdnt"/>
+			<var name="swdntc"/>
+			<var name="swupb"/>
+			<var name="swupbc"/>
+			<var name="swupt"/>
+			<var name="swuptc"/>
 			<var name="gsw"/>
 			<var name="i_aclwdnb"/>
 			<var name="i_aclwdnbc"/>
@@ -767,6 +786,14 @@
 			<var name="aclwupbc"/>
 			<var name="aclwupt"/>
 			<var name="aclwuptc"/>
+			<var name="lwdnb"/>
+			<var name="lwdnbc"/>
+			<var name="lwdnt"/>
+			<var name="lwdntc"/>
+			<var name="lwupb"/>
+			<var name="lwupbc"/>
+			<var name="lwupt"/>
+			<var name="lwuptc"/>
 			<var name="glw"/>
 			<var name="o3clim"/>
 			<var name="o3vmr"/>
@@ -814,6 +841,8 @@
 			<var name="zu_shalc"/>
 			<var name="qc_cu"/>
 			<var name="qi_cu"/>
+			<var name="qc_cu_shalc"/>
+			<var name="qi_cu_shalc"/>
 			<var name="cldfrac_deepc"/>
 			<var name="cldfrac_shalc"/>
 			<var name="rthmpten"/>
@@ -829,6 +858,10 @@
 			<var name="rqicuten"/>
 			<var name="rqrcuten"/>
 			<var name="rqscuten"/>
+			<var name="rnccuten"/>
+			<var name="rnicuten"/>
+			<var name="rnifacuten"/>
+			<var name="rnwfacuten"/>
 			<var name="rthcuten_deepc"/>
 			<var name="rqvcuten_deepc"/>
 			<var name="rqccuten_deepc"/>
@@ -841,6 +874,20 @@
 			<var name="rqvcuten_shalc"/>
 			<var name="rqccuten_shalc"/>
 			<var name="rqicuten_shalc"/>
+			<var name="rqrcuten_shalc"/>
+			<var name="rqscuten_shalc"/>
+			<var name="rnccuten_deepc"/>
+			<var name="rnicuten_deepc"/>
+			<var name="rnifacuten_deepc"/>
+			<var name="rnwfacuten_deepc"/>
+			<var name="rnccuten_midlc"/>
+			<var name="rnicuten_midlc"/>
+			<var name="rnifacuten_midlc"/>
+			<var name="rnwfacuten_midlc"/>
+			<var name="rnccuten_shalc"/>
+			<var name="rnicuten_shalc"/>
+			<var name="rnifacuten_shalc"/>
+			<var name="rnwfacuten_shalc"/>
 			<var name="rqvdynten"/>
 			<var name="rthdynten"/>
 			<var name="rucuten"/>
@@ -1457,23 +1504,23 @@
 
                         <var name="nc" array_group="number" units="nb kg^{-1}"
                              description="Cloud water number concentration"
-                             packages="bl_mynn_in;mp_thompson_in"/>
+                             packages="bl_mynn_in;cu_grell_freitas_in;mp_thompson_in"/>
 
                         <var name="ni" array_group="number" units="nb kg^{-1}"
                              description="Cloud ice number concentration"
-                             packages="bl_mynn_in;mp_thompson_in"/>
+                             packages="bl_mynn_in;cu_grell_freitas_in;mp_thompson_in"/>
 
                         <var name="nr" array_group="number" units="nb kg^{-1}"
                              description="Rain number concentration"
-                             packages="bl_mynn_in;mp_thompson_in"/>
+                             packages="bl_mynn_in;cu_grell_freitas_in;mp_thompson_in"/>
 
                         <var name="nifa" array_group="aerosols" units="nb kg^{-1}"
                              description="ice-friendly aerosol number concentration"
-                             packages="bl_mynn_in;mp_thompson_in"/>
+                             packages="bl_mynn_in;cu_grell_freitas_in;mp_thompson_in"/>
 
                         <var name="nwfa" array_group="aerosols" units="nb kg^{-1}"
                              description="water-friendly aerosol number concentration"
-                             packages="bl_mynn_in;mp_thompson_in"/>
+                             packages="bl_mynn_in;cu_grell_freitas_in;mp_thompson_in"/>
                 </var_array>
 
         </var_struct>
@@ -2187,45 +2234,10 @@
                 <var name="w0avg" type="real" dimensions="nVertLevels nCells Time" units="m s^{-1}"
                      description="time running-averaged vertical velocity"
                      packages="cu_kain_fritsch_in"/>
+                <!-- ... END KAIN_FRITSCH ONLY: -->
 
 
                 <!-- ... GRELL-FREITAS ONLY: -->
-                <var name="k22_deepc" type="integer" dimensions="nCells Time" units="unitless"
-                     description="k22 level for deep convection in the Grell-Freitas convection scheme"
-                     packages="cu_grell_freitas_in"/>
-
-                <var name="k22_midlc" type="integer" dimensions="nCells Time" units="unitless"
-                     description="k22 level for mid-level convection in the Grell-Freitas convection scheme"
-                     packages="cu_grell_freitas_in"/>
-
-                <var name="k22_shalc" type="integer" dimensions="nCells Time" units="unitless"
-                     description="k22 level for shallow convection in the Grell-Freitas convection scheme"
-                     packages="cu_grell_freitas_in"/>
-
-                <var name="kbcon_deepc" type="integer" dimensions="nCells Time" units="unitless"
-                     description="cloud-base level for deep convection in the Grell-Freitas convection scheme"
-                     packages="cu_grell_freitas_in"/>
-
-                <var name="kbcon_midlc" type="integer" dimensions="nCells Time" units="unitless"
-                     description="cloud-base level for mid-level convection in the Grell-Freitas convection scheme"
-                     packages="cu_grell_freitas_in"/>
-
-                <var name="kbcon_shalc" type="integer" dimensions="nCells Time" units="unitless"
-                     description="cloud-base level for shallow convection in the Grell-Freitas convection scheme"
-                     packages="cu_grell_freitas_in"/>
-
-                <var name="ktop_deepc" type="integer" dimensions="nCells Time" units="unitless"
-                     description="cloud-top level for deep convection in the Grell-Freitas convection scheme"
-                     packages="cu_grell_freitas_in"/>
-
-                <var name="ktop_midlc" type="integer" dimensions="nCells Time" units="unitless"
-                     description="cloud-top level for mid-level convection in the Grell-Freitas convection scheme"
-                     packages="cu_grell_freitas_in"/>
-
-                <var name="ktop_shalc" type="integer" dimensions="nCells Time" units="unitless"
-                     description="cloud-top level for shallow convection in the Grell-Freitas convection scheme"
-                     packages="cu_grell_freitas_in"/>
-
                 <var name="cuprecd" type="real" dimensions="nCells Time" units="mm s^{-1}"
                      description="convective precipitation rate for deep convection""
                      packages="cu_grell_freitas_in"/>
@@ -2319,12 +2331,44 @@
                      description="index of lowest level of convection"
                      packages="cu_grell_freitas_in;cu_kain_fritsch_in"/>
 
+                <var name="rinc_deepc" type="real" dimensions="nCells Time" units="-"
+                     description="incidence of deep convection"
+                     packages="cu_grell_freitas_in;cu_kain_fritsch_in"/>
+
+                <var name="rinc_shalc" type="real" dimensions="nCells Time" units="-"
+                     description="incidence of shallow convection"
+                     packages="cu_grell_freitas_in;cu_kain_fritsch_in"/>
+
+                <var name="rinc_overlap" type="real" dimensions="nCells Time" units="-"
+                     description="incidence of shallow convection plus deep convection"
+                     packages="cu_grell_freitas_in;cu_kain_fritsch_in"/>
+
+                <var name="acrinc_deepc" type="real" dimensions="nCells Time" units="-"
+                     description="accumulated incidence of deep convection"
+                     packages="cu_grell_freitas_in;cu_kain_fritsch_in"/>
+
+                <var name="acrinc_shalc" type="real" dimensions="nCells Time" units="-"
+                     description="accumulated incidence of shallow convection"
+                     packages="cu_grell_freitas_in;cu_kain_fritsch_in"/>
+
+                <var name="acrinc_overlap" type="real" dimensions="nCells Time" units="-"
+                     description="accumulated incidence of shallow convection plus deep convection"
+                     packages="cu_grell_freitas_in;cu_kain_fritsch_in"/>
+
                 <var name="qc_cu" type="real" dimensions="nVertLevels nCells Time" units="kg kg^{-1}"
-                     description="in-cloud cloud water mixing ratio in Grell-Freitas cloud model"
+                     description="in-cloud total cloud water mixing ratio"
                      packages="cu_grell_freitas_in;cu_kain_fritsch_in"/>
 
                 <var name="qi_cu" type="real" dimensions="nVertLevels nCells Time" units="kg kg^{-1}"
-                     description="in-cloud cloud ice mixing ratio in Grell-Freitas cloud model"
+                     description="in-cloud total cloud ice mixing ratio"
+                     packages="cu_grell_freitas_in;cu_kain_fritsch_in"/>
+
+                <var name="qc_cu_shalc" type="real" dimensions="nVertLevels nCells Time" units="kg kg^{-1}"
+                     description="in-cloud cloud water mixing ratio for shallow convection only"
+                     packages="cu_grell_freitas_in;cu_kain_fritsch_in"/>
+
+                <var name="qi_cu_shalc" type="real" dimensions="nVertLevels nCells Time" units="kg kg^{-1}"
+                     description="in-cloud cloud ice mixing ratio for shallow convection only"
                      packages="cu_grell_freitas_in;cu_kain_fritsch_in"/>
 
                 <!-- ... KAIN_FRITSCH MSKF ONLY: -->
@@ -3111,18 +3155,90 @@
 
                 <var name="rthcuten_shalc" type="real" dimensions="nVertLevels nCells Time" units="K s^{-1}"
                      description="tendency of potential temperature due to shallow convection"
-                     packages="cu_grell_freitas_in"/>
+                     packages="cu_grell_freitas_in;cu_kain_fritsch_in"/>
 
                 <var name="rqvcuten_shalc" type="real" dimensions="nVertLevels nCells Time" units="kg kg^{-1} s^{-1}"
                      description="tendency of water vapor mixing ratio due to shallow convection"
-                     packages="cu_grell_freitas_in"/>
+                     packages="cu_grell_freitas_in;cu_kain_fritsch_in"/>
 
                 <var name="rqccuten_shalc" type="real" dimensions="nVertLevels nCells Time" units="kg kg^{-1} s^{-1}"
                      description="tendency of cloud water mixing ratio due to shallow convection"
-                     packages="cu_grell_freitas_in"/>
+                     packages="cu_grell_freitas_in;cu_kain_fritsch_in"/>
 
                 <var name="rqicuten_shalc" type="real" dimensions="nVertLevels nCells Time" units="kg kg^{-1} s^{-1}"
                      description="tendency of cloud ice mixing ratio due to shallow convection"
+                     packages="cu_grell_freitas_in;cu_kain_fritsch_in"/>
+
+                <var name="rqrcuten_shalc" type="real" dimensions="nVertLevels nCells Time" units="kg kg^{-1} s^{-1}"
+                     description="tendency of rain mixing ratio due to shallow convection"
+                     packages="cu_grell_freitas_in;cu_kain_fritsch_in"/>
+
+                <var name="rqscuten_shalc" type="real" dimensions="nVertLevels nCells Time" units="kg kg^{-1} s^{-1}"
+                     description="tendency of snow mixing ratio due to shallow convection"
+                     packages="cu_grell_freitas_in;cu_kain_fritsch_in"/>
+
+                <var name="rnccuten" type="real" dimensions="nVertLevels nCells Time" units="nb kg^{-1} s^{-1}"
+                     description="tendency of cloud water number concentration due to convection"
+                     packages="cu_grell_freitas_in"/>
+
+                <var name="rnicuten" type="real" dimensions="nVertLevels nCells Time" units="nb kg^{-1} s^{-1}"
+                     description="tendency of cloud ice number concentration due to convection"
+                     packages="cu_grell_freitas_in"/>
+
+                <var name="rnifacuten" type="real" dimensions="nVertLevels nCells Time" units="nb kg^{-1} s^{-1}"
+                     description="tendency of ice-friendly aerosol number concentration due to convection"
+                     packages="cu_grell_freitas_in"/>
+
+                <var name="rnwfacuten" type="real" dimensions="nVertLevels nCells Time" units="nb kg^{-1} s^{-1}"
+                     description="tendency of water-friendly aerosol number concentration due to convection"
+                     packages="cu_grell_freitas_in"/>
+
+                <var name="rnccuten_deepc" type="real" dimensions="nVertLevels nCells Time" units="nb kg^{-1} s^{-1}"
+                     description="tendency of cloud water number concentration due to deep convection"
+                     packages="cu_grell_freitas_in"/>
+
+                <var name="rnicuten_deepc" type="real" dimensions="nVertLevels nCells Time" units="nb kg^{-1} s^{-1}"
+                     description="tendency of cloud ice number concentration due to deep convection"
+                     packages="cu_grell_freitas_in"/>
+
+                <var name="rnifacuten_deepc" type="real" dimensions="nVertLevels nCells Time" units="nb kg^{-1} s^{-1}"
+                     description="tendency of ice-friendly aerosol number concentration due to deep convection"
+                     packages="cu_grell_freitas_in"/>
+
+                <var name="rnwfacuten_deepc" type="real" dimensions="nVertLevels nCells Time" units="nb kg^{-1} s^{-1}"
+                     description="tendency of water-friendly aerosol number concentration due to deep convection"
+                     packages="cu_grell_freitas_in"/>
+
+                <var name="rnccuten_midlc" type="real" dimensions="nVertLevels nCells Time" units="nb kg^{-1} s^{-1}"
+                     description="tendency of cloud water number concentration due to mid-level convection"
+                     packages="cu_grell_freitas_in"/>
+
+                <var name="rnicuten_midlc" type="real" dimensions="nVertLevels nCells Time" units="nb kg^{-1} s^{-1}"
+                     description="tendency of cloud ice number concentration due to mid-level convection"
+                     packages="cu_grell_freitas_in"/>
+
+                <var name="rnifacuten_midlc" type="real" dimensions="nVertLevels nCells Time" units="nb kg^{-1} s^{-1}"
+                     description="tendency of ice-friendly aerosol number concentration due to mid-level convection"
+                     packages="cu_grell_freitas_in"/>
+
+                <var name="rnwfacuten_midlc" type="real" dimensions="nVertLevels nCells Time" units="nb kg^{-1} s^{-1}"
+                     description="tendency of water-friendly aerosol number concentration due to mid-level convection"
+                     packages="cu_grell_freitas_in"/>
+
+                <var name="rnccuten_shalc" type="real" dimensions="nVertLevels nCells Time" units="nb kg^{-1} s^{-1}"
+                     description="tendency of cloud water number concentration due to shallow convection"
+                     packages="cu_grell_freitas_in"/>
+
+                <var name="rnicuten_shalc" type="real" dimensions="nVertLevels nCells Time" units="nb kg^{-1} s^{-1}"
+                     description="tendency of cloud ice number concentration due to shallow convection"
+                     packages="cu_grell_freitas_in"/>
+
+                <var name="rnifacuten_shalc" type="real" dimensions="nVertLevels nCells Time" units="nb kg^{-1} s^{-1}"
+                     description="tendency of ice-friendly aerosol number concentration due to shallow convection"
+                     packages="cu_grell_freitas_in"/>
+
+                <var name="rnwfacuten_shalc" type="real" dimensions="nVertLevels nCells Time" units="nb kg^{-1} s^{-1}"
+                     description="tendency of water-friendly aerosol number concentration due to shallow convection"
                      packages="cu_grell_freitas_in"/>
 
 	        <!-- MGD should we add packages to the field below? -->
