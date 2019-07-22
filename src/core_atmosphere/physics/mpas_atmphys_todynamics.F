@@ -39,6 +39,10 @@
 ! * added the PBL tendencies for the cloud water and cloud ice number concentrations. added the PBL tendencies
 !   for the "ice-friendly" and "water-friendly" aerosol number concentrations for the MYNN PBL parameterization.
 !   Laura D. Fowler (laura@ucar.edu) / 2019-05-09.
+! * added the convective tendencies for the cloud water and cloud ice number concentrations. added the convective
+!   tendencies for the "ice-friendly" and "water-friendly" aerosol number concentrations for convective transport
+!   in the GF convection scheme.
+!   Laura D. Fowler (laura@ucar.edu) / 2019-05-09.
 
 
  contains
@@ -87,6 +91,7 @@
  real(kind=RKIND),dimension(:,:),pointer:: rthcuten,rqvcuten,rqccuten, &
                                            rqrcuten,rqicuten,rqscuten, &
                                            rucuten,rvcuten
+ real(kind=RKIND),dimension(:,:),pointer:: rnccuten,rnicuten,rnifacuten,rnwfacuten
  real(kind=RKIND),dimension(:,:),pointer:: rthratenlw,rthratensw                                    
  real(kind=RKIND),dimension(:,:),pointer:: rthdynten
  
@@ -146,8 +151,13 @@
  call mpas_pool_get_array(tend_physics,'rqrcuten',rqrcuten)
  call mpas_pool_get_array(tend_physics,'rqicuten',rqicuten)
  call mpas_pool_get_array(tend_physics,'rqscuten',rqscuten)
- call mpas_pool_get_array(tend_physics,'rthdynten',rthdynten)
+ call mpas_pool_get_array(tend_physics,'rnccuten',rnccuten)
+ call mpas_pool_get_array(tend_physics,'rnicuten',rnicuten)
+ call mpas_pool_get_array(tend_physics,'rnifacuten',rnifacuten)
+ call mpas_pool_get_array(tend_physics,'rnwfacuten',rnwfacuten)
  call mpas_pool_get_array(tend_physics,'rucuten_Edge',rucuten_Edge)
+
+ call mpas_pool_get_array(tend_physics,'rthdynten',rthdynten)
 
  call mpas_pool_get_array(tend_physics,'rthratenlw',rthratenlw)
  call mpas_pool_get_array(tend_physics,'rthratensw',rthratensw)
@@ -176,6 +186,10 @@
  if(.not. associated(rqicuten)) allocate(rqicuten(0,0))
  if(.not. associated(rqrcuten)) allocate(rqrcuten(0,0))
  if(.not. associated(rqscuten)) allocate(rqscuten(0,0))
+ if(.not. associated(rnccuten)) allocate(rnccuten(0,0))
+ if(.not. associated(rnicuten)) allocate(rnicuten(0,0))
+ if(.not. associated(rnifacuten)) allocate(rnifacuten(0,0))
+ if(.not. associated(rnwfacuten)) allocate(rnwfacuten(0,0))
 
  if(.not. associated(rublten) ) allocate(rublten(0,0) )
  if(.not. associated(rvblten) ) allocate(rvblten(0,0) )
@@ -199,6 +213,7 @@
               rublten,rvblten,rthblten,rqvblten,rqcblten,rqiblten,                       &
               rncblten,rniblten,rnifablten,rnwfablten,                                   &
               rucuten,rvcuten,rthcuten,rqvcuten,rqccuten,rqrcuten,rqicuten,rqscuten,     &                            
+              rnccuten,rnicuten,rnifacuten,rnwfacuten,                                   &
               rthratenlw,rthratensw,rublten_Edge,rucuten_Edge,                           &
               tend_th,tend_rtheta_physics,tend_scalars,tend_ru_physics,tend_u_phys)
 
@@ -211,6 +226,10 @@
  if(size(rqicuten) == 0) deallocate(rqicuten)
  if(size(rqrcuten) == 0) deallocate(rqrcuten)
  if(size(rqscuten) == 0) deallocate(rqscuten)
+ if(size(rnccuten) == 0) deallocate(rnccuten)
+ if(size(rnicuten) == 0) deallocate(rnicuten)
+ if(size(rnifacuten) == 0) deallocate(rnifacuten)
+ if(size(rnwfacuten) == 0) deallocate(rnwfacuten)
 
  if(size(rublten) == 0 ) deallocate(rublten )
  if(size(rvblten) == 0 ) deallocate(rvblten )
@@ -239,6 +258,7 @@
                     rublten,rvblten,rthblten,rqvblten,rqcblten,rqiblten,                         &
                     rncblten,rniblten,rnifablten,rnwfablten,                                     &
                     rucuten,rvcuten,rthcuten,rqvcuten,rqccuten,rqrcuten,rqicuten,rqscuten,       &                     
+                    rnccuten,rnicuten,rnifacuten,rnwfacuten,                                     &
                     rthratenlw,rthratensw,rublten_Edge,rucuten_Edge,                             &
                     tend_th,tend_theta,tend_scalars,tend_u,tend_u_phys)
 !=================================================================================================================
@@ -281,6 +301,10 @@
  real(kind=RKIND),intent(in),dimension(nVertLevels,nCells+1):: rqrcuten
  real(kind=RKIND),intent(in),dimension(nVertLevels,nCells+1):: rqicuten
  real(kind=RKIND),intent(in),dimension(nVertLevels,nCells+1):: rqscuten
+ real(kind=RKIND),intent(in),dimension(nVertLevels,nCells+1):: rnccuten
+ real(kind=RKIND),intent(in),dimension(nVertLevels,nCells+1):: rnicuten
+ real(kind=RKIND),intent(in),dimension(nVertLevels,nCells+1):: rnifacuten
+ real(kind=RKIND),intent(in),dimension(nVertLevels,nCells+1):: rnwfacuten
 
  real(kind=RKIND),intent(in),dimension(nVertLevels,nCells+1):: rthratenlw
  real(kind=RKIND),intent(in),dimension(nVertLevels,nCells+1):: rthratensw
@@ -301,7 +325,6 @@
  real(kind=RKIND):: coeff
 
 !-----------------------------------------------------------------------------------------------------------------
-
 
 !add coupled tendencies due to PBL processes:
  if(pbl_scheme .ne. 'off') then
@@ -354,7 +377,7 @@
     enddo
     enddo
 
-    convection_select: select case(convection_scheme)
+    cu_select: select case(convection_scheme)
        case('cu_kain_fritsch','cu_kain_fritsch_sca')
           do i = 1, nCellsSolve
           do k = 1, nVertLevels
@@ -363,7 +386,7 @@
           enddo
           enddo
     
-       case('cu_tiedtke','cu_ntiedtke','cu_grell_freitas_wrf390')
+       case('cu_tiedtke','cu_ntiedtke','cu_grell_freitas','cu_grell_freitas_wrf390')
           if(rk_step == 1 .and. dynamics_substep == 1) then
              call tend_toEdges(block,mesh,rucuten,rvcuten,rucuten_Edge)
                  
@@ -377,8 +400,22 @@
           enddo
           enddo
 
+       cu2_select: select case(convection_scheme)
+          case('cu_grell_freitas','cu_grell_freitas_wrf390')
+             do i = 1, nCellsSolve
+             do k = 1, nVertLevels
+                tend_scalars(index_nc,k,i)   = tend_scalars(index_nc,k,i) + rnccuten(k,i)*mass(k,i)
+                tend_scalars(index_ni,k,i)   = tend_scalars(index_ni,k,i) + rnicuten(k,i)*mass(k,i)
+                tend_scalars(index_nifa,k,i) = tend_scalars(index_nifa,k,i) + rnifacuten(k,i)*mass(k,i)
+                tend_scalars(index_nwfa,k,i) = tend_scalars(index_nwfa,k,i) + rnwfacuten(k,i)*mass(k,i)
+             enddo
+             enddo
+
+          case default
+       end select cu2_select
+
        case default
-    end select convection_select
+    end select cu_select
  endif
 
 
