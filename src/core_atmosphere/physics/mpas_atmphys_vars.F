@@ -146,7 +146,17 @@
 !   Laura D. Fowler (laura@ucar.edu) / 2019-01-23.
 ! * added the local variables nifa2d_p to run the Thompson cloud microphysics scheme with CCN and IN nucleation.
 !   Laura D. Fowler (laura@ucar.edu) / 2019-04-18.
+! * added the variables rinc_p and rincs_p (incidence of deep and shallow convection). also added the variables
+!   qccu_shalc_p,and qicu_shalc_p (in-cloud mixing ratios for shallow and deep convection).
+!   Laura D. Fowler (laura@ucar.edu) / 2019-07-01.
+! * added the variables rqrcuten_shalc_p and rqscuten_shalc_p (tendencies of rain and snow due to shallow
+!   convection.)
+!   Laura D. Fowler (laura@ucar.edu) / 2019-07-01.
 ! * added local variables needed to run the PBL mynn scheme from WRF version 4.1.1.
+!   Laura D. Fowler (laura@ucar.edu) / 2019-07-01.
+! * added local tendencies for convective transport of nc,ni,nifa,and nwfa in the Grell-Freitas scheme. added
+!   diagnostic tendencies for convective transport in nc,ni,nifa,and nwfa due to shallow and deep convection in
+!   the Grell-Freitas convection scheme.
 !   Laura D. Fowler (laura@ucar.edu) / 2019-07-01.
 
 
@@ -331,6 +341,11 @@
 
  logical,dimension(:,:),allocatable:: &
     cu_act_flag
+
+ real(kind=RKIND),dimension(:,:),allocatable::   &
+    rinc_p,           &!incidence of deep convection [-].
+    rincs_p            !incidence of shallow convection [-].
+
  real(kind=RKIND),dimension(:,:),allocatable::   &
     rainc_p,          &!
     raincv_p,         &!
@@ -341,6 +356,26 @@
     rqvcuten_p,       &!
     rqccuten_p,       &!
     rqicuten_p         !
+
+ real(kind=RKIND),dimension(:,:,:),allocatable:: &
+    rnccuten_p,         &!tendency of cloud water number concentration due to convection processes.
+    rnicuten_p,         &!tendency of cloud ice number concentration due to convection processes.
+    rnifacuten_p,       &!tendency of "ice-friendly" aerosols due to convection processes.
+    rnwfacuten_p         !tendency of "water-friendly" aerosols due to convection processes.
+
+ real(kind=RKIND),dimension(:,:,:),allocatable:: &
+    rnccuten_deepc_p,   &!tendency of cloud water number concentration due to deep convection.
+    rnicuten_deepc_p,   &!tendency of cloud ice number concentration due to deep convection.
+    rnifacuten_deepc_p, &!tendency of "ice-friendly" aerosols due to deep convection.
+    rnwfacuten_deepc_p, &!tendency of "water-friendly" aerosols due to deep convection.
+    rnccuten_midlc_p,   &!tendency of cloud water number concentration due to mid-level convection.
+    rnicuten_midlc_p,   &!tendency of cloud ice number concentration due to mid-level convection.
+    rnifacuten_midlc_p, &!tendency of "ice-friendly" aerosols due to mid-level convection.
+    rnwfacuten_midlc_p, &!tendency of "water-friendly" aerosols due to mid-level convection.
+    rnccuten_shalc_p,   &!tendency of cloud water number concentration due to shallow convection.
+    rnicuten_shalc_p,   &!tendency of cloud ice number concentration due to shallow convection.
+    rnifacuten_shalc_p, &!tendency of "ice-friendly" aerosols due to shallow convection.
+    rnwfacuten_shalc_p   !tendency of "water-friendly" aerosols due to shallow convection.
 
 !... kain fritsch specific arrays:
  integer,parameter:: kf_edrates = 1  ! = 0: default option.
@@ -410,6 +445,8 @@
     rthdynten_p,      &!
     qccu_p,           &!
     qicu_p,           &!
+    qccu_shalc_p,     &!
+    qicu_shalc_p,     &!
     zu_deepc_p,       &!
     zd_deepc_p,       &!
     zu_midlc_p,       &!
@@ -428,7 +465,9 @@
     rqccuten_shalc_p, &!
     rqicuten_deepc_p, &!
     rqicuten_midlc_p, &!
-    rqicuten_shalc_p
+    rqicuten_shalc_p, &!
+    rqrcuten_shalc_p, &!
+    rqscuten_shalc_p   !
 
  real(kind=RKIND),dimension(:,:,:),allocatable:: &
     rthraten_p         !
