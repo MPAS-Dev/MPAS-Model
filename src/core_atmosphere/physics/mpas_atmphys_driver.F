@@ -97,6 +97,8 @@
 ! * modified call to driver_cloudiness to accomodate the calculation of the cloud fraction with the Thompson
 !   cloud microphysics scheme.
 !   Laura D. Fowler (laura@ucar.edu) / 2016-06-04.
+! * added the pool type diag_physics_cu to include diagnostics from convection.
+!   Laura D. Fowler (laura@ucar.edu) / 2019-07-01.
 
 
  contains
@@ -114,13 +116,14 @@
  type(domain_type),intent(inout):: domain
 
 !local pointers:
- type(mpas_pool_type),pointer::  configs,      &
-                                 mesh,         &
-                                 state,        &
-                                 diag,         &
-                                 diag_physics, &
-                                 tend_physics, &
-                                 atm_input,    &
+ type(mpas_pool_type),pointer::  configs,         &
+                                 mesh,            &
+                                 state,           &
+                                 diag,            &
+                                 diag_physics,    &
+                                 diag_physics_cu, &
+                                 tend_physics,    &
+                                 atm_input,       &
                                  sfc_input
 
  logical,pointer:: config_frac_seaice
@@ -174,13 +177,14 @@
  block => domain % blocklist
  do while(associated(block))
 
-    call mpas_pool_get_subpool(block%structs,'mesh'        ,mesh        )
-    call mpas_pool_get_subpool(block%structs,'state'       ,state       )
-    call mpas_pool_get_subpool(block%structs,'diag'        ,diag        )
-    call mpas_pool_get_subpool(block%structs,'diag_physics',diag_physics)
-    call mpas_pool_get_subpool(block%structs,'atm_input'   ,atm_input   )
-    call mpas_pool_get_subpool(block%structs,'sfc_input'   ,sfc_input   )
-    call mpas_pool_get_subpool(block%structs,'tend_physics',tend_physics)
+    call mpas_pool_get_subpool(block%structs,'mesh'           ,mesh           )
+    call mpas_pool_get_subpool(block%structs,'state'          ,state          )
+    call mpas_pool_get_subpool(block%structs,'diag'           ,diag           )
+    call mpas_pool_get_subpool(block%structs,'diag_physics'   ,diag_physics   )
+    call mpas_pool_get_subpool(block%structs,'diag_physics_cu',diag_physics_cu)
+    call mpas_pool_get_subpool(block%structs,'atm_input'      ,atm_input      )
+    call mpas_pool_get_subpool(block%structs,'sfc_input'      ,sfc_input      )
+    call mpas_pool_get_subpool(block%structs,'tend_physics'   ,tend_physics   )
 
     call mpas_pool_get_dimension(block % dimensions, 'nThreads', nThreads)
 
@@ -188,7 +192,7 @@
     call mpas_pool_get_dimension(block % dimensions, 'cellSolveThreadEnd', cellSolveThreadEnd)
 
     !allocate arrays shared by all physics parameterizations:
-    call allocate_forall_physics(block%configs)
+    call allocate_forall_physics
 
     !physics prep step:
     time_lev = 1
@@ -316,8 +320,8 @@
        call allocate_convection(block%configs,mesh)
 !$OMP PARALLEL DO
        do thread=1,nThreads
-          call driver_convection(itimestep,block%configs,mesh,sfc_input,diag_physics,tend_physics, &
-                                 cellSolveThreadStart(thread), cellSolveThreadEnd(thread))
+          call driver_convection(itimestep,block%configs,mesh,sfc_input,diag_physics,diag_physics_cu, &
+                                 tend_physics,cellSolveThreadStart(thread), cellSolveThreadEnd(thread))
        end do
 !$OMP END PARALLEL DO
        call deallocate_convection(block%configs)
@@ -333,7 +337,7 @@
     end if
 
     !deallocate arrays shared by all physics parameterizations:
-    call deallocate_forall_physics(block%configs)
+    call deallocate_forall_physics
 
     block => block % next
  end do 
