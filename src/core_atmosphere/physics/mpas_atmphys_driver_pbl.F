@@ -751,6 +751,7 @@
       call mpas_log_write('--- config_mynn_cloudpdf = $i',intArgs=(/bl_mynn_cloudpdf/))
       call mpas_log_write('--- config_mynn_edmf     = $i',intArgs=(/bl_mynn_edmf/))
       call mpas_log_write('--- config_mynn_closure  = $i',intArgs=(/bl_mynn_closure/))
+      call mpas_log_write(' ')
 
       call mpas_timer_start('bl_mynn')
       call mynn_bl_driver ( &

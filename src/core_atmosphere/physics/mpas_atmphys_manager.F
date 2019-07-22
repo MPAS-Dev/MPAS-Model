@@ -667,6 +667,7 @@
  call mpas_log_write('--- has_reqc  = $i', intArgs=(/has_reqc/))
  call mpas_log_write('--- has_reqi  = $i', intArgs=(/has_reqi/))
  call mpas_log_write('--- has_reqs  = $i', intArgs=(/has_reqs/))
+ call mpas_log_write(' ')
 
  end subroutine physics_run_init
 
