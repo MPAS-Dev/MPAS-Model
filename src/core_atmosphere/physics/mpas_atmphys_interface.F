@@ -94,26 +94,17 @@
 ! * added the number concentration of cloud water, and number concentration of water- and "ice-friendly aerosols
 !   to be used in the PBL mynn scheme for transport in PBL and free troposphere.
 !   Laura D. Fowler (laura@ucar.edu) / 2019-07-01.
+! * extended using the number concentration of cloud water, and number concentration of water- and "ice-friendly
+!   aerosols to convective transport in the Grell-Freitas scheme.
+!   Laura D. Fowler (laura@ucar.edu) / 2019-07-01.
 
 
  contains
 
 
 !=================================================================================================================
- subroutine allocate_forall_physics(configs)
+ subroutine allocate_forall_physics
 !=================================================================================================================
-
-!input arguments:
- type(mpas_pool_type),intent(in):: configs
-
-!local pointers:
- character(len=StrKIND),pointer:: bl_scheme, &
-                                  mp_scheme
-
-!-----------------------------------------------------------------------------------------------------------------
-
- call mpas_pool_get_config(configs,'config_pbl_scheme',bl_scheme)
- call mpas_pool_get_config(configs,'config_microp_scheme',mp_scheme)
 
  if(.not.allocated(psfc_p) ) allocate(psfc_p(ims:ime,jms:jme)         )
  if(.not.allocated(ptop_p) ) allocate(ptop_p(ims:ime,jms:jme)         )
@@ -146,16 +137,11 @@
  if(.not.allocated(qs_p)   ) allocate(qs_p(ims:ime,kms:kme,jms:jme)   )
  if(.not.allocated(qg_p)   ) allocate(qg_p(ims:ime,kms:kme,jms:jme)   )
 
- bl_select: select case(trim(bl_scheme))
-    case("bl_mynn")
-       if(.not.allocated(nc_p)  ) allocate(nc_p(ims:ime,kms:kme,jms:jme)  )
-       if(.not.allocated(ni_p)  ) allocate(ni_p(ims:ime,kms:kme,jms:jme)  )
-       if(.not.allocated(nr_p)  ) allocate(nr_p(ims:ime,kms:kme,jms:jme)  )
-       if(.not.allocated(nifa_p)) allocate(nifa_p(ims:ime,kms:kme,jms:jme))
-       if(.not.allocated(nwfa_p)) allocate(nwfa_p(ims:ime,kms:kme,jms:jme))
-
-    case default
- end select bl_select
+ if(.not.allocated(nc_p)   ) allocate(nc_p(ims:ime,kms:kme,jms:jme)   )
+ if(.not.allocated(ni_p)   ) allocate(ni_p(ims:ime,kms:kme,jms:jme)   )
+ if(.not.allocated(nr_p)   ) allocate(nr_p(ims:ime,kms:kme,jms:jme)   )
+ if(.not.allocated(nifa_p) ) allocate(nifa_p(ims:ime,kms:kme,jms:jme) )
+ if(.not.allocated(nwfa_p) ) allocate(nwfa_p(ims:ime,kms:kme,jms:jme) )
 
 !... arrays used for calculating the hydrostatic pressure and exner function:
  if(.not.allocated(psfc_hyd_p)  ) allocate(psfc_hyd_p(ims:ime,jms:jme)          )
@@ -169,20 +155,8 @@
  end subroutine allocate_forall_physics
 
 !=================================================================================================================
- subroutine deallocate_forall_physics(configs)
+ subroutine deallocate_forall_physics
 !=================================================================================================================
-
-!input arguments:
- type(mpas_pool_type),intent(in):: configs
-
-!local pointers:
- character(len=StrKIND),pointer:: bl_scheme, &
-                                  mp_scheme
-
-!-----------------------------------------------------------------------------------------------------------------
-
- call mpas_pool_get_config(configs,'config_pbl_scheme',bl_scheme)
- call mpas_pool_get_config(configs,'config_microp_scheme',mp_scheme)
 
  if(allocated(psfc_p) ) deallocate(psfc_p )
  if(allocated(ptop_p) ) deallocate(ptop_p )
@@ -215,16 +189,11 @@
  if(allocated(qs_p)   ) deallocate(qs_p   )
  if(allocated(qg_p)   ) deallocate(qg_p   )
 
- bl_select: select case(trim(bl_scheme))
-    case("bl_mynn")
-       if(allocated(nc_p)  ) deallocate(nc_p  )
-       if(allocated(ni_p)  ) deallocate(ni_p  )
-       if(allocated(nr_p)  ) deallocate(nr_p  )
-       if(allocated(nifa_p)) deallocate(nifa_p)
-       if(allocated(nwfa_p)) deallocate(nwfa_p)
-
-    case default
- end select bl_select
+ if(allocated(nc_p)   ) deallocate(nc_p   )
+ if(allocated(ni_p)   ) deallocate(ni_p   )
+ if(allocated(nr_p)   ) deallocate(nr_p   )
+ if(allocated(nifa_p) ) deallocate(nifa_p )
+ if(allocated(nwfa_p) ) deallocate(nwfa_p )
 
  if(allocated(psfc_hyd_p)  ) deallocate(psfc_hyd_p  )
  if(allocated(psfc_hydd_p) ) deallocate(psfc_hydd_p )
@@ -360,33 +329,67 @@
  enddo
  enddo
 
- bl_select: select case(trim(bl_scheme))
-    case("bl_mynn")
-       call mpas_pool_get_dimension(state,'index_nc',index_nc)
-       call mpas_pool_get_dimension(state,'index_ni',index_ni)
-       call mpas_pool_get_dimension(state,'index_nr',index_nr)
-       call mpas_pool_get_dimension(state,'index_nifa',index_nifa)
-       call mpas_pool_get_dimension(state,'index_nwfa',index_nwfa)
-       nc   => scalars(index_nc,:,:)
-       ni   => scalars(index_ni,:,:)
-       nr   => scalars(index_nr,:,:)
-       nifa => scalars(index_nifa,:,:)
-       nwfa => scalars(index_nwfa,:,:)
+ nullify(nc)
+ nullify(ni)
+ nullify(nr)
+ nullify(nifa)
+ nullify(nwfa)
+ call mpas_pool_get_dimension(state,'index_nc',index_nc)
+ call mpas_pool_get_dimension(state,'index_ni',index_ni)
+ call mpas_pool_get_dimension(state,'index_nr',index_nr)
+ call mpas_pool_get_dimension(state,'index_nifa',index_nifa)
+ call mpas_pool_get_dimension(state,'index_nwfa',index_nwfa)
 
-       do j = jts,jte
-       do k = kts,kte
-       do i = its,ite
-          nc_p(i,k,j)   = max(0.,nc(k,i))
-          ni_p(i,k,j)   = max(0.,ni(k,i))
-          nr_p(i,k,j)   = max(0.,nr(k,i))
-          nifa_p(i,k,j) = max(0.,nifa(k,i))
-          nwfa_p(i,k,j) = max(0.,nwfa(k,i))
-       enddo
-       enddo
-       enddo
+ call mpas_log_write(' ')
+ call mpas_log_write('--- MPAS_to_physics:')
+ call mpas_log_write('--- index_nc   = $i',intArgs=(/index_nc/))
+ call mpas_log_write('--- index_ni   = $i',intArgs=(/index_ni/))
+ call mpas_log_write('--- index_nr   = $i',intArgs=(/index_nr/))
+ call mpas_log_write('--- index_nifa = $i',intArgs=(/index_nifa/))
+ call mpas_log_write('--- index_nwfa = $i',intArgs=(/index_nwfa/))
 
-    case default
- end select bl_select
+ if(index_nc .gt. -1 .and. index_ni .gt. -1 .and. index_nr .gt. -1 .and. &
+    index_nifa .gt. -1 .and. index_nwfa .gt. -1) then
+    nc   => scalars(index_nc,:,:)
+    ni   => scalars(index_ni,:,:)
+    nr   => scalars(index_nr,:,:)
+    nifa => scalars(index_nifa,:,:)
+    nwfa => scalars(index_nwfa,:,:)
+
+    do j = jts,jte
+    do k = kts,kte
+    do i = its,ite
+       nc_p(i,k,j)   = max(0._RKIND,nc(k,i))
+       ni_p(i,k,j)   = max(0._RKIND,ni(k,i))
+       nr_p(i,k,j)   = max(0._RKIND,nr(k,i))
+       nifa_p(i,k,j) = max(0._RKIND,nifa(k,i))
+       nwfa_p(i,k,j) = max(0._RKIND,nwfa(k,i))
+    enddo
+    enddo
+    enddo
+ else
+    do j = jts,jte
+    do k = kts,kte
+    do i = its,ite
+       nc_p(i,k,j)   = 0._RKIND
+       ni_p(i,k,j)   = 0._RKIND
+       nr_p(i,k,j)   = 0._RKIND
+       nifa_p(i,k,j) = 0._RKIND
+       nwfa_p(i,k,j) = 0._RKIND
+    enddo
+    enddo
+    enddo
+ endif
+!do j = jts,jte
+!   do i = its,ite
+!      do k = kts,kte
+!         call mpas_log_write('$i $i $r $r $r $r $r',intArgs=(/i,k/),realArgs=(/nc_p(i,k,j), &
+!                   ni_p(i,k,j),nr_p(i,k,j),nifa_p(i,k,j),nwfa_p(i,k,j)/))
+!      enddo
+!      call mpas_log_write(' ')
+!   enddo
+!enddo
+!stop
 
 !calculation of the surface pressure using hydrostatic assumption down to the surface::
  do j = jts,jte
