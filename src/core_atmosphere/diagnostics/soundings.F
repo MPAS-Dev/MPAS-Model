@@ -50,12 +50,13 @@ module soundings
     !-----------------------------------------------------------------------
     subroutine soundings_setup(configs, all_pools, simulation_clock, dminfo)
 
-        use mpas_derived_types, only : MPAS_pool_type, MPAS_clock_type, dm_info
+        use mpas_derived_types, only : MPAS_pool_type, MPAS_clock_type, dm_info, MPAS_LOG_WARN
         use mpas_pool_routines, only : mpas_pool_get_subpool, mpas_pool_get_dimension, mpas_pool_get_array, mpas_pool_get_config
         use mpas_io_units, only :  mpas_new_unit, mpas_release_unit
         use mpas_timekeeping, only : MPAS_timeInterval_type, MPAS_time_type, MPAS_set_timeInterval, &
                                      MPAS_get_clock_time, MPAS_add_clock_alarm, MPAS_NOW
         use mpas_dmpar, only : IO_NODE, mpas_dmpar_bcast_int, mpas_dmpar_bcast_logical, mpas_dmpar_bcast_char
+        use mpas_dmpar, only : mpas_dmpar_max_int
         use mpas_kd_tree, only : kdnode
         use mpas_kd_tree, only : mpas_kd_construct, mpas_kd_search, mpas_kd_free
 
@@ -76,6 +77,7 @@ module soundings
         character (len=StrKIND) :: station_name
         logical :: exists
         integer :: nearestCell
+        integer :: stationFlag, stationFlagMax
         integer, pointer :: nCells, nCellsSolve, maxEdges
         integer, dimension(:), pointer :: nEdgesOnCell
         integer, dimension(:,:), pointer :: cellsOnCell
@@ -113,6 +115,7 @@ module soundings
             return
         end if
       
+
         call MPAS_set_timeInterval(intv, timeString=trim(soundingInterval))
         now = MPAS_get_clock_time(simulationClock, MPAS_NOW)
         call MPAS_add_clock_alarm(simulationClock, 'soundingAlarm', now, alarmTimeInterval=intv) 
@@ -206,17 +209,29 @@ module soundings
             call mpas_kd_search(tree, (/stationX, stationY, stationZ/), res)
             nearestCell = res % cell
 
+            ! When running on a limited area mesh, check to see if the location we found is actually,
+            ! within its reported cell. If its not, then its outside of the region and should be discarded.
             if (in_cell(stationX, stationY, stationZ, xCell(nearestCell), yCell(nearestCell), zCell(nearestCell), &
                         nEdgesOnCell(nearestCell), verticesOnCell(:,nearestCell), xVertex, yVertex, zVertex)) then
                if (nearestCell <= nCellsSolve) then
                    stationOwned(i) = .true.
                    stationCells(i) = nearestCell
+                   stationFlag = 1
                else
                    stationOwned(i) = .false.
+                   stationFlag = 0
                end if
             else
                 stationOwned(i) = .false.
+                stationFlag = 0
             end if
+
+            ! Communicate and report if the station is being discarded or not
+            call mpas_dmpar_max_int(dminfo, stationFlag, stationFlagMax)
+            if (dminfo % my_proc_id == IO_NODE .AND. stationFlagMax == 0) then
+               call mpas_log_write("Sounding '"//trim(stationNames(i))//"' is being discarded as it lies outside the region", &
+                                                                         messageType=MPAS_LOG_WARN)
+            endif
         end do
 
         if (dminfo % my_proc_id == IO_NODE) then
