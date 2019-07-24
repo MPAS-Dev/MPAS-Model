@@ -16,8 +16,9 @@
  module module_cu_gf_wrf390
  use mpas_log
  use mpas_atmphys_constants,only: cp,g=>gravity,r_v=>R_v,xlv
- use module_cu_gf_deep_wrf390,only: cup_gf,neg_check,autoconv,aeroevap
- use module_cu_gf_sh_wrf390,only: cup_gf_sh
+ use module_cu_gf_deep,only  : cup_gf
+ use module_cu_gf_sh,only    : cup_gf_sh
+ use module_cu_gf_shared,only: neg_check
 
  implicit none
  private
@@ -45,6 +46,7 @@
                rqccuten_shalc,rqicuten_shalc,gdc,gdc2,       &
                pratec,pratecd,pratecm,pratecs,raincv,        &
                raincvd,raincvm,raincvs,nclos,weights_clos,   &
+               nc,ni,nifa,nwfa,                              &
                ids,ide,jds,jde,kds,kde,                      &
                ims,ime,jms,jme,kms,kme,                      &
                its,ite,jts,jte,kts,kte                       &
@@ -66,6 +68,8 @@
  real,intent(in),dimension(ims:ime,jms:jme):: hfx,qfx
  real,intent(in),dimension(ims:ime,kms:kme,jms:jme):: u,v,w,dz8w,pi,p,p8w,t,q,rho
  real,intent(in),dimension(ims:ime,kms:kme,jms:jme):: rthraten,rthblten,rthften,rqvblten,rqvften
+
+ real,intent(in),dimension(ims:ime,kms:kme,jms:jme),optional:: nc,ni,nifa,nwfa
 
 !inout variables:
  integer,intent(inout),dimension(ims:ime,jms:jme),optional:: k22_deepc,kbcon_deepc,ktop_deepc
@@ -95,18 +99,20 @@
  integer,dimension(its:ite):: ierr,ierrm,ierrs
  integer,dimension(its:ite):: k22,kbcon,ktop,k22m,kbconm,ktopm,k22s,kbcons,ktops
  integer,dimension(its:ite):: kpbli,cactiv
+ integer,dimension(its:ite):: jmin,jminm,tropics
 
  real:: dq
  real,dimension(its:ite):: areai,dxi
  real,dimension(its:ite):: hfxi,qfxi,psur,ter11,xlandi
  real,dimension(its:ite):: ccn,mconv
  real,dimension(its:ite):: cuten,cutenm,cutens
- real,dimension(its:ite):: pret,pretm,prets,edt,edtm,xmb,xmbm,xmbs
+ real,dimension(its:ite):: pret,pretm,prets,edt,edtd,edtm,xmb,xmbm,xmbs
  real,dimension(its:ite):: dummy
 
  real,dimension(its:ite,10):: forcing,forcingm
 
  real,dimension(its:ite,kts:kte):: q2d,t2d,p2d,rhoi,us,vs,omeg,zo
+ real,dimension(its:ite,kts:kte):: nc2d,ni2d,nifa2d,nwfa2d
  real,dimension(its:ite,kts:kte):: qcheck
 
  real,dimension(its:ite,kts:kte):: cnvwt,cnvwtm,zd,zdm,zu,zum,zus
@@ -115,6 +121,10 @@
  real,dimension(its:ite,kts:kte):: outt,outq,outqc,cupclw,outu,outv
  real,dimension(its:ite,kts:kte):: outtm,outqm,outqcm,cupclwm,outum,outvm
  real,dimension(its:ite,kts:kte):: outts,outqs,outqcs,cupclws,outus,outvs
+
+ real,dimension(its:ite,kts:kte):: outnc,outni,outnifa,outnwfa
+ real,dimension(its:ite,kts:kte):: outncm,outnim,outnifam,outnwfam
+ real,dimension(its:ite,kts:kte):: outncs,outnis,outnifas,outnwfas
 
  real,dimension(its:ite,1:nclos):: xf_ens
 
@@ -134,6 +144,9 @@
  real,parameter:: ccn0   = 150.
 
 !-----------------------------------------------------------------------------------------------------------------
+
+ call mpas_log_write(' ')
+ call mpas_log_write('--- enter subroutine cu_grell_freitas_wrf390:')
 
 !--- initialization of local dimensions:
  itf = min(ite,ide-1)
@@ -227,12 +240,15 @@
 
     !--- initialization of local variables:
     do i = its, itf
-       cactiv(i) = 0
-       ccn(i)    = ccn0
-       mconv(i)  = 0.
+       tropics(i) = 0
+       cactiv(i)  = 0
+       ccn(i)     = ccn0
+       mconv(i)   = 0.
+       edtd(i)    = 0.
 
        !deep convection:
        forcing(i,:)  = 0.
+       jmin(i)  = 0
        ierrc(i) = " "
        ierr(i)  = 0
        kbcon(i) = 0
@@ -245,6 +261,7 @@
 
        !mid-level convection:
        forcingm(i,:) = 0.
+       jminm(i)  = 0
        ierrcm(i) = " "
        ierrm(i)  = 0
        kbconm(i) = 0
@@ -279,35 +296,47 @@
           omeg(i,k)   = 0.
 
           !deep convection:
-          outt(i,k)   = 0.
-          outu(i,k)   = 0.
-          outv(i,k)   = 0.
-          outq(i,k)   = 0.
-          outqc(i,k)  = 0.
-          cupclw(i,k) = 0.
-          cnvwt(i,k)  = 0.
-          zd(i,k)     = 0.
-          zu(i,k)     = 0.
+          outt(i,k)     = 0.
+          outu(i,k)     = 0.
+          outv(i,k)     = 0.
+          outq(i,k)     = 0.
+          outqc(i,k)    = 0.
+          outnc(i,k)    = 0.
+          outni(i,k)    = 0.
+          outnifa(i,k)  = 0.
+          outnwfa(i,k)  = 0.
+          cupclw(i,k)   = 0.
+          cnvwt(i,k)    = 0.
+          zd(i,k)       = 0.
+          zu(i,k)       = 0.
 
           !mid-level convection:
-          outtm(i,k)   = 0.
-          outum(i,k)   = 0.
-          outvm(i,k)   = 0.
-          outqm(i,k)   = 0.
-          outqcm(i,k)  = 0.
-          cupclwm(i,k) = 0.
-          cnvwtm(i,k)  = 0.
-          zdm(i,k)     = 0.
-          zum(i,k)     = 0.
+          outtm(i,k)    = 0.
+          outum(i,k)    = 0.
+          outvm(i,k)    = 0.
+          outqm(i,k)    = 0.
+          outqcm(i,k)   = 0.
+          outncm(i,k)   = 0.
+          outnim(i,k)   = 0.
+          outnifam(i,k) = 0.
+          outnwfam(i,k) = 0.
+          cupclwm(i,k)  = 0.
+          cnvwtm(i,k)   = 0.
+          zdm(i,k)      = 0.
+          zum(i,k)      = 0.
 
           !shallow convection:
-          outts(i,k)   = 0.
-          outus(i,k)   = 0.
-          outvs(i,k)   = 0.
-          outqs(i,k)   = 0.
-          outqcs(i,k)  = 0.
-          cupclws(i,k) = 0.
-          zus(i,k)     = 0.
+          outts(i,k)    = 0.
+          outus(i,k)    = 0.
+          outvs(i,k)    = 0.
+          outqs(i,k)    = 0.
+          outqcs(i,k)   = 0.
+          cupclws(i,k)  = 0.
+          outncs(i,k)   = 0.
+          outnis(i,k)   = 0.
+          outnifas(i,k) = 0.
+          outnwfas(i,k) = 0.
+          zus(i,k)      = 0.
        enddo
     enddo
 
@@ -349,6 +378,26 @@
           p2d(i,k) = p(i,k,j)*0.01
        enddo
     enddo
+    if(present(nc) .and. present(ni) .and. present(nifa) .and. present(nwfa)) then
+       do k = kts, ktf
+          do i = its, ite
+             nc2d(i,k) = nc(i,k,j)
+             ni2d(i,k) = ni(i,k,j)
+             nifa2d(i,k) = nifa(i,k,j)
+             nwfa2d(i,k) = nwfa(i,k,j)
+          enddo
+       enddo
+    else
+       do k = kts, ktf
+          do i = its, ite
+             nc2d(i,k) = 0.
+             ni2d(i,k) = 0.
+             nifa2d(i,k) = 0.
+             nwfa2d(i,k) = 0.
+          enddo
+       enddo
+    endif
+
 
     !--- calculation of the moisture convergence: we do not need to calculate
     !the moisture convergence since it is initialized to zero and calculated
@@ -375,7 +424,9 @@
                 kpbli,rhoi,hfxi,qfxi,xlandi,ichoice_s,tcrit,dt, &
                 zus,xmbs,kbcons,ktops,k22s,ierrs,ierrcs,        &
                 outts,outqs,outqcs,cnvwt,prets,cupclws,         &
-                itf,ktf,its,ite,kts,kte,ipr)
+                nc2d,ni2d,nifa2d,nwfa2d,                        &
+                outncs,outnis,outnifas,outnwfas,                &
+                itf,ktf,its,ite,kts,kte,ipr,tropics)
 
        do k = kts, ktf
           do i = its, itf
@@ -383,7 +434,7 @@
           enddo
        enddo
        call neg_check('shallow',ipr,dt,qcheck,outqs,outts,outus,outvs, &
-                      outqcs,prets,its,ite,kts,kte,itf,ktf)
+                      outqcs,prets,its,ite,kts,kte,itf,ktf,ktops)
 
        do i = its,itf
           if(xmbs(i) .gt. 0.) then
@@ -409,13 +460,15 @@
        call mpas_log_write("  ")
        call mpas_log_write("--- enter subroutine cup_gf: middle")
        call cup_gf( &
-                itf,ktf,its,ite,kts,kte,                                   &
-                dicycle_m,ichoice_m,ipr,ccn,dt,imidc,kpbli,dhdt,           &
-                xlandi,zo,forcingm,t2d,q2d,ter11,tshall,qshall,p2d,        &
-                psur,us,vs,rhoi,hfxi,qfxi,areai,dxi,mconv,omeg,cactiv,     &
-                cnvwtm,zum,zdm,edtm,xmbm,dummy,xmbs,pretm,outum,outvm,     &
-                outtm,outqm,outqcm,kbconm,ktopm,k22m,cupclwm,ierrm,ierrcm, &
-                rand_mom,rand_vmas,rand_clos,nranflag,xf_ens               &
+                itf,ktf,its,ite,kts,kte,                                    &
+                dicycle_m,ichoice_m,ipr,ccn,dt,imidc,kpbli,dhdt,            &
+                xlandi,zo,forcingm,t2d,q2d,ter11,tshall,qshall,p2d,         &
+                psur,us,vs,rhoi,hfxi,qfxi,areai,dxi,mconv,omeg,cactiv,      &
+                cnvwtm,zum,zdm,dummy,edtm,dummy,xmbm,dummy,xmbs,pretm,      &
+                outum,outvm,outtm,outqm,outqcm,kbconm,ktopm,k22m,cupclwm,   &
+                ierrm,ierrcm,nc2d,ni2d,nifa2d,nwfa2d,outncm,outnim,         &
+                outnifam,outnwfam,rand_mom,rand_vmas,rand_clos,nranflag,    &
+                jminm,tropics                                               &
                   )
 
        do k = kts, ktf
@@ -424,7 +477,7 @@
           enddo
        enddo
        call neg_check('mid',ipr,dt,qcheck,outqm,outtm,outum,outvm, &
-                      outqcm,pretm,its,ite,kts,kte,itf,ktf)
+                      outqcm,pretm,its,ite,kts,kte,itf,ktf,ktopm)
 
        do i = its, itf
           if(pretm(i) .gt. 0.) then
@@ -454,9 +507,11 @@
                 dicycle,ichoice,ipr,ccn,dt,imidd,kpbli,dhdt,           &
                 xlandi,zo,forcing,t2d,q2d,ter11,tn,qo,p2d,             &
                 psur,us,vs,rhoi,hfxi,qfxi,areai,dxi,mconv,omeg,cactiv, &
-                cnvwt,zu,zd,edt,xmb,xmbm,xmbs,pret,outu,outv,          &
-                outt,outq,outqc,kbcon,ktop,k22,cupclw,ierr,ierrc,      &
-                rand_mom,rand_vmas,rand_clos,nranflag,xf_ens           &
+                cnvwt,zu,zd,zdm,edt,edtm,xmb,xmbm,xmbs,pret,           &
+                outu,outv,outt,outq,outqc,kbcon,ktop,k22,cupclw,       &
+                ierr,ierrc,nc2d,ni2d,nifa2d,nwfa2d,outnc,outni,        &
+                outnifa,outnwfa,rand_mom,rand_vmas,rand_clos,nranflag, &
+                jmin,tropics                                           &
                   )
 
        do k = kts, ktf
@@ -465,7 +520,7 @@
           enddo
        enddo
        call neg_check('deep',ipr,dt,qcheck,outq,outt,outu,outv, &
-                      outqc,pret,its,ite,kts,kte,itf,ktf)
+                      outqc,pret,its,ite,kts,kte,itf,ktf,ktop)
 
        do i = its, itf
           if(pret(i) .gt. 0.) then

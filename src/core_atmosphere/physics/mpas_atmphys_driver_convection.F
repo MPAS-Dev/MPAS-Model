@@ -124,6 +124,8 @@
 ! * modified calls to the subroutines mskf_cup and cu_grell_freitas to include extra diagnostics of deep and
 !   shallow convection outputs by the Grell-Freitas scheme and multi-scale Kain-Fritsch scheme.
 !   Laura D. Fowler (laura@ucar.edu) / 2019-07-01.
+! * added the variables nc,ni,nifa,and nwfa in the call to subroutine cu_grell_freitas_wrf390.
+!   Laura D. Fowler (laura@ucar.edu) / 2019-07-24.
 
 
  contains
@@ -680,6 +682,8 @@
                area         = area_p               , u            = u_p                  , &
                v            = v_p                  , w            = w_p                  , &
                t            = t_p                  , q            = qv_p                 , &
+               nc           = nc_p                 , ni           = ni_p                 , &
+               nifa         = nifa_p               , nwfa         = nwfa_p               , &
                rho          = rho_p                , p            = pres_hyd_p           , &
                pi           = pi_p                 , p8w          = pres2_hyd_p          , &
                dz8w         = dz_p                 , ht           = ht_p                 , &
