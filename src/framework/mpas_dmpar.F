@@ -98,6 +98,7 @@ include 'mpif.h'
    public :: mpas_dmpar_compute_index_range
    public :: mpas_dmpar_get_exch_list
    public :: mpas_dmpar_build_comm_lists
+   public :: mpas_dmpar_build_comm_lists_acc
    public :: mpas_dmpar_init_multihalo_exchange_list
    public :: mpas_dmpar_destroy_mulithalo_exchange_list
    public :: mpas_dmpar_destroy_communication_list
@@ -112,11 +113,26 @@ include 'mpif.h'
    public :: mpas_dmpar_exch_group_end_halo_exch
    public :: mpas_dmpar_exch_group_full_halo_exch
    public :: mpas_dmpar_field_halo_exch
+   public :: mpas_dmpar_gpu_init_2d_real_acc
+   interface mpas_dmpar_compact_halo_info
+      module procedure mpas_dmpar_compact_halo_info_2d_real
+      module procedure mpas_dmpar_compact_halo_info_3d_real
+   end interface mpas_dmpar_compact_halo_info
 
-   public :: mpas_dmpar_exch_group_build_reusable_buffers
-   public :: mpas_dmpar_exch_group_reuse_halo_exch
-   public :: mpas_dmpar_exch_group_destroy_reusable_buffers
+   public :: mpas_dmpar_compact_halo_info
 
+   private :: mpas_dmpar_compact_halo_info_2d_real
+   private :: mpas_dmpar_compact_halo_info_3d_real
+
+   interface mpas_dmpar_exch_halo_acc
+      module procedure mpas_dmpar_exch_halo_2d_real_acc
+      module procedure mpas_dmpar_exch_halo_3d_real_acc
+   end interface mpas_dmpar_exch_halo_acc
+
+   public :: mpas_dmpar_exch_halo_acc
+
+   private mpas_dmpar_exch_halo_2d_real_acc
+   private mpas_dmpar_exch_halo_3d_real_acc
 
    interface mpas_dmpar_alltoall_field
       module procedure mpas_dmpar_alltoall_field1d_integer
@@ -2244,6 +2260,149 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
 
    !--------------------------------------------------------------------
    end subroutine mpas_dmpar_build_comm_lists!}}}
+
+
+!***********************************************************************
+!
+!  routine mpas_dmpar_build_comm_lists_acc
+!
+!> \brief   Builds send and receive comm lists templates for populating with buffer data
+!> \author  Matt Hoffman, Michael Duda
+!> \date    8 December 2017
+!> \details
+!>  This routine builds the templates for send and receive communication lists
+!>  that can subsequently be populated with buffer data.  Specifically, it
+!>  creates all elements of send and receive linked lists of type
+!>  mpas_communication_list and fills in the procID and nlist attributes.
+!>  Other dmpar routines can then add data to the rbuffer and/or ibuffer arrays
+!>  of these send/receive lists.  This initial step is needed by all of the
+!>  various halo-exchange subroutines, so encapsulating these
+!>  initial steps here allows significant code-reuse and shortening of those
+!>  subroutines.  This implementation avoids the use of 'field' because there are
+!>  more than 10 different field types, which prevents the ability to generalize
+!>  this routine.  However, since we need to traverse blocks, the subroutine
+!>  required adding next/prev pointers to the mpas_multihalo_exchange_list type
+!>  (since we can't rely on the field to traverse blocks).  This subroutine
+!>  has been made public, so cores have access to it.
+!
+!-----------------------------------------------------------------------
+   subroutine mpas_dmpar_build_comm_lists_acc(compactHaloInfo, haloLayers, sendCommList, recvCommList) !{{{
+
+      !-----------------------------------------------------------------
+      ! input variables
+      !-----------------------------------------------------------------
+      integer, dimension(:), intent(in) :: compactHaloInfo !< Input: information describing elements to send and receive
+      integer, dimension(:), pointer :: haloLayers !< Input: list of halo layers to be communicated.
+
+      !-----------------------------------------------------------------
+      ! input/output variables
+      !-----------------------------------------------------------------
+      type (mpas_communication_list), pointer, intent(inout) :: &
+         sendCommList  !< Input/Output: the send communication list, unallocated on input, partially filled out on output
+      type (mpas_communication_list), pointer, intent(inout) :: &
+         recvCommList  !< Input/Output: the receive communication list, unallocated on input, partially filled out on output
+
+      !-----------------------------------------------------------------
+      ! output variables
+      !-----------------------------------------------------------------
+
+      !-----------------------------------------------------------------
+      ! local variables
+      !-----------------------------------------------------------------
+      type (mpas_communication_list), pointer :: commListPtr
+      integer :: iHalo
+      integer :: nHaloLayers
+      integer :: iDimen
+      integer :: dimSizeProduct  ! the product of the size of all dimensions
+      integer :: iEndpt
+      integer :: idx
+      integer :: endPointID
+      integer :: i, n
+
+
+      ! We only need the product of all dimension sizes (except the last), so calculate that now
+      dimSizeProduct = 1
+      do iDimen = 1, compactHaloInfo(1) - 1
+         dimSizeProduct = dimSizeProduct * compactHaloInfo(iDimen+1)   ! Dimensions start at index 2 
+      enddo
+
+      ! Get size of haloLayers array
+      nHaloLayers = size(haloLayers)
+
+      ! Allocate communication lists, and setup dead header node.
+      allocate(sendCommList)
+      nullify(sendCommList % next)
+      sendCommList % procID = -1
+      sendCommList % nList = 0
+
+      allocate(recvCommList)
+      nullify(recvCommList % next)
+      recvCommList % procID = -1
+      recvCommList % nList = 0
+
+      idx = 10
+      n = idx         ! The number of endpoints to send to
+      idx = idx + 1
+      commListPtr => sendCommList
+      do iEndpt=1,compactHaloInfo(n)
+         endPointID = compactHaloInfo(idx)
+         idx = idx + 1
+
+         allocate(commListPtr % next)
+         commListPtr => commListPtr % next
+         nullify(commListPtr % next)
+         commListPtr % procID = endPointID
+         commListPtr % nList = 0
+
+         do iHalo=1,compactHaloInfo(9)
+            do i=1,nHaloLayers
+               if (haloLayers(i) == iHalo) then
+                  commListPtr % nList = commListPtr % nList + compactHaloInfo(idx) * dimSizeProduct
+                  exit
+               end if
+            end do
+
+            idx = idx + 2 * compactHaloInfo(idx) + 1
+         end do
+      end do
+
+
+      n = idx         ! The number of endpoints to receive from
+      idx = idx + 1   ! The index of the first recv list (nList, srcList, destList)
+      commListPtr => recvCommList
+      do iEndpt=1,compactHaloInfo(n)
+         endPointID = compactHaloInfo(idx)
+         idx = idx + 1
+
+         allocate(commListPtr % next)
+         commListPtr => commListPtr % next
+         nullify(commListPtr % next)
+         commListPtr % procID = endPointID
+         commListPtr % nList = 0
+
+         do iHalo=1,compactHaloInfo(9)
+            do i=1,nHaloLayers
+               if (haloLayers(i) == iHalo) then
+                  commListPtr % nList = commListPtr % nList + compactHaloInfo(idx) * dimSizeProduct
+                  exit
+               end if
+            end do
+
+            idx = idx + 2 * compactHaloInfo(idx) + 1
+         end do
+      end do
+
+
+      ! Remove the dead head pointer on send and recv list
+      commListPtr => sendCommList
+      sendCommList => sendCommList % next
+      deallocate(commListPtr)
+
+      commListPtr => recvCommList
+      recvCommList => recvCommList % next
+      deallocate(commListPtr)
+
+   end subroutine mpas_dmpar_build_comm_lists_acc !}}}
 
 
 !-----------------------------------------------------------------------
@@ -4652,6 +4811,561 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
 
    end subroutine mpas_dmpar_alltoall_field5d_real!}}}
 
+
+!-----------------------------------------------------------------------
+!  routine mpas_dmpar_compact_halo_info_2d_real
+!
+!> \brief Compacts information needed for halo exchanges
+!> \author Michael Duda
+!> \date 7 December 2017
+!> \details
+!>  This routine extracts all information needed to perform a halo exchange
+!>  from dynamic data types and places it into a single, contiguous array
+!>  for use by the mpas_dmpar_exch_halo_acc routines.
+!>  The resulting compactHaloInfo array has the following elements:
+!>    1 - The dimensionality of the field
+!>    2 - Dimension 1 of the field (i.e., the left-most dimension)
+!>    3 - Dimension 2 of the field
+!>    4 - Dimension 3 of the field
+!>    5 - Dimension 4 of the field
+!>    6 - Dimension 5 of the field
+!>    7 - The MPI communicator
+!>    8 - The MPI rank of the current process
+!>    9 - The number of halo layers for the field
+!>   10 - The number of endpoints to send to
+!>   11 - foreach (send endpoint) { endPointID foreach (halolayer) {nList srcList(1:nList) destList(1:nList)} }
+!>   12 - The number of endpoints to recv from
+!>   13 - foreach (recv endpoint) { endPointID foreach (halolayer) {nList srcList(1:nList) destList(1:nList)} }
+!
+!-----------------------------------------------------------------------
+   subroutine mpas_dmpar_compact_halo_info_2d_real(field, compactHaloInfo) !{{{
+
+      implicit none
+
+      type (field2DReal), pointer :: field
+      integer, dimension(:), pointer :: compactHaloInfo
+
+
+      integer :: infosize
+      integer :: i, iendpt, j
+      integer :: idx
+      integer :: nSendEndpoints
+      integer :: maxSendEndpoints
+      integer :: totSendListSize
+      integer :: nRecvEndpoints
+      integer :: maxRecvEndpoints
+      integer :: totRecvListSize
+      integer :: nHaloLayers
+      integer :: nEndpoints
+      logical :: found
+      integer, allocatable, dimension(:) :: sendEndpoints
+      integer, allocatable, dimension(:) :: recvEndpoints
+      type (mpas_multihalo_exchange_list), pointer :: sendListCursor, recvListCursor
+      type (mpas_exchange_list), pointer :: exchListPtr
+
+
+      !
+      ! Find number of halo layers
+      !
+      nHaloLayers = size(field % sendList % halos)
+      if (nHaloLayers /= size(field % recvList % halos)) then
+         call mpas_log_write('The number of halo layers in the recv list does not match the number in the send list', &
+                             messageType=MPAS_LOG_CRIT)
+      end if
+
+      !
+      ! Find the maximum number of "endpoints" that we will need to send to for any halo layer,
+      ! as well as the total size of the send lists for all halo layers
+      !
+      maxSendEndpoints = 0
+      totSendListSize = 0
+      sendListCursor => field % sendList
+      do while (associated(sendListCursor))
+         do i=1,nHaloLayers
+            nSendEndpoints = 0
+            exchListPtr => sendListCursor % halos(i) % exchList
+            do while (associated(exchListPtr))
+               nSendEndpoints = nSendEndpoints + 1
+               totSendListSize = totSendListSize + 2 * exchListPtr % nList    ! We have srcList and destList
+               exchListPtr => exchListPtr % next
+            end do
+            maxSendEndpoints = max(nSendEndpoints, maxSendEndpoints)
+         end do
+         sendListCursor => sendListCursor % next     ! Expected to iterate just once for MPAS-Atmosphere
+      end do
+
+      allocate(sendEndpoints(maxSendEndpoints * nHaloLayers))
+
+      !
+      ! Gather a list of the unique endpoints that we will need to send to
+      !
+      nSendEndpoints = 0
+      sendListCursor => field % sendList
+      do while (associated(sendListCursor))
+         do i=1,nHaloLayers
+            exchListPtr => sendListCursor % halos(i) % exchList
+            do while (associated(exchListPtr))
+
+               ! If the current endpoint is not already in the list, add it
+               do j=1,nSendEndpoints
+                  if (exchListPtr % endPointID == sendEndpoints(j)) exit
+               end do
+               if (j > nSendEndpoints) then
+                  nSendEndpoints = nSendEndpoints + 1
+                  sendEndpoints(nSendEndpoints) = exchListPtr % endPointID
+               end if
+
+               exchListPtr => exchListPtr % next
+            end do
+         end do
+         sendListCursor => sendListCursor % next     ! Expected to iterate just once for MPAS-Atmosphere
+      end do
+
+      !
+      ! Find the maximum number of "endpoints" that we will need to receive from for any halo layer,
+      ! as well as the total size of the recv lists for all halo layers
+      !
+      maxRecvEndpoints = 0
+      totRecvListSize = 0
+      recvListCursor => field % recvList
+      do while (associated(recvListCursor))
+         do i=1,nHaloLayers
+            nRecvEndpoints = 0
+            exchListPtr => recvListCursor % halos(i) % exchList
+            do while (associated(exchListPtr))
+               nRecvEndpoints = nRecvEndpoints + 1
+               totRecvListSize = totRecvListSize + 2 * exchListPtr % nList    ! We have srcList and destList
+               exchListPtr => exchListPtr % next
+            end do
+            maxRecvEndpoints = max(nRecvEndpoints, maxRecvEndpoints)
+         end do
+         recvListCursor => recvListCursor % next     ! Expected to iterate just once for MPAS-Atmosphere
+      end do
+
+      allocate(recvEndpoints(maxRecvEndpoints * nHaloLayers))
+
+      !
+      ! Gather a list of the unique endpoints that we will need to receive from
+      !
+      nRecvEndpoints = 0
+      recvListCursor => field % recvList
+      do while (associated(recvListCursor))
+         do i=1,nHaloLayers
+            exchListPtr => recvListCursor % halos(i) % exchList
+            do while (associated(exchListPtr))
+
+               ! If the current endpoint is not already in the list, add it
+               do j=1,nRecvEndpoints
+                  if (exchListPtr % endPointID == recvEndpoints(j)) exit
+               end do
+               if (j > nRecvEndpoints) then
+                  nRecvEndpoints = nRecvEndpoints + 1
+                  recvEndpoints(nRecvEndpoints) = exchListPtr % endPointID
+               end if
+
+               exchListPtr => exchListPtr % next
+            end do
+         end do
+         recvListCursor => recvListCursor % next     ! Expected to iterate just once for MPAS-Atmosphere
+      end do
+
+
+      !
+      ! Compute the number of elements we will need in compactHaloInfo
+      !
+      infosize = 11 + nSendEndpoints + nHaloLayers * nSendEndpoints + totSendListSize &
+                    + nRecvEndpoints + nHaloLayers * nRecvEndpoints + totRecvListSize
+
+      allocate(compactHaloInfo(infosize))
+      compactHaloInfo(:) = 0
+
+      !
+      ! 1-6: Add field dimensionality and dimensions
+      !
+      compactHaloInfo(1) = 2    ! Dimensionality of the field
+      idx = 2
+      do i=1,compactHaloInfo(1)
+         compactHaloInfo(idx) = size(field % array, i)
+         idx = idx + 1
+      end do
+
+      !
+      ! 7-8: Add MPI info
+      !
+      idx = 7
+      compactHaloInfo(idx) = field % block % domain % dminfo % comm
+      idx = idx + 1
+      compactHaloInfo(idx) = field % block % domain % dminfo % my_proc_id
+      idx = idx + 1
+
+      !
+      ! 9: Add number of halo layers
+      !
+      compactHaloInfo(idx) = nHaloLayers
+      idx = idx + 1
+
+      !
+      ! 10: Add number of send endpoints
+      !
+      compactHaloInfo(idx) = nSendEndpoints
+      idx = idx + 1
+
+      !
+      ! 11: foreach (endpoint) { endPointID foreach (halolayer) {nList srcList(1:nList) destList(1:nList)} }
+      !
+      do iendpt=1,nSendEndpoints
+         compactHaloInfo(idx) = sendEndpoints(iendpt)
+         idx = idx + 1
+         do i=1,nHaloLayers
+            sendListCursor => field % sendList
+            do while (associated(sendListCursor))
+               found = .false.
+               exchListPtr => sendListCursor % halos(i) % exchList
+               do while (associated(exchListPtr))
+                  if (exchListPtr % endPointID == sendEndpoints(iendpt)) then
+                     found = .true.
+                     compactHaloInfo(idx) = exchListPtr % nList
+                     idx = idx + 1
+                     compactHaloInfo(idx:idx+exchListPtr % nList-1) = exchListPtr % srcList(1:exchListPtr % nList)
+                     idx = idx + exchListPtr % nList
+                     compactHaloInfo(idx:idx+exchListPtr % nList-1) = exchListPtr % destList(1:exchListPtr % nList)
+                     idx = idx + exchListPtr % nList
+                     exit
+                  end if
+                  exchListPtr => exchListPtr % next
+               end do
+               if (.not. found) then
+                  compactHaloInfo(idx) = 0
+                  idx = idx + 1
+               end if
+            sendListCursor => sendListCursor % next     ! Expected to iterate just once for MPAS-Atmosphere
+         end do
+         end do
+      end do
+
+      deallocate(sendEndpoints)
+
+      !
+      ! 12: Add number of receive endpoints
+      !
+      compactHaloInfo(idx) = nRecvEndpoints
+      idx = idx + 1
+
+      !
+      ! 13: foreach (endpoint) { endPointID foreach (halolayer) {nList srcList(1:nList) destList(1:nList)} }
+      !
+      do iendpt=1,nRecvEndpoints
+         compactHaloInfo(idx) = recvEndpoints(iendpt)
+         idx = idx + 1
+         do i=1,nHaloLayers
+            recvListCursor => field % recvList
+            do while (associated(recvListCursor))
+               found = .false.
+               exchListPtr => recvListCursor % halos(i) % exchList
+               do while (associated(exchListPtr))
+                  if (exchListPtr % endPointID == recvEndpoints(iendpt)) then
+                     found = .true.
+                     compactHaloInfo(idx) = exchListPtr % nList
+                     idx = idx + 1
+                     compactHaloInfo(idx:idx+exchListPtr % nList-1) = exchListPtr % srcList(1:exchListPtr % nList)
+                     idx = idx + exchListPtr % nList
+                     compactHaloInfo(idx:idx+exchListPtr % nList-1) = exchListPtr % destList(1:exchListPtr % nList)
+                     idx = idx + exchListPtr % nList
+                     exit
+                  end if
+                  exchListPtr => exchListPtr % next
+               end do
+               if (.not. found) then
+                  compactHaloInfo(idx) = 0
+                  idx = idx + 1
+               end if
+            recvListCursor => recvListCursor % next     ! Expected to iterate just once for MPAS-Atmosphere
+         end do
+         end do
+      end do
+
+      deallocate(recvEndpoints)
+
+   end subroutine mpas_dmpar_compact_halo_info_2d_real !}}}
+
+
+!-----------------------------------------------------------------------
+!  routine mpas_dmpar_compact_halo_info_3d_real
+!
+!> \brief Compacts information needed for halo exchanges
+!> \author Michael Duda
+!> \date 7 December 2017
+!> \details
+!>  This routine extracts all information needed to perform a halo exchange
+!>  from dynamic data types and places it into a single, contiguous array
+!>  for use by the mpas_dmpar_exch_halo_acc routines.
+!>  The resulting compactHaloInfo array has the following elements:
+!>    1 - The dimensionality of the field
+!>    2 - Dimension 1 of the field (i.e., the left-most dimension)
+!>    3 - Dimension 2 of the field
+!>    4 - Dimension 3 of the field
+!>    5 - Dimension 4 of the field
+!>    6 - Dimension 5 of the field
+!>    7 - The MPI communicator
+!>    8 - The MPI rank of the current process
+!>    9 - The number of halo layers for the field
+!>   10 - The number of endpoints to send to
+!>   11 - foreach (send endpoint) { endPointID foreach (halolayer) {nList srcList(1:nList) destList(1:nList)} }
+!>   12 - The number of endpoints to recv from
+!>   13 - foreach (recv endpoint) { endPointID foreach (halolayer) {nList srcList(1:nList) destList(1:nList)} }
+!
+!-----------------------------------------------------------------------
+   subroutine mpas_dmpar_compact_halo_info_3d_real(field, compactHaloInfo) !{{{
+
+      implicit none
+
+      type (field3DReal), pointer :: field
+      integer, dimension(:), pointer :: compactHaloInfo
+
+
+      integer :: infosize
+      integer :: i, iendpt, j
+      integer :: idx
+      integer :: nSendEndpoints
+      integer :: maxSendEndpoints
+      integer :: totSendListSize
+      integer :: nRecvEndpoints
+      integer :: maxRecvEndpoints
+      integer :: totRecvListSize
+      integer :: nHaloLayers
+      integer :: nEndpoints
+      logical :: found
+      integer, allocatable, dimension(:) :: sendEndpoints
+      integer, allocatable, dimension(:) :: recvEndpoints
+      type (mpas_multihalo_exchange_list), pointer :: sendListCursor, recvListCursor
+      type (mpas_exchange_list), pointer :: exchListPtr
+
+
+      !
+      ! Find number of halo layers
+      !
+      nHaloLayers = size(field % sendList % halos)
+      if (nHaloLayers /= size(field % recvList % halos)) then
+         call mpas_log_write('The number of halo layers in the recv list does not match the number in the send list', &
+                             messageType=MPAS_LOG_CRIT)
+      end if
+
+      !
+      ! Find the maximum number of "endpoints" that we will need to send to for any halo layer,
+      ! as well as the total size of the send lists for all halo layers
+      !
+      maxSendEndpoints = 0
+      totSendListSize = 0
+      sendListCursor => field % sendList
+      do while (associated(sendListCursor))
+         do i=1,nHaloLayers
+            nSendEndpoints = 0
+            exchListPtr => sendListCursor % halos(i) % exchList
+            do while (associated(exchListPtr))
+               nSendEndpoints = nSendEndpoints + 1
+               totSendListSize = totSendListSize + 2 * exchListPtr % nList    ! We have srcList and destList
+               exchListPtr => exchListPtr % next
+            end do
+            maxSendEndpoints = max(nSendEndpoints, maxSendEndpoints)
+         end do
+         sendListCursor => sendListCursor % next     ! Expected to iterate just once for MPAS-Atmosphere
+      end do
+
+      allocate(sendEndpoints(maxSendEndpoints * nHaloLayers))
+
+      !
+      ! Gather a list of the unique endpoints that we will need to send to
+      !
+      nSendEndpoints = 0
+      sendListCursor => field % sendList
+      do while (associated(sendListCursor))
+         do i=1,nHaloLayers
+            exchListPtr => sendListCursor % halos(i) % exchList
+            do while (associated(exchListPtr))
+
+               ! If the current endpoint is not already in the list, add it
+               do j=1,nSendEndpoints
+                  if (exchListPtr % endPointID == sendEndpoints(j)) exit
+               end do
+               if (j > nSendEndpoints) then
+                  nSendEndpoints = nSendEndpoints + 1
+                  sendEndpoints(nSendEndpoints) = exchListPtr % endPointID
+               end if
+
+               exchListPtr => exchListPtr % next
+            end do
+         end do
+         sendListCursor => sendListCursor % next     ! Expected to iterate just once for MPAS-Atmosphere
+      end do
+
+      !
+      ! Find the maximum number of "endpoints" that we will need to receive from for any halo layer,
+      ! as well as the total size of the recv lists for all halo layers
+      !
+      maxRecvEndpoints = 0
+      totRecvListSize = 0
+      recvListCursor => field % recvList
+      do while (associated(recvListCursor))
+         do i=1,nHaloLayers
+            nRecvEndpoints = 0
+            exchListPtr => recvListCursor % halos(i) % exchList
+            do while (associated(exchListPtr))
+               nRecvEndpoints = nRecvEndpoints + 1
+               totRecvListSize = totRecvListSize + 2 * exchListPtr % nList    ! We have srcList and destList
+               exchListPtr => exchListPtr % next
+            end do
+            maxRecvEndpoints = max(nRecvEndpoints, maxRecvEndpoints)
+         end do
+         recvListCursor => recvListCursor % next     ! Expected to iterate just once for MPAS-Atmosphere
+      end do
+
+      allocate(recvEndpoints(maxRecvEndpoints * nHaloLayers))
+
+      !
+      ! Gather a list of the unique endpoints that we will need to receive from
+      !
+      nRecvEndpoints = 0
+      recvListCursor => field % recvList
+      do while (associated(recvListCursor))
+         do i=1,nHaloLayers
+            exchListPtr => recvListCursor % halos(i) % exchList
+            do while (associated(exchListPtr))
+
+               ! If the current endpoint is not already in the list, add it
+               do j=1,nRecvEndpoints
+                  if (exchListPtr % endPointID == recvEndpoints(j)) exit
+               end do
+               if (j > nRecvEndpoints) then
+                  nRecvEndpoints = nRecvEndpoints + 1
+                  recvEndpoints(nRecvEndpoints) = exchListPtr % endPointID
+               end if
+
+               exchListPtr => exchListPtr % next
+            end do
+         end do
+         recvListCursor => recvListCursor % next     ! Expected to iterate just once for MPAS-Atmosphere
+      end do
+
+
+      !
+      ! Compute the number of elements we will need in compactHaloInfo
+      !
+      infosize = 11 + nSendEndpoints + nHaloLayers * nSendEndpoints + totSendListSize &
+                    + nRecvEndpoints + nHaloLayers * nRecvEndpoints + totRecvListSize
+
+      allocate(compactHaloInfo(infosize))
+      compactHaloInfo(:) = 0
+
+      !
+      ! 1-6: Add field dimensionality and dimensions
+      !
+      compactHaloInfo(1) = 3    ! Dimensionality of the field
+      idx = 2
+      do i=1,compactHaloInfo(1)
+         compactHaloInfo(idx) = size(field % array, i)
+         idx = idx + 1
+      end do
+
+      !
+      ! 7-8: Add MPI info
+      !
+      idx = 7
+      compactHaloInfo(idx) = field % block % domain % dminfo % comm
+      idx = idx + 1
+      compactHaloInfo(idx) = field % block % domain % dminfo % my_proc_id
+      idx = idx + 1
+
+      !
+      ! 9: Add number of halo layers
+      !
+      compactHaloInfo(idx) = nHaloLayers
+      idx = idx + 1
+
+      !
+      ! 10: Add number of send endpoints
+      !
+      compactHaloInfo(idx) = nSendEndpoints
+      idx = idx + 1
+
+      !
+      ! 11: foreach (endpoint) { foreach (halolayer) {nList srcList(1:nList) destList(1:nList)} }
+      !
+      do iendpt=1,nSendEndpoints
+         compactHaloInfo(idx) = sendEndpoints(iendpt)
+         idx = idx + 1
+         do i=1,nHaloLayers
+            sendListCursor => field % sendList
+            do while (associated(sendListCursor))
+               found = .false.
+               exchListPtr => sendListCursor % halos(i) % exchList
+               do while (associated(exchListPtr))
+                  if (exchListPtr % endPointID == sendEndpoints(iendpt)) then
+                     found = .true.
+                     compactHaloInfo(idx) = exchListPtr % nList
+                     idx = idx + 1
+                     compactHaloInfo(idx:idx+exchListPtr % nList-1) = exchListPtr % srcList(1:exchListPtr % nList)
+                     idx = idx + exchListPtr % nList
+                     compactHaloInfo(idx:idx+exchListPtr % nList-1) = exchListPtr % destList(1:exchListPtr % nList)
+                     idx = idx + exchListPtr % nList
+                     exit
+                  end if
+                  exchListPtr => exchListPtr % next
+               end do
+               if (.not. found) then
+                  compactHaloInfo(idx) = 0
+                  idx = idx + 1
+               end if
+            sendListCursor => sendListCursor % next     ! Expected to iterate just once for MPAS-Atmosphere
+         end do
+         end do
+      end do
+
+      deallocate(sendEndpoints)
+
+      !
+      ! 12: Add number of receive endpoints
+      !
+      compactHaloInfo(idx) = nRecvEndpoints
+      idx = idx + 1
+
+      !
+      ! 13: foreach (endpoint) { foreach (halolayer) {nList srcList(1:nList) destList(1:nList)} }
+      !
+      do iendpt=1,nRecvEndpoints
+         compactHaloInfo(idx) = recvEndpoints(iendpt)
+         idx = idx + 1
+         do i=1,nHaloLayers
+            recvListCursor => field % recvList
+            do while (associated(recvListCursor))
+               found = .false.
+               exchListPtr => recvListCursor % halos(i) % exchList
+               do while (associated(exchListPtr))
+                  if (exchListPtr % endPointID == recvEndpoints(iendpt)) then
+                     found = .true.
+                     compactHaloInfo(idx) = exchListPtr % nList
+                     idx = idx + 1
+                     compactHaloInfo(idx:idx+exchListPtr % nList-1) = exchListPtr % srcList(1:exchListPtr % nList)
+                     idx = idx + exchListPtr % nList
+                     compactHaloInfo(idx:idx+exchListPtr % nList-1) = exchListPtr % destList(1:exchListPtr % nList)
+                     idx = idx + exchListPtr % nList
+                     exit
+                  end if
+                  exchListPtr => exchListPtr % next
+               end do
+               if (.not. found) then
+                  compactHaloInfo(idx) = 0
+                  idx = idx + 1
+               end if
+            recvListCursor => recvListCursor % next     ! Expected to iterate just once for MPAS-Atmosphere
+         end do
+         end do
+      end do
+
+      deallocate(recvEndpoints)
+
+   end subroutine mpas_dmpar_compact_halo_info_3d_real !}}}
+
+
 !-----------------------------------------------------------------------
 !  routine mpas_dmpar_exch_halo_field1d_integer
 !
@@ -5371,6 +6085,614 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
      end if
 
    end subroutine mpas_dmpar_exch_halo_field1d_real!}}}
+
+
+!-----------------------------------------------------------------------
+!  routine mpas_dmpar_exch_halo_2d_real_acc
+!
+!> \brief Communicates halos for a 2-d real field on accelerators
+!> \author Michael Duda
+!> \date 7 December 2017
+!> \details
+!>  Given the array storage for the 2-d real field and the array holding
+!>  the exchange list information for the field, this routine interally
+!>  builds a communication list and performs MPI communication.
+!>  It is assumed that there is only one block per MPI task for the field,
+!>  and that this routine is not called from within an OpenMP threaded
+!>  region.
+!
+!-----------------------------------------------------------------------
+   subroutine mpas_dmpar_exch_halo_2d_real_acc(array, compactHaloInfo, sendList, recvList, gpu_bufferOffset_send, &
+                                              gpu_nList_send, gpu_idx_send, gpu_bufferOffset_recv, gpu_nList_recv,&
+                                              gpu_idx_recv, dimsizes, nHaloLayers, gpuVariablesSendSize,&
+                                              gpuVariablesRecvSize, compactHaloInfoSize, arraySize1, arraySize2, haloLayersIn) !{{{
+
+      implicit none
+      integer, dimension(2),intent(in) :: dimsizes
+      integer, intent(in) :: gpuVariablesSendSize, gpuVariablesRecvSize, compactHaloInfoSize, arraySize1, arraySize2
+      real (kind=RKIND), dimension(arraySize1,arraySize2), intent(inout) :: array !< Input: Array storage for field whose halo will be communicated
+      integer, dimension(compactHaloInfoSize), intent(in) :: compactHaloInfo !< Input: Information needed to construct communications lists, etc.
+      type (mpas_communication_list), pointer, intent(in) :: sendList, recvList
+      integer, dimension(:), intent(in), optional :: haloLayersIn !< Input: List of halo layers to communicate. Defaults to all
+
+      type (mpas_exchange_list), pointer :: exchListPtr
+      type (mpas_communication_list), pointer :: commListPtr
+      integer :: mpi_ierr
+      integer :: iHalo, i, j, idx
+      integer :: nFieldHaloLayers, iFieldHalo, nList
+      integer :: bufferOffset, nAdded
+      integer, dimension(:), pointer :: haloLayers
+      integer, dimension(gpuVariablesSendSize), intent(in):: gpu_bufferOffset_send, gpu_nList_send, gpu_idx_send
+      integer, dimension(gpuVariablesRecvSize), intent(in) :: gpu_bufferOffset_recv, gpu_nList_recv, gpu_idx_recv
+      integer, intent(in) :: nHaloLayers
+      integer :: mpi_comm, mpi_proc_id
+      real (kind=RKIND), dimension(:), pointer :: tempRbuffer
+      integer :: localMax, counter
+      !
+      ! Unpack fields from the compacted halo info array
+      !
+      mpi_comm = compactHaloInfo(7)
+      mpi_proc_id = compactHaloInfo(8)
+
+      if(present(haloLayersIn)) then
+        allocate(haloLayers(nHaloLayers))
+        do iHalo = 1, nHaloLayers
+          haloLayers(iHalo) = haloLayersIn(iHalo)
+        end do
+      else
+        allocate(haloLayers(nHaloLayers))
+        do iHalo = 1, nHaloLayers
+          haloLayers(iHalo) = iHalo
+        end do
+      end if
+      
+      nFieldHaloLayers = compactHaloInfo(9)
+#ifdef _MPI
+      ! Allocate space in recv lists, and initiate mpi_irecv calls
+      commListPtr => recvList
+      do while(associated(commListPtr))
+        if (.not. associated(commListPtr % rbuffer)) then
+           allocate(tempRbuffer(commListPtr % nList))
+           commListPtr % rbuffer => tempRbuffer
+        !$acc enter data create(tempRbuffer)
+        else 
+           tempRbuffer => commListPtr % rbuffer
+        end if
+        nullify(commListPtr % ibuffer)
+        !$acc host_data use_device(tempRbuffer) 
+        call MPI_Irecv(tempRbuffer, commListPtr % nList, MPI_REALKIND, commListPtr % procID, commListPtr % procID, mpi_comm, commListPtr % reqID, mpi_ierr)
+        !$acc end host_data
+        commListPtr => commListPtr % next
+      end do
+      ! Allocate space in send lists, copy data into buffer, and initiate mpi_isend calls
+      commListPtr => sendList
+      do while(associated(commListPtr))
+        if (.not. associated(commListPtr % rbuffer)) then
+           allocate(tempRbuffer(commListPtr % nList))
+           commListPtr % rbuffer => tempRbuffer
+        !$acc enter data create(tempRbuffer)
+        else 
+           tempRbuffer => commListPtr % rbuffer
+        end if
+        nullify(commListPtr % ibuffer)
+        commListPtr => commListPtr % next
+      enddo   
+      counter=0
+      commListPtr => sendList
+      localMax=maxval(gpu_nList_send(:))
+      do while(associated(commListPtr))
+          tempRbuffer => commListPtr % rbuffer
+          !$acc data present(tempRbuffer, array, compactHaloInfo, dimsizes, nHaloLayers, gpu_nList_send, gpu_idx_send, gpu_bufferOffset_send) async(counter+1)
+          !$acc parallel default(none) num_workers(4) vector_length(128) async(counter+1) 
+          !$acc loop independent collapse(3) gang worker vector
+          do iHalo = 1, nHaloLayers
+           do  i = 1, localMax
+             do j = 1, dimSizes(1)
+               if(i<=gpu_nList_send(counter*nHaloLayers+iHalo)) then
+                tempRbuffer((compactHaloInfo(gpu_idx_send(counter*nHaloLayers+iHalo) + gpu_nList_send(counter*nHaloLayers+iHalo) + i)-1) * dimSizes(1) + j + gpu_bufferOffset_send(counter*nHaloLayers+iHalo)) = array(j, compactHaloInfo(gpu_idx_send(counter*nHaloLayers+iHalo) + i))
+               end if 
+              end do
+            end do
+          end do
+          !$acc end parallel
+          !$acc end data
+        counter=counter+1
+        commListPtr => commListPtr % next
+      end do
+!$acc wait
+      commListPtr => sendList
+      do while(associated(commListPtr))
+        tempRbuffer => commListPtr % rbuffer
+        !$acc host_data use_device(tempRbuffer)
+        call MPI_Isend(tempRbuffer, commListPtr % nList, MPI_REALKIND, commListPtr % procID, mpi_proc_id, mpi_comm, commListPtr % reqID, mpi_ierr)
+        !$acc end host_data
+        commListPtr => commListPtr % next
+      end do
+      commListPtr => recvList
+!RRPKComment: Forced to wait for all recv buffers to be filled up else CUDA streams throws exceptions
+!RRPKComment: I'll figure out to wait for any, after consulting with PGI/OpenMPI
+      do while(associated(commListPtr))
+        call MPI_Wait(commListPtr % reqID, MPI_STATUS_IGNORE, mpi_ierr)
+        commListPtr => commListPtr % next
+      end do
+
+      commListPtr => recvList
+      counter=0
+      localMax=maxval(gpu_nList_recv(:))
+      do while(associated(commListPtr))
+        tempRbuffer => commListPtr % rbuffer
+          !$acc data present(tempRbuffer,array,compactHaloInfo,dimsizes, nHaloLayers,dimSizes,gpu_idx_recv,gpu_bufferOffset_recv,gpu_nList_recv) async(counter+1)
+          !$acc parallel num_workers(4) vector_length(128) async(counter+1)
+          !$acc loop independent collapse(3) gang worker vector
+          do iHalo = 1, nHaloLayers
+           do i = 1, localMax 
+             do j = 1, dimSizes(1)
+               if(i<=gpu_nList_recv(counter*nHaloLayers+iHalo)) then
+                array(j, compactHaloInfo(gpu_idx_recv(counter*nHaloLayers+iHalo) + gpu_nList_recv(counter*nHaloLayers+iHalo) + i)) = tempRbuffer((compactHaloInfo(gpu_idx_recv(counter*nHaloLayers+iHalo) + i)-1)*dimSizes(1) + j + gpu_bufferOffset_recv(counter*nHaloLayers+iHalo))
+               end if
+             end do
+            end do
+          end do
+          !$acc end parallel
+          !$acc end data
+        commListPtr => commListPtr % next
+        counter=counter+1
+      end do
+!$acc wait
+
+      ! wait for mpi_isend to finish.
+      commListPtr => sendList
+      do while(associated(commListPtr))
+        call MPI_Wait(commListPtr % reqID, MPI_STATUS_IGNORE, mpi_ierr)
+        commListPtr => commListPtr % next
+      end do
+     ! Destroy commLists.
+!     call mpas_dmpar_destroy_communication_list(sendList)
+!     call mpas_dmpar_destroy_communication_list(recvList)
+#endif
+
+     deallocate(haloLayers)
+
+   end subroutine mpas_dmpar_exch_halo_2d_real_acc !}}}
+
+   subroutine mpas_dmpar_gpu_init_2d_real_acc(array, compactHaloInfo, sendList, recvList, gpu_bufferOffset_send, &
+                                              gpu_nList_send, gpu_idx_send, gpu_bufferOffset_recv, gpu_nList_recv,&
+                                              gpu_idx_recv, dimsizes, nHaloLayers, haloLayersIn) !{{{
+
+      implicit none
+
+      real (kind=RKIND), dimension(:,:), intent(inout) :: array !< Input: Array storage for field whose halo will be communicated
+      integer, dimension(:), intent(in) :: compactHaloInfo !< Input: Information needed to construct communications lists, etc.
+      type (mpas_communication_list), pointer, intent(inout) :: sendList, recvList
+      integer, dimension(:), intent(in), optional :: haloLayersIn !< Input: List of halo layers to communicate. Defaults to all
+
+      type (mpas_exchange_list), pointer :: exchListPtr
+      type (mpas_communication_list), pointer :: commListPtr
+      integer :: mpi_ierr
+      integer :: iHalo, i, j, idx
+      integer :: nFieldHaloLayers, iFieldHalo, nList
+      integer :: bufferOffset, nAdded
+      integer, dimension(:), pointer, intent(inout):: gpu_bufferOffset_send, gpu_nList_send, gpu_idx_send
+      integer, dimension(:), pointer, intent(inout):: gpu_bufferOffset_recv, gpu_nList_recv, gpu_idx_recv
+      integer, dimension(:), pointer :: haloLayers
+      integer, dimension(2), intent(inout) :: dimsizes
+      integer, intent(inout) :: nHaloLayers
+      integer :: mpi_comm, mpi_proc_id
+      real (kind=RKIND), dimension(:), pointer :: tempRbuffer
+      integer :: streamcount, memoryCounter, memoryCount_send, memoryCount_recv
+      !
+      ! Unpack fields from the compacted halo info array
+      !
+      dimsizes(1:2) = compactHaloInfo(2:3)
+      mpi_comm = compactHaloInfo(7)
+      mpi_proc_id = compactHaloInfo(8)
+
+      if(present(haloLayersIn)) then
+        nHaloLayers = size(haloLayersIn)
+        allocate(haloLayers(nHaloLayers))
+        do iHalo = 1, nHaloLayers
+          haloLayers(iHalo) = haloLayersIn(iHalo)
+        end do
+      else
+        nHaloLayers = compactHaloInfo(9)
+        allocate(haloLayers(nHaloLayers))
+        do iHalo = 1, nHaloLayers
+          haloLayers(iHalo) = iHalo
+        end do
+      end if
+      
+      nFieldHaloLayers = compactHaloInfo(9)
+#ifdef _MPI
+      ! Setup Communication Lists
+      if (.not. associated(sendList) .and. .not. associated(recvList)) then
+         call mpas_dmpar_build_comm_lists_acc(compactHaloInfo, haloLayers, sendList, recvList)
+      end if
+      ! Allocate space in recv lists, and initiate mpi_irecv calls
+      commListPtr => sendList
+      memoryCount_send=0
+      do while(associated(commListPtr))
+        memoryCount_send=memoryCount_send+1
+        commListPtr => commListPtr % next
+      end do
+      allocate(gpu_bufferOffset_send(nHaloLayers*memoryCount_send))
+      allocate(gpu_idx_send(nHaloLayers*memoryCount_send))
+      allocate(gpu_nList_send(nHaloLayers*memoryCount_send))
+      commListPtr => recvList
+      memoryCount_recv=0
+      do while(associated(commListPtr))
+        memoryCount_recv=memoryCount_recv+1
+        commListPtr => commListPtr % next
+      end do
+      allocate(gpu_bufferOffset_recv(nHaloLayers*memoryCount_recv))
+      allocate(gpu_idx_recv(nHaloLayers*memoryCount_recv))
+      allocate(gpu_nList_recv(nHaloLayers*memoryCount_recv))
+      commListPtr => recvList
+      do while(associated(commListPtr))
+      !  if (.not. associated(commListPtr % rbuffer)) then
+      !     allocate(tempRbuffer(commListPtr % nList))
+      !     commListPtr % rbuffer => tempRbuffer
+        !!$acc enter data create(tempRbuffer)
+       ! else 
+           !tempRbuffer => commListPtr % rbuffer
+       ! end if
+        nullify(commListPtr % ibuffer)
+        commListPtr => commListPtr % next
+      end do
+
+      ! Allocate space in send lists, copy data into buffer, and initiate mpi_isend calls
+      commListPtr => sendList
+      memoryCounter=0
+      idx = 11   ! First endPointID to send to
+      do while(associated(commListPtr))
+        !if (.not. associated(commListPtr % rbuffer)) then
+        !   allocate(tempRbuffer(commListPtr % nList))
+        !   commListPtr % rbuffer => tempRbuffer
+        !$acc enter data create(tempRbuffer)
+        !else 
+        !   tempRbuffer => commListPtr % rbuffer
+        !end if
+        nullify(commListPtr % ibuffer)
+        bufferOffset = 0
+        if (commListPtr % procID /= compactHaloInfo(idx)) then
+#if defined(MPAS_DEBUG) && !defined(MPAS_OPENACC)
+           call mpas_log_write('Mismatch in endpoints between compactHaloInfo and commListPtr', messageType=MPAS_LOG_CRIT)
+#endif
+           return
+        end if
+        idx = idx + 1   ! Now, idx points to the nList value of the first halo layer for the field
+        iFieldHalo = 1
+        nList = compactHaloInfo(idx)
+        do iHalo = 1, nHaloLayers
+          nAdded = 0
+
+          ! Get to the correct position in compactHaloInfo for haloLayers(iHalo)
+          do while (haloLayers(iHalo) /= iFieldHalo)
+             idx = idx + 2 * nList + 1   ! Advance idx to the nList value of the next halo layer for the field
+             iFieldHalo = iFieldHalo + 1
+             if (iFieldHalo > nFieldHaloLayers) then
+#if defined(MPAS_DEBUG) && !defined(MPAS_OPENACC)
+                call mpas_log_write('Ran out of halos while searching for halo layer $i', intArgs=(/haloLayers(iHalo)/), messageType=MPAS_LOG_CRIT)
+#endif
+                return
+             end if
+             nList = compactHaloInfo(idx)
+          end do 
+          !call mpas_log_write('nList is $i',intArgs=(/nList/), messageType=MPAS_LOG_WARN)
+          gpu_idx_send(memoryCounter*nHaloLayers+iHalo) = idx
+          gpu_nList_send(memoryCounter*nHaloLayers+iHalo) = nList
+          gpu_bufferOffset_send(memoryCounter*nHaloLayers+iHalo) = bufferOffset
+          nAdded = nList * dimSizes(1)
+          idx = idx + 2 * nList + 1   ! Advance idx to the nList value of the next halo layer for the field
+          nList = compactHaloInfo(idx)
+          iFieldHalo = iFieldHalo + 1
+
+          bufferOffset = bufferOffset + nAdded
+        end do
+   
+        do while (iFieldHalo <= nFieldHaloLayers)
+          idx = idx + 2 * nList + 1   ! Advance idx to the nList value of the next halo layer for the field
+          iFieldHalo = iFieldHalo + 1
+          if (iFieldHalo <= nFieldHaloLayers) then
+             nList = compactHaloInfo(idx)
+          end if
+        end do
+        memoryCounter=memoryCounter+1
+        commListPtr => commListPtr % next
+      end do
+
+      commListPtr => sendList
+      do while(associated(commListPtr))
+      
+        tempRbuffer => commListPtr % rbuffer
+        !call MPI_Isend(tempRbuffer, commListPtr % nList, MPI_REALKIND, commListPtr % procID, mpi_proc_id, mpi_comm, commListPtr % reqID, mpi_ierr)
+        commListPtr => commListPtr % next
+      end do
+      ! Now, idx should point to the index in compactHaloInfo holding the number of receive endpoints
+
+      ! Wait for mpi_irecv to finish, and unpack data from buffer
+      memoryCounter=0
+      commListPtr => recvList
+      idx = idx + 1   ! First endPointID to receive from
+      do while(associated(commListPtr))
+        bufferOffset = 0
+        if (commListPtr % procID /= compactHaloInfo(idx)) then
+#if defined(MPAS_DEBUG) && !defined(MPAS_OPENACC)
+           call mpas_log_write('Mismatch in endpoints between compactHaloInfo and commListPtr', messageType=MPAS_LOG_CRIT)
+#endif
+           return
+        end if
+        idx = idx + 1   ! Now, idx points to the nList value of the first halo layer for the field
+        iFieldHalo = 1
+        nList = compactHaloInfo(idx)
+        do iHalo = 1, nHaloLayers
+          nAdded = 0
+
+          ! Get to the correct position in compactHaloInfo for haloLayers(iHalo)
+          do while (haloLayers(iHalo) /= iFieldHalo)
+             idx = idx + 2 * nList + 1   ! Advance idx to the nList value of the next halo layer for the field
+             iFieldHalo = iFieldHalo + 1
+             if (iFieldHalo > nFieldHaloLayers) then
+#if defined(MPAS_DEBUG) && !defined(MPAS_OPENACC)
+                call mpas_log_write('Ran out of halos while searching for halo layer $i', intArgs=(/haloLayers(iHalo)/), messageType=MPAS_LOG_CRIT)
+#endif
+                return
+             end if
+             nList = compactHaloInfo(idx)
+          end do
+          nAdded = max(nAdded, maxval(compactHaloInfo(idx+1:idx+nList)) * dimSizes(1))
+          !begin new code
+          gpu_idx_recv(memoryCounter*nHaloLayers+iHalo) = idx
+          gpu_nList_recv(memoryCounter*nHaloLayers+iHalo) = nList
+          gpu_bufferOffset_recv(memoryCounter*nHaloLayers+iHalo) = bufferOffset
+          !end new code
+          idx = idx + 2 * nList + 1   ! Advance idx to the nList value of the next halo layer for the field
+          iFieldHalo = iFieldHalo + 1
+          if (iFieldHalo <= nFieldHaloLayers) then
+             nList = compactHaloInfo(idx)
+          end if
+
+          bufferOffset = bufferOffset + nAdded
+        end do
+
+        do while (iFieldHalo <= nFieldHaloLayers)
+          idx = idx + 2 * nList + 1   ! Advance idx to the nList value of the next halo layer for the field
+          iFieldHalo = iFieldHalo + 1
+          if (iFieldHalo <= nFieldHaloLayers) then
+             nList = compactHaloInfo(idx)
+          end if
+        end do
+        memoryCounter=memoryCounter+1
+        commListPtr => commListPtr % next
+      end do
+
+     ! Destroy commLists.
+!     call mpas_dmpar_destroy_communication_list(sendList)
+!     call mpas_dmpar_destroy_communication_list(recvList)
+#endif
+
+     deallocate(haloLayers)
+
+   end subroutine mpas_dmpar_gpu_init_2d_real_acc !}}}
+
+
+!-----------------------------------------------------------------------
+!  routine mpas_dmpar_exch_halo_3d_real_acc
+!
+!> \brief Communicates halos for a 3-d real field on accelerators
+!> \author Michael Duda
+!> \date 7 December 2017
+!> \details
+!>  Given the array storage for the 3-d real field and the array holding
+!>  the exchange list information for the field, this routine interally
+!>  builds a communication list and performs MPI communication.
+!>  It is assumed that there is only one block per MPI task for the field,
+!>  and that this routine is not called from within an OpenMP threaded
+!>  region.
+!
+!-----------------------------------------------------------------------
+
+   subroutine mpas_dmpar_exch_halo_3d_real_acc(array, compactHaloInfo, sendList, recvList, haloLayersIn) !{{{
+
+      implicit none
+
+      real (kind=RKIND), dimension(:,:,:), intent(inout) :: array !< Input: Array storage for field whose halo will be communicated
+      integer, dimension(:), intent(in) :: compactHaloInfo !< Input: Information needed to construct communications lists, etc.
+      type (mpas_communication_list), pointer :: sendList, recvList
+      integer, dimension(:), intent(in), optional :: haloLayersIn !< Input: List of halo layers to communicate. Defaults to all
+
+      type (mpas_exchange_list), pointer :: exchListPtr
+      type (mpas_communication_list), pointer :: commListPtr
+      integer :: mpi_ierr
+      integer :: nHaloLayers, iHalo, i, j, k, idx
+      integer :: nFieldHaloLayers, iFieldHalo, nList
+      integer :: bufferOffset, nAdded
+      integer, dimension(:), pointer :: haloLayers
+      integer, dimension(3) :: dimsizes
+      integer :: mpi_comm, mpi_proc_id
+
+
+      !
+      ! Unpack fields from the compacted halo info array
+      !
+      dimsizes(1:3) = compactHaloInfo(2:4)
+      mpi_comm = compactHaloInfo(7)
+      mpi_proc_id = compactHaloInfo(8)
+
+      if(present(haloLayersIn)) then
+        nHaloLayers = size(haloLayersIn)
+        allocate(haloLayers(nHaloLayers))
+        do iHalo = 1, nHaloLayers
+          haloLayers(iHalo) = haloLayersIn(iHalo)
+        end do
+      else
+        nHaloLayers = compactHaloInfo(9)
+        allocate(haloLayers(nHaloLayers))
+        do iHalo = 1, nHaloLayers
+          haloLayers(iHalo) = iHalo
+        end do
+      end if
+
+      nFieldHaloLayers = compactHaloInfo(9)
+
+#ifdef _MPI
+      ! Setup Communication Lists
+      if (.not. associated(sendList) .and. .not. associated(recvList)) then
+         call mpas_dmpar_build_comm_lists_acc(compactHaloInfo, haloLayers, sendList, recvList)
+      end if
+
+      ! Allocate space in recv lists, and initiate mpi_irecv calls
+      commListPtr => recvList
+      do while(associated(commListPtr))
+        if (.not. associated(commListPtr % rbuffer)) then
+           allocate(commListPtr % rbuffer(commListPtr % nList))
+        end if
+        nullify(commListPtr % ibuffer)
+        call MPI_Irecv(commListPtr % rbuffer, commListPtr % nList, MPI_REALKIND, commListPtr % procID, commListPtr % procID, mpi_comm, commListPtr % reqID, mpi_ierr)
+
+        commListPtr => commListPtr % next
+      end do
+
+      ! Allocate space in send lists, copy data into buffer, and initiate mpi_isend calls
+      commListPtr => sendList
+      idx = 11   ! First endPointID to send to
+      do while(associated(commListPtr))
+        if (.not. associated(commListPtr % rbuffer)) then
+           allocate(commListPtr % rbuffer(commListPtr % nList))
+        end if
+        nullify(commListPtr % ibuffer)
+        bufferOffset = 0
+        if (commListPtr % procID /= compactHaloInfo(idx)) then
+#if defined(MPAS_DEBUG) && !defined(MPAS_OPENACC)
+           call mpas_log_write('Mismatch in endpoints between compactHaloInfo and commListPtr', messageType=MPAS_LOG_CRIT)
+#endif
+           return
+        end if
+        idx = idx + 1   ! Now, idx points to the nList value of the first halo layer for the field
+        iFieldHalo = 1
+        nList = compactHaloInfo(idx)
+        do iHalo = 1, nHaloLayers
+          nAdded = 0
+
+          ! Get to the correct position in compactHaloInfo for haloLayers(iHalo)
+          do while (haloLayers(iHalo) /= iFieldHalo)
+             idx = idx + 2 * nList + 1   ! Advance idx to the nList value of the next halo layer for the field
+             iFieldHalo = iFieldHalo + 1
+             if (iFieldHalo > nFieldHaloLayers) then
+#if defined(MPAS_DEBUG) && !defined(MPAS_OPENACC)
+                call mpas_log_write('Ran out of halos while searching for halo layer $i', intArgs=(/haloLayers(iHalo)/), messageType=MPAS_LOG_CRIT)
+#endif
+                return
+             end if
+             nList = compactHaloInfo(idx)
+          end do
+
+          do  i = 1, nList
+             do j = 1, dimSizes(2)
+                do k = 1, dimSizes(1)
+                   commListPtr % rbuffer((compactHaloInfo(idx + nList + i)-1) * dimSizes(1) * dimSizes(2) + (j-1) * dimSizes(1) + k + bufferOffset) = array(k, j, compactHaloInfo(idx + i))
+                   nAdded = nAdded + 1
+                end do
+             end do
+          end do
+
+          idx = idx + 2 * nList + 1   ! Advance idx to the nList value of the next halo layer for the field
+          nList = compactHaloInfo(idx)
+          iFieldHalo = iFieldHalo + 1
+
+          bufferOffset = bufferOffset + nAdded
+        end do
+
+        call MPI_Isend(commListPtr % rbuffer, commListPtr % nList, MPI_REALKIND, commListPtr % procID, mpi_proc_id, mpi_comm, commListPtr % reqID, mpi_ierr)
+
+        do while (iFieldHalo <= nFieldHaloLayers)
+          idx = idx + 2 * nList + 1   ! Advance idx to the nList value of the next halo layer for the field
+          iFieldHalo = iFieldHalo + 1
+          if (iFieldHalo <= nFieldHaloLayers) then
+             nList = compactHaloInfo(idx)
+          end if
+        end do
+
+        commListPtr => commListPtr % next
+      end do
+
+      ! Now, idx should point to the index in compactHaloInfo holding the number of receive endpoints
+
+      ! Wait for mpi_irecv to finish, and unpack data from buffer
+      commListPtr => recvList
+      idx = idx + 1   ! First endPointID to receive from
+      do while(associated(commListPtr))
+        call MPI_Wait(commListPtr % reqID, MPI_STATUS_IGNORE, mpi_ierr)
+        bufferOffset = 0
+        if (commListPtr % procID /= compactHaloInfo(idx)) then
+#if defined(MPAS_DEBUG) && !defined(MPAS_OPENACC)
+           call mpas_log_write('Mismatch in endpoints between compactHaloInfo and commListPtr', messageType=MPAS_LOG_CRIT)
+#endif
+           return
+        end if
+        idx = idx + 1   ! Now, idx points to the nList value of the first halo layer for the field
+        iFieldHalo = 1
+        nList = compactHaloInfo(idx)
+        do iHalo = 1, nHaloLayers
+          nAdded = 0
+
+          ! Get to the correct position in compactHaloInfo for haloLayers(iHalo)
+          do while (haloLayers(iHalo) /= iFieldHalo)
+             idx = idx + 2 * nList + 1   ! Advance idx to the nList value of the next halo layer for the field
+             iFieldHalo = iFieldHalo + 1
+             if (iFieldHalo > nFieldHaloLayers) then
+#if defined(MPAS_DEBUG) && !defined(MPAS_OPENACC)
+                call mpas_log_write('Ran out of halos while searching for halo layer $i', intArgs=(/haloLayers(iHalo)/), messageType=MPAS_LOG_CRIT)
+#endif
+                return
+             end if
+             nList = compactHaloInfo(idx)
+          end do
+
+          do i = 1, nList
+             do j = 1, dimSizes(2)
+                do k = 1, dimSizes(1)
+                   array(k, j, compactHaloInfo(idx + nList + i)) = commListPtr % rbuffer((compactHaloInfo(idx + i)-1)*dimSizes(1)*dimSizes(2) + (j-1)*dimSizes(1) + k + bufferOffset)
+                end do
+             end do
+          end do
+          nAdded = max(nAdded, maxval(compactHaloInfo(idx+1:idx+nList)) * dimSizes(1) * dimSizes(2))
+
+          idx = idx + 2 * nList + 1   ! Advance idx to the nList value of the next halo layer for the field
+          iFieldHalo = iFieldHalo + 1
+          if (iFieldHalo <= nFieldHaloLayers) then
+             nList = compactHaloInfo(idx)
+          end if
+
+          bufferOffset = bufferOffset + nAdded
+        end do
+
+        do while (iFieldHalo <= nFieldHaloLayers)
+          idx = idx + 2 * nList + 1   ! Advance idx to the nList value of the next halo layer for the field
+          iFieldHalo = iFieldHalo + 1
+          if (iFieldHalo <= nFieldHaloLayers) then
+             nList = compactHaloInfo(idx)
+          end if
+        end do
+
+        commListPtr => commListPtr % next
+      end do
+
+      ! wait for mpi_isend to finish.
+      commListPtr => sendList
+      do while(associated(commListPtr))
+        call MPI_Wait(commListPtr % reqID, MPI_STATUS_IGNORE, mpi_ierr)
+        commListPtr => commListPtr % next
+      end do
+
+     ! Destroy commLists.
+!     call mpas_dmpar_destroy_communication_list(sendList)
+!     call mpas_dmpar_destroy_communication_list(recvList)
+#endif
+
+     deallocate(haloLayers)
+
+   end subroutine mpas_dmpar_exch_halo_3d_real_acc !}}}
+
 
 !-----------------------------------------------------------------------
 !  routine mpas_dmpar_exch_halo_field2d_real
@@ -6800,6 +8122,8 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
          do while (associated(exchGroupPtr))
             if ( nLen == exchGroupPtr % nLen) then
                if ( groupName(1:nLen) == exchGroupPtr % groupName(1:exchGroupPtr % nLen) ) then
+                  call mpas_pool_add_config(exchGroupPtr % fieldPool, fieldName, timeLevelLocal)
+
                   ! Add field to exchange group's fieldList
                   if ( associated(exchGroupPtr % fieldList) ) then
                      ! If the field is already added, find it.
@@ -6921,6 +8245,9 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
          do while (associated(exchGroupPtr))
             if ( nLen == exchGroupPtr % nLen) then
                if ( groupName(1:nLen) == exchGroupPtr % groupName(1:exchGroupPtr % nLen) ) then
+                  ! Remove after the transition to exchange_field_lists is complete
+                  call mpas_pool_remove_config(exchGroupPtr % fieldPool, fieldName)
+
                   if ( associated(exchGroupPtr % fieldList) ) then
                      exchFieldListPtr => exchGroupPtr % fieldList
                      nullify(prevFieldListPtr)
@@ -7240,205 +8567,6 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
 
    end subroutine mpas_dmpar_field_halo_exch!}}}
 
-!-----------------------------------------------------------------------
-!  routine mpas_dmpar_exch_group_reuse_halo_exch
-!
-!> \brief MPAS dmpar halo exchange a group using recycled data structure
-!> \author Bill Arndt
-!> \date   11/07/2017
-!> \details
-!>  This routine performs a full halo exchange on an exchange group.
-!>  It is blocking, in that the routine doesn't return until the full
-!>  exchange is complete. This variant reuses a previously allocated
-!>  and build data structure to avoid repeating a large section
-!>  of thread serial code.
-!
-!-----------------------------------------------------------------------
-   subroutine mpas_dmpar_exch_group_reuse_halo_exch(domain, groupName, timeLevel, haloLayers, iErr)!{{{
-      type (domain_type), intent(inout) :: domain
-      character (len=*), intent(in) :: groupName
-      integer, optional, intent(in) :: timeLevel
-      integer, dimension(:), optional, intent(in) :: haloLayers
-      integer, optional, intent(out) :: iErr
-      integer :: mpi_ierr
-
-      type (mpas_exchange_group), pointer :: exchGroupPtr
-      type (mpas_communication_list), pointer :: commListPtr
-      type (mpas_exchange_field_list), pointer :: exchFieldListPtr
-      integer :: nLen, timeLevelLocal, iHalo
-
-      if ( present(iErr) ) then
-         iErr = MPAS_DMPAR_NOERR
-      end if
-
-      nLen = len_trim(groupName)
-      DMPAR_DEBUG_WRITE(' -- Trying to perform a reused full exchange for group ' // trim(groupName))
-
-      if ( present(timeLevel) ) then
-        timeLevelLocal = timeLevel
-      else
-        timeLevelLocal = -1
-      end if
-
-      exchGroupPtr => domain % exchangeGroups
-      do while (associated(exchGroupPtr))
-        if ( nLen == exchGroupPtr % nLen) then
-          if ( groupName(1:nLen) == exchGroupPtr % groupName(1:exchGroupPtr % nLen) ) then
-            DMPAR_DEBUG_WRITE(' -- Performing a full exchange for reused group ' // trim(groupName))
-
-            !$omp master
-              commListPtr => exchGroupPtr % sendList
-              do while ( associated(commListPtr) )
-                commListPtr % bufferOffset = 0
-                commListPtr => commListPtr % next
-              end do
-              commListPtr => exchGroupPtr % recvList
-              do while ( associated(commListPtr) )
-                commListPtr % bufferOffset = 0
-                commListPtr => commListPtr % next
-              end do
-
-              if ( associated(exchGroupPtr % fieldList) ) then
-                exchFieldListPtr => exchGroupPtr % fieldList
-                do while ( associated(exchFieldListPtr) )
-                  if ( timeLevelLocal == -1 ) then
-                    exchFieldListPtr % timeLevels(:) = .true.
-                  else
-                    exchFieldListPtr % timeLevels(:) = .false.
-                    exchFieldListPtr % timeLevels(timeLevel) = .true.
-                  end if
-                  if ( present (haloLayers) ) then
-                    exchFieldListPtr % haloLayers(:) = .false.
-                    do iHalo = 1, size(haloLayers)
-                      exchFieldListPtr % haloLayers( haloLayers(iHalo) ) = .true.
-                    end do
-                  else
-                    exchFieldListPtr % haloLayers(:) = .true.
-                  end if
-                  exchFieldListPtr => exchFieldListPtr % next
-                end do
-              end if
-            !$omp end master
-            call mpas_threading_barrier()
-
-            call mpas_dmpar_exch_group_start_recv(domain % dminfo, exchGroupPtr)
-            call mpas_dmpar_exch_group_pack_buffers(domain % blocklist % allFields, exchGroupPtr)
-            call mpas_dmpar_exch_group_start_send(domain % dminfo, exchGroupPtr)
-
-            ! Perform local copies (should be teh same as local_halo_exch)
-            call mpas_dmpar_exch_group_local_exch_fields(domain % blocklist % allFields, exchGroupPtr)
-
-            ! Finish the halo exchange (should be the same as end_halo_exch)
-            call mpas_dmpar_exch_group_unpack_buffers(domain % blocklist % allFields, exchGroupPtr)
-
-            ! Print out buffers for debugging
-            !call mpas_dmpar_exch_group_print_buffers(exchGroupPtr)
-
-            !$omp master
-              ! Wait for isends to finish
-              commListPtr => exchGroupPtr % sendList
-              do while ( associated(commListPtr) )
-                call MPI_Wait(commListPtr % reqID, MPI_STATUS_IGNORE, mpi_ierr)
-                commListPtr => commListPtr % next
-              end do
-            !$omp end master
-            call mpas_threading_barrier()
-
-            return
-          end if
-        end if
-        exchGroupPtr => exchGroupPtr % next
-      end do
-
-      call mpas_log_write('No exchange group found named ''' // trim(groupName) // '''.', MPAS_LOG_ERR)
-      call mpas_log_write('       Cannot perform reuse halo exchange on group.', MPAS_LOG_ERR)
-      if ( present(iErr) ) then
-         iErr = MPAS_DMPAR_MISSING_GROUP
-      end if
-   end subroutine mpas_dmpar_exch_group_reuse_halo_exch!}}}
-
-!-----------------------------------------------------------------------
-!  routine mpas_dmpar_exch_group_destroy_reusable_buffers
-!
-!> \brief MPAS dmpar exchange group destroy reusable buffers routine
-!> \author Bill Arndt
-!> \date   11/07/2017
-!> \details
-!>  This routine destroys buffers. Additionally, it DOES NOT include
-!>  MPI_Wait commands to finish receiving messages before destroying buffers.
-!>  In this way the catching of iSend can be performed for each halo exchange
-!>  while the communication lists are left intact.
-!
-!-----------------------------------------------------------------------
-   subroutine mpas_dmpar_exch_group_destroy_reusable_buffers(domain, groupName, iErr)!{{{
-      integer, optional, intent(out) :: iErr
-
-      type (domain_type), intent(inout) :: domain
-      character (len=*), intent(in) :: groupName
-      type (mpas_exchange_group), pointer :: exchGroupPtr
-      integer :: nLen
-
-      if ( present(iErr) ) then
-         iErr = MPAS_DMPAR_NOERR
-      end if
-
-      call mpas_threading_barrier()
-      !$omp master
-        ! Destroy communication lists
-        nLen = len_trim(groupName)
-        exchGroupPtr => domain % exchangeGroups
-        do while (associated(exchGroupPtr))
-          if ( nLen == exchGroupPtr % nLen) then
-            if ( groupName(1:nLen) == exchGroupPtr % groupName(1:exchGroupPtr % nLen) ) then
-              call mpas_dmpar_destroy_communication_list(exchGroupPtr % sendList)
-              call mpas_dmpar_destroy_communication_list(exchGroupPtr % recvList)
-              exit
-            end if
-          end if
-          exchGroupPtr => exchGroupPtr % next
-        end do
-        call mpas_dmpar_exch_group_destroy(domain, groupName)
-      !$omp end master
-      call mpas_threading_barrier()
-
-   end subroutine mpas_dmpar_exch_group_destroy_reusable_buffers!}}}
-
-!-----------------------------------------------------------------------
-!  routine mpas_dmpar_exch_group_build_reusable_buffers
-!
-!> \brief MPAS dmpar exchange group reusable buffer construction routine
-!> \author Bill Arndt
-!> \date   11/10/2017
-!> \details
-!>  This routine creates the buffers and communication lists for a
-!>  reusable exchange group.
-!
-!-----------------------------------------------------------------------
-
-  subroutine mpas_dmpar_exch_group_build_reusable_buffers(domain, groupName, iErr)
-    type (domain_type), intent(inout) :: domain
-    character (len=*), intent(in) :: groupName
-    integer, optional, intent(out) :: iErr
-
-    integer :: nLen
-    type (mpas_exchange_group), pointer :: exchGroupPtr
-
-    if ( present(iErr) ) then
-      iErr = MPAS_DMPAR_NOERR
-    end if
-
-     nLen = len_trim(groupName)
-     exchGroupPtr => domain % exchangeGroups
-     do while (associated(exchGroupPtr))
-       if ( nLen == exchGroupPtr % nLen) then
-         if ( groupName(1:nLen) == exchGroupPtr % groupName(1:exchGroupPtr % nLen) ) then
-           call mpas_dmpar_exch_group_build_buffers(domain % blocklist % allFields, exchGroupPtr)
-           exit
-         end if
-       end if
-       exchGroupPtr => exchGroupPtr % next
-     end do
-  end subroutine mpas_dmpar_exch_group_build_reusable_buffers
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !
@@ -7474,7 +8602,6 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
 
       integer :: iHalo, iTimeLevel
       integer :: threadNum
-      integer :: commListPosition
 
       if ( present(iErr) ) then
          iErr = MPAS_DMPAR_NOERR
@@ -7648,20 +8775,6 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
             commListPtr % bufferOffset = 0
 
             commListPtr => commListPtr % next
-         end do
-
-         ! count items in commList
-         commListPtr => exchangeGroup % sendList
-         commListPosition = 0
-         do while ( associated(commListPtr) )
-           commListPosition = commListPosition + 1
-           commListPtr => commListPtr % next
-         end do
-         ! populate total list length to each item
-         commListPtr => exchangeGroup % sendList
-         do while ( associated(commListPtr) )
-           commListPtr % commListSize = commListPosition      
-           commListPtr => commListPtr % next
          end do
 
          commListPtr => exchangeGroup % recvList
@@ -8180,6 +9293,7 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
       type (mpas_exchange_field_list), pointer :: exchFieldListPtr
       type (mpas_communication_list), pointer :: commListPtr
 
+      !logical :: allReceived
       integer :: mpi_ierr, iErr_tmp
       integer :: threadNum
 
@@ -8187,7 +9301,6 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
          iErr = MPAS_DMPAR_NOERR
       end if
 
-      exchangeGroup % allReceived = .false.
       threadNum = mpas_threading_get_thread_num()
 
       if (threadNum == 0) then
@@ -8198,7 +9311,10 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
            commListPtr % unpacked = .false.
            commListPtr => commListPtr % next
         end do
+        exchangeGroup % allReceived = .false.
       endif
+
+      call mpas_threading_barrier()
 
       ! asarje: changing the loop structures to reduce omp barrier calls to just one
       !         adding 'unpacked' boolean to the comm list
@@ -8210,9 +9326,9 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
         call mpas_threading_barrier()   !! to make sure 'allReceived' is not updated by thread 0 \
                                         !! before all threads check its value
         ! first let master thread check what has been received before unpacking
+        commListPtr => exchangeGroup % recvList
         if(threadNum == 0) then
           exchangeGroup % allReceived = .true.
-          commListPtr => exchangeGroup % recvList
           do while ( associated(commListPtr) )
             ! Poll receive list messages, and unpack as they are received.
             if ( .not. commListPtr % received ) then
@@ -8454,40 +9570,39 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
 
       integer :: iExch, iBuffer, bufferOffset
       integer :: nAdded
-      integer :: listPosition, listItem, commListSize
 
       if ( present(iErr) ) then
          iErr = MPAS_DMPAR_NOERR
       end if
 
       commListPtr => exchangeGroup % sendList
-      if (.not. associated(commListPtr)) return
-      commListSize = commListPtr % commListSize
-      !$omp do private(commListPtr, listPosition, bufferOffset, nAdded, fieldCursor, exchListPtr, iExch, iBuffer) 
-      do listItem = 1, commListSize
-        commListPtr => exchangeGroup % sendList
-        do listPosition = 2, listItem
-          commListPtr => commListPtr % next
-        end do
-        bufferOffset = commListPtr % bufferOffset
-        nAdded = 0
-        fieldCursor => field
-        do while ( associated(fieldCursor) )
-          exchListPtr => fieldCursor % sendList % halos(haloLayer) % exchList
-          do while ( associated(exchListPtr) )
-            if ( exchListPtr % endPointID == commListPtr % procID ) then
-              do iExch = 1, exchListPtr % nList
-                 iBuffer = exchListPtr % destList(iExch) + bufferOffset
-                 commListPtr % rbuffer(iBuffer) = transfer(fieldCursor % array(exchListPtr % srcList(iExch)), commListPtr % rbuffer(1))
-              end do
-              nAdded = nAdded + exchListPtr % nList
-            end if
-            exchListPtr => exchListPtr % next
-          end do
-          fieldCursor => fieldCursor % next
-        end do
-        commListPtr % bufferOffset = commListPtr % bufferOffset + nAdded
-        commListPtr => commListPtr % next
+      do while ( associated(commListPtr) )
+         bufferOffset = commListPtr % bufferOffset
+         nAdded = 0
+         fieldCursor => field
+         do while ( associated(fieldCursor) )
+            exchListPtr => fieldCursor % sendList % halos(haloLayer) % exchList
+            do while ( associated(exchListPtr) )
+               if ( exchListPtr % endPointID == commListPtr % procID ) then
+                  !$omp do schedule(runtime) private(iBuffer)
+                  do iExch = 1, exchListPtr % nList
+                     iBuffer = exchListPtr % destList(iExch) + bufferOffset
+                     commListPtr % rbuffer(iBuffer) = transfer(fieldCursor % array(exchListPtr % srcList(iExch)), &
+                                                               commListPtr % rbuffer(1))
+                  end do
+                  !$omp end do
+                  nAdded = nAdded + exchListPtr % nList
+               end if
+               exchListPtr => exchListPtr % next
+            end do
+            fieldCursor => fieldCursor % next
+         end do
+         bufferOffset = bufferOffset + nAdded
+         !$omp master
+         commListPtr % bufferOffset = commListPtr % bufferOffset + nAdded
+         !$omp end master
+         call mpas_threading_barrier()
+         commListPtr => commListPtr % next
       end do
       !$omp end do
 
@@ -8519,43 +9634,41 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
       integer :: iExch, iBuffer, bufferOffset
       integer :: nAdded
       integer :: j
-      integer :: listPosition, listItem, commListSize
 
       if ( present(iErr) ) then
          iErr = MPAS_DMPAR_NOERR
       end if
 
       commListPtr => exchangeGroup % sendList
-      if (.not. associated(commListPtr)) return
-      commListSize = commListPtr % commListSize
-      !$omp do private(commListPtr, listPosition, bufferOffset, nAdded, fieldCursor, exchListPtr, iExch, j, iBuffer) 
-      do listItem = 1, commListSize
-        commListPtr => exchangeGroup % sendList
-        do listPosition = 2, listItem
-          commListPtr => commListPtr % next
-        end do
-        bufferOffset = commListPtr % bufferOffset
-        nAdded = 0
-        fieldCursor => field
-        do while ( associated(fieldCursor) )
-          exchListPtr => fieldCursor % sendList % halos(haloLayer) % exchList
-          do while ( associated(exchListPtr) )
-            if ( exchListPtr % endPointID == commListPtr % procID ) then
-              do iExch = 1, exchListPtr % nList
-                do j = 1, fieldCursor % dimSizes(1)
-                  iBuffer = (exchListPtr % destList(iExch)-1) * fieldCursor % dimSizes(1) + j + bufferOffset
-                  commListPtr % rbuffer(iBuffer) = transfer(fieldCursor % array(j, exchListPtr % srcList(iExch)), &
-                                                   commListPtr % rbuffer(1))
-                end do
-              end do
-              nAdded = nAdded + exchListPtr % nList * fieldCursor % dimSizes(1)
-            end if
-            exchListPtr => exchListPtr % next
-          end do
-          fieldCursor => fieldCursor % next
-        end do
-        commListPtr % bufferOffset = commListPtr % bufferOffset + nAdded
-        commListPtr => commListPtr % next
+      do while ( associated(commListPtr) )
+         bufferOffset = commListPtr % bufferOffset
+         nAdded = 0
+         fieldCursor => field
+         do while ( associated(fieldCursor) )
+            exchListPtr => fieldCursor % sendList % halos(haloLayer) % exchList
+            do while ( associated(exchListPtr) )
+               if ( exchListPtr % endPointID == commListPtr % procID ) then
+                  !$omp do schedule(runtime) private(j, iBuffer)
+                  do iExch = 1, exchListPtr % nList
+                     do j = 1, fieldCursor % dimSizes(1)
+                        iBuffer = (exchListPtr % destList(iExch)-1) * fieldCursor % dimSizes(1) + j + bufferOffset
+                        commListPtr % rbuffer(iBuffer) = transfer(fieldCursor % array(j, exchListPtr % srcList(iExch)), &
+                                                                  commListPtr % rbuffer(1))
+                     end do
+                  end do
+                  !$omp end do
+                  nAdded = nAdded + exchListPtr % nList * fieldCursor % dimSizes(1)
+               end if
+               exchListPtr => exchListPtr % next
+            end do
+            fieldCursor => fieldCursor % next
+         end do
+         bufferOffset = bufferOffset + nAdded
+         !$omp master
+         commListPtr % bufferOffset = commListPtr % bufferOffset + nAdded
+         !$omp end master
+         call mpas_threading_barrier()
+         commListPtr => commListPtr % next
       end do
       !$omp end do
 
@@ -8587,46 +9700,44 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
       integer :: iExch, iBuffer, bufferOffset
       integer :: nAdded
       integer :: j, k
-      integer :: listPosition, listItem, commListSize
 
       if ( present(iErr) ) then
          iErr = MPAS_DMPAR_NOERR
       end if
 
       commListPtr => exchangeGroup % sendList
-      if (.not. associated(commListPtr)) return
-      commListSize = commListPtr % commListSize
-      !$omp do private(commListPtr, listPosition, bufferOffset, nAdded, fieldCursor, exchListPtr, iExch, j, k, iBuffer) 
-      do listItem = 1, commListSize
-        commListPtr => exchangeGroup % sendList
-        do listPosition = 2, listItem
-          commListPtr => commListPtr % next
-        end do
-        bufferOffset = commListPtr % bufferOffset
-        nAdded = 0
-        fieldCursor => field
-        do while ( associated(fieldCursor) )
-          exchListPtr => fieldCursor % sendList % halos(haloLayer) % exchList
-          do while ( associated(exchListPtr) )
-            if ( exchListPtr % endPointID == commListPtr % procID ) then
-              do iExch = 1, exchListPtr % nList
-                do j = 1, fieldCursor % dimSizes(2)
-                  do k = 1, fieldCursor % dimSizes(1)
-                    iBuffer = (exchListPtr % destList(iExch) - 1) * fieldCursor % dimSizes(1) * fieldCursor % dimSizes(2) & 
-                              + (j - 1) * fieldCursor % dimSizes(1) + k + bufferOffset
-                    commListPtr % rbuffer(iBuffer) = transfer(fieldCursor % array(k, j, exchListPtr % srcList(iExch)), &
-                                                     commListPtr % rbuffer(1))
+      do while ( associated(commListPtr) )
+         bufferOffset = commListPtr % bufferOffset
+         nAdded = 0
+         fieldCursor => field
+         do while ( associated(fieldCursor) )
+            exchListPtr => fieldCursor % sendList % halos(haloLayer) % exchList
+            do while ( associated(exchListPtr) )
+               if ( exchListPtr % endPointID == commListPtr % procID ) then
+                  !$omp do schedule(runtime) private(j, k, iBuffer)
+                  do iExch = 1, exchListPtr % nList
+                     do j = 1, fieldCursor % dimSizes(2)
+                        do k = 1, fieldCursor % dimSizes(1)
+                           iBuffer = (exchListPtr % destList(iExch) - 1) * fieldCursor % dimSizes(1) * fieldCursor % dimSizes(2) &
+                                   + (j - 1) * fieldCursor % dimSizes(1) + k + bufferOffset
+                           commListPtr % rbuffer(iBuffer) = transfer(fieldCursor % array(k, j, exchListPtr % srcList(iExch)), &
+                                                                     commListPtr % rbuffer(1))
+                        end do
+                     end do
                   end do
-                end do
-              end do
-              nAdded = nAdded + exchListPtr % nList * fieldCursor % dimSizes(1) * fieldCursor % dimSizes(2)
-            end if
-            exchListPtr => exchListPtr % next
-          end do
-          fieldCursor => fieldCursor % next
-        end do
-        commListPtr % bufferOffset = commListPtr % bufferOffset + nAdded
-        commListPtr => commListPtr % next
+                  !$omp end do
+                  nAdded = nAdded + exchListPtr % nList * fieldCursor % dimSizes(1) * fieldCursor % dimSizes(2)
+               end if
+               exchListPtr => exchListPtr % next
+            end do
+            fieldCursor => fieldCursor % next
+         end do
+         bufferOffset = bufferOffset + nAdded
+         !$omp master
+         commListPtr % bufferOffset = commListPtr % bufferOffset + nAdded
+         !$omp end master
+         call mpas_threading_barrier()
+         commListPtr => commListPtr % next
       end do
       !$omp end do
 
@@ -8657,42 +9768,39 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
 
       integer :: iExch, iBuffer, bufferOffset
       integer :: nAdded
-      integer :: listPosition, listItem, commListSize
 
       if ( present(iErr) ) then
          iErr = MPAS_DMPAR_NOERR
       end if
 
       commListPtr => exchangeGroup % sendList
-      if (.not. associated(commListPtr)) return
-      commListSize = commListPtr % commListSize
-      !$omp do private(commListPtr, listPosition, bufferOffset, nAdded, fieldCursor, exchListPtr, iExch, iBuffer) 
-      do listItem = 1, commListSize
-        commListPtr => exchangeGroup % sendList
-        do listPosition = 2, listItem
-          commListPtr => commListPtr % next
-        end do
-        bufferOffset = commListPtr % bufferOffset
-        nAdded = 0
-        fieldCursor => field
-        do while ( associated(fieldCursor) )
-          exchListPtr => fieldCursor % sendList % halos(haloLayer) % exchList
-          do while ( associated(exchListPtr) )
-            if ( exchListPtr % endPointID == commListPtr % procID ) then
-              do iExch = 1, exchListPtr % nList
-                iBuffer = exchListPtr % destList(iExch) + bufferOffset
-                commListPtr % rbuffer(iBuffer) = fieldCursor % array(exchListPtr % srcList(iExch))
-              end do
-              nAdded = nAdded + exchListPtr % nList
-            end if
-            exchListPtr => exchListPtr % next
-          end do
-          fieldCursor => fieldCursor % next
-        end do
-        commListPtr % bufferOffset = commListPtr % bufferOffset + nAdded
-        commListPtr => commListPtr % next
+      do while ( associated(commListPtr) )
+         bufferOffset = commListPtr % bufferOffset
+         nAdded = 0
+         fieldCursor => field
+         do while ( associated(fieldCursor) )
+            exchListPtr => fieldCursor % sendList % halos(haloLayer) % exchList
+            do while ( associated(exchListPtr) )
+               if ( exchListPtr % endPointID == commListPtr % procID ) then
+                  !$omp do schedule(runtime) private(iBuffer)
+                  do iExch = 1, exchListPtr % nList
+                     iBuffer = exchListPtr % destList(iExch) + bufferOffset
+                     commListPtr % rbuffer(iBuffer) = fieldCursor % array(exchListPtr % srcList(iExch))
+                  end do
+                  !$omp end do
+                  nAdded = nAdded + exchListPtr % nList
+               end if
+               exchListPtr => exchListPtr % next
+            end do
+            fieldCursor => fieldCursor % next
+         end do
+         bufferOffset = bufferOffset + nAdded
+         !$omp master
+         commListPtr % bufferOffset = commListPtr % bufferOffset + nAdded
+         !$omp end master
+         call mpas_threading_barrier()
+         commListPtr => commListPtr % next
       end do
-      !$omp end do
 
    end subroutine mpas_dmpar_exch_group_pack_buffer_field1d_real!}}}
 
@@ -8722,44 +9830,41 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
       integer :: iExch, iBuffer, bufferOffset
       integer :: nAdded
       integer :: j
-      integer :: listPosition, listItem, commListSize
 
       if ( present(iErr) ) then
          iErr = MPAS_DMPAR_NOERR
       end if
 
       commListPtr => exchangeGroup % sendList
-      if (.not. associated(commListPtr)) return
-      commListSize = commListPtr % commListSize
-      !$omp do private(commListPtr, listPosition, bufferOffset, nAdded, fieldCursor, exchListPtr, iExch, j, iBuffer) 
-      do listItem = 1, commListSize
-        commListPtr => exchangeGroup % sendList
-        do listPosition = 2, listItem
-          commListPtr => commListPtr % next
-        end do
-        bufferOffset = commListPtr % bufferOffset
-        nAdded = 0
-        fieldCursor => field
-        do while ( associated(fieldCursor) )
-          exchListPtr => fieldCursor % sendList % halos(haloLayer) % exchList
-          do while ( associated(exchListPtr) )
-            if ( exchListPtr % endPointID == commListPtr % procID ) then
-              do iExch = 1, exchListPtr % nList
-                do j = 1, fieldCursor % dimSizes(1)
-                  iBuffer = (exchListPtr % destList(iExch)-1) * fieldCursor % dimSizes(1) + j + bufferOffset
-                  commListPtr % rbuffer(iBuffer) = fieldCursor % array(j, exchListPtr % srcList(iExch))
-                end do
-              end do
-              nAdded = nAdded + exchListPtr % nList * fieldCursor % dimSizes(1)
-            end if
-            exchListPtr => exchListPtr % next
-          end do
-          fieldCursor => fieldCursor % next
-        end do
-        commListPtr % bufferOffset = commListPtr % bufferOffset + nAdded
-        commListPtr => commListPtr % next
+      do while ( associated(commListPtr) )
+         bufferOffset = commListPtr % bufferOffset
+         nAdded = 0
+         fieldCursor => field
+         do while ( associated(fieldCursor) )
+            exchListPtr => fieldCursor % sendList % halos(haloLayer) % exchList
+            do while ( associated(exchListPtr) )
+               if ( exchListPtr % endPointID == commListPtr % procID ) then
+                  !$omp do schedule(runtime) private(j, iBuffer)
+                  do iExch = 1, exchListPtr % nList
+                     do j = 1, fieldCursor % dimSizes(1)
+                        iBuffer = (exchListPtr % destList(iExch)-1) * fieldCursor % dimSizes(1) + j + bufferOffset
+                        commListPtr % rbuffer(iBuffer) = fieldCursor % array(j, exchListPtr % srcList(iExch))
+                     end do
+                  end do
+                  !$omp end do
+                  nAdded = nAdded + exchListPtr % nList * fieldCursor % dimSizes(1)
+               end if
+               exchListPtr => exchListPtr % next
+            end do
+            fieldCursor => fieldCursor % next
+         end do
+         bufferOffset = bufferOffset + nAdded
+         !$omp master
+         commListPtr % bufferOffset = commListPtr % bufferOffset + nAdded
+         !$omp end master
+         call mpas_threading_barrier()
+         commListPtr => commListPtr % next
       end do
-      !$omp end do
 
    end subroutine mpas_dmpar_exch_group_pack_buffer_field2d_real!}}}
 
@@ -8789,47 +9894,44 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
       integer :: iExch, iBuffer, bufferOffset
       integer :: nAdded
       integer :: j, k
-      integer :: listPosition, listItem, commListSize
 
       if ( present(iErr) ) then
          iErr = MPAS_DMPAR_NOERR
       end if
 
       commListPtr => exchangeGroup % sendList
-      if (.not. associated(commListPtr)) return
-      commListSize = commListPtr % commListSize
-      !$omp do private(commListPtr, listPosition, bufferOffset, nAdded, fieldCursor, exchListPtr, iExch, j, k, iBuffer) 
-      do listItem = 1, commListSize
-        commListPtr => exchangeGroup % sendList
-        do listPosition = 2, listItem
-          commListPtr => commListPtr % next
-        end do
+      do while ( associated(commListPtr) )
          bufferOffset = commListPtr % bufferOffset
          nAdded = 0
          fieldCursor => field
          do while ( associated(fieldCursor) )
-           exchListPtr => fieldCursor % sendList % halos(haloLayer) % exchList
-           do while ( associated(exchListPtr) )
-             if ( exchListPtr % endPointID == commListPtr % procID ) then
-               do iExch = 1, exchListPtr % nList
-                 do j = 1, fieldCursor % dimSizes(2)
-                   do k = 1, fieldCursor % dimSizes(1)
-                     iBuffer = (exchListPtr % destList(iExch) - 1) * fieldCursor % dimSizes(1) * fieldCursor % dimSizes(2) &
-                               + (j - 1) * fieldCursor % dimSizes(1) + k + bufferOffset
-                     commListPtr % rbuffer(iBuffer) = fieldCursor % array(k, j, exchListPtr % srcList(iExch))
-                   end do
-                end do
-              end do
-              nAdded = nAdded + exchListPtr % nList * fieldCursor % dimSizes(1) * fieldCursor % dimSizes(2)
-            end if
-            exchListPtr => exchListPtr % next
-          end do
-          fieldCursor => fieldCursor % next
-        end do
-        commListPtr % bufferOffset = commListPtr % bufferOffset + nAdded
-        commListPtr => commListPtr % next
+            exchListPtr => fieldCursor % sendList % halos(haloLayer) % exchList
+            do while ( associated(exchListPtr) )
+               if ( exchListPtr % endPointID == commListPtr % procID ) then
+                  !$omp do schedule(runtime) private(j, k, iBuffer)
+                  do iExch = 1, exchListPtr % nList
+                     do j = 1, fieldCursor % dimSizes(2)
+                        do k = 1, fieldCursor % dimSizes(1)
+                           iBuffer = (exchListPtr % destList(iExch) - 1) * fieldCursor % dimSizes(1) * fieldCursor % dimSizes(2) &
+                                   + (j - 1) * fieldCursor % dimSizes(1) + k + bufferOffset
+                           commListPtr % rbuffer(iBuffer) = fieldCursor % array(k, j, exchListPtr % srcList(iExch))
+                        end do
+                     end do
+                  end do
+                  !$omp end do
+                  nAdded = nAdded + exchListPtr % nList * fieldCursor % dimSizes(1) * fieldCursor % dimSizes(2)
+               end if
+               exchListPtr => exchListPtr % next
+            end do
+            fieldCursor => fieldCursor % next
+         end do
+         bufferOffset = bufferOffset + nAdded
+         !$omp master
+         commListPtr % bufferOffset = commListPtr % bufferOffset + nAdded
+         !$omp end master
+         call mpas_threading_barrier()
+         commListPtr => commListPtr % next
       end do
-      !$omp end do
 
    end subroutine mpas_dmpar_exch_group_pack_buffer_field3d_real!}}}
 
@@ -8859,50 +9961,49 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
       integer :: iExch, iBuffer, bufferOffset
       integer :: nAdded
       integer :: j, k, l
-      integer :: listPosition, listItem, commListSize
 
       if ( present(iErr) ) then
          iErr = MPAS_DMPAR_NOERR
       end if
 
       commListPtr => exchangeGroup % sendList
-      if (.not. associated(commListPtr)) return
-      commListSize = commListPtr % commListSize
-      !$omp do private(commListPtr, listPosition, bufferOffset, nAdded, fieldCursor, exchListPtr, iExch, j, k, l, iBuffer) 
-      do listItem = 1, commListSize
-        commListPtr => exchangeGroup % sendList
-        do listPosition = 2, listItem
-          commListPtr => commListPtr % next
-        end do
-        bufferOffset = commListPtr % bufferOffset
-        nAdded = 0
-        fieldCursor => field
-        do while ( associated(fieldCursor) )
-          exchListPtr => fieldCursor % sendList % halos(haloLayer) % exchList
-          do while ( associated(exchListPtr) )
-            if ( exchListPtr % endPointID == commListPtr % procID ) then
-              do iExch = 1, exchListPtr % nList
-                do j = 1, fieldCursor % dimSizes(3)
-                  do k = 1, fieldCursor % dimSizes(2)
-                    do l = 1, fieldCursor % dimSizes(1)
-                      iBuffer = (exchListPtr % destList(iExch) - 1) * fieldCursor % dimSizes(1) * fieldCursor % dimSizes(2) &
-                              * fieldCursor % dimSizes(3) + (j - 1) * fieldCursor % dimSizes(1) * fieldCursor % dimSizes(2) & 
-                              + (k - 1) * fieldCursor % dimSizes(1) + l + bufferOffset
-                      commListPtr % rbuffer(iBuffer) = fieldCursor % array(l, k, j, exchListPtr % srcList(iExch))
-                    end do
+      do while ( associated(commListPtr) )
+         bufferOffset = commListPtr % bufferOffset
+         nAdded = 0
+         fieldCursor => field
+         do while ( associated(fieldCursor) )
+            exchListPtr => fieldCursor % sendList % halos(haloLayer) % exchList
+            do while ( associated(exchListPtr) )
+               if ( exchListPtr % endPointID == commListPtr % procID ) then
+                  !$omp do schedule(runtime) private(j, k, l, iBuffer)
+                  do iExch = 1, exchListPtr % nList
+                     do j = 1, fieldCursor % dimSizes(3)
+                        do k = 1, fieldCursor % dimSizes(2)
+                           do l = 1, fieldCursor % dimSizes(1)
+                              iBuffer = (exchListPtr % destList(iExch) - 1) * fieldCursor % dimSizes(1) &
+                                      * fieldCursor % dimSizes(2) * fieldCursor % dimSizes(3) &
+                                      + (j - 1) * fieldCursor % dimSizes(1) * fieldCursor % dimSizes(2) &
+                                      + (k - 1) * fieldCursor % dimSizes(1) + l + bufferOffset
+                              commListPtr % rbuffer(iBuffer) = fieldCursor % array(l, k, j, exchListPtr % srcList(iExch))
+                           end do
+                        end do
+                     end do
                   end do
-                end do
-              end do
-              nAdded = nAdded + exchListPtr % nList * fieldCursor % dimSizes(1) * fieldCursor % dimSizes(2) * fieldCursor % dimSizes(3)
-            end if
-            exchListPtr => exchListPtr % next
-          end do
-          fieldCursor => fieldCursor % next
-        end do
-        commListPtr % bufferOffset = commListPtr % bufferOffset + nAdded
-        commListPtr => commListPtr % next
+                  !$omp end do
+                  nAdded = nAdded + exchListPtr % nList * fieldCursor % dimSizes(1) * fieldCursor % dimSizes(2) &
+                         * fieldCursor % dimSizes(3)
+               end if
+               exchListPtr => exchListPtr % next
+            end do
+            fieldCursor => fieldCursor % next
+         end do
+         bufferOffset = bufferOffset + nAdded
+         !$omp master
+         commListPtr % bufferOffset = commListPtr % bufferOffset + nAdded
+         !$omp end master
+         call mpas_threading_barrier()
+         commListPtr => commListPtr % next
       end do
-      !$omp end do
 
    end subroutine mpas_dmpar_exch_group_pack_buffer_field4d_real!}}}
 
@@ -8932,52 +10033,52 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
       integer :: iExch, iBuffer, bufferOffset
       integer :: nAdded
       integer :: j, k, l, m
-      integer :: listPosition, listItem, commListSize
 
       if ( present(iErr) ) then
          iErr = MPAS_DMPAR_NOERR
       end if
 
       commListPtr => exchangeGroup % sendList
-      if (.not. associated(commListPtr)) return
-      commListSize = commListPtr % commListSize
-      !$omp do private(commListPtr, listPosition, bufferOffset, nAdded, fieldCursor, exchListPtr, iExch, j, k, l, m, iBuffer) 
-      do listItem = 1, commListSize
-        commListPtr => exchangeGroup % sendList
-        do listPosition = 2, listItem
-          commListPtr => commListPtr % next
-        end do
-        bufferOffset = commListPtr % bufferOffset
-        nAdded = 0
-        fieldCursor => field
-        do while ( associated(fieldCursor) )
-          exchListPtr => fieldCursor % sendList % halos(haloLayer) % exchList
-          do while ( associated(exchListPtr) )
-            if ( exchListPtr % endPointID == commListPtr % procID ) then
-              do iExch = 1, exchListPtr % nList
-                do j = 1, fieldCursor % dimSizes(4)
-                  do k = 1, fieldCursor % dimSizes(3)
-                    do l = 1, fieldCursor % dimSizes(2)
-                      do m = 1, fieldCursor % dimSizes(1)
-                        iBuffer = (exchListPtr % destList(iExch) - 1) * fieldCursor % dimSizes(1) * fieldCursor % dimSizes(2) &
-                                * fieldCursor % dimSizes(3) * fieldCursor % dimSizes(4) + (j - 1) * fieldCursor % dimSizes(1) &
-                                * fieldCursor % dimSizes(2) * fieldCursor % dimSizes(3) + (k - 1) * fieldCursor % dimSizes(1) &
-                                * fieldCursor % dimSizes(2) + (l - 1) * fieldCursor % dimSizes(1) + m + bufferOffset
-                        commListPtr % rbuffer(iBuffer) = fieldCursor % array(m, l, k, j, exchListPtr % srcList(iExch))
-                      end do
-                    end do
+      do while ( associated(commListPtr) )
+         bufferOffset = commListPtr % bufferOffset
+         nAdded = 0
+         fieldCursor => field
+         do while ( associated(fieldCursor) )
+            exchListPtr => fieldCursor % sendList % halos(haloLayer) % exchList
+            do while ( associated(exchListPtr) )
+               if ( exchListPtr % endPointID == commListPtr % procID ) then
+                  !$omp do schedule(runtime) private(j, k, l, m, iBuffer)
+                  do iExch = 1, exchListPtr % nList
+                     do j = 1, fieldCursor % dimSizes(4)
+                        do k = 1, fieldCursor % dimSizes(3)
+                           do l = 1, fieldCursor % dimSizes(2)
+                              do m = 1, fieldCursor % dimSizes(1)
+                                 iBuffer = (exchListPtr % destList(iExch) - 1) * fieldCursor % dimSizes(1) &
+                                         * fieldCursor % dimSizes(2) * fieldCursor % dimSizes(3) * fieldCursor % dimSizes(4)&
+                                         + (j - 1) * fieldCursor % dimSizes(1) * fieldCursor % dimSizes(2) &
+                                                   * fieldCursor % dimSizes(3) &
+                                         + (k - 1) * fieldCursor % dimSizes(1) * fieldCursor % dimSizes(2) &
+                                         + (l - 1) * fieldCursor % dimSizes(1) + m + bufferOffset
+                                 commListPtr % rbuffer(iBuffer) = fieldCursor % array(m, l, k, j, exchListPtr % srcList(iExch))
+                              end do
+                           end do
+                        end do
+                     end do
                   end do
-                end do
-              end do
-              nAdded = nAdded + exchListPtr % nList * fieldCursor % dimSizes(1) * fieldCursor % dimSizes(2) &
-                     * fieldCursor % dimSizes(3) * fieldCursor % dimSizes(4)
-            end if
-            exchListPtr => exchListPtr % next
-          end do
-          fieldCursor => fieldCursor % next
-        end do
-        commListPtr % bufferOffset = commListPtr % bufferOffset + nAdded
-        commListPtr => commListPtr % next
+                  !$omp end do
+                  nAdded = nAdded + exchListPtr % nList * fieldCursor % dimSizes(1) * fieldCursor % dimSizes(2) &
+                         * fieldCursor % dimSizes(3) * fieldCursor % dimSizes(4)
+               end if
+               exchListPtr => exchListPtr % next
+            end do
+            fieldCursor => fieldCursor % next
+         end do
+         bufferOffset = bufferOffset + nAdded
+         !$omp master
+         commListPtr % bufferOffset = commListPtr % bufferOffset + nAdded
+         !$omp end master
+         call mpas_threading_barrier()
+         commListPtr => commListPtr % next
       end do
 
    end subroutine mpas_dmpar_exch_group_pack_buffer_field5d_real!}}}
