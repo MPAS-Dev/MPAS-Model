@@ -380,7 +380,7 @@ module atm_time_integration
       character (len=StrKIND), pointer :: config_microp_scheme
       character (len=StrKIND), pointer :: config_convection_scheme
 
-      integer, pointer :: num_scalars, index_qv, nCells, nCellsSolve, nEdges, nEdgesSolve, nVertices, nVerticesSolve, nVertLevels, nCellsSolve
+      integer, pointer :: num_scalars, index_qv, nCells, nCellsSolve, nEdges, nEdgesSolve, nVertices, nVerticesSolve, nVertLevels
 
       character(len=StrKIND), pointer :: config_IAU_option
 
@@ -637,7 +637,18 @@ module atm_time_integration
                      dynamics_substep, &
                       tend_ru_physics, &
                   tend_rtheta_physics, &
-                     tend_rho_physics )
+                     tend_rho_physics, &
+                                ! Arguments needed for OpenACC-friendly halo exchanges
+                                compactHaloInfo_c_v, &
+                                sendList_c_v, recvList_c_v, &
+                                gpu_idx_send_c_v, gpu_bufferoffset_send_c_v, gpu_nList_send_c_v, &
+                                gpu_idx_recv_c_v, gpu_bufferoffset_recv_c_v, gpu_nList_recv_c_v, &
+                                gpu_dimSizes_c_v, &
+                                gpu_nHaloLayers_c_v, &
+                                gpu_send_size_c_v, &
+                                gpu_recv_size_c_v, &
+                                gpu_compactHaloInfoSize_c_v &
+                              )
          block => block % next
       end do
       call mpas_timer_stop('physics_get_tend')
