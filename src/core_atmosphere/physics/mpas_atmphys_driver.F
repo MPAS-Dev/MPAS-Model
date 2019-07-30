@@ -23,7 +23,6 @@
 
  ! For physics_part2
  use mpas_atmphys_driver_microphysics
- 
  use mpas_atmphys_constants
  use mpas_atmphys_interface
  use mpas_atmphys_update
