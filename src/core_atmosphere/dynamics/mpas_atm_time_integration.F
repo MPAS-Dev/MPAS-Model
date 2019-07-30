@@ -6836,10 +6836,25 @@ module atm_time_integration
 
       type (domain_type), intent(inout) :: domain
       real (kind=RKIND), intent(in) :: dt
-
-
+      
       type (block_type), pointer :: block
       type (mpas_pool_type), pointer :: state
+      type (mpas_pool_type), pointer :: diag
+      type (mpas_pool_type), pointer :: mesh
+
+      integer, pointer :: num_scalars, nCells, nVertLevels, nThreads
+      integer, dimension(:), pointer :: cellThreadStart, cellThreadEnd
+      integer, dimension(:), pointer :: cellSolveThreadStart, cellSolveThreadEnd
+      integer, dimension(:), pointer :: edgeThreadStart, edgeThreadEnd
+      integer, dimension(:), pointer :: edgeSolveThreadStart, edgeSolveThreadEnd
+      integer, dimension(:), pointer :: vertexThreadStart, vertexThreadEnd
+      integer, dimension(:), pointer :: vertexSolveThreadStart, vertexSolveThreadEnd
+
+      type (field3DReal), pointer :: scalars_field
+      integer, pointer :: index_qv, index_qc, index_qr, index_qi, index_qs, index_qg, index_nr, index_ni
+
+      real (kind=RKIND)  :: time_dyn_step
+      integer :: thread
 
 
       clock => domain % clock
@@ -6984,6 +6999,7 @@ module atm_time_integration
 
       type (domain_type), intent(inout) :: domain
       real (kind=RKIND), intent(in) :: dt
+      type (MPAS_Time_type), intent(in) :: nowTime
 
 
       type (block_type), pointer :: block
