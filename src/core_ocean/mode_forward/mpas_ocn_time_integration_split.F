@@ -356,7 +356,6 @@ module ocn_time_integration_split
             end if
          end do
 
-
          if (associated(highFreqThicknessNew)) then
             !$omp do schedule(runtime)
             do iCell = 1, nCells
