@@ -70,8 +70,8 @@
 !   cloud microphysics scheme.
 !   Laura D. Fowler (laura@ucar.edu) / 2016-06-04.
 ! * added a second subroutine so now all of the physics is called from this driver module; the original
-!   routine has an added suffix _before_dyn, and the new routine is named similarly: _after_dyn processing; the 
-!   cloud microphysics processing is handled in the _after_dyn routine.
+!   routine is renamed physics_part1, and the new routine is named similarly: physics_part2; the 
+!   driver for the cloud microphysics processing is handled in the physics_part2 routine.
 !   Dave Gill (gill@ucar.edu) / 2017-09-14.
 
 
