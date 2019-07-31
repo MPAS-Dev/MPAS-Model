@@ -76,13 +76,16 @@ module mpas_bootstrapping
    !>            mpas_initialize_vectors()
    !
    !-----------------------------------------------------------------------
-   subroutine mpas_bootstrap_framework_phase1(domain, mesh_filename, mesh_iotype) !{{{
+   subroutine mpas_bootstrap_framework_phase1(domain, mesh_filename, mesh_iotype, pio_file_desc) !{{{
+
+      use pio, only : file_desc_t
 
       implicit none
 
       type (domain_type), pointer :: domain
       character(len=*), intent(in) :: mesh_filename
       integer, intent(in) :: mesh_iotype
+      type (file_desc_t), pointer, optional :: pio_file_desc
 
       type (block_type), pointer :: readingBlock
 
@@ -147,7 +150,8 @@ module mpas_bootstrapping
       nHalos = config_num_halos
 
 
-      inputHandle = MPAS_io_open(trim(mesh_filename), MPAS_IO_READ, mesh_iotype, domain % ioContext, ierr=ierr)
+      inputHandle = MPAS_io_open(trim(mesh_filename), MPAS_IO_READ, mesh_iotype, domain % ioContext, &
+                                 pio_file_desc=pio_file_desc, ierr=ierr)
       if (ierr /= MPAS_IO_NOERR) then
          call mpas_log_write('Could not open input file '''//trim(mesh_filename)//''' to read mesh fields', MPAS_LOG_CRIT)
       else
