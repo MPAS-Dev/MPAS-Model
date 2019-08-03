@@ -47,9 +47,10 @@
 
 module ocn_schism
 
+   !Modules in src/framework/
    use mpas_derived_types
-   use mpas_pool_routines
-   use mpas_dmpar
+   use mpas_pool_routines !get arrays etc
+   use mpas_dmpar !MPI exchange routines
    use mpas_timekeeping
    use mpas_stream_manager
 
@@ -194,13 +195,22 @@ contains
       type (mpas_pool_type), pointer :: meshPool
       type (mpas_pool_type), pointer :: scratchPool
       type (mpas_pool_type), pointer :: diagnosticsPool
+      type (mpas_pool_type), pointer :: tracersPool
 
       ! Here are some example variables which may be needed for your analysis member
       integer, pointer :: nVertLevels, nCellsSolve, nEdgesSolve, nVerticesSolve, num_tracers
       integer :: iTracer, k, iCell
       integer, dimension(:), pointer :: maxLevelCell, maxLevelEdgeTop, maxLevelVertexBot
+      integer, pointer :: index_temperature, index_salinity
 
       real (kind=RKIND), dimension(:), pointer ::  areaCell, dcEdge, dvEdge
+      real (kind=RKIND) :: temperature, salinity,zPosition, volume
+      ! pointers to data in pools required for T/S water mass census
+      real (kind=RKIND), dimension(:,:),   pointer :: layerThickness
+!      real (kind=RKIND), dimension(:,:),   pointer :: potentialDensity
+      real (kind=RKIND), dimension(:,:),   pointer :: zMid
+      real (kind=RKIND), dimension(:,:,:), pointer :: activeTracers
+
 
       integer :: it
 
@@ -218,6 +228,8 @@ contains
 
          ! Here are some example variables which may be needed for your analysis member
          call mpas_pool_get_dimension(statePool, 'num_tracers', num_tracers)
+         !JZ
+         call mpas_pool_get_subpool(statePool, 'tracers', tracersPool)
 
          call mpas_pool_get_dimension(block % dimensions, 'nVertLevels', nVertLevels)
          call mpas_pool_get_dimension(block % dimensions, 'nCellsSolve', nCellsSolve)
@@ -231,6 +243,33 @@ contains
          call mpas_pool_get_array(meshPool, 'maxLevelEdgeTop', maxLevelEdgeTop)
          call mpas_pool_get_array(meshPool, 'maxLevelVertexBot', maxLevelVertexBot)
 
+         ! get indices for T and S
+         !JZ
+         call mpas_pool_get_dimension(tracersPool, 'index_temperature', index_temperature)
+         call mpas_pool_get_dimension(tracersPool, 'index_salinity', index_salinity)
+         call mpas_pool_get_array(tracersPool, 'activeTracers', activeTracers, 1)
+         call mpas_pool_get_array(statePool, 'layerThickness', layerThickness, timeLevel)
+         call mpas_pool_get_array(diagnosticsPool, 'zMid', zMid)
+
+         !JZ
+         write(12,*)'_compute start...'
+         if ( associated(activeTracers) ) then
+           do iCell=1,nCellsSolve
+             do k=1,maxLevelCell(iCell)
+               ! make copies of data for convienence
+               temperature = activeTracers(index_temperature,k,iCell)
+               salinity = activeTracers(index_salinity,k,iCell)
+!               density = potentialDensity(k,iCell)
+               zPosition = zMid(k,iCell)
+               volume = layerThickness(k,iCell) * areaCell(iCell)
+
+               !Output
+               write(12,*)domain % dminfo % my_proc_id,iCell !,lonCell
+               write(12,*)k,temperature,salinity,zPosition,volume,areaCell(iCell)
+             enddo !k
+           enddo !iCell
+         endif !associated
+
          ! Computations which are functions of nCells, nEdges, or nVertices
          ! must be placed within this block loop
          ! Here are some example loops
@@ -243,7 +282,7 @@ contains
          end do
 
          block => block % next
-      end do
+      end do !while
 
       ! mpi gather/scatter calls may be placed here.
       ! Here are some examples.  See mpas_ocn_global_stats.F for further details.
@@ -264,6 +303,7 @@ contains
       end do
 
       !SCHISM
+      !JZ
       do it=iths+1,iths+2 !ntime
         call schism_step(it)
       enddo !it
