@@ -863,13 +863,12 @@ module atm_core
 
 
       !
-      ! This is a call to all of the slow, column-oriented physics, except for resolved
-      ! cloud microphysical processes. The microphysics is handled after the dynamics so 
-      ! that any supersaturation caused by various dynamical processes (advection, etc) 
-      ! may be removed before the end of each time step.
+      ! Except for the resolved cloud microphysical processes, this is a call to all of the 
+      ! column-oriented physics. 
       !
 #ifdef DO_PHYSICS
-      !proceed with physics if moist_physics is set to true:
+      ! Proceed with physics if moist_physics is set to true. If
+      ! moist_physics is false, then this is a dry dynamics case.
       if(moist_physics) then
          call physics_timetracker(domain,dt,clock,itimestep,xtime_s)
          call physics_part1(domain,itimestep,xtime_s)
@@ -879,11 +878,15 @@ module atm_core
       call dynamics_timestep(domain, dt, currTime, itimestep)
 
       !
-      ! This part is the microphysics, which needs to happen after the
-      ! dynamics time stepping.
+      ! The call to the microphysics scheme must occur after the
+      ! dynamics time stepping. The microphysics is handled after
+      ! the dynamics so that any supersaturation (caused by various 
+      ! dynamical processes (advection, etc) may be removed before the 
+      ! end of each time step.  
       !
 #ifdef DO_PHYSICS
-      !proceed with physics if moist_physics is set to true:
+      ! Proceed with physics if moist_physics is set to true. If
+      ! moist_physics is false, then this is a dry dynamics case.
       if(moist_physics) then
          call physics_part2(domain,itimestep,xtime_s)
       endif
@@ -893,12 +896,9 @@ module atm_core
       ! If this is a regional domain, adjustments are required for the
       ! lateral boundary conditions due to the microphysics.
       !
-!DAVE if this really is due to MP, the moist physics switch is legit??
-#ifdef DO_PHYSICS
-      if((moist_physics) .and. (config_apply_lbcs)) then
+      if(config_apply_lbcs) then
          call dynamics_final_lbc_adjustment (domain, dt)
       endif
-#endif
 
       !
       ! The end of the time step. Advance model xtime.
