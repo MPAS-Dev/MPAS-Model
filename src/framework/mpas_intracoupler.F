@@ -23,6 +23,7 @@ module mpas_intracoupler
         module procedure MPAS_coupler_transfer_field_r3
     end interface
 
+
 contains
 
 
@@ -113,7 +114,7 @@ contains
     !-----------------------------------------------------------------------
     subroutine MPAS_coupler_finalize(cpl)
 
-        use mpas_dmpar, only : mpas_dmpar_finalize, mpas_dmpar_destroy_mulithalo_exchange_list
+        use mpas_dmpar, only : mpas_dmpar_finalize, mpas_dmpar_destroy_mulithalo_exchange_list, mpas_dmpar_destroy_communication_list
 
 #ifdef _MPI
 #ifndef NOMPIMOD
@@ -126,6 +127,7 @@ contains
         type (mpas_coupler_type), intent(inout) :: cpl
 
         integer :: i
+        integer :: idx
         integer :: ierr
 
 #ifdef _MPI
@@ -139,6 +141,15 @@ contains
                 call mpas_dmpar_destroy_mulithalo_exchange_list(cpl % pairings(i) % sendList)
                 call mpas_dmpar_destroy_mulithalo_exchange_list(cpl % pairings(i) % recvList)
                 call mpas_dmpar_destroy_mulithalo_exchange_list(cpl % pairings(i) % copyList)
+
+                do idx=1,size(cpl % pairings(i) % commArrays)
+                    if (maxval(cpl % pairings(i) % commArrays(idx) % dims(:)) > -1) then
+                        deallocate(cpl % pairings(i) % commArrays(idx) % compactHaloInfo)
+                        call mpas_dmpar_destroy_communication_list(cpl % pairings(i) % commArrays(idx) % sendCommList)
+                        call mpas_dmpar_destroy_communication_list(cpl % pairings(i) % commArrays(idx) % recvCommList)
+                    end if
+                end do
+
             end if
         end do
         deallocate(cpl % pairings)
@@ -380,7 +391,7 @@ contains
 
         use mpas_derived_types, only : field1DReal, MPAS_COUPLER_INCOMING, dm_info, mpas_multihalo_exchange_list, &
                                        mpas_communication_list
-        use mpas_dmpar, only : mpas_dmpar_destroy_communication_list, mpas_dmpar_compact_halo_info, mpas_dmpar_exch_halo_acc
+        use mpas_dmpar, only : mpas_dmpar_compact_halo_info, mpas_dmpar_exch_halo_acc
 
         implicit none
 
@@ -389,14 +400,12 @@ contains
         type (field1DReal), pointer :: field
         integer, intent(out), optional :: ierr
 
+        integer :: idx
         type (dm_info), pointer :: dminfo_save
         type (mpas_multihalo_exchange_list), pointer :: sendList_save
         type (mpas_multihalo_exchange_list), pointer :: recvList_save
         type (mpas_multihalo_exchange_list), pointer :: copyList_save
 
-        integer, dimension(:), pointer :: compactHaloInfo => null()
-        type (mpas_communication_list), pointer :: sendList => null()
-        type (mpas_communication_list), pointer :: recvList => null()
 
         !
         ! Make sure handle is valid
@@ -413,6 +422,29 @@ contains
             return
         end if
 
+        !
+        ! Find index of communication structure appropriate for the dimensionality of this field
+        !
+        idx = 1
+        do while (idx <= size(cpl % pairings(handle) % commArrays) .and. &
+                  maxval(cpl % pairings(handle) % commArrays(idx) % dims(:)) > -1)
+           if (cpl % pairings(handle) % commArrays(idx) % dims(1) == field % dimsizes(1) .and. &
+               cpl % pairings(handle) % commArrays(idx) % dims(2) == -1) then
+              exit
+           end if
+           idx = idx + 1
+        end do
+
+        !
+        ! Verify that we have not run out of available commArrays
+        !
+        if (idx > size(cpl % pairings(handle) % commArrays)) then
+            if (present(ierr)) then
+                ierr = 1
+                return
+            end if
+        end if
+
         dminfo_save => field % block % domain % dminfo
         sendList_save => field % sendList
         recvList_save => field % recvList
@@ -423,8 +455,22 @@ contains
         field % recvList => cpl % pairings(handle) % recvList
         field % copyList => cpl % pairings(handle) % copyList
 
-        call mpas_dmpar_compact_halo_info(field, compactHaloInfo)
-        call mpas_dmpar_exch_halo_acc(field % array, compactHaloInfo, sendList, recvList)
+        !
+        ! If all of the dimensions in the commArrays structure are -1, the members of commArrays have
+        ! not yet been initialized with a call to mpas_dmpar_compact_halo_info
+        !
+        if (maxval(cpl % pairings(handle) % commArrays(idx) % dims(:)) == -1) then
+            call mpas_dmpar_compact_halo_info(field, cpl % pairings(handle) % commArrays(idx) % compactHaloInfo)
+            cpl % pairings(handle) % commArrays(idx) % dims(1) = field % dimsizes(1)
+        end if
+
+        !
+        ! Communicate the field given a valid compactHaloInfo array, possibly reusing sendCommList and recvCommList
+        ! from a previous call to mpas_dmpar_exch_halo_acc
+        !
+        call mpas_dmpar_exch_halo_acc(field % array, cpl % pairings(handle) % commArrays(idx) % compactHaloInfo, &
+                                                     cpl % pairings(handle) % commArrays(idx) % sendCommList, &
+                                                     cpl % pairings(handle) % commArrays(idx) % recvCommList)
 
         field % block % domain % dminfo => dminfo_save
         field % sendList => sendList_save
@@ -435,10 +481,6 @@ contains
 !TODO: define error codes for intracoupler
             ierr = 0
         end if
-
-        deallocate(compactHaloInfo)
-        call mpas_dmpar_destroy_communication_list(sendList)
-        call mpas_dmpar_destroy_communication_list(recvList)
 
     end subroutine MPAS_coupler_transfer_field_r1
 
@@ -565,7 +607,7 @@ contains
 
         use mpas_derived_types, only : field3DReal, MPAS_COUPLER_INCOMING, dm_info, mpas_multihalo_exchange_list, &
                                        mpas_communication_list
-        use mpas_dmpar, only : mpas_dmpar_destroy_communication_list, mpas_dmpar_compact_halo_info, mpas_dmpar_exch_halo_acc
+        use mpas_dmpar, only : mpas_dmpar_compact_halo_info, mpas_dmpar_exch_halo_acc
 
         implicit none
 
@@ -574,14 +616,12 @@ contains
         type (field3DReal), pointer :: field
         integer, intent(out), optional :: ierr
 
+        integer :: idx
         type (dm_info), pointer :: dminfo_save
         type (mpas_multihalo_exchange_list), pointer :: sendList_save
         type (mpas_multihalo_exchange_list), pointer :: recvList_save
         type (mpas_multihalo_exchange_list), pointer :: copyList_save
 
-        integer, dimension(:), pointer :: compactHaloInfo => null()
-        type (mpas_communication_list), pointer :: sendList => null()
-        type (mpas_communication_list), pointer :: recvList => null()
 
         !
         ! Make sure handle is valid
@@ -598,6 +638,31 @@ contains
             return
         end if
 
+        !
+        ! Find index of communication structure appropriate for the dimensionality of this field
+        !
+        idx = 1
+        do while (idx <= size(cpl % pairings(handle) % commArrays) .and. &
+                  maxval(cpl % pairings(handle) % commArrays(idx) % dims(:)) > -1)
+           if (cpl % pairings(handle) % commArrays(idx) % dims(1) == field % dimsizes(1) .and. &
+               cpl % pairings(handle) % commArrays(idx) % dims(2) == field % dimsizes(2) .and. &
+               cpl % pairings(handle) % commArrays(idx) % dims(3) == field % dimsizes(3) .and. &
+               cpl % pairings(handle) % commArrays(idx) % dims(4) == -1) then
+              exit
+           end if
+           idx = idx + 1
+        end do
+
+        !
+        ! Verify that we have not run out of available commArrays
+        !
+        if (idx > size(cpl % pairings(handle) % commArrays)) then
+            if (present(ierr)) then
+                ierr = 1
+                return
+            end if
+        end if
+
         dminfo_save => field % block % domain % dminfo
         sendList_save => field % sendList
         recvList_save => field % recvList
@@ -608,10 +673,24 @@ contains
         field % recvList => cpl % pairings(handle) % recvList
         field % copyList => cpl % pairings(handle) % copyList
 
+        !
+        ! If all of the dimensions in the commArrays structure are -1, the members of commArrays have
+        ! not yet been initialized with a call to mpas_dmpar_compact_halo_info
+        !
+        if (maxval(cpl % pairings(handle) % commArrays(idx) % dims(:)) == -1) then
+            call mpas_dmpar_compact_halo_info(field, cpl % pairings(handle) % commArrays(idx) % compactHaloInfo)
+            cpl % pairings(handle) % commArrays(idx) % dims(1) = field % dimsizes(1)
+            cpl % pairings(handle) % commArrays(idx) % dims(2) = field % dimsizes(2)
+            cpl % pairings(handle) % commArrays(idx) % dims(3) = field % dimsizes(3)
+        end if
 
-        call mpas_dmpar_compact_halo_info(field, compactHaloInfo)
-        call mpas_dmpar_exch_halo_acc(field % array, compactHaloInfo, sendList, recvList)
-
+        !
+        ! Communicate the field given a valid compactHaloInfo array, possibly reusing sendCommList and recvCommList
+        ! from a previous call to mpas_dmpar_exch_halo_acc
+        !
+        call mpas_dmpar_exch_halo_acc(field % array, cpl % pairings(handle) % commArrays(idx) % compactHaloInfo, &
+                                                     cpl % pairings(handle) % commArrays(idx) % sendCommList, &
+                                                     cpl % pairings(handle) % commArrays(idx) % recvCommList)
 
         field % block % domain % dminfo => dminfo_save
         field % sendList => sendList_save
@@ -622,10 +701,6 @@ contains
 !TODO: define error codes for intracoupler
             ierr = 0
         end if
-
-        deallocate(compactHaloInfo)
-        call mpas_dmpar_destroy_communication_list(sendList)
-        call mpas_dmpar_destroy_communication_list(recvList)
 
     end subroutine MPAS_coupler_transfer_field_r3
 
