@@ -11,9 +11,27 @@
     type mpas_coupler_arrays_type
         integer, dimension(6) :: dims = -1    ! Dimensions of the field for which the structures apply
                                               ! All dimensions set to -1 indicates an uninitialized set of structures
+
+        ! Structures needed by the 1-d and 3-d halo exchanges
         integer, dimension(:), pointer :: compactHaloInfo => null()
         type (mpas_communication_list), pointer :: sendCommList => null()
         type (mpas_communication_list), pointer :: recvCommList => null()
+
+        ! Additional structures needed by the 2-d halo exchanges
+        integer, dimension(:), pointer :: gpu_idx_send => null()
+        integer, dimension(:), pointer :: gpu_bufferoffset_send => null()
+        integer, dimension(:), pointer :: gpu_nList_send => null()
+
+        integer, dimension(:), pointer :: gpu_idx_recv => null()
+        integer, dimension(:), pointer :: gpu_bufferoffset_recv => null()
+        integer, dimension(:), pointer :: gpu_nList_recv => null()
+
+        integer, dimension(2) :: gpu_dimSizes = 0
+        integer, dimension(2) :: gpuArraySize = 0
+        integer :: gpu_nHaloLayers = 0
+        integer :: gpu_send_size = 0
+        integer :: gpu_recv_size = 0
+        integer :: gpu_compactHaloInfoSize = 0
     end type mpas_coupler_arrays_type
 
     type mpas_coupler_pairing_type

@@ -144,9 +144,36 @@ contains
 
                 do idx=1,size(cpl % pairings(i) % commArrays)
                     if (maxval(cpl % pairings(i) % commArrays(idx) % dims(:)) > -1) then
-                        deallocate(cpl % pairings(i) % commArrays(idx) % compactHaloInfo)
-                        call mpas_dmpar_destroy_communication_list(cpl % pairings(i) % commArrays(idx) % sendCommList)
-                        call mpas_dmpar_destroy_communication_list(cpl % pairings(i) % commArrays(idx) % recvCommList)
+                        if (associated(cpl % pairings(i) % commArrays(idx) % compactHaloInfo)) then
+                            deallocate(cpl % pairings(i) % commArrays(idx) % compactHaloInfo)
+                        end if
+                        if (associated(cpl % pairings(i) % commArrays(idx) % sendCommList)) then
+                            call mpas_dmpar_destroy_communication_list(cpl % pairings(i) % commArrays(idx) % sendCommList)
+                        end if
+                        if (associated(cpl % pairings(i) % commArrays(idx) % recvCommList)) then
+                            call mpas_dmpar_destroy_communication_list(cpl % pairings(i) % commArrays(idx) % recvCommList)
+                        end if
+
+                        if (associated(cpl % pairings(i) % commArrays(idx) % gpu_idx_send)) then
+                            deallocate(cpl % pairings(i) % commArrays(idx) % gpu_idx_send)
+                        end if
+                        if (associated(cpl % pairings(i) % commArrays(idx) % gpu_bufferoffset_send)) then
+                            deallocate(cpl % pairings(i) % commArrays(idx) % gpu_bufferoffset_send)
+                        end if
+                        if (associated(cpl % pairings(i) % commArrays(idx) % gpu_nList_send)) then
+                            deallocate(cpl % pairings(i) % commArrays(idx) % gpu_nList_send)
+                        end if
+
+                        if (associated(cpl % pairings(i) % commArrays(idx) % gpu_idx_recv)) then
+                            deallocate(cpl % pairings(i) % commArrays(idx) % gpu_idx_recv)
+                        end if
+                        if (associated(cpl % pairings(i) % commArrays(idx) % gpu_bufferoffset_recv)) then
+                            deallocate(cpl % pairings(i) % commArrays(idx) % gpu_bufferoffset_recv)
+                        end if
+                        if (associated(cpl % pairings(i) % commArrays(idx) % gpu_nList_recv)) then
+                            deallocate(cpl % pairings(i) % commArrays(idx) % gpu_nList_recv)
+                        end if
+
                     end if
                 end do
 
@@ -389,8 +416,7 @@ contains
     !-----------------------------------------------------------------------
     subroutine MPAS_coupler_transfer_field_r1(cpl, handle, field, ierr)
 
-        use mpas_derived_types, only : field1DReal, MPAS_COUPLER_INCOMING, dm_info, mpas_multihalo_exchange_list, &
-                                       mpas_communication_list
+        use mpas_derived_types, only : field1DReal, dm_info, mpas_multihalo_exchange_list
         use mpas_dmpar, only : mpas_dmpar_compact_halo_info, mpas_dmpar_exch_halo_acc
 
         implicit none
@@ -499,11 +525,8 @@ contains
     !-----------------------------------------------------------------------
     subroutine MPAS_coupler_transfer_field_r2(cpl, handle, field, ierr)
 
-        use mpas_derived_types, only : field2DReal, MPAS_COUPLER_INCOMING, dm_info, mpas_multihalo_exchange_list, &
-                                       mpas_communication_list
-        use mpas_dmpar, only : mpas_dmpar_exch_halo_field
-        use mpas_dmpar, only : mpas_dmpar_gpu_init_2d_real_acc, mpas_dmpar_destroy_communication_list, &
-                               mpas_dmpar_compact_halo_info, mpas_dmpar_exch_halo_acc
+        use mpas_derived_types, only : field2DReal, dm_info, mpas_multihalo_exchange_list
+        use mpas_dmpar, only : mpas_dmpar_gpu_init_2d_real_acc, mpas_dmpar_compact_halo_info, mpas_dmpar_exch_halo_acc
 
         implicit none
 
@@ -512,22 +535,12 @@ contains
         type (field2DReal), pointer :: field
         integer, intent(out), optional :: ierr
 
+        integer :: idx
         type (dm_info), pointer :: dminfo_save
         type (mpas_multihalo_exchange_list), pointer :: sendList_save
         type (mpas_multihalo_exchange_list), pointer :: recvList_save
         type (mpas_multihalo_exchange_list), pointer :: copyList_save
 
-        integer, dimension(:), pointer :: compactHaloInfo => null()
-        type (mpas_communication_list), pointer :: sendList => null()
-        type (mpas_communication_list), pointer :: recvList => null()
-        integer, dimension(:), pointer :: gpu_idx_send, gpu_bufferoffset_send, gpu_nList_send
-        integer, dimension(:), pointer :: gpu_idx_recv, gpu_bufferoffset_recv, gpu_nList_recv
-        integer, dimension(2) :: gpu_dimSizes
-        integer, dimension(2) :: gpuArraySize
-        integer :: gpu_nHaloLayers
-        integer :: gpu_send_size
-        integer :: gpu_recv_size
-        integer :: gpu_compactHaloInfoSize
 
         !
         ! Make sure handle is valid
@@ -544,6 +557,30 @@ contains
             return
         end if
 
+        !
+        ! Find index of communication structure appropriate for the dimensionality of this field
+        !
+        idx = 1
+        do while (idx <= size(cpl % pairings(handle) % commArrays) .and. &
+                  maxval(cpl % pairings(handle) % commArrays(idx) % dims(:)) > -1)
+           if (cpl % pairings(handle) % commArrays(idx) % dims(1) == field % dimsizes(1) .and. &
+               cpl % pairings(handle) % commArrays(idx) % dims(2) == field % dimsizes(2) .and. &
+               cpl % pairings(handle) % commArrays(idx) % dims(3) == -1) then
+              exit
+           end if
+           idx = idx + 1
+        end do
+
+        !
+        ! Verify that we have not run out of available commArrays
+        !
+        if (idx > size(cpl % pairings(handle) % commArrays)) then
+            if (present(ierr)) then
+                ierr = 1
+                return
+            end if
+        end if
+
         dminfo_save => field % block % domain % dminfo
         sendList_save => field % sendList
         recvList_save => field % recvList
@@ -555,22 +592,50 @@ contains
         field % copyList => cpl % pairings(handle) % copyList
 
 
-        call mpas_dmpar_compact_halo_info(field, compactHaloInfo)
-        call mpas_dmpar_gpu_init_2d_real_acc(field % array, compactHaloInfo, sendList, recvList, gpu_bufferOffset_send, &
-                                        gpu_nList_send, gpu_idx_send, gpu_bufferOffset_recv, gpu_nList_recv, &
-                                        gpu_idx_recv, gpu_dimsizes, gpu_nHaloLayers )
+        !
+        ! If all of the dimensions in the commArrays structure are -1, the members of commArrays have
+        ! not yet been initialized with a call to mpas_dmpar_compact_halo_info
+        !
+        if (maxval(cpl % pairings(handle) % commArrays(idx) % dims(:)) == -1) then
+            call mpas_dmpar_compact_halo_info(field, cpl % pairings(handle) % commArrays(idx) % compactHaloInfo)
+            cpl % pairings(handle) % commArrays(idx) % dims(1) = field % dimsizes(1)
+            cpl % pairings(handle) % commArrays(idx) % dims(2) = field % dimsizes(2)
 
-        gpu_send_size = size(gpu_nList_send)
-        gpu_recv_size = size(gpu_nList_recv)
-        gpu_compactHaloInfoSize = size(compactHaloInfo)
-        gpuArraySize(1) = size(field % array, 1)
-        gpuArraySize(2) = size(field % array, 2)
+            call mpas_dmpar_gpu_init_2d_real_acc(field % array, cpl % pairings(handle) % commArrays(idx) % compactHaloInfo, &
+                                                                cpl % pairings(handle) % commArrays(idx) % sendCommList, &
+                                                                cpl % pairings(handle) % commArrays(idx) % recvCommList, &
+                                                                cpl % pairings(handle) % commArrays(idx) % gpu_bufferOffset_send, &
+                                                                cpl % pairings(handle) % commArrays(idx) % gpu_nList_send, &
+                                                                cpl % pairings(handle) % commArrays(idx) % gpu_idx_send, &
+                                                                cpl % pairings(handle) % commArrays(idx) % gpu_bufferOffset_recv, &
+                                                                cpl % pairings(handle) % commArrays(idx) % gpu_nList_recv, &
+                                                                cpl % pairings(handle) % commArrays(idx) % gpu_idx_recv, &
+                                                                cpl % pairings(handle) % commArrays(idx) % gpu_dimsizes, &
+                                                                cpl % pairings(handle) % commArrays(idx) % gpu_nHaloLayers )
 
-        call mpas_dmpar_exch_halo_acc(field % array, compactHaloInfo, sendList, recvList, gpu_bufferOffset_send, &
-                                      gpu_nList_send, gpu_idx_send, gpu_bufferOffset_recv, gpu_nList_recv, &
-                                      gpu_idx_recv, gpu_dimsizes, gpu_nHaloLayers, gpu_send_size, gpu_recv_size, &
-                                      gpu_compactHaloInfoSize, gpuArraySize(1), gpuArraySize(2))
+            cpl % pairings(handle) % commArrays(idx) % gpu_send_size = size(cpl % pairings(handle) % commArrays(idx) % gpu_nList_send)
+            cpl % pairings(handle) % commArrays(idx) % gpu_recv_size = size(cpl % pairings(handle) % commArrays(idx) % gpu_nList_recv)
+            cpl % pairings(handle) % commArrays(idx) % gpu_compactHaloInfoSize = size(cpl % pairings(handle) % commArrays(idx) % compactHaloInfo)
+            cpl % pairings(handle) % commArrays(idx) % gpuArraySize(1) = size(field % array, 1)
+            cpl % pairings(handle) % commArrays(idx) % gpuArraySize(2) = size(field % array, 2)
+        end if
 
+        call mpas_dmpar_exch_halo_acc(field % array, cpl % pairings(handle) % commArrays(idx) % compactHaloInfo, &
+                                                     cpl % pairings(handle) % commArrays(idx) % sendCommList, &
+                                                     cpl % pairings(handle) % commArrays(idx) % recvCommList, &
+                                                     cpl % pairings(handle) % commArrays(idx) % gpu_bufferOffset_send, &
+                                                     cpl % pairings(handle) % commArrays(idx) % gpu_nList_send, &
+                                                     cpl % pairings(handle) % commArrays(idx) % gpu_idx_send, &
+                                                     cpl % pairings(handle) % commArrays(idx) % gpu_bufferOffset_recv, &
+                                                     cpl % pairings(handle) % commArrays(idx) % gpu_nList_recv, &
+                                                     cpl % pairings(handle) % commArrays(idx) % gpu_idx_recv, &
+                                                     cpl % pairings(handle) % commArrays(idx) % gpu_dimsizes, &
+                                                     cpl % pairings(handle) % commArrays(idx) % gpu_nHaloLayers, &
+                                                     cpl % pairings(handle) % commArrays(idx) % gpu_send_size, &
+                                                     cpl % pairings(handle) % commArrays(idx) % gpu_recv_size, &
+                                                     cpl % pairings(handle) % commArrays(idx) % gpu_compactHaloInfoSize, &
+                                                     cpl % pairings(handle) % commArrays(idx) % gpuArraySize(1), &
+                                                     cpl % pairings(handle) % commArrays(idx) % gpuArraySize(2))
 
         field % block % domain % dminfo => dminfo_save
         field % sendList => sendList_save
@@ -581,12 +646,6 @@ contains
 !TODO: define error codes for intracoupler
             ierr = 0
         end if
-
-        deallocate(compactHaloInfo)
-        call mpas_dmpar_destroy_communication_list(sendList)
-        call mpas_dmpar_destroy_communication_list(recvList)
-        deallocate(gpu_idx_send, gpu_bufferoffset_send, gpu_nList_send)
-        deallocate(gpu_idx_recv, gpu_bufferoffset_recv, gpu_nList_recv)
 
     end subroutine MPAS_coupler_transfer_field_r2
 
@@ -605,8 +664,7 @@ contains
     !-----------------------------------------------------------------------
     subroutine MPAS_coupler_transfer_field_r3(cpl, handle, field, ierr)
 
-        use mpas_derived_types, only : field3DReal, MPAS_COUPLER_INCOMING, dm_info, mpas_multihalo_exchange_list, &
-                                       mpas_communication_list
+        use mpas_derived_types, only : field3DReal, dm_info, mpas_multihalo_exchange_list
         use mpas_dmpar, only : mpas_dmpar_compact_halo_info, mpas_dmpar_exch_halo_acc
 
         implicit none
