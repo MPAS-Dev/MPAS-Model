@@ -292,8 +292,8 @@ module mpas_io
       end if
 
       if (present(pio_file_desc)) then
-call mpas_log_write('Using externally provided PIO file descriptor')
          MPAS_io_open % pio_file = pio_file_desc
+         MPAS_io_open % external_file_desc = .true.
       else
          if (mode == MPAS_IO_WRITE) then
 !call mpas_log_write('MGD PIO_createfile')
@@ -334,6 +334,7 @@ call mpas_log_write('Using externally provided PIO file descriptor')
             if (present(ierr)) ierr = MPAS_IO_ERR_PIO
             return
          end if
+         MPAS_io_open % external_file_desc = .false.
       end if
 
       if (mode == MPAS_IO_READ .or. MPAS_io_open % preexisting_file) then
@@ -4883,7 +4884,9 @@ call mpas_log_write('Using externally provided PIO file descriptor')
       handle % initialized = .false.
 
 !call mpas_log_write('MGD PIO_closefile')
-      call PIO_closefile(handle % pio_file)
+      if (.not. handle % external_file_desc) then
+         call PIO_closefile(handle % pio_file)
+      end if
 
    end subroutine MPAS_io_close
 
