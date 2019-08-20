@@ -86,7 +86,7 @@ pgi:
 	"CC_SERIAL = pgcc" \
 	"CXX_SERIAL = pgc++" \
 	"FFLAGS_PROMOTION = -r8" \
-	"FFLAGS_OPT = -O3 -byteswapio -Mfree" \
+	"FFLAGS_OPT = -O4 -byteswapio -Mfree" \
 	"CFLAGS_OPT = -O3" \
 	"CXXFLAGS_OPT = -O3" \
 	"LDFLAGS_OPT = -O3" \
@@ -96,7 +96,7 @@ pgi:
 	"LDFLAGS_DEBUG = -O0 -g -Mbounds -Mchkptr -Ktrap=divz,fp,inv,ovf -traceback" \
 	"FFLAGS_OMP = -mp" \
 	"CFLAGS_OMP = -mp" \
-	"FFLAGS_ACC = -Mnofma -acc -ta=tesla:cc60 -Minfo=accel" \
+	"FFLAGS_ACC = -Mnofma -acc -ta=tesla:cc70 -Minfo=accel" \
 	"CFLAGS_ACC =" \
 	"CORE = $(CORE)" \
 	"DEBUG = $(DEBUG)" \

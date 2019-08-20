@@ -342,26 +342,31 @@
  call mpas_pool_get_config(configs,'config_microp_scheme' ,microp_scheme       )
  call mpas_pool_get_config(configs,'config_microp_re'     ,config_microp_re    )
 
- call mpas_pool_get_array(mesh,'latCell',latCell)
- call mpas_pool_get_array(mesh,'lonCell',lonCell)
+ call mpas_pool_get_array_gpu(mesh,'latCell',latCell)
+ call mpas_pool_get_array_gpu(mesh,'lonCell',lonCell)
 
- call mpas_pool_get_array(state,'aerosols',aerosols,time_lev)
+ call mpas_pool_get_array_gpu(state,'aerosols',aerosols,time_lev)
 
- call mpas_pool_get_array(sfc_input,'skintemp',skintemp)
- call mpas_pool_get_array(sfc_input,'snow'    ,snow    )
- call mpas_pool_get_array(sfc_input,'xice'    ,xice    )
- call mpas_pool_get_array(sfc_input,'xland'   ,xland   )
+ call mpas_pool_get_array_gpu(sfc_input,'skintemp',skintemp)
+ call mpas_pool_get_array_gpu(sfc_input,'snow'    ,snow    )
+ call mpas_pool_get_array_gpu(sfc_input,'xice'    ,xice    )
+ call mpas_pool_get_array_gpu(sfc_input,'xland'   ,xland   )
 
- call mpas_pool_get_array(atm_input,'pin'     ,pin     )
- call mpas_pool_get_array(atm_input,'ozmixm'  ,ozmixm  )
+ call mpas_pool_get_array_gpu(atm_input,'pin'     ,pin     )
+ call mpas_pool_get_array_gpu(atm_input,'ozmixm'  ,ozmixm  )
 
- call mpas_pool_get_array(diag_physics,'sfc_albedo',sfc_albedo)
- call mpas_pool_get_array(diag_physics,'sfc_emiss' ,sfc_emiss )
- call mpas_pool_get_array(diag_physics,'cldfrac'   ,cldfrac   )
- call mpas_pool_get_array(diag_physics,'o3clim'    ,o3clim    )
- call mpas_pool_get_array(diag_physics,'o3vmr'     ,o3vmr     )
- call mpas_pool_get_array(diag_physics,'m_hybi'    ,m_hybi    )
- call mpas_pool_get_array(diag_physics,'m_ps'      ,m_ps      )
+ call mpas_pool_get_array_gpu(diag_physics,'sfc_albedo',sfc_albedo)
+ call mpas_pool_get_array_gpu(diag_physics,'sfc_emiss' ,sfc_emiss )
+ call mpas_pool_get_array_gpu(diag_physics,'cldfrac'   ,cldfrac   )
+ call mpas_pool_get_array_gpu(diag_physics,'o3clim'    ,o3clim    )
+ call mpas_pool_get_array_gpu(diag_physics,'o3vmr'     ,o3vmr     )
+ call mpas_pool_get_array_gpu(diag_physics,'m_hybi'    ,m_hybi    )
+ call mpas_pool_get_array_gpu(diag_physics,'m_ps'      ,m_ps      )
+
+!!!
+ !$acc update host(latCell, lonCell, aerosols, skintemp, snow, xice, &
+ !$acc xland, pin, ozmixm, sfc_albedo, sfc_emiss, cldfrac, o3clim, &
+ !$acc o3vmr, m_hybi, m_ps)
 
  do j = jts,jte
  do i = its,ite
@@ -418,9 +423,12 @@
        microp_select: select case(microp_scheme)
           case("mp_thompson","mp_wsm6")
              if(config_microp_re) then
-                call mpas_pool_get_array(diag_physics,'re_cloud',re_cloud)
-                call mpas_pool_get_array(diag_physics,'re_ice'  ,re_ice  )
-                call mpas_pool_get_array(diag_physics,'re_snow' ,re_snow )
+                call mpas_pool_get_array_gpu(diag_physics,'re_cloud',re_cloud)
+                call mpas_pool_get_array_gpu(diag_physics,'re_ice'  ,re_ice  )
+                call mpas_pool_get_array_gpu(diag_physics,'re_snow' ,re_snow )
+
+!!!
+ !$acc update host(re_cloud, re_ice, re_snow)
 
                 do j = jts,jte
                 do k = kts,kte
@@ -647,19 +655,19 @@
  call mpas_pool_get_config(configs,'config_microp_scheme' ,microp_scheme   )
  call mpas_pool_get_config(configs,'config_microp_re'     ,config_microp_re)
 
- call mpas_pool_get_array(diag_physics,'glw'   ,glw   )
- call mpas_pool_get_array(diag_physics,'lwcf'  ,lwcf  )
- call mpas_pool_get_array(diag_physics,'lwdnb' ,lwdnb )
- call mpas_pool_get_array(diag_physics,'lwdnbc',lwdnbc)
- call mpas_pool_get_array(diag_physics,'lwdnt' ,lwdnt )
- call mpas_pool_get_array(diag_physics,'lwdntc',lwdntc)
- call mpas_pool_get_array(diag_physics,'lwupb' ,lwupb )
- call mpas_pool_get_array(diag_physics,'lwupbc',lwupbc)
- call mpas_pool_get_array(diag_physics,'lwupt' ,lwupt )
- call mpas_pool_get_array(diag_physics,'lwuptc',lwuptc)
- call mpas_pool_get_array(diag_physics,'olrtoa',olrtoa)
+ call mpas_pool_get_array_gpu(diag_physics,'glw'   ,glw   )
+ call mpas_pool_get_array_gpu(diag_physics,'lwcf'  ,lwcf  )
+ call mpas_pool_get_array_gpu(diag_physics,'lwdnb' ,lwdnb )
+ call mpas_pool_get_array_gpu(diag_physics,'lwdnbc',lwdnbc)
+ call mpas_pool_get_array_gpu(diag_physics,'lwdnt' ,lwdnt )
+ call mpas_pool_get_array_gpu(diag_physics,'lwdntc',lwdntc)
+ call mpas_pool_get_array_gpu(diag_physics,'lwupb' ,lwupb )
+ call mpas_pool_get_array_gpu(diag_physics,'lwupbc',lwupbc)
+ call mpas_pool_get_array_gpu(diag_physics,'lwupt' ,lwupt )
+ call mpas_pool_get_array_gpu(diag_physics,'lwuptc',lwuptc)
+ call mpas_pool_get_array_gpu(diag_physics,'olrtoa',olrtoa)
 
- call mpas_pool_get_array(tend_physics,'rthratenlw',rthratenlw)
+ call mpas_pool_get_array_gpu(tend_physics,'rthratenlw',rthratenlw)
 
  do j = jts,jte
  do i = its,ite
@@ -689,9 +697,9 @@
 
        microp_select: select case(microp_scheme)
           case("mp_thompson","mp_wsm6")
-             call mpas_pool_get_array(diag_physics,'rre_cloud',rre_cloud)
-             call mpas_pool_get_array(diag_physics,'rre_ice'  ,rre_ice  )
-             call mpas_pool_get_array(diag_physics,'rre_snow' ,rre_snow )
+             call mpas_pool_get_array_gpu(diag_physics,'rre_cloud',rre_cloud)
+             call mpas_pool_get_array_gpu(diag_physics,'rre_ice'  ,rre_ice  )
+             call mpas_pool_get_array_gpu(diag_physics,'rre_snow' ,rre_snow )
              if(config_microp_re) then
                 do j = jts,jte
                 do k = kts,kte
@@ -713,11 +721,17 @@
                 enddo
                 enddo
              endif
+!!!
+ !$acc update device(rre_cloud, rre_ice, rre_snow)
 
           case default
        end select microp_select
 
  end select radiation_lw_select
+
+!!!
+ !$acc update device(glw, lwcf, lwdnb, lwdnbc, lwdnt, lwdntc, &
+ !$acc lwupb, lwupbc, lwupt, lwuptc, olrtoa, rthratenlw)
 
  end subroutine radiation_lw_to_MPAS
 

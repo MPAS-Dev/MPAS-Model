@@ -248,26 +248,26 @@
 !initialization:
  call mpas_pool_get_config(configs,'config_pbl_scheme',pbl_scheme)
 
- call mpas_pool_get_array(mesh,'latCell',latCell)
- call mpas_pool_get_array(mesh,'lonCell',lonCell)
- call mpas_pool_get_array(mesh,'fzm'    ,fzm    )
- call mpas_pool_get_array(mesh,'fzp'    ,fzp    )
- call mpas_pool_get_array(mesh,'rdzw'   ,rdzw   )
- call mpas_pool_get_array(mesh,'zgrid'  ,zgrid  )
- call mpas_pool_get_array(mesh,'zz'     ,zz     )
+ call mpas_pool_get_array_gpu(mesh,'latCell',latCell)
+ call mpas_pool_get_array_gpu(mesh,'lonCell',lonCell)
+ call mpas_pool_get_array_gpu(mesh,'fzm'    ,fzm    )
+ call mpas_pool_get_array_gpu(mesh,'fzp'    ,fzp    )
+ call mpas_pool_get_array_gpu(mesh,'rdzw'   ,rdzw   )
+ call mpas_pool_get_array_gpu(mesh,'zgrid'  ,zgrid  )
+ call mpas_pool_get_array_gpu(mesh,'zz'     ,zz     )
 
- call mpas_pool_get_array(diag,'surface_pressure'      ,surface_pressure)
- call mpas_pool_get_array(diag,'exner'                 ,exner           )
- call mpas_pool_get_array(diag,'pressure_base'         ,pressure_b      )
- call mpas_pool_get_array(diag,'pressure_p'            ,pressure_p      )
- call mpas_pool_get_array(diag,'rtheta_base'           ,rtheta_b        )
- call mpas_pool_get_array(diag,'rtheta_p'              ,rtheta_p        )
- call mpas_pool_get_array(diag,'uReconstructZonal'     ,u               )
- call mpas_pool_get_array(diag,'uReconstructMeridional',v               )
+ call mpas_pool_get_array_gpu(diag,'surface_pressure'      ,surface_pressure)
+ call mpas_pool_get_array_gpu(diag,'exner'                 ,exner           )
+ call mpas_pool_get_array_gpu(diag,'pressure_base'         ,pressure_b      )
+ call mpas_pool_get_array_gpu(diag,'pressure_p'            ,pressure_p      )
+ call mpas_pool_get_array_gpu(diag,'rtheta_base'           ,rtheta_b        )
+ call mpas_pool_get_array_gpu(diag,'rtheta_p'              ,rtheta_p        )
+ call mpas_pool_get_array_gpu(diag,'uReconstructZonal'     ,u               )
+ call mpas_pool_get_array_gpu(diag,'uReconstructMeridional',v               )
 
- call mpas_pool_get_array(state,'rho_zz' ,rho_zz ,time_lev)
- call mpas_pool_get_array(state,'theta_m',theta_m,time_lev)
- call mpas_pool_get_array(state,'w'      ,w      ,time_lev)
+ call mpas_pool_get_array_gpu(state,'rho_zz' ,rho_zz ,time_lev)
+ call mpas_pool_get_array_gpu(state,'theta_m',theta_m,time_lev)
+ call mpas_pool_get_array_gpu(state,'w'      ,w      ,time_lev)
 
  call mpas_pool_get_dimension(state,'index_qv',index_qv)
  call mpas_pool_get_dimension(state,'index_qc',index_qc)
@@ -276,15 +276,20 @@
  call mpas_pool_get_dimension(state,'index_qs',index_qs)
  call mpas_pool_get_dimension(state,'index_qg',index_qg)
 
- call mpas_pool_get_array(state,'scalars',scalars,time_lev)
+ call mpas_pool_get_array_gpu(diag_physics,'plrad',plrad)
+ call mpas_pool_get_array_gpu(state,'scalars',scalars,time_lev)
+
+!!!
+ !$acc update host(latCell, lonCell, fzm, fzp, rdzw, zgrid, zz, &
+ !$acc surface_pressure, exner, pressure_b, pressure_p, rtheta_b, &
+ !$acc rtheta_p, u, v, rho_zz, theta_m, w, plrad, scalars)
+
  qv => scalars(index_qv,:,:)
  qc => scalars(index_qc,:,:)
  qr => scalars(index_qr,:,:)
  qi => scalars(index_qi,:,:)
  qs => scalars(index_qs,:,:)
  qg => scalars(index_qg,:,:)
-
- call mpas_pool_get_array(diag_physics,'plrad',plrad)
 
  do j = jts, jte
  do k = kts, kte
@@ -467,6 +472,11 @@
  enddo
  enddo
 
+!!!
+ !$acc update device(latCell, lonCell, fzm, fzp, rdzw, zgrid, zz, &
+ !$acc surface_pressure, exner, pressure_b, pressure_p, rtheta_b, &
+ !$acc rtheta_p, u, v, rho_zz, theta_m, w, plrad, scalars)
+
  end subroutine MPAS_to_physics
 
 !=================================================================================================================
@@ -504,24 +514,24 @@
 
  call mpas_pool_get_config(configs,'config_microp_scheme',microp_scheme)
 
- call mpas_pool_get_array(mesh,'zgrid',zgrid)
- call mpas_pool_get_array(mesh,'zz'   ,zz   )
+ call mpas_pool_get_array_gpu(mesh,'zgrid',zgrid)
+ call mpas_pool_get_array_gpu(mesh,'zz'   ,zz   )
 
- call mpas_pool_get_array(diag,'exner'        ,exner     )
- call mpas_pool_get_array(diag,'pressure_base',pressure_b)
- call mpas_pool_get_array(diag,'pressure_p'   ,pressure_p)
+ call mpas_pool_get_array_gpu(diag,'exner'        ,exner     )
+ call mpas_pool_get_array_gpu(diag,'pressure_base',pressure_b)
+ call mpas_pool_get_array_gpu(diag,'pressure_p'   ,pressure_p)
 
- call mpas_pool_get_array(diag_physics,'nt_c'    ,nt_c    )
- call mpas_pool_get_array(diag_physics,'mu_c'    ,mu_c    )
- call mpas_pool_get_array(diag_physics,'rainprod',rainprod)
- call mpas_pool_get_array(diag_physics,'evapprod',evapprod)
- call mpas_pool_get_array(diag_physics,'re_cloud',re_cloud)
- call mpas_pool_get_array(diag_physics,'re_ice'  ,re_ice  )
- call mpas_pool_get_array(diag_physics,'re_snow' ,re_snow )
+ call mpas_pool_get_array_gpu(diag_physics,'nt_c'    ,nt_c    )
+ call mpas_pool_get_array_gpu(diag_physics,'mu_c'    ,mu_c    )
+ call mpas_pool_get_array_gpu(diag_physics,'rainprod',rainprod)
+ call mpas_pool_get_array_gpu(diag_physics,'evapprod',evapprod)
+ call mpas_pool_get_array_gpu(diag_physics,'re_cloud',re_cloud)
+ call mpas_pool_get_array_gpu(diag_physics,'re_ice'  ,re_ice  )
+ call mpas_pool_get_array_gpu(diag_physics,'re_snow' ,re_snow )
 
- call mpas_pool_get_array(state,'rho_zz' ,rho_zz ,time_lev)
- call mpas_pool_get_array(state,'theta_m',theta_m,time_lev)
- call mpas_pool_get_array(state,'w'      ,w      ,time_lev)
+ call mpas_pool_get_array_gpu(state,'rho_zz' ,rho_zz ,time_lev)
+ call mpas_pool_get_array_gpu(state,'theta_m',theta_m,time_lev)
+ call mpas_pool_get_array_gpu(state,'w'      ,w      ,time_lev)
 
  call mpas_pool_get_dimension(state,'index_qv'  ,index_qv  )
  call mpas_pool_get_dimension(state,'index_qc'  ,index_qc  )
@@ -532,7 +542,13 @@
  call mpas_pool_get_dimension(state,'index_ni'  ,index_ni  )
  call mpas_pool_get_dimension(state,'index_nr'  ,index_nr  )
 
- call mpas_pool_get_array(state,'scalars',scalars,time_lev)
+ call mpas_pool_get_array_gpu(state,'scalars',scalars,time_lev)
+
+!!!
+ !$acc update host(zgrid, zz, exner, pressure_b, pressure_p, &
+ !$acc nt_c, mu_c, rainprod, evapprod, re_cloud, re_ice, re_snow, &
+ !$acc rho_zz, theta_m, w, scalars)
+
  qv   => scalars(index_qv,:,:)
  qc   => scalars(index_qc,:,:)
  qr   => scalars(index_qr,:,:)
@@ -653,27 +669,27 @@
 
  call mpas_pool_get_config(configs,'config_microp_scheme',microp_scheme)
 
- call mpas_pool_get_array(mesh,'zz'   ,zz   )
- call mpas_pool_get_array(mesh,'zgrid',zgrid)
+ call mpas_pool_get_array_gpu(mesh,'zz'   ,zz   )
+ call mpas_pool_get_array_gpu(mesh,'zgrid',zgrid)
 
- call mpas_pool_get_array(diag,'exner'           ,exner           )
- call mpas_pool_get_array(diag,'exner_base'      ,exner_b         )
- call mpas_pool_get_array(diag,'pressure_base'   ,pressure_b      )
- call mpas_pool_get_array(diag,'pressure_p'      ,pressure_p      )
- call mpas_pool_get_array(diag,'rtheta_base'     ,rtheta_b        )
- call mpas_pool_get_array(diag,'rtheta_p'        ,rtheta_p        )
- call mpas_pool_get_array(diag,'surface_pressure',surface_pressure)
+ call mpas_pool_get_array_gpu(diag,'exner'           ,exner           )
+ call mpas_pool_get_array_gpu(diag,'exner_base'      ,exner_b         )
+ call mpas_pool_get_array_gpu(diag,'pressure_base'   ,pressure_b      )
+ call mpas_pool_get_array_gpu(diag,'pressure_p'      ,pressure_p      )
+ call mpas_pool_get_array_gpu(diag,'rtheta_base'     ,rtheta_b        )
+ call mpas_pool_get_array_gpu(diag,'rtheta_p'        ,rtheta_p        )
+ call mpas_pool_get_array_gpu(diag,'surface_pressure',surface_pressure)
 
- call mpas_pool_get_array(diag_physics,'rainprod',rainprod)
- call mpas_pool_get_array(diag_physics,'evapprod',evapprod)
- call mpas_pool_get_array(diag_physics,'re_cloud',re_cloud)
- call mpas_pool_get_array(diag_physics,'re_ice'  ,re_ice  )
- call mpas_pool_get_array(diag_physics,'re_snow' ,re_snow )
+ call mpas_pool_get_array_gpu(diag_physics,'rainprod',rainprod)
+ call mpas_pool_get_array_gpu(diag_physics,'evapprod',evapprod)
+ call mpas_pool_get_array_gpu(diag_physics,'re_cloud',re_cloud)
+ call mpas_pool_get_array_gpu(diag_physics,'re_ice'  ,re_ice  )
+ call mpas_pool_get_array_gpu(diag_physics,'re_snow' ,re_snow )
 
- call mpas_pool_get_array(tend,'tend_sfc_pressure',tend_sfc_pressure)
+ call mpas_pool_get_array_gpu(tend,'tend_sfc_pressure',tend_sfc_pressure)
 
- call mpas_pool_get_array(state,'rho_zz' ,rho_zz ,time_lev)
- call mpas_pool_get_array(state,'theta_m',theta_m,time_lev)
+ call mpas_pool_get_array_gpu(state,'rho_zz' ,rho_zz ,time_lev)
+ call mpas_pool_get_array_gpu(state,'theta_m',theta_m,time_lev)
 
  call mpas_pool_get_dimension(state,'index_qv'  ,index_qv  )
  call mpas_pool_get_dimension(state,'index_qc'  ,index_qc  )
@@ -684,12 +700,18 @@
  call mpas_pool_get_dimension(state,'index_ni'  ,index_ni  )
  call mpas_pool_get_dimension(state,'index_nr'  ,index_nr  )
 
- call mpas_pool_get_array(state,'scalars',scalars,time_lev)
+ call mpas_pool_get_array_gpu(tend,'rt_diabatic_tend',rt_diabatic_tend)
+ call mpas_pool_get_array_gpu(state,'scalars',scalars,time_lev)
+
+!!!
+!$acc update host(zz, zgrid, exner, exner_b, pressure_b, pressure_p, &
+ !$acc rtheta_b, rtheta_p, surface_pressure, rainprod, evapprod, re_cloud, &
+ !$acc re_ice, re_snow, tend_sfc_pressure, rho_zz, theta_m, rt_diabatic_tend, &
+ !$acc scalars)
+
  qv   => scalars(index_qv,:,:)
  qc   => scalars(index_qc,:,:)
  qr   => scalars(index_qr,:,:)
-
- call mpas_pool_get_array(tend,'rt_diabatic_tend',rt_diabatic_tend)
 
 !update variables needed in the dynamical core:
  do j = jts,jte
@@ -781,6 +803,12 @@
     case default
 
  end select microp_select_init
+
+!!!
+ !$acc update device(zz, zgrid, exner, exner_b, pressure_b, pressure_p, &
+ !$acc rtheta_b, rtheta_p, surface_pressure, rainprod, evapprod, re_cloud, &
+ !$acc re_ice, re_snow, tend_sfc_pressure, rho_zz, theta_m, rt_diabatic_tend, &
+ !$acc scalars)
 
  end subroutine microphysics_to_MPAS
 

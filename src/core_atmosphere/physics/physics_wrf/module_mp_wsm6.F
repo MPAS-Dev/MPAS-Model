@@ -462,20 +462,19 @@ CONTAINS
 !=================================================================
 !   compute internal functions
 !
-      cpmcal(x) = cpd*(1.-max(x,qmin))+max(x,qmin)*cpv
-      xlcal(x) = xlv0-xlv1*(x-t0c)
+!!!      cpmcal(x) = cpd*(1.-max(x,qmin))+max(x,qmin)*cpv
+!!!      xlcal(x) = xlv0-xlv1*(x-t0c)
 !----------------------------------------------------------------
 !     diffus: diffusion coefficient of the water vapor
 !     viscos: kinematic viscosity(m2s-1)
 !     Optimizatin : A**B => exp(log(A)*(B))
 !
-      diffus(x,y) = 8.794e-5 * exp(log(x)*(1.81)) / y        ! 8.794e-5*x**1.81/y
-      viscos(x,y) = 1.496e-6 * (x*sqrt(x)) /(x+120.)/y  ! 1.496e-6*x**1.5/(x+120.)/y
-      xka(x,y) = 1.414e3*viscos(x,y)*y
-      diffac(a,b,c,d,e) = d*a*a/(xka(c,d)*rv*c*c)+1./(e*diffus(c,b))
-      venfac(a,b,c) = exp(log((viscos(b,c)/diffus(b,a)))*((.3333333)))         &
-                     /sqrt(viscos(b,c))*sqrt(sqrt(den0/c))
-      conden(a,b,c,d,e) = (max(b,qmin)-c)/(1.+d*d/(rv*e)*c/(a*a))
+!!!      diffus(x,y) = 8.794e-5 * exp(log(x)*(1.81)) / y        !8.794e-5*x**1.81/y
+!!!      viscos(x,y) = 1.496e-6 * (x*sqrt(x)) /(x+120.)/y  !1.496e-6*x**1.5/(x+120.)/y
+!!!      xka(x,y) = 1.414e3*(1.496e-6 * (x*sqrt(x)) /(x+120.)/y)*y
+!!!      diffac(a,b,c,d,e) = d*a*a/((1.414e3*(1.496e-6 * (c*sqrt(c)) /(c+120.)/d)*d)*rv*c*c)+1./(e*(8.794e-5 * exp(log(c)*(1.81)) / b))
+!!!      venfac(a,b,c) = exp(log(((1.496e-6 * (b*sqrt(b)) /(b+120.)/c)/(8.794e-5 * exp(log(b)*(1.81)) / a)))*((.3333333)))/sqrt((1.496e-6 * (b*sqrt(b)) /(b+120.)/c))*sqrt(sqrt(den0/c))
+!!!      conden(a,b,c,d,e) = (max(b,qmin)-c)/(1.+d*d/(rv*e)*c/(a*a))
 !
 !
       idim = ite-its+1
@@ -501,8 +500,10 @@ CONTAINS
 !
       do k = kts, kte
         do i = its, ite
-          cpm(i,k) = cpmcal(q(i,k))
-          xl(i,k) = xlcal(t(i,k))
+!!!          cpm(i,k) = cpmcal(q(i,k))
+          cpm(i,k) = cpd*(1.-max(q(i,k),qmin))+max(q(i,k),qmin)*cpv
+!!!          xl(i,k) = xlcal(t(i,k))
+          xl(i,k) = xlv0-xlv1*(t(i,k)-t0c)
         enddo
       enddo
       do k = kts, kte
@@ -547,13 +548,24 @@ CONTAINS
 !         denfac(i,k) = sqrt(den0/den(i,k))
 !       enddo
 !     enddo
-      do k = kts, kte
-        CALL VREC( tvec1(its), den(its,k), ite-its+1)
-        do i = its, ite
-          tvec1(i) = tvec1(i)*den0
-        enddo
-        CALL VSQRT( denfac(its,k), tvec1(its), ite-its+1)
-      enddo
+       do k = kts, kte
+         do i = its, ite
+#ifdef SINGLE_PRECISION
+           tvec1(i) = (1.e0/den(i,k))*den0
+           denfac(i,k) = sqrt(tvec1(i))
+#else
+           tvec1(i) = DBLE((1.d0/DBLE(den(i,k)))*den0)
+           denfac(i,k) = sqrt(DBLE(tvec1(i)))
+#endif
+         enddo
+       enddo
+!!!      do k = kts, kte
+!!!        CALL VREC( tvec1(its), den(its,k), ite-its+1)
+!!!        do i = its, ite
+!!!          tvec1(i) = tvec1(i)*den0
+!!!        enddo
+!!!        CALL VSQRT( denfac(its,k), tvec1(its), ite-its+1)
+!!!      enddo
 !
 ! Inline expansion for fpvs
 !         qs(i,k,1) = fpvs(t(i,k),0,rd,rv,cpv,cliq,cice,xlv0,xls,psat,t0c)
@@ -658,7 +670,7 @@ CONTAINS
       call slope_wsm6(qrs_tmp,den_tmp,denfac,t,rslope,rslopeb,rslope2,rslope3, & 
                      work1,its,ite,kts,kte)
 !
-      do k = kte, kts, -1
+      do k = kts, kte
         do i = its, ite
           workr(i,k) = work1(i,k,1)
           qsum(i,k) = max( (qrs(i,k,2)+qrs(i,k,3)), 1.E-15)
@@ -703,7 +715,7 @@ CONTAINS
       call slope_wsm6(qrs_tmp,den_tmp,denfac,t,rslope,rslopeb,rslope2,rslope3, &
                      work1,its,ite,kts,kte)
 !
-      do k = kte, kts, -1 
+      do k = kts, kte 
         do i = its, ite
           supcol = t0c-t(i,k)
           n0sfac(i,k) = max(min(exp(alpha*supcol),n0smax/n0s),1.)
@@ -713,10 +725,14 @@ CONTAINS
 !       (T>T0: S->R)
 !---------------------------------------------------------------
             xlf = xlf0
-            work2(i,k) = venfac(p(i,k),t(i,k),den(i,k))
+!!!            work2(i,k) = venfac(p(i,k),t(i,k),den(i,k))
+            work2(i,k) = exp(log(((1.496e-6 * (t(i,k)*sqrt(t(i,k))) /(t(i,k)+120.)/den(i,k))/(8.794e-5 * exp(log(t(i,k))*(1.81)) / p(i,k))))*((.3333333)))/sqrt((1.496e-6 * (t(i,k)*sqrt(t(i,k)))/(t(i,k)+120.)/den(i,k)))*sqrt(sqrt(den0/den(i,k)))
             if(qrs(i,k,2).gt.0.) then
               coeres = rslope2(i,k,2)*sqrt(rslope(i,k,2)*rslopeb(i,k,2))
-              psmlt(i,k) = xka(t(i,k),den(i,k))/xlf*(t0c-t(i,k))*pi/2.       &
+!!!              psmlt(i,k) = xka(t(i,k),den(i,k))/xlf*(t0c-t(i,k))*pi/2.       &
+!!!                         *n0sfac(i,k)*(precs1*rslope2(i,k,2)                 &
+!!!                         +precs2*work2(i,k)*coeres)/den(i,k)
+              psmlt(i,k) = (1.414e3*(1.496e-6 * (t(i,k)*sqrt(t(i,k))) /(t(i,k)+120.)/den(i,k))*den(i,k))/xlf*(t0c-t(i,k))*pi/2.       &
                          *n0sfac(i,k)*(precs1*rslope2(i,k,2)                 &
                          +precs2*work2(i,k)*coeres)/den(i,k)
               psmlt(i,k) = min(max(psmlt(i,k)*dtcld/mstep(i),                &
@@ -731,7 +747,10 @@ CONTAINS
 !---------------------------------------------------------------
             if(qrs(i,k,3).gt.0.) then
               coeres = rslope2(i,k,3)*sqrt(rslope(i,k,3)*rslopeb(i,k,3))
-              pgmlt(i,k) = xka(t(i,k),den(i,k))/xlf                          &
+!!!              pgmlt(i,k) = xka(t(i,k),den(i,k))/xlf                          &
+!!!                         *(t0c-t(i,k))*(precg1*rslope2(i,k,3)                &
+!!!                         +precg2*work2(i,k)*coeres)/den(i,k)
+              pgmlt(i,k) = (1.414e3*(1.496e-6 * (t(i,k)*sqrt(t(i,k)))/(t(i,k)+120.)/den(i,k))*den(i,k))/xlf                             &
                          *(t0c-t(i,k))*(precg1*rslope2(i,k,3)                &
                          +precg2*work2(i,k)*coeres)/den(i,k)
               pgmlt(i,k) = min(max(pgmlt(i,k)*dtcld/mstep(i),                &
@@ -746,7 +765,7 @@ CONTAINS
 !---------------------------------------------------------------
 ! Vice [ms-1] : fallout of ice crystal [HDC 5a]
 !---------------------------------------------------------------
-      do k = kte, kts, -1
+      do k = kts, kte
         do i = its, ite
           if(qci(i,k,2).le.0.) then
             work1c(i,k) = 0.
@@ -760,7 +779,7 @@ CONTAINS
 !
 !  forward semi-laglangian scheme (JH), PCM (piecewise constant),  (linear)
 !
-      do k = kte, kts, -1
+      do k = kts, kte
         do i = its, ite
           denqci(i,k) = den(i,k)*qci(i,k,2)
         enddo
@@ -891,9 +910,12 @@ CONTAINS
 !
       do k = kts, kte
         do i = its, ite
-          work1(i,k,1) = diffac(xl(i,k),p(i,k),t(i,k),den(i,k),qs(i,k,1))
-          work1(i,k,2) = diffac(xls,p(i,k),t(i,k),den(i,k),qs(i,k,2))
-          work2(i,k) = venfac(p(i,k),t(i,k),den(i,k))
+!!!          work1(i,k,1) = diffac(xl(i,k),p(i,k),t(i,k),den(i,k),qs(i,k,1))
+           work1(i,k,1) = den(i,k)*xl(i,k)*xl(i,k)/((1.414e3*(1.496e-6 * (t(i,k)*sqrt(t(i,k)))/(t(i,k)+120.)/den(i,k))*den(i,k))*rv*t(i,k)*t(i,k))+1./(qs(i,k,1)*(8.794e-5 * exp(log(t(i,k))*(1.81)) / p(i,k)))
+!!!          work1(i,k,2) = diffac(xls,p(i,k),t(i,k),den(i,k),qs(i,k,2))
+           work1(i,k,2) = den(i,k)*xls*xls/((1.414e3*(1.496e-6 * (t(i,k)*sqrt(t(i,k)))/(t(i,k)+120.)/den(i,k))*den(i,k))*rv*t(i,k)*t(i,k))+1./(qs(i,k,2)*(8.794e-5 * exp(log(t(i,k))*(1.81)) / p(i,k)))
+!!!          work2(i,k) = venfac(p(i,k),t(i,k),den(i,k))
+           work2(i,k) = exp(log(((1.496e-6 * (t(i,k)*sqrt(t(i,k))) /(t(i,k)+120.)/den(i,k))/(8.794e-5 * exp(log(t(i,k))*(1.81)) / p(i,k))))*((.3333333)))/sqrt((1.496e-6 * (t(i,k)*sqrt(t(i,k)))/(t(i,k)+120.)/den(i,k)))*sqrt(sqrt(den0/den(i,k)))
         enddo
       enddo
 !
@@ -1452,7 +1474,8 @@ CONTAINS
 !
       do k = kts, kte
         do i = its, ite
-          work1(i,k,1) = conden(t(i,k),q(i,k),qs(i,k,1),xl(i,k),cpm(i,k))
+!!!          work1(i,k,1) = conden(t(i,k),q(i,k),qs(i,k,1),xl(i,k),cpm(i,k))
+          work1(i,k,1) = (max(q(i,k),qmin)-qs(i,k,1))/(1.+xl(i,k)*xl(i,k)/(rv*cpm(i,k))*qs(i,k,1)/(t(i,k)*t(i,k)))
           work2(i,k) = qci(i,k,1)+work1(i,k,1)
           pcond(i,k) = min(max(work1(i,k,1)/dtcld,0.),max(q(i,k),0.)/dtcld)
           if(qci(i,k,1).gt.0..and.work1(i,k,1).lt.0.)                          &
@@ -1658,9 +1681,9 @@ CONTAINS
 !----------------------------------------------------------------
 !     size distributions: (x=mixing ratio, y=air density):
 !     valid for mixing ratio > 1.e-9 kg/kg.
-      lamdar(x,y)=   sqrt(sqrt(pidn0r/(x*y)))      ! (pidn0r/(x*y))**.25
-      lamdas(x,y,z)= sqrt(sqrt(pidn0s*z/(x*y)))    ! (pidn0s*z/(x*y))**.25
-      lamdag(x,y)=   sqrt(sqrt(pidn0g/(x*y)))      ! (pidn0g/(x*y))**.25
+!!!      lamdar(x,y)=   sqrt(sqrt(pidn0r/(x*y)))      ! (pidn0r/(x*y))**.25
+!!!      lamdas(x,y,z)= sqrt(sqrt(pidn0s*z/(x*y)))    ! (pidn0s*z/(x*y))**.25
+!!!      lamdag(x,y)=   sqrt(sqrt(pidn0g/(x*y)))      ! (pidn0g/(x*y))**.25
 !
       do k = kts, kte
         do i = its, ite
@@ -1675,7 +1698,8 @@ CONTAINS
             rslope2(i,k,1) = rsloper2max
             rslope3(i,k,1) = rsloper3max
           else
-            rslope(i,k,1) = 1./lamdar(qrs(i,k,1),den(i,k))
+!!!            rslope(i,k,1) = 1./lamdar(qrs(i,k,1),den(i,k))
+            rslope(i,k,1) = 1./(sqrt(sqrt(pidn0r/(qrs(i,k,1)*den(i,k)))))
             rslopeb(i,k,1) = rslope(i,k,1)**bvtr
             rslope2(i,k,1) = rslope(i,k,1)*rslope(i,k,1)
             rslope3(i,k,1) = rslope2(i,k,1)*rslope(i,k,1)
@@ -1686,7 +1710,8 @@ CONTAINS
             rslope2(i,k,2) = rslopes2max
             rslope3(i,k,2) = rslopes3max
           else
-            rslope(i,k,2) = 1./lamdas(qrs(i,k,2),den(i,k),n0sfac(i,k))
+!!!            rslope(i,k,2) = 1./lamdas(qrs(i,k,2),den(i,k),n0sfac(i,k))
+            rslope(i,k,2) = 1./(sqrt(sqrt(pidn0s*n0sfac(i,k)/(qrs(i,k,2)*den(i,k)))))
             rslopeb(i,k,2) = rslope(i,k,2)**bvts
             rslope2(i,k,2) = rslope(i,k,2)*rslope(i,k,2)
             rslope3(i,k,2) = rslope2(i,k,2)*rslope(i,k,2)
@@ -1697,7 +1722,8 @@ CONTAINS
             rslope2(i,k,3) = rslopeg2max
             rslope3(i,k,3) = rslopeg3max
           else
-            rslope(i,k,3) = 1./lamdag(qrs(i,k,3),den(i,k))
+!!!            rslope(i,k,3) = 1./lamdag(qrs(i,k,3),den(i,k))
+            rslope(i,k,3) = 1./(sqrt(sqrt(pidn0g/(qrs(i,k,3)*den(i,k)))))
             rslopeb(i,k,3) = rslope(i,k,3)**bvtg
             rslope2(i,k,3) = rslope(i,k,3)*rslope(i,k,3)
             rslope3(i,k,3) = rslope2(i,k,3)*rslope(i,k,3)
@@ -1734,7 +1760,7 @@ CONTAINS
 !----------------------------------------------------------------
 !     size distributions: (x=mixing ratio, y=air density):
 !     valid for mixing ratio > 1.e-9 kg/kg.
-      lamdar(x,y)=   sqrt(sqrt(pidn0r/(x*y)))      ! (pidn0r/(x*y))**.25
+!!!      lamdar(x,y)=   sqrt(sqrt(pidn0r/(x*y)))      ! (pidn0r/(x*y))**.25
 !
       do k = kts, kte
         do i = its, ite
@@ -1744,7 +1770,8 @@ CONTAINS
             rslope2(i,k) = rsloper2max
             rslope3(i,k) = rsloper3max
           else
-            rslope(i,k) = 1./lamdar(qrs(i,k),den(i,k))
+!!!            rslope(i,k) = 1./lamdar(qrs(i,k),den(i,k))
+            rslope(i,k) = 1./(sqrt(sqrt(pidn0r/(qrs(i,k)*den(i,k)))))
             rslopeb(i,k) = rslope(i,k)**bvtr
             rslope2(i,k) = rslope(i,k)*rslope(i,k)
             rslope3(i,k) = rslope2(i,k)*rslope(i,k)
@@ -1777,7 +1804,7 @@ CONTAINS
 !----------------------------------------------------------------
 !     size distributions: (x=mixing ratio, y=air density):
 !     valid for mixing ratio > 1.e-9 kg/kg.
-      lamdas(x,y,z)= sqrt(sqrt(pidn0s*z/(x*y)))    ! (pidn0s*z/(x*y))**.25
+!!!      lamdas(x,y,z)= sqrt(sqrt(pidn0s*z/(x*y)))    ! (pidn0s*z/(x*y))**.25
 !
       do k = kts, kte
         do i = its, ite
@@ -1792,7 +1819,8 @@ CONTAINS
             rslope2(i,k) = rslopes2max
             rslope3(i,k) = rslopes3max
           else
-            rslope(i,k) = 1./lamdas(qrs(i,k),den(i,k),n0sfac(i,k))
+!!!            rslope(i,k) = 1./lamdas(qrs(i,k),den(i,k),n0sfac(i,k))
+            rslope(i,k) = 1./(sqrt(sqrt(pidn0s*n0sfac(i,k)/(qrs(i,k)*den(i,k)))))
             rslopeb(i,k) = rslope(i,k)**bvts
             rslope2(i,k) = rslope(i,k)*rslope(i,k)
             rslope3(i,k) = rslope2(i,k)*rslope(i,k)
@@ -1825,7 +1853,7 @@ CONTAINS
 !----------------------------------------------------------------
 !     size distributions: (x=mixing ratio, y=air density):
 !     valid for mixing ratio > 1.e-9 kg/kg.
-      lamdag(x,y)=   sqrt(sqrt(pidn0g/(x*y)))      ! (pidn0g/(x*y))**.25
+!!!      lamdag(x,y)=   sqrt(sqrt(pidn0g/(x*y)))      ! (pidn0g/(x*y))**.25
 !
       do k = kts, kte
         do i = its, ite
@@ -1838,7 +1866,8 @@ CONTAINS
             rslope2(i,k) = rslopeg2max
             rslope3(i,k) = rslopeg3max
           else
-            rslope(i,k) = 1./lamdag(qrs(i,k),den(i,k))
+!!!            rslope(i,k) = 1./lamdag(qrs(i,k),den(i,k))
+            rslope(i,k) = 1./(sqrt(sqrt(pidn0g/(qrs(i,k)*den(i,k)))))
             rslopeb(i,k) = rslope(i,k)**bvtg
             rslope2(i,k) = rslope(i,k)*rslope(i,k)
             rslope3(i,k) = rslope2(i,k)*rslope(i,k)
@@ -1882,142 +1911,181 @@ CONTAINS
       real  tl,tl2,qql,dql,qqd
       real  th,th2,qqh,dqh
       real  zsum,qsum,dim,dip,c1,con1,fa1,fa2
-      real  allold, allnew, zz, dzamin, cflmax, decfl
-      real  dz(km), ww(km), qq(km), wd(km), wa(km), was(km)
-      real  den(km), denfac(km), tk(km)
-      real  wi(km+1), zi(km+1), za(km+1)
-      real  qn(km), qr(km),tmp(km),tmp1(km),tmp2(km),tmp3(km)
-      real  dza(km+1), qa(km+1), qmi(km+1), qpi(km+1)
+      real  allold(im), allnew, zz, dzamin, cflmax, decfl
+!!!      real  dz(km), ww(km), qq(km), wd(km), wa(km), was(km)
+      real  ww(im,km), wd(im,km), wa(im,km), was(im,km)
+!!!      real  den(km), denfac(km), tk(km)
+      real  wi(im,km+1), zi(im,km+1), za(im,km+1)
+      real  qn(im,km), qr(im,km),tmp(im,km),tmp1(im,km),tmp2(im,km),tmp3(im,km)
+      real  dza(im,km+1), qa(im,km+1), qmi(km+1), qpi(km+1)
 !
-      precip(:) = 0.0
 !
       i_loop : do i=1,im
 ! -----------------------------------
-      dz(:) = dzl(i,:)
-      qq(:) = rql(i,:)
-      ww(:) = wwl(i,:)
-      den(:) = denl(i,:)
-      denfac(:) = denfacl(i,:)
-      tk(:) = tkl(i,:)
+!!!      dz(:) = dzl(i,:)
+!!!      qq(:) = rql(i,:)
+      precip(i) = 0.0
+      ww(i,:) = wwl(i,:)
+!!!      den(:) = denl(i,:)
+!!!      denfac(:) = denfacl(i,:)
+!!!      tk(:) = tkl(i,:)
 ! skip for no precipitation for all layers
-      allold = 0.0
+      allold(i) = 0.0
       do k=1,km
-        allold = allold + qq(k)
+        allold(i) = allold(i) + rql(i,k)
       enddo
-      if(allold.le.0.0) then
-        cycle i_loop
-      endif
+if(allold(i).gt.0.0) then
+!!!        cycle i_loop
+!!!      endif
 !
 ! compute interface values
-      zi(1)=0.0
+      zi(i,1)=0.0
       do k=1,km
-        zi(k+1) = zi(k)+dz(k)
+        zi(i,k+1) = zi(i,k)+dzl(i,k)
       enddo
 !
 ! save departure wind
-      wd(:) = ww(:)
-      n=1
- 100  continue
+      wd(i,:) = ww(i,:)
+endif
+   enddo i_loop
+
+!!!      n=1
+!!! 100  continue
+   i_loop1 : do i=1,im
+if(allold(i).gt.0.0) then
+      do n=1,(iter+1) 
 ! plm is 2nd order, we can use 2nd order wi or 3rd order wi
 ! 2nd order interpolation to get wi
-      wi(1) = ww(1)
-      wi(km+1) = ww(km)
+      wi(i,1) = ww(i,1)
+      wi(i,km+1) = ww(i,km)
       do k=2,km
-        wi(k) = (ww(k)*dz(k-1)+ww(k-1)*dz(k))/(dz(k-1)+dz(k))
+        wi(i,k) = (ww(i,k)*dzl(i,k-1)+ww(i,k-1)*dzl(i,k))/(dzl(i,k-1)+dzl(i,k))
       enddo
 ! 3rd order interpolation to get wi
       fa1 = 9./16.
       fa2 = 1./16.
-      wi(1) = ww(1)
-      wi(2) = 0.5*(ww(2)+ww(1))
+      wi(i,1) = ww(i,1)
+      wi(i,2) = 0.5*(ww(i,2)+ww(i,1))
       do k=3,km-1
-        wi(k) = fa1*(ww(k)+ww(k-1))-fa2*(ww(k+1)+ww(k-2))
+        wi(i,k) = fa1*(ww(i,k)+ww(i,k-1))-fa2*(ww(i,k+1)+ww(i,k-2))
       enddo
-      wi(km) = 0.5*(ww(km)+ww(km-1))
-      wi(km+1) = ww(km)
+      wi(i,km) = 0.5*(ww(i,km)+ww(i,km-1))
+      wi(i,km+1) = ww(i,km)
 !
 ! terminate of top of raingroup
       do k=2,km
-        if( ww(k).eq.0.0 ) wi(k)=ww(k-1)
+        if( ww(i,k).eq.0.0 ) wi(i,k)=ww(i,k-1)
       enddo
 !
 ! diffusivity of wi
       con1 = 0.05
       do k=km,1,-1
-        decfl = (wi(k+1)-wi(k))*dt/dz(k)
+        decfl = (wi(i,k+1)-wi(i,k))*dt/dzl(i,k)
         if( decfl .gt. con1 ) then
-          wi(k) = wi(k+1) - con1*dz(k)/dt
+          wi(i,k) = wi(i,k+1) - con1*dzl(i,k)/dt
         endif
       enddo
 ! compute arrival point
       do k=1,km+1
-        za(k) = zi(k) - wi(k)*dt
+        za(i,k) = zi(i,k) - wi(i,k)*dt
       enddo
 !
       do k=1,km
-        dza(k) = za(k+1)-za(k)
+        dza(i,k) = za(i,k+1)-za(i,k)
       enddo
-      dza(km+1) = zi(km+1) - za(km+1)
+      dza(i,km+1) = zi(i,km+1) - za(i,km+1)
 !
 ! computer deformation at arrival point
       do k=1,km
-        qa(k) = qq(k)*dz(k)/dza(k)
-        qr(k) = qa(k)/den(k)
+        qa(i,k) = rql(i,k)*dzl(i,k)/dza(i,k)
+        qr(i,k) = qa(i,k)/denl(i,k)
       enddo
-      qa(km+1) = 0.0
+      qa(i,km+1) = 0.0
 !     call maxmin(km,1,qa,' arrival points ')
 !
 ! compute arrival terminal velocity, and estimate mean terminal velocity
 ! then back to use mean terminal velocity
       if( n.le.iter ) then
-        call slope_rain(qr,den,denfac,tk,tmp,tmp1,tmp2,tmp3,wa,1,1,1,km)
-        if( n.ge.2 ) wa(1:km)=0.5*(wa(1:km)+was(1:km))
+
+!******************** Slope Rain Subroutine Start ********************
+!!!        call slope_rain(qr,den,denfac,tk,tmp,tmp1,tmp2,tmp3,wa,1,1,1,km)
+!!!                       (qrs,den,denfac,t,rslope,rslopeb,rslope2,rslope3,vt,its,ite,kts,kte)
+!----------------------------------------------------------------
+!     size distributions: (x=mixing ratio, y=air density):
+!     valid for mixing ratio > 1.e-9 kg/kg.
+!!!      lamdar(x,y)=   sqrt(sqrt(pidn0r/(x*y)))      ! (pidn0r/(x*y))**.25
+!
+      do k = 1, km
+          if(qr(i,k).le.qcrmin)then
+            tmp(i,k) = rslopermax
+            tmp1(i,k) = rsloperbmax
+            tmp2(i,k) = rsloper2max
+            tmp3(i,k) = rsloper3max
+          else
+!!!            rslope(i,k) = 1./lamdar(qrs(i,k),den(i,k))
+            tmp(i,k) = 1./(sqrt(sqrt(pidn0r/(qr(i,k)*denl(i,k)))))
+            tmp1(i,k) = tmp(i,k)**bvtr
+            tmp2(i,k) = tmp(i,k)*tmp(i,k)
+            tmp3(i,k) = tmp2(i,k)*tmp(i,k)
+          endif
+          wa(i,k) = pvtr*tmp1(i,k)*denfacl(i,k)
+          if(qr(i,k).le.0.0) wa(i,k) = 0.0
+      enddo
+!*******************Slope Rain Subroutine End ************************
+
+        if( n.ge.2 ) wa(i,1:km)=0.5*(wa(i,1:km)+was(i,1:km))
         do k=1,km
 !#ifdef DEBUG
 !        print*,' slope_wsm3 ',qr(k)*1000.,den(k),denfac(k),tk(k),tmp(k),tmp1(k),tmp2(k),ww(k),wa(k)
 !#endif
 ! mean wind is average of departure and new arrival winds
-          ww(k) = 0.5* ( wd(k)+wa(k) )
+          ww(i,k) = 0.5* ( wd(i,k)+wa(i,k) )
         enddo
-        was(:) = wa(:)
-        n=n+1
-        go to 100
+        was(i,:) = wa(i,:)
+!!!        n=n+1
+!!!        go to 100
       endif
+      enddo
+endif
+   enddo i_loop1
+
+   i_loop2 : do i=1,im
+if(allold(i).gt.0.0) then
 !
 ! estimate values at arrival cell interface with monotone
       do k=2,km
-        dip=(qa(k+1)-qa(k))/(dza(k+1)+dza(k))
-        dim=(qa(k)-qa(k-1))/(dza(k-1)+dza(k))
+        dip=(qa(i,k+1)-qa(i,k))/(dza(i,k+1)+dza(i,k))
+        dim=(qa(i,k)-qa(i,k-1))/(dza(i,k-1)+dza(i,k))
         if( dip*dim.le.0.0 ) then
-          qmi(k)=qa(k)
-          qpi(k)=qa(k)
+          qmi(k)=qa(i,k)
+          qpi(k)=qa(i,k)
         else
-          qpi(k)=qa(k)+0.5*(dip+dim)*dza(k)
-          qmi(k)=2.0*qa(k)-qpi(k)
+          qpi(k)=qa(i,k)+0.5*(dip+dim)*dza(i,k)
+          qmi(k)=2.0*qa(i,k)-qpi(k)
           if( qpi(k).lt.0.0 .or. qmi(k).lt.0.0 ) then
-            qpi(k) = qa(k)
-            qmi(k) = qa(k)
+            qpi(k) = qa(i,k)
+            qmi(k) = qa(i,k)
           endif
         endif
       enddo
-      qpi(1)=qa(1)
-      qmi(1)=qa(1)
-      qmi(km+1)=qa(km+1)
-      qpi(km+1)=qa(km+1)
+      qpi(1)=qa(i,1)
+      qmi(1)=qa(i,1)
+      qmi(km+1)=qa(i,km+1)
+      qpi(km+1)=qa(i,km+1)
 !
 ! interpolation to regular point
-      qn = 0.0
+      qn(i,:) = 0.0
       kb=1
       kt=1
       intp : do k=1,km
              kb=max(kb-1,1)
              kt=max(kt-1,1)
 ! find kb and kt
-             if( zi(k).ge.za(km+1) ) then
+             if( zi(i,k).ge.za(i,km+1) ) then
                exit intp
              else
                find_kb : do kk=kb,km
-                         if( zi(k).le.za(kk+1) ) then
+                         if( zi(i,k).le.za(i,kk+1) ) then
                            kb = kk
                            exit find_kb
                          else
@@ -2025,7 +2093,7 @@ CONTAINS
                          endif
                enddo find_kb
                find_kt : do kk=kt,km
-                         if( zi(k+1).le.za(kk) ) then
+                         if( zi(i,k+1).le.za(i,kk) ) then
                            kt = kk
                            exit find_kt
                          else
@@ -2035,58 +2103,66 @@ CONTAINS
                kt = kt - 1
 ! compute q with piecewise constant method
                if( kt.eq.kb ) then
-                 tl=(zi(k)-za(kb))/dza(kb)
-                 th=(zi(k+1)-za(kb))/dza(kb)
+                 tl=(zi(i,k)-za(i,kb))/dza(i,kb)
+                 th=(zi(i,k+1)-za(i,kb))/dza(i,kb)
                  tl2=tl*tl
                  th2=th*th
                  qqd=0.5*(qpi(kb)-qmi(kb))
                  qqh=qqd*th2+qmi(kb)*th
                  qql=qqd*tl2+qmi(kb)*tl
-                 qn(k) = (qqh-qql)/(th-tl)
+                 qn(i,k) = (qqh-qql)/(th-tl)
                else if( kt.gt.kb ) then
-                 tl=(zi(k)-za(kb))/dza(kb)
+                 tl=(zi(i,k)-za(i,kb))/dza(i,kb)
                  tl2=tl*tl
                  qqd=0.5*(qpi(kb)-qmi(kb))
                  qql=qqd*tl2+qmi(kb)*tl
-                 dql = qa(kb)-qql
-                 zsum  = (1.-tl)*dza(kb)
-                 qsum  = dql*dza(kb)
+                 dql = qa(i,kb)-qql
+                 zsum  = (1.-tl)*dza(i,kb)
+                 qsum  = dql*dza(i,kb)
                  if( kt-kb.gt.1 ) then
                  do m=kb+1,kt-1
-                   zsum = zsum + dza(m)
-                   qsum = qsum + qa(m) * dza(m)
+                   zsum = zsum + dza(i,m)
+                   qsum = qsum + qa(i,m) * dza(i,m)
                  enddo
                  endif
-                 th=(zi(k+1)-za(kt))/dza(kt)
+                 th=(zi(i,k+1)-za(i,kt))/dza(i,kt)
                  th2=th*th
                  qqd=0.5*(qpi(kt)-qmi(kt))
                  dqh=qqd*th2+qmi(kt)*th
-                 zsum  = zsum + th*dza(kt)
-                 qsum  = qsum + dqh*dza(kt)
-                 qn(k) = qsum/zsum
+                 zsum  = zsum + th*dza(i,kt)
+                 qsum  = qsum + dqh*dza(i,kt)
+                 qn(i,k) = qsum/zsum
                endif
                cycle intp
              endif
 !
        enddo intp
+endif
+   enddo i_loop2
+
+   i_loop3 : do i=1,im
+if(allold(i).gt.0.0) then
 !
 ! rain out
       sum_precip: do k=1,km
-                    if( za(k).lt.0.0 .and. za(k+1).lt.0.0 ) then
-                      precip(i) = precip(i) + qa(k)*dza(k)
+                    if( za(i,k).lt.0.0 .and. za(i,k+1).lt.0.0 ) then
+                      precip(i) = precip(i) + qa(i,k)*dza(i,k)
                       cycle sum_precip
-                    else if ( za(k).lt.0.0 .and. za(k+1).ge.0.0 ) then
-                      precip(i) = precip(i) + qa(k)*(0.0-za(k))
+                    else if ( za(i,k).lt.0.0 .and. za(i,k+1).ge.0.0 ) then
+                      precip(i) = precip(i) + qa(i,k)*(0.0-za(i,k))
                       exit sum_precip
                     endif
                     exit sum_precip
       enddo sum_precip
 !
 ! replace the new values
-      rql(i,:) = qn(:)
+      do k=1,km
+        rql(i,k) = qn(i,k)
+      enddo
 !
 ! ----------------------------------
-      enddo i_loop
+endif
+      enddo i_loop3
 !
   END SUBROUTINE nislfv_rain_plm
 !-------------------------------------------------------------------
@@ -2122,164 +2198,239 @@ CONTAINS
       real  tl,tl2,qql,dql,qqd
       real  th,th2,qqh,dqh
       real  zsum,qsum,dim,dip,c1,con1,fa1,fa2
-      real  allold, allnew, zz, dzamin, cflmax, decfl
-      real  dz(km), ww(km), qq(km), qq2(km), wd(km), wa(km), wa2(km), was(km)
-      real  den(km), denfac(km), tk(km)
-      real  wi(km+1), zi(km+1), za(km+1)
-      real  qn(km), qr(km),qr2(km),tmp(km),tmp1(km),tmp2(km),tmp3(km)
-      real  dza(km+1), qa(km+1), qa2(km+1),qmi(km+1), qpi(km+1)
+      real  allold(im), allnew, zz, dzamin, cflmax, decfl
+!!!      real  dz(km), ww(km), qq(km), qq2(km), wd(km), wa(km), wa2(km), was(km)
+      real  ww(im,km), wd(im,km), wa(im,km), wa2(im,km), was(im,km)
+!!!      real  den(km), denfac(km), tk(km)
+      real  wi(im,km+1), zi(im,km+1), za(im,km+1)
+      real  qn(im,km), qr(im,km),qr2(im,km),tmp(im,km),tmp1(im,km),tmp2(im,km),tmp3(im,km)
+      real  dza(im,km+1), qa(im,km+1), qa2(im,km+1),qmi(km+1), qpi(km+1)
+      real  n0sfac(im,km)
+      real  supcol
 !
-      precip(:) = 0.0
-      precip1(:) = 0.0
-      precip2(:) = 0.0
 !
       i_loop : do i=1,im
 ! -----------------------------------
-      dz(:) = dzl(i,:)
-      qq(:) = rql(i,:)
-      qq2(:) = rql2(i,:)
-      ww(:) = wwl(i,:)
-      den(:) = denl(i,:)
-      denfac(:) = denfacl(i,:)
-      tk(:) = tkl(i,:)
+      precip(i) = 0.0
+      precip1(i) = 0.0
+      precip2(i) = 0.0
+
+!!!      dz(:) = dzl(i,:)
+!!!      qq(:) = rql(i,:)
+!!!      qq2(:) = rql2(i,:)
+      ww(i,:) = wwl(i,:)
+!!!      den(:) = denl(i,:)
+!!!      denfac(:) = denfacl(i,:)
+!!!      tk(:) = tkl(i,:)
 ! skip for no precipitation for all layers
-      allold = 0.0
+      allold(i) = 0.0
       do k=1,km
-        allold = allold + qq(k) + qq2(k)
+        allold(i) = allold(i) + rql(i,k) + rql2(i,k)
       enddo
-      if(allold.le.0.0) then
-        cycle i_loop
-      endif
+if(allold(i).gt.0.0) then
+!!!        cycle i_loop
+!!!      endif
 !
 ! compute interface values
-      zi(1)=0.0
+      zi(i,1)=0.0
       do k=1,km
-        zi(k+1) = zi(k)+dz(k)
+        zi(i,k+1) = zi(i,k)+dzl(i,k)
       enddo
 !
 ! save departure wind
-      wd(:) = ww(:)
-      n=1
- 100  continue
+      wd(i,:) = ww(i,:)
+endif
+   enddo i_loop
+
+!!!      n=1
+!!! 100  continue
+   i_loop1 : do i=1,im
+if(allold(i).gt.0.0) then
+      do n=1,(iter+1)
 ! plm is 2nd order, we can use 2nd order wi or 3rd order wi
 ! 2nd order interpolation to get wi
-      wi(1) = ww(1)
-      wi(km+1) = ww(km)
+      wi(i,1) = ww(i,1)
+      wi(i,km+1) = ww(i,km)
       do k=2,km
-        wi(k) = (ww(k)*dz(k-1)+ww(k-1)*dz(k))/(dz(k-1)+dz(k))
+        wi(i,k) = (ww(i,k)*dzl(i,k-1)+ww(i,k-1)*dzl(i,k))/(dzl(i,k-1)+dzl(i,k))
       enddo
 ! 3rd order interpolation to get wi
       fa1 = 9./16.
       fa2 = 1./16.
-      wi(1) = ww(1)
-      wi(2) = 0.5*(ww(2)+ww(1))
+      wi(i,1) = ww(i,1)
+      wi(i,2) = 0.5*(ww(i,2)+ww(i,1))
       do k=3,km-1
-        wi(k) = fa1*(ww(k)+ww(k-1))-fa2*(ww(k+1)+ww(k-2))
+        wi(i,k) = fa1*(ww(i,k)+ww(i,k-1))-fa2*(ww(i,k+1)+ww(i,k-2))
       enddo
-      wi(km) = 0.5*(ww(km)+ww(km-1))
-      wi(km+1) = ww(km)
+      wi(i,km) = 0.5*(ww(i,km)+ww(i,km-1))
+      wi(i,km+1) = ww(i,km)
 !
 ! terminate of top of raingroup
       do k=2,km
-        if( ww(k).eq.0.0 ) wi(k)=ww(k-1)
+        if( ww(i,k).eq.0.0 ) wi(i,k)=ww(i,k-1)
       enddo
 !
 ! diffusivity of wi
       con1 = 0.05
       do k=km,1,-1
-        decfl = (wi(k+1)-wi(k))*dt/dz(k)
+        decfl = (wi(i,k+1)-wi(i,k))*dt/dzl(i,k)
         if( decfl .gt. con1 ) then
-          wi(k) = wi(k+1) - con1*dz(k)/dt
+          wi(i,k) = wi(i,k+1) - con1*dzl(i,k)/dt
         endif
       enddo
 ! compute arrival point
       do k=1,km+1
-        za(k) = zi(k) - wi(k)*dt
+        za(i,k) = zi(i,k) - wi(i,k)*dt
       enddo
 !
       do k=1,km
-        dza(k) = za(k+1)-za(k)
+        dza(i,k) = za(i,k+1)-za(i,k)
       enddo
-      dza(km+1) = zi(km+1) - za(km+1)
+      dza(i,km+1) = zi(i,km+1) - za(i,km+1)
 !
 ! computer deformation at arrival point
       do k=1,km
-        qa(k) = qq(k)*dz(k)/dza(k)
-        qa2(k) = qq2(k)*dz(k)/dza(k)
-        qr(k) = qa(k)/den(k)
-        qr2(k) = qa2(k)/den(k)
+        qa(i,k) = rql(i,k)*dzl(i,k)/dza(i,k)
+        qa2(i,k) = rql2(i,k)*dzl(i,k)/dza(i,k)
+        qr(i,k) = qa(i,k)/denl(i,k)
+        qr2(i,k) = qa2(i,k)/denl(i,k)
       enddo
-      qa(km+1) = 0.0
-      qa2(km+1) = 0.0
+      qa(i,km+1) = 0.0
+      qa2(i,km+1) = 0.0
 !     call maxmin(km,1,qa,' arrival points ')
 !
 ! compute arrival terminal velocity, and estimate mean terminal velocity
 ! then back to use mean terminal velocity
       if( n.le.iter ) then
-        call slope_snow(qr,den,denfac,tk,tmp,tmp1,tmp2,tmp3,wa,1,1,1,km)
-        call slope_graup(qr2,den,denfac,tk,tmp,tmp1,tmp2,tmp3,wa2,1,1,1,km)
+
+!*********************** Slope Snow Subroutine Start **************************
+!!!        call slope_snow(qr,den,denfac,tk,tmp,tmp1,tmp2,tmp3,wa,1,1,1,km)
+!!!                       (qrs,den,denfac,t,rslope,rslopeb,rslope2,rslope3,vt,its,ite,kts,kte)
+!----------------------------------------------------------------
+!     size distributions: (x=mixing ratio, y=air density):
+!     valid for mixing ratio > 1.e-9 kg/kg.
+!!!      lamdas(x,y,z)= sqrt(sqrt(pidn0s*z/(x*y)))    ! (pidn0s*z/(x*y))**.25
+!
+      do k = 1, km
+          supcol = 273.15-tkl(i,k)
+!---------------------------------------------------------------
+! n0s: Intercept parameter for snow [m-4] [HDC 6]
+!---------------------------------------------------------------
+          n0sfac(i,k) = max(min(exp(alpha*supcol),n0smax/n0s),1.)
+          if(qr(i,k).le.qcrmin)then
+            tmp(i,k) = rslopesmax
+            tmp1(i,k) = rslopesbmax
+            tmp2(i,k) = rslopes2max
+            tmp3(i,k) = rslopes3max
+          else
+!!!            rslope(i,k) = 1./lamdas(qrs(i,k),den(i,k),n0sfac(i,k))
+            tmp(i,k) = 1./(sqrt(sqrt(pidn0s*n0sfac(i,k)/(qr(i,k)*denl(i,k)))))
+            tmp1(i,k) = tmp(i,k)**bvts
+            tmp2(i,k) = tmp(i,k)*tmp(i,k)
+            tmp3(i,k) = tmp2(i,k)*tmp(i,k)
+          endif
+          wa(i,k) = pvts*tmp1(i,k)*denfacl(i,k)
+          if(qr(i,k).le.0.0) wa(i,k) = 0.0
+      enddo
+!*********************** Slope Snow Subroutine End ****************************
+
+!*********************** Slope Graup Subroutine Start ************************
+!!!        call slope_graup(qr2,den,denfac,tk,tmp,tmp1,tmp2,tmp3,wa2,1,1,1,km)
+!!!                        (qrs,den,denfac,t,rslope,rslopeb,rslope2,rslope3,vt,its,ite,kts,kte)
+!----------------------------------------------------------------
+!     size distributions: (x=mixing ratio, y=air density):
+!     valid for mixing ratio > 1.e-9 kg/kg.
+!!!      lamdag(x,y)=   sqrt(sqrt(pidn0g/(x*y)))      ! (pidn0g/(x*y))**.25
+!
+      do k = 1, km
+!---------------------------------------------------------------
+! n0s: Intercept parameter for snow [m-4] [HDC 6]
+!---------------------------------------------------------------
+          if(qr2(i,k).le.qcrmin)then
+            tmp(i,k) = rslopegmax
+            tmp1(i,k) = rslopegbmax
+            tmp2(i,k) = rslopeg2max
+            tmp3(i,k) = rslopeg3max
+          else
+!!!            rslope(i,k) = 1./lamdag(qrs(i,k),den(i,k))
+            tmp(i,k) = 1./(sqrt(sqrt(pidn0g/(qr2(i,k)*denl(i,k)))))
+            tmp1(i,k) = tmp(i,k)**bvtg
+            tmp2(i,k) = tmp(i,k)*tmp(i,k)
+            tmp3(i,k) = tmp2(i,k)*tmp(i,k)
+          endif
+          wa2(i,k) = pvtg*tmp1(i,k)*denfacl(i,k)
+          if(qr2(i,k).le.0.0) wa2(i,k) = 0.0
+      enddo
+!*********************** Slope Graup Subroutine End **************************
+
         do k = 1, km
-          tmp(k) = max((qr(k)+qr2(k)), 1.E-15)
-          IF ( tmp(k) .gt. 1.e-15 ) THEN
-            wa(k) = (wa(k)*qr(k) + wa2(k)*qr2(k))/tmp(k)
+          tmp(i,k) = max((qr(i,k)+qr2(i,k)), 1.E-15)
+          IF ( tmp(i,k) .gt. 1.e-15 ) THEN
+            wa(i,k) = (wa(i,k)*qr(i,k) + wa2(i,k)*qr2(i,k))/tmp(i,k)
           ELSE
-            wa(k) = 0.
+            wa(i,k) = 0.
           ENDIF
         enddo
-        if( n.ge.2 ) wa(1:km)=0.5*(wa(1:km)+was(1:km))
+        if( n.ge.2 ) wa(i,1:km)=0.5*(wa(i,1:km)+was(i,1:km))
         do k=1,km
 !#ifdef DEBUG
 !        print*,' slope_wsm3 ',qr(k)*1000.,den(k),denfac(k),tk(k),tmp(k),tmp1(k),tmp2(k), &
 !           ww(k),wa(k)
 !#endif
 ! mean wind is average of departure and new arrival winds
-          ww(k) = 0.5* ( wd(k)+wa(k) )
+          ww(i,k) = 0.5* ( wd(i,k)+wa(i,k) )
         enddo
-        was(:) = wa(:)
-        n=n+1
-        go to 100
+        was(i,:) = wa(i,:)
+!!!        n=n+1
+!!!        go to 100
       endif
+      enddo
+endif
+   enddo i_loop1
+
+   i_loop2 : do i=1,im
+if(allold(i).gt.0.0) then
       ist_loop : do ist = 1, 2
       if (ist.eq.2) then
-       qa(:) = qa2(:)
+       qa(i,:) = qa2(i,:)
       endif
 !
       precip(i) = 0.
 !
 ! estimate values at arrival cell interface with monotone
       do k=2,km
-        dip=(qa(k+1)-qa(k))/(dza(k+1)+dza(k))
-        dim=(qa(k)-qa(k-1))/(dza(k-1)+dza(k))
+        dip=(qa(i,k+1)-qa(i,k))/(dza(i,k+1)+dza(i,k))
+        dim=(qa(i,k)-qa(i,k-1))/(dza(i,k-1)+dza(i,k))
         if( dip*dim.le.0.0 ) then
-          qmi(k)=qa(k)
-          qpi(k)=qa(k)
+          qmi(k)=qa(i,k)
+          qpi(k)=qa(i,k)
         else
-          qpi(k)=qa(k)+0.5*(dip+dim)*dza(k)
-          qmi(k)=2.0*qa(k)-qpi(k)
+          qpi(k)=qa(i,k)+0.5*(dip+dim)*dza(i,k)
+          qmi(k)=2.0*qa(i,k)-qpi(k)
           if( qpi(k).lt.0.0 .or. qmi(k).lt.0.0 ) then
-            qpi(k) = qa(k)
-            qmi(k) = qa(k)
+            qpi(k) = qa(i,k)
+            qmi(k) = qa(i,k)
           endif
         endif
       enddo
-      qpi(1)=qa(1)
-      qmi(1)=qa(1)
-      qmi(km+1)=qa(km+1)
-      qpi(km+1)=qa(km+1)
+      qpi(1)=qa(i,1)
+      qmi(1)=qa(i,1)
+      qmi(km+1)=qa(i,km+1)
+      qpi(km+1)=qa(i,km+1)
 !
 ! interpolation to regular point
-      qn = 0.0
+      qn(i,:) = 0.0
       kb=1
       kt=1
       intp : do k=1,km
              kb=max(kb-1,1)
              kt=max(kt-1,1)
 ! find kb and kt
-             if( zi(k).ge.za(km+1) ) then
+             if( zi(i,k).ge.za(i,km+1) ) then
                exit intp
              else
                find_kb : do kk=kb,km
-                         if( zi(k).le.za(kk+1) ) then
+                         if( zi(i,k).le.za(i,kk+1) ) then
                            kb = kk
                            exit find_kb
                          else
@@ -2287,7 +2438,7 @@ CONTAINS
                          endif
                enddo find_kb
                find_kt : do kk=kt,km
-                         if( zi(k+1).le.za(kk) ) then
+                         if( zi(i,k+1).le.za(i,kk) ) then
                            kt = kk
                            exit find_kt
                          else
@@ -2297,35 +2448,35 @@ CONTAINS
                kt = kt - 1
 ! compute q with piecewise constant method
                if( kt.eq.kb ) then
-                 tl=(zi(k)-za(kb))/dza(kb)
-                 th=(zi(k+1)-za(kb))/dza(kb)
+                 tl=(zi(i,k)-za(i,kb))/dza(i,kb)
+                 th=(zi(i,k+1)-za(i,kb))/dza(i,kb)
                  tl2=tl*tl
                  th2=th*th
                  qqd=0.5*(qpi(kb)-qmi(kb))
                  qqh=qqd*th2+qmi(kb)*th
                  qql=qqd*tl2+qmi(kb)*tl
-                 qn(k) = (qqh-qql)/(th-tl)
+                 qn(i,k) = (qqh-qql)/(th-tl)
                else if( kt.gt.kb ) then
-                 tl=(zi(k)-za(kb))/dza(kb)
+                 tl=(zi(i,k)-za(i,kb))/dza(i,kb)
                  tl2=tl*tl
                  qqd=0.5*(qpi(kb)-qmi(kb))
                  qql=qqd*tl2+qmi(kb)*tl
-                 dql = qa(kb)-qql
-                 zsum  = (1.-tl)*dza(kb)
-                 qsum  = dql*dza(kb)
+                 dql = qa(i,kb)-qql
+                 zsum  = (1.-tl)*dza(i,kb)
+                 qsum  = dql*dza(i,kb)
                  if( kt-kb.gt.1 ) then
                  do m=kb+1,kt-1
-                   zsum = zsum + dza(m)
-                   qsum = qsum + qa(m) * dza(m)
+                   zsum = zsum + dza(i,m)
+                   qsum = qsum + qa(i,m) * dza(i,m)
                  enddo
                  endif
-                 th=(zi(k+1)-za(kt))/dza(kt)
+                 th=(zi(i,k+1)-za(i,kt))/dza(i,kt)
                  th2=th*th
                  qqd=0.5*(qpi(kt)-qmi(kt))
                  dqh=qqd*th2+qmi(kt)*th
-                 zsum  = zsum + th*dza(kt)
-                 qsum  = qsum + dqh*dza(kt)
-                 qn(k) = qsum/zsum
+                 zsum  = zsum + th*dza(i,kt)
+                 qsum  = qsum + dqh*dza(i,kt)
+                 qn(i,k) = qsum/zsum
                endif
                cycle intp
              endif
@@ -2334,11 +2485,11 @@ CONTAINS
 !
 ! rain out
       sum_precip: do k=1,km
-                    if( za(k).lt.0.0 .and. za(k+1).lt.0.0 ) then
-                      precip(i) = precip(i) + qa(k)*dza(k)
+                    if( za(i,k).lt.0.0 .and. za(i,k+1).lt.0.0 ) then
+                      precip(i) = precip(i) + qa(i,k)*dza(i,k)
                       cycle sum_precip
-                    else if ( za(k).lt.0.0 .and. za(k+1).ge.0.0 ) then
-                      precip(i) = precip(i) + qa(k)*(0.0-za(k))
+                    else if ( za(i,k).lt.0.0 .and. za(i,k+1).ge.0.0 ) then
+                      precip(i) = precip(i) + qa(i,k)*(0.0-za(i,k))
                       exit sum_precip
                     endif
                     exit sum_precip
@@ -2346,16 +2497,17 @@ CONTAINS
 !
 ! replace the new values
       if(ist.eq.1) then
-        rql(i,:) = qn(:)
+        rql(i,:) = qn(i,:)
         precip1(i) = precip(i)
       else
-        rql2(i,:) = qn(:)
+        rql2(i,:) = qn(i,:)
         precip2(i) = precip(i)
       endif
       enddo ist_loop
 !
 ! ----------------------------------
-      enddo i_loop
+endif
+      enddo i_loop2
 !
   END SUBROUTINE nislfv_rain_plm6
 

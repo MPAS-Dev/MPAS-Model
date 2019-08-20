@@ -375,18 +375,17 @@ module mpas_subdriver
       call mpas_timer_write()
       call mpas_timer_finalize(domain_ptr)
 
-      !
-      ! Finalize infrastructure
-      !
-      call MPAS_stream_mgr_finalize(domain_ptr % streamManager)
-
       ! Print out log stats and close log file
-      !   (Do this after timer stats are printed and stream mgr finalized,
-      !    but before framework is finalized because domain is destroyed there.)
+      !   (do this after timer stats are printed)
       call mpas_log_finalize(iErr)
       if ( iErr /= 0 ) then
          call mpas_dmpar_global_abort('ERROR: Log finalize failed for core ' // trim(domain_ptr % core % coreName))
       end if
+
+      !
+      ! Finalize infrastructure
+      !
+      call MPAS_stream_mgr_finalize(domain_ptr % streamManager)
 
       call mpas_framework_finalize(domain_ptr % dminfo, domain_ptr)
 

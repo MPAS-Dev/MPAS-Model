@@ -8,7 +8,6 @@
 !=================================================================================================================
  module mpas_atmphys_todynamics
  use mpas_kind_types
- use mpas_derived_types
  use mpas_pool_routines
  use mpas_dmpar
 
@@ -211,7 +210,7 @@
 
 !=================================================================================================================
  subroutine physics_get_tend( block, mesh, state, diag, tend, tend_physics, configs, rk_step, dynamics_substep, &
-                              tend_ru_physics, tend_rtheta_physics, tend_rho_physics )
+                              tend_ru_physics, tend_rtheta_physics, tend_rho_physics, tend_th )
 !=================================================================================================================
    
  use mpas_atm_dimensions
@@ -230,6 +229,7 @@
  type(mpas_pool_type),intent(inout):: tend_physics
 
  real(kind=RKIND),dimension(:,:) :: tend_ru_physics, tend_rtheta_physics, tend_rho_physics
+ real(kind=RKIND),dimension(:,:) :: tend_th
 
 !local variables:
  character(len=StrKIND), pointer :: config_pbl_scheme, config_convection_scheme, &
@@ -262,8 +262,7 @@
  real(kind=RKIND):: tem
  real(kind=RKIND),dimension(:,:),pointer:: rublten_Edge,rucuten_Edge
 
- real(kind=RKIND),dimension(:,:),allocatable:: theta,tend_th
-
+! real(kind=RKIND),dimension(:,:),allocatable:: theta,tend_th
 
 !=================================================================================================================
  call mpas_pool_get_dimension(mesh, 'nCells', nCells)
@@ -276,14 +275,14 @@
  call mpas_pool_get_config(configs, 'config_radt_lw_scheme', config_radt_lw_scheme)
  call mpas_pool_get_config(configs, 'config_radt_sw_scheme', config_radt_sw_scheme)
 
- call mpas_pool_get_array(state, 'theta_m', theta_m, 1)
- call mpas_pool_get_array(state, 'scalars', scalars, 1)
- call mpas_pool_get_array(state, 'rho_zz', mass, 2)
- call mpas_pool_get_array(diag , 'rho_edge', mass_edge)
+ call mpas_pool_get_array_gpu(state, 'theta_m', theta_m, 1)
+ call mpas_pool_get_array_gpu(state, 'scalars', scalars, 1)
+ call mpas_pool_get_array_gpu(state, 'rho_zz', mass, 2)
+ call mpas_pool_get_array_gpu(diag , 'rho_edge', mass_edge)
 
- call mpas_pool_get_array(diag , 'tend_rtheta_adv', tend_rtheta_adv)
+ call mpas_pool_get_array_gpu(diag , 'tend_rtheta_adv', tend_rtheta_adv)
 
- call mpas_pool_get_array(diag , 'tend_u_phys', tend_u_phys) !nick
+ call mpas_pool_get_array_gpu(diag , 'tend_u_phys', tend_u_phys) !nick
 
  call mpas_pool_get_dimension(state, 'index_qv', index_qv)
  call mpas_pool_get_dimension(state, 'index_qc', index_qc)
@@ -293,41 +292,49 @@
  call mpas_pool_get_dimension(state, 'index_qg', index_qg)
  call mpas_pool_get_dimension(state, 'index_ni', index_ni)
 
- call mpas_pool_get_array(tend_physics, 'rublten', rublten)
- call mpas_pool_get_array(tend_physics, 'rvblten', rvblten)
- call mpas_pool_get_array(tend_physics, 'rublten_Edge', rublten_Edge)
- call mpas_pool_get_array(tend_physics, 'rthblten', rthblten)
- call mpas_pool_get_array(tend_physics, 'rqvblten', rqvblten)
- call mpas_pool_get_array(tend_physics, 'rqcblten', rqcblten)
- call mpas_pool_get_array(tend_physics, 'rqiblten', rqiblten)
- call mpas_pool_get_array(tend_physics, 'rniblten', rniblten)
+ call mpas_pool_get_array_gpu(tend_physics, 'rublten', rublten)
+ call mpas_pool_get_array_gpu(tend_physics, 'rvblten', rvblten)
+ call mpas_pool_get_array_gpu(tend_physics, 'rublten_Edge', rublten_Edge)
+ call mpas_pool_get_array_gpu(tend_physics, 'rthblten', rthblten)
+ call mpas_pool_get_array_gpu(tend_physics, 'rqvblten', rqvblten)
+ call mpas_pool_get_array_gpu(tend_physics, 'rqcblten', rqcblten)
+ call mpas_pool_get_array_gpu(tend_physics, 'rqiblten', rqiblten)
+ call mpas_pool_get_array_gpu(tend_physics, 'rniblten', rniblten)
 
- call mpas_pool_get_array(tend_physics, 'rucuten', rucuten)
- call mpas_pool_get_array(tend_physics, 'rvcuten', rvcuten)
- call mpas_pool_get_array(tend_physics, 'rucuten_Edge', rucuten_Edge)
- call mpas_pool_get_array(tend_physics, 'rthcuten', rthcuten)
- call mpas_pool_get_array(tend_physics, 'rqvcuten', rqvcuten)
- call mpas_pool_get_array(tend_physics, 'rqccuten', rqccuten)
- call mpas_pool_get_array(tend_physics, 'rqrcuten', rqrcuten)
- call mpas_pool_get_array(tend_physics, 'rqicuten', rqicuten)
- call mpas_pool_get_array(tend_physics, 'rqscuten', rqscuten)
- call mpas_pool_get_array(tend_physics, 'rthdynten', rthdynten)
+ call mpas_pool_get_array_gpu(tend_physics, 'rucuten', rucuten)
+ call mpas_pool_get_array_gpu(tend_physics, 'rvcuten', rvcuten)
+ call mpas_pool_get_array_gpu(tend_physics, 'rucuten_Edge', rucuten_Edge)
+ call mpas_pool_get_array_gpu(tend_physics, 'rthcuten', rthcuten)
+ call mpas_pool_get_array_gpu(tend_physics, 'rqvcuten', rqvcuten)
+ call mpas_pool_get_array_gpu(tend_physics, 'rqccuten', rqccuten)
+ call mpas_pool_get_array_gpu(tend_physics, 'rqrcuten', rqrcuten)
+ call mpas_pool_get_array_gpu(tend_physics, 'rqicuten', rqicuten)
+ call mpas_pool_get_array_gpu(tend_physics, 'rqscuten', rqscuten)
+ call mpas_pool_get_array_gpu(tend_physics, 'rthdynten', rthdynten)
 
- call mpas_pool_get_array(tend,'rt_diabatic_tend',tend_diabatic)
+ call mpas_pool_get_array_gpu(tend,'rt_diabatic_tend',tend_diabatic)
 
- call mpas_pool_get_array(tend_physics, 'rthratenlw', rthratenlw)
- call mpas_pool_get_array(tend_physics, 'rthratensw', rthratensw)
+ call mpas_pool_get_array_gpu(tend_physics, 'rthratenlw', rthratenlw)
+ call mpas_pool_get_array_gpu(tend_physics, 'rthratensw', rthratensw)
 
- call mpas_pool_get_array(tend,'u'           , tend_u         )
- call mpas_pool_get_array(tend,'theta_m'     , tend_theta     )
- call mpas_pool_get_array(tend,'theta_euler' ,tend_theta_euler)
- call mpas_pool_get_array(tend,'scalars_tend',tend_scalars    )
+ call mpas_pool_get_array_gpu(tend,'u'           , tend_u         )
+ call mpas_pool_get_array_gpu(tend,'theta_m'     , tend_theta     )
+ call mpas_pool_get_array_gpu(tend,'theta_euler' ,tend_theta_euler)
+ call mpas_pool_get_array_gpu(tend,'scalars_tend',tend_scalars    )
+
+!!!
+! !$acc update host(theta_m, scalars, mass, mass_edge, tend_rtheta_adv, &
+! !$acc tend_u_phys, rublten, rvblten, rublten_Edge, rthblten, rqvblten, &
+! !$acc rqcblten, rqiblten, rniblten, rucuten, rvcuten, rucuten_Edge, &
+! !$acc rthcuten, rqvcuten, rqccuten, rqrcuten, rqicuten, rqscuten, &
+! !$acc rthdynten, tend_diabatic, rthratenlw, rthratensw, &
+! !$acc tend_u, tend_theta, tend_theta_euler, tend_scalars)
 
 !initialize the tendency for the potential temperature and all scalars due to PBL, convection,
 !and longwave and shortwave radiation:
 ! allocate(theta(nVertLevels,nCellsSolve)  )
- allocate(tend_th(nVertLevels,nCellsSolve))
- tend_th = 0._RKIND
+! allocate(tend_th(nVertLevels,nCellsSolve))
+ tend_th(:,:) = 0._RKIND
 
  tend_scalars(:,:,:) = 0._RKIND
 
@@ -335,7 +342,8 @@
  tend_rtheta_physics(:,:) = 0._RKIND
  tend_rho_physics(:,:) = 0._RKIND       ! NB: rho tendency is not currently supplied by physics, but this
                                         !     field may be later filled with IAU or other tendencies
-
+!!!
+ !$acc update device(tend_th, tend_scalars, tend_ru_physics, tend_rtheta_physics, tend_rho_physics)
  !
  ! In case some variables are not allocated due to their associated packages,
  ! we need to make their pointers associated here to avoid triggering run-time
@@ -363,14 +371,14 @@
                            config_pbl_scheme, config_convection_scheme, config_radt_lw_scheme, config_radt_sw_scheme, &
                            index_qv, index_qc, index_qr, index_qi, index_qs, index_ni, &
                            rublten, rvblten, mass_edge, rublten_Edge, &
-                           tend_ru_physics, &
+                           tend_ru_physics, &  ! change for addtend for u
                            rucuten, rvcuten, rucuten_Edge, &
                            tend_th, tend_scalars, mass, rthblten, rqvblten, rqcblten, rqiblten, rniblten, &
                            rthcuten, rqvcuten, rqccuten, rqrcuten, rqicuten, rqscuten, &
                            rthratenlw, rthratensw, rthdynten, &
                            tend_u_phys, tend_rtheta_adv, tend_diabatic, &
                            theta_m, scalars, &
-                           tend_rtheta_physics, &
+                           tend_rtheta_physics, &  ! change for addtend for theta_m
                            tend_theta_euler &
                            )
 
@@ -396,11 +404,11 @@
  if (size(rqicuten) == 0) deallocate(rqicuten)
 
 ! deallocate(theta)
- deallocate(tend_th)
+! deallocate(tend_th)
 
 ! if(rk_step .eq. 3) then
 !    call mpas_log_write('')
-!    call mpas_log_write('--- enter subroutine physics_addtend:')
+!    call mpas_log_write('--- enter subroutine physics_get_tend:')
 !    call mpas_log_write('max rthblten   = $r',realArgs=(/maxval(rthblten(:,1:nCellsSolve))/))
 !    call mpas_log_write('min rthblten   = $r',realArgs=(/minval(rthblten(:,1:nCellsSolve))/))
 !    call mpas_log_write('max rthcuten   = $r',realArgs=(/maxval(rthcuten(:,1:nCellsSolve))/))
@@ -409,9 +417,17 @@
 !    call mpas_log_write('min rthratenlw = $r',realArgs=(/minval(rthratenlw(:,1:nCellsSolve))/))
 !    call mpas_log_write('max rthratensw = $r',realArgs=(/maxval(rthratensw(:,1:nCellsSolve))/))
 !    call mpas_log_write('min rthratensw = $r',realArgs=(/minval(rthratensw(:,1:nCellsSolve))/))
-!    call mpas_log_write('--- end subroutine physics_addtend')
+!    call mpas_log_write('--- end subroutine physics_get_tend')
 !    call mpas_log_write('')
 ! endif
+
+!!!
+! !$acc update device(theta_m, scalars, mass, mass_edge, tend_rtheta_adv, &
+! !$acc tend_u_phys, rublten, rvblten, rublten_Edge, rthblten, rqvblten, &
+! !$acc rqcblten, rqiblten, rniblten, rucuten, rvcuten, rucuten_Edge, &
+! !$acc rthcuten, rqvcuten, rqccuten, rqrcuten, rqicuten, rqscuten, &
+! !$acc rthdynten, tend_diabatic, rthratenlw, rthratensw, &
+! !$acc tend_u, tend_theta, tend_theta_euler, tend_scalars)
 
  end subroutine physics_get_tend
 
@@ -681,21 +697,40 @@
     integer :: i, k
     real (kind=RKIND) :: coeff
 
+!!!
+ !$acc data present(rublten, rvblten, mass_edge, rublten_Edge, tend_u, &
+ !$acc              rucuten, rvcuten, rucuten_Edge, &
+ !$acc              tend_scalars, mass, rthblten, rqvblten, rqcblten, rqiblten, &
+ !$acc              rthcuten, rqvcuten, rqccuten, rqicuten,  &
+ !$acc              rthratenlw, rthratensw, rthdynten, &
+ !$acc              tend_u_phys, tend_rtheta_adv, tend_diabatic, &
+ !$acc              theta_m, scalars, tend_theta, tend_theta_euler)
+
     !add coupled tendencies due to PBL processes:
     if (config_pbl_scheme .ne. 'off') then
        if (rk_step == 1 .and. dynamics_substep == 1) then
-          call tend_toEdges(block,mesh,rublten,rvblten,rublten_Edge)
+          call tend_toEdges_gpu(block,mesh,rublten,rvblten,rublten_Edge)
 
           !MGD for PV budget? should a similar line be in the cumulus section below?
+!!!
+ !$acc parallel num_gangs(1) num_workers(1) vector_length(1)
           tend_u_phys(1:nVertLevels,1:nEdges) = rublten_Edge(1:nVertLevels,1:nEdges)
+!!!
+ !$acc end parallel
        end if
 
+!!!
+ !$acc parallel num_gangs(1) num_workers(1) vector_length(1)
        do i = 1, nEdgesSolve
        do k  = 1, nVertLevels
           tend_u(k,i)=tend_u(k,i)+rublten_Edge(k,i)*mass_edge(k,i)
        enddo
        enddo
+!!!
+ !$acc end parallel
 
+!!!
+ !$acc parallel num_gangs(1) num_workers(1) vector_length(1)
        do i = 1, nCellsSolve
        do k = 1, nVertLevels
           tend_th(k,i) = tend_th(k,i) + rthblten(k,i)*mass(k,i)
@@ -704,16 +739,22 @@
           tend_scalars(index_qi,k,i) = tend_scalars(index_qi,k,i) + rqiblten(k,i)*mass(k,i)
        enddo
        enddo
+!!!
+ !$acc end parallel
 
        pbl_select: select case (trim(config_pbl_scheme))
 
           case("bl_mynn")
 
+!!!
+ !$acc parallel num_gangs(1) num_workers(1) vector_length(1)
              do i = 1, nCellsSolve
              do k = 1, nVertLevels
                 tend_scalars(index_ni,k,i) = tend_scalars(index_ni,k,i) + rniblten(k,i)*mass(k,i)
              enddo
              enddo
+!!!
+ !$acc end parallel
    
           case default         
 
@@ -723,6 +764,8 @@
     !add coupled tendencies due to convection:
     if (config_convection_scheme .ne. 'off') then
 
+!!!
+ !$acc parallel num_gangs(1) num_workers(1) vector_length(1)
        do i = 1, nCellsSolve
        do k = 1, nVertLevels
           tend_th(k,i) = tend_th(k,i) + rthcuten(k,i)*mass(k,i)
@@ -731,29 +774,43 @@
           tend_scalars(index_qi,k,i) = tend_scalars(index_qi,k,i) + rqicuten(k,i)*mass(k,i)
        enddo
        enddo
+!!!
+ !$acc end parallel
 
         convection_select: select case(config_convection_scheme)
 
            case('cu_kain_fritsch')
+!!!
+ !$acc parallel num_gangs(1) num_workers(1) vector_length(1)
               do i = 1, nCellsSolve
               do k = 1, nVertLevels
                  tend_scalars(index_qr,k,i) = tend_scalars(index_qr,k,i) + rqrcuten(k,i)*mass(k,i)
                  tend_scalars(index_qs,k,i) = tend_scalars(index_qs,k,i) + rqscuten(k,i)*mass(k,i)
               enddo
               enddo
+!!!
+ !$acc end parallel
     
            case('cu_tiedtke','cu_ntiedtke')
               if (rk_step == 1 .and. dynamics_substep == 1) then
-                 call tend_toEdges(block,mesh,rucuten,rvcuten,rucuten_Edge)
+                 call tend_toEdges_gpu(block,mesh,rucuten,rvcuten,rucuten_Edge)
                  
+!!!
+ !$acc parallel num_gangs(1) num_workers(1) vector_length(1)
                  tend_u_phys(1:nVertLevels,1:nEdges) = tend_u_phys(1:nVertLevels,1:nEdges) &
                                                      + rucuten_Edge(1:nVertLevels,1:nEdges)
+!!!
+ !$acc end parallel
               end if
+!!!
+ !$acc parallel num_gangs(1) num_workers(1) vector_length(1)
               do i = 1, nEdgesSolve
               do k  = 1, nVertLevels
                  tend_u(k,i)=tend_u(k,i)+rucuten_Edge(k,i)*mass_edge(k,i)
               enddo
               enddo
+!!!
+ !$acc end parallel
 
             case default
         end select convection_select
@@ -761,24 +818,34 @@
 
     !add coupled tendencies due to longwave radiation:
     if (config_radt_lw_scheme .ne. 'off') then
+!!!
+ !$acc parallel num_gangs(1) num_workers(1) vector_length(1)
        do i = 1, nCellsSolve
        do k = 1, nVertLevels
           tend_th(k,i) = tend_th(k,i) + rthratenlw(k,i)*mass(k,i)
        enddo
        enddo
+!!!
+ !$acc end parallel
     endif
     
     !add coupled tendencies due to shortwave radiation:
     if (config_radt_sw_scheme .ne. 'off') then
+!!!
+ !$acc parallel num_gangs(1) num_workers(1) vector_length(1)
        do i = 1, nCellsSolve
        do k = 1, nVertLevels
           tend_th(k,i) = tend_th(k,i) + rthratensw(k,i)*mass(k,i)
        enddo
        enddo
+!!!
+ !$acc end parallel
     endif
 
     !if non-hydrostatic core, convert the tendency for the potential temperature to a
     !tendency for the modified potential temperature:
+!!!
+ !$acc parallel num_gangs(1) num_workers(1) vector_length(1)
     do i = 1, nCellsSolve
     do k = 1, nVertLevels
        coeff = (1. + R_v/R_d * scalars(index_qv,k,i))
@@ -786,8 +853,138 @@
        tend_theta(k,i) = tend_theta(k,i) + tend_th(k,i)
     enddo
     enddo
+!!!
+ !$acc end parallel
+ !$acc end data
 
  end subroutine physics_get_tend_work
+
+!=================================================================================================================
+ subroutine tend_toEdges_gpu(block,mesh,Ux_tend,Uy_tend,U_tend)
+!=================================================================================================================
+
+ use mpas_atm_dimensions
+
+!input arguments:
+ type(block_type),intent(in),target:: block
+ type(mpas_pool_type),intent(in):: mesh
+ real(kind=RKIND),intent(inout),dimension(:,:),target:: Ux_tend,Uy_tend 
+
+!output arguments:
+ real(kind=RKIND),intent(out),dimension(:,:):: U_tend
+
+!local variables:
+ type (field2DReal), pointer :: tempField
+ type (field2DReal), target :: tempFieldTarget
+ integer:: iCell,iEdge,k,j
+ integer:: cell1, cell2
+ integer,pointer:: nCells,nCellsSolve,nEdges
+ integer:: nCellsScalar,nCellsSolveScalar,nEdgesScalar
+ integer,dimension(:,:),pointer:: cellsOnEdge
+
+ real(kind=RKIND),dimension(:,:),pointer:: Ux_tend_halo,Uy_tend_halo
+ real(kind=RKIND), dimension(:,:), pointer :: east, north, edgeNormalVectors
+ integer, dimension(2) :: gpuArraySize
+
+ integer, dimension(:), pointer :: compactHaloInfo
+ integer, dimension(:), pointer :: gpu_idx_send,gpu_bufferoffset_send,gpu_nList_send
+ integer, dimension(:), pointer :: gpu_idx_recv,gpu_bufferoffset_recv,gpu_nList_recv
+ integer, dimension(2) :: gpu_dimSizes
+ integer :: gpu_nHaloLayers
+ integer :: gpu_send_size
+ integer :: gpu_recv_size
+ integer :: gpu_compactHaloInfoSize
+ type (mpas_communication_list), pointer :: sendList => null()
+ type (mpas_communication_list), pointer :: recvList => null()
+ 
+!-----------------------------------------------------------------------------------------------------------------
+
+ call mpas_pool_get_dimension(mesh, 'nCells', nCells)
+ call mpas_pool_get_dimension(mesh, 'nCellsSolve', nCellsSolve)
+ call mpas_pool_get_dimension(mesh, 'nEdges', nEdges)
+
+ nCellsScalar = nCells
+ nCellsSolveScalar = nCellsSolve
+ nEdgesScalar = nEdges
+
+ call mpas_pool_get_array_gpu(mesh, 'east', east)
+ call mpas_pool_get_array_gpu(mesh, 'north', north)
+ call mpas_pool_get_array_gpu(mesh, 'edgeNormalVectors', edgeNormalVectors)
+
+ call mpas_pool_get_array_gpu(mesh, 'cellsOnEdge', cellsOnEdge)
+
+ Ux_tend_halo => Ux_tend
+ Uy_tend_halo => Uy_tend
+
+ tempField => tempFieldTarget 
+ tempField % block => block
+ tempField % dimSizes(1) = nVertLevels
+ tempField % dimSizes(2) = nCellsSolveScalar
+ tempField % sendList => block % parinfo % cellsToSend
+ tempField % recvList => block % parinfo % cellsToRecv
+ tempField % copyList => block % parinfo % cellsToCopy
+ tempField % prev => null()
+ tempField % next => null()
+ tempField % isActive = .true.
+
+ tempField % array => Ux_tend_halo
+
+ call mpas_dmpar_compact_halo_info(tempField, compactHaloInfo)
+ call mpas_dmpar_gpu_init_2d_real_acc(tempField%array, compactHaloInfo, sendList, recvList, gpu_bufferOffset_send, &
+                                              gpu_nList_send, gpu_idx_send, gpu_bufferOffset_recv, gpu_nList_recv,&
+                                              gpu_idx_recv, gpu_dimsizes, gpu_nHaloLayers )
+ gpu_send_size = size(gpu_nList_send)
+ gpu_recv_size = size(gpu_nList_recv)
+ gpu_compactHaloInfoSize = size(compactHaloInfo)
+
+ !$acc enter data copyin(compactHaloInfo, gpu_bufferOffset_send, gpu_nList_send, gpu_idx_send, &
+ !$acc gpu_bufferOffset_recv, gpu_nList_recv, gpu_idx_recv, gpu_dimsizes, gpu_nHaloLayers)
+
+ !call mpas_dmpar_exch_halo(Ux_tend, compactHaloInfo, sendList, recvList)
+ gpuArraySize(1) = size(Ux_tend,1)
+ gpuArraySize(2) = size(Ux_tend,2)
+ call mpas_dmpar_exch_halo_acc(Ux_tend, compactHaloInfo, sendList, recvList,gpu_bufferOffset_send, &
+                                              gpu_nList_send, gpu_idx_send, gpu_bufferOffset_recv, gpu_nList_recv,&
+                                              gpu_idx_recv, gpu_dimsizes, gpu_nHaloLayers, gpu_send_size, gpu_recv_size,&
+                                              gpu_compactHaloInfoSize, gpuArraySize(1), gpuArraySize(2))
+ !call mpas_dmpar_exch_halo(Uy_tend, compactHaloInfo, sendList, recvList)
+ gpuArraySize(1) = size(Uy_tend,1)
+ gpuArraySize(2) = size(Uy_tend,2)
+ call mpas_dmpar_exch_halo_acc(Uy_tend, compactHaloInfo, sendList, recvList,gpu_bufferOffset_send, &
+                                              gpu_nList_send, gpu_idx_send, gpu_bufferOffset_recv, gpu_nList_recv,&
+                                              gpu_idx_recv, gpu_dimsizes, gpu_nHaloLayers, gpu_send_size, gpu_recv_size,&
+                                              gpu_compactHaloInfoSize, gpuArraySize(1), gpuArraySize(2))
+
+ deallocate(compactHaloInfo)
+ call mpas_dmpar_destroy_communication_list(sendList)
+ call mpas_dmpar_destroy_communication_list(recvList)
+
+!!!
+ !$acc data present(Ux_tend, Uy_tend, U_tend, east, north, edgeNormalVectors, cellsOnEdge)
+ !$acc parallel num_gangs(1) num_workers(1) vector_length(1)
+ do iEdge = 1, nEdgesScalar
+    cell1 = cellsOnEdge(1,iEdge)
+    cell2 = cellsOnEdge(2,iEdge)
+                           
+    U_tend(:,iEdge) =  Ux_tend_halo(:,cell1) * 0.5 * (edgeNormalVectors(1,iEdge) * east(1,cell1)   &
+                                                   +  edgeNormalVectors(2,iEdge) * east(2,cell1)   &
+                                                   +  edgeNormalVectors(3,iEdge) * east(3,cell1))  &
+                     + Uy_tend_halo(:,cell1) * 0.5 * (edgeNormalVectors(1,iEdge) * north(1,cell1)   &
+                                                   +  edgeNormalVectors(2,iEdge) * north(2,cell1)   &
+                                                   +  edgeNormalVectors(3,iEdge) * north(3,cell1))  &
+                     + Ux_tend_halo(:,cell2) * 0.5 * (edgeNormalVectors(1,iEdge) * east(1,cell2)   &
+                                                   +  edgeNormalVectors(2,iEdge) * east(2,cell2)   &
+                                                   +  edgeNormalVectors(3,iEdge) * east(3,cell2))  &
+                     + Uy_tend_halo(:,cell2) * 0.5 * (edgeNormalVectors(1,iEdge) * north(1,cell2)   &
+                                                   +  edgeNormalVectors(2,iEdge) * north(2,cell2)   &
+                                                   +  edgeNormalVectors(3,iEdge) * north(3,cell2))
+ end do
+!!!
+ !$acc end parallel
+ !$acc end data
+
+ end subroutine tend_toEdges_gpu
+
 
 !=================================================================================================================
  subroutine tend_toEdges(block,mesh,Ux_tend,Uy_tend,U_tend)
@@ -813,11 +1010,18 @@
 
  real(kind=RKIND),dimension(:,:),pointer:: Ux_tend_halo,Uy_tend_halo
  real(kind=RKIND), dimension(:,:), pointer :: east, north, edgeNormalVectors
+ integer, dimension(2) :: gpuArraySize
 
  integer, dimension(:), pointer :: compactHaloInfo
+ integer, dimension(:), pointer :: gpu_idx_send,gpu_bufferoffset_send,gpu_nList_send
+ integer, dimension(:), pointer :: gpu_idx_recv,gpu_bufferoffset_recv,gpu_nList_recv
+ integer, dimension(2) :: gpu_dimSizes
+ integer :: gpu_nHaloLayers
+ integer :: gpu_send_size
+ integer :: gpu_recv_size
+ integer :: gpu_compactHaloInfoSize
  type (mpas_communication_list), pointer :: sendList => null()
  type (mpas_communication_list), pointer :: recvList => null()
-
  
 !-----------------------------------------------------------------------------------------------------------------
 
@@ -846,8 +1050,28 @@
  tempField % isActive = .true.
 
  call mpas_dmpar_compact_halo_info(tempField, compactHaloInfo)
- call mpas_dmpar_exch_halo_acc(Ux_tend, compactHaloInfo, sendList, recvList)
- call mpas_dmpar_exch_halo_acc(Uy_tend, compactHaloInfo, sendList, recvList)
+ call mpas_dmpar_gpu_init_2d_real_acc(tempField%array, compactHaloInfo, sendList, recvList, gpu_bufferOffset_send, &
+                                              gpu_nList_send, gpu_idx_send, gpu_bufferOffset_recv, gpu_nList_recv,&
+                                              gpu_idx_recv, gpu_dimsizes, gpu_nHaloLayers )
+ gpu_send_size = size(gpu_nList_send)
+ gpu_recv_size = size(gpu_nList_recv)
+ gpu_compactHaloInfoSize = size(compactHaloInfo)
+
+ !call mpas_dmpar_exch_halo(Ux_tend, compactHaloInfo, sendList, recvList)
+ gpuArraySize(1) = size(Ux_tend,1)
+ gpuArraySize(2) = size(Ux_tend,2)
+ call mpas_dmpar_exch_halo_acc(Ux_tend, compactHaloInfo, sendList, recvList,gpu_bufferOffset_send, &
+                                              gpu_nList_send, gpu_idx_send, gpu_bufferOffset_recv, gpu_nList_recv,&
+                                              gpu_idx_recv, gpu_dimsizes, gpu_nHaloLayers, gpu_send_size, gpu_recv_size,&
+                                              gpu_compactHaloInfoSize, gpuArraySize(1), gpuArraySize(2))
+ !call mpas_dmpar_exch_halo(Uy_tend, compactHaloInfo, sendList, recvList)
+ gpuArraySize(1) = size(Uy_tend,1)
+ gpuArraySize(2) = size(Uy_tend,2)
+ call mpas_dmpar_exch_halo_acc(Uy_tend, compactHaloInfo, sendList, recvList,gpu_bufferOffset_send, &
+                                              gpu_nList_send, gpu_idx_send, gpu_bufferOffset_recv, gpu_nList_recv,&
+                                              gpu_idx_recv, gpu_dimsizes, gpu_nHaloLayers, gpu_send_size, gpu_recv_size,&
+                                              gpu_compactHaloInfoSize, gpuArraySize(1), gpuArraySize(2))
+
  deallocate(compactHaloInfo)
  call mpas_dmpar_destroy_communication_list(sendList)
  call mpas_dmpar_destroy_communication_list(recvList)
