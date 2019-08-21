@@ -680,7 +680,17 @@ module atm_time_integration
                       tend_ru_physics, &
                   tend_rtheta_physics, &
                      tend_rho_physics, &
-                              tend_th )
+                              tend_th, &
+      ! Arguments needed for OpenACC-friendly halo exchanges
+                  compactHaloInfo_c_v, &
+                  sendList_c_v, recvList_c_v, &
+                  gpu_idx_send_c_v, gpu_bufferoffset_send_c_v, gpu_nList_send_c_v, &
+                  gpu_idx_recv_c_v, gpu_bufferoffset_recv_c_v, gpu_nList_recv_c_v, &
+                  gpu_dimSizes_c_v, &
+                  gpu_nHaloLayers_c_v, &
+                  gpu_send_size_c_v, &
+                  gpu_recv_size_c_v, &
+                  gpu_compactHaloInfoSize_c_v )
          block => block % next
       end do
       call mpas_timer_stop('physics_get_tend')
