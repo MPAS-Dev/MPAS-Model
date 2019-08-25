@@ -63,7 +63,7 @@ module ocn_schism
 
    use schism_msgp, only: parallel_init,parallel_finalize,parallel_abort,myrank,nproc
    use schism_glbl, only: np,np_global,ne,ns,i34,elnode,xlon,ylat,idry_e,ze,kbe,elside, &
-           &su2,sv2,tr_el,nvrt,ntracers,dt
+           &su2,sv2,tr_el,nvrt,ntracers,dt,errmsg
 
    implicit none
    private
@@ -83,6 +83,7 @@ module ocn_schism
    !force SCHISM near ocean bnd by MPAS
    integer,save :: iths,ntime,s2m_npts_final,num_divisions_mpas_bnd,nsteps_schism_mpas,it_schism_start, &
            &mpas_nvrt
+   real (kind=RKIND),save :: schism_max_lat,schism_min_lat,schism_max_lon,schism_min_lon
    integer,save,allocatable :: s2m_schism_rank_elem(:,:),s2m_mpas_rank_block_edge(:,:)
    !s2m_lonlat_edge_pts(1,:) lon in radians in SCHISM convention [-pi,pi)
    real (kind=RKIND),save,allocatable :: s2m_lonlat_edge_pts(:,:) 
@@ -180,8 +181,7 @@ contains
       ! pointers to data in pools required for T/S water mass census
       real (kind=RKIND), dimension(:,:),   pointer :: layerThickness
       real (kind=RKIND),allocatable :: lonlat_mpas_pts(:,:),rbuff(:,:)
-      real (kind=RKIND) :: volume,rad_to_deg,pii,tmp,tmp1,tmp2,tmp3,schism_max_lat,schism_min_lat, &
-              &schism_max_lon,schism_min_lon,x3,y3
+      real (kind=RKIND) :: volume,rad_to_deg,pii,tmp,tmp1,tmp2,tmp3,x3,y3
 
       call parallel_init(domain % dminfo % comm)
       call schism_init(iths,ntime)
@@ -416,8 +416,8 @@ contains
         if(ibuff3(1,k)<0) cycle
         if(ibuff3(1,k)>nproc-1.or.ibuff3(2,k)<=0) call parallel_abort('ocn_init_schism: rank over')
 !        if(ibuff3(2,k)<=0.or.ibuff3(2,k)>ne) then
-!          write(12,*)'Fatal MPAS:',ibuff3(1:2,k),ne
-!          call parallel_abort('ocn_init_schism: ibuff3<=0')
+!          write(errmsg,*)'Fatal MPAS:',ibuff3(1:2,k),ne
+!          call parallel_abort(errmsg)
 !        endif
 
         s2m_npts_final=s2m_npts_final+1
@@ -429,8 +429,8 @@ contains
 
         if(s2m_mpas_rank_block_edge(1,s2m_npts_final)<0.or.s2m_mpas_rank_block_edge(1,s2m_npts_final)>nproc-1.or. &
          &s2m_mpas_rank_block_edge(3,s2m_npts_final)<=0) then
-          write(12,*)'Fatal MPAS:',s2m_mpas_rank_block_edge(1:3,s2m_npts_final)
-          call parallel_abort('ocn_init_schism: final list wrong(1)')
+          write(errmsg,*)'ocn_init_schism, Fatal MPAS:',s2m_mpas_rank_block_edge(1:3,s2m_npts_final)
+          call parallel_abort(errmsg)
         endif
       enddo !k
 
@@ -583,8 +583,8 @@ contains
         write(12,*)'SCHISM reduction:',k,real(s2m_schism_data(1:5,1,k)),real(s2m_schism_data(1:5,nvrt,k))
       enddo !k
 
-      deallocate(rwild)
-      allocate(rwild(3+ntracers,mpas_nvrt))
+!      deallocate(rwild)
+!      allocate(rwild(3+ntracers,mpas_nvrt))
       dminfo = domain % dminfo
       iblock=0
       block => domain % blocklist
@@ -652,7 +652,7 @@ contains
                volume = layerThickness(k,iCell) * areaCell(iCell)
 
                !Output
-               write(12,*)'Cell data:',k,temperature,salinity,zPosition,volume,areaCell(iCell)
+!               write(12,*)'Cell data:',k,temperature,salinity,zPosition,volume,areaCell(iCell)
              enddo !k
            enddo !iCell
 
@@ -678,8 +678,20 @@ contains
 !           k_chunks_start(k_chunks)=s2m_npts_final+1
 
            do iEdge=1,nEdgesSolve !resident
-             iCell=cellsOnEdge(1,iEdge)
+             if(cellsOnEdge(2,iEdge)>0.and.cellsOnEdge(2,iEdge)<=nCells) cycle
+
+             !Bnd edge
+             nd1=verticesOnEdge(1,iEdge)
+             nd2=verticesOnEdge(2,iEdge)
+
+             !Further filtering of irrelevant edges
+             if(.not.(lonVertex(nd1)<=schism_max_lon.and.lonVertex(nd1)>=schism_min_lon.and. &
+                     &latVertex(nd1)<=schism_max_lat.and.latVertex(nd1)>=schism_min_lat.or. &
+                     &lonVertex(nd2)<=schism_max_lon.and.lonVertex(nd2)>=schism_min_lon.and. &
+                     &latVertex(nd2)<=schism_max_lat.and.latVertex(nd2)>=schism_min_lat)) cycle
+
              !Find edge index
+             iCell=cellsOnEdge(1,iEdge)
              iedge_indx=0
              do m=1,nEdgesOnCell(iCell)
                if(iEdge==edgesOnCell(m,iCell)) then
@@ -689,13 +701,14 @@ contains
              enddo !m
              if(iedge_indx==0) call parallel_abort('ocn_compute_schism(2)')
 
-             icount=0; rwild=0
-             do k=1,s2m_npts_final
-               if(s2m_mpas_rank_block_edge(1,k)/=myrank.or.s2m_mpas_rank_block_edge(2,k)/=iblock.or. &
+             do k2=1,maxLevelCell(iCell)
+               !Average over all legible pts
+               icount=0; rbuff(:,1,1)=0
+               do k=1,s2m_npts_final
+                 if(s2m_mpas_rank_block_edge(1,k)/=myrank.or.s2m_mpas_rank_block_edge(2,k)/=iblock.or. &
                  &iEdge/=s2m_mpas_rank_block_edge(3,k)) cycle
 
-               icount=icount+1
-               do k2=1,maxLevelCell(iCell)
+                 icount=icount+1
                  zPosition=zMid(k2,iCell)
                  !Interp vertical
                  if(zPosition>=s2m_schism_data(1,nvrt,k)) then
@@ -709,23 +722,29 @@ contains
                        klev=k3+1; exit
                      endif
                    enddo !k3
-                   if(klev==0) call parallel_abort('ocn_compute_schism: klev')
+                   if(klev==0) then
+                     write(errmsg,*)'ocn_compute_schism: klev:',klev,zPosition,s2m_schism_data(1,:,k)
+                     call parallel_abort(errmsg)
+                   endif
                  endif !zPosition
 
-                 !zcor in rwild not used
-                 rwild(:,k2)=rwild(:,k2)+s2m_schism_data(:,klev,k) 
-               enddo !k2
-             enddo !k
-             rwild=rwild/icount
+                 !zcor not used
+                 rbuff(:,1,1)=rbuff(:,1,1)+s2m_schism_data(:,klev,k) 
+               enddo !k
+               if(icount==0) cycle
 
-             do k2=1,maxLevelCell(iCell)
+               rbuff(:,1,1)=rbuff(:,1,1)/icount
+
                !Debug
-               write(12,*)'Vel,T,S:',icount,iEdge,k2,real(rwild(2:5,k2))
+               !write(12,*)'Vel,T,S:',icount,iEdge,k2,real(rbuff(2:5,1,1))
 
                !Outer normal vel
-               outer_normal=rwild(2,k2)*cos(angleEdge(iEdge))+rwild(3,k2)*sin(angleEdge(iEdge))
+               !Error: I'm not confident the dir is right
+               outer_normal=rbuff(2,1,1)*cos(angleEdge(iEdge))+rbuff(3,1,1)*sin(angleEdge(iEdge))
                outer_normal=outer_normal*edgeSignOnCell(iedge_indx,iCell)
-               normalVelocity%array(k2,iEdge)=outer_normal
+               !Error: need to gently nudge or use other approach to inject mom?
+!               normalVelocity%array(k2,iEdge)=outer_normal
+               !Error: tangential vel?
 
                if(outer_normal<0) then !Inflow
                  volume=layerThickness(k2,iCell)*areaCell(iCell)
@@ -738,9 +757,9 @@ contains
                  tmp=activeTracersField%array(index_temperature,k2,iCell)
                  tmp1=activeTracersField%array(index_salinity,k2,iCell)
                
-                 activeTracersField%array(index_temperature,k2,iCell)=(volume*tmp+volume2*rwild(4,k2))/ &
+                 activeTracersField%array(index_temperature,k2,iCell)=(volume*tmp+volume2*rbuff(4,1,1))/ &
                         &(volume+volume2) 
-                 activeTracersField%array(index_salinity,k2,iCell)=(volume*tmp1+volume2*rwild(5,k2))/ &
+                 activeTracersField%array(index_salinity,k2,iCell)=(volume*tmp1+volume2*rbuff(5,1,1))/ &
                         &(volume+volume2)
                endif !Inflow
              enddo !k2

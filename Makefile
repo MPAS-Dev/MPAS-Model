@@ -649,9 +649,9 @@ ifdef MPAS_EXTERNAL_CPPFLAGS
 	override CPPFLAGS += $(MPAS_EXTERNAL_CPPFLAGS)
 endif
 
-###Add SCHISM lib
-LIBS += -L/global/homes/y/yinglong/SCHISM/svn/trunk/src/ -lschism -L/global/homes/y/yinglong/SCHISM/svn/trunk/src/ParMetis-3.1-Sep2010.cray/ -lparmetis -lmetis
-FCINCLUDES += -I/global/homes/y/yinglong/SCHISM/svn/trunk/src/o/svn.CORI2/
+###Add SCHISM lib (from git)
+LIBS += -L/global/homes/y/yinglong/SCHISM/git/schism/src/ -lschism -L/global/homes/y/yinglong/SCHISM/git/schism/src/ParMetis-3.1-Sep2010.cray/ -lparmetis -lmetis
+FCINCLUDES += -I/global/homes/y/yinglong/SCHISM/git/schism/src/o/svn.CORI2/
 
 ####################################################
 
