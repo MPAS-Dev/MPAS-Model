@@ -63,7 +63,8 @@ module ocn_schism
 
    use schism_msgp, only: parallel_init,parallel_finalize,parallel_abort,myrank,nproc
    use schism_glbl, only: np,np_global,ne,ns,i34,elnode,xlon,ylat,idry_e,ze,kbe,elside, &
-           &su2,sv2,tr_el,nvrt,ntracers,dt,errmsg
+           &su2,sv2,tr_el,nvrt,ntracers,dt,errmsg,nond_global,iond_global,nnu_pts,ipgl, &
+           &inu_pts_gb
 
    implicit none
    private
@@ -82,11 +83,13 @@ module ocn_schism
    !Interface arrays. 's2m_': used to force MPAS bnd edges by SCHISM; 'm2s_': used to 
    !force SCHISM near ocean bnd by MPAS
    integer,save :: iths,ntime,s2m_npts_final,num_divisions_mpas_bnd,nsteps_schism_mpas,it_schism_start, &
-           &mpas_nvrt
+           &mpas_nvrt,m2s_schism_pts
    real (kind=RKIND),save :: schism_max_lat,schism_min_lat,schism_max_lon,schism_min_lon
    integer,save,allocatable :: s2m_schism_rank_elem(:,:),s2m_mpas_rank_block_edge(:,:)
    !s2m_lonlat_edge_pts(1,:) lon in radians in SCHISM convention [-pi,pi)
-   real (kind=RKIND),save,allocatable :: s2m_lonlat_edge_pts(:,:) 
+   real (kind=RKIND),save,allocatable :: s2m_lonlat_edge_pts(:,:),m2s_mpas_dist_rank(:,:), &
+           &m2s_mpas_dist_block(:,:),m2s_mpas_dist_cell(:,:),m2s_schism_rank_lon(:,:), &
+           &m2s_schism_rank_lat(:,:) 
 
    !--------------------------------------------------------------------
    !
@@ -169,10 +172,10 @@ contains
       ! Here are some example variables which may be needed for your analysis member
       integer, pointer :: nVertLevels, nCellsSolve, nEdgesSolve, nVerticesSolve, num_tracers,nCells,nEdges
       integer :: nProcs,iTracer,i,j, k, iCell, iEdge,m,nd1,nd2,ifl,itmp,npts_mpas_tot, &
-                &icount,icount0,iblock
+                &icount,icount0,iblock,ndgb
       integer, dimension(:), pointer :: maxLevelCell, maxLevelEdgeTop, maxLevelVertexBot,nEdgesOnCell
       integer, dimension(:,:), pointer :: edgesOnCell,boundaryCell,boundaryEdge,edgeSignOnCell,verticesOnEdge, &
-     &cellsOnEdge
+     &cellsOnEdge,verticesOnCell
       integer,allocatable :: npts_mpas_in_rank(:),ibuff1(:),ibuff2(:,:),ibuff3(:,:),mpas_rank_block0(:,:), &
               &mpas_rank_edge(:,:),ifound(:)
 
@@ -181,7 +184,7 @@ contains
       ! pointers to data in pools required for T/S water mass census
       real (kind=RKIND), dimension(:,:),   pointer :: layerThickness
       real (kind=RKIND),allocatable :: lonlat_mpas_pts(:,:),rbuff(:,:)
-      real (kind=RKIND) :: volume,rad_to_deg,pii,tmp,tmp1,tmp2,tmp3,x3,y3
+      real (kind=RKIND) :: volume,rad_to_deg,pii,tmp,tmp1,tmp2,tmp3,x3,y3,rl2
 
       call parallel_init(domain % dminfo % comm)
       call schism_init(iths,ntime)
@@ -189,14 +192,17 @@ contains
       pii=3.1415926_RKIND
       rad_to_deg=180.0_RKIND/pii
 
-      !Put this into param.in 
-      num_divisions_mpas_bnd=20
-      nsteps_schism_mpas=80
-
       !Get MPAS geometry info
       dminfo = domain % dminfo
       nProcs = domain % dminfo % nprocs
       if(nProcs/=nproc.or.myrank/=domain % dminfo % my_proc_id) call parallel_abort('ocn_init_schism(0.1)')
+
+      !Init SCHISM->MPAS 's2m' lists
+!==================================================================================================
+      !Put this into param.in 
+      num_divisions_mpas_bnd=20
+      nsteps_schism_mpas=80
+
       allocate(ibuff1(0:nproc-1),npts_mpas_in_rank(0:nproc-1))
       ibuff1=0 !init as 0 for other ranks
 
@@ -212,7 +218,7 @@ contains
       call mpi_allreduce(tmp2,schism_max_lon,1,MPI_REALKIND,MPI_MAX,domain%dminfo%comm,itmp)
       call mpi_allreduce(tmp3,schism_min_lon,1,MPI_REALKIND,MPI_MIN,domain%dminfo%comm,itmp)
 #endif
-      write(12,*)'_init start...:',RKIND,schism_max_lon*rad_to_deg,schism_min_lon*rad_to_deg, &
+      write(12,*)'_init start s2m...:',RKIND,schism_max_lon*rad_to_deg,schism_min_lon*rad_to_deg, &
             &schism_max_lat*rad_to_deg,schism_min_lat*rad_to_deg
 
       if(schism_max_lon<0) schism_max_lon=schism_max_lon+pii*2 !convert to MPAS convention of lon
@@ -408,7 +414,7 @@ contains
       call mpi_allreduce(ibuff2,ibuff3,npts_mpas_tot,MPI_2INTEGER,MPI_MAXLOC,domain % dminfo % comm,itmp)
 #endif
 
-      !Build final list
+      !Build final list 's2m'
       allocate(s2m_schism_rank_elem(2,npts_mpas_tot),s2m_lonlat_edge_pts(2,npts_mpas_tot), &
               &s2m_mpas_rank_block_edge(3,npts_mpas_tot))
       s2m_npts_final=0
@@ -441,8 +447,8 @@ contains
       write(12,*)'s2m_npts_final=',s2m_npts_final,mpas_nvrt
       !Final list follows original order 
       do k=1,s2m_npts_final
-        write(12,*)'Final_ll ',real(s2m_lonlat_edge_pts(1:2,k)*rad_to_deg)
-        write(12,*)'Final rank etc:',s2m_schism_rank_elem(1:2,k),s2m_mpas_rank_block_edge(1:3,k)
+        write(12,*)'s2m, Final_ll ',real(s2m_lonlat_edge_pts(1:2,k)*rad_to_deg)
+        write(12,*)'s2m, Final rank etc:',s2m_schism_rank_elem(1:2,k),s2m_mpas_rank_block_edge(1:3,k)
 
         if(s2m_lonlat_edge_pts(1,k)>pii) s2m_lonlat_edge_pts(1,k)=s2m_lonlat_edge_pts(1,k)-2*pii
       enddo !k
@@ -454,6 +460,130 @@ contains
       it_schism_start=iths+1
 
       deallocate(ibuff1,ibuff2,ibuff3,rbuff,mpas_rank_block0,mpas_rank_edge,ifound,npts_mpas_in_rank,lonlat_mpas_pts)
+
+!==================================================================================================
+      !Init MPAS->SCHISM 'm2s' lists
+
+      !Build list of SCHISM pts that need interp from MPAS
+      !Assumptions: (1) 1st open bnd is the coupler, on which iettype=ifltype=5, itrtyp=4
+      !             (2) All tracers share same nudging zone
+      m2s_schism_pts=nond_global(1)+nnu_pts(1)
+      if(m2s_schism_pts<=0) call parallel_abort('ocn_init_schism: m2s_schism_pts<=0')
+      allocate(rbuff(4,m2s_schism_pts),m2s_mpas_dist_rank(2,m2s_schism_pts),m2s_mpas_dist_block(2,m2s_schism_pts), &
+              &m2s_mpas_dist_cell(2,m2s_schism_pts),m2s_schism_rank_lon(2,m2s_schism_pts),m2s_schism_rank_lat(2,m2s_schism_pts))
+
+      icount=0
+      rbuff=-huge(1.d0) !init
+      do j=1,nond_global(1)
+        icount=icount+1
+        ndgb=iond_global(1,j) !global
+        if(ipgl(ndgb)%rank==myrank) then
+          nd1=ipgl(ndgb)%id
+          rbuff(1,icount)=myrank
+          rbuff(2,icount)=xlon(nd1) !radian
+          rbuff(3,icount)=ylat(nd1) !radian
+        endif
+      enddo !j
+
+      !Nudging nodes from T
+      do j=1,nnu_pts(1)
+        icount=icount+1
+        ndgb=inu_pts_gb(j,1)
+        if(ipgl(ndgb)%rank==myrank) then
+          nd1=ipgl(ndgb)%id
+          rbuff(1,icount)=myrank
+          rbuff(2,icount)=xlon(nd1) !radian
+          rbuff(3,icount)=ylat(nd1) !radian
+        endif
+      enddo !j
+
+#ifdef _MPI
+      call mpi_allreduce(rbuff(1:2,:),m2s_schism_rank_lon,m2s_schism_pts,MPI_2REALKIND,MPI_MAXLOC,domain%dminfo%comm,itmp)
+      call mpi_allreduce(rbuff((/1,3/),:),m2s_schism_rank_lat,m2s_schism_pts,MPI_2REALKIND,MPI_MAXLOC,domain%dminfo%comm,itmp)
+#endif
+
+      !convert to MPAS convention of lon
+      do j=1,m2s_schism_pts
+        if(m2s_schism_rank_lon(2,j)<0) m2s_schism_rank_lon(2,j)=m2s_schism_rank_lon(2,j)+pii*2 
+
+        !Debug
+        write(12,*)'m2s_list_of_SCHISM_pts:',real(m2s_schism_rank_lon(2,j)*rad_to_deg),real(m2s_schism_rank_lat(2,j)*rad_to_deg)
+      enddo !j
+
+      !Init rank etc corresponding to min distance to a specific SCHISM pt
+      rbuff=huge(1.d0) !min distance, rank etc
+      iblock=0
+      block => domain % blocklist
+      do while (associated(block))
+        iblock=iblock+1
+        call mpas_pool_get_subpool(block % structs, 'mesh', meshPool)
+
+        call mpas_pool_get_dimension(block % dimensions, 'nCellsSolve', nCellsSolve)
+        call mpas_pool_get_dimension(block % dimensions, 'nEdgesSolve', nEdgesSolve)
+        call mpas_pool_get_dimension(block % dimensions, 'nVerticesSolve', nVerticesSolve)
+        call mpas_pool_get_dimension(block % dimensions, 'nCells', nCells)
+        call mpas_pool_get_dimension(block % dimensions, 'nEdges', nEdges)
+
+        call mpas_pool_get_array(meshPool, 'areaCell', areaCell)
+        call mpas_pool_get_array(meshPool, 'lonCell', lonCell)
+        call mpas_pool_get_array(meshPool, 'latCell', latCell)
+        call mpas_pool_get_array(meshPool, 'lonVertex', lonVertex)
+        call mpas_pool_get_array(meshPool, 'latVertex', latVertex)
+        call mpas_pool_get_array(meshPool, 'nEdgesOnCell', nEdgesOnCell)
+        call mpas_pool_get_array(meshPool, 'edgesOnCell', edgesOnCell)
+        call mpas_pool_get_array(meshPool, 'verticesOnEdge', verticesOnEdge)
+        call mpas_pool_get_array(meshPool, 'verticesOnCell', verticesOnCell)
+        call mpas_pool_get_array(meshPool, 'cellsOnEdge', cellsOnEdge)
+
+        do iCell=1,nCellsSolve !resident
+          !Pre-filtering: find cells that touch SCHISM bounding box
+          ifl=0
+          do j=1,nEdgesOnCell(iCell)
+            nd1=verticesOnCell(j,iCell)
+            if(lonVertex(nd1)<=schism_max_lon.and.lonVertex(nd1)>=schism_min_lon.and. &
+              &latVertex(nd1)<=schism_max_lat.and.latVertex(nd1)>=schism_min_lat) then
+              ifl=1; exit
+            endif
+          enddo !j
+
+          if(ifl==1) then
+            !Calc distances between iCell and list of SCHISM pts
+            do j=1,m2s_schism_pts
+              tmp=m2s_schism_rank_lon(2,j); tmp1=m2s_schism_rank_lat(2,j)
+              rl2=(tmp-lonCell(iCell))**2+(tmp1-latCell(iCell))**2
+              if(rl2<rbuff(1,j)) then
+                rbuff(1,j)=rl2
+                rbuff(2,j)=myrank
+                rbuff(3,j)=iblock
+                rbuff(4,j)=iCell
+              endif
+            enddo !j
+          endif !ifl
+        enddo !iCell
+
+        block => block % next
+      end do !while
+
+#ifdef _MPI
+      call mpi_allreduce(rbuff(1:2,:),m2s_mpas_dist_rank,m2s_schism_pts,MPI_2REALKIND,MPI_MINLOC,domain%dminfo%comm,itmp)
+      call mpi_allreduce(rbuff((/1,3/),:),m2s_mpas_dist_block,m2s_schism_pts,MPI_2REALKIND,MPI_MINLOC,domain%dminfo%comm,itmp)
+      call mpi_allreduce(rbuff((/1,4/),:),m2s_mpas_dist_cell,m2s_schism_pts,MPI_2REALKIND,MPI_MINLOC,domain%dminfo%comm,itmp)
+#endif
+
+      !Verify some weird behavior of MPI_MINLOC
+      do j=1,m2s_schism_pts
+        if(nint(m2s_mpas_dist_rank(2,j))==myrank) then
+          if(nint(m2s_mpas_dist_block(2,j))>iblock.or.nint(m2s_mpas_dist_cell(2,j))<=0) &
+            & call parallel_abort('ocn_init_schism (6)')
+
+          !Debug
+          iCell=nint(m2s_mpas_dist_cell(2,j))
+          write(12,'(a,1x,i6,3(1x,e16.6))')'m2s_Nearest_MPAS_cell:',j,lonCell(iCell)*rad_to_deg,latCell(iCell)*rad_to_deg,m2s_mpas_dist_rank(1,j)
+        endif
+      enddo !j
+
+      deallocate(rbuff)
+
       err = 0
 
    end subroutine ocn_init_schism!}}}
@@ -539,6 +669,8 @@ contains
       pii=3.1415926_RKIND
       rad_to_deg=180.0_RKIND/pii
 
+      !SCHISM->MPAS
+!==================================================================================================
       !SCHISM time stepping
       do it=it_schism_start,it_schism_start+nsteps_schism_mpas-1
         call schism_step(it)
@@ -803,6 +935,10 @@ contains
       end do
 
       deallocate(rbuff,s2m_schism_data,rwild)
+
+      !MPAS->SCHISM
+!==================================================================================================
+
       err = 0
    end subroutine ocn_compute_schism!}}}
 
