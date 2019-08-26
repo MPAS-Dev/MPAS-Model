@@ -64,7 +64,7 @@ module ocn_schism
    use schism_msgp, only: parallel_init,parallel_finalize,parallel_abort,myrank,nproc
    use schism_glbl, only: np,np_global,ne,ns,i34,elnode,xlon,ylat,idry_e,ze,kbe,elside, &
            &su2,sv2,tr_el,nvrt,ntracers,dt,errmsg,nond_global,iond_global,nnu_pts,ipgl, &
-           &inu_pts_gb
+           &inu_pts_gb,idry,znl
 
    implicit none
    private
@@ -85,7 +85,8 @@ module ocn_schism
    integer,save :: iths,ntime,s2m_npts_final,num_divisions_mpas_bnd,nsteps_schism_mpas,it_schism_start, &
            &mpas_nvrt,m2s_schism_pts
    real (kind=RKIND),save :: schism_max_lat,schism_min_lat,schism_max_lon,schism_min_lon
-   integer,save,allocatable :: s2m_schism_rank_elem(:,:),s2m_mpas_rank_block_edge(:,:)
+   integer,save,allocatable :: s2m_schism_rank_elem(:,:),s2m_mpas_rank_block_edge(:,:), &
+           &m2s_schism_ndgb(:)
    !s2m_lonlat_edge_pts(1,:) lon in radians in SCHISM convention [-pi,pi)
    real (kind=RKIND),save,allocatable :: s2m_lonlat_edge_pts(:,:),m2s_mpas_dist_rank(:,:), &
            &m2s_mpas_dist_block(:,:),m2s_mpas_dist_cell(:,:),m2s_schism_rank_lon(:,:), &
@@ -469,14 +470,17 @@ contains
       !             (2) All tracers share same nudging zone
       m2s_schism_pts=nond_global(1)+nnu_pts(1)
       if(m2s_schism_pts<=0) call parallel_abort('ocn_init_schism: m2s_schism_pts<=0')
-      allocate(rbuff(4,m2s_schism_pts),m2s_mpas_dist_rank(2,m2s_schism_pts),m2s_mpas_dist_block(2,m2s_schism_pts), &
-              &m2s_mpas_dist_cell(2,m2s_schism_pts),m2s_schism_rank_lon(2,m2s_schism_pts),m2s_schism_rank_lat(2,m2s_schism_pts))
+      allocate(rbuff(4,m2s_schism_pts),m2s_mpas_dist_rank(2,m2s_schism_pts), &
+     &m2s_mpas_dist_block(2,m2s_schism_pts),m2s_mpas_dist_cell(2,m2s_schism_pts), &
+     &m2s_schism_rank_lon(2,m2s_schism_pts),m2s_schism_rank_lat(2,m2s_schism_pts), &
+     &m2s_schism_ndgb(m2s_schism_pts))
 
       icount=0
       rbuff=-huge(1.d0) !init
       do j=1,nond_global(1)
         icount=icount+1
         ndgb=iond_global(1,j) !global
+        m2s_schism_ndgb(icount)=ndgb
         if(ipgl(ndgb)%rank==myrank) then
           nd1=ipgl(ndgb)%id
           rbuff(1,icount)=myrank
@@ -489,6 +493,7 @@ contains
       do j=1,nnu_pts(1)
         icount=icount+1
         ndgb=inu_pts_gb(j,1)
+        m2s_schism_ndgb(icount)=ndgb
         if(ipgl(ndgb)%rank==myrank) then
           nd1=ipgl(ndgb)%id
           rbuff(1,icount)=myrank
@@ -651,8 +656,7 @@ contains
       integer, pointer :: index_temperature, index_salinity
 
       real (kind=RKIND), dimension(:), pointer ::  areaCell, dcEdge, dvEdge, angleEdge,lonCell,latCell, &
-     &lonVertex,latVertex
-      real (kind=RKIND) :: temperature, salinity,zPosition, volume,rad_to_deg,pii,tmp,tmp1,outer_normal,volume2
+     &lonVertex,latVertex,lonEdge,latEdge,ssh
       ! pointers to data in pools required for T/S water mass census
       real (kind=RKIND), dimension(:,:),   pointer :: layerThickness,tangentialVelocity
 !      real (kind=RKIND), dimension(:,:),   pointer :: potentialDensity
@@ -660,17 +664,185 @@ contains
       !real (kind=RKIND), dimension(:,:,:), pointer :: activeTracers
       type(field3DReal), pointer :: activeTracersField
       type (field2DReal), pointer :: normalVelocity
-      real (kind=RKIND), allocatable :: rbuff(:,:,:),s2m_schism_data(:,:,:),rwild(:,:)
+      real (kind=RKIND), allocatable :: rbuff(:,:,:),rbuff2(:),s2m_schism_data(:,:,:),rwild(:,:), &
+     &m2s_data_1d(:),m2s_data_3d(:,:,:),m2s_schism_zcor(:,:)
+      integer, allocatable :: m2s_data_count(:),ibuff(:)
 
-      integer :: it
+      real (kind=RKIND) :: temperature, salinity,zPosition, volume,rad_to_deg,pii,tmp,tmp1,tmp2,tmp3, &
+     &tmpu,tmpv,outer_normal,volume2,sum_dist,sum_u,sum_v,snx,sny
+      integer :: it,ndgb
 
       write(12,*)'_compute start...' !,associated(activeTracers)
       !JZ
       pii=3.1415926_RKIND
       rad_to_deg=180.0_RKIND/pii
 
-      !SCHISM->MPAS
 !==================================================================================================
+      !MPAS->SCHISM
+      allocate(m2s_data_1d(m2s_schism_pts),m2s_data_3d(2+ntracers,nvrt,m2s_schism_pts), &
+              &m2s_schism_zcor(nvrt,m2s_schism_pts),m2s_data_count(m2s_schism_pts), &
+              &rbuff(2+ntracers,nvrt,m2s_schism_pts),ibuff(m2s_schism_pts),rbuff2(m2s_schism_pts), &
+              &rwild(nvrt,m2s_schism_pts))
+
+      !SCHISM: gather zcor m2s_schism_zcor(nvrt,m2s_schism_pts)
+      rwild=0; ibuff=0
+      do j=1,m2s_schism_pts
+        ndgb=m2s_schism_ndgb(j)
+        if(ipgl(ndgb)%rank==myrank) then
+          ibuff(j)=ibuff(j)+1
+          nd1=ipgl(ndgb)%id
+          if(idry(nd1)==1) then
+            rwild(:,j)=rwild(:,j)+0
+          else
+            rwild(:,j)=rwild(:,j)+znl(:,nd1)
+          endif
+        endif
+      enddo !j
+
+#ifdef _MPI
+      call mpi_allreduce(ibuff,m2s_data_count,m2s_schism_pts,MPI_INTEGER,MPI_SUM,domain%dminfo%comm,itmp)
+      call mpi_allreduce(rwild,m2s_schism_zcor,nvrt*m2s_schism_pts,MPI_REALKIND,MPI_SUM,domain%dminfo%comm,itmp)
+      do j=1,m2s_schism_pts
+        if(m2s_data_count(j)<=0) call parallel_abort('ocn_compute_schism, m2s: m2s_data_count<=0')
+
+        m2s_schism_zcor(:,j)=m2s_schism_zcor(:,j)/m2s_data_count(j)
+      enddo !j
+#endif
+
+      dminfo = domain % dminfo
+      !rbuff->m2s_data_3d(2+ntracers,:,:): 1-2: u,v; rest are tracers
+      rbuff2=0; rbuff=0; ibuff=0
+      iblock=0
+      block => domain % blocklist
+      do while (associated(block))
+         iblock=iblock+1
+         call mpas_pool_get_subpool(block % structs, 'state', statePool)
+         call mpas_pool_get_subpool(block % structs, 'mesh', meshPool)
+         call mpas_pool_get_subpool(block % structs, 'scratch', scratchPool)
+         call mpas_pool_get_subpool(block % structs, 'diagnostics', diagnosticsPool)
+         call mpas_pool_get_subpool(block % structs, 'schismAM', schismAMPool)
+
+         ! Here are some example variables which may be needed for your analysis member
+         call mpas_pool_get_dimension(statePool, 'num_tracers', num_tracers)
+         !JZ
+         call mpas_pool_get_subpool(statePool, 'tracers', tracersPool)
+
+         call mpas_pool_get_dimension(block % dimensions, 'nVertLevels', nVertLevels)
+         call mpas_pool_get_dimension(block % dimensions, 'nCellsSolve', nCellsSolve)
+         call mpas_pool_get_dimension(block % dimensions, 'nEdgesSolve', nEdgesSolve)
+         call mpas_pool_get_dimension(block % dimensions, 'nVerticesSolve', nVerticesSolve)
+         call mpas_pool_get_dimension(block % dimensions, 'nCells', nCells)
+         call mpas_pool_get_dimension(block % dimensions, 'nEdges', nEdges)
+
+         call mpas_pool_get_array(meshPool, 'areaCell', areaCell)
+         call mpas_pool_get_array(meshPool, 'dcEdge', dcEdge)
+         call mpas_pool_get_array(meshPool, 'dvEdge', dvEdge)
+         call mpas_pool_get_array(meshPool, 'maxLevelCell', maxLevelCell)
+         call mpas_pool_get_array(meshPool, 'maxLevelEdgeTop', maxLevelEdgeTop)
+         call mpas_pool_get_array(meshPool, 'maxLevelVertexBot', maxLevelVertexBot)
+         call mpas_pool_get_array(meshPool, 'angleEdge', angleEdge)
+         call mpas_pool_get_array(meshPool, 'lonCell', lonCell)
+         call mpas_pool_get_array(meshPool, 'latCell', latCell)
+         call mpas_pool_get_array(meshPool, 'lonVertex', lonVertex)
+         call mpas_pool_get_array(meshPool, 'latVertex', latVertex)
+         call mpas_pool_get_array(meshPool, 'lonEdge', lonEdge)
+         call mpas_pool_get_array(meshPool, 'latEdge', latEdge)
+         call mpas_pool_get_array(meshPool, 'nEdgesOnCell', nEdgesOnCell)
+         call mpas_pool_get_array(meshPool, 'edgesOnCell', edgesOnCell)
+         call mpas_pool_get_array(meshPool, 'boundaryEdge', boundaryEdge)
+         call mpas_pool_get_array(meshPool, 'boundaryCell', boundaryCell)
+         call mpas_pool_get_array(meshPool, 'edgeSignOnCell', edgeSignOnCell)
+         call mpas_pool_get_array(meshPool, 'verticesOnEdge', verticesOnEdge)
+         call mpas_pool_get_array(meshPool, 'cellsOnEdge', cellsOnEdge)
+
+         ! get indices for T and S
+         call mpas_pool_get_dimension(tracersPool, 'index_temperature', index_temperature)
+         call mpas_pool_get_dimension(tracersPool, 'index_salinity', index_salinity)
+         !call mpas_pool_get_array(tracersPool, 'activeTracers', activeTracers, 1)
+         !To exchange halo, must use a type
+         call mpas_pool_get_field(tracersPool, 'activeTracers', activeTracersField, timeLevel=timeLevel)
+         call mpas_pool_get_array(statePool, 'layerThickness', layerThickness, timeLevel)
+         call mpas_pool_get_array(statePool, 'ssh',ssh, 1)
+         call mpas_pool_get_array(diagnosticsPool, 'zMid', zMid)
+         call mpas_pool_get_field(statePool, 'normalVelocity', normalVelocity, timeLevel=timeLevel)
+         call mpas_pool_get_array(diagnosticsPool, 'tangentialVelocity', tangentialVelocity)
+
+         do j=1,m2s_schism_pts
+           if(nint(m2s_mpas_dist_rank(2,j))/=myrank.or.nint(m2s_mpas_dist_block(2,j))/=iblock) cycle
+
+           iCell=nint(m2s_mpas_dist_cell(2,j))
+
+           ibuff(j)=ibuff(j)+1 !count
+           !Interp SSH
+           rbuff2(j)=rbuff2(j)+ssh(iCell)
+
+           !Interp vel, tracers
+           do k2=1,nvrt
+             if(m2s_schism_zcor(k2,j)>=zMid(1,iCell)) then
+               klev=1
+             else if(m2s_schism_zcor(k2,j)<=zMid(maxLevelCell(iCell),iCell)) then
+               klev=maxLevelCell(iCell)
+             else
+               klev=0
+               do k=1,maxLevelCell(iCell)-1
+                 if(m2s_schism_zcor(k2,j)<=zMid(k,iCell).and.m2s_schism_zcor(k2,j)>=zMid(k+1,iCell)) then
+                   klev=k; exit
+                 endif
+               enddo !k
+               if(klev==0) then
+                 write(errmsg,*)'ocn_compute_schism, m2s:',klev,m2s_schism_zcor(k2,j),zMid(:,iCell)
+                 call parallel_abort(errmsg)
+               endif !klev
+             endif 
+
+             !Tracers
+             rbuff(3,k2,j)=rbuff(3,k2,j)+activeTracersField%array(index_temperature,klev,iCell)
+             rbuff(4,k2,j)=rbuff(4,k2,j)+activeTracersField%array(index_salinity,klev,iCell)
+!             volume = layerThickness(k,iCell) * areaCell(iCell)
+
+             !Vel: barycentric interp
+             sum_dist=0; sum_u=0; sum_v=0
+             do m=1,nEdgesOnCell(iCell)
+               iEdge=edgesOnCell(m,iCell)
+               tmp1=normalVelocity%array(klev,iEdge)
+               tmp2=tangentialVelocity(klev,iEdge)
+               snx=cos(angleEdge(iEdge)); sny=sin(angleEdge(iEdge))
+               tmpu=tmp1*snx-tmp2*sny !u
+               tmpv=tmp1*sny+tmp2*snx !v
+               tmp3=sqrt((lonEdge(iEdge)-m2s_schism_rank_lon(2,j))**2+ &
+                        &(latEdge(iEdge)-m2s_schism_rank_lat(2,j))**2)
+               tmp3=1.0_RKIND/max(tmp3,1.e-10_RKIND)
+               sum_dist=sum_dist+tmp3
+               sum_u=sum_u+tmp3*tmpu
+               sum_v=sum_v+tmp3*tmpv
+             enddo !m
+             rbuff(1,k2,j)=rbuff(1,k2,j)+sum_u/sum_dist
+             rbuff(2,k2,j)=rbuff(2,k2,j)+sum_v/sum_dist
+           enddo !k2=1,nvrt
+         enddo !j
+
+         block => block % next
+      end do !while
+
+#ifdef _MPI
+      call mpi_allreduce(ibuff,m2s_data_count,m2s_schism_pts,MPI_INTEGER,MPI_SUM,domain%dminfo%comm,itmp)
+      call mpi_allreduce(rbuff2,m2s_data_1d,m2s_schism_pts,MPI_REALKIND,MPI_SUM,domain%dminfo%comm,itmp)
+      call mpi_allreduce(rbuff,m2s_data_3d,(2+ntracers)*nvrt*m2s_schism_pts,MPI_REALKIND,MPI_SUM,domain%dminfo%comm,itmp)
+
+      do j=1,m2s_schism_pts
+        if(m2s_data_count(j)<=0) call parallel_abort('ocn_compute_schism, m2s: m2s_data_count<=0')
+        m2s_data_1d(j)=m2s_data_1d(j)/m2s_data_count(j)
+        m2s_data_3d(:,:,j)=m2s_data_3d(:,:,j)/m2s_data_count(j)
+      enddo !j
+#endif
+      
+      !Alter SCHISM b.c. and nudging
+
+      !Exchange??
+
+      deallocate(m2s_data_1d,m2s_data_3d,m2s_schism_zcor,m2s_data_count,ibuff,rbuff2,rbuff,rwild)
+!==================================================================================================
+      !SCHISM->MPAS
       !SCHISM time stepping
       do it=it_schism_start,it_schism_start+nsteps_schism_mpas-1
         call schism_step(it)
@@ -771,7 +943,7 @@ contains
          call mpas_pool_get_array(diagnosticsPool, 'zMid', zMid)
          call mpas_pool_get_array(diagnosticsPool, 'tangentialVelocity', tangentialVelocity)
 
-         !JZ
+         !JZ: test
 !         if ( associated(activeTracers) ) then
            do iCell=1,nCellsSolve !resident
 !             write(12,*)'Cell:',domain % dminfo % my_proc_id,iCell,lonCell(iCell)*rad_to_deg,latCell(iCell)*rad_to_deg
@@ -935,9 +1107,6 @@ contains
       end do
 
       deallocate(rbuff,s2m_schism_data,rwild)
-
-      !MPAS->SCHISM
-!==================================================================================================
 
       err = 0
    end subroutine ocn_compute_schism!}}}
