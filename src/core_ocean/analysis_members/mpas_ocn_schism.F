@@ -61,10 +61,11 @@ module ocn_schism
    use ocn_constants
    use ocn_diagnostics_routines
 
-   use schism_msgp, only: parallel_init,parallel_finalize,parallel_abort,myrank,nproc
-   use schism_glbl, only: np,np_global,ne,ns,i34,elnode,xlon,ylat,idry_e,ze,kbe,elside, &
+   use schism_msgp, only: parallel_init,parallel_finalize,parallel_abort,myrank,nproc, &
+           &exchange_p3d_tr
+   use schism_glbl, only: np,npa,np_global,ne,ns,i34,elnode,xlon,ylat,idry_e,ze,kbe,elside, &
            &su2,sv2,tr_el,nvrt,ntracers,dt,errmsg,nond_global,iond_global,nnu_pts,ipgl, &
-           &inu_pts_gb,idry,znl
+           &inu_pts_gb,idry,znl,kbp,natrm,ntrs,inu_tr,irange_tr,trnd_nu
 
    implicit none
    private
@@ -448,8 +449,8 @@ contains
       write(12,*)'s2m_npts_final=',s2m_npts_final,mpas_nvrt
       !Final list follows original order 
       do k=1,s2m_npts_final
-        write(12,*)'s2m, Final_ll ',real(s2m_lonlat_edge_pts(1:2,k)*rad_to_deg)
-        write(12,*)'s2m, Final rank etc:',s2m_schism_rank_elem(1:2,k),s2m_mpas_rank_block_edge(1:3,k)
+        write(12,*)'s2m_Final_ll ',real(s2m_lonlat_edge_pts(1:2,k)*rad_to_deg)
+        write(12,*)'s2m_Final_rank:',s2m_schism_rank_elem(1:2,k),s2m_mpas_rank_block_edge(1:3,k)
 
         if(s2m_lonlat_edge_pts(1,k)>pii) s2m_lonlat_edge_pts(1,k)=s2m_lonlat_edge_pts(1,k)-2*pii
       enddo !k
@@ -649,7 +650,7 @@ contains
 
       ! Here are some example variables which may be needed for your analysis member
       integer, pointer :: nVertLevels, nCellsSolve, nEdgesSolve, nVerticesSolve, num_tracers,nCells,nEdges
-      integer :: iTracer, i,j,k,iblock, iCell, iEdge,m,nd1,nd2,ifl,icount,k2,k3,klev,iedge_indx,itmp
+      integer :: iTracer, i,j,k,iblock, iCell, iEdge,m,nd1,nd2,ifl,icount,k2,k3,klev,iedge_indx,itmp,itmp1,itmp2
       integer, dimension(:), pointer :: maxLevelCell, maxLevelEdgeTop, maxLevelVertexBot,nEdgesOnCell
       integer, dimension(:,:), pointer :: edgesOnCell,boundaryCell,boundaryEdge,edgeSignOnCell,verticesOnEdge, &
      &cellsOnEdge
@@ -672,7 +673,10 @@ contains
      &tmpu,tmpv,outer_normal,volume2,sum_dist,sum_u,sum_v,snx,sny
       integer :: it,ndgb
 
+#ifdef DEBUG
       write(12,*)'_compute start...' !,associated(activeTracers)
+#endif
+
       !JZ
       pii=3.1415926_RKIND
       rad_to_deg=180.0_RKIND/pii
@@ -694,7 +698,8 @@ contains
           if(idry(nd1)==1) then
             rwild(:,j)=rwild(:,j)+0
           else
-            rwild(:,j)=rwild(:,j)+znl(:,nd1)
+            rwild(kbp(nd1):nvrt,j)=rwild(kbp(nd1):nvrt,j)+znl(kbp(nd1):nvrt,nd1)
+            rwild(1:kbp(nd1)-1,j)=rwild(1:kbp(nd1)-1,j)+znl(kbp(nd1),nd1)
           endif
         endif
       enddo !j
@@ -706,6 +711,10 @@ contains
         if(m2s_data_count(j)<=0) call parallel_abort('ocn_compute_schism, m2s: m2s_data_count<=0')
 
         m2s_schism_zcor(:,j)=m2s_schism_zcor(:,j)/m2s_data_count(j)
+
+#ifdef DEBUG
+        write(12,*)'m2s_m2s_schism_zcor:',j,real(m2s_schism_zcor(:,j))
+#endif
       enddo !j
 #endif
 
@@ -790,7 +799,7 @@ contains
                  endif
                enddo !k
                if(klev==0) then
-                 write(errmsg,*)'ocn_compute_schism, m2s:',klev,m2s_schism_zcor(k2,j),zMid(:,iCell)
+                 write(errmsg,*)'ocn_compute_schism, m2s:',klev,m2s_schism_zcor(k2,j),real(zMid(:,iCell))
                  call parallel_abort(errmsg)
                endif !klev
              endif 
@@ -830,15 +839,40 @@ contains
       call mpi_allreduce(rbuff,m2s_data_3d,(2+ntracers)*nvrt*m2s_schism_pts,MPI_REALKIND,MPI_SUM,domain%dminfo%comm,itmp)
 
       do j=1,m2s_schism_pts
-        if(m2s_data_count(j)<=0) call parallel_abort('ocn_compute_schism, m2s: m2s_data_count<=0')
+        if(m2s_data_count(j)<=0) call parallel_abort('ocn_compute_schism, m2s: m2s_data_count<=0(2)')
         m2s_data_1d(j)=m2s_data_1d(j)/m2s_data_count(j)
         m2s_data_3d(:,:,j)=m2s_data_3d(:,:,j)/m2s_data_count(j)
+
+#ifdef DEBUG
+        write(12,*)'m2s_m2s_data:',j,m2s_data_1d(j),m2s_data_3d(1:4,1,j),m2s_data_3d(1:4,nvrt,j)
+#endif
       enddo !j
 #endif
       
-      !Alter SCHISM b.c. and nudging
+      !Alter SCHISM nudging: overwrite trnd_nu()
+      deallocate(rbuff)
+      allocate(rbuff(ntracers,nvrt,npa))
+      do j=1,m2s_schism_pts
+        ndgb=m2s_schism_ndgb(j)
+        if(ipgl(ndgb)%rank/=myrank) cycle
 
-      !Exchange??
+        nd1=ipgl(ndgb)%id
+        do k=1,natrm
+          if(ntrs(k)<=0) cycle
+
+          if(inu_tr(k)==2) then
+            itmp1=irange_tr(1,k)
+            itmp2=irange_tr(2,k)
+            rbuff(itmp1:itmp2,:,nd1)=m2s_data_3d(2+itmp1:2+itmp2,:,j)
+          endif
+        enddo !k
+      enddo !j
+
+      !Exchange (double prevision)
+      call exchange_p3d_tr(rbuff)
+      trnd_nu=rbuff
+
+      !SCHISM b.c. (TODO)
 
       deallocate(m2s_data_1d,m2s_data_3d,m2s_schism_zcor,m2s_data_count,ibuff,rbuff2,rbuff,rwild)
 !==================================================================================================
@@ -874,7 +908,9 @@ contains
           !Could use linear interp
           rbuff(2,:,k)=rwild(:,1)/i34(i)
           rbuff(3,:,k)=rwild(:,2)/i34(i)
+#ifdef DEBUG
           write(12,*)'Side vel:',k,i,rwild(nvrt,:),rbuff(2:3,nvrt,k)
+#endif
 
           rbuff(4:3+ntracers,:,k)=tr_el(:,:,i) !no sum
         endif !myrank
@@ -882,10 +918,11 @@ contains
 
       !List pt only owned by 1 rank
       call mpi_allreduce(rbuff,s2m_schism_data,(3+ntracers)*nvrt*s2m_npts_final,MPI_REALKIND,MPI_SUM,domain%dminfo% comm,itmp)
-      !Debug
+#ifdef DEBUG
       do k=1,s2m_npts_final
         write(12,*)'SCHISM reduction:',k,real(s2m_schism_data(1:5,1,k)),real(s2m_schism_data(1:5,nvrt,k))
       enddo !k
+#endif
 
 !      deallocate(rwild)
 !      allocate(rwild(3+ntracers,mpas_nvrt))
