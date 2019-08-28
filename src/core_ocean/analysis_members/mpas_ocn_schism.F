@@ -47,6 +47,8 @@
 
 module ocn_schism
 
+!#define DEBUG5
+
 #ifdef _MPI
    use mpi
 #endif
@@ -673,7 +675,7 @@ contains
      &tmpu,tmpv,outer_normal,volume2,sum_dist,sum_u,sum_v,snx,sny
       integer :: it,ndgb
 
-#ifdef DEBUG
+#ifdef DEBUG5
       write(12,*)'_compute start...' !,associated(activeTracers)
 #endif
 
@@ -712,7 +714,7 @@ contains
 
         m2s_schism_zcor(:,j)=m2s_schism_zcor(:,j)/m2s_data_count(j)
 
-#ifdef DEBUG
+#ifdef DEBUG5
         write(12,*)'m2s_m2s_schism_zcor:',j,real(m2s_schism_zcor(:,j))
 #endif
       enddo !j
@@ -843,7 +845,7 @@ contains
         m2s_data_1d(j)=m2s_data_1d(j)/m2s_data_count(j)
         m2s_data_3d(:,:,j)=m2s_data_3d(:,:,j)/m2s_data_count(j)
 
-#ifdef DEBUG
+#ifdef DEBUG5
         write(12,*)'m2s_m2s_data:',j,m2s_data_1d(j),m2s_data_3d(1:4,1,j),m2s_data_3d(1:4,nvrt,j)
 #endif
       enddo !j
@@ -908,7 +910,7 @@ contains
           !Could use linear interp
           rbuff(2,:,k)=rwild(:,1)/i34(i)
           rbuff(3,:,k)=rwild(:,2)/i34(i)
-#ifdef DEBUG
+#ifdef DEBUG5
           write(12,*)'Side vel:',k,i,rwild(nvrt,:),rbuff(2:3,nvrt,k)
 #endif
 
@@ -918,7 +920,7 @@ contains
 
       !List pt only owned by 1 rank
       call mpi_allreduce(rbuff,s2m_schism_data,(3+ntracers)*nvrt*s2m_npts_final,MPI_REALKIND,MPI_SUM,domain%dminfo% comm,itmp)
-#ifdef DEBUG
+#ifdef DEBUG5
       do k=1,s2m_npts_final
         write(12,*)'SCHISM reduction:',k,real(s2m_schism_data(1:5,1,k)),real(s2m_schism_data(1:5,nvrt,k))
       enddo !k
