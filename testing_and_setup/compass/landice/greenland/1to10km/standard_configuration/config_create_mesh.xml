@@ -26,6 +26,40 @@
                 <!-- Convert from basic MPAS mesh to MPASLI mesh -->
                 <step executable="create_landice_grid_from_generic_MPAS_grid.py" pre_message="\n\n### Creating LI mesh\n\n" post_message="\n\n### LI mesh creation complete\n\n">
                         <argument flag="-i">grid_converted.nc</argument>
+                        <argument flag="-o">gis_1km_preCull.nc</argument>
+                        <argument flag="-l">10</argument>
+                        <argument flag="-v">glimmer</argument>
+                </step>
+
+                <!-- Set up initial condition on to landice mesh -->
+                <step executable="interpolate_to_mpasli_grid.py" pre_message="\n\n### Setting up initial condition\n\n" post_message="\n\n### Initial condition setup complete\n\n">
+                        <argument flag="-s">greenland_1km_2017_06_27.epsg3413.nc</argument>
+                        <argument flag="-d">gis_1km_preCull.nc</argument>
+                        <argument flag="-m">b</argument>
+                        <argument flag="-t"></argument>
+                </step>
+
+                <!-- define cull mask  -->
+                <step executable="define_cullMask.py" pre_message="\n\n### define cull mask\n\n" post_message="\n\n### define cull mask complete\n\n">
+                        <argument flag="-f">gis_1km_preCull.nc</argument>
+                        <argument flag="-m">distance</argument>
+                        <argument flag="-d">50.0</argument>
+                </step>
+
+                <step executable="MpasCellCuller.x" >
+                        <argument flag="">gis_1km_preCull.nc</argument>
+                        <argument flag="">gis_culled.nc</argument>
+                </step>
+
+
+                <step executable="MpasMeshConverter.x" >
+                        <argument flag="">gis_culled.nc</argument>
+                        <argument flag="">gis_culled_converted.nc</argument>
+                </step>
+
+                <!-- Convert from basic MPAS mesh to MPASLI mesh -->
+                <step executable="create_landice_grid_from_generic_MPAS_grid.py" pre_message="\n\n### Creating LI mesh\n\n" post_message="\n\n### LI mesh creation complete\n\n">
+                        <argument flag="-i">gis_culled_converted.nc</argument>
                         <argument flag="-o">gis_1km.nc</argument>
                         <argument flag="-l">10</argument>
                         <argument flag="-v">glimmer</argument>
@@ -46,11 +80,8 @@
                 <!-- Add lat/lon  -->
                 <step executable="set_lat_lon_fields_in_planar_grid.py" pre_message="\n\n### Setting lat/lon\n\n" post_message="\n\n### Setting lat/lon complete\n\n">
                         <argument flag="-f">gis_1km.nc</argument>
-                        <argument flag="-p">gimp</argument>
+                        <argument flag="-p">gis-gimp</argument>
                 </step>
-
-
-
 
 	</run_script>
 

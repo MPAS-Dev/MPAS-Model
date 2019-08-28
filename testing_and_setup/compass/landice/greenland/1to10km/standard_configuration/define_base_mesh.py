@@ -166,12 +166,12 @@ def cellWidthVsXY():
    lowDist=10.0 * 1000.0
    spacing2 = np.interp(distToEdge, [lowDist, highDist], [minSpac, maxSpac], left=minSpac, right=maxSpac)
    spacing2[thk==0.0]=minSpac
-   plt.pcolor(spacing2); plt.colorbar(); plt.show()
+   #plt.pcolor(spacing2); plt.colorbar(); plt.show()
 
    # merge two cell spacing methods
-   cell_width = np.minimum(spacing, spacing2)*1000.0
+   cell_width = np.minimum(spacing, spacing2)*1000.0 * 3
    cell_width[np.logical_and(thk==0.0, distToEdge>50.0e3)] = maxSpac*1000.0 # put coarse res far out in non-ice area to keep mesh smaller in the part we are going to cull anyway (speeds up whole process)
-   plt.pcolor(cell_width); plt.colorbar(); plt.show()
+   #plt.pcolor(cell_width); plt.colorbar(); plt.show()
 
    #cell_width = 20000.0 * np.ones(thk.shape)
 
