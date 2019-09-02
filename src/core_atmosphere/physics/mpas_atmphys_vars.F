@@ -277,11 +277,19 @@
     cutop_p,          &!highest convective level                                                [-]
     nca_p              !counter for cloud relaxation time                                       [-]
  real(kind=RKIND),dimension(:,:,:),allocatable:: &
-    w0avg_p          !
+    w0avg_p            !
 
  real(kind=RKIND),dimension(:,:,:),allocatable:: &
     rqrcuten_p,       &!
     rqscuten_p         !
+
+!... kain fritsch multi-scale specific arrays:
+real(kind=RKIND),dimension(:,:,:),allocatable:: &
+    cldfra_sh_kf_p,   &!
+    cldfra_dp_kf_p,   &!
+    qc_kf_p,          &!
+    qi_kf_p,          &!
+    w_up_p             !
 
 !... tiedtke specific arrays:
  real(kind=RKIND),dimension(:,:,:),allocatable:: &
@@ -341,6 +349,9 @@
     hpbl_p,           &!PBL height                                                                             [m]
     delta_p,          &!
     wstar_p,          &!
+    hgamt_p,          &!
+    hgamq_p,          &!
+    entpbl_p,         &!
     uoce_p,           &!
     voce_p             !
 
@@ -358,7 +369,8 @@
  real(kind=RKIND),dimension(:,:,:),allocatable:: &
     kzh_p,            &!
     kzm_p,            &!
-    kzq_p              !
+    kzq_p,            &!
+    tkepbl_p
 
 !... MYNN PBL scheme (module_bl_mynn.F):
  integer,parameter:: grav_settling = 0
@@ -377,8 +389,7 @@
     qke_p,            &!
     qkeadv_p,         &!
     qshear_p,         &!
-    qwt_p,            &!
-    tkepbl_p           !
+    qwt_p              !
 
  real(kind=RKIND),dimension(:,:,:),allocatable:: &
     rniblten_p         !
@@ -481,6 +492,7 @@
     swcf_p,           &!shortwave cloud forcing at top-of-atmosphere                        [W m-2]
     swdnb_p,          &!all-sky downwelling shortwave flux at bottom-of-atmosphere          [J m-2]
     swdnbc_p,         &!clear-sky downwelling shortwave flux at bottom-of-atmosphere        [J m-2]
+    swdnbdn_p,        &!all-sky downwelling direct normal shortwave flux at bottom-of-atmosphere [J m-2]
     swdnt_p,          &!all-sky downwelling shortwave flux at top-of-atmosphere             [J m-2]
     swdntc_p,         &!clear-sky downwelling shortwave flux at top-of-atmosphere           [J m-2]
     swupb_p,          &!all-sky upwelling shortwave flux at bottom-of-atmosphere            [J m-2]
@@ -617,6 +629,7 @@
     tslb_p             !soil temperature                                                                       [K]
 
  real(kind=RKIND),dimension(:,:),allocatable:: &
+    snow_ratio_p,     &!snow water ratio                                                                       [-]  
     acsnom_p,         &!accumulated melted snow                                                           [kg m-2]
     acsnow_p,         &!accumulated snow                                                                  [kg m-2]
     canwat_p,         &!canopy water                                                                      [kg m-2]

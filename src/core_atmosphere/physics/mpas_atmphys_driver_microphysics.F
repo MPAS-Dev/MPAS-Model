@@ -448,13 +448,10 @@
 
  call mpas_pool_get_config(configs,'config_microp_scheme',microp_scheme)
 
- call mpas_pool_get_array_gpu(diag_physics,'graupelncv',graupelncv)
- call mpas_pool_get_array_gpu(diag_physics,'rainncv'   ,rainncv   )
- call mpas_pool_get_array_gpu(diag_physics,'snowncv'   ,snowncv   )
- call mpas_pool_get_array_gpu(diag_physics,'sr'        ,sr        )
-
-!!!
- !$acc update host(graupelncv, rainncv, snowncv, sr)
+ call mpas_pool_get_array(diag_physics,'graupelncv',graupelncv)
+ call mpas_pool_get_array(diag_physics,'rainncv'   ,rainncv   )
+ call mpas_pool_get_array(diag_physics,'snowncv'   ,snowncv   )
+ call mpas_pool_get_array(diag_physics,'sr'        ,sr        )
 
 !variables common to all cloud microphysics schemes:
  do j = jts, jte
@@ -492,9 +489,6 @@
 
  end select microp_select
 
-!!!
- !$acc update device(graupelncv, rainncv, snowncv, sr)
-
  end subroutine precip_from_MPAS
 
 !=================================================================================================================
@@ -526,19 +520,15 @@
  call mpas_pool_get_config(configs,'config_microp_scheme',microp_scheme       )
  call mpas_pool_get_config(configs,'config_bucket_rainnc',config_bucket_rainnc)
 
- call mpas_pool_get_array_gpu(diag_physics,'i_rainnc'  ,i_rainnc  )
- call mpas_pool_get_array_gpu(diag_physics,'precipw'   ,precipw   )
- call mpas_pool_get_array_gpu(diag_physics,'graupelnc' ,graupelnc )
- call mpas_pool_get_array_gpu(diag_physics,'graupelncv',graupelncv)
- call mpas_pool_get_array_gpu(diag_physics,'rainnc'    ,rainnc    )
- call mpas_pool_get_array_gpu(diag_physics,'rainncv'   ,rainncv   )
- call mpas_pool_get_array_gpu(diag_physics,'snownc'    ,snownc    )
- call mpas_pool_get_array_gpu(diag_physics,'snowncv'   ,snowncv   )
- call mpas_pool_get_array_gpu(diag_physics,'sr'        ,sr        )
-
-!!!
-!$acc update host(i_rainnc, precipw, graupelnc, graupelncv, rainnc, &
-!$acc rainncv, snownc, snowncv, sr)
+ call mpas_pool_get_array(diag_physics,'i_rainnc'  ,i_rainnc  )
+ call mpas_pool_get_array(diag_physics,'precipw'   ,precipw   )
+ call mpas_pool_get_array(diag_physics,'graupelnc' ,graupelnc )
+ call mpas_pool_get_array(diag_physics,'graupelncv',graupelncv)
+ call mpas_pool_get_array(diag_physics,'rainnc'    ,rainnc    )
+ call mpas_pool_get_array(diag_physics,'rainncv'   ,rainncv   )
+ call mpas_pool_get_array(diag_physics,'snownc'    ,snownc    )
+ call mpas_pool_get_array(diag_physics,'snowncv'   ,snowncv   )
+ call mpas_pool_get_array(diag_physics,'sr'        ,sr        )
 
  do i = its,ite
     precipw(i) = 0._RKIND    
@@ -590,10 +580,6 @@
 
  end select microp_select_init
 
-!!!
- !$acc update device(i_rainnc, precipw, graupelnc, graupelncv, rainnc, &
- !$acc rainncv, snownc, snowncv, sr)
-
  end subroutine precip_to_MPAS
 
 !=================================================================================================================
@@ -609,23 +595,22 @@
 
 !local pointers:
  character(len=StrKIND),pointer:: microp_scheme
- real(kind=RKIND),dimension(:),pointer:: refl10cm_max,refl10cm_1km,refl10cm_1km_max
+ real(kind=RKIND),dimension(:),pointer:: refl10cm_max,refl10cm_1km,refl10cm_1km_max,cuprec
+ real(kind=RKIND),dimension(:,:),pointer:: refl10cm
 
 !local variables and arrays:
  integer:: i,j,k,kp
  real(kind=RKIND),dimension(:),allocatable:: qv1d,qc1d,qr1d,qs1d,qg1d,t1d,p1d,nr1d,dBZ1d,zp
- real(kind=RKIND):: w1,w2
+ real(kind=RKIND):: w1,w2,grprec,totprec
 
 !-----------------------------------------------------------------------------------------------------------------
 
  call mpas_pool_get_config(configs,'config_microp_scheme',microp_scheme)
-
- call mpas_pool_get_array_gpu(diag_physics,'refl10cm_max',refl10cm_max)
- call mpas_pool_get_array_gpu(diag_physics,'refl10cm_1km',refl10cm_1km)
- call mpas_pool_get_array_gpu(diag_physics,'refl10cm_1km_max',refl10cm_1km_max)
-
-!!!
-!$acc update host(refl10cm_max, refl10cm_1km, refl10cm_1km_max)
+ call mpas_pool_get_array(diag_physics,'refl10cm',refl10cm)
+ call mpas_pool_get_array(diag_physics,'refl10cm_max',refl10cm_max)
+ call mpas_pool_get_array(diag_physics,'refl10cm_1km',refl10cm_1km)
+ call mpas_pool_get_array(diag_physics,'refl10cm_1km_max',refl10cm_1km_max)
+ call mpas_pool_get_array(diag_physics,'cuprec',cuprec)
 
  microp_select: select case(microp_scheme)
 
@@ -663,7 +648,12 @@
              dBZ1d(k) = max(-35._RKIND,dBZ1d(k))
              if(zp(k) .lt. 1000.) kp = k
           enddo
-          refl10cm_max(i) = maxval(dBZ1d(:))
+          refl10cm(kts:kte,i) = dBZ1d(kts:kte)
+          refl10cm_max(i) = maxval(dBZ1d(kp:kte))
+          grprec = ((10.**(refl10cm_max(i)/10.)/300.)**(1./1.4))/3600.
+          totprec = grprec + cuprec(i)
+          if(totprec .ge. 1.e-6) refl10cm_max(i) = 10.*log10(300.*((totprec*3600.)**1.4))
+
           w1 = (zp(kp+1)-1000.)/(zp(kp+1)-zp(kp))
           w2 = 1.0 - w1
           refl10cm_1km(i) = w1*dBZ1d(kp) + w2*dBZ1d(kp+1)
@@ -714,7 +704,12 @@
              dBZ1d(k) = max(-35._RKIND,dBZ1d(k))
              if(zp(k) .lt. 1000.) kp = k
           enddo
-          refl10cm_max(i) = maxval(dBZ1d(:))
+          refl10cm(kts:kte,i) = dBZ1d(kts:kte)
+          refl10cm_max(i) = maxval(dBZ1d(kp:kte))
+          grprec = ((10.**(refl10cm_max(i)/10.)/300.)**(1./1.4))/3600.
+          totprec = grprec + cuprec(i) 
+          if(totprec .ge. 1.e-6) refl10cm_max(i) = 10.*log10(300.*((totprec*3600.)**1.4))
+
           w1 = (zp(kp+1)-1000.)/(zp(kp+1)-zp(kp))
           w2 = 1.0 - w1
           refl10cm_1km(i) = w1*dBZ1d(kp) + w2*dBZ1d(kp+1)
@@ -755,16 +750,14 @@
 !local variables and arrays:
  integer:: i,j,k
 
- real(kind=RKIND):: tempc, rh
+! J. Cipriani, 04/02/2018, IBM/TWC:  fix for excessive relative humidity computations
+! Only a diagnostic, so should have no impact on model solution
+ real(kind=RKIND):: tempc, qvsl, qvsi
  real(kind=RKIND),dimension(:),allocatable:: qv1d,qvs1d,t1d,p1d
 
 !-----------------------------------------------------------------------------------------------------------------
 
- call mpas_pool_get_array_gpu(diag,'relhum',relhum)
-
-!!!
-!$acc update host(relhum)
-
+ call mpas_pool_get_array(diag,'relhum',relhum)
  do k = kts,kte
     do i = its,ite
        relhum(k,i) = 0._RKIND
@@ -782,10 +775,18 @@
        p1d(k)  = pres_p(i,k,j)
        t1d(k)  = th_p(i,k,j) * pi_p(i,k,j)
        tempc   = t1d(k) - 273.16_RKIND
-       qvs1d(k) = rslf(p1d(k),t1d(k))
-       if(tempc .le. 0._RKIND) qvs1d(k) = rsif(p1d(k),t1d(k))
        qv1d(k) = qv_p(i,k,j)
-       relhum(k,i) = qv1d(k) / qvs1d(k)
+       ! J. Cipriani, 04/02/2018, IBM/TWC:  adapted from RHUM computed in module_radiation_driver.F (WRF-3.9.1.1)
+       qvsl = rslf(p1d(k),t1d(k))
+       qvsi = rsif(p1d(k),t1d(k))
+       if (tempc .ge. -12.0_RKIND) then
+          qvs1d(k) = qvsl
+       elseif (tempc .lt. -20.0_RKIND) then
+          qvs1d(k) = qvsi
+       else
+          qvs1d(k) = qvsl - (qvsl-qvsi)*(-12.0_RKIND-tempc)/(-12.0_RKIND+20._RKIND)
+       end if
+       relhum(k,i) = max(0.01_RKIND,min(qv1d(k) / qvs1d(k),0.9999_RKIND))
        relhum(k,i) = relhum(k,i) * 100._RKIND
     enddo
  enddo

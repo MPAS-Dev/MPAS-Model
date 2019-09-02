@@ -363,7 +363,6 @@
  call mpas_pool_get_array_gpu(diag_physics,'m_hybi'    ,m_hybi    )
  call mpas_pool_get_array_gpu(diag_physics,'m_ps'      ,m_ps      )
 
-!!!
  !$acc update host(latCell, lonCell, aerosols, skintemp, snow, xice, &
  !$acc xland, pin, ozmixm, sfc_albedo, sfc_emiss, cldfrac, o3clim, &
  !$acc o3vmr, m_hybi, m_ps)
@@ -427,7 +426,6 @@
                 call mpas_pool_get_array_gpu(diag_physics,'re_ice'  ,re_ice  )
                 call mpas_pool_get_array_gpu(diag_physics,'re_snow' ,re_snow )
 
-!!!
  !$acc update host(re_cloud, re_ice, re_snow)
 
                 do j = jts,jte
@@ -721,7 +719,7 @@
                 enddo
                 enddo
              endif
-!!!
+
  !$acc update device(rre_cloud, rre_ice, rre_snow)
 
           case default
@@ -729,7 +727,6 @@
 
  end select radiation_lw_select
 
-!!!
  !$acc update device(glw, lwcf, lwdnb, lwdnbc, lwdnt, lwdntc, &
  !$acc lwupb, lwupbc, lwupt, lwuptc, olrtoa, rthratenlw)
 

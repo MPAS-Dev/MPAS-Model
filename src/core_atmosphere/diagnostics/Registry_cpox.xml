@@ -1,0 +1,19 @@
+<!-- *************************************************************** -->
+<!-- CPOX diagnostics                                                -->
+<!--                                                                 -->
+<!-- Created by John Wong, August / 2019                             -->
+<!-- Copyright (c) 2019 The Weather Company. All rights reserved.    -->
+<!-- *************************************************************** -->
+
+<var_struct name="diag" time_levs="1">
+    
+    <var name="cporain" type="real" dimensions="nCells Time" units="%"
+    description="Conditional probability of rain"/>
+    
+    <var name="cpoice" type="real" dimensions="nCells Time" units="%"
+    description="Conditional probability of ice"/>
+    
+    <var name="cposnow" type="real" dimensions="nCells Time" units="%"
+    description="Conditional probability of snow"/>
+    
+</var_struct>

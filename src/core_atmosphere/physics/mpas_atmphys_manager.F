@@ -386,7 +386,9 @@
                                   config_lsm_scheme,             &
                                   config_microp_scheme,          &
                                   config_radt_lw_scheme,         &
-                                  config_radt_sw_scheme
+                                  config_radt_sw_scheme,         &
+                                  config_sfclayer_scheme,        &
+                                  config_snowratio_scheme
 
  character(len=StrKIND),pointer:: config_conv_interval,          &
                                   config_pbl_interval,           &
@@ -407,6 +409,7 @@
  integer,pointer:: nCellsSolve,nSoilLevels,nVertLevels
 
  real(kind=RKIND),pointer:: config_dt
+ real(kind=RKIND),pointer:: dt_w0avg
 
 !local variables:
  type(MPAS_Time_Type):: startTime,alarmStartTime
@@ -423,6 +426,8 @@
  call mpas_pool_get_config(configs,'config_microp_scheme'    ,config_microp_scheme    )
  call mpas_pool_get_config(configs,'config_radt_lw_scheme'   ,config_radt_lw_scheme   )
  call mpas_pool_get_config(configs,'config_radt_sw_scheme'   ,config_radt_sw_scheme   )
+ call mpas_pool_get_config(configs,'config_sfclayer_scheme'  ,config_sfclayer_scheme  )
+ call mpas_pool_get_config(configs,'config_snowratio_scheme' ,config_snowratio_scheme )
 
  call mpas_pool_get_config(configs,'config_conv_interval'    ,config_conv_interval    )
  call mpas_pool_get_config(configs,'config_pbl_interval'     ,config_pbl_interval     )
@@ -436,7 +441,7 @@
  call mpas_pool_get_config(configs,'config_microp_re'        ,config_microp_re        )
 
  call mpas_pool_get_config(configs,'config_dt',config_dt)
-
+ call mpas_pool_get_config(configs,'config_w0avg_dt',dt_w0avg)
 
  call mpas_pool_get_dimension(mesh,'cam_dim1'   ,cam_dim1   )
  call mpas_pool_get_dimension(mesh,'nMonths'    ,nMonths    )
@@ -554,6 +559,9 @@
  if (config_sst_update) then
     call MPAS_stream_mgr_get_property(stream_manager, 'surface', MPAS_STREAM_PROPERTY_RECORD_INTV, stream_interval, &
                                       direction=MPAS_STREAM_INPUT, ierr=ierr)
+    if (trim(stream_interval) .eq. "none") &
+        call physics_error_fatal('subroutine physics_init: No time interval found for sstupdate, maybe '// &
+                                  'config_sst_update should be set to false?')
     call mpas_set_timeInterval(alarmTimeStep,timeString=stream_interval,ierr=ierr)
     alarmStartTime = startTime
     call mpas_add_clock_alarm(clock,sfcbdyAlarmID,alarmStartTime,alarmTimeStep,ierr=ierr)
@@ -691,7 +699,11 @@
  call mpas_log_write('--- n_microp  = $i', intArgs=(/n_microp/))
 !... convection:
  l_conv = .false.
- n_cu   = nint(dt_cu/dt_dyn)
+ if(trim(config_convection_scheme)=='cu_kain_fritsch' .or. trim(config_convection_scheme)=='cu_kain_fritsch_ms') then
+    n_cu = nint(dt_w0avg/dt_dyn)
+ else
+    n_cu = nint(dt_cu/dt_dyn)
+ endif
  n_cu   = max(n_cu,1)
 !... radiation:
  l_radtlw = .false.

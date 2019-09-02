@@ -33,9 +33,10 @@ contains
                   dt,kpbl2d,                                                   &
                   exch_h,                                                      &
                   wstar,delta,                                                 &
+                  hgamt,hgamq,entpbl,                                          &
                   u10,v10,                                                     &
                   uoce,voce,                                                   &
-                  rthraten,ysu_topdown_pblmix,                                 &
+                  rthraten,tke_pbl,ysu_topdown_pblmix,                         &
                   ctopo,ctopo2,                                                &
                   ids,ide, jds,jde, kds,kde,                                   &
                   ims,ime, jms,jme, kms,kme,                                   &
@@ -154,6 +155,9 @@ contains
                                                                      rthblten, &
                                                                      rqvblten, &
                                                                      rqcblten
+
+   real,     dimension( ims:ime, kms:kme, jms:jme )                          , &
+             intent(inout)   ::                                       tke_pbl
 !
    real,     dimension( ims:ime, kms:kme, jms:jme )                          , &
              intent(inout)   ::                                        exch_h
@@ -181,6 +185,9 @@ contains
    real,     dimension( ims:ime, jms:jme )                                   , &
              intent(inout)   ::                                           znt, &
                                                                           ust, &
+                                                                        hgamt, &
+                                                                        hgamq, &
+                                                                       entpbl, &
                                                                          hpbl, &
                                                                           wspd
 !
@@ -307,7 +314,8 @@ contains
               ,ep1=ep1,ep2=ep2,karman=karman                                   &
               ,dz8w2d=dz8w(ims,kms,j)                                          &
               ,psfcpa=psfc(ims,j),znt=znt(ims,j),ust=ust(ims,j)                &
-              ,hpbl=hpbl(ims,j)                                                &
+              ,hgamt=hgamt(ims,j),hgamq=hgamq(ims,j)                           &
+              ,entpbl=entpbl(ims,j),hpbl=hpbl(ims,j)                           &
               ,regime=regime(ims,j),psim=psim(ims,j)                           &
               ,psih=psih(ims,j),xland=xland(ims,j)                             &
               ,hfx=hfx(ims,j),qfx=qfx(ims,j)                                   &
@@ -320,6 +328,7 @@ contains
               ,u10=u10(ims,j),v10=v10(ims,j)                                   &
               ,uox=uoce(ims,j),vox=voce(ims,j)                                 &
               ,rthraten=rthraten(ims,kms,j),p2diORG=p3di(ims,kms,j)            &
+              ,tke_pbl=tke_pbl(ims,kms,j)                                      &
               ,ysu_topdown_pblmix=ysu_topdown_pblmix                           &
               ,ctopo=ctopo(ims,j),ctopo2=ctopo2(ims,j)                         &
 #if defined(mpas)
@@ -351,7 +360,7 @@ contains
                   utnp,vtnp,ttnp,qtnp,ndiff,                                   &
                   cp,g,rovcp,rd,rovg,ep1,ep2,karman,xlv,rv,                    &
                   dz8w2d,psfcpa,                                               &
-                  znt,ust,hpbl,psim,psih,                                      &
+                  znt,ust,hgamt,hgamq,entpbl,hpbl,psim,psih,                   &
                   xland,hfx,qfx,wspd,br,                                       &
                   dusfc,dvsfc,dtsfc,dqsfc,                                     &
                   dt,rcl,kpbl1d,                                               &
@@ -360,6 +369,7 @@ contains
                   u10,v10,                                                     &
                   uox,vox,                                                     &
                   rthraten,p2diORG,                                            &
+                  tke_pbl,                                                     &
                   ysu_topdown_pblmix,                                          &
                   ctopo,ctopo2,                                                &
                   ids,ide, jds,jde, kds,kde,                                   &
@@ -441,7 +451,7 @@ contains
    real,parameter    ::  phifac = 8.,sfcfrac = 0.1
    real,parameter    ::  d1 = 0.02, d2 = 0.05, d3 = 0.001
    real,parameter    ::  h1 = 0.33333335, h2 = 0.6666667
-   real,parameter    ::  zfmin = 1.e-8,aphi5 = 5.,aphi16 = 16.
+   real,parameter    ::  ckz = 0.001,zfmin = 1.e-8,aphi5 = 5.,aphi16 = 16.
    real,parameter    ::  tmin=1.e-2
    real,parameter    ::  gamcrt = 3.,gamcrq = 2.e-3
    real,parameter    ::  xka = 2.4e-5
@@ -480,9 +490,16 @@ contains
 !
    real,     dimension( its:ite, kts:kte )                                   , &
              intent(in   )   ::                                           p2d
+
+   real,     dimension( its:ite, kts:kte )                                   , &
+             intent(inout)   ::                                       tke_pbl
 !
    real,     dimension( ims:ime )                                            , &
              intent(inout)   ::                                           ust, &
+                                                                        wstar, &
+                                                                        hgamt, &
+                                                                        hgamq, &
+                                                                       entpbl, &
                                                                          hpbl, &
                                                                           znt
    real,     dimension( ims:ime )                                            , &
@@ -521,8 +538,7 @@ contains
                                                                           del, &
                                                                           dza, &
                                                                           dzq, &
-                                                                        xkzom, &
-                                                                        xkzoh, &
+                                                                         xkzo, &
                                                                            za
 !
    real,    dimension( its:ite )             ::                                &
@@ -530,7 +546,6 @@ contains
                                                                        govrth, &
                                                                   zl1,thermal, &
                                                                        wscale, &
-                                                                  hgamt,hgamq, &
                                                                     brdn,brup, &
                                                                     phim,phih, &
                                                                   dusfc,dvsfc, &
@@ -584,12 +599,11 @@ contains
    real    ::  ss,ri,qmean,tmean,alph,chi,zk,rl2,dk,sri
    real    ::  brint,dtodsd,dtodsu,rdz,dsdzt,dsdzq,dsdz2,rlamdz
    real    ::  utend,vtend,ttend,qtend
-   real    ::  dtstep,govrthv
+   real    ::  dtstep,govrthv,c
    real    ::  cont, conq, conw, conwrc
 !
 
    real, dimension( its:ite, kts:kte )     ::                wscalek,wscalek2
-   real, dimension( ims:ime )              ::                           wstar
    real, dimension( ims:ime )              ::                           delta
    real, dimension( its:ite, kts:kte )     ::                     xkzml,xkzhl, &
                                                                zfacent,entfac
@@ -690,6 +704,7 @@ contains
    vtnp(its:ite,:) = 0.
    ttnp(its:ite,:) = 0.
    qtnp(its:ite,:) = 0.
+   tke_pbl(its:ite,:) = 0.
 !
    do i = its,ite
      wspd1(i) = sqrt( (ux(i,1)-uox(i))*(ux(i,1)-uox(i)) + (vx(i,1)-vox(i))*(vx(i,1)-vox(i)) )+1.e-9
@@ -743,8 +758,7 @@ contains
    enddo
    do k = kts,klpbl-1
      do i = its,ite
-       xkzom(i,k) = xkzminm
-       xkzoh(i,k) = xkzminh
+       xkzo(i,k) = ckz*dza(i,k+1)
      enddo
    enddo
 !
@@ -1125,12 +1139,17 @@ contains
          prnum0 = prnum0/(1.+prfac2*karman*sfcfrac)
          prnum =  1. + (prnum0-1.)*exp(prnumfac)
          xkzh(i,k) = xkzm(i,k)/prnum
-         xkzm(i,k) = xkzm(i,k)+xkzom(i,k)
-         xkzh(i,k) = xkzh(i,k)+xkzoh(i,k)
-         xkzq(i,k) = xkzq(i,k)+xkzoh(i,k)
+         xkzm(i,k) = max(xkzm(i,k),xkzo(i,k))
+         xkzh(i,k) = max(xkzh(i,k),xkzo(i,k))
+         xkzq(i,k) = max(xkzq(i,k),xkzo(i,k))
          xkzm(i,k) = min(xkzm(i,k),xkzmax)
          xkzh(i,k) = min(xkzh(i,k),xkzmax)
          xkzq(i,k) = min(xkzq(i,k),xkzmax)
+
+! implicit tke
+         c = zfac(i,k)**pfac*0.425 + (1. - zfac(i,k)**pfac)
+         tke_pbl(i,k)=(xkzm(i,k)/max(1.,c*zq(i,k+1)*zfac(i,k)**pfac))**2
+
        endif
      enddo
    enddo
@@ -1175,14 +1194,24 @@ contains
            xkzm(i,k) = xkzh(i,k)*prnum
          endif
 !
-         xkzm(i,k) = xkzm(i,k)+xkzom(i,k)
-         xkzh(i,k) = xkzh(i,k)+xkzoh(i,k)
+         xkzm(i,k) = max(xkzm(i,k),xkzo(i,k))
+         xkzh(i,k) = max(xkzh(i,k),xkzo(i,k))
          xkzm(i,k) = min(xkzm(i,k),xkzmax)
          xkzh(i,k) = min(xkzh(i,k),xkzmax)
          xkzml(i,k) = xkzm(i,k)
          xkzhl(i,k) = xkzh(i,k)
+
+! implicit tke
+         tke_pbl(i,k)=(xkzm(i,k)/max(1.,(zk*rlamdz/(rlamdz+zk))))**2
+
        endif
      enddo
+   enddo
+
+! implicit tke lower boundary condition
+   do i = its,ite
+     tke_pbl(i,kts)=5.20*ust(i)*ust(i)*0.5
+     entpbl(i) = max(0.,-1.0*we(i))
    enddo
 !
 !     compute tridiagonal matrix elements for heat
@@ -1215,7 +1244,7 @@ contains
        elseif(pblflg(i).and.k.ge.kpbl(i).and.entfac(i,k).lt.4.6) then
          xkzh(i,k) = -we(i)*dza(i,kpbl(i))*exp(-entfac(i,k))
          xkzh(i,k) = sqrt(xkzh(i,k)*xkzhl(i,k))
-         xkzh(i,k) = max(xkzh(i,k),xkzoh(i,k))
+         xkzh(i,k) = max(xkzh(i,k),xkzo(i,k))
          xkzh(i,k) = min(xkzh(i,k),xkzmax)
          f1(i,k+1) = thx(i,k+1)-300.
        else
@@ -1306,7 +1335,7 @@ contains
        elseif(pblflg(i).and.k.ge.kpbl(i).and.entfac(i,k).lt.4.6) then
          xkzq(i,k) = -we(i)*dza(i,kpbl(i))*exp(-entfac(i,k))
          xkzq(i,k) = sqrt(xkzq(i,k)*xkzhl(i,k))
-         xkzq(i,k) = max(xkzq(i,k),xkzoh(i,k))
+         xkzq(i,k) = max(xkzq(i,k),xkzo(i,k))
          xkzq(i,k) = min(xkzq(i,k),xkzmax)
          f3(i,k+1,1) = qx(i,k+1)
        else
@@ -1418,7 +1447,7 @@ contains
        elseif(pblflg(i).and.k.ge.kpbl(i).and.entfac(i,k).lt.4.6) then
          xkzm(i,k) = prpbl(i)*xkzh(i,k)
          xkzm(i,k) = sqrt(xkzm(i,k)*xkzml(i,k))
-         xkzm(i,k) = max(xkzm(i,k),xkzom(i,k))
+         xkzm(i,k) = max(xkzm(i,k),xkzo(i,k))
          xkzm(i,k) = min(xkzm(i,k),xkzmax)
          f1(i,k+1) = ux(i,k+1)
          f2(i,k+1) = vx(i,k+1)

@@ -1,0 +1,11 @@
+<!-- ******************************* -->
+<!-- Convective diagnostics          -->
+<!-- ******************************* -->
+
+<var_struct name="diag" time_levs="1">
+
+        <var name="tpi"                    type="real"     dimensions="nCells Time" units="unitless"
+             description="Thunderstorm potential index"/>
+
+</var_struct>
+

@@ -35,6 +35,16 @@ module mpas_atm_diagnostics_manager
         use diagnostic_template, only : diagnostic_template_setup
         use isobaric_diagnostics, only : isobaric_diagnostics_setup
         use convective_diagnostics, only : convective_diagnostics_setup
+        use convective_diagnostics2, only : convective_diagnostics2_setup
+        use snowratio_diagnostics, only : snowratio_diagnostics_setup
+        use surface_diagnostics, only : surface_diagnostics_setup
+        use wind_diagnostics, only : wind_diagnostics_setup
+        use turbulence_diagnostics, only : turbulence_diagnostics_setup
+        use accumulated_diagnostics, only : accumulated_diagnostics_setup
+        use aviation_diagnostics, only : aviation_diagnostics_setup
+        use unstagger_diagnostics, only : unstagger_diagnostics_setup
+        use cpox_diagnostics, only : cpox_diagnostics_setup
+        use stfod_diagnostics, only : stfod_diagnostics_setup
         use pv_diagnostics, only : pv_diagnostics_setup
         use soundings, only : soundings_setup
 
@@ -55,6 +65,16 @@ module mpas_atm_diagnostics_manager
         call diagnostic_template_setup(configs, structs, clock)
         call isobaric_diagnostics_setup(structs, clock)
         call convective_diagnostics_setup(structs, clock)
+        call convective_diagnostics2_setup(structs, clock)
+        call snowratio_diagnostics_setup(configs, structs)
+        call surface_diagnostics_setup(configs, structs, clock)
+        call wind_diagnostics_setup(structs)
+        call accumulated_diagnostics_setup(configs, structs, clock)
+        call turbulence_diagnostics_setup(configs, structs)
+        call aviation_diagnostics_setup(structs)
+        call unstagger_diagnostics_setup(structs)
+        call cpox_diagnostics_setup(structs)
+        call stfod_diagnostics_setup(configs, structs, clock)
         call pv_diagnostics_setup(structs, clock)
         call soundings_setup(configs, structs, clock, dminfo)
 
@@ -75,12 +95,20 @@ module mpas_atm_diagnostics_manager
 
         use diagnostic_template, only : diagnostic_template_update
         use convective_diagnostics, only : convective_diagnostics_update
+        use accumulated_diagnostics, only : accumulated_diagnostics_update
+        use aviation_diagnostics, only : aviation_diagnostics_update
+        use turbulence_diagnostics, only : turbulence_diagnostics_update
+        use stfod_diagnostics, only : stfod_diagnostics_update
 
         implicit none
 
 
         call diagnostic_template_update()
         call convective_diagnostics_update()
+        call accumulated_diagnostics_update()
+        call aviation_diagnostics_update()
+        call turbulence_diagnostics_update()
+        call stfod_diagnostics_update()
 
     end subroutine mpas_atm_diag_update
 
@@ -100,15 +128,34 @@ module mpas_atm_diagnostics_manager
         use diagnostic_template, only : diagnostic_template_compute
         use isobaric_diagnostics, only : isobaric_diagnostics_compute
         use convective_diagnostics, only : convective_diagnostics_compute
+        use convective_diagnostics2, only : convective_diagnostics2_compute
+        use snowratio_diagnostics, only : snowratio_diagnostics_compute
+        use surface_diagnostics, only : surface_diagnostics_compute
+        use wind_diagnostics, only : wind_diagnostics_compute
+        use accumulated_diagnostics, only : accumulated_diagnostics_compute
+        use turbulence_diagnostics, only : turbulence_diagnostics_compute
+        use aviation_diagnostics, only : aviation_diagnostics_compute
+        use unstagger_diagnostics, only : unstagger_diagnostics_compute
+        use cpox_diagnostics, only : cpox_diagnostics_compute
+        use stfod_diagnostics, only : stfod_diagnostics_compute
         use pv_diagnostics, only : pv_diagnostics_compute
         use soundings, only : soundings_compute
 
         implicit none
 
-
         call diagnostic_template_compute()
         call isobaric_diagnostics_compute()
         call convective_diagnostics_compute()
+        call convective_diagnostics2_compute()
+        call snowratio_diagnostics_compute()
+        call surface_diagnostics_compute()
+        call wind_diagnostics_compute()
+        call accumulated_diagnostics_compute()
+        call turbulence_diagnostics_compute()
+        call aviation_diagnostics_compute()
+        call unstagger_diagnostics_compute()
+        call cpox_diagnostics_compute()
+        call stfod_diagnostics_compute()
         call pv_diagnostics_compute()
         call soundings_compute()
 
@@ -129,12 +176,19 @@ module mpas_atm_diagnostics_manager
 
         use diagnostic_template, only : diagnostic_template_reset
         use convective_diagnostics, only : convective_diagnostics_reset
+        use surface_diagnostics, only : surface_diagnostics_reset
+        use aviation_diagnostics, only : aviation_diagnostics_reset
+        use accumulated_diagnostics, only : accumulated_diagnostics_reset
+        use stfod_diagnostics, only : stfod_diagnostics_reset
 
         implicit none
 
-
         call diagnostic_template_reset()
         call convective_diagnostics_reset()
+        call surface_diagnostics_reset()
+        call accumulated_diagnostics_reset()
+        call aviation_diagnostics_reset()
+        call stfod_diagnostics_reset()
 
     end subroutine mpas_atm_diag_reset
 
@@ -153,13 +207,18 @@ module mpas_atm_diagnostics_manager
 
         use mpas_atm_diagnostics_utils, only : mpas_atm_diag_utils_finalize
         use diagnostic_template, only : diagnostic_template_cleanup
+        use accumulated_diagnostics, only : accumulated_diagnostics_cleanup
+        use aviation_diagnostics, only : aviation_diagnostics_cleanup
+        use turbulence_diagnostics, only : turbulence_diagnostics_cleanup
         use soundings, only : soundings_cleanup
 
         implicit none
 
-
         call diagnostic_template_cleanup()
         call soundings_cleanup()
+        call accumulated_diagnostics_cleanup()
+        call aviation_diagnostics_cleanup()
+        call turbulence_diagnostics_cleanup()
 
         !
         ! Take care of any needed cleanup in the diagnostics utility module

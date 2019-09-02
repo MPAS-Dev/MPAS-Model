@@ -8,6 +8,7 @@
 module atm_core
 
    use mpas_derived_types
+   use mpas_threading
    use mpas_pool_routines
    use mpas_dmpar
    use mpas_log, only : mpas_log_write
@@ -37,7 +38,6 @@ module atm_core
       real (kind=RKIND), pointer :: dt
       type (block_type), pointer :: block
 
-      character(len=StrKIND) :: timeStamp
       integer :: i
       logical, pointer :: config_do_restart
 
@@ -94,6 +94,7 @@ module atm_core
          call MPAS_stream_mgr_read(domain % streamManager, streamID='restart', ierr=ierr)
       else
          call MPAS_stream_mgr_read(domain % streamManager, streamID='input', ierr=ierr)
+         call MPAS_stream_mgr_read(domain % streamManager, streamID='da_input', ierr=ierr)
       end if
       if (ierr /= MPAS_STREAM_MGR_NOERR) then
          call mpas_log_write('********************************************************************************', messageType=MPAS_LOG_ERR)
@@ -101,6 +102,7 @@ module atm_core
          call mpas_log_write('********************************************************************************', messageType=MPAS_LOG_CRIT)
       end if
       call MPAS_stream_mgr_reset_alarms(domain % streamManager, streamID='input', direction=MPAS_STREAM_INPUT, ierr=ierr)
+      call MPAS_stream_mgr_reset_alarms(domain % streamManager, streamID='da_input', direction=MPAS_STREAM_INPUT, ierr=ierr)
       call MPAS_stream_mgr_reset_alarms(domain % streamManager, streamID='restart', direction=MPAS_STREAM_INPUT, ierr=ierr)
 
       !
@@ -506,10 +508,9 @@ module atm_core
       ! Avoid writing a restart file at the initial time
       call MPAS_stream_mgr_reset_alarms(domain % streamManager, streamID='restart', direction=MPAS_STREAM_OUTPUT, ierr=ierr)
 
-      ! Also, for restart runs, avoid writing the initial history or diagnostics fields to avoid overwriting those from the preceding run
+      ! Also, for restart runs, avoid writing the initial history fields to avoid overwriting those from the preceding run
       if (config_do_restart) then
          call MPAS_stream_mgr_reset_alarms(domain % streamManager, streamID='output', direction=MPAS_STREAM_OUTPUT, ierr=ierr)
-         call MPAS_stream_mgr_reset_alarms(domain % streamManager, streamID='diagnostics', direction=MPAS_STREAM_OUTPUT, ierr=ierr)
       end if
 
       call mpas_dmpar_get_time(diag_start_time)
@@ -542,9 +543,19 @@ module atm_core
          call mpas_log_write('Error writing one or more output streams',                                         messageType=MPAS_LOG_ERR)
          call mpas_log_write('********************************************************************************', messageType=MPAS_LOG_CRIT)
       end if
+
+      currTime = mpas_get_clock_time(clock, MPAS_NOW, ierr)
+      call mpas_get_time(curr_time=currTime, dateTimeString=timeStamp, ierr=ierr)         
+
       if (MPAS_stream_mgr_ringing_alarms(domain % streamManager, direction=MPAS_STREAM_OUTPUT, ierr=ierr)) then
          call mpas_log_write('Timing for diagnostic computation: $r s', realArgs=(/real(diag_stop_time - diag_start_time, kind=RKIND)/))
          call mpas_log_write('Timing for stream output: $r s', realArgs=(/real(output_stop_time - output_start_time, kind=RKIND)/))
+         call mpas_threading_barrier()
+         if (domain % dminfo % my_proc_id == 0) then
+            call mpas_log_write(' Creating the MPAS flag file at '//trim(timeStamp))
+            open(22,file="mpasout_flag."//timeStamp(1:13)//"."//timeStamp(15:16)//"."//timeStamp(18:19),form='formatted',status='replace')
+            close(22)
+         end if
       end if
 
       call mpas_atm_diag_reset()
@@ -665,6 +676,12 @@ module atm_core
          if (MPAS_stream_mgr_ringing_alarms(domain % streamManager, direction=MPAS_STREAM_OUTPUT, ierr=ierr)) then
             call mpas_log_write('Timing for diagnostic computation: $r s', realArgs=(/real(diag_stop_time - diag_start_time, kind=RKIND)/))
             call mpas_log_write('Timing for stream output: $r s', realArgs=(/real(output_stop_time - output_start_time, kind=RKIND)/))
+            call mpas_threading_barrier()
+            if (domain % dminfo % my_proc_id == 0) then
+               call mpas_log_write(' Creating the MPAS flag file at '//trim(timeStamp))
+               open(22,file="mpasout_flag."//timeStamp(1:13)//"."//timeStamp(15:16)//"."//timeStamp(18:19),form='formatted',status='replace')
+               close(22)
+            end if
          end if
 
          ! reset any diagnostics here
@@ -849,7 +866,6 @@ module atm_core
       
       type (MPAS_Time_Type) :: startTime, currTime
       type (MPAS_TimeInterval_Type) :: xtimeTime
-      character(len=StrKIND) :: timeStamp
       integer :: s, s_n, s_d
       real (kind=RKIND) :: xtime_s
       integer :: ierr
@@ -861,8 +877,6 @@ module atm_core
       call mpas_get_timeInterval(interval=xtimeTime, S=s, S_n=s_n, S_d=s_d, ierr=ierr)         
       xtime_s = (s + s_n / s_d)
 
-      call mpas_get_time(curr_time=currTime, dateTimeString=timeStamp, ierr=ierr)         
-
 
 #ifdef DO_PHYSICS
       !proceed with physics if moist_physics is set to true:
@@ -872,7 +886,7 @@ module atm_core
       endif
 #endif
 
-      call atm_timestep(domain, dt, timeStamp, itimestep)
+      call atm_timestep(domain, dt, currTime, itimestep)
 
    end subroutine atm_do_timestep
    

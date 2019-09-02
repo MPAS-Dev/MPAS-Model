@@ -88,7 +88,7 @@
                                   i_aclwupb,i_aclwupbc,i_aclwupt,i_aclwuptc
 
  real(kind=RKIND),pointer:: bucket_radt
- real(kind=RKIND),dimension(:),pointer:: swdnb,swdnbc,swdnt,swdntc,  &
+ real(kind=RKIND),dimension(:),pointer:: swdnb,swdnbc,swdnbdn,swdnt,swdntc,  &
                                          swupb,swupbc,swupt,swuptc,  &
                                          lwdnb,lwdnbc,lwdnt,lwdntc,  &
                                          lwupb,lwupbc,lwupt,lwuptc
@@ -106,56 +106,68 @@
 
  call mpas_pool_get_dimension(mesh,'nCellsSolve',nCellsSolve)
 
- call mpas_pool_get_array(diag_physics,'i_acswdnb' , i_acswdnb )
- call mpas_pool_get_array(diag_physics,'i_acswdnbc', i_acswdnbc)
- call mpas_pool_get_array(diag_physics,'i_acswdnt' , i_acswdnt )
- call mpas_pool_get_array(diag_physics,'i_acswdntc', i_acswdntc)
- call mpas_pool_get_array(diag_physics,'i_acswupb' , i_acswupb )
- call mpas_pool_get_array(diag_physics,'i_acswupbc', i_acswupbc)
- call mpas_pool_get_array(diag_physics,'i_acswupt' , i_acswupt )
- call mpas_pool_get_array(diag_physics,'i_acswuptc', i_acswuptc)
- call mpas_pool_get_array(diag_physics,'i_aclwdnb' , i_aclwdnb )
- call mpas_pool_get_array(diag_physics,'i_aclwdnbc', i_aclwdnbc)
- call mpas_pool_get_array(diag_physics,'i_aclwdnt' , i_aclwdnt )
- call mpas_pool_get_array(diag_physics,'i_aclwdntc', i_aclwdntc)
- call mpas_pool_get_array(diag_physics,'i_aclwupb' , i_aclwupb )
- call mpas_pool_get_array(diag_physics,'i_aclwupbc', i_aclwupbc)
- call mpas_pool_get_array(diag_physics,'i_aclwupt' , i_aclwupt )
- call mpas_pool_get_array(diag_physics,'i_aclwuptc', i_aclwuptc)
+ call mpas_pool_get_array_gpu(diag_physics,'i_acswdnb' , i_acswdnb )
+ call mpas_pool_get_array_gpu(diag_physics,'i_acswdnbc', i_acswdnbc)
+ call mpas_pool_get_array_gpu(diag_physics,'i_acswdnt' , i_acswdnt )
+ call mpas_pool_get_array_gpu(diag_physics,'i_acswdntc', i_acswdntc)
+ call mpas_pool_get_array_gpu(diag_physics,'i_acswupb' , i_acswupb )
+ call mpas_pool_get_array_gpu(diag_physics,'i_acswupbc', i_acswupbc)
+ call mpas_pool_get_array_gpu(diag_physics,'i_acswupt' , i_acswupt )
+ call mpas_pool_get_array_gpu(diag_physics,'i_acswuptc', i_acswuptc)
+ call mpas_pool_get_array_gpu(diag_physics,'i_aclwdnb' , i_aclwdnb )
+ call mpas_pool_get_array_gpu(diag_physics,'i_aclwdnbc', i_aclwdnbc)
+ call mpas_pool_get_array_gpu(diag_physics,'i_aclwdnt' , i_aclwdnt )
+ call mpas_pool_get_array_gpu(diag_physics,'i_aclwdntc', i_aclwdntc)
+ call mpas_pool_get_array_gpu(diag_physics,'i_aclwupb' , i_aclwupb )
+ call mpas_pool_get_array_gpu(diag_physics,'i_aclwupbc', i_aclwupbc)
+ call mpas_pool_get_array_gpu(diag_physics,'i_aclwupt' , i_aclwupt )
+ call mpas_pool_get_array_gpu(diag_physics,'i_aclwuptc', i_aclwuptc)
 
- call mpas_pool_get_array(diag_physics,'acswdnb'   , acswdnb   )
- call mpas_pool_get_array(diag_physics,'acswdnbc'  , acswdnbc  )
- call mpas_pool_get_array(diag_physics,'acswdnt'   , acswdnt   )
- call mpas_pool_get_array(diag_physics,'acswdntc'  , acswdntc  )
- call mpas_pool_get_array(diag_physics,'acswupb'   , acswupb   )
- call mpas_pool_get_array(diag_physics,'acswupbc'  , acswupbc  )
- call mpas_pool_get_array(diag_physics,'acswupt'   , acswupt   )
- call mpas_pool_get_array(diag_physics,'acswuptc'  , acswuptc  )
- call mpas_pool_get_array(diag_physics,'aclwdnb'   , aclwdnb   )
- call mpas_pool_get_array(diag_physics,'aclwdnbc'  , aclwdnbc  )
- call mpas_pool_get_array(diag_physics,'aclwdnt'   , aclwdnt   )
- call mpas_pool_get_array(diag_physics,'aclwdntc'  , aclwdntc  )
- call mpas_pool_get_array(diag_physics,'aclwupb'   , aclwupb   )
- call mpas_pool_get_array(diag_physics,'aclwupbc'  , aclwupbc  )
- call mpas_pool_get_array(diag_physics,'aclwupt'   , aclwupt   )
- call mpas_pool_get_array(diag_physics,'aclwuptc'  , aclwuptc  )
+ call mpas_pool_get_array_gpu(diag_physics,'acswdnb'   , acswdnb   )
+ call mpas_pool_get_array_gpu(diag_physics,'acswdnbc'  , acswdnbc  )
+ call mpas_pool_get_array_gpu(diag_physics,'acswdnt'   , acswdnt   )
+ call mpas_pool_get_array_gpu(diag_physics,'acswdntc'  , acswdntc  )
+ call mpas_pool_get_array_gpu(diag_physics,'acswupb'   , acswupb   )
+ call mpas_pool_get_array_gpu(diag_physics,'acswupbc'  , acswupbc  )
+ call mpas_pool_get_array_gpu(diag_physics,'acswupt'   , acswupt   )
+ call mpas_pool_get_array_gpu(diag_physics,'acswuptc'  , acswuptc  )
+ call mpas_pool_get_array_gpu(diag_physics,'aclwdnb'   , aclwdnb   )
+ call mpas_pool_get_array_gpu(diag_physics,'aclwdnbc'  , aclwdnbc  )
+ call mpas_pool_get_array_gpu(diag_physics,'aclwdnt'   , aclwdnt   )
+ call mpas_pool_get_array_gpu(diag_physics,'aclwdntc'  , aclwdntc  )
+ call mpas_pool_get_array_gpu(diag_physics,'aclwupb'   , aclwupb   )
+ call mpas_pool_get_array_gpu(diag_physics,'aclwupbc'  , aclwupbc  )
+ call mpas_pool_get_array_gpu(diag_physics,'aclwupt'   , aclwupt   )
+ call mpas_pool_get_array_gpu(diag_physics,'aclwuptc'  , aclwuptc  )
 
- call mpas_pool_get_array(diag_physics,'swdnb'     , swdnb     )
- call mpas_pool_get_array(diag_physics,'swdnbc'    , swdnbc    )
- call mpas_pool_get_array(diag_physics,'swdnt'     , swdnt     )
- call mpas_pool_get_array(diag_physics,'swdntc'    , swdntc    )
- call mpas_pool_get_array(diag_physics,'swupb'     , swupb     )
- call mpas_pool_get_array(diag_physics,'swupbc'    , swupbc    )
- call mpas_pool_get_array(diag_physics,'swupt'     , swupt     )
- call mpas_pool_get_array(diag_physics,'swuptc'    , swuptc    )
- call mpas_pool_get_array(diag_physics,'lwdnb'     , lwdnb     )
- call mpas_pool_get_array(diag_physics,'lwdnbc'    , lwdnbc    )
- call mpas_pool_get_array(diag_physics,'lwdnt'     , lwdnt     )
- call mpas_pool_get_array(diag_physics,'lwdntc'    , lwdntc    )
- call mpas_pool_get_array(diag_physics,'lwupb'     , lwupb     )
- call mpas_pool_get_array(diag_physics,'lwupbc'    , lwupbc    )
- call mpas_pool_get_array(diag_physics,'lwupt'     , lwupt     )
- call mpas_pool_get_array(diag_physics,'lwuptc'    , lwuptc    )
+ call mpas_pool_get_array_gpu(diag_physics,'swdnb'     , swdnb     )
+ call mpas_pool_get_array_gpu(diag_physics,'swdnbc'    , swdnbc    )
+ call mpas_pool_get_array_gpu(diag_physics,'swdnbdn'   , swdnbdn   )
+ call mpas_pool_get_array_gpu(diag_physics,'swdnt'     , swdnt     )
+ call mpas_pool_get_array_gpu(diag_physics,'swdntc'    , swdntc    )
+ call mpas_pool_get_array_gpu(diag_physics,'swupb'     , swupb     )
+ call mpas_pool_get_array_gpu(diag_physics,'swupbc'    , swupbc    )
+ call mpas_pool_get_array_gpu(diag_physics,'swupt'     , swupt     )
+ call mpas_pool_get_array_gpu(diag_physics,'swuptc'    , swuptc    )
+ call mpas_pool_get_array_gpu(diag_physics,'lwdnb'     , lwdnb     )
+ call mpas_pool_get_array_gpu(diag_physics,'lwdnbc'    , lwdnbc    )
+ call mpas_pool_get_array_gpu(diag_physics,'lwdnt'     , lwdnt     )
+ call mpas_pool_get_array_gpu(diag_physics,'lwdntc'    , lwdntc    )
+ call mpas_pool_get_array_gpu(diag_physics,'lwupb'     , lwupb     )
+ call mpas_pool_get_array_gpu(diag_physics,'lwupbc'    , lwupbc    )
+ call mpas_pool_get_array_gpu(diag_physics,'lwupt'     , lwupt     )
+ call mpas_pool_get_array_gpu(diag_physics,'lwuptc'    , lwuptc    )
+
+ !$acc update host(i_acswdnb, i_acswdnbc, i_acswdnt, i_acswdntc, &
+ !$acc i_acswupb, i_acswupbc, i_acswupt, i_acswuptc, i_aclwdnb, &
+ !$acc i_aclwdnbc, i_aclwdnt, i_aclwdntc, i_aclwupb, i_aclwupbc, &
+ !$acc i_aclwupt, i_aclwuptc, &
+ !$acc acswdnb, acswdnbc, acswdnt, acswdntc, acswupb, acswupbc, &
+ !$acc acswupt, acswuptc, aclwdnb, aclwdnbc, aclwdnt, aclwdntc, &
+ !$acc aclwupb, aclwupbc, aclwupt, aclwuptc, &
+ !$acc swdnb, swdnbc, swdnbdn, swdnt, swdntc, swupb, swupbc, &
+ !$acc swupt, swuptc, lwdnb, lwdnbc, lwdnt, lwdntc, lwupb, &
+ !$acc lwupbc, lwupt, lwuptc)
 
  do iCell = its, ite
     !short-wave radiation:
@@ -250,6 +262,17 @@
     enddo
 
  endif
+
+ !$acc update device(i_acswdnb, i_acswdnbc, i_acswdnt, i_acswdntc, &
+ !$acc i_acswupb, i_acswupbc, i_acswupt, i_acswuptc, i_aclwdnb, &
+ !$acc i_aclwdnbc, i_aclwdnt, i_aclwdntc, i_aclwupb, i_aclwupbc, &
+ !$acc i_aclwupt, i_aclwuptc, &
+ !$acc acswdnb, acswdnbc, acswdnt, acswdntc, acswupb, acswupbc, &
+ !$acc acswupt, acswuptc, aclwdnb, aclwdnbc, aclwdnt, aclwdntc, &
+ !$acc aclwupb, aclwupbc, aclwupt, aclwuptc, &
+ !$acc swdnb, swdnbc, swdnbdn, swdnt, swdntc, swupb, swupbc, &
+ !$acc swupt, swuptc, lwdnb, lwdnbc, lwdnt, lwdntc, lwupb, &
+ !$acc lwupbc, lwupt, lwuptc)
 
  end subroutine update_radiation_diagnostics
 

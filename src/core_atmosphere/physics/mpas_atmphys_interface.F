@@ -276,10 +276,9 @@
  call mpas_pool_get_dimension(state,'index_qs',index_qs)
  call mpas_pool_get_dimension(state,'index_qg',index_qg)
 
- call mpas_pool_get_array_gpu(diag_physics,'plrad',plrad)
  call mpas_pool_get_array_gpu(state,'scalars',scalars,time_lev)
+ call mpas_pool_get_array_gpu(diag_physics,'plrad',plrad)
 
-!!!
  !$acc update host(latCell, lonCell, fzm, fzp, rdzw, zgrid, zz, &
  !$acc surface_pressure, exner, pressure_b, pressure_p, rtheta_b, &
  !$acc rtheta_p, u, v, rho_zz, theta_m, w, plrad, scalars)
@@ -472,7 +471,6 @@
  enddo
  enddo
 
-!!!
  !$acc update device(latCell, lonCell, fzm, fzp, rdzw, zgrid, zz, &
  !$acc surface_pressure, exner, pressure_b, pressure_p, rtheta_b, &
  !$acc rtheta_p, u, v, rho_zz, theta_m, w, plrad, scalars)
@@ -544,7 +542,6 @@
 
  call mpas_pool_get_array_gpu(state,'scalars',scalars,time_lev)
 
-!!!
  !$acc update host(zgrid, zz, exner, pressure_b, pressure_p, &
  !$acc nt_c, mu_c, rainprod, evapprod, re_cloud, re_ice, re_snow, &
  !$acc rho_zz, theta_m, w, scalars)
@@ -700,11 +697,10 @@
  call mpas_pool_get_dimension(state,'index_ni'  ,index_ni  )
  call mpas_pool_get_dimension(state,'index_nr'  ,index_nr  )
 
- call mpas_pool_get_array_gpu(tend,'rt_diabatic_tend',rt_diabatic_tend)
- call mpas_pool_get_array_gpu(state,'scalars',scalars,time_lev)
+ call mpas_pool_get_array(state,'scalars',scalars,time_lev)
+ call mpas_pool_get_array(tend,'rt_diabatic_tend',rt_diabatic_tend)
 
-!!!
-!$acc update host(zz, zgrid, exner, exner_b, pressure_b, pressure_p, &
+ !$acc update host(zz, zgrid, exner, exner_b, pressure_b, pressure_p, &
  !$acc rtheta_b, rtheta_p, surface_pressure, rainprod, evapprod, re_cloud, &
  !$acc re_ice, re_snow, tend_sfc_pressure, rho_zz, theta_m, rt_diabatic_tend, &
  !$acc scalars)
@@ -804,7 +800,6 @@
 
  end select microp_select_init
 
-!!!
  !$acc update device(zz, zgrid, exner, exner_b, pressure_b, pressure_p, &
  !$acc rtheta_b, rtheta_p, surface_pressure, rainprod, evapprod, re_cloud, &
  !$acc re_ice, re_snow, tend_sfc_pressure, rho_zz, theta_m, rt_diabatic_tend, &

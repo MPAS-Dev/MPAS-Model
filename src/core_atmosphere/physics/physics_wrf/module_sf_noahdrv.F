@@ -25,7 +25,7 @@ CONTAINS
                   SMOIS,TSLB,SNOW,CANWAT,                       &
                   CHS,CHS2,CQS2,CPM,ROVCP,SR,chklowq,lai,qz0,   & !H
                   myj,frpcpn,                                   &
-                  SH2O,SNOWH,                                   & !H
+                  SH2O,SNOWH,SNOW_RATIO,                        & !H
                   U_PHY,V_PHY,                                  & !I
                   SNOALB,SHDMIN,SHDMAX,                         & !I
                   SNOTIME,                                      & !?
@@ -40,6 +40,7 @@ CONTAINS
                   ids,ide, jds,jde, kds,kde,                    &
                   ims,ime, jms,jme, kms,kme,                    &
                   its,ite, jts,jte, kts,kte,                    &
+                  ncells, cellid, latcell, loncell, xtime, T2,  &
                   sf_urban_physics,                             &
                   CMR_SFCDIF,CHR_SFCDIF,CMC_SFCDIF,CHC_SFCDIF,  &
 !Optional Urban
@@ -97,6 +98,7 @@ CONTAINS
 !-- SH2O        unfrozen soil moisture content (volumetric fraction)
 !                note: frozen soil moisture (i.e., soil ice) = SMOIS - SH2O
 !-- SNOWH       actual snow depth (m)
+!-- SNOW_RATIO  snow water ratio
 !-- SNOW        liquid water-equivalent snow depth (m)
 !-- ALBEDO      time-varying surface albedo including snow effect (unitless fraction)
 !-- ALBBCK      background surface albedo (unitless fraction)
@@ -205,10 +207,14 @@ CONTAINS
 !----------------------------------------------------------------
 
 ! IN only
-
    INTEGER,  INTENT(IN   )   ::     ids,ide, jds,jde, kds,kde,  &
                                     ims,ime, jms,jme, kms,kme,  &
-                                    its,ite, jts,jte, kts,kte
+                                    its,ite, jts,jte, kts,kte,  &
+                                    ncells
+
+   INTEGER,  DIMENSION( ncells ), INTENT(IN   ) :: cellid
+   REAL,     DIMENSION( ncells ), INTENT(IN   ) :: latcell
+   REAL,     DIMENSION( ncells ), INTENT(IN   ) :: loncell
 
    INTEGER,  INTENT(IN   )   ::  sf_urban_physics               !urban
    INTEGER,  INTENT(IN   )   ::  isurban
@@ -227,12 +233,14 @@ CONTAINS
                                                            GLW, &
                                                         RAINBL, &
                                                         EMBCK,  &
-                                                        SR
+                                                        SR,     &
+                                                        T2
 
    REAL,    DIMENSION( ims:ime, jms:jme )                     , &
             INTENT(INOUT)    ::                         ALBBCK, &
                                                             Z0
    CHARACTER(LEN=*), INTENT(IN   )    ::                 MMINLU
+   CHARACTER(LEN=*), INTENT(IN   )    ::                 XTIME
 
    REAL,    DIMENSION( ims:ime, kms:kme, jms:jme )            , &
             INTENT(IN   )    ::                           QV3D, &
@@ -276,6 +284,7 @@ CONTAINS
                                                           SNOW, &
                                                          SNOWC, &
                                                          SNOWH, & !new
+                                                    SNOW_RATIO, &
                                                         CANWAT, &
                                                         SMSTAV, &
                                                         SMSTOT, &
@@ -336,7 +345,7 @@ CONTAINS
       REAL  :: SHMIN,SHMAX,DQSDT2,LWDN,PRCP,PRCPRAIN,                    &
                Q2SAT,Q2SATI,SFCPRS,SFCSPD,SFCTMP,SHDFAC,SNOALB1,         &
                SOLDN,TBOT,ZLVL, Q2K,ALBBRD, ALBEDOK, ETA, ETA_KINEMATIC, &
-               EMBRD,                                                    &
+               EMBRD,DF1,SNUP,LAT,LON,LAT_0,LON_0,DLATLON,               &
                Z0K,RUNOFF1,RUNOFF2,RUNOFF3,SHEAT,SOLNET,E2SAT,SFCTSNO,   &
 ! mek, WRF testing, expanded diagnostics
                SOLUP,LWUP,RNET,RES,Q1SFC,TAIRV,SATFLG
@@ -348,7 +357,7 @@ CONTAINS
 
       REAL  :: EMISSI
 
-      REAL  :: SNCOVR,SNEQV,SNOWHK,CMC, CHK,TH2
+      REAL  :: SNCOVR,SNEQV,SNOWHK,CMC,CHK,TH2,SNOWRATIO
 
       REAL  :: SMCDRY,SMCMAX,SMCREF,SMCWLT,SNOMLT,SOILM,SOILW,Q1,T1
       REAL  :: SNOTIME1    ! LSTSNW1 INITIAL NUMBER OF TIMESTEPS SINCE LAST SNOWFALL
@@ -669,6 +678,7 @@ CONTAINS
 ! snow depth in meters
         SNOWHK=SNOWH(I,J)
         SNCOVR=SNOWC(I,J)
+        SNOWRATIO=SNOW_RATIO(I,J)
 
 ! if "SR" present, set frac of frozen precip ("FFROZP") = snow-ratio ("SR", range:0-1)
 ! SR from e.g. Ferrier microphysics
@@ -836,15 +846,16 @@ CONTAINS
              xlai = lai(i,j)
           endif
 
-       CALL SFLX (FFROZP, ICE, ISURBAN, DT,ZLVL,NSOIL,SLDPTH,     &    !C
+       CALL SFLX (FFROZP, ICE, 0,       DT,ZLVL,NSOIL,SLDPTH,     &    !C
                  LOCAL,                                           &    !L
                  LUTYPE, SLTYPE,                                  &    !CL
                  LWDN,SOLDN,SOLNET,SFCPRS,PRCP,SFCTMP,Q2K,DUMMY,         &    !F
                  DUMMY,DUMMY, DUMMY,                              &    !F PRCPRAIN not used
                  TH2,Q2SAT,DQSDT2,                                &    !I
                  VEGTYP,SOILTYP,SLOPETYP,SHDFAC,SHMIN,SHMAX,      &    !I
+                 SNOWRATIO,                                       &    !I
                  ALBBRD, SNOALB1,TBOT, Z0BRD, Z0K, EMISSI, EMBRD, &    !S
-                 CMC,T1,STC,SMC,SWC,SNOWHK,SNEQV,ALBEDOK,CHK,dummy,&    !H
+                 CMC,T1,STC,SMC,SWC,SNOWHK,SNEQV,ALBEDOK,CHK,dummy,&   !H
                  ETA,SHEAT, ETA_KINEMATIC,FDOWN,                  &    !O
                  EC,EDIR,ET,ETT,ESNOW,DRIP,DEW,                   &    !O
                  BETA,ETP,SSOIL,                                  &    !O
@@ -856,7 +867,7 @@ CONTAINS
                  RDLAI2D,USEMONALB,                               &
                  SNOTIME1,                                        &
                  RIBB,                                            &
-                 SMCWLT,SMCDRY,SMCREF,SMCMAX,NROOT)
+                 SMCWLT,SMCDRY,SMCREF,SMCMAX,NROOT,DF1,SNUP)
 
 
        lai(i,j) = xlai
@@ -886,6 +897,79 @@ CONTAINS
           'SMCREF',SMCREF,'SMCMAX',SMCMAX,'NROOT',NROOT
            endif
 #endif
+
+!         lat_0 = 44.4667
+!         lon_0 = -73.1500
+!KALB     lat_0 = 42.75
+!KALB     lon_0 = -73.80
+!         dlatlon = 0.35
+!         lat = latcell(i)*57.295779513
+!         lon = loncell(i)*57.295779513
+!         if(lon>180.) lon=lon-360.
+!         if(lon>lon_0-dlatlon .and. lat>lat_0-dlatlon .and. lon<lon_0+dlatlon .and. lat<lat_0+dlatlon) then
+!         if(cellid(I)==399837) then
+!         print*,'DATE,',trim(XTIME)
+!         print*,'CELLID,',cellid(I)
+!         print*,'LAT,',lat
+!         print*,'LON,',lon
+!         print*,'LWDN,',LWDN
+!         print*,'SOLDN,',SOLDN
+!         print*,'FDOWN,',FDOWN
+!         print*,'PRCP,',PRCP
+!         print*,'TH2,',TH2
+!         print*,'Q2K,',Q2K
+!         print*,'SFCTMP,',(SFCTMP-273.16)*1.8+32.
+!         print*,'T2,',(T2(I,J)-273.16)*1.8+32.
+!         print*,'T1,',(T1-273.16)*1.8+32.
+!         print*,'Q1,',Q1
+!         print*,'STC1,',STC(1)
+!         print*,'STC2,',STC(2)
+!         print*,'STC3,',STC(3)
+!         print*,'STC4,',STC(4)
+!         print*,'SMC1,',SMC(1)
+!         print*,'SMC2,',SMC(2)
+!         print*,'SMC3,',SMC(3)
+!         print*,'SMC4,',SMC(4)
+!         print*,'SWC1,',SWC(1)
+!         print*,'SWC2,',SWC(2)
+!         print*,'SWC3,',SWC(3)
+!         print*,'SWC4,',SWC(4)
+!         print*,'VEGTYP,',VEGTYP
+!         print*,'SOILTYP,',SOILTYP
+!         print*,'SHDFAC,',SHDFAC
+!         print*,'SHDMIN,',SHMIN
+!         print*,'ALBBRD,',ALBBRD
+!         print*,'ALBEDOK,',ALBEDOK
+!         print*,'TBOT,',TBOT
+!         print*,'Z0BRD,',Z0BRD
+!         print*,'Z0K,',Z0K
+!         print*,'CHK,',CHK
+!         print*,'CHS2,',CHS2(I,J)
+!         print*,'ETP,',ETP
+!         print*,'ETA,',ETA
+!         print*,'EC,',EC
+!         print*,'ET,',ET
+!         print*,'ETT,',ETT
+!         print*,'EDIR,',EDIR
+!         print*,'CMC,',CMC
+!         print*,'SHEAT,',SHEAT
+!         print*,'SSOIL,',SSOIL
+!         print*,'DF1,',DF1
+!         print*,'XLAI,',XLAI
+!         print*,'NROOT,',NROOT
+!         print*,'DT,',DT
+!         print*,'ZLVL,',ZLVL
+!         print*,'SLDPTH1,',SLDPTH(1)
+!         print*,'SLDPTH2,',SLDPTH(2)
+!         print*,'SLDPTH3,',SLDPTH(3)
+!         print*,'SLDPTH4,',SLDPTH(4)
+!         print*,'SNOWH,',SNOWHK
+!         print*,'SNEQV,',SNEQV
+!         print*,'SNUP,',SNUP
+!         print*,'SNCOVR,',SNCOVR
+!         print*,''
+!         print*,''
+!         endif
 
 !***  UPDATE STATE VARIABLES
           CANWAT(I,J)=CMC
