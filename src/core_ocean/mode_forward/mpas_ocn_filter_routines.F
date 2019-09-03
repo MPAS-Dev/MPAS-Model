@@ -26,6 +26,7 @@
 MODULE ocn_filter_routines
 
 USE mpas_derived_types
+USE mpas_io_units
 
 IMPLICIT NONE
 
@@ -39,20 +40,22 @@ CONTAINS
    CHARACTER(LEN=*), INTENT(IN) :: filename
    
    ! Local variables
-   INTEGER :: iX, nX
+   INTEGER :: iX, nX, OutputFileUnitNumber
    
    nX = UBOUND(x,1)
    
-   OPEN (UNIT=1, FILE=TRIM(filename)//'.curve', STATUS='REPLACE', ACTION='WRITE', &
-         FORM='FORMATTED')
+   CALL mpas_new_unit(OutputFileUnitNumber)
    
-   WRITE (1,*) '#phi'
+   OPEN (UNIT=OutputFileUnitNumber, FILE=TRIM(filename)//'.curve', STATUS='REPLACE', &
+         ACTION='WRITE', FORM='FORMATTED')
+   
+   WRITE (OutputFileUnitNumber,*) '#phi'
    
    DO iX = 1, nX
-      WRITE (1,*)  x(iX), phi(iX)
+      WRITE (OutputFileUnitNumber,*)  x(iX), phi(iX)
    END DO
    
-   CLOSE (UNIT=1)
+   CLOSE (UNIT=OutputFileUnitNumber)
    
    END  SUBROUTINE WriteTecplot1D
    !-----------------------------------------------------------------------------------!
@@ -90,25 +93,25 @@ CONTAINS
    CHARACTER(LEN=*), INTENT(IN) :: filename
    
    ! Local Variables
-   INTEGER :: nX, nY, iX, iY
+   INTEGER :: nX, nY, iX, iY, OutputFileUnitNumber
    
    nX = UBOUND(Matrix,1) 
    nY = UBOUND(Matrix,2)
    
-   OPEN (UNIT=1, FILE=TRIM(filename)//'.txt', STATUS='REPLACE', ACTION='WRITE', &
-         FORM='FORMATTED')
+   OPEN (UNIT=OutputFileUnitNumber, FILE=TRIM(filename)//'.txt', STATUS='REPLACE', &
+         ACTION='WRITE', FORM='FORMATTED')
    
    DO iX = 1, nX
       DO iY = 1, nY
          IF (iY == nY) THEN 
-            WRITE (1,'(F9.3,2X)') Matrix(iX,iY)
+            WRITE (OutputFileUnitNumber,'(F9.3,2X)') Matrix(iX,iY)
          ELSE
-            WRITE (1,'(F9.3,2X)',ADVANCE='NO') Matrix(iX,iY)
+            WRITE (OutputFileUnitNumber,'(F9.3,2X)',ADVANCE='NO') Matrix(iX,iY)
          END IF 
       END DO 
    END DO
    
-   CLOSE (UNIT=1)
+   CLOSE (UNIT=OutputFileUnitNumber)
    
    END  SUBROUTINE WriteMatrixToFile
    !-----------------------------------------------------------------------------------!
@@ -1008,7 +1011,7 @@ CONTAINS
       tau(iBarotropicTimeStep) &
       = REAL(iBarotropicTimeStep,KIND=RKIND)/REAL(nBarotropicTimeSteps,KIND=RKIND)
    END DO 
-  
+   
    IF (FilterType == 'no_filter') THEN
       PrimaryWeights(nBarotropicTimeSteps) = 1._RKIND
       SecondaryWeights(nBarotropicTimeSteps) = 1._RKIND
@@ -1075,7 +1078,10 @@ CONTAINS
       END DO 
       SecondaryWeights(iBarotropicTimeStep) &
       = SecondaryWeights(iBarotropicTimeStep)/REAL(nBarotropicTimeSteps,KIND=RKIND)   
-   END DO 
+   END DO
+
+   PrimaryWeights = PrimaryWeights/SUM(PrimaryWeights)
+   SecondaryWeights = SecondaryWeights/SUM(SecondaryWeights)
    
    END SUBROUTINE DetermineFilterWeights
    !-----------------------------------------------------------------------------------!

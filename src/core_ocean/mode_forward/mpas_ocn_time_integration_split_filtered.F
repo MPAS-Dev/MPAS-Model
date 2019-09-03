@@ -177,7 +177,7 @@ contains
       real (kind=RKIND), dimension(:), pointer :: sshSubcycleCur, sshSubcycleNew
       real (kind=RKIND), dimension(:), pointer :: normalBarotropicVelocitySubcycleCur, normalBarotropicVelocitySubcycleNew
       real (kind=RKIND), dimension(:), pointer :: sshCur, sshNew
-      real (kind=RKIND), dimension(:), pointer :: normalBarotropicVelocityCur, normalBarotropicVelocityNew
+      real (kind=RKIND), dimension(:), pointer :: normalBarotropicVelocityCur, normalBarotropicVelocityNew                                            
       real (kind=RKIND), dimension(:,:), pointer :: normalBaroclinicVelocityCur, normalBaroclinicVelocityNew
       real (kind=RKIND), dimension(:,:), pointer :: normalVelocityCur, normalVelocityNew
       real (kind=RKIND), dimension(:,:), pointer :: layerThicknessCur, layerThicknessNew
@@ -325,7 +325,7 @@ contains
          do iEdge = 1, nEdges
 
             ! Compute barotropic component
-            thicknessSum  = layerThicknessEdge(1,iEdge)
+            thicknessSum = layerThicknessEdge(1,iEdge)
             normalBarotropicVelocityCur(iEdge) = normalVelocityCur(1,iEdge) * layerThicknessEdge(1,iEdge)
             do k = 2, maxLevelEdgeTop(iEdge)
                thicknessSum = thicknessSum + layerThicknessEdge(k,iEdge)
@@ -372,6 +372,7 @@ contains
                end if
             end if
          end do
+
 
          if (associated(highFreqThicknessNew)) then
             !$omp do schedule(runtime)
@@ -692,7 +693,7 @@ contains
                do iEdge = 1, nEdges
                   normalBarotropicVelocityNew(iEdge) = 0.0_RKIND
                   do k = 1, nVertLevels
-                     normalVelocityNew(k, iEdge)  = normalBaroclinicVelocityNew(k, iEdge)
+                     normalVelocityNew(k, iEdge) = normalBaroclinicVelocityNew(k, iEdge)
 
                      !------------------------------------------------------------------------------------------------!
                      ! normalTransportVelocity = normalBaroclinicVelocity + normalGMBolusVelocity                     !
@@ -999,7 +1000,21 @@ contains
                            * thicknessSum
 
                         ! barotropicThicknessFlux(iEdge) = barotropicThicknessFlux(iEdge) + flux
-                        barotropicThicknessFlux(iEdge) = barotropicThicknessFlux(iEdge) + SecondaryWeights(j) * flux
+
+                        !--------------------------------------------------------------------------------------------------!   
+                        ! If split_explicit_step == config_n_ts_iter i.e. we are at the final iteration level of the large !
+                        ! iteration loop, then barotropicThicknessFlux is defined to be the time-average of the barotropic !      
+                        ! flux modes computed using the primary filter weights and is time-centered at n + 1 else it is    !
+                        ! defined to be the time-average of the barotropic modes computed using the secondary filter       !
+                        ! weights and is time-centered at n + 1/2.                                                         !
+                        !--------------------------------------------------------------------------------------------------!   
+                                          
+                        if (split_explicit_step == config_n_ts_iter) then 
+                           barotropicThicknessFlux(iEdge) = barotropicThicknessFlux(iEdge) + PrimaryWeights(j) * flux
+                        else
+                           barotropicThicknessFlux(iEdge) = barotropicThicknessFlux(iEdge) + SecondaryWeights(j) * flux                    
+                        end if 
+
                      end do
                      !$omp end do
 
@@ -1234,7 +1249,21 @@ contains
                            * thicknessSum
                            
                         ! barotropicThicknessFlux(iEdge) = barotropicThicknessFlux(iEdge) + flux
-                        barotropicThicknessFlux(iEdge) = barotropicThicknessFlux(iEdge) + SecondaryWeights(j) * flux                        
+                        
+                        !--------------------------------------------------------------------------------------------------!   
+                        ! If split_explicit_step == config_n_ts_iter i.e. we are at the final iteration level of the large !
+                        ! iteration loop, then barotropicThicknessFlux is defined to be the time-average of the barotropic !      
+                        ! flux modes computed using the primary filter weights and is time-centered at n + 1 else it is    !
+                        ! defined to be the time-average of the barotropic modes computed using the secondary filter       !
+                        ! weights and is time-centered at n + 1/2.                                                         !
+                        !--------------------------------------------------------------------------------------------------!   
+                                          
+                        if (split_explicit_step == config_n_ts_iter) then 
+                           barotropicThicknessFlux(iEdge) = barotropicThicknessFlux(iEdge) + PrimaryWeights(j) * flux
+                        else
+                           barotropicThicknessFlux(iEdge) = barotropicThicknessFlux(iEdge) + SecondaryWeights(j) * flux                    
+                        end if 
+                             
                      end do
                      !$omp end do
 
@@ -1269,8 +1298,23 @@ contains
 
                   !$omp do schedule(runtime)
                   do iEdge = 1, nEdges
-                     normalBarotropicVelocityNew(iEdge) = normalBarotropicVelocityNew(iEdge) &
-                        + PrimaryWeights(j) * normalBarotropicVelocitySubcycleNew(iEdge)
+
+                     !--------------------------------------------------------------------------------------------------!   
+                     ! If split_explicit_step == config_n_ts_iter i.e. we are at the final iteration level of the large !
+                     ! iteration loop, then normalBarotropicVelocityNew is defined to be the time-average of the        !      
+                     ! barotropic modes computed using the primary filter weights and is time-centered at n + 1 else it !
+                     ! is defined to be the time-average of the barotropic modes computed using the secondary filter    !
+                     ! weights and is time-centered at n + 1/2.                                                         !
+                     !--------------------------------------------------------------------------------------------------!   
+                                          
+                     if (split_explicit_step == config_n_ts_iter) then 
+                        normalBarotropicVelocityNew(iEdge) = normalBarotropicVelocityNew(iEdge) &
+                           + PrimaryWeights(j) * normalBarotropicVelocitySubcycleNew(iEdge)
+                     else
+                        normalBarotropicVelocityNew(iEdge) = normalBarotropicVelocityNew(iEdge) &
+                           + SecondaryWeights(j) * normalBarotropicVelocitySubcycleNew(iEdge)                     
+                     end if 
+
                   end do ! iEdge
                   !$omp end do
 
@@ -1360,7 +1404,7 @@ contains
                call mpas_pool_get_subpool(block % structs, 'diagnostics', diagnosticsPool)
                call mpas_pool_get_subpool(block % structs, 'mesh', meshPool)
 
-               call mpas_pool_get_array(statePool, 'normalBarotropicVelocity', normalBarotropicVelocityNew, 2)
+               call mpas_pool_get_array(statePool, 'normalBarotropicVelocity', normalBarotropicVelocityNew, 2)                          
                call mpas_pool_get_array(statePool, 'normalBaroclinicVelocity', normalBaroclinicVelocityNew, 2)
 
                call mpas_pool_get_array(diagnosticsPool, 'normalTransportVelocity', normalTransportVelocity)
