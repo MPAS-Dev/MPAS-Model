@@ -4635,6 +4635,9 @@ contains
        allocate(tracerObject % index_particulateIronConcLayer(1))
        allocate(tracerObject % index_verticalAerosolsConcLayer(1))
        allocate(tracerObject % index_verticalAerosolsConcShortwave(1))
+
+       allocate(tracerObject % index_LayerIndexToDataArray(1))
+       allocate(tracerObject % index_LayerIndexToBioIndex(1))
     endif
 
   end subroutine init_column_tracer_object
