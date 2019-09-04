@@ -216,7 +216,10 @@ contains
       end do
       !$omp end do
 
-      ! this is the "standard" del2 term, but forced to use config_redi_kappa
+      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      ! Term 1: kappa div( h grad(phi) ) 
+      ! This is the "standard" del2 term, but forced to use config_redi_kappa
+      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
       if(.not.config_disable_redi_horizontal_term1) then
 
          nCells = nCellsArray( 1 )
@@ -315,7 +318,9 @@ contains
          end do
          !$omp end do
 
-         ! Compute \nabla\cdot(relativeSlope d\phi/dz)
+         !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+         ! Term 2: kappa div( h S dphi/dz)
+         !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
          if(.not.config_disable_redi_horizontal_term2) then
             nCells = nCellsArray( 1 )
             !$omp do schedule(runtime)
@@ -323,6 +328,7 @@ contains
                invAreaCell = 1.0_RKIND / areaCell(iCell)
                do i = 1, nEdgesOnCell(iCell)
                   iEdge = edgesOnCell(i, iCell)
+                  ! Do not apply cross-terms to bottom layer.
                   do k = 1, maxLevelEdgeTop(iEdge)-1
                      s_tmpU = relativeSlopeTapering(k, iEdge) * relativeSlopeTopOfEdge(k, iEdge) * dTracerdZTopOfEdge(k, iEdge)
                      s_tmpD = relativeSlopeTapering(k+1, iEdge) * relativeSlopeTopOfEdge(k+1, iEdge) &
@@ -338,10 +344,12 @@ contains
             !$omp end do
          endif
 
-         ! Compute dz * d(relativeSlope\cdot\nabla\phi)/dz  (so the dz cancel out)
+         !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+         ! Term 3: kappa d/dz ( h S grad phi) 
+         ! Note the h and 1/dz cancel, so we compute kappa d( S grad phi )
+         !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-         ! Compute relativeSlope\cdot\nabla\phi (variable gradHTracerSlopedTopOfCell) at non-boundary edges
-
+         ! First, compute relativeSlope\cdot\nabla\phi (variable gradHTracerSlopedTopOfCell) at non-boundary edges
          nCells = nCellsArray( 1 )
          !$omp do schedule(runtime)
          do iCell = 1, nCells
@@ -369,6 +377,7 @@ contains
          end do
          !$omp end do
 
+
          if(.not.config_disable_redi_horizontal_term3) then
             nCells = nCellsArray( 1 )
             !$omp do schedule(runtime)
@@ -376,13 +385,20 @@ contains
                ! impose no-flux boundary conditions at top and bottom of column
                gradHTracerSlopedTopOfCell(1,iCell) = 0.0_RKIND
                gradHTracerSlopedTopOfCell(maxLevelCell(iCell)+1,iCell) = 0.0_RKIND
+               ! Do not apply cross-terms to bottom layer.
                do k = 1, maxLevelCell(iCell)-1
+                  ! Add tendency for Term 3: d/dz ( h S grad phi) = ( S grad phi) fluxes
                   tend(iTracer,k,iCell) = tend(iTracer,k,iCell) + config_Redi_kappa * &
                       (gradHTracerSlopedTopOfCell(k,iCell) - gradHTracerSlopedTopOfCell(k+1,iCell))
                end do
             end do
             !$omp end do
          endif
+
+         !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+         ! Term 4: kappa d/dz ( h K_{33} dphi/dz) 
+         !  is applied in implicit vertical mixing.
+         !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
       end do  ! iTracer
 
