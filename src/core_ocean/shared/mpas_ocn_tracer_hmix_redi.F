@@ -323,7 +323,7 @@ contains
                invAreaCell = 1.0_RKIND / areaCell(iCell)
                do i = 1, nEdgesOnCell(iCell)
                   iEdge = edgesOnCell(i, iCell)
-                  do k = 1, maxLevelEdgeTop(iEdge)
+                  do k = 1, maxLevelEdgeTop(iEdge)-1
                      s_tmpU = relativeSlopeTapering(k, iEdge) * relativeSlopeTopOfEdge(k, iEdge) * dTracerdZTopOfEdge(k, iEdge)
                      s_tmpD = relativeSlopeTapering(k+1, iEdge) * relativeSlopeTopOfEdge(k+1, iEdge) &
                             * dTracerdZTopOfEdge(k+1, iEdge)
@@ -376,7 +376,7 @@ contains
                ! impose no-flux boundary conditions at top and bottom of column
                gradHTracerSlopedTopOfCell(1,iCell) = 0.0_RKIND
                gradHTracerSlopedTopOfCell(maxLevelCell(iCell)+1,iCell) = 0.0_RKIND
-               do k = 1, maxLevelCell(iCell)
+               do k = 1, maxLevelCell(iCell)-1
                   tend(iTracer,k,iCell) = tend(iTracer,k,iCell) + config_Redi_kappa * &
                       (gradHTracerSlopedTopOfCell(k,iCell) - gradHTracerSlopedTopOfCell(k+1,iCell))
                end do
