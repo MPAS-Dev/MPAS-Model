@@ -872,6 +872,15 @@ module atm_core
 
       call atm_timestep(domain, dt, currTime, itimestep)
 
+      !    
+      ! This is the summary of this time step from the following:
+      !  1) the physics before the dynamics solver (physics_part1)
+      !  2) the accumulated processing of the dynamics (atm_srk3)
+      !  3) the explicit microphysics (physics_part2)
+      !  4) the LBC adjustment (dynamics_final_lbc_adjustment)
+      ! 
+      call summarize_timestep(domain)
+
    end subroutine atm_do_timestep
    
    

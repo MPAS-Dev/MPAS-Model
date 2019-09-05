@@ -1791,8 +1791,6 @@ module atm_time_integration
 
       end if  ! regional_MPAS addition
 
-      call summarize_timestep(domain)
-
    end subroutine atm_srk3
 
 
