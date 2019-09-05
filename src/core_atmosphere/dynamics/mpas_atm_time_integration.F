@@ -124,18 +124,6 @@ module atm_time_integration
          call mpas_log_write('Currently, only ''SRK3'' is supported.', messageType=MPAS_LOG_CRIT)
       end if
 
-      call mpas_set_timeInterval(dtInterval, dt=dt)
-      currTime = nowTime + dtInterval
-      call mpas_get_time(currTime, dateTimeString=xtime_new)
-
-      block => domain % blocklist
-      do while (associated(block))
-         call mpas_pool_get_subpool(block % structs, 'state', state)
-         call mpas_pool_get_array(state, 'xtime', xtime, 2)
-         xtime = xtime_new
-         block => block % next
-      end do
-
    end subroutine atm_timestep
 
 
@@ -7065,6 +7053,43 @@ module atm_time_integration
       end if  ! regional_MPAS addition
 
    end subroutine dynamics_final_lbc_adjustment
+
+   subroutine dynamics_update_xtime(domain, dt, nowTime)
+   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+   ! After the end of the time step, advance the model time.
+   !
+   ! Input: domain - current time and timestep
+   ! Output: domain - upon exit, xtime is advanced
+   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+      implicit none
+
+      type (domain_type), intent(inout) :: domain
+      real (kind=RKIND), intent(in) :: dt
+      type (MPAS_Time_type), intent(in) :: nowTime
+
+
+      type (block_type), pointer :: block
+      type (MPAS_Time_type) :: currTime
+      type (MPAS_TimeInterval_type) :: dtInterval
+      character (len=StrKIND), pointer :: xtime
+      character (len=StrKIND) :: xtime_new
+      type (mpas_pool_type), pointer :: state
+
+
+      call mpas_set_timeInterval(dtInterval, dt=dt)
+      currTime = nowTime + dtInterval
+      call mpas_get_time(currTime, dateTimeString=xtime_new)
+
+      block => domain % blocklist
+      do while (associated(block))
+         call mpas_pool_get_subpool(block % structs, 'state', state)
+         call mpas_pool_get_array(state, 'xtime', xtime, 2)
+         xtime = xtime_new
+         block => block % next
+      end do
+
+   end subroutine dynamics_update_xtime
 
 
 end module atm_time_integration

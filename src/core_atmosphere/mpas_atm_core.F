@@ -873,6 +873,11 @@ module atm_core
       call atm_timestep(domain, dt, currTime, itimestep)
 
       !    
+      ! The end of the time step. Advance model xtime.
+      !    
+      call dynamics_update_xtime (domain, dt, currTime)
+
+      !    
       ! This is the summary of this time step from the following:
       !  1) the physics before the dynamics solver (physics_part1)
       !  2) the accumulated processing of the dynamics (atm_srk3)
