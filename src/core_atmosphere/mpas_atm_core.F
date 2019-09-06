@@ -834,7 +834,7 @@ module atm_core
       use atm_time_integration
 #ifdef DO_PHYSICS
       use mpas_atmphys_control
-      use mpas_atmphys_driver
+      use mpas_atmphys_driver, only: physics_part1
       use mpas_atmphys_manager
       use mpas_atmphys_update
 #endif
@@ -866,7 +866,7 @@ module atm_core
       !proceed with physics if moist_physics is set to true:
       if(moist_physics) then
          call physics_timetracker(domain,dt,clock,itimestep,xtime_s)
-         call physics_driver(domain,itimestep,xtime_s)
+         call physics_part1(domain,itimestep,xtime_s)
       endif
 #endif
 

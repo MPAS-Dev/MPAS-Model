@@ -27,14 +27,14 @@
 
  implicit none
  private
- public:: physics_driver
+ public:: physics_part1
 
 
 !MPAS top physics driver.
 !Laura D. Fowler (send comments to laura@ucar.edu).
 !2013-05-01.
 !
-! subroutine physics_driver is the top physics driver from which separate drivers for all physics
+! subroutine physics_part1 is the top physics driver from which separate drivers for all physics
 ! parameterizations, except cloud microphysics parameterizations are called.
 !
 ! subroutines called in mpas_atmphys_driver:
@@ -103,7 +103,7 @@
 
 
 !=================================================================================================================
- subroutine physics_driver(domain,itimestep,xtime_s)
+ subroutine physics_part1(domain,itimestep,xtime_s)
 !=================================================================================================================
 
 !input arguments:
@@ -148,9 +148,9 @@
 
 !=================================================================================================================
 !call mpas_log_write('')
-!call mpas_log_write('--- enter subroutine mpas_atmphys_driver:')
+!call mpas_log_write('--- enter subroutine physics_part1:')
 
- call mpas_timer_start('physics driver')
+ call mpas_timer_start('physics_part1')
 
  call mpas_pool_get_config(domain%configs,'config_convection_scheme',config_convection_scheme)
  call mpas_pool_get_config(domain%configs,'config_gwdo_scheme'      ,config_gwdo_scheme      )
@@ -340,12 +340,12 @@
 
  endif
 
- call mpas_timer_stop('physics driver')
+ call mpas_timer_stop('physics_part1')
 
-!call mpas_log_write('--- enter subroutine mpas_atmphys_driver:')
+!call mpas_log_write('--- exit subroutine physics_part1:')
 !call mpas_log_write('')
 
- end subroutine physics_driver
+ end subroutine physics_part1
 
 !=================================================================================================================
  end module mpas_atmphys_driver
