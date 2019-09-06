@@ -84,7 +84,7 @@ module atm_time_integration
    contains
 
 
-   subroutine atm_timestep(domain, dt, nowTime, itimestep)
+   subroutine dynamics_timestep(domain, dt, nowTime, itimestep)
    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 
    ! Advance model state forward in time by the specified time step
    !
@@ -124,7 +124,7 @@ module atm_time_integration
          call mpas_log_write('Currently, only ''SRK3'' is supported.', messageType=MPAS_LOG_CRIT)
       end if
 
-   end subroutine atm_timestep
+   end subroutine dynamics_timestep
 
 
    subroutine atm_srk3(domain, dt, itimestep)

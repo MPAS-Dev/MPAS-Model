@@ -870,7 +870,7 @@ module atm_core
       endif
 #endif
 
-      call atm_timestep(domain, dt, currTime, itimestep)
+      call dynamics_timestep(domain, dt, currTime, itimestep)
 
       !    
       ! If this is a regional domain, adjustments are required for the
