@@ -20,7 +20,6 @@ module atm_time_integration
    use mpas_timer
 
 #ifdef DO_PHYSICS
-   use mpas_atmphys_driver_microphysics
    use mpas_atmphys_todynamics
    use mpas_atmphys_utilities
 #endif
@@ -178,8 +177,6 @@ module atm_time_integration
       logical, pointer :: config_positive_definite
       logical, pointer :: config_monotonic
       real (kind=RKIND), pointer :: config_dt
-      character (len=StrKIND), pointer :: config_microp_scheme
-      character (len=StrKIND), pointer :: config_convection_scheme
 
       integer, pointer :: num_scalars, index_qv, nCells, nCellsSolve, nEdges, nEdgesSolve, nVertices, nVerticesSolve, nVertLevels
       integer, pointer :: index_qc, index_qr, index_qi, index_qs, index_qg, index_nr, index_ni
@@ -213,8 +210,6 @@ module atm_time_integration
       real (kind=RKIND), dimension(:,:), pointer :: u, uReconstructZonal, uReconstructMeridional, uReconstructX, uReconstructY, uReconstructZ
       real (kind=RKIND), dimension(:,:,:), pointer :: scalars, scalars_1, scalars_2
 
-      real (kind=RKIND), dimension(:,:), pointer :: rqvdynten
-
       real (kind=RKIND)  :: time_dyn_step
       logical, parameter :: debug = .false.
 
@@ -228,8 +223,6 @@ module atm_time_integration
       call mpas_pool_get_config(domain % blocklist % configs, 'config_positive_definite', config_positive_definite)
       call mpas_pool_get_config(domain % blocklist % configs, 'config_monotonic', config_monotonic)
       call mpas_pool_get_config(domain % blocklist % configs, 'config_dt', config_dt)
-      call mpas_pool_get_config(domain % blocklist % configs, 'config_microp_scheme', config_microp_scheme)
-      call mpas_pool_get_config(domain % blocklist % configs, 'config_convection_scheme', config_convection_scheme)
       call mpas_pool_get_config(domain % blocklist % configs, 'config_IAU_option', config_IAU_option)
 
       !  config variables for dynamics-transport splitting, WCS 18 November 2014
@@ -1589,73 +1582,6 @@ module atm_time_integration
 
          block => block % next
       end do
-
-      !
-      ! call to parameterizations of cloud microphysics. calculation of the tendency of water vapor to horizontal and
-      ! vertical advection needed for the Tiedtke parameterization of convection.
-      !
-
-#ifdef DO_PHYSICS
-      block => domain % blocklist
-      do while(associated(block))
-
-         call mpas_pool_get_subpool(block % structs, 'mesh', mesh)
-         call mpas_pool_get_subpool(block % structs, 'state', state)
-         call mpas_pool_get_subpool(block % structs, 'diag', diag)
-         call mpas_pool_get_subpool(block % structs, 'diag_physics', diag_physics)
-         call mpas_pool_get_subpool(block % structs, 'tend_physics', tend_physics)
-         call mpas_pool_get_subpool(block % structs, 'tend', tend)
-         call mpas_pool_get_array(state, 'scalars', scalars_1, 1)
-         call mpas_pool_get_array(state, 'scalars', scalars_2, 2)
-         call mpas_pool_get_dimension(state, 'index_qv', index_qv)
-
-         call mpas_pool_get_dimension(block % dimensions, 'nThreads', nThreads)
-
-         call mpas_pool_get_dimension(block % dimensions, 'cellSolveThreadStart', cellSolveThreadStart)
-         call mpas_pool_get_dimension(block % dimensions, 'cellSolveThreadEnd', cellSolveThreadEnd)
-
-         if(config_convection_scheme == 'cu_grell_freitas'          .or. &
-            config_convection_scheme == 'cu_tiedtke'                .or. &
-            config_convection_scheme == 'cu_ntiedtke') then
-
-            call mpas_pool_get_array(tend_physics, 'rqvdynten', rqvdynten)
-
-            !NOTE: The calculation of the tendency due to horizontal and vertical advection for the water vapor mixing ratio
-            !requires that the subroutine atm_advance_scalars_mono was called on the third Runge Kutta step, so that a halo
-            !update for the scalars at time_levs(1) is applied. A halo update for the scalars at time_levs(2) is done above. 
-            if (config_monotonic) then
-               rqvdynten(:,:) = ( scalars_2(index_qv,:,:) - scalars_1(index_qv,:,:) ) / config_dt
-            else
-               rqvdynten(:,:) = 0._RKIND
-            end if
-         end if
-
-         !simply set to zero negative mixing ratios of different water species (for now):
-         where ( scalars_2(:,:,:) < 0.0)  &
-            scalars_2(:,:,:) = 0.0
-
-         !call microphysics schemes:
-         if (trim(config_microp_scheme) /= 'off')  then
-            call mpas_timer_start('microphysics')
-!$OMP PARALLEL DO
-            do thread=1,nThreads
-               call driver_microphysics ( block % configs, mesh, state, 2, diag, diag_physics, tend, itimestep, &
-                                          cellSolveThreadStart(thread), cellSolveThreadEnd(thread))
-            end do
-!$OMP END PARALLEL DO
-            call mpas_timer_stop('microphysics')
-         end if
-         block => block % next
-      end do
-
-      !
-      ! Note: A halo exchange for 'exner' here as well as at the end of
-      ! the first (n-1) dynamics subcycles can substitute for the exchange at
-      ! the beginning of each dynamics subcycle. Placing halo exchanges here
-      ! and at the end of dynamics subcycles may in future allow for aggregation
-      ! of the 'exner' exchange with other exchanges.
-      !
-#endif
 
    end subroutine atm_srk3
 
@@ -7047,6 +6973,7 @@ module atm_time_integration
       end if  ! regional_MPAS addition
 
    end subroutine dynamics_final_lbc_adjustment
+
 
    subroutine dynamics_update_xtime(domain, dt, nowTime)
    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!

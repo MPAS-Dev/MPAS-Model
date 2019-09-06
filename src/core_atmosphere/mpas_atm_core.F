@@ -834,7 +834,7 @@ module atm_core
       use atm_time_integration
 #ifdef DO_PHYSICS
       use mpas_atmphys_control
-      use mpas_atmphys_driver, only: physics_part1
+      use mpas_atmphys_driver, only: physics_part1, physics_part2
       use mpas_atmphys_manager
       use mpas_atmphys_update
 #endif
@@ -862,6 +862,12 @@ module atm_core
       xtime_s = (s + s_n / s_d)
 
 
+      !
+      ! This is a call to all of the slow, column-oriented physics, except for resolved
+      ! cloud microphysical processes. The microphysics is handled after the dynamics so 
+      ! that any supersaturation caused by various dynamical processes (advection, etc) 
+      ! may be removed before the end of each time step.
+      !
 #ifdef DO_PHYSICS
       !proceed with physics if moist_physics is set to true:
       if(moist_physics) then
@@ -872,7 +878,15 @@ module atm_core
 
       call dynamics_timestep(domain, dt, currTime, itimestep)
 
-      !    
+      !
+      ! This part is the microphysics, which needs to happen after the
+      ! dynamics time stepping.
+      !
+#ifdef DO_PHYSICS
+      call physics_part2(domain,itimestep,xtime_s)
+#endif
+
+      !
       ! If this is a regional domain, adjustments are required for the
       ! lateral boundary conditions due to the microphysics.
       !    
