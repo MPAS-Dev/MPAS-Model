@@ -1657,12 +1657,6 @@ module atm_time_integration
       !
 #endif
 
-      if (config_apply_lbcs) then  ! reset boundary values of rtheta in the specified zone - microphysics has messed with them
-
-         call dynamics_final_lbc_adjustment(domain, dt)
-
-      end if  ! regional_MPAS addition
-
    end subroutine atm_srk3
 
 
