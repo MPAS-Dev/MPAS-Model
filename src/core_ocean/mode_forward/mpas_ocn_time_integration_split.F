@@ -132,6 +132,7 @@ module ocn_time_integration_split
       integer, pointer :: config_n_ts_iter, config_btr_subcycle_loop_factor
       integer, pointer :: config_n_btr_cor_iter, config_num_halos
       logical, pointer :: config_use_standardGM
+      integer, pointer :: config_reset_debugTracers_top_nLayers
 
       logical, pointer :: config_use_freq_filtered_thickness, config_btr_solve_SSH2, config_filter_btr_mode
       logical, pointer :: config_vel_correction, config_prescribe_velocity, config_prescribe_thickness
@@ -141,7 +142,7 @@ module ocn_time_integration_split
       logical, pointer :: config_use_cvmix_kpp
       logical, pointer :: config_use_tracerGroup
       logical, pointer :: config_compute_active_tracer_budgets
-      logical, pointer :: config_reset_debugTracers_at_surface
+      logical, pointer :: config_reset_debugTracers_near_surface
 
       character (len=StrKIND), pointer :: config_land_ice_flux_mode
 
@@ -163,6 +164,7 @@ module ocn_time_integration_split
 
       real (kind=RKIND), dimension(:), pointer :: dcEdge, fEdge, bottomDepth, refBottomDepthTopOfCell
       real (kind=RKIND), dimension(:), pointer :: dvEdge, areaCell
+      real (kind=RKIND), dimension(:), pointer :: latCell
       real (kind=RKIND), dimension(:,:), pointer :: weightsOnEdge
 
       ! State Array Pointers
@@ -222,6 +224,7 @@ module ocn_time_integration_split
       integer :: threadNum
 
       integer :: temp_mask
+      real (kind=RKIND) :: tracer2_value, lat
 
       call mpas_timer_start("se timestep")
 
@@ -258,7 +261,8 @@ module ocn_time_integration_split
       call mpas_pool_get_config(domain % configs, 'config_num_halos', config_num_halos)
 
       call mpas_pool_get_config(domain % configs, 'config_compute_active_tracer_budgets', config_compute_active_tracer_budgets)
-      call mpas_pool_get_config(domain % configs, 'config_reset_debugTracers_at_surface', config_reset_debugTracers_at_surface)
+      call mpas_pool_get_config(domain % configs, 'config_reset_debugTracers_near_surface', config_reset_debugTracers_near_surface)
+      call mpas_pool_get_config(domain % configs, 'config_reset_debugTracers_top_nLayers', config_reset_debugTracers_top_nLayers)
       allocate(n_bcl_iter(config_n_ts_iter))
 
       !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -1696,10 +1700,30 @@ module ocn_time_integration_split
 
                         ! Reset debugTracers to fixed value at the surface
                         if ( trim(groupItr % memberName) == 'debugTracers' ) then
-                           if (config_reset_debugTracers_at_surface) then
+                           call mpas_pool_get_array(meshPool, 'latCell', latCell)
+                           if (config_reset_debugTracers_near_surface) then
                               !$omp do schedule(runtime)
                               do iCell = 1, nCells
-                                 tracersGroupNew(indexSalinity,1,iCell) = 1.0_RKIND
+                                lat = latCell(iCell)*180./3.1415
+                                if (     lat>-60.0.and.lat<-55.0 & 
+                                     .or.lat>-40.0.and.lat<-35.0 & 
+                                     .or.lat>- 2.5.and.lat<  2.5 & 
+                                     .or.lat> 35.0.and.lat< 40.0 & 
+                                     .or.lat> 55.0.and.lat< 60.0 ) then
+                                   tracer2_value = 2.0_RKIND
+                                else
+                                   tracer2_value = 1.0_RKIND
+                                end if 
+                                do k = 1, config_reset_debugTracers_top_nLayers
+
+                                   ! Initialize tracer1 to 2 in top n layers
+                                   tracersGroupNew(1,k,iCell) = 2.0_RKIND
+
+                                   ! Initialize tracer2 to 2 in top n layers
+                                   ! and zonal bands, and 1 outside those
+                                   ! bands.
+                                   tracersGroupNew(2,k,iCell) = tracer2_value
+                                end do
                               end do
                               !$omp end do
                            end if
