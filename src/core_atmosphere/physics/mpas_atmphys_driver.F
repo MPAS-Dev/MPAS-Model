@@ -10,6 +10,7 @@
  use mpas_kind_types
  use mpas_pool_routines
 
+ ! For physics_part1
  use mpas_atmphys_driver_cloudiness
  use mpas_atmphys_driver_convection
  use mpas_atmphys_driver_gwdo
@@ -19,6 +20,10 @@
  use mpas_atmphys_driver_radiation_sw 
  use mpas_atmphys_driver_sfclayer
  use mpas_atmphys_driver_oml
+
+ ! For physics_part2
+ use mpas_atmphys_driver_microphysics
+ 
  use mpas_atmphys_constants
  use mpas_atmphys_interface
  use mpas_atmphys_update
@@ -27,7 +32,7 @@
 
  implicit none
  private
- public:: physics_part1
+ public:: physics_part1,physics_part2
 
 
 !MPAS top physics driver.
@@ -37,40 +42,8 @@
 ! subroutine physics_part1 is the top physics driver from which separate drivers for all physics
 ! parameterizations, except cloud microphysics parameterizations are called.
 !
-! subroutines called in mpas_atmphys_driver:
-! ------------------------------------------
-! allocate_forall_physics     : allocate local arrays defining atmospheric soundings (pressure,..)
-! allocate_cloudiness         : allocate all local arrays used in driver_cloudiness.
-! allocate_convection         : allocate all local arrays used in driver_convection.
-! allocate_gwdo               : allocate all local arrays used in driver_gwdo.
-! allocate_lsm                : allocate all local arrays used in driver_lsm.
-! allocate_pbl                : allocate all local arrays used in driver_pbl.
-! allocate_radiation_lw       : allocate all local arrays used in driver_radiation_lw.
-! allocate_radiation_sw       : allocate all local arrays used in driver_radiation_sw.
-! allocate_sfclayer           : allocate all local arrays used in driver_sfclayer.
-!
-! deallocate_forall_physics   : deallocate local arrays defining atmospheric soundings.
-! deallocate_cloudiness       : dedeallocate all local arrays used in driver_cloudiness.
-! deallocate_convection       : deallocate all local arrays used in driver_convection.
-! deallocate_gwdo             : deallocate all local arrays used in driver_gwdo.
-! deallocate_lsm              : deallocate all local arrays used in driver_lsm.
-! deallocate_pbl              : deallocate all local arrays used in driver_pbl.
-! deallocate_radiation_lw     : deallocate all local arrays used in driver_radiation_lw.
-! deallocate_radiation_sw     : deallocate all local arrays used in driver_radiation_sw.
-! deallocate_sfclayer         : deallocate all local arrays used in driver_sfclayer.
-!
-! MPAS_to_physics             :
-! driver_cloudiness           : driver for parameterization of fractional cloudiness.
-! driver_convection           : driver for parameterization of convection.
-! driver_gwdo                 : driver for parameterization of gravity wave drag over orography.
-! driver_lsm                  : driver for land-surface scheme.
-! driver_pbl                  : driver for planetary boundary layer scheme.
-! driver_radiation_sw         : driver for short wave radiation schemes.
-! driver_radiation_lw         : driver for long wave radiation schemes.
-! driver_sfclayer             : driver for surface layer scheme.
-! update_convection_step1     : updates lifetime of deep convective clouds in Kain-Fritsch scheme.
-! update_convection_step2     : updates accumulated precipitation output from convection schemes.
-! update_radiation_diagnostics: updates accumualted radiation diagnostics from radiation schemes.
+! subroutine physics_part2 is the top physics driver from which a separate driver for
+! cloud microphysics is called.
 !
 ! add-ons and modifications to sourcecode:
 ! ----------------------------------------
@@ -97,6 +70,10 @@
 ! * modified call to driver_cloudiness to accomodate the calculation of the cloud fraction with the Thompson
 !   cloud microphysics scheme.
 !   Laura D. Fowler (laura@ucar.edu) / 2016-06-04.
+! * added a second subroutine so now all of the physics is called from this driver module; the original
+!   routine is physics_part1, and the new routine is named similarly: physics_part2; the 
+!   cloud microphysics processing is handled in the physics_part2 routine.
+!   Dave Gill (gill@ucar.edu) / 2019-09-05.
 
 
  contains
@@ -145,6 +122,41 @@
 
  integer,pointer:: nThreads
  integer,dimension(:),pointer:: cellSolveThreadStart, cellSolveThreadEnd
+
+! subroutines called
+! ------------------------------------------
+! allocate_forall_physics     : allocate local arrays defining atmospheric soundings (pressure,..)
+! allocate_cloudiness         : allocate all local arrays used in driver_cloudiness.
+! allocate_convection         : allocate all local arrays used in driver_convection.
+! allocate_gwdo               : allocate all local arrays used in driver_gwdo.
+! allocate_lsm                : allocate all local arrays used in driver_lsm.
+! allocate_pbl                : allocate all local arrays used in driver_pbl.
+! allocate_radiation_lw       : allocate all local arrays used in driver_radiation_lw.
+! allocate_radiation_sw       : allocate all local arrays used in driver_radiation_sw.
+! allocate_sfclayer           : allocate all local arrays used in driver_sfclayer.
+!
+! deallocate_forall_physics   : deallocate local arrays defining atmospheric soundings.
+! deallocate_cloudiness       : dedeallocate all local arrays used in driver_cloudiness.
+! deallocate_convection       : deallocate all local arrays used in driver_convection.
+! deallocate_gwdo             : deallocate all local arrays used in driver_gwdo.
+! deallocate_lsm              : deallocate all local arrays used in driver_lsm.
+! deallocate_pbl              : deallocate all local arrays used in driver_pbl.
+! deallocate_radiation_lw     : deallocate all local arrays used in driver_radiation_lw.
+! deallocate_radiation_sw     : deallocate all local arrays used in driver_radiation_sw.
+! deallocate_sfclayer         : deallocate all local arrays used in driver_sfclayer.
+!
+! MPAS_to_physics             : conversion of input "MPAS" variables to "physics" variables.
+! driver_cloudiness           : driver for parameterization of fractional cloudiness.
+! driver_convection           : driver for parameterization of convection.
+! driver_gwdo                 : driver for parameterization of gravity wave drag over orography.
+! driver_lsm                  : driver for land-surface scheme.
+! driver_pbl                  : driver for planetary boundary layer scheme.
+! driver_radiation_sw         : driver for short wave radiation schemes.
+! driver_radiation_lw         : driver for long wave radiation schemes.
+! driver_sfclayer             : driver for surface layer scheme.
+! update_convection_step1     : updates lifetime of deep convective clouds in Kain-Fritsch scheme.
+! update_convection_step2     : updates accumulated precipitation output from convection schemes.
+! update_radiation_diagnostics: updates accumualted radiation diagnostics from radiation schemes.
 
 !=================================================================================================================
 !call mpas_log_write('')
@@ -346,6 +358,123 @@
 !call mpas_log_write('')
 
  end subroutine physics_part1
+
+
+!=================================================================================================================
+ subroutine physics_part2(domain,itimestep,xtime_s)
+!=================================================================================================================
+
+!input arguments:
+ integer,intent(in):: itimestep
+ real(kind=RKIND),intent(in):: xtime_s
+
+!inout arguments:
+ type(domain_type),intent(inout):: domain
+
+!local pointers:
+ type(mpas_pool_type)               ,pointer ::  configs                  ,&
+                                                 mesh                     ,&
+                                                 state                    ,&
+                                                 diag                     ,&
+                                                 diag_physics             ,&
+                                                 tend_physics             ,&
+                                                 tend
+
+ real (kind=RKIND), dimension(:,:,:), pointer :: scalars_1                ,& 
+                                                 scalars_2
+ real (kind=RKIND), dimension(:,:)  , pointer :: rqvdynten
+ real (kind=RKIND)                  , pointer :: config_dt
+
+ logical                            , pointer :: config_monotonic
+
+ character(len=StrKIND)             , pointer :: config_microp_scheme     ,&
+                                                 config_convection_scheme
+
+ integer                            , pointer :: nThreads                 ,& 
+                                                 index_qv
+ integer,dimension(:)               , pointer :: cellSolveThreadStart     ,& 
+                                                 cellSolveThreadEnd
+
+ type(block_type)                   , pointer :: block
+
+!local variables:
+ integer:: time_lev
+ integer:: thread
+
+!=================================================================================================================
+!call mpas_log_write('')
+!call mpas_log_write('--- enter subroutine physics_part2:')
+
+ call mpas_timer_start('physics_part2')
+
+ call mpas_pool_get_config(domain%configs,'config_microp_scheme'    ,config_microp_scheme    )
+
+ call mpas_pool_get_config(domain%configs,'config_convection_scheme',config_convection_scheme)
+ call mpas_pool_get_config(domain%configs,'config_dt'               ,config_dt               )
+ call mpas_pool_get_config(domain%configs,'config_monotonic'        ,config_monotonic        )
+
+ block => domain % blocklist
+ do while(associated(block))
+
+    call mpas_pool_get_subpool(block%structs,'mesh'        ,mesh        )
+    call mpas_pool_get_subpool(block%structs,'state'       ,state       )
+    call mpas_pool_get_subpool(block%structs,'diag'        ,diag        )
+    call mpas_pool_get_subpool(block%structs,'diag_physics',diag_physics)
+    call mpas_pool_get_subpool(block%structs,'tend_physics',tend_physics)
+    call mpas_pool_get_subpool(block%structs,'tend'        ,tend        )
+
+    call mpas_pool_get_array(state, 'scalars', scalars_1, 1)
+    call mpas_pool_get_array(state, 'scalars', scalars_2, 2)
+
+    call mpas_pool_get_dimension(state           ,'index_qv'            ,index_qv            )
+    call mpas_pool_get_dimension(block%dimensions,'nThreads'            ,nThreads            )
+    call mpas_pool_get_dimension(block%dimensions,'cellSolveThreadStart',cellSolveThreadStart)
+    call mpas_pool_get_dimension(block%dimensions,'cellSolveThreadEnd'  ,cellSolveThreadEnd  )
+
+    !physics prep step:
+    time_lev = 1
+
+    if(config_convection_scheme == 'cu_grell_freitas'          .or. &
+       config_convection_scheme == 'cu_tiedtke'                .or. &
+       config_convection_scheme == 'cu_ntiedtke') then
+
+       call mpas_pool_get_array(tend_physics, 'rqvdynten', rqvdynten)
+
+       !NOTE: The calculation of the tendency due to horizontal and vertical advection for the water vapor mixing ratio
+       !requires that the subroutine atm_advance_scalars_mono was called on the third Runge Kutta step, so that a halo
+       !update for the scalars at time_levs(1) is applied. A halo update for the scalars at time_levs(2) is done above.
+       if (config_monotonic) then
+          rqvdynten(:,:) = ( scalars_2(index_qv,:,:) - scalars_1(index_qv,:,:) ) / config_dt
+       else
+          rqvdynten(:,:) = 0._RKIND
+       end if
+    end if
+
+    !simply set to zero negative mixing ratios of different water species (for now):
+    where ( scalars_2(:,:,:) < 0.0)  &
+       scalars_2(:,:,:) = 0.0
+
+    !call microphysics schemes:
+    if (trim(config_microp_scheme) /= 'off')  then
+       call mpas_timer_start('microphysics')
+!$OMP PARALLEL DO
+       do thread=1,nThreads
+          call driver_microphysics ( block%configs, mesh, state, 2, diag, diag_physics, tend, itimestep, &
+                                     cellSolveThreadStart(thread), cellSolveThreadEnd(thread))
+       end do
+!$OMP END PARALLEL DO
+       call mpas_timer_stop('microphysics')
+    end if
+    block => block % next
+ end do 
+
+
+ call mpas_timer_stop('physics_part2')
+
+!call mpas_log_write('--- exit subroutine physics_part2:')
+!call mpas_log_write('')
+
+ end subroutine physics_part2
 
 !=================================================================================================================
  end module mpas_atmphys_driver
