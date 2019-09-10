@@ -271,6 +271,7 @@
 
 !local pointers for YSU scheme:
  logical,pointer:: config_ysu_pblmix
+ logical:: sconfig_ysu_pblmix
  real(kind=RKIND),dimension(:),pointer:: br,fh,fm,regime,u10,v10
  real(kind=RKIND),dimension(:,:),pointer:: rthratenlw,rthratensw
 
@@ -295,9 +296,11 @@
 
  call mpas_pool_get_array_gpu(sfc_input   ,'xland' ,xland )
 !!!
- !$acc update host(hfx, hpbl, qfx, ust, wspd, znt, delta, wstar, xland)
+! !$acc update host(hfx, hpbl, qfx, ust, wspd, znt, delta, wstar, xland)
 
  do j = jts,jte
+!$acc parallel vector_length(32)
+!$acc loop gang vector
  do i = its,ite
     !from surface-layer model:
     hfx_p(i,j)    = hfx(i)
@@ -314,12 +317,17 @@
     uoce_p(i,j)  = 0._RKIND
     voce_p(i,j)  = 0._RKIND
  enddo
+!$acc end parallel
  enddo
+
+!!$acc update host(hfx_p,hpbl_p,qfx_p,ust_p,wspd_p,xland_p,kpbl_p, &
+!!$acc znt_p,delta_p,wstar_p,uoce_p,voce_p)
 
  pbl_select: select case (trim(pbl_scheme))
 
     case("bl_ysu")
        call mpas_pool_get_config(configs,'config_ysu_pblmix',config_ysu_pblmix)
+       sconfig_ysu_pblmix = config_ysu_pblmix
 
        call mpas_pool_get_array_gpu(diag_physics,'br'    ,br    )
        call mpas_pool_get_array_gpu(diag_physics,'fm'    ,fm    )
@@ -331,12 +339,14 @@
        call mpas_pool_get_array_gpu(tend_physics,'rthratenlw',rthratenlw)
        call mpas_pool_get_array_gpu(tend_physics,'rthratensw',rthratensw)
 !!!
- !$acc update host(br, fm, fh, regime, u10, v10, rthratenlw, rthratensw)
+! !$acc update host(br, fm, fh, regime, u10, v10, rthratenlw, rthratensw)
 
        ysu_pblmix = 0
-       if(config_ysu_pblmix) ysu_pblmix = 1
+       if(sconfig_ysu_pblmix) ysu_pblmix = 1
 
        do j = jts,jte
+!$acc parallel vector_length(32)
+!$acc loop gang vector
        do i = its,ite
           !from surface-layer model:
           br_p(i,j)     = br(i)
@@ -349,18 +359,26 @@
           ctopo_p(i,j)  = 1._RKIND
           ctopo2_p(i,j) = 1._RKIND
        enddo
+!$acc end parallel
        enddo
 
        do j = jts,jte
-       do k = kts,kte
+!$acc parallel vector_length(32)
+!$acc loop gang vector collapse(2)
        do i = its,ite
+       do k = kts,kte
           exch_p(i,k,j)     = 0._RKIND
           rthraten_p(i,k,j) = rthratenlw(k,i) + rthratensw(k,i) 
        enddo
        enddo
+!$acc end parallel 
        enddo
+
+!!$acc update host(br_p,psim_p,psih_p,regime_p,u10_p,v10_p, &
+!!$acc ctopo_p,ctopo2_p,exch_p,rthraten_p)
+
 !!!
- !$acc update device(br, fm, fh, regime, u10, v10, rthratenlw, rthratensw)
+! !$acc update device(br, fm, fh, regime, u10, v10, rthratenlw, rthratensw)
 
     case("bl_mynn")
        call mpas_pool_get_config(configs,'config_len_disp',len_disp)
@@ -381,8 +399,8 @@
        call mpas_pool_get_array_gpu(diag_physics,'tke_pbl',tke_pbl  )
        call mpas_pool_get_array_gpu(diag_physics,'sh3d'   ,sh3d     )
 !!!
- !$acc update host(meshDensity, skintemp, ch, qcg, qsfc, rmol, el_pbl, &
- !$acc cov, qke, qke_adv, qsq, tsq, tke_pbl, sh3d)
+! !$acc update host(meshDensity, skintemp, ch, qcg, qsfc, rmol, el_pbl, &
+! !$acc cov, qke, qke_adv, qsq, tsq, tke_pbl, sh3d)
 
        do j = jts,jte
        do i = its,ite
@@ -420,13 +438,15 @@
        enddo
        enddo
 !!!
- !$acc update device(meshDensity, skintemp, ch, qcg, qsfc, rmol, el_pbl, &
- !$acc cov, qke, qke_adv, qsq, tsq, tke_pbl, sh3d)
+! !$acc update device(meshDensity, skintemp, ch, qcg, qsfc, rmol, el_pbl, &
+! !$acc cov, qke, qke_adv, qsq, tsq, tke_pbl, sh3d)
 
     case default
 
  end select pbl_select
 
+!$acc parallel vector_length(32)
+!$acc loop gang vector collapse(3)
  do j = jts,jte
  do k = kts,kte
  do i = its,ite
@@ -443,9 +463,13 @@
  enddo
  enddo
  enddo
+!$acc end parallel
+
+!!$acc update host(rublten_p,rvblten_p,rthblten_p,rqvblten_p, &
+!!$acc rqcblten_p,rqiblten_p,kzh_p,kzm_p,kzq_p)
 
 !!!
- !$acc update device(hfx, hpbl, qfx, ust, wspd, znt, delta, wstar, xland)
+! !$acc update device(hfx, hpbl, qfx, ust, wspd, znt, delta, wstar, xland)
 
  end subroutine pbl_from_MPAS
 
@@ -503,19 +527,28 @@
  call mpas_pool_get_array_gpu(tend_physics,'rqiblten',rqiblten)
 
 !!!
- !$acc update host(kpbl, hpbl, kzh, kzm, kzq, delta, wstar, &
- !$acc rublten, rvblten, rthblten, rqvblten, rqcblten, rqiblten)
+! !$acc update host(kpbl, hpbl, kzh, kzm, kzq, delta, wstar, &
+! !$acc rublten, rvblten, rthblten, rqvblten, rqcblten, rqiblten)
+
+!!$acc update device(hpbl_p,kpbl_p,delta_p,wstar_p,rublten_p, &
+!!$acc rvblten_p,rthblten_p,rqvblten_p,rqcblten_p,rqiblten_p, &
+!!$acc kzh_p,kzm_p,kzq_p)
 
  do j = jts,jte
+!$acc parallel vector_length(32)
+!$acc loop gang vector
  do i = its,ite
     hpbl(i)  = hpbl_p(i,j)
     kpbl(i)  = kpbl_p(i,j)
     delta(i) = delta_p(i,j)
     wstar(i) = wstar_p(i,j)
  enddo
+!$acc end parallel
  enddo
 
  do j = jts,jte
+!$acc parallel vector_length(128)
+!$acc loop gang vector collapse(2)
  do k = kts,kte
  do i = its,ite
     rublten(k,i)  = rublten_p(i,k,j)
@@ -530,23 +563,32 @@
     kzq(k,i) = kzq_p(i,k,j)
  enddo
  enddo
+!$acc end parallel
  enddo
+
 
  pbl_select: select case (trim(pbl_scheme))
 
     case("bl_ysu")
        call mpas_pool_get_array_gpu(diag_physics,'exch_h',exch_h)
+
+!!$acc update device(exch_p)
 !!!
- !$Acc update host(exch_h)
+! !$acc update host(exch_h)
+
        do j = jts,jte
+!$acc parallel vector_length(128)
+!$acc loop gang vector collapse(2)
        do k = kts,kte
        do i = its,ite
           exch_h(k,i) = exch_p(i,k,j)
        enddo
        enddo
+!$acc end parallel
        enddo
+
 !!!
- !$Acc update device(exch_h)
+! !$Acc update device(exch_h)
 
     case("bl_mynn")
        call mpas_pool_get_array_gpu(diag_physics,'el_pbl'  ,el_pbl  )
@@ -565,8 +607,9 @@
        call mpas_pool_get_array_gpu(tend_physics,'rniblten',rniblten)
 
 !!!
- !$acc update host(el_pbl, cov, qke, qke_adv, qsq, tsq, tke_pbl, &
- !$acc sh3d, dqke, qbuoy, qdiss, qshear, qwt, rniblten)
+! !$acc update host(el_pbl, cov, qke, qke_adv, qsq, tsq, tke_pbl, &
+! !$acc sh3d, dqke, qbuoy, qdiss, qshear, qwt, rniblten)
+
        do j = jts,jte
        do k = kts,kte
        do i = its,ite
@@ -590,16 +633,16 @@
        enddo
        enddo
 !!!
- !$acc update device(el_pbl, cov, qke, qke_adv, qsq, tsq, tke_pbl, &
- !$acc sh3d, dqke, qbuoy, qdiss, qshear, qwt, rniblten)
+! !$acc update device(el_pbl, cov, qke, qke_adv, qsq, tsq, tke_pbl, &
+! !$acc sh3d, dqke, qbuoy, qdiss, qshear, qwt, rniblten)
 
     case default
 
  end select pbl_select
 
 !!!
- !$acc update device(kpbl, hpbl, kzh, kzm, kzq, delta, wstar, &
- !$acc rublten, rvblten, rthblten, rqvblten, rqcblten, rqiblten)
+! !$acc update device(kpbl, hpbl, kzh, kzm, kzq, delta, wstar, &
+! !$acc rublten, rvblten, rthblten, rqvblten, rqcblten, rqiblten)
 
  end subroutine pbl_to_MPAS
  
@@ -630,6 +673,8 @@
 !-----------------------------------------------------------------------------------------------------------------
 !call mpas_log_write('')
 !call mpas_log_write('--- enter subroutine driver_pbl:')
+
+ call mpas_timer_start('PBL Scheme')
 
  call mpas_pool_get_config(configs,'config_do_restart',config_do_restart)
  call mpas_pool_get_config(configs,'config_pbl_scheme',pbl_scheme       )
@@ -711,6 +756,7 @@
 !copy local arrays to MPAS grid:
  call pbl_to_MPAS(configs,diag_physics,tend_physics,its,ite)
 
+ call mpas_timer_stop('PBL Scheme')
 !call mpas_log_write('--- end subroutine driver_pbl.')
 
  end subroutine driver_pbl

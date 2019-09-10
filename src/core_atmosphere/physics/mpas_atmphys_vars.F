@@ -326,6 +326,7 @@
 
  real(kind=RKIND),dimension(:,:,:),allocatable:: &
     rthraten_p         !
+!$acc declare create(rthraten_p)
 
 !... grell and tiedkte specific arrays:
  real(kind=RKIND),dimension(:,:,:),allocatable:: &
@@ -343,9 +344,11 @@
 !=================================================================================================================
 
  integer:: ysu_pblmix
+!$acc declare create(ysu_pblmix)
 
  integer,dimension(:,:),allocatable:: &
     kpbl_p             !index of PBL top                                                                       [-]
+!$acc declare create(kpbl_p)
 
  real(kind=RKIND),public:: dt_pbl
 
@@ -357,9 +360,12 @@
     wstar_p,          &!
     uoce_p,           &!
     voce_p             !
+!$acc declare create(hpbl_p, delta_p, wstar_p, uoce_p, voce_p, &
+!$acc ctopo_p, ctopo2_p)
 
  real(kind=RKIND),dimension(:,:,:),allocatable:: &
     exch_p             !exchange coefficient                                                                   [-]
+!$acc declare create(exch_p)
 
  real(kind=RKIND),dimension(:,:,:),allocatable:: &
     rublten_p,        &!
@@ -368,11 +374,14 @@
     rqvblten_p,       &!
     rqcblten_p,       &!
     rqiblten_p         !
+!$acc declare create(rublten_p, rvblten_p, rthblten_p, rqvblten_p, rqcblten_p, &
+!$acc rqiblten_p)
 
  real(kind=RKIND),dimension(:,:,:),allocatable:: &
     kzh_p,            &!
     kzm_p,            &!
     kzq_p              !
+!$acc declare create(kzh_p, kzm_p, kzq_p)
 
 !... MYNN PBL scheme (module_bl_mynn.F):
  integer,parameter:: grav_settling = 0
@@ -463,6 +472,8 @@
     wspd_p,           &!wind speed                                                                           [m/s]
     znt_p,            &!time-varying roughness length                                                          [m]
     zol_p              !
+!$acc declare create(hfx_p, qfx_p, ust_p, wspd_p, znt_p, &
+!$acc br_p, psih_p, psim_p, regime_p, u10_p, v10_p)
 
 !... arrays only in monin_obukohv (module_sf_sfclay.F):
  real(kind=RKIND),dimension(:,:),allocatable:: &
@@ -681,6 +692,7 @@
     sst_p,            &!sea-surface temperature                                                                [K]
     xice_p,           &!ice mask                                                                               [-]
     xland_p            !land mask    (1 for land; 2 for water)                                                 [-]
+!$acc declare create(xland_p)
 
 !=================================================================================================================
 !.. variables needed for the surface layer scheme and land surface scheme when config_frac_seaice
