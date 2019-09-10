@@ -37,6 +37,8 @@
 		<option name="config_verify_not_dry">.true.</option>
 		<option name="config_zero_drying_velocity">.true.</option>
 		<option name="config_thickness_flux_type">'upwind'</option>
+		<option name="config_use_const_visc">.true.</option>
+		<option name="config_vert_visc">1.0e4</option>
 	</namelist>
 
 	<streams name="streams.ocean" keep="immutable" mode="forward">
