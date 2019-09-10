@@ -116,6 +116,7 @@
 
  call mpas_pool_get_array_gpu(sfc_input,'xland',xland)
 
+!!!
  !$acc update host(areaCell, meshDensity, xland)
 
  do j = jts,jte
@@ -165,9 +166,10 @@
  enddo
  enddo
  enddo
-
- !$acc update device(cldfrac)
  
+!!!
+ !$acc update device(cldfrac)
+
  end subroutine cloudiness_to_MPAS
 
 !=================================================================================================================

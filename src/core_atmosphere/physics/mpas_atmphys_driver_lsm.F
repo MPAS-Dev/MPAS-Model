@@ -115,7 +115,6 @@
  if(.not.allocated(tslb_p)  ) allocate(tslb_p(ims:ime,1:num_soils,jms:jme)  )
 
 !other arrays:
- if(.not.allocated(snow_ratio_p)) allocate(snow_ratio_p(ims:ime,jms:jme))
  if(.not.allocated(acsnom_p)    ) allocate(acsnom_p(ims:ime,jms:jme)    )
  if(.not.allocated(acsnow_p)    ) allocate(acsnow_p(ims:ime,jms:jme)    )
  if(.not.allocated(canwat_p)    ) allocate(canwat_p(ims:ime,jms:jme)    )
@@ -191,7 +190,6 @@
  if(allocated(tslb_p)  ) deallocate(tslb_p  )
 
 !other arrays:
- if(allocated(snow_ratio_p)) deallocate(snow_ratio_p)
  if(allocated(acsnom_p)    ) deallocate(acsnom_p    )
  if(allocated(acsnow_p)    ) deallocate(acsnow_p    )
  if(allocated(canwat_p)    ) deallocate(canwat_p    )
@@ -262,13 +260,12 @@
  end subroutine deallocate_lsm
 
 !=================================================================================================================
- subroutine lsm_from_MPAS(configs,mesh,diag,diag_physics,sfc_input,its,ite)
+ subroutine lsm_from_MPAS(configs,mesh,diag_physics,sfc_input,its,ite)
 !=================================================================================================================
 
 !input arguments:
  type(mpas_pool_type),intent(in):: configs
  type(mpas_pool_type),intent(in):: mesh
- type(mpas_pool_type),intent(inout):: diag
  type(mpas_pool_type),intent(inout):: diag_physics
  type(mpas_pool_type),intent(inout):: sfc_input
  integer,intent(in):: its,ite
@@ -290,7 +287,6 @@
  real(kind=RKIND),dimension(:),pointer  :: t2m,th2m,q2
  real(kind=RKIND),dimension(:),pointer  :: raincv,rainncv
  real(kind=RKIND),dimension(:,:),pointer:: sh2o,smcrel,smois,tslb,dzs
- real(kind=RKIND),dimension(:),pointer  :: snow_ratio
 
 !local variables and arrays:
  logical:: do_fill
@@ -302,8 +298,6 @@
  call mpas_pool_get_config(configs,'config_frac_seaice'      ,config_frac_seaice      )
  call mpas_pool_get_config(configs,'config_convection_scheme',config_convection_scheme)
  call mpas_pool_get_config(configs,'config_microp_scheme'    ,config_microp_scheme    )
-
- call mpas_pool_get_array_gpu(diag,'snow_ratio'        ,snow_ratio)
 
  call mpas_pool_get_array_gpu(diag_physics,'acsnom'    ,acsnom    )
  call mpas_pool_get_array_gpu(diag_physics,'acsnow'    ,acsnow    )
@@ -360,7 +354,8 @@
  call mpas_pool_get_array_gpu(sfc_input,'smois'        ,smois     )
  call mpas_pool_get_array_gpu(sfc_input,'tslb'         ,tslb      )
 
- !$acc update host(snow_ratio, acsnom, acsnow, canwat, chs, chs2, chklowq, cpm, &
+!!!
+ !$acc update host(acsnom, acsnow, canwat, chs, chs2, chklowq, cpm, &
  !$acc cqs2, glw, grdflx, gsw, hfx, lai, lh, noahres, potevp, qfx, &
  !$acc qgh, qsfc, br, sfc_albedo, sfc_emibck, sfc_emiss, sfcrunoff, &
  !$acc smstav, smstot, snotime, snopcx, udrunoff, z0, znt, t2m, th2m, q2, &
@@ -387,7 +382,6 @@
 
  do j = jts,jte
  do i = its,ite
-    snow_ratio_p(i,j)  = snow_ratio(i)
     acsnom_p(i,j)     = acsnom(i)
     acsnow_p(i,j)     = acsnow(i)
     canwat_p(i,j)     = canwat(i)
@@ -477,7 +471,7 @@
  if(config_microp_scheme .ne. 'off') then
     call mpas_pool_get_array_gpu(diag_physics,'sr'     ,sr     ) 
     call mpas_pool_get_array_gpu(diag_physics,'rainncv',rainncv)
-
+!!!
  !$acc update host(sr, rainncv)
 
     do j = jts,jte
@@ -486,17 +480,23 @@
        rainbl_p(i,j) = rainbl_p(i,j) + rainncv(i)
     enddo
     enddo
+!!!
+ !$acc update device(sr, rainncv)
+
  endif
  if(config_convection_scheme .ne. 'off') then
     call mpas_pool_get_array_gpu(diag_physics,'raincv',raincv)
-
- !$acc update host(raincv)
+!!!
+!$acc update host(raincv)
 
     do j = jts,jte
     do i = its,ite
        rainbl_p(i,j) = rainbl_p(i,j) + raincv(i)
     enddo
     enddo
+!!!
+!$acc update device(raincv)
+
  endif
 
  do j = jts,jte
@@ -504,6 +504,15 @@
     swdown_p(i,j) = gsw(i) / (1._RKIND - sfc_albedo(i))
  enddo
  enddo
+
+!!!
+ !$acc update device(acsnom, acsnow, canwat, chs, chs2, chklowq, cpm, &
+ !$acc cqs2, glw, grdflx, gsw, hfx, lai, lh, noahres, potevp, qfx, &
+ !$acc qgh, qsfc, br, sfc_albedo, sfc_emibck, sfc_emiss, sfcrunoff, &
+ !$acc smstav, smstot, snotime, snopcx, udrunoff, z0, znt, t2m, th2m, q2, &
+ !$acc isltyp, ivgtyp, shdmin, shdmax, snoalb, sfc_albbck, snow, snowc, &
+ !$acc snowh, tmn, skintemp, vegfra, xice, xland, dzs, sh2o, smcrel, &
+ !$acc smois, tslb)
 
  end subroutine lsm_from_MPAS
  
@@ -601,6 +610,15 @@
  call mpas_pool_get_array_gpu(sfc_input,'smois'        ,smois     )
  call mpas_pool_get_array_gpu(sfc_input,'tslb'         ,tslb      )
 
+!!!
+ !$acc update host(acsnom, acsnow, canwat, chs, chs2, chklowq, cpm, &
+ !$acc cqs2, glw, grdflx, gsw, hfx, lai, lh, noahres, potevp, qfx, qgh, &
+ !$acc qsfc, br, raincv, rainncv, sfc_albedo, sfc_emibck, sfc_emiss, &
+ !$acc sfcrunoff, smstav, smstot, snotime, snopcx, udrunoff, z0, znt, &
+ !$acc t2m, th2m, q2, isltyp, ivgtyp, shdmin, shdmax, snoalb, sfc_albbck, &
+ !$acc snow, snowc, snowh, tmn, skintemp, vegfra, xice, xland, sh2o, &
+ !$acc smcrel, smois, tslb)
+
  do j = jts,jte
  do n = 1,num_soils
  do i = its,ite
@@ -685,17 +703,18 @@
 
  if(config_microp_scheme .ne. 'off') then
     call mpas_pool_get_array_gpu(diag_physics,'sr',sr) 
-
+!!!
+!$acc update host(sr)
     do j = jts,jte
     do i = its,ite
        sr(i) = sr_p(i,j)
     enddo
     enddo
-
- !$acc update device(sr) 
-
+!!!
+!$acc update device(sr)
  endif
 
+!!!
  !$acc update device(acsnom, acsnow, canwat, chs, chs2, chklowq, cpm, &
  !$acc cqs2, glw, grdflx, gsw, hfx, lai, lh, noahres, potevp, qfx, qgh, &
  !$acc qsfc, br, raincv, rainncv, sfc_albedo, sfc_emibck, sfc_emiss, &
@@ -738,24 +757,17 @@
  end subroutine init_lsm
 
 !=================================================================================================================
- subroutine driver_lsm(itimestep,configs,mesh,state,diag,diag_physics,sfc_input,its,ite)
+ subroutine driver_lsm(itimestep,configs,mesh,diag_physics,sfc_input,its,ite)
 !=================================================================================================================
 
 !input arguments:
  type(mpas_pool_type),intent(in):: mesh
  type(mpas_pool_type),intent(in):: configs
- type(mpas_pool_type),intent(inout):: state
 
  integer,intent(in):: its,ite
  integer,intent(in):: itimestep
- integer, pointer :: ncells
- integer, dimension(:), pointer :: cellid
-
- real(kind=RKIND),dimension(:),pointer    :: latcell,loncell
- character (len=StrKIND), pointer :: xtime
 
 !inout arguments:
- type(mpas_pool_type),intent(inout):: diag
  type(mpas_pool_type),intent(inout):: diag_physics
  type(mpas_pool_type),intent(inout):: sfc_input
 
@@ -765,22 +777,17 @@
  character(len=StrKIND),pointer:: mminlu
 
 !-----------------------------------------------------------------------------------------------------------------
-
 !call mpas_log_write('')
 !call mpas_log_write('--- enter subroutine driver_lsm:')
- call mpas_pool_get_config(configs,'config_sfc_albedo' ,config_sfc_albedo )
- call mpas_pool_get_config(configs,'config_lsm_scheme',lsm_scheme)
- call mpas_pool_get_dimension(mesh, 'nCells', ncells)
- call mpas_pool_get_array_gpu(mesh, 'indexToCellID', cellid)
- call mpas_pool_get_array_gpu(mesh,'latCell',latcell)
- call mpas_pool_get_array_gpu(mesh,'lonCell',loncell)
- call mpas_pool_get_array_gpu(state, 'xtime', xtime, 1)
- call mpas_pool_get_array_gpu(sfc_input,'mminlu',mminlu)
 
- !$acc update host(cellid, latcell, loncell, xtime, mminlu)
+ call mpas_pool_get_config(configs,'config_sfc_albedo',config_sfc_albedo)
+ call mpas_pool_get_config(configs,'config_lsm_scheme',lsm_scheme)
+ call mpas_pool_get_array_gpu(sfc_input,'mminlu',mminlu)
+!!!
+ !$acc update host(mminlu)
 
 !copy MPAS arrays to local arrays:
- call lsm_from_MPAS(configs,mesh,diag,diag_physics,sfc_input,its,ite)
+ call lsm_from_MPAS(configs,mesh,diag_physics,sfc_input,its,ite)
 
 !call to land-surface scheme:
  lsm_select: select case (trim(lsm_scheme))
@@ -799,9 +806,8 @@
                 qfx       = qfx_p     , lh        = lh_p         , grdflx    = grdflx_p     , &
                 qsfc      = qsfc_p    , cqs2      = cqs2_p       , chs       = chs_p        , &
                 chs2      = chs2_p    , snow      = snow_p       , snowc     = snowc_p      , &
-                snow_ratio= snow_ratio_p                                                    , &  
                 snowh     = snowh_p   , canwat    = canwat_p     , smstav    = smstav_p     , &
-                smstot    = smstot_p  , sfcrunoff = sfcrunoff_p  , udrunoff  = udrunoff_p   , & 
+                smstot    = smstot_p  , sfcrunoff = sfcrunoff_p  , udrunoff  = udrunoff_p   , &               
                 acsnom    = acsnom_p  , acsnow    = acsnow_p     , snotime   = snotime_p    , &
                 snopcx    = snopcx_p  , emiss     = sfc_emiss_p  , rib       = br_p         , &
                 potevp    = potevp_p  , albedo    = sfc_albedo_p , albbck    = sfc_albbck_p , &
@@ -822,9 +828,7 @@
                 sf_urban_physics = sf_urban_physics   ,                                       &
                 ids = ids , ide = ide , jds = jds , jde = jde , kds = kds , kde = kde ,       &
                 ims = ims , ime = ime , jms = jms , jme = jme , kms = kms , kme = kme ,       &
-                its = its , ite = ite , jts = jts , jte = jte , kts = kts , kte = kte ,       &
-                ncells = ncells , cellid = cellid , latcell = latcell , loncell = loncell ,   &
-                xtime = xtime , t2 = t2m_p                                                    &
+                its = its , ite = ite , jts = jts , jte = jte , kts = kts , kte = kte         &
                )
 
        call sfcdiags( &
@@ -832,8 +836,8 @@
                 chs2  = chs2_p , cqs2    = cqs2_p  , t2   = t2m_p , th2  = th2m_p , q2  = q2_p  , &
                 psfc  = psfc_p , t3d     = t_p     , qv3d = qv_p  , cp   = cp     , R_d = R_d   , &
                 rovcp = rcp    , ua_phys = ua_phys                                              , & 
-                ids = ids , ide = ide , jds = jds , jde = jde , kds = kds , kde = kde           , &
-                ims = ims , ime = ime , jms = jms , jme = jme , kms = kms , kme = kme           , &
+                ids = ids , ide = ide , jds = jds , jde = jde , kds = kds , kde = kde ,           &
+                ims = ims , ime = ime , jms = jms , jme = jme , kms = kms , kme = kme ,           &
                 its = its , ite = ite , jts = jts , jte = jte , kts = kts , kte = kte             &
                     )
        call mpas_timer_stop('Noah')

@@ -363,6 +363,7 @@
  call mpas_pool_get_array_gpu(diag_physics,'m_hybi'    ,m_hybi    )
  call mpas_pool_get_array_gpu(diag_physics,'m_ps'      ,m_ps      )
 
+!!!
  !$acc update host(latCell, lonCell, aerosols, skintemp, snow, xice, &
  !$acc xland, pin, ozmixm, sfc_albedo, sfc_emiss, cldfrac, o3clim, &
  !$acc o3vmr, m_hybi, m_ps)
@@ -426,6 +427,7 @@
                 call mpas_pool_get_array_gpu(diag_physics,'re_ice'  ,re_ice  )
                 call mpas_pool_get_array_gpu(diag_physics,'re_snow' ,re_snow )
 
+!!!
  !$acc update host(re_cloud, re_ice, re_snow)
 
                 do j = jts,jte
@@ -437,6 +439,8 @@
                 enddo
                 enddo
                 enddo
+!!!
+ !$acc update device(re_cloud, re_ice, re_snow)
              else
                 ! These are set in module mpas_atmphys_manager and should not be set again
                 !has_reqc = 0
@@ -617,6 +621,11 @@
 
  end select radiation_lw_select
 
+!!!
+ !$acc update device(latCell, lonCell, aerosols, skintemp, snow, xice, &
+ !$acc xland, pin, ozmixm, sfc_albedo, sfc_emiss, cldfrac, o3clim, &
+ !$acc o3vmr, m_hybi, m_ps)
+
  end subroutine radiation_lw_from_MPAS
 
 !=================================================================================================================
@@ -667,6 +676,10 @@
 
  call mpas_pool_get_array_gpu(tend_physics,'rthratenlw',rthratenlw)
 
+!!!
+ !$acc update host(glw, lwcf, lwdnb, lwdnbc, lwdnt, lwdntc, &
+ !$acc lwupb, lwupbc, lwupt, lwuptc, olrtoa, rthratenlw)
+
  do j = jts,jte
  do i = its,ite
     glw(i)    = glw_p(i,j)
@@ -698,6 +711,8 @@
              call mpas_pool_get_array_gpu(diag_physics,'rre_cloud',rre_cloud)
              call mpas_pool_get_array_gpu(diag_physics,'rre_ice'  ,rre_ice  )
              call mpas_pool_get_array_gpu(diag_physics,'rre_snow' ,rre_snow )
+!!!
+ !$acc update host(rre_cloud, rre_ice, rre_snow)
              if(config_microp_re) then
                 do j = jts,jte
                 do k = kts,kte
@@ -719,7 +734,7 @@
                 enddo
                 enddo
              endif
-
+!!!
  !$acc update device(rre_cloud, rre_ice, rre_snow)
 
           case default
@@ -727,6 +742,7 @@
 
  end select radiation_lw_select
 
+!!!
  !$acc update device(glw, lwcf, lwdnb, lwdnbc, lwdnt, lwdntc, &
  !$acc lwupb, lwupbc, lwupt, lwuptc, olrtoa, rthratenlw)
 
@@ -750,9 +766,12 @@
 
 !-----------------------------------------------------------------------------------------------------------------
 
- call mpas_pool_get_array(diag_physics,'absnxt',absnxt)
- call mpas_pool_get_array(diag_physics,'abstot',abstot)
- call mpas_pool_get_array(diag_physics,'emstot',emstot)
+ call mpas_pool_get_array_gpu(diag_physics,'absnxt',absnxt)
+ call mpas_pool_get_array_gpu(diag_physics,'abstot',abstot)
+ call mpas_pool_get_array_gpu(diag_physics,'emstot',emstot)
+
+!!!
+!$acc update host(absnxt, abstot, emstot)
 
 !call mpas_log_write('--- writing absnxt,abstot,and emstot to restart = $l', logicArgs=(/l_camlw/))
  do j = jts,jte
@@ -776,6 +795,9 @@
  enddo
  enddo
  enddo
+
+!!!
+!$acc update device(absnxt, abstot, emstot)
 
  end subroutine radiation_camlw_to_MPAS
 

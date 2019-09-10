@@ -605,10 +605,8 @@
 !note that this threshold is also defined in module_physics_vars.F.It is defined here to avoid
 !adding "use module_physics_vars" since this subroutine is only used for the initialization of
 !a "real" forecast with $CORE = init_nhyd_atmos.
-
-! J. Cipriani, TWC / IBM.  To be consistent with what is done in legacy RPM
- real(kind=RKIND),pointer  :: xice_tsk_threshold
- real(kind=RKIND),parameter:: total_depth = 3.   ! 3-meter soil depth.
+ real(kind=RKIND),parameter:: xice_tsk_threshold = 271.
+ real(kind=RKIND),parameter:: total_depth        = 3.   ! 3-meter soil depth.
 
 !-----------------------------------------------------------------------------------------------------------------
 !call mpas_log_write('')
@@ -616,7 +614,6 @@
 
  call mpas_pool_get_config(configs, 'config_frac_seaice', config_frac_seaice)
  call mpas_pool_get_config(configs, 'config_landuse_data', config_landuse_data)
- call mpas_pool_get_config(configs, 'config_seaice_threshold', xice_tsk_threshold)
 
  call mpas_pool_get_dimension(dims, 'nCellsSolve', nCellsSolve)
  call mpas_pool_get_dimension(dims, 'nSoilLevels', nSoilLevels)
@@ -666,7 +663,6 @@
  endif
  call mpas_log_write('--- config_frac_seaice      : $l', logicArgs=(/config_frac_seaice/))
  call mpas_log_write('--- xice_threshold          : $r', realArgs=(/xice_threshold/))
- call mpas_log_write('--- xice_tsk_threshold      : $r', realArgs=(/xice_tsk_threshold/))
 
 !convert seaice points to land points when the sea-ice fraction is greater than the
 !prescribed threshold:

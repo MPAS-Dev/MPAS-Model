@@ -306,7 +306,7 @@ module atm_time_integration
    end subroutine mpas_atm_dynamics_finalize
 
 
-   subroutine atm_timestep(domain, dt, nowTime, itimestep)
+   subroutine atm_timestep(domain, dt, timeStamp, itimestep)
    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 
    ! Advance model state forward in time by the specified time step
    !
@@ -320,7 +320,7 @@ module atm_time_integration
 
       type (domain_type), intent(inout) :: domain
       real (kind=RKIND), intent(in) :: dt
-      type (MPAS_Time_type), intent(in) :: nowTime
+      character(len=*), intent(in) :: timeStamp
       integer, intent(in) :: itimestep
 
 
@@ -342,8 +342,9 @@ module atm_time_integration
          call mpas_log_write('Currently, only ''SRK3'' is supported.',messageType=MPAS_LOG_CRIT)
       end if
 
+      call mpas_set_time(currTime, dateTimeString=timeStamp)
       call mpas_set_timeInterval(dtInterval, dt=dt)
-      currTime = nowTime + dtInterval
+      currTime = currTime + dtInterval
       call mpas_get_time(currTime, dateTimeString=xtime_new)
 
       block => domain % blocklist
@@ -511,7 +512,6 @@ module atm_time_integration
       if (.not. config_scalar_advection )  call mpas_log_write(' scalar advection turned off ')
 
       number_of_sub_steps = config_number_of_sub_steps
-
 
       if(config_time_integration_order == 3) then
 
@@ -681,7 +681,7 @@ module atm_time_integration
                   tend_rtheta_physics, &
                      tend_rho_physics, &
                               tend_th, &
-      ! Arguments needed for OpenACC-friendly halo exchanges
+                  ! Arguments needed for OpenACC-friendly halo exchanges
                   compactHaloInfo_c_v, &
                   sendList_c_v, recvList_c_v, &
                   gpu_idx_send_c_v, gpu_bufferoffset_send_c_v, gpu_nList_send_c_v, &
@@ -690,7 +690,8 @@ module atm_time_integration
                   gpu_nHaloLayers_c_v, &
                   gpu_send_size_c_v, &
                   gpu_recv_size_c_v, &
-                  gpu_compactHaloInfoSize_c_v )
+                  gpu_compactHaloInfoSize_c_v &
+                              )
          block => block % next
       end do
       call mpas_timer_stop('physics_get_tend')

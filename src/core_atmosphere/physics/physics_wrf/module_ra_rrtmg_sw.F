@@ -9840,8 +9840,6 @@ use module_ra_rrtmg_vinterp,only: vinterp_ozn
 !>     microphysics scheme as inputs to the subroutine rrtmg_swrad. revised the initialization of arrays rel,
 !>     rei, and res, accordingly.
 !>     Laura D. Fowler (laura@ucar.edu) / 2016-07-07.
-!>   * added ouputs for downward direct normal surface SW flux
-!>     John Wong (johnwong@us.ibm.com) / 2018-02-14.
 !MPAS specfic end.
 
 #else
@@ -9876,7 +9874,7 @@ CONTAINS
                        has_reqc,has_reqi,has_reqs,re_cloud,            &
                        re_ice,re_snow,                                 &
                        swupt, swuptc, swdnt, swdntc,                   &
-                       swupb, swupbc, swdnb, swdnbc, swdnbdn,          &
+                       swupb, swupbc, swdnb, swdnbc,                   &
                        swupflx, swupflxc, swdnflx, swdnflxc,           &
                        ids,ide, jds,jde, kds,kde,                      & 
                        ims,ime, jms,jme, kms,kme,                      &
@@ -9913,7 +9911,7 @@ CONTAINS
 !--- inout arguments:
  real,intent(inout),dimension(ims:ime,jms:jme):: coszr,gsw,swcf
  real,intent(inout),dimension(ims:ime,jms:jme),optional:: &
-    swupt,swuptc,swdnt,swdntc,swupb,swupbc,swdnb,swdnbc,swdnbdn
+    swupt,swuptc,swdnt,swdntc,swupb,swupbc,swdnb,swdnbc
 
  real,intent(inout),dimension(ims:ime,kms:kme,jms:jme):: rthratensw
 
@@ -10413,11 +10411,6 @@ CONTAINS
              swdnbc(i,j) = swdflxc(1,1)
           endif
 
-          !output downward surface total direct normal flux
-          if(present(swdnbdn)) then
-             swdnbdn(i,j) = swdkdir(1,1)/coszr(i,j)
-          endif
-
           if(present (swupflx)) then
              do k = kts, kte+2
                 swupflx(i,k,j)  = swuflx(1,k)
@@ -10446,7 +10439,6 @@ CONTAINS
              swupbc(i,j)    = 0.
              swdnb(i,j)     = 0.
              swdnbc(i,j)    = 0.
-             swdnbdn(i,j)   = 0.
           endif
 
        endif

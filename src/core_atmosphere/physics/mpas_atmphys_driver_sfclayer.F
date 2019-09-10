@@ -401,6 +401,7 @@
  call mpas_pool_get_array_gpu(diag_physics,'znt'     ,znt     )
  call mpas_pool_get_array_gpu(diag_physics,'zol'     ,zol     )
 
+!!!
  !$acc update host(hpbl, mavail, skintemp, xland, br, cpm, chs, &
  !$acc chs2, cqs2, flhc, flqc, gz1oz0, hfx, qfx, qgh, qsfc, lh, &
  !$acc mol, psih, psim, regime, rmol, ust, ustm, wspd, znt, zol)
@@ -458,6 +459,7 @@
     call mpas_pool_get_array_gpu(sfc_input,'sst' ,sst)
     call mpas_pool_get_array_gpu(sfc_input,'xice',xice)
 
+!!!
  !$acc update host(sst, xice)
 
     do j = jts,jte
@@ -519,6 +521,8 @@
        endif
     enddo
     enddo
+!!!
+ !$acc update device(sst, xice)
  endif
 
  sfclayer_select: select case (trim(sfclayer_scheme))
@@ -527,6 +531,7 @@
        call mpas_pool_get_array_gpu(diag_physics,'fh',fh)
        call mpas_pool_get_array_gpu(diag_physics,'fm',fm)
 
+!!!
  !$acc update host(fh, fm)
 
        do j = jts,jte
@@ -539,6 +544,8 @@
           endif
        enddo
        enddo
+!!!
+ !$acc update device(fh, fm)
 
     case("sf_mynn")
        !input variables:
@@ -552,6 +559,7 @@
        !inout variables:
        call mpas_pool_get_array_gpu(diag_physics,'ch',ch        )
 
+!!!
  !$acc update host(qcg, snowh, cov, el_pbl, qsq, sh3d, tsq, ch)
 
        do j = jts,jte
@@ -579,10 +587,17 @@
        enddo
        enddo
        enddo
+!!!
+ !$acc update device(qcg, snowh, cov, el_pbl, qsq, sh3d, tsq, ch)
 
     case default
 
  end select sfclayer_select
+
+!!!
+ !$acc update device(hpbl, mavail, skintemp, xland, br, cpm, chs, &
+ !$acc chs2, cqs2, flhc, flqc, gz1oz0, hfx, qfx, qgh, qsfc, lh, &
+ !$acc mol, psih, psim, regime, rmol, ust, ustm, wspd, znt, zol)
 
  end subroutine sfclayer_from_MPAS
 
@@ -668,6 +683,12 @@
  call mpas_pool_get_array_gpu(diag_physics,'ck'    ,ck    )
  call mpas_pool_get_array_gpu(diag_physics,'cka'   ,cka   )
 
+!!!
+ !$acc update host(br, cpm, chs, chs2, cqs2, flhc, flqc, gz1oz0, &
+ !$acc hfx, qfx, qgh, qsfc, lh, mol, psih, psim, regime, rmol, &
+ !$acc ust, wspd, znt, zol, q2, t2m, th2m, u10, v10, cd, cda, &
+ !$acc ck, cka, ustm)
+
  do j = jts,jte
  do i = its,ite
     !inout variables:
@@ -710,6 +731,7 @@
 
  if(config_frac_seaice) then
     call mpas_pool_get_array_gpu(sfc_input,'xice',xice)
+!!!
  !$acc update host(xice)
     do j = jts,jte
     do i = its,ite
@@ -741,6 +763,7 @@
        endif
     enddo
     enddo
+!!!
  !$acc update device(xice)
  endif
 
@@ -749,6 +772,8 @@
     case("sf_monin_obukhov")
        call mpas_pool_get_array_gpu(diag_physics,'fh',fh)
        call mpas_pool_get_array_gpu(diag_physics,'fm',fm)
+!!!
+ !$acc update host(fh, fm)
 
        do j = jts,jte
        do i = its,ite
@@ -757,7 +782,7 @@
        enddo
        enddo
        if(config_frac_seaice) then
-          call mpas_pool_get_array_gpu(sfc_input,'xice',xice)
+          call mpas_pool_get_array(sfc_input,'xice',xice)
           do j = jts,jte
           do i = its,ite
              if(xice(i).ge.xice_threshold .and. xice(i).le.1._RKIND) then
@@ -767,11 +792,13 @@
           enddo
           enddo
        endif
-
+!!!
  !$acc update device(fh, fm)
 
     case("sf_mynn")
        call mpas_pool_get_array_gpu(diag_physics,'ch',ch)
+!!!
+ !$acc update host(ch)
 
        do j = jts,jte
        do i = its,ite
@@ -788,13 +815,14 @@
           enddo
           enddo
        endif
-
+!!!
  !$acc update device(ch)
 
     case default
 
  end select sfclayer_select
 
+!!!
  !$acc update device(br, cpm, chs, chs2, cqs2, flhc, flqc, gz1oz0, &
  !$acc hfx, qfx, qgh, qsfc, lh, mol, psih, psim, regime, rmol, &
  !$acc ust, wspd, znt, zol, q2, t2m, th2m, u10, v10, cd, cda, &
@@ -864,8 +892,8 @@
  call mpas_pool_get_config(configs,'config_sfclayer_scheme',sfclayer_scheme   )
 
  call mpas_pool_get_array_gpu(mesh,'areaCell',areaCell)
-
- !$acc update host(areaCell)
+!!!
+!$acc update host(areaCell)
 
 !copy all MPAS arrays to rectanguler grid:
  call sfclayer_from_MPAS(configs,mesh,diag_physics,sfc_input,its,ite)

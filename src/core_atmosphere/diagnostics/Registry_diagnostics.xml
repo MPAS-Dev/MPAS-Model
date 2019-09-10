@@ -10,38 +10,11 @@
 <!-- convective diagnostics -->
 #include "Registry_convective.xml"
 
-<!-- convective diagnostics2 -->
-#include "Registry_convective2.xml"
-
 <!-- PV diagnostics -->
 #include "Registry_pv.xml"
 
 <!-- soundings -->
 #include "Registry_soundings.xml"
-
-<!-- 2-m Dewpoint -->
-#include "Registry_surface.xml"
-
-<!-- wind diagnostics -->
-#include "Registry_wind.xml"
-
-<!-- Fixed accumulation diagnostics -->
-#include "Registry_accumulated.xml"
-
-<!-- snow ratio diagnostics -->
-#include "Registry_snowratio.xml"
-
-<!-- turbulence diagnostics -->
-#include "Registry_turbulence.xml"
-
-<!-- aviation diagnostics -->
-#include "Registry_aviation.xml"
-
-<!-- aviation diagnostics -->
-#include "Registry_cpox.xml"
-
-<!-- unstagger diagnostics -->
-#include "Registry_unstagger.xml"
 
 <!-- ******************************* -->
 <!-- End includes from diagnostics -->

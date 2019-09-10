@@ -17,7 +17,6 @@ module isobaric_diagnostics
     type (MPAS_pool_type), pointer :: mesh
     type (MPAS_pool_type), pointer :: state
     type (MPAS_pool_type), pointer :: diag
-    type (MPAS_pool_type), pointer :: sfc_input
 
     type (MPAS_clock_type), pointer :: clock
 
@@ -27,15 +26,14 @@ module isobaric_diagnostics
     private
 
     logical :: need_mslp, &
-               need_relhum_200, need_relhum_250, need_relhum_500, need_relhum_700, need_relhum_850, need_relhum_925, need_relhum_1000, &
-               need_relhum_100, need_relhum_150, need_relhum_300, need_relhum_400, need_relhum_600, &
-               need_dewpoint_200, need_dewpoint_250, need_dewpoint_500, need_dewpoint_700, need_dewpoint_850, need_dewpoint_925, need_dewpoint_1000, &
-               need_temp_200, need_temp_250, need_temp_500, need_temp_700, need_temp_850, need_temp_925, need_temp_1000, &
-               need_height_200, need_height_250, need_height_500, need_height_700, need_height_850, need_height_925, need_height_1000, &
-               need_uzonal_200, need_uzonal_250, need_uzonal_500, need_uzonal_700, need_uzonal_850, need_uzonal_925, need_uzonal_1000, &
-               need_umeridional_200, need_umeridional_250, need_umeridional_500, need_umeridional_700, need_umeridional_850, need_umeridional_925, need_umeridional_1000, &
-               need_w_200, need_w_250, need_w_500, need_w_700, need_w_850, need_w_925, need_w_1000, &
-               need_vorticity_200, need_vorticity_250, need_vorticity_500, need_vorticity_700, need_vorticity_850, need_vorticity_925, need_vorticity_1000, &
+               need_relhum_200, need_relhum_250, need_relhum_500, need_relhum_700, need_relhum_850, need_relhum_925, &
+               need_dewpoint_200, need_dewpoint_250, need_dewpoint_500, need_dewpoint_700, need_dewpoint_850, need_dewpoint_925, &
+               need_temp_200, need_temp_250, need_temp_500, need_temp_700, need_temp_850, need_temp_925, &
+               need_height_200, need_height_250, need_height_500, need_height_700, need_height_850, need_height_925, &
+               need_uzonal_200, need_uzonal_250, need_uzonal_500, need_uzonal_700, need_uzonal_850, need_uzonal_925, &
+               need_umeridional_200, need_umeridional_250, need_umeridional_500, need_umeridional_700, need_umeridional_850, need_umeridional_925, &
+               need_w_200, need_w_250, need_w_500, need_w_700, need_w_850, need_w_925, &
+               need_vorticity_200, need_vorticity_250, need_vorticity_500, need_vorticity_700, need_vorticity_850, need_vorticity_925, &
                need_t_isobaric, need_z_isobaric, need_meanT_500_300
     logical :: need_temp, need_relhum, need_dewpoint, need_w, need_uzonal, need_umeridional, need_vorticity, need_height
 
@@ -69,7 +67,6 @@ module isobaric_diagnostics
         call mpas_pool_get_subpool(all_pools, 'mesh', mesh)
         call mpas_pool_get_subpool(all_pools, 'state', state)
         call mpas_pool_get_subpool(all_pools, 'diag', diag)
-        call mpas_pool_get_subpool(all_pools, 'sfc_input', sfc_input)
    
     end subroutine isobaric_diagnostics_setup
 
@@ -106,30 +103,15 @@ module isobaric_diagnostics
 
         need_mslp = MPAS_field_will_be_written('mslp')
         need_any_diags = need_any_diags .or. need_mslp
-        need_relhum_100 = MPAS_field_will_be_written('relhum_100hPa')
-        need_relhum = need_relhum .or. need_relhum_100
-        need_any_diags = need_any_diags .or. need_relhum_100
-        need_relhum_150 = MPAS_field_will_be_written('relhum_150hPa')
-        need_relhum = need_relhum .or. need_relhum_150
-        need_any_diags = need_any_diags .or. need_relhum_150
         need_relhum_200 = MPAS_field_will_be_written('relhum_200hPa')
         need_relhum = need_relhum .or. need_relhum_200
         need_any_diags = need_any_diags .or. need_relhum_200
         need_relhum_250 = MPAS_field_will_be_written('relhum_250hPa')
         need_relhum = need_relhum .or. need_relhum_250
         need_any_diags = need_any_diags .or. need_relhum_250
-        need_relhum_300 = MPAS_field_will_be_written('relhum_300hPa')
-        need_relhum = need_relhum .or. need_relhum_300
-        need_any_diags = need_any_diags .or. need_relhum_300
-        need_relhum_400 = MPAS_field_will_be_written('relhum_400hPa')
-        need_relhum = need_relhum .or. need_relhum_400
-        need_any_diags = need_any_diags .or. need_relhum_400
         need_relhum_500 = MPAS_field_will_be_written('relhum_500hPa')
         need_relhum = need_relhum .or. need_relhum_500
         need_any_diags = need_any_diags .or. need_relhum_500
-        need_relhum_600 = MPAS_field_will_be_written('relhum_600hPa')
-        need_relhum = need_relhum .or. need_relhum_600
-        need_any_diags = need_any_diags .or. need_relhum_600
         need_relhum_700 = MPAS_field_will_be_written('relhum_700hPa')
         need_relhum = need_relhum .or. need_relhum_700
         need_any_diags = need_any_diags .or. need_relhum_700
@@ -139,9 +121,6 @@ module isobaric_diagnostics
         need_relhum_925 = MPAS_field_will_be_written('relhum_925hPa')
         need_relhum = need_relhum .or. need_relhum_925
         need_any_diags = need_any_diags .or. need_relhum_925
-        need_relhum_1000 = MPAS_field_will_be_written('relhum_1000hPa')
-        need_relhum = need_relhum .or. need_relhum_1000
-        need_any_diags = need_any_diags .or. need_relhum_1000
         need_dewpoint_200 = MPAS_field_will_be_written('dewpoint_200hPa')
         need_dewpoint = need_dewpoint .or. need_dewpoint_200
         need_any_diags = need_any_diags .or. need_dewpoint_200
@@ -160,9 +139,6 @@ module isobaric_diagnostics
         need_dewpoint_925 = MPAS_field_will_be_written('dewpoint_925hPa')
         need_dewpoint = need_dewpoint .or. need_dewpoint_925
         need_any_diags = need_any_diags .or. need_dewpoint_925
-        need_dewpoint_1000 = MPAS_field_will_be_written('dewpoint_1000hPa')
-        need_dewpoint = need_dewpoint .or. need_dewpoint_1000
-        need_any_diags = need_any_diags .or. need_dewpoint_1000
         need_temp_200 = MPAS_field_will_be_written('temperature_200hPa')
         need_temp = need_temp .or. need_temp_200
         need_any_diags = need_any_diags .or. need_temp_200
@@ -181,9 +157,6 @@ module isobaric_diagnostics
         need_temp_925 = MPAS_field_will_be_written('temperature_925hPa')
         need_temp = need_temp .or. need_temp_925
         need_any_diags = need_any_diags .or. need_temp_925
-        need_temp_1000 = MPAS_field_will_be_written('temperature_1000hPa')
-        need_temp = need_temp .or. need_temp_1000
-        need_any_diags = need_any_diags .or. need_temp_1000
         need_height_200 = MPAS_field_will_be_written('height_200hPa')
         need_height = need_height .or. need_height_200
         need_any_diags = need_any_diags .or. need_height_200
@@ -202,9 +175,6 @@ module isobaric_diagnostics
         need_height_925 = MPAS_field_will_be_written('height_925hPa')
         need_height = need_height .or. need_height_925
         need_any_diags = need_any_diags .or. need_height_925
-        need_height_1000 = MPAS_field_will_be_written('height_1000hPa')
-        need_height = need_height .or. need_height_1000
-        need_any_diags = need_any_diags .or. need_height_1000
         need_uzonal_200 = MPAS_field_will_be_written('uzonal_200hPa')
         need_uzonal = need_uzonal .or. need_uzonal_200
         need_any_diags = need_any_diags .or. need_uzonal_200
@@ -223,9 +193,6 @@ module isobaric_diagnostics
         need_uzonal_925 = MPAS_field_will_be_written('uzonal_925hPa')
         need_uzonal = need_uzonal .or. need_uzonal_925
         need_any_diags = need_any_diags .or. need_uzonal_925
-        need_uzonal_1000 = MPAS_field_will_be_written('uzonal_1000hPa')
-        need_uzonal = need_uzonal .or. need_uzonal_1000
-        need_any_diags = need_any_diags .or. need_uzonal_1000
         need_umeridional_200 = MPAS_field_will_be_written('umeridional_200hPa')
         need_umeridional = need_umeridional .or. need_umeridional_200
         need_any_diags = need_any_diags .or. need_umeridional_200
@@ -244,9 +211,6 @@ module isobaric_diagnostics
         need_umeridional_925 = MPAS_field_will_be_written('umeridional_925hPa')
         need_umeridional = need_umeridional .or. need_umeridional_925
         need_any_diags = need_any_diags .or. need_umeridional_925
-        need_umeridional_1000 = MPAS_field_will_be_written('umeridional_1000hPa')
-        need_umeridional = need_umeridional .or. need_umeridional_1000
-        need_any_diags = need_any_diags .or. need_umeridional_1000
         need_w_200 = MPAS_field_will_be_written('w_200hPa')
         need_w = need_w .or. need_w_200
         need_any_diags = need_any_diags .or. need_w_200
@@ -265,9 +229,6 @@ module isobaric_diagnostics
         need_w_925 = MPAS_field_will_be_written('w_925hPa')
         need_w = need_w .or. need_w_925
         need_any_diags = need_any_diags .or. need_w_925
-        need_w_1000 = MPAS_field_will_be_written('w_1000hPa')
-        need_w = need_w .or. need_w_1000
-        need_any_diags = need_any_diags .or. need_w_1000
         need_vorticity_200 = MPAS_field_will_be_written('vorticity_200hPa')
         need_vorticity = need_vorticity .or. need_vorticity_200
         need_any_diags = need_any_diags .or. need_vorticity_200
@@ -286,9 +247,6 @@ module isobaric_diagnostics
         need_vorticity_925 = MPAS_field_will_be_written('vorticity_925hPa')
         need_vorticity = need_vorticity .or. need_vorticity_925
         need_any_diags = need_any_diags .or. need_vorticity_925
-        need_vorticity_1000 = MPAS_field_will_be_written('vorticity_1000hPa')
-        need_vorticity = need_vorticity .or. need_vorticity_1000
-        need_any_diags = need_any_diags .or. need_vorticity_1000
         need_t_isobaric = MPAS_field_will_be_written('t_isobaric')
         need_any_diags = need_any_diags .or. need_t_isobaric
         need_z_isobaric = MPAS_field_will_be_written('z_isobaric')
@@ -338,8 +296,6 @@ module isobaric_diagnostics
         real (kind=RKIND), dimension(:,:), pointer :: t_isobaric
         real (kind=RKIND), dimension(:,:), pointer :: z_isobaric
         real (kind=RKIND), dimension(:), pointer :: meanT_500_300
-        real (kind=RKIND), dimension(:), pointer :: surface_pressure
-        real (kind=RKIND), dimension(:), pointer :: height_terrain
        
         real (kind=RKIND), dimension(:), pointer :: temperature_200hPa
         real (kind=RKIND), dimension(:), pointer :: temperature_250hPa
@@ -347,20 +303,13 @@ module isobaric_diagnostics
         real (kind=RKIND), dimension(:), pointer :: temperature_700hPa
         real (kind=RKIND), dimension(:), pointer :: temperature_850hPa
         real (kind=RKIND), dimension(:), pointer :: temperature_925hPa
-        real (kind=RKIND), dimension(:), pointer :: temperature_1000hPa
        
-        real (kind=RKIND), dimension(:), pointer :: relhum_100hPa
-        real (kind=RKIND), dimension(:), pointer :: relhum_150hPa
         real (kind=RKIND), dimension(:), pointer :: relhum_200hPa
         real (kind=RKIND), dimension(:), pointer :: relhum_250hPa
-        real (kind=RKIND), dimension(:), pointer :: relhum_300hPa
-        real (kind=RKIND), dimension(:), pointer :: relhum_400hPa
         real (kind=RKIND), dimension(:), pointer :: relhum_500hPa
-        real (kind=RKIND), dimension(:), pointer :: relhum_600hPa
         real (kind=RKIND), dimension(:), pointer :: relhum_700hPa
         real (kind=RKIND), dimension(:), pointer :: relhum_850hPa
         real (kind=RKIND), dimension(:), pointer :: relhum_925hPa
-        real (kind=RKIND), dimension(:), pointer :: relhum_1000hPa
        
         real (kind=RKIND), dimension(:), pointer :: dewpoint_200hPa
         real (kind=RKIND), dimension(:), pointer :: dewpoint_250hPa
@@ -368,7 +317,6 @@ module isobaric_diagnostics
         real (kind=RKIND), dimension(:), pointer :: dewpoint_700hPa
         real (kind=RKIND), dimension(:), pointer :: dewpoint_850hPa
         real (kind=RKIND), dimension(:), pointer :: dewpoint_925hPa
-        real (kind=RKIND), dimension(:), pointer :: dewpoint_1000hPa
        
         real (kind=RKIND), dimension(:), pointer :: uzonal_200hPa
         real (kind=RKIND), dimension(:), pointer :: uzonal_250hPa
@@ -376,7 +324,6 @@ module isobaric_diagnostics
         real (kind=RKIND), dimension(:), pointer :: uzonal_700hPa
         real (kind=RKIND), dimension(:), pointer :: uzonal_850hPa
         real (kind=RKIND), dimension(:), pointer :: uzonal_925hPa
-        real (kind=RKIND), dimension(:), pointer :: uzonal_1000hPa
        
         real (kind=RKIND), dimension(:), pointer :: umeridional_200hPa
         real (kind=RKIND), dimension(:), pointer :: umeridional_250hPa
@@ -384,7 +331,6 @@ module isobaric_diagnostics
         real (kind=RKIND), dimension(:), pointer :: umeridional_700hPa
         real (kind=RKIND), dimension(:), pointer :: umeridional_850hPa
         real (kind=RKIND), dimension(:), pointer :: umeridional_925hPa
-        real (kind=RKIND), dimension(:), pointer :: umeridional_1000hPa
        
         real (kind=RKIND), dimension(:), pointer :: height_200hPa
         real (kind=RKIND), dimension(:), pointer :: height_250hPa
@@ -392,7 +338,6 @@ module isobaric_diagnostics
         real (kind=RKIND), dimension(:), pointer :: height_700hPa
         real (kind=RKIND), dimension(:), pointer :: height_850hPa
         real (kind=RKIND), dimension(:), pointer :: height_925hPa
-        real (kind=RKIND), dimension(:), pointer :: height_1000hPa
        
         real (kind=RKIND), dimension(:), pointer :: w_200hPa
         real (kind=RKIND), dimension(:), pointer :: w_250hPa
@@ -400,7 +345,6 @@ module isobaric_diagnostics
         real (kind=RKIND), dimension(:), pointer :: w_700hPa
         real (kind=RKIND), dimension(:), pointer :: w_850hPa
         real (kind=RKIND), dimension(:), pointer :: w_925hPa
-        real (kind=RKIND), dimension(:), pointer :: w_1000hPa
        
         real (kind=RKIND), dimension(:), pointer :: vorticity_200hPa
         real (kind=RKIND), dimension(:), pointer :: vorticity_250hPa
@@ -408,7 +352,6 @@ module isobaric_diagnostics
         real (kind=RKIND), dimension(:), pointer :: vorticity_700hPa
         real (kind=RKIND), dimension(:), pointer :: vorticity_850hPa
         real (kind=RKIND), dimension(:), pointer :: vorticity_925hPa
-        real (kind=RKIND), dimension(:), pointer :: vorticity_1000hPa
        
         real (kind=RKIND) :: evp
        
@@ -420,11 +363,10 @@ module isobaric_diagnostics
         real (kind=RKIND), dimension(:,:), allocatable :: dewpoint
        
        !local interpolated fields:
-        integer :: nIntP, nIntP_rh
+        integer :: nIntP
         real (kind=RKIND) :: w1,w2,z0,z1,z2
         real (kind=RKIND), dimension(:,:), allocatable :: field_in,press_in
-        real (kind=RKIND), dimension(:,:), allocatable :: field_interp,field_interp_rh
-        real (kind=RKIND), dimension(:,:), allocatable :: press_interp,press_interp_rh
+        real (kind=RKIND), dimension(:,:), allocatable :: field_interp,press_interp
         
        !--------------------------------------------------------------------------------------------------
        
@@ -458,7 +400,6 @@ module isobaric_diagnostics
         call mpas_pool_get_array(diag, 'exner', exner)
         call mpas_pool_get_array(diag, 'pressure_base', pressure_b)
         call mpas_pool_get_array(diag, 'pressure_p', pressure_p)
-        call mpas_pool_get_array(diag, 'surface_pressure', surface_pressure)
         call mpas_pool_get_array(diag, 'vorticity', vorticity)
         call mpas_pool_get_array(diag, 'uReconstructMeridional', umeridional)
         call mpas_pool_get_array(diag, 'uReconstructZonal', uzonal)
@@ -476,20 +417,13 @@ module isobaric_diagnostics
         call mpas_pool_get_array(diag, 'temperature_700hPa', temperature_700hPa)
         call mpas_pool_get_array(diag, 'temperature_850hPa', temperature_850hPa)
         call mpas_pool_get_array(diag, 'temperature_925hPa', temperature_925hPa)
-        call mpas_pool_get_array(diag, 'temperature_1000hPa', temperature_1000hPa)
        
-        call mpas_pool_get_array(diag, 'relhum_100hPa', relhum_100hPa)
-        call mpas_pool_get_array(diag, 'relhum_150hPa', relhum_150hPa)
         call mpas_pool_get_array(diag, 'relhum_200hPa', relhum_200hPa)
         call mpas_pool_get_array(diag, 'relhum_250hPa', relhum_250hPa)
-        call mpas_pool_get_array(diag, 'relhum_300hPa', relhum_300hPa)
-        call mpas_pool_get_array(diag, 'relhum_400hPa', relhum_400hPa)
         call mpas_pool_get_array(diag, 'relhum_500hPa', relhum_500hPa)
-        call mpas_pool_get_array(diag, 'relhum_600hPa', relhum_600hPa)
         call mpas_pool_get_array(diag, 'relhum_700hPa', relhum_700hPa)
         call mpas_pool_get_array(diag, 'relhum_850hPa', relhum_850hPa)
         call mpas_pool_get_array(diag, 'relhum_925hPa', relhum_925hPa)
-        call mpas_pool_get_array(diag, 'relhum_1000hPa', relhum_1000hPa)
        
         call mpas_pool_get_array(diag, 'dewpoint_200hPa', dewpoint_200hPa)
         call mpas_pool_get_array(diag, 'dewpoint_250hPa', dewpoint_250hPa)
@@ -497,7 +431,6 @@ module isobaric_diagnostics
         call mpas_pool_get_array(diag, 'dewpoint_700hPa', dewpoint_700hPa)
         call mpas_pool_get_array(diag, 'dewpoint_850hPa', dewpoint_850hPa)
         call mpas_pool_get_array(diag, 'dewpoint_925hPa', dewpoint_925hPa)
-        call mpas_pool_get_array(diag, 'dewpoint_1000hPa', dewpoint_1000hPa)
        
         call mpas_pool_get_array(diag, 'uzonal_200hPa', uzonal_200hPa)
         call mpas_pool_get_array(diag, 'uzonal_250hPa', uzonal_250hPa)
@@ -505,7 +438,6 @@ module isobaric_diagnostics
         call mpas_pool_get_array(diag, 'uzonal_700hPa', uzonal_700hPa)
         call mpas_pool_get_array(diag, 'uzonal_850hPa', uzonal_850hPa)
         call mpas_pool_get_array(diag, 'uzonal_925hPa', uzonal_925hPa)
-        call mpas_pool_get_array(diag, 'uzonal_1000hPa', uzonal_1000hPa)
        
         call mpas_pool_get_array(diag, 'umeridional_200hPa', umeridional_200hPa)
         call mpas_pool_get_array(diag, 'umeridional_250hPa', umeridional_250hPa)
@@ -513,7 +445,6 @@ module isobaric_diagnostics
         call mpas_pool_get_array(diag, 'umeridional_700hPa', umeridional_700hPa)
         call mpas_pool_get_array(diag, 'umeridional_850hPa', umeridional_850hPa)
         call mpas_pool_get_array(diag, 'umeridional_925hPa', umeridional_925hPa)
-        call mpas_pool_get_array(diag, 'umeridional_1000hPa', umeridional_1000hPa)
        
         call mpas_pool_get_array(diag, 'height_200hPa', height_200hPa)
         call mpas_pool_get_array(diag, 'height_250hPa', height_250hPa)
@@ -521,7 +452,6 @@ module isobaric_diagnostics
         call mpas_pool_get_array(diag, 'height_700hPa', height_700hPa)
         call mpas_pool_get_array(diag, 'height_850hPa', height_850hPa)
         call mpas_pool_get_array(diag, 'height_925hPa', height_925hPa)
-        call mpas_pool_get_array(diag, 'height_1000hPa', height_1000hPa)
        
         call mpas_pool_get_array(diag, 'w_200hPa', w_200hPa)
         call mpas_pool_get_array(diag, 'w_250hPa', w_250hPa)
@@ -529,7 +459,6 @@ module isobaric_diagnostics
         call mpas_pool_get_array(diag, 'w_700hPa', w_700hPa)
         call mpas_pool_get_array(diag, 'w_850hPa', w_850hPa)
         call mpas_pool_get_array(diag, 'w_925hPa', w_925hPa)
-        call mpas_pool_get_array(diag, 'w_1000hPa', w_1000hPa)
        
         call mpas_pool_get_array(diag, 'vorticity_200hPa', vorticity_200hPa)
         call mpas_pool_get_array(diag, 'vorticity_250hPa', vorticity_250hPa)
@@ -537,10 +466,8 @@ module isobaric_diagnostics
         call mpas_pool_get_array(diag, 'vorticity_700hPa', vorticity_700hPa)
         call mpas_pool_get_array(diag, 'vorticity_850hPa', vorticity_850hPa)
         call mpas_pool_get_array(diag, 'vorticity_925hPa', vorticity_925hPa)
-        call mpas_pool_get_array(diag, 'vorticity_1000hPa', vorticity_1000hPa)
        
         call mpas_pool_get_array(diag, 'mslp', mslp)
-        call mpas_pool_get_array(sfc_input, 'ter', height_terrain)
        
         if(.not.allocated(pressure)    ) allocate(pressure(nVertLevels,nCells)      )
         if(.not.allocated(pressureCp1) ) allocate(pressureCp1(nVertLevels,nCells+1) )
@@ -645,7 +572,7 @@ module isobaric_diagnostics
         end if
        
        !interpolation to fixed pressure levels for fields located at cells centers and at mass points:
-        nIntP = 7
+        nIntP = 6
         if(.not.allocated(field_interp)) allocate(field_interp(nCells,nIntP) )
         if(.not.allocated(press_interp)) allocate(press_interp(nCells,nIntP) )
         do iCell = 1, nCells
@@ -655,27 +582,7 @@ module isobaric_diagnostics
            press_interp(iCell,4) = 700.0_RKIND
            press_interp(iCell,5) = 850.0_RKIND
            press_interp(iCell,6) = 925.0_RKIND
-           press_interp(iCell,7) = 1000.0_RKIND
         enddo
-
-        ! Relative humidity has 12 levels instead of 7
-        nIntP_rh = 12
-        if (NEED_RELHUM) then
-            if(.not.allocated(field_interp_rh)) allocate(field_interp_rh(nCells,nIntP_rh) )
-            if(.not.allocated(press_interp_rh)) allocate(press_interp_rh(nCells,nIntP_rh) )
-            press_interp_rh(:,1) = 100.0_RKIND
-            press_interp_rh(:,2) = 150.0_RKIND
-            press_interp_rh(:,3) = 200.0_RKIND
-            press_interp_rh(:,4) = 250.0_RKIND
-            press_interp_rh(:,5) = 300.0_RKIND
-            press_interp_rh(:,6) = 400.0_RKIND
-            press_interp_rh(:,7) = 500.0_RKIND
-            press_interp_rh(:,8) = 600.0_RKIND
-            press_interp_rh(:,9) = 700.0_RKIND
-            press_interp_rh(:,10) = 850.0_RKIND
-            press_interp_rh(:,11) = 925.0_RKIND
-            press_interp_rh(:,12) = 1000.0_RKIND
-        end if
        
         if(.not.allocated(press_in)) allocate(press_in(nCells,nVertLevels))
         do iCell = 1, nCells
@@ -703,7 +610,6 @@ module isobaric_diagnostics
             temperature_850hPa(1:nCells) = field_interp(1:nCells,5)
             temperature_925hPa(1:nCells) = field_interp(1:nCells,6)
            ! call mpas_log_write('--- end interpolate temperature:')
-            temperature_1000hPa(1:nCells) = field_interp(1:nCells,7)
         end if
        
        
@@ -715,19 +621,13 @@ module isobaric_diagnostics
                field_in(iCell,kk) = relhum(k,iCell)
             enddo
             enddo
-            call interp_tofixed_pressure(nCells,nVertLevels,nIntP_rh,press_in,field_in,press_interp_rh,field_interp_rh)
-            relhum_100hPa(1:nCells) = field_interp_rh(1:nCells,1)
-            relhum_150hPa(1:nCells) = field_interp_rh(1:nCells,2)
-            relhum_200hPa(1:nCells) = field_interp_rh(1:nCells,3)
-            relhum_250hPa(1:nCells) = field_interp_rh(1:nCells,4)
-            relhum_300hPa(1:nCells) = field_interp_rh(1:nCells,5)
-            relhum_400hPa(1:nCells) = field_interp_rh(1:nCells,6)
-            relhum_500hPa(1:nCells) = field_interp_rh(1:nCells,7)
-            relhum_600hPa(1:nCells) = field_interp_rh(1:nCells,8)
-            relhum_700hPa(1:nCells) = field_interp_rh(1:nCells,9)
-            relhum_850hPa(1:nCells) = field_interp_rh(1:nCells,10)
-            relhum_925hPa(1:nCells) = field_interp_rh(1:nCells,11)
-            relhum_1000hPa(1:nCells) = field_interp_rh(1:nCells,12)
+            call interp_tofixed_pressure(nCells,nVertLevels,nIntP,press_in,field_in,press_interp,field_interp)
+            relhum_200hPa(1:nCells) = field_interp(1:nCells,1)
+            relhum_250hPa(1:nCells) = field_interp(1:nCells,2)
+            relhum_500hPa(1:nCells) = field_interp(1:nCells,3)
+            relhum_700hPa(1:nCells) = field_interp(1:nCells,4)
+            relhum_850hPa(1:nCells) = field_interp(1:nCells,5)
+            relhum_925hPa(1:nCells) = field_interp(1:nCells,6)
            ! call mpas_log_write('--- end interpolate relative humidity:')
         end if
        
@@ -746,7 +646,6 @@ module isobaric_diagnostics
             dewpoint_700hPa(1:nCells) = field_interp(1:nCells,4)
             dewpoint_850hPa(1:nCells) = field_interp(1:nCells,5)
             dewpoint_925hPa(1:nCells) = field_interp(1:nCells,6)
-            dewpoint_1000hPa(1:nCells) = field_interp(1:nCells,7)
            ! call mpas_log_write('--- end interpolate relative humidity:')
         end if
        
@@ -765,7 +664,6 @@ module isobaric_diagnostics
             uzonal_700hPa(1:nCells) = field_interp(1:nCells,4)
             uzonal_850hPa(1:nCells) = field_interp(1:nCells,5)
             uzonal_925hPa(1:nCells) = field_interp(1:nCells,6)
-            uzonal_1000hPa(1:nCells) = field_interp(1:nCells,7)
            ! call mpas_log_write('--- end interpolate zonal wind:')
         end if
        
@@ -784,7 +682,6 @@ module isobaric_diagnostics
             umeridional_700hPa(1:nCells) = field_interp(1:nCells,4)
             umeridional_850hPa(1:nCells) = field_interp(1:nCells,5)
             umeridional_925hPa(1:nCells) = field_interp(1:nCells,6)
-            umeridional_1000hPa(1:nCells) = field_interp(1:nCells,7)
            ! call mpas_log_write('--- end interpolate meridional wind:')
         end if
        
@@ -817,7 +714,6 @@ module isobaric_diagnostics
             height_700hPa(1:nCells) = field_interp(1:nCells,4)
             height_850hPa(1:nCells) = field_interp(1:nCells,5)
             height_925hPa(1:nCells) = field_interp(1:nCells,6)
-            height_1000hPa(1:nCells) = field_interp(1:nCells,7)
            ! call mpas_log_write('--- end interpolate height:')
         
            !... vertical velocity
@@ -834,7 +730,6 @@ module isobaric_diagnostics
             w_700hPa(1:nCells) = field_interp(1:nCells,4)
             w_850hPa(1:nCells) = field_interp(1:nCells,5)
             w_925hPa(1:nCells) = field_interp(1:nCells,6)
-            w_1000hPa(1:nCells) = field_interp(1:nCells,7)
        
             if(allocated(field_in)) deallocate(field_in)
             if(allocated(press_in)) deallocate(press_in)
@@ -846,7 +741,7 @@ module isobaric_diagnostics
        
         if (NEED_VORTICITY) then
            !interpolation to fixed pressure levels for fields located at cell vertices and at mass points:
-            nIntP = 7
+            nIntP = 6
             if(.not.allocated(field_interp)) allocate(field_interp(nVertices,nIntP) )
             if(.not.allocated(press_interp)) allocate(press_interp(nVertices,nIntP) )
             do iVert = 1, nVertices
@@ -856,7 +751,6 @@ module isobaric_diagnostics
                press_interp(iVert,4) = 700.0_RKIND
                press_interp(iVert,5) = 850.0_RKIND
                press_interp(iVert,6) = 925.0_RKIND
-               press_interp(iVert,7) = 1000.0_RKIND
             enddo
        
             if(.not.allocated(press_in)) allocate(press_in(nVertices,nVertLevels))
@@ -882,7 +776,6 @@ module isobaric_diagnostics
             vorticity_700hPa(1:nVertices) = field_interp(1:nVertices,4)
             vorticity_850hPa(1:nVertices) = field_interp(1:nVertices,5)
             vorticity_925hPa(1:nVertices) = field_interp(1:nVertices,6)
-            vorticity_1000hPa(1:nVertices) = field_interp(1:nVertices,7)
            ! call mpas_log_write('--- end interpolate relative vorticity:')
 
             if(allocated(field_interp)) deallocate(field_interp)
@@ -897,13 +790,13 @@ module isobaric_diagnostics
        
         if (need_mslp) then
             !... compute SLP (requires temp, height, pressure, qvapor)
-            !call compute_slp(nCells, nVertLevels, num_scalars, temperature, height, pressure, index_qv, scalars, mslp)
-            !mslp(:) = mslp(:) * 100.0   ! Convert from hPa to Pa
-            !
-            ! BAW 2018-12-30 --> tests show compute_slp approach generates universal bias, switch to wrf post-processing approach
-             do iCell = 1, nCells
-                mslp(iCell) = surface_pressure(iCell)*(1.-(0.0065*height_terrain(iCell))/((temperature(1,iCell)-273.15)+0.0065*height_terrain(iCell)+273.15))**(-5.257)
-             enddo
+             call compute_slp(nCells, nVertLevels, num_scalars, temperature, height, pressure, index_qv, scalars, mslp)
+             mslp(:) = mslp(:) * 100.0   ! Convert from hPa to Pa
+            !... alternative way
+            !do iCell = 1, nCells
+            !   mslp(iCell) = diag % surface_pressure % array(iCell) + 11.38*height(1,iCell)
+            !   mslp(iCell) = mslp(iCell)/100.
+            !enddo
         end if
     
     

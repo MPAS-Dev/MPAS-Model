@@ -7,44 +7,14 @@ DIAGNOSTIC_MODULES = \
 	mpas_atm_diagnostic_template.o \
 	isobaric_diagnostics.o \
 	convective_diagnostics.o \
-        convective_diagnostics2.o \
 	pv_diagnostics.o \
-	snowratio_diagnostics.o \
-	surface_diagnostics.o \
-	wind_diagnostics.o \
-	accumulated_diagnostics.o \
-	turbulence_diagnostics.o \
-	aviation_diagnostics.o \
-	unstagger_diagnostics.o \
-	cpox_diagnostics.o \
-    stfod_diagnostics.o \
 	soundings.o \
 
 isobaric_diagnostics.o: mpas_atm_diagnostics_utils.o
 
 convective_diagnostics.o: mpas_atm_diagnostics_utils.o
 
-convective_diagnostics2.o: mpas_atm_diagnostics_utils.o
-
 pv_diagnostics.o: mpas_atm_diagnostics_utils.o
-
-snowratio_diagnostics.o: mpas_atm_diagnostics_utils.o
-
-surface_diagnostics.o: mpas_atm_diagnostics_utils.o
-
-wind_diagnostics.o: mpas_atm_diagnostics_utils.o
-
-accumulated_diagnostics.o: mpas_atm_diagnostics_utils.o
-
-turbulence_diagnostics.o: mpas_atm_diagnostics_utils.o
-
-aviation_diagnostics.o: mpas_atm_diagnostics_utils.o
-
-unstagger_diagnostics.o: mpas_atm_diagnostics_utils.o
-
-cpox_diagnostics.o: mpas_atm_diagnostics_utils.o
-
-stfod_diagnostics.o: mpas_atm_diagnostics_utils.o
 
 soundings.o:
 
@@ -54,7 +24,7 @@ soundings.o:
 
 OBJS = mpas_atm_diagnostics_manager.o mpas_atm_diagnostics_utils.o
 
-all: $(DIAGNOSTIC_MODULES) $(OBJS)
+all: $(DIAGNOSTIC_MODULS) $(OBJS)
 
 mpas_atm_diagnostics_manager.o: mpas_atm_diagnostics_utils.o $(DIAGNOSTIC_MODULES)
 

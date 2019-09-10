@@ -216,7 +216,9 @@
  character(len=StrKIND),pointer:: pbl_scheme
 
  integer,pointer:: index_qv,index_qc,index_qr,index_qi,index_qs,index_qg
+ integer:: sindex_qv,sindex_qc,sindex_qr,sindex_qi,sindex_qs,sindex_qg
  integer,pointer:: index_ni
+ integer:: sindex_ni
 
  real(kind=RKIND),dimension(:),pointer    :: latCell,lonCell
  real(kind=RKIND),dimension(:),pointer    :: fzm,fzp,rdzw
@@ -276,31 +278,39 @@
  call mpas_pool_get_dimension(state,'index_qs',index_qs)
  call mpas_pool_get_dimension(state,'index_qg',index_qg)
 
- call mpas_pool_get_array_gpu(state,'scalars',scalars,time_lev)
- call mpas_pool_get_array_gpu(diag_physics,'plrad',plrad)
+ sindex_qv = index_qv
+ sindex_qc = index_qc
+ sindex_qr = index_qr
+ sindex_qi = index_qi
+ sindex_qs = index_qs
+ sindex_qg = index_qg
 
+ call mpas_pool_get_array_gpu(diag_physics,'plrad',plrad)
+ call mpas_pool_get_array_gpu(state,'scalars',scalars,time_lev)
+
+!!!
  !$acc update host(latCell, lonCell, fzm, fzp, rdzw, zgrid, zz, &
  !$acc surface_pressure, exner, pressure_b, pressure_p, rtheta_b, &
  !$acc rtheta_p, u, v, rho_zz, theta_m, w, plrad, scalars)
 
- qv => scalars(index_qv,:,:)
- qc => scalars(index_qc,:,:)
- qr => scalars(index_qr,:,:)
- qi => scalars(index_qi,:,:)
- qs => scalars(index_qs,:,:)
- qg => scalars(index_qg,:,:)
+! qv => scalars(index_qv,:,:)
+! qc => scalars(index_qc,:,:)
+! qr => scalars(index_qr,:,:)
+! qi => scalars(index_qi,:,:)
+! qs => scalars(index_qs,:,:)
+! qg => scalars(index_qg,:,:)
 
  do j = jts, jte
  do k = kts, kte
  do i = its, ite
 
     !water vapor and moist arrays:
-    qv_p(i,k,j) = max(0.,qv(k,i))
-    qc_p(i,k,j) = max(0.,qc(k,i))
-    qr_p(i,k,j) = max(0.,qr(k,i))
-    qi_p(i,k,j) = max(0.,qi(k,i))
-    qs_p(i,k,j) = max(0.,qs(k,i))
-    qg_p(i,k,j) = max(0.,qg(k,i))
+    qv_p(i,k,j) = max(0.,scalars(sindex_qv,k,i))
+    qc_p(i,k,j) = max(0.,scalars(sindex_qc,k,i))
+    qr_p(i,k,j) = max(0.,scalars(sindex_qr,k,i))
+    qi_p(i,k,j) = max(0.,scalars(sindex_qi,k,i))
+    qs_p(i,k,j) = max(0.,scalars(sindex_qs,k,i))
+    qg_p(i,k,j) = max(0.,scalars(sindex_qg,k,i))    
 
     !arrays located at theta points:
     u_p(i,k,j) = u(k,i)
@@ -471,6 +481,7 @@
  enddo
  enddo
 
+!!!
  !$acc update device(latCell, lonCell, fzm, fzp, rdzw, zgrid, zz, &
  !$acc surface_pressure, exner, pressure_b, pressure_p, rtheta_b, &
  !$acc rtheta_p, u, v, rho_zz, theta_m, w, plrad, scalars)
@@ -494,7 +505,9 @@
 !local pointers:
  character(len=StrKIND),pointer:: microp_scheme
  integer,pointer:: index_qv,index_qc,index_qr,index_qi,index_qs,index_qg
+ integer:: sindex_qv,sindex_qc,sindex_qr,sindex_qi,sindex_qs,sindex_qg
  integer,pointer:: index_ni,index_nr
+ integer:: sindex_ni,sindex_nr
  real(kind=RKIND),dimension(:),pointer    :: nt_c,mu_c
  real(kind=RKIND),dimension(:,:),pointer  :: zgrid,w
  real(kind=RKIND),dimension(:,:),pointer  :: zz,exner,pressure_b
@@ -540,23 +553,35 @@
  call mpas_pool_get_dimension(state,'index_ni'  ,index_ni  )
  call mpas_pool_get_dimension(state,'index_nr'  ,index_nr  )
 
+ sindex_qv = index_qv
+ sindex_qc = index_qc
+ sindex_qr = index_qr
+ sindex_qi = index_qi
+ sindex_qs = index_qs
+ sindex_qg = index_qg
+ sindex_ni = index_ni
+ sindex_nr = index_nr
+
  call mpas_pool_get_array_gpu(state,'scalars',scalars,time_lev)
 
- !$acc update host(zgrid, zz, exner, pressure_b, pressure_p, &
- !$acc nt_c, mu_c, rainprod, evapprod, re_cloud, re_ice, re_snow, &
- !$acc rho_zz, theta_m, w, scalars)
+!!!
+! !$acc update host(zgrid, zz, exner, pressure_b, pressure_p, &
+! !$acc nt_c, mu_c, rainprod, evapprod, re_cloud, re_ice, re_snow, &
+! !$acc rho_zz, theta_m, w, scalars)
 
- qv   => scalars(index_qv,:,:)
- qc   => scalars(index_qc,:,:)
- qr   => scalars(index_qr,:,:)
+! qv   => scalars(index_qv,:,:)
+! qc   => scalars(index_qc,:,:)
+! qr   => scalars(index_qr,:,:)
 
+!$acc parallel vector_length(32)
+!$acc loop gang vector collapse(3)
 !initialize variables needed in the cloud microphysics schemes:
  do j = jts, jte
- do k = kts, kte
  do i = its, ite
-    qv_p(i,k,j) = qv(k,i)
-    qc_p(i,k,j) = qc(k,i)
-    qr_p(i,k,j) = qr(k,i)
+ do k = kts, kte
+    qv_p(i,k,j) = scalars(sindex_qv,k,i)
+    qc_p(i,k,j) = scalars(sindex_qc,k,i)
+    qr_p(i,k,j) = scalars(sindex_qr,k,i)
 
     rho_p(i,k,j)  = zz(k,i) * rho_zz(k,i)
     th_p(i,k,j)   = theta_m(k,i) / (1._RKIND + R_v/R_d * max(0._RKIND,qv_p(i,k,j)))
@@ -570,24 +595,33 @@
  enddo
  enddo
  enddo
+!$acc end parallel
+
+! !$acc update host(qv_p, qc_p, qr_p, rho_p, th_p, pi_p, pres_p, z_p, &
+! !$acc dz_p, w_p)
 
 !additional initialization as function of cloud microphysics scheme:
  microp_select_init: select case(microp_scheme)
 
     case ("mp_thompson","mp_wsm6")
-       qi   => scalars(index_qi,:,:)
-       qs   => scalars(index_qs,:,:)
-       qg   => scalars(index_qg,:,:)
+!       qi   => scalars(index_qi,:,:)
+!       qs   => scalars(index_qs,:,:)
+!       qg   => scalars(index_qg,:,:)
 
+!$acc parallel vector_length(32)
+!$acc loop gang vector collapse(3)
        do j = jts, jte
        do k = kts, kte
        do i = its, ite
-          qi_p(i,k,j) = qi(k,i)
-          qs_p(i,k,j) = qs(k,i)
-          qg_p(i,k,j) = qg(k,i)
+          qi_p(i,k,j) = scalars(sindex_qi,k,i)
+          qs_p(i,k,j) = scalars(sindex_qs,k,i)
+          qg_p(i,k,j) = scalars(sindex_qg,k,i)
        enddo
        enddo
        enddo
+!$acc end parallel
+
+! !$acc update host(qi_p, qs_p, qg_p)
 
     microp2_select: select case(microp_scheme)
 
@@ -623,6 +657,11 @@
 
  end select microp_select_init
 
+!!!
+! !$acc update device(zgrid, zz, exner, pressure_b, pressure_p, &
+! !$acc nt_c, mu_c, rainprod, evapprod, re_cloud, re_ice, re_snow, &
+! !$acc rho_zz, theta_m, w, scalars)
+
  end subroutine microphysics_from_MPAS
 
 !=================================================================================================================
@@ -645,7 +684,9 @@
 !local pointers:
  character(len=StrKIND),pointer:: microp_scheme
  integer,pointer:: index_qv,index_qc,index_qr,index_qi,index_qs,index_qg
+ integer:: sindex_qv,sindex_qc,sindex_qr,sindex_qi,sindex_qs,sindex_qg
  integer,pointer:: index_ni,index_nr
+ integer:: sindex_ni,sindex_nr
  real(kind=RKIND),dimension(:),pointer    :: surface_pressure,tend_sfc_pressure
  real(kind=RKIND),dimension(:,:),pointer  :: zgrid
  real(kind=RKIND),dimension(:,:),pointer  :: zz,exner,exner_b,pressure_b,rtheta_p,rtheta_b
@@ -697,25 +738,40 @@
  call mpas_pool_get_dimension(state,'index_ni'  ,index_ni  )
  call mpas_pool_get_dimension(state,'index_nr'  ,index_nr  )
 
- call mpas_pool_get_array(state,'scalars',scalars,time_lev)
- call mpas_pool_get_array(tend,'rt_diabatic_tend',rt_diabatic_tend)
+ sindex_qv = index_qv
+ sindex_qc = index_qc
+ sindex_qr = index_qr
+ sindex_qi = index_qi
+ sindex_qs = index_qs
+ sindex_qg = index_qg
+ sindex_ni = index_ni
+ sindex_nr = index_nr
 
- !$acc update host(zz, zgrid, exner, exner_b, pressure_b, pressure_p, &
- !$acc rtheta_b, rtheta_p, surface_pressure, rainprod, evapprod, re_cloud, &
- !$acc re_ice, re_snow, tend_sfc_pressure, rho_zz, theta_m, rt_diabatic_tend, &
- !$acc scalars)
+ call mpas_pool_get_array_gpu(tend,'rt_diabatic_tend',rt_diabatic_tend)
+ call mpas_pool_get_array_gpu(state,'scalars',scalars,time_lev)
 
- qv   => scalars(index_qv,:,:)
- qc   => scalars(index_qc,:,:)
- qr   => scalars(index_qr,:,:)
+!!!
+! !$acc update device(qv_p, qc_p, qr_p, th_p, qi_p, qs_p, qg_p)
+
+!!!
+! !$acc update host(zz, zgrid, exner, exner_b, pressure_b, pressure_p, &
+! !$acc rtheta_b, rtheta_p, surface_pressure, rainprod, evapprod, re_cloud, &
+! !$acc re_ice, re_snow, tend_sfc_pressure, rho_zz, theta_m, rt_diabatic_tend, &
+! !$acc scalars)
+
+! qv   => scalars(index_qv,:,:)
+! qc   => scalars(index_qc,:,:)
+! qr   => scalars(index_qr,:,:)
 
 !update variables needed in the dynamical core:
  do j = jts,jte
- do k = kts,kte
+!$acc parallel vector_length(32)
+!$acc loop gang vector collapse(2)
  do i = its,ite
-    qv(k,i) = qv_p(i,k,j)
-    qc(k,i) = qc_p(i,k,j)
-    qr(k,i) = qr_p(i,k,j)
+ do k = kts,kte
+    scalars(sindex_qv,k,i) = qv_p(i,k,j)
+    scalars(sindex_qc,k,i) = qc_p(i,k,j)
+    scalars(sindex_qr,k,i) = qr_p(i,k,j)
 
     !potential temperature and diabatic forcing:
     rt_diabatic_tend(k,i) = theta_m(k,i)
@@ -734,10 +790,13 @@
 
  enddo
  enddo
+!$acc end parallel
  enddo
 
 !updates the surface pressure and calculates the surface pressure tendency:
  do j = jts,jte
+!$acc parallel vector_length(32)
+!$acc loop gang vector private(tem1,tem2,rho1,rho2)
  do i = its,ite
     tem1 = zgrid(2,i)-zgrid(1,i)
     tem2 = zgrid(3,i)-zgrid(2,i)
@@ -752,24 +811,27 @@
     surface_pressure(i)  = surface_pressure(i) + pressure_p(1,i) + pressure_b(1,i)
     tend_sfc_pressure(i)   = (surface_pressure(i)-tend_sfc_pressure(i)) / dt_dyn
  enddo
+!$acc end parallel
  enddo
 
 !variables specific to different cloud microphysics schemes:
  microp_select_init: select case(microp_scheme)
 
     case ("mp_thompson","mp_wsm6")
-       qi   => scalars(index_qi,:,:)
-       qs   => scalars(index_qs,:,:)
-       qg   => scalars(index_qg,:,:)
-
+!       qi   => scalars(index_qi,:,:)
+!       qs   => scalars(index_qs,:,:)
+!       qg   => scalars(index_qg,:,:)
        do j = jts, jte
+!$acc parallel vector_length(32)
+!$acc loop gang vector collapse(2)
        do k = kts, kte
        do i = its, ite
-          qi(k,i) = qi_p(i,k,j)
-          qs(k,i) = qs_p(i,k,j)
-          qg(k,i) = qg_p(i,k,j)
+          scalars(sindex_qi,k,i) = qi_p(i,k,j)
+          scalars(sindex_qs,k,i) = qs_p(i,k,j)
+          scalars(sindex_qg,k,i) = qg_p(i,k,j)
        enddo
        enddo
+!$acc end parallel
        enddo
 
     microp2_select: select case(microp_scheme)
@@ -800,10 +862,11 @@
 
  end select microp_select_init
 
- !$acc update device(zz, zgrid, exner, exner_b, pressure_b, pressure_p, &
- !$acc rtheta_b, rtheta_p, surface_pressure, rainprod, evapprod, re_cloud, &
- !$acc re_ice, re_snow, tend_sfc_pressure, rho_zz, theta_m, rt_diabatic_tend, &
- !$acc scalars)
+!!!
+! !$acc update host(zz, zgrid, exner, exner_b, pressure_b, pressure_p, &
+! !$acc rtheta_b, rtheta_p, surface_pressure, rainprod, evapprod, re_cloud, &
+! !$acc re_ice, re_snow, tend_sfc_pressure, rho_zz, theta_m, rt_diabatic_tend, &
+! !$acc scalars)
 
  end subroutine microphysics_to_MPAS
 

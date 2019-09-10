@@ -20,8 +20,7 @@ module convective_diagnostics
     public :: convective_diagnostics_setup, &
               convective_diagnostics_update, &
               convective_diagnostics_compute, &
-              convective_diagnostics_reset, &
-              getcape
+              convective_diagnostics_reset
 
     private
 
@@ -268,7 +267,7 @@ module convective_diagnostics
         real (kind=RKIND), parameter :: dev_motion = 7.5, z_bunker_bot = 0., z_bunker_top = 6000.
         real (kind=RKIND)            :: u_storm, v_storm, u_srh_bot, v_srh_bot, u_srh_top, v_srh_top
         real (kind=RKIND)            :: u_mean, v_mean, u_shear, v_shear, shear_magnitude
-        real (kind=RKIND)            :: b_term, cape_out, cin_out, li_out
+        real (kind=RKIND)            :: b_term, cape_out, cin_out
         real (kind=RKIND), dimension(:), allocatable :: dudz, dvdz, zp
         real (kind=RKIND), dimension(:), allocatable :: zrel, srh
         real (kind=RKIND), dimension(:), allocatable :: p_in, t_in, td_in
@@ -464,7 +463,7 @@ module convective_diagnostics
                  !                      /(17.625-log(relhum(k,iCell))-((17.625*t_in(k))/(243.04+t_in(k)))) 
                  !   end do
 
-                    call getcape( nVertLevels, p_in, t_in, td_in, cape_out, cin_out, li_out )
+                    call getcape( nVertLevels, p_in, t_in, td_in, cape_out, cin_out )
 
                     cape(iCell) = cape_out
                     cin(iCell) = cin_out
@@ -593,12 +592,12 @@ module convective_diagnostics
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 !-----------------------------------------------------------------------
 
-    subroutine getcape( nk, p_in, t_in, td_in, cape, cin, li )
+    subroutine getcape( nk , p_in , t_in , td_in, cape , cin )
     implicit none
 
     integer, intent(in) :: nk
     real (kind=RKIND), dimension(nk), intent(in) :: p_in,t_in,td_in
-    real (kind=RKIND), intent(out) :: cape,cin,li
+    real (kind=RKIND), intent(out) :: cape,cin
 
 !-----------------------------------------------------------------------
 !
@@ -632,8 +631,6 @@ module convective_diagnostics
 !
 !            cin - Convective Inhibition (J/kg) (real)
 !
-!             li - Lifted Index (C) (real)
-!
 !-----------------------------------------------------------------------
 !  User options:
 
@@ -642,7 +639,7 @@ module convective_diagnostics
                                       !  results,larger number makes code 
                                       !  go faster)
 
-    integer, parameter :: source = 3    ! Source parcel:
+    integer, parameter :: source = 2    ! Source parcel:
                                         ! 1 = surface
                                         ! 2 = most unstable (max theta-e)
                                         ! 3 = mixed-layer (specify ml_depth)
@@ -664,13 +661,13 @@ module convective_diagnostics
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 !-----------------------------------------------------------------------
 
-    logical :: doit,ice,cloud,not_converged,is_needed_li
+    logical :: doit,ice,cloud,not_converged
     integer :: k,kmax,n,nloop,i,orec
     real (kind=RKIND), dimension(nk) :: p,t,td,pi,q,th,thv,z,pt,pb,pc,pn,ptv
 
-    real (kind=RKIND) :: the,maxthe,parea,narea,lfc,pfct
-    real (kind=RKIND) :: th1,p1,t1,qv1,ql1,qi1,b1,pi1,thv1,l1,qt,dp,dz,ps,frac
-    real (kind=RKIND) :: th2,p2,t2,qv2,ql2,qi2,b2,pi2,thv2,l2
+    real (kind=RKIND) :: the,maxthe,parea,narea,lfc
+    real (kind=RKIND) :: th1,p1,t1,qv1,ql1,qi1,b1,pi1,thv1,qt,dp,dz,ps,frac
+    real (kind=RKIND) :: th2,p2,t2,qv2,ql2,qi2,b2,pi2,thv2
     real (kind=RKIND) :: thlast,fliq,fice,tbar,qvbar,qlbar,qibar,lhv,lhs,lhf,rm,cpm
     real*8 :: avgth,avgqv
 !    real (kind=RKIND) :: getqvs,getqvi,getthe
@@ -701,7 +698,6 @@ module convective_diagnostics
     real (kind=RKIND), parameter :: cpdg  = cp/g
 
     real (kind=RKIND), parameter :: converge = 0.0002
-    real (kind=RKIND), parameter :: p500 = 50000.0
 
     integer, parameter :: debug_level =   0
 
@@ -854,9 +850,6 @@ module convective_diagnostics
 
     cape = 0.0
     cin  = 0.0
-    li = 100.0
-    l1 = 0.0
-    l2 = 0.0
     lfc  = 0.0
 
     doit = .true.
@@ -866,7 +859,6 @@ module convective_diagnostics
     else
       ice = .true.
     endif
-    is_needed_li = .true.
 
       the = getthe(p2,t2,t2,qv2)
       if(debug_level.ge.100) call mpas_log_write('  the = $r', realArgs=(/the/))
@@ -881,8 +873,7 @@ module convective_diagnostics
     do while( doit .and. (k.lt.nk) )
 
         k = k+1
-       b1 = b2
-       l1 = l2
+       b1 =  b2
 
        dp = p(k-1)-p(k)
 
@@ -902,7 +893,7 @@ module convective_diagnostics
         qv1 = qv2
         ql1 = ql2
         qi1 = qi2
-       thv1 = thv2
+        thv1 = thv2
 
         p2 = p2 - dp
         pi2 = (p2*rp00)**rddcp
@@ -984,8 +975,6 @@ module convective_diagnostics
       thv2 = th2*(1.0+reps*qv2)/(1.0+qv2+ql2+qi2)
         b2 = g*( thv2-thv(k) )/thv(k)
         dz = -cpdg*0.5*(thv(k)+thv(k-1))*(pi(k)-pi(k-1))
-      ! l2 = thv(k)-thv2
-        l2 = th(k)-th2
 
       the = getthe(p2,t2,t2,qv2)
 
@@ -1030,13 +1019,6 @@ module convective_diagnostics
       endif
 
       cape = cape + max(0.0,parea)
-
-      ! Check for Lifted Index:
-      if ( is_needed_li .and. p(k) .le. p500 ) then
-        pfct = ( p500 - p(k) ) / ( p(k-1) - p(k) )
-        li = pfct * l1 + ( 1. - pfct ) * l2
-        is_needed_li = .false.
-      endif
 
       if(debug_level.ge.200)then
         call mpas_log_write('$r $r $r $r $r $l', realArgs=(/p2,b1,b2,cape,cin/), logicArgs=(/cloud/))

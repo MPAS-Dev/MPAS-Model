@@ -61,7 +61,6 @@ CONTAINS
                        COSZ,PRCPRAIN, SOLARDIRECT,                      &    !F
                        TH2,Q2SAT,DQSDT2,                                &    !I
                        VEGTYP,SOILTYP,SLOPETYP,SHDFAC,SHDMIN,SHDMAX,    &    !I
-                       SNOWRATIO,                                       &    !I
                        ALB, SNOALB,TBOT, Z0BRD, Z0, EMISSI, EMBRD,      &    !S
                        CMC,T1,STC,SMC,SH2O,SNOWH,SNEQV,ALBEDO,CH,CM,    &    !H
 ! ----------------------------------------------------------------------
@@ -80,7 +79,7 @@ CONTAINS
                        RDLAI2D,USEMONALB,                               &
                        SNOTIME1,                                        &
                        RIBB,                                            &
-                       SMCWLT,SMCDRY,SMCREF,SMCMAX,NROOT,DF1,SNUP)           !P
+                       SMCWLT,SMCDRY,SMCREF,SMCMAX,NROOT)                    !P
 ! ----------------------------------------------------------------------
 ! SUBROUTINE SFLX - UNIFIED NOAHLSM VERSION 1.0 JULY 2007
 ! ----------------------------------------------------------------------
@@ -182,7 +181,6 @@ CONTAINS
 !  SMC(NSOIL)  TOTAL SOIL MOISTURE CONTENT (VOLUMETRIC FRACTION)
 !  SH2O(NSOIL) UNFROZEN SOIL MOISTURE CONTENT (VOLUMETRIC FRACTION)
 !                NOTE: FROZEN SOIL MOISTURE = SMC - SH2O
-!  SNOWRATIO   SNOW WATER RATIO
 !  SNOWH       ACTUAL SNOW DEPTH (M)
 !  SNEQV       LIQUID WATER-EQUIVALENT SNOW DEPTH (M)
 !                NOTE: SNOW DENSITY = SNEQV/SNOWH
@@ -305,7 +303,7 @@ CONTAINS
                             FFROZP
       REAL, INTENT(INOUT)  :: EMBRD
       REAL, INTENT(INOUT)  :: ALBEDO
-      REAL, INTENT(INOUT):: COSZ, SOLARDIRECT,CH,CM,SNOWRATIO,              &
+      REAL, INTENT(INOUT):: COSZ, SOLARDIRECT,CH,CM,                        &
                             CMC,SNEQV,SNCOVR,SNOWH,T1,XLAI,SHDFAC,Z0BRD,    &
                             EMISSI, ALB
       REAL, INTENT(INOUT):: SNOTIME1
@@ -324,7 +322,7 @@ CONTAINS
       REAL :: BEXP,CFACTR,CMCMAX,CSOIL,CZIL,DF1,DF1H,DF1A,DKSAT,DWSAT,      &
               DSOIL,DTOT,ETT,FRCSNO,FRCSOI,EPSCA,F1,FXEXP,FRZX,HS,          &
               KDT,LVH2O,PRCP1,PSISAT,QUARTZ,R,RCH,REFKDT,RR,RGL,            &
-              RSMAX,DF1G,                                                   &
+              RSMAX,                                                        &
               RSNOW,SNDENS,SNCOND,SBETA,SN_NEW,SLOPE,SNUP,SALP,SOILWM,      &
               SOILWW,T1V,T24,T2V,TH2V,TOPT,TFREEZ,TSNOW,ZBOT,Z0,PRCPF,      &
               ETNS,PTU,LSUBS
@@ -345,10 +343,10 @@ CONTAINS
 ! ----------------------------------------------------------------------
 !   INITIALIZATION
 ! ----------------------------------------------------------------------
-      RUNOFF1 = 0.0
-      RUNOFF2 = 0.0
-      RUNOFF3 = 0.0
-      SNOMLT = 0.0
+         RUNOFF1 = 0.0
+         RUNOFF2 = 0.0
+         RUNOFF3 = 0.0
+         SNOMLT = 0.0
 
 ! ----------------------------------------------------------------------
 !  THE VARIABLE "ICE" IS A FLAG DENOTING SEA-ICE / LAND-ICE / ICE-FREE LAND
@@ -531,7 +529,7 @@ CONTAINS
 ! UPDATE SNOW DENSITY BASED ON NEW SNOWFALL, USING OLD AND NEW SNOW.
 ! UPDATE SNOW THERMAL CONDUCTIVITY
 ! ----------------------------------------------------------------------
-            CALL SNOW_NEW (SFCTMP,SN_NEW,SNOWH,SNDENS,SNOWRATIO)
+            CALL SNOW_NEW (SFCTMP,SN_NEW,SNOWH,SNDENS)
 !
 ! kmh 09/04/2006 set Snow Density at 0.2 g/cm**3
 ! for "cold permanent ice" or new "dry" snow
@@ -568,7 +566,7 @@ CONTAINS
 ! DETERMINE SNOW FRACTIONAL COVERAGE.
 ! DETERMINE SURFACE ALBEDO MODIFICATION DUE TO SNOWDEPTH STATE.
 ! ----------------------------------------------------------------------
-              CALL SNFRAC (SNEQV,SNUP,SALP,SNOWH,SNCOVR,Z0)
+              CALL SNFRAC (SNEQV,SNUP,SALP,SNOWH,SNCOVR)
 !   Don't limit snow cover fraction over permanent ice kmh 2008/03/25
             if ( ICE == 0 ) then
               SNCOVR = MIN(SNCOVR,0.98)
@@ -641,9 +639,9 @@ CONTAINS
 ! kmh 09/03/2006
 ! kmh 03/25/2008  change SNCOVR threshold to 0.97
 !
-!           IF (  SNCOVR .GT. 0.97 ) THEN
-!              DF1 = SNCOND
-!           ENDIF
+            IF (  SNCOVR .GT. 0.97 ) THEN
+               DF1 = SNCOND
+            ENDIF
 !
 ! ----------------------------------------------------------------------
 ! FINALLY "PLANE PARALLEL" SNOWPACK EFFECT FOLLOWING
@@ -658,25 +656,35 @@ CONTAINS
          ELSE
             DTOT = SNOWH + DSOIL
             FRCSNO = SNOWH / DTOT
-            FRCSOI = DSOIL / DTOT
-!
+
 ! 1. HARMONIC MEAN (SERIES FLOW)
-            DF1H = (SNCOND*DF1)/(FRCSOI*SNCOND+FRCSNO*DF1)
-!
+!        DF1 = (SNCOND*DF1)/(FRCSOI*SNCOND+FRCSNO*DF1)
+            FRCSOI = DSOIL / DTOT
 ! 2. ARITHMETIC MEAN (PARALLEL FLOW)
-            DF1A = FRCSNO * SNCOND+ FRCSOI * DF1
-!
+!        DF1 = FRCSNO*SNCOND + FRCSOI*DF1
+            DF1H = (SNCOND * DF1)/ (FRCSOI * SNCOND+ FRCSNO * DF1)
+
 ! 3. GEOMETRIC MEAN (INTERMEDIATE BETWEEN HARMONIC AND ARITHMETIC MEAN)
-            DF1G = (SNCOND**FRCSNO)*(DF1**FRCSOI)
-!
-!    COMPOSITE CONDUCTIVITY (SNOW COVER FRACTION AND CANOPY FRACTION)
-            DF1 = DF1A * SNCOVR + DF1* (1.0- SNCOVR)
+!        DF1 = (SNCOND**FRCSNO)*(DF1**FRCSOI)
+! weigh DF by snow fraction
+!        DF1 = DF1H*SNCOVR + DF1A*(1.0-SNCOVR)
+!        DF1 = DF1H*SNCOVR + DF1*(1.0-SNCOVR)
+            DF1A = FRCSNO * SNCOND+ FRCSOI * DF1
+
 ! ----------------------------------------------------------------------
 ! CALCULATE SUBSURFACE HEAT FLUX, SSOIL, FROM FINAL THERMAL DIFFUSIVITY
 ! OF SURFACE MEDIUMS, DF1 ABOVE, AND SKIN TEMPERATURE AND TOP
 ! MID-LAYER SOIL TEMPERATURE
 ! ----------------------------------------------------------------------
-            SSOIL = MAX(7.,DF1/DTOT) * (T1-STC(1))
+            DF1 = DF1A * SNCOVR + DF1* (1.0- SNCOVR)
+            IF ( ICE /= 0 ) then
+               !  kmh  12/15/2005  correct for too deep snow layer
+               !  kmh  09/03/2006  adjust DTOT
+               IF ( DTOT .GT. 2.*DSOIL ) then
+                  DTOT = 2.*DSOIL
+               ENDIF
+            ENDIF
+            SSOIL = DF1 * (T1- STC (1) ) / DTOT
          END IF
 ! ----------------------------------------------------------------------
 ! DETERMINE SURFACE ROUGHNESS OVER SNOWPACK USING SNOW CONDITION FROM
@@ -929,9 +937,90 @@ CONTAINS
       REAL              :: TM,SNOALB1
       REAL, INTENT(IN)  :: LVCOEF
       REAL, PARAMETER   :: SNACCA=0.94,SNACCB=0.58,SNTHWA=0.82,SNTHWB=0.46
+! turn of vegetation effect
+!      ALBEDO = ALB + (1.0- (SHDFAC - SHDMIN))* SNCOVR * (SNOALB - ALB)
+!      ALBEDO = (1.0-SNCOVR)*ALB + SNCOVR*SNOALB !this is equivalent to below
       ALBEDO = ALB + SNCOVR*(SNOALB-ALB)
       EMISSI = EMBRD + SNCOVR*(EMISSI_S - EMBRD)
-      IF (ALBEDO > SNOALB) ALBEDO = SNOALB
+
+!     BASE FORMULATION (DICKINSON ET AL., 1986, COGLEY ET AL., 1990)
+!          IF (TSNOW.LE.263.16) THEN
+!            ALBEDO=SNOALB
+!          ELSE
+!            IF (TSNOW.LT.273.16) THEN
+!              TM=0.1*(TSNOW-263.16)
+!              SNOALB1=0.5*((0.9-0.2*(TM**3))+(0.8-0.16*(TM**3)))
+!            ELSE
+!              SNOALB1=0.67
+!             IF(SNCOVR.GT.0.95) SNOALB1= 0.6
+!             SNOALB1 = ALB + SNCOVR*(SNOALB-ALB)
+!            ENDIF
+!          ENDIF
+!            ALBEDO = ALB + SNCOVR*(SNOALB1-ALB)
+
+!     ISBA FORMULATION (VERSEGHY, 1991; BAKER ET AL., 1990)
+!          SNOALB1 = SNOALB+COEF*(0.85-SNOALB)
+!          SNOALB2=SNOALB1
+!!m          LSTSNW=LSTSNW+1
+!          SNOTIME1 = SNOTIME1 + DT
+!          IF (SNOWNG) THEN
+!             SNOALB2=SNOALB
+!!m             LSTSNW=0
+!             SNOTIME1 = 0.0
+!          ELSE
+!            IF (TSNOW.LT.273.16) THEN
+!!              SNOALB2=SNOALB-0.008*LSTSNW*DT/86400
+!!m              SNOALB2=SNOALB-0.008*SNOTIME1/86400
+!              SNOALB2=(SNOALB2-0.65)*EXP(-0.05*DT/3600)+0.65
+!!              SNOALB2=(ALBEDO-0.65)*EXP(-0.01*DT/3600)+0.65
+!            ELSE
+!              SNOALB2=(SNOALB2-0.5)*EXP(-0.0005*DT/3600)+0.5
+!!              SNOALB2=(SNOALB-0.5)*EXP(-0.24*LSTSNW*DT/86400)+0.5
+!!m              SNOALB2=(SNOALB-0.5)*EXP(-0.24*SNOTIME1/86400)+0.5
+!            ENDIF
+!          ENDIF
+!
+!!               print*,'SNOALB2',SNOALB2,'ALBEDO',ALBEDO,'DT',DT
+!          ALBEDO = ALB + SNCOVR*(SNOALB2-ALB)
+!          IF (ALBEDO .GT. SNOALB2) ALBEDO=SNOALB2
+!!m          LSTSNW1=LSTSNW
+!!          SNOTIME = SNOTIME1
+
+! formulation by Livneh
+! ----------------------------------------------------------------------
+! SNOALB IS CONSIDERED AS THE MAXIMUM SNOW ALBEDO FOR NEW SNOW, AT
+! A VALUE OF 85%. SNOW ALBEDO CURVE DEFAULTS ARE FROM BRAS P.263. SHOULD
+! NOT BE CHANGED EXCEPT FOR SERIOUS PROBLEMS WITH SNOW MELT.
+! TO IMPLEMENT ACCUMULATIN PARAMETERS, SNACCA AND SNACCB, ASSERT THAT IT
+! IS INDEED ACCUMULATION SEASON. I.E. THAT SNOW SURFACE TEMP IS BELOW
+! ZERO AND THE DATE FALLS BETWEEN OCTOBER AND FEBRUARY
+! ----------------------------------------------------------------------
+         SNOALB1 = SNOALB+LVCOEF*(0.85-SNOALB)
+         SNOALB2=SNOALB1
+! ---------------- Initial LSTSNW --------------------------------------
+          IF (SNOWNG) THEN
+             SNOTIME1 = 0.
+          ELSE
+           SNOTIME1=SNOTIME1+DT
+!               IF (TSNOW.LT.273.16) THEN
+                   SNOALB2=SNOALB1*(SNACCA**((SNOTIME1/86400.0)**SNACCB))
+!               ELSE
+!                  SNOALB2 =SNOALB1*(SNTHWA**((SNOTIME1/86400.0)**SNTHWB))
+!               ENDIF
+          ENDIF
+!
+           SNOALB2 = MAX ( SNOALB2, ALB )
+           ALBEDO = ALB + SNCOVR*(SNOALB2-ALB)
+           IF (ALBEDO .GT. SNOALB2) ALBEDO=SNOALB2
+
+!          IF (TSNOW.LT.273.16) THEN
+!            ALBEDO=SNOALB-0.008*DT/86400
+!          ELSE
+!            ALBEDO=(SNOALB-0.5)*EXP(-0.24*DT/86400)+0.5
+!          ENDIF
+
+!      IF (ALBEDO > SNOALB) ALBEDO = SNOALB
+
 ! ----------------------------------------------------------------------
   END SUBROUTINE ALCALC
 ! ----------------------------------------------------------------------
@@ -2627,7 +2716,7 @@ CONTAINS
 ! ----------------------------------------------------------------------
 
 
-      SUBROUTINE SNFRAC (SNEQV,SNUP,SALP,SNOWH,SNCOVR,Z0)
+      SUBROUTINE SNFRAC (SNEQV,SNUP,SALP,SNOWH,SNCOVR)
 
 ! ----------------------------------------------------------------------
 ! SUBROUTINE SNFRAC
@@ -2640,10 +2729,9 @@ CONTAINS
 ! ----------------------------------------------------------------------
       IMPLICIT NONE
 
-      REAL, INTENT(IN)     :: SNEQV,SNUP,SALP,SNOWH,Z0
+      REAL, INTENT(IN)     :: SNEQV,SNUP,SALP,SNOWH
       REAL, INTENT(INOUT)    :: SNCOVR
       REAL                 :: RSNOW, Z0N
-      REAL                 :: BDSNO, FMELT, MFSNO, Z0G
 
 ! ----------------------------------------------------------------------
 ! SNUP IS VEG-CLASS DEPENDENT SNOWDEPTH THRESHHOLD (SET IN ROUTINE
@@ -2663,14 +2751,6 @@ CONTAINS
 
 !     FORMULATION OF MARSHALL ET AL. 1994
 !        SNCOVR=SNEQV/(SNEQV + 2*Z0N)
-
-!     IF(SNOWH.GT.0.) THEN
-!        MFSNO = 2.50
-!        Z0G = 0.01
-!        BDSNO  = SNEQV  * 1000. / SNOWH
-!        FMELT  = (BDSNO/100.)**MFSNO
-!        SNCOVR = TANH( SNOWH /(2.5* Z0G * FMELT))
-!     ENDIF
 
 ! ----------------------------------------------------------------------
   END SUBROUTINE SNFRAC
@@ -2952,7 +3032,7 @@ CONTAINS
       END IF
       DSOIL = - (0.5 * ZSOIL (1))
       DTOT = SNOWH + DSOIL
-      DENOM = 1.0+ MAX(7., DF1 / DTOT) / (RR * RCH)
+      DENOM = 1.0+ DF1 / (DTOT * RR * RCH)
 ! surface emissivity weighted by snow cover fraction
 !      T12A = ( (FDOWN - FLX1 - FLX2 -                                   &
 !     &       ((SNCOVR*EMISSI_S)+EMISSI*(1.0-SNCOVR))*SIGMA *T24)/RCH    &
@@ -2960,7 +3040,7 @@ CONTAINS
       T12A = ( (FDOWN - FLX1- FLX2- EMISSI * SIGMA * T24)/ RCH                    &
                 + TH2- SFCTMP - ETANRG / RCH ) / RR
 
-      T12B = MAX(7., DF1 / DTOT) * STC (1) / (RR * RCH)
+      T12B = DF1 * STC (1) / (DTOT * RR * RCH)
 
 ! ----------------------------------------------------------------------
 ! IF THE 'EFFECTIVE SNOW-GRND SFC TEMP' IS AT OR BELOW FREEZING, NO SNOW
@@ -2977,7 +3057,7 @@ CONTAINS
       T12 = (SFCTMP + T12A + T12B) / DENOM
       IF (T12 <=  TFREEZ) THEN
          T1 = T12
-         SSOIL = MAX(7.,DF1/DTOT) * (T1-STC(1))
+         SSOIL = DF1 * (T1- STC (1)) / DTOT
 !        ESD = MAX (0.0, ESD- ETP2)
          ESD = MAX(0.0, ESD-ESNOW2)
          FLX3 = 0.0
@@ -3000,8 +3080,7 @@ CONTAINS
 ! ABOVE FREEZING BLOCK
 ! ----------------------------------------------------------------------
       ELSE
-!        T1 = TFREEZ * SNCOVR ** SNOEXP + T12 * (1.0- SNCOVR ** SNOEXP)
-         T1 = TFREEZ*MAX(0.05,SNCOVR**SNOEXP)+T12*(1.0-MAX(0.05,SNCOVR**SNOEXP))
+         T1 = TFREEZ * SNCOVR ** SNOEXP + T12 * (1.0- SNCOVR ** SNOEXP)
          BETA = 1.0
 
 ! ----------------------------------------------------------------------
@@ -3009,7 +3088,14 @@ CONTAINS
 ! BETA<1
 ! SNOWPACK HAS SUBLIMATED AWAY, SET DEPTH TO ZERO.
 ! ----------------------------------------------------------------------
-         SSOIL = MAX(7.,DF1/DTOT) * (T1-STC(1))
+         IF ( ICE /= 0 ) then
+            ! kmh  12/15/2005 modify SSOIL
+            ! kmh  09/03/2006 modify DTOT
+            IF ( DTOT .GT. 2.0*DSOIL ) THEN
+               DTOT = 2.0*DSOIL
+            ENDIF
+         ENDIF
+         SSOIL = DF1 * (T1- STC (1)) / DTOT
          IF (ESD-ESNOW2 <= ESDMIN) THEN
             ESD = 0.0
             EX = 0.0
@@ -3295,13 +3381,13 @@ CONTAINS
 ! ----------------------------------------------------------------------
       IMPLICIT NONE
       REAL, INTENT(IN)        :: SNCOVR, Z0BRD
-      REAL, INTENT(INOUT)     :: Z0
+      REAL, INTENT(INOUT)       :: Z0
       REAL, PARAMETER         :: Z0S=0.001
       REAL, INTENT(IN)        :: SNOWH
       REAL                    :: BURIAL
       REAL                    :: Z0EFF
 
-!     Z0 = (1.- SNCOVR)* Z0BRD + SNCOVR * Z0S
+!m      Z0 = (1.- SNCOVR)* Z0BRD + SNCOVR * Z0S
       BURIAL = 7.0*Z0BRD - SNOWH
       IF(BURIAL.LE.0.0007) THEN
         Z0EFF = Z0S
@@ -3316,7 +3402,7 @@ CONTAINS
 ! ----------------------------------------------------------------------
 
 
-      SUBROUTINE SNOW_NEW (TEMP,NEWSN,SNOWH,SNDENS,SNOWRATIO)
+      SUBROUTINE SNOW_NEW (TEMP,NEWSN,SNOWH,SNDENS)
 
 ! ----------------------------------------------------------------------
 ! SUBROUTINE SNOW_NEW
@@ -3324,14 +3410,13 @@ CONTAINS
 ! CALCULATE SNOW DEPTH AND DENSITITY TO ACCOUNT FOR THE NEW SNOWFALL.
 ! NEW VALUES OF SNOW DEPTH & DENSITY RETURNED.
 
-! TEMP      AIR TEMPERATURE (K)
-! NEWSN     NEW SNOWFALL (M)
-! SNOWH     SNOW DEPTH (M)
-! SNDENS    SNOW DENSITY (G/CM3=DIMENSIONLESS FRACTION OF H2O DENSITY)
-! SNOWRATIO SNOW WATER RATIO
+! TEMP    AIR TEMPERATURE (K)
+! NEWSN   NEW SNOWFALL (M)
+! SNOWH   SNOW DEPTH (M)
+! SNDENS  SNOW DENSITY (G/CM3=DIMENSIONLESS FRACTION OF H2O DENSITY)
 ! ----------------------------------------------------------------------
       IMPLICIT NONE
-      REAL, INTENT(IN)        :: NEWSN, TEMP, SNOWRATIO
+      REAL, INTENT(IN)        :: NEWSN, TEMP
       REAL, INTENT(INOUT)     :: SNDENS, SNOWH
       REAL                    :: DSNEW, HNEWC, SNOWHC,NEWSNC,TEMPC
 
@@ -3347,18 +3432,12 @@ CONTAINS
 ! AND GLACIERIZED BASIN', 6TH NORDIC HYDROLOGICAL CONFERENCE,
 ! VEMADOLEN, SWEDEN, 1980, 172-177PP.
 !-----------------------------------------------------------------------
-!     TEMPC = TEMP -273.15
-!     IF (TEMPC <=  -15.) THEN
-!        DSNEW = 0.05
-!     ELSE
-!        DSNEW = 0.05+0.0017* (TEMPC +15.)**1.5
-!     END IF
-
-! ----------------------------------------------------------------------
-! NEW SNOWFALL DENSITY BASED ON DIAGNOSTICS (KUCHERA, COBB, ETC)
-!-----------------------------------------------------------------------
-      DSNEW = 1. / SNOWRATIO
-
+      TEMPC = TEMP -273.15
+      IF (TEMPC <=  -15.) THEN
+         DSNEW = 0.05
+      ELSE
+         DSNEW = 0.05+0.0017* (TEMPC +15.)**1.5
+      END IF
 ! ----------------------------------------------------------------------
 ! ADJUSTMENT OF SNOW DENSITY DEPENDING ON NEW SNOWFALL
 ! ----------------------------------------------------------------------

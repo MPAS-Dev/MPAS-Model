@@ -25,7 +25,7 @@
 !
 ! subroutines in mpas_atmphys_todynamics:
 ! ---------------------------------------
-! physics_get_tend: add and mass-weigh tendencies before being added to dynamics tendencies.
+! physics_addtend: add and mass-weigh tendencies before being added to dynamics tendencies.
 ! tend_toEdges   : interpolate wind-tendencies from centers to edges of grid-cells.
 !
 ! add-ons and modifications to sourcecode:
@@ -543,19 +543,7 @@
               enddo
 !!!
  !$acc end parallel
-   
-           case('cu_kain_fritsch_ms')
-!!!
- !$acc parallel vector_length(32)
- !$acc loop gang vector collapse(2)
-              do i = 1, nCellsSolve
-              do k = 1, nVertLevels
-                 tend_scalars(index_qr,k,i) = tend_scalars(index_qr,k,i) + rqrcuten(k,i)*mass(k,i)
-                 tend_scalars(index_qs,k,i) = tend_scalars(index_qs,k,i) + rqscuten(k,i)*mass(k,i)
-              enddo
-              enddo
- !$acc end parallel
- 
+    
            case('cu_tiedtke','cu_ntiedtke')
               if (rk_step == 1 .and. dynamics_substep == 1) then
                  call tend_toEdges_gpu(block,mesh,rucuten,rvcuten,rucuten_Edge, &

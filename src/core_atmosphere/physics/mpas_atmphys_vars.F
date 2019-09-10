@@ -134,15 +134,18 @@
     ht_p,             &!
     psfc_p,           &!surface pressure                                                       [Pa]
     ptop_p             !model-top pressure                                                     [Pa]
+!$acc declare create(psfc_p)
 
  real(kind=RKIND),dimension(:,:,:),allocatable:: &
     fzm_p,            &!weight for interpolation to w points                                    [-]
     fzp_p              !weight for interpolation to w points                                    [-]
+!$acc declare create(fzm_p, fzp_p)
 
  real(kind=RKIND),dimension(:,:,:),allocatable:: &
 !... arrays related to u- and v-velocities interpolated to theta points:
     u_p,              &!u-velocity interpolated to theta points                               [m/s]
     v_p                !v-velocity interpolated to theta points                               [m/s]
+!$acc declare create(u_p, v_p)
     
 !... arrays related to vertical sounding:
  real(kind=RKIND),dimension(:,:,:),allocatable:: &
@@ -157,6 +160,7 @@
     al_p,             &!inverse of air density                                              [m3/kg]
     rho_p,            &!air density                                                         [kg/m3]
     rh_p               !relative humidity                                                       [-]
+!$acc declare create(zz_p, rho_p, th_p, t_p, pi_p, pres_p, z_p, dz_p, zmid_p)
 
  real(kind=RKIND),dimension(:,:,:),allocatable:: &
     qv_p,             &!water vapor mixing ratio                                            [kg/kg]
@@ -165,16 +169,19 @@
     qi_p,             &!cloud ice mixing ratio                                              [kg/kg]
     qs_p,             &!snow mixing ratio                                                   [kg/kg]
     qg_p               !graupel mixing ratio                                                [kg/kg]
+!$acc declare create(qv_p, qc_p, qr_p, qi_p, qs_p, qg_p)
 
  real(kind=RKIND),dimension(:,:,:),allocatable:: &
     ni_p,             &!
     nr_p               !
+!$acc declare create(ni_p, nr_p)
 
 !... arrays located at w (vertical velocity) points, or at interface between layers:
  real(kind=RKIND),dimension(:,:,:),allocatable:: &
     w_p,              &!vertical velocity                                                     [m/s]
     pres2_p,          &!pressure                                                               [Pa]
     t2_p               !temperature                                                             [K]
+!$acc declare create(w_p, t2_p, pres2_p)
 
 !... arrays used for calculating the hydrostatic pressure and exner function:
  real(kind=RKIND),dimension(:,:),allocatable:: &
@@ -186,6 +193,8 @@
     pres2_hyd_p,      &!pressure located at w-velocity levels                                  [Pa]
     pres2_hydd_p,     &!"dry" pressure located at w-velocity levels                            [Pa]
     znu_hyd_p          !(pres_hyd_p / P0) needed in the Tiedtke convection scheme              [Pa]
+!$acc declare create(pres2_hyd_p, pres2_hydd_p, pres_hyd_p, pres_hydd_p, &
+!$acc psfc_hyd_p, psfc_hydd_p, znu_hyd_p)
 
 !=================================================================================================================
 !... variables related to ozone climatlogy:
@@ -234,6 +243,8 @@
     graupelnc_p,      &!
     graupelncv_p,     &!
     sr_p
+!$acc declare create(rainnc_p, rainncv_p, snownc_p, snowncv_p, &
+!$acc graupelnc_p, graupelncv_p, sr_p)
 
 !... added for the thompson and wsm6 cloud microphysics:
  integer:: & 
@@ -244,6 +255,7 @@
  real(kind=RKIND),dimension(:,:),allocatable:: &
     ntc_p,            &!
     muc_p              !
+!$acc declare create(muc_p, ntc_p)
  real(kind=RKIND),dimension(:,:,:),allocatable:: &
     rainprod_p,       &!
     evapprod_p,       &!
@@ -251,6 +263,7 @@
     reice_p,          &!
     resnow_p,         &!
     refl10cm_p         !
+!$acc declare create(rainprod_p, evapprod_p, recloud_p, reice_p, resnow_p)
 
 !=================================================================================================================
 !... variables and arrays related to parameterization of convection:
@@ -277,23 +290,16 @@
     cutop_p,          &!highest convective level                                                [-]
     nca_p              !counter for cloud relaxation time                                       [-]
  real(kind=RKIND),dimension(:,:,:),allocatable:: &
-    w0avg_p            !
+    w0avg_p          !
 
  real(kind=RKIND),dimension(:,:,:),allocatable:: &
     rqrcuten_p,       &!
     rqscuten_p         !
 
-!... kain fritsch multi-scale specific arrays:
-real(kind=RKIND),dimension(:,:,:),allocatable:: &
-    cldfra_sh_kf_p,   &!
-    cldfra_dp_kf_p,   &!
-    qc_kf_p,          &!
-    qi_kf_p,          &!
-    w_up_p             !
-
 !... tiedtke specific arrays:
  real(kind=RKIND),dimension(:,:,:),allocatable:: &
     znu_p              !
+!$acc declare create(znu_p)
 
  real(kind=RKIND),dimension(:,:,:),allocatable:: &
     rucuten_p,        &!
@@ -349,9 +355,6 @@ real(kind=RKIND),dimension(:,:,:),allocatable:: &
     hpbl_p,           &!PBL height                                                                             [m]
     delta_p,          &!
     wstar_p,          &!
-    hgamt_p,          &!
-    hgamq_p,          &!
-    entpbl_p,         &!
     uoce_p,           &!
     voce_p             !
 
@@ -369,8 +372,7 @@ real(kind=RKIND),dimension(:,:,:),allocatable:: &
  real(kind=RKIND),dimension(:,:,:),allocatable:: &
     kzh_p,            &!
     kzm_p,            &!
-    kzq_p,            &!
-    tkepbl_p
+    kzq_p              !
 
 !... MYNN PBL scheme (module_bl_mynn.F):
  integer,parameter:: grav_settling = 0
@@ -389,7 +391,8 @@ real(kind=RKIND),dimension(:,:,:),allocatable:: &
     qke_p,            &!
     qkeadv_p,         &!
     qshear_p,         &!
-    qwt_p              !
+    qwt_p,            &!
+    tkepbl_p           !
 
  real(kind=RKIND),dimension(:,:,:),allocatable:: &
     rniblten_p         !
@@ -492,7 +495,6 @@ real(kind=RKIND),dimension(:,:,:),allocatable:: &
     swcf_p,           &!shortwave cloud forcing at top-of-atmosphere                        [W m-2]
     swdnb_p,          &!all-sky downwelling shortwave flux at bottom-of-atmosphere          [J m-2]
     swdnbc_p,         &!clear-sky downwelling shortwave flux at bottom-of-atmosphere        [J m-2]
-    swdnbdn_p,        &!all-sky downwelling direct normal shortwave flux at bottom-of-atmosphere [J m-2]
     swdnt_p,          &!all-sky downwelling shortwave flux at top-of-atmosphere             [J m-2]
     swdntc_p,         &!clear-sky downwelling shortwave flux at top-of-atmosphere           [J m-2]
     swupb_p,          &!all-sky upwelling shortwave flux at bottom-of-atmosphere            [J m-2]
@@ -629,7 +631,6 @@ real(kind=RKIND),dimension(:,:,:),allocatable:: &
     tslb_p             !soil temperature                                                                       [K]
 
  real(kind=RKIND),dimension(:,:),allocatable:: &
-    snow_ratio_p,     &!snow water ratio                                                                       [-]  
     acsnom_p,         &!accumulated melted snow                                                           [kg m-2]
     acsnow_p,         &!accumulated snow                                                                  [kg m-2]
     canwat_p,         &!canopy water                                                                      [kg m-2]
