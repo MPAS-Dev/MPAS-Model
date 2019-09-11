@@ -158,6 +158,9 @@
 !   diagnostic tendencies for convective transport in nc,ni,nifa,and nwfa due to shallow and deep convection in
 !   the Grell-Freitas convection scheme.
 !   Laura D. Fowler (laura@ucar.edu) / 2019-07-01.
+! * commented out the initialization of bl_mynn_mixscalars and moved its initialization to Registry.xml and
+!   namelist.atmosphere.
+!   Laura D. Fowler (laura@ucar.edu) / 2019-09-11.
 
 
 !=================================================================================================================
@@ -533,7 +536,7 @@
                                                 !     with the edmf options.
  integer,parameter:: bl_mynn_mixqt     = 0      != 0: mix moisture species separately.
                                                 != 1: mix total water.
- integer,parameter:: bl_mynn_mixscalars = 0     !
+!integer,parameter:: bl_mynn_mixscalars = 0     !
 
 !edmf options:
 !integer,parameter:: bl_mynn_edmf      = 0      !option to activate mass-flux scheme (=0:regular MYNN).

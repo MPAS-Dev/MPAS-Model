@@ -691,7 +691,7 @@
 !local pointers:
  logical,pointer:: config_do_restart
  character(len=StrKIND),pointer:: pbl_scheme
- integer,pointer:: bl_mynn_cloudpdf,bl_mynn_edmf,bl_mynn_closure
+ integer,pointer:: bl_mynn_cloudpdf,bl_mynn_edmf,bl_mynn_closure,bl_mynn_mixscalars
 
 !local variables:
  integer:: initflag
@@ -742,15 +742,17 @@
        call mpas_timer_stop('bl_ysu')
 
    case("bl_mynn")
-      call mpas_pool_get_config(configs,'config_mynn_cloudpdf',bl_mynn_cloudpdf )
-      call mpas_pool_get_config(configs,'config_mynn_edmf'    ,bl_mynn_edmf     )
-      call mpas_pool_get_config(configs,'config_mynn_closure' ,bl_mynn_closure  )
+      call mpas_pool_get_config(configs,'config_mynn_cloudpdf'  ,bl_mynn_cloudpdf  )
+      call mpas_pool_get_config(configs,'config_mynn_edmf'      ,bl_mynn_edmf      )
+      call mpas_pool_get_config(configs,'config_mynn_closure'   ,bl_mynn_closure   )
+      call mpas_pool_get_config(configs,'config_mynn_mixscalars',bl_mynn_mixscalars)
 
       call mpas_log_write(' ')
       call mpas_log_write('--- enter subroutine mynn_bl_driver:')
-      call mpas_log_write('--- config_mynn_cloudpdf = $i',intArgs=(/bl_mynn_cloudpdf/))
-      call mpas_log_write('--- config_mynn_edmf     = $i',intArgs=(/bl_mynn_edmf/))
-      call mpas_log_write('--- config_mynn_closure  = $i',intArgs=(/bl_mynn_closure/))
+      call mpas_log_write('--- config_mynn_cloudpdf   = $i',intArgs=(/bl_mynn_cloudpdf/))
+      call mpas_log_write('--- config_mynn_edmf       = $i',intArgs=(/bl_mynn_edmf/))
+      call mpas_log_write('--- config_mynn_closure    = $i',intArgs=(/bl_mynn_closure/))
+      call mpas_log_write('--- config_mynn_mixscalars = $i',intArgs=(/bl_mynn_mixscalars/))
       call mpas_log_write(' ')
 
       call mpas_timer_start('bl_mynn')
@@ -783,23 +785,24 @@
                  maxmf       = maxmfbl_p    , edmf_a       = edmfa_p        , edmf_w       = edmfw_p        , &
                  edmf_qt     = edmfqt_p     , edmf_thl     = edmfthl_p      , edmf_ent     = edmfent_p      , &
                  edmf_qc     = edmfqc_p     , initflag     = initflag       ,                                 &
-                 grav_settling     = grav_settling       ,                                      &
-                 bl_mynn_closure   = bl_mynn_closure     ,                                      &
-                 bl_mynn_cloudpdf  = bl_mynn_cloudpdf    ,                                      &
-                 bl_mynn_cloudmix  = bl_mynn_cloudmix    ,                                      &
-                 bl_mynn_mixlength = bl_mynn_mixlength   ,                                      &
-                 bl_mynn_mixscalars = bl_mynn_mixscalars ,                                      &
-                 bl_mynn_mixqt     = bl_mynn_mixqt       ,                                      &
-                 bl_mynn_tkeadvect = bl_mynn_tkeadvect   ,                                      &
-                 bl_mynn_tkebudget = bl_mynn_tkebudget   ,                                      &
-                 bl_mynn_edmf      = bl_mynn_edmf        ,                                      &
-                 bl_mynn_edmf_mom  = bl_mynn_edmf_mom    ,                                      &
-                 bl_mynn_edmf_tke  = bl_mynn_edmf_tke    ,                                      &
+                 grav_settling      = grav_settling       ,                                                   &
+                 bl_mynn_closure    = bl_mynn_closure     ,                                                   &
+                 bl_mynn_cloudpdf   = bl_mynn_cloudpdf    ,                                                   &
+                 bl_mynn_cloudmix   = bl_mynn_cloudmix    ,                                                   &
+                 bl_mynn_mixlength  = bl_mynn_mixlength   ,                                                   &
+                 bl_mynn_mixscalars = bl_mynn_mixscalars  ,                                                   &
+                 bl_mynn_mixqt      = bl_mynn_mixqt       ,                                                   &
+                 bl_mynn_tkeadvect  = bl_mynn_tkeadvect   ,                                                   &
+                 bl_mynn_tkebudget  = bl_mynn_tkebudget   ,                                                   &
+                 bl_mynn_edmf       = bl_mynn_edmf        ,                                                   &
+                 bl_mynn_edmf_mom   = bl_mynn_edmf_mom    ,                                                   &
+                 bl_mynn_edmf_tke   = bl_mynn_edmf_tke    ,                                                   &
                  ids = ids , ide = ide , jds = jds , jde = jde , kds = kds , kde = kde      , &
                  ims = ims , ime = ime , jms = jms , jme = jme , kms = kms , kme = kme      , &
                  its = its , ite = ite , jts = jts , jte = jte , kts = kts , kte = kte        &
                             )
        call mpas_timer_stop('bl_mynn')
+       call mpas_log_write('--- exit subroutine mynn_bl_driver:')
 
     case default
 
