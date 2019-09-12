@@ -1003,7 +1003,7 @@ contains
                            * thicknessSum
                                                 
                         barotropicThicknessFlux(iEdge) = barotropicThicknessFlux(iEdge) + PrimaryWeights(j) * flux
-                        barotropicThicknessFluxSW(iEdge) = barotropicThicknessFlux(iEdge) + SecondaryWeights(j) * flux 
+                        barotropicThicknessFluxSW(iEdge) = barotropicThicknessFluxSW(iEdge) + SecondaryWeights(j) * flux 
 
                      end do
                      !$omp end do
@@ -1240,7 +1240,7 @@ contains
                            * thicknessSum
                                                 
                         barotropicThicknessFlux(iEdge) = barotropicThicknessFlux(iEdge) + PrimaryWeights(j) * flux
-                        barotropicThicknessFluxSW(iEdge) = barotropicThicknessFlux(iEdge) + SecondaryWeights(j) * flux 
+                        barotropicThicknessFluxSW(iEdge) = barotropicThicknessFluxSW(iEdge) + SecondaryWeights(j) * flux 
                              
                      end do
                      !$omp end do
