@@ -1636,6 +1636,7 @@
 			<var name="highFreqThickness"/>
 			<var name="lowFreqDivergence"/>
 			<var name="normalBarotropicVelocity"/>
+			<var name="normalBarotropicVelocitySW"/>
 			<var name="vertCoordMovementWeights"/>
 			<var name="xtime"/>
 			<var name="simulationStartTime"/>
@@ -2009,7 +2010,11 @@
 
 		<!-- FIELDS FOR SPLIT EXPLICIT TIME INTEGRATOR -->
 		<var name="normalBarotropicVelocity" type="real" dimensions="nEdges Time" units="m s^{-1}"
-			 description="barotropic velocity, used in split-explicit time-stepping"
+			 description="barotropic velocity, used in split-explicit time-stepping, time-averaged using primary filter weights, and centered at baroclinic time level n + 1"
+			 packages="splitTimeIntegrator"
+		/>
+		<var name="normalBarotropicVelocitySW" type="real" dimensions="nEdges Time" units="m s^{-1}"
+			 description="barotropic velocity, used in split-explicit time-stepping, time-averaged using secondary filter weights, and centered at baroclinic time level n + 1/2"
 			 packages="splitTimeIntegrator"
 		/>
 		<var name="normalBarotropicVelocitySubcycle" type="real" dimensions="nEdges Time" units="m s^{-1}"
@@ -2556,7 +2561,11 @@
 			 packages="forwardMode;analysisMode"
 		/>
 		<var name="barotropicThicknessFlux" type="real" dimensions="nEdges Time" units="m^2 s^{-1}"
-			 description="Barotropic thickness flux at each edge, used to advance sea surface height in each subcycle of stage 2 of the split-explicit algorithm."
+			 description="Barotropic thickness flux at each edge, used to advance sea surface height in each subcycle of stage 2 of the split-explicit algorithm, time-averaged with primary filter weights and centered at baroclinic time level n + 1."
+			 packages="forwardMode;analysisMode"
+		/>
+		<var name="barotropicThicknessFluxSW" type="real" dimensions="nEdges Time" units="m^2 s^{-1}"
+			 description="Barotropic thickness flux at each edge, used to advance sea surface height in each subcycle of stage 2 of the split-explicit algorithm, time-averaged with secondary filter weights and centered at baroclinic time level n + 1/2."
 			 packages="forwardMode;analysisMode"
 		/>
 

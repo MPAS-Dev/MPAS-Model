@@ -177,7 +177,7 @@ contains
       real (kind=RKIND), dimension(:), pointer :: sshSubcycleCur, sshSubcycleNew
       real (kind=RKIND), dimension(:), pointer :: normalBarotropicVelocitySubcycleCur, normalBarotropicVelocitySubcycleNew
       real (kind=RKIND), dimension(:), pointer :: sshCur, sshNew
-      real (kind=RKIND), dimension(:), pointer :: normalBarotropicVelocityCur, normalBarotropicVelocityNew                                            
+      real (kind=RKIND), dimension(:), pointer :: normalBarotropicVelocityCur, normalBarotropicVelocityNew, normalBarotropicVelocitySWNew                                            
       real (kind=RKIND), dimension(:,:), pointer :: normalBaroclinicVelocityCur, normalBaroclinicVelocityNew
       real (kind=RKIND), dimension(:,:), pointer :: normalVelocityCur, normalVelocityNew
       real (kind=RKIND), dimension(:,:), pointer :: layerThicknessCur, layerThicknessNew
@@ -193,7 +193,7 @@ contains
       real (kind=RKIND), dimension(:,:,:), pointer :: tracersGroupTend, activeTracersTend
 
       ! Diagnostics Array Pointers
-      real (kind=RKIND), dimension(:), pointer :: barotropicForcing, barotropicThicknessFlux
+      real (kind=RKIND), dimension(:), pointer :: barotropicForcing, barotropicThicknessFlux, barotropicThicknessFluxSW
       real (kind=RKIND), dimension(:,:), pointer :: layerThicknessEdge, normalTransportVelocity, normalGMBolusVelocity
       real (kind=RKIND), dimension(:,:), pointer :: vertAleTransportTop
       real (kind=RKIND), dimension(:,:), pointer :: velocityX, velocityY, velocityZ
@@ -295,6 +295,7 @@ contains
 
          call mpas_pool_get_array(statePool, 'normalBaroclinicVelocity', normalBaroclinicVelocityNew, 2)
          call mpas_pool_get_array(statePool, 'normalBarotropicVelocity', normalBarotropicVelocityNew, 2)
+         call mpas_pool_get_array(statePool, 'normalBarotropicVelocitySW', normalBarotropicVelocitySWNew, 2)
          call mpas_pool_get_array(statePool, 'normalVelocity', normalVelocityNew, 2)
 
          call mpas_pool_get_array(statePool, 'ssh', sshCur, 1)
@@ -675,6 +676,7 @@ contains
                call mpas_pool_get_subpool(block % structs, 'mesh', meshPool)
 
                call mpas_pool_get_array(statePool, 'normalBarotropicVelocity', normalBarotropicVelocityNew, 2)
+               call mpas_pool_get_array(statePool, 'normalBarotropicVelocitySW', normalBarotropicVelocitySWNew, 2)
                call mpas_pool_get_array(statePool, 'normalVelocity', normalVelocityNew, 2)
                call mpas_pool_get_array(statePool, 'normalBaroclinicVelocity', normalBaroclinicVelocityNew, 2)
 
@@ -727,6 +729,7 @@ contains
 
                call mpas_pool_get_array(diagnosticsPool, 'barotropicForcing', barotropicForcing)
                call mpas_pool_get_array(diagnosticsPool, 'barotropicThicknessFlux', barotropicThicknessFlux)
+               call mpas_pool_get_array(diagnosticsPool, 'barotropicThicknessFluxSW', barotropicThicknessFluxSW)
 
                call mpas_pool_get_array(statePool, 'ssh', sshCur, 1)
                call mpas_pool_get_array(statePool, 'sshSubcycle', sshSubcycleCur, oldBtrSubcycleTime)
@@ -734,6 +737,7 @@ contains
                   oldBtrSubcycleTime)
                call mpas_pool_get_array(statePool, 'normalBarotropicVelocity', normalBarotropicVelocityCur, 1)
                call mpas_pool_get_array(statePool, 'normalBarotropicVelocity', normalBarotropicVelocityNew, 2)
+               call mpas_pool_get_array(statePool, 'normalBarotropicVelocitySW', normalBarotropicVelocitySWNew, 2)
 
                nCells = nCellsPtr
                nEdges = nEdgesPtr
@@ -756,15 +760,13 @@ contains
                !$omp do schedule(runtime)
                do iEdge = 1, nEdges
 
-                  ! normalBarotropicVelocitySubcycleOld = normalBarotropicVelocityOld
                   normalBarotropicVelocitySubcycleCur(iEdge) = normalBarotropicVelocityCur(iEdge)
 
-                  ! normalBarotropicVelocityNew = BtrOld. This is the first for the summation
-                  ! normalBarotropicVelocityNew(iEdge) = normalBarotropicVelocityCur(iEdge)
                   normalBarotropicVelocityNew(iEdge) = 0._RKIND
+                  normalBarotropicVelocitySWNew(iEdge) = 0._RKIND
 
-                  ! barotropicThicknessFlux = 0
                   barotropicThicknessFlux(iEdge) = 0.0_RKIND
+                  barotropicThicknessFluxSW(iEdge) = 0.0_RKIND
                end do
                !$omp end do
 
@@ -907,6 +909,7 @@ contains
                      newBtrSubcycleTime)
 
                   call mpas_pool_get_array(diagnosticsPool, 'barotropicThicknessFlux', barotropicThicknessFlux)
+                  call mpas_pool_get_array(diagnosticsPool, 'barotropicThicknessFluxSW', barotropicThicknessFluxSW)
 
                   nCells = nCellsPtr
                   nEdges = nEdgesPtr
@@ -998,22 +1001,9 @@ contains
                         flux = ((1.0-config_btr_gam1_velWt1) * normalBarotropicVelocitySubcycleCur(iEdge) &
                            + config_btr_gam1_velWt1 * normalBarotropicVelocitySubcycleNew(iEdge)) &
                            * thicknessSum
-
-                        ! barotropicThicknessFlux(iEdge) = barotropicThicknessFlux(iEdge) + flux
-
-                        !--------------------------------------------------------------------------------------------------!   
-                        ! If split_explicit_step == config_n_ts_iter i.e. we are at the final iteration level of the large !
-                        ! iteration loop, then barotropicThicknessFlux is defined to be the time-average of the barotropic !      
-                        ! flux modes computed using the primary filter weights and is time-centered at n + 1 else it is    !
-                        ! defined to be the time-average of the barotropic modes computed using the secondary filter       !
-                        ! weights and is time-centered at n + 1/2.                                                         !
-                        !--------------------------------------------------------------------------------------------------!   
-                                          
-                        if (split_explicit_step == config_n_ts_iter) then 
-                           barotropicThicknessFlux(iEdge) = barotropicThicknessFlux(iEdge) + PrimaryWeights(j) * flux
-                        else
-                           barotropicThicknessFlux(iEdge) = barotropicThicknessFlux(iEdge) + SecondaryWeights(j) * flux                    
-                        end if 
+                                                
+                        barotropicThicknessFlux(iEdge) = barotropicThicknessFlux(iEdge) + PrimaryWeights(j) * flux
+                        barotropicThicknessFluxSW(iEdge) = barotropicThicknessFlux(iEdge) + SecondaryWeights(j) * flux 
 
                      end do
                      !$omp end do
@@ -1162,6 +1152,7 @@ contains
                         newBtrSubcycleTime)
 
                      call mpas_pool_get_array(diagnosticsPool, 'barotropicThicknessFlux', barotropicThicknessFlux)
+                     call mpas_pool_get_array(diagnosticsPool, 'barotropicThicknessFluxSW', barotropicThicknessFluxSW)
 
                      nCells = nCellsPtr
                      nEdges = nEdgesPtr
@@ -1247,22 +1238,9 @@ contains
                         flux = ((1.0-config_btr_gam3_velWt2-config_btr_gam4_velWt2) * normalBarotropicVelocitySubcycleCur(iEdge) &
                            + config_btr_gam4_velWt2 * btrvel_temp(iEdge) + config_btr_gam3_velWt2 * normalBarotropicVelocitySubcycleNew(iEdge)) &
                            * thicknessSum
-                           
-                        ! barotropicThicknessFlux(iEdge) = barotropicThicknessFlux(iEdge) + flux
-                        
-                        !--------------------------------------------------------------------------------------------------!   
-                        ! If split_explicit_step == config_n_ts_iter i.e. we are at the final iteration level of the large !
-                        ! iteration loop, then barotropicThicknessFlux is defined to be the time-average of the barotropic !      
-                        ! flux modes computed using the primary filter weights and is time-centered at n + 1 else it is    !
-                        ! defined to be the time-average of the barotropic modes computed using the secondary filter       !
-                        ! weights and is time-centered at n + 1/2.                                                         !
-                        !--------------------------------------------------------------------------------------------------!   
-                                          
-                        if (split_explicit_step == config_n_ts_iter) then 
-                           barotropicThicknessFlux(iEdge) = barotropicThicknessFlux(iEdge) + PrimaryWeights(j) * flux
-                        else
-                           barotropicThicknessFlux(iEdge) = barotropicThicknessFlux(iEdge) + SecondaryWeights(j) * flux                    
-                        end if 
+                                                
+                        barotropicThicknessFlux(iEdge) = barotropicThicknessFlux(iEdge) + PrimaryWeights(j) * flux
+                        barotropicThicknessFluxSW(iEdge) = barotropicThicknessFlux(iEdge) + SecondaryWeights(j) * flux 
                              
                      end do
                      !$omp end do
@@ -1285,6 +1263,7 @@ contains
                   call mpas_pool_get_subpool(statePool, 'tracers', tracersPool)
 
                   call mpas_pool_get_array(statePool, 'normalBarotropicVelocity', normalBarotropicVelocityNew, 2)
+                  call mpas_pool_get_array(statePool, 'normalBarotropicVelocitySW', normalBarotropicVelocitySWNew, 2)
                   call mpas_pool_get_array(statePool, 'normalBarotropicVelocitySubcycle', normalBarotropicVelocitySubcycleNew, &
                      newBtrSubcycleTime)
 
@@ -1295,25 +1274,21 @@ contains
                   !-------------------------------------------------------------------------------------------------!
 
                   nEdges = nEdgesPtr
+                  
+                  !-------------------------------------------------------------------------------------------------!
+                  ! The following definition of the time-averaged barotropic velocity is not even used as it is     !
+                  ! overwritten by another definition stating that it is equal to the time-averaged                 !
+                  ! barotropicThicknessFlux divided by the thicknessSum.                                            !
+                  !-------------------------------------------------------------------------------------------------!
 
                   !$omp do schedule(runtime)
                   do iEdge = 1, nEdges
-
-                     !--------------------------------------------------------------------------------------------------!   
-                     ! If split_explicit_step == config_n_ts_iter i.e. we are at the final iteration level of the large !
-                     ! iteration loop, then normalBarotropicVelocityNew is defined to be the time-average of the        !      
-                     ! barotropic modes computed using the primary filter weights and is time-centered at n + 1 else it !
-                     ! is defined to be the time-average of the barotropic modes computed using the secondary filter    !
-                     ! weights and is time-centered at n + 1/2.                                                         !
-                     !--------------------------------------------------------------------------------------------------!   
-                                          
-                     if (split_explicit_step == config_n_ts_iter) then 
-                        normalBarotropicVelocityNew(iEdge) = normalBarotropicVelocityNew(iEdge) &
-                           + PrimaryWeights(j) * normalBarotropicVelocitySubcycleNew(iEdge)
-                     else
-                        normalBarotropicVelocityNew(iEdge) = normalBarotropicVelocityNew(iEdge) &
-                           + SecondaryWeights(j) * normalBarotropicVelocitySubcycleNew(iEdge)                     
-                     end if 
+                     
+                     normalBarotropicVelocityNew(iEdge) = normalBarotropicVelocityNew(iEdge) &
+                        + PrimaryWeights(j) * normalBarotropicVelocitySubcycleNew(iEdge)                    
+                  
+                     normalBarotropicVelocitySWNew(iEdge) = normalBarotropicVelocityNew(iEdge) &
+                        + SecondaryWeights(j) * normalBarotropicVelocitySubcycleNew(iEdge)                     
 
                   end do ! iEdge
                   !$omp end do
@@ -1336,39 +1311,6 @@ contains
             ! END Barotropic subcycle loop !
             !------------------------------!
 
-            ! Normalize Barotropic subcycle sums: ssh, normalBarotropicVelocity, and F
-            call mpas_timer_start('btr se norm')
-            block => domain % blocklist
-            do while (associated(block))
-               call mpas_pool_get_dimension(block % dimensions, 'nEdges', nEdgesPtr)
-               call mpas_pool_get_dimension(block % dimensions, 'nEdgesArray', nEdgesArray)
-
-               call mpas_pool_get_subpool(block % structs, 'state', statePool)
-               call mpas_pool_get_subpool(statePool, 'tracers', tracersPool)
-               call mpas_pool_get_subpool(block % structs, 'diagnostics', diagnosticsPool)
-
-               call mpas_pool_get_array(statePool, 'normalBarotropicVelocity', normalBarotropicVelocityNew, 2)
-
-               call mpas_pool_get_array(diagnosticsPool, 'barotropicThicknessFlux', barotropicThicknessFlux)
-
-               nEdges = nEdgesPtr
-
-               nEdges = nEdgesArray(1)
-
-               ! !$omp do schedule(runtime)
-               ! do iEdge = 1, nEdges
-               !    barotropicThicknessFlux(iEdge) = barotropicThicknessFlux(iEdge) &
-               !       / (nBtrSubcycles * config_btr_subcycle_loop_factor)
-               !
-               !    normalBarotropicVelocityNew(iEdge) = normalBarotropicVelocityNew(iEdge) &
-               !       / (nBtrSubcycles * config_btr_subcycle_loop_factor + 1)
-               ! end do
-               ! !$omp end do
-
-               block => block % next
-            end do ! block
-            call mpas_timer_stop('btr se norm')
-
             call mpas_threading_barrier()
 
             ! Boundary update on F
@@ -1376,7 +1318,9 @@ contains
             call mpas_dmpar_exch_group_create(domain, finalBtrGroupName)
 
             call mpas_dmpar_exch_group_add_field(domain, finalBtrGroupName, 'barotropicThicknessFlux')
+            call mpas_dmpar_exch_group_add_field(domain, finalBtrGroupName, 'barotropicThicknessFluxSW')
             call mpas_dmpar_exch_group_add_field(domain, finalBtrGroupName, 'normalBarotropicVelocity', timeLevel=2)
+            call mpas_dmpar_exch_group_add_field(domain, finalBtrGroupName, 'normalBarotropicVelocitySW', timeLevel=2)
 
             call mpas_threading_barrier()
             call mpas_dmpar_exch_group_full_halo_exch(domain, finalBtrGroupName)
@@ -1404,13 +1348,15 @@ contains
                call mpas_pool_get_subpool(block % structs, 'diagnostics', diagnosticsPool)
                call mpas_pool_get_subpool(block % structs, 'mesh', meshPool)
 
-               call mpas_pool_get_array(statePool, 'normalBarotropicVelocity', normalBarotropicVelocityNew, 2)                          
+               call mpas_pool_get_array(statePool, 'normalBarotropicVelocity', normalBarotropicVelocityNew, 2)  
+               call mpas_pool_get_array(statePool, 'normalBarotropicVelocitySW', normalBarotropicVelocitySWNew, 2)                          
                call mpas_pool_get_array(statePool, 'normalBaroclinicVelocity', normalBaroclinicVelocityNew, 2)
 
                call mpas_pool_get_array(diagnosticsPool, 'normalTransportVelocity', normalTransportVelocity)
                call mpas_pool_get_array(diagnosticsPool, 'normalGMBolusVelocity', normalGMBolusVelocity)
                call mpas_pool_get_array(diagnosticsPool, 'layerThicknessEdge', layerThicknessEdge)
                call mpas_pool_get_array(diagnosticsPool, 'barotropicThicknessFlux', barotropicThicknessFlux)
+               call mpas_pool_get_array(diagnosticsPool, 'barotropicThicknessFluxSW', barotropicThicknessFluxSW)
                call mpas_pool_get_array(diagnosticsPool, 'BtrAvgOfBaroclinicVelocity', BtrAvgOfBaroclinicVelocity)
                call mpas_pool_get_array(diagnosticsPool, 'BtrAvgOfGMBolusVelocity', BtrAvgOfGMBolusVelocity)
 
@@ -1443,12 +1389,13 @@ contains
                   BtrAvgOfGMBolusVelocity(iEdge) = BtrAvgOfGMBolusVelocity(iEdge) / thicknessSum
 
                   ! Compute barotropic velocity from thickness flux
-                  normalBarotropicVelocityNew(iEdge) = barotropicThicknessFlux(iEdge) / thicknessSum                     
-
+                  normalBarotropicVelocityNew(iEdge) = barotropicThicknessFlux(iEdge) / thicknessSum   
+                  normalBarotropicVelocitySWNew(iEdge) = barotropicThicknessFluxSW(iEdge) / thicknessSum
+                                    
                   do k = 1, nVertLevels
                      ! Compute transport velocity, used to transport thickness and tracers
                      normalTransportVelocity(k,iEdge) = edgeMask(k,iEdge) &
-                        *( normalBarotropicVelocityNew(iEdge) &
+                        *( normalBarotropicVelocitySWNew(iEdge) &
                         + normalBaroclinicVelocityNew(k,iEdge) - BtrAvgOfBaroclinicVelocity(iEdge) &
                         + normalGMBolusVelocity(k,iEdge) - BtrAvgOfGMBolusVelocity(iEdge) )
                   enddo
@@ -1688,7 +1635,7 @@ contains
                      ! Here normalBaroclinicVelocity is at time n+1/2.         !
                      ! This is u used in next iteration or step.               !
                      !---------------------------------------------------------!
-                     normalVelocityNew(k,iEdge) = edgeMask(k,iEdge) * ( normalBarotropicVelocityNew(iEdge) &
+                     normalVelocityNew(k,iEdge) = edgeMask(k,iEdge) * ( normalBarotropicVelocitySWNew(iEdge) &
                         + normalBaroclinicVelocityNew(k,iEdge) - BtrAvgOfBaroclinicVelocity(iEdge) )
 
                   enddo
@@ -1831,7 +1778,7 @@ contains
                !$omp do schedule(runtime) private(k)
                do iEdge = 1, nEdges
                   do k = 1, maxLevelEdgeTop(iEdge)
-                     normalVelocityNew(k,iEdge) = normalBarotropicVelocityNew(iEdge) + 2 * normalBaroclinicVelocityNew(k,iEdge) &
+                     normalVelocityNew(k,iEdge) = normalBarotropicVelocityNew(iEdge) + 2.0_RKIND * normalBaroclinicVelocityNew(k,iEdge) &
                         - normalBaroclinicVelocityCur(k,iEdge)
                   end do
                end do ! iEdges
