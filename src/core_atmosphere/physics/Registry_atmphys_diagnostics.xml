@@ -122,6 +122,18 @@
         <var name="dqscup_vavg" type="real" dimensions="nCells Time" units="kg m^{-2} s^{-1}"
              description="vertically-integrated convective tendency of snow mr"/>
 
+        <var name="dnccup_vavg" type="real" dimensions="nCells Time" units="# m^{-2} s^{-1}"
+             description="vertically-averaged convective tendency of cloud liquid water nb. concentration"/>
+
+        <var name="dnicup_vavg" type="real" dimensions="nCells Time" units="# m^{-2} s^{-1}"
+             description="vertically-averaged convective tendency of cloud ice nb. concentration"/>
+
+        <var name="dnifacup_vavg" type="real" dimensions="nCells Time" units="# m^{-2} s^{-1}"
+             description="vertically-averaged convective tendency of "ice friendly" nb. concentration"/>
+
+        <var name="dnwfacup_vavg" type="real" dimensions="nCells Time" units="# m^{-2} s^{-1}"
+             description="vertically-averaged convective tendency of "water friendly" nb. concentration"/>
+
         <var name="dtmp_vavg" type="real" dimensions="nCells Time" units="K s^{-1}"
              description="vertically-integrated microphysics tendency of temperature"/>
 
@@ -182,6 +194,18 @@
 
         <var name="dqscup_interp" type="real" dimensions="nFGLevels nCells Time" units="kg kg^{-1} s^{-1}"
              description="convective tendency of snow mr interpolated to fixed pressure levels"/>
+
+        <var name="dnccup_interp" type="real" dimensions="nFGLevels nCells Time" units="# kg^{-1} s^{-1}"
+             description="convective tendency of cloud liquid water nb. concentration interpolated to fixed pressure levels"/>
+
+        <var name="dnicup_interp" type="real" dimensions="nFGLevels nCells Time" units="# kg^{-1} s^{-1}"
+             description="convective tendency of cloud ice nb. concentration interpolated to fixed pressure levels"/>
+
+        <var name="dnifacup_interp" type="real" dimensions="nFGLevels nCells Time" units="# kg^{-1} s^{-1}"
+             description="convective tendency of "ice friendly" nb. concentration  interpolated to fixed pressure levels"/>
+
+        <var name="dnwfacup_interp" type="real" dimensions="nFGLevels nCells Time" units="# kg^{-1} s^{-1}"
+             description="convective tendency of "water friendly" nb. concentration  interpolated to fixed pressure levels"/>
 
         <var name="dtmp_interp" type="real" dimensions="nFGLevels nCells Time" units="K s^{-1}"
              description="microphysics tendency of temperature interpolated to fixed pressure levels"/>

@@ -65,6 +65,10 @@
 ! * in subroutine atmphys_diagnostics_interp, added the relative humidity interpolated to fixed pressure
 !   levels.
 !   Laura D. Fowler (laura@ucar.edu) / 2018-06-01.
+! * in subroutines atmphys_compute_tendencies_vavg and atmphys_tendencies_interp,added the calculation of the
+!   vertically-averaged and interpolation to fixed pressure levels of the number concentrations nc,ni,nifa,and
+!   nwfa.
+!   Laura D. Fowler (laura@ucare.du) / 2019-09-13.
 
 
  contains
@@ -727,6 +731,7 @@
  real:: dz,rhoa,rhoat,sumr
  real(kind=RKIND),dimension(:),pointer    :: dtcup_vavg,dqvcup_vavg,dqccup_vavg,dqrcup_vavg, &
                                              dqicup_vavg,dqscup_vavg
+ real(kind=RKIND),dimension(:),pointer    :: dnccup_vavg,dnicup_vavg,dnifacup_vavg,dnwfacup_vavg
  real(kind=RKIND),dimension(:),pointer    :: dtmp_vavg,dqvmp_vavg,dqcmp_vavg,dqrmp_vavg, &
                                              dqimp_vavg,dqsmp_vavg,dqgmp_vavg
  real(kind=RKIND),dimension(:),pointer    :: dtbl_vavg,dqvbl_vavg,dqcbl_vavg,dqibl_vavg
@@ -734,6 +739,7 @@
  real(kind=RKIND),dimension(:,:),pointer  :: exner,rho_zz,zgrid,zz
  real(kind=RKIND),dimension(:,:),pointer  :: qv
  real(kind=RKIND),dimension(:,:),pointer  :: dtcup,dqvcup,dqccup,dqrcup,dqicup,dqscup
+ real(kind=RKIND),dimension(:,:),pointer  :: dnccup,dnicup,dnifacup,dnwfacup
  real(kind=RKIND),dimension(:,:),pointer  :: dtmp,dqvmp,dqcmp,dqrmp,dqimp,dqsmp,dqgmp
  real(kind=RKIND),dimension(:,:),pointer  :: dtbl,dqvbl,dqcbl,dqibl
  real(kind=RKIND),dimension(:,:),pointer  :: dtlw,dtsw                                          
@@ -769,6 +775,15 @@
  call mpas_pool_get_array(tend_physics,'rqrcuten',dqrcup)
  call mpas_pool_get_array(tend_physics,'rqicuten',dqicup)
  call mpas_pool_get_array(tend_physics,'rqscuten',dqscup)
+
+ nullify(dnccup)
+ nullify(dnicup)
+ nullify(dnifacup)
+ nullify(dnwfacup)
+ call mpas_pool_get_array(tend_physics,'rnccuten',dnccup)
+ call mpas_pool_get_array(tend_physics,'rnicuten',dnicup)
+ call mpas_pool_get_array(tend_physics,'rnifacuten',dnifacup)
+ call mpas_pool_get_array(tend_physics,'rnwfacuten',dnwfacup)
  
  nullify(dtmp)
  nullify(dqvmp)
@@ -811,6 +826,15 @@
  call mpas_pool_get_array(tend_physics_vavg,'dqrcup_vavg',dqrcup_vavg)
  call mpas_pool_get_array(tend_physics_vavg,'dqicup_vavg',dqicup_vavg)
  call mpas_pool_get_array(tend_physics_vavg,'dqscup_vavg',dqscup_vavg)
+
+ nullify(dnccup_vavg)
+ nullify(dnicup_vavg)
+ nullify(dnifacup_vavg)
+ nullify(dnwfacup_vavg)
+ call mpas_pool_get_array(tend_physics_vavg,'dnccup_vavg',dnccup_vavg)
+ call mpas_pool_get_array(tend_physics_vavg,'dnicup_vavg',dnicup_vavg)
+ call mpas_pool_get_array(tend_physics_vavg,'dnifacup_vavg',dnifacup_vavg)
+ call mpas_pool_get_array(tend_physics_vavg,'dnwfacup_vavg',dnwfacup_vavg)
 
  nullify(dtmp_vavg)
  nullify(dqvmp_vavg)
@@ -879,6 +903,40 @@
              dqscup_vavg(iCell) = dqscup_vavg(iCell) + dqscup(k,iCell)*rhoa*dz
           enddo
        endif
+    enddo
+ endif
+
+ if(associated(dnccup) .and. associated(dnicup)) then
+    do iCell = 1, nCellsSolve
+       dnccup_vavg(iCell) = 0._RKIND
+       dnicup_vavg(iCell) = 0._RKIND
+
+       do k = 1, nVertLevels
+          dz    = zgrid(k+1,iCell)-zgrid(k,iCell)
+          rhoa  = zz(k,iCell)*rho_zz(k,iCell)
+          rhoa  = rhoa*(1._RKIND+qv(k,iCell))
+
+          !--- vertically-averaged convective tendencies:
+          dnccup_vavg(iCell) = dnccup_vavg(iCell) + dnccup(k,iCell)*rhoa*dz
+          dnicup_vavg(iCell) = dnicup_vavg(iCell) + dnicup(k,iCell)*rhoa*dz
+       enddo
+    enddo
+ endif
+
+ if(associated(dnifacup) .and. associated(dnwfacup)) then
+    do iCell = 1, nCellsSolve
+       dnifacup_vavg(iCell) = 0._RKIND
+       dnwfacup_vavg(iCell) = 0._RKIND
+
+       do k = 1, nVertLevels
+          dz    = zgrid(k+1,iCell)-zgrid(k,iCell)
+          rhoa  = zz(k,iCell)*rho_zz(k,iCell)
+          rhoa  = rhoa*(1._RKIND+qv(k,iCell))
+
+          !--- vertically-averaged convective tendencies:
+          dnifacup_vavg(iCell) = dnifacup_vavg(iCell) + dnifacup(k,iCell)*rhoa*dz
+          dnwfacup_vavg(iCell) = dnwfacup_vavg(iCell) + dnwfacup(k,iCell)*rhoa*dz
+       enddo
     enddo
  endif
 
@@ -1001,11 +1059,13 @@
  real(kind=RKIND),dimension(:,:),pointer:: p_fg
  real(kind=RKIND),dimension(:,:),pointer:: pressure_b,pressure_p,exner
  real(kind=RKIND),dimension(:,:),pointer:: dtcup,dqvcup,dqccup,dqrcup,dqicup,dqscup
+ real(kind=RKIND),dimension(:,:),pointer:: dnccup,dnicup,dnifacup,dnwfacup
  real(kind=RKIND),dimension(:,:),pointer:: dtmp,dqvmp,dqcmp,dqrmp,dqimp,dqsmp,dqgmp
  real(kind=RKIND),dimension(:,:),pointer:: dtbl,dqvbl,dqcbl,dqibl
  real(kind=RKIND),dimension(:,:),pointer:: dtlw,dtsw                                          
  real(kind=RKIND),dimension(:,:),pointer:: dtcup_interp,dqvcup_interp,dqccup_interp,dqrcup_interp, &
                                            dqicup_interp,dqscup_interp
+ real(kind=RKIND),dimension(:,:),pointer:: dnccup_interp,dnicup_interp,dnifacup_interp,dnwfacup_interp
  real(kind=RKIND),dimension(:,:),pointer:: dtmp_interp,dqvmp_interp,dqcmp_interp,dqrmp_interp, &
                                            dqimp_interp,dqsmp_interp,dqgmp_interp
  real(kind=RKIND),dimension(:,:),pointer:: dtbl_interp,dqvbl_interp,dqcbl_interp,dqibl_interp
@@ -1040,6 +1100,15 @@
  call mpas_pool_get_array(tend_physics,'rqrcuten',dqrcup)
  call mpas_pool_get_array(tend_physics,'rqicuten',dqicup)
  call mpas_pool_get_array(tend_physics,'rqscuten',dqscup)
+ 
+ nullify(dnccup)
+ nullify(dnicup)
+ nullify(dnifacup)
+ nullify(dnwfacup)
+ call mpas_pool_get_array(tend_physics,'rnccuten',dnccup)
+ call mpas_pool_get_array(tend_physics,'rnicuten',dnicup)
+ call mpas_pool_get_array(tend_physics,'rnifacuten',dnifacup)
+ call mpas_pool_get_array(tend_physics,'rnwfacuten',dnwfacup)
  
  nullify(dtmp)
  nullify(dqvmp)
@@ -1082,6 +1151,15 @@
  call mpas_pool_get_array(tend_physics_interp,'dqrcup_interp',dqrcup_interp)
  call mpas_pool_get_array(tend_physics_interp,'dqicup_interp',dqicup_interp)
  call mpas_pool_get_array(tend_physics_interp,'dqscup_interp',dqscup_interp)
+
+ nullify(dnccup_interp)
+ nullify(dnicup_interp)
+ nullify(dnifacup_interp)
+ nullify(dnwfacup_interp)
+ call mpas_pool_get_array(tend_physics_interp,'dnccup_interp',dnccup_interp)
+ call mpas_pool_get_array(tend_physics_interp,'dnicup_interp',dnicup_interp)
+ call mpas_pool_get_array(tend_physics_interp,'dnifacup_interp',dnifacup_interp)
+ call mpas_pool_get_array(tend_physics_interp,'dnwfacup_interp',dnwfacup_interp)
 
  nullify(dtmp_interp)
  nullify(dqvmp_interp)
@@ -1248,6 +1326,74 @@
           enddo
        enddo
     endif
+
+    if(associated(dnccup) .and. associated(dnicup)) then
+       !--- dnccup_interp:
+       do k = 1, nVertLevels
+          kk = nVertLevels+1-k
+          do iCell = 1, nCellsSolve
+             field_in(iCell,kk) = dnccup(k,iCell)
+          enddo
+       enddo
+       call interp_tofixed_pressure(nCellsSolve,nVertLevels,nIntP,press_in,field_in,press_interp,field_interp)
+       do k = 1, nIntP
+          kk = nIntp+1-k
+          do iCell = 1, nCellsSolve
+             dnccup_interp(k,iCell) = field_interp(iCell,kk)
+          enddo
+       enddo
+       call mpas_log_write('--- end interpolate dnccup:')
+       
+       !--- dnicup_interp:
+       do k = 1, nVertLevels
+          kk = nVertLevels+1-k
+          do iCell = 1, nCellsSolve
+             field_in(iCell,kk) = dnicup(k,iCell)
+          enddo
+       enddo
+       call interp_tofixed_pressure(nCellsSolve,nVertLevels,nIntP,press_in,field_in,press_interp,field_interp)
+       do k = 1, nIntP
+          kk = nIntp+1-k
+          do iCell = 1, nCellsSolve
+             dnicup_interp(k,iCell) = field_interp(iCell,kk)
+          enddo
+       enddo
+       call mpas_log_write('--- end interpolate dnicup:')
+    endif
+
+    if(associated(dnifacup) .and. associated(dnwfacup)) then
+       !--- dnifacup_interp:
+       do k = 1, nVertLevels
+          kk = nVertLevels+1-k
+          do iCell = 1, nCellsSolve
+             field_in(iCell,kk) = dnifacup(k,iCell)
+          enddo
+       enddo
+       call interp_tofixed_pressure(nCellsSolve,nVertLevels,nIntP,press_in,field_in,press_interp,field_interp)
+       do k = 1, nIntP
+          kk = nIntp+1-k
+          do iCell = 1, nCellsSolve
+             dnifacup_interp(k,iCell) = field_interp(iCell,kk)
+          enddo
+       enddo
+       call mpas_log_write('--- end interpolate dnifacup:')
+       
+       !--- dnwfacup_interp:
+       do k = 1, nVertLevels
+          kk = nVertLevels+1-k
+          do iCell = 1, nCellsSolve
+             field_in(iCell,kk) = dnwfacup(k,iCell)
+          enddo
+       enddo
+       call interp_tofixed_pressure(nCellsSolve,nVertLevels,nIntP,press_in,field_in,press_interp,field_interp)
+       do k = 1, nIntP
+          kk = nIntp+1-k
+          do iCell = 1, nCellsSolve
+             dnwfacup_interp(k,iCell) = field_interp(iCell,kk)
+          enddo
+       enddo
+       call mpas_log_write('--- end interpolate dnwfacup:')
+    endif
  else
     do k = 1, nFGLevels
        do iCell = 1, nCellsSolve
@@ -1255,6 +1401,12 @@
           dqvcup_interp(k,iCell) = 0._RKIND
           dqccup_interp(k,iCell) = 0._RKIND
           dqicup_interp(k,iCell) = 0._RKIND
+          dqrcup_interp(k,iCell) = 0._RKIND
+          dqscup_interp(k,iCell) = 0._RKIND
+          dnccup_interp(k,iCell) = 0._RKIND
+          dnicup_interp(k,iCell) = 0._RKIND
+          dnifacup_interp(k,iCell) = 0._RKIND
+          dnwfacup_interp(k,iCell) = 0._RKIND
        enddo
     enddo
  endif
