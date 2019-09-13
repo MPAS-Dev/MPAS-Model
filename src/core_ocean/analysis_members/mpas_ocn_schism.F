@@ -191,7 +191,7 @@ contains
       real (kind=RKIND) :: volume,rad_to_deg,pii,tmp,tmp1,tmp2,tmp3,x3,y3,rl2
 
       call parallel_init(domain % dminfo % comm)
-      call schism_init(iths,ntime)
+      call schism_init('./',iths,ntime)
 
       pii=3.1415926_RKIND
       rad_to_deg=180.0_RKIND/pii
