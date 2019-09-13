@@ -126,6 +126,9 @@
 !   Laura D. Fowler (laura@ucar.edu) / 2019-07-01.
 ! * added the variables nc,ni,nifa,and nwfa in the call to subroutine cu_grell_freitas_wrf390.
 !   Laura D. Fowler (laura@ucar.edu) / 2019-07-24.
+! * added the variables rnccuten,rnicuten,rnifacuten,and rnwfacuten in the call to subroutine
+!   cu_grell_freitas_wrf390 to add the tendencies of the nc,ni,nifa, and nwfa due to convective transport.
+!   Laura D. Fowler (laura@ucar.edu) / 2019-09-12.
 
 
  contains
@@ -232,6 +235,23 @@
        if(.not.allocated(rqvdynten_p)    ) allocate(rqvdynten_p(ims:ime,kms:kme,jms:jme))
        if(.not.allocated(rucuten_p)      ) allocate(rucuten_p(ims:ime,kms:kme,jms:jme)  )
        if(.not.allocated(rvcuten_p)      ) allocate(rvcuten_p(ims:ime,kms:kme,jms:jme)  )
+
+       if(.not.allocated(rnccuten_p)        ) allocate(rnccuten_p(ims:ime,kms:kme,jms:jme)      )
+       if(.not.allocated(rnccuten_deepc_p)  ) allocate(rnccuten_deepc_p(ims:ime,kms:kme,jms:jme))
+       if(.not.allocated(rnccuten_midlc_p)  ) allocate(rnccuten_midlc_p(ims:ime,kms:kme,jms:jme))
+       if(.not.allocated(rnccuten_shalc_p)  ) allocate(rnccuten_shalc_p(ims:ime,kms:kme,jms:jme))
+       if(.not.allocated(rnicuten_p)        ) allocate(rnicuten_p(ims:ime,kms:kme,jms:jme)        )
+       if(.not.allocated(rnicuten_deepc_p)  ) allocate(rnicuten_deepc_p(ims:ime,kms:kme,jms:jme)  )
+       if(.not.allocated(rnicuten_midlc_p)  ) allocate(rnicuten_midlc_p(ims:ime,kms:kme,jms:jme)  )
+       if(.not.allocated(rnicuten_shalc_p)  ) allocate(rnicuten_shalc_p(ims:ime,kms:kme,jms:jme)  )
+       if(.not.allocated(rnifacuten_p)      ) allocate(rnifacuten_p(ims:ime,kms:kme,jms:jme)      )
+       if(.not.allocated(rnifacuten_deepc_p)) allocate(rnifacuten_deepc_p(ims:ime,kms:kme,jms:jme))
+       if(.not.allocated(rnifacuten_midlc_p)) allocate(rnifacuten_midlc_p(ims:ime,kms:kme,jms:jme))
+       if(.not.allocated(rnifacuten_shalc_p)) allocate(rnifacuten_shalc_p(ims:ime,kms:kme,jms:jme))
+       if(.not.allocated(rnwfacuten_p)      ) allocate(rnwfacuten_p(ims:ime,kms:kme,jms:jme)      )
+       if(.not.allocated(rnwfacuten_deepc_p)) allocate(rnwfacuten_deepc_p(ims:ime,kms:kme,jms:jme))
+       if(.not.allocated(rnwfacuten_midlc_p)) allocate(rnwfacuten_midlc_p(ims:ime,kms:kme,jms:jme))
+       if(.not.allocated(rnwfacuten_shalc_p)) allocate(rnwfacuten_shalc_p(ims:ime,kms:kme,jms:jme))
 
        if(.not.allocated(zu_deepc_p)     ) allocate(zu_deepc_p(ims:ime,kms:kme,jms:jme) )
        if(.not.allocated(zd_deepc_p)     ) allocate(zd_deepc_p(ims:ime,kms:kme,jms:jme) )
@@ -416,6 +436,23 @@
        if(allocated(rqvdynten_p)    ) deallocate(rqvdynten_p    )
        if(allocated(rucuten_p)      ) deallocate(rucuten_p      )
        if(allocated(rvcuten_p)      ) deallocate(rvcuten_p      )
+
+       if(allocated(rnccuten_p)        ) deallocate(rnccuten_p        )
+       if(allocated(rnccuten_deepc_p)  ) deallocate(rnccuten_deepc_p  )
+       if(allocated(rnccuten_midlc_p)  ) deallocate(rnccuten_midlc_p  )
+       if(allocated(rnccuten_shalc_p)  ) deallocate(rnccuten_shalc_p  )
+       if(allocated(rnicuten_p)        ) deallocate(rnicuten_p        )
+       if(allocated(rnicuten_deepc_p)  ) deallocate(rnicuten_deepc_p  )
+       if(allocated(rnicuten_midlc_p)  ) deallocate(rnicuten_midlc_p  )
+       if(allocated(rnicuten_shalc_p)  ) deallocate(rnicuten_shalc_p  )
+       if(allocated(rnifacuten_p)      ) deallocate(rnifacuten_p      )
+       if(allocated(rnifacuten_deepc_p)) deallocate(rnifacuten_deepc_p)
+       if(allocated(rnifacuten_midlc_p)) deallocate(rnifacuten_midlc_p)
+       if(allocated(rnifacuten_shalc_p)) deallocate(rnifacuten_shalc_p)
+       if(allocated(rnwfacuten_p)      ) deallocate(rnwfacuten_p      )
+       if(allocated(rnwfacuten_deepc_p)) deallocate(rnwfacuten_deepc_p)
+       if(allocated(rnwfacuten_midlc_p)) deallocate(rnwfacuten_midlc_p)
+       if(allocated(rnwfacuten_shalc_p)) deallocate(rnwfacuten_shalc_p)
 
        if(allocated(zu_deepc_p)     ) deallocate(zu_deepc_p     )
        if(allocated(zd_deepc_p)     ) deallocate(zd_deepc_p     )
@@ -718,6 +755,8 @@
                rqccuten_midlc = rqccuten_midlc_p   , rqicuten_midlc = rqicuten_midlc_p   , &
                rthcuten_shalc = rthcuten_shalc_p   , rqvcuten_shalc = rqvcuten_shalc_p   , &
                rqccuten_shalc = rqccuten_shalc_p   , rqicuten_shalc = rqicuten_shalc_p   , &
+               rnccuten     = rnccuten_p           , rnicuten       = rnicuten_p         , &
+               rnifacuten   = rnifacuten_p         , rnwfacuten     = rnwfacuten_p       , &
                gdc          = qccu_p               , gdc2         = qicu_p               , &
                nclos        = nclosures            , weights_clos = weights_clos_p       , &
                ids = ids , ide = ide , jds = jds , jde = jde , kds = kds , kde = kde     , &
@@ -725,6 +764,7 @@
                its = its , ite = ite , jts = jts , jte = jte , kts = kts , kte = kte       &
                                    )
        call mpas_timer_stop('cu_grell_freitas_wrf390')
+
        call mpas_log_write('--- end subroutine cu_grell_freitas_wrf390.')
        call mpas_log_write('')
 
@@ -934,6 +974,11 @@
  real(kind=RKIND),dimension(:,:),pointer:: rthcuten_shalc,rqvcuten_shalc,rqccuten_shalc,rqicuten_shalc
  real(kind=RKIND),dimension(:,:),pointer:: rqrcuten_shalc,rqscuten_shalc
 
+ real(kind=RKIND),dimension(:,:),pointer:: rnccuten,rnicuten,rnifacuten,rnwfacuten
+ real(kind=RKIND),dimension(:,:),pointer:: rnccuten_deepc,rnicuten_deepc,rnifacuten_deepc,rnwfacuten_deepc
+ real(kind=RKIND),dimension(:,:),pointer:: rnccuten_midlc,rnicuten_midlc,rnifacuten_midlc,rnwfacuten_midlc
+ real(kind=RKIND),dimension(:,:),pointer:: rnccuten_shalc,rnicuten_shalc,rnifacuten_shalc,rnwfacuten_shalc
+
 !local pointers for the Grell-Freitas convection scheme:
  real(kind=RKIND),dimension(:),pointer  :: cuprecd,cuprecm,cuprecs,raincvd,raincvm,raincvs
 
@@ -1142,6 +1187,134 @@
           do i = its, ite
              rqrcuten_shalc_p(i,k,j) = 0._RKIND
              rqscuten_shalc_p(i,k,j) = 0._RKIND
+          enddo
+       enddo
+    enddo
+ endif
+
+ nullify(rnccuten)
+ nullify(rnccuten_deepc)
+ nullify(rnccuten_midlc)
+ nullify(rnccuten_shalc)
+ call mpas_pool_get_array(tend_physics,'rnccuten',rnccuten)
+ call mpas_pool_get_array(tend_physics,'rnccuten_deepc',rnccuten_deepc)
+ call mpas_pool_get_array(tend_physics,'rnccuten_midlc',rnccuten_midlc)
+ call mpas_pool_get_array(tend_physics,'rnccuten_shalc',rnccuten_shalc)
+ if(associated(rnccuten)) then
+    do j = jts, jte
+       do k = kts, kte
+          do i = its, ite
+             rnccuten_p(i,k,j)       = rnccuten(k,i)
+             rnccuten_deepc_p(i,k,j) = rnccuten_deepc(k,i)
+             rnccuten_midlc_p(i,k,j) = rnccuten_midlc(k,i)
+             rnccuten_shalc_p(i,k,j) = rnccuten_shalc(k,i)
+          enddo
+       enddo
+    enddo
+ else
+    do j = jts, jte
+       do k = kts, kte
+          do i = its, ite
+             rnccuten_p(i,k,j)       = 0._RKIND
+             rnccuten_deepc_p(i,k,j) = 0._RKIND
+             rnccuten_midlc_p(i,k,j) = 0._RKIND
+             rnccuten_shalc_p(i,k,j) = 0._RKIND
+          enddo
+       enddo
+    enddo
+ endif
+
+ nullify(rnicuten)
+ nullify(rnicuten_deepc)
+ nullify(rnicuten_midlc)
+ nullify(rnicuten_shalc)
+ call mpas_pool_get_array(tend_physics,'rnicuten',rnicuten)
+ call mpas_pool_get_array(tend_physics,'rnicuten_deepc',rnicuten_deepc)
+ call mpas_pool_get_array(tend_physics,'rnicuten_midlc',rnicuten_midlc)
+ call mpas_pool_get_array(tend_physics,'rnicuten_shalc',rnicuten_shalc)
+ if(associated(rnicuten)) then
+    do j = jts, jte
+       do k = kts, kte
+          do i = its, ite
+             rnicuten_p(i,k,j)       = rnicuten(k,i)
+             rnicuten_deepc_p(i,k,j) = rnicuten_deepc(k,i)
+             rnicuten_midlc_p(i,k,j) = rnicuten_midlc(k,i)
+             rnicuten_shalc_p(i,k,j) = rnicuten_shalc(k,i)
+          enddo
+       enddo
+    enddo
+ else
+    do j = jts, jte
+       do k = kts, kte
+          do i = its, ite
+             rnicuten_p(i,k,j)       = 0._RKIND
+             rnicuten_deepc_p(i,k,j) = 0._RKIND
+             rnicuten_midlc_p(i,k,j) = 0._RKIND
+             rnicuten_shalc_p(i,k,j) = 0._RKIND
+          enddo
+       enddo
+    enddo
+ endif
+
+ nullify(rnifacuten)
+ nullify(rnifacuten_deepc)
+ nullify(rnifacuten_midlc)
+ nullify(rnifacuten_shalc)
+ call mpas_pool_get_array(tend_physics,'rnifacuten',rnifacuten)
+ call mpas_pool_get_array(tend_physics,'rnifacuten_deepc',rnifacuten_deepc)
+ call mpas_pool_get_array(tend_physics,'rnifacuten_midlc',rnifacuten_midlc)
+ call mpas_pool_get_array(tend_physics,'rnifacuten_shalc',rnifacuten_shalc)
+ if(associated(rnifacuten)) then
+    do j = jts, jte
+       do k = kts, kte
+          do i = its, ite
+             rnifacuten_p(i,k,j)       = rnifacuten(k,i)
+             rnifacuten_deepc_p(i,k,j) = rnifacuten_deepc(k,i)
+             rnifacuten_midlc_p(i,k,j) = rnifacuten_midlc(k,i)
+             rnifacuten_shalc_p(i,k,j) = rnifacuten_shalc(k,i)
+          enddo
+       enddo
+    enddo
+ else
+    do j = jts, jte
+       do k = kts, kte
+          do i = its, ite
+             rnifacuten_p(i,k,j)       = 0._RKIND
+             rnifacuten_deepc_p(i,k,j) = 0._RKIND
+             rnifacuten_midlc_p(i,k,j) = 0._RKIND
+             rnifacuten_shalc_p(i,k,j) = 0._RKIND
+          enddo
+       enddo
+    enddo
+ endif
+
+ nullify(rnwfacuten)
+ nullify(rnwfacuten_deepc)
+ nullify(rnwfacuten_midlc)
+ nullify(rnwfacuten_shalc)
+ call mpas_pool_get_array(tend_physics,'rnwfacuten',rnwfacuten)
+ call mpas_pool_get_array(tend_physics,'rnwfacuten_deepc',rnwfacuten_deepc)
+ call mpas_pool_get_array(tend_physics,'rnwfacuten_midlc',rnwfacuten_midlc)
+ call mpas_pool_get_array(tend_physics,'rnwfacuten_shalc',rnwfacuten_shalc)
+ if(associated(rnwfacuten)) then
+    do j = jts, jte
+       do k = kts, kte
+          do i = its, ite
+             rnwfacuten_p(i,k,j)       = rnwfacuten(k,i)
+             rnwfacuten_deepc_p(i,k,j) = rnwfacuten_deepc(k,i)
+             rnwfacuten_midlc_p(i,k,j) = rnwfacuten_midlc(k,i)
+             rnwfacuten_shalc_p(i,k,j) = rnwfacuten_shalc(k,i)
+          enddo
+       enddo
+    enddo
+ else
+    do j = jts, jte
+       do k = kts, kte
+          do i = its, ite
+             rnwfacuten_p(i,k,j)       = 0._RKIND
+             rnwfacuten_deepc_p(i,k,j) = 0._RKIND
+             rnwfacuten_midlc_p(i,k,j) = 0._RKIND
+             rnwfacuten_shalc_p(i,k,j) = 0._RKIND
           enddo
        enddo
     enddo
@@ -1524,6 +1697,11 @@
  real(kind=RKIND),dimension(:,:),pointer:: rthcuten_shalc,rqvcuten_shalc,rqccuten_shalc,rqicuten_shalc
  real(kind=RKIND),dimension(:,:),pointer:: rqrcuten_shalc,rqscuten_shalc
 
+ real(kind=RKIND),dimension(:,:),pointer:: rnccuten,rnicuten,rnifacuten,rnwfacuten
+ real(kind=RKIND),dimension(:,:),pointer:: rnccuten_deepc,rnicuten_deepc,rnifacuten_deepc,rnwfacuten_deepc
+ real(kind=RKIND),dimension(:,:),pointer:: rnccuten_midlc,rnicuten_midlc,rnifacuten_midlc,rnwfacuten_midlc
+ real(kind=RKIND),dimension(:,:),pointer:: rnccuten_shalc,rnicuten_shalc,rnifacuten_shalc,rnwfacuten_shalc
+
 !local pointers for the Grell-Freitas convection scheme:
  real(kind=RKIND),dimension(:),pointer  :: cuprecd,cuprecm,cuprecs,raincvd,raincvm,raincvs
  real(kind=RKIND),dimension(:,:),pointer:: weights_closures,raincvd_closures
@@ -1686,6 +1864,90 @@
           do i = its, ite
              qc_cu_shalc(k,i) = qccu_shalc_p(i,k,j)
              qi_cu_shalc(k,i) = qicu_shalc_p(i,k,j)
+          enddo
+       enddo
+    enddo
+ endif
+
+ nullify(rnccuten)
+ nullify(rnccuten_deepc)
+ nullify(rnccuten_midlc)
+ nullify(rnccuten_shalc)
+ call mpas_pool_get_array(tend_physics,'rnccuten',rnccuten)
+ call mpas_pool_get_array(tend_physics,'rnccuten_deepc',rnccuten_deepc)
+ call mpas_pool_get_array(tend_physics,'rnccuten_midlc',rnccuten_midlc)
+ call mpas_pool_get_array(tend_physics,'rnccuten_shalc',rnccuten_shalc)
+ if(associated(rnccuten)) then
+    do j = jts, jte
+       do k = kts, kte
+          do i = its, ite
+             rnccuten(k,i)       = rnccuten_p(i,k,j)
+             rnccuten_deepc(k,i) = rnccuten_deepc_p(i,k,j)
+             rnccuten_midlc(k,i) = rnccuten_midlc_p(i,k,j)
+             rnccuten_shalc(k,i) = rnccuten_shalc_p(i,k,j)
+          enddo
+       enddo
+    enddo
+ endif
+
+ nullify(rnicuten)
+ nullify(rnicuten_deepc)
+ nullify(rnicuten_midlc)
+ nullify(rnicuten_shalc)
+ call mpas_pool_get_array(tend_physics,'rnicuten',rnicuten)
+ call mpas_pool_get_array(tend_physics,'rnicuten_deepc',rnicuten_deepc)
+ call mpas_pool_get_array(tend_physics,'rnicuten_midlc',rnicuten_midlc)
+ call mpas_pool_get_array(tend_physics,'rnicuten_shalc',rnicuten_shalc)
+ if(associated(rnicuten)) then
+    do j = jts, jte
+       do k = kts, kte
+          do i = its, ite
+             rnicuten(k,i)       = rnicuten_p(i,k,j)
+             rnicuten_deepc(k,i) = rnicuten_deepc_p(i,k,j)
+             rnicuten_midlc(k,i) = rnicuten_midlc_p(i,k,j)
+             rnicuten_shalc(k,i) = rnicuten_shalc_p(i,k,j)
+          enddo
+       enddo
+    enddo
+ endif
+
+ nullify(rnifacuten)
+ nullify(rnifacuten_deepc)
+ nullify(rnifacuten_midlc)
+ nullify(rnifacuten_shalc)
+ call mpas_pool_get_array(tend_physics,'rnifacuten',rnifacuten)
+ call mpas_pool_get_array(tend_physics,'rnifacuten_deepc',rnifacuten_deepc)
+ call mpas_pool_get_array(tend_physics,'rnifacuten_midlc',rnifacuten_midlc)
+ call mpas_pool_get_array(tend_physics,'rnifacuten_shalc',rnifacuten_shalc)
+ if(associated(rnicuten)) then
+    do j = jts, jte
+       do k = kts, kte
+          do i = its, ite
+             rnifacuten(k,i)       = rnifacuten_p(i,k,j)
+             rnifacuten_deepc(k,i) = rnifacuten_deepc_p(i,k,j)
+             rnifacuten_midlc(k,i) = rnifacuten_midlc_p(i,k,j)
+             rnifacuten_shalc(k,i) = rnifacuten_shalc_p(i,k,j)
+          enddo
+       enddo
+    enddo
+ endif
+
+ nullify(rnwfacuten)
+ nullify(rnwfacuten_deepc)
+ nullify(rnwfacuten_midlc)
+ nullify(rnwfacuten_shalc)
+ call mpas_pool_get_array(tend_physics,'rnwfacuten',rnwfacuten)
+ call mpas_pool_get_array(tend_physics,'rnwfacuten_deepc',rnwfacuten_deepc)
+ call mpas_pool_get_array(tend_physics,'rnwfacuten_midlc',rnwfacuten_midlc)
+ call mpas_pool_get_array(tend_physics,'rnwfacuten_shalc',rnwfacuten_shalc)
+ if(associated(rnicuten)) then
+    do j = jts, jte
+       do k = kts, kte
+          do i = its, ite
+             rnwfacuten(k,i)       = rnwfacuten_p(i,k,j)
+             rnwfacuten_deepc(k,i) = rnwfacuten_deepc_p(i,k,j)
+             rnwfacuten_midlc(k,i) = rnwfacuten_midlc_p(i,k,j)
+             rnwfacuten_shalc(k,i) = rnwfacuten_shalc_p(i,k,j)
           enddo
        enddo
     enddo
