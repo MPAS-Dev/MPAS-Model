@@ -424,6 +424,7 @@
 
  real(kind=RKIND),dimension(:,:),allocatable:: &
     dx_p               !mean distance between cell centers                                                     [m]
+!$acc declare create(dx_p)
 
  real(kind=RKIND),dimension(:,:),allocatable:: &
     dusfcg_p,         &!vertically-integrated gwdo u-stress                                             [Pa m s-1]
@@ -473,12 +474,17 @@
     znt_p,            &!time-varying roughness length                                                          [m]
     zol_p              !
 !$acc declare create(hfx_p, qfx_p, ust_p, wspd_p, znt_p, &
-!$acc br_p, psih_p, psim_p, regime_p, u10_p, v10_p)
+!$acc br_p, psih_p, psim_p, regime_p, u10_p, v10_p, cd_p, &
+!$acc cda_p, chs_p, chs2_p, ck_p, cka_p, cpm_p, cqs2_p, &
+!$acc gz1oz0_p, flhc_p, flqc_p, hfx_p, lh_p, mavail_p, &
+!$acc mol_p, q2_p, qgh_p, qsfc_p, rmol_p, t2m_p, th2m_p, &
+!$acc ustm_p, zol_p)
 
 !... arrays only in monin_obukohv (module_sf_sfclay.F):
  real(kind=RKIND),dimension(:,:),allocatable:: &
     fh_p,             &!integrated stability function for heat                                                 [-]
     fm_p               !integrated stability function for momentum                                             [-]
+!$acc declare create(fh_p, fm_p)
 
 !... arrays only in mynn surface layer scheme (module_sf_mynn.F):
  real(kind=RKIND),dimension(:,:),allocatable:: &
@@ -692,7 +698,7 @@
     sst_p,            &!sea-surface temperature                                                                [K]
     xice_p,           &!ice mask                                                                               [-]
     xland_p            !land mask    (1 for land; 2 for water)                                                 [-]
-!$acc declare create(xland_p)
+!$acc declare create(xland_p, tsk_p, sst_p, xice_p)
 
 !=================================================================================================================
 !.. variables needed for the surface layer scheme and land surface scheme when config_frac_seaice
@@ -708,7 +714,12 @@
 
  real(kind=RKIND),dimension(:,:),allocatable:: regime_hold
  real(kind=RKIND),dimension(:,:),allocatable:: tsk_ice
-
+!$acc declare create(br_sea, chs_sea, chs2_sea, cqs2_sea, cpm_sea, flhc_sea, &
+!$acc flqc_sea, gz1oz0_sea, hfx_sea, qfx_sea, mavail_sea, mol_sea, lh_sea, &
+!$acc psih_sea, psim_sea, qgh_sea, qsfc_sea, regime_sea, rmol_sea, tsk_sea, &
+!$acc ust_sea, ustm_sea, wspd_sea, xland_sea, zol_sea, znt_sea, cd_sea, &
+!$acc cda_sea, ck_sea, cka_sea, t2m_sea, th2m_sea, q2_sea, u10_sea, v10_sea, &
+!$acc regime_hold, fh_sea, fm_sea)
 
  contains
 
