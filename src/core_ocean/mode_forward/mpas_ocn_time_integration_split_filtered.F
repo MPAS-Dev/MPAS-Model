@@ -1646,11 +1646,11 @@ contains
                ! Efficiency note: We really only need this to compute layerThicknessEdge, density, pressure, and SSH in this diagnostics solve.
                call ocn_diagnostic_solve(dt, statePool, forcingPool, meshPool, diagnosticsPool, scratchPool, tracersPool, 2)
 
-               !------------------------------------------------------------------!
-               !                                                                  !
-               !  If large iteration complete, compute all variables at time n+1  !
-               !                                                                  !
-               !------------------------------------------------------------------!
+            !------------------------------------------------------------------!
+            !                                                                  !
+            !  If large iteration complete, compute all variables at time n+1  !
+            !                                                                  !
+            !------------------------------------------------------------------!
             elseif (split_explicit_step == config_n_ts_iter) then
 
                !$omp do schedule(runtime) private(k)
@@ -1778,7 +1778,8 @@ contains
                !$omp do schedule(runtime) private(k)
                do iEdge = 1, nEdges
                   do k = 1, maxLevelEdgeTop(iEdge)
-                     normalVelocityNew(k,iEdge) = normalBarotropicVelocityNew(iEdge) + 2.0_RKIND * normalBaroclinicVelocityNew(k,iEdge) &
+                     normalVelocityNew(k,iEdge) = normalBarotropicVelocityNew(iEdge) &
+                        + 2.0_RKIND * (normalBaroclinicVelocityNew(k,iEdge) - BtrAvgOfBaroclinicVelocity(iEdge)) &
                         - normalBaroclinicVelocityCur(k,iEdge)
                   end do
                end do ! iEdges
