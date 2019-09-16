@@ -860,7 +860,7 @@ contains
                            * (normalBarotropicVelocitySubcycleCur(iEdge) &
                            + dt / nBtrSubcycles * (CoriolisTerm - gravity &
                            * (sshSubcycleCur(cell2) - sshSubcycleCur(cell1) ) &
-                           / dcEdge(iEdge) + barotropicForcing(iEdge)))
+                           / dcEdge(iEdge) + REAL(j,KIND=RKIND)/REAL(nBtrSubcycles,KIND=RKIND)*barotropicForcing(iEdge)))
 
                      end do
                      !$omp end do
@@ -1099,7 +1099,7 @@ contains
                            * (normalBarotropicVelocitySubcycleCur(iEdge) &
                            + dt / nBtrSubcycles &
                            * (CoriolisTerm - gravity * (sshCell2 - sshCell1) / dcEdge(iEdge) &
-                           + barotropicForcing(iEdge)))
+                           + REAL(j,KIND=RKIND)/REAL(nBtrSubcycles,KIND=RKIND)*barotropicForcing(iEdge)))
 
                      end do
                      !$omp end do
