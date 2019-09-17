@@ -834,7 +834,7 @@ module atm_core
       use atm_time_integration
 #ifdef DO_PHYSICS
       use mpas_atmphys_control
-      use mpas_atmphys_driver, only: physics_part1, physics_part2
+      use mpas_atmphys_driver, only: physics_driver_before_dyn, physics_driver_after_dyn
       use mpas_atmphys_manager
       use mpas_atmphys_update
 #endif
@@ -872,7 +872,7 @@ module atm_core
       !proceed with physics if moist_physics is set to true:
       if(moist_physics) then
          call physics_timetracker(domain,dt,clock,itimestep,xtime_s)
-         call physics_part1(domain,itimestep,xtime_s)
+         call physics_driver_before_dyn(domain,itimestep,xtime_s)
       endif
 #endif
 
@@ -883,7 +883,7 @@ module atm_core
       ! dynamics time stepping.
       !
 #ifdef DO_PHYSICS
-      call physics_part2(domain,itimestep,xtime_s)
+      call physics_driver_after_dyn(domain,itimestep,xtime_s)
 #endif
 
       !
@@ -901,9 +901,9 @@ module atm_core
 
       !    
       ! This is the summary of this time step from the following:
-      !  1) the physics before the dynamics solver (physics_part1)
+      !  1) the physics before the dynamics solver (physics_driver_before_dyn)
       !  2) the accumulated processing of the dynamics (atm_srk3)
-      !  3) the explicit microphysics (physics_part2)
+      !  3) the explicit microphysics (physics_driver_after_dyn)
       !  4) the LBC adjustment (dynamics_final_lbc_adjustment)
       ! 
       call summarize_timestep(domain)
