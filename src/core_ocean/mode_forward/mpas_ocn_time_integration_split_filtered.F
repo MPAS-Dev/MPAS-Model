@@ -231,6 +231,7 @@ contains
       integer :: threadNum
 
       integer :: temp_mask
+      logical :: InitialLayerThicknessEdgeCheck1, InitialLayerThicknessEdgeCheck2
 
       call mpas_timer_start("se timestep")
 
@@ -270,11 +271,11 @@ contains
       call mpas_pool_get_config(domain % configs, 'config_debug_split_explicit', config_debug_split_explicit)
       allocate(n_bcl_iter(config_n_ts_iter))
 
-      !----------------------------------------!
-      !                                        !
-      !  Prep variables before first iteration !
-      !                                        !
-      !----------------------------------------!
+      !-----------------------------------------!
+      !                                         !
+      !  Prep variables before first iteration  !
+      !                                         !
+      !-----------------------------------------!
       call mpas_timer_start("se prep")
       block => domain % blocklist
       do while (associated(block))
@@ -319,6 +320,28 @@ contains
 
          nCells = nCellsPtr
          nEdges = nEdgesPtr
+         
+         InitialLayerThicknessEdgeCheck1 = .false.
+         
+         if (InitialLayerThicknessEdgeCheck1) then 
+            write (*,'(A,I3,A,G12.6,A)') 'The minimum value of the layerThicknessEdge in the uppermost layer of processor ', &
+                                          domain % dminfo % my_proc_id, ' is given by ',  minval(layerThicknessEdge(1,:)), '.'
+            call mpas_threading_barrier()
+            call mpas_log_write("Stopping now!", MPAS_LOG_CRIT)
+         end if 
+         
+         InitialLayerThicknessEdgeCheck2 = .false.
+         
+         if (InitialLayerThicknessEdgeCheck2) then 
+            if (domain % dminfo % my_proc_id == 0) then 
+               do iEdge = 1, nEdges
+                  write (*,'(A,I6,A,I3,A,G12.6,A)') 'Excluding land cells, the minimum value of the layerThicknessEdge at edge ', &
+                  iEdge, ' of processor ', domain % dminfo % my_proc_id, ' is given by ',  minval(layerThicknessEdge(1:maxLevelEdgeTop(iEdge),iEdge)), '.'
+               end do 
+               call mpas_threading_barrier()
+               call mpas_log_write("Stopping now!", MPAS_LOG_CRIT)
+            end if 
+         end if 
 
          ! Initialize * variables that are used to compute baroclinic tendencies below.
 
@@ -373,7 +396,6 @@ contains
                end if
             end if
          end do
-
 
          if (associated(highFreqThicknessNew)) then
             !$omp do schedule(runtime)
