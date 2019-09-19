@@ -6846,7 +6846,6 @@ module atm_time_integration
 
 
       clock => domain % clock
-      blocklist => domain % blocklist !!! DAVE this seems unnecessary
 
       call mpas_pool_get_config(domain % blocklist % configs, 'config_apply_lbcs', config_apply_lbcs)
 

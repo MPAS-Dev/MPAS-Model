@@ -876,6 +876,9 @@ module atm_core
       endif
 #endif
 
+      !
+      ! Advance the model state ahead by the given dt. Currently, this is a wrapping call
+      ! to the time-split Runge-Kutta solver for the dynamics.
       call dynamics_timestep(domain, dt, currTime, itimestep)
 
       !
