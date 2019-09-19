@@ -119,7 +119,7 @@ contains
          oldBtrSubcycleTime, newBtrSubcycleTime, uPerpTime, BtrCorIter, stage1_tend_time
       integer, dimension(:), allocatable :: n_bcl_iter
       type (block_type), pointer :: block
-      real (kind=RKIND) :: normalThicknessFluxSum, thicknessSum, flux, sshEdge, hEdge1, &
+      real (kind=RKIND) :: normalThicknessFluxSum, thicknessSum, thicknessSum_nP1, flux, sshEdge, hEdge1, &
          CoriolisTerm, temp, temp_h, coef, barotropicThicknessFlux_coeff, sshCell1, sshCell2
       integer :: err
       real (kind=RKIND), dimension(:,:), pointer :: &
@@ -181,6 +181,7 @@ contains
       real (kind=RKIND), dimension(:,:), pointer :: normalBaroclinicVelocityCur, normalBaroclinicVelocityNew
       real (kind=RKIND), dimension(:,:), pointer :: normalVelocityCur, normalVelocityNew
       real (kind=RKIND), dimension(:,:), pointer :: layerThicknessCur, layerThicknessNew
+      real (kind=RKIND), dimension(:,:), pointer :: layerThickness_nP1_Cur, layerThickness_nP1_New
       real (kind=RKIND), dimension(:,:), pointer :: highFreqThicknessCur, highFreqThicknessNew
       real (kind=RKIND), dimension(:,:), pointer :: lowFreqDivergenceCur, lowFreqDivergenceNew
       real (kind=RKIND), dimension(:,:,:), pointer :: tracersGroupCur, tracersGroupNew
@@ -194,7 +195,7 @@ contains
 
       ! Diagnostics Array Pointers
       real (kind=RKIND), dimension(:), pointer :: barotropicForcing, barotropicThicknessFlux, barotropicThicknessFluxSW
-      real (kind=RKIND), dimension(:,:), pointer :: layerThicknessEdge, normalTransportVelocity, normalGMBolusVelocity
+      real (kind=RKIND), dimension(:,:), pointer :: layerThicknessEdge, layerThicknessEdge_nP1, normalTransportVelocity, normalGMBolusVelocity
       real (kind=RKIND), dimension(:,:), pointer :: vertAleTransportTop
       real (kind=RKIND), dimension(:,:), pointer :: velocityX, velocityY, velocityZ
       real (kind=RKIND), dimension(:,:), pointer :: velocityZonal, velocityMeridional
@@ -303,8 +304,11 @@ contains
          call mpas_pool_get_array(statePool, 'ssh', sshNew, 2)
 
          call mpas_pool_get_array(statePool, 'layerThickness', layerThicknessCur, 1)
-         call mpas_pool_get_array(statePool, 'layerThickness', layerThicknessNew, 2)
+         call mpas_pool_get_array(statePool, 'layerThickness', layerThicknessNew, 2)  
+         call mpas_pool_get_array(statePool, 'layerThickness_nP1', layerThickness_nP1_Cur, 1)
+         call mpas_pool_get_array(statePool, 'layerThickness_nP1', layerThickness_nP1_New, 2)
          call mpas_pool_get_array(diagnosticsPool, 'layerThicknessEdge', layerThicknessEdge)
+         call mpas_pool_get_array(diagnosticsPool, 'layerThicknessEdge_nP1', layerThicknessEdge_nP1)
 
          call mpas_pool_get_array(statePool, 'highFreqThickness', highFreqThicknessCur, 1)
          call mpas_pool_get_array(statePool, 'highFreqThickness', highFreqThicknessNew, 2)
@@ -373,6 +377,7 @@ contains
             sshNew(iCell) = sshCur(iCell)
             do k = 1, maxLevelCell(iCell)
                layerThicknessNew(k,iCell) = layerThicknessCur(k,iCell)
+               layerThickness_nP1_New(k,iCell) = layerThickness_nP1_Cur(k,iCell)
                ! Set vertAleTransportTop to zero for stage 1 velocity tendency, first time through.
                vertAleTransportTop(k,iCell) = 0.0_RKIND
             end do
@@ -538,12 +543,15 @@ contains
             call mpas_pool_get_subpool(block % structs, 'forcing', forcingPool)
 
             call mpas_pool_get_array(statePool, 'layerThickness', layerThicknessCur, 1)
+            call mpas_pool_get_array(statePool, 'layerThickness_nP1', layerThickness_nP1_Cur, 1)
+            
             call mpas_pool_get_array(statePool, 'normalVelocity', normalVelocityCur, stage1_tend_time)
             call mpas_pool_get_array(statePool, 'ssh', sshCur, 1)
 
             call mpas_pool_get_array(statePool, 'highFreqThickness', highFreqThicknessNew, 2)
 
             call mpas_pool_get_array(diagnosticsPool, 'layerThicknessEdge', layerThicknessEdge)
+            call mpas_pool_get_array(diagnosticsPool, 'layerThicknessEdge_nP1', layerThicknessEdge_nP1)
 
             call ocn_tend_vel(tendPool, statePool, forcingPool, diagnosticsPool, meshPool, scratchPool, stage1_tend_time, dt)
 
@@ -589,6 +597,8 @@ contains
                call mpas_pool_get_array(tendPool, 'normalVelocity', normalVelocityTend)
 
                call mpas_pool_get_array(diagnosticsPool, 'layerThicknessEdge', layerThicknessEdge)
+               call mpas_pool_get_array(diagnosticsPool, 'layerThicknessEdge_nP1', layerThicknessEdge_nP1)
+               
                call mpas_pool_get_array(diagnosticsPool, 'barotropicForcing', barotropicForcing)
 
                ! Only need to loop over the 1 halo, since there is a halo exchange immediately after this computation.
@@ -599,7 +609,7 @@ contains
 
                allocate(uTemp(nVertLevels))
 
-               !$omp do schedule(runtime) private(cell1, cell2, k, normalThicknessFluxSum, thicknessSum)
+               !$omp do schedule(runtime) private(cell1, cell2, k, normalThicknessFluxSum, thicknessSum_nP1)
                do iEdge = 1, nEdges
                   cell1 = cellsOnEdge(1,iEdge)
                   cell2 = cellsOnEdge(2,iEdge)
@@ -618,20 +628,19 @@ contains
                         / dcEdge(iEdge) )
                   enddo
 
-                  !---------------------------------------------------------------------------!
-                  ! thicknessSum is initialized outside the loop because on land boundaries   !
-                  ! maxLevelEdgeTop = 0, but I want to initialize thicknessSum with a nonzero !
-                  ! nonzero value to avoid a NaN.                                             !
-                  !---------------------------------------------------------------------------!
-                  normalThicknessFluxSum = layerThicknessEdge(1,iEdge) * uTemp(1)
-                  thicknessSum = layerThicknessEdge(1,iEdge)
+                  !-------------------------------------------------------------------------------!
+                  ! thicknessSum_nP1 is initialized outside the loop because on land boundaries   !
+                  ! maxLevelEdgeTop = 0, but I want to initialize thicknessSum_nP1 with a nonzero !
+                  ! nonzero value to avoid a NaN.                                                 !
+                  !-------------------------------------------------------------------------------!
+                  normalThicknessFluxSum = layerThicknessEdge_nP1(1,iEdge) * uTemp(1)
+                  thicknessSum_nP1 = layerThicknessEdge_nP1(1,iEdge)
 
                   do k = 2, maxLevelEdgeTop(iEdge)
-                     normalThicknessFluxSum = normalThicknessFluxSum + layerThicknessEdge(k,iEdge) * uTemp(k)
-                     thicknessSum = thicknessSum + layerThicknessEdge(k,iEdge)
+                     normalThicknessFluxSum = normalThicknessFluxSum + layerThicknessEdge_nP1(k,iEdge) * uTemp(k)
+                     thicknessSum_nP1 = thicknessSum_nP1 + layerThicknessEdge_nP1(k,iEdge)
                   enddo
-                  barotropicForcing(iEdge) = split * normalThicknessFluxSum / thicknessSum / dt
-
+                  barotropicForcing(iEdge) = split * normalThicknessFluxSum / thicknessSum_nP1 / dt
 
                   do k = 1, maxLevelEdgeTop(iEdge)
                      !----------------------------------------------------------------------------------!
@@ -1377,6 +1386,7 @@ contains
                call mpas_pool_get_array(diagnosticsPool, 'normalTransportVelocity', normalTransportVelocity)
                call mpas_pool_get_array(diagnosticsPool, 'normalGMBolusVelocity', normalGMBolusVelocity)
                call mpas_pool_get_array(diagnosticsPool, 'layerThicknessEdge', layerThicknessEdge)
+               call mpas_pool_get_array(diagnosticsPool, 'layerThicknessEdge_nP1', layerThicknessEdge_nP1)
                call mpas_pool_get_array(diagnosticsPool, 'barotropicThicknessFlux', barotropicThicknessFlux)
                call mpas_pool_get_array(diagnosticsPool, 'barotropicThicknessFluxSW', barotropicThicknessFluxSW)
                call mpas_pool_get_array(diagnosticsPool, 'BtrAvgOfBaroclinicVelocity', BtrAvgOfBaroclinicVelocity)
@@ -1389,20 +1399,21 @@ contains
 
                nEdges = nEdgesArray( config_num_halos )
                
-               !$omp do schedule(runtime) private(k, thicknessSum)
+               !$omp do schedule(runtime) private(k, thicknessSum, thicknessSum_nP1)
                do iEdge = 1, nEdges
                
-                  !-------------------------------------------------------------------------!
-                  ! thicknessSum is initialized outside the loop because on land boundaries !
-                  ! maxLevelEdgeTop = 0, but I want to initialize thicknessSum with a       !
-                  ! nonzero value to avoid a NaN.                                           !
-                  !-------------------------------------------------------------------------!
+                  !--------------------------------------------------------------------------------------------------------------------!
+                  ! thicknessSum and thicknessSum_nP1 are initialized outside the loop because on land boundaries maxLevelEdgeTop = 0, ! 
+                  ! but I want to initialize thicknessSum and thicknessSum_nP1 with a nonzero value to avoid a NaN.                    !    
+                  !--------------------------------------------------------------------------------------------------------------------!
                   thicknessSum = layerThicknessEdge(1,iEdge)
+                  thicknessSum_nP1 = layerThicknessEdge_nP1(1,iEdge)
                   BtrAvgOfBaroclinicVelocity(iEdge) = normalBaroclinicVelocityNew(1,iEdge) * layerThicknessEdge(1,iEdge) 
                   BtrAvgOfGMBolusVelocity(iEdge) = normalGMBolusVelocity(1,iEdge) * layerThicknessEdge(1,iEdge)
 
                   do k = 2, maxLevelEdgeTop(iEdge)
                      thicknessSum = thicknessSum + layerThicknessEdge(k,iEdge)
+                     thicknessSum_nP1 = thicknessSum_nP1 + layerThicknessEdge_nP1(k,iEdge)
                      BtrAvgOfBaroclinicVelocity(iEdge) = BtrAvgOfBaroclinicVelocity(iEdge) + normalBaroclinicVelocityNew(k,iEdge) * layerThicknessEdge(k,iEdge) 
                      BtrAvgOfGMBolusVelocity(iEdge) = BtrAvgOfGMBolusVelocity(iEdge) + normalGMBolusVelocity(k,iEdge) * layerThicknessEdge(k,iEdge)
                   enddo
@@ -1411,7 +1422,7 @@ contains
                   BtrAvgOfGMBolusVelocity(iEdge) = BtrAvgOfGMBolusVelocity(iEdge) / thicknessSum
 
                   ! Compute barotropic velocity from thickness flux
-                  normalBarotropicVelocityNew(iEdge) = barotropicThicknessFlux(iEdge) / thicknessSum   
+                  normalBarotropicVelocityNew(iEdge) = barotropicThicknessFlux(iEdge) / thicknessSum_nP1   
                   normalBarotropicVelocitySWNew(iEdge) = barotropicThicknessFluxSW(iEdge) / thicknessSum
                                     
                   do k = 1, nVertLevels
@@ -1566,7 +1577,9 @@ contains
             call mpas_pool_get_array(tracersPool, 'activeTracers', tracersGroupCur, 1)
             call mpas_pool_get_array(tracersPool, 'activeTracers', tracersGroupNew, 2)
             call mpas_pool_get_array(statePool, 'layerThickness', layerThicknessCur, 1)
-            call mpas_pool_get_array(statePool, 'layerThickness', layerThicknessNew, 2)
+            call mpas_pool_get_array(statePool, 'layerThickness', layerThicknessNew, 2)           
+            call mpas_pool_get_array(statePool, 'layerThickness_nP1', layerThickness_nP1_Cur, 1)
+            call mpas_pool_get_array(statePool, 'layerThickness_nP1', layerThickness_nP1_New, 2)
             call mpas_pool_get_array(statePool, 'normalVelocity', normalVelocityCur, 1)
             call mpas_pool_get_array(statePool, 'normalVelocity', normalVelocityNew, 2)
             call mpas_pool_get_array(statePool, 'highFreqThickness', highFreqThicknessCur, 1)
@@ -1610,6 +1623,7 @@ contains
 
                      ! This is h_{n+1}
                      temp_h = layerThicknessCur(k,iCell) + dt * layerThicknessTend(k,iCell)
+                     layerThickness_nP1_New(k,iCell) = temp_h
 
                      ! This is h_{n+1/2}
                      layerThicknessNew(k,iCell) = 0.5*( layerThicknessCur(k,iCell) + temp_h)
@@ -1680,6 +1694,7 @@ contains
                   do k = 1, maxLevelCell(iCell)
                      ! This is h_{n+1}
                      layerThicknessNew(k,iCell) = layerThicknessCur(k,iCell) + dt * layerThicknessTend(k,iCell)
+                     layerThickness_nP1_New(k,iCell) = layerThicknessNew(k,iCell)
                   end do
                end do
                !$omp end do
@@ -1911,6 +1926,8 @@ contains
          call mpas_pool_get_array(statePool, 'normalVelocity', normalVelocityNew, 2)
          call mpas_pool_get_array(statePool, 'layerThickness', layerThicknessCur, 1)
          call mpas_pool_get_array(statePool, 'layerThickness', layerThicknessNew, 2)
+         call mpas_pool_get_array(statePool, 'layerThickness_nP1', layerThickness_nP1_Cur, 1)
+         call mpas_pool_get_array(statePool, 'layerThickness_nP1', layerThickness_nP1_New, 2)
 
          call mpas_pool_get_array(diagnosticsPool, 'normalTransportVelocity', normalTransportVelocity)
          call mpas_pool_get_array(diagnosticsPool, 'normalGMBolusVelocity', normalGMBolusVelocity)
@@ -1949,6 +1966,7 @@ contains
             !$omp do schedule(runtime)
             do iCell = 1, nCells
                layerThicknessNew(:, iCell) = layerThicknessCur(:, iCell)
+               layerThickness_nP1_New(:, iCell) = layerThickness_nP1_Cur(:, iCell)
             end do
             !$omp end do
          end if
@@ -2040,7 +2058,7 @@ contains
       real (kind=RKIND) :: normalThicknessFluxSum, layerThicknessSum, layerThicknessEdge1
       real (kind=RKIND), dimension(:), pointer :: refBottomDepth, normalBarotropicVelocity
 
-      real (kind=RKIND), dimension(:,:), pointer :: layerThickness
+      real (kind=RKIND), dimension(:,:), pointer :: layerThickness, layerThickness_nP1
       real (kind=RKIND), dimension(:,:), pointer :: normalBaroclinicVelocity, normalVelocity
       integer, pointer :: nVertLevels, nCells, nEdges
       character (len=StrKIND), pointer :: config_time_integrator, config_btr_dt, config_dt
@@ -2114,6 +2132,7 @@ contains
             call mpas_pool_get_dimension(block % dimensions, 'nEdges', nEdges)
 
             call mpas_pool_get_array(statePool, 'layerThickness', layerThickness, 1)
+            call mpas_pool_get_array(statePool, 'layerThickness_nP1', layerThickness_nP1, 1)
             call mpas_pool_get_array(statePool, 'normalVelocity', normalVelocity, 1)
             call mpas_pool_get_array(statePool, 'normalBarotropicVelocity', normalBarotropicVelocity, 1)
             call mpas_pool_get_array(statePool, 'normalBaroclinicVelocity', normalBaroclinicVelocity, 1)
@@ -2141,6 +2160,7 @@ contains
                if (config_filter_btr_mode) then
                   do iCell = 1, nCells
                      layerThickness(1,iCell) = refBottomDepth(1)
+                     layerThickness_nP1(1,iCell) = refBottomDepth(1)
                   enddo
                endif
 

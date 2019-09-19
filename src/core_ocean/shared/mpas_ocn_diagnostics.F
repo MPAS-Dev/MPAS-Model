@@ -122,7 +122,7 @@ contains
         bottomDepth, fVertex, dvEdge, dcEdge, areaCell, areaTriangle, ssh,  seaIcePressure, atmosphericPressure, frazilSurfacePressure, &
         pressureAdjustedSSH, gradSSH, landIcePressure, landIceDraft
       real (kind=RKIND), dimension(:,:), pointer :: &
-        weightsOnEdge, kiteAreasOnVertex, layerThicknessEdge, layerThickness, normalVelocity, normalTransportVelocity, &
+        weightsOnEdge, kiteAreasOnVertex, layerThicknessEdge, layerThicknessEdge_nP1, layerThickness, layerThickness_nP1, normalVelocity, normalTransportVelocity, &
         normalGMBolusVelocity, tangentialVelocity, pressure, circulation, kineticEnergyCell, montgomeryPotential, &
         vertAleTransportTop, zMid, zTop, divergence, relativeVorticity, relativeVorticityCell, &
         normalizedPlanetaryVorticityEdge, normalizedPlanetaryVorticityVertex, normalizedRelativeVorticityEdge, &
@@ -164,7 +164,7 @@ contains
 
       if (present(timeLevelIn)) then
          timeLevel = timeLevelIn
-      else
+      else ! during initialization
          timeLevel = 1
       end if
 
@@ -270,16 +270,23 @@ contains
       nCells = nCellsArray( size(nCellsArray) )
       nVertices = nVerticesArray( size(nVerticesArray) )
 
+      if (.not. (present(timeLevelIn))) then ! during initialization
+         print *, ubound(layerThickness,1), ubound(layerThickness,2), ubound(layerThickness_nP1,1), ubound(layerThickness_nP1,2) 
+         layerThickness_nP1 = layerThickness      
+      end if 
+
       if (.not. config_use_wetting_drying .or. (config_use_wetting_drying .and. (trim(config_thickness_flux_type) .eq. 'centered'))) then
         !$omp do schedule(runtime) private(cell1, cell2, k)
         do iEdge = 1, nEdges
           ! initialize layerThicknessEdge to avoid divide by zero and NaN problems.
           layerThicknessEdge(:, iEdge) = -1.0e34_RKIND
+          layerThicknessEdge_nP1(:, iEdge) = -1.0e34_RKIND
           cell1 = cellsOnEdge(1,iEdge)
           cell2 = cellsOnEdge(2,iEdge)
           do k = 1, maxLevelEdgeTop(iEdge)
             ! central differenced
             layerThicknessEdge(k,iEdge) = 0.5_RKIND * (layerThickness(k,cell1) + layerThickness(k,cell2))
+            layerThicknessEdge_nP1(k,iEdge) = 0.5_RKIND * (layerThickness_nP1(k,cell1) + layerThickness_nP1(k,cell2))
           end do
         end do
         !$omp end do
@@ -290,16 +297,20 @@ contains
             do iEdge = 1, nEdges
               ! initialize layerThicknessEdge to avoid divide by zero and NaN problems.
               layerThicknessEdge(:, iEdge) = -1.0e34_RKIND
+              layerThicknessEdge_nP1(:, iEdge) = -1.0e34_RKIND
               cell1 = cellsOnEdge(1,iEdge)
               cell2 = cellsOnEdge(2,iEdge)
               do k = 1, maxLevelEdgeTop(iEdge)
                 ! upwind
                 if (normalVelocity(k, iEdge) > 0.0_RKIND) then
                   layerThicknessEdge(k,iEdge) = layerThickness(k,cell1)
+                  layerThicknessEdge_nP1(k,iEdge) = layerThickness_nP1(k,cell1)
                 elseif (normalVelocity(k, iEdge) < 0.0_RKIND) then
                   layerThicknessEdge(k,iEdge) = layerThickness(k,cell2)
+                  layerThicknessEdge_nP1(k,iEdge) = layerThickness_nP1(k,cell2)
                 else
                   layerThicknessEdge(k,iEdge) = max(layerThickness(k,cell1), layerThickness(k,cell2))
+                  layerThicknessEdge_nP1(k,iEdge) = max(layerThickness_nP1(k,cell1), layerThickness_nP1(k,cell2))
                 end if
               end do
             end do

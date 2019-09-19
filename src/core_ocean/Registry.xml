@@ -1969,6 +1969,9 @@
 		<var name="layerThickness" type="real" dimensions="nVertLevels nCells Time" units="m"
 			 description="layer thickness"
 		/>
+		<var name="layerThickness_nP1" type="real" dimensions="nVertLevels nCells Time" units="m"
+			 description="layer thickness computed at baroclinic time level n + 1"
+		/>
 		<var name="ssh" type="real" dimensions="nCells Time" units="m"
 			 description="sea surface height"
 		/>
@@ -2500,6 +2503,10 @@
 		/>
 		<var name="layerThicknessEdge" type="real" dimensions="nVertLevels nEdges Time" units="m"
 			 description="layer thickness averaged from cell center to edges"
+			 packages="forwardMode;analysisMode"
+		/>
+		<var name="layerThicknessEdge_nP1" type="real" dimensions="nVertLevels nEdges Time" units="m"
+			 description="layer thickness averaged from cell center to edges computed at barolinic time level n + 1"
 			 packages="forwardMode;analysisMode"
 		/>
 		<var name="layerThicknessVertex" type="real" dimensions="nVertLevels nVertices Time" units="m"
