@@ -183,6 +183,7 @@ contains
       call mpas_pool_get_dimension(tracersPool, 'index_salinity', indexSalinity)
 
       call mpas_pool_get_array(statePool, 'layerThickness', layerThickness, timeLevel)
+      call mpas_pool_get_array(statePool, 'layerThickness_nP1', layerThickness_nP1, timeLevel)
       call mpas_pool_get_array(statePool, 'normalVelocity', normalVelocity, timeLevel)
       call mpas_pool_get_array(tracersPool, 'activeTracers', activeTracers, timeLevel)
       call mpas_pool_get_array(statePool, 'ssh', ssh, timeLevel)
@@ -204,6 +205,7 @@ contains
       call mpas_pool_get_array(diagnosticsPool, 'BruntVaisalaFreqTop', BruntVaisalaFreqTop)
       call mpas_pool_get_array(diagnosticsPool, 'tangentialVelocity', tangentialVelocity)
       call mpas_pool_get_array(diagnosticsPool, 'layerThicknessEdge', layerThicknessEdge)
+      call mpas_pool_get_array(diagnosticsPool, 'layerThicknessEdge_nP1', layerThicknessEdge_nP1)
       call mpas_pool_get_array(diagnosticsPool, 'kineticEnergyCell', kineticEnergyCell)
       call mpas_pool_get_array(diagnosticsPool, 'vertVelocityTop', vertVelocityTop)
       call mpas_pool_get_array(diagnosticsPool, 'vertTransportVelocityTop', vertTransportVelocityTop)
@@ -271,8 +273,7 @@ contains
       nVertices = nVerticesArray( size(nVerticesArray) )
 
       if (.not. (present(timeLevelIn))) then ! during initialization
-         print *, ubound(layerThickness,1), ubound(layerThickness,2), ubound(layerThickness_nP1,1), ubound(layerThickness_nP1,2) 
-         layerThickness_nP1 = layerThickness      
+         layerThickness_nP1(:,:) = layerThickness(:,:)      
       end if 
 
       if (.not. config_use_wetting_drying .or. (config_use_wetting_drying .and. (trim(config_thickness_flux_type) .eq. 'centered'))) then
