@@ -485,6 +485,12 @@
  !$acc update device(latCell, lonCell, fzm, fzp, rdzw, zgrid, zz, &
  !$acc surface_pressure, exner, pressure_b, pressure_p, rtheta_b, &
  !$acc rtheta_p, u, v, rho_zz, theta_m, w, plrad, scalars)
+ 
+ !$acc update device(qv_p,qc_p,qr_p,qi_p,qs_p,qg_p,u_p,v_p, &
+ !$acc zz_p,rho_p,th_p,t_p,pi_p,pres_p,zmid_p,dz_p,znu_p, w_p, &
+ !$acc z_p,fzm_p,fzp_p,t2_p,pres2_p,psfc_p,pres2_hyd_p, &
+ !$acc pres2_hydd_p,pres_hyd_p,pres_hydd_p,psfc_hyd_p, &
+ !$acc psfc_hydd_p,znu_hyd_p)
 
  end subroutine MPAS_to_physics
 
