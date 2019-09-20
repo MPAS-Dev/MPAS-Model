@@ -1105,6 +1105,14 @@
 					description="number of iterations of stage 1 (baroclinic solve) on the last split-explicit iteration"
 					possible_values="any positive integer, but typically 1, 2, or 3"
 		/>
+		<nml_option name="config_nIterations_BtrSubcycling_Predictor" type="integer" default_value="2" units="unitless"
+					description="number of iterations in predictor stage of the second variable (ssh) within the forward-backward barotropic time-stepping scheme of Stage 2 of the split-explicit algorithm"
+					possible_values="any positive integer, but preferably not larger than 3 to save computational time"
+		/>
+		<nml_option name="config_nIterations_BtrSubcycling_Corrector" type="integer" default_value="2" units="unitless"
+					description="number of iterations in corrector stage of the second variable (ssh) within the forward-backward barotropic time-stepping scheme of Stage 2 of the split-explicit algorithm"
+					possible_values="any positive integer, but preferably not larger than 3 to save computational time"
+		/>
 		<nml_option name="config_btr_filter_type" type="character" default_value="rectangular" units="unitless"
 					description="Filter for time-averaging the instantaneous barotropic modes"
 					possible_values="'no_filter' or 'rectangular' or 'ROMS_cosine' or 'Hamming_window_cosine' or 'Shchepetkin_second_order_accurate' or 'Shchepetkin_minimal_dispersion'"
@@ -1145,12 +1153,12 @@
 					description="Weighting of SSH in the velocity corrector step in stage 2. When zero, previous subcycle time is used; when one, new subcycle time is used."
 					possible_values="between 0 and 1"
 		/>
-		<nml_option name="config_btr_gam3_velWt2" type="real" default_value="1.0" units="unitless"
-					description="Weighting of corrector velocity in the SSH corrector step in stage 2."
+		<nml_option name="config_btr_gam3_velWt2" type="real" default_value="0.0" units="unitless"
+					description="Weighting of predictor velocity in the SSH corrector step in stage 2."
 					possible_values="between 0 and 1"
 		/>
-		<nml_option name="config_btr_gam4_velWt2" type="real" default_value="0.0" units="unitless"
-					description="Weighting of predictor velocity in the SSH corrector step in stage 2."
+		<nml_option name="config_btr_gam4_velWt2" type="real" default_value="1.0" units="unitless"
+					description="Weighting of corrector velocity in the SSH corrector step in stage 2."
 					possible_values="between 0 and 1"
 		/>
 		<nml_option name="config_btr_solve_SSH2" type="logical" default_value=".false." units="unitless"
@@ -2024,8 +2032,16 @@
 			 description="barotropic velocity, used in subcycling in stage 2 of split-explicit time-stepping"
 			 packages="splitTimeIntegrator"
 		/>
+		<var name="normalBarotropicVelocitySubcyclePredictor" type="real" dimensions="nEdges Time" units="m s^{-1}"
+			 description="barotropic velocity predictor, used in subcycling in stage 2 of split-explicit time-stepping"
+			 packages="splitTimeIntegrator"
+		/>
 		<var name="sshSubcycle" type="real" dimensions="nCells Time" units="m"
 			 description="sea surface height, used in subcycling in stage 2 of split-explicit time-stepping"
+			 packages="splitTimeIntegrator"
+		/>
+		<var name="sshSubcyclePredictor" type="real" dimensions="nCells Time" units="m"
+			 description="sea surface height predictor, used in subcycling in stage 2 of split-explicit time-stepping"
 			 packages="splitTimeIntegrator"
 		/>
 		<var name="normalBaroclinicVelocity" type="real" dimensions="nVertLevels nEdges Time" units="m s^{-1}"

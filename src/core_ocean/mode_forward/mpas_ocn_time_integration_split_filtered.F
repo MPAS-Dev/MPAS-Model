@@ -115,12 +115,13 @@ contains
       type (mpas_pool_type), pointer :: scratchPool
       type (mpas_pool_type), pointer :: swForcingPool
 
-      integer :: iCell, i, k, j, iEdge, cell1, cell2, split_explicit_step, split, eoe, &
+      integer :: iIteration, iCell, i, k, j, iEdge, cell1, cell2, split_explicit_step, split, eoe, &
          oldBtrSubcycleTime, newBtrSubcycleTime, uPerpTime, BtrCorIter, stage1_tend_time
       integer, dimension(:), allocatable :: n_bcl_iter
       type (block_type), pointer :: block
-      real (kind=RKIND) :: normalThicknessFluxSum, thicknessSum, thicknessSum_nP1, flux, sshEdge, hEdge1, &
-         CoriolisTerm, temp, temp_h, coef, barotropicThicknessFlux_coeff, sshCell1, sshCell2
+      real (kind=RKIND) :: normalThicknessFluxSum, thicknessSum, thicknessSum_nP1, thicknessSum1, thicknessSum2, thicknessSum3, &
+         flux1, flux2, flux3, flux, sshEdge1, sshEdge2, sshEdge3, hEdge1, CoriolisTerm1, CoriolisTerm2, temp, temp_h, coef, &
+         barotropicThicknessFlux_coeff, sshCell1, sshCell2
       integer :: err
       real (kind=RKIND), dimension(:,:), pointer :: &
          vertViscTopOfEdge, vertDiffTopOfCell
@@ -137,6 +138,7 @@ contains
       ! Config options
       character (len=StrKIND), pointer :: config_time_integrator
       integer, pointer :: config_n_bcl_iter_mid, config_n_bcl_iter_beg, config_n_bcl_iter_end
+      integer, pointer :: config_nIterations_BtrSubcycling_Predictor, config_nIterations_BtrSubcycling_Corrector
       integer, pointer :: config_n_ts_iter, config_btr_subcycle_loop_factor
       integer, pointer :: config_n_btr_cor_iter, config_num_halos
       logical, pointer :: config_use_standardGM
@@ -174,8 +176,9 @@ contains
       real (kind=RKIND), dimension(:,:), pointer :: weightsOnEdge
 
       ! State Array Pointers
-      real (kind=RKIND), dimension(:), pointer :: sshSubcycleCur, sshSubcycleNew
-      real (kind=RKIND), dimension(:), pointer :: normalBarotropicVelocitySubcycleCur, normalBarotropicVelocitySubcycleNew
+      real (kind=RKIND), dimension(:), pointer :: sshSubcycleCur, sshSubcyclePredictor, sshSubcycleNew
+      real (kind=RKIND), dimension(:), pointer :: normalBarotropicVelocitySubcycleCur, normalBarotropicVelocitySubcyclePredictor, &
+                                                  normalBarotropicVelocitySubcycleNew                                                  
       real (kind=RKIND), dimension(:), pointer :: sshCur, sshNew
       real (kind=RKIND), dimension(:), pointer :: normalBarotropicVelocityCur, normalBarotropicVelocityNew, normalBarotropicVelocitySWNew                                            
       real (kind=RKIND), dimension(:,:), pointer :: normalBaroclinicVelocityCur, normalBaroclinicVelocityNew
@@ -239,8 +242,10 @@ contains
       call mpas_pool_get_config(domain % configs, 'config_n_bcl_iter_beg', config_n_bcl_iter_beg)
       call mpas_pool_get_config(domain % configs, 'config_n_bcl_iter_mid', config_n_bcl_iter_mid)
       call mpas_pool_get_config(domain % configs, 'config_n_bcl_iter_end', config_n_bcl_iter_end)
+      call mpas_pool_get_config(domain % configs, 'config_btr_subcycle_loop_factor', config_btr_subcycle_loop_factor)      
+      call mpas_pool_get_config(domain % configs, 'config_nIterations_BtrSubcycling_Predictor', config_nIterations_BtrSubcycling_Predictor)      
+      call mpas_pool_get_config(domain % configs, 'config_nIterations_BtrSubcycling_Corrector', config_nIterations_BtrSubcycling_Corrector)
       call mpas_pool_get_config(domain % configs, 'config_n_ts_iter', config_n_ts_iter)
-      call mpas_pool_get_config(domain % configs, 'config_btr_subcycle_loop_factor', config_btr_subcycle_loop_factor)
       call mpas_pool_get_config(domain % configs, 'config_btr_gam1_velWt1', config_btr_gam1_velWt1)
       call mpas_pool_get_config(domain % configs, 'config_btr_gam3_velWt2', config_btr_gam3_velWt2)
       call mpas_pool_get_config(domain % configs, 'config_btr_gam4_velWt2', config_btr_gam4_velWt2)
@@ -860,9 +865,8 @@ contains
                      call mpas_pool_get_array(meshPool, 'edgeMask', edgeMask)
 
                      call mpas_pool_get_array(statePool, 'normalBarotropicVelocitySubcycle', normalBarotropicVelocitySubcycleCur, &
-                        uPerpTime)
-                     call mpas_pool_get_array(statePool, 'normalBarotropicVelocitySubcycle', normalBarotropicVelocitySubcycleNew, &
-                        newBtrSubcycleTime)
+                        uPerpTime)                       
+                     call mpas_pool_get_array(statePool, 'normalBarotropicVelocitySubcyclePredictor', normalBarotropicVelocitySubcyclePredictor, 1)   
                      call mpas_pool_get_array(statePool, 'sshSubcycle', sshSubcycleCur, oldBtrSubcycleTime)
 
                      call mpas_pool_get_array(diagnosticsPool, 'barotropicForcing', barotropicForcing)
@@ -870,7 +874,7 @@ contains
                      nEdges = nEdgesPtr
                      nEdges = nEdgesArray( edgeHaloComputeCounter )
 
-                     !$omp do schedule(runtime) private(cell1, cell2, CoriolisTerm, i, eoe)
+                     !$omp do schedule(runtime) private(cell1, cell2, CoriolisTerm1, i, eoe, flux1)
                      do iEdge = 1, nEdges
 
                         temp_mask = edgeMask(1, iEdge)
@@ -879,19 +883,17 @@ contains
                         cell2 = cellsOnEdge(2,iEdge)
 
                         ! Compute the barotropic Coriolis term, -f*uPerp
-                        CoriolisTerm = 0.0_RKIND
+                        CoriolisTerm1 = 0.0_RKIND
                         do i = 1, nEdgesOnEdge(iEdge)
                            eoe = edgesOnEdge(i,iEdge)
-                           CoriolisTerm = CoriolisTerm + weightsOnEdge(i,iEdge) &
-                              * normalBarotropicVelocitySubcycleCur(eoe) * fEdge(eoe)
+                           CoriolisTerm1 = CoriolisTerm1 + weightsOnEdge(i,iEdge) * normalBarotropicVelocitySubcycleCur(eoe) * fEdge(eoe)
                         end do
+                        
+                        flux1 = CoriolisTerm1 - gravity * (sshSubcycleCur(cell2) - sshSubcycleCur(cell1) ) / dcEdge(iEdge) &
+                           + REAL(j,KIND=RKIND)/REAL(nBtrSubcycles,KIND=RKIND)*barotropicForcing(iEdge)
 
-                        normalBarotropicVelocitySubcycleNew(iEdge) &
-                           = temp_mask &
-                           * (normalBarotropicVelocitySubcycleCur(iEdge) &
-                           + dt / nBtrSubcycles * (CoriolisTerm - gravity &
-                           * (sshSubcycleCur(cell2) - sshSubcycleCur(cell1) ) &
-                           / dcEdge(iEdge) + REAL(j,KIND=RKIND)/REAL(nBtrSubcycles,KIND=RKIND)*barotropicForcing(iEdge)))
+                        normalBarotropicVelocitySubcyclePredictor(iEdge) &
+                           = temp_mask * (normalBarotropicVelocitySubcycleCur(iEdge) + dt / nBtrSubcycles * flux1)
 
                      end do
                      !$omp end do
@@ -933,11 +935,11 @@ contains
                   call mpas_pool_get_array(meshPool, 'areaCell', areaCell)
 
                   call mpas_pool_get_array(statePool, 'sshSubcycle', sshSubcycleCur, oldBtrSubcycleTime)
+                  call mpas_pool_get_array(statePool, 'sshSubcyclePredictor', sshSubcyclePredictor, 1)
                   call mpas_pool_get_array(statePool, 'sshSubcycle', sshSubcycleNew, newBtrSubcycleTime)
                   call mpas_pool_get_array(statePool, 'normalBarotropicVelocitySubcycle', normalBarotropicVelocitySubcycleCur, &
-                     oldBtrSubcycleTime)
-                  call mpas_pool_get_array(statePool, 'normalBarotropicVelocitySubcycle', normalBarotropicVelocitySubcycleNew, &
-                     newBtrSubcycleTime)
+                     oldBtrSubcycleTime)                     
+                  call mpas_pool_get_array(statePool, 'normalBarotropicVelocitySubcyclePredictor', normalBarotropicVelocitySubcyclePredictor, 1)                     
 
                   call mpas_pool_get_array(diagnosticsPool, 'barotropicThicknessFlux', barotropicThicknessFlux)
                   call mpas_pool_get_array(diagnosticsPool, 'barotropicThicknessFluxSW', barotropicThicknessFluxSW)
@@ -947,49 +949,64 @@ contains
 
                   nCells = nCellsArray( cellHaloComputeCounter )
                   nEdges = nEdgesArray( edgeHaloComputeCounter )
+                  
+                  !------------------------------------------------------------------------!
+                  ! flux1 = normalBarotropicVelocitySubcycleOld*HOld                       !
+                  ! flux2 = normalBarotropicVelocitySubcyclePredictor*HPredictor           !                
+                  ! flux = (1-config_btr_gam1_velWt1)*flux1 + config_btr_gam1_velWt1*flux2 !
+                  !------------------------------------------------------------------------!
+                  
+                  !---------------------------------------------------------------------------------------------------------------------------------------------!
+                  ! config_btr_gam1_velWt1 sets the forward weighting of velocity in the SSH computation.                                                       !
+                  ! config_btr_gam1_velWt1 = 1.0   flux = flux2 = normalBarotropicVelocitySubcyclePredictor*HPredictor                                          !
+                  ! config_btr_gam1_velWt1 = 0.5   flux = 1/2*(flux1 + flux2)                                                                                   !
+                  !                                     = 1/2*(normalBarotropicVelocitySubcyclePredictor*HPredictor + normalBarotropicVelocitySubcycleOld*HOld) !
+                  ! config_btr_gam1_velWt1 = 0.0   flux = flux1 = normalBarotropicVelocitySubcycleOld*HOld                                                      !
+                  !---------------------------------------------------------------------------------------------------------------------------------------------!
+                  
+                  sshSubcyclePredictor(:) = sshSubcycleCur(:)
+                  
+                  do iIteration = 1, config_nIterations_BtrSubcycling_Predictor
+                  
+                     !$omp do schedule(runtime) private(iIteration, i, iEdge, cell1, cell2, sshEdge1, sshEdge2, thicknessSum1, thicknessSum2, flux1, flux2, flux)
+                     do iCell = 1, nCells
 
-                  !-------------------------------------------------------------------------------------------------------!
-                  ! config_btr_gam1_velWt1 sets the forward weighting of velocity in the SSH computation                  !
-                  ! config_btr_gam1_velWt1 = 1     flux = normalBarotropicVelocityNew*H                                   !
-                  ! config_btr_gam1_velWt1 = 0.5   flux = 1/2*(normalBarotropicVelocityNew+normalBarotropicVelocityOld)*H !
-                  ! config_btr_gam1_velWt1 = 0     flux = normalBarotropicVelocityOld*H                                   !
-                  !-------------------------------------------------------------------------------------------------------!
+                        sshTend(iCell) = 0.0_RKIND 
+                     
+                        do i = 1, nEdgesOnCell(iCell)
+                        
+                           iEdge = edgesOnCell(i, iCell)
+                           cell1 = cellsOnEdge(1, iEdge)
+                           cell2 = cellsOnEdge(2, iEdge)
+                           sshEdge1 = 0.5_RKIND * (sshSubcycleCur(cell1) + sshSubcycleCur(cell2))                          
+                           sshEdge2 = 0.5_RKIND * (sshSubcyclePredictor(cell1) + sshSubcyclePredictor(cell2))
+                           
+                           !----------------------------------------------------------------------------!
+                           ! Method 0: orig, works only without pbc:                                    !
+                           ! thicknessSum = sshEdge + refBottomDepthTopOfCell(maxLevelEdgeTop(iEdge)+1) !
+                           ! Method 1, matches method 0 without pbcs, works with pbcs.                  !
+                           !                                                                            !
+                           ! Method 2: may be better than method 1.                                     !
+                           ! Take average  of full thickness at two neighboring cells.                  !
+                           ! thicknessSum = sshEdge + 0.5 *( bottomDepth(cell1) + bottomDepth(cell2) )  !
+                           !----------------------------------------------------------------------------!                                                    
+                           thicknessSum1 = sshEdge1 + min(bottomDepth(cell1), bottomDepth(cell2))                           
+                           thicknessSum2 = sshEdge2 + min(bottomDepth(cell1), bottomDepth(cell2))
+                                                      
+                           flux1 = normalBarotropicVelocitySubcycleCur(iEdge)*thicknessSum1
+                           flux2 = normalBarotropicVelocitySubcyclePredictor(iEdge)*thicknessSum2                           
+                           flux = (1.0_RKIND-config_btr_gam1_velWt1) * flux1 + config_btr_gam1_velWt1 * flux2
+                           sshTend(iCell) = sshTend(iCell) + edgeSignOnCell(i, iCell) * flux * dvEdge(iEdge)
+   
+                        end do
 
-                  !$omp do schedule(runtime) private(i, iEdge, cell1, cell2, sshEdge, thicknessSum, flux)
-                  do iCell = 1, nCells
-                     sshTend(iCell) = 0.0_RKIND
-                     do i = 1, nEdgesOnCell(iCell)
-                        iEdge = edgesOnCell(i, iCell)
+                        ! SSHpredictor = SSHold + dt/J*(-div(Flux))
+                        sshSubcyclePredictor(iCell) = sshSubcycleCur(iCell) + dt / nBtrSubcycles * sshTend(iCell) / areaCell(iCell)
 
-                        cell1 = cellsOnEdge(1, iEdge)
-                        cell2 = cellsOnEdge(2, iEdge)
-
-                        sshEdge = 0.5_RKIND * (sshSubcycleCur(cell1) + sshSubcycleCur(cell2) )
-                        !----------------------------------------------------------------------------!
-                        ! Method 0: orig, works only without pbc:                                    !
-                        ! thicknessSum = sshEdge + refBottomDepthTopOfCell(maxLevelEdgeTop(iEdge)+1) !
-                        ! Method 1, matches method 0 without pbcs, works with pbcs.                  !
-                        !----------------------------------------------------------------------------!
-                        thicknessSum = sshEdge + min(bottomDepth(cell1), bottomDepth(cell2))
-                        !---------------------------------------------------------------------------!
-                        ! Method 2: may be better than method 1.                                    !
-                        ! Take average  of full thickness at two neighboring cells.                 !
-                        ! thicknessSum = sshEdge + 0.5 *( bottomDepth(cell1) + bottomDepth(cell2) ) !
-                        !---------------------------------------------------------------------------!
-
-                        flux = ((1.0-config_btr_gam1_velWt1) * normalBarotropicVelocitySubcycleCur(iEdge) &
-                           + config_btr_gam1_velWt1 * normalBarotropicVelocitySubcycleNew(iEdge)) &
-                           * thicknessSum
-
-                        sshTend(iCell) = sshTend(iCell) + edgeSignOnCell(i, iCell) * flux * dvEdge(iEdge)
-
-                     end do
-
-                     ! SSHnew = SSHold + dt/J*(-div(Flux))
-                     sshSubcycleNew(iCell) = sshSubcycleCur(iCell) &
-                        + dt / nBtrSubcycles * sshTend(iCell) / areaCell(iCell)
+                     end do   
+                     !$omp end do 
+                        
                   end do
-                  !$omp end do
 
                   if (config_debug_split_explicit) THEN
                      !----------------------------------------------------------------------------------------------------!
@@ -997,13 +1014,13 @@ contains
                      ! Add in a new line each time for the write statement                                                !
                      !----------------------------------------------------------------------------------------------------!
                      do iCell=1,nCells,4 ! Write ever fourth entry, meant for periodic with four-wide
-                        write(debugSplitExplicitUnit,"(ES32.16)", advance='no') sshSubcycleNew(iCell)
+                        write(debugSplitExplicitUnit,"(ES32.16)", advance='no') sshSubcyclePredictor(iCell)
                      end do
                      write(debugSplitExplicitUnit, *) ' '
                      flush(debugSplitExplicitUnit)
                   end if
 
-                  ! asarje: changed to avoid redundant computations when config_btr_solve_SSH2 is true
+                  ! Asarje: changed to avoid redundant computations when config_btr_solve_SSH2 is true
                   if (config_btr_solve_SSH2) then
                      !-----------------------------------------------------------------------!
                      ! If config_btr_solve_SSH2 = .true.,                                    !
@@ -1018,20 +1035,25 @@ contains
 
                      ! Otherwise, DO accumulate barotropicThicknessFlux in this SSH predictor section
                      barotropicThicknessFlux_coeff = 1.0_RKIND
+                     
+                     sshSubcycleNew(:) = sshSubcyclePredictor(:)
 
-                     !$omp do schedule(runtime)
+                     !$omp do schedule(runtime) private(cell1, cell2, sshEdge1, sshEdge2, thicknessSum1, thicknessSum2, flux1, flux2, flux)
                      do iEdge = 1, nEdges
+                     
                         cell1 = cellsOnEdge(1,iEdge)
                         cell2 = cellsOnEdge(2,iEdge)
 
-                        sshEdge = 0.5_RKIND * (sshSubcycleCur(cell1) + sshSubcycleCur(cell2))
-
+                        sshEdge1 = 0.5_RKIND * (sshSubcycleCur(cell1) + sshSubcycleCur(cell2))                          
+                        sshEdge2 = 0.5_RKIND * (sshSubcyclePredictor(cell1) + sshSubcyclePredictor(cell2))
+                        
                         ! Method 1, matches method 0 without pbcs, works with pbcs.
-                        thicknessSum = sshEdge + min(bottomDepth(cell1), bottomDepth(cell2))
-
-                        flux = ((1.0-config_btr_gam1_velWt1) * normalBarotropicVelocitySubcycleCur(iEdge) &
-                           + config_btr_gam1_velWt1 * normalBarotropicVelocitySubcycleNew(iEdge)) &
-                           * thicknessSum
+                        thicknessSum1 = sshEdge1 + min(bottomDepth(cell1), bottomDepth(cell2))                           
+                        thicknessSum2 = sshEdge2 + min(bottomDepth(cell1), bottomDepth(cell2))
+                                                   
+                        flux1 = normalBarotropicVelocitySubcycleCur(iEdge)*thicknessSum1
+                        flux2 = normalBarotropicVelocitySubcyclePredictor(iEdge)*thicknessSum2                           
+                        flux = (1.0_RKIND-config_btr_gam1_velWt1) * flux1 + config_btr_gam1_velWt1 * flux2
                                                 
                         barotropicThicknessFlux(iEdge) = barotropicThicknessFlux(iEdge) + PrimaryWeights(j) * flux
                         barotropicThicknessFluxSW(iEdge) = barotropicThicknessFluxSW(iEdge) + SecondaryWeights(j) * flux 
@@ -1068,11 +1090,12 @@ contains
 
                      call mpas_pool_get_array(statePool, 'normalBarotropicVelocitySubcycle', normalBarotropicVelocitySubcycleCur, &
                         oldBtrSubcycleTime)
+                     call mpas_pool_get_array(statePool, 'normalBarotropicVelocitySubcyclePredictor', normalBarotropicVelocitySubcyclePredictor, 1)                        
                      call mpas_pool_get_array(statePool, 'normalBarotropicVelocitySubcycle', normalBarotropicVelocitySubcycleNew, &
                         newBtrSubcycleTime)
-                     call mpas_pool_get_array(statePool, 'sshSubcycle', sshSubcycleCur, oldBtrSubcycleTime)
-                     call mpas_pool_get_array(statePool, 'sshSubcycle', sshSubcycleNew, newBtrSubcycleTime)
-
+                     call mpas_pool_get_array(statePool, 'sshSubcycle', sshSubcycleCur, oldBtrSubcycleTime)                     
+                     call mpas_pool_get_array(statePool, 'sshSubcyclePredictor', sshSubcyclePredictor, 1)                    
+                     
                      call mpas_pool_get_array(meshPool, 'cellsOnEdge', cellsOnEdge)
                      call mpas_pool_get_array(meshPool, 'nEdgesOnEdge', nEdgesOnEdge)
                      call mpas_pool_get_array(meshPool, 'edgesOnEdge', edgesOnEdge)
@@ -1099,38 +1122,37 @@ contains
 
                      nEdges = nEdgesArray( edgeHaloComputeCounter )
 
-                     !$omp do schedule(runtime) private(cell1, cell2, eoe, CoriolisTerm, i, sshCell1, sshCell2)
+                     !$omp do schedule(runtime) private(cell1, cell2, CoriolisTerm1, Coriolisterm2, i, eoe, flux1, flux2, flux)
                      do iEdge = 1, nEdges
 
-                        ! asarje: added to avoid redundant computations based on mask
+                        ! Asarje: added to avoid redundant computations based on mask
                         temp_mask = edgeMask(1,iEdge)
 
                         cell1 = cellsOnEdge(1,iEdge)
                         cell2 = cellsOnEdge(2,iEdge)
 
                         ! Compute the barotropic Coriolis term, -f*uPerp
-                        CoriolisTerm = 0.0_RKIND
+                        CoriolisTerm1 = 0.0_RKIND
+                        CoriolisTerm2 = 0.0_RKIND
                         do i = 1, nEdgesOnEdge(iEdge)
                            eoe = edgesOnEdge(i,iEdge)
-                           CoriolisTerm = CoriolisTerm &
-                              + weightsOnEdge(i,iEdge) * btrvel_temp(eoe) * fEdge(eoe)
+                           CoriolisTerm1 = CoriolisTerm1 + weightsOnEdge(i,iEdge) * normalBarotropicVelocitySubcycleCur(eoe) * fEdge(eoe)
+                           CoriolisTerm2 = CoriolisTerm2 + weightsOnEdge(i,iEdge) * normalBarotropicVelocitySubcyclePredictor(eoe) * fEdge(eoe)
                         end do
 
-                        ! In this final solve for velocity, SSH is a linear combination of SSHold and SSHnew.
-                        sshCell1 = (1 - config_btr_gam2_SSHWt1) * sshSubcycleCur(cell1) &
-                           + config_btr_gam2_SSHWt1 * sshSubcycleNew(cell1)
-                        sshCell2 = (1 - config_btr_gam2_SSHWt1) * sshSubcycleCur(cell2) &
-                           + config_btr_gam2_SSHWt1 * sshSubcycleNew(cell2)
+                        flux1 = CoriolisTerm1 - gravity * (sshSubcycleCur(cell2) - sshSubcycleCur(cell1) ) / dcEdge(iEdge) &
+                           + REAL(j,KIND=RKIND)/REAL(nBtrSubcycles,KIND=RKIND)*barotropicForcing(iEdge)
+                        flux2 = CoriolisTerm2 - gravity * (sshSubcyclePredictor(cell2) - sshSubcyclePredictor(cell1) ) / dcEdge(iEdge) &
+                           + REAL(j,KIND=RKIND)/REAL(nBtrSubcycles,KIND=RKIND)*barotropicForcing(iEdge)                           
+                           
+                        ! In this final solve for velocity, flux is a linear combination of flux1 (flux_current) and flux2 (flux_predictor).    
+                        flux = (1.0_RKIND - config_btr_gam2_SSHWt1) * flux1 + config_btr_gam2_SSHWt1 * flux2
 
-                        !--------------------------------------------------------------------------------------------------------!
-                        ! normalBarotropicVelocityNew = normalBarotropicVelocityOld + dt/J*(-f*normalBarotropicVelocityoldPerp & !
-                        !                               - g*grad(SSH) + G)                                                       !
-                        !--------------------------------------------------------------------------------------------------------!
+                        !-----------------------------------------------------------------------!
+                        ! normalBarotropicVelocityNew = normalBarotropicVelocityOld + dt/J*flux !
+                        !-----------------------------------------------------------------------!
                         normalBarotropicVelocitySubcycleNew(iEdge) = temp_mask &
-                           * (normalBarotropicVelocitySubcycleCur(iEdge) &
-                           + dt / nBtrSubcycles &
-                           * (CoriolisTerm - gravity * (sshCell2 - sshCell1) / dcEdge(iEdge) &
-                           + REAL(j,KIND=RKIND)/REAL(nBtrSubcycles,KIND=RKIND)*barotropicForcing(iEdge)))
+                           * (normalBarotropicVelocitySubcycleCur(iEdge) + dt / nBtrSubcycles * flux)
 
                      end do
                      !$omp end do
@@ -1175,10 +1197,12 @@ contains
                      call mpas_pool_get_array(meshPool, 'edgeSignOnCell', edgeSignOnCell)
                      call mpas_pool_get_array(meshPool, 'dvEdge', dvEdge)
 
-                     call mpas_pool_get_array(statePool, 'sshSubcycle', sshSubcycleCur, oldBtrSubcycleTime)
+                     call mpas_pool_get_array(statePool, 'sshSubcycle', sshSubcycleCur, oldBtrSubcycleTime)                    
+                     call mpas_pool_get_array(statePool, 'sshSubcyclePredictor', sshSubcyclePredictor, 1)                     
                      call mpas_pool_get_array(statePool, 'sshSubcycle', sshSubcycleNew, newBtrSubcycleTime)
                      call mpas_pool_get_array(statePool, 'normalBarotropicVelocitySubcycle', normalBarotropicVelocitySubcycleCur, &
-                        oldBtrSubcycleTime)
+                        oldBtrSubcycleTime)                        
+                     call mpas_pool_get_array(statePool, 'normalBarotropicVelocitySubcyclePredictor', normalBarotropicVelocitySubcyclePredictor, 1)                                                
                      call mpas_pool_get_array(statePool, 'normalBarotropicVelocitySubcycle', normalBarotropicVelocitySubcycleNew, &
                         newBtrSubcycleTime)
 
@@ -1191,84 +1215,113 @@ contains
                      nCells = nCellsArray( cellHaloComputeCounter )
                      nEdges = nEdgesArray( edgeHaloComputeCounter )
 
-                     !------------------------------------------------------------------------------------------------------------------------------------!
-                     ! config_btr_gam3_velWt2 and config_btr_gam4_velWt2 set the forward weighting of velocity in the SSH computation                     !
-                     ! config_btr_gam3_velWt2 = 1 and config_btr_gam4_velWt2 = 0   flux = normalBarotropicVelocityNew*H                                   !
-                     ! config_btr_gam3_velWt2 = 0.5 and config_btr_gam4_velWt2 = 0 flux = 1/2*(normalBarotropicVelocityNew+normalBarotropicVelocityOld)*H !
-                     ! config_btr_gam3_velWt2 = 0 and config_btr_gam4_velWt2 = 0   flux = normalBarotropicVelocityOld*H                                   !
-                     !------------------------------------------------------------------------------------------------------------------------------------!
+                     !------------------------------------------------------------------------------------------------------------------------------!
+                     ! flux1 = normalBarotropicVelocitySubcycleOld*HOld                                                                             !
+                     ! flux2 = normalBarotropicVelocitySubcyclePredictor*HPredictor                                                                 !
+                     ! flux3 = normalBarotropicVelocitySubcycleCorrector*HCorrector                                                                 !
+                     ! flux = (1-config_btr_gam3_velWt2-config_btr_gam4_velWt2)*flux1 + config_btr_gam3_velWt2*flux2 + config_btr_gam4_velWt2*flux3 !
+                     !------------------------------------------------------------------------------------------------------------------------------!
 
-                     !$omp do schedule(runtime) private(i, iEdge, cell1, cell2, sshCell1, sshCell2, sshEdge, thicknessSum, flux)
-                     do iCell = 1, nCells
-                        sshTend(iCell) = 0.0_RKIND
-                        do i = 1, nEdgesOnCell(iCell)
-                           iEdge = edgesOnCell(i, iCell)
+                     !-----------------------------------------------------------------------------------------------------------------!
+                     ! config_btr_gam3_velWt2 and config_btr_gam4_velWt2 set the forward weighting of velocity in the SSH computation. !
+                     ! config_btr_gam3_velWt2 = 1.0 and config_btr_gam4_velWt2 = 1.0   flux = -flux1 + flux2 + flux3                   !
+                     ! config_btr_gam3_velWt2 = 1.0 and config_btr_gam4_velWt2 = 0.5   flux = -1/2*flux1 + flux2 + 1/2*flux3           !
+                     ! config_btr_gam3_velWt2 = 1.0 and config_btr_gam4_velWt2 = 0.0   flux = flux2                                    !
+                     !                                                                                                                 !
+                     ! config_btr_gam3_velWt2 = 0.5 and config_btr_gam4_velWt2 = 1.0   flux = -1/2*flux1 + 1/2*flux2 + flux3           !
+                     ! config_btr_gam3_velWt2 = 0.5 and config_btr_gam4_velWt2 = 0.5   flux = 1/2*flux2 + 1/2*flux3                    !
+                     ! config_btr_gam3_velWt2 = 0.5 and config_btr_gam4_velWt2 = 0.0   flux = 1/2*flux1 + 1/2*flux2                    !
+                     !                                                                                                                 !
+                     ! config_btr_gam3_velWt2 = 0.0 and config_btr_gam4_velWt2 = 1.0   flux = flux3                                    !
+                     ! config_btr_gam3_velWt2 = 0.0 and config_btr_gam4_velWt2 = 0.5   flux = 1/2*flux1 + 1/2*flux3                    !
+                     ! config_btr_gam3_velWt2 = 0.0 and config_btr_gam4_velWt2 = 0.0   flux = flux1                                    ! 
+                     !-----------------------------------------------------------------------------------------------------------------!
 
-                           cell1 = cellsOnEdge(1,iEdge)
-                           cell2 = cellsOnEdge(2,iEdge)
+                     sshSubcycleNew(:) = sshSubcyclePredictor(:)
+                     
+                     do iIteration = 1, config_nIterations_BtrSubcycling_Corrector
+                     
+                        !$omp do schedule(runtime) private(iIteration, i, iEdge, cell1, cell2, sshEdge1, sshEdge2, sshEdge3, thicknessSum1, thicknessSum2, thicknessSum3, flux1, flux2, flux3, flux)
+                        do iCell = 1, nCells
 
-                           ! SSH is a linear combination of SSHold and SSHnew.
-                           sshCell1 = (1-config_btr_gam2_SSHWt1)* sshSubcycleCur(cell1) &
-                              +   config_btr_gam2_SSHWt1 * sshSubcycleNew(cell1)
-                           sshCell2 = (1-config_btr_gam2_SSHWt1)* sshSubcycleCur(cell2) &
-                              +   config_btr_gam2_SSHWt1 * sshSubcycleNew(cell2)
+                           sshTend(iCell) = 0.0_RKIND
+                        
+                           do i = 1, nEdgesOnCell(iCell)
+                           
+                              iEdge = edgesOnCell(i, iCell)
+   
+                              cell1 = cellsOnEdge(1,iEdge)
+                              cell2 = cellsOnEdge(2,iEdge)
+   
+                              ! SSH is a linear combination of SSHold, SSHpredictor and SSHnew (SSHcorrector).
+                              sshEdge1 = 0.5_RKIND * (sshSubcycleCur(cell1) + sshSubcycleCur(cell2))                          
+                              sshEdge2 = 0.5_RKIND * (sshSubcyclePredictor(cell1) + sshSubcyclePredictor(cell2))
+                              sshEdge3 = 0.5_RKIND * (sshSubcycleNew(cell1) + sshSubcycleNew(cell2))
 
-                           sshEdge = 0.5_RKIND * (sshCell1 + sshCell2)
-
-                           !----------------------------------------------------------------------------!
-                           ! Method 0: orig, works only without pbc:                                    !
-                           ! thicknessSum = sshEdge + refBottomDepthTopOfCell(maxLevelEdgeTop(iEdge)+1) !
-                           !                                                                            !
-                           ! Method 1, matches method 0 without pbcs, works with pbcs.                  !
-                           !----------------------------------------------------------------------------!
-                           thicknessSum = sshEdge + min(bottomDepth(cell1), bottomDepth(cell2))
-
-                           !----------------------------------------------------------------------------!
-                           ! Method 2: may be better than method 1.                                     !
-                           ! Take average  of full thickness at two neighboring cells.                  !
-                           ! thicknessSum = sshEdge + 0.5 *( bottomDepth(cell1) + bottomDepth (cell2) ) !
-                           !----------------------------------------------------------------------------!
-                           flux = ((1.0-config_btr_gam3_velWt2-config_btr_gam4_velWt2) * normalBarotropicVelocitySubcycleCur(iEdge) &
-                              + config_btr_gam4_velWt2 * btrvel_temp(iEdge) + config_btr_gam3_velWt2 * normalBarotropicVelocitySubcycleNew(iEdge)) &
-                              * thicknessSum
-
-                           sshTend(iCell) = sshTend(iCell) + edgeSignOnCell(i, iCell) * flux &
-                              * dvEdge(iEdge)
-
-                        end do
-
-                        ! SSHnew = SSHold + dt/J*(-div(Flux))
-                        sshSubcycleNew(iCell) = sshSubcycleCur(iCell) &
-                           + dt / nBtrSubcycles * sshTend(iCell) / areaCell(iCell)
+                              !----------------------------------------------------------------------------!
+                              ! Method 0: orig, works only without pbc:                                    !
+                              ! thicknessSum = sshEdge + refBottomDepthTopOfCell(maxLevelEdgeTop(iEdge)+1) !
+                              !                                                                            !
+                              ! Method 1, matches method 0 without pbcs, works with pbcs.                  !
+                              !                                                                            !
+                              ! Method 2: may be better than method 1.                                     !
+                              ! Take average  of full thickness at two neighboring cells.                  !
+                              ! thicknessSum = sshEdge + 0.5 *( bottomDepth(cell1) + bottomDepth (cell2))  !
+                              !----------------------------------------------------------------------------!                                                
+                              thicknessSum1 = sshEdge1 + min(bottomDepth(cell1), bottomDepth(cell2))                           
+                              thicknessSum2 = sshEdge2 + min(bottomDepth(cell1), bottomDepth(cell2))
+                              thicknessSum3 = sshEdge3 + min(bottomDepth(cell1), bottomDepth(cell2))
+                                                         
+                              flux1 = normalBarotropicVelocitySubcycleCur(iEdge)*thicknessSum1
+                              flux2 = normalBarotropicVelocitySubcyclePredictor(iEdge)*thicknessSum2 
+                              flux3 = normalBarotropicVelocitySubcycleNew(iEdge)*thicknessSum3
+                                                        
+                              flux = (1.0_RKIND-config_btr_gam3_velWt2-config_btr_gam4_velWt2) * flux1 &
+                                 + config_btr_gam3_velWt2 * flux2 + config_btr_gam4_velWt2 * flux3
+                                                                  
+                              sshTend(iCell) = sshTend(iCell) + edgeSignOnCell(i, iCell) * flux * dvEdge(iEdge)                              
+   
+                           end do
+   
+                           ! SSHnew = SSHold + dt/J*(-div(Flux))
+                           sshSubcycleNew(iCell) = sshSubcycleCur(iCell) + dt / nBtrSubcycles * sshTend(iCell) / areaCell(iCell)
+                           
+                        end do   
+                        !$omp end do 
+  
                      end do
-                     !$omp end do
 
-                     !$omp do schedule(runtime) private(cell1, cell2, sshCell1, sshCell2, sshEdge, thicknessSum, flux)
+                     !$omp do schedule(runtime) private(cell1, cell2, sshEdge1, sshEdge2, sshEdge3, thicknessSum1, thicknessSum2, thicknessSum3, flux1, flux2, flux3, flux)
                      do iEdge = 1, nEdges
+                     
                         cell1 = cellsOnEdge(1,iEdge)
                         cell2 = cellsOnEdge(2,iEdge)
 
-                        ! SSH is a linear combination of SSHold and SSHnew.
-                        sshCell1 = (1-config_btr_gam2_SSHWt1)* sshSubcycleCur(cell1) + config_btr_gam2_SSHWt1 * sshSubcycleNew(cell1)
-                        sshCell2 = (1-config_btr_gam2_SSHWt1)* sshSubcycleCur(cell2) + config_btr_gam2_SSHWt1 * sshSubcycleNew(cell2)
-                        sshEdge = 0.5_RKIND * (sshCell1 + sshCell2)
-
+                        ! SSH is a linear combination of SSHold, SSHpredictor and SSHnew (SSHcorrector).                        
+                        sshEdge1 = 0.5_RKIND * (sshSubcycleCur(cell1) + sshSubcycleCur(cell2))                          
+                        sshEdge2 = 0.5_RKIND * (sshSubcyclePredictor(cell1) + sshSubcyclePredictor(cell2))
+                        sshEdge3 = 0.5_RKIND * (sshSubcycleNew(cell1) + sshSubcycleNew(cell2))          
+                        
                         !----------------------------------------------------------------------------!
                         ! Method 0: orig, works only without pbc:                                    !
                         ! thicknessSum = sshEdge + refBottomDepthTopOfCell(maxLevelEdgeTop(iEdge)+1) !
                         !                                                                            !
                         ! Method 1, matches method 0 without pbcs, works with pbcs.                  !
-                        !----------------------------------------------------------------------------!
-                        thicknessSum = sshEdge + min(bottomDepth(cell1), bottomDepth(cell2))
-
-                        !---------------------------------------------------------------------------!
-                        ! Method 2, better, I think.                                                !
-                        ! Take average  of full thickness at two neighboring cells                  !
-                        ! thicknessSum = sshEdge + 0.5 *( bottomDepth(cell1) + bottomDepth(cell2) ) !
-                        !---------------------------------------------------------------------------!
-                        flux = ((1.0-config_btr_gam3_velWt2-config_btr_gam4_velWt2) * normalBarotropicVelocitySubcycleCur(iEdge) &
-                           + config_btr_gam4_velWt2 * btrvel_temp(iEdge) + config_btr_gam3_velWt2 * normalBarotropicVelocitySubcycleNew(iEdge)) &
-                           * thicknessSum
+                        !                                                                            !
+                        ! Method 2: may be better than method 1.                                     !
+                        ! Take average  of full thickness at two neighboring cells.                  !
+                        ! thicknessSum = sshEdge + 0.5 *( bottomDepth(cell1) + bottomDepth (cell2))  !
+                        !----------------------------------------------------------------------------!                           
+                        thicknessSum1 = sshEdge1 + min(bottomDepth(cell1), bottomDepth(cell2))                           
+                        thicknessSum2 = sshEdge2 + min(bottomDepth(cell1), bottomDepth(cell2))
+                        thicknessSum3 = sshEdge3 + min(bottomDepth(cell1), bottomDepth(cell2))
+                                                   
+                        flux1 = normalBarotropicVelocitySubcycleCur(iEdge)*thicknessSum1
+                        flux2 = normalBarotropicVelocitySubcyclePredictor(iEdge)*thicknessSum2 
+                        flux3 = normalBarotropicVelocitySubcycleNew(iEdge)*thicknessSum3
+                                                  
+                        flux = (1.0_RKIND-config_btr_gam3_velWt2-config_btr_gam4_velWt2) * flux1 &
+                           + config_btr_gam3_velWt2 * flux2 + config_btr_gam4_velWt2 * flux3                        
                                                 
                         barotropicThicknessFlux(iEdge) = barotropicThicknessFlux(iEdge) + PrimaryWeights(j) * flux
                         barotropicThicknessFluxSW(iEdge) = barotropicThicknessFluxSW(iEdge) + SecondaryWeights(j) * flux 
@@ -1588,7 +1641,7 @@ contains
             call mpas_pool_get_array(statePool, 'lowFreqDivergence', lowFreqDivergenceNew, 2)
             call mpas_pool_get_array(statePool, 'normalBarotropicVelocity', normalBarotropicVelocityCur, 1)
             call mpas_pool_get_array(statePool, 'normalBarotropicVelocity', normalBarotropicVelocityNew, 2)
-            call mpas_pool_get_array(statePool, 'normalBarotropicVelocitySW', normalBarotropicVelocitySWNew, 2)
+            call mpas_pool_get_array(statePool, 'normalBarotropicVelocitySW', normalBarotropicVelocitySWNew, 2) 
             call mpas_pool_get_array(statePool, 'normalBaroclinicVelocity', normalBaroclinicVelocityCur, 1)
             call mpas_pool_get_array(statePool, 'normalBaroclinicVelocity', normalBaroclinicVelocityNew, 2)
 
