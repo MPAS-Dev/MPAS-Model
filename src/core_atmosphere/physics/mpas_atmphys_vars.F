@@ -421,10 +421,11 @@
     ol2_p,            &!orographic direction asymmetry function                                                [-]
     ol3_p,            &!orographic direction asymmetry function                                                [-]
     ol4_p              !orographic direction asymmetry function                                                [-]
+!$acc declare create(oa1_p,oa2_p,oa3_p,oa4_p,ol1_p,ol2_p, &
+!$acc ol3_p,ol4_p,var2d_p,con_p)
 
  real(kind=RKIND),dimension(:,:),allocatable:: &
     dx_p               !mean distance between cell centers                                                     [m]
-!$acc declare create(dx_p)
 
  real(kind=RKIND),dimension(:,:),allocatable:: &
     dusfcg_p,         &!vertically-integrated gwdo u-stress                                             [Pa m s-1]
@@ -433,6 +434,7 @@
  real(kind=RKIND),dimension(:,:,:),allocatable:: &
     dtaux3d_p,        &!gravity wave drag over orography u-stress                                          [m s-1]
     dtauy3d_p          !gravity wave drag over orography u-stress                                          [m s-1]
+!$acc declare create(dx_p,dusfcg_p,dvsfcg_p,dtaux3d_p,dtauy3d_p)
 
 !=================================================================================================================
 !... variables and arrays related to parameterization of surface layer:

@@ -133,6 +133,7 @@
 !local pointers:
  integer,dimension(:),pointer:: kpbl
  real(kind=RKIND),pointer:: len_disp
+ real(kind=RKIND):: slen_disp
  real(kind=RKIND),dimension(:),pointer  :: meshDensity
  real(kind=RKIND),dimension(:),pointer  :: oa1,oa2,oa3,oa4,ol1,ol2,ol3,ol4,con,var2d
  real(kind=RKIND),dimension(:),pointer  :: dusfcg,dvsfcg
@@ -142,6 +143,8 @@
 
  call mpas_pool_get_config(configs,'config_len_disp',len_disp)
  call mpas_pool_get_array_gpu(mesh,'meshDensity',meshDensity)
+
+ slen_disp = len_disp
 
  call mpas_pool_get_array_gpu(sfc_input,'oa1'  ,oa1  )
  call mpas_pool_get_array_gpu(sfc_input,'oa2'  ,oa2  )
@@ -162,10 +165,12 @@
  call mpas_pool_get_array_gpu(tend_physics,'rublten' ,rublten )
  call mpas_pool_get_array_gpu(tend_physics,'rvblten' ,rvblten )
 
- !$acc update host(meshDensity,oa1,oa2,oa3,oa4,ol1,ol2,ol3, &
- !$acc ol4,con,var2d,kpbl,dusfcg,dvsfcg,dtaux3d,dtauy3d, &
- !$acc rublten,rvblten)
+! !$acc update host(meshDensity,oa1,oa2,oa3,oa4,ol1,ol2,ol3, &
+! !$acc ol4,con,var2d,kpbl,dusfcg,dvsfcg,dtaux3d,dtauy3d, &
+! !$acc rublten,rvblten)
 
+!$acc parallel vector_length(32)
+!$acc loop gang vector collapse(2)
  do j = jts,jte
  do i = its,ite
     var2d_p(i,j) = var2d(i)
@@ -181,18 +186,20 @@
  enddo
  enddo
 
+!$acc loop gang vector collapse(2)
  do j = jts,jte
  do i = its,ite
-    dx_p(i,j) = len_disp / meshDensity(i)**0.25
+    dx_p(i,j) = slen_disp / meshDensity(i)**0.25
     kpbl_p(i,j)   = kpbl(i)
     dusfcg_p(i,j) = dusfcg(i)
     dvsfcg_p(i,j) = dvsfcg(i)
  enddo
  enddo
 
+!$acc loop gang vector collapse(3)
  do j = jts,jte
- do k = kts,kte
  do i = its,ite
+ do k = kts,kte
     dtaux3d_p(i,k,j) = dtaux3d(k,i)
     dtauy3d_p(i,k,j) = dtauy3d(k,i)
     rublten_p(i,k,j) = rublten(k,i)
@@ -200,6 +207,11 @@
  enddo
  enddo
  enddo
+!$acc end parallel
+
+!!$acc update host(var2d_p,con_p,oa1_p,oa2_p,oa3_p,oa4_p, &
+!!$acc ol1_p,ol2_p,ol3_p,ol4_p,dx_p,kpbl_p,dusfcg_p,dvsfcg_p, &
+!!$acc dtaux3d_p,dtauy3d_p,rublten_p,rvblten_p)
 
  end subroutine gwdo_from_MPAS
  
@@ -232,6 +244,11 @@
  call mpas_pool_get_array_gpu(tend_physics,'rublten' ,rublten )
  call mpas_pool_get_array_gpu(tend_physics,'rvblten' ,rvblten )
 
+!!$acc update device(dusfcg_p,dvsfcg_p,dtaux3d_p,dtauy3d_p, &
+!!$acc rublten_p,rvblten_p)
+
+!$acc parallel vector_length(32)
+!$acc loop gang vector collapse(2)
  do j = jts,jte
  do i = its,ite
     dusfcg(i) = dusfcg_p(i,j) 
@@ -239,9 +256,10 @@
  enddo
  enddo
 
+!$acc loop gang vector collapse(3)
  do j = jts,jte
- do k = kts,kte
  do i = its,ite
+ do k = kts,kte
     dtaux3d(k,i)  = dtaux3d_p(i,k,j)
     dtauy3d(k,i)  = dtauy3d_p(i,k,j)
     rubldiff(k,i) = rublten_p(i,k,j)-rublten(k,i)
@@ -251,9 +269,10 @@
  enddo
  enddo
  enddo
+!$acc end parallel
 
- !$acc update device(dusfcg,dvsfcg,dtaux3d,dtauy3d,rubldiff, &
- !$acc rvbldiff,rublten,rvblten)
+! !$acc update device(dusfcg,dvsfcg,dtaux3d,dtauy3d,rubldiff, &
+! !$acc rvbldiff,rublten,rvblten)
 
  end subroutine gwdo_to_MPAS
  
