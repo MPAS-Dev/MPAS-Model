@@ -7902,10 +7902,10 @@ if (config_horiz_mixing == "2d_smagorinsky") then
 
 !$acc end data
 
-!$acc update host(ru, ru_save, rw, rw_save, &
-!$acc rtheta_p,rtheta_p_save,rho_p,rho_p_save, &
-!$acc rho_zz_old_split,ruAvg,ruAvg_split, wwAvg, wwAvg_split, &
-!$acc u_1,u_2,w_1,w_2,theta_m_1,theta_m_2,rho_zz_1,rho_zz_2)
+!!$acc update host(ru, ru_save, rw, rw_save, &
+!!$acc rtheta_p,rtheta_p_save,rho_p,rho_p_save, &
+!!$acc rho_zz_old_split,ruAvg,ruAvg_split, wwAvg, wwAvg_split, &
+!!$acc u_1,u_2,w_1,w_2,theta_m_1,theta_m_2,rho_zz_1,rho_zz_2)
 
 
    end subroutine atm_rk_dynamics_substep_finish_work
