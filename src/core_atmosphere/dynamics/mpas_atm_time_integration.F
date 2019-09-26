@@ -1781,9 +1781,9 @@ module atm_time_integration
       !
 #endif
 
-      call mpas_timer_start('atm_rk_summary')
-      call summarize_timestep(domain)
-      call mpas_timer_stop('atm_rk_summary')
+!      call mpas_timer_start('atm_rk_summary')
+!      call summarize_timestep(domain)
+!      call mpas_timer_stop('atm_rk_summary')
 
    end subroutine atm_srk3
 
