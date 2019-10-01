@@ -447,7 +447,7 @@ module atm_time_integration
       real (kind=RKIND), dimension(:,:), pointer :: gpu_rtheta_pp, gpu_u_1, gpu_u_2, gpu_w_1, gpu_w_2
       real (kind=RKIND), dimension(:,:), pointer :: gpu_tend_u, gpu_ru_p, gpu_rw_p, gpu_rho_pp, gpu_pv_edge, gpu_rho_edge
       real (kind=RKIND), dimension(:,:,:), pointer :: gpu_scalars_1, gpu_scalars_2
-      integer, dimension(2) :: gpuArraySize
+      integer, dimension(3) :: gpuArraySize
       ! Local variables for indexing
       integer :: levelsIdx, scalarsIdx
       integer :: tmpnum_scalars, tmpnCells, tmpnVertLevels, tmpnEdges
