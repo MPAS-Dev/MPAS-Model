@@ -6463,7 +6463,7 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
           do iHalo = 1, nHaloLayers
            do  i = 1, localMax
                if(i<=gpu_nList_send(counter*nHaloLayers+iHalo)) then
-                tempRbuffer((compactHaloInfo(gpu_idx_send(counter*nHaloLayers+iHalo) + gpu_nList_send(counter*nHaloLayers+iHalo) + i)-1) &
+                tempRbuffer(compactHaloInfo(gpu_idx_send(counter*nHaloLayers+iHalo) + gpu_nList_send(counter*nHaloLayers+iHalo) + i) &
                 + gpu_bufferOffset_send(counter*nHaloLayers+iHalo)) = array(compactHaloInfo(gpu_idx_send(counter*nHaloLayers+iHalo) + i))
                end if 
             end do
@@ -6502,7 +6502,7 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
            do i = 1, localMax
              if(i<=gpu_nList_recv(counter*nHaloLayers+iHalo)) then
                 array(compactHaloInfo(gpu_idx_recv(counter*nHaloLayers+iHalo) + gpu_nList_recv(counter*nHaloLayers+iHalo) + i)) &
-                = tempRbuffer((compactHaloInfo(gpu_idx_recv(counter*nHaloLayers+iHalo) + i)-1) + gpu_bufferOffset_recv(counter*nHaloLayers+iHalo))
+                = tempRbuffer(compactHaloInfo(gpu_idx_recv(counter*nHaloLayers+iHalo) + i) + gpu_bufferOffset_recv(counter*nHaloLayers+iHalo))
              end if
             end do
           end do
