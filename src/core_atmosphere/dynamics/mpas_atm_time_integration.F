@@ -35,7 +35,10 @@ module atm_time_integration
 
    ! Used to store physics tendencies for dynamics variables
    real (kind=RKIND), allocatable, dimension(:,:) :: tend_ru_physics, tend_rtheta_physics, tend_rho_physics
-!$acc declare create(tend_ru_physics, tend_rtheta_physics, tend_rho_physics)   
+!$acc declare create(tend_ru_physics, tend_rtheta_physics, tend_rho_physics)  
+   ! Used in physics_get_tend
+   real(kind=RKIND),dimension(:,:),allocatable:: tend_th 
+!$acc declare create(tend_th)
    ! Used in compute_dyn_tend
    real (kind=RKIND), allocatable, dimension(:,:) :: qtot 
 !$acc declare create(qtot)
@@ -86,11 +89,13 @@ module atm_time_integration
    integer, dimension(:), pointer :: gpu_idx_recv_c_v_s,gpu_bufferoffset_recv_c_v_s,gpu_nList_recv_c_v_s
    integer, dimension(:), pointer :: gpu_idx_send_c_2_v,gpu_bufferoffset_send_c_2_v,gpu_nList_send_c_2_v
    integer, dimension(:), pointer :: gpu_idx_recv_c_2_v,gpu_bufferoffset_recv_c_2_v,gpu_nList_recv_c_2_v
-   integer, dimension(2) :: gpu_dimSizes_c_v,gpu_dimSizes_c_vP1, gpu_dimSizes_e_v, gpu_dimSizes_c_v_S,gpu_dimSizes_c_2_v
+   integer, dimension(2) :: gpu_dimSizes_c_v,gpu_dimSizes_c_vP1, gpu_dimSizes_e_v
+   integer, dimension(3) :: gpu_dimSizes_c_v_S,gpu_dimSizes_c_2_v
    integer :: gpu_nHaloLayers_c_v, gpu_nHaloLayers_c_vP1, gpu_nHaloLayers_e_v, gpu_nHaloLayers_c_v_S, gpu_nHaloLayers_c_2_v
    integer :: gpu_send_size_c_v, gpu_send_size_c_vP1, gpu_send_size_e_v, gpu_send_size_c_v_S, gpu_send_size_c_2_v
    integer :: gpu_recv_size_c_v, gpu_recv_size_c_vP1, gpu_recv_size_e_v, gpu_recv_size_c_v_S, gpu_recv_size_c_2_v
-   integer :: gpu_compactHaloInfoSize_c_v, gpu_compactHaloInfoSize_c_vP1, gpu_compactHaloInfoSize_e_v,gpu_compactHaloInfoSize_c_v_S
+   !integer :: gpu_compactHaloInfoSize_c_v, gpu_compactHaloInfoSize_c_vP1, gpu_compactHaloInfoSize_e_v,gpu_compactHaloInfoSize_c_v_S
+   integer :: gpu_compactHaloInfoSize_c_v, gpu_compactHaloInfoSize_c_vP1, gpu_compactHaloInfoSize_e_v,gpu_compactHaloInfoSize_c_v_s, gpu_compactHaloInfoSize_c_2_v
    type (mpas_communication_list), pointer, private :: sendList_c_v => null()
    type (mpas_communication_list), pointer, private :: recvList_c_v => null()
    type (mpas_communication_list), pointer, private :: sendList_c_vP1 => null()
@@ -155,6 +160,12 @@ module atm_time_integration
       call mpas_pool_get_field(state, 'scalars', field_3d_ptr, 1)
       call mpas_dmpar_compact_halo_info(field_3d_ptr, compactHaloInfo_c_v_s)
 
+      call mpas_dmpar_gpu_init_3d_real_acc(field_3d_ptr%array, compactHaloInfo_c_v_s,sendList_c_v_s, recvList_c_v_s, gpu_bufferOffset_send_c_v_s, &
+                                              gpu_nList_send_c_v_s, gpu_idx_send_c_v_s, gpu_bufferOffset_recv_c_v_s, gpu_nList_recv_c_v_s,&
+                                              gpu_idx_recv_c_v_s, gpu_dimsizes_c_v_s, gpu_nHaloLayers_c_v_s )
+      gpu_send_size_c_v_s = size(gpu_nList_send_c_v_s)
+      gpu_recv_size_c_v_s = size(gpu_nList_recv_c_v_s)
+      gpu_compactHaloInfoSize_c_v_s = size(compactHaloInfo_c_v_s)
       call mpas_pool_get_field(state, 'u', field_2d_ptr, 1)
       call mpas_dmpar_compact_halo_info(field_2d_ptr, compactHaloInfo_e_v)
       call mpas_dmpar_gpu_init_2d_real_acc(field_2d_ptr%array, compactHaloInfo_e_v,sendList_e_v, recvList_e_v, gpu_bufferOffset_send_e_v, &
@@ -178,6 +189,12 @@ module atm_time_integration
       field_3d_ptr % isActive = .true.
       allocate(field_3d_ptr % array(nVertLevels, 2, nCells+1))
       call mpas_dmpar_compact_halo_info(field_3d_ptr, compactHaloInfo_c_2_v)
+      call mpas_dmpar_gpu_init_3d_real_acc(field_3d_ptr%array, compactHaloInfo_c_2_v,sendList_c_2_v, recvList_c_2_v, gpu_bufferOffset_send_c_2_v, &
+                                              gpu_nList_send_c_2_v, gpu_idx_send_c_2_v, gpu_bufferOffset_recv_c_2_v, gpu_nList_recv_c_2_v,&
+                                              gpu_idx_recv_c_2_v, gpu_dimsizes_c_2_v, gpu_nHaloLayers_c_2_v)
+      gpu_send_size_c_2_v = size(gpu_nList_send_c_2_v)
+      gpu_recv_size_c_2_v = size(gpu_nList_recv_c_2_v)
+      gpu_compactHaloInfoSize_c_2_v = size(compactHaloInfo_c_2_v)
 
       call mpas_gpu_halo_init(domain, compactHaloInfo_c_v, compactHaloInfo_c_vP1, &
                 compactHaloInfo_c_v_s, compactHaloInfo_e_v, compactHaloInfo_c_2_v, gpu_bufferOffset_send_c_v, &
@@ -186,19 +203,27 @@ module atm_time_integration
                 gpu_nList_send_c_vP1, gpu_idx_send_c_vP1, gpu_bufferOffset_recv_c_vP1, gpu_nList_recv_c_vP1,&
                 gpu_idx_recv_c_vP1, gpu_dimsizes_c_vP1, gpu_nHaloLayers_c_vP1, gpu_bufferOffset_send_e_v, &
                 gpu_nList_send_e_v, gpu_idx_send_e_v, gpu_bufferOffset_recv_e_v, gpu_nList_recv_e_v,&
-                gpu_idx_recv_e_v, gpu_dimsizes_e_v, gpu_nHaloLayers_e_v)
+                gpu_idx_recv_e_v, gpu_dimsizes_e_v, gpu_nHaloLayers_e_v,gpu_bufferOffset_send_c_v_s, &
+                gpu_nList_send_c_v_s, gpu_idx_send_c_v_s, gpu_bufferOffset_recv_c_v_s, gpu_nList_recv_c_v_s,&
+                gpu_idx_recv_c_v_s, gpu_dimsizes_c_v_s, gpu_nHaloLayers_c_v_s, gpu_bufferOffset_send_c_2_v, &
+                gpu_nList_send_c_2_v, gpu_idx_send_c_2_v, gpu_bufferOffset_recv_c_2_v, gpu_nList_recv_c_2_v,&
+                gpu_idx_recv_c_2_v, gpu_dimsizes_c_2_v, gpu_nHaloLayers_c_2_v)
       deallocate(field_3d_ptr % array)
       deallocate(field_3d_ptr)
    end subroutine mpas_atm_dynamics_init
 
    subroutine mpas_gpu_halo_init(domain, compactHaloInfo_c_v,compactHaloInfo_c_vP1,&
-                        compactHaloInfo_c_v_s,compactHaloInfo_e_v,compactHaloInfo_c_2_v, gpu_bufferOffset_send_c_v, &
+                compactHaloInfo_c_v_s,compactHaloInfo_e_v,compactHaloInfo_c_2_v, gpu_bufferOffset_send_c_v, &
                 gpu_nList_send_c_v, gpu_idx_send_c_v, gpu_bufferOffset_recv_c_v, gpu_nList_recv_c_v,&
                 gpu_idx_recv_c_v, gpu_dimsizes_c_v, gpu_nHaloLayers_c_v, gpu_bufferOffset_send_c_vP1, &
                 gpu_nList_send_c_vP1, gpu_idx_send_c_vP1, gpu_bufferOffset_recv_c_vP1, gpu_nList_recv_c_vP1,&
                 gpu_idx_recv_c_vP1, gpu_dimsizes_c_vP1, gpu_nHaloLayers_c_vP1, gpu_bufferOffset_send_e_v, &
                 gpu_nList_send_e_v, gpu_idx_send_e_v, gpu_bufferOffset_recv_e_v, gpu_nList_recv_e_v,&
-                gpu_idx_recv_e_v, gpu_dimsizes_e_v, gpu_nHaloLayers_e_v)
+                gpu_idx_recv_e_v, gpu_dimsizes_e_v, gpu_nHaloLayers_e_v,gpu_bufferOffset_send_c_v_s, &
+                gpu_nList_send_c_v_s, gpu_idx_send_c_v_s, gpu_bufferOffset_recv_c_v_s, gpu_nList_recv_c_v_s,&
+                gpu_idx_recv_c_v_s, gpu_dimsizes_c_v_s, gpu_nHaloLayers_c_v_s, gpu_bufferOffset_send_c_2_v,&
+                gpu_nList_send_c_2_v, gpu_idx_send_c_2_v, gpu_bufferOffset_recv_c_2_v, gpu_nList_recv_c_2_v, &
+                gpu_idx_recv_c_2_v, gpu_dimsizes_c_2_v, gpu_nHaloLayers_c_2_v)
        implicit none 
        type (domain_type), intent(inout) :: domain
        integer, dimension(:), intent(in) :: compactHaloInfo_c_v,compactHaloInfo_c_vP1,&
@@ -209,8 +234,12 @@ module atm_time_integration
                 gpu_nList_send_c_vP1, gpu_idx_send_c_vP1, gpu_bufferOffset_recv_c_vP1, gpu_nList_recv_c_vP1,&
                 gpu_idx_recv_c_vP1, gpu_dimsizes_c_vP1, gpu_bufferOffset_send_e_v, &
                 gpu_nList_send_e_v, gpu_idx_send_e_v, gpu_bufferOffset_recv_e_v, gpu_nList_recv_e_v,&
-                gpu_idx_recv_e_v, gpu_dimsizes_e_v
-       integer, intent(in) :: gpu_nHaloLayers_e_v, gpu_nHaloLayers_c_v, gpu_nHaloLayers_c_vP1
+                gpu_idx_recv_e_v, gpu_dimsizes_e_v,gpu_bufferOffset_send_c_v_s, &
+                gpu_nList_send_c_v_s, gpu_idx_send_c_v_s, gpu_bufferOffset_recv_c_v_s, gpu_nList_recv_c_v_s,&
+                gpu_idx_recv_c_v_s, gpu_dimsizes_c_v_s, gpu_bufferOffset_send_c_2_v, &
+                gpu_nList_send_c_2_v, gpu_idx_send_c_2_v, gpu_bufferOffset_recv_c_2_v, gpu_nList_recv_c_2_v,&
+                gpu_idx_recv_c_2_v, gpu_dimsizes_c_2_v
+       integer, intent(in) :: gpu_nHaloLayers_e_v, gpu_nHaloLayers_c_v, gpu_nHaloLayers_c_vP1, gpu_nHaloLayers_c_v_s, gpu_nHaloLayers_c_2_v
 
 #ifdef MPAS_OPENACC
       integer :: rrpk_rank, rrpk_devices, rrpk_local_gpu_id
@@ -228,8 +257,14 @@ module atm_time_integration
 !$acc gpu_nList_send_c_vP1, gpu_idx_send_c_vP1, gpu_bufferOffset_recv_c_vP1, gpu_nList_recv_c_vP1,&
 !$acc gpu_idx_recv_c_vP1, gpu_dimsizes_c_vP1, gpu_nHaloLayers_c_vP1, gpu_bufferOffset_send_e_v, &
 !$acc gpu_nList_send_e_v, gpu_idx_send_e_v, gpu_bufferOffset_recv_e_v, gpu_nList_recv_e_v,&
-!$acc gpu_idx_recv_e_v, gpu_dimsizes_e_v, gpu_nHaloLayers_e_v)
+!$acc gpu_idx_recv_e_v, gpu_dimsizes_e_v, gpu_nHaloLayers_e_v,gpu_bufferOffset_send_c_v_s, &
+!$acc gpu_nList_send_c_v_s, gpu_idx_send_c_v_s, gpu_bufferOffset_recv_c_v_s, gpu_nList_recv_c_v_s,&
+!$acc gpu_idx_recv_c_v_s, gpu_dimsizes_c_v_s, gpu_nHaloLayers_c_v_s, gpu_bufferOffset_send_c_2_v, &
+!$acc gpu_nList_send_c_2_v, gpu_idx_send_c_2_v, gpu_bufferOffset_recv_c_2_v, gpu_nList_recv_c_2_v,&
+!$acc gpu_idx_recv_c_2_v, gpu_dimsizes_c_2_v, gpu_nHaloLayers_c_2_v)
    end subroutine mpas_gpu_halo_init
+
+
    !-----------------------------------------------------------------------
    !  routine MPAS_atm_dynamics_finalize
    !
@@ -415,7 +450,7 @@ module atm_time_integration
       real (kind=RKIND), dimension(:,:), pointer :: gpu_rtheta_pp, gpu_u_1, gpu_u_2, gpu_w_1, gpu_w_2
       real (kind=RKIND), dimension(:,:), pointer :: gpu_tend_u, gpu_ru_p, gpu_rw_p, gpu_rho_pp, gpu_pv_edge, gpu_rho_edge
       real (kind=RKIND), dimension(:,:,:), pointer :: gpu_scalars_1, gpu_scalars_2
-      integer, dimension(2) :: gpuArraySize
+      integer, dimension(3) :: gpuArraySize
       ! Local variables for indexing
       integer :: levelsIdx, scalarsIdx
       integer :: tmpnum_scalars, tmpnCells, tmpnVertLevels, tmpnEdges
@@ -441,6 +476,7 @@ module atm_time_integration
       !
       call mpas_pool_get_subpool(domain % blocklist % structs, 'state', state)
       call mpas_pool_get_subpool(domain % blocklist % structs, 'diag', diag)
+      call mpas_pool_get_subpool(domain % blocklist % structs, 'mesh', mesh)
 
 
       !
@@ -450,6 +486,8 @@ module atm_time_integration
       call mpas_pool_get_dimension(state, 'nEdges', nEdges)
       call mpas_pool_get_dimension(state, 'nVertLevels', nVertLevels)
       call mpas_pool_get_dimension(state, 'nVertices', nVertices)
+      call mpas_pool_get_dimension(mesh, 'nCellsSolve', nCellsSolve)
+      
 
       allocate(qtot(nVertLevels,nCells+1))
 !      qtot(:,nCells+1) = 0.0_RKIND
@@ -459,6 +497,7 @@ module atm_time_integration
 !      tend_rho_physics(:,nCells+1) = 0.0_RKIND
       allocate(tend_ru_physics(nVertLevels,nEdges+1))
 !      tend_ru_physics(:,nEdges+1) = 0.0_RKIND
+      allocate(tend_th(nVertLevels,nCellsSolve))
 
       !
       ! Initialize RK weights
@@ -524,7 +563,13 @@ module atm_time_integration
                                               gpu_nList_send_c_v, gpu_idx_send_c_v, gpu_bufferOffset_recv_c_v, gpu_nList_recv_c_v,&
                                               gpu_idx_recv_c_v, gpu_dimsizes_c_v, gpu_nHaloLayers_c_v,gpu_send_size_c_v, gpu_recv_size_c_v,&
                                               gpu_compactHaloInfoSize_c_v, gpuArraySize(1), gpuArraySize(2))
-      call mpas_dmpar_exch_halo_acc(gpu_scalars_1, compactHaloInfo_c_v_s, sendList_c_v_s, recvList_c_v_s)
+      gpuArraySize(1) = size(gpu_scalars_1,1)
+      gpuArraySize(2) = size(gpu_scalars_1,2)
+      gpuArraySize(3) = size(gpu_scalars_1,3)      
+      call mpas_dmpar_exch_halo_acc(gpu_scalars_1, compactHaloInfo_c_v_s, sendList_c_v_s, recvList_c_v_s, gpu_bufferOffset_send_c_v_s, &
+                                              gpu_nList_send_c_v_s, gpu_idx_send_c_v_s, gpu_bufferOffset_recv_c_v_s, gpu_nList_recv_c_v_s,&
+                                              gpu_idx_recv_c_v_s, gpu_dimsizes_c_v_s, gpu_nHaloLayers_c_v_s, gpu_send_size_c_v_s, gpu_recv_size_c_v_s,&
+                                              gpu_compactHaloInfoSize_c_v_s, gpuArraySize(1), gpuArraySize(2), gpuArraySize(3))
       gpuArraySize(1) = size(gpu_rtheta_p,1)
       gpuArraySize(2) = size(gpu_rtheta_p,2)
       call mpas_dmpar_exch_halo_acc(gpu_rtheta_p, compactHaloInfo_c_v, sendList_c_v, recvList_c_v,gpu_bufferOffset_send_c_v, &
@@ -638,16 +683,17 @@ module atm_time_integration
                       tend_ru_physics, &
                   tend_rtheta_physics, &
                      tend_rho_physics, &
-                                ! Arguments needed for OpenACC-friendly halo exchanges
-                                compactHaloInfo_c_v, &
-                                sendList_c_v, recvList_c_v, &
-                                gpu_idx_send_c_v, gpu_bufferoffset_send_c_v, gpu_nList_send_c_v, &
-                                gpu_idx_recv_c_v, gpu_bufferoffset_recv_c_v, gpu_nList_recv_c_v, &
-                                gpu_dimSizes_c_v, &
-                                gpu_nHaloLayers_c_v, &
-                                gpu_send_size_c_v, &
-                                gpu_recv_size_c_v, &
-                                gpu_compactHaloInfoSize_c_v &
+                              tend_th, &
+                  ! Arguments needed for OpenACC-friendly halo exchanges
+                  compactHaloInfo_c_v, &
+                  sendList_c_v, recvList_c_v, &
+                  gpu_idx_send_c_v, gpu_bufferoffset_send_c_v, gpu_nList_send_c_v, &
+                  gpu_idx_recv_c_v, gpu_bufferoffset_recv_c_v, gpu_nList_recv_c_v, &
+                  gpu_dimSizes_c_v, &
+                  gpu_nHaloLayers_c_v, &
+                  gpu_send_size_c_v, &
+                  gpu_recv_size_c_v, &
+                  gpu_compactHaloInfoSize_c_v &
                               )
          block => block % next
       end do
@@ -1316,7 +1362,13 @@ module atm_time_integration
             if (config_scalar_advection .and. (.not. config_split_dynamics_transport) ) then
 
                call mpas_pool_get_array_gpu(state, 'scalars', gpu_scalars_2, 2)
-               call mpas_dmpar_exch_halo_acc(gpu_scalars_2, compactHaloInfo_c_v_s, sendList_c_v_s, recvList_c_v_s)
+               gpuArraySize(1) = size(gpu_scalars_2,1)
+               gpuArraySize(2) = size(gpu_scalars_2,2)
+               gpuArraySize(3) = size(gpu_scalars_2,3)
+               call mpas_dmpar_exch_halo_acc(gpu_scalars_2, compactHaloInfo_c_v_s, sendList_c_v_s, recvList_c_v_s, gpu_bufferOffset_send_c_v_s, &
+                                              gpu_nList_send_c_v_s, gpu_idx_send_c_v_s, gpu_bufferOffset_recv_c_v_s, gpu_nList_recv_c_v_s,&
+                                              gpu_idx_recv_c_v_s, gpu_dimsizes_c_v_s, gpu_nHaloLayers_c_v_s, gpu_send_size_c_v_s, gpu_recv_size_c_v_s,&
+                                              gpu_compactHaloInfoSize_c_v_s, gpuArraySize(1), gpuArraySize(2), gpuArraySize(3))
             end if
 
          end do RK3_DYNAMICS
@@ -1418,6 +1470,7 @@ module atm_time_integration
       deallocate(tend_rtheta_physics)
       deallocate(tend_rho_physics)
       deallocate(tend_ru_physics)
+      deallocate(tend_th)
 
       !
       !  split transport, at present RK3
@@ -1604,7 +1657,13 @@ module atm_time_integration
 
             if (rk_step < 3) then
                call mpas_pool_get_array_gpu(state, 'scalars', gpu_scalars_2, 2)
-               call mpas_dmpar_exch_halo_acc(gpu_scalars_2, compactHaloInfo_c_v_s, sendList_c_v_s, recvList_c_v_s)
+               gpuArraySize(1) = size(gpu_scalars_2,1)
+               gpuArraySize(2) = size(gpu_scalars_2,2)
+               gpuArraySize(3) = size(gpu_scalars_2,3)
+               call mpas_dmpar_exch_halo_acc(gpu_scalars_2, compactHaloInfo_c_v_s, sendList_c_v_s, recvList_c_v_s, gpu_bufferOffset_send_c_v_s, &
+                                              gpu_nList_send_c_v_s, gpu_idx_send_c_v_s, gpu_bufferOffset_recv_c_v_s, gpu_nList_recv_c_v_s,&
+                                              gpu_idx_recv_c_v_s, gpu_dimsizes_c_v_s, gpu_nHaloLayers_c_v_s, gpu_send_size_c_v_s, gpu_recv_size_c_v_s,&
+                                              gpu_compactHaloInfoSize_c_v_s, gpuArraySize(1), gpuArraySize(2), gpuArraySize(3))
             end if
 
          end do RK3_SPLIT_TRANSPORT
@@ -1637,7 +1696,6 @@ module atm_time_integration
          call mpas_pool_get_array_gpu(diag, 'uReconstructZonal', uReconstructZonal)
          call mpas_pool_get_array_gpu(diag, 'uReconstructMeridional', uReconstructMeridional)
          call mpas_pool_get_dimension(block%dimensions, 'nCellsSolve', nCellsSolve)
-
 
          call mpas_reconstruct_gpu(nCellsSolve, nVertLevels, maxEdges, nEdges, mesh, u,                &
                                uReconstructX,          &
@@ -1681,6 +1739,9 @@ module atm_time_integration
 
             call mpas_pool_get_array_gpu(tend_physics, 'rqvdynten', rqvdynten)
 
+!!!
+!$acc update host(scalars_1, scalars_2, rqvdynten)
+
             !NOTE: The calculation of the tendency due to horizontal and vertical advection for the water vapor mixing ratio
             !requires that the subroutine atm_advance_scalars_mono was called on the third Runge Kutta step, so that a halo
             !update for the scalars at time_levs(1) is applied. A halo update for the scalars at time_levs(2) is done above. 
@@ -1689,11 +1750,15 @@ module atm_time_integration
             else
                rqvdynten(:,:) = 0._RKIND
             end if
+
          end if
 
          !simply set to zero negative mixing ratios of different water species (for now):
          where ( scalars_2(:,:,:) < 0.0)  &
             scalars_2(:,:,:) = 0.0
+
+!!!
+!$acc update device(scalars_1, scalars_2, rqvdynten)
 
          !call microphysics schemes:
          if (trim(config_microp_scheme) /= 'off')  then
@@ -3749,13 +3814,13 @@ module atm_time_integration
 !$acc scalar_tend_save,horiz_flux_arr,edgesoncell_sign, &
 !$acc invAreaCell, wwAvg, fnm, fnp,edgesoncell,scalar_old, &
 !$acc nadvcellsforedge, rho_zz_old, rho_zz_new, &
-!$acc nedgesoncell,rdnw,horiz_flux_arr) create(wdtn)
+!$acc nedgesoncell,rdnw,horiz_flux_arr)
 
 !$acc parallel vector_length(32)
-!$acc loop gang worker vector private(ica,scalar_weight2)
+!$acc loop gang private(scalar_weight2,ica,iAdvCell)
       do iEdge=edgeStart,edgeEnd
 
-!$acc cache(ica)
+!!!$acc cache(ica)
 
          select case(nAdvCellsForEdge(iEdge))
 
@@ -3800,15 +3865,15 @@ module atm_time_integration
                end do
             end do
 !            horiz_flux_arr(:,:,iEdge) = 0.0
-!$acc loop vector
+!$acc loop seq
             do j=1,nAdvCellsForEdge(iEdge)
                iAdvCell = advCellsForEdge(j,iEdge)
 !DIR$ IVDEP
-!$acc loop vector
+!$acc loop vector collapse(2) private(scalar_weight)
                do k=1,nVertLevels
-                  scalar_weight = adv_coefs(j,iEdge) + sign(1.0_RKIND,uhAvg(k,iEdge))*adv_coefs_3rd(j,iEdge)
 !DIR$ IVDEP
                   do iScalar=1,num_scalars
+                     scalar_weight = adv_coefs(j,iEdge) + sign(1.0_RKIND,uhAvg(k,iEdge))*adv_coefs_3rd(j,iEdge)
                      horiz_flux_arr(iScalar,k,iEdge) = horiz_flux_arr(iScalar,k,iEdge) + scalar_weight * scalar_new(iScalar,k,iAdvCell)
                   end do
                end do
@@ -3822,10 +3887,10 @@ module atm_time_integration
 !  scalar update, for each column sum fluxes over horizontal edges, add physics tendency, and add vertical flux divergence in update.
 
 !$acc parallel vector_length(32)
-!$acc loop gang worker private(scalar_tend_column)
+!$acc loop gang private(scalar_tend_column,iEdge,wdtn)
       do iCell=cellSolveStart,cellSolveEnd
 #ifndef DO_PHYSICS
-            scalar_tend_save(:,:,iCell) = 0.0  !  testing purposes - we have no sources or sinks
+!            scalar_tend_save(:,:,iCell) = 0.0  !  testing purposes - we have no sources or sinks
 #endif
 !$acc loop vector collapse(2)
              do i =1,nVertlevels
@@ -3869,7 +3934,7 @@ module atm_time_integration
          wdtn(:,nVertLevels+1) = 0.0
 
          k = 2
-!$acc loop seq
+!$acc loop vector
          do iScalar=1,num_scalars
             wdtn(iScalar,k) = wwAvg(k,iCell)*(fnm(k)*scalar_new(iScalar,k,iCell)+fnp(k)*scalar_new(iScalar,k-1,iCell))
          end do
@@ -3885,18 +3950,17 @@ module atm_time_integration
             end do
          end do
          k = nVertLevels
-!$acc loop seq
+!$acc loop vector
          do iScalar=1,num_scalars
             wdtn(iScalar,k) = wwAvg(k,iCell)*(fnm(k)*scalar_new(iScalar,k,iCell)+fnp(k)*scalar_new(iScalar,k-1,iCell))
          end do
 
 !DIR$ IVDEP
-!$acc loop vector
+!$acc loop vector collapse(2) private(rho_zz_new_inv)
          do k=1,nVertLevels
-            rho_zz_new_inv = 1.0_RKIND / (weight_time_old*rho_zz_old(k,iCell) + weight_time_new*rho_zz_new(k,iCell))
 !DIR$ IVDEP
-!$acc loop seq
             do iScalar=1,num_scalars
+               rho_zz_new_inv = 1.0_RKIND / (weight_time_old*rho_zz_old(k,iCell) + weight_time_new*rho_zz_new(k,iCell))
                scalar_new(iScalar,k,iCell) = (   scalar_old(iScalar,k,iCell)*rho_zz_old(k,iCell) &
                      + dt*( scalar_tend_column(iScalar,k) -rdnw(k)*(wdtn(iScalar,k+1)-wdtn(iScalar,k)) ) ) * rho_zz_new_inv
             end do
@@ -4135,7 +4199,7 @@ module atm_time_integration
 !$acc fnp,rdnw,nAdvCellsForEdge,advCellsForEdge,adv_coefs, &
 !$acc adv_coefs_3rd, scalars_new, flux_arr, rho_zz_int, &
 !$acc scalar_new, wdtn, scale_arr, scalar_old, flux_upwind_tmp, &
-!$acc s_min, s_max, flux_tmp) create(swa, ica, flux_upwind_arr)
+!$acc s_min, s_max, flux_tmp)
 
 !$acc parallel vector_length(32)
 !$acc loop gang vector collapse(3)
@@ -4149,7 +4213,7 @@ module atm_time_integration
 #ifndef DO_PHYSICS
 !TBH:  Michael, would you please check this change?  Our test uses -DDO_PHYSICS
 !TBH:  so this code is not executed.  The change avoids redundant work.  
-         scalar_tend(iScalar,k,iCell) = 0.0  !  testing purposes - we have no sources or sinks
+!         scalar_tend(iScalar,k,iCell) = 0.0  !  testing purposes - we have no sources or sinks
 #endif
          scalars_old(iScalar,k,iCell) = scalars_old(iScalar,k,iCell)+dt*scalar_tend(iScalar,k,iCell) / rho_zz_old(k,iCell)
          scalar_tend(iScalar,k,iCell) = 0.0
@@ -4160,7 +4224,10 @@ module atm_time_integration
 
 !$OMP BARRIER
 !$OMP MASTER
-      call mpas_dmpar_exch_halo_acc(scalars_old, compactHaloInfo_c_v_s, sendList_c_v_s, recvList_c_v_s)
+      call mpas_dmpar_exch_halo_acc(scalars_old, compactHaloInfo_c_v_s, sendList_c_v_s, recvList_c_v_s, gpu_bufferOffset_send_c_v_s, &
+                                     gpu_nList_send_c_v_s, gpu_idx_send_c_v_s, gpu_bufferOffset_recv_c_v_s, gpu_nList_recv_c_v_s,&
+                                     gpu_idx_recv_c_v_s, gpu_dimsizes_c_v_s, gpu_nHaloLayers_c_v_s, gpu_send_size_c_v_s, gpu_recv_size_c_v_s,&
+                                     gpu_compactHaloInfoSize_c_v_s, num_scalars, nVertLevels, nCells+1)
 !$OMP END MASTER
 !$OMP BARRIER
 
@@ -4183,9 +4250,9 @@ module atm_time_integration
 
 !$OMP BARRIER
 !$acc parallel vector_length(32)
-!$acc loop gang vector
+!$acc loop gang private(iEdge)
          do iCell=cellSolveStart,cellSolveEnd
-!$acc loop vector
+!$acc loop seq
             do i=1,nEdgesOnCell(iCell)
                iEdge = edgesOnCell(i,iCell)
    
@@ -4197,7 +4264,10 @@ module atm_time_integration
                
             end do
          end do
-!$acc loop collapse(2)
+!$acc end parallel
+
+!$acc parallel vector_length(32)
+!$acc loop gang vector collapse(2)
          do iCell=cellSolveStart,cellSolveEnd
 !DIR$ IVDEP
             do k=1,nVertLevels
@@ -4227,7 +4297,7 @@ module atm_time_integration
          scmin = scalar_old(1,1)
          scmax = scalar_old(1,1)
 !$acc parallel vector_length(32)
-!$acc loop vector collapse(2)
+!$acc loop seq
          do iCell = 1, nCells
          do k=1, nVertLevels
             scmin = min(scmin,scalar_old(k,iCell))
@@ -4238,7 +4308,7 @@ module atm_time_integration
 
          scmin = scalar_new(1,1)
          scmax = scalar_new(1,1)
-!$acc loop vector collapse(2)
+!!!$acc loop vector collapse(2)
          do iCell = 1, nCells
          do k=1, nVertLevels
             scmin = min(scmin,scalar_new(k,iCell))
@@ -4254,7 +4324,7 @@ module atm_time_integration
          !  vertical flux divergence, and min and max bounds for flux limiter
          !
 !$acc parallel vector_length(32)
-!$acc loop gang worker
+!$acc loop gang
          do iCell=cellSolveStart,cellSolveEnd
 
             ! zero flux at top and bottom
@@ -4313,9 +4383,10 @@ module atm_time_integration
                enddo
 
             case default
-!$acc loop vector collapse(2)
+!$acc loop seq
                do i=1, nEdgesOnCell(iCell)
 !DIR$ IVDEP
+!$acc loop vector
                   do k=1, nVertLevels
                      s_max(k,iCell) = max(s_max(k,iCell),scalar_old(k, cellsOnCell(i,iCell)))
                      s_min(k,iCell) = min(s_min(k,iCell),scalar_old(k, cellsOnCell(i,iCell)))
@@ -4331,7 +4402,7 @@ module atm_time_integration
          !  horizontal flux divergence
          !
 !$acc parallel vector_length(32)
-!$acc loop gang vector
+!$acc loop gang private(cell1, cell2,ica,swa,iCell)
          do iEdge=edgeStart,edgeEnd
 
             cell1 = cellsOnEdge(1,iEdge)
@@ -4350,7 +4421,7 @@ module atm_time_integration
                      swa(jj,1)  = adv_coefs(jj,iEdge) + adv_coefs_3rd(jj,iEdge)
                      swa(jj,2)  = adv_coefs(jj,iEdge) - adv_coefs_3rd(jj,iEdge)
                   enddo
-!$acc loop vector
+!$acc loop vector private(ii)
                   do k=1,nVertLevels
                      ii = merge(1, 2, uhAvg(k,iEdge) > 0)
                      flux_arr(k,iEdge) = uhAvg(k,iEdge)*( &
@@ -4366,11 +4437,11 @@ module atm_time_integration
                   do k=1,nVertLevels
                      flux_arr(k,iEdge) = 0.0_RKIND
                   enddo
-!$acc loop vector
+!$acc loop seq
                   do i=1,nAdvCellsForEdge(iEdge)
                      iCell = advCellsForEdge(i,iEdge)
 !DIR$ IVDEP
-!$acc loop vector
+!$acc loop vector private(scalar_weight)
                      do k=1,nVertLevels
                         scalar_weight = uhAvg(k,iEdge)*(adv_coefs(i,iEdge) + sign(1.0_RKIND,uhAvg(k,iEdge))*adv_coefs_3rd(i,iEdge))
                         flux_arr(k,iEdge) = flux_arr(k,iEdge) + scalar_weight* scalar_new(k,iCell)
@@ -4388,7 +4459,7 @@ module atm_time_integration
          !  vertical flux divergence for upwind update, we will put upwind update into scalar_new, and put factor of dt in fluxes
          !
 !$acc parallel vector_length(32)
-!$acc loop gang vector
+!$acc loop gang private(flux_upwind_arr)
          do iCell=cellSolveStart,cellSolveEnd
 
             k = 1
@@ -4432,7 +4503,7 @@ module atm_time_integration
 
          !  upwind flux computation
 !$acc parallel vector_length(32)
-!$acc loop gang vector
+!$acc loop gang private(cell1, cell2)
          do iEdge=edgeStart,edgeEnd
             cell1 = cellsOnEdge(1,iEdge)
             cell2 = cellsOnEdge(2,iEdge)
@@ -4447,9 +4518,9 @@ module atm_time_integration
 !$acc end parallel
 !$OMP BARRIER
 !$acc parallel vector_length(32)
-!$acc loop gang vector
+!$acc loop gang private(iEdge)
          do iCell=cellSolveStart,cellSolveEnd
-!$acc loop vector
+!$acc loop seq
             do i=1,nEdgesOnCell(iCell)
                iEdge = edgesOnCell(i,iCell)
 
@@ -4476,7 +4547,7 @@ module atm_time_integration
          ! added benefit that it should address ifort single prec overflow issue
       if (local_advance_density) then
 !$acc parallel vector_length(32)
-!$acc loop gang vector collapse(2)
+!$acc loop gang vector collapse(2) private(scale_factor)
          do iCell=cellSolveStart,cellSolveEnd
 !DIR$ IVDEP
             do k = 1, nVertLevels
@@ -4493,7 +4564,7 @@ module atm_time_integration
 !$acc end parallel
       else
 !$acc parallel vector_length(32)
-!$acc loop gang vector collapse(2)
+!$acc loop gang vector collapse(2) private(scale_factor)
          do iCell=cellSolveStart,cellSolveEnd
 !DIR$ IVDEP
             do k = 1, nVertLevels
@@ -4517,19 +4588,22 @@ module atm_time_integration
 !$OMP BARRIER
 !$OMP MASTER
 !MGDHALO         call mpas_dmpar_exch_halo_acc(scale_arr, compactHaloInfo_c_2_v, sendList_c_2_v, recvList_c_2_v, (/ 1 /))
-         call mpas_dmpar_exch_halo_acc(scale_arr, compactHaloInfo_c_2_v, sendList_c_2_v, recvList_c_2_v)
+         call mpas_dmpar_exch_halo_acc(scale_arr, compactHaloInfo_c_2_v, sendList_c_2_v, recvList_c_2_v, gpu_bufferOffset_send_c_2_v, &
+                                       gpu_nList_send_c_2_v, gpu_idx_send_c_2_v, gpu_bufferOffset_recv_c_2_v, gpu_nList_recv_c_2_v,&
+                                       gpu_idx_recv_c_2_v, gpu_dimsizes_c_2_v, gpu_nHaloLayers_c_2_v, gpu_send_size_c_2_v, gpu_recv_size_c_2_v,&
+                                       gpu_compactHaloInfoSize_c_2_v, nVertLevels, 2, nCells+1 )
 !$OMP END MASTER
 !$OMP BARRIER
 
 
 !$acc parallel vector_length(32)
-!$acc loop gang vector
+!$acc loop gang private(cell1,cell2)
          do iEdge=edgeStart,edgeEnd
             cell1 = cellsOnEdge(1,iEdge)
             cell2 = cellsOnEdge(2,iEdge)
             if (cell1 <= nCellsSolve .or. cell2 <= nCellsSolve) then  ! only for owned cells
 !DIR$ IVDEP
-!$acc loop vector
+!$acc loop vector private(flux_upwind)
                do k=1, nVertLevels
                   flux_upwind = dvEdge(iEdge) * dt *   &
                          (max(0.0_RKIND,uhAvg(k,iEdge))*scalar_old(k,cell1) + min(0.0_RKIND,uhAvg(k,iEdge))*scalar_old(k,cell2))
@@ -4545,13 +4619,13 @@ module atm_time_integration
          ! moved assignment to scalar_new from separate loop (see commented code below)
          ! into the following loops. Avoids having to save elements of flux array
 !$acc parallel vector_length(32)
-!$acc loop gang vector
+!$acc loop gang private(cell1, cell2)
          do iEdge=edgeStart,edgeEnd
             cell1 = cellsOnEdge(1,iEdge)
             cell2 = cellsOnEdge(2,iEdge)
             if (cell1 <= nCellsSolve .or. cell2 <= nCellsSolve) then
 !DIR$ IVDEP
-!$acc loop vector
+!$acc loop vector private(flux)
                do k = 1, nVertLevels
                   flux = flux_arr(k,iEdge)
                   flux = max(0.0_RKIND,flux) * min(scale_arr(k,SCALE_OUT,cell1), scale_arr(k,SCALE_IN, cell2)) &
@@ -4567,7 +4641,7 @@ module atm_time_integration
         !
 !$OMP BARRIER
 !$acc parallel vector_length(32)
-!$acc loop gang vector collapse(2)
+!$acc loop gang vector collapse(2) private(flux)
          do iCell=cellSolveStart,cellSolveEnd
 !DIR$ IVDEP
             do k = 2, nVertLevels
@@ -4583,9 +4657,9 @@ module atm_time_integration
          !  do the scalar update now that we have the fluxes
          !
 !$acc parallel vector_length(32)
-!$acc loop gang vector
+!$acc loop gang private(iEdge)
          do iCell=cellSolveStart,cellSolveEnd
-!$acc loop vector
+!$acc loop seq
             do i=1,nEdgesOnCell(iCell)
                iEdge = edgesOnCell(i,iCell)
 !DIR$ IVDEP
@@ -4614,7 +4688,7 @@ module atm_time_integration
          scmin = scalar_new(1,1)
          scmax = scalar_new(1,1)
 !$acc parallel vector_length(32)
-!$acc loop gang collapse(2)
+!$acc loop seq
          do iCell = 1, nCellsSolve
          do k=1, nVertLevels
             scmax = max(scmax,scalar_new(k,iCell))
@@ -4636,7 +4710,7 @@ module atm_time_integration
          ! hence the enforcement of PD in the copy back to the model state.
 !$OMP BARRIER
 !$acc parallel vector_length(32)
-!$acc loop collapse(2)
+!$acc loop gang vector collapse(2)
          do iCell=cellStart,cellEnd
             do k=1, nVertLevels
                scalars_new(iScalar,k,iCell) = max(0.0_RKIND,scalar_new(k,iCell))

@@ -111,10 +111,13 @@
 
  call mpas_pool_get_config(configs,'config_len_disp',len_disp)
 
- call mpas_pool_get_array(mesh,'areaCell'   ,areaCell   )
- call mpas_pool_get_array(mesh,'meshDensity',meshDensity)
+ call mpas_pool_get_array_gpu(mesh,'areaCell'   ,areaCell   )
+ call mpas_pool_get_array_gpu(mesh,'meshDensity',meshDensity)
 
- call mpas_pool_get_array(sfc_input,'xland',xland)
+ call mpas_pool_get_array_gpu(sfc_input,'xland',xland)
+
+!!!
+ !$acc update host(areaCell, meshDensity, xland)
 
  do j = jts,jte
     do i = its,ite
@@ -154,7 +157,7 @@
 
 !-----------------------------------------------------------------------------------------------------------------
 
- call mpas_pool_get_array(diag_physics,'cldfrac',cldfrac)
+ call mpas_pool_get_array_gpu(diag_physics,'cldfrac',cldfrac)
 
  do j = jts,jte
  do k = kts,kte
@@ -164,6 +167,9 @@
  enddo
  enddo
  
+!!!
+ !$acc update device(cldfrac)
+
  end subroutine cloudiness_to_MPAS
 
 !=================================================================================================================

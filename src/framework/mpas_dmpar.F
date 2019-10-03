@@ -113,7 +113,9 @@ include 'mpif.h'
    public :: mpas_dmpar_exch_group_end_halo_exch
    public :: mpas_dmpar_exch_group_full_halo_exch
    public :: mpas_dmpar_field_halo_exch
+   public :: mpas_dmpar_gpu_init_1d_real_acc
    public :: mpas_dmpar_gpu_init_2d_real_acc
+   public :: mpas_dmpar_gpu_init_3d_real_acc
    interface mpas_dmpar_compact_halo_info
       module procedure mpas_dmpar_compact_halo_info_1d_real
       module procedure mpas_dmpar_compact_halo_info_2d_real
@@ -121,7 +123,6 @@ include 'mpif.h'
    end interface mpas_dmpar_compact_halo_info
 
    public :: mpas_dmpar_compact_halo_info
-
    private :: mpas_dmpar_compact_halo_info_1d_real
    private :: mpas_dmpar_compact_halo_info_2d_real
    private :: mpas_dmpar_compact_halo_info_3d_real
@@ -133,7 +134,7 @@ include 'mpif.h'
    end interface mpas_dmpar_exch_halo_acc
 
    public :: mpas_dmpar_exch_halo_acc
-
+ 
    private mpas_dmpar_exch_halo_1d_real_acc
    private mpas_dmpar_exch_halo_2d_real_acc
    private mpas_dmpar_exch_halo_3d_real_acc
@@ -4815,13 +4816,12 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
 
    end subroutine mpas_dmpar_alltoall_field5d_real!}}}
 
-
 !-----------------------------------------------------------------------
 !  routine mpas_dmpar_compact_halo_info_1d_real
 !
 !> \brief Compacts information needed for halo exchanges
 !> \author Michael Duda
-!> \date 26 July 2019
+!> \date 7 December 2017
 !> \details
 !>  This routine extracts all information needed to perform a halo exchange
 !>  from dynamic data types and places it into a single, contiguous array
@@ -5091,8 +5091,6 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
       deallocate(recvEndpoints)
 
    end subroutine mpas_dmpar_compact_halo_info_1d_real !}}}
-
-
 !-----------------------------------------------------------------------
 !  routine mpas_dmpar_compact_halo_info_2d_real
 !
@@ -6366,48 +6364,199 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
      end if
 
    end subroutine mpas_dmpar_exch_halo_field1d_real!}}}
-
-
 !-----------------------------------------------------------------------
 !  routine mpas_dmpar_exch_halo_1d_real_acc
 !
-!> \brief Communicates halos for a 3-d real field on accelerators
-!> \author Michael Duda
-!> \date 7 December 2017
-!> \details
-!>  Given the array storage for the 3-d real field and the array holding
-!>  the exchange list information for the field, this routine interally
+!> \brief Communicates halos for a 1-d real field on accelerators
+!> 
+!>  Given the array storage for the 1-d real field and the array holding
+!>  the exchange list information for the field, this routine internally
 !>  builds a communication list and performs MPI communication.
 !>  It is assumed that there is only one block per MPI task for the field,
 !>  and that this routine is not called from within an OpenMP threaded
 !>  region.
 !
 !-----------------------------------------------------------------------
-
-   subroutine mpas_dmpar_exch_halo_1d_real_acc(array, compactHaloInfo, sendList, recvList, haloLayersIn) !{{{
+   subroutine mpas_dmpar_exch_halo_1d_real_acc(array, compactHaloInfo, sendList, recvList, gpu_bufferOffset_send, &
+                                              gpu_nList_send, gpu_idx_send, gpu_bufferOffset_recv, gpu_nList_recv,&
+                                              gpu_idx_recv, dimsizes, nHaloLayers, gpuVariablesSendSize,&
+                                              gpuVariablesRecvSize, compactHaloInfoSize, arraySize1, haloLayersIn) !{{{
 
       implicit none
-
-      real (kind=RKIND), dimension(:), intent(inout) :: array !< Input: Array storage for field whose halo will be communicated
-      integer, dimension(:), intent(in) :: compactHaloInfo !< Input: Information needed to construct communications lists, etc.
-      type (mpas_communication_list), pointer :: sendList, recvList
+      integer, dimension(1),intent(in) :: dimsizes
+      integer, intent(in) :: gpuVariablesSendSize, gpuVariablesRecvSize, compactHaloInfoSize, arraySize1
+      real (kind=RKIND), dimension(arraySize1), intent(inout) :: array !< Input: Array storage for field whose halo will be communicated
+      integer, dimension(compactHaloInfoSize), intent(in) :: compactHaloInfo !< Input: Information needed to construct communications lists, etc.
+      type (mpas_communication_list), pointer, intent(in) :: sendList, recvList
       integer, dimension(:), intent(in), optional :: haloLayersIn !< Input: List of halo layers to communicate. Defaults to all
 
       type (mpas_exchange_list), pointer :: exchListPtr
       type (mpas_communication_list), pointer :: commListPtr
       integer :: mpi_ierr
-      integer :: nHaloLayers, iHalo, i, j, k, idx
+      integer :: iHalo, i, idx
       integer :: nFieldHaloLayers, iFieldHalo, nList
       integer :: bufferOffset, nAdded
       integer, dimension(:), pointer :: haloLayers
-      integer, dimension(1) :: dimsizes
+      integer, dimension(gpuVariablesSendSize), intent(in):: gpu_bufferOffset_send, gpu_nList_send, gpu_idx_send
+      integer, dimension(gpuVariablesRecvSize), intent(in) :: gpu_bufferOffset_recv, gpu_nList_recv, gpu_idx_recv
+      integer, intent(in) :: nHaloLayers
       integer :: mpi_comm, mpi_proc_id
-
-
+      real (kind=RKIND), dimension(:), pointer :: tempRbuffer
+      integer :: localMax, counter
       !
       ! Unpack fields from the compacted halo info array
       !
-      dimsizes(1:1) = compactHaloInfo(2:2)
+      mpi_comm = compactHaloInfo(7)
+      mpi_proc_id = compactHaloInfo(8)
+
+      if(present(haloLayersIn)) then
+        allocate(haloLayers(nHaloLayers))
+        do iHalo = 1, nHaloLayers
+          haloLayers(iHalo) = haloLayersIn(iHalo)
+        end do
+      else
+        allocate(haloLayers(nHaloLayers))
+        do iHalo = 1, nHaloLayers
+          haloLayers(iHalo) = iHalo
+        end do
+      end if
+      
+      nFieldHaloLayers = compactHaloInfo(9)
+#ifdef _MPI
+      ! Allocate space in recv lists, and initiate mpi_irecv calls
+      commListPtr => recvList
+      do while(associated(commListPtr))
+        if (.not. associated(commListPtr % rbuffer)) then
+           allocate(tempRbuffer(commListPtr % nList))
+           commListPtr % rbuffer => tempRbuffer
+        !$acc enter data create(tempRbuffer)
+        else 
+           tempRbuffer => commListPtr % rbuffer
+        end if
+        nullify(commListPtr % ibuffer)
+        !$acc host_data use_device(tempRbuffer) 
+        call MPI_Irecv(tempRbuffer, commListPtr % nList, MPI_REALKIND, commListPtr % procID, commListPtr % procID, mpi_comm, commListPtr % reqID, mpi_ierr)
+        !$acc end host_data
+        commListPtr => commListPtr % next
+      end do
+      ! Allocate space in send lists, copy data into buffer, and initiate mpi_isend calls
+      commListPtr => sendList
+      do while(associated(commListPtr))
+        if (.not. associated(commListPtr % rbuffer)) then
+           allocate(tempRbuffer(commListPtr % nList))
+           commListPtr % rbuffer => tempRbuffer
+        !$acc enter data create(tempRbuffer)
+        else 
+           tempRbuffer => commListPtr % rbuffer
+        end if
+        nullify(commListPtr % ibuffer)
+        commListPtr => commListPtr % next
+      enddo   
+      counter=0
+      commListPtr => sendList
+      localMax=maxval(gpu_nList_send(:))
+      do while(associated(commListPtr))
+          tempRbuffer => commListPtr % rbuffer
+          !$acc data present(tempRbuffer, array, compactHaloInfo, dimsizes, nHaloLayers, gpu_nList_send, gpu_idx_send, gpu_bufferOffset_send) async(counter+1)
+          !$acc parallel default(none) num_workers(4) vector_length(128) async(counter+1) 
+          !$acc loop independent collapse(2) gang worker vector
+          do iHalo = 1, nHaloLayers
+           do  i = 1, localMax
+               if(i<=gpu_nList_send(counter*nHaloLayers+iHalo)) then
+                tempRbuffer(compactHaloInfo(gpu_idx_send(counter*nHaloLayers+iHalo) + gpu_nList_send(counter*nHaloLayers+iHalo) + i) &
+                + gpu_bufferOffset_send(counter*nHaloLayers+iHalo)) = array(compactHaloInfo(gpu_idx_send(counter*nHaloLayers+iHalo) + i))
+               end if 
+            end do
+          end do
+          !$acc end parallel
+          !$acc end data
+        counter=counter+1
+        commListPtr => commListPtr % next
+      end do
+!$acc wait
+      commListPtr => sendList
+      do while(associated(commListPtr))
+        tempRbuffer => commListPtr % rbuffer
+        !$acc host_data use_device(tempRbuffer)
+        call MPI_Isend(tempRbuffer, commListPtr % nList, MPI_REALKIND, commListPtr % procID, mpi_proc_id, mpi_comm, commListPtr % reqID, mpi_ierr)
+        !$acc end host_data
+        commListPtr => commListPtr % next
+      end do
+      commListPtr => recvList
+!RRPKComment: Forced to wait for all recv buffers to be filled up else CUDA streams throws exceptions
+!RRPKComment: I'll figure out to wait for any, after consulting with PGI/OpenMPI
+      do while(associated(commListPtr))
+        call MPI_Wait(commListPtr % reqID, MPI_STATUS_IGNORE, mpi_ierr)
+        commListPtr => commListPtr % next
+      end do
+
+      commListPtr => recvList
+      counter=0
+      localMax=maxval(gpu_nList_recv(:))
+      do while(associated(commListPtr))
+        tempRbuffer => commListPtr % rbuffer
+          !$acc data present(tempRbuffer,array,compactHaloInfo,dimsizes, nHaloLayers,dimSizes,gpu_idx_recv,gpu_bufferOffset_recv,gpu_nList_recv) async(counter+1)
+          !$acc parallel num_workers(4) vector_length(128) async(counter+1)
+          !$acc loop independent collapse(2) gang worker vector
+          do iHalo = 1, nHaloLayers
+           do i = 1, localMax
+             if(i<=gpu_nList_recv(counter*nHaloLayers+iHalo)) then
+                array(compactHaloInfo(gpu_idx_recv(counter*nHaloLayers+iHalo) + gpu_nList_recv(counter*nHaloLayers+iHalo) + i)) &
+                = tempRbuffer(compactHaloInfo(gpu_idx_recv(counter*nHaloLayers+iHalo) + i) + gpu_bufferOffset_recv(counter*nHaloLayers+iHalo))
+             end if
+            end do
+          end do
+          !$acc end parallel
+          !$acc end data
+        commListPtr => commListPtr % next
+        counter=counter+1
+      end do
+!$acc wait
+
+      ! wait for mpi_isend to finish.
+      commListPtr => sendList
+      do while(associated(commListPtr))
+        call MPI_Wait(commListPtr % reqID, MPI_STATUS_IGNORE, mpi_ierr)
+        commListPtr => commListPtr % next
+      end do
+     ! Destroy commLists.
+!     call mpas_dmpar_destroy_communication_list(sendList)
+!     call mpas_dmpar_destroy_communication_list(recvList)
+#endif
+
+     deallocate(haloLayers)
+
+   end subroutine mpas_dmpar_exch_halo_1d_real_acc !}}}
+
+   subroutine mpas_dmpar_gpu_init_1d_real_acc(array, compactHaloInfo, sendList, recvList, gpu_bufferOffset_send, &
+                                              gpu_nList_send, gpu_idx_send, gpu_bufferOffset_recv, gpu_nList_recv,&
+                                              gpu_idx_recv, dimsizes, nHaloLayers, haloLayersIn) !{{{
+
+      implicit none
+
+      real (kind=RKIND), dimension(:), intent(inout) :: array !< Input: Array storage for field whose halo will be communicated
+      integer, dimension(:), intent(in) :: compactHaloInfo !< Input: Information needed to construct communications lists, etc.
+      type (mpas_communication_list), pointer, intent(inout) :: sendList, recvList
+      integer, dimension(:), intent(in), optional :: haloLayersIn !< Input: List of halo layers to communicate. Defaults to all
+
+      type (mpas_exchange_list), pointer :: exchListPtr
+      type (mpas_communication_list), pointer :: commListPtr
+      integer :: mpi_ierr
+      integer :: iHalo, i, idx
+      integer :: nFieldHaloLayers, iFieldHalo, nList
+      integer :: bufferOffset, nAdded
+      integer, dimension(:), pointer, intent(inout):: gpu_bufferOffset_send, gpu_nList_send, gpu_idx_send
+      integer, dimension(:), pointer, intent(inout):: gpu_bufferOffset_recv, gpu_nList_recv, gpu_idx_recv
+      integer, dimension(:), pointer :: haloLayers
+      integer, dimension(1), intent(inout) :: dimsizes
+      integer, intent(inout) :: nHaloLayers
+      integer :: mpi_comm, mpi_proc_id
+      real (kind=RKIND), dimension(:), pointer :: tempRbuffer
+      integer :: streamcount, memoryCounter, memoryCount_send, memoryCount_recv
+      !
+      ! Unpack fields from the compacted halo info array
+      !
+      dimsizes(1) = compactHaloInfo(2)
       mpi_comm = compactHaloInfo(7)
       mpi_proc_id = compactHaloInfo(8)
 
@@ -6424,34 +6573,57 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
           haloLayers(iHalo) = iHalo
         end do
       end if
-
+      
       nFieldHaloLayers = compactHaloInfo(9)
-
 #ifdef _MPI
       ! Setup Communication Lists
       if (.not. associated(sendList) .and. .not. associated(recvList)) then
          call mpas_dmpar_build_comm_lists_acc(compactHaloInfo, haloLayers, sendList, recvList)
       end if
-
       ! Allocate space in recv lists, and initiate mpi_irecv calls
+      commListPtr => sendList
+      memoryCount_send=0
+      do while(associated(commListPtr))
+        memoryCount_send=memoryCount_send+1
+        commListPtr => commListPtr % next
+      end do
+      allocate(gpu_bufferOffset_send(nHaloLayers*memoryCount_send))
+      allocate(gpu_idx_send(nHaloLayers*memoryCount_send))
+      allocate(gpu_nList_send(nHaloLayers*memoryCount_send))
+      commListPtr => recvList
+      memoryCount_recv=0
+      do while(associated(commListPtr))
+        memoryCount_recv=memoryCount_recv+1
+        commListPtr => commListPtr % next
+      end do
+      allocate(gpu_bufferOffset_recv(nHaloLayers*memoryCount_recv))
+      allocate(gpu_idx_recv(nHaloLayers*memoryCount_recv))
+      allocate(gpu_nList_recv(nHaloLayers*memoryCount_recv))
       commListPtr => recvList
       do while(associated(commListPtr))
-        if (.not. associated(commListPtr % rbuffer)) then
-           allocate(commListPtr % rbuffer(commListPtr % nList))
-        end if
+      !  if (.not. associated(commListPtr % rbuffer)) then
+      !     allocate(tempRbuffer(commListPtr % nList))
+      !     commListPtr % rbuffer => tempRbuffer
+        !!$acc enter data create(tempRbuffer)
+       ! else 
+           !tempRbuffer => commListPtr % rbuffer
+       ! end if
         nullify(commListPtr % ibuffer)
-        call MPI_Irecv(commListPtr % rbuffer, commListPtr % nList, MPI_REALKIND, commListPtr % procID, commListPtr % procID, mpi_comm, commListPtr % reqID, mpi_ierr)
-
         commListPtr => commListPtr % next
       end do
 
       ! Allocate space in send lists, copy data into buffer, and initiate mpi_isend calls
       commListPtr => sendList
+      memoryCounter=0
       idx = 11   ! First endPointID to send to
       do while(associated(commListPtr))
-        if (.not. associated(commListPtr % rbuffer)) then
-           allocate(commListPtr % rbuffer(commListPtr % nList))
-        end if
+        !if (.not. associated(commListPtr % rbuffer)) then
+        !   allocate(tempRbuffer(commListPtr % nList))
+        !   commListPtr % rbuffer => tempRbuffer
+        !$acc enter data create(tempRbuffer)
+        !else 
+        !   tempRbuffer => commListPtr % rbuffer
+        !end if
         nullify(commListPtr % ibuffer)
         bufferOffset = 0
         if (commListPtr % procID /= compactHaloInfo(idx)) then
@@ -6477,22 +6649,19 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
                 return
              end if
              nList = compactHaloInfo(idx)
-          end do
-
-          do  i = 1, nList
-             commListPtr % rbuffer(compactHaloInfo(idx + nList + i) + bufferOffset) = array(compactHaloInfo(idx + i))
-             nAdded = nAdded + 1
-          end do
-
+          end do 
+          !call mpas_log_write('nList is $i',intArgs=(/nList/), messageType=MPAS_LOG_WARN)
+          gpu_idx_send(memoryCounter*nHaloLayers+iHalo) = idx
+          gpu_nList_send(memoryCounter*nHaloLayers+iHalo) = nList
+          gpu_bufferOffset_send(memoryCounter*nHaloLayers+iHalo) = bufferOffset
+          nAdded = nList
           idx = idx + 2 * nList + 1   ! Advance idx to the nList value of the next halo layer for the field
           nList = compactHaloInfo(idx)
           iFieldHalo = iFieldHalo + 1
 
           bufferOffset = bufferOffset + nAdded
         end do
-
-        call MPI_Isend(commListPtr % rbuffer, commListPtr % nList, MPI_REALKIND, commListPtr % procID, mpi_proc_id, mpi_comm, commListPtr % reqID, mpi_ierr)
-
+   
         do while (iFieldHalo <= nFieldHaloLayers)
           idx = idx + 2 * nList + 1   ! Advance idx to the nList value of the next halo layer for the field
           iFieldHalo = iFieldHalo + 1
@@ -6500,17 +6669,24 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
              nList = compactHaloInfo(idx)
           end if
         end do
-
+        memoryCounter=memoryCounter+1
         commListPtr => commListPtr % next
       end do
 
+      commListPtr => sendList
+      do while(associated(commListPtr))
+      
+        tempRbuffer => commListPtr % rbuffer
+        !call MPI_Isend(tempRbuffer, commListPtr % nList, MPI_REALKIND, commListPtr % procID, mpi_proc_id, mpi_comm, commListPtr % reqID, mpi_ierr)
+        commListPtr => commListPtr % next
+      end do
       ! Now, idx should point to the index in compactHaloInfo holding the number of receive endpoints
 
       ! Wait for mpi_irecv to finish, and unpack data from buffer
+      memoryCounter=0
       commListPtr => recvList
       idx = idx + 1   ! First endPointID to receive from
       do while(associated(commListPtr))
-        call MPI_Wait(commListPtr % reqID, MPI_STATUS_IGNORE, mpi_ierr)
         bufferOffset = 0
         if (commListPtr % procID /= compactHaloInfo(idx)) then
 #if defined(MPAS_DEBUG) && !defined(MPAS_OPENACC)
@@ -6536,12 +6712,12 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
              end if
              nList = compactHaloInfo(idx)
           end do
-
-          do i = 1, nList
-             array(compactHaloInfo(idx + nList + i)) = commListPtr % rbuffer(compactHaloInfo(idx + i) + bufferOffset)
-          end do
           nAdded = max(nAdded, maxval(compactHaloInfo(idx+1:idx+nList)))
-
+          !begin new code
+          gpu_idx_recv(memoryCounter*nHaloLayers+iHalo) = idx
+          gpu_nList_recv(memoryCounter*nHaloLayers+iHalo) = nList
+          gpu_bufferOffset_recv(memoryCounter*nHaloLayers+iHalo) = bufferOffset
+          !end new code
           idx = idx + 2 * nList + 1   ! Advance idx to the nList value of the next halo layer for the field
           iFieldHalo = iFieldHalo + 1
           if (iFieldHalo <= nFieldHaloLayers) then
@@ -6558,14 +6734,7 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
              nList = compactHaloInfo(idx)
           end if
         end do
-
-        commListPtr => commListPtr % next
-      end do
-
-      ! wait for mpi_isend to finish.
-      commListPtr => sendList
-      do while(associated(commListPtr))
-        call MPI_Wait(commListPtr % reqID, MPI_STATUS_IGNORE, mpi_ierr)
+        memoryCounter=memoryCounter+1
         commListPtr => commListPtr % next
       end do
 
@@ -6576,9 +6745,7 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
 
      deallocate(haloLayers)
 
-   end subroutine mpas_dmpar_exch_halo_1d_real_acc !}}}
-
-
+   end subroutine mpas_dmpar_gpu_init_1d_real_acc !}}}
 !-----------------------------------------------------------------------
 !  routine mpas_dmpar_exch_halo_2d_real_acc
 !
@@ -6594,6 +6761,7 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
 !>  region.
 !
 !-----------------------------------------------------------------------
+
    subroutine mpas_dmpar_exch_halo_2d_real_acc(array, compactHaloInfo, sendList, recvList, gpu_bufferOffset_send, &
                                               gpu_nList_send, gpu_idx_send, gpu_bufferOffset_recv, gpu_nList_recv,&
                                               gpu_idx_recv, dimsizes, nHaloLayers, gpuVariablesSendSize,&
@@ -6681,7 +6849,8 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
            do  i = 1, localMax
              do j = 1, dimSizes(1)
                if(i<=gpu_nList_send(counter*nHaloLayers+iHalo)) then
-                tempRbuffer((compactHaloInfo(gpu_idx_send(counter*nHaloLayers+iHalo) + gpu_nList_send(counter*nHaloLayers+iHalo) + i)-1) * dimSizes(1) + j + gpu_bufferOffset_send(counter*nHaloLayers+iHalo)) = array(j, compactHaloInfo(gpu_idx_send(counter*nHaloLayers+iHalo) + i))
+                tempRbuffer((compactHaloInfo(gpu_idx_send(counter*nHaloLayers+iHalo) + gpu_nList_send(counter*nHaloLayers+iHalo) + i)-1) * dimSizes(1) + j &
+                + gpu_bufferOffset_send(counter*nHaloLayers+iHalo)) = array(j, compactHaloInfo(gpu_idx_send(counter*nHaloLayers+iHalo) + i))
                end if 
               end do
             end do
@@ -6720,7 +6889,8 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
            do i = 1, localMax 
              do j = 1, dimSizes(1)
                if(i<=gpu_nList_recv(counter*nHaloLayers+iHalo)) then
-                array(j, compactHaloInfo(gpu_idx_recv(counter*nHaloLayers+iHalo) + gpu_nList_recv(counter*nHaloLayers+iHalo) + i)) = tempRbuffer((compactHaloInfo(gpu_idx_recv(counter*nHaloLayers+iHalo) + i)-1)*dimSizes(1) + j + gpu_bufferOffset_recv(counter*nHaloLayers+iHalo))
+                array(j, compactHaloInfo(gpu_idx_recv(counter*nHaloLayers+iHalo) + gpu_nList_recv(counter*nHaloLayers+iHalo) + i)) &
+                = tempRbuffer((compactHaloInfo(gpu_idx_recv(counter*nHaloLayers+iHalo) + i)-1)*dimSizes(1) + j + gpu_bufferOffset_recv(counter*nHaloLayers+iHalo))
                end if
              end do
             end do
@@ -6746,7 +6916,6 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
      deallocate(haloLayers)
 
    end subroutine mpas_dmpar_exch_halo_2d_real_acc !}}}
-
 
    subroutine mpas_dmpar_gpu_init_2d_real_acc(array, compactHaloInfo, sendList, recvList, gpu_bufferOffset_send, &
                                               gpu_nList_send, gpu_idx_send, gpu_bufferOffset_recv, gpu_nList_recv,&
@@ -6984,26 +7153,194 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
 !
 !-----------------------------------------------------------------------
 
-   subroutine mpas_dmpar_exch_halo_3d_real_acc(array, compactHaloInfo, sendList, recvList, haloLayersIn) !{{{
+   subroutine mpas_dmpar_exch_halo_3d_real_acc(array, compactHaloInfo, sendList, recvList, gpu_bufferOffset_send, &
+                                              gpu_nList_send, gpu_idx_send, gpu_bufferOffset_recv, gpu_nList_recv,&
+                                              gpu_idx_recv, dimsizes, nHaloLayers, gpuVariablesSendSize,&
+                                              gpuVariablesRecvSize, compactHaloInfoSize, arraySize1, arraySize2, arraySize3,haloLayersIn) !{{{
 
       implicit none
-
-      real (kind=RKIND), dimension(:,:,:), intent(inout) :: array !< Input: Array storage for field whose halo will be communicated
-      integer, dimension(:), intent(in) :: compactHaloInfo !< Input: Information needed to construct communications lists, etc.
-      type (mpas_communication_list), pointer :: sendList, recvList
+      integer, dimension(3),intent(in) :: dimsizes
+      integer, intent(in) :: gpuVariablesSendSize, gpuVariablesRecvSize, compactHaloInfoSize, arraySize1, arraySize2,arraySize3
+      real (kind=RKIND), dimension(arraySize1,arraySize2,arraySize3), intent(inout) :: array !< Input: Array storage for field whose halo will be communicated
+      integer, dimension(compactHaloInfoSize), intent(in) :: compactHaloInfo !< Input: Information needed to construct communications lists, etc.
+      type (mpas_communication_list), pointer, intent(in) :: sendList, recvList
       integer, dimension(:), intent(in), optional :: haloLayersIn !< Input: List of halo layers to communicate. Defaults to all
 
       type (mpas_exchange_list), pointer :: exchListPtr
       type (mpas_communication_list), pointer :: commListPtr
       integer :: mpi_ierr
-      integer :: nHaloLayers, iHalo, i, j, k, idx
+      integer :: iHalo, i, j, k, idx
       integer :: nFieldHaloLayers, iFieldHalo, nList
       integer :: bufferOffset, nAdded
       integer, dimension(:), pointer :: haloLayers
-      integer, dimension(3) :: dimsizes
+      integer, dimension(gpuVariablesSendSize), intent(in):: gpu_bufferOffset_send, gpu_nList_send, gpu_idx_send
+      integer, dimension(gpuVariablesRecvSize), intent(in) :: gpu_bufferOffset_recv, gpu_nList_recv, gpu_idx_recv
+      integer, intent(in) :: nHaloLayers
       integer :: mpi_comm, mpi_proc_id
+      real (kind=RKIND), dimension(:), pointer :: tempRbuffer
+      integer :: localMax, counter
+      !
+      ! Unpack fields from the compacted halo info array
+      !
+      mpi_comm = compactHaloInfo(7)
+      mpi_proc_id = compactHaloInfo(8)
 
+      if(present(haloLayersIn)) then
+        !nHaloLayers = size(haloLayersIn)
+        allocate(haloLayers(nHaloLayers))
+        do iHalo = 1, nHaloLayers
+          haloLayers(iHalo) = haloLayersIn(iHalo)
+        end do
+      else
 
+        allocate(haloLayers(nHaloLayers))
+        do iHalo = 1, nHaloLayers
+          haloLayers(iHalo) = iHalo
+        end do
+      end if
+
+      nFieldHaloLayers = compactHaloInfo(9)
+#ifdef _MPI
+      ! Allocate space in recv lists, and initiate mpi_irecv calls
+      commListPtr => recvList
+      do while(associated(commListPtr))
+        if (.not. associated(commListPtr % rbuffer)) then
+           allocate(tempRbuffer(commListPtr % nList))
+           commListPtr % rbuffer => tempRbuffer
+        !$acc enter data create(tempRbuffer)
+        else 
+           tempRbuffer => commListPtr % rbuffer
+        end if
+        nullify(commListPtr % ibuffer)
+        !$acc host_data use_device(tempRbuffer) 
+        call MPI_Irecv(tempRbuffer, commListPtr % nList, MPI_REALKIND, commListPtr % procID, commListPtr % procID, mpi_comm, commListPtr % reqID, mpi_ierr)
+        !$acc end host_data
+        commListPtr => commListPtr % next
+      end do
+      ! Allocate space in send lists, copy data into buffer, and initiate mpi_isend calls
+      commListPtr => sendList
+      do while(associated(commListPtr))
+        if (.not. associated(commListPtr % rbuffer)) then
+           allocate(tempRbuffer(commListPtr % nList))
+           commListPtr % rbuffer => tempRbuffer
+        !$acc enter data create(tempRbuffer)
+        else 
+           tempRbuffer => commListPtr % rbuffer
+        end if
+        nullify(commListPtr % ibuffer)
+        commListPtr => commListPtr % next
+      enddo   
+      counter=0
+      commListPtr => sendList
+      localMax=maxval(gpu_nList_send(:))
+      do while(associated(commListPtr))
+          tempRbuffer => commListPtr % rbuffer
+          !$acc data present(tempRbuffer, array, compactHaloInfo, dimsizes, nHaloLayers, gpu_nList_send, gpu_idx_send, gpu_bufferOffset_send) async(counter+1)
+          !$acc parallel default(none) num_workers(8) vector_length(128) async(counter+1)
+          !!$acc kernels async(counter+1)
+          !$acc loop independent collapse(4) gang worker vector
+          do iHalo = 1, nHaloLayers
+           do  i = 1, localMax
+             do j = 1, dimSizes(2) 
+               do k = 1, dimSizes(1)
+                 if(i<=gpu_nList_send(counter*nHaloLayers+iHalo)) then
+                    tempRbuffer((compactHaloInfo(gpu_idx_send(counter*nHaloLayers+iHalo) + gpu_nList_send(counter*nHaloLayers+iHalo) + i)-1) * dimSizes(1) * dimSizes(2) + (j-1) * dimSizes(1) + k + gpu_bufferOffset_send(counter*nHaloLayers+iHalo)) = array(k, j, compactHaloInfo(gpu_idx_send(counter*nHaloLayers+iHalo) + i))
+                 end if
+                end do
+              end do
+            end do
+          end do
+          !!$acc end kernels
+          !$acc end parallel
+          !$acc end data
+        counter=counter+1
+        commListPtr => commListPtr % next
+      end do
+!$acc wait
+      commListPtr => sendList
+      do while(associated(commListPtr))
+        tempRbuffer => commListPtr % rbuffer
+        !$acc host_data use_device(tempRbuffer)
+        call MPI_Isend(tempRbuffer, commListPtr % nList, MPI_REALKIND, commListPtr % procID, mpi_proc_id, mpi_comm, commListPtr % reqID, mpi_ierr)
+        !$acc end host_data
+        commListPtr => commListPtr % next
+      end do
+      commListPtr => recvList
+!RRPKComment: Forced to wait for all recv buffers to be filled up else CUDA streams throws exceptions
+!RRPKComment: I'll figure out to wait for any, after consulting with PGI/OpenMPI
+      do while(associated(commListPtr))
+        call MPI_Wait(commListPtr % reqID, MPI_STATUS_IGNORE, mpi_ierr)
+        commListPtr => commListPtr % next
+      end do
+
+      commListPtr => recvList
+      counter=0
+      localMax=maxval(gpu_nList_recv(:))
+      do while(associated(commListPtr))
+        tempRbuffer => commListPtr % rbuffer
+          !$acc data present(tempRbuffer,array,compactHaloInfo,dimsizes, nHaloLayers,dimSizes,gpu_idx_recv,gpu_bufferOffset_recv,gpu_nList_recv) async(counter+1)
+          !$acc parallel num_workers(8) vector_length(128) async(counter+1)
+          !$acc loop independent collapse(4) gang worker vector
+          !!$acc kernels async(counter+1)
+          do iHalo = 1, nHaloLayers
+           do i = 1, localMax 
+             do j = 1, dimSizes(2)
+               do k = 1, dimSizes(1)
+                 if(i<=gpu_nList_recv(counter*nHaloLayers+iHalo)) then
+                    array(k, j, compactHaloInfo(gpu_idx_recv(counter*nHaloLayers+iHalo) + gpu_nList_recv(counter*nHaloLayers+iHalo) + i)) = tempRbuffer((compactHaloInfo(gpu_idx_recv(counter*nHaloLayers+iHalo) + i)-1)*dimSizes(1) * dimSizes(2) + (j-1) * dimSizes(1) + k + gpu_bufferOffset_recv(counter*nHaloLayers+iHalo))
+                 end if
+               end do
+             end do
+            end do
+          end do
+          !!$acc end kernels
+          !$acc end parallel
+          !$acc end data
+        commListPtr => commListPtr % next
+        counter=counter+1
+      end do
+!$acc wait
+
+      ! wait for mpi_isend to finish.
+      commListPtr => sendList
+      do while(associated(commListPtr))
+        call MPI_Wait(commListPtr % reqID, MPI_STATUS_IGNORE, mpi_ierr)
+        commListPtr => commListPtr % next
+      end do
+     ! Destroy commLists.
+!     call mpas_dmpar_destroy_communication_list(sendList)
+!     call mpas_dmpar_destroy_communication_list(recvList)
+#endif
+
+     deallocate(haloLayers)
+
+   end subroutine mpas_dmpar_exch_halo_3d_real_acc !}}}
+
+   subroutine mpas_dmpar_gpu_init_3d_real_acc(array, compactHaloInfo, sendList, recvList, gpu_bufferOffset_send, &
+                                              gpu_nList_send, gpu_idx_send, gpu_bufferOffset_recv, gpu_nList_recv,&
+                                              gpu_idx_recv, dimsizes, nHaloLayers, haloLayersIn) !{{{
+
+      implicit none
+
+      real (kind=RKIND), dimension(:,:,:), intent(inout) :: array !< Input: Array storage for field whose halo will be communicated
+      integer, dimension(:), intent(in) :: compactHaloInfo !< Input: Information needed to construct communications lists, etc.
+      type (mpas_communication_list), pointer, intent(inout) :: sendList, recvList
+      integer, dimension(:), intent(in), optional :: haloLayersIn !< Input: List of halo layers to communicate. Defaults to all
+
+      type (mpas_exchange_list), pointer :: exchListPtr
+      type (mpas_communication_list), pointer :: commListPtr
+      integer :: mpi_ierr
+      integer :: iHalo, i, j, k, idx
+      integer :: nFieldHaloLayers, iFieldHalo, nList
+      integer :: bufferOffset, nAdded
+      integer, dimension(:), pointer, intent(inout):: gpu_bufferOffset_send, gpu_nList_send, gpu_idx_send
+      integer, dimension(:), pointer, intent(inout):: gpu_bufferOffset_recv, gpu_nList_recv, gpu_idx_recv
+      integer, dimension(:), pointer :: haloLayers
+      integer, dimension(3), intent(inout) :: dimsizes
+      integer, intent(inout) :: nHaloLayers
+      integer :: mpi_comm, mpi_proc_id
+      real (kind=RKIND), dimension(:), pointer :: tempRbuffer
+      integer :: streamcount, memoryCounter, memoryCount_send, memoryCount_recv
       !
       ! Unpack fields from the compacted halo info array
       !
@@ -7024,34 +7361,57 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
           haloLayers(iHalo) = iHalo
         end do
       end if
-
+      
       nFieldHaloLayers = compactHaloInfo(9)
-
 #ifdef _MPI
       ! Setup Communication Lists
       if (.not. associated(sendList) .and. .not. associated(recvList)) then
          call mpas_dmpar_build_comm_lists_acc(compactHaloInfo, haloLayers, sendList, recvList)
       end if
-
       ! Allocate space in recv lists, and initiate mpi_irecv calls
+      commListPtr => sendList
+      memoryCount_send=0
+      do while(associated(commListPtr))
+        memoryCount_send=memoryCount_send+1
+        commListPtr => commListPtr % next
+      end do
+      allocate(gpu_bufferOffset_send(nHaloLayers*memoryCount_send))
+      allocate(gpu_idx_send(nHaloLayers*memoryCount_send))
+      allocate(gpu_nList_send(nHaloLayers*memoryCount_send))
+      commListPtr => recvList
+      memoryCount_recv=0
+      do while(associated(commListPtr))
+        memoryCount_recv=memoryCount_recv+1
+        commListPtr => commListPtr % next
+      end do
+      allocate(gpu_bufferOffset_recv(nHaloLayers*memoryCount_recv))
+      allocate(gpu_idx_recv(nHaloLayers*memoryCount_recv))
+      allocate(gpu_nList_recv(nHaloLayers*memoryCount_recv))
       commListPtr => recvList
       do while(associated(commListPtr))
-        if (.not. associated(commListPtr % rbuffer)) then
-           allocate(commListPtr % rbuffer(commListPtr % nList))
-        end if
+      !  if (.not. associated(commListPtr % rbuffer)) then
+      !     allocate(tempRbuffer(commListPtr % nList))
+      !     commListPtr % rbuffer => tempRbuffer
+        !!$acc enter data create(tempRbuffer)
+       ! else 
+           !tempRbuffer => commListPtr % rbuffer
+       ! end if
         nullify(commListPtr % ibuffer)
-        call MPI_Irecv(commListPtr % rbuffer, commListPtr % nList, MPI_REALKIND, commListPtr % procID, commListPtr % procID, mpi_comm, commListPtr % reqID, mpi_ierr)
-
         commListPtr => commListPtr % next
       end do
 
       ! Allocate space in send lists, copy data into buffer, and initiate mpi_isend calls
       commListPtr => sendList
+      memoryCounter=0
       idx = 11   ! First endPointID to send to
       do while(associated(commListPtr))
-        if (.not. associated(commListPtr % rbuffer)) then
-           allocate(commListPtr % rbuffer(commListPtr % nList))
-        end if
+        !if (.not. associated(commListPtr % rbuffer)) then
+        !   allocate(tempRbuffer(commListPtr % nList))
+        !   commListPtr % rbuffer => tempRbuffer
+        !$acc enter data create(tempRbuffer)
+        !else 
+        !   tempRbuffer => commListPtr % rbuffer
+        !end if
         nullify(commListPtr % ibuffer)
         bufferOffset = 0
         if (commListPtr % procID /= compactHaloInfo(idx)) then
@@ -7077,26 +7437,19 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
                 return
              end if
              nList = compactHaloInfo(idx)
-          end do
-
-          do  i = 1, nList
-             do j = 1, dimSizes(2)
-                do k = 1, dimSizes(1)
-                   commListPtr % rbuffer((compactHaloInfo(idx + nList + i)-1) * dimSizes(1) * dimSizes(2) + (j-1) * dimSizes(1) + k + bufferOffset) = array(k, j, compactHaloInfo(idx + i))
-                   nAdded = nAdded + 1
-                end do
-             end do
-          end do
-
+          end do 
+          !call mpas_log_write('nList is $i',intArgs=(/nList/), messageType=MPAS_LOG_WARN)
+          gpu_idx_send(memoryCounter*nHaloLayers+iHalo) = idx
+          gpu_nList_send(memoryCounter*nHaloLayers+iHalo) = nList
+          gpu_bufferOffset_send(memoryCounter*nHaloLayers+iHalo) = bufferOffset
+          nAdded = nList * dimSizes(1) * dimSizes(2)
           idx = idx + 2 * nList + 1   ! Advance idx to the nList value of the next halo layer for the field
           nList = compactHaloInfo(idx)
           iFieldHalo = iFieldHalo + 1
 
           bufferOffset = bufferOffset + nAdded
         end do
-
-        call MPI_Isend(commListPtr % rbuffer, commListPtr % nList, MPI_REALKIND, commListPtr % procID, mpi_proc_id, mpi_comm, commListPtr % reqID, mpi_ierr)
-
+   
         do while (iFieldHalo <= nFieldHaloLayers)
           idx = idx + 2 * nList + 1   ! Advance idx to the nList value of the next halo layer for the field
           iFieldHalo = iFieldHalo + 1
@@ -7104,17 +7457,24 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
              nList = compactHaloInfo(idx)
           end if
         end do
-
+        memoryCounter=memoryCounter+1
         commListPtr => commListPtr % next
       end do
 
+      commListPtr => sendList
+      do while(associated(commListPtr))
+      
+        tempRbuffer => commListPtr % rbuffer
+        !call MPI_Isend(tempRbuffer, commListPtr % nList, MPI_REALKIND, commListPtr % procID, mpi_proc_id, mpi_comm, commListPtr % reqID, mpi_ierr)
+        commListPtr => commListPtr % next
+      end do
       ! Now, idx should point to the index in compactHaloInfo holding the number of receive endpoints
 
       ! Wait for mpi_irecv to finish, and unpack data from buffer
+      memoryCounter=0
       commListPtr => recvList
       idx = idx + 1   ! First endPointID to receive from
       do while(associated(commListPtr))
-        call MPI_Wait(commListPtr % reqID, MPI_STATUS_IGNORE, mpi_ierr)
         bufferOffset = 0
         if (commListPtr % procID /= compactHaloInfo(idx)) then
 #if defined(MPAS_DEBUG) && !defined(MPAS_OPENACC)
@@ -7140,16 +7500,12 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
              end if
              nList = compactHaloInfo(idx)
           end do
-
-          do i = 1, nList
-             do j = 1, dimSizes(2)
-                do k = 1, dimSizes(1)
-                   array(k, j, compactHaloInfo(idx + nList + i)) = commListPtr % rbuffer((compactHaloInfo(idx + i)-1)*dimSizes(1)*dimSizes(2) + (j-1)*dimSizes(1) + k + bufferOffset)
-                end do
-             end do
-          end do
-          nAdded = max(nAdded, maxval(compactHaloInfo(idx+1:idx+nList)) * dimSizes(1) * dimSizes(2))
-
+          nAdded = max(nAdded, maxval(compactHaloInfo(idx+1:idx+nList)) * dimsizes(1) * dimsizes(2))
+          !begin new code
+          gpu_idx_recv(memoryCounter*nHaloLayers+iHalo) = idx
+          gpu_nList_recv(memoryCounter*nHaloLayers+iHalo) = nList
+          gpu_bufferOffset_recv(memoryCounter*nHaloLayers+iHalo) = bufferOffset
+          !end new code
           idx = idx + 2 * nList + 1   ! Advance idx to the nList value of the next halo layer for the field
           iFieldHalo = iFieldHalo + 1
           if (iFieldHalo <= nFieldHaloLayers) then
@@ -7166,14 +7522,7 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
              nList = compactHaloInfo(idx)
           end if
         end do
-
-        commListPtr => commListPtr % next
-      end do
-
-      ! wait for mpi_isend to finish.
-      commListPtr => sendList
-      do while(associated(commListPtr))
-        call MPI_Wait(commListPtr % reqID, MPI_STATUS_IGNORE, mpi_ierr)
+        memoryCounter=memoryCounter+1
         commListPtr => commListPtr % next
       end do
 
@@ -7184,9 +7533,7 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
 
      deallocate(haloLayers)
 
-   end subroutine mpas_dmpar_exch_halo_3d_real_acc !}}}
-
-
+   end subroutine mpas_dmpar_gpu_init_3d_real_acc !}}}
 !-----------------------------------------------------------------------
 !  routine mpas_dmpar_exch_halo_field2d_real
 !
@@ -11641,3 +11988,4 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
 
 
 end module mpas_dmpar
+

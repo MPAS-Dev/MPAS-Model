@@ -26,8 +26,8 @@
         integer, dimension(:), pointer :: gpu_bufferoffset_recv => null()
         integer, dimension(:), pointer :: gpu_nList_recv => null()
 
-        integer, dimension(2) :: gpu_dimSizes = 0
-        integer, dimension(2) :: gpuArraySize = 0
+        integer, dimension(3) :: gpu_dimSizes = 0
+        integer, dimension(3) :: gpuArraySize = 0
         integer :: gpu_nHaloLayers = 0
         integer :: gpu_send_size = 0
         integer :: gpu_recv_size = 0

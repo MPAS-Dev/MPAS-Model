@@ -134,15 +134,18 @@
     ht_p,             &!
     psfc_p,           &!surface pressure                                                       [Pa]
     ptop_p             !model-top pressure                                                     [Pa]
+!$acc declare create(psfc_p)
 
  real(kind=RKIND),dimension(:,:,:),allocatable:: &
     fzm_p,            &!weight for interpolation to w points                                    [-]
     fzp_p              !weight for interpolation to w points                                    [-]
+!$acc declare create(fzm_p, fzp_p)
 
  real(kind=RKIND),dimension(:,:,:),allocatable:: &
 !... arrays related to u- and v-velocities interpolated to theta points:
     u_p,              &!u-velocity interpolated to theta points                               [m/s]
     v_p                !v-velocity interpolated to theta points                               [m/s]
+!$acc declare create(u_p, v_p)
     
 !... arrays related to vertical sounding:
  real(kind=RKIND),dimension(:,:,:),allocatable:: &
@@ -157,6 +160,7 @@
     al_p,             &!inverse of air density                                              [m3/kg]
     rho_p,            &!air density                                                         [kg/m3]
     rh_p               !relative humidity                                                       [-]
+!$acc declare create(zz_p, rho_p, th_p, t_p, pi_p, pres_p, z_p, dz_p, zmid_p)
 
  real(kind=RKIND),dimension(:,:,:),allocatable:: &
     qv_p,             &!water vapor mixing ratio                                            [kg/kg]
@@ -165,16 +169,19 @@
     qi_p,             &!cloud ice mixing ratio                                              [kg/kg]
     qs_p,             &!snow mixing ratio                                                   [kg/kg]
     qg_p               !graupel mixing ratio                                                [kg/kg]
+!$acc declare create(qv_p, qc_p, qr_p, qi_p, qs_p, qg_p)
 
  real(kind=RKIND),dimension(:,:,:),allocatable:: &
     ni_p,             &!
     nr_p               !
+!$acc declare create(ni_p, nr_p)
 
 !... arrays located at w (vertical velocity) points, or at interface between layers:
  real(kind=RKIND),dimension(:,:,:),allocatable:: &
     w_p,              &!vertical velocity                                                     [m/s]
     pres2_p,          &!pressure                                                               [Pa]
     t2_p               !temperature                                                             [K]
+!$acc declare create(w_p, t2_p, pres2_p)
 
 !... arrays used for calculating the hydrostatic pressure and exner function:
  real(kind=RKIND),dimension(:,:),allocatable:: &
@@ -186,6 +193,8 @@
     pres2_hyd_p,      &!pressure located at w-velocity levels                                  [Pa]
     pres2_hydd_p,     &!"dry" pressure located at w-velocity levels                            [Pa]
     znu_hyd_p          !(pres_hyd_p / P0) needed in the Tiedtke convection scheme              [Pa]
+!$acc declare create(pres2_hyd_p, pres2_hydd_p, pres_hyd_p, pres_hydd_p, &
+!$acc psfc_hyd_p, psfc_hydd_p, znu_hyd_p)
 
 !=================================================================================================================
 !... variables related to ozone climatlogy:
@@ -234,6 +243,8 @@
     graupelnc_p,      &!
     graupelncv_p,     &!
     sr_p
+!$acc declare create(rainnc_p, rainncv_p, snownc_p, snowncv_p, &
+!$acc graupelnc_p, graupelncv_p, sr_p)
 
 !... added for the thompson and wsm6 cloud microphysics:
  integer:: & 
@@ -244,6 +255,7 @@
  real(kind=RKIND),dimension(:,:),allocatable:: &
     ntc_p,            &!
     muc_p              !
+!$acc declare create(muc_p, ntc_p)
  real(kind=RKIND),dimension(:,:,:),allocatable:: &
     rainprod_p,       &!
     evapprod_p,       &!
@@ -251,6 +263,7 @@
     reice_p,          &!
     resnow_p,         &!
     refl10cm_p         !
+!$acc declare create(rainprod_p, evapprod_p, recloud_p, reice_p, resnow_p)
 
 !=================================================================================================================
 !... variables and arrays related to parameterization of convection:
@@ -270,6 +283,8 @@
     rqvcuten_p,       &!
     rqccuten_p,       &!
     rqicuten_p         !
+!$acc declare create(cu_act_flag,rthcuten_p,rqvcuten_p,rqccuten_p, &
+!$acc rqicuten_p,pratec_p,raincv_p)
 
 !... kain fritsch specific arrays:
  real(kind=RKIND),dimension(:,:),allocatable::   &
@@ -277,19 +292,31 @@
     cutop_p,          &!highest convective level                                                [-]
     nca_p              !counter for cloud relaxation time                                       [-]
  real(kind=RKIND),dimension(:,:,:),allocatable:: &
-    w0avg_p          !
+    w0avg_p            !
 
  real(kind=RKIND),dimension(:,:,:),allocatable:: &
     rqrcuten_p,       &!
     rqscuten_p         !
+!$acc declare create(cubot_p,cutop_p)
+
+!... kain fritsch multi-scale specific arrays:
+real(kind=RKIND),dimension(:,:,:),allocatable:: &
+    cldfra_sh_kf_p,   &!
+    cldfra_dp_kf_p,   &!
+    qc_kf_p,          &!
+    qi_kf_p,          &!
+    w_up_p             !
+!$acc declare create(cldfra_sh_kf_p,cldfra_dp_kf_p,qc_kf_p,qi_kf_p,w_up_p)
 
 !... tiedtke specific arrays:
  real(kind=RKIND),dimension(:,:,:),allocatable:: &
     znu_p              !
+!$acc declare create(znu_p)
 
  real(kind=RKIND),dimension(:,:,:),allocatable:: &
     rucuten_p,        &!
     rvcuten_p          !
+!$acc declare create(rucuten_p,rvcuten_p)
 
 !... grell-freitas specific parameters and arrays:
     integer, parameter:: ishallow  = 1 !shallow convection used with grell scheme.
@@ -312,6 +339,7 @@
 
  real(kind=RKIND),dimension(:,:,:),allocatable:: &
     rthraten_p         !
+!$acc declare create(rthraten_p)
 
 !... grell and tiedkte specific arrays:
  real(kind=RKIND),dimension(:,:,:),allocatable:: &
@@ -323,15 +351,18 @@
  real(kind=RKIND),dimension(:,:,:),allocatable:: &
     rqvften_p,        &!
     rthften_p          !
+!$acc declare create(rqvften_p,rthften_p)
 
 !=================================================================================================================
 !... variables and arrays related to parameterization of pbl:
 !=================================================================================================================
 
  integer:: ysu_pblmix
+!$acc declare create(ysu_pblmix)
 
  integer,dimension(:,:),allocatable:: &
     kpbl_p             !index of PBL top                                                                       [-]
+!$acc declare create(kpbl_p)
 
  real(kind=RKIND),public:: dt_pbl
 
@@ -341,11 +372,17 @@
     hpbl_p,           &!PBL height                                                                             [m]
     delta_p,          &!
     wstar_p,          &!
+    hgamt_p,          &!
+    hgamq_p,          &!
+    entpbl_p,         &!
     uoce_p,           &!
     voce_p             !
+!$acc declare create(hpbl_p, delta_p, wstar_p, uoce_p, voce_p, &
+!$acc ctopo_p, ctopo2_p,hgamt_p,hgamq_p,entpbl_p)
 
  real(kind=RKIND),dimension(:,:,:),allocatable:: &
     exch_p             !exchange coefficient                                                                   [-]
+!$acc declare create(exch_p)
 
  real(kind=RKIND),dimension(:,:,:),allocatable:: &
     rublten_p,        &!
@@ -354,11 +391,15 @@
     rqvblten_p,       &!
     rqcblten_p,       &!
     rqiblten_p         !
+!$acc declare create(rublten_p, rvblten_p, rthblten_p, rqvblten_p, rqcblten_p, &
+!$acc rqiblten_p)
 
  real(kind=RKIND),dimension(:,:,:),allocatable:: &
     kzh_p,            &!
     kzm_p,            &!
-    kzq_p              !
+    kzq_p,            &!
+    tkepbl_p
+!$acc declare create(kzh_p, kzm_p, kzq_p,tkepbl_p)
 
 !... MYNN PBL scheme (module_bl_mynn.F):
  integer,parameter:: grav_settling = 0
@@ -377,8 +418,7 @@
     qke_p,            &!
     qkeadv_p,         &!
     qshear_p,         &!
-    qwt_p,            &!
-    tkepbl_p           !
+    qwt_p              !
 
  real(kind=RKIND),dimension(:,:,:),allocatable:: &
     rniblten_p         !
@@ -398,6 +438,8 @@
     ol2_p,            &!orographic direction asymmetry function                                                [-]
     ol3_p,            &!orographic direction asymmetry function                                                [-]
     ol4_p              !orographic direction asymmetry function                                                [-]
+!$acc declare create(oa1_p,oa2_p,oa3_p,oa4_p,ol1_p,ol2_p, &
+!$acc ol3_p,ol4_p,var2d_p,con_p)
 
  real(kind=RKIND),dimension(:,:),allocatable:: &
     dx_p               !mean distance between cell centers                                                     [m]
@@ -409,6 +451,7 @@
  real(kind=RKIND),dimension(:,:,:),allocatable:: &
     dtaux3d_p,        &!gravity wave drag over orography u-stress                                          [m s-1]
     dtauy3d_p          !gravity wave drag over orography u-stress                                          [m s-1]
+!$acc declare create(dx_p,dusfcg_p,dvsfcg_p,dtaux3d_p,dtauy3d_p)
 
 !=================================================================================================================
 !... variables and arrays related to parameterization of surface layer:
@@ -449,11 +492,18 @@
     wspd_p,           &!wind speed                                                                           [m/s]
     znt_p,            &!time-varying roughness length                                                          [m]
     zol_p              !
+!$acc declare create(hfx_p, qfx_p, ust_p, wspd_p, znt_p, &
+!$acc br_p, psih_p, psim_p, regime_p, u10_p, v10_p, cd_p, &
+!$acc cda_p, chs_p, chs2_p, ck_p, cka_p, cpm_p, cqs2_p, &
+!$acc gz1oz0_p, flhc_p, flqc_p, lh_p, mavail_p, &
+!$acc mol_p, q2_p, qgh_p, qsfc_p, rmol_p, t2m_p, th2m_p, &
+!$acc ustm_p, zol_p)
 
 !... arrays only in monin_obukohv (module_sf_sfclay.F):
  real(kind=RKIND),dimension(:,:),allocatable:: &
     fh_p,             &!integrated stability function for heat                                                 [-]
     fm_p               !integrated stability function for momentum                                             [-]
+!$acc declare create(fh_p, fm_p)
 
 !... arrays only in mynn surface layer scheme (module_sf_mynn.F):
  real(kind=RKIND),dimension(:,:),allocatable:: &
@@ -481,6 +531,7 @@
     swcf_p,           &!shortwave cloud forcing at top-of-atmosphere                        [W m-2]
     swdnb_p,          &!all-sky downwelling shortwave flux at bottom-of-atmosphere          [J m-2]
     swdnbc_p,         &!clear-sky downwelling shortwave flux at bottom-of-atmosphere        [J m-2]
+    swdnbdn_p,        &!all-sky downwelling direct normal shortwave flux at bottom-of-atmosphere [J m-2]
     swdnt_p,          &!all-sky downwelling shortwave flux at top-of-atmosphere             [J m-2]
     swdntc_p,         &!clear-sky downwelling shortwave flux at top-of-atmosphere           [J m-2]
     swupb_p,          &!all-sky upwelling shortwave flux at bottom-of-atmosphere            [J m-2]
@@ -617,6 +668,7 @@
     tslb_p             !soil temperature                                                                       [K]
 
  real(kind=RKIND),dimension(:,:),allocatable:: &
+    snow_ratio_p,     &!snow water ratio                                                                       [-]  
     acsnom_p,         &!accumulated melted snow                                                           [kg m-2]
     acsnow_p,         &!accumulated snow                                                                  [kg m-2]
     canwat_p,         &!canopy water                                                                      [kg m-2]
@@ -667,6 +719,7 @@
     sst_p,            &!sea-surface temperature                                                                [K]
     xice_p,           &!ice mask                                                                               [-]
     xland_p            !land mask    (1 for land; 2 for water)                                                 [-]
+!$acc declare create(xland_p, tsk_p, sst_p, xice_p)
 
 !=================================================================================================================
 !.. variables needed for the surface layer scheme and land surface scheme when config_frac_seaice
@@ -682,7 +735,12 @@
 
  real(kind=RKIND),dimension(:,:),allocatable:: regime_hold
  real(kind=RKIND),dimension(:,:),allocatable:: tsk_ice
-
+!$acc declare create(br_sea, chs_sea, chs2_sea, cqs2_sea, cpm_sea, flhc_sea, &
+!$acc flqc_sea, gz1oz0_sea, hfx_sea, qfx_sea, mavail_sea, mol_sea, lh_sea, &
+!$acc psih_sea, psim_sea, qgh_sea, qsfc_sea, regime_sea, rmol_sea, tsk_sea, &
+!$acc ust_sea, ustm_sea, wspd_sea, xland_sea, zol_sea, znt_sea, cd_sea, &
+!$acc cda_sea, ck_sea, cka_sea, t2m_sea, th2m_sea, q2_sea, u10_sea, v10_sea, &
+!$acc regime_hold, fh_sea, fm_sea)
 
  contains
 

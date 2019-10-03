@@ -153,7 +153,7 @@
 ! A FUNCTION OF TEMPERATURE AND PRESSURE
 !
       REAL FUNCTION RSLF(P,T)
-
+!$acc routine seq
       IMPLICIT NONE
       REAL, INTENT(IN):: P, T
       REAL:: ESL,X
@@ -188,7 +188,7 @@
 ! FUNCTION OF TEMPERATURE AND PRESSURE
 !
       REAL FUNCTION RSIF(P,T)
-
+!$acc routine seq
       IMPLICIT NONE
       REAL, INTENT(IN):: P, T
       REAL:: ESI,X
