@@ -4225,7 +4225,7 @@ module atm_time_integration
       call mpas_dmpar_exch_halo_acc(scalars_old, compactHaloInfo_c_v_s, sendList_c_v_s, recvList_c_v_s, gpu_bufferOffset_send_c_v_s, &
                                      gpu_nList_send_c_v_s, gpu_idx_send_c_v_s, gpu_bufferOffset_recv_c_v_s, gpu_nList_recv_c_v_s,&
                                      gpu_idx_recv_c_v_s, gpu_dimsizes_c_v_s, gpu_nHaloLayers_c_v_s, gpu_send_size_c_v_s, gpu_recv_size_c_v_s,&
-                                     gpu_compactHaloInfoSize_c_v_s, num_scalars, nVertLevels, cellSolveEnd)
+                                     gpu_compactHaloInfoSize_c_v_s, num_scalars, nVertLevels, nCells+1)
 !$OMP END MASTER
 !$OMP BARRIER
 
@@ -4587,9 +4587,9 @@ module atm_time_integration
 !$OMP MASTER
 !MGDHALO         call mpas_dmpar_exch_halo_acc(scale_arr, compactHaloInfo_c_2_v, sendList_c_2_v, recvList_c_2_v, (/ 1 /))
          call mpas_dmpar_exch_halo_acc(scale_arr, compactHaloInfo_c_2_v, sendList_c_2_v, recvList_c_2_v, gpu_bufferOffset_send_c_2_v, &
-					gpu_nList_send_c_2_v, gpu_idx_send_c_2_v, gpu_bufferOffset_recv_c_2_v, gpu_nList_recv_c_2_v,&
-					gpu_idx_recv_c_2_v, gpu_dimsizes_c_2_v, gpu_nHaloLayers_c_2_v, gpu_send_size_c_2_v, gpu_recv_size_c_2_v,&
-					gpu_compactHaloInfoSize_c_2_v, nVertLevels, SCALE_IN, cellSolveEnd )
+                                       gpu_nList_send_c_2_v, gpu_idx_send_c_2_v, gpu_bufferOffset_recv_c_2_v, gpu_nList_recv_c_2_v,&
+                                       gpu_idx_recv_c_2_v, gpu_dimsizes_c_2_v, gpu_nHaloLayers_c_2_v, gpu_send_size_c_2_v, gpu_recv_size_c_2_v,&
+                                       gpu_compactHaloInfoSize_c_2_v, nVertLevels, 2, nCells+1 )
 !$OMP END MASTER
 !$OMP BARRIER
 
