@@ -347,6 +347,7 @@
                 <package name="mp_wsm6_in" description="parameterization of WSM6 cloud microphysics."/>
                 <package name="cu_grell_freitas_in" description="parameterization of Grell-Freitas convection."/>
                 <package name="cu_kain_fritsch_in" description="parameterization of Kain-Fritsch convection."/>
+                <package name="cu_kain_fritsch_ms_in" description="parameterization of Multi-Scale Kain-Fritsch convection."/>
                 <package name="cu_tiedtke_in" description="parameterization of Tiedtke convection."/>
                 <package name="bl_ysu_in" description="parameterization of YSU Planetary Boundary Layer."/>
                 <package name="bl_mynn_in" description="parameterization of MYNN Planetary Boundary Layer."/>
@@ -360,6 +361,21 @@
 <!-- **************************************************************************************** -->
 
 	<streams>
+
+                <stream name="da_input" 
+                        type="input" 
+                        filename_template="x1.40962.init.nc" 
+                        input_interval="initial_only"
+                        immutable="true">
+
+                        <var name="theta"/>
+                        <var name="rho"/>
+                        <var name="surface_pressure"/>
+                        <var name="w"/>
+                        <var name="u"/>
+                        <var_array name="scalars"/>
+                </stream>
+
 		<stream name="input" 
                         type="input" 
                         filename_template="x1.40962.init.nc" 
@@ -442,6 +458,7 @@
 			<var name="isltyp"/>
 			<var name="ivgtyp"/>
 			<var name="mminlu"/>
+            <var name="ter"/>
 			<var name="landmask"/>
 			<var name="shdmin"/>
 			<var name="shdmax"/>
@@ -486,6 +503,7 @@
                         filename_template="restart.$Y-$M-$D_$h.$m.$s.nc" 
                         input_interval="initial_only" 
                         output_interval="1_00:00:00" 
+                        output_stop="none"
                         immutable="true">
 
 			<var name="latCell"/>
@@ -596,6 +614,7 @@
 			<var name="tday_accum"/>
 			<var name="tyear_mean"/>
 			<var name="tyear_accum"/>
+			<var name="refl10cm"/>
 			<var name="refl10cm_max"/>
 			<var name="i_rainnc"/>
 			<var name="rainncv"/>
@@ -620,6 +639,9 @@
                         <var name="tsq"/>
                         <var name="tke_pbl"/>
                         <var name="wstar"/>
+                        <var name="hgamt"/>
+                        <var name="hgamq"/>
+                        <var name="entpbl"/>
                         <var name="delta"/>
                         <var name="el_pbl"/>
                         <var name="ch"/>
@@ -754,7 +776,6 @@
 			<var name="rthratensw"/>
 			<var name="rthratenlw"/>
 			<var name="pin"/>
-			<var name="ozmixm"/>
 			<var name="isltyp"/>
 			<var name="ivgtyp"/>
 			<var name="mminlu"/>
@@ -803,6 +824,7 @@
                         type="output" 
                         filename_template="history.$Y-$M-$D_$h.$m.$s.nc" 
                         output_interval="6:00:00"
+                        output_stop="none"
                         runtime_format="separate_file">
 
 			<var name="latCell"/>
@@ -918,7 +940,7 @@
 			<var name="smois"/>
 			<var name="tslb"/>
 		</stream>
-
+        
 		<stream name="diagnostics" 
                         type="output" 
                         filename_template="diag.$Y-$M-$D_$h.$m.$s.nc" 
@@ -930,6 +952,7 @@
 			<var name="olrtoa"/>
 			<var name="rainc"/>
 			<var name="rainnc"/>
+            <var name="refl10cm"/>
 			<var name="refl10cm_max"/>
 			<var name="refl10cm_1km"/>
 			<var name="refl10cm_1km_max"/>
@@ -940,7 +963,7 @@
 			<var name="t2m"/>
 			<var name="th2m"/>
 
-                        <!-- Begin isobaric diagnostics defined in diagnostics/Registry_isobaric.xml -->
+            <!-- Begin isobaric diagnostics defined in diagnostics/Registry_isobaric.xml -->
 			<var name="mslp"/>
 			<var name="relhum_200hPa"/>
 			<var name="relhum_250hPa"/>
@@ -995,7 +1018,7 @@
 			<var name="z_isobaric"/>
 			<var name="z_iso_levels"/>
 			<var name="meanT_500_300"/>
-                        <!-- End isobaric diagnostics defined in diagnostics/Registry_isobaric.xml -->
+            <!-- End isobaric diagnostics defined in diagnostics/Registry_isobaric.xml -->
 
                         <!-- Begin convective diagnostics defined in diagnostics/Registry_convective.xml -->
                         <var name="cape"/>
@@ -1777,6 +1800,11 @@
                      description="time interval between calls to parameterization of convection"
                      possible_values="`DD_HH:MM:SS' or `none'"/>
 
+                <nml_option name="config_w0avg_dt" type="real" default_value="0.0"
+                     units="s"
+                     description="w0avg time step, seconds"
+                     possible_values="Positive real values"/>
+
                 <nml_option name="config_pbl_interval" type="character" default_value="none" in_defaults="false"
                      units="-"
                      description="time interval between calls to parameterization of planetary boundary layer"
@@ -1797,6 +1825,16 @@
                      description="time interval between updates of accumulated rain and radiation diagnostics"
                      possible_values="`DD_HH:MM:SS' or `none'"/>
 
+                <nml_option name="config_bucket_precip_interval" type="character" default_value="none"
+                     units="-"
+                     description="time interval between reset of precipitation diagnostics"
+                     possible_values="`DD_HH:MM:SS' or `none'"/>
+
+                <nml_option name="config_bucket2_precip_interval" type="character" default_value="none"
+                     units="-"
+                     description="2nd of two time intervals between reset of precipitation diagnostics"
+                     possible_values="`DD_HH:MM:SS' or `none'"/>
+
                 <nml_option name="config_physics_suite" type="character" default_value="mesoscale_reference" in_defaults="true"
                      units="-"
                      description="Choice of physics suite"
@@ -1810,7 +1848,7 @@
                 <nml_option name="config_convection_scheme" type="character" default_value="suite" in_defaults="false"
                      units="-"
                      description="configuration for convection schemes"
-                     possible_values="`suite',`cu_kain_fritsch',`cu_tiedtke',`cu_ntiedtke',`cu_grell_freitas',`off'"/>
+                     possible_values="`suite',`cu_kain_fritsch',`cu_kain_fritsch_ms',`cu_tiedtke',`cu_ntiedtke',`cu_grell_freitas',`off'"/>
 
                 <nml_option name="config_lsm_scheme" type="character" default_value="suite" in_defaults="false"
                      units="-"
@@ -1891,6 +1929,12 @@
                      units="s"
                      description="Relaxation time to initial values in 1-d OML"
                      possible_values="Non-negative real values"/>
+
+                <nml_option name="config_snowratio_scheme" type="character" default_value="static" in_defaults="false"
+                     units="-"
+                     description="configuration for snow ratio schemes"
+                     possible_values="'kuchera','cobb','noahsp','noahmp','static'"/>
+
         </nml_record>
 
         <var_struct name="diag_physics" time_levs="1">
@@ -1923,6 +1967,10 @@
                 <!-- ... PARAMETERIZATION OF CLOUD MICROPHYSICS:                                                        -->
                 <!-- ================================================================================================== -->
 
+                <var name="refl10cm" type="real" dimensions="nVertLevels nCells Time" units="dBZ"
+                     description="10 cm radar reflectivity"
+                     packages="mp_thompson_in;mp_wsm6_in"/>
+                     
                 <var name="refl10cm_max" type="real" dimensions="nCells Time" units="dBZ"
                      description="10 cm maximum radar reflectivity"
                      packages="mp_thompson_in;mp_wsm6_in"/>
@@ -2004,29 +2052,57 @@
 
                 <var name="i_rainc" type="integer" dimensions="nCells Time" units="unitless"
                      description="incidence of accumulated convective precipitation greater than config_bucket_rainc"
-                     packages="cu_grell_freitas_in;cu_kain_fritsch_in;cu_tiedtke_in"/>
+                     packages="cu_grell_freitas_in;cu_kain_fritsch_in;cu_kain_fritsch_ms_in;cu_tiedtke_in"/>
 
                 <var name="cuprec" type="real" dimensions="nCells Time" units="mm s^{-1}"
                      description="convective precipitation rate"
-                     packages="cu_grell_freitas_in;cu_kain_fritsch_in;cu_tiedtke_in"/>
+                     packages="cu_grell_freitas_in;cu_kain_fritsch_in;cu_kain_fritsch_ms_in;cu_tiedtke_in"/>
 
                 <var name="rainc" type="real" dimensions="nCells Time" units="mm"
                      description="accumulated convective precipitation"
-                     packages="cu_grell_freitas_in;cu_kain_fritsch_in;cu_tiedtke_in"/>
+                     packages="cu_grell_freitas_in;cu_kain_fritsch_in;cu_kain_fritsch_ms_in;cu_tiedtke_in"/>
 
                 <var name="raincv" type="real" dimensions="nCells Time" units="mm"
                      description="time-step convective precipitation"
-                     packages="cu_grell_freitas_in;cu_kain_fritsch_in;cu_tiedtke_in"/>
+                     packages="cu_grell_freitas_in;cu_kain_fritsch_in;cu_kain_fritsch_ms_in;cu_tiedtke_in"/>
+
+                <var name="cubot" type="real" dimensions="nCells Time" units="unitless" default_value="0" in_defaults="false"
+                     description="index of highest level of convection"/>
+
+                <var name="cutop" type="real" dimensions="nCells Time" units="unitless" default_value="0" in_defaults="false"
+                     description="index of lowest level of convection"/>
 
 
                 <!-- ... KAIN_FRITSCH ONLY: -->
                 <var name="nca" type="real" dimensions="nCells Time" units="s"
                      description="relaxation time for KF parameterization of convection"
-                     packages="cu_kain_fritsch_in"/>
+                     packages="cu_kain_fritsch_in;cu_kain_fritsch_ms_in"/>
 
                 <var name="w0avg" type="real" dimensions="nVertLevels nCells Time" units="m s^{-1}"
                      description="time running-averaged vertical velocity"
-                     packages="cu_kain_fritsch_in"/>
+                     packages="cu_kain_fritsch_in;cu_kain_fritsch_ms_in"/>
+
+
+                <!-- ... KAIN_FRITSCH MULTI-SCALE ONLY: -->
+                <var name="cldfra_sh_kf" type="real" dimensions="nVertLevels nCells Time" units="unitless"
+                     description="shallow convection cloud fraction from Kain-Fritsch Multi-Scale"
+                     packages="cu_kain_fritsch_ms_in"/>
+
+                <var name="cldfra_dp_kf" type="real" dimensions="nVertLevels nCells Time" units="unitless"
+                     description="deep convection cloud fraction from Kain-Fritsch Multi-Scale"
+                     packages="cu_kain_fritsch_ms_in"/>
+
+                <var name="qc_kf" type="real" dimensions="nVertLevels nCells Time" units="kg kg^{-1}"
+                     description="in-cloud cloud water mixing ratio from Kain-Fritsch Multi-Scale cloud model"
+                     packages="cu_kain_fritsch_ms_in"/>
+
+                <var name="qi_kf" type="real" dimensions="nVertLevels nCells Time" units="kg kg^{-1}"
+                     description="in-cloud cloud ice mixing ratio from Kain-Fritsch Multi-Scale cloud model"
+                     packages="cu_kain_fritsch_ms_in"/>
+
+                <var name="w_up" type="real" dimensions="nVertLevels nCells Time" units="m s^{-1}"
+                     description="effective subgrid velocity from Kain-Fritsch Multi-Scale"
+                     packages="cu_kain_fritsch_ms_in"/>
 
 
                 <!-- ... GRELL-FREITAS ONLY: -->
@@ -2063,16 +2139,6 @@
                      packages="cu_grell_freitas_in"/>
 
 
-                <!-- ... KAIN_FRITSCH AND GRELL-FREITAS: -->
-                <var name="cubot" type="real" dimensions="nCells Time" units="unitless"
-                     description="index of highest level of convection"
-                     packages="cu_grell_freitas_in;cu_kain_fritsch_in"/>
-
-                <var name="cutop" type="real" dimensions="nCells Time" units="unitless"
-                     description="index of lowest level of convection"
-                     packages="cu_grell_freitas_in;cu_kain_fritsch_in"/>
-
-
                 <!-- ================================================================================================== -->
                 <!-- ... PARAMETERIZATION OF PLANETARY BOUNDARY LAYER PROCESSES:                                        -->
                 <!-- ================================================================================================== -->
@@ -2105,10 +2171,26 @@
                      description="vertical diffusion coefficient of water vapor and cloud condensates"
                      packages="bl_mynn_in;bl_ysu_in"/>
 
+                <var name="tke_pbl" type="real" dimensions="nVertLevels nCells Time" units="m^{2} s^{-2}"
+                     description="turbulent kinetic energy from PBL"
+                     packages="bl_mynn_in;bl_ysu_in"/>
+
 
                 <!-- YSU PBL SCHEME: -->
                 <var name="exch_h" type="real" dimensions="nVertLevels nCells Time" units="m^{2} s^{-1}"
                      description="exchange coefficient"
+                     packages="bl_ysu_in"/>
+
+                <var name="hgamt" type="real" dimensions="nCells Time" units="K"
+                     description="thermal perturbation"
+                     packages="bl_ysu_in"/>
+
+                <var name="hgamq" type="real" dimensions="nCells Time" units="kg kg^{-1}"
+                     description="moisture perturbation"
+                     packages="bl_ysu_in"/>
+
+                <var name="entpbl" type="real" dimensions="nCells Time" units="m^{-1}"
+                     description="entrainment from PBL"
                      packages="bl_ysu_in"/>
 
 
@@ -2135,10 +2217,6 @@
 
                 <var name="tsq" type="real" dimensions="nVertLevels nCells Time" units="K^{2}"
                      description="liquid water potential temperature variance"
-                     packages="bl_mynn_in"/>
-
-                <var name="tke_pbl" type="real" dimensions="nVertLevels nCells Time" units="m^{2} s^{-2}"
-                     description="turbulent kinetic energy from PBL"
                      packages="bl_mynn_in"/>
 
                 <var name="dqke" type="real" dimensions="nVertLevels nCells Time" units="m^{2} s^{-2}"
@@ -2378,7 +2456,10 @@
                      description="all-sky downward surface shortwave radiation flux"/>
 
                 <var name="swdnbc" type="real" dimensions="nCells Time" units="W m^{-2}"
-                     description="clear-sky downward surface shortwave radiation flux"/>                
+                     description="clear-sky downward surface shortwave radiation flux"/>
+                     
+                <var name="swdnbdn" type="real" dimensions="nCells Time" units="W m^{-2}"
+                     description="all-sky downward direct normal surface shortwave radiation flux"/>
 
                 <var name="swdnt" type="real" dimensions="nCells Time" units="W m^{-2}"
                      description="all-sky downward top-of-atmosphere shortwave radiation flux"/>
@@ -2537,7 +2618,7 @@
                 <var name="rre_ice" type="real" dimensions="nVertLevels nCells Time" units="microns"
                      description="effective radius of cloud ice crystals calculated in RRTMG radiation"/>
 
-                <var name="rre_snow" type="real" dimensions="nVertLevels nCells Time"/>
+                <var name="rre_snow" type="real" dimensions="nVertLevels nCells Time"
                      description="effective radius of cloud ice crystals calculated in RRTMG radiation"/>
 
 
@@ -2695,35 +2776,36 @@
 
                 <var name="rthcuten" type="real" dimensions="nVertLevels nCells Time" units="K s^{-1}"
                      description="tendency of potential temperature due to cumulus convection"
-                     packages="cu_grell_freitas_in;cu_kain_fritsch_in;cu_tiedtke_in"/>
+                     packages="cu_grell_freitas_in;cu_kain_fritsch_in;cu_kain_fritsch_ms_in;cu_tiedtke_in"/>
 
                 <var name="rqvcuten" type="real" dimensions="nVertLevels nCells Time" units="kg kg^{-1} s^{-1}"
                      description="tendency of water vapor mixing ratio due to cumulus convection"
-                     packages="cu_grell_freitas_in;cu_kain_fritsch_in;cu_tiedtke_in"/>
+                     packages="cu_grell_freitas_in;cu_kain_fritsch_in;cu_kain_fritsch_ms_in;cu_tiedtke_in"/>
 
                 <var name="rqccuten" type="real" dimensions="nVertLevels nCells Time" units="kg kg^{-1} s^{-1}"
                      description="tendency of cloud water mixing ratio due to cumulus convection"
-                     packages="cu_grell_freitas_in;cu_kain_fritsch_in;cu_tiedtke_in"/>
+                     packages="cu_grell_freitas_in;cu_kain_fritsch_in;cu_kain_fritsch_ms_in;cu_tiedtke_in"/>
 
                 <var name="rqicuten" type="real" dimensions="nVertLevels nCells Time" units="kg kg^{-1} s^{-1}"
                      description="tendency of cloud ice mixing ratio due to cumulus convection"
-                     packages="cu_grell_freitas_in;cu_kain_fritsch_in;cu_tiedtke_in"/>
+                     packages="cu_grell_freitas_in;cu_kain_fritsch_in;cu_kain_fritsch_ms_in;cu_tiedtke_in"/>
 
 
                 <!-- KAIN_FRITSCH: -->
                 <var name="rqrcuten" type="real" dimensions="nVertLevels nCells Time" units="kg kg^{-1} s^{-1}"
                      description="tendency of rain mixing ratio due to cumulus convection"
-                     packages="cu_kain_fritsch_in"/>
+                     packages="cu_kain_fritsch_in;cu_kain_fritsch_ms_in"/>
 
                 <var name="rqscuten" type="real" dimensions="nVertLevels nCells Time" units="kg kg^{-1} s^{-1}"
                      description="tendency of snow mixing ratio due to cumulus convection"
-                     packages="cu_kain_fritsch_in"/>
+                     packages="cu_kain_fritsch_in;cu_kain_fritsch_ms_in"/>
 
-                <!-- TIEDTKE AND GRELL -->
+                <!-- TIEDTKE, GRELL, AND KAIN_FRITSCH MULTI-SCALE -->
                 <var name="rqvdynten" type="real" dimensions="nVertLevels nCells Time" units="kg kg^{-1} s^{-1}"
                      description="tendency of water vapor due to horizontal and vertical advections"
-                     packages="cu_grell_freitas_in;cu_tiedtke_in"/>
+                     packages="cu_grell_freitas_in;cu_tiedtke_in;cu_kain_fritsch_ms_in"/>
 
+                <!-- TIEDTKE AND GRELL -->
                 <var name="rthdynten" type="real" dimensions="nVertLevels nCells Time" units="K s^{-1}"
                      description="tendency of temperature due to horizontal and vertical advections"
                      packages="cu_grell_freitas_in;cu_tiedtke_in"/>

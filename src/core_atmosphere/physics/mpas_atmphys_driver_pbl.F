@@ -97,6 +97,7 @@
  if(.not.allocated(wstar_p)) allocate(wstar_p(ims:ime,jms:jme))
  if(.not.allocated(uoce_p) ) allocate(uoce_p(ims:ime,jms:jme) )
  if(.not.allocated(voce_p) ) allocate(voce_p(ims:ime,jms:jme) )
+ if(.not.allocated(tkepbl_p)) allocate(tkepbl_p(ims:ime,kms:kme,jms:jme))
 
 
  !tendencies:
@@ -125,6 +126,9 @@
        if(.not.allocated(u10_p)   ) allocate(u10_p(ims:ime,jms:jme)         )
        if(.not.allocated(v10_p)   ) allocate(v10_p(ims:ime,jms:jme)         )
        if(.not.allocated(exch_p)  ) allocate(exch_p(ims:ime,kms:kme,jms:jme))
+       if(.not.allocated(hgamt_p) ) allocate(hgamt_p(ims:ime,jms:jme)       )
+       if(.not.allocated(hgamq_p) ) allocate(hgamq_p(ims:ime,jms:jme)       )
+       if(.not.allocated(entpbl_p)) allocate(entpbl_p(ims:ime,jms:jme)      )
        !from radiation schemes:
        if(.not.allocated(rthraten_p)) allocate(rthraten_p(ims:ime,kms:kme,jms:jme))
 
@@ -143,7 +147,6 @@
        if(.not.allocated(tsq_p)   ) allocate(tsq_p(ims:ime,kms:kme,jms:jme)   )
        if(.not.allocated(qkeadv_p)) allocate(qkeadv_p(ims:ime,kms:kme,jms:jme))
        if(.not.allocated(elpbl_p) ) allocate(elpbl_p(ims:ime,kms:kme,jms:jme) )
-       if(.not.allocated(tkepbl_p)) allocate(tkepbl_p(ims:ime,kms:kme,jms:jme))
        if(.not.allocated(sh3d_p)  ) allocate(sh3d_p(ims:ime,kms:kme,jms:jme)  )
 
        if(.not.allocated(dqke_p)  ) allocate(dqke_p(ims:ime,kms:kme,jms:jme)  )
@@ -186,6 +189,7 @@
  if(allocated(wstar_p)) deallocate(wstar_p)
  if(allocated(uoce_p) ) deallocate(uoce_p )
  if(allocated(voce_p) ) deallocate(voce_p )
+ if(allocated(tkepbl_p)) deallocate(tkepbl_p)
 
  !tendencies:
  if(allocated(rublten_p) ) deallocate(rublten_p )
@@ -213,6 +217,9 @@
        if(allocated(u10_p)   ) deallocate(u10_p   )
        if(allocated(v10_p)   ) deallocate(v10_p   )
        if(allocated(exch_p)  ) deallocate(exch_p  )
+       if(allocated(hgamt_p) ) deallocate(hgamt_p )
+       if(allocated(hgamq_p) ) deallocate(hgamq_p )
+       if(allocated(entpbl_p)) deallocate(entpbl_p)
        !from radiation schemes:
        if(allocated(rthraten_p)) deallocate(rthraten_p)
 
@@ -231,7 +238,6 @@
        if(allocated(tsq_p)   ) deallocate(tsq_p   )
        if(allocated(qkeadv_p)) deallocate(qkeadv_p)
        if(allocated(elpbl_p) ) deallocate(elpbl_p )
-       if(allocated(tkepbl_p)) deallocate(tkepbl_p)
        if(allocated(sh3d_p)  ) deallocate(sh3d_p  )
        if(allocated(dqke_p)  ) deallocate(dqke_p  )
        if(allocated(qbuoy_p) ) deallocate(qbuoy_p )
@@ -268,35 +274,37 @@
 
  real(kind=RKIND),dimension(:),pointer:: hfx,hpbl,qfx,ust,wspd,xland,znt
  real(kind=RKIND),dimension(:),pointer:: delta,wstar
+ real(kind=RKIND),dimension(:,:),pointer:: tke_pbl
 
 !local pointers for YSU scheme:
  logical,pointer:: config_ysu_pblmix
+ real(kind=RKIND),dimension(:),pointer:: br,fh,fm,regime,u10,v10,hgamt,hgamq,entpbl
  logical:: sconfig_ysu_pblmix
- real(kind=RKIND),dimension(:),pointer:: br,fh,fm,regime,u10,v10
  real(kind=RKIND),dimension(:,:),pointer:: rthratenlw,rthratensw
 
 !local pointers for MYNN scheme:
  real(kind=RKIND),pointer:: len_disp
  real(kind=RKIND),dimension(:),pointer  :: meshDensity
  real(kind=RKIND),dimension(:),pointer  :: ch,qsfc,qcg,rmol,skintemp
- real(kind=RKIND),dimension(:,:),pointer:: cov,qke,qsq,tsq,sh3d,tke_pbl,qke_adv,el_pbl
+ real(kind=RKIND),dimension(:,:),pointer:: cov,qke,qsq,tsq,sh3d,qke_adv,el_pbl
 
 !-----------------------------------------------------------------------------------------------------------------
 
  call mpas_pool_get_config(configs,'config_pbl_scheme',pbl_scheme)
 
- call mpas_pool_get_array_gpu(diag_physics,'hfx'   ,hfx   )
- call mpas_pool_get_array_gpu(diag_physics,'hpbl'  ,hpbl  )
- call mpas_pool_get_array_gpu(diag_physics,'qfx'   ,qfx   )
- call mpas_pool_get_array_gpu(diag_physics,'ust'   ,ust   )
- call mpas_pool_get_array_gpu(diag_physics,'wspd'  ,wspd  )
- call mpas_pool_get_array_gpu(diag_physics,'znt'   ,znt   )
- call mpas_pool_get_array_gpu(diag_physics,'delta' ,delta )
- call mpas_pool_get_array_gpu(diag_physics,'wstar' ,wstar )
+ call mpas_pool_get_array_gpu(diag_physics,'hfx'   ,hfx      )
+ call mpas_pool_get_array_gpu(diag_physics,'hpbl'  ,hpbl     )
+ call mpas_pool_get_array_gpu(diag_physics,'qfx'   ,qfx      )
+ call mpas_pool_get_array_gpu(diag_physics,'ust'   ,ust      )
+ call mpas_pool_get_array_gpu(diag_physics,'wspd'  ,wspd     )
+ call mpas_pool_get_array_gpu(diag_physics,'znt'   ,znt      )
+ call mpas_pool_get_array_gpu(diag_physics,'delta' ,delta    )
+ call mpas_pool_get_array_gpu(diag_physics,'wstar' ,wstar    )
+ call mpas_pool_get_array_gpu(diag_physics,'tke_pbl',tke_pbl )
 
  call mpas_pool_get_array_gpu(sfc_input   ,'xland' ,xland )
 !!!
-! !$acc update host(hfx, hpbl, qfx, ust, wspd, znt, delta, wstar, xland)
+! !$acc update host(hfx,hpbl,qfx,ust,wspd,znt,delta,wstar,xland,tke_pbl)
 
  do j = jts,jte
 !$acc parallel vector_length(32)
@@ -320,6 +328,17 @@
 !$acc end parallel
  enddo
 
+ do j = jts,jte
+!$acc parallel vector_length(32)
+!$acc loop gang vector collapse(2)
+ do k = kts,kte
+ do i = its,ite
+    tkepbl_p(i,k,j)   = tke_pbl(k,i)
+ enddo
+ enddo
+!$acc end parallel
+ enddo
+
 !!$acc update host(hfx_p,hpbl_p,qfx_p,ust_p,wspd_p,xland_p,kpbl_p, &
 !!$acc znt_p,delta_p,wstar_p,uoce_p,voce_p)
 
@@ -329,17 +348,21 @@
        call mpas_pool_get_config(configs,'config_ysu_pblmix',config_ysu_pblmix)
        sconfig_ysu_pblmix = config_ysu_pblmix
 
-       call mpas_pool_get_array_gpu(diag_physics,'br'    ,br    )
-       call mpas_pool_get_array_gpu(diag_physics,'fm'    ,fm    )
-       call mpas_pool_get_array_gpu(diag_physics,'fh'    ,fh    )
-       call mpas_pool_get_array_gpu(diag_physics,'regime',regime)
-       call mpas_pool_get_array_gpu(diag_physics,'u10'   ,u10   )
-       call mpas_pool_get_array_gpu(diag_physics,'v10'   ,v10   )
+       call mpas_pool_get_array_gpu(diag_physics,'br'     ,br       )
+       call mpas_pool_get_array_gpu(diag_physics,'fm'     ,fm       )
+       call mpas_pool_get_array_gpu(diag_physics,'fh'     ,fh       )
+       call mpas_pool_get_array_gpu(diag_physics,'regime' ,regime   )
+       call mpas_pool_get_array_gpu(diag_physics,'u10'    ,u10      )
+       call mpas_pool_get_array_gpu(diag_physics,'v10'    ,v10      )
+       call mpas_pool_get_array_gpu(diag_physics,'hgamt'  ,hgamt    )
+       call mpas_pool_get_array_gpu(diag_physics,'hgamq'  ,hgamq    )
+       call mpas_pool_get_array_gpu(diag_physics,'entpbl' ,entpbl   )
 
        call mpas_pool_get_array_gpu(tend_physics,'rthratenlw',rthratenlw)
        call mpas_pool_get_array_gpu(tend_physics,'rthratensw',rthratensw)
 !!!
-! !$acc update host(br, fm, fh, regime, u10, v10, rthratenlw, rthratensw)
+! !$acc update host(br, fm, fh, regime, u10, v10, rthratenlw, rthratensw, &
+! !$acc hgamt, hgamq, entpbl)
 
        ysu_pblmix = 0
        if(sconfig_ysu_pblmix) ysu_pblmix = 1
@@ -355,6 +378,9 @@
           regime_p(i,j) = regime(i)
           u10_p(i,j)    = u10(i)
           v10_p(i,j)    = v10(i)
+          hgamt_p(i,j)  = hgamt(i)
+          hgamq_p(i,j)  = hgamq(i)
+          entpbl_p(i,j) = entpbl(i)
           !initialization for YSU PBL scheme:
           ctopo_p(i,j)  = 1._RKIND
           ctopo2_p(i,j) = 1._RKIND
@@ -396,7 +422,6 @@
        call mpas_pool_get_array_gpu(diag_physics,'qke_adv',qke_adv  )
        call mpas_pool_get_array_gpu(diag_physics,'qsq'    ,qsq      )
        call mpas_pool_get_array_gpu(diag_physics,'tsq'    ,tsq      )
-       call mpas_pool_get_array_gpu(diag_physics,'tke_pbl',tke_pbl  )
        call mpas_pool_get_array_gpu(diag_physics,'sh3d'   ,sh3d     )
 !!!
 ! !$acc update host(meshDensity, skintemp, ch, qcg, qsfc, rmol, el_pbl, &
@@ -423,7 +448,6 @@
           qke_p(i,k,j)      = qke(k,i)
           qsq_p(i,k,j)      = qsq(k,i)
           tsq_p(i,k,j)      = tsq(k,i)
-          tkepbl_p(i,k,j)   = tke_pbl(k,i)
           qkeadv_p(i,k,j)   = qke_adv(k,i)
           sh3d_p(i,k,j)     = sh3d(k,i)
           rniblten_p(i,k,j) = 0._RKIND
@@ -497,14 +521,15 @@
  real(kind=RKIND),dimension(:),pointer  :: hpbl
  real(kind=RKIND),dimension(:,:),pointer:: kzh,kzm,kzq
  real(kind=RKIND),dimension(:,:),pointer:: rublten,rvblten,rthblten,rqvblten,rqcblten,rqiblten, &
-                                           rniblten
+                                           rniblten,tke_pbl
 
 !local pointers for YSU scheme:
+ real(kind=RKIND),dimension(:),pointer  :: hgamt,hgamq,entpbl
  real(kind=RKIND),dimension(:,:),pointer:: exch_h
 
 !local pointers for MYNN scheme:
  real(kind=RKIND),dimension(:),pointer  :: delta,wstar
- real(kind=RKIND),dimension(:,:),pointer:: cov,qke,qsq,tsq,sh3d,tke_pbl,qke_adv,el_pbl,dqke,qbuoy, &
+ real(kind=RKIND),dimension(:,:),pointer:: cov,qke,qsq,tsq,sh3d,qke_adv,el_pbl,dqke,qbuoy,      &
                                            qdiss,qshear,qwt
 
 !-----------------------------------------------------------------------------------------------------------------
@@ -518,6 +543,7 @@
  call mpas_pool_get_array_gpu(diag_physics,'kzq'  ,kzq  )
  call mpas_pool_get_array_gpu(diag_physics,'delta',delta)
  call mpas_pool_get_array_gpu(diag_physics,'wstar',wstar)
+ call mpas_pool_get_array_gpu(diag_physics,'tke_pbl' ,tke_pbl )
 
  call mpas_pool_get_array_gpu(tend_physics,'rublten' ,rublten )
  call mpas_pool_get_array_gpu(tend_physics,'rvblten' ,rvblten )
@@ -561,6 +587,8 @@
     kzh(k,i) = kzh_p(i,k,j)
     kzm(k,i) = kzm_p(i,k,j)
     kzq(k,i) = kzq_p(i,k,j)
+
+    tke_pbl(k,i)  = tkepbl_p(i,k,j)
  enddo
  enddo
 !$acc end parallel
@@ -570,11 +598,25 @@
  pbl_select: select case (trim(pbl_scheme))
 
     case("bl_ysu")
-       call mpas_pool_get_array_gpu(diag_physics,'exch_h',exch_h)
+       call mpas_pool_get_array_gpu(diag_physics,'exch_h' ,exch_h )
+       call mpas_pool_get_array_gpu(diag_physics,'hgamt'  ,hgamt  )
+       call mpas_pool_get_array_gpu(diag_physics,'hgamq'  ,hgamq  )
+       call mpas_pool_get_array_gpu(diag_physics,'entpbl' ,entpbl )
 
 !!$acc update device(exch_p)
 !!!
 ! !$acc update host(exch_h)
+
+       do j = jts,jte
+!$acc parallel vector_length(32)
+!$acc loop gang vector
+       do i = its,ite
+          hgamt(i) = hgamt_p(i,j)
+          hgamq(i) = hgamq_p(i,j)
+          entpbl(i) = entpbl_p(i,j)
+       enddo
+!$acc end parallel
+       enddo
 
        do j = jts,jte
 !$acc parallel vector_length(128)
@@ -597,7 +639,6 @@
        call mpas_pool_get_array_gpu(diag_physics,'qke_adv' ,qke_adv )
        call mpas_pool_get_array_gpu(diag_physics,'qsq'     ,qsq     )
        call mpas_pool_get_array_gpu(diag_physics,'tsq'     ,tsq     )
-       call mpas_pool_get_array_gpu(diag_physics,'tke_pbl' ,tke_pbl )
        call mpas_pool_get_array_gpu(diag_physics,'sh3d'    ,sh3d    )
        call mpas_pool_get_array_gpu(diag_physics,'dqke'    ,dqke    )
        call mpas_pool_get_array_gpu(diag_physics,'qbuoy'   ,qbuoy   )
@@ -619,7 +660,6 @@
           qsq(k,i)      = qsq_p(i,k,j)
           tsq(k,i)      = tsq_p(i,k,j)
           sh3d(k,i)     = sh3d_p(i,k,j)
-          tke_pbl(k,i)  = tkepbl_p(i,k,j)
           qke_adv(k,i)  = qkeadv_p(i,k,j)
           !... outputs:
           dqke(k,i)     = dqke_p(i,k,j)
@@ -704,11 +744,12 @@
                  psih     = psih_p     , xland    = xland_p     , hfx      = hfx_p      , &
                  qfx      = qfx_p      , wspd     = wspd_p      , br       = br_p       , &
                  dt       = dt_pbl     , kpbl2d   = kpbl_p      , exch_h   = exch_p     , &
-                 wstar    = wstar_p    , delta    = delta_p     , uoce     = uoce_p     , &
+                 wstar    = wstar_p    , delta    = delta_p     , hgamt    = hgamt_p    , &
+                 hgamq    = hgamq_p    , entpbl   = entpbl_p    , uoce     = uoce_p     , &
                  voce     = voce_p     , rthraten = rthraten_p  , u10      = u10_p      , &
                  v10      = v10_p      , ctopo    = ctopo_p     , ctopo2   = ctopo2_p   , &
                  regime   = regime_p   , rho      = rho_p       , kzhout   = kzh_p      , &
-                 kzmout   = kzm_p      , kzqout   = kzq_p       ,                         & 
+                 kzmout   = kzm_p      , kzqout   = kzq_p       , tke_pbl  = tkepbl_p   , & 
                  ysu_topdown_pblmix = ysu_pblmix ,                                        &
                  ids = ids , ide = ide , jds = jds , jde = jde , kds = kds , kde = kde  , &
                  ims = ims , ime = ime , jms = jms , jme = jme , kms = kms , kme = kme  , &

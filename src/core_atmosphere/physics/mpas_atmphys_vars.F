@@ -283,6 +283,8 @@
     rqvcuten_p,       &!
     rqccuten_p,       &!
     rqicuten_p         !
+!$acc declare create(cu_act_flag,rthcuten_p,rqvcuten_p,rqccuten_p, &
+!$acc rqicuten_p,pratec_p,raincv_p)
 
 !... kain fritsch specific arrays:
  real(kind=RKIND),dimension(:,:),allocatable::   &
@@ -290,11 +292,21 @@
     cutop_p,          &!highest convective level                                                [-]
     nca_p              !counter for cloud relaxation time                                       [-]
  real(kind=RKIND),dimension(:,:,:),allocatable:: &
-    w0avg_p          !
+    w0avg_p            !
 
  real(kind=RKIND),dimension(:,:,:),allocatable:: &
     rqrcuten_p,       &!
     rqscuten_p         !
+!$acc declare create(cubot_p,cutop_p)
+
+!... kain fritsch multi-scale specific arrays:
+real(kind=RKIND),dimension(:,:,:),allocatable:: &
+    cldfra_sh_kf_p,   &!
+    cldfra_dp_kf_p,   &!
+    qc_kf_p,          &!
+    qi_kf_p,          &!
+    w_up_p             !
+!$acc declare create(cldfra_sh_kf_p,cldfra_dp_kf_p,qc_kf_p,qi_kf_p,w_up_p)
 
 !... tiedtke specific arrays:
  real(kind=RKIND),dimension(:,:,:),allocatable:: &
@@ -304,6 +316,7 @@
  real(kind=RKIND),dimension(:,:,:),allocatable:: &
     rucuten_p,        &!
     rvcuten_p          !
+!$acc declare create(rucuten_p,rvcuten_p)
 
 !... grell-freitas specific parameters and arrays:
     integer, parameter:: ishallow  = 1 !shallow convection used with grell scheme.
@@ -338,6 +351,7 @@
  real(kind=RKIND),dimension(:,:,:),allocatable:: &
     rqvften_p,        &!
     rthften_p          !
+!$acc declare create(rqvften_p,rthften_p)
 
 !=================================================================================================================
 !... variables and arrays related to parameterization of pbl:
@@ -358,10 +372,13 @@
     hpbl_p,           &!PBL height                                                                             [m]
     delta_p,          &!
     wstar_p,          &!
+    hgamt_p,          &!
+    hgamq_p,          &!
+    entpbl_p,         &!
     uoce_p,           &!
     voce_p             !
 !$acc declare create(hpbl_p, delta_p, wstar_p, uoce_p, voce_p, &
-!$acc ctopo_p, ctopo2_p)
+!$acc ctopo_p, ctopo2_p,hgamt_p,hgamq_p,entpbl_p)
 
  real(kind=RKIND),dimension(:,:,:),allocatable:: &
     exch_p             !exchange coefficient                                                                   [-]
@@ -380,8 +397,9 @@
  real(kind=RKIND),dimension(:,:,:),allocatable:: &
     kzh_p,            &!
     kzm_p,            &!
-    kzq_p              !
-!$acc declare create(kzh_p, kzm_p, kzq_p)
+    kzq_p,            &!
+    tkepbl_p
+!$acc declare create(kzh_p, kzm_p, kzq_p,tkepbl_p)
 
 !... MYNN PBL scheme (module_bl_mynn.F):
  integer,parameter:: grav_settling = 0
@@ -400,8 +418,7 @@
     qke_p,            &!
     qkeadv_p,         &!
     qshear_p,         &!
-    qwt_p,            &!
-    tkepbl_p           !
+    qwt_p              !
 
  real(kind=RKIND),dimension(:,:,:),allocatable:: &
     rniblten_p         !
@@ -478,7 +495,7 @@
 !$acc declare create(hfx_p, qfx_p, ust_p, wspd_p, znt_p, &
 !$acc br_p, psih_p, psim_p, regime_p, u10_p, v10_p, cd_p, &
 !$acc cda_p, chs_p, chs2_p, ck_p, cka_p, cpm_p, cqs2_p, &
-!$acc gz1oz0_p, flhc_p, flqc_p, hfx_p, lh_p, mavail_p, &
+!$acc gz1oz0_p, flhc_p, flqc_p, lh_p, mavail_p, &
 !$acc mol_p, q2_p, qgh_p, qsfc_p, rmol_p, t2m_p, th2m_p, &
 !$acc ustm_p, zol_p)
 
@@ -514,6 +531,7 @@
     swcf_p,           &!shortwave cloud forcing at top-of-atmosphere                        [W m-2]
     swdnb_p,          &!all-sky downwelling shortwave flux at bottom-of-atmosphere          [J m-2]
     swdnbc_p,         &!clear-sky downwelling shortwave flux at bottom-of-atmosphere        [J m-2]
+    swdnbdn_p,        &!all-sky downwelling direct normal shortwave flux at bottom-of-atmosphere [J m-2]
     swdnt_p,          &!all-sky downwelling shortwave flux at top-of-atmosphere             [J m-2]
     swdntc_p,         &!clear-sky downwelling shortwave flux at top-of-atmosphere           [J m-2]
     swupb_p,          &!all-sky upwelling shortwave flux at bottom-of-atmosphere            [J m-2]
@@ -650,6 +668,7 @@
     tslb_p             !soil temperature                                                                       [K]
 
  real(kind=RKIND),dimension(:,:),allocatable:: &
+    snow_ratio_p,     &!snow water ratio                                                                       [-]  
     acsnom_p,         &!accumulated melted snow                                                           [kg m-2]
     acsnow_p,         &!accumulated snow                                                                  [kg m-2]
     canwat_p,         &!canopy water                                                                      [kg m-2]
