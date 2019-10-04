@@ -506,13 +506,13 @@
  enddo
 
 !!!
- !$acc update device(acsnom, acsnow, canwat, chs, chs2, chklowq, cpm, &
- !$acc cqs2, glw, grdflx, gsw, hfx, lai, lh, noahres, potevp, qfx, &
- !$acc qgh, qsfc, br, sfc_albedo, sfc_emibck, sfc_emiss, sfcrunoff, &
- !$acc smstav, smstot, snotime, snopcx, udrunoff, z0, znt, t2m, th2m, q2, &
- !$acc isltyp, ivgtyp, shdmin, shdmax, snoalb, sfc_albbck, snow, snowc, &
- !$acc snowh, tmn, skintemp, vegfra, xice, xland, dzs, sh2o, smcrel, &
- !$acc smois, tslb)
+ !!$acc update device(acsnom, acsnow, canwat, chs, chs2, chklowq, cpm, &
+ !!$acc cqs2, glw, grdflx, gsw, hfx, lai, lh, noahres, potevp, qfx, &
+ !!$acc qgh, qsfc, br, sfc_albedo, sfc_emibck, sfc_emiss, sfcrunoff, &
+ !!$acc smstav, smstot, snotime, snopcx, udrunoff, z0, znt, t2m, th2m, q2, &
+ !!$acc isltyp, ivgtyp, shdmin, shdmax, snoalb, sfc_albbck, snow, snowc, &
+ !!$acc snowh, tmn, skintemp, vegfra, xice, xland, dzs, sh2o, smcrel, &
+ !!$acc smois, tslb)
 
  end subroutine lsm_from_MPAS
  
@@ -611,13 +611,13 @@
  call mpas_pool_get_array_gpu(sfc_input,'tslb'         ,tslb      )
 
 !!!
- !$acc update host(acsnom, acsnow, canwat, chs, chs2, chklowq, cpm, &
- !$acc cqs2, glw, grdflx, gsw, hfx, lai, lh, noahres, potevp, qfx, qgh, &
- !$acc qsfc, br, raincv, rainncv, sfc_albedo, sfc_emibck, sfc_emiss, &
- !$acc sfcrunoff, smstav, smstot, snotime, snopcx, udrunoff, z0, znt, &
- !$acc t2m, th2m, q2, isltyp, ivgtyp, shdmin, shdmax, snoalb, sfc_albbck, &
- !$acc snow, snowc, snowh, tmn, skintemp, vegfra, xice, xland, sh2o, &
- !$acc smcrel, smois, tslb)
+ !!$acc update host(acsnom, acsnow, canwat, chs, chs2, chklowq, cpm, &
+ !!$acc cqs2, glw, grdflx, gsw, hfx, lai, lh, noahres, potevp, qfx, qgh, &
+ !!$acc qsfc, br, raincv, rainncv, sfc_albedo, sfc_emibck, sfc_emiss, &
+ !!$acc sfcrunoff, smstav, smstot, snotime, snopcx, udrunoff, z0, znt, &
+ !!$acc t2m, th2m, q2, isltyp, ivgtyp, shdmin, shdmax, snoalb, sfc_albbck, &
+ !!$acc snow, snowc, snowh, tmn, skintemp, vegfra, xice, xland, sh2o, &
+ !!$acc smcrel, smois, tslb)
 
  do j = jts,jte
  do n = 1,num_soils
@@ -704,7 +704,7 @@
  if(config_microp_scheme .ne. 'off') then
     call mpas_pool_get_array_gpu(diag_physics,'sr',sr) 
 !!!
-!$acc update host(sr)
+!!$acc update host(sr)
     do j = jts,jte
     do i = its,ite
        sr(i) = sr_p(i,j)
