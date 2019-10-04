@@ -1014,7 +1014,6 @@ CONTAINS
    
    IF (FilterType == 'no_filter') THEN
       PrimaryWeights(nBarotropicTimeSteps) = 1._RKIND
-      SecondaryWeights(nBarotropicTimeSteps) = 1._RKIND
    ELSE IF (FilterType == 'rectangular') THEN
       DO iBarotropicTimeStep = 1, 2*nBarotropicTimeSteps
          IF (tau(iBarotropicTimeStep) > (1._RKIND - RectangularFilterRange) .AND. &
