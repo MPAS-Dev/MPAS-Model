@@ -1115,7 +1115,7 @@
 		/>
 		<nml_option name="config_btr_filter_type" type="character" default_value="rectangular" units="unitless"
 					description="Filter for time-averaging the instantaneous barotropic modes"
-					possible_values="'no_filter' or 'rectangular' or 'ROMS_cosine' or 'Hamming_window_cosine' or 'Shchepetkin_second_order_accurate' or 'Shchepetkin_minimal_dispersion'"
+					possible_values="'no_filter_type_1' or 'no_filter_type_2' or 'rectangular' or 'ROMS_cosine' or 'Hamming_window_cosine' or 'Shchepetkin_second_order_accurate' or 'Shchepetkin_minimal_dispersion'"
 		/>
 		<nml_option name="config_btr_rectangular_filter_range" type="real" default_value="1.0" units="unitless"
 					description="Ratio $\frac{\Delta \tau}{\Delta t}$ where $\Delta t$ is the time step and the rectangular filter is applied from $t_n - \Delta \tau$ to $t_n + \Delta \tau with $t_n = n \Delta t$"

@@ -1011,9 +1011,13 @@ CONTAINS
       tau(iBarotropicTimeStep) &
       = REAL(iBarotropicTimeStep,KIND=RKIND)/REAL(nBarotropicTimeSteps,KIND=RKIND)
    END DO 
-   
-   IF (FilterType == 'no_filter') THEN
+
+   IF (FilterType == 'no_filter_type_1') THEN
+      PrimaryWeights(nBarotropicTimeSteps) = 1._RKIND   
+   ELSE IF (FilterType == 'no_filter_type_2') THEN
       PrimaryWeights(nBarotropicTimeSteps) = 1._RKIND
+      SecondaryWeights(nBarotropicTimeSteps/2) = 1._RKIND
+      RETURN
    ELSE IF (FilterType == 'rectangular') THEN
       DO iBarotropicTimeStep = 1, 2*nBarotropicTimeSteps
          IF (tau(iBarotropicTimeStep) > (1._RKIND - RectangularFilterRange) .AND. &
@@ -1083,6 +1087,90 @@ CONTAINS
    SecondaryWeights = SecondaryWeights/SUM(SecondaryWeights)
    
    END SUBROUTINE DetermineFilterWeights
+   !-----------------------------------------------------------------------------------!
+   !                                                                                   ! 
+   !-----------------------------------------------------------------------------------!
+   SUBROUTINE NoFilterType1()
+   
+   IMPLICIT NONE
+    
+   CHARACTER(LEN=50) :: FilterType, Filename
+   INTEGER :: nBarotropicTimeSteps
+   REAL(KIND=RKIND), ALLOCATABLE, DIMENSION(:) :: tau, PrimaryWeights, SecondaryWeights   
+   
+   FilterType = 'no_filter_type_1'
+   nBarotropicTimeSteps = 30
+   
+   ALLOCATE (tau(1:2*nBarotropicTimeSteps))
+   ALLOCATE (PrimaryWeights(1:2*nBarotropicTimeSteps))
+   ALLOCATE (SecondaryWeights(1:2*nBarotropicTimeSteps))
+   
+   CALL DetermineFilterWeights(FilterType,0.5_RKIND,2._RKIND,2._RKIND, &
+                               nBarotropicTimeSteps,tau,PrimaryWeights,SecondaryWeights)
+                            
+   WRITE (*,'(A,F9.6,A)') &
+   'With no filter of type 1, the sum of all primary weights is ', &
+   SUM(PrimaryWeights), '.'
+   
+   WRITE (*,'(A,F9.6,A)') &
+   'With no filter of type 1, the sum of all secondary weights is ', &
+   SUM(SecondaryWeights), '.'
+   
+   WRITE (*,'(A)') ' '
+   
+   WRITE (Filename,'(A)') 'NoFilterType1_PrimaryWeights'
+   CALL WriteTecplot1D(tau,PrimaryWeights,Filename)
+   
+   WRITE (Filename,'(A)') 'NoFilterType1_SecondaryWeights'
+   CALL WriteTecplot1D(tau,SecondaryWeights,Filename)
+      
+   DEALLOCATE (tau)
+   DEALLOCATE (PrimaryWeights)
+   DEALLOCATE (SecondaryWeights)
+   
+   END SUBROUTINE NoFilterType1
+   !-----------------------------------------------------------------------------------!
+   !                                                                                   ! 
+   !-----------------------------------------------------------------------------------!
+   SUBROUTINE NoFilterType2()
+   
+   IMPLICIT NONE
+    
+   CHARACTER(LEN=50) :: FilterType, Filename
+   INTEGER :: nBarotropicTimeSteps
+   REAL(KIND=RKIND), ALLOCATABLE, DIMENSION(:) :: tau, PrimaryWeights, SecondaryWeights   
+   
+   FilterType = 'no_filter_type_2'
+   nBarotropicTimeSteps = 30
+   
+   ALLOCATE (tau(1:2*nBarotropicTimeSteps))
+   ALLOCATE (PrimaryWeights(1:2*nBarotropicTimeSteps))
+   ALLOCATE (SecondaryWeights(1:2*nBarotropicTimeSteps))
+   
+   CALL DetermineFilterWeights(FilterType,0.5_RKIND,2._RKIND,2._RKIND, &
+                               nBarotropicTimeSteps,tau,PrimaryWeights,SecondaryWeights)
+                            
+   WRITE (*,'(A,F9.6,A)') &
+   'With no filter of type 2, the sum of all primary weights is ', &
+   SUM(PrimaryWeights), '.'
+   
+   WRITE (*,'(A,F9.6,A)') &
+   'With no filter of type 2, the sum of all secondary weights is ', &
+   SUM(SecondaryWeights), '.'
+   
+   WRITE (*,'(A)') ' '
+   
+   WRITE (Filename,'(A)') 'NoFilterType2_PrimaryWeights'
+   CALL WriteTecplot1D(tau,PrimaryWeights,Filename)
+   
+   WRITE (Filename,'(A)') 'NoFilterType2_SecondaryWeights'
+   CALL WriteTecplot1D(tau,SecondaryWeights,Filename)
+      
+   DEALLOCATE (tau)
+   DEALLOCATE (PrimaryWeights)
+   DEALLOCATE (SecondaryWeights)
+   
+   END SUBROUTINE NoFilterType2
    !-----------------------------------------------------------------------------------!
    !                                                                                   ! 
    !-----------------------------------------------------------------------------------!
@@ -1306,6 +1394,8 @@ CONTAINS
                                                                        2._RKIND)
    CALL DetermineShchepetkinFilterParameters_SecondOrderAccurate()
    CALL DetermineShchepetkinFilterParameters_MinimalDispersion()
+   CALL NoFilterType1()
+   CALL NoFilterType2()
    CALL RectangularFilter(1._RKIND)
    CALL RectangularFilter(0.5_RKIND)
    CALL ROMSCosineFilter()
