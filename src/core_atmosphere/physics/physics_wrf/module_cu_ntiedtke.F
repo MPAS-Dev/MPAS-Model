@@ -2700,16 +2700,16 @@ write(*,*) "*** cu_ntiedtke 1.1.24"
         end if
       end do
 !$acc end parallel
-!$acc parallel num_gangs(1) num_workers(1) vector_length(1)
+!$acc parallel vector_length(32)
+!$acc loop gang vector reduction(.or.:needreset)
       do jl=its,ite
-        ikb = kcbot(jl)
-        ikt = kctop(jl)
-        if(paph(jl,ikb) - paph(jl,ikt) < zdnoprc) lldcum(jl) = .false.
         if(lldcum(jl)) then      
          needreset    = .true.
         end if
       end do
 !$acc end parallel
+
+write(*,*) "The value sof needreset = ",needreset
 
       if(needreset) then
 !$acc parallel vector_length(32)
@@ -3066,14 +3066,15 @@ write(*,*) "*** cuascn 6 ***"
         if ( klab(jl,jk+1) == 0 ) klab(jl,jk) = 0
       enddo
 !$acc end parallel
-!$acc parallel num_gangs(1) num_workers(1) vector_length(1)
+!$acc parallel vector_length(32)
+!$acc loop gang vector
       do jl = its,ite
-        if(jl .eq. its) jlm = 0
+!!!        if(jl .eq. its) jlm = 0
         if ( (ldcum(jl) .and. klab(jl,jk+1) == 2) .or.   &
              (ktype(jl) == 3 .and. klab(jl,jk+1) == 1) ) then
           loflag(jl) = .true.
-          jlm = jlm + 1
-          jlx(jlm) = jl
+!!!          jlm = jlm + 1
+!!!          jlx(jlm) = jl
         end if
       enddo
 !$acc end parallel
@@ -3155,8 +3156,10 @@ write(*,*) "*** cuascn 10 ***"
 !$acc parallel vector_length(32)
 !$acc loop gang vector private(jl,zmfmax,zxs,zmftest,zchange, &
 !$acc zxe,zqeen,zseen,zscde,zqude,zmfusk,zmfuqk,zmfulk)
-        do jll = 1 , jlm
-          jl = jlx(jll)
+!!!        do jll = 1 , jlm
+!!!          jl = jlx(jll)
+        do jl = its,ite
+          if(loflag(jl)) then
           zdmfde(jl) = min(zdmfde(jl),0.75*pmfu(jl,jk+1))
           if ( jk == kcbot(jl) ) then
             zoentr(jl) = -1.75e-3*(min(1.,pqen(jl,jk)/pqsen(jl,jk)) - &
@@ -3202,6 +3205,7 @@ write(*,*) "*** cuascn 10 ***"
           zlrain(jl,jk) = zlrain(jl,jk+1)*(pmfu(jl,jk+1)-zdmfde(jl)) * &
                           (1./max(cmfcmin,pmfu(jl,jk)))
           zluold(jl) = plu(jl,jk)
+          endif
         end do
 !$acc end parallel
 write(*,*) "*** cuascn 11 ***"
@@ -3224,7 +3228,7 @@ write(*,*) "*** cuascn 12 ***"
 !!!      ik=jk
 !!!      icall=1
 !
-      if ( jlm > 0 ) then
+!!!      if ( jlm > 0 ) then
 !**********************************************************************************
 !!!        call cuadjtqn(klon,klev,ik,zph,ptu,pqu,loflag,icall,its,ite,kts,kte)
 !----------------------------------------------------------------------------------
@@ -3271,16 +3275,19 @@ write(*,*) "*** cuascn 12 ***"
 !$acc end parallel
 write(*,*) "*** cuascn 13 ***"
 !**********************************************************************************
-      end if
+!!!      end if
 ! compute the upfraft speed in cloud layer
 !$acc parallel vector_length(32)
 !$acc loop gang vector private(jl)
-        do jll = 1 , jlm
-          jl = jlx(jll)
+!!!        do jll = 1 , jlm
+!!!          jl = jlx(jll)
+        do jl = its,ite
+          if(loflag(jl)) then
           if ( pqu(jl,jk) /= zqold(jl) ) then
             plglac(jl,jk) = plu(jl,jk) * ((1.-(min(1.,((max((273.16-23.),min(273.16,ptu(jl,jk)))-(273.16-23.))/(273.16-(273.16-23.)))**2)))-(1.-min(1.,((max((273.16-23.),min(273.16,ptu(jl,jk+1)))-(273.16-23.))/(273.16-(273.16-23.)))**2)))
 !!!            plglac(jl,jk) = plu(jl,jk) * ((1.-foealfa(ptu(jl,jk)))-(1.-foealfa(ptu(jl,jk+1))))
             ptu(jl,jk) = ptu(jl,jk) + ralfdcp*plglac(jl,jk)
+          end if
           end if
         end do
 !$acc end parallel
@@ -3288,8 +3295,10 @@ write(*,*) "*** cuascn 14 ***"
 !$acc parallel vector_length(32)
 !$acc loop gang vector private(jl,zbc,zbe,zbuoc,zdkbuo,zdken, &
 !$acc zkedke,zmfun,ikb)
-        do jll = 1 , jlm
-          jl = jlx(jll)
+!!!        do jll = 1 , jlm
+!!!          jl = jlx(jll)
+        do jl = its,ite
+          if(loflag(jl)) then
           if ( pqu(jl,jk) /= zqold(jl) ) then
             klab(jl,jk) = 2
             plu(jl,jk) = plu(jl,jk) + zqold(jl) - pqu(jl,jk)
@@ -3373,6 +3382,7 @@ write(*,*) "*** cuascn 14 ***"
             plude(jl,jk) = plu(jl,jk+1)*zdmfde(jl)
             pmfude_rate(jl,jk) = zdmfde(jl)
           end if
+          end if
         end do
 !$acc end parallel
 
@@ -3446,11 +3456,14 @@ write(*,*) "*** cuascn 16 ***"
 write(*,*) "*** cuascn 17 ***"
 !$acc parallel vector_length(32)
 !$acc loop gang vector private(jl)
-        do jll = 1 , jlm
-          jl = jlx(jll)
+!!!        do jll = 1 , jlm
+!!!          jl = jlx(jll)
+       do jl = its,ite
+          if(loflag(jl)) then
           pmful(jl,jk) = plu(jl,jk)*pmfu(jl,jk)
           pmfus(jl,jk) = (cpd*ptu(jl,jk)+pgeoh(jl,jk))*pmfu(jl,jk)
           pmfuq(jl,jk) = pqu(jl,jk)*pmfu(jl,jk)
+          end if
         end do
 !$acc end parallel
       end if
@@ -3918,24 +3931,25 @@ write(*,*) "*** cuddrafn 0 ***"
 !!!enddo 
 write(*,*) "*** cuddrafn 1 ***"
                                                                  
-!$acc parallel vector_length(32)
-!$acc loop seq
       do jk=kts+2,kte                                                        
-!!!        is=0      
-!!!!$acc parallel num_gangs(1) num_workers(1) vector_length(1)                                                        
+        is=0    
+!$acc parallel vector_length(32) 
+!$acc loop gang vector reduction(+:is) 
         do jl=its,ite                                             
-          if(jl .eq. its) is=0
-          zph(jl)=paph(jl,jk)                                             
+!!!          zph(jl)=paph(jl,jk)                                             
           llo2(jl)=lddraf(jl).and.pmfd(jl,jk-1).lt.0.                     
           if(llo2(jl)) then                                               
             is=is+1                                                       
           endif                                                           
-        enddo                                              
-!!!!$acc end parallel              
+        enddo                   
+!$acc end parallel                           
+
 !!!write(*,*) "*** cuddrafn 2 ***"
-        if(is.eq.0) cycle                                                 
+!!!        if(is.eq.0) cycle                                                 
+        if(is.ne.0) then
                   
-!!!$acc parallel num_gangs(1) num_workers(1) vector_length(1)                                                        
+!$acc parallel vector_length(32)
+!$acc loop gang vector private(zentr)
         do jl=its,ite                                                 
           if(llo2(jl)) then    
             zentr = entrdd*pmfd(jl,jk-1)*(pgeoh(jl,jk-1)-pgeoh(jl,jk))*zrg
@@ -3943,10 +3957,9 @@ write(*,*) "*** cuddrafn 1 ***"
             zdmfde(jl)=zentr                                              
           endif                                                           
         enddo 
-!!!$acc end parallel
                   
 !!write(*,*) "*** cuddrafn 3 ***"
-!!!$acc parallel num_gangs(1) num_workers(1) vector_length(1)                                          
+!$acc loop gang vector
         do jl=its,ite
           if(llo2(jl)) then
           if(jk.gt.itopde(jl)) then
@@ -3955,10 +3968,9 @@ write(*,*) "*** cuddrafn 1 ***"
           endif
           endif
         enddo
-!!!$acc end parallel
 
 !!write(*,*) "*** cuddrafn 3.1 ***"
-!!!$acc parallel num_gangs(1) num_workers(1) vector_length(1)
+!$acc loop gang vector private(zdz,zzentr)
         do jl=its,ite
           if(llo2(jl)) then
           if(jk.le.itopde(jl)) then
@@ -3971,10 +3983,9 @@ write(*,*) "*** cuddrafn 1 ***"
           endif
           endif
         enddo
-!!!$acc end parallel
 
 !!write(*,*) "*** cuddrafn 4 ***"
-!!!$acc parallel num_gangs(1) num_workers(1) vector_length(1)
+!$acc loop gang vector private(zseen,zqeen,zsdde,zqdde,zmfdsk,zmfdqk)
         do jl=its,ite                                                 
           if(llo2(jl)) then                                               
             pmfd(jl,jk)=pmfd(jl,jk-1)+zdmfen(jl)-zdmfde(jl)
@@ -3992,7 +4003,6 @@ write(*,*) "*** cuddrafn 1 ***"
             zcond(jl)=pqd(jl,jk)                                          
           endif                                                           
         enddo                                              
-!!!$acc end parallel               
              
 !!write(*,*) "*** cuddrafn 5 ***"
 !**********************************************************************************                                                             
@@ -4001,10 +4011,11 @@ write(*,*) "*** cuddrafn 1 ***"
 !!!        call cuadjtqn(klon, klev, ik, zph, ptd, pqd, llo2, icall,its,ite,kts,kte)  
 !----------------------------------------------------------------------------------
 !!!                     (klon, klev, kk, psp, pt,  pq,  ldflag, kcall,its,ite,kts,kte)
-!!!$acc parallel num_gangs(1) num_workers(1) vector_length(1)
+!$acc loop gang vector private(zqp,tmp,zqsat,zcor,zcond0,zcond1)
         do jl = its,ite
         if ( llo2(jl) ) then
-          zqp = 1./zph(jl)
+!!!          zqp = 1./zph(jl)
+          zqp = 1./paph(jl,jk)
           tmp = min(1.,((max((273.16-23.),min(273.16,ptd(jl,jk)))-(273.16-23.))/(273.16-(273.16-23.)))**2)
           zqsat = (c2es * (tmp*exp(c3les*(ptd(jl,jk)-tmelt)/(ptd(jl,jk)-c4les))+(1.-tmp)*exp(c3ies*(ptd(jl,jk)-tmelt)/(ptd(jl,jk)-c4ies))))*zqp
 !!!          zqsat = foeewm(ptd(jl,jk))*zqp
@@ -4035,11 +4046,10 @@ write(*,*) "*** cuddrafn 1 ***"
           pqd(jl,jk) = pqd(jl,jk) - zcond1
         end if
       end do
-!!!$acc end parallel
 !**********************************************************************************              
                   
 !!write(*,*) "*** cuddrafn 6 ***"
-!!!$acc parallel num_gangs(1) num_workers(1) vector_length(1)                                                        
+!$acc loop gang vector private(zbuo,zrain,zdmfdp,zbuoyz,zdz)
         do jl=its,ite                                                 
           if(llo2(jl)) then                                               
             zcond(jl)=zcond(jl)-pqd(jl,jk)
@@ -4068,10 +4078,10 @@ write(*,*) "*** cuddrafn 1 ***"
             pmfdde_rate(jl,jk) = -zdmfde(jl)
           endif                                                           
         enddo
-!!!$acc end parallel
-                                                             
-      enddo                                                               
+                        
 !$acc end parallel
+        endif                                     
+      enddo                                                               
                   
 write(*,*) "*** cuddrafn 7 ***"
 !$acc end data                                                        
