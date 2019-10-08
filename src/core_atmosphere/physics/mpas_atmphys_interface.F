@@ -331,7 +331,6 @@
  call mpas_pool_get_field(diag_physics,'plrad',plradField)
 
  if (l_radtlw .or. l_radtsw) then
-    call MPAS_coupler_transfer_field(mpas_cpl, cells_to_rad_handle, surface_pressureField, ierr=ierr)
     call MPAS_coupler_transfer_field(mpas_cpl, cells_to_rad_handle, exnerField, ierr=ierr)
     call MPAS_coupler_transfer_field(mpas_cpl, cells_to_rad_handle, pressure_bField, ierr=ierr)
     call MPAS_coupler_transfer_field(mpas_cpl, cells_to_rad_handle, pressure_pField, ierr=ierr)
@@ -343,6 +342,7 @@
     call MPAS_coupler_transfer_field(mpas_cpl, cells_to_rad_handle, theta_mField, ierr=ierr)
     call MPAS_coupler_transfer_field(mpas_cpl, cells_to_rad_handle, wField, ierr=ierr)
     call MPAS_coupler_transfer_field(mpas_cpl, cells_to_rad_handle, scalarsField, ierr=ierr)
+    call MPAS_coupler_transfer_field(mpas_cpl, cells_to_rad_handle, surface_pressureField, ierr=ierr)
     call MPAS_coupler_transfer_field(mpas_cpl, cells_to_rad_handle, plradField, ierr=ierr)
  end if
 

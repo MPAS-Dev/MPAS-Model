@@ -507,6 +507,20 @@ contains
             cpl % pairings(handle) % commArrays(idx) % gpu_compactHaloInfoSize = size(cpl % pairings(handle) % commArrays(idx) % compactHaloInfo)
             cpl % pairings(handle) % commArrays(idx) % gpuArraySize(1) = size(field % array, 1)
         end if
+!$acc data copyin(  cpl % pairings(handle) % commArrays(idx) % compactHaloInfo, &
+!$acc cpl % pairings(handle) % commArrays(idx) % gpu_bufferOffset_send, &
+!$acc cpl % pairings(handle) % commArrays(idx) % gpu_nList_send, &                                 
+!$acc cpl % pairings(handle) % commArrays(idx) % gpu_idx_send, &
+!$acc cpl % pairings(handle) % commArrays(idx) % gpu_bufferOffset_recv, &                          
+!$acc cpl % pairings(handle) % commArrays(idx) % gpu_nList_recv, &
+!$acc cpl % pairings(handle) % commArrays(idx) % gpu_idx_recv, &                                   
+!$acc cpl % pairings(handle) %commArrays(idx) % gpu_dimsizes, & 
+!$acc cpl % pairings(handle) % commArrays(idx) % gpu_nHaloLayers, &                                
+!$acc cpl % pairings(handle) % commArrays(idx) % gpu_send_size, &
+!$acc cpl % pairings(handle) % commArrays(idx) % gpu_recv_size, &                                  
+!$acc cpl % pairings(handle) % commArrays(idx) % gpu_compactHaloInfoSize)
+
+
 
         call mpas_dmpar_exch_halo_acc(field % array, cpl % pairings(handle) % commArrays(idx) % compactHaloInfo, &
                                                      cpl % pairings(handle) % commArrays(idx) % sendCommList, &
@@ -523,7 +537,7 @@ contains
                                                      cpl % pairings(handle) % commArrays(idx) % gpu_recv_size, &
                                                      cpl % pairings(handle) % commArrays(idx) % gpu_compactHaloInfoSize, &
                                                      cpl % pairings(handle) % commArrays(idx) % gpuArraySize(1))
-
+!$acc end data
         field % block % domain % dminfo => dminfo_save
         field % sendList => sendList_save
         field % recvList => recvList_save
@@ -645,6 +659,19 @@ contains
             cpl % pairings(handle) % commArrays(idx) % gpuArraySize(1) = size(field % array, 1)
             cpl % pairings(handle) % commArrays(idx) % gpuArraySize(2) = size(field % array, 2)
         end if
+!$acc data copyin(  cpl % pairings(handle) % commArrays(idx) % compactHaloInfo, &
+!$acc cpl % pairings(handle) % commArrays(idx) % gpu_bufferOffset_send, &
+!$acc cpl % pairings(handle) % commArrays(idx) % gpu_nList_send, &                                 
+!$acc cpl % pairings(handle) % commArrays(idx) % gpu_idx_send, &
+!$acc cpl % pairings(handle) % commArrays(idx) % gpu_bufferOffset_recv, &                          
+!$acc cpl % pairings(handle) % commArrays(idx) % gpu_nList_recv, &
+!$acc cpl % pairings(handle) % commArrays(idx) % gpu_idx_recv, &                                   
+!$acc cpl % pairings(handle) %commArrays(idx) % gpu_dimsizes, & 
+!$acc cpl % pairings(handle) % commArrays(idx) % gpu_nHaloLayers, &                                
+!$acc cpl % pairings(handle) % commArrays(idx) % gpu_send_size, &
+!$acc cpl % pairings(handle) % commArrays(idx) % gpu_recv_size, &                                  
+!$acc cpl % pairings(handle) % commArrays(idx) % gpu_compactHaloInfoSize)
+
 
         call mpas_dmpar_exch_halo_acc(field % array, cpl % pairings(handle) % commArrays(idx) % compactHaloInfo, &
                                                      cpl % pairings(handle) % commArrays(idx) % sendCommList, &
@@ -662,7 +689,7 @@ contains
                                                      cpl % pairings(handle) % commArrays(idx) % gpu_compactHaloInfoSize, &
                                                      cpl % pairings(handle) % commArrays(idx) % gpuArraySize(1), &
                                                      cpl % pairings(handle) % commArrays(idx) % gpuArraySize(2))
-
+!$acc end data
         field % block % domain % dminfo => dminfo_save
         field % sendList => sendList_save
         field % recvList => recvList_save
@@ -788,6 +815,21 @@ contains
             cpl % pairings(handle) % commArrays(idx) % gpuArraySize(3) = size(field % array, 3)
         end if
 
+!$acc data copyin(  cpl % pairings(handle) % commArrays(idx) % compactHaloInfo, &
+!$acc cpl % pairings(handle) % commArrays(idx) % gpu_bufferOffset_send, &
+!$acc cpl % pairings(handle) % commArrays(idx) % gpu_nList_send, &                                 
+!$acc cpl % pairings(handle) % commArrays(idx) % gpu_idx_send, &
+!$acc cpl % pairings(handle) % commArrays(idx) % gpu_bufferOffset_recv, &                          
+!$acc cpl % pairings(handle) % commArrays(idx) % gpu_nList_recv, &
+!$acc cpl % pairings(handle) % commArrays(idx) % gpu_idx_recv, &                                   
+!$acc cpl % pairings(handle) %commArrays(idx) % gpu_dimsizes, & 
+!$acc cpl % pairings(handle) % commArrays(idx) % gpu_nHaloLayers, &                                
+!$acc cpl % pairings(handle) % commArrays(idx) % gpu_send_size, &
+!$acc cpl % pairings(handle) % commArrays(idx) % gpu_recv_size, &                                  
+!$acc cpl % pairings(handle) % commArrays(idx) % gpu_compactHaloInfoSize)
+
+
+
         call mpas_dmpar_exch_halo_acc(field % array, cpl % pairings(handle) % commArrays(idx) % compactHaloInfo, &
                                                      cpl % pairings(handle) % commArrays(idx) % sendCommList, &
                                                      cpl % pairings(handle) % commArrays(idx) % recvCommList, &
@@ -806,6 +848,7 @@ contains
                                                      cpl % pairings(handle) % commArrays(idx) % gpuArraySize(2), &
                                                      cpl % pairings(handle) % commArrays(idx) % gpuArraySize(3))
 
+!$acc end data
         field % block % domain % dminfo => dminfo_save
         field % sendList => sendList_save
         field % recvList => recvList_save
