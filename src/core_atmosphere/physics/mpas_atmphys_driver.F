@@ -24,10 +24,13 @@
  use mpas_atmphys_update
  use mpas_atmphys_vars, only: l_camlw,l_conv,l_radtlw,l_radtsw
  use mpas_timer
+ use mpas_derived_types, only : mpas_coupler_type
 
  implicit none
  private
  public:: physics_driver
+
+ integer, parameter, private :: ROLE_INTEGRATE = 0, ROLE_RADIATION = 1
 
 
 !MPAS top physics driver.
@@ -103,12 +106,15 @@
 
 
 !=================================================================================================================
- subroutine physics_driver(domain,itimestep,xtime_s)
+ subroutine physics_driver(domain,itimestep,xtime_s,mpas_cpl,cells_to_rad_handle,cells_from_rad_handle)
 !=================================================================================================================
 
 !input arguments:
  integer,intent(in):: itimestep
  real(kind=RKIND),intent(in):: xtime_s
+
+ type (mpas_coupler_type), pointer :: mpas_cpl
+ integer, intent(in) :: cells_to_rad_handle, cells_from_rad_handle
 
 !inout arguments:
  type(domain_type),intent(inout):: domain
@@ -193,15 +199,47 @@
     !physics prep step:
     time_lev = 1
 
+    !
+    ! For timesteps other than the first, we transfer previous radiation tendencies back to integration tasks
+    !
+    if ((itimestep > 1) .and. (l_radtsw .or. l_radtlw)) then
+!$OMP PARALLEL DO
+       do thread=1,nThreads
+          call lagged_driver_radiation_sw(itimestep,block%configs,mesh,state,time_lev,diag_physics, &
+                                   atm_input,sfc_input,tend_physics,xtime_s, &
+                                   mpas_cpl, cells_to_rad_handle, cells_from_rad_handle, &
+                                   cellSolveThreadStart(thread), cellSolveThreadEnd(thread))
+       end do
+!$OMP END PARALLEL DO
+
+!$OMP PARALLEL DO
+       do thread=1,nThreads
+          call lagged_driver_radiation_lw(itimestep,xtime_s,block%configs,mesh,state,time_lev,diag_physics, &
+                                   atm_input,sfc_input,tend_physics, &
+                                   mpas_cpl, cells_to_rad_handle, cells_from_rad_handle, &
+                                   cellSolveThreadStart(thread), cellSolveThreadEnd(thread))
+       end do
+!$OMP END PARALLEL DO
+    end if
+
+
+    !
+    ! For all timesteps, we transfer MPAS state to physics
+    !
 !$OMP PARALLEL DO
     do thread=1,nThreads
        call MPAS_to_physics(block%configs,mesh,state,time_lev,diag,diag_physics, &
+                            mpas_cpl, cells_to_rad_handle, cells_from_rad_handle, &
                             cellSolveThreadStart(thread), cellSolveThreadEnd(thread))
     end do
 !$OMP END PARALLEL DO
 
+
+
+
     !call to cloud scheme:
     if(l_radtlw .or. l_radtsw) then
+
        call allocate_cloudiness
 !$OMP PARALLEL DO
        do thread=1,nThreads
@@ -212,29 +250,53 @@
     endif
 
     !call to short wave radiation scheme:
-    if(l_radtsw) then
+    if(l_radtsw .or. l_radtlw) then
+       if (mpas_cpl % role() == ROLE_RADIATION) then
+          call allocate_radiation_sw(block%configs,xtime_s)
+          call allocate_radiation_lw(block%configs,xtime_s)
+       end if
+
        time_lev = 1
-       call allocate_radiation_sw(block%configs,xtime_s)
+
+       !
+       ! For all timesteps, we transfer MPAS radiation-specific fields to physics
+       !
+!$OMP PARALLEL DO
+       do thread=1,nThreads
+          call radiation_sw_from_MPAS(block%configs,mesh,state,time_lev,diag_physics,atm_input,sfc_input,xtime_s, &
+                                      mpas_cpl,cells_to_rad_handle,cells_from_rad_handle, &
+                                      cellSolveThreadStart(thread),cellSolveThreadEnd(thread))
+          call radiation_lw_from_MPAS(xtime_s,block%configs,mesh,state,time_lev,diag_physics,atm_input,sfc_input, &
+                                      mpas_cpl,cells_to_rad_handle,cells_from_rad_handle, &
+                                      cellSolveThreadStart(thread),cellSolveThreadEnd(thread))
+       end do
+!$OMP END PARALLEL DO
+
 !$OMP PARALLEL DO
        do thread=1,nThreads
           call driver_radiation_sw(itimestep,block%configs,mesh,state,time_lev,diag_physics, &
                                    atm_input,sfc_input,tend_physics,xtime_s, &
+                                   mpas_cpl, cells_to_rad_handle, cells_from_rad_handle, &
+                                   (itimestep == 1), &
                                    cellSolveThreadStart(thread), cellSolveThreadEnd(thread))
        end do
 !$OMP END PARALLEL DO
-    endif
 
     !call to long wave radiation scheme:
-    if(l_radtlw) then
-       time_lev = 1
-       call allocate_radiation_lw(block%configs,xtime_s)
 !$OMP PARALLEL DO
        do thread=1,nThreads
-          call driver_radiation_lw(xtime_s,block%configs,mesh,state,time_lev,diag_physics, &
+          call driver_radiation_lw(itimestep,xtime_s,block%configs,mesh,state,time_lev,diag_physics, &
                                    atm_input,sfc_input,tend_physics, &
+                                   mpas_cpl, cells_to_rad_handle, cells_from_rad_handle, &
+                                   (itimestep == 1), &
                                    cellSolveThreadStart(thread), cellSolveThreadEnd(thread))
        end do
 !$OMP END PARALLEL DO
+
+       if (mpas_cpl % role() == ROLE_RADIATION) then
+          call deallocate_radiation_sw(block%configs)
+          call deallocate_radiation_lw(block%configs)
+       end if
     endif
 
     !call to accumulate long- and short-wave diagnostics if needed:
@@ -250,9 +312,9 @@
     !deallocate all radiation arrays:
     if(config_radt_sw_scheme.ne.'off' .or. config_radt_lw_scheme.ne.'off') &
        call deallocate_cloudiness
-    if(config_radt_sw_scheme.ne.'off') call deallocate_radiation_sw(block%configs)
-    if(config_radt_lw_scheme.ne.'off') call deallocate_radiation_lw(block%configs)
 
+
+if (mpas_cpl % role() == ROLE_INTEGRATE) then
     !call to surface-layer scheme:
     if(config_sfclayer_scheme .ne. 'off') then
        call allocate_sfclayer(block%configs)
@@ -290,7 +352,6 @@
        end do
 !$OMP END PARALLEL DO
        call deallocate_pbl(block%configs)
-
     endif
 
     !call to gravity wave drag over orography scheme:
@@ -331,6 +392,7 @@
        end do
 !$OMP END PARALLEL DO
     end if
+end if
 
     !deallocate arrays shared by all physics parameterizations:
     call deallocate_forall_physics(block%configs)

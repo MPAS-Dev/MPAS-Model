@@ -51,6 +51,8 @@ module atm_core_interface
       core % setup_decomposed_dimensions => atm_setup_decomposed_dimensions
       core % setup_block => atm_setup_block
       core % setup_namelist => atm_setup_namelists
+      core % component_role => atm_component_role
+      core % component_role_leader => atm_component_role_leader
 
       core % Conventions = 'MPAS'
       core % source = 'MPAS'
@@ -58,6 +60,68 @@ module atm_core_interface
 #include "inc/core_variables.inc"
 
    end subroutine atm_setup_core
+
+
+   !***********************************************************************
+   !
+   !  routine atm_component_role
+   !
+   !> \brief Define roles for each MPI task and OpenMP thread
+   !> \author Michael Duda
+   !> \date 2 January 2018
+   !> \details 
+   !>  This routine returns an integer value representing the "role" for
+   !>  any given MPI task and OpenMP thread.
+   !
+   !-----------------------------------------------------------------------
+   integer function atm_component_role(self)
+
+      use mpas_derived_types, only : mpas_coupler_type
+
+      implicit none
+
+      class (mpas_coupler_type), intent(in) :: self
+
+
+      if (self % intercomm_size == 1) then
+         atm_component_role = self % intercomm_rank
+      else
+         atm_component_role = self % intercomm_rank / (self % intercomm_size / 2)
+      end if
+
+   end function atm_component_role
+
+
+   !***********************************************************************
+   !
+   !  routine atm_component_role_leader
+   !
+   !> \brief Identifies the "leader" task for a given role
+   !> \author Michael Duda
+   !> \date 3 January 2018
+   !> \details 
+   !>  Given a role, this function returns the MPI task that acts as the leader
+   !>  for that role. This is needed to establish MPI intercommunicators
+   !>  between two roles.
+   !
+   !-----------------------------------------------------------------------
+   integer function atm_component_role_leader(self, role)
+
+      use mpas_derived_types, only : mpas_coupler_type
+
+      implicit none
+
+      class (mpas_coupler_type), intent(in) :: self
+      integer, intent(in) :: role
+
+
+      if (self % intercomm_size == 1) then
+         atm_component_role_leader = role
+      else
+         atm_component_role_leader = role * (self % intercomm_size / 2)
+      end if
+
+   end function atm_component_role_leader
 
 
    !***********************************************************************
@@ -197,7 +261,7 @@ module atm_core_interface
    !-----------------------------------------------------------------------
    function atm_setup_log(logInfo, domain) result(iErr)!{{{
 
-      use mpas_derived_types, only : mpas_log_type, domain_type
+      use mpas_derived_types, only : mpas_log_type, domain_type, mpas_coupler_type
       use mpas_log, only : mpas_log_init, mpas_log_open
 
       implicit none
@@ -208,6 +272,7 @@ module atm_core_interface
 
       ! Local variables
       integer :: local_err
+      type (mpas_coupler_type), pointer :: mpas_cpl
 
       iErr = 0
 
@@ -218,6 +283,13 @@ module atm_core_interface
       ! Set core specific options here
       ! (At present, there are not any.  There could eventually be choices about the file naming conventions
       !  or other settings controlling behavior.)
+
+      !
+      ! Make log filenames specific to the role of each MPI task
+      !
+      mpas_cpl => domain % mpas_cpl
+      write(logInfo % outputLog % filename, '(a,i2.2,a,i4.4,a)') 'log.atmosphere.role', mpas_cpl % role(), '.', domain % dminfo % my_proc_id, '.out'
+      write(logInfo % errorLog % filename, '(a,i2.2,a,i4.4,a)') 'log.atmosphere.role', mpas_cpl % role(), '.', domain % dminfo % my_proc_id, '.err'
 
       ! After core has had a chance to modify log defaults, open the output log
       call mpas_log_open(err=local_err)

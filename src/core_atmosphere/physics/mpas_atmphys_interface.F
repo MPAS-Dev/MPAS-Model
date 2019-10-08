@@ -14,6 +14,7 @@
  use mpas_atmphys_vars
 
  implicit none
+ 
  private
  public:: allocate_forall_physics,   &
           deallocate_forall_physics, &
@@ -197,14 +198,20 @@
  end subroutine deallocate_forall_physics
 
 !=================================================================================================================
- subroutine MPAS_to_physics(configs,mesh,state,time_lev,diag,diag_physics,its,ite)
+ subroutine MPAS_to_physics(configs,mesh,state,time_lev,diag,diag_physics,mpas_cpl,cells_to_rad_handle,cells_from_rad_handle,its,ite)
 !=================================================================================================================
+
+ use mpas_derived_types, only : mpas_coupler_type
+ use mpas_intracoupler, only : mpas_coupler_transfer_field
 
 !input variables:
  type(mpas_pool_type),intent(in):: configs
  type(mpas_pool_type),intent(in):: mesh
  type(mpas_pool_type),intent(in):: state
  type(mpas_pool_type),intent(in):: diag
+
+ type (mpas_coupler_type), pointer :: mpas_cpl
+ integer, intent(in) :: cells_to_rad_handle, cells_from_rad_handle
 
  integer,intent(in):: its,ite
  integer,intent(in):: time_lev
@@ -230,8 +237,14 @@
  real(kind=RKIND),dimension(:,:),pointer  :: ni
  real(kind=RKIND),dimension(:,:,:),pointer:: scalars
 
+ type (field1DReal), pointer :: surface_pressureField, plradField
+ type (field2DReal), pointer :: exnerField, pressure_bField, rtheta_pField, rtheta_bField
+ type (field2DReal), pointer :: rho_zzField, theta_mField, pressure_pField, uField, vField, wField
+ type (field3DReal), pointer :: scalarsField
+
 !local variables:
  integer:: i,k,j
+ integer :: iErr
 
  real(kind=RKIND):: z0,z1,z2,w1,w2
  real(kind=RKIND):: rho_a,rho1,rho2,tem1,tem2
@@ -267,9 +280,22 @@
  call mpas_pool_get_array_gpu(diag,'uReconstructZonal'     ,u               )
  call mpas_pool_get_array_gpu(diag,'uReconstructMeridional',v               )
 
+ call mpas_pool_get_field(diag,'surface_pressure'      ,surface_pressureField)
+ call mpas_pool_get_field(diag,'exner'                 ,exnerField           )
+ call mpas_pool_get_field(diag,'pressure_base'         ,pressure_bField      )
+ call mpas_pool_get_field(diag,'pressure_p'            ,pressure_pField      )
+ call mpas_pool_get_field(diag,'rtheta_base'           ,rtheta_bField        )
+ call mpas_pool_get_field(diag,'rtheta_p'              ,rtheta_pField        )
+ call mpas_pool_get_field(diag,'uReconstructZonal'     ,uField               )
+ call mpas_pool_get_field(diag,'uReconstructMeridional',vField               )
+
  call mpas_pool_get_array_gpu(state,'rho_zz' ,rho_zz ,time_lev)
  call mpas_pool_get_array_gpu(state,'theta_m',theta_m,time_lev)
  call mpas_pool_get_array_gpu(state,'w'      ,w      ,time_lev)
+
+ call mpas_pool_get_field(state,'rho_zz' ,rho_zzField ,time_lev)
+ call mpas_pool_get_field(state,'theta_m',theta_mField,time_lev)
+ call mpas_pool_get_field(state,'w'      ,wField      ,time_lev)
 
  call mpas_pool_get_dimension(state,'index_qv',index_qv)
  call mpas_pool_get_dimension(state,'index_qc',index_qc)
@@ -285,6 +311,8 @@
  sindex_qs = index_qs
  sindex_qg = index_qg
 
+ call mpas_pool_get_field(state,'scalars',scalarsField,time_lev)
+
  call mpas_pool_get_array_gpu(diag_physics,'plrad',plrad)
  call mpas_pool_get_array_gpu(state,'scalars',scalars,time_lev)
 
@@ -299,6 +327,24 @@
 ! qi => scalars(index_qi,:,:)
 ! qs => scalars(index_qs,:,:)
 ! qg => scalars(index_qg,:,:)
+
+ call mpas_pool_get_field(diag_physics,'plrad',plradField)
+
+ if (l_radtlw .or. l_radtsw) then
+    call MPAS_coupler_transfer_field(mpas_cpl, cells_to_rad_handle, exnerField, ierr=ierr)
+    call MPAS_coupler_transfer_field(mpas_cpl, cells_to_rad_handle, pressure_bField, ierr=ierr)
+    call MPAS_coupler_transfer_field(mpas_cpl, cells_to_rad_handle, pressure_pField, ierr=ierr)
+    call MPAS_coupler_transfer_field(mpas_cpl, cells_to_rad_handle, rtheta_bField, ierr=ierr)
+    call MPAS_coupler_transfer_field(mpas_cpl, cells_to_rad_handle, rtheta_pField, ierr=ierr)
+    call MPAS_coupler_transfer_field(mpas_cpl, cells_to_rad_handle, uField, ierr=ierr)
+    call MPAS_coupler_transfer_field(mpas_cpl, cells_to_rad_handle, vField, ierr=ierr)
+    call MPAS_coupler_transfer_field(mpas_cpl, cells_to_rad_handle, rho_zzField, ierr=ierr)
+    call MPAS_coupler_transfer_field(mpas_cpl, cells_to_rad_handle, theta_mField, ierr=ierr)
+    call MPAS_coupler_transfer_field(mpas_cpl, cells_to_rad_handle, wField, ierr=ierr)
+    call MPAS_coupler_transfer_field(mpas_cpl, cells_to_rad_handle, scalarsField, ierr=ierr)
+    call MPAS_coupler_transfer_field(mpas_cpl, cells_to_rad_handle, surface_pressureField, ierr=ierr)
+    call MPAS_coupler_transfer_field(mpas_cpl, cells_to_rad_handle, plradField, ierr=ierr)
+ end if
 
  do j = jts, jte
  do k = kts, kte

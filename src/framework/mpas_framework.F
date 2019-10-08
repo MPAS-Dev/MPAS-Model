@@ -126,7 +126,7 @@ module mpas_framework
 
       call MPAS_io_finalize(domain % ioContext, .false.)
 
-      call mpas_deallocate_domain(domain)
+!      call mpas_deallocate_domain(domain)
 
       call mpas_dmpar_finalize(dminfo)
 

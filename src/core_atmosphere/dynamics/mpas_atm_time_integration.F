@@ -159,6 +159,7 @@ module atm_time_integration
       gpu_compactHaloInfoSize_c_vP1 = size(compactHaloInfo_c_vP1)
       call mpas_pool_get_field(state, 'scalars', field_3d_ptr, 1)
       call mpas_dmpar_compact_halo_info(field_3d_ptr, compactHaloInfo_c_v_s)
+
       call mpas_dmpar_gpu_init_3d_real_acc(field_3d_ptr%array, compactHaloInfo_c_v_s,sendList_c_v_s, recvList_c_v_s, gpu_bufferOffset_send_c_v_s, &
                                               gpu_nList_send_c_v_s, gpu_idx_send_c_v_s, gpu_bufferOffset_recv_c_v_s, gpu_nList_recv_c_v_s,&
                                               gpu_idx_recv_c_v_s, gpu_dimsizes_c_v_s, gpu_nHaloLayers_c_v_s )
@@ -262,6 +263,8 @@ module atm_time_integration
 !$acc gpu_nList_send_c_2_v, gpu_idx_send_c_2_v, gpu_bufferOffset_recv_c_2_v, gpu_nList_recv_c_2_v,&
 !$acc gpu_idx_recv_c_2_v, gpu_dimsizes_c_2_v, gpu_nHaloLayers_c_2_v)
    end subroutine mpas_gpu_halo_init
+
+
    !-----------------------------------------------------------------------
    !  routine MPAS_atm_dynamics_finalize
    !
@@ -1361,7 +1364,7 @@ module atm_time_integration
                call mpas_pool_get_array_gpu(state, 'scalars', gpu_scalars_2, 2)
                gpuArraySize(1) = size(gpu_scalars_2,1)
                gpuArraySize(2) = size(gpu_scalars_2,2)
-               gpuArraySize(3) = size(gpu_scalars_2,3)						
+               gpuArraySize(3) = size(gpu_scalars_2,3)
                call mpas_dmpar_exch_halo_acc(gpu_scalars_2, compactHaloInfo_c_v_s, sendList_c_v_s, recvList_c_v_s, gpu_bufferOffset_send_c_v_s, &
                                               gpu_nList_send_c_v_s, gpu_idx_send_c_v_s, gpu_bufferOffset_recv_c_v_s, gpu_nList_recv_c_v_s,&
                                               gpu_idx_recv_c_v_s, gpu_dimsizes_c_v_s, gpu_nHaloLayers_c_v_s, gpu_send_size_c_v_s, gpu_recv_size_c_v_s,&
@@ -1693,7 +1696,6 @@ module atm_time_integration
          call mpas_pool_get_array_gpu(diag, 'uReconstructZonal', uReconstructZonal)
          call mpas_pool_get_array_gpu(diag, 'uReconstructMeridional', uReconstructMeridional)
          call mpas_pool_get_dimension(block%dimensions, 'nCellsSolve', nCellsSolve)
-
 
          call mpas_reconstruct_gpu(nCellsSolve, nVertLevels, maxEdges, nEdges, mesh, u,                &
                                uReconstructX,          &

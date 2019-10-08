@@ -345,6 +345,7 @@
 
  end subroutine physics_get_tend
 
+
  !==================================================================================================
  subroutine physics_get_tend_work(block, mesh, nCells, nEdges, nCellsSolve, nEdgesSolve, &
                                  rk_step, dynamics_substep, &
@@ -415,7 +416,7 @@
     real (kind=RKIND), dimension(nVertLevels,nCells+1), intent(inout) :: tend_theta
     real (kind=RKIND), dimension(nVertLevels,nCells+1), intent(in) :: tend_theta_euler
 
-        ! Arguments needed for OpenACC-friendly halo exchange
+    ! Arguments needed for OpenACC-friendly halo exchange
     integer, dimension(:), pointer :: compactHaloInfo_c_v
     type (mpas_communication_list), pointer :: sendList_c_v, recvList_c_v
     integer, dimension(:), pointer :: gpu_idx_send_c_v, gpu_bufferoffset_send_c_v, gpu_nList_send_c_v
