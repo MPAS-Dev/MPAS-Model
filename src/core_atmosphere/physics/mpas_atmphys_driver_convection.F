@@ -114,7 +114,7 @@
 
  call mpas_pool_get_config(configs,'config_convection_scheme',convection_scheme)
 
-write(*,*) "*** allocate 0"
+!!!write(*,*) "*** allocate 0"
 
  if(.not.allocated(cu_act_flag)) allocate(cu_act_flag(ims:ime,jms:jme)       )
  if(.not.allocated(rthcuten_p) ) allocate(rthcuten_p(ims:ime,kms:kme,jms:jme))
@@ -150,7 +150,7 @@ write(*,*) "*** allocate 0"
 !!!$acc update host(pratec_p,raincv_p,rthcuten_p,rqvcuten_p, &
 !!!$acc rqccuten_p,rqicuten_p)
 
-write(*,*) "*** allocate 1"
+!!!write(*,*) "*** allocate 1"
  convection_select: select case(convection_scheme)
 
     case ("cu_grell_freitas")
@@ -184,7 +184,7 @@ write(*,*) "*** allocate 1"
 
        if(.not.allocated(qccu_p)         ) allocate(qccu_p(ims:ime,kms:kme,jms:jme)     )
        if(.not.allocated(qicu_p)         ) allocate(qicu_p(ims:ime,kms:kme,jms:jme)     )
-write(*,*) "*** allocate 2"
+!!!write(*,*) "*** allocate 2"
 
     case ("cu_kain_fritsch")
        if(.not.allocated(dx_p)       ) allocate(dx_p(ims:ime,jms:jme)              )
@@ -196,7 +196,7 @@ write(*,*) "*** allocate 2"
        if(.not.allocated(rqrcuten_p) ) allocate(rqrcuten_p(ims:ime,kms:kme,jms:jme))
        if(.not.allocated(rqscuten_p) ) allocate(rqscuten_p(ims:ime,kms:kme,jms:jme))
 
-write(*,*) "*** allocate 3"
+!!!write(*,*) "*** allocate 3"
        do i = its,ite
        do j = jts,jte
           cubot_p(i,j) = DBLE(kte+1)
@@ -233,7 +233,7 @@ write(*,*) "*** allocate 3"
        if(.not.allocated(rqscuten_p)    ) allocate(rqscuten_p(ims:ime,kms:kme,jms:jme)    )
        if(.not.allocated(rqvften_p)     ) allocate(rqvften_p(ims:ime,kms:kme,jms:jme)     )
        
-write(*,*) "*** allocate 4"
+!!!write(*,*) "*** allocate 4"
        do i = its,ite
        do j = jts,jte
           cubot_p(i,j) = DBLE(kte+1)
@@ -261,7 +261,7 @@ write(*,*) "*** allocate 4"
        if(.not.allocated(rucuten_p)    ) allocate(rucuten_p(ims:ime,kms:kme,jms:jme)    )
        if(.not.allocated(rvcuten_p)    ) allocate(rvcuten_p(ims:ime,kms:kme,jms:jme)    )
 
-write(*,*) "*** allocate 5"
+!!!write(*,*) "*** allocate 5"
 !$acc parallel vector_length(32)
 !$acc loop gang vector collapse(2)
        do j = jts,jte
@@ -294,7 +294,7 @@ write(*,*) "*** allocate 5"
              if(.not.allocated(rqvdynten_p)  ) allocate(rqvdynten_p(ims:ime,kms:kme,jms:jme)  )
              if(.not.allocated(rqvdynblten_p)) allocate(rqvdynblten_p(ims:ime,kms:kme,jms:jme))
 
-write(*,*) "*** allocate 6"
+!!!write(*,*) "*** allocate 6"
              do i = its,ite
              do k = kts,kte
              do j = jts,jte
@@ -313,7 +313,7 @@ write(*,*) "*** allocate 6"
              if(.not.allocated(hgamq_p)  ) allocate(hgamq_p(ims:ime,jms:jme)          )
              if(.not.allocated(entpbl_p) ) allocate(entpbl_p(ims:ime,jms:jme)         )
 
-write(*,*) "*** allocate 7"
+!!!write(*,*) "*** allocate 7"
 !$acc parallel vector_length(32)
 !$acc loop gang vector collapse(3)
              do j = jts,jte
@@ -358,7 +358,7 @@ write(*,*) "*** allocate 7"
  if(allocated(rqicuten_p) ) deallocate(rqicuten_p )
  if(allocated(pratec_p)   ) deallocate(pratec_p   )
  if(allocated(raincv_p)   ) deallocate(raincv_p   )
-write(*,*) "*** deallocate 0"
+!!!write(*,*) "*** deallocate 0"
 
  convection_select: select case(convection_scheme)
 
@@ -393,7 +393,7 @@ write(*,*) "*** deallocate 0"
        if(allocated(qccu_p)         ) deallocate(qccu_p         )
        if(allocated(qicu_p)         ) deallocate(qicu_p         )
 
-write(*,*) "*** deallocate 1"
+!!!write(*,*) "*** deallocate 1"
     case ("cu_kain_fritsch")
        if(allocated(dx_p)         ) deallocate(dx_p         )
        if(allocated(area_p)       ) deallocate(area_p       )
@@ -403,7 +403,7 @@ write(*,*) "*** deallocate 1"
        if(allocated(w0avg_p)      ) deallocate(w0avg_p      )
        if(allocated(rqrcuten_p)   ) deallocate(rqrcuten_p   )
        if(allocated(rqscuten_p)   ) deallocate(rqscuten_p   )
-write(*,*) "*** deallocate 2"
+!!!write(*,*) "*** deallocate 2"
 
     case ("cu_kain_fritsch_ms")
        if(allocated(dx_p)          ) deallocate(dx_p          )
@@ -424,7 +424,7 @@ write(*,*) "*** deallocate 2"
        if(allocated(rqrcuten_p)    ) deallocate(rqrcuten_p    )
        if(allocated(rqscuten_p)    ) deallocate(rqscuten_p    )
        if(allocated(rqvften_p)     ) deallocate(rqvften_p     )
-write(*,*) "*** deallocate 3"
+!!!write(*,*) "*** deallocate 3"
 
     case ("cu_tiedtke","cu_ntiedtke")
        if(allocated(cubot_p)      ) deallocate(cubot_p      )
@@ -435,14 +435,14 @@ write(*,*) "*** deallocate 3"
        if(allocated(xland_p)      ) deallocate(xland_p      )
        if(allocated(rucuten_p)    ) deallocate(rucuten_p    )
        if(allocated(rvcuten_p)    ) deallocate(rvcuten_p    )
-write(*,*) "*** deallocate 4"
+!!!write(*,*) "*** deallocate 4"
 
        cu_tiedtke_select: select case(convection_scheme)
 
           case ("cu_tiedtke")
              if(allocated(rqvdynten_p)  ) deallocate(rqvdynten_p  )
              if(allocated(rqvdynblten_p)) deallocate(rqvdynblten_p)
-write(*,*) "*** deallocate 5"
+!!!write(*,*) "*** deallocate 5"
 
           case ("cu_ntiedtke")
              if(allocated(rqvften_p)) deallocate(rqvften_p)
@@ -452,7 +452,7 @@ write(*,*) "*** deallocate 5"
              if(allocated(hgamt_p)  ) deallocate(hgamt_p  )
              if(allocated(hgamq_p)  ) deallocate(hgamq_p  )
              if(allocated(entpbl_p) ) deallocate(entpbl_p )
-write(*,*) "*** deallocate 6"
+!!!write(*,*) "*** deallocate 6"
 
           case default
 
@@ -566,7 +566,7 @@ write(*,*) "*** deallocate 6"
  call mpas_pool_get_config(configs,'config_do_restart'       ,config_do_restart)
  call mpas_pool_get_config(configs,'config_convection_scheme',convection_scheme)
 
-write(*,*) "*** driver 0"
+!!!write(*,*) "*** driver 0"
 !initialize instantaneous precipitation, and copy convective tendencies from the dynamics to
 !the physics grid:
  call convection_from_MPAS(dt_dyn,configs,mesh,sfc_input,diag_physics,tend_physics,its,ite)
@@ -588,7 +588,7 @@ write(*,*) "*** driver 0"
 !$acc end parallel
 !!!$acc update host(cu_act_flag)
 
-write(*,*) "*** driver 1"
+!!!write(*,*) "*** driver 1"
 !... initialization of initflag needed in the calls cu_tiedtke and cu_ntiedtke:
  initflag = 1
  if(config_do_restart .or. itimestep > 1) initflag = 0
@@ -596,7 +596,7 @@ write(*,*) "*** driver 1"
  convection_select: select case(convection_scheme)
 
     case ("cu_grell_freitas")
-write(*,*) "*** driver 2"
+!!!write(*,*) "*** driver 2"
        call mpas_timer_start('Grell-Freitas')
        call cu_grell_freitas( &
              itimestep       = itimestep              , dt            = dt_dyn          , &
@@ -638,7 +638,7 @@ write(*,*) "*** driver 2"
        endif
 
        call mpas_timer_start('Kain-Fritsch')
-write(*,*) "*** driver 3"
+!!!write(*,*) "*** driver 3"
        call  kf_eta_cps ( &
              pcps            = pres_hyd_p      , t         = t_p        ,            &
              dt              = dt_dyn          , ktau      = ktau       ,            &
@@ -678,7 +678,7 @@ write(*,*) "*** driver 3"
           ktau = itimestep + 1
        endif
 
-write(*,*) "*** driver 4"
+!!!write(*,*) "*** driver 4"
        call  kf_eta_ms_cps ( &
              pcps            = pres_hyd_p      , t         = t_p        ,            &
              dt              = dt_dyn          , ktau      = ktau       ,            &
@@ -717,7 +717,7 @@ write(*,*) "*** driver 4"
                         )
 
     case("cu_tiedtke")
-write(*,*) "*** driver 5"
+!!!write(*,*) "*** driver 5"
        call mpas_timer_start('Tiedtke')
        call cu_tiedtke( &
              pcps        = pres_hyd_p    , p8w       = pres2_hyd_p   ,               &
@@ -746,7 +746,7 @@ write(*,*) "*** driver 5"
        call mpas_timer_stop('Tiedtke')
 
     case("cu_ntiedtke")
-write(*,*) "*** driver 6"
+!!!write(*,*) "*** driver 6"
        call mpas_timer_start('New_Tiedtke')
        call cu_ntiedtke( &
              pcps      = pres_hyd_p  , p8w         = pres2_hyd_p ,                   &
@@ -780,12 +780,12 @@ write(*,*) "*** driver 6"
 
  end select convection_select
 
-write(*,*) "*** driver 7"
+!!!write(*,*) "*** driver 7"
 !copy instantaneous and accumulated precipitation, convective tendencies, and "other" arrays
 !specific to convection parameterization back to the dynamics grid:
  call convection_to_MPAS(configs,diag_physics,tend_physics,its,ite)
 
-write(*,*) "*** driver 8"
+!!!write(*,*) "*** driver 8"
 !call mpas_log_write('--- end subroutine driver_convection.')
 !call mpas_log_write('')
 
@@ -839,7 +839,7 @@ write(*,*) "*** driver 8"
  call mpas_pool_get_array_gpu(tend_physics,'rqccuten',rqccuten)
  call mpas_pool_get_array_gpu(tend_physics,'rqicuten',rqicuten)
 
-write(*,*) "*** from 0"
+!!!write(*,*) "*** from 0"
 !!!$acc update host(cuprec,raincv,rthcuten,rqvcuten,rqccuten,rqicuten)
 
  do j = jts,jte
@@ -869,7 +869,7 @@ write(*,*) "*** from 0"
 !!!$acc update host(raincv_p,pratec_p,rthcuten_p,rqvcuten_p, &
 !!!$acc rqccuten_p,rqicuten_p)
 
-write(*,*) "*** from 1"
+!!!write(*,*) "*** from 1"
  convection_select: select case(convection_scheme)
 
     case ("cu_grell_freitas")
@@ -910,7 +910,7 @@ write(*,*) "*** from 1"
  !$acc ktop_shallow, ktop_deep, qc_cu, qi_cu, rqvblten, rqvdynten, rthblten, &
  !$acc rthdynten, rthratenlw, rthratensw, rucuten, rvcuten)
 
-write(*,*) "*** from 2"
+!!!write(*,*) "*** from 2"
        do j = jts,jte
        do i = its,ite
           dx_p(i,j) = len_disp / meshDensity(i)**0.25
@@ -946,7 +946,7 @@ write(*,*) "*** from 2"
           enddo
        enddo
        enddo
-write(*,*) "*** from 3"
+!!!write(*,*) "*** from 3"
 
     case ("cu_kain_fritsch")
        call mpas_pool_get_config(configs,'config_len_disp',len_disp)
@@ -962,7 +962,7 @@ write(*,*) "*** from 3"
        call mpas_pool_get_array_gpu(tend_physics,'rqrcuten',rqrcuten)
        call mpas_pool_get_array_gpu(tend_physics,'rqscuten',rqscuten)
 
-write(*,*) "*** from 4"
+!!!write(*,*) "*** from 4"
  !$acc update host(areaCell, meshDensity, cubot, cutop, nca, w0avg, &
  !$acc rqrcuten, rqscuten)
 
@@ -989,7 +989,7 @@ write(*,*) "*** from 4"
           enddo
        enddo
        enddo
-write(*,*) "*** from 5"
+!!!write(*,*) "*** from 5"
 
     case ("cu_kain_fritsch_ms")
        call mpas_pool_get_config(configs,'config_len_disp',len_disp)
@@ -1017,7 +1017,7 @@ write(*,*) "*** from 5"
        call mpas_pool_get_array_gpu(diag_physics,'zol',zol)
        call mpas_pool_get_array_gpu(diag_physics,'hpbl',hpbl)
 
-write(*,*) "*** from 6"
+!!!write(*,*) "*** from 6"
 !$acc update host(areaCell,meshDensity,cubot,cutop,nca,w0avg, cldfra_sh_kf, &
 !$acc cldfra_dp_kf,qc_kf,qi_kf,w_up,rqrcuten,rqscuten,rqvdynten,rqvblten, &
 !$acc ust,wstar,zol,hpbl)
@@ -1057,7 +1057,7 @@ write(*,*) "*** from 6"
 
        enddo
        enddo
-write(*,*) "*** from 7"
+!!!write(*,*) "*** from 7"
 
     case ("cu_tiedtke","cu_ntiedtke")
        call mpas_pool_get_config(configs,'config_len_disp',len_disp)
@@ -1076,7 +1076,7 @@ write(*,*) "*** from 7"
        call mpas_pool_get_array_gpu(tend_physics,'rucuten'  ,rucuten  )
        call mpas_pool_get_array_gpu(tend_physics,'rvcuten'  ,rvcuten  )
 
-write(*,*) "*** from 8"
+!!!write(*,*) "*** from 8"
 !!!$acc update host(meshDensity,cubot,cutop,xland,hfx,qfx, &
 !!!$acc rqvblten,rqvdynten,rucuten,rvcuten)
 
@@ -1112,7 +1112,7 @@ write(*,*) "*** from 8"
        cu_tiedtke_select: select case(convection_scheme)
 
           case ("cu_tiedtke")
-write(*,*) "*** from 10"
+!!!write(*,*) "*** from 10"
              do j = jts,jte
              do k = kts,kte
              do i = its,ite
@@ -1121,7 +1121,7 @@ write(*,*) "*** from 10"
              enddo
              enddo
              enddo
-write(*,*) "*** from 11"
+!!!write(*,*) "*** from 11"
  
           case("cu_ntiedtke")
              call mpas_pool_get_array_gpu(tend_physics,'rqvdynten' ,rqvdynten )
@@ -1136,7 +1136,7 @@ write(*,*) "*** from 11"
              call mpas_pool_get_array_gpu(diag_physics,'hgamq'     ,hgamq     )
              call mpas_pool_get_array_gpu(diag_physics,'entpbl'    ,entpbl    )
              
-write(*,*) "*** from-18"
+!!!write(*,*) "*** from-18"
 !!!$acc update host(rqvdynten,rqvblten,rthdynten,rthblten,rthratenlw, &
 !!!$acc rthratensw,ust,wstar,hgamt,hgamq,entpbl)
 
@@ -1167,7 +1167,7 @@ write(*,*) "*** from-18"
              enddo
 !!!$acc update host(ust_p,wstar_p,hgamt_p,hgamq_p,entpbl_p, &
 !!!$acc rqvften_p,rthften_p)
-write(*,*) "*** from-19"
+!!!write(*,*) "*** from-19"
 
           case default
 
@@ -1177,7 +1177,7 @@ write(*,*) "*** from-19"
 
  end select convection_select
 
-write(*,*) "*** from-20"
+!!!write(*,*) "*** from-20"
  end subroutine convection_from_MPAS
 
 !=================================================================================================================
@@ -1219,7 +1219,7 @@ write(*,*) "*** from-20"
  call mpas_pool_get_array_gpu(tend_physics,'rqccuten',rqccuten)
  call mpas_pool_get_array_gpu(tend_physics,'rqicuten',rqicuten)
 
-write(*,*) "*** to 0"
+!!!write(*,*) "*** to 0"
 !! !$acc update host(cuprec, raincv, rthcuten, rqvcuten, &
 !! !$acc rqccuten, rqicuten)
 !!!$acc update device(raincv_p,pratec_p,rthcuten_p,rqvcuten_p, &
@@ -1249,7 +1249,7 @@ write(*,*) "*** to 0"
 !$acc end parallel
  enddo
 
-write(*,*) "*** to 1"
+!!!write(*,*) "*** to 1"
  convection_select: select case(convection_scheme)
 
     case ("cu_grell_freitas")
@@ -1267,7 +1267,7 @@ write(*,*) "*** to 1"
        call mpas_pool_get_array_gpu(tend_physics,'rucuten',rucuten)
        call mpas_pool_get_array_gpu(tend_physics,'rvcuten',rvcuten)
 
-write(*,*) "*** to 2"
+!!!write(*,*) "*** to 2"
  !$acc update host(cubot, cutop, xmb_total, xmb_shallow, k22_shallow, &
  !$acc kbcon_shallow, ktop_shallow, ktop_deep, qc_cu, qi_cu, rucuten, &
  !$acc rvcuten)
@@ -1291,7 +1291,7 @@ write(*,*) "*** to 2"
           enddo
        enddo
        enddo
-write(*,*) "*** to 3"
+!!!write(*,*) "*** to 3"
 
  !$acc update device(cubot, cutop, xmb_total, xmb_shallow, k22_shallow, &
  !$acc kbcon_shallow, ktop_shallow, ktop_deep, qc_cu, qi_cu, rucuten, &
@@ -1306,7 +1306,7 @@ write(*,*) "*** to 3"
        call mpas_pool_get_array_gpu(tend_physics,'rqrcuten',rqrcuten)
        call mpas_pool_get_array_gpu(tend_physics,'rqscuten',rqscuten)
 
-write(*,*) "*** to 4"
+!!!write(*,*) "*** to 4"
  !$acc update host(cubot, cutop, nca, w0avg, rqrcuten, rqscuten)
 
        do j = jts,jte
@@ -1321,7 +1321,7 @@ write(*,*) "*** to 4"
           enddo                          
        enddo
        enddo
-write(*,*) "*** to 5"
+!!!write(*,*) "*** to 5"
 
  !$acc update device(cubot, cutop, nca, w0avg, rqrcuten, rqscuten)
 
@@ -1344,7 +1344,7 @@ write(*,*) "*** to 5"
        call mpas_pool_get_array_gpu(diag_physics,'zol',zol)
        call mpas_pool_get_array_gpu(diag_physics,'hpbl',hpbl)
 
-write(*,*) "*** to 6"
+!!!write(*,*) "*** to 6"
 !$acc update host(cubot,cutop,nca,w0avg,cldfra_sh_kf,cldfra_dp_kf, &
 !$acc qc_kf,qi_kf,w_up,rqrcuten,rqscuten,ust,wstar,zol,hpbl)
 
@@ -1369,7 +1369,7 @@ write(*,*) "*** to 6"
           hpbl(i) = hpbl_p(i,j)
        enddo
        enddo
-write(*,*) "*** to 7"
+!!!write(*,*) "*** to 7"
 
 !$acc update device(cubot,cutop,nca,w0avg,cldfra_sh_kf,cldfra_dp_kf, &
 !$acc qc_kf,qi_kf,w_up,rqrcuten,rqscuten,ust,wstar,zol,hpbl)
@@ -1380,7 +1380,7 @@ write(*,*) "*** to 7"
        call mpas_pool_get_array_gpu(tend_physics,'rucuten',rucuten)
        call mpas_pool_get_array_gpu(tend_physics,'rvcuten',rvcuten)
 
-write(*,*) "*** to 8"
+!!!write(*,*) "*** to 8"
 !!!$acc update host(cubot,cutop,rucuten,rvcuten)
 !!!$acc update device(cubot_p,cutop_p,rucuten_p,rvcuten_p)
 
@@ -1405,7 +1405,7 @@ write(*,*) "*** to 8"
        enddo
 !$acc end parallel
        enddo
-write(*,*) "*** to 9"
+!!!write(*,*) "*** to 9"
 
 !!!$acc update device(cubot,cutop,rucuten,rvcuten)
 
@@ -1415,7 +1415,7 @@ write(*,*) "*** to 9"
 !!!$acc update device(cuprec, raincv, rthcuten, rqvcuten, &
 !!!$acc rqccuten, rqicuten)
 
-write(*,*) "*** to 10"
+!!!write(*,*) "*** to 10"
  end subroutine convection_to_MPAS
 
 !=================================================================================================================
