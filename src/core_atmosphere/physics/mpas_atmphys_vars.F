@@ -161,6 +161,8 @@
 ! * commented out the initialization of bl_mynn_mixscalars and moved its initialization to Registry.xml and
 !   namelist.atmosphere.
 !   Laura D. Fowler (laura@ucar.edu) / 2019-09-11.
+! * added the variable zd_shalc_p which is the local normalized downdraft mass flux for shallow convection.
+!   Laura D. Fowler (laura@ucar.edu) / 2019-10-14).
 
 
 !=================================================================================================================
@@ -454,7 +456,8 @@
     zd_deepc_p,       &!
     zu_midlc_p,       &!
     zd_midlc_p,       &!
-    zu_shalc_p         !
+    zu_shalc_p,       &!
+    zd_shalc_p         !
 
  real(kind=RKIND),dimension(:,:,:),allocatable:: &
     rthcuten_deepc_p, &!
