@@ -21,6 +21,21 @@
         <var name="qg_vavg" type="real" dimensions="nCells Time" units="kg m^{-2}"
              description="vertically-averaged graupel mixing ratio"/>
 
+        <var name="nc_vavg" type="real" dimensions="nCells Time" units="nb m^{-2}"
+             description="vertically-averaged cloud water number concentration"/>
+
+        <var name="ni_vavg" type="real" dimensions="nCells Time" units="nb m^{-2}"
+             description="vertically-averaged cloud ice number concentration"/>
+
+        <var name="nr_vavg" type="real" dimensions="nCells Time" units="nb m^{-2}"
+             description="vertically-averaged rain number concentration"/>
+
+        <var name="nifa_vavg" type="real" dimensions="nCells Time" units="nb m^{-2}"
+             description="vertically-averaged "ice-friendly" aerosol number concentration"/>
+
+        <var name="nwfa_vavg" type="real" dimensions="nCells Time" units="nb m^{-2}"
+             description="vertically-averaged "water-friendly" aerosol number concentration"/>
+
         <var name="qcf_vavg" type="real" dimensions="nCells Time" units="kg m^{-2}"
              description="vertically-averaged cloud-weighted cloud water mixing ratio"/>
 
@@ -155,6 +170,21 @@
         <var name="dqgmp_vavg" type="real" dimensions="nCells Time" units="kg m^{-2} s^{-1}"
              description="vertically-integrated microphysics tendency of graupel mr"/>
 
+        <var name="dncmp_vavg" type="real" dimensions="nCells Time" units="# m^{-2} s^{-1}"
+             description="vertically-integrated microphysics tendency of cloud water nb"/>
+
+        <var name="dnimp_vavg" type="real" dimensions="nCells Time" units="# m^{-2} s^{-1}"
+             description="vertically-integrated microphysics tendency of cloud ice nb"/>
+
+        <var name="dnrmp_vavg" type="real" dimensions="nCells Time" units="# m^{-2} s^{-1}"
+             description="vertically-integrated microphysics tendency of rain nb"/>
+
+        <var name="dnifamp_vavg" type="real" dimensions="nCells Time" units="# m^{-2} s^{-1}"
+             description="vertically-integrated microphysics tendency of "ice-friendly" aerosol nb"/>
+
+        <var name="dnwfamp_vavg" type="real" dimensions="nCells Time" units="# m^{-2} s^{-1}"
+             description="vertically-integrated microphysics tendency of "water-friendly" aerosol nb"/>
+
         <var name="dtbl_vavg" type="real" dimensions="nCells Time" units="K s^{-1}"
              description="vertically-integrated PBL tendency of temperature"/>
 
@@ -166,6 +196,21 @@
 
         <var name="dqibl_vavg" type="real" dimensions="nCells Time" units="kg m^{-2} s^{-1}"
              description="vertically-integrated PBL tendency of cloud ice mr"/>
+
+        <var name="dncbl_vavg" type="real" dimensions="nCells Time" units="nb m^{-2} s^{-1}"
+             description="vertically-integrated PBL tendency of cloud water nb"/>
+
+        <var name="dnibl_vavg" type="real" dimensions="nCells Time" units="nb m^{-2} s^{-1}"
+             description="vertically-integrated PBL tendency of cloud ice nb"/>
+
+        <var name="dnrbl_vavg" type="real" dimensions="nCells Time" units="nb m^{-2} s^{-1}"
+             description="vertically-integrated PBL tendency of rain nb"/>
+
+        <var name="dnifabl_vavg" type="real" dimensions="nCells Time" units="nb m^{-2} s^{-1}"
+             description="vertically-integrated PBL tendency of "ice-friendly" aerosol nb"/>
+
+        <var name="dnwfabl_vavg" type="real" dimensions="nCells Time" units="nb m^{-2} s^{-1}"
+             description="vertically-integrated PBL tendency of "water-friendly" aerosol nb"/>
 
         <var name="dtlw_vavg" type="real" dimensions="nCells Time" units="K s^{-1}"
              description="vertically-integrated lw radiation tendency of temperature"/>
@@ -228,6 +273,21 @@
         <var name="dqgmp_interp" type="real" dimensions="nFGLevels nCells Time" units="kg kg^{-1} s^{-1}"
              description="microphysics tendency of graupel mr interpolated to fixed pressure levels"/>
 
+        <var name="dncmp_interp" type="real" dimensions="nFGLevels nCells Time" units="# kg^{-1} s^{-1}"
+             description="microphysics tendency of cloud liquid water nb. concentration interpolated to fixed pressure levels"/>
+
+        <var name="dnimp_interp" type="real" dimensions="nFGLevels nCells Time" units="# kg^{-1} s^{-1}"
+             description="microphysics tendency of cloud ice nb. concentration interpolated to fixed pressure levels"/>
+
+        <var name="dnrmp_interp" type="real" dimensions="nFGLevels nCells Time" units="# kg^{-1} s^{-1}"
+             description="microphysics tendency of rain nb. concentration interpolated to fixed pressure levels"/>
+
+        <var name="dnifamp_interp" type="real" dimensions="nFGLevels nCells Time" units="# kg^{-1} s^{-1}"
+             description="microphysics tendency of "ice friendly" nb. concentration  interpolated to fixed pressure levels"/>
+
+        <var name="dnwfamp_interp" type="real" dimensions="nFGLevels nCells Time" units="# kg^{-1} s^{-1}"
+             description="microphysics tendency of "water friendly" nb. concentration  interpolated to fixed pressure levels"/>
+
         <var name="dtbl_interp" type="real" dimensions="nFGLevels nCells Time" units="K s^{-1}"
              description="PBL tendency of temperature interpolated to fixed pressure levels"/>
 
@@ -239,6 +299,21 @@
 
         <var name="dqibl_interp" type="real" dimensions="nFGLevels nCells Time" units="kg kg^{-1} s^{-1}"
              description="PBL tendency of cloud ice mr interpolated to fixed pressure levels"/>
+
+        <var name="dncbl_interp" type="real" dimensions="nFGLevels nCells Time" units="# kg^{-1} s^{-1}"
+             description="PBL tendency of cloud liquid water nb. concentration interpolated to fixed pressure levels"/>
+
+        <var name="dnibl_interp" type="real" dimensions="nFGLevels nCells Time" units="# kg^{-1} s^{-1}"
+             description="PBL tendency of cloud ice nb. concentration interpolated to fixed pressure levels"/>
+
+        <var name="dnrbl_interp" type="real" dimensions="nFGLevels nCells Time" units="# kg^{-1} s^{-1}"
+             description="PBL tendency of rain nb. concentration interpolated to fixed pressure levels"/>
+
+        <var name="dnifabl_interp" type="real" dimensions="nFGLevels nCells Time" units="# kg^{-1} s^{-1}"
+             description="PBL tendency of "ice friendly" nb. concentration  interpolated to fixed pressure levels"/>
+
+        <var name="dnwfabl_interp" type="real" dimensions="nFGLevels nCells Time" units="# kg^{-1} s^{-1}"
+             description="PBL tendency of "water friendly" nb. concentration  interpolated to fixed pressure levels"/>
 
         <var name="dtlw_interp" type="real" dimensions="nFGLevels nCells Time" units="K s^{-1}"
              description="lw radiation tendency of potential temperature interpolated to fixed pressure levels"/>
@@ -611,6 +686,29 @@
              description="in-cloud convection cloud ice path for shallow convection"
              packages="cu_grell_freitas_in;cu_kain_fritsch_in"/>
 
+        <var name="zu_shalc_interp" type="real" dimensions="nFGLevels nCells Time" units="kg m^{-2} s^{-1}"
+             description="upward mass flux for shallow convection interpolated to fixed pressure levels"
+             packages="cu_grell_freitas_in"/>
+
+        <var name="zd_shalc_interp" type="real" dimensions="nFGLevels nCells Time" units="kg m^{-2} s^{-1}"
+             description="downward mass flux for shallow convection interpolated to fixed pressure levels"
+             packages="cu_grell_freitas_in"/>
+
+        <var name="zu_midlc_interp" type="real" dimensions="nFGLevels nCells Time" units="kg m^{-2} s^{-1}"
+             description="upward mass flux for mid-level convection interpolated to fixed pressure levels"
+             packages="cu_grell_freitas_in"/>
+
+        <var name="zd_midlc_interp" type="real" dimensions="nFGLevels nCells Time" units="kg m^{-2} s^{-1}"
+             description="downward mass flux for mid-level convection interpolated to fixed pressure levels"
+             packages="cu_grell_freitas_in"/>
+
+        <var name="zu_deepc_interp" type="real" dimensions="nFGLevels nCells Time" units="kg m^{-2} s^{-1}"
+             description="upward mass flux for deep convection interpolated to fixed pressure levels"
+             packages="cu_grell_freitas_in"/>
+
+        <var name="zd_deepc_interp" type="real" dimensions="nFGLevels nCells Time" units="kg m^{-2} s^{-1}"
+             description="downward mass flux for shallow convection interpolated to fixed pressure levels"
+             packages="cu_grell_freitas_in"/>
 </var_struct>
 
 <var_struct name="tend_physics_cu" time_levs="1">

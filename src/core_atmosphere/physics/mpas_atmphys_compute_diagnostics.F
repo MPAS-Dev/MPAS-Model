@@ -17,6 +17,15 @@
  use mpas_atmphys_constants,only: R_v,R_d
  use mpas_atmphys_functions,only: rsif,rslf
 
+ use mpas_atmphys_compute_diagnostics_bl, only: need_atmphys_diagnostics_bl,    &
+                                                atmphys_compute_diagnostics_bl
+
+ use mpas_atmphys_compute_diagnostics_cu, only: need_atmphys_diagnostics_cu,    &
+                                                need_atmphys_tendencies_cu,     &
+                                                atmphys_compute_diagnostics_cu, &
+                                                atmphys_compute_tendencies_cu,  &
+                                                interp_tofixed_pressure
+
  implicit none
  private
  public:: atmphys_compute_diagnostics_setup, &
@@ -31,12 +40,17 @@
  type(mpas_pool_type),pointer:: diag_physics
  type(mpas_pool_type),pointer:: diag_physics_vavg
  type(mpas_pool_type),pointer:: diag_physics_interp
+ type(mpas_pool_type),pointer:: diag_physics_bl
+ type(mpas_pool_type),pointer:: diag_physics_cu
+ type(mpas_pool_type),pointer:: diag_physics_interp_cu
  type(mpas_pool_type),pointer:: tend_physics
  type(mpas_pool_type),pointer:: tend_physics_vavg
  type(mpas_pool_type),pointer:: tend_physics_interp
+ type(mpas_pool_type),pointer:: tend_physics_cu
 
  logical:: need_qv_vavg,need_qc_vavg,need_qr_vavg,need_qi_vavg,need_qs_vavg,need_qg_vavg
  logical:: need_qcf_vavg,need_qrf_vavg,need_qif_vavg,need_qsf_vavg,need_qgf_vavg
+ logical:: need_nc_vavg,need_ni_vavg,need_nr_vavg,need_nifa_vavg,need_nwfa_vavg
  
  logical:: need_qv_interp,need_qc_interp,need_qr_interp,need_qi_interp,need_qs_interp,need_qg_interp
  logical:: need_qcf_interp,need_qrf_interp,need_qif_interp,need_qsf_interp,need_qgf_interp,need_cld_interp
@@ -44,16 +58,28 @@
 
  logical:: need_dtcup_vavg,need_dqvcup_vavg,need_dqccup_vavg,need_dqrcup_vavg, &
            need_dqicup_vavg,need_dqscup_vavg
+ logical:: need_dnccup_vavg,need_dnicup_vavg,need_dnifacup_vavg,need_dnwfacup_vavg
+
  logical:: need_dtmp_vavg,need_dqvmp_vavg,need_dqcmp_vavg,need_dqrmp_vavg, &
            need_dqimp_vavg,need_dqsmp_vavg,need_dqgmp_vavg
+ logical:: need_dncmp_vavg,need_dnimp_vavg,need_dnrmp_vavg,need_dnifamp_vavg,need_dnwfamp_vavg
+
  logical:: need_dtbl_vavg,need_dqvbl_vavg,need_dqcbl_vavg,need_dqibl_vavg
+ logical:: need_dncbl_vavg,need_dnibl_vavg,need_dnrbl_vavg,need_dnifabl_vavg,need_dnwfabl_vavg
+
  logical:: need_dtlw_vavg,need_dtsw_vavg
 
  logical:: need_dtcup_interp,need_dqvcup_interp,need_dqccup_interp,need_dqrcup_interp, &
            need_dqicup_interp,need_dqscup_interp
+ logical:: need_dnccup_interp,need_dnicup_interp,need_dnifacup_interp,need_dnwfacup_interp
+
  logical:: need_dtmp_interp,need_dqvmp_interp,need_dqcmp_interp,need_dqrmp_interp, &
            need_dqimp_interp,need_dqsmp_interp,need_dqgmp_interp
+ logical:: need_dncmp_interp,need_dnimp_interp,need_dnifamp_interp,need_dnwfamp_interp
+
  logical:: need_dtbl_interp,need_dqvbl_interp,need_dqcbl_interp,need_dqibl_interp
+ logical:: need_dncbl_interp,need_dnibl_interp,need_dnifabl_interp,need_dnwfabl_interp
+
  logical:: need_dtlw_interp,need_dtsw_interp
 
 
@@ -95,10 +121,13 @@
  call mpas_pool_get_subpool(all_pools,'diag_physics',diag_physics)
  call mpas_pool_get_subpool(all_pools,'diag_physics_vavg'  ,diag_physics_vavg  )
  call mpas_pool_get_subpool(all_pools,'diag_physics_interp',diag_physics_interp)
+ call mpas_pool_get_subpool(all_pools,'diag_physics_bl'    ,diag_physics_bl    )
+ call mpas_pool_get_subpool(all_pools,'diag_physics_cu'    ,diag_physics_cu    )
 
  call mpas_pool_get_subpool(all_pools,'tend_physics',tend_physics)
  call mpas_pool_get_subpool(all_pools,'tend_physics_vavg'  ,tend_physics_vavg  )
  call mpas_pool_get_subpool(all_pools,'tend_physics_interp',tend_physics_interp)
+ call mpas_pool_get_subpool(all_pools,'tend_physics_cu'    ,tend_physics_cu    )
 
  call mpas_log_write('--- exit subroutine atmphys_compute_diagnostics_setup:')
 
@@ -116,12 +145,22 @@
  if(need_atmphys_diagnostics_interp()) &
     call atmphys_diagnostics_interp(mesh,state,1,fg,diag,diag_physics,diag_physics_interp)
 
+ if(need_atmphys_diagnostics_bl()) &
+    call atmphys_compute_diagnostics_bl(mesh,state,1,diag,diag_physics,diag_physics_bl)
+
+ if(need_atmphys_diagnostics_cu()) &
+    call atmphys_compute_diagnostics_cu(mesh,state,1,fg,diag,diag_physics,diag_physics_bl,diag_physics_cu)
+
  if(need_atmphys_tendencies_vavg()) &
     call atmphys_compute_tendencies_vavg(mesh,state,1,diag,tend_physics,tend_physics_vavg)
 
  if(need_atmphys_tendencies_interp()) &
     call atmphys_tendencies_interp(mesh,fg,diag,tend_physics,tend_physics_interp)
 
+ if(need_atmphys_tendencies_cu()) &
+    call atmphys_compute_tendencies_cu(mesh,fg,state,1,diag,tend_physics,tend_physics_cu)
+
+ call mpas_log_write(' ')
  call mpas_log_write('--- exit subroutine atmphys_diagnostics_compute:')
 
  end subroutine atmphys_compute_diagnostics
@@ -143,14 +182,17 @@
  integer:: iCell,k
  integer,pointer:: nCellsSolve,nVertLevels
  integer,pointer:: index_qv,index_qc,index_qr,index_qi,index_qs,index_qg
+ integer,pointer:: index_nc,index_ni,index_nr,index_nifa,index_nwfa
 
- real:: dz,rhoa
+ real(kind=RKIND):: dz,rhoa
  real(kind=RKIND),dimension(:),pointer    :: qv_vavg,qc_vavg,qr_vavg,qi_vavg,qs_vavg,qg_vavg
+ real(kind=RKIND),dimension(:),pointer    :: nc_vavg,ni_vavg,nr_vavg,nifa_vavg,nwfa_vavg
  real(kind=RKIND),dimension(:),pointer    :: qcf_vavg,qrf_vavg,qif_vavg,qsf_vavg,qgf_vavg
  real(kind=RKIND),dimension(:),pointer    :: cld_max
  real(kind=RKIND),dimension(:,:),pointer  :: rho_zz,zgrid,zz
  real(kind=RKIND),dimension(:,:),pointer  :: cld
  real(kind=RKIND),dimension(:,:),pointer  :: qv,qc,qr,qi,qs,qg
+ real(kind=RKIND),dimension(:,:),pointer  :: nc,ni,nr,nifa,nwfa
  real(kind=RKIND),dimension(:,:,:),pointer:: scalars
 
 !-----------------------------------------------------------------------------------------------------------------
@@ -167,6 +209,17 @@
  call mpas_pool_get_dimension(state,'index_qs',index_qs)
  call mpas_pool_get_dimension(state,'index_qg',index_qg)
 
+ nullify(nc)
+ nullify(ni)
+ nullify(nr)
+ nullify(nifa)
+ nullify(nwfa)
+ call mpas_pool_get_dimension(state,'index_nc',index_nc)
+ call mpas_pool_get_dimension(state,'index_ni',index_ni)
+ call mpas_pool_get_dimension(state,'index_nr',index_nr)
+ call mpas_pool_get_dimension(state,'index_nifa',index_nifa)
+ call mpas_pool_get_dimension(state,'index_nwfa',index_nwfa)
+
  call mpas_pool_get_array(mesh,'zz'   ,zz   )
  call mpas_pool_get_array(mesh,'zgrid',zgrid)
 
@@ -179,6 +232,14 @@
  qs => scalars(index_qs,:,:)
  qg => scalars(index_qg,:,:)
 
+ if(index_nc .gt. -1 .and. index_ni .gt. -1 .and. index_nr .gt. -1 .and. &
+    index_nifa .gt. -1 .and. index_nwfa .gt. -1) then
+    nc   => scalars(index_nc,:,:)
+    ni   => scalars(index_ni,:,:)
+    nr   => scalars(index_nr,:,:)
+    nifa => scalars(index_nifa,:,:)
+    nwfa => scalars(index_nwfa,:,:)
+ endif
 
 !--- calculation of vertically-averaged mixing ratios and maximum cloud fraction: 
  call mpas_pool_get_array(diag_physics,'cldfrac',cld)
@@ -197,19 +258,30 @@
  call mpas_pool_get_array(diag_physics_vavg,'qsf_vavg',qsf_vavg)
  call mpas_pool_get_array(diag_physics_vavg,'qgf_vavg',qgf_vavg)
 
+ call mpas_pool_get_array(diag_physics_vavg,'nc_vavg'  ,nc_vavg  )
+ call mpas_pool_get_array(diag_physics_vavg,'ni_vavg'  ,ni_vavg  )
+ call mpas_pool_get_array(diag_physics_vavg,'nr_vavg'  ,nr_vavg  )
+ call mpas_pool_get_array(diag_physics_vavg,'nifa_vavg',nifa_vavg)
+ call mpas_pool_get_array(diag_physics_vavg,'nwfa_vavg',nwfa_vavg)
+
  do iCell = 1, nCellsSolve
-    cld_max(iCell)  = 0._RKIND
-    qv_vavg(iCell)  = 0._RKIND
-    qc_vavg(iCell)  = 0._RKIND
-    qr_vavg(iCell)  = 0._RKIND
-    qi_vavg(iCell)  = 0._RKIND
-    qs_vavg(iCell)  = 0._RKIND
-    qg_vavg(iCell)  = 0._RKIND
-    qcf_vavg(iCell) = 0._RKIND
-    qrf_vavg(iCell) = 0._RKIND
-    qif_vavg(iCell) = 0._RKIND
-    qsf_vavg(iCell) = 0._RKIND
-    qgf_vavg(iCell) = 0._RKIND
+    cld_max(iCell)   = 0._RKIND
+    qv_vavg(iCell)   = 0._RKIND
+    qc_vavg(iCell)   = 0._RKIND
+    qr_vavg(iCell)   = 0._RKIND
+    qi_vavg(iCell)   = 0._RKIND
+    qs_vavg(iCell)   = 0._RKIND
+    qg_vavg(iCell)   = 0._RKIND
+    nc_vavg(iCell)   = 0._RKIND
+    ni_vavg(iCell)   = 0._RKIND
+    nr_vavg(iCell)   = 0._RKIND
+    nifa_vavg(iCell) = 0._RKIND
+    nwfa_vavg(iCell) = 0._RKIND
+    qcf_vavg(iCell)  = 0._RKIND
+    qrf_vavg(iCell)  = 0._RKIND
+    qif_vavg(iCell)  = 0._RKIND
+    qsf_vavg(iCell)  = 0._RKIND
+    qgf_vavg(iCell)  = 0._RKIND
 
     do k = 1, nVertLevels
        dz   = zgrid(k+1,iCell)-zgrid(k,iCell)
@@ -232,6 +304,13 @@
        qif_vavg(iCell) = qif_vavg(iCell) + cld(k,iCell)*qi(k,iCell)*rhoa*dz
        qsf_vavg(iCell) = qsf_vavg(iCell) + cld(k,iCell)*qs(k,iCell)*rhoa*dz
        qgf_vavg(iCell) = qgf_vavg(iCell) + cld(k,iCell)*qg(k,iCell)*rhoa*dz
+
+       !--- verticall-averaged number concentrations:
+       nc_vavg(iCell) = nc_vavg(iCell) + nc(k,iCell)*rhoa*dz
+       ni_vavg(iCell) = ni_vavg(iCell) + ni(k,iCell)*rhoa*dz
+       nr_vavg(iCell) = nr_vavg(iCell) + nr(k,iCell)*rhoa*dz
+       nifa_vavg(iCell) = nifa_vavg(iCell) + nifa(k,iCell)*rhoa*dz
+       nwfa_vavg(iCell) = nwfa_vavg(iCell) + nwfa(k,iCell)*rhoa*dz
     enddo
  enddo
 
@@ -369,7 +448,10 @@
  do k = 1, nFGLevels-1
     if(p_fg(k,iCell) .ge. 1000._RKIND) nIntP = k
  enddo
-!call mpas_log_write('--- nIntP = $i',intArgs=(/nIntP/))
+ call mpas_log_write('--- nIntP = $i',intArgs=(/nIntP/))
+ do k = 1, nFGLevels-1
+    call mpas_log_write('$i $i $r',intArgs=(/iCell,k/),realArgs=(/p_fg(k,iCell)/))
+ enddo
 
  if(.not.allocated(press_in)) allocate(press_in(nCellsSolve,nVertLevels))
  if(.not.allocated(field_in)) allocate(field_in(nCellsSolve,nVertLevels))
@@ -388,6 +470,12 @@
        press_interp(iCell,kk) = p_fg(k,iCell)
     enddo
  enddo
+ call mpas_log_write(' ')
+ iCell = 1
+ do k = 1, nIntP
+    call mpas_log_write('$i $i $r',intArgs=(/iCell,k/),realArgs=(/press_interp(iCell,k)/))
+ enddo
+ call mpas_log_write(' ')
 
 !--- t_interp:
  do k = 1, nVertLevels
@@ -723,7 +811,7 @@
 !inout arguments:
  type(mpas_pool_type),intent(inout):: tend_physics_vavg
 
-!local variabl_interpes, arrays, and pointers:
+!local variables, arrays, and pointers:
  integer:: iCell,k
  integer,pointer:: nCellsSolve,nVertLevels
  integer,pointer:: index_qv
@@ -734,14 +822,18 @@
  real(kind=RKIND),dimension(:),pointer    :: dnccup_vavg,dnicup_vavg,dnifacup_vavg,dnwfacup_vavg
  real(kind=RKIND),dimension(:),pointer    :: dtmp_vavg,dqvmp_vavg,dqcmp_vavg,dqrmp_vavg, &
                                              dqimp_vavg,dqsmp_vavg,dqgmp_vavg
+ real(kind=RKIND),dimension(:),pointer    :: dncmp_vavg,dnimp_vavg,dnrmp_vavg,dnifamp_vavg,dnwfamp_vavg
  real(kind=RKIND),dimension(:),pointer    :: dtbl_vavg,dqvbl_vavg,dqcbl_vavg,dqibl_vavg
+ real(kind=RKIND),dimension(:),pointer    :: dncbl_vavg,dnibl_vavg,dnrbl_vavg,dnifabl_vavg,dnwfabl_vavg
  real(kind=RKIND),dimension(:),pointer    :: dtlw_vavg,dtsw_vavg                                         
  real(kind=RKIND),dimension(:,:),pointer  :: exner,rho_zz,zgrid,zz
  real(kind=RKIND),dimension(:,:),pointer  :: qv
  real(kind=RKIND),dimension(:,:),pointer  :: dtcup,dqvcup,dqccup,dqrcup,dqicup,dqscup
  real(kind=RKIND),dimension(:,:),pointer  :: dnccup,dnicup,dnifacup,dnwfacup
  real(kind=RKIND),dimension(:,:),pointer  :: dtmp,dqvmp,dqcmp,dqrmp,dqimp,dqsmp,dqgmp
+ real(kind=RKIND),dimension(:,:),pointer  :: dncmp,dnimp,dnrmp,dnifamp,dnwfamp
  real(kind=RKIND),dimension(:,:),pointer  :: dtbl,dqvbl,dqcbl,dqibl
+ real(kind=RKIND),dimension(:,:),pointer  :: dncbl,dnibl,dnrbl,dnifabl,dnwfabl
  real(kind=RKIND),dimension(:,:),pointer  :: dtlw,dtsw                                          
  real(kind=RKIND),dimension(:,:,:),pointer:: scalars
 
@@ -800,6 +892,17 @@
  call mpas_pool_get_array(tend_physics,'rqsmpten',dqsmp)
  call mpas_pool_get_array(tend_physics,'rqgmpten',dqgmp)
 
+ nullify(dncmp)
+ nullify(dnimp)
+ nullify(dnrmp)
+ nullify(dnifamp)
+ nullify(dnwfamp)
+ call mpas_pool_get_array(tend_physics,'rncmpten',dncmp)
+ call mpas_pool_get_array(tend_physics,'rnimpten',dnimp)
+ call mpas_pool_get_array(tend_physics,'rnrmpten',dnrmp)
+ call mpas_pool_get_array(tend_physics,'rnifampten',dnifamp)
+ call mpas_pool_get_array(tend_physics,'rnwfampten',dnwfamp)
+
  nullify(dtbl)
  nullify(dqvbl)
  nullify(dqcbl)
@@ -808,6 +911,17 @@
  call mpas_pool_get_array(tend_physics,'rqvblten',dqvbl)
  call mpas_pool_get_array(tend_physics,'rqcblten',dqcbl)
  call mpas_pool_get_array(tend_physics,'rqiblten',dqibl)
+
+ nullify(dncbl)
+ nullify(dnibl)
+ nullify(dnrbl)
+ nullify(dnifabl)
+ nullify(dnwfabl)
+ call mpas_pool_get_array(tend_physics,'rncblten',dncbl)
+ call mpas_pool_get_array(tend_physics,'rniblten',dnibl)
+ call mpas_pool_get_array(tend_physics,'rnrblten',dnrbl)
+ call mpas_pool_get_array(tend_physics,'rnifablten',dnifabl)
+ call mpas_pool_get_array(tend_physics,'rnwfablten',dnwfabl)
 
  nullify(dtlw)
  nullify(dtsw)
@@ -851,6 +965,17 @@
  call mpas_pool_get_array(tend_physics_vavg,'dqsmp_vavg',dqsmp_vavg)
  call mpas_pool_get_array(tend_physics_vavg,'dqgmp_vavg',dqgmp_vavg)
 
+ nullify(dncmp_vavg)
+ nullify(dnimp_vavg)
+ nullify(dnrmp_vavg)
+ nullify(dnifamp_vavg)
+ nullify(dnwfamp_vavg)
+ call mpas_pool_get_array(tend_physics_vavg,'dncmp_vavg',dncmp_vavg)
+ call mpas_pool_get_array(tend_physics_vavg,'dnimp_vavg',dnimp_vavg)
+ call mpas_pool_get_array(tend_physics_vavg,'dnrmp_vavg',dnrmp_vavg)
+ call mpas_pool_get_array(tend_physics_vavg,'dnifamp_vavg',dnifamp_vavg)
+ call mpas_pool_get_array(tend_physics_vavg,'dnwfamp_vavg',dnwfamp_vavg)
+
  nullify(dtbl_vavg)
  nullify(dqvbl_vavg)
  nullify(dqcbl_vavg)
@@ -859,6 +984,17 @@
  call mpas_pool_get_array(tend_physics_vavg,'dqvbl_vavg',dqvbl_vavg)
  call mpas_pool_get_array(tend_physics_vavg,'dqcbl_vavg',dqcbl_vavg)
  call mpas_pool_get_array(tend_physics_vavg,'dqibl_vavg',dqibl_vavg)
+
+ nullify(dncbl_vavg)
+ nullify(dnibl_vavg)
+ nullify(dnrbl_vavg)
+ nullify(dnifabl_vavg)
+ nullify(dnwfabl_vavg)
+ call mpas_pool_get_array(tend_physics_vavg,'dncbl_vavg',dncbl_vavg)
+ call mpas_pool_get_array(tend_physics_vavg,'dnibl_vavg',dnibl_vavg)
+ call mpas_pool_get_array(tend_physics_vavg,'dnrbl_vavg',dnrbl_vavg)
+ call mpas_pool_get_array(tend_physics_vavg,'dnifabl_vavg',dnifabl_vavg)
+ call mpas_pool_get_array(tend_physics_vavg,'dnwfabl_vavg',dnwfabl_vavg)
 
  nullify(dtlw_vavg)
  nullify(dtsw_vavg)
@@ -971,6 +1107,30 @@
     enddo
  endif
 
+ if(associated(dncmp) .and. associated(dnimp) .and. associated(dnrmp) .and. &
+    associated(dnifamp) .and. associated(dnwfamp)) then
+    do iCell = 1, nCellsSolve
+       dncmp_vavg(iCell)   = 0._RKIND
+       dnimp_vavg(iCell)   = 0._RKIND
+       dnrmp_vavg(iCell)   = 0._RKIND
+       dnifamp_vavg(iCell) = 0._RKIND
+       dnwfamp_vavg(iCell) = 0._RKIND
+
+       do k = 1, nVertLevels
+          dz    = zgrid(k+1,iCell)-zgrid(k,iCell)
+          rhoa  = zz(k,iCell)*rho_zz(k,iCell)
+          rhoa  = rhoa*(1._RKIND+qv(k,iCell))
+
+          !--- vertically-averaged microphysics tendencies:
+          dncmp_vavg(iCell) = dncmp_vavg(iCell) + dncmp(k,iCell)*rhoa*dz
+          dnimp_vavg(iCell) = dnimp_vavg(iCell) + dnimp(k,iCell)*rhoa*dz
+          dnrmp_vavg(iCell) = dnrmp_vavg(iCell) + dnrmp(k,iCell)*rhoa*dz
+          dnifamp_vavg(iCell) = dnifamp_vavg(iCell) + dnifamp(k,iCell)*rhoa*dz
+          dnwfamp_vavg(iCell) = dnwfamp_vavg(iCell) + dnwfamp(k,iCell)*rhoa*dz
+       enddo
+    enddo
+ endif
+
  if(associated(dtbl)) then
     do iCell = 1, nCellsSolve
        dtbl_vavg(iCell)   = 0._RKIND
@@ -993,6 +1153,30 @@
           dqibl_vavg(iCell) = dqibl_vavg(iCell) + dqibl(k,iCell)*rhoa*dz
        enddo
        dtbl_vavg(iCell) = dtbl_vavg(iCell)/sumr
+    enddo
+ endif
+
+ if(associated(dncbl) .and. associated(dnibl) .and. associated(dnrbl) .and. &
+    associated(dnifabl) .and. associated(dnwfabl)) then
+    do iCell = 1, nCellsSolve
+       dncbl_vavg(iCell)   = 0._RKIND
+       dnibl_vavg(iCell)   = 0._RKIND
+       dnrbl_vavg(iCell)   = 0._RKIND
+       dnifabl_vavg(iCell) = 0._RKIND
+       dnwfabl_vavg(iCell) = 0._RKIND
+
+       do k = 1, nVertLevels
+          dz    = zgrid(k+1,iCell)-zgrid(k,iCell)
+          rhoa  = zz(k,iCell)*rho_zz(k,iCell)
+          rhoa  = rhoa*(1._RKIND+qv(k,iCell))
+
+          !--- vertically-averaged microphysics tendencies:
+          dncbl_vavg(iCell) = dncbl_vavg(iCell) + dncbl(k,iCell)*rhoa*dz
+          dnibl_vavg(iCell) = dnibl_vavg(iCell) + dnibl(k,iCell)*rhoa*dz
+          dnrbl_vavg(iCell) = dnrbl_vavg(iCell) + dnrbl(k,iCell)*rhoa*dz
+          dnifabl_vavg(iCell) = dnifabl_vavg(iCell) + dnifabl(k,iCell)*rhoa*dz
+          dnwfabl_vavg(iCell) = dnwfabl_vavg(iCell) + dnwfabl(k,iCell)*rhoa*dz
+       enddo
     enddo
  endif
 
@@ -1061,14 +1245,18 @@
  real(kind=RKIND),dimension(:,:),pointer:: dtcup,dqvcup,dqccup,dqrcup,dqicup,dqscup
  real(kind=RKIND),dimension(:,:),pointer:: dnccup,dnicup,dnifacup,dnwfacup
  real(kind=RKIND),dimension(:,:),pointer:: dtmp,dqvmp,dqcmp,dqrmp,dqimp,dqsmp,dqgmp
+ real(kind=RKIND),dimension(:,:),pointer:: dncmp,dnimp,dnrmp,dnifamp,dnwfamp
  real(kind=RKIND),dimension(:,:),pointer:: dtbl,dqvbl,dqcbl,dqibl
+ real(kind=RKIND),dimension(:,:),pointer:: dncbl,dnibl,dnrbl,dnifabl,dnwfabl
  real(kind=RKIND),dimension(:,:),pointer:: dtlw,dtsw                                          
  real(kind=RKIND),dimension(:,:),pointer:: dtcup_interp,dqvcup_interp,dqccup_interp,dqrcup_interp, &
                                            dqicup_interp,dqscup_interp
  real(kind=RKIND),dimension(:,:),pointer:: dnccup_interp,dnicup_interp,dnifacup_interp,dnwfacup_interp
  real(kind=RKIND),dimension(:,:),pointer:: dtmp_interp,dqvmp_interp,dqcmp_interp,dqrmp_interp, &
                                            dqimp_interp,dqsmp_interp,dqgmp_interp
+ real(kind=RKIND),dimension(:,:),pointer:: dncmp_interp,dnimp_interp,dnrmp_interp,dnifamp_interp,dnwfamp_interp
  real(kind=RKIND),dimension(:,:),pointer:: dtbl_interp,dqvbl_interp,dqcbl_interp,dqibl_interp
+ real(kind=RKIND),dimension(:,:),pointer:: dncbl_interp,dnibl_interp,dnrbl_interp,dnifabl_interp,dnwfabl_interp
  real(kind=RKIND),dimension(:,:),pointer:: dtlw_interp,dtsw_interp                                         
 
 !local interpolated fields:
@@ -1125,6 +1313,17 @@
  call mpas_pool_get_array(tend_physics,'rqsmpten',dqsmp)
  call mpas_pool_get_array(tend_physics,'rqgmpten',dqgmp)
 
+ nullify(dncmp)
+ nullify(dnimp)
+ nullify(dnrmp)
+ nullify(dnifamp)
+ nullify(dnwfamp)
+ call mpas_pool_get_array(tend_physics,'rncmpten',dncmp)
+ call mpas_pool_get_array(tend_physics,'rnimpten',dnimp)
+ call mpas_pool_get_array(tend_physics,'rnrmpten',dnrmp)
+ call mpas_pool_get_array(tend_physics,'rnifampten',dnifamp)
+ call mpas_pool_get_array(tend_physics,'rnwfampten',dnwfamp)
+ 
  nullify(dtbl)
  nullify(dqvbl)
  nullify(dqcbl)
@@ -1134,6 +1333,17 @@
  call mpas_pool_get_array(tend_physics,'rqcblten',dqcbl)
  call mpas_pool_get_array(tend_physics,'rqiblten',dqibl)
 
+ nullify(dncbl)
+ nullify(dnibl)
+ nullify(dnrbl)
+ nullify(dnifabl)
+ nullify(dnwfabl)
+ call mpas_pool_get_array(tend_physics,'rncblten',dncbl)
+ call mpas_pool_get_array(tend_physics,'rniblten',dnibl)
+ call mpas_pool_get_array(tend_physics,'rnrblten',dnrbl)
+ call mpas_pool_get_array(tend_physics,'rnifablten',dnifabl)
+ call mpas_pool_get_array(tend_physics,'rnwfablten',dnwfabl)
+ 
  nullify(dtlw)
  nullify(dtsw)
  call mpas_pool_get_array(tend_physics,'rthratenlw',dtlw)
@@ -1176,6 +1386,17 @@
  call mpas_pool_get_array(tend_physics_interp,'dqsmp_interp',dqsmp_interp)
  call mpas_pool_get_array(tend_physics_interp,'dqgmp_interp',dqgmp_interp)
 
+ nullify(dncmp_interp)
+ nullify(dnimp_interp)
+ nullify(dnrmp_interp)
+ nullify(dnifamp_interp)
+ nullify(dnwfamp_interp)
+ call mpas_pool_get_array(tend_physics_interp,'dncmp_interp',dncmp_interp)
+ call mpas_pool_get_array(tend_physics_interp,'dnimp_interp',dnimp_interp)
+ call mpas_pool_get_array(tend_physics_interp,'dnrmp_interp',dnrmp_interp)
+ call mpas_pool_get_array(tend_physics_interp,'dnifamp_interp',dnifamp_interp)
+ call mpas_pool_get_array(tend_physics_interp,'dnwfamp_interp',dnwfamp_interp)
+
  nullify(dtbl_interp)
  nullify(dqvbl_interp)
  nullify(dqcbl_interp)
@@ -1184,6 +1405,17 @@
  call mpas_pool_get_array(tend_physics_interp,'dqvbl_interp',dqvbl_interp)
  call mpas_pool_get_array(tend_physics_interp,'dqcbl_interp',dqcbl_interp)
  call mpas_pool_get_array(tend_physics_interp,'dqibl_interp',dqibl_interp)
+
+ nullify(dncbl_interp)
+ nullify(dnibl_interp)
+ nullify(dnrbl_interp)
+ nullify(dnifabl_interp)
+ nullify(dnwfabl_interp)
+ call mpas_pool_get_array(tend_physics_interp,'dncbl_interp',dncbl_interp)
+ call mpas_pool_get_array(tend_physics_interp,'dnibl_interp',dnibl_interp)
+ call mpas_pool_get_array(tend_physics_interp,'dnrbl_interp',dnrbl_interp)
+ call mpas_pool_get_array(tend_physics_interp,'dnifabl_interp',dnifabl_interp)
+ call mpas_pool_get_array(tend_physics_interp,'dnwfabl_interp',dnwfabl_interp)
 
  nullify(dtlw_interp)
  nullify(dtsw_interp)
@@ -1527,6 +1759,74 @@
        enddo
     enddo
 !   call mpas_log_write('--- end interpolate dqgmp:')
+
+    if(associated(dncmp) .and. associated(dnimp)) then
+       !--- dncmp_interp:
+       do k = 1, nVertLevels
+          kk = nVertLevels+1-k
+          do iCell = 1, nCellsSolve
+             field_in(iCell,kk) = dncmp(k,iCell)
+          enddo
+       enddo
+       call interp_tofixed_pressure(nCellsSolve,nVertLevels,nIntP,press_in,field_in,press_interp,field_interp)
+       do k = 1, nIntP
+          kk = nIntp+1-k
+          do iCell = 1, nCellsSolve
+             dncmp_interp(k,iCell) = field_interp(iCell,kk)
+          enddo
+       enddo
+       call mpas_log_write('--- end interpolate dncmp:')
+
+       !--- dnimp_interp:
+       do k = 1, nVertLevels
+          kk = nVertLevels+1-k
+          do iCell = 1, nCellsSolve
+             field_in(iCell,kk) = dnimp(k,iCell)
+          enddo
+       enddo
+       call interp_tofixed_pressure(nCellsSolve,nVertLevels,nIntP,press_in,field_in,press_interp,field_interp)
+       do k = 1, nIntP
+          kk = nIntp+1-k
+          do iCell = 1, nCellsSolve
+             dnimp_interp(k,iCell) = field_interp(iCell,kk)
+          enddo
+       enddo
+       call mpas_log_write('--- end interpolate dnimp:')
+    endif
+
+    if(associated(dnifamp) .and. associated(dnwfamp)) then
+       !--- dnifamp_interp:
+       do k = 1, nVertLevels
+          kk = nVertLevels+1-k
+          do iCell = 1, nCellsSolve
+             field_in(iCell,kk) = dnifamp(k,iCell)
+          enddo
+       enddo
+       call interp_tofixed_pressure(nCellsSolve,nVertLevels,nIntP,press_in,field_in,press_interp,field_interp)
+       do k = 1, nIntP
+          kk = nIntp+1-k
+          do iCell = 1, nCellsSolve
+             dnifamp_interp(k,iCell) = field_interp(iCell,kk)
+          enddo
+       enddo
+       call mpas_log_write('--- end interpolate dnifamp:')
+
+       !--- dnwfamp_interp:
+       do k = 1, nVertLevels
+          kk = nVertLevels+1-k
+          do iCell = 1, nCellsSolve
+             field_in(iCell,kk) = dnwfamp(k,iCell)
+          enddo
+       enddo
+       call interp_tofixed_pressure(nCellsSolve,nVertLevels,nIntP,press_in,field_in,press_interp,field_interp)
+       do k = 1, nIntP
+          kk = nIntp+1-k
+          do iCell = 1, nCellsSolve
+             dnwfamp_interp(k,iCell) = field_interp(iCell,kk)
+          enddo
+       enddo
+       call mpas_log_write('--- end interpolate dnwfamp:')
+    endif
  else
     do k = 1, nFGLevels
        do iCell = 1, nCellsSolve
@@ -1537,6 +1837,11 @@
           dqimp_interp(k,iCell) = 0._RKIND
           dqsmp_interp(k,iCell) = 0._RKIND
           dqgmp_interp(k,iCell) = 0._RKIND
+          dncmp_interp(k,iCell) = 0._RKIND
+          dnimp_interp(k,iCell) = 0._RKIND
+          dnrmp_interp(k,iCell) = 0._RKIND
+          dnifamp_interp(k,iCell) = 0._RKIND
+          dnwfamp_interp(k,iCell) = 0._RKIND
        enddo
     enddo
  endif
@@ -1608,6 +1913,75 @@
        enddo
     enddo
 !   call mpas_log_write('--- end interpolate dqibl:')
+
+    if(associated(dncbl) .and. associated(dnibl)) then
+       !--- dncbl_interp:
+       do k = 1, nVertLevels
+          kk = nVertLevels+1-k
+          do iCell = 1, nCellsSolve
+             field_in(iCell,kk) = dncbl(k,iCell)
+          enddo
+       enddo
+       call interp_tofixed_pressure(nCellsSolve,nVertLevels,nIntP,press_in,field_in,press_interp,field_interp)
+       do k = 1, nIntP
+          kk = nIntp+1-k
+          do iCell = 1, nCellsSolve
+             dncbl_interp(k,iCell) = field_interp(iCell,kk)
+          enddo
+       enddo
+       call mpas_log_write('--- end interpolate dncbl:')
+
+       !--- dnibl_interp:
+       do k = 1, nVertLevels
+          kk = nVertLevels+1-k
+          do iCell = 1, nCellsSolve
+             field_in(iCell,kk) = dnibl(k,iCell)
+          enddo
+       enddo
+       call interp_tofixed_pressure(nCellsSolve,nVertLevels,nIntP,press_in,field_in,press_interp,field_interp)
+       do k = 1, nIntP
+          kk = nIntp+1-k
+          do iCell = 1, nCellsSolve
+             dnibl_interp(k,iCell) = field_interp(iCell,kk)
+          enddo
+       enddo
+       call mpas_log_write('--- end interpolate dnibl:')
+    endif
+
+    if(associated(dnifabl) .and. associated(dnwfabl)) then
+       !--- dnifabl_interp:
+       do k = 1, nVertLevels
+          kk = nVertLevels+1-k
+          do iCell = 1, nCellsSolve
+             field_in(iCell,kk) = dnifabl(k,iCell)
+          enddo
+       enddo
+       call interp_tofixed_pressure(nCellsSolve,nVertLevels,nIntP,press_in,field_in,press_interp,field_interp)
+       do k = 1, nIntP
+          kk = nIntp+1-k
+          do iCell = 1, nCellsSolve
+             dnifabl_interp(k,iCell) = field_interp(iCell,kk)
+          enddo
+       enddo
+       call mpas_log_write('--- end interpolate dnifabl:')
+
+       !--- dnwfabl_interp:
+       do k = 1, nVertLevels
+          kk = nVertLevels+1-k
+          do iCell = 1, nCellsSolve
+             field_in(iCell,kk) = dnwfabl(k,iCell)
+          enddo
+       enddo
+       call interp_tofixed_pressure(nCellsSolve,nVertLevels,nIntP,press_in,field_in,press_interp,field_interp)
+       do k = 1, nIntP
+          kk = nIntp+1-k
+          do iCell = 1, nCellsSolve
+             dnwfabl_interp(k,iCell) = field_interp(iCell,kk)
+          enddo
+       enddo
+       call mpas_log_write('--- end interpolate dnwfabl:')
+    endif
+
  else
     do k = 1, nFGLevels
        do iCell = 1, nCellsSolve
@@ -1615,10 +1989,14 @@
           dqvbl_interp(k,iCell) = 0._RKIND
           dqcbl_interp(k,iCell) = 0._RKIND
           dqibl_interp(k,iCell) = 0._RKIND
+          dncbl_interp(k,iCell) = 0._RKIND
+          dnibl_interp(k,iCell) = 0._RKIND
+          dnrbl_interp(k,iCell) = 0._RKIND
+          dnifabl_interp(k,iCell) = 0._RKIND
+          dnwfabl_interp(k,iCell) = 0._RKIND
        enddo
     enddo
  endif
-
 
  if(associated(dtlw)) then
     !--- dtlw_interp:
@@ -1691,11 +2069,15 @@
 !-----------------------------------------------------------------------------------------------------------------
  need_any_diags = .false.
 
- need_qv_vavg = .false. ; need_qc_vavg = .false. ; need_qr_vavg = .false. ; need_qi_vavg = .false.
- need_qs_vavg = .false. ; need_qs_vavg = .false.
+ need_qv_vavg   = .false. ; need_qc_vavg = .false. ; need_qr_vavg = .false. ; need_qi_vavg = .false.
+ need_qs_vavg   = .false. ; need_qs_vavg = .false.
 
- need_qcf_vavg = .false. ; need_qrf_vavg = .false. ; need_qif_vavg = .false.
- need_qsf_vavg = .false. ; need_qgf_vavg = .false.
+ need_qcf_vavg  = .false. ; need_qrf_vavg = .false. ; need_qif_vavg = .false.
+ need_qsf_vavg  = .false. ; need_qgf_vavg = .false.
+
+ need_nc_vavg   = .false. ; need_ni_vavg = .false. ; need_nr_vavg = .false. ; need_nifa_vavg = .false.
+ need_nwfa_vavg = .false. 
+
 
  need_qv_vavg   = mpas_field_will_be_written('qv_vavg')
  need_any_diags = need_any_diags .or. need_qv_vavg
@@ -1721,6 +2103,18 @@
  need_qgf_vavg  = mpas_field_will_be_written('qgf_vavg')
  need_any_diags = need_any_diags .or. need_qgf_vavg
 
+ need_nc_vavg   = mpas_field_will_be_written('nc_vavg')
+ need_any_diags = need_any_diags .or. need_nc_vavg
+ need_ni_vavg   = mpas_field_will_be_written('ni_vavg')
+ need_any_diags = need_any_diags .or. need_ni_vavg
+ need_nr_vavg   = mpas_field_will_be_written('nr_vavg')
+ need_any_diags = need_any_diags .or. need_nr_vavg
+ need_nifa_vavg = mpas_field_will_be_written('nifa_vavg')
+ need_any_diags = need_any_diags .or. need_nifa_vavg
+ need_nwfa_vavg = mpas_field_will_be_written('nwfa_vavg')
+ need_any_diags = need_any_diags .or. need_nwfa_vavg
+
+
  end function need_atmphys_diagnostics_vavg
 
 !=================================================================================================================
@@ -1739,6 +2133,7 @@
  need_qsf_interp  = .false. ; need_qgf_interp  = .false. ; need_cld_interp = .false.
  need_nc_interp   = .false. ; need_ni_interp   = .false. ; need_nr_interp  = .false.
  need_nifa_interp = .false. ; need_nwfa_interp = .false.
+
 
  need_qv_interp  = mpas_field_will_be_written('qv_interp')
  need_any_diags  = need_any_diags .or. need_qv_interp
@@ -1777,6 +2172,7 @@
  need_nwfa_interp = mpas_field_will_be_written('nwfa_interp')
  need_any_diags   = need_any_diags .or. need_nwfa_interp
 
+
  end function need_atmphys_diagnostics_interp
 
 !=================================================================================================================
@@ -1789,60 +2185,94 @@
 !-----------------------------------------------------------------------------------------------------------------
  need_any_diags = .false.
 
- need_dtcup_vavg  = .false. ; need_dqvcup_vavg = .false. ; need_dqccup_vavg = .false.
- need_dqrcup_vavg = .false. ; need_dqicup_vavg = .false. ; need_dqscup_vavg = .false.
+ need_dtcup_vavg    = .false. ; need_dqvcup_vavg   = .false. ; need_dqccup_vavg = .false.
+ need_dqrcup_vavg   = .false. ; need_dqicup_vavg   = .false. ; need_dqscup_vavg = .false.
+ need_dnccup_vavg   = .false. ; need_dnicup_vavg   = .false.
+ need_dnifacup_vavg = .false. ; need_dnwfacup_vavg = .false.
 
- need_dtmp_vavg   = .false. ; need_dqvmp_vavg  = .false. ; need_dqcmp_vavg  = .false.
- need_dqrmp_vavg  = .false. ; need_dqimp_vavg  = .false. ; need_dqsmp_vavg  = .false.
- need_dqgmp_vavg  = .false.
+ need_dtmp_vavg     = .false. ; need_dqvmp_vavg    = .false. ; need_dqcmp_vavg  = .false.
+ need_dqrmp_vavg    = .false. ; need_dqimp_vavg    = .false. ; need_dqsmp_vavg  = .false.
+ need_dqgmp_vavg    = .false.
+ need_dncmp_vavg    = .false. ; need_dnimp_vavg    = .false. ; need_dnrmp_vavg  = .false.
+ need_dnifamp_vavg  = .false. ; need_dnwfamp_vavg  = .false.
 
- need_dtbl_vavg   = .false. ; need_dqvbl_vavg  = .false. ; need_dqcbl_vavg  = .false.
- need_dqibl_vavg  = .false.
+ need_dtbl_vavg     = .false. ; need_dqvbl_vavg    = .false. ; need_dqcbl_vavg  = .false.
+ need_dqibl_vavg    = .false.
+ need_dncbl_vavg    = .false. ; need_dnibl_vavg    = .false. ; need_dnrbl_vavg  = .false.
+ need_dnifabl_vavg  = .false. ; need_dnwfabl_vavg  = .false.
 
- need_dtlw_vavg   = .false. ; need_dtsw_vavg   = .false.
+ need_dtlw_vavg     = .false. ; need_dtsw_vavg     = .false.
 
 
- need_dtcup_vavg  = mpas_field_will_be_written('dtcup_vavg')
- need_any_diags   = need_any_diags .or. need_dtcup_vavg
- need_dqvcup_vavg = mpas_field_will_be_written('dqvcup_vavg')
- need_any_diags   = need_any_diags .or. need_dqvcup_vavg
- need_dqccup_vavg = mpas_field_will_be_written('dqccup_vavg')
- need_any_diags   = need_any_diags .or. need_dqccup_vavg
- need_dqrcup_vavg = mpas_field_will_be_written('dqrcup_vavg')
- need_any_diags   = need_any_diags .or. need_dqrcup_vavg
- need_dqicup_vavg = mpas_field_will_be_written('dqicup_vavg')
- need_any_diags   = need_any_diags .or. need_dqicup_vavg
- need_dqscup_vavg = mpas_field_will_be_written('dqscup_vavg')
- need_any_diags   = need_any_diags .or. need_dqscup_vavg
+ need_dtcup_vavg    = mpas_field_will_be_written('dtcup_vavg')
+ need_any_diags     = need_any_diags .or. need_dtcup_vavg
+ need_dqvcup_vavg   = mpas_field_will_be_written('dqvcup_vavg')
+ need_any_diags     = need_any_diags .or. need_dqvcup_vavg
+ need_dqccup_vavg   = mpas_field_will_be_written('dqccup_vavg')
+ need_any_diags     = need_any_diags .or. need_dqccup_vavg
+ need_dqrcup_vavg   = mpas_field_will_be_written('dqrcup_vavg')
+ need_any_diags     = need_any_diags .or. need_dqrcup_vavg
+ need_dqicup_vavg   = mpas_field_will_be_written('dqicup_vavg')
+ need_any_diags     = need_any_diags .or. need_dqicup_vavg
+ need_dqscup_vavg   = mpas_field_will_be_written('dqscup_vavg')
+ need_any_diags     = need_any_diags .or. need_dqscup_vavg
+ need_dnccup_vavg   = mpas_field_will_be_written('dnccup_vavg')
+ need_any_diags     = need_any_diags .or. need_dnccup_vavg
+ need_dnicup_vavg   = mpas_field_will_be_written('dnicup_vavg')
+ need_any_diags     = need_any_diags .or. need_dnicup_vavg
+ need_dnifacup_vavg = mpas_field_will_be_written('dnifacup_vavg')
+ need_any_diags     = need_any_diags .or. need_dnifacup_vavg
+ need_dnwfacup_vavg = mpas_field_will_be_written('dnwfacup_vavg')
+ need_any_diags     = need_any_diags .or. need_dnwfacup_vavg
 
- need_dtmp_vavg   = mpas_field_will_be_written('dtmp_vavg')
- need_any_diags   = need_any_diags .or. need_dtmp_vavg
- need_dqvmp_vavg  = mpas_field_will_be_written('dqvmp_vavg')
- need_any_diags   = need_any_diags .or. need_dqvmp_vavg
- need_dqcmp_vavg  = mpas_field_will_be_written('dqcmp_vavg')
- need_any_diags   = need_any_diags .or. need_dqcmp_vavg
- need_dqrmp_vavg  = mpas_field_will_be_written('dqrmp_vavg')
- need_any_diags   = need_any_diags .or. need_dqrmp_vavg
- need_dqimp_vavg  = mpas_field_will_be_written('dqimp_vavg')
- need_any_diags   = need_any_diags .or. need_dqimp_vavg
- need_dqsmp_vavg  = mpas_field_will_be_written('dqsmp_vavg')
- need_any_diags   = need_any_diags .or. need_dqsmp_vavg
- need_dqgmp_vavg  = mpas_field_will_be_written('dqgmp_vavg')
- need_any_diags   = need_any_diags .or. need_dqgmp_vavg
+ need_dtmp_vavg     = mpas_field_will_be_written('dtmp_vavg')
+ need_any_diags     = need_any_diags .or. need_dtmp_vavg
+ need_dqvmp_vavg    = mpas_field_will_be_written('dqvmp_vavg')
+ need_any_diags     = need_any_diags .or. need_dqvmp_vavg
+ need_dqcmp_vavg    = mpas_field_will_be_written('dqcmp_vavg')
+ need_any_diags     = need_any_diags .or. need_dqcmp_vavg
+ need_dqrmp_vavg    = mpas_field_will_be_written('dqrmp_vavg')
+ need_any_diags     = need_any_diags .or. need_dqrmp_vavg
+ need_dqimp_vavg    = mpas_field_will_be_written('dqimp_vavg')
+ need_any_diags     = need_any_diags .or. need_dqimp_vavg
+ need_dqsmp_vavg    = mpas_field_will_be_written('dqsmp_vavg')
+ need_any_diags     = need_any_diags .or. need_dqsmp_vavg
+ need_dqgmp_vavg    = mpas_field_will_be_written('dqgmp_vavg')
+ need_any_diags     = need_any_diags .or. need_dqgmp_vavg
+ need_dncmp_vavg    = mpas_field_will_be_written('dncmp_vavg')
+ need_any_diags     = need_any_diags .or. need_dncmp_vavg
+ need_dnimp_vavg    = mpas_field_will_be_written('dnimp_vavg')
+ need_any_diags     = need_any_diags .or. need_dnimp_vavg
+ need_dnrmp_vavg    = mpas_field_will_be_written('dnrmp_vavg')
+ need_any_diags     = need_any_diags .or. need_dnrmp_vavg
+ need_dnifamp_vavg  = mpas_field_will_be_written('dnifamp_vavg')
+ need_any_diags     = need_any_diags .or. need_dnifamp_vavg
+ need_dnwfamp_vavg  = mpas_field_will_be_written('dnwfamp_vavg')
+ need_any_diags     = need_any_diags .or. need_dnwfamp_vavg
 
- need_dtbl_vavg   = mpas_field_will_be_written('dtbl_vavg')
- need_any_diags   = need_any_diags .or. need_dtbl_vavg
- need_dqvbl_vavg  = mpas_field_will_be_written('dqvbl_vavg')
- need_any_diags   = need_any_diags .or. need_dqvbl_vavg
- need_dqcbl_vavg  = mpas_field_will_be_written('dqcbl_vavg')
- need_any_diags   = need_any_diags .or. need_dqcbl_vavg
- need_dqibl_vavg  = mpas_field_will_be_written('dqibl_vavg')
- need_any_diags   = need_any_diags .or. need_dqibl_vavg
+ need_dtbl_vavg     = mpas_field_will_be_written('dtbl_vavg')
+ need_any_diags     = need_any_diags .or. need_dtbl_vavg
+ need_dqvbl_vavg    = mpas_field_will_be_written('dqvbl_vavg')
+ need_any_diags     = need_any_diags .or. need_dqvbl_vavg
+ need_dqcbl_vavg    = mpas_field_will_be_written('dqcbl_vavg')
+ need_any_diags     = need_any_diags .or. need_dqcbl_vavg
+ need_dqibl_vavg    = mpas_field_will_be_written('dqibl_vavg')
+ need_any_diags     = need_any_diags .or. need_dqibl_vavg
+ need_dncbl_vavg    = mpas_field_will_be_written('dncbl_vavg')
+ need_any_diags     = need_any_diags .or. need_dncbl_vavg
+ need_dnibl_vavg    = mpas_field_will_be_written('dnibl_vavg')
+ need_any_diags     = need_any_diags .or. need_dnibl_vavg
+ need_dnrbl_vavg    = mpas_field_will_be_written('dnrbl_vavg')
+ need_any_diags     = need_any_diags .or. need_dnrbl_vavg
+ need_dnifabl_vavg  = mpas_field_will_be_written('dnifabl_vavg')
+ need_any_diags     = need_any_diags .or. need_dnifabl_vavg
+ need_dnwfabl_vavg  = mpas_field_will_be_written('dnwfabl_vavg')
+ need_any_diags     = need_any_diags .or. need_dnwfabl_vavg
 
- need_dtlw_vavg   = mpas_field_will_be_written('dtlw_vavg')
- need_any_diags   = need_any_diags .or. need_dtlw_vavg
- need_dtsw_vavg   = mpas_field_will_be_written('dtsw_vavg')
- need_any_diags   = need_any_diags .or. need_dtsw_vavg
+ need_dtlw_vavg     = mpas_field_will_be_written('dtlw_vavg')
+ need_any_diags     = need_any_diags .or. need_dtlw_vavg
+ need_dtsw_vavg     = mpas_field_will_be_written('dtsw_vavg')
+ need_any_diags     = need_any_diags .or. need_dtsw_vavg
 
 
  end function need_atmphys_tendencies_vavg
@@ -1857,8 +2287,10 @@
 !-----------------------------------------------------------------------------------------------------------------
  need_any_diags = .false.
 
- need_dtcup_interp  = .false. ; need_dqvcup_interp = .false. ; need_dqccup_interp = .false.
- need_dqrcup_interp = .false. ; need_dqicup_interp = .false. ; need_dqscup_interp = .false.
+ need_dtcup_interp    = .false. ; need_dqvcup_interp   = .false. ; need_dqccup_interp = .false.
+ need_dqrcup_interp   = .false. ; need_dqicup_interp   = .false. ; need_dqscup_interp = .false.
+ need_dnccup_interp   = .false. ; need_dnicup_interp   = .false.
+ need_dnifacup_interp = .false. ; need_dnwfacup_interp = .false.
 
  need_dtmp_interp   = .false. ; need_dqvmp_interp  = .false. ; need_dqcmp_interp  = .false.
  need_dqrmp_interp  = .false. ; need_dqimp_interp  = .false. ; need_dqsmp_interp  = .false.
@@ -1870,18 +2302,26 @@
  need_dtlw_interp   = .false. ; need_dtsw_interp   = .false.
 
 
- need_dtcup_interp  = mpas_field_will_be_written('dtcup_interp')
- need_any_diags     = need_any_diags .or. need_dtcup_interp
- need_dqvcup_interp = mpas_field_will_be_written('dqvcup_interp')
- need_any_diags     = need_any_diags .or. need_dqvcup_interp
- need_dqccup_interp = mpas_field_will_be_written('dqccup_interp')
- need_any_diags     = need_any_diags .or. need_dqccup_interp
- need_dqrcup_interp = mpas_field_will_be_written('dqrcup_interp')
- need_any_diags     = need_any_diags .or. need_dqrcup_interp
- need_dqicup_interp = mpas_field_will_be_written('dqicup_interp')
- need_any_diags     = need_any_diags .or. need_dqicup_interp
- need_dqscup_interp = mpas_field_will_be_written('dqscup_interp')
- need_any_diags     = need_any_diags .or. need_dqscup_interp
+ need_dtcup_interp    = mpas_field_will_be_written('dtcup_interp')
+ need_any_diags       = need_any_diags .or. need_dtcup_interp
+ need_dqvcup_interp   = mpas_field_will_be_written('dqvcup_interp')
+ need_any_diags       = need_any_diags .or. need_dqvcup_interp
+ need_dqccup_interp   = mpas_field_will_be_written('dqccup_interp')
+ need_any_diags       = need_any_diags .or. need_dqccup_interp
+ need_dqrcup_interp   = mpas_field_will_be_written('dqrcup_interp')
+ need_any_diags       = need_any_diags .or. need_dqrcup_interp
+ need_dqicup_interp   = mpas_field_will_be_written('dqicup_interp')
+ need_any_diags       = need_any_diags .or. need_dqicup_interp
+ need_dqscup_interp   = mpas_field_will_be_written('dqscup_interp')
+ need_any_diags       = need_any_diags .or. need_dqscup_interp
+ need_dnccup_interp   = mpas_field_will_be_written('dnccup_interp')
+ need_any_diags       = need_any_diags .or. need_dnccup_interp
+ need_dnicup_interp   = mpas_field_will_be_written('dnicup_interp')
+ need_any_diags       = need_any_diags .or. need_dnicup_interp
+ need_dnifacup_interp = mpas_field_will_be_written('dnifacup_interp')
+ need_any_diags       = need_any_diags .or. need_dnifacup_interp
+ need_dnwfacup_interp = mpas_field_will_be_written('dnwfacup_interp')
+ need_any_diags       = need_any_diags .or. need_dnwfacup_interp
 
  need_dtmp_interp   = mpas_field_will_be_written('dtmp_interp')
  need_any_diags     = need_any_diags .or. need_dtmp_interp
@@ -1916,25 +2356,25 @@
  end function need_atmphys_tendencies_interp
 
 !=================================================================================================================
- subroutine interp_tofixed_pressure(ncol,nlev_in,nlev_out,pres_in,field_in,pres_out,field_out)
+!subroutine interp_tofixed_pressure(ncol,nlev_in,nlev_out,pres_in,field_in,pres_out,field_out)
 !=================================================================================================================
 
 !input arguments:
- integer,intent(in):: ncol,nlev_in,nlev_out
+!integer,intent(in):: ncol,nlev_in,nlev_out
 
- real(kind=RKIND),intent(in),dimension(ncol,nlev_in) :: pres_in,field_in
- real(kind=RKIND),intent(in),dimension(ncol,nlev_out):: pres_out
+!real(kind=RKIND),intent(in),dimension(ncol,nlev_in) :: pres_in,field_in
+!real(kind=RKIND),intent(in),dimension(ncol,nlev_out):: pres_out
 
 !output arguments:
- real(kind=RKIND),intent(out),dimension(ncol,nlev_out):: field_out
+!real(kind=RKIND),intent(out),dimension(ncol,nlev_out):: field_out
 
 !local variabl_interpes:
 ! integer:: i1,i2,icol,k,kk
- integer:: icol,k,kk
- integer:: kkstart,kount
- integer,dimension(ncol):: kupper
+!integer:: icol,k,kk
+!integer:: kkstart,kount
+!integer,dimension(ncol):: kupper
 
- real(kind=RKIND):: dpl,dpu
+!real(kind=RKIND):: dpl,dpu
 
 !-----------------------------------------------------------------------------------------------------------------
 
@@ -1949,55 +2389,55 @@
 !enddo
 !write(0,*)
 
- do icol = 1, ncol
-    kupper(icol) = 1
- enddo
+!do icol = 1, ncol
+!   kupper(icol) = 1
+!enddo
 
- do k = 1, nlev_out
+!do k = 1, nlev_out
 
-    kkstart = nlev_in
-    do icol = 1, ncol
-       kkstart = min0(kkstart,kupper(icol))
-    enddo
-    kount = 0
+!   kkstart = nlev_in
+!   do icol = 1, ncol
+!      kkstart = min0(kkstart,kupper(icol))
+!   enddo
+!   kount = 0
 
-    do kk = kkstart, nlev_in-1
-       do icol = 1, ncol
-          if(pres_out(icol,k).gt.pres_in(icol,kk).and.pres_out(icol,k).le.pres_in(icol,kk+1)) then
-             kupper(icol) = kk
-             kount = kount + 1
+!   do kk = kkstart, nlev_in-1
+!      do icol = 1, ncol
+!         if(pres_out(icol,k).gt.pres_in(icol,kk).and.pres_out(icol,k).le.pres_in(icol,kk+1)) then
+!            kupper(icol) = kk
+!            kount = kount + 1
 !            write(0,201) kupper(icol),pres_out(icol,k),pres_in(icol,kk),pres_in(icol,kk+1)
-          endif
-       enddo
+!         endif
+!      enddo
 
-       if(kount.eq.ncol) then
-          do icol = 1, ncol
-             dpu = pres_out(icol,k) - pres_in(icol,kupper(icol))
-             dpl = pres_in(icol,kupper(icol)+1) - pres_out(icol,k)
-             field_out(icol,k) = (field_in(icol,kupper(icol))*dpl &
-                               + field_in(icol,kupper(icol)+1)*dpu)/(dpl + dpu)
-          end do
-          goto 35
-        end if
-    enddo
+!      if(kount.eq.ncol) then
+!         do icol = 1, ncol
+!            dpu = pres_out(icol,k) - pres_in(icol,kupper(icol))
+!            dpl = pres_in(icol,kupper(icol)+1) - pres_out(icol,k)
+!            field_out(icol,k) = (field_in(icol,kupper(icol))*dpl &
+!                              + field_in(icol,kupper(icol)+1)*dpu)/(dpl + dpu)
+!         end do
+!         goto 35
+!       end if
+!   enddo
 
-    do icol = 1, ncol
-       if(pres_out(icol,k) .lt. pres_in(icol,1)) then
-          field_out(icol,k) = field_in(icol,1)*pres_out(icol,k)/pres_in(icol,1)
-       elseif(pres_out(icol,k) .gt. pres_in(icol,nlev_in)) then
-          field_out(icol,k) = field_in(icol,nlev_in)
-       else
-          dpu = pres_out(icol,k) - pres_in(icol,kupper(icol))
-          dpl = pres_in(icol,kupper(icol)+1) - pres_out(icol,k)
-          field_out(icol,k) = (field_in(icol,kupper(icol))*dpl &
-                            + field_in(icol,kupper(icol)+1)*dpu)/(dpl + dpu)
-       endif
-    enddo
+!   do icol = 1, ncol
+!      if(pres_out(icol,k) .lt. pres_in(icol,1)) then
+!         field_out(icol,k) = field_in(icol,1)*pres_out(icol,k)/pres_in(icol,1)
+!      elseif(pres_out(icol,k) .gt. pres_in(icol,nlev_in)) then
+!         field_out(icol,k) = field_in(icol,nlev_in)
+!      else
+!         dpu = pres_out(icol,k) - pres_in(icol,kupper(icol))
+!         dpl = pres_in(icol,kupper(icol)+1) - pres_out(icol,k)
+!         field_out(icol,k) = (field_in(icol,kupper(icol))*dpl &
+!                           + field_in(icol,kupper(icol)+1)*dpu)/(dpl + dpu)
+!      endif
+!   enddo
 
- 35 continue
- enddo
+!35 continue
+!enddo
 
- end subroutine interp_tofixed_pressure
+!end subroutine interp_tofixed_pressure
 
 !=================================================================================================================
  subroutine compute_rh(nCells,nCellsSolve,nVertLevels,pressure_b,pressure_p,exner,theta_m,qv,rh)

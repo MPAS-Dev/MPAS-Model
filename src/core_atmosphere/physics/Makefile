@@ -16,33 +16,35 @@ OBJS_init = \
 	mpas_atmphys_utilities.o
 
 OBJS = \
-	mpas_atmphys_compute_diagnostics.o \
-	mpas_atmphys_control.o             \
-	mpas_atmphys_driver.o              \
-	mpas_atmphys_driver_cloudiness.o   \
-	mpas_atmphys_driver_convection.o   \
-	mpas_atmphys_driver_gwdo.o         \
-	mpas_atmphys_driver_lsm.o          \
-	mpas_atmphys_driver_microphysics.o \
-	mpas_atmphys_driver_oml.o          \
-	mpas_atmphys_driver_pbl.o          \
-	mpas_atmphys_driver_radiation_lw.o \
-	mpas_atmphys_driver_radiation_sw.o \
-	mpas_atmphys_driver_sfclayer.o     \
-	mpas_atmphys_finalize.o            \
-	mpas_atmphys_init.o                \
-	mpas_atmphys_init_microphysics.o   \
-	mpas_atmphys_interface.o           \
-	mpas_atmphys_landuse.o             \
-	mpas_atmphys_lsm_noahinit.o        \
-	mpas_atmphys_manager.o             \
-	mpas_atmphys_o3climatology.o       \
-	mpas_atmphys_packages.o            \
-	mpas_atmphys_rrtmg_lwinit.o        \
-	mpas_atmphys_rrtmg_swinit.o        \
-	mpas_atmphys_todynamics.o          \
-	mpas_atmphys_update_surface.o      \
-	mpas_atmphys_update.o              \
+	mpas_atmphys_compute_diagnostics.o    \
+	mpas_atmphys_compute_diagnostics_bl.o \
+	mpas_atmphys_compute_diagnostics_cu.o \
+	mpas_atmphys_control.o                \
+	mpas_atmphys_driver.o                 \
+	mpas_atmphys_driver_cloudiness.o      \
+	mpas_atmphys_driver_convection.o      \
+	mpas_atmphys_driver_gwdo.o            \
+	mpas_atmphys_driver_lsm.o             \
+	mpas_atmphys_driver_microphysics.o    \
+	mpas_atmphys_driver_oml.o             \
+	mpas_atmphys_driver_pbl.o             \
+	mpas_atmphys_driver_radiation_lw.o    \
+	mpas_atmphys_driver_radiation_sw.o    \
+	mpas_atmphys_driver_sfclayer.o        \
+	mpas_atmphys_finalize.o               \
+	mpas_atmphys_init.o                   \
+	mpas_atmphys_init_microphysics.o      \
+	mpas_atmphys_interface.o              \
+	mpas_atmphys_landuse.o                \
+	mpas_atmphys_lsm_noahinit.o           \
+	mpas_atmphys_manager.o                \
+	mpas_atmphys_o3climatology.o          \
+	mpas_atmphys_packages.o               \
+	mpas_atmphys_rrtmg_lwinit.o           \
+	mpas_atmphys_rrtmg_swinit.o           \
+	mpas_atmphys_todynamics.o             \
+	mpas_atmphys_update_surface.o         \
+	mpas_atmphys_update.o                 \
 	mpas_atmphys_vars.o
 
 lookup_tables:
@@ -62,8 +64,18 @@ phys_interface: $(OBJS)
 
 # DEPENDENCIES:
 mpas_atmphys_compute_diagnostics.o: \
+	mpas_atmphys_compute_diagnostics_bl.o \
+	mpas_atmphys_compute_diagnostics_cu.o \
 	mpas_atmphys_constants.o \
 	mpas_atmphys_functions.o \
+	../diagnostics/mpas_atm_diagnostics_utils.o
+
+mpas_atmphys_compute_diagnostics_bl.o: \
+	mpas_atmphys_constants.o \
+	../diagnostics/mpas_atm_diagnostics_utils.o
+
+mpas_atmphys_compute_diagnostics_cu.o: \
+	mpas_atmphys_constants.o \
 	../diagnostics/mpas_atm_diagnostics_utils.o
 
 mpas_atmphys_control.o: \
