@@ -11,6 +11,7 @@
  module mpas_atmphys_init_microphysics
  use mpas_dmpar
  use mpas_kind_types
+ use mpas_log
  use mpas_pool_routines
 
  use mpas_atmphys_utilities
@@ -109,9 +110,9 @@
  integer,pointer:: index_nifa,index_nwfa
 
  real(kind=RKIND),dimension(:),pointer    :: areaCell
- real(kind=RKIND),dimension(:),pointer    :: nwfa2d
- real(kind=RKIND),dimension(:,:),pointer  :: zgrid
- real(kind=RKIND),dimension(:,:),pointer  :: nifa,nwfa
+ real(kind=RKIND),dimension(:),pointer    :: nifa2d,nwfa2d
+ real(kind=RKIND),dimension(:,:),pointer  :: zgrid,zz
+ real(kind=RKIND),dimension(:,:),pointer  :: rho_zz,nifa,nwfa
  real(kind=RKIND),dimension(:,:,:),pointer:: scalars
 
  character(len=StrKIND):: mess
@@ -119,6 +120,7 @@
  integer:: iCell, k
 
  real(kind=RKIND):: max_test
+ real(kind=RKIND):: airmass
  real(kind=RKIND):: h_01
  real(kind=RKIND):: niIN3,niCCN3
  real(kind=RKIND):: nifa_max,nifa_min,global_nifa_max,global_nifa_min
@@ -144,7 +146,9 @@
 
  call mpas_pool_get_array(mesh,'areaCell',areaCell)
  call mpas_pool_get_array(mesh,'zgrid'   ,zgrid   )
+ call mpas_pool_get_array(mesh,'zz'      ,zz      )
 
+ call mpas_pool_get_array(diag_physics,'nifa2d',nifa2d)
  call mpas_pool_get_array(diag_physics,'nwfa2d',nwfa2d)
 
  call mpas_pool_get_dimension(state,'index_nifa'  ,index_nifa  )
@@ -153,6 +157,8 @@
  call mpas_pool_get_array(state,'scalars',scalars,time_lev)
  nifa   => scalars(index_nifa,:,:)
  nwfa   => scalars(index_nwfa,:,:)
+
+ call mpas_pool_get_array(state,'rho_zz',rho_zz,time_lev)
 
  if(.not.allocated(hgt)) allocate(hgt(1:nVertLevels,1:nCellsSolve))
  do iCell = 1, nCellsSolve
@@ -232,28 +238,21 @@
 !202 format(2i8,10(1x,e15.8))
 !stop
 
-!... capture initial state lowest level CCN aerosol data in 2D array:
-!do iCell = 1,nCellsSolve
-!   nwfa2d(iCell) = nwfa(1,iCell)
-!enddo
+!... scale the lowest level aerosol data into an emissions rate.  This is very far from ideal, but
+!... need higher emissions where larger amount of (climo) existing and lesser emissions where there
+!... exists fewer to begin as a first-order simplistic approach.  Later, proper connection to emission
+!... inventory would be better, but, for now, scale like this:
+!... where: Nwfa=50 per cc, emit 0.875E4 aerosols per second per grid box unit
+!... that was tested as ~(20kmx20kmx50m = 2.E10 m**-3).
 
-!... scale the lowest level aerosol data into an emissions rate.  This is very far from ideal, but need higher
-!... emissions where larger amount of existing and lesser emissions where not already lots of aerosols for first
-!... -order simplistic approach. Later, proper connection to emission inventory would be better, but, for now,
-!... scale like this:
-!... where: Nwfa=50 per cc, emit 0.875E4 aerosols per kg per second
-!...        Nwfa=500 per cc, emit 0.875E5 aerosols per kg per second
-!...        Nwfa=5000 per cc, emit 0.875E6 aerosols per kg per second
-!... for a grid with 20km spacing and scale accordingly for other spacings.
-
+ k = 1
  do iCell = 1, nCellsSolve
-    if(sqrt(areaCell(iCell))/20000.0 .ge. 1.0) then
-       h_01 = 0.875
-    else
-       h_01 = (0.875 + 0.125*((20000.-sqrt(areaCell(iCell)))/16000.)) * sqrt(areaCell(iCell))/20000.
-    endif
-    nwfa2d(iCell) = 10.0**(LOG10(nwfa(1,iCell)*1.E-6)-3.69897)
-    nwfa2d(iCell) = nwfa2d(iCell)*h_01*1.E6
+    airmass = rho_zz(k,iCell)*zz(k,iCell)
+    airmass = airmass*(zgrid(k+1,iCell)-zgrid(k,iCell))*areaCell(iCell) ! (in kg)
+    nwfa2d(iCell) = nwfa(k,iCell)*0.000196*(airmass*2.E-10)
+    nifa2d(iCell) = 0._RKIND
+!   call mpas_log_write('$i $r $r $r $r',intArgs=(/iCell/),realArgs=(/airmass,nwfa2d(iCell), &
+!                       nwfa2d(iCell)*450.,nifa2d(iCell)/))
  enddo
 
 !... deallocate local arrays:
