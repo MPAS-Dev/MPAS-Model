@@ -97,6 +97,12 @@
 ! * extended using the number concentration of cloud water, and number concentration of water- and "ice-friendly
 !   aerosols to convective transport in the Grell-Freitas scheme.
 !   Laura D. Fowler (laura@ucar.edu) / 2019-07-01.
+! * added the cloud microphysics tendencies of the number concentrations cloud water, cloud ice, rain, "water-
+!   friendly" and "ice-friendly" aerosols for the Thompson cloud microphysics scheme. In subroutine microphysics_
+!   from_MPAS, initialize the tendencies prior to call to cloud microphysics. In subroutine microphysics_to_MPAS,
+!   finish the calculation of the tendencies with updated values of the number concentrations after call to cloud
+!    microphysics.
+!   Laura D. Fowler (laura@ucar.edu) / 2019-09-16.
 
 
  contains
@@ -555,6 +561,7 @@
  real(kind=RKIND),dimension(:,:),pointer  :: rainprod,evapprod
  real(kind=RKIND),dimension(:,:),pointer  :: re_cloud,re_ice,re_snow
  real(kind=RKIND),dimension(:,:),pointer  :: rthmpten,rqvmpten,rqcmpten,rqrmpten,rqimpten,rqsmpten,rqgmpten
+ real(kind=RKIND),dimension(:,:),pointer  :: rncmpten,rnimpten,rnrmpten,rnifampten,rnwfampten
  real(kind=RKIND),dimension(:,:,:),pointer:: scalars
 
 !local variables:
@@ -578,6 +585,17 @@
  call mpas_pool_get_array(tend_physics,'rqimpten',rqimpten)
  call mpas_pool_get_array(tend_physics,'rqsmpten',rqsmpten)
  call mpas_pool_get_array(tend_physics,'rqgmpten',rqgmpten)
+
+ nullify(rncmpten)
+ nullify(rnimpten)
+ nullify(rnrmpten)
+ nullify(rnifampten)
+ nullify(rnwfampten)
+ call mpas_pool_get_array(tend_physics,'rncmpten',rncmpten)
+ call mpas_pool_get_array(tend_physics,'rnimpten',rnimpten)
+ call mpas_pool_get_array(tend_physics,'rnrmpten',rnrmpten)
+ call mpas_pool_get_array(tend_physics,'rnifampten',rnifampten)
+ call mpas_pool_get_array(tend_physics,'rnwfampten',rnwfampten)
 
  call mpas_pool_get_array(state,'rho_zz' ,rho_zz ,time_lev)
  call mpas_pool_get_array(state,'theta_m',theta_m,time_lev)
@@ -712,6 +730,21 @@
        enddo
        enddo
 
+       mp2_tend_select: select case(mp_scheme)
+          case("mp_thompson","mp_thompson_aerosols")
+             do k = kts,kte
+             do i = its,ite
+                rncmpten(k,i) = nc(k,i)
+                rnimpten(k,i) = ni(k,i)
+                rnrmpten(k,i) = nr(k,i)
+                rnifampten(k,i) = nifa(k,k)
+                rnwfampten(k,i) = nwfa(k,i)
+             enddo
+             enddo
+
+          case default
+       end select mp2_tend_select
+
     case default
  end select mp_tend_select
 
@@ -740,7 +773,6 @@
  character(len=StrKIND),pointer:: mp_scheme
  integer,pointer:: index_qv,index_qc,index_qr,index_qi,index_qs,index_qg
  integer,pointer:: index_nc,index_ni,index_nr,index_nifa,index_nwfa
- real(kind=RKIND),dimension(:),pointer    :: nifa2d,nwfa2d
  real(kind=RKIND),dimension(:),pointer    :: surface_pressure,tend_sfc_pressure
  real(kind=RKIND),dimension(:,:),pointer  :: zgrid
  real(kind=RKIND),dimension(:,:),pointer  :: zz,exner,exner_b,pressure_b,rtheta_p,rtheta_b
@@ -751,6 +783,7 @@
  real(kind=RKIND),dimension(:,:),pointer  :: rainprod,evapprod
  real(kind=RKIND),dimension(:,:),pointer  :: re_cloud,re_ice,re_snow
  real(kind=RKIND),dimension(:,:),pointer  :: rthmpten,rqvmpten,rqcmpten,rqrmpten,rqimpten,rqsmpten,rqgmpten
+ real(kind=RKIND),dimension(:,:),pointer  :: rncmpten,rnimpten,rnrmpten,rnifampten,rnwfampten
  real(kind=RKIND),dimension(:,:),pointer  :: vqr,vqi,vqs,vqg
  real(kind=RKIND),dimension(:,:,:),pointer:: scalars
 
@@ -774,9 +807,6 @@
  call mpas_pool_get_array(diag,'rtheta_p'        ,rtheta_p        )
  call mpas_pool_get_array(diag,'surface_pressure',surface_pressure)
 
- call mpas_pool_get_array(diag_physics,'nifa2d'  ,nifa2d  )
- call mpas_pool_get_array(diag_physics,'nwfa2d'  ,nwfa2d  )
-
  call mpas_pool_get_array(tend_physics,'rthmpten',rthmpten)
  call mpas_pool_get_array(tend_physics,'rqvmpten',rqvmpten)
  call mpas_pool_get_array(tend_physics,'rqcmpten',rqcmpten)
@@ -784,6 +814,17 @@
  call mpas_pool_get_array(tend_physics,'rqimpten',rqimpten)
  call mpas_pool_get_array(tend_physics,'rqsmpten',rqsmpten)
  call mpas_pool_get_array(tend_physics,'rqgmpten',rqgmpten)
+
+ nullify(rncmpten)
+ nullify(rnimpten)
+ nullify(rnrmpten)
+ nullify(rnifampten)
+ nullify(rnwfampten)
+ call mpas_pool_get_array(tend_physics,'rncmpten',rncmpten)
+ call mpas_pool_get_array(tend_physics,'rnimpten',rnimpten)
+ call mpas_pool_get_array(tend_physics,'rnrmpten',rnrmpten)
+ call mpas_pool_get_array(tend_physics,'rnifampten',rnifampten)
+ call mpas_pool_get_array(tend_physics,'rnwfampten',rnwfampten)
 
  call mpas_pool_get_array(tend,'tend_sfc_pressure',tend_sfc_pressure)
 
@@ -897,10 +938,6 @@
           nwfa => scalars(index_nwfa,:,:)
 
           do j = jts, jte
-          do i = its,ite
-             nifa2d(i) = nifa2d_p(i,j)
-             nwfa2d(i) = nwfa2d_p(i,j)
-          enddo
           do k = kts, kte
           do i = its, ite
              nc(k,i)   = nc_p(i,k,j)
@@ -939,6 +976,21 @@
           rqgmpten(k,i) = (qg(k,i)-rqgmpten(k,i))/dt_dyn
        enddo
        enddo
+
+       mp2_tend_select: select case(mp_scheme)
+          case("mp_thompson","mp_thompson_aerosols")
+             do k = kts,kte
+             do i = its,ite
+                rncmpten(k,i) = (nc(k,i)-rncmpten(k,i))/dt_dyn
+                rnimpten(k,i) = (ni(k,i)-rnimpten(k,i))/dt_dyn
+                rnrmpten(k,i) = (nr(k,i)-rnrmpten(k,i))/dt_dyn
+                rnifampten(k,i) = (nifa(k,k)-rnifampten(k,i))/dt_dyn
+                rnwfampten(k,i) = (nwfa(k,i)-rnwfampten(k,k))/dt_dyn
+             enddo
+             enddo
+
+          case default
+       end select mp2_tend_select
 
     case default
  end select mp_tend_select
