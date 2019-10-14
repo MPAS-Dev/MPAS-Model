@@ -1787,6 +1787,10 @@ module atm_time_integration
 !      call summarize_timestep(domain)
 !      call mpas_timer_stop('atm_rk_summary')
 
+      call mpas_timer_start('mpas update GPU data on host')
+       call mpas_update_gpu_data_on_host(domain)
+      call mpas_timer_stop('mpas update GPU data on host')
+
    end subroutine atm_srk3
 
 
@@ -8254,5 +8258,43 @@ if (config_horiz_mixing == "2d_smagorinsky") then
       end if
 
    end subroutine summarize_timestep
+
+   subroutine mpas_update_gpu_data_on_host(domain)
+        
+       implicit none
+
+       type (domain_type), intent(in) :: domain
+       type (block_type), pointer :: block
+
+       integer :: iCell, k, iEdge, iScalar
+       integer, pointer :: num_scalars, nCellsSolve, nEdgesSolve, nVertLevels
+
+       type (mpas_pool_type), pointer :: state
+       type (mpas_pool_type), pointer :: diag
+       type (mpas_pool_type), pointer :: mesh
+
+!declare a pointer to the array that needs to be updated on the host
+       real (kind=RKIND), dimension(:,:), pointer :: w, u
+
+         block => domain % blocklist
+         do while (associated(block))
+            call mpas_pool_get_subpool(block % structs, 'state', state)
+            call mpas_pool_get_subpool(block % structs, 'diag', diag)
+            call mpas_pool_get_subpool(block % structs, 'mesh', mesh)
+
+!call to mpas pool get array to get the pointer to the array that needs to be
+!updated on the host
+            call mpas_pool_get_array(state, 'w', w, 2)
+            call mpas_pool_get_array(state, 'u', u, 2)
+
+!add the variables in the "update host" clause below to update the data on host
+        !$acc update host(w, &
+        !$acc u)
+
+            block => block % next
+         end do
+
+
+   end subroutine mpas_update_gpu_data_on_host
 
 end module atm_time_integration
