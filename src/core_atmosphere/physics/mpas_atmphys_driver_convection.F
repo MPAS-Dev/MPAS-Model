@@ -258,6 +258,7 @@
        if(.not.allocated(zu_midlc_p)     ) allocate(zu_midlc_p(ims:ime,kms:kme,jms:jme) )
        if(.not.allocated(zd_midlc_p)     ) allocate(zd_midlc_p(ims:ime,kms:kme,jms:jme) )
        if(.not.allocated(zu_shalc_p)     ) allocate(zu_shalc_p(ims:ime,kms:kme,jms:jme) )
+       if(.not.allocated(zd_shalc_p)     ) allocate(zd_shalc_p(ims:ime,kms:kme,jms:jme) )
 
        if(.not.allocated(pratecd_p)      ) allocate(pratecd_p(ims:ime,jms:jme)          )
        if(.not.allocated(pratecm_p)      ) allocate(pratecm_p(ims:ime,jms:jme)          )
@@ -459,6 +460,7 @@
        if(allocated(zu_midlc_p)     ) deallocate(zu_midlc_p     )
        if(allocated(zd_midlc_p)     ) deallocate(zd_midlc_p     )
        if(allocated(zu_shalc_p)     ) deallocate(zu_shalc_p     )
+       if(allocated(zd_shalc_p)     ) deallocate(zd_shalc_p     )
 
        if(allocated(pratecd_p)      ) deallocate(pratecd_p      )
        if(allocated(pratecm_p)      ) deallocate(pratecm_p      )
@@ -721,7 +723,6 @@
                area         = area_p               , u            = u_p                  , &
                v            = v_p                  , w            = w_p                  , &
                t            = t_p                  , q            = qv_p                 , &
-               nc           = nc_p                 , ni           = ni_p                 , &
                nifa         = nifa_p               , nwfa         = nwfa_p               , &
                rho          = rho_p                , p            = pres_hyd_p           , &
                pi           = pi_p                 , p8w          = pres2_hyd_p          , &
@@ -755,7 +756,6 @@
                rqccuten_midlc = rqccuten_midlc_p   , rqicuten_midlc = rqicuten_midlc_p   , &
                rthcuten_shalc = rthcuten_shalc_p   , rqvcuten_shalc = rqvcuten_shalc_p   , &
                rqccuten_shalc = rqccuten_shalc_p   , rqicuten_shalc = rqicuten_shalc_p   , &
-               rnccuten     = rnccuten_p           , rnicuten       = rnicuten_p         , &
                rnifacuten   = rnifacuten_p         , rnwfacuten     = rnwfacuten_p       , &
                gdc          = qccu_p               , gdc2         = qicu_p               , &
                nclos        = nclosures            , weights_clos = weights_clos_p       , &
@@ -963,7 +963,7 @@
  real(kind=RKIND),dimension(:,:),pointer:: zgrid
  real(kind=RKIND),dimension(:,:),pointer:: qc_cu,qi_cu,qc_cu_shalc,qi_cu_shalc
  real(kind=RKIND),dimension(:,:),pointer:: cldfrac_deepc,cldfrac_shalc
- real(kind=RKIND),dimension(:,:),pointer:: zu_deepc,zd_deepc,zu_midlc,zd_midlc,zu_shalc
+ real(kind=RKIND),dimension(:,:),pointer:: zu_deepc,zd_deepc,zu_midlc,zd_midlc,zu_shalc,zd_shalc
  real(kind=RKIND),dimension(:,:),pointer:: udr_kf,uer_kf,ddr_kf,der_kf
  real(kind=RKIND),dimension(:,:),pointer:: w0avg,w_deepc
  real(kind=RKIND),dimension(:,:),pointer:: rthcuten,rqvcuten,rqccuten,rqicuten,rqrcuten,rqscuten 
@@ -1418,23 +1418,24 @@
 
        call mpas_pool_get_array(sfc_input,'xland',xland)
 
-       call mpas_pool_get_array(diag_physics,'gsw'        ,gsw        )
-       call mpas_pool_get_array(diag_physics,'hfx'        ,hfx        )
-       call mpas_pool_get_array(diag_physics,'qfx'        ,qfx        )
-       call mpas_pool_get_array(diag_physics,'kpbl'       ,kpbl       )
-       call mpas_pool_get_array(diag_physics,'cubot'      ,cubot      )
-       call mpas_pool_get_array(diag_physics,'cutop'      ,cutop      )
-       call mpas_pool_get_array(diag_physics,'cuprecd'    ,cuprecd    )
-       call mpas_pool_get_array(diag_physics,'cuprecm'    ,cuprecm    )
-       call mpas_pool_get_array(diag_physics,'cuprecs'    ,cuprecs    )
-       call mpas_pool_get_array(diag_physics,'raincvd'    ,raincvd    )
-       call mpas_pool_get_array(diag_physics,'raincvm'    ,raincvm    )
-       call mpas_pool_get_array(diag_physics,'raincvs'    ,raincvs    )
-       call mpas_pool_get_array(diag_physics,'zu_deepc'   ,zu_deepc   )
-       call mpas_pool_get_array(diag_physics,'zd_deepc'   ,zd_deepc   )
-       call mpas_pool_get_array(diag_physics,'zu_midlc'   ,zu_midlc   )
-       call mpas_pool_get_array(diag_physics,'zd_midlc'   ,zd_midlc   )
-       call mpas_pool_get_array(diag_physics,'zu_shalc'   ,zu_shalc   )
+       call mpas_pool_get_array(diag_physics,'gsw'     ,gsw     )
+       call mpas_pool_get_array(diag_physics,'hfx'     ,hfx     )
+       call mpas_pool_get_array(diag_physics,'qfx'     ,qfx     )
+       call mpas_pool_get_array(diag_physics,'kpbl'    ,kpbl    )
+       call mpas_pool_get_array(diag_physics,'cubot'   ,cubot   )
+       call mpas_pool_get_array(diag_physics,'cutop'   ,cutop   )
+       call mpas_pool_get_array(diag_physics,'cuprecd' ,cuprecd )
+       call mpas_pool_get_array(diag_physics,'cuprecm' ,cuprecm )
+       call mpas_pool_get_array(diag_physics,'cuprecs' ,cuprecs )
+       call mpas_pool_get_array(diag_physics,'raincvd' ,raincvd )
+       call mpas_pool_get_array(diag_physics,'raincvm' ,raincvm )
+       call mpas_pool_get_array(diag_physics,'raincvs' ,raincvs )
+       call mpas_pool_get_array(diag_physics,'zu_deepc',zu_deepc)
+       call mpas_pool_get_array(diag_physics,'zd_deepc',zd_deepc)
+       call mpas_pool_get_array(diag_physics,'zu_midlc',zu_midlc)
+       call mpas_pool_get_array(diag_physics,'zd_midlc',zd_midlc)
+       call mpas_pool_get_array(diag_physics,'zu_shalc',zu_shalc)
+       call mpas_pool_get_array(diag_physics,'zd_shalc',zd_shalc)
 
        call mpas_pool_get_array(tend_physics,'rqvblten'  ,rqvblten  )
        call mpas_pool_get_array(tend_physics,'rqvdynten' ,rqvdynten )
@@ -1473,6 +1474,7 @@
              zu_midlc_p(i,k,j)  = zu_midlc(k,i)
              zd_midlc_p(i,k,j)  = zd_midlc(k,i)
              zu_shalc_p(i,k,j)  = zu_shalc(k,i)
+             zd_shalc_p(i,k,j)  = zd_shalc(k,i)
 
              rthblten_p(i,k,j)  = rthblten(k,i)
              rthdynten_p(i,k,j) = rthdynten(k,i)
@@ -1687,7 +1689,7 @@
  real(kind=RKIND),dimension(:),pointer  :: rinc_deepc,rinc_shalc,rinc_overlap
  real(kind=RKIND),dimension(:,:),pointer:: qc_cu,qi_cu,qc_cu_shalc,qi_cu_shalc
  real(kind=RKIND),dimension(:,:),pointer:: cldfrac_deepc,cldfrac_shalc
- real(kind=RKIND),dimension(:,:),pointer:: zu_deepc,zd_deepc,zu_midlc,zd_midlc,zu_shalc
+ real(kind=RKIND),dimension(:,:),pointer:: zu_deepc,zd_deepc,zu_midlc,zd_midlc,zu_shalc,zd_shalc
  real(kind=RKIND),dimension(:,:),pointer:: udr_kf,uer_kf,ddr_kf,der_kf
  real(kind=RKIND),dimension(:,:),pointer:: w0avg,w_deepc
  real(kind=RKIND),dimension(:,:),pointer:: rthcuten,rqvcuten,rqccuten,rqicuten,rqrcuten,rqscuten
@@ -1997,22 +1999,23 @@
     case ("cu_grell_freitas","cu_grell_freitas_wrf390")
        call mpas_pool_get_dimension(mesh,'nClosures',nclosures)
 
-       call mpas_pool_get_array(diag_physics,'cubot'      ,cubot      )
-       call mpas_pool_get_array(diag_physics,'cutop'      ,cutop      )
-       call mpas_pool_get_array(diag_physics,'xmb_deepc'  ,xmb_deepc  )
-       call mpas_pool_get_array(diag_physics,'xmb_midlc'  ,xmb_midlc  )
-       call mpas_pool_get_array(diag_physics,'xmb_shalc'  ,xmb_shalc  )
-       call mpas_pool_get_array(diag_physics,'cuprecd'    ,cuprecd    )
-       call mpas_pool_get_array(diag_physics,'cuprecm'    ,cuprecm    )
-       call mpas_pool_get_array(diag_physics,'cuprecs'    ,cuprecs    )
-       call mpas_pool_get_array(diag_physics,'raincvd'    ,raincvd    )
-       call mpas_pool_get_array(diag_physics,'raincvm'    ,raincvm    )
-       call mpas_pool_get_array(diag_physics,'raincvs'    ,raincvs    )
-       call mpas_pool_get_array(diag_physics,'zu_deepc'   ,zu_deepc   )
-       call mpas_pool_get_array(diag_physics,'zd_deepc'   ,zd_deepc   )
-       call mpas_pool_get_array(diag_physics,'zu_midlc'   ,zu_midlc   )
-       call mpas_pool_get_array(diag_physics,'zd_midlc'   ,zd_midlc   )
-       call mpas_pool_get_array(diag_physics,'zu_shalc'   ,zu_shalc   )
+       call mpas_pool_get_array(diag_physics,'cubot'    ,cubot    )
+       call mpas_pool_get_array(diag_physics,'cutop'    ,cutop    )
+       call mpas_pool_get_array(diag_physics,'xmb_deepc',xmb_deepc)
+       call mpas_pool_get_array(diag_physics,'xmb_midlc',xmb_midlc)
+       call mpas_pool_get_array(diag_physics,'xmb_shalc',xmb_shalc)
+       call mpas_pool_get_array(diag_physics,'cuprecd'  ,cuprecd  )
+       call mpas_pool_get_array(diag_physics,'cuprecm'  ,cuprecm  )
+       call mpas_pool_get_array(diag_physics,'cuprecs'  ,cuprecs  )
+       call mpas_pool_get_array(diag_physics,'raincvd'  ,raincvd  )
+       call mpas_pool_get_array(diag_physics,'raincvm'  ,raincvm  )
+       call mpas_pool_get_array(diag_physics,'raincvs'  ,raincvs  )
+       call mpas_pool_get_array(diag_physics,'zu_deepc' ,zu_deepc )
+       call mpas_pool_get_array(diag_physics,'zd_deepc' ,zd_deepc )
+       call mpas_pool_get_array(diag_physics,'zu_midlc' ,zu_midlc )
+       call mpas_pool_get_array(diag_physics,'zd_midlc' ,zd_midlc )
+       call mpas_pool_get_array(diag_physics,'zu_shalc' ,zu_shalc )
+       call mpas_pool_get_array(diag_physics,'zd_shalc' ,zd_shalc )
 
        call mpas_pool_get_array(diag_physics,'weights_closures',weights_closures)
        call mpas_pool_get_array(diag_physics,'raincvd_closures',raincvd_closures)
@@ -2035,11 +2038,12 @@
           raincvs(i)       = raincvs_p(i,j)
 
           do k = kts,kte
-             zu_deepc(k,i) = zu_deepc_p(i,k,j)
-             zd_deepc(k,i) = zd_deepc_p(i,k,j)
-             zu_midlc(k,i) = zu_midlc_p(i,k,j)
-             zd_midlc(k,i) = zd_midlc_p(i,k,j)
-             zu_shalc(k,i) = zu_shalc_p(i,k,j)
+             zu_deepc(k,i) = xmb_deepc_p(i,j)*zu_deepc_p(i,k,j)
+             zd_deepc(k,i) = xmb_deepc_p(i,j)*zd_deepc_p(i,k,j)
+             zu_midlc(k,i) = xmb_midlc_p(i,j)*zu_midlc_p(i,k,j)
+             zd_midlc(k,i) = xmb_midlc_p(i,j)*zd_midlc_p(i,k,j)
+             zu_shalc(k,i) = xmb_shalc_p(i,j)*zu_shalc_p(i,k,j)
+             zd_shalc(k,i) = xmb_shalc_p(i,j)*zd_shalc_p(i,k,j)
              rucuten(k,i)  = rucuten_p(i,k,j)
              rvcuten(k,k)  = rvcuten_p(i,k,j)
           enddo
