@@ -643,6 +643,8 @@
 			<var name="refl10cm_max"/>
 			<var name="i_rainnc"/>
 			<var name="rainncv"/>
+			<var name="snowncv"/>
+			<var name="graupelncv"/>
 			<var name="rainnc"/>
 			<var name="snownc"/>
 			<var name="graupelnc"/>
@@ -839,6 +841,7 @@
 			<var name="zu_midlc"/>
 			<var name="zd_midlc"/>
 			<var name="zu_shalc"/>
+			<var name="zd_shalc"/>
 			<var name="qc_cu"/>
 			<var name="qi_cu"/>
 			<var name="qc_cu_shalc"/>
@@ -852,6 +855,11 @@
 			<var name="rqimpten"/>
 			<var name="rqsmpten"/>
 			<var name="rqgmpten"/>
+			<var name="rncmpten"/>
+			<var name="rnimpten"/>
+			<var name="rnrmpten"/>
+			<var name="rnifampten"/>
+			<var name="rnwfampten"/>
 			<var name="rthcuten"/>
 			<var name="rqvcuten"/>
 			<var name="rqccuten"/>
@@ -900,6 +908,7 @@
 			<var name="rqiblten"/>
 			<var name="rncblten"/>
 			<var name="rniblten"/>
+			<var name="rnrblten"/>
 			<var name="rnifablten"/>
 			<var name="rnwfablten"/>
 			<var name="rthratensw"/>
@@ -2311,6 +2320,10 @@
                      description="upward mass flux for shallow convection"
                      packages="cu_grell_freitas_in"/>
 
+                <var name="zd_shalc" type="real" dimensions="nVertLevels nCells Time" units="kg m^{-2}"
+                     description="downward mass flux for shallow convection"
+                     packages="cu_grell_freitas_in"/>
+
                 <var name="i_raincd_closures" type="integer" dimensions="nClosures nCells Time" units="unitless"
                      description="incidence of acc. deep conv. precipitation greater than config_bucket_rainc for each GF closure"
                      packages="cu_grell_freitas_in"/>
@@ -3078,6 +3091,26 @@
                      description="tendency of graupel mixing ratio due to cloud microphysics"
                      packages="mp_wsm6_in;mp_thompson_in"/>
 
+                <var name="rncmpten" type="real" dimensions="nVertLevels nCells Time" units="nb kg^{-1} s^{-1}"
+                     description="tendency of cloud water number concentration due to microphysics"
+                     packages="mp_thompson_in"/>
+
+                <var name="rnimpten" type="real" dimensions="nVertLevels nCells Time" units="nb kg^{-1} s^{-1}"
+                     description="tendency of cloud ice number concentration due to microphysics"
+                     packages="mp_thompson_in"/>
+
+                <var name="rnrmpten" type="real" dimensions="nVertLevels nCells Time" units="nb kg^{-1} s^{-1}"
+                     description="tendency of rain number concentration due to microphysics"
+                     packages="mp_thompson_in"/>
+
+                <var name="rnifampten" type="real" dimensions="nVertLevels nCells Time" units="nb kg^{-1} s^{-1}"
+                     description="tendency of "ice-friendly" aerosol number concentration due to microphysics"
+                     packages="mp_thompson_in"/>
+
+                <var name="rnwfampten" type="real" dimensions="nVertLevels nCells Time" units="nb kg^{-1} s^{-1}"
+                     description="tendency of "water-friendly" aerosol number concentration due to microphysics"
+                     packages="mp_thompson_in"/>
+
                 <!-- ================================================================================================== -->
                 <!-- TENDENCIES FROM PARAMETERIZATION OF CONVECTION:                                                    -->
                 <!-- ================================================================================================== -->
@@ -3284,6 +3317,10 @@
 
                 <var name="rniblten" type="real" dimensions="nVertLevels nCells Time" units="nb kg^{-1} s^{-1}"
                      description="tendency of cloud ice number concentration due to pbl processes"
+                     packages="bl_mynn_in"/>
+
+                <var name="rnrblten" type="real" dimensions="nVertLevels nCells Time" units="nb kg^{-1} s^{-1}"
+                     description="tendency of rain number concentration due to pbl processes"
                      packages="bl_mynn_in"/>
 
                 <var name="rnifablten" type="real" dimensions="nVertLevels nCells Time" units="nb kg^{-1} s^{-1}"
