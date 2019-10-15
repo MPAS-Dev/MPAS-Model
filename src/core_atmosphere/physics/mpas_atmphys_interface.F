@@ -317,9 +317,9 @@
  call mpas_pool_get_array_gpu(state,'scalars',scalars,time_lev)
 
 !!!
- !$acc update host(latCell, lonCell, fzm, fzp, rdzw, zgrid, zz, &
- !$acc surface_pressure, exner, pressure_b, pressure_p, rtheta_b, &
- !$acc rtheta_p, u, v, rho_zz, theta_m, w, plrad, scalars)
+! !$acc update host(latCell, lonCell, fzm, fzp, rdzw, zgrid, zz, &
+! !$acc surface_pressure, exner, pressure_b, pressure_p, rtheta_b, &
+! !$acc rtheta_p, u, v, rho_zz, theta_m, w, plrad, scalars)
 
 ! qv => scalars(index_qv,:,:)
 ! qc => scalars(index_qc,:,:)
@@ -347,8 +347,10 @@
  end if
 
  do j = jts, jte
- do k = kts, kte
+!$acc parallel vector_length(128)
+!$acc loop gang vector collapse(2)
  do i = its, ite
+ do k = kts, kte
 
     !water vapor and moist arrays:
     qv_p(i,k,j) = max(0.,scalars(sindex_qv,k,i))
@@ -376,7 +378,10 @@
 
  enddo
  enddo
+!$acc end parallel
  enddo
+!$acc update host(qv_p,qc_p,qr_p,qi_p,qs_p,qg_p,u_p,v_p, &
+!$acc zz_p,rho_p,th_p,t_p,pi_p,pres_p,zmid_p,dz_p)
 
  pbl_select: select case (trim(pbl_scheme))
     case("bl_mynn")
@@ -397,6 +402,8 @@
 
 !calculation of the surface pressure using hydrostatic assumption down to the surface::
  do j = jts,jte
+!$acc parallel vector_length(128)
+!$acc loop gang vector private(tem1,tem2,rho1,rho2)
  do i = its,ite
     tem1 = zgrid(2,i)-zgrid(1,i)
     tem2 = zgrid(3,i)-zgrid(2,i)
@@ -408,26 +415,38 @@
                     * (rho1 - 0.5*(rho2-rho1)*tem1/(tem1+tem2))
     surface_pressure(i) = surface_pressure(i) + pressure_p(1,i) + pressure_b(1,i)
  enddo
+!$acc end parallel
  
+!$acc parallel vector_length(128)
+!$acc loop gang vector collapse(2)
  do k = kts,kte
  do i = its,ite
     znu_p(i,k,j)  = pres_p(i,k,j) / surface_pressure(i)
  enddo
  enddo
+!$acc end parallel
  enddo
+!!$acc update host(znu_p)
+!!$acc update host(surface_pressure)
 
 !arrays located at w points:
  do j = jts, jte
- do k = kts,kte+1
+!$acc parallel vector_length(128)
+!$acc loop gang vector collapse(2)
  do i = its,ite
+ do k = kts,kte+1
     w_p(i,k,j) = w(k,i)
     z_p(i,k,j) = zgrid(k,i)
  enddo
  enddo
+!$acc end parallel
  enddo
+!$acc update host(znu_p,w_p,z_p)
 
 !check that the pressure in the layer above the surface is greater than that in the layer
 !above it:
+!!$acc update host(dz_p,pressure_b,pressure_p,pres_p,rho_p,th_p,t_p,qv_p)
+!$acc update host(pressure_b,pressure_p)
  do j = jts,jte
  do i = its,ite
     if(pres_p(i,1,j) .le. pres_p(i,2,j)) then
@@ -448,6 +467,8 @@
 
 !interpolation of pressure and temperature from theta points to w points:
  do j = jts,jte
+!$acc parallel vector_length(128)
+!$acc loop gang vector collapse(2) private(tem1)
  do k = kts+1,kte
  do i = its,ite
     tem1 = 1./(zgrid(k+1,i)-zgrid(k-1,i))
@@ -457,86 +478,138 @@
     pres2_p(i,k,j) = fzm_p(i,k,j)*pres_p(i,k,j) + fzp_p(i,k,j)*pres_p(i,k-1,j)
  enddo
  enddo
+!$acc end parallel
  enddo
+!!$acc update host(fzm_p,fzp_p,t2_p,pres2_p)
 
 !interpolation of pressure and temperature from theta points to the top-of-the-model: follows
 !the calculation of the top-of-the-model pressure and temperature in WRF (subroutine phy_prep
 !in ./dyn_em/module_big_step_utilities.F):
- k = kte+1
+!!! k = kte+1
  do j = jts,jte
+!$acc parallel vector_length(128)
+!$acc loop gang vector private(z0,z1,z2,w1,w2)
  do i = its,ite
-    z0 = zgrid(k,i)
-    z1 = 0.5*(zgrid(k,i)+zgrid(k-1,i)) 
-    z2 = 0.5*(zgrid(k-1,i)+zgrid(k-2,i))
+    z0 = zgrid(kte+1,i)
+    z1 = 0.5*(zgrid(kte+1,i)+zgrid(kte+1-1,i)) 
+    z2 = 0.5*(zgrid(kte+1-1,i)+zgrid(kte+1-2,i))
     w1 = (z0-z2)/(z1-z2)
     w2 = 1.-w1
-    t2_p(i,k,j) = w1*t_p(i,k-1,j) + w2*t_p(i,k-2,j)
+    t2_p(i,kte+1,j) = w1*t_p(i,kte+1-1,j) + w2*t_p(i,kte+1-2,j)
     !use log of pressure to avoid occurrences of negative top-of-the-model pressure.
-    pres2_p(i,k,j) = exp(w1*log(pres_p(i,k-1,j))+w2*log(pres_p(i,k-2,j)))
+    pres2_p(i,kte+1,j) = exp(w1*log(pres_p(i,kte+1-1,j))+w2*log(pres_p(i,kte+1-2,j)))
  enddo
+!$acc end parallel
  enddo
+!!$acc update host(t2_p,pres2_p)
 
 !ldf (2012-06-22): recalculates the pressure at the surface as an extrapolation of the
 !pressures in the 2 layers above the surface, as was originally done:
- k = kts
+!!! k = kts
  do j = jts,jte
+!$acc parallel vector_length(128)
+!$acc loop gang vector private(z0,z1,z2,w1,w2)
  do i = its,ite
-    z0 = zgrid(k,i)
-    z1 = 0.5*(zgrid(k,i)+zgrid(k+1,i)) 
-    z2 = 0.5*(zgrid(k+1,i)+zgrid(k+2,i))
+    z0 = zgrid(kts,i)
+    z1 = 0.5*(zgrid(kts,i)+zgrid(kts+1,i)) 
+    z2 = 0.5*(zgrid(kts+1,i)+zgrid(kts+2,i))
     w1 = (z0-z2)/(z1-z2)
     w2 = 1.-w1
-    t2_p(i,k,j)    = w1*t_p(i,k,j)+w2*t_p(i,k+1,j)
-    pres2_p(i,k,j) = w1*pres_p(i,k,j)+w2*pres_p(i,k+1,j)
-!   psfc_p(i,j) = pres2_p(i,k,j)
+    t2_p(i,kts,j)    = w1*t_p(i,kts,j)+w2*t_p(i,kts+1,j)
+    pres2_p(i,kts,j) = w1*pres_p(i,kts,j)+w2*pres_p(i,kts+1,j)
+!   psfc_p(i,j) = pres2_p(i,kts,j)
     psfc_p(i,j) = surface_pressure(i)
  enddo
+!$acc end parallel
  enddo
+!$acc update host(fzm_p,fzp_p,t2_p,pres2_p,psfc_p)
 
 !calculation of the hydrostatic pressure:
  do j = jts,jte
+!$acc parallel vector_length(128)
+!$acc loop gang vector 
  do i = its,ite
     !pressure at w-points:
-    k = kte+1
-    pres2_hyd_p(i,k,j)  = pres2_p(i,k,j)
-    pres2_hydd_p(i,k,j) = pres2_p(i,k,j)
-    do k = kte,1,-1
+!!!    k = kte+1
+    pres2_hyd_p(i,kte+1,j)  = pres2_p(i,kte+1,j)
+    pres2_hydd_p(i,kte+1,j) = pres2_p(i,kte+1,j)
+ enddo
+!$acc end parallel
+ enddo
+!!$acc update host(pres2_hyd_p,pres2_hydd_p)
+ do j = jts,jte
+!$acc parallel vector_length(128)
+!$acc loop seq
+ do k = kte,1,-1
+!$acc loop gang vector private(rho_a)
+    do i = its,ite
        rho_a = rho_p(i,k,j) / (1.+qv_p(i,k,j))
        pres2_hyd_p(i,k,j)  = pres2_hyd_p(i,k+1,j)  + gravity*rho_p(i,k,j)*dz_p(i,k,j)
        pres2_hydd_p(i,k,j) = pres2_hydd_p(i,k+1,j) + gravity*rho_a*dz_p(i,k,j)
     enddo
+ enddo
+!$acc end parallel
+ enddo
+!!$acc update host(pres2_hyd_p,pres2_hydd_p)
+ do j = jts,jte
+!$acc parallel vector_length(128)
+!$acc loop gang vector collapse(2)
     !pressure at theta-points:
     do k = kte,1,-1
+ do i = its,ite
        pres_hyd_p(i,k,j)  = 0.5*(pres2_hyd_p(i,k+1,j)+pres2_hyd_p(i,k,j))
        pres_hydd_p(i,k,j) = 0.5*(pres2_hydd_p(i,k+1,j)+pres2_hydd_p(i,k,j))
     enddo
+ enddo
+!$acc end parallel
+ enddo
+!!$acc update host(pres_hyd_p,pres_hydd_p)
+ do j = jts,jte
+!$acc parallel vector_length(128)
+!$acc loop gang vector
+ do i = its,ite
     !surface pressure:
     psfc_hyd_p(i,j) = pres2_hyd_p(i,1,j)
     psfc_hydd_p(i,j) = pres2_hydd_p(i,1,j)
+ enddo
+!$acc end parallel
+ enddo
+!!$acc update host(pres2_hyd_p,pres2_hydd_p,pres_hyd_p,pres_hydd_p,psfc_hyd_p,psfc_hydd_p)
+ do j = jts,jte
+!$acc parallel vector_length(128)
+!$acc loop gang vector collapse(2)
     !znu:
     do k = kte,1,-1
+ do i = its,ite
        znu_hyd_p(i,k,j) = pres_hyd_p(i,k,j) / psfc_hyd_p(i,j) 
     enddo
  enddo
+!$acc end parallel
  enddo
+!$acc update host(pres2_hyd_p,pres2_hydd_p,pres_hyd_p, &
+!$acc pres_hydd_p,psfc_hyd_p,psfc_hydd_p,znu_hyd_p)
 
 !save the model-top pressure:
  do j = jts,jte
+!$acc parallel vector_length(128)
+!$acc loop gang vector 
  do i = its,ite
     plrad(i) = pres2_p(i,kte+1,j) 
  enddo
+!$acc end parallel
  enddo
+!!$acc update host(plrad)
 
 !!!
- !$acc update device(latCell, lonCell, fzm, fzp, rdzw, zgrid, zz, &
- !$acc surface_pressure, exner, pressure_b, pressure_p, rtheta_b, &
- !$acc rtheta_p, u, v, rho_zz, theta_m, w, plrad, scalars)
+! !$acc update device(latCell, lonCell, fzm, fzp, rdzw, zgrid, zz, &
+! !$acc surface_pressure, exner, pressure_b, pressure_p, rtheta_b, &
+! !$acc rtheta_p, u, v, rho_zz, theta_m, w, plrad, scalars)
  
- !$acc update device(qv_p,qc_p,qr_p,qi_p,qs_p,qg_p,u_p,v_p, &
- !$acc zz_p,rho_p,th_p,t_p,pi_p,pres_p,zmid_p,dz_p,znu_p, w_p, &
- !$acc z_p,fzm_p,fzp_p,t2_p,pres2_p,psfc_p,pres2_hyd_p, &
- !$acc pres2_hydd_p,pres_hyd_p,pres_hydd_p,psfc_hyd_p, &
- !$acc psfc_hydd_p,znu_hyd_p)
+! !$acc update device(qv_p,qc_p,qr_p,qi_p,qs_p,qg_p,u_p,v_p, &
+! !$acc zz_p,rho_p,th_p,t_p,pi_p,pres_p,zmid_p,dz_p,znu_p, w_p, &
+! !$acc z_p,fzm_p,fzp_p,t2_p,pres2_p,psfc_p,pres2_hyd_p, &
+! !$acc pres2_hydd_p,pres_hyd_p,pres_hydd_p,psfc_hyd_p, &
+! !$acc psfc_hydd_p,znu_hyd_p)
 
  end subroutine MPAS_to_physics
 

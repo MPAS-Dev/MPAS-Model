@@ -134,7 +134,7 @@
     ht_p,             &!
     psfc_p,           &!surface pressure                                                       [Pa]
     ptop_p             !model-top pressure                                                     [Pa]
-!$acc declare create(psfc_p)
+!$acc declare create(psfc_p,ptop_p)
 
  real(kind=RKIND),dimension(:,:,:),allocatable:: &
     fzm_p,            &!weight for interpolation to w points                                    [-]
@@ -160,7 +160,8 @@
     al_p,             &!inverse of air density                                              [m3/kg]
     rho_p,            &!air density                                                         [kg/m3]
     rh_p               !relative humidity                                                       [-]
-!$acc declare create(zz_p, rho_p, th_p, t_p, pi_p, pres_p, z_p, dz_p, zmid_p)
+!$acc declare create(zz_p, rho_p, th_p, t_p, pi_p, pres_p, z_p, dz_p, &
+!$acc zmid_p,al_p,rh_p)
 
  real(kind=RKIND),dimension(:,:,:),allocatable:: &
     qv_p,             &!water vapor mixing ratio                                            [kg/kg]
