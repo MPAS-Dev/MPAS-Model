@@ -12,7 +12,7 @@ module atm_core_interface
    use mpas_pool_routines
    use mpas_dmpar
    use mpas_io_units
-
+   use openacc
    contains
 
 
@@ -78,16 +78,36 @@ module atm_core_interface
 
       use mpas_derived_types, only : mpas_coupler_type
 
+      use openacc
       implicit none
 
       class (mpas_coupler_type), intent(in) :: self
+      integer :: number_of_dynamics_ranks, local_rank, ranks_per_node
 
+      !number_of_dynamics_ranks = acc_get_num_devices(acc_device_nvidia)
+
+   !Number of dynamics ranks and total ranks per node
+   !will be taken as a namelist option
+     
+      number_of_dynamics_ranks = 4  
+      ranks_per_node = 8
+
+      local_rank = mod(self % intercomm_rank ,ranks_per_node)
 
       if (self % intercomm_size == 1) then
          atm_component_role = self % intercomm_rank
+      else if (local_rank < number_of_dynamics_ranks) then
+         atm_component_role = 0
       else
-         atm_component_role = self % intercomm_rank / (self % intercomm_size / 2)
+         atm_component_role = 1
       end if
+
+
+      !if (self % intercomm_size == 1) then
+      !   atm_component_role = self % intercomm_rank
+      !else
+      !   atm_component_role = self % intercomm_rank / (self % intercomm_size / 2)
+      !end if
 
    end function atm_component_role
 
@@ -113,12 +133,18 @@ module atm_core_interface
 
       class (mpas_coupler_type), intent(in) :: self
       integer, intent(in) :: role
+      integer :: ranks_per_node
 
+   !total ranks per node
+   !will be taken as a namelist option
+
+      ranks_per_node = 8
 
       if (self % intercomm_size == 1) then
          atm_component_role_leader = role
       else
-         atm_component_role_leader = role * (self % intercomm_size / 2)
+         !atm_component_role_leader = role * (self % intercomm_size / 2)
+         atm_component_role_leader = role * (ranks_per_node / 2)
       end if
 
    end function atm_component_role_leader
