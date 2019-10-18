@@ -138,6 +138,7 @@ contains
 
       ! Config options
       character (len=StrKIND), pointer :: config_time_integrator
+      character (len=StrKIND), pointer :: config_btr_filter_type
       integer, pointer :: config_n_bcl_iter_mid, config_n_bcl_iter_beg, config_n_bcl_iter_end
       integer, pointer :: config_nIterations_BtrSubcycling_Predictor, config_nIterations_BtrSubcycling_Corrector
       integer, pointer :: config_n_ts_iter, config_btr_subcycle_loop_factor
@@ -248,11 +249,12 @@ contains
       call mpas_pool_get_config(domain % configs, 'config_nIterations_BtrSubcycling_Corrector', config_nIterations_BtrSubcycling_Corrector)
       call mpas_pool_get_config(domain % configs, 'config_n_ts_iter', config_n_ts_iter)
       call mpas_pool_get_config(domain % configs, 'config_btr_gam1_velWt1', config_btr_gam1_velWt1)
+      call mpas_pool_get_config(domain % configs, 'config_btr_gam2_SSHWt1', config_btr_gam2_SSHWt1)
       call mpas_pool_get_config(domain % configs, 'config_btr_gam3_velWt2', config_btr_gam3_velWt2)
       call mpas_pool_get_config(domain % configs, 'config_btr_gam4_velWt2', config_btr_gam4_velWt2)
       call mpas_pool_get_config(domain % configs, 'config_btr_solve_SSH2', config_btr_solve_SSH2)
       call mpas_pool_get_config(domain % configs, 'config_n_btr_cor_iter', config_n_btr_cor_iter)
-      call mpas_pool_get_config(domain % configs, 'config_btr_gam2_SSHWt1', config_btr_gam2_SSHWt1)
+      call mpas_pool_get_config(domain % configs, 'config_btr_filter_type', config_btr_filter_type)
       call mpas_pool_get_config(domain % configs, 'config_filter_btr_mode', config_filter_btr_mode)
 
       call mpas_pool_get_config(domain % configs, 'config_mom_del4', config_mom_del4)
@@ -1055,9 +1057,22 @@ contains
                         flux1 = normalBarotropicVelocitySubcycleCur(iEdge)*thicknessSum1
                         flux2 = normalBarotropicVelocitySubcyclePredictor(iEdge)*thicknessSum2                           
                         flux = (1.0_RKIND-config_btr_gam1_velWt1) * flux1 + config_btr_gam1_velWt1 * flux2
-                                                
-                        barotropicThicknessFlux(iEdge) = barotropicThicknessFlux(iEdge) + PrimaryWeights(j) * flux
-                        barotropicThicknessFluxSW(iEdge) = barotropicThicknessFluxSW(iEdge) + SecondaryWeights(j) * flux 
+
+                        if (config_btr_filter_type == 'no_filter_type_1' .or. config_btr_filter_type == 'no_filter_type_2') then
+                           if (j == nBtrSubcycles) then
+                              barotropicThicknessFlux(iEdge) = barotropicThicknessFlux(iEdge) + PrimaryWeights(j) * flux                           
+                           end if 
+                        else
+                           barotropicThicknessFlux(iEdge) = barotropicThicknessFlux(iEdge) + PrimaryWeights(j) * flux
+                        end if 
+                        
+                        if (config_btr_filter_type == 'no_filter_type_2') then
+                           if (j == nBtrSubcycles/2) then
+                              barotropicThicknessFluxSW(iEdge) = barotropicThicknessFluxSW(iEdge) + SecondaryWeights(j) * flux 
+                           end if
+                        else
+                           barotropicThicknessFluxSW(iEdge) = barotropicThicknessFluxSW(iEdge) + SecondaryWeights(j) * flux
+                        end if 
 
                      end do
                      !$omp end do
@@ -1322,10 +1337,23 @@ contains
                         flux3 = normalBarotropicVelocitySubcycleNew(iEdge)*thicknessSum3
                                                   
                         flux = (1.0_RKIND-config_btr_gam3_velWt2-config_btr_gam4_velWt2) * flux1 &
-                           + config_btr_gam3_velWt2 * flux2 + config_btr_gam4_velWt2 * flux3                        
-                                                
-                        barotropicThicknessFlux(iEdge) = barotropicThicknessFlux(iEdge) + PrimaryWeights(j) * flux
-                        barotropicThicknessFluxSW(iEdge) = barotropicThicknessFluxSW(iEdge) + SecondaryWeights(j) * flux 
+                           + config_btr_gam3_velWt2 * flux2 + config_btr_gam4_velWt2 * flux3    
+                           
+                        if (config_btr_filter_type == 'no_filter_type_1' .or. config_btr_filter_type == 'no_filter_type_2') then
+                           if (j == nBtrSubcycles) then
+                              barotropicThicknessFlux(iEdge) = barotropicThicknessFlux(iEdge) + PrimaryWeights(j) * flux                           
+                           end if 
+                        else
+                           barotropicThicknessFlux(iEdge) = barotropicThicknessFlux(iEdge) + PrimaryWeights(j) * flux
+                        end if 
+                        
+                        if (config_btr_filter_type == 'no_filter_type_2') then
+                           if (j == nBtrSubcycles/2) then
+                              barotropicThicknessFluxSW(iEdge) = barotropicThicknessFluxSW(iEdge) + SecondaryWeights(j) * flux 
+                           end if
+                        else
+                           barotropicThicknessFluxSW(iEdge) = barotropicThicknessFluxSW(iEdge) + SecondaryWeights(j) * flux
+                        end if    
                              
                      end do
                      !$omp end do
@@ -1368,12 +1396,26 @@ contains
 
                   !$omp do schedule(runtime)
                   do iEdge = 1, nEdges
-                     
-                     normalBarotropicVelocityNew(iEdge) = normalBarotropicVelocityNew(iEdge) &
-                        + PrimaryWeights(j) * normalBarotropicVelocitySubcycleNew(iEdge)                    
                   
-                     normalBarotropicVelocitySWNew(iEdge) = normalBarotropicVelocityNew(iEdge) &
-                        + SecondaryWeights(j) * normalBarotropicVelocitySubcycleNew(iEdge)                     
+                     if (config_btr_filter_type == 'no_filter_type_1' .or. config_btr_filter_type == 'no_filter_type_2') then
+                        if (j == nBtrSubcycles) then
+                           normalBarotropicVelocityNew(iEdge) = normalBarotropicVelocityNew(iEdge) &
+                              + PrimaryWeights(j) * normalBarotropicVelocitySubcycleNew(iEdge)                           
+                        end if 
+                     else
+                        normalBarotropicVelocityNew(iEdge) = normalBarotropicVelocityNew(iEdge) &
+                           + PrimaryWeights(j) * normalBarotropicVelocitySubcycleNew(iEdge)
+                     end if 
+                     
+                     if (config_btr_filter_type == 'no_filter_type_2') then
+                        if (j == nBtrSubcycles/2) then
+                           normalBarotropicVelocitySWNew(iEdge) = normalBarotropicVelocityNew(iEdge) &
+                              + SecondaryWeights(j) * normalBarotropicVelocitySubcycleNew(iEdge) 
+                        end if
+                     else
+                        normalBarotropicVelocitySWNew(iEdge) = normalBarotropicVelocityNew(iEdge) &
+                           + SecondaryWeights(j) * normalBarotropicVelocitySubcycleNew(iEdge)
+                     end if                   
 
                   end do ! iEdge
                   !$omp end do
