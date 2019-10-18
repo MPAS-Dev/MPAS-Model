@@ -24,7 +24,6 @@
  implicit none
  private
  public:: physics_init
- integer, parameter, private :: ROLE_INTEGRATE = 0, ROLE_RADIATION = 1
 
 !MPAS main initialization subroutine for all physics parameterizations.
 !Laura D. Fowler (send comments to laura@ucar.edu).
@@ -71,12 +70,11 @@
 
 
 !=================================================================================================================
- subroutine physics_init(block,dminfo,clock,configs,mesh,diag,tend,state,time_lev,diag_physics, &
+ subroutine physics_init(dminfo,clock,configs,mesh,diag,tend,state,time_lev,diag_physics, &
                          atm_input,sfc_input)
 !=================================================================================================================
 
 !input arguments:
- type (block_type), intent(in) :: block
  type(dm_info),intent(in):: dminfo
  type(mpas_pool_type),intent(in):: mesh
  type(mpas_pool_type),intent(in):: configs
@@ -125,8 +123,9 @@
  real(kind=RKIND), pointer :: config_oml_hml0
  integer,pointer:: nCells
  logical,pointer:: config_oml1d
- type (mpas_coupler_type), pointer :: coupler
  
+ 
+
 !local variables and arrays:
  type(MPAS_Time_Type):: currTime
 
@@ -208,10 +207,6 @@
  call mpas_pool_get_config(configs,'config_oml_hml0'       ,config_oml_hml0  )
  call mpas_pool_get_dimension(mesh,'nCells',nCells)
 
- coupler => block % domain % mpas_cpl
-
-if(coupler%role() == ROLE_INTEGRATE) then
-!write(*,*) "my role inside physics init ---------- ",coupler%role()
  currTime = mpas_get_clock_time(clock,MPAS_NOW,ierr)
  call mpas_get_time(curr_time=currTime,DoY=julday,ierr=ierr)
 
@@ -232,6 +227,48 @@ if(coupler%role() == ROLE_INTEGRATE) then
     call mpas_pool_get_array(diag_physics,'i_rainnc',i_rainnc)
     do iCell = 1, nCellsSolve
        i_rainnc(iCell) = 0
+    enddo
+ endif
+
+!initialization of counters i_acsw* and i_aclw*. i_acsw* and i_aclw* track the number of times
+!the accumulated long and short-wave radiation fluxes exceed their prescribed theshold values.
+ if(.not. config_do_restart) then
+    do iCell = 1, nCellsSolve
+       i_acswdnb(iCell)  = 0
+       i_acswdnbc(iCell) = 0
+       i_acswdnt(iCell)  = 0
+       i_acswdntc(iCell) = 0
+       i_acswupb(iCell)  = 0
+       i_acswupbc(iCell) = 0
+       i_acswupt(iCell)  = 0
+       i_acswuptc(iCell) = 0
+
+       i_aclwdnb(iCell)  = 0
+       i_aclwdnbc(iCell) = 0
+       i_aclwdnt(iCell)  = 0
+       i_aclwdntc(iCell) = 0
+       i_aclwupb(iCell)  = 0
+       i_aclwupbc(iCell) = 0
+       i_aclwupt(iCell)  = 0
+       i_aclwuptc(iCell) = 0
+
+       acswdnb(iCell)  = 0._RKIND
+       acswdnbc(iCell) = 0._RKIND
+       acswdnt(iCell)  = 0._RKIND
+       acswdntc(iCell) = 0._RKIND
+       acswupb(iCell)  = 0._RKIND
+       acswupbc(iCell) = 0._RKIND
+       acswupt(iCell)  = 0._RKIND
+       acswuptc(iCell) = 0._RKIND
+
+       aclwdnb(iCell)  = 0._RKIND
+       aclwdnbc(iCell) = 0._RKIND
+       aclwdnt(iCell)  = 0._RKIND
+       aclwdntc(iCell) = 0._RKIND
+       aclwupb(iCell)  = 0._RKIND
+       aclwupbc(iCell) = 0._RKIND
+       aclwupt(iCell)  = 0._RKIND
+       aclwuptc(iCell) = 0._RKIND
     enddo
  endif
 
@@ -330,52 +367,6 @@ if(coupler%role() == ROLE_INTEGRATE) then
 
 !initialization of shortwave radiation processes:
  init_done = .false.
-end if
-
-if(coupler%role() == ROLE_RADIATION) then
-!initialization of counters i_acsw* and i_aclw*. i_acsw* and i_aclw* track the number of times
-!the accumulated long and short-wave radiation fluxes exceed their prescribed theshold values.
- if(.not. config_do_restart) then
-    do iCell = 1, nCellsSolve
-       i_acswdnb(iCell)  = 0
-       i_acswdnbc(iCell) = 0
-       i_acswdnt(iCell)  = 0
-       i_acswdntc(iCell) = 0
-       i_acswupb(iCell)  = 0
-       i_acswupbc(iCell) = 0
-       i_acswupt(iCell)  = 0
-       i_acswuptc(iCell) = 0
-
-       i_aclwdnb(iCell)  = 0
-       i_aclwdnbc(iCell) = 0
-       i_aclwdnt(iCell)  = 0
-       i_aclwdntc(iCell) = 0
-       i_aclwupb(iCell)  = 0
-       i_aclwupbc(iCell) = 0
-       i_aclwupt(iCell)  = 0
-       i_aclwuptc(iCell) = 0
-
-       acswdnb(iCell)  = 0._RKIND
-       acswdnbc(iCell) = 0._RKIND
-       acswdnt(iCell)  = 0._RKIND
-       acswdntc(iCell) = 0._RKIND
-       acswupb(iCell)  = 0._RKIND
-       acswupbc(iCell) = 0._RKIND
-       acswupt(iCell)  = 0._RKIND
-       acswuptc(iCell) = 0._RKIND
-
-       aclwdnb(iCell)  = 0._RKIND
-       aclwdnbc(iCell) = 0._RKIND
-       aclwdnt(iCell)  = 0._RKIND
-       aclwdntc(iCell) = 0._RKIND
-       aclwupb(iCell)  = 0._RKIND
-       aclwupbc(iCell) = 0._RKIND
-       aclwupt(iCell)  = 0._RKIND
-       aclwuptc(iCell) = 0._RKIND
-    enddo
- endif
-
-
  if(config_radt_sw_scheme.ne.'off') then
     if(trim(config_radt_sw_scheme) .eq. 'cam_sw') then
        call init_radiation_sw(dminfo,configs,mesh,atm_input,diag,diag_physics,state,time_lev)
@@ -400,7 +391,6 @@ if(coupler%role() == ROLE_RADIATION) then
        call init_radiation_lw(dminfo,configs)
     endif
  endif
-end if
 
 ! call mpas_log_write('')
 ! call mpas_log_write('--- end subroutine physics_init')

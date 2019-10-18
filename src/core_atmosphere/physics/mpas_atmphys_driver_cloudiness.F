@@ -8,7 +8,6 @@
 !=================================================================================================================
  module mpas_atmphys_driver_cloudiness
  use mpas_kind_types
- use mpas_derived_types
  use mpas_pool_routines
  use mpas_timer, only : mpas_timer_start, mpas_timer_stop
 
@@ -22,7 +21,6 @@
           deallocate_cloudiness, &
           driver_cloudiness
 
- integer, parameter, private :: ROLE_INTEGRATE = 0, ROLE_RADIATION = 1
 !MPAS driver for parameterization of the diagnostic cloud fraction.
 !Laura D. Fowler (send comments to laura@ucar.edu).
 !2013-05-01.
@@ -108,21 +106,18 @@
  real(kind=RKIND),pointer:: len_disp
  real(kind=RKIND),dimension(:),pointer:: areaCell,meshDensity
  real(kind=RKIND),dimension(:),pointer:: xland
- type(Field1DReal), pointer :: areaCellField
- type(mpas_coupler_type), pointer :: coupler
+
 !-----------------------------------------------------------------------------------------------------------------
 
  call mpas_pool_get_config(configs,'config_len_disp',len_disp)
 
  call mpas_pool_get_array_gpu(mesh,'areaCell'   ,areaCell   )
- call mpas_pool_get_field(mesh,'areaCell'   ,areaCellField   )
  call mpas_pool_get_array_gpu(mesh,'meshDensity',meshDensity)
 
  call mpas_pool_get_array_gpu(sfc_input,'xland',xland)
- coupler => areaCellField%block%domain%mpas_cpl
- if(coupler%role() == ROLE_INTEGRATE) then
-        !$acc update host(areaCell, meshDensity, xland)
- end if
+
+!!!
+ !$acc update host(areaCell, meshDensity, xland)
 
  do j = jts,jte
     do i = its,ite
@@ -159,12 +154,10 @@
  integer:: i,j,k
 
  real(kind=RKIND),dimension(:,:),pointer:: cldfrac
- type(Field2DReal), pointer :: cldfracField
- type(mpas_coupler_type), pointer :: coupler
+
 !-----------------------------------------------------------------------------------------------------------------
 
  call mpas_pool_get_array_gpu(diag_physics,'cldfrac',cldfrac)
- call mpas_pool_get_field(diag_physics,'cldfrac',cldfracField)
 
  do j = jts,jte
  do k = kts,kte
@@ -174,10 +167,9 @@
  enddo
  enddo
  
- coupler => cldfracField%block%domain%mpas_cpl
- if(coupler%role() == ROLE_INTEGRATE) then
-        !$acc update device(cldfrac)
- end if
+!!!
+ !$acc update device(cldfrac)
+
  end subroutine cloudiness_to_MPAS
 
 !=================================================================================================================
