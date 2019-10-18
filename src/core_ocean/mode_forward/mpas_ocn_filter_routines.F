@@ -988,7 +988,8 @@ CONTAINS
    !                                                                                   ! 
    !-----------------------------------------------------------------------------------!
    SUBROUTINE DetermineFilterWeights(FilterType,RectangularFilterRange,pShchepetkin, &
-                                     qShchepetkin,nBarotropicTimeSteps,tau, &
+                                     qShchepetkin,nBarotropicTimeSteps, &
+                                     LastIndexWithNonTrivialFilterWeight,tau, &
                                      PrimaryWeights,SecondaryWeights)
    
    IMPLICIT NONE
@@ -996,12 +997,14 @@ CONTAINS
    CHARACTER(LEN=*), INTENT(IN) :: FilterType
    INTEGER, INTENT(IN) :: nBarotropicTimeSteps
    REAL(KIND=RKIND), INTENT(IN) :: RectangularFilterRange, pShchepetkin, qShchepetkin
+   INTEGER, INTENT(OUT) :: LastIndexWithNonTrivialFilterWeight
    REAL(KIND=RKIND), INTENT(OUT), DIMENSION(1:2*nBarotropicTimeSteps) &
    :: tau, PrimaryWeights, SecondaryWeights
    
    ! Local variables
    REAL(KIND=RKIND), PARAMETER :: PI = 4._RKIND*ATAN(1._RKIND)
-   INTEGER :: iBarotropicTimeStep, jBarotropicTimeStep
+   INTEGER :: iBarotropicTimeStep, jBarotropicTimeStep, LastPrimaryIndex, &
+              LastSecondaryIndex
    REAL(KIND=RKIND) :: tauStar, tau0, A0, r
    
    PrimaryWeights = 0._RKIND
@@ -1086,6 +1089,26 @@ CONTAINS
    PrimaryWeights = PrimaryWeights/SUM(PrimaryWeights)
    SecondaryWeights = SecondaryWeights/SUM(SecondaryWeights)
    
+   DO iBarotropicTimeStep = 2, 2*nBarotropicTimeSteps - 1
+      IF (PrimaryWeights(iBarotropicTimeStep - 1) /= 0._RKIND .AND. &
+          PrimaryWeights(iBarotropicTimeStep) == 0._RKIND .AND. &
+          PrimaryWeights(iBarotropicTimeStep + 1) == 0._RKIND) THEN
+         LastPrimaryIndex = iBarotropicTimeStep - 1
+         EXIT 
+      END IF 
+   END DO 
+
+   DO iBarotropicTimeStep = 2, 2*nBarotropicTimeSteps - 1
+      IF (SecondaryWeights(iBarotropicTimeStep - 1) /= 0._RKIND .AND. &
+          SecondaryWeights(iBarotropicTimeStep) == 0._RKIND .AND. &
+          SecondaryWeights(iBarotropicTimeStep + 1) == 0._RKIND) THEN
+         LastSecondaryIndex = iBarotropicTimeStep - 1
+         EXIT 
+      END IF 
+   END DO 
+   
+   LastIndexWithNonTrivialFilterWeight = MAX(LastPrimaryIndex,LastSecondaryIndex)
+
    END SUBROUTINE DetermineFilterWeights
    !-----------------------------------------------------------------------------------!
    !                                                                                   ! 
@@ -1095,7 +1118,7 @@ CONTAINS
    IMPLICIT NONE
     
    CHARACTER(LEN=50) :: FilterType, Filename
-   INTEGER :: nBarotropicTimeSteps
+   INTEGER :: nBarotropicTimeSteps, LastIndexWithNonTrivialFilterWeight
    REAL(KIND=RKIND), ALLOCATABLE, DIMENSION(:) :: tau, PrimaryWeights, SecondaryWeights   
    
    FilterType = 'no_filter_type_1'
@@ -1106,7 +1129,9 @@ CONTAINS
    ALLOCATE (SecondaryWeights(1:2*nBarotropicTimeSteps))
    
    CALL DetermineFilterWeights(FilterType,0.5_RKIND,2._RKIND,2._RKIND, &
-                               nBarotropicTimeSteps,tau,PrimaryWeights,SecondaryWeights)
+                               nBarotropicTimeSteps, &
+                               LastIndexWithNonTrivialFilterWeight, &
+                               tau,PrimaryWeights,SecondaryWeights)
                             
    WRITE (*,'(A,F9.6,A)') &
    'With no filter of type 1, the sum of all primary weights is ', &
@@ -1137,7 +1162,7 @@ CONTAINS
    IMPLICIT NONE
     
    CHARACTER(LEN=50) :: FilterType, Filename
-   INTEGER :: nBarotropicTimeSteps
+   INTEGER :: nBarotropicTimeSteps, LastIndexWithNonTrivialFilterWeight
    REAL(KIND=RKIND), ALLOCATABLE, DIMENSION(:) :: tau, PrimaryWeights, SecondaryWeights   
    
    FilterType = 'no_filter_type_2'
@@ -1148,7 +1173,9 @@ CONTAINS
    ALLOCATE (SecondaryWeights(1:2*nBarotropicTimeSteps))
    
    CALL DetermineFilterWeights(FilterType,0.5_RKIND,2._RKIND,2._RKIND, &
-                               nBarotropicTimeSteps,tau,PrimaryWeights,SecondaryWeights)
+                               nBarotropicTimeSteps, &
+                               LastIndexWithNonTrivialFilterWeight, &
+                               tau,PrimaryWeights,SecondaryWeights)
                             
    WRITE (*,'(A,F9.6,A)') &
    'With no filter of type 2, the sum of all primary weights is ', &
@@ -1180,9 +1207,9 @@ CONTAINS
    
    REAL(KIND=RKIND), INTENT(IN) :: RectangularFilterRange
    
-   ! Local variables   
+   ! Local variables 
    CHARACTER(LEN=50) :: FilterType, Filename
-   INTEGER :: nBarotropicTimeSteps
+   INTEGER :: nBarotropicTimeSteps, LastIndexWithNonTrivialFilterWeight
    REAL(KIND=RKIND), ALLOCATABLE, DIMENSION(:) :: tau, PrimaryWeights, SecondaryWeights   
    
    FilterType = 'rectangular'
@@ -1193,7 +1220,9 @@ CONTAINS
    ALLOCATE (SecondaryWeights(1:2*nBarotropicTimeSteps))
    
    CALL DetermineFilterWeights(FilterType,RectangularFilterRange,2._RKIND,2._RKIND, &
-                               nBarotropicTimeSteps,tau,PrimaryWeights,SecondaryWeights)
+                               nBarotropicTimeSteps, &
+                               LastIndexWithNonTrivialFilterWeight, &
+                               tau,PrimaryWeights,SecondaryWeights)
                             
    WRITE (*,'(A,F4.2,A,F8.6,A)') &
    'The sum of all primary weights of the rectangular filter with range ', &
@@ -1226,7 +1255,7 @@ CONTAINS
    IMPLICIT NONE
  
    CHARACTER(LEN=40) :: FilterType
-   INTEGER :: nBarotropicTimeSteps
+   INTEGER :: nBarotropicTimeSteps, LastIndexWithNonTrivialFilterWeight
    REAL(KIND=RKIND), ALLOCATABLE, DIMENSION(:) :: tau, PrimaryWeights, SecondaryWeights   
    
    FilterType = 'ROMS_cosine'
@@ -1237,7 +1266,9 @@ CONTAINS
    ALLOCATE (SecondaryWeights(1:2*nBarotropicTimeSteps))
    
    CALL DetermineFilterWeights(FilterType,0.5_RKIND,2._RKIND,2._RKIND, &
-                               nBarotropicTimeSteps,tau,PrimaryWeights,SecondaryWeights)
+                               nBarotropicTimeSteps, &
+                               LastIndexWithNonTrivialFilterWeight, &
+                               tau,PrimaryWeights,SecondaryWeights)
                             
    WRITE (*,'(A,F8.6,A)') &
    'The sum of all primary weights of the ROMS cosine filter is ', &
@@ -1265,7 +1296,7 @@ CONTAINS
    IMPLICIT NONE
  
    CHARACTER(LEN=40) :: FilterType
-   INTEGER :: nBarotropicTimeSteps
+   INTEGER :: nBarotropicTimeSteps, LastIndexWithNonTrivialFilterWeight
    REAL(KIND=RKIND), ALLOCATABLE, DIMENSION(:) :: tau, PrimaryWeights, SecondaryWeights   
    
    FilterType = 'Hamming_window_cosine'
@@ -1276,7 +1307,9 @@ CONTAINS
    ALLOCATE (SecondaryWeights(1:2*nBarotropicTimeSteps))
    
    CALL DetermineFilterWeights(FilterType,0.5_RKIND,2._RKIND,2._RKIND, &
-                               nBarotropicTimeSteps,tau,PrimaryWeights,SecondaryWeights)
+                               nBarotropicTimeSteps, &
+                               LastIndexWithNonTrivialFilterWeight, &
+                               tau,PrimaryWeights,SecondaryWeights)
                             
    WRITE (*,'(A,F9.6,A)') &
    'The sum of all primary weights of the Hamming window cosine filter is ', &
@@ -1307,7 +1340,7 @@ CONTAINS
    
    ! Local variables
    CHARACTER(LEN=40) :: FilterType
-   INTEGER :: nBarotropicTimeSteps
+   INTEGER :: nBarotropicTimeSteps, LastIndexWithNonTrivialFilterWeight
    REAL(KIND=RKIND), ALLOCATABLE, DIMENSION(:) :: tau, PrimaryWeights, SecondaryWeights   
    
    FilterType = 'Shchepetkin_second_order_accurate'
@@ -1318,7 +1351,9 @@ CONTAINS
    ALLOCATE (SecondaryWeights(1:2*nBarotropicTimeSteps))
    
    CALL DetermineFilterWeights(FilterType,0.5_RKIND,pShchepetkin,qShchepetkin, &
-                               nBarotropicTimeSteps,tau,PrimaryWeights,SecondaryWeights)
+                               nBarotropicTimeSteps, &
+                               LastIndexWithNonTrivialFilterWeight, &
+                               tau,PrimaryWeights,SecondaryWeights)
                             
    WRITE (*,'(2A,F8.6,A)') 'The sum of all primary weights of the second order ', &
    'accurate Shchepetkin filter is ', SUM(PrimaryWeights), '.'
@@ -1349,7 +1384,7 @@ CONTAINS
    
    ! Local variables
    CHARACTER(LEN=40) :: FilterType
-   INTEGER :: nBarotropicTimeSteps
+   INTEGER :: nBarotropicTimeSteps, LastIndexWithNonTrivialFilterWeight
    REAL(KIND=RKIND), ALLOCATABLE, DIMENSION(:) :: tau, PrimaryWeights, SecondaryWeights   
    
    FilterType = 'Shchepetkin_minimal_dispersion'
@@ -1360,7 +1395,9 @@ CONTAINS
    ALLOCATE (SecondaryWeights(1:2*nBarotropicTimeSteps))
    
    CALL DetermineFilterWeights(FilterType,0.5_RKIND,pShchepetkin,qShchepetkin, &
-                               nBarotropicTimeSteps,tau,PrimaryWeights,SecondaryWeights)
+                               nBarotropicTimeSteps, &
+                               LastIndexWithNonTrivialFilterWeight, &
+                               tau,PrimaryWeights,SecondaryWeights)
                             
    WRITE (*,'(2A,F8.6,A)') 'The sum of all primary weights of the Shchepetkin ', &
    'filter optimized for minimal dispersion is ', SUM(PrimaryWeights), '.'

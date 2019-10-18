@@ -71,6 +71,7 @@ module ocn_time_integration_split_filtered
    integer :: nBtrSubcycles, debugSplitExplicitUnit
    
    ! Primary and Secondary Weights of the Time-Averaging Filter
+   integer :: LastIndexWithNonTrivialFilterWeight
    real (kind=RKIND), allocatable, dimension(:) :: tau, PrimaryWeights, SecondaryWeights  
 
 contains
@@ -367,7 +368,7 @@ contains
             normalBarotropicVelocityCur(iEdge) = normalBarotropicVelocityCur(iEdge) / thicknessSum
 
             ! Compute baroclinic component
-            do k = 1, nVertLevels !maxLevelEdgeTop % array(iEdge)
+            do k = 1, nVertLevels ! maxLevelEdgeTop % array(iEdge)
                normalBaroclinicVelocityCur(k,iEdge) = normalVelocityCur(k,iEdge) - normalBarotropicVelocityCur(iEdge)
 
                normalVelocityNew(k,iEdge) = normalVelocityCur(k,iEdge)
@@ -826,7 +827,7 @@ contains
             call mpas_threading_barrier()
 
             call mpas_timer_start('btr se subcycle loop')
-            do j = 1, nBtrSubcycles * config_btr_subcycle_loop_factor
+            do j = 1, LastIndexWithNonTrivialFilterWeight ! nBtrSubcycles * config_btr_subcycle_loop_factor
                if(cellHaloComputeCounter < neededHalos) then
 
                   call mpas_threading_barrier()
@@ -1384,7 +1385,7 @@ contains
                oldBtrSubcycleTime = mod(oldBtrSubcycleTime,2)+1
                newBtrSubcycleTime = mod(newBtrSubcycleTime,2)+1
 
-            end do ! j = 1, nBtrSubcycles * config_btr_subcycle_loop_factor
+            end do ! j = 1, LastIndexWithNonTrivialFilterWeight ! j = 1, nBtrSubcycles * config_btr_subcycle_loop_factor
             call mpas_timer_stop('btr se subcycle loop')
 
             call mpas_threading_barrier()
@@ -2290,7 +2291,7 @@ contains
       allocate (SecondaryWeights(1:2*nBtrSubcycles))
 
       call DetermineFilterWeights(config_btr_filter_type,config_btr_rectangular_filter_range,config_btr_Shchepetkin_filter_param_p, &
-         config_btr_Shchepetkin_filter_param_q,nBtrSubcycles,tau,PrimaryWeights,SecondaryWeights)
+         config_btr_Shchepetkin_filter_param_q,nBtrSubcycles,LastIndexWithNonTrivialFilterWeight,tau,PrimaryWeights,SecondaryWeights)
 
       if (config_debug_split_explicit) then
          ! Open up temporary file
