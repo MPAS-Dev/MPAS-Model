@@ -121,6 +121,7 @@ module mpas_pool_routines
    end interface
 
    integer :: currentErrorLevel = MPAS_POOL_SILENT
+   integer, parameter, private :: ROLE_INTEGRATE = 0, ROLE_RADIATION = 1
 
    contains
 
@@ -4263,13 +4264,19 @@ module mpas_pool_routines
       integer, intent(in), optional :: timeLevel
 
       type (field0DReal), pointer :: field
-
-
+      type (mpas_coupler_type), pointer :: coupler
+      
       call mpas_pool_get_field_0d_real(inPool, key, field, timeLevel)
 
+      coupler => field%block%domain%mpas_cpl
+
       nullify(scalar)
-      if (associated(field)) scalar => field % scalar
-      !$acc enter data copyin(field%scalar)
+      if (associated(field)) then 
+              scalar => field % scalar
+              if(coupler%role() == ROLE_INTEGRATE) then
+                      !$acc enter data copyin(field%scalar)
+              end if
+      end if
    end subroutine mpas_pool_get_array_0d_real_gpu!}}}
 
 
@@ -4312,13 +4319,19 @@ module mpas_pool_routines
       integer, intent(in), optional :: timeLevel
 
       type (field1DReal), pointer :: field
+      type (mpas_coupler_type), pointer :: coupler
 
 
       call mpas_pool_get_field_1d_real(inPool, key, field, timeLevel)
 
       nullify(array)
-      if (associated(field)) array => field % array
-      !$acc enter data copyin(field%array)
+      if (associated(field)) then 
+              coupler => field%block%domain%mpas_cpl
+              array => field % array
+              if(coupler%role() == ROLE_INTEGRATE) then
+                      !$acc enter data copyin(field%array)
+              end if
+      end if
    end subroutine mpas_pool_get_array_1d_real_gpu!}}}
 
 
@@ -4361,13 +4374,19 @@ module mpas_pool_routines
       integer, intent(in), optional :: timeLevel
 
       type (field2DReal), pointer :: field
+      type (mpas_coupler_type), pointer :: coupler
 
 
       call mpas_pool_get_field_2d_real(inPool, key, field, timeLevel)
 
       nullify(array)
-      if (associated(field)) array => field % array
-      !$acc enter data copyin(field%array)
+      if (associated(field)) then 
+              coupler => field%block%domain%mpas_cpl
+              array => field % array
+              if(coupler%role() == ROLE_INTEGRATE) then
+                      !$acc enter data copyin(field%array)
+              end if
+      end if
 
    end subroutine mpas_pool_get_array_2d_real_gpu!}}}
 
@@ -4412,13 +4431,19 @@ module mpas_pool_routines
       integer, intent(in), optional :: timeLevel
 
       type (field3DReal), pointer :: field
+      type (mpas_coupler_type), pointer :: coupler
 
 
       call mpas_pool_get_field_3d_real(inPool, key, field, timeLevel)
 
       nullify(array)
-      if (associated(field)) array => field % array
-      !$acc enter data copyin(field%array)
+      if (associated(field)) then 
+              coupler => field%block%domain%mpas_cpl
+              array => field % array
+              if(coupler%role() == ROLE_INTEGRATE) then
+                      !$acc enter data copyin(field%array)
+              end if
+      end if
 
    end subroutine mpas_pool_get_array_3d_real_gpu!}}}
 
@@ -4461,13 +4486,19 @@ module mpas_pool_routines
       integer, intent(in), optional :: timeLevel
 
       type (field4DReal), pointer :: field
+      type (mpas_coupler_type), pointer :: coupler
 
 
       call mpas_pool_get_field_4d_real(inPool, key, field, timeLevel)
 
       nullify(array)
-      if (associated(field)) array => field % array
-      !$acc enter data copyin(field%array)
+      if (associated(field)) then 
+              coupler => field%block%domain%mpas_cpl
+              array => field % array
+              if(coupler%role() == ROLE_INTEGRATE) then
+                      !$acc enter data copyin(field%array)
+              end if
+      end if
 
    end subroutine mpas_pool_get_array_4d_real_gpu!}}}
 
@@ -4511,13 +4542,19 @@ module mpas_pool_routines
       integer, intent(in), optional :: timeLevel
 
       type (field5DReal), pointer :: field
+      type (mpas_coupler_type), pointer :: coupler
 
 
       call mpas_pool_get_field_5d_real(inPool, key, field, timeLevel)
 
       nullify(array)
-      if (associated(field)) array => field % array
-      !$acc enter data copyin(field%array)
+      if (associated(field)) then 
+              coupler => field%block%domain%mpas_cpl
+              array => field % array
+              if(coupler%role() == ROLE_INTEGRATE) then
+                      !$acc enter data copyin(field%array)
+              end if
+      end if
 
    end subroutine mpas_pool_get_array_5d_real_gpu!}}}
 
@@ -4561,13 +4598,19 @@ module mpas_pool_routines
       integer, intent(in), optional :: timeLevel
 
       type (field0DInteger), pointer :: field
+      type (mpas_coupler_type), pointer :: coupler
 
 
       call mpas_pool_get_field_0d_int(inPool, key, field, timeLevel)
 
       nullify(scalar)
-      if (associated(field)) scalar => field % scalar
-      !$acc enter data copyin(field%scalar)
+      if (associated(field)) then 
+              coupler => field%block%domain%mpas_cpl
+              scalar => field % scalar
+              if(coupler%role() == ROLE_INTEGRATE) then
+                      !$acc enter data copyin(field%scalar)
+              end if
+      end if
 
    end subroutine mpas_pool_get_array_0d_int_gpu!}}}
 
@@ -4611,13 +4654,19 @@ module mpas_pool_routines
       integer, intent(in), optional :: timeLevel
 
       type (field1DInteger), pointer :: field
+      type (mpas_coupler_type), pointer :: coupler
 
 
       call mpas_pool_get_field_1d_int(inPool, key, field, timeLevel)
 
       nullify(array)
-      if (associated(field)) array => field % array
-      !$acc enter data copyin(field%array)
+      if (associated(field)) then 
+              coupler => field%block%domain%mpas_cpl
+              array => field % array
+              if(coupler%role() == ROLE_INTEGRATE) then
+                      !$acc enter data copyin(field%array)
+              end if
+      end if
 
    end subroutine mpas_pool_get_array_1d_int_gpu!}}}
 
@@ -4661,13 +4710,19 @@ module mpas_pool_routines
       integer, intent(in), optional :: timeLevel
 
       type (field2DInteger), pointer :: field
+      type (mpas_coupler_type), pointer :: coupler
 
 
       call mpas_pool_get_field_2d_int(inPool, key, field, timeLevel)
 
       nullify(array)
-      if (associated(field)) array => field % array
-      !$acc enter data copyin(field%array)
+      if (associated(field)) then 
+              coupler => field%block%domain%mpas_cpl
+              array => field % array
+              if(coupler%role() == ROLE_INTEGRATE) then
+                      !$acc enter data copyin(field%array)
+              end if
+      end if
 
    end subroutine mpas_pool_get_array_2d_int_gpu!}}}
 
@@ -4711,13 +4766,19 @@ module mpas_pool_routines
       integer, intent(in), optional :: timeLevel
 
       type (field3DInteger), pointer :: field
+      type (mpas_coupler_type), pointer :: coupler
 
 
       call mpas_pool_get_field_3d_int(inPool, key, field, timeLevel)
 
       nullify(array)
-      if (associated(field)) array => field % array
-      !$acc enter data copyin(field%array)
+      if (associated(field)) then 
+              coupler => field%block%domain%mpas_cpl
+              array => field % array
+              if(coupler%role() == ROLE_INTEGRATE) then
+                      !$acc enter data copyin(field%array)
+              end if
+      end if
 
    end subroutine mpas_pool_get_array_3d_int_gpu!}}}
 
@@ -4761,13 +4822,19 @@ module mpas_pool_routines
       integer, intent(in), optional :: timeLevel
 
       type (field0DChar), pointer :: field
+      type (mpas_coupler_type), pointer :: coupler
 
 
       call mpas_pool_get_field_0d_char(inPool, key, field, timeLevel)
 
       nullify(string)
-      if (associated(field)) string => field % scalar
-      !$acc enter data copyin(field%scalar)
+      if (associated(field)) then 
+              coupler => field%block%domain%mpas_cpl
+              string => field % scalar
+              if(coupler%role() == ROLE_INTEGRATE) then
+                      !$acc enter data copyin(field%scalar)
+              end if
+      end if
 
    end subroutine mpas_pool_get_array_0d_char_gpu!}}}
 
@@ -4811,13 +4878,19 @@ module mpas_pool_routines
       integer, intent(in), optional :: timeLevel
 
       type (field1DChar), pointer :: field
+      type (mpas_coupler_type), pointer :: coupler
 
 
       call mpas_pool_get_field_1d_char(inPool, key, field, timeLevel)
 
       nullify(array)
-      if (associated(field)) array => field % array
-      !$acc enter data copyin(field%array)
+      if (associated(field)) then 
+              coupler => field%block%domain%mpas_cpl
+              array => field % array
+              if(coupler%role() == ROLE_INTEGRATE) then
+                      !$acc enter data copyin(field%array)
+              end if
+      end if
 
    end subroutine mpas_pool_get_array_1d_char_gpu!}}}
 

@@ -200,7 +200,9 @@ module atm_core
       call mpas_atm_diag_setup(domain % streamManager, domain % blocklist % configs, &
                                domain % blocklist % structs, domain % clock, domain % dminfo)
 
+if (mpas_cpl % role() == ROLE_INTEGRATE) then
       call mpas_atm_dynamics_init(domain)
+end if 
 
    end function atm_core_init
 
@@ -460,7 +462,7 @@ module atm_core
          call physics_run_init(block % configs, mesh, state, clock, stream_manager)
 
          !initialization of all physics:
-         call physics_init(dminfo, clock, block % configs, mesh, diag, tend, state, 1, diag_physics, &
+         call physics_init(block, dminfo, clock, block % configs, mesh, diag, tend, state, 1, diag_physics, &
                            atm_input, sfc_input)
       endif
 #endif
@@ -924,6 +926,7 @@ module atm_core
       type (domain_type), intent(inout) :: domain
       type (block_type), pointer :: block_ptr 
       integer :: ierr
+      mpas_cpl => domain % mpas_cpl
 
       ierr = 0
 
@@ -941,7 +944,9 @@ module atm_core
          end do
 #endif
 
+if (mpas_cpl % role() == ROLE_INTEGRATE) then
       call mpas_atm_dynamics_finalize(domain)
+end if 
 
       !
       ! Finalize threading
