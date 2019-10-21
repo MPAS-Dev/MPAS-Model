@@ -481,7 +481,7 @@ contains
    enddo
 !$acc end parallel
 
-write(*,*) "The value of kpblmax before is ",kpblmax
+!!!write(*,*) "The value of kpblmax before is ",kpblmax
 !$acc parallel num_gangs(1) num_workers(1) vector_length(1)
    kpblmax = 2
 !$acc end parallel
@@ -498,7 +498,7 @@ write(*,*) "The value of kpblmax before is ",kpblmax
 !$acc parallel num_gangs(1) num_workers(1) vector_length(1)
    kpblmax = min(kpblmax+1,kte-1)
 !$acc end parallel
-write(*,*) "The values of kpblmax after is ",kpblmax
+!!!write(*,*) "The values of kpblmax after is ",kpblmax
 !
 ! compute low level averages within pbl
 !

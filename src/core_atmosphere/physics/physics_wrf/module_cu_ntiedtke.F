@@ -365,8 +365,8 @@ contains
 !
 
 !-----------------------------------------------------------------------
-write(*,*) "*** cu_ntiedtke 0"
-!!!$acc parallel vector_length(32)
+!!!write(*,*) "*** cu_ntiedtke 0"
+!!!$acc parallel vector_length(128)
 !!!$acc loop gang vector collapse(2)
 !!!      do j=jts,jte
 !!!         do i=its,ite
@@ -386,7 +386,7 @@ write(*,*) "*** cu_ntiedtke 0"
    do j=jts,jte
 
 ! --------------- compute zi and zl -----------------------------------------
-!$acc parallel vector_length(32)
+!$acc parallel vector_length(128)
 !$acc loop gang vector
       do i=its,ite
         cu_act_flag(i,j)=.true.
@@ -394,7 +394,7 @@ write(*,*) "*** cu_ntiedtke 0"
       enddo
 !$acc end parallel
 !
-!$acc parallel vector_length(32)
+!$acc parallel vector_length(128)
 !$acc loop seq
       do k=kts,kte
 !$acc loop gang vector
@@ -404,7 +404,7 @@ write(*,*) "*** cu_ntiedtke 0"
       enddo
 !$acc end parallel
 !
-!$acc parallel vector_length(32)
+!$acc parallel vector_length(128)
 !$acc loop gang vector collapse(2)
       do k=kts,kte
         do i=its,ite
@@ -414,14 +414,14 @@ write(*,*) "*** cu_ntiedtke 0"
 !$acc end parallel
 
 ! --------------- end compute zi and zl -------------------------------------
-!$acc parallel vector_length(32)
+!$acc parallel vector_length(128)
 !$acc loop gang vector
       do i=its,ite
         slimsk(i)=int(abs(xland(i,j)-2.))
       enddo
 !$acc end parallel
 
-!$acc parallel vector_length(32)
+!$acc parallel vector_length(128)
 !$acc loop gang vector collapse(2)
       do k=kts,kte
         do i=its,ite
@@ -432,7 +432,7 @@ write(*,*) "*** cu_ntiedtke 0"
 !!!$acc end parallel
 
 !!!      pp = 0
-!!!$acc parallel vector_length(32)
+!!!$acc parallel vector_length(128)
 !$acc loop gang vector collapse(2) private(zz)
       do k=kts,kte
 !!!        zz = kte-pp
@@ -461,7 +461,7 @@ write(*,*) "*** cu_ntiedtke 0"
 !$acc end parallel
 
 !!!      pp = 0
-!$acc parallel vector_length(32)
+!$acc parallel vector_length(128)
 !$acc loop gang vector collapse(2) private(zz)
       do k=kts,kte+1
 !!!        zz = kte+1-pp
@@ -474,7 +474,7 @@ write(*,*) "*** cu_ntiedtke 0"
       enddo
 !$acc end parallel
 !
-!$acc parallel vector_length(32)
+!$acc parallel vector_length(128)
 !$acc loop gang vector
       do i=its,ite
         evap(i)    = qfx(i,j)
@@ -488,13 +488,13 @@ write(*,*) "*** cu_ntiedtke 0"
       enddo
 !$acc end parallel
 !
-write(*,*) "*** cu_ntiedtke 1"
+!!!write(*,*) "*** cu_ntiedtke 1"
 !########################################################################
       call tiecnvn(u1,v1,w1,t1,q1,q2,q3,q1b,t1b,ghtl,ghti,omg,prsl,prsi,evap,heatflux,  &
                   rn,slimsk,im,kx,kx1,delt,dx1,ust1,wst1,hgamt1,hgamq1,entpbl1,ktype,   &
                   cubot,cutop,its,ite,kts,kte)
 
-!$acc parallel vector_length(32)
+!$acc parallel vector_length(128)
 !$acc loop gang vector
       do i=its,ite
         if(ktype(i) .eq. 2 .and. .not. lshpcp) then
@@ -508,7 +508,7 @@ write(*,*) "*** cu_ntiedtke 1"
 !$acc end parallel
 
 !!!      pp = 0
-!$acc parallel vector_length(32)
+!$acc parallel vector_length(128)
 !$acc loop gang vector collapse(2) private(zz)
       do k=kts,kte
 !!!        zz = kte-pp
@@ -526,7 +526,7 @@ write(*,*) "*** cu_ntiedtke 1"
       if(present(rqccuten))then
         if ( f_qc ) then
 !!!          pp = 0
-!$acc parallel vector_length(32)
+!$acc parallel vector_length(128)
 !$acc loop gang vector collapse(2)
           do k=kts,kte
 !!!            zz = kte-pp
@@ -543,7 +543,7 @@ write(*,*) "*** cu_ntiedtke 1"
       if(present(rqicuten))then
         if ( f_qi ) then
 !!!          pp = 0
-!$acc parallel vector_length(32)
+!$acc parallel vector_length(128)
 !$acc loop gang vector collapse(2)
           do k=kts,kte
 !!!            zz = kte-pp
@@ -561,7 +561,7 @@ write(*,*) "*** cu_ntiedtke 1"
    enddo
 !$acc end data
 
-write(*,*) "*** cu_ntiedtke 2"
+!!!write(*,*) "*** cu_ntiedtke 2"
    end subroutine cu_ntiedtke
 
 !====================================================================
@@ -693,8 +693,8 @@ write(*,*) "*** cu_ntiedtke 2"
 !$acc zqq,pcte,ztp1,zqp1,ztu,zqu,zlu,zlude,zmfu,zmfd,zqsat,pqhfl, &
 !$acc prsfc,pssfc,phhfl,zrain,pgeoh,icbot,ictop,locum,scale_tau,scale_mf)
 
-write(*,*) "*** cu_ntiedtke 1.0"
-!$acc parallel vector_length(32)
+!!!write(*,*) "*** cu_ntiedtke 1.0"
+!$acc parallel vector_length(128)
 !$acc loop gang vector 
       do j=its,ite
         if (lscale .and. dx(j).lt.dxref) then
@@ -711,7 +711,7 @@ write(*,*) "*** cu_ntiedtke 1.0"
 !
 !  masv flux diagnostics.
 !
-!$acc parallel vector_length(32)
+!$acc parallel vector_length(128)
 !$acc loop gang vector
       do j=its,ite
         zrain(j)=0.0
@@ -726,7 +726,7 @@ write(*,*) "*** cu_ntiedtke 1.0"
 !
 !     convert model variables for mflux scheme
 !
-!$acc parallel vector_length(32)
+!$acc parallel vector_length(128)
 !$acc loop gang vector collapse(2) private(tmp,zew,zqs,zcor)
       do k=kts,kte
         do j=its,ite
@@ -760,7 +760,7 @@ write(*,*) "*** cu_ntiedtke 1.0"
 !-----------------------------------------------------------------------
 !*    2.     call 'cumastrn'(master-routine for cumulus parameterization)
 !
-write(*,*) "*** cu_ntiedtke 1.1"
+!!!write(*,*) "*** cu_ntiedtke 1.1"
       call cumastrn        &
      &    (lq,        km,       km1,      km-1,    ztp1          ,&
      &     zqp1,      pum1,     pvm1,     pwm1,    pverv,   zqsat,&
@@ -775,7 +775,7 @@ write(*,*) "*** cu_ntiedtke 1.1"
 !
 !     to include the cloud water and cloud ice detrained from convection
 !
-!$acc parallel vector_length(32)
+!$acc parallel vector_length(128)
 !$acc loop gang vector collapse(2) private(fliq,fice)
       do k=kts,kte
       do j=its,ite
@@ -790,7 +790,7 @@ write(*,*) "*** cu_ntiedtke 1.1"
       end do
 !$acc end parallel
 !
-!$acc parallel vector_length(32)
+!$acc parallel vector_length(128)
 !$acc loop gang vector collapse(2)
       do k=kts,kte
         do j=its,ite
@@ -801,7 +801,7 @@ write(*,*) "*** cu_ntiedtke 1.1"
       end do
 !$acc end parallel
 
-!$acc parallel vector_length(32)
+!$acc parallel vector_length(128)
 !$acc loop gang vector
       do j=its,ite
         zprecc(j)=amax1(0.0,(prsfc(j)+pssfc(j))*ztmst)
@@ -816,7 +816,7 @@ write(*,*) "*** cu_ntiedtke 1.1"
 !$acc end parallel
 
       if (lmfdudv) then
-!$acc parallel vector_length(32)
+!$acc parallel vector_length(128)
 !$acc loop gang vector collapse(2)
         do k=kts,kte
           do j=its,ite
@@ -1009,7 +1009,7 @@ write(*,*) "*** cu_ntiedtke 1.1"
       zcons=1./(g*ztmst)
       zcons2=3./(g*ztmst)
 
-write(*,*) "*** cu_ntiedtke 1.1.0"
+!!!write(*,*) "*** cu_ntiedtke 1.1.0"
 !--------------------------------------------------------------
 !*    2.    initialize values at vertical grid points in 'cuini'
 !--------------------------------------------------------------
@@ -1029,7 +1029,7 @@ write(*,*) "*** cu_ntiedtke 1.1.0"
 !*         (a) determine cloud base values in 'cutypen',
 !              and the cumulus type 1 or 2
 !          -------------------------------------------
-write(*,*) "*** cu_ntiedtke 1.1.1"
+!!!write(*,*) "*** cu_ntiedtke 1.1.1"
        call cutypen &
      &     ( klon,     klev,     klevp1,   klevm1,     pqen,&
      &      ztenh,    zqenh,     zqsenh,    zgeoh,     paph,&
@@ -1042,7 +1042,7 @@ write(*,*) "*** cu_ntiedtke 1.1.1"
 
 !*         (b) assign the first guess mass flux at cloud base
 !              ------------------------------------------
-!$acc parallel vector_length(32)
+!$acc parallel vector_length(128)
 !$acc loop gang vector
        do jl=its,ite
          zdhpbl(jl)=0.0
@@ -1051,7 +1051,7 @@ write(*,*) "*** cu_ntiedtke 1.1.1"
        end do
 !$acc end parallel
 
-!$acc parallel vector_length(32)
+!$acc parallel vector_length(128)
 !$acc loop seq
        do jk=kts+1,kte
 !$acc loop gang vector private(wspeed)
@@ -1068,7 +1068,7 @@ write(*,*) "*** cu_ntiedtke 1.1.1"
        end do
 !$acc end parallel
 
-!$acc parallel vector_length(32)
+!$acc parallel vector_length(128)
 !$acc loop gang vector private(ikb,zmfmax,zqumqe,zdqmin,zdh)
       do jl=its,ite
         if(ldcum(jl)) then
@@ -1099,7 +1099,7 @@ write(*,*) "*** cu_ntiedtke 1.1.1"
 !------------------------------------------------------
 !*    (a) do ascent in 'cuasc'in absence of downdrafts
 !----------------------------------------------------------
-write(*,*) "*** cu_ntiedtke 1.1.2"
+!!!write(*,*) "*** cu_ntiedtke 1.1.2"
       call cuascn &
      &    (klon,     klev,     klevp1,   klevm1,   ztenh,&
      &     zqenh,    puen,     pven,     pten,     pqen,&
@@ -1115,7 +1115,7 @@ write(*,*) "*** cu_ntiedtke 1.1.2"
 !*     (b) check cloud depth and change entrainment rate accordingly
 !          calculate precipitation rate (for downdraft calculation)
 !------------------------------------------------------------------
-!$acc parallel vector_length(32)
+!$acc parallel vector_length(128)
 !$acc loop gang vector private(ikb,itopm2,zpbmpt)
       do jl=its,ite
         if ( ldcum(jl) ) then
@@ -1130,7 +1130,7 @@ write(*,*) "*** cu_ntiedtke 1.1.2"
       end do
 !$acc end parallel
 
-!$acc parallel vector_length(32)
+!$acc parallel vector_length(128)
 !$acc loop seq
       do jk=kts+1,kte
 !$acc loop gang vector
@@ -1140,7 +1140,7 @@ write(*,*) "*** cu_ntiedtke 1.1.2"
       end do
 !$acc end parallel
 
-!$acc parallel vector_length(32)
+!$acc parallel vector_length(128)
 !$acc loop gang vector collapse(2)
       do jk = kts,kte
       do jl = its,ite
@@ -1159,7 +1159,7 @@ write(*,*) "*** cu_ntiedtke 1.1.2"
       if(lmfdd) then
 !*      (a) determine lfs in 'cudlfsn'
 !--------------------------------------
-write(*,*) "*** cu_ntiedtke 1.1.3"
+!!!write(*,*) "*** cu_ntiedtke 1.1.3"
         call cudlfsn    &
      &    (klon,     klev,&
      &     kcbot,    kctop,    lndj,   ldcum,   &
@@ -1172,7 +1172,7 @@ write(*,*) "*** cu_ntiedtke 1.1.3"
      &     idtop,    loddraf,its,ite,kts,kte)
 !*     (b)  determine downdraft t,q and fluxes in 'cuddrafn'
 !------------------------------------------------------------
-write(*,*) "*** cu_ntiedtke 1.1.4"
+!!!write(*,*) "*** cu_ntiedtke 1.1.4"
         call cuddrafn                                         &
      &   ( klon,     klev,     loddraf,                      &
      &     ztenh,    zqenh,    puen,     pven,                 &
@@ -1183,14 +1183,14 @@ write(*,*) "*** cu_ntiedtke 1.1.4"
 !-----------------------------------------------------------
       end if
 !
-write(*,*) "*** cu_ntiedtke 1.1.5"
+!!!write(*,*) "*** cu_ntiedtke 1.1.5"
 !-----------------------------------------------------------------------
 !* 6.0          closure and clean work
 ! ------
 !-- 6.1 recalculate cloud base massflux from a cape closure
 !       for deep convection (ktype=1) 
 !
-!$acc parallel vector_length(32)
+!$acc parallel vector_length(128)
 !$acc loop gang vector private(ikb,ikt)
       do jl=its,ite
       if(ldcum(jl) .and. ktype(jl) .eq. 1) then
@@ -1215,8 +1215,8 @@ write(*,*) "*** cu_ntiedtke 1.1.5"
       end do
 !$acc end parallel
 !
-write(*,*) "*** cu_ntiedtke 1.1.6"
-!$acc parallel vector_length(32)
+!!!write(*,*) "*** cu_ntiedtke 1.1.6"
+!$acc parallel vector_length(128)
 !$acc loop seq
       do jk = kts,kte
 !$acc loop gang vector private(llo1,ikb,zdz,zdp)
@@ -1244,8 +1244,8 @@ write(*,*) "*** cu_ntiedtke 1.1.6"
       end do
 !$acc end parallel
 
-write(*,*) "*** cu_ntiedtke 1.1.7"
-!$acc parallel vector_length(32)
+!!!write(*,*) "*** cu_ntiedtke 1.1.7"
+!$acc parallel vector_length(128)
 !$acc loop gang vector private(ikb,ikt,ikm,wspd_ikb,wspd_ikm,ztaua,ztau, &
 !$acc zmfmax,ktop0,zrelh,dept)
       do jl=its,ite
@@ -1310,11 +1310,11 @@ write(*,*) "*** cu_ntiedtke 1.1.7"
       end do
 !$acc end parallel
 !
-write(*,*) "*** cu_ntiedtke 1.1.8"
+!!!write(*,*) "*** cu_ntiedtke 1.1.8"
 !*  6.2   recalculate convective fluxes due to effect of
 !         downdrafts on boundary layer moist static energy budget (ktype=2)
 !--------------------------------------------------------
-!$acc parallel vector_length(32)
+!$acc parallel vector_length(128)
 !$acc loop gang vector private(ikb,zeps,zqumqe,zdqmin,zmfmax,zdh)
        do jl=its,ite
          if(ldcum(jl) .and. ktype(jl) .eq. 2) then
@@ -1349,10 +1349,10 @@ write(*,*) "*** cu_ntiedtke 1.1.8"
        end do
 !$acc end parallel
 
-write(*,*) "*** cu_ntiedtke 1.1.9"
+!!!write(*,*) "*** cu_ntiedtke 1.1.9"
 !*  6.4   scaling the downdraft mass flux
 !---------------------------------------------------------
-!$acc parallel vector_length(32)
+!$acc parallel vector_length(128)
 !$acc loop gang vector collapse(2) private(zfac)
        do jk=kts,kte
        do jl=its,ite
@@ -1370,14 +1370,14 @@ write(*,*) "*** cu_ntiedtke 1.1.9"
 
 !*  6.5   scaling the updraft mass flux
 ! --------------------------------------------------------
-!$acc parallel vector_length(32)
+!$acc parallel vector_length(128)
 !$acc loop gang vector
     do jl = its,ite
       if ( ldcum(jl) ) zmfs(jl) = zmfub1(jl)/max(cmfcmin,zmfub(jl))
     end do
 !$acc end parallel
-write(*,*) "*** cu_ntiedtke 1.1.10"
-!$acc parallel vector_length(32)
+!!!write(*,*) "*** cu_ntiedtke 1.1.10"
+!$acc parallel vector_length(128)
 !$acc loop seq
     do jk = kts+1, kte
 !$acc loop gang vector private(ikb,zdz,zmfmax)
@@ -1396,7 +1396,7 @@ write(*,*) "*** cu_ntiedtke 1.1.10"
       end do
     end do
 !$acc end parallel
-!$acc parallel vector_length(32)
+!$acc parallel vector_length(128)
 !$acc loop gang vector collapse(2) 
     do jk = kts+1 , kte
       do jl = its,ite
@@ -1413,10 +1413,10 @@ write(*,*) "*** cu_ntiedtke 1.1.10"
     end do
 !$acc end parallel
 
-write(*,*) "*** cu_ntiedtke 1.1.11"
+!!!write(*,*) "*** cu_ntiedtke 1.1.11"
 !*    6.6  if ktype = 2, kcbot=kctop is not allowed
 ! ---------------------------------------------------
-!$acc parallel vector_length(32)
+!$acc parallel vector_length(128)
 !$acc loop gang vector
     do jl = its,ite
       if ( ktype(jl) == 2 .and. &
@@ -1428,7 +1428,7 @@ write(*,*) "*** cu_ntiedtke 1.1.11"
 !$acc end parallel
 
     if ( .not. lmfscv .or. .not. lmfpen ) then
-!$acc parallel vector_length(32)
+!$acc parallel vector_length(128)
 !$acc loop gang vector
       do jl = its,ite
         llo2(jl) = .false.
@@ -1441,10 +1441,10 @@ write(*,*) "*** cu_ntiedtke 1.1.11"
 !$acc end parallel
     end if
 
-write(*,*) "*** cu_ntiedtke 1.1.12"
+!!!write(*,*) "*** cu_ntiedtke 1.1.12"
 !*   6.7  set downdraft mass fluxes to zero above cloud top
 !----------------------------------------------------
-!$acc parallel vector_length(32)
+!$acc parallel vector_length(128)
 !$acc loop gang vector
     do jl = its,ite
       if ( loddraf(jl) .and. idtop(jl) <= kctop(jl) ) then
@@ -1452,7 +1452,7 @@ write(*,*) "*** cu_ntiedtke 1.1.12"
       end if
     end do
 !$acc end parallel
-!$acc parallel vector_length(32)
+!$acc parallel vector_length(128)
 !$acc loop gang vector collapse(2)
     do jk = kts+1 , kte
       do jl = its,ite
@@ -1473,7 +1473,7 @@ write(*,*) "*** cu_ntiedtke 1.1.12"
 !----------------------------------------------------------
 !*    7.0      determine final convective fluxes in 'cuflx'
 !----------------------------------------------------------
-write(*,*) "*** cu_ntiedtke 1.1.13"
+!!!write(*,*) "*** cu_ntiedtke 1.1.13"
        call cuflxn                                        &                  
      &  (  klon,     klev,     ztmst                       &                                       
      &  ,  pten,     pqen,     pqsen,    ztenh,   zqenh     &                  
@@ -1485,16 +1485,16 @@ write(*,*) "*** cu_ntiedtke 1.1.13"
      &  ,  zdmfup,   zdmfdp,   zdpmel,   zlglac                   &             
      &  ,  prain,    pmfdde_rate, pmflxr, pmflxs,its,ite,kts,kte)
 
-write(*,*) "*** cu_ntiedtke 1.1.14"
+!!!write(*,*) "*** cu_ntiedtke 1.1.14"
 ! some adjustments needed
-!$acc parallel vector_length(32)
+!$acc parallel vector_length(128)
 !$acc loop gang vector
     do jl=its,ite
       zmfs(jl) = 1.
       zmfuub(jl)=0.
     end do
 !$acc end parallel
-!$acc parallel vector_length(32)
+!$acc parallel vector_length(128)
 !$acc loop seq
     do jk = kts+1 , kte
 !$acc loop gang vector private(zmfmax)
@@ -1509,7 +1509,7 @@ write(*,*) "*** cu_ntiedtke 1.1.14"
     end do
 !$acc end parallel
 
-!$acc parallel vector_length(32)
+!$acc parallel vector_length(128)
 !$acc loop seq
     do jk = kts+1 , kte
 !$acc loop gang vector
@@ -1527,8 +1527,8 @@ write(*,*) "*** cu_ntiedtke 1.1.14"
     end do
 !$acc end parallel
 
-write(*,*) "*** cu_ntiedtke 1.1.15"
-!$acc parallel vector_length(32)
+!!!write(*,*) "*** cu_ntiedtke 1.1.15"
+!$acc parallel vector_length(128)
 !$acc loop gang vector collapse(2) private(zerate)
     do jk = kts+1 , kte - 1
       do jl = its,ite
@@ -1552,7 +1552,7 @@ write(*,*) "*** cu_ntiedtke 1.1.15"
 !$acc end parallel
 
 ! avoid negative humidities at ddraught top
-!$acc parallel vector_length(32)
+!$acc parallel vector_length(128)
 !$acc loop gang vector private(jk,ik)
     do jl = its,ite
       if ( loddraf(jl) ) then
@@ -1565,10 +1565,10 @@ write(*,*) "*** cu_ntiedtke 1.1.15"
     end do
 !$acc end parallel
 
-write(*,*) "*** cu_ntiedtke 1.1.16"
+!!!write(*,*) "*** cu_ntiedtke 1.1.16"
 ! avoid negative humidities near cloud top because gradient of precip flux
 ! and detrainment / liquid water flux are too large
-!$acc parallel vector_length(32)
+!$acc parallel vector_length(128)
 !$acc loop gang vector collapse(2) private(zdz,zmfa)
     do jk = kts+1 , kte
       do jl = its,ite
@@ -1589,7 +1589,7 @@ write(*,*) "*** cu_ntiedtke 1.1.16"
     end do
 !$acc end parallel
 
-!$acc parallel vector_length(32)
+!$acc parallel vector_length(128)
 !$acc loop gang vector
     do jl=its,ite
       prsfc(jl) = pmflxr(jl,klev+1)
@@ -1600,7 +1600,7 @@ write(*,*) "*** cu_ntiedtke 1.1.16"
 !----------------------------------------------------------------
 !*    8.0      update tendencies for t and q in subroutine cudtdq
 !----------------------------------------------------------------
-write(*,*) "*** cu_ntiedtke 1.1.17"
+!!!write(*,*) "*** cu_ntiedtke 1.1.17"
       call cudtdqn(klon,klev,itopm2,kctop,idtop,ldcum,loddraf, &
                  ztmst,paph,zgeoh,pgeo,pten,ztenh,pqen,zqenh,pqsen,     &
                  zlglac,plude,pmfu,pmfd,zmfus,zmfds,zmfuq,zmfdq,zmful,   &
@@ -1608,9 +1608,9 @@ write(*,*) "*** cu_ntiedtke 1.1.17"
 !----------------------------------------------------------------
 !*    9.0      update tendencies for u and u in subroutine cududv
 !----------------------------------------------------------------
-write(*,*) "*** cu_ntiedtke 1.1.18"
+!!!write(*,*) "*** cu_ntiedtke 1.1.18"
       if(lmfdudv) then
-!$acc parallel vector_length(32)
+!$acc parallel vector_length(128)
 !$acc loop seq
       do jk = kte-1 , kts+1 , -1
 !!!        ik = jk + 1
@@ -1657,9 +1657,9 @@ write(*,*) "*** cu_ntiedtke 1.1.18"
       end do
 !$acc end parallel
 
-write(*,*) "*** cu_ntiedtke 1.1.19"
+!!!write(*,*) "*** cu_ntiedtke 1.1.19"
       if(lmfdd) then
-!$acc parallel vector_length(32)
+!$acc parallel vector_length(128)
 !$acc loop seq
       do jk = kts+2 , kte
 !!!        ik = jk - 1
@@ -1685,14 +1685,14 @@ write(*,*) "*** cu_ntiedtke 1.1.19"
 !   --------------------------------------------------
 !   rescale massfluxes for stability in Momentum
 !------------------------------------------------------------------------
-!$acc parallel vector_length(32)
+!$acc parallel vector_length(128)
 !$acc loop gang vector
       do jl = its,ite
         zmfs(jl) = 1.
       enddo
 !$acc end parallel
-write(*,*) "*** cu_ntiedtke 1.1.20"
-!$acc parallel vector_length(32)
+!!!write(*,*) "*** cu_ntiedtke 1.1.20"
+!$acc parallel vector_length(128)
 !$acc loop seq
       do jk = kts+1 , kte
 !$acc loop gang vector private(zmfmax)
@@ -1706,7 +1706,7 @@ write(*,*) "*** cu_ntiedtke 1.1.20"
         end do
       end do
 !$acc end parallel
-!$acc parallel vector_length(32)
+!$acc parallel vector_length(128)
 !$acc loop gang vector collapse(2)
       do jk = kts , kte
         do jl = its, ite
@@ -1721,7 +1721,7 @@ write(*,*) "*** cu_ntiedtke 1.1.20"
 !$acc end parallel
 !*  9.1          update u and v in subroutine cududvn
 !-------------------------------------------------------------------
-!$acc parallel vector_length(32)
+!$acc parallel vector_length(128)
 !$acc loop gang vector collapse(2)
      do jk = kts , kte
         do jl = its, ite
@@ -1731,21 +1731,21 @@ write(*,*) "*** cu_ntiedtke 1.1.20"
       end do
 !$acc end parallel
 
-write(*,*) "*** cu_ntiedtke 1.1.21"
+!!!write(*,*) "*** cu_ntiedtke 1.1.21"
       call cududvn(klon,klev,itopm2,ktype,kcbot,kctop, &
                   ldcum,ztmst,paph,puen,pven,zmfuus,zmfdus,zuu,  &
                   zud,zvu,zvd,pvom,pvol,its,ite,kts,kte)
 
-write(*,*) "*** cu_ntiedtke 1.1.22"
+!!!write(*,*) "*** cu_ntiedtke 1.1.22"
 !  calculate KE dissipation
-!$acc parallel vector_length(32)
+!$acc parallel vector_length(128)
 !$acc loop gang vector
       do jl = its,ite
         zsum12(jl) = 0.
         zsum22(jl) = 0.
       end do
 !$acc end parallel
-!$acc parallel vector_length(32)
+!$acc parallel vector_length(128)
 !$acc loop seq
         do jk = kts,kte
 !$acc loop gang vector private(zdz,zduten,zdvten)
@@ -1763,7 +1763,7 @@ write(*,*) "*** cu_ntiedtke 1.1.22"
           end do
         end do
 !$acc end parallel
-!$acc parallel vector_length(32)
+!$acc parallel vector_length(128)
 !$acc loop gang vector collapse(2) private(ztdis)
         do jk = kts,kte
           do jl = its,ite
@@ -1777,13 +1777,13 @@ write(*,*) "*** cu_ntiedtke 1.1.22"
 
       end if
 
-write(*,*) "*** cu_ntiedtke 1.1.23"
+!!!write(*,*) "*** cu_ntiedtke 1.1.23"
 !----------------------------------------------------------------------
 !*   10.           IN CASE THAT EITHER DEEP OR SHALLOW IS SWITCHED OFF
 ! NEED TO SET SOME VARIABLES A POSTERIORI TO ZERO
 ! ---------------------------------------------------
     if ( .not. lmfscv .or. .not. lmfpen ) then
-!$acc parallel vector_length(32)
+!$acc parallel vector_length(128)
 !$acc loop gang vector collapse(2) 
       do jk = kts+1 , kte
         do jl = its,ite
@@ -1797,7 +1797,7 @@ write(*,*) "*** cu_ntiedtke 1.1.23"
         end do
       end do
 !$acc end parallel
-!$acc parallel vector_length(32)
+!$acc parallel vector_length(128)
 !$acc loop gang vector
       do jl = its,ite
         if ( llo2(jl) ) then
@@ -1808,7 +1808,7 @@ write(*,*) "*** cu_ntiedtke 1.1.23"
 !$acc end parallel
     end if
 !$acc end data
-write(*,*) "*** cu_ntiedtke 1.1.24"
+!!!write(*,*) "*** cu_ntiedtke 1.1.24"
       return
       end subroutine cumastrn
 
@@ -1883,7 +1883,7 @@ write(*,*) "*** cu_ntiedtke 1.1.24"
 !*             find level of maximum vertical velocity
 ! -----------------------------------------------------------
       do jk=kts+1,kte
-!$acc parallel vector_length(32)
+!$acc parallel vector_length(128)
 !$acc loop gang vector
       do jl=its,ite
         ptenh(jl,jk)=(max(cpd*pten(jl,jk-1)+pgeo(jl,jk-1), &
@@ -1902,7 +1902,7 @@ write(*,*) "*** cu_ntiedtke 1.1.24"
 !!!      call cuadjtqn(klon,klev,ik,zph,ptenh,pqsenh,loflag,icall,its,ite,kts,kte)
 !---------------------------------------------------------------------------------
 !!!                   (klon,klev,kk,psp,pt,   pq,    ldflag,kcall,its,ite,kts,kte)
-!$acc parallel vector_length(32)
+!$acc parallel vector_length(128)
 !$acc loop gang vector private(zqp,tmp,zqsat,zcor,zcond1)
       do jl = its,ite
         zqp = 1./zph(jl)
@@ -1935,7 +1935,7 @@ write(*,*) "*** cu_ntiedtke 1.1.24"
       end do
 !$acc end parallel
 !**********************************************************************************
-!$acc parallel vector_length(32)
+!$acc parallel vector_length(128)
 !$acc loop gang vector 
       do jl=its,ite
         pqenh(jl,jk)=min(pqen(jl,jk-1),pqsen(jl,jk-1)) &
@@ -1945,7 +1945,7 @@ write(*,*) "*** cu_ntiedtke 1.1.24"
 !$acc end parallel
       end do
 
-!$acc parallel vector_length(32)
+!$acc parallel vector_length(128)
 !$acc loop gang vector
       do jl=its,ite
         ptenh(jl,(kte-kts+1))=(cpd*pten(jl,(kte-kts+1))+pgeo(jl,(kte-kts+1))- &
@@ -1958,7 +1958,7 @@ write(*,*) "*** cu_ntiedtke 1.1.24"
       end do
 !$acc end parallel
 
-!$acc parallel vector_length(32)
+!$acc parallel vector_length(128)
 !$acc loop seq
       do jk=kte-1,kts+1,-1
 !$acc loop gang vector private(zzs)
@@ -1970,7 +1970,7 @@ write(*,*) "*** cu_ntiedtke 1.1.24"
       end do
 !$acc end parallel
 
-!$acc parallel vector_length(32)
+!$acc parallel vector_length(128)
 !$acc loop seq
       do jk=kte,kts+2,-1
 !$acc loop gang vector
@@ -1985,7 +1985,7 @@ write(*,*) "*** cu_ntiedtke 1.1.24"
 !-----------------------------------------------------------
 !*    2.0      initialize values for updrafts and downdrafts
 !-----------------------------------------------------------
-!$acc parallel vector_length(32)
+!$acc parallel vector_length(128)
 !$acc loop gang vector collapse(2) 
       do jk=kts,kte
 !!!      ik=jk-1
@@ -2146,7 +2146,7 @@ write(*,*) "*** cu_ntiedtke 1.1.24"
       deltt_min = 0.2
       deltq_min = 1.e-4
 
-!$acc parallel vector_length(32)
+!$acc parallel vector_length(128)
 !$acc loop gang vector
       do jl=its,ite
         kcbot(jl)=kte-kts+1
@@ -2182,7 +2182,7 @@ write(*,*) "*** cu_ntiedtke 1.1.24"
       end do
 !$acc end parallel
 
-!$acc parallel vector_length(32)
+!$acc parallel vector_length(128)
 !$acc loop gang vector
       do jl=its,ite
          zqold(jl) = 0.
@@ -2192,13 +2192,20 @@ write(*,*) "*** cu_ntiedtke 1.1.24"
 !$acc end parallel
 
 ! check the levels from lowest level to second top level
+!$acc parallel vector_length(128)
+!$acc loop gang vector private(sflx,deltt,deltq, &
+!$acc zqp,zl,zi,zqsat,zcor,zf,zcond,tmp,zcond1, &
+!$acc zdq,zlglac,atop1,atop2,abot,ik,tmp,zqsu, &
+!$acc zcor,zalfaw,zfacw,zfaci,zfac,zesdp,zdqsdt,zdtdp,zdp,zpdifftop, &
+!$acc zpdiffbot,ikb)
+   do jl=its,ite
+!$acc loop seq
       do jk=kte-1,kts+1,-1
 
 ! define the variables at the first level      
       if(jk .eq. (kte-1-kts+1)) then
-!$acc parallel vector_length(32)
-!$acc loop gang vector private(sflx,deltt,deltq)
-      do jl=its,ite
+!!!$acc loop seq
+!!!      do jl=its,ite
 ! bw
 ! bw -->  link shallow cumulus to pbl physics --> hfx, qfx, hgamt, hgamq, wst
         sflx = hfx(jl)*rcpd+vtmpc1*pten(jl,(kte-kts+1))*qfx(jl)
@@ -2217,25 +2224,12 @@ write(*,*) "*** cu_ntiedtke 1.1.24"
         else
           loflag(jl) = .false.
         end if
-      end do
-!$acc end parallel
+!!!      end do
       end if
  
-!!!      is=0
-!!!$acc parallel vector_length(32)
-!!!$acc loop gang vector reduction(+:is)
-!!!      do jl=its,ite
-!!!         if(loflag(jl))then
-!!!            is=is+1
-!!!         endif
-!!!      enddo
-!!!$acc end parallel
-!!!      if(is.eq.0) exit
-
 ! the next levels, we use the variables at the first level as initial values
-!$acc parallel vector_length(32)
-!$acc loop gang vector
-      do jl=its,ite
+!!!$acc loop seq
+!!!      do jl=its,ite
       if(loflag(jl)) then
         eta(jl) = 0.8/(pgeo(jl,jk)*zrg)+2.e-4
         dz(jl)  = (pgeoh(jl,jk)-pgeoh(jl,jk+1))*zrg
@@ -2249,8 +2243,7 @@ write(*,*) "*** cu_ntiedtke 1.1.24"
         zqold(jl) = pqu(jl,jk)
         zph(jl)=paph(jl,jk)
       end if
-      end do
-!!!$acc end parallel
+!!!      end do
 ! check if the parcel is saturated
 !**********************************************************************************
 !!!      ik=jk
@@ -2258,9 +2251,8 @@ write(*,*) "*** cu_ntiedtke 1.1.24"
 !!!      call cuadjtqn(klon,klev,ik,zph,ptu,pqu,loflag,icall,its,ite,kts,kte)
 !----------------------------------------------------------------------------------
 !!!                   (klon,klev,kk,psp,pt, pq, ldflag,kcall,its,ite,kts,kte)
-!!!$acc parallel vector_length(32)
-!$acc loop gang vector private(zqp,zl,zi,zqsat,zcor,zf,zcond,tmp,zcond1)
-      do jl = its,ite
+!!!$acc loop seq
+!!!      do jl = its,ite
         if ( loflag(jl) ) then
           zqp = 1./zph(jl)
           zl = 1./(ptu(jl,jk)-c4les)
@@ -2295,14 +2287,10 @@ write(*,*) "*** cu_ntiedtke 1.1.24"
             pqu(jl,jk) = pqu(jl,jk) - zcond1
           end if
         end if
-      end do
-!!!$acc end parallel
+!!!      end do
 !**********************************************************************************
-!!!$acc parallel vector_length(32)
-!$acc loop gang vector private(zdq,zlglac,atop1,atop2,abot,ik,tmp,zqsu, &
-!$acc zcor,zalfaw,zfacw,zfaci,zfac,zesdp,zdqsdt,zdtdp,zdp,zpdifftop, &
-!$acc zpdiffbot,ikb)
-      do jl=its,ite
+!!!$acc loop seq
+!!!      do jl=its,ite
         if( loflag(jl) ) then
           zdq = max((zqold(jl) - pqu(jl,jk)),0.)
           plu(jl,jk) = plu(jl,jk+1) + zdq
@@ -2375,12 +2363,13 @@ write(*,*) "*** cu_ntiedtke 1.1.24"
             end if
           end if
         end if
-      end do
-!$acc end parallel
+!!!      end do
 
       end do ! end all the levels
+   end do
+!$acc end parallel
 
-!$acc parallel vector_length(32)
+!$acc parallel vector_length(128)
 !$acc loop gang vector private(ikb,ikt)
       do jl=its,ite
         ikb = kcbot(jl)
@@ -2427,14 +2416,14 @@ write(*,*) "*** cu_ntiedtke 1.1.24"
 ! assume the mix-layer is 60hPa
       deltt = deltt_min
       deltq = deltq_min
-!$acc parallel vector_length(32)
+!$acc parallel vector_length(128)
 !$acc loop gang vector
       do jl=its,ite
         deepflag(jl) = .false.
       end do
 !$acc end parallel
 
-!$acc parallel vector_length(32)
+!$acc parallel vector_length(128)
 !$acc loop seq
       do jk=kte,kts,-1
 !$acc loop gang vector
@@ -2465,7 +2454,7 @@ write(*,*) "*** cu_ntiedtke 1.1.24"
         end do
 !$acc end parallel
 
-!$acc parallel vector_length(32)
+!$acc parallel vector_length(128)
 !$acc loop gang vector
         do jl=its,ite
            kcbot(jl)    =  levels
@@ -2478,23 +2467,21 @@ write(*,*) "*** cu_ntiedtke 1.1.24"
 !$acc end parallel
 
 ! start the inner loop to search the deep convection points
+!$acc parallel vector_length(128)
+!$acc loop gang vector private(tmix,qmix,zmix,pmix,nk,dp, &
+!$acc fscale, &
+!$acc zqp,zl,zi,zqsat,zcor,zf,zcond,tmp,zcond1, &
+!$acc zdq,zlglac,atop1,atop2,abot,ik,tmp, &
+!$acc zqsu,zcor,zalfaw,zfacw,zfaci,zfac,zesdp,zdqsdt,zdtdp,zdp, &
+!$acc zpdifftop,zpdiffbot,ikb)
+   do jl=its,ite
+!$acc loop seq
       do jk=levels,2,-1
-!!!        is=0
-!!!$acc parallel vector_length(32)
-!!!$acc loop gang vector reduction(+:is)
-!!!        do jl=its,ite
-!!!         if(loflag(jl))then
-!!!            is=is+1
-!!!         endif
-!!!        enddo
-!!!$acc end parallel
-!!!        if(is.eq.0) exit
 
 ! define the variables at the departure level 
         if(jk .eq. levels) then
-!$acc parallel vector_length(32)
-!$acc loop gang vector private(tmix,qmix,zmix,pmix,nk,dp)
-          do jl=its,ite
+!!!$acc loop seq
+!!!          do jl=its,ite
           if(loflag(jl)) then
             if((paph(jl,(kte-kts+1)+1)-paph(jl,jk)) < 60.e2) then
               tmix=0.
@@ -2529,14 +2516,12 @@ write(*,*) "*** cu_ntiedtke 1.1.24"
             vten(jl,jk+1)=ptenh(jl,jk+1)*(1.+vtmpc1*pqenh(jl,jk+1))
             zbuo(jl,jk+1)=(vptu(jl,jk+1)-vten(jl,jk+1))/vten(jl,jk+1)
           end if
-          end do
-!$acc end parallel
+!!!          end do
         end if
 
 ! the next levels, we use the variables at the first level as initial values
-!$acc parallel vector_length(32)
-!$acc loop gang vector private(fscale)
-        do jl=its,ite
+!!!$acc loop seq
+!!!        do jl=its,ite
            if(loflag(jl)) then
 ! define the fscale
              fscale = min(1.,(pqsen(jl,jk)/pqsen(jl,levels))**3)
@@ -2552,8 +2537,7 @@ write(*,*) "*** cu_ntiedtke 1.1.24"
              zqold(jl) = pqu(jl,jk)
              zph(jl)=paph(jl,jk)
            end if
-        end do
-!!!$acc end parallel
+!!!        end do
 ! check if the parcel is saturated
 !**********************************************************************************
 !!!        ik=jk
@@ -2561,9 +2545,8 @@ write(*,*) "*** cu_ntiedtke 1.1.24"
 !!!        call cuadjtqn(klon,klev,ik,zph,ptu,pqu,loflag,icall,its,ite,kts,kte)
 !----------------------------------------------------------------------------------
 !!!                     (klon,klev,kk,psp,pt, pq, ldflag,kcall,its,ite,kts,kte)
-!!!$acc parallel vector_length(32)
-!$acc loop gang vector private(zqp,zl,zi,zqsat,zcor,zf,zcond,tmp,zcond1)
-      do jl = its,ite
+!!!$acc loop seq
+!!!      do jl = its,ite
         if ( loflag(jl) ) then
           zqp = 1./zph(jl)
           zl = 1./(ptu(jl,jk)-c4les)
@@ -2598,14 +2581,10 @@ write(*,*) "*** cu_ntiedtke 1.1.24"
             pqu(jl,jk) = pqu(jl,jk) - zcond1
           end if
         end if
-      end do
-!!!$acc end parallel
+!!!      end do
 !**********************************************************************************
-!! !$acc parallel vector_length(32)
-!$acc loop gang vector private(zdq,zlglac,atop1,atop2,abot,ik,tmp, &
-!$acc zqsu,zcor,zalfaw,zfacw,zfaci,zfac,zesdp,zdqsdt,zdtdp,zdp, &
-!$acc zpdifftop,zpdiffbot,ikb)
-      do jl=its,ite
+!!!$acc loop seq
+!!!      do jl=its,ite
         if( loflag(jl) ) then
           zdq = max((zqold(jl) - pqu(jl,jk)),0.)
           plu(jl,jk) = plu(jl,jk+1) + zdq
@@ -2677,13 +2656,14 @@ write(*,*) "*** cu_ntiedtke 1.1.24"
             end if
           end if
         end if
-      end do
-!$acc end parallel
+!!!      end do
 
       end do ! end all the levels
+   end do
+!$acc end parallel
 
       needreset = .false.
-!$acc parallel vector_length(32)
+!$acc parallel vector_length(128)
 !$acc loop gang vector private(ikb,ikt)
       do jl=its,ite
         ikb = kcbot(jl)
@@ -2702,7 +2682,7 @@ write(*,*) "*** cu_ntiedtke 1.1.24"
         end if
       end do
 !$acc end parallel
-!$acc parallel vector_length(32)
+!$acc parallel vector_length(128)
 !$acc loop gang vector reduction(.or.:needreset)
       do jl=its,ite
         if(lldcum(jl)) then      
@@ -2711,7 +2691,7 @@ write(*,*) "*** cu_ntiedtke 1.1.24"
       end do
 !$acc end parallel
 
-write(*,*) "The value sof needreset = ",needreset
+!!!write(*,*) "The value sof needreset = ",needreset
 
       if(needreset) then
 !$acc parallel vector_length(128)
@@ -2904,7 +2884,7 @@ write(*,*) "The value sof needreset = ",needreset
 !--------------------------------
 !*    1.       specify parameters
 !--------------------------------
-write(*,*) "*** cuascn 0 ***"
+!!!write(*,*) "*** cuascn 0 ***"
       zcons2=3./(g*ztmst)
       zfacbuo = 0.5/(1.+0.5)
       zprcdgw = cprcon*zrg
@@ -2917,8 +2897,8 @@ write(*,*) "*** cuascn 0 ***"
 !     2.        set default values
 !---------------------------------
       llo3 = .false.
-write(*,*) "*** cuascn 1 ***"
-!$acc parallel vector_length(32)
+!!!write(*,*) "*** cuascn 1 ***"
+!$acc parallel vector_length(128)
 !$acc loop gang vector
       do jl=its,ite
         zluold(jl)=0.
@@ -2934,9 +2914,9 @@ write(*,*) "*** cuascn 1 ***"
       end do
 !$acc end parallel
 
-write(*,*) "*** cuascn 2 ***"
+!!!write(*,*) "*** cuascn 2 ***"
  ! initialize variout quantities     
-!$acc parallel vector_length(32)
+!$acc parallel vector_length(128)
 !$acc loop gang vector collapse(2)
       do jk=kts,kte
       do jl=its,ite
@@ -2959,7 +2939,7 @@ write(*,*) "*** cuascn 2 ***"
       end do
 !$acc end parallel
 
-!$acc parallel vector_length(32)
+!$acc parallel vector_length(128)
 !$acc loop seq
       do jk=kts,kte
 !$acc loop gang vector
@@ -2969,8 +2949,8 @@ write(*,*) "*** cuascn 2 ***"
       end do
 !$acc end parallel
 
-write(*,*) "*** cuascn 3 ***"
-!$acc parallel vector_length(32)
+!!!write(*,*) "*** cuascn 3 ***"
+!$acc parallel vector_length(128)
 !$acc loop gang vector
       do jl = its,ite
         if ( ktype(jl) == 3 ) ldcum(jl) = .false.
@@ -2980,7 +2960,7 @@ write(*,*) "*** cuascn 3 ***"
 !     3.0      initialize values at cloud base level
 !------------------------------------------------
 !!!write(*,*) "*** cuascn 4 ***"
-!!!$acc parallel vector_length(32)
+!!!$acc parallel vector_length(128)
 !$acc loop gang vector private(ikb)
       do jl=its,ite
         kctop(jl)=kcbot(jl)
@@ -3002,7 +2982,7 @@ write(*,*) "*** cuascn 3 ***"
 !              then check for buoyancy and set flags accordingly
 !-----------------------------------------------------------------
 !
-write(*,*) "*** cuascn 5 ***"
+!!!write(*,*) "*** cuascn 5 ***"
       do jk=kte-1,kts+2,-1
 !             specify cloud base values for midlevel convection
 !             in *cubasmc* in case there is not already convection
@@ -3024,7 +3004,7 @@ write(*,*) "*** cuascn 5 ***"
 !!!     &     pqu,      plu,      puu,     pvu,    pmfus,&
 !!!     &     pmfuq,    pmful,    pdmfup,  scale_mf,its,ite,kts,kte)
 
-!$acc parallel vector_length(32)
+!$acc parallel vector_length(128)
 !$acc loop gang vector private(zzzmb)
       do jl=its,ite
           if(.not.ldcum(jl) .and. klab(jl,jk+1).eq.0) then
@@ -3055,7 +3035,7 @@ write(*,*) "*** cuascn 5 ***"
 !**********************************************************************************
 !!!      is = 0
 !!!      jlm = 0
-!!!$acc parallel vector_length(32)
+!!!$acc parallel vector_length(128)
 !$acc loop gang vector reduction(+:is) 
       do jl = its,ite
         loflag(jl) = .false.
@@ -3066,7 +3046,7 @@ write(*,*) "*** cuascn 5 ***"
         if ( klab(jl,jk+1) == 0 ) klab(jl,jk) = 0
       enddo
 !!!$acc end parallel
-!!!$acc parallel vector_length(32)
+!!!$acc parallel vector_length(128)
 !$acc loop gang vector
       do jl = its,ite
 !!!        if(jl .eq. its) jlm = 0
@@ -3078,7 +3058,7 @@ write(*,*) "*** cuascn 5 ***"
         end if
       enddo
 !!!$acc end parallel
-!!!$acc parallel vector_length(32)
+!!!$acc parallel vector_length(128)
 !$acc loop gang vector private(zmfmax,zfac)
       do jl = its,ite
         zph(jl) = paph(jl,jk)
@@ -3096,7 +3076,7 @@ write(*,*) "*** cuascn 5 ***"
       end do
 !$acc end parallel
 
-write(*,*) "*** cuascn 7 ***"
+!!!write(*,*) "*** cuascn 7 ***"
       if(is.gt.0) llo3 = .true.
 !
 !*     specify entrainment rates in *cuentr*
@@ -3112,7 +3092,7 @@ write(*,*) "*** cuascn 7 ***"
     !* 1. CALCULATE ENTRAINMENT AND DETRAINMENT RATES
     ! -------------------------------------------
     if ( llo3 ) then
-!$acc parallel vector_length(32)
+!$acc parallel vector_length(128)
 !$acc loop gang vector
       do jl = its,ite
         zdmfen(jl) = 0.
@@ -3124,7 +3104,7 @@ write(*,*) "*** cuascn 7 ***"
       !
       !*  1.1 SPECIFY ENTRAINMENT RATES
       !   -------------------------
-!!!$acc parallel vector_length(32)
+!!!$acc parallel vector_length(128)
 !$acc loop gang vector private(zdz,zmf,llo10)
       do jl = its,ite
         if ( ldcum(jl) ) then
@@ -3146,14 +3126,14 @@ write(*,*) "*** cuascn 7 ***"
 !!!      if(llo3) then
 ! -------------------------------------------------------
 !
-!!!$acc parallel vector_length(32)
+!!!$acc parallel vector_length(128)
 !$acc loop gang vector
         do jl = its,ite
           zqold(jl) = 0.
         end do
 !!!$acc end parallel
 !!!write(*,*) "*** cuascn 10 ***"
-!!!$acc parallel vector_length(32)
+!!!$acc parallel vector_length(128)
 !$acc loop gang vector private(jl,zmfmax,zxs,zmftest,zchange, &
 !$acc zxe,zqeen,zseen,zscde,zqude,zmfusk,zmfuqk,zmfulk)
 !!!        do jll = 1 , jlm
@@ -3210,7 +3190,7 @@ write(*,*) "*** cuascn 7 ***"
 !!!$acc end parallel
 !!!write(*,*) "*** cuascn 11 ***"
 ! reset to environmental values if below departure level
-!!!$acc parallel vector_length(32)
+!!!$acc parallel vector_length(128)
 !$acc loop gang vector
         do jl = its,ite
           if ( jk > kdpl(jl) ) then
@@ -3233,7 +3213,7 @@ write(*,*) "*** cuascn 7 ***"
 !!!        call cuadjtqn(klon,klev,ik,zph,ptu,pqu,loflag,icall,its,ite,kts,kte)
 !----------------------------------------------------------------------------------
 !!!                     (klon,klev,kk,psp,pt, pq, ldflag,kcall,its,ite,kts,kte)
-!!!$acc parallel vector_length(32)
+!!!$acc parallel vector_length(128)
 !$acc loop gang vector private(zqp,zl,zi,zqsat,zcor,zf, &
 !$acc zcond,tmp,zcond1)
       do jl = its,ite
@@ -3277,7 +3257,7 @@ write(*,*) "*** cuascn 7 ***"
 !**********************************************************************************
 !!!      end if
 ! compute the upfraft speed in cloud layer
-!!!$acc parallel vector_length(32)
+!!!$acc parallel vector_length(128)
 !$acc loop gang vector private(jl)
 !!!        do jll = 1 , jlm
 !!!          jl = jlx(jll)
@@ -3292,7 +3272,7 @@ write(*,*) "*** cuascn 7 ***"
         end do
 !!!$acc end parallel
 !!!write(*,*) "*** cuascn 14 ***"
-!!!$acc parallel vector_length(32)
+!!!$acc parallel vector_length(128)
 !$acc loop gang vector private(jl,zbc,zbe,zbuoc,zdkbuo,zdken, &
 !$acc zkedke,zmfun,ikb)
 !!!        do jll = 1 , jlm
@@ -3387,7 +3367,7 @@ write(*,*) "*** cuascn 7 ***"
 !!!$acc end parallel
 
 !!write(*,*) "*** cuascn 15 ***"
-!!!$acc parallel vector_length(32)
+!!!$acc parallel vector_length(128)
 !$acc loop gang vector private(zdshrd,ikb,zwu,zprcon,zdt,zcbf,zzco,zlcrit, &
 !$acc zdfi,zc,zarg,zd,zint,zlnew)
         do jl = its,ite
@@ -3430,7 +3410,7 @@ write(*,*) "*** cuascn 7 ***"
         end do
 !!!$acc end parallel
 !!!write(*,*) "*** cuascn 16 ***"
-!!!$acc parallel vector_length(32)
+!!!$acc parallel vector_length(128)
 !$acc loop gang vector private(zvw,zvi,zalfaw,zvv,zrold, &
 !$acc zc,zwu,zd,zint,zrnew)
         do jl = its,ite
@@ -3454,7 +3434,7 @@ write(*,*) "*** cuascn 7 ***"
         end do
 !!!$acc end parallel
 !!!write(*,*) "*** cuascn 17 ***"
-!!!$acc parallel vector_length(32)
+!!!$acc parallel vector_length(128)
 !$acc loop gang vector private(jl)
 !!!        do jll = 1 , jlm
 !!!          jl = jlx(jll)
@@ -3472,8 +3452,8 @@ write(*,*) "*** cuascn 7 ***"
 !----------------------------------------------------------------------
 ! 5.       final calculations
 ! ------------------
-write(*,*) "*** cuascn 18 ***"
-!$acc parallel vector_length(32)
+!!!write(*,*) "*** cuascn 18 ***"
+!$acc parallel vector_length(128)
 !$acc loop gang vector
       do jl = its,ite
        if ( kctop(jl) == -1 ) ldcum(jl) = .false.
@@ -3485,7 +3465,7 @@ write(*,*) "*** cuascn 18 ***"
       end do
 !$acc end parallel
 
-write(*,*) "*** cuascn 19 ***"
+!!!write(*,*) "*** cuascn 19 ***"
 !$acc end data
       return
               end subroutine cuascn
@@ -3631,7 +3611,7 @@ write(*,*) "*** cuascn 19 ***"
                                                                                          
         !     1.           set default values for downdrafts                             
         !                  ---------------------------------                             
-        !$acc parallel vector_length(32)
+        !$acc parallel vector_length(128)
         !$acc loop gang vector
               do jl=its,ite 
                 lddraf(jl)=.false.                                                       
@@ -3661,7 +3641,7 @@ write(*,*) "*** cuascn 19 ***"
         !                  temperature (i.e. which became saturated due to               
         !                  evaporation of rain and cloud water)                          
         !                  ----------------------------------------------------          
-        !$acc parallel vector_length(32)
+        !$acc parallel vector_length(128)
         !$acc loop seq
               do jk=kts+2,kte-2
         !$acc loop gang vector private(tmp,zhsk)
@@ -3685,7 +3665,7 @@ write(*,*) "*** cuascn 19 ***"
         !                  for environmental air in *cuadjtq*                            
         !                  -------------------------------------------                   
                 is=0         
-        !$acc parallel vector_length(32) 
+        !$acc parallel vector_length(128) 
         !$acc loop gang vector reduction(+:is)
                 do jl=its,ite                                                        
           ztenwb(jl,jk)=ptenh(jl,jk)                                             
@@ -3706,7 +3686,7 @@ write(*,*) "*** cuascn 19 ***"
 !!!        call cuadjtqn( klon, klev, ik, zph, ztenwb, zqenwb, llo2, icall,its,ite,kts,kte)                        
 !----------------------------------------------------------------------------------
 !!!                     ( klon, klev, kk, psp, pt,     pq,     ldflag,kcall,its,ite,kts,kte)
-!$acc parallel vector_length(32)
+!$acc parallel vector_length(128)
 !$acc loop gang vector private(zqp,tmp,zqsat,zcor,zcond0,zcond1)
         do jl = its,ite
         if ( llo2(jl) ) then
@@ -3748,7 +3728,7 @@ write(*,*) "*** cuascn 19 ***"
 !                  and check for negative buoyancy.                              
 !                  then set values for downdraft at lfs.                         
 !                  ----------------------------------------                      
-!$acc parallel vector_length(32)
+!$acc parallel vector_length(128)
 !$acc loop gang vector private(zttest,zqtest,zbuo,zmftop)
         do jl=its,ite                                                        
           if(llo2(jl)) then                                                      
@@ -3904,8 +3884,8 @@ write(*,*) "*** cuascn 19 ***"
 !                     (c) checking for negative buoyancy and              
 !                         specifying final t,q,u,v and downward fluxes    
 !                    -------------------------------------------------    
-write(*,*) "*** cuddrafn 0 ***"
-!$acc parallel vector_length(32)
+!!!write(*,*) "*** cuddrafn 0 ***"
+!$acc parallel vector_length(128)
 !$acc loop gang vector
       do jl=its,ite                                                   
         zoentr(jl)=0.                                                     
@@ -3915,7 +3895,7 @@ write(*,*) "*** cuddrafn 0 ***"
       enddo 
 !$acc end parallel
 
-!$acc parallel vector_length(32)
+!$acc parallel vector_length(128)
 !$acc loop seq
       do jk=kte,kts,-1
 !$acc loop gang vector
@@ -3929,11 +3909,11 @@ write(*,*) "*** cuddrafn 0 ***"
 !!!do jl=its,ite
 !!!   if(itopde(jl).gt.56) write(*,*) "The value is greater at jl=",jl
 !!!enddo 
-write(*,*) "*** cuddrafn 1 ***"
+!!!write(*,*) "*** cuddrafn 1 ***"
                                                                  
       do jk=kts+2,kte                                                        
         is=0    
-!$acc parallel vector_length(32) 
+!$acc parallel vector_length(128) 
 !$acc loop gang vector reduction(+:is) 
         do jl=its,ite                                             
 !!!          zph(jl)=paph(jl,jk)                                             
@@ -3948,7 +3928,7 @@ write(*,*) "*** cuddrafn 1 ***"
 !!!        if(is.eq.0) cycle                                                 
         if(is.ne.0) then
                   
-!$acc parallel vector_length(32)
+!$acc parallel vector_length(128)
 !$acc loop gang vector private(zentr)
         do jl=its,ite                                                 
           if(llo2(jl)) then    
@@ -4083,7 +4063,7 @@ write(*,*) "*** cuddrafn 1 ***"
         endif                                     
       enddo                                                               
                   
-write(*,*) "*** cuddrafn 7 ***"
+!!!write(*,*) "*** cuddrafn 7 ***"
 !$acc end data                                                        
       return                                                              
       end subroutine cuddrafn
@@ -4227,7 +4207,7 @@ write(*,*) "*** cuddrafn 7 ***"
 
 !*    1.0          determine final convective fluxes                           
 !                  ---------------------------------                           
-!$acc parallel vector_length(32)
+!$acc parallel vector_length(128)
 !$acc loop gang vector 
       do jl=its,ite
         prain(jl)=0.
@@ -4243,7 +4223,7 @@ write(*,*) "*** cuddrafn 7 ***"
 !$acc end parallel
 
       ktopm2= 2
-!$acc parallel vector_length(32)
+!$acc parallel vector_length(128)
 !$acc loop seq
       do jk=ktopm2,(kte-kts+1)
         ikb = min(jk+1,(kte-kts+1))
@@ -4289,14 +4269,14 @@ write(*,*) "*** cuddrafn 7 ***"
       enddo
 !$acc end parallel
 
-!$acc parallel vector_length(32)
+!$acc parallel vector_length(128)
 !$Acc loop gang vector
       do jl=its,ite
         pmflxr(jl,(kte-kts+1)+1) = 0.
         pmflxs(jl,(kte-kts+1)+1) = 0.
       end do
 !$acc end parallel
-!$acc parallel vector_length(32)
+!$acc parallel vector_length(128)
 !$acc loop gang vector private(ikb,ik,zzp,tmp)
       do jl=its,ite
         if(ldcum(jl)) then
@@ -4317,7 +4297,7 @@ write(*,*) "*** cuddrafn 7 ***"
       enddo
 !$acc end parallel
 
-!$acc parallel vector_length(32)
+!$acc parallel vector_length(128)
 !$acc loop seq
       do jk=ktopm2,(kte-kts+1)
 !$acc loop gang vector private(ikb,zzp,ik,llddraf)
@@ -4354,7 +4334,7 @@ write(*,*) "*** cuddrafn 7 ***"
 !*                  calculate evaporation of precip                            
 !                   -------------------------------                            
 
-!$acc parallel vector_length(32)
+!$acc parallel vector_length(128)
 !$acc loop seq
         do jk=ktopm2,(kte-kts+1)
 !$acc loop gang vector private(zcons1,zfac,zsnmlt,tmp,zalfaw)
@@ -4399,7 +4379,7 @@ write(*,*) "*** cuddrafn 7 ***"
         enddo
       enddo
 !$acc end parallel
-!$acc parallel vector_length(32)
+!$acc parallel vector_length(128)
 !$acc loop seq
       do jk=ktopm2,(kte-kts+1)
 !$acc loop gang vector private(zrfl,zdrfl1,zrnew,zrmin,zrfln,zdrfl,zdenom, &
@@ -4494,7 +4474,7 @@ write(*,*) "*** cuddrafn 7 ***"
 !$acc data create(zdtdt,zdqdt,zdp)
     !*    1.0          SETUP AND INITIALIZATIONS
     ! -------------------------
-!$acc parallel vector_length(32)
+!$acc parallel vector_length(128)
 !$acc loop gang vector collapse(2)
     do jk = kts,kte
       do jl = its,ite
@@ -4507,7 +4487,7 @@ write(*,*) "*** cuddrafn 7 ***"
     !-----------------------------------------------------------------------
     !*    2.0          COMPUTE TENDENCIES
     ! ------------------
-!$acc parallel vector_length(32)
+!$acc parallel vector_length(128)
 !$acc loop gang vector collapse(2) private(tmp,zalv)
     do jk = ktopm2 , (kte-kts+1)-1
 !!!      if ( jk < klev ) then
@@ -4528,7 +4508,7 @@ write(*,*) "*** cuddrafn 7 ***"
      end do
 !$acc end parallel
 !!!      else
-!$acc parallel vector_length(32)
+!$acc parallel vector_length(128)
 !$acc loop gang vector private(tmp,zalv,jk)
         do jl = its,ite
           jk = (kte-kts+1)
@@ -4549,7 +4529,7 @@ write(*,*) "*** cuddrafn 7 ***"
   !---------------------------------------------------------------
   !*  3.0          UPDATE TENDENCIES
   !   -----------------
-!$acc parallel vector_length(32)
+!$acc parallel vector_length(128)
 !$acc loop gang vector collapse(2)
     do jk = ktopm2 , (kte-kts+1)
      do jl = its,ite
@@ -4601,7 +4581,7 @@ write(*,*) "*** cuddrafn 7 ***"
 !!!    real     zdudt(klon,klev), zdvdt(klon,klev), zdp(klon,klev)
 !$acc data create(zuen,zven,zmfuu,zmfdu,zmfuv,zmfdv,zdudt,zdvdt,zdp)
 !
-!$acc parallel vector_length(32)
+!$acc parallel vector_length(128)
 !$acc loop gang vector collapse(2)
     do jk = kts,kte
       do jl = its,ite
@@ -4616,7 +4596,7 @@ write(*,*) "*** cuddrafn 7 ***"
 !----------------------------------------------------------------------
 !*    1.0          CALCULATE FLUXES AND UPDATE U AND V TENDENCIES
 ! ----------------------------------------------
-!$acc parallel vector_length(32)
+!$acc parallel vector_length(128)
 !$acc loop gang vector collapse(2)
     do jk = ktopm2 , (kte-kts+1)
 !!!      ik = jk - 1
@@ -4631,7 +4611,7 @@ write(*,*) "*** cuddrafn 7 ***"
     end do
 !$acc end parallel
     ! linear fluxes below cloud
-!$acc parallel vector_length(32)
+!$acc parallel vector_length(128)
 !$acc loop seq 
       do jk = ktopm2 , (kte-kts+1)
 !$acc loop gang vector private(ikb,zzp)
@@ -4651,7 +4631,7 @@ write(*,*) "*** cuddrafn 7 ***"
 !----------------------------------------------------------------------
 !*    2.0          COMPUTE TENDENCIES
 ! ------------------
-!$acc parallel vector_length(32)
+!$acc parallel vector_length(128)
 !$acc loop gang vector collapse(2) 
     do jk = ktopm2 , (kte-kts+1)-1
 !!!      if ( jk < (kte-kts+1) ) then
@@ -4667,7 +4647,7 @@ write(*,*) "*** cuddrafn 7 ***"
      enddo
 !$acc end parallel
 !!!      else
-!$acc parallel vector_length(32)
+!$acc parallel vector_length(128)
 !$acc loop gang vector private(jk)
         do jl = its,ite
           jk = (kte-kts+1)
@@ -4682,7 +4662,7 @@ write(*,*) "*** cuddrafn 7 ***"
 !---------------------------------------------------------------------
 !*  3.0        UPDATE TENDENCIES
 !   -----------------
-!$acc parallel vector_length(32)
+!$acc parallel vector_length(128)
 !$acc loop gang vector collapse(2)
     do jk = ktopm2 , (kte-kts+1)
       do jl = its,ite
