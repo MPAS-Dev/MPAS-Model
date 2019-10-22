@@ -841,7 +841,7 @@
 
  if (transfer_fields) then
  if(mpas_cpl%role() == ROLE_INTEGRATE) then
- !$acc update device(glw, lwcf, lwdnb, lwdnbc, lwdnt, lwdntc, lwupb, &
+ !$acc update host(glw, lwcf, lwdnb, lwdnbc, lwdnt, lwdntc, lwupb, &
  !$acc lwupbc, lwupt, lwuptc, olrtoa, rthratenlw)
  end if
     call MPAS_coupler_transfer_field(mpas_cpl, cells_from_rad_handle, glwField   , ierr=ierr)
@@ -921,7 +921,7 @@
  call mpas_pool_get_array_gpu(tend_physics,'rthratenlw',rthratenlw)
 
  if(mpas_cpl%role() == ROLE_INTEGRATE) then
- !$acc update device(glw, lwcf, lwdnb, lwdnbc, lwdnt, lwdntc, lwupb, &
+ !$acc update host(glw, lwcf, lwdnb, lwdnbc, lwdnt, lwdntc, lwupb, &
  !$acc lwupbc, lwupt, lwuptc, olrtoa, rthratenlw)
  end if
  call MPAS_coupler_transfer_field(mpas_cpl, cells_from_rad_handle, glwField   , ierr=ierr)
@@ -938,7 +938,7 @@
  call MPAS_coupler_transfer_field(mpas_cpl, cells_from_rad_handle, rthratenlwField, ierr=ierr)
 
  if(mpas_cpl%role() == ROLE_INTEGRATE) then
- !$acc update host(glw, lwcf, lwdnb, lwdnbc, lwdnt, lwdntc, lwupb, &
+ !$acc update device(glw, lwcf, lwdnb, lwdnbc, lwdnt, lwdntc, lwupb, &
  !$acc lwupbc, lwupt, lwuptc, olrtoa, rthratenlw)
  end if
  end subroutine lagged_radiation_lw_to_MPAS
