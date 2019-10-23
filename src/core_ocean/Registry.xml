@@ -3347,6 +3347,11 @@
 			type="real" dimensions="nVertLevels nCells Time" units="m^2 s^{-2}"
 			description="kinetic energy of horizonal velocity defined at vertices"
 		/>
+		<var name="densitySurfaceDisplaced"
+			persistence="scratch"
+			type="real" dimensions="nVertLevels nCells Time" units="kg m^{-3}"
+			description="Density computed by displacing SST and SSS to every vertical layer within the column"
+		/>
 		<var name="thermalExpansionCoeff"
 			 persistence="persistent"
 			 type="real" dimensions="nVertLevels nCells Time" units="C^{-1}"
