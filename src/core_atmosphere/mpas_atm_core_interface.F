@@ -77,37 +77,57 @@ module atm_core_interface
    integer function atm_component_role(self)
 
       use mpas_derived_types, only : mpas_coupler_type
+      use mpas_kind_types, only : StrKIND
+      use mpas_abort, only : mpas_dmpar_global_abort
 
       use openacc
       implicit none
 
       class (mpas_coupler_type), intent(in) :: self
-      integer :: number_of_dynamics_ranks, local_rank, ranks_per_node
+      integer :: radiation_ranks_per_node, dynamics_ranks_per_node
+      integer :: ranks_per_node
+      integer :: local_rank
 
-      !number_of_dynamics_ranks = acc_get_num_devices(acc_device_nvidia)
+      character(len=StrKIND) :: radiation_ranks_per_node_str
+      character(len=StrKIND) :: dynamics_ranks_per_node_str
 
-   !Number of dynamics ranks and total ranks per node
-   !will be taken as a namelist option
+      integer :: istat
+
      
-      number_of_dynamics_ranks = 4  
-      ranks_per_node = 8
+      call get_environment_variable('MPAS_RADIATION_RANKS_PER_NODE', value=radiation_ranks_per_node_str, status=istat)
+      if (istat /= 0) then
+          call mpas_dmpar_global_abort('Error: Could not read environment variable MPAS_RADIATION_RANKS_PER_NODE')
+      end if
 
-      local_rank = mod(self % intercomm_rank ,ranks_per_node)
+      call get_environment_variable('MPAS_DYNAMICS_RANKS_PER_NODE', value=dynamics_ranks_per_node_str, status=istat)
+      if (istat /= 0) then
+          call mpas_dmpar_global_abort('Error: Could not read environment variable MPAS_DYNAMICS_RANKS_PER_NODE')
+      end if
+
+      read(radiation_ranks_per_node_str, *) radiation_ranks_per_node
+      read(dynamics_ranks_per_node_str, *) dynamics_ranks_per_node
+
+      !if (self % intercomm_rank == 0) then
+          !write(0,*) 'MPAS_RADIATION_RANKS_PER_NODE = ', radiation_ranks_per_node
+          !write(0,*) 'MPAS_DYNAMICS_RANKS_PER_NODE = ', dynamics_ranks_per_node
+      !end if
+
+      ranks_per_node = radiation_ranks_per_node + dynamics_ranks_per_node
+      local_rank = mod(self % intercomm_rank, ranks_per_node)
+
+      !if (self % intercomm_rank == 0) then
+          !write(0,*) 'my global rank ', self % intercomm_rank ,'   my local rank ',local_rank
+          !write(0,*) 'mod(local_rank, ranks_per_node/dynamics_ranks_per_node) is ', mod(local_rank, ranks_per_node/dynamics_ranks_per_node)
+      !end if
+
 
       if (self % intercomm_size == 1) then
          atm_component_role = self % intercomm_rank
-      else if (local_rank < number_of_dynamics_ranks) then
+      else if (mod(local_rank, ranks_per_node/dynamics_ranks_per_node) == 0) then
          atm_component_role = 0
       else
          atm_component_role = 1
       end if
-
-
-      !if (self % intercomm_size == 1) then
-      !   atm_component_role = self % intercomm_rank
-      !else
-      !   atm_component_role = self % intercomm_rank / (self % intercomm_size / 2)
-      !end if
 
    end function atm_component_role
 
@@ -135,16 +155,11 @@ module atm_core_interface
       integer, intent(in) :: role
       integer :: number_of_dynamics_rank
 
-   !number of dynamics rank 
-   !will be taken as a namelist option
-
-      number_of_dynamics_rank = 4
 
       if (self % intercomm_size == 1) then
          atm_component_role_leader = role
       else
-         !atm_component_role_leader = role * (self % intercomm_size / 2)
-         atm_component_role_leader = role*number_of_dynamics_rank
+         atm_component_role_leader = role
       end if
 
    end function atm_component_role_leader
