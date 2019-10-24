@@ -499,26 +499,18 @@ contains
       !       'displacementType = absolute', MPAS_LOG_CRIT)
       !endif
 
-      if (kDisplacedLocal == 0) then
-         ! use pressure at in situ level
-         do k=1,nVertLevels
-            p (k) = ocnEqStatePRef(k)
-            p2(k) = ocnEqStatePRef(k)*ocnEqStatePRef(k)
-         enddo
-      else ! kDisplacedLocal /= 0
-         do k=1,nVertLevels
-            ! determine level to which parcel is displaced
-            !  and thus which pressure (depth) to use in EOS
-            if (displacementTypeLocal == 'relative') then
-               kTmp = min(k + kDisplacedLocal, nVertLevels)
-            else
-               kTmp = min(kDisplacedLocal, nVertLevels)
-            endif
-            kRef  = max(kTmp, 1)  ! make sure index bounded to 1
-            p (k) = ocnEqStatePRef(kRef)
-            p2(k) = ocnEqStatePRef(kRef)*ocnEqStatePRef(kRef)
-         enddo
-      endif
+      do k=1,nVertLevels
+         ! determine level to which parcel is displaced
+         !  and thus which pressure (depth) to use in EOS
+         if (displacementTypeLocal == 'relative') then
+            kTmp = min(k + kDisplacedLocal, nVertLevels)
+         else
+            kTmp = min(kDisplacedLocal, nVertLevels)
+         endif
+         kRef  = max(kTmp, 1)  ! make sure index bounded to 1
+         p (k) = ocnEqStatePRef(kRef)
+         p2(k) = ocnEqStatePRef(kRef)*ocnEqStatePRef(kRef)
+      enddo
 
       !*** compute modified T,S to account for displacement and
       !*** valid range

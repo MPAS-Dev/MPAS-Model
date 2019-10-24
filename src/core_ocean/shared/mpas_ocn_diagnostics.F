@@ -615,6 +615,9 @@ contains
       call mpas_threading_barrier()
 
       ! compute potentialDensity, the density displaced adiabatically to the mid-depth of top layer.
+      ! we are computing the expansion contraction coefficients for KPP needs
+      call mpas_pool_get_array(diagnosticsPool, 'inSituThermalExpansionCoeff',inSituThermalExpansionCoeff)
+      call mpas_pool_get_array(diagnosticsPool, 'inSituSalineContractionCoeff', inSituSalineContractionCoeff)
       call ocn_equation_of_state_density(statePool, diagnosticsPool, meshPool, scratchPool, &
                                          nCells, 1, 'absolute', potentialDensity, &
                                          err, timeLevelIn=timeLevel)
@@ -1341,25 +1344,11 @@ contains
       call mpas_pool_get_array(tracersPool, 'activeTracers', activeTracers, 1)
       call mpas_pool_get_array(tracersSurfaceFluxPool, 'activeTracersSurfaceFlux', activeTracersSurfaceFlux)
       call mpas_pool_get_array(tracersSurfaceFluxPool, 'activeTracersSurfaceFluxRunoff', activeTracersSurfaceFluxRunoff)
-      ! allocate scratch space displaced density computation
-      call mpas_pool_get_field(scratchPool, 'densitySurfaceDisplaced', densitySurfaceDisplacedField)
-      call mpas_pool_get_field(scratchPool, 'thermalExpansionCoeff', thermalExpansionCoeffField)
-      call mpas_pool_get_field(scratchPool, 'salineContractionCoeff', salineContractionCoeffField)
-      call mpas_allocate_scratch_field(densitySurfaceDisplacedField, .true., .false.)
-      call mpas_allocate_scratch_field(thermalExpansionCoeffField, .true., .false.)
-      call mpas_allocate_scratch_field(salineContractionCoeffField, .true., .false.)
-
-      densitySurfaceDisplaced => densitySurfaceDisplacedField % array
-      thermalExpansionCoeff => thermalExpansionCoeffField % array
-      salineContractionCoeff => salineContractionCoeffField % array
+      call mpas_pool_get_array(diagnosticsPool, 'inSituThermalExpansionCoeff',thermalExpansionCoeff)
+      call mpas_pool_get_array(diagnosticsPool, 'inSituSalineContractionCoeff',salineContractionCoeff)
 
       ! Only need to compute over the 0 and 1 halos
       nCells = nCellsArray( 3 )
-
-      ! compute EOS by displacing SST/SSS to every vertical layer in column
-      call ocn_equation_of_state_density(statePool, diagnosticsPool, meshPool, scratchPool, nCells, 0, 'surfaceDisplaced', &
-                                         densitySurfaceDisplaced, err, thermalExpansionCoeff, salineContractionCoeff, &
-                                         timeLevel)
 
       !$omp do schedule(runtime)
       do iCell = 1, nCells
