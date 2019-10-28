@@ -31,6 +31,10 @@
 			description="Number of times to apply filtering operation."
 			possible_values="0, 1, 2, ..."
 		/>
+		<nml_option name="config_AM_lagrPartTrack_timeIntegration" type="integer" default_value="2" units="unitless"
+			 description="type of temporal interpolation with possible_values='EE(1), RK2(2), RK4(4)' as ENUMs"
+			possible_values="1, 2, 4,..."
+		/>
 		<nml_option name="config_AM_lagrPartTrack_reset_criteria" type="character" default_value="none" units="unitless"
 			description="Specify whether particles should not be reset ('none'), be reset on a timer for each particle ('particle_time'), be reset on config_AM_lagrPartTrack_reset_time_globally value ('global_time'), be reset based on regions ('region'), or be reset for all conditions ('all')."
 			possible_values="'none','particle_time','global_time', 'region','all'"
@@ -50,6 +54,50 @@
 		<nml_option name="config_AM_lagrPartTrack_reset_if_inside_region" type="logical" default_value=".false." units="unitless"
 			description="Specify whether particles should be reset when they enter the resetInsideRegionMaskValue1 mask."
 			possible_values=".false. or .true."
+		/>
+		<nml_option name="config_AM_lagrPartTrack_sample_horizontal_interp" type="logical" default_value=".true." units="unitless"
+			description="If true, particles horizontally interpolate sample quantities."
+			possible_values=".true. or .false."
+		/>
+		<nml_option name="config_AM_lagrPartTrack_sample_temperature" type="logical" default_value=".true." units="unitless"
+			description="If true, particles sample temperature."
+			possible_values=".true. or .false."
+		/>
+		<nml_option name="config_AM_lagrPartTrack_sample_salinity" type="logical" default_value=".true." units="unitless"
+			description="If true, particles sample salinity."
+			possible_values=".true. or .false."
+		/>
+		<nml_option name="config_AM_lagrPartTrack_sample_DIC" type="logical" default_value=".false." units="unitless"
+			description="If true, particles sample DIC."
+			possible_values=".true. or .false."
+		/>
+		<nml_option name="config_AM_lagrPartTrack_sample_ALK" type="logical" default_value=".false." units="unitless"
+			description="If true, particles sample ALK."
+			possible_values=".true. or .false."
+		/>
+		<nml_option name="config_AM_lagrPartTrack_sample_PO4" type="logical" default_value=".false." units="unitless"
+			description="If true, particles sample PO4."
+			possible_values=".true. or .false."
+		/>
+		<nml_option name="config_AM_lagrPartTrack_sample_NO3" type="logical" default_value=".false." units="unitless"
+			description="If true, particles sample NO3."
+			possible_values=".true. or .false."
+		/>
+		<nml_option name="config_AM_lagrPartTrack_sample_SiO3" type="logical" default_value=".false." units="unitless"
+			description="If true, particles sample SiO3."
+			possible_values=".true. or .false."
+		/>
+		<nml_option name="config_AM_lagrPartTrack_sample_NH4" type="logical" default_value=".false." units="unitless"
+			description="If true, particles sample NH4."
+			possible_values=".true. or .false."
+		/>
+		<nml_option name="config_AM_lagrPartTrack_sample_Fe" type="logical" default_value=".false." units="unitless"
+			description="If true, particles sample Fe."
+			possible_values=".true. or .false."
+		/>
+		<nml_option name="config_AM_lagrPartTrack_sample_O2" type="logical" default_value=".false." units="unitless"
+			description="If true, particles sample O2."
+			possible_values=".true. or .false."
 		/>
 	</nml_record>
 
@@ -80,9 +128,12 @@
 			<var name="indexToParticleID"/>
 			<var name="currentBlock"/>
 			<var name="currentCell"/>
+			<var name="currentCellGlobalID"/>
 			<var name="xParticle"/>
 			<var name="yParticle"/>
 			<var name="zParticle"/>
+			<var name="lonParticle"/>
+			<var name="latParticle"/>
 			<var name="zLevelParticle"/>
 			<var name="xParticleReset"/>
 			<var name="yParticleReset"/>
@@ -92,16 +143,11 @@
 			<var name="resetTime"/>
 			<var name="numTimesReset"/>
 			<var name="buoyancyParticle"/>
-			<var name="vertexReconstMethod"/>
-			<var name="horizontalTreatment"/>
 			<var name="verticalTreatment"/>
 			<var name="dtParticle"/>
-			<var name="timeIntegration"/>
 			<var name="indexLevel"/>
 			<var name="cellOwnerBlock"/>
 			<var name="transfered"/>
-			<var name="lonVel"/>
-			<var name="latVel"/>
 			<var name="buoyancySurfaceValues"/>
 			<var name="buoyancySurfaceVelocityMeridional"/>
 			<var name="buoyancySurfaceVelocityZonal"/>
@@ -137,18 +183,10 @@
 			<var name="resetTime"/>
 			<var name="numTimesReset"/>
 			<var name="buoyancyParticle"/>
-			<var name="vertexReconstMethod"/>
-			<var name="horizontalTreatment"/>
 			<var name="verticalTreatment"/>
 			<var name="dtParticle"/>
-			<var name="timeIntegration"/>
 			<var name="indexLevel"/>
 			<var name="transfered"/>
-			<var name="sumU"/>
-			<var name="sumV"/>
-			<var name="sumUU"/>
-			<var name="sumUV"/>
-			<var name="sumVV"/>
 			<var name="buoyancySurfaceValues"/>
 		</stream>
 
@@ -174,11 +212,8 @@
 			<var name="currentCellReset"/>
 			<var name="resetTime"/>
 			<var name="buoyancyParticle"/>
-			<var name="vertexReconstMethod"/>
-			<var name="horizontalTreatment"/>
 			<var name="verticalTreatment"/>
 			<var name="dtParticle"/>
-			<var name="timeIntegration"/>
 			<var name="indexLevel"/>
 			<var name="transfered"/>
 			<var name="buoyancySurfaceValues"/>
@@ -260,7 +295,10 @@
 			 description="current block a particle is on"
 		/>
 		<var name="currentCell" type="integer" dimensions="nParticles Time" units="unitless"
-			 description="current cell a particle is on"
+			 description="current local cell a particle is on"
+		/>
+		<var name="currentCellGlobalID" type="integer" dimensions="nParticles Time" units="unitless"
+			 description="current global cell a particle is on"
 		/>
 		<var name="indexToParticleID" type="integer" dimensions="nParticles" units="unitless"
 			 description="designates global ID for a particle"
@@ -273,6 +311,12 @@
 		/>
 		<var name="zParticle" type="real" dimensions="nParticles Time" units="m"
 			 description="z location of horizontal particle position"
+		/>
+		<var name="lonParticle" type="real" dimensions="nParticles Time" units="m"
+			 description="longitude location of horizontal particle position"
+		/>
+		<var name="latParticle" type="real" dimensions="nParticles Time" units="m"
+			 description="latitude location of horizontal particle position"
 		/>
 		<var name="zLevelParticle" type="real" dimensions="nParticles Time" units="m"
 			 description="z-level for vertical elevation of particle position"
@@ -304,15 +348,6 @@
 		<var name="numTimesReset" type ="integer" dimensions="nParticles Time" units="unitless"
 			 description="flag to specify how many times the particle was reset" default_value="0"
 		/>
-		<var name="vertexReconstMethod" type="integer" dimensions="nParticles Time" units="unitless"
-			 description="type of vertex reconstruction method, with possible_values='RBFlinear(1)' as ENUMs"
-		/>
-		<var name="timeIntegration" type="integer" dimensions="nParticles Time" units="unitless"
-			 description="type of temporal interpolation with possible_values='EE(1), RK2(2), RK4(4)' as ENUMs"
-		/>
-		<var name="horizontalTreatment" type="integer" dimensions="nParticles Time" units="unitless"
-			 description="select type of horizontal treatment to be used, with possible_values='wachspress' as ENUMs"
-		/>
 		<var name="verticalTreatment" type="integer" dimensions="nParticles Time" units="unitless"
 			 description="select type of vertical treatment to be used, with possible_values='indexLevel','fixedZLevel','passiveFloat','buoyancySurface','argoFloat' (ENUM)"
 		/>
@@ -328,30 +363,42 @@
 		<var name="transfered" type ="integer" dimensions="nParticles Time" units="unitless"
 			 description="flag to monitor if the particle was transfered"
 		/>
-		<var name="sumU" type="real" dimensions="nParticles Time" units="m s^{-1}"
-			 description="summed velocity: $\sum_i U_i$"
+<!-- TEMP FIELDS THAT NEED MOVED TO NonHalo below after verifying interpolation is correct -->
+		<var name="particleTemperature" type="real" dimensions="nParticles Time" units="degrees Celsius"
+			 description="sampled temperature for particle"
 		/>
-		<var name="sumV" type="real" dimensions="nParticles Time" units="m s^{-1}"
-			 description="summed velocity: $\sum_i V_i$"
+		<var name="particleSalinity" type="real" dimensions="nParticles Time" units="grams salt per kilogram seawater"
+			 description="sampled salinity for particle"
 		/>
-		<var name="sumUU" type="real" dimensions="nParticles Time" units="m^2 s^{-2}"
-			 description="summed energy: $\sum_i U*U$"
+		<var name="particleDIC" type="real" dimensions="nParticles Time" units="mmol m^{-3}"
+			 description="sampled dissolved inorganic carbon for particle"
 		/>
-		<var name="sumUV" type="real" dimensions="nParticles Time" units="m^2 s^{-2}"
-			 description="summed energy: $\sum_i U*V$"
+		<var name="particleALK" type="real" dimensions="nParticles Time" units="meq m^{-3}"
+			 description="sampled alkalinity for particle"
 		/>
-		<var name="sumVV" type="real" dimensions="nParticles Time" units="m^2 s^{-2}"
-			 description="summed energy: $\sum_i V*V$"
+		<var name="particlePO4" type="real" dimensions="nParticles Time" units="mmol m^{-3}"
+			 description="sampled dissolved inorganic phosphate for particle"
 		/>
-		<var name="lonVel" type="real" dimensions="nParticles Time" units="m s^{-1}"
-			 description="u velocity of particle - zonal direction"
+		<var name="particleNO3" type="real" dimensions="nParticles Time" units="meq m^{-3}"
+			 description="sampled dissolved inorganic nitrate for particle"
 		/>
-		<var name="latVel" type="real" dimensions="nParticles Time" units="m s^{-1}"
-			 description="v velocity of particle - meridional direction"
+		<var name="particleSiO3" type="real" dimensions="nParticles Time" units="mmol m^{-3}"
+			 description="sampled dissolved inorganic silicate for particle"
+		/>
+		<var name="particleNH4" type="real" dimensions="nParticles Time" units="meq m^{-3}"
+			 description="sampled dissolved inorganic ammonia for particle"
+		/>
+		<var name="particleFe" type="real" dimensions="nParticles Time" units="mmol m^{-3}"
+			 description="sampled dissolved inorganic iron for particle"
+		/>
+		<var name="particleO2" type="real" dimensions="nParticles Time" units="meq m^{-3}"
+			 description="sampled dissolved oxygen for particle"
 		/>
 	</var_struct>
+<!--
 	<var_struct name="lagrPartTrackNonHalo" time_levs="1" packages="lagrPartTrackAMPKG">
 	</var_struct>
+-->
 	<var_struct name="lagrPartTrackScratch" time_levs="1" packages="lagrPartTrackAMPKG">
 		<var name="ucReconstructX" type="real" dimensions="nVertLevels nCells" units="m s^{-1}"
 			 description="reconstructed cell center velocity- x component"

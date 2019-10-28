@@ -1,6 +1,4 @@
-Joseph's fork
-
-MPAS-v6.1
+MPAS-v7.0
 ====
 
 The Model for Prediction Across Scales (MPAS) is a collaborative project for
