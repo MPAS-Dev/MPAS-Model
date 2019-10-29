@@ -615,9 +615,6 @@ contains
       call mpas_threading_barrier()
 
       ! compute potentialDensity, the density displaced adiabatically to the mid-depth of top layer.
-      ! we are computing the expansion contraction coefficients for KPP needs
-      call mpas_pool_get_array(diagnosticsPool, 'inSituThermalExpansionCoeff',inSituThermalExpansionCoeff)
-      call mpas_pool_get_array(diagnosticsPool, 'inSituSalineContractionCoeff', inSituSalineContractionCoeff)
       call ocn_equation_of_state_density(statePool, diagnosticsPool, meshPool, scratchPool, &
                                          nCells, 1, 'absolute', potentialDensity, &
                                          err, timeLevelIn=timeLevel)
