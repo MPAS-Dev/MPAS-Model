@@ -599,19 +599,12 @@ contains
       nCells = nCellsArray( 3 )
 
       ! compute in-place density
-      if (config_pressure_gradient_type.eq.'Jacobian_from_TS') then
-         ! only compute EOS derivatives if needed.
-         call mpas_pool_get_array(diagnosticsPool, 'inSituThermalExpansionCoeff',inSituThermalExpansionCoeff)
-         call mpas_pool_get_array(diagnosticsPool, 'inSituSalineContractionCoeff', inSituSalineContractionCoeff)
-         call ocn_equation_of_state_density(statePool, diagnosticsPool, meshPool, scratchPool, &
-                                            nCells, 0, 'relative', density, err, &
-                                            inSituThermalExpansionCoeff, inSituSalineContractionCoeff, &
-                                            timeLevelIn=timeLevel)
-      else
-         call ocn_equation_of_state_density(statePool, diagnosticsPool, meshPool, scratchPool, &
-                                            nCells, 0, 'relative', density, err, &
-                                            timeLevelIn=timeLevel)
-      endif
+      call mpas_pool_get_array(diagnosticsPool, 'inSituThermalExpansionCoeff',inSituThermalExpansionCoeff)
+      call mpas_pool_get_array(diagnosticsPool, 'inSituSalineContractionCoeff', inSituSalineContractionCoeff)
+      call ocn_equation_of_state_density(statePool, diagnosticsPool, meshPool, scratchPool, &
+                                         nCells, 0, 'relative', density, err, &
+                                         inSituThermalExpansionCoeff, inSituSalineContractionCoeff, &
+                                         timeLevelIn=timeLevel)
       call mpas_threading_barrier()
 
       ! compute potentialDensity, the density displaced adiabatically to the mid-depth of top layer.
@@ -1271,7 +1264,7 @@ contains
 
       real (kind=RKIND), dimension(:), pointer :: surfaceStress, surfaceStressMagnitude
       real (kind=RKIND), dimension(:,:), pointer ::  &
-           layerThickness, zMid, zTop, densitySurfaceDisplaced, density, &
+           layerThickness, zMid, zTop, density, &
            normalVelocity, activeTracersSurfaceFlux, thermalExpansionCoeff, salineContractionCoeff, &
            activeTracersSurfaceFluxRunoff, nonLocalSurfaceTracerFlux
 
@@ -1286,8 +1279,6 @@ contains
       integer, pointer :: indexTempFlux, indexSaltFlux
       real (kind=RKIND) :: numerator, denominator, turbulentVelocitySquared, fracAbsorbed, fracAbsorbedRunoff
       real (kind=RKIND) :: factor, deltaVelocitySquared, delU2, invAreaCell
-
-      type (field2DReal), pointer :: densitySurfaceDisplacedField, thermalExpansionCoeffField, salineContractionCoeffField
 
       call mpas_timer_start('KPP input fields')
 
@@ -1410,11 +1401,6 @@ contains
 
       enddo
       !$omp end do
-
-      ! deallocate scratch space
-      call mpas_deallocate_scratch_field(thermalExpansionCoeffField, .true.)
-      call mpas_deallocate_scratch_field(salineContractionCoeffField, .true.)
-      call mpas_deallocate_scratch_field(densitySurfaceDisplacedField, .true.)
 
       call mpas_timer_stop('KPP input fields')
 
