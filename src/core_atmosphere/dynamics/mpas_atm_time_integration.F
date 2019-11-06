@@ -27,9 +27,9 @@ module atm_time_integration
 
    use mpas_atm_iau  
 
-#ifdef MPAS_OPENACC
-   use openacc
-#endif
+!#ifdef MPAS_OPENACC
+!   use openacc
+!#endif
 
    integer :: timerid, secs, u_secs
 
@@ -241,16 +241,17 @@ module atm_time_integration
                 gpu_idx_recv_c_2_v, gpu_dimsizes_c_2_v
        integer, intent(in) :: gpu_nHaloLayers_e_v, gpu_nHaloLayers_c_v, gpu_nHaloLayers_c_vP1, gpu_nHaloLayers_c_v_s, gpu_nHaloLayers_c_2_v
 
-#ifdef MPAS_OPENACC
-      integer :: rrpk_rank, rrpk_devices, rrpk_local_gpu_id
-      rrpk_rank = domain % dminfo % my_proc_id
-      rrpk_devices =  acc_get_num_devices(acc_device_nvidia)
-      rrpk_local_gpu_id = mod(rrpk_rank,rrpk_devices)
-      call acc_set_device_num(rrpk_local_gpu_id,acc_device_nvidia)
-      call mpas_log_write(' Number of gpus $i',intArgs=(/rrpk_devices/))
-      call mpas_log_write(' Local GPU $i',intArgs=(/rrpk_local_gpu_id/))
-      call mpas_log_write(' MPI rank $i',intArgs=(/rrpk_rank/))
-#endif
+!#ifdef MPAS_OPENACC
+!      integer :: rrpk_rank, rrpk_devices, rrpk_local_gpu_id
+!      rrpk_rank = domain % dminfo % my_proc_id
+!      rrpk_devices =  acc_get_num_devices(acc_device_nvidia)
+!      rrpk_local_gpu_id = mod(rrpk_rank,rrpk_devices)
+!      call acc_set_device_num(rrpk_local_gpu_id,acc_device_nvidia)
+!      call mpas_log_write(' Number of gpus $i',intArgs=(/rrpk_devices/))
+!      call mpas_log_write(' Local GPU $i',intArgs=(/rrpk_local_gpu_id/))
+!      call mpas_log_write(' MPI rank $i',intArgs=(/rrpk_rank/))
+!#endif
+
 !$acc enter data copyin(compactHaloInfo_c_v,compactHaloInfo_c_vP1,compactHaloInfo_c_v_s,compactHaloInfo_e_v, compactHaloInfo_c_2_v,&
 !$acc gpu_bufferOffset_send_c_v, gpu_nList_send_c_v, gpu_idx_send_c_v, gpu_bufferOffset_recv_c_v, gpu_nList_recv_c_v,&
 !$acc gpu_idx_recv_c_v, gpu_dimsizes_c_v, gpu_nHaloLayers_c_v, gpu_bufferOffset_send_c_vP1, &
