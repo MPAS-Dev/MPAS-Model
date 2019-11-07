@@ -737,7 +737,7 @@
                 rncmpten(k,i) = nc(k,i)
                 rnimpten(k,i) = ni(k,i)
                 rnrmpten(k,i) = nr(k,i)
-                rnifampten(k,i) = nifa(k,k)
+                rnifampten(k,i) = nifa(k,i)
                 rnwfampten(k,i) = nwfa(k,i)
              enddo
              enddo
@@ -984,8 +984,8 @@
                 rncmpten(k,i) = (nc(k,i)-rncmpten(k,i))/dt_dyn
                 rnimpten(k,i) = (ni(k,i)-rnimpten(k,i))/dt_dyn
                 rnrmpten(k,i) = (nr(k,i)-rnrmpten(k,i))/dt_dyn
-                rnifampten(k,i) = (nifa(k,k)-rnifampten(k,i))/dt_dyn
-                rnwfampten(k,i) = (nwfa(k,i)-rnwfampten(k,k))/dt_dyn
+                rnifampten(k,i) = (nifa(k,i)-rnifampten(k,i))/dt_dyn
+                rnwfampten(k,i) = (nwfa(k,i)-rnwfampten(k,i))/dt_dyn
              enddo
              enddo
 
