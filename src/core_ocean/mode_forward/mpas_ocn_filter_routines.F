@@ -1089,21 +1089,22 @@ CONTAINS
    PrimaryWeights = PrimaryWeights/SUM(PrimaryWeights)
    SecondaryWeights = SecondaryWeights/SUM(SecondaryWeights)
    
-   DO iBarotropicTimeStep = 2, 2*nBarotropicTimeSteps - 1
-      IF (PrimaryWeights(iBarotropicTimeStep - 1) /= 0._RKIND .AND. &
-          PrimaryWeights(iBarotropicTimeStep) == 0._RKIND .AND. &
-          PrimaryWeights(iBarotropicTimeStep + 1) == 0._RKIND) THEN
+   LastPrimaryIndex = 2*nBarotropicTimeSteps
+   LastSecondaryIndex = 2*nBarotropicTimeSteps
+   
+   DO iBarotropicTimeStep = 2, 2*nBarotropicTimeSteps 
+      IF (MAXVAL(ABS(PrimaryWeights(iBarotropicTimeStep:2*nBarotropicTimeSteps))) &
+          == 0._RKIND) THEN 
          LastPrimaryIndex = iBarotropicTimeStep - 1
-         EXIT 
+         EXIT           
       END IF 
    END DO 
-
-   DO iBarotropicTimeStep = 2, 2*nBarotropicTimeSteps - 1
-      IF (SecondaryWeights(iBarotropicTimeStep - 1) /= 0._RKIND .AND. &
-          SecondaryWeights(iBarotropicTimeStep) == 0._RKIND .AND. &
-          SecondaryWeights(iBarotropicTimeStep + 1) == 0._RKIND) THEN
+   
+   DO iBarotropicTimeStep = 2, 2*nBarotropicTimeSteps 
+      IF (MAXVAL(ABS(SecondaryWeights(iBarotropicTimeStep:2*nBarotropicTimeSteps))) &
+          == 0._RKIND) THEN 
          LastSecondaryIndex = iBarotropicTimeStep - 1
-         EXIT 
+         EXIT           
       END IF 
    END DO 
    
@@ -1130,8 +1131,8 @@ CONTAINS
    
    CALL DetermineFilterWeights(FilterType,0.5_RKIND,2._RKIND,2._RKIND, &
                                nBarotropicTimeSteps, &
-                               LastIndexWithNonTrivialFilterWeight, &
-                               tau,PrimaryWeights,SecondaryWeights)
+                               LastIndexWithNonTrivialFilterWeight,tau, &
+                               PrimaryWeights,SecondaryWeights)
                             
    WRITE (*,'(A,F9.6,A)') &
    'With no filter of type 1, the sum of all primary weights is ', &
@@ -1140,6 +1141,9 @@ CONTAINS
    WRITE (*,'(A,F9.6,A)') &
    'With no filter of type 1, the sum of all secondary weights is ', &
    SUM(SecondaryWeights), '.'
+   
+   WRITE (*,'(A,I2,A)') 'The last index with non-trivial filter weights is ', &
+   LastIndexWithNonTrivialFilterWeight, '.'
    
    WRITE (*,'(A)') ' '
    
@@ -1174,8 +1178,8 @@ CONTAINS
    
    CALL DetermineFilterWeights(FilterType,0.5_RKIND,2._RKIND,2._RKIND, &
                                nBarotropicTimeSteps, &
-                               LastIndexWithNonTrivialFilterWeight, &
-                               tau,PrimaryWeights,SecondaryWeights)
+                               LastIndexWithNonTrivialFilterWeight,tau, &
+                               PrimaryWeights,SecondaryWeights)
                             
    WRITE (*,'(A,F9.6,A)') &
    'With no filter of type 2, the sum of all primary weights is ', &
@@ -1184,6 +1188,9 @@ CONTAINS
    WRITE (*,'(A,F9.6,A)') &
    'With no filter of type 2, the sum of all secondary weights is ', &
    SUM(SecondaryWeights), '.'
+   
+   WRITE (*,'(A,I2,A)') 'The last index with non-trivial filter weights is ', &
+   LastIndexWithNonTrivialFilterWeight, '.'
    
    WRITE (*,'(A)') ' '
    
@@ -1221,8 +1228,8 @@ CONTAINS
    
    CALL DetermineFilterWeights(FilterType,RectangularFilterRange,2._RKIND,2._RKIND, &
                                nBarotropicTimeSteps, &
-                               LastIndexWithNonTrivialFilterWeight, &
-                               tau,PrimaryWeights,SecondaryWeights)
+                               LastIndexWithNonTrivialFilterWeight,tau, &
+                               PrimaryWeights,SecondaryWeights)
                             
    WRITE (*,'(A,F4.2,A,F8.6,A)') &
    'The sum of all primary weights of the rectangular filter with range ', &
@@ -1231,6 +1238,9 @@ CONTAINS
    WRITE (*,'(A,F4.2,A,F9.6,A)') &
    'The sum of all secondary weights of the rectangular filter with range ', &
    RectangularFilterRange, ' is ', SUM(SecondaryWeights), '.'
+   
+   WRITE (*,'(A,I2,A)') 'The last index with non-trivial filter weights is ', &
+   LastIndexWithNonTrivialFilterWeight, '.'
    
    WRITE (*,'(A)') ' '
    
@@ -1267,8 +1277,8 @@ CONTAINS
    
    CALL DetermineFilterWeights(FilterType,0.5_RKIND,2._RKIND,2._RKIND, &
                                nBarotropicTimeSteps, &
-                               LastIndexWithNonTrivialFilterWeight, &
-                               tau,PrimaryWeights,SecondaryWeights)
+                               LastIndexWithNonTrivialFilterWeight,tau, &
+                               PrimaryWeights,SecondaryWeights)
                             
    WRITE (*,'(A,F8.6,A)') &
    'The sum of all primary weights of the ROMS cosine filter is ', &
@@ -1277,6 +1287,9 @@ CONTAINS
    WRITE (*,'(A,F9.6,A)') &
    'The sum of all secondary weights of the ROMS cosine filter is ', &
    SUM(SecondaryWeights), '.'
+   
+   WRITE (*,'(A,I2,A)') 'The last index with non-trivial filter weights is ', &
+   LastIndexWithNonTrivialFilterWeight, '.'
    
    WRITE (*,'(A)') ' '
    
@@ -1308,8 +1321,8 @@ CONTAINS
    
    CALL DetermineFilterWeights(FilterType,0.5_RKIND,2._RKIND,2._RKIND, &
                                nBarotropicTimeSteps, &
-                               LastIndexWithNonTrivialFilterWeight, &
-                               tau,PrimaryWeights,SecondaryWeights)
+                               LastIndexWithNonTrivialFilterWeight,tau, &
+                               PrimaryWeights,SecondaryWeights)
                             
    WRITE (*,'(A,F9.6,A)') &
    'The sum of all primary weights of the Hamming window cosine filter is ', &
@@ -1318,6 +1331,9 @@ CONTAINS
    WRITE (*,'(A,F9.6,A)') &
    'The sum of all secondary weights of the Hamming window cosine filter is ', &
    SUM(SecondaryWeights), '.'
+   
+   WRITE (*,'(A,I2,A)') 'The last index with non-trivial filter weights is ', &
+   LastIndexWithNonTrivialFilterWeight, '.'
    
    WRITE (*,'(A)') ' '
    
@@ -1352,14 +1368,17 @@ CONTAINS
    
    CALL DetermineFilterWeights(FilterType,0.5_RKIND,pShchepetkin,qShchepetkin, &
                                nBarotropicTimeSteps, &
-                               LastIndexWithNonTrivialFilterWeight, &
-                               tau,PrimaryWeights,SecondaryWeights)
+                               LastIndexWithNonTrivialFilterWeight,tau, &
+                               PrimaryWeights,SecondaryWeights)
                             
    WRITE (*,'(2A,F8.6,A)') 'The sum of all primary weights of the second order ', &
    'accurate Shchepetkin filter is ', SUM(PrimaryWeights), '.'
    
    WRITE (*,'(2A,F9.6,A)') 'The sum of all secondary weights of the second order ', &
    'accurate Shchepetkin filter is ', SUM(SecondaryWeights), '.'
+   
+   WRITE (*,'(A,I2,A)') 'The last index with non-trivial filter weights is ', &
+   LastIndexWithNonTrivialFilterWeight, '.'
    
    WRITE (*,'(A)') ' '
    
@@ -1396,14 +1415,17 @@ CONTAINS
    
    CALL DetermineFilterWeights(FilterType,0.5_RKIND,pShchepetkin,qShchepetkin, &
                                nBarotropicTimeSteps, &
-                               LastIndexWithNonTrivialFilterWeight, &
-                               tau,PrimaryWeights,SecondaryWeights)
+                               LastIndexWithNonTrivialFilterWeight,tau, &
+                               PrimaryWeights,SecondaryWeights)
                             
    WRITE (*,'(2A,F8.6,A)') 'The sum of all primary weights of the Shchepetkin ', &
    'filter optimized for minimal dispersion is ', SUM(PrimaryWeights), '.'
    
    WRITE (*,'(2A,F9.6,A)') 'The sum of all secondary weights of the Shchepetkin ', &
    'filter optimized for minimal dispersion is ', SUM(SecondaryWeights), '.'
+   
+   WRITE (*,'(A,I2,A)') 'The last index with non-trivial filter weights is ', &
+   LastIndexWithNonTrivialFilterWeight, '.'
    
    WRITE (*,'(A)') ' '
    
