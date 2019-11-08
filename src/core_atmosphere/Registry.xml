@@ -2982,4 +2982,163 @@
 
 #include "diagnostics/Registry_diagnostics.xml"
 
+
+#ifndef DO_PHYSICS
+<!-- **************************************************************************************** -->
+<!-- ************************* CAM dynamics import and export state ************************* -->
+<!-- **************************************************************************************** -->
+        <var_struct name="dyn_in" time_levs="1">
+
+                <var name="phis_in" name_in_code="phis"
+                     type="real"
+                     dimensions="nCells Time" units="m^2 s^{-2}"
+                     description="Surface geopotential"/>
+
+                <var name="psd_in" name_in_code="psd"
+                     type="real"
+                     dimensions="nCells Time"
+                     units="Pa"
+                     description="Dry surface pressure"/>
+
+                <var name="uvperp_in" name_in_code="uvperp"
+                     type="real"
+                     dimensions="nVertLevels maxEdges nCells Time"
+                     units="m s^{-1}"
+                     description="Normal velocity at edges"/>
+
+                <var name="ux_in" name_in_code="ux"
+                     type="real"
+                     dimensions="nVertLevels nCells Time"
+                     units="m s^{-1}"
+                     description="Zonal velocity at cell centers"/>
+
+                <var name="uy_in" name_in_code="uy"
+                     type="real"
+                     dimensions="nVertLevels nCells Time"
+                     units="m s^{-1}"
+                     description="Meridional velocity at cell centers"/>
+
+                <var name="t_in" name_in_code="t"
+                     type="real"
+                     dimensions="nVertLevels nCells Time"
+                     units="K"
+                     description="Temperature"/>
+
+                <var name="omega_in" name_in_code="omega"
+                     type="real"
+                     dimensions="nVertLevelsP1 nCells Time"
+                     units="Pa s^{-1}"
+                     description="Omega"/>
+
+                <var name="ux_tend_in" name_in_code="ux_tend"
+                     type="real"
+                     dimensions="nVertLevels nCells Time"
+                     units="m s^{-1}"
+                     description="Zonal velocity tendency at cell centers"/>
+
+                <var name="uy_tend_in" name_in_code="uy_tend"
+                     type="real"
+                     dimensions="nVertLevels nCells Time"
+                     units="m s^{-1}"
+                     description="Meridional velocity tendency at cell centers"/>
+
+                <var name="t_tend_in" name_in_code="t_tend"
+                     type="real"
+                     dimensions="nVertLevels nCells Time"
+                     units="K s^{-1}"
+                     description="Temperature tendency"/>
+
+                <var_array name="tracer_in" name_in_code="tracer" type="real" dimensions="nVertLevels nCells Time">
+                        <var name="qv_in" name_in_code="qv"
+                             array_group="moist_in"
+                             units="kg kg^{-1}"
+                             description="Water vapor mixing ratio"/>
+                </var_array>
+
+        </var_struct>
+
+        <var_struct name="dyn_out" time_levs="1">
+
+                <var name="phis_out" name_in_code="phis"
+                     type="real"
+                     dimensions="nCells Time"
+                     units="m^2 s^{-2}"
+                     description="Surface geopotential"/>
+
+                <var name="psd_out" name_in_code="psd"
+                     type="real"
+                     dimensions="nCells Time"
+                     units="Pa"
+                     description="Dry surface pressure"/>
+
+                <var name="pint_out" name_in_code="pint"
+                     type="real"
+                     dimensions="nVertLevelsP1 nCells Time"
+                     units="Pa"
+                     description="Dry pressure at layer interfaces"/>
+
+                <var name="pmid_out" name_in_code="pmid"
+                     type="real"
+                     dimensions="nVertLevels nCells Time"
+                     units="Pa"
+                     description="Dry pressure at layer midpoints"/>
+
+                <var name="zint_out" name_in_code="zint"
+                     type="real"
+                     dimensions="nVertLevelsP1 nCells Time"
+                     units="Pa"
+                     description="Geopotential height at layer interfaces"/>
+
+                <var name="zmid_out" name_in_code="zmid"
+                     type="real"
+                     dimensions="nVertLevels nCells Time"
+                     units="Pa"
+                     description="Geopotential height at layer midpoints"/>
+
+                <var name="uvperp_out" name_in_code="uvperp"
+                     type="real"
+                     dimensions="nVertLevels maxEdges nCells Time"
+                     units="m s^{-1}"
+                     description="Normal velocity at edges"/>
+
+                <var name="ux_out" name_in_code="ux"
+                     type="real"
+                     dimensions="nVertLevels nCells Time"
+                     units="m s^{-1}"
+                     description="Zonal velocity at cell centers"/>
+
+                <var name="uy_out" name_in_code="uy"
+                     type="real"
+                     dimensions="nVertLevels nCells Time"
+                     units="m s^{-1}"
+                     description="Meridional velocity at cell centers"/>
+
+                <var name="t_out" name_in_code="t"
+                     type="real"
+                     dimensions="nVertLevels nCells Time"
+                     units="K"
+                     description="Temperature"/>
+
+                <var name="omega_out" name_in_code="omega"
+                     type="real"
+                     dimensions="nVertLevelsP1 nCells Time"
+                     units="Pa s^{-1}"
+                     description="Omega"/>
+
+                <var name="pressure_out" name_in_code="pressure"
+                     type="real"
+                     dimensions="nVertLevels nCells Time"
+                     units="Pa"
+                     description="Pressure"/>
+
+                <var_array name="tracer_out" name_in_code="tracer" type="real" dimensions="nVertLevels nCells Time">
+                        <var name="qv_out" name_in_code="qv"
+                             array_group="moist_out"
+                             units="kg kg^{-1}"
+                             description="Water vapor mixing ratio"/>
+                </var_array>
+
+        </var_struct>
+#endif
+
 </registry>
