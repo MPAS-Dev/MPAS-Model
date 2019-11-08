@@ -452,7 +452,9 @@ contains
       logical, pointer :: config_output_external_velocity_solver_data
       real (kind=RKIND), pointer :: config_ice_density
       integer, pointer :: anyDynamicVertexMaskChanged
+      integer, pointer :: cellIceMaskChanged
       integer, pointer :: dirichletMaskChanged
+      integer, pointer :: floatingEdgesChanged
       integer, pointer :: nEdges
       integer, pointer :: nVertLevels
       integer, pointer :: timestepNumber
@@ -486,7 +488,7 @@ contains
       call mpas_pool_get_array(geometryPool, 'lowerSurface', lowerSurface)
       call mpas_pool_get_array(geometryPool, 'upperSurface', upperSurface)
       call mpas_pool_get_array(geometryPool, 'vertexMask', vertexMask, timeLevel = 1)
-      call mpas_pool_get_array(geometryPool, 'cellMask', cellMask)
+      call mpas_pool_get_array(geometryPool, 'cellMask', cellMask, timeLevel = 1)
       call mpas_pool_get_array(geometryPool, 'edgeMask', edgeMask)
       call mpas_pool_get_array(geometryPool, 'sfcMassBal', sfcMassBal)
 
@@ -501,9 +503,11 @@ contains
       call mpas_pool_get_array(velocityPool, 'uReconstructZ', uReconstructZ)
       call mpas_pool_get_array(velocityPool, 'betaSolve', betaSolve)
       call mpas_pool_get_array(velocityPool, 'anyDynamicVertexMaskChanged', anyDynamicVertexMaskChanged)
+      call mpas_pool_get_array(velocityPool, 'cellIceMaskChanged', cellIceMaskChanged)
       call mpas_pool_get_array(velocityPool, 'dirichletMaskChanged', dirichletMaskChanged)
       call mpas_pool_get_array(velocityPool, 'dirichletVelocityMask', dirichletVelocityMask, timeLevel = 1)
-      call mpas_pool_get_array(velocityPool, 'floatingEdges', floatingEdges)
+      call mpas_pool_get_array(velocityPool, 'floatingEdges', floatingEdges, timeLevel = 1)
+      call mpas_pool_get_array(velocityPool, 'floatingEdgesChanged', floatingEdgesChanged)
       call mpas_pool_get_array(velocityPool, 'stiffnessFactor', stiffnessFactor)
 
       ! Hydro variables
@@ -521,7 +525,7 @@ contains
       ! Note these functions will always be called on the first solve because we
       ! initialize vertexMask to garbage which sets anyDynamicVertexMaskChanged to 1.
       if ((anyDynamicVertexMaskChanged == 1) .or. (config_always_compute_fem_grid) .or. &
-          (dirichletMaskChanged == 1) ) then
+          (dirichletMaskChanged == 1) .or. (floatingEdgesChanged == 1) .or. (cellIceMaskChanged == 1)) then
          call mpas_log_write("Generating new external velocity solver FEM grid.", flushNow=.true.)
          call generate_fem_grid(config_velocity_solver, vertexMask, cellMask, dirichletVelocityMask, &
               floatingEdges, layerThicknessFractions, lowerSurface, thickness, err)
@@ -809,13 +813,13 @@ subroutine li_velocity_external_write_albany_mesh(domain)
       call mpas_pool_get_array(geometryPool, 'sfcMassBal', sfcMassBal)
       call mpas_pool_get_array(geometryPool, 'floatingBasalMassBal', floatingBasalMassBal)
       call mpas_pool_get_array(geometryPool, 'vertexMask', vertexMask, timeLevel = 1)
-      call mpas_pool_get_array(geometryPool, 'cellMask', cellMask)
+      call mpas_pool_get_array(geometryPool, 'cellMask', cellMask, timeLevel = 1)
       call mpas_pool_get_array(geometryPool, 'edgeMask', edgeMask)
       call mpas_pool_get_array(geometryPool, 'layerThickness', layerThickness)
 
       ! Velocity variables
       call mpas_pool_get_array(velocityPool, 'beta', beta)
-      call mpas_pool_get_array(velocityPool, 'floatingEdges', floatingEdges)
+      call mpas_pool_get_array(velocityPool, 'floatingEdges', floatingEdges, timeLevel = 1)
       call mpas_pool_get_array(velocityPool, 'dirichletVelocityMask', dirichletVelocityMask, timeLevel = 1)
       call mpas_pool_get_array(velocityPool, 'stiffnessFactor', stiffnessFactor)
 

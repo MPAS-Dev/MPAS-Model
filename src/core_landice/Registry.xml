@@ -931,7 +931,7 @@ is the value of that variable from the *previous* time level!
                 <var name="dynamicThickening" type="real" dimensions="nCells Time" units="m a^{-1}"
                      description="diagnostic field of dynamic thickening rate (calculated as negative of flux divergence)"
                 />
-                <var name="cellMask" type="integer" dimensions="nCells Time" units="none"
+                <var name="cellMask" type="integer" dimensions="nCells Time" units="none" time_levs="1"
                      description="bitmask indicating various properties about the ice sheet on cells.  cellMask only needs to be a restart field if config_allow_additional_advance = false (to keep the mask of initial ice extent)"
                 />
                 <var name="edgeMask" type="integer" dimensions="nEdges Time" units="none"
@@ -1127,6 +1127,10 @@ is the value of that variable from the *previous* time level!
                      units="none"  description="flag needed by external velocity solvers that indicates if the region to solve on the block's domain has changed (treated as a logical)"
                         packages="higherOrderVelocity"
                 />
+                <var name="cellIceMaskChanged"              type="integer"  dimensions="Time"
+                     units="none"  description="flag needed by external velocity solvers that indicates if the region to solve on the block's domain has changed (treated as a logical)"
+                        packages="higherOrderVelocity"
+                />
                 <var name="dirichletVelocityMask"            type="integer"     dimensions="nVertInterfaces nCells Time"
                         units="none"  time_levs="2"
                         description="mask of where Dirichlet boundary conditions should be applied to the velocity solution.  1 means apply a Dirichlet boundary condition, 0 means do not. (higher-order dycores only)"
@@ -1139,7 +1143,12 @@ is the value of that variable from the *previous* time level!
                 <var name="floatingEdges"
                         type="integer" dimensions="nEdges Time"
                         units="unitless"
+                        time_levs="2"
                         description="edges which are floating have a value of 1.  non floating edges have a value of 0."
+                        packages="higherOrderVelocity"
+                />
+                <var name="floatingEdgesChanged"              type="integer"  dimensions="Time"
+                     units="none"  description="flag needed by external velocity solvers that indicates if the floating edges ids have changed (treated as a logical)"
                         packages="higherOrderVelocity"
                 />
         </var_struct>

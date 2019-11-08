@@ -163,7 +163,7 @@ module li_subglacial_hydro
          waterPressure = max(0.0_RKIND, waterPressure)
          waterPressure = min(waterPressure, rhoi * gravity * thickness)
          ! set pressure correctly under floating ice and open ocean
-         call mpas_pool_get_array(geometryPool, 'cellMask', cellMask)
+         call mpas_pool_get_array(geometryPool, 'cellMask', cellMask, timeLevel = 1)
          call mpas_pool_get_array(geometryPool, 'bedTopography', bedTopography)
          where ( (li_mask_is_floating_ice(cellMask)) .or. &
                  ( (.not. li_mask_is_ice(cellMask)) .and. (bedTopography < config_sea_level) ) )
@@ -379,7 +379,7 @@ module li_subglacial_hydro
          call mpas_pool_get_array(hydroPool, 'deltatSGH', deltatSGH)
          call mpas_pool_get_array(hydroPool, 'basalMeltInput', basalMeltInput)
          call mpas_pool_get_array(hydroPool, 'externalWaterInput', externalWaterInput)
-         call mpas_pool_get_array(geometryPool, 'cellMask', cellMask)
+         call mpas_pool_get_array(geometryPool, 'cellMask', cellMask, timeLevel = 1)
 
          WtillOld = Wtill
          Wtill = Wtill + deltatSGH * ( (basalMeltInput + externalWaterInput) / rho_water - Cd)
@@ -420,7 +420,7 @@ module li_subglacial_hydro
          call mpas_pool_get_array(hydroPool, 'waterVelocity', waterVelocity)
          call mpas_pool_get_array(hydroPool, 'waterVelocityCellX', waterVelocityCellX)
          call mpas_pool_get_array(hydroPool, 'waterVelocityCellY', waterVelocityCellY)
-         call mpas_pool_get_array(geometryPool, 'cellMask', cellMask)
+         call mpas_pool_get_array(geometryPool, 'cellMask', cellMask, timeLevel = 1)
          allocate(cellJunk(nCells+1))
          call mpas_reconstruct(meshPool, waterVelocity, waterVelocityCellX, waterVelocityCellY, &
               cellJunk, cellJunk, cellJunk)
@@ -476,7 +476,7 @@ module li_subglacial_hydro
          call mpas_pool_get_array(meshPool, 'edgesOnCell', edgesOnCell)
          call mpas_pool_get_array(meshPool, 'cellsOnEdge', cellsOnEdge)
          call mpas_pool_get_array(meshPool, 'edgeSignOnCell', edgeSignOnCell)
-         call mpas_pool_get_array(geometryPool, 'cellMask', cellMask)
+         call mpas_pool_get_array(geometryPool, 'cellMask', cellMask, timeLevel = 1)
 
          divergence(:) = 0.0_RKIND  ! zero div before starting
          ! loop over locally owned cells
@@ -551,7 +551,7 @@ module li_subglacial_hydro
          call mpas_pool_get_array(hydroPool, 'divergence', divergence)
          call mpas_pool_get_array(hydroPool, 'divergenceChannel', divergenceChannel)
          call mpas_pool_get_array(hydroPool, 'channelAreaChangeCell', channelAreaChangeCell)
-         call mpas_pool_get_array(geometryPool, 'cellMask', cellMask)
+         call mpas_pool_get_array(geometryPool, 'cellMask', cellMask, timeLevel = 1)
 
          waterThicknessOld = waterThickness
          waterThickness = waterThicknessOld + deltatSGH * ( (basalMeltInput + externalWaterInput) / rho_water - divergence  &
@@ -755,7 +755,7 @@ module li_subglacial_hydro
       call mpas_pool_get_array(hydroPool, 'hydropotentialBaseSlopeNormal', hydropotentialBaseSlopeNormal)
       call mpas_pool_get_array(hydroPool, 'waterPressureSlopeNormal', waterPressureSlopeNormal)
       call mpas_pool_get_array(meshPool, 'dcEdge', dcEdge)
-      call mpas_pool_get_array(geometryPool, 'cellMask', cellMask)
+      call mpas_pool_get_array(geometryPool, 'cellMask', cellMask, timeLevel = 1)
       call mpas_pool_get_array(meshPool, 'cellsOnEdge', cellsOnEdge)
       call mpas_pool_get_array(meshPool, 'edgeSignOnCell', edgeSignOnCell)
       call mpas_pool_get_array(hydroPool, 'hydropotentialBaseSlopeTangent', hydropotentialBaseSlopeTangent)
@@ -1217,7 +1217,7 @@ module li_subglacial_hydro
       call mpas_pool_get_array(velocityPool, 'basalSpeed', basalSpeed)
       call mpas_pool_get_array(velocityPool, 'flowParamA', flowParamA)
       call mpas_pool_get_array(geometryPool, 'thickness', thickness)
-      call mpas_pool_get_array(geometryPool, 'cellMask', cellMask)
+      call mpas_pool_get_array(geometryPool, 'cellMask', cellMask, timeLevel = 1)
       call mpas_pool_get_array(geometryPool, 'bedTopography', bedTopography)
 
       openingRate(:) = bedRough * basalSpeed(:) * (bedRoughMax - waterThickness(:))
@@ -1338,7 +1338,7 @@ module li_subglacial_hydro
       call mpas_pool_get_array(hydroPool, 'hydropotentialBase', hydropotentialBase)
       call mpas_pool_get_array(hydroPool, 'waterThickness', waterThickness)
       call mpas_pool_get_array(hydroPool, 'hydropotential', hydropotential)
-      call mpas_pool_get_array(geometryPool, 'cellMask', cellMask)
+      call mpas_pool_get_array(geometryPool, 'cellMask', cellMask, timeLevel = 1)
 
       effectivePressure = rhoi * gravity * thickness - waterPressure
          ! < this should evalute to 0 for floating ice if Pw set correctly there.
