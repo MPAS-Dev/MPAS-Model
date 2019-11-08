@@ -316,7 +316,7 @@ contains
       call mpas_pool_get_array(velocityPool, 'flowParamA', flowParamA)
       call mpas_pool_get_array(geometryPool, 'thickness', thickness)
       call mpas_pool_get_array(geometryPool, 'edgeMask', edgeMask)
-      call mpas_pool_get_array(geometryPool, 'cellMask', cellMask)
+      call mpas_pool_get_array(geometryPool, 'cellMask', cellMask, timeLevel = 1)
       call mpas_pool_get_array(geometryPool, 'slopeEdge', slopeEdge)
       call mpas_pool_get_array(geometryPool, 'normalSlopeEdge', normalSlopeEdge)
       call mpas_pool_get_array(thermalPool, 'temperature', temperature)
