@@ -269,8 +269,9 @@ contains
       integer, pointer :: nEdges
       integer, pointer :: nVertInterfaces
       integer, pointer :: nCells
-      integer, dimension(:), pointer :: edgeMask, cellMask, vertexMask, vertexMaskOld
+      integer, dimension(:), pointer :: edgeMask, cellMask, cellMaskOld, vertexMask, vertexMaskOld
       integer, dimension(:,:), pointer :: dirichletVelocityMaskOld, dirichletVelocityMaskNew
+      integer, dimension(:), pointer :: floatingEdgesOld, floatingEdgesNew
       real (kind=RKIND), dimension(:,:), pointer :: normalVelocity, normalVelocityInitial
       real (kind=RKIND), dimension(:,:), pointer :: uReconstructX, uReconstructY, uReconstructZ, &
          uReconstructZonal, uReconstructMeridional
@@ -288,7 +289,9 @@ contains
       real (kind=RKIND), dimension(:), pointer :: upperSurface
       integer, dimension(:), pointer :: indexToEdgeID
       integer, pointer :: anyDynamicVertexMaskChanged
+      integer, pointer :: cellIceMaskChanged
       integer, pointer :: dirichletMaskChanged
+      integer, pointer :: floatingEdgesChanged
       ! truly local variables
       integer :: cell1, cell2
       integer :: cell3, cell4, thisCell
@@ -301,7 +304,9 @@ contains
       real (kind=RKIND) :: maxThicknessOnProc, maxThicknessAllProcs
       real (kind=RKIND) :: xVelEdge, yVelEdge
       integer :: blockDynamicVertexMaskChanged, procDynamicVertexMaskChanged
+      integer :: blockCellIceMaskChanged, procCellIceMaskChanged
       integer :: blockDirichletMaskChanged, procDirichletMaskChanged
+      integer :: blockFloatingEdgesChanged, procFloatingEdgesChanged
 
       call mpas_timer_start("velocity solve")
 
@@ -386,7 +391,9 @@ contains
          ! Don't bother checking this with SIA because it requires an extra global reduce
          maxThicknessOnProc = 0.0_RKIND  ! initialize to
          procDynamicVertexMaskChanged = 0
+         procCellIceMaskChanged = 0
          procDirichletMaskChanged = 0
+         procFloatingEdgesChanged = 0
 
          block => domain % blocklist
          do while (associated(block))
@@ -398,7 +405,7 @@ contains
             maxThicknessOnProc = max(maxThicknessOnProc, maxval(thickness))
 
             ! The interface expects an array where 1's are floating edges and 0's are non-floating edges.
-            call mpas_pool_get_array(velocityPool, 'floatingEdges', floatingEdges)
+            call mpas_pool_get_array(velocityPool, 'floatingEdges', floatingEdges, timeLevel = 1)
             call mpas_pool_get_array(geometryPool, 'edgeMask', edgeMask)
             floatingEdges = li_mask_is_floating_ice_int(edgeMask)
             call mpas_pool_get_array(geometryPool, 'vertexMask', vertexMask, timeLevel=1)
@@ -408,7 +415,7 @@ contains
             ! TODO:  There may be some aspects of the mask that are ok change for external dycores,
             !        but for now just check the whole thing.
             call mpas_pool_get_array(geometryPool, 'vertexMask', vertexMaskOld, timeLevel=2)
-            if ( sum(li_mask_is_dynamic_ice_int(vertexMask) - li_mask_is_dynamic_ice_int(vertexMaskOld)) /= 0 ) then
+            if ( sum(abs(li_mask_is_dynamic_ice_int(vertexMask) - li_mask_is_dynamic_ice_int(vertexMaskOld))) /= 0 ) then
                 blockDynamicVertexMaskChanged = 1
             else
                 blockDynamicVertexMaskChanged = 0
@@ -417,17 +424,43 @@ contains
             ! Determine if any blocks on this processor had a change to the vertex mask
             procDynamicVertexMaskChanged = max(procDynamicVertexMaskChanged, blockDynamicVertexMaskChanged)
             !print *,'procVertexMaskChanged', procVertexMaskChanged
+            
+            ! Determine if the cell mask changed during this time step for this block (needed for external dycores)
+            ! TODO:  There may be some aspects of the mask that are ok change for external dycores,
+            !        but for now just check the whole thing.
+            call mpas_pool_get_array(geometryPool, 'cellMask', cellMask, timeLevel=1)
+            call mpas_pool_get_array(geometryPool, 'cellMask', cellMaskOld, timeLevel=2)
+            if (( sum(abs(li_mask_is_dynamic_ice_int(cellMask) - li_mask_is_dynamic_ice_int(cellMaskOld))) /= 0 ) .or. &
+                ( sum(abs(li_mask_is_ice_int(cellMask) - li_mask_is_ice_int(cellMaskOld))) /= 0 )) then
+                blockCellIceMaskChanged = 1
+            else
+                blockCellIceMaskChanged = 0
+            endif
+      
+            ! Determine if any blocks on this processor had a change to the cell mask
+            procCellIceMaskChanged = max(procCellIceMaskChanged, blockCellIceMaskChanged)
 
-            ! Also check to see if the Dirichlet b.c. mask has changed
+            ! Check to see if the Dirichlet b.c. mask has changed
             call mpas_pool_get_array(velocityPool, 'dirichletVelocityMask', dirichletVelocityMaskOld, timeLevel=2)
             call mpas_pool_get_array(velocityPool, 'dirichletVelocityMask', dirichletVelocityMaskNew, timeLevel=1)
-            if ( sum(dirichletVelocityMaskNew - dirichletVelocityMaskOld) /= 0 ) then
+            if ( sum(abs(dirichletVelocityMaskNew - dirichletVelocityMaskOld)) /= 0 ) then
                 blockDirichletMaskChanged = 1
             else
                 blockDirichletMaskChanged = 0
             endif
             ! Determine if any blocks on this processor had a change to the vertex mask
             procDirichletMaskChanged = max(procDirichletMaskChanged, blockDirichletMaskChanged)
+
+            ! Check to see if the Floating Edges Ids have changed
+            call mpas_pool_get_array(velocityPool, 'floatingEdges', floatingEdgesOld, timeLevel=2)
+            call mpas_pool_get_array(velocityPool, 'floatingEdges', floatingEdgesNew, timeLevel=1)
+            if ( sum(abs(floatingEdgesNew - floatingEdgesOld)) /= 0 ) then
+                blockFloatingEdgesChanged = 1
+            else
+                blockFloatingEdgesChanged = 0
+            endif
+            ! Determine if any blocks on this processor had a change to the vertex mask
+            procFloatingEdgesChanged = max(procFloatingEdgesChanged, blockFloatingEdgesChanged)
 
             ! Set beta for solver to use
             ! (this could potentially be applied to an SIA solver, so it is calculated in this module)
@@ -452,10 +485,16 @@ contains
          call mpas_pool_get_array(velocityPool, 'anyDynamicVertexMaskChanged', anyDynamicVertexMaskChanged)
          call mpas_dmpar_max_int(domain % dminfo, procDynamicVertexMaskChanged, anyDynamicVertexMaskChanged)
          !print *,'anyDynamicVertexMaskChanged', anyDynamicVertexMaskChanged
+         ! Do the same for the cell mask
+         call mpas_pool_get_array(velocityPool, 'cellIceMaskChanged', cellIceMaskChanged)
+         call mpas_dmpar_max_int(domain % dminfo, procCellIceMaskChanged, cellIceMaskChanged)
          ! Do the same for the Dirichlet b.c. mask
          call mpas_pool_get_array(velocityPool, 'dirichletMaskChanged', dirichletMaskChanged)
          call mpas_dmpar_max_int(domain % dminfo, procDirichletMaskChanged, dirichletMaskChanged)
-         !print *,'dirichletMaskChanged', dirichletMaskChanged
+         ! Do the same for the Floating edges
+         call mpas_pool_get_array(velocityPool, 'floatingEdgesChanged', floatingEdgesChanged)
+         call mpas_dmpar_max_int(domain % dminfo, procFloatingEdgesChanged, floatingEdgesChanged)
+         !print *,'floatingEdgesChanged', floatingEdgesChanged
 
       endif
 
@@ -479,7 +518,7 @@ contains
          call mpas_pool_get_array(meshPool, 'cellsOnEdge', cellsOnEdge)
          call mpas_pool_get_array(meshPool, 'cellsOnVertex', cellsOnVertex)
          call mpas_pool_get_array(meshPool, 'verticesOnEdge', verticesOnEdge)
-         call mpas_pool_get_array(geometryPool, 'cellMask', cellMask)
+         call mpas_pool_get_array(geometryPool, 'cellMask', cellMask, timeLevel = 1)
          call mpas_pool_get_array(geometryPool, 'upperSurface', upperSurface)
 
 
@@ -844,7 +883,7 @@ contains
 
       call mpas_pool_get_array(velocityPool, 'betaSolve', betaSolve)
       call mpas_pool_get_array(velocityPool, 'beta', beta)
-      call mpas_pool_get_array(geometryPool, 'cellMask', cellMask)
+      call mpas_pool_get_array(geometryPool, 'cellMask', cellMask, timeLevel = 1)
 
       betaSolve = beta
 
@@ -1028,7 +1067,7 @@ contains
       call mpas_pool_get_dimension(meshPool, 'nCells', nCells)
       call mpas_pool_get_array(meshPool, 'nEdgesOnCell', nEdgesOnCell)
       call mpas_pool_get_array(meshPool, 'edgesOnCell', edgesOnCell)
-      call mpas_pool_get_array(geometryPool, 'cellMask', cellMask)
+      call mpas_pool_get_array(geometryPool, 'cellMask', cellMask, timeLevel = 1)
       call mpas_pool_get_array(geometryPool, 'thickness', thickness)
       call mpas_pool_get_array(geometryPool, 'calvingThickness', calvingThickness)
       call mpas_pool_get_array(geometryPool, 'upperSurface', upperSurface)

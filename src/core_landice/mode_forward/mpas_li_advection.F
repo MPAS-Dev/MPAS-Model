@@ -257,7 +257,7 @@ module li_advection
       call mpas_pool_get_array(geometryPool, 'floatingBasalMassBal', floatingBasalMassBal)
       call mpas_pool_get_array(geometryPool, 'layerThickness', layerThickness)
       call mpas_pool_get_array(geometryPool, 'layerThicknessEdge', layerThicknessEdge)
-      call mpas_pool_get_array(geometryPool, 'cellMask', cellMask)
+      call mpas_pool_get_array(geometryPool, 'cellMask', cellMask, timeLevel = 1)
       call mpas_pool_get_array(geometryPool, 'edgeMask', edgeMask)
       call mpas_pool_get_array(geometryPool, 'dynamicThickening', dynamicThickening)
       call mpas_pool_get_array(geometryPool, 'groundedToFloatingThickness', groundedToFloatingThickness)
@@ -630,7 +630,7 @@ module li_advection
 
      call mpas_pool_get_dimension(geometryPool, 'nCells', nCells)
 
-     call mpas_pool_get_array(geometryPool, 'cellMask', cellMask)
+     call mpas_pool_get_array(geometryPool, 'cellMask', cellMask, timeLevel = 1)
      call mpas_pool_get_array(geometryPool, 'thickness', thickness)
      call mpas_pool_get_array(geometryPool, 'upperSurface', upperSurface)
      call mpas_pool_get_array(geometryPool, 'lowerSurface', lowerSurface)

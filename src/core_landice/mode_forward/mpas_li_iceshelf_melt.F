@@ -247,7 +247,7 @@ module li_iceshelf_melt
          call mpas_pool_get_array(geometryPool, 'thickness', thickness)
          call mpas_pool_get_array(geometryPool, 'lowerSurface', lowerSurface)
          call mpas_pool_get_array(geometryPool, 'bedTopography', bedTopography)
-         call mpas_pool_get_array(geometryPool, 'cellMask', cellMask)
+         call mpas_pool_get_array(geometryPool, 'cellMask', cellMask, timeLevel = 1)
          call mpas_pool_get_array(geometryPool, 'floatingBasalMassBal', floatingBasalMassBal)
 
          ! get fields from the scratch pool
@@ -853,7 +853,7 @@ module li_iceshelf_melt
          call mpas_pool_get_subpool(block % structs, 'geometry', geometryPool)
          call mpas_pool_get_subpool(block % structs, 'mesh', meshPool)
          call mpas_pool_get_array(geometryPool, 'lowerSurface', lowerSurface)
-         call mpas_pool_get_array(geometryPool, 'cellMask', cellMask)
+         call mpas_pool_get_array(geometryPool, 'cellMask', cellMask, timeLevel = 1)
          call mpas_pool_get_array(meshPool, 'nEdgesOnCell', nEdgesOnCell)
          call mpas_pool_get_array(meshPool, 'cellsOnCell', cellsOnCell)
          call mpas_pool_get_array(meshPool, 'areaCell', areaCell)
