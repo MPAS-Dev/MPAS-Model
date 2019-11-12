@@ -1,0 +1,39 @@
+add_subdirectory(physics_wrf)
+add_subdirectory(physics_mmm)
+
+target_sources(${MPAS_EXE_NAME}
+               PUBLIC
+                  ccpp_kinds.F
+                  mpas_atmphys_camrad_init.F
+                  mpas_atmphys_constants.F
+                  mpas_atmphys_control.F
+                  mpas_atmphys_date_time.F
+                  mpas_atmphys_driver_cloudiness.F
+                  mpas_atmphys_driver_convection.F
+                  mpas_atmphys_driver.F
+                  mpas_atmphys_driver_gwdo.F
+                  mpas_atmphys_driver_lsm.F
+                  mpas_atmphys_driver_lsm_shared.F
+                  mpas_atmphys_driver_microphysics.F
+                  mpas_atmphys_driver_oml.F
+                  mpas_atmphys_driver_pbl.F
+                  mpas_atmphys_driver_radiation_lw.F
+                  mpas_atmphys_driver_radiation_sw.F
+                  mpas_atmphys_driver_sfclayer.F
+                  mpas_atmphys_finalize.F
+                  mpas_atmphys_functions.F
+                  mpas_atmphys_init.F
+                  mpas_atmphys_init_microphysics.F
+                  mpas_atmphys_interface.F
+                  mpas_atmphys_landuse.F
+                  mpas_atmphys_lsm_noahinit.F
+                  mpas_atmphys_manager.F
+                  mpas_atmphys_o3climatology.F
+                  mpas_atmphys_packages.F
+                  mpas_atmphys_rrtmg_lwinit.F
+                  mpas_atmphys_rrtmg_swinit.F
+                  mpas_atmphys_todynamics.F
+                  mpas_atmphys_update.F
+                  mpas_atmphys_update_surface.F
+                  mpas_atmphys_utilities.F
+                  mpas_atmphys_vars.F)
