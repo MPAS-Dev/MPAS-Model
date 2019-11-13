@@ -2592,6 +2592,10 @@ contains
 
   subroutine solve_velocity(domain)
 
+    use seaice_state, only: &
+         uVelocityState, &
+         vVelocityState
+
     type(domain_type), intent(inout) :: &
          domain
 
@@ -2606,8 +2610,6 @@ contains
          solveVelocity
 
     real(kind=RKIND), dimension(:), pointer :: &
-         uVelocity, &
-         vVelocity, &
          uVelocityInitial, &
          vVelocityInitial, &
          totalMassVertex, &
@@ -2652,8 +2654,6 @@ contains
 
        call MPAS_pool_get_array(velocitySolverPool, "elasticTimeStep", elasticTimeStep)
        call MPAS_pool_get_array(velocitySolverPool, "solveVelocity", solveVelocity)
-       call MPAS_pool_get_array(velocitySolverPool, "uVelocity", uVelocity)
-       call MPAS_pool_get_array(velocitySolverPool, "vVelocity", vVelocity)
        call MPAS_pool_get_array(velocitySolverPool, "uVelocityInitial", uVelocityInitial)
        call MPAS_pool_get_array(velocitySolverPool, "vVelocityInitial", vVelocityInitial)
        call MPAS_pool_get_array(velocitySolverPool, "stressDivergenceU", stressDivergenceU)
@@ -2685,17 +2685,17 @@ contains
              ! right hand side of matrix solve
              rightHandSide(1) = stressDivergenceU(iVertex) + airStressVertexU(iVertex) + surfaceTiltForceU(iVertex) + &
                   oceanStressCoeff(iVertex) * oceanStressU(iVertex) + &
-                  (totalMassVertex(iVertex) * uVelocity(iVertex)) / elasticTimeStep
+                  (totalMassVertex(iVertex) * uVelocityState(iVertex)) / elasticTimeStep
 
              rightHandSide(2) = stressDivergenceV(iVertex) + airStressVertexV(iVertex) + surfaceTiltForceV(iVertex) + &
                   oceanStressCoeff(iVertex) * oceanStressV(iVertex) + &
-                  (totalMassVertex(iVertex) * vVelocity(iVertex)) / elasticTimeStep
+                  (totalMassVertex(iVertex) * vVelocityState(iVertex)) / elasticTimeStep
 
              ! solve the equation
              solutionDenominator = leftMatrix(1,1) * leftMatrix(2,2) - leftMatrix(1,2) * leftMatrix(2,1)
 
-             uVelocity(iVertex) = (leftMatrix(2,2) * rightHandSide(1) - leftMatrix(1,2) * rightHandSide(2)) / solutionDenominator
-             vVelocity(iVertex) = (leftMatrix(1,1) * rightHandSide(2) - leftMatrix(2,1) * rightHandSide(1)) / solutionDenominator
+             uVelocityState(iVertex) = (leftMatrix(2,2) * rightHandSide(1) - leftMatrix(1,2) * rightHandSide(2)) / solutionDenominator
+             vVelocityState(iVertex) = (leftMatrix(1,1) * rightHandSide(2) - leftMatrix(2,1) * rightHandSide(1)) / solutionDenominator
 
           endif ! solveVelocity
 
