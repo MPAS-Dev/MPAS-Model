@@ -592,6 +592,8 @@
  call mpas_pool_get_config(configs,'config_do_restart'       ,config_do_restart)
  call mpas_pool_get_config(configs,'config_convection_scheme',convection_scheme)
 
+ call mpas_pool_get_dimension(mesh,'nClosures',nclosures)
+
 !initialize instantaneous precipitation, and copy convective tendencies from the dynamics to
 !the physics grid:
  call convection_from_MPAS(dt_dyn,configs,mesh,sfc_input,diag_physics,diag_physics_cu,tend_physics,its,ite)
