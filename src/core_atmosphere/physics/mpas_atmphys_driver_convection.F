@@ -708,8 +708,6 @@
        call mpas_pool_get_config(configs,'config_gfconv_closure_midlc',gfconv_closure_midlc)
        call mpas_pool_get_config(configs,'config_gfconv_closure_shalc',gfconv_closure_shalc)
 
-       call mpas_pool_get_dimension(mesh,'nClosures',nclosures)
-
        call mpas_log_write('gfconv_deepc = $l',logicArgs=(/gfconv_deepc/))
        call mpas_log_write('gfconv_midlc = $l',logicArgs=(/gfconv_midlc/))
        call mpas_log_write('gfconv_shalc = $l',logicArgs=(/gfconv_shalc/))
