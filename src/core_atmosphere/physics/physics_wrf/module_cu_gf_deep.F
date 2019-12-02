@@ -9,6 +9,11 @@ module module_cu_gf_deep
  use mpas_kind_types,only: kind_phys => RKIND
  use mpas_atmphys_constants,only: cp,g=>gravity,r_v=>R_v,xlv
 
+ use module_cu_gf_conv_transport,only: cup_transport_clev, &
+                                       cup_transport_dn,   &
+                                       cup_transport_tends
+
+ use module_cu_gf_ldf,only: cup_up_moisture_ldf
  use module_cu_gf_shared,only: cup_env,cup_env_clev,cup_kbcon,cup_minimi,cup_up_aa0,   &
                                get_cloud_bc,get_inversion_layers,get_lateral_massflux, &
                                get_zu_zd_pdf_fim,rates_up_pdf
@@ -361,10 +366,65 @@ contains
      real(kind=kind_phys),    dimension (its:ite,kts:kte) ::  p_liq_ice,melting_layer,melting
 
 !--- MPAS (modified calls to the subroutines get_cloud_bc and get_zu_zd_pdf_fim):
-     real,intent(in),dimension(its:ite,kts:kte):: nc,ni,nifa,nwfa
-     real,intent(inout),dimension(its:ite,kts:kte):: outnc,outni,outnifa,outnwfa
+     real(kind=kind_phys),intent(in),dimension(its:ite,kts:kte):: nc,ni,nifa,nwfa
+     real(kind=kind_phys),intent(inout),dimension(its:ite,kts:kte):: outnc,outni,outnifa,outnwfa
 
-     real,dimension(kts:kte):: dummy1,dummy2
+     !local variables:
+     integer,parameter:: ntrans = 2
+     integer:: n
+
+     real(kind=kind_phys),dimension(kts:kte):: dummy1,dummy2
+     real(kind=kind_phys),dimension(its:ite,kts:kte)       :: ncl2,nil2,nifal2,nwfal2
+     real(kind=kind_phys),dimension(its:ite,kts:kte)       :: nc_up,ni_up,nifa_up,nwfa_up
+     real(kind=kind_phys),dimension(its:ite,kts:kte)       :: nc_dn,ni_dn,nifa_dn,nwfa_dn
+     real(kind=kind_phys),dimension(its:ite,kts:kte,ntrans):: qtrans,qtransl2
+
+     !initialization:
+     do k = kts, ktf
+        do i = its, itf
+           outnc(i,k)   = 0._kind_phys
+           outni(i,k)   = 0._kind_phys
+           outnifa(i,k) = 0._kind_phys
+           outnwfa(i,k) = 0._kind_phys
+
+           nc_up(i,k)   = 0._kind_phys
+           ni_up(i,k)   = 0._kind_phys
+           nifa_up(i,k) = 0._kind_phys
+           nwfa_up(i,k) = 0._kind_phys
+
+           nc_dn(i,k)   = 0._kind_phys
+           ni_dn(i,k)   = 0._kind_phys
+           nifa_dn(i,k) = 0._kind_phys
+           nwfa_dn(i,k) = 0._kind_phys
+        enddo
+     enddo
+
+     do k = kts, ktf
+        do i = its, itf
+           ncl2(i,k)   = 0._kind_phys
+           nil2(i,k)   = 0._kind_phys
+           nifal2(i,k) = 0._kind_phys
+           nwfal2(i,k) = 0._kind_phys
+        enddo
+     enddo
+     do n = 1, ntrans
+        do k = kts, ktf
+           do i = its, itf
+              qtrans(i,k,n)   = 1._kind_phys
+              qtransl2(i,k,n) = 0._kind_phys
+           enddo
+        enddo
+     enddo
+     call cup_transport_clev(its,ite,itf,kts,kte,ktf,ntrans,qtrans,nc,ni,nifa,nwfa,qtransl2, &
+                             ncl2,nil2,nifal2,nwfal2)
+!    do i = its, itf
+!       do k = kts, ktf
+!          call mpas_log_write('$i $i $r $r $r $r $r $r',intArgs=(/i,k/),    &
+!                    realArgs=(/ncl2(i,k),nil2(i,k),nifal2(i,k),nwfal2(i,k), &
+!                    (qtransl2(i,k,n),n=1,ntrans)/))
+!       enddo
+!       call mpas_log_write(' ')
+!    enddo
 !--- MPAS end.
 
 !---meltglac-------------------------------------------------
@@ -946,12 +1006,24 @@ contains
              1,itf,ktf,                                                          &
              its,ite, kts,kte)
       else
-         call cup_up_moisture('deep',ierr,zo_cup,qco,qrco,pwo,pwavo,             &
-             p_cup,kbcon,ktop,dbyo,clw_all,xland1,                               &
-             qo,gammao_cup,zuo,qeso_cup,k22,qo_cup,                              &
-             zqexec,ccn,rho,c1d,tn_cup,up_massentr,up_massdetr,psum,psumh,       &
-             1,itf,ktf,                                                          &
-             its,ite, kts,kte)
+!--- for deep convection, replaced the subroutine cup_up_moisture with cup_up_moisture_ldf
+!    in module_cu_gf_ldf.F. cup_up_moisture_ldf is a cleaned-up version of cup_up_moisture
+!    which includes the calculation of the in-cloud "ice-" and "water-friendly" aerosols
+!    (nifa_up and nwfa-up) from the Thompson cloud microphysics. for now,  nc_up and ni_up
+!    are simply holders. cup_up_moisture_ldf does not work with the "berry" autoconversion
+!    option.
+         call cup_up_moisture_ldf('deep',ierr,k22,kbcon,ktop,autoconv,zo_cup,    &
+                     tn_cup,qo_cup,qeso_cup,gammao_cup,qo,dbyo,c1d,up_massentr,  &
+                     up_massdetr,zuo,qco,qrco,pwo,clw_all,pwavo,psum,            &
+                     nc,ni,nifa,nwfa,ncl2,nil2,nifal2,nwfal2,                    &
+                     nc_up,ni_up,nifa_up,nwfa_up,                                &
+                     its,ite,itf,kts,kte,ktf)
+!        call cup_up_moisture('deep',ierr,zo_cup,qco,qrco,pwo,pwavo,             &
+!            p_cup,kbcon,ktop,dbyo,clw_all,xland1,                               &
+!            qo,gammao_cup,zuo,qeso_cup,k22,qo_cup,                              &
+!            zqexec,ccn,rho,c1d,tn_cup,up_massentr,up_massdetr,psum,psumh,       &
+!            1,itf,ktf,                                                          &
+!            its,ite, kts,kte)
      endif
 
 !     !--- get melting profile 
@@ -1277,6 +1349,11 @@ contains
            pwevo,bu,qrcdo,qo,heo,1,                                              &
            itf,ktf,                                                              &
            its,ite, kts,kte)
+!
+!--- MPAS: downdrafts for nc, ni, nifa, and nwfa:
+      call cup_transport_dn(ierr,jmin,zdo,dd_massentro,dd_massdetro,nc,ni,nifa,nwfa, &
+                            ncl2,nil2,nifal2,nwfal2,nc_dn,ni_dn,nifa_dn,nwfa_dn,     &
+                            its,ite,itf,kts,kte,ktf)
 !
 !---meltglac-------------------------------------------------
 !--- calculate moisture properties of updraft
@@ -1969,7 +2046,13 @@ contains
              enddo
           endif
       enddo
-
+!
+!--- MPAS:
+!     call cup_transport_tends(ierr,k22,kbcon,ktop,jmin,xmb,p_cup,ncl2,nil2,nifal2,nwfal2,  &
+!                              nc_up,ni_up,nifa_up,nwfa_up,nc_dn,ni_dn,nifa_dn,nwfa_dn,     &
+!                              edto,zuo,zdo,outnc,outni,outnifa,outnwfa,its,ite,itf,        &
+!                              kts,kte,ktf)
+!
 ! rain evaporation as in sas
 !
       if(irainevap.eq.1)then
