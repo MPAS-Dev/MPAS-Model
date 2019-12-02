@@ -11,6 +11,10 @@
 !   Laura D. Fowler (laura@ucar.edu) / 2017-08-08.
 ! * for shallow, middle-level, and deep convection, added diagnostics of the updraft and downdraft massflux.
 !   Laura D. Fowler (laura@ucar.edu) / 2017-09-11.
+! * added the input optional variables nc,ni,nifa,and nwfa, and output optional variables rnccuten,rnicuten,
+!   rnifacuten,and rnwfacuten to include the convective transport for the number concentration of cloud liquid
+!   water and cloud ice,and for the number concentation of "ice-friendly" and "water-friendly" aerosols.
+!   Laura D. Fowler (laura@ucar.edu) / 2019-12-02.
 
 !=================================================================================================================
  module module_cu_gf_wrf390
@@ -43,7 +47,9 @@
                rqvcuten_deepc,rqccuten_deepc,rqicuten_deepc, &
                rthcuten_midlc,rqvcuten_midlc,rqccuten_midlc, &
                rqicuten_midlc,rthcuten_shalc,rqvcuten_shalc, &
-               rqccuten_shalc,rqicuten_shalc,gdc,gdc2,       &
+               rqccuten_shalc,rqicuten_shalc,                &
+               rnccuten,rnicuten,rnifacuten,rnwfacuten,      &
+               gdc,gdc2,                                     &
                pratec,pratecd,pratecm,pratecs,raincv,        &
                raincvd,raincvm,raincvs,nclos,weights_clos,   &
                nc,ni,nifa,nwfa,                              &
@@ -88,6 +94,8 @@
                                                                   rqicuten_deepc,rthcuten_midlc,rqvcuten_midlc, &
                                                                   rqccuten_midlc,rqicuten_midlc,rthcuten_shalc, &
                                                                   rqvcuten_shalc,rqccuten_shalc,rqicuten_shalc
+ real,intent(inout),dimension(ims:ime,kms:kme,jms:jme),optional:: rnccuten,rnicuten,rnifacuten,rnwfacuten
+
  real,intent(inout),dimension(ims:ime,1:nclos,jms:jme),optional:: weights_clos
 
 !local variables:
@@ -224,8 +232,41 @@
           if(present(rqvcuten_shalc)) rqvcuten_shalc(i,k,j) = 0.
           if(present(rqccuten_shalc)) rqccuten_shalc(i,k,j) = 0.
           if(present(rqicuten_shalc)) rqicuten_shalc(i,k,j) = 0.
+
+          if(present(rnccuten))   rnccuten(i,k,j)   = 0.
+          if(present(rnicuten))   rnicuten(i,k,j)   = 0.
+          if(present(rnifacuten)) rnifacuten(i,k,j) = 0.
+          if(present(rnwfacuten)) rnwfacuten(i,k,j) = 0.
        enddo
     enddo
+    if(present(rnccuten)) then
+       do k = kts, kte
+          do i = its, ite
+             rnccuten(i,k,j) = 0.
+          enddo
+       enddo
+    endif
+    if(present(rnicuten)) then
+       do k = kts, kte
+          do i = its, ite
+             rnicuten(i,k,j) = 0.
+          enddo
+       enddo
+    endif
+    if(present(rnifacuten)) then
+       do k = kts, kte
+          do i = its, ite
+             rnifacuten(i,k,j) = 0.
+          enddo
+       enddo
+    endif
+    if(present(rnwfacuten)) then
+       do k = kts, kte
+          do i = its, ite
+             rnwfacuten(i,k,j) = 0.
+          enddo
+       enddo
+    endif
 
     if(present(weights_clos)) then
        do k = 1, nclos
@@ -378,26 +419,58 @@
           p2d(i,k) = p(i,k,j)*0.01
        enddo
     enddo
-    if(present(nc) .and. present(ni) .and. present(nifa) .and. present(nwfa)) then
+    if(present(nc)) then
        do k = kts, ktf
           do i = its, ite
              nc2d(i,k) = nc(i,k,j)
-             ni2d(i,k) = ni(i,k,j)
-             nifa2d(i,k) = nifa(i,k,j)
-             nwfa2d(i,k) = nwfa(i,k,j)
           enddo
        enddo
     else
        do k = kts, ktf
           do i = its, ite
              nc2d(i,k) = 0.
+          enddo
+       enddo
+    endif
+    if(present(ni)) then
+       do k = kts, ktf
+          do i = its, ite
+             ni2d(i,k) = ni(i,k,j)
+          enddo
+       enddo
+    else
+       do k = kts, ktf
+          do i = its, ite
              ni2d(i,k) = 0.
+          enddo
+       enddo
+    endif
+    if(present(nifa)) then
+       do k = kts, ktf
+          do i = its, ite
+             nifa2d(i,k) = nifa(i,k,j)
+          enddo
+       enddo
+    else
+       do k = kts, ktf
+          do i = its, ite
              nifa2d(i,k) = 0.
+          enddo
+       enddo
+    endif
+    if(present(nwfa)) then
+       do k = kts, ktf
+          do i = its, ite
+             nwfa2d(i,k) = nwfa(i,k,j)
+          enddo
+       enddo
+    else
+       do k = kts, ktf
+          do i = its, ite
              nwfa2d(i,k) = 0.
           enddo
        enddo
     endif
-
 
     !--- calculation of the moisture convergence: we do not need to calculate
     !the moisture convergence since it is initialized to zero and calculated
@@ -614,6 +687,35 @@
           if(present(zu_shalc)) zu_shalc(i,k,j) = cutens(i)*zus(i,k)
        enddo
     enddo
+
+    if(present(rnccuten)) then
+       do k = kts, ktf
+          do i = its, itf
+             rnccuten(i,k,j) = cuten(i)*outnc(i,k) + cutenm(i)*outncm(i,k) + cutens(i)*outncs(i,k)
+          enddo
+       enddo
+    endif
+    if(present(rnicuten)) then
+       do k = kts, ktf
+          do i = its, itf
+             rnicuten(i,k,j) = cuten(i)*outni(i,k) + cutenm(i)*outnim(i,k) + cutens(i)*outnis(i,k)
+          enddo
+       enddo
+    endif
+    if(present(rnifacuten)) then
+       do k = kts, ktf
+          do i = its, itf
+             rnifacuten(i,k,j) = cuten(i)*outnifa(i,k) + cutenm(i)*outnifam(i,k) + cutens(i)*outnifas(i,k)
+          enddo
+       enddo
+    endif
+    if(present(rnwfacuten)) then
+       do k = kts, ktf
+          do i = its, itf
+             rnwfacuten(i,k,j) = cuten(i)*outnwfa(i,k) + cutenm(i)*outnwfam(i,k) + cutens(i)*outnwfas(i,k)
+          enddo
+       enddo
+    endif
 
  enddo j_loop
 
