@@ -101,6 +101,35 @@ module ocn_diagnostics
    real (kind=RKIND), pointer :: config_land_ice_flux_attenuation_coefficient
    logical :: jenkinsOn, hollandJenkinsOn
 
+   !--------------------------------------------------------------------
+   !
+   ! Replace calls to mpas_allocate_scratch_Field with straight allocates.
+   ! These variables were moved from the subroutines, but will be moved back once the 
+   ! threading implementation is changed to more localized threading
+   !
+   !--------------------------------------------------------------------
+
+   ! Subroutine ocn_diagnostic_solve
+   real (kind=RKIND), dimension(:,:), allocatable :: kineticEnergyVertex, kineticEnergyVertexOnCells
+   real (kind=RKIND), dimension(:,:), allocatable :: normalizedPlanetaryVorticityVertex
+   real (kind=RKIND), dimension(:,:), allocatable :: normalizedRelativeVorticityVertex
+   real (kind=RKIND), dimension(:,:), allocatable :: vorticityGradientNormalComponent
+   real (kind=RKIND), dimension(:,:), allocatable :: vorticityGradientTangentialComponent
+
+   ! Subroutine ocn_vert_transport_velocity_top
+   real (kind=RKIND), dimension(:), allocatable :: &
+      projectedSSH       !> projected SSH at new time
+   real (kind=RKIND), dimension(:,:), allocatable :: &
+      ALE_Thickness, & !> ALE thickness at new time
+      div_hu           !> divergence of (thickness*velocity)
+
+   ! subroutine ocn_compute_KPP_input_fields
+   real (kind=RKIND), dimension(:,:), allocatable ::  &
+        densitySurfaceDisplaced, thermalExpansionCoeff, salineContractionCoeff
+
+   ! subroutine ocn_compute_land_ice_flux_input_fields
+   real (kind=RKIND), dimension(:), allocatable ::  blTempScratch, blSaltScratch
+
 !***********************************************************************
 
 contains
@@ -154,10 +183,10 @@ contains
         weightsOnEdge, kiteAreasOnVertex, layerThicknessEdge, layerThickness, normalVelocity, normalTransportVelocity, &
         normalGMBolusVelocity, tangentialVelocity, pressure, circulation, kineticEnergyCell, montgomeryPotential, &
         vertAleTransportTop, zMid, zTop, divergence, relativeVorticity, relativeVorticityCell, &
-        normalizedPlanetaryVorticityEdge, normalizedPlanetaryVorticityVertex, normalizedRelativeVorticityEdge, &
-        normalizedRelativeVorticityVertex, normalizedRelativeVorticityCell, density, displacedDensity, potentialDensity, &
-        temperature, salinity, kineticEnergyVertex, kineticEnergyVertexOnCells, vertVelocityTop, vertTransportVelocityTop, &
-        vertGMBolusVelocityTop, BruntVaisalaFreqTop, vorticityGradientNormalComponent, vorticityGradientTangentialComponent, &
+        normalizedPlanetaryVorticityEdge, normalizedRelativeVorticityEdge, &
+        normalizedRelativeVorticityCell, density, displacedDensity, potentialDensity, &
+        temperature, salinity, vertVelocityTop, vertTransportVelocityTop, &
+        vertGMBolusVelocityTop, BruntVaisalaFreqTop, &
         RiTopOfCell, inSituThermalExpansionCoeff, inSituSalineContractionCoeff
 
       real (kind=RKIND), dimension(:,:,:), pointer :: activeTracers, derivTwo
@@ -429,13 +458,12 @@ contains
       ! Compute kinetic energy
       !
       if ( ke_vertex_flag == 1 ) then
-         call mpas_pool_get_field(scratchPool, 'kineticEnergyVertex', kineticEnergyVertexField)
-         call mpas_pool_get_field(scratchPool, 'kineticEnergyVertexOnCells', kineticEnergyVertexOnCellsField)
-         call mpas_allocate_scratch_field(kineticEnergyVertexField, .true.)
-         call mpas_allocate_scratch_field(kineticEnergyVertexOnCellsField, .true.)
 
-         kineticEnergyVertex         => kineticEnergyVertexField % array
-         kineticEnergyVertexOnCells  => kineticEnergyVertexOnCellsField % array
+         !$omp master
+         allocate(kineticEnergyVertex(nVertLevels, nVertices), &
+                  kineticEnergyVertexOnCells(nVertLevels, nCells))
+         !$omp end master
+         !$omp barrier
 
          !$omp do schedule(runtime) private(i, iEdge, r_tmp, k)
          do iVertex = 1, nVertices
@@ -477,20 +505,21 @@ contains
          end do
          !$omp end do
 
-         call mpas_deallocate_scratch_field(kineticEnergyVertexField, .true.)
-         call mpas_deallocate_scratch_field(kineticEnergyVertexOnCellsField, .true.)
+         !$omp barrier
+         !$omp master
+         deallocate(kineticEnergyVertex, &
+                    kineticEnergyVertexOnCells)
+         !$omp end master
       end if
 
       !
       ! Compute normalized relative and planetary vorticity
       !
-      call mpas_pool_get_field(scratchPool, 'normalizedRelativeVorticityVertex', normalizedRelativeVorticityVertexField)
-      call mpas_pool_get_field(scratchPool, 'normalizedPlanetaryVorticityVertex', normalizedPlanetaryVorticityVertexField)
-      call mpas_allocate_scratch_field(normalizedRelativeVorticityVertexField, .true., .false.)
-      call mpas_allocate_scratch_field(normalizedPlanetaryVorticityVertexField, .true., .false.)
-
-      normalizedPlanetaryVorticityVertex  => normalizedPlanetaryVorticityVertexField % array
-      normalizedRelativeVorticityVertex  => normalizedRelativeVorticityVertexField % array
+      !$omp master
+      allocate(normalizedPlanetaryVorticityVertex(nVertLevels, nVertices), &
+               normalizedRelativeVorticityVertex(nVertLevels, nVertices))
+      !$omp end master
+      !$omp barrier
 
       nVertices = nVerticesArray( 3 )
 
@@ -553,13 +582,11 @@ contains
       ! Diagnostics required for the Anticipated Potential Vorticity Method (apvm).
       if (config_apvm_scale_factor>1e-10) then
 
-         call mpas_pool_get_field(scratchPool, 'vorticityGradientNormalComponent', vorticityGradientNormalComponentField)
-         call mpas_pool_get_field(scratchPool, 'vorticityGradientTangentialComponent', vorticityGradientTangentialComponentField)
-         call mpas_allocate_scratch_field(vorticityGradientNormalComponentField, .true.)
-         call mpas_allocate_scratch_field(vorticityGradientTangentialComponentField, .true.)
-
-         vorticityGradientNormalComponent => vorticityGradientNormalComponentField % array
-         vorticityGradientTangentialComponent => vorticityGradientTangentialComponentField % array
+         !$omp master
+         allocate(vorticityGradientNormalComponent(nVertLevels, nEdges), &
+                  vorticityGradientTangentialComponent(nVertLevels, nEdges))
+         !$omp end master
+         !$omp barrier
 
          nEdges = nEdgesArray( 2 )
 
@@ -603,13 +630,19 @@ contains
          enddo
          !$omp end do
 
-         call mpas_deallocate_scratch_field(vorticityGradientNormalComponentField, .true.)
-         call mpas_deallocate_scratch_field(vorticityGradientTangentialComponentField, .true.)
+         !$omp barrier
+         !$omp master
+         deallocate(vorticityGradientNormalComponent, &
+                    vorticityGradientTangentialComponent)
+         !$omp end master
 
       endif
 
-      call mpas_deallocate_scratch_field(normalizedRelativeVorticityVertexField, .true.)
-      call mpas_deallocate_scratch_field(normalizedPlanetaryVorticityVertexField, .true.)
+      !$omp barrier
+      !$omp master
+      deallocate(normalizedPlanetaryVorticityVertex, &
+                 normalizedRelativeVorticityVertex)
+      !$omp end master
 
       !
       ! equation of state
@@ -976,12 +1009,7 @@ contains
 
       real (kind=RKIND) :: flux, invAreaCell, div_hu_btr
       real (kind=RKIND), dimension(:), pointer :: dvEdge, areaCell
-      real (kind=RKIND), dimension(:), pointer :: &
-         projectedSSH       !> projected SSH at new time
       type (field1DReal), pointer :: projectedSSHField
-      real (kind=RKIND), dimension(:,:), pointer :: &
-         ALE_Thickness, & !> ALE thickness at new time
-         div_hu           !> divergence of (thickness*velocity)
       type (field2DReal), pointer :: ALE_ThicknessField, div_huField
 
       err = 0
@@ -1002,19 +1030,17 @@ contains
         return
       end if
 
+      ncells = nCellsArray(size(nCellsArray))
+
+      !$omp master
+      allocate(div_hu(nVertLevels, nCells), &
+               projectedSSH(nCells), &
+               ALE_Thickness(nVertLevels, nCells))
+      !$omp end master
+      !$omp barrier
+
       ! Only need to compute over 0 and 1 halos
       nCells = nCellsArray( 2 )
-
-      call mpas_pool_get_field(scratchPool, 'div_hu', div_huField)
-      call mpas_pool_get_field(scratchPool, 'projectedSSH', projectedSSHField)
-      call mpas_pool_get_field(scratchPool, 'ALE_Thickness', ALE_ThicknessField)
-      call mpas_allocate_scratch_field(div_huField, .true.)
-      call mpas_allocate_scratch_field(projectedSSHField, .true.)
-      call mpas_allocate_scratch_field(ALE_ThicknessField, .true.)
-
-      div_hu => div_huField % array
-      projectedSSH => projectedSSHField % array
-      ALE_Thickness => ALE_ThicknessField % array
 
       !
       ! thickness-weighted divergence and barotropic divergence
@@ -1068,9 +1094,12 @@ contains
       end do
       !$omp end do
 
-      call mpas_deallocate_scratch_field(div_huField, .true.)
-      call mpas_deallocate_scratch_field(projectedSSHField, .true.)
-      call mpas_deallocate_scratch_field(ALE_ThicknessField, .true.)
+      !$omp barrier
+      !$omp master
+      deallocate(div_hu, &
+                 projectedSSH, &
+                 ALE_Thickness)
+      !$omp end master
 
    end subroutine ocn_vert_transport_velocity_top!}}}
 
@@ -1418,8 +1447,8 @@ contains
 
       real (kind=RKIND), dimension(:), pointer :: surfaceStress, surfaceStressMagnitude
       real (kind=RKIND), dimension(:,:), pointer ::  &
-           layerThickness, zMid, zTop, densitySurfaceDisplaced, density, &
-           normalVelocity, activeTracersSurfaceFlux, thermalExpansionCoeff, salineContractionCoeff, &
+           layerThickness, zMid, zTop, density, &
+           normalVelocity, activeTracersSurfaceFlux, &
            activeTracersSurfaceFluxRunoff, nonLocalSurfaceTracerFlux
 
       real (kind=RKIND), dimension(:), pointer :: &
@@ -1490,17 +1519,15 @@ contains
       call mpas_pool_get_array(tracersPool, 'activeTracers', activeTracers, 1)
       call mpas_pool_get_array(tracersSurfaceFluxPool, 'activeTracersSurfaceFlux', activeTracersSurfaceFlux)
       call mpas_pool_get_array(tracersSurfaceFluxPool, 'activeTracersSurfaceFluxRunoff', activeTracersSurfaceFluxRunoff)
-      ! allocate scratch space displaced density computation
-      call mpas_pool_get_field(scratchPool, 'densitySurfaceDisplaced', densitySurfaceDisplacedField)
-      call mpas_pool_get_field(scratchPool, 'thermalExpansionCoeff', thermalExpansionCoeffField)
-      call mpas_pool_get_field(scratchPool, 'salineContractionCoeff', salineContractionCoeffField)
-      call mpas_allocate_scratch_field(densitySurfaceDisplacedField, .true., .false.)
-      call mpas_allocate_scratch_field(thermalExpansionCoeffField, .true., .false.)
-      call mpas_allocate_scratch_field(salineContractionCoeffField, .true., .false.)
 
-      densitySurfaceDisplaced => densitySurfaceDisplacedField % array
-      thermalExpansionCoeff => thermalExpansionCoeffField % array
-      salineContractionCoeff => salineContractionCoeffField % array
+      ! allocate scratch space displaced density computation
+      ncells = nCellsArray(size(nCellsArray))
+      !$omp master
+      allocate(densitySurfaceDisplaced(nVertLevels, nCells), &
+               thermalExpansionCoeff(nVertLevels, nCells), &
+               salineContractionCoeff(nVertLevels, nCells))
+      !$omp end master
+      !$omp barrier
 
       ! Only need to compute over the 0 and 1 halos
       nCells = nCellsArray( 3 )
@@ -1576,9 +1603,12 @@ contains
       !$omp end do
 
       ! deallocate scratch space
-      call mpas_deallocate_scratch_field(thermalExpansionCoeffField, .true.)
-      call mpas_deallocate_scratch_field(salineContractionCoeffField, .true.)
-      call mpas_deallocate_scratch_field(densitySurfaceDisplacedField, .true.)
+      !$omp barrier
+      !$omp master
+      deallocate(thermalExpansionCoeff, &
+                 salineContractionCoeff, &
+                 densitySurfaceDisplaced)
+      !$omp end master
 
       call mpas_timer_stop('KPP input fields')
 
@@ -1632,7 +1662,6 @@ contains
                                                   topDrag, &
                                                   topDragMagnitude, &
                                                   fCell, &
-                                                  blTempScratch, blSaltScratch, &
                                                   surfaceFluxAttenuationCoefficient
 
       integer, dimension(:), pointer :: landIceMask
@@ -1716,13 +1745,11 @@ contains
       end if
       call mpas_pool_get_array(diagnosticsPool, 'surfaceFluxAttenuationCoefficient', surfaceFluxAttenuationCoefficient)
 
-      call mpas_pool_get_field(scratchPool, 'boundaryLayerTemperatureScratch', boundaryLayerTemperatureField)
-      call mpas_pool_get_field(scratchPool, 'boundaryLayerSalinityScratch', boundaryLayerSalinityField)
-      call mpas_allocate_scratch_field(boundaryLayerTemperatureField, .true.)
-      call mpas_allocate_scratch_field(boundaryLayerSalinityField, .true.)
-
-      blTempScratch => boundaryLayerTemperatureField % array
-      blSaltScratch => boundaryLayerSalinityField % array
+      !$omp master
+      allocate(blTempScratch(nCells), &
+               blSaltScratch(nCells))
+      !$omp end master
+      !$omp barrier
 
       if(hollandJenkinsOn) then
          call mpas_pool_get_array(meshPool, 'fCell', fCell)
@@ -1831,8 +1858,11 @@ contains
          !$omp end do
       end if
 
-      call mpas_deallocate_scratch_field(boundaryLayerTemperatureField, .true.)
-      call mpas_deallocate_scratch_field(boundaryLayerSalinityField, .true.)
+      !$omp barrier
+      !$omp master
+      allocate(blTempScratch(nCells), &
+               blSaltScratch(nCells))
+      !$omp end master
 
       ! modify the spatially-varying attenuation coefficient where there is land ice
       !$omp do schedule(runtime)
