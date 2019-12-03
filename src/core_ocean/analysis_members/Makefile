@@ -25,7 +25,9 @@ MEMBERS = mpas_ocn_global_stats.o \
           mpas_ocn_rpn_calculator.o \
           mpas_ocn_transect_transport.o\
           mpas_ocn_eddy_product_variables.o\
-          mpas_ocn_moc_streamfunction.o
+          mpas_ocn_moc_streamfunction.o\
+          mpas_ocn_sediment_flux_index.o\
+          mpas_ocn_sediment_transport.o
 
 all: $(OBJS)
 
