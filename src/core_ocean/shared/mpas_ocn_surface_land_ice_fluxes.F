@@ -424,8 +424,7 @@ contains
                                                     landIceTracerTransferVelocities
       integer, pointer :: indexBLT, indexBLS, indexIT, indexIS, indexHeatTrans, indexSaltTrans
 
-      type (field1DReal), pointer :: boundaryLayerTemperatureField, boundaryLayerSalinityField, &
-                                     freezeInterfaceSalinityField, freezeInterfaceTemperatureField, &
+      type (field1DReal), pointer :: freezeInterfaceSalinityField, freezeInterfaceTemperatureField, &
                                      freezeFreshwaterFluxField, freezeHeatFluxField, &
                                      freezeIceHeatFluxField
       err = 0

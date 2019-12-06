@@ -74,7 +74,7 @@ module ocn_diagnostics
 
    !--------------------------------------------------------------------
    !
-   ! Config variables moved from subroutines to module level so calls to 
+   ! Config variables moved from subroutines to module level so calls to
    ! mpas_pool_get_config only needs to be called during init
    !
    !--------------------------------------------------------------------
@@ -104,31 +104,62 @@ module ocn_diagnostics
    !--------------------------------------------------------------------
    !
    ! Replace calls to mpas_allocate_scratch_Field with straight allocates.
-   ! These variables were moved from the subroutines, but will be moved back once the 
+   ! These variables were moved from the subroutines, but will be moved back once the
    ! threading implementation is changed to more localized threading
    !
    !--------------------------------------------------------------------
 
    ! Subroutine ocn_diagnostic_solve
-   real (kind=RKIND), dimension(:,:), allocatable :: kineticEnergyVertex, kineticEnergyVertexOnCells
+   !---
+   ! kineticEnergyVertex: kinetic energy of horizonal velocity defined at vertices
+   !               units: m^2 s^{-2}
+   real (kind=RKIND), dimension(:,:), allocatable :: kineticEnergyVertex
+   ! kineticEnergyVertexOnCells: kinetic energy of horizonal velocity defined at vertices
+   !                      units: m^2 s^{-2}
+   real (kind=RKIND), dimension(:,:), allocatable :: kineticEnergyVertexOnCells
+   ! normalizedPlanetaryVorticityVertex: earth's rotational rate (Coriolis parameter, f) divided by
+   !                                     layer thickness, defined at vertices
+   !                              units: s^{-1}
    real (kind=RKIND), dimension(:,:), allocatable :: normalizedPlanetaryVorticityVertex
+   ! normalizedRelativeVorticityVertex: curl of horizontal velocity divided by layer thickness, defined at vertices
+   !                             units: s^{-1}
    real (kind=RKIND), dimension(:,:), allocatable :: normalizedRelativeVorticityVertex
+   ! vorticityGradientNormalComponent: gradient of vorticity in the normal direction (positive
+   !                                   points from cell1 to cell2)
+   !                            units: s^{-1} m^{-1}
    real (kind=RKIND), dimension(:,:), allocatable :: vorticityGradientNormalComponent
+   ! vorticityGradientTangentialComponent: gradient of vorticity in the tangent direction (positive
+   !                                       points from vertex1 to vertex2)
+   !                                units: s^{-1} m^{-1}
    real (kind=RKIND), dimension(:,:), allocatable :: vorticityGradientTangentialComponent
 
    ! Subroutine ocn_vert_transport_velocity_top
-   real (kind=RKIND), dimension(:), allocatable :: &
-      projectedSSH       !> projected SSH at new time
-   real (kind=RKIND), dimension(:,:), allocatable :: &
-      ALE_Thickness, & !> ALE thickness at new time
-      div_hu           !> divergence of (thickness*velocity)
+   !---
+   real (kind=RKIND), dimension(:), allocatable :: projectedSSH     !> projected SSH at new time
+   real (kind=RKIND), dimension(:,:), allocatable :: ALE_Thickness  !> ALE thickness at new time
+   real (kind=RKIND), dimension(:,:), allocatable :: div_hu         !> divergence of (thickness*velocity)
 
    ! subroutine ocn_compute_KPP_input_fields
-   real (kind=RKIND), dimension(:,:), allocatable ::  &
-        densitySurfaceDisplaced, thermalExpansionCoeff, salineContractionCoeff
+   !---
+   ! densitySurfaceDisplaced: Density computed by displacing SST and SSS to every vertical layer within the column
+   !                   units: km m^{-3}
+   real (kind=RKIND), dimension(:,:), allocatable :: densitySurfaceDisplaced
+   ! thermalExpansionCoeff: Thermal expansion coefficient (alpha), defined as $-1/\rho d\rho/dT$ (note negative sign).
+   !                 units:  C^{-1}
+   real (kind=RKIND), dimension(:,:), allocatable :: thermalExpansionCoeff
+   ! salineContractionCoeff: Saline contraction coefficient (beta), defined as $1/\rho d\rho/dS$.
+   !                         This is also called the haline contraction coefficient.
+   !                  units: PSU^{-1}
+   real (kind=RKIND), dimension(:,:), allocatable :: salineContractionCoeff
 
    ! subroutine ocn_compute_land_ice_flux_input_fields
-   real (kind=RKIND), dimension(:), allocatable ::  blTempScratch, blSaltScratch
+   !---
+   ! blTempScratch: temperature averaged vertically over the sub-ice-shelf boundary layer
+   !         units: degrees C
+   real (kind=RKIND), dimension(:), allocatable ::  blTempScratch
+   ! blSaltScratch: salinity averaged vertically over the sub-ice-shelf boundary layer
+   !         units: PSU
+   real (kind=RKIND), dimension(:), allocatable ::  blSaltScratch
 
 !***********************************************************************
 
@@ -196,10 +227,6 @@ contains
       real (kind=RKIND), dimension(:,:), pointer :: tracersSurfaceLayerValue
       real (kind=RKIND), dimension(:),   pointer :: normalVelocitySurfaceLayer
       real (kind=RKIND), dimension(:),   pointer :: indexSurfaceLayerDepth
-
-      type (field2DReal), pointer :: kineticEnergyVertexField, kineticEnergyVertexOnCellsField
-      type (field2DReal), pointer :: normalizedRelativeVorticityVertexField, normalizedPlanetaryVorticityVertexField
-      type (field2DReal), pointer :: vorticityGradientNormalComponentField, vorticityGradientTangentialComponentField
 
       integer :: timeLevel
       integer, pointer :: indexTemperature, indexSalinity
@@ -1010,8 +1037,6 @@ contains
 
       real (kind=RKIND) :: flux, invAreaCell, div_hu_btr
       real (kind=RKIND), dimension(:), pointer :: dvEdge, areaCell
-      type (field1DReal), pointer :: projectedSSHField
-      type (field2DReal), pointer :: ALE_ThicknessField, div_huField
 
       err = 0
 
@@ -1466,8 +1491,6 @@ contains
       integer, pointer :: indexTempFlux, indexSaltFlux
       real (kind=RKIND) :: numerator, denominator, turbulentVelocitySquared, fracAbsorbed, fracAbsorbedRunoff
       real (kind=RKIND) :: factor, deltaVelocitySquared, delU2, invAreaCell
-
-      type (field2DReal), pointer :: densitySurfaceDisplacedField, thermalExpansionCoeffField, salineContractionCoeffField
 
       call mpas_timer_start('KPP input fields')
 
