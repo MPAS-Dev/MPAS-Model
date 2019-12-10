@@ -121,7 +121,6 @@ module ocn_core_interface
       logical, pointer :: frazilIceActive
       logical, pointer :: tidalForcingActive
       logical, pointer :: tidalPotentialForcingPKGActive
-      logical, pointer :: inSituEOSActive
       logical, pointer :: variableShortwaveActive
       logical, pointer :: gmActive
       logical, pointer :: timeVaryingAtmosphericForcingPKGActive
@@ -294,16 +293,6 @@ module ocn_core_interface
       call mpas_pool_get_config(configPool, 'config_use_tidal_potential_forcing', config_use_tidal_potential_forcing)
       if (config_use_tidal_potential_forcing) then
          tidalPotentialForcingPKGActive = .true.
-      end if
-
-      !
-      ! test for form of pressure gradient computation
-      !
-      ! TDR: need to add PKG
-      call mpas_pool_get_package(packagePool, 'inSituEOSActive', inSituEOSActive)
-      call mpas_pool_get_config(configPool, 'config_pressure_gradient_type', config_pressure_gradient_type)
-      if (config_pressure_gradient_type.eq.'Jacobian_from_TS') then
-         inSituEOSActive = .true.
       end if
 
       !
