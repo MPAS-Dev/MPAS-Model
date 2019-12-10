@@ -1954,8 +1954,6 @@
 			<var name="iceFraction"/>
 			<var name="windSpeed10m"/>
 			<var name="nAccumulatedCoupled"/>
-			<var name="thermalExpansionCoeff"/>
-			<var name="salineContractionCoeff"/>
 			<var name="landIceFraction"/>
 			<var name="landIceMask"/>
 			<var_array name="landIceInterfaceTracers"/>
@@ -3351,16 +3349,6 @@
 			persistence="scratch"
 			type="real" dimensions="nVertLevels nCells Time" units="kg m^{-3}"
 			description="Density computed by displacing SST and SSS to every vertical layer within the column"
-		/>
-		<var name="thermalExpansionCoeff"
-			 persistence="persistent"
-			 type="real" dimensions="nVertLevels nCells Time" units="C^{-1}"
-			 description="Thermal expansion coefficient (alpha), defined as $-1/\rho d\rho/dT$ (note negative sign)."
-		/>
-		<var name="salineContractionCoeff"
-			 persistence="persistent"
-			 type="real" dimensions="nVertLevels nCells Time" units="PSU^{-1}"
-			 description="Saline contraction coefficient (beta), defined as $1/\rho d\rho/dS$. This is also called the haline contraction coefficient."
 		/>
 
 		<!-- FIELDS FOR TENSOR OPERATIONS -->
