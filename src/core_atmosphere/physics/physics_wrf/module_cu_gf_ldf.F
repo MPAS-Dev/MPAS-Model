@@ -11,9 +11,11 @@
  public:: cup_up_moisture_ldf
 
 !subroutine cup_up_moisture_ldf is the cleaned-up subroutine cup_up_moisture. Results are exactly the same as in
-!module_cu_gf_deep.F. It does not work if autoconversion is equal to 2. It includes the convective transport for
-!the number concentration of cloud liquid water, cloud ice, and "ice-friendly" and "water-friendly" aerosols from
-!the Thompson cloud microphysics.
+!module_cu_gf_deep.F when using the "-g" or "-O0 -fp-model precise" options. It does not work if autoconversion
+!is equal to 2. It includes the convective transport for the number concentration of cloud liquid water, cloud
+!ice, "ice-friendly" and "water-friendly" aerosols from the Thompson cloud microphysics scheme. It also includes
+!the convective transport of passive tracers. Note that the convective transport of passive tracers could be in
+!its own subroutine since they do not interact with moisture, it was more convenient to put them here.
 !Laura D. Fowler (laura@ucar.edu) / 2019-09-13.
 
 
@@ -21,13 +23,13 @@
 
 
 !=================================================================================================================
-   subroutine cup_up_moisture_ldf( &
-                     name,ierr,k22,kbcon,ktop,autoconv,z_cup,t_cup,qe_cup, &
-                     qes_cup,gamma_cup,q,dby,c1d,up_massentr,up_massdetr,  &
-                     zu,qc,qrc,pw,clw_all,pwav,psum,                       &
-                     nc,ni,nifa,nwfa,ncl2,nil2,nifal2,nwfal2,              &
-                     nc_up,ni_up,nifa_up,nwfa_up,                          &
-                     its,ite,itf,kts,kte,ktf)
+ subroutine cup_up_moisture_ldf( &
+                name,ierr,k22,kbcon,ktop,autoconv,z_cup,t_cup,qe_cup,    &
+                qes_cup,gamma_cup,q,dby,c1d,up_massentr,up_massdetr,     &
+                zu,qc,qrc,pw,clw_all,pwav,psum,ntrans,                   &
+                nc,ni,nifa,nwfa,qtrans,ncl2,nil2,nifal2,nwfal2,qtransl2, &
+                nc_up,ni_up,nifa_up,nwfa_up,qtrans_up,                   &
+                its,ite,itf,kts,kte,ktf)
 !=================================================================================================================
 
 !input arguments:
@@ -37,6 +39,9 @@
  integer,intent(in):: &
     its,ite,itf,&   ! indices for horizontal dimensions.
     kts,kte,ktf     ! indices for vertical dimensions.
+
+ integer,intent(in):: &
+    ntrans          ! number of passive tracers.
 
  integer,intent(in):: &
     autoconv        !
@@ -77,6 +82,10 @@
     nifal2,&        ! level environmental "ice-friendly" aerosol number concentration from Thompson microphysics.
     nwfal2          ! level environmental "water-friendly" aerosol number concentration from Thompson microphysics.
 
+ real(kind=kind_phys),intent(in),dimension(its:ite,kts:kte,ntrans):: &
+    qtrans,&        !
+    qtransl2        !
+
 !inout arguments:
  integer,intent(inout),dimension(its:ite) :: &
     ierr            !
@@ -98,20 +107,22 @@
     nifa_up,&       !
     nwfa_up
 
+ real(kind=kind_phys),intent(out),dimension(its:ite,kts:kte,ntrans):: &
+    qtrans_up       !
+
 !local variables and arrays:
  integer,parameter:: iall = 0
  integer:: i,k,k2,kb,kt
 
 !real(kind=kind_phys),parameter:: c0 = 0.004
  real(kind=kind_phys):: c0,denom,dz,qaver,qrch
- real(kind=kind_phys):: nc_aver,ni_aver,nifa_aver,nwfa_aver
+ real(kind=kind_phys):: nc_aver,ni_aver,nifa_aver,nwfa_aver,qtrans_aver
 
  real(kind=kind_phys),dimension(kts:kte):: dummy1
  real(kind=kind_phys),dimension(its:ite,kts:kte):: c0t,clw_allh,pwh,qch,qrcb
 
 !-----------------------------------------------------------------------------------------------------------------
-
-!call mpas_log_write('--- enter subroutine cup_up_moisture_ldf:')
+ call mpas_log_write('--- enter subroutine cup_up_moisture_ctrans:')
 
 !--- initialization:
  do i = its, itf
@@ -205,6 +216,41 @@
     endif
  enddo
 
+!--- passive tracers:
+ if(ntrans > 0) then
+    do n = 1, ntrans
+       do i = its, itf
+          if(ierr(i) .eq. 0) then
+             do k = kts, ktf
+                qtrans_up(i,k,n) = qtransl2(i,k,n)
+             enddo
+          else
+             do k = kts, ktf
+                qtrans_up(i,k,n) = 0._kind_phys
+             enddo
+          endif
+       enddo
+    enddo
+
+    do n = 1, ntrans
+       do i = its, ite
+          if(ierr(i) .eq. 0) then
+             k2 = k22(i)
+             do k = kts, kte
+                dummy1(k) = qtrans_up(i,k,n)
+             enddo
+             call get_cloud_bc(kte,dummy1,qtrans_aver,k2)
+
+             qtrans_up(i,k2,n) = qtrans_aver
+             do  k = kts, k2-1
+                 qtrans_up(i,k,n) = qtransl2(i,k,n)
+             enddo
+          endif
+       enddo
+    enddo
+ endif
+
+!---
  do i = its, itf
     if(ierr(i) .eq. 0) then
        k2 = k22(i)
@@ -247,6 +293,15 @@
           nwfa_up(i,k) = (nwfa_up(i,k-1)*zu(i,k-1) - .5*up_massdetr(i,k-1)*nwfa_up(i,k-1) &
                         + up_massentr(i,k-1)*nwfa(i,k-1))                                 &
                         / (zu(i,k-1)-.5*up_massdetr(i,k-1)+up_massentr(i,k-1))
+
+          !--- passive tracers:
+          if(ntrans > 0) then
+             do n = 1, ntrans
+                qtrans_up(i,k,n) = (qtrans_up(i,k-1,n)*zu(i,k-1) - .5*up_massdetr(i,k-1)*qtrans_up(i,k-1,n) &
+                               + up_massentr(i,k-1)*qtrans(i,k-1,n))                                        &
+                               / (zu(i,k-1)-.5*up_massdetr(i,k-1)+up_massentr(i,k-1))
+             enddo
+          endif
        enddo
 
        !--- above cloud base:
@@ -319,16 +374,25 @@
           nwfa_up(i,k) = (nwfa_up(i,k-1)*zu(i,k-1) - .5*up_massdetr(i,k-1)*nwfa_up(i,k-1) &
                        + up_massentr(i,k-1)*nwfa(i,k-1))                                  &
                        / (zu(i,k-1)-.5*up_massdetr(i,k-1)+up_massentr(i,k-1))
+
+          !--- passive tracers:
+          if(ntrans > 0) then
+             do n = 1, ntrans
+                qtrans_up(i,k,n) = (qtrans_up(i,k-1,n)*zu(i,k-1) - .5*up_massdetr(i,k-1)*qtrans_up(i,k-1,n) &
+                               + up_massentr(i,k-1)*qtrans(i,k-1,n))                                        &
+                               / (zu(i,k-1)-.5*up_massdetr(i,k-1)+up_massentr(i,k-1))
+             enddo
+          endif
        enddo
+
        !--- do not include liquid/ice in qc
        do  k = k22(i)+1,ktop(i)
            qc(i,k) = qc(i,k)-qrc(i,k)
        enddo   
-
     endif
  enddo
 
-!call mpas_log_write('--- end subroutine cup_up_moisture_ldf:')
+ call mpas_log_write('--- end subroutine cup_up_moisture_ctrans:')
 
  end subroutine cup_up_moisture_ldf
 
