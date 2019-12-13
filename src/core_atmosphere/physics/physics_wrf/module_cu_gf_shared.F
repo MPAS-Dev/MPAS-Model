@@ -21,6 +21,25 @@
 
 
 !=================================================================================================================
+!>\ingroup cu_gf_deep_group
+!!\param z   environmental heights
+!!\param qes environmental saturation mixing ratio
+!!\param he  environmental moist static energy
+!!\param hes environmental saturation moist static energy
+!!\param t   environmental temperature
+!!\param q   environmental mixing ratio
+!!\param p   environmental pressure
+!!\param z1  terrain elevation
+!!\param psur    surface pressure
+!!\param  ierr  error value, maybe modified in this routine
+!!\param tcrit   258.K
+!!\param itest
+!!\param itf
+!!\param ktf
+!!\param its
+!!\param ite
+!!\param kts
+!!\param kte
    subroutine cup_env(z,qes,he,hes,t,q,p,z1,                &
               psur,ierr,tcrit,itest,                        &
               itf,ktf,                                      &
@@ -33,18 +52,6 @@
         itf,ktf,                                            &
         its,ite, kts,kte
   !
-  ! ierr error value, maybe modified in this routine
-  ! q           = environmental mixing ratio
-  ! qes         = environmental saturation mixing ratio
-  ! t           = environmental temp
-  ! tv          = environmental virtual temp
-  ! p           = environmental pressure
-  ! z           = environmental heights
-  ! he          = environmental moist static energy
-  ! hes         = environmental saturation moist static energy
-  ! psur        = surface pressure
-  ! z1          = terrain elevation
-  ! 
   !
      real(kind=kind_phys),    dimension (its:ite,kts:kte)                &
         ,intent (in   )                   ::             &
@@ -76,7 +83,6 @@
 !     real(kind=kind_phys), external :: satvap
 !     real(kind=kind_phys) :: satvap
 
-!     call mpas_log_write('--- enter subroutine cup_env updated:')
 
 !      ht(1)=xlv/cp
 !      ht(2)=2.834e6/cp
@@ -153,6 +159,26 @@
    end subroutine cup_env
 
 !=================================================================================================================
+!>\ingroup cu_gf_deep_group
+!!\param   t      environmental temperature
+!!\param   qes    environmental saturation mixing ratio
+!!\param   q      environmental mixing ratio
+!!\param   he     environmental moist static energy
+!!\param   hes    environmental saturation moist static energy
+!!\param   z      environmental heights
+!!\param   p         environmental pressure
+!!\param   qes_cup   environmental saturation mixing ratio on cloud levels
+!!\param   q_cup     environmental mixing ratio on cloud levels
+!!\param   he_cup    environmental moist static energy on cloud levels
+!!\param   hes_cup   environmental saturation moist static energy on cloud levels
+!!\param   z_cup     environmental heights on cloud levels
+!!\param   p_cup     environmental pressure on cloud levels
+!!\param   gamma_cup gamma on cloud levels
+!!\param   t_cup     environmental temperature on cloud levels
+!!\param   psur      surface pressure
+!!\param   ierr      error value, maybe modified in this routine
+!!\param   z1        terrain elevation
+!!\param itf,ktf,its,ite,kts,kte   horizontal and vertical dimension
    subroutine cup_env_clev(t,qes,q,he,hes,z,p,qes_cup,q_cup,        &
               he_cup,hes_cup,z_cup,p_cup,gamma_cup,t_cup,psur,      &
               ierr,z1,                                              &
@@ -165,26 +191,6 @@
         ,intent (in   )                   ::                        &
         itf,ktf,                                                    &
         its,ite, kts,kte
-  !
-  ! ierr error value, maybe modified in this routine
-  ! q           = environmental mixing ratio
-  ! q_cup       = environmental mixing ratio on cloud levels
-  ! qes         = environmental saturation mixing ratio
-  ! qes_cup     = environmental saturation mixing ratio on cloud levels
-  ! t           = environmental temp
-  ! t_cup       = environmental temp on cloud levels
-  ! p           = environmental pressure
-  ! p_cup       = environmental pressure on cloud levels
-  ! z           = environmental heights
-  ! z_cup       = environmental heights on cloud levels
-  ! he          = environmental moist static energy
-  ! he_cup      = environmental moist static energy on cloud levels
-  ! hes         = environmental saturation moist static energy
-  ! hes_cup     = environmental saturation moist static energy on cloud levels
-  ! gamma_cup   = gamma on cloud levels
-  ! psur        = surface pressure
-  ! z1          = terrain elevation
-  ! 
   !
      real(kind=kind_phys),    dimension (its:ite,kts:kte)                        &
         ,intent (in   )                   ::                     &
@@ -205,7 +211,6 @@
      integer                              ::                     &
        i,k
 
-!     call mpas_log_write('--- enter subroutine cup_env_clev updated:')
 
       do k=kts,ktf
       do i=its,itf
@@ -256,6 +261,7 @@
    end subroutine cup_env_clev
 
 !=================================================================================================================
+!>\ingroup cu_gf_deep_group
    subroutine cup_kbcon(ierrc,cap_inc,iloop_in,k22,kbcon,he_cup,hes_cup, &
               hkb,ierr,kbmax,p_cup,cap_max,                              &
               ztexec,zqexec,                                             &
@@ -313,8 +319,6 @@
 !
 !--- determine the level of convective cloud base  - kbcon
 !
-!     call mpas_log_write('--- enter subroutine cup_kbcon updated:')
-
       iloop(:)=iloop_in
        do 27 i=its,itf
       kbcon(i)=1
@@ -404,6 +408,7 @@
    end subroutine cup_kbcon
 
 !=================================================================================================================
+!>\ingroup cu_gf_deep_group
    subroutine cup_minimi(array,ks,kend,kt,ierr,              &
               itf,ktf,                                       &
               its,ite, kts,kte                     )
@@ -437,8 +442,6 @@
      integer                              ::                 &
          i,k,kstop
 
-!     call mpas_log_write('--- enter subroutine cup_minimi updated:')
-
        do 200 i=its,itf
       kt(i)=ks(i)
       if(ierr(i).eq.0)then
@@ -457,6 +460,7 @@
    end subroutine cup_minimi
 
 !=================================================================================================================
+!>\ingroup cu_gf_deep_group
    subroutine cup_up_aa0(aa0,z,zu,dby,gamma_cup,t_cup,       &
               kbcon,ktop,ierr,                               &
               itf,ktf,                                       &
@@ -507,29 +511,28 @@
      real(kind=kind_phys)                                 ::                  &
         dz,da
 !
-
-!     call mpas_log_write('--- enter subroutine cup_up_aa0 updated:')
-
         do i=its,itf
          aa0(i)=0.
         enddo
-        do 100 k=kts+1,ktf
-        do 100 i=its,itf
-         if(ierr(i).ne.0)go to 100
-         if(k.lt.kbcon(i))go to 100
-         if(k.gt.ktop(i))go to 100
-         dz=z(i,k)-z(i,k-1)
-         da=zu(i,k)*dz*(9.81/(1004.*( &
-                (t_cup(i,k)))))*dby(i,k-1)/ &
-             (1.+gamma_cup(i,k))
-!         if(k.eq.ktop(i).and.da.le.0.)go to 100
-         aa0(i)=aa0(i)+max(0.,da)
-         if(aa0(i).lt.0.)aa0(i)=0.
-100     continue
+        do k=kts+1,ktf
+          do i=its,itf
+           if(ierr(i).ne.0) cycle
+           if(k.lt.kbcon(i)) cycle
+           if(k.gt.ktop(i)) cycle
+           dz=z(i,k)-z(i,k-1)
+           da=zu(i,k)*dz*(9.81/(1004.*( &
+                  (t_cup(i,k)))))*dby(i,k-1)/ &
+               (1.+gamma_cup(i,k))
+  !         if(k.eq.ktop(i).and.da.le.0.)go to 100
+           aa0(i)=aa0(i)+max(0.,da)
+           if(aa0(i).lt.0.)aa0(i)=0.
+          enddo
+        enddo
 
    end subroutine cup_up_aa0
 
 !=================================================================================================================
+!>\ingroup cu_gf_deep_group
    subroutine neg_check(name,j,dt,q,outq,outt,outu,outv,                      &
                         outqc,pret,its,ite,kts,kte,itf,ktf,ktop)
 !=================================================================================================================
@@ -559,8 +562,6 @@
 
 !-----------------------------------------------------------------------------------------------------------------
 
-!     call mpas_log_write('--- enter subroutine neg_check updated:')
-!
 ! first do check on vertical heating rate
 !
       thresh=300.01
@@ -693,10 +694,8 @@
      real(kind=kind_phys),dimension(kts:kte):: dummy1,dummy2
 !--- MPAS end.
      !
-!    call mpas_log_write('--- enter subroutine rates_up_pdf updated:')
-
      zustart=.1
-     dbythresh= 1. !.0.95 ! 0.85, 0.6
+     dbythresh= 0.8 !.0.95 ! 0.85, 0.6
      if(name == 'shallow' .or. name == 'mid') dbythresh=1.
      dby(:)=0.
 
@@ -746,6 +745,7 @@
         kfinalzu=ktf-2
         ktop(i)=kfinalzu
 412     continue
+        kklev=min(kklev+3,ktop(i)-2)
 !
 ! at least overshoot by one level
 !
@@ -815,15 +815,16 @@
 
   end subroutine rates_up_pdf
 !-------------------------------------------------------------------------
-
+!>\ingroup cu_gf_deep_group
  subroutine get_zu_zd_pdf_fim(kklev,p,rand_vmas,zubeg,ipr,xland,zuh2,draft,ierr,kb,kt,zu,kts,kte,ktf,max_mass,kpbli,csum,pmin_lev)
 
  implicit none
 ! real(kind=kind_phys), parameter :: beta_deep=1.3,g_beta_deep=0.8974707
 ! real(kind=kind_phys), parameter :: beta_deep=1.2,g_beta_deep=0.8974707
- real(kind=kind_phys), parameter :: beta_sh=2.5,g_beta_sh=1.329340
-! real(kind=kind_phys), parameter :: beta_mid=1.3,g_beta_mid=0.8974707
- real(kind=kind_phys), parameter :: beta_mid=2.2,g_beta_mid=0.8974707
+! real(kind=kind_phys), parameter :: beta_sh=2.5,g_beta_sh=1.329340
+ real(kind=kind_phys), parameter :: beta_sh=2.2,g_beta_sh=0.8974707
+ real(kind=kind_phys), parameter :: beta_mid=1.3,g_beta_mid=0.8974707
+! real(kind=kind_phys), parameter :: beta_mid=1.8,g_beta_mid=0.8974707
  real(kind=kind_phys), parameter :: beta_dd=4.0,g_beta_dd=6.
  integer, intent(in) ::ipr,xland,kb,kklev,kt,kts,kte,ktf,kpbli,csum,pmin_lev
  real(kind=kind_phys), intent(in) ::max_mass,zubeg
@@ -858,8 +859,6 @@
         alpha(28:30)=alpha(27)
         g_alpha(28:30)=g_alpha(27)
 
-!     call mpas_log_write('--- enter subroutine get_zu_zd_pdf updated:')
-
  !- kb cannot be at 1st level
 
  !-- fill zu with zeros
@@ -870,6 +869,7 @@
    lev_start=min(.9,.1+csum*.013)
    kb_adj=max(kb,2)
    tunning=max(p(kklev+1),.5*(p(kpbli)+p(kt)))
+   tunning=p(kklev)
 !   tunning=p(kklev+1) !p(kpbli+1) !p(kklev) !p(kt)+(p(kpbli)-p(kt))*lev_start
 !   tunning=.5*(p(kb_adj)+p(kt)) !p(kpbli+1) !p(kklev) !p(kt)+(p(kpbli)-p(kt))*lev_start
    trash=-p(kt)+p(kb_adj)
@@ -983,7 +983,7 @@
    kb_adj=max(kb,2)
    tunning=.5*(p(kt)+p(kpbli)) !p(kt)+(p(kb_adj)-p(kt))*.9 !*.33
 !new nov18
-   tunning=p(kpbli) !p(kpbli+1) !p(kklev) !p(kt)+(p(kpbli)-p(kt))*lev_start
+!   tunning=p(kpbli) !p(kpbli+1) !p(kklev) !p(kt)+(p(kpbli)-p(kt))*lev_start
 !end new
    tunning =min(0.95, (tunning-p(kb_adj))/(p(kt)-p(kb_adj))) !=.6
    tunning =max(0.02, tunning)
@@ -1076,6 +1076,8 @@
   end subroutine get_zu_zd_pdf_fim
 
 !---------------------------------------------------------------------- 
+!>\ingroup cu_gf_deep_group
+!> This subroutine calculates
  subroutine get_inversion_layers(ierr,p_cup,t_cup,z_cup,qo_cup,qeso_cup,k_inv_layers,&           
                      kstart,kend,dtempdz,itf,ktf,its,ite, kts,kte)
                                     
@@ -1091,8 +1093,6 @@
         real(kind=kind_phys)   :: dp,l_mid,l_shal,first_deriv(kts:kte),sec_deriv(kts:kte)
         integer:: ken,kadd,kj,i,k,ilev,kk,ix,k800,k550,mid,shal
         !
-!       call mpas_log_write('--- enter subroutine get_inversion_layers updated:')
-
         !-initialize k_inv_layers as undef
         l_mid=300.
         l_shal=100.
@@ -1177,6 +1177,7 @@
         
  end subroutine get_inversion_layers
 !=============================================================================================
+!>\ingroup cu_gf_deep_group
   subroutine get_lateral_massflux(itf,ktf, its,ite, kts,kte                             &
                                   ,ierr,ktop,zo_cup,zuo,cd,entr_rate_2d                 &
                                   ,up_massentro, up_massdetro ,up_massentr, up_massdetr &
@@ -1186,7 +1187,8 @@
      character *(*), intent (in) :: draft
      integer, intent(in):: itf,ktf, its,ite, kts,kte
      integer, intent(in)   , dimension(its:ite)         :: ierr,ktop,kbcon,k22
-     real(kind=kind_phys),    intent(in),  optional , dimension(its:ite):: lambau
+    !real(kind=kind_phys),    intent(in),  optional , dimension(its:ite):: lambau
+     real(kind=kind_phys),    intent(inout),  optional , dimension(its:ite):: lambau
      real(kind=kind_phys),    intent(in)   , dimension(its:ite,kts:kte) :: zo_cup,zuo
      real(kind=kind_phys),    intent(inout), dimension(its:ite,kts:kte) :: cd,entr_rate_2d   
      real(kind=kind_phys),    intent(  out), dimension(its:ite,kts:kte) :: up_massentro, up_massdetro  &
@@ -1196,8 +1198,6 @@
      !-- local vars
      integer :: i,k, incr1,incr2,turn
      real(kind=kind_phys) :: dz,trash,trash2
-
-!    call mpas_log_write('--- enter subroutine get_lateral_massflux updated:')
      
      do k=kts,kte
       do i=its,ite
@@ -1256,13 +1256,25 @@
            up_massentr (i,k-1)=up_massentro(i,k-1)
            up_massdetr (i,k-1)=up_massdetro(i,k-1)
          enddo         
-         if(present(up_massentru) .and. present(up_massdetru))then
-          turn=maxloc(zuo(i,:),1)
-          do k=2,turn
-           up_massentru(i,k-1)=up_massentro(i,k-1)+0.5*lambau(i)*up_massentro(i,k-1)
-           up_massdetru(i,k-1)=up_massdetro(i,k-1)+0.5*lambau(i)*up_massentro(i,k-1)
+         if(present(up_massentru) .and. present(up_massdetru) .and. draft == 'deep')then
+          !turn=maxloc(zuo(i,:),1)
+          !do k=2,turn
+          ! up_massentru(i,k-1)=up_massentro(i,k-1)+.1*lambau(i)*up_massentro(i,k-1)
+          ! up_massdetru(i,k-1)=up_massdetro(i,k-1)+.1*lambau(i)*up_massentro(i,k-1)
+          !enddo
+          !do k=turn+1,ktf-1
+          do k=2,ktf-1
+           up_massentru(i,k-1)=up_massentro(i,k-1)+lambau(i)*up_massdetro(i,k-1)
+           up_massdetru(i,k-1)=up_massdetro(i,k-1)+lambau(i)*up_massdetro(i,k-1)
           enddo
-          do k=turn+1,ktf-1
+         else if(present(up_massentru) .and. present(up_massdetru) .and. draft == 'shallow')then
+          do k=2,ktf-1
+           up_massentru(i,k-1)=up_massentro(i,k-1)+lambau(i)*up_massdetro(i,k-1)
+           up_massdetru(i,k-1)=up_massdetro(i,k-1)+lambau(i)*up_massdetro(i,k-1)
+          enddo
+         else if(present(up_massentru) .and. present(up_massdetru) .and. draft == 'mid')then
+          lambau(i)=0.
+          do k=2,ktf-1
            up_massentru(i,k-1)=up_massentro(i,k-1)+lambau(i)*up_massdetro(i,k-1)
            up_massdetru(i,k-1)=up_massdetro(i,k-1)+lambau(i)*up_massdetro(i,k-1)
           enddo

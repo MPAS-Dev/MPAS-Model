@@ -1,52 +1,29 @@
 !=================================================================================================================
-!this module was provided by Georg Grell and Haiqin Li on December 7, 2018. module_cu_gf_sh is currently tested
-!in FV3.
-!Laura D. Fowler (laura@ucar.edu) / 2019-03-01.
+!this module is the Grell-Freitas parameterization of shallow convection, and  was provided by Georg Grell and
+!Haiqin Li on November 6,2019. module_cu_gf_sh is currently used in the CCPP.
+!Laura D. Fowler (laura@ucar.edu) / 2019-12-12.
+
+!main modifications relative to the original sourcecode:
+! * when using MPAS, redirect kind_phys to that shared in the MPAS sourcecode, and use physics constants already
+!   defined in the MPAS sourcecode, for sake of consistency.
+! * when using MPAS, all the subroutines shared by the shallow and deep convection schemes are grouped in module
+!   module_cu_gf_shared.F. this allows for more flexibility when we want to run these schemes separately.
+! * modified the calls to subroutine get_cloud_bc so that the sourcecode runs efficiently with the -g option with
+!   the ifort compiler.
+! * all other changes are "cosmetic".
+!Laura D. Fowler (laura@ucar.edu) / 2019-12-12).
 
 !=================================================================================================================
-! module cup_gf_sh will call shallow convection as described in Grell and
-! Freitas (2016). Input variables are:
-!    zo               Height at model levels
-!    t,tn             Temperature without and with forcing at model levels
-!    q,qo             mixing ratio without and with forcing at model levels
-!    po               pressure at model levels (mb)
-!    psur             surface pressure (mb)
-!    z1               surface height
-!    dhdt             forcing for boundary layer equilibrium   
-!    hfx,qfx          in w/m2 (positive, if upward from sfc)
-!    kpbl             level of boundaty layer height
-!    xland            land mask (1. for land)
-!    ichoice          which closure to choose 
-!                     1: old g
-!                     2: zws
-!                     3: dhdt
-!                     0: average
-!    tcrit            parameter for water/ice conversion (258)
-!
-!!!!!!!!!!!! Variables that are diagnostic
-!
-!    zuo               normalized mass flux profile
-!    xmb_out           base mass flux
-!    kbcon             convective cloud base
-!    ktop              cloud top
-!    k22               level of updraft originating air
-!    ierr              error flag
-!    ierrc             error description
-!
-!!!!!!!!!!!! Variables that are on output
-!    outt               temperature tendency (K/s)
-!    outq               mixing ratio tendency (kg/kg/s)
-!    outqc              cloud water/ice tendency (kg/kg/s)
-!    pre                precip rate (mm/s)
-!    cupclw             incloud mixing ratio of cloudwater/ice (for radiation)
-!                       this needs heavy tuning factors, since cloud fraction is
-!                       not included (kg/kg)
-!    cnvwt              required for GFS physics
-!
-!    itf,ktf,its,ite, kts,kte are dimensions
-!    ztexec,zqexec    excess temperature and moisture for updraft
-MODULE module_cu_gf_sh
+!>\file cu_gf_sh.F90
+!! This file contains Grell-Freitas shallow convection scheme.
+!>\defgroup cu_gf_sh_group Grell-Freitas Shallow Convection Module
+!>\ingroup cu_gf_group
+ module module_cu_gf_sh
+
 #if defined(mpas)
+
+ use mpas_log
+ use mpas_kind_types,only: kind_phys=>RKIND
  use mpas_atmphys_constants,only: cp,g=>gravity,r_v=>R_v,xlv
 
  use module_cu_gf_shared,only: cup_env,cup_env_clev,cup_kbcon,cup_minimi,cup_up_aa0,   &
@@ -55,48 +32,91 @@ MODULE module_cu_gf_sh
 
  implicit none
  private
- public:: cup_gf_sh
+ public:: cu_gf_sh_run
 
- real, parameter:: c1_shal=0.0015! .0005
- real, parameter:: c0_shal=.001
- real, parameter:: fluxtune=1.5
+ real(kind=kind_phys),parameter:: c1_shal  = 0.0000 !0.0015 !0.0005
+ real(kind=kind_phys),parameter:: c0_shal  = 0.001
+ real(kind=kind_phys),parameter:: fluxtune = 1.5
+
 #else
-    real, parameter:: c1_shal=0.0015! .0005
-    real, parameter:: g  =9.81
-    real, parameter:: cp =1004.
-    real, parameter:: xlv=2.5e6
-    real, parameter:: r_v=461.
-    real, parameter:: c0_shal=.001
-    real, parameter:: fluxtune=1.5
 
-#endif
-
-contains
-  SUBROUTINE CUP_gf_sh (                                            &
-! input variables, must be supplied
-                         zo,T,Q,Z1,TN,QO,PO,PSUR,dhdt,kpbl,rho,     &
-                         hfx,qfx,xland,ichoice,tcrit,dtime,         &
-! input variables. Ierr should be initialized to zero or larger than zero for
-! turning off shallow convection for grid points
-                         zuo,xmb_out,kbcon,ktop,k22,ierr,ierrc,     &
-! output tendencies
-                         OUTT,OUTQ,OUTQC,cnvwt,pre,cupclw,          &
-! number concentrations and aerosols:
-                         nc,ni,nifa,nwfa,outnc,outni,outnifa,outnwfa, &
-! dimesnional variables
-                         itf,ktf,its,ite, kts,kte,ipr,tropics)
+    use machine , only : kind_phys
+    !real(kind=kind_phys), parameter:: c1_shal=0.0015! .0005
+    real(kind=kind_phys), parameter:: c1_shal=0. !0.005! .0005
+    real(kind=kind_phys), parameter:: g  =9.81
+    real(kind=kind_phys), parameter:: cp =1004.
+    real(kind=kind_phys), parameter:: xlv=2.5e6
+    real(kind=kind_phys), parameter:: r_v=461.
+    real(kind=kind_phys), parameter:: c0_shal=.001
+    real(kind=kind_phys), parameter:: fluxtune=1.5
 !
 ! this module needs some subroutines from gf_deep
 !
-! use module_cu_gf_deep,only:cup_env,cup_env_clev,get_cloud_bc,cup_minimi,  &
-!                     get_inversion_layers,rates_up_pdf,get_cloud_bc,       &
-!                     cup_up_aa0,cup_kbcon,get_lateral_massflux
+  use cu_gf_deep,only:cup_env,cup_env_clev,get_cloud_bc,cup_minimi,   &
+                      get_inversion_layers,rates_up_pdf,get_cloud_bc, &
+                      cup_up_aa0,cup_kbcon,get_lateral_massflux
+#endif
+
+contains
+
+!>\ingroup cu_gf_sh_group
+!> GF shallow convection as described in Grell and
+!! Freitas (2014) \cite grell_and_freitas_2014. input variables are:
+!!\param    us               x wind updated by physics
+!!\param    vs               y wind updated by physics
+!!\param    zo               height at model levels
+!!\param    t,tn             temperature without and with forcing at model levels
+!!\param    q,qo             mixing ratio without and with forcing at model levels
+!!\param    po               pressure at model levels (mb)
+!!\param    psur             surface pressure (mb)
+!!\param    z1               surface height
+!!\param    dhdt             forcing for boundary layer equilibrium
+!!\param    hfx,qfx          in w/m2 (positive, if upward from sfc)
+!!\param    kpbl             level of boundaty layer height
+!!\param    rho              moist air density
+!!\param    xland            land mask (1. for land)
+!!\param    ichoice          which closure to choose
+!!\n                         1: old g
+!!\n                         2: zws
+!!\n                         3: dhdt
+!!\n                         0: average
+!!\param    tcrit            parameter for water/ice conversion (258)
+!!\param    dtime            physics time step
+!!\param    zuo               normalized mass flux profile
+!!\param    xmb_out           base mass flux
+!!\param    kbcon             convective cloud base
+!!\param    ktop              cloud top
+!!\param    k22               level of updraft originating air
+!!\param    ierr              error flag
+!!\param    ierrc             error description
+!!\param    outt               temperature tendency (k/s)
+!!\param    outq               mixing ratio tendency (kg/kg/s)
+!!\param    outqc              cloud water/ice tendency (kg/kg/s)
+!!\param    outu               x wind tendency
+!!\param    outv               y wind tendency
+!!\param    pre                precip rate (mm/s)
+!!\param    cupclw             incloud mixing ratio of cloudwater/ice (for radiation)
+!!                            this needs heavy tuning factors, since cloud fraction is
+!!                             not included (kg/kg)
+!!\param    cnvwt              required for gfs physics
+!!\param    itf,ktf,its,ite, kts,kte are dimensions
+!!\param    ipr               horizontal index of printed column
+!!\param    tropics            =0
+!>\section gen_cu_gf_sh_run GSD cu_gf_sh_run General Algorithm
+!> @{
+  subroutine cu_gf_sh_run (                                           &
+                         us,vs,zo,t,q,z1,tn,qo,po,psur,dhdt,kpbl,rho, & ! input variables, must be supplied
+                         hfx,qfx,xland,ichoice,tcrit,dtime,           &
+                         zuo,xmb_out,kbcon,ktop,k22,ierr,ierrc,       &
+                         outt,outq,outqc,outu,outv,cnvwt,pre,cupclw,  & ! output tendencies
+                         itf,ktf,its,ite, kts,kte,ipr,tropics)          ! dimensional variables
+
      implicit none
      integer                                                                &
         ,intent (in   )                   ::                                &
         itf,ktf,                                                            &
         its,ite, kts,kte,ipr
-     logical :: MAKE_CALC_FOR_XK = .true.
+     logical :: make_calc_for_xk = .true.
      integer, intent (in   )              ::                                &
         ichoice
   !
@@ -106,10 +126,10 @@ contains
   ! outq   = output q tendency (per s)
   ! outqc  = output qc tendency (per s)
   ! pre    = output precip
-     real,    dimension (its:ite,kts:kte)                              &
+     real(kind=kind_phys),    dimension (its:ite,kts:kte)              &
         ,intent (inout  )                 ::                           &
-        cnvwt,OUTT,OUTQ,OUTQC,cupclw,zuo
-     real,    dimension (its:ite)                                      &
+        cnvwt,outt,outq,outqc,cupclw,zuo,outu,outv
+     real(kind=kind_phys),    dimension (its:ite)                      &
         ,intent (out  )                   ::                           &
         xmb_out
      integer,    dimension (its:ite)                                   &
@@ -125,17 +145,17 @@ contains
   ! basic environmental input includes a flag (ierr) to turn off
   ! convection for this call only and at that particular gridpoint
   !
-     real,    dimension (its:ite,kts:kte)                              &
+     real(kind=kind_phys),    dimension (its:ite,kts:kte)              &
         ,intent (in   )                   ::                           &
-        T,PO,tn,dhdt,rho
-     real,    dimension (its:ite,kts:kte)                              &
+        t,po,tn,dhdt,rho,us,vs
+     real(kind=kind_phys),    dimension (its:ite,kts:kte)              &
         ,intent (inout)                   ::                           &
-         Q,QO
-     real, dimension (its:ite)                                         &
+         q,qo
+     real(kind=kind_phys), dimension (its:ite)                         &
         ,intent (in   )                   ::                           &
-        xland,Z1,PSUR,hfx,qfx
+        xland,z1,psur,hfx,qfx
        
-       real                                                            &
+     real(kind=kind_phys)                                              &
         ,intent (in   )                   ::                           &
         dtime,tcrit
   !
@@ -165,7 +185,7 @@ contains
   ! bu = buoancy term
   ! gamma_cup = gamma on model cloud levels
   ! qrch = saturation q in cloud
-  ! pwev = total normalized integrated evaoprate (I2)
+  ! pwev = total normalized integrated evaporate (i2)
   ! z1 = terrain elevation
   ! psur        = surface pressure
   ! zu      = updraft normalized mass flux
@@ -178,7 +198,7 @@ contains
   ! hc = cloud moist static energy
   ! hkb = moist static energy at originating level
 
-     real,    dimension (its:ite,kts:kte) ::                           &
+     real(kind=kind_phys),    dimension (its:ite,kts:kte) ::           &
         entr_rate_2d,he,hes,qes,z,                                     &
         heo,heso,qeso,zo,                                              &
         xhe,xhes,xqes,xz,xt,xq,                                        &
@@ -195,49 +215,48 @@ contains
   ! dellaq = change of q per unit mass flux of cloud ensemble
   ! dellaqc = change of qc per unit mass flux of cloud ensemble
 
-        cd,DELLAH,DELLAQ,DELLAT,DELLAQC
+        cd,dellah,dellaq,dellat,dellaqc,uc,vc,dellu,dellv,u_cup,v_cup
 
   ! aa0 cloud work function for downdraft
   ! aa0     = cloud work function without forcing effects
   ! aa1     = cloud work function with forcing effects
   ! xaa0    = cloud work function with cloud effects (ensemble dependent)
 
-     real,    dimension (its:ite) ::                                   &
-       zws,ztexec,zqexec,pre,AA1,AA0,XAA0,HKB,                         &
-       flux_tun,HKBO,XHKB,                                             &
-       rand_vmas,xmbmax,XMB,                                           &
+     real(kind=kind_phys),    dimension (its:ite) ::                   &
+       zws,ztexec,zqexec,pre,aa1,aa0,xaa0,hkb,                         &
+       flux_tun,hkbo,xhkb,                                             &
+       rand_vmas,xmbmax,xmb,                                           &
        cap_max,entr_rate,                                              &
-       cap_max_increment
+       cap_max_increment,lambau
      integer,    dimension (its:ite)      ::                           &
-       kstabi,xland1,KBMAX,ktopx
+       kstabi,xland1,kbmax,ktopx
 
      integer                              ::                           &
-       kstart,I,K,ki
-     real                                 ::                           &
+       kstart,i,k,ki
+     real(kind=kind_phys)                 ::                           &
       dz,mbdt,zkbmax,                                                  &
       cap_maxs,trash,trash2,frh
       
-      real buo_flux,pgeoh,dp,entup,detup,totmas
+      real(kind=kind_phys):: buo_flux,pgeoh,dp,entup,detup,totmas
 
-     real xff_shal(3),blqe,xkshal
+     real(kind=kind_phys):: xff_shal(3),blqe,xkshal
      character*50 :: ierrc(its:ite)
-     real,    dimension (its:ite,kts:kte) ::                           &
-       up_massentr,up_massdetr,up_massentro,up_massdetro
-     real :: C_up,x_add,qaver
-     real,    dimension (its:ite,kts:kte) :: dtempdz
+     real(kind=kind_phys),     dimension (its:ite,kts:kte) ::          &
+       up_massentr,up_massdetr,up_massentro,up_massdetro,up_massentru,up_massdetru
+     real(kind=kind_phys) :: c_up,x_add,qaver,dts,fp,fpi
+     real(kind=kind_phys),    dimension (its:ite,kts:kte) :: c1d,dtempdz
      integer, dimension (its:ite,kts:kte) ::  k_inv_layers 
      integer, dimension (its:ite) ::  start_level, pmin_lev
 
-!--- MPAS (modified calls to the subroutines get_cloud_bc and get_zu_zd_pdf_fim):
-     real,intent(in),dimension(its:ite,kts:kte):: nc,ni,nifa,nwfa
-     real,intent(inout),dimension(its:ite,kts:kte):: outnc,outni,outnifa,outnwfa
-
+!--- MPAS (modified calls to subroutine get_cloud_bc):
      real,dimension(kts:kte):: dummy1,dummy2
 !--- MPAS end.
 
      start_level(:)=0
      rand_vmas(:)=0.
      flux_tun=fluxtune
+     lambau(:)=2.
+     c1d(:,:)=0.
       do i=its,itf
         xland1(i)=int(xland(i)+.001) ! 1.
         ktopx(i)=0
@@ -263,6 +282,8 @@ contains
       do i=its,itf
         up_massentro(i,k)=0.
         up_massdetro(i,k)=0.
+        up_massentru(i,k)=0.
+        up_massdetru(i,k)=0.
         z(i,k)=zo(i,k)
         xz(i,k)=zo(i,k)
         qrco(i,k)=0.
@@ -282,7 +303,7 @@ contains
 !--- inversion (larger cap = no convection)
 !
       cap_maxs=175.
-      DO i=its,itf
+      do i=its,itf
         kbmax(i)=1
         aa0(i)=0.
         aa1(i)=0.
@@ -299,15 +320,15 @@ contains
          pgeoh = zo(i,2)*g
          !-convective-scale velocity w*
          zws(i) = max(0.,flux_tun(i)*0.41*buo_flux*zo(i,2)*g/t(i,1))
-         if(zws(i) > TINY(pgeoh)) then
+         if(zws(i) > tiny(pgeoh)) then
           !-convective-scale velocity w*
           zws(i) = 1.2*zws(i)**.3333
           !- temperature excess 
-          ztexec(i)     = MAX(flux_tun(i)*hfx(i)/(rho(i,1)*zws(i)*cp),0.0)
+          ztexec(i)     = max(flux_tun(i)*hfx(i)/(rho(i,1)*zws(i)*cp),0.0)
           !- moisture  excess
-          zqexec(i)     = MAX(flux_tun(i)*qfx(i)/xlv/(rho(i,1)*zws(i)),0.)
+          zqexec(i)     = max(flux_tun(i)*qfx(i)/xlv/(rho(i,1)*zws(i)),0.)
          endif
-       !- zws for shallow convection closure (Grant 2001)
+       !> - Calculate zws for shallow convection closure (Grant 2001)
        !- height of the pbl
        zws(i) = max(0.,flux_tun(i)*0.41*buo_flux*zo(i,kpbl(i))*g/t(i,kpbl(i)))
        zws(i) = 1.2*zws(i)**.3333
@@ -316,11 +337,11 @@ contains
       enddo
 
 !
-!--- max height(m) above ground where updraft air can originate
+!> - Determine max height(m) above ground where updraft air can originate
 !
       zkbmax=3000.
 !
-!--- calculate moist static energy, heights, qes
+!> - Call cup_env() to calculate moist static energy, heights, qes
 !
       call cup_env(z,qes,he,hes,t,q,po,z1,       &
            psur,ierr,tcrit,-1,                   &
@@ -332,7 +353,7 @@ contains
            its,ite, kts,kte)
 
 !
-!--- environmental values on cloud levels
+!> - Call cup_env_clev() to calculate environmental values on cloud levels
 !
       call cup_env_clev(t,qes,q,he,hes,z,po,qes_cup,q_cup,he_cup,  &
            hes_cup,z_cup,p_cup,gamma_cup,t_cup,psur,               &
@@ -344,6 +365,17 @@ contains
            ierr,z1,                                                &
            itf,ktf,                                                &
            its,ite, kts,kte)
+      do i=its,itf
+        if(ierr(i).eq.0)then
+          u_cup(i,kts)=us(i,kts)
+          v_cup(i,kts)=vs(i,kts)
+          do k=kts+1,ktf
+           u_cup(i,k)=.5*(us(i,k-1)+us(i,k))
+           v_cup(i,k)=.5*(vs(i,k-1)+vs(i,k))
+          enddo
+        endif
+      enddo
+
       do i=its,itf
         if(ierr(i).eq.0)then
 !
@@ -362,14 +394,14 @@ contains
 !
 !
 !
-!------- DETERMINE LEVEL WITH HIGHEST MOIST STATIC ENERGY CONTENT - K22
+!> - Determine level with highest moist static energy content (\p k22)
 !
-       DO 36 i=its,itf
+       do 36 i=its,itf
          if(kpbl(i).gt.3)cap_max(i)=po_cup(i,kpbl(i))
-         IF(ierr(I) == 0)THEN
-          k22(i)=maxloc(HEO_CUP(i,2:kbmax(i)),1)
+         if(ierr(i) == 0)then
+          k22(i)=maxloc(heo_cup(i,2:kbmax(i)),1)
           k22(i)=max(2,k22(i))
-          IF(K22(I).GT.KBMAX(i))then
+          if(k22(i).gt.kbmax(i))then
            ierr(i)=2
            ierrc(i)="could not find k22"
            ktop(i)=0
@@ -377,11 +409,12 @@ contains
            kbcon(i)=0
          endif
          endif
- 36   CONTINUE
+ 36   continue
 !
-!--- DETERMINE THE LEVEL OF CONVECTIVE CLOUD BASE  - KBCON:
+!> - Call get_cloud_bc() and cup_kbcon() to determine the level of 
+!! convective cloud base (\p kbcon)
 !
-      do i = its,ite
+      do i=its,itf
          hkb(i)  = 0.
          hkbo(i) = 0.
       enddo
@@ -406,14 +439,16 @@ contains
       enddo
       enddo
 
+
       call cup_kbcon(ierrc,cap_max_increment,5,k22,kbcon,heo_cup,heso_cup, &
            hkbo,ierr,kbmax,po_cup,cap_max,                                 &
            ztexec,zqexec,                                                  &
            0,itf,ktf,                                                      &
            its,ite, kts,kte,                                               &
            z_cup,entr_rate,heo,0)
-!--- get inversion layers for cloud tops
-      call cup_minimi(HEso_cup,Kbcon,kbmax,kstabi,ierr,                    &
+
+!> - Call cup_minimi() and get_inversion_layers() to get inversion layers for cloud tops
+      call cup_minimi(heso_cup,kbcon,kbmax,kstabi,ierr,                    &
            itf,ktf,                                                        &
            its,ite, kts,kte)
 !
@@ -421,9 +456,9 @@ contains
                            kbcon,kstabi,dtempdz,itf,ktf,its,ite, kts,kte)
 !
 !
-      DO i=its,itf
+      do i=its,itf
          entr_rate_2d(i,:)=entr_rate(i)
-         IF(ierr(I) == 0)THEN
+         if(ierr(i) == 0)then
             start_level(i)=k22(i)
             x_add = xlv*zqexec(i)+cp*ztexec(i)
 !           call get_cloud_bc(kte,he_cup (i,1:kte),hkb (i),k22(i),x_add)
@@ -460,7 +495,7 @@ contains
             endif
          endif
       enddo
-! get normalized mass flux profile
+!> - Call rates_up_pdf() to get normalized mass flux profile
       call rates_up_pdf(rand_vmas,ipr,'shallow',ktop,ierr,po_cup,entr_rate_2d,hkbo,heo,heso_cup,zo_cup, &
            xland1,kstabi,k22,kbcon,its,ite,itf,kts,kte,ktf,zuo,kpbl,ktopx,kbcon,pmin_lev)
       do i=its,itf
@@ -498,25 +533,29 @@ contains
         endif
       enddo
 !
-! calculate mass entrainment and detrainment
+!> - Call get_lateral_massflux() to calculate mass entrainment and detrainment
 !
-      CALL get_lateral_massflux(itf,ktf, its,ite, kts,kte                             &
+      call get_lateral_massflux(itf,ktf, its,ite, kts,kte                             &
                                 ,ierr,ktop,zo_cup,zuo,cd,entr_rate_2d                 &
                                 ,up_massentro, up_massdetro ,up_massentr, up_massdetr &
-                                ,'shallow',kbcon,k22)
+                                ,'shallow',kbcon,k22,up_massentru,up_massdetru,lambau)
 
       do k=kts,ktf
       do i=its,itf
          hc(i,k)=0.
          qco(i,k)=0.
          qrco(i,k)=0.
-         DBY(I,K)=0.
+         dby(i,k)=0.
          hco(i,k)=0.
-         DBYo(I,K)=0.
+         dbyo(i,k)=0.
       enddo
       enddo
       do i=its,itf
-       IF(ierr(I) /= 0) cycle
+       if(ierr(i) /= 0) cycle
+         do k=1,start_level(i)
+            uc(i,k)=u_cup(i,k)
+            vc(i,k)=v_cup(i,k)
+         enddo
          do k=1,start_level(i)-1
             hc(i,k)=he_cup(i,k)
             hco(i,k)=heo_cup(i,k)
@@ -529,17 +568,23 @@ contains
 !
       do 42 i=its,itf
         dbyt(i,:)=0.
-        IF(ierr(I) /= 0) cycle
+        if(ierr(i) /= 0) cycle
          do k=start_level(i)+1,ktop(i)
           hc(i,k)=(hc(i,k-1)*zu(i,k-1)-.5*up_massdetr(i,k-1)*hc(i,k-1)+      &
                          up_massentr(i,k-1)*he(i,k-1))   /                   &
+                         (zu(i,k-1)-.5*up_massdetr(i,k-1)+up_massentr(i,k-1))
+          uc(i,k)=(uc(i,k-1)*zu(i,k-1)-.5*up_massdetr(i,k-1)*uc(i,k-1)+ &
+                                          up_massentr(i,k-1)*us(i,k-1)) /  &
+                           (zu(i,k-1)-.5*up_massdetr(i,k-1)+up_massentr(i,k-1))
+          vc(i,k)=(vc(i,k-1)*zu(i,k-1)-.5*up_massdetr(i,k-1)*vc(i,k-1)+ &
+                                          up_massentr(i,k-1)*vs(i,k-1))/     &
                          (zu(i,k-1)-.5*up_massdetr(i,k-1)+up_massentr(i,k-1))
           dby(i,k)=max(0.,hc(i,k)-hes_cup(i,k))
           hco(i,k)=(hco(i,k-1)*zuo(i,k-1)-.5*up_massdetro(i,k-1)*hco(i,k-1)+ &
                          up_massentro(i,k-1)*heo(i,k-1))   /                 &
                          (zuo(i,k-1)-.5*up_massdetro(i,k-1)+up_massentro(i,k-1))
           dbyo(i,k)=hco(i,k)-heso_cup(i,k)
-          DZ=Zo_cup(i,K+1)-Zo_cup(i,K)
+          dz=zo_cup(i,k+1)-zo_cup(i,k)
           if(k.ge.kbcon(i))dbyt(i,k)=dbyt(i,k-1)+dbyo(i,k)*dz
          enddo
        ki=maxloc(dbyt(i,:),1)
@@ -581,8 +626,8 @@ contains
          qco (i,k)= qaver 
 !
          do k=start_level(i)+1,ktop(i)
-          trash=QESo_cup(I,K)+(1./XLV)*(GAMMAo_cup(i,k)                &
-                /(1.+GAMMAo_cup(i,k)))*DBYo(I,K)
+          trash=qeso_cup(i,k)+(1./xlv)*(gammao_cup(i,k)                &
+                /(1.+gammao_cup(i,k)))*dbyo(i,k)
           !- total water liq+vapour
           trash2  = qco(i,k-1) ! +qrco(i,k-1)
           qco (i,k)=   (trash2* ( zuo(i,k-1)-0.5*up_massdetr(i,k-1)) + &
@@ -590,10 +635,17 @@ contains
                        (zuo(i,k-1)-.5*up_massdetr(i,k-1)+up_massentr(i,k-1))
 
           if(qco(i,k)>=trash ) then 
-              DZ=Z_cup(i,K)-Z_cup(i,K-1)
+              dz=z_cup(i,k)-z_cup(i,k-1)
               ! cloud liquid water
 !              qrco(i,k)= (qco(i,k)-trash)/(1.+c0_shal*dz)
-              qrco(i,k)= (qco(i,k)-trash)/(1.+(c0_shal+c1_shal)*dz)
+!              qrco(i,k)= (qco(i,k)-trash)/(1.+(c0_shal+c1_shal)*dz)
+              qrco(i,k)= (qco(i,k)-trash)/(1.+c0_shal*dz)
+              c1d(i,k-1)=10.*up_massdetr(i,k-1)*.5*(qrco(i,k-1)+qrco(i,k))
+              qrco(i,k)= qrco(i,k)-c1d(i,k-1)*dz*qrco(i,k)
+              if(qrco(i,k).lt.0.)then  ! hli new test 02/12/19
+                 qrco(i,k)=0.
+                 c1d(i,k-1)=1./dz
+              endif
               pwo(i,k)=c0_shal*dz*qrco(i,k)*zuo(i,k)
               ! cloud water vapor 
               qco (i,k)= trash+qrco(i,k)
@@ -618,6 +670,8 @@ contains
            hc  (i,k)=hes_cup (i,k)
            hco (i,k)=heso_cup(i,k)
            qco (i,k)=qeso_cup(i,k)
+           uc(i,k)=u_cup(i,k)
+           vc(i,k)=v_cup(i,k)
            qrco(i,k)=0.
            dby (i,k)=0.
            dbyo(i,k)=0.
@@ -629,11 +683,11 @@ contains
 !
 !--- calculate workfunctions for updrafts
 !
-      IF(MAKE_CALC_FOR_XK) THEN
-        call cup_up_aa0(aa0,z,zu,dby,GAMMA_CUP,t_cup,      &
+      if(make_calc_for_xk) then
+        call cup_up_aa0(aa0,z,zu,dby,gamma_cup,t_cup,      &
             kbcon,ktop,ierr,                               &
             itf,ktf, its,ite, kts,kte)
-        call cup_up_aa0(aa1,zo,zuo,dbyo,GAMMAo_CUP,tn_cup, &
+        call cup_up_aa0(aa1,zo,zuo,dbyo,gammao_cup,tn_cup, &
             kbcon,ktop,ierr,                               &
             itf,ktf, its,ite, kts,kte)
         do i=its,itf
@@ -644,7 +698,7 @@ contains
            endif
          endif
        enddo
-      ENDIF
+      endif
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
@@ -657,6 +711,9 @@ contains
        do i=its,itf
         dellah(i,k)=0.
         dellaq(i,k)=0.
+        dellaqc(i,k)=0.
+        dellu  (i,k)=0.
+        dellv  (i,k)=0.
        enddo
       enddo
 !
@@ -701,6 +758,13 @@ contains
       trash2=0.
       do i=its,itf
         if(ierr(i).eq.0)then
+         dp=100.*(po_cup(i,1)-po_cup(i,2))
+         dellu(i,1)= -zuo(i,2)*(uc (i,2)-u_cup(i,2)) *g/dp
+         dellv(i,1)= -zuo(i,2)*(vc (i,2)-v_cup(i,2)) *g/dp
+         dellah(i,1)=-zuo(i,2)*(hco(i,2)-heo_cup(i,2))*g/dp
+
+         dellaq (i,1)=-zuo(i,2)*(qco(i,2)-qo_cup(i,2))*g/dp
+
          do k=k22(i),ktop(i)
             ! entrainment/detrainment for updraft
             entup=up_massentro(i,k)
@@ -716,8 +780,8 @@ contains
 
             !-- take out cloud liquid water for detrainment
             dz=zo_cup(i,k+1)-zo_cup(i,k)
-            if(k.lt.ktop(i) .and. c1_shal > 0)then
-             dellaqc(i,k)= zuo(i,k)*c1_shal*qrco(i,k)*dz/dp*g !  detup*0.5*(qrco(i,k+1)+qrco(i,k)) *g/dp
+            if(k.lt.ktop(i) .and. c1d(i,k) > 0)then
+             dellaqc(i,k)= zuo(i,k)*c1d(i,k)*qrco(i,k)*dz/dp*g !  detup*0.5*(qrco(i,k+1)+qrco(i,k)) *g/dp
             else
              dellaqc(i,k)=detup*0.5*(qrco(i,k+1)+qrco(i,k)) *g/dp
 !             dellaqc(i,k)=   detup*qrco(i,k) *g/dp
@@ -725,14 +789,19 @@ contains
 
             !-- condensation source term = detrained + flux divergence of 
             !-- cloud liquid water (qrco)
-            C_up = dellaqc(i,k)+(zuo(i,k+1)* qrco(i,k+1) -       &
+            c_up = dellaqc(i,k)+(zuo(i,k+1)* qrco(i,k+1) -       &
                                   zuo(i,k  )* qrco(i,k  )  )*g/dp
-!            C_up = dellaqc(i,k)
-            !-- water vapor budget (flux divergence of Q_up-Q_env - condensation
+!            c_up = dellaqc(i,k)
+            !-- water vapor budget (flux divergence of q_up-q_env - condensation
             !term)
             dellaq(i,k) =-(zuo(i,k+1)*(qco(i,k+1)-qo_cup(i,k+1) ) -      &
                            zuo(i,k  )*(qco(i,k  )-qo_cup(i,k  ) ) )*g/dp &
-                           - C_up - 0.5*(pwo (i,k)+pwo (i,k+1))*g/dp
+                           - c_up - 0.5*(pwo (i,k)+pwo (i,k+1))*g/dp
+             dellu(i,k) =-(zuo(i,k+1)*(uc (i,k+1)-u_cup(i,k+1) ) - &
+                           zuo(i,k  )*(uc (i,k  )-u_cup(i,k  ) ) )*g/dp 
+             dellv(i,k) =-(zuo(i,k+1)*(vc (i,k+1)-v_cup(i,k+1) ) - &
+                           zuo(i,k  )*(vc (i,k  )-v_cup(i,k  ) ) )*g/dp 
+
           enddo
         endif
       enddo
@@ -764,7 +833,7 @@ contains
       enddo
 !
 !
-     IF(MAKE_CALC_FOR_XK) THEN
+     if(make_calc_for_xk) then
 !
 !--- calculate moist static energy, heights, qes
 !
@@ -786,7 +855,7 @@ contains
       do k=kts,ktf
       do i=its,itf
          xhc(i,k)=0.
-         xDBY(I,K)=0.
+         xdby(i,k)=0.
       enddo
       enddo
       do i=its,itf
@@ -816,8 +885,8 @@ contains
          xdby(i,k)=xhc(i,k)-xhes_cup(i,k)
         enddo
         do k=ktop(i)+1,ktf
-           xHC (i,K)=xhes_cup(i,k)
-           xDBY(I,K)=0.
+           xhc (i,k)=xhes_cup(i,k)
+           xdby(i,k)=0.
            xzu (i,k)=0.
         enddo
        endif
@@ -826,12 +895,12 @@ contains
 !
 !--- workfunctions for updraft
 !
-      call cup_up_aa0(xaa0,xz,xzu,xdby,GAMMA_CUP,xt_cup, &
+      call cup_up_aa0(xaa0,xz,xzu,xdby,gamma_cup,xt_cup, &
            kbcon,ktop,ierr,                              &
            itf,ktf,                                      &
            its,ite, kts,kte)
 !
-     ENDIF
+     endif
 !
 !
 ! now for shallow forcing
@@ -878,6 +947,8 @@ contains
            ktop (i)=0
            xmb  (i)=0.
            outt (i,:)=0.
+           outu (i,:)=0.
+           outv (i,:)=0.
            outq (i,:)=0.
            outqc(i,:)=0.
            cupclw(i,:)=0.
@@ -893,12 +964,45 @@ contains
            outqc(i,k)= dellaqc(i,k)*xmb(i)
            pre  (i)  = pre(i)+pwo(i,k)*xmb(i)
           enddo
+          outt (i,1)= dellat (i,1)*xmb(i)
+          outq (i,1)= dellaq (i,1)*xmb(i)
+          outu(i,1)=dellu(i,1)*xmb(i)
+          outv(i,1)=dellv(i,1)*xmb(i)
+          do k=kts+1,ktop(i)
+             outu(i,k)=.25*(dellu(i,k-1)+2.*dellu(i,k)+dellu(i,k+1))*xmb(i)
+             outv(i,k)=.25*(dellv(i,k-1)+2.*dellv(i,k)+dellv(i,k+1))*xmb(i)
+          enddo
+
         endif
        enddo
+!
+! since kinetic energy is being dissipated, add heating accordingly (from ecmwf)
+!
+      do i=its,itf
+          if(ierr(i).eq.0) then
+             dts=0.
+             fpi=0.
+             do k=kts,ktop(i)
+                dp=(po_cup(i,k)-po_cup(i,k+1))*100.
+!total ke dissiptaion estimate
+                dts= dts -(outu(i,k)*us(i,k)+outv(i,k)*vs(i,k))*dp/g
+! fpi needed for calcualtion of conversion to pot. energyintegrated 
+                fpi = fpi  +sqrt(outu(i,k)*outu(i,k) + outv(i,k)*outv(i,k))*dp
+             enddo
+             if(fpi.gt.0.)then
+                do k=kts,ktop(i)
+                   fp= sqrt((outu(i,k)*outu(i,k)+outv(i,k)*outv(i,k)))/fpi
+                   outt(i,k)=outt(i,k)+fp*dts*g/cp
+                enddo
+             endif
+          endif
+      enddo
 !      
 ! done shallow
 !--------------------------done------------------------------
 !
-
-   END SUBROUTINE CUP_gf_sh
-END MODULE module_cu_gf_sh
+   end subroutine cu_gf_sh_run
+!> @}
+!=================================================================================================================
+end module module_cu_gf_sh
+!=================================================================================================================

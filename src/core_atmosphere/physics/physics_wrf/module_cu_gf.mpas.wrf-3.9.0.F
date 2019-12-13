@@ -20,8 +20,8 @@
  module module_cu_gf_wrf390
  use mpas_log
  use mpas_atmphys_constants,only: cp,g=>gravity,r_v=>R_v,xlv
- use module_cu_gf_deep,only  : cup_gf
- use module_cu_gf_sh,only    : cup_gf_sh
+ use module_cu_gf_deep,only  : cu_gf_deep_run
+ use module_cu_gf_sh,only    : cu_gf_sh_run
  use module_cu_gf_shared,only: neg_check
 
  implicit none
@@ -52,7 +52,7 @@
                gdc,gdc2,                                     &
                pratec,pratecd,pratecm,pratecs,raincv,        &
                raincvd,raincvm,raincvs,nclos,weights_clos,   &
-               nc,ni,nifa,nwfa,                              &
+               nc,ni,nifa,nwfa,ntrans,qtrans,rqtranscuten,   &
                ids,ide,jds,jde,kds,kde,                      &
                ims,ime,jms,jme,kms,kme,                      &
                its,ite,jts,jte,kts,kte                       &
@@ -67,6 +67,7 @@
                       its,ite, jts,jte, kts,kte
  integer,intent(in):: ichoice,ichoice_m,ichoice_s
  integer,intent(in):: nclos
+ integer,intent(in):: ntrans
  integer,intent(in),dimension(ims:ime,jms:jme):: kpbl
 
  real,intent(in):: dt
@@ -76,6 +77,7 @@
  real,intent(in),dimension(ims:ime,kms:kme,jms:jme):: rthraten,rthblten,rthften,rqvblten,rqvften
 
  real,intent(in),dimension(ims:ime,kms:kme,jms:jme),optional:: nc,ni,nifa,nwfa
+ real,intent(in),dimension(ims:ime,kms:kme,jms:jme,ntrans),optional:: qtrans
 
 !inout variables:
  integer,intent(inout),dimension(ims:ime,jms:jme),optional:: k22_deepc,kbcon_deepc,ktop_deepc
@@ -97,6 +99,8 @@
  real,intent(inout),dimension(ims:ime,kms:kme,jms:jme),optional:: rnccuten,rnicuten,rnifacuten,rnwfacuten
 
  real,intent(inout),dimension(ims:ime,1:nclos,jms:jme),optional:: weights_clos
+
+ real,intent(inout),dimension(ims:ime,kms:kme,jms:jme,ntrans),optional:: rqtranscuten
 
 !local variables:
  character(len=50),dimension(its:ite):: ierrc,ierrcm,ierrcs
@@ -134,6 +138,9 @@
  real,dimension(its:ite,kts:kte):: outncm,outnim,outnifam,outnwfam
  real,dimension(its:ite,kts:kte):: outncs,outnis,outnifas,outnwfas
 
+ real,dimension(its:ite,kts:kte,ntrans):: qtrans2d
+ real,dimension(its:ite,kts:kte,ntrans):: outqtrans,outqtransm,outqtranss
+
  real,dimension(its:ite,1:nclos):: xf_ens
 
 !local variables for stochastic parameterization:
@@ -152,9 +159,8 @@
  real,parameter:: ccn0   = 150.
 
 !-----------------------------------------------------------------------------------------------------------------
-
- call mpas_log_write(' ')
- call mpas_log_write('--- enter subroutine cu_grell_freitas_wrf390:')
+!call mpas_log_write(' ')
+!call mpas_log_write('--- enter subroutine cu_grell_freitas_wrf390:')
 
 !--- initialization of local dimensions:
  itf = min(ite,ide-1)
@@ -267,6 +273,15 @@
           enddo
        enddo
     endif
+    if(present(rqtranscuten)) then
+       do k = kts, kte
+          do i = its, ite
+             do n = 1, ntrans
+                rqtranscuten(i,k,j,n) = 0.
+             enddo
+          enddo
+       enddo
+    endif
 
     if(present(weights_clos)) then
        do k = 1, nclos
@@ -350,6 +365,9 @@
           cnvwt(i,k)    = 0.
           zd(i,k)       = 0.
           zu(i,k)       = 0.
+          do n = 1, ntrans
+             outqtrans(i,k,n)  = 0.
+          enddo
 
           !mid-level convection:
           outtm(i,k)    = 0.
@@ -365,6 +383,9 @@
           cnvwtm(i,k)   = 0.
           zdm(i,k)      = 0.
           zum(i,k)      = 0.
+          do n = 1, ntrans
+             outqtransm(i,k,n) = 0.
+          enddo
 
           !shallow convection:
           outts(i,k)    = 0.
@@ -378,6 +399,9 @@
           outnifas(i,k) = 0.
           outnwfas(i,k) = 0.
           zus(i,k)      = 0.
+          do n = 1, ntrans
+             outqtranss(i,k,n) = 0.
+          enddo
        enddo
     enddo
 
@@ -471,6 +495,23 @@
           enddo
        enddo
     endif
+    if(present(qtrans)) then
+       do n = 1, ntrans
+          do k = kts, ktf
+             do i = its, ite
+                qtrans2d(i,k,n) = qtrans(i,k,j,n)
+             enddo
+          enddo
+       enddo
+    else
+       do n = 1, ntrans
+          do k = kts, ktf
+             do i = its, ite
+                qtrans2d(i,k,n) = 0.
+             enddo
+          enddo
+       enddo
+    endif
 
     !--- calculation of the moisture convergence: we do not need to calculate
     !the moisture convergence since it is initialized to zero and calculated
@@ -489,16 +530,14 @@
 
     !--- call to shallow convection:
     if(do_shalc) then
-       call mpas_log_write("  ")
-       call mpas_log_write("--- enter subroutine cup_gf_sh:")
-       call cup_gf_sh( &
+       call mpas_log_write('  ')
+       call mpas_log_write('--- enter subroutine cu_gf_sh_run:')
+       call cu_gf_sh_run( &
                 !input variables:
-                zo,t2d,q2d,ter11,tshall,qshall,p2d,psur,dhdt,   &
-                kpbli,rhoi,hfxi,qfxi,xlandi,ichoice_s,tcrit,dt, &
-                zus,xmbs,kbcons,ktops,k22s,ierrs,ierrcs,        &
-                outts,outqs,outqcs,cnvwt,prets,cupclws,         &
-                nc2d,ni2d,nifa2d,nwfa2d,                        &
-                outncs,outnis,outnifas,outnwfas,                &
+                u,v,zo,t2d,q2d,ter11,tshall,qshall,p2d,psur,dhdt,   &
+                kpbli,rhoi,hfxi,qfxi,xlandi,ichoice_s,tcrit,dt,     &
+                zus,xmbs,kbcons,ktops,k22s,ierrs,ierrcs,            &
+                outts,outqs,outqcs,outus,outvs,cnvwt,prets,cupclws, &
                 itf,ktf,its,ite,kts,kte,ipr,tropics)
 
        do k = kts, ktf
@@ -524,24 +563,24 @@
           if(present(ktop_shalc) ) ktop_shalc(i,j)  = ktops(i)
           if(present(xmb_shalc)  ) xmb_shalc(i,j)   = xmbs(i)
        enddo
-       call mpas_log_write("--- end subroutine cup_gf_sh:")
+       call mpas_log_write('--- end subroutine cu_gf_sh_run:')
     endif
 
 
     !--- call to mid-level convection:
     if(do_midlc) then
-       call mpas_log_write("  ")
-       call mpas_log_write("--- enter subroutine cup_gf: middle")
-       call cup_gf( &
-                itf,ktf,its,ite,kts,kte,                                    &
-                dicycle_m,ichoice_m,ipr,ccn,dt,imidc,kpbli,dhdt,            &
-                xlandi,zo,forcingm,t2d,q2d,ter11,tshall,qshall,p2d,         &
-                psur,us,vs,rhoi,hfxi,qfxi,areai,dxi,mconv,omeg,cactiv,      &
-                cnvwtm,zum,zdm,dummy,edtm,dummy,xmbm,dummy,xmbs,pretm,      &
-                outum,outvm,outtm,outqm,outqcm,kbconm,ktopm,k22m,cupclwm,   &
-                ierrm,ierrcm,nc2d,ni2d,nifa2d,nwfa2d,outncm,outnim,         &
-                outnifam,outnwfam,rand_mom,rand_vmas,rand_clos,nranflag,    &
-                jminm,tropics                                               &
+       call mpas_log_write('  ')
+       call mpas_log_write('--- enter subroutine cu_gf_deep_run - mid-level convection:')
+       call cu_gf_deep_run( &
+                itf,ktf,its,ite,kts,kte,                                       &
+                dicycle_m,ichoice_m,ipr,ccn,dt,imidc,kpbli,dhdt,               &
+                xlandi,zo,forcingm,t2d,q2d,ter11,tshall,qshall,p2d,            &
+                psur,us,vs,rhoi,hfxi,qfxi,areai,dxi,mconv,omeg,cactiv,         &
+                cnvwtm,zum,zdm,dummy,edtm,dummy,xmbm,dummy,xmbs,pretm,         &
+                outum,outvm,outtm,outqm,outqcm,kbconm,ktopm,k22m,cupclwm,      &
+                ierrm,ierrcm,nc2d,ni2d,nifa2d,nwfa2d,ntrans,qtrans2d,          &
+                outncm,outnim,outnifam,outnwfam,outqtransm,rand_mom,rand_vmas, &
+                rand_clos,nranflag,jminm,tropics                               &
                   )
 
        do k = kts, ktf
@@ -567,24 +606,24 @@
           if(present(ktop_midlc) ) ktop_midlc(i,j)  = ktopm(i)
           if(present(xmb_midlc)  ) xmb_midlc(i,j)   = xmbm(i)
        enddo
-       call mpas_log_write("--- end subroutine cup_gf: middle")
+       call mpas_log_write('--- end subroutine cu_gf_deep_run - mid-level convection')
     endif
 
 
     !--- call to deep convection:
     if(do_deepc) then
-       call mpas_log_write("  ")
-       call mpas_log_write("--- enter subroutine cup_gf: deep")
-       call cup_gf( &
-                itf,ktf,its,ite,kts,kte,                               &
-                dicycle,ichoice,ipr,ccn,dt,imidd,kpbli,dhdt,           &
-                xlandi,zo,forcing,t2d,q2d,ter11,tn,qo,p2d,             &
-                psur,us,vs,rhoi,hfxi,qfxi,areai,dxi,mconv,omeg,cactiv, &
-                cnvwt,zu,zd,zdm,edt,edtm,xmb,xmbm,xmbs,pret,           &
-                outu,outv,outt,outq,outqc,kbcon,ktop,k22,cupclw,       &
-                ierr,ierrc,nc2d,ni2d,nifa2d,nwfa2d,outnc,outni,        &
-                outnifa,outnwfa,rand_mom,rand_vmas,rand_clos,nranflag, &
-                jmin,tropics                                           &
+       call mpas_log_write('  ')
+       call mpas_log_write('--- enter subroutine cu_gf_deep_run - deep convection')
+       call cu_gf_deep_run( &
+                itf,ktf,its,ite,kts,kte,                                  &
+                dicycle,ichoice,ipr,ccn,dt,imidd,kpbli,dhdt,              &
+                xlandi,zo,forcing,t2d,q2d,ter11,tn,qo,p2d,                &
+                psur,us,vs,rhoi,hfxi,qfxi,areai,dxi,mconv,omeg,cactiv,    &
+                cnvwt,zu,zd,zdm,edt,edtm,xmb,xmbm,xmbs,pret,              &
+                outu,outv,outt,outq,outqc,kbcon,ktop,k22,cupclw,          &
+                ierr,ierrc,nc2d,ni2d,nifa2d,nwfa2d,ntrans,qtrans2d,       &
+                outnc,outni,outnifa,outnwfa,outqtrans,rand_mom,rand_vmas, &
+                rand_clos,nranflag,jmin,tropics                           &
                   )
 
        do k = kts, ktf
@@ -619,7 +658,7 @@
              enddo
           enddo
        endif
-       call mpas_log_write("--- end subroutine cup_gf: deep")
+       call mpas_log_write('--- end subroutine cu_gf_deep_run - deep convection')
     endif
 
     !... precipitation:
@@ -713,6 +752,15 @@
        do k = kts, ktf
           do i = its, itf
              rnwfacuten(i,k,j) = cuten(i)*outnwfa(i,k) + cutenm(i)*outnwfam(i,k) + cutens(i)*outnwfas(i,k)
+          enddo
+       enddo
+    endif
+    if(present(rqtranscuten)) then
+       do k = kts, ktf
+          do i = its, itf
+             do n = 1, ntrans
+                rqtranscuten(i,k,j,n) = cuten(i)*outqtrans(i,k,n) + cutenm(i)*outqtransm(i,k,n)
+             enddo
           enddo
        enddo
     endif
