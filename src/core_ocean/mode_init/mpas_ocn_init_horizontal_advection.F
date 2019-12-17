@@ -85,8 +85,7 @@ contains
 
       type (block_type), pointer :: block_ptr
 
-      type (mpas_pool_type), pointer :: meshPool, verticalMeshPool,
-statePool
+      type (mpas_pool_type), pointer :: meshPool, verticalMeshPool,statePool
       type (mpas_pool_type), pointer :: diagnosticsPool, forcingPool
 
       type (mpas_pool_type), pointer :: tracersPool, &
@@ -184,8 +183,7 @@ statePool
                                 config_advection_interior_salinity_restoring_rate)
       call mpas_pool_get_config(domain % configs,'config_advection_temperature_gradient', &
                                 config_advection_temperature_gradient)
-      call mpas_pool_get_config(domain % configs,'config_advection_salinity_gradient',
-config_advection_salinity_gradient)
+      call mpas_pool_get_config(domain % configs,'config_advection_salinity_gradient',config_advection_salinity_gradient)
       call mpas_pool_get_config(domain % configs,'config_advection_bottom_depth', config_advection_bottom_depth)
       call mpas_pool_get_config(domain % configs,'config_advection_max_windstress', config_advection_max_windstress)
       call mpas_pool_get_config(domain % configs,'config_advection_coriolis_parameter',config_advection_coriolis_parameter)
@@ -480,8 +478,7 @@ config_advection_salinity_gradient)
 !
 !-----------------------------------------------------------------------
 
-   subroutine ocn_init_validate_advection(configPool, packagePool,
-iocontext, iErr)!{{{
+   subroutine ocn_init_validate_advection(configPool, packagePool,iocontext, iErr)!{{{
 
    !--------------------------------------------------------------------
 
@@ -492,27 +489,21 @@ iocontext, iErr)!{{{
       integer, intent(out) :: iErr
 
       character (len=StrKIND), pointer :: config_init_configuration
-      integer, pointer :: config_vert_levels,
-config_advection_vert_levels
+      integer, pointer :: config_vert_levels,config_advection_vert_levels
 
       iErr = 0
 
-      call mpas_pool_get_config(configPool, 'config_init_configuration',
-config_init_configuration)
+      call mpas_pool_get_config(configPool, 'config_init_configuration',config_init_configuration)
 
       if(config_init_configuration .ne. trim('advection')) return
 
-      call mpas_pool_get_config(configPool, 'config_vert_levels',
-config_vert_levels)
-      call mpas_pool_get_config(configPool,
-'config_advection_vert_levels', config_advection_vert_levels)
+      call mpas_pool_get_config(configPool, 'config_vert_levels',config_vert_levels)
+      call mpas_pool_get_config(configPool,'config_advection_vert_levels', config_advection_vert_levels)
 
-      if(config_vert_levels <= 0 .and. config_advection_vert_levels > 0)
-then
+      if(config_vert_levels <= 0 .and. config_advection_vert_levels > 0) then
          config_vert_levels = config_advection_vert_levels
       else if(config_vert_levels <= 0) then
-         call mpas_log_write( 'Validation failed for CVMix WSwSBF unit
-test case. Not given a usable value for ' &
+         call mpas_log_write( 'Validation failed for CVMix WSwSBF unittest case. Not given a usable value for ' &
                           // 'vertical levels.', MPAS_LOG_CRIT)
          iErr = 1
       end if
