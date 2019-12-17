@@ -81,7 +81,7 @@ mpas_ocn_init_hurricane.o: $(UTILS)
 
 mpas_ocn_init_tidal_boundary.o: $(UTILS)
 
-mpas_ocn_init_advection.o: $(UTILS)
+mpas_ocn_init_horizontal_advection.o: $(UTILS)
 
 #mpas_ocn_init_TEMPLATE.o: $(UTILS)
 

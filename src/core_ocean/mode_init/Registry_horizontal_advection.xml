@@ -1,105 +1,105 @@
-<nml_record name="advection" mode="init" configuration="advection">
-        <nml_option name="config_advection_vert_levels" type="integer" default_value="100" units="unitless"
+<nml_record name="horizontal_advection" mode="init" configuration="horizontal_advection">
+        <nml_option name="config_horizontal_advection_vert_levels" type="integer" default_value="100" units="unitless"
             description="Number of vertical levels in cvmix WSwSBF unit test case."
             possible_values="Any positive integer number greater than 0."
         />
-        <nml_option name="config_advection_surface_temperature" type="real" default_value="15.0" units="deg C"
+        <nml_option name="config_horizontal_advection_surface_temperature" type="real" default_value="15.0" units="deg C"
             description="Temperature of the surface of the ocean."
             possible_values="Any real number"
         />
-        <nml_option name="config_advection_surface_salinity" type="real" default_value="35.0" units="PSU"
+        <nml_option name="config_horizontal_advection_surface_salinity" type="real" default_value="35.0" units="PSU"
             description="Salinity of the surface of the ocean."
             possible_values="Any real number"
         />
-        <nml_option name="config_advection_surface_restoring_temperature" type="real" default_value="15.0" units="C"
+        <nml_option name="config_horizontal_advection_surface_restoring_temperature" type="real" default_value="15.0" units="C"
             description="Temperature to restore towards when surface restoring is turned on."
             possible_values="Any real number"
         />
-        <nml_option name="config_advection_surface_restoring_salinity" type="real" default_value="35.0" units="PSU"
+        <nml_option name="config_horizontal_advection_surface_restoring_salinity" type="real" default_value="35.0" units="PSU"
             description="Salinity to restore towards when surface restoring is turned on."
             possible_values="Any real number"
         />
-        <nml_option name="config_advection_temperature_piston_velocity" type="real" default_value="4.0e-6" units="m s^{-1}"
-            description="Piston velocity to control rate of restoring toward config_advection_surface_restoring_temperature."
+        <nml_option name="config_horizontal_advection_temperature_piston_velocity" type="real" default_value="4.0e-6" units="m s^{-1}"
+            description="Piston velocity to control rate of restoring toward config_horizontal_advection_surface_restoring_temperature."
             possible_values="Any non-negative real number"
         />
-        <nml_option name="config_advection_salinity_piston_velocity" type="real" default_value="4.0e-6" units="m s^{-1}"
-            description="Piston velocity to control rate of restoring toward config_advection_surface_restoring_salinity."
+        <nml_option name="config_horizontal_advection_salinity_piston_velocity" type="real" default_value="4.0e-6" units="m s^{-1}"
+            description="Piston velocity to control rate of restoring toward config_horizontal_advection_surface_restoring_salinity."
             possible_values="Any non-negative real number"
         />
-        <nml_option name="config_advection_sensible_heat_flux" type="real" default_value="0.0" units="W m^{-2}"
+        <nml_option name="config_horizontal_advection_sensible_heat_flux" type="real" default_value="0.0" units="W m^{-2}"
             description="Net sensible heat flux applied when bulk forcing is used. Positive values indicate a net input of heat to ocean."
             possible_values="Any real number"
         />
-        <nml_option name="config_advection_latent_heat_flux" type="real" default_value="0.0" units="W m^{-2}"
+        <nml_option name="config_horizontal_advection_latent_heat_flux" type="real" default_value="0.0" units="W m^{-2}"
             description="Net latent heat flux applied when bulk forcing is used. Positive values indicate a net input of heat to ocean."
             possible_values="Any real number"
         />
-        <nml_option name="config_advection_shortwave_heat_flux" type="real" default_value="0.0" units="W m^{-2}"
+        <nml_option name="config_horizontal_advection_shortwave_heat_flux" type="real" default_value="0.0" units="W m^{-2}"
             description="Net solar shortwave heat flux applied when bulk forcing is used. Positive values indicate a net input of heat to ocean."
             possible_values="Any real number"
         />
-        <nml_option name="config_advection_rain_flux" type="real" default_value="0.0" units="kg m^{-2} s^{-1}"
+        <nml_option name="config_horizontal_advection_rain_flux" type="real" default_value="0.0" units="kg m^{-2} s^{-1}"
             description="Net surface rain flux when bulk forcing is used. Positive values indicate a net input of water to ocean."
             possible_values="Any real number"
         />
-        <nml_option name="config_advection_evaporation_flux" type="real" default_value="0.0" units="kg m^{-2} s^{-1}"
+        <nml_option name="config_horizontal_advection_evaporation_flux" type="real" default_value="0.0" units="kg m^{-2} s^{-1}"
             description="Net surface evaporation when bulk forcing is used. Positive values indicate a net input of water to ocean."
             possible_values="Any real number"
         />
-        <nml_option name="config_advection_interior_temperature_restoring_rate" type="real" default_value="1.0e-6" units="{s}^-1"
+        <nml_option name="config_horizontal_advection_interior_temperature_restoring_rate" type="real" default_value="1.0e-6" units="{s}^-1"
             description="Rate at which temperature is restored toward the initial condition."
             possible_values="Any non-negative real number"
         />
-        <nml_option name="config_advection_interior_salinity_restoring_rate" type="real" default_value="1.0e-6" units="{s}^-2"
+        <nml_option name="config_horizontal_advection_interior_salinity_restoring_rate" type="real" default_value="1.0e-6" units="{s}^-2"
             description="Rate at which salinity is restored toward the initial condition."
             possible_values="Any non-negative real number"
         />
-        <nml_option name="config_advection_temperature_gradient" type="real" default_value="0.01" units="deg C m^{-1}"
+        <nml_option name="config_horizontal_advection_temperature_gradient" type="real" default_value="0.01" units="deg C m^{-1}"
             description="d/dz of temperature."
             possible_values="Any real number"
         />
-        <nml_option name="config_advection_salinity_gradient" type="real" default_value="0.0" units="PSU m^{-1}"
+        <nml_option name="config_horizontal_advection_salinity_gradient" type="real" default_value="0.0" units="PSU m^{-1}"
             description="d/dz of salinity."
             possible_values="Any real number"
         />
-        <nml_option name="config_advection_temperature_gradient_mixed_layer" type="real" default_value="0.0" units="deg C m^{-1}"
+        <nml_option name="config_horizontal_advection_temperature_gradient_mixed_layer" type="real" default_value="0.0" units="deg C m^{-1}"
             description="d/dz of temperature in mixed temperature layer"
             possible_values="Any real number"
         />
-        <nml_option name="config_advection_salinity_gradient_mixed_layer" type="real" default_value="0.0" units="PSU m^{-1}"
+        <nml_option name="config_horizontal_advection_salinity_gradient_mixed_layer" type="real" default_value="0.0" units="PSU m^{-1}"
             description="d/dz of salinity in mixed salinity layer"
             possible_values="Any real number"
         />
-        <nml_option name="config_advection_mixed_layer_depth_temperature" type="real" default_value="0.0" units="m"
+        <nml_option name="config_horizontal_advection_mixed_layer_depth_temperature" type="real" default_value="0.0" units="m"
             description="depth mixed temperature layer"
             possible_values="Any positive real number but must be less than bottom depth"
         />
-        <nml_option name="config_advection_mixed_layer_depth_salinity" type="real" default_value="0.0" units="m"
+        <nml_option name="config_horizontal_advection_mixed_layer_depth_salinity" type="real" default_value="0.0" units="m"
             description="depth mixed salinity layer"
             possible_values="Any positive real number but less than bottom depth"
         />
-        <nml_option name="config_advection_mixed_layer_temperature_change" type="real" default_value="0.0" units="deg C"
+        <nml_option name="config_horizontal_advection_mixed_layer_temperature_change" type="real" default_value="0.0" units="deg C"
             description="temperature jump when moving downward across the mixed layer interface"
             possible_values="Any real number"
         />
-        <nml_option name="config_advection_mixed_layer_salinity_change" type="real" default_value="0.0" units="PSU"
+        <nml_option name="config_horizontal_advection_mixed_layer_salinity_change" type="real" default_value="0.0" units="PSU"
             description="salinity jump when moving downward across the mixed layer interface"
             possible_values="Any real number"
         />
-        <nml_option name="config_advection_vertical_grid" type="character" default_value="uniform" units="unitless"
+        <nml_option name="config_horizontal_advection_vertical_grid" type="character" default_value="uniform" units="unitless"
             description="prescription of setting the vertical resolution of the test case"
             possible_values="'uniform' and 'stretched100'"
         />
-        <nml_option name="config_advection_bottom_depth" type="real" default_value="400.0" units="m"
+        <nml_option name="config_horizontal_advection_bottom_depth" type="real" default_value="400.0" units="m"
             description="Depth of the bottom of the ocean for the CVMix WSwSBF unit test case."
             possible_values="Any positive real number."
         />
-        <nml_option name="config_advection_max_windstress" type="real" default_value="0.10" units="N m^{-2}"
+        <nml_option name="config_horizontal_advection_max_windstress" type="real" default_value="0.10" units="N m^{-2}"
             description="Maximum surface windstress over the domain."
             possible_values="Any real number."
         />
-        <nml_option name="config_advection_coriolis_parameter" type="real" default_value="1.0e-4" units="s^{-1}"
+        <nml_option name="config_horizontal_advection_coriolis_parameter" type="real" default_value="1.0e-4" units="s^{-1}"
             description="Coriolis parameter for WSwSBF test case"
             possible_values="Any real number."
         />
@@ -116,11 +116,11 @@
             description="Radus of tracer circule"
             possible_values="Any real number greater than zero."
         />
-        <nml_option name="config_advection_meridionalC" type="real" default_value=".5" units="m*s^{-1}"
+        <nml_option name="config_horizontal_advection_meridionalC" type="real" default_value=".5" units="m*s^{-1}"
             description="Constant Meridional Velocity"
             possible_values="Any real number greater than zero."                                           
         />   
-        <nml_option name="config_advection_zonalC" type="real" default_value=".5" units="m*s^{-1}"
+        <nml_option name="config_horizontal_advection_zonalC" type="real" default_value=".5" units="m*s^{-1}"
             description="Constant zonal Velocity"
             possible_values="Any real number greater than zero."                                           
         />
