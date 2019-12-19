@@ -1,0 +1,17 @@
+<!-- ========================================================================================================= -->
+<!-- passive tracers:                                                                                          -->
+<!-- ========================================================================================================= -->
+
+ <var_struct name="state" time_levs="1">
+
+      <var_array name="tracers" type="real" dimensions="nVertLevels nCells Time">
+           <var name="tr17_7" array_group="passive" units="dimensionless"
+                     description="boundary layer passive tracer"/>
+
+           <var name="tr17_8" array_group="passive" units="dimensionless"
+                     description="boundary layer passive tracer decaying with e-folding time of 1 day"/>
+      </var_array>
+
+ </var_struct>
+
+<!-- ========================================================================================================= -->
