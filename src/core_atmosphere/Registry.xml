@@ -458,6 +458,7 @@
 			<var name="coeffs_reconstruct"/>
 			<var name="p_fg"/>
 			<var_array name="scalars"/>
+			<var_array name="tracers"/>
 			<var name="initial_time"/>
 			<var name="xtime"/>
 			<var name="u"/>
@@ -3524,6 +3525,9 @@
 <!-- **************************************************************************************** -->
 
 #include "diagnostics/Registry_diagnostics.xml"
+#ifdef ATM_CHEMISTRY
+#include "chemistry/Registry_tracers.xml"
+#endif
 
         <!-- ================================================================================================== -->
         <!-- ... FIRST-GUESS DATA NEEDED FOR INTERPOLATION OF PHYSICS DIAGNOSTICS:                              -->
