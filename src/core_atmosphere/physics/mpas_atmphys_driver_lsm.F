@@ -390,6 +390,10 @@
     chklowq_p(i,j)    = chklowq(i)
     cpm_p(i,j)        = cpm(i)
     cqs2_p(i,j)       = cqs2(i)
+ end do
+ end do
+ do j = jts,jte
+ do i = its,ite
     glw_p(i,j)        = glw(i)
     grdflx_p(i,j)     = grdflx(i)
     gsw_p(i,j)        = gsw(i)
@@ -398,6 +402,10 @@
     lh_p(i,j)         = lh(i)
     noahres_p(i,j)    = noahres(i)
     potevp_p(i,j)     = potevp(i)
+ end do
+ end do
+ do j = jts,jte
+ do i = its,ite
     qfx_p(i,j)        = qfx(i)
     qgh_p(i,j)        = qgh(i)
     qsfc_p(i,j)       = qsfc(i)
@@ -406,6 +414,10 @@
     sfc_emibck_p(i,j) = sfc_emibck(i)
     sfc_emiss_p(i,j)  = sfc_emiss(i)
     sfcrunoff_p(i,j)  = sfcrunoff(i)
+ end do
+ end do
+ do j = jts,jte
+ do i = its,ite
     smstav_p(i,j)     = smstav(i)
     smstot_p(i,j)     = smstot(i)
     snotime_p(i,j)    = snotime(i)
@@ -414,6 +426,10 @@
     z0_p(i,j)         = z0(i)
     znt_p(i,j)        = znt(i)
     t2m_p(i,j)        = t2m(i)
+ end do
+ end do
+ do j = jts,jte
+ do i = its,ite
     th2m_p(i,j)       = th2m(i)
     q2_p(i,j)         = q2(i)
 
@@ -423,6 +439,10 @@
     shdmax_p(i,j)     = shdmax(i)
     snoalb_p(i,j)     = snoalb(i)
     sfc_albbck_p(i,j) = sfc_albbck(i)
+ end do
+ end do
+ do j = jts,jte
+ do i = its,ite
     snow_p(i,j)       = snow(i)
     snowc_p(i,j)      = snowc(i)
     snowh_p(i,j)      = snowh(i)
@@ -433,8 +453,8 @@
     xland_p(i,j)      = xland(i)
 
     qz0_p(i,j) = 0._RKIND
- enddo
- enddo
+ end do
+ end do
 
 !modify the surface albedo and surface emissivity, and surface temperatures over sea-ice points:
  if(config_frac_seaice) then
@@ -640,6 +660,10 @@
     chklowq(i)    = chklowq_p(i,j)
     cpm(i)        = cpm_p(i,j)
     cqs2(i)       = cqs2_p(i,j)
+ end do
+ end do
+ do j = jts,jte
+ do i = its,ite
     glw(i)        = glw_p(i,j)
     grdflx(i)     = grdflx_p(i,j)
     gsw(i)        = gsw_p(i,j)
@@ -648,6 +672,10 @@
     lh(i)         = lh_p(i,j)
     noahres(i)    = noahres_p(i,j)
     potevp(i)     = potevp_p(i,j)
+ end do
+ end do
+ do j = jts,jte
+ do i = its,ite
     qfx(i)        = qfx_p(i,j)
     qgh(i)        = qgh_p(i,j)
     qsfc(i)       = qsfc_p(i,j)
@@ -656,6 +684,10 @@
     sfc_emibck(i) = sfc_emibck_p(i,j)
     sfc_emiss(i)  = sfc_emiss_p(i,j)
     sfcrunoff(i)  = sfcrunoff_p(i,j)
+ end do
+ end do
+ do j = jts,jte
+ do i = its,ite
     smstav(i)     = smstav_p(i,j)
     smstot(i)     = smstot_p(i,j)
     snotime(i)    = snotime_p(i,j)
@@ -664,6 +696,10 @@
     z0(i)         = z0_p(i,j)
     znt(i)        = znt_p(i,j)
     t2m(i)        = t2m_p(i,j)
+ end do
+ end do
+ do j = jts,jte
+ do i = its,ite
     th2m(i)       = th2m_p(i,j)
     q2(i)         = q2_p(i,j)
 
@@ -672,13 +708,17 @@
     snow(i)       = snow_p(i,j)
     snowc(i)      = snowc_p(i,j)
     snowh(i)      = snowh_p(i,j)
+ end do
+ end do
+ do j = jts,jte
+ do i = its,ite
     skintemp(i)   = tsk_p(i,j)
     tmn(i)        = tmn_p(i,j)
     vegfra(i)     = vegfra_p(i,j)
     xice(i)       = xice_p(i,j)
     xland(i)      = xland_p(i,j)
- enddo
- enddo
+ end do
+ end do
 
  if(config_frac_seaice) then
     do j = jts,jte
@@ -776,6 +816,13 @@
  character(len=StrKIND),pointer:: lsm_scheme
  character(len=StrKIND),pointer:: mminlu
 
+#ifdef THREADED_PHYSICS
+ integer, external :: omp_get_thread_num, omp_get_num_threads
+ integer :: tid, nth, ibeg, iend
+#else
+ integer :: ibeg, iend
+#endif
+
 !-----------------------------------------------------------------------------------------------------------------
 !call mpas_log_write('')
 !call mpas_log_write('--- enter subroutine driver_lsm:')
@@ -794,6 +841,15 @@
 
     case("noah")
        call mpas_timer_start('Noah')
+#ifdef THREADED_PHYSICS
+!$omp parallel private(tid, nth, ibeg, iend)
+       tid = omp_get_thread_num()
+       nth = omp_get_num_threads()
+       call omp_block_partition(tid, nth, its, ite, ibeg, iend)
+#else
+       ibeg = its
+       iend = ite
+#endif
        call lsm( &
                 dz8w      = dz_p      , p8w3d     = pres2_hyd_p  , t3d       = t_p          , &  
                 qv3d      = qv_p      , xland     = xland_p      , xice      = xice_p       , &
@@ -828,7 +884,7 @@
                 sf_urban_physics = sf_urban_physics   ,                                       &
                 ids = ids , ide = ide , jds = jds , jde = jde , kds = kds , kde = kde ,       &
                 ims = ims , ime = ime , jms = jms , jme = jme , kms = kms , kme = kme ,       &
-                its = its , ite = ite , jts = jts , jte = jte , kts = kts , kte = kte         &
+                its = ibeg, ite = iend, jts = jts , jte = jte , kts = kts , kte = kte         &
                )
 
        call sfcdiags( &
@@ -838,8 +894,11 @@
                 rovcp = rcp    , ua_phys = ua_phys                                              , & 
                 ids = ids , ide = ide , jds = jds , jde = jde , kds = kds , kde = kde ,           &
                 ims = ims , ime = ime , jms = jms , jme = jme , kms = kms , kme = kme ,           &
-                its = its , ite = ite , jts = jts , jte = jte , kts = kts , kte = kte             &
+                its = ibeg, ite = iend, jts = jts , jte = jte , kts = kts , kte = kte             &
                     )
+#ifdef THREADED_PHYSICS
+!$omp end parallel
+#endif
        call mpas_timer_stop('Noah')
                 
 

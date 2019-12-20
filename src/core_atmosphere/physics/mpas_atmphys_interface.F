@@ -250,6 +250,28 @@
  real(kind=RKIND):: z0,z1,z2,w1,w2
  real(kind=RKIND):: rho_a,rho1,rho2,tem1,tem2
 
+ integer :: istart, iend
+ integer, parameter :: iblock = 8
+ logical, save :: first_call
+ data first_call /.true./
+
+!YKT: arrays to hold 2D transposes
+ real(kind=RKIND), allocatable, save :: tr_zz(:,:)
+ real(kind=RKIND), allocatable, save :: tr_rho_zz(:,:)
+ real(kind=RKIND), allocatable, save :: tr_theta_m(:,:)
+ real(kind=RKIND), allocatable, save :: tr_exner(:,:)
+ real(kind=RKIND), allocatable, save :: tr_u(:,:)
+ real(kind=RKIND), allocatable, save :: tr_v(:,:)
+ real(kind=RKIND), allocatable, save :: tr_w(:,:)
+ real(kind=RKIND), allocatable, save :: tr_pressure_p(:,:)
+ real(kind=RKIND), allocatable, save :: tr_pressure_b(:,:)
+ real(kind=RKIND), allocatable, save :: tr_zgrid(:,:)
+ real(kind=RKIND), allocatable, save :: tr_qv(:,:)
+ real(kind=RKIND), allocatable, save :: tr_qc(:,:)
+ real(kind=RKIND), allocatable, save :: tr_qr(:,:)
+ real(kind=RKIND), allocatable, save :: tr_qi(:,:)
+ real(kind=RKIND), allocatable, save :: tr_qs(:,:)
+ real(kind=RKIND), allocatable, save :: tr_qg(:,:)
 !-----------------------------------------------------------------------------------------------------------------
 !call mpas_log_write('')
 !call mpas_log_write('--- enter subroutine MPAS_to_phys:')
@@ -343,33 +365,94 @@
     call MPAS_coupler_transfer_field(mpas_cpl, cells_to_rad_handle, plradField, ierr=ierr)
  end if
 
+ if (first_call) then
+   allocate(tr_zz(its:ite,kts:kte))
+   allocate(tr_rho_zz(its:ite,kts:kte))
+   allocate(tr_theta_m(its:ite,kts:kte))
+   allocate(tr_exner(its:ite,kts:kte))
+   allocate(tr_u(its:ite,kts:kte))
+   allocate(tr_v(its:ite,kts:kte))
+   allocate(tr_w(its:ite,kts:kte+1))
+   allocate(tr_pressure_p(its:ite,kts:kte))
+   allocate(tr_pressure_b(its:ite,kts:kte))
+   allocate(tr_zgrid(its:ite,kts:kte+1))
+   allocate(tr_qv(its:ite,kts:kte))
+   allocate(tr_qc(its:ite,kts:kte))
+   allocate(tr_qr(its:ite,kts:kte))
+   allocate(tr_qi(its:ite,kts:kte))
+   allocate(tr_qs(its:ite,kts:kte))
+   allocate(tr_qg(its:ite,kts:kte))
+   first_call = .false.
+ end if
+
+!do 2D transposes just one time, then access data at stride-1
+ do istart = its, ite, iblock
+   iend = min(ite, istart + iblock - 1)
+   do k = kts, kte
+     do i = istart, iend
+       tr_zz(i,k) = zz(k,i)
+       tr_rho_zz(i,k) = rho_zz(k,i)
+       tr_theta_m(i,k) = theta_m(k,i)
+       tr_u(i,k) = u(k,i)
+       tr_v(i,k) = v(k,i)
+       tr_exner(i,k) = exner(k,i)
+       tr_pressure_p(i,k) = pressure_p(k,i)
+       tr_pressure_b(i,k) = pressure_b(k,i)
+     end do
+   end do
+ end do
+
+ do istart = its, ite, iblock
+   iend = min(ite, istart + iblock - 1)
+   do k = kts, kte
+     do i = istart, iend
+       tr_qv(i,k) = max(0.,scalars(sindex_qv,k,i))
+       tr_qc(i,k) = max(0.,scalars(sindex_qc,k,i))
+       tr_qr(i,k) = max(0.,scalars(sindex_qr,k,i))
+       tr_qi(i,k) = max(0.,scalars(sindex_qi,k,i))
+       tr_qs(i,k) = max(0.,scalars(sindex_qs,k,i))
+       tr_qg(i,k) = max(0.,scalars(sindex_qg,k,i))
+     end do
+   end do
+ end do
+
+ do istart = its, ite, iblock
+   iend = min(ite, istart + iblock - 1)
+   do k = kts, kte + 1
+     do i = istart, iend
+       tr_zgrid(i,k) = zgrid(k,i)
+       tr_w(i,k) = w(k,i)
+     end do
+   end do
+ end do
+
+! use transposed data on the right-hand side for stride-one access
  do j = jts, jte
  do k = kts, kte
  do i = its, ite
-
     !water vapor and moist arrays:
-    qv_p(i,k,j) = max(0.,scalars(sindex_qv,k,i))
-    qc_p(i,k,j) = max(0.,scalars(sindex_qc,k,i))
-    qr_p(i,k,j) = max(0.,scalars(sindex_qr,k,i))
-    qi_p(i,k,j) = max(0.,scalars(sindex_qi,k,i))
-    qs_p(i,k,j) = max(0.,scalars(sindex_qs,k,i))
-    qg_p(i,k,j) = max(0.,scalars(sindex_qg,k,i))    
+    qv_p(i,k,j) = tr_qv(i,k)
+
+    zz_p(i,k,j)  = tr_zz(i,k)
+    rho_p(i,k,j) = tr_zz(i,k) * tr_rho_zz(i,k) * (1._RKIND + qv_p(i,k,j))
+    th_p(i,k,j)  = tr_theta_m(i,k) / (1._RKIND + R_v/R_d * qv_p(i,k,j))
+    t_p(i,k,j)   = th_p(i,k,j)*tr_exner(i,k)
+
+    qc_p(i,k,j) = tr_qc(i,k)
+    qr_p(i,k,j) = tr_qr(i,k)
+    qi_p(i,k,j) = tr_qi(i,k)
+    qs_p(i,k,j) = tr_qs(i,k)
+    qg_p(i,k,j) = tr_qg(i,k)
 
     !arrays located at theta points:
-    u_p(i,k,j) = u(k,i)
-    v_p(i,k,j) = v(k,i)
+    u_p(i,k,j) = tr_u(i,k)
+    v_p(i,k,j) = tr_v(i,k)
 
-    zz_p(i,k,j)  = zz(k,i)
-    rho_p(i,k,j) = zz(k,i) * rho_zz(k,i)
-    rho_p(i,k,j) = rho_p(i,k,j)*(1._RKIND + qv_p(i,k,j))
-    th_p(i,k,j)  = theta_m(k,i) / (1._RKIND + R_v/R_d * qv_p(i,k,j))
-    t_p(i,k,j)   = th_p(i,k,j)*exner(k,i)
+    pi_p(i,k,j)   = tr_exner(i,k)
+    pres_p(i,k,j) = tr_pressure_p(i,k) + tr_pressure_b(i,k)
 
-    pi_p(i,k,j)   = exner(k,i)
-    pres_p(i,k,j) = pressure_p(k,i) + pressure_b(k,i)
-
-    zmid_p(i,k,j) = 0.5*(zgrid(k+1,i)+zgrid(k,i))
-    dz_p(i,k,j)   = zgrid(k+1,i)-zgrid(k,i)
+    zmid_p(i,k,j) = 0.5*(tr_zgrid(i,k+1)+tr_zgrid(i,k))
+    dz_p(i,k,j)   = tr_zgrid(i,k+1)-tr_zgrid(i,k)
 
  enddo
  enddo
