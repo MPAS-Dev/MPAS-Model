@@ -80,7 +80,7 @@
             <argument flag="graph.info">8</argument>
         </step>
         <step executable="mpirun">
-            <argument flag="-n">8</argument>
+            <argument flag="-n">1</argument>
             <argument flag="">./ocean_model</argument>
             <argument flag="-n">namelist.ocean</argument>
             <argument flag="-s">streams.ocean</argument>
