@@ -58,6 +58,7 @@ module ocn_init_mode
    use ocn_init_isomip_plus
    use ocn_init_hurricane
    use ocn_init_tidal_boundary
+   use ocn_init_horizontal_advection
 
    implicit none
    private
@@ -286,6 +287,7 @@ module ocn_init_mode
       call ocn_init_setup_isomip_plus(domain, ierr)
       call ocn_init_setup_hurricane(domain, ierr)
       call ocn_init_setup_tidal_boundary(domain, ierr)
+      call ocn_init_setup_horizontal_advection(domain, ierr)
       !call ocn_init_setup_TEMPLATE(domain, ierr)
 
       call mpas_log_write( ' Completed setup of: ' // trim(config_init_configuration))
@@ -394,6 +396,8 @@ module ocn_init_mode
       call ocn_init_validate_hurricane(configPool, packagePool, iocontext, iErr=err_tmp)
       iErr = ior(iErr, err_tmp)
       call ocn_init_validate_tidal_boundary(configPool, packagePool, iocontext, iErr=err_tmp)
+      iErr = ior(iErr, err_tmp)
+      call ocn_init_validate_horizontal_advection(configPool, packagePool, iocontext,iErr=err_tmp)
       iErr = ior(iErr, err_tmp)
       ! call ocn_init_validate_TEMPLATE(configPool, packagePool, iocontext, iErr=err_tmp)
       ! iErr = ior(iErr, err_tmp)

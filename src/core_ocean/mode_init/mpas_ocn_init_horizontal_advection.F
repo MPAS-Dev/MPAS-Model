@@ -358,7 +358,7 @@ contains
         ! as a place holder, have some debug tracer in the top few
         ! layers and zero below
         if ( associated(debugTracers) ) then
-          r_pt = sqrt((xCell(iCell) - x_cent)) ** 2 + sqrt((yCell(iCell)- y_cent))**2
+          r_pt = sqrt((xCell(iCell) - x_cent) ** 2 + (yCell(iCell)- y_cent)**2)
           if (r_pt < config_tracer_radius) then
              debugTracers(index_tracer1, :, iCell) = 1.0_RKIND
           endif
@@ -452,8 +452,8 @@ contains
 ! Jamil edits for adding
 ! the C variable
 !--------------
-    do iEdge=1, nEdge
-      normalVelocity(iEdge,:) = ( cos(angleEdge) * config_horizontal_advection_zonalC) + ( sin(angleEdge) * config_horizontal_advection_meridionalC )
+    do iEdge=1, nEdgesSolve
+      normalVelocity(:, iEdge) = ( cos(angleEdge(nEdgesSolve)) * config_horizontal_advection_zonalC) + ( sin(angleEdge(nEdgesSolve)) * config_horizontal_advection_meridionalC )
     enddo
 !--------------
 ! end Jamil edit
