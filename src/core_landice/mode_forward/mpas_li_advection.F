@@ -940,6 +940,9 @@ module li_advection
       integer, pointer :: &
            nCells                     ! number of cells
 
+      integer, pointer :: &
+           nCellsSolve
+
       real (kind=RKIND), dimension(:,:), pointer :: &
            temperature,             & ! interior ice temperature
            waterFrac,               & ! interior water fraction
@@ -961,6 +964,8 @@ module li_advection
       integer :: iCell, iTracer
 
       ! get dimensions
+      call mpas_pool_get_dimension(meshPool, 'nCellsSolve', nCellsSolve)
+
       call mpas_pool_get_dimension(meshPool, 'nCells', nCells)
 
       ! get arrays from mesh pool
