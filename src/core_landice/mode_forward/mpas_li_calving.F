@@ -1762,26 +1762,26 @@ module li_calving
 
          !meanT[meanT==0] = 263.15 # for cells that contains invalid T data
 
-         where (meanT == 0.0_RKIND)
-             meanT = 263.15_RKIND
-         end where
+         !where (meanT == 0.0_RKIND)
+         !    meanT = 263.15_RKIND
+         !end where
 
          ! in case there is zero (NAN) temperature data somewhere
 
 
-         A01 = 3.985e-13
-         A02 = 1.916e3
-         Q1 = 60e3
-         Q2 = 139e3
-         R = 8.31
+         !A01 = 3.985e-13
+         !A02 = 1.916e3
+         !Q1 = 60e3
+         !Q2 = 139e3
+         !R = 8.31
 
-         meanFlowParamA(:) = A01*exp(-Q1/R/meanT(:))
-         where (meanT <= 263.15_RKIND)
-             meanFlowParamA = A01*exp(-Q1/R/meanT)
-         end where
-         where (meanT > 263.15_RKIND)
-             meanFlowParamA = A02*exp(-Q2/R/meanT)
-         end where
+         !meanFlowParamA(:) = A01*exp(-Q1/R/meanT(:))
+         !where (meanT <= 263.15_RKIND)
+         !    meanFlowParamA = A01*exp(-Q1/R/meanT)
+         !end where
+         !where (meanT > 263.15_RKIND)
+         !    meanFlowParamA = A02*exp(-Q2/R/meanT)
+         !end where
 
          !if (xtime == '32000-05-10_23:27:31                                            ') then
          !    damage(:) = 0.44
@@ -1794,13 +1794,13 @@ module li_calving
          err = ior(err, err_tmp)
 
          !meanFlowParamA(:) = sum(flowParamA(:,:), dim=1)/nVertLevels
-         call mpas_log_write("meanFlowParamA: Min=$r, Max=$r", &
-                    realArgs=(/minval(meanFlowParamA), maxval(meanFlowParamA)/))
+         !call mpas_log_write("meanFlowParamA: Min=$r, Max=$r", &
+         !           realArgs=(/minval(meanFlowParamA), maxval(meanFlowParamA)/))
          ! meanFlowParamA(:) = flowParamA(1,:)*1.0e25
          ! strainRate_e(:) = sqrt(0.5*(exx(:)**2+eyy(:)**2) + 0.25*(exy(:)+eyx(:))**2)
-         visc(:) = 0.5*stiffnessFactor(:)*meanFlowParamA(:)**(-1.0/3.0)*(sqrt(exx(:)**2+eyy(:)**2 + exx(:)*eyy(:) + 0.25*(exy(:)+eyx(:))**2))**((1.0-3.0)/3.0)
+         !visc(:) = 0.5*stiffnessFactor(:)*meanFlowParamA(:)**(-1.0/3.0)*(sqrt(exx(:)**2+eyy(:)**2 + exx(:)*eyy(:) + 0.25*(exy(:)+eyx(:))**2))**((1.0-3.0)/3.0)
          !visc(:) = 0.5*meanFlowParamA(:)**(-1.0/3.0)*(sqrt(exx(:)**2+eyy(:)**2 + exx(:)*eyy(:) + 0.25*(exy(:)+eyx(:))**2))**((1.0-3.0)/3.0)
-         !visc(:) = 0.5*(2.0e-17/31536000.0)**(-1.0/3.0)*(sqrt(exx(:)**2+eyy(:)**2 + exx(:)*eyy(:) + 0.25*(exy(:)+eyx(:))**2))**((1.0-3.0)/3.0)
+         visc(:) = 0.5*(2.0e-17/31536000.0)**(-1.0/3.0)*(sqrt(exx(:)**2+eyy(:)**2 + exx(:)*eyy(:) + 0.25*(exy(:)+eyx(:))**2))**((1.0-3.0)/3.0)
          !visc(:) = 0.5*config_default_flowParamA**(-1.0/3.0)*(sqrt(exx(:)**2+eyy(:)**2 + exx(:)*eyy(:) + 0.25*(exy(:)+eyx(:))**2))**((1.0-3.0)/3.0)
          !visc(:) = 0.5*(2.0e-17/31536000.0)**(-1.0/3.0)*(sqrt(exx(:)**2))**((1.0-3.0)/3.0)
          ! recover effective viscosity from vel. and temp. fields
@@ -1904,7 +1904,7 @@ module li_calving
 
 
          do iCell = 1, nCells
-            if (li_mask_is_grounded_ice(cellMask(iCell))) then
+            if ((li_mask_is_grounded_ice(cellMask(iCell))) .or. (.not.(li_mask_is_dynamic_ice(cellMask(iCell))))) then
                 damage(iCell) = 0.0_RKIND
             end if
          end do
@@ -2105,7 +2105,7 @@ module li_calving
 
 
          do iCell = 1, nCells
-            if (li_mask_is_grounded_ice(cellMask(iCell))) then
+            if ((li_mask_is_grounded_ice(cellMask(iCell))) .or. (.not.(li_mask_is_dynamic_ice(cellMask(iCell))))) then
                 damage(iCell) = 0.0_RKIND
             end if
          end do
@@ -2138,15 +2138,15 @@ module li_calving
             end if
         end do
 
-        do iCell = 1, nCells
-            if (li_mask_is_floating_ice(cellMask(iCell)) .and. li_mask_is_dynamic_ice(cellMask(iCell))) then
-                stiffnessFactor(iCell) = (1.0_RKIND - damage(iCell)) * stiffnessFactor(iCell)
-                !stiffnessFactor(iCell) = stiffnessFactor(iCell)*0.0_RKIND + 1.0_RKIND
-                if (stiffnessFactor(iCell) < 1.0_RKIND) then
-                    stiffnessFactor(iCell) = 1.0_RKIND
-                end if
-            end if
-        end do
+        !do iCell = 1, nCells
+        !    if (li_mask_is_floating_ice(cellMask(iCell)) .and. li_mask_is_dynamic_ice(cellMask(iCell))) then
+        !        stiffnessFactor(iCell) = (1.0_RKIND - damage(iCell)) * stiffnessFactor(iCell)
+        !        !stiffnessFactor(iCell) = stiffnessFactor(iCell)*0.0_RKIND + 1.0_RKIND
+        !        if (stiffnessFactor(iCell) < 1.0_RKIND) then
+        !            stiffnessFactor(iCell) = 1.0_RKIND
+        !        end if
+        !    end if
+        !end do
 
          !where (stiffnessFactor < 0.9_RKIND)
          !    stiffnessFactor = 0.9_RKIND
