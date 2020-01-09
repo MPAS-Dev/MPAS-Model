@@ -365,7 +365,7 @@ contains
    dxy4p(its:ite,3) = dxy4(its:ite,4)
    dxy4p(its:ite,4) = dxy4(its:ite,3)
 !
-   cleff(its:ite) = dxmeter
+   cleff(its:ite) = dxmeter(its:ite)
 !
 ! initialize arrays                                                 
 !                                                                       
