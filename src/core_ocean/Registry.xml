@@ -1436,7 +1436,6 @@
 		<package name="landIceCouplingPKG" description="This package includes varibles required for land ice coupling but not land ice fluxes in standalone mode."/>
 		<package name="frazilIce" description="This package includes variables required for frazil ice formation."/>
 		<package name="tidalForcing" description="This package includes variables required for tidal forcing on a boundary."/>
-		<package name="inSituEOS" description="This package includes variables required for to compute in situ equation of state derivatives, like thermal expansion and haline contraction."/>
 		<package name="forwardMode" description="This package controls variables that are intended to be used within the forward run mode of the ocean model."/>
 		<package name="analysisMode" description="This package controls variables that are intended to be used within the analysis run mode of the ocean model."/>
 		<package name="initMode" description="This package controls variables that are intended to be used within the init run mode of the ocean model."/>
@@ -1889,7 +1888,6 @@
 			<var name="boundaryLayerDepth"/>
 			<var name="boundaryLayerDepthEdge"/>
 			<var name="indexBoundaryLayerDepth"/>
-			<var name="indexSurfaceLayerDepth"/>
 			<var name="surfaceFrictionVelocity"/>
 			<var name="windStressZonal"/>
 			<var name="windStressMeridional"/>
@@ -1955,8 +1953,6 @@
 			<var name="iceFraction"/>
 			<var name="windSpeed10m"/>
 			<var name="nAccumulatedCoupled"/>
-			<var name="thermalExpansionCoeff"/>
-			<var name="salineContractionCoeff"/>
 			<var name="landIceFraction"/>
 			<var name="landIceMask"/>
 			<var_array name="landIceInterfaceTracers"/>
@@ -2449,18 +2445,6 @@
 				description="salinity extrapolated to ocean surface"
 			/>
 		</var_array>
-		<var_array name="tracersSurfaceLayerValue" type="real" dimensions="nCells Time" packages="forwardMode;analysisMode">
-			<var name="temperatureSurfaceLayerValue" array_group="surfaceLayerValues" units="degrees Celsius" name_in_code="temperatureSurfaceLayerValue"
-				description="potential temperature averaged over ocean surface layer (generally 0.1 of the ocean boundary layer)"
-			/>
-			<var name="salinitySurfaceLayerValue" array_group="surfaceLayerValues" units="PSU" name_in_code="salinitySurfaceLayerValue"
-				description="salinity averaged over ocean surface layer (generally 0.1 of the ocean boundary layer)"
-			/>
-		</var_array>
-		<var name="normalVelocitySurfaceLayer" type="real" dimensions="nEdges Time" nits="m s^{-1}"
-			 description="normal velocity averaged over ocean surface layer (generally 0.1 of the ocean boundary layer)"
-			 packages="forwardMode;analysisMode"
-		/>
 		<var_array name="surfaceVelocity" type="real" dimensions="nCells Time" packages="forwardMode;analysisMode">
 			<var name="surfaceVelocityZonal" array_group="vel_zonal" units="m s^{-1}"
 				 description="Zonal surface velocity reconstructed at cell centers"
@@ -2499,12 +2483,10 @@
 		<var name="inSituThermalExpansionCoeff"
 			 type="real" dimensions="nVertLevels nCells Time" units="C^{-1}"
 			 description="Thermal expansion coefficient (alpha), defined as $-1/\rho d\rho/dT$ (note negative sign).  This is in situ, i.e. not displaced to another depth."
-			 packages="inSituEOS"
 		/>
 		<var name="inSituSalineContractionCoeff"
 			 type="real" dimensions="nVertLevels nCells Time" units="PSU^{-1}"
 			 description="Saline contraction coefficient (beta), defined as $1/\rho d\rho/dS$.  This is also called the haline contraction coefficient.  This is in situ, i.e. not displaced to another depth."
-			 packages="inSituEOS"
 		/>
 
 		<var name="BruntVaisalaFreqTop" type="real" dimensions="nVertLevels nCells Time" units="s^{-2}"
@@ -2754,10 +2736,6 @@
 		</var_array>
 		<var name="indexBoundaryLayerDepth" type="real" dimensions="nCells Time"  units="none"
 			 description="CVMix/KPP: int(indexBoundaryLayerDepth) is vertical layer within which boundaryLayerDepth resides. mod(indexBoundaryLayerDepth) indicates whether boundaryLayerDepth resides above layer center (value = 0.25) or below layer center (value=0.75)"
-			 packages="forwardMode;analysisMode"
-		/>
-		<var name="indexSurfaceLayerDepth" type="real" dimensions="nCells Time" units="none"
-			 description="CVMix/KPP: surface layer entirely encompasses int(indexSurfaceLayerDepth) vertical layers and fraction(indexSurfaceLayerDepth) of the int(indexSurfaceLayerDepth)+1 layer."
 			 packages="forwardMode;analysisMode"
 		/>
 		<var name="surfaceFrictionVelocity" type="real" dimensions="nCells Time"  units="m s^{-1}"
@@ -3368,16 +3346,6 @@
 			persistence="scratch"
 			type="real" dimensions="nVertLevels nCells Time" units="kg m^{-3}"
 			description="Density computed by displacing SST and SSS to every vertical layer within the column"
-		/>
-		<var name="thermalExpansionCoeff"
-			 persistence="persistent"
-			 type="real" dimensions="nVertLevels nCells Time" units="C^{-1}"
-			 description="Thermal expansion coefficient (alpha), defined as $-1/\rho d\rho/dT$ (note negative sign)."
-		/>
-		<var name="salineContractionCoeff"
-			 persistence="persistent"
-			 type="real" dimensions="nVertLevels nCells Time" units="PSU^{-1}"
-			 description="Saline contraction coefficient (beta), defined as $1/\rho d\rho/dS$. This is also called the haline contraction coefficient."
 		/>
 
 		<!-- FIELDS FOR TENSOR OPERATIONS -->

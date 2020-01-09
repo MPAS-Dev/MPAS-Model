@@ -170,18 +170,12 @@ contains
 !>  Potential density (referenced to top layer) can be computed
 !>      using kDisplaced=1 and displacementType = 'absolute'.
 !>
-!>  The density of SST/SSS after adiabatic displacement to each layer
-!>      can be computed using displacementType = 'surfaceDisplaced'.
-!>
-!>  When using displacementType = 'surfaceDisplaced', kDisplaced is
-!>      ignored and tracersSurfaceLayerValue must be present.
 !
 !-----------------------------------------------------------------------
 
    subroutine ocn_equation_of_state_jm_density_only(nVertLevels,      &
                                nCells, kDisplaced, displacementType,  &
-                               indexT, indexS, tracers, density, err, &
-                               tracersSurfaceLayerValue)
+                               indexT, indexS, tracers, density, err)
    !{{{
    !--------------------------------------------------------------------
 
@@ -201,9 +195,6 @@ contains
 
       real (kind=RKIND), dimension(:,:,:), intent(in) :: &
          tracers              ! array of tracers including T,S
-
-      real (kind=RKIND), dimension(:,:), intent(in) :: &
-         tracersSurfaceLayerValue
 
       !-----------------------------------------------------------------
       ! Output variables
@@ -258,13 +249,8 @@ contains
       !  NOTE: kDisplaced = 0 or > nVertLevels is incompatible with 'absolute'
       !     so abort if necessary
 
-      if (displacementType == 'surfaceDisplaced') then
-         displacementTypeLocal = 'relative'
-         kDisplacedLocal = 0
-      else
-         displacementTypeLocal = trim(displacementType)
-         kDisplacedLocal = kDisplaced
-      endif
+      displacementTypeLocal = trim(displacementType)
+      kDisplacedLocal = kDisplaced
 
       ! Eliminate this error check for performance reasons
       !if (displacementTypeLocal == 'absolute' .and.   &
@@ -304,36 +290,16 @@ contains
       allocate(tracerSalt(nVertLevels,nCells))
       !$omp end master
       !$omp barrier
-
-      if (displacementType == 'surfaceDisplaced') then
-
-         !$omp do schedule(runtime)
-         do iCell=1,nCells
-         do k=1,nVertLevels
-            tq = min(tracersSurfaceLayerValue(indexT,iCell), &
-                     ocnEqStateTmax)
-            sq = min(tracersSurfaceLayerValue(indexS,iCell), &
-                     ocnEqStateSmax)
-            tracerTemp(k,iCell) = max(tq,ocnEqStateTmin)
-            tracerSalt(k,iCell) = max(sq,ocnEqStateSmin)
-         enddo
-         end do
-         !$omp end do
-
-      else
-
-         !$omp do schedule(runtime)
-         do iCell=1,nCells
+      !$omp do schedule(runtime)
+      do iCell=1,nCells
          do k = 1, nVertLevels
             tq = min(tracers(indexT,k,iCell), ocnEqStateTmax)
             sq = min(tracers(indexS,k,iCell), ocnEqStateSmax)
             tracerTemp(k,iCell) = max(tq,ocnEqStateTmin)
             tracerSalt(k,iCell) = max(sq,ocnEqStateSmin)
          end do
-         end do
-         !$omp end do
-
-      endif
+      end do
+      !$omp end do
 
 #ifdef MPAS_OPENACC
       !$omp master
@@ -427,11 +393,6 @@ contains
 !>  Potential density (referenced to top layer) can be computed
 !>      using kDisplaced=1 and displacementType = 'absolute'.
 !>
-!>  The density of SST/SSS after adiabatic displacement to each layer
-!>      can be computed using displacementType = 'surfaceDisplaced'.
-!>
-!>  When using displacementType = 'surfaceDisplaced', kDisplaced is
-!>      ignored and tracersSurfaceLayerValue must be present.
 !
 !-----------------------------------------------------------------------
 
@@ -439,8 +400,7 @@ contains
                                nCells, kDisplaced, displacementType,  &
                                indexT, indexS, tracers, density, err, &
                                thermalExpansionCoeff,                 &
-                               salineContractionCoeff,                &
-                               tracersSurfaceLayerValue)
+                               salineContractionCoeff)
    !{{{
    !--------------------------------------------------------------------
 
@@ -460,9 +420,6 @@ contains
 
       real (kind=RKIND), dimension(:,:,:), intent(in) :: &
          tracers              ! array of tracers including T,S
-
-      real (kind=RKIND), dimension(:,:), intent(in) :: &
-         tracersSurfaceLayerValue
 
       !-----------------------------------------------------------------
       ! Output variables
@@ -530,13 +487,8 @@ contains
       !  NOTE: kDisplaced = 0 or > nVertLevels is incompatible with 'absolute'
       !     so abort if necessary
 
-      if (displacementType == 'surfaceDisplaced') then
-         displacementTypeLocal = 'relative'
-         kDisplacedLocal = 0
-      else
-         displacementTypeLocal = trim(displacementType)
-         kDisplacedLocal = kDisplaced
-      endif
+      displacementTypeLocal = trim(displacementType)
+      kDisplacedLocal = kDisplaced
 
       ! Eliminate this error check for performance reasons
       !if (displacementTypeLocal == 'absolute' .and.   &
@@ -547,26 +499,18 @@ contains
       !       'displacementType = absolute', MPAS_LOG_CRIT)
       !endif
 
-      if (kDisplacedLocal == 0) then
-         ! use pressure at in situ level
-         do k=1,nVertLevels
-            p (k) = ocnEqStatePRef(k)
-            p2(k) = ocnEqStatePRef(k)*ocnEqStatePRef(k)
-         enddo
-      else ! kDisplacedLocal /= 0
-         do k=1,nVertLevels
-            ! determine level to which parcel is displaced
-            !  and thus which pressure (depth) to use in EOS
-            if (displacementTypeLocal == 'relative') then
-               kTmp = min(k + kDisplacedLocal, nVertLevels)
-            else
-               kTmp = min(kDisplacedLocal, nVertLevels)
-            endif
-            kRef  = max(kTmp, 1)  ! make sure index bounded to 1
-            p (k) = ocnEqStatePRef(kRef)
-            p2(k) = ocnEqStatePRef(kRef)*ocnEqStatePRef(kRef)
-         enddo
-      endif
+      do k=1,nVertLevels
+         ! determine level to which parcel is displaced
+         !  and thus which pressure (depth) to use in EOS
+         if (displacementTypeLocal == 'relative') then
+            kTmp = min(k + kDisplacedLocal, nVertLevels)
+         else
+            kTmp = min(kDisplacedLocal, nVertLevels)
+         endif
+         kRef  = max(kTmp, 1)  ! make sure index bounded to 1
+         p (k) = ocnEqStatePRef(kRef)
+         p2(k) = ocnEqStatePRef(kRef)*ocnEqStatePRef(kRef)
+      enddo
 
       !*** compute modified T,S to account for displacement and
       !*** valid range
@@ -577,35 +521,16 @@ contains
       !$omp end master
       !$omp barrier
 
-      if (displacementType == 'surfaceDisplaced') then
-
-         !$omp do schedule(runtime)
-         do iCell=1,nCells
-         do k=1,nVertLevels
-            tq = min(tracersSurfaceLayerValue(indexT,iCell), &
-                     ocnEqStateTmax)
-            sq = min(tracersSurfaceLayerValue(indexS,iCell), &
-                     ocnEqStateSmax)
-            tracerTemp(k,iCell) = max(tq,ocnEqStateTmin)
-            tracerSalt(k,iCell) = max(sq,ocnEqStateSmin)
-         enddo
-         end do
-         !$omp end do
-
-      else
-
-         !$omp do schedule(runtime)
-         do iCell=1,nCells
+      !$omp do schedule(runtime)
+      do iCell=1,nCells
          do k = 1, nVertLevels
             tq = min(tracers(indexT,k,iCell), ocnEqStateTmax)
             sq = min(tracers(indexS,k,iCell), ocnEqStateSmax)
             tracerTemp(k,iCell) = max(tq,ocnEqStateTmin)
             tracerSalt(k,iCell) = max(sq,ocnEqStateSmin)
          end do
-         end do
-         !$omp end do
-
-      endif
+      end do
+      !$omp end do
 
 #ifdef MPAS_OPENACC
       !$omp master

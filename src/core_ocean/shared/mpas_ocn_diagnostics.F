@@ -114,13 +114,14 @@ contains
 
       real (kind=RKIND) :: d2fdx2_cell1, d2fdx2_cell2, coef_3rd_order, r_tmp, &
         invAreaCell1, invAreaCell2, invAreaTri1, invAreaTri2, invLength, layerThicknessVertex, coef, &
-        shearMean, shearSquared, factor, delU2, sumSurfaceLayer, surfaceLayerDepth, rSurfaceLayer
+        shearMean, shearSquared, factor, delU2
 
       real (kind=RKIND), dimension(:), allocatable:: pTop, div_hu,div_huTransport,div_huGMBolus
 
       real (kind=RKIND), dimension(:), pointer :: &
         bottomDepth, fVertex, dvEdge, dcEdge, areaCell, areaTriangle, ssh,  seaIcePressure, atmosphericPressure, frazilSurfacePressure, &
         pressureAdjustedSSH, gradSSH, landIcePressure, landIceDraft
+
       real (kind=RKIND), dimension(:,:), pointer :: &
         weightsOnEdge, kiteAreasOnVertex, layerThicknessEdge, layerThickness, normalVelocity, normalTransportVelocity, &
         normalGMBolusVelocity, tangentialVelocity, pressure, circulation, kineticEnergyCell, montgomeryPotential, &
@@ -133,11 +134,6 @@ contains
 
       real (kind=RKIND), dimension(:,:,:), pointer :: activeTracers, derivTwo
       character :: c1*6
-
-      real (kind=RKIND), dimension(:,:), pointer :: tracersSurfaceValue
-      real (kind=RKIND), dimension(:,:), pointer :: tracersSurfaceLayerValue
-      real (kind=RKIND), dimension(:),   pointer :: normalVelocitySurfaceLayer
-      real (kind=RKIND), dimension(:),   pointer :: indexSurfaceLayerDepth
 
       type (field2DReal), pointer :: kineticEnergyVertexField, kineticEnergyVertexOnCellsField
       type (field2DReal), pointer :: normalizedRelativeVorticityVertexField, normalizedPlanetaryVorticityVertexField
@@ -253,11 +249,6 @@ contains
       call mpas_pool_get_dimension(meshPool, 'nVerticesArray', nVerticesArray)
       call mpas_pool_get_dimension(meshPool, 'nVertLevels', nVertLevels)
       call mpas_pool_get_dimension(meshPool, 'vertexDegree', vertexDegree)
-
-      call mpas_pool_get_array(diagnosticsPool, 'tracersSurfaceValue', tracersSurfaceValue)
-      call mpas_pool_get_array(diagnosticsPool, 'tracersSurfaceLayerValue', tracersSurfaceLayerValue)
-      call mpas_pool_get_array(diagnosticsPool, 'normalVelocitySurfaceLayer', normalVelocitySurfaceLayer)
-      call mpas_pool_get_array(diagnosticsPool, 'indexSurfaceLayerDepth', indexSurfaceLayerDepth)
 
       call mpas_pool_get_array(diagnosticsPool, 'surfaceFluxAttenuationCoefficient', surfaceFluxAttenuationCoefficient)
       call mpas_pool_get_array(diagnosticsPool, 'surfaceFluxAttenuationCoefficientRunoff', surfaceFluxAttenuationCoefficientRunoff)
@@ -608,19 +599,12 @@ contains
       nCells = nCellsArray( 3 )
 
       ! compute in-place density
-      if (config_pressure_gradient_type.eq.'Jacobian_from_TS') then
-         ! only compute EOS derivatives if needed.
-         call mpas_pool_get_array(diagnosticsPool, 'inSituThermalExpansionCoeff',inSituThermalExpansionCoeff)
-         call mpas_pool_get_array(diagnosticsPool, 'inSituSalineContractionCoeff', inSituSalineContractionCoeff)
-         call ocn_equation_of_state_density(statePool, diagnosticsPool, meshPool, scratchPool, &
-                                            nCells, 0, 'relative', density, err, &
-                                            inSituThermalExpansionCoeff, inSituSalineContractionCoeff, &
-                                            timeLevelIn=timeLevel)
-      else
-         call ocn_equation_of_state_density(statePool, diagnosticsPool, meshPool, scratchPool, &
-                                            nCells, 0, 'relative', density, err, &
-                                            timeLevelIn=timeLevel)
-      endif
+      call mpas_pool_get_array(diagnosticsPool, 'inSituThermalExpansionCoeff',inSituThermalExpansionCoeff)
+      call mpas_pool_get_array(diagnosticsPool, 'inSituSalineContractionCoeff', inSituSalineContractionCoeff)
+      call ocn_equation_of_state_density(statePool, diagnosticsPool, meshPool, scratchPool, &
+                                         nCells, 0, 'relative', density, err, &
+                                         inSituThermalExpansionCoeff, inSituSalineContractionCoeff, &
+                                         timeLevelIn=timeLevel)
       call mpas_threading_barrier()
 
       ! compute potentialDensity, the density displaced adiabatically to the mid-depth of top layer.
@@ -752,98 +736,6 @@ contains
           RiTopOfCell(1,iCell) = RiTopOfCell(2,iCell)
       end do
       !$omp end do
-
-      !
-      ! extrapolate tracer values to ocean surface
-      ! this eventually be a modelled process
-      ! at present, just copy k=1 tracer values onto surface values
-      ! field will be updated below is better approximations are available
-
-!TDR need to consider how to handle tracersSurfaceValues
-      !$omp do schedule(runtime)
-      do iCell = 1, nCells
-         tracersSurfaceValue(:, iCell) = activeTracers(:,1, iCell)
-      end do
-      !$omp end do
-
-      !$omp do schedule(runtime)
-      do iEdge = 1, nEdges
-         normalVelocitySurfaceLayer(iEdge) = normalVelocity(1, iEdge)
-      end do
-      !$omp end do
-
-      !
-      ! average tracer values over the ocean surface layer
-      ! the ocean surface layer is generally assumed to be about 0.1 of the boundary layer depth
-      if(config_use_cvmix_kpp) then
-
-        nCells = nCellsArray( 1 )
-
-        !$omp do schedule(runtime)
-        do iCell=1,nCells
-          surfaceLayerDepth = config_cvmix_kpp_surface_layer_averaging
-          sumSurfaceLayer=0.0_RKIND
-          tracersSurfaceLayerValue(:,iCell) = 0.0_RKIND
-          indexSurfaceLayerDepth(iCell) = -9.e30
-          do k=1,maxLevelCell(iCell)
-           sumSurfaceLayer = sumSurfaceLayer + layerThickness(k,iCell)
-           rSurfaceLayer = maxLevelCell(iCell)
-           if(sumSurfaceLayer.gt.surfaceLayerDepth) then
-             sumSurfaceLayer = sumSurfaceLayer - layerThickness(k,iCell)
-             rSurfaceLayer = int(k-1) + (surfaceLayerDepth-sumSurfaceLayer)/layerThickness(k,iCell)
-             indexSurfaceLayerDepth(iCell) = rSurfaceLayer
-             exit
-           endif
-          end do
-          tracersSurfaceLayerValue(:, iCell) = 0.0_RKIND
-          do k=1,int(rSurfaceLayer)
-            tracersSurfaceLayerValue(:,iCell) = tracersSurfaceLayerValue(:,iCell) + activeTracers(:,k,iCell) &
-                                              * layerThickness(k,iCell)
-          enddo
-          k=min( int(rSurfaceLayer)+1, maxLevelCell(iCell) )
-          tracersSurfaceLayerValue(:,iCell) = (tracersSurfaceLayerValue(:,iCell) + fraction(rSurfaceLayer) &
-                                            * activeTracers(:,k,iCell) * layerThickness(k,iCell)) / surfaceLayerDepth
-        enddo
-        !$omp end do
-
-        nEdges = nEdgesArray( 1 )
-
-        !
-        ! average normal velocity values over the ocean surface layer
-        ! the ocean surface layer is generally assumed to be about 0.1 of the boundary layer depth
-        !
-
-        !$omp do schedule(runtime) private(cell1, cell2, surfaceLayerDepth, sumSurfaceLayer, k, rSurfaceLayer)
-        do iEdge=1,nEdges
-          normalVelocitySurfaceLayer(iEdge) = 0.0_RKIND
-          cell1=cellsOnEdge(1,iEdge)
-          cell2=cellsOnEdge(2,iEdge)
-          surfaceLayerDepth = config_cvmix_kpp_surface_layer_averaging
-          sumSurfaceLayer=0.0_RKIND
-          rSurfaceLayer = min(1, maxLevelEdgeTop(iEdge))
-          do k=1,maxLevelEdgeTop(iEdge)
-           rSurfaceLayer = k
-           sumSurfaceLayer = sumSurfaceLayer + layerThicknessEdge(k,iEdge)
-           if(sumSurfaceLayer.gt.surfaceLayerDepth) then
-             sumSurfaceLayer = sumSurfaceLayer - layerThicknessEdge(k,iEdge)
-             rSurfaceLayer = int(k-1) + (surfaceLayerDepth-sumSurfaceLayer)/layerThicknessEdge(k,iEdge)
-             exit
-           endif
-          end do
-          normalVelocitySurfaceLayer(iEdge) = 0.0_RKIND
-          do k=1,int(rSurfaceLayer)
-            normalVelocitySurfaceLayer(iEdge) = normalVelocitySurfaceLayer(iEdge) + normalVelocity(k,iEdge) &
-                                              * layerThicknessEdge(k,iEdge)
-          enddo
-          k=int(rSurfaceLayer)+1
-          if(k.le.maxLevelEdgeTop(iEdge)) then
-            normalVelocitySurfaceLayer(iEdge) = (normalVelocitySurfaceLayer(iEdge) + fraction(rSurfaceLayer) &
-                                              * normalVelocity(k,iEdge) * layerThicknessEdge(k,iEdge)) / surfaceLayerDepth
-          end if
-        enddo
-        !$omp end do
-
-      endif
 
       nCells = nCellsArray( 2 )
 
@@ -1367,17 +1259,14 @@ contains
       real (kind=RKIND), dimension(:), pointer :: dcEdge, dvEdge, areaCell
       real (kind=RKIND), dimension(:), pointer :: penetrativeTemperatureFlux, surfaceThicknessFlux, &
            surfaceBuoyancyForcing, surfaceFrictionVelocity, penetrativeTemperatureFluxOBL, &
-           normalVelocitySurfaceLayer, surfaceThicknessFluxRunoff, rainFlux, evaporationFlux
+           surfaceThicknessFluxRunoff, rainFlux, evaporationFlux
       real (kind=RKIND), pointer :: config_flux_attenuation_coefficient, config_flux_attenuation_coefficient_runoff
 
       real (kind=RKIND), dimension(:), pointer :: surfaceStress, surfaceStressMagnitude
       real (kind=RKIND), dimension(:,:), pointer ::  &
-           layerThickness, zMid, zTop, densitySurfaceDisplaced, density, &
+           layerThickness, zMid, zTop, density, &
            normalVelocity, activeTracersSurfaceFlux, thermalExpansionCoeff, salineContractionCoeff, &
            activeTracersSurfaceFluxRunoff, nonLocalSurfaceTracerFlux
-
-      real (kind=RKIND), dimension(:), pointer :: &
-           indexSurfaceLayerDepth
 
       real (kind=RKIND), dimension(:,:,:), pointer :: &
            activeTracers
@@ -1390,8 +1279,6 @@ contains
       integer, pointer :: indexTempFlux, indexSaltFlux
       real (kind=RKIND) :: numerator, denominator, turbulentVelocitySquared, fracAbsorbed, fracAbsorbedRunoff
       real (kind=RKIND) :: factor, deltaVelocitySquared, delU2, invAreaCell
-
-      type (field2DReal), pointer :: densitySurfaceDisplacedField, thermalExpansionCoeffField, salineContractionCoeffField
 
       call mpas_timer_start('KPP input fields')
 
@@ -1431,9 +1318,7 @@ contains
       call mpas_pool_get_array(diagnosticsPool, 'density', density)
       call mpas_pool_get_array(diagnosticsPool, 'surfaceFrictionVelocity', surfaceFrictionVelocity)
       call mpas_pool_get_array(diagnosticsPool, 'penetrativeTemperatureFluxOBL', penetrativeTemperatureFluxOBL)
-      call mpas_pool_get_array(diagnosticsPool, 'indexSurfaceLayerDepth', indexSurfaceLayerDepth)
       call mpas_pool_get_array(diagnosticsPool, 'surfaceBuoyancyForcing', surfaceBuoyancyForcing)
-      call mpas_pool_get_array(diagnosticsPool, 'normalVelocitySurfaceLayer', normalVelocitySurfaceLayer)
       call mpas_pool_get_array(tracersSurfaceFluxPool, 'nonLocalSurfaceTracerFlux', nonLocalSurfaceTracerFlux)
 
       call mpas_pool_get_array(forcingPool, 'surfaceThicknessFlux', surfaceThicknessFlux)
@@ -1447,25 +1332,11 @@ contains
       call mpas_pool_get_array(tracersPool, 'activeTracers', activeTracers, 1)
       call mpas_pool_get_array(tracersSurfaceFluxPool, 'activeTracersSurfaceFlux', activeTracersSurfaceFlux)
       call mpas_pool_get_array(tracersSurfaceFluxPool, 'activeTracersSurfaceFluxRunoff', activeTracersSurfaceFluxRunoff)
-      ! allocate scratch space displaced density computation
-      call mpas_pool_get_field(scratchPool, 'densitySurfaceDisplaced', densitySurfaceDisplacedField)
-      call mpas_pool_get_field(scratchPool, 'thermalExpansionCoeff', thermalExpansionCoeffField)
-      call mpas_pool_get_field(scratchPool, 'salineContractionCoeff', salineContractionCoeffField)
-      call mpas_allocate_scratch_field(densitySurfaceDisplacedField, .true., .false.)
-      call mpas_allocate_scratch_field(thermalExpansionCoeffField, .true., .false.)
-      call mpas_allocate_scratch_field(salineContractionCoeffField, .true., .false.)
-
-      densitySurfaceDisplaced => densitySurfaceDisplacedField % array
-      thermalExpansionCoeff => thermalExpansionCoeffField % array
-      salineContractionCoeff => salineContractionCoeffField % array
+      call mpas_pool_get_array(diagnosticsPool, 'inSituThermalExpansionCoeff',thermalExpansionCoeff)
+      call mpas_pool_get_array(diagnosticsPool, 'inSituSalineContractionCoeff',salineContractionCoeff)
 
       ! Only need to compute over the 0 and 1 halos
       nCells = nCellsArray( 3 )
-
-      ! compute EOS by displacing SST/SSS to every vertical layer in column
-      call ocn_equation_of_state_density(statePool, diagnosticsPool, meshPool, scratchPool, nCells, 0, 'surfaceDisplaced', &
-                                         densitySurfaceDisplaced, err, thermalExpansionCoeff, salineContractionCoeff, &
-                                         timeLevel)
 
       !$omp do schedule(runtime)
       do iCell = 1, nCells
@@ -1528,14 +1399,8 @@ contains
        ! compute surface friction velocity
          surfaceFrictionVelocity(iCell) = sqrt(surfaceStressMagnitude(iCell) / rho_sw)
 
-
       enddo
       !$omp end do
-
-      ! deallocate scratch space
-      call mpas_deallocate_scratch_field(thermalExpansionCoeffField, .true.)
-      call mpas_deallocate_scratch_field(salineContractionCoeffField, .true.)
-      call mpas_deallocate_scratch_field(densitySurfaceDisplacedField, .true.)
 
       call mpas_timer_stop('KPP input fields')
 
