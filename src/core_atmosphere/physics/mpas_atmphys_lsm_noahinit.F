@@ -373,17 +373,16 @@
 !call mpas_log_write(' RSMAX_DATA  = $r',realArgs=(/rsmax_data/))
 !call mpas_log_write(' BARE        = $i',intArgs=(/bare/))
 !call mpas_log_write(' NATURAL     = $i',intArgs=(/natural/))
-!call mpas_log_write(' LOW_DENSITY_RESIDENTIAL   = $i',intArgs=(/low_density_residential/))
-!call mpas_log_write(' HIGH_DENSITY_RESIDENTIAL  = $i',intArgs=(/high_density_residential/))
-!call mpas_log_write(' HIGH_INTENSITY_INDUSTRIAL = $i',intArgs=(/high_intensity_industrial/))
-
+!call mpas_log_write(' LOW_DENSITY_RESIDENTIAL   = $i , intArgs=(/low_density_residential/))
+!call mpas_log_write(' HIGH_DENSITY_RESIDENTIAL  = $i , intArgs=(/high_density_residential/))
+!call mpas_log_write(' HIGH_DENSITY_INDUSTRIAL   = $i , intArgs=(/high_density_industrial/))
 !call mpas_log_write('')
 !do lc = 1, lucats
-!   call mpas_log_write('$i $r $r $r $r $r $r $r $r $r $r $r $r $r $r $r $r $r', intArgs=(/lc/),  
+!   call mpas_log_write('$i $r $r $r $r $r $r $r $r $r $r $r $r $r $r $r $r $r', intArgs=(/lc/),     &
 !                realArgs=(/shdtbl(lc),float(nrotbl(lc)),rstbl(lc),rgltbl(lc),hstbl(lc),snuptbl(lc), &
-!                maxalb(lc),laimintbl(lc),laimaxtbl(lc),emissmintbl(lc),emissmaxtbl(lc),     &
-!                albedomintbl(lc),albedomaxtbl(lc),z0mintbl(lc),z0maxtbl(lc),ztopvtbl(lc),   &
-!                zbotvtbl(lc)/))
+!                maxalb(lc),laimintbl(lc),laimaxtbl(lc),emissmintbl(lc),emissmaxtbl(lc),             &
+!                albedomintbl(lc),albedomaxtbl(lc),z0mintbl(lc),z0maxtbl(lc),ztopvtbl(lc),           &
+!                zbottvtbl(lc)/))
 !enddo
  call mpas_log_write('    end read VEGPARM.TBL')
 

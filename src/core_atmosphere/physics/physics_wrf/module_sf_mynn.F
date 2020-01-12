@@ -1,10 +1,10 @@
 !=================================================================================================================
-!module_sf_mynn.F was copied from WRF version 4.1.1.
+!reference: WRF-v4.1.4
+!Laura D. Fowler (laura@ucar.edu) / 2020-01-10.
 
 !modifications for MPAS:
 ! * use mpas_atmphys_constants to use constants from MPAS instead of WRF.
 ! * added dimensional dependence of dx.
-!   Laura D. Fowler (laura@ucar.edu) / 2019-07-01.
 
 !=================================================================================================================
 !WRF:MODEL_LAYER:PHYSICS

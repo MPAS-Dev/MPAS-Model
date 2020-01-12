@@ -1,3 +1,7 @@
+!=================================================================================================================
+!reference: WRF-v4.1.4
+!Laura D. Fowler (laura@ucar.edu) / 2020-01-10.
+
 !+---+-----------------------------------------------------------------+
 !..This set of routines facilitates computing radar reflectivity.
 !.. This module is more library code whereas the individual microphysics
@@ -23,8 +27,8 @@
 MODULE module_mp_radar
 
 #if defined(mpas)
-      USE mpas_atmphys_functions
-      USE mpas_atmphys_utilities
+use mpas_atmphys_functions
+use mpas_atmphys_utilities, only: physics_message
 #else
       USE module_wrf_error
 #endif
@@ -158,8 +162,8 @@ CONTAINS
 
       xcre(1) = 1. + xbm_r
       xcre(2) = 1. + xmu_r
-      xcre(3) = 4. + xmu_r
-      xcre(4) = 7. + xmu_r
+      xcre(3) = 1. + xbm_r + xmu_r
+      xcre(4) = 1. + 2.*xbm_r + xmu_r
       do n = 1, 4
          xcrg(n) = WGAMMA(xcre(n))
       enddo
@@ -167,8 +171,8 @@ CONTAINS
 
       xcse(1) = 1. + xbm_s
       xcse(2) = 1. + xmu_s
-      xcse(3) = 4. + xmu_s
-      xcse(4) = 7. + xmu_s
+      xcse(3) = 1. + xbm_s + xmu_s
+      xcse(4) = 1. + 2.*xbm_s + xmu_s
       do n = 1, 4
          xcsg(n) = WGAMMA(xcse(n))
       enddo
@@ -176,8 +180,8 @@ CONTAINS
 
       xcge(1) = 1. + xbm_g
       xcge(2) = 1. + xmu_g
-      xcge(3) = 4. + xmu_g
-      xcge(4) = 7. + xmu_g
+      xcge(3) = 1. + xbm_g + xmu_g
+      xcge(4) = 1. + 2.*xbm_g + xmu_g
       do n = 1, 4
          xcgg(n) = WGAMMA(xcge(n))
       enddo

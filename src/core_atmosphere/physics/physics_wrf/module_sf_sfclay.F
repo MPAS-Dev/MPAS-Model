@@ -1,11 +1,7 @@
 !=================================================================================================================
-!module_sf_sfclay.F was copied from WRF version 4.1.1. It is the same as module_sf_sfclayrev.F.
+!reference: WRF-v4.1.4 using module_sf_sfclayrev.F
+!Laura D. Fowler (laura@ucar.edu) / 2020-01-10.
 
-!modifications for MPAS:
-! * added dimensional dependence of dx.
-!   Laura D. Fowler (laura@ucar.edu) / 2019-07-01.
-
-!=================================================================================================================
 !WRF:MODEL_LAYER:PHYSICS
 !
 MODULE module_sf_sfclay
@@ -32,7 +28,8 @@ CONTAINS
                      ids,ide, jds,jde, kds,kde,                    &
                      ims,ime, jms,jme, kms,kme,                    &
                      its,ite, jts,jte, kts,kte,                    &
-                     ustm,ck,cka,cd,cda,isftcflx,iz0tlnd,scm_force_flux           )
+                     ustm,ck,cka,cd,cda,                           &
+                     isftcflx,iz0tlnd,scm_force_flux)
 !-------------------------------------------------------------------
       IMPLICIT NONE
 !-------------------------------------------------------------------
@@ -187,7 +184,7 @@ CONTAINS
       REAL,     DIMENSION( ims:ime, jms:jme )                    , &
                 INTENT(INOUT)   ::                                 &
                                                               QGH
-                                    
+
       REAL,     INTENT(IN   )               ::   CP,G,ROVCP,R,XLV
 
       REAL,     DIMENSION( ims:ime, jms:jme )                    , &
@@ -216,6 +213,11 @@ CONTAINS
       INTEGER ::  I,J
 
       DO J=jts,jte
+
+        DO i=its,ite
+           DX2D(i)=DX(i,j)
+        ENDDO
+
         DO i=its,ite
           dz8w1d(I) = dz8w(i,1,j)
         ENDDO
@@ -247,15 +249,15 @@ CONTAINS
                 ids,ide, jds,jde, kds,kde,                         &
                 ims,ime, jms,jme, kms,kme,                         &
                 its,ite, jts,jte, kts,kte                          &
-#if ( EM_CORE == 1 )
-                ,isftcflx,iz0tlnd,scm_force_flux,                               &
+#if ( ( EM_CORE == 1 ) || ( defined(mpas) ) )
+                ,isftcflx,iz0tlnd,scm_force_flux,                  &
                 USTM(ims,j),CK(ims,j),CKA(ims,j),                  &
                 CD(ims,j),CDA(ims,j)                               &
 #endif
                                                                    )
       ENDDO
 
-
+ 
    END SUBROUTINE SFCLAY
 
 
@@ -272,7 +274,7 @@ CONTAINS
                      ids,ide, jds,jde, kds,kde,                    &
                      ims,ime, jms,jme, kms,kme,                    &
                      its,ite, jts,jte, kts,kte,                    &
-                     isftcflx, iz0tlnd,scm_force_flux,                            &
+                     isftcflx, iz0tlnd,scm_force_flux,             &
                      ustm,ck,cka,cd,cda                            )
 !-------------------------------------------------------------------
       IMPLICIT NONE
@@ -498,9 +500,9 @@ CONTAINS
 !     AKB(1976), EQ(12).                                                         
                    
       DO 260 I=its,ite
-        GZ1OZ0(I)=ALOG((ZA(I)+ZNT(I))/ZNT(I))   ! log((z+z0)/z0)                                     
-        GZ2OZ0(I)=ALOG((2.+ZNT(I))/ZNT(I))      ! log((2+z0)/z0)                           
-        GZ10OZ0(I)=ALOG((10.+ZNT(I))/ZNT(I))    ! log((10+z0)z0)                    
+        GZ1OZ0(I)=ALOG((ZA(I)+ZNT(I))/ZNT(I))   ! log((z+z0)/z0)
+        GZ2OZ0(I)=ALOG((2.+ZNT(I))/ZNT(I))      ! log((2+z0)/z0)
+        GZ10OZ0(I)=ALOG((10.+ZNT(I))/ZNT(I))    ! log((10+z0)z0)
         IF((XLAND(I)-1.5).GE.0)THEN                                            
           ZL=ZNT(I)                                                            
         ELSE                                                                     
@@ -544,7 +546,7 @@ CONTAINS
   260 CONTINUE                                                                   
 
 !                                                                                
-!-----DIAGNOSE BASIC PARAMETERS FOR THE APPROPRIATED STABILITY CLASS:            
+!-----DIAGNOSE BASIC PARAMETERS FOR THE APPROPRIATED STABILITY CLASS:
 !                                                                                
 !                                                                                
 !     THE STABILITY CLASSES ARE DETERMINED BY BR (BULK RICHARDSON NO.)           
@@ -564,7 +566,7 @@ CONTAINS
 !CCCCC                                                                           
 
       DO 320 I=its,ite
-!                                                                           
+!
       if (br(I).gt.0) then
         if (br(I).gt.250.0) then
         zol(I)=zolri(250.0,ZA(I),ZNT(I))
@@ -591,19 +593,19 @@ CONTAINS
         zol10=zol(I)*(10.+znt(I))/za(I)   ! (10+z0)/L
         zol2=zol(I)*(2.+znt(I))/za(I)     ! (2+z0)/L
         zol0=zol(I)*znt(I)/za(I)          ! z0/L
-        ZL2=(2.)/ZA(I)*ZOL(I)             ! 2/L      
+        ZL2=(2.)/ZA(I)*ZOL(I)             ! 2/L
         ZL10=(10.)/ZA(I)*ZOL(I)           ! 10/L
 
         IF((XLAND(I)-1.5).LT.0.)THEN
-        ZL=(0.01)/ZA(I)*ZOL(I)   ! (0.01)/L     
+        ZL=(0.01)/ZA(I)*ZOL(I)   ! (0.01)/L
         ELSE
         ZL=ZOL0                     ! z0/L
         ENDIF
 
         IF(BR(I).LT.0.)GOTO 310  ! go to unstable regime (class 4)
         IF(BR(I).EQ.0.)GOTO 280  ! go to neutral regime (class 3)
-!                                                                                
-!-----CLASS 1; STABLE (NIGHTTIME) CONDITIONS:                                    
+!
+!-----CLASS 1; STABLE (NIGHTTIME) CONDITIONS:
 !
         REGIME(I)=1.
 !
@@ -625,10 +627,10 @@ CONTAINS
         pq10(I)=psih_stable(zl10)-psih_stable(zl)
 !
 !       1.0 over Monin-Obukhov length
-        RMOL(I)=ZOL(I)/ZA(I) 
-!                                                                                
+        RMOL(I)=ZOL(I)/ZA(I)
+!
 
-        GOTO 320                                                                 
+        GOTO 320
 !                                                                                
 !-----CLASS 3; FORCED CONVECTION:                                                
 !                                                                                
@@ -646,10 +648,10 @@ CONTAINS
         pq2(I)=PSIH2(I)
         pq10(I)=0.
 !
-        ZOL(I)=0.                                             
-        RMOL(I) = ZOL(I)/ZA(I)  
+        ZOL(I)=0.
+        RMOL(I) = ZOL(I)/ZA(I)
 
-        GOTO 320                                                                 
+        GOTO 320
 !                                                                                
 !-----CLASS 4; FREE CONVECTION:                                                  
 !                                                                                
@@ -667,13 +669,13 @@ CONTAINS
         psim2(I)=psim_unstable(zol2)-psim_unstable(zol0)
         psih2(I)=psih_unstable(zol2)-psih_unstable(zol0)
 !
-! ... paj: preparations to compute PSIQ 
+! ... paj: preparations to compute PSIQ
 !
         pq(I)=psih_unstable(zol(I))-psih_unstable(zl)
         pq2(I)=psih_unstable(zl2)-psih_unstable(zl)
         pq10(I)=psih_unstable(zl10)-psih_unstable(zl)
 !
-!---LIMIOT PSIH AND PSIM IN THE CASE OF THIN LAYERS AND HIGH ROUGHNESS            
+!---LIMIT PSIH AND PSIM IN THE CASE OF THIN LAYERS AND HIGH ROUGHNESS            
 !---  THIS PREVENTS DENOMINATOR IN FLUXES FROM GETTING TOO SMALL                 
         PSIH(I)=AMIN1(PSIH(I),0.9*GZ1OZ0(I))
         PSIM(I)=AMIN1(PSIM(I),0.9*GZ1OZ0(I))
@@ -902,7 +904,7 @@ CONTAINS
               IF ( IZ0TLND.EQ.1 ) THEN
                  CZIL = 10.0 ** ( -0.40 * ( ZL / 0.07 ) )
               ELSE IF ( IZ0TLND.EQ.2 ) THEN
-                 CZIL = 0.1 
+                 CZIL = 0.1
               END IF
 !
 ! ... paj: compute phish for z0t over land
@@ -1030,7 +1032,7 @@ CONTAINS
   360 CONTINUE                                                                   
 
 !                                                                                
-!-----COMPUTE SURFACE MOIST FLUX:                                                
+!-----COMPUTE SURFACE MOIST FLUX:
 !                                                                                
 !     IF(IDRY.EQ.1)GOTO 390                                                
 !                                                                                
@@ -1134,6 +1136,8 @@ CONTAINS
       fx1=zolri2(x1,ri,z,z0)
       fx2=zolri2(x2,ri,z,z0)
       Do While (abs(x1 - x2) > 0.01)
+! check added for potential divide by zero (2019/11)
+      if(fx1.eq.fx2)return
       if(abs(fx2).lt.abs(fx1))then
         x1=x1-fx1/(fx2-fx1)*(x2-x1)
         fx1=zolri2(x1,ri,z,z0)

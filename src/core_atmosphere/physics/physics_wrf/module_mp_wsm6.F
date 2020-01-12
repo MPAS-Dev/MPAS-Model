@@ -1,18 +1,8 @@
 !=================================================================================================================
-!module_mp_wsm6.F was originally copied from ./phys/module_mp_wsm6.F from WRF version 3.8.1.
-!Laura D. Fowler (laura@ucar.edu) / 2016-09-23.
+!reference: WRF-v4.0.3 (unified_physics branch)
+!Laura D. Fowler (laura@ucar.edu) / 2020-01-10.
 
-!modifications to sourcecode for MPAS:
-!   * replaced the line "#if ( RWORDSIZE == 4 )" with "#ifdef SINGLE_PRECISION".
-!   * commented out the lines:
-!     USE module_utility, ONLY: WRFU_Clock, WRFU_Alarm
-!     USE module_domain, ONLY : HISTORY_ALARM, Is_alarm_tstep
-!   * changed the declaration of refl_10cm to optional since subroutine refl10cm_wsm6 is called
-!     in mpas_atmphys_driver_microphysics.F.
-!     Laura D. Fowler (laura@ucar.edu) / 2016-10-17.
-
-!=================================================================================================================
-#ifdef SINGLE_PRECISION
+#if ( (defined(wrfmodel) ) && ( RWORDSIZE == 4 ) ) || ( ( defined(mpas) ) && defined(SINGLE_PRECISION) )
 #  define VREC vsrec
 #  define VSQRT vssqrt
 #else
@@ -22,8 +12,6 @@
 
 MODULE module_mp_wsm6
 !
-!  USE module_utility, ONLY: WRFU_Clock, WRFU_Alarm
-!  USE module_domain, ONLY : HISTORY_ALARM, Is_alarm_tstep
    USE module_mp_radar
 !
    REAL, PARAMETER, PRIVATE :: dtcldcr     = 120. ! maximum time step for minor loops
@@ -90,6 +78,9 @@ CONTAINS
                  ,ids,ide, jds,jde, kds,kde                        &
                  ,ims,ime, jms,jme, kms,kme                        &
                  ,its,ite, jts,jte, kts,kte                        &
+#ifdef WRF_CHEM
+                 ,evapprod, rainprod                               &
+#endif
                                                                    )
 !-------------------------------------------------------------------
   IMPLICIT NONE
@@ -145,8 +136,8 @@ CONTAINS
                                                           re_ice, &
                                                          re_snow
 !+---+-----------------------------------------------------------------+
-  REAL, DIMENSION(ims:ime, kms:kme, jms:jme), INTENT(INOUT), OPTIONAL::     &  ! GT
-                                                       refl_10cm
+  REAL, DIMENSION(ims:ime, kms:kme, jms:jme), OPTIONAL,           &   ! GT
+        INTENT(INOUT) ::                               refl_10cm
 !+---+-----------------------------------------------------------------+
 
   REAL, DIMENSION( ims:ime , jms:jme ), OPTIONAL,                 &
@@ -155,6 +146,17 @@ CONTAINS
   REAL, DIMENSION( ims:ime , jms:jme ), OPTIONAL,                 &
         INTENT(INOUT) ::                                 graupel, &
                                                       graupelncv
+
+#ifdef WRF_CHEM
+  REAL, DIMENSION( ims:ime , kms:kme, jms:jme ), INTENT(INOUT) :: &
+                                                      rainprod,   &
+                                                      evapprod
+! local variable
+  REAL, DIMENSION( its:ite , kts:kte )                 ::         &
+                                                      rainprod2d, &
+                                                      evapprod2d
+#endif
+
 ! LOCAL VAR
   REAL, DIMENSION( its:ite , kts:kte ) ::   t
   REAL, DIMENSION( its:ite , kts:kte, 2 ) ::   qci
@@ -200,6 +202,9 @@ CONTAINS
                     ,its,ite, jts,jte, kts,kte                     &
                     ,snow,snowncv                                  &
                     ,graupel,graupelncv                            &
+#ifdef WRF_CHEM
+                   ,rainprod2d, evapprod2d                        &
+#endif
                                                                    )
          DO K=kts,kte
          DO I=its,ite
@@ -257,7 +262,14 @@ CONTAINS
           enddo   
         endif     ! has_reqc, etc...
 !+---+-----------------------------------------------------------------+
-
+#ifdef WRF_CHEM
+        do i=its,ite
+          do k=kts,kte
+            rainprod(i,k,j) = rainprod2d(i,k)
+            evapprod(i,k,j) = evapprod2d(i,k)
+          enddo
+        enddo
+#endif
       ENDDO
   END SUBROUTINE wsm6
 !===================================================================
@@ -276,6 +288,9 @@ CONTAINS
                    ,its,ite, jts,jte, kts,kte                     &
                    ,snow,snowncv                                  &
                    ,graupel,graupelncv                            &
+#ifdef WRF_CHEM
+                   ,rainprod2d, evapprod2d                        &
+#endif
                                                                   )
 !-------------------------------------------------------------------
   IMPLICIT NONE
@@ -367,6 +382,13 @@ CONTAINS
   REAL, DIMENSION( ims:ime, jms:jme ), OPTIONAL,                  &
         INTENT(INOUT) ::                                 graupel, &
                                                       graupelncv
+
+#ifdef WRF_CHEM
+  REAL, DIMENSION( its:ite , kts:kte ), INTENT(INOUT)  ::         &
+                                                      rainprod2d, &
+                                                      evapprod2d
+#endif
+
 ! LOCAL VAR
   REAL, DIMENSION( its:ite , kts:kte , 3) ::                      &
                                                               rh, &
@@ -994,6 +1016,8 @@ CONTAINS
               acrfac = 2.*rslope3(i,k,1)+2.*diameter*rslope2(i,k,1)            &
                       +diameter**2*rslope(i,k,1)
               praci(i,k) = pi*qci(i,k,2)*n0r*abs(vt2r-vt2i)*acrfac/4.
+              ! reduce collection efficiency (suggested by B. Wilt)
+              praci(i,k) = praci(i,k)*min(max(0.0,qrs(i,k,1)/qci(i,k,2)),1.)**2
               praci(i,k) = min(praci(i,k),qci(i,k,2)/dtcld)
 !-------------------------------------------------------------
 ! piacr: Accretion of rain by cloud ice [HL A19] [LFO 26]
@@ -1002,6 +1026,8 @@ CONTAINS
               piacr(i,k) = pi**2*avtr*n0r*denr*xni(i,k)*denfac(i,k)            &
                           *g6pbr*rslope3(i,k,1)*rslope3(i,k,1)                 &
                           *rslopeb(i,k,1)/24./den(i,k)
+              ! reduce collection efficiency (suggested by B. Wilt)
+              piacr(i,k) = piacr(i,k)*min(max(0.0,qci(i,k,2)/qrs(i,k,1)),1.)**2
               piacr(i,k) = min(piacr(i,k),qrs(i,k,1)/dtcld)
             endif
 !-------------------------------------------------------------
@@ -1033,6 +1059,8 @@ CONTAINS
 !-------------------------------------------------------------
           if(qrs(i,k,2).gt.qcrmin.and.qci(i,k,1).gt.qmin) then
             psacw(i,k) = min(pacrc*n0sfac(i,k)*rslope3(i,k,2)*rslopeb(i,k,2)   &    
+              ! reduce collection efficiency (suggested by B. Wilt)
+                        *min(max(0.0,qrs(i,k,2)/qci(i,k,1)),1.)**2             &
                         *qci(i,k,1)*denfac(i,k),qci(i,k,1)/dtcld)
           endif
 !-------------------------------------------------------------
@@ -1041,6 +1069,8 @@ CONTAINS
 !-------------------------------------------------------------
           if(qrs(i,k,3).gt.qcrmin.and.qci(i,k,1).gt.qmin) then
             pgacw(i,k) = min(pacrg*rslope3(i,k,3)*rslopeb(i,k,3)               &
+              ! reduce collection efficiency (suggested by B. Wilt)
+                        *min(max(0.0,qrs(i,k,3)/qci(i,k,1)),1.)**2             &
                         *qci(i,k,1)*denfac(i,k),qci(i,k,1)/dtcld)
           endif
 !-------------------------------------------------------------
@@ -1062,6 +1092,8 @@ CONTAINS
                       +.5*rslope2(i,k,2)*rslope2(i,k,2)*rslope3(i,k,1)
               pracs(i,k) = pi**2*n0r*n0s*n0sfac(i,k)*abs(vt2r-vt2ave)          &
                           *(dens/den(i,k))*acrfac
+              ! reduce collection efficiency (suggested by B. Wilt)
+              pracs(i,k) = pracs(i,k)*min(max(0.0,qrs(i,k,1)/qrs(i,k,2)),1.)**2
               pracs(i,k) = min(pracs(i,k),qrs(i,k,2)/dtcld)
             endif
 !-------------------------------------------------------------
@@ -1073,6 +1105,8 @@ CONTAINS
                     +.5*rslope2(i,k,1)*rslope2(i,k,1)*rslope3(i,k,2)
             psacr(i,k) = pi**2*n0r*n0s*n0sfac(i,k)*abs(vt2ave-vt2r)            &
                         *(denr/den(i,k))*acrfac
+              ! reduce collection efficiency (suggested by B. Wilt)
+            psacr(i,k) = psacr(i,k)*min(max(0.0,qrs(i,k,2)/qrs(i,k,1)),1.)**2
             psacr(i,k) = min(psacr(i,k),qrs(i,k,1)/dtcld)
           endif
 !-------------------------------------------------------------
@@ -1085,6 +1119,8 @@ CONTAINS
                     +.5*rslope2(i,k,1)*rslope2(i,k,1)*rslope3(i,k,3)
             pgacr(i,k) = pi**2*n0r*n0g*abs(vt2ave-vt2r)*(denr/den(i,k))        &
                         *acrfac
+              ! reduce collection efficiency (suggested by B. Wilt)
+            pgacr(i,k) = pgacr(i,k)*min(max(0.0,qrs(i,k,3)/qrs(i,k,1)),1.)**2
             pgacr(i,k) = min(pgacr(i,k),qrs(i,k,1)/dtcld)
           endif
 !
@@ -1474,6 +1510,12 @@ CONTAINS
         enddo
       enddo
       enddo                  ! big loops
+
+#ifdef WRF_CHEM
+      rainprod2d = praut+pracw+praci+psaci+pgaci+psacw+pgacw+paacw+psaut
+      evapprod2d = -(prevp+psevp+pgevp+psdep+pgdep)
+#endif
+
   END SUBROUTINE wsm62d
 ! ...................................................................
       REAL FUNCTION rgmma(x)

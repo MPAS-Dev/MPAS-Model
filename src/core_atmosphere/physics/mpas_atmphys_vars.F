@@ -144,6 +144,9 @@
 !   Laura D. Fowler (laura@ucar.edu) / 2019-01-13.
 ! * added the option aer_opt needed to the calculation of the optical properties of aerosols.
 !   Laura D. Fowler (laura@ucar.edu) / 2019-01-23.
+! * added the local variables cosa_p and sina_p needed in call to subroutine gwdo after updating module_bl_gwdo.F
+!   to that of WRF version 4.0.2.
+!   Laura D. Fowler (laura@ucar.edu) / 2019-01-30.
 ! * added the local variables nifa2d_p to run the Thompson cloud microphysics scheme with CCN and IN nucleation.
 !   Laura D. Fowler (laura@ucar.edu) / 2019-04-18.
 ! * added the variables rinc_p and rincs_p (incidence of deep and shallow convection). also added the variables
@@ -590,6 +593,10 @@
 !=================================================================================================================
 
  real(kind=RKIND),dimension(:,:),allocatable:: &
+    cosa_p,           &!cosine of map rotation                                                                 [-]
+    sina_p             !sine of map rotation                                                                   [-]
+
+ real(kind=RKIND),dimension(:,:),allocatable:: &
     var2d_p,          &!orographic variance                                                                   [m2]
     con_p,            &!orographic convexity                                                                  [m2]
     oa1_p,            &!orographic direction asymmetry function                                                [-]
@@ -822,6 +829,7 @@
     opt_thcnd = 1      !option to treat thermal conductivity in NoahLSM (new option implemented in WRF 3.8.0).
                        != 1, original (default).
                        != 2, McCumber and Pielke for silt loam and sandy loam.
+
  integer,parameter:: &
     fasdas = 0         !for WRF surface data assimilation system (not used in MPAS).
 

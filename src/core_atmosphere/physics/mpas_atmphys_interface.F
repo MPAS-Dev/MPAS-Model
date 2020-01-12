@@ -651,7 +651,6 @@
           qi_p(i,k,j) = qi(k,i)
           qs_p(i,k,j) = qs(k,i)
           qg_p(i,k,j) = qg(k,i)
-
           recloud_p(i,k,j) = re_cloud(k,i)
           reice_p(i,k,j)   = re_ice(k,i)
           resnow_p(i,k,j)  = re_snow(k,i)
@@ -698,9 +697,6 @@
              nwfa_p(i,k,j) = nwfa(k,i)
              rainprod_p(i,k,j) = rainprod(k,i)
              evapprod_p(i,k,j) = evapprod(k,i)
-!            recloud_p(i,k,j)  = re_cloud(k,i)
-!            reice_p(i,k,j)    = re_ice(k,i)
-!            resnow_p(i,k,j)   = re_snow(k,i)
              vqr_p(i,k,j) = 0._RKIND
              vqi_p(i,k,j) = 0._RKIND
              vqs_p(i,k,j) = 0._RKIND
@@ -907,7 +903,6 @@
           qi(k,i) = qi_p(i,k,j)
           qs(k,i) = qs_p(i,k,j)
           qg(k,i) = qg_p(i,k,j)
-
           re_cloud(k,i) = recloud_p(i,k,j)
           re_ice(k,i)   = reice_p(i,k,j)
           re_snow(k,i)  = resnow_p(i,k,j)

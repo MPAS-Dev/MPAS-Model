@@ -1,5 +1,6 @@
 !=================================================================================================================
-!module_bl_mynn.F was copied from WRF version 4.1.1.
+!reference: WRF-v4.1.4
+!Laura D. Fowler (laura@ucar.edu) / 2020-01-10.
 
 !modifications for MPAS:
 ! * use mpas_atmphys_constants to use constants from MPAS instead of WRF.
@@ -7,7 +8,7 @@
 ! * added the variable bl_mynn_closure in the argument list of subroutine mynn_bl_driver to define closure.
 ! * do not use subroutine mynn_bl_init_driver.
 ! * added corrections to the calculation of the flux limiter in subroutine dmp_mf.
-!   Laura D. Fowler (laura@ucar.edu) / 2019-07-01.
+! * added correction to the calculation of the layer index for the PBL top.
 
 !=================================================================================================================
 !WRF:MODEL_LAYER:PHYSICS
@@ -4986,7 +4987,15 @@ ENDIF
     ENDIF
 
     !ADD KPBL (kzi) for coupling to some Cu schemes
-     kzi = MAX(INT(kzi2*(1.-wt) + kzi*wt),1)
+    !kzi = MAX(INT(kzi2*(1.-wt) + kzi*wt),1)
+
+    !correction to the calculation of kzi by Joe Olson (2019-12-10):
+    DO k=kts+1,kte-1
+       IF ( zw1D(k) >= zi) THEN
+          kzi = k-1
+          exit
+       ENDIF
+    ENDDO
 
 #ifdef HARDCODE_VERTICAL
 # undef kts

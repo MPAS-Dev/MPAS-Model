@@ -1,17 +1,7 @@
 !=================================================================================================================
-!module_sf_noahdrv was originally copied from ./phys/module_sf_noahdrv.F from WRF version 3.9.0.
-!Laura D. Fowler (laura@ucar.edu) / 2017-01-27.
+!reference: WRF-v4.1.4
+!Laura D. Fowler (laura@ucar.edu) / 2020-01-10.
 
-!modifications to sourcecode for MPAS:
-! * added the definition of FATAL_ERROR to use physics_error_fatal. use mpas_atmphys_date_time instead of
-!   module_model_ra_gfdleta.
-!   Laura D. Fowler (laura@ucar.edu) / 2017-01-27.
-! * changed the intent of some variables from intent(out) to intent(inout). This was also done in our original
-!   implementation of the land surface scheme.
-!   Laura D. Fowler (laura@ucar.edu) / 2017-01-30.
-
-
-!=================================================================================================================
 MODULE module_sf_noahdrv
 
 !-------------------------------
@@ -97,8 +87,18 @@ CONTAINS
                   FLXHUMR_URB2D,FLXHUMB_URB2D,FLXHUMG_URB2D,    & !H urban
                   julian, julyr,                                & !H urban
                   FRC_URB2D,UTYPE_URB2D,                        & !O
-                  num_urban_layers,                             & !I multi-layer urban
+                  num_urban_ndm,                                & !I multi-layer urban
+                  urban_map_zrd,                                & !I multi-layer urban
+                  urban_map_zwd,                                & !I multi-layer urban
+                  urban_map_gd,                                 & !I multi-layer urban
+                  urban_map_zd,                                 & !I multi-layer urban
+                  urban_map_zdf,                                & !I multi-layer urban
+                  urban_map_bd,                                 & !I multi-layer urban
+                  urban_map_wd,                                 & !I multi-layer urban
+                  urban_map_gbd,                                & !I multi-layer urban
+                  urban_map_fbd,                                & !I multi-layer urban
                   num_urban_hi,                                 & !I multi-layer urban
+                  tsk_rural_bep,                                & !H multi-layer urban
                   trb_urb4d,tw1_urb4d,tw2_urb4d,tgb_urb4d,      & !H multi-layer urban
                   tlev_urb3d,qlev_urb3d,                        & !H multi-layer urban
                   tw1lev_urb3d,tw2lev_urb3d,                    & !H multi-layer urban
@@ -116,7 +116,8 @@ CONTAINS
                   b_t_bep,b_q_bep,b_e_bep,dlg_bep,              & !O multi-layer urban
                   dl_u_bep,sf_bep,vl_bep,sfcheadrt,INFXSRT, soldrain      &   !O multi-layer urban         
                  ,SDA_HFX, SDA_QFX, HFX_BOTH, QFX_BOTH, QNORM, fasdas     &   !fasdas
-                  )   !O multi-layer urban         
+                 ,RC2,XLAI2                                               &
+                  )
 
 !----------------------------------------------------------------
     IMPLICIT NONE
@@ -173,6 +174,7 @@ CONTAINS
 !-- SHDMIN      minimum areal fractional coverage of annual green vegetation
 !-- SHDMAX      maximum areal fractional coverage of annual green vegetation
 !-- XLAI        leaf area index (dimensionless)
+!-- XLAI2       leaf area index (same as XLAI) passed to output (dimensionless)
 !-- Z0BRD       Background fixed roughness length (M)
 !-- Z0          Background vroughness length (M) as function
 !-- ZNT         Time varying roughness length (M) as function
@@ -218,6 +220,7 @@ CONTAINS
 !UDRUNOFF      Total Underground Runoff (mm), which is the sum of RUNOFF2 and RUNOFF3
 ! ----------------------------------------------------------------------
 !-- RC          canopy resistance (s m-1)
+!-- RC2         canopy resistance (same as RC) passed to output
 !-- PC          plant coefficient (unitless fraction, 0-1) where PC*ETP = actual transp
 !-- RSMIN       minimum canopy resistance (s m-1)
 !-- RCS         incoming solar rc factor (dimensionless)
@@ -318,7 +321,7 @@ CONTAINS
                                                          TSLB     ! TSLB     STEMP
 
    REAL,     DIMENSION( ims:ime , 1:num_soil_layers, jms:jme ), &
-             INTENT(INOUT)     ::                       SMCREL
+             INTENT(OUT)     ::                         SMCREL
 
    REAL,    DIMENSION( ims:ime, jms:jme )                     , &
             INTENT(INOUT)    ::                            TSK, & !was TGB (temperature)
@@ -348,18 +351,19 @@ CONTAINS
                                                         ALBEDO, &
                                                            ZNT
    REAL,    DIMENSION( ims:ime, jms:jme )                     , &
-            INTENT(INOUT)    ::                         NOAHRES
+            INTENT(OUT)      ::                         NOAHRES
    INTEGER, INTENT(IN)       ::                         OPT_THCND
 
 ! Noah UA changes
    LOGICAL,                                INTENT(IN)  :: UA_PHYS
-   REAL,    DIMENSION( ims:ime, jms:jme ), INTENT(INOUT) :: FLX4_2D,FVB_2D,FBUR_2D,FGSN_2D
+   REAL,    DIMENSION( ims:ime, jms:jme ), INTENT(OUT) :: FLX4_2D,FVB_2D,FBUR_2D,FGSN_2D
    REAL                                                :: FLX4,FVB,FBUR,FGSN
 
    REAL,    DIMENSION( ims:ime, jms:jme )                     , &
-               INTENT(INOUT)  ::                        CHKLOWQ
+               INTENT(OUT)    ::                        CHKLOWQ
    REAL,    DIMENSION( ims:ime, jms:jme ), INTENT(INOUT) :: LAI
    REAL,DIMENSION(IMS:IME,JMS:JME),INTENT(IN) ::        QZ0
+   REAL, OPTIONAL, DIMENSION( ims:ime, jms:jme ), INTENT(OUT) ::  RC2, XLAI2
 
    REAL, OPTIONAL, DIMENSION( ims:ime, jms:jme ), INTENT(INOUT) :: CMR_SFCDIF
    REAL, OPTIONAL, DIMENSION( ims:ime, jms:jme ), INTENT(INOUT) :: CHR_SFCDIF
@@ -585,29 +589,39 @@ CONTAINS
    REAL, OPTIONAL, INTENT(IN  )   ::                                   GMT 
    INTEGER, OPTIONAL, INTENT(IN  ) ::                               JULDAY
    REAL, OPTIONAL, DIMENSION( ims:ime, jms:jme ), INTENT(IN   )        ::XLAT, XLONG
-   INTEGER, INTENT(IN  ) ::                               NUM_URBAN_LAYERS
+   INTEGER, INTENT(IN  ) ::                               num_urban_ndm
+   INTEGER, INTENT(IN  ) ::                               urban_map_zrd
+   INTEGER, INTENT(IN  ) ::                               urban_map_zwd
+   INTEGER, INTENT(IN  ) ::                               urban_map_gd
+   INTEGER, INTENT(IN  ) ::                               urban_map_zd
+   INTEGER, INTENT(IN  ) ::                               urban_map_zdf
+   INTEGER, INTENT(IN  ) ::                               urban_map_bd
+   INTEGER, INTENT(IN  ) ::                               urban_map_wd
+   INTEGER, INTENT(IN  ) ::                               urban_map_gbd
+   INTEGER, INTENT(IN  ) ::                               urban_map_fbd
    INTEGER, INTENT(IN  ) ::                               NUM_URBAN_HI
-   REAL, OPTIONAL, DIMENSION( ims:ime, 1:num_urban_layers, jms:jme ), INTENT(INOUT) :: trb_urb4d
-   REAL, OPTIONAL, DIMENSION( ims:ime, 1:num_urban_layers, jms:jme ), INTENT(INOUT) :: tw1_urb4d
-   REAL, OPTIONAL, DIMENSION( ims:ime, 1:num_urban_layers, jms:jme ), INTENT(INOUT) :: tw2_urb4d
-   REAL, OPTIONAL, DIMENSION( ims:ime, 1:num_urban_layers, jms:jme ), INTENT(INOUT) :: tgb_urb4d
-   REAL, OPTIONAL, DIMENSION( ims:ime, 1:num_urban_layers, jms:jme ), INTENT(INOUT) :: tlev_urb3d
-   REAL, OPTIONAL, DIMENSION( ims:ime, 1:num_urban_layers, jms:jme ), INTENT(INOUT) :: qlev_urb3d
-   REAL, OPTIONAL, DIMENSION( ims:ime, 1:num_urban_layers, jms:jme ), INTENT(INOUT) :: tw1lev_urb3d
-   REAL, OPTIONAL, DIMENSION( ims:ime, 1:num_urban_layers, jms:jme ), INTENT(INOUT) :: tw2lev_urb3d
-   REAL, OPTIONAL, DIMENSION( ims:ime, 1:num_urban_layers, jms:jme ), INTENT(INOUT) :: tglev_urb3d
-   REAL, OPTIONAL, DIMENSION( ims:ime, 1:num_urban_layers, jms:jme ), INTENT(INOUT) :: tflev_urb3d
+   REAL, OPTIONAL, DIMENSION( ims:ime,                     jms:jme ), INTENT(INOUT) :: tsk_rural_bep
+   REAL, OPTIONAL, DIMENSION( ims:ime, 1:urban_map_zrd, jms:jme ), INTENT(INOUT) :: trb_urb4d
+   REAL, OPTIONAL, DIMENSION( ims:ime, 1:urban_map_zwd, jms:jme ), INTENT(INOUT) :: tw1_urb4d
+   REAL, OPTIONAL, DIMENSION( ims:ime, 1:urban_map_zwd, jms:jme ), INTENT(INOUT) :: tw2_urb4d
+   REAL, OPTIONAL, DIMENSION( ims:ime, 1:urban_map_gd , jms:jme ), INTENT(INOUT) :: tgb_urb4d
+   REAL, OPTIONAL, DIMENSION( ims:ime, 1:urban_map_bd , jms:jme ), INTENT(INOUT) :: tlev_urb3d
+   REAL, OPTIONAL, DIMENSION( ims:ime, 1:urban_map_bd , jms:jme ), INTENT(INOUT) :: qlev_urb3d
+   REAL, OPTIONAL, DIMENSION( ims:ime, 1:urban_map_wd , jms:jme ), INTENT(INOUT) :: tw1lev_urb3d
+   REAL, OPTIONAL, DIMENSION( ims:ime, 1:urban_map_wd , jms:jme ), INTENT(INOUT) :: tw2lev_urb3d
+   REAL, OPTIONAL, DIMENSION( ims:ime, 1:urban_map_gbd, jms:jme ), INTENT(INOUT) :: tglev_urb3d
+   REAL, OPTIONAL, DIMENSION( ims:ime, 1:urban_map_fbd, jms:jme ), INTENT(INOUT) :: tflev_urb3d
    REAL, OPTIONAL, DIMENSION( ims:ime, jms:jme ), INTENT(INOUT) :: lf_ac_urb3d
    REAL, OPTIONAL, DIMENSION( ims:ime, jms:jme ), INTENT(INOUT) :: sf_ac_urb3d
    REAL, OPTIONAL, DIMENSION( ims:ime, jms:jme ), INTENT(INOUT) :: cm_ac_urb3d
    REAL, OPTIONAL, DIMENSION( ims:ime, jms:jme ), INTENT(INOUT) :: sfvent_urb3d
    REAL, OPTIONAL, DIMENSION( ims:ime, jms:jme ), INTENT(INOUT) :: lfvent_urb3d
-   REAL, OPTIONAL, DIMENSION( ims:ime, 1:num_urban_layers, jms:jme ), INTENT(INOUT) :: sfwin1_urb3d
-   REAL, OPTIONAL, DIMENSION( ims:ime, 1:num_urban_layers, jms:jme ), INTENT(INOUT) :: sfwin2_urb3d
-   REAL, OPTIONAL, DIMENSION( ims:ime, 1:num_urban_layers, jms:jme ), INTENT(INOUT) :: sfw1_urb3d
-   REAL, OPTIONAL, DIMENSION( ims:ime, 1:num_urban_layers, jms:jme ), INTENT(INOUT) :: sfw2_urb3d
-   REAL, OPTIONAL, DIMENSION( ims:ime, 1:num_urban_layers, jms:jme ), INTENT(INOUT) :: sfr_urb3d
-   REAL, OPTIONAL, DIMENSION( ims:ime, 1:num_urban_layers, jms:jme ), INTENT(INOUT) :: sfg_urb3d
+   REAL, OPTIONAL, DIMENSION( ims:ime, 1:urban_map_wd , jms:jme ), INTENT(INOUT) :: sfwin1_urb3d
+   REAL, OPTIONAL, DIMENSION( ims:ime, 1:urban_map_wd , jms:jme ), INTENT(INOUT) :: sfwin2_urb3d
+   REAL, OPTIONAL, DIMENSION( ims:ime, 1:urban_map_zd , jms:jme ), INTENT(INOUT) :: sfw1_urb3d
+   REAL, OPTIONAL, DIMENSION( ims:ime, 1:urban_map_zd , jms:jme ), INTENT(INOUT) :: sfw2_urb3d
+   REAL, OPTIONAL, DIMENSION( ims:ime, 1:urban_map_zdf, jms:jme ), INTENT(INOUT) :: sfr_urb3d
+   REAL, OPTIONAL, DIMENSION( ims:ime, 1:num_urban_ndm, jms:jme ), INTENT(INOUT) :: sfg_urb3d
    REAL, OPTIONAL, DIMENSION( ims:ime, 1:num_urban_hi, jms:jme ), INTENT(IN) :: hi_urb2d
    REAL, OPTIONAL, DIMENSION( ims:ime, jms:jme ), INTENT(IN) :: lp_urb2d
    REAL, OPTIONAL, DIMENSION( ims:ime, jms:jme ), INTENT(IN) :: lb_urb2d
@@ -643,7 +657,6 @@ CONTAINS
    REAL, DIMENSION(its:ite,jts:jte) ::RS_ABS_URB
    REAL, DIMENSION(its:ite,jts:jte) ::GRDFLX_URB
    REAL :: SIGMA_SB,RL_UP_RURAL,RL_UP_TOT,RS_ABS_TOT,UMOM,VMOM
-   REAL :: r1,r2,r3
    REAL :: CMR_URB, CHR_URB, CMC_URB, CHC_URB, CMGR_URB, CHGR_URB
    REAL :: frc_urb,lb_urb
    REAL :: check 
@@ -680,6 +693,8 @@ CONTAINS
   FBUR  = 0.0 !BSINGH - Initialized to 0.0
   FGSN  = 0.0 !BSINGH - Initialized to 0.0
   SOILW = 0.0 !BSINGH - Initialized to 0.0
+
+  sigma_sb=5.67e-08
 
 ! MEK MAY 2007
       FDTLIW=DT/ROWLIW
@@ -855,9 +870,12 @@ CONTAINS
           ! Land-ice or land points use the usual deep-soil temperature.
           TBOT=TMN(I,J)
 
+          IF(ISURBAN.EQ.1) THEN
+! assumes these only need to be set for USGS land data
           IF(VEGTYP.EQ.25) SHDFAC=0.0000
           IF(VEGTYP.EQ.26) SHDFAC=0.0000
           IF(VEGTYP.EQ.27) SHDFAC=0.0000
+          ENDIF
           IF(SOILTYP.EQ.14.AND.XICE(I,J).EQ.0.)THEN
 #if 0
          IF(IPRINT)PRINT*,' SOIL TYPE FOUND TO BE WATER AT A LAND-POINT'
@@ -866,7 +884,8 @@ CONTAINS
             SOILTYP=7
           ENDIF
           SNOALB1 = SNOALB(I,J)
-          CMC=CANWAT(I,J)
+! converts canwat in mm to CMC in meters
+          CMC=CANWAT(I,J)/1000.
 
 !-------------------------------------------
 !*** convert snow depth from mm to meter
@@ -910,12 +929,9 @@ CONTAINS
                  EMISSI = 0.98                                 !for VEGTYP=5
 		 IF ( FRC_URB2D(I,J) < 0.99 ) THEN
                    if(sf_urban_physics.eq.1)then
-           T1= ( TSK(I,J) -FRC_URB2D(I,J) * TS_URB2D (I,J) )/ (1-FRC_URB2D(I,J))
+                     T1= ( TSK(I,J) -FRC_URB2D(I,J) * TS_URB2D (I,J) )/ (1-FRC_URB2D(I,J))
                    elseif((sf_urban_physics.eq.2).OR.(sf_urban_physics.eq.3))then
-                r1= (tsk(i,j)**4.)
-                r2= frc_urb2d(i,j)*(ts_urb2d(i,j)**4.)
-                r3= (1.-frc_urb2d(i,j))
-                t1= ((r1-r2)/r3)**.25
+                     T1=tsk_rural_bep(i,j)
                    endif
 	         ELSE
 		 T1 = TSK(I,J)
@@ -991,6 +1007,7 @@ CONTAINS
 #endif
 
           IF (rdlai2d) THEN
+             IF (SHDFAC > 0.0 .AND. LAI(I,J) <= 0.0) LAI(I,J) = 0.01
              xlai = lai(i,j)
           endif
 
@@ -1102,6 +1119,10 @@ CONTAINS
     ENDIF
 
        lai(i,j) = xlai
+       if (present(rc2) .and. present(xlai2)) then
+       rc2(I,J) = RC                                              ! for output
+       xlai2(I,J) = XLAI
+       endif
 
 #if 0
           IF(IPRINT) THEN
@@ -1130,7 +1151,7 @@ CONTAINS
 #endif
 
 !***  UPDATE STATE VARIABLES
-          CANWAT(I,J)=CMC
+          CANWAT(I,J)=CMC*1000.
           SNOW(I,J)=SNEQV*1000.
 !          SNOWH(I,J)=SNOWHK*1000.
           SNOWH(I,J)=SNOWHK                   ! SNOWHK in meters
@@ -1160,6 +1181,11 @@ CONTAINS
 !
           TSK(I,J)=T1
           TSK_RURAL(I,J)=T1
+          if (present(tsk_rural_bep)) then
+             IF(SF_URBAN_PHYSICS == 2 .or. SF_URBAN_PHYSICS == 3) THEN
+               TSK_RURAL_BEP(I,J)=T1
+             END IF
+          endif
           HFX(I,J)=SHEAT
           HFX_RURAL(I,J)=SHEAT
 ! MEk Jul07 add potential evap accum
@@ -1293,14 +1319,14 @@ CONTAINS
 !
 !
 !      Limits to avoid dividing by small number
-            if (CHS(I,J) < 1.0E-04) then
-               CHS(I,J)  = 1.0E-04
+            if (CHS(I,J) < 1.0E-02) then
+               CHS(I,J)  = 1.0E-02
             endif
-            if (CHS2(I,J) < 1.0E-04) then
-               CHS2(I,J)  = 1.0E-04
+            if (CHS2(I,J) < 1.0E-02) then
+               CHS2(I,J)  = 1.0E-02
             endif
-            if (CQS2(I,J) < 1.0E-04) then
-               CQS2(I,J)  = 1.0E-04
+            if (CQS2(I,J) < 1.0E-02) then
+               CQS2(I,J)  = 1.0E-02
             endif
 !
             CHS_URB  = CHS(I,J)
@@ -1516,7 +1542,9 @@ CONTAINS
        CALL BEP(frc_urb2d,utype_urb2d,itimestep,dz8w,dt,u_phy,v_phy,   &
                 th_phy,rho,p_phy,swdown,glw,                           &
                 gmt,julday,xlong,xlat,declin_urb,cosz_urb2d,omg_urb2d, &
-                num_urban_layers,num_urban_hi,                         &
+           num_urban_ndm, urban_map_zrd, urban_map_zwd, urban_map_gd,  &
+            urban_map_zd, urban_map_zdf,  urban_map_bd, urban_map_wd,  &
+           urban_map_gbd, urban_map_fbd,  num_urban_hi,                &
                 trb_urb4d,tw1_urb4d,tw2_urb4d,tgb_urb4d,               &
                 sfw1_urb3d,sfw2_urb3d,sfr_urb3d,sfg_urb3d,             &
                 lp_urb2d,hi_urb2d,lb_urb2d,hgt_urb2d,                  &
@@ -1549,7 +1577,9 @@ CONTAINS
        CALL BEP_BEM(frc_urb2d,utype_urb2d,itimestep,dz8w,dt,u_phy,v_phy, &
                 th_phy,rho,p_phy,swdown,glw,                           &
                 gmt,julday,xlong,xlat,declin_urb,cosz_urb2d,omg_urb2d, &
-                num_urban_layers,num_urban_hi,                         &
+           num_urban_ndm, urban_map_zrd, urban_map_zwd, urban_map_gd,  &
+            urban_map_zd, urban_map_zdf,  urban_map_bd, urban_map_wd,  &
+           urban_map_gbd, urban_map_fbd,  num_urban_hi,                &
                 trb_urb4d,tw1_urb4d,tw2_urb4d,tgb_urb4d,               &
                 tlev_urb3d,qlev_urb3d,tw1lev_urb3d,tw2lev_urb3d,       &
                 tglev_urb3d,tflev_urb3d,sf_ac_urb3d,lf_ac_urb3d,       &
@@ -1569,8 +1599,6 @@ CONTAINS
        ENDIF
 
     if((sf_urban_physics.eq.2).OR.(sf_urban_physics.eq.3))then         !Bep begin
-! fix the value of the Stefan-Boltzmann constant
-         sigma_sb=5.67e-08
          do j=jts,jte
          do i=its,ite
             UMOM_URB(I,J)=0.
@@ -1618,7 +1646,7 @@ CONTAINS
 !           emiss(i,j)=(1.-frc_urb2d(i,j))*emiss_rural(i,j)+frc_urb2d(i,j)*emiss_urb(i,j)
 ! using the emissivity and the total longwave upward radiation estimate the averaged skin temperature
            IF (FRC_URB2D(I,J).GT.0.) THEN
-              rl_up_rural=-emiss_rural(i,j)*sigma_sb*(tsk_rural(i,j)**4.)-(1.-emiss_rural(i,j))*glw(i,j)
+              rl_up_rural=-emiss_rural(i,j)*sigma_sb*(tsk_rural(i,j)**4.)-(1.-emissi)*glw(i,j)
               rl_up_tot=(1.-frc_urb2d(i,j))*rl_up_rural+frc_urb2d(i,j)*rl_up_urb(i,j)   
               emiss(i,j)=(1.-frc_urb2d(i,j))*emiss_rural(i,j)+frc_urb2d(i,j)*emiss_urb(i,j)
               ts_urb2d(i,j)=(max(0.,(-rl_up_urb(i,j)-(1.-emiss_urb(i,j))*glw(i,j))/emiss_urb(i,j)/sigma_sb))**0.25
@@ -1683,7 +1711,7 @@ CONTAINS
    END SUBROUTINE lsm
 !------------------------------------------------------
 
-!ldf (2017-01-27): This section of the module is moved to module_physics_lsm_noahinit.F in
+!For MPAS, the below section of the module is moved to module_physics_lsm_noahinit.F in
 !./../core_physics to accomodate differences in the mpi calls between WRF and MPAS.I thought
 !that it would be cleaner to do this instead of adding a lot of #ifdef statements throughout
 !the initialization subroutine.
@@ -2238,6 +2266,7 @@ SUBROUTINE lsm_mosaic(DZ8W,QV3D,P8W3D,T3D,TSK,                      &
                  ZNT_mosaic, Z0_mosaic,                          & ! danli mosaic 
                  HFX_mosaic,QFX_mosaic,                          & ! danli mosaic
                  LH_mosaic, GRDFLX_mosaic, SNOTIME_mosaic,       & ! danli mosaic                   
+                 RC_mosaic, LAI_mosaic,                          &
 ! Noah UA changes
                   ua_phys,flx4_2d,fvb_2d,fbur_2d,fgsn_2d,       &
                   ids,ide, jds,jde, kds,kde,                    &
@@ -2273,8 +2302,18 @@ SUBROUTINE lsm_mosaic(DZ8W,QV3D,P8W3D,T3D,TSK,                      &
                   DRELR_URB2D,DRELB_URB2D,DRELG_URB2D,          & !H urban
                   FLXHUMR_URB2D,FLXHUMB_URB2D,FLXHUMG_URB2D,    & !H urban
                   FRC_URB2D,UTYPE_URB2D,                        & !O
-                  num_urban_layers,                             & !I multi-layer urban
+                  num_urban_ndm,                                & !I multi-layer urban
+                  urban_map_zrd,                                & !I multi-layer urban
+                  urban_map_zwd,                                & !I multi-layer urban
+                  urban_map_gd,                                 & !I multi-layer urban
+                  urban_map_zd,                                 & !I multi-layer urban
+                  urban_map_zdf,                                & !I multi-layer urban
+                  urban_map_bd,                                 & !I multi-layer urban
+                  urban_map_wd,                                 & !I multi-layer urban
+                  urban_map_gbd,                                & !I multi-layer urban
+                  urban_map_fbd,                                & !I multi-layer urban
                   num_urban_hi,                                 & !I multi-layer urban
+                  tsk_rural_bep,                                & !H multi-layer urban
                   trb_urb4d,tw1_urb4d,tw2_urb4d,tgb_urb4d,      & !H multi-layer urban
                   tlev_urb3d,qlev_urb3d,                        & !H multi-layer urban
                   tw1lev_urb3d,tw2lev_urb3d,                    & !H multi-layer urban
@@ -2293,6 +2332,7 @@ SUBROUTINE lsm_mosaic(DZ8W,QV3D,P8W3D,T3D,TSK,                      &
                   dl_u_bep,sf_bep,vl_bep                        & !O multi-layer urban
                  ,sfcheadrt,INFXSRT, soldrain                   & !hydro
                  ,SDA_HFX, SDA_QFX, HFX_BOTH, QFX_BOTH, QNORM, fasdas     &   !fasdas
+                 ,RC2,XLAI2                                     & !O
                   )
 
 !----------------------------------------------------------------
@@ -2496,7 +2536,7 @@ SUBROUTINE lsm_mosaic(DZ8W,QV3D,P8W3D,T3D,TSK,                      &
                                                          TSLB     ! TSLB     STEMP
 
    REAL,     DIMENSION( ims:ime , 1:num_soil_layers, jms:jme ), &
-             INTENT(INOUT)     ::                       SMCREL
+             INTENT(OUT)     ::                         SMCREL
 
    REAL,    DIMENSION( ims:ime, jms:jme )                     , &
             INTENT(INOUT)    ::                            TSK, & !was TGB (temperature)
@@ -2526,18 +2566,19 @@ SUBROUTINE lsm_mosaic(DZ8W,QV3D,P8W3D,T3D,TSK,                      &
                                                         ALBEDO, &
                                                            ZNT
    REAL,    DIMENSION( ims:ime, jms:jme )                     , &
-            INTENT(INOUT)    ::                         NOAHRES
+            INTENT(OUT)      ::                         NOAHRES
    INTEGER,                                INTENT(IN)  :: OPT_THCND
 
 ! Noah UA changes
    LOGICAL,                                INTENT(IN)  :: UA_PHYS
-   REAL,    DIMENSION( ims:ime, jms:jme ), INTENT(INOUT) :: FLX4_2D,FVB_2D,FBUR_2D,FGSN_2D
+   REAL,    DIMENSION( ims:ime, jms:jme ), INTENT(OUT) :: FLX4_2D,FVB_2D,FBUR_2D,FGSN_2D
    REAL                                                :: FLX4,FVB,FBUR,FGSN
 
    REAL,    DIMENSION( ims:ime, jms:jme )                     , &
-               INTENT(INOUT)  ::                        CHKLOWQ
+               INTENT(OUT)    ::                        CHKLOWQ
    REAL,    DIMENSION( ims:ime, jms:jme ), INTENT(INOUT) :: LAI
    REAL,DIMENSION(IMS:IME,JMS:JME),INTENT(IN) ::        QZ0
+   REAL,    DIMENSION( ims:ime, jms:jme ), INTENT(OUT)   :: RC2, XLAI2
 
    REAL, OPTIONAL, DIMENSION( ims:ime, jms:jme ), INTENT(INOUT) :: CMR_SFCDIF
    REAL, OPTIONAL, DIMENSION( ims:ime, jms:jme ), INTENT(INOUT) :: CHR_SFCDIF
@@ -2761,29 +2802,39 @@ SUBROUTINE lsm_mosaic(DZ8W,QV3D,P8W3D,T3D,TSK,                      &
    REAL, OPTIONAL, INTENT(IN  )   ::                                   GMT 
    INTEGER, OPTIONAL, INTENT(IN  ) ::                               JULDAY
    REAL, OPTIONAL, DIMENSION( ims:ime, jms:jme ), INTENT(IN   )        ::XLAT, XLONG
-   INTEGER, INTENT(IN  ) ::                               NUM_URBAN_LAYERS
+   INTEGER, INTENT(IN  ) ::                               num_urban_ndm
+   INTEGER, INTENT(IN  ) ::                               urban_map_zrd
+   INTEGER, INTENT(IN  ) ::                               urban_map_zwd
+   INTEGER, INTENT(IN  ) ::                               urban_map_gd
+   INTEGER, INTENT(IN  ) ::                               urban_map_zd
+   INTEGER, INTENT(IN  ) ::                               urban_map_zdf
+   INTEGER, INTENT(IN  ) ::                               urban_map_bd
+   INTEGER, INTENT(IN  ) ::                               urban_map_wd
+   INTEGER, INTENT(IN  ) ::                               urban_map_gbd
+   INTEGER, INTENT(IN  ) ::                               urban_map_fbd
    INTEGER, INTENT(IN  ) ::                               NUM_URBAN_HI
-   REAL, OPTIONAL, DIMENSION( ims:ime, 1:num_urban_layers, jms:jme ), INTENT(INOUT) :: trb_urb4d
-   REAL, OPTIONAL, DIMENSION( ims:ime, 1:num_urban_layers, jms:jme ), INTENT(INOUT) :: tw1_urb4d
-   REAL, OPTIONAL, DIMENSION( ims:ime, 1:num_urban_layers, jms:jme ), INTENT(INOUT) :: tw2_urb4d
-   REAL, OPTIONAL, DIMENSION( ims:ime, 1:num_urban_layers, jms:jme ), INTENT(INOUT) :: tgb_urb4d
-   REAL, OPTIONAL, DIMENSION( ims:ime, 1:num_urban_layers, jms:jme ), INTENT(INOUT) :: tlev_urb3d
-   REAL, OPTIONAL, DIMENSION( ims:ime, 1:num_urban_layers, jms:jme ), INTENT(INOUT) :: qlev_urb3d
-   REAL, OPTIONAL, DIMENSION( ims:ime, 1:num_urban_layers, jms:jme ), INTENT(INOUT) :: tw1lev_urb3d
-   REAL, OPTIONAL, DIMENSION( ims:ime, 1:num_urban_layers, jms:jme ), INTENT(INOUT) :: tw2lev_urb3d
-   REAL, OPTIONAL, DIMENSION( ims:ime, 1:num_urban_layers, jms:jme ), INTENT(INOUT) :: tglev_urb3d
-   REAL, OPTIONAL, DIMENSION( ims:ime, 1:num_urban_layers, jms:jme ), INTENT(INOUT) :: tflev_urb3d
+   REAL, OPTIONAL, DIMENSION( ims:ime,                     jms:jme ), INTENT(INOUT) :: tsk_rural_bep
+   REAL, OPTIONAL, DIMENSION( ims:ime, 1:urban_map_zrd, jms:jme ), INTENT(INOUT) :: trb_urb4d
+   REAL, OPTIONAL, DIMENSION( ims:ime, 1:urban_map_zwd, jms:jme ), INTENT(INOUT) :: tw1_urb4d
+   REAL, OPTIONAL, DIMENSION( ims:ime, 1:urban_map_zwd, jms:jme ), INTENT(INOUT) :: tw2_urb4d
+   REAL, OPTIONAL, DIMENSION( ims:ime, 1:urban_map_gd , jms:jme ), INTENT(INOUT) :: tgb_urb4d
+   REAL, OPTIONAL, DIMENSION( ims:ime, 1:urban_map_bd , jms:jme ), INTENT(INOUT) :: tlev_urb3d
+   REAL, OPTIONAL, DIMENSION( ims:ime, 1:urban_map_bd , jms:jme ), INTENT(INOUT) :: qlev_urb3d
+   REAL, OPTIONAL, DIMENSION( ims:ime, 1:urban_map_wd , jms:jme ), INTENT(INOUT) :: tw1lev_urb3d
+   REAL, OPTIONAL, DIMENSION( ims:ime, 1:urban_map_wd , jms:jme ), INTENT(INOUT) :: tw2lev_urb3d
+   REAL, OPTIONAL, DIMENSION( ims:ime, 1:urban_map_gbd, jms:jme ), INTENT(INOUT) :: tglev_urb3d
+   REAL, OPTIONAL, DIMENSION( ims:ime, 1:urban_map_fbd, jms:jme ), INTENT(INOUT) :: tflev_urb3d
    REAL, OPTIONAL, DIMENSION( ims:ime, jms:jme ), INTENT(INOUT) :: lf_ac_urb3d
    REAL, OPTIONAL, DIMENSION( ims:ime, jms:jme ), INTENT(INOUT) :: sf_ac_urb3d
    REAL, OPTIONAL, DIMENSION( ims:ime, jms:jme ), INTENT(INOUT) :: cm_ac_urb3d
    REAL, OPTIONAL, DIMENSION( ims:ime, jms:jme ), INTENT(INOUT) :: sfvent_urb3d
    REAL, OPTIONAL, DIMENSION( ims:ime, jms:jme ), INTENT(INOUT) :: lfvent_urb3d
-   REAL, OPTIONAL, DIMENSION( ims:ime, 1:num_urban_layers, jms:jme ), INTENT(INOUT) :: sfwin1_urb3d
-   REAL, OPTIONAL, DIMENSION( ims:ime, 1:num_urban_layers, jms:jme ), INTENT(INOUT) :: sfwin2_urb3d
-   REAL, OPTIONAL, DIMENSION( ims:ime, 1:num_urban_layers, jms:jme ), INTENT(INOUT) :: sfw1_urb3d
-   REAL, OPTIONAL, DIMENSION( ims:ime, 1:num_urban_layers, jms:jme ), INTENT(INOUT) :: sfw2_urb3d
-   REAL, OPTIONAL, DIMENSION( ims:ime, 1:num_urban_layers, jms:jme ), INTENT(INOUT) :: sfr_urb3d
-   REAL, OPTIONAL, DIMENSION( ims:ime, 1:num_urban_layers, jms:jme ), INTENT(INOUT) :: sfg_urb3d
+   REAL, OPTIONAL, DIMENSION( ims:ime, 1:urban_map_wd , jms:jme ), INTENT(INOUT) :: sfwin1_urb3d
+   REAL, OPTIONAL, DIMENSION( ims:ime, 1:urban_map_wd , jms:jme ), INTENT(INOUT) :: sfwin2_urb3d
+   REAL, OPTIONAL, DIMENSION( ims:ime, 1:urban_map_zd , jms:jme ), INTENT(INOUT) :: sfw1_urb3d
+   REAL, OPTIONAL, DIMENSION( ims:ime, 1:urban_map_zd , jms:jme ), INTENT(INOUT) :: sfw2_urb3d
+   REAL, OPTIONAL, DIMENSION( ims:ime, 1:urban_map_zdf, jms:jme ), INTENT(INOUT) :: sfr_urb3d
+   REAL, OPTIONAL, DIMENSION( ims:ime, 1:num_urban_ndm, jms:jme ), INTENT(INOUT) :: sfg_urb3d
    REAL, OPTIONAL, DIMENSION( ims:ime, 1:num_urban_hi, jms:jme ), INTENT(IN) :: hi_urb2d
    REAL, OPTIONAL, DIMENSION( ims:ime, jms:jme ), INTENT(IN) :: lp_urb2d
    REAL, OPTIONAL, DIMENSION( ims:ime, jms:jme ), INTENT(IN) :: lb_urb2d
@@ -2819,7 +2870,6 @@ SUBROUTINE lsm_mosaic(DZ8W,QV3D,P8W3D,T3D,TSK,                      &
    REAL, DIMENSION(its:ite,jts:jte) ::RS_ABS_URB
    REAL, DIMENSION(its:ite,jts:jte) ::GRDFLX_URB
    REAL :: SIGMA_SB,RL_UP_RURAL,RL_UP_TOT,RS_ABS_TOT,UMOM,VMOM
-   REAL :: r1,r2,r3
    REAL :: CMR_URB, CHR_URB, CMC_URB, CHC_URB, CMGR_URB, CHGR_URB
    REAL :: frc_urb,lb_urb
    REAL :: check 
@@ -2843,10 +2893,13 @@ SUBROUTINE lsm_mosaic(DZ8W,QV3D,P8W3D,T3D,TSK,                      &
         HFX_mosaic,QFX_mosaic, LH_mosaic, GRDFLX_mosaic,SNOTIME_mosaic    
   REAL, DIMENSION( ims:ime, 1:num_soil_layers*mosaic_cat, jms:jme ), OPTIONAL, INTENT(INOUT)::   &
         TSLB_mosaic,SMOIS_mosaic,SH2O_mosaic
+  REAL, DIMENSION( ims:ime, 1:mosaic_cat, jms:jme ), OPTIONAL, INTENT(INOUT):: LAI_mosaic, RC_mosaic
+
   REAL, DIMENSION( ims:ime, jms:jme ) :: TSK_mosaic_avg, QSFC_mosaic_avg, CANWAT_mosaic_avg,SNOW_mosaic_avg,SNOWH_mosaic_avg, &
                                          SNOWC_mosaic_avg, HFX_mosaic_avg, QFX_mosaic_avg, LH_mosaic_avg, GRDFLX_mosaic_avg,  &
                                          ALBEDO_mosaic_avg, ALBBCK_mosaic_avg, EMISS_mosaic_avg, EMBCK_mosaic_avg,            &
-                                         ZNT_mosaic_avg, Z0_mosaic_avg, SNOTIME_mosaic_avg, FAREA_mosaic_avg  
+                                         ZNT_mosaic_avg, Z0_mosaic_avg, LAI_mosaic_avg, RC_mosaic_avg, SNOTIME_mosaic_avg,    &
+                                         FAREA_mosaic_avg
   REAL, DIMENSION( ims:ime, 1:num_soil_layers, jms:jme )                     ::   &
         TSLB_mosaic_avg,SMOIS_mosaic_avg,SH2O_mosaic_avg
   
@@ -2959,32 +3012,34 @@ SUBROUTINE lsm_mosaic(DZ8W,QV3D,P8W3D,T3D,TSK,                      &
       
             ! INITIALIZE THE AREA-AVERAGED FLUXES 
                
-                 TSK_mosaic_avg(i,j)= 0                              ! from 3D to 2D
-                 QSFC_mosaic_avg(i,j)= 0
-                 CANWAT_mosaic_avg(i,j)= 0
-                 SNOW_mosaic_avg(i,j)= 0
-                 SNOWH_mosaic_avg(i,j)= 0
-                 SNOWC_mosaic_avg(i,j)= 0
+                 TSK_mosaic_avg(i,j)= 0.0                              ! from 3D to 2D
+                 QSFC_mosaic_avg(i,j)= 0.0
+                 CANWAT_mosaic_avg(i,j)= 0.0
+                 SNOW_mosaic_avg(i,j)= 0.0
+                 SNOWH_mosaic_avg(i,j)= 0.0
+                 SNOWC_mosaic_avg(i,j)= 0.0
             
                           DO NS=1,NSOIL
             
-                     TSLB_mosaic_avg(i,NS,j)=0
-                     SMOIS_mosaic_avg(i,NS,j)=0
-                     SH2O_mosaic_avg(i,NS,j)=0
+                     TSLB_mosaic_avg(i,NS,j)=0.0
+                     SMOIS_mosaic_avg(i,NS,j)=0.0
+                     SH2O_mosaic_avg(i,NS,j)=0.0
             
                          ENDDO
             
-                 HFX_mosaic_avg(i,j)= 0
-                 QFX_mosaic_avg(i,j)= 0  
-                 LH_mosaic_avg(i,j)=  0 
-                 GRDFLX_mosaic_avg(i,j)= 0
-                 ALBEDO_mosaic_avg(i,j)=0
-                 ALBBCK_mosaic_avg(i,j)=0
-                 EMISS_mosaic_avg(i,j)=0
-                 EMBCK_mosaic_avg(i,j)=0
-                 ZNT_mosaic_avg(i,j)=0
-                 Z0_mosaic_avg(i,j)=0  
-                 FAREA_mosaic_avg(i,j)=0  
+                 HFX_mosaic_avg(i,j)= 0.0
+                 QFX_mosaic_avg(i,j)= 0.0
+                 LH_mosaic_avg(i,j)=  0.0
+                 GRDFLX_mosaic_avg(i,j)= 0.0
+                 ALBEDO_mosaic_avg(i,j)=0.0
+                 ALBBCK_mosaic_avg(i,j)=0.0
+                 EMISS_mosaic_avg(i,j)=0.0
+                 EMBCK_mosaic_avg(i,j)=0.0
+                 ZNT_mosaic_avg(i,j)=0.0
+                 Z0_mosaic_avg(i,j)=0.0
+                 LAI_mosaic_avg(i,j)=0.0
+                 RC_mosaic_avg(i,j)=0.0
+                 FAREA_mosaic_avg(i,j)=0.0
             
             ! add a new loop for the mosaic_cat
             
@@ -3152,7 +3207,8 @@ SUBROUTINE lsm_mosaic(DZ8W,QV3D,P8W3D,T3D,TSK,                      &
                   SOILTYP=7
                 ENDIF
                 SNOALB1 = SNOALB(I,J)
-                CMC=CANWAT(I,J)
+! converts canwat in mm to CMC in meters
+                CMC=CANWAT(I,J)/1000.
       
       !-------------------------------------------
       !*** convert snow depth from mm to meter
@@ -3312,6 +3368,7 @@ SUBROUTINE lsm_mosaic(DZ8W,QV3D,P8W3D,T3D,TSK,                      &
 #endif
       
                 IF (rdlai2d) THEN
+                   IF (SHDFAC > 0.0 .AND. LAI(I,J) <= 0.0) LAI(I,J) = 0.01
                    xlai = lai(i,j)
                 endif
       
@@ -3391,9 +3448,7 @@ SUBROUTINE lsm_mosaic(DZ8W,QV3D,P8W3D,T3D,TSK,                      &
                   &    RIBB)
       
           ENDIF
-      
              lai(i,j) = xlai
-      
 #if 0
                 IF(IPRINT) THEN
       
@@ -3421,7 +3476,7 @@ SUBROUTINE lsm_mosaic(DZ8W,QV3D,P8W3D,T3D,TSK,                      &
 #endif
       
       !***  UPDATE STATE VARIABLES
-                CANWAT(I,J)=CMC
+                CANWAT(I,J)=CMC*1000.
                 SNOW(I,J)=SNEQV*1000.
       !          SNOWH(I,J)=SNOWHK*1000.
                 SNOWH(I,J)=SNOWHK                   ! SNOWHK in meters
@@ -3594,14 +3649,14 @@ SUBROUTINE lsm_mosaic(DZ8W,QV3D,P8W3D,T3D,TSK,                      &
                   XXXC_URB = XXXC_URB2D(I,J)
       !
       !      Limits to avoid dividing by small number
-                  if (CHS(I,J) < 1.0E-04) then
-                     CHS(I,J)  = 1.0E-04
+                  if (CHS(I,J) < 1.0E-02) then
+                     CHS(I,J)  = 1.0E-02
                   endif
-                  if (CHS2(I,J) < 1.0E-04) then
-                     CHS2(I,J)  = 1.0E-04
+                  if (CHS2(I,J) < 1.0E-02) then
+                     CHS2(I,J)  = 1.0E-02
                   endif
-                  if (CQS2(I,J) < 1.0E-04) then
-                     CQS2(I,J)  = 1.0E-04
+                  if (CQS2(I,J) < 1.0E-02) then
+                     CQS2(I,J)  = 1.0E-02
                   endif
       !
                   CHS_URB  = CHS(I,J)
@@ -3842,6 +3897,8 @@ SUBROUTINE lsm_mosaic(DZ8W,QV3D,P8W3D,T3D,TSK,                      &
                   EMBCK_mosaic(i,mosaic_i,j)=EMBCK(i,j)  
                   ZNT_mosaic(i,mosaic_i,j)=ZNT(i,j)  
                   Z0_mosaic(i,mosaic_i,j)=Z0(i,j)    
+                  LAI_mosaic(i,mosaic_i,j)=XLAI
+                  RC_mosaic(i,mosaic_i,j)=RC
                                                                                        
                   HFX_mosaic(i,mosaic_i,j)=HFX(i,j) 
                   QFX_mosaic(i,mosaic_i,j)=QFX(i,j)  
@@ -3863,7 +3920,8 @@ SUBROUTINE lsm_mosaic(DZ8W,QV3D,P8W3D,T3D,TSK,                      &
                   print*, 'mosaic_cat_index',mosaic_cat_index(I,mosaic_i,J), 'landusef2',landusef2(i,mosaic_i,j)
                   print*, 'TSK_mosaic', TSK_mosaic(i,mosaic_i,j), 'HFX_mosaic', HFX_mosaic(i,mosaic_i,j), &
                           'LH_mosaic',LH_mosaic(i,mosaic_i,j),'GRDFLX_mosaic',GRDFLX_mosaic(i,mosaic_i,j)
-                  print*, 'ZNT_mosaic', ZNT_mosaic(i, mosaic_i,j), 'Z0_mosaic', Z0_mosaic(i,mosaic_i,j) 
+                  print*, 'ZNT_mosaic', ZNT_mosaic(i, mosaic_i,j), 'Z0_mosaic', Z0_mosaic(i,mosaic_i,j)
+                  print*, 'LAI_mosaic', LAI_mosaic(i, mosaic_i,j)
                   print*, 'FRC_URB2D',FRC_URB2D(I,J)
                   print*, 'TS_URB',TS_URB2D(I,J),'T1',T1
                   print*, 'SH_URB2D',SH_URB2D(I,J),'SHEAT',SHEAT
@@ -3907,9 +3965,14 @@ SUBROUTINE lsm_mosaic(DZ8W,QV3D,P8W3D,T3D,TSK,                      &
                   EMBCK_mosaic_avg(i,j)=EMBCK_mosaic_avg(i,j)+EMBCK_mosaic(i,mosaic_i,j)*FAREA
                   ZNT_mosaic_avg(i,j)=ZNT_mosaic_avg(i,j)+ALOG(ZNT_mosaic(i,mosaic_i,j))*FAREA
                   Z0_mosaic_avg(i,j)=Z0_mosaic_avg(i,j)+ALOG(Z0_mosaic(i,mosaic_i,j))*FAREA
-       
-         ENDDO                     ! ENDDO FOR mosaic_i = 1, mosaic_cat
-      
+                  LAI_mosaic_avg(i,j)=LAI_mosaic_avg(i,j)+LAI_mosaic(i,mosaic_i,j)*FAREA
+                  if(RC_mosaic(i,mosaic_i,j) .Gt. 0.0) Then
+                     RC_mosaic_avg(i,j) = RC_mosaic_avg(i,j)+1.0/RC_mosaic(i,mosaic_i,j)*FAREA
+                  else 
+                     RC_mosaic_avg(i,j) = RC_mosaic_avg(i,j) + RC_mosaic(i,mosaic_i,j)*FAREA
+                  End If
+                  ENDDO                     ! ENDDO FOR mosaic_i = 1, mosaic_cat
+
       !-----------------------------------------------------------------------
       ! Now let's send the 3D values to the 2D variables that might be needed in other routines
       !-----------------------------------------------------------------------
@@ -3921,7 +3984,13 @@ SUBROUTINE lsm_mosaic(DZ8W,QV3D,P8W3D,T3D,TSK,                      &
           EMBCK(i,j)= EMBCK_mosaic_avg(i,j)  
           ZNT(i,j)= EXP(ZNT_mosaic_avg(i,j)/FAREA_mosaic_avg(i,j))
           Z0(i,j)= EXP(Z0_mosaic_avg(i,j)/FAREA_mosaic_avg(i,j))
-                                                                                       
+          XLAI2(i,j)= LAI_mosaic_avg(i,j)
+          IF (RC_mosaic_avg(i,j) .Gt. 0.0) THEN
+              rc2(i,j) = 1.0/(RC_mosaic_avg(i,j))
+          ELSE
+!RC_mosaic_avg was zero for all tiles (cell over water), thus RC2 set to zero to avoid infinity
+              rc2(i,j) = RC_mosaic_avg(i,j)
+          END IF
           TSK(i,j)=(TSK_mosaic_avg(I,J)/EMISS_mosaic_avg(I,J))**(0.25)                                  ! from 3D to 2D
           QSFC(i,j)=QSFC_mosaic_avg(I,J)
           CANWAT(i,j) = CANWAT_mosaic_avg(i,j)
@@ -4064,7 +4133,7 @@ SUBROUTINE lsm_mosaic(DZ8W,QV3D,P8W3D,T3D,TSK,                      &
                   SOILTYP=7
                 ENDIF
                 SNOALB1 = SNOALB(I,J)
-                CMC=CANWAT(I,J)
+                CMC=CANWAT(I,J)/1000.
       
       !-------------------------------------------
       !*** convert snow depth from mm to meter
@@ -4107,15 +4176,12 @@ SUBROUTINE lsm_mosaic(DZ8W,QV3D,P8W3D,T3D,TSK,                      &
                        ALBBRD  =0.2         !0.2
                        EMISSI = 0.98                                 !for VEGTYP=5
       		 IF ( FRC_URB2D(I,J) < 0.99 ) THEN
-                         if(sf_urban_physics.eq.1)then
-                 T1= ( TSK(I,J) -FRC_URB2D(I,J) * TS_URB2D (I,J) )/ (1-FRC_URB2D(I,J))
-                         elseif((sf_urban_physics.eq.2).OR.(sf_urban_physics.eq.3))then
-                      r1= (tsk(i,j)**4.)
-                      r2= frc_urb2d(i,j)*(ts_urb2d(i,j)**4.)
-                      r3= (1.-frc_urb2d(i,j))
-                      t1= ((r1-r2)/r3)**.25
-                         endif
-      	         ELSE
+                   if(sf_urban_physics.eq.1)then
+                     T1= ( TSK(I,J) -FRC_URB2D(I,J) * TS_URB2D (I,J) )/ (1-FRC_URB2D(I,J))
+                   elseif((sf_urban_physics.eq.2).OR.(sf_urban_physics.eq.3))then
+                     T1=tsk_rural_bep(i,j)
+                   endif
+     	         ELSE
       		 T1 = TSK(I,J)
                        ENDIF
                       ENDIF
@@ -4269,7 +4335,7 @@ SUBROUTINE lsm_mosaic(DZ8W,QV3D,P8W3D,T3D,TSK,                      &
           ENDIF
       
              lai(i,j) = xlai
-      
+
 #if 0
                 IF(IPRINT) THEN
       
@@ -4297,7 +4363,7 @@ SUBROUTINE lsm_mosaic(DZ8W,QV3D,P8W3D,T3D,TSK,                      &
 #endif
       
       !***  UPDATE STATE VARIABLES
-                CANWAT(I,J)=CMC
+                CANWAT(I,J)=CMC*1000.
                 SNOW(I,J)=SNEQV*1000.
       !          SNOWH(I,J)=SNOWHK*1000.
                 SNOWH(I,J)=SNOWHK                   ! SNOWHK in meters
@@ -4437,14 +4503,14 @@ SUBROUTINE lsm_mosaic(DZ8W,QV3D,P8W3D,T3D,TSK,                      &
                   XXXC_URB = XXXC_URB2D(I,J)
       !
       !      Limits to avoid dividing by small number
-                  if (CHS(I,J) < 1.0E-04) then
-                     CHS(I,J)  = 1.0E-04
+                  if (CHS(I,J) < 1.0E-02) then
+                     CHS(I,J)  = 1.0E-02
                   endif
-                  if (CHS2(I,J) < 1.0E-04) then
-                     CHS2(I,J)  = 1.0E-04
+                  if (CHS2(I,J) < 1.0E-02) then
+                     CHS2(I,J)  = 1.0E-02
                   endif
-                  if (CQS2(I,J) < 1.0E-04) then
-                     CQS2(I,J)  = 1.0E-04
+                  if (CQS2(I,J) < 1.0E-02) then
+                     CQS2(I,J)  = 1.0E-02
                   endif
       !
                   CHS_URB  = CHS(I,J)
@@ -4997,7 +5063,7 @@ SUBROUTINE lsm_mosaic(DZ8W,QV3D,P8W3D,T3D,TSK,                      &
             EMISS_mosaic(i,mosaic_i,j)=EMISS(i,j) 
             EMBCK_mosaic(i,mosaic_i,j)=EMBCK(i,j) 
             ZNT_mosaic(i,mosaic_i,j)=Z0(i,j)
-            Z0_mosaic(i,mosaic_i,j)=Z0(i,j)              
+            Z0_mosaic(i,mosaic_i,j)=Z0(i,j)
   
               DO soil_k=1,num_soil_layers 
   

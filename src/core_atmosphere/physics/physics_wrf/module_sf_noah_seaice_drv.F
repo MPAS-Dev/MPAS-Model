@@ -1,15 +1,7 @@
 !=================================================================================================================
-!module_sf_noah_seaice_drv was originally copied from ./phys/module_sf_noah_seaice_drv.F from WRF version 3.9.0.
-!Laura D. Fowler (laura@ucar.edu) / 2017-02-18.
+!reference: WRF-v4.1.4
+!Laura D. Fowler (laura@ucar.edu) / 2020-01-10.
 
-!modifications to sourcecode for MPAS:
-! * added the definition of FATAL_ERROR to use physics_error_fatal. added the definition of WRITE_MESSAGE
-!   to use physics_message instead of wrf_message.
-!   Laura D. Fowler (laura@ucar.edu) / 2017-02-18.
-! * declared rho as an optional input variable since it is not needed when running MPAS.
-!   Laura D. Fowler (laura@ucar.edu) / 2017-02-19.
-
-!=================================================================================================================
 module module_sf_noah_seaice_drv
 #if defined(mpas)
 use mpas_atmphys_utilities, only: physics_message,physics_error_fatal

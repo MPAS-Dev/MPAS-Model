@@ -1,17 +1,7 @@
 !=================================================================================================================
-!module_sf_noahlsm was originally copied from ./phys/module_sf_noahlsm.F from WRF version 3.9.0.
-!Laura D. Fowler (laura@ucar.edu) / 2017-01-27.
+!reference: WRF-v4.1.4
+!Laura D. Fowler (laura@ucar.edu) / 2020-01-10.
 
-!modifications to sourcecode for MPAS:
-! * added the definition of FATAL_ERROR to use physics_error_fatal. use mpas_atmphys_constants instead of
-!   module_model_constants.
-!   Laura D. Fowler (laura@ucar.edu) / 2017-01-27.
-! * changed the intent of some variables from intent(out) to intent(inout). This was also done in our original
-!   implementation of the land surface scheme.
-!   Laura D. Fowler (laura@ucar.edu) / 2017-01-30.
-
-
-!=================================================================================================================
 MODULE module_sf_noahlsm
 #if defined(mpas)
 use mpas_atmphys_constants,only: CP=>cp,R_D=>R_d,XLF=>xlf,XLV=>xlv,RHOWATER=>rho_w,STBOLT=>stbolt,KARMAN=>karman
@@ -322,7 +312,7 @@ CONTAINS
 ! ----------------------------------------------------------------------
       INTEGER,INTENT(IN) ::  NSOIL,SLOPETYP,SOILTYP,VEGTYP
       INTEGER, INTENT(IN) :: ISURBAN
-      INTEGER,INTENT(INOUT)::  NROOT
+      INTEGER,INTENT(OUT)::  NROOT
       INTEGER  KZ, K, iout
 
 ! ----------------------------------------------------------------------
@@ -338,29 +328,29 @@ CONTAINS
                             Q2,Q2SAT,SFCPRS,SFCSPD,SFCTMP, SNOALB,          &
                             SOLDN,SOLNET,TBOT,TH2,ZLVL,                     &
                             FFROZP,AOASIS
-      REAL, INTENT(INOUT):: EMBRD
-      REAL, INTENT(INOUT):: ALBEDO
+      REAL, INTENT(OUT)  :: EMBRD
+      REAL, INTENT(OUT)  :: ALBEDO
       REAL, INTENT(INOUT):: COSZ, SOLARDIRECT,CH,CM,                        &
                             CMC,SNEQV,SNCOVR,SNOWH,T1,XLAI,SHDFAC,Z0BRD,    &
                             EMISSI, ALB
       REAL, INTENT(INOUT):: SNOTIME1
       REAL, INTENT(INOUT):: RIBB
       REAL, DIMENSION(1:NSOIL), INTENT(IN) :: SLDPTH
-      REAL, DIMENSION(1:NSOIL), INTENT(INOUT) :: ET
-      REAL, DIMENSION(1:NSOIL), INTENT(INOUT) :: SMAV
+      REAL, DIMENSION(1:NSOIL), INTENT(OUT):: ET
+      REAL, DIMENSION(1:NSOIL), INTENT(OUT):: SMAV
       REAL, DIMENSION(1:NSOIL), INTENT(INOUT) ::  SH2O, SMC, STC
       REAL,DIMENSION(1:NSOIL)::   RTDIS, ZSOIL
 
-      REAL,INTENT(INOUT)  :: ETA_KINEMATIC,BETA,DEW,DRIP,EC,EDIR,ESNOW,ETA,&
+      REAL,INTENT(OUT)   :: ETA_KINEMATIC,BETA,DEW,DRIP,EC,EDIR,ESNOW,ETA,  &
                             ETP,FLX1,FLX2,FLX3,SHEAT,PC,RUNOFF1,RUNOFF2,    &
                             RUNOFF3,RC,RSMIN,RCQ,RCS,RCSOIL,RCT,SSOIL,      &
                             SMCDRY,SMCMAX,SMCREF,SMCWLT,SNOMLT, SOILM,      &
                             SOILW,FDOWN,Q1
       LOGICAL, INTENT(IN) :: UA_PHYS   ! UA: flag for UA option
-      REAL,INTENT(INOUT)  :: FLX4      ! UA: energy added to sensible heat
-      REAL,INTENT(INOUT)  :: FVB       ! UA: frac. veg. w/snow beneath
-      REAL,INTENT(INOUT)  :: FBUR      ! UA: fraction of canopy buried
-      REAL,INTENT(INOUT)  :: FGSN      ! UA: ground snow cover fraction
+      REAL,INTENT(OUT)    :: FLX4      ! UA: energy added to sensible heat
+      REAL,INTENT(OUT)    :: FVB       ! UA: frac. veg. w/snow beneath
+      REAL,INTENT(OUT)    :: FBUR      ! UA: fraction of canopy buried
+      REAL,INTENT(OUT)    :: FGSN      ! UA: ground snow cover fraction
       REAL                :: ZTOPV     ! UA: height of canopy top
       REAL                :: ZBOTV     ! UA: height of canopy bottom
       REAL                :: GAMA      ! UA: = EXP(-1.* XLAI)
@@ -923,7 +913,7 @@ CONTAINS
       REAL, INTENT(IN)  :: DT
       LOGICAL, INTENT(IN) :: SNOWNG
       REAL, INTENT(INOUT):: SNOTIME1
-      REAL, INTENT(INOUT)::  ALBEDO, EMISSI
+      REAL, INTENT(OUT) ::  ALBEDO, EMISSI
       REAL              :: SNOALB2
       REAL              :: TM,SNOALB1
       REAL, INTENT(IN)  :: LVCOEF
@@ -1064,7 +1054,7 @@ CONTAINS
                              SFCPRS,SFCTMP,SMCREF,SMCWLT, SOLAR,TOPT,XLAI, &
                              EMISSI
       REAL,DIMENSION(1:NSOIL), INTENT(IN) :: SMC,ZSOIL
-      REAL,  INTENT(INOUT):: PC,RC,RCQ,RCS,RCSOIL,RCT
+      REAL,    INTENT(OUT):: PC,RC,RCQ,RCS,RCSOIL,RCT
       REAL                :: DELTA,FF,GX,P,RR
       REAL, DIMENSION(1:NSOIL) ::  PART
       REAL, PARAMETER     :: SLV = 2.501000E6
@@ -1165,7 +1155,7 @@ CONTAINS
 ! ----------------------------------------------------------------------
       IMPLICIT NONE
       REAL, INTENT(IN) :: DSNOW
-      REAL, INTENT(INOUT):: SNCOND
+      REAL, INTENT(OUT):: SNCOND
       REAL             :: C
       REAL, PARAMETER  :: UNIT = 0.11631
 
@@ -1208,7 +1198,7 @@ CONTAINS
       IMPLICIT NONE
       REAL, INTENT(IN) :: ETP1,SMC,BEXP,DKSAT,DWSAT,FXEXP,              &
                           SHDFAC,SMCDRY,SMCMAX,ZSOIL,SMCREF,SMCWLT
-      REAL, INTENT(INOUT):: EDIR
+      REAL, INTENT(OUT):: EDIR
       REAL             :: FX, SRATIO
 
 
@@ -1250,7 +1240,7 @@ CONTAINS
       IMPLICIT NONE
       REAL, INTENT(IN) :: ETP1,SMC,BEXP,DKSAT,DWSAT,FXEXP,              &
                           SHDFAC,SMCDRY,SMCMAX,ZSOIL,SMCREF,SMCWLT
-      REAL, INTENT(INOUT):: EDIR
+      REAL, INTENT(OUT):: EDIR
       REAL             :: FX, SRATIO
 
       REAL, INTENT(INOUT) :: SFHEAD1RT,ETPND1
@@ -1353,10 +1343,10 @@ CONTAINS
       REAL,    INTENT(IN)   :: BEXP, CFACTR,CMC,CMCMAX,DKSAT,           &
                                  DT,DWSAT,ETP1,FXEXP,PC,Q2,SFCTMP,           &
                                  SHDFAC,SMCDRY,SMCMAX,SMCREF,SMCWLT
-      REAL,    INTENT(INOUT):: EC,EDIR,ETA1,ETT
+      REAL,    INTENT(OUT)  :: EC,EDIR,ETA1,ETT
       REAL                  :: CMC2MS
       REAL,DIMENSION(1:NSOIL), INTENT(IN) :: RTDIS, SMC, SH2O, ZSOIL
-      REAL,DIMENSION(1:NSOIL), INTENT(INOUT) :: ET
+      REAL,DIMENSION(1:NSOIL), INTENT(OUT) :: ET
 
       REAL,   INTENT(INOUT) :: SFHEAD1RT,ETPND1
 
@@ -1434,7 +1424,7 @@ CONTAINS
   SUBROUTINE FAC2MIT(SMCMAX,FLIMIT)
     IMPLICIT NONE		
     REAL, INTENT(IN)  :: SMCMAX
-    REAL, INTENT(INOUT) :: FLIMIT
+    REAL, INTENT(OUT) :: FLIMIT
 
     FLIMIT = 0.90
 
@@ -1487,7 +1477,7 @@ CONTAINS
 ! ----------------------------------------------------------------------
       IMPLICIT NONE
       REAL, INTENT(IN)     :: BEXP,PSIS,SH2O,SMC,SMCMAX,TKELV
-      REAL, INTENT(INOUT)  :: FREE
+      REAL, INTENT(OUT)    :: FREE
       REAL                 :: BX,DENOM,DF,DSWL,FK,SWL,SWLK
       INTEGER              :: NLOG,KCOUNT
 !      PARAMETER(CK = 0.0)
@@ -1618,8 +1608,8 @@ CONTAINS
                               SMCMAX ,TBOT,YY,ZZ1, ZBOT
       REAL, DIMENSION(1:NSOIL), INTENT(IN)   :: SMC,STC,ZSOIL
       REAL, DIMENSION(1:NSOIL), INTENT(INOUT):: SH2O
-      REAL, DIMENSION(1:NSOIL), INTENT(INOUT):: RHSTS
-      REAL, DIMENSION(1:NSOIL), INTENT(INOUT):: AI, BI,CI
+      REAL, DIMENSION(1:NSOIL), INTENT(OUT)  :: RHSTS
+      REAL, DIMENSION(1:NSOIL), INTENT(OUT)  :: AI, BI,CI
       REAL                 :: DDZ, DDZ2, DENOM, DF1N, DF1K, DTSDZ,       &
                               DTSDZ2,HCPCT,QTOT,SSOIL,SICE,TAVG,TBK,     &
                               TBK1,TSNSR,TSURF,CSOIL_LOC
@@ -1872,7 +1862,7 @@ CONTAINS
       INTEGER              :: K
 
       REAL, DIMENSION(1:NSOIL), INTENT(IN):: STCIN
-      REAL, DIMENSION(1:NSOIL), INTENT(INOUT):: STCOUT
+      REAL, DIMENSION(1:NSOIL), INTENT(OUT):: STCOUT
       REAL, DIMENSION(1:NSOIL), INTENT(INOUT):: RHSTS
       REAL, DIMENSION(1:NSOIL), INTENT(INOUT):: AI,BI,CI
       REAL, DIMENSION(1:NSOIL) :: RHSTSin
@@ -1944,13 +1934,13 @@ CONTAINS
                               SHDFAC,SLOPE,SMCDRY,SMCMAX,SMCREF,SMCWLT, &
                               T24,TBOT,TH2,ZBOT,EMISSI
       REAL, INTENT(INOUT)  :: CMC,BETA,T1
-      REAL, INTENT(INOUT)  :: DEW,DRIP,EC,EDIR,ETA,ETT,FLX1,FLX3,       &
+      REAL, INTENT(OUT)    :: DEW,DRIP,EC,EDIR,ETA,ETT,FLX1,FLX3,       &
                               RUNOFF1,RUNOFF2,RUNOFF3,SSOIL
 !DJG NDHMS/WRF-Hydro edit...
       REAL, INTENT(INOUT)  :: SFHEAD1RT,INFXS1RT,ETPND1
 
       REAL, DIMENSION(1:NSOIL),INTENT(IN)     :: RTDIS,ZSOIL
-      REAL, DIMENSION(1:NSOIL),INTENT(INOUT)  :: ET
+      REAL, DIMENSION(1:NSOIL),INTENT(OUT)    :: ET
       REAL, DIMENSION(1:NSOIL), INTENT(INOUT) :: SMC,SH2O,STC
       REAL, DIMENSION(1:NSOIL) :: ET1
       REAL                 :: EC1,EDIR1,ETT1,DF1,ETA1,ETP1,PRCP1,YY,    &
@@ -2221,8 +2211,8 @@ CONTAINS
       REAL, INTENT(IN)        :: ALBEDO,SOLDN,FVB,GAMA,STC1
       LOGICAL, INTENT(IN)     :: UA_PHYS
 !
-      REAL, INTENT(INOUT)     :: EPSCA,ETP,FLX2,RCH,RR,T24
-      REAL, INTENT(INOUT)     :: FLX4,ETPN
+      REAL, INTENT(OUT)       :: EPSCA,ETP,FLX2,RCH,RR,T24
+      REAL, INTENT(OUT)       :: FLX4,ETPN
       REAL                    :: A, DELTA, FNET,RAD,RHO,EMISSI,ELCP1,LVS
       REAL                    :: TOTABS,UCABS,SIGNCK,FNETN,RADN,EPSCAN
 
@@ -2411,9 +2401,9 @@ CONTAINS
 
 ! Veg parameters
       INTEGER, INTENT(IN)    :: VEGTYP
-      INTEGER, INTENT(INOUT) :: NROOT
+      INTEGER, INTENT(OUT)   :: NROOT
       REAL, INTENT(INOUT)    :: SHDFAC
-      REAL, INTENT(INOUT)    :: HS,RSMIN,RGL,SNUP,                          &
+      REAL, INTENT(OUT)      :: HS,RSMIN,RGL,SNUP,                          &
                                 CMCMAX,RSMAX,TOPT,                          &
                                 EMISSMIN,  EMISSMAX,                        &
                                 LAIMIN,    LAIMAX,                          &
@@ -2421,18 +2411,18 @@ CONTAINS
                                 ALBEDOMIN, ALBEDOMAX, ZTOPV, ZBOTV
 ! Soil parameters
       INTEGER, INTENT(IN)    :: SOILTYP
-      REAL, INTENT(INOUT)    :: BEXP,DKSAT,DWSAT,F1,QUARTZ,SMCDRY,          &
+      REAL, INTENT(OUT)      :: BEXP,DKSAT,DWSAT,F1,QUARTZ,SMCDRY,          &
                                 SMCMAX,SMCREF,SMCWLT,PSISAT
 ! General parameters
       INTEGER, INTENT(IN)    :: SLOPETYP,NSOIL
       INTEGER                :: I
 
-      REAL,    INTENT(INOUT) :: SLOPE,CZIL,SBETA,FXEXP,                     &
+      REAL,    INTENT(OUT)   :: SLOPE,CZIL,SBETA,FXEXP,                     &
                                 CSOIL,SALP,FRZX,KDT,CFACTR,      &
                                 ZBOT,REFKDT,PTU
-      REAL,    INTENT(INOUT) :: LVCOEF
+      REAL,    INTENT(OUT)   :: LVCOEF
       REAL,DIMENSION(1:NSOIL),INTENT(IN) :: SLDPTH,ZSOIL
-      REAL,DIMENSION(1:NSOIL),INTENT(INOUT):: RTDIS
+      REAL,DIMENSION(1:NSOIL),INTENT(OUT):: RTDIS
       REAL                   :: FRZFACT,FRZK,REFDK
 
 !      SAVE
@@ -2626,7 +2616,7 @@ CONTAINS
       REAL, INTENT(IN)      :: BEXP,CSOIL,DF1,DT,F1,PSISAT,QUARTZ,     &
                                SMCMAX, SMCWLT, TBOT,YY, ZBOT,ZZ1
       REAL, INTENT(INOUT)   :: T1
-      REAL, INTENT(INOUT)   :: SSOIL
+      REAL, INTENT(OUT)     :: SSOIL
       REAL, DIMENSION(1:NSOIL), INTENT(IN)    :: SMC,ZSOIL
       REAL, DIMENSION(1:NSOIL), INTENT(INOUT) :: SH2O
       REAL, DIMENSION(1:NSOIL), INTENT(INOUT) :: STC
@@ -2698,7 +2688,7 @@ CONTAINS
 
       REAL, INTENT(IN)      :: BEXP, CMCMAX, DKSAT,DWSAT, DT, EC, EDIR,  &
                                KDT, PRCP1, SHDFAC, SLOPE, SMCMAX, SMCWLT
-      REAL, INTENT(INOUT)                    :: DRIP, RUNOFF1, RUNOFF2, RUNOFF3
+      REAL, INTENT(OUT)                      :: DRIP, RUNOFF1, RUNOFF2, RUNOFF3
       REAL, INTENT(INOUT)   :: CMC
       REAL, DIMENSION(1:NSOIL), INTENT(IN)   :: ET,ZSOIL
       REAL, DIMENSION(1:NSOIL), INTENT(INOUT):: SMC, SH2O
@@ -2833,17 +2823,17 @@ CONTAINS
       IMPLICIT NONE
 
       REAL, INTENT(IN)     :: SNEQV,SNUP,SALP,SNOWH
-      REAL, INTENT(INOUT)  :: SNCOVR
+      REAL, INTENT(OUT)    :: SNCOVR
       REAL                 :: RSNOW, Z0N
       LOGICAL, INTENT(IN)  :: UA_PHYS  ! UA: flag for UA option
       REAL, INTENT(IN)     :: ZTOPV    ! UA: height of canopy top
       REAL, INTENT(IN)     :: ZBOTV    ! UA: height of canopy bottom
       REAL, INTENT(IN)     :: SHDFAC   ! UA: vegetation fraction
       REAL, INTENT(INOUT)  :: XLAI     ! UA: LAI modified by snow
-      REAL, INTENT(INOUT)  :: FVB      ! UA: frac. veg. w/snow beneath
-      REAL, INTENT(INOUT)  :: GAMA     ! UA: = EXP(-1.* XLAI)
-      REAL, INTENT(INOUT)  :: FBUR     ! UA: fraction of canopy buried
-      REAL, INTENT(INOUT)  :: FGSN     ! UA: ground snow cover fraction
+      REAL, INTENT(OUT)    :: FVB      ! UA: frac. veg. w/snow beneath
+      REAL, INTENT(OUT)    :: GAMA     ! UA: = EXP(-1.* XLAI)
+      REAL, INTENT(OUT)    :: FBUR     ! UA: fraction of canopy buried
+      REAL, INTENT(OUT)    :: FGSN     ! UA: ground snow cover fraction
 
       REAL ::  SNUPGRD = 0.02          ! UA: SWE limit for ground cover
 
@@ -3056,11 +3046,11 @@ CONTAINS
                                TBOT,TH2,ZBOT,EMISSI,SOLDN
       REAL, INTENT(INOUT)   :: CMC, BETA, ESD,FLX2,PRCPF,SNOWH,SNCOVR,  &
                                SNDENS, T1, RIBB, ETP
-      REAL, INTENT(INOUT)   :: DEW,DRIP,EC,EDIR, ETNS, ESNOW,ETT,       &
+      REAL, INTENT(OUT)     :: DEW,DRIP,EC,EDIR, ETNS, ESNOW,ETT,       &
                                FLX1,FLX3, RUNOFF1,RUNOFF2,RUNOFF3,      &
                                SSOIL,SNOMLT
       REAL, DIMENSION(1:NSOIL),INTENT(IN)     :: RTDIS,ZSOIL
-      REAL, DIMENSION(1:NSOIL),INTENT(INOUT)  :: ET
+      REAL, DIMENSION(1:NSOIL),INTENT(OUT)    :: ET
       REAL, DIMENSION(1:NSOIL), INTENT(INOUT) :: SMC,SH2O,STC
       REAL, DIMENSION(1:NSOIL) :: ET1
       REAL                  :: DENOM,DSOIL,DTOT,EC1,EDIR1,ESDFLX,ETA,   &
@@ -3276,7 +3266,9 @@ CONTAINS
 ! ABOVE FREEZING BLOCK
 ! ----------------------------------------------------------------------
       ELSE
-         T1 = TFREEZ * SNCOVR ** SNOEXP + T12 * (1.0- SNCOVR ** SNOEXP)
+!     From V3.9 original code (commented) replaced to allow complete melting of small snow amounts
+!        T1 = TFREEZ * SNCOVR ** SNOEXP + T12 * (1.0- SNCOVR ** SNOEXP)
+         T1 = TFREEZ * max(0.01,SNCOVR ** SNOEXP) + T12 * (1.0- max(0.01,SNCOVR ** SNOEXP))
          BETA = 1.0
 
 ! ----------------------------------------------------------------------
@@ -3562,7 +3554,7 @@ CONTAINS
 ! ----------------------------------------------------------------------
       IMPLICIT NONE
       REAL, INTENT(IN)        :: SNCOVR, Z0BRD
-      REAL, INTENT(INOUT)     :: Z0
+      REAL, INTENT(OUT)       :: Z0
       REAL, PARAMETER         :: Z0S=0.001
       REAL, INTENT(IN)        :: SNOWH
       REAL                    :: BURIAL
@@ -3675,11 +3667,11 @@ CONTAINS
 
       REAL, INTENT(IN)          :: BEXP, DKSAT, DT, DWSAT, EDIR, FRZX,  &
                                    KDT, PCPDRP, SLOPE, SMCMAX, SMCWLT
-      REAL, INTENT(INOUT)       :: RUNOFF1, RUNOFF2
+      REAL, INTENT(OUT)         :: RUNOFF1, RUNOFF2
       REAL, DIMENSION(1:NSOIL), INTENT(IN)   :: ET, SH2O, SH2OA, SICE,  &
                                                 ZSOIL
-      REAL, DIMENSION(1:NSOIL), INTENT(INOUT)  :: RHSTT
-      REAL, DIMENSION(1:NSOIL), INTENT(INOUT)  :: AI, BI, CI
+      REAL, DIMENSION(1:NSOIL), INTENT(OUT)  :: RHSTT
+      REAL, DIMENSION(1:NSOIL), INTENT(OUT)  :: AI, BI, CI
       REAL, DIMENSION(1:NSOIL)  :: DMAX
       REAL                      :: ACRT, DD, DDT, DDZ, DDZ2, DENOM,     &
                                    DENOM2,DICE, DSMDZ, DSMDZ2, DT1,     &
@@ -3967,10 +3959,10 @@ CONTAINS
       REAL                      :: AVAIL
 
       REAL, INTENT(IN)          :: CMCMAX, DT, SMCMAX
-      REAL, INTENT(INOUT)       :: RUNOFF3
+      REAL, INTENT(OUT)         :: RUNOFF3
       REAL, INTENT(INOUT)       :: CMC
       REAL, DIMENSION(1:NSOIL), INTENT(IN)     :: SH2OIN, SICE, ZSOIL
-      REAL, DIMENSION(1:NSOIL), INTENT(INOUT)  :: SH2OOUT
+      REAL, DIMENSION(1:NSOIL), INTENT(OUT)    :: SH2OOUT
       REAL, DIMENSION(1:NSOIL), INTENT(INOUT)  :: RHSTT, SMC
       REAL, DIMENSION(1:NSOIL), INTENT(INOUT)  :: AI, BI, CI
       REAL, DIMENSION(1:NSOIL)  :: RHSTTin
@@ -4090,7 +4082,7 @@ CONTAINS
       INTEGER, INTENT(IN)       :: NSOIL
       INTEGER                   :: K
       REAL, INTENT(IN)          :: TB, TU, ZBOT
-      REAL, INTENT(INOUT)       :: TBND1
+      REAL, INTENT(OUT)         :: TBND1
       REAL, DIMENSION(1:NSOIL), INTENT(IN)   :: ZSOIL
       REAL                      :: ZB, ZUP
       REAL, PARAMETER           :: T0 = 273.15
@@ -4136,7 +4128,7 @@ CONTAINS
       IMPLICIT NONE
       INTEGER, INTENT(IN)       :: SOILTYP, OPT_THCND  
       REAL, INTENT(IN)          :: QZ,  SMC, SMCMAX, SH2O, BEXP, PSISAT
-      REAL, INTENT(INOUT)       :: DF
+      REAL, INTENT(OUT)         :: DF
       REAL                      :: AKE, GAMMD, THKDRY, THKICE, THKO,    &
                                    THKQTZ,THKSAT,THKS,THKW,SATRATIO,XU, &
                                    XUNFROZ,AKEI,AKEL,PSIF,PF  

@@ -1,4 +1,7 @@
 !=================================================================================================================
+!reference: WRF-v4.1.4
+!Laura D. Fowler (laura@ucar.edu) / 2020-01-10.
+
 !module_mp_thompson was originally copied from./phys/module_mp_thompson.F from WRF version 3.8. Modifications made
 !to the original sourcecode are mostly confined to subroutine thompson_init.
 !Laura D. Fowler (laura@ucar.edu) / 2016-06-04.
@@ -71,6 +74,7 @@
 !
       MODULE module_mp_thompson
 
+      use mpas_log
       use mpas_kind_types
       use mpas_atmphys_functions, only: gammp,wgamma,rslf,rsif
       use mpas_atmphys_utilities
@@ -1149,6 +1153,7 @@
             qg1d(k) = qg(i,k,j)
             ni1d(k) = ni(i,k,j)
             nr1d(k) = nr(i,k,j)
+            rho(k) = 0.622*p1d(k)/(R*t1d(k)*(qv1d(k)+0.622))
          enddo
          if (is_aerosol_aware) then
             do k = kts, kte
@@ -1159,7 +1164,6 @@
             nwfa1 = nwfa2d(i,j)
          else
             do k = kts, kte
-               rho(k) = 0.622*p1d(k)/(R*t1d(k)*(qv1d(k)+0.622))
                nc1d(k) = Nt_c/rho(k)
                nwfa1d(k) = 11.1E6/rho(k)
                nifa1d(k) = naIN1*0.01/rho(k)
@@ -1470,7 +1474,10 @@
 !     Laura D. Fowler (laura@ucar.edu) / 2017-03-27.
 !     real, parameter:: mvd_r_breakup = 1.e-3
 !...  end modifications.
+      LOGICAL, DIMENSION(kts:kte):: L_nifa,L_nwfa
+      REAL:: tem
 !+---+
+
       debug_flag = .false.
 !     if (ii.eq.901 .and. jj.eq.379) debug_flag = .true.
       if(debug_flag) then
@@ -1585,6 +1592,15 @@
          rainprod(k) = 0.
          evapprod(k) = 0.
       enddo
+!.. initialize the logicals L_nifa and L_nwfa used to detect instances of the cloud
+!.. ice and cloud liquid water mixing ratios being greater than R1 but their number
+!.. concentration being less than 2. and R2:
+      if(is_aerosol_aware) then
+         do k = kts, kte
+            L_nifa(k) = .false.
+            L_nwfa(k) = .false.
+         enddo
+      endif
 
 !..Bug fix (2016Jun15), prevent use of uninitialized value(s) of snow moments.
       do k = kts, kte
@@ -1614,6 +1630,13 @@
             rc(k) = qc1d(k)*rho(k)
             nc(k) = MAX(2., MIN(nc1d(k)*rho(k), Nt_c_max))
             L_qc(k) = .true.
+!.. set L_nwfa to true when the cloud liquid water number concentration is less than 2.:
+            if(is_aerosol_aware .and. nc(k) .le. 2.) L_nwfa(k) = .true.
+!           if(ii.eq.1190 .and. L_nwfa(k)) then
+!              tem = nc1d(k)*rho(k)
+!              call mpas_log_write('--- nc: $i $i $l $r $r $r $r',logicArgs=(/L_nwfa(k)/), &
+!                        intArgs=(/ii,k/),realArgs=(/rc(k),tem,nc(k),nwfa(k)/))
+!           endif
             nu_c = MIN(15, NINT(1000.E6/nc(k)) + 2)
             lamc = (nc(k)*am_r*ccg(2,nu_c)*ocg1(nu_c)/rc(k))**obmr
             xDc = (bm_r + nu_c + 1.) / lamc
@@ -1637,11 +1660,19 @@
             no_micro = .false.
             ri(k) = qi1d(k)*rho(k)
             ni(k) = MAX(R2, ni1d(k)*rho(k))
+            L_qi(k) = .true.
+!.. set L_nifa to true when the cloud ice number concentration is less than R2:
+            if(is_aerosol_aware .and. ni(k) .le. R2) L_nifa(k) = .true.
+!           if(ii.eq.2539 .and. L_nifa(k)) then
+!              tem = ni1d(k)*rho(k)
+!              call mpas_log_write('--- ni: $i $i $l $r $r $r $r',logicArgs=(/L_nifa(k)/), &
+!                            intArgs=(/ii,k/),realArgs=(/ri(k),tem,ni(k),nifa(k)/))
+!           endif
             if (ni(k).le. R2) then
                lami = cie(2)/5.E-6
                ni(k) = MIN(9999.D3, cig(1)*oig2*ri(k)/am_i*lami**bm_i)
             endif
-            L_qi(k) = .true.
+!           L_qi(k) = .true.
             lami = (am_i*cig(2)*oig1*ni(k)/ri(k))**obmi
             ilami = 1./lami
             xDi = (bm_i + mu_i + 1.) * ilami
@@ -1707,6 +1738,21 @@
             L_qg(k) = .false.
          endif
       enddo
+      if(ii.eq.1190) then
+         do k = kts,kte
+            if(L_nwfa(k)) &
+               call mpas_log_write('--- nc: $i $i $l $l $r $r $r $r',logicArgs=(/L_qc(k),L_nwfa(k)/), &
+                                   intArgs=(/ii,k/),realArgs=(/qc1d(k),rc(k),nc(k),nwfa(k)/))
+         enddo
+      endif
+      if(ii.eq.2539) then
+         call mpas_log_write(' ')
+         do k = kts,kte
+            if(L_nifa(k)) &
+               call mpas_log_write('--- ni: $i $i $l $l $r $r $r $r',logicArgs=(/L_qi(k),L_nifa(k)/), &
+                                   intArgs=(/ii,k/),realArgs=(/qi1d(k),ri(k),ni(k),nifa(k)/))
+         enddo
+      endif
 
 !+---+-----------------------------------------------------------------+
 !     if (debug_flag) then
@@ -1965,8 +2011,12 @@
 !..Compute all frozen hydrometeor species' process terms.
 !+---+-----------------------------------------------------------------+
       if (.not. iiwarm) then
+      !..vts_boost is the factor applied to snow terminal
+      !..fallspeed due to riming of snow
       do k = kts, kte
-         vts_boost(k) = 1.5
+         vts_boost(k) = 1.0
+         xDs = 0.0
+         if (L_qs(k)) xDs = smoc(k) / smob(k)
 
 !..Temperature lookup table indexes.
          tempc = temp(k) - 273.15
@@ -2118,13 +2168,12 @@
 
 !..Snow collecting cloud water.  In CE, assume Dc<<Ds and vtc=~0.
          if (L_qc(k) .and. mvd_c(k).gt. D0c) then
-          xDs = 0.0
-          if (L_qs(k)) xDs = smoc(k) / smob(k)
           if (xDs .gt. D0s) then
            idx = 1 + INT(nbs*DLOG(xDs/Ds(1))/DLOG(Ds(nbs)/Ds(1)))
            idx = MIN(idx, nbs)
            Ef_sw = t_Efsw(idx, INT(mvd_c(k)*1.E6))
            prs_scw(k) = rhof(k)*t1_qs_qc*Ef_sw*rc(k)*smoe(k)
+           prs_scw(k) = MIN(DBLE(rc(k)*odts), prs_scw(k))
            pnc_scw(k) = rhof(k)*t1_qs_qc*Ef_sw*nc(k)*smoe(k)                ! Qc2M
            pnc_scw(k) = MIN(DBLE(nc(k)*odts), pnc_scw(k))
           endif
@@ -2153,7 +2202,6 @@
 
 !..Snow and graupel collecting aerosols, wet scavenging.
          if (rs(k) .gt. r_s(1)) then
-          xDs = smoc(k) / smob(k)
           Ef_sa = Eff_aero(xDs,0.04E-6,visco(k),rho(k),temp(k),'s')
           pna_sca(k) = rhof(k)*t1_qs_qc*Ef_sa*nwfa(k)*smoe(k)
           pna_sca(k) = MIN(DBLE(nwfa(k)*odts), pna_sca(k))
@@ -2325,7 +2373,7 @@
 
 !..Freezing of aqueous aerosols based on Koop et al (2001, Nature)
           xni = smo0(k)+ni(k) + (pni_rfz(k)+pni_wfz(k)+pni_inu(k))*dtsave
-          if (is_aerosol_aware .AND. homogIce .AND. (xni.le.500.E3)     &
+          if (is_aerosol_aware .AND. homogIce .AND. (xni.le.999.E3)     &
      &                .AND.(temp(k).lt.238).AND.(ssati(k).ge.0.4) ) then
             xnc = iceKoop(temp(k),qv(k),qvs(k),nwfa(k), dtsave)
             pni_iha(k) = xnc*odts
@@ -2448,7 +2496,7 @@
                          prs_sde(k).gt.eps) then
            r_frac = MIN(30.0D0, prs_scw(k)/prs_sde(k))
            g_frac = MIN(0.95, 0.15 + (r_frac-2.)*.028)
-           vts_boost(k) = MIN(1.5, 1.1 + (r_frac-2.)*.016)
+           vts_boost(k) = MIN(1.5, 1.1 + (r_frac-2.)*.014)
            prg_scw(k) = g_frac*prs_scw(k)
            prs_scw(k) = (1. - g_frac)*prs_scw(k)
           endif
@@ -2460,12 +2508,13 @@
           if (L_qs(k)) then
            prr_sml(k) = (tempc*tcond(k)-lvap0*diffu(k)*delQvs(k))       &
                       * (t1_qs_me*smo1(k) + t2_qs_me*rhof2(k)*vsc2(k)*smof(k))
-           prr_sml(k) = prr_sml(k) + 4218.*olfus*tempc &
-                                   * (prr_rcs(k)+prs_scw(k))
+           if (prr_sml(k) .gt. 0.) then
+              prr_sml(k) = prr_sml(k) + 4218.*olfus*tempc               &
+                                      * (prr_rcs(k)+prs_scw(k))
+           endif
            prr_sml(k) = MIN(DBLE(rs(k)*odts), MAX(0.D0, prr_sml(k)))
            pnr_sml(k) = smo0(k)/rs(k)*prr_sml(k) * 10.0**(-0.25*tempc)      ! RAIN2M
            pnr_sml(k) = MIN(DBLE(smo0(k)*odts), pnr_sml(k))
-!          if (tempc.gt.3.5 .or. rs(k).lt.0.005E-3) pnr_sml(k)=0.0
 
            if (ssati(k).lt. 0.) then
             prs_sde(k) = C_cube*t1_subl*diffu(k)*ssati(k)*rvs &
@@ -2484,7 +2533,6 @@
            prr_gml(k) = MIN(DBLE(rg(k)*odts), MAX(0.D0, prr_gml(k)))
            pnr_gml(k) = N0_g(k)*cgg(2)*ilamg(k)**cge(2) / rg(k)         &   ! RAIN2M
                       * prr_gml(k) * 10.0**(-0.5*tempc)
-!          if (tempc.gt.7.5 .or. rg(k).lt.0.005E-3) pnr_gml(k)=0.0
 
            if (ssati(k).lt. 0.) then
             prg_gde(k) = C_cube*t1_subl*diffu(k)*ssati(k)*rvs &
@@ -2629,6 +2677,12 @@
             else
                nifaten(k) = 0.
             endif
+            if(ii.eq.1190 .and. L_nwfa(k)) call mpas_log_write('--- nwfaten: $i $i $l $r $r $r $r $r', &
+                      intArgs=(/ii,k/),logicArgs=(/L_nwfa(k)/),realArgs=(/nwfaten(k),real(pna_rca(k)), &
+                      real(pna_sca(k)),real(pna_gca(k)),real(pni_iha(k))/))
+            if(ii.eq.2539 .and. L_nifa(k)) call mpas_log_write('--- nifaten: $i $i $l $r $r $r $r', &
+                      intArgs=(/ii,k/),logicArgs=(/L_nifa(k)/),realArgs=(/nifaten(k),real(pnd_rcd(k)), &
+                      real(pnd_scd(k)),real(pnd_gcd(k))/))
          endif
 
 !..Water vapor tendency
@@ -3048,6 +3102,7 @@
                        -tnc_wev(idx_d, idx_c, idx_n)*orho*odt)
 
            endif
+           if(is_aerosol_aware .and. L_nwfa(k)) L_nwfa(k) = .false.
           else
            prw_vcd(k) = -rc(k)*orho*odt
            pnc_wcd(k) = -nc(k)*orho*odt
@@ -3159,6 +3214,15 @@
                                     prg_gcw(k) + prs_sci(k) + &
                                     pri_rci(k)
       enddo
+      if(ii.eq.1190) then
+         call mpas_log_write(' ')
+         do k = kts,kte
+            if(L_nwfa(k)) &
+               call mpas_log_write('--- pnc_wcd: $i $i $l $r $r $r',intArgs=(/ii,k/), &
+                      logicArgs=(/L_nwfa(k)/),realArgs=(/nwfaten(k),real(pnc_wcd(k)), & 
+                      real(pnr_rev(k))/))
+         enddo
+      endif
 
 !+---+-----------------------------------------------------------------+
 !..Find max terminal fallspeed (distribution mass-weighted mean
@@ -3670,7 +3734,8 @@
             tcg_racg(i,j,k,m) = t1
             tmr_racg(i,j,k,m) = DMIN1(z1, r_r(m)*1.0d0)
             tcr_gacr(i,j,k,m) = t2
-            tmg_gacr(i,j,k,m) = z2
+            tmg_gacr(i,j,k,m) = DMIN1(z2, r_g(j)*1.0d0)
+            !DAVE tmg_gacr(i,j,k,m) = DMIN1(z2, DBLE(r_g(j)))
             tnr_racg(i,j,k,m) = y1
             tnr_gacr(i,j,k,m) = y2
          enddo
@@ -4947,8 +5012,15 @@
 !+---+-----------------------------------------------------------------+
 !..Calculate y-intercept, slope, and useful moments for snow.
 !+---+-----------------------------------------------------------------+
+      do k = kts, kte
+         smo2(k) = 0.
+         smob(k) = 0.
+         smoc(k) = 0.
+         smoz(k) = 0.
+      enddo
       if (ANY(L_qs .eqv. .true.)) then
       do k = kts, kte
+         if (.not. L_qs(k)) CYCLE
          tc0 = MIN(-0.1, temp(k)-273.15)
          smob(k) = rs(k)*oams
 

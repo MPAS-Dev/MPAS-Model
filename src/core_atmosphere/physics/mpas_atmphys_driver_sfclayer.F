@@ -919,8 +919,8 @@
                       svp2     = svp2       , svp3     = svp3       , svpt0    = svpt0      , &
                       ep1      = ep_1       , ep2      = ep_2       , karman   = karman     , &
                       eomeg    = eomeg      , stbolt   = stbolt     , P1000mb  = P0         , &
-                      ustm     = ustm_p     , ck       = ck_p       , cka      = cka_p      , &
-                      cd       = cd_p       , cda      = cda_p      , isftcflx = isftcflx   , &
+                      ustm     = ustm_sea   , ck       = ck_sea     , cka      = cka_sea    , &
+                      cd       = cd_sea     , cda      = cda_sea    , isftcflx = isftcflx   , &
                       iz0tlnd  = iz0tlnd    , scm_force_flux = scm_force_flux               , &
                       ids = ids , ide = ide , jds = jds , jde = jde , kds = kds , kde = kde , &
                       ims = ims , ime = ime , jms = jms , jme = jme , kms = kms , kme = kme , &

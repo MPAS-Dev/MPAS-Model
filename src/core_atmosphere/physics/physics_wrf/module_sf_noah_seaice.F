@@ -1,14 +1,7 @@
 !=================================================================================================================
-!module_sf_noah_seaice was originally copied from ./phys/module_sf_noah_seaice.F from WRF version 3.9.0.
-!Laura D. Fowler (laura@ucar.edu) / 2017-02-18.
+!reference: WRF-v4.1.4
+!Laura D. Fowler (laura@ucar.edu) / 2020-01-10.
 
-!modifications to sourcecode for MPAS:
-! * added the definition of FATAL_ERROR to use physics_error_fatal instead of wrf_error_fatal.
-!   Laura D. Fowler (laura@ucar.edu) / 2017-02-18.
-! * use mpas_atmphys_constants instead of module_model_constants.
-!   Laura D. Fowler (laura@ucar.edu) / 2017-02-18.
-
-!=================================================================================================================
 MODULE module_sf_noah_seaice
 #if defined(mpas)
 use mpas_atmphys_constants,only: cp,R_D=>R_d,XLF,XLV,RHOWATER=>rho_w,STBOLT

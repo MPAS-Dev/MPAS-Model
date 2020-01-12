@@ -164,9 +164,9 @@
  call mpas_pool_get_array(diag_physics,'znt'              ,znt              )
 
 !call mpas_log_write('')
-!call mpas_log_write('--- enter subroutine landuse_init_forMPAS: julian day=$i', intArgs=(/julday/))
-!call mpas_log_write('--- config_frac_seaice = $l', logicArgs=(/config_frac_seaice/))
-!call mpas_log_write('--- xice_threshold     = $r', realArgs=(/xice_threshold/))
+!call mpas_log_write('--- enter subroutine landuse_init_forMPAS: julian day=$i' , intArgs=(/julday/))
+!call mpas_log_write('--- config_frac_seaice = $1',logicArgs=(/config_frac_seaice/))
+!call mpas_log_write('--- xice_threshold     = $r',realArgs=(/xice_threshold/))
 
 !reads in the landuse properties from landuse.tbl:
  if(dminfo % my_proc_id == IO_NODE) then
@@ -204,7 +204,7 @@
                                      therin(ic,is),scfx(ic,is),sfhc(ic,is)
        enddo
 !      do ic = 1, lucats
-!         call mpas_log_write('$i $r $r $r $r $r $r $r $r', intArgs=(/ic/),  &
+!         call mpas_log_write('$i $r $r $r $r $r $r $r $r', intArgs=(/ic/), &
 !                realArgs=(/albd(ic,is),slmo(ic,is),sfem(ic,is),sfz0(ic,is), &
 !                therin(ic,is),scfx(ic,is),sfhc(ic,is)/))
 !      enddo

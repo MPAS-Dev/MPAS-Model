@@ -1,8 +1,3 @@
-!==================================================================================================
-! copied for implementation in MPAS from WRF version 3.9.0.
-! Laura D. Fowler (laura@ucar.edu) / 2017-02-11.
-
-!==================================================================================================
 #define WRF_PORT
 #define MODAL_AERO
 ! Updated to CESM1.0.3 (CAM5.1.01) by Balwinder.Singh@pnnl.gov

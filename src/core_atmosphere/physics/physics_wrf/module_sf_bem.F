@@ -1,17 +1,8 @@
 !=================================================================================================================
-!module_sf_bem was originally copied from ./phys/module_sf_bem.F from WRF version 3.9.0.
-!Laura D. Fowler (laura@ucar.edu) / 2017-01-27.
+!reference: WRF-v4.1.4
+!Laura D. Fowler (laura@ucar.edu) / 2020-01-10.
 
-!modifications to sourcecode for MPAS:
-! * changed the definition of FATAL_ERROR to use physics_error_fatal.
-!   Laura D. Fowler (laura@ucar.edu) / 2017-01-27.
-
-!=================================================================================================================
 MODULE module_sf_bem
-! -----------------------------------------------------------------------
-!  Variables and constants used in the BEM module
-! -----------------------------------------------------------------------
-
 #if defined(mpas)
 use mpas_atmphys_utilities, only: physics_error_fatal
 #define FATAL_ERROR(M) call physics_error_fatal( M )
@@ -19,7 +10,11 @@ use mpas_atmphys_utilities, only: physics_error_fatal
 use module_wrf_error
 #define FATAL_ERROR(M) call wrf_error_fatal( M )
 #endif
-         
+
+! -----------------------------------------------------------------------
+!  Variables and constants used in the BEM module
+! -----------------------------------------------------------------------
+
         real emins		!emissivity of the internal walls
         parameter (emins=0.9) 
         real albins	        !albedo of the internal walls

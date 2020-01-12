@@ -1,21 +1,16 @@
 !=================================================================================================================
-!module_sf_bep was originally copied from ./phys/module_sf_bem.F from WRF version 3.9.0.
-!Laura D. Fowler (laura@ucar.edu) / 2017-01-27.
+!reference: WRF-v4.1.4
+!Laura D. Fowler (laura@ucar.edu) / 2020-01-10.
 
-!modifications to sourcecode for MPAS:
-! * changed the definition of FATAL_ERROR to use physics_error_fatal.
-!   Laura D. Fowler (laura@ucar.edu) / 2017-01-27.
-
-!=================================================================================================================
 MODULE module_sf_bep
 #if defined(mpas)
 use mpas_atmphys_utilities, only: physics_error_fatal
 #define FATAL_ERROR(M) call physics_error_fatal( M )
 #else
 use module_wrf_error
-#define FATAL_ERROR(M) call wrf_error_fatal( M)
-!USE module_model_constants
+#define FATAL_ERROR(M) call wrf_error_fatal( M )
 #endif
+!USE module_model_constants
  USE module_sf_urban
 
 ! SGClarke 09/11/2008
@@ -68,11 +63,14 @@ use module_wrf_error
 
    CONTAINS
  
-      subroutine BEP(FRC_URB2D,UTYPE_URB2D,itimestep,dz8w,dt,u_phy,v_phy,      &
+      subroutine BEP(FRC_URB2D,UTYPE_URB2D,itimestep,dz8w,dt,u_phy,v_phy,     &
                       th_phy,rho,p_phy,swdown,glw,                    &
                       gmt,julday,xlong,xlat,                          &
                       declin_urb,cosz_urb2d,omg_urb2d,                &
-                      num_urban_layers,num_urban_hi,                  &
+                      num_urban_ndm,urban_map_zrd,urban_map_zwd,urban_map_gd, &
+                      urban_map_zd,urban_map_zdf,urban_map_bd,urban_map_wd,   &
+                      urban_map_gbd,urban_map_fbd,                            &
+                      num_urban_hi,                                           &
                       trb_urb4d,tw1_urb4d,tw2_urb4d,tgb_urb4d,        &
                       sfw1_urb3d,sfw2_urb3d,sfr_urb3d,sfg_urb3d,      &
                       lp_urb2d,hi_urb2d,lb_urb2d,hgt_urb2d,           &
@@ -115,16 +113,25 @@ use module_wrf_error
    REAL, INTENT(IN) :: DECLIN_URB
    REAL, DIMENSION( ims:ime, jms:jme ), INTENT(IN) :: COSZ_URB2D
    REAL, DIMENSION( ims:ime, jms:jme ), INTENT(IN) :: OMG_URB2D
-   INTEGER, INTENT(IN  ) :: num_urban_layers
+   INTEGER, INTENT(IN  ) :: num_urban_ndm
+   INTEGER, INTENT(IN  ) :: urban_map_zrd
+   INTEGER, INTENT(IN  ) :: urban_map_zwd
+   INTEGER, INTENT(IN  ) :: urban_map_gd
+   INTEGER, INTENT(IN  ) :: urban_map_zd
+   INTEGER, INTENT(IN  ) :: urban_map_zdf
+   INTEGER, INTENT(IN  ) :: urban_map_bd
+   INTEGER, INTENT(IN  ) :: urban_map_wd
+   INTEGER, INTENT(IN  ) :: urban_map_gbd
+   INTEGER, INTENT(IN  ) :: urban_map_fbd
    INTEGER, INTENT(IN  ) :: num_urban_hi
-   REAL, DIMENSION( ims:ime, 1:num_urban_layers, jms:jme ), INTENT(INOUT) :: trb_urb4d
-   REAL, DIMENSION( ims:ime, 1:num_urban_layers, jms:jme ), INTENT(INOUT) :: tw1_urb4d
-   REAL, DIMENSION( ims:ime, 1:num_urban_layers, jms:jme ), INTENT(INOUT) :: tw2_urb4d
-   REAL, DIMENSION( ims:ime, 1:num_urban_layers, jms:jme ), INTENT(INOUT) :: tgb_urb4d
-   REAL, DIMENSION( ims:ime, 1:num_urban_layers, jms:jme ), INTENT(INOUT) :: sfw1_urb3d
-   REAL, DIMENSION( ims:ime, 1:num_urban_layers, jms:jme ), INTENT(INOUT) :: sfw2_urb3d
-   REAL, DIMENSION( ims:ime, 1:num_urban_layers, jms:jme ), INTENT(INOUT) :: sfr_urb3d
-   REAL, DIMENSION( ims:ime, 1:num_urban_layers, jms:jme ), INTENT(INOUT) :: sfg_urb3d
+   REAL, DIMENSION( ims:ime, 1:urban_map_zrd, jms:jme ), INTENT(INOUT) :: trb_urb4d
+   REAL, DIMENSION( ims:ime, 1:urban_map_zwd, jms:jme ), INTENT(INOUT) :: tw1_urb4d
+   REAL, DIMENSION( ims:ime, 1:urban_map_zwd, jms:jme ), INTENT(INOUT) :: tw2_urb4d
+   REAL, DIMENSION( ims:ime, 1:urban_map_gd , jms:jme ), INTENT(INOUT) :: tgb_urb4d
+   REAL, DIMENSION( ims:ime, 1:urban_map_wd , jms:jme ), INTENT(INOUT) :: sfw1_urb3d
+   REAL, DIMENSION( ims:ime, 1:urban_map_wd , jms:jme ), INTENT(INOUT) :: sfw2_urb3d
+   REAL, DIMENSION( ims:ime, 1:urban_map_zdf, jms:jme ), INTENT(INOUT) :: sfr_urb3d
+   REAL, DIMENSION( ims:ime, 1:num_urban_ndm, jms:jme ), INTENT(INOUT) :: sfg_urb3d
    REAL, DIMENSION( ims:ime, 1:num_urban_hi, jms:jme ), INTENT(IN) :: hi_urb2d
    REAL, DIMENSION( ims:ime,jms:jme), INTENT(IN) :: lp_urb2d
    REAL, DIMENSION( ims:ime,jms:jme), INTENT(IN) :: lb_urb2d
@@ -313,8 +320,8 @@ use module_wrf_error
 !------------------------------------------------------------------------
 !prepare the arrays to collapse indexes
 
-      if(num_urban_layers.lt.nz_um*ndm*nwr_u)then
-        write(*,*)'num_urban_layers too small, please increase to at least ', nz_um*ndm*nwr_u
+      if(urban_map_zrd.lt.nz_um*ndm*nwr_u)then
+        write(*,*)'urban_map_zrd too small, please increase to at least ', nz_um*ndm*nwr_u
         stop
       endif
       iii=0
@@ -435,7 +442,7 @@ use module_wrf_error
          do iw=1,nwr_u
 !          tw1D(2*id-1,iz_u,iw)=tw1_u(ix,iy,ind_zwd(iz_u,iw,id))
 !          tw1D(2*id,iz_u,iw)=tw2_u(ix,iy,ind_zwd(iz_u,iw,id))
-            if(ind_zwd(iz_u,iw,id).gt.num_urban_layers)write(*,*)'ind_zwd too big w',ind_zwd(iz_u,iw,id)
+            if(ind_zwd(iz_u,iw,id).gt.urban_map_zwd)write(*,*)'ind_zwd too big w',ind_zwd(iz_u,iw,id)
           tw1D(2*id-1,iz_u,iw)=tw1_urb4d(ix,ind_zwd(iz_u,iw,id),iy)
           tw1D(2*id,iz_u,iw)=tw2_urb4d(ix,ind_zwd(iz_u,iw,id),iy)
          enddo
@@ -450,7 +457,7 @@ use module_wrf_error
           do iz_u=1,nz_um
           do ir=1,nwr_u
 !           tr1D(id,iz_u,ir)=tr_u(ix,iy,ind_zwd(iz_u,ir,id))
-            if(ind_zwd(iz_u,ir,id).gt.num_urban_layers)write(*,*)'ind_zwd too big r',ind_zwd(iz_u,ir,id)
+            if(ind_zwd(iz_u,ir,id).gt.urban_map_zwd)write(*,*)'ind_zwd too big r',ind_zwd(iz_u,ir,id)
             tr1D(id,iz_u,ir)=trb_urb4d(ix,ind_zwd(iz_u,ir,id),iy)
           enddo
           enddo
@@ -3074,7 +3081,7 @@ use module_wrf_error
        do iu=1,icate
               if(ndm.lt.nd_u(iu))then
                 write(*,*)'ndm too small in module_sf_bep, please increase to at least ', nd_u(iu)
-                write(*,*)'remember also that num_urban_layers should be equal or greater than nz_um*ndm*nwr-u!'
+                write(*,*)'remember also that urban_map_zrd should be equal or greater than nz_um*ndm*nwr-u!'
                 stop
               endif
          do i=1,nd_u(iu)
@@ -3086,7 +3093,7 @@ use module_wrf_error
        do iu=1,ICATE
           if(nz_um.lt.numhgt_tbl(iu)+3)then
               write(*,*)'nz_um too small in module_sf_bep, please increase to at least ',numhgt_tbl(iu)+3
-              write(*,*)'remember also that num_urban_layers should be equal or greater than nz_um*ndm*nwr-u!'
+              write(*,*)'remember also that urban_map_zrd should be equal or greater than nz_um*ndm*nwr-u!'
               stop
           endif
          do i=1,NUMHGT_TBL(iu)
@@ -3495,3 +3502,39 @@ use module_wrf_error
 ! ===6=8===============================================================72
 ! ===6=8===============================================================72
 END MODULE module_sf_bep
+
+      FUNCTION bep_nurbm () RESULT (bep_val_nurbm)
+         USE module_sf_bep
+         IMPLICIT NONE
+         INTEGER :: bep_val_nurbm
+         bep_val_nurbm = nurbm
+      END FUNCTION bep_nurbm
+
+      FUNCTION bep_ndm () RESULT (bep_val_ndm)
+         USE module_sf_bep
+         IMPLICIT NONE
+         INTEGER :: bep_val_ndm
+         bep_val_ndm = ndm
+      END FUNCTION bep_ndm
+
+      FUNCTION bep_nz_um () RESULT (bep_val_nz_um)
+         USE module_sf_bep
+         IMPLICIT NONE
+         INTEGER :: bep_val_nz_um
+         bep_val_nz_um = nz_um
+      END FUNCTION bep_nz_um
+
+      FUNCTION bep_ng_u () RESULT (bep_val_ng_u)
+         USE module_sf_bep
+         IMPLICIT NONE
+         INTEGER :: bep_val_ng_u
+         bep_val_ng_u = ng_u
+      END FUNCTION bep_ng_u
+
+      FUNCTION bep_nwr_u () RESULT (bep_val_nwr_u)
+         USE module_sf_bep
+         IMPLICIT NONE
+         INTEGER :: bep_val_nwr_u
+         bep_val_nwr_u = nwr_u
+      END FUNCTION bep_nwr_u
+

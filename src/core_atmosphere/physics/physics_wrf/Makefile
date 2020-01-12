@@ -113,6 +113,9 @@ module_sf_noahlsm_glacial_only.o: \
 module_sf_noah_seaice_drv.o: \
 	module_sf_noah_seaice.o
 
+module_sf_noah_seaice.o: \
+        module_sf_noahlsm.o
+
 clean:
 	$(RM) *.f90 *.o *.mod
 	@# Certain systems with intel compilers generate *.i files

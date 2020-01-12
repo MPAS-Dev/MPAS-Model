@@ -1,3 +1,7 @@
+!=================================================================================================================
+!reference: WRF-v4.1.4
+!Laura D. Fowler (laura@ucar.edu) / 2020-01-10.
+
 !WRF:MODEL_LAYER:PHYSICS
 !
 MODULE module_sf_sfcdiags
@@ -50,7 +54,11 @@ CONTAINS
               IF ( UA_PHYS ) THEN
                   Q2(I,J) = QSFC(I,J) - CHS(I,J)/CQS2(I,J)*(QSFC(I,J) - QV3D(i,1,j))
               ELSE
+#if (HWRF==1)
+                  Q2(I,J) = QSFC(I,J) - amax1(amin1(CHS(I,J)/CQS2(I,J),0.0),2.0)*(QSFC(I,J) - QV3D(i,1,j))
+#else
                   Q2(I,J) = QSFC(I,J) - QFX(I,J)/(RHO*CQS2(I,J))
+#endif
               ENDIF
           endif
           if(CHS2(I,J).lt.1.E-5) then
@@ -59,7 +67,11 @@ CONTAINS
               IF ( UA_PHYS ) THEN
                   T2(I,J) = TSK(I,J) - CHS(I,J)/CHS2(I,J)*(TSK(I,J) - T3D(i,1,j))
               ELSE
+#if (HWRF==1)
+                  T2(I,J) = TSK(I,J) - amax1(amin1(CHS(I,J)/CHS2(I,J),0.0),2.0)*(TSK(I,J) - T3D(i,1,j))
+#else
                   T2(I,J) = TSK(I,J) - HFX(I,J)/(RHO*CP*CHS2(I,J))
+#endif
               ENDIF
           endif
           TH2(I,J) = T2(I,J)*(1.E5/PSFC(I,J))**ROVCP
