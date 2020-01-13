@@ -3009,7 +3009,7 @@
                      description="terrain height"/>
 
                 <var name="albedo12m" type="real" dimensions="nMonths nCells" units="unitless"
-                     description="monthly-mean climatological aurface albedo"/>
+                     description="monthly-mean climatological surface albedo"/>
 
                 <var name="greenfrac" type="real" dimensions="nMonths nCells" units="unitless"
                      description="monthly-mean climatological greeness fraction"/>
