@@ -353,6 +353,7 @@
  call mpas_log_write('--- index_nr   = $i',intArgs=(/index_nr/))
  call mpas_log_write('--- index_nifa = $i',intArgs=(/index_nifa/))
  call mpas_log_write('--- index_nwfa = $i',intArgs=(/index_nwfa/))
+ call mpas_log_write(' ')
 
  if(index_nc .gt. -1 .and. index_ni .gt. -1 .and. index_nr .gt. -1 .and. &
     index_nifa .gt. -1 .and. index_nwfa .gt. -1) then
