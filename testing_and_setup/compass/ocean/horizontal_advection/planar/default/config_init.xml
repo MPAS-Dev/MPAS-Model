@@ -4,7 +4,7 @@
     <add_executable source="model" dest="ocean_model"/>
         <add_executable source="mesh_converter" dest="MpasMeshConverter.x"/>
         <add_executable source="planar_hex" dest="planar_hex"/>
-
+        <add_link source_path="mesh_database" source="doubly_periodic_1920km_7680x7680km.151124.nc" dest="base_mesh.nc"/>
     <namelist name="namelist.ocean" mode="init">
         <option name="config_init_configuration">'horizontal_advection'</option>
         <option name="config_vert_levels">-1</option>
@@ -92,8 +92,8 @@
                 <member name="tracersTTDFields" type="var_struct"/>
                 <member name="windStressZonal" type="var"/>
                 <member name="windStressMeridional" type="var"/>
-                <member name="landIceFraction" type="var"/>
-        <member name="landIceMask" type="var"/>
+               <member name="landIceFraction" type="var"/>
+                <member name="landIceMask" type="var"/>
                 <member name="landIceSurfaceTemperature" type="var"/>
                 <member name="latentHeatFlux" type="var"/>
                 <member name="sensibleHeatFlux" type="var"/>
