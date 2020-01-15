@@ -359,6 +359,7 @@ contains
         ! layers and zero below
         if ( associated(debugTracers) ) then
           r_pt = sqrt((xCell(iCell) - x_cent) ** 2 + (yCell(iCell)- y_cent)**2)
+          debugTracers(:,:,iCell) = 0.0_RKIND
           if (r_pt < config_tracer_radius) then
              debugTracers(index_tracer1, :, iCell) = 1.0_RKIND
           endif
@@ -453,7 +454,7 @@ contains
 ! the C variable
 !--------------
     do iEdge=1, nEdgesSolve
-      normalVelocity(:, iEdge) = ( cos(angleEdge(nEdgesSolve)) * config_horizontal_advection_zonalC) + ( sin(angleEdge(nEdgesSolve)) * config_horizontal_advection_meridionalC )
+      normalVelocity(:, iEdge) = ( cos(angleEdge(iEdge)) * config_horizontal_advection_zonalC) + ( sin(angleEdge(iEdge)) * config_horizontal_advection_meridionalC )
     enddo
 !--------------
 ! end Jamil edit

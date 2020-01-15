@@ -10,7 +10,7 @@
         <option name="config_vert_levels">-1</option>
         <option name="config_ocean_run_mode">'init'</option>
         <option name="config_write_cull_cell_mask">.false.</option>
-
+        <option name="config_use_debugTracers">.true.</option>
         <option name="config_use_activeTracers_surface_bulk_forcing">.true.</option>
         <option name="config_use_activeTracers_surface_restoring">.true.</option>
         <option name="config_use_activeTracers_interior_restoring">.true.</option>
@@ -23,30 +23,30 @@
         <option name="config_horizontal_advection_surface_restoring_salinity">36.0</option>
         <option name="config_horizontal_advection_surface_temperature_piston_velocity">4E-6</option>
         <option name="config_horizontal_advection_surface_salinity_piston_velocity">4E-6</option>
-        <option name="config_horizontal_advection_sensible_heat_flux">-25.0</option>
-        <option name="config_horizontal_advection_latent_heat_flux">-50.0</option>
-        <option name="config_horizontal_advection_shortwave_heat_flux">200.0</option>
+        <option name="config_horizontal_advection_sensible_heat_flux">0.0</option>
+        <option name="config_horizontal_advection_latent_heat_flux">0.0</option>
+        <option name="config_horizontal_advection_shortwave_heat_flux">0.0</option>
         <option name="config_horizontal_advection_rain_flux">0.0</option>
-        <option name="config_horizontal_advection_evaporation_flux">6.5E-4</option>
+        <option name="config_horizontal_advection_evaporation_flux">0.0</option>
         <option name="config_horizontal_advection_interior_temperature_restoring_rate">1.0e-6</option>
         <option name="config_horizontal_advection_interior_salinity_restoring_rate">1.0e-6</option>
-        <option name="config_horizontal_advection_temperature_gradient">0.01</option>
+        <option name="config_horizontal_advection_temperature_gradient">0.0</option>
         <option name="config_horizontal_advection_salinity_gradient">0.0</option>
         <option name="config_horizontal_advection_vertical_grid">'100layerE3SMv1'</option>
         <option name="config_horizontal_advection_bottom_depth">400.0</option>
-        <option name="config_horizontal_advection_max_windstress">0.1</option>
-        <option name="config_horizontal_advection_coriolis_parameter">1E-4</option>
+        <option name="config_horizontal_advection_max_windstress">0.0</option>
+        <option name="config_horizontal_advection_coriolis_parameter">0.0</option>
         <option name="config_horizontal_advection_temperature_gradient_mixed_layer">0.0</option>
         <option name="config_horizontal_advection_salinity_gradient_mixed_layer">0.0</option>
-        <option name="config_horizontal_advection_mixed_layer_depth_temperature">25.0</option>
+        <option name="config_horizontal_advection_mixed_layer_depth_temperature">0.0</option>
         <option name="config_horizontal_advection_mixed_layer_depth_salinity">0.0</option>
         <option name="config_horizontal_advection_mixed_layer_temperature_change">0.0</option>
-        <option name="config_horizontal_advection_mixed_layer_salinity_change">1.0</option>
-                <option name="x_cent">400.0</option>
-                <option name="y_cent">400.0</option>
-                <option name="config_tracer_radius">100.0</option>
-                <option name="config_horizontal_advection_zonalC">0.5</option>
-                <option name="config_horizontal_advection_meridionalC">.5</option>
+        <option name="config_horizontal_advection_mixed_layer_salinity_change">0.0</option>
+                <option name="x_cent">5000.0</option>
+                <option name="y_cent">5000.0</option>
+                <option name="config_tracer_radius">1000.0</option>
+                <option name="config_horizontal_advection_zonalC">0.1</option>
+                <option name="config_horizontal_advection_meridionalC">.1</option>
 
 
     </namelist>
