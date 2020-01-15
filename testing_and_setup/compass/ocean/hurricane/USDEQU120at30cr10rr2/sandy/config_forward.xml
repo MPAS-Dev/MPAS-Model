@@ -7,6 +7,7 @@
 
 	<namelist name="namelist.ocean" mode="forward">
 		<template file="forward_template.xml" path_base="script_configuration_dir"/>
+		<template file="maxwaterlevel_template.xml" path_base="script_configuration_dir"/>
 
 		<option name="config_time_integrator">'split_explicit'</option>
 		<option name="config_dt">'00:00:40'</option>
@@ -21,6 +22,7 @@
 
 	<streams name="streams.ocean" keep="immutable" mode="forward">
 		<template file="forward_template.xml" path_base="script_configuration_dir"/>
+		<template file="maxwaterlevel_template.xml" path_base="script_configuration_dir"/>
 	</streams>
 
 	<run_script name="run.py">
