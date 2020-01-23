@@ -18,9 +18,6 @@ import os
 # Grabs the KPP file
 import glob
 
-
-
-
 # Print iterations progress
 def printProgressBar (iteration, total, prefix = '', suffix = '', decimals = 1, length = 100, fill = '█', printEnd = "\r"):
     """
@@ -43,7 +40,6 @@ def printProgressBar (iteration, total, prefix = '', suffix = '', decimals = 1, 
     if iteration == total: 
         print()
 
-
 def main():
   # load in the data
   filename = None
@@ -56,6 +52,10 @@ def main():
   
   # open the dataset 
   data = xr.open_dataset(filename)
+
+  answer = input("There are {} frames, would you like to continue? [y/(n)]:  ".format(data.tracer1.shape[0])) or 'n'  
+  if not 'y' in answer:
+    quit()
 
   # set the proper bounds with alittle extra padding
   plt.xlim(-10,data.xCell.shape[0]+10)
@@ -91,4 +91,5 @@ def main():
   # creates the gif
   imageio.mimsave('KPP_tracer1.gif', images)    
   printProgressBar(gif_frames+1, gif_frames+1, prefix = "Making Gif", suffix = "Compleate", length=50)
+
 main()
