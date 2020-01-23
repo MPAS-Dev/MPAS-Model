@@ -47,12 +47,16 @@ def printProgressBar (iteration, total, prefix = '', suffix = '', decimals = 1, 
 def main():
   # load in the data
   filename = None
-  filename = glob.glob("forward/output/KPP*")[0]
-  if filename == None:
+  filename = glob.glob("forward/output/KPP*")
+  if len(filename) == 0:
     print("KPP File not found in forward/output ending program")
     quit()
-
+  else:
+    filename = filename[0]
+  
+  # open the dataset 
   data = xr.open_dataset(filename)
+
   # set the proper bounds with alittle extra padding
   plt.xlim(-10,data.xCell.shape[0]+10)
   plt.ylim(-10,data.yCell.shape[0]+10)
