@@ -111,11 +111,11 @@
                     <argument flag="--nx">100</argument>
                     <argument flag="--ny">100</argument>
                     <argument flag="--dc">100</argument>
-                    <argument flag="--outFileName">base_mesh.nc</argument>
+                    <argument flag="--outFileName">mesh.nc</argument>
                 </step>
 
 
-        <step executable="MpasMeshConverter.x">
+        <step executable="./MpasMeshConverter.x">
             <argument flag="">base_mesh.nc</argument>
             <argument flag="">mesh.nc</argument>
         </step>
