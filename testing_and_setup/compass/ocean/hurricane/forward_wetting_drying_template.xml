@@ -3,9 +3,12 @@
 		<option name="config_check_ssh_consistency">.false.</option>
 		<option name="config_use_wetting_drying">.true.</option>
 		<option name="config_prevent_drying">.true.</option>
-		<option name="config_drying_min_cell_height">0.1</option>
+		<!-- Conservative cell height 0.1 ensures stability-->
+		<option name="config_drying_min_cell_height">0.01</option>
 		<option name="config_verify_not_dry">.true.</option>
 		<option name="config_zero_drying_velocity">.true.</option>
 		<option name="config_thickness_flux_type">'upwind'</option>
+		<!-- Turn off self-attraction / loading until vertical coordinate issue resolved -->
+		<option name="config_self_attraction_and_loading_beta">0.0</option>
 	</namelist>
 </template>
