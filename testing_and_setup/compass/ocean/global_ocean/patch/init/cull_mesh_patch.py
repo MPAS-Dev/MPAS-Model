@@ -41,16 +41,15 @@ lat = dsBaseMesh.latCell
 lon = dsBaseMesh.lonCell
 
 # This is a bool type xarray.DataArray
-landMask = numpy.logical_and(numpy.logical_and(lat >= minlat, lat <= maxlat),
-                             numpy.logical_and(lon >= minlon, lon <= maxlon))
+oceanMask = numpy.logical_and(numpy.logical_and(lat >= minlat, lat <= maxlat),
+                              numpy.logical_and(lon >= minlon, lon <= maxlon))
 
 # Convert logical to int
-landMask = landMask.astype(int)
+landMask = numpy.logical_not(oceanMask).astype(int)
 
-dsLandMask = xarray.Dataset()
-dsLandMask['cullCell'] = landMask
+dsBaseMesh['cullCell'] = landMask
 
-dsCulledMesh = conversion.cull(dsBaseMesh, dsMask=dsLandMask,
+dsCulledMesh = conversion.cull(dsBaseMesh,
                                graphInfoFileName='culled_graph.info')
 write_netcdf(dsCulledMesh, 'culled_mesh.nc', format=netcdfFormat)
 
