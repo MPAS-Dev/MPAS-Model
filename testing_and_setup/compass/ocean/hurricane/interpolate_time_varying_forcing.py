@@ -8,10 +8,13 @@ import os
 import yaml
 import subprocess
 import argparse
+import cartopy
 import cartopy.crs as ccrs
 import cartopy.feature as cfeature
 from scipy import interpolate
 plt.switch_backend('agg')
+cartopy.config['pre_existing_data_dir'] = \
+    os.getenv('CARTOPY_DIR', cartopy.config.get('pre_existing_data_dir'))
 
 ##################################################################################################
 ##################################################################################################

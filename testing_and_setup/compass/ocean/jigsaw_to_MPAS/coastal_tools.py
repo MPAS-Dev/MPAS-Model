@@ -16,10 +16,14 @@ from netCDF4 import Dataset
 import matplotlib.pyplot as plt
 from scipy import spatial, io
 import timeit
+import os
+import cartopy
 import cartopy.crs as ccrs
 import cartopy.feature as cfeature
 import jigsaw_to_MPAS.mesh_definition_tools as mdt
 plt.switch_backend('agg')
+cartopy.config['pre_existing_data_dir'] = \
+    os.getenv('CARTOPY_DIR', cartopy.config.get('pre_existing_data_dir'))
 
 # Constants
 km = 1000.0
