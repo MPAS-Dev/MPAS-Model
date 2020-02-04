@@ -4,7 +4,7 @@
     <add_executable source="model" dest="ocean_model"/>
         <add_executable source="mesh_converter" dest="MpasMeshConverter.x"/>
         <add_executable source="planar_hex" dest="planar_hex"/>
-        <add_link source_path="mesh_database" source="doubly_periodic_1920km_7680x7680km.151124.nc" dest="base_mesh.nc"/>
+        
     <namelist name="namelist.ocean" mode="init">
         <option name="config_init_configuration">'horizontal_advection'</option>
         <option name="config_vert_levels">-1</option>
@@ -107,19 +107,12 @@
 
     <run_script name="run.py">
 
-                <step executable="planar_hex">
-                    <argument flag="--nx">100</argument>
-                    <argument flag="--ny">100</argument>
-                    <argument flag="--dc">100</argument>
-                    <argument flag="--outFileName">mesh.nc</argument>
-                </step>
-
-
-        <step executable="./MpasMeshConverter.x">
-            <argument flag="">base_mesh.nc</argument>
-            <argument flag="">mesh.nc</argument>
+        <step executable="planar_hex">
+            <argument flag="--nx">100</argument>
+            <argument flag="--ny">100</argument>
+            <argument flag="--dc">100</argument>
+            <argument flag="--outFileName">mesh.nc</argument>
         </step>
-                
         <step executable="mpirun">
             <argument flag="-n">1</argument>
             <argument flag="">./ocean_model</argument>
