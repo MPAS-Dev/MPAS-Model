@@ -113,7 +113,13 @@
             <argument flag="--dc">100</argument>
             <argument flag="--outFileName">mesh.nc</argument>
         </step>
-        <step executable="mpirun">
+
+	<step executable="MpasMeshConverter.x">
+		<argument flag="">mesh.nc</argument>
+		<argument flag="">mesh2.nc</argument>
+	</step>
+	 
+       <step executable="mpirun">
             <argument flag="-n">1</argument>
             <argument flag="">./ocean_model</argument>
             <argument flag="-n">namelist.ocean</argument>
