@@ -54,7 +54,6 @@ module atm_time_integration
    real (kind=RKIND), dimension(:,:), allocatable :: flux_tmp_arr
    real (kind=RKIND), dimension(:,:), allocatable :: wdtn_arr
    real (kind=RKIND), dimension(:,:), allocatable :: rho_zz_int
-   real (kind=RKIND), dimension(:,:,:), allocatable :: scalar_tend_array
 
    real (kind=RKIND), dimension(:,:,:), allocatable :: scalars_driving ! regional_MPAS addition 
    real (kind=RKIND), dimension(:,:), allocatable :: ru_driving_tend ! regional_MPAS addition 
@@ -1413,8 +1412,6 @@ module atm_time_integration
                wdtn_arr(:,nCells+1) = 0.0_RKIND
                allocate(rho_zz_int(nVertLevels,nCells+1))
                rho_zz_int(:,nCells+1) = 0.0_RKIND
-               allocate(scalar_tend_array(num_scalars,nVertLevels,nCells+1))
-               scalar_tend_array(:,:,nCells+1) = 0.0_RKIND
                if (rk_step < 3 .or. (.not. config_monotonic .and. .not. config_positive_definite)) then
                   allocate(horiz_flux_array(num_scalars,nVertLevels,nEdges+1))
                   horiz_flux_array(:,:,nEdges+1) = 0.0_RKIND
@@ -1431,8 +1428,6 @@ module atm_time_integration
                !       so we use the advance_scalars routine for the first two RK substeps.
                !
 
-               !  The latest version of atm_advance_scalars does not need the arrays scalar_tend_array or rho_zz_int
-               !  We can remove scalar_tend_array????  WCS 20160921
 !$OMP PARALLEL DO
                do thread=1,nThreads
                   if (rk_step < 3 .or. (.not. config_monotonic .and. .not. config_positive_definite)) then
@@ -1444,7 +1439,7 @@ module atm_time_integration
                                              vertexSolveThreadStart(thread), vertexSolveThreadEnd(thread), &
                                              edgeSolveThreadStart(thread), edgeSolveThreadEnd(thread), &
                                              horiz_flux_array, rk_step, config_time_integration_order, &
-                                             advance_density=.true., scalar_tend=scalar_tend_array, rho_zz_int=rho_zz_int )
+                                             advance_density=.true.)
                   else
       
                      block % domain = domain 
@@ -1470,7 +1465,6 @@ module atm_time_integration
                deallocate(flux_array)
                deallocate(wdtn_arr)
                deallocate(rho_zz_int)
-               deallocate(scalar_tend_array)
                if (rk_step < 3 .or. (.not. config_monotonic .and. .not. config_positive_definite)) then
                   deallocate(horiz_flux_array)
                else
@@ -3102,7 +3096,7 @@ module atm_time_integration
    subroutine atm_advance_scalars( tend, state, diag, mesh, configs, num_scalars, nCells, nVertLevels, dt, &
                                    cellStart, cellEnd, vertexStart, vertexEnd, edgeStart, edgeEnd, &
                                    cellSolveStart, cellSolveEnd, vertexSolveStart, vertexSolveEnd, edgeSolveStart, edgeSolveEnd, &
-                                   horiz_flux_arr, rk_step, config_time_integration_order, advance_density, scalar_tend, rho_zz_int)
+                                   horiz_flux_arr, rk_step, config_time_integration_order, advance_density)
    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 
    !
    ! Integrate scalar equations - explicit transport plus other tendencies
@@ -3127,8 +3121,6 @@ module atm_time_integration
       integer, intent(in) :: cellStart, cellEnd, vertexStart, vertexEnd, edgeStart, edgeEnd
       integer, intent(in) :: cellSolveStart, cellSolveEnd, vertexSolveStart, vertexSolveEnd, edgeSolveStart, edgeSolveEnd
       logical, intent(in), optional :: advance_density
-      real (kind=RKIND), dimension(:,:,:), intent(inout), optional :: scalar_tend
-      real (kind=RKIND), dimension(:,:), intent(inout), optional :: rho_zz_int
 
       integer :: i, j, iCell, iAdvCell, iEdge, k, iScalar, cell1, cell2
       real (kind=RKIND), dimension(:), pointer :: invAreaCell
@@ -3217,7 +3209,7 @@ module atm_time_integration
              bdyMaskCell, bdyMaskEdge, &
              nAdvCellsForEdge, advCellsForEdge, adv_coefs, adv_coefs_3rd, rho_edge, qv_init, zgrid, &
              nCellsSolve, nEdges, horiz_flux_arr, rk_step, config_time_integration_order, &
-             local_advance_density, scalar_tend, rho_zz_int)
+             local_advance_density)
       else
       call atm_advance_scalars_work(num_scalars, nCells, nVertLevels, dt, &
              cellStart, cellEnd, vertexStart, vertexEnd, edgeStart, edgeEnd, &
@@ -3245,7 +3237,7 @@ module atm_time_integration
              bdyMaskCell, bdyMaskEdge, &
              nAdvCellsForEdge, advCellsForEdge, adv_coefs, adv_coefs_3rd, rho_edge, qv_init, zgrid, &
              nCellsSolve, nEdges, horiz_flux_arr, rk_step, config_time_integration_order, &
-             advance_density, scalar_tend, rho_zz_int)
+             advance_density)
    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 
    !
    ! Integrate scalar equations - explicit transport plus other tendencies
@@ -3298,8 +3290,6 @@ module atm_time_integration
       real (kind=RKIND), dimension(:), intent(in) :: fnm, fnp, rdnw, meshScalingDel2, meshScalingDel4
       real (kind=RKIND), intent(in) :: coef_3rd_order
       real (kind=RKIND), dimension(num_scalars,nVertLevels,nEdges+1), intent(inout) :: horiz_flux_arr
-      real (kind=RKIND), dimension(num_scalars,nVertLevels,nCells+1), intent(inout), optional :: scalar_tend
-      real (kind=RKIND), dimension(nVertLevels,nCells+1), intent(inout), optional :: rho_zz_int
       real (kind=RKIND), dimension(:), intent(in) :: invAreaCell
       integer, dimension(:), intent(in) :: bdyMaskCell, bdyMaskEdge ! regional_MPAS addition
       integer, intent(in) :: nCellsSolve, nEdges
@@ -3335,7 +3325,6 @@ module atm_time_integration
       !
       ! Runge Kutta integration, so we compute fluxes from scalar_new values, update starts from scalar_old
       !
-      !  horizontal flux divergence, accumulate in scalar_tend
 
 
       !  horiz_flux_arr stores the value of the scalar at the edge.
