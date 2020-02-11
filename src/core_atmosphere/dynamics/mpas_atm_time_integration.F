@@ -1608,10 +1608,6 @@ module atm_time_integration
       integer, dimension(:), pointer :: cellThreadEnd
       integer, dimension(:), pointer :: cellSolveThreadStart
       integer, dimension(:), pointer :: cellSolveThreadEnd
-      integer, dimension(:), pointer :: vertexThreadStart
-      integer, dimension(:), pointer :: vertexThreadEnd
-      integer, dimension(:), pointer :: vertexSolveThreadStart
-      integer, dimension(:), pointer :: vertexSolveThreadEnd
       integer, dimension(:), pointer :: edgeThreadStart
       integer, dimension(:), pointer :: edgeThreadEnd
       integer, dimension(:), pointer :: edgeSolveThreadStart
@@ -1642,11 +1638,6 @@ module atm_time_integration
          call mpas_pool_get_dimension(block % dimensions, 'cellThreadEnd', cellThreadEnd)
          call mpas_pool_get_dimension(block % dimensions, 'cellSolveThreadStart', cellSolveThreadStart)
          call mpas_pool_get_dimension(block % dimensions, 'cellSolveThreadEnd', cellSolveThreadEnd)
-
-         call mpas_pool_get_dimension(block % dimensions, 'vertexThreadStart', vertexThreadStart)
-         call mpas_pool_get_dimension(block % dimensions, 'vertexThreadEnd', vertexThreadEnd)
-         call mpas_pool_get_dimension(block % dimensions, 'vertexSolveThreadStart', vertexSolveThreadStart)
-         call mpas_pool_get_dimension(block % dimensions, 'vertexSolveThreadEnd', vertexSolveThreadEnd)
 
          call mpas_pool_get_dimension(block % dimensions, 'edgeThreadStart', edgeThreadStart)
          call mpas_pool_get_dimension(block % dimensions, 'edgeThreadEnd', edgeThreadEnd)
@@ -1693,20 +1684,16 @@ module atm_time_integration
             if (rk_step < 3 .or. (.not. config_monotonic .and. .not. config_positive_definite)) then
                call atm_advance_scalars(tend, state, diag, mesh, block % configs, num_scalars, nCells, nVertLevels, rk_timestep(rk_step), &
                                        cellThreadStart(thread), cellThreadEnd(thread), &
-                                       vertexThreadStart(thread), vertexThreadEnd(thread), &
                                        edgeThreadStart(thread), edgeThreadEnd(thread), &
                                        cellSolveThreadStart(thread), cellSolveThreadEnd(thread), &
-                                       vertexSolveThreadStart(thread), vertexSolveThreadEnd(thread), &
                                        edgeSolveThreadStart(thread), edgeSolveThreadEnd(thread), &
                                        horiz_flux_array, rk_step, config_time_integration_order, &
                                        advance_density=config_split_dynamics_transport)
             else
                call atm_advance_scalars_mono(block, tend, state, diag, mesh, block % configs, nCells, nEdges, nVertLevels, rk_timestep(rk_step), &
                                        cellThreadStart(thread), cellThreadEnd(thread), &
-                                       vertexThreadStart(thread), vertexThreadEnd(thread), &
                                        edgeThreadStart(thread), edgeThreadEnd(thread), &
                                        cellSolveThreadStart(thread), cellSolveThreadEnd(thread), &
-                                       vertexSolveThreadStart(thread), vertexSolveThreadEnd(thread), &
                                        edgeSolveThreadStart(thread), edgeSolveThreadEnd(thread), &
                                        scalar_old_arr, scalar_new_arr, s_max_arr, s_min_arr, wdtn_arr, &
                                        scale_array, flux_array, flux_upwind_tmp_arr, flux_tmp_arr, &
@@ -3046,8 +3033,8 @@ module atm_time_integration
 
 
    subroutine atm_advance_scalars( tend, state, diag, mesh, configs, num_scalars, nCells, nVertLevels, dt, &
-                                   cellStart, cellEnd, vertexStart, vertexEnd, edgeStart, edgeEnd, &
-                                   cellSolveStart, cellSolveEnd, vertexSolveStart, vertexSolveEnd, edgeSolveStart, edgeSolveEnd, &
+                                   cellStart, cellEnd, edgeStart, edgeEnd, &
+                                   cellSolveStart, cellSolveEnd, edgeSolveStart, edgeSolveEnd, &
                                    horiz_flux_arr, rk_step, config_time_integration_order, advance_density)
    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 
    !
@@ -3070,8 +3057,8 @@ module atm_time_integration
       integer, intent(in) :: rk_step    !  rk substep we are integrating
       integer, intent(in) :: config_time_integration_order  ! time integration order
       real (kind=RKIND) :: dt
-      integer, intent(in) :: cellStart, cellEnd, vertexStart, vertexEnd, edgeStart, edgeEnd
-      integer, intent(in) :: cellSolveStart, cellSolveEnd, vertexSolveStart, vertexSolveEnd, edgeSolveStart, edgeSolveEnd
+      integer, intent(in) :: cellStart, cellEnd, edgeStart, edgeEnd
+      integer, intent(in) :: cellSolveStart, cellSolveEnd, edgeSolveStart, edgeSolveEnd
       logical, intent(in), optional :: advance_density
 
       integer :: i, j, iCell, iAdvCell, iEdge, k, iScalar, cell1, cell2
@@ -3151,8 +3138,8 @@ module atm_time_integration
       call mpas_pool_get_array(mesh, 'bdyMaskEdge', bdyMaskEdge)
 
       call atm_advance_scalars_work(num_scalars, nCells, nVertLevels, dt, &
-             cellStart, cellEnd, vertexStart, vertexEnd, edgeStart, edgeEnd, &
-             cellSolveStart, cellSolveEnd, vertexSolveStart, vertexSolveEnd, edgeSolveStart, edgeSolveEnd, &
+             cellStart, cellEnd, edgeStart, edgeEnd, &
+             cellSolveStart, cellSolveEnd, edgeSolveStart, edgeSolveEnd, &
              coef_3rd_order, scalar_old, scalar_new, rho_zz_old, rho_zz_new, kdiff, &
              uhAvg, wwAvg, deriv_two, dvEdge, &
              cellsOnEdge, edgesOnCell, nEdgesOnCell, edgesOnCell_sign, invAreaCell, &
@@ -3166,8 +3153,8 @@ module atm_time_integration
 
 
    subroutine atm_advance_scalars_work( num_scalars_dummy, nCells, nVertLevels_dummy, dt, &
-             cellStart, cellEnd, vertexStart, vertexEnd, edgeStart, edgeEnd, &
-             cellSolveStart, cellSolveEnd, vertexSolveStart, vertexSolveEnd, edgeSolveStart, edgeSolveEnd, &
+             cellStart, cellEnd, edgeStart, edgeEnd, &
+             cellSolveStart, cellSolveEnd, edgeSolveStart, edgeSolveEnd, &
              coef_3rd_order, scalar_old, scalar_new, rho_zz_old, rho_zz_new, kdiff, &
              uhAvg, wwAvg, deriv_two, dvEdge, &
              cellsOnEdge, edgesOnCell, nEdgesOnCell, edgesOnCell_sign, invAreaCell, &
@@ -3210,8 +3197,8 @@ module atm_time_integration
       integer, intent(in) :: nCells           ! for allocating stack variables
       integer, intent(in) :: nVertLevels_dummy ! for allocating stack variables
       real (kind=RKIND), intent(in) :: dt
-      integer, intent(in) :: cellStart, cellEnd, vertexStart, vertexEnd, edgeStart, edgeEnd
-      integer, intent(in) :: cellSolveStart, cellSolveEnd, vertexSolveStart, vertexSolveEnd, edgeSolveStart, edgeSolveEnd
+      integer, intent(in) :: cellStart, cellEnd, edgeStart, edgeEnd
+      integer, intent(in) :: cellSolveStart, cellSolveEnd, edgeSolveStart, edgeSolveEnd
       integer, intent(in) :: rk_step, config_time_integration_order
       logical, intent(in) :: advance_density
       real (kind=RKIND), dimension(:,:,:), intent(in) :: scalar_old
@@ -3434,8 +3421,8 @@ module atm_time_integration
 
 
    subroutine atm_advance_scalars_mono(block, tend, state, diag, mesh, configs, nCells, nEdges, nVertLevels_dummy, dt, &
-                                   cellStart, cellEnd, vertexStart, vertexEnd, edgeStart, edgeEnd, &
-                                   cellSolveStart, cellSolveEnd, vertexSolveStart, vertexSolveEnd, edgeSolveStart, edgeSolveEnd, &
+                                   cellStart, cellEnd, edgeStart, edgeEnd, &
+                                   cellSolveStart, cellSolveEnd, edgeSolveStart, edgeSolveEnd, &
                                    scalar_old, scalar_new, s_max, s_min, wdtn, scale_arr, flux_arr, &
                                    flux_upwind_tmp, flux_tmp, advance_density, rho_zz_int)
    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 
@@ -3460,8 +3447,8 @@ module atm_time_integration
       integer, intent(in)                  :: nEdges           ! for allocating stack variables
       integer, intent(in)                  :: nVertLevels_dummy      ! for allocating stack variables
       real (kind=RKIND), intent(in)        :: dt
-      integer, intent(in) :: cellStart, cellEnd, vertexStart, vertexEnd, edgeStart, edgeEnd
-      integer, intent(in) :: cellSolveStart, cellSolveEnd, vertexSolveStart, vertexSolveEnd, edgeSolveStart, edgeSolveEnd
+      integer, intent(in) :: cellStart, cellEnd, edgeStart, edgeEnd
+      integer, intent(in) :: cellSolveStart, cellSolveEnd, edgeSolveStart, edgeSolveEnd
       real (kind=RKIND), dimension(nVertLevels,nCells+1), intent(inout) :: scalar_old, scalar_new
       real (kind=RKIND), dimension(nVertLevels,nCells+1), intent(inout) :: s_max, s_min
       real (kind=RKIND), dimension(nVertLevels+1,nCells+1), intent(inout) :: wdtn
@@ -3523,8 +3510,8 @@ module atm_time_integration
       call mpas_pool_get_array(mesh, 'bdyMaskEdge', bdyMaskEdge)  ! MPAS_regional addition
 
       call atm_advance_scalars_mono_work(block, state, nCells, nEdges, nVertLevels, dt, &
-                                   cellStart, cellEnd, vertexStart, vertexEnd, edgeStart, edgeEnd, &
-                                   cellSolveStart, cellSolveEnd, vertexSolveStart, vertexSolveEnd, edgeSolveStart, edgeSolveEnd, &
+                                   cellStart, cellEnd, edgeStart, edgeEnd, &
+                                   cellSolveStart, cellSolveEnd, edgeSolveStart, edgeSolveEnd, &
                                    coef_3rd_order, nCellsSolve, num_scalars, uhAvg, wwAvg, scalar_tend, rho_zz_old, &
                                    rho_zz_new, scalars_old, scalars_new, invAreaCell, dvEdge, cellsOnEdge, cellsOnCell, &
                                    edgesOnCell, edgesOnCell_sign, nEdgesOnCell, fnm, fnp, rdnw, nAdvCellsForEdge, &
@@ -3537,8 +3524,8 @@ module atm_time_integration
 
 
    subroutine atm_advance_scalars_mono_work(block, state, nCells, nEdges, nVertLevels_dummy, dt, &
-                                   cellStart, cellEnd, vertexStart, vertexEnd, edgeStart, edgeEnd, &
-                                   cellSolveStart, cellSolveEnd, vertexSolveStart, vertexSolveEnd, edgeSolveStart, edgeSolveEnd, &
+                                   cellStart, cellEnd, edgeStart, edgeEnd, &
+                                   cellSolveStart, cellSolveEnd, edgeSolveStart, edgeSolveEnd, &
                                    coef_3rd_order, nCellsSolve, num_scalars_dummy, uhAvg, wwAvg, scalar_tend, rho_zz_old, &
                                    rho_zz_new, scalars_old, scalars_new, invAreaCell, dvEdge, cellsOnEdge, cellsOnCell, &
                                    edgesOnCell, edgesOnCell_sign, nEdgesOnCell, fnm, fnp, rdnw, nAdvCellsForEdge, &
@@ -3585,8 +3572,8 @@ module atm_time_integration
       integer, intent(in)                  :: nEdges           ! for allocating stack variables
       integer, intent(in)                  :: nVertLevels_dummy ! for allocating stack variables
       real (kind=RKIND), intent(in)        :: dt
-      integer, intent(in) :: cellStart, cellEnd, vertexStart, vertexEnd, edgeStart, edgeEnd
-      integer, intent(in) :: cellSolveStart, cellSolveEnd, vertexSolveStart, vertexSolveEnd, edgeSolveStart, edgeSolveEnd
+      integer, intent(in) :: cellStart, cellEnd, edgeStart, edgeEnd
+      integer, intent(in) :: cellSolveStart, cellSolveEnd, edgeSolveStart, edgeSolveEnd
       logical, intent(in), optional :: advance_density
       real (kind=RKIND), dimension(nVertLevels,nCells+1), intent(inout), optional :: rho_zz_int
 
