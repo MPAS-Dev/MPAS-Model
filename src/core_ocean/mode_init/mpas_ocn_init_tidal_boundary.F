@@ -102,6 +102,7 @@ contains
     integer, dimension(:), pointer :: maxLevelCell
     real (kind=RKIND), dimension(:), pointer :: yCell, refBottomDepth, bottomDepth, vertCoordMovementWeights, dcEdge
     real (kind=RKIND), dimension(:), pointer :: tidalInputMask
+    real (kind=RKIND), dimension(:), pointer :: bottomDrag
     real (kind=RKIND), dimension(:), pointer :: ssh
     real (kind=RKIND), dimension(:,:), pointer :: layerThickness, restingThickness, zMid
     real (kind=RKIND), dimension(:,:,:), pointer :: activeTracers, debugTracers
@@ -112,6 +113,7 @@ contains
                                         config_tidal_boundary_layer_type
     logical, pointer :: config_tidal_boundary_use_distances, config_alter_ICs_for_pbcs
     logical, pointer :: config_use_wetting_drying, config_tidal_start_dry
+    logical, pointer :: config_use_variable_drag
     real (kind=RKIND), pointer :: config_tidal_boundary_right_bottom_depth, &
                                   config_tidal_boundary_left_bottom_depth, &
                                   config_tidal_boundary_plug_width_dist, config_tidal_boundary_plug_width_frac, &
@@ -119,7 +121,10 @@ contains
                                   config_tidal_boundary_salinity, config_tidal_boundary_isopycnal_min_thickness, &
                                   config_tidal_boundary_left_value, &
                                   config_tidal_boundary_right_value, &
-                                  config_drying_min_cell_height
+                                  config_drying_min_cell_height, &
+                                  config_tidal_boundary_water_thickness, &
+                                  config_tidal_forcing_left_Cd_or_n, &
+                                  config_tidal_forcing_right_Cd_or_n
     integer, pointer :: config_tidal_boundary_min_vert_levels
 
 
@@ -147,6 +152,9 @@ contains
     call mpas_pool_get_config(ocnConfigs, 'config_tidal_boundary_domain_temperature', config_tidal_boundary_domain_temperature)
     call mpas_pool_get_config(ocnConfigs, 'config_tidal_boundary_salinity', config_tidal_boundary_salinity)
     call mpas_pool_get_config(ocnConfigs, 'config_alter_ICs_for_pbcs', config_alter_ICs_for_pbcs)
+    call mpas_pool_get_config(ocnConfigs, 'config_tidal_forcing_left_Cd_or_n', config_tidal_forcing_left_Cd_or_n)
+    call mpas_pool_get_config(ocnConfigs, 'config_tidal_forcing_right_Cd_or_n', config_tidal_forcing_right_Cd_or_n)
+    call mpas_pool_get_config(ocnConfigs, 'config_use_variable_drag', config_use_variable_drag)
 
     call mpas_pool_get_config(ocnConfigs, 'config_tidal_start_dry', config_tidal_start_dry)
     call mpas_pool_get_config(ocnConfigs, 'config_use_wetting_drying', config_use_wetting_drying)
@@ -243,6 +251,15 @@ contains
           + (yCell(iCell) - yMin) / (yMax - yMin)  * &
           (config_tidal_boundary_right_bottom_depth - config_tidal_boundary_left_bottom_depth)
       end do
+
+      if (config_use_variable_drag) then
+        call mpas_pool_get_array(forcingPool, 'bottomDrag', bottomDrag)
+        do iCell = 1, nCellsSolve
+          bottomDrag(iCell) = config_tidal_forcing_left_Cd_or_n &
+            + (yCell(iCell) - yMin) / (yMax - yMin)  * &
+            (config_tidal_forcing_right_Cd_or_n - config_tidal_forcing_left_Cd_or_n)
+        end do
+      end if
 
       if (config_use_wetting_drying .and. config_tidal_start_dry .and. &
           trim(config_tidal_boundary_layer_type) == 'zstar') then
