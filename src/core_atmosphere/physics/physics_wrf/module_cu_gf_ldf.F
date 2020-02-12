@@ -112,7 +112,7 @@
 
 !local variables and arrays:
  integer,parameter:: iall = 0
- integer:: i,k,k2,kb,kt
+ integer:: i,k,k2,kb,kt,n
 
 !real(kind=kind_phys),parameter:: c0 = 0.004
  real(kind=kind_phys):: c0,denom,dz,qaver,qrch
