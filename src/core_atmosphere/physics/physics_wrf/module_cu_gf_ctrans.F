@@ -1,5 +1,5 @@
 !=================================================================================================================
- module module_cu_gf_conv_transport
+ module module_cu_gf_ctrans
  use mpas_log
  use mpas_kind_types,only: kind_phys=>RKIND
 
@@ -770,5 +770,5 @@
  end subroutine cup_transport_tends
 
 !=================================================================================================================
- end module module_cu_gf_conv_transport
+ end module module_cu_gf_ctrans
 !=================================================================================================================

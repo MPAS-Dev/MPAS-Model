@@ -15,7 +15,7 @@ OBJS = \
 	module_cam_support.o             \
 	module_cu_gf.mpas.o              \
 	module_cu_gf.mpas.wrf-3.9.0.o    \
-	module_cu_gf_conv_transport.o    \
+	module_cu_gf_ctrans.o            \
 	module_cu_gf_deep.o              \
 	module_cu_gf_sh.o                \
 	module_cu_gf_shared.o            \
@@ -58,11 +58,11 @@ module_bl_mynn.o: \
 module_cam_support.o: \
 	module_cam_shr_kind_mod.o
 
-module_cu_gf_conv_transport.o: \
+module_cu_gf_ctrans.o: \
 	module_cu_gf_shared.o
 
 module_cu_gf_deep.o: \
-	module_cu_gf_conv_transport.o \
+	module_cu_gf_ctrans.o \
 	module_cu_gf_shared.o
 
 module_cu_gf_sh.o: \

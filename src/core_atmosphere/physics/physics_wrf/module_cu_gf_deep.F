@@ -28,10 +28,10 @@ module module_cu_gf_deep
  use mpas_kind_types,only: kind_phys => RKIND
  use mpas_atmphys_constants,only: cp,g=>gravity,r_v=>R_v,xlv
 
- use module_cu_gf_conv_transport,only: cup_transport_clev,    &
-                                       cup_transport_dn,      &
-                                       cup_transport_tends,   &
-                                       cup_up_moisture_ctrans
+ use module_cu_gf_ctrans,only: cup_transport_clev,    &
+                               cup_transport_dn,      &
+                               cup_transport_tends,   &
+                               cup_up_moisture_ctrans
 
  use module_cu_gf_shared,only: cup_env,cup_env_clev,cup_kbcon,cup_minimi,cup_up_aa0,   &
                                get_cloud_bc,get_inversion_layers,get_lateral_massflux, &
