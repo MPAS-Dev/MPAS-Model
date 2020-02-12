@@ -28,11 +28,11 @@ module module_cu_gf_deep
  use mpas_kind_types,only: kind_phys => RKIND
  use mpas_atmphys_constants,only: cp,g=>gravity,r_v=>R_v,xlv
 
- use module_cu_gf_conv_transport,only: cup_transport_clev, &
-                                       cup_transport_dn,   &
-                                       cup_transport_tends
+ use module_cu_gf_conv_transport,only: cup_transport_clev,    &
+                                       cup_transport_dn,      &
+                                       cup_transport_tends,   &
+                                       cup_up_moisture_ctrans
 
- use module_cu_gf_ldf,only: cup_up_moisture_ldf
  use module_cu_gf_shared,only: cup_env,cup_env_clev,cup_kbcon,cup_minimi,cup_up_aa0,   &
                                get_cloud_bc,get_inversion_layers,get_lateral_massflux, &
                                get_zu_zd_pdf_fim,rates_up_pdf
@@ -1072,13 +1072,12 @@ contains
              1,itf,ktf,                                                          &
              its,ite, kts,kte)
       else
-!--- for deep convection, replaced the subroutine cup_up_moisture with cup_up_moisture_ldf
-!    in module_cu_gf_ldf.F. cup_up_moisture_ldf is a cleaned-up version of cup_up_moisture
-!    which includes the calculation of the in-cloud "ice-" and "water-friendly" aerosols
-!    (nifa_up and nwfa-up) from the Thompson cloud microphysics. for now,  nc_up and ni_up
-!    are simply holders. cup_up_moisture_ldf does not work with the "berry" autoconversion
-!    option.
-         call cup_up_moisture_ldf('deep',ierr,k22,kbcon,ktop,autoconv,zo_cup,    &
+!--- for deep convection, replaced the subroutine cup_up_moisture with cup_up_moisture_ctrans in
+!    module_cu_gf_ctrans.F. cup_up_moisture_ctrans is a cleaned-up version of cup_up_moisture and
+!    includes the calculation of the in-cloud "ice-" and "water-friendly" aerosols (nifa_up and
+!    nwfa-up) from the Thompson cloud microphysics. for now, nc_up and ni_up are simply holders.
+!    cup_up_moisture_ctrans does not work with the "berry" autoconversion option.
+         call cup_up_moisture_ctrans('deep',ierr,k22,kbcon,ktop,autoconv,zo_cup, &
                      tn_cup,qo_cup,qeso_cup,gammao_cup,qo,dbyo,c1d,up_massentr,  &
                      up_massdetr,zuo,qco,qrco,pwo,clw_all,pwavo,psum,            &
                      ntrans,nc,ni,nifa,nwfa,qtrans,ncl2,nil2,nifal2,nwfal2,      &
