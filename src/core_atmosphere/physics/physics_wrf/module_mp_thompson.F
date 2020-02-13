@@ -1057,7 +1057,7 @@
       INTEGER:: i_start, j_start, i_end, j_end
       LOGICAL, OPTIONAL, INTENT(IN) :: diagflag
       INTEGER, OPTIONAL, INTENT(IN) :: do_radar_ref
-      CHARACTER*256:: mp_debug
+!     CHARACTER*256:: mp_debug
 
 !+---+
 
@@ -1105,9 +1105,9 @@
       kmax_qg = 0
       kmax_ni = 0
       kmax_nr = 0
-      do i = 1, 256
-         mp_debug(i:i) = char(0)
-      enddo
+!     do i = 1, 256
+!        mp_debug(i:i) = char(0)
+!     enddo
 
 !     if (.NOT. is_aerosol_aware .AND. PRESENT(nc) .AND. PRESENT(nwfa)  &
 !               .AND. PRESENT(nifa) .AND. PRESENT(nwfa2d)) then
@@ -1230,8 +1230,10 @@
              kmax_qc = k
              qc_max = qc1d(k)
             elseif (qc1d(k) .lt. 0.0) then
-             write(mp_debug,*) 'WARNING, negative qc ', qc1d(k),        &
-                        ' at i,j,k=', i,j,k
+             call mpas_log_write('--- WARNING, negative qc $r at i,j,k = $i $i $i ', &
+                       realArgs=(/qc1d(k)/),intArgs=(/i,j,k/))
+!            write(mp_debug,*) 'WARNING, negative qc ', qc1d(k),        &
+!                       ' at i,j,k=', i,j,k
 !            CALL wrf_debug(150, mp_debug)
             endif
             if (qr1d(k) .gt. qr_max) then
@@ -1240,8 +1242,10 @@
              kmax_qr = k
              qr_max = qr1d(k)
             elseif (qr1d(k) .lt. 0.0) then
-             write(mp_debug,*) 'WARNING, negative qr ', qr1d(k),        &
-                        ' at i,j,k=', i,j,k
+             call mpas_log_write('--- WARNING, negative qr $r at i,j,k = $i $i $i ', &
+                       realArgs=(/qr1d(k)/),intArgs=(/i,j,k/))
+!            write(mp_debug,*) 'WARNING, negative qr ', qr1d(k),        &
+!                       ' at i,j,k=', i,j,k
 !            CALL wrf_debug(150, mp_debug)
             endif
             if (nr1d(k) .gt. nr_max) then
@@ -1250,8 +1254,10 @@
              kmax_nr = k
              nr_max = nr1d(k)
             elseif (nr1d(k) .lt. 0.0) then
-             write(mp_debug,*) 'WARNING, negative nr ', nr1d(k),        &
-                        ' at i,j,k=', i,j,k
+             call mpas_log_write('--- WARNING, negative nr $r at i,j,k = $i $i $i ', &
+                       realArgs=(/nr1d(k)/),intArgs=(/i,j,k/))
+!            write(mp_debug,*) 'WARNING, negative nr ', nr1d(k),        &
+!                       ' at i,j,k=', i,j,k
 !            CALL wrf_debug(150, mp_debug)
             endif
             if (qs1d(k) .gt. qs_max) then
@@ -1260,8 +1266,10 @@
              kmax_qs = k
              qs_max = qs1d(k)
             elseif (qs1d(k) .lt. 0.0) then
-             write(mp_debug,*) 'WARNING, negative qs ', qs1d(k),        &
-                        ' at i,j,k=', i,j,k
+             call mpas_log_write('--- WARNING, negative qs $r at i,j,k = $i $i $i ', &
+                       realArgs=(/qs1d(k)/),intArgs=(/i,j,k/))
+!            write(mp_debug,*) 'WARNING, negative qs ', qs1d(k),        &
+!                       ' at i,j,k=', i,j,k
 !            CALL wrf_debug(150, mp_debug)
             endif
             if (qi1d(k) .gt. qi_max) then
@@ -1270,8 +1278,10 @@
              kmax_qi = k
              qi_max = qi1d(k)
             elseif (qi1d(k) .lt. 0.0) then
-             write(mp_debug,*) 'WARNING, negative qi ', qi1d(k),        &
-                        ' at i,j,k=', i,j,k
+             call mpas_log_write('--- WARNING, negative qi $r at i,j,k = $i $i $i ', &
+                       realArgs=(/qi1d(k)/),intArgs=(/i,j,k/))
+!            write(mp_debug,*) 'WARNING, negative qi ', qi1d(k),        &
+!                       ' at i,j,k=', i,j,k
 !            CALL wrf_debug(150, mp_debug)
             endif
             if (qg1d(k) .gt. qg_max) then
@@ -1280,8 +1290,10 @@
              kmax_qg = k
              qg_max = qg1d(k)
             elseif (qg1d(k) .lt. 0.0) then
-             write(mp_debug,*) 'WARNING, negative qg ', qg1d(k),        &
-                        ' at i,j,k=', i,j,k
+             call mpas_log_write('--- WARNING, negative qg $r at i,j,k = $i $i $i ', &
+                       realArgs=(/qg1d(k)/),intArgs=(/i,j,k/))
+!            write(mp_debug,*) 'WARNING, negative qg ', qg1d(k),        &
+!                       ' at i,j,k=', i,j,k
 !            CALL wrf_debug(150, mp_debug)
             endif
             if (ni1d(k) .gt. ni_max) then
@@ -1290,21 +1302,31 @@
              kmax_ni = k
              ni_max = ni1d(k)
             elseif (ni1d(k) .lt. 0.0) then
-             write(mp_debug,*) 'WARNING, negative ni ', ni1d(k),        &
-                        ' at i,j,k=', i,j,k
+             call mpas_log_write('--- WARNING, negative qni $r at i,j,k = $i $i $i ', &
+                       realArgs=(/ni1d(k)/),intArgs=(/i,j,k/))
+!            write(mp_debug,*) 'WARNING, negative ni ', ni1d(k),        &
+!                       ' at i,j,k=', i,j,k
 !            CALL wrf_debug(150, mp_debug)
             endif
             if (qv1d(k) .lt. 0.0) then
-             write(mp_debug,*) 'WARNING, negative qv ', qv1d(k),        &
-                        ' at i,j,k=', i,j,k
-!            CALL wrf_debug(150, mp_debug)
+             call mpas_log_write('--- WARNING, negative qv $r at i,j,k = $i $i $i ', &
+                       realArgs=(/qv1d(k)/),intArgs=(/i,j,k/))
              if (k.lt.kte-2 .and. k.gt.kts+1) then
-                write(mp_debug,*) '   below and above are: ', qv(i,k-1,j), qv(i,k+1,j)
-!               CALL wrf_debug(150, mp_debug)
+                call mpas_log_write('-- below and above are: $r $r',realArgs=(/qv(i,k-1,j), qv(i,k+1,j)/))
                 qv(i,k,j) = MAX(1.E-7, 0.5*(qv(i,k-1,j) + qv(i,k+1,j)))
              else
                 qv(i,k,j) = 1.E-7
              endif
+!            write(mp_debug,*) 'WARNING, negative qv ', qv1d(k),        &
+!                       ' at i,j,k=', i,j,k
+!            CALL wrf_debug(150, mp_debug)
+!            if (k.lt.kte-2 .and. k.gt.kts+1) then
+!               write(mp_debug,*) '   below and above are: ', qv(i,k-1,j), qv(i,k+1,j)
+!               CALL wrf_debug(150, mp_debug)
+!               qv(i,k,j) = MAX(1.E-7, 0.5*(qv(i,k-1,j) + qv(i,k+1,j)))
+!            else
+!               qv(i,k,j) = 1.E-7
+!            endif
             endif
          enddo
 
@@ -1337,20 +1359,20 @@
       enddo j_loop
 
 ! DEBUG - GT
-      write(mp_debug,'(a,7(a,e13.6,1x,a,i3,a,i3,a,i3,a,1x))') 'MP-GT:', &
-         'qc: ', qc_max, '(', imax_qc, ',', jmax_qc, ',', kmax_qc, ')', &
-         'qr: ', qr_max, '(', imax_qr, ',', jmax_qr, ',', kmax_qr, ')', &
-         'qi: ', qi_max, '(', imax_qi, ',', jmax_qi, ',', kmax_qi, ')', &
-         'qs: ', qs_max, '(', imax_qs, ',', jmax_qs, ',', kmax_qs, ')', &
-         'qg: ', qg_max, '(', imax_qg, ',', jmax_qg, ',', kmax_qg, ')', &
-         'ni: ', ni_max, '(', imax_ni, ',', jmax_ni, ',', kmax_ni, ')', &
-         'nr: ', nr_max, '(', imax_nr, ',', jmax_nr, ',', kmax_nr, ')'
+!     write(mp_debug,'(a,7(a,e13.6,1x,a,i3,a,i3,a,i3,a,1x))') 'MP-GT:', &
+!        'qc: ', qc_max, '(', imax_qc, ',', jmax_qc, ',', kmax_qc, ')', &
+!        'qr: ', qr_max, '(', imax_qr, ',', jmax_qr, ',', kmax_qr, ')', &
+!        'qi: ', qi_max, '(', imax_qi, ',', jmax_qi, ',', kmax_qi, ')', &
+!        'qs: ', qs_max, '(', imax_qs, ',', jmax_qs, ',', kmax_qs, ')', &
+!        'qg: ', qg_max, '(', imax_qg, ',', jmax_qg, ',', kmax_qg, ')', &
+!        'ni: ', ni_max, '(', imax_ni, ',', jmax_ni, ',', kmax_ni, ')', &
+!        'nr: ', nr_max, '(', imax_nr, ',', jmax_nr, ',', kmax_nr, ')'
 !     CALL wrf_debug(150, mp_debug)
 ! END DEBUG - GT
 
-      do i = 1, 256
-         mp_debug(i:i) = char(0)
-      enddo
+!     do i = 1, 256
+!        mp_debug(i:i) = char(0)
+!     enddo
 
       END SUBROUTINE mp_gt_driver
 
@@ -1632,11 +1654,6 @@
             L_qc(k) = .true.
 !.. set L_nwfa to true when the cloud liquid water number concentration is less than 2.:
             if(is_aerosol_aware .and. nc(k) .le. 2.) L_nwfa(k) = .true.
-!           if(ii.eq.1190 .and. L_nwfa(k)) then
-!              tem = nc1d(k)*rho(k)
-!              call mpas_log_write('--- nc: $i $i $l $r $r $r $r',logicArgs=(/L_nwfa(k)/), &
-!                        intArgs=(/ii,k/),realArgs=(/rc(k),tem,nc(k),nwfa(k)/))
-!           endif
             nu_c = MIN(15, NINT(1000.E6/nc(k)) + 2)
             lamc = (nc(k)*am_r*ccg(2,nu_c)*ocg1(nu_c)/rc(k))**obmr
             xDc = (bm_r + nu_c + 1.) / lamc
@@ -1663,11 +1680,6 @@
             L_qi(k) = .true.
 !.. set L_nifa to true when the cloud ice number concentration is less than R2:
             if(is_aerosol_aware .and. ni(k) .le. R2) L_nifa(k) = .true.
-!           if(ii.eq.2539 .and. L_nifa(k)) then
-!              tem = ni1d(k)*rho(k)
-!              call mpas_log_write('--- ni: $i $i $l $r $r $r $r',logicArgs=(/L_nifa(k)/), &
-!                            intArgs=(/ii,k/),realArgs=(/ri(k),tem,ni(k),nifa(k)/))
-!           endif
             if (ni(k).le. R2) then
                lami = cie(2)/5.E-6
                ni(k) = MIN(9999.D3, cig(1)*oig2*ri(k)/am_i*lami**bm_i)
@@ -1738,21 +1750,6 @@
             L_qg(k) = .false.
          endif
       enddo
-      if(ii.eq.1190) then
-         do k = kts,kte
-            if(L_nwfa(k)) &
-               call mpas_log_write('--- nc: $i $i $l $l $r $r $r $r',logicArgs=(/L_qc(k),L_nwfa(k)/), &
-                                   intArgs=(/ii,k/),realArgs=(/qc1d(k),rc(k),nc(k),nwfa(k)/))
-         enddo
-      endif
-      if(ii.eq.2539) then
-         call mpas_log_write(' ')
-         do k = kts,kte
-            if(L_nifa(k)) &
-               call mpas_log_write('--- ni: $i $i $l $l $r $r $r $r',logicArgs=(/L_qi(k),L_nifa(k)/), &
-                                   intArgs=(/ii,k/),realArgs=(/qi1d(k),ri(k),ni(k),nifa(k)/))
-         enddo
-      endif
 
 !+---+-----------------------------------------------------------------+
 !     if (debug_flag) then
@@ -2677,12 +2674,6 @@
             else
                nifaten(k) = 0.
             endif
-            if(ii.eq.1190 .and. L_nwfa(k)) call mpas_log_write('--- nwfaten: $i $i $l $r $r $r $r $r', &
-                      intArgs=(/ii,k/),logicArgs=(/L_nwfa(k)/),realArgs=(/nwfaten(k),real(pna_rca(k)), &
-                      real(pna_sca(k)),real(pna_gca(k)),real(pni_iha(k))/))
-            if(ii.eq.2539 .and. L_nifa(k)) call mpas_log_write('--- nifaten: $i $i $l $r $r $r $r', &
-                      intArgs=(/ii,k/),logicArgs=(/L_nifa(k)/),realArgs=(/nifaten(k),real(pnd_rcd(k)), &
-                      real(pnd_scd(k)),real(pnd_gcd(k))/))
          endif
 
 !..Water vapor tendency
@@ -3214,15 +3205,6 @@
                                     prg_gcw(k) + prs_sci(k) + &
                                     pri_rci(k)
       enddo
-      if(ii.eq.1190) then
-         call mpas_log_write(' ')
-         do k = kts,kte
-            if(L_nwfa(k)) &
-               call mpas_log_write('--- pnc_wcd: $i $i $l $r $r $r',intArgs=(/ii,k/), &
-                      logicArgs=(/L_nwfa(k)/),realArgs=(/nwfaten(k),real(pnc_wcd(k)), & 
-                      real(pnr_rev(k))/))
-         enddo
-      endif
 
 !+---+-----------------------------------------------------------------+
 !..Find max terminal fallspeed (distribution mass-weighted mean
