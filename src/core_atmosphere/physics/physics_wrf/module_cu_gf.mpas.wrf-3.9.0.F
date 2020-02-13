@@ -52,7 +52,7 @@
                gdc,gdc2,                                     &
                pratec,pratecd,pratecm,pratecs,raincv,        &
                raincvd,raincvm,raincvs,nclos,weights_clos,   &
-               nc,ni,nifa,nwfa,ntrans,qtrans,rqtranscuten,   &
+               nc,ni,nifa,nwfa,                              &
                ids,ide,jds,jde,kds,kde,                      &
                ims,ime,jms,jme,kms,kme,                      &
                its,ite,jts,jte,kts,kte                       &
@@ -67,7 +67,6 @@
                       its,ite, jts,jte, kts,kte
  integer,intent(in):: ichoice,ichoice_m,ichoice_s
  integer,intent(in):: nclos
- integer,intent(in):: ntrans
  integer,intent(in),dimension(ims:ime,jms:jme):: kpbl
 
  real,intent(in):: dt
@@ -77,7 +76,6 @@
  real,intent(in),dimension(ims:ime,kms:kme,jms:jme):: rthraten,rthblten,rthften,rqvblten,rqvften
 
  real,intent(in),dimension(ims:ime,kms:kme,jms:jme),optional:: nc,ni,nifa,nwfa
- real,intent(in),dimension(ims:ime,kms:kme,jms:jme,ntrans),optional:: qtrans
 
 !inout variables:
  integer,intent(inout),dimension(ims:ime,jms:jme),optional:: k22_deepc,kbcon_deepc,ktop_deepc
@@ -100,10 +98,10 @@
 
  real,intent(inout),dimension(ims:ime,1:nclos,jms:jme),optional:: weights_clos
 
- real,intent(inout),dimension(ims:ime,kms:kme,jms:jme,ntrans),optional:: rqtranscuten
-
 !local variables:
  character(len=50),dimension(its:ite):: ierrc,ierrcm,ierrcs
+
+ integer,parameter:: ntrans=2
 
  integer:: i,ipr,k,j,n
  integer:: itf,ktf,jtf
@@ -273,15 +271,15 @@
           enddo
        enddo
     endif
-    if(present(rqtranscuten)) then
-       do k = kts, kte
-          do i = its, ite
-             do n = 1, ntrans
-                rqtranscuten(i,k,j,n) = 0.
-             enddo
-          enddo
-       enddo
-    endif
+!   if(present(rqtranscuten)) then
+!      do k = kts, kte
+!         do i = its, ite
+!            do n = 1, ntrans
+!               rqtranscuten(i,k,j,n) = 0.
+!            enddo
+!         enddo
+!      enddo
+!   endif
 
     if(present(weights_clos)) then
        do k = 1, nclos
@@ -495,15 +493,15 @@
           enddo
        enddo
     endif
-    if(present(qtrans)) then
-       do n = 1, ntrans
-          do k = kts, ktf
-             do i = its, ite
-                qtrans2d(i,k,n) = qtrans(i,k,j,n)
-             enddo
-          enddo
-       enddo
-    else
+!   if(present(qtrans)) then
+!      do n = 1, ntrans
+!         do k = kts, ktf
+!            do i = its, ite
+!               qtrans2d(i,k,n) = qtrans(i,k,j,n)
+!            enddo
+!         enddo
+!      enddo
+!   else
        do n = 1, ntrans
           do k = kts, ktf
              do i = its, ite
@@ -511,7 +509,7 @@
              enddo
           enddo
        enddo
-    endif
+!   endif
 
     !--- calculation of the moisture convergence: we do not need to calculate
     !the moisture convergence since it is initialized to zero and calculated
@@ -755,15 +753,15 @@
           enddo
        enddo
     endif
-    if(present(rqtranscuten)) then
-       do k = kts, ktf
-          do i = its, itf
-             do n = 1, ntrans
-                rqtranscuten(i,k,j,n) = cuten(i)*outqtrans(i,k,n) + cutenm(i)*outqtransm(i,k,n)
-             enddo
-          enddo
-       enddo
-    endif
+!   if(present(rqtranscuten)) then
+!      do k = kts, ktf
+!         do i = its, itf
+!            do n = 1, ntrans
+!               rqtranscuten(i,k,j,n) = cuten(i)*outqtrans(i,k,n) + cutenm(i)*outqtransm(i,k,n)
+!            enddo
+!         enddo
+!      enddo
+!   endif
 
  enddo j_loop
 
