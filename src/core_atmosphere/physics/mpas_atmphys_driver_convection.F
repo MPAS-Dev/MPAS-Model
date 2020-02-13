@@ -129,6 +129,10 @@
 ! * added the variables rnccuten,rnicuten,rnifacuten,and rnwfacuten in the call to subroutine
 !   cu_grell_freitas_wrf390 to add the tendencies of the nc,ni,nifa, and nwfa due to convective transport.
 !   Laura D. Fowler (laura@ucar.edu) / 2019-09-12.
+! * in subroutine convection_from_MPAS, corrected the initialization of rnccuten_p, rnicuten_p, rnifacuten_p,
+!   and rnwfacuten_p so that convection_from_MPAS works when using a convection scheme other than the Grell-
+!   Freitas scheme.
+!   Laura D. Fowler (laura@ucar.edu) / 2020-02-13.
 
 
  contains
@@ -1209,17 +1213,6 @@
           enddo
        enddo
     enddo
- else
-    do j = jts, jte
-       do k = kts, kte
-          do i = its, ite
-             rnccuten_p(i,k,j)       = 0._RKIND
-             rnccuten_deepc_p(i,k,j) = 0._RKIND
-             rnccuten_midlc_p(i,k,j) = 0._RKIND
-             rnccuten_shalc_p(i,k,j) = 0._RKIND
-          enddo
-       enddo
-    enddo
  endif
 
  nullify(rnicuten)
@@ -1238,17 +1231,6 @@
              rnicuten_deepc_p(i,k,j) = rnicuten_deepc(k,i)
              rnicuten_midlc_p(i,k,j) = rnicuten_midlc(k,i)
              rnicuten_shalc_p(i,k,j) = rnicuten_shalc(k,i)
-          enddo
-       enddo
-    enddo
- else
-    do j = jts, jte
-       do k = kts, kte
-          do i = its, ite
-             rnicuten_p(i,k,j)       = 0._RKIND
-             rnicuten_deepc_p(i,k,j) = 0._RKIND
-             rnicuten_midlc_p(i,k,j) = 0._RKIND
-             rnicuten_shalc_p(i,k,j) = 0._RKIND
           enddo
        enddo
     enddo
@@ -1273,17 +1255,6 @@
           enddo
        enddo
     enddo
- else
-    do j = jts, jte
-       do k = kts, kte
-          do i = its, ite
-             rnifacuten_p(i,k,j)       = 0._RKIND
-             rnifacuten_deepc_p(i,k,j) = 0._RKIND
-             rnifacuten_midlc_p(i,k,j) = 0._RKIND
-             rnifacuten_shalc_p(i,k,j) = 0._RKIND
-          enddo
-       enddo
-    enddo
  endif
 
  nullify(rnwfacuten)
@@ -1302,17 +1273,6 @@
              rnwfacuten_deepc_p(i,k,j) = rnwfacuten_deepc(k,i)
              rnwfacuten_midlc_p(i,k,j) = rnwfacuten_midlc(k,i)
              rnwfacuten_shalc_p(i,k,j) = rnwfacuten_shalc(k,i)
-          enddo
-       enddo
-    enddo
- else
-    do j = jts, jte
-       do k = kts, kte
-          do i = its, ite
-             rnwfacuten_p(i,k,j)       = 0._RKIND
-             rnwfacuten_deepc_p(i,k,j) = 0._RKIND
-             rnwfacuten_midlc_p(i,k,j) = 0._RKIND
-             rnwfacuten_shalc_p(i,k,j) = 0._RKIND
           enddo
        enddo
     enddo
