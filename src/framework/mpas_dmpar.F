@@ -66,6 +66,17 @@ include 'mpif.h'
    public :: mpas_dmpar_init
    public :: mpas_dmpar_finalize
    public :: mpas_dmpar_abort
+   public :: mpas_dmpar_bcast_int
+   public :: mpas_dmpar_bcast_ints
+   public :: mpas_dmpar_bcast_real
+   public :: mpas_dmpar_bcast_reals
+   public :: mpas_dmpar_bcast_real4
+   public :: mpas_dmpar_bcast_real4s
+   public :: mpas_dmpar_bcast_double
+   public :: mpas_dmpar_bcast_doubles
+   public :: mpas_dmpar_bcast_logical
+   public :: mpas_dmpar_bcast_char
+   public :: mpas_dmpar_bcast_chars
    public :: mpas_dmpar_sum_int
    public :: mpas_dmpar_sum_real
    public :: mpas_dmpar_min_int
@@ -104,36 +115,6 @@ include 'mpif.h'
    public :: mpas_dmpar_exch_group_full_halo_exch
    public :: mpas_dmpar_field_halo_exch
 
-   interface mpas_dmpar_bcast
-      module procedure mpas_dmpar_bcast_int
-      module procedure mpas_dmpar_bcast_ints
-      module procedure mpas_dmpar_bcast_real
-      module procedure mpas_dmpar_bcast_reals
-#ifndef SINGLE_PRECISION
-      module procedure mpas_dmpar_bcast_real4
-      module procedure mpas_dmpar_bcast_real4s
-#else
-      module procedure mpas_dmpar_bcast_double
-      module procedure mpas_dmpar_bcast_doubles
-#endif
-      module procedure mpas_dmpar_bcast_logical
-      module procedure mpas_dmpar_bcast_char
-      module procedure mpas_dmpar_bcast_chars
-   end interface
-
-   public :: mpas_dmpar_bcast
-
-   public :: mpas_dmpar_bcast_int
-   public :: mpas_dmpar_bcast_ints
-   public :: mpas_dmpar_bcast_real
-   public :: mpas_dmpar_bcast_reals
-   public :: mpas_dmpar_bcast_real4
-   public :: mpas_dmpar_bcast_real4s
-   public :: mpas_dmpar_bcast_double
-   public :: mpas_dmpar_bcast_doubles
-   public :: mpas_dmpar_bcast_logical
-   public :: mpas_dmpar_bcast_char
-   public :: mpas_dmpar_bcast_chars
    public :: mpas_dmpar_exch_group_build_reusable_buffers
    public :: mpas_dmpar_exch_group_reuse_halo_exch
    public :: mpas_dmpar_exch_group_destroy_reusable_buffers
