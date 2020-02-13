@@ -469,7 +469,6 @@
 			<var name="coeffs_reconstruct"/>
 			<var name="p_fg"/>
 			<var_array name="scalars"/>
-			<var_array name="tracers"/>
 			<var name="initial_time"/>
 			<var name="xtime"/>
 			<var name="u"/>
@@ -524,6 +523,9 @@
 			<var name="ol3"/>
 			<var name="ol4"/>
 			<var name="h_oml_initial"/>
+#ifdef ATM_CHEMISTRY
+			<var_array name="tracers"/>
+#endif
 		</stream>
 
 		<stream name="restart" 
