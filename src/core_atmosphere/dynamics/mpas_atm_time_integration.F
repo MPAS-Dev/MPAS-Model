@@ -1677,13 +1677,13 @@ module atm_time_integration
          !$OMP PARALLEL DO
          do thread=1,nThreads
             if (rk_step < 3 .or. (.not. config_monotonic .and. .not. config_positive_definite)) then
-               call atm_advance_scalars(tend, state, diag, mesh, block % configs, nCells, rk_timestep(rk_step), &
+               call atm_advance_scalars(tend, state, diag, mesh, block % configs, rk_timestep(rk_step), &
                                        edgeThreadStart(thread), edgeThreadEnd(thread), &
                                        cellSolveThreadStart(thread), cellSolveThreadEnd(thread), &
                                        horiz_flux_array, rk_step, config_time_integration_order, &
                                        advance_density=config_split_dynamics_transport)
             else
-               call atm_advance_scalars_mono(block, tend, state, diag, mesh, block % configs, nCells, nEdges, rk_timestep(rk_step), &
+               call atm_advance_scalars_mono(block, tend, state, diag, mesh, block % configs, rk_timestep(rk_step), &
                                        cellThreadStart(thread), cellThreadEnd(thread), &
                                        edgeThreadStart(thread), edgeThreadEnd(thread), &
                                        cellSolveThreadStart(thread), cellSolveThreadEnd(thread), &
@@ -3035,7 +3035,7 @@ module atm_time_integration
    !>  to the work routine.
    !
    !-----------------------------------------------------------------------
-   subroutine atm_advance_scalars( tend, state, diag, mesh, configs, nCells, dt, &
+   subroutine atm_advance_scalars( tend, state, diag, mesh, configs, dt, &
                                    edgeStart, edgeEnd, &
                                    cellSolveStart, cellSolveEnd, &
                                    horiz_flux_arr, rk_step, config_time_integration_order, advance_density)
@@ -3047,7 +3047,6 @@ module atm_time_integration
       type (mpas_pool_type), intent(in) :: diag
       type (mpas_pool_type), intent(in) :: mesh
       type (mpas_pool_type), intent(in) :: configs
-      integer, intent(in) :: nCells           ! for allocating stack variables
       integer, intent(in) :: rk_step    !  rk substep we are integrating
       integer, intent(in) :: config_time_integration_order  ! time integration order
       real (kind=RKIND) :: dt
@@ -3067,7 +3066,9 @@ module atm_time_integration
       integer, dimension(:), pointer :: nAdvCellsForEdge, nEdgesOnCell
       real (kind=RKIND), dimension(:,:), pointer :: adv_coefs, adv_coefs_3rd, edgesOnCell_sign
 
+      integer, pointer :: nCells
       integer, pointer :: nEdges
+      integer, pointer :: num_scalars
 
       real (kind=RKIND), dimension(:), pointer :: fnm, fnp, rdnw
       real (kind=RKIND), pointer :: coef_3rd_order
@@ -3109,12 +3110,14 @@ module atm_time_integration
       call mpas_pool_get_array(mesh, 'adv_coefs', adv_coefs)
       call mpas_pool_get_array(mesh, 'adv_coefs_3rd', adv_coefs_3rd)
 
+      call mpas_pool_get_dimension(mesh, 'nCells', nCells)
       call mpas_pool_get_dimension(mesh, 'nEdges', nEdges)
+      call mpas_pool_get_dimension(state, 'num_scalars', num_scalars)
 
       call mpas_pool_get_array(mesh, 'bdyMaskCell', bdyMaskCell)
       call mpas_pool_get_array(mesh, 'bdyMaskEdge', bdyMaskEdge)
 
-      call atm_advance_scalars_work(nCells, dt, &
+      call atm_advance_scalars_work(nCells, num_scalars, dt, &
              edgeStart, edgeEnd, &
              cellSolveStart, cellSolveEnd, &
              coef_3rd_order, scalar_old, scalar_new, rho_zz_old, rho_zz_new, &
@@ -3157,7 +3160,7 @@ module atm_time_integration
    !>  The transport scheme is from Skamarock and Gassmann MWR 2011.
    !
    !-----------------------------------------------------------------------
-   subroutine atm_advance_scalars_work(nCells, dt, &
+   subroutine atm_advance_scalars_work(nCells, num_scalars, dt, &
              edgeStart, edgeEnd, &
              cellSolveStart, cellSolveEnd, &
              coef_3rd_order, scalar_old, scalar_new, rho_zz_old, rho_zz_new, &
@@ -3169,11 +3172,12 @@ module atm_time_integration
              nEdges, horiz_flux_arr, rk_step, config_time_integration_order, &
              advance_density)
 
-      use mpas_atm_dimensions
+      use mpas_atm_dimensions, only : nVertLevels
 
       implicit none
 
       integer, intent(in) :: nCells           ! for allocating stack variables
+      integer, intent(in) :: num_scalars
       real (kind=RKIND), intent(in) :: dt
       integer, intent(in) :: edgeStart, edgeEnd
       integer, intent(in) :: cellSolveStart, cellSolveEnd
@@ -3408,13 +3412,11 @@ module atm_time_integration
    !>  to the work routine.
    !
    !-----------------------------------------------------------------------
-   subroutine atm_advance_scalars_mono(block, tend, state, diag, mesh, configs, nCells, nEdges, dt, &
+   subroutine atm_advance_scalars_mono(block, tend, state, diag, mesh, configs, dt, &
                                    cellStart, cellEnd, edgeStart, edgeEnd, &
                                    cellSolveStart, cellSolveEnd, &
                                    scalar_old, scalar_new, s_max, s_min, wdtn, scale_arr, flux_arr, &
                                    flux_upwind_tmp, flux_tmp, advance_density, rho_zz_int)
-
-      use mpas_atm_dimensions
 
       implicit none
 
@@ -3424,19 +3426,17 @@ module atm_time_integration
       type (mpas_pool_type), intent(in)    :: diag
       type (mpas_pool_type), intent(in)    :: mesh
       type (mpas_pool_type), intent(in)    :: configs
-      integer, intent(in)                  :: nCells           ! for allocating stack variables
-      integer, intent(in)                  :: nEdges           ! for allocating stack variables
       real (kind=RKIND), intent(in)        :: dt
       integer, intent(in) :: cellStart, cellEnd, edgeStart, edgeEnd
       integer, intent(in) :: cellSolveStart, cellSolveEnd
-      real (kind=RKIND), dimension(nVertLevels,nCells+1), intent(inout) :: scalar_old, scalar_new
-      real (kind=RKIND), dimension(nVertLevels,nCells+1), intent(inout) :: s_max, s_min
-      real (kind=RKIND), dimension(nVertLevels+1,nCells+1), intent(inout) :: wdtn
-      real (kind=RKIND), dimension(nVertLevels,2,nCells+1), intent(inout) :: scale_arr
-      real (kind=RKIND), dimension(nVertLevels,nEdges+1), intent(inout) :: flux_arr
-      real (kind=RKIND), dimension(nVertLevels,nEdges+1), intent(inout) :: flux_upwind_tmp, flux_tmp
+      real (kind=RKIND), dimension(:,:), intent(inout) :: scalar_old, scalar_new
+      real (kind=RKIND), dimension(:,:), intent(inout) :: s_max, s_min
+      real (kind=RKIND), dimension(:,:), intent(inout) :: wdtn
+      real (kind=RKIND), dimension(:,:,:), intent(inout) :: scale_arr
+      real (kind=RKIND), dimension(:,:), intent(inout) :: flux_arr
+      real (kind=RKIND), dimension(:,:), intent(inout) :: flux_upwind_tmp, flux_tmp
       logical, intent(in), optional :: advance_density
-      real (kind=RKIND), dimension(nVertLevels,nCells+1), intent(inout), optional :: rho_zz_int
+      real (kind=RKIND), dimension(:,:), intent(inout), optional :: rho_zz_int
 
       real (kind=RKIND), dimension(:,:,:), pointer :: scalar_tend
       real (kind=RKIND), dimension(:,:), pointer :: uhAvg, rho_zz_old, rho_zz_new, wwAvg
@@ -3451,7 +3451,10 @@ module atm_time_integration
 
       integer, dimension(:), pointer :: bdyMaskCell, bdyMaskEdge  ! regional_MPAS addition
 
+      integer, pointer :: nCells
+      integer, pointer :: nEdges
       integer, pointer :: nCellsSolve
+      integer, pointer :: num_scalars
 
       real (kind=RKIND), dimension(:), pointer :: fnm, fnp, rdnw
       integer, dimension(:), pointer :: nEdgesOnCell
@@ -3459,7 +3462,10 @@ module atm_time_integration
 
       call mpas_pool_get_config(configs, 'config_coef_3rd_order', coef_3rd_order)
 
+      call mpas_pool_get_dimension(mesh, 'nCells', nCells)
+      call mpas_pool_get_dimension(mesh, 'nEdges', nEdges)
       call mpas_pool_get_dimension(mesh, 'nCellsSolve', nCellsSolve)
+      call mpas_pool_get_dimension(state, 'num_scalars', num_scalars)
 
       call mpas_pool_get_array(diag, 'ruAvg', uhAvg)
       call mpas_pool_get_array(diag, 'wwAvg', wwAvg)
@@ -3489,7 +3495,7 @@ module atm_time_integration
       call mpas_pool_get_array(mesh, 'bdyMaskCell', bdyMaskCell)  ! MPAS_regional addition
       call mpas_pool_get_array(mesh, 'bdyMaskEdge', bdyMaskEdge)  ! MPAS_regional addition
 
-      call atm_advance_scalars_mono_work(block, state, nCells, nEdges, dt, &
+      call atm_advance_scalars_mono_work(block, state, nCells, nEdges, num_scalars, dt, &
                                    cellStart, cellEnd, edgeStart, edgeEnd, &
                                    cellSolveStart, cellSolveEnd, &
                                    coef_3rd_order, nCellsSolve, uhAvg, wwAvg, scalar_tend, rho_zz_old, &
@@ -3535,7 +3541,7 @@ module atm_time_integration
    !>  as used in the RK3 scheme as described in Wang et al MWR 2009
    !
    !-----------------------------------------------------------------------
-   subroutine atm_advance_scalars_mono_work(block, state, nCells, nEdges, dt, &
+   subroutine atm_advance_scalars_mono_work(block, state, nCells, nEdges, num_scalars, dt, &
                                    cellStart, cellEnd, edgeStart, edgeEnd, &
                                    cellSolveStart, cellSolveEnd, &
                                    coef_3rd_order, nCellsSolve, uhAvg, wwAvg, scalar_tend, rho_zz_old, &
@@ -3546,7 +3552,7 @@ module atm_time_integration
                                    bdyMaskCell, bdyMaskEdge, &
                                    advance_density, rho_zz_int)
 
-      use mpas_atm_dimensions
+      use mpas_atm_dimensions, only : nVertLevels
 
       implicit none
 
@@ -3554,6 +3560,7 @@ module atm_time_integration
       type (mpas_pool_type), intent(inout) :: state
       integer, intent(in)                  :: nCells           ! for allocating stack variables
       integer, intent(in)                  :: nEdges           ! for allocating stack variables
+      integer, intent(in)                  :: num_scalars
       real (kind=RKIND), intent(in)        :: dt
       integer, intent(in) :: cellStart, cellEnd, edgeStart, edgeEnd
       integer, intent(in) :: cellSolveStart, cellSolveEnd
