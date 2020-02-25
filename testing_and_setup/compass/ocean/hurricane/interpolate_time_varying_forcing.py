@@ -99,31 +99,31 @@ def write_to_file(filename,data,var,xtime):
 
 def plot_interp_data(lon_data,lat_data,data,lon_grid,lat_grid,interp_data,var_label,var_abrev,time):
 
-  levels = np.linspace(np.amin(data),np.amax(data),10)
 
   # Plot data
   fig = plt.figure()
+  levels = np.linspace(np.amin(data),np.amax(data),100)
   ax0 = fig.add_subplot(2, 1, 1, projection=ccrs.PlateCarree())
-
   cf = ax0.contourf(lon_data, lat_data, data, levels=levels,
                     transform=ccrs.PlateCarree())
-  ax0.set_extent([0, 360, -90, 90], crs=ccrs.PlateCarree())
-  ax0.add_feature(cfeature.LAND)
-  ax0.add_feature(cfeature.LAKES, alpha=0.5)
-  ax0.add_feature(cfeature.COASTLINE)
-  ax0.set_title('data '+time.strip())
+  ax0.set_extent([0, 359.9, -90, 90], crs=ccrs.PlateCarree())
+  ax0.add_feature(cfeature.LAND, zorder=100)
+  ax0.add_feature(cfeature.LAKES, alpha=0.5, zorder=101)
+  ax0.add_feature(cfeature.COASTLINE, zorder=101)
+  ax0.set_title('data '+time.strip().decode())
   cbar = fig.colorbar(cf,ax=ax0)
   cbar.set_label(var_label)
 
   # Plot interpolated data
   ax1 = fig.add_subplot(2, 1, 2, projection=ccrs.PlateCarree())
+  levels = np.linspace(np.amin(interp_data),np.amax(interp_data),100)
   cf = ax1.tricontourf(lon_grid,lat_grid,interp_data,levels=levels,
                        transform=ccrs.PlateCarree())
-  ax1.set_extent([0, 360, -90, 90], crs=ccrs.PlateCarree())
-  ax1.add_feature(cfeature.LAND)
-  ax1.add_feature(cfeature.LAKES, alpha=0.5)
-  ax1.add_feature(cfeature.COASTLINE)
-  ax1.set_title('interpolated data '+time.strip())
+  ax1.set_extent([0, 359.9, -90, 90], crs=ccrs.PlateCarree())
+  ax1.add_feature(cfeature.LAND, zorder=100)
+  ax1.add_feature(cfeature.LAKES, alpha=0.5, zorder=101)
+  ax1.add_feature(cfeature.COASTLINE, zorder=101)
+  ax1.set_title('interpolated data '+time.strip().decode())
   cbar = fig.colorbar(cf,ax=ax1)
   cbar.set_label(var_label)
 
