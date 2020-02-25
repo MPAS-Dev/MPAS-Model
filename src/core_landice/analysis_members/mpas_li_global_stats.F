@@ -283,7 +283,7 @@ contains
          call mpas_pool_get_array(meshPool, 'dvEdge', dvEdge)
          call mpas_pool_get_array(geometryPool, 'thickness', thickness)
          call mpas_pool_get_array(geometryPool, 'bedTopography', bedTopography)
-         call mpas_pool_get_array(geometryPool, 'cellMask', cellMask)
+         call mpas_pool_get_array(geometryPool, 'cellMask', cellMask, timeLevel=1)
          call mpas_pool_get_array(geometryPool, 'sfcMassBalApplied', sfcMassBalApplied)
          call mpas_pool_get_array(geometryPool, 'groundedSfcMassBalApplied', groundedSfcMassBalApplied)
          call mpas_pool_get_array(geometryPool, 'basalMassBal', basalMassBal)

@@ -235,7 +235,7 @@ module li_statistics
         ! Geometry arrays
         call mpas_pool_get_array(geometryPool, 'bedTopography', bedTopography)
         call mpas_pool_get_array(geometryPool, 'sfcMassBal', sfcMassBal)
-        call mpas_pool_get_array(geometryPool, 'cellMask', cellMask)
+        call mpas_pool_get_array(geometryPool, 'cellMask', cellMask, timeLevel = 1)
         call mpas_pool_get_array(geometryPool, 'edgeMask', edgeMask)
         call mpas_pool_get_array(geometryPool, 'thickness', thickness, timeLevel = 1)
         call mpas_pool_get_array(geometryPool, 'layerThickness', layerThickness, timeLevel = 1)
