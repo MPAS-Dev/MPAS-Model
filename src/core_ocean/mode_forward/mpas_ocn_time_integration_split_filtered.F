@@ -237,7 +237,7 @@ contains
       integer :: threadNum
 
       integer :: temp_mask
-      logical :: InitialLayerThicknessEdgeCheck1, InitialLayerThicknessEdgeCheck2
+      logical :: InitialLayerThicknessEdgeCheck1, InitialLayerThicknessEdgeCheck2, TestLastIndexWithNonTrivialFilterWeight
 
       call mpas_timer_start("se timestep")
 
@@ -825,6 +825,15 @@ contains
             cellHaloComputeCounter = 0
             edgeHaloComputeCounter = 0
             neededHalos = 1 + config_n_btr_cor_iter
+         
+            TestLastIndexWithNonTrivialFilterWeight = .false.
+            
+            if (TestLastIndexWithNonTrivialFilterWeight) then 
+               !$omp master
+               write (*,'(A,I3,A,I2,A)') 'With MPI Rank ID: ', domain % dminfo % my_proc_id, &
+               ', LastIndexWithNonTrivialFilterWeight is ', LastIndexWithNonTrivialFilterWeight, '.'
+               !$omp end master              
+            end if 
 
             call mpas_threading_barrier()
 
@@ -1409,11 +1418,11 @@ contains
                      
                      if (config_btr_filter_type == 'no_filter_type_2') then
                         if (j == nBtrSubcycles/2) then
-                           normalBarotropicVelocitySWNew(iEdge) = normalBarotropicVelocityNew(iEdge) &
+                           normalBarotropicVelocitySWNew(iEdge) = normalBarotropicVelocitySWNew(iEdge) &
                               + SecondaryWeights(j) * normalBarotropicVelocitySubcycleNew(iEdge) 
                         end if
                      else
-                        normalBarotropicVelocitySWNew(iEdge) = normalBarotropicVelocityNew(iEdge) &
+                        normalBarotropicVelocitySWNew(iEdge) = normalBarotropicVelocitySWNew(iEdge) &
                            + SecondaryWeights(j) * normalBarotropicVelocitySubcycleNew(iEdge)
                      end if                   
 
@@ -1886,7 +1895,6 @@ contains
                   !$omp do schedule(runtime) private(k)
                   do iCell = 1, nCells
                      do k = 1, maxLevelCell(iCell)
-
                         !--------------------------------------!
                         ! h^{hf}_{n+1} was computed in Stage 1 !
                         !                                      !
@@ -2129,7 +2137,7 @@ contains
 
 !---------------------------------------------------------------------------!
 !                                                                           !
-!  routine ocn_time_integration_split_init!                                 !
+!  routine ocn_time_integration_split_init                                  !
 !                                                                           !
 !> \brief   Initialize split-explicit time stepping within MPAS-Ocean core  !
 !> \author  Mark Petersen, Sid Bishnu                                       !
@@ -2171,6 +2179,7 @@ contains
       character(len=StrKIND), pointer :: config_debug_split_explicit_filename
       
       integer :: mpiRank
+      logical :: do_TestFilterRoutines
       
       ! Config options: Barotropic subcycling
       character (len=StrKIND), pointer :: config_btr_filter_type
@@ -2315,17 +2324,20 @@ contains
             block => block % next
          end do
       end if
-                  
-      dminfo = domain % dminfo
-      mpiRank = dminfo % my_proc_id
       
-      !$omp master
-      IF (mpiRank == 0) THEN
-         WRITE (*,'(A,I2)') 'Hello from MPI Rank ID: ', mpiRank
-         CALL TestFilterRoutines()
-      END IF 
-      !$omp end master
+      do_TestFilterRoutines = .false.
       
+      if (do_TestFilterRoutines) then
+         dminfo = domain % dminfo
+         mpiRank = dminfo % my_proc_id       
+         !$omp master
+         IF (mpiRank == 0) THEN
+            WRITE (*,'(A,I2)') 'Hello from MPI Rank ID: ', mpiRank
+            CALL TestFilterRoutines()
+         END IF 
+         !$omp end master    
+      end if 
+
       ! Determine the primary and secondary weights of the time-averaging filters
 
       allocate (tau(1:2*nBtrSubcycles))
