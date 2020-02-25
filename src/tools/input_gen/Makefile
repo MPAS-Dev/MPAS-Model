@@ -4,14 +4,14 @@ EZXML_PATH= ../../external/ezxml
 
 NL_OBJS = namelist_gen.o test_functions.o
 ST_OBJS = streams_gen.o test_functions.o
-XML_OBJS = $(EZXML_PATH)/ezxml.o
+XML_OBJS = $(EZXML_PATH)/ezxml_tools.o
 
 all: ezxml
 	($(MAKE) -j 1 namelist_gen CPPFLAGS="$(CPPFLAGS)" CPPINCLUDES="$(CPPINCLUDES)")
 	($(MAKE) -j 1 streams_gen CPPFLAGS="$(CPPFLAGS)" CPPINCLUDES="$(CPPINCLUDES)")
 
 ezxml:
-	(cd $(EZXML_PATH); $(MAKE) CFLAGS="$(CFLAGS) $(TOOL_TARGET_ARCH)")
+	(cd $(EZXML_PATH); $(MAKE) CFLAGS="$(CFLAGS) $(TOOL_TARGET_ARCH)" OBJFILE="ezxml_tools.o")
 
 namelist_gen: ezxml $(NL_OBJS) $(XML_OBJS)
 	$(CC) $(CPPFLAGS) $(CFLAGS) -I$(EZXML_PATH) -o $@ $(NL_OBJS) $(XML_OBJS)
