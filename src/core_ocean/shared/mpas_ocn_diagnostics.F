@@ -1327,7 +1327,9 @@ contains
          ! For RK4, PV includes f: PV = (eta+f)/h.
          fCoef = 1
       elseif (trim(config_time_integrator) == 'split_explicit' &
-        .or.trim(config_time_integrator) == 'unsplit_explicit') then
+         .or. trim(config_time_integrator) == 'unsplit_explicit' &
+         .or. trim(config_time_integrator) == 'split_explicit_filtered' &
+         .or. trim(config_time_integrator) == 'split_explicit_unfiltered') then
           ! For split explicit, PV is eta/h because the Coriolis term
           ! is added separately to the momentum tendencies.
           fCoef = 0

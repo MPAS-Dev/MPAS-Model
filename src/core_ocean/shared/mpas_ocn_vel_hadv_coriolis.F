@@ -223,11 +223,13 @@ contains
 
       if ( config_disable_vel_coriolis ) hadvAndCoriolisOn = .false.
 
-      if ( trim( config_time_integrator ) == 'RK4') then
+      if (trim(config_time_integrator) == 'RK4') then
          ! For RK4, coriolis tendency term includes f: (eta+f)/h.
          RK4On = 1
-      elseif ( trim( config_time_integrator ) == 'split_explicit' &
-        .or. trim( config_time_integrator ) == 'unsplit_explicit') then
+      elseif (trim(config_time_integrator) == 'split_explicit' &
+         .or. trim(config_time_integrator) == 'unsplit_explicit' &
+         .or. trim(config_time_integrator) == 'split_explicit_filtered' &
+         .or. trim(config_time_integrator) == 'unsplit_explicit_unfiltered') then
          ! For split explicit, Coriolis tendency uses eta/h because the Coriolis term
          ! is added separately to the momentum tendencies.
          RK4On = 0
