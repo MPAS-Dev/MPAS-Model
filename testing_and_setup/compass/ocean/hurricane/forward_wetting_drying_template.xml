@@ -8,7 +8,5 @@
 		<option name="config_verify_not_dry">.true.</option>
 		<option name="config_zero_drying_velocity">.true.</option>
 		<option name="config_thickness_flux_type">'upwind'</option>
-		<!-- Turn off self-attraction / loading until vertical coordinate issue resolved -->
-		<option name="config_self_attraction_and_loading_beta">0.0</option>
 	</namelist>
 </template>
