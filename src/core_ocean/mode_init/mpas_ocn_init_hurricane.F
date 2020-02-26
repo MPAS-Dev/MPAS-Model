@@ -185,6 +185,7 @@ contains
     if (config_hurricane_max_depth < globalMaxBottomDepth) then
        globalMaxBottomDepth = config_hurricane_max_depth
     end if
+    !globalMaxBottomDepth = config_hurricane_min_depth
 
     ! Find min bottom depth
     maxBottomDepth = -9e10
@@ -202,7 +203,7 @@ contains
     maxBottomDepth = -1.0_RKIND*maxBottomDepth
 
     call mpas_dmpar_max_real(domain % dminfo, maxBottomDepth, globalMinBottomDepth)
-    !write(*,*) globalMaxBottomDepth, globalMinBottomDepth
+    write(*,*) globalMaxBottomDepth, globalMinBottomDepth
 
     !--------------------------------------------------------------------
     ! Use this section to set initial values
@@ -243,14 +244,20 @@ contains
        call mpas_pool_get_array(verticalMeshPool, 'refZMid', refZMid)
        call mpas_pool_get_array(verticalMeshPool, 'restingThickness', restingThickness)
 
-       do k = 1, nVertLevels
-          refBottomDepth(k) = globalMaxBottomDepth * interfaceLocations(k+1)
-          refZMid(k) = - 0.5_RKIND * (interfaceLocations(k+1) + interfaceLocations(k)) * globalMaxBottomDepth
-       end do
+       if (config_use_wetting_drying) then
+         do k = 1, nVertLevels
+           refBottomDepth(k) = config_hurricane_min_depth + (globalMaxBottomDepth - config_hurricane_min_depth) * interfaceLocations(k+1)
+           refZMid(k) = - config_hurricane_min_depth - 0.5_RKIND * (interfaceLocations(k+1) + interfaceLocations(k)) * (globalMaxBottomDepth - config_hurricane_min_depth)
+         end do
+       else
+         do k = 1, nVertLevels
+           refBottomDepth(k) = globalMaxBottomDepth * interfaceLocations(k+1)
+           refZMid(k) = - 0.5_RKIND * (interfaceLocations(k+1) + interfaceLocations(k)) * globalMaxBottomDepth
+         end do
+       end if
 
        ! Set vertCoordMovementWeights
        vertCoordMovementWeights(:) = 1.0_RKIND
-
 
        ! Set ssh
        if (config_hurricane_use_gaussian_hump) then
@@ -275,17 +282,9 @@ contains
           bottomDepth(iCell) = -1.0_RKIND*bottomDepthObserved(iCell)
 
           ! enforce minimum and maximum bottom depth
+          bottomDepth(iCell) = min(bottomDepth(iCell), config_hurricane_max_depth)
           bottomDepth(iCell) = max(bottomDepth(iCell), config_hurricane_min_depth)
-          bottomDepth(iCell) = min(bottomDepth(iCell), globalMaxBottomDepth)
 
-          !! Flatten out Bermuda
-          !if ((lonCell(iCell) > (-66.0_RKIND+360.0_RKIND)*pi/180.0_RKIND .and. &
-          !     lonCell(iCell) < (-62.0_RKIND+360.0_RKIND)*pi/180.0_RKIND)  .and. &
-          !    (latCell(iCell) >  30.0_RKIND*pi/180.0_RKIND .and. &
-          !     latCell(iCell) <  34.0_RKIND*pi/180.0_RKIND)) then
-          !
-          !  bottomDepth(iCell) = globalMaxBottomDepth
-          !end if
         end do
 
         if (config_use_wetting_drying) then
@@ -332,9 +331,18 @@ contains
               end if
             end do
 
+            ! reverse vertical shift to accomodate wetting and drying
+            bottomDepth(iCell) = bottomDepth(iCell) + globalMinBottomDepth
+            ssh(iCell) = ssh(iCell) - globalMinBottomDepth
+            do k = 1, nVertLevels
+              refBottomDepth(k) = refBottomDepth(k) + globalMinBottomDepth
+            end do
+
             do k = 1, maxLevelCell(iCell)
               restingThickness(k,iCell) = bottomDepth(iCell)/maxLevelCell(iCell)
+              !restingThickness(k,iCell) = layerThickness(k,iCell)
             end do
+
           end do
         else
           ! case without wetting and drying
