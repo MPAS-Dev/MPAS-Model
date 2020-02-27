@@ -8,5 +8,7 @@
 		<option name="config_verify_not_dry">.true.</option>
 		<option name="config_zero_drying_velocity">.true.</option>
 		<option name="config_thickness_flux_type">'upwind'</option>
+		<!-- SAL not clearly defined for wetting / drying cases issue #458-->
+		<option name="config_self_attraction_and_loading_beta">0.0</option>
 	</namelist>
 </template>
