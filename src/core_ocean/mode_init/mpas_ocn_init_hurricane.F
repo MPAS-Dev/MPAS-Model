@@ -246,8 +246,9 @@ contains
 
        if (config_use_wetting_drying) then
          do k = 1, nVertLevels
-           refBottomDepth(k) = config_hurricane_min_depth + (globalMaxBottomDepth - config_hurricane_min_depth) * interfaceLocations(k+1)
-           refZMid(k) = - config_hurricane_min_depth - 0.5_RKIND * (interfaceLocations(k+1) + interfaceLocations(k)) * (globalMaxBottomDepth - config_hurricane_min_depth)
+           refBottomDepth(k) = config_hurricane_min_depth + (config_hurricane_max_depth - config_hurricane_min_depth) * interfaceLocations(k+1)
+           refZMid(k) = - config_hurricane_min_depth - 0.5_RKIND * (interfaceLocations(k+1) + interfaceLocations(k)) * &
+                                                                   (config_hurricane_max_depth - config_hurricane_min_depth)
          end do
        else
          do k = 1, nVertLevels
@@ -299,16 +300,12 @@ contains
               do k = 1, nVertLevels
                 if (bottomDepth(iCell) < refBottomDepth(k)) then
                   maxLevelCell(iCell) = k-1
-                  bottomDepth(iCell) = refBottomDepth(k-1)
+                  ! don't need to snap to the coordinate
+                  !bottomDepth(iCell) = refBottomDepth(k-1)
                   exit
                 end if
               end do
             end if
-          end do
-
-          ! shift coordinates to accomodate wetting and drying
-          do k = 1, nVertLevels
-            refBottomDepth(k) = refBottomDepth(k) - globalMinBottomDepth
           end do
 
           do iCell = 1, nCellsSolve
@@ -334,9 +331,6 @@ contains
             ! reverse vertical shift to accomodate wetting and drying
             bottomDepth(iCell) = bottomDepth(iCell) + globalMinBottomDepth
             ssh(iCell) = ssh(iCell) - globalMinBottomDepth
-            do k = 1, nVertLevels
-              refBottomDepth(k) = refBottomDepth(k) + globalMinBottomDepth
-            end do
 
             do k = 1, maxLevelCell(iCell)
               restingThickness(k,iCell) = bottomDepth(iCell)/maxLevelCell(iCell)
