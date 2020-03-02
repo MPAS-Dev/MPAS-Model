@@ -29,6 +29,7 @@ module li_calving
    use li_setup
    use li_mask
    use li_constants
+   use li_diagnostic_vars
 
 
    implicit none
@@ -215,11 +216,9 @@ module li_calving
 
       elseif (trim(config_calving) == 'damagecalving') then
 
-         call mpas_log_write("before remove damaged ice1: $r", &
-                     realArgs=(/1.0/))
          call damage_calving(domain, err_tmp)
-         call mpas_log_write("after remove damaged ice1: $r", &
-                     realArgs=(/1.0/))
+         err = ior(err, err_tmp)
+
       elseif (trim(config_calving) == 'mask') then
 
          call mask_calving(domain, err_tmp)
@@ -1287,10 +1286,10 @@ module li_calving
 !> \brief Calve ice from the calving front based on the Bassis-Ma (2015) damage theory 
 !> \author Tong Zhang
 !> \date   May. 2019
-!> \details Calve using damage model
+!> \details Calving using damage model
 !> Bassis, Jeremy N., and Y. Ma. "Evolution of basal crevasses links ice shelf stability to ocean forcing." 
 !> Earth and Planetary Science Letters 409 (2015): 203-211.
-! TODO need to connect damage tracer to calving flux
+! TODO need to properly connect damage tracer to calving flux
 
 !-----------------------------------------------------------------------
    subroutine damage_calving(domain, err)
@@ -1318,16 +1317,12 @@ module li_calving
       type (mpas_pool_type), pointer :: meshPool
       type (mpas_pool_type), pointer :: velocityPool
       type (mpas_pool_type), pointer :: scratchPool
-      real(kind=RKIND), pointer :: config_calving_eigencalving_parameter_scalar_value
-      character (len=StrKIND), pointer :: config_calving_eigencalving_parameter_source
       logical, pointer :: config_print_calving_info
       real (kind=RKIND), pointer :: config_sea_level
       real(kind=RKIND), pointer :: config_calving_thickness
       real (kind=RKIND), dimension(:), pointer :: thickness
       real (kind=RKIND), dimension(:), pointer :: bedTopography
-      !real (kind=RKIND), dimension(:), pointer :: eigencalvingParameter
       real (kind=RKIND), dimension(:), pointer :: calvingThickness
-      !real (kind=RKIND), dimension(:), pointer :: requiredCalvingVolumeRate
       real (kind=RKIND), dimension(:), pointer :: calvingVelocity
       real (kind=RKIND), dimension(:), pointer :: eMax, eMin
       real (kind=RKIND), dimension(:), pointer :: damage
@@ -1348,9 +1343,6 @@ module li_calving
       err = 0
 
       call mpas_pool_get_config(liConfigs, 'config_print_calving_info', config_print_calving_info)
-      call mpas_pool_get_config(liConfigs, 'config_calving_eigencalving_parameter_scalar_value', &
-               config_calving_eigencalving_parameter_scalar_value)
-      call mpas_pool_get_config(liConfigs, 'config_calving_eigencalving_parameter_source', config_calving_eigencalving_parameter_source)
       call mpas_pool_get_config(liConfigs, 'config_sea_level', config_sea_level)
       call mpas_pool_get_config(liConfigs, 'config_calving_thickness', config_calving_thickness)
 
@@ -1375,68 +1367,16 @@ module li_calving
          call mpas_pool_get_array(geometryPool, 'cellMask', cellMask)
          call mpas_pool_get_array(geometryPool, 'thickness', thickness)
          call mpas_pool_get_array(geometryPool, 'bedTopography', bedTopography)
-         !call mpas_pool_get_array(geometryPool, 'eigencalvingParameter', eigencalvingParameter)
-         !call mpas_pool_get_array(geometryPool, 'requiredCalvingVolumeRate', requiredCalvingVolumeRate)
          call mpas_pool_get_array(geometryPool, 'damage', damage)
 
          call mpas_pool_get_field(scratchPool, 'iceCellMask2',  calvingFrontMaskField)
          call mpas_allocate_scratch_field(calvingFrontMaskField, .true.)
          calvingFrontMask => calvingFrontMaskField % array
 
-         ! get parameter value
-!         if (trim(config_calving_eigencalving_parameter_source) == 'scalar') then
-!            eigencalvingParameter = config_calving_eigencalving_parameter_scalar_value
-!         elseif (trim(config_calving_eigencalving_parameter_source) == 'data') then
-!            ! do nothing - use value from input file
-!         else
-!            err = 1
-!            call mpas_log_write("Invalid value specified for option config_calving_eigencalving_parameter_source" // &
-!                  config_calving_eigencalving_parameter_source, MPAS_LOG_ERR)
-!         endif
-!
-!         if (config_print_calving_info) then
-!            call mpas_log_write("eigencalvingParameter (m s) value range: Min=$r, Max=$r", &
-!                    realArgs=(/minval(eigencalvingParameter), maxval(eigencalvingParameter)/))
-!         endif
-
-         ! make mask for effective calving front.
-         ! This is last dynamic cell, but also make sure it has a neighbor that is open ocean or thin floating ice.
-         call mpas_log_write("before remove damaged ice2: $r", &
-                      realArgs=(/1.0/))
-
          call calculate_calving_front_mask(meshPool, geometryPool, calvingFrontMask)
 
-         !calvingVelocity(:) = 0.0_RKIND
-         !requiredCalvingVolumeRate(:) = 0.0_RKIND
-         ! First calculate the front retreat rate (Levermann eq. 1)
-         !calvingVelocity(:) = eigencalvingParameter(:) * max(0.0_RKIND, eMax(:)) * max(0.0_RKIND, eMin(:)) & ! m/s
-         !      * real(li_mask_is_floating_ice_int(cellMask(:)), kind=RKIND) ! calculate only for floating ice - map of "potential" calving rate
-         !do iCell = 1, nCells
-         !   if (calvingFrontMask(iCell) == 1) then
-
-         !      ! convert to a volume flux per cell masking some assumptions
-         !      ! get front length from edge lengths abutting ocean or thin ice
-         !      ! get front height from max thickness of neighbors (since thickness near the edge could be screwy)
-         !      cellCalvingFrontLength = 0.0_RKIND
-         !      cellCalvingFrontHeight = 0.0_RKIND
-         !      do iNeighbor = 1, nEdgesOnCell(iCell)
-         !         jCell = cellsOnCell(iNeighbor, iCell)
-         !         if ( (li_mask_is_floating_ice(cellMask(jCell)) .and. .not. li_mask_is_dynamic_ice(cellMask(jCell))) .or. &  ! thin ice
-         !              (.not. li_mask_is_ice(cellMask(jCell)) .and. bedTopography(jCell) < config_sea_level) ) then  ! open ocean
-         !              cellCalvingFrontLength = cellCalvingFrontLength + dvEdge(edgesOnCell(iNeighbor, iCell))
-         !         endif
-         !         cellCalvingFrontHeight = max(cellCalvingFrontHeight, thickness(jCell))
-         !      enddo
-
-         !      requiredCalvingVolumeRate(iCell) = calvingVelocity(iCell) * cellCalvingFrontLength * cellCalvingFrontHeight ! m^3/s
-         !   endif
-         !enddo
-
-         call mpas_log_write("before remove damaged ice: $r", &
-                     realArgs=(/1.0/))
          call remove_damaged_ice(meshPool, geometryPool, scratchPool, calvingFrontMask, err_tmp)
-         call mpas_log_write("after remove damaged ice: $r", &
-                     realArgs=(/0.0/))
+
          err = ior(err, err_tmp)
 
          ! === apply calving ===
@@ -1536,6 +1476,7 @@ module li_calving
       type (mpas_pool_type), pointer :: scratchPool
       real(kind=RKIND), pointer :: config_calving_eigencalving_parameter_scalar_value
       real(kind=RKIND), pointer :: config_damage_restore_threshold, config_damage_calving_threshold
+      logical, pointer :: config_use_constant_A
       real(kind=RKIND), pointer :: config_default_flowParamA 
       character (len=StrKIND), pointer :: config_calving_eigencalving_parameter_source
       logical, pointer :: config_print_calving_info
@@ -1554,6 +1495,7 @@ module li_calving
       real (kind=RKIND), dimension(:), pointer :: damage
       real (kind=RKIND), dimension(:), pointer :: ddamagedt
       real (kind=RKIND), dimension(:), pointer :: szero
+      real (kind=RKIND), dimension(:), pointer :: source
       real (kind=RKIND), dimension(:), pointer :: damage_nye
       real (kind=RKIND), dimension(:), pointer :: damage_max
       real (kind=RKIND), dimension(:), pointer :: stiffnessFactor
@@ -1588,8 +1530,8 @@ module li_calving
       real, dimension(:), pointer :: nstar
       !type (field1dReal), pointer :: szeroField
       !real, dimension(:), pointer :: szero
-      type (field1dReal), pointer :: sourceField
-      real, dimension(:), pointer :: source
+      !type (field1dReal), pointer :: sourceField
+      !real, dimension(:), pointer :: source
       !type (field1dReal), pointer :: ddamagedtField
       !real, dimension(:), pointer :: ddamagedt
       type (field1dReal), pointer :: forceField
@@ -1622,6 +1564,7 @@ module li_calving
       call mpas_pool_get_config(liConfigs, 'config_damage_restore_threshold', config_damage_restore_threshold)
       call mpas_pool_get_config(liConfigs, 'config_damage_calving_threshold', config_damage_calving_threshold)
       call mpas_pool_get_config(liConfigs, 'config_default_flowParamA', config_default_flowParamA)
+      call mpas_pool_get_config(liConfigs, 'config_use_constant_A', config_use_constant_A)
 
       ! block loop
       block => domain % blocklist
@@ -1656,6 +1599,7 @@ module li_calving
          call mpas_pool_get_array(geometryPool, 'damage', damage)
          call mpas_pool_get_array(geometryPool, 'ddamagedt', ddamagedt)
          call mpas_pool_get_array(geometryPool, 'szero', szero)
+         call mpas_pool_get_array(geometryPool, 'source', source)
          call mpas_pool_get_array(geometryPool, 'damage_nye', damage_nye)
          call mpas_pool_get_array(geometryPool, 'damage_max', damage_max)
 
@@ -1672,8 +1616,6 @@ module li_calving
          call mpas_pool_get_array(velocityPool, 'stiffnessFactor', stiffnessFactor)
 
          call mpas_pool_get_array(thermalPool, 'temperature', temperature)
-         !call mpas_pool_get_array(thermalPool, 'surfaceTemperature', surfaceTemperature)
-         !call mpas_pool_get_array(thermalPool, 'basalTemperature', basalTemperature)
 
          call mpas_pool_get_array(geometryPool, 'floatingBasalMassBal', floatingBasalMassBal)
 
@@ -1729,9 +1671,9 @@ module li_calving
          !call mpas_allocate_scratch_field(szeroField, .true.)
          !szero => szeroField % array
 
-         call mpas_pool_get_field(scratchPool, 'sourceField', sourceField )
-         call mpas_allocate_scratch_field(sourceField, .true.)
-         source => sourceField % array
+         !call mpas_pool_get_field(scratchPool, 'sourceField', sourceField )
+         !call mpas_allocate_scratch_field(sourceField, .true.)
+         !source => sourceField % array
 
          !call mpas_pool_get_field(scratchPool, 'ddamagedtField', ddamagedtField )
          !call mpas_allocate_scratch_field(ddamagedtField, .true.)
@@ -1750,42 +1692,7 @@ module li_calving
          rhoi = config_ice_density
          rhoo = config_ocean_density
 
-         ! call mpas_pool_get_field(scratchPool, 'damageField', damageField )
-         ! call mpas_allocate_scratch_field(damageField, .true.)
-         ! damage => damageField % array
-
-         ! meanT(:) = (surfaceTemperature(:)+basalTemperature(:))/2.0d0
-         !meanT(:) = sum(temperature(:,:), dim=1)/nVertLevels
-         !meanT(:) = thickness(:)*0 + 268.15
-         ! use this simple math to estimate the mean T, temporarily 
-         ! TODO: accurately compute meanT from temperature
-
-         !meanT[meanT==0] = 263.15 # for cells that contains invalid T data
-
-         !where (meanT == 0.0_RKIND)
-         !    meanT = 263.15_RKIND
-         !end where
-
-         ! in case there is zero (NAN) temperature data somewhere
-
-
-         !A01 = 3.985e-13
-         !A02 = 1.916e3
-         !Q1 = 60e3
-         !Q2 = 139e3
-         !R = 8.31
-
-         !meanFlowParamA(:) = A01*exp(-Q1/R/meanT(:))
-         !where (meanT <= 263.15_RKIND)
-         !    meanFlowParamA = A01*exp(-Q1/R/meanT)
-         !end where
-         !where (meanT > 263.15_RKIND)
-         !    meanFlowParamA = A02*exp(-Q2/R/meanT)
-         !end where
-
-         !if (xtime == '32000-05-10_23:27:31                                            ') then
-         !    damage(:) = 0.44
-         !endif
+         meanT(:) = sum(temperature(:,:), dim=1)/nVertLevels
 
          call li_compute_gradient_2d(meshPool, uReconstructX(1,:), exx, exy, err_tmp)
          err = ior(err, err_tmp)
@@ -1793,46 +1700,33 @@ module li_calving
          call li_compute_gradient_2d(meshPool, uReconstructY(1,:), eyx, eyy, err_tmp)
          err = ior(err, err_tmp)
 
-         !meanFlowParamA(:) = sum(flowParamA(:,:), dim=1)/nVertLevels
-         !call mpas_log_write("meanFlowParamA: Min=$r, Max=$r", &
-         !           realArgs=(/minval(meanFlowParamA), maxval(meanFlowParamA)/))
-         ! meanFlowParamA(:) = flowParamA(1,:)*1.0e25
-         ! strainRate_e(:) = sqrt(0.5*(exx(:)**2+eyy(:)**2) + 0.25*(exy(:)+eyx(:))**2)
-         !visc(:) = 0.5*stiffnessFactor(:)*meanFlowParamA(:)**(-1.0/3.0)*(sqrt(exx(:)**2+eyy(:)**2 + exx(:)*eyy(:) + 0.25*(exy(:)+eyx(:))**2))**((1.0-3.0)/3.0)
-         !visc(:) = 0.5*meanFlowParamA(:)**(-1.0/3.0)*(sqrt(exx(:)**2+eyy(:)**2 + exx(:)*eyy(:) + 0.25*(exy(:)+eyx(:))**2))**((1.0-3.0)/3.0)
-         visc(:) = 0.5*(2.0e-17/31536000.0)**(-1.0/3.0)*(sqrt(exx(:)**2+eyy(:)**2 + exx(:)*eyy(:) + 0.25*(exy(:)+eyx(:))**2))**((1.0-3.0)/3.0)
-         !visc(:) = 0.5*config_default_flowParamA**(-1.0/3.0)*(sqrt(exx(:)**2+eyy(:)**2 + exx(:)*eyy(:) + 0.25*(exy(:)+eyx(:))**2))**((1.0-3.0)/3.0)
-         !visc(:) = 0.5*(2.0e-17/31536000.0)**(-1.0/3.0)*(sqrt(exx(:)**2))**((1.0-3.0)/3.0)
+         call li_calculate_flowParamA(meshPool, temperature, thickness, flowParamA, err_tmp)
+         err = ior(err, err_tmp)
+
+
+         meanFlowParamA(:) = sum(flowParamA(:,:), dim=1)/nVertLevels
+         call mpas_log_write("meanFlowParamA: Min=$r, Max=$r", &
+                    realArgs=(/minval(meanFlowParamA), maxval(meanFlowParamA)/))
+         if (config_use_constant_A) then
+             visc(:) = 0.5*stiffnessFactor(:)*config_default_flowParamA**(-1.0/3.0)*(sqrt(exx(:)**2+eyy(:)**2 + exx(:)*eyy(:) + 0.25*(exy(:)+eyx(:))**2))**((1.0-3.0)/3.0)
+         else
+             visc(:) = 0.5*stiffnessFactor(:)*meanFlowParamA(:)**(-1.0/3.0)*(sqrt(exx(:)**2+eyy(:)**2 + exx(:)*eyy(:) + 0.25*(exy(:)+eyx(:))**2))**((1.0-3.0)/3.0)
+         end if
          ! recover effective viscosity from vel. and temp. fields
-
-
-         ! sigma_xx_d(:) = 2*visc(:)*exx(:)
-         ! sigma_yy_d(:) = 2*visc(:)*eyy(:)
-         ! sigma_xy(:) = 2*visc(:)*(exy(:)+eyx(:))/2.0
-         ! sigma_yx(:) = 2*visc(:)*(eyx(:)+exy(:))/2.0
-         ! after tests, the real e_xy and e_yx equal (exy+eyx)/2 for the MALI outputs
 
          sigmaxy(:) = 2*visc(:)*(exy(:)+eyx(:))/2.0
          sigmayx(:) = 2*visc(:)*(eyx(:)+exy(:))/2.0
 
-         !sigmaxx(:) = 2*(2*visc(:)*exx(:))+(2*visc(:)*eyy(:))
-         !sigmayy(:) = 2*(2*visc(:)*eyy(:))+(2*visc(:)*exx(:))
-
          sigmaxx(:) = 2*visc(:)*exx(:)
          sigmayy(:) = 2*visc(:)*eyy(:)
+         !deviatoric stress
 
          sigmamin(:) = (sigmaxx(:)+sigmayy(:))/2.0-sqrt(((sigmaxx(:)-sigmayy(:))/2.0)**2+((sigmaxy(:)+sigmayx(:))/2)**2 + 1.0e-30)
          sigmamax(:) = (sigmaxx(:)+sigmayy(:))/2.0+sqrt(((sigmaxx(:)-sigmayy(:))/2.0)**2+((sigmaxy(:)+sigmayx(:))/2)**2 + 1.0e-30)
+         !deviatoric principal stress
 
          alpha(:) = sigmamin(:) / (sigmamax(:)+1.0e-30)
          epsmax(:) = sigmamax(:) / (2.0d0*visc(:)+1.0e-30)
-
-         !alpha(:) = 1.0
-         !epsmax(:) = exx(:)
-         !where (xCell<=250000)
-         !    epsmax(:) = -epsmax(:)
-         !end where
-         !sigmamax(:) = 2*visc(:)*epsmax(:)
 
          nstar(:) = 12.0d0*(1.0d0+alpha(:)+alpha(:)**2)/(4.0d0*(1.0d0+alpha(:)+alpha(:)**2)+6.0d0*alpha(:)**2+1.0e-30) 
           ! Compute the effective flow law exponent
@@ -1840,16 +1734,14 @@ module li_calving
          szero(:) = rhoi*(rhoo-rhoi)*gravity*thickness(:)/(2.0d0*sigmamax(:)*rhoo+1.0e-30)
           ! Compute the hydrostatic to tensile stress ratio
 
-         !szero(:) = 1.0
-
          !do iCell = 1, nCells
          !    if (li_mask_is_floating_ice(cellMask(iCell))) then
          !        floatingBasalMassBal(iCell) = 0.2/31536000.0*tanh((lowerSurface(iCell)-bedTopography(iCell))/75.0) * max(-100-lowerSurface(iCell),0.0)
          !    end if
          !end do
+         ! Temporary change of BMB for MISMIP+ Ice1r
 
-         source(:) = nstar(:) * (1.0d0-szero(:))*epsmax(:)+floatingBasalMassBal(:)/(thickness(:)+1.0e-30)
-         !source(:) = nstar(:) * (1.0d0-szero(:))*epsmax(:)+0.0/31536000.0/(thickness(:)+1.0e-30)
+         source(:) = nstar(:) * (1.0d0-szero(:))*epsmax(:)-floatingBasalMassBal(:)/rhoi/(thickness(:)+1.0e-30)
 
          seconds = daysSinceStart*24.0*3600.0
 
@@ -1865,8 +1757,6 @@ module li_calving
          ddamagedt(:) = source(:) * damage(:) + force(:)
 
          damage(:) = damage(:) + ddamagedt(:) * deltat
-
-         !damage(:) = 0.44/2.0 * (1+exp(-uReconstructX(1,:)*seconds/1000.0))
 
          damage_nye(:) = (2.0+alpha(:)) * sigmamax(:) / (gravity*(rhoo-rhoi)*thickness(:))
 
@@ -1888,20 +1778,6 @@ module li_calving
             end if
          end do
 
-         !do iCell = 1, nCells
-         !   if (damage(iCell) < damage_max(iCell)) then
-         !       damage(iCell) = damage_max(iCell)
-         !   end if
-         !end do
-
-         !where (damage < 0.0_RKIND)
-         !    damage = 0.0_RKIND
-         !end where
-
-         !where (damage > 1.0_RKIND)
-         !    damage = 1.0_RKIND
-         !end where
-
 
          do iCell = 1, nCells
             if ((li_mask_is_grounded_ice(cellMask(iCell))) .or. (.not.(li_mask_is_dynamic_ice(cellMask(iCell))))) then
@@ -1910,18 +1786,21 @@ module li_calving
          end do
 
          do iCell = 1, nCells
+            if (li_mask_is_grounded_ice(cellMask(iCell))) then
+                damage(iCell) = 0.0_RKIND
+            end if
+         end do
+
+         do iCell = 1, nCells
             if (li_mask_is_grounding_line(cellMask(iCell))) then
+                
                 damage_downstream = 0.0_RKIND
                 n_damage_downstream = 0
                 do iNeighbor = 1, nEdgesOnCell(iCell)
                     jCell = cellsOnCell(iNeighbor, iCell)
-                    !if (li_mask_is_floating_ice(cellMask(jCell)) .and. li_mask_is_dynamic_ice(cellMask(jCell))) then
                     if (li_mask_is_floating_ice(cellMask(jCell))) then
                        
                         damage_downstream = damage_downstream + damage(jCell)
-                        !call mpas_log_write("damage downstream: $r", &
-                        !            realArgs=(/damage_downstream/))
-                        !damage(iCell) = damage(jCell)
                         n_damage_downstream =  n_damage_downstream + 1
                     end if
                 end do
@@ -1936,50 +1815,29 @@ module li_calving
 
             end if
         end do
+        ! set the damage for a cell at the GL to the average damage value for its neighbor cells downstream on the ice shelf 
                         
-                    
-        !loc = minloc(abs(xCell - 250500.0), 1)
-        ! damage_tmp = damage(loc)
 
-        ! where (abs(xCell-250000.0) < 100.0)
-        !     damage = damage_tmp
-             !damage = 0.22
-        ! end where
+        if (.true.) then
 
-
-         call mpas_log_write("source value range: Min=$r, Max=$r", &
-                    realArgs=(/minval(source), maxval(source)/))
-         call mpas_log_write("szero  value range: Min=$r, Max=$r", &
-                    realArgs=(/minval(szero), maxval(szero)/))
-         call mpas_log_write("nstar value range: Min=$r, Max=$r", &
-                    realArgs=(/minval(nstar), maxval(nstar)/))
-         call mpas_log_write("deltat value range: Min=$r, Max=$r", &
-                    realArgs=(/deltat, deltat/))
-         call mpas_log_write("epsmax value range: Min=$r, Max=$r", &
-                    realArgs=(/minval(epsmax), maxval(epsmax)/))
-         call mpas_log_write("damage value range: Min=$r, Max=$r", &
-                    realArgs=(/minval(damage), maxval(damage)/))
-         call mpas_log_write("A value range: Min=$r, Max=$r", &
-                    realArgs=(/minval(meanFlowParamA), maxval(meanFlowParamA)/))
-
-         ! get parameter value
-!         if (trim(config_calving_eigencalving_parameter_source) == 'scalar') then
-!            eigencalvingParameter = config_calving_eigencalving_parameter_scalar_value
-!         elseif (trim(config_calving_eigencalving_parameter_source) == 'data') then
-!            ! do nothing - use value from input file
-!         else
-!            err = 1
-!            call mpas_log_write("Invalid value specified for option config_calving_eigencalving_parameter_source" // &
-!                  config_calving_eigencalving_parameter_source, MPAS_LOG_ERR)
-!         endif
-!
-!         if (config_print_calving_info) then
-!            call mpas_log_write("eigencalvingParameter (m s) value range: Min=$r, Max=$r", &
-!                    realArgs=(/minval(eigencalvingParameter), maxval(eigencalvingParameter)/))
-!         endif
-
-         ! make mask for effective calving front.
-         ! This is last dynamic cell, but also make sure it has a neighbor that is open ocean or thin floating ice.
+             call mpas_log_write("source value range: Min=$r, Max=$r", &
+                        realArgs=(/minval(source), maxval(source)/))
+             call mpas_log_write("szero  value range: Min=$r, Max=$r", &
+                        realArgs=(/minval(szero), maxval(szero)/))
+             call mpas_log_write("nstar value range: Min=$r, Max=$r", &
+                        realArgs=(/minval(nstar), maxval(nstar)/))
+             call mpas_log_write("deltat value range: Min=$r, Max=$r", &
+                        realArgs=(/deltat, deltat/))
+             call mpas_log_write("sigmamax value range: Min=$r, Max=$r", &
+                        realArgs=(/minval(sigmamax), maxval(sigmamax)/))
+             call mpas_log_write("damage value range: Min=$r, Max=$r", &
+                        realArgs=(/minval(damage), maxval(damage)/))
+             call mpas_log_write("A value range: Min=$r, Max=$r", &
+                        realArgs=(/minval(meanFlowParamA), maxval(meanFlowParamA)/))
+             call mpas_log_write("alpha value range: Min=$r, Max=$r", &
+                        realArgs=(/minval(alpha), maxval(alpha)/))
+        end if
+        ! temporary message output in the log file
 
 
          call mpas_deallocate_scratch_field(calvingFrontMaskField, .true.)
@@ -1993,7 +1851,7 @@ module li_calving
          call mpas_deallocate_scratch_field(epsmaxField, .true.)
          call mpas_deallocate_scratch_field(nstarField, .true.)
          !call mpas_deallocate_scratch_field(szeroField, .true.)
-         call mpas_deallocate_scratch_field(sourceField, .true.)
+         !call mpas_deallocate_scratch_field(sourceField, .true.)
          !call mpas_deallocate_scratch_field(ddamagedtField, .true.)
          call mpas_deallocate_scratch_field(forceField, .true.)
          call mpas_deallocate_scratch_field(meanTField, .true.)
@@ -2039,8 +1897,8 @@ module li_calving
       type (mpas_pool_type), pointer :: meshPool
       type (mpas_pool_type), pointer :: velocityPool
       type (mpas_pool_type), pointer :: scratchPool
-      real(kind=RKIND), pointer :: config_calving_eigencalving_parameter_scalar_value
-      character (len=StrKIND), pointer :: config_calving_eigencalving_parameter_source
+      real(kind=RKIND), pointer :: config_damage_stiffness_min
+      logical, pointer :: config_damage_rheology_coupling
       logical, pointer :: config_print_calving_info
       real (kind=RKIND), dimension(:), pointer :: damage
       real (kind=RKIND), dimension(:), pointer :: damage_max
@@ -2061,11 +1919,14 @@ module li_calving
       real (kind=RKIND), dimension(:), pointer :: xCell, dvEdge
       integer, pointer :: nCells, nVertLevels
       integer :: iCell, jCell, iNeighbor, n_damage_downstream
-      real(kind=RKIND) :: damage_downstream, damage_tmp, cellCalvingFrontLength, cellCalvingFrontHeight, seconds, R, A01, A02, Q1, Q2
+      real(kind=RKIND) :: damage_downstream, damage_tmp, cellCalvingFrontLength, cellCalvingFrontHeight, seconds
       integer :: err_tmp, loc
 
       err = 0
 
+
+      call mpas_pool_get_config(liConfigs, 'config_damage_stiffness_min', config_damage_stiffness_min)
+      call mpas_pool_get_config(liConfigs, 'config_damage_rheology_coupling', config_damage_rheology_coupling)
 
       ! block loop
       block => domain % blocklist
@@ -2094,6 +1955,7 @@ module li_calving
                 damage(iCell) = damage_max(iCell)
             end if
          end do
+         ! put the damage_max value back to restore the damage value
 
          where (damage < 0.0_RKIND)
              damage = 0.0_RKIND
@@ -2111,18 +1973,20 @@ module li_calving
          end do
 
          do iCell = 1, nCells
+            if (li_mask_is_grounded_ice(cellMask(iCell))) then
+                damage(iCell) = 0.0_RKIND
+            end if
+         end do
+
+         do iCell = 1, nCells
             if (li_mask_is_grounding_line(cellMask(iCell))) then
                 damage_downstream = 0.0_RKIND
                 n_damage_downstream = 0
                 do iNeighbor = 1, nEdgesOnCell(iCell)
                     jCell = cellsOnCell(iNeighbor, iCell)
-                    !if (li_mask_is_floating_ice(cellMask(jCell)) .and. li_mask_is_dynamic_ice(cellMask(jCell))) then
                     if (li_mask_is_floating_ice(cellMask(jCell))) then
                         
                         damage_downstream = damage_downstream + damage(jCell)
-                        !call mpas_log_write("damage downstream: $r", &
-                        !            realArgs=(/damage_downstream/))
-                        !damage(iCell) = damage(jCell)
                         n_damage_downstream =  n_damage_downstream + 1
                     end if
                 end do
@@ -2138,20 +2002,17 @@ module li_calving
             end if
         end do
 
-        !do iCell = 1, nCells
-        !    if (li_mask_is_floating_ice(cellMask(iCell)) .and. li_mask_is_dynamic_ice(cellMask(iCell))) then
-        !        stiffnessFactor(iCell) = (1.0_RKIND - damage(iCell)) * stiffnessFactor(iCell)
-        !        !stiffnessFactor(iCell) = stiffnessFactor(iCell)*0.0_RKIND + 1.0_RKIND
-        !        if (stiffnessFactor(iCell) < 1.0_RKIND) then
-        !            stiffnessFactor(iCell) = 1.0_RKIND
-        !        end if
-        !    end if
-        !end do
+        if (config_damage_rheology_coupling) then
+            do iCell = 1, nCells
+                if (li_mask_is_floating_ice(cellMask(iCell)) .and. li_mask_is_dynamic_ice(cellMask(iCell))) then
+                    stiffnessFactor(iCell) = 1.0_RKIND - damage(iCell)
+                    if (stiffnessFactor(iCell) < config_damage_stiffness_min) then
+                        stiffnessFactor(iCell) = config_damage_stiffness_min
+                    end if
+                end if
+            end do
+        end if
 
-         !where (stiffnessFactor < 0.9_RKIND)
-         !    stiffnessFactor = 0.9_RKIND
-         !end where
-                        
 
          block => block % next
              
@@ -2167,7 +2028,7 @@ module li_calving
 !> \brief remove the damaged ice cells at the calving front
 !> \author Tong Zhang 
 !> \date   Dec 2019
-!> \details remove the whole cell at the calving front with the damage value > 0.9
+!> \details remove the whole cell at the calving front with the damage value > a threshold value
 !-----------------------------------------------------------------------
 
    subroutine remove_damaged_ice(meshPool, geometryPool, scratchPool, calvingFrontMask, err)
@@ -2193,8 +2054,6 @@ module li_calving
       ! local variables
       !-----------------------------------------------------------------
 !      logical, pointer :: config_print_calving_info
-      !real (kind=RKIND), dimension(:), pointer :: requiredCalvingVolumeRate
-         !< Input: the specified calving flux at calving front margin cells
       real (kind=RKIND), dimension(:), pointer :: calvingThickness !< Output: the applied calving rate as a thickness
       real (kind=RKIND), dimension(:), pointer :: thickness, damage
       real (kind=RKIND), dimension(:), pointer :: areaCell
@@ -2209,10 +2068,6 @@ module li_calving
       real(kind=RKIND) :: removeVolumeHere
       type (field1dReal), pointer :: cellVolumeField
       real(kind=RKIND), dimension(:), pointer :: cellVolume
-      !real(kind=RKIND), dimension(:), pointer :: uncalvedVolume
-      integer :: inwardNeighbors
-      integer :: uncalvedCount
-      real(kind=RKIND) :: uncalvedTotal
 
       err = 0
 
@@ -2223,8 +2078,6 @@ module li_calving
       call mpas_pool_get_array(geometryPool, 'thickness', thickness)
       call mpas_pool_get_array(geometryPool, 'damage', damage)
       call mpas_pool_get_array(geometryPool, 'calvingThickness', calvingThickness)
-      !call mpas_pool_get_array(geometryPool, 'requiredCalvingVolumeRate', requiredCalvingVolumeRate)
-      !call mpas_pool_get_array(geometryPool, 'uncalvedVolume', uncalvedVolume)
       call mpas_pool_get_array(meshPool, 'nEdgesOnCell', nEdgesOnCell)
       call mpas_pool_get_array(meshPool, 'cellsOnCell', cellsOnCell)
       call mpas_pool_get_array(meshPool, 'areaCell', areaCell)
@@ -2236,88 +2089,55 @@ module li_calving
       cellVolume => cellVolumeField % array
 
       calvingThickness(:) = 0.0_RKIND
-      !uncalvedVolume(:) = 0.0_RKIND
 
       cellVolume(:) = areaCell(:) * thickness(:)
 
-      ! The calving volume needs to be distributed in three ways:
+
+      ! Similar to the distribute_calving_flux, the calving volume needs to be distributed in two ways:
       ! 1. We need to first remove any "thin" ice in front of this cell
       ! 2. Then we remove ice from this cell
-      ! 3. If there is still additional ice to be removed, we have to recursively
-      !    remove ice "inland" of this cell until the total required mass is removed
+      
       do iCell = 1, nCells
          if ((calvingFrontMask(iCell) == 1) .and. (damage(iCell) .ge. config_damage_calving_threshold)) then
-            !volumeLeft = requiredCalvingVolumeRate(iCell) * deltat  ! units m^3
 
             ! First remove ice from "thin" neighbors
             do iNeighbor = 1, nEdgesOnCell(iCell)
                jCell = cellsOnCell(iNeighbor, iCell)
                if (li_mask_is_floating_ice(cellMask(jCell)) .and. .not. li_mask_is_dynamic_ice(cellMask(jCell))) then
-                  ! this is a thin neighbor - remove as much ice from here as we can
-                  ! TODO: could distribute this evenly amongst neighbors
+                  ! this is a thin neighbor - remove the whole cell volume
                   removeVolumeHere = cellVolume(jCell) ! how much we want to remove here
-                  calvingThickness(jCell) = calvingThickness(jCell) + removeVolumeHere / areaCell(jCell)
+                  calvingThickness(jCell) = removeVolumeHere / areaCell(jCell)
                       ! < apply to the field that will be used, in thickness units
                   cellVolume(jCell) = cellVolume(jCell) - removeVolumeHere ! update accounting on cell volume
-                  !volumeLeft = volumeLeft - removeVolumeHere ! update accounting on how much left to distribute from current iCell
                endif
             enddo
 
-               ! Now remove ice from iCell
+            ! Now remove ice from iCell
             removeVolumeHere = cellVolume(iCell)
-            calvingThickness(iCell) = calvingThickness(iCell) + removeVolumeHere / areaCell(iCell)
-              ! < apply to the field that will be used in thickness units
-            cellVolume(iCell) = cellVolume(iCell) - removeVolumeHere ! update accounting on cell volume
-            !volumeLeft = volumeLeft - removeVolumeHere ! update accounting on how much left to distribute from current iCell
+            ! remove the whole damaged cell
+            calvingThickness(iCell) = removeVolumeHere / areaCell(iCell)
+            ! < apply to the field that will be used in thickness units
+            cellVolume(iCell) = cellVolume(iCell) - removeVolumeHere 
+            ! update accounting on cell volume
 
-            ! Now remove ice from neighbors inward on shelf
-            ! first count up how many there are
-            inwardNeighbors = 0
-            do iNeighbor = 1, nEdgesOnCell(iCell)
-               jCell = cellsOnCell(iNeighbor, iCell)
-               if (li_mask_is_floating_ice(cellMask(jCell)) .and. li_mask_is_dynamic_ice(cellMask(jCell)) &
-                       .and. (.not. li_mask_is_dynamic_margin(jCell))) then
-                  inwardNeighbors = inwardNeighbors + 1
-               endif
-            enddo
-            ! Now distribute the flux evenly amongst the neighbors
-            do iNeighbor = 1, nEdgesOnCell(iCell)
-               jCell = cellsOnCell(iNeighbor, iCell)
-               if (li_mask_is_floating_ice(cellMask(jCell)) .and. li_mask_is_dynamic_ice(cellMask(jCell)) &
-                       .and. (.not. li_mask_is_dynamic_margin(jCell)) .and. (damage(jCell) .gt. 0.9)) then
-                  ! this is thick neighbor that is not itself a margin - remove as much ice from here as we can
-                  removeVolumeHere = cellVolume(jCell)
+            ! Now calved away the neighboring cells if the damage is also > the threshold value
+            ! I choose to disable this section (i.e., no recursive calving) -- TZ
+            !do iNeighbor = 1, nEdgesOnCell(iCell)
+            !   jCell = cellsOnCell(iNeighbor, iCell)
+            !   if (li_mask_is_floating_ice(cellMask(jCell)) .and. li_mask_is_dynamic_ice(cellMask(jCell)) &
+            !           .and. (.not. li_mask_is_dynamic_margin(jCell)) .and. (damage(jCell) .gt. config_damage_calving_threshold)) then
+            !      removeVolumeHere = cellVolume(jCell)
                      ! < how much we want to remove here
-                  calvingThickness(jCell) = calvingThickness(jCell) + removeVolumeHere / areaCell(jCell)
+            !      calvingThickness(jCell) = removeVolumeHere / areaCell(jCell)
                      ! < apply to the field that will be used in thickness units
-                  cellVolume(jCell) = cellVolume(jCell) - removeVolumeHere ! update accounting on cell volume
-                  !volumeLeft = volumeLeft - removeVolumeHere
-                     ! < update accounting on how much left to distribute from current iCell
-               endif
-            enddo
-            !TODO: need to recursively distribute across neighbors until fully depleted :(
-
-            ! If we didn't calve enough ice, record that to allow assessment of how bad that is.
-            !if (volumeLeft > 0.0_RKIND) then
-            !   uncalvedVolume(iCell) = 0.0_RKIND
-            !endif
+            !      cellVolume(jCell) = cellVolume(jCell) - removeVolumeHere 
+                     ! update accounting on cell volume
+            !   endif
+            !enddo
 
          endif ! if cell is calving margin
       enddo ! cell loop
 
-      !if (maxval(uncalvedVolume) > 0.0_RKIND) then
-
-      !   uncalvedTotal = sum(uncalvedVolume)
-      !   uncalvedCount = count(uncalvedVolume > 0.0_RKIND)
-
-      !   call mpas_log_write("distribute_calving_flux failed to distribute all required ice - " // &
-      !              " ice was left after depleting all neighbors." // &
-      !              "  Search needs to be expanded to neighbors' neighbors.")
-      !   call mpas_log_write("   On this processor: $i cells contain uncalved ice, " // &
-      !           "for a total uncalved volume of $r m^3 ($r%).", &
-      !           MPAS_LOG_WARN, intArgs=(/uncalvedCount/), &
-      !           realArgs=(/uncalvedTotal, 100.0_RKIND * uncalvedTotal/(requiredCalvingVolumeRate(iCell) * deltat)/))
-      !endif
 
       call mpas_deallocate_scratch_field(cellVolumeField, .true.)
 
