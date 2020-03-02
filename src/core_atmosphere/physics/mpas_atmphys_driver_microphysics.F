@@ -84,7 +84,9 @@
 ! * since we removed the local variable microp_scheme from mpas_atmphys_vars.F, now defines microp_scheme as a
 !   pointer to config_microp_scheme.
 !   Laura D. Fowler (laura@ucar.edu) / 2917-02-16.
-
+! * Removed all 1-dimensional arrays and allocations from compute_relhum, and replaced them with local scalars, 
+!   then, removed openacc data creations in order to save memory on GPU.
+!   Todd Hutchinson (todd.hutchinson@us.ibm.com) 2019-03-02.
 !--- initialization option for WSM6 from WRF version 3.8.1. this option could also be set as a namelist parameter.
  integer,parameter:: hail_opt = 0
 
@@ -403,7 +405,9 @@
 
     !calculate the relative humidity over water if the temperature is strictly greater than 0.C,
     !over ice otherwise.
+    call mpas_timer_start('compute_relhum')
     call compute_relhum(diag,its,ite)
+    call mpas_timer_stop('compute_relhum')
 
  end if
 
@@ -816,7 +820,7 @@
  integer:: i,j,k
 
  real(kind=RKIND):: tempc, rh
- real(kind=RKIND),dimension(:),allocatable:: qv1d,qvs1d,t1d,p1d
+ real(kind=RKIND):: qv,qvs,t,p
 
 !-----------------------------------------------------------------------------------------------------------------
 
@@ -835,24 +839,19 @@
  enddo
 !$acc end parallel
 
- if(.not.allocated(p1d)  ) allocate(p1d(kts:kte)  )
- if(.not.allocated(t1d)  ) allocate(t1d(kts:kte)  )
- if(.not.allocated(qv1d) ) allocate(qv1d(kts:kte) )
- if(.not.allocated(qvs1d)) allocate(qvs1d(kts:kte))
 
-!$acc enter data create(qv1d,qvs1d,t1d,p1d)
  do j = jts,jte
 !$acc parallel vector_length(32)
-!$acc loop gang vector collapse(2) private(p1d,t1d,tempc,qvs1d,qv1d)
+!$acc loop gang vector collapse(2) private(p,t,tempc,qvs,qv)
  do i = its,ite
     do k = kts,kte
-       p1d(k)  = pres_p(i,k,j)
-       t1d(k)  = th_p(i,k,j) * pi_p(i,k,j)
-       tempc   = t1d(k) - 273.16_RKIND
-       qvs1d(k) = rslf(p1d(k),t1d(k))
-       if(tempc .le. 0._RKIND) qvs1d(k) = rsif(p1d(k),t1d(k))
-       qv1d(k) = qv_p(i,k,j)
-       relhum(k,i) = qv1d(k) / qvs1d(k)
+       p  = pres_p(i,k,j)
+       t  = th_p(i,k,j) * pi_p(i,k,j)
+       tempc   = t - 273.16_RKIND
+       qvs = rslf(p,t)
+       if(tempc .le. 0._RKIND) qvs = rsif(p,t)
+       qv = qv_p(i,k,j)
+       relhum(k,i) = qv / qvs
        relhum(k,i) = relhum(k,i) * 100._RKIND
     enddo
  enddo
@@ -860,12 +859,7 @@
  enddo
 
 ! !$acc update host(relhum)
-!$acc exit data delete(qv1d,qvs1d,t1d,p1d)
 
- if(allocated(p1d)  ) deallocate(p1d  )
- if(allocated(t1d)  ) deallocate(t1d  )
- if(allocated(qv1d) ) deallocate(qv1d )
- if(allocated(qvs1d)) deallocate(qvs1d)
 
 !!!
 !!$acc update device(relhum)
