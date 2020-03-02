@@ -169,6 +169,18 @@
                         description="It is a value above which the cell would be calved away."
 	                possible_values="real value between 0 and 1"
 		/>
+                <nml_option name="config_damage_stiffness_min" type="real" default_value="0.1" units="unitless"
+                        description="When coupling damage to rheology, we do not allow it to fall below this value"
+	                possible_values="real value between 0 and 1"
+		/>
+                <nml_option name="config_damage_rheology_coupling" type="logical" default_value=".false." units="unitless"
+                        description="If true, then we change stiffnessFactor to 1-damage during the run."
+	                possible_values=".true. or .false."
+		/>
+                <nml_option name="config_use_constant_A" type="logical" default_value=".false." units="unitless"
+                        description="If true, then we use constant A (i.e., config_default_flowParamA) in the damage calculation."
+	                possible_values=".true. or .false."
+		/>
 	</nml_record>
 
 	<nml_record name="thermal_solver" in_defaults="true">
@@ -572,6 +584,7 @@
 			<var name="damage"/>
 			<var name="ddamagedt"/>
 			<var name="szero"/>
+			<var name="source"/>
 			<var name="basalMeltInput" packages="hydro"/>
 			<var name="externalWaterInput" packages="hydro"/>
 			<var name="waterThickness" packages="hydro"/>
@@ -667,6 +680,7 @@
 			<var name="damage"/>
 			<var name="ddamagedt"/>
 			<var name="szero"/>
+			<var name="source"/>
                         <!-- these variables just for ISMIP6 forcing -->
                         <var name="ismip6shelfMelt_basin" packages="ismip6Melt"/>
                         <var name="ismip6shelfMelt_gamma0" packages="ismip6Melt"/>
@@ -1011,6 +1025,9 @@ is the value of that variable from the *previous* time level!
                 <var name="szero" type="real" dimensions="nCells Time" units="m s^{-1}" time_levs="1"
 		     description="S0 number"
 		/>
+                <var name="source" type="real" dimensions="nCells Time" units="s^{-1}" time_levs="1"
+		     description="damage source term"
+		/>
                 <var name="requiredCalvingVolumeRate" type="real" dimensions="nCells Time" units="m^3 s^{-1}" time_levs="1"
                      description="total volume of ice that needs to be removed based on eigencalving rate at this margin cell"
                 />
@@ -1342,10 +1359,10 @@ is the value of that variable from the *previous* time level!
 	       description="generic work array with dimensions of (nCells)"
 	       persistence="scratch"
 	       /-->
-	  <var name="sourceField" type="real" dimensions="nCells" units="none"
+	  <!--var name="sourceField" type="real" dimensions="nCells" units="none"
 	       description="generic work array with dimensions of (nCells)"
 	       persistence="scratch"
-	       />
+	       /-->
 	  <var name="ddamagedtField" type="real" dimensions="nCells" units="none"
 	       description="generic work array with dimensions of (nCells)"
 	       persistence="scratch"
