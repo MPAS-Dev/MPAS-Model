@@ -195,6 +195,7 @@ contains
       real (kind=RKIND), dimension(:), pointer :: tidalBCValue
       real (kind=RKIND), pointer :: config_tidal_forcing_monochromatic_amp
       real (kind=RKIND), pointer :: config_tidal_forcing_monochromatic_period
+      real (kind=RKIND), pointer :: config_tidal_forcing_monochromatic_phaseLag
       real (kind=RKIND), pointer :: config_tidal_forcing_monochromatic_baseline
       real (kind=RKIND), pointer :: config_use_tidal_forcing_tau
       character (len=StrKIND), pointer :: config_tidal_forcing_type
@@ -239,6 +240,8 @@ contains
                                              config_tidal_forcing_monochromatic_amp)
       call mpas_pool_get_config(ocnConfigs, 'config_tidal_forcing_monochromatic_period', &
                                              config_tidal_forcing_monochromatic_period)
+      call mpas_pool_get_config(ocnConfigs, 'config_tidal_forcing_monochromatic_phaseLag', &
+                                             config_tidal_forcing_monochromatic_phaseLag)
       call mpas_pool_get_config(ocnConfigs, 'config_tidal_forcing_monochromatic_baseline', &
                                              config_tidal_forcing_monochromatic_baseline)
       call mpas_pool_get_config(ocnConfigs, 'config_use_tidal_forcing_tau', &
@@ -263,7 +266,8 @@ contains
         ! compute the tidalHeight
         if (trim(config_tidal_forcing_model) == 'monochromatic') then
           tidalHeight = config_tidal_forcing_monochromatic_amp * &
-            SIN(2.0_RKIND*pii/config_tidal_forcing_monochromatic_period * daysSinceStartOfSim) - &
+            SIN(2.0_RKIND*pii/config_tidal_forcing_monochromatic_period * daysSinceStartOfSim - &
+                pii*config_tidal_forcing_monochromatic_phaseLag/180.0_RKIND) - &
             config_tidal_forcing_monochromatic_baseline
         !else if (trim(config_tidal_forcing_type) == 'data') then
         !  ! data option

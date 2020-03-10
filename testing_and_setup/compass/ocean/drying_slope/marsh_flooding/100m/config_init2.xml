@@ -1,0 +1,32 @@
+<?xml version="1.0"?>
+<config case="init_step2">
+
+  <add_link source="../../../meshes/100m/build_100m_mesh/100mmesh.nc" dest="mesh.nc"/>
+  <add_link source="../../../meshes/100m/build_100m_mesh/graph.info" dest="graph.info"/>
+	<add_executable source="model" dest="ocean_model"/>
+
+	<namelist name="namelist.ocean" mode="init">
+		<template file="init_template.xml" path_base="script_configuration_dir"/>
+		<option name="config_use_variable_drag">.true.</option>
+		<option name="config_idealized_profile">.true.</option>
+		<option name="config_idealized_profile_Lcoast">0.3</option>
+		<option name="config_idealized_profile_Scoast">0.001</option>
+		<option name="config_idealized_profile_Lshore">0.5</option>
+		<option name="config_idealized_profile_Sshore">0.001</option>
+		<option name="config_idealized_profile_Lmarsh">0.2</option>
+		<option name="config_idealized_profile_Smarsh">0.0</option>
+		<option name="config_tidal_boundary_left_bottom_depth">0.0</option>
+		<option name="config_tidal_boundary_left_value">0.0</option>
+		<option name="config_tidal_boundary_right_value">2.5e4</option>
+		<option name="config_tidal_forcing_monochromatic_baseline">10.0</option>
+    <option name="config_alter_ICs_for_pbcs">.true.</option>
+	</namelist>
+
+	<streams name="streams.ocean" keep="immutable" mode="init">
+		<template file="init_template.xml" path_base="script_configuration_dir"/>
+	</streams>
+
+	<run_script name="run.py">
+		<model_run procs="1" threads="1" namelist="namelist.ocean" streams="streams.ocean"/>
+	</run_script>
+</config>

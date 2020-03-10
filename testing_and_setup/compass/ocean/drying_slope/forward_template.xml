@@ -5,6 +5,7 @@
 		<option name="config_tidal_forcing_model">'monochromatic'</option>
 		<option name="config_tidal_forcing_monochromatic_amp">10.0</option>
 		<option name="config_tidal_forcing_monochromatic_period">1.0</option>
+		<option name="config_tidal_forcing_monochromatic_phaseLag">0.0</option>
 		<option name="config_tidal_forcing_monochromatic_baseline">10.0</option>
 		<option name="config_use_tidal_forcing_tau">60.0</option>
 		<option name="config_dt">'0000_00:00:30'</option>
@@ -26,7 +27,7 @@
 		<option name="config_use_variable_drag">.true.</option>
 		<option name="config_Rayleigh_friction">.true.</option>
 		<option name="config_Rayleigh_damping_depth_variable">.true.</option>
-		<option name="config_Rayleigh_damping_coeff">1e10</option>
+		<option name="config_Rayleigh_damping_coeff">0.0025</option>
 		<option name="config_use_implicit_bottom_drag">.false.</option>
 		<option name="config_use_debugTracers">.true.</option>
 		<option name="config_check_ssh_consistency">.true.</option>

@@ -114,6 +114,8 @@ contains
     logical, pointer :: config_tidal_boundary_use_distances, config_alter_ICs_for_pbcs
     logical, pointer :: config_use_wetting_drying, config_tidal_start_dry
     logical, pointer :: config_use_variable_drag
+    logical, pointer :: config_idealized_profile
+
     real (kind=RKIND), pointer :: config_tidal_boundary_right_bottom_depth, &
                                   config_tidal_boundary_left_bottom_depth, &
                                   config_tidal_boundary_plug_width_dist, config_tidal_boundary_plug_width_frac, &
@@ -125,6 +127,14 @@ contains
                                   config_tidal_boundary_water_thickness, &
                                   config_tidal_forcing_left_Cd_or_n, &
                                   config_tidal_forcing_right_Cd_or_n
+    real (kind=RKIND), pointer :: config_idealized_profile_Lshore, &
+                                  config_idealized_profile_Sshore, &
+                                  config_idealized_profile_Lmarsh, &
+                                  config_idealized_profile_Smarsh, &
+                                  config_idealized_profile_Lcoast, &
+                                  config_idealized_profile_Scoast
+    real (kind=RKIND), pointer :: config_tidal_forcing_monochromatic_baseline
+    real (kind=RKIND) :: cff1,cff2,cff3, dep_mark1, dep_mark2 ! intermediate variables                          
     integer, pointer :: config_tidal_boundary_min_vert_levels
 
 
@@ -155,6 +165,15 @@ contains
     call mpas_pool_get_config(ocnConfigs, 'config_tidal_forcing_right_Cd_or_n', config_tidal_forcing_right_Cd_or_n)
     call mpas_pool_get_config(ocnConfigs, 'config_use_variable_drag', config_use_variable_drag)
 
+    call mpas_pool_get_config(ocnConfigs, 'config_idealized_profile', config_idealized_profile)
+    call mpas_pool_get_config(ocnConfigs, 'config_idealized_profile_Lshore', config_idealized_profile_Lshore)
+    call mpas_pool_get_config(ocnConfigs, 'config_idealized_profile_Sshore', config_idealized_profile_Sshore)
+    call mpas_pool_get_config(ocnConfigs, 'config_idealized_profile_Lmarsh', config_idealized_profile_Lmarsh)
+    call mpas_pool_get_config(ocnConfigs, 'config_idealized_profile_Smarsh', config_idealized_profile_Smarsh)
+    call mpas_pool_get_config(ocnConfigs, 'config_idealized_profile_Lcoast', config_idealized_profile_Lcoast)
+    call mpas_pool_get_config(ocnConfigs, 'config_idealized_profile_Scoast', config_idealized_profile_Scoast)
+    call mpas_pool_get_config(ocnConfigs, 'config_tidal_forcing_monochromatic_baseline', &
+                                             config_tidal_forcing_monochromatic_baseline)
     call mpas_pool_get_config(ocnConfigs, 'config_tidal_start_dry', config_tidal_start_dry)
     call mpas_pool_get_config(ocnConfigs, 'config_use_wetting_drying', config_use_wetting_drying)
     call mpas_pool_get_config(ocnConfigs, 'config_drying_min_cell_height', config_drying_min_cell_height)
@@ -246,12 +265,6 @@ contains
         yMax = config_tidal_boundary_right_value
       end if
 
-      do iCell = 1, nCellsSolve
-        bottomDepth(iCell) = config_tidal_boundary_left_bottom_depth &
-          + (yCell(iCell) - yMin) / (yMax - yMin)  * &
-          (config_tidal_boundary_right_bottom_depth - config_tidal_boundary_left_bottom_depth)
-      end do
-
       if (config_use_variable_drag) then
         call mpas_pool_get_array(forcingPool, 'bottomDrag', bottomDrag)
         do iCell = 1, nCellsSolve
@@ -260,6 +273,58 @@ contains
             (config_tidal_forcing_right_Cd_or_n - config_tidal_forcing_left_Cd_or_n)
         end do
       end if
+
+      !! zhendong@2020-03-03
+      if (config_idealized_profile) then
+        call mpas_pool_get_array(forcingPool, 'bottomDrag', bottomDrag)
+        config_idealized_profile_Lmarsh = 1.0_RKIND - config_idealized_profile_Lcoast &
+                                                    - config_idealized_profile_Lshore
+        if (config_idealized_profile_Lmarsh .lt. 0.0_RKIND) then
+          call mpas_log_write("Lshore+Lcoast cannot be bigger than 1.0")
+          iErr = 1
+        endif
+        cff1 = yMax*config_idealized_profile_Lcoast
+        cff2 = yMax*config_idealized_profile_Lmarsh
+        cff3 = yMax*config_idealized_profile_Lshore
+        ! by defining the slopes and left_bottom_depth, the pre-defined right_bottom_depth won't work.
+        ! Need redefine it.
+        config_tidal_boundary_right_bottom_depth = config_tidal_boundary_left_bottom_depth + &
+                                                   cff1*config_idealized_profile_Scoast + &
+                                                   cff2*config_idealized_profile_Smarsh + &
+                                                   cff3*config_idealized_profile_Sshore
+        do iCell = 1, nCellsSolve
+          if (yCell(iCell) .lt. cff1) then
+            bottomDepth(iCell) = config_tidal_boundary_left_bottom_depth &
+              + (yCell(iCell)-yMin)*config_idealized_profile_Scoast
+            dep_mark1 = bottomDepth(iCell)
+            bottomDrag(iCell) = 0.0025_RKIND
+          elseif (yCell(iCell) .lt. (cff1+cff2)) then
+            bottomDepth(iCell) = dep_mark1 + (yCell(iCell)-cff1)*config_idealized_profile_Smarsh
+            dep_mark2 = bottomDepth(iCell)
+            bottomDrag(iCell) = 0.25_RKIND
+          else
+            if (cff2 .eq. 0.0_RKIND) dep_mark2 = dep_mark1
+            bottomDepth(iCell) = dep_mark2 + (yCell(iCell)-cff1-cff2)*config_idealized_profile_Sshore
+            bottomDrag(iCell) = 0.0025_RKIND
+          endif
+        end do !! do iCell
+      else
+      ! if not config_idealized_profile, assign a constant slope
+        do iCell = 1, nCellsSolve
+          bottomDepth(iCell) = config_tidal_boundary_left_bottom_depth &
+            + (yCell(iCell) - yMin) / (yMax - yMin)  * &
+            (config_tidal_boundary_right_bottom_depth - config_tidal_boundary_left_bottom_depth)
+        end do
+      end if   !! if config_idealized_profile
+
+      if (config_tidal_boundary_right_bottom_depth < config_tidal_boundary_left_bottom_depth) then
+        call mpas_log_write('Right boundary must be deeper than left boundary!', MPAS_LOG_CRIT)
+      end if
+
+      ! Set refBottomDepth, bottomDepth, and maxLevelCell
+      do k = 1, nVertLevels
+        refBottomDepth(k) = config_tidal_boundary_right_bottom_depth * interfaceLocations(k+1)
+      end do
 
       if (config_use_wetting_drying .and. config_tidal_start_dry .and. &
           trim(config_tidal_boundary_layer_type) == 'zstar') then
@@ -337,6 +402,7 @@ contains
       if (config_use_wetting_drying .and. config_tidal_start_dry) then
         do iCell = 1, nCellsSolve
           ssh(iCell) = -bottomDepth(iCell) + config_drying_min_cell_height*maxLevelCell(iCell)
+          ssh(iCell) = MAX(ssh(iCell),-config_tidal_forcing_monochromatic_baseline) !Zhendong Mar-06-2020
           ! also computes zMid
           do k = 1, maxLevelCell(iCell)
             layerThickness(k,iCell) = (ssh(iCell) + bottomDepth(iCell))/maxLevelCell(iCell)
@@ -363,13 +429,18 @@ contains
       ! Set tidal boundary mask
       do iCell = 1, nCellsSolve
         tidalInputMask(iCell) = 0.0_RKIND
-        if (yCell(iCell) > (25.0e3 - dcEdgeMinGlobal/2.0_RKIND)) then
+        if (yCell(iCell) > (yMax - dcEdgeMinGlobal/2.0_RKIND)) then ! Zhendong March-05-2020
           tidalInputMask(iCell) = 1.0_RKIND
         ! spread it over multiple cells
         !if (yCell(iCell) > (25.0e3 - 3*dcEdgeMinGlobal)) then
         !  tidalInputMask(iCell) = exp(-((yCell(iCell)-25.0e3)/dcEdgeMinGlobal)**2.0)
         end if
       end do
+
+      ! check that there is some tidalInputMask 
+      if (.not. sum(tidalInputMask) > 0) then
+        call mpas_log_write('Input mask for tidal case is not set!', MPAS_LOG_CRIT)
+      end if
 
       ! Set salinity
       if ( associated(activeTracers) ) then
