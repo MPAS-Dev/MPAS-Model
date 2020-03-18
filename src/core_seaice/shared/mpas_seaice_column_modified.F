@@ -1,6 +1,6 @@
 !|||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
 !
-!  seaice_column
+!  seaice_column_modified
 !
 !> \brief
 !> \author Adrian K. Turner, LANL
@@ -10,7 +10,7 @@
 !
 !-----------------------------------------------------------------------
 
-module seaice_column
+module seaice_column_modified
 
   use mpas_derived_types
   use mpas_pool_routines
@@ -20,7 +20,7 @@ module seaice_column
 
   use seaice_error
 
-  use ice_kinds_mod, only: &
+  use ice_kinds_mod_modified, only: &
        char_len_long
 
   implicit none
@@ -29,28 +29,28 @@ module seaice_column
   save
 
   public :: &
-       seaice_set_column_constants, &
-       seaice_init_column_physics_package_parameters, &
-       seaice_init_column_physics_package_variables, &
-       seaice_column_predynamics_time_integration, &
-       seaice_column_dynamics_time_integration, &
-       seaice_column_postdynamics_time_integration, &
-       seaice_init_column_shortwave, &
-       seaice_column_aggregate, &
-       seaice_column_initial_air_drag_coefficient, &
-       seaice_column_reinitialize_fluxes, &
-       seaice_column_reinitialize_diagnostics_thermodynamics, &
-       seaice_column_reinitialize_diagnostics_dynamics, &
-       seaice_column_reinitialize_diagnostics_bgc, &
-       seaice_column_coupling_prep, &
-       seaice_column_finalize, &
-       seaice_sea_freezing_temperature, &
-       seaice_init_tracers, &
-       seaice_init_itd, &
-       seaice_enthalpy_snow, &
-       seaice_liquidus_temperature, &
-       seaice_init_ocean_conc, &
-       seaice_ice_strength
+       seaice_set_column_constants_modified, &
+       seaice_init_column_physics_package_parameters_modified, &
+       seaice_init_column_physics_package_variables_modified, &
+       seaice_column_predynamics_time_integration_modified, &
+       seaice_column_dynamics_time_integration_modified, &
+       seaice_column_postdynamics_time_integration_modified, &
+       seaice_init_column_shortwave_modified, &
+       seaice_column_aggregate_modified, &
+       seaice_column_initial_air_drag_coefficient_modified, &
+       seaice_column_reinitialize_fluxes_modified, &
+       seaice_column_reinitialize_diagnostics_thermodynamics_modified, &
+       seaice_column_reinitialize_diagnostics_dynamics_modified, &
+       seaice_column_reinitialize_diagnostics_bgc_modified, &
+       seaice_column_coupling_prep_modified, &
+       seaice_column_finalize_modified, &
+       seaice_sea_freezing_temperature_modified, &
+       seaice_init_tracers_modified, &
+       seaice_init_itd_modified, &
+       seaice_enthalpy_snow_modified, &
+       seaice_liquidus_temperature_modified, &
+       seaice_init_ocean_conc_modified, &
+       seaice_ice_strength_modified
 
   ! tracer object
   type, private :: ciceTracerObjectType
@@ -200,7 +200,7 @@ contains
 
 !|||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
 !
-!  seaice_set_column_constants
+!  seaice_set_column_constants_modified
 !
 !> \brief
 !> \author Adrian K. Turner, LANL
@@ -210,7 +210,7 @@ contains
 !
 !-----------------------------------------------------------------------
 
-  subroutine seaice_set_column_constants()
+  subroutine seaice_set_column_constants_modified()
 
     use seaice_constants, only: &
          seaiceGravity, &
@@ -236,7 +236,7 @@ contains
          iceThicknessMinimum, &
          snowThicknessMinimum
 
-    use ice_constants_colpkg, only: &
+    use ice_constants_colpkg_modified, only: &
          gravit, &
          rhoi, &
          rhos, &
@@ -288,11 +288,11 @@ contains
     iceThicknessMinimum  = seaicePuny
     snowThicknessMinimum = seaicePuny
 
-  end subroutine seaice_set_column_constants
+  end subroutine seaice_set_column_constants_modified
 
 !|||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
 !
-!  seaice_init_column_physics_package_parameters
+!  seaice_init_column_physics_package_parameters_modified
 !
 !> \brief
 !> \author Adrian K. Turner, LANL
@@ -302,7 +302,7 @@ contains
 !
 !-----------------------------------------------------------------------
 
-  subroutine seaice_init_column_physics_package_parameters(domain)
+  subroutine seaice_init_column_physics_package_parameters_modified(domain)
 
     type(domain_type), intent(inout) :: domain
 
@@ -323,11 +323,11 @@ contains
 
     endif
 
-  end subroutine seaice_init_column_physics_package_parameters
+  end subroutine seaice_init_column_physics_package_parameters_modified
 
 !|||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
 !
-!  seaice_init_column_physics_package_variables
+!  seaice_init_column_physics_package_variables_modified
 !
 !> \brief
 !> \author Adrian K. Turner, LANL
@@ -337,7 +337,7 @@ contains
 !
 !-----------------------------------------------------------------------
 
-  subroutine seaice_init_column_physics_package_variables(domain, clock)
+  subroutine seaice_init_column_physics_package_variables_modified(domain, clock)
 
     type(domain_type), intent(inout) :: domain
 
@@ -381,11 +381,11 @@ contains
        call MPAS_pool_get_config(domain % configs, "config_do_restart", config_do_restart)
        call MPAS_pool_get_config(domain % configs, "config_use_column_shortwave", config_use_column_shortwave)
        if (config_do_restart .and. config_use_column_shortwave) &
-            call seaice_init_column_shortwave(domain, clock)
+            call seaice_init_column_shortwave_modified(domain, clock)
 
     endif
 
-  end subroutine seaice_init_column_physics_package_variables
+  end subroutine seaice_init_column_physics_package_variables_modified
 
 !-----------------------------------------------------------------------
 ! column package initialization routine wrappers
@@ -405,7 +405,7 @@ contains
 
   subroutine init_column_itd(domain)
 
-    use ice_colpkg, only: colpkg_init_itd
+    use ice_colpkg_modified, only: colpkg_init_itd
 
     type(domain_type), intent(inout) :: domain
 
@@ -469,7 +469,7 @@ contains
 
   subroutine init_column_thermodynamic_profiles(domain)
 
-    use ice_colpkg, only: &
+    use ice_colpkg_modified, only: &
          colpkg_init_thermo, &
          colpkg_liquidus_temperature
 
@@ -726,7 +726,7 @@ contains
 
 !|||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
 !
-!  init_column_shortwave
+!  seaice_init_column_shortwave_modified
 !
 !> \brief
 !> \author Adrian K. Turner, LANL
@@ -736,9 +736,9 @@ contains
 !
 !-----------------------------------------------------------------------
 
-  subroutine seaice_init_column_shortwave(domain, clock)
+  subroutine seaice_init_column_shortwave_modified(domain, clock)
 
-    use ice_colpkg, only: &
+    use ice_colpkg_modified, only: &
          colpkg_init_orbit, &
          colpkg_clear_warnings
 
@@ -945,7 +945,7 @@ contains
        block => block % next
     end do
 
-  end subroutine seaice_init_column_shortwave
+  end subroutine seaice_init_column_shortwave_modified
 
 !|||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
 !
@@ -961,7 +961,7 @@ contains
 
   subroutine init_column_thermodynamic_tracers(domain)
 
-    use ice_colpkg, only: colpkg_init_trcr
+    use ice_colpkg_modified, only: colpkg_init_trcr
 
     type(domain_type), intent(inout) :: domain
 
@@ -1102,7 +1102,7 @@ contains
 !-----------------------------------------------------------------------
 !|||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
 !
-!  seaice_column_finalize
+!  seaice_column_finalize_modified
 !
 !> \brief
 !> \author Adrian K. Turner, LANL
@@ -1112,20 +1112,20 @@ contains
 !
 !-----------------------------------------------------------------------
 
-  subroutine seaice_column_finalize(domain)
+  subroutine seaice_column_finalize_modified(domain)
 
     type(domain_type), intent(inout) :: domain
 
     call finalize_column_non_activated_pointers(domain)
 
-  end subroutine seaice_column_finalize
+  end subroutine seaice_column_finalize_modified
 
 !-----------------------------------------------------------------------
 ! runtime
 !-----------------------------------------------------------------------
 !|||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
 !
-!  seaice_column_predynamics_time_integration
+!  seaice_column_predynamics_time_integration_modified
 !
 !> \brief
 !> \author Adrian K. Turner, LANL
@@ -1135,7 +1135,7 @@ contains
 !
 !-----------------------------------------------------------------------
 
-  subroutine seaice_column_predynamics_time_integration(domain, clock)
+  subroutine seaice_column_predynamics_time_integration_modified(domain, clock)
 
     type(domain_type), intent(inout) :: domain
 
@@ -1222,11 +1222,11 @@ contains
 
     endif
 
-  end subroutine seaice_column_predynamics_time_integration
+  end subroutine seaice_column_predynamics_time_integration_modified
 
 !|||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
 !
-!  seaice_column_dynamics_time_integration
+!  seaice_column_dynamics_time_integration_modified
 !
 !> \brief
 !> \author Adrian K. Turner, LANL
@@ -1236,7 +1236,7 @@ contains
 !
 !-----------------------------------------------------------------------
 
-  subroutine seaice_column_dynamics_time_integration(domain, clock)
+  subroutine seaice_column_dynamics_time_integration_modified(domain, clock)
 
     type(domain_type), intent(inout) :: domain
 
@@ -1291,11 +1291,11 @@ contains
 
     endif
 
-  end subroutine seaice_column_dynamics_time_integration
+  end subroutine seaice_column_dynamics_time_integration_modified
 
 !|||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
 !
-!  seaice_column_postdynamics_time_integration
+!  seaice_column_postdynamics_time_integration_modified
 !
 !> \brief
 !> \author Adrian K. Turner, LANL
@@ -1305,7 +1305,7 @@ contains
 !
 !-----------------------------------------------------------------------
 
-  subroutine seaice_column_postdynamics_time_integration(domain, clock)
+  subroutine seaice_column_postdynamics_time_integration_modified(domain, clock)
 
     type(domain_type), intent(inout) :: domain
 
@@ -1346,12 +1346,12 @@ contains
        !-----------------------------------------------------------------
 
        call mpas_timer_start("Column coupling prep")
-       call seaice_column_coupling_prep(domain)
+       call seaice_column_coupling_prep_modified(domain)
        call mpas_timer_stop("Column coupling prep")
 
     endif
 
-  end subroutine seaice_column_postdynamics_time_integration
+  end subroutine seaice_column_postdynamics_time_integration_modified
 
 !|||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
 !
@@ -1367,7 +1367,7 @@ contains
 
   subroutine column_vertical_thermodynamics(domain, clock)
 
-    use ice_colpkg, only: &
+    use ice_colpkg_modified, only: &
          colpkg_step_therm1, &
          colpkg_clear_warnings
 
@@ -2008,7 +2008,7 @@ contains
 
   subroutine column_itd_thermodynamics(domain, clock)
 
-    use ice_colpkg, only: &
+    use ice_colpkg_modified, only: &
          colpkg_step_therm2, &
          colpkg_clear_warnings
 
@@ -2318,7 +2318,7 @@ contains
 
   subroutine column_prep_radiation(domain)
 
-    use ice_colpkg, only: colpkg_prep_radiation
+    use ice_colpkg_modified, only: colpkg_prep_radiation
 
     type(domain_type), intent(inout) :: domain
 
@@ -2443,8 +2443,8 @@ contains
 !> \details
 !>
 !> Snow physics improvements include:
-!> 1) Snow redistribution by wind (multiple options available).  
-!> Includes parametrizations for snow compaction, redistribution among categories/level ice 
+!> 1) Snow redistribution by wind (multiple options available).
+!> Includes parametrizations for snow compaction, redistribution among categories/level ice
 !> and loss to leads.
 !> 2) Tracking of snow liquid and ice content.  Liquid is stored in snow before passing to ponds.
 !> Effective snow density is also tracked.
@@ -2455,7 +2455,7 @@ contains
 
   subroutine column_snow(domain)
 
-    use ice_colpkg, only: &
+    use ice_colpkg_modified, only: &
          colpkg_step_snow, &
          colpkg_clear_warnings, &
          colpkg_get_warnings
@@ -2691,7 +2691,7 @@ contains
 
   subroutine column_radiation(domain, clock, lInitialization)
 
-    use ice_colpkg, only: &
+    use ice_colpkg_modified, only: &
          colpkg_step_radiation, &
          colpkg_clear_warnings
 
@@ -3126,7 +3126,7 @@ contains
 
   subroutine column_ridging(domain)
 
-    use ice_colpkg, only: &
+    use ice_colpkg_modified, only: &
          colpkg_step_ridge, &
          colpkg_clear_warnings
 
@@ -3407,7 +3407,7 @@ contains
 
   subroutine column_biogeochemistry(domain)
 
-    use ice_colpkg, only: &
+    use ice_colpkg_modified, only: &
          colpkg_biogeochemistry, &
          colpkg_init_OceanConcArray, &
          colpkg_clear_warnings
@@ -4074,7 +4074,7 @@ contains
 
     ! aggregate state variables
     call mpas_timer_start("Column aggregate")
-    call seaice_column_aggregate(domain)
+    call seaice_column_aggregate_modified(domain)
     call mpas_timer_stop("Column aggregate")
 
     ! get configs
@@ -4140,7 +4140,7 @@ contains
 
 !|||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
 !
-!  seaice_column_aggregate
+!  seaice_column_aggregate_modified
 !
 !> \brief
 !> \author Adrian K. Turner, LANL
@@ -4150,9 +4150,9 @@ contains
 !
 !-----------------------------------------------------------------------
 
-  subroutine seaice_column_aggregate(domain)
+  subroutine seaice_column_aggregate_modified(domain)
 
-    use ice_colpkg, only: colpkg_aggregate
+    use ice_colpkg_modified, only: colpkg_aggregate
 
     type(domain_type), intent(inout) :: domain
 
@@ -4247,11 +4247,11 @@ contains
        block => block % next
     end do
 
-  end subroutine seaice_column_aggregate
+  end subroutine seaice_column_aggregate_modified
 
 !|||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
 !
-!  seaice_column_coupling_prep
+!  seaice_column_coupling_prep_modified
 !
 !> \brief
 !> \author Adrian K. Turner, LANL
@@ -4261,7 +4261,7 @@ contains
 !
 !-----------------------------------------------------------------------
 
-  subroutine seaice_column_coupling_prep(domain)
+  subroutine seaice_column_coupling_prep_modified(domain)
 
     use seaice_constants, only: &
          seaicePuny, &
@@ -4668,7 +4668,7 @@ contains
 
     call seaice_column_scale_fluxes(domain)
 
-  end subroutine seaice_column_coupling_prep
+  end subroutine seaice_column_coupling_prep_modified
 
 !|||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
 !
@@ -4949,7 +4949,7 @@ contains
 
   subroutine seaice_column_ocean_mixed_layer(domain)
 
-    use ice_colpkg, only: &
+    use ice_colpkg_modified, only: &
          colpkg_atm_boundary, &
          colpkg_ocn_mixed_layer
 
@@ -5174,7 +5174,7 @@ contains
 
 !|||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
 !
-!  seaice_sea_freezing_temperature
+!  seaice_sea_freezing_temperature_modified
 !
 !> \brief
 !> \author Adrian K. Turner, LANL
@@ -5184,9 +5184,9 @@ contains
 !
 !-----------------------------------------------------------------------
 
-  function seaice_sea_freezing_temperature(seaSurfaceSalinity) result(seaFreezingTemperature)
+  function seaice_sea_freezing_temperature_modified(seaSurfaceSalinity) result(seaFreezingTemperature)
 
-    use ice_colpkg, only: &
+    use ice_colpkg_modified, only: &
          colpkg_sea_freezing_temperature
 
     real(kind=RKIND), intent(in) :: &
@@ -5197,11 +5197,11 @@ contains
 
     seaFreezingTemperature = colpkg_sea_freezing_temperature(seaSurfaceSalinity)
 
-  end function seaice_sea_freezing_temperature
+  end function seaice_sea_freezing_temperature_modified
 
 !|||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
 !
-!  seaice_init_tracers
+!  seaice_init_tracers_modified
 !
 !> \brief
 !> \author Adrian K. Turner, LANL
@@ -5211,7 +5211,7 @@ contains
 !
 !-----------------------------------------------------------------------
 
-  subroutine seaice_init_tracers(&
+  subroutine seaice_init_tracers_modified(&
        airTemperature, &
        seaFreezingTemperature, &
        initialSalinityProfile, &
@@ -5222,7 +5222,7 @@ contains
        iceEnthalpy, &
        snowEnthalpy)
 
-    use ice_colpkg, only: &
+    use ice_colpkg_modified, only: &
          colpkg_init_trcr
 
     integer, intent(in) :: &
@@ -5255,11 +5255,11 @@ contains
          iceEnthalpy, &
          snowEnthalpy)
 
-  end subroutine seaice_init_tracers
+  end subroutine seaice_init_tracers_modified
 
 !|||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
 !
-!  seaice_init_itd
+!  seaice_init_itd_modified
 !
 !> \brief
 !> \author Adrian K. Turner, LANL
@@ -5269,13 +5269,13 @@ contains
 !
 !-----------------------------------------------------------------------
 
-  subroutine seaice_init_itd(&
+  subroutine seaice_init_itd_modified(&
          nCategories, &
          categoryThicknessLimits, &
          abortFlag, &
          abortMessage)
 
-    use ice_colpkg, only: &
+    use ice_colpkg_modified, only: &
          colpkg_init_itd
 
     integer, intent(in) :: &
@@ -5296,11 +5296,11 @@ contains
          abortFlag, &
          abortMessage)
 
-  end subroutine seaice_init_itd
+  end subroutine seaice_init_itd_modified
 
 !|||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
 !
-!  seaice_enthalpy_snow
+!  seaice_enthalpy_snow_modified
 !
 !> \brief
 !> \author Adrian K. Turner, LANL
@@ -5310,9 +5310,9 @@ contains
 !
 !-----------------------------------------------------------------------
 
-  function seaice_enthalpy_snow(snowTemperature) result(enthalpySnow)
+  function seaice_enthalpy_snow_modified(snowTemperature) result(enthalpySnow)
 
-    use ice_colpkg, only: &
+    use ice_colpkg_modified, only: &
          colpkg_enthalpy_snow
 
     real(kind=RKIND), intent(in) :: &
@@ -5323,11 +5323,11 @@ contains
 
     enthalpySnow = colpkg_enthalpy_snow(snowTemperature)
 
-  end function seaice_enthalpy_snow
+  end function seaice_enthalpy_snow_modified
 
 !|||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
 !
-!  seaice_liquidus_temperature
+!  seaice_liquidus_temperature_modified
 !
 !> \brief
 !> \author Adrian K. Turner, LANL
@@ -5337,9 +5337,9 @@ contains
 !
 !-----------------------------------------------------------------------
 
-  function seaice_liquidus_temperature(iceSalinity) result(liquidusTemperature)
+  function seaice_liquidus_temperature_modified(iceSalinity) result(liquidusTemperature)
 
-    use ice_colpkg, only: &
+    use ice_colpkg_modified, only: &
          colpkg_liquidus_temperature
 
     real(kind=RKIND), intent(in) :: &
@@ -5350,11 +5350,11 @@ contains
 
     liquidusTemperature = colpkg_liquidus_temperature(iceSalinity)
 
-  end function seaice_liquidus_temperature
+  end function seaice_liquidus_temperature_modified
 
 !|||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
 !
-!  seaice_init_ocean_conc
+!  seaice_init_ocean_conc_modified
 !
 !> \brief
 !> \author Adrian K. Turner, LANL
@@ -5364,7 +5364,7 @@ contains
 !
 !-----------------------------------------------------------------------
 
-  subroutine seaice_init_ocean_conc(&
+  subroutine seaice_init_ocean_conc_modified(&
        oceanAmmoniumConc, &
        oceanDMSPConc, &
        oceanDMSConc, &
@@ -5385,7 +5385,7 @@ contains
        carbonToNitrogenRatioAlgae, &
        carbonToNitrogenRatioDON)
 
-    use ice_colpkg, only: &
+    use ice_colpkg_modified, only: &
          colpkg_init_ocean_conc
 
     integer, intent(in) :: &
@@ -5436,11 +5436,11 @@ contains
          carbonToNitrogenRatioAlgae, &
          carbonToNitrogenRatioDON)
 
-  end subroutine seaice_init_ocean_conc
+  end subroutine seaice_init_ocean_conc_modified
 
 !|||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
 !
-!  seaice_ice_strength
+!  seaice_ice_strength_modified
 !
 !> \brief
 !> \author Adrian K. Turner, LANL
@@ -5450,7 +5450,7 @@ contains
 !
 !-----------------------------------------------------------------------
 
-  subroutine seaice_ice_strength(&
+  subroutine seaice_ice_strength_modified(&
        nCategories, &
        iceAreaCell, &
        iceVolumeCell, &
@@ -5459,7 +5459,7 @@ contains
        iceVolumeCategory, &
        icePressure)
 
-    use ice_colpkg, only: &
+    use ice_colpkg_modified, only: &
          colpkg_ice_strength
 
     integer, intent(in) :: &
@@ -5486,7 +5486,7 @@ contains
          iceVolumeCategory, &
          icePressure)
 
-  end subroutine seaice_ice_strength
+  end subroutine seaice_ice_strength_modified
 
 !-----------------------------------------------------------------------
 ! CICE tracer object
@@ -6014,7 +6014,7 @@ contains
        tracerObject % index_snowGrainRadius = nTracers + 1
        nTracers = nTracers + nSnowLayers
     endif
-    
+
     ! aerosols
     tracerObject % index_aerosols = indexMissingValue
     if (config_use_aerosols) then
@@ -9399,7 +9399,7 @@ contains
     !     tr_aero      , & ! if .true., use aerosol tracers
     !     tr_brine         ! if .true., brine height differs from ice thickness
 
-    use ice_colpkg, only: &
+    use ice_colpkg_modified, only: &
          colpkg_init_tracer_flags
 
     type(domain_type), intent(inout) :: domain
@@ -9537,7 +9537,7 @@ contains
     !     nbtrcr, &
     !     nbtrcr_sw
 
-    use ice_colpkg, only: &
+    use ice_colpkg_modified, only: &
          colpkg_init_tracer_numbers
 
     type(ciceTracerObjectType), intent(in) :: &
@@ -9582,7 +9582,7 @@ contains
     !     nt_hpnd, &       ! melt pond depth
     !     nt_ipnd, &       ! melt pond refrozen lid thickness
     !     nt_aero, &       ! starting index for aerosols in ice
-    !     nt_smice, &      ! snow ice mass 
+    !     nt_smice, &      ! snow ice mass
     !     nt_smliq, &      ! snow liquid mass
     !     nt_rsnw, &       ! snow grain radius
     !     nt_rhos, &       ! snow density tracer
@@ -9627,7 +9627,7 @@ contains
     !     nlt_zaero, &     ! black carbon and other aerosols
     !     nlt_zaero_sw     ! black carbon and other aerosols
 
-    use ice_colpkg, only: &
+    use ice_colpkg_modified, only: &
          colpkg_init_tracer_indices
 
     type(ciceTracerObjectType), intent(in) :: &
@@ -9963,9 +9963,9 @@ contains
     !     F_abs_chl_diatoms  , &
     !     F_abs_chl_sp       , &
     !     F_abs_chl_phaeo    , &
-    !     ratio_C2N_proteins 
+    !     ratio_C2N_proteins
 
-    use ice_colpkg, only: &
+    use ice_colpkg_modified, only: &
          colpkg_init_parameters
 
     type(domain_type), intent(inout) :: &
@@ -12251,7 +12251,7 @@ contains
 
 !|||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
 !
-!  seaice_column_initial_air_drag_coefficient
+!  seaice_column_initial_air_drag_coefficient_modified
 !
 !> \brief
 !> \author Adrian K. Turner, LANL
@@ -12261,7 +12261,7 @@ contains
 !
 !-----------------------------------------------------------------------
 
-  function seaice_column_initial_air_drag_coefficient() result(airDragCoefficient)
+  function seaice_column_initial_air_drag_coefficient_modified() result(airDragCoefficient)
 
     use seaice_constants, only: &
          seaiceVonKarmanConstant, &
@@ -12274,11 +12274,11 @@ contains
     airDragCoefficient = (seaiceVonKarmanConstant/log(seaiceStabilityReferenceHeight/seaiceIceSurfaceRoughness)) &
                        * (seaiceVonKarmanConstant/log(seaiceStabilityReferenceHeight/seaiceIceSurfaceRoughness))
 
-  end function seaice_column_initial_air_drag_coefficient
+  end function seaice_column_initial_air_drag_coefficient_modified
 
 !|||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
 !
-!  seaice_column_reinitialize_fluxes
+!  seaice_column_reinitialize_fluxes_modified
 !
 !> \brief
 !> \author Adrian K. Turner, LANL
@@ -12288,7 +12288,7 @@ contains
 !
 !-----------------------------------------------------------------------
 
-  subroutine seaice_column_reinitialize_fluxes(domain)
+  subroutine seaice_column_reinitialize_fluxes_modified(domain)
 
     type(domain_type) :: domain
 
@@ -12298,7 +12298,7 @@ contains
     ! oceanic fluxes
     call seaice_column_reinitialize_oceanic_fluxes(domain)
 
-  end subroutine seaice_column_reinitialize_fluxes
+  end subroutine seaice_column_reinitialize_fluxes_modified
 
 !|||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
 !
@@ -12473,7 +12473,7 @@ contains
 
   subroutine init_column_tracer_object_for_biogeochemistry(domain, tracerObject)
 
-    use ice_colpkg, only: colpkg_init_zbgc
+    use ice_colpkg_modified, only: colpkg_init_zbgc
 
     type(domain_type), intent(in) :: &
          domain
@@ -13019,7 +13019,7 @@ contains
 
   subroutine init_column_biogeochemistry_profiles(domain, tracerObject)
 
-    use ice_colpkg, only: &
+    use ice_colpkg_modified, only: &
          colpkg_init_bgc, &
          colpkg_init_hbrine, &
          colpkg_init_zsalinity
@@ -13286,7 +13286,7 @@ contains
 
 !|||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
 !
-!  seaice_column_reinitialize_diagnostics_thermodynamics
+!  seaice_column_reinitialize_diagnostics_thermodynamics_modified
 !
 !> \brief Reinitialize thermodynamics diagnostics
 !> \author Adrian K. Turner, LANL
@@ -13296,7 +13296,7 @@ contains
 !
 !-----------------------------------------------------------------------
 
-  subroutine seaice_column_reinitialize_diagnostics_thermodynamics(domain)
+  subroutine seaice_column_reinitialize_diagnostics_thermodynamics_modified(domain)
 
     use seaice_constants, only: &
          seaiceIceOceanDragCoefficient
@@ -13493,7 +13493,7 @@ contains
           call MPAS_pool_get_array(dragPool, "airDragCoefficient", airDragCoefficient)
 
           oceanDragCoefficient = seaiceIceOceanDragCoefficient
-          airDragCoefficient   = seaice_column_initial_air_drag_coefficient()
+          airDragCoefficient   = seaice_column_initial_air_drag_coefficient_modified()
 
           call MPAS_pool_get_config(block % configs, "config_use_form_drag", config_use_form_drag)
 
@@ -13563,11 +13563,11 @@ contains
 
     endif ! config_use_column_package
 
-  end subroutine seaice_column_reinitialize_diagnostics_thermodynamics
+  end subroutine seaice_column_reinitialize_diagnostics_thermodynamics_modified
 
 !|||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
 !
-!  seaice_column_reinitialize_diagnostics_dynamics
+!  seaice_column_reinitialize_diagnostics_dynamics_modified
 !
 !> \brief Reinitialize dynamics diagnostics
 !> \author Adrian K. Turner, LANL
@@ -13577,7 +13577,7 @@ contains
 !
 !-----------------------------------------------------------------------
 
-  subroutine seaice_column_reinitialize_diagnostics_dynamics(domain)
+  subroutine seaice_column_reinitialize_diagnostics_dynamics_modified(domain)
 
     type(domain_type) :: domain
 
@@ -13731,11 +13731,11 @@ contains
 
     endif ! config_use_column_package
 
-  end subroutine seaice_column_reinitialize_diagnostics_dynamics
+  end subroutine seaice_column_reinitialize_diagnostics_dynamics_modified
 
 !|||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
 !
-!  seaice_column_reinitialize_diagnostics_bgc
+!  seaice_column_reinitialize_diagnostics_bgc_modified
 !
 !> \brief Reinitialize BGC diagnostics
 !> \author Adrian K. Turner, LANL
@@ -13745,7 +13745,7 @@ contains
 !
 !-----------------------------------------------------------------------
 
-  subroutine seaice_column_reinitialize_diagnostics_bgc(domain)
+  subroutine seaice_column_reinitialize_diagnostics_bgc_modified(domain)
 
     type(domain_type) :: domain
 
@@ -13847,7 +13847,7 @@ contains
 
     endif ! config_use_column_package
 
-  end subroutine seaice_column_reinitialize_diagnostics_bgc
+  end subroutine seaice_column_reinitialize_diagnostics_bgc_modified
 
 !|||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
 !
@@ -14630,7 +14630,7 @@ contains
 
   subroutine column_write_warnings(logAsErrors)
 
-    use ice_colpkg, only: colpkg_get_warnings
+    use ice_colpkg_modified, only: colpkg_get_warnings
 
     character(len=strKINDWarnings), dimension(:), allocatable :: &
          warnings
@@ -14657,4 +14657,4 @@ contains
 
 !-----------------------------------------------------------------------
 
-end module seaice_column
+end module seaice_column_modified

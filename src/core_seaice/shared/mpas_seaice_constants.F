@@ -14,27 +14,6 @@ module seaice_constants
 
   use mpas_derived_types
 
-  use ice_constants_colpkg, only: &
-       gravit, &
-       rhoi, &
-       rhos, &
-       rhow, &
-       puny, &
-       stefan_boltzmann, &
-       emissivity, &
-       Tffresh, &
-       cp_air, &
-       Lsub, &
-       Lfresh, &
-       Pstar, &
-       Cstar, &
-       dragio, &
-       albocn, &
-       rhofresh, &
-       vonkar, &
-       iceruf, &
-       zref
-
   private
   save
 
@@ -48,9 +27,11 @@ module seaice_constants
        seaiceDaysPerSecond = 1.0_RKIND/seaiceSecondsPerDay
 
   ! Earth constants
+  real (kind=RKIND), public :: &
+       seaiceGravity ! gravitational acceleration (m/s^2)
+
   real (kind=RKIND), parameter, public :: &
-       seaiceGravity = gravit, &    ! gravitational acceleration (m/s^2)
-       omega         = 7.29212e-5_RKIND   ! angular rotation rate of the Earth [s-1]
+       omega = 7.29212e-5_RKIND ! angular rotation rate of the Earth [s-1]
 
   real (kind=RKIND), public :: &
        earthRadius = 6371229.0_RKIND ! radius of Earth in [m]
@@ -58,40 +39,39 @@ module seaice_constants
   character (len=*), public, parameter :: &
        coupleAlarmID = 'coupling'
 
-  real(kind=RKIND), parameter, public :: &
-       seaicePuny = puny
+  real(kind=RKIND), public :: &
+       seaicePuny
 
   ! physical constants
-  real(kind=RKIND), parameter, public :: &
-       seaiceDensityIce        = rhoi, & ! density of ice (kg/m^3)
-       seaiceDensitySnow       = rhos, & ! density of snow (kg/m^3)
-       seaiceDensitySeaWater   = rhow, & ! density of seawater (kg/m^3)
-       seaiceDensityFreshwater = rhofresh ! density of freshwater (kg/m^3)
+  real(kind=RKIND), public :: &
+       seaiceDensityIce       , & ! density of ice (kg/m^3)
+       seaiceDensitySnow      , & ! density of snow (kg/m^3)
+       seaiceDensitySeaWater  , & ! density of seawater (kg/m^3)
+       seaiceDensityFreshwater    ! density of freshwater (kg/m^3)
 
   ! thermodynamic constants
-  real(kind=RKIND), parameter, public :: &
-       seaiceStefanBoltzmann          = stefan_boltzmann, & ! J m-2 K-4 s-1
-       seaiceIceSnowEmissivity        = emissivity, &       ! emissivity of snow and ice
-       seaiceFreshWaterFreezingPoint  = Tffresh, &          ! freezing temp of fresh ice (K)
-       seaiceAirSpecificHeat          = cp_air, &           ! specific heat of air (J/kg/K)
-       seaiceLatentHeatSublimation    = Lsub, &             ! latent heat, sublimation freshwater (J/kg)
-       seaiceLatentHeatMelting        = Lfresh, &           ! latent heat of melting of fresh ice (J/kg)
-       seaiceOceanAlbedo              = albocn, &           ! Ocean albedo
-       seaiceVonKarmanConstant        = vonkar, &           ! Von Karman constant
-       seaiceIceSurfaceRoughness      = iceruf, &           ! ice surface roughness (m)
-       seaiceStabilityReferenceHeight = zref ! stability reference height (m)
+  real(kind=RKIND), public :: &
+       seaiceStefanBoltzmann         , & ! J m-2 K-4 s-1
+       seaiceIceSnowEmissivity       , & ! emissivity of snow and ice
+       seaiceFreshWaterFreezingPoint , & ! freezing temp of fresh ice (K)
+       seaiceAirSpecificHeat         , & ! specific heat of air (J/kg/K)
+       seaiceLatentHeatSublimation   , & ! latent heat, sublimation freshwater (J/kg)
+       seaiceLatentHeatMelting       , & ! latent heat of melting of fresh ice (J/kg)
+       seaiceOceanAlbedo             , & ! Ocean albedo
+       seaiceVonKarmanConstant       , & ! Von Karman constant
+       seaiceIceSurfaceRoughness     , & ! ice surface roughness (m)
+       seaiceStabilityReferenceHeight    ! stability reference height (m)
 
   ! dynamics constants
-  real(kind=RKIND), parameter, public :: &
-       seaiceIceStrengthConstantHiblerP = Pstar, & ! P* constant in Hibler strength formulation
-       seaiceIceStrengthConstantHiblerC = Cstar, & ! C* constant in Hibler strength formulation
-       seaiceIceOceanDragCoefficient    = dragio   ! ice ocean drag coefficient
+  real(kind=RKIND), public :: &
+       seaiceIceStrengthConstantHiblerP, & ! P* constant in Hibler strength formulation
+       seaiceIceStrengthConstantHiblerC, & ! C* constant in Hibler strength formulation
+       seaiceIceOceanDragCoefficient       ! ice ocean drag coefficient
 
   ! minimum sea ice area
-  real(kind=RKIND), parameter, public :: &
-       iceAreaMinimum       = seaicePuny, &
-       iceThicknessMinimum  = seaicePuny, &
-       snowThicknessMinimum = seaicePuny
-
+  real(kind=RKIND), public :: &
+       iceAreaMinimum, &
+       iceThicknessMinimum, &
+       snowThicknessMinimum
 
 end module seaice_constants

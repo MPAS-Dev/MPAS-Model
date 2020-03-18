@@ -639,6 +639,10 @@
 
 	<!-- column physics -->
 	<nml_record name="column_package" in_defaults="true">
+		<nml_option name="config_column_type" type="character" default_value="original" units="unitless"
+			description="Type of column physics."
+			possible_values="'original', 'modified', or 'icepack'"
+		/>
 		<nml_option name="config_use_column_shortwave" type="logical" default_value="true" units="unitless"
 			description="Run the shortwave radiation column physics calculation."
 			possible_values="true or false"

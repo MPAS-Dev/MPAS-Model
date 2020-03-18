@@ -29,6 +29,7 @@ OBJS =  ice_colpkg.o \
         ice_algae.o \
         ice_zbgc.o \
         ice_zbgc_shared.o \
+	ice_zsalinity.o \
 	ice_snow.o
 
 all: $(OBJS)
@@ -40,6 +41,8 @@ else
 ice_constants_colpkg.F90:
 	cp constants/cice/ice_constants_colpkg.F90 .
 endif
+
+ice_zsalinity.o: ice_kinds_mod.o ice_constants_colpkg.o ice_zbgc_shared.o ice_warnings.o ice_colpkg_tracers.o ice_colpkg_shared.o ice_therm_shared.o ice_brine.o ice_colpkg_shared.o
 
 ice_colpkg.o: ice_kinds_mod.o ice_constants_colpkg.o ice_warnings.o ice_colpkg_shared.o ice_therm_shared.o ice_orbital.o ice_atmo.o ice_age.o ice_firstyear.o ice_flux_colpkg.o ice_meltpond_cesm.o ice_meltpond_lvl.o ice_meltpond_topo.o ice_therm_vertical.o ice_itd.o ice_therm_itd.o ice_shortwave.o ice_mechred.o ice_colpkg_tracers.o ice_atmo.o ice_mushy_physics.o ice_zbgc.o ice_zbgc_shared.o  ice_aerosol.o ice_algae.o ice_brine.o ice_zsalinity.o ice_snow.o
 

@@ -1438,8 +1438,11 @@ contains
 
   subroutine prepare_oceanic_coupling_variables_ncar(block, firstTimeStep)
 
-    use ice_colpkg, only: &
-         colpkg_sea_freezing_temperature
+    use seaice_column, only: &
+         seaice_sea_freezing_temperature
+
+    use seaice_column_modified, only: &
+         seaice_sea_freezing_temperature_modified
 
     type (block_type), pointer :: block
 
@@ -1457,7 +1460,8 @@ contains
          seaFreezingTemperature
 
     character(len=strKIND), pointer :: &
-         config_sea_freezing_temperature_type
+         config_sea_freezing_temperature_type, &
+         config_column_type
 
     logical, pointer :: &
          config_do_restart
@@ -1469,6 +1473,7 @@ contains
     integer :: &
          iCell
 
+    call MPAS_pool_get_config(block % configs, "config_column_type", config_column_type)
     call MPAS_pool_get_config(block % configs, "config_do_restart", config_do_restart)
     call MPAS_pool_get_config(block % configs, "config_sea_freezing_temperature_type", config_sea_freezing_temperature_type)
 
@@ -1483,25 +1488,30 @@ contains
     call MPAS_pool_get_array(ocean_coupling, "oceanMixedLayerDepth", oceanMixedLayerDepth)
     call MPAS_pool_get_array(ocean_coupling, "seaFreezingTemperature", seaFreezingTemperature)
 
+    ! ensure physical realism
     do iCell = 1, nCellsSolve
-
-       ! ensure physical realism
        seaSurfaceSalinity(iCell)   = max(seaSurfaceSalinity(iCell), 0.0_RKIND)
        oceanMixedLayerDepth(iCell) = max(oceanMixedLayerDepth(iCell), 0.0_RKIND)
-
-       ! sea freezing temperature
-       seaFreezingTemperature(iCell) = colpkg_sea_freezing_temperature(seaSurfaceSalinity(iCell))
-
     enddo ! iCell
+
+    ! sea freezing temperature
+    call MPAS_pool_get_config(block % configs, "config_column_type", config_column_type)
+    if (trim(config_column_type) == "modified") then
+       do iCell = 1, nCellsSolve
+          seaFreezingTemperature(iCell) = seaice_sea_freezing_temperature_modified(seaSurfaceSalinity(iCell))
+       enddo ! iCell
+    else
+       do iCell = 1, nCellsSolve
+          seaFreezingTemperature(iCell) = seaice_sea_freezing_temperature(seaSurfaceSalinity(iCell))
+       enddo ! iCell
+    endif
 
     ! only update sea surface temperature on first non-restart timestep
     if (firstTimeStep .and. .not. config_do_restart) then
 
+       ! sea surface temperature
        do iCell = 1, nCellsSolve
-
-          ! sea surface temperature
           seaSurfaceTemperature(iCell) = max(seaSurfaceTemperature(iCell), seaFreezingTemperature(iCell))
-
        enddo ! iCell
 
     endif

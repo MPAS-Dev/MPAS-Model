@@ -64,10 +64,17 @@ contains
          seaice_column_predynamics_time_integration, &
          seaice_column_dynamics_time_integration, &
          seaice_column_postdynamics_time_integration, &
-         seaice_column_reinitialize_fluxes, &
          seaice_column_reinitialize_diagnostics_thermodynamics, &
          seaice_column_reinitialize_diagnostics_bgc, &
          seaice_column_reinitialize_diagnostics_dynamics
+
+    use seaice_column_modified, only: &
+         seaice_column_predynamics_time_integration_modified, &
+         seaice_column_dynamics_time_integration_modified, &
+         seaice_column_postdynamics_time_integration_modified, &
+         seaice_column_reinitialize_diagnostics_thermodynamics_modified, &
+         seaice_column_reinitialize_diagnostics_bgc_modified, &
+         seaice_column_reinitialize_diagnostics_dynamics_modified
 
     type(domain_type), intent(inout) :: &
          domain !< Input/Output:
@@ -94,6 +101,11 @@ contains
     integer :: &
          iDynamicsSubcycle
 
+    character(len=strKIND), pointer :: &
+         config_column_type
+
+    call MPAS_pool_get_config(domain % configs, "config_column_type", config_column_type)
+
 #ifndef MPAS_PERF_MOD_TIMERS
     ! set halo timer
     call mpas_timer_start("Halo")
@@ -110,8 +122,13 @@ contains
 
     ! reinitialize diagnostics
     call mpas_timer_start("Reinitialize diagnostics thermodynamics/bgc")
-    call seaice_column_reinitialize_diagnostics_thermodynamics(domain)
-    call seaice_column_reinitialize_diagnostics_bgc(domain)
+    if (trim(config_column_type) == "modified") then
+       call seaice_column_reinitialize_diagnostics_thermodynamics_modified(domain)
+       call seaice_column_reinitialize_diagnostics_bgc_modified(domain)
+    else
+       call seaice_column_reinitialize_diagnostics_thermodynamics(domain)
+       call seaice_column_reinitialize_diagnostics_bgc(domain)
+    endif
     call mpas_timer_stop("Reinitialize diagnostics thermodynamics/bgc")
 
     configs => domain % configs
@@ -126,7 +143,11 @@ contains
 
     ! pre dynamics column physics
     call mpas_timer_start("Column pre-dynamics")
-    call seaice_column_predynamics_time_integration(domain, clock)
+    if (trim(config_column_type) == "modified") then
+       call seaice_column_predynamics_time_integration_modified(domain, clock)
+    else
+       call seaice_column_predynamics_time_integration(domain, clock)
+    endif
     call mpas_timer_stop("Column pre-dynamics")
 
     ! loop of dynamcis subcycle
@@ -135,7 +156,11 @@ contains
 
        ! reinitialize dynamics diagnostics
        call mpas_timer_start("Reinitialize diagnostics dynamics")
-       call seaice_column_reinitialize_diagnostics_dynamics(domain)
+       if (trim(config_column_type) == "modified") then
+          call seaice_column_reinitialize_diagnostics_dynamics_modified(domain)
+       else
+          call seaice_column_reinitialize_diagnostics_dynamics(domain)
+       endif
        call mpas_timer_stop("Reinitialize diagnostics dynamics")
 
        ! velocity solve
@@ -151,14 +176,22 @@ contains
 
        ! ridging
        call mpas_timer_start("Column")
-       call seaice_column_dynamics_time_integration(domain, clock)
+       if (trim(config_column_type) == "modified") then
+          call seaice_column_dynamics_time_integration_modified(domain, clock)
+       else
+          call seaice_column_dynamics_time_integration(domain, clock)
+       endif
        call mpas_timer_stop("Column")
 
     enddo ! iDynamicsSubcycle
 
     ! shortwave
     call mpas_timer_start("Column post-dynamics")
-    call seaice_column_postdynamics_time_integration(domain, clock)
+    if (trim(config_column_type) == "modified") then
+       call seaice_column_postdynamics_time_integration_modified(domain, clock)
+    else
+       call seaice_column_postdynamics_time_integration(domain, clock)
+    endif
     call mpas_timer_stop("Column post-dynamics")
 
     ! check the physical state of the model
@@ -240,10 +273,22 @@ contains
     use seaice_column, only: &
          seaice_column_reinitialize_fluxes
 
+    use seaice_column_modified, only: &
+         seaice_column_reinitialize_fluxes_modified
+
     type(domain_type), intent(in) :: &
          domain
 
-    call seaice_column_reinitialize_fluxes(domain)
+    character(len=strKIND), pointer :: &
+         config_column_type
+
+    call MPAS_pool_get_config(domain % configs, "config_column_type", config_column_type)
+
+    if (trim(config_column_type) == "modified") then
+       call seaice_column_reinitialize_fluxes_modified(domain)
+    else
+       call seaice_column_reinitialize_fluxes(domain)
+    endif
 
   end subroutine seaice_timestep_finalize
 
