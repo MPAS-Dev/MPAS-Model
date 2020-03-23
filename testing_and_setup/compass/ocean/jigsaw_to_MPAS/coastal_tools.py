@@ -16,9 +16,14 @@ from netCDF4 import Dataset
 import matplotlib.pyplot as plt
 from scipy import spatial, io
 import timeit
-from mpl_toolkits.basemap import Basemap
+import os
+import cartopy
+import cartopy.crs as ccrs
+import cartopy.feature as cfeature
 import jigsaw_to_MPAS.mesh_definition_tools as mdt
 plt.switch_backend('agg')
+cartopy.config['pre_existing_data_dir'] = \
+    os.getenv('CARTOPY_DIR', cartopy.config.get('pre_existing_data_dir'))
 
 # Constants
 km = 1000.0
@@ -96,7 +101,7 @@ Aleutian_Islands_W = {"include": [np.array([164.9, 180.0, 50.77, 56.31])],
 Greenland = {"include":[np.array([-81.5,-12.5,60,85])],
              "exclude":[np.array([[-87.6,58.7],
                                   [-51.9,56.6],
-                                  [-68.9,75.5], 
+                                  [-68.9,75.5],
                                   [-107.0,73.3]]),
                         np.array([[-119.0,74.5],
                                   [-92.7,75.9],
@@ -106,7 +111,7 @@ Greenland = {"include":[np.array([-81.5,-12.5,60,85])],
                                   [-82.4,72.3],
                                   [-68.7,81.24],
                                   [-117.29,77.75]]),
-                        np.array([-25.0,-10.0,62.5,67.5])]}  
+                        np.array([-25.0,-10.0,62.5,67.5])]}
 Atlantic = {"include": [np.array([-78.5, -77.5, 23.5, 25.25])],  # Bahamas, use with large transition start to fill Atlantic
             "exclude": []}
 
@@ -350,9 +355,10 @@ def create_background_mesh(grd_box, ddeg, mesh_type, dx_min, dx_max,  # {{{
         plt.plot(lat_grd, cell_width_lat)
         plt.savefig('bckgrnd_grid_cell_width_vs_lat' + str(call) + '.png')
 
-        plt.figure()
-        plt.contourf(lon_grd, lat_grd, cell_width)
-        plot_coarse_coast(plot_box)
+        fig = plt.figure()
+        ax = fig.add_subplot(1, 1, 1, projection=ccrs.PlateCarree())
+        plt.contourf(lon_grd, lat_grd, cell_width, transform=ccrs.PlateCarree())
+        plot_coarse_coast(ax, plot_box)
         plt.colorbar()
         plt.savefig(
             'bckgnd_grid_cell_width' +
@@ -429,7 +435,7 @@ def extract_coastlines(nc_file, nc_vars, region_box, z_contour=0, n_longest=10, 
         for i,points in enumerate(point_list):
             cpad = np.vstack((points, [np.nan, np.nan]))
             coastline_list.append(cpad)
-                    
+
 
 
     # Combine coastlines
@@ -443,14 +449,17 @@ def extract_coastlines(nc_file, nc_vars, region_box, z_contour=0, n_longest=10, 
             lon, lat, bathy_data, plot_box)
 
         # Plot bathymetry data, coastlines and region boxes
-        plt.figure()
+
+        fig = plt.figure()
+        ax = fig.add_subplot(1, 1, 1, projection=ccrs.PlateCarree())
         levels = np.linspace(np.amin(z_plot), np.amax(z_plot), 100)
         ds = 100                               # Downsample
         dsx = np.arange(0, lon_plot.size, ds)  # bathy data
         dsy = np.arange(0, lat_plot.size, ds)  # to speed up
         dsxy = np.ix_(dsy, dsx)                # plotting
-        plt.contourf(lon_plot[dsx], lat_plot[dsy], z_plot[dsxy], levels=levels)
-        plot_coarse_coast(plot_box)
+        plt.contourf(lon_plot[dsx], lat_plot[dsy], z_plot[dsxy], levels=levels,
+                     transform=ccrs.PlateCarree())
+        plot_coarse_coast(ax, plot_box)
         plt.plot(coastlines[:, 0], coastlines[:, 1], color='white')
         for box in region_box["include"]:
             plot_region_box(box, 'b')
@@ -527,11 +536,13 @@ def distance_to_coast(coastlines, lon_grd, lat_grd, origin, nn_search, smooth_wi
             lon_grd, lat_grd, D, plot_box)
 
         # Plot distance to coast
-        plt.figure()
+        fig = plt.figure()
+        ax = fig.add_subplot(1, 1, 1, projection=ccrs.PlateCarree())
         D_plot = D_plot / km
         levels = np.linspace(np.amin(D_plot), np.amax(D_plot), 10)
-        plt.contourf(lon_plot, lat_plot, D_plot, levels=levels)
-        plot_coarse_coast(plot_box)
+        plt.contourf(lon_plot, lat_plot, D_plot, levels=levels,
+                     transform=ccrs.PlateCarree())
+        plot_coarse_coast(ax, plot_box)
         plt.plot(coastlines[:, 0], coastlines[:, 1], color='white')
         plt.grid(
             xdata=lon_plot,
@@ -601,11 +612,13 @@ def compute_cell_width(D, cell_width, lon, lat, dx_min, trans_start, trans_width
             lon_grd, lat_grd, cell_width / km, plot_box)
 
         # Plot cell width
-        plt.figure()
+        fig = plt.figure()
+        ax = fig.add_subplot(1, 1, 1, projection=ccrs.PlateCarree())
         levels = np.linspace(np.amin(cell_width_plot),
                              np.amax(cell_width_plot), 100)
-        plt.contourf(lon_plot, lat_plot, cell_width_plot, levels=levels)
-        plot_coarse_coast(plot_box)
+        plt.contourf(lon_plot, lat_plot, cell_width_plot, levels=levels,
+                     transform=ccrs.PlateCarree())
+        plot_coarse_coast(ax, plot_box)
         plt.plot(coastlines[:, 0], coastlines[:, 1], color='white')
         if restrict_box:
             for box in restrict_box["include"]:
@@ -890,11 +903,10 @@ def flag_wrap(box):
 
 ##############################################################
 
-def plot_coarse_coast(plot_box):
+def plot_coarse_coast(ax, plot_box):
 
-    m = Basemap(projection='cyl', llcrnrlat=plot_box[2], urcrnrlat=plot_box[3],
-                llcrnrlon=plot_box[0], urcrnrlon=plot_box[1], resolution='c')
-    m.drawcoastlines()
+    ax.set_extent(plot_box, crs=ccrs.PlateCarree())
+    ax.add_feature(cfeature.COASTLINE)
 
 ##############################################################
 
