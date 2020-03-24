@@ -15,10 +15,7 @@ includes:
 10. create masks from transects on the final culled mesh*
 * skipped if flag --with_critical_passages not present
 
-Optionally, the -p flag provides the path to the geometric_data
-directory from the geometric_features repository, which is assumed
-to be the current directory by default. Also, the optional
---with_cavities flag indicates that ice-shelf cavities are present
+The optional --with_cavities flag indicates that ice-shelf cavities are present
 and the grounded-ice mask from Bedmap2 should be used. The optional
 --with_critical_passages flag indicates that critical passages are
 to be opened. Otherwise, steps 2, 5 and 9 are skipped
@@ -28,7 +25,6 @@ from __future__ import absolute_import, division, print_function, \
     unicode_literals
 
 import os
-import os.path
 import subprocess
 from optparse import OptionParser
 import xarray
@@ -44,10 +40,6 @@ parser = OptionParser()
 parser.add_option("--with_cavities", action="store_true", dest="with_cavities")
 parser.add_option("--with_critical_passages", action="store_true",
                   dest="with_critical_passages")
-parser.add_option("-p", "--geom_data_path", type="string", dest="path",
-                  default="geometric_data",
-                  help="Path to the geometric_data from the geometric_features"
-                       " repository.")
 parser.add_option("--preserve_floodplain", action="store_true",
                   dest="preserve_floodplain", default=False)
 options, args = parser.parse_args()
@@ -55,7 +47,7 @@ options, args = parser.parse_args()
 # required for compatibility with MPAS
 netcdfFormat = 'NETCDF3_64BIT'
 
-gf = GeometricFeatures(cacheLocation='{}'.format(options.path))
+gf = GeometricFeatures()
 
 # start with the land coverage from Natural Earth
 fcLandCoverage = gf.read(componentName='natural_earth', objectType='region',
@@ -71,10 +63,10 @@ fcLandCoverage = fcLandCoverage.difference(fcSouthMask)
 # Add "land" coverage from either the full ice sheet or just the grounded
 # part
 if options.with_cavities:
-    fcAntarcticLand = gf.read(componentName='bedmap2', objectType='region',
+    fcAntarcticLand = gf.read(componentName='bedmachine', objectType='region',
                               featureNames=['AntarcticGroundedIceCoverage'])
 else:
-    fcAntarcticLand = gf.read(componentName='bedmap2', objectType='region',
+    fcAntarcticLand = gf.read(componentName='bedmachine', objectType='region',
                               featureNames=['AntarcticIceCoverage'])
 
 fcLandCoverage.merge(fcAntarcticLand)
@@ -135,6 +127,7 @@ else:
                                        dsPreserve=dsBaseMesh)
     else:
         dsCulledMesh = conversion.cull(dsBaseMesh, dsMask=dsLandMask)
+    fcCritPassages = None
 
 # create a mask for the flood fill seed points
 dsSeedMask = conversion.mask(dsCulledMesh, fcSeed=fcSeed)
@@ -150,11 +143,35 @@ if options.with_critical_passages:
     write_netcdf(dsCritPassMask, 'critical_passages_mask_final.nc',
                  format=netcdfFormat)
 
+if options.with_cavities:
+    fcAntarcticIce = gf.read(componentName='bedmachine', objectType='region',
+                             featureNames=['AntarcticIceCoverage'])
+    fcAntarcticIce.to_geojson('ice_coverage.geojson')
+    dsMask = conversion.mask(dsCulledMesh, fcMask=fcAntarcticIce)
+    landIceMask = dsMask.regionCellMasks.isel(nRegions=0)
+    dsLandIceMask = xarray.Dataset()
+    dsLandIceMask['landIceMask'] = landIceMask
+
+    write_netcdf(dsLandIceMask, 'land_ice_mask.nc', format=netcdfFormat)
+
+    dsLandIceCulledMesh = conversion.cull(dsCulledMesh, dsMask=dsMask)
+    write_netcdf(dsLandIceCulledMesh, 'no_ISC_culled_mesh.nc',
+                 format=netcdfFormat)
+
 args = ['paraview_vtk_field_extractor.py',
         '--ignore_time',
         '-d', 'maxEdges=',
         '-v', 'allOnCells',
         '-f', 'culled_mesh.nc',
         '-o', 'culled_mesh_vtk']
+print("running", ' '.join(args))
+subprocess.check_call(args, env=os.environ.copy())
+
+args = ['paraview_vtk_field_extractor.py',
+        '--ignore_time',
+        '-d', 'maxEdges=',
+        '-v', 'allOnCells',
+        '-f', 'no_ISC_culled_mesh.nc',
+        '-o', 'no_ISC_culled_mesh_vtk']
 print("running", ' '.join(args))
 subprocess.check_call(args, env=os.environ.copy())
