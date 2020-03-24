@@ -29,12 +29,14 @@
 	<add_link source="../culled_mesh/culled_graph.info" dest="graph.info"/>
 	<add_link source="../culled_mesh/critical_passages_mask_final.nc" dest="critical_passages.nc"/>
 	<add_link source="../culled_mesh/land_ice_mask.nc" dest="land_ice_mask.nc"/>
+	<add_link source="../base_mesh/cellWidthVsLatLon.nc" dest="cellWidthVsLatLon.nc"/>
 	<add_link source_path="initial_condition_database" source="layer_depth.80Layer.180619.nc" dest="layer_depth.nc"/>
 	<add_link source_path="initial_condition_database" source="PTemp.Jan_p3.filled.mpas100levs.160127.nc" dest="temperature.nc"/>
 	<add_link source_path="initial_condition_database" source="Salt.Jan_p3.noBlackCaspian.filled.mpas100levs.160127.nc" dest="salinity.nc"/>
 	<add_link source_path="initial_condition_database" source="windStress.ncep_1958-2000avg.interp3600x2431.151106.nc" dest="wind_stress.nc"/>
 	<add_link source_path="bathymetry_database" source="BedMachineAntarctica_and_GEBCO_2019_0.05_degree.200128.nc" dest="topography.nc"/>
 	<add_link source_path="initial_condition_database" source="chlorophyllA_monthly_averages_1deg.151201.nc" dest="swData.nc"/>
+    <add_link source_path="script_configuration_dir" source="scripts/smooth_topo.py" dest="smooth_topo.py"/>
 
 	<namelist name="namelist.ocean" mode="init">
 		<template file="template_initial_state.xml" path_base="script_configuration_dir"/>
@@ -44,6 +46,7 @@
 		<option name="config_global_ocean_depth_file">'layer_depth.nc'</option>
 		<option name="config_global_ocean_minimum_depth">10</option>
 		<option name="config_global_ocean_deepen_critical_passages">.false.</option>
+		<option name="config_global_ocean_topography_file">'topography_smoothed.nc'</option>
 	</namelist>
 
 	<streams name="streams.ocean" keep="immutable" mode="init">
@@ -53,6 +56,12 @@
 	</streams>
 
 	<run_script name="run.py">
+		<step executable="./smooth_topo.py">
+			<argument flag="--iter">100</argument>
+			<argument flag="--smoothing">1.0</argument>
+			<argument flag="--mpi_tasks">4</argument>
+			<argument flag="--include_cavities"></argument>
+		</step>
 		<step executable="gpmetis">
 			<argument flag="graph.info">4</argument>
 		</step>
