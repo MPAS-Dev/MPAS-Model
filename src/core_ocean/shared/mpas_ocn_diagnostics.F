@@ -1351,7 +1351,7 @@ contains
       real (kind=RKIND), dimension(:), pointer :: dcEdge, dvEdge, areaCell
       real (kind=RKIND), dimension(:), pointer :: penetrativeTemperatureFlux, surfaceThicknessFlux, &
            surfaceBuoyancyForcing, surfaceFrictionVelocity, penetrativeTemperatureFluxOBL, &
-           normalVelocitySurfaceLayer, surfaceThicknessFluxRunoff
+           normalVelocitySurfaceLayer, surfaceThicknessFluxRunoff, rainFlux, evaporationFlux
       real (kind=RKIND), pointer :: config_flux_attenuation_coefficient, config_flux_attenuation_coefficient_runoff
 
       real (kind=RKIND), dimension(:), pointer :: surfaceStress, surfaceStressMagnitude
@@ -1425,6 +1425,8 @@ contains
       call mpas_pool_get_array(forcingPool, 'penetrativeTemperatureFlux', penetrativeTemperatureFlux)
       call mpas_pool_get_array(forcingPool, 'surfaceStress', surfaceStress)
       call mpas_pool_get_array(forcingPool, 'surfaceStressMagnitude', surfaceStressMagnitude)
+      call mpas_pool_get_array(forcingPool, 'rainFlux', rainFlux)
+      call mpas_pool_get_array(forcingPool, 'evaporationFlux', evaporationFlux)
 
       call mpas_pool_get_array(tracersPool, 'activeTracers', activeTracers, 1)
       call mpas_pool_get_array(tracersSurfaceFluxPool, 'activeTracersSurfaceFlux', activeTracersSurfaceFlux)
@@ -1482,12 +1484,14 @@ contains
        ! transport code.  This includes tracer forcing due to thickness
 
        nonLocalSurfaceTracerFlux(indexTempFlux, iCell) = activeTracersSurfaceFlux(indexTempFlux,iCell) &
-               + penetrativeTemperatureFlux(iCell) - penetrativeTemperatureFluxOBL(iCell) - fracAbsorbed * &
-               surfaceThicknessFlux(iCell) * activeTracers(indexTempFlux,1,iCell) + &
-               activeTracersSurfaceFluxRunoff(indexTempFlux,iCell) * fracAbsorbedRunoff
+               + penetrativeTemperatureFlux(iCell) - penetrativeTemperatureFluxOBL(iCell)  &
+               - fracAbsorbed * (rainFlux(iCell) + evaporationFlux(iCell)) * activeTracers(indexTempFlux,1,iCell)/rho_sw  &
+               - fracAbsorbedRunoff * surfaceThicknessFluxRunoff(iCell) &
+                * min(activeTracers(indexTempFlux,1,iCell),0.0_RKIND)/rho_sw
 
        nonLocalSurfaceTracerFlux(indexSaltFlux,iCell) = activeTracersSurfaceFlux(indexSaltFlux,iCell) &
-               - fracAbsorbed * surfaceThicknessFlux(iCell) * activeTracers(indexSaltFlux,1,iCell)
+               - fracAbsorbed * surfaceThicknessFlux(iCell) * activeTracers(indexSaltFlux,1,iCell) &
+               - fracAbsorbedRunoff * surfaceThicknessFluxRunoff(iCell) * activeTracers(indexSaltFlux,1,iCell)
 
        surfaceBuoyancyForcing(iCell) =  thermalExpansionCoeff (1,iCell) &
               * nonLocalSurfaceTracerFlux(indexTempFlux,iCell) &
@@ -1603,31 +1607,7 @@ contains
          kVonKarman = 0.4_RKIND, &      ! the von Karman constant
          xiN = 0.052_RKIND              ! dimensionless planetary boundary layer constant
 
-
       call mpas_pool_get_config(ocnConfigs, 'config_land_ice_flux_mode', config_land_ice_flux_mode)
-      if ( trim(config_land_ice_flux_mode) .ne. 'off' ) then
-
-         ! we need to compute the landiceMask regardless of which mode we're in so it can be
-         ! added to the restart file
-
-         call mpas_pool_get_array(forcingPool, 'landIceFraction', landIceFraction)
-         call mpas_pool_get_array(forcingPool, 'landIceMask', landIceMask)
-
-         call mpas_pool_get_dimension(meshPool, 'nCells', nCells)
-         ! compute landIceMask from landIceFraction
-         !$omp do schedule(runtime)
-         do iCell = 1, nCells
-            if (landIceFraction(iCell) >= 0.5_RKIND) then
-               landIceMask(iCell) = 1
-            else
-               landIceMask(iCell) = 0
-               ! don't allow land-ice fluxes if land ice is masked out
-               landIceFraction(iCell) = 0.0_RKIND
-            end if
-         end do
-         !$omp end do
-
-      end if
 
       if ( trim(config_land_ice_flux_mode) .ne. 'standalone' .and. trim(config_land_ice_flux_mode) .ne. 'coupled' ) then
          return
@@ -1677,6 +1657,7 @@ contains
       call mpas_pool_get_dimension(tracersPool, 'index_salinity', indexS)
 
       call mpas_pool_get_array(forcingPool, 'landIceFraction', landIceFraction)
+      call mpas_pool_get_array(forcingPool, 'landIceMask', landIceMask)
 
       call mpas_pool_get_array(diagnosticsPool, 'kineticEnergyCell', kineticEnergyCell)
 
