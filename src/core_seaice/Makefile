@@ -3,7 +3,7 @@
 
 all: core_seaice
 
-core_seaice: column_package shared analysis_members model_forward
+core_seaice: column_package column_package_modified shared analysis_members model_forward
 	ar -ru libdycore.a `find . -type f -name "*.o"`
 
 gen_includes:
@@ -24,18 +24,22 @@ post_build:
 column_package:
 	(cd column; $(MAKE))
 
-shared: column_package
+column_package_modified:
+	(cd column_modified; $(MAKE))
+
+shared: column_package column_package_modified
 	(cd shared; $(MAKE))
 
-analysis_members: column_package shared
+analysis_members: column_package column_package_modified shared
 	(cd analysis_members; $(MAKE))
 
-model_forward: column_package shared analysis_members
+model_forward: column_package column_package_modified shared analysis_members
 	(cd model_forward; $(MAKE))
 
 clean:
 	$(RM) *.o *.mod *.f90 libdycore.a
 	(cd column; $(MAKE) clean)
+	(cd column_modified; $(MAKE) clean)
 	(cd shared; $(MAKE) clean)
 	(cd analysis_members; $(MAKE) clean)
 	(cd model_forward; $(MAKE) clean)
