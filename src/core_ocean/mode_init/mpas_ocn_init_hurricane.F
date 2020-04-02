@@ -417,7 +417,6 @@ contains
          call mpas_pool_get_array(forcingPool, 'bottomDrag', bottomDrag)
          do iCell = 1, nCellsSolve
            if (bottomDepth(iCell) < config_land_z_limit) then
-             call mpas_log_write('here')
              bottomDrag(iCell) = config_land_drag
            else if (config_land_z_limit < bottomDepth(iCell) .and. bottomDepth(iCell) < config_marsh_z_limit) then
              bottomDrag(iCell) = config_marsh_drag
