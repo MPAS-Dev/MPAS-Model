@@ -7,7 +7,7 @@
 !
 !|||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
 !
-!  ocn_tidal_potential_forcing
+!  ocn_vel_tidal_potential
 !
 !> \brief MPAS ocean tidal potential forcing module
 !> \author Steven Brus 
@@ -19,7 +19,7 @@
 !
 !-----------------------------------------------------------------------
 
-module ocn_tidal_potential_forcing
+module ocn_vel_tidal_potential
 
    use mpas_kind_types
    use mpas_constants
@@ -45,8 +45,9 @@ module ocn_tidal_potential_forcing
    !
    !--------------------------------------------------------------------
 
-   public :: ocn_compute_tidal_potential_forcing, &
-             ocn_tidal_potential_forcing_init
+   public :: ocn_vel_tidal_potential_tend, &
+             ocn_compute_tidal_potential_forcing, &
+             ocn_vel_tidal_potential_init
 
    !--------------------------------------------------------------------
    !
@@ -67,7 +68,101 @@ contains
 
 !***********************************************************************
 !
-!  routine ocn_tidal_potential_forcing_layer_thickness
+!  routine ocn_vel_tidal_potential_tend
+!
+!> \brief   Computes tendency term for tidal potential
+!> \author  Steven Brus
+!> \date    April 2020
+!> \details
+!>  This routine computes the tidal potential tendency for momentum
+!>  based on current state.
+!
+!-----------------------------------------------------------------------
+
+   subroutine ocn_vel_tidal_potential_tend(meshPool, forcingPool, ssh, tend, err)!{{{
+
+      !-----------------------------------------------------------------
+      !
+      ! input variables
+      !
+      !-----------------------------------------------------------------
+
+      real (kind=RKIND), dimension(:), intent(in) :: &
+         ssh !< Input: Sea surface height
+
+      type (mpas_pool_type), intent(in) :: meshPool          !< Input: mesh information
+      type (mpas_pool_type), intent(in) :: forcingPool       !< Input: forcinginformation
+
+      !-----------------------------------------------------------------
+      !
+      ! input/output variables
+      !
+      !-----------------------------------------------------------------
+
+      real (kind=RKIND), dimension(:,:), intent(inout) :: &
+         tend          !< Input/Output: velocity tendency
+
+      !-----------------------------------------------------------------
+      !
+      ! output variables
+      !
+      !-----------------------------------------------------------------
+
+      integer, intent(out) :: err !< Output: error flag
+
+      !-----------------------------------------------------------------
+      !
+      ! local variables
+      !
+      !-----------------------------------------------------------------
+
+      integer :: iEdge, k, cell1, cell2, nEdges
+      integer, dimension(:), pointer :: nEdgesArray
+      integer, dimension(:), pointer :: maxLevelEdgeTop, maxLevelCell
+      integer, dimension(:,:), pointer :: cellsOnEdge, edgeMask
+
+      real (kind=RKIND), dimension(:), pointer :: dcEdge
+      real (kind=RKIND), dimension(:), pointer :: tidalPotentialEta
+      real (kind=RKIND), pointer :: config_self_attraction_and_loading_beta
+      real (kind=RKIND) :: invdcEdge
+      real (kind=RKIND) :: potentialGrad
+      logical, pointer :: config_use_tidal_potential_forcing
+
+      err = 0
+
+      if (.not. tidalPotentialOn) return
+
+      call mpas_pool_get_dimension(meshPool, 'nEdgesArray', nEdgesArray)
+      call mpas_pool_get_array(meshPool, 'maxLevelEdgeTop', maxLevelEdgeTop)
+      call mpas_pool_get_array(meshPool, 'cellsOnEdge', cellsOnEdge)
+      call mpas_pool_get_array(meshPool, 'dcEdge', dcEdge)
+      call mpas_pool_get_array(meshPool, 'edgeMask', edgeMask)
+      call mpas_pool_get_array(forcingPool, 'tidalPotentialEta', tidalPotentialEta)
+      call mpas_pool_get_config(ocnConfigs, 'config_use_tidal_potential_forcing', config_use_tidal_potential_forcing)
+      call mpas_pool_get_config(ocnConfigs, 'config_self_attraction_and_loading_beta', config_self_attraction_and_loading_beta)
+
+      nEdges = nEdgesArray( 1 )
+
+      !$omp do schedule(runtime) private(cell1, cell2, invdcEdge, potentialGrad, k)
+      do iEdge=1,nEdges
+         cell1 = cellsOnEdge(1,iEdge)
+         cell2 = cellsOnEdge(2,iEdge)
+         invdcEdge = 1.0_RKIND / dcEdge(iEdge)
+
+         potentialGrad = - gravity * invdcEdge * ( tidalPotentialEta(cell2) - tidalPotentialEta(cell1) &
+                                   + config_self_attraction_and_loading_beta*(ssh(cell2) - ssh(cell1)))
+
+         do k=1,maxLevelEdgeTop(iEdge)
+            tend(k,iEdge) = tend(k,iEdge) -  edgeMask(k,iEdge) * potentialGrad
+         end do
+      end do
+      !$omp end do
+
+   end subroutine ocn_vel_tidal_potential_tend!}}}
+
+!***********************************************************************
+!
+!  routine ocn_compute_tidal_potential_forcing
 !
 !> \brief   Computes equilibrium tidal potential 
 !> \author  Steven Brus
@@ -176,7 +271,7 @@ contains
 
 !***********************************************************************
 !
-!  routine ocn_tidal_potential_forcing_init
+!  routine ocn_vel_tidal_potential_init
 !
 !> \brief   Initializes ocean tidal protential forcing module.
 !> \author  Steven Brus
@@ -187,7 +282,7 @@ contains
 !
 !-----------------------------------------------------------------------
 
-   subroutine ocn_tidal_potential_forcing_init(domain,err)!{{{
+   subroutine ocn_vel_tidal_potential_init(domain,err)!{{{
 
       type (domain_type), intent(inout) :: domain
       integer, intent(out) :: err !< Output: error flag
@@ -353,7 +448,7 @@ contains
       end do      
 
 
-   end subroutine ocn_tidal_potential_forcing_init!}}}
+   end subroutine ocn_vel_tidal_potential_init!}}}
 
 
 !***********************************************************************
@@ -659,7 +754,7 @@ contains
 
 !***********************************************************************
 
-end module ocn_tidal_potential_forcing!}}}
+end module ocn_vel_tidal_potential!}}}
 
 !|||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
 ! vim: foldmethod=marker
