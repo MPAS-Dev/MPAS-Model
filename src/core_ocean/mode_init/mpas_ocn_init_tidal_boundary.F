@@ -137,7 +137,6 @@ contains
     call mpas_pool_get_config(ocnConfigs, 'config_init_configuration', config_init_configuration)
     call mpas_pool_get_config(ocnConfigs, 'config_tidal_boundary_layer_type', config_tidal_boundary_layer_type)
 
-    call mpas_log_write('here')
     if(config_init_configuration .ne. trim('tidal_boundary')) return
 
     call mpas_pool_get_config(ocnConfigs, 'config_vertical_grid', config_vertical_grid)
