@@ -1,3 +1,8 @@
+# Author: Steven Brus
+# Date: August, 2019
+# Description: Interpolates CFSR atmospheric reanalysis data onto the MPAS-O mesh and 
+#              creates an input file to support time varying atmospheric forcing in the model
+
 import netCDF4
 import matplotlib.pyplot as plt
 import numpy as np
@@ -12,6 +17,7 @@ import cartopy
 import cartopy.crs as ccrs
 import cartopy.feature as cfeature
 from scipy import interpolate
+import write_forcing_file
 plt.switch_backend('agg')
 cartopy.config['pre_existing_data_dir'] = \
     os.getenv('CARTOPY_DIR', cartopy.config.get('pre_existing_data_dir'))
@@ -68,34 +74,6 @@ def interpolate_data_to_grid(grid_file,data_file,var):
   xtime = np.array(xtime,'S64')
 
   return lon_grid,lat_grid,interp_data,lon_data,lat_data,data,xtime
-
-##################################################################################################
-##################################################################################################
-
-def write_to_file(filename,data,var,xtime):
-
-  if os.path.isfile(filename):
-    data_nc = netCDF4.Dataset(filename,'a', format='NETCDF3_64BIT_OFFSET')
-  else:
-    data_nc = netCDF4.Dataset(filename,'w', format='NETCDF3_64BIT_OFFSET')
-
-    # Find dimesions
-    ncells = data.shape[1]
-    nsnaps = data.shape[0]
-
-    # Declare dimensions
-    data_nc.createDimension('nCells',ncells)
-    data_nc.createDimension('StrLen',64)
-    data_nc.createDimension('Time',None)
-
-    # Create time variable
-    time = data_nc.createVariable('xtime','S1',('Time','StrLen'))
-    time[:,:] = netCDF4.stringtochar(xtime)
-
-  # Set variables
-  data_var = data_nc.createVariable(var,np.float64,('Time','nCells'))
-  data_var[:,:] = data[:,:]
-  data_nc.close()
 
 ##################################################################################################
 ##################################################################################################
@@ -182,7 +160,7 @@ if __name__ == '__main__':
 
   # Write to NetCDF file
   subprocess.call(['rm',forcing_file])
-  write_to_file(forcing_file,u_interp,'windSpeedU',xtime)
-  write_to_file(forcing_file,v_interp,'windSpeedV',xtime)
-  write_to_file(forcing_file,p_interp,'atmosPressure',xtime)
+  write_forcing_file.write_to_file(forcing_file,u_interp,'windSpeedU',xtime)
+  write_forcing_file.write_to_file(forcing_file,v_interp,'windSpeedV',xtime)
+  write_forcing_file.write_to_file(forcing_file,p_interp,'atmosPressure',xtime)
 
