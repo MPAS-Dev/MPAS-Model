@@ -49,6 +49,7 @@ contains
        clock, &
        dt)!{{{
 
+    use seaice_state, only: seaice_init_state
     use seaice_unit_test, only: seaice_init_unit_test
     use seaice_mesh, only: seaice_init_mesh
     use seaice_advection, only: seaice_init_advection
@@ -73,6 +74,9 @@ contains
          block
 
     call mpas_log_write("seaice_init: Initialize sea-ice model")
+
+    ! set up sea ice state
+    call seaice_init_state(domain)
 
     ! unit testing init
     call seaice_init_unit_test(domain)
