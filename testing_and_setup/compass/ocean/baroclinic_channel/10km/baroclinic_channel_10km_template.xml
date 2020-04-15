@@ -8,7 +8,7 @@
 		<option name="config_pio_num_iotasks">1</option>
 		<option name="config_pio_stride">4</option>
 		<option name="config_write_output_on_startup">.false.</option>
-		<option name="config_time_integrator">'split_explicit'</option>
+		<option name="config_time_integrator">'split_explicit_filtered'</option>
 		<option name="config_use_mom_del2">.true.</option>
 		<option name="config_mom_del2">10.0</option>
 		<option name="config_convective_visc">1.0</option>

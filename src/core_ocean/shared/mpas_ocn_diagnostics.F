@@ -122,7 +122,7 @@ contains
         bottomDepth, fVertex, dvEdge, dcEdge, areaCell, areaTriangle, ssh,  seaIcePressure, atmosphericPressure, frazilSurfacePressure, &
         pressureAdjustedSSH, gradSSH, landIcePressure, landIceDraft
       real (kind=RKIND), dimension(:,:), pointer :: &
-        weightsOnEdge, kiteAreasOnVertex, layerThicknessEdge, layerThickness, normalVelocity, normalTransportVelocity, &
+        weightsOnEdge, kiteAreasOnVertex, layerThicknessEdge, layerThicknessEdge_nP1, layerThickness, layerThickness_nP1, normalVelocity, normalTransportVelocity, &
         normalGMBolusVelocity, tangentialVelocity, pressure, circulation, kineticEnergyCell, montgomeryPotential, &
         vertAleTransportTop, zMid, zTop, divergence, relativeVorticity, relativeVorticityCell, &
         normalizedPlanetaryVorticityEdge, normalizedPlanetaryVorticityVertex, normalizedRelativeVorticityEdge, &
@@ -164,7 +164,7 @@ contains
 
       if (present(timeLevelIn)) then
          timeLevel = timeLevelIn
-      else
+      else ! during initialization
          timeLevel = 1
       end if
 
@@ -183,6 +183,7 @@ contains
       call mpas_pool_get_dimension(tracersPool, 'index_salinity', indexSalinity)
 
       call mpas_pool_get_array(statePool, 'layerThickness', layerThickness, timeLevel)
+      call mpas_pool_get_array(statePool, 'layerThickness_nP1', layerThickness_nP1, timeLevel)
       call mpas_pool_get_array(statePool, 'normalVelocity', normalVelocity, timeLevel)
       call mpas_pool_get_array(tracersPool, 'activeTracers', activeTracers, timeLevel)
       call mpas_pool_get_array(statePool, 'ssh', ssh, timeLevel)
@@ -204,6 +205,7 @@ contains
       call mpas_pool_get_array(diagnosticsPool, 'BruntVaisalaFreqTop', BruntVaisalaFreqTop)
       call mpas_pool_get_array(diagnosticsPool, 'tangentialVelocity', tangentialVelocity)
       call mpas_pool_get_array(diagnosticsPool, 'layerThicknessEdge', layerThicknessEdge)
+      call mpas_pool_get_array(diagnosticsPool, 'layerThicknessEdge_nP1', layerThicknessEdge_nP1)
       call mpas_pool_get_array(diagnosticsPool, 'kineticEnergyCell', kineticEnergyCell)
       call mpas_pool_get_array(diagnosticsPool, 'vertVelocityTop', vertVelocityTop)
       call mpas_pool_get_array(diagnosticsPool, 'vertTransportVelocityTop', vertTransportVelocityTop)
@@ -270,16 +272,22 @@ contains
       nCells = nCellsArray( size(nCellsArray) )
       nVertices = nVerticesArray( size(nVerticesArray) )
 
+      if (.not. (present(timeLevelIn))) then ! during initialization
+         layerThickness_nP1(:,:) = layerThickness(:,:)      
+      end if 
+
       if (.not. config_use_wetting_drying .or. (config_use_wetting_drying .and. (trim(config_thickness_flux_type) .eq. 'centered'))) then
         !$omp do schedule(runtime) private(cell1, cell2, k)
         do iEdge = 1, nEdges
           ! initialize layerThicknessEdge to avoid divide by zero and NaN problems.
           layerThicknessEdge(:, iEdge) = -1.0e34_RKIND
+          layerThicknessEdge_nP1(:, iEdge) = -1.0e34_RKIND
           cell1 = cellsOnEdge(1,iEdge)
           cell2 = cellsOnEdge(2,iEdge)
           do k = 1, maxLevelEdgeTop(iEdge)
             ! central differenced
             layerThicknessEdge(k,iEdge) = 0.5_RKIND * (layerThickness(k,cell1) + layerThickness(k,cell2))
+            layerThicknessEdge_nP1(k,iEdge) = 0.5_RKIND * (layerThickness_nP1(k,cell1) + layerThickness_nP1(k,cell2))
           end do
         end do
         !$omp end do
@@ -290,16 +298,20 @@ contains
             do iEdge = 1, nEdges
               ! initialize layerThicknessEdge to avoid divide by zero and NaN problems.
               layerThicknessEdge(:, iEdge) = -1.0e34_RKIND
+              layerThicknessEdge_nP1(:, iEdge) = -1.0e34_RKIND
               cell1 = cellsOnEdge(1,iEdge)
               cell2 = cellsOnEdge(2,iEdge)
               do k = 1, maxLevelEdgeTop(iEdge)
                 ! upwind
                 if (normalVelocity(k, iEdge) > 0.0_RKIND) then
                   layerThicknessEdge(k,iEdge) = layerThickness(k,cell1)
+                  layerThicknessEdge_nP1(k,iEdge) = layerThickness_nP1(k,cell1)
                 elseif (normalVelocity(k, iEdge) < 0.0_RKIND) then
                   layerThicknessEdge(k,iEdge) = layerThickness(k,cell2)
+                  layerThicknessEdge_nP1(k,iEdge) = layerThickness_nP1(k,cell2)
                 else
                   layerThicknessEdge(k,iEdge) = max(layerThickness(k,cell1), layerThickness(k,cell2))
+                  layerThicknessEdge_nP1(k,iEdge) = max(layerThickness_nP1(k,cell1), layerThickness_nP1(k,cell2))
                 end if
               end do
             end do
@@ -1315,7 +1327,9 @@ contains
          ! For RK4, PV includes f: PV = (eta+f)/h.
          fCoef = 1
       elseif (trim(config_time_integrator) == 'split_explicit' &
-        .or.trim(config_time_integrator) == 'unsplit_explicit') then
+         .or. trim(config_time_integrator) == 'unsplit_explicit' &
+         .or. trim(config_time_integrator) == 'split_explicit_filtered' &
+         .or. trim(config_time_integrator) == 'split_explicit_unfiltered') then
           ! For split explicit, PV is eta/h because the Coriolis term
           ! is added separately to the momentum tendencies.
           fCoef = 0
