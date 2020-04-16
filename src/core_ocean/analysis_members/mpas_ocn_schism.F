@@ -67,7 +67,7 @@ module ocn_schism
            &exchange_p3d_tr
    use schism_glbl, only: np,npa,np_global,ne,ns,i34,elnode,xlon,ylat,idry_e,ze,kbe,elside, &
            &su2,sv2,tr_el,nvrt,ntracers,dt,errmsg,nond_global,iond_global,nnu_pts,ipgl, &
-           &inu_pts_gb,idry,znl,kbp,natrm,ntrs,inu_tr,irange_tr,trnd_nu
+           &inu_pts_gb,idry,znl,kbp,natrm,ntrs,inu_tr,irange_tr,trnd_nu,trnd_nu1,trnd_nu2 !ZG,add trnd_nu[12]
 
    implicit none
    private
@@ -205,7 +205,7 @@ contains
 !==================================================================================================
       !Put this into param.in 
       num_divisions_mpas_bnd=20
-      nsteps_schism_mpas=80
+      nsteps_schism_mpas= 48 !80
 
       allocate(ibuff1(0:nproc-1),npts_mpas_in_rank(0:nproc-1))
       ibuff1=0 !init as 0 for other ranks
@@ -657,6 +657,11 @@ contains
       integer, dimension(:,:), pointer :: edgesOnCell,boundaryCell,boundaryEdge,edgeSignOnCell,verticesOnEdge, &
      &cellsOnEdge
       integer, pointer :: index_temperature, index_salinity
+      !ecosys, added by ZG
+      integer, pointer :: index_NO3
+      logical, pointer :: config_use_ecosysTracers
+      real (kind=RKIND), dimension(:,:,:), pointer :: ecosysTracers
+      real (kind=RKIND), allocatable :: m2s_trnd_nu(:,:,:)
 
       real (kind=RKIND), dimension(:), pointer ::  areaCell, dcEdge, dvEdge, angleEdge,lonCell,latCell, &
      &lonVertex,latVertex,lonEdge,latEdge,ssh
@@ -667,6 +672,7 @@ contains
       !real (kind=RKIND), dimension(:,:,:), pointer :: activeTracers
       type(field3DReal), pointer :: activeTracersField
       type (field2DReal), pointer :: normalVelocity
+
       real (kind=RKIND), allocatable :: rbuff(:,:,:),rbuff2(:),s2m_schism_data(:,:,:),rwild(:,:), &
      &m2s_data_1d(:),m2s_data_3d(:,:,:),m2s_schism_zcor(:,:)
       integer, allocatable :: m2s_data_count(:),ibuff(:)
@@ -682,6 +688,9 @@ contains
       !JZ
       pii=3.1415926_RKIND
       rad_to_deg=180.0_RKIND/pii
+    
+      !ZG
+      call mpas_pool_get_config(ocnConfigs, 'config_use_ecosysTracers', config_use_ecosysTracers)
 
 !==================================================================================================
       !MPAS->SCHISM
@@ -778,6 +787,12 @@ contains
          call mpas_pool_get_field(statePool, 'normalVelocity', normalVelocity, timeLevel=timeLevel)
          call mpas_pool_get_array(diagnosticsPool, 'tangentialVelocity', tangentialVelocity)
 
+         !call ecosys variables,ZG
+         if(config_use_ecosysTracers) then
+           call mpas_pool_get_dimension(tracersPool, 'index_NO3', index_NO3)
+           call mpas_pool_get_array(tracersPool, 'ecosysTracers', ecosysTracers, timeLevel)
+         endif
+
          do j=1,m2s_schism_pts
            if(nint(m2s_mpas_dist_rank(2,j))/=myrank.or.nint(m2s_mpas_dist_block(2,j))/=iblock) cycle
 
@@ -810,6 +825,12 @@ contains
              rbuff(3,k2,j)=rbuff(3,k2,j)+activeTracersField%array(index_temperature,klev,iCell)
              rbuff(4,k2,j)=rbuff(4,k2,j)+activeTracersField%array(index_salinity,klev,iCell)
 !             volume = layerThickness(k,iCell) * areaCell(iCell)
+
+             !CoSiNE,ZG
+             if(ntrs(8)/=0 .and. config_use_ecosysTracers) then
+                itmp=irange_tr(1,8)
+                rbuff(itmp+2,k2,j)=rbuff(itmp+2,k2,j)+ecosysTracers(index_NO3,klev,iCell)
+             endif
 
              !Vel: barycentric interp
              sum_dist=0; sum_u=0; sum_v=0
@@ -853,7 +874,7 @@ contains
       
       !Alter SCHISM nudging: overwrite trnd_nu()
       deallocate(rbuff)
-      allocate(rbuff(ntracers,nvrt,npa))
+      allocate(rbuff(ntracers,nvrt,npa),m2s_trnd_nu(ntracers,nvrt,npa)) !ZG
       do j=1,m2s_schism_pts
         ndgb=m2s_schism_ndgb(j)
         if(ipgl(ndgb)%rank/=myrank) cycle
@@ -873,6 +894,15 @@ contains
       !Exchange (double prevision)
       call exchange_p3d_tr(rbuff)
       trnd_nu=rbuff
+      
+      !CoSiNE, ZG
+      if(ntrs(8)/=0 .and. config_use_ecosysTracers) then
+         m2s_trnd_nu=rbuff !ZG
+         if(it_schism_start==iths+1) then
+            itmp=irange_tr(1,8)
+            trnd_nu1(itmp,:,:)=m2s_trnd_nu(itmp,:,:) !NO3 only
+         endif
+      endif
 
       !SCHISM b.c. (TODO)
 
@@ -881,9 +911,17 @@ contains
       !SCHISM->MPAS
       !SCHISM time stepping
       do it=it_schism_start,it_schism_start+nsteps_schism_mpas-1
+         !CoSiNE, ZG.
+         if(ntrs(8)/=0 .and. config_use_ecosysTracers) then
+            itmp=irange_tr(1,8)
+            trnd_nu2(itmp,:,:)=m2s_trnd_nu(itmp,:,:) !NO3 only
+         endif
+
         call schism_step(it)
       enddo !it
       it_schism_start=it_schism_start+nsteps_schism_mpas
+
+      deallocate(m2s_trnd_nu) !ZG
 
       !Gather SCHISM outputs s2m_schism_data(:,nvrt,s2m_npts_final) (1: zcor; 2:u, 3:v; 4-: tracers)
       allocate(rbuff(3+ntracers,nvrt,s2m_npts_final),s2m_schism_data(3+ntracers,nvrt,s2m_npts_final), &
@@ -981,6 +1019,13 @@ contains
          call mpas_pool_get_field(statePool, 'normalVelocity', normalVelocity, timeLevel=timeLevel)
          call mpas_pool_get_array(diagnosticsPool, 'zMid', zMid)
          call mpas_pool_get_array(diagnosticsPool, 'tangentialVelocity', tangentialVelocity)
+
+         !call ecosys variables,ZG
+         !call mpas_log_write('Debug ZG: 1')
+         if(config_use_ecosysTracers) then
+           call mpas_pool_get_dimension(tracersPool, 'index_NO3', index_NO3)
+           call mpas_pool_get_array(tracersPool, 'ecosysTracers', ecosysTracers, timeLevel)
+         endif
 
          !JZ: test
 !         if ( associated(activeTracers) ) then
@@ -1104,6 +1149,12 @@ contains
                         &(volume+volume2) 
                  activeTracersField%array(index_salinity,k2,iCell)=(volume*tmp1+volume2*rbuff(5,1,1))/ &
                         &(volume+volume2)
+                 !CoSiNE,ZG
+                 if(ntrs(8)/=0 .and. config_use_ecosysTracers) then
+                    itmp=irange_tr(1,8)
+                    tmp=ecosysTracers(index_NO3,k2,iCell)
+                    ecosysTracers(index_NO3,k2,iCell)=(volume*tmp+volume2*rbuff(itmp+3,1,1))/(volume+volume2)
+                 endif
                endif !Inflow
              enddo !k2
            enddo !iEdge
