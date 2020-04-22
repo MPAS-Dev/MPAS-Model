@@ -61,7 +61,7 @@
 
 	<var_struct name="state" time_levs="2">
 		<var_struct name="tracers" time_levs="2">
-			<var_array name="activeTracers" dimensions="nVertLevels nCells Time" type="real" packages="activeTracersPKG" >
+			<var_array name="activeTracers" dimensions="nVertLevels nCells Time" type="real" packages="activeTracersPKG" missing_value="FILLVAL">
 				<var name="temperature" array_group="activeGRP" units="degrees Celsius"
 			 description="potential temperature"
 				/>
