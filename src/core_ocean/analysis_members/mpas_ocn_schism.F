@@ -1145,16 +1145,15 @@ contains
                  tmp=activeTracersField%array(index_temperature,k2,iCell)
                  tmp1=activeTracersField%array(index_salinity,k2,iCell)
                
-                 activeTracersField%array(index_temperature,k2,iCell)=(volume*tmp+volume2*rbuff(4,1,1))/ &
-                        &(volume+volume2) 
-                 activeTracersField%array(index_salinity,k2,iCell)=(volume*tmp1+volume2*rbuff(5,1,1))/ &
-                        &(volume+volume2)
+                 activeTracersField%array(index_temperature,k2,iCell)=(volume*tmp-volume2*rbuff(4,1,1))/ &
+                        &(volume-volume2) 
+                 activeTracersField%array(index_salinity,k2,iCell)=(volume*tmp1-volume2*rbuff(5,1,1))/ &
+                        &(volume-volume2)
                  !CoSiNE,ZG
                  if(ntrs(8)/=0 .and. config_use_ecosysTracers) then
                     itmp=irange_tr(1,8)
                     tmp=ecosysTracers(index_NO3,k2,iCell)
-                    ecosysTracers(index_NO3,k2,iCell)=(volume*tmp+abs(volume2)*rbuff(itmp+3,1,1))/(volume+abs(volume2))
-                    !debug: debug shows volume2 is negative. temporary fix 
+                    ecosysTracers(index_NO3,k2,iCell)=(volume*tmp-volume2*rbuff(itmp+3,1,1))/(volume-volume2)
                     !write(12,*)timeLevel,myrank,iblock,iEdge,itmp,volume,volume2,tmp,rbuff(itmp+3,1,1) 
                  endif
                endif !Inflow
