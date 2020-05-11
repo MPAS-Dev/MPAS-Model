@@ -31,6 +31,7 @@ module ocn_diagnostics
 
    use ocn_constants
    use ocn_config
+   use ocn_mesh
    use ocn_gm
    use ocn_equation_of_state
    use ocn_thick_ale
@@ -165,15 +166,6 @@ contains
 
       integer :: iEdge, iCell, iVertex, k, cell1, cell2, vertex1, vertex2, eoe, i, j
       integer :: boundaryMask, velMask, err, nCells, nEdges, nVertices
-      integer, pointer  :: nVertLevels, vertexDegree
-      integer, dimension(:), pointer :: nCellsArray, nEdgesArray, nVerticesArray
-
-      integer, dimension(:), pointer :: nEdgesOnCell, nEdgesOnEdge, &
-        maxLevelCell, maxLevelEdgeTop, maxLevelEdgeBot, &
-        maxLevelVertexBot
-      integer, dimension(:,:), pointer :: cellsOnEdge, cellsOnVertex, &
-        verticesOnEdge, edgesOnEdge, edgesOnVertex,boundaryCell, kiteIndexOnCell, &
-        verticesOnCell, edgeSignOnVertex, edgeSignOnCell, edgesOnCell, edgeMask
 
       real (kind=RKIND) :: d2fdx2_cell1, d2fdx2_cell2, coef_3rd_order, r_tmp, &
         invAreaCell1, invAreaCell2, invAreaTri1, invAreaTri2, invLength, layerThicknessVertex, coef, &
@@ -182,10 +174,11 @@ contains
       real (kind=RKIND), dimension(:), allocatable:: pTop, div_hu,div_huTransport,div_huGMBolus
 
       real (kind=RKIND), dimension(:), pointer :: &
-        bottomDepth, fVertex, dvEdge, dcEdge, areaCell, areaTriangle, ssh,  seaIcePressure, atmosphericPressure, frazilSurfacePressure, &
+        ssh,  seaIcePressure, atmosphericPressure, frazilSurfacePressure, &
         pressureAdjustedSSH, gradSSH, landIcePressure, landIceDraft
+
       real (kind=RKIND), dimension(:,:), pointer :: &
-        weightsOnEdge, kiteAreasOnVertex, layerThicknessEdge, layerThickness, normalVelocity, normalTransportVelocity, &
+        layerThicknessEdge, layerThickness, normalVelocity, normalTransportVelocity, &
         normalGMBolusVelocity, tangentialVelocity, pressure, circulation, kineticEnergyCell, montgomeryPotential, &
         vertAleTransportTop, zMid, zTop, divergence, relativeVorticity, relativeVorticityCell, &
         normalizedPlanetaryVorticityEdge, normalizedPlanetaryVorticityVertex, normalizedRelativeVorticityEdge, &
@@ -194,7 +187,7 @@ contains
         vertGMBolusVelocityTop, BruntVaisalaFreqTop, vorticityGradientNormalComponent, vorticityGradientTangentialComponent, &
         RiTopOfCell, inSituThermalExpansionCoeff, inSituSalineContractionCoeff, edgeAreaFractionOfCell
 
-      real (kind=RKIND), dimension(:,:,:), pointer :: activeTracers, derivTwo
+      real (kind=RKIND), dimension(:,:,:), pointer :: activeTracers
       character :: c1*6
 
       real (kind=RKIND), dimension(:,:), pointer :: tracersSurfaceValue
@@ -258,45 +251,11 @@ contains
       call mpas_pool_get_array(diagnosticsPool, 'pressureAdjustedSSH', pressureAdjustedSSH)
       call mpas_pool_get_array(diagnosticsPool, 'edgeAreaFractionOfCell', edgeAreaFractionOfCell)
 
-      call mpas_pool_get_array(meshPool, 'weightsOnEdge', weightsOnEdge)
-      call mpas_pool_get_array(meshPool, 'kiteAreasOnVertex', kiteAreasOnVertex)
-      call mpas_pool_get_array(meshPool, 'cellsOnEdge', cellsOnEdge)
-      call mpas_pool_get_array(meshPool, 'cellsOnVertex', cellsOnVertex)
-      call mpas_pool_get_array(meshPool, 'verticesOnEdge', verticesOnEdge)
-      call mpas_pool_get_array(meshPool, 'nEdgesOnCell', nEdgesOnCell)
-      call mpas_pool_get_array(meshPool, 'nEdgesOnEdge', nEdgesOnEdge)
-      call mpas_pool_get_array(meshPool, 'edgesOnCell', edgesOnCell)
-      call mpas_pool_get_array(meshPool, 'edgesOnEdge', edgesOnEdge)
-      call mpas_pool_get_array(meshPool, 'edgesOnVertex', edgesOnVertex)
-      call mpas_pool_get_array(meshPool, 'dcEdge', dcEdge)
-      call mpas_pool_get_array(meshPool, 'dvEdge', dvEdge)
-      call mpas_pool_get_array(meshPool, 'areaCell', areaCell)
-      call mpas_pool_get_array(meshPool, 'areaTriangle', areaTriangle)
-      call mpas_pool_get_array(meshPool, 'bottomDepth', bottomDepth)
-      call mpas_pool_get_array(meshPool, 'fVertex', fVertex)
-      call mpas_pool_get_array(meshPool, 'derivTwo', derivTwo)
-      call mpas_pool_get_array(meshPool, 'maxLevelCell', maxLevelCell)
-      call mpas_pool_get_array(meshPool, 'maxLevelEdgeTop', maxLevelEdgeTop)
-      call mpas_pool_get_array(meshPool, 'maxLevelEdgeBot', maxLevelEdgeBot)
-      call mpas_pool_get_array(meshPool, 'maxLevelVertexBot', maxLevelVertexBot)
-      call mpas_pool_get_array(meshPool, 'kiteIndexOnCell', kiteIndexOnCell)
-      call mpas_pool_get_array(meshPool, 'verticesOnCell', verticesOnCell)
-      call mpas_pool_get_array(meshPool, 'boundaryCell', boundaryCell)
-      call mpas_pool_get_array(meshPool, 'edgeSignOnVertex', edgeSignOnVertex)
-      call mpas_pool_get_array(meshPool, 'edgeSignOnCell', edgeSignOnCell)
-      call mpas_pool_get_array(meshPool, 'edgeMask', edgeMask)
-
       call mpas_pool_get_array(forcingPool, 'seaIcePressure', seaIcePressure)
       call mpas_pool_get_array(forcingPool, 'atmosphericPressure', atmosphericPressure)
       call mpas_pool_get_array(forcingPool, 'landIcePressure', landIcePressure)
       call mpas_pool_get_array(forcingPool, 'landIceDraft', landIceDraft)
       call mpas_pool_get_array(forcingPool, 'frazilSurfacePressure', frazilSurfacePressure)
-
-      call mpas_pool_get_dimension(meshPool, 'nCellsArray', nCellsArray)
-      call mpas_pool_get_dimension(meshPool, 'nEdgesArray', nEdgesArray)
-      call mpas_pool_get_dimension(meshPool, 'nVerticesArray', nVerticesArray)
-      call mpas_pool_get_dimension(meshPool, 'nVertLevels', nVertLevels)
-      call mpas_pool_get_dimension(meshPool, 'vertexDegree', vertexDegree)
 
       call mpas_pool_get_array(diagnosticsPool, 'tracersSurfaceValue', tracersSurfaceValue)
       call mpas_pool_get_array(diagnosticsPool, 'tracersSurfaceLayerValue', tracersSurfaceLayerValue)
@@ -310,9 +269,9 @@ contains
       !   Namelist options control the order of accuracy of the reconstructed layerThicknessEdge value
       !
 
-      nEdges = nEdgesArray( size(nEdgesArray) )
-      nCells = nCellsArray( size(nCellsArray) )
-      nVertices = nVerticesArray( size(nVerticesArray) )
+      nEdges = nEdgesAll
+      nCells = nCellsAll
+      nVertices = nVerticesAll
 
       if (.not. config_use_wetting_drying .or. (config_use_wetting_drying .and. (trim(config_thickness_flux_type) .eq. 'centered'))) then
         !$omp do schedule(runtime) private(cell1, cell2, k)
@@ -372,7 +331,7 @@ contains
       call ocn_relativeVorticity_circulation(relativeVorticity, circulation, meshPool, normalVelocity, err)
 
       ! Need owned cells for relativeVorticityCell
-      nCells = nCellsArray( 1 )
+      nCells = nCellsOwned
 
       !$omp do schedule(runtime) private(invAreaCell1, i, j, k, iVertex)
       do iCell = 1, nCells
@@ -391,7 +350,7 @@ contains
       !$omp end do
 
       ! Need 0,1,2 halo cells
-      nCells = nCellsArray( 3 )
+      nCells = nCellsHalo( 2 )
       !
       ! Compute divergence, kinetic energy, and vertical velocity
       !
@@ -439,7 +398,7 @@ contains
 
       deallocate(div_hu,div_huTransport,div_huGMBolus)
 
-      nEdges = nEdgesArray( 2 )
+      nEdges = nEdgesHalo( 1 )
 
       !$omp do schedule(runtime)
       do iEdge = 1, nEdges
@@ -457,7 +416,7 @@ contains
       !$omp end do
 
       ! Need 0,1,2 halo cells
-      nCells = nCellsArray( 3 )
+      nCells = nCellsHalo( 2 )
       !
       ! Compute kinetic energy
       !
@@ -525,7 +484,7 @@ contains
       !$omp end master
       !$omp barrier
 
-      nVertices = nVerticesArray( 3 )
+      nVertices = nVerticesHalo( 2 )
 
       !$omp do schedule(runtime) private(invAreaTri1, k, layerThicknessVertex, i)
       do iVertex = 1, nVertices
@@ -544,7 +503,7 @@ contains
       end do
       !$omp end do
 
-      nEdges = nEdgesArray( 3 )
+      nEdges = nEdgesHalo( 2 )
 
       !$omp do schedule(runtime) private(vertex1, vertex2, k)
       do iEdge = 1, nEdges
@@ -561,7 +520,7 @@ contains
       end do
       !$omp end do
 
-      nCells = nCellsArray( 2 )
+      nCells = nCellsHalo( 1 )
 
       !$omp do schedule(runtime) private(invAreaCell1, i, j, iVertex, k)
       do iCell = 1, nCells
@@ -579,9 +538,9 @@ contains
       end do
       !$omp end do
 
-      nCells = nCellsArray( size(nCellsArray) )
-      nVertices = nVerticesArray( size(nVerticesArray) )
-      nEdges = nCellsArray( size(nCellsArray) )
+      nCells = nCellsAll
+      nVertices = nVerticesAll
+      nEdges = nCellsAll
 
       ! Diagnostics required for the Anticipated Potential Vorticity Method (apvm).
       if (config_apvm_scale_factor>1e-10) then
@@ -592,7 +551,7 @@ contains
          !$omp end master
          !$omp barrier
 
-         nEdges = nEdgesArray( 2 )
+         nEdges = nEdgesHalo( 1 )
 
          !$omp do schedule(runtime) private(cell1, cell2, vertex1, vertex2, invLength, k)
          do iEdge = 1,nEdges
@@ -653,7 +612,7 @@ contains
       !
 
       ! Only need densities on 0, 1, and 2 halo cells
-      nCells = nCellsArray( size(nCellsArray) )
+      nCells = nCellsAll
 
       ! compute in-place density
       call ocn_equation_of_state_density(statePool, diagnosticsPool, meshPool, scratchPool, &
@@ -663,13 +622,13 @@ contains
       call mpas_threading_barrier()
 
       ! compute potentialDensity, the density displaced adiabatically to the mid-depth of top layer.
-      call ocn_equation_of_state_density(statePool, diagnosticsPool, meshPool, &
+      call ocn_equation_of_state_density(statePool, diagnosticsPool, meshPool, scratchPool, &
                                          nCells, 1, 'absolute', potentialDensity, &
                                          err, timeLevelIn=timeLevel)
 
       ! compute displacedDensity, density displaced adiabatically to the mid-depth one layer deeper.
       ! That is, layer k has been displaced to the depth of layer k+1.
-      call ocn_equation_of_state_density(statePool, diagnosticsPool, meshPool, &
+      call ocn_equation_of_state_density(statePool, diagnosticsPool, meshPool, scratchPool, &
                                          nCells, 1, 'relative', displacedDensity, &
                                          err, timeLevelIn=timeLevel)
       call mpas_threading_barrier()
@@ -678,7 +637,7 @@ contains
       ! Pressure
       ! This section must be placed in the code after computing the density.
       !
-      nCells = nCellsArray( size(nCellsArray) )
+      nCells = nCellsAll
       if (config_pressure_gradient_type.eq.'MontgomeryPotential') then
 
         ! use Montgomery Potential when layers are isopycnal.
@@ -752,7 +711,7 @@ contains
 
       endif
 
-      nCells = nCellsArray( size(nCellsArray) )
+      nCells = nCellsAll
 
       !
       ! Brunt-Vaisala frequency (this has units of s^{-2})
@@ -772,8 +731,8 @@ contains
       ! Gradient Richardson number
       !
 
-      nCells = nCellsArray(3)
-      !$omp do schedule(runtime) private(invAreaCell1, k, shearSquared, i, iEdge, delU2, shearMean)
+      nCells = nCellsHalo(2)
+      !$omp do schedule(runtime) private(invAreaCell1, k, shearSquared, i, iEdge, factor, delU2, shearMean)
       do iCell=1,nCells
          RiTopOfCell(:,iCell) = 100.0_RKIND
          do k=2,maxLevelCell(iCell)
@@ -816,7 +775,7 @@ contains
       ! the ocean surface layer is generally assumed to be about 0.1 of the boundary layer depth
       if(config_use_cvmix_kpp) then
 
-        nCells = nCellsArray( 1 )
+        nCells = nCellsOwned
 
         !$omp do schedule(runtime)
         do iCell=1,nCells
@@ -845,7 +804,7 @@ contains
         enddo
         !$omp end do
 
-        nEdges = nEdgesArray( 1 )
+        nEdges = nEdgesOwned
 
         !
         ! average normal velocity values over the ocean surface layer
@@ -884,7 +843,7 @@ contains
 
       endif
 
-      nCells = nCellsArray( 2 )
+      nCells = nCellsHalo( 1 )
 
       ! compute the attenuation coefficient for surface fluxes
       !$omp do schedule(runtime)
@@ -899,7 +858,7 @@ contains
       call ocn_compute_land_ice_flux_input_fields(meshPool, statePool, forcingPool, scratchPool, &
                                          diagnosticsPool, timeLevel)
 
-      nCells = nCellsArray( 2 )
+      nCells = nCellsHalo( 1 )
       !$omp do schedule(runtime)
       do iCell = 1, nCells
          pressureAdjustedSSH(iCell) = ssh(iCell) + ( seaIcePressure(iCell) / ( gravity * rho_sw ) )
@@ -916,7 +875,7 @@ contains
          !$omp end do
       end if
 
-      nEdges = nEdgesArray( 2 )
+      nEdges = nEdgesHalo( 1 )
 
       !$omp do schedule(runtime) private(cell1, cell2)
       do iEdge = 1, nEdges
@@ -996,33 +955,16 @@ contains
       !-----------------------------------------------------------------
 
       integer :: iEdge, iCell, k, i, nCells
-      integer, pointer :: nVertLevels
-      integer, dimension(:), pointer :: nCellsArray
-      integer, dimension(:), pointer :: nEdgesOnCell, nEdgesOnEdge, &
-        maxLevelCell, maxLevelEdgeBot
-      integer, dimension(:,:), pointer :: edgesOnCell, edgeSignOnCell
 
       real (kind=RKIND) :: flux, invAreaCell, div_hu_btr
-      real (kind=RKIND), dimension(:), pointer :: dvEdge, areaCell
       err = 0
-
-      call mpas_pool_get_array(meshPool, 'nEdgesOnCell', nEdgesOnCell)
-      call mpas_pool_get_array(meshPool, 'areaCell', areaCell)
-      call mpas_pool_get_array(meshPool, 'edgesOnCell', edgesOnCell)
-      call mpas_pool_get_array(meshPool, 'edgeSignOnCell', edgeSignOnCell)
-      call mpas_pool_get_array(meshPool, 'maxLevelCell', maxLevelCell)
-      call mpas_pool_get_array(meshPool, 'maxLevelEdgeBot', maxLevelEdgeBot)
-      call mpas_pool_get_array(meshPool, 'dvEdge', dvEdge)
-
-      call mpas_pool_get_dimension(meshPool, 'nCellsArray', nCellsArray)
-      call mpas_pool_get_dimension(meshPool, 'nVertLevels', nVertLevels)
 
       if (config_vert_coord_movement.eq.'impermeable_interfaces') then
         vertAleTransportTop=0.0_RKIND
         return
       end if
 
-      ncells = nCellsArray(size(nCellsArray))
+      ncells = nCellsAll
 
       !$omp master
       allocate(div_hu(nVertLevels, nCells), &
@@ -1032,7 +974,7 @@ contains
       !$omp barrier
 
       ! Only need to compute over 0 and 1 halos
-      nCells = nCellsArray( 2 )
+      nCells = nCellsHalo( 1 )
 
       !
       ! thickness-weighted divergence and barotropic divergence
@@ -1114,13 +1056,8 @@ contains
       integer, intent(in), optional :: timeLevelIn !< Input: Input time level for state pool
 
       integer :: iEdge, cell1, cell2, eoe, i, j, k
-      integer, pointer :: nEdgesSolve
-      real (kind=RKIND), dimension(:), pointer :: fEdge
-      real (kind=RKIND), dimension(:,:), pointer :: weightsOnEdge, normalVelocity, normalBaroclinicVelocity
+      real (kind=RKIND), dimension(:,:), pointer :: normalVelocity, normalBaroclinicVelocity
       type (dm_info) :: dminfo
-
-      integer, dimension(:), pointer :: maxLevelEdgeTop, nEdgesOnEdge
-      integer, dimension(:,:), pointer :: cellsOnEdge, edgesOnEdge
 
       integer :: timeLevel
 
@@ -1135,24 +1072,13 @@ contains
       call mpas_pool_get_array(statePool, 'normalVelocity', normalVelocity, timeLevel)
       call mpas_pool_get_array(statePool, 'normalBaroclinicVelocity', normalBaroclinicVelocity, timeLevel)
 
-      call mpas_pool_get_array(meshPool, 'weightsOnEdge', weightsOnEdge)
-      call mpas_pool_get_array(meshPool, 'fEdge', fEdge)
-      call mpas_pool_get_array(meshPool, 'maxLevelEdgeTop', maxLevelEdgeTop)
-      call mpas_pool_get_array(meshPool, 'cellsOnEdge', cellsOnEdge)
-      call mpas_pool_get_array(meshPool, 'nEdgesOnEdge', nEdgesOnEdge)
-      call mpas_pool_get_array(meshPool, 'edgesOnEdge', edgesOnEdge)
-
-      call mpas_pool_get_array(meshPool, 'fEdge', fEdge)
-
-      call mpas_pool_get_dimension(meshPool, 'nEdgesSolve', nEdgesSolve)
-
       !DWJ: ADD OMP (Only needed for split explicit)
 
       !
       ! Put f*normalBaroclinicVelocity^{perp} in u as a work variable
       !
       !$omp do schedule(runtime) private(cell1, cell2, k, eoe)
-      do iEdge = 1, nEdgesSolve
+      do iEdge = 1, nEdgesOwned
          cell1 = cellsOnEdge(1,iEdge)
          cell2 = cellsOnEdge(2,iEdge)
 
@@ -1191,10 +1117,8 @@ contains
       integer, intent(in), optional :: timeLevelIn !< Input: Time level for state pool
 
       integer :: iEdge, k
-      integer, pointer :: nEdges
       real (kind=RKIND) :: vertSum, normalThicknessFluxSum, thicknessSum
       real (kind=RKIND), dimension(:,:), pointer :: layerThicknessEdge, normalVelocity
-      integer, dimension(:), pointer :: maxLevelEdgeTop
 
       integer :: timeLevel
 
@@ -1210,12 +1134,8 @@ contains
 
       call mpas_pool_get_array(diagnosticsPool, 'layerThicknessEdge', layerThicknessEdge)
 
-      call mpas_pool_get_array(meshPool, 'maxLevelEdgeTop', maxLevelEdgeTop)
-
-      call mpas_pool_get_dimension(meshPool, 'nEdges', nEdges)
-
       !$omp do schedule(runtime)
-      do iEdge = 1, nEdges
+      do iEdge = 1, nEdgesAll
 
         ! thicknessSum is initialized outside the loop because on land boundaries
         ! maxLevelEdgeTop=0, but I want to initialize thicknessSum with a
@@ -1259,11 +1179,8 @@ contains
       integer, intent(in), optional :: timeLevelIn !< Input: Time level for state pool
 
       integer :: iEdge, k
-      integer, pointer :: nEdges
       real (kind=RKIND) :: vertSum, normalThicknessFluxSum, thicknessSum
       real (kind=RKIND), dimension(:,:), pointer :: layerThicknessEdge, tend_normalVelocity
-
-      integer, dimension(:), pointer :: maxLevelEdgeTop
 
       integer :: timeLevel
 
@@ -1279,12 +1196,8 @@ contains
 
       call mpas_pool_get_array(diagnosticsPool, 'layerThicknessEdge', layerThicknessEdge)
 
-      call mpas_pool_get_array(meshPool, 'maxLevelEdgeTop', maxLevelEdgeTop)
-
-      call mpas_pool_get_dimension(meshPool, 'nEdges', nEdges)
-
       !$omp do schedule(runtime)
-      do iEdge = 1, nEdges
+      do iEdge = 1, nEdgesAll
 
         ! thicknessSum is initialized outside the loop because on land boundaries
         ! maxLevelEdgeTop=0, but I want to initialize thicknessSum with a
@@ -1386,15 +1299,8 @@ contains
 
       ! scalars
       integer :: nCells
-      integer, pointer :: nVertLevels
-      integer, dimension(:), pointer :: nCellsArray
-
-      ! integer pointers
-      integer, dimension(:), pointer :: maxLevelCell, nEdgesOnCell
-      integer, dimension(:,:), pointer :: edgesOnCell
 
       ! real pointers
-      real (kind=RKIND), dimension(:), pointer :: dcEdge, dvEdge, areaCell
       real (kind=RKIND), dimension(:), pointer :: penetrativeTemperatureFlux, surfaceThicknessFlux, &
            surfaceBuoyancyForcing, surfaceFrictionVelocity, penetrativeTemperatureFluxOBL, &
            normalVelocitySurfaceLayer, surfaceThicknessFluxRunoff, rainFlux, evaporationFlux
@@ -1434,21 +1340,12 @@ contains
       turbulentVelocitySquared = 0.001_RKIND
 
       ! set scalar values
-      call mpas_pool_get_dimension(meshPool, 'nCellsArray', nCellsArray)
-      call mpas_pool_get_dimension(meshPool, 'nVertLevels', nVertLevels)
       call mpas_pool_get_dimension(tracersSurfaceFluxPool, 'index_temperatureSurfaceFlux', indexTempFlux)
       call mpas_pool_get_dimension(tracersSurfaceFluxPool, 'index_salinitySurfaceFlux', indexSaltFlux)
 
       ! set pointers into state, mesh, diagnostics and scratch
       call mpas_pool_get_array(statePool, 'normalVelocity', normalVelocity, timeLevel)
       call mpas_pool_get_array(statePool, 'layerThickness', layerThickness, timeLevel)
-
-      call mpas_pool_get_array(meshPool, 'maxLevelCell', maxLevelCell)
-      call mpas_pool_get_array(meshPool, 'nEdgesOnCell', nEdgesOnCell)
-      call mpas_pool_get_array(meshPool, 'edgesOnCell', edgesOnCell)
-      call mpas_pool_get_array(meshPool, 'areaCell', areaCell)
-      call mpas_pool_get_array(meshPool, 'dcEdge', dcEdge)
-      call mpas_pool_get_array(meshPool, 'dvEdge', dvEdge)
 
       call mpas_pool_get_array(diagnosticsPool, 'zMid', zMid)
       call mpas_pool_get_array(diagnosticsPool, 'zTop', zTop)
@@ -1474,7 +1371,7 @@ contains
       call mpas_pool_get_array(tracersSurfaceFluxPool, 'activeTracersSurfaceFluxRunoff', activeTracersSurfaceFluxRunoff)
 
       ! allocate scratch space displaced density computation
-      ncells = nCellsArray(size(nCellsArray))
+      ncells = nCellsAll
       !$omp master
       allocate(densitySurfaceDisplaced(nVertLevels, nCells), &
                thermalExpansionCoeff(nVertLevels, nCells), &
@@ -1483,10 +1380,10 @@ contains
       !$omp barrier
 
       ! Only need to compute over the 0 and 1 halos
-      nCells = nCellsArray( 3 )
+      nCells = nCellsHalo( 2 )
 
       ! compute EOS by displacing SST/SSS to every vertical layer in column
-      call ocn_equation_of_state_density(statePool, diagnosticsPool, meshPool, nCells, 0, 'surfaceDisplaced', &
+      call ocn_equation_of_state_density(statePool, diagnosticsPool, meshPool, scratchPool, nCells, 0, 'surfaceDisplaced', &
                                          densitySurfaceDisplaced, err, thermalExpansionCoeff, salineContractionCoeff, &
                                          timeLevel)
 
@@ -1594,11 +1491,6 @@ contains
       type (mpas_pool_type), pointer :: tracersPool
 
       integer :: iCell, iEdge, cell1, cell2, iLevel, i
-      integer, pointer :: nCells, nEdges
-
-      integer, dimension(:,:), pointer :: cellsOnCell, cellsOnEdge, cellMask
-
-      integer, dimension(:), pointer :: maxLevelCell, nEdgesOnCell
 
       integer, pointer :: indexT, indexS, indexBLT, indexBLS, indexHeatTrans, indexSaltTrans
 
@@ -1608,7 +1500,6 @@ contains
                                                   landIceFrictionVelocity, &
                                                   topDrag, &
                                                   topDragMagnitude, &
-                                                  fCell, &
                                                   surfaceFluxAttenuationCoefficient
 
       integer, dimension(:), pointer :: landIceMask
@@ -1634,10 +1525,9 @@ contains
          call mpas_pool_get_array(forcingPool, 'landIceFraction', landIceFraction)
          call mpas_pool_get_array(forcingPool, 'landIceMask', landIceMask)
 
-         call mpas_pool_get_dimension(meshPool, 'nCells', nCells)
          ! compute landIceMask from landIceFraction
          !$omp do schedule(runtime)
-         do iCell = 1, nCells
+         do iCell = 1, nCellsAll
             if (landIceFraction(iCell) >= 0.5_RKIND) then
                landIceMask(iCell) = 1
             else
@@ -1655,15 +1545,6 @@ contains
       end if
 
       call mpas_timer_start("land_ice_diagnostic_fields", .false.)
-
-      call mpas_pool_get_dimension(meshPool, 'nCells', nCells)
-      call mpas_pool_get_dimension(meshPool, 'nEdges', nEdges)
-
-      call mpas_pool_get_array(meshPool, 'cellsOnCell', cellsOnCell)
-      call mpas_pool_get_array(meshPool, 'cellsOnEdge', cellsOnEdge)
-      call mpas_pool_get_array(meshPool, 'maxLevelCell', maxLevelCell)
-      call mpas_pool_get_array(meshPool, 'nEdgesOnCell', nEdgesOnCell)
-      call mpas_pool_get_array(meshPool, 'cellMask', cellMask)
 
       call mpas_pool_get_array(statePool, 'normalVelocity', normalVelocity, timeLevel)
       call mpas_pool_get_array(statePool, 'layerThickness', layerThickness, timeLevel)
@@ -1693,18 +1574,14 @@ contains
       call mpas_pool_get_array(diagnosticsPool, 'surfaceFluxAttenuationCoefficient', surfaceFluxAttenuationCoefficient)
 
       !$omp master
-      allocate(blTempScratch(nCells), &
-               blSaltScratch(nCells))
+      allocate(blTempScratch(nCellsAll), &
+               blSaltScratch(nCellsAll))
       !$omp end master
       !$omp barrier
 
-      if(hollandJenkinsOn) then
-         call mpas_pool_get_array(meshPool, 'fCell', fCell)
-      end if
-
       ! Compute top drag
       !$omp do schedule(runtime) private(cell1, cell2, velocityMagnitude, landIceEdgeFraction)
-      do iEdge = 1, nEdges
+      do iEdge = 1, nEdgesAll
          cell1 = cellsOnEdge(1, iEdge)
          cell2 = cellsOnEdge(2, iEdge)
 
@@ -1720,7 +1597,7 @@ contains
 
       ! compute top drag magnitude and friction velocity at cell centers
       !$omp do schedule(runtime)
-      do iCell = 1, nCells
+      do iCell = 1, nCellsAll
          ! the magnitude of the top drag is CD*u**2 = CD*(2*KE)
          topDragMagnitude(iCell) = rho_sw * landIceFraction(iCell) &
                                    * 2.0_RKIND * config_land_ice_flux_topDragCoeff *  kineticEnergyCell(1,iCell)
@@ -1732,11 +1609,9 @@ contains
       end do
       !$omp end do
 
-
-
       ! average temperature and salinity over horizontal neighbors and the sub-ice-shelf boundary layer
       !$omp do schedule(runtime)
-      do iCell = 1, nCells
+      do iCell = 1, nCellsAll
          blThickness = 0.0_RKIND
          blTempScratch(iCell) = 0.0_RKIND
          blSaltScratch(iCell) = 0.0_RKIND
@@ -1755,7 +1630,7 @@ contains
       !$omp end do
 
       !$omp do schedule(runtime) private(weightSum, i, cell2)
-      do iCell = 1, nCells
+      do iCell = 1, nCellsAll
          landIceBoundaryLayerTracers(indexBLT, iCell) = blTempScratch(iCell)
          landIceBoundaryLayerTracers(indexBLS, iCell) = blSaltScratch(iCell)
          if(config_land_ice_flux_boundaryLayerNeighborWeight > 0.0_RKIND) then
@@ -1776,7 +1651,7 @@ contains
 
       if(jenkinsOn) then
          !$omp do schedule(runtime)
-         do iCell = 1, nCells
+         do iCell = 1, nCellsAll
             ! transfer coefficients from namelist
             landIceTracerTransferVelocities(indexHeatTrans, iCell) = landIceFrictionVelocity(iCell) &
                                              * config_land_ice_flux_jenkins_heat_transfer_coefficient
@@ -1786,7 +1661,7 @@ contains
          !$omp end do
       else if(hollandJenkinsOn) then
          !$omp do schedule(runtime) private(h_nu, Gamma_turb)
-         do iCell = 1, nCells
+         do iCell = 1, nCellsAll
             ! friction-velocity dependent non-dimensional transfer coefficients from
             ! Holland and Jenkins 1999, (14)-(16) with eta_* = 1
             h_nu = 5.0_RKIND*nuSaltWater/landIceFrictionVelocity(iCell) ! uStar should never be zero because of tidal term
@@ -1813,7 +1688,7 @@ contains
 
       ! modify the spatially-varying attenuation coefficient where there is land ice
       !$omp do schedule(runtime)
-      do iCell = 1, nCells
+      do iCell = 1, nCellsAll
          if(landIceMask(iCell) == 1) then
             surfaceFluxAttenuationCoefficient(iCell) = config_land_ice_flux_attenuation_coefficient
          end if
@@ -1925,15 +1800,11 @@ contains
 
       type (block_type), pointer :: block
 
-      integer, pointer :: nCellsSolve, nEdgesSolve, nVerticesSolve
-
       type (mpas_pool_type), pointer :: meshPool, statePool, tracersPool
       type (mpas_pool_type), pointer :: forcingPool
 
       real (kind=RKIND), dimension(:, :), pointer :: layerThickness, normalVelocity
       real (kind=RKIND), dimension(:, :, :), pointer :: activeTracers
-
-      integer, dimension(:), pointer :: maxLevelCell, maxLevelEdgeBot, maxLevelVertexBot
 
       real (kind=RKIND), dimension(:), pointer :: real1DArr
       real (kind=RKIND), dimension(:, :), pointer :: real2DArr
@@ -1979,20 +1850,12 @@ contains
          call mpas_pool_get_subpool(block % structs, 'forcing', forcingPool)
          call mpas_pool_get_subpool(statePool, 'tracers', tracersPool)
 
-         call mpas_pool_get_dimension(meshPool, 'nCellsSolve', nCellsSolve)
-         call mpas_pool_get_dimension(meshPool, 'nEdgesSolve', nEdgesSolve)
-         call mpas_pool_get_dimension(meshPool, 'nVerticesSolve', nVerticesSolve)
-
-         call mpas_pool_get_array(meshPool, 'maxLevelCell', maxLevelCell)
-         call mpas_pool_get_array(meshPool, 'maxLevelEdgeBot', maxLevelEdgeBot)
-         call mpas_pool_get_array(meshPool, 'maxLevelVertexBot', maxLevelVertexBot)
-
          call mpas_pool_get_array(statePool, 'layerThickness', layerThickness, timeLevel=timeLevelLocal)
          call mpas_pool_get_array(statePool, 'normalVelocity', normalVelocity, timeLevel=timeLevelLocal)
          call mpas_pool_get_array(tracersPool, 'activeTracers', activeTracers, timeLevel=timeLevelLocal)
 
          ! Check for errors in the state fields
-         do iCell = 1, nCellsSolve
+         do iCell = 1, nCellsOwned
             do k = 1, maxLevelCell(iCell)
                thickNanFound = thickNanFound .or. ( .not. layerThickness(k, iCell) == layerThickness(k, iCell) )
                do iTracer = 1, size(activeTracers, dim=1)
@@ -2002,7 +1865,7 @@ contains
             end do
          end do
 
-         do iEdge = 1, nEdgesSolve
+         do iEdge = 1, nEdgesOwned
             do k = 1, maxLevelEdgeBot(iEdge)
                velNanFound = velNanFound .or. ( .not. normalVelocity(k, iEdge) == normalVelocity(k, iEdge) )
             end do
@@ -2027,7 +1890,7 @@ contains
             minValue = HUGE(minValue)
             maxValue = -HUGE(maxValue)
             call mpas_pool_get_array(meshPool, fieldName, real1DArr)
-            do iCell = 1, nCellsSolve
+            do iCell = 1, nCellsOwned
                minValue = min( minValue, real1DArr(iCell) )
                maxValue = max( maxValue, real1DArr(iCell) )
             end do
@@ -2038,7 +1901,7 @@ contains
             minValue = HUGE(minValue)
             maxValue = -HUGE(maxValue)
             call mpas_pool_get_array(meshPool, fieldName, real1DArr)
-            do iCell = 1, nCellsSolve
+            do iCell = 1, nCellsOwned
                minValue = min( minValue, real1DArr(iCell) )
                maxValue = max( maxValue, real1DArr(iCell) )
             end do
@@ -2049,7 +1912,7 @@ contains
             minValue = HUGE(minValue)
             maxValue = -HUGE(maxValue)
             call mpas_pool_get_array(meshPool, fieldName, real1DArr)
-            do iCell = 1, nCellsSolve
+            do iCell = 1, nCellsOwned
                minValue = min( minValue, real1DArr(iCell) )
                maxValue = max( maxValue, real1DArr(iCell) )
             end do
@@ -2060,7 +1923,7 @@ contains
             minValue = HUGE(minValue)
             maxValue = -HUGE(maxValue)
             call mpas_pool_get_array(meshPool, fieldName, real1DArr)
-            do iCell = 1, nCellsSolve
+            do iCell = 1, nCellsOwned
                minValue = min( minValue, real1DArr(iCell) )
                maxValue = max( maxValue, real1DArr(iCell) )
             end do
@@ -2071,7 +1934,7 @@ contains
             minValue = HUGE(minValue)
             maxValue = -HUGE(maxValue)
             call mpas_pool_get_array(meshPool, fieldName, real1DArr)
-            do iCell = 1, nCellsSolve
+            do iCell = 1, nCellsOwned
                minValue = min( minValue, real1DArr(iCell) )
                maxValue = max( maxValue, real1DArr(iCell) )
             end do
@@ -2082,7 +1945,7 @@ contains
             minValue = HUGE(minValue)
             maxValue = -HUGE(maxValue)
             call mpas_pool_get_array(meshPool, fieldName, real1DArr)
-            do iCell = 1, nCellsSolve
+            do iCell = 1, nCellsOwned
                minValue = min( minValue, real1DArr(iCell) )
                maxValue = max( maxValue, real1DArr(iCell) )
             end do
@@ -2102,7 +1965,7 @@ contains
             maxValue = -HUGE(maxValue)
             call mpas_pool_get_array(forcingPool, fieldName, real1DArr)
             if ( associated(real1DArr) ) then
-               do iCell = 1, nCellsSolve
+               do iCell = 1, nCellsOwned
                   minValue = min( minValue, real1DArr(iCell) )
                   maxValue = max( maxValue, real1DArr(iCell) )
                end do
@@ -2115,7 +1978,7 @@ contains
             maxValue = -HUGE(maxValue)
             call mpas_pool_get_array(forcingPool, fieldName, real1DArr)
             if ( associated(real1DArr) ) then
-               do iCell = 1, nCellsSolve
+               do iCell = 1, nCellsOwned
                   minValue = min( minValue, real1DArr(iCell) )
                   maxValue = max( maxValue, real1DArr(iCell) )
                end do
@@ -2128,7 +1991,7 @@ contains
             maxValue = -HUGE(maxValue)
             call mpas_pool_get_array(forcingPool, fieldName, real1DArr)
             if ( associated(real1DArr) ) then
-               do iCell = 1, nCellsSolve
+               do iCell = 1, nCellsOwned
                   minValue = min( minValue, real1DArr(iCell) )
                   maxValue = max( maxValue, real1DArr(iCell) )
                end do
@@ -2141,7 +2004,7 @@ contains
             maxValue = -HUGE(maxValue)
             call mpas_pool_get_array(forcingPool, fieldName, real1DArr)
             if ( associated(real1DArr) ) then
-               do iCell = 1, nCellsSolve
+               do iCell = 1, nCellsOwned
                   minValue = min( minValue, real1DArr(iCell) )
                   maxValue = max( maxValue, real1DArr(iCell) )
                end do
@@ -2154,7 +2017,7 @@ contains
             maxValue = -HUGE(maxValue)
             call mpas_pool_get_array(forcingPool, fieldName, real1DArr)
             if ( associated(real1DArr) ) then
-               do iCell = 1, nCellsSolve
+               do iCell = 1, nCellsOwned
                   minValue = min( minValue, real1DArr(iCell) )
                   maxValue = max( maxValue, real1DArr(iCell) )
                end do
@@ -2167,7 +2030,7 @@ contains
             maxValue = -HUGE(maxValue)
             call mpas_pool_get_array(forcingPool, fieldName, real1DArr)
             if ( associated(real1DArr) ) then
-               do iCell = 1, nCellsSolve
+               do iCell = 1, nCellsOwned
                   minValue = min( minValue, real1DArr(iCell) )
                   maxValue = max( maxValue, real1DArr(iCell) )
                end do
@@ -2180,7 +2043,7 @@ contains
             maxValue = -HUGE(maxValue)
             call mpas_pool_get_array(forcingPool, fieldName, real1DArr)
             if ( associated(real1DArr) ) then
-               do iCell = 1, nCellsSolve
+               do iCell = 1, nCellsOwned
                   minValue = min( minValue, real1DArr(iCell) )
                   maxValue = max( maxValue, real1DArr(iCell) )
                end do
@@ -2193,7 +2056,7 @@ contains
             maxValue = -HUGE(maxValue)
             call mpas_pool_get_array(forcingPool, fieldName, real1DArr)
             if ( associated(real1DArr) ) then
-               do iCell = 1, nCellsSolve
+               do iCell = 1, nCellsOwned
                   minValue = min( minValue, real1DArr(iCell) )
                   maxValue = max( maxValue, real1DArr(iCell) )
                end do
@@ -2214,7 +2077,7 @@ contains
             maxValue = -HUGE(maxValue)
             call mpas_pool_get_array(forcingPool, fieldName, real1DArr)
             if ( associated(real1DArr) ) then
-               do iCell = 1, nCellsSolve
+               do iCell = 1, nCellsOwned
                   minValue = min( minValue, real1DArr(iCell) )
                   maxValue = max( maxValue, real1DArr(iCell) )
                end do
@@ -2227,7 +2090,7 @@ contains
             maxValue = -HUGE(maxValue)
             call mpas_pool_get_array(forcingPool, fieldName, real1DArr)
             if ( associated(real1DArr) ) then
-               do iCell = 1, nCellsSolve
+               do iCell = 1, nCellsOwned
                   minValue = min( minValue, real1DArr(iCell) )
                   maxValue = max( maxValue, real1DArr(iCell) )
                end do
@@ -2240,7 +2103,7 @@ contains
             maxValue = -HUGE(maxValue)
             call mpas_pool_get_array(forcingPool, fieldName, real1DArr)
             if ( associated(real1DArr) ) then
-               do iCell = 1, nCellsSolve
+               do iCell = 1, nCellsOwned
                   minValue = min( minValue, real1DArr(iCell) )
                   maxValue = max( maxValue, real1DArr(iCell) )
                end do
@@ -2253,7 +2116,7 @@ contains
             maxValue = -HUGE(maxValue)
             call mpas_pool_get_array(forcingPool, fieldName, real1DArr)
             if ( associated(real1DArr) ) then
-               do iCell = 1, nCellsSolve
+               do iCell = 1, nCellsOwned
                   minValue = min( minValue, real1DArr(iCell) )
                   maxValue = max( maxValue, real1DArr(iCell) )
                end do
@@ -2266,7 +2129,7 @@ contains
             maxValue = -HUGE(maxValue)
             call mpas_pool_get_array(forcingPool, fieldName, real1DArr)
             if ( associated(real1DArr) ) then
-               do iCell = 1, nCellsSolve
+               do iCell = 1, nCellsOwned
                   minValue = min( minValue, real1DArr(iCell) )
                   maxValue = max( maxValue, real1DArr(iCell) )
                end do
@@ -2279,7 +2142,7 @@ contains
             maxValue = -HUGE(maxValue)
             call mpas_pool_get_array(forcingPool, fieldName, real1DArr)
             if ( associated(real1DArr) ) then
-               do iEdge = 1, nEdgesSolve
+               do iEdge = 1, nEdgesOwned
                   minValue = min( minValue, real1DArr(iEdge) )
                   maxValue = max( maxValue, real1DArr(iEdge) )
                end do
@@ -2292,7 +2155,7 @@ contains
             maxValue = -HUGE(maxValue)
             call mpas_pool_get_array(meshPool, fieldName, real1DArr)
             if ( associated(real1DArr) ) then
-               do iEdge = 1, nEdgesSolve
+               do iEdge = 1, nEdgesOwned
                   minValue = min( minValue, real1DArr(iEdge) )
                   maxValue = max( maxValue, real1DArr(iEdge) )
                end do
@@ -2313,7 +2176,7 @@ contains
             maxValue = -HUGE(maxValue)
             call mpas_pool_get_array(forcingPool, fieldName, real1DArr)
             if ( associated(real1DArr) ) then
-               do iCell = 1, nCellsSolve
+               do iCell = 1, nCellsOwned
                   minValue = min( minValue, real1DArr(iCell) )
                   maxValue = max( maxValue, real1DArr(iCell) )
                end do
@@ -2326,7 +2189,7 @@ contains
             maxValue = -HUGE(maxValue)
             call mpas_pool_get_array(forcingPool, fieldName, real1DArr)
             if ( associated(real1DArr) ) then
-               do iCell = 1, nCellsSolve
+               do iCell = 1, nCellsOwned
                   minValue = min( minValue, real1DArr(iCell) )
                   maxValue = max( maxValue, real1DArr(iCell) )
                end do
@@ -2339,7 +2202,7 @@ contains
             maxValue = -HUGE(maxValue)
             call mpas_pool_get_array(forcingPool, fieldName, real1DArr)
             if ( associated(real1DArr) ) then
-               do iCell = 1, nCellsSolve
+               do iCell = 1, nCellsOwned
                   minValue = min( minValue, real1DArr(iCell) )
                   maxValue = max( maxValue, real1DArr(iCell) )
                end do
@@ -2352,7 +2215,7 @@ contains
             maxValue = -HUGE(maxValue)
             call mpas_pool_get_array(forcingPool, fieldName, real1DArr)
             if ( associated(real1DArr) ) then
-               do iCell = 1, nCellsSolve
+               do iCell = 1, nCellsOwned
                   minValue = min( minValue, real1DArr(iCell) )
                   maxValue = max( maxValue, real1DArr(iCell) )
                end do
@@ -2365,7 +2228,7 @@ contains
             maxValue = -HUGE(maxValue)
             call mpas_pool_get_array(forcingPool, fieldName, real1DArr)
             if ( associated(real1DArr) ) then
-               do iCell = 1, nCellsSolve
+               do iCell = 1, nCellsOwned
                   minValue = min( minValue, real1DArr(iCell) )
                   maxValue = max( maxValue, real1DArr(iCell) )
                end do
@@ -2378,7 +2241,7 @@ contains
             maxValue = -HUGE(maxValue)
             call mpas_pool_get_array(forcingPool, fieldName, real1DArr)
             if ( associated(real1DArr) ) then
-               do iCell = 1, nCellsSolve
+               do iCell = 1, nCellsOwned
                   minValue = min( minValue, real1DArr(iCell) )
                   maxValue = max( maxValue, real1DArr(iCell) )
                end do
@@ -2391,7 +2254,7 @@ contains
             maxValue = -HUGE(maxValue)
             call mpas_pool_get_array(forcingPool, fieldName, real1DArr)
             if ( associated(real1DArr) ) then
-               do iCell = 1, nCellsSolve
+               do iCell = 1, nCellsOwned
                   minValue = min( minValue, real1DArr(iCell) )
                   maxValue = max( maxValue, real1DArr(iCell) )
                end do
@@ -2404,7 +2267,7 @@ contains
             maxValue = -HUGE(maxValue)
             call mpas_pool_get_array(forcingPool, fieldName, real1DArr)
             if ( associated(real1DArr) ) then
-               do iCell = 1, nCellsSolve
+               do iCell = 1, nCellsOwned
                   minValue = min( minValue, real1DArr(iCell) )
                   maxValue = max( maxValue, real1DArr(iCell) )
                end do
@@ -2417,7 +2280,7 @@ contains
             maxValue = -HUGE(maxValue)
             call mpas_pool_get_array(forcingPool, fieldName, real1DArr)
             if ( associated(real1DArr) ) then
-               do iCell = 1, nCellsSolve
+               do iCell = 1, nCellsOwned
                   minValue = min( minValue, real1DArr(iCell) )
                   maxValue = max( maxValue, real1DArr(iCell) )
                end do
@@ -2430,7 +2293,7 @@ contains
             maxValue = -HUGE(maxValue)
             call mpas_pool_get_array(forcingPool, fieldName, real1DArr)
             if ( associated(real1DArr) ) then
-               do iCell = 1, nCellsSolve
+               do iCell = 1, nCellsOwned
                   minValue = min( minValue, real1DArr(iCell) )
                   maxValue = max( maxValue, real1DArr(iCell) )
                end do
@@ -2443,7 +2306,7 @@ contains
             maxValue = -HUGE(maxValue)
             call mpas_pool_get_array(forcingPool, fieldName, real1DArr)
             if ( associated(real1DArr) ) then
-               do iCell = 1, nCellsSolve
+               do iCell = 1, nCellsOwned
                   minValue = min( minValue, real1DArr(iCell) )
                   maxValue = max( maxValue, real1DArr(iCell) )
                end do
@@ -2456,7 +2319,7 @@ contains
             maxValue = -HUGE(maxValue)
             call mpas_pool_get_array(forcingPool, fieldName, real1DArr)
             if ( associated(real1DArr) ) then
-               do iCell = 1, nCellsSolve
+               do iCell = 1, nCellsOwned
                   minValue = min( minValue, real1DArr(iCell) )
                   maxValue = max( maxValue, real1DArr(iCell) )
                end do
@@ -2469,7 +2332,7 @@ contains
             maxValue = -HUGE(maxValue)
             call mpas_pool_get_array(forcingPool, fieldName, real1DArr)
             if ( associated(real1DArr) ) then
-               do iCell = 1, nCellsSolve
+               do iCell = 1, nCellsOwned
                   minValue = min( minValue, real1DArr(iCell) )
                   maxValue = max( maxValue, real1DArr(iCell) )
                end do
@@ -2482,7 +2345,7 @@ contains
             maxValue = -HUGE(maxValue)
             call mpas_pool_get_array(forcingPool, fieldName, real1DArr)
             if ( associated(real1DArr) ) then
-               do iCell = 1, nCellsSolve
+               do iCell = 1, nCellsOwned
                   minValue = min( minValue, real1DArr(iCell) )
                   maxValue = max( maxValue, real1DArr(iCell) )
                end do
