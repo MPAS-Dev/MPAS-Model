@@ -575,8 +575,8 @@
  do j = jts,jte
 !$acc parallel vector_length(128)
 !$acc loop gang vector collapse(2)
- do k = kts,kte
  do i = its,ite
+ do k = kts,kte
     rublten(k,i)  = rublten_p(i,k,j)
     rvblten(k,i)  = rvblten_p(i,k,j)
     rthblten(k,i) = rthblten_p(i,k,j)

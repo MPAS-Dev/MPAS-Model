@@ -240,7 +240,7 @@ contains
    real,intent(in),dimension(ims:ime,kms:kme,jms:jme),optional:: rho
    real:: rho_d
    real,intent(out),dimension(ims:ime,kms:kme,jms:jme),optional:: kzhout,kzmout,kzqout
-!$acc parallel vector_length(32)
+!$acc parallel vector_length(128)
 !$acc loop gang vector collapse(3)
    do j = jts,jte
    do k = kts,kte
@@ -273,7 +273,7 @@ contains
 !
 ! For ARW we will replace p and p8w with dry hydrostatic pressure
 !
-!$acc parallel vector_length(32)
+!$acc parallel vector_length(128)
 !$acc loop gang vector collapse(2)
         do k = kts,kte+1
           do i = its,ite
@@ -287,13 +287,13 @@ contains
 !For MPAS, we replace the hydrostatic pressures defined at theta and w points by
 !the dry hydrostatic pressures (Laura D. Fowler):
 !!!        k = kte+1
-!$acc parallel vector_length(32)
+!$acc parallel vector_length(128)
 !$acc loop gang vector 
         do i = its,ite
            pdhi(i,kte+1) = p3di(i,kte+1,j)
         enddo
 !$acc end parallel
-!$acc parallel vector_length(32)
+!$acc parallel vector_length(128)
 !$acc loop gang vector private(rho_d)
         do i = its,ite
 !$acc loop seq
@@ -303,7 +303,7 @@ contains
         enddo
         enddo
 !$acc end parallel
-!$acc parallel vector_length(32)
+!$acc parallel vector_length(128)
 !$acc loop gang vector collapse(2)
         do k = kts,kte
         do i = its,ite
@@ -313,7 +313,7 @@ contains
 !$acc end parallel
 !MPAS specific end.
       else
-!$acc parallel vector_length(32)
+!$acc parallel vector_length(128)
 !$acc loop gang vector collapse(2)
         do k = kts,kte+1
           do i = its,ite
@@ -323,7 +323,7 @@ contains
         enddo
 !$acc end parallel
       endif
-!$acc parallel vector_length(32)
+!$acc parallel vector_length(128)
 !$acc loop gang vector collapse(2)
       do k = kts,kte
         do i = its,ite
@@ -693,40 +693,43 @@ contains
    ktrace3 = 0 + kte*2
 !$acc end parallel
 !
-!$acc parallel vector_length(32)
+!$acc parallel vector_length(128)
 !$acc loop gang vector collapse(2)
    do k = kts,kte
      do i = its,ite
        thx(i,k) = tx(i,k)/pi2d(i,k)
        thlix(i,k) = (tx(i,k)-xlv*qx(i,ktrace2+k)/cp-2.834E6*qx(i,ktrace3+k)/cp)/pi2d(i,k)
+!!!     enddo
+!!!   enddo
+!
+!!!!$acc loop gang vector collapse(2) private(tvcon)
+!!!   do k = kts,kte
+!!!     do i = its,ite
+!!!       tvcon = (1.+ep1*qx(i,k))
+       thvx(i,k) = thx(i,k)*(1.+ep1*qx(i,k))
      enddo
    enddo
+!$acc end parallel
 !
-!$acc loop gang vector collapse(2) private(tvcon)
-   do k = kts,kte
-     do i = its,ite
-       tvcon = (1.+ep1*qx(i,k))
-       thvx(i,k) = thx(i,k)*tvcon
-     enddo
-   enddo
-!
-!$acc loop gang vector private(tvcon)
+!$acc parallel vector_length(128)
+!$acc loop gang vector
    do i = its,ite
-     tvcon = (1.+ep1*qx(i,1))
-     rhox(i) = psfcpa(i)/(rd*tx(i,1)*tvcon)
+!!!     tvcon = (1.+ep1*qx(i,1))
+!!!     rhox(i) = psfcpa(i)/(rd*tx(i,1)*tvcon)
+     rhox(i) = psfcpa(i)/(rd*tx(i,1)*(1.+ep1*qx(i,1)))
      govrth(i) = g/thx(i,1)
-   enddo
+!!!   enddo
 !
 !-----compute the height of full- and half-sigma levels above ground
 !     level, and the layer thicknesses.
 !
-!$acc loop gang vector
-   do i = its,ite
+!!!!$acc loop gang vector
+!!!   do i = its,ite
      zq(i,1) = 0.
    enddo
 !$acc end parallel
 !
-!$acc parallel vector_length(32)
+!$acc parallel vector_length(128)
 !$acc loop gang vector 
    do i = its,ite
 !$acc loop seq
@@ -755,14 +758,14 @@ contains
    enddo
 !$acc end parallel
 !
-!$acc parallel vector_length(32)
+!$acc parallel vector_length(128)
 !$acc loop gang vector
    do i = its,ite
      dza(i,1) = za(i,1)
    enddo
 !$acc end parallel
 !
-!$acc parallel vector_length(32)
+!$acc parallel vector_length(128)
 !$acc loop gang vector collapse(2)
    do k = kts+1,kte
      do i = its,ite
@@ -774,7 +777,7 @@ contains
 !
 !-----initialize vertical tendencies and
 !
-!$acc parallel vector_length(32)
+!$acc parallel vector_length(128)
 !$acc loop gang vector collapse(2)
    do k = kms, kme
    do i = ims, ime
@@ -797,7 +800,7 @@ contains
    enddo
 !$acc end parallel
 !
-!$acc parallel vector_length(32)
+!$acc parallel vector_length(128)
 !$acc loop gang vector
    do i = its,ite
      wspd1(i) = sqrt( (ux(i,1)-uox(i))*(ux(i,1)-uox(i)) + (vx(i,1)-vox(i))*(vx(i,1)-vox(i)) )+1.e-9
@@ -815,7 +818,7 @@ contains
    rdt = 1./dt2
 !$acc end parallel
 !
-!$acc parallel vector_length(32)
+!$acc parallel vector_length(128)
 !$acc loop gang vector
    do i = its,ite
      bfxpbl(i) = 0.0
@@ -837,7 +840,7 @@ contains
 !
 !MPAS specific begin: Added initialization of local vertical diffusion coefficients:
    if(present(kzh) .and. present(kzm) .and. present(kzq)) then
-!$acc parallel vector_length(32)
+!$acc parallel vector_length(128)
 !$acc loop gang vector collapse(2)
       do k = kts,kte
       do i = its,ite
@@ -851,7 +854,7 @@ contains
    endif
 !MPAS specific end.
 !
-!$acc parallel vector_length(32)
+!$acc parallel vector_length(128)
 !$acc loop gang vector collapse(2)
    do k = kts,klpbl
      do i = its,ite
@@ -900,7 +903,7 @@ contains
 !
 !     compute the first guess of pbl height
 !
-!$acc parallel vector_length(32)
+!$acc parallel vector_length(128)
 !$acc loop gang vector
    do i = its,ite
      stable(i) = .false.
@@ -909,7 +912,7 @@ contains
    enddo
 !$acc end parallel
 !
-!$acc parallel vector_length(32)
+!$acc parallel vector_length(128)
 !$acc loop gang vector private(spdk2)
    do i = its,ite
 !$acc loop seq
@@ -925,7 +928,7 @@ contains
    enddo
 !$acc end parallel
 !
-!$acc parallel vector_length(32)
+!$acc parallel vector_length(128)
 !$acc loop gang vector private(k,brint)
    do i = its,ite
      k = kpbl(i)
@@ -976,7 +979,7 @@ contains
 !     compute the surface variables for pbl height estimation
 !     under unstable conditions
 !
-!$acc parallel vector_length(32)
+!$acc parallel vector_length(128)
 !$acc loop gang vector private(gamfac,vpert,brint)
    do i = its,ite
      if(sfcflg(i).and.sflux(i).gt.0.0)then
@@ -1016,7 +1019,7 @@ contains
    enddo
 !$acc end parallel
 !
-!$acc parallel vector_length(32)
+!$acc parallel vector_length(128)
 !$acc loop gang vector private(spdk2)
    do i = its,ite
 !$acc loop seq
@@ -1035,7 +1038,7 @@ contains
 !     enhance pbl by theta-li
 !
    if (ysu_topdown_pblmix.eq.1)then
-!$acc parallel vector_length(32)
+!$acc parallel vector_length(128)
 !$acc loop gang vector private(definebrup,spdk2,bruptmp)
      do i = its,ite
         kpblold(i) = kpbl(i)
@@ -1060,7 +1063,7 @@ contains
 !$acc end parallel
    endif
 
-!$acc parallel vector_length(32)
+!$acc parallel vector_length(128)
 !$acc loop gang vector private(k,brint)
    do i = its,ite
      if(pblflg(i)) then
@@ -1112,7 +1115,7 @@ contains
    enddo
 !$acc end parallel
 !
-!$acc parallel vector_length(32)
+!$acc parallel vector_length(128)
 !$acc loop gang vector private(spdk2)
    do i = its,ite
 !$acc loop seq
@@ -1128,7 +1131,7 @@ contains
    enddo
 !$acc end parallel
 !
-!$acc parallel vector_length(32)
+!$acc parallel vector_length(128)
 !$acc loop gang vector private(k,brint)
    do i = its,ite
      if((.not.sfcflg(i)).and.hpbl(i).lt.zq(i,2)) then
@@ -1251,7 +1254,7 @@ contains
    enddo
 !$acc end parallel
 !
-!$acc parallel vector_length(32)
+!$acc parallel vector_length(128)
 !$acc loop gang vector collapse(2)
    do k = kts,klpbl
      do i = its,ite
@@ -1317,7 +1320,7 @@ contains
 !
 !     compute diffusion coefficients over pbl (free atmosphere)
 !
-!$acc parallel vector_length(32)
+!$acc parallel vector_length(128)
 !$acc loop gang vector collapse(2) private(ss,govrthv,ri,qmean,tmean,alph, &
 !$acc chi,zk,rlamdz,rl2,dk,sri,prnum)
    do k = kts,kte-1
@@ -1384,7 +1387,7 @@ contains
 !
 !     compute tridiagonal matrix elements for heat
 !
-!$acc parallel vector_length(32)
+!$acc parallel vector_length(128)
 !$acc loop gang vector collapse(2)
    do k = kts,kte
      do i = its,ite
@@ -1396,7 +1399,7 @@ contains
    enddo
 !$acc end parallel
 !
-!$acc parallel vector_length(32)
+!$acc parallel vector_length(128)
 !$acc loop gang vector 
    do i = its,ite
      ad(i,1) = 1.
@@ -1441,7 +1444,7 @@ contains
 !
 ! copies here to avoid duplicate input args for tridin
 !
-!$acc parallel vector_length(32)
+!$acc parallel vector_length(128)
 !$acc loop gang vector collapse(2)
    do k = kts,kte
      do i = its,ite
@@ -1455,7 +1458,7 @@ contains
 !
 !     recover tendencies of heat
 !
-!$acc parallel vector_length(32)
+!$acc parallel vector_length(128)
 !$acc loop gang vector private(ttend)
    do i = its,ite
 !$acc loop seq
@@ -1469,7 +1472,7 @@ contains
 !
 !     compute tridiagonal matrix elements for moisture, clouds, and gases
 !
-!$acc parallel vector_length(32)
+!$acc parallel vector_length(128)
 !$acc loop gang vector collapse(2)
    do k = kts,kte
      do i = its,ite
@@ -1480,18 +1483,18 @@ contains
    enddo
 !$acc end parallel
 !
-!$acc parallel vector_length(32)
+!$acc parallel vector_length(128)
 !$acc loop gang vector collapse(3)
    do ic = 1,ndiff
-     do i = its,ite
-       do k = kts,kte
+     do k = kts,kte
+       do i = its,ite
          f3(i,k,ic) = 0.
        enddo
      enddo
    enddo
 !$acc end parallel
 !
-!$acc parallel vector_length(32)
+!$acc parallel vector_length(128)
 !$acc loop gang vector 
    do i = its,ite
      ad(i,1) = 1.
@@ -1502,7 +1505,7 @@ contains
    if(ndiff.ge.2) then
      do ic = 2,ndiff
        is = (ic-1) * kte
-!$acc parallel vector_length(32)
+!$acc parallel vector_length(128)
 !$acc loop gang vector
        do i = its,ite
          f3(i,1,ic) = qx(i,1+is)
@@ -1511,7 +1514,7 @@ contains
      enddo
    endif
 !
-!$acc parallel vector_length(32)
+!$acc parallel vector_length(128)
 !$acc loop gang vector collapse(2)
    do k = kts,kte-1
      do i = its,ite
@@ -1560,7 +1563,7 @@ contains
    if(ndiff.ge.2) then
      do ic = 2,ndiff
        is = (ic-1) * kte
-!$acc parallel vector_length(32)
+!$acc parallel vector_length(128)
 !$acc loop gang vector collapse(2)
        do k = kts,kte-1
          do i = its,ite
@@ -1573,7 +1576,7 @@ contains
 !
 ! copies here to avoid duplicate input args for tridin
 !
-!$acc parallel vector_length(32)
+!$acc parallel vector_length(128)
 !$acc loop gang vector collapse(2)
    do k = kts,kte
      do i = its,ite
@@ -1582,7 +1585,7 @@ contains
    enddo
 !$acc end parallel
 !
-!$acc parallel vector_length(32)
+!$acc parallel vector_length(128)
 !$acc loop gang vector collapse(3)
    do ic = 1,ndiff
      do k = kts,kte
@@ -1599,7 +1602,7 @@ contains
 !
 !     recover tendencies of heat and moisture
 !
-!$acc parallel vector_length(32)
+!$acc parallel vector_length(128)
 !$acc loop gang vector private(qtend)
    do i = its,ite
 !$acc loop seq
@@ -1614,12 +1617,13 @@ contains
    if(ndiff.ge.2) then
      do ic = 2,ndiff
        is = (ic-1) * kte
-!$acc parallel vector_length(32)
-!$acc loop gang vector collapse(2) private(qtend)
+!$acc parallel vector_length(128)
+!$acc loop gang vector collapse(2)
        do k = kte,kts,-1
          do i = its,ite
-           qtend = (f3(i,k,ic)-qx(i,k+is))*rdt
-           qtnp(i,k+is) = qtnp(i,k+is)+qtend
+!!!           qtend = (f3(i,k,ic)-qx(i,k+is))*rdt
+!!!           qtnp(i,k+is) = qtnp(i,k+is)+qtend
+           qtnp(i,k+is) = qtnp(i,k+is)+((f3(i,k,ic)-qx(i,k+is))*rdt)
          enddo
        enddo
 !$acc end parallel
@@ -1628,10 +1632,10 @@ contains
 !
 !     compute tridiagonal matrix elements for momentum
 !
-!$acc parallel vector_length(32)
+!$acc parallel vector_length(128)
 !$acc loop gang vector collapse(2)
-   do i = its,ite
-     do k = kts,kte
+   do k = kts,kte
+     do i = its,ite
        au(i,k) = 0.
        al(i,k) = 0.
        ad(i,k) = 0.
@@ -1641,7 +1645,7 @@ contains
    enddo
 !$acc end parallel
 !
-!$acc parallel vector_length(32)
+!$acc parallel vector_length(128)
 !$acc loop gang vector 
    do i = its,ite
 ! paj: ctopo=1 if topo_wind=0 (default)
@@ -1699,7 +1703,7 @@ contains
 !
 ! copies here to avoid duplicate input args for tridin
 !
-!$acc parallel vector_length(32)
+!$acc parallel vector_length(128)
 !$acc loop gang vector collapse(2)
    do k = kts,kte
      do i = its,ite
@@ -1715,7 +1719,7 @@ contains
    call tridi1n(al,ad,cu,r1,r2,au,f1,f2,its,ite,kts,kte,1)
 !
 !     recover tendencies of momentum
-!$acc parallel vector_length(32)
+!$acc parallel vector_length(128)
 !$acc loop gang vector private(utend,vtend)
    do i = its,ite
 !$acc loop seq
@@ -1732,7 +1736,7 @@ contains
 !
 ! paj: ctopo2=1 if topo_wind=0 (default)
 !
-!$acc parallel vector_length(32)
+!$acc parallel vector_length(128)
 !$acc loop gang vector
    do i = its,ite
      if(present(ctopo).and.present(ctopo2)) then ! mchen for NMM
@@ -1751,7 +1755,7 @@ contains
 !
 !MPAS specific begin:
    if(present(kzh) .and. present(kzm) .and. present(kzq)) then
-!$acc parallel vector_length(32)
+!$acc parallel vector_length(128)
 !$acc loop gang vector collapse(2)
       do k = kts,kte
       do i = its,ite
@@ -1800,7 +1804,7 @@ contains
    l = ite
    n = kte
 !
-!$acc parallel vector_length(32)
+!$acc parallel vector_length(128)
 !$acc loop gang vector private(fk)
    do i = its,l
      fk = 1./cm(i,1)
@@ -1809,7 +1813,7 @@ contains
    enddo
 !$acc end parallel
 !
-!$acc parallel vector_length(32)
+!$acc parallel vector_length(128)
 !$acc loop gang vector collapse(2) private(fk)
    do it = 1,nt
      do i = its,l
@@ -1819,7 +1823,7 @@ contains
    enddo
 !$acc end parallel
 !
-!$acc parallel vector_length(32)
+!$acc parallel vector_length(128)
 !$acc loop gang vector private(fk)
    do i = its,l
 !$acc loop seq
@@ -1831,7 +1835,7 @@ contains
    enddo
 !$acc end parallel
 !
-!$acc parallel vector_length(32)
+!$acc parallel vector_length(128)
 !$acc loop gang vector collapse(2) private(fk)
    do it = 1,nt
      do i = its,l
@@ -1844,7 +1848,7 @@ contains
    enddo
 !$acc end parallel
 !
-!$acc parallel vector_length(32)
+!$acc parallel vector_length(128)
 !$acc loop gang vector private(fk)
    do i = its,l
      fk = 1./(cm(i,n)-cl(i,n)*au(i,n-1))
@@ -1852,7 +1856,7 @@ contains
    enddo
 !$acc end parallel
 !
-!$acc parallel vector_length(32)
+!$acc parallel vector_length(128)
 !$acc loop gang vector collapse(2) private(fk)
    do it = 1,nt
      do i = its,l
@@ -1862,7 +1866,7 @@ contains
    enddo
 !$acc end parallel
 !
-!$acc parallel vector_length(32)
+!$acc parallel vector_length(128)
 !$acc loop gang vector
    do i = its,l
 !$acc loop seq
@@ -1872,7 +1876,7 @@ contains
    enddo
 !$acc end parallel
 !
-!$acc parallel vector_length(32)
+!$acc parallel vector_length(128)
 !$acc loop gang vector collapse(2)
    do it = 1,nt
      do i = its,l
@@ -1917,7 +1921,7 @@ contains
 !!!   l = ite
 !!!   n = kte
 !
-!$acc parallel vector_length(32)
+!$acc parallel vector_length(128)
 !$acc loop gang vector collapse(2) private(fk)
    do it = 1,nt
      do i = its,ite
@@ -1928,7 +1932,7 @@ contains
    enddo
 !$acc end parallel
 !
-!$acc parallel vector_length(32)
+!$acc parallel vector_length(128)
 !$acc loop gang vector collapse(2) private(fk)
    do it = 1,nt
      do i = its,ite
@@ -1942,7 +1946,7 @@ contains
    enddo
 !$acc end parallel
 !
-!$acc parallel vector_length(32)
+!$acc parallel vector_length(128)
 !$acc loop gang vector collapse(2) private(fk)
    do it = 1,nt
      do i = its,ite
@@ -1952,7 +1956,7 @@ contains
    enddo
 !$acc end parallel
 !
-!$acc parallel vector_length(32)
+!$acc parallel vector_length(128)
 !$acc loop gang vector collapse(2)
    do it = 1,nt
      do i = its,ite
