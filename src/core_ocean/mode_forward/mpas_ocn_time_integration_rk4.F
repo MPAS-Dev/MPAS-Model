@@ -710,7 +710,7 @@ module ocn_time_integration_rk4
            end do
          end if
 
-         call ocn_diagnostic_solve(dt, statePool, forcingPool, meshPool, diagnosticsPool, scratchPool, tracersPool, 2)
+         call ocn_diagnostic_solve(dt, statePool, forcingPool, diagnosticsPool, scratchPool, tracersPool, 2)
          call mpas_threading_barrier()
 
          ! Update the effective desnity in land ice if we're coupling to land ice
@@ -848,12 +848,12 @@ module ocn_time_integration_rk4
 
       ! advection of u uses u, while advection of layerThickness and tracers use normalTransportVelocity.
       if (associated(highFreqThicknessProvis)) then
-         call ocn_vert_transport_velocity_top(meshPool, verticalMeshPool, scratchPool, &
+         call ocn_vert_transport_velocity_top(verticalMeshPool, scratchPool, &
             layerThicknessCur,layerThicknessEdge, normalVelocityProvis, &
             sshCur, rkSubstepWeight, &
             vertAleTransportTop, err, highFreqThicknessProvis)
       else
-         call ocn_vert_transport_velocity_top(meshPool, verticalMeshPool, scratchPool, &
+         call ocn_vert_transport_velocity_top(verticalMeshPool, scratchPool, &
             layerThicknessCur,layerThicknessEdge, normalVelocityProvis, &
             sshCur, rkSubstepWeight, &
             vertAleTransportTop, err)
@@ -912,12 +912,12 @@ module ocn_time_integration_rk4
 
       ! advection of u uses u, while advection of layerThickness and tracers use normalTransportVelocity.
       if (associated(highFreqThicknessProvis)) then
-         call ocn_vert_transport_velocity_top(meshPool, verticalMeshPool, scratchPool, &
+         call ocn_vert_transport_velocity_top(verticalMeshPool, scratchPool, &
             layerThicknessCur, layerThicknessEdge, normalTransportVelocity, &
             sshCur, rkSubstepWeight, &
             vertAleTransportTop, err, highFreqThicknessProvis)
       else
-         call ocn_vert_transport_velocity_top(meshPool, verticalMeshPool, scratchPool, &
+         call ocn_vert_transport_velocity_top(verticalMeshPool, scratchPool, &
             layerThicknessCur, layerThicknessEdge, normalTransportVelocity, &
             sshCur, rkSubstepWeight, &
             vertAleTransportTop, err)
@@ -978,12 +978,12 @@ module ocn_time_integration_rk4
 
       ! advection of u uses u, while advection of layerThickness and tracers use normalTransportVelocity.
       if (associated(highFreqThicknessProvis)) then
-         call ocn_vert_transport_velocity_top(meshPool, verticalMeshPool, scratchPool, &
+         call ocn_vert_transport_velocity_top(verticalMeshPool, scratchPool, &
             layerThicknessCur, layerThicknessEdge, normalTransportVelocity, &
             sshCur, rkSubstepWeight, &
             vertAleTransportTop, err, highFreqThicknessProvis)
       else
-         call ocn_vert_transport_velocity_top(meshPool, verticalMeshPool, scratchPool, &
+         call ocn_vert_transport_velocity_top(verticalMeshPool, scratchPool, &
             layerThicknessCur, layerThicknessEdge, normalTransportVelocity, &
             sshCur, rkSubstepWeight, &
             vertAleTransportTop, err)
@@ -991,7 +991,7 @@ module ocn_time_integration_rk4
       call mpas_threading_barrier()
 
       if (config_filter_btr_mode) then
-          call ocn_filter_btr_mode_tend_vel(tendPool, provisStatePool, diagnosticsPool, meshPool, 1)
+          call ocn_filter_btr_mode_tend_vel(tendPool, provisStatePool, diagnosticsPool, 1)
       endif
       call mpas_threading_barrier()
 
@@ -1049,12 +1049,12 @@ module ocn_time_integration_rk4
 
       ! advection of u uses u, while advection of layerThickness and tracers use normalTransportVelocity.
       if (associated(highFreqThicknessProvis)) then
-         call ocn_vert_transport_velocity_top(meshPool, verticalMeshPool, scratchPool, &
+         call ocn_vert_transport_velocity_top(verticalMeshPool, scratchPool, &
             layerThicknessCur,layerThicknessEdge, normalVelocityProvis, &
             sshCur, rkWeight, &
             vertAleTransportTop, err, highFreqThicknessProvis)
       else
-         call ocn_vert_transport_velocity_top(meshPool, verticalMeshPool, scratchPool, &
+         call ocn_vert_transport_velocity_top(verticalMeshPool, scratchPool, &
             layerThicknessCur,layerThicknessEdge, normalVelocityProvis, &
             sshCur, rkWeight, &
             vertAleTransportTop, err)
@@ -1065,12 +1065,12 @@ module ocn_time_integration_rk4
       call mpas_threading_barrier()
 
       if (associated(highFreqThicknessProvis)) then
-         call ocn_vert_transport_velocity_top(meshPool, verticalMeshPool, scratchPool, &
+         call ocn_vert_transport_velocity_top(verticalMeshPool, scratchPool, &
             layerThicknessCur, layerThicknessEdge, normalTransportVelocity, &
             sshCur, rkWeight, &
             vertAleTransportTop, err, highFreqThicknessProvis)
       else
-         call ocn_vert_transport_velocity_top(meshPool, verticalMeshPool, scratchPool, &
+         call ocn_vert_transport_velocity_top(verticalMeshPool, scratchPool, &
             layerThicknessCur, layerThicknessEdge, normalTransportVelocity, &
             sshCur, rkWeight, &
             vertAleTransportTop, err)
@@ -1080,7 +1080,7 @@ module ocn_time_integration_rk4
       call ocn_tend_thick(tendPool, forcingPool, diagnosticsPool, meshPool)
 
       if (config_filter_btr_mode) then
-          call ocn_filter_btr_mode_tend_vel(tendPool, provisStatePool, diagnosticsPool, meshPool, 1)
+          call ocn_filter_btr_mode_tend_vel(tendPool, provisStatePool, diagnosticsPool, 1)
       endif
       call mpas_threading_barrier()
 
@@ -1237,7 +1237,7 @@ module ocn_time_integration_rk4
       end if
       call mpas_threading_barrier()
 
-      call ocn_diagnostic_solve(dt, provisStatePool, forcingPool, meshPool, diagnosticsPool, scratchPool, tracersPool, 1)
+      call ocn_diagnostic_solve(dt, provisStatePool, forcingPool, diagnosticsPool, scratchPool, tracersPool, 1)
       call mpas_threading_barrier()
 
       ! ------------------------------------------------------------------
@@ -1452,7 +1452,7 @@ module ocn_time_integration_rk4
          end if
       end do
 
-      call ocn_diagnostic_solve(dt, statePool, forcingPool, meshPool, diagnosticsPool, scratchPool, tracersPool, 2)
+      call ocn_diagnostic_solve(dt, statePool, forcingPool, diagnosticsPool, scratchPool, tracersPool, 2)
       call mpas_threading_barrier()
 
       call ocn_vmix_implicit(dt, meshPool, diagnosticsPool, statePool, forcingPool, scratchPool, err, 2)

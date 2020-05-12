@@ -25,6 +25,8 @@ module ocn_thick_ale
    use mpas_timer
 
    use ocn_constants
+   use ocn_mesh
+   use ocn_config
 
    implicit none
    private
@@ -71,16 +73,13 @@ contains
 !>  (z-tilde), and imposes a minimum layer thickness.
 !
 !-----------------------------------------------------------------------
-   subroutine ocn_ALE_thickness(meshPool, verticalMeshPool, SSH, ALE_thickness, err, newHighFreqThickness)!{{{
+   subroutine ocn_ALE_thickness(verticalMeshPool, SSH, ALE_thickness, err, newHighFreqThickness)!{{{
 
       !-----------------------------------------------------------------
       !
       ! input variables
       !
       !-----------------------------------------------------------------
-
-      type (mpas_pool_type), intent(in) :: &
-         meshPool           !< Input: horizonal mesh information
 
       type (mpas_pool_type), intent(in) :: &
          verticalMeshPool   !< Input: vertical mesh information
@@ -109,11 +108,8 @@ contains
       !-----------------------------------------------------------------
 
       integer :: iCell, k, i, kMax
-      integer, pointer :: nCells, nVertLevels
-      integer, dimension(:), pointer :: maxLevelCell
 
       real (kind=RKIND) :: weightSum, thicknessSum, remainder, newThickness, thicknessWithRemainder
-      real (kind=RKIND), dimension(:), pointer :: vertCoordMovementWeights
       real (kind=RKIND), dimension(:), allocatable :: &
          SSH_ALE_thickness,      & !> ALE thickness alteration due to SSH (z-star)
          prelim_ALE_Thickness,   & !> ALE thickness at new time
@@ -123,25 +119,12 @@ contains
          restingThickness   !>  Layer thickness when the ocean is at rest, i.e. without SSH or internal perturbations.
 
       logical, pointer :: thicknessFilterActive
-      logical, pointer :: config_use_min_max_thickness
-      real (kind=RKIND), pointer :: config_max_thickness_factor
-      real (kind=RKIND), pointer :: config_min_thickness
 
       err = 0
 
       call mpas_pool_get_package(ocnPackages, 'thicknessFilterActive', thicknessFilterActive)
 
-      call mpas_pool_get_config(ocnConfigs, 'config_use_min_max_thickness', config_use_min_max_thickness)
-      call mpas_pool_get_config(ocnConfigs, 'config_max_thickness_factor', config_max_thickness_factor)
-      call mpas_pool_get_config(ocnConfigs, 'config_min_thickness', config_min_thickness)
-
-      call mpas_pool_get_array(meshPool, 'maxLevelCell', maxLevelCell)
-      call mpas_pool_get_array(meshPool, 'vertCoordMovementWeights', vertCoordMovementWeights)
-
       call mpas_pool_get_array(verticalMeshPool, 'restingThickness', restingThickness)
-
-      call mpas_pool_get_dimension(meshPool, 'nCells', nCells)
-      call mpas_pool_get_dimension(meshPool, 'nVertLevels', nVertLevels)
 
       allocate(SSH_ALE_thickness(nVertLevels), prelim_ALE_thickness(nVertLevels), &
          min_ALE_thickness_down(nVertLevels), min_ALE_thickness_up(nVertLevels))
@@ -152,7 +135,7 @@ contains
       if (configALEthicknessProportionality==1) then ! restingThickness_times_weights
 
          !$omp do schedule(runtime)
-         do iCell = 1, nCells
+         do iCell = 1, nCellsAll
             kMax = maxLevelCell(iCell)
    
             thicknessSum = 1e-14_RKIND
@@ -172,7 +155,7 @@ contains
    
          elseif (configALEthicknessProportionality==2) then ! weights_only
          !$omp do schedule(runtime)
-         do iCell = 1, nCells
+         do iCell = 1, nCellsAll
             kMax = maxLevelCell(iCell)
    
             weightSum = 1e-14_RKIND
@@ -195,7 +178,7 @@ contains
 
       if (thicknessFilterActive) then
          !$omp do schedule(runtime) private(kMax)
-         do iCell = 1, nCells
+         do iCell = 1, nCellsAll
             kMax = maxLevelCell(iCell)
 
             ALE_Thickness(1:kMax, iCell) = &
@@ -211,7 +194,7 @@ contains
       if (config_use_min_max_thickness) then
 
          !$omp do schedule(runtime)
-         do iCell = 1, nCells
+         do iCell = 1, nCellsAll
             kMax = maxLevelCell(iCell)
 
             ! go down the column:
@@ -263,9 +246,6 @@ contains
 !-----------------------------------------------------------------------
    subroutine ocn_thick_ale_init(err)!{{{
       integer, intent(out) :: err !< Output: Error flag
-      character (len=StrKIND), pointer :: config_ALE_thickness_proportionality
-
-      call mpas_pool_get_config(ocnConfigs,'config_ALE_thickness_proportionality',config_ALE_thickness_proportionality)
 
       if (config_ALE_thickness_proportionality=='restingThickness_times_weights') then
           configALEthicknessProportionality = 1

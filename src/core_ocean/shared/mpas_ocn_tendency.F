@@ -952,7 +952,7 @@ contains
                !
                if (config_use_cvmix_kpp) then
                   call mpas_timer_start("non-local flux from KPP")
-                  call ocn_compute_KPP_input_fields(statePool, forcingPool, meshPool, diagnosticsPool, scratchPool, timeLevel)
+                  call ocn_compute_KPP_input_fields(statePool, forcingPool, diagnosticsPool, scratchPool, timeLevel)
                   if (.not. config_cvmix_kpp_nonlocal_with_implicit_mix) then
                      if( trim(groupItr % memberName) == 'activeTracers' ) then
                         if (config_compute_active_tracer_budgets) then

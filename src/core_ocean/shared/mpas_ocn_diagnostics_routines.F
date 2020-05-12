@@ -24,6 +24,8 @@ module ocn_diagnostics_routines
    use mpas_constants
    use mpas_timer
 
+   use ocn_mesh
+
    implicit none
    private
    save
@@ -64,16 +66,13 @@ contains
 !
 !-----------------------------------------------------------------------
 
-   subroutine ocn_relativeVorticity_circulation(relativeVorticity, circulation, meshPool, normalVelocity, err)!{{{
+   subroutine ocn_relativeVorticity_circulation(relativeVorticity, circulation, normalVelocity, err)!{{{
 
       !-----------------------------------------------------------------
       !
       ! input variables
       !
       !-----------------------------------------------------------------
-
-      type (mpas_pool_type), intent(in) :: &
-         meshPool
 
       real (kind=RKIND), dimension(:,:), intent(in) :: &
          normalVelocity
@@ -99,29 +98,13 @@ contains
       !-----------------------------------------------------------------
 
       integer :: iVertex, iEdge, i, k
-      integer, pointer :: nEdges, nVertices, vertexDegree
-      integer, dimension(:), pointer :: maxLevelVertexBot
-      integer, dimension(:,:), pointer :: edgesOnVertex, edgeSignOnVertex
 
       real (kind=RKIND) :: invAreaTri1, r_tmp
-      real (kind=RKIND), dimension(:), pointer :: &
-              dcEdge, areaTriangle
-
-      call mpas_pool_get_dimension(meshPool, 'nEdges', nEdges)
-      call mpas_pool_get_dimension(meshPool, 'nVertices', nVertices)
-      call mpas_pool_get_dimension(meshPool, 'vertexDegree', vertexDegree)
-
-      call mpas_pool_get_array(meshPool, 'maxLevelVertexBot', maxLevelVertexBot)
-      call mpas_pool_get_array(meshPool, 'edgesOnVertex', edgesOnVertex)
-      call mpas_pool_get_array(meshPool, 'edgeSignOnVertex', edgeSignOnVertex)
-
-      call mpas_pool_get_array(meshPool, 'areaTriangle', areaTriangle)
-      call mpas_pool_get_array(meshPool, 'dcEdge', dcEdge)
 
       err = 0
 
       !$omp do schedule(runtime) private(invAreaTri1, i, iEdge, k, r_tmp)
-      do iVertex = 1, nVertices
+      do iVertex = 1, nVerticesAll
          circulation(:, iVertex) = 0.0_RKIND
          relativeVorticity(:, iVertex) = 0.0_RKIND
          invAreaTri1 = 1.0_RKIND / areaTriangle(iVertex)

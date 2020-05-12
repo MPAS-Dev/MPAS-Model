@@ -27,6 +27,7 @@ module ocn_equation_of_state
    use ocn_equation_of_state_linear
    use ocn_equation_of_state_jm
    use ocn_constants
+   use ocn_mesh
    use mpas_log
 
    implicit none
@@ -88,7 +89,7 @@ contains
 !-----------------------------------------------------------------------
 
    subroutine ocn_equation_of_state_density(statePool, diagnosticsPool,&
-                           meshPool, scratchPool, nCells, kDisplaced,  &
+                           scratchPool, nCells, kDisplaced,  &
                            displacement_type, density, err,            &
                            thermalExpansionCoeff,                      &
                            salineContractionCoeff, timeLevelIn)
@@ -110,7 +111,6 @@ contains
       type (mpas_pool_type), intent(in) :: &
          statePool,           &! pool containing state variables
          diagnosticsPool,     &! pool containing some forcing fields
-         meshPool,            &! pool containing mesh quantities
          scratchPool           ! pool containing some scratch space
 
       !-----------------------------------------------------------------
@@ -138,8 +138,8 @@ contains
 
       real (kind=RKIND), dimension(:,:), pointer :: tracersSurfaceValue
       real (kind=RKIND), dimension(:,:,:), pointer :: activeTracers
-      integer :: iCell, k, nVertLevels, indexT, indexS
-      integer, pointer :: indexTptr, indexSptr, nVertLevelsPtr
+      integer :: iCell, k, indexT, indexS
+      integer, pointer :: indexTptr, indexSptr
       integer :: timeLevel
 
       !-----------------------------------------------------------------
@@ -167,11 +167,8 @@ contains
                                                  indexTptr)
       call mpas_pool_get_dimension(tracersPool, 'index_salinity', &
                                                  indexSptr)
-      call mpas_pool_get_dimension(meshPool,    'nVertLevels', &
-                                                 nVertLevelsPtr)
       indexT      = indexTptr
       indexS      = indexSptr
-      nVertLevels = nVertLevelsPtr
 
       !*** call specific equation of state based on user choice
 

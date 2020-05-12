@@ -152,13 +152,12 @@ contains
 !
 !-----------------------------------------------------------------------
 
-   subroutine ocn_diagnostic_solve(dt, statePool, forcingPool, meshPool, diagnosticsPool, scratchPool, tracersPool, &!{{{
+   subroutine ocn_diagnostic_solve(dt, statePool, forcingPool, diagnosticsPool, scratchPool, tracersPool, &!{{{
                                    timeLevelIn)
 
       real (kind=RKIND), intent(in) :: dt !< Input: Time step
       type (mpas_pool_type), intent(in) :: statePool !< Input: State information
       type (mpas_pool_type), intent(in) :: forcingPool !< Input: Forcing information
-      type (mpas_pool_type), intent(in) :: meshPool !< Input: mesh information
       type (mpas_pool_type), intent(inout) :: diagnosticsPool  !< Input: diagnostic fields derived from State
       type (mpas_pool_type), intent(in) :: scratchPool !< Input: scratch variables
       type (mpas_pool_type), intent(in) :: tracersPool !< Input: tracer fields
@@ -328,7 +327,7 @@ contains
       !$omp end master
       call mpas_threading_barrier()
 
-      call ocn_relativeVorticity_circulation(relativeVorticity, circulation, meshPool, normalVelocity, err)
+      call ocn_relativeVorticity_circulation(relativeVorticity, circulation, normalVelocity, err)
 
       ! Need owned cells for relativeVorticityCell
       nCells = nCellsOwned
@@ -615,20 +614,20 @@ contains
       nCells = nCellsAll
 
       ! compute in-place density
-      call ocn_equation_of_state_density(statePool, diagnosticsPool, meshPool, scratchPool, &
+      call ocn_equation_of_state_density(statePool, diagnosticsPool, scratchPool, &
                                          nCells, 0, 'relative', density, err, &
                                          inSituThermalExpansionCoeff, inSituSalineContractionCoeff, &
                                          timeLevelIn=timeLevel)
       call mpas_threading_barrier()
 
       ! compute potentialDensity, the density displaced adiabatically to the mid-depth of top layer.
-      call ocn_equation_of_state_density(statePool, diagnosticsPool, meshPool, scratchPool, &
+      call ocn_equation_of_state_density(statePool, diagnosticsPool, scratchPool, &
                                          nCells, 1, 'absolute', potentialDensity, &
                                          err, timeLevelIn=timeLevel)
 
       ! compute displacedDensity, density displaced adiabatically to the mid-depth one layer deeper.
       ! That is, layer k has been displaced to the depth of layer k+1.
-      call ocn_equation_of_state_density(statePool, diagnosticsPool, meshPool, scratchPool, &
+      call ocn_equation_of_state_density(statePool, diagnosticsPool, scratchPool, &
                                          nCells, 1, 'relative', displacedDensity, &
                                          err, timeLevelIn=timeLevel)
       call mpas_threading_barrier()
@@ -855,7 +854,7 @@ contains
 
       !
       !  compute fields needed to compute land-ice fluxes, either in the ocean model or in the coupler
-      call ocn_compute_land_ice_flux_input_fields(meshPool, statePool, forcingPool, scratchPool, &
+      call ocn_compute_land_ice_flux_input_fields(statePool, forcingPool, scratchPool, &
                                          diagnosticsPool, timeLevel)
 
       nCells = nCellsHalo( 1 )
@@ -902,7 +901,7 @@ contains
 !>  cell.
 !
 !-----------------------------------------------------------------------
-   subroutine ocn_vert_transport_velocity_top(meshPool, verticalMeshPool, scratchPool, oldLayerThickness, layerThicknessEdge, &
+   subroutine ocn_vert_transport_velocity_top(verticalMeshPool, scratchPool, oldLayerThickness, layerThicknessEdge, &
      normalVelocity, oldSSH, dt, vertAleTransportTop, err, newHighFreqThickness)!{{{
 
       !-----------------------------------------------------------------
@@ -910,9 +909,6 @@ contains
       ! input variables
       !
       !-----------------------------------------------------------------
-
-      type (mpas_pool_type), intent(in) :: &
-         meshPool           !< Input: horizonal mesh information
 
       type (mpas_pool_type), intent(in) :: &
          verticalMeshPool   !< Input: vertical mesh information
@@ -1003,9 +999,9 @@ contains
       ! Compute desired thickness at new time
       !
       if (present(newHighFreqThickness)) then
-        call ocn_ALE_thickness(meshPool, verticalMeshPool, projectedSSH, ALE_thickness, err, newHighFreqThickness)
+        call ocn_ALE_thickness(verticalMeshPool, projectedSSH, ALE_thickness, err, newHighFreqThickness)
       else
-        call ocn_ALE_thickness(meshPool, verticalMeshPool, projectedSSH, ALE_thickness, err)
+        call ocn_ALE_thickness(verticalMeshPool, projectedSSH, ALE_thickness, err)
       endif
 
       call mpas_threading_barrier()
@@ -1049,10 +1045,9 @@ contains
 !
 !-----------------------------------------------------------------------
 
-   subroutine ocn_fuperp(statePool, meshPool, timeLevelIn)!{{{
+   subroutine ocn_fuperp(statePool, timeLevelIn)!{{{
 
       type (mpas_pool_type), intent(inout) :: statePool !< Input/Output: State information
-      type (mpas_pool_type), intent(in) :: meshPool !< Input: mesh information
       integer, intent(in), optional :: timeLevelIn !< Input: Input time level for state pool
 
       integer :: iEdge, cell1, cell2, eoe, i, j, k
@@ -1109,11 +1104,10 @@ contains
 !>  This routine filters barotropic mode out of the velocity variable.
 !
 !-----------------------------------------------------------------------
-   subroutine ocn_filter_btr_mode_vel(statePool, diagnosticsPool, meshPool, timeLevelIn)!{{{
+   subroutine ocn_filter_btr_mode_vel(statePool, diagnosticsPool, timeLevelIn)!{{{
 
       type (mpas_pool_type), intent(inout) :: statePool !< Input/Output: State information
       type (mpas_pool_type), intent(in) :: diagnosticsPool !< Input: Diagnostics information
-      type (mpas_pool_type), intent(in) :: meshPool !< Input: Mesh information
       integer, intent(in), optional :: timeLevelIn !< Input: Time level for state pool
 
       integer :: iEdge, k
@@ -1170,12 +1164,11 @@ contains
 !>  This routine filters barotropic mode out of the velocity tendency.
 !
 !-----------------------------------------------------------------------
-   subroutine ocn_filter_btr_mode_tend_vel(tendPool, statePool, diagnosticsPool, meshPool, timeLevelIn)!{{{
+   subroutine ocn_filter_btr_mode_tend_vel(tendPool, statePool, diagnosticsPool, timeLevelIn)!{{{
 
       type (mpas_pool_type), intent(inout) :: tendPool !< Input/Output: Tendency information
       type (mpas_pool_type), intent(in) :: statePool !< Input: State information
       type (mpas_pool_type), intent(in) :: diagnosticsPool !< Input: Diagnostics information
-      type (mpas_pool_type), intent(in) :: meshPool !< Input: Mesh information
       integer, intent(in), optional :: timeLevelIn !< Input: Time level for state pool
 
       integer :: iEdge, k
@@ -1284,11 +1277,10 @@ contains
 !
 !-----------------------------------------------------------------------
 
-    subroutine ocn_compute_KPP_input_fields(statePool, forcingPool, meshPool, diagnosticsPool, scratchPool, timeLevelIn)!{{{
+    subroutine ocn_compute_KPP_input_fields(statePool, forcingPool, diagnosticsPool, scratchPool, timeLevelIn)!{{{
 
       type (mpas_pool_type), intent(in) :: statePool !< Input/Output: State information
       type (mpas_pool_type), intent(in) :: forcingPool !< Input: Forcing information
-      type (mpas_pool_type), intent(in) :: meshPool !< Input: Mesh information
       type (mpas_pool_type), intent(inout) :: diagnosticsPool !< Diagnostics information derived from State
       type (mpas_pool_type), intent(in) :: scratchPool !< Input: scratch variables
       integer, intent(in), optional :: timeLevelIn
@@ -1383,7 +1375,7 @@ contains
       nCells = nCellsHalo( 2 )
 
       ! compute EOS by displacing SST/SSS to every vertical layer in column
-      call ocn_equation_of_state_density(statePool, diagnosticsPool, meshPool, scratchPool, nCells, 0, 'surfaceDisplaced', &
+      call ocn_equation_of_state_density(statePool, diagnosticsPool, scratchPool, nCells, 0, 'surfaceDisplaced', &
                                          densitySurfaceDisplaced, err, thermalExpansionCoeff, salineContractionCoeff, &
                                          timeLevel)
 
@@ -1471,10 +1463,9 @@ contains
 !
 !-----------------------------------------------------------------------
 
-   subroutine ocn_compute_land_ice_flux_input_fields(meshPool, statePool, &
+   subroutine ocn_compute_land_ice_flux_input_fields(statePool, &
       forcingPool, scratchPool, diagnosticsPool, timeLevel)!{{{
 
-      type (mpas_pool_type), intent(in) :: meshPool !< Input: Mesh information
       type (mpas_pool_type), intent(in) :: statePool !< Input: State information
       type (mpas_pool_type), intent(in) :: forcingPool !< Input: Forcing information
       type (mpas_pool_type), intent(in) :: scratchPool !< Input/Output: scratch variables

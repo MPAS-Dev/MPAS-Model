@@ -179,7 +179,7 @@ contains
 
        call mpas_pool_get_array(diagnosticsPool, 'density', density)
 
-       call ocn_equation_of_state_density(statePool, diagnosticsPool, meshPool, &
+       call ocn_equation_of_state_density(statePool, diagnosticsPool,  &
            scratchPool, nCells, 0, 'relative', density, iErr, &
            timeLevelIn=1)
 
@@ -219,7 +219,7 @@ contains
          call mpas_pool_get_array(diagnosticsPool, 'density', density)
          call mpas_pool_get_array(diagnosticsPool, 'modifySSHMask', modifySSHMask)
 
-         call ocn_equation_of_state_density(statePool, diagnosticsPool, meshPool, &
+         call ocn_equation_of_state_density(statePool, diagnosticsPool, &
              scratchPool, nCells, 0, 'relative', density, iErr, &
              timeLevelIn=1)
 
@@ -294,7 +294,7 @@ contains
        call mpas_pool_get_array(scratchPool, 'scratchMaxLevelCell', origMaxLevelCell)
 
 
-       call ocn_equation_of_state_density(statePool, diagnosticsPool, meshPool, &
+       call ocn_equation_of_state_density(statePool, diagnosticsPool, &
            scratchPool, nCells, 0, 'relative', density, iErr, &
            timeLevelIn=1)
 
