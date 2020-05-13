@@ -37,7 +37,14 @@ model = FULL_PATH_TO_MPAS_MODEL_REPO/ocean_model
 # some test cases might download data into them, which will then be reused if
 # the test case is run again later.
 mpas_model = FULL_PATH_TO_MPAS_MODEL_REPO
-geometric_data = FULL_PATH_TO_PATH_OF_CACHED_GEOMETRIC_FEATURES_DATA
 mesh_database = FULL_PATH_TO_LOCAL_MESH_DATABASE
 initial_condition_database = FULL_PATH_TO_LOCAL_INITIAL_CONDITION_DATABASE
 bathymetry_database = FULL_PATH_TO_BATHYMETRY_DATABASE
+
+# The options in this section relate to configuring and running with a compass
+# conda environment
+[conda]
+
+# Whether a link to load_compass_env.sh should be included with each test case
+# (can also be specified with the --link_load_compass flag)
+link_load_compass = False

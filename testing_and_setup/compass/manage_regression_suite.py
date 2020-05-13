@@ -11,7 +11,8 @@ all tests in the suite, and additionally setup each individual test case.
 When cleaning a regression suite, this script will remove any generated files
 for each individual test case, and the run script that runs all test cases.
 """
-
+# -----Global_Variables-----
+# {{{
 from __future__ import absolute_import, division, print_function, \
     unicode_literals
 
@@ -22,10 +23,15 @@ import argparse
 import xml.etree.ElementTree as ET
 import subprocess
 
+data_prereq = []
+data = {}
+suite_root = None
+# }}}
+
 
 def process_test_setup(test_tag, config_file, work_dir, model_runtime,
-                       suite_script, baseline_dir, verbose):  # {{{
-
+                       regression_script_code, baseline_dir, verbose):
+    # {{{
     if verbose:
         stdout = open(work_dir + '/manage_regression_suite.py.out', 'a')
         stderr = stdout
@@ -85,28 +91,28 @@ def process_test_setup(test_tag, config_file, work_dir, model_runtime,
         subprocess.check_call(
             ['./setup_testcase.py', '-q', '-f', config_file,
              '--work_dir', work_dir, '-o', test_core, '-c', test_configuration,
-             '-r', test_resolution, '-t', test_test,  '-m', model_runtime],
+             '-r', test_resolution, '-t', test_test, '-m', model_runtime],
             stdout=stdout, stderr=stderr)
     else:
         subprocess.check_call(
             ['./setup_testcase.py', '-q', '-f', config_file,
              '--work_dir', work_dir, '-o', test_core, '-c', test_configuration,
-             '-r', test_resolution, '-t', test_test,  '-m', model_runtime,
+             '-r', test_resolution, '-t', test_test, '-m', model_runtime,
              '-b', baseline_dir], stdout=stdout, stderr=stderr)
 
     print("   -- Setup case '{}': -o {} -c {} -r {} -t {}".format(
         test_name, test_core, test_configuration, test_resolution, test_test))
 
     # Write step into suite script to cd into the base of the regression suite
-    suite_script.write("os.chdir(base_path)\n")
+    regression_script_code += "os.chdir(base_path)\n"
 
     # Write the step to define the output file
-    suite_script.write("case_output = open('case_outputs/{}', 'w')\n".format(
-        case_output_name))
+    regression_script_code += "case_output = open('case_outputs/{}', 'w')\n".format(
+        case_output_name)
 
     # Write step to cd into test case directory
-    suite_script.write("os.chdir('{}/{}/{}/{}')\n".format(
-        test_core, test_configuration, test_resolution, test_test))
+    regression_script_code += "os.chdir('{}/{}/{}/{}')\n".format(
+        test_core, test_configuration, test_resolution, test_test)
 
     for script in test_tag:
         # Process test case script
@@ -124,32 +130,32 @@ def process_test_setup(test_tag, config_file, work_dir, model_runtime,
                           test_resolution, test_test, script_name)
             command = '{}, stdout=case_output, stderr=case_output)'.format(
                 command)
-
             # Write test case run step
-            suite_script.write("print(' ** Running case {}')\n".format(
-                test_name))
-            suite_script.write('try:\n')
-            suite_script.write('    {}\n'.format(command))
-            suite_script.write("    print('      PASS')\n")
-            suite_script.write('except subprocess.CalledProcessError:\n')
-            suite_script.write("    print('   ** FAIL (See case_outputs/{} "
-                               "for more information)')\n".format(
-                                       case_output_name))
-            suite_script.write("    test_failed = True\n")
+            regression_script_code += "print(' ** Running case {}')\n".format(
+                test_name)
+            regression_script_code += 'try:\n'
+            regression_script_code += '    {}\n'.format(command)
+            regression_script_code += "    print('      PASS')\n"
+            regression_script_code += 'except subprocess.CalledProcessError:\n'
+            regression_script_code += "    print('   ** FAIL (See case_outputs/{} for more information)')\n".format(
+                case_output_name)
+            regression_script_code += "    test_failed = True\n"
 
     # Finish writing test case output
-    suite_script.write("case_output.close()\n")
-    suite_script.write("\n")
+    regression_script_code += "case_output.close()\n"
+    regression_script_code += "\n"
     if verbose:
         stdout.close()
     else:
         dev_null.close()
-# }}}
+
+    return regression_script_code
+    # }}}
 
 
-def process_test_clean(test_tag, work_dir, suite_script):  # {{{
+def process_test_clean(test_tag, work_dir):
+    # {{{
     dev_null = open('/dev/null', 'a')
-
     # Process test attributes
     try:
         test_name = test_tag.attrib['name']
@@ -193,19 +199,18 @@ def process_test_clean(test_tag, work_dir, suite_script):  # {{{
     # Clean test case
     subprocess.check_call(
         ['./clean_testcase.py', '-q', '--work_dir', work_dir, '-o', test_core,
-         '-c',  test_configuration, '-r', test_resolution, '-t', test_test],
+         '-c', test_configuration, '-r', test_resolution, '-t', test_test],
         stdout=dev_null, stderr=dev_null)
 
     print("   -- Cleaned case '{}': -o {} -c {} -r {} -t {}".format(
         test_name, test_core, test_configuration, test_resolution, test_test))
 
     dev_null.close()
+    # }}}
 
-# }}}
 
-
-def setup_suite(suite_tag, work_dir, model_runtime, config_file, baseline_dir,
-                verbose):
+def local_parallel_setup_script(
+        work_dir, suite_tag, verbose, args, suite_root):
     # {{{
     try:
         suite_name = suite_tag.attrib['name']
@@ -217,78 +222,299 @@ def setup_suite(suite_tag, work_dir, model_runtime, config_file, baseline_dir,
     if not os.path.exists('{}'.format(work_dir)):
         os.makedirs('{}'.format(work_dir))
 
-    # Create regression suite run script
-    regression_script_name = '{}/{}.py'.format(work_dir, suite_name)
-    regression_script = open('{}'.format(regression_script_name), 'w')
+    if verbose:
+        # flush existing regression suite output file
+        open(work_dir + '/manage_regression_suite.py.out', 'w').close()
 
-    # Write script header
-    regression_script.write('#!/usr/bin/env python\n')
-    regression_script.write('\n')
-    regression_script.write('# This script was written by '
-                            'manage_regression_suite.py as part of a\n'
-                            '# regression_suite file\n')
-    regression_script.write('\n')
-    regression_script.write('import sys\n')
-    regression_script.write('import os\n')
-    regression_script.write('import subprocess\n')
-    regression_script.write('import numpy as np\n')
-    regression_script.write('\n')
-    regression_script.write("os.environ['PYTHONUNBUFFERED'] = '1'\n")
-    regression_script.write("test_failed = False\n")
-    regression_script.write('\n')
-    regression_script.write("if not os.path.exists('case_outputs'):\n")
-    regression_script.write("    os.makedirs('case_outputs')\n")
-    regression_script.write('\n')
-    regression_script.write("base_path = '{}'\n".format(work_dir))
+    regression_script_name = '{}/parallel_{}.py'.format(work_dir, suite_name)
+    local_parallel_script = open('{}'.format(regression_script_name), 'w')
+    local_parallel_code = write_regression_local_parallel_top(
+        work_dir, suite_tag, args.nodes)
+
+    setup_suite(
+        suite_root,
+        args.work_dir,
+        args.model_runtime,
+        args.config_file,
+        args.baseline_dir,
+        args.verbose,
+        args)
+    local_parallel_code = write_regression_local_parallel_data(
+        local_parallel_code, work_dir)
+    local_parallel_code = write_regression_local_parallel_bottom(
+        local_parallel_code)
+
+    return local_parallel_script, local_parallel_code
+    # }}}
+
+
+def get_prereq():
+    # {{{
+    names = [i for i in data.keys() if i in data_prereq]
+    pre = {}
+    for i in names:
+        pre[i] = data[i]
+    return pre
+    # }}}
+
+
+def get_data():
+    # {{{
+    names = [i for i in data.keys() if i not in data_prereq]
+    data_values = {}
+    for i in names:
+        data_values[i] = data[i]
+    return data_values
+    # }}}
+
+
+def write_regression_local_parallel_data(local_parallel_code, work_dir):
+        # {{{
+    index = 0
+    data_values = get_data()
+    pre_data = get_prereq()
+
+    for key in pre_data.keys():
+        local_parallel_code += "locations.append('" + \
+            pre_data[key]['path'] + "')\n"
+        local_parallel_code += "commands.append(['time' , '-p' , '" + os.getcwd(
+        ) + "/" + pre_data[key]['path'] + "/' + str(run_file_names[{}])])\n".format(str(index))
+        local_parallel_code += "procs.append(" + \
+            str(pre_data[key]['procs']) + ")\n"
+        local_parallel_code += "prereq_commands.append([locations[" + str(
+            index) + "], commands[" + str(index) + "]])\n\n\n"
+        index += 1
+
+    for key in data_values.keys():
+        local_parallel_code += "locations.append('" + \
+            data_values[key]['path'] + "')\n"
+        local_parallel_code += "commands.append(['time' , '-p' , '" + os.getcwd(
+        ) + "/" + data_values[key]['path'] + "/' + str(run_file_names[{}])])\n".format(str(index))
+        local_parallel_code += "procs.append(" + \
+            str(data_values[key]['procs']) + ")\n"
+        local_parallel_code += "allocation_commands.append([locations[" + str(
+            index) + "], commands[" + str(index) + "]])\n\n\n"
+        index += 1
+
+    return local_parallel_code
+    # }}}
+
+
+def write_regression_local_parallel_bottom(local_parallel_code):
+    # {{{
+    local_parallel_code += "if max(procs) > number_of_procs:\n"
+    local_parallel_code += "  print('more processors are used than allocated')\n"
+    local_parallel_code += "  quit()\n"
+    local_parallel_code += "start_time = time.time()\n"
+    local_parallel_code += "def stream_queue(command, number_of_procs):\n"
+    local_parallel_code += "  base = os.getcwd()\n"
+    local_parallel_code += "  Queue_running = []\n"
+    local_parallel_code += "  index = 0\n"
+    local_parallel_code += "  continue_add = True\n"
+    local_parallel_code += "  Done = False\n"
+    local_parallel_code += "  while True:\n"
+    local_parallel_code += "     if continue_add and not Done:\n"
+    local_parallel_code += "      if number_of_procs >= procs[index]:\n"
+    local_parallel_code += "        try:\n"
+    local_parallel_code += "          if index < len(command):\n"
+    local_parallel_code += "            print('-----IN ADDING PHASE-----')\n"
+    local_parallel_code += "            print('we have {} number_of_procs, current task uses {} Adding to queue'.format(number_of_procs, procs[index]))\n"
+    local_parallel_code += "            case_output = open('case_outputs/'+command[index][0].replace('/', '_'), 'w+')\n"
+    local_parallel_code += "            print('processing command: {}'.format(command[index][1]))\n"
+    local_parallel_code += "            os.chdir(command[index][0])\n"
+    local_parallel_code += "            open_proc = subprocess.Popen(command[index][1], stdout=case_output, stderr=case_output)\n"
+    local_parallel_code += "            os.chdir(base)\n"
+    local_parallel_code += "            Queue_running.append([open_proc, procs[index],command[index][1]]) \n"
+    local_parallel_code += "            number_of_procs = number_of_procs - procs[index]\n"
+    local_parallel_code += "            print('       New number_of_procs: {}'.format(number_of_procs)) \n"
+    local_parallel_code += "        except subprocess.CalledProcessError: \n"
+    local_parallel_code += "          print('error for : {}'.format(str(command[index][1]))) \n"
+    local_parallel_code += "      elif number_of_procs < procs[index]: \n"
+    local_parallel_code += "        print('NOT ENOUGH WAIT FOR PROCESSES') \n"
+    local_parallel_code += "        continue_add = False \n"
+    local_parallel_code += "      index = index + 1 \n"
+    local_parallel_code += "      if index > len(procs) -1: \n"
+    local_parallel_code += "        print('No more to add moving to processing phase') \n"
+    local_parallel_code += "        continue_add = False \n"
+    local_parallel_code += "     elif not continue_add and not Done: \n"
+    local_parallel_code += "       for background_process in Queue_running: \n"
+    local_parallel_code += "         background_process[0].wait() \n"
+    local_parallel_code += "         pid = background_process[0].pid \n"
+    local_parallel_code += "         if not psutil.pid_exists(pid): \n"
+    local_parallel_code += "           Queue_running.remove(background_process) \n"
+    local_parallel_code += "           print(str(pid) +': compleate') \n"
+    local_parallel_code += "           number_of_procs += background_process[1] \n"
+    local_parallel_code += "           if index < len(procs)-1: \n"
+    local_parallel_code += "             print('STILL HAVE MORE TO PROCESS') \n"
+    local_parallel_code += "             if number_of_procs >= procs[index]: \n"
+    local_parallel_code += "               continue_add = True \n"
+    local_parallel_code += "           else: \n"
+    local_parallel_code += "             if len(Queue_running) == 0: \n"
+    local_parallel_code += "               Done = True \n"
+    local_parallel_code += "               continue_add = False \n"
+    local_parallel_code += "     elif Done and not continue_add: \n"
+    local_parallel_code += "      return \n"
+    local_parallel_code += " \n"
+    local_parallel_code += "  return\n"
+    local_parallel_code += "print('--- PROCESSING PREREQS ---')\n"
+    local_parallel_code += "stream_queue(prereq_commands, number_of_procs)\n"
+    local_parallel_code += "print('--- PROCESSING commands ---')\n"
+    local_parallel_code += "stream_queue(allocation_commands, number_of_procs)\n"
+    local_parallel_code += "end_time = time.time()\n"
+    local_parallel_code += "print('parallel run time: {} min'.format((end_time - start_time) / 60))\n"
+    local_parallel_code = write_regression_script_data_bottom(
+        local_parallel_code)
+
+    return local_parallel_code
+    # }}}
+
+
+def write_regression_local_parallel_top(work_dir, suite_tag, nodes):
+    # {{{
+    local_parallel_code = "#!/usr/bin/env python\n\n\n"
+    local_parallel_code += "import time\n"
+    local_parallel_code += "import psutil\n"
+    local_parallel_code += "import sys\n"
+    local_parallel_code += "import os\n"
+    local_parallel_code += "import subprocess\n"
+    local_parallel_code += "import numpy as np\n"
+    local_parallel_code += "import multiprocessing as mp\n"
+    local_parallel_code += "out, err = subprocess.Popen(['nproc'],stdout=subprocess.PIPE, stderr=subprocess.STDOUT).communicate()\n"
+    local_parallel_code += "nodes = {}\n".format(nodes)
+    local_parallel_code += "number_of_procs = nodes * int(out.split()[0])\n"
+    local_parallel_code += "print('Number of usable Processors: {}'.format(number_of_procs))\n"
+    local_parallel_code += "os.environ['PYTHONUNBUFFERED'] = '1'\n"
+    local_parallel_code += "test_failed=False\n"
+    local_parallel_code += "if not os.path.exists('case_outputs'):\n"
+    local_parallel_code += "    os.makedirs('case_outputs')\n"
+    local_parallel_code += "base_path = '" + work_dir + "'\n"
+    local_parallel_code += "os.chdir(base_path)\n"
+    local_parallel_code += "locations = []\n"
+    local_parallel_code += "procs = []\n"
+    local_parallel_code += "run_file_names = []\n"
+    local_parallel_code += "prereq_commands = []\n"
+    local_parallel_code += "allocation_commands = []\n"
+    local_parallel_code += "commands = []\n\n\n"
+
+    for child in suite_tag:
+        for script in child:
+            script_name = script.attrib['name']
+            local_parallel_code += "run_file_names.append('{}')\n".format(
+                script_name)
+
+    local_parallel_code += "\n\n\n"
+    return local_parallel_code
+    # }}}
+
+
+def write_regression_script_data_bottom(regression_script_code):
+    # {{{
+    regression_script_code += "print('TEST RUNTIMES:')\n"
+    regression_script_code += "case_output = '/case_outputs/'\n"
+    regression_script_code += "totaltime = 0\n"
+    regression_script_code += "for _, _, files in os.walk(base_path + case_output):\n"
+    regression_script_code += "    for afile in sorted(files):\n"
+    regression_script_code += "        outputfile = base_path + case_output + afile\n"
+    regression_script_code += "        runtime = np.ceil(float(subprocess. check_output(\n  ['grep', 'real', outputfile])."
+    regression_script_code += "decode('utf-8').split('\\n')[-2].split()[1]))\n"
+    regression_script_code += "        totaltime += runtime\n"
+    regression_script_code += "        mins = int(np.floor(runtime/60.0))\n"
+    regression_script_code += "        secs = int(np.ceil(runtime - mins*60))\n"
+    regression_script_code += "        print('{:02d}:{:02d} {}'.format(mins, secs, afile))\n"
+    regression_script_code += "mins = int(np.floor(totaltime/60.0))\n"
+    regression_script_code += "secs = int(np.ceil(totaltime - mins*60))\n"
+    regression_script_code += "print('Total runtime {:02d}:{:02d}'.format(mins, secs))\n"
+    regression_script_code += "\n"
+    regression_script_code += "if test_failed:\n"
+    regression_script_code += "    sys.exit(1)\n"
+    regression_script_code += "else:\n"
+    regression_script_code += "    sys.exit(0)\n"
+
+    return regression_script_code
+    # }}}
+
+
+def write_regression_script_data_top(work_dir):
+    # {{{
+    regression_script_code = ""
+    regression_script_code += '#!/usr/bin/env python\n'
+    regression_script_code += '\n'
+    regression_script_code += '# This script was written by '
+    regression_script_code += 'manage_regression_suite.py as part of a\n'
+    regression_script_code += '# regression_suite file\n'
+    regression_script_code += '\n'
+    regression_script_code += 'import sys\n'
+    regression_script_code += 'import os\n'
+    regression_script_code += 'import subprocess\n'
+    regression_script_code += 'import numpy as np\n'
+    regression_script_code += '\n'
+    regression_script_code += "os.environ['PYTHONUNBUFFERED'] = '1'\n"
+    regression_script_code += "test_failed = False\n"
+    regression_script_code += '\n'
+    regression_script_code += "if not os.path.exists('case_outputs'):\n"
+    regression_script_code += "    os.makedirs('case_outputs')\n"
+    regression_script_code += '\n'
+    regression_script_code += "base_path = '{}'\n".format(work_dir)
+
+    return regression_script_code
+    # }}}
+
+
+def setup_suite(suite_tag, work_dir, model_runtime, config_file, baseline_dir,
+                verbose, args):
+    # {{{
+    try:
+        suite_name = suite_tag.attrib['name']
+    except KeyError:
+        print("ERROR: <regression_suite> tag is missing 'name' attribute.")
+        print('Exiting...')
+        sys.exit(1)
+
+    if not os.path.exists('{}'.format(work_dir)):
+        os.makedirs('{}'.format(work_dir))
 
     if verbose:
         # flush existing regression suite output file
         open(work_dir + '/manage_regression_suite.py.out', 'w').close()
 
+    regression_script_code = ""
+
+    if not args.local_parallel:
+        # Create regression suite run script
+        regression_script_name = '{}/{}.py'.format(work_dir, suite_name)
+        regression_script = open('{}'.format(regression_script_name), 'w')
+
+        regression_script_code = write_regression_script_data_top(work_dir)
+
     for child in suite_tag:
         # Process <test> tags within the test suite
         if child.tag == 'test':
-            process_test_setup(child, config_file, work_dir, model_runtime,
-                               regression_script, baseline_dir, verbose)
+            regression_script_code = process_test_setup(
+                child,
+                config_file,
+                work_dir,
+                model_runtime,
+                regression_script_code,
+                baseline_dir,
+                verbose)
 
-    regression_script.write("print('TEST RUNTIMES:')\n")
-    regression_script.write("case_output = '/case_outputs/'\n")
-    regression_script.write("totaltime = 0\n")
-    regression_script.write("for _, _, files in os.walk(base_path + "
-                            "case_output):\n")
-    regression_script.write("    for afile in sorted(files):\n")
-    regression_script.write("        outputfile = base_path + case_output + "
-                            "afile\n")
-    regression_script.write("        runtime = np.ceil(float(subprocess."
-                            "check_output(\n"
-                            "                ['grep', 'real', outputfile])."
-                            "decode('utf-8').split('\\n')[-2].split()[1]))\n")
-    regression_script.write("        totaltime += runtime\n")
-    regression_script.write("        mins = int(np.floor(runtime/60.0))\n")
-    regression_script.write("        secs = int(np.ceil(runtime - mins*60))\n")
-    regression_script.write("        print('{:02d}:{:02d} {}'.format(mins, "
-                            "secs, afile))\n")
-    regression_script.write("mins = int(np.floor(totaltime/60.0))\n")
-    regression_script.write("secs = int(np.ceil(totaltime - mins*60))\n")
-    regression_script.write("print('Total runtime {:02d}:{:02d}'.format(mins, "
-                            "secs))\n")
-    regression_script.write("\n")
+    if not args.local_parallel:
+        dev_null = open('/dev/null', 'a')
+        subprocess.check_call(['chmod',
+                               'a+x',
+                               '{}'.format(regression_script_name)],
+                              stdout=dev_null,
+                              stderr=dev_null)
+        dev_null.close()
 
-    regression_script.write("if test_failed:\n")
-    regression_script.write("    sys.exit(1)\n")
-    regression_script.write("else:\n")
-    regression_script.write("    sys.exit(0)\n")
-    regression_script.close()
-
-    dev_null = open('/dev/null', 'a')
-    subprocess.check_call(
-        ['chmod', 'a+x', '{}'.format(regression_script_name)],
-        stdout=dev_null, stderr=dev_null)
-    dev_null.close()
-# }}}
+        regression_script_code = write_regression_script_data_bottom(
+            regression_script_code)
+        return regression_script, regression_script_code
+    # }}}
 
 
-def clean_suite(suite_tag, work_dir):  # {{{
+def clean_suite(suite_tag, work_dir):
+    # {{{
     try:
         suite_name = suite_tag.attrib['name']
     except KeyError:
@@ -304,16 +530,12 @@ def clean_suite(suite_tag, work_dir):  # {{{
     for child in suite_tag:
         # Process <test> children within the <regression_suite>
         if child.tag == 'test':
-            process_test_clean(child, work_dir, regression_script)
-# }}}
+            process_test_clean(child, work_dir)
+    # }}}
 
 
-def summarize_suite(suite_tag):  # {{{
-
-    max_procs = 1
-    max_threads = 1
-    max_cores = 1
-
+def get_test_case_procs(suite_tag):
+    # {{{
     for child in suite_tag:
         if child.tag == 'test':
             try:
@@ -367,18 +589,43 @@ def summarize_suite(suite_tag):  # {{{
                 name = case.attrib['name']
                 cases.append(name)
 
+            prereqs = list()
+            for config_prereq in config_root.iter('prerequisite'):
+                prereq = dict()
+                for tag in ['core', 'configuration', 'resolution', 'test']:
+                    prereq[tag] = config_prereq.attrib[tag]
+
+                # Make sure the prerequisite is already in the test suite
+                found = False
+                for other_name, other_test in data.items():
+                    match = [prereq[tag] == other_test[tag] for tag in
+                             ['core', 'configuration', 'resolution', 'test']]
+                    if all(match):
+                        found = True
+                        prereq['name'] = other_name
+                        break
+
+                if not found:
+                    raise ValueError(
+                        'Prerequisite of {} does not precede it in the test '
+                        'suite: {} {} {} {}'.format(
+                            test_name, prereq['core'], prereq['configuration'],
+                            prereq['resolution'], prereq['test']))
+
+                prereqs.append(prereq)
+
             del config_root
             del config_tree
 
+            procs = 1
+            threads = 1
             # Loop over all files in test_path that have the .xml extension.
             for file in os.listdir('{}'.format(test_path)):
                 if fnmatch.fnmatch(file, '*.xml'):
                     # Build full file name
                     config_file = '{}/{}'.format(test_path, file)
-
                     config_tree = ET.parse(config_file)
                     config_root = config_tree.getroot()
-
                     if config_root.tag == 'config':
                         case = config_root.attrib['case']
                         if case in cases:
@@ -394,30 +641,50 @@ def summarize_suite(suite_tag):  # {{{
                                     threads = int(threads_str)
                                 except (KeyError, ValueError):
                                     threads = 1
-
-                                cores = threads * procs
-
-                                if procs > max_procs:
-                                    max_procs = procs
-
-                                if threads > max_threads:
-                                    max_threads = threads
-
-                                if cores > max_cores:
-                                    max_cores = cores
-
                     del config_root
                     del config_tree
+            data[test_name] = {'core': test_core,
+                               'configuration': test_configuration,
+                               'resolution': test_resolution,
+                               'test': test_test,
+                               'path': test_path,
+                               'procs': procs,
+                               'threads': threads,
+                               'prereqs': prereqs}
+            if not data[test_name]['prereqs'] == []:
+                for sub in data[test_name]['prereqs']:
+                    name = sub['name']
+                    if name not in data_prereq:
+                        data_prereq.append(name)
+
+    # }}}
+
+
+def summarize_suite():
+    # {{{
+
+    max_procs = 1
+    max_threads = 1
+    max_cores = 1
+    for name in data:
+        procs = data[name]['procs']
+        threads = data[name]['threads']
+        cores = threads * procs
+
+        max_procs = max(max_procs, procs)
+        max_threads = max(max_threads, threads)
+        max_cores = max(max_cores, cores)
 
     print("\n")
     print(" Summary of test cases:")
     print("      Maximum MPI tasks used: {:d}".format(max_procs))
     print("      Maximum OpenMP threads used: {:d}".format(max_threads))
     print("      Maximum Total Cores used: {:d}".format(max_cores))
-# }}}
+    # }}}
 
 
-if __name__ == "__main__":
+def main():
+    # {{{
     # Define and process input arguments
     parser = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawTextHelpFormatter)
@@ -446,6 +713,14 @@ if __name__ == "__main__":
                         help="If set, script will setup the test suite in "
                         "work_dir rather in this script's location.",
                         metavar="PATH")
+    parser.add_argument(
+        "-lp",
+        "--local_parallel",
+        help="If set, script will setup the test suite to "
+        "run in parallel on an interactive allocated node",
+        action="store_true")
+    parser.add_argument('-N', '--nodes', type=int, default=1,
+                        help="Number of allocated Nodes; default to one")
 
     args = parser.parse_args()
 
@@ -494,15 +769,24 @@ if __name__ == "__main__":
         # If setting up, set up the suite
         if args.setup:
             print("\n")
-            print("Setting Up Test Cases:")
-            setup_suite(suite_root, args.work_dir, args.model_runtime,
-                        args.config_file, args.baseline_dir, args.verbose)
-            summarize_suite(suite_root)
+            get_test_case_procs(suite_root)
+            summarize_suite()
+            print("\n\nSetting Up Test Cases:")
+            if args.local_parallel:
+                    # write parallel thing #
+                local_parallel_script, local_parallel_code = local_parallel_setup_script(
+                    args.work_dir, suite_root, args.verbose, args, suite_root)
+                local_parallel_script.write(local_parallel_code)
+            else:
+                regression_script, regression_script_code = setup_suite(
+                    suite_root, args.work_dir, args.model_runtime,
+                    args.config_file, args.baseline_dir, args.verbose, args)
+                regression_script.write(regression_script_code)
             if args.verbose:
                 cmd = ['cat',
                        args.work_dir + '/manage_regression_suite.py.out']
                 print('\nCase setup output:')
-                print(subprocess.check_output(cmd))
+                print(subprocess.check_output(cmd).decode('utf-8'))
             write_history = True
 
     # Write the history of this command to the command_history file, for
@@ -533,5 +817,11 @@ if __name__ == "__main__":
         history_file.write('**************************************************'
                            '*********************\n')
         history_file.close()
+    # }}}
+
+
+if __name__ == "__main__":
+    main()
+
 
 # vim: foldmethod=marker ai ts=4 sts=4 et sw=4 ft=python

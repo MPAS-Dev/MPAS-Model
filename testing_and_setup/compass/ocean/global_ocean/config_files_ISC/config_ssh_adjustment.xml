@@ -2,9 +2,10 @@
 <config case="ssh_adjustment">
 	<add_link source="../initial_state/graph.info" dest="graph.info"/>
 	<add_link source="../initial_state/initial_state.nc" dest="init0.nc"/>
+	<add_link source="../initial_state/init_mode_forcing_data.nc" dest="forcing_data.nc"/>
 
 	<add_link source_path="script_core_dir" source="iterative_ssh_landIcePressure_scripts/iterate_init.py" dest="iterate_init.py"/>
-	<add_link source_path="script_core_dir" source="scripts/plot_globalStats.py" dest="plot_globalStats.py"/>
+	<add_link source_path="script_core_dir" source="scripts/plots/plot_globalStats.py" dest="plot_globalStats.py"/>
 
 	<namelist name="namelist.ocean" mode="forward">
 		<template file="template_forward.xml" path_base="script_configuration_dir"/>
@@ -31,6 +32,7 @@
 			<attribute name="clobber_mode">truncate</attribute>
 			<attribute name="output_interval">0000_00:00:01</attribute>
 		</stream>
+		<template file="template_forward.xml" path_base="script_configuration_dir"/>
 	</streams>
 
 	<run_script name="run.py">

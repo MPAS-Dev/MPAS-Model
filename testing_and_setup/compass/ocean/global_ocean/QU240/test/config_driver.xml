@@ -1,1 +1,11 @@
-../../config_files/config_driver_test.xml
+<driver_script name="run.py">
+	<prerequisite core="ocean" configuration="global_ocean" resolution="QU240" test="init"/>
+	<case name="test">
+		<step executable="./run.py" quiet="true" pre_message=" * Running short test of ocean model..." post_message="     complete!"/>
+	</case>
+	<validation>
+		<compare_fields file1="forward/output.nc">
+			<template file="prognostic_comparison.xml" path_base="script_core_dir" path="templates/validations"/>
+		</compare_fields>
+	</validation>
+</driver_script>

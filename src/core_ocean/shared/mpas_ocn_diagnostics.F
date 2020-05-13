@@ -201,6 +201,8 @@ contains
       call mpas_pool_get_array(diagnosticsPool, 'potentialDensity', potentialDensity)
       call mpas_pool_get_array(diagnosticsPool, 'montgomeryPotential', montgomeryPotential)
       call mpas_pool_get_array(diagnosticsPool, 'pressure', pressure)
+      call mpas_pool_get_array(diagnosticsPool, 'inSituThermalExpansionCoeff',inSituThermalExpansionCoeff)
+      call mpas_pool_get_array(diagnosticsPool, 'inSituSalineContractionCoeff', inSituSalineContractionCoeff)
       call mpas_pool_get_array(diagnosticsPool, 'BruntVaisalaFreqTop', BruntVaisalaFreqTop)
       call mpas_pool_get_array(diagnosticsPool, 'tangentialVelocity', tangentialVelocity)
       call mpas_pool_get_array(diagnosticsPool, 'layerThicknessEdge', layerThicknessEdge)
@@ -605,22 +607,13 @@ contains
       !
 
       ! Only need densities on 0, 1, and 2 halo cells
-      nCells = nCellsArray( 3 )
+      nCells = nCellsArray( size(nCellsArray) )
 
       ! compute in-place density
-      if (config_pressure_gradient_type.eq.'Jacobian_from_TS') then
-         ! only compute EOS derivatives if needed.
-         call mpas_pool_get_array(diagnosticsPool, 'inSituThermalExpansionCoeff',inSituThermalExpansionCoeff)
-         call mpas_pool_get_array(diagnosticsPool, 'inSituSalineContractionCoeff', inSituSalineContractionCoeff)
-         call ocn_equation_of_state_density(statePool, diagnosticsPool, meshPool, scratchPool, &
-                                            nCells, 0, 'relative', density, err, &
-                                            inSituThermalExpansionCoeff, inSituSalineContractionCoeff, &
-                                            timeLevelIn=timeLevel)
-      else
-         call ocn_equation_of_state_density(statePool, diagnosticsPool, meshPool, scratchPool, &
-                                            nCells, 0, 'relative', density, err, &
-                                            timeLevelIn=timeLevel)
-      endif
+      call ocn_equation_of_state_density(statePool, diagnosticsPool, meshPool, scratchPool, &
+                                         nCells, 0, 'relative', density, err, &
+                                         inSituThermalExpansionCoeff, inSituSalineContractionCoeff, &
+                                         timeLevelIn=timeLevel)
       call mpas_threading_barrier()
 
       ! compute potentialDensity, the density displaced adiabatically to the mid-depth of top layer.
@@ -713,7 +706,7 @@ contains
 
       endif
 
-      nCells = nCellsArray( 3 )
+      nCells = nCellsArray( size(nCellsArray) )
 
       !
       ! Brunt-Vaisala frequency (this has units of s^{-2})
@@ -733,6 +726,7 @@ contains
       ! Gradient Richardson number
       !
 
+      nCells = nCellsArray(3)
       !$omp do schedule(runtime) private(invAreaCell1, k, shearSquared, i, iEdge, factor, delU2, shearMean)
       do iCell=1,nCells
          RiTopOfCell(:,iCell) = 100.0_RKIND
@@ -1619,31 +1613,7 @@ contains
          kVonKarman = 0.4_RKIND, &      ! the von Karman constant
          xiN = 0.052_RKIND              ! dimensionless planetary boundary layer constant
 
-
       call mpas_pool_get_config(ocnConfigs, 'config_land_ice_flux_mode', config_land_ice_flux_mode)
-      if ( trim(config_land_ice_flux_mode) .ne. 'off' ) then
-
-         ! we need to compute the landiceMask regardless of which mode we're in so it can be
-         ! added to the restart file
-
-         call mpas_pool_get_array(forcingPool, 'landIceFraction', landIceFraction)
-         call mpas_pool_get_array(forcingPool, 'landIceMask', landIceMask)
-
-         call mpas_pool_get_dimension(meshPool, 'nCells', nCells)
-         ! compute landIceMask from landIceFraction
-         !$omp do schedule(runtime)
-         do iCell = 1, nCells
-            if (landIceFraction(iCell) >= 0.5_RKIND) then
-               landIceMask(iCell) = 1
-            else
-               landIceMask(iCell) = 0
-               ! don't allow land-ice fluxes if land ice is masked out
-               landIceFraction(iCell) = 0.0_RKIND
-            end if
-         end do
-         !$omp end do
-
-      end if
 
       if ( trim(config_land_ice_flux_mode) .ne. 'standalone' .and. trim(config_land_ice_flux_mode) .ne. 'coupled' ) then
          return
@@ -1693,6 +1663,7 @@ contains
       call mpas_pool_get_dimension(tracersPool, 'index_salinity', indexS)
 
       call mpas_pool_get_array(forcingPool, 'landIceFraction', landIceFraction)
+      call mpas_pool_get_array(forcingPool, 'landIceMask', landIceMask)
 
       call mpas_pool_get_array(diagnosticsPool, 'kineticEnergyCell', kineticEnergyCell)
 
@@ -1864,8 +1835,7 @@ contains
       real (kind=RKIND), dimension(:,:), pointer :: &
          normalTransportVelocity, transportVelocityX, transportVelocityY, transportVelocityZ, transportVelocityZonal, &
          transportVelocityMeridional, normalGMBolusVelocity, GMBolusVelocityX, GMBolusVelocityY, GMBolusVelocityZ, &
-         GMBolusVelocityZonal, GMBolusVelocityMeridional, relativeSlopeTopOfEdge, relativeSlopeTopOfCellX, &
-         relativeSlopeTopOfCellY, relativeSlopeTopOfCellZ, relativeSlopeTopOfCellZonal, relativeSlopeTopOfCellMeridional, &
+         GMBolusVelocityZonal, GMBolusVelocityMeridional, &
          gmStreamFuncTopOfEdge, GMStreamFuncX, GMStreamFuncY, GMStreamFuncZ, GMStreamFuncZonal, GMStreamFuncMeridional
 
       call mpas_timer_start('reconstruct gm vecs')
@@ -1883,13 +1853,6 @@ contains
       call mpas_pool_get_array(diagnosticsPool, 'GMBolusVelocityZ', GMBolusVelocityZ)
       call mpas_pool_get_array(diagnosticsPool, 'GMBolusVelocityZonal', GMBolusVelocityZonal)
       call mpas_pool_get_array(diagnosticsPool, 'GMBolusVelocityMeridional', GMBolusVelocityMeridional)
-
-      call mpas_pool_get_array(diagnosticsPool, 'relativeSlopeTopOfEdge', relativeSlopeTopOfEdge)
-      call mpas_pool_get_array(diagnosticsPool, 'relativeSlopeTopOfCellX', relativeSlopeTopOfCellX)
-      call mpas_pool_get_array(diagnosticsPool, 'relativeSlopeTopOfCellY', relativeSlopeTopOfCellY)
-      call mpas_pool_get_array(diagnosticsPool, 'relativeSlopeTopOfCellZ', relativeSlopeTopOfCellZ)
-      call mpas_pool_get_array(diagnosticsPool, 'relativeSlopeTopOfCellZonal', relativeSlopeTopOfCellZonal)
-      call mpas_pool_get_array(diagnosticsPool, 'relativeSlopeTopOfCellMeridional', relativeSlopeTopOfCellMeridional)
 
       call mpas_pool_get_array(diagnosticsPool, 'gmStreamFuncTopOfEdge', gmStreamFuncTopOfEdge)
       call mpas_pool_get_array(diagnosticsPool, 'GMStreamFuncX', GMStreamFuncX)
@@ -1913,14 +1876,6 @@ contains
                        GMBolusVelocityZonal,        &
                        GMBolusVelocityMeridional    &
                       )
-
-      call mpas_reconstruct(meshPool, relativeSlopeTopOfEdge,          &
-                      relativeSlopeTopOfCellX,            &
-                      relativeSlopeTopOfCellY,            &
-                      relativeSlopeTopOfCellZ,            &
-                      relativeSlopeTopOfCellZonal,        &
-                      relativeSlopeTopOfCellMeridional    &
-                     )
 
       call mpas_reconstruct(meshPool, gmStreamFuncTopOfEdge,          &
                       GMStreamFuncX,            &

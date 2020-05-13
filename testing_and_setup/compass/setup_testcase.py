@@ -25,6 +25,7 @@ import subprocess
 from six.moves import configparser
 import textwrap
 import netCDF4
+import shutil
 
 try:
     from collections import defaultdict
@@ -516,6 +517,8 @@ def generate_driver_scripts(config_file, configs):  # {{{
         if not os.path.exists(init_path):
             os.makedirs(init_path)
 
+        link_load_compass_env(init_path, configs)
+
         # Create script file
         script = open('{}/{}'.format(init_path, name), 'w')
 
@@ -590,7 +593,7 @@ def generate_driver_scripts(config_file, configs):  # {{{
                     # Process <step> tags
                     if grandchild.tag == 'step':
                         process_script_step(grandchild, configs, '    ',
-                                            script)
+                                            script, conda_mpi=False)
                     # Process <define_env_var> tags
                     elif grandchild.tag == 'define_env_var':
                         process_env_define_step(grandchild, configs, '    ',
@@ -660,7 +663,8 @@ def process_env_define_step(var_tag, configs, indentation, script_file):  # {{{
 # }}}
 
 
-def process_script_step(step, configs, indentation, script_file):  # {{{
+def process_script_step(step, configs, indentation, script_file,
+                        conda_mpi=None):  # {{{
     # Determine step attributes.
     if 'executable_name' in step.attrib.keys() and 'executable' in \
             step.attrib.keys():
@@ -696,6 +700,15 @@ def process_script_step(step, configs, indentation, script_file):  # {{{
     except KeyError:
         executable = step.attrib['executable']
 
+    if 'conda_mpi' in step.attrib:
+        # This step explicitly asks says whether to use conda MPI
+        conda_mpi = step.attrib['conda_mpi'] == "true"
+    elif conda_mpi is None:
+        # if not set explicitly, we will try to use conda MPI for executables
+        # start with "python" or end with ".py"
+        basename = os.path.basename(executable)
+        conda_mpi = (basename.startswith('python') or basename.endswith('.py'))
+
     # Write step header
     script_file.write("\n")
 
@@ -707,7 +720,7 @@ def process_script_step(step, configs, indentation, script_file):  # {{{
 
     script_file.write("{}# Run command is:\n".format(indentation))
 
-    command_args = [executable]
+    command_args = add_executable_prefix(executable, configs, conda_mpi)
     # Process step arguments
     for argument in step:
         if argument.tag == 'argument':
@@ -875,6 +888,10 @@ def process_field_definition(field_tag, configs, script, file1, file2,
     # Build the base command to compare the fields
     command_args = [compare_executable, '-q', '-1', file1, '-2', file2, '-v',
                     field_name]
+
+    if configs.getboolean('conda', 'use_conda_mpi'):
+        prefix = configs.get('conda', 'python_prefix').split(' ')
+        command_args = prefix + command_args
 
     # Determine norm thresholds
     if baseline_comp:
@@ -1176,10 +1193,23 @@ def add_links(config_file, configs):  # {{{
     for child in config_root:
         # Process an <add_link> tag
         if child.tag == 'add_link':
+            source_file = get_source_file(child, configs)
+            dest = child.attrib['dest']
+            old_cwd = os.getcwd()
+            os.chdir(base_path)
+
+            subprocess.check_call(['ln', '-sfn', '{}'.format(source_file),
+                                   '{}'.format(dest)],
+                                  stdout=dev_null, stderr=dev_null)
+            os.chdir(old_cwd)
+            del source
+            del dest
+        # Process an <copy_file> tag
+        if child.tag == 'copy_file':
             try:
                 source = child.attrib['source']
             except KeyError:
-                print(" add_link tag missing a 'source' attribute.")
+                print(" copy_file tag missing a 'source' attribute.")
                 print(" Exiting...")
                 sys.exit(1)
 
@@ -1207,7 +1237,7 @@ def add_links(config_file, configs):  # {{{
                             source_path = 'NONE'
 
                     if source_path == 'NONE':
-                        print("ERROR: source_path on <add_link> tag is '{}' "
+                        print("ERROR: source_path on <copy_file> tag is '{}' "
                               "which is not defined".format(source_path_name))
                         print("Exiting...")
                         sys.exit(1)
@@ -1236,33 +1266,96 @@ def add_links(config_file, configs):  # {{{
             old_cwd = os.getcwd()
             os.chdir(base_path)
 
-            subprocess.check_call(['ln', '-sfn', '{}'.format(source_file),
+            subprocess.check_call(['cp', '-n', '{}'.format(source_file),
                                    '{}'.format(dest)],
                                   stdout=dev_null, stderr=dev_null)
             os.chdir(old_cwd)
-            del source
-            del dest
         # Process an <add_executable> tag
         elif child.tag == 'add_executable':
             source_attr = child.attrib['source']
             dest = child.attrib['dest']
             if not configs.has_option("executables", source_attr):
-                print('ERROR: Configuration {} requires a definition of '
+                raise ValueError('Configuration {} requires a definition of '
                       '{}.'.format(config_file, source_attr))
-                sys.exit(1)
-            else:
-                source = configs.get("executables", source_attr)
+            source = configs.get("executables", source_attr)
 
             subprocess.check_call(['ln', '-sf', '{}'.format(source),
                                    '{}/{}'.format(base_path, dest)],
                                   stdout=dev_null, stderr=dev_null)
-            del source_attr
-            del source
-            del dest
 
-    del config_tree
-    del config_root
     dev_null.close()
+# }}}
+
+
+def get_source_file(child, config):  # {{{
+    try:
+        source = child.attrib['source']
+    except KeyError:
+        raise KeyError("{} tag missing a 'source' attribute.".format(
+            child.tag))
+
+    try:
+        source_path_name = child.attrib['source_path']
+    except KeyError:
+        return source
+
+    keyword_path = any(substring in source_path_name for
+                       substring in ['work_', 'script_'])
+
+    if keyword_path:
+        source_arr = source_path_name.split('_')
+        base_name = source_arr[0]
+        if base_name == 'work':
+            file_base_path = 'work_dir'
+        elif base_name == 'script':
+            file_base_path = 'script_path'
+        else:
+            raise ValueError('Unexpected source prefix {} in {} tag'.format(
+                base_name, child.tag))
+
+        subname = '{}_{}'.format(source_arr[1], source_arr[2])
+        if subname not in ['core_dir', 'configuration_dir',
+                           'resolution_dir', 'test_dir', 'case_dir']:
+            raise ValueError('Unexpected source suffix {} in {} tag'.format(
+                subname, child.tag))
+
+        source_path = '{}/{}'.format(
+            config.get('script_paths', file_base_path),
+            config.get('script_paths', subname))
+    else:
+        if config.has_option('paths', source_path_name):
+            source_path = config.get('paths', source_path_name)
+        else:
+            if not config.has_option('script_paths', source_path_name):
+                raise ValueError('Undefined source_path on {} tag: {}'.format(
+                    child.tag, source_path_name))
+            source_path = config.get('script_paths',  source_path_name)
+
+    source_file = '{}/{}'.format(source_path, source)
+    return source_file
+# }}}
+
+
+def copy_files(config_file, config):  # {{{
+    config_tree = ET.parse(config_file)
+    config_root = config_tree.getroot()
+
+    case = config_root.attrib['case']
+
+    # Determine the path for the case directory
+    test_path = '{}/{}'.format(config.get('script_paths', 'test_dir'), case)
+    base_path = '{}/{}'.format(config.get('script_paths', 'work_dir'),
+                               test_path)
+
+    # Process all children tags
+    for child in config_root:
+        # Process an <copy_file> tag
+        if child.tag == 'copy_file':
+            source = get_source_file(child, config)
+
+            dest = '{}/{}'.format(base_path, child.attrib['dest'])
+
+            shutil.copy(source, dest)
 # }}}
 
 
@@ -1539,6 +1632,35 @@ def get_case_name(config_file):  # {{{
 
     return name
 # }}}
+
+
+def add_executable_prefix(executable, configs, conda_mpi):  # {{{
+    """
+    Prepend a prefix to the executable if conda MPI is requested and MPI is
+    present in the conda environment
+    """
+    command_args = [executable]
+    if conda_mpi and configs.getboolean('conda', 'use_conda_mpi'):
+        prefix = configs.get('conda', 'python_prefix').split(' ')
+        command_args = prefix + command_args
+    return command_args
+# }}}
+
+def link_load_compass_env(init_path, configs):  # {{{
+
+    if configs.getboolean('conda', 'link_load_compass'):
+        target = configs.get('conda', 'load_compass_script')
+
+        link_name = '{}/load_compass_env.sh'.format(init_path)
+        try:
+            os.symlink(target, link_name)
+        except OSError as e:
+            if e.errno == errno.EEXIST:
+                os.remove(link_name)
+                os.symlink(target, link_name)
+            else:
+                raise e
+# }}}
 # }}}
 
 
@@ -1580,6 +1702,10 @@ if __name__ == "__main__":
                         help="If set, script will create case directories in "
                              "work_dir rather than the current directory.",
                         metavar="PATH")
+    parser.add_argument("--link_load_compass", dest="link_load_compass",
+                        action="store_true",
+                        help="If set, a link to load_compass_env.sh is included"
+                             " with each test case")
 
     args = parser.parse_args()
 
@@ -1667,6 +1793,29 @@ if __name__ == "__main__":
     else:
         config.set('script_input_arguments', 'model_runtime',
                    args.model_runtime)
+
+    if not config.has_section('conda'):
+        config.add_section('conda')
+
+    config.set('conda', 'use_conda_mpi', 'False')
+    if 'CONDA_PREFIX' in os.environ:
+        # We're running from a conda environment
+        mpirun_path = '{}/bin/mpirun'.format(os.environ['CONDA_PREFIX'])
+        if os.path.exists(mpirun_path):
+            # MPI is installed in that conda environment
+            config.set('conda', 'use_conda_mpi', 'True')
+            config.set('conda', 'python_prefix', '{} -np 1'.format(mpirun_path))
+
+    if not config.has_option('conda', 'link_load_compass'):
+        config.set('conda', 'link_load_compass', 'False')
+
+    if args.link_load_compass:
+        config.set('conda', 'link_load_compass', 'True')
+
+    if config.getboolean('conda', 'link_load_compass'):
+        load_script = '{}/load_compass_env.sh'.format(
+            os.path.dirname(os.path.abspath(__file__)))
+        config.set('conda', 'load_compass_script', load_script)
 
     # Build variables for history output
     old_dir = os.getcwd()
@@ -1764,6 +1913,8 @@ if __name__ == "__main__":
 
                     # Process all links for this case
                     add_links(config_file, config)
+
+                    copy_files(config_file, config)
 
                     # Generate run scripts for this case.
                     generate_run_scripts(config_file, '{}'.format(case_path),

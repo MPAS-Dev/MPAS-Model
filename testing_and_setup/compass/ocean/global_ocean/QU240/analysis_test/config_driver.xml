@@ -1,4 +1,5 @@
 <driver_script name="run.py">
+	<prerequisite core="ocean" configuration="global_ocean" resolution="QU240" test="init"/>
 	<case name="forward">
 		<step executable="./run.py" quiet="true" pre_message=" * Running forward" post_message=" - Complete"/>
 	</case>

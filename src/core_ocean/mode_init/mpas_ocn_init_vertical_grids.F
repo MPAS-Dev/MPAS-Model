@@ -786,20 +786,22 @@ contains
       type (field2DReal), pointer :: zInterfaceField, goalStretchField, goalWeightField, &
                                      verticalStretchField
       type (field1DReal), pointer :: zTopField, zBotField, zBotNewField
+      type (field1DInteger), pointer :: maxLevelCellField
       type (field1DInteger), pointer :: smoothingMaskField, smoothingMaskNewField
 
       real (kind=RKIND), dimension(:,:), pointer :: zMid, layerThickness, restingThickness, zInterface, &
                                                     verticalStretch, goalStretch, goalWeight, rx1Edge
-      real (kind=RKIND), dimension(:), pointer :: ssh, bottomDepth, refBottomDepth, zTop, zBot, zBotNew, landIceFraction, &
+      integer, dimension(:), pointer :: landIceMask
+      real (kind=RKIND), dimension(:), pointer :: ssh, bottomDepth, refBottomDepth, zTop, zBot, zBotNew, &
                                         refLayerThickness
 
       real (kind=RKIND), pointer :: globalRx1Max, globalVerticalStretchMax, globalVerticalStretchMin
 
-      integer, pointer :: nCells, nVertLevels, nEdges
+      integer, pointer :: nCells, nVertLevels, nEdges, nCellsSolve
       integer, dimension(:), pointer :: maxLevelCell, cullCell, nEdgesOnCell, smoothingMask, smoothingMaskNew
       integer, dimension(:,:), pointer :: cellsOnEdge, cellsOnCell, edgesOnCell
 
-      integer :: iCell, iEdge, coc, c1, c2, k, maxLevelEdge, iSmooth, iterIndex
+      integer :: iCell, iEdge, coc, c1, c2, k, maxLevelEdge, iSmooth, iterIndex, maxLevelNeighbors
 
       real (kind=RKIND) :: dzEdgeK, dzEdgeKp1, dzEdgeMean, dzVertGoal, &
                            zMean, weight, rx1Goal, dzVertMean, &
@@ -807,8 +809,6 @@ contains
                            localStretchMax, localStretchMin
 
       logical :: moveInterface
-
-      real (kind=RKIND), parameter :: eps=1e-6_RKIND
 
       iErr = 0
 
@@ -855,7 +855,7 @@ contains
         call mpas_pool_get_array(meshPool, 'cullCell', cullCell)
         call mpas_pool_get_array(meshPool, 'maxLevelCell', maxLevelCell)
 
-        call mpas_pool_get_array(forcingPool, 'landIceFraction', landIceFraction)
+        call mpas_pool_get_array(forcingPool, 'landIceMask', landIceMask)
         call mpas_pool_get_array(diagnosticsPool, 'rx1InitSmoothingMask', smoothingMask, 1)
 
         maxLevelCell(nCells+1) = -1
@@ -870,7 +870,7 @@ contains
 
         ! initialize the smoothing mask to valid cells under land ice
         smoothingMask(:) = 0
-        where((maxLevelCell(:) > 0) .and. (landIceFraction(:) > eps))
+        where((maxLevelCell(:) > 0) .and. (landIceMask(:) == 1))
           smoothingMask(:) = 1
         end where
 
@@ -1206,6 +1206,28 @@ contains
           call mpas_pool_get_dimension(meshPool, 'nVertLevels', nVertLevels)
           call mpas_pool_get_array(meshPool, 'maxLevelCell', maxLevelCell)
           call mpas_pool_get_array(diagnosticsPool, 'rx1InitSmoothingMask', smoothingMask, 1)
+          call mpas_pool_get_dimension(meshPool, 'nCellsSolve', nCellsSolve)
+          call mpas_pool_get_array(meshPool, 'nEdgesOnCell', nEdgesOnCell)
+          call mpas_pool_get_array(meshPool, 'cellsOnCell', cellsOnCell)
+
+          ! Fill bathymetry holes, i.e. single cells that are deeper than all neighbors.
+          ! These cells can collect tracer extrema and are not able to use
+          ! horizontal diffusion or advection to clear them out. Reduce pits to
+          ! make them level with the next deepest neighbor cell.
+
+          maxLevelCell(nCells+1) = -1
+
+          do iCell = 1, nCellsSolve
+             maxLevelNeighbors = 0
+             do iEdge = 1, nEdgesOnCell(iCell)
+                coc = cellsOnCell(iEdge, iCell)
+                maxLevelNeighbors = max(maxLevelNeighbors, maxLevelCell(coc))
+             end do
+
+             if (maxLevelCell(iCell) > maxLevelNeighbors) then
+                maxLevelCell(iCell) = maxLevelNeighbors
+             end if
+          end do
 
           where((smoothingMask(:) == 1) .and. (maxLevelCell(:) == nVertLevels+1))
             ! we never found the bottom, so it must be the last level
@@ -1215,10 +1237,13 @@ contains
           block_ptr => block_ptr % next
         end do
 
+       call mpas_pool_get_subpool(domain % blocklist % structs, 'mesh', meshPool)
+       call mpas_pool_get_field(meshPool, 'maxLevelCell', maxLevelCellField)
+       call mpas_dmpar_exch_halo_field(maxLevelCellField)
+
         localMaxRx1Edge = -1e30_RKIND
         localStretchMin = 1e30_RKIND
         localStretchMax = -1e30_RKIND
-
 
         block_ptr => domain % blocklist
         do while(associated(block_ptr))

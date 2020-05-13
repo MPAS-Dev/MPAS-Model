@@ -1,0 +1,22 @@
+<!--
+This regression suite follows the test cases from Petersen et al. (2015):
+
+1. lock exchange, 0.5km
+2. overflow, 1km
+3. internal gravity wave, 5km
+4. baroclinic channel: 1, 4, 10km
+
+The purpose of these tests is to measure the change in the Reference Potential
+Energy (RPE), which is a measure of mixing. These tests are set to have zero
+horizontal and vertical tracer diffusion and zero surface fluxes, so all mixing
+measured by RPE is due to spurious numerical diffusion.
+-->
+
+<regression_suite name="Horizontal_Advection_Zonal_Meridinal_test">
+	<test name="Horizontal Advection Bar Zonal Test" core="ocean" configuration="horizontal_advection" resolution="planar" test="ZonalC_test">
+		<script name="run_test.py"/>
+	</test>
+	<test name="Horizontal Advection Bar Meridinal Test" core="ocean" configuration="horizontal_advection" resolution="planar" test="MeridinalC_test">
+		<script name="run_test.py"/>
+	</test>
+</regression_suite>
