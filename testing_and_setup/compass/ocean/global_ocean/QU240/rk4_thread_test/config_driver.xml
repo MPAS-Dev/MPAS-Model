@@ -1,4 +1,5 @@
 <driver_script name="run.py">
+	<prerequisite core="ocean" configuration="global_ocean" resolution="QU240" test="init"/>
 	<case name="1thread_run">
 		<step executable="./run.py" quiet="true" pre_message=" * Running 1thread_run" post_message="  - Complete"/>
 	</case>

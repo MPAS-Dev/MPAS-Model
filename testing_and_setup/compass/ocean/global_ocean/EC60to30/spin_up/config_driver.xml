@@ -1,4 +1,5 @@
 <driver_script name="run.py">
+	<prerequisite core="ocean" configuration="global_ocean" resolution="EC60to30" test="init"/>
 	<case name="prep_spin_up1">
 		<step executable="./run.py" quiet="true" pre_message=" * Running prep_spin_up1" post_message=" - Complete"/>
 	</case>

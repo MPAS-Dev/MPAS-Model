@@ -1,4 +1,5 @@
 <driver_script name="run.py">
+	<prerequisite core="ocean" configuration="global_ocean" resolution="QU240" test="init"/>
 	<case name="initial_state">
 		<step executable="./run.py" quiet="true" pre_message=" * Initializing ocean state with bathymetry and tracers..." post_message="     complete!  Created file:  initial_state/initial_state.nc"/>
 	</case>
