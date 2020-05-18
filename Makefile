@@ -497,7 +497,7 @@ endif
 ifneq "$(NETCDF)" ""
 	CPPINCLUDES += -I$(NETCDF)/include
 	FCINCLUDES += -I$(NETCDF)/include
-        LIBS += -L/opt/modules/centos7/netcdf/intel-2016/4.4.3-fortran/lib #manual add netcdf-fortran, setup on viz3/UMaine, ZG
+        #LIBS += -L/opt/modules/centos7/netcdf/intel-2016/4.4.3-fortran/lib #manual add netcdf-fortran, setup on viz3/UMaine, ZG
 	LIBS += -L$(NETCDF)/lib
 	NCLIB = -lnetcdf
 	NCLIBF = -lnetcdff
@@ -737,12 +737,12 @@ ifdef MPAS_EXTERNAL_CPPFLAGS
 endif
 
 ###Add SCHISM lib (from git)
-#LIBS += -L/global/homes/y/yinglong/SCHISM/git/schism/src/ -lschism -L/global/homes/y/yinglong/SCHISM/git/schism/src/ParMetis-3.1-Sep2010.cray/ -lparmetis -lmetis
-#FCINCLUDES += -I/global/homes/y/yinglong/SCHISM/git/schism/src/o/svn.CORI2/
+LIBS += -L/global/homes/y/yinglong/SCHISM/git/schism/src/ -lschism -L/global/homes/y/yinglong/SCHISM/git/schism/src/ParMetis-3.1-Sep2010.cray/ -lparmetis -lmetis
+FCINCLUDES += -I/global/homes/y/yinglong/SCHISM/git/schism/src/o/svn.CORI2/
 
 #SCHISM setup on viz3/UMaine, ZG
-LIBS += -L/home/zwang/mpas/schism/src/ -lschism -L/home/zwang/mpas/schism/src/ParMetis-3.1-Sep2010/ -lparmetis -lmetis
-FCINCLUDES += -I/home/zwang/mpas/schism/src/o/svn.MAINE/
+#LIBS += -L/home/zwang/mpas/schism/src/ -lschism -L/home/zwang/mpas/schism/src/ParMetis-3.1-Sep2010/ -lparmetis -lmetis
+#FCINCLUDES += -I/home/zwang/mpas/schism/src/o/svn.MAINE/
 
 ####################################################
 
