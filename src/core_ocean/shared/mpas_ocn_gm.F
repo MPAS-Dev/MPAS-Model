@@ -15,6 +15,7 @@ module ocn_gm
 
    use ocn_constants
    use ocn_config
+   use ocn_diagnostics_variables
 
    implicit none
    private
@@ -68,7 +69,7 @@ contains
 !
 !-----------------------------------------------------------------------
 
-   subroutine ocn_GM_compute_Bolus_velocity(statePool, diagnosticsPool, &
+   subroutine ocn_GM_compute_Bolus_velocity(statePool, &
                                             meshPool, scratchPool, timeLevelIn)
       !{{{
 
@@ -92,7 +93,6 @@ contains
       !-----------------------------------------------------------------
 
       type(mpas_pool_type), intent(inout) :: &
-         diagnosticsPool, &! pool containing some diagnostics
          scratchPool           ! pool containing some scratch space
 
       !-----------------------------------------------------------------
@@ -101,18 +101,12 @@ contains
       !
       !-----------------------------------------------------------------
 
-      real(kind=RKIND), dimension(:, :), pointer :: density, displacedDensity, zMid, normalGMBolusVelocity, &
-                                                    layerThicknessEdge, gradDensityEdge, &
-                                                    k33, gmStreamFuncTopOfEdge, BruntVaisalaFreqTop, gmStreamFuncTopOfCell, &
-                                                    layerThickness, inSituThermalExpansionCoeff, &
-                                                    inSituSalineContractionCoeff, kappaRediCell, kappaGMCell, kappaRediSfcTaper, &
-                                                    zTop, RiTopOfCell
+      real(kind=RKIND), dimension(:, :), pointer :: gradDensityEdge, &
+                                                    layerThickness
 
-      real(kind=RKIND), dimension(:), pointer   :: c_visbeck, gmBolusKappa, cGMphaseSpeed, &
-                ssh, eddyLength, eddyTime, betaEdge, fEdge, gmResolutionTaper, RediKappa
-      real(kind=RKIND), dimension(:, :, :), pointer :: slopeTriadUp, slopeTriadDown
-      real(kind=RKIND), dimension(:), pointer   :: areaCell, dcEdge, dvEdge, tridiagA, tridiagB, tridiagC, rightHandSide
-      integer, dimension(:), pointer   :: maxLevelEdgeTop, maxLevelCell, nEdgesOnCell, indMLD
+      real(kind=RKIND), dimension(:), pointer   :: ssh
+      real(kind=RKIND), dimension(:), pointer   :: areaCell, dcEdge, dvEdge, tridiagA, tridiagB, tridiagC, rightHandSide, fEdge, latEdge
+      integer, dimension(:), pointer   :: maxLevelEdgeTop, maxLevelCell, nEdgesOnCell
       integer, dimension(:, :), pointer :: cellsOnEdge, edgesOnCell
       integer                          :: i, k, iEdge, cell1, cell2, iCell, N, iter, iCellSelf, maxLocation
       real(kind=RKIND)                 :: h1, h2, areaEdge, c, BruntVaisalaFreqTopEdge, rtmp
@@ -147,30 +141,6 @@ contains
       call mpas_pool_get_array(tracersPool, 'activeTracers', activeTracers, timeLevel)
       call mpas_pool_get_dimension(tracersPool, 'index_temperature', indexTemperature)
       call mpas_pool_get_dimension(tracersPool, 'index_salinity', indexSalinity)
-
-      call mpas_pool_get_array(diagnosticsPool, 'density', density)
-      call mpas_pool_get_array(diagnosticsPool, 'displacedDensity', displacedDensity)
-      call mpas_pool_get_array(diagnosticsPool, 'inSituThermalExpansionCoeff', inSituThermalExpansionCoeff)
-      call mpas_pool_get_array(diagnosticsPool, 'inSituSalineContractionCoeff', inSituSalineContractionCoeff)
-      call mpas_pool_get_array(diagnosticsPool, 'zMid', zMid)
-      call mpas_pool_get_array(diagnosticsPool, 'indMLD', indMLD)
-
-      call mpas_pool_get_array(diagnosticsPool, 'cGMphaseSpeed', cGMphaseSpeed)
-      call mpas_pool_get_array(diagnosticsPool, 'kappaRediCell', kappaRediCell)
-     call mpas_pool_get_array(diagnosticsPool, 'kappaGMCell', kappaGMCell)
-      call mpas_pool_get_array(diagnosticsPool, 'kappaRediSfcTaper', kappaRediSfcTaper)
-      call mpas_pool_get_array(diagnosticsPool, 'normalGMBolusVelocity', normalGMBolusVelocity)
-      call mpas_pool_get_array(diagnosticsPool, 'slopeTriadUp', slopeTriadUp)
-      call mpas_pool_get_array(diagnosticsPool, 'slopeTriadDown', slopeTriadDown)
-      call mpas_pool_get_array(diagnosticsPool, 'k33', k33)
-      call mpas_pool_get_array(diagnosticsPool, 'layerThicknessEdge', layerThicknessEdge)
-      call mpas_pool_get_array(diagnosticsPool, 'zMid', zMid)
-      call mpas_pool_get_array(diagnosticsPool, 'BruntVaisalaFreqTop', BruntVaisalaFreqTop)
-      call mpas_pool_get_array(diagnosticsPool, 'gmStreamFuncTopOfEdge', gmStreamFuncTopOfEdge)
-      call mpas_pool_get_array(diagnosticsPool, 'gmStreamFuncTopOfCell', gmStreamFuncTopOfCell)
-      call mpas_pool_get_array(diagnosticsPool, 'gmBolusKappa', gmBolusKappa)
-      call mpas_pool_get_array(diagnosticsPool, 'gmResolutionTaper', gmResolutionTaper)
-      call mpas_pool_get_array(diagnosticsPool, 'RediKappa', RediKappa)
 
       call mpas_pool_get_array(meshPool, 'maxLevelEdgeTop', maxLevelEdgeTop)
       call mpas_pool_get_array(meshPool, 'maxLevelCell', maxLevelCell)
@@ -483,13 +453,7 @@ contains
          end if
 
          if (local_config_GM_compute_visbeck) then
-           call mpas_pool_get_array(diagnosticsPool, 'betaEdge', betaEdge)
            call mpas_pool_get_array(meshPool, 'fEdge', fEdge)
-           call mpas_pool_get_array(diagnosticsPool, 'eddyLength', eddyLength)
-           call mpas_pool_get_array(diagnosticsPool, 'eddyTime', eddyTime)
-           call mpas_pool_get_array(diagnosticsPool, 'RiTopOfCell', RiTopOfCell)
-           call mpas_pool_get_array(diagnosticsPool, 'zTop', zTop)
-           call mpas_pool_get_array(diagnosticsPool, 'c_visbeck', c_visbeck)
            !$omp do schedule(runtime) private(cell1, cell2, sumN2, ltSum, sumRi, countN2, zEdge, RiTopOfEdge, BruntVaisalaFreqTopEdge) 
            do iEdge = 1, nEdges
               k=1
@@ -755,8 +719,7 @@ contains
       integer, pointer :: nEdges
       integer, pointer :: nVertLevels
       real(kind=RKIND), pointer :: sphere_radius
-      real(kind=RKIND), dimension(:), pointer   :: latEdge, betaEdge, fEdge, &
-            gmResolutionTaper, gmBolusKappa
+      real(kind=RKIND), dimension(:), pointer   :: fEdge, latEdge
       integer, dimension(:, :), pointer :: cellsOnEdge, edgesOncell
 
       err = 0
@@ -770,9 +733,9 @@ contains
          call mpas_pool_get_dimension(meshPool, 'nVertLevels', nVertLevels)
          call mpas_pool_get_dimension(meshPool, 'nEdges', nEdges)
          call mpas_pool_get_array(meshPool, 'cellsOnEdge', cellsOnEdge)
-         call mpas_pool_get_array(diagnosticsPool, 'gmBolusKappa', gmBolusKappa)
          call mpas_pool_get_array(meshPool, 'dcEdge', dcEdge)
          call mpas_pool_get_array(meshPool, 'fEdge', fEdge)
+         call mpas_pool_get_array(diagnosticsPool, 'gmBolusKappa', gmBolusKappa)
          call mpas_pool_get_array(diagnosticsPool, 'gmResolutionTaper', gmResolutionTaper)
          if (config_Redi_use_slope_taper) then
             slopeTaperFactor = 1.0_RKIND
@@ -820,7 +783,6 @@ contains
             local_config_GM_kappa_lat_depth_variable = .false.
             local_config_GM_compute_visbeck = .true.
 
-            call mpas_pool_get_array(diagnosticsPool, 'betaEdge', betaEdge)
             call mpas_pool_get_array(meshPool, 'latEdge', latEdge)
             call mpas_pool_get_config(meshPool, 'sphere_radius', sphere_radius)
             !$omp do schedule(runtime)

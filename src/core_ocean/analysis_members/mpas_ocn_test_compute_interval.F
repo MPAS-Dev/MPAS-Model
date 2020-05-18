@@ -28,6 +28,7 @@ module ocn_test_compute_interval
 
    use ocn_constants
    use ocn_diagnostics_routines
+   use ocn_diagnostics_variables
 
    implicit none
    private
@@ -171,7 +172,6 @@ contains
       type (mpas_pool_type), pointer :: statePool
       type (mpas_pool_type), pointer :: meshPool
       type (mpas_pool_type), pointer :: scratchPool
-      type (mpas_pool_type), pointer :: diagnosticsPool
       type (mpas_pool_type), pointer :: testComputeIntervalAMPool
       character (len=StrKIND), pointer :: xtime
 
@@ -192,8 +192,6 @@ contains
          call mpas_pool_get_array(testComputeIntervalAMPool, 'testComputeIntervalCounter',testComputeIntervalCounter)
 
          testComputeIntervalCounter = testComputeIntervalCounter + 1
-         call mpas_pool_get_subpool(block % structs, 'diagnostics', diagnosticsPool)
-         call mpas_pool_get_array(diagnosticsPool, 'xtime', xtime)
          block => block % next
       end do
 

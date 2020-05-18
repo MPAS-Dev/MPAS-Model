@@ -25,6 +25,7 @@ module ocn_init_sub_ice_shelf_2D
    use mpas_dmpar
 
    use ocn_constants
+   use ocn_diagnostics_variables
    use ocn_init_vertical_grids
    use ocn_init_cell_markers
 
@@ -102,7 +103,7 @@ module ocn_init_sub_ice_shelf_2D
      integer, pointer :: index_temperature, index_salinity
 
      ! Define variable pointers
-     integer, dimension(:), pointer :: maxLevelCell, modifySSHMask, landIceMask
+     integer, dimension(:), pointer :: maxLevelCell, landIceMask
      real (kind=RKIND), dimension(:), pointer :: xCell, yCell,refBottomDepth, refZMid, &
           vertCoordMovementWeights, bottomDepth, &
           fCell, fEdge, fVertex, dcEdge, refLayerThickness
@@ -113,9 +114,7 @@ module ocn_init_sub_ice_shelf_2D
 
      logical, pointer :: on_a_sphere
 
-     type (mpas_pool_type), pointer :: diagnosticsPool
      real(kind=RKIND), dimension(:), pointer :: landIceFraction, ssh
-     real (kind=RKIND), dimension(:,:), pointer :: zMid
 
      iErr = 0
 
@@ -199,7 +198,6 @@ module ocn_init_sub_ice_shelf_2D
         call mpas_pool_get_subpool(block_ptr % structs, 'state', statePool)
         call mpas_pool_get_subpool(block_ptr % structs, 'verticalMesh', verticalMeshPool)
         call mpas_pool_get_subpool(block_ptr % structs, 'forcing', forcingPool)
-        call mpas_pool_get_subpool(block_ptr % structs, 'diagnostics', diagnosticsPool)
 
         call mpas_pool_get_dimension(meshPool, 'nCells', nCells)
 
@@ -217,7 +215,6 @@ module ocn_init_sub_ice_shelf_2D
         call mpas_pool_get_array(forcingPool, 'landIceMask', landIceMask)
 
         call mpas_pool_get_array(statePool, 'ssh', ssh, 1)
-        call mpas_pool_get_array(diagnosticsPool, 'modifySSHMask', modifySSHMask)
         call ocn_mark_north_boundary(meshPool, yMaxGlobal, dcEdgeMinGlobal, iErr)
         call ocn_mark_south_boundary(meshPool, yMinGlobal, dcEdgeMinGlobal, iErr)
 
@@ -291,7 +288,6 @@ module ocn_init_sub_ice_shelf_2D
      do while(associated(block_ptr))
         call mpas_pool_get_subpool(block_ptr % structs, 'mesh', meshPool)
         call mpas_pool_get_subpool(block_ptr % structs, 'state', statePool)
-        call mpas_pool_get_subpool(block_ptr % structs, 'diagnostics', diagnosticsPool)
         call mpas_pool_get_subpool(statePool, 'tracers', tracersPool)
 
         call mpas_pool_get_dimension(meshPool, 'nCells', nCells)
@@ -300,8 +296,6 @@ module ocn_init_sub_ice_shelf_2D
         call mpas_pool_get_dimension(tracersPool, 'index_salinity', index_salinity)
 
         call mpas_pool_get_array(tracersPool, 'activeTracers', activeTracers, 1)
-
-        call mpas_pool_get_array(diagnosticsPool, 'zMid', zMid)
 
         ! compute active tracer fields
         ! If we are constructing an initial guess (rather than reading ssh in from a stream), these are reference activeTracers

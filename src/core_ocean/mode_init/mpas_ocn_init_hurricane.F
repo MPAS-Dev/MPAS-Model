@@ -27,6 +27,7 @@ module ocn_init_hurricane
    use mpas_dmpar
 
    use ocn_constants
+   use ocn_diagnostics_variables
    use ocn_init_vertical_grids
    use ocn_init_cell_markers
 
@@ -85,7 +86,6 @@ contains
     type (mpas_pool_type), pointer :: statePool
     type (mpas_pool_type), pointer :: tracersPool
     type (mpas_pool_type), pointer :: verticalMeshPool
-    type (mpas_pool_type), pointer :: diagnosticsPool
 
     ! local variables
     integer :: iCell, k, idx, iEdge, iVertex
@@ -213,7 +213,6 @@ contains
        call mpas_pool_get_subpool(block_ptr % structs, 'mesh', meshPool)
        call mpas_pool_get_subpool(block_ptr % structs, 'state', statePool)
        call mpas_pool_get_subpool(block_ptr % structs, 'verticalMesh', verticalMeshPool)
-       call mpas_pool_get_subpool(block_ptr % structs, 'diagnostics', diagnosticsPool)
        call mpas_pool_get_subpool(statePool, 'tracers', tracersPool)
 
        call mpas_pool_get_dimension(meshPool, 'nCellsSolve', nCellsSolve)

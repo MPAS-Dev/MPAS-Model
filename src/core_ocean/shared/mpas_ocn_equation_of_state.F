@@ -88,7 +88,7 @@ contains
 !
 !-----------------------------------------------------------------------
 
-   subroutine ocn_equation_of_state_density(statePool, diagnosticsPool,&
+   subroutine ocn_equation_of_state_density(statePool, tracersSurfaceValue, &
                            scratchPool, nCells, kDisplaced,  &
                            displacement_type, density, err,            &
                            thermalExpansionCoeff,                      &
@@ -110,8 +110,9 @@ contains
 
       type (mpas_pool_type), intent(in) :: &
          statePool,           &! pool containing state variables
-         diagnosticsPool,     &! pool containing some forcing fields
          scratchPool           ! pool containing some scratch space
+
+      real (kind=RKIND), dimension(:,:), intent(in) :: tracersSurfaceValue
 
       !-----------------------------------------------------------------
       ! Output variables
@@ -136,7 +137,6 @@ contains
 
       type (mpas_pool_type), pointer :: tracersPool
 
-      real (kind=RKIND), dimension(:,:), pointer :: tracersSurfaceValue
       real (kind=RKIND), dimension(:,:,:), pointer :: activeTracers
       integer :: iCell, k, indexT, indexS
       integer, pointer :: indexTptr, indexSptr
@@ -157,8 +157,6 @@ contains
          timeLevel = 1
       end if
 
-      call mpas_pool_get_array(diagnosticsPool, 'tracersSurfaceValue', &
-                                                 tracersSurfaceValue)
       call mpas_pool_get_subpool  (statePool,   'tracers', &
                                                  tracersPool)
       call mpas_pool_get_array    (tracersPool, 'activeTracers', &

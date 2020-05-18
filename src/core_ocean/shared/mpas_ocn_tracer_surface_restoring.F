@@ -28,6 +28,7 @@ module ocn_tracer_surface_restoring
    use mpas_stream_manager
    use ocn_constants
    use ocn_framework_forcing
+   use ocn_diagnostics_variables
 
    implicit none
 
@@ -218,7 +219,6 @@ contains
 
         type (dm_info) :: dminfo
 
-        type (mpas_pool_type), pointer :: diagnosticsPool
         type (mpas_pool_type), pointer :: forcingPool
         type (mpas_pool_type), pointer :: meshPool
         type (mpas_pool_type), pointer :: statePool
@@ -229,7 +229,7 @@ contains
         real (kind=RKIND), pointer :: salinity_restoring_max_difference, salinity_restoring_constant_piston_velocity
 
         real (kind=RKIND), dimension(:), pointer :: &
-           surfaceSalinityMonthlyClimatologyValue, iceFraction, areaCell, salinitySurfaceRestoringTendency
+           surfaceSalinityMonthlyClimatologyValue, iceFraction, areaCell
 
         real (kind=RKIND), dimension(:,:), pointer :: &
            activeTracersSurfaceRestoringValue
@@ -321,7 +321,6 @@ contains
         call mpas_pool_get_subpool(block % structs, 'mesh', meshPool)
         call mpas_pool_get_subpool(block % structs, 'forcing', forcingPool)
         call mpas_pool_get_subpool(block % structs, 'state', statePool)
-        call mpas_pool_get_subpool(block % structs, 'diagnostics', diagnosticsPool)
         call mpas_pool_get_subpool(statePool, 'tracers', tracersPool)
         call mpas_pool_get_subpool(forcingPool, 'tracersSurfaceRestoringFields',tracersSurfaceRestoringFieldsPool)
         ! Use time level 1, which is always the new time level
@@ -451,7 +450,6 @@ contains
         call mpas_pool_get_subpool(block % structs, 'forcing', forcingPool)
         call mpas_pool_get_array(forcingPool, 'iceFraction', iceFraction)
         call mpas_pool_get_subpool(forcingPool, 'tracersSurfaceRestoringFields',tracersSurfaceRestoringFieldsPool)
-        call mpas_pool_get_array(diagnosticsPool,'salinitySurfaceRestoringTendency',salinitySurfaceRestoringTendency)
         call mpas_pool_get_array(tracersSurfaceRestoringFieldsPool, 'activeTracersSurfaceRestoringValue', &
            activeTracersSurfaceRestoringValue)
         call mpas_pool_get_dimension(tracersSurfaceRestoringFieldsPool, 'index_salinitySurfaceRestoringValue',  &

@@ -37,6 +37,8 @@ module ocn_init_mode
 
    use ocn_constants
    use ocn_config
+   use ocn_diagnostics
+   use ocn_diagnostics_variables
 
    use ocn_init_spherical_utils
 
@@ -95,9 +97,7 @@ module ocn_init_mode
       real (kind=RKIND) :: maxDensity, maxDensity_global
       real (kind=RKIND), dimension(:), pointer :: meshDensity
       type (mpas_pool_type), pointer :: meshPool
-      type (mpas_pool_type), pointer :: diagnosticsPool
 
-      character (len=StrKIND), pointer :: xtime
       type (MPAS_Time_Type) :: startTime
       type (MPAS_TimeInterval_type) :: timeStep
 
@@ -156,10 +156,10 @@ module ocn_init_mode
       timeStep = mpas_get_clock_timestep(domain % clock, ierr=err_tmp)
       call mpas_get_timeInterval(timeStep, dt=dt)
 
+      call ocn_diagnostics_init(domain, ierr)
+
       block => domain % blocklist
       do while (associated(block))
-         call mpas_pool_get_subpool(block % structs, 'diagnostics', diagnosticsPool)
-         call mpas_pool_get_array(diagnosticsPool, 'xtime', xtime)
          xtime = startTimeStamp
          block => block % next
       end do

@@ -30,6 +30,7 @@ module ocn_test
    use mpas_tensor_operations
 
    use ocn_constants
+   use ocn_diagnostics_variables
 
    implicit none
    private
@@ -251,7 +252,7 @@ contains
 !
 !-----------------------------------------------------------------------
 
-   subroutine ocn_init_gm_test_functions(diagnosticsPool, meshPool, scratchPool)!{{{
+   subroutine ocn_init_gm_test_functions(meshPool, scratchPool)!{{{
 
       !-----------------------------------------------------------------
       !
@@ -268,7 +269,6 @@ contains
       !
       !-----------------------------------------------------------------
 
-      type (mpas_pool_type), intent(inout) :: diagnosticsPool  !< Input: diagnostic fields derived from State
       type (mpas_pool_type), intent(in) :: scratchPool !< Input: scratch variables
 
       !-----------------------------------------------------------------
@@ -300,8 +300,6 @@ contains
       call mpas_pool_get_array(meshPool, 'yCell',yCell)
       call mpas_pool_get_array(meshPool, 'yEdge',yEdge)
       call mpas_pool_get_array(meshPool, 'bottomDepth',bottomDepth)
-
-      call mpas_pool_get_array(diagnosticsPool, 'zMid', zMid)
 
       ! move solution variables to diagnostics pool to include them in output.
       call mpas_pool_get_field(scratchPool, 'yRelativeSlopeSolution',yRelativeSlopeSolutionField)

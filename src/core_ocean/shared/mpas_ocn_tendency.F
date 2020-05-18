@@ -26,6 +26,7 @@ module ocn_tendency
    use mpas_timer
    use mpas_threading
    use ocn_diagnostics
+   use ocn_diagnostics_variables
    use ocn_constants
 
    use ocn_surface_bulk_forcing
@@ -107,18 +108,17 @@ contains
 !
 !-----------------------------------------------------------------------
 
-   subroutine ocn_tend_thick(tendPool, forcingPool, diagnosticsPool, meshPool)!{{{
+   subroutine ocn_tend_thick(tendPool, forcingPool, meshPool)!{{{
       implicit none
 
       type (mpas_pool_type), intent(inout) :: tendPool !< Input/Output: Tendency structure
       type (mpas_pool_type), intent(inout) :: forcingPool !< Input: Forcing information
-      type (mpas_pool_type), intent(in) :: diagnosticsPool !< Input: Diagnostics information
       type (mpas_pool_type), intent(in) :: meshPool !< Input: Mesh information
 
       real (kind=RKIND), dimension(:), pointer :: surfaceThicknessFlux
       real (kind=RKIND), dimension(:), pointer :: surfaceThicknessFluxRunoff
-      real (kind=RKIND), dimension(:,:), pointer :: layerThicknessEdge, &
-         vertAleTransportTop, tend_layerThickness, normalTransportVelocity, fractionAbsorbed, fractionAbsorbedRunoff
+      real (kind=RKIND), dimension(:,:), pointer :: &
+         tend_layerThickness, fractionAbsorbed, fractionAbsorbedRunoff
 
       integer, pointer :: nCells
       integer :: err, iCell
@@ -128,10 +128,6 @@ contains
       call mpas_pool_get_config(ocnConfigs, 'config_disable_thick_all_tend', config_disable_thick_all_tend)
 
       call mpas_pool_get_dimension(meshPool, 'nCells', nCells)
-
-      call mpas_pool_get_array(diagnosticsPool, 'normalTransportVelocity', normalTransportVelocity)
-      call mpas_pool_get_array(diagnosticsPool, 'layerThicknessEdge', layerThicknessEdge)
-      call mpas_pool_get_array(diagnosticsPool, 'vertAleTransportTop', vertAleTransportTop)
 
       call mpas_pool_get_array(tendPool, 'layerThickness', tend_layerThickness)
 
@@ -209,13 +205,12 @@ contains
 !
 !-----------------------------------------------------------------------
 
-   subroutine ocn_tend_vel(tendPool, statePool, forcingPool, diagnosticsPool, meshPool, scratchPool, timeLevelIn, dt)!{{{
+   subroutine ocn_tend_vel(tendPool, statePool, forcingPool, meshPool, scratchPool, timeLevelIn, dt)!{{{
       implicit none
 
       type (mpas_pool_type), intent(inout) :: tendPool !< Input/Output: Tendency structure
       type (mpas_pool_type), intent(in) :: statePool !< Input: State information
       type (mpas_pool_type), intent(inout) :: forcingPool !< Input: Forcing information
-      type (mpas_pool_type), intent(in) :: diagnosticsPool !< Input: Diagnostic information
       type (mpas_pool_type), intent(in) :: meshPool !< Input: Mesh information
       real (kind=RKIND), intent(in) :: dt
       type (mpas_pool_type), intent(inout) :: scratchPool !< Input: Scratch structure
@@ -223,17 +218,12 @@ contains
 
       type (mpas_pool_type), pointer :: tracersPool
 
-      real (kind=RKIND), dimension(:), pointer :: surfaceStress, surfaceStressMagnitude, surfaceFluxAttenuationCoefficient, ssh
+      real (kind=RKIND), dimension(:), pointer :: surfaceStress, surfaceStressMagnitude, ssh
       real (kind=RKIND), dimension(:), pointer :: tidalPotentialEta 
-      real (kind=RKIND), dimension(:,:), pointer :: &
-        layerThicknessEdge, normalVelocity, tangentialVelocity, density, potentialDensity, zMid, pressure, &
-        layerThickness, &
-        tend_normalVelocity, circulation, relativeVorticity, viscosity, kineticEnergyCell, &
-        normalizedRelativeVorticityEdge, normalizedPlanetaryVorticityEdge, &
-        montgomeryPotential, vertAleTransportTop, divergence, vertViscTopOfEdge, &
-        inSituThermalExpansionCoeff, inSituSalineContractionCoeff
+      real (kind=RKIND), dimension(:,:), pointer :: normalVelocity, &
+        layerThickness, tend_normalVelocity, circulation
+        
       real (kind=RKIND), dimension(:,:), pointer :: tidalPotentialZMid
-      real (kind=RKIND), dimension(:,:), pointer :: wettingVelocity
       real (kind=RKIND), dimension(:,:,:), pointer :: activeTracers
 
       integer :: timeLevel
@@ -276,29 +266,11 @@ contains
       call mpas_pool_get_dimension(tracersPool, 'index_temperature', indexTemperature)
       call mpas_pool_get_dimension(tracersPool, 'index_salinity', indexSalinity)
 
-      call mpas_pool_get_array(diagnosticsPool, 'kineticEnergyCell', kineticEnergyCell)
-      call mpas_pool_get_array(diagnosticsPool, 'layerThicknessEdge', layerThicknessEdge)
-      call mpas_pool_get_array(diagnosticsPool, 'vertAleTransportTop', vertAleTransportTop)
-      call mpas_pool_get_array(diagnosticsPool, 'zMid', zMid)
-      call mpas_pool_get_array(diagnosticsPool, 'relativeVorticity', relativeVorticity)
-      call mpas_pool_get_array(diagnosticsPool, 'normalizedRelativeVorticityEdge', normalizedRelativeVorticityEdge)
-      call mpas_pool_get_array(diagnosticsPool, 'normalizedPlanetaryVorticityEdge', normalizedPlanetaryVorticityEdge)
-      call mpas_pool_get_array(diagnosticsPool, 'divergence', divergence)
-      call mpas_pool_get_array(diagnosticsPool, 'viscosity', viscosity)
-      call mpas_pool_get_array(diagnosticsPool, 'montgomeryPotential', montgomeryPotential)
-      call mpas_pool_get_array(diagnosticsPool, 'pressure', pressure)
-      call mpas_pool_get_array(diagnosticsPool, 'vertViscTopOfEdge', vertViscTopOfEdge)
-      call mpas_pool_get_array(diagnosticsPool, 'density', density)
-      call mpas_pool_get_array(diagnosticsPool, 'potentialDensity', potentialDensity)
-      call mpas_pool_get_array(diagnosticsPool, 'tangentialVelocity', tangentialVelocity)
-      call mpas_pool_get_array(diagnosticsPool, 'surfaceFluxAttenuationCoefficient', surfaceFluxAttenuationCoefficient)
-
       call mpas_pool_get_array(tendPool, 'normalVelocity', tend_normalVelocity)
 
       call mpas_pool_get_array(forcingPool, 'surfaceStress', surfaceStress)
       call mpas_pool_get_array(forcingPool, 'surfaceStressMagnitude', surfaceStressMagnitude)
 
-      call mpas_pool_get_array(diagnosticsPool, 'wettingVelocity', wettingVelocity)
       !
       ! velocity tendency: start accumulating tendency terms
       !
@@ -323,7 +295,7 @@ contains
       call ocn_surface_bulk_forcing_vel(meshPool, forcingPool, surfaceStress, surfaceStressMagnitude, err)
 
       ! Add top drag to surface stress
-      call ocn_surface_land_ice_fluxes_vel(meshPool, diagnosticsPool, surfaceStress, surfaceStressMagnitude, err)
+      call ocn_surface_land_ice_fluxes_vel(meshPool, surfaceStress, surfaceStressMagnitude, err)
 
       !
       ! velocity tendency: nonlinear Coriolis term and grad of kinetic energy
@@ -343,7 +315,7 @@ contains
       !   zMid is pointed back to the typical value afterward, so the work array is not used in place of zMid elsewhere.
       !
       if (config_use_tidal_potential_forcing) then
-        call ocn_compute_tidal_potential_forcing(meshPool, forcingPool, diagnosticsPool, err)
+        call ocn_compute_tidal_potential_forcing(meshPool, forcingPool, err)
       end if
 
       if (config_use_tidal_potential_forcing .and. config_time_integrator == 'RK4') then
@@ -366,8 +338,6 @@ contains
       !
       if (config_pressure_gradient_type.eq.'Jacobian_from_TS') then
          ! only pass EOS derivatives if needed.
-         call mpas_pool_get_array(diagnosticsPool, 'inSituThermalExpansionCoeff',inSituThermalExpansionCoeff)
-         call mpas_pool_get_array(diagnosticsPool, 'inSituSalineContractionCoeff', inSituSalineContractionCoeff)
          call ocn_vel_pressure_grad_tend(meshPool, ssh, pressure, montgomeryPotential, zMid, density, potentialDensity, &
               indexTemperature, indexSalinity, activeTracers, tend_normalVelocity, err, &
               inSituThermalExpansionCoeff,inSituSalineContractionCoeff)
@@ -376,11 +346,6 @@ contains
               indexTemperature, indexSalinity, activeTracers, tend_normalVelocity, err, &
               inSituThermalExpansionCoeff,inSituSalineContractionCoeff)
       endif
-
-      if (config_use_tidal_potential_forcing .and. config_time_integrator == 'RK4') then
-        ! point zMid back to usual array, to be safe
-        call mpas_pool_get_array(diagnosticsPool, 'zMid', zMid)
-      end if
 
       !
       ! velocity tendency: del2 dissipation, \nu_2 \nabla^2 u
@@ -424,7 +389,7 @@ contains
 !>  This routine computes tracer tendencies for the ocean
 !
 !-----------------------------------------------------------------------
-   subroutine ocn_tend_tracer(tendPool, statePool, forcingPool, diagnosticsPool, meshPool, swForcingPool, scratchPool, & !{{{
+   subroutine ocn_tend_tracer(tendPool, statePool, forcingPool, meshPool, swForcingPool, scratchPool, & !{{{
                               dt, activeTracersOnlyIn, timeLevelIn )
       implicit none
 
@@ -434,7 +399,6 @@ contains
       type (mpas_pool_type), intent(inout) :: tendPool        !< Input/Output: Tendency structure
       type (mpas_pool_type), intent(in)    :: statePool       !< Input: State information
       type (mpas_pool_type), intent(inout) :: forcingPool     !< Input: Forcing information
-      type (mpas_pool_type), intent(inout)    :: diagnosticsPool !< Input: Diagnostic information
       type (mpas_pool_type), intent(inout)    :: meshPool     !< Input: Mesh information
       type (mpas_pool_type), intent(in)    :: swForcingPool   !< Input: sw data input info
       type (mpas_pool_type), intent(in)    :: scratchPool     !< Input: Scratch information
@@ -465,7 +429,6 @@ contains
       logical, pointer :: config_compute_active_tracer_budgets, &
                           config_cvmix_kpp_nonlocal_with_implicit_mix
       real (kind=RKIND), pointer :: salinity_restoring_constant_piston_velocity
-      integer, dimension(:,:), pointer :: rediLimiterCount
 
       ! iterator for tracer categories
       type (mpas_pool_iterator_type) :: groupItr
@@ -474,9 +437,8 @@ contains
       !
       ! one dimensional pointers
       !
-      real (kind=RKIND), dimension(:), pointer :: penetrativeTemperatureFlux, penetrativeTemperatureFluxOBL
+      real (kind=RKIND), dimension(:), pointer :: penetrativeTemperatureFlux
       real (kind=RKIND), dimension(:), pointer :: tracerGroupExponentialDecayRate, latCell
-      real (kind=RKIND), dimension(:), pointer :: RediKappa 
       integer, dimension(:), pointer :: maxLevelCell
 
       !
@@ -486,32 +448,21 @@ contains
                                                     tracerGroupIdealAgeMask, tracerGroupTTDMask
 
       real (kind=RKIND), dimension(:,:), pointer :: &
-        normalTransportVelocity, layerThickness,vertAleTransportTop, layerThicknessEdge, vertDiffTopOfCell, &
-        normalThicknessFlux, tracerGroupSurfaceFlux, fractionAbsorbed, zMid, &
+        layerThickness, normalThicknessFlux, tracerGroupSurfaceFlux, fractionAbsorbed,  &
         fractionAbsorbedRunoff, tracerGroupSurfaceFluxRunoff, &
-        tracerGroupSurfaceFluxRemoved, nonLocalSurfaceTracerFlux, kappaRediCell, kappaRediSfcTaper
+        tracerGroupSurfaceFluxRemoved, nonLocalSurfaceTracerFlux
 
       !
       ! three dimensional pointers
       !
       real (kind=RKIND), dimension(:,:,:), pointer :: &
-        tracerGroup, tracerGroupTend, vertNonLocalFlux
+        tracerGroup, tracerGroupTend
 
       real (kind=RKIND), dimension(:,:,:), pointer :: &
         activeTracers, &  !  need T, S for ecosys
         ecosysTracers     !  need ecosys for DMS and MacroMolecules
 
       real (kind=RKIND), dimension(:,:,:), pointer :: tracerGroupInteriorRestoringRate, tracerGroupInteriorRestoringValue
-
-      real (kind=RKIND), dimension(:,:,:), pointer :: &
-        slopeTriadUp, slopeTriadDown,                 &
-        activeTracerSurfaceFluxTendency,              &
-        activeTracerNonLocalTendency,                 &
-        activeTracerHorMixTendency,                   &
-        kappaRediEdge
-
-      real (kind=RKIND), dimension(:,:), pointer :: &
-        temperatureShortWaveTendency
 
       !
       ! Field pointers
@@ -568,20 +519,7 @@ contains
       ! get arrays
       !
       call mpas_pool_get_array(statePool, 'layerThickness', layerThickness, timeLevel)
-      call mpas_pool_get_array(diagnosticsPool, 'normalTransportVelocity', normalTransportVelocity)
-      call mpas_pool_get_array(diagnosticsPool, 'layerThicknessEdge', layerThicknessEdge)
-      call mpas_pool_get_array(diagnosticsPool, 'vertDiffTopOfCell', vertDiffTopOfCell)
-      call mpas_pool_get_array(diagnosticsPool, 'vertAleTransportTop', vertAleTransportTop)
-      call mpas_pool_get_array(diagnosticsPool, 'zMid', zMid)
-      call mpas_pool_get_array(diagnosticsPool, 'slopeTriadUp', slopeTriadUp)
-      call mpas_pool_get_array(diagnosticsPool, 'slopeTriadDown', slopeTriadDown)
-      call mpas_pool_get_array(diagnosticsPool, 'RediKappa', RediKappa)
-      call mpas_pool_get_array(diagnosticsPool, 'vertNonLocalFlux', vertNonLocalFlux)
-      call mpas_pool_get_array(diagnosticsPool, 'kappaRediSfcTaper', kappaRediSfcTaper)
-      call mpas_pool_get_array(diagnosticsPool, 'kappaRediCell', kappaRediCell)
-      call mpas_pool_get_array(diagnosticsPool, 'rediLimiterCount', rediLimiterCount)
       call mpas_pool_get_array(forcingPool, 'penetrativeTemperatureFlux', penetrativeTemperatureFlux)
-      call mpas_pool_get_array(diagnosticsPool, 'penetrativeTemperatureFluxOBL', penetrativeTemperatureFluxOBL)
       call mpas_pool_get_array(forcingPool, 'fractionAbsorbed', fractionAbsorbed)
       call mpas_pool_get_array(forcingPool, 'fractionAbsorbedRunoff', fractionAbsorbedRunoff)
       call mpas_pool_get_array(meshPool, 'maxLevelCell', maxLevelCell)
@@ -589,16 +527,6 @@ contains
 
       call mpas_pool_get_dimension(meshPool, 'nVertLevels', nVertLevels)
       call mpas_pool_get_dimension(meshPool, 'nEdges', nEdges)
-
-      !
-      ! get diagnostic arrays for temperature/salinity budget
-      !
-      if (config_compute_active_tracer_budgets) then
-         call mpas_pool_get_array(diagnosticsPool,'activeTracerSurfaceFluxTendency',activeTracerSurfaceFluxTendency)
-         call mpas_pool_get_array(diagnosticsPool,'temperatureShortWaveTendency',temperatureShortWaveTendency)
-         call mpas_pool_get_array(diagnosticsPool,'activeTracerNonLocalTendency',activeTracerNonLocalTendency)
-         call mpas_pool_get_array(diagnosticsPool,'activeTracerHorMixTendency',activeTracerHorMixTendency)
-      endif
 
       if(config_disable_tr_all_tend) return
 
@@ -867,7 +795,7 @@ contains
                ! Tendency for tracer budget is stored within the tracer adv
                ! routine
                call ocn_tracer_advection_tend(tracerGroup, normalThicknessFlux, vertAleTransportTop, layerThickness, &
-                                              dt, meshPool, scratchPool, diagnosticsPool, tracerGroupTend, &
+                                              dt, meshPool, scratchPool, tracerGroupTend, &
                                               trim(groupItr % memberName))
 
                !
@@ -952,7 +880,7 @@ contains
                !
                if (config_use_cvmix_kpp) then
                   call mpas_timer_start("non-local flux from KPP")
-                  call ocn_compute_KPP_input_fields(statePool, forcingPool, diagnosticsPool, scratchPool, timeLevel)
+                  call ocn_compute_KPP_input_fields(statePool, forcingPool, scratchPool, timeLevel)
                   if (.not. config_cvmix_kpp_nonlocal_with_implicit_mix) then
                      if( trim(groupItr % memberName) == 'activeTracers' ) then
                         if (config_compute_active_tracer_budgets) then
@@ -1005,11 +933,10 @@ contains
 !>  config_freq_filtered_thickness is true (z-tilde)
 !
 !-----------------------------------------------------------------------
-   subroutine ocn_tend_freq_filtered_thickness(tendPool, statePool, diagnosticsPool, meshPool, timeLevelIn)!{{{
+   subroutine ocn_tend_freq_filtered_thickness(tendPool, statePool, meshPool, timeLevelIn)!{{{
 
       type (mpas_pool_type), intent(inout) :: tendPool !< Input/Output: Tendency information
       type (mpas_pool_type), intent(in) :: statePool !< Input: State information
-      type (mpas_pool_type), intent(in) :: diagnosticsPool !< Input: Diagnostics information
       type (mpas_pool_type), intent(in) :: meshPool !< Input: Mesh information
       integer, intent(in), optional :: timeLevelIn !< Input: Time level for state fields
 
@@ -1022,7 +949,7 @@ contains
       real (kind=RKIND) :: flux, invAreaCell, div_hu_btr, thickness_filter_timescale_sec, highFreqThick_restore_time_sec, &
          totalThickness
       real (kind=RKIND), dimension(:), pointer :: dvEdge, areaCell
-      real (kind=RKIND), dimension(:,:), pointer :: normalVelocity, layerThicknessEdge, &
+      real (kind=RKIND), dimension(:,:), pointer :: normalVelocity, &
          layerThickness, &
          lowFreqDivergence, highFreqThickness, &
          tend_lowFreqDivergence, tend_highFreqThickness
@@ -1058,8 +985,6 @@ contains
       call mpas_pool_get_array(statePool, 'layerThickness', layerThickness, timeLevel)
       call mpas_pool_get_array(statePool, 'lowFreqDivergence', lowFreqDivergence, timeLevel)
       call mpas_pool_get_array(statePool, 'highFreqThickness', highFreqThickness, timeLevel)
-
-      call mpas_pool_get_array(diagnosticsPool, 'layerThicknessEdge', layerThicknessEdge)
 
       call mpas_pool_get_array(tendPool, 'lowFreqDivergence', tend_lowFreqDivergence)
       call mpas_pool_get_array(tendPool, 'highFreqThickness', tend_highFreqThickness)

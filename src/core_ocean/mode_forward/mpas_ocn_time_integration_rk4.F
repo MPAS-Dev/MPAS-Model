@@ -31,6 +31,7 @@ module ocn_time_integration_rk4
    use ocn_constants
    use ocn_tendency
    use ocn_diagnostics
+   use ocn_diagnostics_variables
    use ocn_gm
 
    use ocn_equation_of_state
@@ -98,7 +99,6 @@ module ocn_time_integration_rk4
       type (mpas_pool_type), pointer :: meshPool
       type (mpas_pool_type), pointer :: provisStatePool
       type (mpas_pool_type), pointer :: provisTracersPool
-      type (mpas_pool_type), pointer :: diagnosticsPool
       type (mpas_pool_type), pointer :: verticalMeshPool
       type (mpas_pool_type), pointer :: forcingPool
       type (mpas_pool_type), pointer :: scratchPool
@@ -138,10 +138,6 @@ module ocn_time_integration_rk4
       integer, pointer :: indexTemperature
       integer, pointer :: indexSalinity
 
-      ! Diagnostics Indices
-      integer, pointer :: indexSurfaceVelocityZonal, indexSurfaceVelocityMeridional
-      integer, pointer :: indexSSHGradientZonal, indexSSHGradientMeridional
-
       ! Mesh array pointers
       integer, dimension(:), pointer :: maxLevelCell, maxLevelEdgeTop
       real (kind=RKIND), dimension(:), pointer :: bottomDepth
@@ -160,13 +156,6 @@ module ocn_time_integration_rk4
       ! Diagnostics Array Pointers
       real (kind=RKIND), dimension(:,:), pointer :: layerThicknessEdge
       real (kind=RKIND), dimension(:,:), pointer :: vertAleTransportTop
-      real (kind=RKIND), dimension(:,:), pointer :: normalTransportVelocity, normalGMBolusVelocity
-      real (kind=RKIND), dimension(:,:), pointer :: velocityX, velocityY, velocityZ
-      real (kind=RKIND), dimension(:,:), pointer :: velocityZonal, velocityMeridional
-      real (kind=RKIND), dimension(:), pointer :: gradSSH
-      real (kind=RKIND), dimension(:), pointer :: gradSSHX, gradSSHY, gradSSHZ
-      real (kind=RKIND), dimension(:), pointer :: gradSSHZonal, gradSSHMeridional
-      real (kind=RKIND), dimension(:,:), pointer :: surfaceVelocity, sshGradient
 
       ! State Array Pointers
       real (kind=RKIND), dimension(:,:), pointer :: normalVelocityCur, normalVelocityNew
@@ -183,7 +172,6 @@ module ocn_time_integration_rk4
 
       ! State/Tend Field Pointers
       type (field2DReal), pointer :: normalVelocityField, layerThicknessField
-      type (field2DReal), pointer :: wettingVelocityField
       type (field3DReal), pointer :: tracersGroupField
 
       ! Tracer Group Iteartion
@@ -384,8 +372,6 @@ module ocn_time_integration_rk4
           exit ! don't compute in loop meant to update velocity, thickness, and tracers
         end if
 
-        call mpas_pool_get_subpool(domain % blocklist % structs, 'diagnostics', diagnosticsPool)
-
         ! Update halos for diagnostic variables.
         if (config_use_cvmix_kpp) then
            call mpas_timer_start("RK4-boundary layer depth halo update")
@@ -416,13 +402,12 @@ module ocn_time_integration_rk4
            block => domain % blocklist
            do while (associated(block))
               call mpas_pool_get_subpool(block % structs, 'tend', tendPool)
-              call mpas_pool_get_subpool(block % structs, 'diagnostics', diagnosticsPool)
               call mpas_pool_get_subpool(block % structs, 'mesh', meshPool)
               call mpas_pool_get_subpool(block % structs, 'state', statePool)
               call mpas_pool_get_subpool(statePool, 'tracers', tracersPool)
               call mpas_pool_get_subpool(block % structs, 'provis_state', provisStatePool)
 
-              call ocn_tend_freq_filtered_thickness(tendPool, provisStatePool, diagnosticsPool, meshPool, 1)
+              call ocn_tend_freq_filtered_thickness(tendPool, provisStatePool, meshPool, 1)
               call mpas_threading_barrier()
               block => block % next
            end do
@@ -478,7 +463,6 @@ module ocn_time_integration_rk4
                ! exchange fields for parallelization
                call mpas_pool_get_field(statePool, 'normalVelocity', normalVelocityField, 1)
                call mpas_dmpar_exch_halo_field(normalVelocityField)
-               call mpas_pool_get_field(diagnosticsPool, 'wettingVelocity', wettingVelocityField)
                call mpas_dmpar_exch_halo_field(wettingVelocityField)
              end if
 
@@ -636,7 +620,6 @@ module ocn_time_integration_rk4
          call mpas_pool_get_subpool(statePool, 'tracers', tracersPool)
          call mpas_pool_get_subpool(block % structs, 'forcing', forcingPool)
          call mpas_pool_get_subpool(block % structs, 'mesh', meshPool)
-         call mpas_pool_get_subpool(block % structs, 'diagnostics', diagnosticsPool)
          call mpas_pool_get_subpool(block % structs, 'scratch', scratchPool)
          call mpas_pool_get_subpool(block % structs, 'verticalMesh', verticalMeshPool)
 
@@ -649,26 +632,6 @@ module ocn_time_integration_rk4
          call mpas_pool_get_array(statePool, 'layerThickness', layerThicknessCur, 1)
          call mpas_pool_get_array(statePool, 'layerThickness', layerThicknessNew, 2)
 
-         call mpas_pool_get_dimension(diagnosticsPool, 'index_surfaceVelocityZonal', indexSurfaceVelocityZonal)
-         call mpas_pool_get_dimension(diagnosticsPool, 'index_surfaceVelocityMeridional', indexSurfaceVelocityMeridional)
-         call mpas_pool_get_dimension(diagnosticsPool, 'index_SSHGradientZonal', indexSSHGradientZonal)
-         call mpas_pool_get_dimension(diagnosticsPool, 'index_SSHGradientMeridional', indexSSHGradientMeridional)
-
-         call mpas_pool_get_array(diagnosticsPool, 'normalTransportVelocity', normalTransportVelocity)
-         call mpas_pool_get_array(diagnosticsPool, 'normalGMBolusVelocity', normalGMBolusVelocity)
-         call mpas_pool_get_array(diagnosticsPool, 'velocityX', velocityX)
-         call mpas_pool_get_array(diagnosticsPool, 'velocityY', velocityY)
-         call mpas_pool_get_array(diagnosticsPool, 'velocityZ', velocityZ)
-         call mpas_pool_get_array(diagnosticsPool, 'velocityZonal', velocityZonal)
-         call mpas_pool_get_array(diagnosticsPool, 'velocityMeridional', velocityMeridional)
-         call mpas_pool_get_array(diagnosticsPool, 'gradSSH', gradSSH)
-         call mpas_pool_get_array(diagnosticsPool, 'gradSSHX', gradSSHX)
-         call mpas_pool_get_array(diagnosticsPool, 'gradSSHY', gradSSHY)
-         call mpas_pool_get_array(diagnosticsPool, 'gradSSHZ', gradSSHZ)
-         call mpas_pool_get_array(diagnosticsPool, 'gradSSHZonal', gradSSHZonal)
-         call mpas_pool_get_array(diagnosticsPool, 'gradSSHMeridional', gradSSHMeridional)
-         call mpas_pool_get_array(diagnosticsPool, 'surfaceVelocity', surfaceVelocity)
-         call mpas_pool_get_array(diagnosticsPool, 'SSHGradient', SSHGradient)
          call mpas_pool_get_array(verticalMeshPool, 'restingThickness', restingThickness)
          call mpas_pool_get_array(forcingPool, 'tidalInputMask', tidalInputMask)
          call mpas_pool_get_array(forcingPool, 'tidalBCValue', tidalBCValue)
@@ -710,7 +673,7 @@ module ocn_time_integration_rk4
            end do
          end if
 
-         call ocn_diagnostic_solve(dt, statePool, forcingPool, diagnosticsPool, scratchPool, tracersPool, 2)
+         call ocn_diagnostic_solve(dt, statePool, forcingPool, scratchPool, tracersPool, 2)
          call mpas_threading_barrier()
 
          ! Update the effective desnity in land ice if we're coupling to land ice
@@ -727,7 +690,7 @@ module ocn_time_integration_rk4
 
          ! Compute normalGMBolusVelocity and the tracer transport velocity
          if (config_use_GM) then
-             call ocn_gm_compute_Bolus_velocity(statePool, diagnosticsPool, &
+             call ocn_gm_compute_Bolus_velocity(statePool, &
                 meshPool, scratchPool, timeLevelIn=2)
          end if
          call mpas_threading_barrier()
@@ -764,10 +727,10 @@ module ocn_time_integration_rk4
          end do
          !$omp end do
 
-         call ocn_time_average_coupled_accumulate(diagnosticsPool, statePool, forcingPool, 2)
+         call ocn_time_average_coupled_accumulate(statePool, forcingPool, 2)
 
          if (config_use_GM) then
-            call ocn_reconstruct_gm_vectors(diagnosticsPool, meshPool)
+            call ocn_reconstruct_gm_vectors(meshPool)
          end if
          call mpas_threading_barrier()
 
@@ -808,14 +771,12 @@ module ocn_time_integration_rk4
       integer, intent(out) :: err
 
       type (mpas_pool_type), pointer :: meshPool, verticalMeshPool
-      type (mpas_pool_type), pointer :: statePool, diagnosticsPool, forcingPool
+      type (mpas_pool_type), pointer :: statePool, forcingPool
       type (mpas_pool_type), pointer :: scratchPool, tendPool, provisStatePool
       type (mpas_pool_type), pointer :: tracersPool
 
       real (kind=RKIND), dimension(:), pointer :: sshCur
       real (kind=RKIND), dimension(:, :), pointer :: layerThicknessCur, normalVelocityCur
-      real (kind=RKIND), dimension(:, :), pointer :: layerThicknessEdge, vertAleTransportTop
-      real (kind=RKIND), dimension(:, :), pointer :: normalTransportVelocity
       real (kind=RKIND), dimension(:, :), pointer ::  normalVelocityProvis, highFreqThicknessProvis
 
       logical, pointer :: config_filter_btr_mode
@@ -827,7 +788,6 @@ module ocn_time_integration_rk4
       call mpas_pool_get_subpool(block % structs, 'mesh', meshPool)
       call mpas_pool_get_subpool(block % structs, 'verticalMesh', verticalMeshPool)
       call mpas_pool_get_subpool(block % structs, 'state', statePool)
-      call mpas_pool_get_subpool(block % structs, 'diagnostics', diagnosticsPool)
       call mpas_pool_get_subpool(block % structs, 'forcing', forcingPool)
       call mpas_pool_get_subpool(block % structs, 'scratch', scratchPool)
       call mpas_pool_get_subpool(block % structs, 'tend', tendPool)
@@ -838,10 +798,6 @@ module ocn_time_integration_rk4
       call mpas_pool_get_array(statePool, 'layerThickness', layerThicknessCur, 1)
       call mpas_pool_get_array(statePool, 'ssh', sshCur, 1)
       call mpas_pool_get_array(statePool, 'normalVelocity', normalVelocityCur, 1)
-
-      call mpas_pool_get_array(diagnosticsPool, 'layerThicknessEdge', layerThicknessEdge)
-      call mpas_pool_get_array(diagnosticsPool, 'vertAleTransportTop', vertAleTransportTop)
-      call mpas_pool_get_array(diagnosticsPool, 'normalTransportVelocity', normalTransportVelocity)
 
       call mpas_pool_get_array(provisStatePool, 'normalVelocity', normalVelocityProvis, 1)
       call mpas_pool_get_array(provisStatePool, 'highFreqThickness', highFreqThicknessProvis, 1)
@@ -860,7 +816,7 @@ module ocn_time_integration_rk4
       endif
       call mpas_threading_barrier()
 
-      call ocn_tend_vel(tendPool, provisStatePool, forcingPool, diagnosticsPool, meshPool, scratchPool, 1, dt)
+      call ocn_tend_vel(tendPool, provisStatePool, forcingPool, meshPool, scratchPool, 1, dt)
       call mpas_threading_barrier()
 
    end subroutine ocn_time_integrator_rk4_compute_vel_tends!}}}
@@ -872,14 +828,12 @@ module ocn_time_integration_rk4
       integer, intent(out) :: err
 
       type (mpas_pool_type), pointer :: meshPool, verticalMeshPool
-      type (mpas_pool_type), pointer :: statePool, diagnosticsPool, forcingPool
+      type (mpas_pool_type), pointer :: statePool, forcingPool
       type (mpas_pool_type), pointer :: scratchPool, tendPool, provisStatePool
       type (mpas_pool_type), pointer :: tracersPool
 
       real (kind=RKIND), dimension(:), pointer :: sshCur
       real (kind=RKIND), dimension(:, :), pointer :: layerThicknessCur, normalVelocityCur
-      real (kind=RKIND), dimension(:, :), pointer :: layerThicknessEdge, vertAleTransportTop
-      real (kind=RKIND), dimension(:, :), pointer :: normalTransportVelocity
       real (kind=RKIND), dimension(:, :), pointer ::  normalVelocityProvis, highFreqThicknessProvis
 
       logical, pointer :: config_filter_btr_mode
@@ -891,7 +845,6 @@ module ocn_time_integration_rk4
       call mpas_pool_get_subpool(block % structs, 'mesh', meshPool)
       call mpas_pool_get_subpool(block % structs, 'verticalMesh', verticalMeshPool)
       call mpas_pool_get_subpool(block % structs, 'state', statePool)
-      call mpas_pool_get_subpool(block % structs, 'diagnostics', diagnosticsPool)
       call mpas_pool_get_subpool(block % structs, 'forcing', forcingPool)
       call mpas_pool_get_subpool(block % structs, 'scratch', scratchPool)
       call mpas_pool_get_subpool(block % structs, 'tend', tendPool)
@@ -902,10 +855,6 @@ module ocn_time_integration_rk4
       call mpas_pool_get_array(statePool, 'layerThickness', layerThicknessCur, 1)
       call mpas_pool_get_array(statePool, 'ssh', sshCur, 1)
       call mpas_pool_get_array(statePool, 'normalVelocity', normalVelocityCur, 1)
-
-      call mpas_pool_get_array(diagnosticsPool, 'layerThicknessEdge', layerThicknessEdge)
-      call mpas_pool_get_array(diagnosticsPool, 'vertAleTransportTop', vertAleTransportTop)
-      call mpas_pool_get_array(diagnosticsPool, 'normalTransportVelocity', normalTransportVelocity)
 
       call mpas_pool_get_array(provisStatePool, 'normalVelocity', normalVelocityProvis, 1)
       call mpas_pool_get_array(provisStatePool, 'highFreqThickness', highFreqThicknessProvis, 1)
@@ -924,7 +873,7 @@ module ocn_time_integration_rk4
       endif
       call mpas_threading_barrier()
 
-      call ocn_tend_thick(tendPool, forcingPool, diagnosticsPool, meshPool)
+      call ocn_tend_thick(tendPool, forcingPool, meshPool)
 
       call mpas_threading_barrier()
 
@@ -937,14 +886,12 @@ module ocn_time_integration_rk4
       integer, intent(out) :: err
 
       type (mpas_pool_type), pointer :: meshPool, verticalMeshPool
-      type (mpas_pool_type), pointer :: statePool, diagnosticsPool, forcingPool
+      type (mpas_pool_type), pointer :: statePool, forcingPool
       type (mpas_pool_type), pointer :: scratchPool, tendPool, provisStatePool
       type (mpas_pool_type), pointer :: swForcingPool, tracersPool
 
       real (kind=RKIND), dimension(:), pointer :: sshCur
       real (kind=RKIND), dimension(:, :), pointer :: layerThicknessCur, normalVelocityCur
-      real (kind=RKIND), dimension(:, :), pointer :: layerThicknessEdge, vertAleTransportTop
-      real (kind=RKIND), dimension(:, :), pointer :: normalTransportVelocity
       real (kind=RKIND), dimension(:, :), pointer ::  normalVelocityProvis, highFreqThicknessProvis
 
       logical, pointer :: config_filter_btr_mode
@@ -956,7 +903,6 @@ module ocn_time_integration_rk4
       call mpas_pool_get_subpool(block % structs, 'mesh', meshPool)
       call mpas_pool_get_subpool(block % structs, 'verticalMesh', verticalMeshPool)
       call mpas_pool_get_subpool(block % structs, 'state', statePool)
-      call mpas_pool_get_subpool(block % structs, 'diagnostics', diagnosticsPool)
       call mpas_pool_get_subpool(block % structs, 'forcing', forcingPool)
       call mpas_pool_get_subpool(block % structs, 'scratch', scratchPool)
       call mpas_pool_get_subpool(block % structs, 'tend', tendPool)
@@ -968,10 +914,6 @@ module ocn_time_integration_rk4
       call mpas_pool_get_array(statePool, 'layerThickness', layerThicknessCur, 1)
       call mpas_pool_get_array(statePool, 'ssh', sshCur, 1)
       call mpas_pool_get_array(statePool, 'normalVelocity', normalVelocityCur, 1)
-
-      call mpas_pool_get_array(diagnosticsPool, 'layerThicknessEdge', layerThicknessEdge)
-      call mpas_pool_get_array(diagnosticsPool, 'vertAleTransportTop', vertAleTransportTop)
-      call mpas_pool_get_array(diagnosticsPool, 'normalTransportVelocity', normalTransportVelocity)
 
       call mpas_pool_get_array(provisStatePool, 'normalVelocity', normalVelocityProvis, 1)
       call mpas_pool_get_array(provisStatePool, 'highFreqThickness', highFreqThicknessProvis, 1)
@@ -991,11 +933,11 @@ module ocn_time_integration_rk4
       call mpas_threading_barrier()
 
       if (config_filter_btr_mode) then
-          call ocn_filter_btr_mode_tend_vel(tendPool, provisStatePool, diagnosticsPool, 1)
+          call ocn_filter_btr_mode_tend_vel(tendPool, provisStatePool, 1)
       endif
       call mpas_threading_barrier()
 
-      call ocn_tend_tracer(tendPool, provisStatePool, forcingPool, diagnosticsPool, meshPool, swForcingPool, &
+      call ocn_tend_tracer(tendPool, provisStatePool, forcingPool, meshPool, swForcingPool, &
                            scratchPool, dt, activeTracersOnlyIn=.false., timeLevelIn=1)
       call mpas_threading_barrier()
 
@@ -1008,14 +950,12 @@ module ocn_time_integration_rk4
       integer, intent(out) :: err
 
       type (mpas_pool_type), pointer :: meshPool, verticalMeshPool
-      type (mpas_pool_type), pointer :: statePool, diagnosticsPool, forcingPool
+      type (mpas_pool_type), pointer :: statePool, forcingPool
       type (mpas_pool_type), pointer :: scratchPool, tendPool, provisStatePool
       type (mpas_pool_type), pointer :: swForcingPool, tracersPool
 
       real (kind=RKIND), dimension(:), pointer :: sshCur
       real (kind=RKIND), dimension(:, :), pointer :: layerThicknessCur, normalVelocityCur
-      real (kind=RKIND), dimension(:, :), pointer :: layerThicknessEdge, vertAleTransportTop
-      real (kind=RKIND), dimension(:, :), pointer :: normalTransportVelocity
       real (kind=RKIND), dimension(:, :), pointer ::  normalVelocityProvis, highFreqThicknessProvis
 
       logical, pointer :: config_filter_btr_mode
@@ -1027,7 +967,6 @@ module ocn_time_integration_rk4
       call mpas_pool_get_subpool(block % structs, 'mesh', meshPool)
       call mpas_pool_get_subpool(block % structs, 'verticalMesh', verticalMeshPool)
       call mpas_pool_get_subpool(block % structs, 'state', statePool)
-      call mpas_pool_get_subpool(block % structs, 'diagnostics', diagnosticsPool)
       call mpas_pool_get_subpool(block % structs, 'forcing', forcingPool)
       call mpas_pool_get_subpool(block % structs, 'scratch', scratchPool)
       call mpas_pool_get_subpool(block % structs, 'tend', tendPool)
@@ -1039,10 +978,6 @@ module ocn_time_integration_rk4
       call mpas_pool_get_array(statePool, 'layerThickness', layerThicknessCur, 1)
       call mpas_pool_get_array(statePool, 'ssh', sshCur, 1)
       call mpas_pool_get_array(statePool, 'normalVelocity', normalVelocityCur, 1)
-
-      call mpas_pool_get_array(diagnosticsPool, 'layerThicknessEdge', layerThicknessEdge)
-      call mpas_pool_get_array(diagnosticsPool, 'vertAleTransportTop', vertAleTransportTop)
-      call mpas_pool_get_array(diagnosticsPool, 'normalTransportVelocity', normalTransportVelocity)
 
       call mpas_pool_get_array(provisStatePool, 'normalVelocity', normalVelocityProvis, 1)
       call mpas_pool_get_array(provisStatePool, 'highFreqThickness', highFreqThicknessProvis, 1)
@@ -1061,7 +996,7 @@ module ocn_time_integration_rk4
       endif
       call mpas_threading_barrier()
 
-      call ocn_tend_vel(tendPool, provisStatePool, forcingPool, diagnosticsPool, meshPool, scratchPool, 1, dt)
+      call ocn_tend_vel(tendPool, provisStatePool, forcingPool, meshPool, scratchPool, 1, dt)
       call mpas_threading_barrier()
 
       if (associated(highFreqThicknessProvis)) then
@@ -1077,14 +1012,14 @@ module ocn_time_integration_rk4
       endif
       call mpas_threading_barrier()
 
-      call ocn_tend_thick(tendPool, forcingPool, diagnosticsPool, meshPool)
+      call ocn_tend_thick(tendPool, forcingPool, meshPool)
 
       if (config_filter_btr_mode) then
-          call ocn_filter_btr_mode_tend_vel(tendPool, provisStatePool, diagnosticsPool, 1)
+          call ocn_filter_btr_mode_tend_vel(tendPool, provisStatePool, 1)
       endif
       call mpas_threading_barrier()
 
-      call ocn_tend_tracer(tendPool, provisStatePool, forcingPool, diagnosticsPool, meshPool, swForcingPool, &
+      call ocn_tend_tracer(tendPool, provisStatePool, forcingPool, meshPool, swForcingPool, &
                            scratchPool, dt, activeTracersOnlyIn=.false., timeLevelIn=1)
       call mpas_threading_barrier()
 
@@ -1102,14 +1037,12 @@ module ocn_time_integration_rk4
       integer :: iCell, iEdge, k
 
       type (mpas_pool_type), pointer :: statePool, tendPool, meshPool, scratchPool
-      type (mpas_pool_type), pointer :: diagnosticsPool, provisStatePool, forcingPool
+      type (mpas_pool_type), pointer :: provisStatePool, forcingPool
       type (mpas_pool_type), pointer :: tracersPool, tracersTendPool, provisTracersPool
 
       real (kind=RKIND), dimension(:, :), pointer :: normalVelocityCur, normalVelocityProvis, normalVelocityTend
       real (kind=RKIND), dimension(:, :), pointer :: layerThicknessCur, layerThicknessProvis, layerThicknessTend
       real (kind=RKIND), dimension(:, :), pointer :: lowFreqDivergenceCur, lowFreqDivergenceProvis, lowFreqDivergenceTend
-      real (kind=RKIND), dimension(:, :), pointer :: normalTransportVelocity, normalGMBolusVelocity
-      real (kind=RKIND), dimension(:, :), pointer :: wettingVelocity
 
       real (kind=RKIND), dimension(:, :, :), pointer :: tracersGroupCur, tracersGroupProvis, tracersGroupTend
 
@@ -1133,7 +1066,6 @@ module ocn_time_integration_rk4
       call mpas_pool_get_subpool(block % structs, 'tend', tendPool)
       call mpas_pool_get_subpool(block % structs, 'mesh', meshPool)
       call mpas_pool_get_subpool(block % structs, 'scratch', scratchPool)
-      call mpas_pool_get_subpool(block % structs, 'diagnostics', diagnosticsPool)
       call mpas_pool_get_subpool(block % structs, 'provis_state', provisStatePool)
       call mpas_pool_get_subpool(block % structs, 'forcing', forcingPool)
 
@@ -1157,10 +1089,6 @@ module ocn_time_integration_rk4
       call mpas_pool_get_array(meshPool, 'maxLevelCell', maxLevelCell)
       call mpas_pool_get_array(meshPool, 'maxLevelEdgeTop', maxLevelEdgeTop)
 
-      call mpas_pool_get_array(diagnosticsPool, 'normalTransportVelocity', normalTransportVelocity)
-      call mpas_pool_get_array(diagnosticsPool, 'normalGMBolusVelocity', normalGMBolusVelocity)
-
-      call mpas_pool_get_array(diagnosticsPool, 'wettingVelocity', wettingVelocity)
       call mpas_threading_barrier()
 
       !$omp do schedule(runtime) private(k)
@@ -1237,7 +1165,7 @@ module ocn_time_integration_rk4
       end if
       call mpas_threading_barrier()
 
-      call ocn_diagnostic_solve(dt, provisStatePool, forcingPool, diagnosticsPool, scratchPool, tracersPool, 1)
+      call ocn_diagnostic_solve(dt, provisStatePool, forcingPool, scratchPool, tracersPool, 1)
       call mpas_threading_barrier()
 
       ! ------------------------------------------------------------------
@@ -1251,7 +1179,7 @@ module ocn_time_integration_rk4
 
       ! Compute normalGMBolusVelocity, relativeSlope and RediDiffVertCoef if respective flags are turned on
       if (config_use_GM) then
-         call ocn_gm_compute_Bolus_velocity(provisStatePool, diagnosticsPool, &
+         call ocn_gm_compute_Bolus_velocity(provisStatePool, &
             meshPool, scratchPool, timeLevelIn=1)
       end if
       call mpas_threading_barrier()
@@ -1277,7 +1205,7 @@ module ocn_time_integration_rk4
       integer, pointer :: nCells, nEdges
       integer :: iCell, iEdge, k
 
-      type (mpas_pool_type), pointer :: statePool, tendPool, meshPool, diagnosticsPool
+      type (mpas_pool_type), pointer :: statePool, tendPool, meshPool
       type (mpas_pool_type), pointer :: tracersPool, tracersTendPool
 
       real (kind=RKIND), dimension(:, :), pointer :: normalVelocityNew, normalVelocityTend
@@ -1303,7 +1231,6 @@ module ocn_time_integration_rk4
       call mpas_pool_get_subpool(block % structs, 'state', statePool)
       call mpas_pool_get_subpool(block % structs, 'tend', tendPool)
       call mpas_pool_get_subpool(block % structs, 'mesh', meshPool)
-      call mpas_pool_get_subpool(block % structs, 'diagnostics', diagnosticsPool)
 
       call mpas_pool_get_subpool(statePool, 'tracers', tracersPool)
       call mpas_pool_get_subpool(tendPool, 'tracersTend', tracersTendPool)
@@ -1323,7 +1250,6 @@ module ocn_time_integration_rk4
 
       call mpas_pool_get_array(tendPool, 'highFreqThickness', highFreqThicknessTend)
       call mpas_pool_get_array(tendPool, 'lowFreqDivergence', lowFreqDivergenceTend)
-     call mpas_pool_get_array(diagnosticsPool, 'wettingVelocity', wettingVelocity)
 
       call mpas_pool_get_array(meshPool, 'maxLevelCell', maxLevelCell)
 
@@ -1394,11 +1320,10 @@ module ocn_time_integration_rk4
       integer :: iCell, iEdge, k
 
       type (mpas_pool_type), pointer :: statePool, meshPool, forcingPool
-      type (mpas_pool_type), pointer :: diagnosticsPool, scratchPool
+      type (mpas_pool_type), pointer :: scratchPool
       type (mpas_pool_type), pointer :: tracersPool
 
       real (kind=RKIND), dimension(:, :), pointer :: layerThicknessNew, normalVelocityNew
-      real (kind=RKIND), dimension(:, :), pointer :: normalTransportVelocity, normalGMBolusVelocity
       real (kind=RKIND), dimension(:, :, :), pointer :: tracersGroupNew
 
       integer, dimension(:), pointer :: maxLevelCell
@@ -1420,16 +1345,12 @@ module ocn_time_integration_rk4
       call mpas_pool_get_subpool(block % structs, 'state', statePool)
       call mpas_pool_get_subpool(block % structs, 'mesh', meshPool)
       call mpas_pool_get_subpool(block % structs, 'forcing', forcingPool)
-      call mpas_pool_get_subpool(block % structs, 'diagnostics', diagnosticsPool)
       call mpas_pool_get_subpool(block % structs, 'scratch', scratchPool)
 
       call mpas_pool_get_subpool(statePool, 'tracers', tracersPool)
 
       call mpas_pool_get_array(statePool, 'layerThickness', layerThicknessNew, 2)
       call mpas_pool_get_array(statePool, 'normalVelocity', normalVelocityNew, 2)
-
-      call mpas_pool_get_array(diagnosticsPool, 'normalTransportVelocity', normalTransportVelocity)
-      call mpas_pool_get_array(diagnosticsPool, 'normalGMBolusVelocity', normalGMBolusVelocity)
 
       call mpas_pool_get_dimension(tracersPool, 'index_temperature', indexTemperature)
       call mpas_pool_get_dimension(tracersPool, 'index_salinity', indexSalinity)
@@ -1452,10 +1373,10 @@ module ocn_time_integration_rk4
          end if
       end do
 
-      call ocn_diagnostic_solve(dt, statePool, forcingPool, diagnosticsPool, scratchPool, tracersPool, 2)
+      call ocn_diagnostic_solve(dt, statePool, forcingPool, scratchPool, tracersPool, 2)
       call mpas_threading_barrier()
 
-      call ocn_vmix_implicit(dt, meshPool, diagnosticsPool, statePool, forcingPool, scratchPool, err, 2)
+      call ocn_vmix_implicit(dt, meshPool, statePool, forcingPool, scratchPool, err, 2)
       call mpas_threading_barrier()
 
    end subroutine ocn_time_integrator_rk4_cleanup!}}}

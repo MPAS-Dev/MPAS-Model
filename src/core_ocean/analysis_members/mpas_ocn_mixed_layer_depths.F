@@ -29,6 +29,7 @@ module ocn_mixed_layer_depths
 
    use ocn_constants
    use ocn_diagnostics_routines
+   use ocn_diagnostics_variables
 
    implicit none
    private
@@ -158,7 +159,6 @@ contains
       type (block_type), pointer :: block
       type (mpas_pool_type), pointer :: statePool
       type (mpas_pool_type), pointer :: meshPool
-      type (mpas_pool_type), pointer :: diagnosticsPool
       type (mpas_pool_type), pointer :: tracersPool
       type (mpas_pool_type), pointer :: mixedLayerDepthsAM
       type (mpas_pool_type), pointer :: forcingPool
@@ -179,10 +179,8 @@ contains
 
       real (kind=RKIND), dimension(:), pointer :: tThreshMLD, tGradientMLD, landIceDraft
       real (kind=RKIND), dimension(:), pointer :: dThreshMLD, dGradientMLD, landIcePressure
-      integer, dimension(:), pointer :: landIceMask, indMLD
+      integer, dimension(:), pointer :: landIceMask
       real (kind=RKIND), dimension(:,:,:), pointer :: tracers
-      real (kind=RKIND), dimension(:,:), pointer :: zTop, zMid, pressure
-      real (kind=RKIND), dimension(:,:), pointer :: potentialDensity
       real (kind=RKIND), pointer :: tempThresh
       real (kind=RKIND), pointer :: tempGrad
       real (kind=RKIND), pointer :: denThresh
@@ -221,7 +219,6 @@ contains
 
          call mpas_pool_get_subpool(block % structs, 'state', statePool)
          call mpas_pool_get_subpool(block % structs, 'mesh', meshPool)
-         call mpas_pool_get_subpool(block % structs, 'diagnostics', diagnosticsPool)
          call mpas_pool_get_subpool(block % structs, 'forcing', forcingPool)
          call mpas_pool_get_subpool(block % structs, 'mixedLayerDepthsAM', mixedLayerDepthsAMPool)
          call mpas_pool_get_subpool(statePool, 'tracers', tracersPool)
@@ -240,14 +237,9 @@ contains
          call mpas_pool_get_array(meshPool, 'maxLevelCell', maxLevelCell)
 
          call mpas_pool_get_array(tracersPool, 'activeTracers', tracers, timeLevel)
-         call mpas_pool_get_array(diagnosticsPool, 'potentialDensity', &
-                        potentialDensity)
-         call mpas_pool_get_array(diagnosticsPool, 'pressure', pressure)
          call mpas_pool_get_array(forcingPool, 'landIcePressure', landIcePressure)
          call mpas_pool_get_array(forcingPool, 'landIceDraft', landIceDraft)
          call mpas_pool_get_array(forcingPool, 'landIceMask', landIceMask)
-         call mpas_pool_get_array(diagnosticsPool, 'zMid', zMid)
-         call mpas_pool_get_array(diagnosticsPool, 'zTop', zTop)
          call mpas_pool_get_array(meshPool, 'latCell', latCell)
          call mpas_pool_get_array(meshPool, 'lonCell', lonCell)
 
@@ -321,7 +313,6 @@ contains
 
          if(dThresholdFlag) then
             call mpas_pool_get_array(mixedLayerDepthsAMPool, 'dThreshMLD',dThreshMLD)
-            call mpas_pool_get_array(diagnosticsPool, 'indMLD', indMLD)
 
             !$omp do schedule(runtime) private( k, refIndex, found_den_mld, localVals, interp_local, den_ref_lev, dV, dVp1, mldTemp)
             do iCell = 1,nCells

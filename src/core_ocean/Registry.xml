@@ -3095,7 +3095,6 @@
 		/>
 		<var name="RediKappaData" type="real" dimensions="nCells" units="m^2 s^{-1}"
 			 description="Redi isopycnal mixing Kappa value. This is the data field specified at init."
-			 packages="gm"
 		/>
 	</var_struct>
 	<var_struct name="timeVaryingForcing" time_levs="1">

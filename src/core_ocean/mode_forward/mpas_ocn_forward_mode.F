@@ -38,6 +38,7 @@ module ocn_forward_mode
    use ocn_time_integration_split
    use ocn_tendency
    use ocn_diagnostics
+   use ocn_diagnostics_variables
    use ocn_test
    use ocn_mesh
 
@@ -119,10 +120,7 @@ module ocn_forward_mode
       real (kind=RKIND) :: maxDensity, maxDensity_global
       real (kind=RKIND), dimension(:), pointer :: meshDensity
       type (mpas_pool_type), pointer :: meshPool
-      type (mpas_pool_type), pointer :: diagnosticsPool
 
-      character (len=StrKIND), pointer :: xtime, simulationStartTime
-      real (kind=RKIND), pointer :: daysSinceStartOfSim
       type (MPAS_Time_type) :: xtime_timeType, simulationStartTime_timeType
       type (MPAS_Time_Type) :: startTime, alarmTime
       type (MPAS_TimeInterval_type) :: timeStep
@@ -259,7 +257,7 @@ module ocn_forward_mode
 
       call ocn_tendency_init(err_tmp)
       ierr = ior(ierr,err_tmp)
-      call ocn_diagnostics_init(err_tmp)
+      call ocn_diagnostics_init(domain, err_tmp)
       ierr = ior(ierr,err_tmp)
 
       call ocn_forcing_init(err_tmp)
@@ -338,12 +336,9 @@ module ocn_forward_mode
              call mpas_log_write('An error was encountered in ocn_init_routines_block', MPAS_LOG_CRIT)
          endif
 
-         call mpas_pool_get_subpool(block % structs, 'diagnostics', diagnosticsPool)
-         call mpas_pool_get_array(diagnosticsPool, 'xtime', xtime)
          xtime = startTimeStamp
 
          ! Set simulationStartTime only if that variable is not read from the restart file.
-         call mpas_pool_get_array(diagnosticsPool, 'simulationStartTime', simulationStartTime)
          if (trim(simulationStartTime)=="no_date_available") then
             simulationStartTime = startTimeStamp
          end if
@@ -354,11 +349,7 @@ module ocn_forward_mode
       !$omp master
       block => domain % blocklist
       do while (associated(block))
-         call mpas_pool_get_subpool(block % structs, 'diagnostics', diagnosticsPool)
-         call mpas_pool_get_array(diagnosticsPool, 'xtime', xtime)
-
          ! compute time since start of simulation, in days
-         call mpas_pool_get_array(diagnosticsPool, 'daysSinceStartOfSim',daysSinceStartOfSim)
          call mpas_set_time(xtime_timeType, dateTimeString=xtime)
          call mpas_set_time(simulationStartTime_timeType, dateTimeString=simulationStartTime)
          call mpas_get_timeInterval(xtime_timeType - simulationStartTime_timeType,dt=daysSinceStartOfSim)
@@ -504,7 +495,6 @@ module ocn_forward_mode
       type (mpas_pool_type), pointer :: meshPool
       type (mpas_pool_type), pointer :: statePool
       type (mpas_pool_type), pointer :: forcingPool
-      type (mpas_pool_type), pointer :: diagnosticsPool
       type (mpas_pool_type), pointer :: scratchPool
 
       type (MPAS_timeInterval_type) :: timeStep
@@ -605,20 +595,19 @@ module ocn_forward_mode
            call mpas_pool_get_subpool(block_ptr % structs, 'mesh', meshPool)
            call mpas_pool_get_subpool(block_ptr % structs, 'state', statePool)
            call mpas_pool_get_subpool(block_ptr % structs, 'forcing', forcingPool)
-           call mpas_pool_get_subpool(block_ptr % structs, 'diagnostics', diagnosticsPool)
            call mpas_pool_get_subpool(block_ptr % structs, 'scratch', scratchPool)
-           call ocn_forcing_build_fraction_absorbed_array(meshPool, statePool, diagnosticsPool, forcingPool, ierr, 1)
+           call ocn_forcing_build_fraction_absorbed_array(meshPool, statePool, forcingPool, ierr, 1)
            call mpas_timer_start("land_ice_build_arrays")
-           call ocn_surface_land_ice_fluxes_build_arrays(meshPool, diagnosticsPool, &
+           call ocn_surface_land_ice_fluxes_build_arrays(meshPool, &
                                                          forcingPool, scratchPool, statePool, dt, err)
            call mpas_timer_stop("land_ice_build_arrays")
 
-           call ocn_frazil_forcing_build_arrays(domain, meshPool, forcingPool, diagnosticsPool, statePool, err)
-           call ocn_tidal_forcing_build_array(domain, meshPool, forcingPool, diagnosticsPool, statePool, err)
+           call ocn_frazil_forcing_build_arrays(domain, meshPool, forcingPool, statePool, err)
+           call ocn_tidal_forcing_build_array(domain, meshPool, forcingPool, statePool, err)
 
            ! Compute normalGMBolusVelocity, relativeSlope and RediDiffVertCoef if respective flags are turned on
            if (config_use_Redi.or.config_use_GM) then
-               call ocn_gm_compute_Bolus_velocity(statePool, diagnosticsPool, meshPool, scratchPool, timeLevelIn=1)
+               call ocn_gm_compute_Bolus_velocity(statePool, meshPool, scratchPool, timeLevelIn=1)
            end if
 
            block_ptr => block_ptr % next

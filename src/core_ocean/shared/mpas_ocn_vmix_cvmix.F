@@ -20,6 +20,7 @@ module ocn_vmix_cvmix
    use mpas_log
 
    use ocn_constants
+   use ocn_diagnostics_variables
 
    use cvmix_kinds_and_types
    use cvmix_put_get
@@ -81,7 +82,7 @@ contains
 !
 !-----------------------------------------------------------------------
 
-   subroutine ocn_vmix_coefs_cvmix_build(meshPool, statePool, forcingPool, diagnosticsPool, err, timeLevelIn)!{{{
+   subroutine ocn_vmix_coefs_cvmix_build(meshPool, statePool, forcingPool, err, timeLevelIn)!{{{
 
       !-----------------------------------------------------------------
       !
@@ -103,8 +104,6 @@ contains
       type (mpas_pool_type), intent(inout) :: &
          statePool         !< Input/Output: state information
 
-      type (mpas_pool_type), intent(inout) :: &
-         diagnosticsPool   !< Input/Output: diagnostic information
 
       type (mpas_pool_type), intent(inout) :: &
          forcingPool   !< Input/Output: forcing information
@@ -129,18 +128,14 @@ contains
         maxLevelCell, nEdgesOnCell
 
       real (kind=RKIND), dimension(:), pointer :: &
-        latCell, lonCell, bottomDepth, surfaceBuoyancyForcing, surfaceFrictionVelocity, fCell, &
-        boundaryLayerDepth, ssh, indexBoundaryLayerDepth, dcEdge, dvEdge, areaCell, iceFraction, &
-        boundaryLayerDepthSmooth, windSpeed10m
+        latCell, lonCell, bottomDepth, fCell, &
+        ssh, dcEdge, dvEdge, areaCell, iceFraction, &
+        windSpeed10m
 
       real (kind=RKIND), dimension(:,:), pointer :: &
-        vertViscTopOfCell, vertDiffTopOfCell, layerThickness, &
-        zMid, zTop, density, displacedDensity, potentialDensity, &
-        bulkRichardsonNumber, RiTopOfCell, BruntVaisalaFreqTop, &
-        bulkRichardsonNumberBuoy, bulkRichardsonNumberShear, unresolvedShear, normalVelocity, edgeAreaFractionOfCell
+        layerThickness, normalVelocity
 
-      real (kind=RKIND), dimension(:,:,:), pointer :: vertNonLocalFlux
-      integer, pointer :: index_vertNonLocalFluxTemp, config_cvmix_num_ri_smooth_loops
+      integer, pointer :: config_cvmix_num_ri_smooth_loops
       integer, dimension(:,:), pointer :: edgesOnCell, cellsOnCell, cellMask
 
       logical, pointer :: config_use_cvmix_shear, config_use_cvmix_convection, config_use_cvmix_kpp
@@ -242,50 +237,11 @@ contains
       call mpas_pool_get_array(statePool, 'layerThickness', layerThickness, timeLevel)
       call mpas_pool_get_array(statePool, 'ssh', ssh, timeLevel)
 
-      call mpas_pool_get_array(diagnosticsPool, 'zTop', zTop)
-      call mpas_pool_get_array(diagnosticsPool, 'zMid', zMid)
-
-      !
-      ! set pointers for fields related ocean state
-      !
-      call mpas_pool_get_array(diagnosticsPool, 'density', density)
-      call mpas_pool_get_array(diagnosticsPool, 'displacedDensity', displacedDensity)
-      call mpas_pool_get_array(diagnosticsPool, 'potentialDensity', potentialDensity)
-      call mpas_pool_get_array(diagnosticsPool, 'bulkRichardsonNumber', bulkRichardsonNumber)
-      call mpas_pool_get_array(diagnosticsPool, 'unresolvedShear', unresolvedShear)
-      call mpas_pool_get_array(diagnosticsPool, 'boundaryLayerDepth', boundaryLayerDepth)
-      call mpas_pool_get_array(diagnosticsPool, 'boundaryLayerDepthSmooth', boundaryLayerDepthSmooth)
-      call mpas_pool_get_array(diagnosticsPool, 'RiTopOfCell', RiTopOfCell)
-      call mpas_pool_get_array(diagnosticsPool, 'BruntVaisalaFreqTop',BruntVaisalaFreqTop)
-      call mpas_pool_get_array(diagnosticsPool, 'bulkRichardsonNumberBuoy',bulkRichardsonNumberBuoy)
-      call mpas_pool_get_array(diagnosticsPool, 'bulkRichardsonNumberShear',bulkRichardsonNumberShear)
-      call mpas_pool_get_array(diagnosticsPool, 'indexBoundaryLayerDepth',indexBoundaryLayerDepth)
-      call mpas_pool_get_array(diagnosticsPool, 'edgeAreaFractionOfCell', edgeAreaFractionOfCell)
-
       !
       ! set pointers for fields related to ocean forcing state
       !
       call mpas_pool_get_array(forcingPool, 'iceFraction', iceFraction)
       call mpas_pool_get_array(forcingPool, 'windSpeed10m', windSpeed10m)
-
-      !
-      ! set pointers for fields related forcing at ocean surface
-      !
-      call mpas_pool_get_array(diagnosticsPool, 'surfaceFrictionVelocity', surfaceFrictionVelocity)
-      call mpas_pool_get_array(diagnosticsPool, 'surfaceBuoyancyForcing', surfaceBuoyancyForcing)
-
-      !
-      ! set pointers for viscosity/diffusivity and initialize to zero
-      !
-      call mpas_pool_get_array(diagnosticsPool, 'vertViscTopOfCell', vertViscTopOfCell)
-      call mpas_pool_get_array(diagnosticsPool, 'vertDiffTopOfCell', vertDiffTopOfCell)
-
-
-      !
-      ! set pointers for nonlocal flux and initialize to zero
-      !
-      call mpas_pool_get_array(diagnosticsPool, 'vertNonLocalFlux', vertNonLocalFlux)
-      call mpas_pool_get_dimension(diagnosticsPool, 'index_vertNonLocalFluxTemp', index_vertNonLocalFluxTemp)
 
       nCells = nCellsArray( size(nCellsArray) )
 

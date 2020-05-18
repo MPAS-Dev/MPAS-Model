@@ -36,6 +36,7 @@ module ocn_diagnostics
    use ocn_equation_of_state
    use ocn_thick_ale
    use ocn_diagnostics_routines
+   use ocn_diagnostics_variables
 
    implicit none
    private
@@ -79,7 +80,7 @@ module ocn_diagnostics
    !--------------------------------------------------------------------
    !
    ! Replace calls to mpas_allocate_scratch_Field with straight allocates.
-   ! These variables were moved from the subroutines, but will be moved back once the 
+   ! These variables were moved from the subroutines, but will be moved back once the
    ! threading implementation is changed to more localized threading
    !
    !--------------------------------------------------------------------
@@ -152,13 +153,12 @@ contains
 !
 !-----------------------------------------------------------------------
 
-   subroutine ocn_diagnostic_solve(dt, statePool, forcingPool, diagnosticsPool, scratchPool, tracersPool, &!{{{
+   subroutine ocn_diagnostic_solve(dt, statePool, forcingPool, scratchPool, tracersPool, &!{{{
                                    timeLevelIn)
 
       real (kind=RKIND), intent(in) :: dt !< Input: Time step
       type (mpas_pool_type), intent(in) :: statePool !< Input: State information
       type (mpas_pool_type), intent(in) :: forcingPool !< Input: Forcing information
-      type (mpas_pool_type), intent(inout) :: diagnosticsPool  !< Input: diagnostic fields derived from State
       type (mpas_pool_type), intent(in) :: scratchPool !< Input: scratch variables
       type (mpas_pool_type), intent(in) :: tracersPool !< Input: tracer fields
       integer, intent(in), optional :: timeLevelIn !< Input: Time level in state
@@ -174,32 +174,19 @@ contains
 
       real (kind=RKIND), dimension(:), pointer :: &
         ssh,  seaIcePressure, atmosphericPressure, frazilSurfacePressure, &
-        pressureAdjustedSSH, gradSSH, landIcePressure, landIceDraft
+        landIcePressure, landIceDraft
 
       real (kind=RKIND), dimension(:,:), pointer :: &
-        layerThicknessEdge, layerThickness, normalVelocity, normalTransportVelocity, &
-        normalGMBolusVelocity, tangentialVelocity, pressure, circulation, kineticEnergyCell, montgomeryPotential, &
-        vertAleTransportTop, zMid, zTop, divergence, relativeVorticity, relativeVorticityCell, &
-        normalizedPlanetaryVorticityEdge, normalizedPlanetaryVorticityVertex, normalizedRelativeVorticityEdge, &
-        normalizedRelativeVorticityVertex, normalizedRelativeVorticityCell, density, displacedDensity, potentialDensity, &
-        temperature, salinity, kineticEnergyVertex, kineticEnergyVertexOnCells, vertVelocityTop, vertTransportVelocityTop, &
-        vertGMBolusVelocityTop, BruntVaisalaFreqTop, vorticityGradientNormalComponent, vorticityGradientTangentialComponent, &
-        RiTopOfCell, inSituThermalExpansionCoeff, inSituSalineContractionCoeff, edgeAreaFractionOfCell
+        layerThickness, normalVelocity, &
+        vertAleTransportTop, &
+        temperature, salinity
 
       real (kind=RKIND), dimension(:,:,:), pointer :: activeTracers
       character :: c1*6
 
-      real (kind=RKIND), dimension(:,:), pointer :: tracersSurfaceValue
-      real (kind=RKIND), dimension(:,:), pointer :: tracersSurfaceLayerValue
-      real (kind=RKIND), dimension(:),   pointer :: normalVelocitySurfaceLayer
-      real (kind=RKIND), dimension(:),   pointer :: indexSurfaceLayerDepth
-
       integer :: timeLevel
       integer, pointer :: indexTemperature, indexSalinity
 
-
-      real (kind=RKIND), dimension(:), pointer :: surfaceFluxAttenuationCoefficient
-      real (kind=RKIND), dimension(:), pointer :: surfaceFluxAttenuationCoefficientRunoff
       real (kind=RKIND) :: areaTri1, layerThicknessVertexInv, tempRiVal, dcEdge_temp, dvEdge_temp, weightsOnEdge_temp
       real (kind=RKIND), dimension(:), allocatable:: layerThicknessVertexVec
       integer :: edgeSignOnCell_temp
@@ -220,50 +207,12 @@ contains
       call mpas_pool_get_array(tracersPool, 'activeTracers', activeTracers, timeLevel)
       call mpas_pool_get_array(statePool, 'ssh', ssh, timeLevel)
 
-      call mpas_pool_get_array(diagnosticsPool, 'zMid', zMid)
-      call mpas_pool_get_array(diagnosticsPool, 'zTop', zTop)
-      call mpas_pool_get_array(diagnosticsPool, 'divergence', divergence)
-      call mpas_pool_get_array(diagnosticsPool, 'circulation', circulation)
-      call mpas_pool_get_array(diagnosticsPool, 'relativeVorticity', relativeVorticity)
-      call mpas_pool_get_array(diagnosticsPool, 'relativeVorticityCell', relativeVorticityCell)
-      call mpas_pool_get_array(diagnosticsPool, 'normalizedPlanetaryVorticityEdge', normalizedPlanetaryVorticityEdge)
-      call mpas_pool_get_array(diagnosticsPool, 'normalizedRelativeVorticityEdge', normalizedRelativeVorticityEdge)
-      call mpas_pool_get_array(diagnosticsPool, 'normalizedRelativeVorticityCell', normalizedRelativeVorticityCell)
-      call mpas_pool_get_array(diagnosticsPool, 'density', density)
-      call mpas_pool_get_array(diagnosticsPool, 'displacedDensity', displacedDensity)
-      call mpas_pool_get_array(diagnosticsPool, 'potentialDensity', potentialDensity)
-      call mpas_pool_get_array(diagnosticsPool, 'montgomeryPotential', montgomeryPotential)
-      call mpas_pool_get_array(diagnosticsPool, 'pressure', pressure)
-      call mpas_pool_get_array(diagnosticsPool, 'inSituThermalExpansionCoeff',inSituThermalExpansionCoeff)
-      call mpas_pool_get_array(diagnosticsPool, 'inSituSalineContractionCoeff', inSituSalineContractionCoeff)
-      call mpas_pool_get_array(diagnosticsPool, 'BruntVaisalaFreqTop', BruntVaisalaFreqTop)
-      call mpas_pool_get_array(diagnosticsPool, 'tangentialVelocity', tangentialVelocity)
-      call mpas_pool_get_array(diagnosticsPool, 'layerThicknessEdge', layerThicknessEdge)
-      call mpas_pool_get_array(diagnosticsPool, 'kineticEnergyCell', kineticEnergyCell)
-      call mpas_pool_get_array(diagnosticsPool, 'vertVelocityTop', vertVelocityTop)
-      call mpas_pool_get_array(diagnosticsPool, 'vertTransportVelocityTop', vertTransportVelocityTop)
-      call mpas_pool_get_array(diagnosticsPool, 'vertGMBolusVelocityTop', vertGMBolusVelocityTop)
-      call mpas_pool_get_array(diagnosticsPool, 'normalGMBolusVelocity', normalGMBolusVelocity)
-      call mpas_pool_get_array(diagnosticsPool, 'normalTransportVelocity', normalTransportVelocity)
-      call mpas_pool_get_array(diagnosticsPool, 'gradSSH', gradSSH)
-      call mpas_pool_get_array(diagnosticsPool, 'RiTopOfCell', RiTopOfCell)
-      call mpas_pool_get_array(diagnosticsPool, 'pressureAdjustedSSH', pressureAdjustedSSH)
-      call mpas_pool_get_array(diagnosticsPool, 'edgeAreaFractionOfCell', edgeAreaFractionOfCell)
-
       call mpas_pool_get_array(forcingPool, 'seaIcePressure', seaIcePressure)
       call mpas_pool_get_array(forcingPool, 'atmosphericPressure', atmosphericPressure)
       call mpas_pool_get_array(forcingPool, 'landIcePressure', landIcePressure)
       call mpas_pool_get_array(forcingPool, 'landIceDraft', landIceDraft)
       call mpas_pool_get_array(forcingPool, 'frazilSurfacePressure', frazilSurfacePressure)
 
-      call mpas_pool_get_array(diagnosticsPool, 'tracersSurfaceValue', tracersSurfaceValue)
-      call mpas_pool_get_array(diagnosticsPool, 'tracersSurfaceLayerValue', tracersSurfaceLayerValue)
-      call mpas_pool_get_array(diagnosticsPool, 'normalVelocitySurfaceLayer', normalVelocitySurfaceLayer)
-      call mpas_pool_get_array(diagnosticsPool, 'indexSurfaceLayerDepth', indexSurfaceLayerDepth)
-
-      call mpas_pool_get_array(diagnosticsPool, 'surfaceFluxAttenuationCoefficient', surfaceFluxAttenuationCoefficient)
-      call mpas_pool_get_array(diagnosticsPool, 'surfaceFluxAttenuationCoefficientRunoff', surfaceFluxAttenuationCoefficientRunoff)
-      !
       ! Compute height on cell edges at velocity locations
       !   Namelist options control the order of accuracy of the reconstructed layerThicknessEdge value
       !
@@ -614,20 +563,20 @@ contains
       nCells = nCellsAll
 
       ! compute in-place density
-      call ocn_equation_of_state_density(statePool, diagnosticsPool, scratchPool, &
+      call ocn_equation_of_state_density(statePool, tracersSurfaceValue, scratchPool, &
                                          nCells, 0, 'relative', density, err, &
                                          inSituThermalExpansionCoeff, inSituSalineContractionCoeff, &
                                          timeLevelIn=timeLevel)
       call mpas_threading_barrier()
 
       ! compute potentialDensity, the density displaced adiabatically to the mid-depth of top layer.
-      call ocn_equation_of_state_density(statePool, diagnosticsPool, scratchPool, &
+      call ocn_equation_of_state_density(statePool, tracersSurfaceValue, scratchPool, &
                                          nCells, 1, 'absolute', potentialDensity, &
                                          err, timeLevelIn=timeLevel)
 
       ! compute displacedDensity, density displaced adiabatically to the mid-depth one layer deeper.
       ! That is, layer k has been displaced to the depth of layer k+1.
-      call ocn_equation_of_state_density(statePool, diagnosticsPool, scratchPool, &
+      call ocn_equation_of_state_density(statePool, tracersSurfaceValue, scratchPool, &
                                          nCells, 1, 'relative', displacedDensity, &
                                          err, timeLevelIn=timeLevel)
       call mpas_threading_barrier()
@@ -731,7 +680,7 @@ contains
       !
 
       nCells = nCellsHalo(2)
-      !$omp do schedule(runtime) private(invAreaCell1, k, shearSquared, i, iEdge, factor, delU2, shearMean)
+      !$omp do schedule(runtime) private(invAreaCell1, k, shearSquared, i, iEdge, delU2, shearMean)
       do iCell=1,nCells
          RiTopOfCell(:,iCell) = 100.0_RKIND
          do k=2,maxLevelCell(iCell)
@@ -855,7 +804,7 @@ contains
       !
       !  compute fields needed to compute land-ice fluxes, either in the ocean model or in the coupler
       call ocn_compute_land_ice_flux_input_fields(statePool, forcingPool, scratchPool, &
-                                         diagnosticsPool, timeLevel)
+                                         timeLevel)
 
       nCells = nCellsHalo( 1 )
       !$omp do schedule(runtime)
@@ -1104,15 +1053,14 @@ contains
 !>  This routine filters barotropic mode out of the velocity variable.
 !
 !-----------------------------------------------------------------------
-   subroutine ocn_filter_btr_mode_vel(statePool, diagnosticsPool, timeLevelIn)!{{{
+   subroutine ocn_filter_btr_mode_vel(statePool, timeLevelIn)!{{{
 
       type (mpas_pool_type), intent(inout) :: statePool !< Input/Output: State information
-      type (mpas_pool_type), intent(in) :: diagnosticsPool !< Input: Diagnostics information
       integer, intent(in), optional :: timeLevelIn !< Input: Time level for state pool
 
       integer :: iEdge, k
       real (kind=RKIND) :: vertSum, normalThicknessFluxSum, thicknessSum
-      real (kind=RKIND), dimension(:,:), pointer :: layerThicknessEdge, normalVelocity
+      real (kind=RKIND), dimension(:,:), pointer :: normalVelocity
 
       integer :: timeLevel
 
@@ -1125,8 +1073,6 @@ contains
       end if
 
       call mpas_pool_get_array(statePool, 'normalVelocity', normalVelocity, timeLevel)
-
-      call mpas_pool_get_array(diagnosticsPool, 'layerThicknessEdge', layerThicknessEdge)
 
       !$omp do schedule(runtime)
       do iEdge = 1, nEdgesAll
@@ -1164,16 +1110,15 @@ contains
 !>  This routine filters barotropic mode out of the velocity tendency.
 !
 !-----------------------------------------------------------------------
-   subroutine ocn_filter_btr_mode_tend_vel(tendPool, statePool, diagnosticsPool, timeLevelIn)!{{{
+   subroutine ocn_filter_btr_mode_tend_vel(tendPool, statePool, timeLevelIn)!{{{
 
       type (mpas_pool_type), intent(inout) :: tendPool !< Input/Output: Tendency information
       type (mpas_pool_type), intent(in) :: statePool !< Input: State information
-      type (mpas_pool_type), intent(in) :: diagnosticsPool !< Input: Diagnostics information
       integer, intent(in), optional :: timeLevelIn !< Input: Time level for state pool
 
       integer :: iEdge, k
       real (kind=RKIND) :: vertSum, normalThicknessFluxSum, thicknessSum
-      real (kind=RKIND), dimension(:,:), pointer :: layerThicknessEdge, tend_normalVelocity
+      real (kind=RKIND), dimension(:,:), pointer :: tend_normalVelocity
 
       integer :: timeLevel
 
@@ -1186,8 +1131,6 @@ contains
       end if
 
       call mpas_pool_get_array(tendPool, 'normalVelocity', tend_normalVelocity)
-
-      call mpas_pool_get_array(diagnosticsPool, 'layerThicknessEdge', layerThicknessEdge)
 
       !$omp do schedule(runtime)
       do iEdge = 1, nEdgesAll
@@ -1226,7 +1169,9 @@ contains
 !>  other diagnostics routines.
 !
 !-----------------------------------------------------------------------
-   subroutine ocn_diagnostics_init(err)!{{{
+   subroutine ocn_diagnostics_init(domain, err)!{{{
+      type (domain_type), intent(in) :: domain
+
       integer, intent(out) :: err !< Output: Error flag
 
       err = 0
@@ -1257,6 +1202,8 @@ contains
           fCoef = 0
       end if
 
+      call ocn_diagnostics_variables_init(domain, jenkinsOn, hollandJenkinsOn, err)
+
     end subroutine ocn_diagnostics_init!}}}
 
 !***********************************************************************
@@ -1277,11 +1224,10 @@ contains
 !
 !-----------------------------------------------------------------------
 
-    subroutine ocn_compute_KPP_input_fields(statePool, forcingPool, diagnosticsPool, scratchPool, timeLevelIn)!{{{
+    subroutine ocn_compute_KPP_input_fields(statePool, forcingPool, scratchPool, timeLevelIn)!{{{
 
       type (mpas_pool_type), intent(in) :: statePool !< Input/Output: State information
       type (mpas_pool_type), intent(in) :: forcingPool !< Input: Forcing information
-      type (mpas_pool_type), intent(inout) :: diagnosticsPool !< Diagnostics information derived from State
       type (mpas_pool_type), intent(in) :: scratchPool !< Input: scratch variables
       integer, intent(in), optional :: timeLevelIn
 
@@ -1294,23 +1240,16 @@ contains
 
       ! real pointers
       real (kind=RKIND), dimension(:), pointer :: penetrativeTemperatureFlux, surfaceThicknessFlux, &
-           surfaceBuoyancyForcing, surfaceFrictionVelocity, penetrativeTemperatureFluxOBL, &
-           normalVelocitySurfaceLayer, surfaceThicknessFluxRunoff, rainFlux, evaporationFlux
+           surfaceThicknessFluxRunoff, rainFlux, evaporationFlux
 
       real (kind=RKIND), dimension(:), pointer :: surfaceStress, surfaceStressMagnitude
       real (kind=RKIND), dimension(:,:), pointer ::  &
-           layerThickness, zMid, zTop, densitySurfaceDisplaced, density, &
-           normalVelocity, activeTracersSurfaceFlux, thermalExpansionCoeff, salineContractionCoeff, &
-           activeTracersSurfaceFluxRunoff, nonLocalSurfaceTracerFlux, edgeAreaFractionOfCell
-
-      real (kind=RKIND), dimension(:), pointer :: &
-           indexSurfaceLayerDepth
+           layerThickness, &
+           normalVelocity, activeTracersSurfaceFlux, &
+           activeTracersSurfaceFluxRunoff, nonLocalSurfaceTracerFlux
 
       real (kind=RKIND), dimension(:,:,:), pointer :: &
            activeTracers
-
-      real (kind=RKIND), dimension(:,:), pointer ::  &
-           bulkRichardsonNumberBuoy, bulkRichardsonNumberShear
 
       ! local
       integer :: iCell, iEdge, i, k, err, timeLevel
@@ -1339,15 +1278,6 @@ contains
       call mpas_pool_get_array(statePool, 'normalVelocity', normalVelocity, timeLevel)
       call mpas_pool_get_array(statePool, 'layerThickness', layerThickness, timeLevel)
 
-      call mpas_pool_get_array(diagnosticsPool, 'zMid', zMid)
-      call mpas_pool_get_array(diagnosticsPool, 'zTop', zTop)
-      call mpas_pool_get_array(diagnosticsPool, 'edgeAreaFractionOfCell', edgeAreaFractionOfCell)
-      call mpas_pool_get_array(diagnosticsPool, 'density', density)
-      call mpas_pool_get_array(diagnosticsPool, 'surfaceFrictionVelocity', surfaceFrictionVelocity)
-      call mpas_pool_get_array(diagnosticsPool, 'penetrativeTemperatureFluxOBL', penetrativeTemperatureFluxOBL)
-      call mpas_pool_get_array(diagnosticsPool, 'indexSurfaceLayerDepth', indexSurfaceLayerDepth)
-      call mpas_pool_get_array(diagnosticsPool, 'surfaceBuoyancyForcing', surfaceBuoyancyForcing)
-      call mpas_pool_get_array(diagnosticsPool, 'normalVelocitySurfaceLayer', normalVelocitySurfaceLayer)
       call mpas_pool_get_array(tracersSurfaceFluxPool, 'nonLocalSurfaceTracerFlux', nonLocalSurfaceTracerFlux)
 
       call mpas_pool_get_array(forcingPool, 'surfaceThicknessFlux', surfaceThicknessFlux)
@@ -1375,7 +1305,7 @@ contains
       nCells = nCellsHalo( 2 )
 
       ! compute EOS by displacing SST/SSS to every vertical layer in column
-      call ocn_equation_of_state_density(statePool, diagnosticsPool, scratchPool, nCells, 0, 'surfaceDisplaced', &
+      call ocn_equation_of_state_density(statePool, tracersSurfaceValue, scratchPool, nCells, 0, 'surfaceDisplaced', &
                                          densitySurfaceDisplaced, err, thermalExpansionCoeff, salineContractionCoeff, &
                                          timeLevel)
 
@@ -1464,12 +1394,11 @@ contains
 !-----------------------------------------------------------------------
 
    subroutine ocn_compute_land_ice_flux_input_fields(statePool, &
-      forcingPool, scratchPool, diagnosticsPool, timeLevel)!{{{
+      forcingPool, scratchPool, timeLevel)!{{{
 
       type (mpas_pool_type), intent(in) :: statePool !< Input: State information
       type (mpas_pool_type), intent(in) :: forcingPool !< Input: Forcing information
       type (mpas_pool_type), intent(in) :: scratchPool !< Input/Output: scratch variables
-      type (mpas_pool_type), intent(inout) :: diagnosticsPool !< Input/Output: Diagnostics information
 
       integer, intent(in) :: timeLevel
 
@@ -1483,20 +1412,15 @@ contains
 
       integer :: iCell, iEdge, cell1, cell2, iLevel, i
 
-      integer, pointer :: indexT, indexS, indexBLT, indexBLS, indexHeatTrans, indexSaltTrans
+      integer, pointer :: indexT, indexS
 
       real (kind=RKIND) :: blThickness, dz, weightSum, h_nu, Gamma_turb, landIceEdgeFraction, velocityMagnitude
 
-      real (kind=RKIND), dimension(:), pointer :: landIceFraction, &
-                                                  landIceFrictionVelocity, &
-                                                  topDrag, &
-                                                  topDragMagnitude, &
-                                                  surfaceFluxAttenuationCoefficient
+      real (kind=RKIND), dimension(:), pointer :: landIceFraction
 
       integer, dimension(:), pointer :: landIceMask
 
-      real (kind=RKIND), dimension(:,:), pointer :: kineticEnergyCell, layerThickness, normalVelocity, &
-                                                    landIceBoundaryLayerTracers, landIceTracerTransferVelocities
+      real (kind=RKIND), dimension(:,:), pointer :: layerThickness, normalVelocity
       real (kind=RKIND), dimension(:,:,:), pointer :: activeTracers
 
       ! constants for Holland and Jenkins 1999 parameterization of the boundary layer
@@ -1546,23 +1470,6 @@ contains
 
       call mpas_pool_get_array(forcingPool, 'landIceFraction', landIceFraction)
       call mpas_pool_get_array(forcingPool, 'landIceMask', landIceMask)
-
-      call mpas_pool_get_array(diagnosticsPool, 'kineticEnergyCell', kineticEnergyCell)
-
-      call mpas_pool_get_array(diagnosticsPool, 'landIceFrictionVelocity', landIceFrictionVelocity)
-      call mpas_pool_get_array(diagnosticsPool, 'topDrag', topDrag)
-      call mpas_pool_get_array(diagnosticsPool, 'topDragMagnitude', topDragMagnitude)
-
-      call mpas_pool_get_array(diagnosticsPool, 'landIceBoundaryLayerTracers', landIceBoundaryLayerTracers)
-      call mpas_pool_get_dimension(diagnosticsPool, 'index_landIceBoundaryLayerTemperature', indexBLT)
-      call mpas_pool_get_dimension(diagnosticsPool, 'index_landIceBoundaryLayerSalinity', indexBLS)
-
-      if(jenkinsOn .or. hollandJenkinsOn) then
-        call mpas_pool_get_array(diagnosticsPool, 'landIceTracerTransferVelocities', landIceTracerTransferVelocities)
-        call mpas_pool_get_dimension(diagnosticsPool, 'index_landIceHeatTransferVelocity', indexHeatTrans)
-        call mpas_pool_get_dimension(diagnosticsPool, 'index_landIceSaltTransferVelocity', indexSaltTrans)
-      end if
-      call mpas_pool_get_array(diagnosticsPool, 'surfaceFluxAttenuationCoefficient', surfaceFluxAttenuationCoefficient)
 
       !$omp master
       allocate(blTempScratch(nCellsAll), &
@@ -1704,39 +1611,11 @@ contains
 !
 !-----------------------------------------------------------------------
 
-   subroutine ocn_reconstruct_gm_vectors(diagnosticsPool, meshPool) !{{{
+   subroutine ocn_reconstruct_gm_vectors(meshPool) !{{{
 
       type (mpas_pool_type), intent(in) :: meshPool !< Input: mesh information
-      type (mpas_pool_type), intent(in) :: diagnosticsPool !< Input: Diagnostic information
-
-      real (kind=RKIND), dimension(:,:), pointer :: &
-         normalTransportVelocity, transportVelocityX, transportVelocityY, transportVelocityZ, transportVelocityZonal, &
-         transportVelocityMeridional, normalGMBolusVelocity, GMBolusVelocityX, GMBolusVelocityY, GMBolusVelocityZ, &
-         GMBolusVelocityZonal, GMBolusVelocityMeridional, &
-         gmStreamFuncTopOfEdge, GMStreamFuncX, GMStreamFuncY, GMStreamFuncZ, GMStreamFuncZonal, GMStreamFuncMeridional
 
       call mpas_timer_start('reconstruct gm vecs')
-
-      call mpas_pool_get_array(diagnosticsPool, 'normalTransportVelocity', normalTransportVelocity)
-      call mpas_pool_get_array(diagnosticsPool, 'transportVelocityX', transportVelocityX)
-      call mpas_pool_get_array(diagnosticsPool, 'transportVelocityY', transportVelocityY)
-      call mpas_pool_get_array(diagnosticsPool, 'transportVelocityZ', transportVelocityZ)
-      call mpas_pool_get_array(diagnosticsPool, 'transportVelocityZonal', transportVelocityZonal)
-      call mpas_pool_get_array(diagnosticsPool, 'transportVelocityMeridional', transportVelocityMeridional)
-
-      call mpas_pool_get_array(diagnosticsPool, 'normalGMBolusVelocity', normalGMBolusVelocity)
-      call mpas_pool_get_array(diagnosticsPool, 'GMBolusVelocityX', GMBolusVelocityX)
-      call mpas_pool_get_array(diagnosticsPool, 'GMBolusVelocityY', GMBolusVelocityY)
-      call mpas_pool_get_array(diagnosticsPool, 'GMBolusVelocityZ', GMBolusVelocityZ)
-      call mpas_pool_get_array(diagnosticsPool, 'GMBolusVelocityZonal', GMBolusVelocityZonal)
-      call mpas_pool_get_array(diagnosticsPool, 'GMBolusVelocityMeridional', GMBolusVelocityMeridional)
-
-      call mpas_pool_get_array(diagnosticsPool, 'gmStreamFuncTopOfEdge', gmStreamFuncTopOfEdge)
-      call mpas_pool_get_array(diagnosticsPool, 'GMStreamFuncX', GMStreamFuncX)
-      call mpas_pool_get_array(diagnosticsPool, 'GMStreamFuncY', GMStreamFuncY)
-      call mpas_pool_get_array(diagnosticsPool, 'GMStreamFuncZ', GMStreamFuncZ)
-      call mpas_pool_get_array(diagnosticsPool, 'GMStreamFuncZonal', GMStreamFuncZonal)
-      call mpas_pool_get_array(diagnosticsPool, 'GMStreamFuncMeridional', GMStreamFuncMeridional)
 
       call mpas_reconstruct(meshPool, normalTransportVelocity,          &
                        transportVelocityX,            &

@@ -28,6 +28,7 @@ module ocn_tracer_hmix_Redi
 
    use ocn_config
    use ocn_constants
+   use ocn_diagnostics_variables
 
    implicit none
    private
@@ -446,12 +447,13 @@ contains
 
       type(block_type), pointer :: block
       type(mpas_pool_type), pointer :: meshPool
-      type(mpas_pool_type), pointer :: diagnosticsPool
       type(mpas_pool_type), pointer :: forcingPool
+      type(mpas_pool_type), pointer :: diagnosticsPool
 
-      real(kind=RKIND), dimension(:), pointer :: RediKappa, RediKappaData
+      real(kind=RKIND), dimension(:), pointer :: RediKappaData
+      real(kind=RKIND), dimension(:), pointer :: areaCell
+      integer, dimension(:,:), pointer, contiguous :: cellsOnEdge     ! indices of cells on edges
       real(kind=RKIND), dimension(:), pointer :: dcEdge
-      integer, dimension(:,:), pointer :: cellsOnEdge
 
       integer :: k, iEdge
       integer, pointer :: nVertLevels, nEdges
@@ -469,8 +471,8 @@ contains
       block => domain%blocklist
       do while (associated(block))
          call mpas_pool_get_subpool(block%structs, 'mesh', meshPool)
-         call mpas_pool_get_subpool(block%structs, 'diagnostics', diagnosticsPool)
          call mpas_pool_get_subpool(block%structs, 'forcing', forcingPool)
+         call mpas_pool_get_subpool(block%structs, 'diagnostics', diagnosticsPool)
          call mpas_pool_get_dimension(meshPool, 'nEdges', nEdges)
          call mpas_pool_get_dimension(meshPool, 'nVertLevels', nVertLevels)
          call mpas_pool_get_array(diagnosticsPool, 'RediKappa', RediKappa)

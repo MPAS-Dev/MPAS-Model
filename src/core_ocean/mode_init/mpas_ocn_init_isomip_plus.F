@@ -30,6 +30,7 @@ module ocn_init_isomip_plus
    use mpas_dmpar
 
    use ocn_constants
+   use ocn_diagnostics_variables
 
    use ocn_init_cell_markers
 
@@ -88,7 +89,7 @@ contains
    !--------------------------------------------------------------------
 
       type (domain_type), intent(inout) :: domain
-      type (mpas_pool_type), pointer :: meshPool, statePool, diagnosticsPool, &
+      type (mpas_pool_type), pointer :: meshPool, statePool, &
                                         verticalMeshPool, forcingPool, &
                                         tracersPool
       type (mpas_pool_type), pointer :: tracersInteriorRestoringFieldsPool
@@ -221,12 +222,10 @@ contains
       do while (associated(block_ptr))
         call mpas_pool_get_subpool(block_ptr % structs, 'mesh', meshPool)
         call mpas_pool_get_subpool(block_ptr % structs, 'state', statePool)
-        call mpas_pool_get_subpool(block_ptr % structs, 'diagnostics', diagnosticsPool)
 
         call mpas_pool_get_dimension(meshPool, 'nCells', nCells)
 
         call mpas_pool_get_array(meshPool, 'maxLevelCell', maxLevelCell)
-        call mpas_pool_get_array(diagnosticsPool, 'zMid', zMid)
 
         call mpas_pool_get_subpool(statePool, 'tracers', tracersPool)
         call mpas_pool_get_array(tracersPool, 'activeTracers', activeTracers, 1)
@@ -261,7 +260,6 @@ contains
       do while (associated(block_ptr))
         call mpas_pool_get_subpool(block_ptr % structs, 'mesh', meshPool)
         call mpas_pool_get_subpool(block_ptr % structs, 'state', statePool)
-        call mpas_pool_get_subpool(block_ptr % structs, 'diagnostics', diagnosticsPool)
         call mpas_pool_get_subpool(block_ptr % structs, 'forcing', forcingPool)
         call mpas_pool_get_subpool(block_ptr % structs, 'verticalMesh', verticalMeshPool)
 
@@ -272,8 +270,6 @@ contains
         call mpas_pool_get_array(meshPool, 'fCell', fCell)
         call mpas_pool_get_array(meshPool, 'fEdge', fEdge)
         call mpas_pool_get_array(meshPool, 'fVertex', fVertex)
-
-        call mpas_pool_get_array(diagnosticsPool, 'zMid', zMid)
 
         call mpas_pool_get_subpool(statePool, 'tracers', tracersPool)
         call mpas_pool_get_array(tracersPool, 'activeTracers', activeTracers, 1)
@@ -524,7 +520,7 @@ contains
        type (block_type), pointer :: block_ptr
 
        type (mpas_pool_type), pointer :: meshPool, verticalMeshPool, &
-                                         forcingPool, diagnosticsPool, &
+                                         forcingPool, &
                                          statePool
 
        integer, dimension(:), pointer :: landIceMask
@@ -559,7 +555,6 @@ contains
        do while(associated(block_ptr))
           call mpas_pool_get_subpool(block_ptr % structs, 'mesh', meshPool)
           call mpas_pool_get_subpool(block_ptr % structs, 'forcing', forcingPool)
-          call mpas_pool_get_subpool(block_ptr % structs, 'diagnostics', diagnosticsPool)
           call mpas_pool_get_subpool(block_ptr % structs, 'state', statePool)
 
           call mpas_pool_get_dimension(meshPool, 'nCells', nCells)
@@ -574,7 +569,6 @@ contains
           call mpas_pool_get_array(meshPool, 'oceanFracObserved', oceanFracObserved)
 
           call mpas_pool_get_array(statePool, 'ssh', ssh, 1)
-          call mpas_pool_get_array(diagnosticsPool, 'modifySSHMask', modifySSHMask)
           call mpas_pool_get_array(forcingPool, 'landIceMask', landIceMask)
           call mpas_pool_get_array(forcingPool, 'landIceFraction', landIceFraction)
 

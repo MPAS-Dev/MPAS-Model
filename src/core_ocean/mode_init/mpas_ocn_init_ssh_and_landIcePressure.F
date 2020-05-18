@@ -30,6 +30,7 @@ module ocn_init_ssh_and_landIcePressure
    use ocn_constants
    use ocn_init_interpolation
    use ocn_init_vertical_grids
+   use ocn_diagnostics_variables
 
    use ocn_equation_of_state
 
@@ -136,7 +137,7 @@ contains
 
      type (block_type), pointer :: block_ptr
 
-     type (mpas_pool_type), pointer :: meshPool, forcingPool, statePool, diagnosticsPool, &
+     type (mpas_pool_type), pointer :: meshPool, forcingPool, statePool, &
                                        verticalMeshPool, scratchPool
 
      type (mpas_pool_type), pointer :: tracersPool
@@ -145,15 +146,14 @@ contains
      real (kind=RKIND), dimension(:), pointer :: ssh
 
      real (kind=RKIND), dimension(:,:,:), pointer :: activeTracers
-     real (kind=RKIND), dimension(:,:), pointer :: layerThickness, zMid
+     real (kind=RKIND), dimension(:,:), pointer :: layerThickness
 
-     real (kind=RKIND), dimension(:,:), pointer :: density
      real (kind=RKIND), dimension(:), pointer :: landIcePressure, landIceDraft, &
                                                  effectiveDensityInLandIce
 
 
      real(kind=RKIND), dimension(:,:), pointer :: origZMid
-     integer, dimension(:), pointer :: origMaxLevelCell, modifySSHMask
+     integer, dimension(:), pointer :: origMaxLevelCell
      type (field2DReal), pointer :: origZMidField
      type (field1DInteger), pointer :: origMaxLevelCellField
      integer, pointer :: nCells, nVertLevels
@@ -173,13 +173,10 @@ contains
        call mpas_pool_get_subpool(block_ptr % structs, 'mesh', meshPool)
        call mpas_pool_get_subpool(block_ptr % structs, 'scratch', scratchPool)
        call mpas_pool_get_subpool(block_ptr % structs, 'state', statePool)
-       call mpas_pool_get_subpool(block_ptr % structs, 'diagnostics', diagnosticsPool)
 
        call mpas_pool_get_dimension(meshPool, 'nCells', nCells)
 
-       call mpas_pool_get_array(diagnosticsPool, 'density', density)
-
-       call ocn_equation_of_state_density(statePool, diagnosticsPool,  &
+       call ocn_equation_of_state_density(statePool, tracersSurfaceValue,  &
            scratchPool, nCells, 0, 'relative', density, iErr, &
            timeLevelIn=1)
 
@@ -202,7 +199,6 @@ contains
          call mpas_pool_get_subpool(block_ptr % structs, 'verticalMesh', verticalMeshPool)
          call mpas_pool_get_subpool(block_ptr % structs, 'state', statePool)
          call mpas_pool_get_subpool(block_ptr % structs, 'forcing', forcingPool)
-         call mpas_pool_get_subpool(block_ptr % structs, 'diagnostics', diagnosticsPool)
          call mpas_pool_get_subpool(statePool, 'tracers', tracersPool)
 
          call mpas_pool_get_dimension(meshPool, 'nCells', nCells)
@@ -216,10 +212,8 @@ contains
 
          call mpas_pool_get_array(statePool, 'ssh', ssh, 1)
          call mpas_pool_get_array(statePool, 'effectiveDensityInLandIce', effectiveDensityInLandIce, 1)
-         call mpas_pool_get_array(diagnosticsPool, 'density', density)
-         call mpas_pool_get_array(diagnosticsPool, 'modifySSHMask', modifySSHMask)
 
-         call ocn_equation_of_state_density(statePool, diagnosticsPool, &
+         call ocn_equation_of_state_density(statePool, tracersSurfaceValue, &
              scratchPool, nCells, 0, 'relative', density, iErr, &
              timeLevelIn=1)
 
@@ -271,7 +265,6 @@ contains
        call mpas_pool_get_subpool(block_ptr % structs, 'verticalMesh', verticalMeshPool)
        call mpas_pool_get_subpool(block_ptr % structs, 'state', statePool)
        call mpas_pool_get_subpool(block_ptr % structs, 'forcing', forcingPool)
-       call mpas_pool_get_subpool(block_ptr % structs, 'diagnostics', diagnosticsPool)
 
        call mpas_pool_get_dimension(meshPool, 'nCells', nCells)
        call mpas_pool_get_dimension(meshPool, 'nVertLevels', nVertLevels)
@@ -286,15 +279,12 @@ contains
 
        call mpas_pool_get_array(statePool, 'ssh', ssh, 1)
        call mpas_pool_get_array(statePool, 'effectiveDensityInLandIce', effectiveDensityInLandIce, 1)
-       call mpas_pool_get_array(diagnosticsPool, 'density', density)
-       call mpas_pool_get_array(diagnosticsPool, 'modifySSHMask', modifySSHMask)
 
-       call mpas_pool_get_array(diagnosticsPool, 'zMid', zMid)
        call mpas_pool_get_array(scratchPool, 'scratchZMid', origZMid)
        call mpas_pool_get_array(scratchPool, 'scratchMaxLevelCell', origMaxLevelCell)
 
 
-       call ocn_equation_of_state_density(statePool, diagnosticsPool, &
+       call ocn_equation_of_state_density(statePool, tracersSurfaceValue, &
            scratchPool, nCells, 0, 'relative', density, iErr, &
            timeLevelIn=1)
 
@@ -358,15 +348,12 @@ contains
        call mpas_pool_get_subpool(block_ptr % structs, 'verticalMesh', verticalMeshPool)
        call mpas_pool_get_subpool(block_ptr % structs, 'state', statePool)
        call mpas_pool_get_subpool(block_ptr % structs, 'forcing', forcingPool)
-       call mpas_pool_get_subpool(block_ptr % structs, 'diagnostics', diagnosticsPool)
        call mpas_pool_get_subpool(statePool, 'tracers', tracersPool)
 
        call mpas_pool_get_dimension(meshPool, 'nCells', nCells)
 
        call mpas_pool_get_array(tracersPool, 'activeTracers', activeTracers, 1)
        call mpas_pool_get_array(statePool, 'layerThickness', layerThickness, 1)
-
-       call mpas_pool_get_array(diagnosticsPool, 'zMid', zMid)
 
        call mpas_pool_get_array(scratchPool, 'scratchZMid', origZMid)
        call mpas_pool_get_array(scratchPool, 'scratchMaxLevelCell', origMaxLevelCell)
@@ -426,7 +413,7 @@ contains
 
      type (block_type), pointer :: block_ptr
 
-     type (mpas_pool_type), pointer :: meshPool, statePool, diagnosticsPool, verticalMeshPool
+     type (mpas_pool_type), pointer :: meshPool, statePool, verticalMeshPool
 
      logical, pointer :: config_use_rx1_constraint
 
@@ -438,7 +425,7 @@ contains
      ! Define variable pointers
      integer, dimension(:), pointer :: maxLevelCell
      real (kind=RKIND), dimension(:), pointer :: refBottomDepth, bottomDepth, ssh
-     real (kind=RKIND), dimension(:,:), pointer :: layerThickness, restingThickness, zMid
+     real (kind=RKIND), dimension(:,:), pointer :: layerThickness, restingThickness
 
      integer :: iCell
 
@@ -471,7 +458,6 @@ contains
        block_ptr => domain % blocklist
        do while(associated(block_ptr))
          call mpas_pool_get_subpool(block_ptr % structs, 'mesh', meshPool)
-         call mpas_pool_get_subpool(block_ptr % structs, 'diagnostics', diagnosticsPool)
          call mpas_pool_get_subpool(block_ptr % structs, 'state', statePool)
 
          call mpas_pool_get_dimension(meshPool, 'nCells', nCells)
@@ -507,7 +493,6 @@ contains
        block_ptr => domain % blocklist
        do while(associated(block_ptr))
          call mpas_pool_get_subpool(block_ptr % structs, 'mesh', meshPool)
-         call mpas_pool_get_subpool(block_ptr % structs, 'diagnostics', diagnosticsPool)
          call mpas_pool_get_subpool(block_ptr % structs, 'state', statePool)
          call mpas_pool_get_subpool(block_ptr % structs, 'verticalMesh', verticalMeshPool)
 
@@ -522,8 +507,6 @@ contains
          call mpas_pool_get_array(statePool, 'ssh', ssh, 1)
 
          call mpas_pool_get_array(verticalMeshPool, 'restingThickness', restingThickness)
-
-         call mpas_pool_get_array(diagnosticsPool, 'zMid', zMid)
 
          do iCell = 1, nCells
            if(initWithSSH) then

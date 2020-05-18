@@ -195,7 +195,6 @@ contains
       type (mpas_pool_type), pointer :: meshPool
       type (mpas_pool_type), pointer :: verticalMeshPool
       type (mpas_pool_type), pointer :: scratchPool
-      type (mpas_pool_type), pointer :: diagnosticsPool
       type (mpas_pool_type), pointer :: transectTransportAM
 
       type (mpas_pool_type), pointer :: transectPool
@@ -260,7 +259,6 @@ contains
          call mpas_pool_get_subpool(block % structs, 'verticalMesh', verticalMeshPool)
          !call mpas_pool_get_subpool(block % structs, 'tracersPool', tracersPool)
          call mpas_pool_get_subpool(block % structs, 'scratch', scratchPool)
-         call mpas_pool_get_subpool(block % structs, 'diagnostics', diagnosticsPool)
          call mpas_pool_get_subpool(block % structs, 'transectTransportAM', transectTransportAMPool)
          call mpas_pool_get_subpool(domain % blocklist % structs, 'transects', transectPool)
 

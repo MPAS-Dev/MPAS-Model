@@ -28,6 +28,7 @@ module ocn_tidal_potential_forcing
    use mpas_timekeeping
    use mpas_timer
    use ocn_constants
+   use ocn_diagnostics_variables
 
    implicit none
    private
@@ -78,7 +79,7 @@ contains
 !
 !-----------------------------------------------------------------------
 
-   subroutine ocn_compute_tidal_potential_forcing(meshPool, forcingPool, diagnosticsPool, err)!{{{
+   subroutine ocn_compute_tidal_potential_forcing(meshPool, forcingPool, err)!{{{
 
       !-----------------------------------------------------------------
       !
@@ -86,7 +87,6 @@ contains
       !
       !-----------------------------------------------------------------
       type (mpas_pool_type), intent(in) :: meshPool !< Input: mesh information
-      type (mpas_pool_type), intent(in) :: diagnosticsPool 
 
       !-----------------------------------------------------------------
       !
@@ -120,8 +120,6 @@ contains
       real (kind=RKIND), dimension(:,:), pointer :: latitudeFunction
       integer, dimension(:), pointer :: constituentType
       real (kind=RKIND), dimension(:), pointer :: eta
-      real (kind=RKIND), dimension(:,:), pointer :: zMid, tidalPotentialZMid
-      real (kind=RKIND), pointer :: daysSinceStartOfSim
       
       integer :: iCell
       integer :: jCon, conType
@@ -145,7 +143,6 @@ contains
       call mpas_pool_get_array(forcingPool, 'tidalPotentialConstituentType', constituentType)
       call mpas_pool_get_array(forcingPool, 'tidalPotentialLatitudeFunction', latitudeFunction)
       call mpas_pool_get_array(forcingPool, 'tidalPotentialEta', eta)
-      call mpas_pool_get_array(diagnosticsPool, "daysSinceStartOfSim", daysSinceStartOfSim)
 
       ramp = tanh((2.0_RKIND*daysSinceStartOfSim)/tidalPotentialRamp)
       t = daysSinceStartOfSim*86400.0_RKIND
@@ -206,7 +203,6 @@ contains
       type (block_type), pointer :: block_ptr 
       type (mpas_pool_type), pointer :: forcingPool
       type (mpas_pool_type), pointer :: meshPool
-      type (mpas_pool_type), pointer :: diagnosticsPool 
       integer, pointer :: nTidalConstituents
       integer, pointer :: nCells 
       real (kind=RKIND), dimension(:), pointer :: tidalConstituentAmplitude
@@ -264,7 +260,6 @@ contains
 
         call mpas_pool_get_subpool(block_ptr % structs, 'forcing', forcingPool)
         call mpas_pool_get_subpool(block_ptr % structs, 'mesh', meshPool)
-        call mpas_pool_get_subpool(block_ptr % structs, 'diagnostics', diagnosticsPool)
         call mpas_pool_get_array(forcingPool, 'nTidalPotentialConstituents', nTidalConstituents)
         call mpas_pool_get_array(forcingPool, 'tidalPotentialConstituentAmplitude', tidalConstituentAmplitude)
         call mpas_pool_get_array(forcingPool, 'tidalPotentialConstituentFrequency', tidalConstituentFreqency)

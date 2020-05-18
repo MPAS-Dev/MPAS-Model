@@ -27,6 +27,7 @@ module ocn_high_frequency_output
 
    use ocn_constants
    use ocn_diagnostics_routines
+   use ocn_diagnostics_variables
 
    implicit none
    private
@@ -155,7 +156,6 @@ contains
       type (block_type), pointer :: block
       type (mpas_pool_type), pointer :: meshPool
       type (mpas_pool_type), pointer :: statePool
-      type (mpas_pool_type), pointer :: diagnosticsPool
       type (mpas_pool_type), pointer :: forcingPool
       type (mpas_pool_type), pointer :: highFrequencyOutputAMPool
       type (mpas_pool_type), pointer :: tracersPool
@@ -203,14 +203,11 @@ contains
       real (kind=RKIND), dimension(:), pointer :: vertTransportVelocityAt250m, vertGMvelocityAt250m
       real (kind=RKIND), dimension(:), pointer :: vertVelSFC, vertTransportVelocitySFC, vertGMvelocitySFC
       real (kind=RKIND), dimension(:), pointer :: barotropicSpeed, columnIntegratedSpeed, dvEdge, dcEdge, areaCell
-      real (kind=RKIND), dimension(:,:), pointer :: kineticEnergyCell, relativeVorticityCell
       real (kind=RKIND), dimension(:,:), pointer :: activeTracersAt250m, activeTracersAvgTopto0100, activeTracersAvg0100to0250
       real (kind=RKIND), dimension(:,:), pointer :: activeTracersAtSurface, activeTracersAtBottom
       real (kind=RKIND), dimension(:,:), pointer :: activeTracersAvg0250to0700, activeTracersAvg0700to2000, activeTracersAvg2000toBottom
-      real (kind=RKIND), dimension(:,:), pointer :: relativeVorticity, divergence, layerThickness
-      real (kind=RKIND), dimension(:,:), pointer :: normalVelocity, tangentialVelocity, BruntVaisalaFreqTop
-      real (kind=RKIND), dimension(:,:), pointer :: vertVelocityTop, vertGMBolusVelocityTop, vertTransportVelocityTop
-      real (kind=RKIND), dimension(:,:), pointer :: normalGMBolusVelocity
+      real (kind=RKIND), dimension(:,:), pointer :: layerThickness
+      real (kind=RKIND), dimension(:,:), pointer :: normalVelocity
       real (kind=RKIND), dimension(:,:), pointer :: normalBaroclinicVelocity ! baroclinic/barotropic pressume split explicit
       real (kind=RKIND), dimension(:), pointer :: normalBarotropicVelocity ! baroclinic/barotropic pressume split explicit
       real (kind=RKIND), dimension(:,:,:), pointer :: activeTracers
@@ -244,7 +241,6 @@ contains
          ! get pointers to pools
          call mpas_pool_get_subpool(block % structs, 'state', statePool)
          call mpas_pool_get_subpool(block % structs, 'mesh', meshPool)
-         call mpas_pool_get_subpool(block % structs, 'diagnostics', diagnosticsPool)
          call mpas_pool_get_subpool(block % structs, 'forcing', forcingPool)
          call mpas_pool_get_subpool(statePool, 'tracers', tracersPool)
          call mpas_pool_get_subpool(domain % blocklist % structs, 'highFrequencyOutputAM', highFrequencyOutputAMPool)
@@ -253,17 +249,7 @@ contains
          call mpas_pool_get_array(meshPool, 'refBottomDepth', refBottomDepth)
 
          ! get arrays that will be 'sliced' and put into high frequency output
-         call mpas_pool_get_array(diagnosticsPool, 'kineticEnergyCell', kineticEnergyCell, timeLevel)
-         call mpas_pool_get_array(diagnosticsPool, 'relativeVorticityCell', relativeVorticityCell, timeLevel)
-         call mpas_pool_get_array(diagnosticsPool, 'relativeVorticity', relativeVorticity, timeLevel)
-         call mpas_pool_get_array(diagnosticsPool, 'divergence', divergence, timeLevel)
          call mpas_pool_get_array(tracersPool, 'activeTracers', activeTracers, timeLevel)
-         call mpas_pool_get_array(diagnosticsPool, 'vertGMBolusVelocityTop', vertGMBolusVelocityTop)
-         call mpas_pool_get_array(diagnosticsPool, 'vertTransportVelocityTop', vertTransportVelocityTop)
-         call mpas_pool_get_array(diagnosticsPool, 'vertVelocityTop', vertVelocityTop)
-         call mpas_pool_get_array(diagnosticsPool, 'tangentialVelocity', tangentialVelocity)
-         call mpas_pool_get_array(diagnosticsPool, 'BruntVaisalaFreqTop', BruntVaisalaFreqTop)
-         call mpas_pool_get_array(diagnosticsPool, 'normalGMBolusVelocity', normalGMBolusVelocity)
 
          ! get arrays that can be written to output at high freqency
          call mpas_pool_get_array(highFrequencyOutputAMPool, 'kineticEnergyAt250m', kineticEnergyAt250m)

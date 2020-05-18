@@ -26,6 +26,7 @@ module ocn_tidal_forcing
    use mpas_timekeeping
    use mpas_timer
    use ocn_constants
+   use ocn_diagnostics_variables
    use ocn_equation_of_state
 
    implicit none
@@ -157,7 +158,7 @@ contains
 !
 !-----------------------------------------------------------------------
 
-   subroutine ocn_tidal_forcing_build_array(domain, meshPool, forcingPool, diagnosticsPool, statePool, err)!{{{
+   subroutine ocn_tidal_forcing_build_array(domain, meshPool, forcingPool, statePool, err)!{{{
 
       !-----------------------------------------------------------------
       !
@@ -166,7 +167,6 @@ contains
       !-----------------------------------------------------------------
 
       type (mpas_pool_type), pointer, intent(in) :: meshPool !< Input: Mesh information
-      type (mpas_pool_type), pointer, intent(in) :: diagnosticsPool !< Input: Diagnostic information
 
       !-----------------------------------------------------------------
       !
@@ -229,9 +229,6 @@ contains
                                              tidalLayerThicknessTendency)
       call mpas_pool_get_array(forcingPool, 'tidalInputMask', tidalInputMask)
       call mpas_pool_get_array(forcingPool, 'tidalBCValue', tidalBCValue)
-
-      ! compute time since start of simulation, in days
-      call mpas_pool_get_array(diagnosticsPool, 'daysSinceStartOfSim', daysSinceStartOfSim)
 
       call mpas_pool_get_config(ocnConfigs, 'config_tidal_forcing_type', config_tidal_forcing_type)
       call mpas_pool_get_config(ocnConfigs, 'config_tidal_forcing_model', config_tidal_forcing_model)

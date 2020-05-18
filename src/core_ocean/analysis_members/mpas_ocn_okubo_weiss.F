@@ -28,6 +28,7 @@ module ocn_okubo_weiss
 
    use ocn_constants
    use ocn_diagnostics_routines
+   use ocn_diagnostics_variables
    use mpas_matrix_operations
    use iso_c_binding
 
@@ -804,7 +805,6 @@ contains
 
       type (mpas_pool_type), pointer :: statePool
       type (mpas_pool_type), pointer :: meshPool
-      type (mpas_pool_type), pointer :: diagnosticsPool
 
       real (kind=RKIND), dimension(:), pointer ::  areaCell
       real (kind=RKIND), dimension(:,:), pointer ::  layerThickness, zMid
@@ -820,11 +820,9 @@ contains
       integer k, iCell, i, curCC, iIdx, curI, curK, iOtherCell, maxNumCCs
 
       integer, dimension(size(OW_thresh,1), size(OW_thresh,2)) :: OW_thresh_local
-      character (len=StrKIND), pointer :: xtime
 
       call mpas_pool_get_subpool(block % structs, 'state', statePool)
       call mpas_pool_get_subpool(block % structs, 'mesh', meshPool)
-      call mpas_pool_get_subpool(block % structs, 'diagnostics', diagnosticsPool)
 
       call mpas_pool_get_config(meshPool, 'on_a_sphere', on_a_sphere)
       call mpas_pool_get_config(ocnConfigs, 'config_AM_okuboWeiss_use_lat_lon_coords', use_lat_lon_coords)
@@ -840,17 +838,14 @@ contains
       if (use_lat_lon_coords) then
          call mpas_pool_get_array(meshPool, 'lonCell', posX)
          call mpas_pool_get_array(meshPool, 'latCell',  posY)
-         call mpas_pool_get_array(diagnosticsPool, 'velocityZonal', velX)
-         call mpas_pool_get_array(diagnosticsPool, 'velocityMeridional', velY)
+         velX => velocityZonal
+         velY => velocityMeridional
       else
          call mpas_pool_get_array(meshPool, 'xCell', posX)
          call mpas_pool_get_array(meshPool, 'yCell', posY)
-         call mpas_pool_get_array(diagnosticsPool, 'velocityX', velX)
-         call mpas_pool_get_array(diagnosticsPool, 'velocityY', velY)
+         velX => velocityX
+         velY => velocityY
       end if
-      call mpas_pool_get_array(diagnosticsPool, 'zMid', zMid)
-      call mpas_pool_get_array(diagnosticsPool, 'vertVelocityTop', velZ)
-      call mpas_pool_get_array(diagnosticsPool, 'xtime', xtime)
 
       call mpas_timer_start("stats per proc")
 
@@ -1453,14 +1448,12 @@ contains
       type (mpas_pool_type), pointer :: statePool
       type (mpas_pool_type), pointer :: meshPool
       type (mpas_pool_type), pointer :: scratchPool
-      type (mpas_pool_type), pointer :: diagnosticsPool
 
       integer, pointer :: nVertLevels, nCells, nEdges
       integer, dimension(:), pointer :: maxLevelCell
       integer, dimension(:,:), pointer :: edgeSignOnCell
 
       real (kind=RKIND), dimension(:,:), pointer :: normalVelocity
-      real (kind=RKIND), dimension(:,:), pointer :: tangentialVelocity
       real (kind=RKIND), dimension(:,:), pointer :: edgeTangentVectors
 
       real (kind=RKIND), dimension(:,:), pointer :: om, OW
@@ -1490,7 +1483,6 @@ contains
          call mpas_pool_get_subpool(block % structs, 'state', statePool)
          call mpas_pool_get_subpool(block % structs, 'mesh', meshPool)
          call mpas_pool_get_subpool(block % structs, 'okuboWeissScratch', scratchPool)
-         call mpas_pool_get_subpool(block % structs, 'diagnostics', diagnosticsPool)
          call mpas_pool_get_subpool(block % structs, 'okuboWeissAM', okuboWeissAMPool)
 
          call mpas_pool_get_dimension(block % dimensions, 'nVertLevels', nVertLevels)
@@ -1502,7 +1494,6 @@ contains
          call mpas_pool_get_array(meshPool, 'edgeTangentVectors', edgeTangentVectors)
 
          call mpas_pool_get_array(statePool, 'normalVelocity', normalVelocity, timeLevel)
-         call mpas_pool_get_array(diagnosticsPool, 'tangentialVelocity', tangentialVelocity)
 
          call mpas_pool_get_array(okuboWeissAMPool, 'okuboWeiss', OW)
          call mpas_pool_get_array(okuboWeissAMPool, 'eddyID', OW_cc_id)

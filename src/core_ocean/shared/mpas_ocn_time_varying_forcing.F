@@ -21,6 +21,7 @@ module ocn_time_varying_forcing
   use mpas_stream_manager
   use ocn_framework_forcing
   use ocn_constants
+  use ocn_diagnostics_variables
   use mpas_log, only: mpas_log_write
 
   implicit none
@@ -386,8 +387,7 @@ contains
     type (mpas_pool_type), pointer :: &
          mesh, &
          forcingPool, &
-         timeVaryingForcingPool, &
-         diagnosticsPool
+         timeVaryingForcingPool
 
     real(kind=RKIND), dimension(:), pointer :: &
          windSpeedU, &
@@ -406,8 +406,7 @@ contains
          windStressCoefficientLimit
 
     real(kind=RKIND), pointer:: &
-        config_forcing_ramp, &
-        daysSinceStartOfSim
+        config_forcing_ramp
 
     integer, pointer :: &
          nCells
@@ -420,11 +419,9 @@ contains
     call MPAS_pool_get_subpool(block % structs, "mesh", mesh)
     call MPAS_pool_get_subpool(block % structs, "forcing", forcingPool)
     call MPAS_pool_get_subpool(block % structs, "timeVaryingForcing", timeVaryingForcingPool)
-    call MPAS_pool_get_subpool(block % structs, "diagnostics", diagnosticsPool)
 
     call MPAS_pool_get_dimension(mesh, "nCells", nCells)
 
-    call MPAS_pool_get_array(diagnosticsPool, "daysSinceStartOfSim", daysSinceStartOfSim)
     call MPAS_pool_get_array(timeVaryingForcingPool, "windSpeedU", windSpeedU)
     call MPAS_pool_get_array(timeVaryingForcingPool, "windSpeedV", windSpeedV)
     call MPAS_pool_get_array(timeVaryingForcingPool, "windSpeedMagnitude", windSpeedMagnitude)

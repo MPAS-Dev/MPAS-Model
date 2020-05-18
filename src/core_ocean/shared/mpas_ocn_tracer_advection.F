@@ -67,7 +67,7 @@ module ocn_tracer_advection
 
    subroutine ocn_tracer_advection_tend(tracers, normalThicknessFlux, w,       &
                                         layerThickness, dt, meshPool,          &
-                                        scratchPool, diagnosticsPool, tend,    &
+                                        scratchPool, tend,    &
                                         tracerGroupName)!{{{
 
       !*** Input/Output parameters
@@ -91,8 +91,6 @@ module ocn_tracer_advection
          meshPool            !< [in] Mesh information
       type (mpas_pool_type), intent(in) :: &
          scratchPool         !< [in] Scratch fields
-      type (mpas_pool_type), intent(in) :: &
-         diagnosticsPool     !< [in] Diagnostic fields
       character (len=*), intent(in) :: &
          tracerGroupName     !< [in] Tracer name to check if active tracers
 
@@ -145,7 +143,7 @@ module ocn_tracer_advection
                                              maxLevelCell, maxLevelEdgeTop,    &
                                              highOrderAdvectionMask,           &
                                              edgeSignOnCell, meshPool,         &
-                                             diagnosticsPool, computeBudgets)
+                                             computeBudgets)
 
       else
          call ocn_tracer_advection_std_tend(tracers, advCoefs, advCoefs3rd, &

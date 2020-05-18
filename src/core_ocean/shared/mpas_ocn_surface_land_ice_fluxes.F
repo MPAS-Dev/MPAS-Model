@@ -27,6 +27,7 @@ module ocn_surface_land_ice_fluxes
 
    use ocn_constants
    use ocn_equation_of_state
+   use ocn_diagnostics_variables
 
    implicit none
    private
@@ -137,7 +138,7 @@ contains
 !
 !-----------------------------------------------------------------------
 
-   subroutine ocn_surface_land_ice_fluxes_vel(meshPool, diagnosticsPool, surfaceStress, surfaceStressMagnitude, err)!{{{
+   subroutine ocn_surface_land_ice_fluxes_vel(meshPool, surfaceStress, surfaceStressMagnitude, err)!{{{
 
       !-----------------------------------------------------------------
       !
@@ -145,7 +146,6 @@ contains
       !
       !-----------------------------------------------------------------
       type (mpas_pool_type), intent(in) :: meshPool !< Input: mesh information
-      type (mpas_pool_type), intent(in) :: diagnosticsPool !< Input: Diagnostics information
 
       !-----------------------------------------------------------------
       !
@@ -181,9 +181,6 @@ contains
 
       call mpas_pool_get_dimension(meshPool, 'nCells', nCells)
       call mpas_pool_get_dimension(meshPool, 'nEdges', nEdges)
-
-      call mpas_pool_get_array(diagnosticsPool, 'topDrag', topDrag)
-      call mpas_pool_get_array(diagnosticsPool, 'topDragMagnitude', topDragMagnitude)
 
       !$omp do schedule(runtime)
       do iEdge = 1, nEdges
@@ -354,7 +351,7 @@ contains
 !
 !-----------------------------------------------------------------------
 
-   subroutine ocn_surface_land_ice_fluxes_build_arrays(meshPool, diagnosticsPool, &
+   subroutine ocn_surface_land_ice_fluxes_build_arrays(meshPool, &
       forcingPool, scratchPool, statePool, dt, err) !{{{
 
       !-----------------------------------------------------------------
@@ -364,8 +361,7 @@ contains
       !-----------------------------------------------------------------
 
       type (mpas_pool_type), intent(in) :: &
-         meshPool, &     !< Input: mesh information
-         diagnosticsPool !< Input: diagnostics information
+         meshPool        !< Input: mesh information
       real(kind=RKIND), intent(in) :: dt ! the time step over which to accumulate fluxes
 
       !-----------------------------------------------------------------
@@ -440,18 +436,7 @@ contains
 
       call mpas_pool_get_dimension(meshPool, 'nCellsArray', nCellsArray)
 
-      call mpas_pool_get_array(diagnosticsPool, 'landIceFrictionVelocity', landIceFrictionVelocity)
-
       call mpas_pool_get_array(forcingPool, 'landIcePressure', landIcePressure)
-      call mpas_pool_get_array(diagnosticsPool, 'landIceBoundaryLayerTracers', landIceBoundaryLayerTracers)
-      call mpas_pool_get_dimension(diagnosticsPool, 'index_landIceBoundaryLayerTemperature', indexBLT)
-      call mpas_pool_get_dimension(diagnosticsPool, 'index_landIceBoundaryLayerSalinity', indexBLS)
-
-      if(jenkinsOn .or. hollandJenkinsOn) then
-        call mpas_pool_get_array(diagnosticsPool, 'landIceTracerTransferVelocities', landIceTracerTransferVelocities)
-        call mpas_pool_get_dimension(diagnosticsPool, 'index_landIceHeatTransferVelocity', indexHeatTrans)
-        call mpas_pool_get_dimension(diagnosticsPool, 'index_landIceSaltTransferVelocity', indexSaltTrans)
-      end if
 
       call mpas_pool_get_array(forcingPool, 'landIceFraction', landIceFraction)
       call mpas_pool_get_array(forcingPool, 'landIceMask', landIceMask)
