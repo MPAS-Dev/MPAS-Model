@@ -1154,6 +1154,7 @@ contains
                     itmp=irange_tr(1,8)
                     tmp=ecosysTracers(index_NO3,k2,iCell)
                     ecosysTracers(index_NO3,k2,iCell)=(volume*tmp-volume2*rbuff(itmp+3,1,1))/(volume-volume2)
+                    !note: debug shows volume2 is negative
                     !write(12,*)timeLevel,myrank,iblock,iEdge,itmp,volume,volume2,tmp,rbuff(itmp+3,1,1) 
                  endif
                endif !Inflow
