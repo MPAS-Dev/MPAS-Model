@@ -15,6 +15,8 @@
 		<option name="config_idealized_profile_Sshore">0.001</option>
 		<option name="config_idealized_profile_Lmarsh">0.1</option>
 		<option name="config_idealized_profile_Smarsh">0.0</option>
+		<option name="config_idealized_profile_Cd">0.0025</option>
+		<option name="config_idealized_profile_Cd_marsh">0.25</option>
 		<option name="config_tidal_boundary_left_bottom_depth">0.0</option>
 		<option name="config_tidal_boundary_left_value">0.0</option>
 		<option name="config_tidal_boundary_right_value">2.5e4</option>

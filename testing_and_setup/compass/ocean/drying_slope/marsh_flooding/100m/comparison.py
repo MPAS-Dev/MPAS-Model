@@ -19,10 +19,10 @@ import pandas as pd
 plt.switch_backend('agg')
 
 ds1 = xr.open_dataset('output1.nc')
-bath = ds1.bottomDepth.values.reshape((290,6))
+bath = ds1.bottomDepth.values.reshape((290,10))
 bot1 = bath[:,1]
 ds2 = xr.open_dataset('output2.nc')
-bath = ds2.bottomDepth.values.reshape((290,6))
+bath = ds2.bottomDepth.values.reshape((290,10))
 bot2 = bath[:,1]
 
 def setup_fig():
@@ -38,7 +38,7 @@ def setup_subplot(fileno):
     ax.spines['top'].set_visible(False)
     ax.spines['right'].set_visible(False)
 
-    x = np.linspace(0,25,114)
+    x = np.linspace(0,25,290)
     if (fileno=='1'):
       y = bot1
     else:
@@ -140,7 +140,7 @@ def main():
     lower_plot()
     plot_datasets(rval='0.01', times=times, fileno='2')
 
-    plt.suptitle('Drying slope comparison')
+    plt.suptitle('Marsh flooding comparison')
     for outtype in ['.png','.pdf']:
         plt.savefig('dryingslopecomparison' + outtype)
     ##############################################################

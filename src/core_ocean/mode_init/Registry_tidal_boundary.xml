@@ -87,4 +87,12 @@
 			description="Marsh slope"
 			possible_values="Any real value, can be negative"
 		/>
+		<nml_option name="config_idealized_profile_Cd" type="real" default_value="0.025" units=""
+			description="Manning coefficient of coastal bottom"
+			possible_values="Any real value, can be negative"
+		/>
+		<nml_option name="config_idealized_profile_Cd_marsh" type="real" default_value="1.0" units=""
+			description="Manning coefficient of marsh bottom"
+			possible_values="Any real value, can be negative"
+		/>
 	</nml_record>

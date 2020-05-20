@@ -140,7 +140,7 @@ def main():
     lower_plot()
     plot_datasets(rval='0.01', times=times, fileno='2')
 
-    plt.suptitle('Drying slope comparison')
+    plt.suptitle('Marsh flooding comparison')
     for outtype in ['.png','.pdf']:
         plt.savefig('dryingslopecomparison' + outtype)
     ##############################################################

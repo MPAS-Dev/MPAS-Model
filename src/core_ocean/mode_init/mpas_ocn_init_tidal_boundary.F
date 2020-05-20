@@ -92,7 +92,7 @@ contains
     type (mpas_pool_type), pointer :: verticalMeshPool
     type (mpas_pool_type), pointer :: tracersPool
 
-    integer :: iCell, k
+    integer :: iCell, k, N
 
     ! Define dimensions
     integer, pointer :: nCellsSolve, nEdgesSolve, nVertLevels, nVertLevelsP1
@@ -132,7 +132,10 @@ contains
                                   config_idealized_profile_Lmarsh, &
                                   config_idealized_profile_Smarsh, &
                                   config_idealized_profile_Lcoast, &
-                                  config_idealized_profile_Scoast
+                                  config_idealized_profile_Scoast, &
+                                  config_idealized_profile_Cd,&
+                                  config_idealized_profile_Cd_marsh
+
     real (kind=RKIND), pointer :: config_tidal_forcing_monochromatic_baseline
     real (kind=RKIND) :: cff1,cff2,cff3, dep_mark1, dep_mark2 ! intermediate variables                          
     integer, pointer :: config_tidal_boundary_min_vert_levels
@@ -172,6 +175,9 @@ contains
     call mpas_pool_get_config(ocnConfigs, 'config_idealized_profile_Smarsh', config_idealized_profile_Smarsh)
     call mpas_pool_get_config(ocnConfigs, 'config_idealized_profile_Lcoast', config_idealized_profile_Lcoast)
     call mpas_pool_get_config(ocnConfigs, 'config_idealized_profile_Scoast', config_idealized_profile_Scoast)
+    call mpas_pool_get_config(ocnConfigs, 'config_idealized_profile_Cd', config_idealized_profile_Cd)
+    call mpas_pool_get_config(ocnConfigs, 'config_idealized_profile_Cd_marsh', config_idealized_profile_Cd_marsh)
+
     call mpas_pool_get_config(ocnConfigs, 'config_tidal_forcing_monochromatic_baseline', &
                                              config_tidal_forcing_monochromatic_baseline)
     call mpas_pool_get_config(ocnConfigs, 'config_tidal_start_dry', config_tidal_start_dry)
@@ -297,15 +303,15 @@ contains
             bottomDepth(iCell) = config_tidal_boundary_left_bottom_depth &
               + (yCell(iCell)-yMin)*config_idealized_profile_Scoast
             dep_mark1 = bottomDepth(iCell)
-            bottomDrag(iCell) = 0.0025_RKIND
+            bottomDrag(iCell) = config_idealized_profile_Cd
           elseif (yCell(iCell) .lt. (cff1+cff2)) then
             bottomDepth(iCell) = dep_mark1 + (yCell(iCell)-cff1)*config_idealized_profile_Smarsh
             dep_mark2 = bottomDepth(iCell)
-            bottomDrag(iCell) = 0.25_RKIND
+            bottomDrag(iCell) = config_idealized_profile_Cd_marsh
           else
             if (cff2 .eq. 0.0_RKIND) dep_mark2 = dep_mark1
             bottomDepth(iCell) = dep_mark2 + (yCell(iCell)-cff1-cff2)*config_idealized_profile_Sshore
-            bottomDrag(iCell) = 0.0025_RKIND
+            bottomDrag(iCell) = config_idealized_profile_Cd
           endif
         end do !! do iCell
       else
