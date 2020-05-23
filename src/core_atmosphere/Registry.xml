@@ -1324,6 +1324,11 @@
                 <var name="theta_m" type="real" dimensions="nVertLevels nCells Time" units="K"
                      description="Moist potential temperature: theta*(1+q_v*R_v/R_d)"/>
 
+                <!-- When MPAS-A is used as a dycore in CAM, scalars are allocated at runtime via -->
+                <!-- a call to the atm_allocate_scalars routine from setup_block. The specific    --> 
+                <!-- constituent at each position in the scalars array is later set by code in    -->
+                <!-- the CAM-MPAS interface layer.                                                -->
+#ifndef MPAS_CAM_DYCORE
                 <var_array name="scalars" type="real" dimensions="nVertLevels nCells Time">
                         <var name="qv" array_group="moist" units="kg kg^{-1}"
                              description="Water vapor mixing ratio"/>
@@ -1356,6 +1361,7 @@
                              description="Rain number concentration"
                              packages="mp_thompson_in"/>
                 </var_array>
+#endif
 
                 <var_array name="aerosols" type="real" dimensions="nAerLevels nCells Time">
                         <var name="sul"     array_group="aer_cam" units="kg m^{-3}"
@@ -1629,6 +1635,11 @@
                 <var name="tend_sfc_pressure" type="real" dimensions="nCells Time" units="Pa s^{-1}"
                      description="Tendency of surface pressure"/>
 
+                <!-- When MPAS-A is used as a dycore in CAM, scalars are allocated at runtime via -->
+                <!-- a call to the atm_allocate_scalars routine from setup_block. The specific    --> 
+                <!-- constituent at each position in the scalars array is later set by code in    -->
+                <!-- the CAM-MPAS interface layer.                                                -->
+#ifndef MPAS_CAM_DYCORE
                 <!-- scalar tendencies -->
                 <var_array name="scalars_tend" type="real" dimensions="nVertLevels nCells Time">
                         <var name="tend_qv" name_in_code="qv" array_group="moist" units="kg m^{-3} s^{-1}"
@@ -1662,6 +1673,7 @@
                              description="Tendency of rain number concentration multiplied by dry air density divided by d(zeta)/dz"
                              packages="mp_thompson_in"/>
                 </var_array>
+#endif
         </var_struct>
 
 
