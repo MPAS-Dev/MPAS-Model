@@ -28,6 +28,7 @@ module ocn_diagnostics
    use mpas_vector_reconstruction
    use mpas_stream_manager
    use mpas_io_units
+   use mpas_io, only : MPAS_REAL_FILLVAL
 
    use ocn_constants
    use ocn_gm
@@ -322,8 +323,8 @@ contains
       !$omp master
       normalVelocity(:,nEdges+1) = -1e34
       layerThickness(:,nCells+1) = -1e34
-      activeTracers(indexTemperature,:,nCells+1) = -1e34
-      activeTracers(indexSalinity,:,nCells+1) = -1e34
+      activeTracers(indexTemperature,:,nCells+1) = MPAS_REAL_FILLVAL
+      activeTracers(indexSalinity,:,nCells+1) = MPAS_REAL_FILLVAL
       !$omp end master
       call mpas_threading_barrier()
 

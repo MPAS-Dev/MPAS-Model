@@ -1386,10 +1386,10 @@ int parse_var_array(FILE *fd, ezxml_t registry, ezxml_t superStruct, ezxml_t var
 				fortprintf(fd, "         call mpas_add_att(%s(%d) %% attLists(const_index) %% attList, 'units', '%s')\n", pointer_name, time_lev, temp_str);
 			}
 
-			if ( vararrmissingval ) {
-				fortprintf(fd, "         call mpas_add_att(%s(%d) %% attLists(const_index) %% attList, 'missing_value', %s)\n", pointer_name, time_lev, missing_value);
+			if ( vararrmissingval != NULL ) {
+				// fortprintf(fd, "         call mpas_add_att(%s(%d) %% attLists(const_index) %% attList, 'missing_value', %s)\n", pointer_name, time_lev, missing_value);
 				// Uncomment to add _FillValue to match missing_value
-				// fortprintf(fd, "         call mpas_add_att(%s(%d) %% attLists(const_index) %% attList, '_FillValue', %s)\n", pointer_name, time_lev, missing_value);
+				fortprintf(fd, "         call mpas_add_att(%s(%d) %% attLists(const_index) %% attList, '_FillValue', %s)\n", pointer_name, time_lev, missing_value);
 			}
 			fortprintf(fd, "         %s(%d) %% missingValue = %s\n", pointer_name, time_lev, missing_value);
 			fortprintf(fd, "         %s(%d) %% constituentNames(const_index) = '%s'\n", pointer_name, time_lev, varname);
@@ -1596,9 +1596,9 @@ int parse_var(FILE *fd, ezxml_t registry, ezxml_t superStruct, ezxml_t currentVa
 		}
 
 		if ( varmissingval != NULL ) {
-			fortprintf(fd, "      call mpas_add_att(%s(%d) %% attLists(1) %% attList, 'missing_value', %s)\n", pointer_name, time_lev, missing_value);
+			// fortprintf(fd, "      call mpas_add_att(%s(%d) %% attLists(1) %% attList, 'missing_value', %s)\n", pointer_name, time_lev, missing_value);
 			// Uncomment to add _FillValue to match missing_value
-			// fortprintf(fd, "      call mpas_add_att(%s(%d) %% attLists(1) %% attList, '_FillValue', %s)\n", pointer_name, time_lev, missing_value);
+			fortprintf(fd, "      call mpas_add_att(%s(%d) %% attLists(1) %% attList, '_FillValue', %s)\n", pointer_name, time_lev, missing_value);
 		}
 		fortprintf(fd, "      %s(%d) %% missingValue = %s\n", pointer_name, time_lev, missing_value);
 
@@ -1672,7 +1672,7 @@ int parse_struct(FILE *fd, ezxml_t registry, ezxml_t superStruct, int subpool, c
 
 	structname = ezxml_attr(superStruct, "name");
 	structnameincode = ezxml_attr(superStruct, "name_in_code");
-	
+
 	if(!structnameincode){
 		structnameincode = ezxml_attr(superStruct, "name");
 	}
@@ -2123,7 +2123,7 @@ int generate_immutable_streams(ezxml_t registry){/*{{{*/
 											fortprintf(fd, "   call MPAS_stream_mgr_add_field(manager, \'%s\', \'%s\', packages=packages, ierr=ierr)\n", optname, optvarname);
 										else
 											fortprintf(fd, "   call MPAS_stream_mgr_add_field(manager, \'%s\', \'%s\', ierr=ierr)\n", optname, optvarname);
-										
+
 									}
 
 									/* Loop over arrays of fields listed within the stream */
@@ -2571,5 +2571,3 @@ int parse_structs_from_registry(ezxml_t registry)/*{{{*/
 
 	return 0;
 }/*}}}*/
-
-

@@ -25,6 +25,7 @@ module ocn_vmix
    use mpas_derived_types
    use mpas_pool_routines
    use mpas_timer
+   use mpas_io, only : MPAS_REAL_FILLVAL
 
    use ocn_constants
    use ocn_vmix_coefs_const
@@ -605,7 +606,7 @@ contains
               tracersTemp, N, nVertLevels, num_tracers)
 
          tracers(:,1:N,iCell) = tracersTemp(:,1:N)
-         tracers(:,N+1:nVertLevels,iCell) = -1e34
+         tracers(:,N+1:nVertLevels,iCell) = MPAS_REAL_FILLVAL
       end do
       !$omp end do
       call mpas_timer_stop('vmix tracers tend imp loop')

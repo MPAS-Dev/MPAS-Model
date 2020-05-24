@@ -27,6 +27,7 @@ module ocn_init_routines
    use mpas_timer
    use mpas_dmpar
    use mpas_constants
+   use mpas_io, only : MPAS_REAL_FILLVAL
 
    use mpas_rbf_interpolation
    use mpas_vector_operations
@@ -485,7 +486,7 @@ end subroutine ocn_init_routines_compute_max_level!}}}
               do iCell = 1,nCells
                  if (landIceMask(iCell)==0.and.abs(sum(layerThickness(1:maxLevelCell(iCell),iCell))-bottomDepth(iCell))>20.0_RKIND) then
                     consistentSSH = .false.
-                    call mpas_log_write(' Warning: Sea surface height is outside of acceptable physical range, i.e. abs(sum(h)-bottomDepth)>20m.', & 
+                    call mpas_log_write(' Warning: Sea surface height is outside of acceptable physical range, i.e. abs(sum(h)-bottomDepth)>20m.', &
                        MPAS_LOG_ERR)
                     call mpas_log_write(' iCell: $i, maxLevelCell(iCell): $i, bottomDepth(iCell): $r, sum(h): $r', &
                        intArgs=(/iCell, maxLevelCell(iCell) /), &
@@ -496,7 +497,7 @@ end subroutine ocn_init_routines_compute_max_level!}}}
               do iCell = 1,nCells
                  if (abs(sum(layerThickness(1:maxLevelCell(iCell),iCell))-bottomDepth(iCell))>20.0_RKIND) then
                     consistentSSH = .false.
-                    call mpas_log_write(' Warning: Sea surface height is outside of acceptable physical range, i.e. abs(sum(h)-bottomDepth)>20m.', & 
+                    call mpas_log_write(' Warning: Sea surface height is outside of acceptable physical range, i.e. abs(sum(h)-bottomDepth)>20m.', &
                        MPAS_LOG_ERR)
                     call mpas_log_write(' iCell: $i, maxLevelCell(iCell): $i, bottomDepth(iCell): $r, sum(h): $r', &
                        intArgs=(/iCell, maxLevelCell(iCell) /), &
@@ -659,7 +660,7 @@ end subroutine ocn_init_routines_compute_max_level!}}}
             call mpas_pool_get_array(tracersPool, groupItr % memberName, tracersGroup, 1)
             if ( associated(tracersGroup) ) then
                do iCell=1,nCells
-                  tracersGroup(:, maxLevelCell(iCell)+1:nVertLevels,iCell) =  -1.0e34_RKIND
+                  tracersGroup(:, maxLevelCell(iCell)+1:nVertLevels,iCell) = MPAS_REAL_FILLVAL
                end do
             end if
          end if
