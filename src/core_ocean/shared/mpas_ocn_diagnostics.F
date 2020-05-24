@@ -28,6 +28,7 @@ module ocn_diagnostics
    use mpas_vector_reconstruction
    use mpas_stream_manager
    use mpas_io_units
+   use mpas_io, only : MPAS_REAL_FILLVAL
 
    use ocn_constants
    use ocn_config
@@ -168,7 +169,7 @@ contains
       !                                       (positive points from vertex1 to vertex2)
       !                                units: s^{-1} m^{-1}
       real (kind=RKIND), dimension(:,:), allocatable :: vorticityGradientTangentialComponent
-   
+
 
       real (kind=RKIND), dimension(:), pointer :: surfaceFluxAttenuationCoefficient
       real (kind=RKIND), dimension(:), pointer :: surfaceFluxAttenuationCoefficientRunoff
@@ -331,8 +332,8 @@ contains
 
       normalVelocity(:,nEdges+1) = -1e34
       layerThickness(:,nCells+1) = -1e34
-      activeTracers(indexTemperature,:,nCells+1) = -1e34
-      activeTracers(indexSalinity,:,nCells+1) = -1e34
+      activeTracers(indexTemperature,:,nCells+1) = MPAS_REAL_FILLVAL
+      activeTracers(indexSalinity,:,nCells+1) = MPAS_REAL_FILLVAL
 
       call ocn_relativeVorticity_circulation(relativeVorticity, circulation, meshPool, normalVelocity, err)
 
