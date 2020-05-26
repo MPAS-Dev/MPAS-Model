@@ -10,50 +10,40 @@
 !  ocn_vel_hmix
 !
 !> \brief MPAS ocean horizontal momentum mixing driver
-!> \author Mark Petersen, Doug Jacobsen, Todd Ringler
-!> \date   September 2011
+!> \author Mark Petersen, Doug Jacobsen, Todd Ringler, Phil Jones
+!> \date   September 2011, update April 2020
 !> \details
 !>  This module contains the main driver routine for computing
-!>  horizontal mixing tendencies.
+!>  horizontal velocity mixing tendencies.
 !>
-!>  It provides an init and a tend function. Each are described below.
-!
 !-----------------------------------------------------------------------
 
 module ocn_vel_hmix
 
    use mpas_timer
-   use mpas_derived_types
-   use mpas_pool_routines
-   use mpas_threading
    use ocn_vel_hmix_del2
    use ocn_vel_hmix_leith
    use ocn_vel_hmix_del4
    use ocn_constants
+   use ocn_config
 
    implicit none
    private
    save
 
    !--------------------------------------------------------------------
-   !
    ! Public parameters
-   !
    !--------------------------------------------------------------------
 
    !--------------------------------------------------------------------
-   !
    ! Public member functions
-   !
    !--------------------------------------------------------------------
 
    public :: ocn_vel_hmix_tend, &
              ocn_vel_hmix_init
 
    !--------------------------------------------------------------------
-   !
    ! Private module variables
-   !
    !--------------------------------------------------------------------
 
    logical :: hmixOn
@@ -67,8 +57,8 @@ contains
 !  routine ocn_vel_hmix_tend
 !
 !> \brief   Computes tendency term for horizontal momentum mixing
-!> \author  Mark Petersen, Doug Jacobsen, Todd Ringler
-!> \date    September 2011
+!> \author  Mark Petersen, Doug Jacobsen, Todd Ringler, Phil Jones
+!> \date    September 2011, updated April 2020
 !> \details
 !>  This routine computes the horizontal mixing tendency for momentum
 !>  based on current state and user choices of mixing parameterization.
@@ -79,88 +69,68 @@ contains
 !
 !-----------------------------------------------------------------------
 
-   subroutine ocn_vel_hmix_tend(meshPool, scratchPool, divergence, relativeVorticity, normalVelocity, tangentialVelocity, &
-                                viscosity, tend, err)!{{{
+   subroutine ocn_vel_hmix_tend(divergence, relVorticity, tend, err)
 
       !-----------------------------------------------------------------
-      !
       ! input variables
-      !
       !-----------------------------------------------------------------
 
-      type (mpas_pool_type), intent(in) :: &
-         meshPool          !< Input: mesh information
-
-      type (mpas_pool_type), intent(inout) :: scratchPool !< Input: scratch variables
+      real (kind=RKIND), dimension(:,:), intent(in) :: &
+         divergence      !< [in] velocity divergence
 
       real (kind=RKIND), dimension(:,:), intent(in) :: &
-         divergence    !< Input: velocity divergence
-
-      real (kind=RKIND), dimension(:,:), intent(in) :: &
-         relativeVorticity     !< Input: relative vorticity
-
-      real (kind=RKIND), dimension(:,:), intent(in) :: &
-         normalVelocity     !< Input: velocity normal to an edge
-
-      real (kind=RKIND), dimension(:,:), intent(in) :: &
-         tangentialVelocity     !< Input: velocity, tangent to an edge
+         relVorticity    !< [in] relative vorticity
 
       !-----------------------------------------------------------------
-      !
       ! input/output variables
-      !
       !-----------------------------------------------------------------
 
       real (kind=RKIND), dimension(:,:), intent(inout) :: &
-         viscosity     !< Input: viscosity
-
-      real (kind=RKIND), dimension(:,:), intent(inout) :: &
-         tend          !< Input/Output: velocity tendency
+         tend            !< [inout] accumulated velocity tendency
 
       !-----------------------------------------------------------------
-      !
       ! output variables
-      !
       !-----------------------------------------------------------------
 
-      integer, intent(out) :: err !< Output: error flag
+      integer, intent(out) :: err !< [out] error flag
 
+      !{{{
       !-----------------------------------------------------------------
-      !
       ! local variables
-      !
       !-----------------------------------------------------------------
 
-      integer :: err1
+      integer :: err1  ! temp for managing multiple error codes
 
-      !-----------------------------------------------------------------
-      !
-      ! call relevant routines for computing tendencies
-      ! note that the user can choose multiple options and the
-      !   tendencies will be added together
-      !
-      !-----------------------------------------------------------------
+      ! end preamble
+      !-------------
+      ! begin code
 
-      if(.not.hmixOn) return
+      ! return if no mixing is turned on, otherwise start timer
+
+      err = 0
+      if (.not. hmixOn) return
 
       call mpas_timer_start("vel hmix")
 
-      viscosity = 0.0_RKIND
-      err = 0
+      !-----------------------------------------------------------------
+      ! call relevant routines for computing tendencies
+      ! note that the user can choose multiple options and the
+      !   tendencies will be added together
+      ! if OpenACC is enabled, the subroutine arguments are assumed
+      !   to have been copied to the device in the calling tendency
+      !   routine and retained there along with any synchronization 
+      !   with the host. That also means all the routines called below
+      !   must also be GPU enabled so that the tendency is added on
+      !   the device and not the host.
+      !-----------------------------------------------------------------
 
-      call ocn_vel_hmix_del2_tend(meshPool, divergence, relativeVorticity, viscosity, tend, err1)
+      call ocn_vel_hmix_del2_tend(divergence, relVorticity, tend, err1)
       err = ior(err1, err)
 
-      call ocn_vel_hmix_del2_tensor_tend(meshPool, normalVelocity, tangentialVelocity, viscosity, scratchPool, tend, err1)
+      call ocn_vel_hmix_leith_tend(divergence, relVorticity, tend, err1)
       err = ior(err1, err)
 
-      call ocn_vel_hmix_leith_tend(meshPool, divergence, relativeVorticity, viscosity, tend, err1)
-      err = ior(err1, err)
-
-      call ocn_vel_hmix_del4_tend(meshPool, scratchPool, divergence, relativeVorticity, tend, err1)
-      err = ior(err1, err)
-
-      call ocn_vel_hmix_del4_tensor_tend(meshPool, normalVelocity, tangentialVelocity, viscosity, scratchPool, tend, err1)
+      call ocn_vel_hmix_del4_tend(divergence, relVorticity, tend, err1)
       err = ior(err1, err)
 
       call mpas_timer_stop("vel hmix")
@@ -175,7 +145,7 @@ contains
 !
 !> \brief   Initializes ocean momentum horizontal mixing quantities
 !> \author  Mark Petersen, Doug Jacobsen, Todd Ringler
-!> \date    September 2011
+!> \date    September 2011, updated April 2020
 !> \details
 !>  This routine initializes a variety of quantities related to
 !>  horizontal velocity mixing in the ocean. Since a variety of
@@ -184,33 +154,44 @@ contains
 !
 !-----------------------------------------------------------------------
 
-   subroutine ocn_vel_hmix_init(err)!{{{
-
-   !--------------------------------------------------------------------
+   subroutine ocn_vel_hmix_init(err)
 
       !-----------------------------------------------------------------
-      !
-      ! call individual init routines for each parameterization
-      !
+      ! output variables
       !-----------------------------------------------------------------
 
-      integer, intent(out) :: err !< Output: error flag
+      integer, intent(out) :: err !< [out] error flag
 
-      integer :: err1, err2, err3
+      !{{{
+      !-----------------------------------------------------------------
+      ! local variables
+      !-----------------------------------------------------------------
 
-      logical, pointer :: config_disable_vel_hmix
+      integer :: err1, err2, err3 ! error codes from each init
 
-      call mpas_pool_get_config(ocnConfigs, 'config_disable_vel_hmix', config_disable_vel_hmix)
+      ! end preamble
+      !-------------
+      ! begin code
+
+      err = 0
+
+      !-----------------------------------------------------------------
+      ! set overall mixing flag - on by default
+      !-----------------------------------------------------------------
 
       hmixOn = .true.
+      if (config_disable_vel_hmix) hmixOn = .false.
 
-      call ocn_vel_hmix_del2_init(err1)
-      call ocn_vel_hmix_leith_init(err2)
-      call ocn_vel_hmix_del4_init(err3)
+      !-----------------------------------------------------------------
+      ! call individual init routines for each parameterization
+      !-----------------------------------------------------------------
 
-      err = ior(ior(err1, err2),err3)
-
-      if(config_disable_vel_hmix) hmixOn = .false.
+      if (hmixOn) then
+         call ocn_vel_hmix_del2_init(err1)
+         call ocn_vel_hmix_leith_init(err2)
+         call ocn_vel_hmix_del4_init(err3)
+         err = ior(ior(err1, err2),err3)
+      endif
 
    !--------------------------------------------------------------------
 

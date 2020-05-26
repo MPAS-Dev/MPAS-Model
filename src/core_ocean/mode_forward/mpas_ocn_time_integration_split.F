@@ -494,30 +494,29 @@ module ocn_time_integration_split
          call mpas_timer_start("se bcl vel")
 
          call mpas_timer_start('se bcl vel tend')
+
+         ! Need to retain this until we've eliminated pools and blocks
+         ! But we now have only one block, so get the pointers.
          block => domain % blocklist
-         do while (associated(block))
-           call mpas_pool_get_subpool(block % structs, 'tend', tendPool)
-           call mpas_pool_get_subpool(tendPool, 'tracersTend', tracersTendPool)
-           call mpas_pool_get_subpool(block % structs, 'mesh', meshPool)
-           call mpas_pool_get_subpool(block % structs, 'verticalMesh', verticalMeshPool)
-           call mpas_pool_get_subpool(block % structs, 'state', statePool)
-           call mpas_pool_get_subpool(statePool, 'tracers', tracersPool)
-           call mpas_pool_get_subpool(block % structs, 'diagnostics', diagnosticsPool)
-           call mpas_pool_get_subpool(block % structs, 'scratch', scratchPool)
-           call mpas_pool_get_subpool(block % structs, 'forcing', forcingPool)
 
-           call mpas_pool_get_array(statePool, 'layerThickness', layerThicknessCur, 1)
-           call mpas_pool_get_array(statePool, 'normalVelocity', normalVelocityCur, stage1_tend_time)
-           call mpas_pool_get_array(statePool, 'ssh', sshCur, 1)
+         call mpas_pool_get_subpool(block%structs, 'tend', &
+                                                    tendPool)
+         call mpas_pool_get_subpool(tendPool,      'tracersTend', &
+                                                    tracersTendPool)
+         call mpas_pool_get_subpool(block%structs, 'verticalMesh', &
+                                                    verticalMeshPool)
+         call mpas_pool_get_subpool(block%structs, 'state', &
+                                                    statePool)
+         call mpas_pool_get_subpool(statePool,     'tracers', &
+                                                    tracersPool)
+         call mpas_pool_get_subpool(block%structs, 'diagnostics', &
+                                                    diagnosticsPool)
+         call mpas_pool_get_subpool(block%structs, 'forcing', &
+                                                    forcingPool)
 
-           call mpas_pool_get_array(statePool, 'highFreqThickness', highFreqThicknessNew, 2)
+         call ocn_tend_vel(tendPool, statePool, forcingPool, &
+                           diagnosticsPool, stage1_tend_time, dt)
 
-           call mpas_pool_get_array(diagnosticsPool, 'layerThicknessEdge', layerThicknessEdge)
-
-           call ocn_tend_vel(tendPool, statePool, forcingPool, diagnosticsPool, meshPool, scratchPool, stage1_tend_time, dt)
-
-           block => block % next
-         end do
          call mpas_timer_stop('se bcl vel tend')
 
          !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!

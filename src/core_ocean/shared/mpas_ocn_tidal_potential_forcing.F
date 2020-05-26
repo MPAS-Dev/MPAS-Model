@@ -27,7 +27,10 @@ module ocn_tidal_potential_forcing
    use mpas_pool_routines
    use mpas_timekeeping
    use mpas_timer
+
    use ocn_constants
+   use ocn_config
+   use ocn_mesh
 
    implicit none
    private
@@ -78,14 +81,15 @@ contains
 !
 !-----------------------------------------------------------------------
 
-   subroutine ocn_compute_tidal_potential_forcing(meshPool, forcingPool, diagnosticsPool, err)!{{{
+   subroutine ocn_compute_tidal_potential_forcing(forcingPool, &
+                                              diagnosticsPool, err)!{{{
 
       !-----------------------------------------------------------------
       !
       ! input variables
       !
       !-----------------------------------------------------------------
-      type (mpas_pool_type), intent(in) :: meshPool !< Input: mesh information
+
       type (mpas_pool_type), intent(in) :: diagnosticsPool 
 
       !-----------------------------------------------------------------
@@ -109,10 +113,7 @@ contains
       !
       !-----------------------------------------------------------------
 
-      integer, pointer :: nCells
       real (kind=RKIND), pointer :: tidalPotentialRamp
-      real (kind=RKIND), dimension(:), pointer :: lonCell
-      integer, dimension(:), pointer ::  maxLevelCell
 
       integer, pointer :: nTidalConstituents
       real (kind=RKIND), dimension(:), pointer :: amplitude, frequency, loveNumbers
@@ -133,8 +134,6 @@ contains
       if ( .not. tidalPotentialOn ) return
 
       call mpas_pool_get_config(ocnConfigs, 'config_tidal_potential_ramp', tidalPotentialRamp)
-      call mpas_pool_get_dimension(meshPool, 'nCells', nCells)
-      call mpas_pool_get_array(meshPool, 'lonCell', lonCell)
       call mpas_pool_get_array(forcingPool, 'nTidalPotentialConstituents', nTidalConstituents)
       call mpas_pool_get_array(forcingPool, 'tidalPotentialConstituentAmplitude', amplitude)
       call mpas_pool_get_array(forcingPool, 'tidalPotentialConstituentFrequency', frequency)
@@ -150,7 +149,7 @@ contains
       ramp = tanh((2.0_RKIND*daysSinceStartOfSim)/tidalPotentialRamp)
       t = daysSinceStartOfSim*86400.0_RKIND
 
-      do iCell = 1, nCells
+      do iCell = 1, nCellsAll
         eta(iCell) = 0.0_RKIND
       end do
 
@@ -159,7 +158,7 @@ contains
         nCycles = real(int(t/period),RKIND)
         targ = frequency(jCon)*(t - nCycles*period) + nodalFactorPhase(jCon) + astronomicalArgument(jCon)
         conType = constituentType(jCon)
-        do iCell = 1, nCells
+        do iCell = 1, nCellsAll
           lon = lonCell(iCell)
           eta(iCell) = eta(iCell) + ramp &
                                   * amplitude(jCon) &

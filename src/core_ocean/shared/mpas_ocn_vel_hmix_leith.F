@@ -11,7 +11,7 @@
 !
 !> \brief Ocean horizontal mixing - Leith parameterization
 !> \author Mark Petersen
-!> \date   22 October 2012
+!> \date   22 October 2012, updated April 2020
 !> \details
 !>  This module contains routines for computing horizontal mixing
 !>  tendencies using the Leith parameterization.
@@ -21,37 +21,35 @@
 module ocn_vel_hmix_leith
 
    use mpas_timer
-   use mpas_derived_types
-   use mpas_pool_routines
    use mpas_constants
    use ocn_constants
+   use ocn_config
+   use ocn_mesh
 
    implicit none
    private
    save
 
    !--------------------------------------------------------------------
-   !
    ! Public parameters
-   !
    !--------------------------------------------------------------------
 
    !--------------------------------------------------------------------
-   !
    ! Public member functions
-   !
    !--------------------------------------------------------------------
 
    public :: ocn_vel_hmix_leith_tend, &
              ocn_vel_hmix_leith_init
 
    !-------------------------------------------------------------------
-   !
    ! Private module variables
-   !
    !--------------------------------------------------------------------
 
-   logical ::  hmixLeithOn  !< integer flag to determine whether leith chosen
+   logical :: hmixLeithOn  !< flag to determine whether Leith chosen
+
+   real (kind=RKIND) :: &
+      hmixLeithFactor,  &!< precomputed Leith viscosity factor
+      hmixLeithVisc2max  !< Leith viscosity coefficient
 
 !***********************************************************************
 
@@ -63,139 +61,130 @@ contains
 !
 !> \brief  Computes tendency term for horizontal momentum mixing with Leith parameterization
 !> \author Mark Petersen, Todd Ringler
-!> \date   22 October 2012
+!> \date   22 October 2012, updated April 2020
 !> \details
 !> This routine computes the horizontal mixing tendency for momentum
 !> based on the Leith closure.  The Leith closure is the
 !> enstrophy-cascade analogy to the Smagorinsky (1963) energy-cascade
-!> closure, i.e. Leith (1996) assumes an inertial range of enstrophy flux
-!> moving toward the mesh scale. The assumption of an enstrophy cascade
-!> and dimensional analysis produces right-hand-side dissipation,
-!> $\bf{D}$, of velocity of the form
+!> closure, i.e. Leith (1996) assumes an inertial range of enstrophy 
+!> flux moving toward the mesh scale. The assumption of an enstrophy 
+!> cascade and dimensional analysis produces right-hand-side 
+!> dissipation, !$\bf{D}$, of velocity of the form
 !> $ {\bf D} = \nabla \cdot \left( \nu_\ast \nabla {\bf u} \right)
 !>    = \nabla \cdot \left( \gamma \left| \nabla \omega  \right|
 !>      \left( \Delta x \right)^3 \nabla \bf{u} \right)
-!> where $\omega$ is the relative vorticity and $\gamma$ is a non-dimensional,
-!> $O(1)$ parameter. We set $\gamma=1$.
-
+!> where $\omega$ is the relative vorticity and $\gamma$ is a 
+!> non-dimensional, $O(1)$ parameter. We set $\gamma=1$.
 !
 !-----------------------------------------------------------------------
 
-   subroutine ocn_vel_hmix_leith_tend(meshPool, divergence, relativeVorticity, viscosity, tend, err)!{{{
+   subroutine ocn_vel_hmix_leith_tend(divergence, relVorticity, tend, &
+                                      err)
 
       !-----------------------------------------------------------------
-      !
       ! input variables
-      !
       !-----------------------------------------------------------------
 
       real (kind=RKIND), dimension(:,:), intent(in) :: &
-         divergence      !< Input: velocity divergence
+         divergence      !< [in] velocity divergence
 
       real (kind=RKIND), dimension(:,:), intent(in) :: &
-         relativeVorticity       !< Input: relative vorticity
-
-      type (mpas_pool_type), intent(in) :: &
-         meshPool            !< Input: mesh information
+         relVorticity    !< [in] relative vorticity
 
       !-----------------------------------------------------------------
-      !
       ! input/output variables
-      !
       !-----------------------------------------------------------------
 
       real (kind=RKIND), dimension(:,:), intent(inout) :: &
-         tend             !< Input/Output: velocity tendency
-
-      real (kind=RKIND), dimension(:,:), intent(inout) :: &
-         viscosity       !< Input: viscosity
+         tend            !< [inout] velocity tendency
 
       !-----------------------------------------------------------------
-      !
       ! output variables
-      !
       !-----------------------------------------------------------------
 
-      integer, intent(out) :: err !< Output: error flag
+      integer, intent(out) :: err !< [out] error flag
 
+      !{{{
       !-----------------------------------------------------------------
-      !
       ! local variables
-      !
       !-----------------------------------------------------------------
 
-      integer :: iEdge, cell1, cell2, vertex1, vertex2, k, nEdges
-      integer, dimension(:), pointer :: nEdgesArray
-      integer, dimension(:), pointer :: maxLevelEdgeTop
-      integer, dimension(:,:), pointer :: cellsOnEdge, verticesOnEdge, edgeMask
+      integer ::         &
+         iEdge, k,       &! loop indices for edge, vertical
+         cell1, cell2,   &! neighbor cell   indices across edge
+         vertex1, vertex2 ! neighbor vertex indices across edge
 
-      real (kind=RKIND) :: u_diffusion, invLength_dc, invLength_dv, visc2
-      real (kind=RKIND), dimension(:), pointer :: meshScaling, &
-              dcEdge, dvEdge
+      real (kind=RKIND) :: &
+         uDiff,          &! temporary u diffusion calculation
+         vortDiff,       &! temporary vorticity difference
+         invLengthDc,    &! inverse dist between centers 
+         invLengthDv,    &! inverse dist between vertices
+         scaleFactor,    &! precomputed dx^3
+         visc2            ! intermediate viscosity temp
 
-      real (kind=RKIND), pointer :: config_leith_parameter, config_leith_dx, config_leith_visc2_max
+      ! end preamble
+      !-------------
+      ! begin code
 
-      !-----------------------------------------------------------------
-      !
-      ! exit if this mixing is not selected
-      !
-      !-----------------------------------------------------------------
+      ! exit if Leith mixing is not selected
 
       err = 0
-
-      if(.not.hmixLeithOn) return
+      if (.not. hmixLeithOn) return
 
       call mpas_timer_start("vel leith")
 
-      call mpas_pool_get_config(ocnConfigs, 'config_Leith_parameter', config_leith_parameter)
-      call mpas_pool_get_config(ocnConfigs, 'config_Leith_dx', config_leith_dx)
-      call mpas_pool_get_config(ocnConfigs, 'config_Leith_visc2_max', config_leith_visc2_max)
+      ! Compute the tendency
 
-      call mpas_pool_get_dimension(meshPool, 'nEdgesArray', nEdgesArray)
-
-      call mpas_pool_get_array(meshPool, 'maxLevelEdgeTop', maxLevelEdgeTop)
-      call mpas_pool_get_array(meshPool, 'cellsOnEdge', cellsOnEdge)
-      call mpas_pool_get_array(meshPool, 'verticesOnEdge', verticesOnEdge)
-      call mpas_pool_get_array(meshPool, 'meshScaling', meshScaling)
-      call mpas_pool_get_array(meshPool, 'edgeMask', edgeMask)
-      call mpas_pool_get_array(meshPool, 'dcEdge', dcEdge)
-      call mpas_pool_get_array(meshPool, 'dvEdge', dvEdge)
-
-      nEdges = nEdgesArray( 1 )
-
-      !$omp do schedule(runtime) private(cell1, cell2, vertex1, vertex2, invLength_dc, invLength_dv, k, u_diffusion, visc2)
-      do iEdge = 1, nEdges
+#ifdef MPAS_OPENACC
+      !$acc parallel loop &
+      !$acc    present(nEdgesOwned, &
+      !$acc            cellsOnEdge, verticesOnEdge, &
+      !$acc            dcEdge, dvEdge, meshScaling, &
+      !$acc            divergence, relVorticity, &
+      !$acc            maxLevelEdgeTop, tend)   &
+      !$acc    private(k, cell1, cell2, vertex1, vertex2, scaleFactor, &
+      !$acc         invLengthDc, invLengthDv, uDiff, visc2, vortDiff)
+#else
+      !$omp parallel do schedule(runtime) &
+      !$omp    private(k, cell1, cell2, vertex1, vertex2, scaleFactor, &
+      !$omp         invLengthDc, invLengthDv, uDiff, visc2, vortDiff)
+#endif
+      do iEdge = 1, nEdgesOwned
          cell1 = cellsOnEdge(1,iEdge)
          cell2 = cellsOnEdge(2,iEdge)
          vertex1 = verticesOnEdge(1,iEdge)
          vertex2 = verticesOnEdge(2,iEdge)
 
-         invLength_dc = 1.0_RKIND / dcEdge(iEdge)
-         invLength_dv = 1.0_RKIND / dvEdge(iEdge)
+         invLengthDc = 1.0_RKIND / dcEdge(iEdge)
+         invLengthDv = 1.0_RKIND / dvEdge(iEdge)
+
+         scaleFactor = hmixLeithFactor* &
+                       (meshScaling(iEdge))**3
 
          do k = 1, maxLevelEdgeTop(iEdge)
 
-            ! Here -( relativeVorticity(k,vertex2) - relativeVorticity(k,vertex1) ) / dvEdge(iEdge)
-            ! is - \nabla relativeVorticity pointing from vertex 2 to vertex 1, or equivalently
-            !    + k \times \nabla relativeVorticity pointing from cell1 to cell2.
+            ! Here -( relVorticity(k,vertex2) - relVorticity(k,vertex1) ) / dvEdge(iEdge)
+            ! is - \nabla relVorticity pointing from vertex 2 to vertex 1, or equivalently
+            !    + k \times \nabla relVorticity pointing from cell1 to cell2.
+            ! uDiff is \nabla^2 u (see formula for $\bf{D}$ above).
 
-            u_diffusion = ( divergence(k,cell2)  - divergence(k,cell1) ) * invLength_dc &
-                         -( relativeVorticity(k,vertex2) - relativeVorticity(k,vertex1) ) * invLength_dv
+            vortDiff = relVorticity(k,vertex2) - relVorticity(k,vertex1)
 
-            ! Here the first line is (\delta x)^3
-            ! the second line is |\nabla \omega|
-            ! and u_diffusion is \nabla^2 u (see formula for $\bf{D}$ above).
-            visc2 = ( config_leith_parameter * config_leith_dx * meshScaling(iEdge) / pii)**3 &
-                     * abs( relativeVorticity(k,vertex2) - relativeVorticity(k,vertex1) ) * invLength_dc * sqrt(3.0_RKIND)
-            visc2 = min(visc2, config_leith_visc2_max)
+            uDiff = (divergence(k,cell2) - divergence(k,cell1))*invLengthDc &
+                   - vortDiff*invLengthDv
 
-            tend(k,iEdge) = tend(k,iEdge) + edgeMask(k, iEdge) * visc2 * u_diffusion
+            ! Here the scale factor is (\delta x)^3 (precomputed)
+            ! the second factor is |\nabla \omega|
+            visc2 = scaleFactor*abs(vortDiff)*invLengthDc
+            visc2 = min(visc2, hmixLeithVisc2max)
 
-            viscosity(k,iEdge) = viscosity(k,iEdge) + visc2
+            tend(k,iEdge) = tend(k,iEdge) + visc2*uDiff
 
          end do
       end do
-      !$omp end do
+#ifndef MPAS_OPENACC
+      !$omp end parallel do
+#endif
 
       call mpas_timer_stop("vel leith")
 
@@ -209,34 +198,66 @@ contains
 !
 !> \brief   Initializes ocean momentum horizontal mixing with Leith parameterization
 !> \author Mark Petersen
-!> \date   22 October 2012
+!> \date   22 October 2012, updated April 2020
 !> \details
 !>  This routine initializes a variety of quantities related to
 !>  Leith parameterization for horizontal momentum mixing in the ocean.
 !
 !-----------------------------------------------------------------------
 
-   subroutine ocn_vel_hmix_leith_init(err)!{{{
+   subroutine ocn_vel_hmix_leith_init(err)
 
+      integer, intent(out) :: err !< [out] error flag
 
-   integer, intent(out) :: err !< Output: error flag
+      !{{{
+      !-----------------------------------------------------------------
+      ! set defaults for module variables
+      !-----------------------------------------------------------------
 
-   !--------------------------------------------------------------------
-   !
-   ! set some local module variables based on input config choices
-   !
-   !--------------------------------------------------------------------
-   logical, pointer :: config_use_Leith_del2
+      err = 0
 
-   err = 0
+      hmixLeithOn       = .false.
+      hmixLeithFactor   = 0.0
+      hmixLeithVisc2max = 0.0
 
-   call mpas_pool_get_config(ocnConfigs, 'config_use_Leith_del2', config_use_Leith_del2)
+      !-----------------------------------------------------------------
+      ! override defaults with input selections
+      !-----------------------------------------------------------------
 
-   hmixLeithOn = .false.
+      hmixLeithOn       = config_use_leith_del2 
+      hmixLeithVisc2max = config_leith_visc2_max
 
-   if (config_use_leith_del2) then
-      hmixLeithOn = .true.
-   endif
+      !-----------------------------------------------------------------
+      ! Leith viscosity is of the form:
+      !   visc2 = 
+      !      (hmixLeithParam*hmixLeithDx*meshScaling(iEdge)/pii)**3 &
+      !      * abs(relVorticity(k,vertex2)-relVorticity(k,vertex1))*
+      !       invLength_dc(iEdge) * sqrt(3.0_RKIND)
+      ! We precompute several common constant factors here for better
+      ! performance
+      !-----------------------------------------------------------------
+
+      hmixLeithFactor = sqrt(3.0_RKIND)* &
+                        (config_leith_parameter*config_leith_dx/pii)**3
+
+      !-----------------------------------------------------------------
+      ! Perform some error checking on inputs
+      !-----------------------------------------------------------------
+
+      if (hmixLeithOn) then
+         if (config_leith_parameter  == 0.0) then
+            err = -1
+            call mpas_log_write(&
+            'ocn_vel_hmix_leith: leith parameter must be non-zero', &
+            MPAS_LOG_CRIT)
+         endif
+         if (hmixLeithVisc2max == 0.0) then
+            err = -1
+            call mpas_log_write(&
+            'ocn_vel_hmix_leith: invalid max viscosity (visc2max)', &
+            MPAS_LOG_CRIT)
+         endif
+      endif
 
    !--------------------------------------------------------------------
 

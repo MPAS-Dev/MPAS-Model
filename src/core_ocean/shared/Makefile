@@ -95,25 +95,25 @@ mpas_ocn_thick_surface_flux.o: mpas_ocn_forcing.o mpas_ocn_constants.o mpas_ocn_
 
 mpas_ocn_gm.o:  mpas_ocn_constants.o mpas_ocn_config.o
 
-mpas_ocn_vel_pressure_grad.o: mpas_ocn_constants.o mpas_ocn_config.o
+mpas_ocn_vel_pressure_grad.o: mpas_ocn_constants.o mpas_ocn_config.o mpas_ocn_mesh.o
 
-mpas_ocn_vel_vadv.o: mpas_ocn_constants.o mpas_ocn_config.o
+mpas_ocn_vel_vadv.o: mpas_ocn_constants.o mpas_ocn_config.o mpas_ocn_mesh.o
 
-mpas_ocn_vel_hmix.o: mpas_ocn_vel_hmix_del2.o mpas_ocn_vel_hmix_leith.o mpas_ocn_vel_hmix_del4.o mpas_ocn_constants.o mpas_ocn_config.o
+mpas_ocn_vel_hmix.o: mpas_ocn_vel_hmix_del2.o mpas_ocn_vel_hmix_leith.o mpas_ocn_vel_hmix_del4.o mpas_ocn_constants.o mpas_ocn_config.o mpas_ocn_mesh.o
 
-mpas_ocn_vel_hmix_del2.o: mpas_ocn_constants.o mpas_ocn_config.o
+mpas_ocn_vel_hmix_del2.o: mpas_ocn_constants.o mpas_ocn_config.o mpas_ocn_mesh.o
 
-mpas_ocn_vel_hmix_leith.o: mpas_ocn_constants.o mpas_ocn_config.o
+mpas_ocn_vel_hmix_leith.o: mpas_ocn_constants.o mpas_ocn_config.o mpas_ocn_mesh.o
 
-mpas_ocn_vel_hmix_del4.o: mpas_ocn_constants.o mpas_ocn_config.o
+mpas_ocn_vel_hmix_del4.o: mpas_ocn_constants.o mpas_ocn_config.o mpas_ocn_mesh.o
 
-mpas_ocn_vel_forcing.o: mpas_ocn_vel_forcing_surface_stress.o mpas_ocn_vel_forcing_explicit_bottom_drag.o mpas_ocn_forcing.o mpas_ocn_constants.o mpas_ocn_config.o
+mpas_ocn_vel_forcing.o: mpas_ocn_vel_forcing_surface_stress.o mpas_ocn_vel_forcing_explicit_bottom_drag.o mpas_ocn_forcing.o mpas_ocn_constants.o mpas_ocn_config.o mpas_ocn_mesh.o
 
-mpas_ocn_vel_forcing_surface_stress.o: mpas_ocn_forcing.o mpas_ocn_constants.o mpas_ocn_config.o
+mpas_ocn_vel_forcing_surface_stress.o: mpas_ocn_forcing.o mpas_ocn_constants.o mpas_ocn_config.o mpas_ocn_mesh.o
 
-mpas_ocn_vel_forcing_explicit_bottom_drag.o: mpas_ocn_constants.o mpas_ocn_config.o
+mpas_ocn_vel_forcing_explicit_bottom_drag.o: mpas_ocn_constants.o mpas_ocn_config.o mpas_ocn_mesh.o
 
-mpas_ocn_vel_hadv_coriolis.o: mpas_ocn_constants.o mpas_ocn_config.o
+mpas_ocn_vel_hadv_coriolis.o: mpas_ocn_constants.o mpas_ocn_config.o mpas_ocn_mesh.o
 
 mpas_ocn_tracer_hmix.o: mpas_ocn_tracer_hmix_del2.o mpas_ocn_tracer_hmix_del4.o mpas_ocn_tracer_hmix_redi.o
 
@@ -167,7 +167,7 @@ mpas_ocn_forcing.o: mpas_ocn_constants.o mpas_ocn_config.o mpas_ocn_forcing_rest
 
 mpas_ocn_surface_bulk_forcing.o: mpas_ocn_constants.o mpas_ocn_config.o mpas_ocn_equation_of_state.o
 
-mpas_ocn_surface_land_ice_fluxes.o: mpas_ocn_constants.o mpas_ocn_config.o mpas_ocn_equation_of_state.o
+mpas_ocn_surface_land_ice_fluxes.o: mpas_ocn_constants.o mpas_ocn_config.o mpas_ocn_equation_of_state.o mpas_ocn_mesh.o
 
 mpas_ocn_frazil_forcing.o: mpas_ocn_constants.o mpas_ocn_config.o mpas_ocn_equation_of_state.o
 
@@ -205,7 +205,7 @@ mpas_ocn_time_varying_forcing.o:
 
 mpas_ocn_wetting_drying.o: mpas_ocn_diagnostics.o mpas_ocn_gm.o
 
-mpas_ocn_tidal_potential_forcing.o: mpas_ocn_constants.o mpas_ocn_config.o
+mpas_ocn_tidal_potential_forcing.o: mpas_ocn_constants.o mpas_ocn_config.o mpas_ocn_mesh.o
 
 clean:
 	$(RM) *.o *.i *.mod *.f90

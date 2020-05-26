@@ -5,18 +5,18 @@
 ! Additional copyright and license information can be found in the LICENSE file
 ! distributed with this code, or at http://mpas-dev.github.com/license.html
 !
-!|||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
+!|||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
 !
 !  ocn_surface_bulk_forcing
 !
 !> \brief MPAS ocean bulk forcing
-!> \author Doug Jacobsen
-!> \date   04/25/12
+!> \author Doug Jacobsen, Phil Jones, Rob Aulwes
+!> \date   04/25/12, updated May 2020
 !> \details
 !>  This module contains routines for building the forcing arrays,
 !>  if bulk forcing is used.
 !
-!-----------------------------------------------------------------------
+!-------------------------------------------------------------------------------
 
 module ocn_surface_bulk_forcing
 
@@ -27,41 +27,38 @@ module ocn_surface_bulk_forcing
    use mpas_timekeeping
    use ocn_constants
    use ocn_equation_of_state
+   use ocn_config
+   use ocn_mesh
 
    implicit none
    private
    save
 
-   !--------------------------------------------------------------------
-   !
+   !----------------------------------------------------------------------------
    ! Public parameters
-   !
-   !--------------------------------------------------------------------
+   !----------------------------------------------------------------------------
 
-   !--------------------------------------------------------------------
-   !
+   !----------------------------------------------------------------------------
    ! Public member functions
-   !
-   !--------------------------------------------------------------------
+   !----------------------------------------------------------------------------
 
    public :: ocn_surface_bulk_forcing_tracers, &
-             ocn_surface_bulk_forcing_vel, &
-             ocn_surface_bulk_forcing_thick, &
+             ocn_surface_bulk_forcing_vel,     &
+             ocn_surface_bulk_forcing_thick,   &
              ocn_surface_bulk_forcing_init
 
-   !--------------------------------------------------------------------
-   !
+   !----------------------------------------------------------------------------
    ! Private module variables
-   !
-   !--------------------------------------------------------------------
+   !----------------------------------------------------------------------------
 
-   logical :: bulkWindStressOn, bulkThicknessFluxOn
+   logical :: bulkWindStressOn    ! on/off switch for wind stress
+   logical :: bulkThicknessFluxOn ! on/off switch for thickness flux
 
-!***********************************************************************
+!*******************************************************************************
 
 contains
 
-!***********************************************************************
+!*******************************************************************************
 !
 !  routine ocn_surface_bulk_forcing_tracers
 !
@@ -124,104 +121,124 @@ contains
 
    end subroutine ocn_surface_bulk_forcing_tracers!}}}
 
-!***********************************************************************
+!*******************************************************************************
 !
 !  routine ocn_surface_bulk_forcing_vel
 !
-!> \brief   Determines the velocity forcing array used for the bulk forcing.
+!> \brief   Determines the velocity forcing used for the bulk forcing.
 !> \author  Doug Jacobsen
 !> \date    04/25/12
 !> \details
-!>  This routine computes the velocity forcing arrays used later in MPAS.
+!>  This routine computes the velocity forcing tendency term based on
+!>  a bulk forcing formulation and using fields from driver/coupler.
 !
-!-----------------------------------------------------------------------
+!-------------------------------------------------------------------------------
 
-   subroutine ocn_surface_bulk_forcing_vel(meshPool, forcingPool, surfaceStress, surfaceStressMagnitude, err)!{{{
+   subroutine ocn_surface_bulk_forcing_vel( &
+                                  windStressZonal, windStressMeridional, &
+                                  surfaceStress, surfaceStressMagnitude, err)
 
-      !-----------------------------------------------------------------
-      !
+      !-------------------------------------------------------------------------
       ! input variables
-      !
-      !-----------------------------------------------------------------
-      type (mpas_pool_type), intent(in) :: meshPool !< Input: mesh information
-      type (mpas_pool_type), intent(in) :: forcingPool !< Input: Forcing information
+      !-------------------------------------------------------------------------
 
-      !-----------------------------------------------------------------
-      !
+      real (kind=RKIND), dimension(:), intent(in) :: &
+         windStressZonal,     &! zonal      wind stress from forcing
+         windStressMeridional  ! meridional wind stress from forcing
+
+      !-------------------------------------------------------------------------
       ! input/output variables
-      !
-      !-----------------------------------------------------------------
-      real (kind=RKIND), dimension(:), intent(inout) :: surfaceStress, & !< Input/Output: Array for surface stress
-                                                  surfaceStressMagnitude !< Input/Output: Array for magnitude of surface stress
+      !-------------------------------------------------------------------------
 
-      !-----------------------------------------------------------------
-      !
+      real (kind=RKIND), dimension(:), intent(inout) :: &
+         surfaceStress,       & !< [inout] surface stress
+         surfaceStressMagnitude !< [inout] magnitude of surface stress
+
+      !-------------------------------------------------------------------------
       ! output variables
-      !
-      !-----------------------------------------------------------------
+      !-------------------------------------------------------------------------
 
       integer, intent(out) :: err !< Output: Error flag
 
-      !-----------------------------------------------------------------
-      !
+      !{{{
+      !-------------------------------------------------------------------------
       ! local variables
-      !
-      !-----------------------------------------------------------------
+      !-------------------------------------------------------------------------
 
-      integer :: iEdge, cell1, cell2, iCell, nCells, nEdges
-      integer, dimension(:), pointer :: nCellsArray, nEdgesArray
+      integer ::         &
+         iEdge, iCell,   &! loop iterators for cells, edges
+         nCells, nEdges, &! final index for extended domain
+         cell1, cell2     ! neighbor cell indices across edge
 
-      integer, dimension(:,:), pointer :: cellsOnEdge
+      real (kind=RKIND) :: &
+         meridionalAverage, &! avg of meridional stress across edge
+         zonalAverage        ! avg of zonal      stress across edge
 
-      real (kind=RKIND) :: meridionalAverage, zonalAverage
-      real (kind=RKIND), dimension(:), pointer :: angleEdge
-      real (kind=RKIND), dimension(:), pointer :: windStressZonal, windStressMeridional
+      ! End preamble
+      !-------------
+      ! Begin code
+
+      ! Exit if not turned on. Otherwise, start timer
 
       err = 0
-
       if ( .not. bulkWindStressOn ) return
 
       call mpas_timer_start("bulk_ws", .false.)
 
-      call mpas_pool_get_dimension(meshPool, 'nCellsArray', nCellsArray)
-      call mpas_pool_get_dimension(meshPool, 'nEdgesArray', nEdgesArray)
-
-      call mpas_pool_get_array(meshPool, 'angleEdge', angleEdge)
-      call mpas_pool_get_array(meshPool, 'cellsOnEdge', cellsOnEdge)
-
-      call mpas_pool_get_array(forcingPool, 'windStressZonal', windStressZonal)
-      call mpas_pool_get_array(forcingPool, 'windStressMeridional', windStressMeridional)
-
-      nEdges = nEdgesArray( 4 )
-      nCells = nCellsArray( 3 )
+      nEdges = nEdgesHalo( 3 )
+      nCells = nCellsHalo( 2 )
 
       ! Convert coupled climate model wind stress to MPAS-O wind stress
-      !$omp do schedule(runtime) private(cell1, cell2, zonalAverage, meridionalAverage)
+#ifdef MPAS_OPENACC
+      !$acc parallel loop &
+      !$acc    present(cellsOnEdge, surfaceStress, angleEdge, &
+      !$acc            windStressZonal, windStressMeridional) &
+      !$acc    private(cell1, cell2, zonalAverage, meridionalAverage)
+#else
+      !$omp parallel
+      !$omp do schedule(runtime) &
+      !$omp    private(cell1, cell2, zonalAverage, meridionalAverage)
+#endif
       do iEdge = 1, nEdges
-        cell1 = cellsOnEdge(1, iEdge)
-        cell2 = cellsOnEdge(2, iEdge)
+         cell1 = cellsOnEdge(1, iEdge)
+         cell2 = cellsOnEdge(2, iEdge)
 
-        zonalAverage = 0.5_RKIND * (windStressZonal(cell1) + windStressZonal(cell2))
-        meridionalAverage = 0.5_RKIND * (windStressMeridional(cell1) + windStressMeridional(cell2))
+         zonalAverage      = 0.5_RKIND*(windStressZonal(cell1) + &
+                                        windStressZonal(cell2))
+         meridionalAverage = 0.5_RKIND*(windStressMeridional(cell1) + &
+                                        windStressMeridional(cell2))
 
-        surfaceStress(iEdge) = surfaceStress(iEdge) + cos(angleEdge(iEdge)) * zonalAverage + sin(angleEdge(iEdge)) &
-                             * meridionalAverage
+         surfaceStress(iEdge) = surfaceStress(iEdge) + &
+                                cos(angleEdge(iEdge))*zonalAverage + &
+                                sin(angleEdge(iEdge))* meridionalAverage
       end do
+#ifndef MPAS_OPENACC
       !$omp end do
+#endif
 
       ! Build surface fluxes at cell centers
+#ifdef MPAS_OPENACC
+      !$acc parallel loop &
+      !$acc    present(surfaceStressMagnitude, &
+      !$acc            windStressZonal, windStressMeridional)
+#else
       !$omp do schedule(runtime)
+#endif
       do iCell = 1, nCells
-        surfaceStressMagnitude(iCell) = surfaceStressMagnitude(iCell) + sqrt( windStressZonal(iCell)**2 &
+         surfaceStressMagnitude(iCell) = surfaceStressMagnitude(iCell) &
+                                     + sqrt( windStressZonal(iCell)**2 &
                                       + windStressMeridional(iCell)**2 )
       end do
+#ifndef MPAS_OPENACC
       !$omp end do
+      !$omp end parallel
+#endif
 
       call mpas_timer_stop("bulk_ws")
 
    end subroutine ocn_surface_bulk_forcing_vel!}}}
 
-!***********************************************************************
+!*******************************************************************************
 !
 !  routine ocn_surface_bulk_forcing_thick
 !
@@ -306,42 +323,51 @@ contains
 
    end subroutine ocn_surface_bulk_forcing_thick!}}}
 
-!***********************************************************************
+!*******************************************************************************
 !
 !  routine ocn_surface_bulk_forcing_init
 !
 !> \brief   Initializes bulk forcing module
-!> \author  Doug Jacobsen
-!> \date    04/25/12
+!> \author  Doug Jacobsen, Phil Jones
+!> \date    04/25/12, udpate May 2020
 !> \details
 !>  This routine initializes the bulk forcing module.
 !
-!-----------------------------------------------------------------------
+!-------------------------------------------------------------------------------
 
-   subroutine ocn_surface_bulk_forcing_init(err)!{{{
+   subroutine ocn_surface_bulk_forcing_init(err)
 
-      integer, intent(out) :: err !< Output: error flag
+      !-------------------------------------------------------------------------
+      ! output variables
+      !-------------------------------------------------------------------------
 
-      logical, pointer :: config_use_bulk_wind_stress, config_use_bulk_thickness_flux
+      integer, intent(out) :: err !< [out] error flag
+
+      !{{{
+      !-------------------------------------------------------------------------
+      ! local variables
+      !-------------------------------------------------------------------------
+
+      ! End preamble
+      !-------------
+      ! Begin code
 
       err = 0
 
-      call mpas_pool_get_config(ocnConfigs, 'config_use_bulk_wind_stress', config_use_bulk_wind_stress)
-      call mpas_pool_get_config(ocnConfigs, 'config_use_bulk_thickness_flux', config_use_bulk_thickness_flux)
-
-      bulkWindStressOn = config_use_bulk_wind_stress
+      ! Set on/off flags base on input configuration (in ocn_config)
+      bulkWindStressOn    = config_use_bulk_wind_stress
       bulkThicknessFluxOn = config_use_bulk_thickness_flux
 
    end subroutine ocn_surface_bulk_forcing_init!}}}
 
-!***********************************************************************
+!*******************************************************************************
 !
 ! Private module subroutines
 !
-!***********************************************************************
+!*******************************************************************************
 
 
-!***********************************************************************
+!*******************************************************************************
 !
 !  routine ocn_surface_bulk_forcing_active_tracers
 !
@@ -503,8 +529,9 @@ contains
 
    end subroutine ocn_surface_bulk_forcing_active_tracers!}}}
 
+!*******************************************************************************
+
 end module ocn_surface_bulk_forcing
 
-
-!|||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
+!|||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
 ! vim: foldmethod=marker

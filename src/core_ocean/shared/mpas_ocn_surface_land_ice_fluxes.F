@@ -5,18 +5,18 @@
 ! Additional copyright and license information can be found in the LICENSE file
 ! distributed with this code, or at http://mpas-dev.github.com/license.html
 !
-!|||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
+!|||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
 !
 !  ocn_surface_land_ice_fluxes
 !
 !> \brief MPAS ocean surface land-ice fluxes
 !> \author Xylar Asay-Davis
-!> \date   10/02/2014
+!> \date   10/02/2014, updated May 2020
 !> \details
 !>  This module contains routines for computing surface flux related
 !>  melting under land-ice.
 !
-!-----------------------------------------------------------------------
+!-------------------------------------------------------------------------------
 
 module ocn_surface_land_ice_fluxes
 
@@ -26,6 +26,8 @@ module ocn_surface_land_ice_fluxes
    use mpas_pool_routines
 
    use ocn_constants
+   use ocn_config
+   use ocn_mesh
    use ocn_equation_of_state
 
    implicit none
@@ -33,15 +35,11 @@ module ocn_surface_land_ice_fluxes
    save
 
    !--------------------------------------------------------------------
-   !
    ! Public parameters
-   !
    !--------------------------------------------------------------------
 
    !--------------------------------------------------------------------
-   !
    ! Public member functions
-   !
    !--------------------------------------------------------------------
 
    public :: ocn_surface_land_ice_fluxes_tracers, &
@@ -51,21 +49,25 @@ module ocn_surface_land_ice_fluxes
              ocn_surface_land_ice_fluxes_init
 
    !--------------------------------------------------------------------
-   !
    ! Private module variables
-   !
    !--------------------------------------------------------------------
 
-   logical :: landIceFluxesOn, standaloneOn, isomipOn, jenkinsOn, hollandJenkinsOn
+   logical ::          &! logical switches 
+      landIceFluxesOn, &! on/off switch to include land ice fluxes
+      standaloneOn,    &! on/off switch for standalone runs (vs coupled)
+      isomipOn,        &! use isomip ice flux formulation
+      jenkinsOn,       &! use Jenkins ice flux formulation
+      hollandJenkinsOn  ! use Jenkins-Holland ice flux formulation
 
-   real (kind=RKIND) :: cp_land_ice, rho_land_ice
+   real (kind=RKIND) :: &
+      cp_land_ice,      &! specific heat for land ice melt
+      rho_land_ice       ! density of ice (not currently used)
 
-
-!***********************************************************************
+!*******************************************************************************
 
 contains
 
-!***********************************************************************
+!*******************************************************************************
 !
 !  routine ocn_surface_land_ice_fluxes_tracers
 !
@@ -124,7 +126,7 @@ contains
 
    end subroutine ocn_surface_land_ice_fluxes_tracers!}}}
 
-!***********************************************************************
+!*******************************************************************************
 !
 !  routine ocn_surface_land_ice_fluxes_vel
 !
@@ -135,76 +137,88 @@ contains
 !>  This routine computes the top-drag tendency for momentum
 !>  based on current state.
 !
-!-----------------------------------------------------------------------
+!-------------------------------------------------------------------------------
 
-   subroutine ocn_surface_land_ice_fluxes_vel(meshPool, diagnosticsPool, surfaceStress, surfaceStressMagnitude, err)!{{{
+   subroutine ocn_surface_land_ice_fluxes_vel(topDrag, topDragMagnitude, &
+                                  surfaceStress, surfaceStressMagnitude, err)
 
-      !-----------------------------------------------------------------
-      !
+      !-------------------------------------------------------------------------
       ! input variables
-      !
-      !-----------------------------------------------------------------
-      type (mpas_pool_type), intent(in) :: meshPool !< Input: mesh information
-      type (mpas_pool_type), intent(in) :: diagnosticsPool !< Input: Diagnostics information
+      !-------------------------------------------------------------------------
 
-      !-----------------------------------------------------------------
-      !
+      real (kind=RKIND), dimension(:), intent(in) :: &
+         topDrag,              &! drag stress at top due to land ice
+         topDragMagnitude       ! magnitude of stress at cell centers
+
+      !-------------------------------------------------------------------------
       ! input/output variables
-      !
-      !-----------------------------------------------------------------
-      real (kind=RKIND), dimension(:), intent(inout) :: surfaceStress, & !< Input/Output: Array for total surface stress
-                                                  surfaceStressMagnitude !< Input/Output: Array for magnitude of surface stress
+      !-------------------------------------------------------------------------
 
-      !-----------------------------------------------------------------
-      !
+      real (kind=RKIND), dimension(:), intent(inout) :: &
+         surfaceStress,        &!< [inout] total surface stress
+         surfaceStressMagnitude !< [inout] magnitude of surface stress
+
+      !-------------------------------------------------------------------------
       ! output variables
-      !
-      !-----------------------------------------------------------------
+      !-------------------------------------------------------------------------
 
-      integer, intent(out) :: err !< Output: Error flag
+      integer, intent(out) :: err !< [out] Error flag
 
-      !-----------------------------------------------------------------
-      !
+      !{{{
+      !-------------------------------------------------------------------------
       ! local variables
-      !
-      !-----------------------------------------------------------------
-      integer :: iEdge, iCell
-      integer, pointer :: nCells, nEdges
+      !-------------------------------------------------------------------------
 
-      real (kind=RKIND), dimension(:), pointer :: topDrag, topDragMagnitude
+      integer :: iEdge, iCell  ! loop iterators for edge, cell loops
+
+      ! End of preamble
+      !----------------
+      ! Begin code
+
+      ! Exit if not turned on. Otherwise, start timer.
 
       err = 0
-
       if ( .not. landIceFluxesOn ) return
 
       call mpas_timer_start("top_drag", .false.)
 
-      call mpas_pool_get_dimension(meshPool, 'nCells', nCells)
-      call mpas_pool_get_dimension(meshPool, 'nEdges', nEdges)
-
-      call mpas_pool_get_array(diagnosticsPool, 'topDrag', topDrag)
-      call mpas_pool_get_array(diagnosticsPool, 'topDragMagnitude', topDragMagnitude)
-
+#ifdef MPAS_OPENACC
+      !$acc parallel loop &
+      !$acc    present(surfaceStress, topDrag)
+#else
+      !$omp parallel
       !$omp do schedule(runtime)
-      do iEdge = 1, nEdges
-        surfaceStress(iEdge) = surfaceStress(iEdge) + topDrag(iEdge)
+#endif
+      do iEdge = 1, nEdgesAll
+         surfaceStress(iEdge) = surfaceStress(iEdge) + topDrag(iEdge)
       end do
+#ifndef MPAS_OPENACC
       !$omp end do
+#endif
 
       ! Build surface stress magnitude at cell centers
+#ifdef MPAS_OPENACC
+      !$acc parallel loop &
+      !$acc    present(surfaceStressMagnitude, topDragMagnitude)
+#else
       !$omp do schedule(runtime)
-      do iCell = 1, nCells
-        surfaceStressMagnitude(iCell) = surfaceStressMagnitude(iCell) + topDragMagnitude(iCell)
+#endif
+      do iCell = 1, nCellsAll
+         surfaceStressMagnitude(iCell) = surfaceStressMagnitude(iCell) + &
+                                               topDragMagnitude(iCell)
       end do
+#ifndef MPAS_OPENACC
       !$omp end do
+      !$omp end parallel
+#endif
 
       call mpas_timer_stop("top_drag")
 
-   !--------------------------------------------------------------------
+   !----------------------------------------------------------------------------
 
    end subroutine ocn_surface_land_ice_fluxes_vel!}}}
 
-!***********************************************************************
+!*******************************************************************************
 !
 !  routine ocn_surface_land_ice_fluxes_thick
 !
@@ -630,7 +644,7 @@ contains
 
    end subroutine ocn_surface_land_ice_fluxes_build_arrays!}}}
 
-!***********************************************************************
+!*******************************************************************************
 !
 !  routine ocn_surface_land_ice_fluxes_init
 !
@@ -641,57 +655,83 @@ contains
 !>  This routine initializes a variety of quantities related to
 !>  land-ice forcing.
 !
-!-----------------------------------------------------------------------
+!-------------------------------------------------------------------------------
 
-   subroutine ocn_surface_land_ice_fluxes_init(err)!{{{
+   subroutine ocn_surface_land_ice_fluxes_init(err)
 
+      !-------------------------------------------------------------------------
+      ! output variables
+      !-------------------------------------------------------------------------
       integer, intent(out) :: err !< Output: error flag
 
-      character (len=StrKIND), pointer :: config_land_ice_flux_formulation, config_land_ice_flux_mode
+      !{{{
+      !-------------------------------------------------------------------------
+      ! local variables
+      !-------------------------------------------------------------------------
 
-      real (kind=RKIND), pointer :: config_land_ice_flux_cp_ice, &
-                                    config_land_ice_flux_rho_ice
+      ! End of preamble
+      !----------------
+      ! Begin code
 
-
+      ! Set default flags and values
       err = 0
-      isomipOn = .false.
-      jenkinsOn = .false.
+      landIceFluxesOn  = .false.
+      standaloneOn     = .false.
+      isomipOn         = .false.
+      jenkinsOn        = .false.
       hollandJenkinsOn = .false.
+      cp_land_ice      = 0.0_RKIND
+      rho_land_ice     = 0.0_RKIND
 
-      call mpas_pool_get_config(ocnConfigs, 'config_land_ice_flux_mode', config_land_ice_flux_mode)
-      landIceFluxesOn = (trim(config_land_ice_flux_mode) == 'standalone')  &
-           .or. (trim(config_land_ice_flux_mode) == 'coupled')
+      ! Define variables based on user input in ocn_config
+
+      select case (trim(config_land_ice_flux_mode))
+      case ('standalone','STANDALONE','StandAlone','standAlone')
+         landIceFluxesOn  = .true.
+         standaloneOn     = .true.
+      case ('coupled','COUPLED','Coupled')
+         landIceFluxesOn  = .true.
+         standaloneOn     = .false.
+      case ('off','OFF','Off','none','None','NONE')
+         landIceFluxesOn  = .false.
+         standaloneOn     = .false.
+      case default
+         landIceFluxesOn  = .false.
+         standaloneOn     = .false.
+      end select
+
+      ! skip rest of init if turned off
       if(.not. landIceFluxesOn) return
 
-      standaloneOn = trim(config_land_ice_flux_mode) == 'standalone'
 
-      call mpas_pool_get_config(ocnConfigs, 'config_land_ice_flux_formulation', config_land_ice_flux_formulation)
-
-      call mpas_pool_get_config(ocnConfigs, 'config_land_ice_flux_cp_ice', config_land_ice_flux_cp_ice)
-      call mpas_pool_get_config(ocnConfigs, 'config_land_ice_flux_rho_ice', config_land_ice_flux_rho_ice)
-
-      if ( trim(config_land_ice_flux_formulation) == 'ISOMIP' ) then
+      ! Set the formulation to be used
+      select case (trim(config_land_ice_flux_formulation))
+      case ('ISOMIP','isomip','Isomip')
          isomipOn = .true.
-      else if ( trim(config_land_ice_flux_formulation) == 'Jenkins' ) then
+
+      case ('Jenkins','jenkins','JENKINS')
          jenkinsOn = .true.
-      else if ( trim(config_land_ice_flux_formulation) == 'HollandJenkins' ) then
+
+      case ('HollandJenkins','hollandjenkins','HOLLANDJENKINS')
          hollandJenkinsOn = .true.
-      else
+
+      case default
          call mpas_log_write( &
-            "config_land_ice_flux_formulation not one of 'ISOMIP', 'Jenkins', " &
-               // "or 'HollandJenkins'.", &
+            "config_land_ice_flux_formulation not one of 'ISOMIP', " &
+               // "'Jenkins', or 'HollandJenkins'.", &
                MPAS_LOG_CRIT)
          err = 1
-      end if
+      end select
 
-      cp_land_ice = config_land_ice_flux_cp_ice
+      ! Set some physical constants
+      cp_land_ice  = config_land_ice_flux_cp_ice
       rho_land_ice = config_land_ice_flux_rho_ice
 
-   !--------------------------------------------------------------------
+      !-------------------------------------------------------------------------
 
    end subroutine ocn_surface_land_ice_fluxes_init!}}}
 
-!***********************************************************************
+!*******************************************************************************
 !
 !  routine ocn_forcing_compute_melt_fluxes
 !
@@ -974,7 +1014,6 @@ contains
   !--------------------------------------------------------------------
 
   end subroutine compute_HJ99_melt_fluxes !}}}
-
 
 !***********************************************************************
 
