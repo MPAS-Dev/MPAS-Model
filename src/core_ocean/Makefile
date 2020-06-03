@@ -44,8 +44,16 @@ post_build:
 	( cp $(ROOT_DIR)/default_inputs/streams.ocean.forward $(ROOT_DIR)/streams.ocean.forward )
 	( cp $(ROOT_DIR)/default_inputs/streams.ocean.analysis $(ROOT_DIR)/streams.ocean.analysis )
 	( cp $(ROOT_DIR)/default_inputs/streams.ocean.init $(ROOT_DIR)/streams.ocean.init )
+# timeout switch to prevent build from hanging
+GITTIMEOUTSEC=60
 
 libcvmix:
+	if [ -e cvmix/.git ]; then \
+		(echo "Found cvmix repo") \
+	else \
+		(echo "Attempting retrieval of cvmix repo"; cd ../../; timeout $(GITTIMEOUTSEC) git submodule update --init --recursive) \
+	fi
+# recheck success of downloaded repo
 	if [ -e cvmix/.git ]; then \
 		(cd cvmix/src/shared; make all FC="$(FC)" FCFLAGS="$(FFLAGS)" FINCLUDES="$(FINCLUDES)") \
 	else \
@@ -53,6 +61,11 @@ libcvmix:
 	fi
 
 libBGC:
+	if [ -e BGC/.git ]; then \
+		(echo "Found BGC repo") \
+	else \
+		(echo "Attempting retrieval of BGC repo"; cd ../../; timeout $(GITTIMEOUTSEC) git submodule update --init --recursive) \
+	fi
 	if [ -e BGC/.git ]; then \
 		(cd BGC; make all FC="$(FC)" FCFLAGS="$(FFLAGS)" FINCLUDES="$(FINCLUDES)") \
 	else \
