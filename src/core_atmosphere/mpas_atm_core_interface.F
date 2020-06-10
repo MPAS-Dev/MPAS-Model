@@ -12,7 +12,11 @@ module atm_core_interface
    use mpas_pool_routines
    use mpas_dmpar
    use mpas_io_units
-   use openacc
+
+   integer, save, private :: radiation_ranks_per_node, dynamics_ranks_per_node
+   integer, save, private :: ranks_per_node
+   integer, save, private :: local_rank = -1
+
    contains
 
 
@@ -80,53 +84,41 @@ module atm_core_interface
       use mpas_kind_types, only : StrKIND
       use mpas_abort, only : mpas_dmpar_global_abort
 
-      use openacc
       implicit none
 
       class (mpas_coupler_type), intent(in) :: self
-      integer :: radiation_ranks_per_node, dynamics_ranks_per_node
-      integer :: ranks_per_node
-      integer :: local_rank
 
       character(len=StrKIND) :: radiation_ranks_per_node_str
       character(len=StrKIND) :: dynamics_ranks_per_node_str
 
       integer :: istat
 
-     
-      call get_environment_variable('MPAS_RADIATION_RANKS_PER_NODE', value=radiation_ranks_per_node_str, status=istat)
-      if (istat /= 0) then
-          call mpas_dmpar_global_abort('Error: Could not read environment variable MPAS_RADIATION_RANKS_PER_NODE')
+
+      !
+      ! If this routine has not yet been called, read environment variables
+      !
+      if (local_rank == -1) then
+          call get_environment_variable('MPAS_RADIATION_RANKS_PER_NODE', value=radiation_ranks_per_node_str, status=istat)
+          if (istat /= 0) then
+              call mpas_dmpar_global_abort('Error: Could not read environment variable MPAS_RADIATION_RANKS_PER_NODE')
+          end if
+
+          call get_environment_variable('MPAS_DYNAMICS_RANKS_PER_NODE', value=dynamics_ranks_per_node_str, status=istat)
+          if (istat /= 0) then
+              call mpas_dmpar_global_abort('Error: Could not read environment variable MPAS_DYNAMICS_RANKS_PER_NODE')
+          end if
+
+          read(radiation_ranks_per_node_str, *) radiation_ranks_per_node
+          read(dynamics_ranks_per_node_str, *) dynamics_ranks_per_node
+
+          ranks_per_node = radiation_ranks_per_node + dynamics_ranks_per_node
+          local_rank = mod(self % intercomm_rank, ranks_per_node)
       end if
 
-      call get_environment_variable('MPAS_DYNAMICS_RANKS_PER_NODE', value=dynamics_ranks_per_node_str, status=istat)
-      if (istat /= 0) then
-          call mpas_dmpar_global_abort('Error: Could not read environment variable MPAS_DYNAMICS_RANKS_PER_NODE')
-      end if
-
-      read(radiation_ranks_per_node_str, *) radiation_ranks_per_node
-      read(dynamics_ranks_per_node_str, *) dynamics_ranks_per_node
-
-      !if (self % intercomm_rank == 0) then
-          !write(0,*) 'MPAS_RADIATION_RANKS_PER_NODE = ', radiation_ranks_per_node
-          !write(0,*) 'MPAS_DYNAMICS_RANKS_PER_NODE = ', dynamics_ranks_per_node
-      !end if
-
-      ranks_per_node = radiation_ranks_per_node + dynamics_ranks_per_node
-      local_rank = mod(self % intercomm_rank, ranks_per_node)
-
-      !if (self % intercomm_rank == 0) then
-          !write(0,*) 'my global rank ', self % intercomm_rank ,'   my local rank ',local_rank
-          !write(0,*) 'mod(local_rank, ranks_per_node/dynamics_ranks_per_node) is ', mod(local_rank, ranks_per_node/dynamics_ranks_per_node)
-      !end if
-
-
-      if (self % intercomm_size == 1) then
-         atm_component_role = self % intercomm_rank
-      else if (mod(local_rank, ranks_per_node/dynamics_ranks_per_node) == 0) then
-         atm_component_role = 0
+      if (local_rank < dynamics_ranks_per_node) then
+          atm_component_role = 0
       else
-         atm_component_role = 1
+          atm_component_role = 1
       end if
 
    end function atm_component_role
@@ -156,10 +148,10 @@ module atm_core_interface
       integer :: number_of_dynamics_rank
 
 
-      if (self % intercomm_size == 1) then
-         atm_component_role_leader = role
+      if (role == 0) then
+          atm_component_role_leader = 0
       else
-         atm_component_role_leader = role
+          atm_component_role_leader = dynamics_ranks_per_node
       end if
 
    end function atm_component_role_leader
