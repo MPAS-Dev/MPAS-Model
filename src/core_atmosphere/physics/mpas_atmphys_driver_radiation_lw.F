@@ -10,6 +10,7 @@
  use mpas_kind_types
  use mpas_pool_routines
  use mpas_intracoupler, only : mpas_coupler_transfer_field
+ use mpas_intracoupler, only : ROLE_INTEGRATE, ROLE_RADIATION
  use mpas_timer, only : mpas_timer_start, mpas_timer_stop
 
  use mpas_atmphys_driver_radiation_sw, only: radconst
@@ -33,8 +34,6 @@
           radiation_lw_from_MPAS,     &
           init_radiation_lw,       &
           radiation_camlw_to_MPAS
-
- integer, parameter, private :: ROLE_INTEGRATE = 0, ROLE_RADIATION = 1
 
 !MPAS driver for parameterization of longwave radiation codes.
 !Laura D. Fowler (send comments to laura@ucar.edu).

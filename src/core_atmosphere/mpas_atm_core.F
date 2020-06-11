@@ -11,12 +11,12 @@ module atm_core
    use mpas_pool_routines
    use mpas_dmpar
    use mpas_log, only : mpas_log_write
+   use mpas_intracoupler, only : ROLE_INTEGRATE, ROLE_RADIATION
 
    type (MPAS_Clock_type), pointer :: clock
 
    type (mpas_coupler_type), pointer :: mpas_cpl
    integer, private :: cells_to_rad_handle, cells_from_rad_handle
-   integer, parameter, private :: ROLE_INTEGRATE = 0, ROLE_RADIATION = 1
 
 
    contains

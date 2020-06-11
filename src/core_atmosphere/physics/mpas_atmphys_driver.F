@@ -25,12 +25,11 @@
  use mpas_atmphys_vars, only: l_camlw,l_conv,l_radtlw,l_radtsw
  use mpas_timer
  use mpas_derived_types, only : mpas_coupler_type
+ use mpas_intracoupler, only : ROLE_INTEGRATE, ROLE_RADIATION
 
  implicit none
  private
  public:: physics_driver
-
- integer, parameter, private :: ROLE_INTEGRATE = 0, ROLE_RADIATION = 1
 
 
 !MPAS top physics driver.

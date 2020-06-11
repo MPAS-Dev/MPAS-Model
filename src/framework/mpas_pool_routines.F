@@ -121,7 +121,10 @@ module mpas_pool_routines
    end interface
 
    integer :: currentErrorLevel = MPAS_POOL_SILENT
-   integer, parameter, private :: ROLE_INTEGRATE = 0, ROLE_RADIATION = 1
+
+#ifdef CORE_ATMOSPHERE
+    integer, parameter, private :: ROLE_INTEGRATE = 0, ROLE_RADIATION = 1
+#endif
 
    contains
 
@@ -4273,9 +4276,11 @@ module mpas_pool_routines
       nullify(scalar)
       if (associated(field)) then 
               scalar => field % scalar
-              if(coupler%role() == ROLE_INTEGRATE) then
+#ifdef CORE_ATMOSPHERE
+              if (coupler%role() == ROLE_INTEGRATE) then
                       !$acc enter data copyin(field%scalar)
               end if
+#endif
       end if
    end subroutine mpas_pool_get_array_0d_real_gpu!}}}
 
@@ -4328,9 +4333,11 @@ module mpas_pool_routines
       if (associated(field)) then 
               coupler => field%block%domain%mpas_cpl
               array => field % array
-              if(coupler%role() == ROLE_INTEGRATE) then
+#ifdef CORE_ATMOSPHERE
+              if (coupler%role() == ROLE_INTEGRATE) then
                       !$acc enter data copyin(field%array)
               end if
+#endif
       end if
    end subroutine mpas_pool_get_array_1d_real_gpu!}}}
 
@@ -4383,9 +4390,11 @@ module mpas_pool_routines
       if (associated(field)) then 
               coupler => field%block%domain%mpas_cpl
               array => field % array
-              if(coupler%role() == ROLE_INTEGRATE) then
+#ifdef CORE_ATMOSPHERE
+              if (coupler%role() == ROLE_INTEGRATE) then
                       !$acc enter data copyin(field%array)
               end if
+#endif
       end if
 
    end subroutine mpas_pool_get_array_2d_real_gpu!}}}
@@ -4440,9 +4449,11 @@ module mpas_pool_routines
       if (associated(field)) then 
               coupler => field%block%domain%mpas_cpl
               array => field % array
-              if(coupler%role() == ROLE_INTEGRATE) then
+#ifdef CORE_ATMOSPHERE
+              if (coupler%role() == ROLE_INTEGRATE) then
                       !$acc enter data copyin(field%array)
               end if
+#endif
       end if
 
    end subroutine mpas_pool_get_array_3d_real_gpu!}}}
@@ -4495,9 +4506,11 @@ module mpas_pool_routines
       if (associated(field)) then 
               coupler => field%block%domain%mpas_cpl
               array => field % array
-              if(coupler%role() == ROLE_INTEGRATE) then
+#ifdef CORE_ATMOSPHERE
+              if (coupler%role() == ROLE_INTEGRATE) then
                       !$acc enter data copyin(field%array)
               end if
+#endif
       end if
 
    end subroutine mpas_pool_get_array_4d_real_gpu!}}}
@@ -4551,9 +4564,11 @@ module mpas_pool_routines
       if (associated(field)) then 
               coupler => field%block%domain%mpas_cpl
               array => field % array
-              if(coupler%role() == ROLE_INTEGRATE) then
+#ifdef CORE_ATMOSPHERE
+              if (coupler%role() == ROLE_INTEGRATE) then
                       !$acc enter data copyin(field%array)
               end if
+#endif
       end if
 
    end subroutine mpas_pool_get_array_5d_real_gpu!}}}
@@ -4607,9 +4622,11 @@ module mpas_pool_routines
       if (associated(field)) then 
               coupler => field%block%domain%mpas_cpl
               scalar => field % scalar
-              if(coupler%role() == ROLE_INTEGRATE) then
+#ifdef CORE_ATMOSPHERE
+              if (coupler%role() == ROLE_INTEGRATE) then
                       !$acc enter data copyin(field%scalar)
               end if
+#endif
       end if
 
    end subroutine mpas_pool_get_array_0d_int_gpu!}}}
@@ -4663,9 +4680,11 @@ module mpas_pool_routines
       if (associated(field)) then 
               coupler => field%block%domain%mpas_cpl
               array => field % array
-              if(coupler%role() == ROLE_INTEGRATE) then
+#ifdef CORE_ATMOSPHERE
+              if (coupler%role() == ROLE_INTEGRATE) then
                       !$acc enter data copyin(field%array)
               end if
+#endif
       end if
 
    end subroutine mpas_pool_get_array_1d_int_gpu!}}}
@@ -4719,9 +4738,11 @@ module mpas_pool_routines
       if (associated(field)) then 
               coupler => field%block%domain%mpas_cpl
               array => field % array
-              if(coupler%role() == ROLE_INTEGRATE) then
+#ifdef CORE_ATMOSPHERE
+              if (coupler%role() == ROLE_INTEGRATE) then
                       !$acc enter data copyin(field%array)
               end if
+#endif
       end if
 
    end subroutine mpas_pool_get_array_2d_int_gpu!}}}
@@ -4775,9 +4796,11 @@ module mpas_pool_routines
       if (associated(field)) then 
               coupler => field%block%domain%mpas_cpl
               array => field % array
-              if(coupler%role() == ROLE_INTEGRATE) then
+#ifdef CORE_ATMOSPHERE
+              if (coupler%role() == ROLE_INTEGRATE) then
                       !$acc enter data copyin(field%array)
               end if
+#endif
       end if
 
    end subroutine mpas_pool_get_array_3d_int_gpu!}}}
@@ -4831,9 +4854,11 @@ module mpas_pool_routines
       if (associated(field)) then 
               coupler => field%block%domain%mpas_cpl
               string => field % scalar
-              if(coupler%role() == ROLE_INTEGRATE) then
+#ifdef CORE_ATMOSPHERE
+              if (coupler%role() == ROLE_INTEGRATE) then
                       !$acc enter data copyin(field%scalar)
               end if
+#endif
       end if
 
    end subroutine mpas_pool_get_array_0d_char_gpu!}}}
@@ -4887,9 +4912,11 @@ module mpas_pool_routines
       if (associated(field)) then 
               coupler => field%block%domain%mpas_cpl
               array => field % array
-              if(coupler%role() == ROLE_INTEGRATE) then
+#ifdef CORE_ATMOSPHERE
+              if (coupler%role() == ROLE_INTEGRATE) then
                       !$acc enter data copyin(field%array)
               end if
+#endif
       end if
 
    end subroutine mpas_pool_get_array_1d_char_gpu!}}}

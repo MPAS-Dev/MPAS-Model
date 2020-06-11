@@ -23,6 +23,10 @@ module mpas_intracoupler
         module procedure MPAS_coupler_transfer_field_r3
     end interface
 
+#ifdef CORE_ATMOSPHERE
+    integer, parameter, public :: ROLE_INTEGRATE = 0, ROLE_RADIATION = 1
+#endif
+
 
 contains
 

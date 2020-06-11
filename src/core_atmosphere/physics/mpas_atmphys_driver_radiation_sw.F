@@ -11,6 +11,7 @@
  use mpas_pool_routines
  use mpas_derived_types, only : mpas_coupler_type
  use mpas_intracoupler, only : mpas_coupler_transfer_field
+ use mpas_intracoupler, only : ROLE_INTEGRATE, ROLE_RADIATION
  use mpas_timer, only : mpas_timer_start, mpas_timer_stop
 
  use mpas_atmphys_constants
@@ -32,8 +33,6 @@
           radiation_sw_from_MPAS, &
           init_radiation_sw,       &
           radconst
-
- integer, parameter, private :: ROLE_INTEGRATE = 0, ROLE_RADIATION = 1
 
 !MPAS driver for parameterization of shortwave radiation codes.
 !Laura D. Fowler (send comments to laura@ucar.edu).

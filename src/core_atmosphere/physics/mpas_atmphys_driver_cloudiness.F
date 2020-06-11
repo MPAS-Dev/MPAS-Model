@@ -15,6 +15,8 @@
  use mpas_atmphys_constants, only: ep_2
  use mpas_atmphys_vars
  use module_mp_thompson_cldfra3
+
+ use mpas_intracoupler, only : ROLE_INTEGRATE, ROLE_RADIATION
  
  implicit none
  private
@@ -22,7 +24,6 @@
           deallocate_cloudiness, &
           driver_cloudiness
 
- integer, parameter, private :: ROLE_INTEGRATE = 0, ROLE_RADIATION = 1
 !MPAS driver for parameterization of the diagnostic cloud fraction.
 !Laura D. Fowler (send comments to laura@ucar.edu).
 !2013-05-01.

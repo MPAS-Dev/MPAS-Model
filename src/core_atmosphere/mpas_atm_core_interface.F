@@ -17,6 +17,7 @@ module atm_core_interface
    integer, save, private :: ranks_per_node
    integer, save, private :: local_rank = -1
 
+
    contains
 
 
@@ -83,6 +84,7 @@ module atm_core_interface
       use mpas_derived_types, only : mpas_coupler_type
       use mpas_kind_types, only : StrKIND
       use mpas_abort, only : mpas_dmpar_global_abort
+      use mpas_intracoupler, only : ROLE_INTEGRATE, ROLE_RADIATION
 
       implicit none
 
@@ -116,9 +118,9 @@ module atm_core_interface
       end if
 
       if (local_rank < dynamics_ranks_per_node) then
-          atm_component_role = 0
+          atm_component_role = ROLE_INTEGRATE
       else
-          atm_component_role = 1
+          atm_component_role = ROLE_RADIATION
       end if
 
    end function atm_component_role
@@ -140,6 +142,7 @@ module atm_core_interface
    integer function atm_component_role_leader(self, role)
 
       use mpas_derived_types, only : mpas_coupler_type
+      use mpas_intracoupler, only : ROLE_INTEGRATE
 
       implicit none
 
@@ -148,7 +151,7 @@ module atm_core_interface
       integer :: number_of_dynamics_rank
 
 
-      if (role == 0) then
+      if (role == ROLE_INTEGRATE) then
           atm_component_role_leader = 0
       else
           atm_component_role_leader = dynamics_ranks_per_node

@@ -21,10 +21,11 @@
  use mpas_atmphys_landuse
  use mpas_atmphys_o3climatology
 
+ use mpas_intracoupler, only : ROLE_INTEGRATE, ROLE_RADIATION
+
  implicit none
  private
  public:: physics_init
- integer, parameter, private :: ROLE_INTEGRATE = 0, ROLE_RADIATION = 1
 
 !MPAS main initialization subroutine for all physics parameterizations.
 !Laura D. Fowler (send comments to laura@ucar.edu).
