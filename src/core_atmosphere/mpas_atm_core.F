@@ -200,7 +200,7 @@ module atm_core
       call mpas_atm_diag_setup(domain % streamManager, domain % blocklist % configs, &
                                domain % blocklist % structs, domain % clock, domain % dminfo)
 
-if (mpas_cpl % role() == ROLE_INTEGRATE) then
+if (iand(mpas_cpl % role(), ROLE_INTEGRATE) == ROLE_INTEGRATE) then
       call mpas_atm_dynamics_init(domain)
 end if 
 
@@ -527,7 +527,7 @@ end if
       call mpas_pool_get_config(domain % blocklist % configs, 'config_do_restart', config_do_restart)
       call mpas_pool_get_config(domain % blocklist % configs, 'config_restart_timestamp_name', config_restart_timestamp_name)
 
-      if (mpas_cpl % role() == ROLE_INTEGRATE) then
+      if (iand(mpas_cpl % role(), ROLE_INTEGRATE) == ROLE_INTEGRATE) then
          ! Avoid writing a restart file at the initial time
          call MPAS_stream_mgr_reset_alarms(domain % streamManager, streamID='restart', direction=MPAS_STREAM_OUTPUT, ierr=ierr)
 
@@ -591,7 +591,7 @@ end if
          currTime = mpas_get_clock_time(clock, MPAS_NOW, ierr)
          call mpas_get_time(curr_time=currTime, dateTimeString=timeStamp, ierr=ierr)         
 
-         if (mpas_cpl % role() == ROLE_INTEGRATE) then
+         if (iand(mpas_cpl % role(), ROLE_INTEGRATE) == ROLE_INTEGRATE) then
             call mpas_log_write('')
             call mpas_log_write('Begin timestep '//trim(timeStamp))
 
@@ -641,7 +641,7 @@ end if
          currTime = mpas_get_clock_time(clock, MPAS_NOW, ierr)
 
 
-         if (mpas_cpl % role() == ROLE_INTEGRATE) then
+         if (iand(mpas_cpl % role(), ROLE_INTEGRATE) == ROLE_INTEGRATE) then
             call mpas_dmpar_get_time(diag_start_time)
 
             !
@@ -902,7 +902,7 @@ end if
       endif
 #endif
 
-      if (mpas_cpl % role() == ROLE_INTEGRATE) then
+      if (iand(mpas_cpl % role(), ROLE_INTEGRATE) == ROLE_INTEGRATE) then
          call atm_timestep(domain, dt, timeStamp, itimestep)
       end if
 
@@ -944,7 +944,7 @@ end if
          end do
 #endif
 
-if (mpas_cpl % role() == ROLE_INTEGRATE) then
+if (iand(mpas_cpl % role(), ROLE_INTEGRATE) == ROLE_INTEGRATE) then
       call mpas_atm_dynamics_finalize(domain)
 end if 
 

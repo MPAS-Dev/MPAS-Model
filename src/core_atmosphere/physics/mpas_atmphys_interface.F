@@ -204,6 +204,7 @@
 
  use mpas_derived_types, only : mpas_coupler_type
  use mpas_intracoupler, only : mpas_coupler_transfer_field
+ use mpas_intracoupler, only : ROLE_INTEGRATE, ROLE_RADIATION
 
 !input variables:
  type(mpas_pool_type),intent(in):: configs
@@ -350,19 +351,24 @@
  call mpas_pool_get_field(diag_physics,'plrad',plradField)
 
  if (l_radtlw .or. l_radtsw) then
-    call MPAS_coupler_transfer_field(mpas_cpl, cells_to_rad_handle, exnerField, ierr=ierr)
-    call MPAS_coupler_transfer_field(mpas_cpl, cells_to_rad_handle, pressure_bField, ierr=ierr)
-    call MPAS_coupler_transfer_field(mpas_cpl, cells_to_rad_handle, pressure_pField, ierr=ierr)
-    call MPAS_coupler_transfer_field(mpas_cpl, cells_to_rad_handle, rtheta_bField, ierr=ierr)
-    call MPAS_coupler_transfer_field(mpas_cpl, cells_to_rad_handle, rtheta_pField, ierr=ierr)
-    call MPAS_coupler_transfer_field(mpas_cpl, cells_to_rad_handle, uField, ierr=ierr)
-    call MPAS_coupler_transfer_field(mpas_cpl, cells_to_rad_handle, vField, ierr=ierr)
-    call MPAS_coupler_transfer_field(mpas_cpl, cells_to_rad_handle, rho_zzField, ierr=ierr)
-    call MPAS_coupler_transfer_field(mpas_cpl, cells_to_rad_handle, theta_mField, ierr=ierr)
-    call MPAS_coupler_transfer_field(mpas_cpl, cells_to_rad_handle, wField, ierr=ierr)
-    call MPAS_coupler_transfer_field(mpas_cpl, cells_to_rad_handle, scalarsField, ierr=ierr)
-    call MPAS_coupler_transfer_field(mpas_cpl, cells_to_rad_handle, surface_pressureField, ierr=ierr)
-    call MPAS_coupler_transfer_field(mpas_cpl, cells_to_rad_handle, plradField, ierr=ierr)
+    if (mpas_cpl%role() == ROLE_INTEGRATE .or. &
+        mpas_cpl%role() == ROLE_RADIATION) then
+
+       call MPAS_coupler_transfer_field(mpas_cpl, cells_to_rad_handle, exnerField, ierr=ierr)
+       call MPAS_coupler_transfer_field(mpas_cpl, cells_to_rad_handle, pressure_bField, ierr=ierr)
+       call MPAS_coupler_transfer_field(mpas_cpl, cells_to_rad_handle, pressure_pField, ierr=ierr)
+       call MPAS_coupler_transfer_field(mpas_cpl, cells_to_rad_handle, rtheta_bField, ierr=ierr)
+       call MPAS_coupler_transfer_field(mpas_cpl, cells_to_rad_handle, rtheta_pField, ierr=ierr)
+       call MPAS_coupler_transfer_field(mpas_cpl, cells_to_rad_handle, uField, ierr=ierr)
+       call MPAS_coupler_transfer_field(mpas_cpl, cells_to_rad_handle, vField, ierr=ierr)
+       call MPAS_coupler_transfer_field(mpas_cpl, cells_to_rad_handle, rho_zzField, ierr=ierr)
+       call MPAS_coupler_transfer_field(mpas_cpl, cells_to_rad_handle, theta_mField, ierr=ierr)
+       call MPAS_coupler_transfer_field(mpas_cpl, cells_to_rad_handle, wField, ierr=ierr)
+       call MPAS_coupler_transfer_field(mpas_cpl, cells_to_rad_handle, scalarsField, ierr=ierr)
+       call MPAS_coupler_transfer_field(mpas_cpl, cells_to_rad_handle, surface_pressureField, ierr=ierr)
+       call MPAS_coupler_transfer_field(mpas_cpl, cells_to_rad_handle, plradField, ierr=ierr)
+
+    end if
  end if
 
  if (first_call) then
@@ -615,6 +621,7 @@
 
  use mpas_derived_types, only : mpas_coupler_type
  use mpas_intracoupler, only : mpas_coupler_transfer_field
+ use mpas_intracoupler, only : ROLE_INTEGRATE, ROLE_RADIATION
 
 !input variables:
  type(mpas_pool_type),intent(in):: configs
@@ -745,19 +752,24 @@
  if (l_radtlw .or. l_radtsw) then
     !$acc update host(exner,pressure_b,pressure_p,rtheta_b,rtheta_p,u,v,rho_zz,theta_m,&
     !$acc w,scalars, surface_pressure,plrad)
-    call MPAS_coupler_transfer_field(mpas_cpl, cells_to_rad_handle, exnerField, ierr=ierr)
-    call MPAS_coupler_transfer_field(mpas_cpl, cells_to_rad_handle, pressure_bField, ierr=ierr)
-    call MPAS_coupler_transfer_field(mpas_cpl, cells_to_rad_handle, pressure_pField, ierr=ierr)
-    call MPAS_coupler_transfer_field(mpas_cpl, cells_to_rad_handle, rtheta_bField, ierr=ierr)
-    call MPAS_coupler_transfer_field(mpas_cpl, cells_to_rad_handle, rtheta_pField, ierr=ierr)
-    call MPAS_coupler_transfer_field(mpas_cpl, cells_to_rad_handle, uField, ierr=ierr)
-    call MPAS_coupler_transfer_field(mpas_cpl, cells_to_rad_handle, vField, ierr=ierr)
-    call MPAS_coupler_transfer_field(mpas_cpl, cells_to_rad_handle, rho_zzField, ierr=ierr)
-    call MPAS_coupler_transfer_field(mpas_cpl, cells_to_rad_handle, theta_mField, ierr=ierr)
-    call MPAS_coupler_transfer_field(mpas_cpl, cells_to_rad_handle, wField, ierr=ierr)
-    call MPAS_coupler_transfer_field(mpas_cpl, cells_to_rad_handle, scalarsField, ierr=ierr)
-    call MPAS_coupler_transfer_field(mpas_cpl, cells_to_rad_handle, surface_pressureField, ierr=ierr)
-    call MPAS_coupler_transfer_field(mpas_cpl, cells_to_rad_handle, plradField, ierr=ierr)
+    if (mpas_cpl%role() == ROLE_INTEGRATE .or. &
+        mpas_cpl%role() == ROLE_RADIATION) then
+
+       call MPAS_coupler_transfer_field(mpas_cpl, cells_to_rad_handle, exnerField, ierr=ierr)
+       call MPAS_coupler_transfer_field(mpas_cpl, cells_to_rad_handle, pressure_bField, ierr=ierr)
+       call MPAS_coupler_transfer_field(mpas_cpl, cells_to_rad_handle, pressure_pField, ierr=ierr)
+       call MPAS_coupler_transfer_field(mpas_cpl, cells_to_rad_handle, rtheta_bField, ierr=ierr)
+       call MPAS_coupler_transfer_field(mpas_cpl, cells_to_rad_handle, rtheta_pField, ierr=ierr)
+       call MPAS_coupler_transfer_field(mpas_cpl, cells_to_rad_handle, uField, ierr=ierr)
+       call MPAS_coupler_transfer_field(mpas_cpl, cells_to_rad_handle, vField, ierr=ierr)
+       call MPAS_coupler_transfer_field(mpas_cpl, cells_to_rad_handle, rho_zzField, ierr=ierr)
+       call MPAS_coupler_transfer_field(mpas_cpl, cells_to_rad_handle, theta_mField, ierr=ierr)
+       call MPAS_coupler_transfer_field(mpas_cpl, cells_to_rad_handle, wField, ierr=ierr)
+       call MPAS_coupler_transfer_field(mpas_cpl, cells_to_rad_handle, scalarsField, ierr=ierr)
+       call MPAS_coupler_transfer_field(mpas_cpl, cells_to_rad_handle, surface_pressureField, ierr=ierr)
+       call MPAS_coupler_transfer_field(mpas_cpl, cells_to_rad_handle, plradField, ierr=ierr)
+
+    end if
     !$acc update device(exner,pressure_b,pressure_p,rtheta_b,rtheta_p,u,v,rho_zz,theta_m,&
     !$acc w,scalars, surface_pressure,plrad)
  end if

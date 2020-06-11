@@ -396,38 +396,45 @@
  call mpas_pool_get_field(diag_physics,'o3clim'    ,o3climField    )
  call mpas_pool_get_field(diag_physics,'m_hybi'    ,m_hybiField )
  call mpas_pool_get_field(diag_physics,'m_ps'      ,m_psField,time_lev)
- if(mpas_cpl%role() == ROLE_INTEGRATE) then
- !$acc update host(latCell, lonCell, aerosols, skintemp, snow, &
- !$acc xice, xland, sfc_albedo, sfc_emiss, cldfrac, &
- !$acc o3clim, m_hybi, m_ps)
- endif
- call MPAS_coupler_transfer_field(mpas_cpl, cells_to_rad_handle, latCellField, ierr=ierr)
- call MPAS_coupler_transfer_field(mpas_cpl, cells_to_rad_handle, lonCellField, ierr=ierr)
- call MPAS_coupler_transfer_field(mpas_cpl, cells_to_rad_handle, m_hybiField, ierr=ierr)
 
- call MPAS_coupler_transfer_field(mpas_cpl, cells_to_rad_handle, m_psField, ierr=ierr)
- call MPAS_coupler_transfer_field(mpas_cpl, cells_to_rad_handle, aerosolsField, ierr=ierr)
-
- call MPAS_coupler_transfer_field(mpas_cpl, cells_to_rad_handle, skintempField, ierr=ierr)
- call MPAS_coupler_transfer_field(mpas_cpl, cells_to_rad_handle, snowField, ierr=ierr)
- call MPAS_coupler_transfer_field(mpas_cpl, cells_to_rad_handle, xiceField, ierr=ierr)
- call MPAS_coupler_transfer_field(mpas_cpl, cells_to_rad_handle, xlandField, ierr=ierr)
-
-! call MPAS_coupler_transfer_field(mpas_cpl, cells_to_rad_handle, pinField, ierr=ierr)
-! call MPAS_coupler_transfer_field(mpas_cpl, cells_to_rad_handle, ozmixmField, ierr=ierr)
-
- call MPAS_coupler_transfer_field(mpas_cpl, cells_to_rad_handle, sfc_albedoField, ierr=ierr)
- call MPAS_coupler_transfer_field(mpas_cpl, cells_to_rad_handle, sfc_emissField, ierr=ierr)
- call MPAS_coupler_transfer_field(mpas_cpl, cells_to_rad_handle, cldfracField, ierr=ierr)
- call MPAS_coupler_transfer_field(mpas_cpl, cells_to_rad_handle, o3climField, ierr=ierr)
-
- if(mpas_cpl%role() == ROLE_INTEGRATE) then
- !$acc update device(latCell, lonCell, aerosols, skintemp, snow, &
- !$acc xice, xland, sfc_albedo, sfc_emiss, cldfrac, &
- !$acc o3clim, m_hybi, m_ps)
+ if (mpas_cpl%role() == ROLE_INTEGRATE) then
+    !$acc update host(latCell, lonCell, aerosols, skintemp, snow, &
+    !$acc xice, xland, sfc_albedo, sfc_emiss, cldfrac, &
+    !$acc o3clim, m_hybi, m_ps)
  endif
 
- if (mpas_cpl % role() == ROLE_RADIATION) then
+ if (mpas_cpl%role() == ROLE_INTEGRATE .or. &
+     mpas_cpl%role() == ROLE_RADIATION) then
+
+    call MPAS_coupler_transfer_field(mpas_cpl, cells_to_rad_handle, latCellField, ierr=ierr)
+    call MPAS_coupler_transfer_field(mpas_cpl, cells_to_rad_handle, lonCellField, ierr=ierr)
+    call MPAS_coupler_transfer_field(mpas_cpl, cells_to_rad_handle, m_hybiField, ierr=ierr)
+
+    call MPAS_coupler_transfer_field(mpas_cpl, cells_to_rad_handle, m_psField, ierr=ierr)
+    call MPAS_coupler_transfer_field(mpas_cpl, cells_to_rad_handle, aerosolsField, ierr=ierr)
+
+    call MPAS_coupler_transfer_field(mpas_cpl, cells_to_rad_handle, skintempField, ierr=ierr)
+    call MPAS_coupler_transfer_field(mpas_cpl, cells_to_rad_handle, snowField, ierr=ierr)
+    call MPAS_coupler_transfer_field(mpas_cpl, cells_to_rad_handle, xiceField, ierr=ierr)
+    call MPAS_coupler_transfer_field(mpas_cpl, cells_to_rad_handle, xlandField, ierr=ierr)
+
+!    call MPAS_coupler_transfer_field(mpas_cpl, cells_to_rad_handle, pinField, ierr=ierr)
+!    call MPAS_coupler_transfer_field(mpas_cpl, cells_to_rad_handle, ozmixmField, ierr=ierr)
+
+    call MPAS_coupler_transfer_field(mpas_cpl, cells_to_rad_handle, sfc_albedoField, ierr=ierr)
+    call MPAS_coupler_transfer_field(mpas_cpl, cells_to_rad_handle, sfc_emissField, ierr=ierr)
+    call MPAS_coupler_transfer_field(mpas_cpl, cells_to_rad_handle, cldfracField, ierr=ierr)
+    call MPAS_coupler_transfer_field(mpas_cpl, cells_to_rad_handle, o3climField, ierr=ierr)
+
+ end if
+
+ if (mpas_cpl%role() == ROLE_INTEGRATE) then
+    !$acc update device(latCell, lonCell, aerosols, skintemp, snow, &
+    !$acc xice, xland, sfc_albedo, sfc_emiss, cldfrac, &
+    !$acc o3clim, m_hybi, m_ps)
+ endif
+
+ if (iand(mpas_cpl%role(), ROLE_RADIATION) == ROLE_RADIATION) then
  do j = jts,jte
  do i = its,ite
     xlat_p(i,j)       = latCell(i) / degrad
@@ -492,7 +499,7 @@
                 call mpas_pool_get_array_gpu(diag_physics,'re_snow' ,re_snow )
 
 !!!
- if(mpas_cpl%role() == ROLE_INTEGRATE) then
+ if (mpas_cpl%role() == ROLE_INTEGRATE) then
  !$acc update host(re_cloud, re_ice, re_snow)
  end if
 
@@ -506,7 +513,7 @@
                 enddo
                 enddo
 !!!
- if(mpas_cpl%role() == ROLE_INTEGRATE) then
+ if (mpas_cpl%role() == ROLE_INTEGRATE) then
  !$acc update device(re_cloud, re_ice, re_snow)
  end if
              else
@@ -653,7 +660,7 @@
  end select radiation_sw_select
  end if
 
- if(mpas_cpl%role() == ROLE_INTEGRATE) then
+ if (mpas_cpl%role() == ROLE_INTEGRATE) then
  !$acc update device(latCell, lonCell, aerosols, skintemp, snow, &
  !$acc xice, xland, pin, ozmixm, sfc_albedo, sfc_emiss, cldfrac, &
  !$acc o3clim, m_hybi, m_ps)
@@ -727,7 +734,7 @@
  call mpas_pool_get_field(diag_physics,'swuptc'    ,swuptcField    )
  call mpas_pool_get_field(tend_physics,'rthratensw',rthratenswField)
 
- if (mpas_cpl % role() == ROLE_RADIATION) then
+ if (iand(mpas_cpl%role(), ROLE_RADIATION) == ROLE_RADIATION) then
  do j = jts,jte
 
  do i = its,ite
@@ -754,26 +761,35 @@
  end if
 
  if (transfer_fields) then
- if(mpas_cpl%role() == ROLE_INTEGRATE) then
- !$acc update host(coszr, gsw, swcf, swdnb, swdnbc, swdnt, swdntc, &
- !$acc swupb, swupbc, swupt, swuptc, rthratensw)
- endif
-    call MPAS_coupler_transfer_field(mpas_cpl, cells_from_rad_handle, coszrField, ierr=ierr)
-    call MPAS_coupler_transfer_field(mpas_cpl, cells_from_rad_handle, gswField, ierr=ierr)
-    call MPAS_coupler_transfer_field(mpas_cpl, cells_from_rad_handle, swcfField, ierr=ierr)
-    call MPAS_coupler_transfer_field(mpas_cpl, cells_from_rad_handle, swdnbField, ierr=ierr)
-    call MPAS_coupler_transfer_field(mpas_cpl, cells_from_rad_handle, swdnbcField, ierr=ierr)
-    call MPAS_coupler_transfer_field(mpas_cpl, cells_from_rad_handle, swdntField, ierr=ierr)
-    call MPAS_coupler_transfer_field(mpas_cpl, cells_from_rad_handle, swdntcField, ierr=ierr)
-    call MPAS_coupler_transfer_field(mpas_cpl, cells_from_rad_handle, swupbField, ierr=ierr)
-    call MPAS_coupler_transfer_field(mpas_cpl, cells_from_rad_handle, swupbcField, ierr=ierr)
-    call MPAS_coupler_transfer_field(mpas_cpl, cells_from_rad_handle, swuptField, ierr=ierr)
-    call MPAS_coupler_transfer_field(mpas_cpl, cells_from_rad_handle, swuptcField, ierr=ierr)
-    call MPAS_coupler_transfer_field(mpas_cpl, cells_from_rad_handle, rthratenswField, ierr=ierr)
- if(mpas_cpl%role() == ROLE_INTEGRATE) then
- !$acc update device(coszr, gsw, swcf, swdnb, swdnbc, swdnt, swdntc, &
- !$acc swupb, swupbc, swupt, swuptc, rthratensw)
- endif
+
+    if (mpas_cpl%role() == ROLE_INTEGRATE) then
+       !$acc update host(coszr, gsw, swcf, swdnb, swdnbc, swdnt, swdntc, &
+       !$acc swupb, swupbc, swupt, swuptc, rthratensw)
+    end if
+
+    if (mpas_cpl%role() == ROLE_INTEGRATE .or. &
+        mpas_cpl%role() == ROLE_RADIATION) then
+
+       call MPAS_coupler_transfer_field(mpas_cpl, cells_from_rad_handle, coszrField, ierr=ierr)
+       call MPAS_coupler_transfer_field(mpas_cpl, cells_from_rad_handle, gswField, ierr=ierr)
+       call MPAS_coupler_transfer_field(mpas_cpl, cells_from_rad_handle, swcfField, ierr=ierr)
+       call MPAS_coupler_transfer_field(mpas_cpl, cells_from_rad_handle, swdnbField, ierr=ierr)
+       call MPAS_coupler_transfer_field(mpas_cpl, cells_from_rad_handle, swdnbcField, ierr=ierr)
+       call MPAS_coupler_transfer_field(mpas_cpl, cells_from_rad_handle, swdntField, ierr=ierr)
+       call MPAS_coupler_transfer_field(mpas_cpl, cells_from_rad_handle, swdntcField, ierr=ierr)
+       call MPAS_coupler_transfer_field(mpas_cpl, cells_from_rad_handle, swupbField, ierr=ierr)
+       call MPAS_coupler_transfer_field(mpas_cpl, cells_from_rad_handle, swupbcField, ierr=ierr)
+       call MPAS_coupler_transfer_field(mpas_cpl, cells_from_rad_handle, swuptField, ierr=ierr)
+       call MPAS_coupler_transfer_field(mpas_cpl, cells_from_rad_handle, swuptcField, ierr=ierr)
+       call MPAS_coupler_transfer_field(mpas_cpl, cells_from_rad_handle, rthratenswField, ierr=ierr)
+
+    end if
+
+    if (mpas_cpl%role() == ROLE_INTEGRATE) then
+       !$acc update device(coszr, gsw, swcf, swdnb, swdnbc, swdnt, swdntc, &
+       !$acc swupb, swupbc, swupt, swuptc, rthratensw)
+    end if
+
  end if
 
  end subroutine radiation_sw_to_MPAS
@@ -837,27 +853,34 @@
  call mpas_pool_get_field(diag_physics,'swuptc'    ,swuptcField    )
  call mpas_pool_get_field(tend_physics,'rthratensw',rthratenswField)
 
- if(mpas_cpl%role() == ROLE_INTEGRATE) then
- !$acc update host(coszr, gsw, swcf, swdnb, swdnbc, swdnt, swdntc, &
- !$acc swupb, swupbc, swupt, swuptc, rthratensw)
+ if (mpas_cpl%role() == ROLE_INTEGRATE) then
+    !$acc update host(coszr, gsw, swcf, swdnb, swdnbc, swdnt, swdntc, &
+    !$acc swupb, swupbc, swupt, swuptc, rthratensw)
  endif
- call MPAS_coupler_transfer_field(mpas_cpl, cells_from_rad_handle, coszrField, ierr=ierr)
- call MPAS_coupler_transfer_field(mpas_cpl, cells_from_rad_handle, gswField, ierr=ierr)
- call MPAS_coupler_transfer_field(mpas_cpl, cells_from_rad_handle, swcfField, ierr=ierr)
- call MPAS_coupler_transfer_field(mpas_cpl, cells_from_rad_handle, swdnbField, ierr=ierr)
- call MPAS_coupler_transfer_field(mpas_cpl, cells_from_rad_handle, swdnbcField, ierr=ierr)
- call MPAS_coupler_transfer_field(mpas_cpl, cells_from_rad_handle, swdntField, ierr=ierr)
- call MPAS_coupler_transfer_field(mpas_cpl, cells_from_rad_handle, swdntcField, ierr=ierr)
- call MPAS_coupler_transfer_field(mpas_cpl, cells_from_rad_handle, swupbField, ierr=ierr)
- call MPAS_coupler_transfer_field(mpas_cpl, cells_from_rad_handle, swupbcField, ierr=ierr)
- call MPAS_coupler_transfer_field(mpas_cpl, cells_from_rad_handle, swuptField, ierr=ierr)
- call MPAS_coupler_transfer_field(mpas_cpl, cells_from_rad_handle, swuptcField, ierr=ierr)
- call MPAS_coupler_transfer_field(mpas_cpl, cells_from_rad_handle, rthratenswField, ierr=ierr)
 
- if(mpas_cpl%role() == ROLE_INTEGRATE) then
- !$acc update device(coszr, gsw, swcf, swdnb, swdnbc, swdnt, swdntc, &
- !$acc swupb, swupbc, swupt, swuptc, rthratensw)
+ if (mpas_cpl%role() == ROLE_INTEGRATE .or. &
+     mpas_cpl%role() == ROLE_RADIATION) then
+
+    call MPAS_coupler_transfer_field(mpas_cpl, cells_from_rad_handle, coszrField, ierr=ierr)
+    call MPAS_coupler_transfer_field(mpas_cpl, cells_from_rad_handle, gswField, ierr=ierr)
+    call MPAS_coupler_transfer_field(mpas_cpl, cells_from_rad_handle, swcfField, ierr=ierr)
+    call MPAS_coupler_transfer_field(mpas_cpl, cells_from_rad_handle, swdnbField, ierr=ierr)
+    call MPAS_coupler_transfer_field(mpas_cpl, cells_from_rad_handle, swdnbcField, ierr=ierr)
+    call MPAS_coupler_transfer_field(mpas_cpl, cells_from_rad_handle, swdntField, ierr=ierr)
+    call MPAS_coupler_transfer_field(mpas_cpl, cells_from_rad_handle, swdntcField, ierr=ierr)
+    call MPAS_coupler_transfer_field(mpas_cpl, cells_from_rad_handle, swupbField, ierr=ierr)
+    call MPAS_coupler_transfer_field(mpas_cpl, cells_from_rad_handle, swupbcField, ierr=ierr)
+    call MPAS_coupler_transfer_field(mpas_cpl, cells_from_rad_handle, swuptField, ierr=ierr)
+    call MPAS_coupler_transfer_field(mpas_cpl, cells_from_rad_handle, swuptcField, ierr=ierr)
+    call MPAS_coupler_transfer_field(mpas_cpl, cells_from_rad_handle, rthratenswField, ierr=ierr)
+
+ end if
+
+ if (mpas_cpl%role() == ROLE_INTEGRATE) then
+    !$acc update device(coszr, gsw, swcf, swdnb, swdnbc, swdnt, swdntc, &
+    !$acc swupb, swupbc, swupt, swuptc, rthratensw)
  endif
+
  end subroutine lagged_radiation_sw_to_MPAS
 
 !=================================================================================================================
@@ -942,7 +965,7 @@
 
  xtime_m = xtime_s/60.
 
- if (mpas_cpl % role() == ROLE_RADIATION) then
+ if (iand(mpas_cpl%role(), ROLE_RADIATION) == ROLE_RADIATION) then
 ! This should be OMP MASTER with barrier afterwards or OMP SINGLE, since declin and solcon
 ! are global variables in mpas_atmphys_vars.F and race conditions may occur otherwise!
 !$OMP SINGLE

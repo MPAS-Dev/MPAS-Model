@@ -226,7 +226,7 @@
     ! For all timesteps, we transfer MPAS state to physics
     !
 !$OMP PARALLEL DO
-    if (mpas_cpl % role() == ROLE_RADIATION) then
+    if (iand(mpas_cpl%role(), ROLE_RADIATION) == ROLE_RADIATION) then
     do thread=1,nThreads
        call MPAS_to_physics(block%configs,mesh,state,time_lev,diag,diag_physics, &
                             mpas_cpl, cells_to_rad_handle, cells_from_rad_handle, &
@@ -258,7 +258,7 @@
 
     !call to short wave radiation scheme:
     if(l_radtsw .or. l_radtlw) then
-       if (mpas_cpl % role() == ROLE_RADIATION) then
+       if (iand(mpas_cpl%role(), ROLE_RADIATION) == ROLE_RADIATION) then
           call allocate_radiation_sw(block%configs,xtime_s)
           call allocate_radiation_lw(block%configs,xtime_s)
        end if
@@ -300,7 +300,7 @@
        end do
 !$OMP END PARALLEL DO
 
-       if (mpas_cpl % role() == ROLE_RADIATION) then
+       if (iand(mpas_cpl%role(), ROLE_RADIATION) == ROLE_RADIATION) then
           call deallocate_radiation_sw(block%configs)
           call deallocate_radiation_lw(block%configs)
        end if
@@ -321,7 +321,7 @@
        call deallocate_cloudiness
 
 
-if (mpas_cpl % role() == ROLE_INTEGRATE) then
+if (iand(mpas_cpl%role(), ROLE_INTEGRATE) == ROLE_INTEGRATE) then
     !call to surface-layer scheme:
     if(config_sfclayer_scheme .ne. 'off') then
        call allocate_sfclayer(block%configs)

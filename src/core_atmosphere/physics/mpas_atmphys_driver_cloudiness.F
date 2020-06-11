@@ -121,7 +121,7 @@
 
  call mpas_pool_get_array_gpu(sfc_input,'xland',xland)
  coupler => areaCellField%block%domain%mpas_cpl
- if(coupler%role() == ROLE_INTEGRATE) then
+ if (coupler%role() == ROLE_INTEGRATE) then
         !$acc update host(areaCell, meshDensity, xland)
  end if
 
@@ -176,7 +176,7 @@
  enddo
  
  coupler => cldfracField%block%domain%mpas_cpl
- if(coupler%role() == ROLE_INTEGRATE) then
+ if (coupler%role() == ROLE_INTEGRATE) then
         !$acc update device(cldfrac)
  end if
  end subroutine cloudiness_to_MPAS

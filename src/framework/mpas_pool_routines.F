@@ -123,7 +123,7 @@ module mpas_pool_routines
    integer :: currentErrorLevel = MPAS_POOL_SILENT
 
 #ifdef CORE_ATMOSPHERE
-    integer, parameter, private :: ROLE_INTEGRATE = 0, ROLE_RADIATION = 1
+    integer, parameter, private :: ROLE_INTEGRATE = ibset(0,0)
 #endif
 
    contains

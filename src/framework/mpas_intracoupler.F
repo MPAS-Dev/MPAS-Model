@@ -24,7 +24,7 @@ module mpas_intracoupler
     end interface
 
 #ifdef CORE_ATMOSPHERE
-    integer, parameter, public :: ROLE_INTEGRATE = 0, ROLE_RADIATION = 1
+    integer, parameter, public :: ROLE_INTEGRATE = ibset(0,0), ROLE_RADIATION = ibset(0,1)
 #endif
 
 

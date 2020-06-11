@@ -96,6 +96,7 @@ module atm_core_interface
       integer :: istat
 
 
+#if 1
       !
       ! If this routine has not yet been called, read environment variables
       !
@@ -122,6 +123,9 @@ module atm_core_interface
       else
           atm_component_role = ROLE_RADIATION
       end if
+#else
+      atm_component_role = ior(ROLE_INTEGRATE, ROLE_RADIATION)
+#endif
 
    end function atm_component_role
 
@@ -151,11 +155,15 @@ module atm_core_interface
       integer :: number_of_dynamics_rank
 
 
-      if (role == ROLE_INTEGRATE) then
+#if 1
+      if (iand(role, ROLE_INTEGRATE) == ROLE_INTEGRATE) then
           atm_component_role_leader = 0
       else
           atm_component_role_leader = dynamics_ranks_per_node
       end if
+#else
+      atm_component_role_leader = 0
+#endif
 
    end function atm_component_role_leader
 
