@@ -74,7 +74,7 @@
 
 	<var_struct name="tend" time_levs="1">
 		<var_struct name="tracersTend" time_levs="1">
-			<var_array name="activeTracersTend" type="real" dimensions="nVertLevels nCells Time" packages="activeTracersPKG">
+			<var_array name="activeTracersTend" type="real" dimensions="nVertLevels nCells Time" packages="activeTracersPKG" missing_value="FILLVAL">
 				<var name="temperatureTend" array_group="activeGRP" units="^\circ C s^{-1}"
 			 description="time tendency of potential temperature"
 				/>
@@ -139,7 +139,7 @@
 			</var_array>
 		</var_struct>
 		<var_struct name="tracersInteriorRestoringFields" time_levs="1">
-			<var_array name="activeTracersInteriorRestoringRate" type="real" dimensions="nVertLevels nCells Time" packages="activeTracersInteriorRestoringPKG">
+			<var_array name="activeTracersInteriorRestoringRate" type="real" dimensions="nVertLevels nCells Time" packages="activeTracersInteriorRestoringPKG" missing_value="FILLVAL">
 				<var name="temperatureInteriorRestoringRate" array_group="activeGRP" units="{s}^-1"
 			 description="A non-negative field controlling the rate at which temperature is restored to temperatureInteriorRestoringValue"
 				/>
@@ -147,7 +147,7 @@
 			 description="A non-negative field controlling the rate at which salinity is restored to salinityInteriorRestoringValue"
 				/>
 			</var_array>
-			<var_array name="activeTracersInteriorRestoringValue" type="real" dimensions="nVertLevels nCells Time" packages="activeTracersInteriorRestoringPKG">
+			<var_array name="activeTracersInteriorRestoringValue" type="real" dimensions="nVertLevels nCells Time" packages="activeTracersInteriorRestoringPKG" missing_value="FILLVAL">
 				<var name="temperatureInteriorRestoringValue" array_group="activeGRP" units="^\circ C"
 			 description="Temperature is restored toward this field at a rate controlled by temperatureInteriorRestoringRate."
 				/>
