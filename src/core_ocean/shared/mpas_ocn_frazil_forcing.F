@@ -27,7 +27,7 @@ module ocn_frazil_forcing
    use mpas_timer
    use ocn_constants
    use ocn_equation_of_state
-   use ocn_diagnostics
+   use ocn_diagnostics_variables
 
    implicit none
    private
@@ -370,10 +370,7 @@ contains
       real (kind=RKIND), pointer, dimension(:)     :: accumulatedLandIceFrazilMassNew
       real (kind=RKIND), pointer, dimension(:)     :: accumulatedLandIceFrazilMassOld
       real (kind=RKIND), pointer, dimension(:)     :: ssh
-      real (kind=RKIND), pointer, dimension(:,:)   :: zMid
       real (kind=RKIND), pointer, dimension(:,:)   :: layerThickness
-      real (kind=RKIND), pointer, dimension(:,:)   :: density
-      real (kind=RKIND), pointer, dimension(:,:)   :: pressure
       real (kind=RKIND), pointer, dimension(:,:,:) :: activeTracers
 
       integer, dimension(:), pointer :: maxLevelCell
