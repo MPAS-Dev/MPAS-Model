@@ -1784,9 +1784,9 @@ module atm_time_integration
       !
 #endif
 
-!      call mpas_timer_start('atm_rk_summary')
-!      call summarize_timestep(domain)
-!      call mpas_timer_stop('atm_rk_summary')
+      call mpas_timer_start('atm_rk_summary')
+      call summarize_timestep(domain)
+      call mpas_timer_stop('atm_rk_summary')
 
       call mpas_timer_start('mpas update GPU data on host')
        call mpas_update_gpu_data_on_host(domain)
@@ -7916,6 +7916,8 @@ if (config_horiz_mixing == "2d_smagorinsky") then
 
 
    end subroutine atm_rk_dynamics_substep_finish_work
+
+
    subroutine summarize_timestep(domain)
 
        use ieee_arithmetic, only : ieee_is_nan
@@ -8259,6 +8261,7 @@ if (config_horiz_mixing == "2d_smagorinsky") then
       end if
 
    end subroutine summarize_timestep
+
 
    subroutine mpas_update_gpu_data_on_host(domain)
         
