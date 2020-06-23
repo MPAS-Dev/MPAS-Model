@@ -401,14 +401,14 @@
  call mpas_pool_get_field(diag_physics,'m_hybi'    ,m_hybiField )
  call mpas_pool_get_field(diag_physics,'m_ps'      ,m_psField,time_lev)
 
- if (mpas_cpl%role() == ROLE_INTEGRATE) then
+ if (mpas_cpl%role_is(ROLE_INTEGRATE)) then
     !$acc update host(latCell, lonCell, aerosols, skintemp, snow, xice, &
     !$acc xland, sfc_albedo, sfc_emiss, cldfrac, o3clim, &
     !$acc o3vmr, m_hybi, m_ps)
  end if
 
- if (mpas_cpl%role() == ROLE_INTEGRATE .or. &
-     mpas_cpl%role() == ROLE_RADIATION) then
+ if (mpas_cpl%role_is(ROLE_INTEGRATE) .or. &
+     mpas_cpl%role_is(ROLE_RADIATION)) then
 
     call MPAS_coupler_transfer_field(mpas_cpl, cells_to_rad_handle, latCellField, ierr=ierr)
     call MPAS_coupler_transfer_field(mpas_cpl, cells_to_rad_handle, lonCellField, ierr=ierr)
@@ -431,13 +431,13 @@
 
  end if
 
- if (mpas_cpl%role() == ROLE_INTEGRATE) then
+ if (mpas_cpl%role_is(ROLE_INTEGRATE)) then
     !$acc update device(latCell, lonCell, aerosols, skintemp, snow, xice, &
     !$acc xland, sfc_albedo, sfc_emiss, cldfrac, o3clim, &
     !$acc o3vmr, m_hybi, m_ps)
  end if
 
- if (iand(mpas_cpl%role(), ROLE_RADIATION) == ROLE_RADIATION) then
+ if (mpas_cpl%role_includes(ROLE_RADIATION)) then
  do j = jts,jte
  do i = its,ite
     sfc_emiss_p(i,j) = sfc_emiss(i)
@@ -498,7 +498,7 @@
                 call mpas_pool_get_array_gpu(diag_physics,'re_snow' ,re_snow )
 
 !!!
- if (mpas_cpl%role() == ROLE_INTEGRATE) then
+ if (mpas_cpl%role_is(ROLE_INTEGRATE)) then
  !$acc update host(re_cloud, re_ice, re_snow)
  end if
 
@@ -512,7 +512,7 @@
                 enddo
                 enddo
 !!!
- if (mpas_cpl%role() == ROLE_INTEGRATE) then
+ if (mpas_cpl%role_is(ROLE_INTEGRATE)) then
  !$acc update device(re_cloud, re_ice, re_snow)
  endif
              else
@@ -697,7 +697,7 @@
  end if
 
 !!!
- if (mpas_cpl%role() == ROLE_INTEGRATE) then
+ if (mpas_cpl%role_is(ROLE_INTEGRATE)) then
  !$acc update device(latCell, lonCell, aerosols, skintemp, snow, xice, &
  !$acc xland, pin, ozmixm, sfc_albedo, sfc_emiss, cldfrac, o3clim, &
  !$acc o3vmr, m_hybi, m_ps)
@@ -778,7 +778,7 @@
 
  call mpas_pool_get_field(tend_physics,'rthratenlw',rthratenlwField)
 
- if (iand(mpas_cpl%role(), ROLE_RADIATION) == ROLE_RADIATION) then
+ if (mpas_cpl%role_includes(ROLE_RADIATION)) then
  do j = jts,jte
  do i = its,ite
     glw(i)    = glw_p(i,j)
@@ -812,7 +812,7 @@
              call mpas_pool_get_array_gpu(diag_physics,'rre_snow' ,rre_snow )
 
 !!!
- if (mpas_cpl%role() == ROLE_INTEGRATE) then
+ if (mpas_cpl%role_is(ROLE_INTEGRATE)) then
  !$acc update host(rre_cloud, rre_ice, rre_snow)
  end if
              if(config_microp_re) then
@@ -846,13 +846,13 @@
 
  if (transfer_fields) then
 
-    if (mpas_cpl%role() == ROLE_INTEGRATE) then
+    if (mpas_cpl%role_is(ROLE_INTEGRATE)) then
        !$acc update host(glw, lwcf, lwdnb, lwdnbc, lwdnt, lwdntc, lwupb, &
        !$acc lwupbc, lwupt, lwuptc, olrtoa, rthratenlw)
     end if
 
-    if (mpas_cpl%role() == ROLE_INTEGRATE .or. &
-        mpas_cpl%role() == ROLE_RADIATION) then
+    if (mpas_cpl%role_is(ROLE_INTEGRATE) .or. &
+        mpas_cpl%role_is(ROLE_RADIATION)) then
 
        call MPAS_coupler_transfer_field(mpas_cpl, cells_from_rad_handle, glwField   , ierr=ierr)
        call MPAS_coupler_transfer_field(mpas_cpl, cells_from_rad_handle, lwcfField  , ierr=ierr)
@@ -869,7 +869,7 @@
 
     end if
 
-    if (mpas_cpl%role() == ROLE_INTEGRATE) then
+    if (mpas_cpl%role_is(ROLE_INTEGRATE)) then
        !$acc update device(glw, lwcf, lwdnb, lwdnbc, lwdnt, lwdntc, lwupb, &
        !$acc lwupbc, lwupt, lwuptc, olrtoa, rthratenlw)
     end if
@@ -934,13 +934,13 @@
 
  call mpas_pool_get_array_gpu(tend_physics,'rthratenlw',rthratenlw)
 
- if (mpas_cpl%role() == ROLE_INTEGRATE) then
+ if (mpas_cpl%role_is(ROLE_INTEGRATE)) then
     !$acc update host(glw, lwcf, lwdnb, lwdnbc, lwdnt, lwdntc, lwupb, &
     !$acc lwupbc, lwupt, lwuptc, olrtoa, rthratenlw)
  end if
 
- if (mpas_cpl%role() == ROLE_INTEGRATE .or. &
-     mpas_cpl%role() == ROLE_RADIATION) then
+ if (mpas_cpl%role_is(ROLE_INTEGRATE) .or. &
+     mpas_cpl%role_is(ROLE_RADIATION)) then
 
     call MPAS_coupler_transfer_field(mpas_cpl, cells_from_rad_handle, glwField   , ierr=ierr)
     call MPAS_coupler_transfer_field(mpas_cpl, cells_from_rad_handle, lwcfField  , ierr=ierr)
@@ -957,7 +957,7 @@
 
  end if
 
- if (mpas_cpl%role() == ROLE_INTEGRATE) then
+ if (mpas_cpl%role_is(ROLE_INTEGRATE)) then
     !$acc update device(glw, lwcf, lwdnb, lwdnbc, lwdnt, lwdntc, lwupb, &
     !$acc lwupbc, lwupt, lwuptc, olrtoa, rthratenlw)
  end if
@@ -989,7 +989,7 @@
  call mpas_pool_get_field(diag_physics,'emstot',emstotField)
  coupler => emstotField%block%domain%mpas_cpl
 !!!
-if (coupler%role() == ROLE_INTEGRATE) then
+if (coupler%role_is(ROLE_INTEGRATE)) then
 !$acc update host(absnxt, abstot, emstot)
 end if
 
@@ -1017,7 +1017,7 @@ end if
  enddo
 
 !!!
-if (coupler%role() == ROLE_INTEGRATE) then
+if (coupler%role_is(ROLE_INTEGRATE)) then
 !$acc update device(absnxt, abstot, emstot)
 end if
 
@@ -1101,7 +1101,7 @@ end if
  call mpas_pool_get_config(configs,'config_o3climatology' ,config_o3climatology)
  call mpas_pool_get_config(configs,'config_radt_lw_scheme',radt_lw_scheme      )
 
- if (iand(mpas_cpl%role(), ROLE_RADIATION) == ROLE_RADIATION) then
+ if (mpas_cpl%role_includes(ROLE_RADIATION)) then
 
  call mpas_log_write('RUNNING LW RADIATION SCHEME')
 

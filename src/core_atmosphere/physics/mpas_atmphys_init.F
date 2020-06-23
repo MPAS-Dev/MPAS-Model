@@ -211,7 +211,7 @@
 
  coupler => block % domain % mpas_cpl
 
-if (iand(coupler%role(), ROLE_INTEGRATE) == ROLE_INTEGRATE) then
+if (coupler%role_includes(ROLE_INTEGRATE)) then
 !write(*,*) "my role inside physics init ---------- ",coupler%role()
  currTime = mpas_get_clock_time(clock,MPAS_NOW,ierr)
  call mpas_get_time(curr_time=currTime,DoY=julday,ierr=ierr)
@@ -333,7 +333,7 @@ if (iand(coupler%role(), ROLE_INTEGRATE) == ROLE_INTEGRATE) then
  init_done = .false.
 end if
 
-if (iand(coupler%role(), ROLE_RADIATION) == ROLE_RADIATION) then
+if (coupler%role_includes(ROLE_RADIATION)) then
 !initialization of counters i_acsw* and i_aclw*. i_acsw* and i_aclw* track the number of times
 !the accumulated long and short-wave radiation fluxes exceed their prescribed theshold values.
  if(.not. config_do_restart) then
