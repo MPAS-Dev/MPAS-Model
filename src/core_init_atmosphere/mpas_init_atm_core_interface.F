@@ -54,6 +54,8 @@ module init_atm_core_interface
       core % setup_namelist => init_atm_setup_namelists
       core % component_role => init_atm_component_role
       core % component_role_leader => init_atm_component_role_leader
+      core % component_role_is => init_atm_component_role_is
+      core % component_role_includes => init_atm_component_role_includes
 
       core % Conventions = 'MPAS'
       core % source = 'MPAS'
@@ -113,6 +115,62 @@ module init_atm_core_interface
       init_atm_component_role_leader = 0
 
    end function init_atm_component_role_leader
+
+
+   !***********************************************************************
+   !
+   !  routine init_atm_component_role_is
+   !
+   !> \brief Indicates whether a task has a given role exclusively
+   !> \author Michael Duda
+   !> \date 11 June 2020
+   !> \details 
+   !>  Given a role, this function returns .true. if the task is assigned
+   !>  that role exclusively, and .false. otherwise. To determine if a task
+   !>  is assigned a role, possibly among others, use the role_includes
+   !>  function instead.
+   !
+   !-----------------------------------------------------------------------
+   logical function init_atm_component_role_is(self, role)
+
+      use mpas_derived_types, only : mpas_coupler_type
+
+      implicit none
+
+      class (mpas_coupler_type), intent(in) :: self
+      integer, intent(in) :: role
+
+      init_atm_component_role_is = (self % role() == role)
+
+   end function init_atm_component_role_is
+
+
+   !***********************************************************************
+   !
+   !  routine init_atm_component_role_includes
+   !
+   !> \brief Indicates whether a task has a given role
+   !> \author Michael Duda
+   !> \date 11 June 2020
+   !> \details 
+   !>  Given a role, this function returns .true. if the task is assigned
+   !>  that role, possibly among others, and .false. otherwise. To determine
+   !>  if a task is assigned a role exclusively, use the role_is function
+   !>  instead.
+   !
+   !-----------------------------------------------------------------------
+   logical function init_atm_component_role_includes(self, role)
+
+      use mpas_derived_types, only : mpas_coupler_type
+
+      implicit none
+
+      class (mpas_coupler_type), intent(in) :: self
+      integer, intent(in) :: role
+
+      init_atm_component_role_includes = (iand(self % role(), role) == role)
+
+   end function init_atm_component_role_includes
 
 
    !***********************************************************************

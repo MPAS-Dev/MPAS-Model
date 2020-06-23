@@ -87,6 +87,9 @@ contains
 
         cpl % role => core % component_role
         cpl % role_leader => core % component_role_leader
+        cpl % role_is => core % component_role_is
+        cpl % role_includes => core % component_role_includes
+
         cpl % intercomm = intercomm
         cpl % intercomm_rank = comm_rank
         cpl % intercomm_size = comm_size

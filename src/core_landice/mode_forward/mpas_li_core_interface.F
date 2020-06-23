@@ -51,6 +51,8 @@ module li_core_interface
       core % setup_namelist => li_setup_namelists
       core % component_role => li_component_role
       core % component_role_leader => li_component_role_leader
+      core % component_role_is => li_component_role_is
+      core % component_role_includes => li_component_role_includes
 
       core % Conventions = 'MPAS'
       core % source = 'MPAS'
@@ -109,6 +111,62 @@ module li_core_interface
       li_component_role_leader = 0
 
    end function li_component_role_leader !}}}
+
+
+   !***********************************************************************
+   !
+   !  routine li_component_role_is
+   !
+   !> \brief Indicates whether a task has a given role exclusively
+   !> \author Michael Duda
+   !> \date 11 June 2020
+   !> \details 
+   !>  Given a role, this function returns .true. if the task is assigned
+   !>  that role exclusively, and .false. otherwise. To determine if a task
+   !>  is assigned a role, possibly among others, use the role_includes
+   !>  function instead.
+   !
+   !-----------------------------------------------------------------------
+   logical function li_component_role_is(self, role)
+
+      use mpas_derived_types, only : mpas_coupler_type
+
+      implicit none
+
+      class (mpas_coupler_type), intent(in) :: self
+      integer, intent(in) :: role
+
+      li_component_role_is = (self % role() == role)
+
+   end function li_component_role_is
+
+
+   !***********************************************************************
+   !
+   !  routine li_component_role_includes
+   !
+   !> \brief Indicates whether a task has a given role
+   !> \author Michael Duda
+   !> \date 11 June 2020
+   !> \details 
+   !>  Given a role, this function returns .true. if the task is assigned
+   !>  that role, possibly among others, and .false. otherwise. To determine
+   !>  if a task is assigned a role exclusively, use the role_is function
+   !>  instead.
+   !
+   !-----------------------------------------------------------------------
+   logical function li_component_role_includes(self, role)
+
+      use mpas_derived_types, only : mpas_coupler_type
+
+      implicit none
+
+      class (mpas_coupler_type), intent(in) :: self
+      integer, intent(in) :: role
+
+      li_component_role_includes = (iand(self % role(), role) == role)
+
+   end function li_component_role_includes
 
 
    !***********************************************************************
