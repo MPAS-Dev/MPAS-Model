@@ -57,6 +57,8 @@ module atm_core
 
       integer, pointer :: nCellsSolve, nVertLevels, maxEdges, maxEdges2, num_scalars
 
+      character (len=StrKIND) :: env_var
+
       ierr = 0
 
 
@@ -66,6 +68,34 @@ module atm_core
       call mpas_pool_get_subpool(block % structs, 'mesh', mesh)
       call mpas_pool_get_field(mesh, 'indexToCellID', indexToCellID)
       call mpas_pool_get_dimension(mesh, 'nCellsSolve', nCellsSolve)
+
+      !
+      ! Write out role information to log file
+      !
+      call mpas_log_write('')
+      if (mpas_cpl % role_is(ROLE_INTEGRATE) .or. &
+          mpas_cpl % role_is(ROLE_RADIATION)) then
+         call mpas_log_write('*** Role configuration: Radiation schemes will be run asynchronously and lagged'// &
+                             ' from other integration')
+
+         call get_environment_variable('MPAS_RADIATION_RANKS_PER_NODE', value=env_var, status=ierr)
+         read(env_var, *) i
+         call mpas_log_write('    MPAS_RADIATION_RANKS_PER_NODE = $i', intArgs = [ i ])
+
+         call get_environment_variable('MPAS_DYNAMICS_RANKS_PER_NODE', value=env_var, status=ierr)
+         read(env_var, *) i
+         call mpas_log_write('    MPAS_DYNAMICS_RANKS_PER_NODE = $i', intArgs = [ i ])
+
+         if (mpas_cpl % role_is(ROLE_INTEGRATE)) then
+            call mpas_log_write('    This task''s role is ROLE_INTEGRATE')
+         else if (mpas_cpl % role_is(ROLE_RADIATION)) then
+            call mpas_log_write('    This task''s role is ROLE_RADIATION')
+         end if
+
+      else
+         call mpas_log_write('*** Role configuration: All tasks will run both radiation and other integration routines')
+      end if
+      call mpas_log_write('')
 
       if (mpas_cpl % role_is(ROLE_INTEGRATE)) then
          cells_to_rad_handle = MPAS_coupler_create_pairing(mpas_cpl, MPAS_COUPLER_OUTGOING, ROLE_RADIATION, indexToCellID, nCellsSolve)
