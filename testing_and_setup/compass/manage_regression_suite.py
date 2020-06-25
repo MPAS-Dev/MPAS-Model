@@ -274,8 +274,8 @@ def write_regression_local_parallel_testcase_data(local_parallel_code, work_dir,
     for key in pre_testcase_data.keys():
         local_parallel_code += "locations.append('" + \
             pre_testcase_data[key]['path'] + "')\n"
-        local_parallel_code += "commands.append(['time' , '-p' , '" + os.getcwd(
-        ) + "/" + pre_testcase_data[key]['path'] + "/' + str(run_file_names[{}])])\n".format(str(index))
+        local_parallel_code += "commands.append(['time' , '-p' , '" + work_dir \
+                               + "/" + pre_testcase_data[key]['path'] + "/' + str(run_file_names[{}])])\n".format(str(index))
         local_parallel_code += "procs.append(" + \
             str(pre_testcase_data[key]['procs']) + ")\n"
         local_parallel_code += "prereq_commands.append([locations[" + str(
