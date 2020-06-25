@@ -228,6 +228,17 @@ def local_parallel_setup_script(
     local_parallel_code = write_regression_local_parallel_top(
         work_dir, suite_tag, args.nodes)
 
+
+
+    dev_null = open('/dev/null', 'a')
+    subprocess.check_call(['chmod',
+                           'a+x',
+                           '{}'.format(regression_script_name)],
+                           stdout=dev_null,
+                           stderr=dev_null)
+    dev_null.close()
+
+
     setup_suite(
         suite_root,
         args.work_dir,
@@ -483,12 +494,11 @@ def setup_suite(suite_tag, work_dir, model_runtime, config_file, baseline_dir,
 
     regression_script_code = ""
 
-    if not args.local_parallel:
-        # Create regression suite run script
-        regression_script_name = '{}/{}.py'.format(work_dir, suite_name)
-        regression_script = open('{}'.format(regression_script_name), 'w')
+    # Create regression suite run script
+    regression_script_name = '{}/{}.py'.format(work_dir, suite_name)
+    regression_script = open('{}'.format(regression_script_name), 'w')
 
-        regression_script_code = write_regression_script_testcase_data_top(work_dir)
+    regression_script_code = write_regression_script_testcase_data_top(work_dir)
 
     for child in suite_tag:
         # Process <test> tags within the test suite
@@ -502,17 +512,18 @@ def setup_suite(suite_tag, work_dir, model_runtime, config_file, baseline_dir,
                 baseline_dir,
                 verbose)
 
+    dev_null = open('/dev/null', 'a')
+    subprocess.check_call(['chmod',
+                           'a+x',
+                           '{}'.format(regression_script_name)],
+                           stdout=dev_null,
+                           stderr=dev_null)
+    dev_null.close()
     if not args.local_parallel:
-        dev_null = open('/dev/null', 'a')
-        subprocess.check_call(['chmod',
-                               'a+x',
-                               '{}'.format(regression_script_name)],
-                              stdout=dev_null,
-                              stderr=dev_null)
-        dev_null.close()
 
         regression_script_code = write_regression_script_testcase_data_bottom(
             regression_script_code)
+
         return regression_script, regression_script_code
     # }}}
 
