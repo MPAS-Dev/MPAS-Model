@@ -410,7 +410,7 @@ def write_regression_local_parallel_top(work_dir, suite_tag, nodes):
 
 def write_regression_script_testcase_data_bottom(regression_script_code):
     # {{{
-    regression_script_code += "print('\n\n\nTEST RUNTIMES & ERROR:')\n"
+    regression_script_code += "print('\\n\\n\\nTEST RUNTIMES & ERROR:')\n"
     regression_script_code += "case_output = '/case_outputs/'\n"
     regression_script_code += "totaltime = 0\n"
     regression_script_code += "for _, _, files in os.walk(base_path + case_output):\n"
