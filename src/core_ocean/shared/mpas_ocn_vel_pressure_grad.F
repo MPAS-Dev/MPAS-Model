@@ -56,6 +56,7 @@ module ocn_vel_pressure_grad
 
    character (len=StrKIND), pointer :: config_pressure_gradient_type
    real (kind=RKIND), pointer :: config_common_level_weight
+   real (kind=RKIND), pointer :: config_zonal_ssh_grad, config_meridional_ssh_grad
    logical :: pgradOn
    real (kind=RKIND) :: density0Inv, gdensity0Inv, inv12
 
@@ -79,6 +80,8 @@ contains
 
    subroutine ocn_vel_pressure_grad_tend(meshPool, ssh, pressure, montgomeryPotential, zMid, density, potentialDensity, &
       indexT, indexS, tracers, tend, err, inSituThermalExpansionCoeff,inSituSalineContractionCoeff)!{{{
+
+      implicit none
 
       !-----------------------------------------------------------------
       !
@@ -139,7 +142,8 @@ contains
       real (kind=RKIND), dimension(:), pointer :: dcEdge
       real (kind=RKIND), dimension(:), allocatable :: JacobianDxDs,JacobianTz,JacobianSz,T1,T2,S1,S2
       real (kind=RKIND), dimension(:,:), allocatable :: FXTop, work1, work2
-      real (kind=RKIND) :: invdcEdge, pGrad, sumAJTop, AJTop, FC, FCPrev, alpha, beta
+      real (kind=RKIND) :: invdcEdge, pGrad, sumAJTop, AJTop, FC, FCPrev, alpha, beta, pressureGrad
+      real (kind=RKIND), dimension(:), pointer :: angleEdge
 
       err = 0
 
@@ -154,6 +158,7 @@ contains
       call mpas_pool_get_array(meshPool, 'cellsOnEdge', cellsOnEdge)
       call mpas_pool_get_array(meshPool, 'dcEdge', dcEdge)
       call mpas_pool_get_array(meshPool, 'edgeMask', edgeMask)
+      call mpas_pool_get_array(meshPool, 'angleEdge', angleEdge)
 
       nEdges = nEdgesArray( 1 )
 
@@ -331,6 +336,22 @@ contains
          !$omp end do
 
          deallocate(JacobianDxDs,JacobianTz,JacobianSz, T1, T2, S1, S2)
+
+     elseif (config_pressure_gradient_type.eq.'constant_forced') then
+
+         !$omp do schedule(runtime) private(cell1, cell2, invdcEdge, k)
+         do iEdge=1,nEdges
+            cell1 = cellsOnEdge(1,iEdge)
+            cell2 = cellsOnEdge(2,iEdge)
+
+            ! compute the pressure gradient to be applied at the edge
+            pressureGrad = config_zonal_ssh_grad * cos(angleEdge(iEdge)) + config_meridional_ssh_grad * sin(angleEdge(iEdge))
+
+            do k=1,maxLevelEdgeTop(iEdge)
+               tend(k,iEdge) = tend(k,iEdge) - edgeMask(k,iEdge) * density0Inv * pressureGrad
+            end do
+         end do
+         !$omp end do
 
       else
 
@@ -668,6 +689,8 @@ contains
       call mpas_pool_get_config(ocnConfigs, 'config_pressure_gradient_type', config_pressure_gradient_type)
       call mpas_pool_get_config(ocnConfigs, 'config_common_level_weight', config_common_level_weight)
       call mpas_pool_get_config(ocnConfigs, 'config_disable_vel_pgrad', config_disable_vel_pgrad)
+      call mpas_pool_get_config(ocnConfigs, 'config_zonal_ssh_grad', config_zonal_ssh_grad)
+      call mpas_pool_get_config(ocnConfigs, 'config_meridional_ssh_grad', config_meridional_ssh_grad)
 
       pgradOn = .true.
 
@@ -687,4 +710,4 @@ contains
 
 end module ocn_vel_pressure_grad
 
-!|||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
+
