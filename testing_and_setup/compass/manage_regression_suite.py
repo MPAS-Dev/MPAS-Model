@@ -207,8 +207,11 @@ def process_test_clean(test_tag, work_dir):
 
 
 def local_parallel_setup_script(
-        work_dir, suite_tag, verbose, args, suite_root, testcase_data, testcase_data_prereq):
+    args, suite_tag, testcase_data, testcase_data_prereq, data_dic):
     # {{{
+    work_dir = args.work_dir
+    verbose = args.verbose
+    suite_root = suite_tag
     try:
         suite_name = suite_tag.attrib['name']
     except KeyError:
@@ -226,8 +229,7 @@ def local_parallel_setup_script(
     regression_script_name = '{}/parallel_{}.py'.format(work_dir, suite_name)
     local_parallel_script = open('{}'.format(regression_script_name), 'w')
     local_parallel_code = write_regression_local_parallel_top(
-        work_dir, suite_tag, args.nodes)
-
+        work_dir, suite_tag, args.nodes, data_dic)
 
 
     dev_null = open('/dev/null', 'a')
@@ -246,9 +248,12 @@ def local_parallel_setup_script(
         args.config_file,
         args.baseline_dir,
         args.verbose,
-        args)
+        args,
+        data_dic)
+
     local_parallel_code = write_regression_local_parallel_testcase_data(
-        local_parallel_code, work_dir, testcase_data,  testcase_data_prereq)
+        local_parallel_code, work_dir, testcase_data,  testcase_data_prereq, data_dic)
+
     local_parallel_code = write_regression_local_parallel_bottom(
         local_parallel_code)
 
@@ -256,53 +261,48 @@ def local_parallel_setup_script(
     # }}}
 
 
-def get_prereq(testcase_data, testcase_data_prereq):
+def get_prereq(testcase_data, testcase_data_prereq, data_dic):
     # {{{
     names = [i for i in testcase_data.keys() if i in testcase_data_prereq]
-    pre = {}
+    cwd = os.getcwd() + "/"
     for i in names:
-        pre[i] = testcase_data[i]
-    return pre
+        command = ['time', '-p', str(cwd)+str(testcase_data[i]['path'])]
+        data_dic['procs'].insert(0, testcase_data[i]['procs'])
+        data_dic['prereq_commands'].insert(0,[testcase_data[i]['path'], command])
+
+    return data_dic
     # }}}
 
 
-def get_testcase_data(testcase_data, testcase_data_prereq):
+def get_testcase_data(testcase_data, testcase_data_prereq, data_dic):
     # {{{
     names = [i for i in testcase_data.keys() if i not in testcase_data_prereq]
-    testcase_data_values = {}
+    cwd = os.getcwd() + "/"
     for i in names:
-        testcase_data_values[i] = testcase_data[i]
-    return testcase_data_values
+        command = ['time', '-p', str(cwd)+str(testcase_data[i]['path'])]
+        data_dic['procs'].append(testcase_data[i]['procs'])
+        data_dic['allocation_commands'].append([testcase_data[i]['path'], command])
+    return data_dic 
     # }}}
 
 
-def write_regression_local_parallel_testcase_data(local_parallel_code, work_dir, testcase_data, testcase_data_prereq):
+def write_regression_local_parallel_testcase_data(local_parallel_code, work_dir, testcase_data, testcase_data_prereq, data_dic):
         # {{{
     index = 0
-    testcase_data_values = get_testcase_data(  testcase_data , testcase_data_prereq)
-    pre_testcase_data    = get_prereq(testcase_data , testcase_data_prereq)
+    data_dic = get_testcase_data(  testcase_data , testcase_data_prereq, data_dic)
+    data_dic = get_prereq(testcase_data , testcase_data_prereq, data_dic)
 
-    for key in pre_testcase_data.keys():
-        local_parallel_code += "locations.append('" + \
-            pre_testcase_data[key]['path'] + "')\n"
-        local_parallel_code += "commands.append(['time' , '-p' , '" + work_dir \
-                               + "/" + pre_testcase_data[key]['path'] + "/' + str(run_file_names[{}])])\n".format(str(index))
-        local_parallel_code += "procs.append(" + \
-            str(pre_testcase_data[key]['procs']) + ")\n"
-        local_parallel_code += "prereq_commands.append([locations[" + str(
-            index) + "], commands[" + str(index) + "]])\n\n\n"
-        index += 1
+    local_parallel_code += "data_dic = {}\n"
+    for key in data_dic.keys():
+        local_parallel_code += "data_dic['"+str(key)+"'] = []\n"
 
-    for key in testcase_data_values.keys():
-        local_parallel_code += "locations.append('" + \
-            testcase_data_values[key]['path'] + "')\n"
-        local_parallel_code += "commands.append(['time' , '-p' , '" + os.getcwd(
-        ) + "/" + testcase_data_values[key]['path'] + "/' + str(run_file_names[{}])])\n".format(str(index))
-        local_parallel_code += "procs.append(" + \
-            str(testcase_data_values[key]['procs']) + ")\n"
-        local_parallel_code += "allocation_commands.append([locations[" + str(
-            index) + "], commands[" + str(index) + "]])\n\n\n"
-        index += 1
+    for key in data_dic.keys():
+        for value in data_dic[key]:
+            if type(value) == list:
+                local_parallel_code += "data_dic['"+str(key)+"'].append(" + str(value) + ")\n"
+            else:
+                local_parallel_code += "data_dic['"+str(key)+"'].append('"+ str(value) +"')\n"
+        local_parallel_code += "\n\n"
 
     return local_parallel_code
     # }}}
@@ -381,7 +381,7 @@ def write_regression_local_parallel_bottom(local_parallel_code):
     # }}}
 
 
-def write_regression_local_parallel_top(work_dir, suite_tag, nodes):
+def write_regression_local_parallel_top(work_dir, suite_tag, nodes, data_dic):
     # {{{
     local_parallel_code = "#!/usr/bin/env python\n\n\n"
     local_parallel_code += "import time\n"
@@ -411,8 +411,7 @@ def write_regression_local_parallel_top(work_dir, suite_tag, nodes):
     for child in suite_tag:
         for script in child:
             script_name = script.attrib['name']
-            local_parallel_code += "run_file_names.append('{}')\n".format(
-                script_name)
+            data_dic['run_file_names'].append(script_name)
 
     local_parallel_code += "\n\n\n"
     return local_parallel_code
@@ -476,7 +475,7 @@ def write_regression_script_testcase_data_top(work_dir):
 
 
 def setup_suite(suite_tag, work_dir, model_runtime, config_file, baseline_dir,
-                verbose, args):
+                verbose, args, data_dic):
     # {{{
     try:
         suite_name = suite_tag.attrib['name']
@@ -786,12 +785,18 @@ def main():
         if args.setup:
             print("\n")
             testcase_data_prereq = []
+            data_dic = {}
             testcase_data, testcase_data_prereq = get_test_case_procs(suite_root, testcase_data, testcase_data_prereq)
             testcase_data = summarize_suite(testcase_data)
             print("\n\nSetting Up Test Cases:")
             if args.local_parallel:
-                local_parallel_script, local_parallel_code = local_parallel_setup_script(
-                    args.work_dir, suite_root, args.verbose, args, suite_root, testcase_data, testcase_data_prereq)
+                data_dic["procs"] = []
+                data_dic["run_file_names"] = []
+                data_dic["prereq_commands"] = []
+                data_dic["allocation_commands"] =[]
+                print("--------")
+                local_parallel_script, local_parallel_code = local_parallel_setup_script(args, suite_root, testcase_data, testcase_data_prereq, data_dic) 
+                print("not here")
                 local_parallel_script.write(local_parallel_code)
             else:
                 regression_script, regression_script_code = setup_suite(
