@@ -310,11 +310,12 @@ def write_regression_local_parallel_testcase_data(local_parallel_code, work_dir,
 
 def write_regression_local_parallel_bottom(local_parallel_code):
     # {{{
-    local_parallel_code += "if max(procs) > number_of_procs:\n"
+    local_parallel_code += "data_dic['procs'] = [int(i) for i in data_dic['procs']]\n"
+    local_parallel_code += "if max(data_dic['procs']) > number_of_procs:\n"
     local_parallel_code += "  print('more processors are used than allocated')\n"
     local_parallel_code += "  quit()\n"
     local_parallel_code += "start_time = time.time()\n"
-    local_parallel_code += "def stream_queue(command, number_of_procs):\n"
+    local_parallel_code += "def stream_queue(command, number_of_procs, procs):\n"
     local_parallel_code += "  if command == []:\n"
     local_parallel_code += "    return \n"
     local_parallel_code += "  base = os.getcwd()\n"
@@ -332,6 +333,7 @@ def write_regression_local_parallel_bottom(local_parallel_code):
     local_parallel_code += "            case_output = open('case_outputs/'+command[index][0].replace('/', '_'), 'w+')\n"
     local_parallel_code += "#            print('processing command: {}'.format(command[index][1]))\n"
     local_parallel_code += "            os.chdir(command[index][0])\n"
+    local_parallel_code += "            command[index][1][2] = command[index][1][2] +'/'+data_dic['run_file_names'][index]\n"
     local_parallel_code += "            open_proc = subprocess.Popen(command[index][1], stdout=case_output, stderr=case_output)\n"
     local_parallel_code += "            os.chdir(base)\n"
     local_parallel_code += "            Queue_running.append([open_proc, procs[index],command[index][1]]) \n"
@@ -369,9 +371,9 @@ def write_regression_local_parallel_bottom(local_parallel_code):
     local_parallel_code += " \n"
     local_parallel_code += "  return\n"
     local_parallel_code += "print('--- PROCESSING PREREQS ---')\n"
-    local_parallel_code += "stream_queue(prereq_commands, number_of_procs)\n"
+    local_parallel_code += "stream_queue(data_dic['prereq_commands'], number_of_procs, [data_dic['procs'][i] for i in range(0, len(data_dic['prereq_commands']))])\n"
     local_parallel_code += "print('--- PROCESSING commands ---')\n"
-    local_parallel_code += "stream_queue(allocation_commands, number_of_procs)\n"
+    local_parallel_code += "stream_queue(data_dic['allocation_commands'], number_of_procs, [data_dic['procs'][i+len(data_dic['prereq_commands'])] for i in range(0, len(data_dic['allocation_commands']))])\n"
     local_parallel_code += "end_time = time.time()\n"
     local_parallel_code += "print('parallel run time: {} min'.format((end_time - start_time) / 60))\n"
     local_parallel_code = write_regression_script_testcase_data_bottom(
@@ -401,12 +403,6 @@ def write_regression_local_parallel_top(work_dir, suite_tag, nodes, data_dic):
     local_parallel_code += "    os.makedirs('case_outputs')\n"
     local_parallel_code += "base_path = '" + work_dir + "'\n"
     local_parallel_code += "os.chdir(base_path)\n"
-    local_parallel_code += "locations = []\n"
-    local_parallel_code += "procs = []\n"
-    local_parallel_code += "run_file_names = []\n"
-    local_parallel_code += "prereq_commands = []\n"
-    local_parallel_code += "allocation_commands = []\n"
-    local_parallel_code += "commands = []\n\n\n"
 
     for child in suite_tag:
         for script in child:
@@ -794,9 +790,7 @@ def main():
                 data_dic["run_file_names"] = []
                 data_dic["prereq_commands"] = []
                 data_dic["allocation_commands"] =[]
-                print("--------")
                 local_parallel_script, local_parallel_code = local_parallel_setup_script(args, suite_root, testcase_data, testcase_data_prereq, data_dic) 
-                print("not here")
                 local_parallel_script.write(local_parallel_code)
             else:
                 regression_script, regression_script_code = setup_suite(
