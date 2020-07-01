@@ -318,7 +318,7 @@ def write_regression_local_parallel_bottom(local_parallel_code,work_dir):
     local_parallel_code += "def stream_queue(command, number_of_procs, procs):\n"
     local_parallel_code += "  if command == []:\n"
     local_parallel_code += "    return \n"
-    local_parallel_code += "  base = '{}'\n".format(work_dir)
+    local_parallel_code += "  base = '{}/'\n".format(work_dir)
     local_parallel_code += "  Queue_running = []\n"
     local_parallel_code += "  index = 0\n"
     local_parallel_code += "  continue_add = True\n"
