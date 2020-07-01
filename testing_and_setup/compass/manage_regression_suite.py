@@ -255,7 +255,7 @@ def local_parallel_setup_script(
         local_parallel_code, work_dir, testcase_data,  testcase_data_prereq, data_dic)
 
     local_parallel_code = write_regression_local_parallel_bottom(
-        local_parallel_code)
+        local_parallel_code,args.work_dir)
 
     return local_parallel_script, local_parallel_code
     # }}}
@@ -308,7 +308,7 @@ def write_regression_local_parallel_testcase_data(local_parallel_code, work_dir,
     # }}}
 
 
-def write_regression_local_parallel_bottom(local_parallel_code):
+def write_regression_local_parallel_bottom(local_parallel_code,work_dir):
     # {{{
     local_parallel_code += "data_dic['procs'] = [int(i) for i in data_dic['procs']]\n"
     local_parallel_code += "if max(data_dic['procs']) > number_of_procs:\n"
@@ -318,7 +318,7 @@ def write_regression_local_parallel_bottom(local_parallel_code):
     local_parallel_code += "def stream_queue(command, number_of_procs, procs):\n"
     local_parallel_code += "  if command == []:\n"
     local_parallel_code += "    return \n"
-    local_parallel_code += "  base = os.getcwd()\n"
+    local_parallel_code += "  base = '{}'\n".format(work_dir)
     local_parallel_code += "  Queue_running = []\n"
     local_parallel_code += "  index = 0\n"
     local_parallel_code += "  continue_add = True\n"
