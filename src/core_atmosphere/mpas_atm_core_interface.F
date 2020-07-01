@@ -13,8 +13,6 @@ module atm_core_interface
    use mpas_dmpar
    use mpas_io_units
 
-   ! Used in both atm_component_role and atm_component_role_leader
-   integer, save :: radiation_ranks_per_node, dynamics_ranks_per_node
 
    contains
 
@@ -72,11 +70,19 @@ module atm_core_interface
    !  routine atm_component_role
    !
    !> \brief Define roles for each MPI task and OpenMP thread
-   !> \author Michael Duda
-   !> \date 2 January 2018
+   !> \author Michael Duda, Supreeth Madapur Suresh
+   !> \date 1 July 2020
    !> \details 
    !>  This routine returns an integer value representing the "role" for
    !>  any given MPI task and OpenMP thread.
+   !>
+   !>  Upon its first invocation, this routine will attempt to read two
+   !>  environemnt variables: MPAS_RADIATION_RANKS_PER_NODE and
+   !>  MPAS_DYNAMICS_RANKS_PER_NODE, which will be used to determine how
+   !>  roles are assigned to MPI ranks.
+   !>
+   !>  If MPAS-A was compiled with OpenACC support, this routine will also
+   !>  set OpenACC devices for each MPI rank on its first invocation.
    !
    !-----------------------------------------------------------------------
    integer function atm_component_role(self)
@@ -86,18 +92,45 @@ module atm_core_interface
       use mpas_abort, only : mpas_dmpar_global_abort
       use mpas_intracoupler, only : ROLE_INTEGRATE, ROLE_RADIATION
 
+#ifdef _MPI
+#ifndef NOMPIMOD
+      use mpi, only : MPI_COMM_TYPE_SHARED, MPI_INFO_NULL
+#endif
+#endif
+
+#ifdef MPAS_OPENACC
+      use openacc, only : acc_get_num_devices, acc_set_device_num, acc_set_device_type, &
+                          acc_device_nvidia, acc_device_host
+#endif
+
       implicit none
 
       class (mpas_coupler_type), intent(in) :: self
 
-      character(len=StrKIND) :: radiation_ranks_per_node_str
-      character(len=StrKIND) :: dynamics_ranks_per_node_str
-
-      integer :: istat_rad, istat_dyn
-      integer :: ranks_per_node
+#ifdef _MPI
+#ifdef NOMPIMOD
+      include 'mpif.h'
+#endif
+#endif
 
       integer, save :: local_rank = -1
       integer, save :: role
+
+      integer :: radiation_ranks_per_node, dynamics_ranks_per_node
+
+      character(len=StrKIND) :: radiation_ranks_per_node_str
+      character(len=StrKIND) :: dynamics_ranks_per_node_str
+
+      integer :: ierr
+      integer :: istat_rad, istat_dyn
+      integer :: local_size
+      integer :: on_node_comm
+      integer :: socket_rank
+
+#ifdef MPAS_OPENACC
+      integer :: num_devices, my_device
+      integer :: role_comm, role_rank, role_size
+#endif
 
 
       !
@@ -105,29 +138,91 @@ module atm_core_interface
       ! and set local variable 'role' to the role of the calling task
       !
       if (local_rank == -1) then
-          call get_environment_variable('MPAS_RADIATION_RANKS_PER_NODE', value=radiation_ranks_per_node_str, status=istat_rad)
+          call get_environment_variable('MPAS_RADIATION_RANKS_PER_NODE', &
+                                        value=radiation_ranks_per_node_str, status=istat_rad)
           if (istat_rad == 0) then
               read(radiation_ranks_per_node_str, *) radiation_ranks_per_node
           end if
 
-          call get_environment_variable('MPAS_DYNAMICS_RANKS_PER_NODE', value=dynamics_ranks_per_node_str, status=istat_dyn)
+          call get_environment_variable('MPAS_DYNAMICS_RANKS_PER_NODE', &
+                                        value=dynamics_ranks_per_node_str, status=istat_dyn)
           if (istat_dyn == 0) then
               read(dynamics_ranks_per_node_str, *) dynamics_ranks_per_node
           end if
 
-          if (istat_rad == 0 .and. istat_dyn == 0) then
-              ranks_per_node = radiation_ranks_per_node + dynamics_ranks_per_node
-              local_rank = mod(self % intercomm_rank, ranks_per_node)
+          if (istat_rad == 0 .and. istat_dyn == 0) then  ! Both env vars were successfully read
 
-              if (local_rank < dynamics_ranks_per_node) then
-                  role = ROLE_INTEGRATE
+              !
+              ! Determine rank within a shared-memory node
+              !
+#ifdef _MPI
+              call MPI_Comm_split_type(self % intercomm, MPI_COMM_TYPE_SHARED, self % intercomm_rank, &
+                                       MPI_INFO_NULL, on_node_comm, ierr)
+              call MPI_Comm_rank(on_node_comm, local_rank, ierr)
+              call MPI_Comm_size(on_node_comm, local_size, ierr)
+#else
+              local_rank = 0
+              local_size = 1
+#endif
+              !
+              ! Evenly distribute role assignments over two sockets
+              !
+              if (local_rank < local_size / 2) then
+                  socket_rank = local_rank
               else
-                  role = ROLE_RADIATION
+                  socket_rank = local_rank - (local_size / 2)
               end if
-          else
+
+              if (mod(socket_rank, 2) == 0) then
+                  role = ROLE_RADIATION
+              else
+                  role = ROLE_INTEGRATE
+              end if
+
+              !
+              ! Roles are assigned within a socket alternating between ROLE_RADIATION and
+              ! ROLE_INTEGRATE. If the number of dynamics and radiation ranks per node are not
+              ! equal, all "excess" ranks on a socket beyond min(dynamics_ranks_per_node, radiation_ranks_per_node)
+              ! will be assigned either ROLE_INTEGRATE or ROLE_RADIATION as needed.
+              !
+              if (socket_rank >= min(dynamics_ranks_per_node, radiation_ranks_per_node)) then
+                  if (dynamics_ranks_per_node > radiation_ranks_per_node) then
+                      role = ROLE_INTEGRATE
+                  else
+                      role = ROLE_RADIATION
+                  end if
+              end if
+
+
+              !
+              ! Assign devices based on rank in the role within a shared-memory node
+              !
+#ifdef MPAS_OPENACC
+#ifdef _MPI
+              call MPI_Comm_split(on_node_comm, role, local_rank, role_comm, ierr)
+              call MPI_Comm_rank(role_comm, role_rank, ierr)
+              call MPI_Comm_size(role_comm, role_size, ierr)
+#else
+              role_rank = 0
+              role_size = 1
+#endif
+
+              if (role == ROLE_INTEGRATE) then
+                  num_devices = acc_get_num_devices(acc_device_nvidia)
+                  my_device = (role_rank * num_devices) / role_size
+                  call acc_set_device_num(my_device, acc_device_nvidia)
+              else
+                  call acc_set_device_type(acc_device_host)
+              end if
+#endif
+
+          else ! At least one environment variable could not be successfully read
+
               local_rank = self % intercomm_rank
               role = ior(ROLE_INTEGRATE, ROLE_RADIATION)
+
           end if
+
       end if
 
       atm_component_role = role
@@ -151,19 +246,24 @@ module atm_core_interface
    integer function atm_component_role_leader(self, role)
 
       use mpas_derived_types, only : mpas_coupler_type
-      use mpas_intracoupler, only : ROLE_INTEGRATE
+      use mpas_intracoupler, only : ROLE_RADIATION
 
       implicit none
 
       class (mpas_coupler_type), intent(in) :: self
       integer, intent(in) :: role
-      integer :: number_of_dynamics_rank
 
 
-      if (iand(role, ROLE_INTEGRATE) == ROLE_INTEGRATE) then
+      !
+      ! Assumption: the first MPI rank always has the role of ROLE_RADIATION
+      ! (possibly among other roles), and the second MPI rank always has the role
+      ! of ROLE_INTEGRATE (possibly among other roles)
+      !
+
+      if (iand(role, ROLE_RADIATION) == ROLE_RADIATION) then
           atm_component_role_leader = 0
       else
-          atm_component_role_leader = dynamics_ranks_per_node
+          atm_component_role_leader = 1
       end if
 
    end function atm_component_role_leader
