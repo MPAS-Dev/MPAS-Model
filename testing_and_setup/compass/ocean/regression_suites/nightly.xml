@@ -2,7 +2,13 @@
 	<test name="Baroclinic Channel 10km - Default Test" core="ocean" configuration="baroclinic_channel" resolution="10km" test="default">
 		<script name="run_test.py"/>
 	</test>
-	<test name="Global Ocean 240km - Init Test" core="ocean" configuration="global_ocean" resolution="QU240" test="init">
+	<test name="Global Ocean EC60to30 - Init Test" core="ocean" configuration="global_ocean" resolution="EC60to30" test="init">
+		<script name="run.py"/>
+  </test>
+  <test name="Global Ocean EC60to30 - PE Decomposition Test" core="ocean" configuration="global_ocean" resolution="EC60to30" test="decomposition_test">
+    <script name="run.py"/>
+  </test>
+  <test name="Global Ocean 240km - Init Test" core="ocean" configuration="global_ocean" resolution="QU240" test="init">
 		<script name="run.py"/>
 	</test>
 	<test name="Global Ocean 240km - Performance Test" core="ocean" configuration="global_ocean" resolution="QU240" test="performance_test">
