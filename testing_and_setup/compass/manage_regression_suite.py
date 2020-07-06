@@ -285,7 +285,7 @@ def write_local_parallel_bottom(local_parallel_code):
     local_parallel_code += "  os.chdir(base_path)\n"
     local_parallel_code += "  return (run, key)\n"
     local_parallel_code += "\n\n\n\n\n"
-    local_parallel_code += "done = False\n"
+    local_parallel_code += "iteration = 0\n"
     local_parallel_code += "compleated =[]\n"
     local_parallel_code += "running = []\n"
     local_parallel_code += "adding_phase = True\n"
@@ -320,6 +320,7 @@ def write_local_parallel_bottom(local_parallel_code):
     local_parallel_code += "      running_key = process[1]\n"
     local_parallel_code += "      if not psutil.pid_exists(pid):\n"
     local_parallel_code += "        running.remove(process)\n"
+    local_parallel_code += "        print('DONE: {} {} {}'.format(testcase_data[key]['procs'], number_of_procs, running_key))\n"
     local_parallel_code += "        compleated.append(running_key)\n"
     local_parallel_code += "        number_of_procs = number_of_procs + testcase_data[running_key]['procs']\n"
     local_parallel_code += "      else:\n"
@@ -332,7 +333,7 @@ def write_local_parallel_bottom(local_parallel_code):
     local_parallel_code += "  if not adding_phase and not processing_phase and done:\n"
     local_parallel_code += "    break\n"
     local_parallel_code += "\n"
-    local_parallel_code += "iteration = iteration +1\n"
+    local_parallel_code += "  iteration = iteration +1\n"
     local_parallel_code += "\n"
 
 
@@ -371,6 +372,8 @@ def write_local_parallel_top(work_dir, suite_tag, nodes):
 
 def write_script_bottom(regression_script_code):
     # {{{
+    regression_script_code += "end_time = time.time()\n"
+    regression_script_code += "print('runtime: {}'.format(end_time - start_time))\n"
     regression_script_code += "print('\\n\\n\\nTEST RUNTIMES & ERROR:')\n"
     regression_script_code += "case_output = '/case_outputs/'\n"
     regression_script_code += "totaltime = 0\n"
@@ -611,6 +614,7 @@ def get_test_case_procs(suite_tag, testcase_data, testcase_data_prereq):
                                'procs': procs,
                                'threads': threads,
                                'filename': run_scripts[index],
+                               'runnable': prereqs == [],
                                'prereqs': prereqs}
             index = index + 1
             for sub in testcase_data[test_name]['prereqs']:
