@@ -307,7 +307,7 @@ def write_local_parallel_bottom(local_parallel_code):
     local_parallel_code += "          prereq_compleated =  all(prereq in compleated for prereq in prereq_tests)\n"
     local_parallel_code += "          if prereq_compleated:\n"
     local_parallel_code += "            testcase_data[key]['runnable'] = True\n"
-    local_parallel_code += "        if number_of_procs >= testcase_data[key]['procs']:\n"
+    local_parallel_code += "        if number_of_procs >= testcase_data[key]['procs'] and testcase_data[key]['runnable'] == True:\n"
     local_parallel_code += "          number_of_procs = number_of_procs - testcase_data[key]['procs']\n"
     local_parallel_code += "          process , key = run(key)\n"
     local_parallel_code += "          running.append((process,key))\n"
