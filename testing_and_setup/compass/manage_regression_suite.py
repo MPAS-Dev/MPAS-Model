@@ -221,6 +221,7 @@ def local_setup_script(
         # flush existing regression suite output file
         open(work_dir + '/manage_regression_suite.py.out', 'w').close()
 
+    # creates the script writer and generates the top section of the code
     if isparallel: 
         script_name = '{}/parallel_{}.py'.format(work_dir, suite_name)
         local_script = open('{}'.format(script_name), 'w')
@@ -232,7 +233,7 @@ def local_setup_script(
         local_code = write_script_top(
             work_dir, suite_tag, nodes)
 
-
+    # makes the script executable
     dev_null = open('/dev/null', 'a')
     subprocess.check_call(['chmod',
                            'a+x',
@@ -241,7 +242,7 @@ def local_setup_script(
                            stderr=dev_null)
     dev_null.close()
 
-
+    # sets up rest of the code 
     local_code = setup_suite(
         suite_root,
         work_dir,
@@ -258,7 +259,6 @@ def local_setup_script(
 
 def write_local_parallel_data(local_parallel_code, work_dir, testcase_data):
         # {{{
-    local_parallel_code += "#code to save testcase_data here\n"
     local_parallel_code += "testcase_data = {}\n"
     for name in testcase_data.keys():
         local_parallel_code += "testcase_data['{}'] = {}\n".format(name, testcase_data[name])
@@ -445,13 +445,14 @@ def setup_suite(suite_tag, work_dir, model_runtime, config_file, baseline_dir,
         # flush existing regression suite output file
         open(work_dir + '/manage_regression_suite.py.out', 'w').close()
 
-
+    # writes the middle section of the code
     if isparallel:
         local_code = write_local_parallel_data(
             local_code, work_dir, testcase_data)
                     
         local_code = write_local_parallel_bottom(
             local_code)
+    # sets up each testcase, if not parallel returns the nonparallel code section
     for child in suite_tag:
         # Process <test> tags within the test suite
         if child.tag == 'test':
@@ -465,6 +466,7 @@ def setup_suite(suite_tag, work_dir, model_runtime, config_file, baseline_dir,
                 verbose, 
                 isparallel)
 
+    # writes the bottom section
     local_code = write_script_bottom(local_code)
 
     return local_code
