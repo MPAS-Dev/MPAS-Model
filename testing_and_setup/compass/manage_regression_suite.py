@@ -305,7 +305,7 @@ def write_local_parallel_bottom(local_parallel_code):
     local_parallel_code += "        if not testcase_data[key]['prereqs'] == [] and testcase_data[key]['runnable'] == False:\n"
     local_parallel_code += "          prereq_tests = [prereq['name'] for prereq in testcase_data[key]['prereqs']]\n"
     local_parallel_code += "          prereq_compleated =  all(prereq in compleated for prereq in prereq_tests)\n"
-    local_parallel_code += "          if prereq_compleated:\n"
+    local_parallel_code += "          if prereq_completed:\n"
     local_parallel_code += "            testcase_data[key]['runnable'] = True\n"
     local_parallel_code += "        if number_of_procs >= testcase_data[key]['procs'] and testcase_data[key]['runnable'] == True:\n"
     local_parallel_code += "          number_of_procs = number_of_procs - testcase_data[key]['procs']\n"
