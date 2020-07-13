@@ -373,7 +373,10 @@ def write_local_parallel_top(work_dir, suite_tag, nodes):
 def write_script_bottom(regression_script_code):
     # {{{
     regression_script_code += "end_time = time.time()\n"
-    regression_script_code += "print('runtime: {}'.format(end_time - start_time))\n"
+    regression_script_code += "runtime = end_time - start_time\n"
+    regression_script_code += "mins = int(np.floor(runtime/60.0))\n"
+    regression_script_code += "secs = int(np.ceil(runtime - mins*60))\n"
+    regression_script_code += "print('Wall clock time: {:02d}:{:02d}'.format(mins, secs))\n"
     regression_script_code += "print('\\n\\n\\nTEST RUNTIMES & ERROR:')\n"
     regression_script_code += "case_output = '/case_outputs/'\n"
     regression_script_code += "totaltime = 0\n"
