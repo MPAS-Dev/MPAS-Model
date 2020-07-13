@@ -328,7 +328,7 @@ def write_local_parallel_bottom(local_parallel_code):
     local_parallel_code += "          process[0].wait(timeout=3)\n"
     local_parallel_code += "        except subprocess.TimeoutExpired:\n"
     local_parallel_code += "          continue\n"
-    local_parallel_code += "    if running == []:\n"
+    local_parallel_code += "    if len(running) == 0:\n"
     local_parallel_code += "      processing_phase = False\n"
     local_parallel_code += "  if not adding_phase and not processing_phase and done:\n"
     local_parallel_code += "    break\n"
