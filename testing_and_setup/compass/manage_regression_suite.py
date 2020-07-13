@@ -301,7 +301,7 @@ def write_local_parallel_bottom(local_parallel_code):
     local_parallel_code += "  if adding_phase:\n"
     local_parallel_code += "    running_names = [running_proc[1] for running_proc in running]\n"
     local_parallel_code += "    for key in testcase_data.keys():\n"
-    local_parallel_code += "      if not key in compleated and not key in running_names:\n"
+    local_parallel_code += "      if not key in completed and not key in running_names:\n"
     local_parallel_code += "        if not testcase_data[key]['prereqs'] == [] and testcase_data[key]['runnable'] == False:\n"
     local_parallel_code += "          prereq_tests = [prereq['name'] for prereq in testcase_data[key]['prereqs']]\n"
     local_parallel_code += "          prereq_completed =  all(prereq in completed for prereq in prereq_tests)\n"
