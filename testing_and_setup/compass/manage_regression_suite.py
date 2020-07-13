@@ -231,7 +231,7 @@ def local_setup_script(
         script_name = '{}/{}.py'.format(work_dir, suite_name)
         local_script = open('{}'.format(script_name), 'w')
         local_code = write_script_top(
-            work_dir, suite_tag, nodes)
+            work_dir)
 
     # makes the script executable
     dev_null = open('/dev/null', 'a')
@@ -269,7 +269,6 @@ def write_local_parallel_data(local_parallel_code, work_dir, testcase_data):
 def write_local_parallel_bottom(local_parallel_code):
     # {{{
     local_parallel_code += "# rewrite algorithm to read in testcase_data\n# must use args.work_dir instead of os.getcwd\n"
-    local_parallel_code += "start_time = time.time()\n"
     local_parallel_code += "def run(key):\n"
     local_parallel_code += "  os.chdir(base_path)\n"
     local_parallel_code += "  case_output = open('case_outputs/{}'.format(key.replace(' ', '_')), 'w+') \n"
@@ -418,7 +417,9 @@ def write_script_top(work_dir):
     regression_script_code += 'import os\n'
     regression_script_code += 'import subprocess\n'
     regression_script_code += 'import numpy as np\n'
-    regression_script_code += '\n'
+    regression_script_code += 'import time'
+    regression_script_code += '\n\n'
+    regression_script_code += 'start_time = time.time()'
     regression_script_code += "os.environ['PYTHONUNBUFFERED'] = '1'\n"
     regression_script_code += "test_failed = False\n"
     regression_script_code += '\n'
