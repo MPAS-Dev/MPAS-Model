@@ -321,7 +321,7 @@ def write_local_parallel_bottom(local_parallel_code):
     local_parallel_code += "      if not psutil.pid_exists(pid):\n"
     local_parallel_code += "        running.remove(process)\n"
     local_parallel_code += "        print('DONE: {} {} {}'.format(testcase_data[key]['procs'], number_of_procs, running_key))\n"
-    local_parallel_code += "        compleated.append(running_key)\n"
+    local_parallel_code += "        completed.append(running_key)\n"
     local_parallel_code += "        number_of_procs = number_of_procs + testcase_data[running_key]['procs']\n"
     local_parallel_code += "      else:\n"
     local_parallel_code += "        try:\n"
