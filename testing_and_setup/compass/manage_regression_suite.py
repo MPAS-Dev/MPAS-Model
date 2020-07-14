@@ -358,6 +358,8 @@ def write_local_parallel_top(work_dir, suite_tag, nodes):
     local_parallel_code += "import subprocess\n"
     local_parallel_code += "import numpy as np\n"
     local_parallel_code += "import multiprocessing as mp\n"
+    local_parallel_code += "\n"
+    local_parallel_code += "\n"
     local_parallel_code += "out, err = subprocess.Popen(['nproc'],stdout=subprocess.PIPE, stderr=subprocess.STDOUT).communicate()\n"
     local_parallel_code += "nodes = {}\n".format(nodes)
     local_parallel_code += "number_of_procs = nodes * int(out.split()[0])\n"
