@@ -256,7 +256,6 @@ def local_setup_script(
     # }}}
 
 
-
 def write_local_parallel_data(local_parallel_code, work_dir, testcase_data):
         # {{{
     local_parallel_code += "testcase_data = {}\n"
@@ -267,9 +266,9 @@ def write_local_parallel_data(local_parallel_code, work_dir, testcase_data):
 
 
 def write_local_parallel_bottom(local_parallel_code):
-    # 
+    #{{{ 
     local_parallel_code += "# rewrite algorithm to read in testcase_data\n# must use args.work_dir instead of os.getcwd\n"
-    local_parallel_code += "def run_testcase(key):\n"
+    local_parallel_code += "def run(key):\n"
     local_parallel_code += "\tos.chdir(base_path)\n"
     local_parallel_code += "\tcase_output = open('case_outputs/{}'.format(key.replace(' ', '_')), 'w+') \n"
     local_parallel_code += "\tprint('\t\t** Running case {} **'.format(key))\n"
@@ -345,12 +344,12 @@ def write_local_parallel_bottom(local_parallel_code):
     local_parallel_code += "\n"
 
     return local_parallel_code
-    # 
+    #}}} 
 
 
 def write_local_parallel_top(work_dir, suite_tag, nodes):
     # {{{
-    local_parallel_code = "#!/usr/bin/env python\n\n"
+    local_parallel_code = "#!/usr/bin/env python\n\n\n"
     local_parallel_code += "import time\n"
     local_parallel_code += "import psutil\n"
     local_parallel_code += "import sys\n"
@@ -358,8 +357,6 @@ def write_local_parallel_top(work_dir, suite_tag, nodes):
     local_parallel_code += "import subprocess\n"
     local_parallel_code += "import numpy as np\n"
     local_parallel_code += "import multiprocessing as mp\n"
-    local_parallel_code += "\n"
-    local_parallel_code += "\n"
     local_parallel_code += "out, err = subprocess.Popen(['nproc'],stdout=subprocess.PIPE, stderr=subprocess.STDOUT).communicate()\n"
     local_parallel_code += "nodes = {}\n".format(nodes)
     local_parallel_code += "number_of_procs = nodes * int(out.split()[0])\n"
@@ -374,7 +371,7 @@ def write_local_parallel_top(work_dir, suite_tag, nodes):
     for child in suite_tag:
         for script in child:
             script_name = script.attrib['name']
-    local_parallel_code += "\n"
+    local_parallel_code += "\n\n\n"
     return local_parallel_code
     # }}}
 
