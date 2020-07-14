@@ -374,7 +374,7 @@ def write_local_parallel_top(work_dir, suite_tag, nodes):
     for child in suite_tag:
         for script in child:
             script_name = script.attrib['name']
-    local_parallel_code += "\n\n\n"
+    local_parallel_code += "\n"
     return local_parallel_code
     # }}}
 
