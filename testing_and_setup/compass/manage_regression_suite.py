@@ -350,7 +350,7 @@ def write_local_parallel_bottom(local_parallel_code):
 
 def write_local_parallel_top(work_dir, suite_tag, nodes):
     # {{{
-    local_parallel_code = "#!/usr/bin/env python\n\n\n"
+    local_parallel_code = "#!/usr/bin/env python\n\n"
     local_parallel_code += "import time\n"
     local_parallel_code += "import psutil\n"
     local_parallel_code += "import sys\n"
