@@ -269,7 +269,7 @@ def write_local_parallel_data(local_parallel_code, work_dir, testcase_data):
 def write_local_parallel_bottom(local_parallel_code):
     # 
     local_parallel_code += "# rewrite algorithm to read in testcase_data\n# must use args.work_dir instead of os.getcwd\n"
-    local_parallel_code += "def run(key):\n"
+    local_parallel_code += "def run_testcase(key):\n"
     local_parallel_code += "\tos.chdir(base_path)\n"
     local_parallel_code += "\tcase_output = open('case_outputs/{}'.format(key.replace(' ', '_')), 'w+') \n"
     local_parallel_code += "\tprint('\t\t** Running case {} **'.format(key))\n"
