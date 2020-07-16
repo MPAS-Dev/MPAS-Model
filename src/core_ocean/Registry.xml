@@ -2295,9 +2295,12 @@
 		<var name="simulationStartTime" type="text" dimensions="" units="unitless" default_value="'no_date_available'"
 			 description="start time of first simulation, with format 'YYYY-MM-DD_HH:MM:SS'"
 		/>
-		<var name="daysSinceStartOfSim" type="real" dimensions="Time" units="days"
+		<var name="daysSinceStartOfSim" type="real" dimensions="Time" units="days since simulationStartTime"
 			 description="Time since simulationStartTime, for plotting"
-	 	/>
+		/>
+		<var name="Time" type="real" dimensions="Time" units="days since 0001-01-01 00:00:00"
+			 description="time"
+		/>
 		<var name="salinitySurfaceRestoringTendency" type="real" dimensions="nCells Time" units="m PSU/s" packages="activeTracersSurfaceRestoringPKG"
 			 description="salinity tendency due to surface restoring"
 		/>

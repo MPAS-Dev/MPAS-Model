@@ -21,6 +21,11 @@
 		<template file="minimal_output.xml" path_base="script_core_dir" path="templates/streams"/>
 		<stream name="output">
 			<attribute name="output_interval">0000_06:00:00</attribute>
+			<add_contents>
+				<member name="daysSinceStartOfSim" type="var"/>
+				<member name="simulationStartTime" type="var"/>
+				<member name="Time" type="var"/>
+      </add_contents>
 		</stream>
 
 		<template file="template_forward.xml" path_base="script_configuration_dir"/>

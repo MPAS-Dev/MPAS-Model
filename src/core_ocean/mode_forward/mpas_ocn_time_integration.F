@@ -100,6 +100,7 @@ module ocn_time_integration
 
       character (len=StrKIND), pointer :: xtime
       real (kind=RKIND), pointer :: daysSinceStartOfSim
+      real (kind=RKIND), pointer :: Time
       character (len=StrKIND), pointer :: simulationStartTime
       type (MPAS_Time_type) :: xtime_timeType, simulationStartTime_timeType
 
@@ -131,8 +132,12 @@ module ocn_time_integration
         daysSinceStartOfSim = daysSinceStartOfSim*days_per_second
         !$omp end single
 
+        call mpas_pool_get_array(diagnosticsPool, 'Time',Time)
+        Time = daysSinceStartOfSim
+
         block => block % next
      end do
+
 
    end subroutine ocn_timestep!}}}
 

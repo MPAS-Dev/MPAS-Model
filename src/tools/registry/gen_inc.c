@@ -389,8 +389,8 @@ int build_dimension_information(ezxml_t registry, ezxml_t var, int *ndims, int *
 				fprintf(stderr, "ERROR: Variable %s contains multiple decomposed dimensions in list: %s\n", varname, vardims);
 				return 1;
 			}
-        } else if (is_time) {
-            (*has_time) = 1;
+		} else if (is_time) {
+			(*has_time) = 1;
 		} else if (!dim_exists) {
 			fprintf(stderr, "ERROR: Dimension %s on variable %s doesn't exist.\n", token, varname);
 			return 1;
@@ -410,8 +410,8 @@ int build_dimension_information(ezxml_t registry, ezxml_t var, int *ndims, int *
 				fprintf(stderr, "ERROR: Variable %s contains multiple decomposed dimensions in list: %s\n", varname, vardims);
 				return 1;
 			}
-        } else if (is_time) {
-            (*has_time) = 1;
+		} else if (is_time) {
+			(*has_time) = 1;
 		} else if (!dim_exists) {
 			fprintf(stderr, "ERROR: Dimension %s on variable %s doesn't exist.\n", token, varname);
 			return 1;
@@ -515,7 +515,6 @@ int parse_packages_from_registry(ezxml_t registry)/*{{{*/
 
 	return 0;
 }/*}}}*/
-
 
 int parse_namelist_records_from_registry(ezxml_t registry)/*{{{*/
 {
@@ -1437,6 +1436,7 @@ int parse_var(FILE *fd, ezxml_t registry, ezxml_t superStruct, ezxml_t currentVa
 	ezxml_t struct_xml, var_xml, var_xml2;
 	ezxml_t packages_xml, package_xml;
 	ezxml_t streams_xml, stream_xml, streams_xml2, stream_xml2;
+	ezxml_t nmlrecs_xml, nmlopt_xml;
 
 	const char *structtimelevs, *vartimelevs;
 	const char *structname, *structlevs, *structpackages;
@@ -1446,6 +1446,10 @@ int parse_var(FILE *fd, ezxml_t registry, ezxml_t superStruct, ezxml_t currentVa
 	const char *varname_in_code;
 	const char *streamname, *streamname2;
 	const char *packagename;
+
+	const char *nmlrecname;
+	const char *nmloptname, *nmloptval;
+	int is_cal;
 
 	int err;
 
@@ -1595,6 +1599,39 @@ int parse_var(FILE *fd, ezxml_t registry, ezxml_t superStruct, ezxml_t currentVa
 			fortprintf(fd, "      call mpas_add_att(%s(%d) %% attLists(1) %% attList, 'long_name', '%s')\n", pointer_name, time_lev, temp_str);
 		}
 
+		// Add calendar and time_bnds attributes for Time
+		if (strcmp(varname, "Time") == 0) {
+			is_cal = 0;
+
+			// Read calendar_type from nml_record name="time_management" --> nml_option name="config_calendar_type"
+			for (nmlrecs_xml = ezxml_child(registry, "nml_record"); nmlrecs_xml; nmlrecs_xml = nmlrecs_xml->next){
+				nmlrecname = ezxml_attr(nmlrecs_xml, "name");
+
+				if (strcmp(nmlrecname, "time_management") == 0) {
+					for (nmlopt_xml = ezxml_child(nmlrecs_xml, "nml_option"); nmlopt_xml; nmlopt_xml = nmlopt_xml->next){
+						nmloptname = ezxml_attr(nmlopt_xml, "name");
+
+						if (strcmp(nmloptname, "config_calendar_type") == 0) {
+							is_cal = 1;
+							nmloptval = ezxml_attr(nmlopt_xml, "default_value");
+
+							fortprintf(fd, "      call mpas_add_att(%s(%d) %% attLists(1) %% attList, 'calendar', '%s')\n", pointer_name, time_lev, nmloptval);
+							break;
+						}
+					}
+					break;
+				}
+			}
+
+			// If not defined in Registry.xml --> hard code as gregorian_noleap
+			if (is_cal == 0) {
+				fortprintf(fd, "      call mpas_add_att(%s(%d) %% attLists(1) %% attList, 'calendar', '%s')\n", pointer_name, time_lev, "gregorian_noleap");
+			}
+
+			// Add time_bnds attribute
+			fortprintf(fd, "      call mpas_add_att(%s(%d) %% attLists(1) %% attList, 'bounds', '%s')\n", pointer_name, time_lev, "time_bnds");
+		}
+
 		if ( varmissingval != NULL ) {
 			// fortprintf(fd, "      call mpas_add_att(%s(%d) %% attLists(1) %% attList, 'missing_value', %s)\n", pointer_name, time_lev, missing_value);
 			// Uncomment to add _FillValue to match missing_value
@@ -1603,7 +1640,6 @@ int parse_var(FILE *fd, ezxml_t registry, ezxml_t superStruct, ezxml_t currentVa
 		fortprintf(fd, "      %s(%d) %% missingValue = %s\n", pointer_name, time_lev, missing_value);
 
 		fortprintf(fd, "      %s(%d) %% block => block\n", pointer_name, time_lev);
-
 	}
 
 	// Parse packages if they are defined

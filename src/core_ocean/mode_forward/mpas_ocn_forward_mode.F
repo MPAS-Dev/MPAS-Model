@@ -122,6 +122,7 @@ module ocn_forward_mode
 
       character (len=StrKIND), pointer :: xtime, simulationStartTime
       real (kind=RKIND), pointer :: daysSinceStartOfSim
+      real (kind=RKIND), pointer :: Time
       type (MPAS_Time_type) :: xtime_timeType, simulationStartTime_timeType
       type (MPAS_Time_Type) :: startTime, alarmTime
       type (MPAS_TimeInterval_type) :: timeStep
@@ -349,6 +350,9 @@ module ocn_forward_mode
          call mpas_set_time(simulationStartTime_timeType, dateTimeString=simulationStartTime)
          call mpas_get_timeInterval(xtime_timeType - simulationStartTime_timeType,dt=daysSinceStartOfSim)
          daysSinceStartOfSim = daysSinceStartOfSim*days_per_second
+
+         call mpas_pool_get_array(diagnosticsPool, 'Time',Time)
+         Time = daysSinceStartOfSim
 
          block => block % next
       end do
