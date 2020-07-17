@@ -175,17 +175,47 @@ module sw_time_integration
         block => block % next
      end do
 
+     ! Fourth-order Runge-Kutta, solving dy/dt = f(t,y) is typically written as follows
+     ! dt is the large time step.  Here f(t,y) is the right hand side,
+     ! called the tendencies in the code below.
+     ! k_1 = f(t_n       , y_n)
+     ! k_2 = f(t_n + dt/2, y_n + dt/2 k_1)
+     ! k_3 = f(t_n + dt/2, y_n + dt/2 k_2)
+     ! k_4 = f(t_n + dt  , y_n + dt   k_3)
+     ! y_{n+1} = y_n + dt( 1/6 k_1 + 1/3 k_2 + 1/3 k_3 + 1/6 k_4 )
 
+     ! in index notation:
+     ! k_{j+1} = f(t_n + a_j dt, y_n + a_j dt k_j)
+     ! y_{n+1} = y_n + dt sum ( b_j k_j )
+
+     ! The algorithm here uses a provisional set of the state variables, yp,
+     ! to hold y_n + a_j dt k_j. The RK4 algorithm is then
+
+     ! yp = y_n                           prep provisional
+     ! y_{n+1} = y_n                      prep new solution
+     ! do j = 1,4
+     !    k_j = f(yp)                     compute tendencies
+     !    if j<4
+     !       yp = y_n + a_j*dt*k_j        compute provisional solution
+     !    endif
+     !    y_{n+1} = y_{n+1} + b_j*dt*k_j  accumulate final solution
+     ! enddo
+
+     ! The tendency weights in the accumulated final solution are 
+     ! b_j = (1/6, 1/3, 1/3, 1/6) and are initialized here as dt * b_j:
      rk_weights(1) = dt/6.
      rk_weights(2) = dt/3.
      rk_weights(3) = dt/3.
      rk_weights(4) = dt/6.
 
+     ! The fractional timestep weights are typically written a_j = (0, 1/2, 1/2, 1).
+     ! However, in the algorithm below we pre-compute the state for the tendency one
+     ! iteration early, so it is
+     ! a = (1/2, 1/2, 1)
      rk_substep_weights(1) = dt/2.
      rk_substep_weights(2) = dt/2.
      rk_substep_weights(3) = dt
-     rk_substep_weights(4) = 0.
-
+     rk_substep_weights(4) = 0. ! This coefficient is not used.
 
      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 
      ! BEGIN RK loop 
@@ -201,6 +231,8 @@ module sw_time_integration
         end if
 
 ! --- compute tendencies
+       ! In RK4 notation, we are computing the right hand side f(t,y),
+       ! which is the same as k_j / h.
 
        block => domain % blocklist
        do while (associated(block))
@@ -221,6 +253,7 @@ module sw_time_integration
        call mpas_dmpar_field_halo_exch(domain, 'tend_tracers')
 
 ! --- compute next substep state
+        ! In RK4 notation, we are computing y_n + a_j k_j.
 
        if (rk_step < 4) then
           block => domain % blocklist
@@ -263,6 +296,10 @@ module sw_time_integration
        end if
 
 !--- accumulate update (for RK4)
+        ! In RK4 notation, we are computing b_j k_j and adding it to an accumulating sum 
+        ! so that we have
+        !    y_{n+1} = y_n + sum ( b_j k_j )
+        ! after the fourth iteration.
 
        block => domain % blocklist
        do while (associated(block))
