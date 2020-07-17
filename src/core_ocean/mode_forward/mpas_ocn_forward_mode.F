@@ -123,6 +123,8 @@ module ocn_forward_mode
       character (len=StrKIND), pointer :: xtime, simulationStartTime
       real (kind=RKIND), pointer :: daysSinceStartOfSim
       real (kind=RKIND), pointer :: Time
+      type (field0DReal), pointer :: TimeField    ! to add units
+      character (len=StrKIND) :: units    ! units for Time
       type (MPAS_Time_type) :: xtime_timeType, simulationStartTime_timeType
       type (MPAS_Time_Type) :: startTime, alarmTime
       type (MPAS_TimeInterval_type) :: timeStep
@@ -353,6 +355,10 @@ module ocn_forward_mode
 
          call mpas_pool_get_array(diagnosticsPool, 'Time',Time)
          Time = daysSinceStartOfSim
+
+         write(units, '(a10,a20)')          'days since', simulationStartTime(1:10)//" "//simulationStartTime(12:19)
+         call mpas_pool_get_Field(diagnosticsPool, 'Time', TimeField)
+         call mpas_add_att(TimeField % attLists(1) % attList, 'units', units)
 
          block => block % next
       end do
