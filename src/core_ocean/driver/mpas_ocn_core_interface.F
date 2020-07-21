@@ -122,6 +122,7 @@ module ocn_core_interface
       logical, pointer :: frazilIceActive
       logical, pointer :: tidalForcingActive
       logical, pointer :: tidalPotentialForcingPKGActive
+      logical, pointer :: vegetationDragPKGActive
       logical, pointer :: inSituEOSActive
       logical, pointer :: variableShortwaveActive
       logical, pointer :: gmActive
@@ -151,6 +152,7 @@ module ocn_core_interface
       logical, pointer :: config_use_frazil_ice_formation
       logical, pointer :: config_use_tidal_forcing
       logical, pointer :: config_use_tidal_potential_forcing
+      logical, pointer :: config_use_vegetation_drag
       logical, pointer :: config_use_standardGM
       logical, pointer :: config_use_time_varying_atmospheric_forcing
       logical, pointer :: config_use_time_varying_land_ice_forcing
@@ -306,6 +308,14 @@ module ocn_core_interface
          tidalPotentialForcingPKGActive = .true.
       end if
 
+      !
+      ! test for use of vegetation drag, vegetationDragPKGActive
+      !
+      call mpas_pool_get_package(packagePool, 'vegetationDragPKGActive', vegetationDragPKGActive)
+      call mpas_pool_get_config(configPool, 'config_use_vegetation_drag', config_use_vegetation_drag)
+      if (config_use_vegetation_drag) then
+         vegetationDragPKGActive = .true.
+      end if
       !
       ! test for form of pressure gradient computation
       !
