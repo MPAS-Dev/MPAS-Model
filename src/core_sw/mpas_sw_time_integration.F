@@ -194,21 +194,28 @@ module sw_time_integration
      ! yp = y_n                           prep provisional
      ! y_{n+1} = y_n                      prep new solution
      ! do j = 1,4
-     !    k_j = f(yp)                     compute tendencies
+     !    halo_exch(some diagnostics)
+     !    tp = t_n + a_j*dt               provisional time
+     !    k_j = f(tp,yp)                  compute tendencies
+     !    halo_exch(k_j)                  update tendencies halo
      !    if j<4
-     !       yp = y_n + a_j*dt*k_j        compute provisional solution
+     !       yp = y_n + a_{j+1}*dt*k_j    compute provisional for next stage
      !    endif
+     !    compute diagnostics based on yp
      !    y_{n+1} = y_{n+1} + b_j*dt*k_j  accumulate final solution
      ! enddo
+     ! compute diagnostics based on y_{n+1}
 
-     ! The tendency weights in the accumulated final solution are 
-     ! b_j = (1/6, 1/3, 1/3, 1/6) and are initialized here as dt * b_j:
+     ! Final solution weights
+     !    b_j = (1/6, 1/3, 1/3, 1/6)
+     ! and are initialized here as dt * b_j:
      rk_weights(1) = dt/6.
      rk_weights(2) = dt/3.
      rk_weights(3) = dt/3.
      rk_weights(4) = dt/6.
 
-     ! The fractional timestep weights are typically written a_j = (0, 1/2, 1/2, 1).
+     ! Provisional solution weights for each stage are typically written
+     !    a_j = (0, 1/2, 1/2, 1).
      ! However, in the algorithm below we pre-compute the state for the tendency one
      ! iteration early, so it is
      ! a = (1/2, 1/2, 1)
@@ -282,6 +289,13 @@ module sw_time_integration
              hProvis(:,:) = hOld(:,:) + rk_substep_weights(rk_step) * hTend(:,:)
              do iCell = 1, nCells
                 do k = 1, nVertLevels
+                   ! The tracer timestep is applied to T*h, but we are only
+                   ! solving for the tracer T here, so we divide by the
+                   ! thickness.
+                   ! Tp = ( h_n*T_n + a_k * dt * tend ) / hp
+                   ! Tp*hp = h_n*T_n + a_k * dt * tend 
+                   ! Note that tracersTend has units of tracer*thickness/time,
+                   ! and here tracersProvis has units of just tracer.
                    tracersProvis(:,k,iCell) = ( hOld(k,iCell) * tracersOld(:,k,iCell)  &
                                    + rk_substep_weights(rk_step) * tracersTend(:,k,iCell) &
                                               ) / hProvis(k,iCell)
@@ -296,7 +310,7 @@ module sw_time_integration
        end if
 
 !--- accumulate update (for RK4)
-        ! In RK4 notation, we are computing b_j k_j and adding it to an accumulating sum 
+        ! In RK4 notation, we are computing b_j k_j and adding it to an accumulating sum
         ! so that we have
         !    y_{n+1} = y_n + sum ( b_j k_j )
         ! after the fourth iteration.
@@ -326,6 +340,10 @@ module sw_time_integration
           hNew(:,:) = hNew(:,:) + rk_weights(rk_step) * hTend(:,:) 
           do iCell = 1, nCells
              do k = 1, nVertLevels
+                ! Here, tracersNew is actually the thickness-weighted tracer,
+                ! T*h. We accumulate the final tracer sum here as T*h, and then
+                ! divide out the h below. Note that the tracer tendency has
+                ! units of tracer*thickness/time.
                 tracersNew(:,k,iCell) = tracersNew(:,k,iCell) + rk_weights(rk_step) * tracersTend(:,k,iCell)
              end do
           end do
