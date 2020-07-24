@@ -4,7 +4,7 @@
 	<add_link source="../init/graph.info" dest="graph.info"/>
 	<add_link source="../init/atmospheric_forcing.nc" dest="atmospheric_forcing.nc"/>
 	<add_link source="../init/points.nc" dest="points.nc"/>
-	<add_link source="../init/forcing.nc" dest="forcing.nc"/>
+	<add_link source="../init/vegetationInfo_Delaware.nc" dest="forcing.nc"/>
 
 	<namelist name="namelist.ocean" mode="forward">
 		<template file="forward_template.xml" path_base="script_configuration_dir"/>
@@ -26,7 +26,7 @@
 	<streams name="streams.ocean" keep="immutable" mode="forward">
 		<template file="forward_template.xml" path_base="script_configuration_dir"/>
 		<template file="forward_wetting_drying_template.xml" path_base="script_configuration_dir"/>
-		<template file="forward_variable_drag.xml" path_base="script_configuration_dir"/>
+		<template file="forward_vegetation_drag.xml" path_base="script_configuration_dir"/>
 		<template file="maxwaterlevel_template.xml" path_base="script_configuration_dir"/>
 	</streams>
 
