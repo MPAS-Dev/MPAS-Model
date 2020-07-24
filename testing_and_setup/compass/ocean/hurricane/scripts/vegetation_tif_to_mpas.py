@@ -97,10 +97,10 @@ def plot_interp_data(lon_data,lat_data,data,lon_grid,lat_grid,interp_data,tri):
     cbar = fig.colorbar(cf,ax=ax[0])
 
     # plot interpolated data
-    lon_max = np.max(lon_grid) + 5.0
-    lon_min = np.min(lon_grid) - 5.0
-    lat_max = np.max(lat_grid) + 5.0
-    lat_min = np.min(lat_grid) - 5.0
+    lon_max = np.max(lon_data) + 5.0
+    lon_min = np.min(lon_data) - 5.0
+    lat_max = np.max(lat_data) + 5.0
+    lat_min = np.min(lat_data) - 5.0
     levels = np.linspace(np.amin(interp_data),np.amax(interp_data),10)
     cf = ax[1].tricontourf(tri, interp_data, levels=levels)
     ax[1].set_xlim([lon_min,lon_max])
