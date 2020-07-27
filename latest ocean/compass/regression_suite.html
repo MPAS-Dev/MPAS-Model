@@ -1,0 +1,307 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>regression_suite &mdash; MPAS-Model latest ocean documentation</title>
+  
+
+  
+  <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+
+  
+  
+  
+  
+
+  
+  <!--[if lt IE 9]>
+    <script src="../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+        <script src="../_static/jquery.js"></script>
+        <script src="../_static/underscore.js"></script>
+        <script src="../_static/doctools.js"></script>
+        <script src="../_static/language_data.js"></script>
+    
+    <script type="text/javascript" src="../_static/js/theme.js"></script>
+
+    
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="run_config" href="run_config.html" />
+    <link rel="prev" title="template" href="template.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="../index.html" class="icon icon-home" alt="Documentation Home"> MPAS-Model
+          
+
+          
+          </a>
+
+          
+            
+            
+              <div class="version">
+                latest ocean
+              </div>
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">COMPASS</a><ul class="current">
+<li class="toctree-l2 current"><a class="reference internal" href="details.html">Details</a><ul class="current">
+<li class="toctree-l3"><a class="reference internal" href="config.html">config</a></li>
+<li class="toctree-l3"><a class="reference internal" href="driver_script.html">driver_script</a></li>
+<li class="toctree-l3"><a class="reference internal" href="template.html">template</a></li>
+<li class="toctree-l3 current"><a class="current reference internal" href="#">regression_suite</a></li>
+<li class="toctree-l3"><a class="reference internal" href="run_config.html">run_config</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="scripts.html">Scripts</a></li>
+<li class="toctree-l2"><a class="reference internal" href="ocean.html">COMPASS for ocean test case</a></li>
+<li class="toctree-l2"><a class="reference internal" href="ocean_testcases/index.html">Ocean Test Cases</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../ocean/index.html">MPAS-Ocean</a></li>
+</ul>
+
+            
+          
+        </div>
+        
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">MPAS-Model</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../index.html" class="icon icon-home"></a> &raquo;</li>
+        
+          <li><a href="index.html">COMPASS</a> &raquo;</li>
+        
+          <li><a href="details.html">Details</a> &raquo;</li>
+        
+      <li>regression_suite</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+            
+            <a href="../_sources/compass/regression_suite.rst.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="regression-suite">
+<span id="compass-regression-suite"></span><h1>regression_suite<a class="headerlink" href="#regression-suite" title="Permalink to this headline">¶</a></h1>
+<p>A <code class="docutils literal notranslate"><span class="pre">regression_suite</span></code> file is used to define a regression suite, which
+involves a set of tests that should be run. This file contains information
+describing a set of tests that should be setup and run as part of a regression
+test suite.</p>
+<p>Below, you will see text describing the various XML tags available in a
+<code class="docutils literal notranslate"><span class="pre">regression_suite</span></code> file. Each will describe the tag itself, any attributes the
+tag can have, and what children can be placed below the tag.</p>
+<p><code class="docutils literal notranslate"><span class="pre">&lt;regression_suite&gt;</span></code> - This is the overarching parent tag in a <code class="docutils literal notranslate"><span class="pre">regression_suite</span></code>
+file. It defines the suite that will be setup</p>
+<blockquote>
+<div><ul class="simple">
+<li><dl class="simple">
+<dt>Attributes:</dt><dd><ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">name</span></code>: This attribute defines the name of the regression suite. A
+script will be generated named <code class="docutils literal notranslate"><span class="pre">&lt;name&gt;.py</span></code> that will run the entire
+regression suite in the location the regression suite is setup (i.e.
+<code class="docutils literal notranslate"><span class="pre">work_dir</span></code>)</p></li>
+</ul>
+</dd>
+</dl>
+</li>
+<li><dl class="simple">
+<dt>Children:</dt><dd><ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">&lt;test&gt;</span></code></p></li>
+</ul>
+</dd>
+</dl>
+</li>
+</ul>
+</div></blockquote>
+<p><code class="docutils literal notranslate"><span class="pre">&lt;test&gt;</span></code> - This tag defines a test that will be included as part of the
+regression suite.</p>
+<blockquote>
+<div><ul class="simple">
+<li><dl class="simple">
+<dt>Attributes:</dt><dd><ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">name</span></code>: This attribute defines the name of the test as part of this
+regression suite. NOTE: This name is only used in this
+regression suite, so multiple suites can name the same test in
+different ways.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">core</span></code>: This attribute defines the core that would be passed to
+<code class="docutils literal notranslate"><span class="pre">setup_testcases.py</span></code> to setup this test.</p></li>
+<li><p>configuration: This attribute defines the configuration that would be passed to
+<code class="docutils literal notranslate"><span class="pre">setup_testcases.py</span></code> to setup this test.</p></li>
+<li><p>resolution: This attribute defines the resolution that would be passed to
+<code class="docutils literal notranslate"><span class="pre">setup_testcases.py</span></code> to setup this test.</p></li>
+</ul>
+</dd>
+</dl>
+</li>
+<li><dl class="simple">
+<dt>Children:</dt><dd><ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">&lt;script&gt;</span></code></p></li>
+</ul>
+</dd>
+</dl>
+</li>
+</ul>
+</div></blockquote>
+<p><code class="docutils literal notranslate"><span class="pre">&lt;script&gt;</span></code> - This tag defines a script that will be run to perform the
+specified test.</p>
+<blockquote>
+<div><ul class="simple">
+<li><dl class="simple">
+<dt>Attributes:</dt><dd><ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">name</span></code>: This attribute defines the name of the script that will be run
+to perform the specified test. Typically this is a driver script.</p></li>
+</ul>
+</dd>
+</dl>
+</li>
+</ul>
+</div></blockquote>
+</div>
+
+
+           </div>
+           
+          </div>
+          <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+        <a href="run_config.html" class="btn btn-neutral float-right" title="run_config" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
+      
+      
+        <a href="template.html" class="btn btn-neutral float-left" title="template" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+      
+    </div>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        
+        &copy; Copyright Copyright (c) 2013-2020,  Los Alamos National Security, LLC (LANS) (Ocean: LA-CC-13-047;Land Ice: LA-CC-13-117) and the University Corporation for Atmospheric Research (UCAR).
+
+    </p>
+  </div>
+    
+    
+    
+    Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a
+    
+    <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a>
+    
+    provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>
