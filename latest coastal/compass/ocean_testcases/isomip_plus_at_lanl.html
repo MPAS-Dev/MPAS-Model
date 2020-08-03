@@ -1,0 +1,775 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>Instructions for setting up and running ISOMIP+ Ocean0 on LANL IC &mdash; MPAS-Model latest coastal documentation</title>
+  
+
+  
+  <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+
+  
+  
+  
+  
+
+  
+  <!--[if lt IE 9]>
+    <script src="../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="../../" src="../../_static/documentation_options.js"></script>
+        <script src="../../_static/jquery.js"></script>
+        <script src="../../_static/underscore.js"></script>
+        <script src="../../_static/doctools.js"></script>
+        <script src="../../_static/language_data.js"></script>
+    
+    <script type="text/javascript" src="../../_static/js/theme.js"></script>
+
+    
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+    <link rel="next" title="MPAS-Ocean" href="../../ocean/index.html" />
+    <link rel="prev" title="ISOMIP+" href="isomip_plus.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="../../index.html" class="icon icon-home" alt="Documentation Home"> MPAS-Model
+          
+
+          
+          </a>
+
+          
+            
+            
+              <div class="version">
+                latest coastal
+              </div>
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="../index.html">COMPASS</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="../details.html">Details</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../scripts.html">Scripts</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../ocean.html">COMPASS for ocean test case</a></li>
+<li class="toctree-l2 current"><a class="reference internal" href="index.html">Ocean Test Cases</a><ul class="current">
+<li class="toctree-l3"><a class="reference internal" href="global_ocean.html">Global Ocean</a></li>
+<li class="toctree-l3"><a class="reference internal" href="baroclinic_channel.html">Baroclinic Channel</a></li>
+<li class="toctree-l3 current"><a class="reference internal" href="isomip_plus.html">ISOMIP+</a><ul class="current">
+<li class="toctree-l4 current"><a class="current reference internal" href="#">Instructions for setting up and running ISOMIP+ Ocean0 on LANL IC</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../ocean/index.html">MPAS-Ocean</a></li>
+</ul>
+
+            
+          
+        </div>
+        
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">MPAS-Model</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../../index.html" class="icon icon-home"></a> &raquo;</li>
+        
+          <li><a href="../index.html">COMPASS</a> &raquo;</li>
+        
+          <li><a href="index.html">Ocean Test Cases</a> &raquo;</li>
+        
+          <li><a href="isomip_plus.html">ISOMIP+</a> &raquo;</li>
+        
+      <li>Instructions for setting up and running ISOMIP+ Ocean0 on LANL IC</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+            
+            <a href="../../_sources/compass/ocean_testcases/isomip_plus_at_lanl.rst.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="instructions-for-setting-up-and-running-isomip-ocean0-on-lanl-ic">
+<span id="compass-ocean-isomip-plus-at-lanl"></span><h1>Instructions for setting up and running ISOMIP+ Ocean0 on LANL IC<a class="headerlink" href="#instructions-for-setting-up-and-running-isomip-ocean0-on-lanl-ic" title="Permalink to this headline">¶</a></h1>
+<p>In what follows, replace <code class="docutils literal notranslate"><span class="pre">username</span></code> with your user name.</p>
+<div class="section" id="ssh-tricks">
+<h2>1. SSH tricks<a class="headerlink" href="#ssh-tricks" title="Permalink to this headline">¶</a></h2>
+<p>A couple of tricks for your laptop if you’re not already using them:
+Save your SSH connections:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>vim ~/.ssh/config
+</pre></div>
+</div>
+<p>Add the following:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">Host</span> <span class="o">*</span>
+    <span class="n">ControlMaster</span> <span class="n">auto</span>
+    <span class="n">ControlPath</span> <span class="o">~/.</span><span class="n">ssh</span><span class="o">/</span><span class="n">connections</span><span class="o">/%</span><span class="n">r</span><span class="o">@%</span><span class="n">h</span><span class="p">:</span><span class="o">%</span><span class="n">p</span>
+    <span class="n">ServerAliveInterval</span> <span class="mi">300</span>
+
+<span class="n">Host</span> <span class="n">wtrw</span>
+    <span class="n">Hostname</span> <span class="n">wtrw</span><span class="o">.</span><span class="n">lanl</span><span class="o">.</span><span class="n">gov</span>
+    <span class="n">User</span> <span class="n">username</span>
+</pre></div>
+</div>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>mkdir ~/.ssh/connections
+</pre></div>
+</div>
+<p>Alias connections to LANL HPC machines:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>vim ~/.bashrc
+</pre></div>
+</div>
+<p>Add:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nb">alias</span> <span class="nv">gr</span><span class="o">=</span><span class="s2">&quot;ssh -t wtrw ssh gr-fe1&quot;</span>
+<span class="nb">alias</span> <span class="nv">ba</span><span class="o">=</span><span class="s2">&quot;ssh -t wtrw ssh ba-fe2&quot;</span>
+<span class="nb">alias</span> <span class="nv">ko</span><span class="o">=</span><span class="s2">&quot;ssh -t wtrw ssh ko-fe&quot;</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="making-sure-git-is-set-up-nicely">
+<h2>2. Making sure git is set up nicely<a class="headerlink" href="#making-sure-git-is-set-up-nicely" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="storing-your-lanl-ic-ssh-key-on-github">
+<h3>2.1 Storing your LANL IC SSH key on GitHub<a class="headerlink" href="#storing-your-lanl-ic-ssh-key-on-github" title="Permalink to this headline">¶</a></h3>
+<p>It’s useful to set up GitHub to know your public SSH key from LANL IC if you
+haven’t already done this.  It means you don’t have to type your password for
+GitHub each time you git fetch, git push, etc.</p>
+<p>I believe this is the right link for
+<a class="reference external" href="https://help.github.com/en/articles/generating-a-new-ssh-key-and-adding-it-to-the-ssh-agent">more details</a>
+If you haven’t done this already and this gives you trouble, let me know and we
+can work through it together.</p>
+</div>
+<div class="section" id="git-settings">
+<h3>2.2 git settings<a class="headerlink" href="#git-settings" title="Permalink to this headline">¶</a></h3>
+<p>On IC or on your laptop, make sure you’ve got these settings defined:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>git config --global user.name <span class="s2">&quot;First Last&quot;</span>
+git config --global user.email user@domain.com
+git config --global core.editor vim
+git config --global push.default nothing
+git config --global color.ui <span class="nb">true</span>
+git config --global core.autocrlf input
+git config --global core.whitespace trailing-space
+git config --global alias.logg <span class="s2">&quot;log --graph --oneline --decorate&quot;</span>
+</pre></div>
+</div>
+<p>I use <code class="docutils literal notranslate"><span class="pre">git</span> <span class="pre">logg</span></code> all the time so this last alias is particularly important.</p>
+</div>
+<div class="section" id="git-tab-completion">
+<h3>2.3 git tab completion<a class="headerlink" href="#git-tab-completion" title="Permalink to this headline">¶</a></h3>
+<p>Download <a class="reference external" href="https://raw.githubusercontent.com/git/git/master/contrib/completion/git-completion.bash">git-completion.bash</a></p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nb">cd</span> ~
+wget https://raw.githubusercontent.com/git/git/master/contrib/completion/git-completion.bash
+</pre></div>
+</div>
+<p>Add this to your .bashrc</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">module</span> <span class="n">load</span> <span class="n">git</span>
+<span class="n">source</span> <span class="n">git</span><span class="o">-</span><span class="n">completion</span><span class="o">.</span><span class="n">bash</span>
+</pre></div>
+</div>
+</div>
+</div>
+<div class="section" id="forking-and-cloning-mpas-model">
+<h2>3. Forking and Cloning MPAS-Model<a class="headerlink" href="#forking-and-cloning-mpas-model" title="Permalink to this headline">¶</a></h2>
+<ul class="simple">
+<li><p>Go to: <a class="reference external" href="https://github.com/MPAS-Dev/MPAS-Model">https://github.com/MPAS-Dev/MPAS-Model</a></p></li>
+<li><p>Make your own fork by clicking “Fork” at the top right:</p></li>
+<li><p>Go to your new fork (e.g. <a class="reference external" href="https://github.com/username/MPAS-Model">https://github.com/username/MPAS-Model</a> )</p></li>
+<li><p>Whenever you ever need to know the link to clone your fork</p>
+<ul>
+<li><p>Click on “Clone or download”</p></li>
+<li><p>If it says “Clone with HTTPS”, click Use SSH (either works but SSH will use
+the SSH keys you’ve set up above and you never have to type my Git
+password.)</p></li>
+<li><p>Copy the link with the clipboard icon</p></li>
+</ul>
+</li>
+</ul>
+<p>In a terminal window, log in to a LANL machine (I use Grizzly from here on
+except where stated):</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>ssh -t wtrw ssh gr-fe1
+</pre></div>
+</div>
+<p>Make a directory for the code, e.g.:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>mkdir /usr/projects/climate/username
+<span class="nb">cd</span> /usr/projects/climate/username
+mkdir -p mpas/model
+<span class="nb">cd</span> mpas/model/
+</pre></div>
+</div>
+<p>Clone the repo:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>git clone git@github.com:username/MPAS-Model.git repo
+<span class="nb">cd</span> repo
+</pre></div>
+</div>
+<p>Rename your remote so it’s easier to not confuse it with other forks:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>git remote rename origin username/MPAS-Model
+</pre></div>
+</div>
+<p>Add the main repo:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>git remote add MPAS-Dev/MPAS-Model git@github.com:MPAS-Dev/MPAS-Model.git
+</pre></div>
+</div>
+<p>Add my fork (you can add other people’s forks in the same way):</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>git remote add xylar/MPAS-Model git@github.com:xylar/MPAS-Model.git
+</pre></div>
+</div>
+<p>Get the latest version of all the remotes (pruning anything that has been
+deleted):</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>git fetch --all -p
+</pre></div>
+</div>
+<p>Let’s store some settings you’ll need to load every time you build MPAS.  The following
+are only appropriate for Grizzly and we’ll need a similar file with settings for
+Badge and any other machines we might use in the future.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>vim ../setup_gr.bash
+</pre></div>
+</div>
+<p>In this file, put:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nb">echo</span> <span class="s2">&quot;Setting up grizzly intel environment for building and running MPAS&quot;</span>
+module purge
+module load git
+<span class="nb">source</span> /usr/projects/climate/SHARED_CLIMATE/anaconda_envs/base/etc/profile.d/conda.sh
+conda activate compass_py3.7
+module use /usr/projects/climate/SHARED_CLIMATE/modulefiles/all/
+module load intel/17.0.1 openmpi/1.10.5 netcdf/4.4.1 parallel-netcdf/1.5.0 pio/1.7.2
+<span class="nb">export</span> <span class="nv">CORE</span><span class="o">=</span>ocean
+</pre></div>
+</div>
+</div>
+<div class="section" id="checking-out-an-mpas-branch-and-building-the-model">
+<h2>4. Checking out an MPAS branch and building the model<a class="headerlink" href="#checking-out-an-mpas-branch-and-building-the-model" title="Permalink to this headline">¶</a></h2>
+<p><strong>Note: this is a good place to come back to when you need to start over on
+a new branch.</strong></p>
+<p>Add a “worktree”, a copy of the repo that we can point to a different branch.
+We will work with my branch <code class="docutils literal notranslate"><span class="pre">ocean/update_isomip_plus_viz</span></code>, where I have added some
+new viz tools.  This is based off of the latest <code class="docutils literal notranslate"><span class="pre">ocean/develop</span></code>. In general,
+<code class="docutils literal notranslate"><span class="pre">ocean/develop</span></code> is the place to start, since the <code class="docutils literal notranslate"><span class="pre">master</span></code>  branch is updated only
+rarely when we make releases:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nb">cd</span> /usr/projects/climate/username/mpas/model/reop
+</pre></div>
+</div>
+<p>Let’s make sure we have the latest version of all the branches on all of the remotes</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>git fetch --all -p
+</pre></div>
+</div>
+<p>Okay, now we’re ready to make a new folder to work from.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>git worktree add ../ocean/update_isomip_plus_viz -b ocean/update_isomip_plus_viz
+<span class="nb">cd</span> ../ocean/update_isomip_plus_viz
+</pre></div>
+</div>
+<p>Take a look at which branch were on:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">git</span> <span class="n">logg</span>
+</pre></div>
+</div>
+<p>We don’t start off on <code class="docutils literal notranslate"><span class="pre">MPAS-Dev/MPAS-Model/ocean/update_isomip_plus_viz</span></code> (even though
+the name of the local branch might trick you into thinking you’re there), so we need
+to do a hard reset to put us there:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>git reset --hard xylar/MPAS-Model/ocean/update_isomip_plus_viz
+git logg
+</pre></div>
+</div>
+<p>Now source the file with modules and settings for building MPAS on grizzly:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nb">source</span> ../../setup_gr.bash
+</pre></div>
+</div>
+<p>If all goes well, you should see <code class="docutils literal notranslate"><span class="pre">comapss_py3.7</span></code> as part of your command prompt and you should be read to build MPAS.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>make ifort
+</pre></div>
+</div>
+<p>Take a coffee break, this will take some time.
+…</p>
+</div>
+<div class="section" id="setting-up-a-test-case">
+<h2>5. Setting up a test case<a class="headerlink" href="#setting-up-a-test-case" title="Permalink to this headline">¶</a></h2>
+<p>Okay you’re back and refreshed?  Let’s set up a test case.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nb">cd</span> testing_and_setup/compass/
+</pre></div>
+</div>
+<p>COMPASS (COnfiguration of Model for Prediction Across Scales Setups – yes, a litle tortured) is a set of python
+scripts we use to set up and run our test cases.  To build test cases, you need to tell COMPASS where to find a few
+thing on Grizzly.  Open a file <code class="docutils literal notranslate"><span class="pre">config.ocean</span></code> and put the following in it:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="c1"># This file is the ocean core&#39;s configuration file. It is specific to the ocean</span>
+<span class="c1"># core, and a specific machine. Each machine will configure this file</span>
+<span class="c1"># differently, but it can be used to point on version of the testing</span>
+<span class="c1"># infrastructure at a different version of the model.</span>
+
+
+<span class="c1"># The namelists section defines paths to template namelists that will be used</span>
+<span class="c1"># to generate specific namelists. Typically these will point to the forward and</span>
+<span class="c1"># init namelists in the default_inputs directory after a successful build of</span>
+<span class="c1"># the ocean model.</span>
+<span class="p">[</span><span class="n">namelists</span><span class="p">]</span>
+<span class="n">forward</span> <span class="o">=</span> <span class="o">/</span><span class="n">usr</span><span class="o">/</span><span class="n">projects</span><span class="o">/</span><span class="n">climate</span><span class="o">/</span><span class="n">username</span><span class="o">/</span><span class="n">mpas</span><span class="o">/</span><span class="n">model</span><span class="o">/</span><span class="n">ocean</span><span class="o">/</span><span class="n">update_isomip_plus_viz</span><span class="o">/</span><span class="n">namelist</span><span class="o">.</span><span class="n">ocean</span><span class="o">.</span><span class="n">forward</span>
+<span class="n">init</span> <span class="o">=</span> <span class="o">/</span><span class="n">usr</span><span class="o">/</span><span class="n">projects</span><span class="o">/</span><span class="n">climate</span><span class="o">/</span><span class="n">username</span><span class="o">/</span><span class="n">mpas</span><span class="o">/</span><span class="n">model</span><span class="o">/</span><span class="n">ocean</span><span class="o">/</span><span class="n">update_isomip_plus_viz</span><span class="o">/</span><span class="n">namelist</span><span class="o">.</span><span class="n">ocean</span><span class="o">.</span><span class="n">init</span>
+
+
+<span class="c1"># The streams section defines paths to template streams files that will be used</span>
+<span class="c1"># to generate specific streams files. Typically these will point to the forward and</span>
+<span class="c1"># init streams files in the default_inputs directory after a successful build of</span>
+<span class="c1"># the ocean model.</span>
+<span class="p">[</span><span class="n">streams</span><span class="p">]</span>
+<span class="n">forward</span> <span class="o">=</span> <span class="o">/</span><span class="n">usr</span><span class="o">/</span><span class="n">projects</span><span class="o">/</span><span class="n">climate</span><span class="o">/</span><span class="n">username</span><span class="o">/</span><span class="n">mpas</span><span class="o">/</span><span class="n">model</span><span class="o">/</span><span class="n">ocean</span><span class="o">/</span><span class="n">update_isomip_plus_viz</span><span class="o">/</span><span class="n">streams</span><span class="o">.</span><span class="n">ocean</span><span class="o">.</span><span class="n">forward</span>
+<span class="n">init</span> <span class="o">=</span> <span class="o">/</span><span class="n">usr</span><span class="o">/</span><span class="n">projects</span><span class="o">/</span><span class="n">climate</span><span class="o">/</span><span class="n">username</span><span class="o">/</span><span class="n">mpas</span><span class="o">/</span><span class="n">model</span><span class="o">/</span><span class="n">ocean</span><span class="o">/</span><span class="n">update_isomip_plus_viz</span><span class="o">/</span><span class="n">streams</span><span class="o">.</span><span class="n">ocean</span><span class="o">.</span><span class="n">init</span>
+
+
+<span class="c1"># The executables section defines paths to required executables. These</span>
+<span class="c1"># executables are provided for use by specific test cases.</span>
+<span class="c1"># Full paths should be provided in order to access the executables from</span>
+<span class="c1"># anywhere on the machine.</span>
+<span class="p">[</span><span class="n">executables</span><span class="p">]</span>
+<span class="n">model</span> <span class="o">=</span> <span class="o">/</span><span class="n">usr</span><span class="o">/</span><span class="n">projects</span><span class="o">/</span><span class="n">climate</span><span class="o">/</span><span class="n">username</span><span class="o">/</span><span class="n">mpas</span><span class="o">/</span><span class="n">model</span><span class="o">/</span><span class="n">ocean</span><span class="o">/</span><span class="n">update_isomip_plus_viz</span><span class="o">/</span><span class="n">ocean_model</span>
+
+
+<span class="c1"># The paths section describes paths that are used within the ocean core test</span>
+<span class="c1"># cases.</span>
+<span class="p">[</span><span class="n">paths</span><span class="p">]</span>
+
+<span class="c1"># The mesh_database and the initial_condition_database are locations where</span>
+<span class="c1"># meshes / initial conditions might be found on a specific machine. They can be</span>
+<span class="c1"># the same directory, or different directory. Additionally, if they are empty</span>
+<span class="c1"># some test cases might download data into them, which will then be reused if</span>
+<span class="c1"># the test case is run again later.</span>
+<span class="n">mpas_model</span> <span class="o">=</span> <span class="o">/</span><span class="n">usr</span><span class="o">/</span><span class="n">projects</span><span class="o">/</span><span class="n">climate</span><span class="o">/</span><span class="n">username</span><span class="o">/</span><span class="n">mpas</span><span class="o">/</span><span class="n">model</span><span class="o">/</span><span class="n">ocean</span><span class="o">/</span><span class="n">update_isomip_plus_viz</span>
+<span class="n">mesh_database</span> <span class="o">=</span> <span class="o">/</span><span class="n">usr</span><span class="o">/</span><span class="n">projects</span><span class="o">/</span><span class="n">regionalclimate</span><span class="o">/</span><span class="n">COMMON_MPAS</span><span class="o">/</span><span class="n">ocean</span><span class="o">/</span><span class="n">grids</span><span class="o">/</span><span class="n">mesh_database</span>
+<span class="n">initial_condition_database</span> <span class="o">=</span> <span class="o">/</span><span class="n">usr</span><span class="o">/</span><span class="n">projects</span><span class="o">/</span><span class="n">regionalclimate</span><span class="o">/</span><span class="n">COMMON_MPAS</span><span class="o">/</span><span class="n">ocean</span><span class="o">/</span><span class="n">grids</span><span class="o">/</span><span class="n">initial_condition_database</span>
+<span class="n">bathymetry_database</span> <span class="o">=</span> <span class="o">/</span><span class="n">usr</span><span class="o">/</span><span class="n">projects</span><span class="o">/</span><span class="n">regionalclimate</span><span class="o">/</span><span class="n">COMMON_MPAS</span><span class="o">/</span><span class="n">ocean</span><span class="o">/</span><span class="n">grids</span><span class="o">/</span><span class="n">bathymetry_database</span>
+</pre></div>
+</div>
+<p>In theory, you can point to default namelists, streams files and executables for other branches than
+the one you’re currently on but that’s very rarely (if ever) going to be useful to you so you’ll
+just have to bear with all these redundant references to</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="o">/</span><span class="n">usr</span><span class="o">/</span><span class="n">projects</span><span class="o">/</span><span class="n">climate</span><span class="o">/</span><span class="n">username</span><span class="o">/</span><span class="n">mpas</span><span class="o">/</span><span class="n">model</span><span class="o">/</span><span class="n">ocean</span><span class="o">/</span><span class="n">update_isomip_plus_viz</span>
+</pre></div>
+</div>
+<p>If you want to set up a worktree for a different branch, the <code class="docutils literal notranslate"><span class="pre">config.ocean</span></code> looks the same except
+that you would need to replace the above path with the one for your new worktree.</p>
+<p>List the available test cases:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>./list_testcases.py
+</pre></div>
+</div>
+<p>At present, there are 107 of them!  Let’s look at only the ISOMIP+ ones (component: <code class="docutils literal notranslate"><span class="pre">ocean</span></code>, case: <code class="docutils literal notranslate"><span class="pre">isomip_plus</span></code>):</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>./list_testcases.py -o ocean -c isomip_plus
+</pre></div>
+</div>
+<p>There are 2 resolutions (2 km and 5 km) and 3 test cases at each resolution (Ocean0, 1 and 2).  For now, we’re
+going to focus on Ocean0, which has boundary conditions and ocean properties consistent with a (very) warm
+continental shelf.  This one spins up to a quasi-steady state in about 2 years (compared to several decades
+for the other 2, which are purposefully designed as transient experiments) so it’s a good starting point.
+We’ll use the 2 km version because the domain is only 80 km wide, so 5 km is really quite coarse.  Plus, this
+is the “standard” resolution for ISOMIP+.</p>
+<p>Set up the test case as follows:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>./setup_testcase.py -o ocean -c isomip_plus -r 2km -t Ocean0 -f config.ocean -m runtime_definitions/srun.xml --work_dir /lustre/scratch4/turquoise/username/isomip_plus_Ocean0
+</pre></div>
+</div>
+</div>
+<div class="section" id="running-the-test-case">
+<h2>6. Running the test case<a class="headerlink" href="#running-the-test-case" title="Permalink to this headline">¶</a></h2>
+<p>We’ll do a short test run (1 month) to make sure everything is working, rathere than jumping into a 2-year simulation.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nb">cd</span> /lustre/scratch4/turquoise/username/isomip_plus_Ocean0/ocean/isomip_plus/2km/Ocean0/
+salloc --nodes<span class="o">=</span><span class="m">1</span> --time<span class="o">=</span><span class="m">0</span>:20:00 --account<span class="o">=</span>e3sm
+
+module purge
+<span class="nb">source</span> /usr/projects/climate/SHARED_CLIMATE/anaconda_envs/base/etc/profile.d/conda.sh
+conda activate compass_py3.7
+module use /usr/projects/climate/SHARED_CLIMATE/modulefiles/all/
+module load intel/17.0.1 openmpi/1.10.5 netcdf/4.4.1 parallel-netcdf/1.5.0 pio/1.7.2
+
+./run_test.py
+</pre></div>
+</div>
+<p>If you don’t have access to the <code class="docutils literal notranslate"><span class="pre">e3sm</span></code> account, ask Steve or Mark for help to get acces.  Somewhere on the
+HPC website, there is a way to ask for access, but they may just be able to add you directly.</p>
+</div>
+<div class="section" id="running-a-full-2-year-ocean0-simulation">
+<h2>7. Running a full 2-year Ocean0 simulation<a class="headerlink" href="#running-a-full-2-year-ocean0-simulation" title="Permalink to this headline">¶</a></h2>
+<p>For this one, you should use a job script.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">cd</span> <span class="o">/</span><span class="n">lustre</span><span class="o">/</span><span class="n">scratch4</span><span class="o">/</span><span class="n">turquoise</span><span class="o">/</span><span class="n">username</span><span class="o">/</span><span class="n">isomip_plus_Ocean0</span><span class="o">/</span><span class="n">ocean</span><span class="o">/</span><span class="n">isomip_plus</span><span class="o">/</span><span class="mi">2</span><span class="n">km</span><span class="o">/</span><span class="n">Ocean0</span><span class="o">/</span><span class="n">forward</span>
+<span class="n">vim</span> <span class="n">job_script</span><span class="o">.</span><span class="n">bash</span>
+</pre></div>
+</div>
+<p>Put this in the job script:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>#!/bin/bash
+#SBATCH --nodes=4
+#SBATCH --time=4:00:00
+#SBATCH --account=e3sm
+#SBATCH --job-name=Ocean0
+#SBATCH --output=Ocean0.o%j
+#SBATCH --error=Ocean0.e%j
+#SBATCH --qos=interactive
+
+# exit if there are any errors
+set -e
+
+module purge
+source /usr/projects/climate/SHARED_CLIMATE/anaconda_envs/base/etc/profile.d/conda.sh
+conda activate compass_py3.7
+module use /usr/projects/climate/SHARED_CLIMATE/modulefiles/all/
+module load intel/17.0.1 openmpi/1.10.5 netcdf/4.4.1 parallel-netcdf/1.5.0 pio/1.7.2
+
+months_per_job=24
+end_date=&quot;0003-01-01_00:00:00&quot;
+
+for month in `seq 0 $months_per_job`
+do
+    ./check_progress.py -f namelist.ocean -e $end_date
+    ./run.py
+    ./setup_restart.py -f namelist.ocean
+done
+</pre></div>
+</div>
+<p>Submit the job:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">sbatch</span> <span class="n">job_script</span><span class="o">.</span><span class="n">bash</span>
+</pre></div>
+</div>
+<p>Once it’s running, monitor the progress with:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">tail</span> <span class="n">log</span><span class="o">.</span><span class="n">ocean</span><span class="o">.</span><span class="mf">0000.</span><span class="n">out</span>
+</pre></div>
+</div>
+<p>This writes a message for each time step (if all is going well).</p>
+<p>The simulation runs one month at a time and then does some adjustment in a python script to make sure sea level doesn’t
+get out of control (there’s a lot of melting going on so we have to have a compensating level of “evaporation” at the
+domain boundary).  It also will check to see if we’ve already reached year 2 and won’t run again if so.</p>
+<p>Some basic output is available in:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">analysis_members</span><span class="o">/</span><span class="n">globalStats</span><span class="o">.</span><span class="mi">0001</span><span class="o">-</span><span class="mi">01</span><span class="o">-</span><span class="mf">01_00.00</span><span class="o">.</span><span class="mf">00.</span><span class="n">nc</span>
+</pre></div>
+</div>
+<p>To see the mean melt flux and how time is progressing there, do:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">ncdump</span> <span class="o">-</span><span class="n">v</span> <span class="n">xtime</span><span class="p">,</span><span class="n">landIceFreshwaterFluxAvg</span> <span class="n">analysis_members</span><span class="o">/</span><span class="n">globalStats</span><span class="o">.</span><span class="mi">0001</span><span class="o">-</span><span class="mi">01</span><span class="o">-</span><span class="mf">01_00.00</span><span class="o">.</span><span class="mf">00.</span><span class="n">nc</span> <span class="o">|</span> <span class="n">tail</span> <span class="o">-</span><span class="n">n</span> <span class="mi">50</span>
+</pre></div>
+</div>
+<p>Keep in mind that the units are <code class="docutils literal notranslate"><span class="pre">kg</span> <span class="pre">m^{-2}</span> <span class="pre">s^{-1}</span></code>, not m/yr, so not the most intuitive output.  There are
+some pretty outdated viz scripts in the <code class="docutils literal notranslate"><span class="pre">viz</span></code> directory linked there, but these might at least provide some
+starting guidelines for how to do python viz.  You can also look at output in paraview.  I’ll clean things
+up and add instructions for viz in the near future as I have time.</p>
+</div>
+<div class="section" id="visualization">
+<h2>8. Visualization<a class="headerlink" href="#visualization" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="running-the-default-viz">
+<h3>8.1 Running the default viz<a class="headerlink" href="#running-the-default-viz" title="Permalink to this headline">¶</a></h3>
+<p>Viz should be light enough weight that you can run it on the login node but you could get an interactive job if you prefer.
+It produces images, rather than anything interactive, so no need for x-windows or anything like that.</p>
+<p>There should be a link to <code class="docutils literal notranslate"><span class="pre">viz</span></code> in the <code class="docutils literal notranslate"><span class="pre">forward</span></code> output directory.  This is a link to a python package (you can tell because
+it contains a <code class="docutils literal notranslate"><span class="pre">__init__.py</span></code> (which is empty) and a <code class="docutils literal notranslate"><span class="pre">__main__.py</span></code>, which is the main script for visualization.  To start
+with, we’ll run the default viz.  If you don’t already have the compass conda environment loaded, do:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nb">source</span> /usr/projects/climate/SHARED_CLIMATE/anaconda_envs/base/etc/profile.d/conda.sh
+conda activate compass_py3.7
+</pre></div>
+</div>
+<p>Then, run:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>python -m viz
+</pre></div>
+</div>
+<p>This will run the <code class="docutils literal notranslate"><span class="pre">main()</span></code> function in <code class="docutils literal notranslate"><span class="pre">__main__.py</span></code>.  You could optionally set the input directory and the experiment
+number but the defaults are the current directory and <code class="docutils literal notranslate"><span class="pre">Ocean0</span></code>, respectively, so there’s no need in this case.
+This will take maybe 10 or 15 minutes (most of it on the overturning streamfunction).  You should see something like:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">barotropic</span> <span class="n">streamfunction</span><span class="p">:</span> <span class="mi">100</span><span class="o">%</span> <span class="o">|</span><span class="c1">##############################| Time:  0:00:15</span>
+<span class="n">compute</span> <span class="ow">and</span> <span class="n">caching</span> <span class="n">transport</span> <span class="n">on</span> <span class="n">MPAS</span> <span class="n">grid</span><span class="p">:</span>
+<span class="p">[</span><span class="c1">########################################] | 100% Completed |  7.2s</span>
+<span class="n">interpolating</span> <span class="n">tansport</span> <span class="n">on</span> <span class="n">z</span><span class="o">-</span><span class="n">level</span> <span class="n">grid</span><span class="p">:</span> <span class="mi">100</span><span class="o">%</span> <span class="o">|</span><span class="c1">#################| Time:  0:10:13</span>
+<span class="n">caching</span> <span class="n">transport</span> <span class="n">on</span> <span class="n">z</span><span class="o">-</span><span class="n">level</span> <span class="n">grid</span><span class="p">:</span>
+<span class="p">[</span><span class="c1">########################################] | 100% Completed |  2.2s</span>
+<span class="n">compute</span> <span class="ow">and</span> <span class="n">caching</span> <span class="n">vertical</span> <span class="n">transport</span> <span class="nb">sum</span> <span class="n">on</span> <span class="n">z</span><span class="o">-</span><span class="n">level</span> <span class="n">grid</span><span class="p">:</span>
+<span class="p">[</span><span class="c1">########################################] | 100% Completed |  2.4s</span>
+<span class="nb">bin</span> <span class="n">overturning</span> <span class="n">streamfunction</span><span class="p">:</span> <span class="mi">100</span><span class="o">%</span> <span class="o">|</span><span class="c1">#########################| Time:  0:02:03</span>
+<span class="n">plotting</span> <span class="n">barotropic</span> <span class="n">streamfunction</span><span class="p">:</span> <span class="mi">100</span><span class="o">%</span> <span class="o">|</span><span class="c1">#####################| Time:  0:00:08</span>
+<span class="n">plotting</span> <span class="n">overturning</span> <span class="n">streamfunction</span><span class="p">:</span> <span class="mi">100</span><span class="o">%</span> <span class="o">|</span><span class="c1">####################| Time:  0:00:05</span>
+<span class="n">plotting</span> <span class="n">melt</span> <span class="n">rate</span><span class="p">:</span> <span class="mi">100</span><span class="o">%</span> <span class="o">|</span><span class="c1">#####################################| Time:  0:00:07</span>
+<span class="n">plotting</span> <span class="n">heat</span> <span class="n">flux</span> <span class="kn">from</span> <span class="nn">ocean</span> <span class="n">to</span> <span class="n">ice</span><span class="o">-</span><span class="n">ocean</span> <span class="n">interface</span><span class="p">:</span> <span class="mi">100</span><span class="o">%</span> <span class="o">|</span><span class="c1">###| Time:  0:00:07</span>
+<span class="n">plotting</span> <span class="n">heat</span> <span class="n">flux</span> <span class="n">into</span> <span class="n">ice</span> <span class="n">at</span> <span class="n">ice</span><span class="o">-</span><span class="n">ocean</span> <span class="n">interface</span><span class="p">:</span> <span class="mi">100</span><span class="o">%</span> <span class="o">|</span><span class="c1">#####| Time:  0:00:07</span>
+<span class="n">plotting</span> <span class="n">thermal</span> <span class="n">driving</span><span class="p">:</span> <span class="mi">100</span><span class="o">%</span> <span class="o">|</span><span class="c1">###############################| Time:  0:00:07</span>
+<span class="n">plotting</span> <span class="n">haline</span> <span class="n">driving</span><span class="p">:</span> <span class="mi">100</span><span class="o">%</span> <span class="o">|</span><span class="c1">################################| Time:  0:00:07</span>
+<span class="n">plotting</span> <span class="n">friction</span> <span class="n">velocity</span><span class="p">:</span> <span class="mi">100</span><span class="o">%</span> <span class="o">|</span><span class="c1">#############################| Time:  0:00:08</span>
+<span class="n">plotting</span> <span class="n">top</span> <span class="n">temperature</span><span class="p">:</span> <span class="mi">100</span><span class="o">%</span> <span class="o">|</span><span class="c1">###############################| Time:  0:00:09</span>
+<span class="n">plotting</span> <span class="n">bot</span> <span class="n">temperature</span><span class="p">:</span> <span class="mi">100</span><span class="o">%</span> <span class="o">|</span><span class="c1">###############################| Time:  0:00:08</span>
+<span class="n">plotting</span> <span class="n">temperature</span> <span class="n">section</span><span class="p">:</span> <span class="mi">100</span><span class="o">%</span> <span class="o">|</span><span class="c1">###########################| Time:  0:00:05</span>
+<span class="n">plotting</span> <span class="n">top</span> <span class="n">salinity</span><span class="p">:</span> <span class="mi">100</span><span class="o">%</span> <span class="o">|</span><span class="c1">##################################| Time:  0:00:08</span>
+<span class="n">plotting</span> <span class="n">bot</span> <span class="n">salinity</span><span class="p">:</span> <span class="mi">100</span><span class="o">%</span> <span class="o">|</span><span class="c1">##################################| Time:  0:00:08</span>
+<span class="n">plotting</span> <span class="n">salinity</span> <span class="n">section</span><span class="p">:</span> <span class="mi">100</span><span class="o">%</span> <span class="o">|</span><span class="c1">##############################| Time:  0:00:05</span>
+<span class="n">plotting</span> <span class="n">top</span> <span class="n">potential</span> <span class="n">density</span><span class="p">:</span> <span class="mi">100</span><span class="o">%</span> <span class="o">|</span><span class="c1">#########################| Time:  0:00:10</span>
+<span class="n">plotting</span> <span class="n">bot</span> <span class="n">potential</span> <span class="n">density</span><span class="p">:</span> <span class="mi">100</span><span class="o">%</span> <span class="o">|</span><span class="c1">#########################| Time:  0:00:08</span>
+<span class="n">plotting</span> <span class="n">potential</span> <span class="n">density</span> <span class="n">section</span><span class="p">:</span> <span class="mi">100</span><span class="o">%</span> <span class="o">|</span><span class="c1">#####################| Time:  0:00:05</span>
+<span class="n">running</span> <span class="n">ffmpeg</span> <span class="o">-</span><span class="n">y</span> <span class="o">-</span><span class="n">r</span> <span class="mi">30</span> <span class="o">-</span><span class="n">i</span> <span class="o">./</span><span class="n">plots</span><span class="o">/</span><span class="n">botPotRho</span><span class="o">/</span><span class="n">botPotRho_</span><span class="o">%</span><span class="mi">04</span><span class="n">d</span><span class="o">.</span><span class="n">png</span> <span class="o">-</span><span class="n">b</span><span class="p">:</span><span class="n">v</span> <span class="mi">32000</span><span class="n">k</span> <span class="o">-</span><span class="n">r</span> <span class="mi">30</span> <span class="o">./</span><span class="n">movies</span><span class="o">/</span><span class="n">botPotRho</span><span class="o">.</span><span class="n">mp4</span>
+<span class="n">running</span> <span class="n">ffmpeg</span> <span class="o">-</span><span class="n">y</span> <span class="o">-</span><span class="n">r</span> <span class="mi">30</span> <span class="o">-</span><span class="n">i</span> <span class="o">./</span><span class="n">plots</span><span class="o">/</span><span class="n">botSalinity</span><span class="o">/</span><span class="n">botSalinity_</span><span class="o">%</span><span class="mi">04</span><span class="n">d</span><span class="o">.</span><span class="n">png</span> <span class="o">-</span><span class="n">b</span><span class="p">:</span><span class="n">v</span> <span class="mi">32000</span><span class="n">k</span> <span class="o">-</span><span class="n">r</span> <span class="mi">30</span> <span class="o">./</span><span class="n">movies</span><span class="o">/</span><span class="n">botSalinity</span><span class="o">.</span><span class="n">mp4</span>
+<span class="n">running</span> <span class="n">ffmpeg</span> <span class="o">-</span><span class="n">y</span> <span class="o">-</span><span class="n">r</span> <span class="mi">30</span> <span class="o">-</span><span class="n">i</span> <span class="o">./</span><span class="n">plots</span><span class="o">/</span><span class="n">botTemp</span><span class="o">/</span><span class="n">botTemp_</span><span class="o">%</span><span class="mi">04</span><span class="n">d</span><span class="o">.</span><span class="n">png</span> <span class="o">-</span><span class="n">b</span><span class="p">:</span><span class="n">v</span> <span class="mi">32000</span><span class="n">k</span> <span class="o">-</span><span class="n">r</span> <span class="mi">30</span> <span class="o">./</span><span class="n">movies</span><span class="o">/</span><span class="n">botTemp</span><span class="o">.</span><span class="n">mp4</span>
+<span class="n">running</span> <span class="n">ffmpeg</span> <span class="o">-</span><span class="n">y</span> <span class="o">-</span><span class="n">r</span> <span class="mi">30</span> <span class="o">-</span><span class="n">i</span> <span class="o">./</span><span class="n">plots</span><span class="o">/</span><span class="n">bsf</span><span class="o">/</span><span class="n">bsf_</span><span class="o">%</span><span class="mi">04</span><span class="n">d</span><span class="o">.</span><span class="n">png</span> <span class="o">-</span><span class="n">b</span><span class="p">:</span><span class="n">v</span> <span class="mi">32000</span><span class="n">k</span> <span class="o">-</span><span class="n">r</span> <span class="mi">30</span> <span class="o">./</span><span class="n">movies</span><span class="o">/</span><span class="n">bsf</span><span class="o">.</span><span class="n">mp4</span>
+<span class="n">running</span> <span class="n">ffmpeg</span> <span class="o">-</span><span class="n">y</span> <span class="o">-</span><span class="n">r</span> <span class="mi">30</span> <span class="o">-</span><span class="n">i</span> <span class="o">./</span><span class="n">plots</span><span class="o">/</span><span class="n">frictionVelocity</span><span class="o">/</span><span class="n">frictionVelocity_</span><span class="o">%</span><span class="mi">04</span><span class="n">d</span><span class="o">.</span><span class="n">png</span> <span class="o">-</span><span class="n">b</span><span class="p">:</span><span class="n">v</span> <span class="mi">32000</span><span class="n">k</span> <span class="o">-</span><span class="n">r</span> <span class="mi">30</span> <span class="o">./</span><span class="n">movies</span><span class="o">/</span><span class="n">frictionVelocity</span><span class="o">.</span><span class="n">mp4</span>
+<span class="n">running</span> <span class="n">ffmpeg</span> <span class="o">-</span><span class="n">y</span> <span class="o">-</span><span class="n">r</span> <span class="mi">30</span> <span class="o">-</span><span class="n">i</span> <span class="o">./</span><span class="n">plots</span><span class="o">/</span><span class="n">halineDriving</span><span class="o">/</span><span class="n">halineDriving_</span><span class="o">%</span><span class="mi">04</span><span class="n">d</span><span class="o">.</span><span class="n">png</span> <span class="o">-</span><span class="n">b</span><span class="p">:</span><span class="n">v</span> <span class="mi">32000</span><span class="n">k</span> <span class="o">-</span><span class="n">r</span> <span class="mi">30</span> <span class="o">./</span><span class="n">movies</span><span class="o">/</span><span class="n">halineDriving</span><span class="o">.</span><span class="n">mp4</span>
+<span class="n">running</span> <span class="n">ffmpeg</span> <span class="o">-</span><span class="n">y</span> <span class="o">-</span><span class="n">r</span> <span class="mi">30</span> <span class="o">-</span><span class="n">i</span> <span class="o">./</span><span class="n">plots</span><span class="o">/</span><span class="n">iceHeatFlux</span><span class="o">/</span><span class="n">iceHeatFlux_</span><span class="o">%</span><span class="mi">04</span><span class="n">d</span><span class="o">.</span><span class="n">png</span> <span class="o">-</span><span class="n">b</span><span class="p">:</span><span class="n">v</span> <span class="mi">32000</span><span class="n">k</span> <span class="o">-</span><span class="n">r</span> <span class="mi">30</span> <span class="o">./</span><span class="n">movies</span><span class="o">/</span><span class="n">iceHeatFlux</span><span class="o">.</span><span class="n">mp4</span>
+<span class="n">running</span> <span class="n">ffmpeg</span> <span class="o">-</span><span class="n">y</span> <span class="o">-</span><span class="n">r</span> <span class="mi">30</span> <span class="o">-</span><span class="n">i</span> <span class="o">./</span><span class="n">plots</span><span class="o">/</span><span class="n">meltRate</span><span class="o">/</span><span class="n">meltRate_</span><span class="o">%</span><span class="mi">04</span><span class="n">d</span><span class="o">.</span><span class="n">png</span> <span class="o">-</span><span class="n">b</span><span class="p">:</span><span class="n">v</span> <span class="mi">32000</span><span class="n">k</span> <span class="o">-</span><span class="n">r</span> <span class="mi">30</span> <span class="o">./</span><span class="n">movies</span><span class="o">/</span><span class="n">meltRate</span><span class="o">.</span><span class="n">mp4</span>
+<span class="n">running</span> <span class="n">ffmpeg</span> <span class="o">-</span><span class="n">y</span> <span class="o">-</span><span class="n">r</span> <span class="mi">30</span> <span class="o">-</span><span class="n">i</span> <span class="o">./</span><span class="n">plots</span><span class="o">/</span><span class="n">oceanHeatFlux</span><span class="o">/</span><span class="n">oceanHeatFlux_</span><span class="o">%</span><span class="mi">04</span><span class="n">d</span><span class="o">.</span><span class="n">png</span> <span class="o">-</span><span class="n">b</span><span class="p">:</span><span class="n">v</span> <span class="mi">32000</span><span class="n">k</span> <span class="o">-</span><span class="n">r</span> <span class="mi">30</span> <span class="o">./</span><span class="n">movies</span><span class="o">/</span><span class="n">oceanHeatFlux</span><span class="o">.</span><span class="n">mp4</span>
+<span class="n">running</span> <span class="n">ffmpeg</span> <span class="o">-</span><span class="n">y</span> <span class="o">-</span><span class="n">r</span> <span class="mi">30</span> <span class="o">-</span><span class="n">i</span> <span class="o">./</span><span class="n">plots</span><span class="o">/</span><span class="n">osf</span><span class="o">/</span><span class="n">osf_</span><span class="o">%</span><span class="mi">04</span><span class="n">d</span><span class="o">.</span><span class="n">png</span> <span class="o">-</span><span class="n">b</span><span class="p">:</span><span class="n">v</span> <span class="mi">32000</span><span class="n">k</span> <span class="o">-</span><span class="n">r</span> <span class="mi">30</span> <span class="o">./</span><span class="n">movies</span><span class="o">/</span><span class="n">osf</span><span class="o">.</span><span class="n">mp4</span>
+<span class="n">running</span> <span class="n">ffmpeg</span> <span class="o">-</span><span class="n">y</span> <span class="o">-</span><span class="n">r</span> <span class="mi">30</span> <span class="o">-</span><span class="n">i</span> <span class="o">./</span><span class="n">plots</span><span class="o">/</span><span class="n">sectionPotRho</span><span class="o">/</span><span class="n">sectionPotRho_</span><span class="o">%</span><span class="mi">04</span><span class="n">d</span><span class="o">.</span><span class="n">png</span> <span class="o">-</span><span class="n">b</span><span class="p">:</span><span class="n">v</span> <span class="mi">32000</span><span class="n">k</span> <span class="o">-</span><span class="n">r</span> <span class="mi">30</span> <span class="o">./</span><span class="n">movies</span><span class="o">/</span><span class="n">sectionPotRho</span><span class="o">.</span><span class="n">mp4</span>
+<span class="n">running</span> <span class="n">ffmpeg</span> <span class="o">-</span><span class="n">y</span> <span class="o">-</span><span class="n">r</span> <span class="mi">30</span> <span class="o">-</span><span class="n">i</span> <span class="o">./</span><span class="n">plots</span><span class="o">/</span><span class="n">sectionSalinity</span><span class="o">/</span><span class="n">sectionSalinity_</span><span class="o">%</span><span class="mi">04</span><span class="n">d</span><span class="o">.</span><span class="n">png</span> <span class="o">-</span><span class="n">b</span><span class="p">:</span><span class="n">v</span> <span class="mi">32000</span><span class="n">k</span> <span class="o">-</span><span class="n">r</span> <span class="mi">30</span> <span class="o">./</span><span class="n">movies</span><span class="o">/</span><span class="n">sectionSalinity</span><span class="o">.</span><span class="n">mp4</span>
+<span class="n">running</span> <span class="n">ffmpeg</span> <span class="o">-</span><span class="n">y</span> <span class="o">-</span><span class="n">r</span> <span class="mi">30</span> <span class="o">-</span><span class="n">i</span> <span class="o">./</span><span class="n">plots</span><span class="o">/</span><span class="n">sectionTemp</span><span class="o">/</span><span class="n">sectionTemp_</span><span class="o">%</span><span class="mi">04</span><span class="n">d</span><span class="o">.</span><span class="n">png</span> <span class="o">-</span><span class="n">b</span><span class="p">:</span><span class="n">v</span> <span class="mi">32000</span><span class="n">k</span> <span class="o">-</span><span class="n">r</span> <span class="mi">30</span> <span class="o">./</span><span class="n">movies</span><span class="o">/</span><span class="n">sectionTemp</span><span class="o">.</span><span class="n">mp4</span>
+<span class="n">running</span> <span class="n">ffmpeg</span> <span class="o">-</span><span class="n">y</span> <span class="o">-</span><span class="n">r</span> <span class="mi">30</span> <span class="o">-</span><span class="n">i</span> <span class="o">./</span><span class="n">plots</span><span class="o">/</span><span class="n">thermalDriving</span><span class="o">/</span><span class="n">thermalDriving_</span><span class="o">%</span><span class="mi">04</span><span class="n">d</span><span class="o">.</span><span class="n">png</span> <span class="o">-</span><span class="n">b</span><span class="p">:</span><span class="n">v</span> <span class="mi">32000</span><span class="n">k</span> <span class="o">-</span><span class="n">r</span> <span class="mi">30</span> <span class="o">./</span><span class="n">movies</span><span class="o">/</span><span class="n">thermalDriving</span><span class="o">.</span><span class="n">mp4</span>
+<span class="n">running</span> <span class="n">ffmpeg</span> <span class="o">-</span><span class="n">y</span> <span class="o">-</span><span class="n">r</span> <span class="mi">30</span> <span class="o">-</span><span class="n">i</span> <span class="o">./</span><span class="n">plots</span><span class="o">/</span><span class="n">topPotRho</span><span class="o">/</span><span class="n">topPotRho_</span><span class="o">%</span><span class="mi">04</span><span class="n">d</span><span class="o">.</span><span class="n">png</span> <span class="o">-</span><span class="n">b</span><span class="p">:</span><span class="n">v</span> <span class="mi">32000</span><span class="n">k</span> <span class="o">-</span><span class="n">r</span> <span class="mi">30</span> <span class="o">./</span><span class="n">movies</span><span class="o">/</span><span class="n">topPotRho</span><span class="o">.</span><span class="n">mp4</span>
+<span class="n">running</span> <span class="n">ffmpeg</span> <span class="o">-</span><span class="n">y</span> <span class="o">-</span><span class="n">r</span> <span class="mi">30</span> <span class="o">-</span><span class="n">i</span> <span class="o">./</span><span class="n">plots</span><span class="o">/</span><span class="n">topSalinity</span><span class="o">/</span><span class="n">topSalinity_</span><span class="o">%</span><span class="mi">04</span><span class="n">d</span><span class="o">.</span><span class="n">png</span> <span class="o">-</span><span class="n">b</span><span class="p">:</span><span class="n">v</span> <span class="mi">32000</span><span class="n">k</span> <span class="o">-</span><span class="n">r</span> <span class="mi">30</span> <span class="o">./</span><span class="n">movies</span><span class="o">/</span><span class="n">topSalinity</span><span class="o">.</span><span class="n">mp4</span>
+<span class="n">running</span> <span class="n">ffmpeg</span> <span class="o">-</span><span class="n">y</span> <span class="o">-</span><span class="n">r</span> <span class="mi">30</span> <span class="o">-</span><span class="n">i</span> <span class="o">./</span><span class="n">plots</span><span class="o">/</span><span class="n">topTemp</span><span class="o">/</span><span class="n">topTemp_</span><span class="o">%</span><span class="mi">04</span><span class="n">d</span><span class="o">.</span><span class="n">png</span> <span class="o">-</span><span class="n">b</span><span class="p">:</span><span class="n">v</span> <span class="mi">32000</span><span class="n">k</span> <span class="o">-</span><span class="n">r</span> <span class="mi">30</span> <span class="o">./</span><span class="n">movies</span><span class="o">/</span><span class="n">topTemp</span><span class="o">.</span><span class="n">mp4</span>
+</pre></div>
+</div>
+<p>The more interesting results should be a series of movies in <code class="docutils literal notranslate"><span class="pre">movies</span></code> and 4 time series plots in <code class="docutils literal notranslate"><span class="pre">plots</span></code>
+(mean melt rate, total melt flux, mean thermal driving and mean friction velocity) and the same plots in
+<code class="docutils literal notranslate"><span class="pre">timeSeriesBelow300m</span></code>, but this time averaged only over the deepest part of the ice shelf (where much of the action is).</p>
+<p>You’ll likely need to scp or rsync them to your laptop to view them.  Let me know if it’s not clear what these are.</p>
+</div>
+<div class="section" id="doing-your-own-viz">
+<h3>8.2 Doing your own viz<a class="headerlink" href="#doing-your-own-viz" title="Permalink to this headline">¶</a></h3>
+<p>A starting point for doing your own viz is to make a local copy of <code class="docutils literal notranslate"><span class="pre">__main__.py</span></code> to edit:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>cp viz/__main__.py myviz.py
+vim myviz.py
+</pre></div>
+</div>
+<p>You could, for example, take out the slow streamfunction stuff if you don’t need that (it was added because I required it
+as standard output in MISOMIP).</p>
+<p>The script imports the following</p>
+<div class="highlight-py notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">viz.streamfunction</span> <span class="kn">import</span> <span class="n">compute_barotropic_streamfunction</span><span class="p">,</span> \
+    <span class="n">compute_overturning_streamfunction</span>
+</pre></div>
+</div>
+<p>These are functions for computing the stream functions and writing them to NetCDF files.</p>
+<div class="highlight-py notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">viz.plot</span> <span class="kn">import</span> <span class="n">MoviePlotter</span><span class="p">,</span> <span class="n">TimeSeriesPlotter</span>
+</pre></div>
+</div>
+<p>These can be used to create “plotter” object that can then produce either time-series plots or a series of image for making movies.</p>
+<div class="highlight-py notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">viz.misomip</span> <span class="kn">import</span> <span class="n">compute_misomip_interp_coeffs</span><span class="p">,</span> <span class="n">interp_misomip</span>
+</pre></div>
+</div>
+<p>These are used to write out MISOMIP standard output on a regular grid.</p>
+<p>You can look at <code class="docutils literal notranslate"><span class="pre">streamfunction.py</span></code>, <code class="docutils literal notranslate"><span class="pre">plot.py</span></code> and <code class="docutils literal notranslate"><span class="pre">misomip.py</span></code> to learn a bit more about what these do.  There’s a bit
+of commenting, particularly for the “public” functions that don’t start with an underscore.</p>
+<p>Maybe simplify it down to eliminate the streamfunction and MISOMIP stuff, and don’t worry about the plots averaged over
+the deeper part of the ice draft (none of this is probably all that relevant to you):</p>
+<div class="highlight-py notranslate"><div class="highlight"><pre><span></span><span class="ch">#!/usr/bin/env python</span>
+
+<span class="kn">import</span> <span class="nn">xarray</span>
+<span class="kn">import</span> <span class="nn">argparse</span>
+
+<span class="kn">from</span> <span class="nn">viz.plot</span> <span class="kn">import</span> <span class="n">MoviePlotter</span><span class="p">,</span> <span class="n">TimeSeriesPlotter</span>
+
+<span class="k">def</span> <span class="nf">main</span><span class="p">():</span>
+    <span class="n">parser</span> <span class="o">=</span> <span class="n">argparse</span><span class="o">.</span><span class="n">ArgumentParser</span><span class="p">(</span>
+        <span class="n">description</span><span class="o">=</span><span class="vm">__doc__</span><span class="p">,</span> <span class="n">formatter_class</span><span class="o">=</span><span class="n">argparse</span><span class="o">.</span><span class="n">RawTextHelpFormatter</span><span class="p">)</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s2">&quot;-f&quot;</span><span class="p">,</span> <span class="s2">&quot;--folder&quot;</span><span class="p">,</span> <span class="n">dest</span><span class="o">=</span><span class="s2">&quot;folder&quot;</span><span class="p">,</span>
+                        <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Folder for plots&quot;</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="s1">&#39;.&#39;</span><span class="p">)</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s2">&quot;-e&quot;</span><span class="p">,</span> <span class="s2">&quot;--expt&quot;</span><span class="p">,</span> <span class="n">dest</span><span class="o">=</span><span class="s2">&quot;expt&quot;</span><span class="p">,</span>
+                        <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Experiment number (0, 1 or 2)&quot;</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+    <span class="n">args</span> <span class="o">=</span> <span class="n">parser</span><span class="o">.</span><span class="n">parse_args</span><span class="p">()</span>
+
+    <span class="n">folder</span> <span class="o">=</span> <span class="n">args</span><span class="o">.</span><span class="n">folder</span>
+    <span class="n">expt</span> <span class="o">=</span> <span class="n">args</span><span class="o">.</span><span class="n">expt</span>
+
+    <span class="n">dsMesh</span> <span class="o">=</span> <span class="n">xarray</span><span class="o">.</span><span class="n">open_dataset</span><span class="p">(</span><span class="s1">&#39;</span><span class="si">{}</span><span class="s1">/init.nc&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">folder</span><span class="p">))</span>
+
+    <span class="n">ds</span> <span class="o">=</span> <span class="n">xarray</span><span class="o">.</span><span class="n">open_mfdataset</span><span class="p">(</span><span class="s1">&#39;</span><span class="si">{}</span><span class="s1">/timeSeriesStatsMonthly*.nc&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">folder</span><span class="p">),</span>
+                               <span class="n">concat_dim</span><span class="o">=</span><span class="s1">&#39;Time&#39;</span><span class="p">)</span>
+
+    <span class="n">tsPlotter</span> <span class="o">=</span> <span class="n">TimeSeriesPlotter</span><span class="p">(</span><span class="n">inFolder</span><span class="o">=</span><span class="n">folder</span><span class="p">,</span>
+                                  <span class="n">outFolder</span><span class="o">=</span><span class="s1">&#39;</span><span class="si">{}</span><span class="s1">/plots&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">folder</span><span class="p">),</span>
+                                  <span class="n">expt</span><span class="o">=</span><span class="n">expt</span><span class="p">)</span>
+    <span class="n">tsPlotter</span><span class="o">.</span><span class="n">plot_melt_time_series</span><span class="p">()</span>
+
+    <span class="n">mPlotter</span> <span class="o">=</span> <span class="n">MoviePlotter</span><span class="p">(</span><span class="n">inFolder</span><span class="o">=</span><span class="n">folder</span><span class="p">,</span>
+                           <span class="n">outFolder</span><span class="o">=</span><span class="s1">&#39;</span><span class="si">{}</span><span class="s1">/plots&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">folder</span><span class="p">),</span>
+                           <span class="n">expt</span><span class="o">=</span><span class="n">expt</span><span class="p">)</span>
+
+    <span class="n">mPlotter</span><span class="o">.</span><span class="n">plot_melt_rates</span><span class="p">()</span>
+    <span class="n">mPlotter</span><span class="o">.</span><span class="n">plot_ice_shelf_boundary_variables</span><span class="p">()</span>
+    <span class="n">mPlotter</span><span class="o">.</span><span class="n">plot_temperature</span><span class="p">()</span>
+    <span class="n">mPlotter</span><span class="o">.</span><span class="n">plot_salinity</span><span class="p">()</span>
+    <span class="n">mPlotter</span><span class="o">.</span><span class="n">plot_potential_density</span><span class="p">()</span>
+
+    <span class="n">mPlotter</span><span class="o">.</span><span class="n">images_to_movies</span><span class="p">(</span><span class="n">outFolder</span><span class="o">=</span><span class="s1">&#39;</span><span class="si">{}</span><span class="s1">/movies&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">folder</span><span class="p">),</span>
+                              <span class="n">framesPerSecond</span><span class="o">=</span><span class="mi">30</span><span class="p">,</span> <span class="n">extension</span><span class="o">=</span><span class="s1">&#39;mp4&#39;</span><span class="p">)</span>
+
+<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s1">&#39;__main__&#39;</span><span class="p">:</span>
+    <span class="n">main</span><span class="p">()</span>
+</pre></div>
+</div>
+<p>I’ve set things up to plot some of the more common fields by default.  The following plot either time series or
+movies of some common fields related to the ice-ocean interface – melt rates, thermal driving, friction velocity,
+etc.</p>
+<div class="highlight-py notranslate"><div class="highlight"><pre><span></span><span class="n">tsPlotter</span><span class="o">.</span><span class="n">plot_melt_time_series</span><span class="p">()</span>
+<span class="o">...</span>
+<span class="n">mPlotter</span><span class="o">.</span><span class="n">plot_melt_rates</span><span class="p">()</span>
+<span class="n">mPlotter</span><span class="o">.</span><span class="n">plot_ice_shelf_boundary_variables</span><span class="p">()</span>
+</pre></div>
+</div>
+<p>These functions plot 3D fields at the top of the ocean (either the ice draft or the sea surace), the sea floor
+and in a transect through the middle of the domain:</p>
+<div class="highlight-py notranslate"><div class="highlight"><pre><span></span><span class="n">mPlotter</span><span class="o">.</span><span class="n">plot_temperature</span><span class="p">()</span>
+<span class="n">mPlotter</span><span class="o">.</span><span class="n">plot_salinity</span><span class="p">()</span>
+<span class="n">mPlotter</span><span class="o">.</span><span class="n">plot_potential_density</span><span class="p">()</span>
+</pre></div>
+</div>
+<p>You could also add your own custom fields as long as they’re available in the <code class="docutils literal notranslate"><span class="pre">timeSeriesStatsMonthly*.nc</span></code> files.</p>
+<p>Here are a couple of examples:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>    <span class="c1"># plot a time series of SST</span>
+    <span class="n">areaCell</span> <span class="o">=</span> <span class="n">tsPlotter</span><span class="o">.</span><span class="n">dsMesh</span><span class="o">.</span><span class="n">areaCell</span>
+    <span class="n">temperature</span> <span class="o">=</span> <span class="n">tsPlotter</span><span class="o">.</span><span class="n">ds</span><span class="o">.</span><span class="n">timeMonthly_avg_activeTracers_temperature</span>
+    <span class="n">sst</span> <span class="o">=</span> <span class="n">temperature</span><span class="o">.</span><span class="n">isel</span><span class="p">(</span><span class="n">nVertLevels</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+    <span class="n">meanSST</span> <span class="o">=</span> <span class="p">(</span><span class="n">sst</span><span class="o">*</span><span class="n">areaCell</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">dim</span><span class="o">=</span><span class="s1">&#39;nCells&#39;</span><span class="p">)</span><span class="o">/</span><span class="n">areaCell</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">dim</span><span class="o">=</span><span class="s1">&#39;nCells&#39;</span><span class="p">)</span>
+
+    <span class="n">tsPlotter</span><span class="o">.</span><span class="n">plot_time_series</span><span class="p">(</span><span class="n">meanSST</span><span class="p">,</span> <span class="s1">&#39;mean sea-surface temperature&#39;</span><span class="p">,</span>
+                               <span class="n">prefix</span><span class="o">=</span><span class="s1">&#39;meanSST&#39;</span><span class="p">,</span> <span class="n">units</span><span class="o">=</span><span class="s1">&#39;deg C&#39;</span><span class="p">)</span>
+<span class="o">...</span>
+    <span class="c1"># plot the x and y components of velocity at top, bottom and transect</span>
+    <span class="n">da</span> <span class="o">=</span> <span class="n">mPlotter</span><span class="o">.</span><span class="n">ds</span><span class="o">.</span><span class="n">timeMonthly_avg_velocityX</span>
+    <span class="n">mPlotter</span><span class="o">.</span><span class="n">plot_3d_field_top_bot_section</span><span class="p">(</span>
+        <span class="n">da</span><span class="p">,</span> <span class="n">nameInTitle</span><span class="o">=</span><span class="s1">&#39;x velocity&#39;</span><span class="p">,</span> <span class="n">prefix</span><span class="o">=</span><span class="s1">&#39;Vx&#39;</span><span class="p">,</span> <span class="n">units</span><span class="o">=</span><span class="s1">&#39;m/s&#39;</span><span class="p">,</span>
+        <span class="n">vmin</span><span class="o">=-</span><span class="mf">0.2</span><span class="p">,</span> <span class="n">vmax</span><span class="o">=</span><span class="mf">0.2</span><span class="p">)</span>
+    <span class="n">da</span> <span class="o">=</span> <span class="n">mPlotter</span><span class="o">.</span><span class="n">ds</span><span class="o">.</span><span class="n">timeMonthly_avg_velocityY</span>
+    <span class="n">mPlotter</span><span class="o">.</span><span class="n">plot_3d_field_top_bot_section</span><span class="p">(</span>
+        <span class="n">da</span><span class="p">,</span> <span class="n">nameInTitle</span><span class="o">=</span><span class="s1">&#39;y velocity&#39;</span><span class="p">,</span> <span class="n">prefix</span><span class="o">=</span><span class="s1">&#39;Vy&#39;</span><span class="p">,</span> <span class="n">units</span><span class="o">=</span><span class="s1">&#39;m/s&#39;</span><span class="p">,</span>
+        <span class="n">vmin</span><span class="o">=-</span><span class="mf">0.2</span><span class="p">,</span> <span class="n">vmax</span><span class="o">=</span><span class="mf">0.2</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Make sure any new plots with the movie plotter happen before movies are made (<code class="docutils literal notranslate"><span class="pre">mPlotter.images_to_movies()</span></code>)
+so they get included in the movies.</p>
+<p>The data sets (<code class="docutils literal notranslate"><span class="pre">ds</span></code>) and data arrays (<code class="docutils literal notranslate"><span class="pre">da</span></code>) come from <code class="docutils literal notranslate"><span class="pre">xarray</span></code>, which is a really handy package for working with
+NetCDF-style files in memory in python.  It’s a lot smarter about named dimensions than <code class="docutils literal notranslate"><span class="pre">numpy</span></code> and a lot more easy
+to manipulate than default python <code class="docutils literal notranslate"><span class="pre">NetCDF4</span></code> data sets.  But there’s a bit of a learning curve involving a lot of Googling
+the documentation and StackOverflow.</p>
+<p>Hopefully that’s a start…</p>
+</div>
+</div>
+</div>
+
+
+           </div>
+           
+          </div>
+          <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+        <a href="../../ocean/index.html" class="btn btn-neutral float-right" title="MPAS-Ocean" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
+      
+      
+        <a href="isomip_plus.html" class="btn btn-neutral float-left" title="ISOMIP+" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+      
+    </div>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        
+        &copy; Copyright Copyright (c) 2013-2020,  Los Alamos National Security, LLC (LANS) (Ocean: LA-CC-13-047;Land Ice: LA-CC-13-117) and the University Corporation for Atmospheric Research (UCAR).
+
+    </p>
+  </div>
+    
+    
+    
+    Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a
+    
+    <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a>
+    
+    provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>
