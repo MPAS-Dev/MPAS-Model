@@ -26,8 +26,6 @@
 		<stream name="timeSeriesStatsDailyOutput">
 			<add_contents>
 				<member name="daysSinceStartOfSim" type="var"/>
-				<member name="ssh" type="var"/>
-				<member name="daysSinceStartOfSim" type="var"/>
 				<member name="binBoundaryMerHeatTrans" type="var"/>
 				<member name="ssh" type="var"/>
 				<member name="tracers" type="var_struct"/>

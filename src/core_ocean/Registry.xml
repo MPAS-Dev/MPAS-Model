@@ -32,6 +32,9 @@
 		<dim name="TWO" definition="2" units="unitless"
 			 description="The number two as a dimension."
 		/>
+		<dim name="bnds" definition="2" units="unitless"
+			 description="The number of bounds, eg, time_bnds."
+		/>
 		<dim name="R3" definition="3" units="unitless"
 			 description="The number three as a dimension."
 		/>
@@ -135,6 +138,10 @@
 		<nml_option name="config_calendar_type" type="character" default_value="gregorian_noleap" units="unitless"
 					description="Selection of the type of calendar that should be used in the simulation."
 					possible_values="'gregorian', 'gregorian_noleap'"
+		/>
+		<nml_option name="config_output_reference_time" type="character" default_value="0001-01-01_02:00:00" units="unitless"
+					description="Reference time used in the units attribute of Time in output files."
+					possible_values="'YYYY-MM-DD_HH:MM:SS' or 'file'"
 		/>
 	</nml_record>
 	<nml_record name="io" mode="forward;analysis">
@@ -2292,12 +2299,6 @@
 		<var name="xtime" type="text" dimensions="Time" units="unitless"
 			 description="model time, with format 'YYYY-MM-DD_HH:MM:SS'"
 		/>
-		<var name="xtime_start" type="text" dimensions="Time" units="unitless"
-			 description="model time, with format 'YYYY-MM-DD_HH:MM:SS'"
-		/>
-		<var name="xtime_end" type="text" dimensions="Time" units="unitless"
-			 description="model time, with format 'YYYY-MM-DD_HH:MM:SS'"
-		/>
 		<var name="simulationStartTime" type="text" dimensions="" units="unitless" default_value="'no_date_available'"
 			 description="start time of first simulation, with format 'YYYY-MM-DD_HH:MM:SS'"
 		/>
@@ -2306,6 +2307,9 @@
 		/>
 		<var name="Time" type="real" dimensions="Time"
 			 description="time"
+		/>
+		<var name="Time_bnds" type="real" dimensions="bnds Time"
+			 description="time bounds"
 		/>
 		<var name="salinitySurfaceRestoringTendency" type="real" dimensions="nCells Time" units="m PSU/s" packages="activeTracersSurfaceRestoringPKG"
 			 description="salinity tendency due to surface restoring"

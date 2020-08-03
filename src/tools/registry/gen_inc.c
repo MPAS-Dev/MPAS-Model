@@ -1601,35 +1601,35 @@ int parse_var(FILE *fd, ezxml_t registry, ezxml_t superStruct, ezxml_t currentVa
 
 		// Add calendar and time_bnds attributes for Time
 		if (strcmp(varname, "Time") == 0) {
-			is_cal = 0;
-
-			// Read calendar_type from nml_record name="time_management" --> nml_option name="config_calendar_type"
-			for (nmlrecs_xml = ezxml_child(registry, "nml_record"); nmlrecs_xml; nmlrecs_xml = nmlrecs_xml->next){
-				nmlrecname = ezxml_attr(nmlrecs_xml, "name");
-
-				if (strcmp(nmlrecname, "time_management") == 0) {
-					for (nmlopt_xml = ezxml_child(nmlrecs_xml, "nml_option"); nmlopt_xml; nmlopt_xml = nmlopt_xml->next){
-						nmloptname = ezxml_attr(nmlopt_xml, "name");
-
-						if (strcmp(nmloptname, "config_calendar_type") == 0) {
-							is_cal = 1;
-							nmloptval = ezxml_attr(nmlopt_xml, "default_value");
-
-							fortprintf(fd, "      call mpas_add_att(%s(%d) %% attLists(1) %% attList, 'calendar', '%s')\n", pointer_name, time_lev, nmloptval);
-							break;
-						}
-					}
-					break;
-				}
-			}
-
-			// If not defined in Registry.xml --> hard code as gregorian_noleap
-			if (is_cal == 0) {
-				fortprintf(fd, "      call mpas_add_att(%s(%d) %% attLists(1) %% attList, 'calendar', '%s')\n", pointer_name, time_lev, "gregorian_noleap");
-			}
+			// is_cal = 0;
+      //
+			// // Read calendar_type from nml_record name="time_management" --> nml_option name="config_calendar_type"
+			// for (nmlrecs_xml = ezxml_child(registry, "nml_record"); nmlrecs_xml; nmlrecs_xml = nmlrecs_xml->next){
+			// 	nmlrecname = ezxml_attr(nmlrecs_xml, "name");
+      //
+			// 	if (strcmp(nmlrecname, "time_management") == 0) {
+			// 		for (nmlopt_xml = ezxml_child(nmlrecs_xml, "nml_option"); nmlopt_xml; nmlopt_xml = nmlopt_xml->next){
+			// 			nmloptname = ezxml_attr(nmlopt_xml, "name");
+      //
+			// 			if (strcmp(nmloptname, "config_calendar_type") == 0) {
+			// 				is_cal = 1;
+			// 				nmloptval = ezxml_attr(nmlopt_xml, "default_value");
+      //
+			// 				fortprintf(fd, "      call mpas_add_att(%s(%d) %% attLists(1) %% attList, 'calendar', '%s')\n", pointer_name, time_lev, nmloptval);
+			// 				break;
+			// 			}
+			// 		}
+			// 		break;
+			// 	}
+			// }
+      //
+			// // If not defined in Registry.xml --> hard code as gregorian_noleap
+			// if (is_cal == 0) {
+			// 	fortprintf(fd, "      call mpas_add_att(%s(%d) %% attLists(1) %% attList, 'calendar', '%s')\n", pointer_name, time_lev, "gregorian_noleap");
+			// }
 
 			// Add time_bnds attribute
-			fortprintf(fd, "      call mpas_add_att(%s(%d) %% attLists(1) %% attList, 'bounds', '%s')\n", pointer_name, time_lev, "time_bnds");
+			fortprintf(fd, "      call mpas_add_att(%s(%d) %% attLists(1) %% attList, 'bounds', '%s')\n", pointer_name, time_lev, "Time_bnds");
 		}
 
 		if ( varmissingval != NULL ) {

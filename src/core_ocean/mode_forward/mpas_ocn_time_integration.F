@@ -101,9 +101,18 @@ module ocn_time_integration
       character (len=StrKIND), pointer :: xtime
       real (kind=RKIND), pointer :: daysSinceStartOfSim
       real (kind=RKIND), pointer :: Time
+      real (kind=RKIND), dimension(:), pointer :: Time_bnds   ! Time bounds
       character (len=StrKIND), pointer :: simulationStartTime
-      type (MPAS_Time_type) :: xtime_timeType, simulationStartTime_timeType
+      type (MPAS_Time_type) :: xtime_timeType, simulationStartTime_timeType, start_xtime_timeType, end_xtime_timeType, referenceTime_timeType
+      character (len=StrKIND), pointer :: config_output_reference_time    ! reference time used in Time units
 
+      ! Get Time_bnds from start_xtime and end_xtime
+      type (MPAS_Time_type) :: start_intv, end_intv
+      character (len=StrKIND) :: start_xtime, end_xtime
+      real (kind=RKIND) :: start_daysSinceStartOfSim, end_daysSinceStartOfSim
+
+      !- local var
+      ! integer :: ndim_time, ndim_bnds
 
       if (rk4On) then
          call ocn_time_integrator_rk4(domain, dt)
@@ -132,8 +141,32 @@ module ocn_time_integration
         daysSinceStartOfSim = daysSinceStartOfSim*days_per_second
         !$omp end single
 
+        ! Calculate Time based on reference_time
         call mpas_pool_get_array(diagnosticsPool, 'Time',Time)
-        Time = daysSinceStartOfSim
+        call mpas_pool_get_config(domain % configs, 'config_output_reference_time', config_output_reference_time)
+        call mpas_set_time(referenceTime_timeType, dateTimeString=config_output_reference_time)
+        call mpas_get_timeInterval(xtime_timeType - referenceTime_timeType,dt=Time)
+        Time = Time*days_per_second
+
+        ! Add time bounds: Time_bnds
+        end_intv = mpas_get_clock_time(domain % clock, MPAS_NOW)
+        call mpas_get_time(end_intv, dateTimeString=end_xtime)
+        start_intv = end_intv - mpas_get_clock_timestep(domain % clock)
+        call mpas_get_time(start_intv, dateTimeString=start_xtime)
+
+        ! call mpas_pool_get_array(diagnosticsPool, 'start_daysSinceStartOfSim',start_daysSinceStartOfSim)
+        call mpas_set_time(start_xtime_timeType, dateTimeString=start_xtime)
+        call mpas_get_timeInterval(start_xtime_timeType - referenceTime_timeType,dt=start_daysSinceStartOfSim)
+        start_daysSinceStartOfSim = start_daysSinceStartOfSim*days_per_second
+
+        ! call mpas_pool_get_array(diagnosticsPool, 'end_daysSinceStartOfSim',end_daysSinceStartOfSim)
+        call mpas_set_time(end_xtime_timeType, dateTimeString=end_xtime)
+        call mpas_get_timeInterval(end_xtime_timeType - referenceTime_timeType,dt=end_daysSinceStartOfSim)
+        end_daysSinceStartOfSim = end_daysSinceStartOfSim*days_per_second
+
+        call mpas_pool_get_array(diagnosticsPool, 'Time_bnds', Time_bnds)
+        Time_bnds(1) = start_daysSinceStartOfSim
+        Time_bnds(2) = end_daysSinceStartOfSim
 
         block => block % next
      end do

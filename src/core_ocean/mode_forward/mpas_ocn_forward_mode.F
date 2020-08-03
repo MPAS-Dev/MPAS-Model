@@ -125,7 +125,9 @@ module ocn_forward_mode
       real (kind=RKIND), pointer :: Time
       type (field0DReal), pointer :: TimeField    ! to add units
       character (len=StrKIND) :: units    ! units for Time
-      type (MPAS_Time_type) :: xtime_timeType, simulationStartTime_timeType
+      type (MPAS_Time_type) :: xtime_timeType, simulationStartTime_timeType, referenceTime_timeType
+      character (len=StrKIND), pointer :: config_calendar_type    ! calendar for Time
+      character (len=StrKIND), pointer :: config_output_reference_time    ! reference time used in Time units
       type (MPAS_Time_Type) :: startTime, alarmTime
       type (MPAS_TimeInterval_type) :: timeStep
       type (MPAS_TimeInterval_type) :: alarmTimeStep
@@ -353,12 +355,21 @@ module ocn_forward_mode
          call mpas_get_timeInterval(xtime_timeType - simulationStartTime_timeType,dt=daysSinceStartOfSim)
          daysSinceStartOfSim = daysSinceStartOfSim*days_per_second
 
-         call mpas_pool_get_array(diagnosticsPool, 'Time',Time)
-         Time = daysSinceStartOfSim
-
-         write(units, '(a10,a20)')          'days since', simulationStartTime(1:10)//" "//simulationStartTime(12:19)
+         ! Add time units: reference_time from config
+         call mpas_pool_get_config(domain % configs, 'config_output_reference_time', config_output_reference_time)
+         write(units, '(a10,a20)')          'days since', config_output_reference_time(1:10)//" "//config_output_reference_time(12:19)
          call mpas_pool_get_Field(diagnosticsPool, 'Time', TimeField)
          call mpas_add_att(TimeField % attLists(1) % attList, 'units', units)
+
+         ! Calculate Time based on reference_time
+         call mpas_pool_get_array(diagnosticsPool, 'Time',Time)
+         call mpas_set_time(referenceTime_timeType, dateTimeString=config_output_reference_time)
+         call mpas_get_timeInterval(xtime_timeType - referenceTime_timeType,dt=Time)
+         Time = Time*days_per_second
+
+         ! Add time calendar
+         call mpas_pool_get_config(domain % configs, 'config_calendar_type', config_calendar_type)
+         call mpas_add_att(TimeField % attLists(1) % attList, 'calendar', config_calendar_type)
 
          block => block % next
       end do

@@ -9,6 +9,7 @@
 				<member name="tracers" type="var_struct"/>
 				<member name="xtime" type="var"/>
 				<member name="Time" type="var"/>
+				<member name="Time_bnds" type="var"/>
 				<member name="normalVelocity" type="var"/>
 				<member name="layerThickness" type="var"/>
 			</add_contents>
