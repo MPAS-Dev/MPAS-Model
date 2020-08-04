@@ -10,6 +10,7 @@
 		<template file="forward_template.xml" path_base="script_configuration_dir"/>
 		<template file="forward_wetting_drying_template.xml" path_base="script_configuration_dir"/>
 		<template file="forward_variable_drag.xml" path_base="script_configuration_dir"/>
+		<template file="forward_vegetation_drag.xml" path_base="script_configuration_dir"/>
 		<template file="maxwaterlevel_template.xml" path_base="script_configuration_dir"/>
 
 <!--
