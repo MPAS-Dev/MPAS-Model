@@ -184,29 +184,29 @@ if __name__ == '__main__':
   if os.path.exists(output_file):
     os.remove(output_file)
 
-  newfile = Dataset(output_file,'w', format='NETCDF4')
+  newfile = Dataset(output_file,'w', format='NETCDF3_64BIT_OFFSET')
 
   # define dimension
-  newfile.createDimension('nCell',len(lat_grid))
+  newfile.createDimension('nCells',len(lat_grid))
 
   # create variables
-  veg_mask = newfile.createVariable('vegetationMask', np.int8, ('nCell'))
+  veg_mask = newfile.createVariable('vegetationMask', np.int32, ('nCells'))
   veg_mask.standard_name='vegetation_mask'
   veg_mask.units =''
 
-  veg_diam = newfile.createVariable('vegetationDiameter', np.float32, ('nCell'))
+  veg_diam = newfile.createVariable('vegetationDiameter', np.float64, ('nCells'))
   veg_diam.standard_name='stem diameter of each vegetation shoot'
   veg_diam.units ='m'
 
-  veg_hght = newfile.createVariable('vegetationHeight', np.float32, ('nCell'))
+  veg_hght = newfile.createVariable('vegetationHeight', np.float64, ('nCells'))
   veg_hght.standard_name='stem height of each vegetation shoot'
   veg_hght.units ='m'
 
-  veg_dens = newfile.createVariable('vegetationDensity', np.float32, ('nCell'))
+  veg_dens = newfile.createVariable('vegetationDensity', np.float64, ('nCells'))
   veg_dens.standard_name='stem numbers per unit area'
   veg_dens.units ='m^{-2}'
 
-  Delaware_manning = newfile.createVariable('bottomDrag', np.float32, ('nCell'))
+  Delaware_manning = newfile.createVariable('bottomDrag', np.float64, ('nCells'))
   Delaware_manning.standard_name='bottom Manning roughness coefficient'
   Delaware_manning.units ='s/m^{1/3}'
 
