@@ -523,9 +523,6 @@
 			<var name="ol3"/>
 			<var name="ol4"/>
 			<var name="h_oml_initial"/>
-#ifdef ATM_CHEMISTRY
-			<var_array name="tracers"/>
-#endif
 		</stream>
 
 		<stream name="restart" 
@@ -1581,24 +1578,19 @@
                              description="Graupel mixing ratio"/>
 
                         <var name="nc" array_group="number" units="nb kg^{-1}"
-                             description="Cloud water number concentration"
-                             packages="bl_mynn_in;cu_grell_freitas_in;mp_thompson_in"/>
+                             description="Cloud water number concentration"/>
 
                         <var name="ni" array_group="number" units="nb kg^{-1}"
-                             description="Cloud ice number concentration"
-                             packages="bl_mynn_in;cu_grell_freitas_in;mp_thompson_in"/>
+                             description="Cloud ice number concentration"/>
 
                         <var name="nr" array_group="number" units="nb kg^{-1}"
-                             description="Rain number concentration"
-                             packages="bl_mynn_in;cu_grell_freitas_in;mp_thompson_in"/>
+                             description="Rain number concentration"/>
 
                         <var name="nifa" array_group="aerosols" units="nb kg^{-1}"
-                             description="ice-friendly aerosol number concentration"
-                             packages="bl_mynn_in;cu_grell_freitas_in;mp_thompson_in"/>
+                             description="ice-friendly aerosol number concentration"/>
 
                         <var name="nwfa" array_group="aerosols" units="nb kg^{-1}"
-                             description="water-friendly aerosol number concentration"
-                             packages="bl_mynn_in;cu_grell_freitas_in;mp_thompson_in"/>
+                             description="water-friendly aerosol number concentration"/>
                 </var_array>
 
         </var_struct>
@@ -1849,44 +1841,34 @@
                              description="Tendency of water vapor mass per unit volume divided by d(zeta)/dz"/>
 
                         <var name="tend_qc" name_in_code="qc" array_group="moist" units="kg m^{-3} s^{-1}"
-                             description="Tendency of cloud water mass per unit volume divided by d(zeta)/dz"
-                             packages="bl_mynn_in;bl_ysu_in;cu_tiedtke_in;mp_kessler_in;mp_thompson_in;mp_wsm6_in"/>
+                             description="Tendency of cloud water mass per unit volume divided by d(zeta)/dz"/>
 
                         <var name="tend_qr" name_in_code="qr" array_group="moist" units="kg m^{-3} s^{-1}"
-                             description="Tendency of rain water mass per unit volume divided by d(zeta)/dz"
-                             packages="mp_kessler_in;mp_thompson_in;mp_wsm6_in"/>
+                             description="Tendency of rain water mass per unit volume divided by d(zeta)/dz"/>
 
                         <var name="tend_qi" name_in_code="qi" array_group="moist" units="kg m^{-3} s^{-1}"
-                             description="Tendency of ice mass per unit volume divided by d(zeta)/dz"
-                             packages="bl_mynn_in;bl_ysu_in;cu_tiedtke_in;mp_thompson_in;mp_wsm6_in"/>
+                             description="Tendency of ice mass per unit volume divided by d(zeta)/dz"/>
 
                         <var name="tend_qs" name_in_code="qs" array_group="moist" units="kg m^{-3} s^{-1}"
-                             description="Tendency of snow mass per unit volume divided by d(zeta)/dz"
-                             packages="mp_thompson_in;mp_wsm6_in"/>
+                             description="Tendency of snow mass per unit volume divided by d(zeta)/dz"/>
 
                         <var name="tend_qg" name_in_code="qg" array_group="moist" units="kg m^{-3} s^{-1}"
-                             description="Tendency of graupel mass per unit volume divided by d(zeta)/dz"
-                             packages="mp_thompson_in;mp_wsm6_in"/>
+                             description="Tendency of graupel mass per unit volume divided by d(zeta)/dz"/>
 
                         <var name="tend_nc" name_in_code="nc" array_group="number" units="nb m^{-3} s^{-1}"
-                             description="Tendency of cloud water number concentration multiplied by dry air density divided by d(zeta)/dz"
-                             packages="bl_mynn_in;mp_thompson_in"/>
+                             description="Tendency of cloud water number concentration multiplied by dry air density divided by d(zeta)/dz"/>
 
                         <var name="tend_ni" name_in_code="ni" array_group="number" units="nb m^{-3} s^{-1}"
-                             description="Tendency of cloud ice number concentration multiplied by dry air density divided by d(zeta)/dz"
-                             packages="bl_mynn_in;mp_thompson_in"/>
+                             description="Tendency of cloud ice number concentration multiplied by dry air density divided by d(zeta)/dz"/>
 
                         <var name="tend_nr" name_in_code="nr" array_group="number" units="nb m^{-3} s^{-1}"
-                             description="Tendency of rain number concentration multiplied by dry air density divided by d(zeta)/dz"
-                             packages="bl_mynn_in;mp_thompson_in"/>
+                             description="Tendency of rain number concentration multiplied by dry air density divided by d(zeta)/dz"/>
 
                         <var name="tend_nifa" name_in_code="nifa" array_group="aerosols" units="nb m^{-3} s^{-1}"
-                             description="Tendency of ice-friendly aerosol number concentration multiplied by dry air density divided by d(zeta)/dz"
-                             packages="bl_mynn_in;mp_thompson_in"/>
+                             description="Tendency of ice-friendly aerosol number concentration multiplied by dry air density divided by d(zeta)/dz"/>
 
                         <var name="tend_nwfa" name_in_code="nwfa" array_group="aerosols" units="nb m^{-3} s^{-1}"
-                             description="Tendency of water-friendly aerosol number concentration multiplied by dry air density divided by d(zeta)/dz"
-                             packages="bl_mynn_in;mp_thompson_in"/>
+                             description="Tendency of water-friendly aerosol number concentration multiplied by dry air density divided by d(zeta)/dz"/>
                 </var_array>
         </var_struct>
 
@@ -3650,9 +3632,6 @@
 <!-- **************************************************************************************** -->
 
 #include "diagnostics/Registry_diagnostics.xml"
-#ifdef ATM_CHEMISTRY
-#include "chemistry/Registry_tracers.xml"
-#endif
 
         <!-- ================================================================================================== -->
         <!-- ... FIRST-GUESS DATA NEEDED FOR INTERPOLATION OF PHYSICS DIAGNOSTICS:                              -->
