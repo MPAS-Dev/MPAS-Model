@@ -148,7 +148,7 @@
 !parameters:
  integer,parameter:: imidc     = 1 !- mid-level convection
  integer,parameter:: imidd     = 0
- integer,parameter:: dicycle   = 1 !- diurnal cycle flag
+ integer,parameter:: dicycle   = 2 !- diurnal cycle flag
  integer,parameter:: dicycle_m = 0 !- diurnal cycle flag
  integer,parameter:: nranflag  = 0
 
