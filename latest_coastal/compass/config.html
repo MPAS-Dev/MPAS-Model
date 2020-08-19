@@ -1,0 +1,689 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>config &mdash; MPAS-Model latest coastal documentation</title>
+  
+
+  
+  <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+
+  
+  
+  
+  
+
+  
+  <!--[if lt IE 9]>
+    <script src="../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+        <script src="../_static/jquery.js"></script>
+        <script src="../_static/underscore.js"></script>
+        <script src="../_static/doctools.js"></script>
+        <script src="../_static/language_data.js"></script>
+        <script async="async" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.7/latest.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    
+    <script type="text/javascript" src="../_static/js/theme.js"></script>
+
+    
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="driver_script" href="driver_script.html" />
+    <link rel="prev" title="Details" href="details.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="../index.html" class="icon icon-home" alt="Documentation Home"> MPAS-Model
+          
+
+          
+          </a>
+
+          
+            
+            
+              <div class="version">
+                latest coastal
+              </div>
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">COMPASS</a><ul class="current">
+<li class="toctree-l2 current"><a class="reference internal" href="details.html">Details</a><ul class="current">
+<li class="toctree-l3 current"><a class="current reference internal" href="#">config</a></li>
+<li class="toctree-l3"><a class="reference internal" href="driver_script.html">driver_script</a></li>
+<li class="toctree-l3"><a class="reference internal" href="template.html">template</a></li>
+<li class="toctree-l3"><a class="reference internal" href="regression_suite.html">regression_suite</a></li>
+<li class="toctree-l3"><a class="reference internal" href="run_config.html">run_config</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="scripts.html">Scripts</a></li>
+<li class="toctree-l2"><a class="reference internal" href="ocean.html">COMPASS for ocean test case</a></li>
+<li class="toctree-l2"><a class="reference internal" href="ocean_testcases/index.html">Ocean Test Cases</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../ocean/index.html">MPAS-Ocean</a></li>
+</ul>
+
+            
+          
+        </div>
+        
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">MPAS-Model</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../index.html" class="icon icon-home"></a> &raquo;</li>
+        
+          <li><a href="index.html">COMPASS</a> &raquo;</li>
+        
+          <li><a href="details.html">Details</a> &raquo;</li>
+        
+      <li>config</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+            
+            <a href="../_sources/compass/config.rst.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="config">
+<span id="compass-config"></span><h1>config<a class="headerlink" href="#config" title="Permalink to this headline">¶</a></h1>
+<p>A config file is used to setup a case directory.
+This file contains information describing how to configure a case
+directory, including files that the case depends on, executables that are
+required for the case, namelists and streams files the case requires, and run
+scripts which can be used to automate running a case.</p>
+<div class="section" id="how-to-use-pre-defined-paths">
+<h2>How to use pre-defined paths<a class="headerlink" href="#how-to-use-pre-defined-paths" title="Permalink to this headline">¶</a></h2>
+<p>This testing infrastructure has several predefined paths available as
+attributes to several XML tags. Attributes that can use these will have the
+line “Can use pre-defined paths” in their description.</p>
+<p>In order to help you make use of these pre-defined paths, this section will
+describe what they are, and how to use them.</p>
+<p>To begin, there are two standard paths. These are referred to as <code class="docutils literal notranslate"><span class="pre">&lt;work_dir&gt;</span></code>
+and <code class="docutils literal notranslate"><span class="pre">&lt;script_path&gt;</span></code>.</p>
+<blockquote>
+<div><ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">&lt;work_dir&gt;</span></code> is the location where the test cases are setup to run.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">&lt;script_path&gt;</span></code> is the location where the testing infrastructure scripts live.</p></li>
+</ul>
+</div></blockquote>
+<p>Additionally, there are 4 sub-paths:</p>
+<blockquote>
+<div><ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">&lt;core_dir&gt;</span></code> - This is the core directory that contains the test case</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">&lt;configuration_dir&gt;</span></code> - This is the configuration directory that contains the test case</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">&lt;resolution_dir&gt;</span></code> - This is the resolution directory that contains the test case</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">&lt;test_dir&gt;</span></code> - This is the test directory that contains the test case</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">&lt;case_dir&gt;</span></code> - This is the case directory that is generated from an XML config file</p></li>
+</ul>
+</div></blockquote>
+<p>Now, all attributes that can use pre-defined paths can build a path using the
+following syntax:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="p">{</span><span class="n">base</span><span class="p">}</span><span class="n">_</span><span class="p">{</span><span class="n">sub</span><span class="p">}</span>
+</pre></div>
+</div>
+<p>Where <code class="docutils literal notranslate"><span class="pre">{base}</span></code> can be either <code class="docutils literal notranslate"><span class="pre">work</span></code> or <code class="docutils literal notranslate"><span class="pre">script</span></code>, and <code class="docutils literal notranslate"><span class="pre">{sub}</span></code> can be any of
+<code class="docutils literal notranslate"><span class="pre">core_dir</span></code>, <code class="docutils literal notranslate"><span class="pre">configuration_dir</span></code>, <code class="docutils literal notranslate"><span class="pre">resolution_dir</span></code>, <code class="docutils literal notranslate"><span class="pre">test_dir</span></code>, and <code class="docutils literal notranslate"><span class="pre">case_dir</span></code>.</p>
+<p>Note however, <code class="docutils literal notranslate"><span class="pre">case_dir</span></code> isn’t valid when {base} is <code class="docutils literal notranslate"><span class="pre">script</span></code> as a case
+directory isn’t typically generated in the script path if it’s different from
+the work path.</p>
+<p>As an example:</p>
+<blockquote>
+<div><ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">script_test_dir</span></code> would point to the location that the XML files exist to
+setup a testcase</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">work_test_dir</span></code> would point to the location that the testcase will be setup,
+and will not include the case directory created from an XML file.</p></li>
+</ul>
+</div></blockquote>
+</div>
+<div class="section" id="description-of-xml-file">
+<h2>Description of XML file<a class="headerlink" href="#description-of-xml-file" title="Permalink to this headline">¶</a></h2>
+<p>Below, you will see text describing the various XML tags available in a config
+file. Each will describe the tag itself, any attributes the tag can have, and
+what children can be placed below the tag.</p>
+<p><code class="docutils literal notranslate"><span class="pre">&lt;config&gt;</span></code> - This is the overarching parent tag of a config file that describes the setup for a case.</p>
+<blockquote>
+<div><ul class="simple">
+<li><dl class="simple">
+<dt>Attributes:</dt><dd><ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">case</span></code>: The name of the case directory that will be created from this
+config tag.</p></li>
+</ul>
+</dd>
+</dl>
+</li>
+<li><dl class="simple">
+<dt>Children:</dt><dd><ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">&lt;get_file&gt;</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">&lt;add_executable&gt;</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">&lt;add_link&gt;</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">&lt;namelist&gt;</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">&lt;streams&gt;</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">&lt;run_script&gt;</span></code></p></li>
+</ul>
+</dd>
+</dl>
+</li>
+</ul>
+</div></blockquote>
+<p><code class="docutils literal notranslate"><span class="pre">&lt;get_file&gt;</span></code> - This tag defines the need for ensuring a required file is available, and the
+appropriate ways of acquiring the file.</p>
+<blockquote>
+<div><ul class="simple">
+<li><dl class="simple">
+<dt>Attributes:</dt><dd><ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">hash</span></code>: (Optional) The expected hash of the mesh file. The acquired
+mesh file will be validated using this. If this attribute is omitted,
+the resulting file will not be validated.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">dest_path</span></code>: The path the resulting file should be placed in. Should be
+the name of a path defined in the config file, or optionally ‘case’
+which is expanded to be the case directory generated from the XML
+file containing the get_file tag. Can additionally take the values of
+pre-defined paths</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">file_name</span></code>: The name of the file that will be downloaded and placed in dest_path.</p></li>
+</ul>
+</dd>
+</dl>
+</li>
+<li><dl class="simple">
+<dt>Children:</dt><dd><ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">&lt;mirror&gt;</span></code></p></li>
+</ul>
+</dd>
+</dl>
+</li>
+</ul>
+</div></blockquote>
+<p><code class="docutils literal notranslate"><span class="pre">&lt;mirror&gt;</span></code> - This tag defined the different methods of acquiring a required file.</p>
+<blockquote>
+<div><ul class="simple">
+<li><dl class="simple">
+<dt>Attributes:</dt><dd><ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">protocol</span></code>: A description of how the mesh should be retrieved.
+Currently supports <code class="docutils literal notranslate"><span class="pre">wget</span></code>.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">url</span></code>: Only used if <code class="docutils literal notranslate"><span class="pre">protocol</span> <span class="pre">==</span> <span class="pre">wget</span></code>. The url (pre-filename) portion of
+the <code class="docutils literal notranslate"><span class="pre">wget</span></code> command.</p></li>
+</ul>
+</dd>
+</dl>
+</li>
+</ul>
+</div></blockquote>
+<p><code class="docutils literal notranslate"><span class="pre">&lt;add_executable&gt;</span></code> - This tag defined the need to link an executable defined in a
+configuration file (e.g. general.config) into a case directory.</p>
+<blockquote>
+<div><ul class="simple">
+<li><dl class="simple">
+<dt>Attributes:</dt><dd><ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">source</span></code>: The name of the executable, defined in the configuration file
+(e.g. <code class="docutils literal notranslate"><span class="pre">general.config</span></code>). This name is a short name, and will be
+expanded to executables.source</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">dest</span></code>: The name of the link that will be generated from the executable.</p></li>
+</ul>
+</dd>
+</dl>
+</li>
+</ul>
+</div></blockquote>
+<p><code class="docutils literal notranslate"><span class="pre">&lt;add_link&gt;</span></code> - This tag defined the need to link a file into a case directory.</p>
+<blockquote>
+<div><ul class="simple">
+<li><dl class="simple">
+<dt>Attributes:</dt><dd><ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">source_path</span></code>: The path variable from a configure file to find the
+source file in. If it is empty, source is assumed to
+have the full path to the file. Additionally, it can
+take the values of:</p>
+<ul>
+<li><p>Can use pre-defined paths</p></li>
+</ul>
+</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">source</span></code>: The source to generate a symlink from. Relative to the case
+directory that will be generated from the parent <code class="docutils literal notranslate"><span class="pre">&lt;config&gt;</span></code> tag.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">dest</span></code>: The name of the resulting symlink.</p></li>
+</ul>
+</dd>
+</dl>
+</li>
+</ul>
+</div></blockquote>
+<p><code class="docutils literal notranslate"><span class="pre">&lt;namelist&gt;</span></code> - This tag defines a namelist that should be generated from a template.</p>
+<blockquote>
+<div><ul class="simple">
+<li><dl class="simple">
+<dt>Attributes:</dt><dd><ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">name</span></code>: The name of the namelist file that will be generated from the
+template namelist pointed to by its mode attribute.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">mode</span></code>: The name of the mode to use from the template input files
+Each core can define these arbitrarily</p></li>
+</ul>
+</dd>
+</dl>
+</li>
+<li><dl class="simple">
+<dt>Children:</dt><dd><ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">&lt;template&gt;</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">&lt;option&gt;</span></code></p></li>
+</ul>
+</dd>
+</dl>
+</li>
+</ul>
+</div></blockquote>
+<p><code class="docutils literal notranslate"><span class="pre">&lt;streams&gt;</span></code> - This tag defines a streams file that should be generated from a template.</p>
+<blockquote>
+<div><ul>
+<li><dl>
+<dt>Attributes:</dt><dd><ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">name</span></code>: The name of the streams file that will be generated from the
+template streams file pointed to by its mode.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">mode</span></code>: The name of the mode to use from the template input files
+Each core can define these arbitrarily</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">keep</span></code>: A definition of which streams to keep from the template. Values are:</p>
+<blockquote>
+<div><ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">all</span></code>: keep all streams from the template</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">immutable</span></code>: keep all immutable streams, and discard any mutable
+streams from the template</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">mutable</span></code>: keep all mutable streams, and discard any immutable
+streams from the template</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">none</span></code>: discard all streams from teh template</p></li>
+</ul>
+</div></blockquote>
+</li>
+</ul>
+</dd>
+</dl>
+</li>
+<li><dl class="simple">
+<dt>Children:</dt><dd><ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">&lt;template&gt;</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">&lt;stream&gt;</span></code></p></li>
+</ul>
+</dd>
+</dl>
+</li>
+</ul>
+</div></blockquote>
+<p><code class="docutils literal notranslate"><span class="pre">&lt;template&gt;</span></code> - This tag defines a template that should be applied to a set of configurations.</p>
+<blockquote>
+<div><ul class="simple">
+<li><dl class="simple">
+<dt>Attributes:</dt><dd><ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">file</span></code>: The file that contains the template that should be expanded here. When
+used within a <code class="docutils literal notranslate"><span class="pre">&lt;namelist&gt;</span></code> tag, the namelist portion of the template
+will be applied. When used within a <code class="docutils literal notranslate"><span class="pre">&lt;stream&gt;</span></code> tag, the streams portion
+of the template will be applied. Additionally, <code class="docutils literal notranslate"><span class="pre">&lt;template&gt;</span></code> tags
+can be used within <code class="docutils literal notranslate"><span class="pre">&lt;compare_fields&gt;</span></code> and <code class="docutils literal notranslate"><span class="pre">&lt;compare_timers&gt;</span></code> tags
+to define template fields and timers to compare.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">path_base</span></code>: The base that the path attribute should be used relative
+to. Can have a value of pre-defined paths</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">path</span></code>: The path that the file lives in, relative to path_base.</p></li>
+</ul>
+</dd>
+</dl>
+</li>
+</ul>
+</div></blockquote>
+<p><code class="docutils literal notranslate"><span class="pre">&lt;option&gt;</span></code> - This tag defines an option that should be modified in the generated
+namelist.</p>
+<blockquote>
+<div><ul class="simple">
+<li><dl class="simple">
+<dt>Attributes:</dt><dd><ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">name</span></code>: The name of the option that should be modifed</p></li>
+</ul>
+</dd>
+</dl>
+</li>
+<li><dl class="simple">
+<dt>Text:</dt><dd><ul>
+<li><p>The text within &lt;option&gt; and &lt;/option&gt; tags will be used to set the
+value of the namelist option.</p></li>
+</ul>
+</dd>
+</dl>
+</li>
+</ul>
+</div></blockquote>
+<p><code class="docutils literal notranslate"><span class="pre">&lt;stream&gt;</span></code> - This tag defines a stream that should be modified / created in the
+generated streams file.</p>
+<blockquote>
+<div><ul class="simple">
+<li><dl class="simple">
+<dt>Attributes:</dt><dd><ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">name</span></code>: The name of the stream that should be modified / created</p></li>
+</ul>
+</dd>
+</dl>
+</li>
+<li><dl class="simple">
+<dt>Children:</dt><dd><ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">&lt;attribute&gt;</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">&lt;add_contents&gt;</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">&lt;remove_contents&gt;</span></code></p></li>
+</ul>
+</dd>
+</dl>
+</li>
+</ul>
+</div></blockquote>
+<p><code class="docutils literal notranslate"><span class="pre">&lt;attribute&gt;</span></code> - This tag defines an attribute that should be created / modified
+in a stream definition.</p>
+<blockquote>
+<div><ul class="simple">
+<li><dl class="simple">
+<dt>Attributes:</dt><dd><ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">name</span></code>: The name of the stream attribute to modify / define</p></li>
+</ul>
+</dd>
+</dl>
+</li>
+<li><dl class="simple">
+<dt>Text:</dt><dd><ul>
+<li><p>The text in between the &lt;attribute&gt; and &lt;/attribute&gt; tags will be
+used to set the value of the attribute.</p></li>
+</ul>
+</dd>
+</dl>
+</li>
+</ul>
+</div></blockquote>
+<p><code class="docutils literal notranslate"><span class="pre">&lt;add_contents&gt;</span></code> - This tag defines a list of members to add to a stream definition</p>
+<blockquote>
+<div><ul class="simple">
+<li><dl class="simple">
+<dt>Children:</dt><dd><ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">&lt;member&gt;</span></code></p></li>
+</ul>
+</dd>
+</dl>
+</li>
+</ul>
+</div></blockquote>
+<p><code class="docutils literal notranslate"><span class="pre">&lt;remove_contents&gt;</span></code> - This tag defines a list of members to remove from a stream definition</p>
+<blockquote>
+<div><ul class="simple">
+<li><dl class="simple">
+<dt>Children:</dt><dd><ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">&lt;member&gt;</span></code></p></li>
+</ul>
+</dd>
+</dl>
+</li>
+</ul>
+</div></blockquote>
+<p><code class="docutils literal notranslate"><span class="pre">&lt;member&gt;</span></code> - This tag defines a member that should be added or removed from a stream definition.</p>
+<blockquote>
+<div><ul class="simple">
+<li><dl class="simple">
+<dt>Attributes:</dt><dd><ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">name</span></code>: The name of the member that will be defined. If this is in an
+<code class="docutils literal notranslate"><span class="pre">&lt;add_contents&gt;</span></code> tag, it will be added to the stream, if it is in a
+<code class="docutils literal notranslate"><span class="pre">&lt;remove_contents&gt;</span></code> tag, it will be removed from the stream.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">type</span></code>: The type of the member to add (This is ignored if it’s within a
+<code class="docutils literal notranslate"><span class="pre">&lt;remove_contents&gt;</span></code> tag). Example values are var, var_array,
+<code class="docutils literal notranslate"><span class="pre">var_struct</span></code>, and stream.</p></li>
+</ul>
+</dd>
+</dl>
+</li>
+</ul>
+</div></blockquote>
+<p><code class="docutils literal notranslate"><span class="pre">&lt;run_script&gt;</span></code> - This tag defines a new run script that should be generated.</p>
+<blockquote>
+<div><ul class="simple">
+<li><dl class="simple">
+<dt>Attributes:</dt><dd><ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">name</span></code>: The name of the script that will be generated</p></li>
+</ul>
+</dd>
+</dl>
+</li>
+<li><dl class="simple">
+<dt>Children:</dt><dd><ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">&lt;step&gt;</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">&lt;define_env_var&gt;</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">&lt;model_run&gt;</span></code></p></li>
+</ul>
+</dd>
+</dl>
+</li>
+</ul>
+</div></blockquote>
+<p><code class="docutils literal notranslate"><span class="pre">&lt;step&gt;</span></code> - This tag defines a step in a run script</p>
+<blockquote>
+<div><ul class="simple">
+<li><dl class="simple">
+<dt>Attributes:</dt><dd><ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">executable</span></code>: The base executable for this step of the run script. e.g. mpirun</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">executable_name</span></code>: The name of the executable that has been defined in
+the configuration file to be used for this step of the run script.</p></li>
+</ul>
+</dd>
+</dl>
+</li>
+<li><dl class="simple">
+<dt>Children:</dt><dd><ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">&lt;argument&gt;</span></code></p></li>
+</ul>
+</dd>
+</dl>
+</li>
+</ul>
+</div></blockquote>
+<p><code class="docutils literal notranslate"><span class="pre">&lt;argument&gt;</span></code> - This tag defines arguments for the executable in a specific step of
+a run script.</p>
+<blockquote>
+<div><ul class="simple">
+<li><dl class="simple">
+<dt>Attributes:</dt><dd><ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">flag</span></code>: A flag that will come before the argument. e.g. <code class="docutils literal notranslate"><span class="pre">-n</span></code></p></li>
+</ul>
+</dd>
+</dl>
+</li>
+<li><dl class="simple">
+<dt>Text:</dt><dd><ul>
+<li><p>The text between the <code class="docutils literal notranslate"><span class="pre">&lt;argument&gt;</span></code> and <code class="docutils literal notranslate"><span class="pre">&lt;/argument&gt;</span></code> tags will be used as
+the argument after the flag. In the example <code class="docutils literal notranslate"><span class="pre">mpirun</span> <span class="pre">-n</span> <span class="pre">4</span></code> the flag
+would be -n, and the text would be 4.</p></li>
+</ul>
+</dd>
+</dl>
+</li>
+</ul>
+</div></blockquote>
+<p><code class="docutils literal notranslate"><span class="pre">&lt;define_env_var&gt;</span></code> - This tag is used to define an environment variable which
+might be needed when running the model. For example,
+setting the value of OMP_NUM_THREADS to ensure OpenMP
+threading is used.</p>
+<blockquote>
+<div><ul class="simple">
+<li><dl class="simple">
+<dt>Attributes:</dt><dd><ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">name</span></code>: The name of the variable that will be set</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">value</span></code>: The value that will be given to the variable</p></li>
+</ul>
+</dd>
+</dl>
+</li>
+</ul>
+</div></blockquote>
+<p><code class="docutils literal notranslate"><span class="pre">&lt;model_run&gt;</span></code> - This tag is used to define a run of the model, as configured by
+some set of attributes.</p>
+<blockquote>
+<div><ul>
+<li><dl>
+<dt>Attributes:</dt><dd><ul>
+<li><p>This tag is unique, in that it can take a variety of attributes. The
+attributes available depend on the batch system. Within the
+definition of the batch system, any attribute that has a value with
+the given format <code class="docutils literal notranslate"><span class="pre">attr_{name}</span></code> represents an attribute that is required
+when using this tag. An example of attributes that most batch systems
+would require is:</p>
+<blockquote>
+<div><ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">procs</span></code>: The number of MPI tasks to spawn</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">threads</span></code>: The number of OpenMP threads to use in the run</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">namelist</span></code>: The namelist file to use when performing the run</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">streams</span></code>: The streams file to use when performing the run</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">executable</span></code>: (Optional) The name of the executble to use from the
+config file. If this is not specified, it defaults to ‘model’.</p></li>
+</ul>
+</div></blockquote>
+</li>
+</ul>
+</dd>
+</dl>
+</li>
+</ul>
+</div></blockquote>
+</div>
+</div>
+
+
+           </div>
+           
+          </div>
+          <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+        <a href="driver_script.html" class="btn btn-neutral float-right" title="driver_script" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
+      
+      
+        <a href="details.html" class="btn btn-neutral float-left" title="Details" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+      
+    </div>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        
+        &copy; Copyright Copyright (c) 2013-2020,  Los Alamos National Security, LLC (LANS) (Ocean: LA-CC-13-047;Land Ice: LA-CC-13-117) and the University Corporation for Atmospheric Research (UCAR).
+
+    </p>
+  </div>
+    
+    
+    
+    Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a
+    
+    <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a>
+    
+    provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>

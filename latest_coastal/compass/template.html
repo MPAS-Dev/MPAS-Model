@@ -1,0 +1,449 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>template &mdash; MPAS-Model latest coastal documentation</title>
+  
+
+  
+  <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+
+  
+  
+  
+  
+
+  
+  <!--[if lt IE 9]>
+    <script src="../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+        <script src="../_static/jquery.js"></script>
+        <script src="../_static/underscore.js"></script>
+        <script src="../_static/doctools.js"></script>
+        <script src="../_static/language_data.js"></script>
+        <script async="async" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.7/latest.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    
+    <script type="text/javascript" src="../_static/js/theme.js"></script>
+
+    
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="regression_suite" href="regression_suite.html" />
+    <link rel="prev" title="driver_script" href="driver_script.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="../index.html" class="icon icon-home" alt="Documentation Home"> MPAS-Model
+          
+
+          
+          </a>
+
+          
+            
+            
+              <div class="version">
+                latest coastal
+              </div>
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">COMPASS</a><ul class="current">
+<li class="toctree-l2 current"><a class="reference internal" href="details.html">Details</a><ul class="current">
+<li class="toctree-l3"><a class="reference internal" href="config.html">config</a></li>
+<li class="toctree-l3"><a class="reference internal" href="driver_script.html">driver_script</a></li>
+<li class="toctree-l3 current"><a class="current reference internal" href="#">template</a></li>
+<li class="toctree-l3"><a class="reference internal" href="regression_suite.html">regression_suite</a></li>
+<li class="toctree-l3"><a class="reference internal" href="run_config.html">run_config</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="scripts.html">Scripts</a></li>
+<li class="toctree-l2"><a class="reference internal" href="ocean.html">COMPASS for ocean test case</a></li>
+<li class="toctree-l2"><a class="reference internal" href="ocean_testcases/index.html">Ocean Test Cases</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../ocean/index.html">MPAS-Ocean</a></li>
+</ul>
+
+            
+          
+        </div>
+        
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">MPAS-Model</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../index.html" class="icon icon-home"></a> &raquo;</li>
+        
+          <li><a href="index.html">COMPASS</a> &raquo;</li>
+        
+          <li><a href="details.html">Details</a> &raquo;</li>
+        
+      <li>template</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+            
+            <a href="../_sources/compass/template.rst.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="template">
+<span id="compass-template"></span><h1>template<a class="headerlink" href="#template" title="Permalink to this headline">¶</a></h1>
+<p>This document describes the format of a template file, which is used to define
+a set of namelist and streams configurations that will be used multiple times.</p>
+<p>A template file contains information describing how to configure a namelist
+and/or a streams file in a standard way. A template file can be applied to
+multiple cases, and allows config files for cases to be shorter since the
+options are defined within the template instead of in the config file.</p>
+<p>Below, you will see text describing the various XML tags available in a template
+file. Each will describe the tag itself, any attributes the tag can have, and
+what children can be placed below the tag.</p>
+<p><code class="docutils literal notranslate"><span class="pre">&lt;template&gt;</span></code> - This is the overarching parent tag within a template file. It
+begins a template definition.</p>
+<blockquote>
+<div><dl class="simple">
+<dt>Children:</dt><dd><ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">&lt;namelist&gt;</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">&lt;streams&gt;</span></code></p></li>
+</ul>
+</dd>
+</dl>
+</div></blockquote>
+<p><code class="docutils literal notranslate"><span class="pre">&lt;namelist&gt;</span></code> - This tag defines a set of namelist modifications that will be
+applied if this template is used within a config file’s <code class="docutils literal notranslate"><span class="pre">&lt;namelist&gt;</span></code> tag.</p>
+<blockquote>
+<div><ul class="simple">
+<li><dl class="simple">
+<dt>Children:</dt><dd><ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">&lt;option&gt;</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">&lt;template&gt;</span></code> (child template)</p></li>
+</ul>
+</dd>
+</dl>
+</li>
+</ul>
+</div></blockquote>
+<p><code class="docutils literal notranslate"><span class="pre">&lt;option&gt;</span></code> - This tag defines an option that should be modified in the namelist file.</p>
+<blockquote>
+<div><ul class="simple">
+<li><dl class="simple">
+<dt>Attributes:</dt><dd><ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">name</span></code>: The name of the option that should be modified</p></li>
+</ul>
+</dd>
+</dl>
+</li>
+<li><dl class="simple">
+<dt>Text:</dt><dd><ul>
+<li><p>The text within <code class="docutils literal notranslate"><span class="pre">&lt;option&gt;</span></code> and <code class="docutils literal notranslate"><span class="pre">&lt;/option&gt;</span></code> tags will be used to set the
+value of the namelist option.</p></li>
+</ul>
+</dd>
+</dl>
+</li>
+</ul>
+</div></blockquote>
+<p><code class="docutils literal notranslate"><span class="pre">&lt;streams&gt;</span></code> - This tag defines a set of streams modifications that will be
+applied if this template is used within a config file’s <code class="docutils literal notranslate"><span class="pre">&lt;streams&gt;</span></code> tag.</p>
+<blockquote>
+<div><ul class="simple">
+<li><dl class="simple">
+<dt>Children:</dt><dd><ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">&lt;stream&gt;</span></code></p></li>
+</ul>
+</dd>
+</dl>
+</li>
+</ul>
+</div></blockquote>
+<p><code class="docutils literal notranslate"><span class="pre">&lt;stream&gt;</span></code> - This tag defines a stream that should be modified / created in the
+streams file.</p>
+<blockquote>
+<div><ul class="simple">
+<li><dl class="simple">
+<dt>Children:</dt><dd><ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">&lt;attribute&gt;</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">&lt;add_contents&gt;</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">&lt;remove_contents&gt;</span></code></p></li>
+</ul>
+</dd>
+</dl>
+</li>
+</ul>
+</div></blockquote>
+<p><code class="docutils literal notranslate"><span class="pre">&lt;attribute&gt;</span></code> - This tag defines an attribute that should be created / modified
+in a stream definition.</p>
+<blockquote>
+<div><ul class="simple">
+<li><dl class="simple">
+<dt>Attributes:</dt><dd><ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">name</span></code>: The name of the stream attribute to modify / define</p></li>
+</ul>
+</dd>
+</dl>
+</li>
+<li><dl class="simple">
+<dt>Text:</dt><dd><ul>
+<li><p>The text in between the <code class="docutils literal notranslate"><span class="pre">&lt;attribute&gt;</span></code> and <code class="docutils literal notranslate"><span class="pre">&lt;/attribute&gt;</span></code> tags will be
+used to set the value of the attribute.</p></li>
+</ul>
+</dd>
+</dl>
+</li>
+</ul>
+</div></blockquote>
+<p><code class="docutils literal notranslate"><span class="pre">&lt;add_contents&gt;</span></code> - This tag defines a list of members to add to a stream definition</p>
+<blockquote>
+<div><ul class="simple">
+<li><dl class="simple">
+<dt>Children:</dt><dd><ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">&lt;member&gt;</span></code></p></li>
+</ul>
+</dd>
+</dl>
+</li>
+</ul>
+</div></blockquote>
+<p><code class="docutils literal notranslate"><span class="pre">&lt;remove_contents&gt;</span></code> - This tag defines a list of members to remove from a stream definition</p>
+<blockquote>
+<div><ul class="simple">
+<li><dl class="simple">
+<dt>Children:</dt><dd><ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">&lt;member&gt;</span></code></p></li>
+</ul>
+</dd>
+</dl>
+</li>
+</ul>
+</div></blockquote>
+<p><code class="docutils literal notranslate"><span class="pre">&lt;member&gt;</span></code> - This tag defines a member that should be added or removed from a stream definition.</p>
+<blockquote>
+<div><ul class="simple">
+<li><dl class="simple">
+<dt>Attributes:</dt><dd><ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">name</span></code>: The name of the member that will be defined. If this is in an
+<code class="docutils literal notranslate"><span class="pre">&lt;add_contents&gt;</span></code> tag, it will be added to the stream, if it is in a
+<code class="docutils literal notranslate"><span class="pre">&lt;remove_contents&gt;</span></code> tag, it will be removed from the stream.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">type</span></code>: The type of the member to add (This is ignored if it’s within a
+<code class="docutils literal notranslate"><span class="pre">&lt;remove_contents&gt;</span></code> tag). Example values are <code class="docutils literal notranslate"><span class="pre">var</span></code>, <code class="docutils literal notranslate"><span class="pre">var_array</span></code>,
+<code class="docutils literal notranslate"><span class="pre">var_struct</span></code>, and <code class="docutils literal notranslate"><span class="pre">stream</span></code>.</p></li>
+</ul>
+</dd>
+</dl>
+</li>
+</ul>
+</div></blockquote>
+<p><code class="docutils literal notranslate"><span class="pre">&lt;validation&gt;</span></code> - This tag defines a set of templated validations that can be applied from a template file.
+The validation template tag can only be applied to driver script files.</p>
+<blockquote>
+<div><ul class="simple">
+<li><dl class="simple">
+<dt>Children:</dt><dd><ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">&lt;compare_fields&gt;</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">&lt;compare_timers&gt;</span></code></p></li>
+</ul>
+</dd>
+</dl>
+</li>
+</ul>
+</div></blockquote>
+<p><code class="docutils literal notranslate"><span class="pre">&lt;compare_fields&gt;</span></code> - This tag contains a list of fields that should be compared
+if the template is used within a <code class="docutils literal notranslate"><span class="pre">&lt;compare_fields&gt;</span></code> tag.</p>
+<blockquote>
+<div><ul class="simple">
+<li><dl class="simple">
+<dt>Children:</dt><dd><ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">&lt;field&gt;</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">&lt;template&gt;</span></code></p></li>
+</ul>
+</dd>
+</dl>
+</li>
+</ul>
+</div></blockquote>
+<p><code class="docutils literal notranslate"><span class="pre">&lt;field&gt;</span></code> - This tag defines a specific field that should be compared if this
+template is used within a <code class="docutils literal notranslate"><span class="pre">&lt;compare_fields&gt;</span></code> tag. See
+<a class="reference internal" href="driver_script.html#compass-driver-script"><span class="std std-ref">driver_script</span></a> for configuration information.</p>
+<p><code class="docutils literal notranslate"><span class="pre">&lt;compare_timers&gt;</span></code> - This tag contains a list of timers that should be compared
+if the template is used within a <code class="docutils literal notranslate"><span class="pre">&lt;compare_timers&gt;</span></code> tag.</p>
+<blockquote>
+<div><ul class="simple">
+<li><dl class="simple">
+<dt>Children:</dt><dd><ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">&lt;timer&gt;</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">&lt;template&gt;</span></code></p></li>
+</ul>
+</dd>
+</dl>
+</li>
+</ul>
+</div></blockquote>
+<p><code class="docutils literal notranslate"><span class="pre">&lt;template&gt;</span></code> (child template) - This tag allows another template to be applied
+from within a template file. WARNING: A template can include any other template
+(including it self) so it is possible to create an infinite loop of template
+application.</p>
+<blockquote>
+<div><ul class="simple">
+<li><dl class="simple">
+<dt>Attributes:</dt><dd><ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">file</span></code>: The file that contains the template that should be expanded
+here. When used within a <code class="docutils literal notranslate"><span class="pre">&lt;namelist&gt;</span></code> tag, the namelist portion of
+the template will be applied. When used within a <code class="docutils literal notranslate"><span class="pre">&lt;stream&gt;</span></code> tag,
+the streams portion of the template will be applied. Additionally,
+<code class="docutils literal notranslate"><span class="pre">&lt;template&gt;</span></code> tags can be used within <code class="docutils literal notranslate"><span class="pre">&lt;compare_fields&gt;</span></code> and
+<code class="docutils literal notranslate"><span class="pre">&lt;compare_timers&gt;</span></code> tags to define template fields and timers to
+compare.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">path_base</span></code>: The base that the path attribute should be used relative
+to. Can be a pre-defined paths (see <a class="reference internal" href="config.html#compass-config"><span class="std std-ref">config</span></a> for more
+information)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">path</span></code>: The path that the file lives in, relative to <code class="docutils literal notranslate"><span class="pre">path_base</span></code>.</p></li>
+</ul>
+</dd>
+</dl>
+</li>
+</ul>
+</div></blockquote>
+</div>
+
+
+           </div>
+           
+          </div>
+          <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+        <a href="regression_suite.html" class="btn btn-neutral float-right" title="regression_suite" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
+      
+      
+        <a href="driver_script.html" class="btn btn-neutral float-left" title="driver_script" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+      
+    </div>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        
+        &copy; Copyright Copyright (c) 2013-2020,  Los Alamos National Security, LLC (LANS) (Ocean: LA-CC-13-047;Land Ice: LA-CC-13-117) and the University Corporation for Atmospheric Research (UCAR).
+
+    </p>
+  </div>
+    
+    
+    
+    Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a
+    
+    <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a>
+    
+    provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>
