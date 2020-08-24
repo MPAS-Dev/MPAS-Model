@@ -1,4 +1,5 @@
 <driver_script name="run_test.py">
+	<prerequisite core="ocean" configuration="hurricane" resolution="USDEQU240at60cr20rr4WD" test="build_mesh"/>
 	<case name="init">
 		<step executable="./run.py" quiet="true" pre_message=" * Running init" post_message="     Complete"/>
 	</case>

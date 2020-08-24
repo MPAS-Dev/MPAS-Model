@@ -1,1 +1,9 @@
-../../config_files_WD/config_driver.xml
+<driver_script name="run.py">
+	<prerequisite core="ocean" configuration="hurricane" resolution="USDEQU240at60cr20rr4WD" test="build_mesh"/>
+	<case name="init">
+		<step executable="./run.py" quiet="true" pre_message=" * Running init" post_message="     Complete"/>
+	</case>
+	<case name="forward_RK4">
+		<step executable="./run.py" quiet="true" pre_message=" * Running forward RK4" post_message="     Complete"/>
+	</case>
+</driver_script>
