@@ -1170,11 +1170,9 @@ module li_calving
 
          calvingVelocity(:) = 0.0_RKIND
          ! First calculate the front retreat rate (Levermann eq. 1)
-!         calvingVelocity(:) = eigencalvingParameter(:) * max(0.0_RKIND, eMax(:)) * max(0.0_RKIND, eMin(:)) & ! m/s
-!               * real(li_mask_is_floating_ice_int(cellMask(:)), kind=RKIND)
+         calvingVelocity(:) = eigencalvingParameter(:) * max(0.0_RKIND, eMax(:)) * max(0.0_RKIND, eMin(:)) & ! m/s
+               * real(li_mask_is_floating_ice_int(cellMask(:)), kind=RKIND)
                   ! calculate only for floating ice - map of "potential" calving rate
-
-         calvingVelocity(:) = config_calving_eigencalving_parameter_scalar_value  !MJH HACK
 
 
          ! Convert calvingVelocity to calvingThickness
@@ -1211,25 +1209,25 @@ module li_calving
          call li_calculate_mask(meshPool, velocityPool, geometryPool, err_tmp)
          err = ior(err, err_tmp)
 
-!      ! remove abandoned floating ice (i.e. icebergs) and add it to the calving flux
-!      ! Defined as: floating ice (dynamic or non-dynamic) that is not adjacent to dynamic ice (floating or grounded)
-!      ! This won't necessarily find all abandoned ice, but in practice it does a pretty good job at general cleanup
-!      do iCell = 1, nCells
-!        if (li_mask_is_floating_ice(cellMask(iCell))) then
-!           ! check neighbors for dynamic ice (floating or grounded)
-!           dynamicNeighbor = .false.
-!           do iNeighbor = 1, nEdgesOnCell(iCell)
-!              jCell = cellsOnCell(iNeighbor, iCell)
-!              if (li_mask_is_dynamic_ice(cellMask(jCell))) dynamicNeighbor = .true.
-!           enddo
-!           if (.not. dynamicNeighbor) then  ! calve this ice
-!              calvingThickness(iCell) = calvingThickness(iCell) + thickness(iCell)
-!              thickness(iCell) = 0.0_RKIND
-!           endif
-!        endif
-!      enddo
-!
-!      call remove_small_islands(meshPool, geometryPool)
+         ! remove abandoned floating ice (i.e. icebergs) and add it to the calving flux
+         ! Defined as: floating ice (dynamic or non-dynamic) that is not adjacent to dynamic ice (floating or grounded)
+         ! This won't necessarily find all abandoned ice, but in practice it does a pretty good job at general cleanup
+         do iCell = 1, nCells
+           if (li_mask_is_floating_ice(cellMask(iCell))) then
+              ! check neighbors for dynamic ice (floating or grounded)
+              dynamicNeighbor = .false.
+              do iNeighbor = 1, nEdgesOnCell(iCell)
+                 jCell = cellsOnCell(iNeighbor, iCell)
+                 if (li_mask_is_dynamic_ice(cellMask(jCell))) dynamicNeighbor = .true.
+              enddo
+              if (.not. dynamicNeighbor) then  ! calve this ice
+                 calvingThickness(iCell) = calvingThickness(iCell) + thickness(iCell)
+                 thickness(iCell) = 0.0_RKIND
+              endif
+           endif
+         enddo
+
+         call remove_small_islands(meshPool, geometryPool)
 
          block => block % next
       enddo
