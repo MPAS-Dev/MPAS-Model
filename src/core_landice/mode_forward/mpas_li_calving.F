@@ -1112,10 +1112,13 @@ module li_calving
       real (kind=RKIND), dimension(:), pointer :: angleEdge
       real (kind=RKIND), dimension(:), pointer :: thickness
       real (kind=RKIND), dimension(:), pointer :: calvingThickness
+      integer, dimension(:,:), pointer :: cellsOnCell
+      integer, dimension(:), pointer :: nEdgesOnCell
       integer, dimension(:), pointer :: cellMask
       integer, dimension(:), pointer :: calvingFrontMask
       real (kind=RKIND), pointer :: deltat  !< time step (s)
       real (kind=RKIND), dimension(:), pointer :: dvEdge
+      logical :: dynamicNeighbor
       integer, pointer :: nCells
       integer :: iCell, jCell, iNeighbor
       integer :: err_tmp
@@ -1174,12 +1177,7 @@ module li_calving
 
          calvingVelocity(:) = 0.0_RKIND
          ! First calculate the front retreat rate (Levermann eq. 1)
-         !calvingVelocity(:) = eigencalvingParameter(:) * max(0.0_RKIND, eMax(:)) * max(0.0_RKIND, eMin(:)) ! m/s
-!         calvingVelocity(:) = eigencalvingParameter(:) * max(0.0_RKIND, eMax(:)) * max(0.0_RKIND, eMin(:)) & ! m/s
-!               * real(li_mask_is_floating_ice_int(cellMask(:)), kind=RKIND)
-                  ! calculate only for floating ice - map of "potential" calving rate
-
-         calvingVelocity(:) = config_calving_eigencalving_parameter_scalar_value  !MJH HACK
+         calvingVelocity(:) = eigencalvingParameter(:) * max(0.0_RKIND, eMax(:)) * max(0.0_RKIND, eMin(:))  ! m/s
 
 
          ! Convert calvingVelocity to calvingThickness
@@ -1216,25 +1214,25 @@ module li_calving
          call li_calculate_mask(meshPool, velocityPool, geometryPool, err_tmp)
          err = ior(err, err_tmp)
 
-!      ! remove abandoned floating ice (i.e. icebergs) and add it to the calving flux
-!      ! Defined as: floating ice (dynamic or non-dynamic) that is not adjacent to dynamic ice (floating or grounded)
-!      ! This won't necessarily find all abandoned ice, but in practice it does a pretty good job at general cleanup
-!      do iCell = 1, nCells
-!        if (li_mask_is_floating_ice(cellMask(iCell))) then
-!           ! check neighbors for dynamic ice (floating or grounded)
-!           dynamicNeighbor = .false.
-!           do iNeighbor = 1, nEdgesOnCell(iCell)
-!              jCell = cellsOnCell(iNeighbor, iCell)
-!              if (li_mask_is_dynamic_ice(cellMask(jCell))) dynamicNeighbor = .true.
-!           enddo
-!           if (.not. dynamicNeighbor) then  ! calve this ice
-!              calvingThickness(iCell) = calvingThickness(iCell) + thickness(iCell)
-!              thickness(iCell) = 0.0_RKIND
-!           endif
-!        endif
-!      enddo
-!
-!      call remove_small_islands(meshPool, geometryPool)
+         ! remove abandoned floating ice (i.e. icebergs) and add it to the calving flux
+         ! Defined as: floating ice (dynamic or non-dynamic) that is not adjacent to dynamic ice (floating or grounded)
+         ! This won't necessarily find all abandoned ice, but in practice it does a pretty good job at general cleanup
+         do iCell = 1, nCells
+           if (li_mask_is_floating_ice(cellMask(iCell))) then
+              ! check neighbors for dynamic ice (floating or grounded)
+              dynamicNeighbor = .false.
+              do iNeighbor = 1, nEdgesOnCell(iCell)
+                 jCell = cellsOnCell(iNeighbor, iCell)
+                 if (li_mask_is_dynamic_ice(cellMask(jCell))) dynamicNeighbor = .true.
+              enddo
+              if (.not. dynamicNeighbor) then  ! calve this ice
+                 calvingThickness(iCell) = calvingThickness(iCell) + thickness(iCell)
+                 thickness(iCell) = 0.0_RKIND
+              endif
+           endif
+         enddo
+
+         call remove_small_islands(meshPool, geometryPool)
 
          block => block % next
       enddo
@@ -1436,13 +1434,14 @@ module li_calving
       !-----------------------------------------------------------------
       integer, intent(out) :: err !< Output: error flag
 
-      integer, pointer :: nEdges, nCells
+      integer, pointer :: nEdges, nCells, nCellsSolve, nEmptyNeighbors
       integer :: iEdge, iCell, jCell, iNeighbor
       real (kind=RKIND), dimension(:), pointer :: thickness
       real (kind=RKIND), dimension(:), pointer :: bedTopography
       integer, dimension(:,:), pointer :: cellsOnCell ! list of cells that neighbor each cell
       integer, dimension(:,:), pointer :: edgesOnCell
       integer, dimension(:), pointer :: cellMask, edgeMask
+      integer, dimension(:), pointer :: groundedMarineMarginMask
       real (kind=RKIND), dimension(:), pointer :: calvingThickness
       real (kind=RKIND), pointer :: config_sea_level
       real (kind=RKIND), dimension(:), pointer :: dvEdge
@@ -1458,15 +1457,20 @@ module li_calving
       real (kind=RKIND), dimension(:), allocatable :: requiredCalvingVolumeDynEdge, requiredCalvingVolumeDynCell
       real (kind=RKIND), dimension(:), pointer :: uncalvedVolumeNonDynCell, uncalvedVolumeDynCell
       real (kind=RKIND), dimension(:), allocatable :: cellVolume
-      real(kind=RKIND) :: calvingSubtotal1, calvingSubtotal2
-      real(kind=RKIND) :: thkSum, thkCount
+      real(kind=RKIND) :: calvingSubtotal1, calvingSubtotal2, calvingSubtotal3
+      real(kind=RKIND) :: thkSum
+      integer :: thkCount
       real(kind=RKIND) :: removeVolumeHere
       real(kind=RKIND) :: volumeAvailableToPass
       real(kind=RKIND) :: calvLengthCell, calvLengthEdge
-      real(kind=RKIND), dimension(5) :: localInfo, globalInfo
+      real(kind=RKIND), dimension(6) :: localInfo, globalInfo
       logical :: openOceanNeighbor
       real(kind=RKIND) :: edgeLengthScaling
       real(kind=RKIND), parameter :: calvingSmallThk = 1.0e-8 ! in meters, a small thickness threshold
+      integer :: err_tmp
+
+      err = 0
+      err_tmp = 0
 
       call mpas_pool_get_config(liConfigs, 'config_sea_level', config_sea_level)
 
@@ -1476,6 +1480,7 @@ module li_calving
       call mpas_pool_get_array(meshPool, 'angleEdge', angleEdge)
       call mpas_pool_get_dimension(meshPool, 'nEdges', nEdges)
       call mpas_pool_get_dimension(meshPool, 'nCells', nCells)
+      call mpas_pool_get_dimension(meshPool, 'nCellsSolve', nCellsSolve)
       call mpas_pool_get_array(velocityPool, 'uReconstructX', uReconstructX)
       call mpas_pool_get_array(velocityPool, 'uReconstructY', uReconstructY)
       call mpas_pool_get_array(geometryPool, 'calvingVelocity', calvingVelocity)
@@ -1486,10 +1491,44 @@ module li_calving
       call mpas_pool_get_array(geometryPool, 'calvingThickness', calvingThickness)
       call mpas_pool_get_array(geometryPool, 'uncalvedVolumeNonDynCell', uncalvedVolumeNonDynCell)
       call mpas_pool_get_array(geometryPool, 'uncalvedVolumeDynCell', uncalvedVolumeDynCell)
+      call mpas_pool_get_array(geometryPool, 'groundedMarineMarginMask', groundedMarineMarginMask)
       call mpas_pool_get_array(meshPool, 'nEdgesOnCell', nEdgesOnCell)
       call mpas_pool_get_array(meshPool, 'areaCell', areaCell)
       call mpas_pool_get_array(meshPool, 'deltat', deltat)
 
+      do iCell = 1, nCellsSolve
+      ! Define marine marginal cells as those that are (1) at the ice
+      ! margin, (2) have at least one neighboring cell without ice, (3)
+      ! contain
+      ! grounded ice, and (4) have bed topography below sea level.
+      ! OR is adjacent to an inactive floating margin cell
+        nEmptyNeighbors = 0
+      ! Check if neighboring cells contain ice and have bed topo below sea
+      ! level
+        do iEdge = 1, nEdgesOnCell(iCell)
+           iNeighbor = cellsOnCell(iEdge, iCell)
+           if ( ((thickness(iNeighbor) == 0.0_RKIND) & 
+              .and. bedTopography(iNeighbor) < config_sea_level) &
+              .or. (li_mask_is_floating_ice(cellMask(iNeighbor)) & 
+              .and. li_mask_is_margin(cellMask(iNeighbor)) &
+              .and. (.not. li_mask_is_dynamic_ice(cellMask(iNeighbor))))) then
+               nEmptyNeighbors = nEmptyNeighbors + 1
+           endif
+        enddo 
+        
+        if ( nEmptyNeighbors > 0 &
+           .and. thickness(iCell) > 0.0_RKIND &
+           .and. li_mask_is_grounded_ice(cellMask(iCell)) &
+           .and. bedTopography(iCell) < config_sea_level &
+           .and. li_mask_is_dynamic_ice(cellMask(iCell)) ) then
+                
+            groundedMarineMarginMask(iCell) = 1
+        else 
+            groundedMarineMarginMask(iCell) = 0
+        endif
+
+     enddo
+ 
 
       ! Init fields for accounting
       calvingThickness(:) = 0.0_RKIND
@@ -1510,7 +1549,7 @@ module li_calving
 
       ! 1. Calculate calving rate for all non-dynamic cells by working with their ocean-going edges
       calvingSubtotal1 = 0.0_RKIND
-      do iCell = 1, nCells
+      do iCell = 1, nCellsSolve
          if (li_mask_is_floating_ice(cellMask(iCell)) .and. (.not. li_mask_is_dynamic_ice(cellMask(iCell)))) then
             ! a. Translate the calving front height based on dynamic cells to the non-dynamic locations
             ! find mean (or min?) of thickness in dynamic neighbors
@@ -1553,17 +1592,16 @@ module li_calving
             calvingSubtotal1 = calvingSubtotal1 + removeVolumeHere
          endif
       enddo
-      call mpas_log_write("Done calculating calving for non-dynamic floating cells. Removed $r m^3", realArgs=(/calvingSubtotal1/))
-
+      !call mpas_log_write("Done calculating calving for non-dynamic floating cells. Removed $r m^3", realArgs=(/calvingSubtotal1/))
 
 
       ! 2. Calculate calving for dynamic cells
       calvingSubtotal2 = 0.0_RKIND
 
       ! a. Calculate calving on dynamic margin edges
-      do iCell = 1, nCells
-         if (li_mask_is_floating_ice(cellMask(iCell)) .and. li_mask_is_dynamic_ice(cellMask(iCell)) .and. &
-                 li_mask_is_margin(cellMask(iCell)) ) then
+      do iCell = 1, nCellsSolve
+         if ( (li_mask_is_floating_ice(cellMask(iCell)) .and. li_mask_is_dynamic_ice(cellMask(iCell)) .and. &
+                 li_mask_is_margin(cellMask(iCell))) .or.  (groundedMarineMarginMask(iCell) == 1) ) then
             ! only consider dynamic margins adjacent to open ocean (need to exclude dynamic margins adjacent to land)
             openOceanNeighbor = .false.
             do iNeighbor = 1, nEdgesOnCell(iCell)
@@ -1586,8 +1624,8 @@ module li_calving
       enddo
       ! b. copy calving remaining in non-dynamic cells to dynamic edges
       ! Assume height and velocity are uniform, but edge length is not.
-      do iCell = 1, nCells
-         if (li_mask_is_floating_ice(cellMask(iCell)) .and. (.not. li_mask_is_dynamic_ice(cellMask(iCell))) .and. &
+      do iCell = 1, nCellsSolve
+         if ( (.not. li_mask_is_dynamic_ice(cellMask(iCell))) .and. &
                  uncalvedVolumeNonDynCell(iCell) > 0.0_RKIND) then
             ! This is a non-dynamic location that still has calving to offer - a location where calving needs to be propagated
 
@@ -1624,9 +1662,9 @@ module li_calving
       enddo
 
       ! c. Now apply calving to each cell
-      do iCell = 1, nCells
-         if (li_mask_is_floating_ice(cellMask(iCell)) .and. li_mask_is_dynamic_ice(cellMask(iCell)) .and. &
-                 li_mask_is_dynamic_margin(cellMask(iCell)) ) then
+      do iCell = 1, nCellsSolve
+         if ( (li_mask_is_floating_ice(cellMask(iCell)) .and. li_mask_is_dynamic_ice(cellMask(iCell)) .and. &
+                 li_mask_is_dynamic_margin(cellMask(iCell)) ) .or. (groundedMarineMarginMask(iCell) == 1) ) then
             do iNeighbor = 1, nEdgesOnCell(iCell)
                iEdge = edgesOnCell(iNeighbor, iCell)
                ! No need to check what type of edge this is - only required edges are nonzero
@@ -1641,8 +1679,38 @@ module li_calving
             calvingSubtotal2 = calvingSubtotal2 + removeVolumeHere
          endif
       enddo
-      call mpas_log_write("Done calculating calving for dynamic floating cells. Removed $r m^3", realArgs=(/calvingSubtotal2/))
+      !call mpas_log_write("Done calculating calving for dynamic floating cells. Removed $r m^3", realArgs=(/calvingSubtotal2/))
 
+
+      ! Clean up to account for roundoff level errors that can occur
+      do iCell = 1, nCellsSolve
+         if (abs(calvingThickness(iCell) - thickness(iCell)) < calvingSmallThk) then
+            calvingThickness(iCell) = thickness(iCell)
+         endif
+      enddo
+
+      ! Clean up - zap any stranded ice
+      calvingSubtotal3 = 0.0_RKIND
+      do iCell = 1, nCellsSolve
+         if (li_mask_is_floating_ice(cellMask(iCell)) .and. (.not. li_mask_is_dynamic_ice(cellMask(iCell)))) then
+            thkCount = 0
+            do iNeighbor = 1, nEdgesOnCell(iCell)
+               jCell = cellsOnCell(iNeighbor, iCell)
+               if (li_mask_is_dynamic_ice(cellMask(jCell))) then
+                  thkCount = thkCount + 1
+               endif
+            enddo
+            if (thkCount == 0) then
+               calvingThickness(iCell) = thickness(iCell)
+               calvingSubtotal3 = calvingSubtotal3 + calvingThickness(iCell)
+            endif
+         endif
+         if (isnan(areaCell(iCell))) then
+            call mpas_log_write("NaN detected in calvingThickness at cell $i", MPAS_LOG_ERR, intArgs=(/iCell/))
+            err_tmp = 1
+            err = ior(err, err_tmp)
+         endif
+      enddo
 
       ! Clean up to account for roundoff level errors that can occur
       do iCell = 1, nCells
@@ -1653,21 +1721,41 @@ module li_calving
 
 
       ! End of routine accounting/reporting
-      localInfo(1) = sum(calvingThickness*areaCell)
-      localInfo(2) = calvingSubtotal1
-      localInfo(3) = calvingSubtotal2
-      localInfo(4) = sum(uncalvedVolumeNonDynCell)
-      localInfo(5) = sum(uncalvedVolumeDynCell)
+      localInfo(1) = calvingSubtotal1
+      localInfo(2) = calvingSubtotal2
+      localInfo(3) = calvingSubtotal3
+      localInfo(4) = sum(calvingThickness(1:nCellsSolve) * areaCell(1:nCellsSolve))
+      localInfo(5) = sum(uncalvedVolumeNonDynCell(1:nCellsSolve))
+      localInfo(6) = sum(uncalvedVolumeDynCell(1:nCellsSolve))
       ! NOTE: THIS WILL NOT WORK ON MULTIPLE BLOCKS PER PROCESSOR
-      call mpas_dmpar_sum_real_array(domain % dminfo, 5, localInfo, globalInfo)
-      call mpas_log_write("Calving complete. Total calved=$r; Calved from non-dynamic cells=$r; Calved from dynamic cells=$r", &
-!              realArgs=(/sum(calvingThickness*areaCell), calvingSubtotal1, calvingSubtotal2/))
-              realArgs=(/globalInfo(1), globalInfo(2), globalInfo(3)/))
-      call mpas_log_write("   Uncalved volumes: Non-dynamic cells=$r; Dynamic cells=$r", &
-!              realArgs=(/sum(uncalvedVolumeNonDynCell), sum(uncalvedVolumeDynCell)/))
-              realArgs=(/globalInfo(4), globalInfo(5)/))
-      if (globalInfo(2) + globalInfo(3) > 0.0_RKIND) then
-         call mpas_log_write("Calving scheme failed to calve $r m^3.", MPAS_LOG_WARN, realArgs=(/globalInfo(2) + globalInfo(3)/))
+      call mpas_dmpar_sum_real_array(domain % dminfo, 6, localInfo, globalInfo)
+      call mpas_log_write("== Calving complete. Total calved                    = $r", realArgs = (/globalInfo(4)/))
+      call mpas_log_write("==                   Calved from non-dynamic cells   = $r", realArgs = (/globalInfo(1)/))
+      call mpas_log_write("==                   Calved from dynamic cells       = $r", realArgs = (/globalInfo(2)/))
+      call mpas_log_write("==                   Stranded floating cells deleted = $r", realArgs = (/globalInfo(3)/))
+      call mpas_log_write("== Uncalved volumes: Non-dynamic cells=$r; Dynamic cells=$r", realArgs=(/globalInfo(5),globalInfo(6)/))
+      if (((globalInfo(5) + globalInfo(6)) / (globalInfo(4) + 1.0e-30_RKIND) > 0.001_RKIND) .and. &
+          (globalInfo(4) > 1000.0_RKIND**2)) then ! Include some small amount of total calving for comparison
+         call mpas_log_write("Calving scheme failed to calve $r m^3. ($r% of total calved)", MPAS_LOG_WARN, &
+                 realArgs=(/globalInfo(5) + globalInfo(6), &
+                 100.0_RKIND * (globalInfo(5) + globalInfo(6)) / (globalInfo(4)+1.0e-30_RKIND)/))
+      endif
+      if (((globalInfo(5) + globalInfo(6)) / (globalInfo(4) + 1.0e-30_RKIND) > 0.1_RKIND) .and. &
+          (globalInfo(4) > 1000.0_RKIND**2)) then ! Include some small amount of total calving for comparison
+         call mpas_log_write("Calving scheme failed to calve an amount greater than 10% of the ice calved.  " // &
+                 "Try reducing time step or apply_calving_velocity may need improvements.", &
+                 MPAS_LOG_ERR, realArgs=(/globalInfo(5) + globalInfo(6), &
+                 100.0_RKIND * (globalInfo(5) + globalInfo(6)) / (globalInfo(4)+1.0e-30_RKIND)/))
+         err_tmp = 1
+         err = ior(err, err_tmp)
+      endif
+      if (globalInfo(3) / (globalInfo(4) + 1.0e-30_RKIND) > 0.01_RKIND) then
+         ! If stranded ice deletion results in more than a small amount of the total calving flux, this routine will not
+         ! be accurate.  If this error gets triggered, either try using a smaller timstep or this routine needs improving.
+         call mpas_log_write("Deleting stranded floating cells accounts for more than 1% of calving loss." // &
+                 "  Try using a smaller timestep or apply_calving_velocity may need improvements for this simulation.")
+         err_tmp = 1
+         err = ior(err, err_tmp)
       endif
 
 
@@ -1686,6 +1774,7 @@ module li_calving
       deallocate(thicknessForCalving)
 
     end subroutine apply_calving_velocity
+
 
     ! Helper function for subroutine apply_calving_velocity
     ! Calculates the amount to scale an edge length based on the orientation of the edge with the surface velocity
