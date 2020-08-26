@@ -74,7 +74,7 @@
 
 	<var_struct name="tend" time_levs="1">
 		<var_struct name="tracersTend" time_levs="1">
-			<var_array name="activeTracersTend" type="real" dimensions="nVertLevels nCells Time" packages="activeTracersPKG" missing_value="FILLVAL">
+			<var_array name="activeTracersTend" type="real" dimensions="nVertLevels nCells Time" packages="activeTracersPKG">
 				<var name="temperatureTend" array_group="activeGRP" units="^\circ C s^{-1}"
 			 description="time tendency of potential temperature"
 				/>
