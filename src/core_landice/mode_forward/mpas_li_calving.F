@@ -1433,9 +1433,9 @@ module li_calving
       ! output variables
       !-----------------------------------------------------------------
       integer, intent(out) :: err !< Output: error flag
-
-      integer, pointer :: nEdges, nCells, nCellsSolve, nEmptyNeighbors
-      integer :: iEdge, iCell, jCell, iNeighbor
+        
+      integer, pointer :: nEdges, nCells, nCellsSolve
+      integer :: iEdge, iCell, jCell, iNeighbor, nEmptyNeighbors
       real (kind=RKIND), dimension(:), pointer :: thickness
       real (kind=RKIND), dimension(:), pointer :: bedTopography
       integer, dimension(:,:), pointer :: cellsOnCell ! list of cells that neighbor each cell
@@ -1496,6 +1496,8 @@ module li_calving
       call mpas_pool_get_array(meshPool, 'areaCell', areaCell)
       call mpas_pool_get_array(meshPool, 'deltat', deltat)
 
+      groundedMarineMarginMask(:) = 0
+
       do iCell = 1, nCellsSolve
       ! Define marine marginal cells as those that are (1) at the ice
       ! margin, (2) have at least one neighboring cell without ice, (3)
@@ -1507,7 +1509,9 @@ module li_calving
       ! level
         do iEdge = 1, nEdgesOnCell(iCell)
            iNeighbor = cellsOnCell(iEdge, iCell)
-           if ( ((thickness(iNeighbor) == 0.0_RKIND) & 
+           if ( ((thickness(iNeighbor) == 0.0_RKIND) &
+              .and. iNeighbor > 0 & ! make sure this cell exists
+              .and. iNeighbor <= nCellsSolve & ! make sure this cell exists 
               .and. bedTopography(iNeighbor) < config_sea_level) &
               .or. (li_mask_is_floating_ice(cellMask(iNeighbor)) & 
               .and. li_mask_is_margin(cellMask(iNeighbor)) &
@@ -1522,12 +1526,11 @@ module li_calving
            .and. bedTopography(iCell) < config_sea_level &
            .and. li_mask_is_dynamic_ice(cellMask(iCell)) ) then
                 
-            groundedMarineMarginMask(iCell) = 1
-        else 
-            groundedMarineMarginMask(iCell) = 0
+            groundedMarineMarginMask(iCell) = int(1)
+        
         endif
 
-     enddo
+      enddo
  
 
       ! Init fields for accounting
