@@ -223,7 +223,7 @@ module mpas_io
       type (mpas_io_context_type), pointer :: ioContext
       logical, intent(in), optional :: clobber_file
       logical, intent(in), optional :: truncate_file
-      type (file_desc_t), pointer, optional :: pio_file_desc
+      type (file_desc_t), intent(inout), optional :: pio_file_desc
       integer, intent(out), optional :: ierr
 
       integer :: pio_ierr, pio_iotype, pio_mode

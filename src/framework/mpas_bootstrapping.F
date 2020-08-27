@@ -85,7 +85,7 @@ module mpas_bootstrapping
       type (domain_type), pointer :: domain
       character(len=*), intent(in) :: mesh_filename
       integer, intent(in) :: mesh_iotype
-      type (file_desc_t), pointer, optional :: pio_file_desc
+      type (file_desc_t), intent(inout), optional :: pio_file_desc
 
       type (block_type), pointer :: readingBlock
 
@@ -450,7 +450,7 @@ module mpas_bootstrapping
       implicit none
 
       type (domain_type), pointer :: domain
-      type (file_desc_t), pointer, optional :: pio_file_desc
+      type (file_desc_t), intent(inout), optional :: pio_file_desc
 
       type (mpas_pool_type), pointer :: readableDimensions
       type (mpas_pool_type), pointer :: streamDimensions
