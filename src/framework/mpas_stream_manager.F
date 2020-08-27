@@ -47,7 +47,9 @@ module mpas_stream_manager
               MPAS_get_stream_filename, &
               MPAS_build_stream_filename
 
-    public :: postread_reindex
+    public :: prewrite_reindex, &
+              postwrite_reindex, &
+              postread_reindex
 
     private
 
