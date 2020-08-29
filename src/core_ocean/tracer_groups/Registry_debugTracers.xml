@@ -65,7 +65,7 @@
 
 	<var_struct name="tend" time_levs="1">
 		<var_struct name="tracersTend" time_levs="1">
-			<var_array name="debugTracersTend" type="real" dimensions="nVertLevels nCells Time" packages="debugTracersPKG">
+			<var_array name="debugTracersTend" type="real" dimensions="nVertLevels nCells Time" packages="debugTracersPKG" missing_value="FILLVAL">
 				<var name="tracer1Tend" array_group="debugGRP" units="tracer1"
 			 description="Tendency for tracer1"
 				/>
@@ -140,7 +140,7 @@
 			</var_array>
 		</var_struct>
 		<var_struct name="tracersInteriorRestoringFields" time_levs="1">
-			<var_array name="debugTracersInteriorRestoringRate" type="real" dimensions="nVertLevels nCells Time" packages="debugTracersInteriorRestoringPKG">
+			<var_array name="debugTracersInteriorRestoringRate" type="real" dimensions="nVertLevels nCells Time" packages="debugTracersInteriorRestoringPKG" missing_value="FILLVAL">
 				<var name="tracer1InteriorRestoringRate" array_group="debugGRP" units="{s}^-1"
 				 description="A non-negative field controlling the rate at which tracer1 is restored to tracer1InteriorRestoringValue"
 				/>
@@ -151,7 +151,7 @@
 				 description="A non-negative field controlling the rate at which tracer3 is restored to tracer3InteriorRestoringValue"
 				/>
 			</var_array>
-			<var_array name="debugTracersInteriorRestoringValue" type="real" dimensions="nVertLevels nCells Time" packages="debugTracersInteriorRestoringPKG">
+			<var_array name="debugTracersInteriorRestoringValue" type="real" dimensions="nVertLevels nCells Time" missing_value="FILLVAL" packages="debugTracersInteriorRestoringPKG">
 				<var name="tracer1InteriorRestoringValue" array_group="debugGRP" units="^\circ C"
 				 description="tracer1 is restored toward this field at a rate controlled by tracer1InteriorRestoringRate."
 				/>
