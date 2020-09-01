@@ -1186,7 +1186,6 @@ module li_calving
          ! First calculate the front retreat rate (Levermann eq. 1)
          calvingVelocity(:) = eigencalvingParameter(:) * max(0.0_RKIND, eMax(:)) * max(0.0_RKIND, eMin(:))  ! m/s
 
-
          ! Convert calvingVelocity to calvingThickness
           call apply_front_ablation_velocity(meshPool, geometryPool, velocityPool, applyToGrounded, &
                                               applyToFloating, applyCalving, applyMelting, domain, err)
@@ -1583,8 +1582,8 @@ module li_calving
          ablationVelocity(:) = calvingVelocity(:)
       else if ( applyMelting ) then
          !ablationVelocity(:) = faceMeltSpeed(:) * abs(config_sea_level - lowerSurface(:)) / thickness(:) ! faceMeltSpeed is only submarine, so spread this across the whole height of the ice front
-         where (thickness > 0.0_RKIND)
-               ablationVelocity(:) = faceMeltSpeed(:) * lowerSurface(:) / thickness(:)
+         where ( (thickness > 0.0_RKIND) .and. (lowerSurface < 0.0_RKIND) )
+               ablationVelocity(:) = faceMeltSpeed(:) * abs(lowerSurface(:)) / thickness(:)
          end where
       end if
 
@@ -1642,9 +1641,8 @@ module li_calving
       ! a. Calculate calving on dynamic margin edges
       do iCell = 1, nCellsSolve
          if ( ( (li_mask_is_floating_ice(cellMask(iCell)) .and. li_mask_is_dynamic_ice(cellMask(iCell)) ) & ! floating dynamic
-                .or.  (groundedMarineMarginMask(iCell) == 1) ) &
-              .and. li_mask_is_margin(cellMask(iCell)) ) then
-            ! only consider dynamic margins adjacent to open ocean (need to exclude dynamic margins adjacent to land)
+              .and. li_mask_is_margin(cellMask(iCell)) ) .or.  (groundedMarineMarginMask(iCell) == 1) ) then            
+! only consider dynamic margins adjacent to open ocean (need to exclude dynamic margins adjacent to land)
             do iNeighbor = 1, nEdgesOnCell(iCell)
                jCell = cellsOnCell(iNeighbor, iCell)
                if ((.not. li_mask_is_ice(cellMask(jCell))) .and. (bedTopography(jCell) <= config_sea_level)) then

@@ -1186,6 +1186,7 @@ module li_iceshelf_melt
       type (block_type), pointer :: block
       type (mpas_pool_type), pointer :: geometryPool, meshPool, scratchPool, velocityPool
       real (kind=RKIND), pointer :: seaLevel
+      real (kind=RKIND), pointer :: deltat
       real (kind=RKIND), dimension(:), pointer :: dvEdge
       real (kind=RKIND), dimension(:), pointer :: thickness, lowerSurface, meltingThickness
       real (kind=RKIND), dimension(:), pointer :: bedTopography
@@ -1258,7 +1259,10 @@ module li_iceshelf_melt
          call mpas_pool_get_array(geometryPool, 'groundedMarineMarginMask', groundedMarineMarginMask)
          call mpas_pool_get_array(geometryPool, 'faceMeltRateApplied', faceMeltRateApplied)
          call mpas_pool_get_array(geometryPool, 'faceMeltSpeed', faceMeltSpeed)
-         
+         call mpas_pool_get_array(meshPool, 'deltat', deltat)
+
+         faceMeltRateApplied(:) = 0.0_RKIND
+         faceMeltSpeed(:) = 0.0_RKIND 
        ! Calculate retreat rate for each cell
          do iCell = 1, nCellsSolve
             ! Define marine marginal cells as those that are (1) at the ice
@@ -1283,31 +1287,23 @@ module li_iceshelf_melt
                  endif
             enddo 
             
-            if ( nEmptyNeighbors > 0 &
-               .and. thickness(iCell) > 0.0_RKIND &
-               .and. li_mask_is_grounded_ice(cellMask(iCell)) &
-               .and. bedTopography(iCell) < seaLevel ) then
-                
-                groundedMarineMarginMask(iCell) = 1
+            if ( bedTopography(iCell) < 0.0_RKIND ) then
                 waterDepth = seaLevel - bedTopography(iCell)
-                          
-                submergedFaceArea = waterDepth * oceanEdgeLength
+            else
+                waterDepth = 0.0
+            endif
+           
+            submergedFaceArea = waterDepth * oceanEdgeLength
                 
-                if (config_uniform_face_melt_rate == 0.0) then                
+            if (config_uniform_face_melt_rate == 0.0) then                
                 ! Calculate ice front melt rate at each cell
-                   faceMeltSpeed(iCell) = (aSubglacial * waterDepth * & ! m s^-1
+               faceMeltSpeed(iCell) = (aSubglacial * waterDepth * & ! m s^-1
                          (ismip6Runoff(iCell) / rhow * secPerDay)**alphaSubglacial &
                          + B) * (TFocean(iCell) + addTFocean)**betaTF / secPerDay
-                else
-                   faceMeltSpeed(iCell) = config_uniform_face_melt_rate
-                endif
-                !calvingVelocity(iCell) = calvingVelocity(iCell) + iceFrontMeltRate ! m s^-1
-                faceMeltRateApplied(iCell) = faceMeltSpeed(iCell) * submergedFaceArea ! m^3 s^-1
-            else 
-                groundedMarineMarginMask(iCell) = 0
-                faceMeltRateApplied(iCell) = 0.0_RKIND     
-                faceMeltSpeed(iCell) = 0.0_RKIND
-            endif           
+            else
+               faceMeltSpeed(iCell) = config_uniform_face_melt_rate
+            endif
+
          enddo
 
          call mpas_log_write("calling apply_front_ablation_velocity")
@@ -1320,6 +1316,7 @@ module li_iceshelf_melt
 
          ! Apply facemelt: open the Ark
          thickness(:) = thickness(:) - meltingThickness(:)
+         faceMeltRateApplied = meltingThickness(:) * areaCell(:) / deltat
 
          ! update mask
          call li_calculate_mask(meshPool, velocityPool, geometryPool, err_tmp)
