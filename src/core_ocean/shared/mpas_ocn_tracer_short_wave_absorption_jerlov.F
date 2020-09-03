@@ -75,8 +75,8 @@ contains
 !
 !-----------------------------------------------------------------------
 
-   subroutine ocn_tracer_short_wave_absorption_jerlov_tend(meshPool, forcingPool, index_temperature, layerThickness, &
-                                        penetrativeTemperatureFlux, penetrativeTemperatureFluxOBL, tend, err)!{{{
+   subroutine ocn_tracer_short_wave_absorption_jerlov_tend(meshPool, diagnosticsPool, forcingPool, index_temperature, &!{{{
+                layerThickness, penetrativeTemperatureFlux, penetrativeTemperatureFluxOBL, tend, err)
 
       !-----------------------------------------------------------------
       !
@@ -85,7 +85,7 @@ contains
       !-----------------------------------------------------------------
 
       type (mpas_pool_type), intent(in) :: &
-         meshPool, forcingPool          !< Input: mesh information
+         meshPool, forcingPool, diagnosticsPool          !< Input: mesh information
 
       real (kind=RKIND), dimension(:), intent(in) :: &
         penetrativeTemperatureFlux !< Input: penetrative temperature flux through the surface
@@ -120,14 +120,14 @@ contains
       !
       !-----------------------------------------------------------------
 
-      integer :: iCell, k, depLev, nCells
+      integer :: iCell, k, nCells
       integer, pointer :: nVertLevels
       integer, dimension(:), pointer :: nCellsArray
 
       integer, dimension(:), pointer :: maxLevelCell
 
-      real (kind=RKIND) :: depth
-      real (kind=RKIND), dimension(:), pointer :: refBottomDepth
+      real (kind=RKIND) :: depth, weightOSBL
+      real (kind=RKIND), dimension(:), pointer :: boundaryLayerDepth, refBottomDepth
       real (kind=RKIND), dimension(:), allocatable :: weights
 
       err = 0
@@ -135,6 +135,7 @@ contains
       call mpas_pool_get_dimension(meshPool, 'nCellsArray', nCellsArray)
       call mpas_pool_get_dimension(meshPool, 'nVertLevels', nVertLevels)
 
+      call mpas_pool_get_array(diagnosticsPool, 'boundaryLayerDepth', boundaryLayerDepth)
       call mpas_pool_get_array(meshPool, 'maxLevelCell', maxLevelCell)
       call mpas_pool_get_array(meshPool, 'refBottomDepth', refBottomDepth)
 
@@ -146,7 +147,7 @@ contains
 
 #ifndef CPRPGI
       !$omp parallel
-      !$omp do schedule(runtime) private(depth, k, depLev) &
+      !$omp do schedule(runtime) private(weightOSBL, depth, k) &
       !$omp firstprivate(weights)
 #endif
       do iCell = 1, nCells
@@ -159,18 +160,8 @@ contains
                                               * (weights(k) - weights(k+1))
          end do
 
-         depth = 0.0_RKIND
-         do k=1,maxLevelCell(iCell)
-           depth = depth + layerThickness(k,iCell)
-           if(depth > abs(config_surface_buoyancy_depth)) exit
-         enddo
-
-         if(k == maxLevelCell(iCell) .or. k == 1) then
-           depLev=2
-         else
-           depLev=k
-         endif
-         penetrativeTemperatureFluxOBL(iCell)=penetrativeTemperatureFlux(iCell)*weights(depLev)
+         call ocn_get_jerlov_fraction(boundaryLayerDepth(iCell), weightOSBL)
+         penetrativeTemperatureFluxOBL(iCell)=penetrativeTemperatureFlux(iCell)*weightOSBL
 
       end do
 #ifndef CPRPGI

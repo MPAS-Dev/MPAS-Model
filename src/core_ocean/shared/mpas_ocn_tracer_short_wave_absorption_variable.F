@@ -71,8 +71,9 @@ contains
 !
 !-----------------------------------------------------------------------
 
-   subroutine ocn_tracer_short_wave_absorption_variable_tend(meshPool, swForcingPool, forcingPool, index_temperature, & !{{{
-                                  layerThickness, penetrativeTemperatureFlux, penetrativeTemperatureFluxOBL, tend, err)
+   subroutine ocn_tracer_short_wave_absorption_variable_tend(meshPool, diagnosticsPool, swForcingPool, forcingPool, &!{{{
+                index_temperature, layerThickness, penetrativeTemperatureFlux, penetrativeTemperatureFluxOBL, tend, &
+                err)
 
       !-----------------------------------------------------------------
       !
@@ -84,7 +85,8 @@ contains
       type (mpas_pool_type), intent(in) :: &
          meshPool,                         &          !< Input: mesh information
          swForcingPool,                    &          !< Input: chlorophyll, cloud, zenith data
-         forcingPool
+         forcingPool,                      &
+         diagnosticsPool
 
       real (kind=RKIND), dimension(:), intent(in) :: &
         penetrativeTemperatureFlux !< Input: penetrative temperature flux through the surface
@@ -119,14 +121,14 @@ contains
       !
       !-----------------------------------------------------------------
 
-      integer :: iCell, k, depLev, nCells
+      integer :: iCell, k, nCells
       integer, pointer :: nVertLevels
       integer, dimension(:), pointer :: nCellsArray
 
       integer, dimension(:), pointer :: maxLevelCell
 
-      real (kind=RKIND) :: depth
-      real (kind=RKIND), dimension(:), pointer :: refBottomDepth
+      real (kind=RKIND) :: weightOSBL, depth
+      real (kind=RKIND), dimension(:), pointer :: boundaryLayerDepth, refBottomDepth
       real (kind=RKIND), dimension(:), allocatable :: weights
       real (kind=RKIND), dimension(:), pointer :: chlorophyllA, zenithAngle, clearSkyRadiation
       real (kind=RKIND), dimension(4) :: Avals, Kvals
@@ -139,6 +141,7 @@ contains
 
       call mpas_pool_get_array(meshPool, 'maxLevelCell', maxLevelCell)
       call mpas_pool_get_array(meshPool, 'refBottomDepth', refBottomDepth)
+      call mpas_pool_get_array(diagnosticsPool, 'boundaryLayerDepth', boundaryLayerDepth)
 
       allocate(weights(nVertLevels+1))
       weights = 0.0_RKIND
@@ -154,7 +157,7 @@ contains
       nCells = nCellsArray( 3 )
 
       !$omp parallel
-      !$omp do schedule(runtime) private(depth, cloudRatio, k, depLev, Avals, Kvals, weights)
+      !$omp do schedule(runtime) private(depth, cloudRatio, k, weightOSBL, Avals, Kvals, weights)
       do iCell = 1, nCells
         depth = 0.0_RKIND
         cloudRatio = min(1.0_RKIND, 1.0_RKIND - penetrativeTemperatureFlux(iCell)/(hflux_factor*(1.0E-15_RKIND + &
@@ -171,18 +174,8 @@ contains
                                             * (weights(k) - weights(k+1) )
         end do
 
-        depth = 0.0_RKIND
-        do k=1,maxLevelCell(iCell)
-           depth = depth + layerThickness(k,iCell)
-           if(depth > abs(config_surface_buoyancy_depth)) exit
-        enddo
-
-        if(k == maxLevelCell(iCell) .or. k == 1) then
-           depLev=2
-        else
-           depLev=k
-        endif
-        penetrativeTemperatureFluxOBL(iCell)=penetrativeTemperatureFlux(iCell)*weights(depLev)
+        call ocn_get_variable_sw_fraction(boundaryLayerDepth(iCell), weightOSBL, Avals, Kvals)
+        penetrativeTemperatureFluxOBL(iCell)=penetrativeTemperatureFlux(iCell)*weightOSBL
 
       end do
       !$omp end do

@@ -64,8 +64,9 @@ contains
 !
 !-----------------------------------------------------------------------
 
-   subroutine ocn_tracer_short_wave_absorption_tend(meshPool, swForcingPool, forcingPool, index_temperature, & !{{{
-                    layerThickness, penetrativeTemperatureFlux, penetrativeTemperatureFluxOBL, tend, err)
+   subroutine ocn_tracer_short_wave_absorption_tend(meshPool, diagnosticsPool, swForcingPool, forcingPool,    & !{{{
+                index_temperature, layerThickness, penetrativeTemperatureFlux, penetrativeTemperatureFluxOBL, &
+                tend, err)
 
       !-----------------------------------------------------------------
       !
@@ -74,7 +75,7 @@ contains
       !-----------------------------------------------------------------
 
       type (mpas_pool_type), intent(in) :: &
-         meshPool, swForcingPool, forcingPool          !< Input: mesh information
+         meshPool, swForcingPool, diagnosticsPool, forcingPool          !< Input: mesh information
 
       real (kind=RKIND), dimension(:), intent(in) :: &
          penetrativeTemperatureFlux !< Input: short wave heat flux
@@ -115,11 +116,11 @@ contains
 
       err = 0
       if(useJerlov) then
-         call ocn_tracer_short_wave_absorption_jerlov_tend(meshPool, forcingPool, index_temperature, layerThickness, &
-                                        penetrativeTemperatureFlux, penetrativeTemperatureFluxOBL, tend, err)
+         call ocn_tracer_short_wave_absorption_jerlov_tend(meshPool, diagnosticsPool, forcingPool, index_temperature, &
+                layerThickness, penetrativeTemperatureFlux, penetrativeTemperatureFluxOBL, tend, err)
       else
-         call ocn_tracer_short_wave_absorption_variable_tend(meshPool,swForcingPool, forcingPool, index_temperature, &
-                                        layerThickness, penetrativeTemperatureFlux, penetrativeTemperatureFluxOBL,tend,err)
+         call ocn_tracer_short_wave_absorption_variable_tend(meshPool, diagnosticsPool, swForcingPool, forcingPool,  &
+                index_temperature, layerThickness, penetrativeTemperatureFlux, penetrativeTemperatureFluxOBL,tend,err)
       endif
 
       call mpas_timer_stop("short wave")

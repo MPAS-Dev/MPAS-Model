@@ -889,8 +889,9 @@ contains
                      !$omp end parallel
                   endif
 
-                  call ocn_tracer_short_wave_absorption_tend(meshPool, swForcingPool, forcingPool, indexTemperature, &
-                           layerThickness, penetrativeTemperatureFlux, penetrativeTemperatureFluxOBL, tracerGroupTend, err)
+                  call ocn_tracer_short_wave_absorption_tend(meshPool, diagnosticsPool, swForcingPool, forcingPool, &
+                          indexTemperature, layerThickness, penetrativeTemperatureFlux, penetrativeTemperatureFluxOBL, &
+                          tracerGroupTend, err)
 
                   if (config_compute_active_tracer_budgets) then
                      !$omp parallel
