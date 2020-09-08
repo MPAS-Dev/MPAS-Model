@@ -149,10 +149,8 @@ module ocn_tracer_advection
                                              diagnosticsPool, computeBudgets)
 
       else
-         call ocn_tracer_advection_std_tend(tracers, advCoefs, advCoefs3rd, &
-            nAdvCellsForEdge, advCellsForEdge, normalThicknessFlux, w, layerThickness, &
-            layerThickness, dt, meshPool, tend, maxLevelCell, maxLevelEdgeTop, &
-            highOrderAdvectionMask, edgeSignOnCell)
+         call ocn_tracer_advection_std_tend(tracers, normalThicknessFlux, w, layerThickness, &
+                                            layerThickness, dt, tend)
       endif
 
       call mpas_timer_stop("tracer adv")
