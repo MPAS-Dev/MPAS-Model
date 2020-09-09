@@ -1,8 +1,8 @@
 <?xml version="1.0"?>
 <config case="simulation">
-	<add_link source="../../init/initial_state/initial_state.nc" dest="init.nc"/>
-	<add_link source="../../init/initial_state/graph.info" dest="graph.info"/>
-	<add_link source="../../init/initial_state/init_mode_forcing_data.nc" dest="forcing_data.nc"/>
+	<add_link source="../initial_state/initial_state.nc" dest="init.nc"/>
+	<add_link source="../initial_state/graph.info" dest="graph.info"/>
+	<add_link source="../initial_state/init_mode_forcing_data.nc" dest="forcing_data.nc"/>
 	<add_link source="../prep_spin_up1/Restart_timestamp" dest="Restart_timestamp"/>
 	<add_link source="../prep_spin_up1/restarts" dest="restarts"/>
 

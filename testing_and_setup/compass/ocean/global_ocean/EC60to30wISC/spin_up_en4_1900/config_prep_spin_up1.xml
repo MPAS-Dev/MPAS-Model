@@ -1,8 +1,8 @@
 <?xml version="1.0"?>
 <config case="prep_spin_up1">
-	<add_link source="../../init/ssh_adjustment/init.nc" dest="init.nc"/>
-	<add_link source="../../init/initial_state/graph.info" dest="graph.info"/>
-	<add_link source="../../init/initial_state/init_mode_forcing_data.nc" dest="forcing_data.nc"/>
+	<add_link source="../ssh_adjustment/init.nc" dest="init.nc"/>
+	<add_link source="../initial_state/graph.info" dest="graph.info"/>
+	<add_link source="../initial_state/init_mode_forcing_data.nc" dest="forcing_data.nc"/>
 
 
 	<namelist name="namelist.ocean" mode="forward">
