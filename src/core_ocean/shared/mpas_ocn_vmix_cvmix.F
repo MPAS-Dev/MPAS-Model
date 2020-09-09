@@ -674,23 +674,10 @@ contains
             ! intent out of BoundaryLayerDepth is boundary layer depth measured in meters and vertical index
             indexBoundaryLayerDepth(iCell) = cvmix_variables % kOBL_depth
 
-
-
-            if(config_cvmix_kpp_matching .eq. 'SimpleShapes') then
-                do k = 1, int(indexBoundaryLayerDepth(iCell))
-                   vertViscTopOfCell(k,iCell) = vertViscTopOfCell(k,iCell) + cvmix_variables % Mdiff_iface(k)
-                   vertDiffTopOfCell(k,iCell) = vertDiffTopOfCell(k,iCell) + cvmix_variables % Tdiff_iface(k)
-                end do
-                do k = int(indexBoundaryLayerDepth(iCell))+1, maxLevelCell(iCell)+1
-                   vertViscTopOfCell(k,iCell) = cvmix_variables % Mdiff_iface(k)
-                   vertDiffTopOfCell(k,iCell) = cvmix_variables % Tdiff_iface(k)
-                enddo
-            else
-                do k = 1, maxLevelCell(iCell) + 1
-                   vertViscTopOfCell(k, iCell) = cvmix_variables % Mdiff_iface(k)
-                   vertDiffTopOfCell(k, iCell) = cvmix_variables % Tdiff_iface(k)
-                end do
-            endif
+            do k = 1, maxLevelCell(iCell) + 1
+               vertViscTopOfCell(k, iCell) = cvmix_variables % Mdiff_iface(k)
+               vertDiffTopOfCell(k, iCell) = cvmix_variables % Tdiff_iface(k)
+            end do
 
             ! store non-local flux terms
             ! these flux terms must be multiplied by the surfaceTracerFlux field
