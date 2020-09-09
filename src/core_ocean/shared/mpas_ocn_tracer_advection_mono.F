@@ -154,6 +154,8 @@ module ocn_tracer_advection_mono
          activeTracerVerticalAdvectionTopFlux
       integer :: kmax1
 
+      real (kind=RKIND) :: dvEdgeTmp
+
       real (kind=RKIND), parameter :: &
          eps = 1.e-10_RKIND  ! small number to avoid numerical difficulties
 
@@ -331,10 +333,10 @@ module ocn_tracer_advection_mono
           ! Also compute low order upwind horizontal flux (monotonic and diffused)
           ! Remove low order flux from the high order flux
           ! Store left over high order flux in highOrderFlx array
+          dvEdgeTmp = dvEdge(iEdge) * 0.5_RKIND
           do k = 1, maxLevelEdgeTop(iEdge)
             tracerWeight = iand(int(highOrderAdvectionMask(k, iEdge)+1), 1) &
-                         * (dvEdge(iEdge) * 0.5_RKIND)                 &
-                         * normalThicknessFlux(k, iEdge)
+                         * dvEdgeTmp * normalThicknessFlux(k, iEdge)
 
             lowOrderFlx(k,iEdge) = dvEdge(iEdge) * &
                (max(0.0_RKIND,normalThicknessFlux(k,iEdge))*tracerCur(k,cell1) &
@@ -493,14 +495,15 @@ module ocn_tracer_advection_mono
         if (computeBudgets) then
 
            !$omp parallel
-           !$omp do schedule(runtime) private(k)
+           !$omp do schedule(runtime) private(k, dvEdgeTmp)
            do iEdge = 1,nEdgesHalo( 1 )
-           do k = 1,maxLevelEdgeTop(iEdge)
-              ! Save u*h*T flux on edge for analysis. This variable will be
-              ! divided by h at the end of the time step.
-              activeTracerHorizontalAdvectionEdgeFlux(iTracer,k,iEdge) = &
-                 (lowOrderFlx(k,iEdge) + highOrderFlx(k,iEdge))/dvEdge(iEdge)
-           enddo
+              dvEdgeTmp = 1.0_RKIND / dvEdge(iEdge)
+              do k = 1,maxLevelEdgeTop(iEdge)
+                 ! Save u*h*T flux on edge for analysis. This variable will be
+                 ! divided by h at the end of the time step.
+                 activeTracerHorizontalAdvectionEdgeFlux(iTracer,k,iEdge) = &
+                    (lowOrderFlx(k,iEdge) + highOrderFlx(k,iEdge))*dvEdgeTmp
+              enddo
            enddo
            !$omp end do
 
