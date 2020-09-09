@@ -2,7 +2,6 @@
 <config case="2km_varres_jigsaw">
 
         <!-- Set up needed files and executables -->
-        <add_executable source="jigsaw_converter" dest="triangle_jigsaw_to_netcdf.py"/>
         <!--        <add_link source_path="script_configuration_dir" source="albany_input.yaml" dest="."/> -->
         <add_link source_path="script_test_dir" source="Antarctica-1km.BISICLES.CISM-style.nc" dest="ais_input_data.nc"/>
         <add_link source_path="script_test_dir" source="ais2km-MESH.msh" dest="."/>
@@ -23,7 +22,7 @@
         <run_script name="setup_test.py">
 
                 <!-- convert from jigsaw to basic netcdf format-->
-                <step executable="./triangle_jigsaw_to_netcdf.py"  pre_message="\n\n### Converting from JIGSAW \n\n" post_message="\n\n### Converting from JIGSAW complete\n\n">
+                <step executable="jigsaw_to_netcdf"  pre_message="\n\n### Converting from JIGSAW \n\n" post_message="\n\n### Converting from JIGSAW complete\n\n">
                         <argument flag="-m">ais2km-MESH.msh</argument>
                         <argument flag="-o">ais2km_jigsaw_netcdf.nc</argument>
                 </step>

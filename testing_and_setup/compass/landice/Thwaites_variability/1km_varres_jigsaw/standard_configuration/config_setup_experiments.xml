@@ -2,7 +2,6 @@
 <config case="1km_varres_jigsaw">
 
         <!-- Set up needed files and executables -->
-        <add_executable source="jigsaw_converter" dest="triangle_to_netcdf.py"/>
         <add_executable source="model" dest="landice_model"/>
         <add_link source_path="script_configuration_dir" source="albany_input.yaml" dest="."/>
         <!--        <add_link source_path="script_configuration_dir" source="ais14to4km.20160713.nc" dest="ais_input_data.nc"/>-->
@@ -30,7 +29,7 @@
 
 
                 <!-- convert from jigsaw to basic netcdf format-->
-                <step executable="./triangle_to_netcdf.py" >
+                <step executable="jigsaw_to_netcdf" >
                         <argument flag="-m">thwaites_jigsaw_mesh.msh</argument>
                         <argument flag="-o">thwaites_jigsaw_netcdf.nc</argument>
                 </step>
