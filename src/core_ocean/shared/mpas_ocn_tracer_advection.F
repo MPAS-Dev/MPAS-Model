@@ -141,11 +141,6 @@ module ocn_tracer_advection
       if (monotonicOn) then
          call ocn_tracer_advection_mono_tend(tend, tracers, layerThickness,    &
                                              normalThicknessFlux, w, dt,       &
-                                             advCoefs, advCoefs3rd,            &
-                                             nAdvCellsForEdge, advCellsForEdge,&
-                                             maxLevelCell, maxLevelEdgeTop,    &
-                                             highOrderAdvectionMask,           &
-                                             edgeSignOnCell, meshPool,         &
                                              diagnosticsPool, computeBudgets)
 
       else
