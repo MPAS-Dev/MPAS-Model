@@ -2,16 +2,28 @@
 
 ## COMPASS conda environment
 
-To set up and run landice test cases from COMPASS, you will need a conda
+To set up and run ocean test cases from COMPASS, you will need a conda
 environment.  First, install Miniconda3 (if miniconda is not already
 installed), then create a new conda environment as follows:
 ``` bash
-conda create -n compass_py3.7 -c conda-forge -c xylar python=3.7 geometric_features mpas_tools jigsaw jigsawpy metis pyflann scikit-image basemap pyamg ffmpeg pyqt
+conda create -n compass_0.1.11 -c conda-forge -c e3sm python=3.8 compass=0.1.11
 ```
 Each time you want to work with COMPASS, you will need to run:
 ```
-conda activate compass_py3.7
+conda activate compass_0.1.11
 ```
+
+An appropriate conda environment is already available on Los Alamos National
+Laboratory's Institutional Computing (LANL IC) machines as well as Anvil, Compy
+and Cori.  In each case, you will run:
+```
+source <base_path>/load_latest_compass.sh
+```
+Values of `<base_path>` are:
+* grizzly and badger - `/usr/projects/climate/SHARED_CLIMATE/anaconda_envs`
+* anvil (blues) - `/lcrc/soft/climate/e3sm-unified/`
+* compy - `/share/apps/E3SM/conda_envs`
+* cori - `/global/cfs/cdirs/acme/software/anaconda_envs`
 
 ## Setting config options
 
