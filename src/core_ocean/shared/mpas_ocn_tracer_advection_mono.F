@@ -152,6 +152,7 @@ module ocn_tracer_advection_mono
          activeTracerVerticalAdvectionTendency,   &
          activeTracerHorizontalAdvectionEdgeFlux, &
          activeTracerVerticalAdvectionTopFlux
+      integer :: kmax1
 
       real (kind=RKIND), parameter :: &
          eps = 1.e-10_RKIND  ! small number to avoid numerical difficulties
@@ -269,13 +270,14 @@ module ocn_tracer_advection_mono
         !$omp parallel
         !$omp do schedule(runtime) private(k, i, cell2, kmax)
         do iCell = 1, nCells
-          do k=1, maxLevelCell(iCell)
+          kmax1 = maxLevelCell(iCell)
+          do k=1, kmax1
             tracerMin(k,iCell) = tracerCur(k,iCell)
             tracerMax(k,iCell) = tracerCur(k,iCell)
           end do
           do i = 1, nEdgesOnCell(iCell)
             cell2 = cellsOnCell(i,iCell)
-            kmax  = min(maxLevelCell(iCell), &
+            kmax  = min(kmax1, &
                         maxLevelCell(cell2))
             do k=1, kmax
               tracerMax(k,iCell) = max(tracerMax(k,iCell), &
