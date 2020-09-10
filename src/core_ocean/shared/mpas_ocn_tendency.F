@@ -222,7 +222,7 @@ contains
 
       type (mpas_pool_type), pointer :: tracersPool
 
-      real (kind=RKIND), dimension(:), pointer :: surfaceStress, surfaceStressMagnitude, surfaceFluxAttenuationCoefficient, ssh
+      real (kind=RKIND), dimension(:), pointer :: surfaceStress, surfaceStressMagnitude, surfaceFluxAttenuationCoefficient, ssh,rinv
       real (kind=RKIND), dimension(:), pointer :: tidalPotentialEta 
       real (kind=RKIND), dimension(:,:), pointer :: &
         layerThicknessEdge, normalVelocity, tangentialVelocity, density, potentialDensity, zMid, pressure, &
@@ -276,6 +276,8 @@ contains
       call mpas_pool_get_array(diagnosticsPool, 'tangentialVelocity', tangentialVelocity)
       call mpas_pool_get_array(diagnosticsPool, 'surfaceFluxAttenuationCoefficient', surfaceFluxAttenuationCoefficient)
 
+      call mpas_pool_get_array(diagnosticsPool,'rinv', rinv)
+        
       call mpas_pool_get_array(tendPool, 'normalVelocity', tend_normalVelocity)
 
       call mpas_pool_get_array(forcingPool, 'surfaceStress', surfaceStress)
@@ -357,9 +359,16 @@ contains
       !
       ! velocity tendency: forcing and bottom drag
       !
-      call ocn_vel_forcing_tend(meshPool, normalVelocity, surfaceFluxAttenuationCoefficient, &
-              surfaceStress, kineticEnergyCell, layerThicknessEdge, &
-                                tend_normalVelocity, err)
+      !!call ocn_vel_forcing_tend(meshPool, normalVelocity, surfaceFluxAttenuationCoefficient, &
+      !!        surfaceStress, kineticEnergyCell, layerThicknessEdge, &
+      !!                          tend_normalVelocity, err)
+        
+        call ocn_vel_forcing_tend(meshPool, normalVelocity,surfaceFluxAttenuationCoefficient,surfaceStress,kineticEnergyCell,layerThicknessEdge,rinv, tend_normalVelocity, err)
+      !
+      ! velocity tendency: zero if drying
+        !!open(unit=542,file='/lustre/scratch3/turquoise/nairita/namelist_check/harmonic_an_topographic_drag_2/ocean/tides/USDEQU120at30cr10/harmonic_analysis_test/forward/att.dat',status='unknown')
+        !!write(542,*)maxval(surfaceFluxAttenuationCoefficient),'att coeff',maxval(rinv)
+        !!close(542)
 
       !
       ! velocity tendency: zero if drying

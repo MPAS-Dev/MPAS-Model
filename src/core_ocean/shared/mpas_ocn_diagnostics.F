@@ -123,7 +123,7 @@ contains
 
       real (kind=RKIND), dimension(:), pointer :: &
         bottomDepth, fVertex, dvEdge, dcEdge, areaCell, areaTriangle, ssh,  seaIcePressure, atmosphericPressure, frazilSurfacePressure, &
-        pressureAdjustedSSH, gradSSH, landIcePressure, landIceDraft
+        pressureAdjustedSSH, gradSSH, landIcePressure, landIceDraft,rinv
       real (kind=RKIND), dimension(:,:), pointer :: &
         weightsOnEdge, kiteAreasOnVertex, layerThicknessEdge, layerThickness, normalVelocity, normalTransportVelocity, &
         normalGMBolusVelocity, tangentialVelocity, pressure, circulation, kineticEnergyCell, montgomeryPotential, &
@@ -220,7 +220,10 @@ contains
       call mpas_pool_get_array(diagnosticsPool, 'gradSSH', gradSSH)
       call mpas_pool_get_array(diagnosticsPool, 'RiTopOfCell', RiTopOfCell)
       call mpas_pool_get_array(diagnosticsPool, 'pressureAdjustedSSH', pressureAdjustedSSH)
-      call mpas_pool_get_array(diagnosticsPool, 'edgeAreaFractionOfCell', edgeAreaFractionOfCell)
+      
+        call mpas_pool_get_array(diagnosticsPool, 'rinv',rinv)
+
+        call mpas_pool_get_array(diagnosticsPool, 'edgeAreaFractionOfCell', edgeAreaFractionOfCell)
 
       call mpas_pool_get_array(meshPool, 'weightsOnEdge', weightsOnEdge)
       call mpas_pool_get_array(meshPool, 'kiteAreasOnVertex', kiteAreasOnVertex)
@@ -2298,6 +2301,20 @@ contains
                end do
                call ocn_write_field_statistics(debugUnit, fieldName, minValue, maxValue)
             end if
+
+            ! Test rinv
+          !!  fieldName = 'rinv'
+          !!  minValue = HUGE(minValue)
+          !!  maxValue = -HUGE(maxValue)
+          !!  call mpas_pool_get_array(diagnosticsPool, fieldName, real1DArr)
+          !!  if ( associated(real1DArr) ) then
+          !!     do iEdge = 1, nEdgesSolve
+          !!        minValue = min( minValue, real1DArr(iEdge) )
+          !!        maxValue = max( maxValue, real1DArr(iEdge) )
+          !!     end do
+          !!     call ocn_write_field_statistics(debugUnit, fieldName, minValue,maxValue)
+          !!  end if
+
 
             ! Test angleEdge
             fieldName = 'angleEdge'

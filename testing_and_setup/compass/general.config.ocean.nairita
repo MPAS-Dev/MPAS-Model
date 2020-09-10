@@ -1,0 +1,48 @@
+# This file is the ocean core's configuration file. It is specific to the ocean
+# core, and a specific machine. Each machine will configure this file
+# differently, but it can be used to point on version of the testing
+# infrastructure at a different version of the model.
+
+
+# The namelists section defines paths to template namelists that will be used
+# to generate specific namelists. Typically these will point to the forward and
+# init namelists in the default_inputs directory after a successful build of
+# the ocean model.
+[namelists]
+forward = /turquoise/users/nairita/topo_final/harmonic_analysis_topographic_drag/MPAS-Model/namelist.ocean.forward
+init    = /turquoise/users/nairita/topo_final/harmonic_analysis_topographic_drag/MPAS-Model/namelist.ocean.init
+
+# The streams section defines paths to template streams files that will be used
+# to generate specific streams files. Typically these will point to the forward and
+# init streams files in the default_inputs directory after a successful build of
+# the ocean model.
+[streams]
+forward = /turquoise/users/nairita/topo_final/harmonic_analysis_topographic_drag/MPAS-Model/streams.ocean.forward
+init    = /turquoise/users/nairita/topo_final/harmonic_analysis_topographic_drag/MPAS-Model/streams.ocean.init
+
+# The executables section defines paths to required executables. These
+# executables are provided for use by specific test cases.
+# Full paths should be provided in order to access the executables from
+# anywhere on the machine.
+[executables]
+model = /turquoise/users/nairita/topo_final/harmonic_analysis_topographic_drag/MPAS-Model/ocean_model
+
+# The paths section describes paths that are used within the ocean core test
+# cases.
+[paths]
+
+# The mesh_database and the initial_condition_database are locations where
+# meshes / initial conditions might be found on a specific machine. They can be
+# the same directory, or different directory. Additionally, if they are empty
+# some test cases might download data into them, which will then be reused if
+# the test case is run again later.
+mpas_model = /turquoise/users/nairita/topo_final/harmonic_analysis_topographic_drag/MPAS-Model
+geometric_data = /turquoise/usr/projects/climate/mpeterse/repos/geometric_features/master/geometric_data
+mesh_database = /usr/projects/regionalclimate/COMMON_MPAS/ocean/grids/mesh_database
+initial_condition_database = /usr/projects/regionalclimate/COMMON_MPAS/ocean/grids/initial_condition_database
+bathymetry_database = /usr/projects/regionalclimate/COMMON_MPAS/ocean/grids/bathymetry_database
+
+[conda]
+use_conda_mpi = False
+link_load_compass = True
+
