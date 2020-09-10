@@ -34,6 +34,7 @@ module ocn_tracer_advection
 
    use ocn_constants
    use ocn_config
+   use ocn_mesh
 
    implicit none
    private
@@ -67,9 +68,8 @@ module ocn_tracer_advection
 !-------------------------------------------------------------------------------
 
    subroutine ocn_tracer_advection_tend(tracers, normalThicknessFlux, w,       &
-                                        layerThickness, dt, meshPool,          &
-                                        scratchPool, diagnosticsPool, tend,    &
-                                        tracerGroupName)!{{{
+                                        layerThickness, dt, diagnosticsPool,   &
+                                        tend, tracerGroupName)!{{{
 
       !*** Input/Output parameters
 
@@ -89,10 +89,6 @@ module ocn_tracer_advection
       real (kind=RKIND), intent(in) :: &
          dt                  !< [in] Time step
       type (mpas_pool_type), intent(in) :: &
-         meshPool            !< [in] Mesh information
-      type (mpas_pool_type), intent(in) :: &
-         scratchPool         !< [in] Scratch fields
-      type (mpas_pool_type), intent(in) :: &
          diagnosticsPool     !< [in] Diagnostic fields
       character (len=*), intent(in) :: &
          tracerGroupName     !< [in] Tracer name to check if active tracers
@@ -102,18 +98,6 @@ module ocn_tracer_advection
       logical :: &
          computeBudgets      ! flag to compute active tracer budget
 
-      real (kind=RKIND), dimension(:,:), pointer, contiguous :: &
-         advCoefs, advCoefs3rd ! advection coefficients
-
-      integer, dimension(:), pointer, contiguous :: &
-         maxLevelCell,    &! index of max level at each cell
-         maxLevelEdgeTop, &! max level at edge with both cells active
-         nAdvCellsForEdge  ! number of advective cells for each edge
-      integer, dimension(:,:), pointer, contiguous :: &!
-         highOrderAdvectionMask, &! mask for higher order contributions
-         edgeSignOnCell,  &! sign at cell edge for fluxes
-         advCellsForEdge   ! index of advective cells for each edge
-
       ! end of preamble
       !----------------
       ! begin code
@@ -122,17 +106,6 @@ module ocn_tracer_advection
       if(.not. tracerAdvOn) return
 
       call mpas_timer_start("tracer adv")
-
-      ! extract pool variables
-      call mpas_pool_get_array(meshPool, 'advCoefs', advCoefs)
-      call mpas_pool_get_array(meshPool, 'advCoefs3rd', advCoefs3rd)
-      call mpas_pool_get_array(meshPool, 'maxLevelCell', maxLevelCell)
-      call mpas_pool_get_array(meshPool, 'maxLevelEdgeTop', maxLevelEdgeTop)
-      call mpas_pool_get_array(meshPool, 'highOrderAdvectionMask', &
-                                          highOrderAdvectionMask)
-      call mpas_pool_get_array(meshPool, 'edgeSignOnCell', edgeSignOnCell)
-      call mpas_pool_get_array(meshPool, 'nAdvCellsForEdge', nAdvCellsForEdge)
-      call mpas_pool_get_array(meshPool, 'advCellsForEdge', advCellsForEdge)
 
       ! determine whether active tracer budgets should be computed
       computeBudgets = (budgetDiagsOn .and. tracerGroupName == 'activeTracers')

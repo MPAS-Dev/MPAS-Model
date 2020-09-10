@@ -814,7 +814,7 @@ contains
                ! Tendency for tracer budget is stored within the tracer adv
                ! routine
                call ocn_tracer_advection_tend(tracerGroup, normalThicknessFlux, vertAleTransportTop, layerThickness, &
-                                              dt, meshPool, scratchPool, diagnosticsPool, tracerGroupTend, &
+                                              dt, diagnosticsPool, tracerGroupTend, &
                                               trim(groupItr % memberName))
 
                !
