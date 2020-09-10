@@ -82,7 +82,7 @@ mpas_ocn_mesh.o:
 
 mpas_ocn_thick_ale.o: mpas_ocn_constants.o mpas_ocn_config.o
 
-mpas_ocn_time_average_coupled.o: mpas_ocn_constants.o mpas_ocn_config.o mpas_ocn_tracer_ecosys.o
+mpas_ocn_time_average_coupled.o: mpas_ocn_constants.o mpas_ocn_config.o mpas_ocn_tracer_ecosys.o mpas_ocn_tracer_MacroMolecules.o
 
 mpas_ocn_thick_hadv.o: mpas_ocn_constants.o mpas_ocn_config.o
 
@@ -120,9 +120,9 @@ mpas_ocn_tracer_hmix_del4.o: mpas_ocn_constants.o mpas_ocn_config.o
 
 mpas_ocn_tracer_advection.o: mpas_ocn_constants.o mpas_ocn_config.o mpas_ocn_tracer_advection_mono.o mpas_ocn_tracer_advection_std.o
 
-mpas_ocn_tracer_advection_mono.o: mpas_ocn_constants.o mpas_ocn_config.o
+mpas_ocn_tracer_advection_mono.o: mpas_ocn_constants.o mpas_ocn_config.o mpas_ocn_mesh.o
 
-mpas_ocn_tracer_advection_std.o: mpas_ocn_constants.o mpas_ocn_config.o
+mpas_ocn_tracer_advection_std.o: mpas_ocn_constants.o mpas_ocn_config.o mpas_ocn_mesh.o
 
 mpas_ocn_tracer_hmix_redi.o: mpas_ocn_constants.o mpas_ocn_config.o
 
@@ -197,6 +197,8 @@ mpas_ocn_time_varying_forcing.o:  mpas_ocn_framework_forcing.o
 mpas_ocn_wetting_drying.o: mpas_ocn_diagnostics.o mpas_ocn_gm.o
 
 mpas_ocn_tidal_potential_forcing.o: mpas_ocn_constants.o mpas_ocn_config.o
+
+mpas_ocn_vel_tidal_potential.o: mpas_ocn_constants.o
 
 mpas_ocn_vel_pressure_grad.o: mpas_ocn_constants.o
 
