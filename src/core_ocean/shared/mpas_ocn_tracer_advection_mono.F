@@ -270,7 +270,7 @@ module ocn_tracer_advection_mono
         ! surrounding cells for later limiting.
 
         !$omp parallel
-        !$omp do schedule(runtime) private(k, i, cell2, kmax)
+        !$omp do schedule(runtime) private(k, i, cell2, kmax, kmax1)
         do iCell = 1, nCells
           kmax1 = maxLevelCell(iCell)
           do k=1, kmax1
@@ -300,7 +300,7 @@ module ocn_tracer_advection_mono
         !$omp parallel
         !$omp do schedule(runtime) &
         !$omp private(cell1, cell2, k, wgtTmp, sgnTmp, flxTmp, i, iCell, coef1, coef3, &
-        !$omp         tracerWeight)
+        !$omp         tracerWeight, dvEdgeTmp)
         do iEdge = 1, nEdges
           cell1 = cellsOnEdge(1, iEdge)
           cell2 = cellsOnEdge(2, iEdge)
