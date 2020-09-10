@@ -88,6 +88,8 @@ module ocn_tracer_advection_std
 
       real (kind=RKIND), parameter :: eps = 1.e-10_RKIND
 
+      real (kind=RKIND) :: coef1
+
       ! Get dimensions
       nVertLevels = size(tracers,dim=2)
       num_tracers = size(tracers,dim=1)
@@ -154,9 +156,11 @@ module ocn_tracer_advection_std
           cell1 = cellsOnEdge(1, iEdge)
           cell2 = cellsOnEdge(2, iEdge)
 
+          coef1 = dvEdge(iEdge) * 0.5_RKIND
+
           ! Compute 2nd order fluxes where needed.
           do k = 1, maxLevelEdgeTop(iEdge)
-            tracer_weight = iand(int(highOrderAdvectionMask(k, iEdge)+1), 1) * (dvEdge(iEdge) * 0.5_RKIND) &
+            tracer_weight = iand(int(highOrderAdvectionMask(k, iEdge)+1), 1) * coef1 &
                            * normalThicknessFlux(k, iEdge)
 
             high_order_horiz_flux(k, iEdge) = high_order_horiz_flux(k, iedge) + tracer_weight &
