@@ -27,6 +27,7 @@ module ocn_tracer_hmix_Redi
 
    use ocn_config
    use ocn_constants
+   use ocn_mesh
 
    implicit none
    private
@@ -73,7 +74,7 @@ contains
 !
 !-----------------------------------------------------------------------
 
-   subroutine ocn_tracer_hmix_Redi_tend(meshPool, layerThickness, layerThicknessEdge, zMid, tracers, &
+   subroutine ocn_tracer_hmix_Redi_tend(layerThickness, layerThicknessEdge, zMid, tracers, &
                                         RediKappa, dt, isActiveTracer, slopeTriadUp, slopeTriadDown, &
                                         RediKappaSfcTaper, RediKappaScaling, rediLimiterCount, tend, err)!{{{
 
@@ -82,8 +83,6 @@ contains
       ! input variables
       !
       !-----------------------------------------------------------------
-
-      type(mpas_pool_type), intent(in) :: meshPool !< Input: Mesh information
 
       real(kind=RKIND), dimension(:), intent(in) :: &
          RediKappa
@@ -130,41 +129,21 @@ contains
 
       integer :: iCell, iEdge, cell1, cell2, iCellSelf
       integer :: i, k, iTr, nTracers, nCells, nEdges, km1, kp1, nCellsP1
-      integer, pointer :: nVertLevels
-      integer, dimension(:), pointer :: nCellsArray, nEdgesArray
-
-      integer, dimension(:), pointer :: maxLevelEdgeTop, nEdgesOnCell, maxLevelCell
-      integer, dimension(:, :), pointer :: cellsOnEdge, edgesOnCell, edgeSignOnCell, cellsOnCell
 
       real(kind=RKIND) :: tempTracer, invAreaCell1, invAreaCell2, invAreaCell, areaEdge
       real(kind=RKIND) :: flux, flux_term1, flux_term2, flux_term3, dTracerDx, coef
       real(kind=RKIND) :: r_tmp, tracer_turb_flux, kappaRediEdgeVal
-      real(kind=RKIND), dimension(:), pointer :: areaCell, dvEdge, dcEdge
       real(kind=RKIND), dimension(:), allocatable :: minimumVal
       real(kind=RKIND), dimension(:, :), allocatable :: fluxRediZTop
+      real(kind=RKIND) :: coef1, coef2
       err = 0
 
       call mpas_timer_start("tracer redi")
 
-      call mpas_pool_get_dimension(meshPool, 'nCellsArray', nCellsArray)
-      call mpas_pool_get_dimension(meshPool, 'nEdgesArray', nEdgesArray)
-      call mpas_pool_get_dimension(meshPool, 'nVertLevels', nVertLevels)
       nTracers = size(tracers, dim=1)
 
-      call mpas_pool_get_array(meshPool, 'maxLevelEdgeTop', maxLevelEdgeTop)
-      call mpas_pool_get_array(meshPool, 'maxLevelCell', maxLevelCell)
-      call mpas_pool_get_array(meshPool, 'cellsOnEdge', cellsOnEdge)
-      call mpas_pool_get_array(meshPool, 'areaCell', areaCell)
-      call mpas_pool_get_array(meshPool, 'dvEdge', dvEdge)
-      call mpas_pool_get_array(meshPool, 'dcEdge', dcEdge)
-
-      call mpas_pool_get_array(meshPool, 'nEdgesOnCell', nEdgesOnCell)
-      call mpas_pool_get_array(meshPool, 'edgesOnCell', edgesOnCell)
-      call mpas_pool_get_array(meshPool, 'cellsOnCell', cellsOnCell)
-      call mpas_pool_get_array(meshPool, 'edgeSignOnCell', edgeSignOnCell)
-
-      nCells = nCellsArray(size(nCellsArray))
-      nEdges = nEdgesArray(size(nEdgesArray))
+      nCells = nCellsAll
+      nEdges = nEdgesAll
 
       allocate (minimumVal(nTracers))
       allocate (fluxRediZTop(nTracers, nVertLevels + 1))
@@ -175,7 +154,7 @@ contains
       allocate (redi_term2_edge(nTracers, nVertLevels, nEdges))
       allocate (redi_term3_topOfCell(nTracers, nVertLevels + 1, nCells))
 
-      nCells = nCellsArray(2)
+      nCells = nCellsHalo(1)
       !$omp parallel
       !$omp do schedule(runtime) private(i, iEdge)
       do iCell = 1,nCells
@@ -189,8 +168,8 @@ contains
       !$omp end do
       !$omp end parallel
 
-      nCells = nCellsArray(1)
-      nCellsP1 = nCellsArray(size(nCellsArray)) + 1
+      nCells = nCellsOwned
+      nCellsP1 = nCellsAll + 1
 
       ! Term 1: this is the "standard" horizontal del2 term, but with RediKappa coefficient.
       ! \kappa_2 \nabla \phi on edge
@@ -198,7 +177,7 @@ contains
       !$omp do schedule(runtime) &
       !$omp private(fluxRediZTop, invAreaCell, i, iEdge, cell1, cell2, iCellSelf, r_tmp, coef, k, &
       !$omp         kappaRediEdgeVal, iTr, tracer_turb_flux, flux, flux_term2, flux_term3, &
-      !$omp         dTracerDx)
+      !$omp         dTracerDx, coef1, coef2)
       do iCell = 1, nCells
          redi_term1(:, :, iCell) = 0.0_RKIND
          redi_term2(:, :, iCell) = 0.0_RKIND
@@ -450,16 +429,12 @@ contains
       integer, intent(out) :: err !< Output: error flag
 
       type(block_type), pointer :: block
-      type(mpas_pool_type), pointer :: meshPool
       type(mpas_pool_type), pointer :: diagnosticsPool
       type(mpas_pool_type), pointer :: forcingPool
 
       real(kind=RKIND), dimension(:), pointer :: RediKappa, RediKappaData
-      real(kind=RKIND), dimension(:), pointer :: dcEdge
-      integer, dimension(:,:), pointer :: cellsOnEdge
 
       integer :: k, iEdge
-      integer, pointer :: nVertLevels, nEdges
 
       err = 0
 
@@ -473,20 +448,15 @@ contains
 
       block => domain%blocklist
       do while (associated(block))
-         call mpas_pool_get_subpool(block%structs, 'mesh', meshPool)
          call mpas_pool_get_subpool(block%structs, 'diagnostics', diagnosticsPool)
          call mpas_pool_get_subpool(block%structs, 'forcing', forcingPool)
-         call mpas_pool_get_dimension(meshPool, 'nEdges', nEdges)
-         call mpas_pool_get_dimension(meshPool, 'nVertLevels', nVertLevels)
          call mpas_pool_get_array(diagnosticsPool, 'RediKappa', RediKappa)
          call mpas_pool_get_array(forcingPool, 'RediKappaData', RediKappaData)
-         call mpas_pool_get_array(meshPool, 'cellsOnEdge', cellsOnEdge)
-         call mpas_pool_get_array(meshPool, 'dcEdge', dcEdge)
          ! initialize Redi kappa array
          if (config_Redi_closure == 'constant') then
             !$omp parallel
             !$omp do schedule(runtime)
-            do iEdge = 1, nEdges
+            do iEdge = 1, nEdgesAll
                RediKappa(iEdge) = config_Redi_constant_kappa
             end do
             !$omp end do
@@ -507,7 +477,7 @@ contains
          else if (config_eddying_resolution_taper == 'ramp') then
             !$omp parallel
             !$omp do schedule(runtime) 
-            do iEdge=1,nEdges
+            do iEdge=1,nEdgesAll
                if (dcEdge(iEdge) <= config_eddying_resolution_ramp_min) then
                   RediKappa(iEdge) = 0.0_RKIND
                else if (dcEdge(iEdge) >= config_eddying_resolution_ramp_max) then
