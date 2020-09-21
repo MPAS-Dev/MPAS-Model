@@ -197,8 +197,9 @@ contains
                iCellSelf = 2
             endif
 
-            r_tmp = dvEdge(iEdge)/dcEdge(iEdge)
             coef = dvEdge(iEdge)
+            coef1 = edgeSignOnCell(i, iCell) * invAreaCell
+            coef2 = dvEdge(iEdge)/dcEdge(iEdge) * RediKappa(iEdge)
 
             k = 1
             kappaRediEdgeVal = 0.25_RKIND*(RediKappaScaling(k, cell1) + RediKappaScaling(k, cell2) + &
@@ -208,9 +209,9 @@ contains
 
             do iTr = 1, nTracers
                tracer_turb_flux = tracers(iTr, k, cell2) - tracers(iTr, k, cell1)
-               flux = layerThicknessEdge(k, iEdge)*tracer_turb_flux*r_tmp*RediKappa(iEdge)
+               flux = layerThicknessEdge(k, iEdge)*tracer_turb_flux*coef2
                redi_term1(iTr, k, iCell) = redi_term1(iTr, k, iCell) - (1.0_RKIND + term1TaperFactor* &
-                                           (kappaRediEdgeVal - 1.0_RKIND))*edgeSignOnCell(i, iCell)*flux*invAreaCell
+                                           (kappaRediEdgeVal - 1.0_RKIND))*coef1*flux
 
                flux_term2 = coef*kappaRediEdgeVal*RediKappa(iEdge)*layerThicknessEdge(k, iEdge)* &
                             0.25_RKIND* &
@@ -235,10 +236,10 @@ contains
                   tracer_turb_flux = tracers(iTr, k, cell2) - tracers(iTr, k, cell1)
 
                   ! div(h \kappa_2 \nabla \phi) at cell center
-                  flux = layerThicknessEdge(k, iEdge)*tracer_turb_flux*r_tmp*RediKappa(iEdge)
+                  flux = layerThicknessEdge(k, iEdge)*tracer_turb_flux*coef2
 
                   redi_term1(iTr, k, iCell) = redi_term1(iTr, k, iCell) - (1.0_RKIND + term1TaperFactor* &
-                                              (kappaRediEdgeVal - 1.0_RKIND))*edgeSignOnCell(i, iCell)*flux*invAreaCell
+                                              (kappaRediEdgeVal - 1.0_RKIND))*coef1*flux
 
                   flux_term2 = coef*RediKappa(iEdge)*kappaRediEdgeVal*layerThicknessEdge(k, iEdge)* &
                                0.25_RKIND* &
@@ -253,7 +254,7 @@ contains
                   redi_term2(iTr, k, iCell) = redi_term2(iTr, k, iCell) - flux_term2*invAreaCell
                   redi_term2_edge(iTr, k, iEdge) = -flux_term2
 
-                  dTracerDx = (tracers(iTr, k, cell2) - tracers(iTr, k, cell1))*dvEdge(iEdge)*0.25_RKIND
+                  dTracerDx = (tracers(iTr, k, cell2) - tracers(iTr, k, cell1))*coef*0.25_RKIND
                   fluxRediZTop(iTr, k) = fluxRediZTop(iTr, k) + &
                                          0.5_RKIND*(slopeTriadUp(k, iCellSelf, iEdge) + slopeTriadDown(k - 1, iCellSelf, iEdge)) &
                                          *dTracerDx
@@ -268,9 +269,9 @@ contains
 
             do iTr = 1, nTracers
                tracer_turb_flux = tracers(iTr, k, cell2) - tracers(iTr, k, cell1)
-               flux = layerThicknessEdge(k, iEdge)*tracer_turb_flux*r_tmp*RediKappa(iEdge)
+               flux = layerThicknessEdge(k, iEdge)*tracer_turb_flux*coef2
                redi_term1(iTr, k, iCell) = redi_term1(iTr, k, iCell) - (1.0_RKIND + term1TaperFactor* &
-                                           (kappaRediEdgeVal - 1.0_RKIND))*edgeSignOnCell(i, iCell)*flux*invAreaCell
+                                           (kappaRediEdgeVal - 1.0_RKIND))*coef1*flux
 
                ! For bottom layer, only use triads pointing up:
                flux_term2 = coef*kappaRediEdgeVal*RediKappa(iEdge)*layerThicknessEdge(k, iEdge)* &
@@ -293,7 +294,7 @@ contains
                redi_term2(iTr, k, iCell) = redi_term2(iTr, k, iCell) - flux_term2*invAreaCell
                redi_term2_edge(iTr, k, iEdge) = -flux_term2
 
-               dTracerDx = (tracers(iTr, k, cell2) - tracers(iTr, k, cell1))*dvEdge(iEdge)*0.25_RKIND
+               dTracerDx = (tracers(iTr, k, cell2) - tracers(iTr, k, cell1))*coef*0.25_RKIND
                fluxRediZTop(iTr, k) = fluxRediZTop(iTr, k) + &
                                       0.5_RKIND*(slopeTriadUp(k, iCellSelf, iEdge) + slopeTriadDown(k - 1, iCellSelf, iEdge)) &
                                       *dTracerDx

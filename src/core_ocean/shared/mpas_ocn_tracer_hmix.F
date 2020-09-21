@@ -149,10 +149,10 @@ contains
 
       call mpas_timer_start("tracer hmix")
 
-      call ocn_tracer_hmix_del2_tend(meshPool, layerThicknessEdge, tracers, tend, err1)
-      call ocn_tracer_hmix_del4_tend(meshPool, layerThicknessEdge, tracers, tend, err2)
+      call ocn_tracer_hmix_del2_tend(layerThicknessEdge, tracers, tend, err1)
+      call ocn_tracer_hmix_del4_tend(layerThicknessEdge, tracers, tend, err2)
       if (config_use_Redi) then
-        call ocn_tracer_hmix_Redi_tend(meshPool, layerThickness, layerThicknessEdge, zMid, tracers, &
+        call ocn_tracer_hmix_Redi_tend(layerThickness, layerThicknessEdge, zMid, tracers, &
                                      RediKappa, dt, isActiveTracer,        &
                                      slopeTriadUp, slopeTriadDown, RediKappaSfcTaper, &
                                      RediKappaScaling, rediLimiterCount, tend, err1)
