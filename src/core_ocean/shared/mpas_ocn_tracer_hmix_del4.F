@@ -28,6 +28,7 @@ module ocn_tracer_hmix_del4
    use mpas_threading
    use ocn_constants
    use ocn_config
+   use ocn_mesh
 
    implicit none
    private
@@ -75,7 +76,7 @@ contains
 !
 !-----------------------------------------------------------------------
 
-   subroutine ocn_tracer_hmix_del4_tend(meshPool, layerThicknessEdge, tracers, tend, err)!{{{
+   subroutine ocn_tracer_hmix_del4_tend(layerThicknessEdge, tracers, tend, err)!{{{
 
       !-----------------------------------------------------------------
       !
@@ -85,9 +86,6 @@ contains
 
       real (kind=RKIND), dimension(:,:), intent(in) :: &
          layerThicknessEdge    !< Input: thickness at edge
-
-      type (mpas_pool_type), intent(in) :: &
-         meshPool          !< Input: mesh information
 
       real (kind=RKIND), dimension(:,:,:), intent(in) :: &
         tracers !< Input: tracer quantities
@@ -117,15 +115,8 @@ contains
 
       integer :: iEdge, num_tracers, nCells, nEdges
       integer :: iTracer, k, iCell, cell1, cell2, i
-      integer, pointer :: nVertLevels
-      integer, dimension(:), pointer :: nCellsArray, nEdgesArray
-
-      integer, dimension(:), pointer :: maxLevelEdgeTop, maxLevelCell, nEdgesOnCell
-      integer, dimension(:,:), pointer :: edgeMask, cellsOnEdge, edgesOnCell, edgeSignOnCell
 
       real (kind=RKIND) :: invAreaCell1, invAreaCell2, tracer_turb_flux, flux, invdcEdge, r_tmp1, r_tmp2
-
-      real (kind=RKIND), dimension(:), pointer :: dcEdge, dvEdge, areaCell, meshScalingDel4
 
       ! Scratch Arrays
       real (kind=RKIND), dimension(:,:,:), allocatable :: delsq_tracer
@@ -144,30 +135,12 @@ contains
 
       call mpas_timer_start("tracer del4")
 
-      call mpas_pool_get_dimension(meshPool, 'nEdgesArray', nEdgesArray)
-      call mpas_pool_get_dimension(meshPool, 'nCellsArray', nCellsArray)
-      call mpas_pool_get_dimension(meshPool, 'nVertLevels', nVertLevels)
       num_tracers = size(tracers, dim=1)
-
-      call mpas_pool_get_array(meshPool, 'maxLevelEdgeTop', maxLevelEdgeTop)
-      call mpas_pool_get_array(meshPool, 'maxLevelCell', maxLevelCell)
-      call mpas_pool_get_array(meshPool, 'cellsOnEdge', cellsOnEdge)
-
-      call mpas_pool_get_array(meshPool, 'dcEdge', dcEdge)
-      call mpas_pool_get_array(meshPool, 'dvEdge', dvEdge)
-      call mpas_pool_get_array(meshPool, 'areaCell', areaCell)
-      call mpas_pool_get_array(meshPool, 'meshScalingDel4', meshScalingDel4)
-
-      call mpas_pool_get_array(meshPool, 'edgeMask', edgeMask)
-
-      call mpas_pool_get_array(meshPool, 'nEdgesOnCell', nEdgesOnCell)
-      call mpas_pool_get_array(meshPool, 'edgesOnCell', edgesOnCell)
-      call mpas_pool_get_array(meshPool, 'edgeSignOnCell', edgeSignOnCell)
 
       allocate(delsq_tracer(num_tracers, nVertLevels, nCells))
 
       ! Need 1 halo around owned cells
-      nCells = nCellsArray( 2 )
+      nCells = nCellsHalo( 1 )
 
       ! first del2: div(h \nabla \phi) at cell center
       !$omp parallel
@@ -197,7 +170,7 @@ contains
       !$omp end parallel
 
       ! Only need tendency on owned cells
-      nCells = nCellsArray( 1 )
+      nCells = nCellsOwned
 
       ! second del2: div(h \nabla [delsq_tracer]) at cell center
       !$omp parallel

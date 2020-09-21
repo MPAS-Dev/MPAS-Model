@@ -29,6 +29,7 @@ module ocn_tracer_hmix_del2
 
    use ocn_constants
    use ocn_config
+   use ocn_mesh
 
    implicit none
    private
@@ -76,14 +77,12 @@ contains
 !
 !-----------------------------------------------------------------------
 
-   subroutine ocn_tracer_hmix_del2_tend(meshPool, layerThicknessEdge, tracers, tend, err)!{{{
+   subroutine ocn_tracer_hmix_del2_tend(layerThicknessEdge, tracers, tend, err)!{{{
       !-----------------------------------------------------------------
       !
       ! input variables
       !
       !-----------------------------------------------------------------
-
-      type (mpas_pool_type), intent(in) :: meshPool !< Input: Mesh information
 
       real (kind=RKIND), dimension(:,:), intent(in) :: &
          layerThicknessEdge !< Input: thickness at edges
@@ -116,11 +115,6 @@ contains
 
       integer :: iCell, iEdge, cell1, cell2
       integer :: i, k, iTracer, num_tracers, nCells
-      integer, pointer :: nVertLevels
-      integer, dimension(:), pointer :: nCellsArray
-
-      integer, dimension(:), pointer :: maxLevelEdgeTop, nEdgesOnCell
-      integer, dimension(:,:), pointer :: cellsOnEdge, edgesOnCell, edgeSignOnCell
 
       real (kind=RKIND) :: invAreaCell
       real (kind=RKIND) :: tracer_turb_flux, flux, r_tmp
@@ -134,21 +128,9 @@ contains
 
       call mpas_timer_start("tracer del2")
 
-      call mpas_pool_get_dimension(meshPool, 'nCellsArray', nCellsArray)
       num_tracers = size(tracers, dim=1)
 
-      call mpas_pool_get_array(meshPool, 'maxLevelEdgeTop', maxLevelEdgeTop)
-      call mpas_pool_get_array(meshPool, 'cellsOnEdge', cellsOnEdge)
-      call mpas_pool_get_array(meshPool, 'areaCell', areaCell)
-      call mpas_pool_get_array(meshPool, 'dvEdge', dvEdge)
-      call mpas_pool_get_array(meshPool, 'dcEdge', dcEdge)
-      call mpas_pool_get_array(meshPool, 'meshScalingDel2', meshScalingDel2)
-
-      call mpas_pool_get_array(meshPool, 'nEdgesOnCell', nEdgesOnCell)
-      call mpas_pool_get_array(meshPool, 'edgesOnCell', edgesOnCell)
-      call mpas_pool_get_array(meshPool, 'edgeSignOnCell', edgeSignOnCell)
-
-      nCells = nCellsArray( 1 )
+      nCells = nCellsOwned
 
       !
       ! compute a boundary mask to enforce insulating boundary conditions in the horizontal
