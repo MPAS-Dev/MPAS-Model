@@ -2116,10 +2116,10 @@ contains
       enddo
 !
 !--- MPAS:
-      call cup_transport_tends(ierr,k22,kbcon,ktop,jmin,ntrans,xmb,p_cup,ncl2,nil2,nifal2,  &
-                               nwfal2,qtransl2,nc_up,ni_up,nifa_up,nwfa_up,qtrans_up,nc_dn, &
-                               ni_dn,nifa_dn,nwfa_dn,qtrans_dn,edto,zuo,zdo,outnc,outni,    &
-                               outnifa,outnwfa,outqtrans,its,ite,itf,kts,kte,ktf)
+!     call cup_transport_tends(ierr,k22,kbcon,ktop,jmin,ntrans,xmb,p_cup,ncl2,nil2,nifal2,  &
+!                              nwfal2,qtransl2,nc_up,ni_up,nifa_up,nwfa_up,qtrans_up,nc_dn, &
+!                              ni_dn,nifa_dn,nwfa_dn,qtrans_dn,edto,zuo,zdo,outnc,outni,    &
+!                              outnifa,outnwfa,outqtrans,its,ite,itf,kts,kte,ktf)
  
 ! rain evaporation as in sas
 !
