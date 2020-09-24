@@ -62,7 +62,7 @@ if (args.mpasBaseDir != None):
 # test suite
 if (args.testSuite == None):
     scriptDirectory = os.path.dirname(os.path.abspath(__file__))
-    testSuite = scriptDirectory + "/testsuites/testsuite.standard.xml"
+    testSuite = scriptDirectory + "/testsuites/testsuite.all.xml"
 else:
     if (not os.path.exists(args.testSuite)):
         print("Requested test suite does not exist")
@@ -98,6 +98,8 @@ print()
 print("Domains directory: ", domainsDir)
 print()
 
+pwd = os.getcwd()
+
 # loop over configurations
 for configuration in testsuite:
 
@@ -129,10 +131,16 @@ for configuration in testsuite:
                     spec.loader.exec_module(module)
 
                     test_function = getattr(module, testAvail["name"])
-                    if (testAvail["needsBase"]):
-                        failed = test_function(mpasDevelopmentDir, mpasBaseDir, domainsDir, domain.get('name'), configuration.get('name'), options, args.check, args.oversubscribe, args.np1, args.np2)
-                    else:
-                        failed = test_function(mpasDevelopmentDir,              domainsDir, domain.get('name'), configuration.get('name'), options, args.check, args.oversubscribe, args.np1, args.np2)
+                    try:
+                        if (testAvail["needsBase"]):
+                            failed = test_function(mpasDevelopmentDir, mpasBaseDir, domainsDir, domain.get('name'), configuration.get('name'), options, args.check, args.oversubscribe, args.np1, args.np2)
+                        else:
+                            failed = test_function(mpasDevelopmentDir,              domainsDir, domain.get('name'), configuration.get('name'), options, args.check, args.oversubscribe, args.np1, args.np2)
+                    except Exception as excep:
+                        print(excep)
+                        failed = 1
+                        print_colour("Test execution failed with exception", "fail")
+                        os.chdir(pwd)
 
                     nTests = nTests + 1
                     nFails = nFails + failed

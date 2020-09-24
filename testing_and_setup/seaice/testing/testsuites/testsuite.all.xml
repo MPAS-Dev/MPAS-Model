@@ -7,6 +7,13 @@
 			<test name="restartability"/>
 		</domain>
 	</configuration>
+	<configuration name="e3sm_default">
+		<domain name="domain_QU120km">
+			<test name="regression"/>
+			<test name="parallelism"/>
+			<test name="restartability"/>
+		</domain>
+	</configuration>
 	<configuration name="aerosol_shortwave_physics">
 		<domain name="domain_QU240km">
 			<test name="regression"/>

@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="e3sm_default">
+	<configuration name="e3sm_default">
+		<domain name="domain_QU120km">
+			<test name="regression"/>
+			<test name="parallelism"/>
+			<test name="restartability"/>
+		</domain>
+	</configuration>
+</testsuite>
