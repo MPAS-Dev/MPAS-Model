@@ -694,7 +694,11 @@
 !local pointers:
  logical,pointer:: config_do_restart
  character(len=StrKIND),pointer:: pbl_scheme
- integer,pointer:: bl_mynn_cloudpdf,bl_mynn_edmf,bl_mynn_closure,bl_mynn_mixscalars
+ integer,pointer:: bl_mynn_cloudpdf,   &
+                   bl_mynn_edmf,       &
+                   bl_mynn_closure,    &
+                   bl_mynn_mixscalars, &
+                   bl_mynn_cloudmix
 
 !local variables:
  integer:: initflag
@@ -748,6 +752,7 @@
        call mpas_pool_get_config(configs,'config_mynn_edmf'      ,bl_mynn_edmf      )
        call mpas_pool_get_config(configs,'config_mynn_closure'   ,bl_mynn_closure   )
        call mpas_pool_get_config(configs,'config_mynn_mixscalars',bl_mynn_mixscalars)
+       call mpas_pool_get_config(configs,'config_mynn_mixclouds' ,bl_mynn_cloudmix  )
 
        call mpas_log_write(' ')
        call mpas_log_write('--- enter subroutine mynn_bl_driver:')
@@ -755,6 +760,7 @@
        call mpas_log_write('--- config_mynn_edmf       = $i',intArgs=(/bl_mynn_edmf/))
        call mpas_log_write('--- config_mynn_closure    = $i',intArgs=(/bl_mynn_closure/))
        call mpas_log_write('--- config_mynn_mixscalars = $i',intArgs=(/bl_mynn_mixscalars/))
+       call mpas_log_write('--- config_mynn_mixclouds  = $i',intArgs=(/bl_mynn_cloudmix/))
 
        call mpas_timer_start('bl_mynn')
        call mynn_bl_driver ( &

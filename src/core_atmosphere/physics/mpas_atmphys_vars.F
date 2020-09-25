@@ -532,9 +532,6 @@
  logical,parameter:: bl_mynn_tkeadvect = .false.!default off; = .true. do MYNN tke advection.
  integer,parameter:: bl_mynn_tkebudget = 0      !0, default off; = 1 adds MYNN tke budget terms to output.
 
- integer,parameter:: bl_mynn_cloudmix  = 1      !option to activate mixing of qc and qi in MYNN.
-                                                != 0: no mixing of qc and qi.
-                                                != 1: mixing of qc and qi.
  integer,parameter:: bl_mynn_mixlength = 1      !option to change mixing length formulation in MYNN.
                                                 != 0: Nakanishi and Niino (2009),original.
                                                 != 1: RAP/HRRR (default,including BouLac in free atmosphere),
@@ -542,13 +539,8 @@
                                                 !     with the edmf options.
  integer,parameter:: bl_mynn_mixqt     = 0      != 0: mix moisture species separately.
                                                 != 1: mix total water.
-!integer,parameter:: bl_mynn_mixscalars = 0     !
 
 !edmf options:
-!integer,parameter:: bl_mynn_edmf      = 0      !option to activate mass-flux scheme (=0:regular MYNN).
-!                                               != 0: no edmf,regular MYNN.
-!                                               != 1: for StEM.
-!                                               != 2: for TEMF.
  integer,parameter:: bl_mynn_edmf_mom  = 0      !option to activate momentum transport (bl_mynn_edmf >0).
                                                 != 0: option is turned off.
                                                 != 1: option is turned on.
