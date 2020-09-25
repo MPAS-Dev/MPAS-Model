@@ -30,7 +30,7 @@
                   type="input"
                   filename_template="seaice_ic.nc"
                   filename_interval="none"
-                  input_interval="none"
+                  input_interval="initial_only"
                   output_interval="none" />
 
 <stream name="output"
