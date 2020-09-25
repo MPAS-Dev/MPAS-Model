@@ -2154,7 +2154,7 @@
 
                 <nml_option name="config_mynn_mixscalars" type="integer" default_value="1" in_defaults="false"
                      units="-"
-                     description="option to mix scalars in the mynn PBL scheme""
+                     description="option to mix scalars in the mynn PBL scheme"
                      possible_values="0,1"/>
 
                 <nml_option name="config_bucket_radt" type="real" default_value="1.0e9" in_defaults="false"
@@ -2361,15 +2361,15 @@
 
                 <!-- ... GRELL-FREITAS ONLY: -->
                 <var name="cuprecd" type="real" dimensions="nCells Time" units="mm s^{-1}"
-                     description="convective precipitation rate for deep convection""
+                     description="convective precipitation rate for deep convection"
                      packages="cu_grell_freitas_in"/>
 
                 <var name="cuprecm" type="real" dimensions="nCells Time" units="mm s^{-1}"
-                     description="convective precipitation rate for mid-level convection""
+                     description="convective precipitation rate for mid-level convection"
                      packages="cu_grell_freitas_in"/>
 
                 <var name="cuprecs" type="real" dimensions="nCells Time" units="mm s^{-1}"
-                     description="convective precipitation rate for shallow convection""
+                     description="convective precipitation rate for shallow convection"
                      packages="cu_grell_freitas_in"/>
 
                 <var name="raincd" type="real" dimensions="nCells Time" units="mm"
