@@ -11,7 +11,9 @@
 		<domain name="domain_QU120km">
 			<test name="regression"/>
 			<test name="parallelism"/>
-			<test name="restartability"/>
+			<test name="restartability">
+				<option name="snow_tracer_physics" value="True"/>
+			</test>
 		</domain>
 	</configuration>
 	<configuration name="aerosol_shortwave_physics">
@@ -19,8 +21,8 @@
 			<test name="regression"/>
 			<test name="parallelism"/>
 			<test name="restartability">
-			      <option name="bgc" value="True"/>
-			    </test>
+				<option name="bgc" value="True"/>
+			</test>
 		</domain>
 	</configuration>
 	<configuration name="snow_tracer_physics">
@@ -28,8 +30,8 @@
 			<test name="regression"/>
 			<test name="parallelism"/>
 			<test name="restartability">
-			      <option name="snow_tracer_physics" value="True"/>
-			 </test>
+				<option name="snow_tracer_physics" value="True"/>
+			</test>
 		</domain>
 	</configuration>
 	<configuration name="standard_bgc">
@@ -37,8 +39,8 @@
 			<test name="regression"/>
 			<test name="parallelism"/>
 			<test name="restartability">
-			      <option name="bgc" value="True"/>
-			    </test>
+				<option name="bgc" value="True"/>
+			</test>
 		</domain>
 	</configuration>
 	<configuration name="prescribed_ice">

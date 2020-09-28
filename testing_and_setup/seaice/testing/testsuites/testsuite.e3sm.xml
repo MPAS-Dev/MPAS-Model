@@ -4,7 +4,9 @@
 		<domain name="domain_QU120km">
 			<test name="regression"/>
 			<test name="parallelism"/>
-			<test name="restartability"/>
+			<test name="restartability">
+				<option name="snow_tracer_physics" value="True"/>
+			</test>
 		</domain>
 	</configuration>
 </testsuite>
