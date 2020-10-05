@@ -350,15 +350,15 @@
              description="cloud-base level for shallow convection in the Grell-Freitas convection scheme"
              packages="cu_grell_freitas_in;cu_kain_fritsch_in"/>
 
-        <var name="ktop_deepc" type="integer" dimensions="nCells Time" missing_value="1" units="unitless"
+        <var name="ktop_deepc" type="integer" dimensions="nCells Time" units="unitless"
              description="cloud-top level for deep convection in the Grell-Freitas convection scheme"
              packages="cu_grell_freitas_in;cu_kain_fritsch_in"/>
 
-        <var name="ktop_midlc" type="integer" dimensions="nCells Time" missing_value="1" units="unitless"
+        <var name="ktop_midlc" type="integer" dimensions="nCells Time" units="unitless"
              description="cloud-top level for mid-level convection in the Grell-Freitas convection scheme"
              packages="cu_grell_freitas_in;cu_kain_fritsch_in"/>
 
-        <var name="ktop_shalc" type="integer" dimensions="nCells Time" missing_value="1" units="unitless"
+        <var name="ktop_shalc" type="integer" dimensions="nCells Time" units="unitless"
              description="cloud-top level for shallow convection in the Grell-Freitas convection scheme"
              packages="cu_grell_freitas_in;cu_kain_fritsch_in"/>
 
