@@ -2955,10 +2955,10 @@
                 <!--  rthratenlw:uncoupled theta tendency due to longwave radiation                             [K s-1] -->
 
                 <var name="rthratensw" type="real" dimensions="nVertLevels nCells Time" units="K s^{-1}"
-                     description="tendency of potential temperature due to short wave radiation"/>
+                     description="tendency of potential temperature due to shortwave radiation"/>
 
                 <var name="rthratenlw" type="real" dimensions="nVertLevels nCells Time" units="K s^{-1}"
-                     description="tendency of potential temperature due to long wave radiation"/>
+                     description="tendency of potential temperature due to longwave radiation"/>
         </var_struct>
 
 
