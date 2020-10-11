@@ -743,21 +743,21 @@
                 )
        call mpas_timer_stop('bl_ysu')
 
-   case("bl_mynn")
-      call mpas_pool_get_config(configs,'config_mynn_cloudpdf'  ,bl_mynn_cloudpdf  )
-      call mpas_pool_get_config(configs,'config_mynn_edmf'      ,bl_mynn_edmf      )
-      call mpas_pool_get_config(configs,'config_mynn_closure'   ,bl_mynn_closure   )
-      call mpas_pool_get_config(configs,'config_mynn_mixscalars',bl_mynn_mixscalars)
+    case("bl_mynn")
+       call mpas_pool_get_config(configs,'config_mynn_cloudpdf'  ,bl_mynn_cloudpdf  )
+       call mpas_pool_get_config(configs,'config_mynn_edmf'      ,bl_mynn_edmf      )
+       call mpas_pool_get_config(configs,'config_mynn_closure'   ,bl_mynn_closure   )
+       call mpas_pool_get_config(configs,'config_mynn_mixscalars',bl_mynn_mixscalars)
 
-      call mpas_log_write(' ')
-      call mpas_log_write('--- enter subroutine mynn_bl_driver:')
-      call mpas_log_write('--- config_mynn_cloudpdf   = $i',intArgs=(/bl_mynn_cloudpdf/))
-      call mpas_log_write('--- config_mynn_edmf       = $i',intArgs=(/bl_mynn_edmf/))
-      call mpas_log_write('--- config_mynn_closure    = $i',intArgs=(/bl_mynn_closure/))
-      call mpas_log_write('--- config_mynn_mixscalars = $i',intArgs=(/bl_mynn_mixscalars/))
+       call mpas_log_write(' ')
+       call mpas_log_write('--- enter subroutine mynn_bl_driver:')
+       call mpas_log_write('--- config_mynn_cloudpdf   = $i',intArgs=(/bl_mynn_cloudpdf/))
+       call mpas_log_write('--- config_mynn_edmf       = $i',intArgs=(/bl_mynn_edmf/))
+       call mpas_log_write('--- config_mynn_closure    = $i',intArgs=(/bl_mynn_closure/))
+       call mpas_log_write('--- config_mynn_mixscalars = $i',intArgs=(/bl_mynn_mixscalars/))
 
-      call mpas_timer_start('bl_mynn')
-      call mynn_bl_driver ( &
+       call mpas_timer_start('bl_mynn')
+       call mynn_bl_driver ( &
                  p           = pres_hyd_p   , exner        = pi_p           , ps           = psfc_p         , &
                  th          = th_p         , t3d          = t_p            , dz           = dz_p           , &
                  dx          = dx_p         , u            = u_p            , v            = v_p            , &
