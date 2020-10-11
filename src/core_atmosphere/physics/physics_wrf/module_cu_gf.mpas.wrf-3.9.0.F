@@ -532,7 +532,7 @@
        call mpas_log_write('--- enter subroutine cu_gf_sh_run:')
        call cu_gf_sh_run( &
                 !input variables:
-                u,v,zo,t2d,q2d,ter11,tshall,qshall,p2d,psur,dhdt,   &
+                us,vs,zo,t2d,q2d,ter11,tshall,qshall,p2d,psur,dhdt, &
                 kpbli,rhoi,hfxi,qfxi,xlandi,ichoice_s,tcrit,dt,     &
                 zus,xmbs,kbcons,ktops,k22s,ierrs,ierrcs,            &
                 outts,outqs,outqcs,outus,outvs,cnvwt,prets,cupclws, &
