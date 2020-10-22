@@ -224,6 +224,14 @@ module init_atm_core_interface
 
          initial_conds = .false.   ! Also, turn off the initial_conds package to avoid writing the IC "output" stream
 
+      else if (config_init_case == 13) then
+         gwd_stage_in = .false.
+         gwd_stage_out = .false.
+         vertical_stage_in = .false.
+         vertical_stage_out = .true.
+         met_stage_in = .false.
+         met_stage_out = .false.
+
       else
          gwd_stage_in = .false.
          gwd_stage_out = .false.
