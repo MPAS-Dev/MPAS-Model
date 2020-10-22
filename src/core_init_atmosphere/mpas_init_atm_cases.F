@@ -6144,10 +6144,10 @@ call mpas_log_write('Done with soil consistency check')
          zu(k  ) = 0.5*(zw(k) + zw(k+1))
       end do
       do k = 2, nVertLevels
-         dzu (k)  = 0.5*(dzw(k) + dzw(k-1))
+         dzu(k)   = 0.5*(dzw(k) + dzw(k-1))
          rdzu(k)  = 1.0 / dzu(k)
-         fzp (k)  = 0.5*dzw(k  )/dzu(k)
-         fzm (k)  = 0.5*dzw(k-1)/dzu(k)
+         fzm(k)   = 0.5*dzw(k  )/dzu(k)
+         fzp(k)   = 0.5*dzw(k-1)/dzu(k)
          rdzwp(k) = dzw(k-1)/(dzw(k  )*(dzw(k)+dzw(k-1)))
          rdzwm(k) = dzw(k  )/(dzw(k-1)*(dzw(k)+dzw(k-1)))
       end do
