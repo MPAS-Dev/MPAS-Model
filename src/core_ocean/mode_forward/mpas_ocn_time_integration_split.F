@@ -940,11 +940,8 @@ module ocn_time_integration_split
 
                 call mpas_pool_get_array(diagnosticsPool, 'barotropicThicknessFlux', barotropicThicknessFlux)
 
-                nCells = nCellsPtr
-                nEdges = nEdgesPtr
-
-                ! mrp temp nCells = nCellsArray( cellHaloComputeCounter )
-                ! mrp temp nEdges = nEdgesArray( edgeHaloComputeCounter )
+                nCells = nCellsArray( cellHaloComputeCounter )
+                nEdges = nEdgesArray( edgeHaloComputeCounter )
 
                 ! config_btr_gam1_velWt1 sets the forward weighting of velocity in the SSH computation
                 ! config_btr_gam1_velWt1=  1     flux = normalBarotropicVelocityNew*H
@@ -1098,9 +1095,7 @@ module ocn_time_integration_split
                    end if
 
                    ! Need to initialize btr_vel_temp over the one more halo than we're computing over
-                   nEdges = nEdgesPtr
-
-                   ! mrp temp nEdges = nEdgesArray( min(edgeHaloComputeCounter + 1, config_num_halos + 1) )
+                   nEdges = nEdgesArray( min(edgeHaloComputeCounter + 1, config_num_halos + 1) )
 
                    !$omp parallel
                    !$omp do schedule(runtime) 
@@ -1110,7 +1105,7 @@ module ocn_time_integration_split
                    !$omp end do
                    !$omp end parallel
 
-                   ! mrp temp nEdges = nEdgesArray( edgeHaloComputeCounter )
+                   nEdges = nEdgesArray( edgeHaloComputeCounter )
 
                    !$omp parallel
                    !$omp do schedule(runtime) &
@@ -1199,11 +1194,8 @@ module ocn_time_integration_split
 
                    call mpas_pool_get_array(diagnosticsPool, 'barotropicThicknessFlux', barotropicThicknessFlux)
 
-                   nCells = nCellsPtr
-                   nEdges = nEdgesPtr
-
-                   ! mrp temp nCells = nCellsArray( cellHaloComputeCounter )
-                   ! mrp temp nEdges = nEdgesArray( edgeHaloComputeCounter )
+                   nCells = nCellsArray( cellHaloComputeCounter )
+                   nEdges = nEdgesArray( edgeHaloComputeCounter )
 
                    ! config_btr_gam3_velWt2 sets the forward weighting of velocity in the SSH computation
                    ! config_btr_gam3_velWt2=  1     flux = normalBarotropicVelocityNew*H
@@ -1353,9 +1345,7 @@ module ocn_time_integration_split
 
                call mpas_pool_get_array(diagnosticsPool, 'barotropicThicknessFlux', barotropicThicknessFlux)
 
-               nEdges = nEdgesPtr
-
-               !mrp temp nEdges = nEdgesArray(1)
+               nEdges = nEdgesArray(1)
 
                !$omp parallel
                !$omp do schedule(runtime) 
@@ -1414,8 +1404,7 @@ module ocn_time_integration_split
                call mpas_pool_get_array(meshPool, 'maxLevelEdgeTop', maxLevelEdgeTop)
                call mpas_pool_get_array(meshPool, 'edgeMask', edgeMask)
 
-               nEdges = nEdgesPtr
-               ! mrp temp nEdges = nEdgesArray( config_num_halos )
+               nEdges = min(nEdgesPtr, nEdgesArray( config_num_halos + 1 ))
 
                !$omp parallel
                !$omp do schedule(runtime) private(k, thicknessSum)
