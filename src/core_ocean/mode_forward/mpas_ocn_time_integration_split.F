@@ -1415,19 +1415,11 @@ module ocn_time_integration_split
                call mpas_pool_get_array(meshPool, 'edgeMask', edgeMask)
 
                nEdges = nEdgesPtr
-
                ! mrp temp nEdges = nEdgesArray( config_num_halos )
 
-               allocate(uTemp(nVertLevels))
-
                !$omp parallel
-               !$omp do schedule(runtime) &
-               !$omp private(uTemp, thicknessSum, k)
+               !$omp do schedule(runtime) private(k, thicknessSum)
                do iEdge = 1, nEdges
-
-                  ! velocity for normalVelocityCorrectionection is normalBarotropicVelocity + normalBaroclinicVelocity + uBolus
-                  uTemp(:) = normalBarotropicVelocityNew(iEdge) + normalBaroclinicVelocityNew(:,iEdge) &
-                           + normalGMBolusVelocity(:,iEdge)
 
                   ! thicknessSum is initialized outside the loop because on land boundaries
                   ! maxLevelEdgeTop=0, but I want to initialize thicknessSum with a
@@ -1448,22 +1440,16 @@ module ocn_time_integration_split
 
                   do k = 1, nVertLevels
 
-                     ! normalTransportVelocity = normalBarotropicVelocity + normalBaroclinicVelocity + normalGMBolusVelocity
-                     ! This is u used in advective terms for layerThickness and tracers
-                     ! in tendency calls in stage 3.
-                     !mrp note: in QC version, there is an if (config_use_GM) on adding normalGMBolusVelocity
-                     ! I think it is not needed because normalGMBolusVelocity=0 when GM not on.
-                     normalTransportVelocity(k,iEdge) &
-                           = edgeMask(k,iEdge) &
-                           *( normalBarotropicVelocityNew(iEdge) + normalBaroclinicVelocityNew(k,iEdge) &
-                           + normalGMBolusVelocity(k,iEdge) )
+                     ! Compute transport velocity, used to transport thickness and tracers.
+                     normalTransportVelocity(k,iEdge) = edgeMask(k,iEdge) &
+                          *(  normalBarotropicVelocityNew(iEdge) &
+                            + normalBaroclinicVelocityNew(k,iEdge) - BtrAvgOfBaroclinicVelocity(iEdge) &
+                            + normalGMBolusVelocity(k,iEdge) - BtrAvgOfGMBolusVelocity(iEdge) )
                   enddo
 
                end do ! iEdge
                !$omp end do
                !$omp end parallel
-
-               deallocate(uTemp)
 
                block => block % next
             end do  ! block
@@ -1693,7 +1679,7 @@ module ocn_time_integration_split
                      ! here normalBaroclinicVelocity is at time n+1/2
                      ! This is u used in next iteration or step
                      normalVelocityNew(k,iEdge) = edgeMask(k,iEdge) * ( normalBarotropicVelocityNew(iEdge) &
-                                                + normalBaroclinicVelocityNew(k,iEdge) )
+                                                + normalBaroclinicVelocityNew(k,iEdge) - BtrAvgOfBaroclinicVelocity(iEdge) )
 
                   enddo
 
