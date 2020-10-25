@@ -327,13 +327,13 @@ module ocn_time_integration_split
          do iEdge = 1, nEdges
 
             ! Compute barotropic component
-            !thicknessSum  = layerThicknessEdge(1,iEdge)
-            !normalBarotropicVelocityCur(iEdge) = normalVelocityCur(1,iEdge) * layerThicknessEdge(1,iEdge)
-            !do k = 2, maxLevelEdgeTop(iEdge)
-            !   thicknessSum  =  thicknessSum + layerThicknessEdge(k,iEdge)
-            !   normalBarotropicVelocityCur(iEdge) = normalBarotropicVelocityCur(iEdge) + normalVelocityCur(k,iEdge) * layerThicknessEdge(k,iEdge)
-            !enddo
-            !normalBarotropicVelocityCur(iEdge) = normalBarotropicVelocityCur(iEdge) / thicknessSum
+            thicknessSum  = layerThicknessEdge(1,iEdge)
+            normalBarotropicVelocityCur(iEdge) = normalVelocityCur(1,iEdge) * layerThicknessEdge(1,iEdge)
+            do k = 2, maxLevelEdgeTop(iEdge)
+               thicknessSum  =  thicknessSum + layerThicknessEdge(k,iEdge)
+               normalBarotropicVelocityCur(iEdge) = normalBarotropicVelocityCur(iEdge) + normalVelocityCur(k,iEdge) * layerThicknessEdge(k,iEdge)
+            enddo
+            normalBarotropicVelocityCur(iEdge) = normalBarotropicVelocityCur(iEdge) / thicknessSum
 
             ! Compute baroclinic component
             do k = 1, nVertLevels !maxLevelEdgeTop % array(iEdge)
