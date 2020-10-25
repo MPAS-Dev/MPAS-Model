@@ -113,8 +113,8 @@ module ocn_time_integration_split
       integer, dimension(:), allocatable :: n_bcl_iter
       type (block_type), pointer :: block
       real (kind=RKIND) :: normalThicknessFluxSum, thicknessSum, flux, sshEdge, hEdge1, &
-                 CoriolisTerm, normalVelocityCorrection, temp, temp_h, coef, barotropicThicknessFlux_coeff, sshCell1, sshCell2
-      integer :: useVelocityCorrection, err
+                 CoriolisTerm, temp, temp_h, coef, barotropicThicknessFlux_coeff, sshCell1, sshCell2
+      integer :: err
       real (kind=RKIND), dimension(:,:), pointer :: &
                  vertViscTopOfEdge, vertDiffTopOfCell
       real (kind=RKIND), dimension(:,:,:), pointer :: tracersGroup
@@ -135,7 +135,7 @@ module ocn_time_integration_split
       integer, pointer :: config_reset_debugTracers_top_nLayers
 
       logical, pointer :: config_use_freq_filtered_thickness, config_btr_solve_SSH2, config_filter_btr_mode
-      logical, pointer :: config_vel_correction, config_prescribe_velocity, config_prescribe_thickness
+      logical, pointer :: config_prescribe_velocity, config_prescribe_thickness
       logical, pointer :: config_disable_thick_all_tend
       logical, pointer :: config_disable_vel_all_tend
       logical, pointer :: config_disable_tr_all_tend
@@ -248,7 +248,6 @@ module ocn_time_integration_split
       call mpas_pool_get_config(domain % configs, 'config_mom_del4', config_mom_del4)
       call mpas_pool_get_config(domain % configs, 'config_use_freq_filtered_thickness', config_use_freq_filtered_thickness)
       call mpas_pool_get_config(domain % configs, 'config_time_integrator', config_time_integrator)
-      call mpas_pool_get_config(domain % configs, 'config_vel_correction', config_vel_correction)
       call mpas_pool_get_config(domain % configs, 'config_disable_vel_all_tend', config_disable_vel_all_tend)
       call mpas_pool_get_config(domain % configs, 'config_disable_thick_all_tend', config_disable_thick_all_tend)
       call mpas_pool_get_config(domain % configs, 'config_disable_tr_all_tend', config_disable_tr_all_tend)
@@ -1418,22 +1417,9 @@ module ocn_time_integration_split
 
                allocate(uTemp(nVertLevels))
 
-               ! Correction velocity    normalVelocityCorrection = (Flux - Sum(h u*))/H
-               ! or, for the full latex version:
-               !{\bf u}^{corr} = \left( {\overline {\bf F}}
-               !  - \sum_{k=1}^{N^{edge}} h_{k,*}^{edge}  {\bf u}_k^{avg} \right)
-               ! \left/ \sum_{k=1}^{N^{edge}} h_{k,*}^{edge}   \right.
-
-               if (config_vel_correction) then
-                  useVelocityCorrection = 1
-               else
-                  useVelocityCorrection = 0
-               endif
-
                !$omp parallel
                !$omp do schedule(runtime) &
-               !$omp private(uTemp, normalThicknessFluxSum, thicknessSum, k, &
-               !$omp         normalVelocityCorrection)
+               !$omp private(uTemp, normalThicknessFluxSum, thicknessSum, k)
                do iEdge = 1, nEdges
 
                   ! velocity for normalVelocityCorrectionection is normalBarotropicVelocity + normalBaroclinicVelocity + uBolus
@@ -1451,13 +1437,10 @@ module ocn_time_integration_split
                      thicknessSum  =  thicknessSum + layerThicknessEdge(k,iEdge)
                   enddo
 
-                  normalVelocityCorrection = useVelocityCorrection * (( barotropicThicknessFlux(iEdge) - normalThicknessFluxSum) &
-                                           / thicknessSum)
 
                   do k = 1, nVertLevels
 
                      ! normalTransportVelocity = normalBarotropicVelocity + normalBaroclinicVelocity + normalGMBolusVelocity
-                     !                         + normalVelocityCorrection
                      ! This is u used in advective terms for layerThickness and tracers
                      ! in tendency calls in stage 3.
                      !mrp note: in QC version, there is an if (config_use_GM) on adding normalGMBolusVelocity
@@ -1465,7 +1448,7 @@ module ocn_time_integration_split
                      normalTransportVelocity(k,iEdge) &
                            = edgeMask(k,iEdge) &
                            *( normalBarotropicVelocityNew(iEdge) + normalBaroclinicVelocityNew(k,iEdge) &
-                           + normalGMBolusVelocity(k,iEdge) + normalVelocityCorrection )
+                           + normalGMBolusVelocity(k,iEdge) )
                   enddo
 
                end do ! iEdge
