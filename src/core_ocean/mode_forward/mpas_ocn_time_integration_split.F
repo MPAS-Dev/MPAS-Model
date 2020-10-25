@@ -305,6 +305,7 @@ module ocn_time_integration_split
 
          call mpas_pool_get_array(statePool, 'layerThickness', layerThicknessCur, 1)
          call mpas_pool_get_array(statePool, 'layerThickness', layerThicknessNew, 2)
+         call mpas_pool_get_array(diagnosticsPool, 'layerThicknessEdge', layerThicknessEdge)
 
          call mpas_pool_get_array(statePool, 'highFreqThickness', highFreqThicknessCur, 1)
          call mpas_pool_get_array(statePool, 'highFreqThickness', highFreqThicknessNew, 2)
@@ -313,6 +314,7 @@ module ocn_time_integration_split
          call mpas_pool_get_array(statePool, 'lowFreqDivergence', lowFreqDivergenceNew, 2)
 
          call mpas_pool_get_array(meshPool, 'maxLevelCell', maxLevelCell)
+         call mpas_pool_get_array(meshPool, 'maxLevelEdgeTop', maxLevelEdgeTop)
          call mpas_pool_get_dimension(tracersPool, 'index_salinity', indexSalinity)
 
          nCells = nCellsPtr
@@ -321,20 +323,22 @@ module ocn_time_integration_split
          ! Initialize * variables that are used to compute baroclinic tendencies below.
 
          !$omp parallel
-         !$omp do schedule(runtime) private(k)
+         !$omp do schedule(runtime) private(k, thicknessSum)
          do iEdge = 1, nEdges
+
+            ! Compute barotropic component
+            !thicknessSum  = layerThicknessEdge(1,iEdge)
+            !normalBarotropicVelocityCur(iEdge) = normalVelocityCur(1,iEdge) * layerThicknessEdge(1,iEdge)
+            !do k = 2, maxLevelEdgeTop(iEdge)
+            !   thicknessSum  =  thicknessSum + layerThicknessEdge(k,iEdge)
+            !   normalBarotropicVelocityCur(iEdge) = normalBarotropicVelocityCur(iEdge) + normalVelocityCur(k,iEdge) * layerThicknessEdge(k,iEdge)
+            !enddo
+            !normalBarotropicVelocityCur(iEdge) = normalBarotropicVelocityCur(iEdge) / thicknessSum
+
+            ! Compute baroclinic component
             do k = 1, nVertLevels !maxLevelEdgeTop % array(iEdge)
-
-               ! The baroclinic velocity needs be recomputed at the beginning of a
-               ! timestep because the implicit vertical mixing is conducted on the
-               ! total u.  We keep normalBarotropicVelocity from the previous timestep.
-               ! Note that normalBaroclinicVelocity may now include a barotropic component, because the
-               ! weights layerThickness have changed.  That is OK, because the barotropicForcing variable
-               ! subtracts out the barotropic component from the baroclinic.
                normalBaroclinicVelocityCur(k,iEdge) = normalVelocityCur(k,iEdge) - normalBarotropicVelocityCur(iEdge)
-
                normalVelocityNew(k,iEdge) = normalVelocityCur(k,iEdge)
-
                normalBaroclinicVelocityNew(k,iEdge) = normalBaroclinicVelocityCur(k,iEdge)
             end do
          end do
