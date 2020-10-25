@@ -1443,6 +1443,8 @@ module ocn_time_integration_split
                   BtrAvgOfBaroclinicVelocity(iEdge) = BtrAvgOfBaroclinicVelocity(iEdge) / thicknessSum
                   BtrAvgOfGMBolusVelocity(iEdge) = BtrAvgOfGMBolusVelocity(iEdge) / thicknessSum
 
+                  ! Compute barotropic velocity from thickness flux.
+                  normalBarotropicVelocityNew(iEdge) = barotropicThicknessFlux(iEdge) / thicknessSum
 
                   do k = 1, nVertLevels
 
