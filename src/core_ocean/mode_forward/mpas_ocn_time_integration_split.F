@@ -943,8 +943,8 @@ module ocn_time_integration_split
                 nCells = nCellsPtr
                 nEdges = nEdgesPtr
 
-                nCells = nCellsArray( cellHaloComputeCounter )
-                nEdges = nEdgesArray( edgeHaloComputeCounter )
+                ! mrp temp nCells = nCellsArray( cellHaloComputeCounter )
+                ! mrp temp nEdges = nEdgesArray( edgeHaloComputeCounter )
 
                 ! config_btr_gam1_velWt1 sets the forward weighting of velocity in the SSH computation
                 ! config_btr_gam1_velWt1=  1     flux = normalBarotropicVelocityNew*H
@@ -1100,7 +1100,7 @@ module ocn_time_integration_split
                    ! Need to initialize btr_vel_temp over the one more halo than we're computing over
                    nEdges = nEdgesPtr
 
-                   nEdges = nEdgesArray( min(edgeHaloComputeCounter + 1, config_num_halos + 1) )
+                   ! mrp temp nEdges = nEdgesArray( min(edgeHaloComputeCounter + 1, config_num_halos + 1) )
 
                    !$omp parallel
                    !$omp do schedule(runtime) 
@@ -1110,7 +1110,7 @@ module ocn_time_integration_split
                    !$omp end do
                    !$omp end parallel
 
-                   nEdges = nEdgesArray( edgeHaloComputeCounter )
+                   ! mrp temp nEdges = nEdgesArray( edgeHaloComputeCounter )
 
                    !$omp parallel
                    !$omp do schedule(runtime) &
@@ -1202,8 +1202,8 @@ module ocn_time_integration_split
                    nCells = nCellsPtr
                    nEdges = nEdgesPtr
 
-                   nCells = nCellsArray( cellHaloComputeCounter )
-                   nEdges = nEdgesArray( edgeHaloComputeCounter )
+                   ! mrp temp nCells = nCellsArray( cellHaloComputeCounter )
+                   ! mrp temp nEdges = nEdgesArray( edgeHaloComputeCounter )
 
                    ! config_btr_gam3_velWt2 sets the forward weighting of velocity in the SSH computation
                    ! config_btr_gam3_velWt2=  1     flux = normalBarotropicVelocityNew*H
@@ -1355,7 +1355,7 @@ module ocn_time_integration_split
 
                nEdges = nEdgesPtr
 
-               nEdges = nEdgesArray(1)
+               !mrp temp nEdges = nEdgesArray(1)
 
                !$omp parallel
                !$omp do schedule(runtime) 
@@ -1416,7 +1416,7 @@ module ocn_time_integration_split
 
                nEdges = nEdgesPtr
 
-               nEdges = nEdgesArray( config_num_halos )
+               ! mrp temp nEdges = nEdgesArray( config_num_halos )
 
                allocate(uTemp(nVertLevels))
 
