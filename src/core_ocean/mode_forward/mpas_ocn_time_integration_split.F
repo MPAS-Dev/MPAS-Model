@@ -200,6 +200,7 @@ module ocn_time_integration_split
       real (kind=RKIND), dimension(:), pointer :: gradSSHZonal, gradSSHMeridional
       real (kind=RKIND), dimension(:,:), pointer :: surfaceVelocity, SSHGradient
       real (kind=RKIND), dimension(:), pointer :: tidalPotentialEta
+      real (kind=RKIND), dimension(:), pointer :: BtrAvgOfBaroclinicVelocity, BtrAvgOfGMBolusVelocity
 
       ! Diagnostics Field Pointers
       type (field2DReal), pointer :: normalizedRelativeVorticityEdgeField, divergenceField, relativeVorticityField
@@ -1407,6 +1408,8 @@ module ocn_time_integration_split
                call mpas_pool_get_array(diagnosticsPool, 'normalGMBolusVelocity', normalGMBolusVelocity)
                call mpas_pool_get_array(diagnosticsPool, 'layerThicknessEdge', layerThicknessEdge)
                call mpas_pool_get_array(diagnosticsPool, 'barotropicThicknessFlux', barotropicThicknessFlux)
+               call mpas_pool_get_array(diagnosticsPool, 'BtrAvgOfBaroclinicVelocity', BtrAvgOfBaroclinicVelocity)
+               call mpas_pool_get_array(diagnosticsPool, 'BtrAvgOfGMBolusVelocity', BtrAvgOfGMBolusVelocity)
 
                call mpas_pool_get_array(meshPool, 'maxLevelEdgeTop', maxLevelEdgeTop)
                call mpas_pool_get_array(meshPool, 'edgeMask', edgeMask)
@@ -1431,11 +1434,16 @@ module ocn_time_integration_split
                   ! nonzero value to avoid a NaN.
                   normalThicknessFluxSum = layerThicknessEdge(1,iEdge) * uTemp(1)
                   thicknessSum  = layerThicknessEdge(1,iEdge)
-
+                  BtrAvgOfBaroclinicVelocity(iEdge) = normalBaroclinicVelocityNew(1,iEdge) * layerThicknessEdge(1,iEdge)
+                  BtrAvgOfGMBolusVelocity(iEdge) = normalGMBolusVelocity(1,iEdge) * layerThicknessEdge(1,iEdge)
                   do k = 2, maxLevelEdgeTop(iEdge)
                      normalThicknessFluxSum = normalThicknessFluxSum + layerThicknessEdge(k,iEdge) * uTemp(k)
                      thicknessSum  =  thicknessSum + layerThicknessEdge(k,iEdge)
+                     BtrAvgOfBaroclinicVelocity(iEdge) = BtrAvgOfBaroclinicVelocity(iEdge) + normalBaroclinicVelocityNew(k,iEdge) * layerThicknessEdge(k,iEdge)
+                     BtrAvgOfGMBolusVelocity(iEdge) = BtrAvgOfGMBolusVelocity(iEdge) + normalGMBolusVelocity(k,iEdge) * layerThicknessEdge(k,iEdge)
                   enddo
+                  BtrAvgOfBaroclinicVelocity(iEdge) = BtrAvgOfBaroclinicVelocity(iEdge) / thicknessSum
+                  BtrAvgOfGMBolusVelocity(iEdge) = BtrAvgOfGMBolusVelocity(iEdge) / thicknessSum
 
 
                   do k = 1, nVertLevels
@@ -1605,6 +1613,8 @@ module ocn_time_integration_split
             call mpas_pool_get_array(tendPool, 'normalVelocity', normalVelocityTend)
             call mpas_pool_get_array(tendPool, 'highFreqThickness', highFreqThicknessTend)
             call mpas_pool_get_array(tendPool, 'lowFreqDivergence', lowFreqDivergenceTend)
+
+            call mpas_pool_get_array(diagnosticsPool, 'BtrAvgOfBaroclinicVelocity', BtrAvgOfBaroclinicVelocity)
 
             call mpas_pool_get_array(tracersTendPool, 'activeTracersTend', activeTracersTend)
 

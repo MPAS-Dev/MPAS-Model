@@ -2406,6 +2406,14 @@
 			 description="horizontal velocity, tangential to an edge"
 			 packages="forwardMode;analysisMode"
 		/>
+		<var name="BtrAvgOfBaroclinicVelocity" type="real" dimensions="nEdges Time" units="m s^{-1}"
+			 description="barotropic average of baroclinic velocity"
+			 packages="splitTimeIntegrator"
+		/>
+		<var name="BtrAvgOfGMBolusVelocity" type="real" dimensions="nEdges Time" units="m s^{-1}"
+			 description="barotropic average of GM  Bolus velocity"
+			 packages="splitTimeIntegrator"
+		/>
 		<var name="layerThicknessEdge" type="real" dimensions="nVertLevels nEdges Time" units="m"
 			 description="layer thickness averaged from cell center to edges"
 			 packages="forwardMode;analysisMode"
