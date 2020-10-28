@@ -212,7 +212,7 @@
               mass,mass_edge,theta_m,scalars,                                            &
               rublten,rvblten,rthblten,rqvblten,rqcblten,rqiblten,                       &
               rncblten,rniblten,rnifablten,rnwfablten,                                   &
-              rucuten,rvcuten,rthcuten,rqvcuten,rqccuten,rqrcuten,rqicuten,rqscuten,     &                            
+              rucuten,rvcuten,rthcuten,rqvcuten,rqccuten,rqrcuten,rqicuten,rqscuten,     &
               rnccuten,rnicuten,rnifacuten,rnwfacuten,                                   &
               rthratenlw,rthratensw,rublten_Edge,rucuten_Edge,                           &
               tend_th,tend_rtheta_physics,tend_scalars,tend_ru_physics,tend_u_phys)
@@ -257,7 +257,7 @@
                     mass,mass_edge,theta_m,scalars,                                              &
                     rublten,rvblten,rthblten,rqvblten,rqcblten,rqiblten,                         &
                     rncblten,rniblten,rnifablten,rnwfablten,                                     &
-                    rucuten,rvcuten,rthcuten,rqvcuten,rqccuten,rqrcuten,rqicuten,rqscuten,       &                     
+                    rucuten,rvcuten,rthcuten,rqvcuten,rqccuten,rqrcuten,rqicuten,rqscuten,       &
                     rnccuten,rnicuten,rnifacuten,rnwfacuten,                                     &
                     rthratenlw,rthratensw,rublten_Edge,rucuten_Edge,                             &
                     tend_th,tend_theta,tend_scalars,tend_u,tend_u_phys)
