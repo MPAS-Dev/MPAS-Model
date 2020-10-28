@@ -2749,8 +2749,9 @@ module atm_time_integration
 
       implicit none
 
+      integer, intent(in) :: nEdges            ! for allocating stack variables
       integer, intent(in) :: num_scalars_dummy ! for allocating stack variables
-      integer, intent(in) :: nCells           ! for allocating stack variables
+      integer, intent(in) :: nCells            ! for allocating stack variables
       integer, intent(in) :: nVertLevels_dummy ! for allocating stack variables
       real (kind=RKIND), intent(in) :: dt
       integer, intent(in) :: cellStart, cellEnd, vertexStart, vertexEnd, edgeStart, edgeEnd
@@ -2773,7 +2774,7 @@ module atm_time_integration
       real (kind=RKIND), dimension(num_scalars,nVertLevels,nCells+1), intent(inout), optional :: scalar_tend
       real (kind=RKIND), dimension(nVertLevels,nCells+1), intent(inout), optional :: rho_zz_int
       real (kind=RKIND), dimension(:), intent(in) :: invAreaCell
-      integer, intent(in) :: nCellsSolve, nEdges
+      integer, intent(in) :: nCellsSolve
 
       integer :: i, j, iCell, iAdvCell, iEdge, k, iScalar, cell1, cell2
       real (kind=RKIND) :: rho_zz_new_inv
@@ -3020,8 +3021,9 @@ module atm_time_integration
 
       implicit none
 
+      integer, intent(in) :: nEdges            ! for allocating stack variables
       integer, intent(in) :: num_scalars_dummy ! for allocating stack variables
-      integer, intent(in) :: nCells           ! for allocating stack variables
+      integer, intent(in) :: nCells            ! for allocating stack variables
       integer, intent(in) :: nVertLevels_dummy ! for allocating stack variables
       real (kind=RKIND), intent(in) :: dt
       integer, intent(in) :: cellStart, cellEnd, vertexStart, vertexEnd, edgeStart, edgeEnd
@@ -3045,7 +3047,7 @@ module atm_time_integration
       real (kind=RKIND), dimension(num_scalars,nVertLevels,nCells+1), intent(inout), optional :: scalar_tend
       real (kind=RKIND), dimension(nVertLevels,nCells+1), intent(inout), optional :: rho_zz_int
       real (kind=RKIND), dimension(:), intent(in) :: invAreaCell
-      integer, intent(in) :: nCellsSolve, nEdges
+      integer, intent(in) :: nCellsSolve
 
       integer :: i, j, iCell, iAdvCell, iEdge, k, iScalar, cell1, cell2
       real (kind=RKIND) :: rho_zz_new_inv
