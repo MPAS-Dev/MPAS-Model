@@ -682,7 +682,7 @@ module ocn_tracer_advection_mono
             do k=3,kmax-1
               highOrderFlx(k, iCell) = (w(k,iCell)* &
                    (7.0_RKIND*(tracerCur(k  ,iCell) + tracerCur(k-1,iCell)) - &
-                              (tracerCur(k+1,iCell) + tracerCur(k-2,iCell))) - &
+                              (tracerCur(k+1,iCell) + tracerCur(k-2,iCell))) + &
                         coef3rdOrder*abs(w(k,iCell))* &
                              ((tracerCur(k+1,iCell) - tracerCur(k-2,iCell)) - &
                     3.0_RKIND*(tracerCur(k  ,iCell) - tracerCur(k-1,iCell))))/ &
