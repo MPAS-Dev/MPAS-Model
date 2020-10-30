@@ -69,7 +69,7 @@ module mpas_tracer_advection_helpers
         real (kind=RKIND), intent(in) :: w !< Input: vertical veloicity
         real (kind=RKIND), intent(in) :: coef !< Input: Advection coefficient
 
-        mpas_tracer_advection_vflux3 = (w * (7.0_RKIND * (q_i + q_im1) - (q_ip1 + q_im2)) - coef * abs(w) * ((q_ip1 - q_im2) - 3.0_RKIND*(q_i-q_im1)))/12.0_RKIND
+        mpas_tracer_advection_vflux3 = (w * (7.0_RKIND * (q_i + q_im1) - (q_ip1 + q_im2)) + coef * abs(w) * ((q_ip1 - q_im2) - 3.0_RKIND*(q_i-q_im1)))/12.0_RKIND
    end function!}}}
 
 !|||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
