@@ -47,9 +47,9 @@ module ocn_tracer_advection_mono
       vertOrder           !< choice of order for vertical advection
    integer, parameter :: &! enum for supported vertical algorithm order
       vertOrder2 = 2,    &!< 2nd order scheme
-      vertOrder3 = 3,    &!< 3rd order scheme
-      vertOrder4 = 4      !< 4th order scheme
-
+      vertOrder3 = 3      !< 3rd order scheme
+                          !< there is no enum for 4th order, it uses the same
+                          !< code as vertOrder3, but with coef3rdOrder=0.0
    ! These temporary allocatable arrays will eventually be moved back into
    ! the tendency routine, but must be declared here for now so that they
    ! retain the shared attribute. Once the threading model has been changed,
@@ -175,7 +175,10 @@ module ocn_tracer_advection_mono
          invAreaCell2,      &! inverse cell area
          verticalWeightK,   &! vertical weighting
          verticalWeightKm1, &! vertical weighting
-         coef1, coef3        ! temporary coefficients
+         coef1, coef3,      &! temporary coefficients
+         dzEdge,            &! distance between cell centers in the vertical
+         deriv2K, deriv2Km1  ! second derivative of vertical tracer gradient for 
+                             ! 3rd and 4th order reconstructions
 
       real (kind=RKIND), dimension(size(tracers, dim=2)) :: &
          wgtTmp,            &! vertical temporaries for
@@ -656,39 +659,46 @@ module ocn_tracer_advection_mono
         ! Special cases for top and bottom layers handled in following loop.
 
         select case (vertOrder)
-        case (vertOrder4)
-
-          !$omp parallel
-          !$omp do schedule(runtime) private(kmax, k)
-          do iCell = 1, nCells
-            kmax = maxLevelCell(iCell)
-            do k=3,kmax-1
-              highOrderFlx(k, iCell) = w(k,iCell)*( &
-                  7.0_RKIND*(tracerCur(k  ,iCell) + tracerCur(k-1,iCell)) - &
-                            (tracerCur(k+1,iCell) + tracerCur(k-2,iCell)))/ &
-                  12.0_RKIND
-
-            end do
-          end do ! cell loop
-          !$omp end do
-          !$omp end parallel
-
         case (vertOrder3)
+          ! Note that the code for 3rd Order flux and 4th order flux are the samae
+          ! fourth order flux sets coef3rdOrder = 0.0_RKIND
 
+          ! High order flux is discretization of Skamarock and Gassmann (2011) their equation (11)
+          ! TWO Important Notes
+          ! 1. Here the negative sign on coef3rdOrder where SG11 is positive is due to positive w 
+          !    being directed upward but increasing k points downward.  This is easily shown by writing the
+          !    3rd order solution (coef3rdOrder = 1), we have
+          !      flux = w(k-1/2)*(0.5*(tracer(k)+tracer(k-1)) - 1/12*(tracer(k+1) - tracer(k) - tracer(k-1) + 
+          !             tracer(k-2)) + sign(w(k-1/2))/12*(tracer(k+1) - 3*tracer(k) + 3*tracer(k-1) - tracer(k-2)))
+          !    There are two cases 
+          !    a. positive w
+          !       flux = w(k-1/2)*(0.5*(tracer(k)+tracer(k-1)) - 1/12*(-2*tracer(k) + 4*tracer(k-1) - 2*tracer(k-2)))
+          !    b. negative w
+          !       flux = w(k-1/2)*(0.5*(tracer(k)+tracer(k-1)) - 1/12*(-2*tracer(k+1) + 4*tracer(k) - 2*tracer(k-1)))
+          !    in the ocean, positive w is upward, but would be pulling layers downstream, hence we need the negative 
+          !    from the original SG11 equation (9)
+          ! 2. abs(w) appears where sign(w) appears in SG11.  Recall w = abs(w)*sign(w).  in this 
+          !    implementation w is multiplied through so we would have w*sign(w), using the formula we have
+          !    abs(w)*sign(w) / sign(w) = abs(w)
+          ! Relevant reference - Skamarock, W. C., & Gassmann, A. (2011). Conservative transport schemes for 
+          ! spherical geodesic grids: High-order flux operators for ODE-based time integration. 
+          ! Monthly Weather Review, 139(9), 2962-2975.
           !$omp parallel
-          !$omp do schedule(runtime) private(kmax, k)
+          !$omp do schedule(runtime) private(kmax, k, dzEdge, deriv2K, deriv2Km1)
           do iCell = 1, nCells
             kmax = maxLevelCell(iCell)
             do k=3,kmax-1
-              highOrderFlx(k, iCell) = (w(k,iCell)* &
-                   (7.0_RKIND*(tracerCur(k  ,iCell) + tracerCur(k-1,iCell)) - &
-                              (tracerCur(k+1,iCell) + tracerCur(k-2,iCell))) - &
-                        coef3rdOrder*abs(w(k,iCell))* &
-                             ((tracerCur(k+1,iCell) - tracerCur(k-2,iCell)) - &
-                    3.0_RKIND*(tracerCur(k  ,iCell) - tracerCur(k-1,iCell))))/ &
-                   12.0_RKIND
+              deriv2K = (tracerCur(k-1,iCell) - tracerCur(k,iCell))/(0.5_RKIND*hProv(k,iCell)* &
+                        (hProv(k-1,iCell) + hProv(k,iCell))) - (tracerCur(k,iCell) - tracerCur(k+1,iCell))/ &
+                        (0.5_RKIND*hProv(k,iCell)*(hProv(k,iCell) + hProv(k+1,iCell)))
+              deriv2Km1 = (tracerCur(k-2,iCell) - tracerCur(k-1,iCell))/(0.5_RKIND*hProv(k-1,iCell)* &
+                        (hProv(k-2,iCell) + hProv(k-1,iCell))) - (tracerCur(k-1,iCell) - tracerCur(k,iCell)) / &
+                        (0.5_RKIND*hProv(k-1,iCell)*(hProv(k-1,iCell) + hProv(k,iCell)))
+              dzEdge = 0.5*(hProv(k-1,iCell) + hProv(k,iCell))
 
-
+              highOrderFlx(k, iCell) = w(k,iCell)*(0.5_RKIND*(tracerCur(k,iCell) + tracerCur(k-1,iCell)) - &
+                      dzEdge**2/12.0_RKIND*(deriv2K + deriv2Km1)) - abs(w(k,iCell))*dzEdge**2*coef3rdOrder/ &
+                      12.0_RKIND*(deriv2K - deriv2Km1)
             end do
           end do ! cell loop
           !$omp end do
@@ -696,6 +706,15 @@ module ocn_tracer_advection_mono
 
        case (vertOrder2)
 
+          ! Construct linear interpolation of tracer at the layer interface
+          ! Equation can be written as
+          ! TracerCur_interface = -(tracerCur(k-1) - tracerCur(k)) / (0.5*(hProv(k-1) + hProv(k))) *
+          !                        0.5*hProv(k-1) + tracerCur(k-1)
+          ! This can be rewritten as 
+          ! TracerCur_interface =  (0.5*tracerCur(k)*hProv(k-1) - 0.5*tracerCur(k-1)*hProv(k-1) + 
+          !                         0.5*(hProv(k-1) + hProv(k-1))*tracerCur(k-1)) / 0.5*(hProv(k-1) + hProv(k-1))
+          ! or finally as what is in the code below
+          ! TracerCur_interface = hProv(k-1)*tracerCur(k)/(hProv(k-1) + hProv(k-1)) + hProv(k)*tracerCur(k-1)/(hProv(k-1) + hProv(k-1))
           !$omp parallel
           !$omp do schedule(runtime) private(kmax, k, verticalWeightK, verticalWeightKm1)
           do iCell = 1, nCells
@@ -994,8 +1013,8 @@ module ocn_tracer_advection_mono
          vertOrder = vertOrder2
       case (3)
          vertOrder = vertOrder3
-      case (4)
-         vertOrder = vertOrder4
+      case (4) ! vertOrder3 code is identical to vertOrder4 with coef3rdOrder = 0.0
+         vertOrder = vertOrder3
       case default
          vertOrder = vertOrder2
          call mpas_log_write( &
