@@ -696,9 +696,12 @@ module ocn_tracer_advection_mono
                         (0.5_RKIND*hProv(k-1,iCell)*(hProv(k-1,iCell) + hProv(k,iCell)))
               dzEdge = 0.5*(hProv(k-1,iCell) + hProv(k,iCell))
 
-              highOrderFlx(k, iCell) = w(k,iCell)*(0.5_RKIND*(tracerCur(k,iCell) + tracerCur(k-1,iCell)) - &
-                      dzEdge**2/12.0_RKIND*(deriv2K + deriv2Km1)) - abs(w(k,iCell))*dzEdge**2*coef3rdOrder/ &
-                      12.0_RKIND*(deriv2K - deriv2Km1)
+              verticalWeightK   = hProv(k-1,iCell) / (hProv(k  ,iCell) + hProv(k-1,iCell))
+              verticalWeightKm1 = hProv(k  ,iCell) / (hProv(k  ,iCell) + hProv(k-1,iCell))
+              highOrderFlx(k, iCell) = w(k,iCell)*(verticalWeightK*tracerCur(k,iCell) +       &
+                      verticalWeightKm1*tracerCur(k-1,iCell) - dzEdge**2/12.0_RKIND*(deriv2K &
+                      + deriv2Km1)) - abs(w(k,iCell))*dzEdge**2*coef3rdOrder/12.0_RKIND*      &
+                      (deriv2K - deriv2Km1)
             end do
           end do ! cell loop
           !$omp end do
