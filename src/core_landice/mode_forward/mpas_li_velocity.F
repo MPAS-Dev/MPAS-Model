@@ -845,6 +845,28 @@ contains
       call mpas_pool_get_array(geometryPool, 'cellMask', cellMask)
 
       betaSolve = beta
+      
+      call mpas_pool_get_dimension(meshPool, 'nCells', nCells)
+      call mpas_pool_get_array(meshPool, 'nEdgesOnCell', nEdgesOnCell)
+      call mpas_pool_get_array(meshPool, 'cellsOnCell', cellsOnCell)
+
+      do iCell = 1, nCells
+         if (li_mask_is_floating_ice(cellMask(iCell))) then
+            nBetaValues = 0
+            betaAccum = 0.0_RKIND
+            do iCell2 = 1, nEdgesOnCell(iCell)
+               neighbor = cellsOnCell(iCell2, iCell)
+               if (li_mask_is_grounded_ice(cellMask(neighbor))) then
+                  betaAccum = betaAccum + betaSolve(neighbor)
+                  nBetaValues = nBetaValues + 1
+               endif
+            enddo
+               if (nBetaValues > 0) then
+                  betaSolve(iCell) = betaAccum / real(nBetaValues, kind=RKIND)  ! take average of neighboring betas
+                  ! <  TODO: could do this in log space
+               endif
+         endif ! if iCell is floating
+      enddo ! cell loop
 
       if (config_beta_thawed_only) then
          call mpas_pool_get_array(thermalPool, 'basalTemperature', basalTemperature)
