@@ -843,6 +843,8 @@ contains
 
       call mpas_pool_get_array(velocityPool, 'betaSolve', betaSolve)
       call mpas_pool_get_array(velocityPool, 'beta', beta)
+      call mpas_pool_get_array(velocityPool, 'muFriction', muFriction)
+      call mpas_pool_get_array(velocityPool, 'effectivePressureLimited', effectivePressure)
       call mpas_pool_get_array(geometryPool, 'cellMask', cellMask)
 
       betaSolve = beta
