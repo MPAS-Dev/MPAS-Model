@@ -1299,7 +1299,7 @@ module li_iceshelf_melt
                 ! Calculate ice front melt rate at each cell
                faceMeltSpeed(iCell) = (aSubglacial * waterDepth * & ! m s^-1
                          (ismip6Runoff(iCell) / rhow * secPerDay)**alphaSubglacial &
-                         + B) * (TFocean(iCell) + addTFocean)**betaTF / secPerDay
+                         + B) * max(0.0_RKIND, TFocean(iCell) + addTFocean)**betaTF / secPerDay
             else
                faceMeltSpeed(iCell) = config_uniform_face_melt_rate
             endif
