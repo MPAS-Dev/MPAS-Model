@@ -42,6 +42,21 @@ Date last modified: 2020/11/24
 
 Contributors: Darren Engwirda, Xylar Asay-Davis, Carolyn Begeman
 
+Requirement: A grid that relaxes to an analytical expression for a target grid.
+
+Requirement: The ability to implement hybrid coordinate systems.
+
+Requirement: XX order accuracy of the solution.
+
+Requirement: Performance is not degraded below an acceptable level.
+
+Requirement: Layer thicknesses are non-negative (and above a minimum thickness).
+
+*Possible additional requirements:
+- re. development of instabilities
+- re. conservation/monotonicity of interpolants
+*
+
 
 *Each requirement is to be listed under a "section" heading, as there will be a
 one-to-one correspondence between requirements, design, proposed implementation
@@ -60,21 +75,6 @@ Design solution: short-description-of-proposed-solution-here
 Date last modified: 2020/11/24
 
 Contributors: Darren Engwirda, Xylar Asay-Davis, Carolyn Begeman
-
-Requirement: A grid that relaxes to an analytical expression for a target grid.
-
-Requirement: The ability to implement hybrid coordinate systems.
-
-Requirement: XX order accuracy of the solution.
-
-Requirement: Performance is not degraded below an acceptable level.
-
-Requirement: Layer thicknesses are non-negative (and above a minimum thickness).
-
-*Possible additional requirements:
-- re. development of instabilities
-- re. conservation/monotonicity of interpolants
-*
 
 *For each requirement, there is a design solution that is intended to meet that
 requirement. Design solutions can include detailed technical discussions of
