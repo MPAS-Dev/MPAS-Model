@@ -53,7 +53,6 @@ module init_atm_cases
 
       integer :: i
       integer :: ierr
-      integer :: num_err
       type (block_type), pointer :: block_ptr
 
       type (mpas_pool_type), pointer :: mesh
@@ -345,36 +344,16 @@ module init_atm_cases
 
          block_ptr => domain % blocklist
          do while (associated(block_ptr))
-            num_err = 0
             call mpas_pool_get_config(block_ptr % configs, 'config_specified_zeta_levels', config_specified_zeta_levels)
 
             if (len_trim(config_specified_zeta_levels) < 1) then
                 call mpas_log_write('*************************************************************', messageType=MPAS_LOG_ERR)
                 call mpas_log_write('Setup of CAM-MPAS grid requires a specified set of zeta levels.', messageType=MPAS_LOG_ERR)
-                call mpas_log_write('Please set the namelist option config_specified_zeta_levels.', messageType=MPAS_LOG_ERR)
+                call mpas_log_write('Please set the namelist option config_specified_zeta_levels', messageType=MPAS_LOG_ERR)
+                call mpas_log_write('in the &vertical_grid namelist group.', messageType=MPAS_LOG_ERR)
                 call mpas_log_write('*************************************************************', messageType=MPAS_LOG_ERR)
-                num_err = num_err + 1
-            end if
 
-            if (.not. MPAS_stream_mgr_stream_exists(stream_manager, 'cam_topo')) then
-                call mpas_log_write('*************************************************************', messageType=MPAS_LOG_ERR)
-                call mpas_log_write('Setup of CAM-MPAS grid requires a ''cam_topo'' stream with', messageType=MPAS_LOG_ERR)
-                call mpas_log_write('a PHIS field. Please define a ''cam_topo'' stream; for example:', messageType=MPAS_LOG_ERR)
-                call mpas_log_write('',                                    messageType=MPAS_LOG_ERR)
-                call mpas_log_write('<stream name="cam_topo"',             messageType=MPAS_LOG_ERR)
-                call mpas_log_write('        type="input"',                messageType=MPAS_LOG_ERR)
-                call mpas_log_write('        filename_template="topo.nc"', messageType=MPAS_LOG_ERR)
-                call mpas_log_write('        input_interval="none">',      messageType=MPAS_LOG_ERR)
-                call mpas_log_write('',                                    messageType=MPAS_LOG_ERR)
-                call mpas_log_write('    <var name="PHIS"/>',              messageType=MPAS_LOG_ERR)
-                call mpas_log_write('</stream>',                           messageType=MPAS_LOG_ERR)
-                call mpas_log_write('',                                    messageType=MPAS_LOG_ERR)
-                call mpas_log_write('*************************************************************', messageType=MPAS_LOG_ERR)
-                num_err = num_err + 1
-            end if
-
-            if (num_err > 0) then
-                call mpas_log_write('Errors were detected in the namelist and/or streams files.', messageType=MPAS_LOG_CRIT)
+                call mpas_log_write('Errors were detected in the namelist.init_atmosphere file.', messageType=MPAS_LOG_CRIT)
             end if
 
             call mpas_pool_get_subpool(block_ptr % structs, 'mesh', mesh)
@@ -5788,8 +5767,9 @@ call mpas_log_write('Done with soil consistency check')
    !>  The config_specified_zeta_levels must be set to the name of a text file with
    !>  zeta levels, the number of which must be one more than config_nvertlevels.
    !>
-   !>  A mutable stream named 'cam_topo' must also be defined with a single field, PHIS,
-   !>  that provides the surface geopotential to be used in generating the vertical grid.
+   !>  Optionally, a mutable stream named 'cam_topo' may also be defined with
+   !>  a single field, PHIS, that provides the surface geopotential to be used in
+   !>  generating the vertical grid.
    !>
    !>  Namelist options used by this routine:
    !>  * config_specified_zeta_levels
@@ -5803,8 +5783,8 @@ call mpas_log_write('Done with soil consistency check')
    subroutine init_atm_case_cam_mpas(stream_manager, dminfo, block, mesh, &
                                      dims, configs, nVertLevels)
 
-      use mpas_dmpar, only : mpas_dmpar_exch_halo_field, mpas_dmpar_min_real
-      use mpas_stream_manager, only : MPAS_stream_mgr_read
+      use mpas_dmpar, only : mpas_dmpar_exch_halo_field, mpas_dmpar_min_real, mpas_dmpar_max_real
+      use mpas_stream_manager, only : MPAS_stream_mgr_stream_exists, MPAS_stream_mgr_read
       use mpas_derived_types, only : MPAS_STREAM_MGR_NOERR
 
       implicit none
@@ -5858,6 +5838,7 @@ call mpas_log_write('Done with soil consistency check')
 
       real(kind=RKIND), dimension(:), pointer :: PHIS
       real(kind=RKIND), dimension(:), pointer :: ter
+      real(kind=RKIND) :: min_ter, max_ter
       type (field1DReal), pointer :: ter_field
 
       real(kind=RKIND), dimension(:), pointer :: hs, hs1
@@ -5976,10 +5957,31 @@ call mpas_log_write('Done with soil consistency check')
       !
       ! Read PHIS field from cam_topo stream
       !
-      call MPAS_stream_mgr_read(stream_manager, 'cam_topo', rightNow=.true., whence=MPAS_STREAM_NEAREST, ierr=ierr)
-      if (ierr /= MPAS_STREAM_MGR_NOERR) then
-         call mpas_log_write('Error reading the ''cam_topo'' stream.', messageType=MPAS_LOG_CRIT)
-      end if
+      if (MPAS_stream_mgr_stream_exists(stream_manager, 'cam_topo')) then
+         call MPAS_stream_mgr_read(stream_manager, 'cam_topo', rightNow=.true., whence=MPAS_STREAM_NEAREST, ierr=ierr)
+         if (ierr /= MPAS_STREAM_MGR_NOERR) then
+            call mpas_log_write('Error reading the ''cam_topo'' stream.', messageType=MPAS_LOG_CRIT)
+         end if
+      else
+         call mpas_log_write('')
+         call mpas_log_write('*************************************************************', messageType=MPAS_LOG_WARN)
+         call mpas_log_write('No ''cam_topo'' input stream with a PHIS field was defined.', messageType=MPAS_LOG_WARN)
+         call mpas_log_write('', messageType=MPAS_LOG_WARN)
+         call mpas_log_write('The terrain field will be set to zero everywhere. To specify', messageType=MPAS_LOG_WARN)
+         call mpas_log_write('a non-zero terrain field, define a ''cam_topo'' stream, e.g.,', messageType=MPAS_LOG_WARN)
+         call mpas_log_write('',                                    messageType=MPAS_LOG_WARN)
+         call mpas_log_write('<stream name="cam_topo"',             messageType=MPAS_LOG_WARN)
+         call mpas_log_write('        type="input"',                messageType=MPAS_LOG_WARN)
+         call mpas_log_write('        filename_template="topo.nc"', messageType=MPAS_LOG_WARN)
+         call mpas_log_write('        input_interval="none">',      messageType=MPAS_LOG_WARN)
+         call mpas_log_write('',                                    messageType=MPAS_LOG_WARN)
+         call mpas_log_write('    <var name="PHIS"/>',              messageType=MPAS_LOG_WARN)
+         call mpas_log_write('</stream>',                           messageType=MPAS_LOG_WARN)
+         call mpas_log_write('',                                    messageType=MPAS_LOG_WARN)
+         call mpas_log_write('*************************************************************', messageType=MPAS_LOG_WARN)
+         call mpas_log_write('')
+     end if
+
 
       !
       ! Set terrain field based on PHIS
@@ -5988,6 +5990,12 @@ call mpas_log_write('Done with soil consistency check')
       call mpas_pool_get_array(mesh, 'PHIS', PHIS)
 
       ter(:) = PHIS(:) / gravity
+
+      call mpas_dmpar_min_real(dminfo, minval(ter(1:nCellsSolve)), min_ter)
+      call mpas_dmpar_max_real(dminfo, maxval(ter(1:nCellsSolve)), max_ter)
+      call mpas_log_write('')
+      call mpas_log_write('Terrain min/max = $r / $r', realArgs=[min_ter, max_ter])
+      call mpas_log_write('')
 
 
       !
