@@ -817,14 +817,14 @@ contains
       type (mpas_pool_type), pointer :: thermalPool
       type (mpas_pool_type), pointer :: meshPool
       real (kind=RKIND), dimension(:), pointer :: betaSolve, beta, & 
-                                                  muFriction, effectivePressure
+                                                  effectivePressure
       real (kind=RKIND), dimension(:), pointer :: basalTemperature, basalPmpTemperature
       integer, dimension(:), pointer :: cellMask
       logical, pointer :: config_use_glp
       logical, pointer :: config_beta_thawed_only
       logical, pointer :: hydroActive
-      real (kind=RKIND) :: betaAccum, muAccum, NAccum
-      integer :: nBetaValues, nNValues, nMuValues
+      real (kind=RKIND) :: betaAccum, NAccum
+      integer :: nBetaValues, nNValues
       integer :: iCell, iCell2
       integer :: neighbor
       integer, pointer :: nCells
@@ -843,7 +843,6 @@ contains
 
       call mpas_pool_get_array(velocityPool, 'betaSolve', betaSolve)
       call mpas_pool_get_array(velocityPool, 'beta', beta)
-      call mpas_pool_get_array(velocityPool, 'muFriction', muFriction)
       call mpas_pool_get_array(velocityPool, 'effectivePressureLimited', effectivePressure)
       call mpas_pool_get_array(geometryPool, 'cellMask', cellMask)
 
@@ -855,21 +854,16 @@ contains
 
       do iCell = 1, nCells
          if (li_mask_is_floating_ice(cellMask(iCell))) then
-            nMuValues = 0
-            muAccum = 0.0_RKIND
             nNValues = 0
             NAccum = 0.0_RKIND
             do iCell2 = 1, nEdgesOnCell(iCell)
                neighbor = cellsOnCell(iCell2, iCell)
                if (li_mask_is_grounded_ice(cellMask(neighbor))) then
-                  muAccum = muAccum + muFriction(neighbor)
-                  nMuValues = nMuValues + 1
                   NAccum = NAccum + effectivePressure(neighbor)
                   nNValues = nNValues + 1
                endif
             enddo
-               if (nMuValues > 0) then
-                  muFriction(iCell) = muAccum / real(nMuValues, kind=RKIND)  ! take average of neighboring muFriction values
+               if (nNValues > 0) then
                   effectivePressure(iCell) = NAccum / real(nNValues, kind=RKIND) ! take average of neighboring effectivePressure values
                   ! <  TODO: could do this in log space
                endif
