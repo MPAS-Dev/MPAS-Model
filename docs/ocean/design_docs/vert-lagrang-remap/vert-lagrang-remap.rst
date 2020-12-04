@@ -41,14 +41,13 @@ Requirement: The ability to implement hybrid coordinate systems.
 
 Requirement: XX order accuracy of the solution.
 
+Requirement: For the same target grid, the solution for layer thicknesses and key prognostic variables using VLR is within a non-climate-changing threshold value [presumably greater than machine precision?] of the solution using [ALE? RK4?] after a few timesteps.
+
 Requirement: Performance is not degraded below an acceptable level.
 
-Requirement: Layer thicknesses are non-negative (and above a minimum thickness).
+Requirement: Layer thicknesses are non-negative.
 
-*Possible additional requirements:
-- re. development of instabilities
-- re. conservation/monotonicity of interpolants
-*
+Requirement: Remapping operation is conservative in the layer-wise sense.
 
 
 *Each requirement is to be listed under a "section" heading, as there will be a
