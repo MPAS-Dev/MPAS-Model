@@ -22,14 +22,7 @@ equations of motion is not in the scope of this development. This development
 will include some infrastructure for specifying the target grid for regridding. 
 The minimum criteria for success are not degrading the accuracy of the solution 
 or the performance by more than [an acceptable threshold] for several basic test 
-cases... .
-
-*The purpose of this section is to summarize what capability is to be added to
-MPAS-Model through this design process. It should be clear what new code will do
-that the current code does not. Summarizing the primary challenges with respect
-to software design and implementation is also appropriate for this section.
-Finally, this statement should contain a general statement with regard to what
-is "success."*
+cases... [hmm, not quite sure how to write the success statement if not "meets requirements"].
 
 
 Requirements
@@ -69,12 +62,32 @@ implementation and testing plan.*
 Algorithmic Formulations (optional)
 -----------------------------------
 
-Design solution: short-description-of-proposed-solution-here
+Requirement: A grid that relaxes to an analytical expression for a target grid.
+Design solution: Vertical lagrangian-remapping
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Date last modified: 2020/11/24
 
 Contributors: Darren Engwirda, Xylar Asay-Davis, Carolyn Begeman
+
+The vertical Lagrangian-remap can be characterized by the following equations, as written in Griffies and Adcroft (2020):
+
+*Math likely needs to be edited from latex version*
+.. math::
+\begin{eqnarray}
+\mbox{\textcolor{blue}{lagrangian layer motion}}&&\label{w_grid}
+\Delta_s w^{grid}_{k,*} = -D^n_{k,*}\\
+\mbox{\textcolor{blue}{hor advec h update}}&&\label{dh1}h^{tem} = h^n + \Delta t \Delta_s w^{grid}_{k,*}\\
+\mbox{\textcolor{blue}{hor advec tracer update}}&&[hC]^{tem} = [hC]^n - \Delta t \nabla_h \cdot [hCu]^n\\
+\mbox{\textcolor{blue}{Update h, regrid}}&&h^{n+1} = h^{target}\\
+\mbox{\textcolor{blue}{Diasurface velocity}}&&\Delta_s w^{tem} = -(h^{target} - h^{tem})/\Delta t\\
+\mbox{\textcolor{blue}{Remap tracer and velocities}}&&[hC]^{n+1} = [hC]^{tem} - \Delta t \Delta_s (w^{tem}C^{tem})\label{eq:remap}
+\end{eqnarray}
+
+Specification of the target grid:
+- [Some design re. flexibility in user's specification of the grid]
+- [Some design re. converting these specs into an analytical expression]
+- Allowable coordinate systems: z-star (current), z-tilde (current), isopycnal (new)[?]
 
 *For each requirement, there is a design solution that is intended to meet that
 requirement. Design solutions can include detailed technical discussions of
@@ -93,6 +106,20 @@ Implementation: short-description-of-implementation-here
 Date last modified: YYYY/MM/DD
 
 Contributors: (add your name to this list if it does not appear)
+
+The remapping operation detailed in \ref{eq:remap} is performed in several steps:
+.. math::
+\begin{eqnarray}
+\mbox{\textcolor{blue}{Reconstruction}}&&C^{n+1} = f(C^{n},h^{n},h^{n+1})
+\mbox{\textcolor{blue}{Enforce conservation by correction}}&&[hC]^{n+1} = [hC]^{tem} - \Delta t \Delta_s (w^{tem}C^{tem})\label{eq:remap}
+\end{eqnarray}
+*Does conservation implementation actually take this form? Is it equivalent?*
+
+Specification of target grid:
+- Default is current vertical grid
+Should be a function of z_surface and z_bottom
+Damping function to limit the rate of grid movement in one timestep
+Maximum/minimum thickness alteration: as described in Petersen et al. (2015)for ALE?
 
 *This section should detail the plan for implementing the design solution for
 requirement XXX. In general, this section is software-centric with a focus on
