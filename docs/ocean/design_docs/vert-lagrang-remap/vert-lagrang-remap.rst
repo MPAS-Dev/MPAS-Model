@@ -39,9 +39,11 @@ Requirement: A grid that relaxes to an analytical expression for a target grid.
 
 Requirement: The ability to implement hybrid coordinate systems.
 
-Requirement: XX order accuracy of the solution.
+Requirement: To the extent that it is feasible, the user should have the ability to control the order of accuracy and other parameters of the remapping (e.g. via namelist options).
 
-Requirement: For the same target grid, the solution for layer thicknesses and key prognostic variables using VLR is within a non-climate-changing threshold value [presumably greater than machine precision?] of the solution using [ALE? RK4?] after a few timesteps.
+Requirement: Remapping should be supported (eventually) in both the RK4 and the split-explicit time stepping schemes. 
+
+Requirement: For the same target grid, the solution for layer thicknesses and key prognostic variables using VLR is within a non-climate-changing threshold value [presumably greater than machine precision?] of the solution using split-explicit and RK4 after a few timesteps.
 
 Requirement: Performance is not degraded below an acceptable level.
 
@@ -49,6 +51,9 @@ Requirement: Layer thicknesses are non-negative.
 
 Requirement: Remapping operation is conservative in the layer-wise sense.
 
+Requirement: No calculations are made outside of remapping itself using prognostic (or diagnostic) variables both before and after remapping to avoid introducing additional errors.
+
+Requirement: To the degree possible, the code for performing remapping should be kept in its own Fortran module(s) for better readability.
 
 *Each requirement is to be listed under a "section" heading, as there will be a
 one-to-one correspondence between requirements, design, proposed implementation
