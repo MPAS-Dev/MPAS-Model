@@ -128,27 +128,27 @@ Contributors: Darren Engwirda, Xylar Asay-Davis, Carolyn Begeman
 
 The vertical Lagrangian-remap can be characterized by the following equations, as written in Griffies and Adcroft (2020):
 
-\textcolor{blue}{lagrangian layer motion}}
+Lagrangian layer motion
 .. math::
    w^{grid}_{k,*} = -D^n_{k,*}
 
-\textcolor{blue}{hor advec h update}}\label{dh1}
+Horizontal advection thickness update
 .. math::
    h^{tem} = h^n + \Delta t \Delta_s w^{grid}_{k,*}
 
-\textcolor{blue}{hor advec tracer update}}
+Horizontal advection tracer update
 .. math::
    [hC]^{tem} = [hC]^n - \Delta t \nabla_h \cdot [hCu]^n
 
-\textcolor{blue}{Update h, regrid}}
+Update layer thicknesses (regrid)
 .. math::
    h^{n+1} = h^{target}
 
-\textcolor{blue}{Diasurface velocity}}
+Diasurface velocity
 .. math::
    \Delta_s w^{tem} = -(h^{target} - h^{tem})/\Delta t
 
-\textcolor{blue}{Remap tracer and velocities}}
+Remap tracer and velocities
 .. math::
    [hC]^{n+1} = [hC]^{tem} - \Delta t \Delta_s (w^{tem}C^{tem})
 
@@ -169,7 +169,15 @@ Implementation
 
 Implementation: remapping
 ^^^^^^^^^^^^^^^^^^^^^^^^^
+Lagrangian grid motion:
+Horizontal divergence computation remains unchanged *link to code here*
+Scratch variable stores provisional layer thickness consistent with lagrangian motion.
+
+Tracer update following Lagrangian grid motion:
+Scratch variable stores tracer concentration.
+
 Remapping of both velocities and scalars is performed after the lagrangian step and regridding. 
+Assume that the edges of the velocity cells are the midpoints of scalar cells, as already specified by layerThicknessEdge.
 
 The remapping operation detailed in \ref{eq:remap} is performed in several steps:
 Reconstruction :math:'C^{n+1} = f(C^{n},h^{n},h^{n+1})'
@@ -178,27 +186,40 @@ Enforce conservation by correction :math:'[hC]^{n+1} = [hC]^{tem} - \Delta t \De
 Conservation details are discussed in implementation section "conservation."
 *Is PPR's conservation implementation equivalent to this equation?*
 
+*Do we need to change PPR's error flags to be consistent with MPAS?*
+*Do we need to add any additional error checks?*
+
 Specification of target grid:
 - Default is current vertical grid
 - Should be a function of z_surface and z_bottom
 - Damping function to limit the rate of grid movement in one timestep. 
 *Identify parameters in damping function that should be namelist options*
-- Maximum/minimum thickness alteration: as described in Petersen et al. (2015)for ALE?
+- Maximum/minimum thickness alteration that must occur before remapping: as described in Petersen et al. (2015) for ALE?
 
 Implementation: hybrid coordinates
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Namelist options:
+- for horizontally smoothing the grid prior to remapping
 *Do we have to worry about consistency with initial thickness conditions*
+
+Smoothing/conditioning the grid prior to remapping:
+- Volume-conserving
 
 Implementation: user specifications
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Namelist options relevant to remapping:
 - order of the remapping
 - order of edge slope estimates
+- monotone limiter
+- boundary condition option
+- option to output some diagnostics?
 *Some other remapping options here*
 
 Implementation: multiple time stepping schemes
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Namelist options
+- config_time_integrator = 'vertical_lagrangian_remap'
+
 A new function will be called instead of ocn_time_integrator_rk4 when VLR is active (e.g., ocn_time_integrator_rk4_vlr). This is motivated by the fact that the vertical velocity, thickness and tracer updates are performed in a different sequence. Some of the functions it calls (ocn_vert_transport_velocity_top, ocn_tend_thick, ocn_tend_tracer, etc.) may have substitutes or have embedded case-clauses for VLR. 
 
 Implementation: not climate changing
@@ -221,10 +242,14 @@ Implementation: no interference
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Ensure that no calculations are made outside of remapping itself using prognostic (or diagnostic) variables both before and after remapping to avoid introducing additional errors.
 
+Look for places in the code where prognostic variables are used at the previos timestep.
+Temporarily set X_prev to unrealistic value after remapping so that any errors generated will be detectable?
+
 Implementation: modularity
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
 Remapping operations (PPR) are performed in a separate routine. 
 Target grid levels should be determined in a separate routine.
+Where to determine timestep for remapping?
 
 *This section should detail the plan for implementing the design solution for
 requirement XXX. In general, this section is software-centric with a focus on
@@ -237,24 +262,38 @@ Testing
 
 Testing and Validation: remapping
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Ability to handle strong vertical velocities: maybe baroclinic channel test case
+Evaluating spurious mixing due to remapping: Internal wave test case. Compare mixing between cases with and without VLR for RK4.
 
 Testing and Validation: hybrid coordinates
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Seamount test case for dropping bottom cells?
+Ice shelf test case for dropping top cells
+
 Testing and Validation: user specifications
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
 Testing and Validation: multiple time stepping schemes
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+RK4 with and without VLR: internal wave test case. Set the target grid equal both with and without VLR.
+
+Split-explicit with and without VLR: internal wave test case. Shouldn't lead to remapping because motion is high frequency.
+
 Testing and Validation: not climate changing
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Global ocean test case?
+
 Testing and Validation: performance
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Testing and Validation: conservation
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Sufficient to test that PPR is conservative?
+Vertical convergence test: 
 
 Testing and Validation: no interference
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Some evaluation of sub-grid momentum and scalar fluxes
 
 *How will XXX be tested, i.e., how will be we know when we have met requirement
 XXX? Which tests from the regression suites are appropriate?  How would they
