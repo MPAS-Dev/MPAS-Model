@@ -851,6 +851,7 @@ module ocn_time_integration_split
                        call mpas_pool_get_dimension(block % dimensions, 'nCells', nCellsPtr)
 
                        nCells = nCellsPtr
+                       !$omp simd
                        do iCell = 1, nCells
                          sshSubcycleCurWithTides(iCell) = sshSubcycleCur(iCell) - tidalPotentialEta(iCell) &
                                                         - config_self_attraction_and_loading_beta * sshSubcycleCur(iCell)
@@ -862,9 +863,14 @@ module ocn_time_integration_split
                      nEdges = nEdgesPtr
                      nEdges = nEdgesArray( edgeHaloComputeCounter )
 
+#ifdef _OPENMP
                      !$omp parallel
                      !$omp do schedule(runtime) &
                      !$omp private(temp_mask, cell1, cell2, CoriolisTerm, i, eoe)
+#else
+                     !$omp simd &
+                     !$omp private(temp_mask, cell1, cell2, CoriolisTerm, i, eoe)
+#endif
                      do iEdge = 1, nEdges
 
                         temp_mask = edgeMask(1, iEdge)
@@ -1108,9 +1114,14 @@ module ocn_time_integration_split
 
                    nEdges = nEdgesArray( edgeHaloComputeCounter )
 
+#ifdef _OPENMP
                    !$omp parallel
-                   !$omp do schedule(runtime) &
+                   !$omp do simd schedule(runtime) &
                    !$omp private(temp_mask, cell1, cell2, coriolisTerm, i, eoe, sshCell1, sshCell2)
+#else
+                   !$omp simd
+                   !$omp private(temp_mask, cell1, cell2, coriolisTerm, i, eoe, sshCell1, sshCell2)
+#endif
                    do iEdge = 1, nEdges
 
                      ! asarje: added to avoid redundant computations based on mask

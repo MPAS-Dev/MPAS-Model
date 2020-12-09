@@ -144,10 +144,16 @@ contains
 
       nEdges = nEdgesArray ( 1 )
 
+#ifdef _OPENMP
       !$omp parallel
-      !$omp do schedule(runtime) &
+      !$omp do simd schedule(runtime) &
       !$omp private(zTop, cell1, cell2, attenuationCoeff, transmissionCoeffTop, &
       !$omp         remainingStress, k, zBot, transmissionCoeffBot)
+#else
+      !$omp simd &
+      !$omp private(zTop, cell1, cell2, attenuationCoeff, transmissionCoeffTop, &
+      !$omp         remainingStress, k, zBot, transmissionCoeffBot)
+#endif
       do iEdge = 1, nEdges
         zTop = 0.0_RKIND
         cell1 = cellsOnEdge(1,iEdge)

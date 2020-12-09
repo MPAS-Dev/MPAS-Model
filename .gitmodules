@@ -4,3 +4,6 @@
 [submodule "src/core_ocean/BGC"]
 	path = src/core_ocean/BGC
 	url = https://github.com/E3SM-Project/Ocean-BGC.git
+[submodule "scorpio"]
+	path = scorpio
+	url = https://github.com/E3SM-Project/scorpio.git

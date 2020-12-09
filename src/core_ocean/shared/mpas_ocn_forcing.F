@@ -189,6 +189,7 @@ contains
 !-----------------------------------------------------------------------
 
    real (kind=RKIND) function ocn_forcing_transmission(z, attenuationCoefficient)!{{{
+!$omp declare simd(ocn_forcing_transmission)
       real (kind=RKIND), intent(in) :: z, attenuationCoefficient
 
       ocn_forcing_transmission = exp( max(z / attenuationCoefficient, -100.0_RKIND) )
