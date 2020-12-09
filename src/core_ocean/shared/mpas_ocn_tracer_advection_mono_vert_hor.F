@@ -846,6 +846,11 @@ module ocn_tracer_advection_mono_vert_hor
                                + (highOrderFlx(k+1,iCell) &
                                 - highOrderFlx(k  ,iCell))
             tend(iTracer,k,iCell) = tend(iTracer,k,iCell) + workTend(k,iCell)
+
+            ! update tracerCur 
+            ! tracerCur on LHS is the provisional tracer after vertical fluxes only.
+            tracerCur(k,iCell) = (tracerCur(k,iCell)*layerThickness(k,iCell) &
+                                  + dt*workTend(k,iCell))*hProvInv(k,iCell)
           end do ! k loop
 
         end do ! iCell loop
