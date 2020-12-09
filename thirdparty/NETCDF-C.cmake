@@ -4,10 +4,10 @@ set(NETCDF_C_PREFIX netcdf_c_4_7_4)
 
 # set a variable to point to the URL of the NetCDF source.
 # since we manually downloaded this, it will look like below
-set(NETCDF_C_URL ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/v4.7.4.tar.gz)
+set(NETCDF_C_URL https://www.unidata.ucar.edu/downloads/netcdf/ftp/netcdf-c-4.7.4.tar.gz)
 
 # calculate the MD5 sum of the file downloaded and set it in a variable
-set(NETCDF_C_URL_MD5 33979e8f0cf4ee31323fc0934282111b)
+set(NETCDF_C_URL_MD5 3e0a97e6abb9a989f8a8a2e395473597)
 
 message(STATUS "Could NOT find NetCDF. Will build it.")
 
@@ -17,7 +17,7 @@ ExternalProject_Add(${NETCDF_C_PREFIX}
     PREFIX ${NETCDF_C_PREFIX}
     URL ${NETCDF_C_URL}
     URL_MD5 ${NETCDF_C_URL_MD5}
-    CONFIGURE_COMMAND ./configure --disable-netcdf4 --disable-byterange --prefix=${CMAKE_BINARY_DIR}/${NETCDF_C_PREFIX}
+    CONFIGURE_COMMAND ./configure --disable-netcdf4 -disable-dap --disable-byterange --prefix=${CMAKE_BINARY_DIR}/${NETCDF_C_PREFIX}
     BUILD_COMMAND  make -j ${NUMPROCS} 
     BUILD_IN_SOURCE 1
     INSTALL_COMMAND make install

@@ -4,7 +4,8 @@ set(PNETCDF_PARALLEL_PREFIX pnetcdf_1_12_1_parallel)
 
 # set a variable to point to the URL of the PnetCDF source.
 # since we manually downloaded this, it will look like below
-set(PNETCDF_URL ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/pnetcdf-1.12.1.tar.gz)
+#set(PNETCDF_URL ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/pnetcdf-1.12.1.tar.gz)
+set(PNETCDF_URL https://parallel-netcdf.github.io/Release/pnetcdf-1.12.1.tar.gz)
 
 # calculate the MD5 sum of the file downloaded and set it in a variable
 set(PNETCDF_URL_MD5 878192db34e436cbdd869fff3c7bf0c9)
