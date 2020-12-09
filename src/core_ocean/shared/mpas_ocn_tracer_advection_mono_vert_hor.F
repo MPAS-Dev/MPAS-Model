@@ -7,7 +7,7 @@
 !
 !|||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
 !
-!  ocn_tracer_advection_mono
+!  ocn_tracer_advection_mono_vert_hor
 !
 !> \brief MPAS monotonic tracer advection with FCT
 !> \author Mark Petersen, David Lee, Doug Jacobsen, Phil Jones
@@ -18,7 +18,7 @@
 !
 !-------------------------------------------------------------------------------
 
-module ocn_tracer_advection_mono
+module ocn_tracer_advection_mono_vert_hor
 
    ! module includes
 #ifdef _ADV_TIMERS
@@ -69,8 +69,8 @@ module ocn_tracer_advection_mono
       highOrderFlx    ! high order flux for FCT
 
    ! public method interfaces
-   public :: ocn_tracer_advection_mono_tend, &
-             ocn_tracer_advection_mono_init
+   public :: ocn_tracer_advection_mono_vert_hor_tend, &
+             ocn_tracer_advection_mono_vert_hor_init
 
 !|||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
 
@@ -78,7 +78,7 @@ module ocn_tracer_advection_mono
 
 !|||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
 !
-!  routine ocn_tracer_advection_mono_tend
+!  routine ocn_tracer_advection_mono_vert_hor_tend
 !
 !> \brief MPAS monotonic tracer horizontal advection tendency with FCT
 !> \author Mark Petersen, David Lee, Doug Jacobsen, Phil Jones
@@ -89,7 +89,7 @@ module ocn_tracer_advection_mono
 !
 !-------------------------------------------------------------------------------
 
-   subroutine ocn_tracer_advection_mono_tend(tend, tracers, layerThickness,    &
+   subroutine ocn_tracer_advection_mono_vert_hor_tend(tend, tracers, layerThickness,    &
                                              normalThicknessFlux, w, dt,       &
                                              advCoefs, advCoefs3rd,            &
                                              nAdvCellsForEdge, advCellsForEdge,&
@@ -298,6 +298,12 @@ module ocn_tracer_advection_mono
         end do ! iCell loop
         !$omp end do
         !$omp end parallel
+
+        !-----------------------------------------------------------------------
+        !
+        !  Begin horizontal advection
+        !
+        !-----------------------------------------------------------------------
 
         ! Compute the high and low order horizontal fluxes.
 #ifdef _ADV_TIMERS
@@ -591,7 +597,6 @@ module ocn_tracer_advection_mono
 
         !-----------------------------------------------------------------------
         !
-        !  Horizontal advection complete
         !  Begin vertical advection
         !
         !-----------------------------------------------------------------------
@@ -922,11 +927,11 @@ module ocn_tracer_advection_mono
       call mpas_timer_stop('deallocates')
 #endif
 
-   end subroutine ocn_tracer_advection_mono_tend!}}}
+   end subroutine ocn_tracer_advection_mono_vert_hor_tend!}}}
 
 !|||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
 !
-!  routine ocn_tracer_advection_mono_init
+!  routine ocn_tracer_advection_mono_vert_hor_init
 !
 !> \brief MPAS initialize monotonic tracer advection tendency with FCT
 !> \author Mark Petersen, David Lee, Doug Jacobsen, Phil Jones
@@ -937,7 +942,7 @@ module ocn_tracer_advection_mono
 !
 !-------------------------------------------------------------------------------
 
-   subroutine ocn_tracer_advection_mono_init(nHalos, horizAdvOrder,        &
+   subroutine ocn_tracer_advection_mono_vert_hor_init(nHalos, horizAdvOrder,        &
                                              vertAdvOrder, inCoef3rdOrder, &
                                              checkMonotonicity, err)!{{{
 
@@ -1006,10 +1011,10 @@ module ocn_tracer_advection_mono
       ! Set flag for checking monotonicity
       monotonicityCheck = checkMonotonicity
 
-   end subroutine ocn_tracer_advection_mono_init!}}}
+   end subroutine ocn_tracer_advection_mono_vert_hor_init!}}}
 
 !|||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
 
-end module ocn_tracer_advection_mono
+end module ocn_tracer_advection_mono_vert_hor
 
 !|||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||

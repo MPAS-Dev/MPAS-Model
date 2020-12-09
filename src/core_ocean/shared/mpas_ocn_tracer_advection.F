@@ -31,6 +31,7 @@ module ocn_tracer_advection
 
    use ocn_tracer_advection_std
    use ocn_tracer_advection_mono
+   use ocn_tracer_advection_mono_vert_hor
 
    use ocn_constants
    use ocn_config
@@ -139,7 +140,8 @@ module ocn_tracer_advection
 
       ! call specific advection routine based on choice of monotonicity
       if (monotonicOn) then
-         call ocn_tracer_advection_mono_tend(tend, tracers, layerThickness,    &
+         if (config_adv_first_direction.eq.'horizontal') then
+            call ocn_tracer_advection_mono_tend(tend, tracers, layerThickness,    &
                                              normalThicknessFlux, w, dt,       &
                                              advCoefs, advCoefs3rd,            &
                                              nAdvCellsForEdge, advCellsForEdge,&
@@ -147,6 +149,19 @@ module ocn_tracer_advection
                                              highOrderAdvectionMask,           &
                                              edgeSignOnCell, meshPool,         &
                                              diagnosticsPool, computeBudgets)
+
+         elseif (config_adv_first_direction.eq.'vertical') then
+            call ocn_tracer_advection_mono_vert_hor_tend(tend, tracers, layerThickness,    &
+                                             normalThicknessFlux, w, dt,       &
+                                             advCoefs, advCoefs3rd,            &
+                                             nAdvCellsForEdge, advCellsForEdge,&
+                                             maxLevelCell, maxLevelEdgeTop,    &
+                                             highOrderAdvectionMask,           &
+                                             edgeSignOnCell, meshPool,         &
+                                             diagnosticsPool, computeBudgets)
+         else
+             call mpas_log_write(' Incorrect choice of config_adv_first_direction',MPAS_LOG_CRIT)
+         endif
 
       else
          call ocn_tracer_advection_std_tend(tracers, advCoefs, advCoefs3rd, &
@@ -198,6 +213,10 @@ module ocn_tracer_advection
                      config_vert_tracer_adv_order, config_coef_3rd_order, &
                      config_check_tracer_monotonicity, errTmp)
       call ocn_tracer_advection_mono_init(config_num_halos, config_horiz_tracer_adv_order,    &
+                                          config_vert_tracer_adv_order, config_coef_3rd_order, &
+                                          config_check_tracer_monotonicity, err)
+
+      call ocn_tracer_advection_mono_vert_hor_init(config_num_halos, config_horiz_tracer_adv_order,    &
                                           config_vert_tracer_adv_order, config_coef_3rd_order, &
                                           config_check_tracer_monotonicity, err)
 

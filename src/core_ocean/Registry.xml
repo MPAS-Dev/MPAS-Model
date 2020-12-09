@@ -907,6 +907,10 @@
 					description="If .true. then fluxes are limited to produce a monotonic advection scheme"
 					possible_values=".true. and .false."
 		/>
+		<nml_option name="config_adv_first_direction" type="character" default_value="horizontal" units="unitless"
+					description="If 'horizontal', advection is done with horizontal first, then vertical. If 'vertical', then the opposite."
+					possible_values="'horizontal' and 'vertical'"
+		/>
 	</nml_record>
 	<nml_record name="bottom_drag" mode="forward">
 		<nml_option name="config_use_implicit_bottom_drag" type="logical" default_value=".true." units="unitless"

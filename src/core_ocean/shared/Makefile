@@ -36,6 +36,7 @@ OBJS = mpas_ocn_init_routines.o \
 	   mpas_ocn_tracer_hmix_redi.o \
 	   mpas_ocn_tracer_advection.o \
 	   mpas_ocn_tracer_advection_mono.o \
+	   mpas_ocn_tracer_advection_mono_vert_hor.o \
 	   mpas_ocn_tracer_advection_std.o \
 	   mpas_ocn_tracer_nonlocalflux.o \
 	   mpas_ocn_tracer_short_wave_absorption.o \
@@ -118,9 +119,11 @@ mpas_ocn_tracer_hmix_del2.o: mpas_ocn_constants.o mpas_ocn_config.o
 
 mpas_ocn_tracer_hmix_del4.o: mpas_ocn_constants.o mpas_ocn_config.o
 
-mpas_ocn_tracer_advection.o: mpas_ocn_constants.o mpas_ocn_config.o mpas_ocn_tracer_advection_mono.o mpas_ocn_tracer_advection_std.o
+mpas_ocn_tracer_advection.o: mpas_ocn_constants.o mpas_ocn_config.o mpas_ocn_tracer_advection_mono.o mpas_ocn_tracer_advection_mono_vert_hor.o mpas_ocn_tracer_advection_std.o
 
 mpas_ocn_tracer_advection_mono.o: mpas_ocn_constants.o mpas_ocn_config.o
+
+mpas_ocn_tracer_advection_mono_vert_hor.o: mpas_ocn_constants.o mpas_ocn_config.o
 
 mpas_ocn_tracer_advection_std.o: mpas_ocn_constants.o mpas_ocn_config.o
 
