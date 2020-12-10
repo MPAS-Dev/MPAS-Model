@@ -2317,11 +2317,11 @@
 				description="salinity averaged over ocean surface layer (generally 0.1 of the ocean boundary layer)"
 			/>
 		</var_array>
-		<var name="horizontalFCTscaleFactor" type="real" dimensions="nEdges nVertLevels Time" units="NA"
+		<var name="horizontalFCTscaleFactor" type="real" dimensions="nVertLevels nEdges Time" units="NA"
 			 description="scale factor for horizontal limiting, 0 implies full upwind, 1 is full high order"
 			 packages="forwardMode;analysisMode"
 		/>
-		<var name="verticalFCTscaleFactor" type="real" dimensions="nEdges nVertLevels Time" units="NA"
+		<var name="verticalFCTscaleFactor" type="real" dimensions="nVertLevels nEdges Time" units="NA"
 			 description="scale factor for vertical limiting, 0 implies full upwind, 1 is full high order"
 			 packages="forwardMode;analysisMode"
 		/>
