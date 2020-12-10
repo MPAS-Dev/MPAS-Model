@@ -771,7 +771,7 @@ module ocn_tracer_advection_mono
                 max(0.0_RKIND,w(k,iCell))*tracerCur(k  ,iCell)
             highOrderFlx(k,iCell) = highOrderFlx(k,iCell) - &
                                      lowOrderFlx(k,iCell)
-            verticalFCTscaleFactor(k,iEdge) = highOrderFlx(k,iCell)
+            verticalFCTscaleFactor(k,iCell) = highOrderFlx(k,iCell)
           end do ! k loop
           lowOrderFlx(kmax+1,iCell) = 0.0_RKIND
 
@@ -851,8 +851,8 @@ module ocn_tracer_advection_mono
                                   + min(0.0_RKIND,flux)*   &
                                     min(flxOut(k-1,iCell), &
                                         flxIn (k  ,iCell))
-            verticalFCTscaleFactor(k,iEdge) = highOrderFlx(k,iCell) / &
-                                    verticalFCTscaleFactor(k,iEdge)
+            verticalFCTscaleFactor(k,iCell) = highOrderFlx(k,iCell) / &
+                                    verticalFCTscaleFactor(k,iCell)
           end do ! k loop
 
           do k = 1,kmax

@@ -2321,7 +2321,7 @@
 			 description="scale factor for horizontal limiting, 0 implies full upwind, 1 is full high order"
 			 packages="forwardMode;analysisMode"
 		/>
-		<var name="verticalFCTscaleFactor" type="real" dimensions="nVertLevels nEdges Time" units="NA"
+		<var name="verticalFCTscaleFactor" type="real" dimensions="nVertLevels nCells Time" units="NA"
 			 description="scale factor for vertical limiting, 0 implies full upwind, 1 is full high order"
 			 packages="forwardMode;analysisMode"
 		/>
