@@ -28,5 +28,6 @@
 				<member name="layerThickness" type="var"/>
 			</add_contents>
 		</stream>
+        <template file="advection_output.xml" path_base="script_core_dir" path="templates/analysis_members"/>
 	</streams>
 </template>
