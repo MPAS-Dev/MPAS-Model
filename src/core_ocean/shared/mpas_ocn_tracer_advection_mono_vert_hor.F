@@ -299,6 +299,278 @@ module ocn_tracer_advection_mono_vert_hor
         !$omp end do
         !$omp end parallel
 
+#ifdef _ADV_TIMERS
+        call mpas_timer_stop('cell init')
+#endif
+
+
+        !-----------------------------------------------------------------------
+        !
+        !  Begin vertical advection
+        !
+        !-----------------------------------------------------------------------
+
+#ifdef _ADV_TIMERS
+        call mpas_timer_start('cell init')
+#endif
+        nCells = nCellsArray( size(nCellsArray) )
+        ! Initialize variables for use in this iTracer iteration
+        !$omp parallel
+        !$omp do schedule(runtime) private(k)
+        do iCell = 1, nCells
+          do k=1, nVertLevels
+            highOrderFlx(k, iCell) = 0.0_RKIND
+            workTend(k, iCell) = 0.0_RKIND
+          end do ! k loop
+          highOrderFlx(nVertLevels+1, iCell) = 0.0_RKIND
+
+        end do ! iCell loop
+        !$omp end do
+        !$omp end parallel
+#ifdef _ADV_TIMERS
+        call mpas_timer_stop('cell init')
+#endif
+
+#ifdef _ADV_TIMERS
+        call mpas_timer_start('vertical flux')
+#endif
+
+        ! Need all owned and 1 halo cells
+        nCells = nCellsArray( 2 )
+
+        ! Determine bounds on tracerCur from neighbor values for limiting
+        !$omp parallel
+        !$omp do schedule(runtime) private(kmax, k)
+        do iCell = 1, nCells
+          kmax = maxLevelCell(iCell)
+
+          ! take care of top cell
+          tracerMax(1,iCell) = max(tracerCur(1,iCell), &
+                                   tracerCur(2,iCell))
+          tracerMin(1,iCell) = min(tracerCur(1,iCell), &
+                                   tracerCur(2,iCell))
+          do k=2,kmax-1
+            tracerMax(k,iCell) = max(tracerCur(k-1,iCell), &
+                                     tracerCur(k  ,iCell), &
+                                     tracerCur(k+1,iCell))
+            tracerMin(k,iCell) = min(tracerCur(k-1,iCell), &
+                                     tracerCur(k  ,iCell), &
+                                     tracerCur(k+1,iCell))
+          end do
+          ! finish with bottom cell
+          tracerMax(kmax,iCell) = max(tracerCur(kmax  ,iCell), &
+                                      tracerCur(kmax-1,iCell))
+          tracerMin(kmax,iCell) = min(tracerCur(kmax  ,iCell), &
+                                      tracerCur(kmax-1,iCell))
+        end do ! cell loop
+        !$omp end do
+        !$omp end parallel
+
+        ! Compute the high order vertical fluxes based on order selected.
+        ! Special cases for top and bottom layers handled in following loop.
+
+        select case (vertOrder)
+        case (vertOrder4)
+
+          !$omp parallel
+          !$omp do schedule(runtime) private(kmax, k)
+          do iCell = 1, nCells
+            kmax = maxLevelCell(iCell)
+            do k=3,kmax-1
+              highOrderFlx(k, iCell) = w(k,iCell)*( &
+                  7.0_RKIND*(tracerCur(k  ,iCell) + tracerCur(k-1,iCell)) - &
+                            (tracerCur(k+1,iCell) + tracerCur(k-2,iCell)))/ &
+                  12.0_RKIND
+
+            end do
+          end do ! cell loop
+          !$omp end do
+          !$omp end parallel
+
+        case (vertOrder3)
+
+          !$omp parallel
+          !$omp do schedule(runtime) private(kmax, k)
+          do iCell = 1, nCells
+            kmax = maxLevelCell(iCell)
+            do k=3,kmax-1
+              highOrderFlx(k, iCell) = (w(k,iCell)* &
+                   (7.0_RKIND*(tracerCur(k  ,iCell) + tracerCur(k-1,iCell)) - &
+                              (tracerCur(k+1,iCell) + tracerCur(k-2,iCell))) - &
+                        coef3rdOrder*abs(w(k,iCell))* &
+                             ((tracerCur(k+1,iCell) - tracerCur(k-2,iCell)) - &
+                    3.0_RKIND*(tracerCur(k  ,iCell) - tracerCur(k-1,iCell))))/ &
+                   12.0_RKIND
+
+
+            end do
+          end do ! cell loop
+          !$omp end do
+          !$omp end parallel
+
+       case (vertOrder2)
+
+          !$omp parallel
+          !$omp do schedule(runtime) private(kmax, k, verticalWeightK, verticalWeightKm1)
+          do iCell = 1, nCells
+            kmax = maxLevelCell(iCell)
+            do k=3,kmax-1
+              verticalWeightK   = hProv(k-1,iCell) / &
+                                 (hProv(k  ,iCell) + hProv(k-1,iCell))
+              verticalWeightKm1 = hProv(k  ,iCell) / &
+                                 (hProv(k  ,iCell) + hProv(k-1,iCell))
+              highOrderFlx(k,iCell) = w(k,iCell)* &
+                                 (verticalWeightK  *tracerCur(k  ,iCell) + &
+                                  verticalWeightKm1*tracerCur(k-1,iCell))
+            end do
+          end do ! cell loop
+          !$omp end do
+          !$omp end parallel
+
+        end select ! vertical order
+
+        ! Treat special cases for high order flux
+        ! Compute low order upwind vertical flux (monotonic and diffused)
+        ! Remove low order flux from the high order flux.
+        ! Store left over high order flux in highOrderFlx array.
+        !$omp parallel
+        !$omp do schedule(runtime) private(kmax, verticalWeightK, verticalWeightKm1, k)
+        do iCell = 1, nCells
+          kmax = maxLevelCell(iCell)
+          ! Next-to-top cell in column is second-order
+          highOrderFlx(1,iCell) = 0.0_RKIND
+          if (kmax > 1) then
+            verticalWeightK   = hProv(1,iCell) / &
+                               (hProv(2,iCell) + hProv(1, iCell))
+            verticalWeightKm1 = hProv(2,iCell) / &
+                               (hProv(2,iCell) + hProv(1, iCell))
+            highOrderFlx(2,iCell) = w(2,iCell)* &
+                               (verticalWeightK  *tracerCur(2,iCell) + &
+                                verticalWeightKm1*tracerCur(1,iCell))
+          end if
+          ! Deepest vertical cell in column is second order
+          k = max(2,kmax)
+          verticalWeightK   = hProv(k-1,iCell) / &
+                             (hProv(k  ,iCell) + hProv(k-1,iCell))
+          verticalWeightKm1 = hProv(k  ,iCell) / &
+                             (hProv(k  ,iCell) + hProv(k-1,iCell))
+          highOrderFlx(k,iCell) = w(k,iCell)* &
+                             (verticalWeightK  *tracerCur(k  ,iCell) + &
+                              verticalWeightKm1*tracerCur(k-1,iCell))
+          highOrderFlx(k+1,iCell) = 0.0_RKIND
+
+          ! Compute low order (upwind) flux and remove from high order
+          lowOrderFlx(1,iCell) = 0.0_RKIND
+          do k = 2, kmax
+            lowOrderFlx(k,iCell) = &
+                min(0.0_RKIND,w(k,iCell))*tracerCur(k-1,iCell) + &
+                max(0.0_RKIND,w(k,iCell))*tracerCur(k  ,iCell)
+            highOrderFlx(k,iCell) = highOrderFlx(k,iCell) - &
+                                     lowOrderFlx(k,iCell)
+          end do ! k loop
+          lowOrderFlx(kmax+1,iCell) = 0.0_RKIND
+
+          ! Upwind fluxes are accumulated in workTend
+          ! flxIn contains the total remaining high order flux into iCell
+          !          it is positive.
+          ! flxOut contains the total remaining high order flux out of iCell
+          !           it is negative
+          do k = 1, kmax
+            workTend(k,iCell) = lowOrderFlx(k+1,iCell) &
+                              - lowOrderFlx(k  ,iCell)
+            flxIn (k, iCell) = max(0.0_RKIND, highOrderFlx(k+1, iCell)) &
+                             - min(0.0_RKIND, highOrderFlx(k  , iCell))
+            flxOut(k, iCell) = min(0.0_RKIND, highOrderFlx(k+1, iCell)) &
+                             - max(0.0_RKIND, highOrderFlx(k  , iCell))
+          end do ! k Loop
+        end do ! iCell Loop
+        !$omp end do
+        !$omp end parallel
+
+#ifdef _ADV_TIMERS
+        call mpas_timer_stop('vertical flux')
+        call mpas_timer_start('scale factor build')
+#endif
+        ! Need one halo of cells around owned cells
+        nCells = nCellsArray( 2 )
+        !$omp parallel
+        !$omp do schedule(runtime) &
+        !$omp private(k, tracerMinNew, tracerMaxNew, tracerUpwindNew, scaleFactor)
+        do iCell = 1, nCells
+
+          ! Build the scale factors to limit flux for FCT
+          ! Computed using the bounds that were computed previously,
+          ! and the bounds on the newly updated value
+          ! Factors are placed in the flxIn and flxOut arrays
+
+          do k = 1, maxLevelCell(iCell)
+            ! workTend on the RHS is the upwind tendency
+            tracerMinNew = (tracerCur(k,iCell)*hProv(k,iCell) &
+                         + dt*(workTend(k,iCell)+flxOut(k,iCell))) &
+                         * hNewInv(k,iCell)
+            tracerMaxNew = (tracerCur(k,iCell)*hProv(k,iCell) &
+                         + dt*(workTend(k,iCell)+flxIn(k,iCell))) &
+                         * hNewInv(k,iCell)
+            tracerUpwindNew = (tracerCur(k,iCell)*hProv(k,iCell) &
+                            + dt*workTend(k,iCell)) * hNewInv(k,iCell)
+
+            scaleFactor = (tracerMax(k,iCell)-tracerUpwindNew)/ &
+                          (tracerMaxNew-tracerUpwindNew+eps)
+            flxIn (k,iCell) = min(1.0_RKIND, max(0.0_RKIND, scaleFactor))
+
+            scaleFactor = (tracerUpwindNew-tracerMin(k,iCell))/ &
+                          (tracerUpwindNew-tracerMinNew+eps)
+            flxOut(k,iCell) = min(1.0_RKIND, max(0.0_RKIND, scaleFactor))
+          end do ! k loop
+        end do ! iCell loop
+        !$omp end do
+        !$omp end parallel
+#ifdef _ADV_TIMERS
+        call mpas_timer_stop('scale factor build')
+        call mpas_timer_start('flux accumulate')
+#endif
+
+        nCells = nCellsArray( 1 )
+        ! Accumulate the scaled high order vertical tendencies
+        ! and the upwind tendencies
+        !$omp parallel
+        !$omp do schedule(runtime) private(kmax, k, flux)
+        do iCell = 1, nCells
+          kmax = maxLevelCell(iCell)
+          ! rescale the high order vertical flux
+          do k = 2, kmax
+            flux =  highOrderFlx(k,iCell)
+            highOrderFlx(k,iCell) = max(0.0_RKIND,flux)*   &
+                                    min(flxOut(k  ,iCell), &
+                                        flxIn (k-1,iCell)) &
+                                  + min(0.0_RKIND,flux)*   &
+                                    min(flxOut(k-1,iCell), &
+                                        flxIn (k  ,iCell))
+          end do ! k loop
+
+          do k = 1,kmax
+            ! workTend on the RHS is the upwind tendency
+            ! workTend on the LHS is the total vertical advection tendency
+            workTend(k, iCell) = workTend(k, iCell)       &
+                               + (highOrderFlx(k+1,iCell) &
+                                - highOrderFlx(k  ,iCell))
+            tend(iTracer,k,iCell) = tend(iTracer,k,iCell) + workTend(k,iCell)
+
+            ! update tracerCur 
+            ! tracerCur on LHS is the provisional tracer after vertical fluxes only.
+            tracerCur(k,iCell) = (tracerCur(k,iCell)*layerThickness(k,iCell) &
+                                  + dt*workTend(k,iCell))*hProvInv(k,iCell)
+          end do ! k loop
+
+        end do ! iCell loop
+        !$omp end do
+        !$omp end parallel
+
+        ! Compute advection diagnostics and monotonicity checks if requested
+#ifdef _ADV_TIMERS
+        call mpas_timer_stop('flux accumulate')
+#endif
+
         !-----------------------------------------------------------------------
         !
         !  Begin horizontal advection
@@ -307,7 +579,6 @@ module ocn_tracer_advection_mono_vert_hor
 
         ! Compute the high and low order horizontal fluxes.
 #ifdef _ADV_TIMERS
-        call mpas_timer_stop('cell init')
         call mpas_timer_start('horiz flux')
 #endif
 
@@ -593,274 +864,6 @@ module ocn_tracer_advection_mono_vert_hor
         end if ! monotonicity check
 #ifdef _ADV_TIMERS
         call mpas_timer_stop('advect diags')
-#endif
-
-        !-----------------------------------------------------------------------
-        !
-        !  Begin vertical advection
-        !
-        !-----------------------------------------------------------------------
-
-#ifdef _ADV_TIMERS
-        call mpas_timer_start('cell init')
-#endif
-        nCells = nCellsArray( size(nCellsArray) )
-        ! Initialize variables for use in this iTracer iteration
-        !$omp parallel
-        !$omp do schedule(runtime) private(k)
-        do iCell = 1, nCells
-          do k=1, nVertLevels
-            highOrderFlx(k, iCell) = 0.0_RKIND
-            workTend(k, iCell) = 0.0_RKIND
-          end do ! k loop
-          highOrderFlx(nVertLevels+1, iCell) = 0.0_RKIND
-
-        end do ! iCell loop
-        !$omp end do
-        !$omp end parallel
-#ifdef _ADV_TIMERS
-        call mpas_timer_stop('cell init')
-#endif
-
-#ifdef _ADV_TIMERS
-        call mpas_timer_start('vertical flux')
-#endif
-
-        ! Need all owned and 1 halo cells
-        nCells = nCellsArray( 2 )
-
-        ! Determine bounds on tracerCur from neighbor values for limiting
-        !$omp parallel
-        !$omp do schedule(runtime) private(kmax, k)
-        do iCell = 1, nCells
-          kmax = maxLevelCell(iCell)
-
-          ! take care of top cell
-          tracerMax(1,iCell) = max(tracerCur(1,iCell), &
-                                   tracerCur(2,iCell))
-          tracerMin(1,iCell) = min(tracerCur(1,iCell), &
-                                   tracerCur(2,iCell))
-          do k=2,kmax-1
-            tracerMax(k,iCell) = max(tracerCur(k-1,iCell), &
-                                     tracerCur(k  ,iCell), &
-                                     tracerCur(k+1,iCell))
-            tracerMin(k,iCell) = min(tracerCur(k-1,iCell), &
-                                     tracerCur(k  ,iCell), &
-                                     tracerCur(k+1,iCell))
-          end do
-          ! finish with bottom cell
-          tracerMax(kmax,iCell) = max(tracerCur(kmax  ,iCell), &
-                                      tracerCur(kmax-1,iCell))
-          tracerMin(kmax,iCell) = min(tracerCur(kmax  ,iCell), &
-                                      tracerCur(kmax-1,iCell))
-        end do ! cell loop
-        !$omp end do
-        !$omp end parallel
-
-        ! Compute the high order vertical fluxes based on order selected.
-        ! Special cases for top and bottom layers handled in following loop.
-
-        select case (vertOrder)
-        case (vertOrder4)
-
-          !$omp parallel
-          !$omp do schedule(runtime) private(kmax, k)
-          do iCell = 1, nCells
-            kmax = maxLevelCell(iCell)
-            do k=3,kmax-1
-              highOrderFlx(k, iCell) = w(k,iCell)*( &
-                  7.0_RKIND*(tracerCur(k  ,iCell) + tracerCur(k-1,iCell)) - &
-                            (tracerCur(k+1,iCell) + tracerCur(k-2,iCell)))/ &
-                  12.0_RKIND
-
-            end do
-          end do ! cell loop
-          !$omp end do
-          !$omp end parallel
-
-        case (vertOrder3)
-
-          !$omp parallel
-          !$omp do schedule(runtime) private(kmax, k)
-          do iCell = 1, nCells
-            kmax = maxLevelCell(iCell)
-            do k=3,kmax-1
-              highOrderFlx(k, iCell) = (w(k,iCell)* &
-                   (7.0_RKIND*(tracerCur(k  ,iCell) + tracerCur(k-1,iCell)) - &
-                              (tracerCur(k+1,iCell) + tracerCur(k-2,iCell))) - &
-                        coef3rdOrder*abs(w(k,iCell))* &
-                             ((tracerCur(k+1,iCell) - tracerCur(k-2,iCell)) - &
-                    3.0_RKIND*(tracerCur(k  ,iCell) - tracerCur(k-1,iCell))))/ &
-                   12.0_RKIND
-
-
-            end do
-          end do ! cell loop
-          !$omp end do
-          !$omp end parallel
-
-       case (vertOrder2)
-
-          !$omp parallel
-          !$omp do schedule(runtime) private(kmax, k, verticalWeightK, verticalWeightKm1)
-          do iCell = 1, nCells
-            kmax = maxLevelCell(iCell)
-            do k=3,kmax-1
-              verticalWeightK   = hProv(k-1,iCell) / &
-                                 (hProv(k  ,iCell) + hProv(k-1,iCell))
-              verticalWeightKm1 = hProv(k  ,iCell) / &
-                                 (hProv(k  ,iCell) + hProv(k-1,iCell))
-              highOrderFlx(k,iCell) = w(k,iCell)* &
-                                 (verticalWeightK  *tracerCur(k  ,iCell) + &
-                                  verticalWeightKm1*tracerCur(k-1,iCell))
-            end do
-          end do ! cell loop
-          !$omp end do
-          !$omp end parallel
-
-        end select ! vertical order
-
-        ! Treat special cases for high order flux
-        ! Compute low order upwind vertical flux (monotonic and diffused)
-        ! Remove low order flux from the high order flux.
-        ! Store left over high order flux in highOrderFlx array.
-        !$omp parallel
-        !$omp do schedule(runtime) private(kmax, verticalWeightK, verticalWeightKm1, k)
-        do iCell = 1, nCells
-          kmax = maxLevelCell(iCell)
-          ! Next-to-top cell in column is second-order
-          highOrderFlx(1,iCell) = 0.0_RKIND
-          if (kmax > 1) then
-            verticalWeightK   = hProv(1,iCell) / &
-                               (hProv(2,iCell) + hProv(1, iCell))
-            verticalWeightKm1 = hProv(2,iCell) / &
-                               (hProv(2,iCell) + hProv(1, iCell))
-            highOrderFlx(2,iCell) = w(2,iCell)* &
-                               (verticalWeightK  *tracerCur(2,iCell) + &
-                                verticalWeightKm1*tracerCur(1,iCell))
-          end if
-          ! Deepest vertical cell in column is second order
-          k = max(2,kmax)
-          verticalWeightK   = hProv(k-1,iCell) / &
-                             (hProv(k  ,iCell) + hProv(k-1,iCell))
-          verticalWeightKm1 = hProv(k  ,iCell) / &
-                             (hProv(k  ,iCell) + hProv(k-1,iCell))
-          highOrderFlx(k,iCell) = w(k,iCell)* &
-                             (verticalWeightK  *tracerCur(k  ,iCell) + &
-                              verticalWeightKm1*tracerCur(k-1,iCell))
-          highOrderFlx(k+1,iCell) = 0.0_RKIND
-
-          ! Compute low order (upwind) flux and remove from high order
-          lowOrderFlx(1,iCell) = 0.0_RKIND
-          do k = 2, kmax
-            lowOrderFlx(k,iCell) = &
-                min(0.0_RKIND,w(k,iCell))*tracerCur(k-1,iCell) + &
-                max(0.0_RKIND,w(k,iCell))*tracerCur(k  ,iCell)
-            highOrderFlx(k,iCell) = highOrderFlx(k,iCell) - &
-                                     lowOrderFlx(k,iCell)
-          end do ! k loop
-          lowOrderFlx(kmax+1,iCell) = 0.0_RKIND
-
-          ! Upwind fluxes are accumulated in workTend
-          ! flxIn contains the total remaining high order flux into iCell
-          !          it is positive.
-          ! flxOut contains the total remaining high order flux out of iCell
-          !           it is negative
-          do k = 1, kmax
-            workTend(k,iCell) = lowOrderFlx(k+1,iCell) &
-                              - lowOrderFlx(k  ,iCell)
-            flxIn (k, iCell) = max(0.0_RKIND, highOrderFlx(k+1, iCell)) &
-                             - min(0.0_RKIND, highOrderFlx(k  , iCell))
-            flxOut(k, iCell) = min(0.0_RKIND, highOrderFlx(k+1, iCell)) &
-                             - max(0.0_RKIND, highOrderFlx(k  , iCell))
-          end do ! k Loop
-        end do ! iCell Loop
-        !$omp end do
-        !$omp end parallel
-
-#ifdef _ADV_TIMERS
-        call mpas_timer_stop('vertical flux')
-        call mpas_timer_start('scale factor build')
-#endif
-        ! Need one halo of cells around owned cells
-        nCells = nCellsArray( 2 )
-        !$omp parallel
-        !$omp do schedule(runtime) &
-        !$omp private(k, tracerMinNew, tracerMaxNew, tracerUpwindNew, scaleFactor)
-        do iCell = 1, nCells
-
-          ! Build the scale factors to limit flux for FCT
-          ! Computed using the bounds that were computed previously,
-          ! and the bounds on the newly updated value
-          ! Factors are placed in the flxIn and flxOut arrays
-
-          do k = 1, maxLevelCell(iCell)
-            ! workTend on the RHS is the upwind tendency
-            tracerMinNew = (tracerCur(k,iCell)*hProv(k,iCell) &
-                         + dt*(workTend(k,iCell)+flxOut(k,iCell))) &
-                         * hNewInv(k,iCell)
-            tracerMaxNew = (tracerCur(k,iCell)*hProv(k,iCell) &
-                         + dt*(workTend(k,iCell)+flxIn(k,iCell))) &
-                         * hNewInv(k,iCell)
-            tracerUpwindNew = (tracerCur(k,iCell)*hProv(k,iCell) &
-                            + dt*workTend(k,iCell)) * hNewInv(k,iCell)
-
-            scaleFactor = (tracerMax(k,iCell)-tracerUpwindNew)/ &
-                          (tracerMaxNew-tracerUpwindNew+eps)
-            flxIn (k,iCell) = min(1.0_RKIND, max(0.0_RKIND, scaleFactor))
-
-            scaleFactor = (tracerUpwindNew-tracerMin(k,iCell))/ &
-                          (tracerUpwindNew-tracerMinNew+eps)
-            flxOut(k,iCell) = min(1.0_RKIND, max(0.0_RKIND, scaleFactor))
-          end do ! k loop
-        end do ! iCell loop
-        !$omp end do
-        !$omp end parallel
-#ifdef _ADV_TIMERS
-        call mpas_timer_stop('scale factor build')
-        call mpas_timer_start('flux accumulate')
-#endif
-
-        nCells = nCellsArray( 1 )
-        ! Accumulate the scaled high order vertical tendencies
-        ! and the upwind tendencies
-        !$omp parallel
-        !$omp do schedule(runtime) private(kmax, k, flux)
-        do iCell = 1, nCells
-          kmax = maxLevelCell(iCell)
-          ! rescale the high order vertical flux
-          do k = 2, kmax
-            flux =  highOrderFlx(k,iCell)
-            highOrderFlx(k,iCell) = max(0.0_RKIND,flux)*   &
-                                    min(flxOut(k  ,iCell), &
-                                        flxIn (k-1,iCell)) &
-                                  + min(0.0_RKIND,flux)*   &
-                                    min(flxOut(k-1,iCell), &
-                                        flxIn (k  ,iCell))
-          end do ! k loop
-
-          do k = 1,kmax
-            ! workTend on the RHS is the upwind tendency
-            ! workTend on the LHS is the total vertical advection tendency
-            workTend(k, iCell) = workTend(k, iCell)       &
-                               + (highOrderFlx(k+1,iCell) &
-                                - highOrderFlx(k  ,iCell))
-            tend(iTracer,k,iCell) = tend(iTracer,k,iCell) + workTend(k,iCell)
-
-            ! update tracerCur 
-            ! tracerCur on LHS is the provisional tracer after vertical fluxes only.
-            tracerCur(k,iCell) = (tracerCur(k,iCell)*layerThickness(k,iCell) &
-                                  + dt*workTend(k,iCell))*hProvInv(k,iCell)
-          end do ! k loop
-
-        end do ! iCell loop
-        !$omp end do
-        !$omp end parallel
-
-        ! Compute advection diagnostics and monotonicity checks if requested
-#ifdef _ADV_TIMERS
-        call mpas_timer_stop('flux accumulate')
-        call mpas_timer_start('advect diags')
 #endif
         if (computeBudgets) then
            !$omp parallel
