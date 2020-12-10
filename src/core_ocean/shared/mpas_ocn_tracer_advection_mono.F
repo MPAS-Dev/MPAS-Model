@@ -191,7 +191,13 @@ module ocn_tracer_advection_mono
          activeTracerHorizontalAdvectionTendency, &
          activeTracerVerticalAdvectionTendency,   &
          activeTracerHorizontalAdvectionEdgeFlux, &
-         activeTracerVerticalAdvectionTopFlux
+         activeTracerVerticalAdvectionTopFlux,    &
+         activeTracerVerticalFCTscaleFactor,      &
+         activeTracerHorizontalFCTscaleFactor,    &
+         activeTracerHorizontalFluxIn,            &
+         activeTracerHorizontalFluxOut,           &
+         activeTracerVerticalFluxIn,              &
+         activeTracerVerticalFluxOut
 
       real (kind=RKIND), parameter :: &
          eps = 1.e-10_RKIND  ! small number to avoid numerical difficulties
@@ -213,10 +219,18 @@ module ocn_tracer_advection_mono
       call mpas_pool_get_array(meshPool, 'areaCell', areaCell)
       call mpas_pool_get_array(meshPool, 'nEdgesOnCell', nEdgesOnCell)
 
-      call mpas_pool_get_array(diagnosticsPool, 'verticalFCTscaleFactor', &
-              verticalFCTscaleFactor)
-      call mpas_pool_get_array(diagnosticsPool, 'horizontalFCTscaleFactor', &
-              horizontalFCTscaleFactor)
+      call mpas_pool_get_array(diagnosticsPool, 'tracerVerticalFCTscaleFactor', &
+              activeTracerVerticalFCTscaleFactor)
+      call mpas_pool_get_array(diagnosticsPool, 'tracerHorizontalFCTscaleFactor', &
+              activeTracerHorizontalFCTscaleFactor)
+      call mpas_pool_get_array(diagnosticsPool, 'tracerVerticalFluxIn', &
+              activeTracerVerticalFluxIn)
+      call mpas_pool_get_array(diagnosticsPool, 'tracerVerticalFluxOut', &
+              activeTracerVerticalFluxOut)
+      call mpas_pool_get_array(diagnosticsPool, 'tracerHorizontalFluxIn', &
+              activeTracerHorizontalFluxIn)
+      call mpas_pool_get_array(diagnosticsPool, 'tracerHorizontalFluxOut', &
+              activeTracerHorizontalFluxOut)
 
       if (computeBudgets) then
          call mpas_pool_get_array(diagnosticsPool,         &
@@ -400,7 +414,7 @@ module ocn_tracer_advection_mono
             highOrderFlx(k,iEdge) = highOrderFlx(k,iEdge) &
                                   -  lowOrderFlx(k,iEdge)
 
-            horizontalFCTscaleFactor(k,iEdge) = highOrderFlx(k,iEdge)
+            activeTracerHorizontalFCTscaleFactor(iTracer,k,iEdge) = highOrderFlx(k,iEdge)
 
           end do ! k loop
         end do ! iEdge loop
@@ -497,6 +511,8 @@ module ocn_tracer_advection_mono
           cell1 = cellsOnEdge(1,iEdge)
           cell2 = cellsOnEdge(2,iEdge)
           do k = 1, maxLevelEdgeTop(iEdge)
+            activeTracerHorizontalFluxIn(iTracer,k,iCell) = flxIn(k,iCell)
+            activeTracerHorizontalFluxOut(iTracer,k,iCell) = flxOut(k,iCell)
             highOrderFlx(k,iEdge) = max(0.0_RKIND,highOrderFlx(k,iEdge))* &
                                     min(flxOut(k,cell1), flxIn (k,cell2)) &
                                   + min(0.0_RKIND,highOrderFlx(k,iEdge))* &
@@ -504,8 +520,8 @@ module ocn_tracer_advection_mono
 
             ! rescale the original stored flux with the limited version for
             ! output 
-            horizontalFCTscaleFactor(k,iEdge) = highOrderFlx(k,iEdge) / &
-                                     horizontalFCTscaleFactor(k,iEdge)
+            activeTracerHorizontalFCTscaleFactor(iTracer,k,iEdge) = highOrderFlx(k,iEdge) / &
+                          (activeTracerHorizontalFCTscaleFactor(iTracer,k,iEdge) + 1.0E-14_RKIND)
           end do ! k loop
         end do ! iEdge loop
         !$omp end do
@@ -771,7 +787,7 @@ module ocn_tracer_advection_mono
                 max(0.0_RKIND,w(k,iCell))*tracerCur(k  ,iCell)
             highOrderFlx(k,iCell) = highOrderFlx(k,iCell) - &
                                      lowOrderFlx(k,iCell)
-            verticalFCTscaleFactor(k,iCell) = highOrderFlx(k,iCell)
+            activeTracerVerticalFCTscaleFactor(iTracer,k,iCell) = highOrderFlx(k,iCell)
           end do ! k loop
           lowOrderFlx(kmax+1,iCell) = 0.0_RKIND
 
@@ -842,8 +858,13 @@ module ocn_tracer_advection_mono
         !$omp do schedule(runtime) private(kmax, k, flux)
         do iCell = 1, nCells
           kmax = maxLevelCell(iCell)
-          ! rescale the high order vertical flux
+          k=1
+          activetracerverticalfluxin(itracer,k,icell) = flxin(k,icell)
+            activetracerverticalfluxout(itracer,k,icell) = flxout(k,icell)
+  ! rescale the high order vertical flux
           do k = 2, kmax
+            activetracerverticalfluxin(itracer,k,icell) = flxin(k,icell)
+            activetracerverticalfluxout(itracer,k,icell) = flxout(k,icell)
             flux =  highOrderFlx(k,iCell)
             highOrderFlx(k,iCell) = max(0.0_RKIND,flux)*   &
                                     min(flxOut(k  ,iCell), &
@@ -851,8 +872,8 @@ module ocn_tracer_advection_mono
                                   + min(0.0_RKIND,flux)*   &
                                     min(flxOut(k-1,iCell), &
                                         flxIn (k  ,iCell))
-            verticalFCTscaleFactor(k,iCell) = highOrderFlx(k,iCell) / &
-                                    verticalFCTscaleFactor(k,iCell)
+            activeTracerVerticalFCTscaleFactor(iTracer,k,iCell) = highOrderFlx(k,iCell) / &
+                            (activeTracerVerticalFCTscaleFactor(iTracer,k,iCell) + 1.0E-14_RKIND)
           end do ! k loop
 
           do k = 1,kmax
