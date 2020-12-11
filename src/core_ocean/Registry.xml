@@ -2333,38 +2333,6 @@
 			 description="scale factor for vertical limiting, 0 implies full upwind, 1 is full high order"
 		/>
 		</var_array>
-		<var_array name="tracerHorizontalFluxIn" type="real" dimensions="nVertLevels nCells Time" packages="forwardMode;analysisMode">
-		  <var name="temperatureHorizontalFluxIn" array_group="horizontalFluxIn" units="NA"
-			description="scale factor for horizontal limiting, 0 implies full upwind, 1 is full high order"
-		  />
-		  <var name="salinityHorizontalFluxIn" array_group="horizontalFluxIn" units="NA"
-			description="scale factor for horizontal limiting, 0 implies full upwind, 1 is full high order"
-		  />
-		</var_array>
-		<var_array name="tracerHorizontalFluxOut" type="real" dimensions="nVertLevels nCells Time" packages="forwardMode;analysisMode">
-		  <var name="temperatureHorizontalFluxOut" array_group="horizontalFluxOut" units="NA"
-			description="scale factor for horizontal limiting, 0 implies full upwind, 1 is full high order"
-		  />
-		  <var name="salinityHorizontalFluxOut" array_group="horizontalFluxOut" units="NA"
-			description="scale factor for horizontal limiting, 0 implies full upwind, 1 is full high order"
-		  />
-		</var_array>
-		<var_array name="tracerVerticalFluxIn" type="real" dimensions="nVertLevels nCells Time" packages="forwardMode;analysisMode">
-		  <var name="temperatureVerticalFluxIn" array_group="verticalFluxIn" units="NA"
-			description="scale factor for horizontal limiting, 0 implies full upwind, 1 is full high order"
-		  />
-		  <var name="salinityVerticalFluxIn" array_group="verticalFluxIn" units="NA"
-			description="scale factor for horizontal limiting, 0 implies full upwind, 1 is full high order"
-		  />
-		</var_array>
-		<var_array name="tracerVerticalFluxOut" type="real" dimensions="nVertLevels nCells Time" packages="forwardMode;analysisMode">
-		  <var name="temperatureVerticalFluxOut" array_group="verticalFluxOut" units="NA"
-			description="scale factor for horizontal limiting, 0 implies full upwind, 1 is full high order"
-		  />
-		  <var name="salinityVerticalFluxOut" array_group="verticalFluxOut" units="NA"
-			description="scale factor for horizontal limiting, 0 implies full upwind, 1 is full high order"
-		  />
-		</var_array>
 		<var name="normalVelocitySurfaceLayer" type="real" dimensions="nEdges Time" units="m s^{-1}"
 			 description="normal velocity averaged over ocean surface layer (generally 0.1 of the ocean boundary layer)"
 			 packages="forwardMode;analysisMode"

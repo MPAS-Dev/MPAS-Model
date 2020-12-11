@@ -181,11 +181,6 @@ module ocn_tracer_advection_mono
          wgtTmp,            &! vertical temporaries for
          flxTmp, sgnTmp      !   high-order flux computation
 
-      ! pointers for the FCT scale factor for diagnostics
-      real (kind=RKIND), dimension(:,:), pointer, contiguous :: &
-         verticalFCTscaleFactor,                  &
-         horizontalFCTscaleFactor
-
       ! pointers for tendencies used in diagnostic budget computation
       real (kind=RKIND), dimension(:,:,:), pointer, contiguous :: &
          activeTracerHorizontalAdvectionTendency, &
@@ -193,11 +188,7 @@ module ocn_tracer_advection_mono
          activeTracerHorizontalAdvectionEdgeFlux, &
          activeTracerVerticalAdvectionTopFlux,    &
          activeTracerVerticalFCTscaleFactor,      &
-         activeTracerHorizontalFCTscaleFactor,    &
-         activeTracerHorizontalFluxIn,            &
-         activeTracerHorizontalFluxOut,           &
-         activeTracerVerticalFluxIn,              &
-         activeTracerVerticalFluxOut
+         activeTracerHorizontalFCTscaleFactor
 
       real (kind=RKIND), parameter :: &
          eps = 1.e-10_RKIND  ! small number to avoid numerical difficulties
@@ -223,14 +214,6 @@ module ocn_tracer_advection_mono
               activeTracerVerticalFCTscaleFactor)
       call mpas_pool_get_array(diagnosticsPool, 'tracerHorizontalFCTscaleFactor', &
               activeTracerHorizontalFCTscaleFactor)
-      call mpas_pool_get_array(diagnosticsPool, 'tracerVerticalFluxIn', &
-              activeTracerVerticalFluxIn)
-      call mpas_pool_get_array(diagnosticsPool, 'tracerVerticalFluxOut', &
-              activeTracerVerticalFluxOut)
-      call mpas_pool_get_array(diagnosticsPool, 'tracerHorizontalFluxIn', &
-              activeTracerHorizontalFluxIn)
-      call mpas_pool_get_array(diagnosticsPool, 'tracerHorizontalFluxOut', &
-              activeTracerHorizontalFluxOut)
 
       if (computeBudgets) then
          call mpas_pool_get_array(diagnosticsPool,         &
@@ -511,8 +494,6 @@ module ocn_tracer_advection_mono
           cell1 = cellsOnEdge(1,iEdge)
           cell2 = cellsOnEdge(2,iEdge)
           do k = 1, maxLevelEdgeTop(iEdge)
-            activeTracerHorizontalFluxIn(iTracer,k,iCell) = flxIn(k,iCell)
-            activeTracerHorizontalFluxOut(iTracer,k,iCell) = flxOut(k,iCell)
             highOrderFlx(k,iEdge) = max(0.0_RKIND,highOrderFlx(k,iEdge))* &
                                     min(flxOut(k,cell1), flxIn (k,cell2)) &
                                   + min(0.0_RKIND,highOrderFlx(k,iEdge))* &
@@ -859,12 +840,8 @@ module ocn_tracer_advection_mono
         do iCell = 1, nCells
           kmax = maxLevelCell(iCell)
           k=1
-          activetracerverticalfluxin(itracer,k,icell) = flxin(k,icell)
-            activetracerverticalfluxout(itracer,k,icell) = flxout(k,icell)
   ! rescale the high order vertical flux
           do k = 2, kmax
-            activetracerverticalfluxin(itracer,k,icell) = flxin(k,icell)
-            activetracerverticalfluxout(itracer,k,icell) = flxout(k,icell)
             flux =  highOrderFlx(k,iCell)
             highOrderFlx(k,iCell) = max(0.0_RKIND,flux)*   &
                                     min(flxOut(k  ,iCell), &
@@ -873,7 +850,7 @@ module ocn_tracer_advection_mono
                                     min(flxOut(k-1,iCell), &
                                         flxIn (k  ,iCell))
             activeTracerVerticalFCTscaleFactor(iTracer,k,iCell) = highOrderFlx(k,iCell) / &
-                            (activeTracerVerticalFCTscaleFactor(iTracer,k,iCell) + 1.0E-14_RKIND)
+                            (activeTracerVerticalFCTscaleFactor(iTracer,k,iCell) + 1.0E-15_RKIND)
           end do ! k loop
 
           do k = 1,kmax
