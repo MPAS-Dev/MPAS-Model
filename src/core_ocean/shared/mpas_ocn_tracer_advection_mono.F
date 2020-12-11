@@ -839,8 +839,7 @@ module ocn_tracer_advection_mono
         !$omp do schedule(runtime) private(kmax, k, flux)
         do iCell = 1, nCells
           kmax = maxLevelCell(iCell)
-          k=1
-  ! rescale the high order vertical flux
+          ! rescale the high order vertical flux
           do k = 2, kmax
             flux =  highOrderFlx(k,iCell)
             highOrderFlx(k,iCell) = max(0.0_RKIND,flux)*   &
