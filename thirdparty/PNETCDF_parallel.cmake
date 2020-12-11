@@ -46,14 +46,14 @@ set(PnetCDF_C_IS_SHARED false)
 set(PnetCDF_C_INCLUDE_DIR ${CMAKE_BINARY_DIR}/pnetcdf_1_12_1_parallel/include)
 set(PnetCDF_C_INCLUDE_DIRS ${CMAKE_BINARY_DIR}/pnetcdf_1_12_1_parallel/include)
 # Not setting this because it breaks pio build
-#set(PnetCDF_C_LIBRARY ${CMAKE_BINARY_DIR}/pnetcdf_1_12_1_parallel/lib/libpnetcdf.a)
+set(PnetCDF_C_LIBRARY ${CMAKE_BINARY_DIR}/pnetcdf_1_12_1_parallel/lib/libpnetcdf.a)
 set(PnetCDF_C_LIBRARIES ${CMAKE_BINARY_DIR}/pnetcdf_1_12_1_parallel/lib/libpnetcdf.a)
 
 set(PnetCDF_Fortran_IS_SHARED false)
 set(PnetCDF_Fortran_INCLUDE_DIR ${CMAKE_BINARY_DIR}/pnetcdf_1_12_1_parallel/include)
 set(PnetCDF_Fortran_INCLUDE_DIRS ${CMAKE_BINARY_DIR}/pnetcdf_1_12_1_parallel/include)
 # Not setting this because to be symmetric with C
-#set(PnetCDF_Fortran_LIBRARY ${CMAKE_BINARY_DIR}/pnetcdf_1_12_1_parallel/lib/libpnetcdf.a)
+set(PnetCDF_Fortran_LIBRARY ${CMAKE_BINARY_DIR}/pnetcdf_1_12_1_parallel/lib/libpnetcdf.a)
 set(PnetCDF_Fortran_LIBRARIES ${CMAKE_BINARY_DIR}/pnetcdf_1_12_1_parallel/lib/libpnetcdf.a)
 
 set(PnetCDF_C_HAS_VARN true)
