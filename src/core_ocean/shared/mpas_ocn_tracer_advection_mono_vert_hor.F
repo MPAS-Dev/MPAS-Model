@@ -33,6 +33,7 @@ module ocn_tracer_advection_mono_vert_hor
    use mpas_tracer_advection_helpers
 
    use ocn_constants
+   use ocn_config
 
    implicit none
    private
@@ -186,7 +187,9 @@ module ocn_tracer_advection_mono_vert_hor
          activeTracerHorizontalAdvectionTendency, &
          activeTracerVerticalAdvectionTendency,   &
          activeTracerHorizontalAdvectionEdgeFlux, &
-         activeTracerVerticalAdvectionTopFlux
+         activeTracerVerticalAdvectionTopFlux,    &
+         activeTracerVerticalFCTscaleFactor,      &
+         activeTracerHorizontalFCTscaleFactor
 
       real (kind=RKIND), parameter :: &
          eps = 1.e-10_RKIND  ! small number to avoid numerical difficulties
@@ -207,6 +210,11 @@ module ocn_tracer_advection_mono_vert_hor
       call mpas_pool_get_array(meshPool, 'cellsOnCell', cellsOnCell)
       call mpas_pool_get_array(meshPool, 'areaCell', areaCell)
       call mpas_pool_get_array(meshPool, 'nEdgesOnCell', nEdgesOnCell)
+
+      call mpas_pool_get_array(diagnosticsPool, 'tracerVerticalFCTscaleFactor', &
+              activeTracerVerticalFCTscaleFactor)
+      call mpas_pool_get_array(diagnosticsPool, 'tracerHorizontalFCTscaleFactor', &
+              activeTracerHorizontalFCTscaleFactor)
 
       if (computeBudgets) then
          call mpas_pool_get_array(diagnosticsPool,         &
@@ -467,6 +475,7 @@ module ocn_tracer_advection_mono_vert_hor
                 max(0.0_RKIND,w(k,iCell))*tracerCur(k  ,iCell)
             highOrderFlx(k,iCell) = highOrderFlx(k,iCell) - &
                                      lowOrderFlx(k,iCell)
+            activeTracerVerticalFCTscaleFactor(iTracer,k,iCell) = highOrderFlx(k,iCell)
           end do ! k loop
           lowOrderFlx(kmax+1,iCell) = 0.0_RKIND
 
@@ -538,6 +547,7 @@ module ocn_tracer_advection_mono_vert_hor
         do iCell = 1, nCells
           kmax = maxLevelCell(iCell)
           ! rescale the high order vertical flux
+          if (config_adv_limit_in_vertical) then
           do k = 2, kmax
             flux =  highOrderFlx(k,iCell)
             highOrderFlx(k,iCell) = max(0.0_RKIND,flux)*   &
@@ -546,20 +556,19 @@ module ocn_tracer_advection_mono_vert_hor
                                   + min(0.0_RKIND,flux)*   &
                                     min(flxOut(k-1,iCell), &
                                         flxIn (k  ,iCell))
+            activeTracerVerticalFCTscaleFactor(iTracer,k,iCell) = highOrderFlx(k,iCell) / &
+                            (activeTracerVerticalFCTscaleFactor(iTracer,k,iCell) + 1.0E-15_RKIND)
           end do ! k loop
+          endif ! config_adv_limit_in_vertical
 
           do k = 1,kmax
-            ! workTend on the RHS is the upwind tendency
             ! workTend on the LHS is the total vertical advection tendency
+            ! workTend on the RHS is the low-order upwind tendency
+            ! highOrderFlx on RHS is limited C*(high order - low order)
             workTend(k, iCell) = workTend(k, iCell)       &
                                + (highOrderFlx(k+1,iCell) &
                                 - highOrderFlx(k  ,iCell))
             tend(iTracer,k,iCell) = tend(iTracer,k,iCell) + workTend(k,iCell)
-
-            ! update tracerCur 
-            ! tracerCur on LHS is the provisional tracer after vertical fluxes only.
-            tracerCur(k,iCell) = (tracerCur(k,iCell)*layerThickness(k,iCell) &
-                                  + dt*workTend(k,iCell))*hProvInv(k,iCell)
           end do ! k loop
 
         end do ! iCell loop
@@ -666,6 +675,9 @@ module ocn_tracer_advection_mono_vert_hor
 
             highOrderFlx(k,iEdge) = highOrderFlx(k,iEdge) &
                                   -  lowOrderFlx(k,iEdge)
+
+            activeTracerHorizontalFCTscaleFactor(iTracer,k,iEdge) = highOrderFlx(k,iEdge)
+
           end do ! k loop
         end do ! iEdge loop
         !$omp end do
@@ -765,6 +777,11 @@ module ocn_tracer_advection_mono_vert_hor
                                     min(flxOut(k,cell1), flxIn (k,cell2)) &
                                   + min(0.0_RKIND,highOrderFlx(k,iEdge))* &
                                     min(flxIn (k,cell1), flxOut(k,cell2))
+
+            ! rescale the original stored flux with the limited version for
+            ! output 
+            activeTracerHorizontalFCTscaleFactor(iTracer,k,iEdge) = highOrderFlx(k,iEdge) / &
+                          (activeTracerHorizontalFCTscaleFactor(iTracer,k,iEdge) + 1.0E-14_RKIND)
           end do ! k loop
         end do ! iEdge loop
         !$omp end do
