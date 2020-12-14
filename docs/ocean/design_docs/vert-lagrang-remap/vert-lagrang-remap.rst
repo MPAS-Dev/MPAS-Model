@@ -1,8 +1,9 @@
+.. role:: red
 
 Vertical Lagrangian-remap method
 ================================
 
-date: 2020/11/24
+date: 2020/12/10
 
 Contributors: Darren Engwirda, Xylar Asay-Davis, Carolyn Begeman
 
@@ -17,52 +18,71 @@ Lagrangian-Eulerian method which is already implemented in MPAS-Ocean, a key
 difference being that the solution of diasurface transport is coordinate-free. 
 This has the advantage of removing the vertical CFL constraint, which is of 
 particular concern for an evolving ice shelf geometry in terrain-following 
-coordinate schemes. Generalization of the vertical coordinate in the horizontal 
-equations of motion is not in the scope of this development. This development 
-will include some infrastructure for specifying the target grid for regridding. 
-The minimum criteria for success are not degrading the accuracy of the solution 
+coordinate schemes. 
+
+Generalization of the vertical coordinate in the horizontal 
+equations of motion is not in the scope of this development. Additionally, the 
+infrastructure for specifying a target grid that differs from the existing 
+z-star and z-tilde options is reserved for future development.
+*The minimum criteria for success are not degrading the accuracy of the solution 
 or the performance by more than [an acceptable threshold] for several basic test 
-cases... [hmm, not quite sure how to write the success statement if not "meets requirements"].
+cases... [hmm, not quite sure how to write the success statement if not "meets requirements"].*
 
 
 Requirements
 ------------
 
-Requirement: remapping
-^^^^^^^^^^^^^^^^^^^^^^
+Requirement: Ability to perform vertical Lagrangian-remapping
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Date last modified: 2020/12/04
 
 Contributors: Darren Engwirda, Xylar Asay-Davis, Carolyn Begeman
 
-Requirement: A grid that relaxes to an analytical expression for a target grid with non-negative layer thicknesses.
+The core of the proposed development is the ability to perform vertical 
+Lagrangian-remapping (VLR). When VLR is performed, the momentum, volume and 
+tracer conservation equations are first solved in a Lagrangian sense; that is, 
+layer thicknesses evolve such that there is no vertical transport across layer 
+interfaces. A target grid is then specified. For this stage of development, 
+we only require that the algorithm be able to use the existing grid 
+specifications. However, the implementation should be general enough that 
+a different grid could be used for remapping. This regridding step is followed 
+by a conservative remapping of velocity and scalars to the target grid. 
 
-Requirement: hybrid coordinates
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-Date last modified: 2020/12/04
-
-Contributors: Darren Engwirda, Xylar Asay-Davis, Carolyn Begeman
-
-Requirement: The ability to implement hybrid coordinate systems.
-
-Requirement: user specifications
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-Date last modified: 2020/12/04
-
-Contributors: Darren Engwirda, Xylar Asay-Davis, Carolyn Begeman
-
-Requirement: To the extent that it is feasible, the user should have the ability to control the order of accuracy and other parameters of the remapping (e.g. via namelist options).
-
-Requirement: multiple time stepping schemes
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Requirement: Grid is sufficiently conditioned for accuracy and stability
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Date last modified: 2020/12/04
 
 Contributors: Darren Engwirda, Xylar Asay-Davis, Carolyn Begeman
 
-Requirement: Remapping should be supported (eventually) in both the RK4 and the split-explicit time stepping schemes. 
+A severely deformed grid can lead to issues with the accuracy and stability of 
+the numerical methods used for the dynamics and thermodynamics. If layers are 
+allowed to become very thin they can also degrade the accuracy and stability of 
+the solution. Thus, a requirement of the VLR implementation is that there are 
+safeguards to prevent layers from becoming too thin or deformed. 
+
+Requirement: Ability to specify remapping method and its options
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Date last modified: 2020/12/04
+
+Contributors: Darren Engwirda, Xylar Asay-Davis, Carolyn Begeman
+
+There are several choices to make for the remapping operation to balance accuracy, 
+stability and computational cost. To the extent that it is feasible, the user 
+should have the ability to control the order of accuracy of the remapping method,
+[Darren, other options here?] and other remapping options (e.g., via namelist options).
+
+Requirement: Support for existing time stepping schemes
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Date last modified: 2020/12/04
+
+Contributors: Darren Engwirda, Xylar Asay-Davis, Carolyn Begeman
+
+Vertical Lagrangian remapping should be supported (eventually) in both the RK4 
+and the split-explicit time stepping schemes currently implemented in MPAS-Ocean. 
 
 Requirement: not climate changing
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -71,7 +91,10 @@ Date last modified: 2020/12/04
 
 Contributors: Darren Engwirda, Xylar Asay-Davis, Carolyn Begeman
 
-Requirement: For the same target grid, the solution for layer thicknesses and key prognostic variables using VLR is within a non-climate-changing threshold value [presumably greater than machine precision?] of the solution using split-explicit and RK4 after a few timesteps.
+For the same target grid and problem, the solution for layer thicknesses and key 
+prognostic variables using VLR is within a non-climate-changing threshold value 
+[presumably greater than machine precision?] of the solution using split-explicit 
+and RK4 after a few timesteps.
 
 Requirement: performance
 ^^^^^^^^^^^^^^^^^^^^^^^^
@@ -80,16 +103,7 @@ Date last modified: 2020/12/04
 
 Contributors: Darren Engwirda, Xylar Asay-Davis, Carolyn Begeman
 
-Requirement: Performance is not degraded below an acceptable level.
-
-Requirement: conservation
-^^^^^^^^^^^^^^^^^^^^^^^^^
-
-Date last modified: 2020/12/04
-
-Contributors: Darren Engwirda, Xylar Asay-Davis, Carolyn Begeman
-
-Requirement: Remapping operation is conservative in the layer-wise sense.
+Performance is not degraded below an acceptable level.
 
 Requirement: no interference
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -98,7 +112,9 @@ Date last modified: 2020/12/04
 
 Contributors: Darren Engwirda, Xylar Asay-Davis, Carolyn Begeman
 
-Requirement: No calculations are made outside of remapping itself using prognostic (or diagnostic) variables both before and after remapping to avoid introducing additional errors.
+No calculations are made outside of remapping itself using prognostic (or 
+diagnostic) variables both before and after remapping to avoid introducing 
+additional errors.
 
 Requirement: modularity
 ^^^^^^^^^^^^^^^^^^^^^^^
@@ -107,14 +123,9 @@ Date last modified: 2020/12/04
 
 Contributors: Darren Engwirda, Xylar Asay-Davis, Carolyn Begeman
 
-Requirement: To the degree possible, the code for performing remapping should be kept in its own Fortran module(s) for better readability.
+To the degree possible, the code for performing remapping should be kept in its 
+own Fortran module(s) for better readability.
 
-*Each requirement is to be listed under a "section" heading, as there will be a
-one-to-one correspondence between requirements, design, proposed implementation
-and testing. Requirements should not discuss technical software issues, but
-rather focus on model capability. To the extent possible, requirements should
-be relatively independent of each other, thus allowing a clean design solution,
-implementation and testing plan.*
 
 
 Algorithm Design (optional)
@@ -126,42 +137,52 @@ Date last modified: 2020/12/04
 
 Contributors: Darren Engwirda, Xylar Asay-Davis, Carolyn Begeman
 
-The vertical Lagrangian-remap can be characterized by the following equations, as written in Griffies and Adcroft (2020):
+The conservation of momentum, volume, and tracer equations in MPAS-Ocean are:
 
-Lagrangian layer motion
 .. math::
-   w^{grid}_{k,*} = -D^n_{k,*}
 
-Horizontal advection thickness update
-.. math::
-   h^{tem} = h^n + \Delta t \Delta_s w^{grid}_{k,*}
+   \frac{\partial u_k}{\partial t} + q_k h_k u_k^{normal} + \overline{w^t \delta z^t u} = -\frac{1}{\rho_0} \nabla p_k - \frac{rho_k g}{\rho_0} \nabla z_k - \nabla K_k + [D_h^u]_k + [D_{\nu}^u]_k + F_k^u
+   
+   \frac{\partial h_k}{\partial t} + \nabla \cdot (h_k \mathbf{u}_k) + w_k^t - w_{k+1}^t = 0
 
-Horizontal advection tracer update
-.. math::
-   [hC]^{tem} = [hC]^n - \Delta t \nabla_h \cdot [hCu]^n
+   \frac{\partial (h_k \phi_k)}{\partial t} + \nabla \cdot (h_k \mathbf{u}_k \phi_k) + \overline{\phi}_k^t w_k^t - \overline{\phi}_{k+1}^t w_{k+1}^t = [D_h^{\phi}]_k + [D_{\nu}^{\phi}]_k + F_k^{\phi}
+   
+For the Lagrangian step, the vertical velocity through the top of the cell, :math:`w_k^t`, is set to zero in all of the above equations. Thus, these equations simplify to:
 
-Update layer thicknesses (regrid)
 .. math::
-   h^{n+1} = h^{target}
 
-Diasurface velocity
-.. math::
-   \Delta_s w^{tem} = -(h^{target} - h^{tem})/\Delta t
+   \frac{\partial u_k}{\partial t} + q_k h_k u_k^{normal} = -\frac{1}{\rho_0} \nabla p_k - \frac{rho_k g}{\rho_0} \nabla z_k - \nabla K_k + [D_h^u]_k + [D_{\nu}^u]_k + F_k^u
+   
+   \frac{\partial h_k}{\partial t} + \nabla \cdot (h_k \mathbf{u}_k) = 0
 
-Remap tracer and velocities
+   \frac{\partial (h_k \phi_k)}{\partial t} + \nabla \cdot (h_k \mathbf{u}_k \phi_k) = [D_h^{\phi}]_k + [D_{\nu}^{\phi}]_k + F_k^{\phi}
+   
+The time-stepping algorithm (RK4 or split-explicit) yields the updated 
+variables :math:`u_k^{lg},h_k^{lg},\phi_k^{lg}`.
+
+For the regridding step, layer thicknesses are set according to the target 
+grid, conserving volume:
+
 .. math::
-   [hC]^{n+1} = [hC]^{tem} - \Delta t \Delta_s (w^{tem}C^{tem})
+
+   h_k^{t+1} = h_k^{target}
+   
+   \sum_{k=1}^{kmax}h_k^{t+1} = \sum_{k=1}^{kmax}h_k^{lg}
 
 Specification of the target grid:
 - [Some design re. flexibility in user's specification of the grid]
 - [Some design re. converting these specs into an analytical expression]
 - Allowable coordinate systems: z-star (current), z-tilde (current), isopycnal (new)[?]
 
-*Discuss damping function here*
+For the remapping step, velocities (edge-normal) and scalars are remapped to 
+the target grid, conserving volume flux and scalar concentration:
 
+.. math::
 
-Algorithm Design: conservation
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   \sum_{k=1}^{kmax} u_k^{t+1} h_k^{t+1} = \sum_{k=1}^{kmax} u_k^{lg} h_k^{lg}
+   
+   \sum_{k=1}^{kmax} \phi_k^{t+1} h_k^{t+1} = \sum_{k=1}^{kmax} \phi_k^{lg} h_k^{lg}
+
 
 
 Implementation
@@ -179,9 +200,7 @@ Scratch variable stores tracer concentration.
 Remapping of both velocities and scalars is performed after the lagrangian step and regridding. 
 Assume that the edges of the velocity cells are the midpoints of scalar cells, as already specified by layerThicknessEdge.
 
-The remapping operation detailed in \ref{eq:remap} is performed in several steps:
-Reconstruction :math:'C^{n+1} = f(C^{n},h^{n},h^{n+1})'
-Enforce conservation by correction :math:'[hC]^{n+1} = [hC]^{tem} - \Delta t \Delta_s (w^{tem}C^{tem})'
+[Some PPR details here]
 
 Conservation details are discussed in implementation section "conservation."
 *Is PPR's conservation implementation equivalent to this equation?*
@@ -190,20 +209,46 @@ Conservation details are discussed in implementation section "conservation."
 *Do we need to add any additional error checks?*
 
 Specification of target grid:
+
 - Default is current vertical grid
 - Should be a function of z_surface and z_bottom
-- Damping function to limit the rate of grid movement in one timestep. 
-*Identify parameters in damping function that should be namelist options*
-- Maximum/minimum thickness alteration that must occur before remapping: as described in Petersen et al. (2015) for ALE?
+
+
+
+Implementation: Grid is sufficiently conditioned for accuracy and stability
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+*Call the regrid/remapping function before timestepping begins in order to 
+condition the grid and make adjustments for the initial ocean state in case 
+coordinate system is isopycnal?*
+
+After determining the target grid, perform the following steps:
+
+#. Apply damping function to limit the rate of grid movement in one timestep 
+   [and enforce a maximum movement limit?]. 
+#. Optional: Assign :math:`h_k^{t+1}` to `h_k^{lg}` if :math:`h_k^{t+1} - h_k^{lg}` is 
+   less than a minimum thickness alteration. This motivated by accuracy 
+   considerations, as each remapping may introduce errors; however, it also 
+   improves performance [is this true for PPR?].
+#. Apply minimum layer thickness criterion.
+#. Smooth the layer interfaces to reduce horizontal gradients in layer 
+   thickness while conserving volume.
+
+*Discuss damping function here or in algorithm design*
+
+*Discuss smoothing function here or in algorithm design*
+
+Namelist options:
+
+- Minimum layer thickness
+- Maximum thickness change during remapping
+- Optional: minimum thickness change for remapping to occur
+- Parameters in damping function
+
 
 Implementation: hybrid coordinates
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Namelist options:
-- for horizontally smoothing the grid prior to remapping
-*Do we have to worry about consistency with initial thickness conditions*
-
-Smoothing/conditioning the grid prior to remapping:
-- Volume-conserving
 
 Implementation: user specifications
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
