@@ -842,14 +842,15 @@ module ocn_tracer_advection_mono
           ! rescale the high order vertical flux
           do k = 2, kmax
             flux =  highOrderFlx(k,iCell)
-            highOrderFlx(k,iCell) = max(0.0_RKIND,flux)*   &
-                                    min(flxOut(k  ,iCell), &
-                                        flxIn (k-1,iCell)) &
-                                  + min(0.0_RKIND,flux)*   &
-                                    min(flxOut(k-1,iCell), &
-                                        flxIn (k  ,iCell))
-            activeTracerVerticalFCTscaleFactor(iTracer,k,iCell) = highOrderFlx(k,iCell) / &
-                            (activeTracerVerticalFCTscaleFactor(iTracer,k,iCell) + 1.0E-15_RKIND)
+            ! turn off vertical limiting - temp MRP
+            !highOrderFlx(k,iCell) = max(0.0_RKIND,flux)*   &
+            !                        min(flxOut(k  ,iCell), &
+            !                            flxIn (k-1,iCell)) &
+            !                      + min(0.0_RKIND,flux)*   &
+            !                        min(flxOut(k-1,iCell), &
+            !                            flxIn (k  ,iCell))
+            !activeTracerVerticalFCTscaleFactor(iTracer,k,iCell) = highOrderFlx(k,iCell) / &
+            !                (activeTracerVerticalFCTscaleFactor(iTracer,k,iCell) + 1.0E-15_RKIND)
           end do ! k loop
 
           do k = 1,kmax
