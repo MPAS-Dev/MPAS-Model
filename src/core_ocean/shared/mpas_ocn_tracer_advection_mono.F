@@ -33,6 +33,7 @@ module ocn_tracer_advection_mono
    use mpas_tracer_advection_helpers
 
    use ocn_constants
+   use ocn_config
 
    implicit none
    private
@@ -840,22 +841,24 @@ module ocn_tracer_advection_mono
         do iCell = 1, nCells
           kmax = maxLevelCell(iCell)
           ! rescale the high order vertical flux
+          if (config_adv_limit_in_vertical) then
           do k = 2, kmax
             flux =  highOrderFlx(k,iCell)
-            ! turn off vertical limiting - temp MRP
-            !highOrderFlx(k,iCell) = max(0.0_RKIND,flux)*   &
-            !                        min(flxOut(k  ,iCell), &
-            !                            flxIn (k-1,iCell)) &
-            !                      + min(0.0_RKIND,flux)*   &
-            !                        min(flxOut(k-1,iCell), &
-            !                            flxIn (k  ,iCell))
-            !activeTracerVerticalFCTscaleFactor(iTracer,k,iCell) = highOrderFlx(k,iCell) / &
-            !                (activeTracerVerticalFCTscaleFactor(iTracer,k,iCell) + 1.0E-15_RKIND)
+            highOrderFlx(k,iCell) = max(0.0_RKIND,flux)*   &
+                                    min(flxOut(k  ,iCell), &
+                                        flxIn (k-1,iCell)) &
+                                  + min(0.0_RKIND,flux)*   &
+                                    min(flxOut(k-1,iCell), &
+                                        flxIn (k  ,iCell))
+            activeTracerVerticalFCTscaleFactor(iTracer,k,iCell) = highOrderFlx(k,iCell) / &
+                            (activeTracerVerticalFCTscaleFactor(iTracer,k,iCell) + 1.0E-15_RKIND)
           end do ! k loop
+          endif ! config_adv_limit_in_vertical
 
           do k = 1,kmax
-            ! workTend on the RHS is the upwind tendency
             ! workTend on the LHS is the total vertical advection tendency
+            ! workTend on the RHS is the low-order upwind tendency
+            ! highOrderFlx on RHS is limited C*(high order - low order)
             workTend(k, iCell) = workTend(k, iCell)       &
                                + (highOrderFlx(k+1,iCell) &
                                 - highOrderFlx(k  ,iCell))

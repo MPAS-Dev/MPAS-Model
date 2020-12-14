@@ -911,6 +911,10 @@
 					description="If 'horizontal', advection is done with horizontal first, then vertical. If 'vertical', then the opposite."
 					possible_values="'horizontal' and 'vertical'"
 		/>
+		<nml_option name="config_adv_limit_in_vertical" type="logical" default_value=".true." units="unitless"
+					description="If .true. then fluxes are limited in the vertical direction. If .false. then high order is on everywhere."
+					possible_values=".true. and .false."
+		/>
 	</nml_record>
 	<nml_record name="bottom_drag" mode="forward">
 		<nml_option name="config_use_implicit_bottom_drag" type="logical" default_value=".true." units="unitless"
