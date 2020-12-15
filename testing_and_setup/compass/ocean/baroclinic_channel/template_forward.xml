@@ -7,6 +7,7 @@
 		<option name="config_use_cvmix_background">.true.</option>
 		<option name="config_cvmix_background_diffusion">0.0</option>
 		<option name="config_cvmix_background_viscosity">1.0e-4</option>
+        <template file="advection_output.xml" path_base="script_core_dir" path="templates/analysis_members"/>
 	</namelist>
 
 	<streams>
