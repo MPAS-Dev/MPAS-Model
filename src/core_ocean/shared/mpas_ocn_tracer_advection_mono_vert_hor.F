@@ -317,6 +317,7 @@ module ocn_tracer_advection_mono_vert_hor
         !  Begin vertical advection
         !
         !-----------------------------------------------------------------------
+        print *, "Vert adv first"
 
 #ifdef _ADV_TIMERS
         call mpas_timer_start('cell init')
@@ -344,7 +345,7 @@ module ocn_tracer_advection_mono_vert_hor
 #endif
 
         ! Need all owned and 1 halo cells
-        !nCells = nCellsArray( 3 )
+        nCells = nCellsArray( 2 )
 
         ! Determine bounds on tracerCur from neighbor values for limiting
         !$omp parallel
@@ -501,7 +502,7 @@ module ocn_tracer_advection_mono_vert_hor
         call mpas_timer_start('scale factor build')
 #endif
         ! Need one halo of cells around owned cells
-        !nCells = nCellsArray( 3 )
+        nCells = nCellsArray( 2 )
         !$omp parallel
         !$omp do schedule(runtime) &
         !$omp private(k, tracerMinNew, tracerMaxNew, tracerUpwindNew, scaleFactor)
@@ -539,7 +540,7 @@ module ocn_tracer_advection_mono_vert_hor
         call mpas_timer_start('flux accumulate')
 #endif
 
-        !nCells = nCellsArray( 3 )
+        nCells = nCellsArray( 1 )
         ! Accumulate the scaled high order vertical tendencies
         ! and the upwind tendencies
         !$omp parallel
@@ -592,7 +593,7 @@ module ocn_tracer_advection_mono_vert_hor
 #endif
 
         ! set nCells to first halo level
-        !nCells = nCellsArray( 2 )
+        nCells = nCellsArray( 2 )
 
         ! Determine bounds on tracer (tracerMin and tracerMax) from
         ! surrounding cells for later limiting.
@@ -620,7 +621,7 @@ module ocn_tracer_advection_mono_vert_hor
         !$omp end parallel
 
         ! Need all the edges around the 1 halo cells and owned cells
-        !nEdges = nEdgesArray( 3 )
+        nEdges = nEdgesArray( 3 )
 
         ! Compute the high order horizontal flux
 
@@ -703,7 +704,7 @@ module ocn_tracer_advection_mono_vert_hor
         !$omp end parallel
 
         ! Need one halo of cells around owned cells
-        !nCells = nCellsArray( 2 )
+        nCells = nCellsArray( 2 )
 
         !$omp parallel
         !$omp do schedule(runtime) &
@@ -765,7 +766,7 @@ module ocn_tracer_advection_mono_vert_hor
         call mpas_timer_start('rescale horiz fluxes')
 #endif
         ! Need all of the edges around owned cells
-        !nEdges = nEdgesArray( 2 )
+        nEdges = nEdgesArray( 2 )
         !  rescale the high order horizontal fluxes
         !$omp parallel
         !$omp do schedule(runtime) private(cell1, cell2, k)
@@ -791,7 +792,7 @@ module ocn_tracer_advection_mono_vert_hor
         call mpas_timer_start('flux accumulate')
 #endif
 
-        !nCells = nCellsArray( 1 )
+        nCells = nCellsArray( 1 )
         ! Accumulate the scaled high order vertical tendencies, and the upwind tendencies
         !$omp parallel
         !$omp do schedule(runtime) private(invAreaCell1, signedFactor, i, iEdge, k)

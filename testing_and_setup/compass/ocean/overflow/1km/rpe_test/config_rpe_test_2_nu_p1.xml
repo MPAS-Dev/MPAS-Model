@@ -14,6 +14,7 @@
 		<option name="config_implicit_bottom_drag_coeff">1.0e-2</option>
 		<option name="config_use_mom_del2">.true.</option>
 		<option name="config_mom_del2">0.1</option>
+        <template file="advection_output.xml" path_base="script_core_dir" path="templates/analysis_members"/>
 	</namelist>
 
 	<streams name="streams.ocean" keep="immutable" mode="forward">
@@ -36,6 +37,7 @@
 			</add_contents>
 		</stream>
 		<template file="global_stats.xml" path_base="script_core_dir" path="templates/analysis_members"/>
+        <template file="advection_output.xml" path_base="script_core_dir" path="templates/analysis_members"/>
 	</streams>
 
 	<run_script name="run.py">
