@@ -220,18 +220,6 @@ or
 
 The choice between the two is discussed in the Implementation section.
 
-Algorithm Design: Grid is sufficiently conditioned for accuracy and stability
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-Date last modified: 2020/12/15
-
-Contributors: Darren Engwirda, Xylar Asay-Davis, Carolyn Begeman
-
-*Discuss damping (in time) function here*
-
-*Discuss smoothing (in space) function here*
-
-
 
 Implementation
 --------------
@@ -361,23 +349,21 @@ Contributors: Darren Engwirda, Xylar Asay-Davis, Carolyn Begeman
 
 After determining the target grid, perform the following steps:
 
-#. Apply damping function to limit the rate of grid movement in one timestep 
-   [and enforce a maximum movement limit?]. 
 #. Optional: Assign :math:`h_k^{t+1}` to :math:`h_k^{lg}` if 
    :math:`h_k^{t+1} - h_k^{lg}` is less than a minimum thickness alteration. 
    This motivated by accuracy considerations, as each remapping may introduce 
    errors. *Darren, would this improve PPR computational performance?*
-#. Smooth the layer interfaces to reduce horizontal gradients in layer 
-   thickness while conserving volume.
 #. Apply minimum layer thickness criterion. 
+
+Smoothing layers in space and time is left for a future design document in 
+which we implement support for additional coordinate systems including hybrid 
+coordinates.
 
 Namelist options:
 
 - Minimum layer thickness
-- Maximum thickness change during remapping
 - Optional: minimum thickness change for remapping to occur
-- *Parameters in damping function*
-- *Parameters in smoothing function*
+
 
 Implementation: Ability to specify remapping method and its options
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -479,8 +465,6 @@ Date last modified: 2020/12/15
 
 Contributors: Darren Engwirda, Xylar Asay-Davis, Carolyn Begeman
 
-Determine what values of smoothing and damping parameters yield accuracy and 
-stability.
 
 Testing and Validation: Support for existing time stepping schemes
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
