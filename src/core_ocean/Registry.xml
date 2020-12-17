@@ -915,6 +915,14 @@
 					description="If .true. then fluxes are limited in the vertical direction. If .false. then high order is on everywhere."
 					possible_values=".true. and .false."
 		/>
+		<nml_option name="config_tracer_vert_limiter_min" type="character" default_value="standard_FCT" units="unitless"
+					description="See options"
+					possible_values="'standard_FCT', 'fixed_global_limit', 'always_high_order', 'always_low_order'"
+		/>
+		<nml_option name="config_tracer_vert_limiter_max" type="character" default_value="standard_FCT" units="unitless"
+					description="See options"
+					possible_values="'standard_FCT', 'fixed_global_limit', 'always_high_order', 'always_low_order'"
+		/>
 	</nml_record>
 	<nml_record name="bottom_drag" mode="forward">
 		<nml_option name="config_use_implicit_bottom_drag" type="logical" default_value=".true." units="unitless"
