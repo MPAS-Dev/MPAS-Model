@@ -911,11 +911,11 @@
 					description="If 'horizontal', advection is done with horizontal first, then vertical. If 'vertical', then the opposite."
 					possible_values="'horizontal' and 'vertical'"
 		/>
-		<nml_option name="config_tracer_vert_limiter_min" type="character" default_value="standard_FCT" units="unitless"
+		<nml_option name="config_vert_tracer_limiter_min" type="character" default_value="standard_FCT" units="unitless"
 					description="See options"
 					possible_values="'standard_FCT', 'fixed_global_limit', 'always_high_order', 'always_low_order'"
 		/>
-		<nml_option name="config_tracer_vert_limiter_max" type="character" default_value="standard_FCT" units="unitless"
+		<nml_option name="config_vert_tracer_limiter_max" type="character" default_value="standard_FCT" units="unitless"
 					description="See options"
 					possible_values="'standard_FCT', 'fixed_global_limit', 'always_high_order', 'always_low_order'"
 		/>

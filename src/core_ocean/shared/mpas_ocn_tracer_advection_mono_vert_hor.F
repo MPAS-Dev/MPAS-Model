@@ -313,13 +313,11 @@ module ocn_tracer_advection_mono_vert_hor
         call mpas_timer_stop('cell init')
 #endif
 
-
         !-----------------------------------------------------------------------
         !
         !  Begin vertical advection
         !
         !-----------------------------------------------------------------------
-        print *, "Vert adv first"
 
 #ifdef _ADV_TIMERS
         call mpas_timer_start('cell init')
@@ -511,7 +509,7 @@ module ocn_tracer_advection_mono_vert_hor
         ! Factors are placed in the flxIn and flxOut arrays
 
         ! Compute outgoing flux limiting based on minimum tracer
-        if (config_tracer_vert_limiter_min=='standard_FCT') then
+        if (config_vert_tracer_limiter_min=='standard_FCT') then
            !$omp parallel
            !$omp do schedule(runtime) &
            !$omp private(k, tracerMinNew, tracerMaxNew, tracerUpwindNew, scaleFactor)
@@ -532,7 +530,7 @@ module ocn_tracer_advection_mono_vert_hor
            end do ! iCell loop
            !$omp end do
            !$omp end parallel
-        elseif (config_tracer_vert_limiter_min=='fixed_global_limit') then
+        elseif (config_vert_tracer_limiter_min=='fixed_global_limit') then
            globalMinLimit = -1.8 !mrp fill this in later
            !$omp parallel
            !$omp do schedule(runtime) &
@@ -552,7 +550,7 @@ module ocn_tracer_advection_mono_vert_hor
            end do ! iCell loop
            !$omp end do
            !$omp end parallel
-        elseif (config_tracer_vert_limiter_min=='always_high_order') then
+        elseif (config_vert_tracer_limiter_min=='always_high_order') then
            !$omp parallel
            !$omp do schedule(runtime) private(k)
            do iCell = 1, nCells
@@ -562,7 +560,7 @@ module ocn_tracer_advection_mono_vert_hor
            end do
            !$omp end do
            !$omp end parallel
-        elseif (config_tracer_vert_limiter_min=='always_low_order') then
+        elseif (config_vert_tracer_limiter_min=='always_low_order') then
            !$omp parallel
            !$omp do schedule(runtime) private(k)
            do iCell = 1, nCells
@@ -573,11 +571,11 @@ module ocn_tracer_advection_mono_vert_hor
            !$omp end do
            !$omp end parallel
         else
-           call mpas_log_write('invalid choice of config_tracer_vert_limiter_min', MPAS_LOG_CRIT)
+           call mpas_log_write('invalid choice of config_vert_tracer_limiter_min', MPAS_LOG_CRIT)
         endif
 
         ! Compute incoming flux limiting based on maximum tracer
-        if (config_tracer_vert_limiter_max=='standard_FCT') then
+        if (config_vert_tracer_limiter_max=='standard_FCT') then
            !$omp parallel
            !$omp do schedule(runtime) &
            !$omp private(k, tracerMinNew, tracerMaxNew, tracerUpwindNew, scaleFactor)
@@ -597,7 +595,7 @@ module ocn_tracer_advection_mono_vert_hor
            end do ! iCell loop
            !$omp end do
            !$omp end parallel
-        elseif (config_tracer_vert_limiter_max=='fixed_global_limit') then
+        elseif (config_vert_tracer_limiter_max=='fixed_global_limit') then
            globalMaxLimit = 40.0 !mrp fill this in later
            !$omp parallel
            !$omp do schedule(runtime) &
@@ -618,7 +616,7 @@ module ocn_tracer_advection_mono_vert_hor
            end do ! iCell loop
            !$omp end do
            !$omp end parallel
-        elseif (config_tracer_vert_limiter_max=='always_high_order') then
+        elseif (config_vert_tracer_limiter_max=='always_high_order') then
            !$omp parallel
            !$omp do schedule(runtime) private(k)
            do iCell = 1, nCells
@@ -628,7 +626,7 @@ module ocn_tracer_advection_mono_vert_hor
            end do
            !$omp end do
            !$omp end parallel
-        elseif (config_tracer_vert_limiter_max=='always_low_order') then
+        elseif (config_vert_tracer_limiter_max=='always_low_order') then
            !$omp parallel
            !$omp do schedule(runtime) private(k)
            do iCell = 1, nCells
@@ -639,7 +637,7 @@ module ocn_tracer_advection_mono_vert_hor
            !$omp end do
            !$omp end parallel
         else
-           call mpas_log_write('invalid choice of config_tracer_vert_limiter_max', MPAS_LOG_CRIT)
+           call mpas_log_write('invalid choice of config_vert_tracer_limiter_max', MPAS_LOG_CRIT)
         endif
 
 #ifdef _ADV_TIMERS
