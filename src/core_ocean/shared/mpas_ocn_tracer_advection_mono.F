@@ -948,7 +948,6 @@ module ocn_tracer_advection_mono
         do iCell = 1, nCells
           kmax = maxLevelCell(iCell)
           ! rescale the high order vertical flux
-          if (config_adv_limit_in_vertical) then
           do k = 2, kmax
             flux =  highOrderFlx(k,iCell)
             highOrderFlx(k,iCell) = max(0.0_RKIND,flux)*   &
@@ -960,7 +959,6 @@ module ocn_tracer_advection_mono
             activeTracerVerticalFCTscaleFactor(iTracer,k,iCell) = highOrderFlx(k,iCell) / &
                             (activeTracerVerticalFCTscaleFactor(iTracer,k,iCell) + 1.0E-15_RKIND)
           end do ! k loop
-          endif ! config_adv_limit_in_vertical
 
           do k = 1,kmax
             ! workTend on the LHS is the total vertical advection tendency
