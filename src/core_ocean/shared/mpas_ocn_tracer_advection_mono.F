@@ -101,7 +101,7 @@ module ocn_tracer_advection_mono
                                              maxLevelCell, maxLevelEdgeTop,    &
                                              highOrderAdvectionMask,           &
                                              edgeSignOnCell, meshPool,         &
-                                             diagnosticsPool, computeBudgets)!{{{
+                                             diagnosticsPool, computeBudgets, vertLimiter)!{{{
 
       !*** Input/Output parameters
 
@@ -142,6 +142,8 @@ module ocn_tracer_advection_mono
          diagnosticsPool        !< [in] pool for traceradvection budget term
       logical, intent(in) :: &
          computeBudgets         !< [in] Flag to compute active tracer budgets
+      integer, intent(in) :: &!
+         vertLimiter            !< [in] choice of vertical limiter
 
       !*** Local variables
 
@@ -806,7 +808,9 @@ module ocn_tracer_advection_mono
         ! Factors are placed in the flxIn and flxOut arrays
 
         ! Compute outgoing flux limiting based on minimum tracer
-        if (config_activeTracer_vert_limiter=='standard_FCT') then
+        select case(vertLimiter)
+        case(1)
+           ! config_activeTracer_vert_limiter=='standard_FCT' and all other tracer groups
            !$omp parallel
            !$omp do schedule(runtime) &
            !$omp private(k, tracerMinNew, tracerMaxNew, tracerUpwindNew, scaleFactor)
@@ -837,7 +841,8 @@ module ocn_tracer_advection_mono
            end do ! iCell loop
            !$omp end do
            !$omp end parallel
-        elseif (config_activeTracer_vert_limiter=='fixed_global_limit') then
+        case(2)
+           ! config_activeTracer_vert_limiter=='fixed_global_limit' active tracers only
            !$omp parallel
            !$omp do schedule(runtime) &
            !$omp private(k, tracerMinNew, tracerMaxNew, tracerUpwindNew, scaleFactor)
@@ -865,7 +870,8 @@ module ocn_tracer_advection_mono
            end do ! iCell loop
            !$omp end do
            !$omp end parallel
-        elseif (config_activeTracer_vert_limiter=='always_high_order') then
+        case(3)
+           ! config_activeTracer_vert_limiter=='always_high_order', activeTracers only
            !$omp parallel
            !$omp do schedule(runtime) private(k)
            do iCell = 1, nCells
@@ -876,7 +882,8 @@ module ocn_tracer_advection_mono
            end do
            !$omp end do
            !$omp end parallel
-        elseif (config_activeTracer_vert_limiter=='always_low_order') then
+        case(4)
+           ! config_activeTracer_vert_limiter=='always_low_order', activeTracers only
            !$omp parallel
            !$omp do schedule(runtime) private(k)
            do iCell = 1, nCells
@@ -887,9 +894,7 @@ module ocn_tracer_advection_mono
            end do
            !$omp end do
            !$omp end parallel
-        else
-           call mpas_log_write('invalid choice of config_activeTracer_vert_limiter', MPAS_LOG_CRIT)
-        endif
+        end select
 
 #ifdef _ADV_TIMERS
         call mpas_timer_stop('scale factor build')

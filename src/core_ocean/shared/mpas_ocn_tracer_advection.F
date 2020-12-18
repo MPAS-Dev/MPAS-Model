@@ -44,10 +44,11 @@ module ocn_tracer_advection
    public :: ocn_tracer_advection_init,         &
              ocn_tracer_advection_tend
 
-   ! privat module variables
+   ! private module variables
    logical :: tracerAdvOn !< flag to turn on tracer advection
    logical :: monotonicOn !< flag to choose a monotone advection scheme
    logical :: budgetDiagsOn !< flag to compute active tracer budgets
+   integer :: vertLimiterActiveTracers !< choice from config_activeTracer_vert_limiter
 
 !|||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
 
@@ -114,6 +115,8 @@ module ocn_tracer_advection
          highOrderAdvectionMask, &! mask for higher order contributions
          edgeSignOnCell,  &! sign at cell edge for fluxes
          advCellsForEdge   ! index of advective cells for each edge
+      integer :: &!
+         vertLimiter !< choice of vertical limiter
 
       ! end of preamble
       !----------------
@@ -137,6 +140,13 @@ module ocn_tracer_advection
 
       ! determine whether active tracer budgets should be computed
       computeBudgets = (budgetDiagsOn .and. tracerGroupName == 'activeTracers')
+      if (tracerGroupName == 'activeTracers') then
+         vertLimiter = vertLimiterActiveTracers
+      else
+         ! For now, require all tracer groups other than activeTracers to use
+         ! standard_FCT option
+         vertLimiter = 1
+      endif
 
       ! call specific advection routine based on choice of monotonicity
       if (monotonicOn) then
@@ -148,7 +158,8 @@ module ocn_tracer_advection
                                              maxLevelCell, maxLevelEdgeTop,    &
                                              highOrderAdvectionMask,           &
                                              edgeSignOnCell, meshPool,         &
-                                             diagnosticsPool, computeBudgets)
+                                             diagnosticsPool, computeBudgets,  &
+                                             vertLimiter)
 
          elseif (config_adv_first_direction.eq.'vertical') then
             call ocn_tracer_advection_mono_vert_hor_tend(tend, tracers, layerThickness,    &
@@ -158,7 +169,8 @@ module ocn_tracer_advection
                                              maxLevelCell, maxLevelEdgeTop,    &
                                              highOrderAdvectionMask,           &
                                              edgeSignOnCell, meshPool,         &
-                                             diagnosticsPool, computeBudgets)
+                                             diagnosticsPool, computeBudgets,  &
+                                             vertLimiter)
          else
              call mpas_log_write(' Incorrect choice of config_adv_first_direction',MPAS_LOG_CRIT)
          endif
@@ -226,6 +238,18 @@ module ocn_tracer_advection
                                           config_check_tracer_monotonicity, err)
       else
           call mpas_log_write(' Incorrect choice of config_adv_first_direction',MPAS_LOG_CRIT)
+      endif
+
+      if (config_activeTracer_vert_limiter=='standard_FCT') then
+         vertLimiterActiveTracers = 1
+      elseif (config_activeTracer_vert_limiter=='fixed_global_limit') then
+         vertLimiterActiveTracers = 2
+      elseif (config_activeTracer_vert_limiter=='always_high_order') then
+         vertLimiterActiveTracers = 3
+      elseif (config_activeTracer_vert_limiter=='always_low_order') then
+         vertLimiterActiveTracers = 4
+      else
+          call mpas_log_write(' Incorrect choice of config_activeTracer_vert_limiter',MPAS_LOG_CRIT)
       endif
 
       ! if an error is returned from init routines, write an error
