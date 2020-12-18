@@ -204,8 +204,8 @@ be used with coordinate systems that depend on the ocean state (this includes
 the z-star coordinate system in which SSH perturbations are vertically 
 distributed between layers). We do not present an algorithmic design for 
 regridding to coordinate systems not already supported in MPAS-Ocean, as this 
-will be the subject of future development. For now, the target grid is based on a 
-constant set of z-levels that are specified at initialization.
+will be the subject of future development. For now, the target grid based on a 
+constant set of z-star levels that are specified at initialization.
 
 For the regridding step, layer thicknesses are set according to the target 
 grid, conserving volume:
