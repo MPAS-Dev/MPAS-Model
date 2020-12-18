@@ -92,11 +92,13 @@ contains
 
     logical, pointer :: &
          on_a_sphere, &
-         config_do_restart
+         config_do_restart, &
+         config_rescale_earth_radius
 
     real(kind=RKIND), pointer :: &
          oldRadius, &
-         sphere_radius
+         sphere_radius, &
+         config_earth_radius
 
     real(kind=RKIND) :: &
          newRadius
@@ -153,9 +155,14 @@ contains
     integer :: &
          directionProperty
 
+    call MPAS_pool_get_config(domain % blocklist % configs, "config_rescale_earth_radius", config_rescale_earth_radius)
     call MPAS_pool_get_config(domain % blocklist % configs, "config_do_restart", config_do_restart)
 
-    if (.not. config_do_restart) then
+    if (.not. config_do_restart .and. config_rescale_earth_radius) then
+
+       ! set earth radius from config
+       call MPAS_pool_get_config(domain % blocklist % configs, "config_earth_radius", config_earth_radius)
+       earthRadius = config_earth_radius
 
        block => domain % blocklist
        do while(associated(block))
@@ -261,28 +268,6 @@ contains
 
              ! reset sphere_radius
              oldRadius = earthRadius
-
-          endif
-
-          block => block % next
-       end do
-
-    else
-
-       block => domain % blocklist
-       do while(associated(block))
-
-          call mpas_pool_get_subpool(block % structs, 'mesh', meshPool)
-
-          ! check with restart that file radius is equal to defined radius
-          call mpas_pool_get_config(meshPool, 'on_a_sphere', on_a_sphere)
-          call mpas_pool_get_config(meshPool, 'sphere_radius', sphere_radius)
-
-          if (on_a_sphere .and. sphere_radius /= earthRadius) then
-
-             call mpas_log_write(&
-                  "rescale_mesh: inconsistent radii: sphere_radius: $r, earthRadius: $r", &
-                  messageType=MPAS_LOG_CRIT, realArgs=(/sphere_radius,earthRadius/))
 
           endif
 

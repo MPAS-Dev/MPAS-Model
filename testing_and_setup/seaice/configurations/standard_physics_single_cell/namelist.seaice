@@ -45,6 +45,8 @@
     config_initial_uvelocity = 0.0
     config_initial_vvelocity = 0.0
     config_calculate_coriolis = true
+    config_rescale_earth_radius = true
+    config_earth_radius = 6371229.0
 /
 &use_sections
     config_use_dynamics = true
