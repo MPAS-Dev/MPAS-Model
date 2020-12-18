@@ -219,7 +219,7 @@ module ocn_forward_mode
       ierr = ior(ierr, err_tmp)
       call ocn_tracer_surface_flux_init(err_tmp)
       ierr = ior(ierr, err_tmp)
-      call ocn_tracer_advection_init(err_tmp)
+      call ocn_tracer_advection_init(domain,err_tmp)
       ierr = ior(ierr,err_tmp)
       call ocn_tracer_short_wave_absorption_init(domain,err_tmp)
       ierr = ior(ierr,err_tmp)

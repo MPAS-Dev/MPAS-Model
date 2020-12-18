@@ -3,8 +3,7 @@
 		<option name="config_use_debugTracers">.false.</option>
 		<option name="config_use_activeTracers_surface_restoring">.false.</option>
 		<option name="config_adv_first_direction">'horizontal'</option>
-		<option name="config_vert_tracer_limiter_min">'standard_FCT'</option>
-		<option name="config_vert_tracer_limiter_max">'standard_FCT'</option>
+		<option name="config_activeTracer_vert_limiter">'standard_FCT'</option>
 	</namelist>
 
 	<streams>

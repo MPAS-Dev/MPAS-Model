@@ -69,6 +69,10 @@ module ocn_tracer_advection_mono
       lowOrderFlx,   &! low order flux for FCT
       highOrderFlx    ! high order flux for FCT
 
+   real (kind=RKIND), dimension(2) :: &
+      globalMinLimit,    &! minimum allowed value for limiting
+      globalMaxLimit      ! maximum allowed value for limiting
+
    ! public method interfaces
    public :: ocn_tracer_advection_mono_tend, &
              ocn_tracer_advection_mono_init
@@ -176,8 +180,6 @@ module ocn_tracer_advection_mono
          invAreaCell2,      &! inverse cell area
          verticalWeightK,   &! vertical weighting
          verticalWeightKm1, &! vertical weighting
-         globalMinLimit,    &! minimum allowed value for limiting
-         globalMaxLimit,    &! maximum allowed value for limiting
          coef1, coef3        ! temporary coefficients
 
       real (kind=RKIND), dimension(size(tracers, dim=2)) :: &
@@ -804,7 +806,7 @@ module ocn_tracer_advection_mono
         ! Factors are placed in the flxIn and flxOut arrays
 
         ! Compute outgoing flux limiting based on minimum tracer
-        if (config_vert_tracer_limiter_min=='standard_FCT') then
+        if (config_activeTracer_vert_limiter=='standard_FCT') then
            !$omp parallel
            !$omp do schedule(runtime) &
            !$omp private(k, tracerMinNew, tracerMaxNew, tracerUpwindNew, scaleFactor)
@@ -815,73 +817,18 @@ module ocn_tracer_advection_mono
                tracerMinNew = (tracerCur(k,iCell)*hProv(k,iCell) &
                             + dt*(workTend(k,iCell)+flxOut(k,iCell))) &
                             * hNewInv(k,iCell)
-               tracerUpwindNew = (tracerCur(k,iCell)*hProv(k,iCell) &
-                               + dt*workTend(k,iCell)) * hNewInv(k,iCell)
-               scaleFactor = (tracerUpwindNew-tracerMin(k,iCell))/ &
-                             (tracerUpwindNew-tracerMinNew+eps)
-               ! flxOut is now the scale factor to limit tracer minimum
-               flxOut(k,iCell) = min(1.0_RKIND, max(0.0_RKIND, scaleFactor))
-             end do ! k loop
-           end do ! iCell loop
-           !$omp end do
-           !$omp end parallel
-        elseif (config_vert_tracer_limiter_min=='fixed_global_limit') then
-           globalMinLimit = -1.8 !mrp fill this in later
-           !$omp parallel
-           !$omp do schedule(runtime) &
-           !$omp private(k, tracerMinNew, tracerMaxNew, tracerUpwindNew, scaleFactor)
-           do iCell = 1, nCells
-             do k = 1, maxLevelCell(iCell)
-               tracerMinNew = (tracerCur(k,iCell)*hProv(k,iCell) &
-                            + dt*(workTend(k,iCell)+flxOut(k,iCell))) &
-                            * hNewInv(k,iCell)
-               tracerUpwindNew = (tracerCur(k,iCell)*hProv(k,iCell) &
-                               + dt*workTend(k,iCell)) * hNewInv(k,iCell)
-               scaleFactor = (tracerUpwindNew-globalMinLimit)/ &
-                             (tracerUpwindNew-tracerMinNew+eps)
-               ! flxOut is now the scale factor to limit tracer minimum
-               flxOut(k,iCell) = min(1.0_RKIND, max(0.0_RKIND, scaleFactor))
-             end do ! k loop
-           end do ! iCell loop
-           !$omp end do
-           !$omp end parallel
-        elseif (config_vert_tracer_limiter_min=='always_high_order') then
-           !$omp parallel
-           !$omp do schedule(runtime) private(k)
-           do iCell = 1, nCells
-             do k = 1, maxLevelCell(iCell)
-               flxOut (k,iCell) = 1.0_RKIND
-             end do
-           end do
-           !$omp end do
-           !$omp end parallel
-        elseif (config_vert_tracer_limiter_min=='always_low_order') then
-           !$omp parallel
-           !$omp do schedule(runtime) private(k)
-           do iCell = 1, nCells
-             do k = 1, maxLevelCell(iCell)
-               flxOut (k,iCell) = 0.0_RKIND
-             end do
-           end do
-           !$omp end do
-           !$omp end parallel
-        else
-           call mpas_log_write('invalid choice of config_vert_tracer_limiter_min', MPAS_LOG_CRIT)
-        endif
-
-        ! Compute incoming flux limiting based on maximum tracer
-        if (config_vert_tracer_limiter_max=='standard_FCT') then
-           !$omp parallel
-           !$omp do schedule(runtime) &
-           !$omp private(k, tracerMinNew, tracerMaxNew, tracerUpwindNew, scaleFactor)
-           do iCell = 1, nCells
-             do k = 1, maxLevelCell(iCell)
-               ! workTend on the RHS is the upwind tendency
                tracerMaxNew = (tracerCur(k,iCell)*hProv(k,iCell) &
                             + dt*(workTend(k,iCell)+flxIn(k,iCell))) &
                             * hNewInv(k,iCell)
                tracerUpwindNew = (tracerCur(k,iCell)*hProv(k,iCell) &
                                + dt*workTend(k,iCell)) * hNewInv(k,iCell)
+
+               scaleFactor = (tracerUpwindNew-tracerMin(k,iCell))/ &
+                             (tracerUpwindNew-tracerMinNew+eps)
+               ! flxOut is now the scale factor to limit tracer minimum
+               flxOut(k,iCell) = min(1.0_RKIND, max(0.0_RKIND, scaleFactor))
+
+               ! workTend on the RHS is the upwind tendency
                scaleFactor = (tracerMax(k,iCell)-tracerUpwindNew)/ &
                              (tracerMaxNew-tracerUpwindNew+eps)
                ! flxIn is now the scale factor to limit tracer maximum
@@ -890,20 +837,27 @@ module ocn_tracer_advection_mono
            end do ! iCell loop
            !$omp end do
            !$omp end parallel
-        elseif (config_vert_tracer_limiter_max=='fixed_global_limit') then
-           globalMaxLimit = 40.0 !mrp fill this in later
+        elseif (config_activeTracer_vert_limiter=='fixed_global_limit') then
            !$omp parallel
            !$omp do schedule(runtime) &
            !$omp private(k, tracerMinNew, tracerMaxNew, tracerUpwindNew, scaleFactor)
            do iCell = 1, nCells
              do k = 1, maxLevelCell(iCell)
-               ! workTend on the RHS is the upwind tendency
+               tracerUpwindNew = (tracerCur(k,iCell)*hProv(k,iCell) &
+                               + dt*workTend(k,iCell)) * hNewInv(k,iCell)
+               tracerMinNew = (tracerCur(k,iCell)*hProv(k,iCell) &
+                            + dt*(workTend(k,iCell)+flxOut(k,iCell))) &
+                            * hNewInv(k,iCell)
                tracerMaxNew = (tracerCur(k,iCell)*hProv(k,iCell) &
                             + dt*(workTend(k,iCell)+flxIn(k,iCell))) &
                             * hNewInv(k,iCell)
-               tracerUpwindNew = (tracerCur(k,iCell)*hProv(k,iCell) &
-                               + dt*workTend(k,iCell)) * hNewInv(k,iCell)
-               scaleFactor = (globalMaxLimit-tracerUpwindNew)/ &
+
+               scaleFactor = (tracerUpwindNew-globalMinLimit(iTracer))/ &
+                             (tracerUpwindNew-tracerMinNew+eps)
+               ! flxOut is now the scale factor to limit tracer minimum
+               flxOut(k,iCell) = min(1.0_RKIND, max(0.0_RKIND, scaleFactor))
+
+               scaleFactor = (globalMaxLimit(iTracer)-tracerUpwindNew)/ &
                              (tracerMaxNew-tracerUpwindNew+eps)
                ! flxIn is now the scale factor to limit tracer maximum
                flxIn (k,iCell) = min(1.0_RKIND, max(0.0_RKIND, scaleFactor))
@@ -911,28 +865,30 @@ module ocn_tracer_advection_mono
            end do ! iCell loop
            !$omp end do
            !$omp end parallel
-        elseif (config_vert_tracer_limiter_max=='always_high_order') then
+        elseif (config_activeTracer_vert_limiter=='always_high_order') then
            !$omp parallel
            !$omp do schedule(runtime) private(k)
            do iCell = 1, nCells
              do k = 1, maxLevelCell(iCell)
+               flxOut (k,iCell) = 1.0_RKIND
                flxIn (k,iCell) = 1.0_RKIND
              end do
            end do
            !$omp end do
            !$omp end parallel
-        elseif (config_vert_tracer_limiter_max=='always_low_order') then
+        elseif (config_activeTracer_vert_limiter=='always_low_order') then
            !$omp parallel
            !$omp do schedule(runtime) private(k)
            do iCell = 1, nCells
              do k = 1, maxLevelCell(iCell)
+               flxOut (k,iCell) = 0.0_RKIND
                flxIn (k,iCell) = 0.0_RKIND
              end do
            end do
            !$omp end do
            !$omp end parallel
         else
-           call mpas_log_write('invalid choice of config_vert_tracer_limiter_max', MPAS_LOG_CRIT)
+           call mpas_log_write('invalid choice of config_activeTracer_vert_limiter', MPAS_LOG_CRIT)
         endif
 
 #ifdef _ADV_TIMERS
@@ -1064,12 +1020,13 @@ module ocn_tracer_advection_mono
 !
 !-------------------------------------------------------------------------------
 
-   subroutine ocn_tracer_advection_mono_init(nHalos, horizAdvOrder,        &
+   subroutine ocn_tracer_advection_mono_init(domain, nHalos, horizAdvOrder,        &
                                              vertAdvOrder, inCoef3rdOrder, &
                                              checkMonotonicity, err)!{{{
 
       !*** input parameters
 
+      type (domain_type), intent(in) :: domain
       integer, intent(in) :: &
          nHalos               !< [in] number of halos in current simulation
       integer, intent(in) :: &
@@ -1085,6 +1042,11 @@ module ocn_tracer_advection_mono
 
       integer, intent(out) :: &
          err                   !< [out] error flag
+
+      !*** Local variables
+
+      integer, pointer :: indexT, indexS
+      type (mpas_pool_type), pointer :: statePool, tracersPool
 
       ! end of preamble
       !----------------
@@ -1132,6 +1094,16 @@ module ocn_tracer_advection_mono
 
       ! Set flag for checking monotonicity
       monotonicityCheck = checkMonotonicity
+
+      call mpas_pool_get_subpool(domain % blocklist % structs, 'state', statePool)
+      call mpas_pool_get_subpool(statePool, 'tracers', tracersPool)
+      call mpas_pool_get_dimension(tracersPool, 'index_temperature', indexT)
+      call mpas_pool_get_dimension(tracersPool, 'index_salinity', indexS)
+
+      globalMinLimit(indexT) = config_vert_limiter_temperature_min
+      globalMaxLimit(indexT) = config_vert_limiter_temperature_max
+      globalMinLimit(indexS) = config_vert_limiter_salinity_min
+      globalMaxLimit(indexS) = config_vert_limiter_salinity_max
 
    end subroutine ocn_tracer_advection_mono_init!}}}
 

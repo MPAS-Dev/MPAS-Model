@@ -187,7 +187,10 @@ module ocn_tracer_advection
 !
 !-------------------------------------------------------------------------------
 
-   subroutine ocn_tracer_advection_init(err)!{{{
+   subroutine ocn_tracer_advection_init(domain, err)!{{{
+
+      !*** input parameters
+      type (domain_type), intent(in) :: domain
 
       !*** output parameters
 
@@ -212,13 +215,18 @@ module ocn_tracer_advection
       call ocn_tracer_advection_std_init(config_horiz_tracer_adv_order, &
                      config_vert_tracer_adv_order, config_coef_3rd_order, &
                      config_check_tracer_monotonicity, errTmp)
-      call ocn_tracer_advection_mono_init(config_num_halos, config_horiz_tracer_adv_order,    &
+      if (config_adv_first_direction.eq.'horizontal') then
+         call ocn_tracer_advection_mono_init(domain, config_num_halos, config_horiz_tracer_adv_order,    &
                                           config_vert_tracer_adv_order, config_coef_3rd_order, &
                                           config_check_tracer_monotonicity, err)
 
-      call ocn_tracer_advection_mono_vert_hor_init(config_num_halos, config_horiz_tracer_adv_order,    &
+      elseif (config_adv_first_direction.eq.'vertical') then
+         call ocn_tracer_advection_mono_vert_hor_init(domain, config_num_halos, config_horiz_tracer_adv_order,    &
                                           config_vert_tracer_adv_order, config_coef_3rd_order, &
                                           config_check_tracer_monotonicity, err)
+      else
+          call mpas_log_write(' Incorrect choice of config_adv_first_direction',MPAS_LOG_CRIT)
+      endif
 
       ! if an error is returned from init routines, write an error
       ! message and return a non-zero error code
