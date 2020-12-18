@@ -2321,22 +2321,6 @@
 				description="salinity averaged over ocean surface layer (generally 0.1 of the ocean boundary layer)"
 			/>
 		</var_array>
-		<var_array name="tracerHorizontalFCTscaleFactor" type="real" dimensions="nVertLevels nEdges Time" packages="forwardMode;analysisMode">
-		<var name="temperatureHorizontalFCTscaleFactor" array_group="horizontalFCTscaleFactor" units="NA"
-			 description="scale factor for horizontal limiting, 0 implies full upwind, 1 is full high order"
-			 />
-		<var name="salinityHorizontalFCTscaleFactor" array_group="horizontalFCTscaleFactor" units="NA"
-			 description="scale factor for horizontal limiting, 0 implies full upwind, 1 is full high order"
-			 />
-		 </var_array>
-		 <var_array name="tracerVerticalFCTscaleFactor" type="real" dimensions="nVertLevels nCells Time" packages="forwardMode;analysisMode">
-		<var name="temperatureVerticalFCTscaleFactor" array_group="verticalFCTscaleFactor" units="NA"
-			 description="scale factor for vertical limiting, 0 implies full upwind, 1 is full high order"
-		/>
-		<var name="salinityVerticalFCTscaleFactor" array_group="verticalFCTscaleFactor" units="NA"
-			 description="scale factor for vertical limiting, 0 implies full upwind, 1 is full high order"
-		/>
-		</var_array>
 		<var name="normalVelocitySurfaceLayer" type="real" dimensions="nEdges Time" units="m s^{-1}"
 			 description="normal velocity averaged over ocean surface layer (generally 0.1 of the ocean boundary layer)"
 			 packages="forwardMode;analysisMode"
