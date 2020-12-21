@@ -1,9 +1,8 @@
-.. role:: red
 
 Vertical Lagrangian-remap method
 ================================
 
-date: 2020/12/10
+date: 2020/12/21
 
 Contributors: Darren Engwirda, Xylar Asay-Davis, Carolyn Begeman
 
@@ -12,7 +11,7 @@ Contributors: Darren Engwirda, Xylar Asay-Davis, Carolyn Begeman
 Summary
 -------
 
-We propose to implement the vertical Lagrangian-remap method to support the 
+We :red:`propose` to implement the vertical Lagrangian-remap method to support the 
 choice of hybrid vertical coordinates, which may be required for evolving ice-
 shelf cavity geometries. It can be seen as an extension of the Arbitrary 
 Lagrangian-Eulerian method which is already implemented in MPAS-Ocean, a key 
@@ -142,13 +141,14 @@ additional errors.
 Requirement: modularity
 ^^^^^^^^^^^^^^^^^^^^^^^
 
-Date last modified: 2020/12/15
+Date last modified: 2020/12/21
 
 Contributors: Darren Engwirda, Xylar Asay-Davis, Carolyn Begeman
 
 To the degree possible, the code for determining the target grid and performing 
 remapping should be kept in its own Fortran module(s) for better readability.
-
+These modules should be called by both timestepping routines to maximize code
+reuse.
 
 
 Algorithm Design (optional)
@@ -183,9 +183,10 @@ For the Lagrangian step, the vertical velocity through the top of the cell, :mat
 
    \frac{\partial (h_k \phi_k)}{\partial t} + \nabla \cdot (h_k \mathbf{u}_k \phi_k) = [D_h^{\phi}]_k + [D_v^{\phi}]_k + F_k^{\phi}
    
-The time-stepping algorithm (RK4 or split-explicit) yields the updated 
-variables :math:`u_k^{lg},h_k^{lg},\phi_k^{lg}`, where the superscript
-*lg* is used to designate the values after the Lagrangian step.
+The time-stepping algorithm (RK4 or split-explicit) advances the prognostic 
+variables and layer thickness from their values at time n 
+:math:`u_k^{n},\phi_k^{n},h_k^{n}`, to their values after the Lagrangian step,
+designated by the superscript *lg*, :math:`u_k^{lg},h_k^{lg},\phi_k^{lg}`
 
 Note that the vertical mixing terms :math:`D_v^h, D_v^{\phi}` 
 are retained here. We opt to compute these terms prior to remapping as this 
@@ -207,8 +208,8 @@ regridding to coordinate systems not already supported in MPAS-Ocean, as this
 will be the subject of future development. For now, the target grid based on a 
 constant set of z-star levels that are specified at initialization.
 
-For the regridding step, layer thicknesses are set according to the target 
-grid, conserving volume:
+For the grid selection step, the target grid is determined and layer thicknesses 
+are set according to the target grid, conserving volume:
 
 .. math::
 
