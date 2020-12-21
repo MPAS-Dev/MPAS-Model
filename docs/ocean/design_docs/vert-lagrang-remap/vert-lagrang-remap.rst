@@ -142,7 +142,9 @@ Date last modified: 2020/12/15
 
 Contributors: Darren Engwirda, Xylar Asay-Davis, Carolyn Begeman
 
-The conservation of momentum, volume, and tracer equations in MPAS-Ocean are:
+The conservation of momentum, volume, and tracer equations in MPAS-Ocean (
+`Ringler et al. 2013 <https://www.sciencedirect.com/science/article/abs/pii/S1463500313000760>`_; 
+`Petersen et al. 2014 <https://www.sciencedirect.com/science/article/abs/pii/S1463500314001796>`_) are:
 
 .. math::
 
@@ -150,23 +152,23 @@ The conservation of momentum, volume, and tracer equations in MPAS-Ocean are:
    
    \frac{\partial h_k}{\partial t} + \nabla \cdot (h_k \mathbf{u}_k) + w_k^t - w_{k+1}^t = 0
 
-   \frac{\partial (h_k \phi_k)}{\partial t} + \nabla \cdot (h_k \mathbf{u}_k \phi_k) + \overline{\phi}_k^t w_k^t - \overline{\phi}_{k+1}^t w_{k+1}^t = [D_h^{\phi}]_k + [D_{\nu}^{\phi}]_k + F_k^{\phi}
+   \frac{\partial (h_k \phi_k)}{\partial t} + \nabla \cdot (h_k \mathbf{u}_k \phi_k) + \overline{\phi}_k^t w_k^t - \overline{\phi}_{k+1}^t w_{k+1}^t = [D_h^{\phi}]_k + [D_v^{\phi}]_k + F_k^{\phi}
    
 For the Lagrangian step, the vertical velocity through the top of the cell, :math:`w_k^t`, is set to zero in all of the above equations. Thus, these equations simplify to:
 
 .. math::
 
-   \frac{\partial u_k}{\partial t} + q_k h_k u_k^{normal} = -\frac{1}{\rho_0} \nabla p_k - \frac{rho_k g}{\rho_0} \nabla z_k - \nabla K_k + [D_h^u]_k + [D_{v}^u]_k + F_k^u
+   \frac{\partial u_k}{\partial t} + q_k h_k u_k^{\perp} = -\frac{1}{\rho_0} \nabla p_k - \frac{\rho_k g}{\rho_0} \nabla z_k - \nabla K_k + [D_h^u]_k + [D_v^u]_k + F_k^u
    
    \frac{\partial h_k}{\partial t} + \nabla \cdot (h_k \mathbf{u}_k) = 0
 
-   \frac{\partial (h_k \phi_k)}{\partial t} + \nabla \cdot (h_k \mathbf{u}_k \phi_k) = [D_h^{\phi}]_k + [D_{v}^{\phi}]_k + F_k^{\phi}
+   \frac{\partial (h_k \phi_k)}{\partial t} + \nabla \cdot (h_k \mathbf{u}_k \phi_k) = [D_h^{\phi}]_k + [D_v^{\phi}]_k + F_k^{\phi}
    
 The time-stepping algorithm (RK4 or split-explicit) yields the updated 
 variables :math:`u_k^{lg},h_k^{lg},\phi_k^{lg}`, where the superscript
 *lg* is used to designate the values after the Lagrangian step.
 
-Note that the vertical mixing terms :math:`D_h^u, D_v^h, D_h^{\phi}, D_v^{\phi}` 
+Note that the vertical mixing terms :math: D_v^h, D_v^{\phi}` 
 are retained here. We opt to compute these terms prior to remapping as this 
 allow for future development in which the dynamics are subcycled relative to 
 the thermodynamics and remapping is scheduled on the thermodynamic timestep. 
@@ -183,7 +185,7 @@ be used with coordinate systems that depend on the ocean state (this includes
 the z-star coordinate system in which SSH perturbations are vertically 
 distributed between layers). We do not present an algorithmic design for 
 regridding to coordinate systems not already supported in MPAS-Ocean, as this 
-will be the subject of future development. For now, the target grid based on a 
+will be the subject of future development. For now, the target grid is based on a 
 constant set of z-levels that are specified at initialization.
 
 For the regridding step, layer thicknesses are set according to the target 
@@ -216,7 +218,7 @@ or
 
 .. math::
 
-   w = (h_k^{t+1} - h_k^lg)/dt
+   w = (h_k^{t+1} - h_k^{lg})/dt
 
 The choice between the two is discussed in the Implementation section.
 
@@ -521,4 +523,3 @@ Contributors: Darren Engwirda, Xylar Asay-Davis, Carolyn Begeman
 
 Temporarily set prognosticVariable(tlev=1) to unrealistic value after remapping 
 so that any errors due to interference will be detectable?
-
