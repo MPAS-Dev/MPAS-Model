@@ -1,9 +1,0 @@
-<template>
-	<namelist>
-		<option name="config_use_debugTracers">.false.</option>
-		<option name="config_use_activeTracers_surface_restoring">.false.</option>
-		<option name="config_adv_first_direction">'vertical'</option>
-		<option name="config_activeTracer_vert_limiter">'fixed_global_limit'</option>
-	</namelist>
-
-</template>
