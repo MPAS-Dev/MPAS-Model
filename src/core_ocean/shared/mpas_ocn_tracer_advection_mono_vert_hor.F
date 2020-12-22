@@ -744,13 +744,13 @@ module ocn_tracer_advection_mono_vert_hor
         nCells = nCellsArray(size(nCellsArray))
 
         !$omp parallel
-        !$omp do schedule(runtime)
+        !$omp do schedule(runtime) private(k)
         do iCell = 1, nCells+1
-        do k=1, nVertLevels
-           workTend(k, iCell) = 0.0_RKIND
-           flxIn   (k, iCell) = 0.0_RKIND
-           flxOut  (k, iCell) = 0.0_RKIND
-        end do ! k loop
+           do k=1, nVertLevels
+              workTend(k, iCell) = 0.0_RKIND
+              flxIn   (k, iCell) = 0.0_RKIND
+              flxOut  (k, iCell) = 0.0_RKIND
+           end do ! k loop
         end do ! iCell loop
         !$omp end do
         !$omp end parallel
