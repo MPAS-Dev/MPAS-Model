@@ -184,7 +184,70 @@ set(CORE_OCEAN_SOURCES ${OCEAN_SOURCES} ${OCEAN_DRIVER} ${OCEAN_ANALYSIS} ${CVMI
 add_library(dycore ${CORE_OCEAN_SOURCES})
 target_compile_definitions(dycore PRIVATE ${Defines})
 target_include_directories(dycore PRIVATE ${CORE_OCEAN_INCLUDE_DIRS}/inc ${FRAMEWORK_INCLUDE_DIRS} ${OPERATORS_INCLUDE_DIRS} ${PIO_INCLUDE_DIRS} ${ESMF_INCLUDE_DIRS} ${EZXML_INCLUDE_DIRS} ${MPI_Fortran_INCLUDE_PATH})
-add_dependencies(dycore framework ops piof esmf_time gen_include)
+add_dependencies(dycore framework ops esmf_time gen_include)
+
+set(NL_GEN ${CMAKE_BINARY_DIR}/src/tools/input_gen/namelist_gen)
+set(ST_GEN ${CMAKE_BINARY_DIR}/src/tools/input_gen/streams_gen)
+
+add_custom_command(OUTPUT namelist.ocean
+    COMMAND ${NL_GEN} ../Registry_processed.xml namelist.ocean
+    COMMAND cp namelist.ocean ${CMAKE_BINARY_DIR}/default_inputs
+    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/src/core_ocean/default_inputs
+    DEPENDS mkdir_default_inputs Registry_processed.xml ${NL_GEN})
+
+add_custom_command(OUTPUT namelist.ocean.forward
+    COMMAND ${NL_GEN} ../Registry_processed.xml namelist.ocean.forward mode=forward
+    COMMAND cp namelist.ocean.forward ${CMAKE_BINARY_DIR}/default_inputs
+    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/src/core_ocean/default_inputs
+    DEPENDS mkdir_default_inputs Registry_processed.xml ${NL_GEN})
+
+add_custom_command(OUTPUT namelist.ocean.analysis
+    COMMAND ${NL_GEN} ../Registry_processed.xml namelist.ocean.analysis mode=analysis
+    COMMAND cp namelist.ocean.analysis ${CMAKE_BINARY_DIR}/default_inputs
+    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/src/core_ocean/default_inputs
+    DEPENDS mkdir_default_inputs Registry_processed.xml ${NL_GEN})
+
+add_custom_command(OUTPUT namelist.ocean.init
+    COMMAND ${NL_GEN} ../Registry_processed.xml namelist.ocean.init mode=init
+    COMMAND cp namelist.ocean.init ${CMAKE_BINARY_DIR}/default_inputs
+    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/src/core_ocean/default_inputs
+    DEPENDS mkdir_default_inputs Registry_processed.xml ${NL_GEN})
+
+add_custom_target(gen_namelists DEPENDS namelist.ocean namelist.ocean.forward
+    namelist.ocean.analysis namelist.ocean.init)
+
+add_custom_command(OUTPUT streams.ocean
+    COMMAND ${ST_GEN} ../Registry_processed.xml streams.ocean stream_list.ocean. mutable
+    COMMAND cp streams.ocean ${CMAKE_BINARY_DIR}/default_inputs
+    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/src/core_ocean/default_inputs
+    DEPENDS mkdir_default_inputs Registry_processed.xml ${ST_GEN})
+
+add_custom_command(OUTPUT streams.ocean.forward
+    COMMAND ${ST_GEN} ../Registry_processed.xml streams.ocean.forward stream_list.ocean.forward. mutable mode=forward
+    COMMAND cp streams.ocean.forward ${CMAKE_BINARY_DIR}/default_inputs
+    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/src/core_ocean/default_inputs
+    DEPENDS mkdir_default_inputs Registry_processed.xml ${ST_GEN})
+
+add_custom_command(OUTPUT streams.ocean.analysis
+    COMMAND ${ST_GEN} ../Registry_processed.xml streams.ocean.analysis stream_list.ocean.analysis. mutable mode=analysis
+    COMMAND cp streams.ocean.analysis ${CMAKE_BINARY_DIR}/default_inputs
+    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/src/core_ocean/default_inputs
+    DEPENDS mkdir_default_inputs Registry_processed.xml ${ST_GEN})
+
+add_custom_command(OUTPUT streams.ocean.init
+    COMMAND ${ST_GEN} ../Registry_processed.xml streams.ocean.init stream_list.ocean.init. mutable mode=init
+    COMMAND cp streams.ocean.init ${CMAKE_BINARY_DIR}/default_inputs
+    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/src/core_ocean/default_inputs
+    DEPENDS mkdir_default_inputs Registry_processed.xml ${ST_GEN})
+
+add_custom_target(gen_streams DEPENDS streams.ocean streams.ocean.forward
+    streams.ocean.analysis streams.ocean.init)
+
+add_custom_command(OUTPUT default_inputs
+    COMMAND mkdir ARGS default_inputs src/core_ocean/default_inputs
+    WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
+
+add_custom_target(mkdir_default_inputs DEPENDS default_inputs)
 
 add_custom_command(OUTPUT Registry_processed.xml
     COMMAND cpp ARGS -P ARGS -traditional ARGS ${CMAKE_CURRENT_SOURCE_DIR}/Registry.xml > Registry_processed.xml

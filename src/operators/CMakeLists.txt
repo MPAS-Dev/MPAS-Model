@@ -15,4 +15,4 @@ set(OPERATORS_SOURCES
 add_library(ops ${OPERATORS_SOURCES})
 set_target_properties(ops PROPERTIES COMPILE_DEFINITIONS "${Defines}")
 target_include_directories(ops PRIVATE ${FRAMEWORK_INCLUDE_DIRS} ${PIO_INCLUDE_DIRS} ${ESMF_INCLUDE_DIRS})
-add_dependencies(ops piof framework esmf_time)
+add_dependencies(ops framework esmf_time)
