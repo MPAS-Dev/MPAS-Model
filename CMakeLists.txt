@@ -55,7 +55,12 @@ set(PIO_C_EXTRA_LIBRARIES ${MPI_C_LIBRARIES})
 set(PIO_C_EXTRA_INCLUDE_DIRS ${MPI_C_INCLUDE_PATH})
 set(PIO_Fortran_EXTRA_INCLUDE_DIRS ${MPI_Fortran_INCLUDE_PATH})
 set(PIO_Fortran_EXTRA_LIBRARIES ${MPI_Fortran_LIBRARIES})
-set(PNETCDF $ENV{PNETCDF})
+if ( DEFINED ENV{PNETCDF} )
+   set(PNETCDF $ENV{PNETCDF})
+endif()
+if ( DEFINED ENV{NETCDF_ROOT} )
+   set(NETCDF $ENV{NETCDF_ROOT})
+endif()
 add_subdirectory(scorpio)
 set(PIO_INCLUDE_DIRS ${CMAKE_BINARY_DIR}/scorpio/src/flib)
 set(INCLUDES "${INCLUDES};${PIO_INCLUDE_DIRS}")
@@ -253,4 +258,37 @@ target_link_libraries(ocean_model PRIVATE dycore framework ops ezxml)
 target_link_libraries(ocean_model PRIVATE ${LIBRARIES})
 set_property(TARGET ocean_model PROPERTY LINKER_LANGUAGE Fortran)
 add_dependencies(ocean_model gen_namelists gen_streams)
+
+add_custom_command(OUTPUT ${CMAKE_BINARY_DIR}/nightly_ocean_test_suite.py
+     COMMAND sed ARGS 
+       -e '/^forward/s!FULL_PATH_TO_MPAS_MODEL_REPO!${CMAKE_BINARY_DIR}/default_inputs!'
+       -e '/^init/s!FULL_PATH_TO_MPAS_MODEL_REPO!${CMAKE_BINARY_DIR}/default_inputs!'
+       -e '/^model/s!FULL_PATH_TO_MPAS_MODEL_REPO!${CMAKE_BINARY_DIR}!'
+       -e '/^mpas_model/s!FULL_PATH_TO_MPAS_MODEL_REPO!${CMAKE_SOURCE_DIR}!'
+       -e '/^mpas_model/ageometric_data = /turquoise/usr/projects/climate/mpeterse/repos/geometric_features/master/geometric_data'
+       -e '/FULL_PATH_TO_LOCAL_MESH_DATABASE/s!FULL_PATH_TO_LOCAL_MESH_DATABASE!/usr/projects/regionalclimate/COMMON_MPAS/ocean/grids/mesh_database!'
+       -e '/FULL_PATH_TO_LOCAL_INITIAL_CONDITION_DATABASE/s!FULL_PATH_TO_LOCAL_INITIAL_CONDITION_DATABASE!/usr/projects/regionalclimate/COMMON_MPAS/ocean/grids/initial_condition_database!'
+       -e '/FULL_PATH_TO_BATHYMETRY_DATABASE/s!FULL_PATH_TO_BATHYMETRY_DATABASE!/usr/projects/regionalclimate/COMMON_MPAS/ocean/!'
+       -e '/forward/s!namelist.ocean!namelist.ocean.forward!'
+       -e '/init/s!namelist.ocean!namelist.ocean.init!'
+       general.config.ocean > ${CMAKE_BINARY_DIR}/general.config.ocean.sys
+     COMMAND ./manage_regression_suite.py ARGS -t ocean/regression_suites/nightly.xml 
+        -f ${CMAKE_BINARY_DIR}/general.config.ocean.sys -s -m runtime_definitions/srun.xml --work_dir ${CMAKE_BINARY_DIR}
+     WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/testing_and_setup/compass )
+
+add_custom_target(gen_test_suite DEPENDS ${CMAKE_BINARY_DIR}/nightly_ocean_test_suite.py)
+
+add_custom_command(OUTPUT case_outputs/Global_Ocean_240km_-_Init_Test
+     COMMAND ./nightly_ocean_test_suite.py
+     WORKING_DIRECTORY ${CMAKE_BINARY_DIR} 
+     DEPENDS ${CMAKE_BINARY_DIR}/nightly_ocean_test_suite.py)
+
+add_custom_target(regression_tests DEPENDS case_outputs)
+
+add_custom_command(OUTPUT cleanup.stamp
+     COMMAND rm ARGS -rf ocean case_outputs nightly_ocean_test_suite.py general.config.ocean.sys
+     COMMAND ${CMAKE_COMMAND} ARGS -E touch cleanup.stamp
+     WORKING_DIRECTORY ${CMAKE_BINARY_DIR} )
+
+add_custom_target(test_cleanup DEPENDS cleanup.stamp)
 
