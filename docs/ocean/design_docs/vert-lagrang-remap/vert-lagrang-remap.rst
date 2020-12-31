@@ -167,13 +167,15 @@ The conservation of momentum, volume, and tracer equations in MPAS-Ocean (
 
 .. math::
 
-   \frac{\partial u_k}{\partial t} + q_k h_k u_k^{normal} + \overline{w^t \delta z^t u} = -\frac{1}{\rho_0} \nabla p_k - \frac{rho_k g}{\rho_0} \nabla z_k - \nabla K_k + [D_h^u]_k + [D_{\nu}^u]_k + F_k^u
+   \frac{\partial u_k}{\partial t} + q_k h_k u_k^{normal} + \overline{w^t \delta z^t u} = -\frac{1}{\rho_0} \nabla p_k - \frac{\rho_k g}{\rho_0} \nabla z_k - \nabla K_k + [D_h^u]_k + [D_{\nu}^u]_k + F_k^u
    
    \frac{\partial h_k}{\partial t} + \nabla \cdot (h_k \mathbf{u}_k) + w_k^t - w_{k+1}^t = 0
 
    \frac{\partial (h_k \phi_k)}{\partial t} + \nabla \cdot (h_k \mathbf{u}_k \phi_k) + \overline{\phi}_k^t w_k^t - \overline{\phi}_{k+1}^t w_{k+1}^t = [D_h^{\phi}]_k + [D_v^{\phi}]_k + F_k^{\phi}
    
-For the Lagrangian step, the vertical velocity through the top of the cell, :math:`w_k^t`, is set to zero in all of the above equations. Thus, these equations simplify to:
+For the Lagrangian step, the vertical velocity through the top of the cell, 
+:math:`w_k^t`, is set to zero in all of the above equations. Thus, these 
+equations simplify to:
 
 .. math::
 
@@ -186,7 +188,7 @@ For the Lagrangian step, the vertical velocity through the top of the cell, :mat
 The time-stepping algorithm (RK4 or split-explicit) advances the prognostic 
 variables and layer thickness from their values at time n 
 :math:`u_k^{n},\phi_k^{n},h_k^{n}`, to their values after the Lagrangian step,
-designated by the superscript *lg*, :math:`u_k^{lg},h_k^{lg},\phi_k^{lg}`
+designated by the superscript *lg*, :math:`u_k^{lg},h_k^{lg},\phi_k^{lg}`.
 
 Note that the vertical mixing terms :math:`D_v^h, D_v^{\phi}` 
 are retained here. We opt to compute these terms prior to remapping as this 
@@ -205,28 +207,60 @@ be used with coordinate systems that depend on the ocean state (this includes
 the z-star coordinate system in which SSH perturbations are vertically 
 distributed between layers). We do not present an algorithmic design for 
 regridding to coordinate systems not already supported in MPAS-Ocean, as this 
-will be the subject of future development. For now, the target grid based on a 
+will be the subject of future development. For now, the target grid is based on a 
 constant set of z-star levels that are specified at initialization.
 
-For the grid selection step, the target grid is determined and layer thicknesses 
-are set according to the target grid, conserving volume:
+For the grid selection step, the target grid, :math:`h_k^{target}`, is 
+determined, conserving volume:
 
 .. math::
 
-   h_k^{t+1} = h_k^{target}
-   
-   \sum_{k=1}^{kmax}h_k^{t+1} = \sum_{k=1}^{kmax}h_k^{lg}
+   \sum_{k=1}^{kmax}h_k^{target} = \sum_{k=1}^{kmax}h_k^{lg}
 
 
-For the remapping step, velocities (edge-normal) and scalars are remapped to 
-the target grid, conserving volume flux and scalar concentration:
+For scalar remapping, layer thicknesses at the next timestep, 
+:math:`h_k^{n+1}` are set according to the target grid and scalars are remapped 
+to the target grid using the remapping operations represented by the function 
+:math:`G`:
 
 .. math::
 
-   \sum_{k=1}^{kmax} u_k^{t+1} h_k^{t+1} = \sum_{k=1}^{kmax} u_k^{lg} h_k^{lg}
+   h_k^{n+1} = h_k^{target}
    
-   \sum_{k=1}^{kmax} \phi_k^{t+1} h_k^{t+1} = \sum_{k=1}^{kmax} \phi_k^{lg} h_k^{lg}
+   hEdge_k^{n+1} = 0.5 (h_{k,cell1}^{n+1} + h_{k,cell2}^{n+1})
 
+   u_k^{n+1} = G(u_k^{lg},hEdge_k^{lg},hEdge_k^{n+1})
+
+   \phi_k^{n+1} = G(\phi_k^{lg},\phi_k^{lg},h_k^{n+1})
+
+For velocity remapping, we solve for layer thicknesses at edges after the 
+lagrangian step and the regridded thickness. In this development, we only plan 
+to support centered edge layer thicknesses consistent with the centered 
+advection scheme. There does not appear to be a precedent among ocean models 
+(HYCOM, MOM6) at this time for using upwinded layer thickness in the remapping 
+operation. We touch on a few of the implementation challenges with using 
+upwinded layer thicknesses for remapping in the corresponding implementation 
+section. If VLR is run with an upwinded thickness flux, the horizontal momentum 
+flux will not be conserved as :math:`hEdge^{n+1}` will be reassigned to the 
+upwinded layer thickness (errors will likely increase as horizontal gradients 
+in layer thickness increase). Otherwise, the remapping operation :math:`G` 
+conserves volume flux and scalar concentration.
+
+.. math::
+
+   hEdge_k^{lg} = 0.5 (h_{k,cell1}^{lg} + h_{k,cell2}^{lg})
+   
+   hEdge_k^{n+1} = 0.5 (h_{k,cell1}^{n+1} + h_{k,cell2}^{n+1})
+
+   u_k^{n+1} = G(u_k^{lg},hEdge_k^{lg},hEdge_k^{n+1})
+
+
+.. math::
+
+   \sum_{k=1}^{kmax} u_k^{n+1} h_k^{n+1} = \sum_{k=1}^{kmax} u_k^{lg} h_k^{lg}
+   
+   \sum_{k=1}^{kmax} \phi_k^{n+1} h_k^{n+1} = \sum_{k=1}^{kmax} \phi_k^{lg} h_k^{lg}
+   
 The vertical velocity across layer interfaces may be computed anytime after 
 regridding. It can be computed as 
 
@@ -277,48 +311,81 @@ We will likely need to bypass the :code:`ocn_ALE_thickness` call in
 thickness for SSH perturbations occur during the regridding step.
 
 
-Regridding step(s):
+Grid selection step:
 
-#. :math:`z_k^1`, the depth of the top of the layer, is determined based on 
+#. :math:`z_k^{target}`, the depth of the top of the layer, is determined based on 
    an analytical expression for the grid. 
-   The simplest case is constant z-levels, :math:`z_k^1 = z_k^{init}`.
-   Since :math:`z_k^1` can be a function of the ocean state (e.g., :math:`\rho` 
-   for isopycnal coordinates, regridding doesn't begin until after the solution 
+   The simplest case is constant z-levels, :math:`z_k^{target} = z_k^{init}`.
+   Since :math:`z_k^{target}` can be a function of the ocean state (e.g., :math:`\rho` 
+   for isopycnal coordinates, grid selection doesn't occur until after the solution 
    for prognostic variables.
 #. Superimpose SSH perturbations according to one of the existing depth-
-   dependent functions, :math:`z_k^2 = z_k^1 + c(z) \: \eta`. As in 
+   dependent functions, :math:`z_k^{target} = z_k^{target} + c(z) \: \eta`. As in 
    :code:`ocn_ALE_thickness`, layer thicknesses are adjusted from the seafloor 
    upwards. Ideally, there is a single function that is used for both ALE
    implementations, with and without VLR.
 #. Apply conditioning steps outlined in the following section.
-#. Update :code:`layerThicknessEdge` from the updated :code:`layerThickness`
-   using routine :code:`ocn_diagnostic_solve_layerThicknessEdge`. Note that 
-   :code:`zTop, zMid` are updated later when :code:`ocn_diagnostic_solve` is 
-   called.
+#. In preparation for remapping, compute :code:`layerThicknessTarget` from 
+   :math:`z_k^{target}`.
 
-All of the regridding steps will be performed from a separate module.
+All of the grid selection steps will be performed from a separate module.
 This topic is further addressed in section Implementation: modularity.
 
 
 Remapping step:
 
-Layer thickness has already been updated to reflect Lagrangian motion when 
-:code:`ocn_tend_thick` is called. This is stored in 
-:code:`layerThickness(tlev=2)`.
+This is stored in 
+:code:`layerThickness(tlev=2)`. The scratch variables 
+:code:`layerThicknessTarget`
 
-There is a new remapping routine with inputs:
+There is a new remapping routine with arguments:
 
-- :code:`layerThickness(tlev=2)` for scalars
-- :code:`layerThicknessEdge(tlev=2)` for velocity
-- :code:`bottomDepth`
-- :code:`layerThicknessTarget`
-- :code:`layerThicknessEdgeTarget`
-- Remapped and updated: :code:`normalVelocity`
-- Remapped and updated: All members of :code:`tracerPool` unless 
+- Input: :code:`layerThicknessTarget`, which has been determined by the grid 
+  selection module
+- Input, updated: :code:`layerThickness(tlev=2)`. On input, it reflects the 
+  Lagrangian layer thickness determined by :code:`ocn_tend_thick` is called. On
+  output, it is equal to `layerThicknessTarget`. Note that :code:`layerThicknessEdge`
+  is updated later when :code:`ocn_diagnostic_solve` is called.
+- Input, updated: :code:`normalVelocity`
+- Input, updated: All members of :code:`tracerPool` unless 
   :code:`activeTracersOnly`, in which case only the :code:`activeTracers`
-- *This may not be a complete list*
+- Remapping options
 
-This routine makes calls to the PPR library
+
+In preparation for remapping, we compute the scratch variables 
+:code:`layerThicknessEdgeTarget` from :code:`layerThicknessTarget` and 
+:code:`layerThicknessEdgeOld` from :code:`layerThickness(tlev=2)` as the 
+average of neighboring cells. We do these locally rather than through a call to 
+:code:`ocn_diagnostic_solve_layerThicknessEdge`. This may introduce 
+inconsistencies in horizontal momentum fluxes if 
+:code:`config_thickness_flux_type` is not :code:`'centered'`. At initialization, 
+we throw an error but do not terminate the run if 
+:code:`config_thickness_flux_type` is not :code:`'centered'` and VLR is active.
+
+
+A note about difficulties of implementing upwinded :code:`layerThicknessEdge` for 
+remapping:
+
+Currently, the PPR library assumes that the total height is the same before and 
+after remapping (i.e., :code:`sum_k(layerThicknessOld)` equals 
+:code:`sum_k(layerThicknessTarget)`. Over the course of remapping, the upwind 
+cell could change for one or more layers and thus the total column height could 
+change. PPR would have to be carefully adapted to deal with this condition in 
+order to preserve the total volume flux as well as the vertical distribution of 
+momentum during remapping. 
+
+An alternative to modifying the remapping library is to use centered edge layer 
+thicknesses for remapping and correct :code:`uNormal` prior to remapping such 
+that :code:`uNormalCorr(k) * layerThicknessEdgeCntr(k) = uNormal(k) * layerThicknessEdgeUpwind(k)`.
+When edge layer thicknesses are upwinded based on the remapped :code:`uNormal`, 
+:code:`uNormal` must be corrected again to preserve layerwise fluxes. There 
+will still be some error in the vertical distribution of volume flux with this 
+approach. Given the complexity of either of these implementation options, we 
+leave this issue for future development.
+
+
+After determining the layer thicknesses to remap to, this routine makes calls to 
+the PPR library, one for velocity remapping and one for each active tracer. 
 
 *More details here*
 
@@ -327,8 +394,6 @@ Some implementation considerations for PPR:
 - Error-checking in PPR: make consistent with MPAS errors, consider additional
   error checks
 - *Add more here*
-
-:code:`layerThickness(tlev=2)` is then overwritten with the new layer thickness.
 
 After remapping, :code:`ocn_diagnostic_solve` is called. This is needed to 
 compute the density and pressure fields based on the remapped ocean state and
