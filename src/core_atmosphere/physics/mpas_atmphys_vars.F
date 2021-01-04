@@ -168,7 +168,10 @@
 !   Laura D. Fowler (laura@ucar.edu) / 2019-10-14).
 ! * removed the initialization of bl_mynn_edmf_mom and bl_mynn_edmf_tke, and moved their initialization to
 !   Registry.xml and namelist.atmosphere.
-!   Laura D. Fowler (laura@ucar.edu) / 2021-01-04
+!   Laura D. Fowler (laura@ucar.edu) / 2021-01-04.
+! * removed the initialization of bl_mynn_tkeadvect and bl_mynn_tkebudget, and moved their initialization to
+!   Registry.xml and namelist.atmosphere.
+!   Laura D. Fowler (laura@ucar.edu) / 2021-01-04.
 
 
 !=================================================================================================================
@@ -531,9 +534,6 @@
  integer,parameter:: spp_pbl       = 0          !generate array with random perturbations (0=off,1=on).
  integer,parameter:: grav_settling = 0
  integer,parameter:: icloud_bl     = 0          !no coupling of subgrid-scale clouds with radiation.
-
- logical,parameter:: bl_mynn_tkeadvect = .false.!default off; = .true. do MYNN tke advection.
- integer,parameter:: bl_mynn_tkebudget = 0      !0, default off; = 1 adds MYNN tke budget terms to output.
 
  integer,parameter:: bl_mynn_mixlength = 1      !option to change mixing length formulation in MYNN.
                                                 != 0: Nakanishi and Niino (2009),original.

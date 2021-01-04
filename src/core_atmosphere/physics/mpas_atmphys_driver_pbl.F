@@ -692,15 +692,19 @@
  type(mpas_pool_type),intent(inout):: tend_physics
 
 !local pointers:
- logical,pointer:: config_do_restart
+ logical,pointer:: config_do_restart,  &
+                   bl_mynn_tkeadvect
+
  character(len=StrKIND),pointer:: pbl_scheme
+
  integer,pointer:: bl_mynn_cloudpdf,   &
                    bl_mynn_edmf,       &
                    bl_mynn_edmf_mom,   &
                    bl_mynn_edmf_tke,   &
                    bl_mynn_closure,    &
                    bl_mynn_mixscalars, &
-                   bl_mynn_cloudmix
+                   bl_mynn_cloudmix,   &
+                   bl_mynn_tkebudget
 
 !local variables:
  integer:: initflag
@@ -757,6 +761,8 @@
        call mpas_pool_get_config(configs,'config_mynn_closure'   ,bl_mynn_closure   )
        call mpas_pool_get_config(configs,'config_mynn_mixscalars',bl_mynn_mixscalars)
        call mpas_pool_get_config(configs,'config_mynn_mixclouds' ,bl_mynn_cloudmix  )
+       call mpas_pool_get_config(configs,'config_mynn_tkeadvect' ,bl_mynn_tkeadvect )
+       call mpas_pool_get_config(configs,'config_mynn_tkebudget' ,bl_mynn_tkebudget )
 
        call mpas_log_write(' ')
        call mpas_log_write('--- enter subroutine mynn_bl_driver:')
@@ -767,6 +773,8 @@
        call mpas_log_write('--- config_mynn_closure    = $i',intArgs=(/bl_mynn_closure/))
        call mpas_log_write('--- config_mynn_mixscalars = $i',intArgs=(/bl_mynn_mixscalars/))
        call mpas_log_write('--- config_mynn_mixclouds  = $i',intArgs=(/bl_mynn_cloudmix/))
+       call mpas_log_write('--- config_mynn_tkeadvect  = $l',logicArgs=(/bl_mynn_tkeadvect/))
+       call mpas_log_write('--- config_mynn_tkebudget  = $i',intArgs=(/bl_mynn_tkebudget/))
 
        call mpas_timer_start('bl_mynn')
        call mynn_bl_driver ( &

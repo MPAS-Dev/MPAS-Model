@@ -2137,6 +2137,16 @@
                      description="closure option for shallow convection in Grell-Freitas convection scheme"
                      possible_values="8"/>
 
+                <nml_option name="config_mynn_tkeadvect" type="logical" default_value="false" in_defaults="false"
+                     units="-"
+                     description="= true: do MYNN TKE advection"
+                     possible_values=".true. or .false."/>
+
+                <nml_option name="config_mynn_tkebudget" type="integer" default_value="0" in_defaults="false"
+                     units="-"
+                     description="= 1: option to add the MYNN TKE budget terms to output"
+                     possible_values="0,1"/>
+
                 <nml_option name="config_mynn_closure" type="integer" default_value="2" in_defaults="false"
                      units="-"
                      description="2.5 (set to 2) level or 3.0 (set to 3) level for the MYNN TKE turbulence closure"
