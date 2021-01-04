@@ -166,6 +166,9 @@
 !   Laura D. Fowler (laura@ucar.edu) / 2019-09-11.
 ! * added the variable zd_shalc_p which is the local normalized downdraft mass flux for shallow convection.
 !   Laura D. Fowler (laura@ucar.edu) / 2019-10-14).
+! * removed the initialization of bl_mynn_edmf_mom and bl_mynn_edmf_tke, and moved their initialization to
+!   Registry.xml and namelist.atmosphere.
+!   Laura D. Fowler (laura@ucar.edu) / 2021-01-04
 
 
 !=================================================================================================================
@@ -539,14 +542,6 @@
                                                 !     with the edmf options.
  integer,parameter:: bl_mynn_mixqt     = 0      != 0: mix moisture species separately.
                                                 != 1: mix total water.
-
-!edmf options:
- integer,parameter:: bl_mynn_edmf_mom  = 0      !option to activate momentum transport (bl_mynn_edmf >0).
-                                                != 0: option is turned off.
-                                                != 1: option is turned on.
- integer,parameter:: bl_mynn_edmf_tke  = 0      !option to activate TKE transport (bl_mynn_edmf >0).
-                                                != 0: option is turned off.
-                                                != 1: option is turned on.
 
  integer,dimension(:,:),allocatable:: &
     ktopbl_shalc_p,   &!cloud-top level for PBL shallow convection.

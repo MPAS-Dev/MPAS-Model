@@ -2149,7 +2149,17 @@
 
                 <nml_option name="config_mynn_edmf" type="integer" default_value="1" in_defaults="false"
                      units="-"
-                     description="option to activate the PBL eddy diffusivity mass flux scheme in the mynn PBL scheme"
+                     description="= 1: option to activate the PBL eddy diffusivity mass flux scheme in the mynn PBL scheme"
+                     possible_values="0,1"/>
+
+                <nml_option name="config_mynn_edmf_mom" type="integer" default_value="0" in_defaults="false"
+                     units="-"
+                     description="= 1: option to activate momentum transport in the EDMF option of the mynn PBL scheme"
+                     possible_values="0,1"/>
+
+                <nml_option name="config_mynn_edmf_tke" type="integer" default_value="0" in_defaults="false"
+                     units="-"
+                     description="= 1: option to activate TKE transport in the EDMF option of the mynn PBL scheme"
                      possible_values="0,1"/>
 
                 <nml_option name="config_mynn_mixscalars" type="integer" default_value="1" in_defaults="false"
