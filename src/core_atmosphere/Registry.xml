@@ -2157,6 +2157,11 @@
                      description="switch to different cloud PDFs to represent subgrid clouds in the mynn PBL scheme"
                      possible_values="0,1,2"/>
 
+                <nml_option name="config_mynn_mixlength" type="integer" default_value="2" in_defaults="false"
+                     units="-"
+                     description="mixing length in mynn PBL scheme = 0 (Nakanishi and Niino 2009); = 1 (RAP/HRRR); = 2 (experimental, Ito et al. 2015)"
+                     possible_values=0,1,2"/>
+
                 <nml_option name="config_mynn_edmf" type="integer" default_value="1" in_defaults="false"
                      units="-"
                      description="= 1: option to activate the PBL eddy diffusivity mass flux scheme in the mynn PBL scheme"

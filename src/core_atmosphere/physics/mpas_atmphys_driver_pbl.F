@@ -698,6 +698,7 @@
  character(len=StrKIND),pointer:: pbl_scheme
 
  integer,pointer:: bl_mynn_cloudpdf,   &
+                   bl_mynn_mixlength,  &
                    bl_mynn_edmf,       &
                    bl_mynn_edmf_mom,   &
                    bl_mynn_edmf_tke,   &
@@ -755,6 +756,7 @@
 
     case("bl_mynn")
        call mpas_pool_get_config(configs,'config_mynn_cloudpdf'  ,bl_mynn_cloudpdf  )
+       call mpas_pool_get_config(configs,'config_mynn_mixlength' ,bl_mynn_mixlength )
        call mpas_pool_get_config(configs,'config_mynn_edmf'      ,bl_mynn_edmf      )
        call mpas_pool_get_config(configs,'config_mynn_edmf_mom'  ,bl_mynn_edmf_mom  )
        call mpas_pool_get_config(configs,'config_mynn_edmf_tke'  ,bl_mynn_edmf_tke  )
@@ -767,6 +769,7 @@
        call mpas_log_write(' ')
        call mpas_log_write('--- enter subroutine mynn_bl_driver:')
        call mpas_log_write('--- config_mynn_cloudpdf   = $i',intArgs=(/bl_mynn_cloudpdf/))
+       call mpas_log_write('--- config_mynn_mixlength  = $i',intArgs=(/bl_mynn_mixlength/))
        call mpas_log_write('--- config_mynn_edmf       = $i',intArgs=(/bl_mynn_edmf/))
        call mpas_log_write('--- config_mynn_edmf_mom   = $i',intArgs=(/bl_mynn_edmf_mom/))
        call mpas_log_write('--- config_mynn_edmf_tke   = $i',intArgs=(/bl_mynn_edmf_tke/))

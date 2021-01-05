@@ -172,6 +172,9 @@
 ! * removed the initialization of bl_mynn_tkeadvect and bl_mynn_tkebudget, and moved their initialization to
 !   Registry.xml and namelist.atmosphere.
 !   Laura D. Fowler (laura@ucar.edu) / 2021-01-04.
+! * removed the initialization of bl_mynn_mixlength, and moved its initialization to Registry.xml and
+!   namelist.atmosphere.
+!   Laura D. Fowler (laura@ucar.edu) / 2021-01-04.
 
 
 !=================================================================================================================
@@ -535,11 +538,6 @@
  integer,parameter:: grav_settling = 0
  integer,parameter:: icloud_bl     = 0          !no coupling of subgrid-scale clouds with radiation.
 
- integer,parameter:: bl_mynn_mixlength = 1      !option to change mixing length formulation in MYNN.
-                                                != 0: Nakanishi and Niino (2009),original.
-                                                != 1: RAP/HRRR (default,including BouLac in free atmosphere),
-                                                != 2: experimental (follows Ito et al., 2015,BLM). Well tested
-                                                !     with the edmf options.
  integer,parameter:: bl_mynn_mixqt     = 0      != 0: mix moisture species separately.
                                                 != 1: mix total water.
 
