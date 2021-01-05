@@ -705,6 +705,7 @@
                    bl_mynn_closure,    &
                    bl_mynn_mixscalars, &
                    bl_mynn_cloudmix,   &
+                   bl_mynn_mixqt,      &
                    bl_mynn_tkebudget
 
 !local variables:
@@ -763,6 +764,7 @@
        call mpas_pool_get_config(configs,'config_mynn_closure'   ,bl_mynn_closure   )
        call mpas_pool_get_config(configs,'config_mynn_mixscalars',bl_mynn_mixscalars)
        call mpas_pool_get_config(configs,'config_mynn_mixclouds' ,bl_mynn_cloudmix  )
+       call mpas_pool_get_config(configs,'config_mynn_mixqt'     ,bl_mynn_mixqt     )
        call mpas_pool_get_config(configs,'config_mynn_tkeadvect' ,bl_mynn_tkeadvect )
        call mpas_pool_get_config(configs,'config_mynn_tkebudget' ,bl_mynn_tkebudget )
 
@@ -776,6 +778,7 @@
        call mpas_log_write('--- config_mynn_closure    = $i',intArgs=(/bl_mynn_closure/))
        call mpas_log_write('--- config_mynn_mixscalars = $i',intArgs=(/bl_mynn_mixscalars/))
        call mpas_log_write('--- config_mynn_mixclouds  = $i',intArgs=(/bl_mynn_cloudmix/))
+       call mpas_log_write('--- config_mynn_mixqt      = $i',intArgs=(/bl_mynn_mixqt/))
        call mpas_log_write('--- config_mynn_tkeadvect  = $l',logicArgs=(/bl_mynn_tkeadvect/))
        call mpas_log_write('--- config_mynn_tkebudget  = $i',intArgs=(/bl_mynn_tkebudget/))
 

@@ -175,6 +175,9 @@
 ! * removed the initialization of bl_mynn_mixlength, and moved its initialization to Registry.xml and
 !   namelist.atmosphere.
 !   Laura D. Fowler (laura@ucar.edu) / 2021-01-04.
+! * removed the initialization of bl_mynn_mixqt, and moved its initialization to Registry.xml and
+!   namelist.atmosphere.
+!   Laura D. Fowler (laura@ucar.edu) / 2021-01-04.
 
 
 !=================================================================================================================
@@ -537,9 +540,6 @@
  integer,parameter:: spp_pbl       = 0          !generate array with random perturbations (0=off,1=on).
  integer,parameter:: grav_settling = 0
  integer,parameter:: icloud_bl     = 0          !no coupling of subgrid-scale clouds with radiation.
-
- integer,parameter:: bl_mynn_mixqt     = 0      != 0: mix moisture species separately.
-                                                != 1: mix total water.
 
  integer,dimension(:,:),allocatable:: &
     ktopbl_shalc_p,   &!cloud-top level for PBL shallow convection.
