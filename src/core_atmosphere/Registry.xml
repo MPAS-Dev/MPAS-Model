@@ -2667,27 +2667,27 @@
                      packages="bl_mynn_in"/>
 
                 <var name="edmf_a" type="real" dimensions="nVertLevels nCells Time" units="unitless"
-                     description="EDMF relative updraft area - moist updrafts"
+                     description="EDMF relative updraft area of moist updrafts in the MYNN PBL scheme"
                      packages="bl_mynn_in"/>
 
                 <var name="edmf_w" type="real" dimensions="nVertLevels nCells Time" units="m s^{-1}"
-                     description="EDMF vertical velocity - moist updrafts"
+                     description="EDMF vertical velocity of  moist updrafts in the MYNN PBL scheme"
                      packages="bl_mynn_in"/>
 
                 <var name="edmf_qt" type="real" dimensions="nVertLevels nCells Time" units="kg kg^{-1}"
-                     description="EDMF total water mixing ratio - moist updrafts"
+                     description="EDMF total water mixing ratio in moist updrafts in the MYNN PBL scheme"
                      packages="bl_mynn_in"/>
 
                 <var name="edmf_qc" type="real" dimensions="nVertLevels nCells Time" units="kg kg^{-1}"
-                     description="EDMF liquid water mixing ratio - moist updrafts"
+                     description="EDMF liquid water mixing ratio in moist updrafts in the MYNN PBL scheme"
                      packages="bl_mynn_in"/>
 
                 <var name="edmf_thl" type="real" dimensions="nVertLevels nCells Time" units="K"
-                     description="EDMF liquid water potential temperature - moist updrafts"
+                     description="EDMF liquid-ice water potential temperature in moist updrafts in the MYNN PBL scheme"
                      packages="bl_mynn_in"/>
 
                 <var name="edmf_ent" type="real" dimensions="nVertLevels nCells Time" units="m^{-1}"
-                     description="EDMF entrainment - moist updrafts"
+                     description="EDMF entrainment rate in moist updrafts in the MYNN PBL scheme"
                      packages="bl_mynn_in"/>
 
 
