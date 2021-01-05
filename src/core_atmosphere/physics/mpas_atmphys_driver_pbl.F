@@ -729,7 +729,8 @@
  type(mpas_pool_type),intent(inout):: tend_physics
 
 !local pointers:
- logical,pointer:: config_do_restart,  &
+ logical,pointer:: config_do_DAcycling, &
+                   config_do_restart,   &
                    bl_mynn_tkeadvect
 
  character(len=StrKIND),pointer:: pbl_scheme
@@ -754,8 +755,9 @@
 !call mpas_log_write('')
 !call mpas_log_write('--- enter subroutine driver_pbl:')
 
- call mpas_pool_get_config(configs,'config_do_restart'   ,config_do_restart)
- call mpas_pool_get_config(configs,'config_pbl_scheme'   ,pbl_scheme       )
+ call mpas_pool_get_config(configs,'config_do_DAcycling',config_do_DAcycling)
+ call mpas_pool_get_config(configs,'config_do_restart'  ,config_do_restart  )
+ call mpas_pool_get_config(configs,'config_pbl_scheme'  ,pbl_scheme         )
 
 !copy MPAS arrays to local arrays:
  call pbl_from_MPAS(configs,mesh,sfc_input,diag_physics,tend_physics,its,ite)
