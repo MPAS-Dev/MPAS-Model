@@ -2139,12 +2139,12 @@
 
                 <nml_option name="config_mynn_tkeadvect" type="logical" default_value="false" in_defaults="false"
                      units="-"
-                     description="= true: do MYNN TKE advection"
+                     description="= true:do MYNN TKE advection"
                      possible_values=".true. or .false."/>
 
                 <nml_option name="config_mynn_tkebudget" type="integer" default_value="0" in_defaults="false"
                      units="-"
-                     description="= 1: option to add the MYNN TKE budget terms to output"
+                     description="=1:option to add the MYNN TKE budget terms to output"
                      possible_values="0,1"/>
 
                 <nml_option name="config_mynn_closure" type="integer" default_value="2" in_defaults="false"
@@ -2152,44 +2152,44 @@
                      description="2.5 (set to 2) level or 3.0 (set to 3) level for the MYNN TKE turbulence closure"
                      possible_values="2,3"/>
 
-                <nml_option name="config_mynn_cloudpdf" type="integer" default_value="-1" in_defaults="false"
+                <nml_option name="config_mynn_cloudpdf" type="integer" default_value="2" in_defaults="false"
                      units="-"
-                     description="switch to different cloud PDFs to represent subgrid clouds in the mynn PBL scheme"
+                     description="switch to different cloud PDFs to represent subgrid clouds in the MYNN PBL scheme"
                      possible_values="0,1,2"/>
 
                 <nml_option name="config_mynn_mixlength" type="integer" default_value="2" in_defaults="false"
                      units="-"
-                     description="mixing length in mynn PBL scheme = 0 (Nakanishi and Niino 2009); = 1 (RAP/HRRR); = 2 (experimental, Ito et al. 2015)"
+                     description="mixing length in the MYNN PBL scheme:=0(Nakanishi and Niino 2009);=1(RAP/HRRR);=2(Ito et al. 2015)"
                      possible_values=0,1,2"/>
 
                 <nml_option name="config_mynn_edmf" type="integer" default_value="1" in_defaults="false"
                      units="-"
-                     description="= 1: option to activate the PBL eddy diffusivity mass flux scheme in the mynn PBL scheme"
+                     description="=1:activate the EDMF option in the MYNN PBL scheme (=0 otherwise)"
                      possible_values="0,1"/>
 
                 <nml_option name="config_mynn_edmf_mom" type="integer" default_value="0" in_defaults="false"
                      units="-"
-                     description="= 1: option to activate momentum transport in the EDMF option of the mynn PBL scheme"
+                     description="=1:activate momentum transport with the EDMF option of the MYNN PBL scheme(=0 otherwise)"
                      possible_values="0,1"/>
 
                 <nml_option name="config_mynn_edmf_tke" type="integer" default_value="0" in_defaults="false"
                      units="-"
-                     description="= 1: option to activate TKE transport in the EDMF option of the mynn PBL scheme"
+                     description="=1:activate TKE transport with the EDMF option of the MYNN PBL scheme (=0 otherwise)"
                      possible_values="0,1"/>
 
                 <nml_option name="config_mynn_mixscalars" type="integer" default_value="1" in_defaults="false"
                      units="-"
-                     description="option to mix scalars in the mynn PBL scheme"
+                     description="=1:activate mixing of scalars in the MYNN PBL scheme (=0 otherwise)"
                      possible_values="0,1"/>
 
                 <nml_option name="config_mynn_mixclouds" type="integer" default_value="1" in_defaults="false"
                      units="-"
-                     description="option to mix cloud condensates in the mynn PBL scheme"
+                     description="1:activate mixing of cloud condensates in the MYNN PBL scheme"
                      possible_values="0,1"/>
 
                 <nml_option name="config_mynn_mixqt" type="integer" default_value="0" in_defaults="false"
                      units="-"
-                     description="= 0: option to mix moisture species separately; = 1: option to mix total water in the mynn PBL scheme"
+                     description="=0:activatevmixing of moisture species separately;= 1:activate mixing of total water in the mynn PBL scheme"
                      possible_values="0,1"/>
 
                 <nml_option name="config_bucket_radt" type="real" default_value="1.0e9" in_defaults="false"
