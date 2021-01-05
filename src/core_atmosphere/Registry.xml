@@ -721,6 +721,7 @@
                         <var name="det_qv"/>
                         <var name="cldfrac_bl"/>
                         <var name="qc_bl"/>
+                        <var name="qi_bl"/>
                         <var name="ch"/>
 			<var name="kpbl"/>
 			<var name="hpbl"/>
@@ -2615,11 +2616,15 @@
 
                 <!-- MYNN PBL SCHEME: -->
                 <var name="cldfrac_bl" type="real" dimensions="nVertLevels nCells Time" units="unitless"
-                     description="Cloud fraction in the Planetary Boundary Layer"
+                     description="cloud fraction in the MYNN PBL scheme"
                      packages="bl_mynn_in"/>
 
                 <var name="qc_bl" type="real" dimensions="nVertLevels nCells Time" units="kg kg^{-1}"
-                     descrition="Cloud liquid water mixing ratio in the Planetary Boundary Layer"
+                     descrition="cloud liquid water mixing ratio in the MYNN PBL scheme"
+                     packages="bl_mynn_in"/>
+
+                <var name="qi_bl" type="real" dimensions="nVertLevels nCells Time" units="kg kg^{-1}"
+                     descrition="cloud ice mixing ratio in the MYNN PBL scheme"
                      packages="bl_mynn_in"/>
 
                 <var name="cov" type="real" dimensions="nVertLevels nCells Time" units="K kg kg^{-1}"

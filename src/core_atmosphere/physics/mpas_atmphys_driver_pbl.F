@@ -81,6 +81,8 @@
 ! * added the EDMF subsidence and detrainment rates for the liquid-ice potential temperature and water vapor with
 !   the EDMF option in the MYNN PBL scheme.
 !   Laura D. Fowler (laura@ucar.edu) / 2021-01-05.
+! * added the PBL cloud ice mixing ratio in the MYNN PBL scheme.
+!   Laura D. Fowler (laura@ucar.edu) / 2021-01-05.
 
 
  contains
@@ -172,6 +174,7 @@
        if(.not.allocated(qwt_p)     ) allocate(qwt_p(ims:ime,kms:kme,jms:jme)     )
 
        if(.not.allocated(qcbl_p)    ) allocate(qcbl_p(ims:ime,kms:kme,jms:jme)    )
+       if(.not.allocated(qibl_p)    ) allocate(qibl_p(ims:ime,kms:kme,jms:jme)    )
        if(.not.allocated(cldfrabl_p)) allocate(cldfrabl_p(ims:ime,kms:kme,jms:jme))
        if(.not.allocated(edmfa_p)   ) allocate(edmfa_p(ims:ime,kms:kme,jms:jme)   )
        if(.not.allocated(edmfw_p)   ) allocate(edmfw_p(ims:ime,kms:kme,jms:jme)   )
@@ -282,6 +285,7 @@
        if(allocated(rniblten_p)) deallocate(rniblten_p)
 
        if(allocated(qcbl_p)    ) deallocate(qcbl_p    )
+       if(allocated(qibl_p)    ) deallocate(qibl_p    )
        if(allocated(cldfrabl_p)) deallocate(cldfrabl_p)
        if(allocated(edmfa_p)   ) deallocate(edmfa_p   )
        if(allocated(edmfw_p)   ) deallocate(edmfw_p   )
@@ -339,7 +343,7 @@
  real(kind=RKIND),dimension(:),pointer  :: meshDensity
  real(kind=RKIND),dimension(:),pointer  :: ch,qsfc,qcg,rmol,skintemp
  real(kind=RKIND),dimension(:,:),pointer:: cov,qke,qsq,tsq,sh3d,tke_pbl,qke_adv,el_pbl
- real(kind=RKIND),dimension(:,:),pointer:: cldfrac_bl,qc_bl
+ real(kind=RKIND),dimension(:,:),pointer:: cldfrac_bl,qc_bl,qi_bl
  real(kind=RKIND),dimension(:,:),pointer:: edmf_a,edmf_ent,edmf_qc,edmf_qt,edmf_thl,edmf_w
  real(kind=RKIND),dimension(:,:),pointer:: sub_thl,sub_qv,det_thl,det_qv
 
@@ -442,6 +446,7 @@
        call mpas_pool_get_array(diag_physics,'sh3d'      ,sh3d      )
        call mpas_pool_get_array(diag_physics,'cldfrac_bl',cldfrac_bl)
        call mpas_pool_get_array(diag_physics,'qc_bl'     ,qc_bl     )
+       call mpas_pool_get_array(diag_physics,'qi_bl'     ,qi_bl     )
        call mpas_pool_get_array(diag_physics,'edmf_a'    ,edmf_a    )
        call mpas_pool_get_array(diag_physics,'edmf_ent'  ,edmf_ent  )
        call mpas_pool_get_array(diag_physics,'edmf_qc'   ,edmf_qc   )
@@ -479,6 +484,7 @@
           sh3d_p(i,k,j)     = sh3d(k,i)
           cldfrabl_p(i,k,j) = cldfrac_bl(k,i)
           qcbl_p(i,k,j)     = qc_bl(k,i)
+          qibl_p(i,k,j)     = qi_bl(k,i)
           edmfa_p(i,k,j)    = edmf_a(k,i)
           edmfent_p(i,k,j)  = edmf_ent(k,i)
           edmfqc_p(i,k,j)   = edmf_qc(k,i)
@@ -566,7 +572,7 @@
  real(kind=RKIND),dimension(:),pointer  :: delta,wstar
  real(kind=RKIND),dimension(:,:),pointer:: cov,qke,qsq,tsq,sh3d,tke_pbl,qke_adv,el_pbl,dqke,qbuoy, &
                                            qdiss,qshear,qwt
- real(kind=RKIND),dimension(:,:),pointer:: cldfrac_bl,qc_bl
+ real(kind=RKIND),dimension(:,:),pointer:: cldfrac_bl,qc_bl,qi_bl
  real(kind=RKIND),dimension(:,:),pointer:: edmf_a,edmf_ent,edmf_qc,edmf_qt,edmf_thl,edmf_w
  real(kind=RKIND),dimension(:,:),pointer:: sub_thl,sub_qv,det_thl,det_qv
 
@@ -644,6 +650,7 @@
        call mpas_pool_get_array(diag_physics,'qwt'       ,qwt       )
        call mpas_pool_get_array(diag_physics,'cldfrac_bl',cldfrac_bl)
        call mpas_pool_get_array(diag_physics,'qc_bl'     ,qc_bl     )
+       call mpas_pool_get_array(diag_physics,'qi_bl'     ,qi_bl     )
        call mpas_pool_get_array(diag_physics,'edmf_a'    ,edmf_a    )
        call mpas_pool_get_array(diag_physics,'edmf_ent'  ,edmf_ent  )
        call mpas_pool_get_array(diag_physics,'edmf_qc'   ,edmf_qc   )
@@ -673,6 +680,7 @@
           qke_adv(k,i)    = qkeadv_p(i,k,j)
           cldfrac_bl(k,i) = cldfrabl_p(i,k,j)
           qc_bl(k,i)      = qcbl_p(i,k,j)
+          qi_bl(k,i)      = qibl_p(i,k,j)
           edmf_a(k,i)     = edmfa_p(i,k,j)
           edmf_ent(k,i)   = edmfent_p(i,k,j)
           edmf_qc(k,i)    = edmfqc_p(i,k,j)

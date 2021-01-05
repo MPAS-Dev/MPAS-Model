@@ -181,6 +181,8 @@
 ! * added the EDMF subsidence and detrainment rates for the liquid-ice potential temperature and water vapor with
 !   the EDMF option in the MYNN PBL scheme.
 !   Laura D. Fowler (laura@ucar.edu) / 2021-01-05.
+! * added the PBL cloud ice mixing ratio in the MYNNPBL scheme.
+!   Laura D. Fowler (laura@ucar.edu) / 2021-01-05.
 
 
 !=================================================================================================================
@@ -578,6 +580,7 @@
     detthl_p,         &!
     detqv_p,          &!
     qcbl_p,           &!
+    qibl_p,           &!
     cldfrabl_p         !
 
 !=================================================================================================================
