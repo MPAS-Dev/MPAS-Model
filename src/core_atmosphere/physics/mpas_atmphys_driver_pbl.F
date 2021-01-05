@@ -702,6 +702,7 @@
                    bl_mynn_edmf,       &
                    bl_mynn_edmf_mom,   &
                    bl_mynn_edmf_tke,   &
+                   bl_mynn_output,     &
                    bl_mynn_closure,    &
                    bl_mynn_mixscalars, &
                    bl_mynn_cloudmix,   &
@@ -756,31 +757,33 @@
        call mpas_timer_stop('bl_ysu')
 
     case("bl_mynn")
-       call mpas_pool_get_config(configs,'config_mynn_cloudpdf'  ,bl_mynn_cloudpdf  )
-       call mpas_pool_get_config(configs,'config_mynn_mixlength' ,bl_mynn_mixlength )
-       call mpas_pool_get_config(configs,'config_mynn_edmf'      ,bl_mynn_edmf      )
-       call mpas_pool_get_config(configs,'config_mynn_edmf_mom'  ,bl_mynn_edmf_mom  )
-       call mpas_pool_get_config(configs,'config_mynn_edmf_tke'  ,bl_mynn_edmf_tke  )
-       call mpas_pool_get_config(configs,'config_mynn_closure'   ,bl_mynn_closure   )
-       call mpas_pool_get_config(configs,'config_mynn_mixscalars',bl_mynn_mixscalars)
-       call mpas_pool_get_config(configs,'config_mynn_mixclouds' ,bl_mynn_cloudmix  )
-       call mpas_pool_get_config(configs,'config_mynn_mixqt'     ,bl_mynn_mixqt     )
-       call mpas_pool_get_config(configs,'config_mynn_tkeadvect' ,bl_mynn_tkeadvect )
-       call mpas_pool_get_config(configs,'config_mynn_tkebudget' ,bl_mynn_tkebudget )
+       call mpas_pool_get_config(configs,'config_mynn_cloudpdf'   ,bl_mynn_cloudpdf  )
+       call mpas_pool_get_config(configs,'config_mynn_mixlength'  ,bl_mynn_mixlength )
+       call mpas_pool_get_config(configs,'config_mynn_edmf'       ,bl_mynn_edmf      )
+       call mpas_pool_get_config(configs,'config_mynn_edmf_mom'   ,bl_mynn_edmf_mom  )
+       call mpas_pool_get_config(configs,'config_mynn_edmf_tke'   ,bl_mynn_edmf_tke  )
+       call mpas_pool_get_config(configs,'config_mynn_edmf_output',bl_mynn_output    )
+       call mpas_pool_get_config(configs,'config_mynn_closure'    ,bl_mynn_closure   )
+       call mpas_pool_get_config(configs,'config_mynn_mixscalars' ,bl_mynn_mixscalars)
+       call mpas_pool_get_config(configs,'config_mynn_mixclouds'  ,bl_mynn_cloudmix  )
+       call mpas_pool_get_config(configs,'config_mynn_mixqt'      ,bl_mynn_mixqt     )
+       call mpas_pool_get_config(configs,'config_mynn_tkeadvect'  ,bl_mynn_tkeadvect )
+       call mpas_pool_get_config(configs,'config_mynn_tkebudget'  ,bl_mynn_tkebudget )
 
        call mpas_log_write(' ')
        call mpas_log_write('--- enter subroutine mynn_bl_driver:')
-       call mpas_log_write('--- config_mynn_cloudpdf   = $i',intArgs=(/bl_mynn_cloudpdf/))
-       call mpas_log_write('--- config_mynn_mixlength  = $i',intArgs=(/bl_mynn_mixlength/))
-       call mpas_log_write('--- config_mynn_edmf       = $i',intArgs=(/bl_mynn_edmf/))
-       call mpas_log_write('--- config_mynn_edmf_mom   = $i',intArgs=(/bl_mynn_edmf_mom/))
-       call mpas_log_write('--- config_mynn_edmf_tke   = $i',intArgs=(/bl_mynn_edmf_tke/))
-       call mpas_log_write('--- config_mynn_closure    = $i',intArgs=(/bl_mynn_closure/))
-       call mpas_log_write('--- config_mynn_mixscalars = $i',intArgs=(/bl_mynn_mixscalars/))
-       call mpas_log_write('--- config_mynn_mixclouds  = $i',intArgs=(/bl_mynn_cloudmix/))
-       call mpas_log_write('--- config_mynn_mixqt      = $i',intArgs=(/bl_mynn_mixqt/))
-       call mpas_log_write('--- config_mynn_tkeadvect  = $l',logicArgs=(/bl_mynn_tkeadvect/))
-       call mpas_log_write('--- config_mynn_tkebudget  = $i',intArgs=(/bl_mynn_tkebudget/))
+       call mpas_log_write('--- config_mynn_cloudpdf    = $i',intArgs=(/bl_mynn_cloudpdf/))
+       call mpas_log_write('--- config_mynn_mixlength   = $i',intArgs=(/bl_mynn_mixlength/))
+       call mpas_log_write('--- config_mynn_edmf        = $i',intArgs=(/bl_mynn_edmf/))
+       call mpas_log_write('--- config_mynn_edmf_mom    = $i',intArgs=(/bl_mynn_edmf_mom/))
+       call mpas_log_write('--- config_mynn_edmf_tke    = $i',intArgs=(/bl_mynn_edmf_tke/))
+       call mpas_log_write('--- config_mynn_edmf_output = $i',intArgs=(/bl_mynn_output/))
+       call mpas_log_write('--- config_mynn_closure     = $i',intArgs=(/bl_mynn_closure/))
+       call mpas_log_write('--- config_mynn_mixscalars  = $i',intArgs=(/bl_mynn_mixscalars/))
+       call mpas_log_write('--- config_mynn_mixclouds   = $i',intArgs=(/bl_mynn_cloudmix/))
+       call mpas_log_write('--- config_mynn_mixqt       = $i',intArgs=(/bl_mynn_mixqt/))
+       call mpas_log_write('--- config_mynn_tkeadvect   = $l',logicArgs=(/bl_mynn_tkeadvect/))
+       call mpas_log_write('--- config_mynn_tkebudget   = $i',intArgs=(/bl_mynn_tkebudget/))
 
        call mpas_timer_start('bl_mynn')
        call mynn_bl_driver ( &
