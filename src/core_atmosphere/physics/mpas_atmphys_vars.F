@@ -178,6 +178,9 @@
 ! * removed the initialization of bl_mynn_mixqt, and moved its initialization to Registry.xml and
 !   namelist.atmosphere.
 !   Laura D. Fowler (laura@ucar.edu) / 2021-01-04.
+! * added the EDMF subsidence and detrainment rates for the liquid-ice potential temperature and water vapor with
+!   the EDMF option in the MYNN PBL scheme.
+!   Laura D. Fowler (laura@ucar.edu) / 2021-01-05.
 
 
 !=================================================================================================================
@@ -570,6 +573,10 @@
     edmfthl_p,        &!
     edmfent_p,        &!
     edmfqc_p,         &!
+    subthl_p,         &!
+    subqv_p,          &!
+    detthl_p,         &!
+    detqv_p,          &!
     qcbl_p,           &!
     cldfrabl_p         !
 

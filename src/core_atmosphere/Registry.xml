@@ -715,6 +715,10 @@
                         <var name="edmf_qc"/>
                         <var name="edmf_thl"/>
                         <var name="edmf_ent"/>
+                        <var name="sub_thl"/>
+                        <var name="sub_qv"/>
+                        <var name="det_thl"/>
+                        <var name="det_qv"/>
                         <var name="cldfrac_bl"/>
                         <var name="qc_bl"/>
                         <var name="ch"/>
@@ -2688,6 +2692,22 @@
 
                 <var name="edmf_ent" type="real" dimensions="nVertLevels nCells Time" units="m^{-1}"
                      description="EDMF entrainment rate in moist updrafts in the MYNN PBL scheme"
+                     packages="bl_mynn_in"/>
+
+                <var name="sub_thl" type="real" dimensions="nVertLevels nCells Time" units="K s^{-1}"
+                     description="EDMF subsidence of liquid-ice potential temperature in the MYNN PBL scheme"
+                     packages="bl_mynn_in"/>
+
+                <var name="sub_qv" type="real" dimensions="nVertLevels nCells Time" units="kg kg^{-1} s^{-1}"
+                     description="EDMF subsidence of water vapor mixing ratio in the MYNN PBL scheme"
+                     packages="bl_mynn_in"/>
+
+                <var name="det_thl" type="real" dimensions="nVertLevels nCells Time" units="K s^{-1}"
+                     description="EDMF detrainment of liquid-ice potential temperature in the MYNN PBL scheme"
+                     packages="bl_mynn_in"/>
+
+                <var name="det_qv" type="real" dimensions="nVertLevels nCells Time" units="kg kg^{-1} s^{-1}"
+                     description="EDMF detrainment of water vapor mixing ratio in the MYNN PBL scheme"
                      packages="bl_mynn_in"/>
 
 

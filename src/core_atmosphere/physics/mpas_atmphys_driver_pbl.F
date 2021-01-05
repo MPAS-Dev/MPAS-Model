@@ -78,6 +78,9 @@
 !   Laura D. Fowler (laura@ucar.edu) / 2019-03-12.
 ! * modified module to update the PBL mynn scheme to that from version 4.1.1.
 !   Laura D. Fowler (laura@ucar.edu) / 2019-07-01.
+! * added the EDMF subsidence and detrainment rates for the liquid-ice potential temperature and water vapor with
+!   the EDMF option in the MYNN PBL scheme.
+!   Laura D. Fowler (laura@ucar.edu) / 2021-01-05.
 
 
  contains
@@ -176,6 +179,10 @@
        if(.not.allocated(edmfthl_p) ) allocate(edmfthl_p(ims:ime,kms:kme,jms:jme) )
        if(.not.allocated(edmfent_p) ) allocate(edmfent_p(ims:ime,kms:kme,jms:jme) )
        if(.not.allocated(edmfqc_p)  ) allocate(edmfqc_p(ims:ime,kms:kme,jms:jme)  )
+       if(.not.allocated(subthl_p)  ) allocate(subthl_p(ims:ime,kms:kme,jms:jme)  )
+       if(.not.allocated(subqv_p)   ) allocate(subqv_p(ims:ime,kms:kme,jms:jme)   )
+       if(.not.allocated(detthl_p)  ) allocate(detthl_p(ims:ime,kms:kme,jms:jme)  )
+       if(.not.allocated(detqv_p)   ) allocate(detqv_p(ims:ime,kms:kme,jms:jme)   )
        if(.not.allocated(qcbl_p)    ) allocate(qcbl_p(ims:ime,kms:kme,jms:jme)    )
 
        !additional tendencies:
@@ -282,6 +289,10 @@
        if(allocated(edmfthl_p) ) deallocate(edmfthl_p )
        if(allocated(edmfent_p) ) deallocate(edmfent_p )
        if(allocated(edmfqc_p)  ) deallocate(edmfqc_p  )
+       if(allocated(subthl_p)  ) deallocate(subthl_p  )
+       if(allocated(subqv_p)   ) deallocate(subqv_p   )
+       if(allocated(detthl_p)  ) deallocate(detthl_p  )
+       if(allocated(detqv_p)   ) deallocate(detqv_p   )
        if(allocated(qcbl_p)    ) deallocate(qcbl_p    )
 
        !additional tendencies:
@@ -330,6 +341,7 @@
  real(kind=RKIND),dimension(:,:),pointer:: cov,qke,qsq,tsq,sh3d,tke_pbl,qke_adv,el_pbl
  real(kind=RKIND),dimension(:,:),pointer:: cldfrac_bl,qc_bl
  real(kind=RKIND),dimension(:,:),pointer:: edmf_a,edmf_ent,edmf_qc,edmf_qt,edmf_thl,edmf_w
+ real(kind=RKIND),dimension(:,:),pointer:: sub_thl,sub_qv,det_thl,det_qv
 
 !-----------------------------------------------------------------------------------------------------------------
 
@@ -436,6 +448,10 @@
        call mpas_pool_get_array(diag_physics,'edmf_qt'   ,edmf_qt   )
        call mpas_pool_get_array(diag_physics,'edmf_thl'  ,edmf_thl  )
        call mpas_pool_get_array(diag_physics,'edmf_w'    ,edmf_w    )
+       call mpas_pool_get_array(diag_physics,'sub_thl'   ,sub_thl   )
+       call mpas_pool_get_array(diag_physics,'sub_qv'    ,sub_qv    )
+       call mpas_pool_get_array(diag_physics,'det_thl'   ,det_thl   )
+       call mpas_pool_get_array(diag_physics,'det_qv'    ,det_qv    )
 
        do j = jts,jte
        do i = its,ite
@@ -469,6 +485,10 @@
           edmfqt_p(i,k,j)   = edmf_qt(k,i)
           edmfthl_p(i,k,j)  = edmf_thl(k,i)
           edmfw_p(i,k,j)    = edmf_w(k,i)
+          subthl_p(i,k,j)   = sub_thl(k,i)
+          subqv_p(i,k,j)    = sub_qv(k,i)
+          detthl_p(i,k,j)   = det_thl(k,i)
+          detqv_p(i,k,j)    = det_qv(k,i)
           !... tendencies:
           rncblten_p(i,k,j)   = 0._RKIND
           rniblten_p(i,k,j)   = 0._RKIND
@@ -548,6 +568,7 @@
                                            qdiss,qshear,qwt
  real(kind=RKIND),dimension(:,:),pointer:: cldfrac_bl,qc_bl
  real(kind=RKIND),dimension(:,:),pointer:: edmf_a,edmf_ent,edmf_qc,edmf_qt,edmf_thl,edmf_w
+ real(kind=RKIND),dimension(:,:),pointer:: sub_thl,sub_qv,det_thl,det_qv
 
 !-----------------------------------------------------------------------------------------------------------------
 
@@ -629,6 +650,10 @@
        call mpas_pool_get_array(diag_physics,'edmf_qt'   ,edmf_qt   )
        call mpas_pool_get_array(diag_physics,'edmf_thl'  ,edmf_thl  )
        call mpas_pool_get_array(diag_physics,'edmf_w'    ,edmf_w    )
+       call mpas_pool_get_array(diag_physics,'sub_thl'   ,sub_thl   )
+       call mpas_pool_get_array(diag_physics,'sub_qv'    ,sub_qv    )
+       call mpas_pool_get_array(diag_physics,'det_thl'   ,det_thl   )
+       call mpas_pool_get_array(diag_physics,'det_qv'    ,det_qv    )
 
        call mpas_pool_get_array(tend_physics,'rncblten'  ,rncblten  )
        call mpas_pool_get_array(tend_physics,'rniblten'  ,rniblten  )
@@ -654,6 +679,10 @@
           edmf_qt(k,i)    = edmfqt_p(i,k,j)
           edmf_thl(k,i)   = edmfthl_p(i,k,j)
           edmf_w(k,i)     = edmfw_p(i,k,j)
+          sub_thl(k,i)    = subthl_p(i,k,j)
+          sub_qv(k,i)     = subqv_p(i,k,j)
+          det_thl(k,i)    = detthl_p(i,k,j)
+          det_qv(k,i)     = detqv_p(i,k,j)
           !... outputs:
           dqke(k,i)       = dqke_p(i,k,j)
           qbuoy(k,i)      = qbuoy_p(i,k,j)
