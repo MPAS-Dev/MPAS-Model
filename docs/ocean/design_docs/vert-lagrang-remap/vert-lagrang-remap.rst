@@ -11,7 +11,7 @@ Contributors: Darren Engwirda, Xylar Asay-Davis, Carolyn Begeman
 Summary
 -------
 
-We :red:`propose` to implement the vertical Lagrangian-remap method to support the 
+We propose to implement the vertical Lagrangian-remap method to support the 
 choice of hybrid vertical coordinates, which may be required for evolving ice-
 shelf cavity geometries. It can be seen as an extension of the Arbitrary 
 Lagrangian-Eulerian method which is already implemented in MPAS-Ocean, a key 
@@ -346,11 +346,17 @@ There is a new remapping routine with arguments:
   Lagrangian layer thickness determined by :code:`ocn_tend_thick` is called. On
   output, it is equal to `layerThicknessTarget`. Note that :code:`layerThicknessEdge`
   is updated later when :code:`ocn_diagnostic_solve` is called.
-- Input, updated: :code:`normalVelocity`
+- Input, updated: :code:`statePool`
 - Input, updated: All members of :code:`tracerPool` unless 
   :code:`activeTracersOnly`, in which case only the :code:`activeTracers`
 - Remapping options
 
+Members of :code:`statePool` that will be remapped:
+
+- :code:`normalVelocity`
+- :code:`highFreqThickness`
+- :code:`lowFreqDivergence`
+- :code:`normalBarotropicVelocity`, only for split-explicit time-stepping
 
 In preparation for remapping, we compute the scratch variables 
 :code:`layerThicknessEdgeTarget` from :code:`layerThicknessTarget` and 
@@ -423,9 +429,24 @@ through the top of the layer can be computed:
    
    vertVelocityTop = (layerThickness(tlev=2) - layerThicknessALE)/dt
 
-The computation of :code:`vertTransportVelocityTop` and 
+If :code:`normalGMBolusVelocity` is computed based on the remapped ocean state 
+then the computation of :code:`vertTransportVelocityTop` and 
 :code:`vertGMBolusVelocitytop` is unchanged as these fields represent Eulerian 
 velocities.
+
+However, the current implementation will not compute 
+:code:`normalGMBolusVelocity` based on the remapped ocean state before 
+:code:`ocn_diagnostic_solve` is called. Thus, :code:`vertGMBolusVelocityTop` and
+:code:`vertTransportVelocityTop` will be inaccurate. This will only pose an 
+issue when the number of vertical levels changes during regridding, a 
+capability which isn't included in this development scope.
+
+Tracer tendencies that are computed as diagnostics will also be inaccurate 
+after regridding, as they will not be remapped. Remapping these variables does 
+not make physical sense without also computing vertical tracer fluxes, which 
+would be overly burdensome. Analysis members that currently use these diagnostic
+variables are :code:`mpas_ocn_layer_volume_weighted_averages` and 
+:code:`mpas_ocn_mixed_layer_heat_budget`.
 
 Implementation: Grid is sufficiently conditioned for accuracy and stability
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
