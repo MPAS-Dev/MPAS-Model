@@ -5162,9 +5162,9 @@ module atm_time_integration
       integer :: iEdge, iCell, iVertex, k, cell1, cell2, vertex1, vertex2, eoe, i, j, iq, iAdvCell
 
       !real (kind=RKIND), parameter :: c_s = 0.125
-      real (kind=RKIND), dimension( 64 ) :: d_diag, d_off_diag, flux_arr, ru_edge_w, tend_wk, delsq_wk, wduz, wdwz, wdtz, we_w, u_mix, h_wk
+      real (kind=RKIND), dimension( 59 ) :: d_diag, d_off_diag, flux_arr, ru_edge_w, tend_wk, delsq_wk, wduz, wdwz, wdtz, we_w, u_mix, h_wk
       integer, dimension(15) ::  iadv_cell_w
-      integer, dimension(64) :: eoe_w
+      integer, dimension(59) :: eoe_w
       real (kind=RKIND), dimension(15) :: coefs_w, coefs_3rd_w
       real (kind=RKIND), dimension( nVertLevels + 1 ) :: dpzx
       real (kind=RKIND) :: theta_turb_flux, w_turb_flux, r
@@ -5227,14 +5227,14 @@ if (config_horiz_mixing == "2d_smagorinsky") then
          do iCell = cellStart,cellEnd
 !$acc cache(d_diag)
 !$acc cache(d_off_diag)
-!$acc loop vector
+!$acc loop vector shortloop
             do k=1,nVertLevels
                d_diag(k) = 0.0
                d_off_diag(k) = 0.0
             end do
 !$acc loop seq
             do iEdge=1,nEdgesOnCell(iCell)
-!$acc loop vector
+!$acc loop vector shortloop
                do k=1,nVertLevels
                   d_diag(k)     = d_diag(k)     + defc_a(iEdge,iCell)*u(k,EdgesOnCell(iEdge,iCell))  &
                                                 - defc_b(iEdge,iCell)*v(k,EdgesOnCell(iEdge,iCell))
@@ -5243,7 +5243,7 @@ if (config_horiz_mixing == "2d_smagorinsky") then
                end do
             end do
 !DIR$ IVDEP
-!$acc loop vector
+!$acc loop vector shortloop
             do k=1, nVertLevels
                kdiff(k,iCell) = min((c_s * config_len_disp)**2 * sqrt(d_diag(k)**2 + d_off_diag(k)**2),(0.01*config_len_disp**2) * invDt)
             end do
@@ -5274,7 +5274,7 @@ if (config_horiz_mixing == "2d_smagorinsky") then
 !$acc loop gang private(h_wk)
  do iCell=cellStart,cellEnd
 !$acc cache(h_wk)
-!$acc loop vector
+!$acc loop vector shortloop
          do k=1,nVertLevels
             h_wk(k) = 0.0
          end do
@@ -5283,12 +5283,12 @@ if (config_horiz_mixing == "2d_smagorinsky") then
             iEdge = edgesOnCell(i,iCell)
             edge_sign = edgesOnCell_sign(i,iCell) * dvEdge(iEdge)
 !DIR$ IVDEP
-!$acc loop vector
+!$acc loop vector shortloop
             do k=1,nVertLevels
                h_wk(k) = h_wk(k) + edge_sign * ru(k,iEdge)
             end do
          end do
-!$acc loop vector
+!$acc loop vector shortloop
          do k=1,nVertLevels
             r = invAreaCell(iCell)
             h_divergence(k,iCell) = h_wk(k) * r
@@ -5308,7 +5308,7 @@ if (config_horiz_mixing == "2d_smagorinsky") then
 !$acc loop gang
         do iCell = cellStart,cellEnd
 !DIR$ IVDEP
-!$acc loop vector
+!$acc loop vector shortloop
           do k = 1,nVertLevels
             tend_rho(k,iCell) = -h_divergence(k,iCell)-rdzw(k)*(rw(k+1,iCell)-rw(k,iCell)) + tend_rho_physics(k,iCell)
             dpdz(k,iCell) = -gravity*(rb(k,iCell)*(qtot(k,iCell)) + rr_save(k,iCell)*(1.+qtot(k,iCell)))
@@ -5335,7 +5335,7 @@ if (config_horiz_mixing == "2d_smagorinsky") then
 
          ! horizontal pressure gradient 
 !DIR$ IVDEP
-!$acc loop vector
+!$acc loop vector shortloop
          do k=1,nVertLevels
             tend_u_euler(k,iEdge) = - cqu(k,iEdge) * &
                             ( (pp(k,cell2)-pp(k,cell1))*invDcEdge(iEdge)/ &
@@ -5352,7 +5352,7 @@ if (config_horiz_mixing == "2d_smagorinsky") then
          do k=2,nVertLevels,nVertLevels-2
             wduz(k) = 0.5*( rw(k,cell1)+rw(k,cell2))*(fzm(k)*tend_wk(k)+fzp(k)*tend_wk(k-1))
          end do
-!$acc loop vector
+!$acc loop vector shortloop
          do k=3,nVertLevels-1
             wduz(k) = flux3( tend_wk(k-2),tend_wk(k-1),tend_wk(k),tend_wk(k+1),0.5*(rw(k,cell1)+rw(k,cell2)), 1.0_RKIND )
          end do
@@ -5364,7 +5364,7 @@ if (config_horiz_mixing == "2d_smagorinsky") then
          end do
 
 !DIR$ IVDEP
-!$acc loop vector
+!$acc loop vector shortloop
          do k=1,nVertLevels
             q1 = pv_edge(k,iEdge)
             q2 = 0.0
@@ -5406,7 +5406,7 @@ if (config_horiz_mixing == "2d_smagorinsky") then
             r_dc = invDcEdge(iEdge)
             r_dv = min(invDvEdge(iEdge), 4*invDcEdge(iEdge))
 !DIR$ IVDEP
-!$acc loop vector
+!$acc loop vector shortloop
             do k=1,nVertLevels
 
               u_diffusion =   ( divergence(k,cell2)  - divergence(k,cell1) ) * r_dc  &
@@ -5430,7 +5430,7 @@ if (config_horiz_mixing == "2d_smagorinsky") then
 !$acc loop gang private(delsq_wk)
             do iVertex=vertexStart,vertexEnd
 !$acc cache(delsq_wk)
-!$acc loop vector
+!$acc loop vector shortloop
                do k=1,nVertLevels
                   delsq_wk(k) = 0.0
                end do
@@ -5438,12 +5438,12 @@ if (config_horiz_mixing == "2d_smagorinsky") then
                do i=1,vertexDegree
                   iEdge = edgesOnVertex(i,iVertex)
                   edge_sign = invAreaTriangle(iVertex) * dcEdge(iEdge) * edgesOnVertex_sign(i,iVertex)
-!$acc loop vector
+!$acc loop vector shortloop
                   do k=1,nVertLevels
                      delsq_wk(k) = delsq_wk(k) + edge_sign * delsq_u(k,iEdge)
                   end do
                end do
-!$acc loop vector
+!$acc loop vector shortloop
                do k=1,nVertLevels
                   delsq_vorticity(k,iVertex) = delsq_wk(k)
                end do
@@ -5454,7 +5454,7 @@ if (config_horiz_mixing == "2d_smagorinsky") then
 !$acc loop gang private(delsq_wk)
             do iCell=cellStart,cellEnd
 !$acc cache(delsq_wk)
-!$acc loop vector
+!$acc loop vector shortloop
                do k=1,nVertLevels
                   delsq_wk(k) = 0.0
                end do
@@ -5463,12 +5463,12 @@ if (config_horiz_mixing == "2d_smagorinsky") then
                do i=1,nEdgesOnCell(iCell)
                   iEdge = edgesOnCell(i,iCell)
                   edge_sign = r * dvEdge(iEdge) * edgesOnCell_sign(i,iCell)
-!$acc loop vector
+!$acc loop vector shortloop
                   do k=1,nVertLevels
                      delsq_wk(k) = delsq_wk(k) + edge_sign * delsq_u(k,iEdge)
                   end do
                end do
-!$acc loop vector
+!$acc loop vector shortloop
                do k=1,nVertLevels
                   delsq_divergence(k,iCell) = delsq_wk(k)
                end do
@@ -5491,7 +5491,7 @@ if (config_horiz_mixing == "2d_smagorinsky") then
                r_dv = u_mix_scale * min(invDvEdge(iEdge), 4*invDcEdge(iEdge))
 
 !DIR$ IVDEP
-!$acc loop vector
+!$acc loop vector shortloop
                do k=1,nVertLevels
 
                   ! Compute diffusion, computed as \nabla divergence - k \times \nabla vorticity
@@ -5522,7 +5522,7 @@ if (config_horiz_mixing == "2d_smagorinsky") then
                   cell1 = cellsOnEdge(1,iEdge)
                   cell2 = cellsOnEdge(2,iEdge)
 
-!$acc loop vector
+!$acc loop vector shortloop
                   do k=2,nVertLevels-1
 
                      z1 = 0.5*(zgrid(k-1,cell1)+zgrid(k-1,cell2))
@@ -5552,14 +5552,14 @@ if (config_horiz_mixing == "2d_smagorinsky") then
                   cell1 = cellsOnEdge(1,iEdge)
                   cell2 = cellsOnEdge(2,iEdge)
 
-!$acc loop vector
+!$acc loop vector shortloop
                   do k=1,nVertLevels
 
                      u_mix(k) = u(k,iEdge) - u_init(k) * cos( angleEdge(iEdge) )
 
                   end do
 
-!$acc loop vector
+!$acc loop vector shortloop
                   do k=2,nVertLevels-1
 
                      z1 = 0.5*(zgrid(k-1,cell1)+zgrid(k-1,cell2))
@@ -5590,7 +5590,7 @@ if (config_horiz_mixing == "2d_smagorinsky") then
 !$acc loop gang
       do iEdge=edgeSolveStart,edgeSolveEnd
 !DIR$ IVDEP
-!$acc loop vector
+!$acc loop vector shortloop
          do k=1,nVertLevels
             tend_u(k,iEdge) = tend_u(k,iEdge) + tend_u_euler(k,iEdge)  + tend_ru_physics(k,iEdge)
          end do
@@ -5615,7 +5615,7 @@ if (config_horiz_mixing == "2d_smagorinsky") then
 !$acc cache(coefs_3rd_w)
 !$acc cache(tend_wk)
 
-!$acc loop vector
+!$acc loop vector shortloop
          do k=1,nVertLevels+1
            tend_wk(k) = 0.0
          end do
@@ -5623,7 +5623,7 @@ if (config_horiz_mixing == "2d_smagorinsky") then
 !$acc loop seq
          do i=1,nEdgesOnCell(iCell)
             iEdge = edgesOnCell(i,iCell)
-!$acc loop vector
+!$acc loop vector shortloop
             do k=2,nVertLevels
                ru_edge_w(k) = fzm(k)*ru(k,iEdge) + fzp(k)*ru(k-1,iEdge)
             end do
@@ -5635,7 +5635,7 @@ if (config_horiz_mixing == "2d_smagorinsky") then
                coefs_3rd_w(j) = adv_coefs_3rd(j,iEdge)
             end do
 
-!$acc loop vector
+!$acc loop vector shortloop
             do k=1,nVertLevels
                flux_arr(k) = 0.0
             end do
@@ -5645,7 +5645,7 @@ if (config_horiz_mixing == "2d_smagorinsky") then
 
 !$acc loop seq
             do j=1,nAdvCellsForEdge(iEdge)
-!$acc loop vector
+!$acc loop vector shortloop
                do k=2,nVertLevels
                   iAdvCell = iadv_cell_w(j)
                   scalar_weight = coefs_w(j) + sign(1.0_RKIND,ru_edge_w(k)) * coefs_3rd_w(j)
@@ -5654,14 +5654,14 @@ if (config_horiz_mixing == "2d_smagorinsky") then
             end do
 
 !DIR$ IVDEP
-!$acc loop vector
+!$acc loop vector shortloop
             do k=2,nVertLevels
                tend_wk(k) = tend_wk(k) - edgesOnCell_sign(i,iCell)*ru_edge_w(k)*flux_arr(k)
             end do
          end do
 
 !DIR$ IVDEP
-!$acc loop vector
+!$acc loop vector shortloop
          do k=2,nVertLevels
            tend_w(k,iCell) = tend_wk(k)
          end do
@@ -5688,7 +5688,7 @@ if (config_horiz_mixing == "2d_smagorinsky") then
 !$acc cache(delsq_wk)
 
             r_areaCell = invAreaCell(iCell)
-!$acc loop vector
+!$acc loop vector shortloop
             do k = 1, nVertLevels+1
                delsq_wk(k) = 0.0
                tend_wk(k) = 0.0
@@ -5705,7 +5705,7 @@ if (config_horiz_mixing == "2d_smagorinsky") then
                cell2 = cellsOnEdge(2,iEdge)
 
 !DIR$ IVDEP
-!$acc loop vector
+!$acc loop vector shortloop
               do k=2,nVertLevels
 
                   w_turb_flux = edge_sign*(rho_edge(k,iEdge)+rho_edge(k-1,iEdge))*(w(k,cell2) - w(k,cell1))
@@ -5715,7 +5715,7 @@ if (config_horiz_mixing == "2d_smagorinsky") then
                   tend_wk(k) = tend_wk(k) + w_turb_flux
                end do
             end do
-!$acc loop vector
+!$acc loop vector shortloop
             do k=1,nVertLevels
                delsq_w(k,iCell) = delsq_wk(k)
                tend_w_euler(k,iCell) = tend_wk(k)
@@ -5732,7 +5732,7 @@ if (config_horiz_mixing == "2d_smagorinsky") then
          do iCell=cellSolveStart,cellSolveEnd    ! Technically updating fewer cells than before...
 !$acc cache(tend_wk)
             r_areaCell = h_mom_eddy_visc4 * invAreaCell(iCell)
-!$acc loop vector
+!$acc loop vector shortloop
             do k = 1, nVertLevels
                tend_wk(k) = tend_w_euler(k,iCell)
             end do
@@ -5744,13 +5744,13 @@ if (config_horiz_mixing == "2d_smagorinsky") then
 
                edge_sign = meshScalingDel4(iEdge)*r_areaCell*dvEdge(iEdge)*edgesOnCell_sign(i,iCell) * invDcEdge(iEdge)
 
-!$acc loop vector
+!$acc loop vector shortloop
                do k=2,nVertLevels
                   tend_wk(k) = tend_wk(k) - edge_sign * (delsq_w(k,cell2) - delsq_w(k,cell1))
                end do
 
             end do
-!$acc loop vector
+!$acc loop vector shortloop
             do k=2,nVertLevels
                tend_w_euler(k,iCell) = tend_wk(k)
             end do
@@ -5774,7 +5774,9 @@ if (config_horiz_mixing == "2d_smagorinsky") then
 !$acc loop gang private(tend_wk, wdwz)
       do iCell=cellSolveStart,cellSolveEnd
 
-!$acc loop vector
+!$acc cache(tend_wk)
+!$acc cache(wdwz)
+!$acc loop vector shortloop
          do k=1,nVertLevels
             tend_wk(k) = w(k,iCell)
          end do
@@ -5787,19 +5789,19 @@ if (config_horiz_mixing == "2d_smagorinsky") then
          do k=2,nVertLevels,nVertLevels-2
             wdwz(k) = 0.25*(rw(k,iCell)+rw(k-1,iCell))*(tend_wk(k)+tend_wk(k-1))
          end do
-!$acc loop vector
+!$acc loop vector shortloop
          do k=3,nVertLevels-1
             wdwz(k) = flux3(tend_wk(k-2),tend_wk(k-1),tend_wk(k),tend_wk(k+1),0.5*(rw(k,iCell)+rw(k-1,iCell)), 1.0_RKIND )
          end do
 
 !DIR$ IVDEP
-!$acc loop vector
+!$acc loop vector shortloop
          do k=2,nVertLevels
             tend_w(k,iCell) = tend_w(k,iCell) * invAreaCell(iCell) - rdzu(k)*(wdwz(k+1)-wdwz(k))
          end do
 
 !DIR$ IVDEP
-!$acc loop vector
+!$acc loop vector shortloop
          do k=2,nVertLevels
             tend_w_euler(k,iCell) = tend_w_euler(k,iCell) - cqw(k,iCell)*(   &
                                            rdzu(k)*(pp(k,iCell)-pp(k-1,iCell)) &
@@ -5813,7 +5815,7 @@ if (config_horiz_mixing == "2d_smagorinsky") then
 !$acc loop gang
             do iCell=cellSolveStart,cellSolveEnd
 !DIR$ IVDEP
-!$acc loop vector
+!$acc loop vector shortloop
                do k=2,nVertLevels
                   tend_w_euler(k,iCell) = tend_w_euler(k,iCell) + v_mom_eddy_visc2*0.5*(rho_zz(k,iCell)+rho_zz(k-1,iCell))*(  &
                                            (w(k+1,iCell)-w(k  ,iCell))*rdzw(k) &
@@ -5827,7 +5829,7 @@ if (config_horiz_mixing == "2d_smagorinsky") then
 !$acc loop gang
       do iCell = cellSolveStart,cellSolveEnd
 !DIR$ IVDEP
-!$acc loop vector
+!$acc loop vector shortloop
          do k=2,nVertLevels
             tend_w(k,iCell) = tend_w(k,iCell) + tend_w_euler(k,iCell)
          end do
@@ -5850,7 +5852,7 @@ if (config_horiz_mixing == "2d_smagorinsky") then
 !$acc cache(coefs_3rd_w)
 !$acc cache(tend_wk)
 
-!$acc loop vector
+!$acc loop vector shortloop
          do k=1,nVertLevels+1
            tend_wk(k) = 0.0
          end do
@@ -5859,7 +5861,7 @@ if (config_horiz_mixing == "2d_smagorinsky") then
          do i=1,nEdgesOnCell(iCell)
             iEdge = edgesOnCell(i,iCell)
 
-!$acc loop vector
+!$acc loop vector shortloop
             do k=1,nVertLevels
                ru_edge_w(k) = ru(k,iEdge)
                flux_arr(k) = 0.0
@@ -5874,7 +5876,7 @@ if (config_horiz_mixing == "2d_smagorinsky") then
 
 !$acc loop seq
             do j=1,nAdvCellsForEdge(iEdge)
-!$acc loop vector
+!$acc loop vector shortloop
                do k=1,nVertLevels
                   iAdvCell = iadv_cell_w(j)
                   scalar_weight = coefs_w(j) + sign(1.0_RKIND,ru_edge_w(k))*coefs_3rd_w(j)
@@ -5883,7 +5885,7 @@ if (config_horiz_mixing == "2d_smagorinsky") then
             end do
 
 !DIR$ IVDEP
-!$acc loop vector
+!$acc loop vector shortloop
             do k=1,nVertLevels
                tend_wk(k) = tend_wk(k) - edgesOnCell_sign(i,iCell) * ru_edge_w(k) * flux_arr(k)
             end do
@@ -5891,7 +5893,7 @@ if (config_horiz_mixing == "2d_smagorinsky") then
          end do
 
 !DIR$ IVDEP
-!$acc loop vector
+!$acc loop vector shortloop
          do k=1,nVertLevels
             tend_theta(k,iCell) = tend_wk(k)
          end do
@@ -5909,7 +5911,7 @@ if (config_horiz_mixing == "2d_smagorinsky") then
 !$acc cache(delsq_wk)
 
             r_areaCell = invAreaCell(iCell)
-!$acc loop vector
+!$acc loop vector shortloop
             do k = 1, nVertLevels
                delsq_wk(k) = 0.0
                tend_wk(k) = 0.0
@@ -5923,7 +5925,7 @@ if (config_horiz_mixing == "2d_smagorinsky") then
                cell2 = cellsOnEdge(2,iEdge)
 
 !DIR$ IVDEP
-!$acc loop vector
+!$acc loop vector shortloop
                do k = 1, nVertLevels
                   theta_turb_flux = edge_sign*(theta_m(k,cell2) - theta_m(k,cell1))*rho_edge(k,iEdge)
                   delsq_wk(k) = delsq_wk(k) + theta_turb_flux
@@ -5932,7 +5934,7 @@ if (config_horiz_mixing == "2d_smagorinsky") then
                end do
             end do
 !DIR$ IVDEP
-!$acc loop vector
+!$acc loop vector shortloop
             do k = 1, nVertLevels
                delsq_theta(k,iCell) = delsq_wk(k)
                tend_theta_euler(k,iCell) = tend_wk(k)
@@ -5949,7 +5951,7 @@ if (config_horiz_mixing == "2d_smagorinsky") then
          do iCell=cellSolveStart,cellSolveEnd    ! Technically updating fewer cells than before...
 !$acc cache(tend_wk)
             r_areaCell = h_theta_eddy_visc4 * prandtl_inv * invAreaCell(iCell)
-!$acc loop vector
+!$acc loop vector shortloop
             do k = 1, nVertLevels
                tend_wk(k) = tend_theta_euler(k,iCell)
             end do
@@ -5962,13 +5964,13 @@ if (config_horiz_mixing == "2d_smagorinsky") then
                cell1 = cellsOnEdge(1,iEdge)
                cell2 = cellsOnEdge(2,iEdge)
 
-!$acc loop vector
+!$acc loop vector shortloop
                do k=1,nVertLevels
                   tend_wk(k) = tend_wk(k) - edge_sign*(delsq_theta(k,cell2) - delsq_theta(k,cell1))
                end do
 
             end do
-!$acc loop vector
+!$acc loop vector shortloop
             do k=1,nVertLevels
                tend_theta_euler(k,iCell) = tend_wk(k)
             end do
@@ -6000,14 +6002,14 @@ if (config_horiz_mixing == "2d_smagorinsky") then
                wdtz(k) = rw_save(k,icell)*(fzm(k)*theta_m(k,iCell)+fzp(k)*theta_m(k-1,iCell))  !rtheta_pp redefinition
             end if
          end do
-!$acc loop vector
+!$acc loop vector shortloop
          do k=3,nVertLevels-1
             wdtz(k) = flux3( theta_m(k-2,iCell),theta_m(k-1,iCell),theta_m(k,iCell),theta_m(k+1,iCell), rw(k,iCell), coef_3rd_order )
             wdtz(k) =  wdtz(k) + (rw_save(k,icell)-rw(k,iCell))*(fzm(k)*theta_m_save(k,iCell)+fzp(k)*theta_m_save(k-1,iCell)) ! rtheta_pp redefinition
          end do
 
 !DIR$ IVDEP
-!$acc loop vector
+!$acc loop vector shortloop
          do k=1,nVertLevels
             tend_theta(k,iCell) = tend_theta(k,iCell)*invAreaCell(iCell) -rdzw(k)*(wdtz(k+1)-wdtz(k))
             tend_rtheta_adv(k,iCell) = tend_theta(k,iCell)   !  this is for the Tiedke scheme
@@ -6074,7 +6076,7 @@ if (config_horiz_mixing == "2d_smagorinsky") then
 !$acc loop gang
       do iCell = cellSolveStart,cellSolveEnd
 !DIR$ IVDEP
-!$acc loop vector
+!$acc loop vector shortloop
          do k=1,nVertLevels
             tend_theta(k,iCell) = tend_theta(k,iCell) + tend_theta_euler(k,iCell) + tend_rtheta_physics(k,iCell)
          end do
@@ -6229,9 +6231,9 @@ if (config_horiz_mixing == "2d_smagorinsky") then
       integer :: iEdge, iCell, iVertex, k, cell1, cell2, vertex1, vertex2, eoe, i, j, iq, iAdvCell
 
       !real (kind=RKIND), parameter :: c_s = 0.125
-      real (kind=RKIND), dimension( 64 ) :: d_diag, d_off_diag,flux_arr1, flux_arr, ru_edge_w, ru_save_temp , tend_wk, delsq_wk, wduz, wdwz, wdtz, we_w, u_mix, h_wk
+      real (kind=RKIND), dimension( 59 ) :: d_diag, d_off_diag,flux_arr1, flux_arr, ru_edge_w, ru_save_temp , tend_wk, delsq_wk, wduz, wdwz, wdtz, we_w, u_mix, h_wk
       integer, dimension(15) ::  iadv_cell_w
-      integer, dimension(64) :: eoe_w
+      integer, dimension(59) :: eoe_w
       real (kind=RKIND), dimension(15) :: coefs_w, coefs_3rd_w
       real (kind=RKIND), dimension( nVertLevels + 1 ) :: dpzx
       real (kind=RKIND) :: theta_turb_flux, w_turb_flux, r
@@ -6294,7 +6296,7 @@ if (config_horiz_mixing == "2d_smagorinsky") then
 !$acc loop gang private(h_wk)
  do iCell=cellStart,cellEnd
 !$acc cache(h_wk)
-!$acc loop vector
+!$acc loop vector shortloop 
          do k=1,nVertLevels
             h_wk(k) = 0.0
          end do
@@ -6303,12 +6305,12 @@ if (config_horiz_mixing == "2d_smagorinsky") then
             iEdge = edgesOnCell(i,iCell)
             edge_sign = edgesOnCell_sign(i,iCell) * dvEdge(iEdge)
 !DIR$ IVDEP
-!$acc loop vector
+!$acc loop vector shortloop
             do k=1,nVertLevels
                h_wk(k) = h_wk(k) + edge_sign * ru(k,iEdge)
             end do
          end do
-!$acc loop vector
+!$acc loop vector shortloop
          do k=1,nVertLevels
             r = invAreaCell(iCell)
             h_divergence(k,iCell) = h_wk(k) * r
@@ -6339,7 +6341,7 @@ if (config_horiz_mixing == "2d_smagorinsky") then
          cell2 = cellsOnEdge(2,iEdge)
 
          ! horizontal pressure gradient 
-!$acc loop vector
+!$acc loop vector shortloop
          do k=1,nVertLevels
             tend_wk(k) = u(k,iEdge)
          end do
@@ -6352,7 +6354,7 @@ if (config_horiz_mixing == "2d_smagorinsky") then
          do k=2,nVertLevels,nVertLevels-2
             wduz(k) = 0.5*( rw(k,cell1)+rw(k,cell2))*(fzm(k)*tend_wk(k)+fzp(k)*tend_wk(k-1))
          end do
-!$acc loop vector
+!$acc loop vector shortloop
          do k=3,nVertLevels-1
             wduz(k) = flux3( tend_wk(k-2),tend_wk(k-1),tend_wk(k),tend_wk(k+1),0.5*(rw(k,cell1)+rw(k,cell2)), 1.0_RKIND )
          end do
@@ -6363,7 +6365,7 @@ if (config_horiz_mixing == "2d_smagorinsky") then
             we_w(j)  = weightsOnEdge(j,iEdge)
          end do
 
-!$acc loop vector
+!$acc loop vector shortloop
          do k=1,nVertLevels
             q1 = pv_edge(k,iEdge)
             q2 = 0.0
@@ -6385,7 +6387,7 @@ if (config_horiz_mixing == "2d_smagorinsky") then
 !$acc parallel vector_length(64)
 !$acc loop gang
       do iEdge=edgeSolveStart,edgeSolveEnd
-!$acc loop vector
+!$acc loop vector shortloop
          do k=1,nVertLevels
             tend_u(k,iEdge) = tend_u(k,iEdge) + tend_u_euler(k,iEdge)  + tend_ru_physics(k,iEdge)
          end do
@@ -6418,7 +6420,7 @@ if (config_horiz_mixing == "2d_smagorinsky") then
 !$acc cache(coefs_3rd_w)
 !$acc cache(tend_wk)
 
-!$acc loop vector
+!$acc loop vector shortloop
          do k=1,nVertLevels+1
            tend_wk(k) = 0.0
          end do
@@ -6426,7 +6428,7 @@ if (config_horiz_mixing == "2d_smagorinsky") then
 !$acc loop seq
          do i=1,nEdgesOnCell(iCell)
             iEdge = edgesOnCell(i,iCell)
-!$acc loop vector
+!$acc loop vector shortloop
             do k=2,nVertLevels
                ru_edge_w(k) = fzm(k)*ru(k,iEdge) + fzp(k)*ru(k-1,iEdge)
             end do
@@ -6438,7 +6440,7 @@ if (config_horiz_mixing == "2d_smagorinsky") then
                coefs_3rd_w(j) = adv_coefs_3rd(j,iEdge)
             end do
 
-!$acc loop vector
+!$acc loop vector shortloop
             do k=1,nVertLevels
                flux_arr(k) = 0.0
             end do
@@ -6448,7 +6450,7 @@ if (config_horiz_mixing == "2d_smagorinsky") then
 
 !$acc loop seq
             do j=1,nAdvCellsForEdge(iEdge)
-!$acc loop vector
+!$acc loop vector shortloop
                do k=2,nVertLevels
                   iAdvCell = iadv_cell_w(j)
                   scalar_weight = coefs_w(j) + sign(1.0_RKIND,ru_edge_w(k)) * coefs_3rd_w(j)
@@ -6457,14 +6459,14 @@ if (config_horiz_mixing == "2d_smagorinsky") then
             end do
 
 !DIR$ IVDEP
-!$acc loop vector
+!$acc loop vector shortloop
             do k=2,nVertLevels
                tend_wk(k) = tend_wk(k) - edgesOnCell_sign(i,iCell)*ru_edge_w(k)*flux_arr(k)
             end do
          end do
 
 !DIR$ IVDEP
-!$acc loop vector
+!$acc loop vector shortloop
          do k=2,nVertLevels
            tend_w(k,iCell) = tend_wk(k)
          end do
@@ -6494,7 +6496,9 @@ if (config_horiz_mixing == "2d_smagorinsky") then
 !$acc loop gang private(tend_wk, wdwz)
       do iCell=cellSolveStart,cellSolveEnd
 
-!$acc loop vector
+!$acc cache(tend_wk)
+!$acc cache(wdwz)
+!$acc loop vector shortloop
          do k=1,nVertLevels
             tend_wk(k) = w(k,iCell)
          end do
@@ -6507,13 +6511,13 @@ if (config_horiz_mixing == "2d_smagorinsky") then
          do k=2,nVertLevels,nVertLevels-2
             wdwz(k) = 0.25*(rw(k,iCell)+rw(k-1,iCell))*(tend_wk(k)+tend_wk(k-1))
          end do
-!$acc loop vector
+!$acc loop vector shortloop
          do k=3,nVertLevels-1
             wdwz(k) = flux3(tend_wk(k-2),tend_wk(k-1),tend_wk(k),tend_wk(k+1),0.5*(rw(k,iCell)+rw(k-1,iCell)), 1.0_RKIND )
          end do
 
 !DIR$ IVDEP
-!$acc loop vector
+!$acc loop vector shortloop
          do k=2,nVertLevels
             tend_w(k,iCell) = tend_w(k,iCell) * invAreaCell(iCell) - rdzu(k)*(wdwz(k+1)-wdwz(k))
          end do
@@ -6546,7 +6550,7 @@ if (config_horiz_mixing == "2d_smagorinsky") then
 !$acc cache(coefs_3rd_w)
 !$acc cache(tend_wk)
 
-!$acc loop vector
+!$acc loop vector shortloop
          do k=1,nVertLevels+1
            tend_wk(k) = 0.0
          end do
@@ -6555,7 +6559,7 @@ if (config_horiz_mixing == "2d_smagorinsky") then
          do i=1,nEdgesOnCell(iCell)
             iEdge = edgesOnCell(i,iCell)
 
-!$acc loop vector
+!$acc loop vector shortloop
             do k=1,nVertLevels
                ru_edge_w(k) = ru(k,iEdge)
                flux_arr(k) = 0.0
@@ -6570,7 +6574,7 @@ if (config_horiz_mixing == "2d_smagorinsky") then
 
 !$acc loop seq
             do j=1,nAdvCellsForEdge(iEdge)
-!$acc loop vector
+!$acc loop vector shortloop
                do k=1,nVertLevels
                   iAdvCell = iadv_cell_w(j)
                   scalar_weight = coefs_w(j) + sign(1.0_RKIND,ru_edge_w(k))*coefs_3rd_w(j)
@@ -6579,14 +6583,14 @@ if (config_horiz_mixing == "2d_smagorinsky") then
             end do
 
 !DIR$ IVDEP
-!$acc loop vector
+!$acc loop vector shortloop
             do k=1,nVertLevels
                tend_wk(k) = tend_wk(k) - edgesOnCell_sign(i,iCell) * ru_edge_w(k) * flux_arr(k)
             end do
 
          end do
 
-!$acc loop vector
+!$acc loop vector shortloop
          do k=1,nVertLevels
             tend_theta(k,iCell) = tend_wk(k)
          end do
@@ -6602,37 +6606,37 @@ if (config_horiz_mixing == "2d_smagorinsky") then
 !$acc cache(ru_save_temp)
 !$acc cache(tend_wk)
 
-!$acc loop vector
+!$acc loop vector shortloop
          do k=1,nVertLevels
            tend_wk(k) = tend_theta(k,iCell)
          end do
 
-!$acc loop vector
+!$acc loop seq
             do i=1,nEdgesOnCell(iCell)
                iEdge = edgesOnCell(i,iCell)
                cell1 = cellsOnEdge(1,iEdge)
                cell2 = cellsOnEdge(2,iEdge)
-!$acc loop vector
+!$acc loop vector shortloop
             do k=1,nVertLevels
                ru_edge_w(k) = ru(k,iEdge)
                ru_save_temp(k) = ru_save(k,iEdge)
                flux_arr1(k) = 0.0
             end do
 !DIR$ IVDEP
-!$acc loop vector
+!$acc loop vector shortloop
             do k=1,nVertLevels
                flux_arr1(k) = edgesOnCell_sign(i,iCell)*dvEdge(iEdge)*(ru_save_temp(k)-ru_edge_w(k))*0.5*(theta_m_save(k,cell2)+theta_m_save(k,cell1))
                !flux_arr1(k) = edgesOnCell_sign(i,iCell) *dvEdge(iEdge)*(ru_save(k,iCell)-ru_edge_w(k)) &
                ! *0.5*(theta_m_save(k,cell2)+theta_m_save(k,cell1))
             end do
 !DIR$ IVDEP
-!$acc loop vector
+!$acc loop vector shortloop
             do k = 1,nVertLevels
 !               tend_theta(k,iCell) = tend_theta(k,iCell)-flux_arr1(k)  ! division by areaCell picked up down below
                tend_wk(k) = tend_wk(k)-flux_arr1(k)
             end do
           end do
-!$acc loop vector
+!$acc loop vector shortloop
          do k=1,nVertLevels
             tend_theta(k,iCell) = tend_wk(k)
          end do
@@ -6665,14 +6669,14 @@ if (config_horiz_mixing == "2d_smagorinsky") then
                wdtz(k) = rw_save(k,icell)*(fzm(k)*theta_m(k,iCell)+fzp(k)*theta_m(k-1,iCell))  !rtheta_pp redefinition
             end if
          end do
-!$acc loop vector
+!$acc loop vector shortloop
          do k=3,nVertLevels-1
             wdtz(k) = flux3( theta_m(k-2,iCell),theta_m(k-1,iCell),theta_m(k,iCell),theta_m(k+1,iCell), rw(k,iCell), coef_3rd_order )
             wdtz(k) =  wdtz(k) + (rw_save(k,icell)-rw(k,iCell))*(fzm(k)*theta_m_save(k,iCell)+fzp(k)*theta_m_save(k-1,iCell))! rtheta_pp redefinition
          end do
 
 !DIR$ IVDEP
-!$acc loop vector
+!$acc loop vector shortloop
          do k=1,nVertLevels
             tend_theta(k,iCell) = tend_theta(k,iCell)*invAreaCell(iCell) -rdzw(k)*(wdtz(k+1)-wdtz(k))
             tend_rtheta_adv(k,iCell) = tend_theta(k,iCell)   !  this is for the Tiedke scheme
@@ -7909,11 +7913,12 @@ if (config_horiz_mixing == "2d_smagorinsky") then
 
 !$acc end data
 
-!!$acc update host(ru, ru_save, rw, rw_save, &
-!!$acc rtheta_p,rtheta_p_save,rho_p,rho_p_save, &
-!!$acc rho_zz_old_split,ruAvg,ruAvg_split, wwAvg, wwAvg_split, &
-!!$acc u_1,u_2,w_1,w_2,theta_m_1,theta_m_2,rho_zz_1,rho_zz_2)
-
+#ifdef VALIDATE
+!$acc update host(ru, ru_save, rw, rw_save, &
+!$acc rtheta_p,rtheta_p_save,rho_p,rho_p_save, &
+!$acc rho_zz_old_split,ruAvg,ruAvg_split, wwAvg, wwAvg_split, &
+!$acc u_1,u_2,w_1,w_2,theta_m_1,theta_m_2,rho_zz_1,rho_zz_2)
+#endif 
 
    end subroutine atm_rk_dynamics_substep_finish_work
 
