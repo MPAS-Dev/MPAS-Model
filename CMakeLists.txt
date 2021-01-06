@@ -281,9 +281,13 @@ add_custom_target(gen_test_suite DEPENDS ${CMAKE_BINARY_DIR}/nightly_ocean_test_
 add_custom_command(OUTPUT case_outputs/Global_Ocean_240km_-_Init_Test
      COMMAND ./nightly_ocean_test_suite.py
      WORKING_DIRECTORY ${CMAKE_BINARY_DIR} 
-     DEPENDS ${CMAKE_BINARY_DIR}/nightly_ocean_test_suite.py)
+     DEPENDS ${CMAKE_BINARY_DIR}/nightly_ocean_test_suite.py case_outputs)
 
-add_custom_target(regression_tests DEPENDS case_outputs)
+add_custom_target(regression_tests DEPENDS case_outputs/Global_Ocean_240km_-_Init_Test)
+
+add_custom_command(OUTPUT case_outputs
+     COMMAND mkdir ARGS case_outputs
+     WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
 
 add_custom_command(OUTPUT cleanup.stamp
      COMMAND rm ARGS -rf ocean case_outputs nightly_ocean_test_suite.py general.config.ocean.sys
@@ -291,4 +295,3 @@ add_custom_command(OUTPUT cleanup.stamp
      WORKING_DIRECTORY ${CMAKE_BINARY_DIR} )
 
 add_custom_target(test_cleanup DEPENDS cleanup.stamp)
-
