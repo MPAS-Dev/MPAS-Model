@@ -793,6 +793,28 @@
 					possible_values="0.0 to turn off, 0.09 is typical value to use for scalar approximation"
 		/>
 	</nml_record>
+	<nml_record name="sediment_transport" mode="init;forward">
+		<nml_option name="config_sediment_bedload_enabled" type="logical" default_value=".false." units="unitless"
+					description="Controls if sediment bedload transport is computed."
+					possible_values=".true. or .false."
+		/>
+		<nml_option name="config_sediment_bedload_formulation" type="character" default_value="Soulsby-Damgaard" units="unitless"
+					description="Formulation to compute the sediment bedload transport"
+					possible_values=" 'Soulsby-Damgaard', 'Meyer-Peter-Mueller', 'Engelund-Hansen' "
+		/>
+		<nml_option name="config_sediment_suspended_enabled" type="logical" default_value=".false." units="unitless"
+					description="Controls if suspended sediment transport is computed."
+					possible_values=".true. or .false."
+		/>
+		<nml_option name="config_sediment_suspended_formulation" type="character" default_value="None" units="unitless"
+					description="Formulation to compute the reference bottom suspended sediment concentration"
+					possible_values=" 'None', 'Zyserman-Fredsoe', 'Goldstein' "
+		/>
+		<nml_option name="config_sediment_settling_formulation" type="character" default_value="None" units="unitless"
+					description="Formulation to compute the sediment settling velocities"
+					possible_values=" 'None', 'Cheng', 'Soulsby' "
+		/>
+	</nml_record>
 	<nml_record name="vegetation_drag" mode="init;forward">
 		<nml_option name="config_use_vegetation_drag" type="logical" default_value=".false." units="unitless"
 					description="Controls if vegetation_drag is used."
@@ -1381,6 +1403,7 @@
 		<package name="landIceCouplingPKG" description="This package includes varibles required for land ice coupling but not land ice fluxes in standalone mode."/>
 		<package name="frazilIce" description="This package includes variables required for frazil ice formation."/>
 		<package name="tidalForcing" description="This package includes variables required for tidal forcing on a boundary."/>
+		<package name="sedimentTransportPKG" description="This package includes variables required for sediment transport computation"/>
 		<package name="vegetationDragPKG" description="This package includes vegetation properties used for computing vegetation drag"/>
 		<package name="forwardMode" description="This package controls variables that are intended to be used within the forward run mode of the ocean model."/>
 		<package name="analysisMode" description="This package controls variables that are intended to be used within the analysis run mode of the ocean model."/>
@@ -3376,6 +3399,43 @@
 		<var name="tidalBCValue" type="real" dimensions="nCells Time" units="m"
 			 description="Value of ssh height in cell for tidal boundary condition"
 			 packages="tidalForcing"
+		/>
+		<!-- Input fields for sediment transport -->
+		<var name="sedimentGrainDiameter" type="real" dimensions="nCells" units="m"
+			 description="Median grain diameter of each sediment class"
+			 packages="sedimentTransportPKG"
+		/>
+		<var name="sedimentGrainDensity" type="real" dimensions="nCells" units="kg m^{-3}"
+			 description="Grain density of each sediment class"
+			 packages="sedimentTransportPKG"
+		/>
+		<var name="sedimentSettlingVelocity" type="real" dimensions="nCells" units="m s^{-1}"
+			 description="Sediment settling velocity"
+			 packages="sedimentTransportPKG"
+		/>
+		<var name="sedimentClassFraction" type="real" dimensions="nCells Time" units=""
+			 description="Fraction of each sediment class on bed sediment layer"
+			 packages="sedimentTransportPKG"
+		/>
+		<var name="sedimentBedloadTransportRate" type="real" dimensions="nCells Time" units="kg m^{-1} s^{-1}"
+			 description="Sediment bedload transport rate"
+			 packages="sedimentTransportPKG"
+		/>
+		<var name="sedimentBedloadTransportCoeff" type="real" dimensions="nCells" units=""
+			 description="Sediment bedload transport coefficient (0, 1.0)"
+			 packages="sedimentTransportPKG"
+		/>
+		<var name="sedimentCrticalErosionShear" type="real" dimensions="nCells" units="m^2 s^2"
+			 description="crtical erosion shear stress"
+			 packages="sedimentTransportPKG"
+		/>
+		<var name="sedimentErodibilityConstant" type="real" dimensions="nCells" units="kg m^{-2} s^{-1}"
+			 description="Sediment erodibility constant for each sediment class"
+			 packages="sedimentTransportPKG"
+		/>
+		<var name="sedimentBedPorosity" type="real" dimensions="nCells" units=""
+			 description="Sediment bed porosity"
+			 packages="sedimentTransportPKG"
 		/>
 
 		<!-- Input fields for vegetation properties -->

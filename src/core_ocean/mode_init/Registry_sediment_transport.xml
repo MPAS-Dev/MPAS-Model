@@ -1,0 +1,10 @@
+	<nml_record name="sediment_transport" mode="init" configuration=="sediment_transport">
+		<nml_option name="config_sediment_transport_vert_levels" type="integer" default_value="XXX" units="unitless"
+			description="Number of vertical levels in TEMPLATE. Typical value is 50."
+			possible_values="Any positive integer number greater than 0."
+		/>
+		<nml_option name="config_sediment_transport_intial_SSC" type="real" default_value="0.0" units="kg m^{-3}"
+			description="Initial suspended sediment concentration"
+			possible_values="Any positive real number"
+		/>
+	</nml_record>
