@@ -85,7 +85,9 @@ Date last modified: 2020/12/04
 Contributors: Darren Engwirda, Xylar Asay-Davis, Carolyn Begeman
 
 Vertical Lagrangian remapping should be supported (eventually) in both the RK4 
-and the split-explicit time stepping schemes currently implemented in MPAS-Ocean. 
+and the split-explicit time stepping schemes currently implemented in MPAS-Ocean.
+The scheme will also have a straightforward interface so it can be easily added
+to new time stepping schemes.
 
 Requirement: not climate changing
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -96,18 +98,35 @@ Contributors: Darren Engwirda, Xylar Asay-Davis, Carolyn Begeman
 
 For the same target grid, time-stepping scheme and problem, the solution for 
 layer thicknesses and key prognostic variables using VLR is within a non-
-climate-changing threshold value [presumably greater than machine precision?] 
-of the solution when VLR is not performed.
+climate-changing threshold value of the solution when VLR is not performed.
+Tests should span from idealized tests of simplified dynamics to full climate
+simulations. Acceptable thresholds specified for each test could be similar to
+those from changing time stepping schemes.
+
+Requirement: tracer and volume conservation
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Date last modified: 2020/12/04
+
+Contributors: Darren Engwirda, Xylar Asay-Davis, Carolyn Begeman, Mark Petersen
+
+The column-wise tracer content should be conserved over the remapping step to a
+specified threshold, and using a specified method to integrate the tracer. The
+column-integrated volume must remain unchanged over the remapping step, as
+expected.
 
 Requirement: performance
 ^^^^^^^^^^^^^^^^^^^^^^^^
 
 Date last modified: 2020/12/04
 
-Contributors: Darren Engwirda, Xylar Asay-Davis, Carolyn Begeman
+Contributors: Darren Engwirda, Xylar Asay-Davis, Carolyn Begeman, Mark Petersen
 
-Performance is not degraded below an acceptable level *which is to be 
-determined*.
+Performance is not degraded below an acceptable level. Compute time for
+stand-alone ocean, without i/o, on full primitive equations, is expected to
+remain very similar - within 5% of compute time when using vertical
+advection method but likely less because remapping is a column-wise, in-cache
+operation.
 
 Requirement: no interference
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -168,7 +187,7 @@ The time-stepping algorithm (RK4 or split-explicit) yields the updated
 variables :math:`u_k^{lg},h_k^{lg},\phi_k^{lg}`, where the superscript
 *lg* is used to designate the values after the Lagrangian step.
 
-Note that the vertical mixing terms :math: D_v^h, D_v^{\phi}` 
+Note that the vertical mixing terms :math:`D_v^h, D_v^{\phi}` 
 are retained here. We opt to compute these terms prior to remapping as this 
 allow for future development in which the dynamics are subcycled relative to 
 the thermodynamics and remapping is scheduled on the thermodynamic timestep. 
