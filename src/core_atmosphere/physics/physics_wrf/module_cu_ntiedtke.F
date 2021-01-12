@@ -59,7 +59,7 @@ module module_cu_ntiedtke
              c1es,c2es,c3les,c3ies,c4les,c4ies,c5les,c5ies,zrg
      real,private :: t13,dxref
      real,private :: r5alvcp,r5alscp,ralvdcp,ralsdcp,ralfdcp,rtwat,rtber,rtice 
-     real,private :: entrdd,cmfcmax,cmfcmin,cmfdeps,zdnoprc,cprcon,pgcoef,crirh
+     real,private :: entrdd,cmfcmax,cmfcmin,cmfdeps,zdnoprc,cprcon,pgcoef
      integer,private :: momtrans
 
      parameter(         &
@@ -107,15 +107,11 @@ module module_cu_ntiedtke
 !     -------
 !     cprcon: coefficient from cloud water to rain water
       parameter(cprcon = 1.4e-3)
-!
-!     -------              
-!     crirh: critical environmental relative humidity for convective cloud layer
-      parameter(crirh = 0.60)
 !               
 !     -------
 !     momtrans: momentum transport method
 !     ( 1 = IFS40r1 method; 2 = new method )
-      parameter(momtrans = 1)
+      parameter(momtrans = 2)
 !      
 !     -------          
 !     pgcoef: coefficient for pressure gradient intensity
@@ -136,9 +132,8 @@ module module_cu_ntiedtke
 !     lmfscv: shallow
 !     lmfdd: downdrafts
 !     lmfdudv: momentum transport
-!     lshpcp: shallow cumulus precipitation
-      logical :: lmfpen,lmfmid,lmfscv,lmfdd,lmfdudv,lshpcp
-      parameter(lmfpen=.true.,lmfmid=.true.,lmfscv=.true.,lmfdd=.true.,lmfdudv=.true.,lshpcp=.false.)
+      logical :: lmfpen,lmfmid,lmfscv,lmfdd,lmfdudv
+      parameter(lmfpen=.true.,lmfmid=.true.,lmfscv=.true.,lmfdd=.true.,lmfdudv=.true.)
 !                 
 !     -------            
 !     scale-aware options
@@ -157,8 +152,7 @@ contains
                 ,raincv,pratec,qfx,hfx                          &
                 ,u3d,v3d,w3d,t3d,qv3d,qc3d,qi3d,pi3d,rho3d      &
                 ,qvften,thften                                  &
-                ,dz8w,pcps,p8w,xland,cu_act_flag,cubot,cutop    &
-                ,dx,ust,wstar,hgamt,hgamq,entpbl                &
+                ,dz8w,pcps,p8w,xland,cu_act_flag,cubot,cutop,dx &
                 ,ids,ide, jds,jde, kds,kde                      &
                 ,ims,ime, jms,jme, kms,kme                      &
                 ,its,ite, jts,jte, kts,kte                      &
@@ -201,7 +195,6 @@ contains
 !-- dz8w        dz between full levels (m)
 !-- qfx         upward moisture flux at the surface (kg/m^2/s)
 !-- hfx         upward heat flux at the surface (w/m^2) 
-!-- ust         frictional velocity (m/s)
 !-- dt          time step (s)
 !-- ids         start index for i in domain
 !-- ide         end index for i in domain
@@ -263,12 +256,7 @@ contains
                                         w3d
       real,    dimension(ims:ime, jms:jme) ::                           &
                                         qfx,                            &
-                                        hfx,                            &
-                                        ust,                            &
-                                      wstar,                            &
-                                      hgamt,                            &
-                                      hgamq,                            &
-                                     entpbl
+                                        hfx
 
 !--------------------------- optional vars ----------------------------
 
@@ -305,12 +293,7 @@ contains
                                         rn,                             &
                                         evap,                           &
                                         heatflux,                       &
-                                         dx1,                           &
-                                        ust1,                           &
-                                        wst1,                           &
-                                      hgamt1,                           &
-                                      hgamq1,                           &
-                                     entpbl1
+                                         dx1
 
       integer  , dimension(its:ite) ::  slimsk
 
@@ -356,7 +339,7 @@ contains
 !-------other local variables----
       integer                      :: zz, pp
 !-----------------------------------------------------------------------
-!$acc data create(rcs,rn,evap,heatflux,dx1,ust1,wst1,hgamt1,hgamq1,entpbl1, &
+!$acc data create(rcs,rn,evap,heatflux,dx1,                                 &
 !$acc slimsk,prsi,ghti,zi,dot,prsl,q1,q2,q3,q1b,t1b,q11,q12,t1,u1,v1,w1,zl, &
 !$acc omg,ghtl,kbot,ktop,ktype)
 !
@@ -479,11 +462,6 @@ contains
       do i=its,ite
         evap(i)    = qfx(i,j)
         heatflux(i)= hfx(i,j)
-        ust1(i)    = ust(i,j)
-        wst1(i)    = wstar(i,j)
-        hgamt1(i)  = hgamt(i,j)
-        hgamq1(i)  = hgamq(i,j)
-        entpbl1(i) = entpbl(i,j)
         dx1(i)     = dx(i,j)
       enddo
 !$acc end parallel
@@ -491,19 +469,13 @@ contains
 !!!write(*,*) "*** cu_ntiedtke 1"
 !########################################################################
       call tiecnvn(u1,v1,w1,t1,q1,q2,q3,q1b,t1b,ghtl,ghti,omg,prsl,prsi,evap,heatflux,  &
-                  rn,slimsk,im,kx,kx1,delt,dx1,ust1,wst1,hgamt1,hgamq1,entpbl1,ktype,   &
-                  cubot,cutop,its,ite,kts,kte)
+                  rn,slimsk,im,kx,kx1,delt,dx1,ktype,cubot,cutop,its,ite,kts,kte)
 
 !$acc parallel vector_length(128)
 !$acc loop gang vector
       do i=its,ite
-        if(ktype(i) .eq. 2 .and. .not. lshpcp) then
-          raincv(i,j)=0.
-          pratec(i,j)=0.
-        else 
-          raincv(i,j)=rn(i)/stepcu
-          pratec(i,j)=rn(i)/(stepcu * dt)
-        endif
+        raincv(i,j)=rn(i)/stepcu
+        pratec(i,j)=rn(i)/(stepcu * dt)
       enddo
 !$acc end parallel
 
@@ -643,8 +615,8 @@ contains
 !          level 1 subroutine 'tiecnvn'
 !-----------------------------------------------------------------
       subroutine tiecnvn(pu,pv,pw,pt,pqv,pqc,pqi,pqvf,ptf,poz,pzz,pomg, &
-     &         pap,paph,evap,hfx,zprecc,lndj,lq,km,km1,dt,dx,ust,wst,   &
-     &         hgamt,hgamq,entpbl,ktype,cubot,cutop,its,ite,kts,kte)
+     &         pap,paph,evap,hfx,zprecc,lndj,lq,km,km1,dt,dx,ktype,     &
+     &         cubot,cutop,its,ite,kts,kte)
 !-----------------------------------------------------------------
 !  this is the interface between the model and the mass 
 !  flux convection module
@@ -662,8 +634,7 @@ contains
       real, dimension(its:ite,kts:kte) :: pum1,pvm1,pwm1,ztt,ptte,pqte, &
             pvom,pvol,pverv,pgeo,pap,zqq,pcte,ztp1,zqp1,ztu,zqu,zlu,zlude, &
             zmfu,zmfd,zqsat,pqc,pqi,pqvf,ptf
-      real, dimension(its:ite) :: pqhfl,prsfc,pssfc,phhfl,hfx,zrain,dx,ust, &
-            wst,hgamt,hgamq,entpbl
+      real, dimension(its:ite) :: pqhfl,prsfc,pssfc,phhfl,hfx,zrain,dx
       real, dimension(its:ite,kts:kte+1) :: paph,pgeoh
 !!!      real pum1(lq,km),    pvm1(lq,km),  pwm1(lq,km),  ztt(lq,km),  &
 !!!     &     ptte(lq,km),    pqte(lq,km),  pvom(lq,km),  pvol(lq,km), &
@@ -674,9 +645,7 @@ contains
 !!!      real ztp1(lq,km),    zqp1(lq,km),  ztu(lq,km),   zqu(lq,km),  &
 !!!     &     zlu(lq,km),     zlude(lq,km), zmfu(lq,km),  zmfd(lq,km), &
 !!!     &     zqsat(lq,km),   pqc(lq,km),   pqi(lq,km),   zrain(lq)
-!!!      real pqvf(lq,km),    ptf(lq,km)
-!!!      real dx(lq),         ust(lq)
-!!!      real wst(lq),        hgamt(lq),    hgamq(lq),    entpbl(lq)
+!!!      real pqvf(lq,km),    ptf(lq,km),   dx(lq)
       integer, dimension(its:ite) :: icbot,ictop,ktype,lndj
 !!!      integer icbot(lq),   ictop(lq),    ktype(lq),    lndj(lq)
       logical, dimension(its:ite) :: locum
@@ -686,23 +655,20 @@ contains
       integer i,j,k,lq,km,km1
       real dt,ztpp1
       real zew,zqs,zcor,tmp
-      real, dimension(its:ite) :: scale_tau,scale_mf,cubot,cutop
-!!!      real scale_tau(lq),scale_mf(lq),cubot(lq),cutop(lq)
+      real, dimension(its:ite) :: scale_fac,cubot,cutop
 
 !$acc data create(pum1,pvm1,pwm1,ztt,ptte,pqte,pvom,pvol,pverv,pgeo, &
 !$acc zqq,pcte,ztp1,zqp1,ztu,zqu,zlu,zlude,zmfu,zmfd,zqsat,pqhfl, &
-!$acc prsfc,pssfc,phhfl,zrain,pgeoh,icbot,ictop,locum,scale_tau,scale_mf)
+!$acc prsfc,pssfc,phhfl,zrain,pgeoh,icbot,ictop,locum,scale_fac)
 
 !!!write(*,*) "*** cu_ntiedtke 1.0"
 !$acc parallel vector_length(128)
 !$acc loop gang vector 
       do j=its,ite
         if (lscale .and. dx(j).lt.dxref) then
-          scale_tau(j) = (1.+log(dxref/dx(j)))**2
-          scale_mf(j)  = scale_tau(j)
+          scale_fac(j) = (1.+log(dxref/dx(j)))**3.
         else
-          scale_tau(j) = 1.+1.33e-5*dx(j)
-          scale_mf(j)  = 1.
+          scale_fac(j) = 1.+1.33e-5*dx(j)
         end if
       end do
 !$acc end parallel
@@ -770,8 +736,7 @@ contains
      &     ktype,     icbot,    ictop,    ztu,     zqu,           &
      &     zlu,       zlude,    zmfu,     zmfd,    zrain,         &
      &     pcte,      phhfl,    lndj,     pgeoh,   dx,            &
-     &     ust,       wst,      hgamt,    hgamq,   entpbl,        &
-     &     scale_tau, scale_mf,its,ite,kts,kte)
+     &     scale_fac, its,      ite,      kts,     kte)
 !
 !     to include the cloud water and cloud ice detrained from convection
 !
@@ -848,8 +813,7 @@ contains
      &     ktype,     kcbot,    kctop,    ptu,      pqu,            &
      &     plu,       plude,    pmfu,     pmfd,     prain,          &
      &     pcte,      phhfl,    lndj,     zgeoh,    dx,             &
-     &     ust,       wst,      hgamt,    hgamq,    entpbl,         &
-     &     scale_tau, scale_mf,its,ite,kts,kte)
+     &     scale_fac, its,      ite,      kts,      kte)
       implicit none
 !
 !***cumastrn*  master routine for cumulus massflux-scheme
@@ -912,11 +876,11 @@ contains
       integer  klev,klon,klevp1,klevm1,its,ite,kts,kte
       real, dimension(its:ite,kts:kte) :: pten,pqen,puen,pven, &
             pwen,ptte,pqte,pvom,pvol,pqsen,pgeo,pap,pverv,ptu, &
-            pqu,plu,plude,pmfu,pmfd,ztenh,zqenh,zqsenh,ztd, &
-            zqd,zmfus,zmfds,zmfuq,zmfdq,zdmfup,zdmfdp,zmful, &
+            pqu,plu,plude,pmfu,pmfd,ztenh,zqenh,zqsenh,ztd,    &
+            zqd,zmfus,zmfds,zmfuq,zmfdq,zdmfup,zdmfdp,zmful,   &
             zuu,zvu,zud,zvd,zlglac
-      real, dimension(its:ite) :: pqhfl,phhfl,ust,wst,entpbl, &
-            hgamt,hgamq,prain,prsfc,pssfc,zrfl
+      real, dimension(its:ite) :: pqhfl,phhfl,prain,prsfc,     &
+                                  pssfc,zrfl
       real, dimension(its:ite,kts:kte+1) :: paph,zgeoh
 !!!      real     pten(klon,klev),        pqen(klon,klev),& 
 !!!     &         puen(klon,klev),        pven(klon,klev),&
@@ -926,9 +890,7 @@ contains
 !!!     &         pqsen(klon,klev),       pgeo(klon,klev),&
 !!!     &         pap(klon,klev),         paph(klon,klevp1),&
 !!!     &         pverv(klon,klev),       pqhfl(klon),&
-!!!     &         phhfl(klon),            ust(klon),&
-!!!     &         wst(klon),              entpbl(klon),&
-!!!     &         hgamt(klon),            hgamq(klon)
+!!!     &         phhfl(klon),                        &
 !!!      real     ptu(klon,klev),         pqu(klon,klev),&
 !!!     &         plu(klon,klev),         plude(klon,klev),&
 !!!     &         pmfu(klon,klev),        pmfd(klon,klev),&
@@ -948,7 +910,7 @@ contains
             pmfdde_rate,zmfuus,zmfdus,zuv2,ztenu,ztenv
       real, dimension(its:ite) :: zhcbase,zmfub,zmfub1,zdhpbl, &
             zsfl,zcape,zcape1,zcape2,ztauc,ztaubl,zheat,wup, &
-            wbase,zmfuub,upbl,dx,scale_tau,scale_mf,zmfuvb,&
+            wbase,zmfuub,upbl,dx,scale_fac,zmfuvb,&
             zsum12,zsum22
       real, dimension(its:ite,kts:kte+1) :: pmflxr,pmflxs
 !!!      real     pmflxr(klon,klevp1),    pmflxs(klon,klevp1)
@@ -964,7 +926,7 @@ contains
 !!!      real     wbase(klon),            zmfuub(klon)
 !!!      real     upbl(klon)
 !!!      real     dx(klon)
-!!!      real     scale_tau(klon),        scale_mf(klon)
+!!!      real     scale_fac(klon)
 !!!      real     pmfude_rate(klon,klev), pmfdde_rate(klon,klev)
 !!!      real     zmfuus(klon,klev),      zmfdus(klon,klev)
 !!!      real     zuv2(klon,klev),ztenu(klon,klev),ztenv(klon,klev)
@@ -975,7 +937,6 @@ contains
 !!!      integer  ilab(klon,klev),        idtop(klon),&
 !!!     &         ictop0(klon),           ilwmin(klon)
 !!!      integer  kdpl(klon),             
-      integer ktop0
 !!!      integer  kcbot(klon),            kctop(klon),&
 !!!     &         ktype(klon),            lndj(klon)
       logical, dimension(its:ite) :: ldcum,loddraf,llo2
@@ -986,10 +947,10 @@ contains
 !  local varaiables
       real     zcons,zcons2,zqumqe,zdqmin,zdh,zmfmax,dept,zrelh
       real     zalfaw,zalv,zqalv,zc5ldcp,zc4les,zhsat,zgam,zzz,zhhat
-      real     zpbmpt,zro,zdz,zdp,zeps,zfac,wspeed,wspd_ikb,wspd_ikm
+      real     zpbmpt,zro,zdz,zdp,zeps,zfac,wspeed
       integer  jl,jk,ik
       integer  ikb,ikt,ikm,icum,itopm2
-      real     ztmst,ztau,ztaua,zerate,zderate,zmfa
+      real     ztmst,ztau,zerate,zderate,zmfa
       real, dimension(its:ite) :: zmfs
       real, dimension(kts:kte) :: pmean
 !!!      real     zmfs(klon),pmean(klev)
@@ -1034,10 +995,9 @@ contains
      &     ( klon,     klev,     klevp1,   klevm1,     pqen,&
      &      ztenh,    zqenh,     zqsenh,    zgeoh,     paph,&
      &      phhfl,    pqhfl,       pgeo,    pqsen,      pap,&
-     &      pten,     lndj,         ptu,     pqu,      ilab,&
+     &      pten,     lndj,         ptu,      pqu,     ilab,&
      &      ldcum,    kcbot,     ictop0,    ktype,    wbase,&
-     &      plu,      kdpl,         ust,    wst,      hgamt,&
-     &      hgamq,    entpbl,  scale_mf,    pwen,     pqte ,&
+     &      plu,      kdpl,   scale_fac,     pwen,     pqte,&
      &      its,ite,kts,kte)
 
 !*         (b) assign the first guess mass flux at cloud base
@@ -1110,7 +1070,7 @@ contains
      &     zmfus,    zmfuq,    zmful,    plude,    zdmfup,&
      &     kcbot,    kctop,    ictop0,   icum,     ztmst,&
      &     zqsenh,   zlglac,   lndj,     wup,      wbase,&
-     &     kdpl,pmfude_rate,   scale_mf,its,ite,kts,kte)
+     &     kdpl,pmfude_rate,   scale_fac,its,ite,kts,kte)
 
 !*     (b) check cloud depth and change entrainment rate accordingly
 !          calculate precipitation rate (for downdraft calculation)
@@ -1246,15 +1206,11 @@ contains
 
 !!!write(*,*) "*** cu_ntiedtke 1.1.7"
 !$acc parallel vector_length(128)
-!$acc loop gang vector private(ikb,ikt,ikm,wspd_ikb,wspd_ikm,ztaua,ztau, &
-!$acc zmfmax,ktop0,zrelh,dept)
+!$acc loop gang vector private(ikb,ikt,ikm,ztau,zmfmax,zrelh,dept)
       do jl=its,ite
         if(ldcum(jl).and.ktype(jl).eq.1) then
            ikb = kcbot(jl)
            ikt = kctop(jl)
-!bw
-!bw advective time scale --> ztau lower boundary condition
-!bw
            ikm = 1
 !$acc loop seq
            do jk=kts+1,kte
@@ -1262,15 +1218,9 @@ contains
                ikm = jk
              end if
            end do
-           wspd_ikb = sqrt(puen(jl,ikb)**2+pven(jl,ikb)**2)
-           wspd_ikm = sqrt(puen(jl,ikm)**2+pven(jl,ikm)**2)
-           ztaua = dx(jl)/max(1.,(wspd_ikb+wspd_ikm)*0.5)
-           ztau = max(ztmst,ztaua,ztauc(jl))
-!bw
-!bw
+           ztau = max(ztmst,ztauc(jl)*scale_fac(jl))
            ztau = max(360.,ztau)
-           ztau = min(10800.,ztau)
-           ztau = ztau*scale_tau(jl)
+           ztau = min(43200.,ztau)
            if(nonequil) then
              zcape2(jl)= max(0.,zcape2(jl))
              zcape(jl) = max(0.,min(zcape1(jl)-zcape2(jl),5000.))
@@ -1282,30 +1232,6 @@ contains
            zmfub1(jl) = max(zmfub1(jl),0.001)
            zmfmax=(paph(jl,ikb)-paph(jl,ikb-1))*zcons2
            zmfub1(jl)=min(zmfub1(jl),zmfmax)
-!bw
-!bw critical environmental relative humidity for convective cloud layer
-!bw
-           ktop0=kctop(jl)
-!$acc loop seq
-           do jk=kts+1,kte
-             if(paph(jl,jk).lt.30000) then
-               ktop0=max(ktop0,jk)
-             end if
-           end do
-           zrelh=0.
-!$acc loop seq
-           do jk=kts+1,kte
-             if(jk.le.kcbot(jl).and.jk.gt.kctop(jl)) then
-               dept=(paph(jl,jk+1)-paph(jl,jk))/(paph(jl,ikb+1)-  &
-                     paph(jl,ktop0+1))
-               zrelh=zrelh+dept*pqen(jl,jk)/pqsen(jl,jk)
-             end if
-           end do
-           if(zrelh.lt.crirh) then
-             zmfub1(jl)=0.01
-             zmfub(jl)=0.01
-             ldcum(jl)=.false.
-           end if
         end if
       end do
 !$acc end parallel
@@ -2024,8 +1950,7 @@ contains
      &       hfx,     qfx,       pgeo,    pqsen,      pap,&
      &      pten,    lndj,       cutu,     cuqu,    culab,&
      &     ldcum,   cubot,      cutop,    ktype,    wbase,&
-     &      culu,    kdpl,        ust,      wst,    hgamt,&
-     &     hgamq,  entpbl,   scale_mf,      pwen,   pqte ,&
+     &      culu,    kdpl,   scale_fac,    pwen,    pqte ,&
      &     its,ite,kts,kte)
 !      zhang & wang      iprc           2011-2013
 !***purpose.
@@ -2061,7 +1986,6 @@ contains
 !       rho  - density of the lowest model level
 !       qfx  - net upward moisture flux at the surface (kg/m^2/s)
 !       hfx  - net upward heat flux at the surface (w/m^2)
-!       ust  - frictional velocity (m/s)
 !***variables output by cutype:
 !       ktype - convection type - 1: penetrative  (cumastr)
 !                                 2: stratocumulus (cumastr)
@@ -2074,7 +1998,7 @@ contains
       integer  klon, klev, klevp1, klevm1,its,ite,kts,kte
       real, dimension(its:ite,kts:kte) :: ptenh,pqenh,pqsen,pqsenh, &
             pap,pqen,pqte,pten,pwen,ptu,pqu,plu,pgeo
-      real, dimension(its:ite) :: qfx,hfx,ust,wst,hgamt,hgamq,entpbl,zph
+      real, dimension(its:ite) :: qfx,hfx,zph
       real, dimension(its:ite,kts:kte+1) :: pgeoh,paph
       integer, dimension(its:ite,kts:kte) :: klab
       integer, dimension(its:ite) :: kctop,kcbot,lndj
@@ -2090,8 +2014,7 @@ contains
 !!!      integer  klab(klon,klev)
 !!!      integer  kctop(klon),kcbot(klon)
 
-!!!      real     qfx(klon),hfx(klon),ust(klon)
-!!!      real     wst(klon),hgamt(klon),hgamq(klon),entpbl(klon)
+!!!      real     qfx(klon),hfx(klon)
 !!!      real     zph(klon)
 !!!      integer  lndj(klon)
 !!!      logical  loflag(klon), deepflag(klon), resetflag(klon)
@@ -2111,7 +2034,7 @@ contains
 ! local variables
       real, dimension(its:ite,kts:kte) :: dhen,dh,plude,kup,vptu, &
             vten,zbuo,abuoy
-      real, dimension(its:ite) :: zqold,eta,dz,coef,scale_mf
+      real, dimension(its:ite) :: zqold,eta,dz,coef,scale_fac
       integer, dimension(its:ite) :: zcbase,itoppacel
       logical, dimension(its:ite) :: lldcum
 !!!      real     zqold(klon)
@@ -2133,7 +2056,7 @@ contains
 
       real     zqsu,zcor,zdp,zesdp,zalfaw,zfacw,zfaci,zfac,zdsdp,zdqsdt,zdtdp
       real     zpdifftop, zpdiffbot, tmp
-!!!      real     scale_mf(klon)
+!!!      real     scale_fac(klon)
 !!!      integer  zcbase(klon), itoppacel(klon)
       integer  jl,jk,ik,icall,levels
       logical  needreset!!!, lldcum(klon)
@@ -2193,7 +2116,7 @@ contains
 
 ! check the levels from lowest level to second top level
 !$acc parallel vector_length(128)
-!$acc loop gang vector private(sflx,deltt,deltq, &
+!$acc loop gang vector private(rho,part1,part2,root,conw,deltt,deltq, &
 !$acc zqp,zl,zi,zqsat,zcor,zf,zcond,tmp,zcond1, &
 !$acc zdq,zlglac,atop1,atop2,abot,ik,tmp,zqsu, &
 !$acc zcor,zalfaw,zfacw,zfaci,zfac,zesdp,zdqsdt,zdtdp,zdp,zpdifftop, &
@@ -2206,13 +2129,18 @@ contains
       if(jk .eq. (kte-1-kts+1)) then
 !!!$acc loop seq
 !!!      do jl=its,ite
-! bw
-! bw -->  link shallow cumulus to pbl physics --> hfx, qfx, hgamt, hgamq, wst
-        sflx = hfx(jl)*rcpd+vtmpc1*pten(jl,(kte-kts+1))*qfx(jl)
-        if(sflx.gt.0.) then
-          deltt = max(0.,hgamt(jl))
-          deltq = max(0.,hgamq(jl))
-          kup(jl,(kte-kts+1)) = 0.5*(wst(jl)**2)
+
+        rho=pap(jl,(kte-kts+1))/ &
+     &         (rd*(pten(jl,(kte-kts+1))*(1.+vtmpc1*pqen(jl,(kte-kts+1)))))
+        part1 = 1.5*0.4*pgeo(jl,(kte-kts+1))/ &
+     &              (rho*pten(jl,(kte-kts+1)))
+        part2 = -hfx(jl)*rcpd-vtmpc1*pten(jl,(kte-kts+1))*qfx(jl)
+        root  = 0.001-part1*part2
+        if(part2 .lt. 0.) then
+          conw  = 1.2*(root)**t13
+          deltt = max(1.5*hfx(jl)/(rho*cpd*conw),0.)
+          deltq = max(1.5*qfx(jl)/(rho*conw),0.)
+          kup(jl,(kte-kts+1)) = 0.5*(conw**2)
           pqu(jl,(kte-kts+1))= pqenh(jl,(kte-kts+1)) + deltq
           dhen(jl,(kte-kts+1))= pgeoh(jl,(kte-kts+1)) + ptenh(jl,(kte-kts+1))*cpd
           dh(jl,(kte-kts+1)) = dhen(jl,(kte-kts+1))  + deltt*cpd
@@ -2233,7 +2161,7 @@ contains
       if(loflag(jl)) then
         eta(jl) = 0.8/(pgeo(jl,jk)*zrg)+2.e-4
         dz(jl)  = (pgeoh(jl,jk)-pgeoh(jl,jk+1))*zrg
-        coef(jl) = 0.5*eta(jl)*dz(jl)
+        coef(jl)= 0.5*eta(jl)*dz(jl)
         dhen(jl,jk) = pgeoh(jl,jk) + cpd*ptenh(jl,jk)
         dh(jl,jk) = (coef(jl)*(dhen(jl,jk+1)+dhen(jl,jk))&
      &              +(1.-coef(jl))*dh(jl,jk+1))/(1.+coef(jl))
@@ -2525,9 +2453,9 @@ contains
            if(loflag(jl)) then
 ! define the fscale
              fscale = min(1.,(pqsen(jl,jk)/pqsen(jl,levels))**3)
-             eta(jl) = 1.75e-3*fscale*scale_mf(jl)
+             eta(jl) = 1.75e-3*fscale*scale_fac(jl)
              dz(jl)  = (pgeoh(jl,jk)-pgeoh(jl,jk+1))*zrg
-             coef(jl) = 0.5*eta(jl)*dz(jl)
+             coef(jl)= 0.5*eta(jl)*dz(jl)
              dhen(jl,jk) = pgeoh(jl,jk) + cpd*ptenh(jl,jk)
              dh(jl,jk) = (coef(jl)*(dhen(jl,jk+1)+dhen(jl,jk))&
      &              +(1.-coef(jl))*dh(jl,jk+1))/(1.+coef(jl))
@@ -2737,7 +2665,7 @@ contains
      &     pmfus,    pmfuq,    pmful,    plude,    pdmfup,&
      &     kcbot,    kctop,    kctop0,   kcum,     ztmst,&
      &     pqsenh,   plglac,   lndj,     wup,      wbase,&
-     &     kdpl, pmfude_rate, scale_mf,its,ite,kts,kte)
+     &     kdpl, pmfude_rate, scale_fac, its,ite,kts,kte)
       implicit none
 !     this routine does the calculations for cloud ascents
 !     for cumulus parameterization
@@ -2872,12 +2800,12 @@ contains
       real     zrnew,zz,zdmfeu,zdmfdu,dp
       real     zfac,zbuoc,zdkbuo,zdken,zvv,zarg,zchange,zxe,zxs,zdshrd
       real     atop1,atop2,abot
-      real, dimension(its:ite) :: scale_mf
+      real, dimension(its:ite) :: scale_fac
       real     zqsat,zcor,zqp,zcond,zcond1,zl,zi,zf,tmp
       real     zzzmb
       logical  llo10
       real  zdz , zmf
-!!!      real     scale_mf(klon)
+!!!      real     scale_fac(klon)
 !$acc data create(zlrain,zbuo,kup,zodetr,zph,zdmfen,zdmfde,zmfuu, &
 !$acc zmfuv,zpbase,zqold,zluold,zprecip,eta,dz,zentr,pdmfen,zoentr, &
 !$acc zdpmean,loflag,llo1,jlx)
@@ -2995,20 +2923,21 @@ contains
 !!!     &     pgeo,     pgeoh,    ldcum,   ktype,   klab,  zlrain,&
 !!!     &     pmfu,     pmfub,    kcbot,   ptu,&
 !!!     &     pqu,      plu,      puu,     pvu,      pmfus,&
-!!!     &     pmfuq,    pmful,    pdmfup,  scale_mf,its,ite,kts,kte)
+!!!     &     pmfuq,    pmful,    pdmfup,  scale_fac,its,ite,kts,kte)
 !----------------------------------------------------------------------------------
 !!!     &    (klon,     klev,     klevm1,  kk,     pten,&
 !!!     &     pqen,     pqsen,    puen,    pven,   pverv,&
 !!!     &     pgeo,     pgeoh,    ldcum,   ktype,  klab,  plrain,&
 !!!     &     pmfu,     pmfub,    kcbot,   ptu,&
 !!!     &     pqu,      plu,      puu,     pvu,    pmfus,&
-!!!     &     pmfuq,    pmful,    pdmfup,  scale_mf,its,ite,kts,kte)
+!!!     &     pmfuq,    pmful,    pdmfup,  scale_fac,its,ite,kts,kte)
 
 !$acc parallel vector_length(128)
 !$acc loop gang vector private(zzzmb)
       do jl=its,ite
           if(.not.ldcum(jl) .and. klab(jl,jk+1).eq.0) then
             if(lmfmid .and. pqen(jl,jk) .gt. 0.80*pqsen(jl,jk).and. &
+              pqen(jl,jk) .lt. pqsen(jl,jk).and. &
               pgeo(jl,jk)*zrg .gt. 5.0e2  .and.  &
      &        pgeo(jl,jk)*zrg .lt. 1.0e4 )  then
             ptu(jl,jk+1)=(cpd*pten(jl,jk)+pgeo(jl,jk)-pgeoh(jl,jk+1))&
@@ -3017,7 +2946,7 @@ contains
             plu(jl,jk+1)=0.
             zzzmb=max(cmfcmin,-pverv(jl,jk)*zrg)
             zzzmb=min(zzzmb,cmfcmax)
-            pmfub(jl)=zzzmb/scale_mf(jl)
+            pmfub(jl)=zzzmb/scale_fac(jl)
             pmfu(jl,jk+1)=pmfub(jl)
             pmfus(jl,jk+1)=pmfub(jl)*(cpd*ptu(jl,jk+1)+pgeoh(jl,jk+1))
             pmfuq(jl,jk+1)=pmfub(jl)*pqu(jl,jk+1)
@@ -3383,7 +3312,7 @@ contains
             ikb=kcbot(jl)
             if ( plu(jl,jk) > zdshrd ) then
               zwu = min(15.0,sqrt(2.*max(0.1,kup(jl,jk+1))))
-              zprcon = zprcdgw/(0.75*zwu)
+              zprcon = zprcdgw/(scale_fac(jl)**(1./3.))/(0.75*zwu)
 ! PARAMETERS FOR BERGERON-FINDEISEN PROCESS (T < -5C)
               zdt = min(rtber-(273.16-23.),max(rtber-ptu(jl,jk),0.))
               zcbf = 1. + z_cprc2*sqrt(zdt)
@@ -4858,7 +4787,7 @@ contains
      &     pgeo,     pgeoh,    ldcum,   ktype,  klab,  plrain,&
      &     pmfu,     pmfub,    kcbot,   ptu,&
      &     pqu,      plu,      puu,     pvu,    pmfus,&
-     &     pmfuq,    pmful,    pdmfup,  scale_mf,its,ite,kts,kte)
+     &     pmfuq,    pmful,    pdmfup,  scale_fac,its,ite,kts,kte)
       implicit none
 !      m.tiedtke         e.c.m.w.f.     12/89
 !      c.zhang           iprc           05/2012
@@ -4904,14 +4833,15 @@ contains
 ! local variabels
       integer  jl,kk,klev,klon,klevp1,klevm1
       real     zzzmb
-      real, dimension(its:ite) :: scale_mf
-!!!      real     scale_mf(klon)
+      real, dimension(its:ite) :: scale_fac
+!!!      real     scale_fac(klon)
 !--------------------------------------------------------
 !*    1.      calculate entrainment and detrainment rates
 ! -------------------------------------------------------
          do jl=its,ite
           if(.not.ldcum(jl) .and. klab(jl,kk+1).eq.0) then
             if(lmfmid .and. pqen(jl,kk) .gt. 0.80*pqsen(jl,kk).and. &
+              pqen(jl,kk) .lt. pqsen(jl,kk).and. &
               pgeo(jl,kk)*zrg .gt. 5.0e2  .and.  &
      &        pgeo(jl,kk)*zrg .lt. 1.0e4 )  then
             ptu(jl,kk+1)=(cpd*pten(jl,kk)+pgeo(jl,kk)-pgeoh(jl,kk+1))&
@@ -4920,7 +4850,7 @@ contains
             plu(jl,kk+1)=0.
             zzzmb=max(cmfcmin,-pverv(jl,kk)*zrg)
             zzzmb=min(zzzmb,cmfcmax)
-            pmfub(jl)=zzzmb/scale_mf(jl)
+            pmfub(jl)=zzzmb/scale_fac(jl)
             pmfu(jl,kk+1)=pmfub(jl)
             pmfus(jl,kk+1)=pmfub(jl)*(cpd*ptu(jl,kk+1)+pgeoh(jl,kk+1))
             pmfuq(jl,kk+1)=pmfub(jl)*pqu(jl,kk+1)

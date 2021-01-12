@@ -307,12 +307,6 @@
           case("cu_ntiedtke")
              if(.not.allocated(rqvften_p)) allocate(rqvften_p(ims:ime,kms:kme,jms:jme))
              if(.not.allocated(rthften_p)) allocate(rthften_p(ims:ime,kms:kme,jms:jme))
-             if(.not.allocated(ust_p)    ) allocate(ust_p(ims:ime,jms:jme)            )
-             if(.not.allocated(wstar_p)  ) allocate(wstar_p(ims:ime,jms:jme)          )
-             if(.not.allocated(hgamt_p)  ) allocate(hgamt_p(ims:ime,jms:jme)          )
-             if(.not.allocated(hgamq_p)  ) allocate(hgamq_p(ims:ime,jms:jme)          )
-             if(.not.allocated(entpbl_p) ) allocate(entpbl_p(ims:ime,jms:jme)         )
-
 !!!write(*,*) "*** allocate 7"
 !$acc parallel vector_length(32)
 !$acc loop gang vector collapse(3)
@@ -447,11 +441,6 @@
           case ("cu_ntiedtke")
              if(allocated(rqvften_p)) deallocate(rqvften_p)
              if(allocated(rthften_p)) deallocate(rthften_p)
-             if(allocated(ust_p)    ) deallocate(ust_p    )
-             if(allocated(wstar_p)  ) deallocate(wstar_p  )
-             if(allocated(hgamt_p)  ) deallocate(hgamt_p  )
-             if(allocated(hgamq_p)  ) deallocate(hgamq_p  )
-             if(allocated(entpbl_p) ) deallocate(entpbl_p )
 !!!write(*,*) "*** deallocate 6"
 
           case default
@@ -767,9 +756,7 @@
              f_qs      = f_qs        , rthcuten    = rthcuten_p  ,                   &
              rqvcuten  = rqvcuten_p  , rqccuten    = rqccuten_p  ,                   &
              rqicuten  = rqicuten_p  , rucuten     = rucuten_p   ,                   &
-             rvcuten   = rvcuten_p   , ust         = ust_p       ,                   &
-             wstar     = wstar_p     , hgamt       = hgamt_p     ,                   &
-             hgamq     = hgamq_p     , entpbl      = entpbl_p    ,                   &
+             rvcuten   = rvcuten_p   ,                                               &
              ids = ids , ide = ide , jds = jds , jde = jde , kds = kds , kde = kde , &
              ims = ims , ime = ime , jms = jms , jme = jme , kms = kds , kme = kme , &
              its = its , ite = ite , jts = jts , jte = jte , kts = kts , kte = kte   &
@@ -812,7 +799,7 @@
  real(kind=RKIND),dimension(:),pointer  :: nca,cubot,cutop,cuprec,raincv
  real(kind=RKIND),dimension(:),pointer  :: gsw,hfx,qfx,xland
  real(kind=RKIND),dimension(:),pointer  :: xmb_total,xmb_shallow
- real(kind=RKIND),dimension(:),pointer  :: ust,wstar,zol,hpbl,hgamt,hgamq,entpbl
+ real(kind=RKIND),dimension(:),pointer  :: ust,wstar,zol,hpbl
  real(kind=RKIND),dimension(:,:),pointer:: zgrid
  real(kind=RKIND),dimension(:,:),pointer:: qc_cu,qi_cu
  real(kind=RKIND),dimension(:,:),pointer:: w0avg
@@ -1130,28 +1117,10 @@
              call mpas_pool_get_array_gpu(tend_physics,'rthblten'  ,rthblten  )
              call mpas_pool_get_array_gpu(tend_physics,'rthratenlw',rthratenlw)
              call mpas_pool_get_array_gpu(tend_physics,'rthratensw',rthratensw)
-             call mpas_pool_get_array_gpu(diag_physics,'ust'       ,ust       )
-             call mpas_pool_get_array_gpu(diag_physics,'wstar'     ,wstar     )
-             call mpas_pool_get_array_gpu(diag_physics,'hgamt'     ,hgamt     )
-             call mpas_pool_get_array_gpu(diag_physics,'hgamq'     ,hgamq     )
-             call mpas_pool_get_array_gpu(diag_physics,'entpbl'    ,entpbl    )
              
 !!!write(*,*) "*** from-18"
 !!!$acc update host(rqvdynten,rqvblten,rthdynten,rthblten,rthratenlw, &
-!!!$acc rthratensw,ust,wstar,hgamt,hgamq,entpbl)
-
-             do j = jts,jte
-!$acc parallel vector_length(32)
-!$acc loop gang vector
-             do i = its,ite
-                ust_p(i,j) = ust(i)
-                wstar_p(i,j) =wstar(i)
-                hgamt_p(i,j) = hgamt(i)
-                hgamq_p(i,j) = hgamq(i)
-                entpbl_p(i,j) = entpbl(i)
-             enddo
-!$acc end parallel
-             enddo
+!!!$acc rthratensw)
 
              do j = jts,jte
 !$acc parallel vector_length(32)
@@ -1165,9 +1134,6 @@
              enddo
 !$acc end parallel
              enddo
-!!!$acc update host(ust_p,wstar_p,hgamt_p,hgamq_p,entpbl_p, &
-!!!$acc rqvften_p,rthften_p)
-!!!write(*,*) "*** from-19"
 
           case default
 
