@@ -48,7 +48,7 @@ function(build_core CORE)
   add_custom_command(
     OUTPUT ${INC_DIR}/core_variables.inc
     COMMAND ${CMAKE_BINARY_DIR}/mpas-source/src/tools/parse < ${CORE_BLDDIR}/Registry_processed.xml
-    DEPENDS parse ${CORE_BLDDIR}/Registry_processed.xml
+    DEPENDS ${CORE_BLDDIR}/Registry_processed.xml
     WORKING_DIRECTORY ${INC_DIR}
   )
 
@@ -57,7 +57,7 @@ function(build_core CORE)
     foreach(DISABLE_QSMP_FILE IN LISTS DISABLE_QSMP)
       get_filename_component(SOURCE_EXT ${DISABLE_QSMP_FILE} EXT)
       string(REPLACE "${SOURCE_EXT}" ".f90" SOURCE_F90 ${DISABLE_QSMP_FILE})
-      set_property(SOURCE ${CMAKE_BINARY_DIR}/${SOURCE_F90} APPEND_STRING PROPERTY COMPILE_FLAGS " -nosmp")
+      set_property(SOURCE ${CMAKE_BINARY_DIR}/${SOURCE_F90} APPEND_STRING PROPERTY COMPILE_FLAGS " -qnosmp")
     endforeach()
   endif()
 

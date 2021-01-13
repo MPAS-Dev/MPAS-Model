@@ -74,6 +74,7 @@ void velocity_solver_set_parameters(double const* gravity_F, double const* ice_d
                         double const* sea_level_F, double const* flowParamA_F,
                         double const* flowLawExponent_F, double const* dynamic_thickness_F,
                         double const* clausius_clapeyron_coeff,
+                        double const* thermal_thickness_limit_F,
                         int const* li_mask_ValueDynamicIce, int const* li_mask_ValueIce,
                         bool const* use_GLP_F);
 
@@ -96,7 +97,7 @@ void velocity_solver_solve_fo(double const* bedTopography_F, double const* lower
     int *error = 0 );
 
 
-void velocity_solver_compute_2d_grid(int const* verticesMask_F, int const* _cellsMask_F, int const* dirichletNodesMask_F, int const* floatingEdgeMask_F);
+void velocity_solver_compute_2d_grid(int const* verticesMask_F, int const* _cellsMask_F, int const* dirichletNodesMask_F);
 
 void velocity_solver_set_grid_data(int const* _nCells_F, int const* _nEdges_F,
     int const* _nVertices_F, int const* _nLayers, int const* _nCellsSolve_F,
@@ -130,6 +131,7 @@ void interface_reset_stdout();
 void write_ascii_mesh(int const* indexToCellID_F,
     double const* bedTopography_F, double const* lowerSurface_F,
     double const* beta_F, double const* temperature_F,
+    double const* surfaceAirTemperature_F, double const* basalHeatFlux_F,
     double const* stiffnessFactor_F,
     double const* effecPress_F, double const* muFriction_F,
     double const* thickness_F, double const* thicknessUncertainty_F,
@@ -191,7 +193,7 @@ extern void velocity_solver_extrude_3d_grid__(
     const std::vector<int>& indexToEdgeID,
     const std::vector<int>& indexToTriangleID,
     const std::vector<int>& dirichletNodes,
-    const std::vector<int>&floatingEdges);
+    const std::vector<int>& iceMarginEdgesID);
 
 extern void velocity_solver_export_fo_velocity__(MPI_Comm reducedComm);
 
@@ -203,10 +205,11 @@ double signedTriangleArea(const double* x, const double* y, const double* z);
 
 void createReducedMPI(int nLocalEntities, MPI_Comm& reduced_comm_id);
 
-void importFields(std::map<int, int> bdExtensionMap, double const* bedTopography_F, double const* lowerSurface_F, double const* thickness_F,
+void importFields(std::vector<std::pair<int, int> >& marineBdyExtensionMap,
+                double const* bedTopography_F, double const* lowerSurface_F, double const* thickness_F,
     double const* beta_F = 0, double const* stiffnessFactor_F = 0, double const* effecPress_F = 0, double const* muFriction_F = 0, double const* temperature_F = 0, double const* smb_F = 0, double eps = 0);
 
-void import2DFieldsObservations(std::map<int, int> bdExtensionMap,
+void import2DFieldsObservations(std::vector<std::pair<int, int> >& marineBdyExtensionMap,
             double const * lowerSurface_F, 
             double const * thickness_F, double const * thicknessUncertainty_F,
             double const * smbUncertainty_F,
@@ -214,8 +217,11 @@ void import2DFieldsObservations(std::map<int, int> bdExtensionMap,
             double const * observedSurfaceVelocityX_F, double const * observedSurfaceVelocityY_F,
             double const * observedSurfaceVelocityUncertainty_F,
             double const * observedThicknessTendency_F, double const * observedThicknessTendencyUncertainty_F,
+            double const* surfaceAirTemperature_F, double const* basalHeatFlux_F,
             int const * indexToCellID_F);
- 
+
+void computeSortingIndices(std::vector<int>& sortingIndices, const std::vector<int>& vectorToSort, int numIndices);
+
 void write_ascii_mesh_field(std::vector<double> fieldData, std::string filenamebase);
 
 void write_ascii_mesh_field_int(std::vector<int> fieldData, std::string filenamebase);

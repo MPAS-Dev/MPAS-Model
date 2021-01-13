@@ -1120,6 +1120,8 @@ module li_calving
       logical :: dynamicNeighbor
       integer, pointer :: nCells
       integer :: iCell, jCell, iNeighbor
+      logical :: dynamicNeighbor
+      real(kind=RKIND) :: calvingSubtotal
       integer :: err_tmp
       logical :: applyToGrounded, applyToFloating
       logical :: applyCalving, applyMelting
@@ -1163,6 +1165,9 @@ module li_calving
          call mpas_pool_get_array(velocityPool, 'eMin', eMin)
          call mpas_pool_get_array(geometryPool, 'thickness', thickness)
          call mpas_pool_get_array(geometryPool, 'calvingThickness', calvingThickness)
+         call mpas_pool_get_array(meshPool, 'areaCell', areaCell)
+         call mpas_pool_get_array(meshPool, 'nEdgesOnCell', nEdgesOnCell)
+         call mpas_pool_get_array(meshPool, 'cellsOnCell', cellsOnCell)
 
 
          ! get parameter value
@@ -1181,6 +1186,9 @@ module li_calving
                     realArgs=(/minval(eigencalvingParameter), maxval(eigencalvingParameter)/))
          endif
 
+         ! update mask
+         call li_calculate_mask(meshPool, velocityPool, geometryPool, err_tmp)
+         err = ior(err, err_tmp)
 
          calvingVelocity(:) = 0.0_RKIND
          ! First calculate the front retreat rate (Levermann eq. 1)
@@ -1215,6 +1223,7 @@ module li_calving
                thickness(iCell) = 0.0_RKIND
             endif
          enddo
+         ! TODO: global reduce & reporting on amount of calving generated in this step
 
          ! update mask
          call li_calculate_mask(meshPool, velocityPool, geometryPool, err_tmp)
@@ -1234,8 +1243,6 @@ module li_calving
               if (.not. dynamicNeighbor) then  ! calve this ice
                  calvingThickness(iCell) = calvingThickness(iCell) + thickness(iCell)
                  thickness(iCell) = 0.0_RKIND
-              endif
-           endif
          enddo
 
          call remove_small_islands(meshPool, geometryPool)
@@ -1438,7 +1445,7 @@ module li_calving
 !> perpendicular to the calving flux.
 !>
 !> The output of this routine is calvingThickness, which then needs to be applied to thickness
-!> by the calling routine.  A halo update on calvingThickness is required before applying it!
+!> by the calling routine.
 !-----------------------------------------------------------------------
 
    subroutine apply_front_ablation_velocity(meshPool, geometryPool, velocityPool, applyToGrounded, applyToFloating, applyCalving, applyMelting, domain, err)
@@ -1478,6 +1485,8 @@ module li_calving
       real (kind=RKIND), dimension(:), pointer :: calvingVelocity, faceMeltSpeed
       real (kind=RKIND), dimension(:), allocatable :: ablationVelocity, ablationThickness
       real (kind=RKIND), dimension(:), pointer :: areaCell
+      real (kind=RKIND), dimension(:), pointer :: requiredCalvingVolumeNonDynEdge, requiredCalvingVolumeDynEdge
+      real (kind=RKIND), dimension(:), pointer :: requiredCalvingVolumeNonDynCell, requiredCalvingVolumeDynCell
       real (kind=RKIND), dimension(:,:), pointer :: uReconstructX
       real (kind=RKIND), dimension(:,:), pointer :: uReconstructY
       integer, dimension(:), pointer :: nEdgesOnCell ! number of cells that border each cell
@@ -1642,6 +1651,9 @@ module li_calving
             ablationSubtotal1 = ablationSubtotal1 + removeVolumeHere
          endif
       enddo
+      call mpas_timer_start("halo updates")
+      call mpas_dmpar_field_halo_exch(domain, 'uncalvedVolumeNonDynCell')
+      call mpas_timer_stop("halo updates")
       !call mpas_log_write("Done calculating calving for non-dynamic floating cells. Removed $r m^3", realArgs=(/calvingSubtotal1/))
 
 
@@ -1687,7 +1699,7 @@ module li_calving
                endif
             enddo
 
-            ! Now pass along the required calving volume relative to the interface length
+            ! Now that we know calvLengthCell, pass along the required calving volume relative to the interface length
             do iNeighbor = 1, nEdgesOnCell(iCell)
                iEdge = edgesOnCell(iNeighbor, iCell)
                jCell = cellsOnCell(iNeighbor, iCell)
@@ -1708,6 +1720,9 @@ module li_calving
             enddo
          endif
       enddo
+      call mpas_timer_start("halo updates")
+      call mpas_dmpar_field_halo_exch(domain, 'requiredCalvingVolumeDynEdge')
+      call mpas_timer_stop("halo updates")
 
       ! c. Now apply ablation to each cell
       do iCell = 1, nCellsSolve
@@ -2143,7 +2158,7 @@ module li_calving
                ! initialize
                newMaskCountLocal = 0
                contiguousDynamicIceOld(:) = contiguousDynamicIce(:)
-   
+
                do iCell = 1, nCellsArray(1) ! this gives owned cells only
                   if (contiguousDynamicIceOld(iCell) == 0 .and. &   ! this cell not yet marked
                      li_mask_is_dynamic_ice(cellMask(iCell))) then  ! and is dynamic

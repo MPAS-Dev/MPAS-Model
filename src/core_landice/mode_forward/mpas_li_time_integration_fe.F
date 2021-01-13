@@ -80,6 +80,7 @@ module li_time_integration_fe
 
       use li_subglacial_hydro
       use li_velocity
+      use li_bedtopo
 
       !-----------------------------------------------------------------
       ! input variables
@@ -169,6 +170,13 @@ module li_time_integration_fe
       call mpas_dmpar_field_halo_exch(domain, 'vertexMask')
       call mpas_timer_stop("halo updates")
 
+! === Update bed topo =====================
+! It's not clear when the best time to do this is.
+! Seems cleaner to do it either before or after all of the time evolution of the ice
+! is complete.  Putting it after.
+      call li_bedtopo_solve(domain, err=err_tmp)
+      err = ior(err, err_tmp)
+
 ! === Solve Velocity =====================
       ! During time-stepping, we always solveVelo
       call li_velocity_solve(domain, solveVelo=.true., err=err_tmp)
@@ -247,6 +255,7 @@ module li_time_integration_fe
 
       real (kind=RKIND), dimension(:,:), pointer :: normalVelocity
       real (kind=RKIND), dimension(:,:), pointer :: layerNormalVelocity
+      integer, dimension(:), pointer :: edgeMask
 
       logical, pointer :: config_print_thickness_advection_info
       logical, pointer :: config_adaptive_timestep
@@ -334,6 +343,7 @@ module li_time_integration_fe
          call mpas_pool_get_subpool(block % structs, 'scratch', scratchPool)
 
          call mpas_pool_get_array(velocityPool, 'normalVelocity', normalVelocity)
+         call mpas_pool_get_array(geometryPool, 'edgeMask', edgeMask)
          call mpas_pool_get_array(velocityPool, 'layerNormalVelocity', layerNormalVelocity)
 
          ! compute normal velocities and advective CFL limit for this block
@@ -341,6 +351,7 @@ module li_time_integration_fe
          call li_layer_normal_velocity( &
               meshPool,               &
               normalVelocity,         &
+              edgeMask,               &
               layerNormalVelocity,    &
               allowableAdvecDt,       &
               err_tmp)

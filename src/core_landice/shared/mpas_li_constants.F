@@ -29,6 +29,7 @@ module li_constants
           triple_point => SHR_CONST_TKTRIP,&
           rho_water => SHR_CONST_RHOFW, &
           cp_freshwater => SHR_CONST_CPFW, &
+          cp_seawater => SHR_CONST_CPSW, &
           pii => SHR_CONST_PI, &
           gravity => SHR_CONST_G
    implicit none
@@ -62,8 +63,8 @@ module li_constants
                                                            !< These values are from the Ocean Water Freezing Point Calculator,
                                                            !< http://www.csgnetwork.com/h2ofreezecalc.html (25 Nov. 2014)
 
-   real (kind=RKIND), parameter, public :: &
-        iceMeltingPointPressureDependence = 9.7456e-8_RKIND  ! Dependence of ice melting point on pressure (K Pa^-1)
+   real (kind=RKIND), parameter, public :: iceMeltingPointPressureDependence = 7.9e-8_RKIND
+      !< Clausius-Clapeyron constant: Dependence of ice melting point on pressure (K Pa^-1)
 
    !  conversion factors
    real (kind=RKIND), parameter, public :: kelvin_to_celsius = 273.15_RKIND    !< factor to convert Kelvin to Celsius
