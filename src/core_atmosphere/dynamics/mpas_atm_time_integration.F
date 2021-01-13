@@ -27,9 +27,9 @@ module atm_time_integration
 
    use mpas_atm_iau  
 
-#ifdef MPAS_OPENACC
-   use openacc
-#endif
+!#ifdef MPAS_OPENACC
+!   use openacc
+!#endif
 
    integer :: timerid, secs, u_secs
 
