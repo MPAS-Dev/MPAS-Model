@@ -1120,7 +1120,6 @@ module li_calving
       logical :: dynamicNeighbor
       integer, pointer :: nCells
       integer :: iCell, jCell, iNeighbor
-      logical :: dynamicNeighbor
       real(kind=RKIND) :: calvingSubtotal
       integer :: err_tmp
       logical :: applyToGrounded, applyToFloating
@@ -1165,7 +1164,6 @@ module li_calving
          call mpas_pool_get_array(velocityPool, 'eMin', eMin)
          call mpas_pool_get_array(geometryPool, 'thickness', thickness)
          call mpas_pool_get_array(geometryPool, 'calvingThickness', calvingThickness)
-         call mpas_pool_get_array(meshPool, 'areaCell', areaCell)
          call mpas_pool_get_array(meshPool, 'nEdgesOnCell', nEdgesOnCell)
          call mpas_pool_get_array(meshPool, 'cellsOnCell', cellsOnCell)
 
@@ -1243,6 +1241,8 @@ module li_calving
               if (.not. dynamicNeighbor) then  ! calve this ice
                  calvingThickness(iCell) = calvingThickness(iCell) + thickness(iCell)
                  thickness(iCell) = 0.0_RKIND
+              endif
+           endif
          enddo
 
          call remove_small_islands(meshPool, geometryPool)
