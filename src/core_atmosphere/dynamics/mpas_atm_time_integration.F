@@ -4390,12 +4390,12 @@ module atm_time_integration
 
             do iCell = cellStart,cellEnd
                !
-               ! 2nd-order filter for top absorbing layer as in CAM-SE :  WCS 10 May 2017
-               ! From MPAS-CAM V4.0 code, with addition to config-specified coefficient (V4.0_coef = 0.2; SE_coef = 1.0)
+               ! 2nd-order filter for top absorbing layer as in CAM-SE :  WCS January 2021
+               ! From MPAS-CAM V4.0 code, with addition to config-specified coefficient (1 degree SE_coef = 1.0)
                !
-               kdiff(nVertLevels-2,iCell) = max(kdiff(nVertLevels-2,iCell),    2.0833*config_len_disp*config_mpas_cam_coef)
-               kdiff(nVertLevels-1,iCell) = max(kdiff(nVertLevels-1,iCell),2.0*2.0833*config_len_disp*config_mpas_cam_coef)
-               kdiff(nVertLevels  ,iCell) = max(kdiff(nVertLevels  ,iCell),4.0*2.0833*config_len_disp*config_mpas_cam_coef)
+               kdiff(nVertLevels,iCell) = max(kdiff(nVertLevels,iCell), 18.333*config_len_disp*config_mpas_cam_coef)
+               kdiff(nVertLevels-1,iCell) = max(kdiff(nVertLevels-1,iCell), 5.4*config_len_disp*config_mpas_cam_coef)
+               kdiff(nVertLevels-2,iCell) = max(kdiff(nVertLevels-2,iCell), 1.6*config_len_disp*config_mpas_cam_coef)
             end do
 
          end if
