@@ -171,27 +171,19 @@ module mpas_geotile_manager
         ! reported in section 3-53 of the WRF-ARW User's Guide
         !
         if (.not. associated(endian)) then
-            allocate(endian)
-            endian = "big"
-            call mpas_pool_add_config(mgr % pool, 'endian', endian)
+            call mpas_pool_add_config(mgr % pool, 'endian', "big")
         endif
 
         if (.not. associated(scalefactor)) then
-            allocate(scalefactor)
-            scalefactor = 1.0_RKIND
-            call mpas_pool_add_config(mgr % pool, 'scale_factor', scalefactor)
+            call mpas_pool_add_config(mgr % pool, 'scale_factor', 1.0_RKIND)
         endif
 
         if (.not. associated(signed)) then
-            allocate(signed)
-            signed = 0 ! 0 = 'no', 1 = 'yes'
-            call mpas_pool_add_config(mgr % pool, 'signed', signed)
+            call mpas_pool_add_config(mgr % pool, 'signed', 0)
         endif
 
         if (.not. associated(tile_bdr)) then
-            allocate(tile_bdr)
-            tile_bdr = 0
-            call mpas_pool_add_config(mgr % pool, 'tile_bdr', tile_bdr)
+            call mpas_pool_add_config(mgr % pool, 'tile_bdr', 0)
         endif
 
         !
@@ -235,33 +227,23 @@ module mpas_geotile_manager
             call mpas_pool_get_config(mgr % pool, 'isoilwater', isoilwater)
 
             if (.not. associated(iswater)) then
-                allocate(iswater)
-                iswater = 16
-                call mpas_pool_add_config(mgr % pool, 'iswater', iswater)
+                call mpas_pool_add_config(mgr % pool, 'iswater', 16)
             endif
 
             if (.not. associated(islake)) then
-                allocate(islake)
-                islake = -1
-                call mpas_pool_add_config(mgr % pool, 'islake', islake)
+                call mpas_pool_add_config(mgr % pool, 'islake', -1)
             endif
 
             if (.not. associated(isice)) then
-                allocate(isice)
-                isice = 24
-                call mpas_pool_add_config(mgr % pool, 'isice', isice)
+                call mpas_pool_add_config(mgr % pool, 'isice', 24)
             endif
 
             if (.not. associated(isurban)) then
-                allocate(isurban)
-                isurban = 1
-                call mpas_pool_add_config(mgr % pool, 'isurban', isurban)
+                call mpas_pool_add_config(mgr % pool, 'isurban', 1)
             endif
 
             if (.not. associated(isoilwater)) then
-                allocate(isoilwater)
-                isoilwater = 14
-                call mpas_pool_add_config(mgr % pool, 'isoilwater', isoilwater)
+                call mpas_pool_add_config(mgr % pool, 'isoilwater', 14)
             endif
         endif
 
