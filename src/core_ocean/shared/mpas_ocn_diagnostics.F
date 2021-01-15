@@ -1637,6 +1637,7 @@ contains
 
       integer :: iEdge, cell1, cell2, eoe, j, k
       real (kind=RKIND), dimension(:,:), pointer :: normalVelocity, normalBaroclinicVelocity
+      real (kind=RKIND) :: normalVelocity_sum
 
       integer :: timeLevel
 
@@ -1657,19 +1658,21 @@ contains
       ! Put f*normalBaroclinicVelocity^{perp} in u as a work variable
       !
       !$omp parallel
-      !$omp do schedule(runtime) private(cell1, cell2, k, eoe)
+      !$omp do schedule(runtime) private(cell1, cell2, k, eoe, normalVelocity_sum)
       do iEdge = 1, nEdgesOwned
          cell1 = cellsOnEdge(1,iEdge)
          cell2 = cellsOnEdge(2,iEdge)
 
+         !$omp simd private(eoe, normalVelocity_sum)
          do k = 1, maxLevelEdgeTop(iEdge)
 
-            normalVelocity(k,iEdge) = 0.0_RKIND
+            normalVelocity_sum = 0.0_RKIND
             do j = 1,nEdgesOnEdge(iEdge)
                eoe = edgesOnEdge(j,iEdge)
-               normalVelocity(k,iEdge) = normalVelocity(k,iEdge) + weightsOnEdge(j,iEdge) * normalBaroclinicVelocity(k,eoe) &
+               normalVelocity_sum = normalVelocity_sum + weightsOnEdge(j,iEdge) * normalBaroclinicVelocity(k,eoe) &
                                        * fEdge(eoe)
             end do
+            normalVelocity(k,iEdge) = normalVelocity_sum
          end do
       end do
       !$omp end do
