@@ -1,0 +1,577 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  
+  <title>ISOMIP+ &mdash; MPAS-Model latest documentation</title>
+  
+
+  
+  <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+
+  
+  
+
+  
+  
+
+  
+
+  
+  <!--[if lt IE 9]>
+    <script src="../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="../../" src="../../_static/documentation_options.js"></script>
+        <script src="../../_static/jquery.js"></script>
+        <script src="../../_static/underscore.js"></script>
+        <script src="../../_static/doctools.js"></script>
+        <script async="async" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.7/latest.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    
+    <script type="text/javascript" src="../../_static/js/theme.js"></script>
+
+    
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+    <link rel="next" title="Instructions for setting up and running ISOMIP+ Ocean0 on LANL IC" href="isomip_plus_at_lanl.html" />
+    <link rel="prev" title="Baroclinic Channel" href="baroclinic_channel.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="../../index.html" class="icon icon-home"> MPAS-Model
+          
+
+          
+          </a>
+
+          
+            
+            
+              <div class="version">
+                latest
+              </div>
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="../index.html">COMPASS</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="../details.html">Details</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../scripts.html">Scripts</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../ocean.html">COMPASS for ocean test case</a></li>
+<li class="toctree-l2 current"><a class="reference internal" href="index.html">Ocean Test Cases</a><ul class="current">
+<li class="toctree-l3"><a class="reference internal" href="global_ocean.html">Global Ocean</a></li>
+<li class="toctree-l3"><a class="reference internal" href="baroclinic_channel.html">Baroclinic Channel</a></li>
+<li class="toctree-l3 current"><a class="current reference internal" href="#">ISOMIP+</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="isomip_plus_at_lanl.html">Instructions for setting up and running ISOMIP+ Ocean0 on LANL IC</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../ocean/index.html">MPAS-Ocean</a></li>
+</ul>
+
+            
+          
+        </div>
+        
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">MPAS-Model</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../../index.html" class="icon icon-home"></a> &raquo;</li>
+        
+          <li><a href="../index.html">COMPASS</a> &raquo;</li>
+        
+          <li><a href="index.html">Ocean Test Cases</a> &raquo;</li>
+        
+      <li>ISOMIP+</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+          
+            <a href="../../_sources/compass/ocean_testcases/isomip_plus.rst.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="isomip">
+<span id="compass-ocean-isomip-plus"></span><h1>ISOMIP+<a class="headerlink" href="#isomip" title="Permalink to this headline">¶</a></h1>
+<p>The second Ice Shelf-Ocean Model Intercomparison Project (ISOMIP+) is a set of
+five experiments for ocean models with thermodynamically active ice shelf
+cavities (i.e. with a parameterization of the sub-ice-shelf boundary layer
+and of melt rates a the ice-ocean interface).  The experiments are described
+in <a class="reference external" href="https://gmd.copernicus.org/articles/9/2471/2016/">Asay-Davis et al. (2016)</a>.</p>
+<p>ISOMIP+ is based on a earlier set of experiments,
+<a class="reference external" href="https://ui.adsabs.harvard.edu/abs/2003AGUFM.C41A..05H/abstract">ISOMIP</a>,
+that was very idealized.  ISOMIP+ uses a more complex but still idealized ice
+geometry.  It is a sister project of the third Marine Ice Sheet Model
+Intercomparison Project
+<a class="reference external" href="https://tc.copernicus.org/articles/14/2283/2020/tc-14-2283-2020.html">(MISMIP+)</a>,
+which dynamics of an ice sheet and ice shelf with significant variability in
+two horizontal dimensions.  Topography for ISOMIP+ comes from MISMIP+
+simulations with the BISICLES model and can be
+<a class="reference external" href="https://dataservices.gfz-potsdam.de/pik/showshort.php?id=escidoc:1487953">downloaded here</a>
+(however, COMPASS will automatically download the topography, process it, and
+regrid it to the MPAS mesh so users do not need to download it themselves).
+ISOMIP+ uses far-field restoring over the full water column to force changes in
+ocean conditions.  Restoring with a relatively warm far-field temperature
+profile (the Ocean0 experiment) leads to a quasi-steady state within 1 to 2
+year.  Two ISOMIP+ experiments prescribe dynamic topography, allowing models to
+test their ability to handle moving boundaries and to see the effects that
+moving topography has on ocean dynamics.</p>
+<div class="section" id="com-2km-and-typ-5km-configurations">
+<h2>COM (2km) and TYP (5km) configurations<a class="headerlink" href="#com-2km-and-typ-5km-configurations" title="Permalink to this headline">¶</a></h2>
+<p>Each of the five experiments can be performed in a “common” (COM) or a “typical”
+(TYP) setup.  The COM setup prescribes canonical horizontal (2 km) and vertical
+(36 layers, ~20 m) resolutions as well as a linear equation of state, a
+linear equation for the freezing point,and prescribed values for several
+coefficients including: a root-mean-squared “tidal” velocity to include in the
+computation of the friction velocity; top and bottom drag coefficients;
+and horizontal and vertical viscosity and diffusivity.  The COM experiments also
+prescribe a method for computing the value of the heat- and salt-transfer
+coefficients (<span class="math notranslate nohighlight">\(\Gamma_T\)</span> and <span class="math notranslate nohighlight">\(\Gamma_S\)</span>) as part of the Ocean0
+experiment described below.</p>
+<p>The TYP experiments are intended to run at at resolutions typical for realistic
+simulations performed with that ocean model and with typical parameter values.
+The idea behind these experiments is to get a feel for how much these parameter
+choices affect model spread compared with the COM choices.  For MPAS-Ocean, we
+chose 5 km as our TYP resolution because, at the time, this was the target
+resolution for our highest resolution simulations with ice-shelf cavities.
+In practice, we have not run simulations with resolution this high.  But even
+at 5 km resolution, the ISOMIP+ domain is not well resolved and the dynamics
+are clearly affected by the poor resolution.  We are fully aware that we do not
+capture small ice shelves like the one in ISOMIP+ in our typical MPAS-Ocean
+simulations with ice-shelf cavities.</p>
+</div>
+<div class="section" id="ocean0">
+<h2>Ocean0<a class="headerlink" href="#ocean0" title="Permalink to this headline">¶</a></h2>
+<p>Ocean0 uses steady-state ice topography from the initial steady state of a
+MISMIP+ Ice1 experiment (also described in
+<a class="reference external" href="https://gmd.copernicus.org/articles/9/2471/2016/">Asay-Davis et al. (2016)</a>).
+produced with the BISICLES ice-sheet model. The ocean is initialized with a
+relatively warm profile and restored the same profile in the far field. The
+combination of warm initial conditions and restoring leads the system to reach a
+quasi-equilibrium with strong melting over a few months to a few years. Because
+Ocean0 is expected to reach a quasi-equilibrium within approximately 1 year,
+this experiment is well suited to parameter studies. In particular, this
+experiment is used to calibrate the values of the heat- and salt-transfer
+coefficients, <span class="math notranslate nohighlight">\(\Gamma_T\)</span> and <span class="math notranslate nohighlight">\(\Gamma_S\)</span>, to achieve a target
+melt rate of ~30 m/yr.</p>
+</div>
+<div class="section" id="ocean1">
+<h2>Ocean1<a class="headerlink" href="#ocean1" title="Permalink to this headline">¶</a></h2>
+<p>Ocean1 uses the same topography and restoring as Ocean0 but is initialized to a
+colder, fresher profile that is expected to result in low melt rates during the
+first several years of the simulation. Far-field restoring to the same warmer
+profile as in Ocean0 leads to warmer and saltier water in the far field at
+depth. The duration of the experiment is 20 years, which is typically sufficient
+time to reach a quasi-steady state. Melt rates as well as the strengths of the
+barotropic and overturning circulations toward the end of the simulation are
+expected to be significantly larger than those within the first few years
+because of the warming.</p>
+</div>
+<div class="section" id="ocean2">
+<h2>Ocean2<a class="headerlink" href="#ocean2" title="Permalink to this headline">¶</a></h2>
+<p>In Ocean2, the topography is from the end of the Ice1r simulation from BISICLES.
+The ocean is initialized with the warm profile from Ocean0 and restored to the
+cold profile from the initial condition of Ocean1. As with Ocean1, this
+experiment runs for 20 years.</p>
+</div>
+<div class="section" id="ocean3-not-available">
+<h2>Ocean3 (not available)<a class="headerlink" href="#ocean3-not-available" title="Permalink to this headline">¶</a></h2>
+<p>Ocean3 begins with the same topography as Ocean1, but in this experiment the
+ice draft evolves over time according to a prescribed data set covering 100
+years of ice retreat from Ice1r. Ocean3 is initialized and forced with warm
+conditions, similar to Ocean0. Strong melting begins immediately as the
+sub-ice-shelf circulation spins up, consistent with the conditions for Ice1r
+used to generate the topography, and persist for the duration of the experiment.
+Again, the topography is
+<a class="reference external" href="https://dataservices.gfz-potsdam.de/pik/showshort.php?id=escidoc:1487953">available here</a>.</p>
+<p>MPAS-Ocean does not yet support the moving boundaries that this experiment
+requires, so it has not yet been implemented in COMPASS.</p>
+</div>
+<div class="section" id="ocean4-not-available">
+<h2>Ocean4 (not available)<a class="headerlink" href="#ocean4-not-available" title="Permalink to this headline">¶</a></h2>
+<p>Conceptually, Ocean4 is an extension of Ocean3. The ice- draft topography from
+Ice1ra was produced by abruptly shutting off melting at year 100 and allowing
+the ice to re-advance for 100 years. Thus, Ocean4 begins with the final
+topography from Ocean3 (which is also the topography used in Ocean2). This time,
+cold initial conditions and restorign are prescribed, leading to very low melt
+rates, consistent with the lack of melting in the MISMIP+ run that produced the
+ice topography.</p>
+<p>Again, MPAS-Ocean does not yet support the moving boundaries, so this experiment
+has not yet been implemented in COMPASS.</p>
+</div>
+<div class="section" id="setting-up-a-run-in-compass">
+<h2>Setting up a run in COMPASS<a class="headerlink" href="#setting-up-a-run-in-compass" title="Permalink to this headline">¶</a></h2>
+<p>In a local check-out of the <code class="docutils literal notranslate"><span class="pre">MPAS-Dev/MPAS-Model/ocean/develop</span></code> branch:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nb">cd</span> testing_and_setup/compass/
+</pre></div>
+</div>
+<p>To build test cases, you need to tell COMPASS where to find a few thing.
+Open a file <code class="docutils literal notranslate"><span class="pre">config.ocean</span></code> and put the following, where we have used the
+example path <code class="docutils literal notranslate"><span class="pre">usr/projects/climate/username/mpas/model/ocean/develop</span></code> as the
+location where MPAS-Ocena has been checked out and compiled:</p>
+<div class="highlight-ini notranslate"><div class="highlight"><pre><span></span><span class="c1"># This file is the ocean core&#39;s configuration file. It is specific to the ocean</span>
+<span class="c1"># core, and a specific machine. Each machine will configure this file</span>
+<span class="c1"># differently, but it can be used to point on version of the testing</span>
+<span class="c1"># infrastructure at a different version of the model.</span>
+
+
+<span class="c1"># The namelists section defines paths to template namelists that will be used</span>
+<span class="c1"># to generate specific namelists. Typically these will point to the forward and</span>
+<span class="c1"># init namelists in the default_inputs directory after a successful build of</span>
+<span class="c1"># the ocean model.</span>
+<span class="k">[namelists]</span>
+<span class="na">forward</span> <span class="o">=</span> <span class="s">/usr/projects/climate/username/mpas/model/ocean/develop/namelist.ocean.forward</span>
+<span class="na">init</span> <span class="o">=</span> <span class="s">/usr/projects/climate/username/mpas/model/ocean/develop/namelist.ocean.init</span>
+
+
+<span class="c1"># The streams section defines paths to template streams files that will be used</span>
+<span class="c1"># to generate specific streams files. Typically these will point to the forward and</span>
+<span class="c1"># init streams files in the default_inputs directory after a successful build of</span>
+<span class="c1"># the ocean model.</span>
+<span class="k">[streams]</span>
+<span class="na">forward</span> <span class="o">=</span> <span class="s">/usr/projects/climate/username/mpas/model/ocean/develop/streams.ocean.forward</span>
+<span class="na">init</span> <span class="o">=</span> <span class="s">/usr/projects/climate/username/mpas/model/ocean/develop/streams.ocean.init</span>
+
+
+<span class="c1"># The executables section defines paths to required executables. These</span>
+<span class="c1"># executables are provided for use by specific test cases.</span>
+<span class="c1"># Full paths should be provided in order to access the executables from</span>
+<span class="c1"># anywhere on the machine.</span>
+<span class="k">[executables]</span>
+<span class="na">model</span> <span class="o">=</span> <span class="s">/usr/projects/climate/username/mpas/model/ocean/develop/ocean_model</span>
+
+
+<span class="c1"># The paths section describes paths that are used within the ocean core test</span>
+<span class="c1"># cases.</span>
+<span class="k">[paths]</span>
+
+<span class="c1"># The mesh_database and the initial_condition_database are locations where</span>
+<span class="c1"># meshes / initial conditions might be found on a specific machine. They can be</span>
+<span class="c1"># the same directory, or different directory. Additionally, if they are empty</span>
+<span class="c1"># some test cases might download data into them, which will then be reused if</span>
+<span class="c1"># the test case is run again later.</span>
+<span class="na">mpas_model</span> <span class="o">=</span> <span class="s">/usr/projects/climate/username/mpas/model/ocean/develop</span>
+<span class="na">mesh_database</span> <span class="o">=</span> <span class="s">/usr/projects/regionalclimate/COMMON_MPAS/ocean/grids/mesh_database</span>
+<span class="na">initial_condition_database</span> <span class="o">=</span> <span class="s">/usr/projects/regionalclimate/COMMON_MPAS/ocean/grids/initial_condition_database</span>
+<span class="na">bathymetry_database</span> <span class="o">=</span> <span class="s">/usr/projects/regionalclimate/COMMON_MPAS/ocean/grids/bathymetry_database</span>
+</pre></div>
+</div>
+<p>You can supply paths for the <code class="docutils literal notranslate"><span class="pre">mesh_database</span></code>, <code class="docutils literal notranslate"><span class="pre">initial_condition_database</span></code>
+and <code class="docutils literal notranslate"><span class="pre">bathymetry_database</span></code> that are initially empty.  COMPASS will download
+this data as needed.  If you are on an E3SM supported machine or LANL’s
+Institutional Computing, you should use the shared locations to avoid
+unnecessary downloads.</p>
+<p>List the available ISOMIP+ test cases:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>./list_testcases.py -o ocean -c isomip_plus
+</pre></div>
+</div>
+<p>There are 2 resolutions (2 km and 5 km) and 3 test cases at each resolution
+(Ocean0, 1 and 2) plus a time-varying version of Ocean0 that is being used to
+explore moving boundaries.  Pick the test case you are interested in running.
+In this example, we choose COM (2km) Ocean0</p>
+<p>Set up the test case as follows:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>./setup_testcase.py -o ocean -c isomip_plus -r 2km -t Ocean0 -f config.ocean -m runtime_definitions/srun.xml --work_dir /lustre/scratch4/turquoise/username/isomip_plus_Ocean0
+</pre></div>
+</div>
+<p>The directory <code class="docutils literal notranslate"><span class="pre">/lustre/scratch4/turquoise/username/isomip_plus_Ocean0</span></code> should
+be some convenient path to set up and run the directory, typically in a scratch
+space on a supercomputer or cluster.</p>
+</div>
+<div class="section" id="running-the-test-case">
+<h2>Running the test case<a class="headerlink" href="#running-the-test-case" title="Permalink to this headline">¶</a></h2>
+<p>It is best to do a short test run (1 month) to make sure everything is working,
+rather than jumping into a 2 or 20-year simulation.  How you do this will depend
+on your system.  Here, we show starting an interactive job on LANL IC.  You will
+need to figure out how set up your system with the appropriate compilers, MPI,
+libraries, etc., which will be covered elsewhere in this documentation.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nb">cd</span> /lustre/scratch4/turquoise/username/isomip_plus_Ocean0/ocean/isomip_plus/2km/Ocean0/
+salloc --nodes<span class="o">=</span><span class="m">1</span> --time<span class="o">=</span><span class="m">0</span>:20:00 --account<span class="o">=</span>e3sm
+
+<span class="s">&lt;&lt;load modul</span>es needed <span class="k">for</span> MPI, python, etc.&gt;&gt;
+
+./run_test.py
+</pre></div>
+</div>
+</div>
+<div class="section" id="running-a-full-2-or-20-year-simulation">
+<h2>Running a full 2- or 20-year simulation<a class="headerlink" href="#running-a-full-2-or-20-year-simulation" title="Permalink to this headline">¶</a></h2>
+<p>For a longer simulation, you will need a job script.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nb">cd</span> /lustre/scratch4/turquoise/username/isomip_plus_Ocean0/ocean/isomip_plus/2km/Ocean0/forward
+vim job_script.bash
+</pre></div>
+</div>
+<p>This is an example job script for Ocean0 on LANL IC:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="ch">#!/bin/bash</span>
+<span class="c1">#SBATCH --nodes=4</span>
+<span class="c1">#SBATCH --time=4:00:00</span>
+<span class="c1">#SBATCH --account=e3sm</span>
+<span class="c1">#SBATCH --job-name=Ocean0</span>
+<span class="c1">#SBATCH --output=Ocean0.o%j</span>
+<span class="c1">#SBATCH --error=Ocean0.e%j</span>
+<span class="c1">#SBATCH --qos=interactive</span>
+
+<span class="c1"># exit if there are any errors</span>
+<span class="nb">set</span> -e
+
+<span class="s">&lt;&lt;load modul</span>es needed <span class="k">for</span> MPI, python, etc.&gt;&gt;
+
+<span class="nv">months_per_job</span><span class="o">=</span><span class="m">24</span>
+<span class="nv">end_date</span><span class="o">=</span><span class="s2">&quot;0003-01-01_00:00:00&quot;</span>
+
+<span class="k">for</span> month <span class="k">in</span> <span class="sb">`</span>seq <span class="m">0</span> <span class="nv">$months_per_job</span><span class="sb">`</span>
+<span class="k">do</span>
+    ./check_progress.py -f namelist.ocean -e <span class="nv">$end_date</span>
+    ./run.py
+    ./setup_restart.py -f namelist.ocean
+<span class="k">done</span>
+</pre></div>
+</div>
+<p>For Ocean1 and Ocean2, the <code class="docutils literal notranslate"><span class="pre">end_date</span></code> should include the year <code class="docutils literal notranslate"><span class="pre">0021</span></code>
+(since the simulation starts at year <code class="docutils literal notranslate"><span class="pre">0001</span></code>).</p>
+<p>Submit the job:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>sbatch job_script.bash
+</pre></div>
+</div>
+<p>Once it’s running, monitor the progress with:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>tail log.ocean.0000.out
+</pre></div>
+</div>
+<p>This writes a message for each time step (if all is going well).</p>
+<p>The simulation runs one month at a time and then does some adjustment in a
+python script to make sure sea level doesn’t get out of control (there’s a lot
+of melting going on so we have to have a compensating level of “evaporation” at
+the domain boundary).  It also will check to see if we’ve already reached year
+2 and won’t run again if so.</p>
+<p>Some basic output is available in:</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>analysis_members/globalStats.0001-01-01_00.00.00.nc
+</pre></div>
+</div>
+<p>To see the mean melt flux and how time is progressing there, do:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>ncdump -v xtime,landIceFreshwaterFluxAvg analysis_members/globalStats.0001-01-01_00.00.00.nc <span class="p">|</span> tail -n <span class="m">50</span>
+</pre></div>
+</div>
+<p>Keep in mind that the units are <code class="docutils literal notranslate"><span class="pre">kg</span> <span class="pre">m^{-2}</span> <span class="pre">s^{-1}</span></code>, not m/yr, so not the most
+intuitive output.  There is a <code class="docutils literal notranslate"><span class="pre">viz</span></code> package in the <code class="docutils literal notranslate"><span class="pre">isomip_plus</span></code> directory
+that gets linked in each test case.  You can also look at output in paraview.</p>
+</div>
+<div class="section" id="visualization">
+<h2>Visualization<a class="headerlink" href="#visualization" title="Permalink to this headline">¶</a></h2>
+<p>There should be a link to the <code class="docutils literal notranslate"><span class="pre">viz</span></code> python package in the <code class="docutils literal notranslate"><span class="pre">forward</span></code>
+directory.  To run the <code class="docutils literal notranslate"><span class="pre">viz</span></code> package, you will need several dependencies as
+part of a conda environment, including <code class="docutils literal notranslate"><span class="pre">xarray</span></code>, <code class="docutils literal notranslate"><span class="pre">dask</span></code>, <code class="docutils literal notranslate"><span class="pre">numpy</span></code>,
+<code class="docutils literal notranslate"><span class="pre">progressbar2</span></code>, <code class="docutils literal notranslate"><span class="pre">netcdf4</span></code>, <code class="docutils literal notranslate"><span class="pre">shapely</span></code>, <code class="docutils literal notranslate"><span class="pre">matplotlib</span></code>, <code class="docutils literal notranslate"><span class="pre">ffmpeg</span></code> and
+<code class="docutils literal notranslate"><span class="pre">scipy</span></code>.  These are all part of the <code class="docutils literal notranslate"><span class="pre">compass</span></code> environment defined by the
+<code class="docutils literal notranslate"><span class="pre">compass</span></code> package, so if you have already installed and activated the latest
+<code class="docutils literal notranslate"><span class="pre">compass</span></code>, you’re all set.  If you are on a supported machine, such as on
+LANL IC, you can activate with a command like:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nb">source</span> /usr/projects/climate/SHARED_CLIMATE/anaconda_envs/base/etc/profile.d/conda.sh
+conda activate compass_0.1.8
+</pre></div>
+</div>
+<p>Once you have an appropriate conda environment, run:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>python -m viz
+</pre></div>
+</div>
+<p>If you are running Ocean1 or Ocean2, you need to specify this.  Ocean0 is the
+default experiment.  to see the other command-line flags, run:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>python -m viz --help
+</pre></div>
+</div>
+<p>Running <code class="docutils literal notranslate"><span class="pre">viz</span></code> will take maybe 10 or 15 minutes (most of it on the overturning
+streamfunction).  You should see something like:</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>barotropic streamfunction: 100% |##############################| Time:  0:00:15
+compute and caching transport on MPAS grid:
+[########################################] | 100% Completed |  7.2s
+interpolating tansport on z-level grid: 100% |#################| Time:  0:10:13
+caching transport on z-level grid:
+[########################################] | 100% Completed |  2.2s
+compute and caching vertical transport sum on z-level grid:
+[########################################] | 100% Completed |  2.4s
+bin overturning streamfunction: 100% |#########################| Time:  0:02:03
+plotting barotropic streamfunction: 100% |#####################| Time:  0:00:08
+plotting overturning streamfunction: 100% |####################| Time:  0:00:05
+plotting melt rate: 100% |#####################################| Time:  0:00:07
+plotting heat flux from ocean to ice-ocean interface: 100% |###| Time:  0:00:07
+plotting heat flux into ice at ice-ocean interface: 100% |#####| Time:  0:00:07
+plotting thermal driving: 100% |###############################| Time:  0:00:07
+plotting haline driving: 100% |################################| Time:  0:00:07
+plotting friction velocity: 100% |#############################| Time:  0:00:08
+plotting top temperature: 100% |###############################| Time:  0:00:09
+plotting bot temperature: 100% |###############################| Time:  0:00:08
+plotting temperature section: 100% |###########################| Time:  0:00:05
+plotting top salinity: 100% |##################################| Time:  0:00:08
+plotting bot salinity: 100% |##################################| Time:  0:00:08
+plotting salinity section: 100% |##############################| Time:  0:00:05
+plotting top potential density: 100% |#########################| Time:  0:00:10
+plotting bot potential density: 100% |#########################| Time:  0:00:08
+plotting potential density section: 100% |#####################| Time:  0:00:05
+running ffmpeg -y -r 30 -i ./plots/botPotRho/botPotRho_%04d.png -b:v 32000k -r 30 ./movies/botPotRho.mp4
+running ffmpeg -y -r 30 -i ./plots/botSalinity/botSalinity_%04d.png -b:v 32000k -r 30 ./movies/botSalinity.mp4
+running ffmpeg -y -r 30 -i ./plots/botTemp/botTemp_%04d.png -b:v 32000k -r 30 ./movies/botTemp.mp4
+running ffmpeg -y -r 30 -i ./plots/bsf/bsf_%04d.png -b:v 32000k -r 30 ./movies/bsf.mp4
+running ffmpeg -y -r 30 -i ./plots/frictionVelocity/frictionVelocity_%04d.png -b:v 32000k -r 30 ./movies/frictionVelocity.mp4
+running ffmpeg -y -r 30 -i ./plots/halineDriving/halineDriving_%04d.png -b:v 32000k -r 30 ./movies/halineDriving.mp4
+running ffmpeg -y -r 30 -i ./plots/iceHeatFlux/iceHeatFlux_%04d.png -b:v 32000k -r 30 ./movies/iceHeatFlux.mp4
+running ffmpeg -y -r 30 -i ./plots/meltRate/meltRate_%04d.png -b:v 32000k -r 30 ./movies/meltRate.mp4
+running ffmpeg -y -r 30 -i ./plots/oceanHeatFlux/oceanHeatFlux_%04d.png -b:v 32000k -r 30 ./movies/oceanHeatFlux.mp4
+running ffmpeg -y -r 30 -i ./plots/osf/osf_%04d.png -b:v 32000k -r 30 ./movies/osf.mp4
+running ffmpeg -y -r 30 -i ./plots/sectionPotRho/sectionPotRho_%04d.png -b:v 32000k -r 30 ./movies/sectionPotRho.mp4
+running ffmpeg -y -r 30 -i ./plots/sectionSalinity/sectionSalinity_%04d.png -b:v 32000k -r 30 ./movies/sectionSalinity.mp4
+running ffmpeg -y -r 30 -i ./plots/sectionTemp/sectionTemp_%04d.png -b:v 32000k -r 30 ./movies/sectionTemp.mp4
+running ffmpeg -y -r 30 -i ./plots/thermalDriving/thermalDriving_%04d.png -b:v 32000k -r 30 ./movies/thermalDriving.mp4
+running ffmpeg -y -r 30 -i ./plots/topPotRho/topPotRho_%04d.png -b:v 32000k -r 30 ./movies/topPotRho.mp4
+running ffmpeg -y -r 30 -i ./plots/topSalinity/topSalinity_%04d.png -b:v 32000k -r 30 ./movies/topSalinity.mp4
+running ffmpeg -y -r 30 -i ./plots/topTemp/topTemp_%04d.png -b:v 32000k -r 30 ./movies/topTemp.mp4
+</pre></div>
+</div>
+<p>The more interesting results should be a series of movies in <code class="docutils literal notranslate"><span class="pre">movies</span></code> and 4
+time series plots in <code class="docutils literal notranslate"><span class="pre">plots</span></code> (mean melt rate, total melt flux, mean thermal
+driving and mean friction velocity) and the same plots in
+<code class="docutils literal notranslate"><span class="pre">timeSeriesBelow300m</span></code>, but this time averaged only over the deepest part of
+the ice shelf (where much of the action is).</p>
+</div>
+<div class="section" id="more-information">
+<h2>More Information<a class="headerlink" href="#more-information" title="Permalink to this headline">¶</a></h2>
+<div class="toctree-wrapper compound">
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="isomip_plus_at_lanl.html">Instructions for setting up and running ISOMIP+ Ocean0 on LANL IC</a></li>
+</ul>
+</div>
+</div>
+</div>
+
+
+           </div>
+           
+          </div>
+          <footer>
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+        <a href="isomip_plus_at_lanl.html" class="btn btn-neutral float-right" title="Instructions for setting up and running ISOMIP+ Ocean0 on LANL IC" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+        <a href="baroclinic_channel.html" class="btn btn-neutral float-left" title="Baroclinic Channel" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &#169; Copyright Copyright (c) 2013-2020,  Los Alamos National Security, LLC (LANS) (Ocean: LA-CC-13-047;Land Ice: LA-CC-13-117) and the University Corporation for Atmospheric Research (UCAR)..
+
+    </p>
+  </div>
+    
+    
+    
+    Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    
+    provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>
