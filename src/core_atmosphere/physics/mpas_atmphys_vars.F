@@ -258,6 +258,9 @@
     ni_p,             &!
     nr_p               !
 
+ real(kind=RKIND),dimension(:,:,:),allocatable:: &
+    qo3_p              !ozone mixing ratio                                                  [kg/kg]
+
 !... arrays located at w (vertical velocity) points, or at interface between layers:
  real(kind=RKIND),dimension(:,:,:),allocatable:: &
     w_p,              &!vertical velocity                                                     [m/s]
@@ -535,6 +538,9 @@
     rniblten_p,       &!tendency of cloud ice number concentration due to PBL processes.
     rnifablten_p,     &!tendency of "water-friendly" aerosols due to PBL processes.
     rnwfablten_p       !tendency of "ice-friendly" aerosols due to PBL processes.
+
+ real(kind=RKIND),dimension(:,:,:),allocatable:: &
+    rqo3blten_p        !tendency of ozone mixing ratio due to PBL processes.
 
  real(kind=RKIND),dimension(:,:,:),allocatable:: &
     kzh_p,            &!
