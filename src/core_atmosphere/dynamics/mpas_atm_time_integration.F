@@ -6231,9 +6231,9 @@ if (config_horiz_mixing == "2d_smagorinsky") then
       integer :: iEdge, iCell, iVertex, k, cell1, cell2, vertex1, vertex2, eoe, i, j, iq, iAdvCell
 
       !real (kind=RKIND), parameter :: c_s = 0.125
-      real (kind=RKIND), dimension( 59 ) :: d_diag, d_off_diag,flux_arr1, flux_arr, ru_edge_w, ru_save_temp , tend_wk, delsq_wk, wduz, wdwz, wdtz, we_w, u_mix, h_wk
+      real (kind=RKIND), dimension( 64 ) :: d_diag, d_off_diag,flux_arr1, flux_arr, ru_edge_w, ru_save_temp , tend_wk, delsq_wk, wduz, wdwz, wdtz, we_w, u_mix, h_wk
       integer, dimension(15) ::  iadv_cell_w
-      integer, dimension(59) :: eoe_w
+      integer, dimension(64) :: eoe_w
       real (kind=RKIND), dimension(15) :: coefs_w, coefs_3rd_w
       real (kind=RKIND), dimension( nVertLevels + 1 ) :: dpzx
       real (kind=RKIND) :: theta_turb_flux, w_turb_flux, r
