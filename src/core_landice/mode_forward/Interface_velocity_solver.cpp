@@ -1252,8 +1252,6 @@ void importFields(std::vector<std::pair<int, int> >& marineBdyExtensionMap,  dou
     }
 
     bool floating = rho_ice * thicknessData[iv] + rho_ocean * bedTopographyData[iv] < 0;
-    if (floating && (effecPress_F != 0))
-      effecPressData[iv] = 0.0;
   }
 }
 
