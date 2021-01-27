@@ -449,7 +449,6 @@ contains
          normalVelocity, uReconstructX, uReconstructY, uReconstructZ
       real (kind=RKIND), dimension(:,:), pointer :: temperature
       real (kind=RKIND), dimension(:), pointer :: stiffnessFactor
-      real (kind=RKIND), dimension(:), pointer :: effectivePressure
       real (kind=RKIND), dimension(:), pointer :: effectivePressureLimited
       real (kind=RKIND), dimension(:), pointer :: muFriction
       real (kind=RKIND), pointer :: deltat
@@ -460,7 +459,6 @@ contains
       logical, pointer :: config_output_external_velocity_solver_data
       logical, pointer :: config_nonconvergence_error
       real (kind=RKIND), pointer :: config_ice_density
-      real (kind=RKIND), pointer :: config_effective_pressure_max
       integer, pointer :: anyDynamicVertexMaskChanged
       integer, pointer :: dirichletMaskChanged
       integer, pointer :: nEdges
@@ -486,7 +484,6 @@ contains
          config_output_external_velocity_solver_data)
       call mpas_pool_get_config(liConfigs, 'config_nonconvergence_error', config_nonconvergence_error)
       call mpas_pool_get_config(liConfigs, 'config_ice_density', config_ice_density)
-      call mpas_pool_get_config(liConfigs, 'config_effective_pressure_max', config_effective_pressure_max)
 
       ! Mesh variables
       call mpas_pool_get_array(meshPool, 'layerThicknessFractions', layerThicknessFractions)
@@ -524,7 +521,6 @@ contains
       call mpas_pool_get_array(velocityPool, 'stiffnessFactor', stiffnessFactor)
 
       ! Hydro variables
-      call mpas_pool_get_array(hydroPool, 'effectivePressure', effectivePressure)
       call mpas_pool_get_array(velocityPool, 'effectivePressureLimited', effectivePressureLimited)
 
 #if defined(USE_EXTERNAL_L1L2) || defined(USE_EXTERNAL_FIRSTORDER) || defined(USE_EXTERNAL_STOKES)
@@ -532,11 +528,6 @@ contains
       call interface_redirect_stdout(timestepNumber)
 #endif
 
-      ! Create version of effectivePressure field with limits applied
-      do iCell = 1, nCells
-         effectivePressureLimited(iCell) = max(0.0_RKIND, effectivePressure(iCell)) ! Never pass a negative N
-         effectivePressureLimited(iCell) = min(config_effective_pressure_max, effectivePressureLimited(iCell))
-      enddo
 
       ! ==================================================================
       ! External dycore calls to be made only when vertex mask changes
