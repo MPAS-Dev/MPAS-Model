@@ -39,7 +39,7 @@ module mpas_subdriver
    contains
 
 
-   subroutine mpas_init(corelist, domain_ptr, mpi_comm)
+   subroutine mpas_init(corelist, domain_ptr, mpi_comm, namelistFileParam, streamsFileParam)
 
       use mpas_stream_manager, only : MPAS_stream_mgr_init, MPAS_build_stream_filename, MPAS_stream_mgr_validate_streams
       use iso_c_binding, only : c_char, c_loc, c_ptr, c_int
@@ -53,6 +53,8 @@ module mpas_subdriver
       type (core_type), intent(inout), pointer :: corelist
       type (domain_type), intent(inout), pointer :: domain_ptr
       integer, intent(in), optional :: mpi_comm
+      character(len=*), intent(in), optional :: namelistFileParam
+      character(len=*), intent(in), optional :: streamsFileParam
 
       integer :: iArg, nArgs
       logical :: readNamelistArg, readStreamsArg
@@ -108,6 +110,15 @@ module mpas_subdriver
 
       readNamelistArg = .false.
       readStreamsArg = .false.
+
+      if (present(namelistFileParam) .and. len_trim(namelistFileParam) > 0 ) then
+         readNamelistArg = .true.
+         namelistFile = trim(namelistFileParam)
+      endif
+      if (present(streamsFileParam)  .and. len_trim(streamsFileParam) > 0 ) then
+         readStreamsArg = .true.
+         streamsFile = trim(streamsFileParam)
+      endif
 
       nArgs = command_argument_count()
       iArg = 1
