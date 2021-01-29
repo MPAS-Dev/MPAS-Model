@@ -819,6 +819,7 @@ contains
       real (kind=RKIND) :: betaAccum
       integer :: nBetaValues
       real (kind=RKIND) :: NAccum
+      real (kind=RKIND) :: Nmin
       integer :: nNValues
       integer :: iCell, iCell2
       integer :: neighbor
@@ -868,16 +869,19 @@ contains
             if ( .not. li_mask_is_grounded_ice(cellMask(iCell)) ) then
                nNValues = 0
                NAccum = 0.0_RKIND
+               Nmin = 1.0e20
                do iCell2 = 1, nEdgesOnCell(iCell)
                   neighbor = cellsOnCell(iCell2, iCell)
                   if (li_mask_is_grounded_ice(cellMask(neighbor))) then
                      NAccum = NAccum + effectivePressureLimited(neighbor)
                      nNValues = nNValues + 1
+                     Nmin = min(Nmin, effectivePressureLimited(neighbor))
                   endif
                enddo
                if (nNValues > 0) then
-                  effectivePressureLimited(iCell) = NAccum / real(nNValues, kind=RKIND) ! take average of neighboring effectivePressure values
+!                  effectivePressureLimited(iCell) = NAccum / real(nNValues, kind=RKIND) ! take average of neighboring effectivePressure values
                   ! <  TODO: could do this in log space
+                  effectivePressureLimited(iCell) = Nmin
                endif
             endif ! if iCell is floating
          enddo ! cell loop
