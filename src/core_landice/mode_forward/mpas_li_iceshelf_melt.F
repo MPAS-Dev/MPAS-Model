@@ -1195,7 +1195,7 @@ module li_iceshelf_melt
       real (kind=RKIND), dimension(:), pointer :: bedTopography
       real (kind=RKIND), dimension(:), pointer :: TFocean, ismip6Runoff
       real (kind=RKIND), dimension(:), pointer :: areaCell
-      integer, dimension(:), pointer :: cellMask, nEdgesOnCell
+      integer, dimension(:), pointer :: cellMask, edgeMask, nEdgesOnCell
       real (kind=RKIND), dimension(:), pointer :: calvingVelocity
       real (kind=RKIND), pointer :: aSubglacial ! param A
       real (kind=RKIND), pointer :: alphaSubglacial ! param alpha
@@ -1249,6 +1249,7 @@ module li_iceshelf_melt
         
          ! Get mesh and geometry arrays
          call mpas_pool_get_array(geometryPool, 'cellMask', cellMask)
+         call mpas_pool_get_array(geometryPool, 'edgeMask', edgeMask)
          call mpas_pool_get_array(meshPool, 'areaCell', areaCell)
          call mpas_pool_get_array(meshPool, 'dvEdge', dvEdge)
          call mpas_pool_get_array(meshPool, 'areaCell', areaCell)
@@ -1273,23 +1274,18 @@ module li_iceshelf_melt
             ! margin, (2) have at least one neighboring cell without ice, (3) contain
             ! grounded ice, and (4) have bed topography below sea level.
             ! OR is adjacent to an inactive floating margin cell
-            nEmptyNeighbors = 0
             oceanEdgeLength = 0.0_RKIND
-            ! Check if neighboring cells contain ice and have bed topo below sea
-            ! level
-            do iEdge = 1, nEdgesOnCell(iCell)
-               iNeighbor = cellsOnCell(iEdge, iCell)
-                 if ( ((thickness(iNeighbor) == 0.0_RKIND) & 
-                    .and. iNeighbor > 0 & ! make sure this cell exists
-                    .and. iNeighbor <= nCellsSolve & ! make sure this cell exists
-                    .and. bedTopography(iNeighbor) < seaLevel) &
-                    .or. (li_mask_is_floating_ice(cellMask(iNeighbor)) & 
-                    .and. li_mask_is_margin(cellMask(iNeighbor)) &
-                    .and. (.not. li_mask_is_albany_active(cellMask(iNeighbor)))) ) then
-                     nEmptyNeighbors = nEmptyNeighbors + 1
-                     oceanEdgeLength = oceanEdgeLength + dvEdge(edgesOnCell(iEdge, iCell))
+            
+            ! Calculate length of grounding line for each cell
+            if ( bedTopography(iCell) < seaLevel &
+                .and. li_mask_is_grounded_ice(cellMask(iCell)) ) then
+               do iEdge = 1, nEdgesOnCell(iCell)
+                 iNeighbor = cellsOnCell(iEdge, iCell)
+                 if ( li_mask_is_grounding_line(edgeMask(edgesOnCell(iEdge,iCell))) ) then 
+                    oceanEdgeLength = oceanEdgeLength + dvEdge(edgesOnCell(iEdge, iCell))
                  endif
-            enddo 
+               enddo 
+            endif
             
             if ( bedTopography(iCell) < 0.0_RKIND ) then
                 waterDepth = seaLevel - bedTopography(iCell)
