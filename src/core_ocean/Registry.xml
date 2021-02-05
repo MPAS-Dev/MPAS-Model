@@ -806,6 +806,10 @@
 					description="Controls if suspended sediment transport is computed."
 					possible_values=".true. or .false."
 		/>
+		<nml_option name="config_sediment_suspended_initConcen" type="real" default_value="0.0" units="kg m^{-3}"
+					description="Set initial suspended sediment concentration"
+					possible_values="any non-negative values"
+		/>
 		<nml_option name="config_sediment_suspended_formulation" type="character" default_value="None" units="unitless"
 					description="Formulation to compute the reference bottom suspended sediment concentration"
 					possible_values=" 'None', 'Zyserman-Fredsoe', 'Goldstein' "

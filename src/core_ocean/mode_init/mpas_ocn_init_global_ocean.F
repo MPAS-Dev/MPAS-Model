@@ -129,7 +129,7 @@ contains
       integer, dimension(:), pointer :: maxLevelCell
 
       real (kind=RKIND), dimension(:, :, :), pointer :: ecosysTracers, activeTracers, debugTracers, &
-           DMSTracers, MacroMoleculesTracers
+           sedimentTracers, DMSTracers, MacroMoleculesTracers
       integer, pointer :: nVertLevels, nCellsSolve, tracerIndex
       integer :: iCell, k, iTracer
       integer, dimension(3) :: indexField
@@ -160,6 +160,7 @@ contains
       call mpas_pool_get_array(tracersPool, 'activeTracers', activeTracers, 1)
       call mpas_pool_get_array(tracersPool, 'debugTracers', debugTracers, 1)
       call mpas_pool_get_array(tracersPool, 'ecosysTracers', ecosysTracers, 1)
+      call mpas_pool_get_array(tracersPool, 'sedimentTracers', sedimentTracers, 1)
       call mpas_pool_get_array(tracersPool, 'DMSTracers', DMSTracers, 1)
       call mpas_pool_get_array(tracersPool, 'MacroMoleculesTracers', MacroMoleculesTracers, 1)
 
@@ -433,6 +434,23 @@ contains
             block_ptr => block_ptr % next
          end do
 
+      end if
+
+      if ( associated(sedimentTracers) ) then
+         block_ptr => domain % blocklist
+         do while(associated(block_ptr))
+            call mpas_pool_get_subpool(domain % blocklist % structs, 'state', statePool)
+            call mpas_pool_get_subpool(statePool, 'tracers', tracersPool)
+
+            call mpas_pool_get_dimension(tracersPool, 'index_sedConcen', tracerIndex)
+            indexField(1) = tracerIndex
+            do iCell = 1, nCellsSolve
+               do k = 1, nVertLevels
+                  sedimentTracers(indexField(1), k, iCell) = 0.0_RKIND
+               end do
+            end do
+            block_ptr => block_ptr % next
+         end do
       end if
 
       if ( associated(DMSTracers) ) then
