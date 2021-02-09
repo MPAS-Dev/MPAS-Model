@@ -534,15 +534,6 @@
     rqiblten_p         !tendency of cloud ice mixing ratio due to PBL processes.
 
  real(kind=RKIND),dimension(:,:,:),allocatable:: &
-    rncblten_p,       &!tendency of cloud water number concentration due to PBL processes.
-    rniblten_p,       &!tendency of cloud ice number concentration due to PBL processes.
-    rnifablten_p,     &!tendency of "water-friendly" aerosols due to PBL processes.
-    rnwfablten_p       !tendency of "ice-friendly" aerosols due to PBL processes.
-
- real(kind=RKIND),dimension(:,:,:),allocatable:: &
-    rqo3blten_p        !tendency of ozone mixing ratio due to PBL processes.
-
- real(kind=RKIND),dimension(:,:,:),allocatable:: &
     kzh_p,            &!
     kzm_p,            &!
     kzq_p              !
@@ -588,6 +579,15 @@
     qcbl_p,           &!
     qibl_p,           &!
     cldfrabl_p         !
+
+ real(kind=RKIND),dimension(:,:,:),allocatable:: &
+    rncblten_p,       &!tendency of cloud water number concentration due to PBL processes.
+    rniblten_p,       &!tendency of cloud ice number concentration due to PBL processes.
+    rnifablten_p,     &!tendency of "water-friendly" aerosols due to PBL processes.
+    rnwfablten_p       !tendency of "ice-friendly" aerosols due to PBL processes.
+
+ real(kind=RKIND),dimension(:,:,:),allocatable:: &
+    rqo3blten_p        !tendency of ozone mixing ratio due to PBL processes.
 
 !=================================================================================================================
 !... variables and arrays related to parameterization of gravity wave drag over orography:
