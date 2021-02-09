@@ -70,7 +70,7 @@ MODULE module_sf_mynn
         R_v,           &
         rcp,           &
         cpv
-  use module_bl_mynn, only: tv0, b1, b2, p608, ev, rd, & !, mym_condensation
+  use bl_mynn, only: tv0, b1, b2, p608, ev, rd, & !, mym_condensation
        &esat_blend, xl_blend, qsat_blend
 
   implicit none

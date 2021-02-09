@@ -754,9 +754,15 @@
  integer:: initflag
  integer:: i,k,j
 
+ character(len=StrKIND):: errmsg
+ integer:: errflg
+
 !-----------------------------------------------------------------------------------------------------------------
 !call mpas_log_write('')
 !call mpas_log_write('--- enter subroutine driver_pbl:')
+
+ errmsg = ' '
+ errflg = 0
 
  call mpas_pool_get_config(configs,'config_do_DAcycling',config_do_DAcycling)
  call mpas_pool_get_config(configs,'config_do_restart'  ,config_do_restart  )
@@ -830,14 +836,14 @@
        call mpas_timer_start('bl_mynn')
        call mynn_bl_driver ( &
                  p           = pres_hyd_p     , exner      = pi_p        , ps          = psfc_p       , &
-                 th          = th_p           , t3d        = t_p         , dz          = dz_p         , &
+                 th          = th_p           , tt         = t_p         , dz          = dz_p         , &
                  dx          = dx_p           , u          = u_p         , v           = v_p          , &
-                 w           = w_p            , qv3d       = qv_p        , qc3d        = qc_p         , &
-                 qi3d        = qi_p           , qni        = ni_p        , rho         = rho_p        , &
+                 w           = w_p            , qv         = qv_p        , qc          = qc_p         , &
+                 qi          = qi_p           , qni        = ni_p        , rho         = rho_p        , &
                  rublten     = rublten_p      , rvblten    = rvblten_p   , rthblten    = rthblten_p   , &
                  rqvblten    = rqvblten_p     , rqcblten   = rqcblten_p  , rqiblten    = rqiblten_p   , &
                  rqncblten   = rncblten_p     , rqniblten  = rniblten_p  , rqnifablten = rnifablten_p , &
-                 rqnwfablten = rnwfablten_p   , dozone     = rqo3blten_p , rthraten    = rthraten_p   , &
+                 rqnwfablten = rnwfablten_p   , rqozblten  = rqo3blten_p , rthraten    = rthraten_p   , &
                  flag_qc     = f_qc           , flag_qi    = f_qi        , flag_qnc    = f_qnc        , &
                  flag_qni    = f_qni          , flag_qnifa = f_qnifa     , flag_qnwfa  = f_qnwfa      , &
                  icloud_bl   = icloud_bl      , kpbl       = kpbl_p      , pblh        = hpbl_p       , &
@@ -855,13 +861,13 @@
                  cldfra_bl   = cldfrabl_p     , spp_pbl    = spp_pbl     , nupdraft    = nupdraft_p   , &
                  ktop_plume  = ktopbl_shalc_p , maxmf      = maxmfbl_p   , edmf_a      = edmfa_p      , &
                  edmf_w      = edmfw_p        , edmf_qt    = edmfqt_p    , edmf_thl    = edmfthl_p    , &
-                 edmf_ent    = edmfent_p      , edmf_qc    = edmfqc_p    , sub_thl3d   = subthl_p     , &
-                 sub_sqv3d   = subqv_p        , det_thl3d   = detthl_p   , det_sqv3d   = detqv_p      , &
-                 restart            = config_do_restart   ,                                             &
-                 cycling            = config_do_DAcycling ,                                             &
+                 edmf_ent    = edmfent_p      , edmf_qc    = edmfqc_p    , sub_thl     = subthl_p     , &
+                 sub_sqv     = subqv_p        , det_thl    = detthl_p   , det_sqv     = detqv_p      , &
+                 do_restart         = config_do_restart   ,                                             &
+                 do_DAcycling       = config_do_DAcycling ,                                             &
                  initflag           = initflag            ,                                             &
                  grav_settling      = grav_settling       ,                                             &
-                 levflag            = bl_mynn_closure     ,                                             &
+                 bl_mynn_closure    = bl_mynn_closure     ,                                             &
                  bl_mynn_cloudpdf   = bl_mynn_cloudpdf    ,                                             &
                  bl_mynn_cloudmix   = bl_mynn_cloudmix    ,                                             &
                  bl_mynn_mixlength  = bl_mynn_mixlength   ,                                             &
@@ -875,7 +881,8 @@
                  bl_mynn_output     = bl_mynn_edmf_output ,                                             &
                  ids = ids , ide = ide , jds = jds , jde = jde , kds = kds , kde = kde ,                &
                  ims = ims , ime = ime , jms = jms , jme = jme , kms = kms , kme = kme ,                &
-                 its = its , ite = ite , jts = jts , jte = jte , kts = kts , kte = kte                  &
+                 its = its , ite = ite , jts = jts , jte = jte , kts = kts , kte = kte ,                &
+                 errmsg = errmsg , errflg = errflg                                                      &
                            )
        call mpas_timer_stop('bl_mynn')
        call mpas_log_write('--- exit subroutine mynn_bl_driver:')
