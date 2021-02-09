@@ -54,7 +54,7 @@ MODULE module_sf_mynn
 !      model configurations.
 !
 ! New for v3.9:
-!   - option for stochastic parameter perturbations (SPP) 
+!   - option for stochastic parameter perturbations (SPP)
 !
 !NOTE: This code was primarily tested in combination with the RUC LSM.
 !      Performance with the Noah (or other) LSM is relatively unknown.
@@ -1071,8 +1071,8 @@ CONTAINS
      !------------------------------------------------------------
       ! LOWER LIMIT ADDED TO PREVENT LARGE FLHC IN SOIL MODEL
       ! ACTIVATES IN UNSTABLE CONDITIONS WITH THIN LAYERS OR HIGH Z0
-      GZ1OZt(I)= LOG((ZA(I)+z_t(i))/z_t(i))           
-      GZ2OZt(I)= LOG((2.0+z_t(i))/z_t(i))                                        
+      GZ1OZt(I)= LOG((ZA(I)+z_t(i))/z_t(i))
+      GZ2OZt(I)= LOG((2.0+z_t(i))/z_t(i))
 
       PSIT =MAX(GZ1OZt(I)-PSIH(I) ,1.)
       PSIT2=MAX(GZ2OZt(I)-PSIH2(I),1.)
@@ -1328,7 +1328,7 @@ CONTAINS
             yesno = 1
       ENDIF
       IF (PBLH(I)<0. .OR. PBLH(I)>6000.)THEN
-            print*,"SUSPICIOUS VALUES IN MYNN SFCLAYER",&                                                              
+            print*,"SUSPICIOUS VALUES IN MYNN SFCLAYER",&
             ITER-ITMAX," ITERATIONS",I,J, "PBLH: ",PBLH(I)
             yesno = 1
       ENDIF
@@ -1754,10 +1754,10 @@ END SUBROUTINE SFCLAY1D_mynn
                            bq1_s=0.0,   bq1_t=-0.628, bq1_r=-0.512, &
                            bq2_s=0.0,   bq2_t=0.0,    bq2_r=-0.180
 
-      !Calculate zo for snow (Andreas et al. 2005, BLM)                                                                     
+      !Calculate zo for snow (Andreas et al. 2005, BLM)
        zntsno = 0.135*bvisc/ustar + &
                (0.035*(ustar*ustar)/9.8) * &
-               (5.*exp(-1.*(((ustar - 0.18)/0.1)*((ustar - 0.18)/0.1))) + 1.)                                                
+               (5.*exp(-1.*(((ustar - 0.18)/0.1)*((ustar - 0.18)/0.1))) + 1.)
        Ren2 = ustar*zntsno/bvisc
 
        ! Make sure that Re is not outside of the range of validity

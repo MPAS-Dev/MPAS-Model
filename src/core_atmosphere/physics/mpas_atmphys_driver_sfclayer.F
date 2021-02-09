@@ -552,7 +552,7 @@
        call mpas_pool_get_array(diag_physics,'cldfrac_bl',cldfrac_bl)
        call mpas_pool_get_array(diag_physics,'qc_bl'     ,qc_bl     )
        !inout variables:
-       call mpas_pool_get_array(diag_physics,'ch',ch        )
+       call mpas_pool_get_array(diag_physics,'ch',ch)
 
        do j = jts,jte
        do i = its,ite
@@ -948,11 +948,11 @@
                    u10       = u10_p      , v10       = v10_p      , th2       = th2m_p     , &
                    t2        = t2m_p      , q2        = q2_p       , snowh     = snowh_p    , &
                    gz1oz0    = gz1oz0_p   , wspd      = wspd_p     , br        = br_p       , &
-                   isfflx    = isfflx     , svp1      = svp1       , svp2      = svp2       , & 
+                   isfflx    = isfflx     , svp1      = svp1       , svp2      = svp2       , &
                    svp3      = svp3       , svpt0     = svpt0      , ep1       = ep_1       , &
                    ep2       = ep_2       , karman    = karman     , dx        = dx_p       , &
                    ustm      = ustm_p     , ck        = ck_p       , cka       = cka_p      , &
-                   cd        = cd_p       , cda       = cda_p      , isftcflx  = isftcflx   , & 
+                   cd        = cd_p       , cda       = cda_p      , isftcflx  = isftcflx   , &
                    iz0tlnd   = iz0tlnd    , itimestep = initflag   , ch        = ch_p       , &
                    cov       = cov_p      , tsq       = tsq_p      , qsq       = qsq_p      , &
                    sh3d      = sh3d_p     , el_pbl    = elpbl_p    , qcg       = qcg_p      , &
@@ -961,7 +961,7 @@
                    ids = ids , ide = ide , jds = jds , jde = jde , kds = kds , kde = kde    , &
                    ims = ims , ime = ime , jms = jms , jme = jme , kms = kms , kme = kme    , &
                    its = its , ite = ite , jts = jts , jte = jte , kts = kts , kte = kte      &
-                              )
+                       )
 
        if(config_frac_seaice) then
           call sfclay_mynn( &
@@ -981,11 +981,11 @@
                       u10       = u10_sea    , v10       = v10_sea    , th2       = th2m_sea   , &
                       t2        = t2m_sea    , q2        = q2_sea     , snowh     = snowh_p    , &
                       gz1oz0    = gz1oz0_sea , wspd      = wspd_sea   , br        = br_sea     , &
-                      isfflx    = isfflx     , svp1      = svp1       , svp2      = svp2       , & 
+                      isfflx    = isfflx     , svp1      = svp1       , svp2      = svp2       , &
                       svp3      = svp3       , svpt0     = svpt0      , ep1       = ep_1       , &
                       ep2       = ep_2       , karman    = karman     , dx        = dx_p       , &
                       ustm      = ustm_sea   , ck        = ck_sea     , cka       = cka_sea    , &
-                      cd        = cd_sea     , cda       = cda_sea    , isftcflx  = isftcflx   , & 
+                      cd        = cd_sea     , cda       = cda_sea    , isftcflx  = isftcflx   , &
                       iz0tlnd   = iz0tlnd    , itimestep = initflag   , ch        = ch_sea     , &
                       cov       = cov_p      , tsq       = tsq_p      , qsq       = qsq_p      , &
                       sh3d      = sh3d_p     , el_pbl    = elpbl_p    , qcg       = qcg_p      , &
@@ -994,9 +994,11 @@
                       ids = ids , ide = ide , jds = jds , jde = jde , kds = kds , kde = kde    , &
                       ims = ims , ime = ime , jms = jms , jme = jme , kms = kms , kme = kme    , &
                       its = its , ite = ite , jts = jts , jte = jte , kts = kts , kte = kte      &
-                                 )
+                          )
        endif
        call mpas_timer_stop('sf_mynn')
+
+    case default
 
  end select sfclayer_select
 
