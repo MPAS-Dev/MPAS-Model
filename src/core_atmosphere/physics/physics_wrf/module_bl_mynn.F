@@ -4107,7 +4107,7 @@ ENDIF
        &initflag,restart,cycling,       &
        &grav_settling,                  &
        &delt,dz,dx,znt,                 &
-       &u,v,w,th,sqv3D,sqc3D,sqi3D,     &
+       &u,v,w,th,qv3D,qc3D,qi3D,        &
        &qnc,qni,                        &
        &qnwfa,qnifa,ozone,              &
        &p,exner,rho,T3D,                &
@@ -4200,10 +4200,14 @@ ENDIF
 !FV3
     REAL, DIMENSION(IMS:IME,JMS:JME), INTENT(in) :: dx
 !END FV3
+!   REAL, DIMENSION(IMS:IME,KMS:KME,JMS:JME), INTENT(in) :: dz,&
+!        &u,v,w,th,sqv3D,p,exner,rho,T3D
+!   REAL, DIMENSION(IMS:IME,KMS:KME,JMS:JME), OPTIONAL, INTENT(in)::&
+!        &sqc3D,sqi3D,qni,qnc,qnwfa,qnifa
     REAL, DIMENSION(IMS:IME,KMS:KME,JMS:JME), INTENT(in) :: dz,&
-         &u,v,w,th,sqv3D,p,exner,rho,T3D
+         &u,v,w,th,qv3D,p,exner,rho,T3D
     REAL, DIMENSION(IMS:IME,KMS:KME,JMS:JME), OPTIONAL, INTENT(in)::&
-         &sqc3D,sqi3D,qni,qnc,qnwfa,qnifa
+         &qc3D,qi3D,qni,qnc,qnwfa,qnifa
     REAL, DIMENSION(IMS:IME,KMS:KME), OPTIONAL, INTENT(in):: ozone
     REAL, DIMENSION(IMS:IME,JMS:JME), INTENT(in) :: xland,ust,&
          &ch,rmol,ts,qsfc,qcg,ps,hfx,qfx,wspd,uoce,voce,vdfg,znt
@@ -4296,6 +4300,8 @@ ENDIF
           & afk,abk,ts_decay, qc_bl2, qi_bl2,             &
           & th_sfc,ztop_plume,sqc9,sqi9
 
+    real,dimension(its:ite,kts:kte,jts:jte):: sqv3d,sqc3d,sqi3d
+
 !JOE-add GRIMS parameters & variables
    real,parameter    ::  d1 = 0.02, d2 = 0.05, d3 = 0.001
    real,parameter    ::  h1 = 0.33333335, h2 = 0.6666667
@@ -4366,8 +4372,28 @@ ENDIF
     ENDIF
     maxKHtopdown(its:ite,jts:jte)=0.
 
- call mpas_log_write(' ')
- call mpas_log_write('--- enter subroutine mynn_bl_driver:')
+!MPAS uses mass mixing ratios and not specific humidity, and cloud liquid water and cloud ice contents:
+ do j = jts,jte
+    do i = its,ite
+       do k = kts,kte
+          sqv3d(i,k,j) = qv3d(i,k,j)/(1.+qv3d(i,k,j))
+       enddo
+    enddo
+    if(present(qc3d)) then
+       do i = its,ite
+          do k = kts,kte
+             sqc3d(i,k,j) = qc3d(i,k,j)/(1.+qv3d(i,k,j))
+          enddo
+       enddo
+    endif
+    if(present(qi3d)) then
+       do i = its,ite
+          do k = kts,kte
+             sqi3d(i,k,j) = qi3d(i,k,j)/(1.+qv3d(i,k,j))
+          enddo
+       enddo
+    endif
+ enddo
 
     ! DH* CHECK HOW MUCH OF THIS INIT IF-BLOCK IS ACTUALLY NEEDED FOR RESTARTS
 !> - Within the MYNN-EDMF, there is a dependecy check for the first time step,
@@ -4399,6 +4425,11 @@ ENDIF
          cldfra_bl(its:ite,kts:kte,jts:jte)=0.
          qc_bl(its:ite,kts:kte,jts:jte)=0.
          qke(its:ite,kts:kte,jts:jte)=0.
+!--- added for MPAS:
+         qc_bl1D(kts:kte)=0.0
+         qi_bl1D(kts:kte)=0.0
+         cldfra_bl1D(kts:kte)=0.0
+!--- end added for MPAS.
        else
          qc_bl1D(kts:kte)=0.0
          qi_bl1D(kts:kte)=0.0
@@ -4460,8 +4491,15 @@ ENDIF
                    CLDFRA_BL1D(k)=CLDFRA_BL(i,k,j)
                    QC_BL1D(k)=QC_BL(i,k,j)
                    QI_BL1D(k)=QI_BL(i,k,j)
+                else
+!--- added for MPAS:
+                   cldfra_bl1d(k) = 0.
+                   qc_bl1d(k) = 0.
+                   qi_bl1d(k) = 0.
+!--- end added for MPAS.
                 ENDIF
-                IF (PRESENT(sqi3D) .AND. FLAG_QI ) THEN
+!               IF (PRESENT(sqi3D) .AND. FLAG_QI ) THEN
+                IF (PRESENT(qi3d) .AND. FLAG_QI ) THEN
                    sqi(k)=sqi3D(i,k,j) !/(1.+qv(i,k,j))
                    sqw(k)=sqv(k)+sqc(k)+sqi(k)
                    thl(k)=th(i,k,j)- xlvcp/exner(i,k,j)*sqc(k) &
@@ -4590,14 +4628,6 @@ ENDIF
           ENDDO
        ENDDO
 
-    do i = its,ite
-       do k = kts,kte
-          call mpas_log_write('$i $i $r $r $r $r $r $r $r',intArgs=(/i,k/),realArgs=(/dz1(k),u1(k),v1(k), &
-                              w1(k),th1(k),tk1(k),rho1(k)/))
-       enddo
-       call mpas_log_write(' ')
-    enddo
-
     ENDIF ! end initflag
 
 !> - After initializing all required variables, the regular procedures 
@@ -4621,6 +4651,15 @@ ENDIF
                 cldfra_bl1D_old(k)=cldfra_bl(i,k,j)
                 qc_bl1D_old(k)=qc_bl(i,k,j)
                 qi_bl1D_old(k)=qi_bl(i,k,j)
+             else
+!--- added for MPAS:
+                cldfra_bl1d(k) = 0.
+                qc_bl1d(k) = 0.
+                qi_bl1d(k) = 0.
+                cldfra_bl1d_old(k) = 0.
+                qc_bl1d_old(k) = 0.
+                qi_bl1d_old(k) = 0.
+!--- end added for MPAS.
              ENDIF
              dz1(k)= dz(i,k,j)
              u1(k) = u(i,k,j)
@@ -4640,7 +4679,8 @@ ENDIF
              dqnwfa1(k)=0.0
              dqnifa1(k)=0.0
              dozone1(k)=0.0
-             IF(PRESENT(sqi3D) .AND. FLAG_QI)THEN
+!            IF(PRESENT(sqi3D) .AND. FLAG_QI)THEN
+             IF(PRESENT(qi3d) .AND. FLAG_QI)THEN
                 qi1(k)= sqi3D(i,k,j)/(1.-sqv3D(i,k,j))
                 sqi(k)= sqi3D(i,k,j) !/(1.+qv(i,k,j))
                 sqw(k)= sqv(k)+sqc(k)+sqi(k)
@@ -4679,7 +4719,8 @@ ENDIF
                 thlsg(k)=th(i,k,j)- xlvcp/exner(i,k,j)*sqc9 &
                       &           - xlscp/exner(i,k,j)*sqi9 
             ENDIF
-            thetav(k)=th(i,k,j)*(1.+0.608*sqv(k))
+!           thetav(k)=th(i,k,j)*(1.+0.608*sqv(k))
+            thetav(k)=th(i,k,j)*(1.+0.61*sqv(k))
             thvl(k)=thlsg(k)*(1.+0.61*sqv(k))
 
              IF (PRESENT(qni) .AND. FLAG_QNI ) THEN
@@ -4808,6 +4849,7 @@ ENDIF
           CALL GET_PBLH(KTS,KTE,PBLH(i,j),thvl,&
           & Qke1,zw,dz1,xland(i,j),KPBL(i,j))
 
+
 !>  - Call scale_aware() to calculate the similarity functions,
 !! \f$P_{\sigma-PBL}\f$ and \f$P_{\sigma-shcu}\f$, to control 
 !! the scale-adaptive behaviour for the local and nonlocal 
@@ -4870,6 +4912,11 @@ ENDIF
 !! used to calculate the buoyancy flux. Different cloud PDFs can be 
 !! selected by use of the namelist parameter \p bl_mynn_cloudpdf.
 
+          do k = kts,kte
+             vt(k)  = 0.
+             vq(k)  = 0.
+             sgm(k) = 0.
+          enddo
           CALL  mym_condensation ( kts,kte,      &
                &dx(i,j),dz1,zw,thl,sqw,sqv,sqc,sqi,&
                &p1,ex1,tsq1,qsq1,cov1,           &
@@ -5133,11 +5180,15 @@ ENDIF
              RTHBLTEN(i,k,j)=dth1(k)
              RQVBLTEN(i,k,j)=dqv1(k)
              IF(bl_mynn_cloudmix > 0)THEN
-               IF (PRESENT(sqc3D) .AND. FLAG_QC) RQCBLTEN(i,k,j)=dqc1(k)
-               IF (PRESENT(sqi3D) .AND. FLAG_QI) RQIBLTEN(i,k,j)=dqi1(k)
+!              IF (PRESENT(sqc3D) .AND. FLAG_QC) RQCBLTEN(i,k,j)=dqc1(k)
+!              IF (PRESENT(sqi3D) .AND. FLAG_QI) RQIBLTEN(i,k,j)=dqi1(k)
+               IF (PRESENT(qc3d) .AND. FLAG_QC) RQCBLTEN(i,k,j)=dqc1(k)
+               IF (PRESENT(qi3d) .AND. FLAG_QI) RQIBLTEN(i,k,j)=dqi1(k)
              ELSE
-               IF (PRESENT(sqc3D) .AND. FLAG_QC) RQCBLTEN(i,k,j)=0.
-               IF (PRESENT(sqi3D) .AND. FLAG_QI) RQIBLTEN(i,k,j)=0.
+!              IF (PRESENT(sqc3D) .AND. FLAG_QC) RQCBLTEN(i,k,j)=0.
+!              IF (PRESENT(sqi3D) .AND. FLAG_QI) RQIBLTEN(i,k,j)=0.
+               IF (PRESENT(qc3d) .AND. FLAG_QC) RQCBLTEN(i,k,j)=0.
+               IF (PRESENT(qi3d) .AND. FLAG_QI) RQIBLTEN(i,k,j)=0.
              ENDIF
              IF(bl_mynn_cloudmix > 0 .AND. bl_mynn_mixscalars > 0)THEN
                IF (PRESENT(qnc) .AND. FLAG_QNC) RQNCBLTEN(i,k,j)=dqnc1(k)
