@@ -55,6 +55,19 @@ first (potentially inactive) cell.  Similarly, the distribution of surface
 fluxes into the water column must begin from the top with the first active
 cell, not the first (potentially inactive) cell.
 
+Requirement: Correct boundary conditions
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Date last modified: 2021/02/11
+
+Contributors: Phil Jones, Xylar Asay-Davis,
+
+Both horizontal and vertical Boundary conditions need be applied correctly,
+given that inactive layers introduce vertical faces that were previously not
+present. In particular, higher-order vertical interpolants in routines like
+tracer advection may need special care. Not only are loop limits changed, but
+some new edge cases appear if max-min is not large enough.
+
 Requirement: Inactivate cells during simulation
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -333,6 +346,26 @@ of top indexing that might not be easy to find (e.g. by searching for
 
 ...
 
+Implementation: Correct boundary conditions
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Date last modified: 2021/02/11
+
+Contributors: Xylar Asay-Davis,
+
+I am not set on the implementation here, but my suggestion would be that we
+retain the requirement that there are a minimum of 3 layers.  I believe the
+higher-order interpolants were one reason for this.  In POP2x, it was more
+practical to prevent the worst kinds of pathological edge cases as part of
+mesh update, rather than trying to build it into the forward model.  That may
+not be a good option in MPAS-Ocean, particularly with a dynamic boundary.  But
+we may still be able to include constrains that prevent us from hitting the
+worst cases (e.g. adjacent cells that have a shared edge but no or too few
+layers in common to have any flow between them).
+
+While I think we definitely need to explore these issue, maybe this is too much
+for the current design document.
+
 Implementation: Inactivate cells during simulation
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -416,6 +449,16 @@ The testing in ``sub_ice_shelf_2D`` will account for the surface fluxes and
 fields that we most anticipate being affected by ``minLevel*``.  Testing of
 other surface fields will likely require running tests that include GM, KPP
 and other parameterizations that are not part of this configuration by default.
+
+Testing: Correct boundary conditions
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Date last modified: 2021/02/11
+
+Contributors: ???
+
+<<<Need to think about this...>>>
+
 
 Testing: Inactivate cells during simulation
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
