@@ -55,6 +55,16 @@ first (potentially inactive) cell.  Similarly, the distribution of surface
 fluxes into the water column must begin from the top with the first active
 cell, not the first (potentially inactive) cell.
 
+A separate design process, we will want to look at whether surface
+parameterizations (notably KPP) are appropriate is implemented when they are
+used under ice shelves.  It is important that masking of surface fluxes
+(e.g. with ``landIceMask``) is kept consistent with inactive cells, so that
+atmospheric is not applied under ice shelves.  This is a consideration we
+already must account for with the current, terrain-following approach but
+discrepancies between the boundary of ``landIceMask`` and the calving front
+as seen in the vertical coordinate will become much more obvious with the new
+coordinate.
+
 Requirement: Correct boundary conditions
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
