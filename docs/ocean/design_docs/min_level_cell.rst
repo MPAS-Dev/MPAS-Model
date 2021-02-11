@@ -307,7 +307,7 @@ Implementation: Surface fields and fluxes
 
 Date last modified: 2021/02/11
 
-Contributors: Xylar Asay-Davis
+Contributors: Xylar Asay-Davis, Luke Van Roekel
 
 The subroutines  ``ocn_thick_surface_flux_tend()`` and
 ``ocn_tracer_surface_flux_tend()`` already distribute surface fluxes over
@@ -355,6 +355,23 @@ of top indexing that might not be easy to find (e.g. by searching for
   * [ ] ``landIceFrictionVelocity``
 
 ...
+
+
+For KPP there are a bunch of hard coded ``1`` indices in the construction of
+the depth coordinate and surface layer averaging
+(`see this example <https://github.com/MPAS-Dev/MPAS-Model/blob/ocean/develop/src/core_ocean/shared/mpas_ocn_vmix_cvmix.F#L506-L534>`_).
+This could be missed if the focus is just switching loop bounds, but should be
+easy to implement:
+
+.. code-block:: fortran
+
+    do i=1,nEdgesOnCell(iCell)
+      iEdge = edgesOnCell(iCell)
+      deltaVelocitySquared(minLevelEdge(iEdge))
+      ...
+      do kIndexOBL = minLevelEdge(iEdge)+1,maxLevelelCell(iCell)
+
+The same would likely hold for GM routines that have this type of structure.
 
 Implementation: Correct boundary conditions
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
