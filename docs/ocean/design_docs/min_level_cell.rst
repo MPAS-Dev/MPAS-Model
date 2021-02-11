@@ -75,7 +75,7 @@ Date last modified: 2021/02/11
 
 Contributors: Xylar Asay-Davis
 
-In setups without ay inactive top cells, results should be unchanged
+In setups without any inactive top cells, results should be unchanged
 (bit-for-bit).
 
 Requirement: No significant loss of performance
@@ -292,7 +292,16 @@ multiple vertical levels in a loop, so surface fluxes will simply require the
 same treatment as any other loops.
 
 It will be a little trickier to make sure we perform proper indexing of all
-3D variables to get their "surface" values.  Here, the plan is to make sure
+3D variables to get their "surface" values. The trickiness is in finding these
+variables in the code. It's easy to search for ``maxLevel`` and find relevant
+loops, but it's a bit harder to usefully search for an index value of ``1`` or
+``2``, particularly if it's not associated with a loop over k. The surface
+variables of concern (listed below) are variables where the index over
+``nVertLevels`` is ``1`` without it being in a loop, so it would be easy to
+miss this and leave it as ``1`` instead of ``minLevelCell(iCell)`` or
+equivalent.
+
+Here, the plan is to make sure
 that variables are set to the NetCDF fill value (a large, negative number)
 when they are invalid so that contamination should be obvious.
 
