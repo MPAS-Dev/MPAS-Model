@@ -219,6 +219,54 @@ Forward:
 
   * [ ] ``ocn_meshDestroy()``
 
+* [ ] ``ocn_tendency``:
+  
+  * [ ] ``ocn_tend_tracer``
+
+* [ ] ``ocn_forcing``:
+
+  * [ ] ``ocn_forcing_build_fraction_absorbed_array``
+
+* [ ] ``ocn_thick_hadv``:
+  
+  * [ ] ``ocn_hadv_thick_tend``
+  
+* [ ] ``ocn_thick_vadv``:
+  
+  * [ ] ``ocn_vadv_thick_tend``
+
+* [ ] ``ocn_thick_surface_flux``:
+  
+  * [ ] ``ocn_thick_surface_flux_tend``
+  
+* [ ] ``ocn_tracer_advection``:
+  
+  * [ ] ``ocn_tracer_advection_tend``
+
+* [ ] ``ocn_tracer_advection_mono``:
+  
+  * [ ] ``ocn_tracer_advection_mono_tend``
+
+* [ ] ``ocn_vel_forcing_surface_stress``:
+  
+  * [ ] ``ocn_vel_forcing_surface_stress_tend``
+  
+* [ ] ``ocn_vel_hmix_del2``:
+  
+  * [ ] ``ocn_vel_hmix_del2_tend``
+  
+* [ ] ``ocn_vel_hadv_coriolis``:
+  
+  * [ ] ``ocn_vel_hadv_coriolis_tend``
+
+* [ ] ``ocn_vel_vadv``:
+  
+  * [ ] ``ocn_vel_vadv_tend``
+
+* [ ] ``ocn_vmix_cvmix``:
+  
+  * [ ] ``ocn_vmix_coefs_cvmix_build``
+
 * [ ] ``ocn_diagnostics``:
 
   * [ ] ``ocn_relativeVorticity_circulation()``
@@ -245,6 +293,22 @@ Forward:
 
   * [ ] ``ocn_validate_state()``
 
+* [ ] ``ocn_thick_ale``:
+
+  * [ ] ``ocn_ALE_thickness``
+
+* [ ] ``ocn_vel_pressure_grad``:
+  
+  * [ ] ``ocn_vel_pressure_grad_tend``
+
+* [ ] ``ocn_vmix``:
+  
+  * [ ] ``ocn_vmix_implicit``
+  
+  * [ ] ``ocn_vel_vmix_tend_implicit``
+  
+  * [ ] ``ocn_tracer_vmix_tend_implicit``
+
 ...
 
 .. note::
@@ -256,6 +320,14 @@ Forward:
   ``displacedDensity`` is currently only used starting at index ``k = 2``, so
   no invalid values should be getting used.
 
+.. note::
+
+  ``ocn_forcing_build_fraction_absorbed_array`` is currently only called once 
+  by ``ocn_init_routines`` and would need to be called multiple times to correctly
+  distribute surface fluxes unless we use an alternative approach where the vertical
+  index of transmissionCoeff is number of cells from minLevelCell rather than k-levels
+  
+  
 Here is a (by no means complete) checklist of routines not used by
 ``sub_ice_shelf_2D`` test cases that are a lower priority to update:
 
@@ -295,12 +367,140 @@ Forward:
 
   * [ ] ``ocn_filter_btr_mode_tend_vel()``
 
+  * [ ] ``ocn_compute_KPP_input_fields()``
+
 * [ ] ``ocn_gm``:
 
   * [ ] ``ocn_GM_compute_Bolus_velocity()``
 
+* [ ] ``ocn_tendency``:
+  
+  * [ ] ``ocn_tend_freq_filtered_thickness``
+
+* [ ] ``ocn_tidal_forcing``:
+  
+  * [ ] ``ocn_tidal_forcing_build_array``
+  
+  * [ ] ``ocn_tidal_forcing_layer_thickness``
+
+* [ ] ``ocn_vel_tidal_potential``:
+  
+  * [ ] ``ocn_vel_tidal_potential_tend``
+  
+* [ ] ``ocn_tracer_advection_std``:
+  
+  * [ ] ``ocn_tracer_advection_std_tend``
+
+* [ ] ``ocn_wetting_drying``:
+  
+  * [ ] ``ocn_wetting_drying_verify``
+
+  * [ ] ``ocn_prevent_drying_rk4``
+
+  * [ ] ``ocn_wetting_drying_wettingVelocity``
+
+* [ ] ``ocn_vmix``:
+
+  * [ ] ``ocn_vel_vmix_tend_implicit_spatially_variable``
+  
+  * [ ] ``ocn_vel_vmix_tend_implicit_spatially_variable_mannings``
+             
+  * [ ] ``ocn_vel_vmix_tend_implicit_rayleigh``
+  
+  * [ ] ``ocn_compute_kpp_rhs``
+
+* [ ] ``ocn_tracer_exponential_decay``:
+  
+  * [ ] ``ocn_tracer_exponential_decay_compute``
+
+* [ ] ``ocn_tracer_DMS``:
+  
+  * [ ] ``ocn_tracer_DMS_compute``
+  
+  * [ ] ``ocn_tracer_DMS_surface_flux_compute``: iLevelSurface
+  
+* [ ] ``ocn_tracer_ecosys``:
+  
+  * [ ] ``ocn_tracer_ecosys_compute``
+   
+  * [ ] ``ocn_tracer_ecosys_surface_flux_compute``: iLevelSurface
+
+  * [ ] ``ocn_compute_tidal_potential_forcing``
+
+* [ ] ``ocn_frazil_forcing``:
+  
+  * [ ] ``ocn_frazil_forcing_layer_thickness``
+  
+  * [ ] ``ocn_frazil_forcing_active_tracers``
+  
+  * [ ] ``ocn_frazil_forcing_build_arrays``
+
+* [ ] ``ocn_sea_ice``:
+  
+  * [ ] ``ocn_sea_ice_formation``
+  
+  * [ ] ``ocn_sea_ice_init``
+
+* [ ] ``ocn_tracer_hmix_del2``:
+  
+  * [ ] ``ocn_tracer_hmix_del2_tend``
+  
+* [ ] ``ocn_tracer_hmix_del4``:
+  
+  * [ ] ``ocn_tracer_hmix_del4_tend``
+  
+* [ ] ``ocn_tracer_hmix_Redi``:
+  
+  * [ ] ``ocn_tracer_hmix_Redi_tend``
+  
+* [ ] ``ocn_high_freq_thickness_hmix_del2``:
+  
+  * [ ] ``ocn_high_freq_thickness_hmix_del2_tend``
+  
+* [ ] ``ocn_vel_hmix_del4``:
+  
+  * [ ] ``ocn_vel_hmix_del4_tend``
+  
+* [ ] ``ocn_vel_hmix_leith``:
+  
+  * [ ] ``ocn_vel_hmix_leith_tend``
+  
+* [ ] ``ocn_tracer_ideal_age``:
+
+  * [ ] ``ocn_tracer_ideal_age_compute``
+
+* [ ] ``ocn_tracer_MacroMolecules``:
+
+  * [ ] ``ocn_tracer_MacroMolecules_compute``
+
+* [ ] ``ocn_tracer_nonlocalflux``:
+
+  * [ ] ``ocn_tracer_nonlocalflux_tend``
+
+* [ ] ``ocn_tracer_short_wave_absorption_jerlov``:
+
+  * [ ] ``ocn_tracer_short_wave_absorption_jerlov_tend``
+
+* [ ] ``ocn_tracer_short_wave_absorption_variable``:
+
+  * [ ] ``ocn_tracer_short_wave_absorption_variable_tend``
+
+  * [ ] ``ocn_get_variable_sw_fraction``: or only change depth input to this function
+
+* [ ] ``ocn_tracer_surface_flux_to_tend``:
+
+  * [ ] ``ocn_tracer_surface_flux_tend``
+
+* [ ] ``ocn_tracer_interior_restoring``:
+  
+  * [ ] ``ocn_tracer_interior_restoring_compute``
+
 ...
 
+.. note::
+
+  May need to reconsider nVertLevels argument to ``ocn_sea_ice_init``
+  
 
 Implementation: Surface fields and fluxes
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
