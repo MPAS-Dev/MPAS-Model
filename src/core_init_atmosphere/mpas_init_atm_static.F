@@ -48,6 +48,25 @@
     end subroutine read_geogrid
  end interface
 
+ ! Abstract interface for determining if the cell, iCell, needs to be added to the stack
+ ! for processing. Returning .true. will indicate that the cell has not received any mappings
+ ! and needs to be processed. .false. will indicate that the cell has received mappings.
+ abstract interface
+    function interp_criteria_function(iCell)
+        integer, intent(in) :: iCell
+        logical :: interp_criteria_function
+    end function interp_criteria_function
+ end interface
+
+ ! Abstract interface to accumulate pixel values with the cell they map to.
+ abstract interface
+    subroutine interp_accumulation_function(iCell, i8val)
+        use mpas_derived_types, only : I8KIND
+        integer, intent(in) :: iCell
+        integer (kind=I8KIND), intent(in) :: i8val
+    end subroutine interp_accumulation_function
+ end interface
+
  contains
 
 !==================================================================================================
