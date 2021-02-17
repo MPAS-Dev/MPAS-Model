@@ -32,6 +32,11 @@
           nearest_cell,              &
           sphere_distance
 
+ !constants
+ integer, parameter :: nBdyLayers = 7   ! The number of relaxation layers plus the number of specified layers
+                                        ! This value is used in determining whether extra checks are needed
+                                        ! in the remapping of terrain, land use, and soil category pixels
+
  interface
     subroutine read_geogrid(fname, rarray, nx, ny, nz, isigned, endian, &
                             wordsize, status) bind(C)
@@ -78,10 +83,6 @@
  type (mpas_pool_type), intent(in) :: dims
  type (mpas_pool_type), intent(in) :: configs
 
-!constants
- integer, parameter :: nBdyLayers = 7   ! The number of relaxation layers plus the number of specified layers
-                                        ! This value is used in determining whether extra checks are needed
-                                        ! in the remapping of terrain, land use, and soil category pixels
 
 !local variables:
  type(proj_info):: proj
@@ -775,6 +776,213 @@
 
 
  end subroutine init_atm_static
+
+ !***********************************************************************
+ !
+ !  routine init_atm_map_static_data
+ !
+ !> \brief   Map values of static datasets to cells
+ !> \author  Miles Curry
+ !> \date    25 January 2020
+ !> \details
+ !>  Given a initialized geotile manager object, and an initialized KD tree built of
+ !> xCell, yCell, zCells, and two function pointers, this subroutine maps values of each
+ !> pixel to the cell it resides in. Because this routine uses a K-Dimensional tree
+ !> to map pixels to cells, it can safely map pixels to cells on a non-cvt decomposition
+ !> in parallel.
+ !>
+ !> The procedure interp_criteria will need to match the interp_criteria_function abstract
+ !> interface. The procedure is used to determine if the cell passed in needs to be processed
+ !> or not. Returning .true. in this function will add the tile that contains iCell to
+ !> be processed contains. Returning .false. for all cells will result in no mapping
+ !> done.
+ !>
+ !> The accumulation_method procedure will be called with the mappings between pixel values
+ !> and the cells in which they map to. Currently, the accumulation_method does not need to
+ !> return any values.
+ !>
+ !> TODO: Supersample factor information - How to document fields within the mgr pool?
+ !
+ !-----------------------------------------------------------------------
+ subroutine init_atm_map_static_data(mesh, mgr, kdtree, interp_criteria, accumulation_method, supersample_fac)
+
+    implicit none
+
+    ! Input variables
+    type (mpas_pool_type), intent(in) :: mesh
+    type (mpas_geotile_mgr_type), intent(in) :: mgr
+    type (mpas_kd_type), pointer, intent(in) :: kdtree
+    procedure (interp_criteria_function) :: interp_criteria
+    procedure (interp_accumulation_function) :: accumulation_method
+    integer, intent(in), optional :: supersample_fac
+
+
+    ! Local variables
+    ! Mesh variables and dimensions
+    integer, pointer :: nCells
+    integer, pointer :: nCellsSolve
+    integer, dimension(:), pointer :: bdyMaskCell
+    integer, dimension(:), pointer :: nEdgesOnCell
+    integer, dimension(:,:), pointer :: verticesOnCell
+    real (kind=RKIND), dimension(:), pointer :: xCell, yCell, zCell
+    real (kind=RKIND), dimension(:), pointer :: xVertex, yVertex, zVertex
+    real (kind=RKIND), pointer :: sphere_radius
+    real (kind=RKIND), dimension(:), pointer :: latCell, lonCell
+
+    integer, pointer :: tile_bdr
+    integer, pointer :: tile_nx, tile_ny, tile_nz
+    integer, pointer :: tile_z_start, tile_z_end
+    integer :: supersample_fac_lcl
+    integer :: subsample_fac
+
+    real (kind=RKIND) :: lat
+    real (kind=RKIND) :: lon
+    real (kind=RKIND) :: xPixel, yPixel, zPixel
+    real, pointer :: scale_factor
+
+    integer (kind=I8KIND) :: i8val
+    integer :: iCell
+    integer :: i, ii
+    integer :: j, jj
+    integer :: k
+
+    logical :: all_pixels_mapped_to_halo_cells
+
+    type (mpas_geotile_type), pointer :: tile
+    type (mpas_kd_type), pointer :: res
+
+    integer :: ierr
+
+    call mpas_pool_get_dimension(mesh, 'nCells', nCells)
+    call mpas_pool_get_dimension(mesh, 'nCellsSolve', nCellsSolve)
+    call mpas_pool_get_config(mesh, 'sphere_radius', sphere_radius)
+
+    call mpas_pool_get_array(mesh, 'latCell', latCell)
+    call mpas_pool_get_array(mesh, 'lonCell', lonCell)
+    call mpas_pool_get_array(mesh, 'bdyMaskCell', bdyMaskCell)
+    call mpas_pool_get_array(mesh, 'xCell', xCell)
+    call mpas_pool_get_array(mesh, 'yCell', yCell)
+    call mpas_pool_get_array(mesh, 'zCell', zCell)
+    call mpas_pool_get_array(mesh, 'xVertex', xVertex)
+    call mpas_pool_get_array(mesh, 'yVertex', yVertex)
+    call mpas_pool_get_array(mesh, 'zVertex', zVertex)
+    call mpas_pool_get_array(mesh, 'nEdgesOnCell', nEdgesOnCell)
+    call mpas_pool_get_array(mesh, 'verticesOnCell', verticesOnCell)
+    call mpas_pool_get_array(mesh, 'bdyMaskCell', bdyMaskCell)
+
+    call mpas_pool_get_config(mgr % pool, 'tile_bdr', tile_bdr)
+    call mpas_pool_get_config(mgr % pool, 'tile_x', tile_nx)
+    call mpas_pool_get_config(mgr % pool, 'tile_y', tile_ny)
+    call mpas_pool_get_config(mgr % pool, 'tile_z_start', tile_z_start)
+    call mpas_pool_get_config(mgr % pool, 'tile_z_end', tile_z_end)
+    call mpas_pool_get_config(mgr % pool, 'scale_factor', scale_factor)
+
+    ! Currently, the namelist option config_supersample_factor is only for max snow albedo and
+    ! monthly climatological albedo. We should have additional hidden namelist options for each
+    ! additional field as meshes that are higher resolutions are now being used for current
+    ! MPAS datasets.
+    if (present(supersample_fac)) then
+        supersample_fac_lcl = supersample_fac
+    else
+        supersample_fac_lcl = 1
+    end if
+
+    if (supersample_fac_lcl > 1) then
+       call mpas_log_write('   Dataset will be supersampled by a factor of $i', intArgs=(/supersample_fac_lcl/))
+    end if
+
+    ! TODO: How should we handle subsample_fac? We may not want users to change this values other
+    ! than during the tutorial and development. So perhaps it is best set just hard coded and not
+    ! as a hidden namelist.
+    !
+    ! If we do have make it a hidden namelist option perhaps we could have throw and error or a
+    ! warning to really prompt the user if they want to sub-sample fields.
+    subsample_fac = 1
+
+    do iCell = 1, nCells
+        !
+        ! Insure all cells receive values by loading tiles that have not recivied values, when
+        ! interp_criteria(iCell) == .true..
+        !
+        if (interp_criteria(iCell)) then
+            tile => null()
+            ierr = mgr % get_tile(latCell(iCell), lonCell(iCell), tile)
+            ierr = mgr % push_tile(tile)
+            if (ierr /= 0 .or. .not. associated(tile)) then
+                call mpas_log_write('Could not get tile that contained cell $i', intArgs=(/iCell/), messageType=MPAS_LOG_ERR)
+                return
+            end if
+        end if
+
+        !
+        ! Process each tile by removing it from the stack. Determine the closest cell center to each tile
+        ! pixel by using a KD search and pass the pixel value and the cloest cell center id to the
+        ! accumulation routine.
+        !
+        do while (.not. mgr % is_stack_empty())
+            tile => mgr % pop_tile()
+
+            if (tile % is_processed) then
+                cycle
+            end if
+
+            call mpas_log_write('Processing tile: '//trim(tile % fname))
+            all_pixels_mapped_to_halo_cells = .true.
+
+            do j = supersample_fac_lcl * tile_bdr + 1, supersample_fac_lcl * (tile_ny + tile_bdr), subsample_fac
+                do i = supersample_fac_lcl * tile_bdr + 1, supersample_fac_lcl * (tile_nx + tile_bdr), subsample_fac
+
+                    ii = (i - 1) / supersample_fac_lcl + 1
+                    jj = (j - 1) / supersample_fac_lcl + 1
+
+                    call mgr % tile_to_latlon(tile, j, i, lat, lon, supersample_fac_lcl)
+                    call mpas_latlon_to_xyz(xPixel, yPixel, zPixel, sphere_radius, lat, lon)
+                    call mpas_kd_search(kdtree, (/xPixel, yPixel, zPixel/), res)
+
+                    !
+                    ! For outermost boundary cells, extra work is needed to be done to determine if a pixel actually
+                    ! lies within the cell returned by mpas_kd_search
+                    !
+                    if (bdyMaskCell(res % id) == nBdyLayers) then
+                        if (.not. mpas_in_cell(xPixel, yPixel, zPixel, xCell(res % id), yCell(res % id), zCell(res % id), &
+                                               nEdgesOnCell(res % id), verticesOnCell(:,res % id), xVertex, yVertex, zVertex)) then
+                            !
+                            ! This pixel lays outside of res % cell and outside of the limited-area region, no futher processing is
+                            ! needed
+                            !
+                            cycle
+                        end if
+                    end if
+
+                    !
+                    ! Send the value(s) of the pixel and the cell it lies in to the accumulation_method
+                    ! TODO: This actually doesn't handle the k dimension correctly.
+                    !
+                    do k = tile_z_start, tile_z_end
+                        i8val = int(tile % tile(ii,jj,k), kind=I8KIND)
+                        call accumulation_method(res % id, i8val)
+                    end do
+
+                    if (res % id <= nCellsSolve) then
+                        all_pixels_mapped_to_halo_cells = .false.
+                    end if
+                end do
+            end do
+
+            tile % is_processed = .true.
+
+            !
+            ! If a single pixel value maps to an owned cell (i.e. <= nCellsSolve) then
+            ! it is possible that the neighboring tiles might contain pixels that map
+            ! to this process' compute cells, so add them to the stack.
+            !
+            if (.not. all_pixels_mapped_to_halo_cells) then
+                ierr = mgr % push_neighbors(tile)
+            end if
+        end do
+    end do
+
+ end subroutine init_atm_map_static_data
 
 !==================================================================================================
  subroutine init_atm_check_read_error(istatus, fname)
