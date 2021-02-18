@@ -826,7 +826,7 @@ module atm_core
       use atm_time_integration
 #ifdef DO_PHYSICS
       use mpas_atmphys_control
-      use mpas_atmphys_driver
+      use mpas_atmphys_driver, only: physics_driver_before_dyn, physics_driver_after_dyn
       use mpas_atmphys_manager
       use mpas_atmphys_update
 #endif
@@ -854,15 +854,54 @@ module atm_core
       xtime_s = (s + s_n / s_d)
 
 
+      !
+      ! This is a call to all of the slow, column-oriented physics, except for resolved
+      ! cloud microphysical processes. The microphysics is handled after the dynamics so 
+      ! that any supersaturation caused by various dynamical processes (advection, etc) 
+      ! may be removed before the end of each time step.
+      !
 #ifdef DO_PHYSICS
       !proceed with physics if moist_physics is set to true:
       if(moist_physics) then
          call physics_timetracker(domain,dt,clock,itimestep,xtime_s)
-         call physics_driver(domain,itimestep,xtime_s)
+         call physics_driver_before_dyn(domain,itimestep,xtime_s)
       endif
 #endif
 
-      call atm_timestep(domain, dt, currTime, itimestep)
+      !
+      ! Advance the model state ahead by the given dt. Currently, this is a wrapping call
+      ! to the time-split Runge-Kutta solver for the dynamics.
+      call dynamics_timestep(domain, dt, currTime, itimestep)
+
+      !
+      ! This part is the microphysics, which needs to happen after the
+      ! dynamics time stepping.
+      !
+#ifdef DO_PHYSICS
+      call physics_driver_after_dyn(domain,itimestep,xtime_s)
+#endif
+
+      !
+      ! If this is a regional domain, adjustments are required for the
+      ! lateral boundary conditions due to the microphysics.
+      !    
+      if(config_apply_lbcs) then 
+         call dynamics_final_lbc_adjustment (domain, dt)
+      endif
+
+      !    
+      ! The end of the time step. Advance model xtime.
+      !    
+      call dynamics_update_xtime (domain, dt, currTime)
+
+      !    
+      ! This is the summary of this time step from the following:
+      !  1) the physics before the dynamics solver (physics_driver_before_dyn)
+      !  2) the accumulated processing of the dynamics (atm_srk3)
+      !  3) the explicit microphysics (physics_driver_after_dyn)
+      !  4) the LBC adjustment (dynamics_final_lbc_adjustment)
+      ! 
+      call summarize_timestep(domain)
 
    end subroutine atm_do_timestep
    

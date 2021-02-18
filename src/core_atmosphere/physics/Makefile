@@ -79,6 +79,7 @@ mpas_atmphys_driver.o: \
 	mpas_atmphys_driver_radiation_sw.o \
 	mpas_atmphys_driver_sfclayer.o \
 	mpas_atmphys_driver_oml.o \
+	mpas_atmphys_driver_microphysics.o \
 	mpas_atmphys_constants.o \
 	mpas_atmphys_interface.o \
 	mpas_atmphys_update.o \
