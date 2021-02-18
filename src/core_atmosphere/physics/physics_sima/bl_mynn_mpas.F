@@ -2,15 +2,6 @@
  module bl_mynn_mpas
  use mpas_kind_types,only: kind_phys => RKIND
  use mpas_log
- use mpas_atmphys_constants,only: &
-    cp,            &
-    karman,        &
-    g => gravity,  &
-    p1000mb => P0, &
-    ep_1,          &
-    ep_2,          &
-    rcp,           &
-    xlv
 
  use bl_mynn
 
@@ -44,6 +35,8 @@
                 edmf_qc     , sub_thl     , sub_sqv        , det_thl      , det_sqv       , &
                 exch_h      , exch_m      , dqke           , qwt          , qshear        , &
                 qbuoy       , qdiss       , sh3d           ,                                &
+                !--- constants:
+                cp , karman , gravity , P0 , ep_1 , ep_2 , rcp , xlv ,                         &
                 bl_mynn_closure  , bl_mynn_cloudpdf , bl_mynn_mixlength , bl_mynn_edmf       , &
                 bl_mynn_edmf_mom , bl_mynn_edmf_tke , bl_mynn_output    , bl_mynn_mixscalars , &
                 bl_mynn_cloudmix , bl_mynn_mixqt    , bl_mynn_tkeadvect , bl_mynn_tkebudget  , &
@@ -91,6 +84,16 @@
     grav_settling,      &!
     icloud_bl,          &!
     spp_pbl              !
+
+ real(kind=kind_phys),intent(in):: &
+    cp,                 &!
+    karman,             &!
+    gravity,            &!
+    P0,                 &!
+    ep_1,               &!
+    ep_2,               &!
+    rcp,                &!
+    xlv                  !
 
  real(kind=kind_phys),intent(in):: &
     delt                 !
@@ -467,6 +470,8 @@
              spp_pbl          , pattern_spp_pbl    , rthraten1d       , &
              f_qc             , f_qi               , f_qnc            , &
              f_qni            , f_qnwfa            , f_qnifa          , &
+             !--- constants:
+             cp , karman , gravity , P0 , ep_1 , ep_2 , rcp , xlv ,     &
              kts              , kte                , i                  &
             )    
 
@@ -649,6 +654,8 @@
              spp_pbl          , pattern_spp_pbl1   , rthraten1        , &
              flag_qc          , flag_qi            , flag_qnc         , &
              flag_qni         , flag_qnwfa         , flag_qnifa       , &
+             !--- constants:
+             cp , karman , grav , p1000mb , ep_1 , ep_2 , rcp , xlv ,   &
              kts              , kte                , ii                 &
             )    
 
@@ -675,6 +682,9 @@
     bl_mynn_edmf_tke,bl_mynn_output,bl_mynn_mixscalars,bl_mynn_cloudmix, &
     bl_mynn_mixqt,bl_mynn_tkebudget
  
+ real(kind=kind_phys),intent(in):: &
+    cp,karman,grav,p1000mb,ep_1,ep_2,rcp,xlv
+
  real(kind=kind_phys),intent(in):: &
     delt
 
@@ -1026,7 +1036,7 @@
  endif
 
 !-- Estimate wstar & delta for GRIMS shallow-cu-------
- govrth = g/th1(kts)
+ govrth = grav/th1(kts)
  sflux  = hfx1/rho1(kts)/cpm + &
           qfx1/rho1(kts)*ep_1*th1(kts)
  bfx0   = max(sflux,0.)
@@ -1107,7 +1117,7 @@
        radsum = 0._kind_phys
        do kk = max(1,kpbl1-3),kpbl1+3
           radflux = rthraten1(kk)*ex1(kk)         !converts theta/s to temp/s
-          radflux = radflux*cp/g*(p1(kk)-p1(kk+1)) ! converts temp/s to w/m^2
+          radflux = radflux*cp/grav*(p1(kk)-p1(kk+1)) ! converts temp/s to w/m^2
           if(radflux < 0.0) radsum = abs(radflux)+radsum
        enddo
 
@@ -1121,7 +1131,7 @@
        endif
 
        !entrainment from pbl top thermals
-       wm3    = g/thetav(k)*bfx0*min(pblh1,1500.) ! this is wstar3(i)
+       wm3    = grav/thetav(k)*bfx0*min(pblh1,1500.) ! this is wstar3(i)
        wm2    = wm2 + wm3**h2
        bfxpbl = - ent_eff * bfx0
        dthvx  = max(thetav(k+1)-thetav(k),0.1)

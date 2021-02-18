@@ -3,6 +3,15 @@
  use mpas_kind_types,only: kind_phys => RKIND
  use mpas_log
 
+ use mpas_atmphys_constants,only: &
+    cp,      &
+    karman,  &
+    gravity, &
+    P0,      &
+    ep_1,    &
+    ep_2,    &
+    rcp,     &
+    xlv
  use bl_mynn_mpas,only: bl_mynn_mpas_run
 
  implicit none
@@ -473,6 +482,8 @@
              edmfqc_hv        , subthl_hv        , subsqv_hv         , detthl_hv      , detsqv_hv     , &
              exchh_hv         , exchm_hv         , dqke_hv           , qwt_hv         , qshear_hv     , & 
              qbuoy_hv         , qdiss_hv         , sh3d_hv           ,                                  &
+             !--- constants:
+             cp , karman , gravity , P0 , ep_1 , ep_2 , rcp , xlv ,                                     &
              bl_mynn_closure  , bl_mynn_cloudpdf , bl_mynn_mixlength , bl_mynn_edmf       , &
              bl_mynn_edmf_mom , bl_mynn_edmf_tke , bl_mynn_output    , bl_mynn_mixscalars , &
              bl_mynn_cloudmix , bl_mynn_mixqt    , bl_mynn_tkeadvect , bl_mynn_tkebudget  , &
