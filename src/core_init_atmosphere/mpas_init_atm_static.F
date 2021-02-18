@@ -72,11 +72,27 @@
     end subroutine interp_accumulation_function
  end interface
 
+ !
+ ! Module level variables needed for the unified static interpolation. This is not ideal,
+ ! it would be much better to have these variables reside within each of the interpolation
+ ! routines (interp_terrain and others that will be added later) and allow the internal
+ ! routines to access them.
+ !
+ ! However, passing a nested subroutine (internal subroutine) as an actual argument
+ ! is not allowed in the 2003 standard (Section 12.1.2.2 standard). Currently, only PGI
+ ! does not support this, so do this for now...
+ !
+ integer (kind=I8KIND), dimension(:), pointer :: ter_integer
+ integer, dimension(:), pointer :: nhs
+
  contains
 
 !==================================================================================================
  subroutine init_atm_static(mesh, dims, configs)
 !==================================================================================================
+
+! TODO: Once the unified function routine is implemented, then we should run this with -Wall and
+! remove any unused variables.
 
 !inout arguments:
  type (mpas_pool_type), intent(inout) :: mesh
@@ -345,6 +361,8 @@
  end select
 
  call mpas_log_write('--- end interpolate TER')
+
+ call interp_terrain(mesh, tree, trim(config_geog_data_path)//trim(geog_sub_path))
 
 !
 ! Interpolate LU_INDEX
@@ -983,6 +1001,128 @@
     end do
 
  end subroutine init_atm_map_static_data
+
+
+!--------------------------------------------------------------------------------------------------
+! Terrain interpolation
+!--------------------------------------------------------------------------------------------------
+
+ !***********************************************************************
+ !
+ !  routine continuous_interp_criteria
+ !
+ !> \brief   Continuous dataset interp criteria
+ !> \author  Miles Curry
+ !> \date    25 January 2020
+ !> \details
+ !> This is a generic routine that can be used to determine if the tile that contains iCell needs
+ !> to be loaded and processed by init_atm_map_static_data.
+ !
+ !-----------------------------------------------------------------------
+ function continuous_interp_criteria(iCell)
+
+     integer, intent(in) :: iCell
+     logical :: continuous_interp_criteria
+
+     continuous_interp_criteria = .false.
+
+     if (nhs(iCell) == 0) then
+         continuous_interp_criteria = .true.
+     end if
+
+ end function continuous_interp_criteria
+
+
+ !***********************************************************************
+ !
+ !  routine terrain_interp_accumulation
+ !
+ !> \brief   Accumulate terrain dataset values
+ !> \author  Miles Curry
+ !> \date    25 January 2020
+ !> \details
+ !> This routine will be passed in to init_atm_map_static_data to accumulate terrain values
+ !> to cells.
+ !
+ !-----------------------------------------------------------------------
+ subroutine terrain_interp_accumulation(iCell, i8val)
+
+     integer, intent(in) ::iCell
+     integer (kind=I8KIND), intent(in) :: i8val
+
+     ter_integer(iCell) = ter_integer(iCell) + int(i8val, kind=I8KIND)
+     nhs(iCell) = nhs(iCell) + 1
+
+ end subroutine terrain_interp_accumulation
+
+
+ !***********************************************************************
+ !
+ !  routine interp_terrain
+ !
+ !> \brief   Interpolate terrain
+ !> \author  Miles Curry
+ !> \date    25 January 2020
+ !> \details
+ !> Interpolate terrain by using the init_atm_map_static_data routine and
+ !> accumulating the pixel values into each cell using terrain_interp_accumulation.
+ !
+ !-----------------------------------------------------------------------
+ subroutine interp_terrain(mesh, kdtree, geog_data_path)
+
+    implicit none
+
+    ! Input variables
+    type (mpas_pool_type), intent(inout) :: mesh
+    type (mpas_kd_type), pointer, intent(in) :: kdtree
+    character (len=*), intent(in) :: geog_data_path
+
+    ! Local variables
+    type (mpas_geotile_mgr_type) :: mgr
+    integer, pointer :: nCells
+
+    real (kind=RKIND), dimension(:), pointer :: ter
+
+    real, pointer :: scalefactor
+
+    integer :: iCell
+    integer :: ierr
+
+    ierr = mgr % init(trim(geog_data_path))
+    if (ierr /= 0) then
+        call mpas_log_write("Error occured initalizing interpolation for "//trim(geog_data_path), messageType=MPAS_LOG_CRIT)
+        return
+    end if
+
+    call mpas_pool_get_dimension(mesh, 'nCells', nCells)
+    call mpas_pool_get_array(mesh, 'ter', ter)
+    call mpas_pool_get_config(mgr % pool, 'scale_factor', scalefactor)
+
+    allocate(ter_integer(nCells))
+    allocate(nhs(nCells))
+
+    ter(:) = 0.0
+    ter_integer(:) = 0
+    nhs(:) = 0
+
+    call init_atm_map_static_data(mesh, mgr, kdtree, continuous_interp_criteria, terrain_interp_accumulation)
+
+    do iCell = 1, nCells
+       ter(iCell) = real(ter_integer(iCell), kind=R8KIND) / real(nhs(iCell), kind=R8KIND)
+       ter(iCell) = ter(iCell) * scalefactor
+    end do
+
+    deallocate(ter_integer)
+    deallocate(nhs)
+
+    ierr = mgr % finalize()
+    if (ierr /= 0) then
+        call mpas_log_write("Error occured finalizing interpolation for "//trim(geog_data_path), messageType=MPAS_LOG_CRIT)
+        return
+    end if
+
+ end subroutine interp_terrain
+
 
 !==================================================================================================
  subroutine init_atm_check_read_error(istatus, fname)
