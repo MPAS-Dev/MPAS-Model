@@ -83,7 +83,13 @@
  ! does not support this, so do this for now...
  !
  integer (kind=I8KIND), dimension(:), pointer :: ter_integer
+ integer, dimension(:), pointer :: lu_index
  integer, dimension(:), pointer :: nhs
+ integer, dimension(:,:), allocatable:: ncat
+
+ ! These global variables are starting to smell...
+ integer, pointer :: category_min
+ integer, pointer :: category_max
 
  contains
 
@@ -383,6 +389,8 @@
        call mpas_log_write('Please correct the namelist.', messageType=MPAS_LOG_CRIT)
  end select surface_input_select1
 
+ call interp_landuse(mesh, tree, trim(config_geog_data_path)//trim(geog_sub_path), isice_lu, iswater_lu)
+
  call mpas_log_write('--- end interpolate LU_INDEX')
 
 !
@@ -390,37 +398,37 @@
 !
  geog_sub_path = 'soiltype_top_30s/'
 
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-! KLUDGE TO FIX SOIL TYPE OVER ANTARCTICA
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
- where (lu_index == isice_lu) soilcat_top = 16
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!! KLUDGE TO FIX SOIL TYPE OVER ANTARCTICA
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+! where (lu_index == isice_lu) soilcat_top = 16
 
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-! CORRECT INCONSISTENT SOIL AND LAND USE DATA
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
- do iCell = 1,nCells
-    if (lu_index(iCell) == iswater_lu .or. &
-        soilcat_top(iCell) == iswater_soil) then
-        if (lu_index(iCell) /= iswater_lu) then
-            call mpas_log_write('Turning lu_index into water at $i', intArgs=(/iCell/))
-            lu_index(iCell) = iswater_lu
-        end if
-        if (soilcat_top(iCell) /= iswater_soil) then
-            call mpas_log_write('Turning soilcat_top into water at $i', intArgs=(/iCell/))
-            soilcat_top(iCell) = iswater_soil
-        end if
-    end if
- end do
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!! CORRECT INCONSISTENT SOIL AND LAND USE DATA
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+! do iCell = 1,nCells
+!    if (lu_index(iCell) == iswater_lu .or. &
+!        soilcat_top(iCell) == iswater_soil) then
+!        if (lu_index(iCell) /= iswater_lu) then
+!            call mpas_log_write('Turning lu_index into water at $i', intArgs=(/iCell/))
+!            lu_index(iCell) = iswater_lu
+!        end if
+!        if (soilcat_top(iCell) /= iswater_soil) then
+!            call mpas_log_write('Turning soilcat_top into water at $i', intArgs=(/iCell/))
+!            soilcat_top(iCell) = iswater_soil
+!        end if
+!    end if
+! end do
 
 
 !
 ! Derive LANDMASK
 !
- landmask(:) = 0
- do iCell=1, nCells
-    if (lu_index(iCell) /= iswater_lu) landmask(iCell) = 1
- end do
- call mpas_log_write('--- end interpolate LANDMASK')
+! landmask(:) = 0
+! do iCell=1, nCells
+!    if (lu_index(iCell) /= iswater_lu) landmask(iCell) = 1
+! end do
+! call mpas_log_write('--- end interpolate LANDMASK')
 
 
 !
@@ -1123,6 +1131,132 @@
 
  end subroutine interp_terrain
 
+!--------------------------------------------------------------------------------------------------
+! Categorical interpolations - Landuse and Soiltype
+!--------------------------------------------------------------------------------------------------
+
+ !***********************************************************************
+ !
+ !  routine categorical_interp_criteria
+ !
+ !> \brief   Categorical dataset interp criteria
+ !> \author  Miles Curry
+ !> \date    25 January 2020
+ !> \details
+ !> This is a generic routine that can be used to determine if the tile that contains iCell needs
+ !> to be loaded and processed by init_atm_map_static_data.
+ !
+ !-----------------------------------------------------------------------
+ function categorical_interp_criteria(iCell)
+
+     integer, intent(in) :: iCell
+     logical :: categorical_interp_criteria
+
+     categorical_interp_criteria = .false.
+
+     if (all(ncat(:,iCell) == 0)) then
+         categorical_interp_criteria = .true.
+     end if
+
+ end function categorical_interp_criteria
+
+ !***********************************************************************
+ !
+ !  routine categorical_interp_accumulation
+ !
+ !> \brief   Accumulate categorical dataset values
+ !> \author  Miles Curry
+ !> \date    25 January 2020
+ !> \details
+ !> This routine will be passed in to init_atm_map_static_data to accumulate terrain values
+ !> to cells.
+ !
+ !-----------------------------------------------------------------------
+ subroutine categorical_interp_accumulation(iCell, i8val)
+
+     integer, intent(in) ::iCell
+     integer (kind=I8KIND), intent(in) :: i8val
+
+     if (i8val < category_min .or. i8val > category_max) then
+        return
+     else
+        ncat(i8val, iCell) = ncat(i8val, iCell) + 1
+     end if
+
+ end subroutine categorical_interp_accumulation
+
+
+ !***********************************************************************
+ !
+ !  routine interp_landuse
+ !
+ !> \brief   Interpolate landuse
+ !> \author  Miles Curry
+ !> \date    25 January 2020
+ !> \details
+ !> Interpolate terrain by using the init_atm_map_static_data routine and
+ !> accumulating the pixel values into each cell using terrain_interp_accumulation.
+ !
+ !-----------------------------------------------------------------------
+ subroutine interp_landuse(mesh, kdtree, geog_data_path, isice_lu, iswater_lu)
+
+     implicit none
+
+     ! Input variables
+     type (mpas_pool_type), intent(inout) :: mesh
+     type (mpas_kd_type), pointer, intent(in) :: kdtree
+     character (len=*), intent(in) :: geog_data_path
+     integer, intent(out) :: isice_lu
+     integer, intent(out) :: iswater_lu
+
+     ! Local variables
+     type (mpas_geotile_mgr_type) :: mgr
+     integer, pointer :: nCells
+     integer, pointer :: isice_lu_ptr
+     integer, pointer :: iswater_lu_ptr
+
+     real, pointer :: scalefactor
+
+     integer :: iCell
+     integer :: ierr
+
+     ierr = mgr % init(trim(geog_data_path))
+     if (ierr /= 0) then
+         call mpas_log_write("Error occured initalizing interpolation for "//trim(geog_data_path), messageType=MPAS_LOG_CRIT)
+         return
+     end if
+
+     call mpas_pool_get_dimension(mesh, 'nCells', nCells)
+     call mpas_pool_get_array(mesh, 'lu_index', lu_index)
+     call mpas_pool_get_config(mgr % pool, 'scale_factor', scalefactor)
+     call mpas_pool_get_config(mgr % pool, 'category_min', category_min)
+     call mpas_pool_get_config(mgr % pool, 'category_max', category_max)
+     call mpas_pool_get_config(mgr % pool, 'isice', isice_lu_ptr)
+     call mpas_pool_get_config(mgr % pool, 'iswater', iswater_lu_ptr)
+
+     isice_lu = isice_lu_ptr
+     iswater_lu = iswater_lu_ptr
+
+     allocate(ncat(category_min:category_max, nCells))
+     ncat(:,:) = 0
+
+     call init_atm_map_static_data(mesh, mgr, kdtree, categorical_interp_criteria, categorical_interp_accumulation)
+
+     do iCell = 1, nCells
+         ! Because maxloc returns the location of the maximum value of an array as if the
+         ! starting index of the array is 1, and dataset categories do not necessarily start
+         ! at 1, we need to use category_min to ensure the correct category location is chosen.
+         lu_index(iCell) = maxloc(ncat(:,iCell), dim=1) - 1 + category_min
+     end do
+     deallocate(ncat)
+
+     ierr = mgr % finalize()
+     if (ierr /= 0) then
+         call mpas_log_write("Error occured finalizing interpolation for "//trim(geog_data_path), messageType=MPAS_LOG_CRIT)
+         return
+     end if
+
+ end subroutine interp_landuse
 
 !==================================================================================================
  subroutine init_atm_check_read_error(istatus, fname)
