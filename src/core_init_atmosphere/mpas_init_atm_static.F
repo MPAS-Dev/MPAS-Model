@@ -84,6 +84,7 @@
  !
  integer (kind=I8KIND), dimension(:), pointer :: ter_integer
  integer, dimension(:), pointer :: lu_index
+ integer, dimension(:), pointer :: soilcat_top
  integer, dimension(:), pointer :: nhs
  integer, dimension(:,:), allocatable:: ncat
 
@@ -398,37 +399,39 @@
 !
  geog_sub_path = 'soiltype_top_30s/'
 
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!! KLUDGE TO FIX SOIL TYPE OVER ANTARCTICA
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-! where (lu_index == isice_lu) soilcat_top = 16
+ call interp_soilcat(mesh, tree, trim(config_geog_data_path)//trim(geog_sub_path), iswater_soil)
 
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!! CORRECT INCONSISTENT SOIL AND LAND USE DATA
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-! do iCell = 1,nCells
-!    if (lu_index(iCell) == iswater_lu .or. &
-!        soilcat_top(iCell) == iswater_soil) then
-!        if (lu_index(iCell) /= iswater_lu) then
-!            call mpas_log_write('Turning lu_index into water at $i', intArgs=(/iCell/))
-!            lu_index(iCell) = iswater_lu
-!        end if
-!        if (soilcat_top(iCell) /= iswater_soil) then
-!            call mpas_log_write('Turning soilcat_top into water at $i', intArgs=(/iCell/))
-!            soilcat_top(iCell) = iswater_soil
-!        end if
-!    end if
-! end do
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+! KLUDGE TO FIX SOIL TYPE OVER ANTARCTICA
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+ where (lu_index == isice_lu) soilcat_top = 16
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+! CORRECT INCONSISTENT SOIL AND LAND USE DATA
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+ do iCell = 1,nCells
+    if (lu_index(iCell) == iswater_lu .or. &
+        soilcat_top(iCell) == iswater_soil) then
+        if (lu_index(iCell) /= iswater_lu) then
+            call mpas_log_write('Turning lu_index into water at $i', intArgs=(/iCell/))
+            lu_index(iCell) = iswater_lu
+        end if
+        if (soilcat_top(iCell) /= iswater_soil) then
+            call mpas_log_write('Turning soilcat_top into water at $i', intArgs=(/iCell/))
+            soilcat_top(iCell) = iswater_soil
+        end if
+    end if
+ end do
 
 
 !
 ! Derive LANDMASK
 !
-! landmask(:) = 0
-! do iCell=1, nCells
-!    if (lu_index(iCell) /= iswater_lu) landmask(iCell) = 1
-! end do
-! call mpas_log_write('--- end interpolate LANDMASK')
+ landmask(:) = 0
+ do iCell=1, nCells
+    if (lu_index(iCell) /= iswater_lu) landmask(iCell) = 1
+ end do
+ call mpas_log_write('--- end interpolate LANDMASK')
 
 
 !
@@ -1257,6 +1260,75 @@
      end if
 
  end subroutine interp_landuse
+
+
+ !***********************************************************************
+ !
+ !  routine interp_soilcat
+ !
+ !> \brief   Interpolate soil category top
+ !> \author  Miles Curry
+ !> \date    25 January 2020
+ !> \details
+ !> Interpolate soil category top by using the init_atm_map_static_data routine and
+ !> accumulating the pixel values into each cell using category_interp_accumulation.
+ !
+ !-----------------------------------------------------------------------
+ subroutine interp_soilcat(mesh, kdtree, geog_data_path, iswater_soil)
+
+     implicit none
+
+     ! Input variables
+     type (mpas_pool_type), intent(inout) :: mesh
+     type (mpas_kd_type), pointer, intent(in) :: kdtree
+     character (len=*), intent(in) :: geog_data_path
+     integer, intent(out) :: iswater_soil
+
+     ! Local variables
+     type (mpas_geotile_mgr_type) :: mgr
+     integer, pointer :: nCells
+     integer, pointer :: iswater_soil_ptr
+
+     real, pointer :: scalefactor
+
+     integer :: iCell
+     integer :: ierr
+
+     ierr = mgr % init(trim(geog_data_path))
+     if (ierr /= 0) then
+         call mpas_log_write("Error occured initalizing interpolation for "//trim(geog_data_path), messageType=MPAS_LOG_CRIT)
+         return
+     end if
+
+     call mpas_pool_get_dimension(mesh, 'nCells', nCells)
+     call mpas_pool_get_array(mesh, 'soilcat_top', soilcat_top)
+     call mpas_pool_get_config(mgr % pool, 'scale_factor', scalefactor)
+     call mpas_pool_get_config(mgr % pool, 'category_min', category_min)
+     call mpas_pool_get_config(mgr % pool, 'category_max', category_max)
+     call mpas_pool_get_config(mgr % pool, 'isoilwater', iswater_soil_ptr)
+
+     iswater_soil = iswater_soil_ptr
+
+     allocate(ncat(category_min:category_max, nCells))
+     ncat(:,:) = 0
+
+     call init_atm_map_static_data(mesh, mgr, kdtree, categorical_interp_criteria, categorical_interp_accumulation)
+
+     do iCell = 1, nCells
+        ! Because maxloc returns the location of the maximum value of an array as if the
+        ! starting index of the array is 1, and dataset categories do not necessarily start
+        ! at 1, we need to use category_min to ensure the correct category location is chosen.
+        soilcat_top(iCell) = maxloc(ncat(:,iCell), dim=1) - 1 + category_min
+     end do
+     deallocate(ncat)
+
+     ierr = mgr % finalize()
+     if (ierr /= 0) then
+         call mpas_log_write("Error occured finalizing interpolation for "//trim(geog_data_path), messageType=MPAS_LOG_CRIT)
+         return
+     end if
+
+ end subroutine interp_soilcat
 
 !==================================================================================================
  subroutine init_atm_check_read_error(istatus, fname)
