@@ -130,13 +130,13 @@ several other derivative fields are initialized based on ``maxLevelCell``.
 We will rename this function ``ocn_init_routines_compute_min_max_level()``
 and will initialized the following new variables:
 
-* ``minLevelEdgeTop``
+* ``minLevelEdgeTop`` - the minimum of ``minLevelCell`` on adjacent cells
 
-* ``minLevelEdgeBot``
+* ``minLevelEdgeBot`` - the maximum of ``minLevelCell`` on adjacent cells
 
-* ``minLevelVertexTop``
+* ``minLevelVertexTop`` - the minimum of ``minLevelCell`` on adjacent cells
 
-* ``minLevelVertexBot``
+* ``minLevelVertexBot`` - the maximum of ``minLevelCell`` on adjacent cells
 
 The definitions of the following variables currently in this routine will be
 updated to include ``minLevelCell``:
@@ -220,7 +220,7 @@ Forward:
   * [ ] ``ocn_meshDestroy()``
 
 * [ ] ``ocn_tendency``:
-  
+
   * [ ] ``ocn_tend_tracer``
 
 * [ ] ``ocn_forcing``:
@@ -228,43 +228,43 @@ Forward:
   * [ ] ``ocn_forcing_build_fraction_absorbed_array``
 
 * [ ] ``ocn_thick_hadv``:
-  
+
   * [ ] ``ocn_hadv_thick_tend``
-  
+
 * [ ] ``ocn_thick_vadv``:
-  
+
   * [ ] ``ocn_vadv_thick_tend``
 
 * [ ] ``ocn_thick_surface_flux``:
-  
+
   * [ ] ``ocn_thick_surface_flux_tend``
-  
+
 * [ ] ``ocn_tracer_advection``:
-  
+
   * [ ] ``ocn_tracer_advection_tend``
 
 * [ ] ``ocn_tracer_advection_mono``:
-  
+
   * [ ] ``ocn_tracer_advection_mono_tend``
 
 * [ ] ``ocn_vel_forcing_surface_stress``:
-  
+
   * [ ] ``ocn_vel_forcing_surface_stress_tend``
-  
+
 * [ ] ``ocn_vel_hmix_del2``:
-  
+
   * [ ] ``ocn_vel_hmix_del2_tend``
-  
+
 * [ ] ``ocn_vel_hadv_coriolis``:
-  
+
   * [ ] ``ocn_vel_hadv_coriolis_tend``
 
 * [ ] ``ocn_vel_vadv``:
-  
+
   * [ ] ``ocn_vel_vadv_tend``
 
 * [ ] ``ocn_vmix_cvmix``:
-  
+
   * [ ] ``ocn_vmix_coefs_cvmix_build``
 
 * [ ] ``ocn_diagnostics``:
@@ -298,15 +298,15 @@ Forward:
   * [ ] ``ocn_ALE_thickness``
 
 * [ ] ``ocn_vel_pressure_grad``:
-  
+
   * [ ] ``ocn_vel_pressure_grad_tend``
 
 * [ ] ``ocn_vmix``:
-  
+
   * [ ] ``ocn_vmix_implicit``
-  
+
   * [ ] ``ocn_vel_vmix_tend_implicit``
-  
+
   * [ ] ``ocn_tracer_vmix_tend_implicit``
 
 ...
@@ -322,12 +322,12 @@ Forward:
 
 .. note::
 
-  ``ocn_forcing_build_fraction_absorbed_array`` is currently only called once 
+  ``ocn_forcing_build_fraction_absorbed_array`` is currently only called once
   by ``ocn_init_routines`` and would need to be called multiple times to correctly
   distribute surface fluxes unless we use an alternative approach where the vertical
   index of transmissionCoeff is number of cells from minLevelCell rather than k-levels
-  
-  
+
+
 Here is a (by no means complete) checklist of routines not used by
 ``sub_ice_shelf_2D`` test cases that are a lower priority to update:
 
@@ -374,25 +374,25 @@ Forward:
   * [ ] ``ocn_GM_compute_Bolus_velocity()``
 
 * [ ] ``ocn_tendency``:
-  
+
   * [ ] ``ocn_tend_freq_filtered_thickness``
 
 * [ ] ``ocn_tidal_forcing``:
-  
+
   * [ ] ``ocn_tidal_forcing_build_array``
-  
+
   * [ ] ``ocn_tidal_forcing_layer_thickness``
 
 * [ ] ``ocn_vel_tidal_potential``:
-  
+
   * [ ] ``ocn_vel_tidal_potential_tend``
-  
+
 * [ ] ``ocn_tracer_advection_std``:
-  
+
   * [ ] ``ocn_tracer_advection_std_tend``
 
 * [ ] ``ocn_wetting_drying``:
-  
+
   * [ ] ``ocn_wetting_drying_verify``
 
   * [ ] ``ocn_prevent_drying_rk4``
@@ -402,69 +402,69 @@ Forward:
 * [ ] ``ocn_vmix``:
 
   * [ ] ``ocn_vel_vmix_tend_implicit_spatially_variable``
-  
+
   * [ ] ``ocn_vel_vmix_tend_implicit_spatially_variable_mannings``
-             
+
   * [ ] ``ocn_vel_vmix_tend_implicit_rayleigh``
-  
+
   * [ ] ``ocn_compute_kpp_rhs``
 
 * [ ] ``ocn_tracer_exponential_decay``:
-  
+
   * [ ] ``ocn_tracer_exponential_decay_compute``
 
 * [ ] ``ocn_tracer_DMS``:
-  
+
   * [ ] ``ocn_tracer_DMS_compute``
-  
+
   * [ ] ``ocn_tracer_DMS_surface_flux_compute``: iLevelSurface
-  
+
 * [ ] ``ocn_tracer_ecosys``:
-  
+
   * [ ] ``ocn_tracer_ecosys_compute``
-   
+
   * [ ] ``ocn_tracer_ecosys_surface_flux_compute``: iLevelSurface
 
   * [ ] ``ocn_compute_tidal_potential_forcing``
 
 * [ ] ``ocn_frazil_forcing``:
-  
+
   * [ ] ``ocn_frazil_forcing_layer_thickness``
-  
+
   * [ ] ``ocn_frazil_forcing_active_tracers``
-  
+
   * [ ] ``ocn_frazil_forcing_build_arrays``
 
 * [ ] ``ocn_sea_ice``:
-  
+
   * [ ] ``ocn_sea_ice_formation``
-  
+
   * [ ] ``ocn_sea_ice_init``
 
 * [ ] ``ocn_tracer_hmix_del2``:
-  
+
   * [ ] ``ocn_tracer_hmix_del2_tend``
-  
+
 * [ ] ``ocn_tracer_hmix_del4``:
-  
+
   * [ ] ``ocn_tracer_hmix_del4_tend``
-  
+
 * [ ] ``ocn_tracer_hmix_Redi``:
-  
+
   * [ ] ``ocn_tracer_hmix_Redi_tend``
-  
+
 * [ ] ``ocn_high_freq_thickness_hmix_del2``:
-  
+
   * [ ] ``ocn_high_freq_thickness_hmix_del2_tend``
-  
+
 * [ ] ``ocn_vel_hmix_del4``:
-  
+
   * [ ] ``ocn_vel_hmix_del4_tend``
-  
+
 * [ ] ``ocn_vel_hmix_leith``:
-  
+
   * [ ] ``ocn_vel_hmix_leith_tend``
-  
+
 * [ ] ``ocn_tracer_ideal_age``:
 
   * [ ] ``ocn_tracer_ideal_age_compute``
@@ -492,7 +492,7 @@ Forward:
   * [ ] ``ocn_tracer_surface_flux_tend``
 
 * [ ] ``ocn_tracer_interior_restoring``:
-  
+
   * [ ] ``ocn_tracer_interior_restoring_compute``
 
 ...
@@ -500,7 +500,7 @@ Forward:
 .. note::
 
   May need to reconsider nVertLevels argument to ``ocn_sea_ice_init``
-  
+
 
 Implementation: Surface fields and fluxes
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -639,31 +639,63 @@ Testing: Inactive top cells
 
 Date last modified: 2021/02/11
 
-Contributors: Xylar Asay-Davis
+Contributors: Xylar Asay-Davis, Mark Petersen
 
 We will ensure that all 3D, prognostic variables have been initialized to the
 NetCDF fill value in inactive cells at the top of the water column.  We will
 attempt to do the same for 3D diagnostic variables.  This should expose any
 computations involving these invalid cells.
 
-We will modify the ``sub_ice_shelf_2D`` configuration in legacy COMPASS to
+We have modified the ``sub_ice_shelf_2D`` configuration in legacy COMPASS to
 support a z-level initial coordinate in the ice-shelf cavity (including writing
-out ``minLevelCell`` in the initial condition).  Then, we will run the
-following test cases in this configuration with the new coordinate:
+out ``minLevelCell`` in the initial condition).  The implementation is in a
+`add_z_level_sub_ice_shelf_2D COMPASS branch <https://github.com/xylar/compass/tree/add_z_level_sub_ice_shelf_2D>`_
+and a corresponding `add_z_level_sub_ice_shelf_2D MPAS-Model branch <https://github.com/xylar/MPAS-Model/tree/ocean/add_z_level_sub_ice_shelf_2D>`_.
 
-* ``default``
 
-* ``restart_test``
+To begin wth, these tests also have melt fluxes disabled along with all
+tendency terms.
 
-* ``iterative_init``
+The test cases include "partial top cells", analogous to "partial bottom
+cells". When constructing your initial domain with variable ``minLevelCell``,
+we have generalized the namelist options for partial bottom cells to refer to
+both bottom and top cells, so that we can specify either full or partial
+(bottom and top) cells. The eventual goal is always partial top cells, to model
+the ice draft more realistically. But it is useful to have a full cell option
+in your standard test suite.
 
-We will run on multiple machines (Ubuntu laptop, Anvil, Grizzly, Compy) with a
-mix of Gnu and Intel compilers.  We will plot the resulting T, S and KE fields
-to make sure they look comparable to the results with the current
+When initialize with constant T and S horizontally and no surface forcing, a
+zero initial velocity should remain exactly zero with full top and bottom
+cells. Pressure gradient errors with partial top/bottom cells will mean that
+the velocity will be nonzero but should remain small. This is similar to the
+sea mount test, where the velocity is a measure of the error.
+
+We will progress through the following 3 test cases:
+These define 3 new test cases:
+
+1. ``z_level_full_cells_const_S`` -  T and S are uniform in 3D. Full top and
+   bottom cells. Verify min and max T and S remain exactly constant, velocity
+   remains exactly zero.
+
+2. ``z_level_full_cells`` - S is horizontally uniform (T remains uniform in
+   3D), stably stratified in vertical. Disable vertical tracer mixing. Full top
+   and bottom cells. Verify T and S  remain unchanged, velocity remains exactly
+   zero.
+
+3. ``z_level`` - Same as 2. but partial top and bottom cells. Maximum velocity
+   is a measure of the error and should grow slowly at top and bottom(e.g.
+   1e-6m/s after a day).
+
+To begin with, these tests also have melt fluxes disabled along with all
+tendency terms.  As part of debugging, we will gradually turn on tendencies
+and check the behavior.
+
+We will run on multiple machines (Ubuntu laptop, Anvil, Grizzly, Cori, Compy)
+with a mix of Gnu and Intel compilers.  We will plot the resulting T, S and KE
+fields to make sure they look comparable to the results with the current
 terrain-following coordinate.
 
-We will test with both the linear (I believe the default) and JM equations of
-state.
+We will test with JM and Wright equations of state.
 
 Testing: Surface fields and fluxes
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -680,12 +712,14 @@ and other parameterizations that are not part of this configuration by default.
 Testing: Correct boundary conditions
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Date last modified: 2021/02/11
+Date last modified: 2021/02/25
 
-Contributors: ???
+Contributors: Mark Petersen and Xylar Asay-Davis
 
-<<<Need to think about this...>>>
-
+The 3 z-level versions of ``sub_ice_shelf_2D`` described above should provide
+sufficient testing of the boundary conditions related to tendency terms (e.g.
+higher-order tracer reconstruction).  More sophisticated parameterizations
+(KPP and GM) will be addressed in the second phase of this work.
 
 Testing: Inactivate cells during simulation
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -713,9 +747,15 @@ and Intel compilers to make sure nothing has changed when we run with
 
 We will also run the following E3SM tests before and after the changes:
 
-* ``SMS.T62_oQU120_ais20.MPAS_LISIO_TEST.anvil_intel``
-* ``<<help>>``
+* ``SMS.T62_oQU120_ais20.MPAS_LISIO_TEST.<<machine>>_intel``
+* ``SMS.T62_oQU120_ais20.MPAS_LISIO_TEST.<<machine>>_gnu``
 
+We will run the following E3SM tests after changes:
+* ``PET_Ln9.T62_oQU240.GMPAS-IAF.<<machine>>_intel``
+* ``PEM_Ln9.T62_oQU240.GMPAS-IAF.<<machine>>_gnu``
+* ``PET_Ln3.T62_oEC60to30v3wLI.GMPAS-DIB-IAF-ISMF.<<machine>>_intel``
+* ``PET_Ln9_P1024.ne30_oECv3_ICG.A_WCYCL1850S.<<machine>>_gnu``
+* ``PEM_Ln9_P1024.ne30_oECv3_ICG.A_WCYCL1850S.<<machine>>_intel``
 
 Testing: No significant loss of performance
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
