@@ -57,7 +57,9 @@
  ! for processing. Returning .true. will indicate that the cell has not received any mappings
  ! and needs to be processed. .false. will indicate that the cell has received mappings.
  abstract interface
-    function interp_criteria_function(iCell)
+    function interp_criteria_function(mgr, iCell)
+        import mpas_geotile_mgr_type
+        type (mpas_geotile_mgr_type), intent(in) :: mgr
         integer, intent(in) :: iCell
         logical :: interp_criteria_function
     end function interp_criteria_function
@@ -65,8 +67,10 @@
 
  ! Abstract interface to accumulate pixel values with the cell they map to.
  abstract interface
-    subroutine interp_accumulation_function(iCell, i8val)
+    subroutine interp_accumulation_function(mgr, iCell, i8val)
         use mpas_derived_types, only : I8KIND
+        import mpas_geotile_mgr_type
+        type (mpas_geotile_mgr_type), intent(in) :: mgr
         integer, intent(in) :: iCell
         integer (kind=I8KIND), intent(in) :: i8val
     end subroutine interp_accumulation_function
@@ -933,7 +937,7 @@
         ! Insure all cells receive values by loading tiles that have not recivied values, when
         ! interp_criteria(iCell) == .true..
         !
-        if (interp_criteria(iCell)) then
+        if (interp_criteria(mgr, iCell)) then
             tile => null()
             ierr = mgr % get_tile(latCell(iCell), lonCell(iCell), tile)
             ierr = mgr % push_tile(tile)
@@ -989,7 +993,7 @@
                     !
                     do k = tile_z_start, tile_z_end
                         i8val = int(tile % tile(ii,jj,k), kind=I8KIND)
-                        call accumulation_method(res % id, i8val)
+                        call accumulation_method(mgr, res % id, i8val)
                     end do
 
                     if (res % id <= nCellsSolve) then
@@ -1030,8 +1034,9 @@
  !> to be loaded and processed by init_atm_map_static_data.
  !
  !-----------------------------------------------------------------------
- function continuous_interp_criteria(iCell)
+ function continuous_interp_criteria(mgr, iCell)
 
+     type (mpas_geotile_mgr_type), intent(in) :: mgr
      integer, intent(in) :: iCell
      logical :: continuous_interp_criteria
 
@@ -1056,8 +1061,9 @@
  !> to cells.
  !
  !-----------------------------------------------------------------------
- subroutine terrain_interp_accumulation(iCell, i8val)
+ subroutine terrain_interp_accumulation(mgr, iCell, i8val)
 
+     type (mpas_geotile_mgr_type), intent(in) :: mgr
      integer, intent(in) ::iCell
      integer (kind=I8KIND), intent(in) :: i8val
 
@@ -1150,8 +1156,9 @@
  !> to be loaded and processed by init_atm_map_static_data.
  !
  !-----------------------------------------------------------------------
- function categorical_interp_criteria(iCell)
+ function categorical_interp_criteria(mgr, iCell)
 
+     type (mpas_geotile_mgr_type), intent(in) :: mgr
      integer, intent(in) :: iCell
      logical :: categorical_interp_criteria
 
@@ -1175,8 +1182,9 @@
  !> to cells.
  !
  !-----------------------------------------------------------------------
- subroutine categorical_interp_accumulation(iCell, i8val)
+ subroutine categorical_interp_accumulation(mgr, iCell, i8val)
 
+     type (mpas_geotile_mgr_type), intent(in) :: mgr
      integer, intent(in) ::iCell
      integer (kind=I8KIND), intent(in) :: i8val
 
