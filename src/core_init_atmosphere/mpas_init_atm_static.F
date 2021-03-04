@@ -67,12 +67,12 @@
 
  ! Abstract interface to accumulate pixel values with the cell they map to.
  abstract interface
-    subroutine interp_accumulation_function(mgr, iCell, i8val)
+    subroutine interp_accumulation_function(mgr, iCell, pixel)
         use mpas_derived_types, only : I8KIND
         import mpas_geotile_mgr_type
         type (mpas_geotile_mgr_type), intent(in) :: mgr
         integer, intent(in) :: iCell
-        integer (kind=I8KIND), intent(in) :: i8val
+        integer (kind=I8KIND), dimension(:), intent(in) :: pixel
     end subroutine interp_accumulation_function
  end interface
 
@@ -784,11 +784,9 @@
     real (kind=RKIND) :: xPixel, yPixel, zPixel
     real, pointer :: scale_factor
 
-    integer (kind=I8KIND) :: i8val
     integer :: iCell
     integer :: i, ii
     integer :: j, jj
-    integer :: k
 
     logical :: all_pixels_mapped_to_halo_cells
 
@@ -899,13 +897,9 @@
                     end if
 
                     !
-                    ! Send the value(s) of the pixel and the cell it lies in to the accumulation_method
-                    ! TODO: This actually doesn't handle the k dimension correctly.
+                    ! Send the entire pixel column to the accumulation method
                     !
-                    do k = tile_z_start, tile_z_end
-                        i8val = int(tile % tile(ii,jj,k), kind=I8KIND)
-                        call accumulation_method(mgr, res % id, i8val)
-                    end do
+                    call accumulation_method(mgr, res % id, int(tile % tile(ii,jj,:), kind=I8KIND))
 
                     if (res % id <= nCellsSolve) then
                         all_pixels_mapped_to_halo_cells = .false.
@@ -972,13 +966,13 @@
  !> to cells.
  !
  !-----------------------------------------------------------------------
- subroutine terrain_interp_accumulation(mgr, iCell, i8val)
+ subroutine terrain_interp_accumulation(mgr, iCell, pixel)
 
      type (mpas_geotile_mgr_type), intent(in) :: mgr
      integer, intent(in) ::iCell
-     integer (kind=I8KIND), intent(in) :: i8val
+     integer (kind=I8KIND), dimension(:), intent(in) :: pixel
 
-     ter_integer(iCell) = ter_integer(iCell) + int(i8val, kind=I8KIND)
+     ter_integer(iCell) = ter_integer(iCell) + int(pixel(1), kind=I8KIND)
      nhs(iCell) = nhs(iCell) + 1
 
  end subroutine terrain_interp_accumulation
@@ -1093,16 +1087,16 @@
  !> to cells.
  !
  !-----------------------------------------------------------------------
- subroutine categorical_interp_accumulation(mgr, iCell, i8val)
+ subroutine categorical_interp_accumulation(mgr, iCell, pixel)
 
      type (mpas_geotile_mgr_type), intent(in) :: mgr
      integer, intent(in) ::iCell
-     integer (kind=I8KIND), intent(in) :: i8val
+     integer (kind=I8KIND), dimension(:), intent(in) :: pixel
 
-     if (i8val < category_min .or. i8val > category_max) then
+     if (pixel(1) < category_min .or. pixel(1) > category_max) then
         return
      else
-        ncat(i8val, iCell) = ncat(i8val, iCell) + 1
+        ncat(pixel(1), iCell) = ncat(pixel(1), iCell) + 1
      end if
 
  end subroutine categorical_interp_accumulation
@@ -1266,19 +1260,19 @@
  !> to cells.
  !
  !-----------------------------------------------------------------------
- subroutine snoalb_interp_accumulation(mgr, iCell, i8val)
+ subroutine snoalb_interp_accumulation(mgr, iCell, pixel)
 
      implicit none
 
      type (mpas_geotile_mgr_type), intent(in) :: mgr
      integer, intent(in) ::iCell
-     integer (kind=I8KIND), intent(in) :: i8val
+     integer (kind=I8KIND), dimension(:), intent(in) :: pixel
      real (kind=RKIND), pointer :: missing_value
 
      call mpas_pool_get_config(mgr % pool, 'missing_value', missing_value)
 
-     if (landmask(iCell) == 1 .and. i8val /= int(missing_value, kind=I8KIND)) then
-         snoalb_integer(iCell) = snoalb_integer(iCell) + int(i8val, kind=I8KIND)
+     if (landmask(iCell) == 1 .and. pixel(1) /= int(missing_value, kind=I8KIND)) then
+         snoalb_integer(iCell) = snoalb_integer(iCell) + int(pixel(1), kind=I8KIND)
          nhs(iCell) = nhs(iCell) + 1
      end if
 
