@@ -149,7 +149,12 @@ module ocn_diagnostics_variables
       activeTracerVerticalAdvectionTendency,   &
       activeTracerHorizontalAdvectionEdgeFlux, &
       activeTracerVerticalAdvectionTopFlux,    &
-      activeTracerVertMixTendency
+      activeTracerVertMixTendency,             &
+      IRFTracersHorAdvTend,    &
+      IRFTracersVertAdvTend, &
+      IRFTracerSurfaceFluxTend, &
+      IRFTracersNonLocalTend
+
 
    real (kind=RKIND), pointer :: daysSinceStartOfSim
    character (len=StrKIND), pointer :: xtime, simulationStartTime
@@ -401,6 +406,13 @@ contains
               activeTracerVerticalAdvectionTendency)
       call mpas_pool_get_array(diagnosticsPool, &
          'activeTracerVertMixTendency',activeTracerVertMixTendency)
+
+      if ( config_use_IRFTracers ) then
+         call mpas_pool_get_array(diagnosticsPool,'IRFTracersHorAdvTend',IRFTracersHorAdvTend)
+         call mpas_pool_get_array(diagnosticsPool,'IRFTracersVertAdvTend',IRFTracersVertAdvTend)
+         call mpas_pool_get_array(diagnosticsPool,'IRFTracerSurfaceFluxTend',IRFTracerSurfaceFluxTend)
+         call mpas_pool_get_array(diagnosticsPool,'IRFTracersNonLocalTend',IRFTracersNonLocalTend)
+      endif
 
       call mpas_pool_get_array(diagnosticsPool, "daysSinceStartOfSim", daysSinceStartOfSim)
       call mpas_pool_get_array(diagnosticsPool, 'xtime', xtime)

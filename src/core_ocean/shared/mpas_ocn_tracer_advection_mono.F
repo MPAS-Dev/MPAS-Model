@@ -182,15 +182,6 @@ module ocn_tracer_advection_mono
          wgtTmp,            &! vertical temporaries for
          flxTmp, sgnTmp      !   high-order flux computation
 
-      ! pointers for tendencies used in diagnostic budget computation
-      real (kind=RKIND), dimension(:,:,:), pointer, contiguous :: &
-         activeTracerHorizontalAdvectionTendency, &
-         activeTracerVerticalAdvectionTendency,   &
-         activeTracerHorizontalAdvectionEdgeFlux, &
-         activeTracerVerticalAdvectionTopFlux,    &
-         IRFTracersHorAdvTend,    &
-         IRFTracersVertAdvTend
-
       real (kind=RKIND), parameter :: &
          eps = 1.e-10_RKIND  ! small number to avoid numerical difficulties
 

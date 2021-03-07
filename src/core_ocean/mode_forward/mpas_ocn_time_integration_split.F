@@ -243,12 +243,6 @@ module ocn_time_integration_split
          tracersGroupTend,      &! tendencies for tracer groups
          activeTracersTend       ! active tracer tendencies
 
-      real (kind=RKIND), dimension(:,:,:), pointer :: &
-        IRFTracersHorAdvTend, &
-        IRFTracersVertAdvTend, &
-        IRFTracerSurfaceFluxTend, &
-        IRFTracersNonLocalTend
-
       ! Forcing pool
       real (kind=RKIND), dimension(:), pointer :: tidalPotentialEta
 
