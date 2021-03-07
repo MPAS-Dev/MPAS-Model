@@ -244,9 +244,9 @@ module ocn_time_integration_split
          activeTracersTend       ! active tracer tendencies
 
       real (kind=RKIND), dimension(:,:,:), pointer :: &
-        IRFTracersHorAdvTend,      &
-        IRFTracersVertAdvTend,        &
-        IRFTracerSurfaceFluxTend,              &
+        IRFTracersHorAdvTend, &
+        IRFTracersVertAdvTend, &
+        IRFTracerSurfaceFluxTend, &
         IRFTracersNonLocalTend
 
       ! Forcing pool
@@ -421,7 +421,6 @@ module ocn_time_integration_split
                end do
                !$omp end do
                !$omp end parallel
-
             end if
          end if
       end do
