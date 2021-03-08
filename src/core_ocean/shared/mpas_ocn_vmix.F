@@ -1128,6 +1128,14 @@ contains
                   !$omp end do
                   !$omp end parallel
                endif
+            elseif (trim(groupItr % memberName) == 'ImpulseResponseFunctions') then
+                  !$omp parallel
+                  !$omp do schedule(runtime)
+                  do iCell = 1, nCells
+                     IRFTracersVertMixTend(:,:,iCell)=tracersGroup(:,:,iCell)
+                  end do
+                  !$omp end do
+                  !$omp end parallel
             endif
 
             if ( associated(tracersGroup) ) then
@@ -1157,6 +1165,15 @@ contains
                   !$omp end do
                   !$omp end parallel
                endif
+            elseif (trim(groupItr % memberName) == 'ImpulseResponseFunctions') then
+                  !$omp parallel
+                  !$omp do schedule(runtime)
+                  do iCell = 1, nCells
+                     IRFTracersVertMixTend(:,:,iCell) = &
+                        (tracersGroup(:,:,iCell) - IRFTracersVertMixTend(:,:,iCell)) / dt
+                  end do
+                  !$omp end do
+                  !$omp end parallel
             endif
 
          end if

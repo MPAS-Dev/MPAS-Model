@@ -152,8 +152,8 @@ module ocn_diagnostics_variables
       activeTracerVertMixTendency,             &
       IRFTracersHorAdvTend,    &
       IRFTracersVertAdvTend, &
-      IRFTracerSurfaceFluxTend, &
-      IRFTracersNonLocalTend
+      IRFTracersHorMixTend, &
+      IRFTracersVertMixTend
 
 
    real (kind=RKIND), pointer :: daysSinceStartOfSim
@@ -410,8 +410,8 @@ contains
       if ( config_use_IRFTracers ) then
          call mpas_pool_get_array(diagnosticsPool,'IRFTracersHorAdvTend',IRFTracersHorAdvTend)
          call mpas_pool_get_array(diagnosticsPool,'IRFTracersVertAdvTend',IRFTracersVertAdvTend)
-         call mpas_pool_get_array(diagnosticsPool,'IRFTracerSurfaceFluxTend',IRFTracerSurfaceFluxTend)
-         call mpas_pool_get_array(diagnosticsPool,'IRFTracersNonLocalTend',IRFTracersNonLocalTend)
+         call mpas_pool_get_array(diagnosticsPool,'IRFTracersHorMixTend',IRFTracersHorMixTend)
+         call mpas_pool_get_array(diagnosticsPool,'IRFTracersVertMixTend',IRFTracersVertMixTend)
       endif
 
       call mpas_pool_get_array(diagnosticsPool, "daysSinceStartOfSim", daysSinceStartOfSim)
