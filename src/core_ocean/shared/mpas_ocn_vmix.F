@@ -1128,7 +1128,7 @@ contains
                   !$omp end do
                   !$omp end parallel
                endif
-            elseif (trim(groupItr % memberName) == 'ImpulseResponseFunctions') then
+            elseif (trim(groupItr % memberName) == 'IRFTracers') then
                   !$omp parallel
                   !$omp do schedule(runtime)
                   do iCell = 1, nCells
@@ -1165,7 +1165,7 @@ contains
                   !$omp end do
                   !$omp end parallel
                endif
-            elseif (trim(groupItr % memberName) == 'ImpulseResponseFunctions') then
+            elseif (trim(groupItr % memberName) == 'IRFTracers') then
                   !$omp parallel
                   !$omp do schedule(runtime)
                   do iCell = 1, nCells

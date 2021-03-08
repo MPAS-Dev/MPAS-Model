@@ -1,3 +1,4 @@
+<!-- Registry for Impulse Response Function tracer group -->
 	<nml_record name="tracer_forcing_IRFTracers">
 		<nml_option name="config_use_IRFTracers" type="logical" default_value=".false." units="unitless"
 			description="if true, the 'IRFGRP' category is enabled for the run"
