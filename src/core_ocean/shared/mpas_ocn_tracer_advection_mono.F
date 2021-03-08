@@ -847,6 +847,7 @@ module ocn_tracer_advection_mono
           !$omp parallel
           !$omp do schedule(runtime) private(kmax, k, flux)
           do iCell = 1, nCells
+            kmax = maxLevelCell(iCell)
             do k = 1,kmax
               ! workTend on the RHS is the upwind tendency
               ! workTend on the LHS is the total vertical advection tendency
