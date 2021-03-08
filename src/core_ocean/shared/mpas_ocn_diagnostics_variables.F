@@ -473,7 +473,6 @@ contains
          !$acc                   rx1Edge,                  &
          !$acc                   rx1Cell,                  &
          !$acc                   rx1MaxEdge,               &
-         !$acc                   modifySSHMask,            &
          !$acc                   smoothingMask,            &
          !$acc                   verticalStretch,          &
          !$acc                   globalVerticalStretchMax, &
@@ -709,7 +708,6 @@ contains
          !$acc                   rx1Edge,                  &
          !$acc                   rx1Cell,                  &
          !$acc                   rx1MaxEdge,               &
-         !$acc                   modifySSHMask,            &
          !$acc                   smoothingMask,            &
          !$acc                   verticalStretch,          &
          !$acc                   globalVerticalStretchMax, &
@@ -912,7 +910,6 @@ contains
          nullify(rx1Edge,                  &
                  rx1Cell,                  &
                  rx1MaxEdge,               &
-                 modifySSHMask,            &
                  smoothingMask,            &
                  verticalStretch,          &
                  globalVerticalStretchMax, &
