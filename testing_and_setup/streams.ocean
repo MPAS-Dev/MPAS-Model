@@ -1,0 +1,203 @@
+<streams>
+
+<!-- instantaneous output (snapshots) -->
+<stream name="output"
+	filename_template="output/mpaso.snapshot.$Y-$M-$D_$h.$m.$s.nc"
+	clobber_mode="truncate"
+	reference_time="0001-01-01_00:00:00"
+	type="output"
+	filename_interval="00-00-02_00:00:00"
+	output_interval="00-00-02_00:00:00">
+
+	<var name="xtime"/>
+	<var name="daysSinceStartOfSim"/>
+	<stream name="mesh"/>
+	<var name="layerThickness"/>
+	<var_array name="activeTracers"/>
+	<var_array name="debugTracers"/>
+	<var name="ssh"/>
+	<var name="kineticEnergyCell"/>
+	<var name="refZMid"/>
+	<var name="refLayerThickness"/>
+</stream>
+
+<!-- time averaged output -->
+<stream name="timeSeriesStatsMonthlyOutput"
+	type="output"
+	filename_template="output/mpaso.timeAverage.$Y-$M-$D.nc"
+	reference_time="01-01-01_00:00:00"
+	clobber_mode="truncate"
+	io_type="pnetcdf"
+	packages="timeSeriesStatsMonthlyAMPKG"
+	filename_interval="00-00-02_00:00:00"
+	output_interval="00-00-02_00:00:00" >
+
+	<var name="daysSinceStartOfSim"/>
+	<var name="ssh"/>
+	<var name="velocityMeridional"/>
+	<var name="velocityZonal"/>
+	<var name="layerThickness"/>
+	<var_array name="activeTracers"/>
+	<var_array name="debugTracers"/>
+	<var name="vertViscTopOfCell"/>
+	<var_struct name="tracersSurfaceFlux"/>
+	<var_array name="activeTracersTend"/>
+	<var_array name="debugTracersTend"/>
+	<var_array name="IRFTracersTend"/>
+	<var_array name="activeTracerHorizontalAdvectionTendency"/>
+	<var_array name="activeTracerVerticalAdvectionTendency"/>
+	<var_array name="activeTracerVertMixTendency"/>
+	<var_array name="activeTracerSurfaceFluxTendency"/>
+	<var_array name="activeTracerNonLocalTendency"/>
+	<var_array name="temperatureShortWaveTendency"/>
+	<var_array name="IRFTracersHorAdvTend"/>
+	<var_array name="IRFTracersVertAdvTend"/>
+	<var_array name="IRFTracersHorMixTend"/>
+	<var_array name="IRFTracersVertMixTend"/>
+</stream>
+
+<!-- optional, IRF instantaneous output -->
+<stream name="IRFoutput"
+	filename_template="output/IRFoutput.$Y-$M-$D_$h.$m.$s.nc"
+	filename_interval="01-00-00_00:00:00"
+	clobber_mode="truncate"
+	reference_time="0001-01-01_00:00:00"
+	type="output"
+	output_interval="none">
+
+	<stream name="mesh"/>
+	<var name="xtime"/>
+	<var_array name="IRFTracersHorAdvTend"/>
+	<var_array name="IRFTracersVertAdvTend"/>
+	<var_array name="IRFTracersHorMixTend"/>
+	<var_array name="IRFTracersVertMixTend"/>
+</stream>
+
+<immutable_stream name="mesh"
+		  type="input"
+		  filename_template="init.nc"
+		  input_interval="initial_only"/>
+
+<immutable_stream name="input"
+		  type="input"
+		  filename_template="init.nc"
+		  input_interval="initial_only"/>
+
+<immutable_stream name="restart"
+		  type="input;output"
+		  filename_template="restarts/restart.$Y-$M-$D_$h.$m.$s.nc"
+		  filename_interval="output_interval"
+		  reference_time="0001-01-01_00:00:00"
+		  clobber_mode="truncate"
+		  input_interval="initial_only"
+		  output_interval="00-00-10_00:00:00"/>
+
+<immutable_stream name="atmospheric_forcing"
+		  type="input"
+		  filename_template="atmospheric_forcing.nc"
+		  filename_interval="none"
+		  packages="timeVaryingAtmosphericForcingPKG"
+		  input_interval="none"/>
+
+<immutable_stream name="land_ice_forcing"
+		  type="input"
+		  filename_template="land_ice_forcing.nc"
+		  filename_interval="none"
+		  packages="timeVaryingLandIceForcingPKG"
+		  input_interval="none"/>
+
+<stream name="block_debug_output"
+	filename_template="output_debug_block_$B.nc"
+	filename_interval="1000-00-00_00:00:00"
+	clobber_mode="truncate"
+	reference_time="0001-01-01_00:00:00"
+	type="output"
+	output_interval="1000-00-00_00:00:00">
+
+	<stream name="mesh"/>
+	<var_struct name="tracers"/>
+	<var name="xtime"/>
+	<var name="layerThickness"/>
+	<var name="normalVelocity"/>
+	<var name="ssh"/>
+</stream>
+
+<stream name="globalStatsOutput"
+	runtime_format="single_file"
+	filename_interval="01-00-00_00:00:00"
+	clobber_mode="append"
+	output_interval="0001_00:00:00"
+	reference_time="0001-01-01_00:00:00"
+	filename_template="analysis_members/globalStats.$Y-$M-$D_$h.$m.$s.nc"
+	packages="globalStatsAMPKG"
+	type="output">
+
+	<var name="xtime"/>
+	<var name="daysSinceStartOfSim"/>
+	<var_array name="minGlobalStats"/>
+	<var_array name="maxGlobalStats"/>
+	<var_array name="avgGlobalStats"/>
+	<var name="volumeCellGlobal"/>
+	<var name="CFLNumberGlobal"/>
+</stream>
+
+<stream name="forcing_data"
+	filename_template="forcing_data.nc"
+	input_interval="initial_only"
+	type="input">
+
+	<var_struct name="tracersSurfaceRestoringFields"/>
+	<var_struct name="tracersInteriorRestoringFields"/>
+	<var_struct name="tracersExponentialDecayFields"/>
+	<var_struct name="tracersIdealAgeFields"/>
+	<var_struct name="tracersTTDFields"/>
+	<var name="windStressZonal"/>
+	<var name="windStressMeridional"/>
+	<var name="landIceSurfaceTemperature"/>
+	<var name="atmosphericPressure"/>
+	<var name="latentHeatFlux"/>
+	<var name="sensibleHeatFlux"/>
+	<var name="shortWaveHeatFlux"/>
+	<var name="evaporationFlux"/>
+	<var name="rainFlux"/>
+</stream>
+
+<stream name="shortwave_forcing_data"
+	filename_template="shortwaveData.nc"
+	input_interval="none"
+	type="input">
+
+	<var name="xtime"/>
+	<var name="chlorophyllData"/>
+	<var name="zenithAngle"/>
+	<var name="clearSkyRadiation"/>
+</stream>
+
+<stream name="mixedLayerDepthsOutput"
+	runtime_format="single_file"
+	filename_interval="01-00-00_00:00:00"
+	clobber_mode="truncate"
+	reference_time="0001-01-01_00:00:00"
+	output_interval="00-00-01_00:00:00"
+	filename_template="analysis_members/mixedLayerDepths.$Y-$M-$D.nc"
+	packages="mixedLayerDepthsAMPKG"
+	type="output">
+
+	<var name="xtime"/>
+	<var name="dThreshMLD"/>
+	<var name="tThreshMLD"/>
+</stream>
+
+<stream name="timeSeriesStatsMonthlyRestart"
+	type="input;output"
+	filename_template="restarts/mpaso.rst.am.timeSeriesStatsMonthly.$Y-$M-$D_$S.nc"
+	filename_interval="output_interval"
+	reference_time="0001-01-01_00:00:00"
+	clobber_mode="truncate"
+	packages="timeSeriesStatsMonthlyAMPKG"
+	input_interval="initial_only"
+	output_interval="stream:restart:output_interval" >
+
+</stream>
+
+</streams>
