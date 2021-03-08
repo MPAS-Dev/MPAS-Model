@@ -3,6 +3,10 @@
 			description="if true, the 'IRFGRP' category is enabled for the run"
 			possible_values=".true. or .false."
 		/>
+		<nml_option name="config_normalize_IRFTracers_by_layerThickness" type="logical" default_value=".false." units="unitless"
+			description="if true, the IRFTracers Tend variables are divided by layerThickness"
+			possible_values=".true. or .false."
+		/>
 		<nml_option name="config_use_IRFTracers_surface_bulk_forcing" type="logical" default_value=".false." units="unitless"
 			description="if true, surface bulk forcing from coupler is added to surfaceTracerFlux in 'IRFGRP' category"
 			possible_values=".true. or .false."

@@ -1685,20 +1685,20 @@ module ocn_time_integration_split
                !$omp end parallel
             endif
 
-            !if ( config_use_IRFTracers ) then
-            !   !$omp parallel
-            !   !$omp do schedule(runtime) private(k)
-            !   do iCell = 1, nCells
-            !      do k= 1, maxLevelCell(iCell)
-            !         IRFTracersHorAdvTend(:,k,iCell) = IRFTracersHorAdvTend(:,k,iCell) / layerThicknessNew(k,iCell)
-            !         IRFTracersVertAdvTend(:,k,iCell)  = IRFTracersVertAdvTend(:,k,iCell) / layerThicknessNew(k,iCell)
-            !         IRFTracersHorMixTend(:,k,iCell) = IRFTracersHorMixTend(:,k,iCell) / layerThicknessNew(k,iCell)
-            !         IRFTracersNonLocalTend(:,k,iCell) = IRFTracersNonLocalTend(:,k,iCell) / layerThicknessNew(k,iCell)
-            !      end do
-            !   end do
-            !   !$omp end do
-            !   !$omp end parallel
-            !endif
+            if ( config_use_IRFTracers .and. config_normalize_IRFTracers_by_layerThickness) then
+               !$omp parallel
+               !$omp do schedule(runtime) private(k)
+               do iCell = 1, nCells
+                  do k= 1, maxLevelCell(iCell)
+                     IRFTracersHorAdvTend(:,k,iCell) = IRFTracersHorAdvTend(:,k,iCell) / layerThicknessNew(k,iCell)
+                     IRFTracersVertAdvTend(:,k,iCell)  = IRFTracersVertAdvTend(:,k,iCell) / layerThicknessNew(k,iCell)
+                     IRFTracersHorMixTend(:,k,iCell) = IRFTracersHorMixTend(:,k,iCell) / layerThicknessNew(k,iCell)
+                     IRFTracersVertMixTend(:,k,iCell) = IRFTracersVertMixTend(:,k,iCell) / layerThicknessNew(k,iCell)
+                  end do
+               end do
+               !$omp end do
+               !$omp end parallel
+            endif
 
             call mpas_pool_begin_iteration(tracersPool)
             do while (mpas_pool_get_next_member(tracersPool, &
