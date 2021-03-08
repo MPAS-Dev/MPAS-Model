@@ -891,4 +891,55 @@
 			<var name="IRF_48VertMixTend" array_group="IRFTracersVertMixTendGroup" units="IRF unit m^{-3} s^{-1}"/>
 			<var name="IRF_49VertMixTend" array_group="IRFTracersVertMixTendGroup" units="IRF unit m^{-3} s^{-1}"/>
 		</var_array>
+		<var_array name="IRFTracersHorMixTend" type="real" dimensions="nVertLevels nCells Time" packages="IRFTracerBudgetPKG">
+			 <var name="IRF_1HorMixTend" array_group="IRFTracersHorMixTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			 <var name="IRF_2HorMixTend" array_group="IRFTracersHorMixTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			 <var name="IRF_3HorMixTend" array_group="IRFTracersHorMixTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			 <var name="IRF_4HorMixTend" array_group="IRFTracersHorMixTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			 <var name="IRF_5HorMixTend" array_group="IRFTracersHorMixTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			 <var name="IRF_6HorMixTend" array_group="IRFTracersHorMixTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			 <var name="IRF_7HorMixTend" array_group="IRFTracersHorMixTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			 <var name="IRF_8HorMixTend" array_group="IRFTracersHorMixTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			 <var name="IRF_9HorMixTend" array_group="IRFTracersHorMixTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			<var name="IRF_10HorMixTend" array_group="IRFTracersHorMixTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			<var name="IRF_11HorMixTend" array_group="IRFTracersHorMixTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			<var name="IRF_12HorMixTend" array_group="IRFTracersHorMixTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			<var name="IRF_13HorMixTend" array_group="IRFTracersHorMixTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			<var name="IRF_14HorMixTend" array_group="IRFTracersHorMixTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			<var name="IRF_15HorMixTend" array_group="IRFTracersHorMixTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			<var name="IRF_16HorMixTend" array_group="IRFTracersHorMixTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			<var name="IRF_17HorMixTend" array_group="IRFTracersHorMixTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			<var name="IRF_18HorMixTend" array_group="IRFTracersHorMixTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			<var name="IRF_19HorMixTend" array_group="IRFTracersHorMixTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			<var name="IRF_20HorMixTend" array_group="IRFTracersHorMixTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			<var name="IRF_21HorMixTend" array_group="IRFTracersHorMixTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			<var name="IRF_22HorMixTend" array_group="IRFTracersHorMixTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			<var name="IRF_23HorMixTend" array_group="IRFTracersHorMixTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			<var name="IRF_24HorMixTend" array_group="IRFTracersHorMixTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			<var name="IRF_25HorMixTend" array_group="IRFTracersHorMixTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			<var name="IRF_26HorMixTend" array_group="IRFTracersHorMixTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			<var name="IRF_27HorMixTend" array_group="IRFTracersHorMixTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			<var name="IRF_28HorMixTend" array_group="IRFTracersHorMixTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			<var name="IRF_29HorMixTend" array_group="IRFTracersHorMixTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			<var name="IRF_30HorMixTend" array_group="IRFTracersHorMixTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			<var name="IRF_31HorMixTend" array_group="IRFTracersHorMixTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			<var name="IRF_32HorMixTend" array_group="IRFTracersHorMixTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			<var name="IRF_33HorMixTend" array_group="IRFTracersHorMixTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			<var name="IRF_34HorMixTend" array_group="IRFTracersHorMixTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			<var name="IRF_35HorMixTend" array_group="IRFTracersHorMixTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			<var name="IRF_36HorMixTend" array_group="IRFTracersHorMixTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			<var name="IRF_37HorMixTend" array_group="IRFTracersHorMixTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			<var name="IRF_38HorMixTend" array_group="IRFTracersHorMixTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			<var name="IRF_39HorMixTend" array_group="IRFTracersHorMixTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			<var name="IRF_40HorMixTend" array_group="IRFTracersHorMixTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			<var name="IRF_41HorMixTend" array_group="IRFTracersHorMixTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			<var name="IRF_42HorMixTend" array_group="IRFTracersHorMixTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			<var name="IRF_43HorMixTend" array_group="IRFTracersHorMixTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			<var name="IRF_44HorMixTend" array_group="IRFTracersHorMixTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			<var name="IRF_45HorMixTend" array_group="IRFTracersHorMixTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			<var name="IRF_46HorMixTend" array_group="IRFTracersHorMixTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			<var name="IRF_47HorMixTend" array_group="IRFTracersHorMixTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			<var name="IRF_48HorMixTend" array_group="IRFTracersHorMixTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+			<var name="IRF_49HorMixTend" array_group="IRFTracersHorMixTendGroup" units="IRF unit m^{-3} s^{-1}"/>
+		</var_array>
 	</var_struct>

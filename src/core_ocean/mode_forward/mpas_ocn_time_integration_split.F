@@ -1692,6 +1692,7 @@ module ocn_time_integration_split
             !      do k= 1, maxLevelCell(iCell)
             !         IRFTracersHorAdvTend(:,k,iCell) = IRFTracersHorAdvTend(:,k,iCell) / layerThicknessNew(k,iCell)
             !         IRFTracersVertAdvTend(:,k,iCell)  = IRFTracersVertAdvTend(:,k,iCell) / layerThicknessNew(k,iCell)
+            !         IRFTracersHorMixTend(:,k,iCell) = IRFTracersHorMixTend(:,k,iCell) / layerThicknessNew(k,iCell)
             !         IRFTracersNonLocalTend(:,k,iCell) = IRFTracersNonLocalTend(:,k,iCell) / layerThicknessNew(k,iCell)
             !      end do
             !   end do

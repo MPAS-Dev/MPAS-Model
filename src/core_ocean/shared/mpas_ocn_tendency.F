@@ -855,6 +855,14 @@ contains
                     !$omp end do
                     !$omp end parallel
                  endif
+               elseif(trim(groupItr % memberName)=='ImpulseResponseFunctions') then
+                    !$omp parallel
+                    !$omp do schedule(runtime)
+                    do iCell = 1, nCells
+                      IRFTracersHorMixTend(:,:,iCell) = tracerGroupTend(:,:,iCell)
+                    enddo
+                    !$omp end do
+                    !$omp end parallel
                endif
                call ocn_tracer_hmix_tend(meshPool, layerThickEdge, layerThickness, zMid, tracerGroup, &
                                          RediKappa, slopeTriadUp, slopeTriadDown, dt, isActiveTracer, &
@@ -872,6 +880,14 @@ contains
                     !$omp end do
                     !$omp end parallel
                  endif
+               elseif(trim(groupItr % memberName)=='ImpulseResponseFunctions') then
+                    !$omp parallel
+                    !$omp do schedule(runtime)
+                    do iCell = 1, nCells
+                      IRFTracersHorMixTend(:,:,iCell) = tracerGroupTend(:,:,iCell) - IRFTracersHorMixTend(:,:,iCell)
+                    enddo
+                    !$omp end do
+                    !$omp end parallel
                endif
  
                !
