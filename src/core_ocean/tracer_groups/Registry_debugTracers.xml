@@ -11,6 +11,10 @@
 					description="Integer specifying number of layers at top to reset 2 at end of each timestep. Default is 20, chosen to be near a typical mixed layer depth of 200m."
 					possible_values="Any positive integer value greater than or equal to 0."
 		/>
+		<nml_option name="config_debugTracers_limit_advection" type="logical" default_value=".false." units="unitless"
+			description="if true, the debugTracers limiter for advection is on"
+			possible_values=".true. or .false."
+		/>
 		<nml_option name="config_use_debugTracers_surface_bulk_forcing" type="logical" default_value=".false." units="unitless"
 			description="if true, surface bulk forcing from coupler is added to surfaceTracerFlux in 'debugTracers' category"
 			possible_values=".true. or .false."

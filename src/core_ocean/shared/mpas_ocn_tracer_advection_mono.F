@@ -97,7 +97,8 @@ module ocn_tracer_advection_mono
                                              maxLevelCell, maxLevelEdgeTop,    &
                                              highOrderAdvectionMask,           &
                                              edgeSignOnCell, meshPool,         &
-                                             computeBudgets, computeIRFs)!{{{
+                                             computeBudgets, computeIRFs,      &
+                                             limiterOn)!{{{
 
       !*** Input/Output parameters
 
@@ -137,7 +138,9 @@ module ocn_tracer_advection_mono
       logical, intent(in) :: &
          computeBudgets         !< [in] Flag to compute active tracer budgets
       logical, intent(in) :: &
-         computeIRFs         ! flag to compute IRFs
+         computeIRFs            !< [in] Flag to compute IRF tracer budgets
+      logical, intent(in) :: &
+         limiterOn              !< [in] Flag to limit this tracer group
 
       !*** Local variables
 
@@ -454,23 +457,25 @@ module ocn_tracer_advection_mono
         call mpas_timer_stop('scale factor build')
         call mpas_timer_start('rescale horiz fluxes')
 #endif
-        ! Need all of the edges around owned cells
-        nEdges = nEdgesArray( 2 )
-        !  rescale the high order horizontal fluxes
-        !$omp parallel
-        !$omp do schedule(runtime) private(cell1, cell2, k)
-        do iEdge = 1, nEdges
-          cell1 = cellsOnEdge(1,iEdge)
-          cell2 = cellsOnEdge(2,iEdge)
-          do k = 1, maxLevelEdgeTop(iEdge)
-            highOrderFlx(k,iEdge) = max(0.0_RKIND,highOrderFlx(k,iEdge))* &
-                                    min(flxOut(k,cell1), flxIn (k,cell2)) &
-                                  + min(0.0_RKIND,highOrderFlx(k,iEdge))* &
-                                    min(flxIn (k,cell1), flxOut(k,cell2))
-          end do ! k loop
-        end do ! iEdge loop
-        !$omp end do
-        !$omp end parallel
+        if (limiterOn) then
+          ! Need all of the edges around owned cells
+          nEdges = nEdgesArray( 2 )
+          !  rescale the high order horizontal fluxes
+          !$omp parallel
+          !$omp do schedule(runtime) private(cell1, cell2, k)
+          do iEdge = 1, nEdges
+            cell1 = cellsOnEdge(1,iEdge)
+            cell2 = cellsOnEdge(2,iEdge)
+            do k = 1, maxLevelEdgeTop(iEdge)
+              highOrderFlx(k,iEdge) = max(0.0_RKIND,highOrderFlx(k,iEdge))* &
+                                      min(flxOut(k,cell1), flxIn (k,cell2)) &
+                                    + min(0.0_RKIND,highOrderFlx(k,iEdge))* &
+                                      min(flxIn (k,cell1), flxOut(k,cell2))
+            end do ! k loop
+          end do ! iEdge loop
+          !$omp end do
+          !$omp end parallel
+        endif
 #ifdef _ADV_TIMERS
         call mpas_timer_stop('rescale horiz fluxes')
         call mpas_timer_start('flux accumulate')
@@ -810,33 +815,51 @@ module ocn_tracer_advection_mono
         nCells = nCellsArray( 1 )
         ! Accumulate the scaled high order vertical tendencies
         ! and the upwind tendencies
-        !$omp parallel
-        !$omp do schedule(runtime) private(kmax, k, flux)
-        do iCell = 1, nCells
-          kmax = maxLevelCell(iCell)
-          ! rescale the high order vertical flux
-          do k = 2, kmax
-            flux =  highOrderFlx(k,iCell)
-            highOrderFlx(k,iCell) = max(0.0_RKIND,flux)*   &
-                                    min(flxOut(k  ,iCell), &
-                                        flxIn (k-1,iCell)) &
-                                  + min(0.0_RKIND,flux)*   &
-                                    min(flxOut(k-1,iCell), &
-                                        flxIn (k  ,iCell))
-          end do ! k loop
+        if (limiterOn) then
+          !$omp parallel
+          !$omp do schedule(runtime) private(kmax, k, flux)
+          do iCell = 1, nCells
+            kmax = maxLevelCell(iCell)
+            ! rescale the high order vertical flux
+            do k = 2, kmax
+              flux =  highOrderFlx(k,iCell)
+              highOrderFlx(k,iCell) = max(0.0_RKIND,flux)*   &
+                                      min(flxOut(k  ,iCell), &
+                                          flxIn (k-1,iCell)) &
+                                    + min(0.0_RKIND,flux)*   &
+                                      min(flxOut(k-1,iCell), &
+                                          flxIn (k  ,iCell))
+            end do ! k loop
 
-          do k = 1,kmax
-            ! workTend on the RHS is the upwind tendency
-            ! workTend on the LHS is the total vertical advection tendency
-            workTend(k, iCell) = workTend(k, iCell)       &
-                               + (highOrderFlx(k+1,iCell) &
-                                - highOrderFlx(k  ,iCell))
-            tend(iTracer,k,iCell) = tend(iTracer,k,iCell) + workTend(k,iCell)
-          end do ! k loop
+            do k = 1,kmax
+              ! workTend on the RHS is the upwind tendency
+              ! workTend on the LHS is the total vertical advection tendency
+              workTend(k, iCell) = workTend(k, iCell)       &
+                                 + (highOrderFlx(k+1,iCell) &
+                                  - highOrderFlx(k  ,iCell))
+              tend(iTracer,k,iCell) = tend(iTracer,k,iCell) + workTend(k,iCell)
+            end do ! k loop
 
-        end do ! iCell loop
-        !$omp end do
-        !$omp end parallel
+          end do ! iCell loop
+          !$omp end do
+          !$omp end parallel
+        else ! no limiter
+          !$omp parallel
+          !$omp do schedule(runtime) private(kmax, k, flux)
+          do iCell = 1, nCells
+            do k = 1,kmax
+              ! workTend on the RHS is the upwind tendency
+              ! workTend on the LHS is the total vertical advection tendency
+              workTend(k, iCell) = workTend(k, iCell)       &
+                                 + (highOrderFlx(k+1,iCell) &
+                                  - highOrderFlx(k  ,iCell))
+              tend(iTracer,k,iCell) = tend(iTracer,k,iCell) + workTend(k,iCell)
+            end do ! k loop
+
+          end do ! iCell loop
+          !$omp end do
+          !$omp end parallel
+        endif
 
         if (computeIRFs) then
            !$omp parallel

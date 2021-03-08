@@ -97,7 +97,8 @@ module ocn_tracer_advection
 
       logical :: &
          computeBudgets,    &! flag to compute active tracer budget
-         computeIRFs         ! flag to compute IRFs
+         computeIRFs,       &! flag to compute IRFs
+         limiterOn           ! flag to limit tracer group
 
       real (kind=RKIND), dimension(:,:), pointer, contiguous :: &
          advCoefs, advCoefs3rd ! advection coefficients
@@ -134,6 +135,12 @@ module ocn_tracer_advection
       ! determine whether active tracer budgets should be computed
       computeBudgets = (budgetDiagsOn .and. tracerGroupName == 'activeTracers')
       computeIRFs = (tracerGroupName == 'IRFTracers')
+      if (config_IRFTracers_limit_advection.and.computeIRFs.or. &
+          config_debugTracers_limit_advection.and.(tracerGroupName == 'debugTracers')) then
+        limiterOn = .true.
+      else
+        limiterOn = .false.
+      endif
 
       ! call specific advection routine based on choice of monotonicity
       if (monotonicOn) then
@@ -144,7 +151,8 @@ module ocn_tracer_advection
                                              maxLevelCell, maxLevelEdgeTop,    &
                                              highOrderAdvectionMask,           &
                                              edgeSignOnCell, meshPool,         &
-                                             computeBudgets, computeIRFs)
+                                             computeBudgets, computeIRFs,      &
+                                             limiterOn)
 
       else
          call ocn_tracer_advection_std_tend(tracers, advCoefs, advCoefs3rd, &

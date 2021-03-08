@@ -1685,7 +1685,7 @@ module ocn_time_integration_split
                !$omp end parallel
             endif
 
-            if ( config_use_IRFTracers .and. config_normalize_IRFTracers_by_layerThickness) then
+            if ( config_use_IRFTracers .and. config_IRFTracers_normalize_by_layerThickness) then
                !$omp parallel
                !$omp do schedule(runtime) private(k)
                do iCell = 1, nCells

@@ -3,7 +3,11 @@
 			description="if true, the 'IRFGRP' category is enabled for the run"
 			possible_values=".true. or .false."
 		/>
-		<nml_option name="config_normalize_IRFTracers_by_layerThickness" type="logical" default_value=".false." units="unitless"
+		<nml_option name="config_IRFTracers_limit_advection" type="logical" default_value=".false." units="unitless"
+			description="if true, the IRFTracers limiter for advection is on"
+			possible_values=".true. or .false."
+		/>
+		<nml_option name="config_IRFTracers_normalize_by_layerThickness" type="logical" default_value=".false." units="unitless"
 			description="if true, the IRFTracers Tend variables are divided by layerThickness"
 			possible_values=".true. or .false."
 		/>
