@@ -453,11 +453,15 @@ module ocn_tracer_advection_mono
         !$omp end do
         !$omp end parallel
 
+        if (.not.limiterOn) then
+            flxIn(:,:) = 1.0_RKIND
+            flxOut(:,:) = 1.0_RKIND
+        endif
 #ifdef _ADV_TIMERS
         call mpas_timer_stop('scale factor build')
         call mpas_timer_start('rescale horiz fluxes')
 #endif
-        if (limiterOn) then
+        !if (limiterOn) then
           ! Need all of the edges around owned cells
           nEdges = nEdgesArray( 2 )
           !  rescale the high order horizontal fluxes
@@ -475,7 +479,7 @@ module ocn_tracer_advection_mono
           end do ! iEdge loop
           !$omp end do
           !$omp end parallel
-        endif
+        !endif
 #ifdef _ADV_TIMERS
         call mpas_timer_stop('rescale horiz fluxes')
         call mpas_timer_start('flux accumulate')
