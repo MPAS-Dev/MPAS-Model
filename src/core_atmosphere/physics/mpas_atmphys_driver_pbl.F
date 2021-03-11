@@ -839,11 +839,11 @@
                  th          = th_p           , tt         = t_p         , dz          = dz_p         , &
                  dx          = dx_p           , u          = u_p         , v           = v_p          , &
                  w           = w_p            , qv         = qv_p        , qc          = qc_p         , &
-                 qi          = qi_p           , qni        = ni_p        , rho         = rho_p        , &
+                 qi          = qi_p           , ni         = ni_p        , rho         = rho_p        , &
                  rublten     = rublten_p      , rvblten    = rvblten_p   , rthblten    = rthblten_p   , &
                  rqvblten    = rqvblten_p     , rqcblten   = rqcblten_p  , rqiblten    = rqiblten_p   , &
-                 rqncblten   = rncblten_p     , rqniblten  = rniblten_p  , rqnifablten = rnifablten_p , &
-                 rqnwfablten = rnwfablten_p   , rqozblten  = rqo3blten_p , rthraten    = rthraten_p   , &
+                 rncblten    = rncblten_p     , rniblten   = rniblten_p  , rnifablten  = rnifablten_p , &
+                 rnwfablten  = rnwfablten_p   , rqozblten  = rqo3blten_p , rthraten    = rthraten_p   , &
                  f_qc        = f_qc           , f_qi       = f_qi        , f_nc        = f_nc         , &
                  f_ni        = f_ni           , f_nifa     = f_nifa      , f_nwfa      = f_nwfa       , &
                  icloud_bl   = icloud_bl      , kpbl       = kpbl_p      , pblh        = hpbl_p       , &

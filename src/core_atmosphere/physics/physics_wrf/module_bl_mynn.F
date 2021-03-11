@@ -35,13 +35,13 @@
                 znt         , vdfg        , uoce           , voce         , dz            , &
                 u           , v           , w              , th           , tt            , &
                 p           , exner       , rho            , qv           , qc            , &
-                qi          , qnc         , qni            , qnifa        , qnwfa         , &
+                qi          , nc          , ni             , nifa         , nwfa          , &
                 ozone       , rthraten    , pattern_spp_bl , pblh         , kpbl          , &
                 delta       , wstar       , cldfra_bl      , qc_bl        , qi_bl         , &
                 nupdraft    , ktop_plume  , maxmf          , qke          , qke_adv       , &
                 tsq         , qsq         , cov            , el_pbl       , rublten       , &
                 rvblten     , rthblten    , rqvblten       , rqcblten     , rqiblten      , &
-                rqncblten   , rqniblten   , rqnifablten    , rqnwfablten  , rqozblten     , &
+                rncblten    , rniblten    , rnifablten     , rnwfablten   , rqozblten     , &
                 edmf_a      , edmf_w      , edmf_qt        , edmf_thl     , edmf_ent      , &
                 edmf_qc     , sub_thl     , sub_sqv        , det_thl      , det_sqv       , &
                 exch_h      , exch_m      , dqke           , qwt          , qshear        , &
@@ -132,10 +132,10 @@
  real(kind=kind_phys),intent(in),dimension(ims:ime,kms:kme,jms:jme),optional:: &
     qc,      &!
     qi,      &!
-    qnc,     &!
-    qni,     &!
-    qnifa,   &!
-    qnwfa,   &!
+    nc,      &!
+    ni,      &!
+    nifa,    &!
+    nwfa,    &!
     ozone     !
 
  real(kind=kind_phys),intent(in),dimension(ims:ime,kms:kme,jms:jme),optional:: &
@@ -173,10 +173,10 @@
     rqvblten,    &!
     rqcblten,    &!
     rqiblten,    &!
-    rqncblten,   &!
-    rqniblten,   &!
-    rqnifablten, &!
-    rqnwfablten   !
+    rncblten,    &!
+    rniblten,    &!
+    rnifablten,  &!
+    rnwfablten    !
 
  real(kind=kind_phys),intent(inout),dimension(ims:ime,kms:kme,jms:jme),optional:: &
     rqozblten     !
@@ -233,7 +233,7 @@
     w_hv
 
  real(kind=kind_phys),dimension(its:ite,kts:kte):: &
-    qc_hv,qi_hv,qnc_hv,qni_hv,qnifa_hv,qnwfa_hv,ozone_hv
+    qc_hv,qi_hv,nc_hv,ni_hv,nifa_hv,nwfa_hv,ozone_hv
 
  real(kind=kind_phys),dimension(its:ite,kts:kte):: &
     pattern_spp_hv
@@ -246,7 +246,7 @@
 
  real(kind=kind_phys),dimension(its:ite,kts:kte):: &
     rublten_hv,rvblten_hv,rthblten_hv,rqvblten_hv,rqcblten_hv,rqiblten_hv, &
-    rqncblten_hv,rqniblten_hv,rqnifablten_hv,rqnwfablten_hv,rqozblten_hv
+    rncblten_hv,rniblten_hv,rnifablten_hv,rnwfablten_hv,rqozblten_hv
 
  real(kind=kind_phys),dimension(its:ite,kts:kte):: &
     edmfa_hv,edmfw_hv,edmfqt_hv,edmfthl_hv,edmfent_hv,edmfqc_hv, &
@@ -333,55 +333,55 @@
           enddo
        enddo
     endif
-    if(f_nc .and. present(qnc)) then
+    if(f_nc .and. present(nc)) then
        do k = kts,kte
           do i = its,ite
-             qnc_hv(i,k) = qnc(i,k,j)
+             nc_hv(i,k) = nc(i,k,j)
           enddo
        enddo
     else
        do k = kts,kte
           do i = its,ite
-             qnc_hv(i,k) = 0._kind_phys
+             nc_hv(i,k) = 0._kind_phys
           enddo
        enddo
     endif
-    if(f_ni .and. present(qni)) then
+    if(f_ni .and. present(ni)) then
        do k = kts,kte
           do i = its,ite
-             qni_hv(i,k) = qni(i,k,j)
+             ni_hv(i,k) = ni(i,k,j)
           enddo
        enddo
     else
        do k = kts,kte
           do i = its,ite
-             qni_hv(i,k) = 0._kind_phys
+             ni_hv(i,k) = 0._kind_phys
           enddo
        enddo
     endif
-    if(f_nifa .and. present(qnifa)) then
+    if(f_nifa .and. present(nifa)) then
        do k = kts,kte
           do i = its,ite
-             qnifa_hv(i,k) = qnifa(i,k,j)
+             nifa_hv(i,k) = nifa(i,k,j)
           enddo
        enddo
     else
        do k = kts,kte
           do i = its,ite
-             qnifa_hv(i,k) = 0._kind_phys
+             nifa_hv(i,k) = 0._kind_phys
           enddo
        enddo
     endif
-     if(f_nwfa .and. present(qnwfa)) then
+     if(f_nwfa .and. present(nwfa)) then
        do k = kts,kte
           do i = its,ite
-             qnwfa_hv(i,k) = qnwfa(i,k,j)
+             nwfa_hv(i,k) = nwfa(i,k,j)
           enddo
        enddo
     else
        do k = kts,kte
           do i = its,ite
-             qnwfa_hv(i,k) = 0._kind_phys
+             nwfa_hv(i,k) = 0._kind_phys
           enddo
        enddo
     endif
@@ -471,13 +471,13 @@
              znt_hv           , vdfg_hv          , uoce_hv           , voce_hv        , dz_hv         , &
              u_hv             , v_hv             , w_hv              , th_hv          , tt_hv         , &
              p_hv             , exner_hv         , rho_hv            , qv_hv          , qc_hv         , &
-             qi_hv            , qnc_hv           , qni_hv            , qnifa_hv       , qnwfa_hv      , &
+             qi_hv            , nc_hv            , ni_hv             , nifa_hv        , nwfa_hv       , &
              ozone_hv         , rthraten_hv      , pattern_spp_hv    , pblh_hv        , kpbl_hv       , &
              delta_hv         , wstar_hv         , cldfrabl_hv       , qcbl_hv        , qibl_hv       , &
              nupdraft_hv      , ktopplume_hv     , maxmf_hv          , qke_hv         , qkeadv_hv     , &
              tsq_hv           , qsq_hv           , cov_hv            , elpbl_hv       , rublten_hv    , &
              rvblten_hv       , rthblten_hv      , rqvblten_hv       , rqcblten_hv    , rqiblten_hv   , &
-             rqncblten_hv     , rqniblten_hv     , rqnifablten_hv    , rqnwfablten_hv , rqozblten_hv  , &
+             rncblten_hv      , rniblten_hv      , rnifablten_hv     , rnwfablten_hv  , rqozblten_hv  , &
              edmfa_hv         , edmfw_hv         , edmfqt_hv         , edmfthl_hv     , edmfent_hv    , &
              edmfqc_hv        , subthl_hv        , subsqv_hv         , detthl_hv      , detsqv_hv     , &
              exchh_hv         , exchm_hv         , dqke_hv           , qwt_hv         , qshear_hv     , & 
@@ -522,16 +522,16 @@
 
     do k = kts,kte
        do i = its,ite
-          rublten(i,k,j)     = rublten_hv(i,k) 
-          rvblten(i,k,j)     = rvblten_hv(i,k) 
-          rthblten(i,k,j)    = rthblten_hv(i,k) 
-          rqvblten(i,k,j)    = rqvblten_hv(i,k) 
-          rqcblten(i,k,j)    = rqcblten_hv(i,k) 
-          rqiblten(i,k,j)    = rqiblten_hv(i,k) 
-          rqncblten(i,k,j)   = rqncblten_hv(i,k) 
-          rqniblten(i,k,j)   = rqniblten_hv(i,k) 
-          rqnifablten(i,k,j) = rqnifablten_hv(i,k) 
-          rqnwfablten(i,k,j) = rqnwfablten_hv(i,k) 
+          rublten(i,k,j)    = rublten_hv(i,k) 
+          rvblten(i,k,j)    = rvblten_hv(i,k) 
+          rthblten(i,k,j)   = rthblten_hv(i,k) 
+          rqvblten(i,k,j)   = rqvblten_hv(i,k) 
+          rqcblten(i,k,j)   = rqcblten_hv(i,k) 
+          rqiblten(i,k,j)   = rqiblten_hv(i,k) 
+          rncblten(i,k,j)   = rncblten_hv(i,k) 
+          rniblten(i,k,j)   = rniblten_hv(i,k) 
+          rnifablten(i,k,j) = rnifablten_hv(i,k) 
+          rnwfablten(i,k,j) = rnwfablten_hv(i,k) 
        enddo
     enddo
 
