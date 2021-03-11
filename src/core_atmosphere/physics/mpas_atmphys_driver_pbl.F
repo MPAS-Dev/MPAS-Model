@@ -844,8 +844,8 @@
                  rqvblten    = rqvblten_p     , rqcblten   = rqcblten_p  , rqiblten    = rqiblten_p   , &
                  rqncblten   = rncblten_p     , rqniblten  = rniblten_p  , rqnifablten = rnifablten_p , &
                  rqnwfablten = rnwfablten_p   , rqozblten  = rqo3blten_p , rthraten    = rthraten_p   , &
-                 flag_qc     = f_qc           , flag_qi    = f_qi        , flag_qnc    = f_qnc        , &
-                 flag_qni    = f_qni          , flag_qnifa = f_qnifa     , flag_qnwfa  = f_qnwfa      , &
+                 f_qc        = f_qc           , f_qi       = f_qi        , f_nc        = f_nc         , &
+                 f_ni        = f_ni           , f_nifa     = f_nifa      , f_nwfa      = f_nwfa       , &
                  icloud_bl   = icloud_bl      , kpbl       = kpbl_p      , pblh        = hpbl_p       , &
                  xland       = xland_p        , ts         = tsk_p       , hfx         = hfx_p        , &
                  qfx         = qfx_p          , ch         = ch_p        , znt         = znt_p        , &

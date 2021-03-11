@@ -183,6 +183,9 @@
 !   Laura D. Fowler (laura@ucar.edu) / 2021-01-05.
 ! * added the PBL cloud ice mixing ratio in the MYNNPBL scheme.
 !   Laura D. Fowler (laura@ucar.edu) / 2021-01-05.
+! * replaced all the flag_* to f_* and removed the "parameter" option since those flags are now initialized in
+!   subroutine physics_init.
+!   Laura D. Fowler (laura@ucar.edu) / 2021-03-09.
 
 
 !=================================================================================================================
@@ -317,11 +320,10 @@
     f_qg      = .true.   !WRF parameter set to true to include the graupel mixing ratio.
 
  logical,parameter:: &
-    f_qnc     = .true., &!WRF parameter set to true to include the cloud water number concentration.
-    f_qni     = .true., &!WRF parameter set to true to include the cloud ice number concentration.
-    f_qnr     = .true., &!WRF parameter set to true to include the rain number concentration.
-    f_qnifa   = .true., &!WRF parameter set to true to include the number concentration of hygroscopic aerosols.
-    f_qnwfa   = .true.   !WRF parameter set to true to include the number concentration of hydrophobic aerosols.
+    f_nc      = .true., &!WRF parameter set to true to include the cloud water number concentration.
+    f_ni      = .true., &!WRF parameter set to true to include the cloud ice number concentration.
+    f_nifa    = .true., &!WRF parameter set to true to include the number concentration of hygroscopic aerosols.
+    f_nwfa    = .true.   !WRF parameter set to true to include the number concentration of hydrophobic aerosols.
 
  real(kind=RKIND),dimension(:,:,:),allocatable:: &
     f_ice,              &!fraction of cloud ice (used in WRF only).

@@ -27,8 +27,8 @@
                (ids         , ide         , jds            , jde          , kds           , kde , &
                 ims         , ime         , jms            , jme          , kms           , kme , &
                 its         , ite         , jts            , jte          , kts           , kte , &
-                flag_qc     , flag_qi     , flag_qnc       , flag_qni     , flag_qnifa    , &
-                flag_qnwfa  , initflag    , do_restart     , do_DAcycling , grav_settling , &
+                f_qc        , f_qi        , f_nc           , f_ni        , f_nifa         , &
+                f_nwfa      , initflag    , do_restart     , do_DAcycling , grav_settling , &
                 icloud_bl   , spp_pbl     , delt           , dx           , xland         , &
                 ps          , ts          , qsfc           , qcg          , ust           , &
                 ch          , hfx         , qfx            , rmol         , wspd          , &
@@ -55,12 +55,12 @@
 
 !--- input arguments:
  logical,intent(in):: &
-    flag_qc,            &! if true,the physics package includes the cloud liquid water mixing ratio.
-    flag_qi,            &! if true,the physics package includes the cloud ice mixing ratio.
-    flag_qnc,           &! if true,the physics package includes the cloud liquid water number concentration.
-    flag_qni,           &! if true,the physics package includes the cloud ice number concentration.
-    flag_qnifa,         &! if true,the physics package includes the "ice-friendly" aerosol number concentration.
-    flag_qnwfa           ! if true,the physics package includes the "water-friendly" aerosol number concentration.
+    f_qc,               &! if true,the physics package includes the cloud liquid water mixing ratio.
+    f_qi,               &! if true,the physics package includes the cloud ice mixing ratio.
+    f_nc,               &! if true,the physics package includes the cloud liquid water number concentration.
+    f_ni,               &! if true,the physics package includes the cloud ice number concentration.
+    f_nifa,             &! if true,the physics package includes the "ice-friendly" aerosol number concentration.
+    f_nwfa               ! if true,the physics package includes the "water-friendly" aerosol number concentration.
 
  logical,intent(in):: &
     bl_mynn_tkeadvect    !
@@ -307,7 +307,7 @@
     enddo
 
     !--- input optional arguments:
-    if(flag_qc .and. present(qc)) then
+    if(f_qc .and. present(qc)) then
        do k = kts,kte
           do i = its,ite
              qc_hv(i,k) = qc(i,k,j)
@@ -320,7 +320,7 @@
           enddo
        enddo
     endif
-    if(flag_qi .and. present(qi)) then
+    if(f_qi .and. present(qi)) then
        do k = kts,kte
           do i = its,ite
              qi_hv(i,k) = qi(i,k,j)
@@ -333,7 +333,7 @@
           enddo
        enddo
     endif
-    if(flag_qnc .and. present(qnc)) then
+    if(f_nc .and. present(qnc)) then
        do k = kts,kte
           do i = its,ite
              qnc_hv(i,k) = qnc(i,k,j)
@@ -346,7 +346,7 @@
           enddo
        enddo
     endif
-    if(flag_qni .and. present(qni)) then
+    if(f_ni .and. present(qni)) then
        do k = kts,kte
           do i = its,ite
              qni_hv(i,k) = qni(i,k,j)
@@ -359,7 +359,7 @@
           enddo
        enddo
     endif
-    if(flag_qnifa .and. present(qnifa)) then
+    if(f_nifa .and. present(qnifa)) then
        do k = kts,kte
           do i = its,ite
              qnifa_hv(i,k) = qnifa(i,k,j)
@@ -372,7 +372,7 @@
           enddo
        enddo
     endif
-     if(flag_qnwfa .and. present(qnwfa)) then
+     if(f_nwfa .and. present(qnwfa)) then
        do k = kts,kte
           do i = its,ite
              qnwfa_hv(i,k) = qnwfa(i,k,j)
@@ -463,8 +463,8 @@
 
     call bl_mynn_mpas_run &
             (its              , ite              , kts               , kte            , kme           , &
-             flag_qc          , flag_qi          , flag_qnc          , flag_qni       , flag_qnifa    , &
-             flag_qnwfa       , initflag         , do_restart        , do_DAcycling   , grav_settling , &
+             f_qc             , f_qi             , f_nc              , f_ni           , f_nifa        , &
+             f_nwfa           , initflag         , do_restart        , do_DAcycling   , grav_settling , &
              icloud_bl        , spp_pbl          , delt              , dx_hv          , xland_hv      , &
              ps_hv            , ts_hv            , qsfc_hv           , qcg_hv         , ust_hv        , &
              ch_hv            , hfx_hv           , qfx_hv            , rmol_hv        , wspd_hv       , &
