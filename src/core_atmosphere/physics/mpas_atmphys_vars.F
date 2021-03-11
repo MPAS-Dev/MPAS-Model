@@ -262,7 +262,7 @@
     nr_p               !
 
  real(kind=RKIND),dimension(:,:,:),allocatable:: &
-    qo3_p              !ozone mixing ratio                                                  [kg/kg]
+    qoz_p              !ozone mixing ratio                                                  [kg/kg]
 
 !... arrays located at w (vertical velocity) points, or at interface between layers:
  real(kind=RKIND),dimension(:,:,:),allocatable:: &
@@ -586,7 +586,7 @@
     rnwfablten_p       !tendency of "ice-friendly" aerosols due to PBL processes.
 
  real(kind=RKIND),dimension(:,:,:),allocatable:: &
-    rqo3blten_p        !tendency of ozone mixing ratio due to PBL processes.
+    rqozblten_p        !tendency of ozone mixing ratio due to PBL processes.
 
 !=================================================================================================================
 !... variables and arrays related to parameterization of gravity wave drag over orography:

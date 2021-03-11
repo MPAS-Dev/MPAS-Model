@@ -27,7 +27,7 @@
                (ids         , ide         , jds            , jde          , kds           , kde , &
                 ims         , ime         , jms            , jme          , kms           , kme , &
                 its         , ite         , jts            , jte          , kts           , kte , &
-                f_qc        , f_qi        , f_nc           , f_ni        , f_nifa         , &
+                f_qc        , f_qi        , f_qoz          , f_nc         , f_ni          , f_nifa , &
                 f_nwfa      , initflag    , do_restart     , do_DAcycling , grav_settling , &
                 icloud_bl   , spp_pbl     , delt           , dx           , xland         , &
                 ps          , ts          , qsfc           , qcg          , ust           , &
@@ -36,7 +36,7 @@
                 u           , v           , w              , th           , tt            , &
                 p           , exner       , rho            , qv           , qc            , &
                 qi          , nc          , ni             , nifa         , nwfa          , &
-                ozone       , rthraten    , pattern_spp_bl , pblh         , kpbl          , &
+                qoz         , rthraten    , pattern_spp_bl , pblh         , kpbl          , &
                 delta       , wstar       , cldfra_bl      , qc_bl        , qi_bl         , &
                 nupdraft    , ktop_plume  , maxmf          , qke          , qke_adv       , &
                 tsq         , qsq         , cov            , el_pbl       , rublten       , &
@@ -57,6 +57,7 @@
  logical,intent(in):: &
     f_qc,               &! if true,the physics package includes the cloud liquid water mixing ratio.
     f_qi,               &! if true,the physics package includes the cloud ice mixing ratio.
+    f_qoz,              &! if true,the physics package includes the ozone mixing ratio.
     f_nc,               &! if true,the physics package includes the cloud liquid water number concentration.
     f_ni,               &! if true,the physics package includes the cloud ice number concentration.
     f_nifa,             &! if true,the physics package includes the "ice-friendly" aerosol number concentration.
@@ -129,14 +130,14 @@
  real(kind=kind_phys),intent(in),dimension(ims:ime,kms:kme,jms:jme):: &
     w         !
 
- real(kind=kind_phys),intent(in),dimension(ims:ime,kms:kme,jms:jme),optional:: &
+ real(kind=kind_phys),intent(in),dimension(ims:ime,kms:kme,jms:jme):: &
     qc,      &!
     qi,      &!
+    qoz,     &!
     nc,      &!
     ni,      &!
     nifa,    &!
-    nwfa,    &!
-    ozone     !
+    nwfa      !
 
  real(kind=kind_phys),intent(in),dimension(ims:ime,kms:kme,jms:jme),optional:: &
     pattern_spp_bl !
@@ -173,13 +174,11 @@
     rqvblten,    &!
     rqcblten,    &!
     rqiblten,    &!
+    rqozblten,   &!
     rncblten,    &!
     rniblten,    &!
     rnifablten,  &!
     rnwfablten    !
-
- real(kind=kind_phys),intent(inout),dimension(ims:ime,kms:kme,jms:jme),optional:: &
-    rqozblten     !
 
  real(kind=kind_phys),intent(inout),dimension(ims:ime,kms:kme,jms:jme),optional:: &
     edmf_a,      &!
@@ -233,7 +232,7 @@
     w_hv
 
  real(kind=kind_phys),dimension(its:ite,kts:kte):: &
-    qc_hv,qi_hv,nc_hv,ni_hv,nifa_hv,nwfa_hv,ozone_hv
+    qc_hv,qi_hv,nc_hv,ni_hv,nifa_hv,nwfa_hv,qoz_hv
 
  real(kind=kind_phys),dimension(its:ite,kts:kte):: &
     pattern_spp_hv
@@ -286,7 +285,6 @@
        voce_hv(i)  = voce(i,j)
        znt_hv(i)   = znt(i,j)
     enddo
-
     do k = kts,kte
        do i = its,ite
           dz_hv(i,k)       = dz(i,k,j)
@@ -306,98 +304,70 @@
        w_hv(i,kte+1) = w(i,kte+1,j)
     enddo
 
-    !--- input optional arguments:
-    if(f_qc .and. present(qc)) then
+    !--- input arguments for cloud mixing ratios and number concentrations; input argument
+    !    for the ozone mixing ratio; input arguments for aerosols from the aerosol-aware
+    !    Thompson cloud microphysics:
+    do k = kts,kte
+       do i = its,ite
+          qc_hv(i,k)   = 0._kind_phys
+          qi_hv(i,k)   = 0._kind_phys
+          qoz_hv(i,k)  = 0._kind_phys
+          nc_hv(i,k)   = 0._kind_phys
+          ni_hv(i,k)   = 0._kind_phys
+          nifa_hv(i,k) = 0._kind_phys
+          nwfa_hv(i,k) = 0._kind_phys
+       enddo
+    enddo
+    if(f_qc) then
        do k = kts,kte
           do i = its,ite
              qc_hv(i,k) = qc(i,k,j)
           enddo
        enddo
-    else
-       do k = kts,kte
-          do i = its,ite
-             qc_hv(i,k) = 0._kind_phys
-          enddo
-       enddo
     endif
-    if(f_qi .and. present(qi)) then
+    if(f_qi) then
        do k = kts,kte
           do i = its,ite
              qi_hv(i,k) = qi(i,k,j)
           enddo
        enddo
-    else
-       do k = kts,kte
-          do i = its,ite
-             qi_hv(i,k) = 0._kind_phys
-          enddo
-       enddo
     endif
-    if(f_nc .and. present(nc)) then
+    if(f_nc) then
        do k = kts,kte
           do i = its,ite
              nc_hv(i,k) = nc(i,k,j)
           enddo
        enddo
-    else
-       do k = kts,kte
-          do i = its,ite
-             nc_hv(i,k) = 0._kind_phys
-          enddo
-       enddo
     endif
-    if(f_ni .and. present(ni)) then
+    if(f_ni) then
        do k = kts,kte
           do i = its,ite
              ni_hv(i,k) = ni(i,k,j)
           enddo
        enddo
-    else
-       do k = kts,kte
-          do i = its,ite
-             ni_hv(i,k) = 0._kind_phys
-          enddo
-       enddo
     endif
-    if(f_nifa .and. present(nifa)) then
+    if(f_nifa) then
        do k = kts,kte
           do i = its,ite
              nifa_hv(i,k) = nifa(i,k,j)
           enddo
        enddo
-    else
-       do k = kts,kte
-          do i = its,ite
-             nifa_hv(i,k) = 0._kind_phys
-          enddo
-       enddo
     endif
-     if(f_nwfa .and. present(nwfa)) then
+    if(f_nwfa) then
        do k = kts,kte
           do i = its,ite
              nwfa_hv(i,k) = nwfa(i,k,j)
           enddo
        enddo
-    else
+    endif
+    if(f_qoz) then
        do k = kts,kte
           do i = its,ite
-             nwfa_hv(i,k) = 0._kind_phys
+             qoz_hv(i,k) = qoz(i,k,j)
           enddo
        enddo
     endif
-    if(present(ozone)) then
-       do k = kts,kte
-          do i = its,ite
-             ozone_hv(i,k) = ozone(i,k,j)
-          enddo
-       enddo
-    else
-       do k = kts,kte
-          do i = its,ite
-             ozone_hv(i,k) = 0._kind_phys
-          enddo
-       enddo
-    endif
+
     if(present(pattern_spp_bl)) then
        do k = kts,kte
           do i = its,ite
@@ -472,7 +442,7 @@
              u_hv             , v_hv             , w_hv              , th_hv          , tt_hv         , &
              p_hv             , exner_hv         , rho_hv            , qv_hv          , qc_hv         , &
              qi_hv            , nc_hv            , ni_hv             , nifa_hv        , nwfa_hv       , &
-             ozone_hv         , rthraten_hv      , pattern_spp_hv    , pblh_hv        , kpbl_hv       , &
+             qoz_hv           , rthraten_hv      , pattern_spp_hv    , pblh_hv        , kpbl_hv       , &
              delta_hv         , wstar_hv         , cldfrabl_hv       , qcbl_hv        , qibl_hv       , &
              nupdraft_hv      , ktopplume_hv     , maxmf_hv          , qke_hv         , qkeadv_hv     , &
              tsq_hv           , qsq_hv           , cov_hv            , elpbl_hv       , rublten_hv    , &
@@ -520,25 +490,61 @@
        enddo
     enddo
 
+    !--- inout tendencies:
     do k = kts,kte
        do i = its,ite
           rublten(i,k,j)    = rublten_hv(i,k) 
           rvblten(i,k,j)    = rvblten_hv(i,k) 
           rthblten(i,k,j)   = rthblten_hv(i,k) 
           rqvblten(i,k,j)   = rqvblten_hv(i,k) 
-          rqcblten(i,k,j)   = rqcblten_hv(i,k) 
-          rqiblten(i,k,j)   = rqiblten_hv(i,k) 
-          rncblten(i,k,j)   = rncblten_hv(i,k) 
-          rniblten(i,k,j)   = rniblten_hv(i,k) 
-          rnifablten(i,k,j) = rnifablten_hv(i,k) 
-          rnwfablten(i,k,j) = rnwfablten_hv(i,k) 
        enddo
     enddo
-
-    if(present(rqozblten)) then
+    if(f_qc) then
        do k = kts,kte
           do i = its,ite
-             rqozblten(i,k,j) = rqozblten_hv(i,k) 
+             rqcblten(i,k,j)   = rqcblten_hv(i,k) 
+          enddo
+       enddo
+    endif
+    if(f_qi) then
+       do k = kts,kte
+          do i = its,ite
+             rqiblten(i,k,j)   = rqiblten_hv(i,k) 
+          enddo
+       enddo
+    endif
+    if(f_qoz) then
+       do k = kts,kte
+          do i = its,ite
+             rqozblten(i,k,j)  = rqozblten_hv(i,k) 
+          enddo
+       enddo
+    endif
+    if(f_nc) then
+       do k = kts,kte
+          do i = its,ite
+             rncblten(i,k,j)   = rncblten_hv(i,k) 
+          enddo
+       enddo
+    endif
+    if(f_ni) then
+       do k = kts,kte
+          do i = its,ite
+             rniblten(i,k,j)   = rniblten_hv(i,k) 
+          enddo
+       enddo
+    endif
+    if(f_nifa) then
+       do k = kts,kte
+          do i = its,ite
+             rnifablten(i,k,j) = rnifablten_hv(i,k) 
+          enddo
+       enddo
+    endif
+    if(f_nwfa) then
+       do k = kts,kte
+          do i = its,ite
+             rnwfablten(i,k,j) = rnwfablten_hv(i,k) 
           enddo
        enddo
     endif
