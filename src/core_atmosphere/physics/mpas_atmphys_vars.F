@@ -300,10 +300,6 @@
 !          that the ice phase is included (except for the Kessler scheme which includes water
 !          clouds only.
 
-!    f_qv,f_qc,f_qr,f_qi,f_qs,f_qg: These logicals were initially defined in WRF to determine
-!          which kind of hydrometeors are present. Here, we assume that all six water species
-!          are present, even if their mixing ratios and number concentrations are zero.
-
 !=================================================================================================================
 
 !--- list of logical parameters used in the WRF model activated as functions of the physics parameterizations. In
@@ -311,23 +307,24 @@
  logical,parameter:: &
     warm_rain = .false.  !warm-phase cloud microphysics only (used in WRF).
 
- logical,parameter:: &
-    f_qv      = .true., &!WRF parameter set to true to include the water vapor mixing ratio.
-    f_qc      = .true., &!WRF parameter set to true to include the cloud water mixing ratio.
-    f_qr      = .true., &!WRF parameter set to true to include the rain mixing ratio.
-    f_qi      = .true., &!WRF parameter set to true to include the cloud ice mixing ratio.
-    f_qs      = .true., &!WRF parameter set to true to include the snow minxg ratio.
-    f_qg      = .true.   !WRF parameter set to true to include the graupel mixing ratio.
+ logical:: &
+    f_qv,             &!parameter set to true to include the water vapor mixing ratio.
+    f_qc,             &!parameter set to true to include the cloud water mixing ratio.
+    f_qr,             &!parameter set to true to include the rain mixing ratio.
+    f_qi,             &!parameter set to true to include the cloud ice mixing ratio.
+    f_qs,             &!parameter set to true to include the snow minxg ratio.
+    f_qg,             &!parameter set to true to include the graupel mixing ratio.
+    f_qoz              !parameter set to true to include the ozone mixing ratio.
 
- logical,parameter:: &
-    f_nc      = .true., &!WRF parameter set to true to include the cloud water number concentration.
-    f_ni      = .true., &!WRF parameter set to true to include the cloud ice number concentration.
-    f_nifa    = .true., &!WRF parameter set to true to include the number concentration of hygroscopic aerosols.
-    f_nwfa    = .true.   !WRF parameter set to true to include the number concentration of hydrophobic aerosols.
+ logical:: &
+    f_nc,             &!parameter set to true to include the cloud water number concentration.
+    f_ni,             &!parameter set to true to include the cloud ice number concentration.
+    f_nifa,           &!parameter set to true to include the number concentration of hygroscopic aerosols.
+    f_nwfa             !parameter set to true to include the number concentration of hydrophobic aerosols.
 
  real(kind=RKIND),dimension(:,:,:),allocatable:: &
-    f_ice,              &!fraction of cloud ice (used in WRF only).
-    f_rain               !fraction of rain (used in WRF only).
+    f_ice,            &!fraction of cloud ice (used in WRF only).
+    f_rain             !fraction of rain (used in WRF only).
 
  real(kind=RKIND),dimension(:,:),allocatable:: &
     rainnc_p,         &!

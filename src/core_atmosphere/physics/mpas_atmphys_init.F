@@ -17,6 +17,7 @@
  use mpas_atmphys_driver_radiation_lw, only: init_radiation_lw
  use mpas_atmphys_driver_radiation_sw, only: init_radiation_sw
  use mpas_atmphys_driver_sfclayer
+ use mpas_atmphys_vars, only: f_qv,f_qc,f_qr,f_qi,f_qs,f_qg,f_qoz,f_nc,f_ni,f_nifa,f_nwfa
 
  use mpas_atmphys_landuse
  use mpas_atmphys_o3climatology
@@ -67,7 +68,10 @@
 ! * removed all sourcecode related to the initialization of the CAM longwave and shortwave radiation codes.
 !   Laura D. Fowler (laura@ucar.edu) / 2018-02-01.
 ! * restored the initialization of aerosols for the Thompson cloud microphysics scheme.
-!   Laura D. Fowler (laura@ucar.edu) / 2018--02-05.
+!   Laura D. Fowler (laura@ucar.edu) / 2018-02-05.
+! * added the subroutine init_physics_flags to initialize all the f_* flags for cloud water species. add the flag
+!   to initialize the ozone mixing ratio.
+!   Laura D. Fowler (laura@ucar.edu) / 2021-03-09.
 
 
  contains
@@ -214,6 +218,10 @@
 !initialization of east-north directions to convert u-tendencies from cell centers to cell
 !edges:
  call init_dirs_forphys(mesh)
+
+!initialization of logical flags for cloud mixing ratios and number concentrations, and aerosols
+!number concentrations from the Thompson cloud microphysics:
+ call init_physics_flags(state,f_qv,f_qc,f_qr,f_qi,f_qs,f_qg,f_qoz,f_nc,f_ni,f_nifa,f_nwfa)
 
 !initialization of counters i_rainc and i_rainnc. i_rainc and i_rainnc track the number of
 !times the accumulated convective (rainc) and grid-scale (rainnc) rain exceed the prescribed
@@ -394,6 +402,65 @@
 ! call mpas_log_write('')
 
  end subroutine physics_init
+
+!=================================================================================================================
+ subroutine init_physics_flags(state,f_qv,f_qc,f_qr,f_qi,f_qs,f_qg,f_qoz,f_nc,f_ni,f_nifa,f_nwfa)
+!=================================================================================================================
+
+!input arguments:
+ type(mpas_pool_type),intent(in):: state
+
+!output arguments:
+ logical,intent(out):: f_qv,f_qc,f_qr,f_qi,f_qs,f_qg,f_qoz,f_nc,f_ni,f_nifa,f_nwfa
+
+!local pointers:
+ integer,pointer:: index_qv,index_qc,index_qr,index_qi,index_qs,index_qg
+ integer,pointer:: index_nc,index_ni,index_nifa,index_nwfa
+
+!-----------------------------------------------------------------------------------------------------------------
+
+!at present, ozone is not a prognostic variable. therefore, we set f_qoz to false:
+ f_qoz = .true.
+
+!by default, the logical that initializes the water vapor mixing ratio should always be equal to true as every
+!physics parameterization needs to know the water vapor:
+ f_qv = .true.
+
+!initializes the logicals assigned to mixing ratios:
+ f_qc = .false.
+ f_qr = .false.
+ f_qi = .false.
+ f_qs = .false.
+ f_qg = .false.
+ call mpas_pool_get_dimension(state,'index_qv',index_qv)
+ call mpas_pool_get_dimension(state,'index_qc',index_qc)
+ call mpas_pool_get_dimension(state,'index_qr',index_qr)
+ call mpas_pool_get_dimension(state,'index_qi',index_qi)
+ call mpas_pool_get_dimension(state,'index_qs',index_qs)
+ call mpas_pool_get_dimension(state,'index_qg',index_qg)
+
+ if(index_qc .gt. -1) f_qc = .true.
+ if(index_qr .gt. -1) f_qr = .true.
+ if(index_qi .gt. -1) f_qi = .true.
+ if(index_qs .gt. -1) f_qs = .true.
+ if(index_qg .gt. -1) f_qg = .true.
+
+!initializes the logicals assigned to mixing ratios:
+ f_nc   = .false.
+ f_ni   = .false.
+ f_nifa = .false.
+ f_nwfa = .false.
+ call mpas_pool_get_dimension(state,'index_nc'  ,index_nc  )
+ call mpas_pool_get_dimension(state,'index_ni'  ,index_ni  )
+ call mpas_pool_get_dimension(state,'index_nifa',index_nifa)
+ call mpas_pool_get_dimension(state,'index_nwfa',index_nwfa)
+
+ if(index_nc   .gt. -1) f_nc   = .true.
+ if(index_ni   .gt. -1) f_ni   = .true.
+ if(index_nifa .gt. -1) f_nifa = .true.
+ if(index_nwfa .gt. -1) f_nwfa = .true.
+
+ end subroutine init_physics_flags
 
 !=================================================================================================================
  subroutine init_dirs_forphys(mesh)
