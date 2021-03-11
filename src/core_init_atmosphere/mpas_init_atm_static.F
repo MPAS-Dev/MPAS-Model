@@ -100,6 +100,9 @@
  real (kind=RKIND), dimension(:,:), pointer :: greenfrac
  real (kind=RKIND), dimension(:), pointer :: shdmin, shdmax
 
+ real (kind=RKIND), dimension(:,:), pointer :: albedo12m
+ integer (kind=I8KIND), dimension(:,:), pointer :: albedo12m_int
+
  ! These global variables are starting to smell...
  integer, pointer :: category_min
  integer, pointer :: category_max
@@ -184,8 +187,6 @@
  integer (kind=I8KIND), dimension(:), pointer :: snoalb_integer
  real (kind=RKIND), dimension(:,:,:), allocatable :: vegfra
  real (kind=RKIND), dimension(:), pointer :: shdmin, shdmax
- real (kind=RKIND), dimension(:,:), pointer :: albedo12m
- integer (kind=I8KIND), dimension(:,:), pointer :: albedo12m_int
  real (kind=RKIND) :: msgval, fillval
  real (kind=RKIND), pointer :: missing_value
  integer, pointer :: category_min, category_max
@@ -535,92 +536,7 @@
 !
 ! Interpolate ALBEDO12M
 !
- if (trim(config_albedo_data) == 'MODIS') then
-
- else if (trim(config_albedo_data) == 'NCEP') then
-
-    call mpas_log_write('Using NCEP 0.144-deg data for climatological monthly albedo')
-
-    nx = 1256
-    ny = 1256
-    nz = 12
-    isigned     = 0
-    endian      = 0
-    wordsize    = 1
-    scalefactor = 1.0
-    allocate(rarray(nx,ny,nz))
-    allocate(vegfra(-2:2503,-2:1253,12))
-    albedo12m(:,:) = 0.0
-
-    rarray_ptr = c_loc(rarray)
-
-    call map_set(PROJ_LATLON, proj,    &
-                 latinc = 0.144_RKIND, &
-                 loninc = 0.144_RKIND, &
-                 knowni = 1.0_RKIND,   &
-                 knownj = 1.0_RKIND,   &
-                 lat1 = -89.928_RKIND, &
-                 lon1 = -179.928_RKIND)
-
-    write(fname,'(a,i5.5,a1,i5.5,a1,i5.5,a1,i5.5)') trim(geog_data_path)// &
-          'albedo_ncep/',1,'-',1250,'.',1,'-',1250
-    call mpas_log_write(trim(fname))
-    call mpas_f_to_c_string(fname, c_fname)
-
-    call read_geogrid(c_fname,rarray_ptr,nx,ny,nz,isigned,endian, &
-                      wordsize, istatus)
-    call init_atm_check_read_error(istatus,fname)
-    rarray(:,:,:) = rarray(:,:,:) * scalefactor
-    vegfra(-2:1250,-2:1253,1:12) = rarray(1:1253,1:1256,1:12)
-
-    write(fname,'(a,i5.5,a1,i5.5,a1,i5.5,a1,i5.5)') trim(geog_data_path)// &
-          'albedo_ncep/',1251,'-',2500,'.',1,'-',1250
-    call mpas_log_write(trim(fname))
-    call mpas_f_to_c_string(fname, c_fname)
-
-    call read_geogrid(c_fname,rarray_ptr,nx,ny,nz,isigned,endian, &
-                      wordsize,istatus)
-    call init_atm_check_read_error(istatus,fname)
-    rarray(:,:,:) = rarray(:,:,:) * scalefactor
-    vegfra(1251:2503,-2:1253,1:12) = rarray(4:1256,1:1256,1:12)
-
-    do iCell = 1,nCells
-
-       if (landmask(iCell) == 1) then
-          lat = latCell(iCell) * DEG_PER_RAD
-          lon = lonCell(iCell) * DEG_PER_RAD
-          call latlon_to_ij(proj, lat, lon, x, y)
-          if(x < 0.5) then
-             lon = lon + 360.0
-             call latlon_to_ij(proj, lat, lon, x, y)
-          else if(x >= 2500.5) then
-             lon = lon - 360.0
-             call latlon_to_ij(proj, lat, lon, x, y)
-          end if
-          if (y < 1.0) y = 1.0
-          if (y > 1249.0) y = 1249.0
-          do k = 1,12
-             albedo12m(k,iCell) = interp_sequence(x,y,k,vegfra,-2,2503,-2,1253, &
-                                                    1,12,0.0_RKIND,interp_list,1)
-          end do
-       else
-          albedo12m(:,iCell) = 8.0
-       end if
-    end do
-    deallocate(rarray)
-    deallocate(vegfra)
-
- else
-
-    call mpas_log_write('*****************************************************************', messageType=MPAS_LOG_ERR)
-    call mpas_log_write('Invalid monthly albedo dataset '''//trim(config_albedo_data) &
-                                  //''' selected for config_albedo_data',                    messageType=MPAS_LOG_ERR)
-    call mpas_log_write('   Possible options are: ''MODIS'', ''NCEP''',                      messageType=MPAS_LOG_ERR)
-    call mpas_log_write('*****************************************************************', messageType=MPAS_LOG_ERR)
-    call mpas_log_write('Please correct the namelist.', messageType=MPAS_LOG_CRIT)
-
- end if
-
+ call interp_albedo12m(mesh, configs, tree, landmask, isice_lu)
  call mpas_log_write('--- end interpolate ALBEDO12M')
 
 !
@@ -1621,6 +1537,238 @@
 
  end subroutine interp_greenfrac
 
+!--------------------------------------------------------------------------------------------------
+! Interpolate climatological 12 month albedo (albedo12m)
+!--------------------------------------------------------------------------------------------------
+
+ !***********************************************************************
+ !
+ !  routine albedo12m_interp_accumulation
+ !
+ !> \brief   Accumulate albedo 12 monthly dataset values
+ !> \author  Miles Curry
+ !> \date    25 January 2020
+ !> \details
+ !> This routine will be passed in to init_atm_map_static_data to accumulate albedo12m values
+ !> to cells.
+ !
+ !-----------------------------------------------------------------------
+ subroutine albedo12m_interp_accumulation(mgr, iCell, pixel)
+
+     implicit none
+
+     type (mpas_geotile_mgr_type), intent(in) :: mgr
+     integer, intent(in) ::iCell
+     integer (kind=I8KIND), dimension(:), intent(in) :: pixel 
+
+     real (kind=RKIND), pointer :: missing_value
+     integer (kind=I8KIND) :: i8val_lcl
+
+     integer, pointer :: tile_nz
+     integer :: k
+     real (kind=RKIND) :: fillval
+
+     fillval = 8.0
+
+     call mpas_pool_get_config(mgr % pool, 'missing_value', missing_value)
+     call mpas_pool_get_config(mgr % pool, 'tile_z', tile_nz)
+
+     ! This field only matters for points on land
+     if (landmask(iCell) == 0) then
+         return
+     end if
+
+     do k = 1, tile_nz
+         if (pixel(k) == missing_value) then
+            i8val_lcl = int(fillval, kind=I8KIND)
+         else
+            i8val_lcl = int(pixel(k), kind=I8KIND)
+         end if
+         albedo12m_int(k, iCell) = albedo12m_int(k, iCell) + i8val_lcl
+     end do
+     nhs(iCell) = nhs(iCell) + 1
+
+ end subroutine albedo12m_interp_accumulation
+
+ subroutine interp_albedo12m(mesh, configs, kdtree, landmask, isice_lu)
+
+     implicit none
+
+     ! Input variables
+     type (mpas_pool_type), intent(inout) :: mesh
+     type (mpas_pool_type), intent(in) :: configs
+     type (mpas_kd_type), pointer, intent(in) :: kdtree
+     integer, dimension(:), pointer, intent(in) :: landmask
+     integer, intent(in) :: isice_lu
+
+     ! Local Variables
+     type (mpas_geotile_mgr_type) :: mgr
+     type (proj_info) :: proj
+     integer (c_int) :: endian, isigned, istatus, wordsize
+     integer (c_int) :: nx, ny, nz
+     integer, dimension(5) :: interp_list
+     integer, pointer :: tile_nz, tile_z_start, tile_z_end
+     integer, pointer :: supersample_fac
+     character (len=StrKIND), pointer :: config_albedo_data
+     character (len=StrKIND), pointer :: config_geog_data_path
+     character (len=StrKIND), pointer :: config_vegfrac_data
+     character (len=StrKIND), pointer :: geog_data_path
+     character (len=StrKIND) :: geog_sub_path
+     character (len=StrKIND) :: fname
+     character (kind=c_char), dimension(StrKIND+1) :: c_fname
+     real (kind=RKIND) :: fillval
+     real (kind=RKIND), pointer :: scalefactor
+     real (kind=c_float), dimension(:,:,:), pointer, contiguous :: rarray
+     real (kind=RKIND), dimension(:,:,:), allocatable :: vegfra
+     real (kind=RKIND), dimension(:), pointer ::latCell, lonCell
+     real (kind=RKIND) :: lat, lon, x, y
+     type (c_ptr) :: rarray_ptr
+     integer, pointer :: nCells
+     integer :: iCell, k
+     integer :: ierr
+
+     call mpas_pool_get_config(configs, 'config_geog_data_path', geog_data_path)
+     call mpas_pool_get_config(configs, 'config_albedo_data', config_albedo_data)
+
+     if (trim(config_albedo_data) == 'MODIS') then
+
+         geog_sub_path = 'albedo_modis/'
+
+         ierr = mgr % init(trim(geog_data_path)//trim(geog_sub_path))
+         if (ierr /= 0) then
+             call mpas_log_write("Error occured initalizing interpolation for "//trim(geog_data_path), messageType=MPAS_LOG_CRIT)
+             return
+         end if
+
+         call mpas_pool_get_dimension(mesh, 'nCells', nCells)
+         call mpas_pool_get_config(mgr % pool, 'scale_factor', scalefactor)
+         call mpas_pool_get_config(mgr % pool, 'tile_z_start', tile_z_start)
+         call mpas_pool_get_config(mgr % pool, 'tile_z_end', tile_z_end)
+         call mpas_pool_get_array(mesh, 'albedo12m', albedo12m)
+         call mpas_pool_get_config(configs, 'config_supersample_factor', supersample_fac)
+          
+         allocate(nhs(nCells))
+         allocate(albedo12m_int(tile_z_start:tile_z_end, nCells))
+         albedo12m_int(:,:) = 0
+         albedo12m(:,:) = 0.0
+         nhs(:) = 0
+         fillval = 8.0
+
+         call init_atm_map_static_data(mesh, mgr, kdtree, continuous_interp_criteria, albedo12m_interp_accumulation, &
+                                        supersample_fac)
+
+         do iCell = 1, nCells
+             if (nhs(iCell) == 0) then
+                 albedo12m(:,iCell) = fillVal
+             else
+                 albedo12m(:,iCell) = real(albedo12m_int(:,iCell), kind=R8KIND) / real(nhs(iCell), kind=R8KIND)
+                 albedo12m(:,iCell) = albedo12m(:,iCell) * scalefactor
+             end if
+             if (lu_index(iCell) == isice_lu) then
+                 albedo12m(:,iCell) = 70.0 ! TODO: Where does this come from?
+             endif
+         end do
+
+         ierr = mgr % finalize()
+         if (ierr /= 0) then
+             call mpas_log_write("Error occured finalizing interpolation for "//trim(geog_data_path), messageType=MPAS_LOG_CRIT)
+             return
+         end if
+         deallocate(nhs)
+         deallocate(albedo12m_int)
+
+     else if (trim(config_albedo_data) == 'NCEP') then
+
+        call mpas_log_write('Using NCEP 0.144-deg data for climatological monthly albedo')
+
+        call mpas_pool_get_dimension(mesh, 'nCells', nCells)
+        call mpas_pool_get_array(mesh, 'latCell', latCell)
+        call mpas_pool_get_array(mesh, 'lonCell', lonCell)
+        call mpas_pool_get_array(mesh, 'albedo12m', albedo12m)
+
+        nx = 1256
+        ny = 1256
+        nz = 12
+        isigned     = 0
+        endian      = 0
+        wordsize    = 1
+        allocate(scalefactor)
+        scalefactor = 1.0
+        allocate(rarray(nx,ny,nz))
+        allocate(vegfra(-2:2503,-2:1253,12))
+        albedo12m(:,:) = 0.0
+
+        rarray_ptr = c_loc(rarray)
+
+        call map_set(PROJ_LATLON, proj,    &
+                     latinc = 0.144_RKIND, &
+                     loninc = 0.144_RKIND, &
+                     knowni = 1.0_RKIND,   &
+                     knownj = 1.0_RKIND,   &
+                     lat1 = -89.928_RKIND, &
+                     lon1 = -179.928_RKIND)
+
+        write(fname,'(a,i5.5,a1,i5.5,a1,i5.5,a1,i5.5)') trim(geog_data_path)// &
+              'albedo_ncep/',1,'-',1250,'.',1,'-',1250
+        call mpas_log_write(trim(fname))
+        call mpas_f_to_c_string(fname, c_fname)
+
+        call read_geogrid(c_fname,rarray_ptr,nx,ny,nz,isigned,endian, &
+                          wordsize, istatus)
+        call init_atm_check_read_error(istatus,fname)
+        rarray(:,:,:) = rarray(:,:,:) * scalefactor
+        vegfra(-2:1250,-2:1253,1:12) = rarray(1:1253,1:1256,1:12)
+
+        write(fname,'(a,i5.5,a1,i5.5,a1,i5.5,a1,i5.5)') trim(geog_data_path)// &
+              'albedo_ncep/',1251,'-',2500,'.',1,'-',1250
+        call mpas_log_write(trim(fname))
+        call mpas_f_to_c_string(fname, c_fname)
+
+        call read_geogrid(c_fname,rarray_ptr,nx,ny,nz,isigned,endian, &
+                          wordsize,istatus)
+        call init_atm_check_read_error(istatus,fname)
+        rarray(:,:,:) = rarray(:,:,:) * scalefactor
+        vegfra(1251:2503,-2:1253,1:12) = rarray(4:1256,1:1256,1:12)
+
+        do iCell = 1,nCells
+
+           if (landmask(iCell) == 1) then
+              lat = latCell(iCell) * DEG_PER_RAD
+              lon = lonCell(iCell) * DEG_PER_RAD
+              call latlon_to_ij(proj, lat, lon, x, y)
+              if(x < 0.5) then
+                 lon = lon + 360.0
+                 call latlon_to_ij(proj, lat, lon, x, y)
+              else if(x >= 2500.5) then
+                 lon = lon - 360.0
+                 call latlon_to_ij(proj, lat, lon, x, y)
+              end if
+              if (y < 1.0) y = 1.0
+              if (y > 1249.0) y = 1249.0
+              do k = 1,12
+                 albedo12m(k,iCell) = interp_sequence(x,y,k,vegfra,-2,2503,-2,1253, &
+                                                        1,12,0.0_RKIND,interp_list,1)
+              end do
+           else
+              albedo12m(:,iCell) = 8.0
+           end if
+        end do
+        deallocate(rarray)
+        deallocate(vegfra)
+        deallocate(scalefactor)
+
+     else
+
+        call mpas_log_write('*****************************************************************', messageType=MPAS_LOG_ERR)
+        call mpas_log_write('Invalid monthly albedo dataset '''//trim(config_albedo_data) &
+                                      //''' selected for config_albedo_data',                    messageType=MPAS_LOG_ERR)
+        call mpas_log_write('   Possible options are: ''MODIS'', ''NCEP''',                      messageType=MPAS_LOG_ERR)
+        call mpas_log_write('*****************************************************************', messageType=MPAS_LOG_ERR)
+        call mpas_log_write('Please correct the namelist.', messageType=MPAS_LOG_CRIT)
+
+     end if
+
+ end subroutine interp_albedo12m
 
 
 !==================================================================================================
