@@ -420,7 +420,7 @@
 !-----------------------------------------------------------------------------------------------------------------
 
 !at present, ozone is not a prognostic variable. therefore, we set f_qoz to false:
- f_qoz = .true.
+ f_qoz = .false.
 
 !by default, the logical that initializes the water vapor mixing ratio should always be equal to true as every
 !physics parameterization needs to know the water vapor:
