@@ -838,12 +838,14 @@
        call mpas_log_write('--- config_mynn_mixqt       = $i',intArgs=(/bl_mynn_mixqt/))
        call mpas_log_write('--- config_mynn_tkeadvect   = $l',logicArgs=(/bl_mynn_tkeadvect/))
        call mpas_log_write('--- config_mynn_tkebudget   = $i',intArgs=(/bl_mynn_tkebudget/))
-
-       call mpas_log_write('--- f_qc  = $l',logicArgs=(/f_qc/) )
-       call mpas_log_write('--- f_qi  = $l',logicArgs=(/f_qi/) )
-       call mpas_log_write('--- f_qoz = $l',logicArgs=(/f_qoz/))
-       call mpas_log_write('--- f_nc  = $l',logicArgs=(/f_nc/) )
-
+       call mpas_log_write(' ')
+       call mpas_log_write('--- f_qc   = $l',logicArgs=(/f_qc/)  )
+       call mpas_log_write('--- f_qi   = $l',logicArgs=(/f_qi/)  )
+       call mpas_log_write('--- f_qoz  = $l',logicArgs=(/f_qoz/) )
+       call mpas_log_write('--- f_nc   = $l',logicArgs=(/f_nc/)  )
+       call mpas_log_write('--- f_ni   = $l',logicArgs=(/f_ni/)  )
+       call mpas_log_write('--- f_nifa = $l',logicArgs=(/f_nifa/))
+       call mpas_log_write('--- f_nwfa = $l',logicArgs=(/f_nwfa/))
 
        call mpas_timer_start('bl_mynn')
        call mynn_bl_driver ( &

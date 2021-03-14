@@ -346,20 +346,20 @@
           enddo
        enddo
     endif
-    if(f_nifa) then
-       do k = kts,kte
-          do i = its,ite
-             nifa_hv(i,k) = nifa(i,k,j)
-          enddo
-       enddo
-    endif
-    if(f_nwfa) then
-       do k = kts,kte
-          do i = its,ite
-             nwfa_hv(i,k) = nwfa(i,k,j)
-          enddo
-       enddo
-    endif
+!   if(f_nifa) then
+!      do k = kts,kte
+!         do i = its,ite
+!            nifa_hv(i,k) = nifa(i,k,j)
+!         enddo
+!      enddo
+!   endif
+!   if(f_nwfa) then
+!      do k = kts,kte
+!         do i = its,ite
+!            nwfa_hv(i,k) = nwfa(i,k,j)
+!         enddo
+!      enddo
+!   endif
     if(f_qoz) then
        do k = kts,kte
           do i = its,ite
