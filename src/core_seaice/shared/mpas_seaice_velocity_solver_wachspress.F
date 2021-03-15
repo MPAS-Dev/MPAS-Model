@@ -84,13 +84,25 @@ contains
 
     integer, pointer :: &
          nCells, &
-         maxEdges, i1, i2
+         nVertices, &
+         vertexDegree, &
+         maxEdges
 
     integer, dimension(:), pointer :: &
          nEdgesOnCell
 
     integer, dimension(:,:), pointer :: &
+         verticesOnCell, &
+         cellsOnVertex, &
          cellVerticesAtVertex
+
+    real(kind=RKIND), dimension(:), pointer :: &
+         xVertex, &
+         yVertex, &
+         zVertex, &
+         xCell, &
+         yCell, &
+         zCell
 
     real(kind=RKIND), dimension(:), pointer :: &
          tanLatVertexRotatedOverRadius
@@ -113,11 +125,30 @@ contains
          basisIntegralsV, &
          basisIntegralsMetric
 
+    logical, pointer :: &
+         on_a_sphere
+
+    real(kind=RKIND), pointer :: &
+         sphere_radius
+
     call mpas_timer_start("Velocity solver Wachpress init")
 
+    call MPAS_pool_get_config(mesh, "on_a_sphere", on_a_sphere)
+    call MPAS_pool_get_config(mesh, "sphere_radius", sphere_radius)
+
     call MPAS_pool_get_dimension(mesh, "nCells", nCells)
+    call MPAS_pool_get_dimension(mesh, "nVertices", nVertices)
+    call MPAS_pool_get_dimension(mesh, "vertexDegree", vertexDegree)
     call MPAS_pool_get_dimension(mesh, "maxEdges", maxEdges)
     call MPAS_pool_get_array(mesh, "nEdgesOnCell", nEdgesOnCell)
+    call MPAS_pool_get_array(mesh, "verticesOnCell", verticesOnCell)
+    call MPAS_pool_get_array(mesh, "cellsOnVertex", cellsOnVertex)
+    call MPAS_pool_get_array(mesh, "xVertex", xVertex)
+    call MPAS_pool_get_array(mesh, "yVertex", yVertex)
+    call MPAS_pool_get_array(mesh, "zVertex", zVertex)
+    call MPAS_pool_get_array(mesh, "xCell", xCell)
+    call MPAS_pool_get_array(mesh, "yCell", yCell)
+    call MPAS_pool_get_array(mesh, "zCell", zCell)
 
     call MPAS_pool_get_array(velocity_variational, "cellVerticesAtVertex", cellVerticesAtVertex)
     call MPAS_pool_get_array(velocity_variational, "tanLatVertexRotatedOverRadius", tanLatVertexRotatedOverRadius)
@@ -135,16 +166,29 @@ contains
 
     call mpas_timer_start("wachpress calc_local_coords")
     call seaice_calc_local_coords(&
-         mesh, &
          xLocal, &
          yLocal, &
-         rotateCartesianGrid)
+         nCells, &
+         nEdgesOnCell, &
+         verticesOnCell, &
+         xVertex, &
+         yVertex, &
+         zVertex, &
+         xCell, &
+         yCell, &
+         zCell, &
+         rotateCartesianGrid, &
+         on_a_sphere)
     call mpas_timer_stop("wachpress calc_local_coords")
 
     call mpas_timer_start("wachpress calc_metric_terms")
     call seaice_calc_variational_metric_terms(&
-         mesh, &
          tanLatVertexRotatedOverRadius, &
+         nVertices, &
+         xVertex, &
+         yVertex, &
+         zVertex, &
+         sphere_radius, &
          rotateCartesianGrid, &
          includeMetricTerms)
     call mpas_timer_stop("wachpress calc_metric_terms")
@@ -192,8 +236,12 @@ contains
 
     call mpas_timer_start("wachpress vertices_at_vertex")
     call seaice_cell_vertices_at_vertex(&
-         mesh, &
-         cellVerticesAtVertex)
+         cellVerticesAtVertex, &
+         nVertices, &
+         vertexDegree, &
+         nEdgesOnCell, &
+         verticesOnCell, &
+         cellsOnVertex)
     call mpas_timer_stop("wachpress vertices_at_vertex")
 
     deallocate(xLocal)

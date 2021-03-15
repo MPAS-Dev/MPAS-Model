@@ -71,7 +71,27 @@ contains
 
     integer, pointer :: &
          nCells, &
+         nVertices, &
+         vertexDegree, &
          maxEdges
+
+    integer, dimension(:), pointer :: &
+         nEdgesOnCell
+
+    integer, dimension(:,:), pointer :: &
+         verticesOnCell, &
+         cellsOnVertex, &
+         edgesOnCell
+
+    real(kind=RKIND), dimension(:), pointer :: &
+         xVertex, &
+         yVertex, &
+         zVertex, &
+         xCell, &
+         yCell, &
+         zCell, &
+         dvEdge, &
+         areaCell
 
     real(kind=RKIND), dimension(:), pointer :: &
          tanLatVertexRotatedOverRadius
@@ -87,10 +107,31 @@ contains
          basisIntegralsU, &
          basisIntegralsV
 
-    integer :: iCell, i1, i2
+    logical, pointer :: &
+         on_a_sphere
+
+    real(kind=RKIND), pointer :: &
+         sphere_radius
+
+    call MPAS_pool_get_config(mesh, "on_a_sphere", on_a_sphere)
+    call MPAS_pool_get_config(mesh, "sphere_radius", sphere_radius)
 
     call MPAS_pool_get_dimension(mesh, "nCells", nCells)
+    call MPAS_pool_get_dimension(mesh, "nVertices", nVertices)
+    call MPAS_pool_get_dimension(mesh, "vertexDegree", vertexDegree)
     call MPAS_pool_get_dimension(mesh, "maxEdges", maxEdges)
+    call MPAS_pool_get_array(mesh, "nEdgesOnCell", nEdgesOnCell)
+    call MPAS_pool_get_array(mesh, "verticesOnCell", verticesOnCell)
+    call MPAS_pool_get_array(mesh, "cellsOnVertex", cellsOnVertex)
+    call MPAS_pool_get_array(mesh, "edgesOnCell", edgesOnCell)
+    call MPAS_pool_get_array(mesh, "xVertex", xVertex)
+    call MPAS_pool_get_array(mesh, "yVertex", yVertex)
+    call MPAS_pool_get_array(mesh, "zVertex", zVertex)
+    call MPAS_pool_get_array(mesh, "xCell", xCell)
+    call MPAS_pool_get_array(mesh, "yCell", yCell)
+    call MPAS_pool_get_array(mesh, "zCell", zCell)
+    call MPAS_pool_get_array(mesh, "dvEdge", dvEdge)
+    call MPAS_pool_get_array(mesh, "areaCell", areaCell)
 
     call MPAS_pool_get_array(velocity_variational, "cellVerticesAtVertex", cellVerticesAtVertex)
     call MPAS_pool_get_array(velocity_variational, "tanLatVertexRotatedOverRadius", tanLatVertexRotatedOverRadius)
@@ -104,28 +145,51 @@ contains
     allocate(yLocal(maxEdges,nCells))
 
     call seaice_calc_local_coords(&
-         mesh, &
          xLocal, &
          yLocal, &
-         rotateCartesianGrid)
+         nCells, &
+         nEdgesOnCell, &
+         verticesOnCell, &
+         xVertex, &
+         yVertex, &
+         zVertex, &
+         xCell, &
+         yCell, &
+         zCell, &
+         rotateCartesianGrid, &
+         on_a_sphere)
 
     call seaice_calc_variational_metric_terms(&
-         mesh, &
          tanLatVertexRotatedOverRadius, &
+         nVertices, &
+         xVertex, &
+         yVertex, &
+         zVertex, &
+         sphere_radius, &
          rotateCartesianGrid, &
          includeMetricTerms)
 
     call seaice_cell_vertices_at_vertex(&
-         mesh, &
-         cellVerticesAtVertex)
+         cellVerticesAtVertex, &
+         nVertices, &
+         vertexDegree, &
+         nEdgesOnCell, &
+         verticesOnCell, &
+         cellsOnVertex)
 
     call init_velocity_solver_pwl_basis(&
-         mesh, &
          basisGradientU, &
          basisGradientV, &
          basisIntegralsMetric, &
          basisIntegralsU, &
          basisIntegralsV, &
+         nCells, &
+         maxEdges, &
+         nEdgesOnCell, &
+         verticesOnCell, &
+         edgesOnCell, &
+         dvEdge, &
+         areaCell, &
          xLocal, &
          yLocal)
 
@@ -147,12 +211,18 @@ contains
 !-----------------------------------------------------------------------
 
   subroutine init_velocity_solver_pwl_basis(&
-       mesh, &
        basisGradientU, &
        basisGradientV, &
        basisIntegralsMetric, &
        basisIntegralsU, &
        basisIntegralsV, &
+       nCells, &
+       maxEdges, &
+       nEdgesOnCell, &
+       verticesOnCell, &
+       edgesOnCell, &
+       dvEdge, &
+       areaCell, &
        xLocal, &
        yLocal)!{{{
 
@@ -161,9 +231,6 @@ contains
 
     use seaice_velocity_solver_variational_shared, only: &
          seaice_wrapped_index
-
-    type(MPAS_pool_type), pointer :: &
-         mesh !< Input:
 
     real(kind=RKIND), dimension(:,:,:), intent(out) :: &
          basisGradientU, &       !< Output:
@@ -175,6 +242,21 @@ contains
     real(kind=RKIND), dimension(:,:), intent(in) :: &
          xLocal, & !< Input:
          yLocal    !< Input:
+
+    integer, intent(in) :: &
+         nCells, & !< Input:
+         maxEdges  !< Input:
+
+    integer, dimension(:), intent(in) :: &
+         nEdgesOnCell !< Input:
+
+    integer, dimension(:,:), intent(in) :: &
+         verticesOnCell, & !< Input:
+         edgesOnCell       !< Input:
+
+    real(kind=RKIND), dimension(:), intent(in) :: &
+         dvEdge, & !< Input:
+         areaCell  !< Input:
 
     real(kind=RKIND) :: &
          xPWLCentre, &
@@ -209,21 +291,6 @@ contains
          rightHandSide, &
          solutionVector
 
-    integer, pointer :: &
-         nCells, &
-         maxEdges
-
-    integer, dimension(:), pointer :: &
-         nEdgesOnCell
-
-    integer, dimension(:,:), pointer :: &
-         verticesOnCell, &
-         edgesOnCell
-
-    real(kind=RKIND), dimension(:), pointer :: &
-         dvEdge, &
-         areaCell
-
     real(kind=RKIND), dimension(:,:), allocatable :: &
          subBasisGradientU, &
          subBasisGradientV, &
@@ -233,16 +300,6 @@ contains
 
     real(kind=RKIND), dimension(:), allocatable :: &
          basisSubArea
-
-    ! init variables
-    call MPAS_pool_get_dimension(mesh, "nCells", nCells)
-    call MPAS_pool_get_dimension(mesh, "maxEdges", maxEdges)
-
-    call MPAS_pool_get_array(mesh, "nEdgesOnCell", nEdgesOnCell)
-    call MPAS_pool_get_array(mesh, "verticesOnCell", verticesOnCell)
-    call MPAS_pool_get_array(mesh, "edgesOnCell", edgesOnCell)
-    call MPAS_pool_get_array(mesh, "dvEdge", dvEdge)
-    call MPAS_pool_get_array(mesh, "areaCell", areaCell)
 
     allocate(subBasisGradientU(maxEdges,3))
     allocate(subBasisGradientV(maxEdges,3))
