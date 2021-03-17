@@ -155,7 +155,6 @@
 
  real(kind=RKIND):: lat,lon,x,y,z
  real(kind=RKIND):: lat_pt,lon_pt
- real(kind=RKIND),dimension(:,:),allocatable  :: soiltemp_1deg
  real(kind=RKIND),dimension(:,:),allocatable  :: maxsnowalb
 
  integer, pointer :: isice_lu, iswater_lu
@@ -270,7 +269,6 @@
  call mpas_pool_get_array(mesh, 'isice_lu', isice_lu)
  call mpas_pool_get_array(mesh, 'iswater_lu', iswater_lu)
  call mpas_pool_get_array(mesh, 'soilcat_top', soilcat_top)
- call mpas_pool_get_array(mesh, 'landmask', landmask)
  call mpas_pool_get_array(mesh, 'soiltemp', soiltemp)
  call mpas_pool_get_array(mesh, 'snoalb', snoalb)
  call mpas_pool_get_array(mesh, 'greenfrac', greenfrac)
@@ -433,89 +431,14 @@
 !
 ! Derive LANDMASK
 !
- landmask(:) = 0
- do iCell=1, nCells
-    if (lu_index(iCell) /= iswater_lu) landmask(iCell) = 1
- end do
+ call derive_landmask(mesh, dims, iswater_lu)
  call mpas_log_write('--- end interpolate LANDMASK')
 
 
 !
 ! Interpolate SOILTEMP:
 !
- nx = 186
- ny = 186
- nz = 1
- isigned  = 0
- endian   = 0
- wordsize = 2
- scalefactor = 0.01
- allocate(rarray(nx,ny,nz))
- allocate(soiltemp_1deg(-2:363,-2:183))
- soiltemp(:) = 0.0
-
- rarray_ptr = c_loc(rarray)
-
- call map_set(PROJ_LATLON, proj,  &
-              latinc = 1.0_RKIND, &
-              loninc = 1.0_RKIND, &
-              knowni = 1.0_RKIND, &
-              knownj = 1.0_RKIND, &
-              lat1 = -89.5_RKIND, &
-              lon1 = -179.5_RKIND)
-
- write(fname,'(a,i5.5,a1,i5.5,a1,i5.5,a1,i5.5)') trim(geog_data_path)// &
-       'soiltemp_1deg/',1,'-',180,'.',1,'-',180
- call mpas_log_write(trim(fname))
- call mpas_f_to_c_string(fname, c_fname)
-
- call read_geogrid(c_fname,rarray_ptr,nx,ny,nz,isigned, endian, &
-                   wordsize,istatus)
- call init_atm_check_read_error(istatus, fname)
- rarray(:,:,:) = rarray(:,:,:) * scalefactor
- soiltemp_1deg(-2:180,-2:183) = rarray(1:183,1:186,1)
-
- write(fname,'(a,i5.5,a1,i5.5,a1,i5.5,a1,i5.5)') trim(geog_data_path)// &
-            'soiltemp_1deg/',181,'-',360,'.',1,'-',180
- call mpas_log_write(trim(fname))
- call mpas_f_to_c_string(fname, c_fname)
-
- call read_geogrid(c_fname,rarray_ptr,nx,ny,nz,isigned,endian, &
-                   wordsize,istatus)
- call init_atm_check_read_error(istatus,fname)
- rarray(:,:,:) = rarray(:,:,:) * scalefactor
- soiltemp_1deg(181:363,-2:183) = rarray(4:186,1:186,1)
-
- interp_list(1) = FOUR_POINT
- interp_list(2) = W_AVERAGE4
- interp_list(3) = W_AVERAGE16
- interp_list(4) = SEARCH
- interp_list(5) = 0
-
- do iCell = 1,nCells
-  
-    if(landmask(iCell) == 1) then
-       lat = latCell(iCell) * DEG_PER_RAD
-       lon = lonCell(iCell) * DEG_PER_RAD
-       call latlon_to_ij(proj, lat, lon, x, y)
-       if(x < 0.5) then
-          lon = lon + 360.0
-          call latlon_to_ij(proj, lat, lon, x, y)
-       else if (x >= 360.5) then
-          lon = lon - 360.0
-          call latlon_to_ij(proj, lat, lon, x, y)
-       end if
-       if (y < 1.0) y = 1.0
-       if (y > 179.0) y = 179.0
-       soiltemp(iCell) = interp_sequence(x,y,1,soiltemp_1deg,-2,363,-2,183, &
-                                           1,1,0.0_RKIND,interp_list,1)
-    else
-       soiltemp(iCell) = 0.0
-    end if
-
- end do
- deallocate(rarray)
- deallocate(soiltemp_1deg)
+ call interp_soiltemp(mesh, dims, configs)
  call mpas_log_write('--- end interpolate SOILTEMP')
 
 
@@ -1070,6 +993,167 @@
 
  end subroutine interp_soilcat
 
+ !***********************************************************************
+ !
+ !  routine derive_landmask
+ !
+ !> \brief   Derive the landmask field
+ !> \details
+ !> Derive the landmask field from landuse index
+ !
+ !-----------------------------------------------------------------------
+ subroutine derive_landmask(mesh, dims, iswater_lu)
+
+    implicit none
+
+    ! Input variables
+    type (mpas_pool_type), intent(inout) :: mesh
+    type (mpas_pool_type), intent(in) :: dims
+    integer, intent(in) :: iswater_lu
+
+    ! Local variables
+    integer :: iCell
+    integer, pointer :: nCells
+    integer, dimension(:), pointer :: lu_index
+
+    call mpas_pool_get_dimension(dims, 'nCells', nCells)
+    call mpas_pool_get_array(mesh, 'landmask', landmask)
+    call mpas_pool_get_array(mesh, 'lu_index', lu_index)
+
+    !
+    ! Derive LANDMASK
+    !
+    landmask(:) = 0
+    do iCell=1, nCells
+       if (lu_index(iCell) /= iswater_lu) landmask(iCell) = 1
+    end do
+
+ end subroutine derive_landmask
+
+
+ !***********************************************************************
+ !
+ !  routine interp_soiltemp
+ !
+ !> \brief   Interpolate soil temperature
+ !> \details
+ !> Interpolate soil templerature
+ !
+ !-----------------------------------------------------------------------
+ subroutine interp_soiltemp(mesh, dims, configs)
+
+     implicit none
+
+     ! Input variables
+     type (mpas_pool_type), intent(inout) :: mesh
+     type (mpas_pool_type), intent(in) :: dims
+     type (mpas_pool_type), intent(in) :: configs
+
+     ! Local variables
+     type (proj_info) :: proj
+     character (len=StrKIND) :: fname
+     character (kind=c_char), dimension(StrKIND+1) :: c_fname
+     character(len=StrKIND), pointer :: config_geog_data_path
+     character(len=StrKIND+1) :: geog_data_path ! same as config_geog_data_path, but guaranteed to have a trailing slash
+     real (kind=c_float), dimension(:,:,:), pointer, contiguous :: rarray
+     real (kind=RKIND) :: scalefactor
+     real (kind=RKIND), dimension(:), pointer ::latCell, lonCell
+     real (kind=RKIND) :: lat, lon, x, y
+     real (kind=RKIND), dimension(:,:), allocatable  :: soiltemp_1deg
+     real (kind=RKIND), dimension(:), pointer :: soiltemp
+     integer :: i, iCell
+     integer, pointer :: nCells
+     integer, dimension(5) :: interp_list
+     integer (c_int) :: endian, isigned, istatus, wordsize
+     integer (c_int) :: nx, ny, nz
+     type (c_ptr) :: rarray_ptr
+
+     call mpas_pool_get_dimension(dims, 'nCells', nCells)
+     call mpas_pool_get_array(mesh, 'latCell', latCell)
+     call mpas_pool_get_array(mesh, 'lonCell', lonCell)
+     call mpas_pool_get_array(mesh, 'soiltemp', soiltemp)
+     call mpas_pool_get_config(configs, 'config_geog_data_path', config_geog_data_path)
+
+     write(geog_data_path, '(a)') config_geog_data_path
+     i = len_trim(geog_data_path)
+     if (geog_data_path(i:i) /= '/') then
+        geog_data_path(i+1:i+1) = '/'
+     end if
+
+     nx = 186
+     ny = 186
+     nz = 1
+     isigned  = 0
+     endian   = 0
+     wordsize = 2
+     scalefactor = 0.01
+     allocate(rarray(nx,ny,nz))
+     allocate(soiltemp_1deg(-2:363,-2:183))
+     soiltemp(:) = 0.0
+
+     rarray_ptr = c_loc(rarray)
+
+     call map_set(PROJ_LATLON, proj,  &
+                  latinc = 1.0_RKIND, &
+                  loninc = 1.0_RKIND, &
+                  knowni = 1.0_RKIND, &
+                  knownj = 1.0_RKIND, &
+                  lat1 = -89.5_RKIND, &
+                  lon1 = -179.5_RKIND)
+
+     write(fname,'(a,i5.5,a1,i5.5,a1,i5.5,a1,i5.5)') trim(geog_data_path)// &
+           'soiltemp_1deg/',1,'-',180,'.',1,'-',180
+     call mpas_log_write(trim(fname))
+     call mpas_f_to_c_string(fname, c_fname)
+
+     call read_geogrid(c_fname,rarray_ptr,nx,ny,nz,isigned, endian, &
+                       wordsize,istatus)
+     call init_atm_check_read_error(istatus, fname)
+     rarray(:,:,:) = rarray(:,:,:) * scalefactor
+     soiltemp_1deg(-2:180,-2:183) = rarray(1:183,1:186,1)
+
+     write(fname,'(a,i5.5,a1,i5.5,a1,i5.5,a1,i5.5)') trim(geog_data_path)// &
+                'soiltemp_1deg/',181,'-',360,'.',1,'-',180
+     call mpas_log_write(trim(fname))
+     call mpas_f_to_c_string(fname, c_fname)
+
+     call read_geogrid(c_fname,rarray_ptr,nx,ny,nz,isigned,endian, &
+                       wordsize,istatus)
+     call init_atm_check_read_error(istatus,fname)
+     rarray(:,:,:) = rarray(:,:,:) * scalefactor
+     soiltemp_1deg(181:363,-2:183) = rarray(4:186,1:186,1)
+
+     interp_list(1) = FOUR_POINT
+     interp_list(2) = W_AVERAGE4
+     interp_list(3) = W_AVERAGE16
+     interp_list(4) = SEARCH
+     interp_list(5) = 0
+
+     do iCell = 1,nCells
+        if(landmask(iCell) == 1) then
+           lat = latCell(iCell) * DEG_PER_RAD
+           lon = lonCell(iCell) * DEG_PER_RAD
+           call latlon_to_ij(proj, lat, lon, x, y)
+           if(x < 0.5) then
+              lon = lon + 360.0
+              call latlon_to_ij(proj, lat, lon, x, y)
+           else if (x >= 360.5) then
+              lon = lon - 360.0
+              call latlon_to_ij(proj, lat, lon, x, y)
+           end if
+           if (y < 1.0) y = 1.0
+           if (y > 179.0) y = 179.0
+           soiltemp(iCell) = interp_sequence(x,y,1,soiltemp_1deg,-2,363,-2,183, &
+                                               1,1,0.0_RKIND,interp_list,1)
+        else
+           soiltemp(iCell) = 0.0
+        end if
+
+     end do
+     deallocate(rarray)
+     deallocate(soiltemp_1deg)
+
+ end subroutine interp_soiltemp
 
 !--------------------------------------------------------------------------------------------------
 ! Interpolate maximum snow albedo
