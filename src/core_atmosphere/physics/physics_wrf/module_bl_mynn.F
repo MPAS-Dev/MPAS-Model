@@ -12,7 +12,7 @@
     ep_2,    &
     rcp,     &
     xlv
- use bl_mynn_mpas,only: bl_mynn_mpas_run
+ use bl_mynn,only: bl_mynn_run
 
  implicit none
  private
@@ -221,6 +221,8 @@
  integer,dimension(its:ite):: &
     kpbl_hv,nupdraft_hv,ktopplume_hv
 
+ real(kind=kind_phys):: denom
+
  real(kind=kind_phys),dimension(its:ite):: &
     dx_hv,xland_hv,ps_hv,ts_hv,qcg_hv,qsfc_hv,ust_hv,ch_hv,hfx_hv,qfx_hv, &
     rmol_hv,wspd_hv,vdfg_hv,uoce_hv,voce_hv,znt_hv
@@ -256,6 +258,9 @@
 
  real(kind=kind_phys),dimension(its:ite,kts:kte):: &
     exchh_hv,exchm_hv,dqke_hv,qwt_hv,qshear_hv,qbuoy_hv,qdiss_hv
+
+ real(kind=kind_phys),dimension(its:ite,kts:kte):: &
+    sqv_hv,sqc_hv,sqi_hv
 
 !-----------------------------------------------------------------------------------------------------------------
  call mpas_log_write(' ')
@@ -346,20 +351,20 @@
           enddo
        enddo
     endif
-!   if(f_nifa) then
-!      do k = kts,kte
-!         do i = its,ite
-!            nifa_hv(i,k) = nifa(i,k,j)
-!         enddo
-!      enddo
-!   endif
-!   if(f_nwfa) then
-!      do k = kts,kte
-!         do i = its,ite
-!            nwfa_hv(i,k) = nwfa(i,k,j)
-!         enddo
-!      enddo
-!   endif
+    if(f_nifa) then
+       do k = kts,kte
+          do i = its,ite
+             nifa_hv(i,k) = nifa(i,k,j)
+          enddo
+       enddo
+    endif
+    if(f_nwfa) then
+       do k = kts,kte
+          do i = its,ite
+             nwfa_hv(i,k) = nwfa(i,k,j)
+          enddo
+       enddo
+    endif
     if(f_qoz) then
        do k = kts,kte
           do i = its,ite
@@ -367,6 +372,15 @@
           enddo
        enddo
     endif
+
+    !--- temporary as this needs to be moved to its own subroutine:
+    do k = kts,kte
+       do i = its,ite
+          sqv_hv(i,k) = qv_hv(i,k)/(1.+qv_hv(i,k))
+          sqc_hv(i,k) = qc_hv(i,k)/(1.+qv_hv(i,k))
+          sqi_hv(i,k) = qi_hv(i,k)/(1.+qv_hv(i,k))
+       enddo
+    enddo
 
     if(present(pattern_spp_bl)) then
        do k = kts,kte
@@ -431,34 +445,47 @@
     enddo
 
 
-    call bl_mynn_mpas_run &
-            (its              , ite              , kts               , kte            , kme           , &
-             f_qc             , f_qi             , f_nc              , f_ni           , f_nifa        , &
-             f_nwfa           , initflag         , do_restart        , do_DAcycling   , grav_settling , &
-             icloud_bl        , spp_pbl          , delt              , dx_hv          , xland_hv      , &
-             ps_hv            , ts_hv            , qsfc_hv           , qcg_hv         , ust_hv        , &
-             ch_hv            , hfx_hv           , qfx_hv            , rmol_hv        , wspd_hv       , &
-             znt_hv           , vdfg_hv          , uoce_hv           , voce_hv        , dz_hv         , &
-             u_hv             , v_hv             , w_hv              , th_hv          , tt_hv         , &
-             p_hv             , exner_hv         , rho_hv            , qv_hv          , qc_hv         , &
-             qi_hv            , nc_hv            , ni_hv             , nifa_hv        , nwfa_hv       , &
-             qoz_hv           , rthraten_hv      , pattern_spp_hv    , pblh_hv        , kpbl_hv       , &
-             delta_hv         , wstar_hv         , cldfrabl_hv       , qcbl_hv        , qibl_hv       , &
-             nupdraft_hv      , ktopplume_hv     , maxmf_hv          , qke_hv         , qkeadv_hv     , &
-             tsq_hv           , qsq_hv           , cov_hv            , elpbl_hv       , rublten_hv    , &
-             rvblten_hv       , rthblten_hv      , rqvblten_hv       , rqcblten_hv    , rqiblten_hv   , &
-             rncblten_hv      , rniblten_hv      , rnifablten_hv     , rnwfablten_hv  , rqozblten_hv  , &
-             edmfa_hv         , edmfw_hv         , edmfqt_hv         , edmfthl_hv     , edmfent_hv    , &
-             edmfqc_hv        , subthl_hv        , subsqv_hv         , detthl_hv      , detsqv_hv     , &
-             exchh_hv         , exchm_hv         , dqke_hv           , qwt_hv         , qshear_hv     , & 
-             qbuoy_hv         , qdiss_hv         , sh3d_hv           ,                                  &
+    call bl_mynn_run &
+             (initflag        , do_restart         , do_DAcycling     , &
+             grav_settling    , delt               , dz_hv            , &
+             dx_hv            , znt_hv             , u_hv             , &
+             v_hv             , w_hv               , th_hv            , &
+             sqv_hv           , sqc_hv             , sqi_hv           , &
+             nc_hv            , ni_hv              , nwfa_hv          , &
+             nifa_hv          , qoz_hv             , p_hv             , &
+             exner_hv         , rho_hv             , tt_hv            , &
+             xland_hv         , ts_hv              , qsfc_hv          , &
+             qcg_hv           , ps_hv              , ust_hv           , &
+             ch_hv            , hfx_hv             , qfx_hv           , &
+             rmol_hv          , wspd_hv            , uoce_hv          , &
+             voce_hv          , vdfg_hv            , qke_hv           , &
+             qkeadv_hv        , bl_mynn_tkeadvect  , tsq_hv           , &
+             qsq_hv           , cov_hv             , rublten_hv       , &
+             rvblten_hv       , rthblten_hv        , rqvblten_hv      , &
+             rqcblten_hv      , rqiblten_hv        , rncblten_hv      , &
+             rniblten_hv      , rnwfablten_hv      , rnifablten_hv    , &
+             rqozblten_hv     , exchh_hv           , exchm_hv         , &
+             pblh_hv          , kpbl_hv            , elpbl_hv         , &
+             dqke_hv          , qwt_hv             , qshear_hv        , &
+             qbuoy_hv         , qdiss_hv           , wstar_hv         , &
+             delta_hv         , bl_mynn_tkebudget  , bl_mynn_cloudpdf , &
+             sh3d_hv          , bl_mynn_mixlength  , icloud_bl        , &
+             qcbl_hv          , qibl_hv            , cldfrabl_hv      , &
+             bl_mynn_closure  , bl_mynn_edmf       , bl_mynn_edmf_mom , &
+             bl_mynn_edmf_tke , bl_mynn_mixscalars , bl_mynn_output   , &
+             bl_mynn_cloudmix , bl_mynn_mixqt      , edmfa_hv         , &
+             edmfw_hv         , edmfqt_hv          , edmfthl_hv       , &
+             edmfent_hv       , edmfqc_hv          , subthl_hv        , &
+             subsqv_hv        , detthl_hv          , detsqv_hv        , &
+             nupdraft_hv      , maxmf_hv           , ktopplume_hv     , &
+             spp_pbl          , pattern_spp_hv     , rthraten_hv      , &
+             f_qc             , f_qi               , f_nc             , &
+             f_ni             , f_nwfa             , f_nifa           , &
              !--- constants:
-             cp , karman , gravity , P0 , ep_1 , ep_2 , rcp , xlv ,                                     &
-             bl_mynn_closure  , bl_mynn_cloudpdf , bl_mynn_mixlength , bl_mynn_edmf       , &
-             bl_mynn_edmf_mom , bl_mynn_edmf_tke , bl_mynn_output    , bl_mynn_mixscalars , &
-             bl_mynn_cloudmix , bl_mynn_mixqt    , bl_mynn_tkeadvect , bl_mynn_tkebudget  , &
-             errmsg           , errflg                                                      &
+             cp , karman , gravity , P0 , ep_1 , ep_2 , rcp , xlv     , &
+             its, ite , kts , kte , kme , errmsg , errflg               &
             )
+
 
 
     !--- inout arguments:
