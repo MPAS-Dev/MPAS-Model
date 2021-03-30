@@ -10,6 +10,7 @@ OBJS_init = \
 
 OBJS = \
 	bl_mynn.o \
+	bl_mynn_mpas.o \
 	bl_mynn_subroutines.o
 
 physics_sima_init: $(OBJS_init)

@@ -13,6 +13,7 @@
     rcp,     &
     xlv
  use bl_mynn,only: bl_mynn_run
+ use bl_mynn_mpas,only: bl_mynn_mpas_run
 
  implicit none
  private
@@ -263,8 +264,8 @@
     sqv_hv,sqc_hv,sqi_hv
 
 !-----------------------------------------------------------------------------------------------------------------
- call mpas_log_write(' ')
- call mpas_log_write('--- enter subroutine mynn_bl_driver:')
+!call mpas_log_write(' ')
+!call mpas_log_write('--- enter subroutine mynn_bl_driver:')
 
  errmsg = " "
  errflg = 0
@@ -373,14 +374,10 @@
        enddo
     endif
 
-    !--- temporary as this needs to be moved to its own subroutine:
-    do k = kts,kte
-       do i = its,ite
-          sqv_hv(i,k) = qv_hv(i,k)/(1.+qv_hv(i,k))
-          sqc_hv(i,k) = qc_hv(i,k)/(1.+qv_hv(i,k))
-          sqi_hv(i,k) = qi_hv(i,k)/(1.+qv_hv(i,k))
-       enddo
-    enddo
+
+    !--- conversion from mixing ratios to specific contents:
+    call bl_mynn_mpas_run(its,ite,kte,f_qc,f_qi,qv_hv,qc_hv,qi_hv,sqv_hv,sqc_hv,sqi_hv,errmsg,errflg)
+
 
     if(present(pattern_spp_bl)) then
        do k = kts,kte
@@ -605,7 +602,7 @@
 
  enddo
 
- call mpas_log_write('--- enter subroutine mynn_bl_driver:')
+!call mpas_log_write('--- end subroutine mynn_bl_driver:')
 
  end subroutine mynn_bl_driver
 
