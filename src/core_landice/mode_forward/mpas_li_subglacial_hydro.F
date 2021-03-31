@@ -991,11 +991,13 @@ module li_subglacial_hydro
       ! Pools pointers
       type (mpas_pool_type), pointer :: meshPool
       type (mpas_pool_type), pointer :: hydroPool
+      type (mpas_pool_type), pointer :: geometryPool
       real (kind=RKIND), dimension(:), pointer :: waterVelocity
       real (kind=RKIND), dimension(:), pointer :: channelVelocity
       real (kind=RKIND), dimension(:), pointer :: diffusivity
       real (kind=RKIND), dimension(:), pointer :: channelDiffusivity
       real (kind=RKIND), dimension(:), pointer :: dcEdge
+      integer, dimension(:), pointer :: edgeMask
       real (kind=RKIND), pointer :: deltatSGH
       real (kind=RKIND), pointer :: deltatSGHadvec
       real (kind=RKIND), pointer :: deltatSGHdiffu
@@ -1021,6 +1023,7 @@ module li_subglacial_hydro
       real(kind=RKIND) :: proposedDt
       real(kind=RKIND) :: masterDt
       real(kind=RKIND), dimension(5) :: localMinValues, reducedMinValues
+      integer :: iEdge
 
 
       err = 0
@@ -1044,6 +1047,7 @@ module li_subglacial_hydro
          ! Get pools things
          call mpas_pool_get_subpool(block % structs, 'mesh', meshPool)
          call mpas_pool_get_subpool(block % structs, 'hydro', hydroPool)
+         call mpas_pool_get_subpool(block % structs, 'geometry', geometryPool)
 
          call mpas_pool_get_dimension(meshPool, 'nEdgesSolve', nEdgesSolve)
 
@@ -1058,6 +1062,7 @@ module li_subglacial_hydro
          call mpas_pool_get_array(hydroPool, 'diffusivity', diffusivity)
          call mpas_pool_get_array(hydroPool, 'channelDiffusivity', channelDiffusivity)
          call mpas_pool_get_array(meshPool, 'dcEdge', dcEdge)
+         call mpas_pool_get_array(geometryPool, 'edgeMask', edgeMask)
 
          ! Calculate advective CFL-limited time step
          dtSGHadvecBlock = 0.5_RKIND * minval(dcEdge(1:nEdgesSolve) / (abs(waterVelocity(1:nEdgesSolve)) &
@@ -1065,7 +1070,13 @@ module li_subglacial_hydro
          dtSGHadvecProc = min(dtSGHadvecProc, dtSGHadvecBlock)
 
          ! Calculate diffusive CFL-limited time step
-         dtSGHdiffuBlock = 0.25_RKIND * minval(dcEdge(1:nEdgesSolve)**2 / (diffusivity(1:nEdgesSolve) + 1.0e-12_RKIND))
+         dtSGHdiffuBlock = 1.0e36_RKIND
+         do iEdge = 1, nEdgesSolve
+            if (diffusivity(iEdge) > 0.0_RKIND .and. li_mask_is_grounded_ice(edgeMask(iEdge)) .and. &
+                    .not. li_mask_is_grounding_line(edgeMask(iEdge))) then
+               dtSGHdiffuBlock = min(dtSGHdiffuBlock, 0.25_RKIND * dcEdge(iEdge)**2 / diffusivity(iEdge) )
+            endif
+         enddo
          dtSGHdiffuProc = min(dtSGHdiffuProc, dtSGHdiffuBlock)
 
          ! Calculate pressure limited time step
