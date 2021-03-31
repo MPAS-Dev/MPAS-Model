@@ -25,28 +25,25 @@
 
 !=================================================================================================================
  subroutine mynn_bl_driver &
-               (ids         , ide         , jds            , jde          , kds           , kde , &
-                ims         , ime         , jms            , jme          , kms           , kme , &
-                its         , ite         , jts            , jte          , kts           , kte , &
-                f_qc        , f_qi        , f_qoz          , f_nc         , f_ni          , f_nifa , &
-                f_nwfa      , initflag    , do_restart     , do_DAcycling , grav_settling , &
-                icloud_bl   , spp_pbl     , delt           , dx           , xland         , &
-                ps          , ts          , qsfc           , qcg          , ust           , &
-                ch          , hfx         , qfx            , rmol         , wspd          , &
-                znt         , vdfg        , uoce           , voce         , dz            , &
-                u           , v           , w              , th           , tt            , &
-                p           , exner       , rho            , qv           , qc            , &
-                qi          , nc          , ni             , nifa         , nwfa          , &
-                qoz         , rthraten    , pattern_spp_bl , pblh         , kpbl          , &
-                delta       , wstar       , cldfra_bl      , qc_bl        , qi_bl         , &
-                nupdraft    , ktop_plume  , maxmf          , qke          , qke_adv       , &
-                tsq         , qsq         , cov            , el_pbl       , rublten       , &
-                rvblten     , rthblten    , rqvblten       , rqcblten     , rqiblten      , &
-                rncblten    , rniblten    , rnifablten     , rnwfablten   , rqozblten     , &
-                edmf_a      , edmf_w      , edmf_qt        , edmf_thl     , edmf_ent      , &
-                edmf_qc     , sub_thl     , sub_sqv        , det_thl      , det_sqv       , &
-                exch_h      , exch_m      , dqke           , qwt          , qshear        , &
-                qbuoy       , qdiss       , sh3d           ,                                &
+               (ids        , ide        , jds        , jde          , kds           , kde        , &
+                ims        , ime        , jms        , jme          , kms           , kme        , &
+                its        , ite        , jts        , jte          , kts           , kte        , &
+                f_qc       , f_qi       , f_qoz      , f_nc         , f_ni          , f_nifa     , &
+                f_nwfa     , initflag   , do_restart , do_DAcycling , grav_settling , icloud_bl  , &
+                delt       , dx         , xland      , ps           , ts            , qsfc       , &
+                qcg        , ust        , ch         , hfx          , qfx           , rmol       , &
+                wspd       , znt        , vdfg       , uoce         , voce          , dz         , &
+                u          , v          , w          , th           , tt            , p          , &
+                exner      , rho        , qv         , qc           , qi            , nc         , &
+                ni         , nifa       , nwfa       , qoz          , rthraten      , pblh       , &
+                kpbl       , delta      , wstar      , cldfra_bl    , qc_bl         , qi_bl      , &
+                nupdraft   , ktop_plume , maxmf      , qke          , qke_adv       , tsq        , &
+                qsq        , cov        , el_pbl     , rublten      , rvblten       , rthblten   , &
+                rqvblten   , rqcblten   , rqiblten   , rncblten     , rniblten      , rnifablten , &
+                rnwfablten , rqozblten  , edmf_a     , edmf_w       , edmf_qt       , edmf_thl   , &
+                edmf_ent   , edmf_qc    , sub_thl    , sub_sqv      , det_thl       , det_sqv    , &
+                exch_h     , exch_m     , dqke       , qwt          , qshear        , qbuoy      , &
+                qdiss      , sh3d       , spp_pbl    , pattern_spp  ,                              &
                 bl_mynn_closure  , bl_mynn_cloudpdf , bl_mynn_mixlength , bl_mynn_edmf       , &
                 bl_mynn_edmf_mom , bl_mynn_edmf_tke , bl_mynn_output    , bl_mynn_mixscalars , &
                 bl_mynn_cloudmix , bl_mynn_mixqt    , bl_mynn_tkeadvect , bl_mynn_tkebudget  , &
@@ -140,8 +137,8 @@
     nifa,    &!
     nwfa      !
 
- real(kind=kind_phys),intent(in),dimension(ims:ime,kms:kme,jms:jme),optional:: &
-    pattern_spp_bl !
+ real(kind=kind_phys),intent(in),dimension(ims:ime,kms:kme,jms:jme):: &
+    pattern_spp   !
 
 !--- inout arguments:
  integer,intent(inout),dimension(ims:ime,jms:jme):: &
@@ -374,24 +371,15 @@
        enddo
     endif
 
-
     !--- conversion from mixing ratios to specific contents:
     call bl_mynn_mpas_run(its,ite,kte,f_qc,f_qi,qv_hv,qc_hv,qi_hv,sqv_hv,sqc_hv,sqi_hv,errmsg,errflg)
 
-
-    if(present(pattern_spp_bl)) then
-       do k = kts,kte
-          do i = its,ite
-             pattern_spp_hv(i,k) = pattern_spp_bl(i,k,j)
-          enddo
+    !--- initialization of the stochastic forcing in the PBL:
+    do k = kts,kte
+       do i = its,ite
+          pattern_spp_hv(i,k) = pattern_spp(i,k,j)
        enddo
-    else
-       do k = kts,kte
-          do i = its,ite
-             pattern_spp_hv(i,k) = 0._kind_phys
-          enddo
-       enddo
-    endif
+    enddo
 
     !--- inout arguments:
     do i = its,ite

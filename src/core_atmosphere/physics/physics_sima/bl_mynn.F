@@ -64,7 +64,7 @@
              edmf_ent         , edmf_qc            , sub_thl          , & 
              sub_sqv          , det_thl            , det_sqv          , &
              nupdraft         , maxmf              , ktop_plume       , &
-             spp_pbl          , pattern_spp_pbl1   , rthraten         , &
+             spp_pbl          , pattern_spp_pbl    , rthraten         , &
              flag_qc          , flag_qi            , flag_qnc         , &
              flag_qni         , flag_qnwfa         , flag_qnifa       , &
              !--- constants:
@@ -138,11 +138,11 @@
     qnwfa,       &!
     qozone        !
 
+ real(kind=kind_phys),intent(in),dimension(its:ite,kts:kte):: &
+    pattern_spp_pbl
+
  real(kind=kind_phys),intent(in),dimension(its:ite,kts:kme):: &
     w             !
-
- real(kind=kind_phys),intent(in),dimension(kts:kte),optional:: &
-    pattern_spp_pbl1
 
 !inout arguments:
  integer,intent(inout),dimension(its:ite):: &
@@ -360,6 +360,17 @@
     do k = kte,kte+1
        w1(k) = w(i,k)
     enddo
+
+!--- initialization of the PBL stochastic forcing:
+    if(spp_pbl .eq. 1) then
+       do k = kts,kte
+          rstoch_col(k) = pattern_spp_pbl(i,k)
+       enddo
+    else
+       do k = kts,kte
+          rstoch_col(k) = 0._kind_phys
+       enddo
+    endif
 
 
 !--- initialization of 1D inout variables using 2D inout variables:
@@ -582,16 +593,6 @@
           qi_bl1_old(k)     = qi_bl1(k)
        enddo
     endif
-    if(spp_pbl == 1) then
-       do k = kts,kte
-          rstoch_col(k) = 0._kind_phys
-       enddo
-    else
-       do k = kts,kte
-          rstoch_col(k) = 0._kind_phys
-       enddo
-    endif
-
 
     !--- computes the PBL height:
     call get_pblh(kts,kte,pblh1,thvl,qke1,zw,dz1,xland1,kpbl1)

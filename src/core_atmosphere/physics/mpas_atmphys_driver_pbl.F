@@ -197,7 +197,8 @@
        if(.not.allocated(rqozblten_p)   ) allocate(rqozblten_p(ims:ime,kms:kme,jms:jme) )
 
        !allocation of miscellaneous arrays:
-       if(.not.allocated(qoz_p)         ) allocate(qoz_p(ims:ime,kms:kme,jms:jme)       )
+       if(.not.allocated(qoz_p)          ) allocate(qoz_p(ims:ime,kms:kme,jms:jme)          )
+       if(.not.allocated(pattern_spp_pbl)) allocate(pattern_spp_pbl(ims:ime,kms:kme,jms:jme))
 
     case default
 
@@ -311,7 +312,8 @@
        if(allocated(rqozblten_p)   ) deallocate(rqozblten_p   )
 
        !deallocation of miscellaneous arrays:
-       if(allocated(qoz_p)         ) deallocate(qoz_p         )
+       if(allocated(qoz_p)          ) deallocate(qoz_p          )
+       if(allocated(pattern_spp_pbl)) deallocate(pattern_spp_pbl)
 
     case default
 
@@ -503,6 +505,10 @@
           subqv_p(i,k,j)      = sub_qv(k,i)
           detthl_p(i,k,j)     = det_thl(k,i)
           detqv_p(i,k,j)      = det_qv(k,i)
+          !... allocation of the ozone mixing ratio:
+          qoz_p(i,k,j)           = 0._RKIND
+          !... allocation of the PBL sotchastic forcing:
+          pattern_spp_pbl(i,k,j) = 0._RKIND
           !... tendencies:
           rncblten_p(i,k,j)   = 0._RKIND
           rniblten_p(i,k,j)   = 0._RKIND
@@ -849,56 +855,56 @@
 
        call mpas_timer_start('bl_mynn')
        call mynn_bl_driver ( &
-                 p           = pres_hyd_p     , exner      = pi_p         , ps          = psfc_p       , &
-                 th          = th_p           , tt         = t_p          , dz          = dz_p         , &
-                 dx          = dx_p           , u          = u_p          , v           = v_p          , &
-                 w           = w_p            , qv         = qv_p         , qc          = qc_p         , &
-                 qi          = qi_p           , qoz        = qoz_p        , nc          = nc_p         , &
-                 ni          = ni_p           , nifa       = nifa_p       , nwfa        = nwfa_p       , &
-                 rho         = rho_p          , rublten    = rublten_p    , rvblten     = rvblten_p    , &
-                 rthblten    = rthblten_p     , rqvblten   = rqvblten_p   , rqcblten    = rqcblten_p   , &
-                 rqiblten    = rqiblten_p     , rqozblten  = rqozblten_p  , rncblten    = rncblten_p   , &
-                 rniblten    = rniblten_p     , rnifablten = rnifablten_p , rnwfablten  = rnwfablten_p , &
-                 rthraten    = rthraten_p     , f_qc       = f_qc         , &
-                 f_qi        = f_qi           , f_qoz      = f_qoz        , f_nc        = f_nc         , &
-                 f_ni        = f_ni           , f_nifa     = f_nifa       , f_nwfa      = f_nwfa       , &
-                 icloud_bl   = icloud_bl      , kpbl       = kpbl_p       , pblh        = hpbl_p       , &
-                 xland       = xland_p        , ts         = tsk_p        , hfx         = hfx_p        , &
-                 qfx         = qfx_p          , ch         = ch_p         , znt         = znt_p        , &
-                 sh3d        = sh3d_p         , tsq        = tsq_p        , qsq         = qsq_p        , &
-                 cov         = cov_p          , el_pbl     = elpbl_p      , qsfc        = qsfc_p       , &
-                 qcg         = qcg_p          , ust        = ust_p        , rmol        = rmol_p       , &
-                 wspd        = wspd_p         , wstar      = wstar_p      , delta       = delta_p      , &
-                 delt        = dt_pbl         , exch_h     = kzh_p        , exch_m      = kzm_p        , &
-                 uoce        = uoce_p         , voce       = voce_p       , qke         = qke_p        , &
-                 qke_adv     = qkeadv_p       , vdfg       = vdfg_p       , dqke        = dqke_p       , &
-                 qwt         = qwt_p          , qshear     = qshear_p     , qbuoy       = qbuoy_p      , &
-                 qdiss       = qdiss_p        , qc_bl      = qcbl_p       , qi_bl       = qibl_p       , &
-                 cldfra_bl   = cldfrabl_p     , spp_pbl    = spp_pbl      , nupdraft    = nupdraft_p   , &
-                 ktop_plume  = ktopbl_shalc_p , maxmf      = maxmfbl_p    , edmf_a      = edmfa_p      , &
-                 edmf_w      = edmfw_p        , edmf_qt    = edmfqt_p     , edmf_thl    = edmfthl_p    , &
-                 edmf_ent    = edmfent_p      , edmf_qc    = edmfqc_p     , sub_thl     = subthl_p     , &
-                 sub_sqv     = subqv_p        , det_thl    = detthl_p     , det_sqv     = detqv_p      , &
-                 do_restart         = config_do_restart   ,                                              &
-                 do_DAcycling       = config_do_DAcycling ,                                              &
-                 initflag           = initflag            ,                                              &
-                 grav_settling      = grav_settling       ,                                              &
-                 bl_mynn_closure    = bl_mynn_closure     ,                                              &
-                 bl_mynn_cloudpdf   = bl_mynn_cloudpdf    ,                                              &
-                 bl_mynn_cloudmix   = bl_mynn_cloudmix    ,                                              &
-                 bl_mynn_mixlength  = bl_mynn_mixlength   ,                                              &
-                 bl_mynn_mixscalars = bl_mynn_mixscalars  ,                                              &
-                 bl_mynn_mixqt      = bl_mynn_mixqt       ,                                              &
-                 bl_mynn_tkeadvect  = bl_mynn_tkeadvect   ,                                              &
-                 bl_mynn_tkebudget  = bl_mynn_tkebudget   ,                                              &
-                 bl_mynn_edmf       = bl_mynn_edmf        ,                                              &
-                 bl_mynn_edmf_mom   = bl_mynn_edmf_mom    ,                                              &
-                 bl_mynn_edmf_tke   = bl_mynn_edmf_tke    ,                                              &
-                 bl_mynn_output     = bl_mynn_edmf_output ,                                              &
-                 ids = ids , ide = ide , jds = jds , jde = jde , kds = kds , kde = kde ,                 &
-                 ims = ims , ime = ime , jms = jms , jme = jme , kms = kms , kme = kme ,                 &
-                 its = its , ite = ite , jts = jts , jte = jte , kts = kts , kte = kte ,                 &
-                 errmsg = errmsg , errflg = errflg                                                       &
+                 p        = pres_hyd_p , exner      = pi_p           , ps          = psfc_p          , &
+                 th       = th_p       , tt         = t_p            , dz          = dz_p            , &
+                 dx       = dx_p       , u          = u_p            , v           = v_p             , &
+                 w        = w_p        , qv         = qv_p           , qc          = qc_p            , &
+                 qi       = qi_p       , qoz        = qoz_p          , nc          = nc_p            , &
+                 ni       = ni_p       , nifa       = nifa_p         , nwfa        = nwfa_p          , &
+                 rho      = rho_p      , rublten    = rublten_p      , rvblten     = rvblten_p       , &
+                 rthblten = rthblten_p , rqvblten   = rqvblten_p     , rqcblten    = rqcblten_p      , &
+                 rqiblten = rqiblten_p , rqozblten  = rqozblten_p    , rncblten    = rncblten_p      , &
+                 rniblten = rniblten_p , rnifablten = rnifablten_p   , rnwfablten  = rnwfablten_p    , &
+                 rthraten = rthraten_p , f_qc       = f_qc           , f_qi        = f_qi            , &
+                 f_qoz    = f_qoz      , f_nc       = f_nc           , f_ni        = f_ni            , &
+                 f_nifa   = f_nifa     , f_nwfa     = f_nwfa         , icloud_bl   = icloud_bl       , &
+                 kpbl     = kpbl_p     , pblh       = hpbl_p         , xland       = xland_p         , &
+                 ts       = tsk_p      , hfx        = hfx_p          , qfx         = qfx_p           , &
+                 ch       = ch_p       , znt        = znt_p          , sh3d        = sh3d_p          , &
+                 tsq      = tsq_p      , qsq        = qsq_p          , cov         = cov_p           , &
+                 el_pbl   = elpbl_p    , qsfc       = qsfc_p         , qcg         = qcg_p           , &
+                 ust      = ust_p      , rmol       = rmol_p         , wspd        = wspd_p          , &
+                 wstar    = wstar_p    , delta      = delta_p        , delt        = dt_pbl          , &
+                 exch_h   = kzh_p      , exch_m     = kzm_p          , uoce        = uoce_p          , &
+                 voce     = voce_p     , qke        = qke_p          , qke_adv     = qkeadv_p        , &
+                 vdfg     = vdfg_p     , dqke       = dqke_p         , qwt         = qwt_p           , &
+                 qshear   = qshear_p   , qbuoy      = qbuoy_p        , qdiss       = qdiss_p         , &
+                 qc_bl    = qcbl_p     , qi_bl      = qibl_p         , cldfra_bl   = cldfrabl_p      , &
+                 nupdraft = nupdraft_p , ktop_plume = ktopbl_shalc_p , maxmf       = maxmfbl_p       , &
+                 edmf_a   = edmfa_p    , edmf_w     = edmfw_p        , edmf_qt     = edmfqt_p        , &
+                 edmf_thl = edmfthl_p  , edmf_ent   = edmfent_p      , edmf_qc     = edmfqc_p        , &
+                 sub_thl  = subthl_p   , sub_sqv    = subqv_p        , det_thl     = detthl_p        , &
+                 det_sqv  = detqv_p    , spp_pbl    = spp_pbl        , pattern_spp = pattern_spp_pbl , &
+                 do_restart         = config_do_restart   ,                                            &
+                 do_DAcycling       = config_do_DAcycling ,                                            &
+                 initflag           = initflag            ,                                            &
+                 grav_settling      = grav_settling       ,                                            &
+                 bl_mynn_closure    = bl_mynn_closure     ,                                            &
+                 bl_mynn_cloudpdf   = bl_mynn_cloudpdf    ,                                            &
+                 bl_mynn_cloudmix   = bl_mynn_cloudmix    ,                                            &
+                 bl_mynn_mixlength  = bl_mynn_mixlength   ,                                            &
+                 bl_mynn_mixscalars = bl_mynn_mixscalars  ,                                            &
+                 bl_mynn_mixqt      = bl_mynn_mixqt       ,                                            &
+                 bl_mynn_tkeadvect  = bl_mynn_tkeadvect   ,                                            &
+                 bl_mynn_tkebudget  = bl_mynn_tkebudget   ,                                            &
+                 bl_mynn_edmf       = bl_mynn_edmf        ,                                            &
+                 bl_mynn_edmf_mom   = bl_mynn_edmf_mom    ,                                            &
+                 bl_mynn_edmf_tke   = bl_mynn_edmf_tke    ,                                            &
+                 bl_mynn_output     = bl_mynn_edmf_output ,                                            &
+                 ids = ids , ide = ide , jds = jds , jde = jde , kds = kds , kde = kde ,               &
+                 ims = ims , ime = ime , jms = jms , jme = jme , kms = kms , kme = kme ,               &
+                 its = its , ite = ite , jts = jts , jte = jte , kts = kts , kte = kte ,               &
+                 errmsg = errmsg , errflg = errflg                                                     &
                            )
        call mpas_timer_stop('bl_mynn')
        call mpas_log_write('--- exit subroutine mynn_bl_driver:')
