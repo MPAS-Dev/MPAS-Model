@@ -150,7 +150,9 @@ updated to include ``minLevelCell``:
 * ``vertexMask``
 
 A very large number of vertical loops will need to be altered in MPAS-Ocean.
-We will prioritize subroutines that are involved in any of the test cases for
+Thus, this work will be divided into at least two phases. 
+
+The first phase consists of subroutines that are involved in any of the test cases for
 the ``sub_ice_shelf_2D`` configuration in legacy COMPASS.  This will give us
 a testbed for ensuring that the new functionality behaves as expected without
 requiring us to work through routines related to parameterizations, such as
@@ -163,162 +165,158 @@ updated.  First are those related to ``init`` mode, then those used in
 
 Init:
 
-* [ ] ``ocn_init_sub_ice_shelf_2D``:
+* [X] ``ocn_init_sub_ice_shelf_2D``:
 
-  * [ ] ``ocn_init_setup_sub_ice_shelf_2D()``
+  * [X] ``ocn_init_setup_sub_ice_shelf_2D()``
 
-* [ ] ``ocn_init_ssh_and_landIcePressure``:
+* [X] ``ocn_init_ssh_and_landIcePressure``:
 
-  * [ ] ``ocn_init_ssh_and_landIcePressure_vertical_grid()``
+  * [X] ``ocn_init_ssh_and_landIcePressure_balance()``
 
-  * [ ] ``ocn_init_ssh_and_landIcePressure_balance()``
+* [X] ``ocn_init_vertical_grids``:
 
-* [ ] ``ocn_init_vertical_grids``:
+  * [X] ``ocn_init_vertical_grid()``
+  
+  * [X] ``ocn_compute_z_level_layerThickness()``
+  
+  * [X] ``ocn_compute_zMid_from_layerThickness()``
 
-  * [ ] ``ocn_compute_layerThickness_zMid_from_bottomDepth()``
+  * [X] ``ocn_compute_z_star_layerThickness()``
 
-  * [ ] ``ocn_alter_bottomDepth_for_pbcs()``
+  * [X] ``ocn_alter_bottomDepth_for_pbcs()``
 
-  * [ ] ``ocn_compute_Haney_number()``
+  * [X] ``ocn_alter_ssh_for_ptcs()``
 
-  * [ ] ``ocn_init_vertical_grid_with_max_rx1()``
+  * [X] ``ocn_compute_Haney_number()``
 
-  * [ ] ``constrain_rx1_layer()``
+* [X] ``ocn_init_isomip``:
+
+  * [X] ``ocn_init_setup_isomip()``
 
 Forward:
 
-* [ ] ``ocn_init_routines``:
+* [X] ``ocn_init_routines``:
 
-  * [ ] ``ocn_init_routines_compute_min_max_level()``
+  * [X] ``ocn_init_routines_compute_min_max_level()``
 
-  * [ ] ``ocn_init_routines_vert_coord()``
+  * [X] ``ocn_init_routines_vert_coord()``
 
-  * [ ] ``ocn_init_routines_block()``
+  * [X] ``ocn_init_routines_block()``
 
-* [ ] ``ocn_time_integration_split``:
+* [X] ``ocn_time_integration_split``:
 
-  * [ ] ``ocn_time_integration_split_init()``
+  * [X] ``ocn_time_integration_split_init()``
 
-  * [ ] ``ocn_time_integrator_split()``
+  * [X] ``ocn_time_integrator_split()``
 
-* [ ] ``ocn_mesh``:
+* [X] ``ocn_mesh``:
 
-  * [ ] ``minLevelCell``
+  * [X] ``minLevelCell``
 
-  * [ ] ``minLevelEdgeTop``
+  * [X] ``minLevelEdgeTop``
 
-  * [ ] ``minLevelEdgeBot``
+  * [X] ``minLevelEdgeBot``
 
-  * [ ] ``minLevelVertexTop``
+  * [X] ``minLevelVertexTop``
 
-  * [ ] ``minLevelVertexBot``
+  * [X] ``minLevelVertexBot``
 
-  * [ ] ``ocn_meshCreate()``
+  * [X] ``ocn_meshCreate()``
 
-  * [ ] ``ocn_meshUpdateFields()``
+  * [X] ``ocn_meshUpdateFields()``
 
-  * [ ] ``ocn_meshDestroy()``
+  * [X] ``ocn_meshDestroy()``
 
-* [ ] ``ocn_tendency``:
+* [X] ``ocn_forcing``:
 
-  * [ ] ``ocn_tend_tracer``
+  * [X] ``ocn_forcing_build_fraction_absorbed_array``
 
-* [ ] ``ocn_forcing``:
+* [X] ``ocn_thick_hadv``:
 
-  * [ ] ``ocn_forcing_build_fraction_absorbed_array``
+  * [X] ``ocn_hadv_thick_tend``
 
-* [ ] ``ocn_thick_hadv``:
+* [X] ``ocn_thick_vadv``:
 
-  * [ ] ``ocn_hadv_thick_tend``
+  * [X] ``ocn_vadv_thick_tend``
 
-* [ ] ``ocn_thick_vadv``:
+* [X] ``ocn_thick_surface_flux``:
 
-  * [ ] ``ocn_vadv_thick_tend``
+  * [X] ``ocn_thick_surface_flux_tend``
 
-* [ ] ``ocn_thick_surface_flux``:
+* [X] ``ocn_tracer_advection``:
 
-  * [ ] ``ocn_thick_surface_flux_tend``
+  * [X] ``ocn_tracer_advection_tend``
 
-* [ ] ``ocn_tracer_advection``:
+* [X] ``ocn_tracer_advection_mono``:
 
-  * [ ] ``ocn_tracer_advection_tend``
+  * [X] ``ocn_tracer_advection_mono_tend``
 
-* [ ] ``ocn_tracer_advection_mono``:
+* [X] ``ocn_vel_forcing_surface_stress``:
 
-  * [ ] ``ocn_tracer_advection_mono_tend``
+  * [X] ``ocn_vel_forcing_surface_stress_tend``
 
-* [ ] ``ocn_vel_forcing_surface_stress``:
+* [X] ``ocn_vel_hmix_del2``:
 
-  * [ ] ``ocn_vel_forcing_surface_stress_tend``
+  * [X] ``ocn_vel_hmix_del2_tend``
 
-* [ ] ``ocn_vel_hmix_del2``:
+* [X] ``ocn_vel_hadv_coriolis``:
 
-  * [ ] ``ocn_vel_hmix_del2_tend``
+  * [X] ``ocn_vel_hadv_coriolis_tend``
 
-* [ ] ``ocn_vel_hadv_coriolis``:
+* [X] ``ocn_vel_vadv``:
 
-  * [ ] ``ocn_vel_hadv_coriolis_tend``
+  * [X] ``ocn_vel_vadv_tend``
 
-* [ ] ``ocn_vel_vadv``:
+* [X] ``ocn_vmix_cvmix``:
 
-  * [ ] ``ocn_vel_vadv_tend``
+  * [X] ``ocn_vmix_coefs_cvmix_build``
 
-* [ ] ``ocn_vmix_cvmix``:
+* [X] ``ocn_diagnostics``:
 
-  * [ ] ``ocn_vmix_coefs_cvmix_build``
+  * [X] ``ocn_relativeVorticity_circulation()``
 
-* [ ] ``ocn_diagnostics``:
+  * [X] ``ocn_diagnostic_solve_layerThicknessEdge()``
 
-  * [ ] ``ocn_relativeVorticity_circulation()``
+  * [X] ``ocn_diagnostic_solve_vorticity()``
 
-  * [ ] ``ocn_diagnostic_solve_layerThicknessEdge()``
+  * [X] ``ocn_diagnostic_solve_richardson()``
 
-  * [ ] ``ocn_diagnostic_solve_vorticity()``
+  * [X] ``ocn_diagnostic_solve_surfaceLayer()``
 
-  * [ ] ``ocn_diagnostic_solve_richardson()``
+  * [X] ``ocn_diagnostic_solve_vortVel()``
 
-  * [ ] ``ocn_diagnostic_solve_surfaceLayer()``
+  * [X] ``ocn_diagnostic_solve_z_coordinates()``
 
-  * [ ] ``ocn_diagnostic_solve_vortVel()``
+  * [X] ``ocn_diagnostic_solve_pressure()``
 
-  * [ ] ``ocn_diagnostic_solve_z_coordinates()``
+  * [X] ``ocn_vert_transport_velocity_top()``
 
-  * [ ] ``ocn_diagnostic_solve_pressure()``
+  * [X] ``ocn_fuperp()``
 
-  * [ ] ``ocn_vert_transport_velocity_top()``
+  * [X] ``ocn_compute_land_ice_flux_input_fields()``
 
-  * [ ] ``ocn_fuperp()``
+  * [X] ``ocn_validate_state()``
 
-  * [ ] ``ocn_compute_land_ice_flux_input_fields()``
+* [X] ``ocn_thick_ale``:
 
-  * [ ] ``ocn_validate_state()``
+  * [X] ``ocn_ALE_thickness``
 
-* [ ] ``ocn_thick_ale``:
+* [X] ``ocn_vel_pressure_grad``:
 
-  * [ ] ``ocn_ALE_thickness``
+  * [X] ``ocn_vel_pressure_grad_tend``
 
-* [ ] ``ocn_vel_pressure_grad``:
+* [X] ``ocn_vmix``:
 
-  * [ ] ``ocn_vel_pressure_grad_tend``
+  * [X] ``ocn_vmix_implicit``
 
-* [ ] ``ocn_vmix``:
+  * [X] ``ocn_vel_vmix_tend_implicit``
 
-  * [ ] ``ocn_vmix_implicit``
+  * [X] ``ocn_tracer_vmix_tend_implicit``
 
-  * [ ] ``ocn_vel_vmix_tend_implicit``
+* [X] ``ocn_vmix_cvmix``:
 
-  * [ ] ``ocn_tracer_vmix_tend_implicit``
+  * [X] ``ocn_vmix_coefs_cvmix_build``
 
-...
-
-.. note::
-
-  ``ocn_equation_of_state_jm`` currently doesn't include any reference to
-  ``maxLevel*`` but this is mildly concerning.  T and S are clipped to the
-  valid range before density is computed, meaning that contamination with
-  invalid values could go unnoticed.  Still, it does appear that
-  ``displacedDensity`` is currently only used starting at index ``k = 2``, so
-  no invalid values should be getting used.
 
 .. note::
 
@@ -327,15 +325,157 @@ Forward:
   distribute surface fluxes unless we use an alternative approach where the vertical
   index of transmissionCoeff is number of cells from minLevelCell rather than k-levels
 
+.. note::
 
-Here is a (by no means complete) checklist of routines not used by
-``sub_ice_shelf_2D`` test cases that are a lower priority to update:
+  `Loop limits`_ in ``ocn_vorticity`` to solve for ``normalizedRelativeVorticityVertex`` 
+  and ``normalizedPlanetaryVorticityVertex`` could not be changed from 
+  ``1,maxLevelVertexBot`` to ``minLevelVertexTop,maxLevelVertexBot`` without introducing
+  non bit-for-bit changes in the MPAS nightly regression suite.
+  .. _Loop limits: https://github.com/MPAS-Dev/MPAS-Model/blob/233da699cf7bd9f6e40812d8594a95f1c69de984/src/core_ocean/shared/mpas_ocn_diagnostics.F#L678
+
+
+Phase 2 (enabling other configuration options):
 
 Init:
 
-* [ ] ``ocn_init_cell_markers``:
+* [ ] ``ocn_init_isomip_plus``:
 
-  * [ ] ``ocn_mark_maxlevelcell()``
+  * [ ] ``ocn_init_setup_isomip_plus()``
+
+Forward:
+
+* [ ] ``ocn_tracer_surface_flux_to_tend``:
+
+  * [ ] ``ocn_tracer_surface_flux_tend``
+
+* [ ] ``ocn_diagnostics``:
+
+  * [ ] ``ocn_filter_btr_mode_tend_vel()``
+
+* [ ] ``ocn_tendency``:
+
+  * [ ] ``ocn_tend_freq_filtered_thickness``
+
+* [ ] ``ocn_tracer_advection_std``:
+
+  * [ ] ``ocn_tracer_advection_std_tend``
+
+* [ ] ``ocn_tracer_DMS``:
+
+  * [ ] ``ocn_tracer_DMS_compute``
+
+  * [ ] ``ocn_tracer_DMS_surface_flux_compute``: iLevelSurface
+
+* [ ] ``ocn_tracer_ecosys``:
+
+  * [ ] ``ocn_tracer_ecosys_compute``
+
+  * [ ] ``ocn_tracer_ecosys_surface_flux_compute``: iLevelSurface
+
+* [ ] ``ocn_tracer_MacroMolecules``:
+
+  * [ ] ``ocn_tracer_MacroMolecules_compute``
+
+* [ ] ``ocn_tracer_short_wave_absorption_jerlov``:
+
+  * [ ] ``ocn_tracer_short_wave_absorption_jerlov_tend``
+
+* [ ] ``ocn_tracer_short_wave_absorption_variable``:
+
+  * [ ] ``ocn_tracer_short_wave_absorption_variable_tend``
+
+* [ ] ``ocn_tracer_interior_restoring``:
+
+  * [ ] ``ocn_tracer_interior_restoring_compute``
+
+* [ ] ``ocn_frazil_forcing``:
+
+  * [ ] ``ocn_frazil_forcing_layer_thickness``
+
+  * [ ] ``ocn_frazil_forcing_active_tracers``
+
+  * [ ] ``ocn_frazil_forcing_build_arrays``
+
+* [ ] ``ocn_diagnostics``:
+
+  * [ ] ``ocn_compute_KPP_input_fields()``
+
+* [ ] ``ocn_vmix``:
+
+  * [ ] ``ocn_compute_kpp_rhs``
+
+* [ ] ``ocn_gm``:
+
+  * [ ] ``ocn_GM_compute_Bolus_velocity()``
+
+* [ ] ``ocn_tracer_hmix_del2``:
+
+  * [ ] ``ocn_tracer_hmix_del2_tend``
+
+* [ ] ``ocn_tracer_hmix_del4``:
+
+  * [ ] ``ocn_tracer_hmix_del4_tend``
+
+* [ ] ``ocn_tracer_hmix_Redi``:
+
+  * [ ] ``ocn_tracer_hmix_Redi_tend``
+
+* [ ] ``ocn_tracer_nonlocalflux``:
+
+  * [ ] ``ocn_tracer_nonlocalflux_tend``
+
+* [ ] ``ocn_high_freq_thickness_hmix_del2``:
+
+  * [ ] ``ocn_high_freq_thickness_hmix_del2_tend``
+
+* [ ] ``ocn_vel_hmix_del4``:
+
+  * [ ] ``ocn_vel_hmix_del4_tend``
+
+* [ ] ``ocn_vel_hmix_leith``:
+
+  * [ ] ``ocn_vel_hmix_leith_tend``
+
+* [ ] ``ocn_tracer_exponential_decay``:
+
+  * [ ] ``ocn_tracer_exponential_decay_compute``
+
+* [ ] ``ocn_tracer_ideal_age``:
+
+  * [ ] ``ocn_tracer_ideal_age_compute``
+
+* [ ] ``ocn_vmix``:
+
+  * [ ] ``ocn_vel_vmix_tend_implicit_spatially_variable``
+
+  * [ ] ``ocn_vel_vmix_tend_implicit_spatially_variable_mannings``
+
+  * [ ] ``ocn_vel_vmix_tend_implicit_rayleigh``
+
+* [ ] ``ocn_tidal_forcing``:
+
+  * [ ] ``ocn_tidal_forcing_build_array``
+
+  * [ ] ``ocn_tidal_forcing_layer_thickness``
+
+  * [ ] ``ocn_compute_tidal_potential_forcing``
+
+* [ ] ``ocn_vel_tidal_potential``:
+
+  * [ ] ``ocn_vel_tidal_potential_tend``
+
+* [ ] ``ocn_wetting_drying``:
+
+  * [ ] ``ocn_wetting_drying_verify``
+
+  * [ ] ``ocn_prevent_drying_rk4``
+
+  * [ ] ``ocn_wetting_drying_wettingVelocity``
+
+
+Phase 3 (changes to initialization):
+
+Init:
 
 * [ ] ``ocn_init_global_ocean``:
 
@@ -353,153 +493,31 @@ Init:
 
   * [ ] ``ocn_init_setup_global_ocean_interpolate_tracers()``
 
-* [ ] ``ocn_init_isomip``:
+* [ ] ``ocn_init_cell_markers``:
 
-  * [ ] ``ocn_init_setup_isomip()``
-
-* [ ] ``ocn_init_isomip_plus``:
-
-  * [ ] ``ocn_init_setup_isomip_plus()``
-
-Forward:
-
-* [ ] ``ocn_diagnostics``:
-
-  * [ ] ``ocn_filter_btr_mode_tend_vel()``
-
-  * [ ] ``ocn_compute_KPP_input_fields()``
-
-* [ ] ``ocn_gm``:
-
-  * [ ] ``ocn_GM_compute_Bolus_velocity()``
-
-* [ ] ``ocn_tendency``:
-
-  * [ ] ``ocn_tend_freq_filtered_thickness``
-
-* [ ] ``ocn_tidal_forcing``:
-
-  * [ ] ``ocn_tidal_forcing_build_array``
-
-  * [ ] ``ocn_tidal_forcing_layer_thickness``
-
-* [ ] ``ocn_vel_tidal_potential``:
-
-  * [ ] ``ocn_vel_tidal_potential_tend``
-
-* [ ] ``ocn_tracer_advection_std``:
-
-  * [ ] ``ocn_tracer_advection_std_tend``
-
-* [ ] ``ocn_wetting_drying``:
-
-  * [ ] ``ocn_wetting_drying_verify``
-
-  * [ ] ``ocn_prevent_drying_rk4``
-
-  * [ ] ``ocn_wetting_drying_wettingVelocity``
-
-* [ ] ``ocn_vmix``:
-
-  * [ ] ``ocn_vel_vmix_tend_implicit_spatially_variable``
-
-  * [ ] ``ocn_vel_vmix_tend_implicit_spatially_variable_mannings``
-
-  * [ ] ``ocn_vel_vmix_tend_implicit_rayleigh``
-
-  * [ ] ``ocn_compute_kpp_rhs``
-
-* [ ] ``ocn_tracer_exponential_decay``:
-
-  * [ ] ``ocn_tracer_exponential_decay_compute``
-
-* [ ] ``ocn_tracer_DMS``:
-
-  * [ ] ``ocn_tracer_DMS_compute``
-
-  * [ ] ``ocn_tracer_DMS_surface_flux_compute``: iLevelSurface
-
-* [ ] ``ocn_tracer_ecosys``:
-
-  * [ ] ``ocn_tracer_ecosys_compute``
-
-  * [ ] ``ocn_tracer_ecosys_surface_flux_compute``: iLevelSurface
-
-  * [ ] ``ocn_compute_tidal_potential_forcing``
-
-* [ ] ``ocn_frazil_forcing``:
-
-  * [ ] ``ocn_frazil_forcing_layer_thickness``
-
-  * [ ] ``ocn_frazil_forcing_active_tracers``
-
-  * [ ] ``ocn_frazil_forcing_build_arrays``
-
-* [ ] ``ocn_sea_ice``:
-
-  * [ ] ``ocn_sea_ice_formation``
-
-  * [ ] ``ocn_sea_ice_init``
-
-* [ ] ``ocn_tracer_hmix_del2``:
-
-  * [ ] ``ocn_tracer_hmix_del2_tend``
-
-* [ ] ``ocn_tracer_hmix_del4``:
-
-  * [ ] ``ocn_tracer_hmix_del4_tend``
-
-* [ ] ``ocn_tracer_hmix_Redi``:
-
-  * [ ] ``ocn_tracer_hmix_Redi_tend``
-
-* [ ] ``ocn_high_freq_thickness_hmix_del2``:
-
-  * [ ] ``ocn_high_freq_thickness_hmix_del2_tend``
-
-* [ ] ``ocn_vel_hmix_del4``:
-
-  * [ ] ``ocn_vel_hmix_del4_tend``
-
-* [ ] ``ocn_vel_hmix_leith``:
-
-  * [ ] ``ocn_vel_hmix_leith_tend``
-
-* [ ] ``ocn_tracer_ideal_age``:
-
-  * [ ] ``ocn_tracer_ideal_age_compute``
-
-* [ ] ``ocn_tracer_MacroMolecules``:
-
-  * [ ] ``ocn_tracer_MacroMolecules_compute``
-
-* [ ] ``ocn_tracer_nonlocalflux``:
-
-  * [ ] ``ocn_tracer_nonlocalflux_tend``
-
-* [ ] ``ocn_tracer_short_wave_absorption_jerlov``:
-
-  * [ ] ``ocn_tracer_short_wave_absorption_jerlov_tend``
-
-* [ ] ``ocn_tracer_short_wave_absorption_variable``:
-
-  * [ ] ``ocn_tracer_short_wave_absorption_variable_tend``
-
-  * [ ] ``ocn_get_variable_sw_fraction``: or only change depth input to this function
-
-* [ ] ``ocn_tracer_surface_flux_to_tend``:
-
-  * [ ] ``ocn_tracer_surface_flux_tend``
-
-* [ ] ``ocn_tracer_interior_restoring``:
-
-  * [ ] ``ocn_tracer_interior_restoring_compute``
-
-...
+  * [ ] ``ocn_mark_maxlevelcell()``
 
 .. note::
 
   May need to reconsider nVertLevels argument to ``ocn_sea_ice_init``
+
+.. note::
+
+  ``ocn_mark_maxlevelcell`` doesn't need to be changed if the dry cells are 
+  assigned maxlevelcell = 0.
+
+Outside the scope of this development:
+
+* ``ocn_equation_of_state``
+
+.. note::
+
+  ``ocn_equation_of_state_jm`` currently doesn't include any reference to
+  ``maxLevel*`` but this is mildly concerning.  T and S are clipped to the
+  valid range before density is computed, meaning that contamination with
+  invalid values could go unnoticed.  Still, it does appear that
+  ``displacedDensity`` is currently only used starting at index ``k = 2``, so
+  no invalid values should be getting used.
 
 
 Implementation: Surface fields and fluxes
