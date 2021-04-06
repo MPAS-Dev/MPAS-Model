@@ -2020,6 +2020,10 @@ contains
                               -100.0_RKIND) )
          ! Store the total tracer flux below in nonLocalSurfaceTemperatureFlux for use in the CVMix nonlocal
          ! transport code.  This includes tracer forcing due to thickness
+         ! Note: rainFlux, evaporationFlux, seaIceFreshWaterFlux, icebergFreshWaterFlux 
+         !       all have units of kg m^{-2} s^{-1}, so require division by rho_sw.
+         !       surfaceThicknessFlux, surfaceThicknessFluxRunoff have units of m s^{-1},
+         !       so has no division by rho_sw is needed.
 
          nonLocalSurfaceTracerFlux(indexTempFlux, iCell) = activeTracersSurfaceFlux(indexTempFlux,iCell) &
                  + penetrativeTemperatureFlux(iCell) - penetrativeTemperatureFluxOBL(iCell)  &
