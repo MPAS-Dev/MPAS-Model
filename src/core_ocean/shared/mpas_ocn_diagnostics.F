@@ -2024,7 +2024,7 @@ contains
          nonLocalSurfaceTracerFlux(indexTempFlux, iCell) = activeTracersSurfaceFlux(indexTempFlux,iCell) &
                  + penetrativeTemperatureFlux(iCell) - penetrativeTemperatureFluxOBL(iCell)  &
                  - fracAbsorbed * (rainFlux(iCell) + evaporationFlux(iCell)) * activeTracers(indexTempFlux,1,iCell)/rho_sw &
-                 - fracAbsorbedRunoff * surfaceThicknessFluxRunoff(iCell)* min(activeTracers(indexTempFlux,1,iCell),0.0_RKIND)/rho_sw &
+                 - fracAbsorbedRunoff * surfaceThicknessFluxRunoff(iCell)* min(activeTracers(indexTempFlux,1,iCell),0.0_RKIND) &
                  - fracAbsorbed * (seaIceFreshWaterFlux(iCell) + icebergFreshWaterFlux(iCell)) * &
                  ocn_freezing_temperature( activeTracers(indexSaltFlux, 1, iCell), pressure=0.0_RKIND, inLandIceCavity=.false.)&
                   / rho_sw
