@@ -26,6 +26,7 @@ module ocn_tracer_advection_std
    use mpas_pool_routines
    use mpas_io_units
    use mpas_threading
+   use ocn_diagnostics_variables
 
    use mpas_tracer_advection_helpers
 
@@ -66,11 +67,13 @@ module ocn_tracer_advection_std
    subroutine ocn_tracer_advection_std_tend(tracers, adv_coefs, adv_coefs_3rd, nAdvCellsForEdge, advCellsForEdge, &!{{{
                                              normalThicknessFlux, w, layerThickness, verticalCellSize, dt, meshPool, &
                                              tend, maxLevelCell, maxLevelEdgeTop, &
-                                             highOrderAdvectionMask, edgeSignOnCell)
+                                             highOrderAdvectionMask, edgeSignOnCell, computeIRFs)
 
       real (kind=RKIND), dimension(:,:,:), intent(in) :: tracers !< Input: current tracer values
       real (kind=RKIND), dimension(:,:), intent(in) :: adv_coefs !< Input: Advection coefficients for 2nd order advection
       real (kind=RKIND), dimension(:,:), intent(in) :: adv_coefs_3rd !< Input: Advection coeffs for blending in 3rd/4th order
+      logical, intent(in) :: &
+         computeIRFs            !< [in] Flag to compute IRF tracer budgets
       integer, dimension(:), intent(in) :: nAdvCellsForEdge !< Input: Number of advection cells for each edge
       integer, dimension(:,:), intent(in) :: advCellsForEdge !< Input: List of advection cells for each edge
       real (kind=RKIND), dimension(:,:), intent(in) :: normalThicknessFlux !< Input: Thichness weighted velocitiy
@@ -226,7 +229,38 @@ module ocn_tracer_advection_std
         end do ! iCell loop
         !$omp end do
         !$omp end parallel
+
+        if (computeIRFs) then
+          !$omp do schedule(runtime) private(invAreaCell1, i, iEdge, k)
+          do iCell = 1, nCells
+            invAreaCell1 = 1.0_RKIND / areaCell(iCell)
+            IRFTracersHorAdvTend(iTracer,:,iCell) = 0.0_RKIND
+            do i = 1, nEdgesOnCell(iCell)
+              iEdge = edgesOnCell(i, iCell)
+              do k = 1, maxLevelEdgeTop(iEdge)
+                IRFTracersHorAdvTend(iTracer,k,iCell) = IRFTracersHorAdvTend(iTracer,k,iCell) &
+                    + edgeSignOnCell(i, iCell) * high_order_horiz_flux(k, iEdge) * invAreaCell1
+              end do
+            end do
+          end do
+          !$omp end do
+
+          ! Accumulate the scaled high order vertical tendencies.
+          !$omp do schedule(runtime) private(k)
+          do iCell = 1, nCellsSolve
+            IRFTracersVertAdvTend(iTracer,:,iCell) = 0.0_RKIND
+            do k = 1,maxLevelCell(iCell)
+              IRFTracersVertAdvTend(iTracer,k,iCell) = IRFTracersVertAdvTend(iTracer,k,iCell) &
+                     + verticalDivergenceFactor(k) * (high_order_vert_flux(k+1, iCell) &
+                     - high_order_vert_flux(k, iCell))
+            end do ! k loop
+          end do ! iCell loop
+          !$omp end do
+          !$omp end parallel
+        end if
+
       end do ! iTracer loop
+
 
       deallocate(tracer_cur, high_order_horiz_flux, high_order_vert_flux)
       deallocate(verticalDivergenceFactor)
