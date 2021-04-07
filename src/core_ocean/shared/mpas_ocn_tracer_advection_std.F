@@ -228,7 +228,6 @@ module ocn_tracer_advection_std
           end do ! k loop
         end do ! iCell loop
         !$omp end do
-        !$omp end parallel
 
         if (computeIRFs) then
           !$omp do schedule(runtime) private(invAreaCell1, i, iEdge, k)
@@ -256,9 +255,9 @@ module ocn_tracer_advection_std
             end do ! k loop
           end do ! iCell loop
           !$omp end do
-          !$omp end parallel
         end if
 
+        !$omp end parallel
       end do ! iTracer loop
 
 
