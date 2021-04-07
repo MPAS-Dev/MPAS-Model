@@ -143,7 +143,8 @@ module ocn_tracer_advection
       endif
 
       ! call specific advection routine based on choice of monotonicity
-      if (monotonicOn) then
+      if (limiterOn) then
+         call mpas_log_write('Calling mono_tend for tracer group '//tracerGroupName)
          call ocn_tracer_advection_mono_tend(tend, tracers, layerThickness,    &
                                              normalThicknessFlux, w, dt,       &
                                              advCoefs, advCoefs3rd,            &
@@ -155,6 +156,7 @@ module ocn_tracer_advection
                                              limiterOn)
 
       else
+         call mpas_log_write('Calling std_tend for tracer group '//tracerGroupName)
          call ocn_tracer_advection_std_tend(tracers, advCoefs, advCoefs3rd, &
             nAdvCellsForEdge, advCellsForEdge, normalThicknessFlux, w, layerThickness, &
             layerThickness, dt, meshPool, tend, maxLevelCell, maxLevelEdgeTop, &
