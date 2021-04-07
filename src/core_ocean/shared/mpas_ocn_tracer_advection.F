@@ -139,7 +139,7 @@ module ocn_tracer_advection
           config_debugTracers_limit_advection.and.(tracerGroupName == 'debugTracers')) then
         limiterOn = .true.
       else
-        limiterOn = .false.
+        limiterOn = monotonicOn
       endif
 
       ! call specific advection routine based on choice of monotonicity
