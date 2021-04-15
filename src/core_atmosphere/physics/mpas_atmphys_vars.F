@@ -588,6 +588,9 @@
  real(kind=RKIND),dimension(:,:,:),allocatable:: &
     rqozblten_p        !tendency of ozone mixing ratio due to PBL processes.
 
+ real(kind=RKIND),dimension(:,:,:),allocatable:: &
+    pattern_spp_pbl    !stochastic forcing for the MYMM PBL and surface layer schemes.
+
 !=================================================================================================================
 !... variables and arrays related to parameterization of gravity wave drag over orography:
 !=================================================================================================================
