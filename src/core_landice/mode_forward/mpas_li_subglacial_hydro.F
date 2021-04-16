@@ -1069,19 +1069,18 @@ module li_subglacial_hydro
             + 1.0e-12_RKIND))  ! regularize
          dtSGHadvecProc = min(dtSGHadvecProc, dtSGHadvecBlock)
 
-         ! Calculate diffusive CFL-limited time step
+         ! Calculate diffusive CFL-limited time step & pressure-limited time step
          dtSGHdiffuBlock = 1.0e36_RKIND
+         dtSGHpressureBlock = 1.0e36_RKIND
          do iEdge = 1, nEdgesSolve
             if (diffusivity(iEdge) > 0.0_RKIND .and. li_mask_is_grounded_ice(edgeMask(iEdge)) .and. &
                     .not. li_mask_is_grounding_line(edgeMask(iEdge))) then
                dtSGHdiffuBlock = min(dtSGHdiffuBlock, 0.25_RKIND * dcEdge(iEdge)**2 / diffusivity(iEdge) )
+               dtSGHpressureBlock = min(dtSGHpressureBlock, porosity * dcEdge(iEdge)**2 &
+                   / (2.0_RKIND * diffusivity(iEdge)))
             endif
          enddo
          dtSGHdiffuProc = min(dtSGHdiffuProc, dtSGHdiffuBlock)
-
-         ! Calculate pressure limited time step
-         dtSGHpressureBlock = 1.0_RKIND * minval(porosity * dcEdge(1:nEdgesSolve)**2 &
-                   / (2.0_RKIND * diffusivity(1:nEdgesSolve) + 1.0e-12_RKIND))
          dtSGHpressureProc = min(dtSGHpressureProc, dtSGHpressureBlock)
 
          if (config_SGH_chnl_active) then
