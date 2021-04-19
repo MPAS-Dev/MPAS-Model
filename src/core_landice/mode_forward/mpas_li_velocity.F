@@ -810,13 +810,20 @@ contains
       type (mpas_pool_type), pointer :: thermalPool
       type (mpas_pool_type), pointer :: meshPool
       real (kind=RKIND), dimension(:), pointer :: betaSolve, beta
+      real (kind=RKIND), dimension(:), pointer :: effectivePressure, effectivePressureLimited
       real (kind=RKIND), dimension(:), pointer :: basalTemperature, basalPmpTemperature
+      real (kind=RKIND), dimension(:), pointer :: muFriction
       integer, dimension(:), pointer :: cellMask
       logical, pointer :: config_use_glp
       logical, pointer :: config_beta_thawed_only
+      logical, pointer :: config_extend_effective_pressure
+      real (kind=RKIND), pointer :: config_effective_pressure_max
       logical, pointer :: hydroActive
       real (kind=RKIND) :: betaAccum
       integer :: nBetaValues
+      real (kind=RKIND) :: NAccum
+      real (kind=RKIND) :: Nmin
+      integer :: nNValues
       integer :: iCell, iCell2
       integer :: neighbor
       integer, pointer :: nCells
@@ -827,15 +834,25 @@ contains
 
       call mpas_pool_get_config(liConfigs, 'config_use_glp', config_use_glp)
       call mpas_pool_get_config(liConfigs, 'config_beta_thawed_only', config_beta_thawed_only)
+      call mpas_pool_get_config(liConfigs, 'config_extend_effective_pressure', config_extend_effective_pressure)
+      call mpas_pool_get_config(liConfigs, 'config_effective_pressure_max', config_effective_pressure_max)
 
       call mpas_pool_get_subpool(block % structs, 'geometry', geometryPool)
       call mpas_pool_get_subpool(block % structs, 'velocity', velocityPool)
       call mpas_pool_get_subpool(block % structs, 'thermal', thermalPool)
+      call mpas_pool_get_subpool(block % structs, 'hydro', hydroPool)
       call mpas_pool_get_subpool(block % structs, 'mesh', meshPool)
 
       call mpas_pool_get_array(velocityPool, 'betaSolve', betaSolve)
       call mpas_pool_get_array(velocityPool, 'beta', beta)
+      call mpas_pool_get_array(velocityPool, 'muFriction', muFriction)
       call mpas_pool_get_array(geometryPool, 'cellMask', cellMask)
+      call mpas_pool_get_array(hydroPool, 'effectivePressure', effectivePressure)
+      call mpas_pool_get_array(velocityPool, 'effectivePressureLimited', effectivePressureLimited)
+
+      call mpas_pool_get_dimension(meshPool, 'nCells', nCells)
+      call mpas_pool_get_array(meshPool, 'nEdgesOnCell', nEdgesOnCell)
+      call mpas_pool_get_array(meshPool, 'cellsOnCell', cellsOnCell)
 
       betaSolve = beta
 
@@ -847,6 +864,40 @@ contains
             betaSolve = 1.0e6_RKIND  ! no-slip value for frozen bed locations
          end where
       endif
+
+      ! Effective pressure adjustments for velocity solver
+      effectivePressureLimited(:) = effectivePressure(:)
+
+      if (config_extend_effective_pressure) then
+         do iCell = 1, nCells
+            if ( .not. li_mask_is_grounded_ice(cellMask(iCell)) ) then
+               nNValues = 0
+               NAccum = 0.0_RKIND
+               Nmin = 1.0e20
+               do iCell2 = 1, nEdgesOnCell(iCell)
+                  neighbor = cellsOnCell(iCell2, iCell)
+                  if (li_mask_is_grounded_ice(cellMask(neighbor))) then
+                     NAccum = NAccum + effectivePressureLimited(neighbor)
+                     nNValues = nNValues + 1
+                     Nmin = min(Nmin, effectivePressureLimited(neighbor))
+                  endif
+               enddo
+               if (nNValues > 0) then
+!                  effectivePressureLimited(iCell) = NAccum / real(nNValues, kind=RKIND) ! take average of neighboring effectivePressure values
+                  ! <  TODO: could do this in log space
+                  effectivePressureLimited(iCell) = Nmin
+               endif
+            endif ! if iCell is floating
+         enddo ! cell loop
+      endif
+
+      ! Apply limits to N
+      do iCell = 1, nCells
+         effectivePressureLimited(iCell) = max(0.0_RKIND, effectivePressureLimited(iCell)) ! Never pass a negative N
+         effectivePressureLimited(iCell) = min(config_effective_pressure_max, effectivePressureLimited(iCell))
+      enddo
+      effectivePressureLimited(:) = effectivePressureLimited(:) * muFriction(:)
+
 
    !--------------------------------------------------------------------
    end subroutine calculate_beta

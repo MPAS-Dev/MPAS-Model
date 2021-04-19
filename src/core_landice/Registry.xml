@@ -100,6 +100,10 @@
 		            description="If true, nonconvergence of the velocity solver results in a fatal error.  If false, it is a warning."
 		            possible_values=".true. or .false."
 		/>
+		<nml_option name="config_extend_effective_pressure" type="logical" default_value=".true." units="unitless"
+		            description="If true, the field effectivePressure is extended by one cell before being passed to the velocity solver."
+		            possible_values=".true. or .false."
+		/>
                 <nml_option name="config_effective_pressure_max" type="real" default_value="1.0e36" units="Pa"
 		            description="An optional maximum limit on effective pressure passed to the velocity solver."
 		            possible_values="Any positive, real number."
