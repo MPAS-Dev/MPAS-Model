@@ -338,140 +338,148 @@ Phase 2 (enabling other configuration options):
 
 Init:
 
-* [ ] ``ocn_init_isomip_plus``:
+* [X] ``ocn_init_isomip_plus``:
 
-  * [ ] ``ocn_init_setup_isomip_plus()``
+  * [X] ``ocn_init_setup_isomip_plus()``
 
 Forward:
 
-* [ ] ``ocn_tracer_surface_flux_to_tend``:
+* [X] ``ocn_tracer_surface_flux_to_tend``:
 
-  * [ ] ``ocn_tracer_surface_flux_tend``
+  * [X] ``ocn_tracer_surface_flux_tend``
 
-* [ ] ``ocn_diagnostics``:
+* [X] ``ocn_diagnostics``:
 
-  * [ ] ``ocn_filter_btr_mode_tend_vel()``
+  * [X] ``ocn_filter_btr_mode_tend_vel()``
 
-* [ ] ``ocn_tendency``:
+* [X] ``ocn_tendency``:
 
-  * [ ] ``ocn_tend_freq_filtered_thickness``
+  * [X] ``ocn_tend_freq_filtered_thickness``
 
-* [ ] ``ocn_tracer_advection_std``:
+* [X] ``ocn_tracer_advection_std``:
 
-  * [ ] ``ocn_tracer_advection_std_tend``
+  * [X] ``ocn_tracer_advection_std_tend``
 
-* [ ] ``ocn_tracer_DMS``:
+* [X] ``ocn_tracer_DMS``:
 
-  * [ ] ``ocn_tracer_DMS_compute``
+  * [X] ``ocn_tracer_DMS_compute``
 
-  * [ ] ``ocn_tracer_DMS_surface_flux_compute``: iLevelSurface
+  * [X] ``ocn_tracer_DMS_surface_flux_compute``: iLevelSurface
 
-* [ ] ``ocn_tracer_ecosys``:
+* [X] ``ocn_tracer_ecosys``:
 
-  * [ ] ``ocn_tracer_ecosys_compute``
+  * [X] ``ocn_tracer_ecosys_compute``
 
-  * [ ] ``ocn_tracer_ecosys_surface_flux_compute``: iLevelSurface
+  * [X] ``ocn_tracer_ecosys_surface_flux_compute``: iLevelSurface
 
-* [ ] ``ocn_tracer_MacroMolecules``:
+* [X] ``ocn_tracer_MacroMolecules``:
 
-  * [ ] ``ocn_tracer_MacroMolecules_compute``
+  * [X] ``ocn_tracer_MacroMolecules_compute``
 
-* [ ] ``ocn_tracer_short_wave_absorption_jerlov``:
+* [X] ``ocn_tracer_short_wave_absorption_jerlov``:
 
-  * [ ] ``ocn_tracer_short_wave_absorption_jerlov_tend``
+  * [X] ``ocn_tracer_short_wave_absorption_jerlov_tend``
 
-* [ ] ``ocn_tracer_short_wave_absorption_variable``:
+* [X] ``ocn_tracer_short_wave_absorption_variable``:
 
-  * [ ] ``ocn_tracer_short_wave_absorption_variable_tend``
+  * [X] ``ocn_tracer_short_wave_absorption_variable_tend``
 
-* [ ] ``ocn_tracer_interior_restoring``:
+* [X] ``ocn_tracer_interior_restoring``:
 
-  * [ ] ``ocn_tracer_interior_restoring_compute``
+  * [X] ``ocn_tracer_interior_restoring_compute``
 
-* [ ] ``ocn_frazil_forcing``:
+* [X] ``ocn_frazil_forcing``:
 
-  * [ ] ``ocn_frazil_forcing_layer_thickness``
+  * [X] ``ocn_frazil_forcing_layer_thickness``
 
-  * [ ] ``ocn_frazil_forcing_active_tracers``
+  * [X] ``ocn_frazil_forcing_active_tracers``
 
-  * [ ] ``ocn_frazil_forcing_build_arrays``
+  * [X] ``ocn_frazil_forcing_build_arrays``
 
-* [ ] ``ocn_diagnostics``:
+* [X] ``ocn_diagnostics``:
 
-  * [ ] ``ocn_compute_KPP_input_fields()``
+  * [X] ``ocn_compute_KPP_input_fields()``
 
-* [ ] ``ocn_vmix``:
+* [X] ``ocn_vmix``:
 
-  * [ ] ``ocn_compute_kpp_rhs``
+  * [X] ``ocn_compute_kpp_rhs``
 
-* [ ] ``ocn_gm``:
+  * [X] ``ocn_vel_vmix_tend_implicit_spatially_variable``
 
-  * [ ] ``ocn_GM_compute_Bolus_velocity()``
+  * [X] ``ocn_vel_vmix_tend_implicit_spatially_variable_mannings``
 
-* [ ] ``ocn_tracer_hmix_del2``:
+  * [X] ``ocn_vel_vmix_tend_implicit_rayleigh``
 
-  * [ ] ``ocn_tracer_hmix_del2_tend``
+* [X] ``ocn_gm``:
 
-* [ ] ``ocn_tracer_hmix_del4``:
+  * [X] ``ocn_GM_compute_Bolus_velocity()``
 
-  * [ ] ``ocn_tracer_hmix_del4_tend``
+* [X] ``ocn_tracer_hmix_del2``:
 
-* [ ] ``ocn_tracer_hmix_Redi``:
+  * [X] ``ocn_tracer_hmix_del2_tend``
 
-  * [ ] ``ocn_tracer_hmix_Redi_tend``
+* [X] ``ocn_tracer_hmix_del4``:
 
-* [ ] ``ocn_tracer_nonlocalflux``:
+  * [X] ``ocn_tracer_hmix_del4_tend``
 
-  * [ ] ``ocn_tracer_nonlocalflux_tend``
+* [X] ``ocn_tracer_hmix_Redi``:
 
-* [ ] ``ocn_high_freq_thickness_hmix_del2``:
+  * [X] ``ocn_tracer_hmix_Redi_tend``: Incomplete
 
-  * [ ] ``ocn_high_freq_thickness_hmix_del2_tend``
+* [X] ``ocn_tracer_nonlocalflux``:
 
-* [ ] ``ocn_vel_hmix_del4``:
+  * [X] ``ocn_tracer_nonlocalflux_tend``
 
-  * [ ] ``ocn_vel_hmix_del4_tend``
+* [X] ``ocn_high_freq_thickness_hmix_del2``:
 
-* [ ] ``ocn_vel_hmix_leith``:
+  * [X] ``ocn_high_freq_thickness_hmix_del2_tend``
 
-  * [ ] ``ocn_vel_hmix_leith_tend``
+* [X] ``ocn_vel_hmix_del4``:
 
-* [ ] ``ocn_tracer_exponential_decay``:
+  * [X] ``ocn_vel_hmix_del4_tend``
 
-  * [ ] ``ocn_tracer_exponential_decay_compute``
+* [X] ``ocn_vel_hmix_leith``:
 
-* [ ] ``ocn_tracer_ideal_age``:
+  * [X] ``ocn_vel_hmix_leith_tend``
 
-  * [ ] ``ocn_tracer_ideal_age_compute``
+* [X] ``ocn_tracer_exponential_decay``:
 
-* [ ] ``ocn_vmix``:
+  * [X] ``ocn_tracer_exponential_decay_compute``
 
-  * [ ] ``ocn_vel_vmix_tend_implicit_spatially_variable``
+* [X] ``ocn_tracer_ideal_age``:
 
-  * [ ] ``ocn_vel_vmix_tend_implicit_spatially_variable_mannings``
+  * [X] ``ocn_tracer_ideal_age_compute``
 
-  * [ ] ``ocn_vel_vmix_tend_implicit_rayleigh``
+* [X] ``ocn_tidal_forcing``:
 
-* [ ] ``ocn_tidal_forcing``:
+  * [X] ``ocn_tidal_forcing_build_array``
 
-  * [ ] ``ocn_tidal_forcing_build_array``
+  * [X] ``ocn_tidal_forcing_layer_thickness``
 
-  * [ ] ``ocn_tidal_forcing_layer_thickness``
+  * [X] ``ocn_compute_tidal_potential_forcing``
 
-  * [ ] ``ocn_compute_tidal_potential_forcing``
+* [X] ``ocn_vel_tidal_potential``:
 
-* [ ] ``ocn_vel_tidal_potential``:
+  * [X] ``ocn_vel_tidal_potential_tend``
 
-  * [ ] ``ocn_vel_tidal_potential_tend``
+* [X] ``ocn_wetting_drying``:
 
-* [ ] ``ocn_wetting_drying``:
+  * [X] ``ocn_wetting_drying_verify``
 
-  * [ ] ``ocn_wetting_drying_verify``
+  * [X] ``ocn_prevent_drying_rk4``
 
-  * [ ] ``ocn_prevent_drying_rk4``
+  * [X] ``ocn_wetting_drying_wettingVelocity``
 
-  * [ ] ``ocn_wetting_drying_wettingVelocity``
+.. note::
 
+  ``minLevelCell`` changes to ``ocn_tracer_short_wave_absorption_variable`` have not been fully 
+  tested as this option requires initialization files not included in existing test cases and this 
+  option has not been used for production runs.
+
+.. note::
+
+  ``minLevelCell`` changes to ``ocn_tracer_hmix_Redi_tend`` are currently incomplete and will be 
+  completed in a later bugfix due to their effects on some ecosystem tracers.
 
 Phase 3 (changes to initialization):
 
@@ -497,6 +505,12 @@ Init:
 
   * [ ] ``ocn_mark_maxlevelcell()``
 
+Forward:
+
+* [X] ``ocn_init_routines``:
+
+  * [X] ``ocn_init_routines_compute_min_max_level()``: add timers
+
 .. note::
 
   May need to reconsider nVertLevels argument to ``ocn_sea_ice_init``
@@ -504,7 +518,7 @@ Init:
 .. note::
 
   ``ocn_mark_maxlevelcell`` doesn't need to be changed if the dry cells are 
-  assigned maxlevelcell = 0.
+  assigned maxlevelcell = 0, in which case they will be culled.
 
 Outside the scope of this development:
 
@@ -552,25 +566,25 @@ of top indexing that might not be easy to find (e.g. by searching for
 
 * [ ] ``ocn_diagnostics``:
 
-  * [ ] ``tracersSurfaceValue``
+  * [X] ``tracersSurfaceValue``
 
-  * [ ] ``normalVelocitySurfaceLayer``
+  * [X] ``normalVelocitySurfaceLayer``
 
   * [ ] ``ssh``
 
-  * [ ] ``fracAbsorbed``
+  * [X] ``fracAbsorbed``
 
-  * [ ] ``fracAbsorbedRunoff``
+  * [X] ``fracAbsorbedRunoff``
 
-  * [ ] ``nonLocalSurfaceTracerFlux``
+  * [X] ``nonLocalSurfaceTracerFlux``
 
-  * [ ] ``surfaceBuoyancyForcing``
+  * [X] ``surfaceBuoyancyForcing``
 
-  * [ ] ``topDrag``
+  * [X] ``topDrag``
 
-  * [ ] ``topDragMag``
+  * [X] ``topDragMag``
 
-  * [ ] ``landIceFrictionVelocity``
+  * [X] ``landIceFrictionVelocity``
 
 ...
 
@@ -638,6 +652,17 @@ We will set ``minLevelCell`` to all ``1`` by default.  We will take care not
 to reorder computations in a way that would likely lead to non-bit-for-bit
 changes.
 
+A few non-bit-for-bit changes were unavoidable on some compilers or were preferred
+to clunky work-arounds:
+
+* Redi: non-bit-for-bit results introduced to 6 ecosystem tracers on 
+``QU240/bgc_ecosys_test``. See 
+`this comment <https://github.com/MPAS-Dev/MPAS-Model/pull/840#discussion_r612523174>`_.
+
+* Jacobian from TS pressure gradient: non-bit-for-bit results introduced on 2 E3SM tests
+on Compy with PGI optimized-mode. See
+`this comment <https://github.com/E3SM-Project/E3SM/pull/4171#issuecomment-804725955>`_.
+
 Implementation: No significant loss of performance
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -648,6 +673,11 @@ Contributors: Xylar Asay-Davis
 We will take care not to introduce unnecessary ``if`` statements or equivalents
 that were not present before.
 
+The only new ``if`` statements introduced are located in:
+
+* ``ocn_init_vertical_grids: ocn_alter_ssh_for_ptcs``
+
+* ``ocn_init_routines: ocn_init_routines_compute_min_max_level``
 
 Testing
 -------
@@ -713,19 +743,40 @@ with a mix of Gnu and Intel compilers.  We will plot the resulting T, S and KE
 fields to make sure they look comparable to the results with the current
 terrain-following coordinate.
 
-We will test with JM and Wright equations of state.
+We will test with linear, JM and Wright equations of state:
+
+* [X] linear
+* [X] JM
+* [ ] Wright
+
+The change in velocity over 3, 5-minute timesteps for each of the test cases is 
+as follows with the JM equation of state:
+
+* ``z_level_full_cells_const_S``: O(1e-14) m/s
+* ``z_level_full_cells``: O(1e-11) m/s
+* ``z_level``: O(1e-10) m/s
+
+Over 6 months, the velocity error plateaus at O(1e-3) m/s for the ``z_level`` 
+test case.
 
 Testing: Surface fields and fluxes
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Date last modified: 2021/02/11
+Date last modified: 2021/04/21
 
-Contributors: Xylar Asay-Davis
+Contributors: Xylar Asay-Davis, Carolyn Begeman
 
 The testing in ``sub_ice_shelf_2D`` will account for the surface fluxes and
-fields that we most anticipate being affected by ``minLevel*``.  Testing of
-other surface fields will likely require running tests that include GM, KPP
-and other parameterizations that are not part of this configuration by default.
+fields that we most anticipate being affected by ``minLevel*``.  We will also run 
+these configurations with GM activated. Testing of other surface fields will 
+likely require running tests that include KPP and other parameterizations that 
+are not part of this configuration by default.
+
+KPP and GM will be tested in existing global ocean test cases for which 
+``minLevelCell = 1``. KPP will also be tested with the spherical and planar
+``single_column_test``. We will consider producing a modified global test case
+which has an identical number of vertical levels but with ``minLevelCell = 2``.
+This should allow us to identify any missed surface fields as well. 
 
 Testing: Correct boundary conditions
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -736,8 +787,8 @@ Contributors: Mark Petersen and Xylar Asay-Davis
 
 The 3 z-level versions of ``sub_ice_shelf_2D`` described above should provide
 sufficient testing of the boundary conditions related to tendency terms (e.g.
-higher-order tracer reconstruction).  More sophisticated parameterizations
-(KPP and GM) will be addressed in the second phase of this work.
+higher-order tracer reconstruction). More sophisticated parameterizations
+(KPP and Redi) will be addressed in the second phase of this work.
 
 Testing: Inactivate cells during simulation
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -765,22 +816,46 @@ and Intel compilers to make sure nothing has changed when we run with
 
 We will also run the following E3SM tests before and after the changes:
 
-* ``SMS.T62_oQU120_ais20.MPAS_LISIO_TEST.<<machine>>_intel``
-* ``SMS.T62_oQU120_ais20.MPAS_LISIO_TEST.<<machine>>_gnu``
+* ``SMS_D.T62_oQU120_ais20.MPAS_LISIO_TEST.cori-knl_intel``
+* ``SMS_D.T62_oQU120_ais20.MPAS_LISIO_TEST.cori-knl_gnu``
+* ``PEM_Ln9.ne30_oECv3.A_WCYCL1850S.cori-knl_intel``
+* ``PET_Ln9.ne30_oECv3.A_WCYCL1850S.cori-knl_gnu``
+* ``SMS_Ld1.ne30pg2_r05_EC30to60E2r2.A_WCYCL1850S_CMIP6.compy_intel.allactive-wcprod``
+* ``SMS_PS.northamericax4v1pg2_WC14to60E2r3.A_WCYCL1850S_CMIP6.compy_intel.allactive-wcprodrrm``
+* ``SMS_D.T62_oQU120_ais20.MPAS_LISIO_TEST.compy_pgi``
+* ``SMS.T62_oQU120_ais20.MPAS_LISIO_TEST.compy_intel``
+* ``PET_Ln9_P1024.ne30_oECv3.A_WCYCL1850S.compy_intel``
+* ``SMS.T62_oQU120_ais20.MPAS_LISIO_TEST.anvil_gnu``
+* ``SMS.T62_oQU120_ais20.MPAS_LISIO_TEST.anvil_intel``
+* ``PEM_Ln9_P1024.ne30_oECv3.A_WCYCL1850S.anvil_intel``
+* ``PET_Ln9_P1024.ne30_oECv3.A_WCYCL1850S.anvil_gnu``
+* ``SMS_Ld1.ne30pg2_r05_EC30to60E2r2.A_WCYCL1850S_CMIP6.chrysalis_intel.allactive-wcprod`` 
+* ``SMS.T62_oQU120_ais20.MPAS_LISIO_TEST.chrysalis_intel``
+* ``PEM_Ln9_P1024.ne30_oECv3.A_WCYCL1850S.chrysalis_intel``
+* ``PET_Ln9_P1024.ne30_oECv3.A_WCYCL1850S.chrysalis_intel``
+* ``SMS_PS.northamericax4v1pg2_WC14to60E2r3.A_WCYCL1850S_CMIP6.chrysalis_intel.allactive-wcprodrrm``
 
 We will run the following E3SM tests after changes:
-* ``PET_Ln9.T62_oQU240.GMPAS-IAF.<<machine>>_intel``
-* ``PEM_Ln9.T62_oQU240.GMPAS-IAF.<<machine>>_gnu``
-* ``PET_Ln3.T62_oEC60to30v3wLI.GMPAS-DIB-IAF-ISMF.<<machine>>_intel``
-* ``PET_Ln9_P1024.ne30_oECv3_ICG.A_WCYCL1850S.<<machine>>_gnu``
-* ``PEM_Ln9_P1024.ne30_oECv3_ICG.A_WCYCL1850S.<<machine>>_intel``
+* ``PET_Ln9.T62_oQU240.GMPAS-IAF.cori-knl_intel``
+* ``PET_Ln3.T62_oEC60to30v3wLI.GMPAS-DIB-IAF-ISMF.cori-haswell_intel``
+* ``PEM_Ln9.T62_oQU240.GMPAS-IAF.cori-haswell_gnu``
+* ``PET_Ln3.T62_oEC60to30v3wLI.GMPAS-DIB-IAF-ISMF.compy_pgi``
+* ``PET_Ln9.T62_oQU240.GMPAS-IAF.compy_pgi``
+* ``PEM_Ln9.T62_oQU240.GMPAS-IAF.compy_pgi``
+* ``PET_Ln9.T62_oQU240.GMPAS-IAF.anvil_gnu``
+* ``PEM_Ln9.T62_oQU240.GMPAS-IAF.anvil_gnu``
+* ``PET_Ln3.T62_oEC60to30v3wLI.GMPAS-DIB-IAF-ISMF.anvil_intel``
 
 Testing: No significant loss of performance
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Date last modified: 2021/02/11
+Date last modified: 2021/04/21
 
-Contributors: Xylar Asay-Davis
+Contributors: Xylar Asay-Davis, Carolyn Begeman
+
+The timing of E3SM test cases (``SMS_P2560x1.T62_oRRS18to6v3.GMPAS-IAF.chrysalis_intel``, 
+``PEM_Ln9_P1024.ne30_oECv3.A_WCYCL1850S.cori-knl_intel``) is not significantly increased 
+by Phase 1 developments, and is at the +1-2% level on grizzly/intel.
 
 The COMPASS regression suites also include timers.  We will ensure that
 performance changes are negligible (within the variability from running the
