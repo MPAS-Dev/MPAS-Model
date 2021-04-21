@@ -14,12 +14,6 @@ module mpas_timekeeping
    use mpas_log
 
    use ESMF
-   use ESMF_BaseMod
-   use ESMF_Stubs
-   use ESMF_CalendarMod
-   use ESMF_ClockMod
-   use ESMF_TimeMod
-   use ESMF_TimeIntervalMod
 
    private :: mpas_calibrate_alarms
    private :: mpas_in_ringing_envelope
@@ -98,18 +92,31 @@ module mpas_timekeeping
       if (trim(calendar) == 'gregorian') then
          TheCalendar = MPAS_GREGORIAN
 #ifndef MPAS_NO_ESMF_INIT
+#ifndef MPAS_EXTERNAL_ESMF_LIB
          call ESMF_Initialize(defaultCalendar=ESMF_CALKIND_GREGORIAN)
+#else
+         call ESMF_Initialize(defaultCalKind=ESMF_CALKIND_GREGORIAN)
+#endif
 #endif
       else if (trim(calendar) == 'gregorian_noleap') then
          TheCalendar = MPAS_GREGORIAN_NOLEAP
 #ifndef MPAS_NO_ESMF_INIT
+#ifndef MPAS_EXTERNAL_ESMF_LIB
          call ESMF_Initialize(defaultCalendar=ESMF_CALKIND_NOLEAP)
+#else
+         call ESMF_Initialize(defaultCalKind=ESMF_CALKIND_NOLEAP)
 #endif
-!     else if (trim(calendar) == '360day') then
-!        TheCalendar = MPAS_360DAY
-!#ifndef MPAS_NO_ESMF_INIT
+#endif
+     else if (trim(calendar) == '360day') then
+        TheCalendar = MPAS_360DAY
+#ifndef MPAS_NO_ESMF_INIT
+#ifndef MPAS_EXTERNAL_ESMF_LIB
 !        call ESMF_Initialize(defaultCalendar=ESMF_CALKIND_360DAY)
-!#endif
+         call mpas_log_write('mpas_timekeeping_init: 360-day calendar not supported with the built-in ESMF timekeeping library', MPAS_LOG_ERR)
+#else
+         call ESMF_Initialize(defaultCalKind=ESMF_CALKIND_360DAY)
+#endif
+#endif
       else
          call mpas_log_write('mpas_timekeeping_init: Invalid calendar type', MPAS_LOG_ERR)
       end if
@@ -153,7 +160,14 @@ module mpas_timekeeping
 
       yearWidth = yearWidthIn
 
+     !
+     ! The external ESMF library does not provide the ESMF_setYearWidth subroutine,
+     ! though this may not be a problem, since the library appears to return time strings
+     ! with as many digits as are needed to represent the year.
+     !
+#ifndef MPAS_EXTERNAL_ESMF_LIB
       call ESMF_setYearWidth(yearWidthIn)
+#endif
 
    end subroutine mpas_timekeeping_set_year_width!}}}
 
@@ -1291,9 +1305,24 @@ module mpas_timekeeping
       character (len=StrKIND), intent(out), optional :: dateTimeString
       integer, intent(out), optional :: ierr
 
+      integer :: idx
+
       call ESMF_TimeGet(curr_time % t, YY=YYYY, MM=MM, DD=DD, H=H, M=M, S=S, Sn=S_n, Sd=S_d, rc=ierr)
       call ESMF_TimeGet(curr_time % t, dayOfYear=DoY, rc=ierr)
       call ESMF_TimeGet(curr_time % t, timeString=dateTimeString, rc=ierr)
+
+      !
+      ! In case an external ESMF library that returns ISO timestamps is being used,
+      ! convert a 'T' (if it exists in the string) to an '_' to match the format
+      ! used throughout MPAS
+      !
+      if (present(dateTimeString)) then
+         idx = index(dateTimeString, 'T')
+         if (idx > 0) then
+            dateTimeString(idx:idx) = '_'
+         end if
+      end if
+
       if (present(ierr)) then
          if (ierr == ESMF_SUCCESS) ierr = 0
       end if
@@ -1568,21 +1597,37 @@ module mpas_timekeeping
       real (kind=RKIND), intent(out), optional :: dt
       integer, intent(out), optional :: ierr
 
-      integer :: days, sn, sd
+      integer :: days, sn, sd, hours, minutes
       integer (kind=I8KIND) :: seconds
+      real (kind=R8KIND) :: seconds_real
+      integer :: local_ierr
 
 
 
       if (present(StartTimeIn)) then
          call ESMF_TimeIntervalGet(interval % ti, StartTimeIn=StartTimeIn%t, D=days, S_i8=seconds, Sn=sn, Sd=sd, rc=ierr)
       else
+#ifndef MPAS_EXTERNAL_ESMF_LIB
           if ( interval % ti % YR /= 0 .or. interval % ti % MM /= 0 ) then
              if (present(ierr)) ierr = 1
              call mpas_log_write('mpas_get_timeInterval cannnot return time interval information for an interval containing ' // &
                  'months and years without a startTimeIn argument.', MPAS_LOG_ERR)
              return
           end if
-          call ESMF_TimeIntervalGet(interval % ti, D=days, S_i8=seconds, Sn=sn, Sd=sd, rc=ierr)
+#endif
+          call ESMF_TimeIntervalGet(interval % ti, D=days, S_i8=seconds, Sn=sn, Sd=sd, rc=local_ierr)
+          if (present(ierr)) ierr = local_ierr
+#ifdef MPAS_EXTERNAL_ESMF_LIB
+          !
+          ! With an external ESMF library, treat the time interval type as opaque, and just
+          ! assume that a non-success error code will be returned if the interval cannot be retrieved.
+          !
+          if (local_ierr /= ESMF_SUCCESS) then
+             call mpas_log_write('mpas_get_timeInterval cannnot return time interval information for an interval containing ' // &
+                 'months and years without a startTimeIn argument.', MPAS_LOG_ERR)
+             return
+          end if
+#endif
       endif
 
       if (sd == 0) then   ! may only occur if (sn == 0)?
@@ -1630,7 +1675,25 @@ module mpas_timekeeping
       end if
 
       if (present(timeString)) then
+#ifndef MPAS_EXTERNAL_ESMF_LIB
          call ESMF_TimeIntervalGet(interval % ti, timeString=timeString, rc=ierr)
+#else
+         !
+         ! In case an external ESMF library is being used, the time interval may be returned in
+         ! ISO period format, in which case it is easier to build a time interval string in MPAS
+         ! format given days, hours, minutes, and seconds.
+         !
+         call ESMF_TimeIntervalGet(interval % ti, StartTimeIn=StartTimeIn%t, &
+                                   d=days, h=hours, m=minutes, s_i8=seconds, sN=sn, sD=sd, rc=ierr)
+         seconds_real = real(seconds,kind=R8KIND) + (real(sn, kind=R8KIND) / real(sd, kind=R8KIND))
+
+         ! Seconds should not be negative, so there is no need to handle negative cases, below
+         if (seconds_real < 10.0_R8KIND) then
+            write(timeString,'(i9.9,a,i2.2,a,i2.2,a,f11.9)') days, '_', hours, ':', minutes, ':0', seconds_real
+         else
+            write(timeString,'(i9.9,a,i2.2,a,i2.2,a,f12.9)') days, '_', hours, ':', minutes, ':', seconds_real
+         end if
+#endif
       end if
 
       if (present(ierr)) then
@@ -1716,7 +1779,21 @@ module mpas_timekeeping
       type (MPAS_TimeInterval_type), intent(in) :: ti
       integer (kind=I8KIND), intent(in) :: n8
 
+#ifndef MPAS_EXTERNAL_ESMF_LIB
       mul_ti_n8 % ti = ti % ti * n8
+#else
+      !
+      ! At present, the external ESMF library does not support multiplying a time interval
+      ! by an 8-byte integer, so we convert to a 4-byte integer whenever possible.
+      ! However, if the value of the 8-byte integer exceeds what can be represented by
+      ! a 4-byte integer, stop with a critical error.
+      !
+      if (n8 > huge(int(n8)) .or. n8 < -huge(int(n8))) then
+         call mpas_log_write('(time interval) * 64-bit integer: integer out of range for external ESMF library', &
+                             messageType=MPAS_LOG_CRIT)
+      end if
+      mul_ti_n8 % ti = ti % ti * int(n8)
+#endif
 
    end function mul_ti_n8
 
@@ -2178,7 +2255,7 @@ module mpas_timekeeping
 
         call mpas_set_time(curTime, dateTimeString=timeStamp)
 
-        call mpas_get_time(curTime, YYYY=year)
+        call mpas_get_time(curTime, YYYY=year, MM=month, DD=day, H=hour, M=minute, S=second)
 
         write(yearFormat, '(a,i10,a)') '(i0.',yearWidth,')'
 
@@ -2194,15 +2271,12 @@ module mpas_timekeeping
                if (charExpand) then
                   select case (inString(i:i))
                      case ('Y')
-                         call mpas_get_time(curTime, YYYY=year)
                          write(timePart, yearFormat) year
                          outString = trim(outString) // trim(timePart)
                      case ('M')
-                         call mpas_get_time(curTime, MM=month)
                          write(timePart, '(i0.2)') month
                          outString = trim(outString) // trim(timePart)
                      case ('D')
-                         call mpas_get_time(curTime, DD=day)
                          write(timePart, '(i0.2)') day
                          outString = trim(outString) // trim(timePart)
                      case ('d')
@@ -2210,21 +2284,15 @@ module mpas_timekeeping
                          write(timePart, '(i0.3)') DoY
                          outString = trim(outString) // trim(timePart)
                      case ('h')
-                         call mpas_get_time(curTime, H=hour)
                          write(timePart, '(i0.2)') hour
                          outString = trim(outString) // trim(timePart)
                      case ('m')
-                         call mpas_get_time(curTime, M=minute)
                          write(timePart, '(i0.2)') minute
                          outString = trim(outString) // trim(timePart)
                      case ('s')
-                         call mpas_get_time(curTime, S=second)
                          write(timePart, '(i0.2)') second
                          outString = trim(outString) // trim(timePart)
                      case ('S')
-                         call mpas_get_time(curTime, H=hour)
-                         call mpas_get_time(curTime, M=minute)
-                         call mpas_get_time(curTime, S=second)
                          second = second + 60 * minute + 3600 * hour
                          write(timePart, '(i0.5)') second
                          outString = trim(outString) // trim(timePart)
