@@ -3,7 +3,7 @@ Inactive Cells at the Top of the Water Column
 
 date: 2021/02/11
 
-Contributors: Xylar Asay-Davis
+Contributors: Xylar Asay-Davis, Carolyn Begeman
 
 
 
@@ -120,9 +120,9 @@ Implementation
 Implementation: Inactive top cells
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Date last modified: 2021/02/11
+Date last modified: 2021/04/21
 
-Contributors: Xylar Asay-Davis
+Contributors: Xylar Asay-Davis, Carolyn Begeman
 
 We will add ``minLevelCell``, analogous to ``maxLevelCell``.  In
 ``ocn_init_routines_compute_max_level()`` in the ``ocn_init_routines`` module,
@@ -162,6 +162,8 @@ What follows are prioritized checklists of the modules with variables that need
 to be added and subroutines where loops or other vertical indexing needs to be
 updated.  First are those related to ``init`` mode, then those used in
 ``forward`` mode.
+
+`Phase 1 <https://github.com/MPAS-Dev/MPAS-Model/pull/825>`_
 
 Init:
 
@@ -318,23 +320,8 @@ Forward:
   * [X] ``ocn_vmix_coefs_cvmix_build``
 
 
-.. note::
-
-  ``ocn_forcing_build_fraction_absorbed_array`` is currently only called once
-  by ``ocn_init_routines`` and would need to be called multiple times to correctly
-  distribute surface fluxes unless we use an alternative approach where the vertical
-  index of transmissionCoeff is number of cells from minLevelCell rather than k-levels
-
-.. note::
-
-  `Loop limits`_ in ``ocn_vorticity`` to solve for ``normalizedRelativeVorticityVertex`` 
-  and ``normalizedPlanetaryVorticityVertex`` could not be changed from 
-  ``1,maxLevelVertexBot`` to ``minLevelVertexTop,maxLevelVertexBot`` without introducing
-  non bit-for-bit changes in the MPAS nightly regression suite.
-  .. _Loop limits: https://github.com/MPAS-Dev/MPAS-Model/blob/233da699cf7bd9f6e40812d8594a95f1c69de984/src/core_ocean/shared/mpas_ocn_diagnostics.F#L678
-
-
-Phase 2 (enabling other configuration options):
+`Phase 2 <https://github.com/MPAS-Dev/MPAS-Model/pull/840>`_
+(enabling other configuration options):
 
 Init:
 
@@ -364,13 +351,13 @@ Forward:
 
   * [X] ``ocn_tracer_DMS_compute``
 
-  * [X] ``ocn_tracer_DMS_surface_flux_compute``: iLevelSurface
+  * [X] ``ocn_tracer_DMS_surface_flux_compute``
 
 * [X] ``ocn_tracer_ecosys``:
 
   * [X] ``ocn_tracer_ecosys_compute``
 
-  * [X] ``ocn_tracer_ecosys_surface_flux_compute``: iLevelSurface
+  * [X] ``ocn_tracer_ecosys_surface_flux_compute``
 
 * [X] ``ocn_tracer_MacroMolecules``:
 
@@ -507,9 +494,9 @@ Init:
 
 Forward:
 
-* [X] ``ocn_init_routines``:
+* [ ] ``ocn_init_routines``:
 
-  * [X] ``ocn_init_routines_compute_min_max_level()``: add timers
+  * [ ] ``ocn_init_routines_compute_min_max_level()``: add timers
 
 .. note::
 
@@ -518,7 +505,7 @@ Forward:
 .. note::
 
   ``ocn_mark_maxlevelcell`` doesn't need to be changed if the dry cells are 
-  assigned maxlevelcell = 0, in which case they will be culled.
+  assigned ``maxLevelCell = 0``, in which case they will be culled.
 
 Outside the scope of this development:
 
@@ -537,9 +524,9 @@ Outside the scope of this development:
 Implementation: Surface fields and fluxes
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Date last modified: 2021/02/11
+Date last modified: 2021/04/21
 
-Contributors: Xylar Asay-Davis, Luke Van Roekel
+Contributors: Xylar Asay-Davis, Carolyn Begeman, Luke Van Roekel
 
 The subroutines  ``ocn_thick_surface_flux_tend()`` and
 ``ocn_tracer_surface_flux_tend()`` already distribute surface fluxes over
@@ -644,9 +631,9 @@ The main considerations here will be:
 Implementation: Bit-for-bit when no inactive top cells
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Date last modified: 2021/02/11
+Date last modified: 2021/04/21
 
-Contributors: Xylar Asay-Davis
+Contributors: Xylar Asay-Davis, Carolyn Begeman
 
 We will set ``minLevelCell`` to all ``1`` by default.  We will take care not
 to reorder computations in a way that would likely lead to non-bit-for-bit
@@ -655,20 +642,26 @@ changes.
 A few non-bit-for-bit changes were unavoidable on some compilers or were preferred
 to clunky work-arounds:
 
+* `Loop limits <https://github.com/MPAS-Dev/MPAS-Model/blob/233da699cf7bd9f6e40812d8594a95f1c69de984/src/core_ocean/shared/mpas_ocn_diagnostics.F#L678>`_
+  in ``ocn_vorticity`` to solve for ``normalizedRelativeVorticityVertex`` 
+  and ``normalizedPlanetaryVorticityVertex`` could not be changed from 
+  ``1,maxLevelVertexBot`` to ``minLevelVertexTop,maxLevelVertexBot`` without introducing
+  non bit-for-bit changes in the MPAS nightly regression suite.
+
 * Redi: non-bit-for-bit results introduced to 6 ecosystem tracers on 
-``QU240/bgc_ecosys_test``. See 
-`this comment <https://github.com/MPAS-Dev/MPAS-Model/pull/840#discussion_r612523174>`_.
+  ``QU240/bgc_ecosys_test``. See 
+  `this comment <https://github.com/MPAS-Dev/MPAS-Model/pull/840#discussion_r612523174>`_.
 
 * Jacobian from TS pressure gradient: non-bit-for-bit results introduced on 2 E3SM tests
-on Compy with PGI optimized-mode. See
-`this comment <https://github.com/E3SM-Project/E3SM/pull/4171#issuecomment-804725955>`_.
+  on Compy with PGI optimized-mode. See
+  `this discussion <https://github.com/E3SM-Project/E3SM/pull/4171#issuecomment-804725955>`_.
 
 Implementation: No significant loss of performance
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Date last modified: 2021/02/11
+Date last modified: 2021/04/21
 
-Contributors: Xylar Asay-Davis
+Contributors: Xylar Asay-Davis, Carolyn Begeman
 
 We will take care not to introduce unnecessary ``if`` statements or equivalents
 that were not present before.
@@ -685,9 +678,9 @@ Testing
 Testing: Inactive top cells
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Date last modified: 2021/02/11
+Date last modified: 2021/04/21
 
-Contributors: Xylar Asay-Davis, Mark Petersen
+Contributors: Xylar Asay-Davis, Carolyn Begeman, Mark Petersen
 
 We will ensure that all 3D, prognostic variables have been initialized to the
 NetCDF fill value in inactive cells at the top of the water column.  We will
@@ -756,7 +749,7 @@ as follows with the JM equation of state:
 * ``z_level_full_cells``: O(1e-11) m/s
 * ``z_level``: O(1e-10) m/s
 
-Over 6 months, the velocity error plateaus at O(1e-3) m/s for the ``z_level`` 
+Over a 6-month simulation, the velocity error plateaus at O(1e-3) m/s for the ``z_level`` 
 test case.
 
 Testing: Surface fields and fluxes
@@ -805,9 +798,9 @@ may be necessary to get a realistic feel.
 Testing: Bit-for-bit when no inactive top cells
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Date last modified: 2021/02/11
+Date last modified: 2021/04/21
 
-Contributors: Xylar Asay-Davis
+Contributors: Xylar Asay-Davis, Carolyn Begeman
 
 We will run the legacy COMPASS nightly and land-ice-fluxes regression suites
 on multiple machines (Ubuntu laptop, Anvil, Grizzly, Compy) with a mix of Gnu
@@ -836,6 +829,7 @@ We will also run the following E3SM tests before and after the changes:
 * ``SMS_PS.northamericax4v1pg2_WC14to60E2r3.A_WCYCL1850S_CMIP6.chrysalis_intel.allactive-wcprodrrm``
 
 We will run the following E3SM tests after changes:
+
 * ``PET_Ln9.T62_oQU240.GMPAS-IAF.cori-knl_intel``
 * ``PET_Ln3.T62_oEC60to30v3wLI.GMPAS-DIB-IAF-ISMF.cori-haswell_intel``
 * ``PEM_Ln9.T62_oQU240.GMPAS-IAF.cori-haswell_gnu``
@@ -845,6 +839,7 @@ We will run the following E3SM tests after changes:
 * ``PET_Ln9.T62_oQU240.GMPAS-IAF.anvil_gnu``
 * ``PEM_Ln9.T62_oQU240.GMPAS-IAF.anvil_gnu``
 * ``PET_Ln3.T62_oEC60to30v3wLI.GMPAS-DIB-IAF-ISMF.anvil_intel``
+
 
 Testing: No significant loss of performance
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
