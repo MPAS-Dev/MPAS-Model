@@ -107,7 +107,7 @@ module mpas_timekeeping
          call ESMF_Initialize(defaultCalKind=ESMF_CALKIND_NOLEAP)
 #endif
 #endif
-     else if (trim(calendar) == '360day') then
+      else if (trim(calendar) == '360day') then
         TheCalendar = MPAS_360DAY
 #ifndef MPAS_NO_ESMF_INIT
 #ifndef MPAS_EXTERNAL_ESMF_LIB
