@@ -7,17 +7,17 @@ endif
 
 OCEAN_SHARED_INCLUDES = -I$(PWD)/../framework -I$(PWD)/../external/esmf_time_f90 -I$(PWD)/../operators
 OCEAN_SHARED_INCLUDES += -I$(PWD)/shared -I$(PWD)/analysis_members -I$(PWD)/mode_forward -I$(PWD)/mode_analysis
-OCEAN_SHARED_INCLUDES += -I$(PWD)/BGC -I$(PWD)/cvmix/src/shared -I$(PWD)/gotm/build -I$(PWD)/gotm/build/modules
+OCEAN_SHARED_INCLUDES += -I$(PWD)/BGC -I$(PWD)/cvmix/src/shared -I$(PWD)/gotm/build -I$(PWD)/gotm/build/modules -I$(PWD)/SHTNS
+GOTM_CMAKE_FLAGS = -DGOTM_BUILD_LIBRARIES_ONLY=true -DGOTM_USE_FABM=false -DGOTM_USE_NetCDF=false -DCMAKE_Fortran_COMPILER="$(FC)" -DCMAKE_Fortran_FLAGS="$(FFLAGS)"
+SHTNS_DIR = $(PWD)/SHTNS
+ifeq "$(DEBUG)" "true"
+	GOTM_CMAKE_FLAGS += -DCMAKE_BUILD_TYPE=Debug
+endif
 ifneq "$(EXCLUDE_INIT_MODE)" "true"
 	OCEAN_SHARED_INCLUDES += -I$(PWD)/mode_init
 endif
 
-GOTM_CMAKE_FLAGS = -DGOTM_BUILD_LIBRARIES_ONLY=true -DGOTM_USE_FABM=false -DGOTM_USE_NetCDF=false -DCMAKE_Fortran_COMPILER="$(FC)" -DCMAKE_Fortran_FLAGS="$(FFLAGS)"
-ifeq "$(DEBUG)" "true"
-	GOTM_CMAKE_FLAGS += -DCMAKE_BUILD_TYPE=Debug
-endif
-
-all: shared libcvmix analysis_members libBGC libgotm
+all: shared libcvmix analysis_members libBGC libgotm libfftw libshtns
 	(cd mode_forward; $(MAKE) FCINCLUDES="$(FCINCLUDES) $(OCEAN_SHARED_INCLUDES)" all )
 	(cd mode_analysis; $(MAKE) FCINCLUDES="$(FCINCLUDES) $(OCEAN_SHARED_INCLUDES)" all )
 ifneq "$(EXCLUDE_INIT_MODE)" "true"
@@ -89,7 +89,33 @@ libgotm:
 		(pwd ; echo "Missing core_ocean/gotm/.git, did you forget to 'git submodule update --init --recursive' ?"; exit 1) \
 	fi
 
-shared: libcvmix libBGC libgotm
+libshtns: libfftw
+	if [ -e SHTNS/.git ]; then \
+        if [ ! -e SHTNS/libshtns.a ]; then \
+    		if [ $(OPENMP) -eq "true" ]; then \
+    			(echo "Compiling shtns with OPENMP"; cd SHTNS; export CPP=cpp; ./configure --enable-openmp --prefix=$(SHTNS_DIR); make; make install; export CPP='cpp -P -traditional';) \
+    		else \
+    			(echo "Compiling shtns without OPENMP"; cd SHTNS; export CPP=cpp; ./configure --prefix=$(SHTNS_DIR); make; make install; export CPP='cpp -P -traditional';) \
+    		fi \
+        fi \
+    else \
+    		(echo "Missing core_ocean/SHTNS/.git, did you forget to 'git submodule update --init --recursive' ?"; exit 1) \
+	fi
+
+libfftw:
+	if [ -e FFTW/.git ]; then \
+        if [ ! -e SHTNS/lib/libfftw3.a ]; then \
+    		if [ $(OPENMP) -eq "true" ]; then \
+    			(echo "Compiling fftw with OPENMP"; cd FFTW; export CPP=cpp; ./configure --enable-openmp --prefix=$(SHTNS_DIR); make; make install; export CPP='cpp -P -traditional';) \
+    		else \
+    			(echo "Compiling fftw without OPENMP"; cd FFTW; export CPP=cpp; ./configure --prefix=$(SHTNS_DIR); make; make install; export CPP='cpp -P -traditional';) \
+    		fi \
+        fi \
+	else \
+		(echo "Missing core_ocean/SHTNS/.git, did you forget to 'git submodule update --init --recursive' ?"; exit 1) \
+    fi
+
+shared: libcvmix libBGC libgotm libshtns libfftw
 	(cd shared; $(MAKE) FCINCLUDES="$(FCINCLUDES) $(OCEAN_SHARED_INCLUDES)")
 
 analysis_members: libcvmix shared libgotm
@@ -107,6 +133,12 @@ clean:
 	fi
 	if [ -e gotm/.git ]; then \
 		($(RM) -r gotm/build) \
+    fi
+	if [ -e SHTNS/.git ]; then \
+		(cd SHTNS; make clean; rm lib/libshtns.a) \
+	fi
+	if [ -e FFTW/.git ]; then \
+		(cd FFTW; make clean; rm $(SHTNS_DIR)/lib/libfftw3*) \
 	fi
 	(cd mode_forward; $(MAKE) clean)
 	(cd mode_analysis; $(MAKE) clean)

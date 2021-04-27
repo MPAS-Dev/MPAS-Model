@@ -7,3 +7,9 @@
 [submodule "src/core_ocean/gotm"]
 	path = src/core_ocean/gotm
 	url = https://github.com/E3SM-Project/GOTMcode.git
+[submodule "src/core_ocean/SHTNS"]
+	path = src/core_ocean/SHTNS
+	url = https://bitbucket.org/nschaeff/shtns.git
+[submodule "src/core_ocean/FFTW"]
+	path = src/core_ocean/FFTW
+	url = https://github.com/knbarton/fftw-3.3.8.git

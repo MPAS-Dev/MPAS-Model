@@ -25,6 +25,7 @@ module ocn_tendency
    use mpas_constants
    use mpas_timer
    use mpas_threading
+   use mpas_dmpar
    use ocn_diagnostics
    use ocn_diagnostics_variables
    use ocn_constants
@@ -63,6 +64,7 @@ module ocn_tendency
    use ocn_vmix
    use ocn_wetting_drying
    use ocn_vel_tidal_potential
+   use ocn_vel_self_attraction_loading
 
    implicit none
    private
@@ -236,13 +238,14 @@ contains
 !>  This routine computes the velocity tendency for the ocean
 !
 !-----------------------------------------------------------------------
-
-   subroutine ocn_tend_vel(tendPool, statePool, forcingPool, &
-                           timeLevelIn, dt)!{{{
+    ! NOTE: Domain being passed in for halo update on SAL
+   subroutine ocn_tend_vel(domain, tendPool, statePool, forcingPool, &
+                           timeLevelIn, dminfo, dt)!{{{
 
       !-----------------------------------------------------------------
       ! input variables
       !-----------------------------------------------------------------
+      type (domain_type), intent(inout) :: domain !< Input/Output: domain information
 
       real (kind=RKIND), intent(in) :: &
          dt             !< [in] time step
@@ -285,11 +288,12 @@ contains
 
       integer, pointer :: indexTemperature, indexSalinity
       type (mpas_pool_type), pointer :: tracersPool
+      type (dm_info), intent(in) :: dminfo
 
-      real (kind=RKIND), dimension(:), pointer, contiguous :: &
+      real (kind=RKIND), dimension(:), pointer :: &
          ssh               ! sea surface height
 
-      real (kind=RKIND), dimension(:,:), pointer, contiguous :: &
+      real (kind=RKIND), dimension(:,:), pointer :: &
          normalVelocity,     &! normal velocity
          layerThickness, &
          circulation
@@ -410,6 +414,12 @@ contains
                                indxTemp, indxSalt, activeTracers, &
                                thermExpCoeff, salineContractCoeff, &
                                tendVel, err)
+
+      ! compute ssh addition due to self-attraction and loading, must be calculated before tidal potential
+      call ocn_compute_self_attraction_loading(forcingPool, dminfo, ssh, err)
+      if (config_use_self_attraction_loading) then
+          call mpas_dmpar_field_halo_exch(domain, 'ssh_sal')
+      endif
 
       ! Add tidal potential (if needed) 
       call ocn_compute_tidal_potential_forcing(err)

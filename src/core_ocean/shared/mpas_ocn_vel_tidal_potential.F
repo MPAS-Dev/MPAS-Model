@@ -93,6 +93,9 @@ module ocn_vel_tidal_potential
    type(char_array), dimension(37) :: constituentList
    public :: char_array
 
+   ! Flag for ssh_sal
+   integer :: ssh_sal_on
+
 !***********************************************************************
 
 contains
@@ -169,9 +172,10 @@ contains
          kMax = maxLevelEdgeTop(iEdge)
 
          potentialGrad = - gravity*invdcEdge* &
-                         (tidalPotEta(cell2) - tidalPotEta(cell1) + &
-                          betaSelfAttrLoad* &
-                          (ssh(cell2) - ssh(cell1)))
+                         (  tidalPotEta(cell2) - tidalPotEta(cell1) + &
+                           (1 - ssh_sal_on) * betaSelfAttrLoad* &
+                           (ssh(cell2) - ssh(cell1)) + &
+                           ssh_sal_on * (ssh_sal(cell2) - ssh_sal(cell1))  )
 
          do k=1,kMax
             tend(k,iEdge) = tend(k,iEdge) - &
@@ -326,6 +330,11 @@ contains
       if (config_use_tidal_potential_forcing) then
 
          tidalPotentialOff = .false.
+         if (config_use_self_attraction_loading) then
+            ssh_sal_on = 1
+         else
+            ssh_sal_on = 0 
+         endif
 
          betaSelfAttrLoad = config_self_attraction_and_loading_beta
          tidalPotRamp     = config_tidal_potential_ramp

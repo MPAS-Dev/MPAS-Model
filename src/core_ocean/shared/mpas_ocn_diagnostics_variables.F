@@ -68,6 +68,7 @@ module ocn_diagnostics_variables
 
    real (kind=RKIND), dimension(:), pointer :: gradSSH
    real (kind=RKIND), dimension(:), pointer :: pressureAdjustedSSH
+   real (kind=RKIND), dimension(:), pointer :: ssh_sal
 
    real (kind=RKIND), dimension(:,:), pointer :: tracersSurfaceValue
    real (kind=RKIND), dimension(:,:), pointer :: tracersSurfaceLayerValue
@@ -268,6 +269,7 @@ contains
       call mpas_pool_get_array(diagnosticsPool, 'RiTopOfCell', RiTopOfCell)
       call mpas_pool_get_array(diagnosticsPool, 'RiTopOfEdge', RiTopOfEdge)
       call mpas_pool_get_array(diagnosticsPool, 'pressureAdjustedSSH', pressureAdjustedSSH)
+      call mpas_pool_get_array(diagnosticsPool, 'ssh_sal', ssh_sal)
 
       call mpas_pool_get_array(diagnosticsPool, 'tracersSurfaceValue', tracersSurfaceValue)
       call mpas_pool_get_array(diagnosticsPool, 'tracersSurfaceLayerValue', tracersSurfaceLayerValue)
