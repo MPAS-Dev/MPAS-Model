@@ -1041,14 +1041,14 @@ module ocn_time_integration_split
                         sshSubcycleCurWithTides(iCell) = &
                                  sshSubcycleCur(iCell) - &
                               tidalPotentialEta(iCell) - &
-                           ssh_sal_on * ssh_sal(iCell) + &
+                           ssh_sal_on * ssh_sal(iCell) - &
                            (1 - ssh_sal_on) * config_self_attraction_and_loading_beta* &
                                  sshSubcycleCur(iCell)
 
                         sshSubcycleNewWithTides(iCell) = &
                                  sshSubcycleNew(iCell) - &
                               tidalPotentialEta(iCell) - &
-                           ssh_sal_on * ssh_sal(iCell) + &
+                           ssh_sal_on * ssh_sal(iCell) - &
                            (1 - ssh_sal_on) * config_self_attraction_and_loading_beta* &
                                  sshSubcycleNew(iCell)
                      end do

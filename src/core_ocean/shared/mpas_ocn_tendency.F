@@ -290,10 +290,10 @@ contains
       type (mpas_pool_type), pointer :: tracersPool
       type (dm_info), intent(in) :: dminfo
 
-      real (kind=RKIND), dimension(:), pointer :: &
+      real (kind=RKIND), dimension(:), pointer, contiguous :: &
          ssh               ! sea surface height
 
-      real (kind=RKIND), dimension(:,:), pointer :: &
+      real (kind=RKIND), dimension(:,:), pointer, contiguous :: &
          normalVelocity,     &! normal velocity
          layerThickness, &
          circulation
