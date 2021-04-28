@@ -14,8 +14,7 @@
 
 ! !INPUT PARAMETERS:
   !-----------------------------------------------------------------------------
-  !   include tracegas and ecosystem parameters
-  !   all variables from these modules have a parm_ prefix
+  !
   !-----------------------------------------------------------------------------
    use mpas_log
    use SEDIMENT_parms
@@ -52,9 +51,6 @@ contains
  subroutine SEDIMENT_init(SEDIMENT_indices)
 
 ! !DESCRIPTION:
-!  Initialize tracegas tracer module. This involves setting metadata, reading
-!  the module namelist, setting initial conditions, setting up forcing,
-!  and defining additional tavg variables.
 !
 ! !REVISION HISTORY:
 !  same as module
@@ -93,7 +89,6 @@ contains
                                 numLevelsMax, numColumnsMax, numColumns)
 
 ! !DESCRIPTION:
-!  Compute time derivatives for tracegas state variables
 !
 ! !REVISION HISTORY:
 !  same as module
@@ -204,7 +199,7 @@ contains
                               numColumnsMax, numColumns)
 
 ! !DESCRIPTION:
-!  Compute surface fluxes for tracegas tracer module.
+!  Compute surface fluxes
 !
 ! !REVISION HISTORY:
 !  same as module

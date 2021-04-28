@@ -68,15 +68,18 @@
 	<var_struct name="forcing" time_levs="1">
 		<var_struct name="tracersSurfaceFlux" time_levs="1">
 			<var_array name="sedimentTracersSurfaceFlux" type="real" dimensions="nCells Time" packages="sedimentTracersPKG">
-				<!-- Add constituents of tracer group -->
-				<var name="sedConcenSurfaceFlux" array_group="sedimentSurfaceFluxGRP" units="kg m^{-3} m s^{-1}"
-          description=" (suspended) sediment Concentration Surface Flux"
+				<var name="sedConcenSurfaceFlux" array_group="sedimentTracerFluxGRP" units="kg m^{-3} m s^{-1}"
+          description="Flux of (suspended) sediment Concentration through the ocean surface. Positive into ocean"
 				/>
 			</var_array>
 			<var_array name="sedimentTracersSurfaceFluxRunoff" type="real" dimensions="nCells Time" packages="sedimentTracersPKG">
-				<!-- Add constituents of tracer group -->
-				<var name="sedConcenSurfaceFluxRunoff" array_group="sedimentSurfaceFluxRunoffGRP" units="kg m^{-3} m s^{-1}"
-					description="(suspended) sediment Concentration Surface Flux Due to Runoff"
+				<var name="sedConcenSurfaceFluxRunoff" array_group="sedimentRunoffFluxGRP" units="kg m^{-3} m s^{-1}"
+					description="Flux of (suspended) sediment through the ocean surface due to river runoff. Positive into ocean"
+				/>
+			</var_array>
+			<var_array name="sedimentTracersSurfaceFluxRemoved" type="real" dimensions="nCells Time" packages="sedimentTracersPKG">
+        <var name="sedConcenSurfaceFluxRemoved" array_group="sedimentRemovedFluxGRP" units="kg m^{-3} m s^{-1}"
+			 description="Flux of (suspended) sediment that is ignored coming into the ocean. Positive into ocean."
 				/>
 			</var_array>
 		</var_struct>

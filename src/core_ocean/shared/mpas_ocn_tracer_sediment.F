@@ -91,7 +91,7 @@ contains
 !-----------------------------------------------------------------------
 
    subroutine ocn_tracer_sediment_compute(sedimentTracers, nTracersSediment, forcingPool, &
-      nCellsSolve, maxLevelCell, nVertLevels, layerThickness, sedimentTracersTend, err)!{{{
+      nCellsSolve, minLevelCell, maxLevelCell, nVertLevels, layerThickness, sedimentTracersTend, err)!{{{
 
       !-----------------------------------------------------------------
       !
@@ -101,7 +101,7 @@ contains
 
       ! one dimensional arrays
       integer, dimension(:), intent(in) :: &
-         maxLevelCell
+         minLevelCell, maxLevelCell
 
       ! two dimensional arrays
       real (kind=RKIND), dimension(:,:), intent(in) :: &

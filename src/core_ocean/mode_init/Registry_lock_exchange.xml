@@ -7,6 +7,22 @@
 			description="Depth of the bottom of the ocean in the lock exchange test case."
 			possible_values="Any positive real value greater than 0."
 		/>
+		<nml_option name="config_lock_exchange_low_tracer" type="real" default_value="0.0" units=""
+			description="Concentration of debug tracer2 in one half of the domain."
+			possible_values="Any real number"
+		/>
+		<nml_option name="config_lock_exchange_high_tracer" type="real" default_value="10.0" units=""
+			description="Concentration of debug tracer2 in the other half of the domain."
+			possible_values="Any real number"
+		/>
+		<nml_option name="config_lock_exchange_low_sedConcen" type="real" default_value="0.0" units="kg m^-3"
+			description="Suspended sediment cocentration in one half of the domain."
+			possible_values="Any real number"
+		/>
+		<nml_option name="config_lock_exchange_high_sedConcen" type="real" default_value="10.0" units="kg m^-3"
+			description="Suspended sediment concentration in the other half of the domain."
+			possible_values="Any real number"
+		/>
 		<nml_option name="config_lock_exchange_cold_temperature" type="real" default_value="5.0" units="deg C"
 			description="Temperature of water in the cold half of the domain."
 			possible_values="Any real number"

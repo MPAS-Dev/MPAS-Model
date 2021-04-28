@@ -64,14 +64,13 @@ contains
 !
 !  routine ocn_init_setup_lock_exchange
 !
-!> \brief   Setup for lock exchange test case
-!> \author  Doug Jacobsen
-!> \date    02/18/2014
+!> \brief    Setup for lock exchange test case
+!> \authors  Doug Jacobsen, Zhendong Cao
+!> \date     02/18/2014, modified 04/26/2021
 !> \details
 !>  This routine sets up the initial conditions for the lock exchange test case.
-!>  It is setup in the y direction, such that everything in the southern half of
-!>  the domain has a temperature of 5.0C and the northern half has a value of
-!>  30.0C. Salinity is setup as a constant 35PSU.
+!>  It is setup in the y direction, such that the concerned tracer in the southern half of
+!>  the domain has a different value than in the northern half.
 !>  No windstress is specified, and layerThickness is constant depending on the input parameter
 !>  config_lock_exchange_bottom_depth.
 !
@@ -90,14 +89,15 @@ contains
 
       type (mpas_pool_type), pointer :: meshPool, statePool, verticalMeshPool, tracersPool
 
-      integer, pointer :: nCellsSolve, nEdgesSolve, nVertLevels, nVertLevelsP1, index_temperature, index_salinity, index_tracer1
+      integer, pointer :: nCellsSolve, nEdgesSolve, nVertLevels, nVertLevelsP1, index_temperature, &
+                          index_salinity, index_tracer1, index_tracer2, index_sedConcen
 
       integer, dimension(:), pointer :: maxLevelCell
 
       real (kind=RKIND), dimension(:), pointer :: xCell, yCell, bottomDepth, refBottomDepthTopOfCell, refBottomDepth, &
                                                   vertCoordMovementWeights, dcEdge
       real (kind=RKIND), dimension(:,:), pointer :: layerThickness, restingThickness
-      real (kind=RKIND), dimension(:,:,:), pointer :: activeTracers, debugTracers
+      real (kind=RKIND), dimension(:,:,:), pointer :: activeTracers, debugTracers,sedimentTracers
 
       real (kind=RKIND), dimension(:), pointer :: interfaceLocations
 
@@ -169,6 +169,8 @@ contains
          call mpas_pool_get_dimension(tracersPool, 'index_temperature', index_temperature)
          call mpas_pool_get_dimension(tracersPool, 'index_salinity', index_salinity)
          call mpas_pool_get_dimension(tracersPool, 'index_tracer1', index_tracer1)
+         call mpas_pool_get_dimension(tracersPool, 'index_tracer2', index_tracer2)
+         call mpas_pool_get_dimension(tracersPool, 'index_sedConcen', index_sedConcen)
 
          call mpas_pool_get_array(meshPool, 'yCell', yCell)
          call mpas_pool_get_array(meshPool, 'bottomDepth', bottomDepth)
@@ -179,6 +181,7 @@ contains
 
          call mpas_pool_get_array(tracersPool, 'activeTracers', activeTracers, 1)
          call mpas_pool_get_array(tracersPool, 'debugTracers', debugTracers, 1)
+         call mpas_pool_get_array(tracersPool, 'sedimentTracers', sedimentTracers, 1)
          call mpas_pool_get_array(statePool, 'layerThickness', layerThickness, 1)
 
          call mpas_pool_get_array(verticalMeshPool, 'restingThickness', restingThickness)
@@ -222,10 +225,70 @@ contains
                   end if
                end if
 
+               ! Set debugTracer1
+               if ( associated(debugTracers) ) then
+                  if ( trim(config_lock_exchange_direction) == 'x' ) then
+                     if(xCell(iCell) < xMinGlobal + (xMaxGlobal - xMinGlobal) * 0.5_RKIND) then
+                        debugTracers(index_tracer2, :, iCell) = config_lock_exchange_low_tracer
+                     else
+                        debugTracers(index_tracer2, :, iCell) = config_lock_exchange_high_tracer
+                     end if
+
+                  elseif ( trim(config_lock_exchange_direction) == 'y' ) then
+                     if(yCell(iCell) < yMinGlobal + (yMaxGlobal - yMinGlobal) * 0.5_RKIND) then
+                        debugTracers(index_tracer2, :, iCell) = config_lock_exchange_low_tracer
+                     else
+                        debugTracers(index_tracer2, :, iCell) = config_lock_exchange_high_tracer
+                     end if
+
+                  elseif ( trim(config_lock_exchange_direction) == 'z' ) then
+                        debugTracers(index_tracer2, 1:nVertLevels/2, iCell) = config_lock_exchange_high_tracer
+                        debugTracers(index_tracer2, nVertLevels/2+1:nVertLevels, iCell) = &
+                           config_lock_exchange_low_tracer
+                  else
+                     call mpas_log_write('MPAS-ocean: Error: wrong choice of config_lock_exchange_direction')
+                  end if
+               end if
+
+               ! Set sedimentTracers
+               if ( associated(sedimentTracers) ) then
+                  if ( trim(config_lock_exchange_direction) == 'x' ) then
+                     if(xCell(iCell) < xMinGlobal + (xMaxGlobal - xMinGlobal) * 0.5_RKIND) then
+                        sedimentTracers(index_sedConcen, :, iCell) = config_lock_exchange_low_sedConcen
+                     else
+                        sedimentTracers(index_sedConcen, :, iCell) = config_lock_exchange_high_sedConcen
+                     end if
+
+                  elseif ( trim(config_lock_exchange_direction) == 'y' ) then
+                     if(yCell(iCell) < yMinGlobal + (yMaxGlobal - yMinGlobal) * 0.5_RKIND) then
+                        sedimentTracers(index_sedConcen, :, iCell) = config_lock_exchange_low_sedConcen
+                     else
+                        sedimentTracers(index_sedConcen, :, iCell) = config_lock_exchange_high_sedConcen
+                     end if
+
+                  elseif ( trim(config_lock_exchange_direction) == 'z' ) then
+                        sedimentTracers(index_sedConcen, 1:nVertLevels/2, iCell) = config_lock_exchange_high_sedConcen
+                        sedimentTracers(index_sedConcen, nVertLevels/2+1:nVertLevels, iCell) = &
+                           config_lock_exchange_low_sedConcen
+                  else
+                     call mpas_log_write('MPAS-ocean: Error: wrong choice of config_lock_exchange_direction')
+                  end if
+               end if
+
             else if ( trim(config_lock_exchange_layer_type) == 'isopycnal' ) then
                if ( associated(activeTracers) ) then
                   activeTracers(index_temperature, 1, iCell) = config_lock_exchange_warm_temperature
                   activeTracers(index_temperature, 2:nVertLevels, iCell) = config_lock_exchange_cold_temperature
+               end if
+
+               if ( associated(debugTracers) ) then
+                  debugTracers(index_tracer2, 1, iCell) = config_lock_exchange_high_tracer
+                  debugTracers(index_tracer2, 2:nVertLevels, iCell) = config_lock_exchange_low_tracer
+               end if
+
+               if ( associated(sedimentTracers) ) then
+                  sedimentTracers(index_sedConcen, 1, iCell) = config_lock_exchange_high_sedConcen
+                  sedimentTracers(index_sedConcen, 2:nVertLevels, iCell) = config_lock_exchange_low_sedConcen
                end if
 
                if(yCell(iCell) < (yMaxGlobal - yMinGlobal) * 0.5_RKIND) then
@@ -245,11 +308,11 @@ contains
                activeTracers(index_salinity, :, iCell) = config_lock_exchange_salinity
             end if
 
-            ! Set debugging tracer
+            ! Set debugging tracer1
             if ( associated(debugTracers) ) then
-               do k = 1, nVertLevels
-                  debugTracers(index_tracer1, k, iCell) = 1.0_RKIND
-               enddo
+              do k = 1, nVertLevels
+                debugTracers(index_tracer1, k, iCell) = 1.0_RKIND
+              enddo
             end if
 
             ! Set bottomDepth
