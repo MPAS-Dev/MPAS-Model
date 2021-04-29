@@ -1576,6 +1576,7 @@ module mpas_timekeeping
       integer :: days, sn, sd, hours, minutes
       integer (kind=I8KIND) :: seconds
       real (kind=R8KIND) :: seconds_real
+      character (len=1) :: neg
       integer :: local_ierr
 
 
@@ -1663,12 +1664,18 @@ module mpas_timekeeping
                                    d=days, h=hours, m=minutes, s_i8=seconds, sN=sn, sD=sd, rc=ierr)
          seconds_real = real(seconds,kind=R8KIND) + (real(sn, kind=R8KIND) / real(sd, kind=R8KIND))
 
-         ! Seconds should not be negative, so there is no need to handle negative cases, below
-         if (seconds_real < 10.0_R8KIND) then
-            write(timeString,'(i9.9,a,i2.2,a,i2.2,a,f11.9)') days, '_', hours, ':', minutes, ':0', seconds_real
-         else
-            write(timeString,'(i9.9,a,i2.2,a,i2.2,a,f12.9)') days, '_', hours, ':', minutes, ':', seconds_real
+         !
+         ! If the time interval is negative, the ESMF library will return negative values for
+         ! non-zero components of the interval, so days, hours, minutes, and seconds_real must
+         ! be checked in order to determine whether a '-' needs to be prepended to the timeString
+         !
+         neg = ''
+         if (days < 0 .or. hours < 0 .or. minutes < 0 .or. seconds_real < 0.0_R8KIND) then
+            neg = '-'
          end if
+
+         write(timeString,'(a,i9.9,a,i2.2,a,i2.2,a,i2.2,f10.9)') trim(neg), abs(days), '_', abs(hours), ':', abs(minutes), ':', &
+                                                               int(abs(seconds_real)), abs(seconds_real) - int(abs(seconds_real))
 #endif
       end if
 
