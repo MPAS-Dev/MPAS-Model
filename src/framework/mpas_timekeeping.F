@@ -1309,7 +1309,11 @@ module mpas_timekeeping
 
       call ESMF_TimeGet(curr_time % t, YY=YYYY, MM=MM, DD=DD, H=H, M=M, S=S, Sn=S_n, Sd=S_d, rc=ierr)
       call ESMF_TimeGet(curr_time % t, dayOfYear=DoY, rc=ierr)
+#ifndef MPAS_EXTERNAL_ESMF_LIB
       call ESMF_TimeGet(curr_time % t, timeString=dateTimeString, rc=ierr)
+#else
+      call ESMF_TimeGet(curr_time % t, timeStringISOFrac=dateTimeString, rc=ierr)
+#endif
 
       !
       ! In case an external ESMF library that returns ISO timestamps is being used,
