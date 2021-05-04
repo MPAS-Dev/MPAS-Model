@@ -135,10 +135,10 @@ clean:
 		($(RM) -r gotm/build) \
     fi
 	if [ -e SHTNS/.git ]; then \
-		(cd SHTNS; make clean; rm lib/libshtns.a) \
+		(cd SHTNS; make clean; rm -f lib/libshtns.a) \
 	fi
 	if [ -e FFTW/.git ]; then \
-		(cd FFTW; make clean; rm $(SHTNS_DIR)/lib/libfftw3*) \
+		(cd FFTW; make clean; rm -f $(SHTNS_DIR)/lib/libfftw3*) \
 	fi
 	(cd mode_forward; $(MAKE) clean)
 	(cd mode_analysis; $(MAKE) clean)
