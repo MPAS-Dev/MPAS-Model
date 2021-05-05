@@ -62,10 +62,10 @@ module mpas_parse_geoindex
       integer :: i, k
       logical :: res
 
-      character (len=StrKIND), pointer :: char_t
+      character (len=StrKIND) :: char_t
       integer :: iceiling, ifloor
-      integer, pointer :: int_t
-      real(kind=RKIND), pointer :: real_t
+      integer :: int_t
+      real(kind=RKIND) :: real_t
 
       ierr = 0
 
@@ -133,7 +133,6 @@ module mpas_parse_geoindex
                 .or. trim(lhs) == 'endian' &
                 .or. trim(lhs) == 'mminlu'   ) then
 
-            allocate(char_t)
             char_t = rhs
             call mpas_pool_add_config(geo_pool, trim(lhs), char_t)
 
@@ -152,7 +151,6 @@ module mpas_parse_geoindex
                   .or. trim(lhs) == 'truelat2' &
                   .or. trim(lhs) == 'missing_value' ) then
 
-            allocate(real_t)
             read(rhs, *, iostat=read_stat, iomsg=read_err_msg) real_t
             call mpas_pool_add_config(geo_pool, trim(lhs), real_t)
 
@@ -178,7 +176,6 @@ module mpas_parse_geoindex
             ! Because each compiler handles reporting type errors when transferring
             ! data in a read statement a little bit differently, we will have to type check
             ! integer values ourselves.
-            allocate(real_t)
             read(rhs, *, iostat=read_stat, iomsg=read_err_msg) real_t
             iceiling = ceiling(real_t)
             ifloor = floor(real_t)
@@ -192,9 +189,7 @@ module mpas_parse_geoindex
                return
             endif
 
-            allocate(int_t)
             int_t = int(real_t)
-            deallocate(real_t)
             call mpas_pool_add_config(geo_pool, trim(lhs), int_t)
 
          !
@@ -202,11 +197,9 @@ module mpas_parse_geoindex
          !
          else if (lhs == 'signed') then
             if (trim(rhs) == 'yes') then
-               allocate(int_t)
                int_t = 1
                call mpas_pool_add_config(geo_pool, trim(lhs), int_t)
             else if (trim(rhs) == 'no') then
-               allocate(int_t)
                int_t = 0
                call mpas_pool_add_config(geo_pool, trim(lhs), int_t)
             else
