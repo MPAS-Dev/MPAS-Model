@@ -2881,6 +2881,15 @@
         </var_struct>
 
         <var_struct name="tend_physics" time_levs="1">
+
+                <!-- Scratch variables used when propagating cell-centered winds to edges -->
+                <var name="tend_uzonal" type="real" dimensions="nVertLevels nCells Time" units="m s^{-1} s^{-1}"
+                     description="Total cell-centered zonal wind tendency from physics"
+                     persistence="scratch" />
+
+                <var name="tend_umerid" type="real" dimensions="nVertLevels nCells Time" units="m s^{-1} s^{-1}"
+                     description="Total cell-centered meridional wind tendency from physics"
+                     persistence="scratch" />
  
                 <!-- ================================================================================================== -->
                 <!-- TENDENCIES FROM PARAMETERIZATION OF CONVECTION:                                                    -->
@@ -2979,7 +2988,7 @@
                      description="tendency of potential temperature due to short wave radiation"/>
 
                 <var name="rthratenlw" type="real" dimensions="nVertLevels nCells Time" units="K s^{-1}"
-                     description="tendency of potential temperature due to short wave radiation"/>
+                     description="tendency of potential temperature due to long wave radiation"/>
         </var_struct>
 
 
