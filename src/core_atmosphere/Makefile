@@ -1,14 +1,23 @@
 .SUFFIXES: .F .o
 
+#
+# To build a dycore-only MPAS-Atmosphere model, comment-out or delete
+# the definition of PHYSICS, below
+#
 PHYSICS=-DDO_PHYSICS
-#PHYSICS=
+
+
+ifdef PHYSICS
+    PHYSCORE = physcore
+    PHYS_OBJS = libphys/*.o
+endif
 
 OBJS = mpas_atm_core.o \
        mpas_atm_core_interface.o \
        mpas_atm_dimensions.o \
        mpas_atm_threading.o
 
-all: physcore dycore diagcore atmcore utilities
+all: $(PHYSCORE) dycore diagcore atmcore utilities
 
 core_reg:
 	$(CPP) $(CPPFLAGS) $(CPPINCLUDES) $(PHYSICS) Registry.xml > Registry_processed.xml
@@ -33,17 +42,17 @@ physcore: mpas_atm_dimensions.o
 	( cd ../..; ln -sf ./src/core_atmosphere/physics/physics_wrf/files/*TBL .)
 	( cd ../..; ln -sf ./src/core_atmosphere/physics/physics_wrf/files/*DATA* .)
 
-dycore: mpas_atm_dimensions.o physcore
+dycore: mpas_atm_dimensions.o $(PHYSCORE)
 	( cd dynamics; $(MAKE) all PHYSICS="$(PHYSICS)" )
 
-diagcore: physcore dycore
+diagcore: $(PHYSCORE) dycore
 	( cd diagnostics; $(MAKE) all PHYSICS="$(PHYSICS)" )
 
-utilities: physcore
-	( cd utils; $(MAKE) all )
+utilities: $(PHYSCORE)
+	( cd utils; $(MAKE) all PHYSICS="$(PHYSICS)" )
 
-atmcore: physcore dycore diagcore $(OBJS)
-	ar -ru libdycore.a $(OBJS) dynamics/*.o libphys/*.o diagnostics/*.o
+atmcore: $(PHYSCORE) dycore diagcore $(OBJS)
+	ar -ru libdycore.a $(OBJS) dynamics/*.o $(PHYS_OBJS) diagnostics/*.o
 
 mpas_atm_core_interface.o: mpas_atm_core.o
 
