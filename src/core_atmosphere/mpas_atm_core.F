@@ -534,7 +534,9 @@ module atm_core
          do while (associated(block_ptr))
             call mpas_pool_get_subpool(block_ptr % structs, 'state', state)
             call mpas_pool_get_subpool(block_ptr % structs, 'diag', diag)
+#ifdef DO_PHYSICS
             call mpas_pool_get_subpool(block_ptr % structs, 'diag_physics', diag_physics)
+#endif
             call mpas_pool_get_subpool(block_ptr % structs, 'mesh', mesh)
             call atm_compute_output_diagnostics(state, 1, diag, mesh)
 
@@ -570,7 +572,9 @@ module atm_core
       call mpas_pool_get_subpool(block_ptr % structs, 'mesh', mesh)
       call mpas_pool_get_subpool(block_ptr % structs, 'state', state)
       call mpas_pool_get_subpool(block_ptr % structs, 'diag', diag)
+#ifdef DO_PHYSICS
       call mpas_pool_get_subpool(block_ptr % structs, 'diag_physics', diag_physics)
+#endif
 
       call mpas_pool_get_config(domain % blocklist % configs, 'config_apply_lbcs', config_apply_lbcs)
 
@@ -682,10 +686,12 @@ module atm_core
            do while (associated(block_ptr))
               call mpas_pool_get_subpool(block_ptr % structs, 'state', state)
               call mpas_pool_get_subpool(block_ptr % structs, 'diag', diag)
+#ifdef DO_PHYSICS
               call mpas_pool_get_subpool(block_ptr % structs, 'diag_physics', diag_physics)
+              call mpas_pool_get_subpool(block_ptr % structs, 'tend_physics', tend_physics)
+#endif
               call mpas_pool_get_subpool(block_ptr % structs, 'mesh', mesh)
               call mpas_pool_get_subpool(block_ptr % structs, 'tend', tend)
-              call mpas_pool_get_subpool(block_ptr % structs, 'tend_physics', tend_physics)
               call atm_compute_output_diagnostics(state, 1, diag, mesh)
 
               block_ptr => block_ptr % next
@@ -717,7 +723,9 @@ module atm_core
             block_ptr => domain % blocklist
             do while (associated(block_ptr))
 
+#ifdef DO_PHYSICS
                call mpas_pool_get_subpool(block_ptr % structs, 'diag_physics', diag_physics)
+#endif
                call atm_reset_diagnostics(diag_physics)
 
                block_ptr => block_ptr % next
@@ -807,14 +815,16 @@ module atm_core
    
       implicit none
    
-      type (mpas_pool_type), intent(inout) :: diag_physics
+      type (mpas_pool_type), pointer :: diag_physics
    
       real (kind=RKIND), dimension(:), pointer :: refl10cm_1km_max
 
+#ifdef DO_PHYSICS
       call mpas_pool_get_array(diag_physics, 'refl10cm_1km_max', refl10cm_1km_max)
       if(associated(refl10cm_1km_max)) then
          refl10cm_1km_max(:) = 0.
       endif
+#endif
    
    end subroutine atm_reset_diagnostics
 
@@ -1299,7 +1309,9 @@ module atm_core
    !-----------------------------------------------------------------------
    subroutine mpas_atm_run_compatibility(dminfo, blockList, streamManager, ierr)
 
+#ifdef DO_PHYSICS
       use mpas_atmphys_control, only : physics_compatibility_check
+#endif
       use mpas_atm_boundaries, only : mpas_atm_bdy_checks
 
       implicit none
@@ -1313,11 +1325,13 @@ module atm_core
 
       ierr = 0
 
+#ifdef DO_PHYSICS
       !
       ! Physics specific checks found in physics/mpas_atmphys_control.F
       !
       call physics_compatibility_check(dminfo, blockList, streamManager, local_ierr)
       ierr = ierr + local_ierr
+#endif
 
       !
       ! Checks for limited-area simulations
