@@ -395,19 +395,17 @@ module atm_core_interface
       ! should have added a config, cam_pcnst, to the configs pool to indicate how many scalars
       ! are to be allocated.
       !
-      if (associated(block % domain % configs)) then
-          nullify(cam_pcnst)
-          err_level = mpas_pool_get_error_level()
-          call mpas_pool_set_error_level(MPAS_POOL_SILENT)
-          call mpas_pool_get_config(block % domain % configs, 'cam_pcnst', cam_pcnst)
-          call mpas_pool_set_error_level(err_level)
-          if (associated(cam_pcnst)) then
-             call mpas_log_write('')
-             call mpas_log_write('** Config ''cam_pcnst'' is defined with a value of $i', intArgs=[cam_pcnst])
-             call mpas_log_write('   Scalars will be allocated separately from Registry-defined variables')
-             call mpas_log_write('')
-             ierr = atm_allocate_scalars(block, cam_pcnst)
-          end if
+      nullify(cam_pcnst)
+      err_level = mpas_pool_get_error_level()
+      call mpas_pool_set_error_level(MPAS_POOL_SILENT)
+      call mpas_pool_get_config(block % domain % configs, 'cam_pcnst', cam_pcnst)
+      call mpas_pool_set_error_level(err_level)
+      if (associated(cam_pcnst)) then
+         call mpas_log_write('')
+         call mpas_log_write('** Config ''cam_pcnst'' is defined with a value of $i', intArgs=[cam_pcnst])
+         call mpas_log_write('   Scalars will be allocated separately from Registry-defined variables')
+         call mpas_log_write('')
+         ierr = atm_allocate_scalars(block, cam_pcnst)
       end if
 
    end function atm_setup_block
