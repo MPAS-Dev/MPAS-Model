@@ -8,3 +8,4 @@ Design document describing new capabilities added to MPAS-Ocean.
 
    time-varying-wind
    prognostic-sediment-transport
+   min_level_cell
