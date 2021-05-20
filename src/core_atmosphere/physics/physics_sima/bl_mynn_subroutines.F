@@ -34,7 +34,25 @@
 
 
 !---
- real(kind=kind_phys),parameter:: tref = 300.0
+ integer,parameter:: bl_mynn_topdown = 1
+
+ real(kind=kind_phys),parameter:: zero  = 0.0
+ real(kind=kind_phys),parameter:: half  = 0.5
+ real(kind=kind_phys),parameter:: one   = 1.0
+ real(kind=kind_phys),parameter:: two   = 2.0
+ real(kind=kind_phys),parameter:: onethird = 1./3.
+ real(kind=kind_phys),parameter:: twothirds = 2./3.
+
+ real(kind=kind_phys),parameter:: cphh_st   = 5.0
+ real(kind=kind_phys),parameter:: cphm_st   = 5.0
+ real(kind=kind_phys),parameter:: cphh_unst = 16.0
+ real(kind=kind_phys),parameter:: cphm_unst = 16.0
+
+ real(kind=kind_phys),parameter:: scaleaware = 1.0
+
+ real(kind=kind_phys),parameter:: tkmin = 300.0
+ real(kind=kind_phys),parameter:: tref  = 300.0
+
 
  real(kind=kind_phys):: ep_3
  real(kind=kind_phys):: ev
@@ -213,7 +231,6 @@
 MODULE bl_mynn_subroutines
 #if defined(mpas)
   use mpas_kind_types
-  use mpas_log
   use bl_mynn_common,only: &
         cp,              &
         cpv,             &
@@ -237,6 +254,7 @@ MODULE bl_mynn_subroutines
         svp2,            &
         svp3,            &
         svpt0,           &
+        tkmin,           &
         tref,            &
         tv0,             &
         tv1,             &
@@ -261,8 +279,21 @@ MODULE bl_mynn_subroutines
         e4c,             &
         e5c,             &
         g1,              &
-        g2
-
+        g2,              &
+!---
+        cphh_st,         &
+        cphm_st,         &
+        cphh_unst,       &
+        cphm_unst,       &
+        bl_mynn_topdown, &
+        scaleaware,      &
+!---
+        zero,            &
+        half,            &
+        one,             &
+        two,             &
+        onethird,        &
+        twothirds
 
   use mpas_atmphys_utilities,only: physics_message
   use error_function, only: erf
@@ -282,22 +313,6 @@ MODULE bl_mynn_subroutines
            retrieve_exchange_coeffs, &
            scale_aware,              &
            xl_blend
-
-  integer,parameter,public:: &
-     bl_mynn_topdown = 1
-
-  real(kind=RKIND),parameter,public:: &
-     scaleaware = 1.
-
-  real(kind=RKIND),parameter,public:: &
-     cphm_st=5.0, cphm_unst=16.0, &
-     cphh_st=5.0, cphh_unst=16.0
-
-  real(kind=RKIND),parameter,public:: &
-     zero = 0.0, half = 0.5, one = 1.0, two = 2.0, &
-     onethird = 1./3., twothirds = 2./3.
-
-  real(kind=RKIND),parameter:: tkmin=253.0    !< for total water conversion, Tripoli and Cotton (1981)
 #endif
 
 ! Constants for min tke in elt integration (qmin), max z/L in els (zmax), 
