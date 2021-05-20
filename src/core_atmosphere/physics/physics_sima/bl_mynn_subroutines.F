@@ -1,4 +1,57 @@
 !=================================================================================================================
+ module bl_mynn_common
+ use mpas_kind_types,only: kind_phys => RKIND
+
+ implicit none
+ save
+
+
+ real(kind=kind_phys):: cp
+ real(kind=kind_phys):: cpv
+ real(kind=kind_phys):: cice
+ real(kind=kind_phys):: cliq
+
+ real(kind=kind_phys):: ep_1
+ real(kind=kind_phys):: ep_2
+
+ real(kind=kind_phys):: grav
+
+ real(kind=kind_phys):: karman
+
+ real(kind=kind_phys):: rcp
+ real(kind=kind_phys):: rd
+ real(kind=kind_phys):: rv
+ real(kind=kind_phys):: rvovrd
+
+ real(kind=kind_phys):: svp1
+ real(kind=kind_phys):: svp2
+ real(kind=kind_phys):: svp3
+ real(kind=kind_phys):: svpt0
+
+ real(kind=kind_phys):: xlf
+ real(kind=kind_phys):: xlv
+ real(kind=kind_phys):: xls
+
+!---
+ real(kind=kind_phys),parameter:: tref = 300.0
+
+ real(kind=kind_phys):: ep_3
+ real(kind=kind_phys):: ev
+ real(kind=kind_phys):: gtr
+ real(kind=kind_phys):: p1000mb
+ real(kind=kind_phys):: p608
+ real(kind=kind_phys):: rk
+ real(kind=kind_phys):: svp11
+ real(kind=kind_phys):: tv0
+ real(kind=kind_phys):: tv1
+ real(kind=kind_phys):: vk
+ real(kind=kind_phys):: xlscp
+ real(kind=kind_phys):: xlvcp
+
+
+ end module bl_mynn_common
+
+!=================================================================================================================
 !reference: WRF-v4.2.1
 !Laura D. Fowler (laura@ucar.edu) / 2021-01-11.
 
@@ -137,27 +190,39 @@ MODULE bl_mynn_subroutines
 #if defined(mpas)
   use mpas_kind_types
   use mpas_log
-  use mpas_atmphys_constants,only: &
-        karman,          &
-        g => gravity,    &
-        p1000mb => P0,   &
+  use bl_mynn_common,only: &
         cp,              &
-        r_d => R_d,      &
-        r_v => R_v,      &
+        cpv,             &
+        cliq,            &
+        cice,            &
+        ep_1,            &
+        ep_2,            &
+        ep_3,            &
+        ev,              &
+        gtr,             &
+        grav,            &
+        karman,          &
+        p1000mb,         &
+        p608,            &
         rcp,             &
-        xlv,             &
-        xlf,             &
-        xls,             &
+        rd,              &
+        rk,              &
+        rv,              &
+        rvovrd,          &
         svp1,            &
         svp2,            &
         svp3,            &
         svpt0,           &
-        ep_1,            &
-        ep_2,            &
-        rvovrd => rvord, &
-        cpv,             &
-        cliq,            &
-        cice
+        tref,            &
+        tv0,             &
+        tv1,             &
+        vk,              &
+        xlf,             &
+        xls,             &
+        xlscp,           &
+        xlv,             &
+        xlvcp
+!--- CCPP PHYSICS END:
 
   use mpas_atmphys_utilities,only: physics_message
   use error_function, only: erf
@@ -182,18 +247,8 @@ MODULE bl_mynn_subroutines
      bl_mynn_topdown = 1
 
   real(kind=RKIND),parameter,public:: &
-     p608 = ep_1,      &
-     tref = 300.0,     &
-     tv0  = p608*tref, &
-     ev   = xlv,       &
-     rd   = r_d
-
-  real(kind=RKIND),parameter,public:: &
      b1  = 24.0, &
      b2  = 15.0
-
-  real(kind=RKIND),parameter,public:: &
-     xlvcp=xlv/cp, xlscp=(xlv+xlf)/cp
 
   real(kind=RKIND),parameter,public:: &
      scaleaware = 1.
@@ -206,14 +261,10 @@ MODULE bl_mynn_subroutines
      zero = 0.0, half = 0.5, one = 1.0, two = 2.0, &
      onethird = 1./3., twothirds = 2./3.
 
-  real(kind=RKIND),parameter:: rk=cp/rd, svp11=svp1*1.e3, ep_3=1.-ep_2
-
   real(kind=RKIND),parameter:: tkmin=253.0    !< for total water conversion, Tripoli and Cotton (1981)
-  real(kind=RKIND),parameter:: tv1=(1.+p608)*tref, gtr=g/tref
 
 !closure constants:
   real(kind=RKIND),parameter:: &
-     vk  = karman, &
      pr  =  0.74,  &
      g1  =  0.235, &  ! NN2009 = 0.235
      c2  =  0.729, &  ! 0.729, & !0.75, &
@@ -263,20 +314,6 @@ MODULE bl_mynn_subroutines
 
 !END FV3 CONSTANTS
 !====================================================================
-!WRF CONSTANTS
-!  USE module_model_constants, only: &
-!       &karman, g, p1000mb, &
-!       &cp, r_d, r_v, rcp, xlv, xlf, xls, &
-!       &svp1, svp2, svp3, svpt0, ep_1, ep_2, rvovrd, &
-!       &cpv, cliq, cice
-!
-!  USE module_state_description, only: param_first_scalar, &
-!       &p_qc, p_qr, p_qi, p_qs, p_qg, p_qnc, p_qni
-!
-!  IMPLICIT NONE
-!
-!END WRF CONSTANTS
-!===================================================================
 ! From here on, these are used for any model
 ! The parameters below depend on stability functions of module_sf_mynn.
   REAL, PARAMETER :: cphm_st=5.0, cphm_unst=16.0, &
@@ -1314,7 +1351,7 @@ CONTAINS
      dlu=zw(kte+1)-zw(k)-dz(k)/2.
      zzz=0.
      zup_inf=0.
-     beta=g/theta(k)           !Buoyancy coefficient
+     beta=grav/theta(k)           !Buoyancy coefficient
 
      !print*,"FINDING Dup, k=",k," zw=",zw(k)
 
@@ -1468,7 +1505,7 @@ CONTAINS
         dlu(iz)=zw(kte+1)-zw(iz)-dz(iz)/2.
         zzz=0.
         zup_inf=0.
-        beta=g/theta(iz)           !Buoyancy coefficient
+        beta=grav/theta(iz)           !Buoyancy coefficient
 
         !print*,"FINDING Dup, k=",iz," zw=",zw(iz)
 
@@ -1875,13 +1912,13 @@ CONTAINS
 !     **  Limitation on c3sq (0.12 =< cw =< 0.76) **
           !JOE: use Janjic's (2001; p 13-17) methodology (eqs 4.11-414 and 5.7-5.10)
           ! to calculate an exact limit for c3sq:
-          auh = 27.*a1*((a2/a2den)**2)*b2*(g/tref)**2
-          aum = 54.*(a1**2)*(a2/a2den)*b2*c1*(g/tref)
-          adh = 9.*a1*((a2/a2den)**2)*(12.*a1 + 3.*b2)*(g/tref)**2
-          adm = 18.*(a1**2)*(a2/a2den)*(b2 - 3.*(a2/a2den))*(g/tref)
+          auh = 27.*a1*((a2/a2den)**2)*b2*(grav/tref)**2
+          aum = 54.*(a1**2)*(a2/a2den)*b2*c1*(grav/tref)
+          adh = 9.*a1*((a2/a2den)**2)*(12.*a1 + 3.*b2)*(grav/tref)**2
+          adm = 18.*(a1**2)*(a2/a2den)*(b2 - 3.*(a2/a2den))*(grav/tref)
 
           aeh = (9.*a1*((a2/a2den)**2)*b1 +9.*a1*((a2/a2den)**2)* &
-                (12.*a1 + 3.*b2))*(g/tref)
+                (12.*a1 + 3.*b2))*(grav/tref)
           aem = 3.*a1*(a2/a2den)*b1*(3.*(a2/a2den) + 3.*b2*c1 + &
                 (18.*a1*c1 - b2)) + &
                 (18.)*(a1**2)*(a2/a2den)*(b2 - 3.*(a2/a2den))
@@ -2072,7 +2109,7 @@ CONTAINS
        !!!Buoyancy Term    
        !!!qBUOY1D(k)=g*Tpwp/thl(k)
        !qBUOY1D(k)= elq*(sh(k)*gh(k) + gamv)
-       qBUOY1D(k) = elq*(sh(k)*(-dTdz*g/thl(k)) + gamv)
+       qBUOY1D(k) = elq*(sh(k)*(-dTdz*grav/thl(k)) + gamv)
 
        !!!Dissipation Term
        qDISS1D(k) = (q3sq**(3./2.))/(b1*MAX(el(k),1.))
@@ -2722,7 +2759,7 @@ CONTAINS
            tlk = thl(k)*(p(k)/p1000mb)**rcp    ! recover liquid temp (tl) from thl
            qsat_tl = qsat_blend(tlk,p(k))      ! get saturation water vapor mixing ratio
                                                !   at tl and p
-           rsl = xl*qsat_tl / (r_v*tlk**2)     ! slope of C-C curve at t = tl
+           rsl = xl*qsat_tl / (rv*tlk**2)      ! slope of C-C curve at t = tl
                                                ! CB02, Eqn. 4
            cpm = cp + qw(k)*cpv                ! CB02, sec. 2, para. 1
            a(k) = 1./(1. + xl*rsl/cpm)         ! CB02 variable "a"
@@ -2742,7 +2779,7 @@ CONTAINS
              dzk = dz(k)
            end if
 
-           cdhdz = dtl/dzk + (g/cpm)*(1.+qw(k))  ! expression below Eq. 9
+           cdhdz = dtl/dzk + (grav/cpm)*(1.+qw(k))  ! expression below Eq. 9
                                                  ! in CB02
            zagl = zagl + dz(k)
            !Use analog to surface layer length scale to make the cloud mixing length scale
@@ -4865,7 +4902,7 @@ ENDIF
           end if
 
           !-- Estimate wstar & delta for GRIMS shallow-cu-------
-          govrth = g/th1(kts)
+          govrth = grav/th1(kts)
           sflux = hfx(i,j)/rho(i,kts,j)/cpm + &
                   qfx(i,j)/rho(i,kts,j)*ep_1*th1(kts)
           bfx0 = max(sflux,0.)
@@ -4939,8 +4976,8 @@ ENDIF
 
                 radsum=0.
                 DO kk = MAX(1,kpbl(i,j)-3),kpbl(i,j)+3
-                   radflux=rthraten(i,kk,j)*ex1(kk)         !converts theta/s to temp/s
-                   radflux=radflux*cp/g*(p1(kk)-p1(kk+1)) ! converts temp/s to W/m^2
+                   radflux=rthraten(i,kk,j)*ex1(kk)          !converts theta/s to temp/s
+                   radflux=radflux*cp/grav*(p1(kk)-p1(kk+1)) !converts temp/s to W/m^2
                    if (radflux < 0.0 ) radsum=abs(radflux)+radsum
                 ENDDO
 
@@ -4954,7 +4991,7 @@ ENDIF
                 endif
 
                 !entrainment from PBL top thermals
-                wm3    = g/thetav(k)*bfx0*MIN(pblh(i,j),1500.) ! this is wstar3(i)
+                wm3    = grav/thetav(k)*bfx0*MIN(pblh(i,j),1500.) ! this is wstar3(i)
                 wm2    = wm2 + wm3**h2
                 bfxpbl = - ent_eff * bfx0
                 dthvx  = max(thetav(k+1)-thetav(k),0.1)
@@ -5919,7 +5956,7 @@ ENDIF
     pwmin=0.1       ! was 0.5
     pwmax=0.4       ! was 3.0
 
-    wstar=max(1.E-2,(g/thv(1)*fltv*pblh)**(1./3.))
+    wstar=max(1.E-2,(grav/thv(1)*fltv*pblh)**(1./3.))
     qstar=max(flq,1.0E-5)/wstar
     thstar=flt/wstar
 
@@ -6069,7 +6106,7 @@ ENDIF
           THVkm1=(THV(k-1)*DZ(k)+THV(k)*DZ(k-1))/(DZ(k-1)+DZ(k))
 
 !          B=g*(0.5*(THVn+UPTHV(k-1,I))/THV(k-1) - 1.0)
-          B=g*(THVn/THVk - 1.0)
+          B=grav*(THVn/THVk - 1.0)
           IF(B>0.)THEN
             BCOEFF = 0.15        !w typically stays < 2.5, so doesnt hit the limits nearly as much
           ELSE
@@ -6469,7 +6506,7 @@ ENDIF
             tlk = thl(k)*(p(k)/p1000mb)**rcp    ! recover liquid temp (tl) from thl
             qsat_tl = qsat_blend(tlk,p(k))      ! get saturation water vapor mixing ratio
                                                 !   at tl and p
-            rsl = xl*qsat_tl / (r_v*tlk**2)     ! slope of C-C curve at t = tl
+            rsl = xl*qsat_tl / (rv*tlk**2)      ! slope of C-C curve at t = tl
                                                 ! CB02, Eqn. 4
             cpm = cp + qt(k)*cpv                ! CB02, sec. 2, para. 1
             a   = 1./(1. + xl*rsl/cpm)          ! CB02 variable "a"

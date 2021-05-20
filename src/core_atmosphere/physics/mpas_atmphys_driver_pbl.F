@@ -18,10 +18,13 @@
  use module_bl_mynn
  use module_bl_ysu
 
+ use bl_mynn_mpas,only: bl_mynn_mpas_init
+
  implicit none
  private
  public:: allocate_pbl,   &
           deallocate_pbl, &
+          init_pbl,       &
           driver_pbl
 
 !MPAS driver for parameterization of Planetary Boundary Layer (PBL) processes.
@@ -85,6 +88,8 @@
 !   Laura D. Fowler (laura@ucar.edu) / 2021-01-05.
 ! * updated the MYNN PBL scheme to WRF-v4.2.2 from the GMTB ccpp_physics directory.
 !   Laura D. Fowler (laura@ucar.edu) / 2021-01-19.
+! * in mpas_atmphys_driver_pbl.F, added subroutine init_pbl to initialize constants used in the MYNN PBL scheme.
+!   Laura D. Fowler (laura@ucar.edu) / 2021-05-20.
 
 
  contains
@@ -726,6 +731,36 @@
  end select pbl_select
 
  end subroutine pbl_to_MPAS
+
+!=================================================================================================================
+ subroutine init_pbl(configs)
+!=================================================================================================================
+
+!input arguments:
+ type(mpas_pool_type),intent(in):: configs
+
+!local variables and pointers:
+ character(len=StrKIND),pointer:: pbl_scheme
+ character(len=StrKIND):: errmsg
+ integer:: errflg
+
+!-----------------------------------------------------------------------------------------------------------------
+
+ call mpas_pool_get_config(configs,'config_pbl_scheme',pbl_scheme)
+
+ pbl_select: select case (trim(pbl_scheme))
+
+    case("bl_mynn")
+       call mpas_log_write('--- enter subroutine bl_mynn_mpas_init:')
+       call bl_mynn_mpas_init(cp,cpv,cice,cliq,ep_1,ep_2,gravity,karman,P0,R_d,R_v,svp1,svp2,svp3,svpt0, &
+                              xlf,xls,xlv,errmsg,errflg)
+       call mpas_log_write('--- end subroutine bl_mynn_mpas_init:')
+
+    case default
+
+ end select pbl_select
+
+ end subroutine init_pbl
  
 !=================================================================================================================
  subroutine driver_pbl(itimestep,configs,mesh,sfc_input,diag_physics,tend_physics,its,ite)

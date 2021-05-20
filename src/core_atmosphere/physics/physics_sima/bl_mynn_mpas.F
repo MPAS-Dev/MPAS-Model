@@ -2,6 +2,8 @@
  module bl_mynn_mpas
  use mpas_kind_types,only: kind_phys => RKIND
 
+ use bl_mynn_common
+
  implicit none
  private
  public:: bl_mynn_mpas_run,  &
@@ -13,14 +15,93 @@
 
 
 !=================================================================================================================
- subroutine bl_mynn_mpas_init(errmsg,errflg)
+ subroutine bl_mynn_mpas_init(con_cp,con_cpv,con_cice,con_cliq,con_ep1,con_ep2,con_grav,con_karman,con_p0, &
+                              con_rd,con_rv,con_svp1,con_svp2,con_svp3,con_svpt0,con_xlf,con_xls,con_xlv,  &
+                              errmsg,errflg)
 !=================================================================================================================
+
+!-- input arguments:
+ real(kind=kind_phys),intent(in):: &
+    con_cp,     &
+    con_cpv,    &
+    con_cice,   &
+    con_cliq
+
+ real(kind=kind_phys),intent(in):: &
+    con_ep1,    &
+    con_ep2
+
+ real(kind=kind_phys),intent(in):: &
+    con_grav
+
+ real(kind=kind_phys),intent(in):: &
+    con_karman
+
+ real(kind=kind_phys),intent(in):: &
+    con_p0
+
+ real(kind=kind_phys),intent(in):: &
+    con_rd,     &
+    con_rv
+
+ real(kind=kind_phys),intent(in):: &
+    con_svp1,   &
+    con_svp2,   &
+    con_svp3,   &
+    con_svpt0
+
+ real(kind=kind_phys),intent(in):: &
+    con_xlf,    &
+    con_xls,    &
+    con_xlv
 
  character(len=*),intent(out):: errmsg
  integer,intent(out):: errflg
 
 !-----------------------------------------------------------------------------------------------------------------
 !note: this subroutine currently does nothing.
+
+ cp      = con_cp
+ cpv     = con_cpv
+ cliq    = con_cliq
+ cice    = con_cice
+
+ ep_1    = con_ep1
+ ep_2    = con_ep2
+
+ grav    = con_grav
+
+ karman  = con_karman
+
+ p1000mb = con_p0
+
+ rd      = con_rd
+ rv      = con_rv
+
+ svp1    = con_svp1
+ svp2    = con_svp2
+ svp3    = con_svp3
+ svpt0   = con_svpt0
+
+ xlf     = con_xlf
+ xls     = con_xls
+ xlv     = con_xlv
+
+!---
+ ep_3    = 1.-ep_2
+ ev      = xlv
+ gtr     = grav/tref
+ p608    = ep_1
+ rcp     = rd/cp
+ rk      = cp/rd
+ rvovrd  = rv/rd
+ svp11   = svp1*1.e3
+ tv0     = p608*tref
+ tv1     = (1.+p608)*tref
+ vk      = karman
+ xlscp   = (xlv+xlf)/cp
+ xlvcp   = xlv/cp
+
 
  errmsg = ' '
  errflg = 0
