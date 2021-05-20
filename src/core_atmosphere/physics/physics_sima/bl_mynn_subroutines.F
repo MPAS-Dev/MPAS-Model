@@ -32,6 +32,7 @@
  real(kind=kind_phys):: xlv
  real(kind=kind_phys):: xls
 
+
 !---
  real(kind=kind_phys),parameter:: tref = 300.0
 
@@ -47,6 +48,29 @@
  real(kind=kind_phys):: vk
  real(kind=kind_phys):: xlscp
  real(kind=kind_phys):: xlvcp
+
+
+!--- parameters that define closure constants:
+ real(kind=kind_phys),parameter:: pr = 0.74
+ real(kind=kind_phys),parameter:: g1 = 0.235 ! NN2009 = 0.235
+ real(kind=kind_phys),parameter:: c2 = 0.729 ! 0.729, & !0.75
+ real(kind=kind_phys),parameter:: c3 = 0.340 ! 0.340, & !0.352
+ real(kind=kind_phys),parameter:: c4 = 0.0
+ real(kind=kind_phys),parameter:: c5 = 0.2
+ real(kind=kind_phys),parameter:: b1 = 24.0
+ real(kind=kind_phys),parameter:: b2 = 15.0
+ real(kind=kind_phys),parameter:: a1 = b1*( 1.0-3.0*g1 )/6.0
+ real(kind=kind_phys),parameter:: c1 = g1 -1.0/( 3.0*a1*2.88449914061481660)
+ real(kind=kind_phys),parameter:: a2 = a1*( g1-c1 )/( g1*pr )
+ real(kind=kind_phys),parameter:: g2 = b2/b1*( 1.0-c3 ) +2.0*a1/b1*( 3.0-2.0*c2 )
+
+ real(kind=kind_phys),parameter:: cc2 = 1.0-c2
+ real(kind=kind_phys),parameter:: cc3 = 1.0-c3
+ real(kind=kind_phys),parameter:: e1c = 3.0*a2*b2*cc3
+ real(kind=kind_phys),parameter:: e2c = 9.0*a1*a2*cc2
+ real(kind=kind_phys),parameter:: e3c = 9.0*a2*a2*cc2*( 1.0-c5 )
+ real(kind=kind_phys),parameter:: e4c = 12.0*a1*a2*cc2
+ real(kind=kind_phys),parameter:: e5c = 6.0*a1*a1
 
 
  end module bl_mynn_common
@@ -221,8 +245,24 @@ MODULE bl_mynn_subroutines
         xls,             &
         xlscp,           &
         xlv,             &
-        xlvcp
-!--- CCPP PHYSICS END:
+        xlvcp,           &
+!---
+        a1,              &
+        a2,              &
+        b1,              &
+        b2,              &
+        c1,              &
+        c2,              &
+        c5,              &
+        cc3,             &
+        e1c,             &
+        e2c,             &
+        e3c,             &
+        e4c,             &
+        e5c,             &
+        g1,              &
+        g2
+
 
   use mpas_atmphys_utilities,only: physics_message
   use error_function, only: erf
@@ -247,10 +287,6 @@ MODULE bl_mynn_subroutines
      bl_mynn_topdown = 1
 
   real(kind=RKIND),parameter,public:: &
-     b1  = 24.0, &
-     b2  = 15.0
-
-  real(kind=RKIND),parameter,public:: &
      scaleaware = 1.
 
   real(kind=RKIND),parameter,public:: &
@@ -262,96 +298,7 @@ MODULE bl_mynn_subroutines
      onethird = 1./3., twothirds = 2./3.
 
   real(kind=RKIND),parameter:: tkmin=253.0    !< for total water conversion, Tripoli and Cotton (1981)
-
-!closure constants:
-  real(kind=RKIND),parameter:: &
-     pr  =  0.74,  &
-     g1  =  0.235, &  ! NN2009 = 0.235
-     c2  =  0.729, &  ! 0.729, & !0.75, &
-     c3  =  0.340, &  ! 0.340, & !0.352, &
-     c4  =  0.0, &
-     c5  =  0.2, &
-     a1  = b1*( 1.0-3.0*g1 )/6.0, &
-     c1  = g1 -1.0/( 3.0*a1*2.88449914061481660), &
-     a2  = a1*( g1-c1 )/( g1*pr ), &
-     g2  = b2/b1*( 1.0-c3 ) +2.0*a1/b1*( 3.0-2.0*c2 )
-
-#else
-!==================================================================
-!FV3 CONSTANTS
-       use physcons, only : cp     => con_cp,              &
-      &                     g      => con_g,               &
-      &                     r_d    => con_rd,              &
-      &                     r_v    => con_rv,              &
-      &                     cpv    => con_cvap,            &
-      &                     cliq   => con_cliq,            &
-      &                     Cice   => con_csol,            &
-      &                     rcp    => con_rocp,            &
-      &                     XLV    => con_hvap,            &
-      &                     XLF    => con_hfus,            &
-      &                     EP_1   => con_fvirt,           &
-      &                     EP_2   => con_eps
-
-  IMPLICIT NONE
-
-   REAL    , PARAMETER :: karman       = 0.4
-   REAL    , PARAMETER :: XLS          = 2.85E6
-   REAL    , PARAMETER :: p1000mb      = 100000.
-   REAL    , PARAMETER :: rvovrd       = r_v/r_d
-   REAL    , PARAMETER :: SVP1         = 0.6112
-   REAL    , PARAMETER :: SVP2         = 17.67
-   REAL    , PARAMETER :: SVP3         = 29.65
-   REAL    , PARAMETER :: SVPT0        = 273.15
-
-   INTEGER , PARAMETER :: param_first_scalar = 1, &
-       &                  p_qc = 2, &
-       &                  p_qr = 0, &
-       &                  p_qi = 2, &
-       &                  p_qs = 0, &
-       &                  p_qg = 0, &
-       &                  p_qnc= 0, &
-       &                  p_qni= 0
-
-!END FV3 CONSTANTS
-!====================================================================
-! From here on, these are used for any model
-! The parameters below depend on stability functions of module_sf_mynn.
-  REAL, PARAMETER :: cphm_st=5.0, cphm_unst=16.0, &
-                     cphh_st=5.0, cphh_unst=16.0
-
-  REAL, PARAMETER :: xlvcp=xlv/cp, xlscp=(xlv+xlf)/cp, ev=xlv, rd=r_d, &
-       &rk=cp/rd, svp11=svp1*1.e3, p608=ep_1, ep_3=1.-ep_2
-
-  REAL, PARAMETER :: tref=300.0     !< reference temperature (K)
-  REAL, PARAMETER :: TKmin=253.0    !< for total water conversion, Tripoli and Cotton (1981)
-  REAL, PARAMETER :: tv0=p608*tref, tv1=(1.+p608)*tref, gtr=g/tref
-
-! Closure constants
-  REAL, PARAMETER :: &
-       &vk  = karman, &
-       &pr  =  0.74,  &
-       &g1  =  0.235, &  ! NN2009 = 0.235
-       &b1  = 24.0, &
-       &b2  = 15.0, &    ! CKmod     NN2009
-       &c2  =  0.729, &  ! 0.729, & !0.75, &
-       &c3  =  0.340, &  ! 0.340, & !0.352, &
-       &c4  =  0.0, &
-       &c5  =  0.2, &
-       &a1  = b1*( 1.0-3.0*g1 )/6.0, &
-!       &c1  = g1 -1.0/( 3.0*a1*b1**(1.0/3.0) ), &
-       &c1  = g1 -1.0/( 3.0*a1*2.88449914061481660), &
-       &a2  = a1*( g1-c1 )/( g1*pr ), &
-       &g2  = b2/b1*( 1.0-c3 ) +2.0*a1/b1*( 3.0-2.0*c2 )
 #endif
-
-  REAL, PARAMETER :: &
-       &cc2 =  1.0-c2, &
-       &cc3 =  1.0-c3, &
-       &e1c =  3.0*a2*b2*cc3, &
-       &e2c =  9.0*a1*a2*cc2, &
-       &e3c =  9.0*a2*a2*cc2*( 1.0-c5 ), &
-       &e4c = 12.0*a1*a2*cc2, &
-       &e5c =  6.0*a1*a1
 
 ! Constants for min tke in elt integration (qmin), max z/L in els (zmax), 
 ! and factor for eddy viscosity for TKE (Kq = Sqfac*Km):

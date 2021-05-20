@@ -3,7 +3,7 @@
  use mpas_kind_types,only: kind_phys => RKIND
  use mpas_log
 
- use bl_mynn_common,only: rd,xlscp,xlvcp
+ use bl_mynn_common,only: b1,rd,xlscp,xlvcp
  use bl_mynn_subroutines
 
  implicit none
