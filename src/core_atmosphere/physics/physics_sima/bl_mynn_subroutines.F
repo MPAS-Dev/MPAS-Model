@@ -338,11 +338,6 @@ MODULE bl_mynn_subroutines
 !
 !JOE & JAYMES- end
 
-  INTEGER :: mynn_level
-
-  CHARACTER*128 :: mynn_message
-
-  INTEGER, PARAMETER :: kdebug=27
 
 CONTAINS
 
