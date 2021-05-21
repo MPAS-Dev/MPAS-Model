@@ -28,6 +28,9 @@ bl_mynn.o: \
 bl_mynn_mpas.o: \
 	bl_mynn_subroutines.o
 
+bl_mynn_subroutines.o: \
+	mynn_shared.o
+
 sf_mynn.o: \
 	mynn_shared.o
 
