@@ -313,32 +313,6 @@ MODULE bl_mynn_subroutines
   !option to print out more stuff for debugging purposes
   LOGICAL, PARAMETER :: debug_code = .false.
 
-! JAYMES-
-!> Constants used for empirical calculations of saturation
-!! vapor pressures (in function "esat") and saturation mixing ratios
-!! (in function "qsat"), reproduced from module_mp_thompson.F, 
-!! v3.6 
-  REAL, PARAMETER:: J0= .611583699E03
-  REAL, PARAMETER:: J1= .444606896E02
-  REAL, PARAMETER:: J2= .143177157E01
-  REAL, PARAMETER:: J3= .264224321E-1
-  REAL, PARAMETER:: J4= .299291081E-3
-  REAL, PARAMETER:: J5= .203154182E-5
-  REAL, PARAMETER:: J6= .702620698E-8
-  REAL, PARAMETER:: J7= .379534310E-11
-  REAL, PARAMETER:: J8=-.321582393E-13
-
-  REAL, PARAMETER:: K0= .609868993E03
-  REAL, PARAMETER:: K1= .499320233E02
-  REAL, PARAMETER:: K2= .184672631E01
-  REAL, PARAMETER:: K3= .402737184E-1
-  REAL, PARAMETER:: K4= .565392987E-3
-  REAL, PARAMETER:: K5= .521693933E-5
-  REAL, PARAMETER:: K6= .307839583E-7
-  REAL, PARAMETER:: K7= .105785160E-9
-  REAL, PARAMETER:: K8= .161444444E-12
-! end-
-
 !JOE & JAYMES'S mods
 !
 ! Mixing Length Options 
