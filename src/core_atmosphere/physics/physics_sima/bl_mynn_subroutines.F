@@ -53,7 +53,6 @@
  real(kind=kind_phys),parameter:: tkmin = 300.0
  real(kind=kind_phys),parameter:: tref  = 300.0
 
-
  real(kind=kind_phys):: ep_3
  real(kind=kind_phys):: ev
  real(kind=kind_phys):: gtr
@@ -229,73 +228,24 @@
 !-------------------------------------------------------------------
 
 MODULE bl_mynn_subroutines
-#if defined(mpas)
   use mpas_kind_types
   use bl_mynn_common,only: &
-        cp,              &
-        cpv,             &
-        cliq,            &
-        cice,            &
-        ep_1,            &
-        ep_2,            &
-        ep_3,            &
-        ev,              &
-        gtr,             &
-        grav,            &
-        karman,          &
-        p1000mb,         &
-        p608,            &
-        rcp,             &
-        rd,              &
-        rk,              &
-        rv,              &
-        rvovrd,          &
-        svp1,            &
-        svp2,            &
-        svp3,            &
-        svpt0,           &
-        tkmin,           &
-        tref,            &
-        tv0,             &
-        tv1,             &
-        vk,              &
-        xlf,             &
-        xls,             &
-        xlscp,           &
-        xlv,             &
-        xlvcp,           &
-!---
-        a1,              &
-        a2,              &
-        b1,              &
-        b2,              &
-        c1,              &
-        c2,              &
-        c5,              &
-        cc3,             &
-        e1c,             &
-        e2c,             &
-        e3c,             &
-        e4c,             &
-        e5c,             &
-        g1,              &
-        g2,              &
-!---
-        cphh_st,         &
-        cphm_st,         &
-        cphh_unst,       &
-        cphm_unst,       &
-        bl_mynn_topdown, &
-        scaleaware,      &
-!---
-        zero,            &
-        half,            &
-        one,             &
-        two,             &
-        onethird,        &
-        twothirds
+        cp        , cpv       , cliq       , cice      , &
+        ep_1      , ep_2      , ep_3       , ev        , &
+        gtr       , grav      , karman     , p1000mb   , &
+        p608      , rcp       , rd         , rk        , &
+        rv        , rvovrd    , svp1       , svp2      , &
+        svp3      , svpt0     , tkmin      , tref      , &
+        tv0       , tv1       , vk         , xlf       , &
+        xls       , xlscp     , xlv        , xlvcp     , &
+        a1        , a2        , b1         , b2        , &
+        c1        , c2        , c5         , cc3       , &
+        e1c       , e2c       , e3c        , e4c       , &
+        e5c       , g1        , g2         ,             &
+        zero      , half      , one        , two       , &
+        onethird  , twothirds , cphh_st    , cphm_st   , &
+        cphh_unst , cphm_unst , scaleaware , bl_mynn_topdown
 
-  use mpas_atmphys_utilities,only: physics_message
   use error_function, only: erf
 
   implicit none
@@ -313,7 +263,7 @@ MODULE bl_mynn_subroutines
            retrieve_exchange_coeffs, &
            scale_aware,              &
            xl_blend
-#endif
+
 
 ! Constants for min tke in elt integration (qmin), max z/L in els (zmax), 
 ! and factor for eddy viscosity for TKE (Kq = Sqfac*Km):
@@ -413,8 +363,6 @@ MODULE bl_mynn_subroutines
 !    Also, This option is  scale-aware in dx if "scaleaware" = 1. (Following Ito et al. 2015). 
 !
 !JOE & JAYMES- end
-
-
 
   INTEGER :: mynn_level
 
