@@ -48,6 +48,9 @@ endif()
 
 # Need MPI for thirdparty build
 find_package(MPI)
+if (MPI_FOUND)
+   get_filename_component(MPIEXEC_COMMAND ${MPIEXEC_EXECUTABLE} NAME)
+endif (MPI_FOUND)
 
 # turns off GPTL timing build
 set(PIO_ENABLE_TIMING OFF CACHE BOOL "Enable GPTL timing")
@@ -273,7 +276,7 @@ add_custom_command(OUTPUT ${CMAKE_BINARY_DIR}/nightly_ocean_test_suite.py
        -e '/init/s!namelist.ocean!namelist.ocean.init!'
        general.config.ocean > ${CMAKE_BINARY_DIR}/general.config.ocean.sys
      COMMAND ./manage_regression_suite.py ARGS -t ocean/regression_suites/nightly.xml 
-        -f ${CMAKE_BINARY_DIR}/general.config.ocean.sys -s -m runtime_definitions/srun.xml --work_dir ${CMAKE_BINARY_DIR}
+        -f ${CMAKE_BINARY_DIR}/general.config.ocean.sys -s -m runtime_definitions/${MPIEXEC_COMMAND}.xml --work_dir ${CMAKE_BINARY_DIR}
      WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/testing_and_setup/compass )
 
 add_custom_target(gen_test_suite DEPENDS ${CMAKE_BINARY_DIR}/nightly_ocean_test_suite.py)
