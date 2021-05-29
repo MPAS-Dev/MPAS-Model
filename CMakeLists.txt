@@ -48,46 +48,45 @@ endif()
 
 # Need MPI for thirdparty build
 find_package(MPI)
+if (MPI_FOUND)
+   get_filename_component(MPIEXEC_COMMAND ${MPIEXEC_EXECUTABLE} NAME)
+endif (MPI_FOUND)
 
-if (DEFINED ENV{PIO})
-   set(PIO_INCLUDE_DIRS $ENV{PIO}/include)
-else ()
 # turns off GPTL timing build
-   set(PIO_ENABLE_TIMING OFF CACHE BOOL "Enable GPTL timing")
-   set(PIO_C_EXTRA_LIBRARIES ${MPI_C_LIBRARIES})
-   set(PIO_C_EXTRA_INCLUDE_DIRS ${MPI_C_INCLUDE_PATH})
-   set(PIO_Fortran_EXTRA_INCLUDE_DIRS ${MPI_Fortran_INCLUDE_PATH})
-   set(PIO_Fortran_EXTRA_LIBRARIES ${MPI_Fortran_LIBRARIES})
-   if ( DEFINED ENV{PNETCDF} )
-      set(PNETCDF $ENV{PNETCDF})
-   endif()
-   if ( DEFINED ENV{NETCDF_ROOT} )
-      set(NETCDF $ENV{NETCDF_ROOT})
-   endif()
-   add_subdirectory(scorpio)
-   set(PIO_INCLUDE_DIRS ${CMAKE_BINARY_DIR}/scorpio/src/flib)
-
-   if (NOT DEFINED NetCDF_C_LIBRARY)
-      include(ExternalProject)
-      include(${CMAKE_SOURCE_DIR}/thirdparty/NETCDF-C.cmake)
-      set(NetCDF_C_HAS_VARN true CACHE BOOL "")
-      set(NetCDF_Fortran_HAS_VARN true CACHE BOOL "")
-      # turns off the detection of NetCDF. We've set these in the third-party build.
-      set(WITH_NETCDF OFF CACHE BOOL "Require the use of NetCDF")
-      add_dependencies(pioc netcdf_c_4_7_4)
-
-      if (NOT DEFINED PnetCDF_C_LIBRARY)
-         include(ExternalProject)
-         include(${CMAKE_SOURCE_DIR}/thirdparty/PNETCDF_parallel.cmake)
-         set(PnetCDF_C_HAS_VARN true CACHE BOOL "")
-         set(PnetCDF_Fortran_HAS_VARN true CACHE BOOL "")
-         # turns off the detection of NetCDF. We've set these in the third-party build.
-         set(WITH_PNETCDF OFF CACHE BOOL "Require the use of NetCDF")
-         add_dependencies(pioc pnetcdf_1_12_1_parallel)
-      endif()
-   endif()
-endif ()
+set(PIO_ENABLE_TIMING OFF CACHE BOOL "Enable GPTL timing")
+set(PIO_C_EXTRA_LIBRARIES ${MPI_C_LIBRARIES})
+set(PIO_C_EXTRA_INCLUDE_DIRS ${MPI_C_INCLUDE_PATH})
+set(PIO_Fortran_EXTRA_INCLUDE_DIRS ${MPI_Fortran_INCLUDE_PATH})
+set(PIO_Fortran_EXTRA_LIBRARIES ${MPI_Fortran_LIBRARIES})
+if ( DEFINED ENV{PNETCDF} )
+   set(PNETCDF $ENV{PNETCDF})
+endif()
+if ( DEFINED ENV{NETCDF_ROOT} )
+   set(NETCDF $ENV{NETCDF_ROOT})
+endif()
+add_subdirectory(scorpio)
+set(PIO_INCLUDE_DIRS ${CMAKE_BINARY_DIR}/scorpio/src/flib)
 set(INCLUDES "${INCLUDES};${PIO_INCLUDE_DIRS}")
+
+if (NOT DEFINED NetCDF_C_LIBRARY)
+   include(ExternalProject)
+   include(${CMAKE_SOURCE_DIR}/thirdparty/NETCDF-C.cmake)
+   set(NetCDF_C_HAS_VARN true CACHE BOOL "")
+   set(NetCDF_Fortran_HAS_VARN true CACHE BOOL "")
+   # turns off the detection of NetCDF. We've set these in the third-party build.
+   set(WITH_NETCDF OFF CACHE BOOL "Require the use of NetCDF")
+   add_dependencies(pioc netcdf_c_4_7_4)
+endif()
+
+if (NOT DEFINED PnetCDF_C_LIBRARY)
+   include(ExternalProject)
+   include(${CMAKE_SOURCE_DIR}/thirdparty/PNETCDF_parallel.cmake)
+   set(PnetCDF_C_HAS_VARN true CACHE BOOL "")
+   set(PnetCDF_Fortran_HAS_VARN true CACHE BOOL "")
+   # turns off the detection of NetCDF. We've set these in the third-party build.
+   set(WITH_PNETCDF OFF CACHE BOOL "Require the use of NetCDF")
+   add_dependencies(pioc pnetcdf_1_12_1_parallel)
+endif()
 
 set(CORES ocean)
 set(STANDALONE_BUILD YES)
@@ -249,14 +248,7 @@ add_subdirectory(src/core_ocean)
 
 set(INCLUDES "${INCLUDES};${CMAKE_BINARY_DIR}/PnetCDF/include;${CMAKE_BINARY_DIR}/src")
 
-if (DEFINED ENV{PIO})
-   set(LIBRARIES ${LIBRARIES} $ENV{PIO}/lib/libpiof.a $ENV{PIO}/lib/libpioc.a)
-   set(LIBRARIES ${LIBRARIES} $ENV{NETCDF_PATH}/lib64/libnetcdf.so)
-   set(LIBRARIES ${LIBRARIES} $ENV{PNETCDF_PATH}/lib/libpnetcdf.a)
-else()
-   set(LIBRARIES ${LIBRARIES} piof)
-endif()
-
+set(LIBRARIES ${LIBRARIES} piof)
 if (MPI_FOUND)
    set(LIBRARIES ${LIBRARIES} ${MPI_Fortran_LIBRARIES})
 endif (MPI_FOUND)
@@ -284,7 +276,7 @@ add_custom_command(OUTPUT ${CMAKE_BINARY_DIR}/nightly_ocean_test_suite.py
        -e '/init/s!namelist.ocean!namelist.ocean.init!'
        general.config.ocean > ${CMAKE_BINARY_DIR}/general.config.ocean.sys
      COMMAND ./manage_regression_suite.py ARGS -t ocean/regression_suites/nightly.xml 
-        -f ${CMAKE_BINARY_DIR}/general.config.ocean.sys -s -m runtime_definitions/srun.xml --work_dir ${CMAKE_BINARY_DIR}
+        -f ${CMAKE_BINARY_DIR}/general.config.ocean.sys -s -m runtime_definitions/${MPIEXEC_COMMAND}.xml --work_dir ${CMAKE_BINARY_DIR}
      WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/testing_and_setup/compass )
 
 add_custom_target(gen_test_suite DEPENDS ${CMAKE_BINARY_DIR}/nightly_ocean_test_suite.py)
