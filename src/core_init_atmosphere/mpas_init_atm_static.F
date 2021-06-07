@@ -121,12 +121,7 @@
  type (mpas_pool_type), intent(in) :: dims
  type (mpas_pool_type), intent(in) :: configs
 
-
 !local variables:
- type(proj_info):: proj
-
- character(len=StrKIND) :: fname
- character(kind=c_char), dimension(StrKIND+1) :: c_fname
  character(len=StrKIND), pointer :: config_geog_data_path
  character(len=StrKIND), pointer :: config_landuse_data
  character(len=StrKIND), pointer :: config_topo_data
@@ -134,33 +129,13 @@
  character(len=StrKIND+1) :: geog_data_path      ! same as config_geog_data_path, but guaranteed to have a trailing slash
  character(len=StrKIND+1) :: geog_sub_path       ! subdirectory names in config_geog_data_path, with trailing slash
 
- integer(c_int):: nx,ny,nz
- integer(c_int):: endian,isigned,istatus,wordsize
- integer:: i,j,k
- integer :: ii, jj
- integer:: iCell,iEdge,iVtx,iPoint,iTileStart,iTileEnd,jTileStart,jTileEnd
- integer,dimension(5) :: interp_list
- integer,dimension(:),allocatable  :: nhs
- integer,dimension(:,:),allocatable:: ncat
+ integer:: i
+ integer:: iCell,iEdge,iVtx
       
- real(kind=RKIND), pointer :: scalefactor_ptr
- real(kind=RKIND) :: scalefactor
- real(kind=c_float),dimension(:,:,:),pointer,contiguous :: rarray
- type(c_ptr) :: rarray_ptr
-
- real(kind=RKIND):: start_lat
- real(kind=RKIND):: start_lon
-
  integer, pointer :: supersample_fac
 
- real(kind=RKIND):: lat,lon,x,y,z
- real(kind=RKIND):: lat_pt,lon_pt
- real(kind=RKIND),dimension(:,:),allocatable  :: maxsnowalb
-
  integer, pointer :: isice_lu, iswater_lu
- integer, pointer :: isice_lu_ptr, iswater_lu_ptr
  integer :: iswater_soil
- integer, pointer :: iswater_soil_ptr
  integer, pointer :: nCells, nCellsSolve, nEdges, nVertices, maxEdges
  logical, pointer :: on_a_sphere
  real (kind=RKIND), pointer :: sphere_radius
@@ -180,37 +155,16 @@
  real (kind=RKIND), dimension(:), pointer :: fEdge, fVertex
 
  real (kind=RKIND), dimension(:), pointer :: ter
- integer (kind=I8KIND), dimension(:), pointer :: ter_integer
  real (kind=RKIND), dimension(:), pointer :: soiltemp
  real (kind=RKIND), dimension(:), pointer :: snoalb
- integer (kind=I8KIND), dimension(:), pointer :: snoalb_integer
- real (kind=RKIND), dimension(:,:,:), allocatable :: vegfra
  real (kind=RKIND), dimension(:), pointer :: shdmin, shdmax
- real (kind=RKIND) :: msgval, fillval
- real (kind=RKIND), pointer :: missing_value
- integer, pointer :: category_min, category_max
  integer, dimension(:), pointer :: lu_index
  integer, dimension(:), pointer :: soilcat_top
  integer, dimension(:), pointer :: bdyMaskCell
  character(len=StrKIND), pointer :: mminlu
 
- real (kind=RKIND) :: xPixel, yPixel, zPixel
-
  type (mpas_kd_type), dimension(:), pointer :: kd_points
  type (mpas_kd_type), pointer :: tree
- type (mpas_kd_type), pointer :: res
-
- type (mpas_geotile_mgr_type) :: mgr
- type (mpas_geotile_type), pointer :: tile
-
- real (kind=RKIND) :: tval
- integer (kind=I8KIND) :: i8val
- integer, pointer :: tile_bdr
- integer, pointer :: tile_nx, tile_ny, tile_nz
- integer, pointer :: tile_z_start, tile_z_end
-
- logical :: all_pixels_mapped_to_halo_cells
- integer :: ierr
 
 !--------------------------------------------------------------------------------------------------
 
@@ -524,7 +478,7 @@
     real (kind=RKIND), dimension(:), pointer :: latCell, lonCell
 
     integer, pointer :: tile_bdr
-    integer, pointer :: tile_nx, tile_ny, tile_nz
+    integer, pointer :: tile_nx, tile_ny
     integer, pointer :: tile_z_start, tile_z_end
     integer :: supersample_fac_lcl
     integer :: subsample_fac
@@ -1109,7 +1063,7 @@
      call read_geogrid(c_fname,rarray_ptr,nx,ny,nz,isigned, endian, &
                        wordsize,istatus)
      call init_atm_check_read_error(istatus, fname)
-     rarray(:,:,:) = rarray(:,:,:) * scalefactor
+     rarray(:,:,:) = rarray(:,:,:) * real(scalefactor, kind=c_float)
      soiltemp_1deg(-2:180,-2:183) = rarray(1:183,1:186,1)
 
      write(fname,'(a,i5.5,a1,i5.5,a1,i5.5,a1,i5.5)') trim(geog_data_path)// &
@@ -1120,7 +1074,7 @@
      call read_geogrid(c_fname,rarray_ptr,nx,ny,nz,isigned,endian, &
                        wordsize,istatus)
      call init_atm_check_read_error(istatus,fname)
-     rarray(:,:,:) = rarray(:,:,:) * scalefactor
+     rarray(:,:,:) = rarray(:,:,:) * real(scalefactor, kind=c_float)
      soiltemp_1deg(181:363,-2:183) = rarray(4:186,1:186,1)
 
      interp_list(1) = FOUR_POINT
@@ -1215,12 +1169,10 @@
      ! Local variables
      type (mpas_geotile_mgr_type) :: mgr
      integer, pointer :: nCells
-     integer, pointer :: iswater_soil_ptr
 
      type (proj_info) :: proj
      character (len=StrKIND) :: fname
      character (kind=c_char), dimension(StrKIND+1) :: c_fname
-     character (len=StrKIND), pointer :: config_geog_data_path
      character (len=StrKIND), pointer :: config_maxsnowalbedo_data
      character (len=StrKIND), pointer :: geog_data_path
      character (len=StrKIND) :: geog_sub_path
@@ -1320,7 +1272,7 @@
         call read_geogrid(c_fname,rarray_ptr,nx,ny,nz,isigned,endian, &
                           wordsize,istatus)
         call init_atm_check_read_error(istatus,fname)
-        rarray(:,:,:) = rarray(:,:,:) * scalefactor
+        rarray(:,:,:) = rarray(:,:,:) * real(scalefactor, kind=c_float)
         maxsnowalb(-2:180,-2:183) = rarray(1:183,1:186,1)
 
         write(fname,'(a,i5.5,a1,i5.5,a1,i5.5,a1,i5.5)') trim(geog_data_path)// &
@@ -1331,7 +1283,7 @@
         call read_geogrid(c_fname,rarray_ptr,nx,ny,nz,isigned,endian, &
                           wordsize,istatus)
         call init_atm_check_read_error(istatus, fname)
-        rarray(:,:,:) = rarray(:,:,:) * scalefactor
+        rarray(:,:,:) = rarray(:,:,:) * real(scalefactor, kind=c_float)
         maxsnowalb(181:363,-2:183) = rarray(4:186,1:186,1)
 
         interp_list(1) = FOUR_POINT
@@ -1452,19 +1404,16 @@
      ! Local variables
      type (mpas_geotile_mgr_type) :: mgr
      integer, pointer :: nCells
-     integer, pointer :: iswater_soil_ptr
 
      type (proj_info) :: proj
      character (len=StrKIND) :: fname
      character (kind=c_char), dimension(StrKIND+1) :: c_fname
-     character (len=StrKIND), pointer :: config_geog_data_path
      character (len=StrKIND), pointer :: config_vegfrac_data
      character (len=StrKIND), pointer :: geog_data_path
      character (len=StrKIND) :: geog_sub_path
      integer (c_int) :: endian, isigned, istatus, wordsize
      integer (c_int) :: nx, ny, nz
      integer, dimension(5) :: interp_list
-     integer, pointer :: supersample_fac
      integer, pointer :: tile_nz
      real (kind=RKIND) :: fillval
      real (kind=RKIND), pointer :: scalefactor
@@ -1563,7 +1512,7 @@
         call read_geogrid(c_fname,rarray_ptr,nx,ny,nz,isigned,endian, &
                           wordsize,istatus)
         call init_atm_check_read_error(istatus,fname)
-        rarray(:,:,:) = rarray(:,:,:) * scalefactor
+        rarray(:,:,:) = rarray(:,:,:) * real(scalefactor, kind=c_float)
         vegfra(-2:1250,-2:1253,1:12) = rarray(1:1253,1:1256,1:12)
 
         write(fname,'(a,i5.5,a1,i5.5,a1,i5.5,a1,i5.5)') trim(geog_data_path)// &
@@ -1574,7 +1523,7 @@
         call read_geogrid(c_fname,rarray_ptr,nx,ny,nz,isigned,endian, &
                           wordsize,istatus)
         call init_atm_check_read_error(istatus,fname)
-        rarray(:,:,:) = rarray(:,:,:) * scalefactor
+        rarray(:,:,:) = rarray(:,:,:) * real(scalefactor, kind=c_float)
         vegfra(1251:2503,-2:1253,1:12) = rarray(4:1256,1:1256,1:12)
 
         do iCell = 1,nCells
@@ -1691,11 +1640,9 @@
      integer (c_int) :: endian, isigned, istatus, wordsize
      integer (c_int) :: nx, ny, nz
      integer, dimension(5) :: interp_list
-     integer, pointer :: tile_nz, tile_z_start, tile_z_end
+     integer, pointer :: tile_z_start, tile_z_end
      integer, pointer :: supersample_fac
      character (len=StrKIND), pointer :: config_albedo_data
-     character (len=StrKIND), pointer :: config_geog_data_path
-     character (len=StrKIND), pointer :: config_vegfrac_data
      character (len=StrKIND), pointer :: geog_data_path
      character (len=StrKIND) :: geog_sub_path
      character (len=StrKIND) :: fname
@@ -1800,7 +1747,7 @@
         call read_geogrid(c_fname,rarray_ptr,nx,ny,nz,isigned,endian, &
                           wordsize, istatus)
         call init_atm_check_read_error(istatus,fname)
-        rarray(:,:,:) = rarray(:,:,:) * scalefactor
+        rarray(:,:,:) = rarray(:,:,:) * real(scalefactor, kind=c_float)
         vegfra(-2:1250,-2:1253,1:12) = rarray(1:1253,1:1256,1:12)
 
         write(fname,'(a,i5.5,a1,i5.5,a1,i5.5,a1,i5.5)') trim(geog_data_path)// &
@@ -1811,7 +1758,7 @@
         call read_geogrid(c_fname,rarray_ptr,nx,ny,nz,isigned,endian, &
                           wordsize,istatus)
         call init_atm_check_read_error(istatus,fname)
-        rarray(:,:,:) = rarray(:,:,:) * scalefactor
+        rarray(:,:,:) = rarray(:,:,:) * real(scalefactor, kind=c_float)
         vegfra(1251:2503,-2:1253,1:12) = rarray(4:1256,1:1256,1:12)
 
         do iCell = 1,nCells
