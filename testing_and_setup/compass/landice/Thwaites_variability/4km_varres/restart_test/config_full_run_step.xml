@@ -2,7 +2,7 @@
 <config case="full_run">
 
         <!-- download file with IC on it -->
-        <get_file dest_path="work_case_dir" file_name="thwaites.4km.nc">
+        <get_file dest_path="work_case_dir" file_name="thwaites.4km.210608.nc">
                 <mirror protocol="wget" url="https://web.lcrc.anl.gov/public/e3sm/mpas_standalonedata/mpas-albany-landice/"/>
         </get_file>
 
@@ -42,7 +42,7 @@
 
                 <!-- Set up needed graph file -->
                 <step executable="./make_graph_file.py">
-                        <argument flag="-f">thwaites.4km.nc</argument>
+                        <argument flag="-f">thwaites.4km.210608.nc</argument>
                 </step>
                 <step executable="gpmetis" pre_message="\n\n### Creating graph.info.part file\n\n" post_message="\n\n### graph.info.part file creation complete\n\n">
                         <argument flag="graph.info">12</argument>

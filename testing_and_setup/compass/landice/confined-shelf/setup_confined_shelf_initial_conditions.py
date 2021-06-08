@@ -131,8 +131,8 @@ del kinbcmask
 gridfile.variables['uReconstructX'][:] = 0.0
 gridfile.variables['uReconstructY'][:] = 0.0
 
-# beta is 0 everywhere (strictly speaking it should not be necessary to set this)
-gridfile.variables['beta'][:] = 0.0
+# mu is 0 everywhere (strictly speaking it should not be necessary to set this)
+gridfile.variables['muFriction'][:] = 0.0
 
 # Setup layerThicknessFractions
 gridfile.variables['layerThicknessFractions'][:] = 1.0 / nVertLevels

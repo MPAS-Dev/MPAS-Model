@@ -5,11 +5,11 @@ ANONYMOUS:
 
   Problem: 
     LandIce Viscosity: 
-      Type: 'Glen''s Law'
+      Type: Glen's Law
       Flow Rate Type: Uniform
-      'Glen''s Law Homotopy Parameter': 1.0
-      'Glen''s Law A': 5.7e-06
-      'Glen''s Law n': 3.0
+      Glen's Law Homotopy Parameter: 1.0
+      Glen's Law A: 1.80745814307458143e-25
+      Glen's Law n: 3.0
       
 # Discretization Description
   Discretization:
