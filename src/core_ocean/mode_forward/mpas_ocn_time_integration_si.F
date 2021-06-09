@@ -2889,64 +2889,81 @@ module ocn_time_integration_si
 !
 !  routine ocn_time_integration_si_init
 !
-!> \brief   Initialize split-explicit time stepping within MPAS-Ocean core
+!> \brief   Initialize split-explicit time stepping within ocean
 !> \author  Mark Petersen
 !> \date    September 2011
+!
+!> \author  Hyun-Gyu Kang (ORNL, for the semi-implicit code)
+!> \date    September 2019
 !> \details
-!>  This routine initializes variables required for the split-explicit time
-!>  stepper.
+!>  This routine initializes variables required for the split-implicit
+!>  method of integrating the ocean model forward in time
 !
 !-----------------------------------------------------------------------
+
    subroutine ocn_time_integration_si_init(domain)!{{{
-   ! Initialize splitting variables
 
-      type (domain_type), intent(inout) :: domain
+      !-----------------------------------------------------------------
+      ! Input/output variables
+      !-----------------------------------------------------------------
 
-      integer :: i, iCell, iEdge, iVertex, k
-      type (block_type), pointer :: block
+      type (domain_type), intent(inout) :: &
+         domain  !< [inout] model state to advance forward
 
-      type (mpas_pool_type), pointer :: statePool, tracersPool, meshPool
+      !-----------------------------------------------------------------
+      ! Local variables
+      !-----------------------------------------------------------------
 
-      integer :: iTracer, cell, cell1, cell2
-      integer, dimension(:), pointer :: minLevelEdgeBot, maxLevelEdgeTop, minLevelCell, maxLevelCell
+      type (block_type), pointer :: &
+         block ! structure with subdomain data
+
+      type (mpas_pool_type), pointer :: &
+         statePool,         &! structure holding state variables
+         meshPool            ! structure holding mesh variables
+
+      integer, pointer :: nVertLevels
+
+      integer ::         &
+         iCell, iEdge, k,&! loop indices for cell, edge and vertical
+         kmax,           &! index of deepest active edge
+         ierr,           &! local error flag
+         cell1, cell2     ! neighbor cell indices across edge
+
+      integer :: nCells, nEdges, ihh, imm, iss
+
+      integer, dimension(:), pointer :: nCellsArray, nEdgesArray,     &
+         minLevelEdgeBot, maxLevelEdgeTop, minLevelCell, maxLevelCell
+
       integer, dimension(:,:), pointer :: cellsOnEdge
-      real (kind=RKIND) :: normalThicknessFluxSum, layerThicknessSum, layerThickEdge1
-      real (kind=RKIND), dimension(:), pointer :: normalBarotropicVelocity
+
+      real (kind=RKIND) ::       &
+         normalThicknessFluxSum, &! vertical sum of thick flux
+         layerThicknessSum,      &! vertical sum of layer thickness
+         layerThicknessEdge1,    &! layer thickness on edge
+         area_mean,              &! RMS of areaCell
+         local_num_cells,        &! number of cells for each core
+         local_area_sum,         &! local sum of area
+         total_area_sum,         &! total sum of area
+         tmp1,tmp2
+
+      real (kind=RKIND), dimension(:), pointer :: &
+         areaCell,               &! area of each cell
+         bottomDepth,            &! bottom depth
+         refBottomDepth,         &! reference bottom depth
+         normalBarotropicVelocity ! normal barotropic velocity
+
+      real (kind=RKIND), dimension(:,:), pointer :: &
+         layerThickness,           &! layer thickness cell center
+         normalBaroclinicVelocity, &! normal baroclinic velocity
+         normalVelocity             ! normal velocity (total)
+
       real (kind=RKIND), dimension(:), pointer :: sshCur
 
-      real (kind=RKIND), dimension(:,:), pointer :: layerThickness
-      real (kind=RKIND), dimension(:,:), pointer :: normalBaroclinicVelocity, normalVelocity
-      integer, pointer :: nVertLevels, nCells, nEdges
-      character (len=StrKIND), pointer :: config_time_integrator, config_btr_dt, config_dt
-      logical, pointer :: config_filter_btr_mode, config_do_restart
-      integer, pointer :: config_n_ts_iter
-
-      type (mpas_time_type) :: nowTime
-      type (mpas_timeInterval_type) :: fullTimeStep, barotropicTimeStep, remainder, zeroInterval
-
-      integer :: iErr
-
-      integer, dimension(:), pointer :: nCellsArray, nEdgesArray
-      real (kind=RKIND) :: local_num_cells,sum1,total_area_sum,local_area_sum,tmp1,tmp2,area_mean
-      real (kind=RKIND), dimension(:), pointer :: areaCell
-      integer :: ihh,imm,iss,isum1,isum2,mpi_ierr
-
 #ifndef USE_LAPACK
-      call mpas_log_write('MPAS was not compiled with LAPACK / BLAS.  LAPACK required for SI', MPAS_LOG_CRIT)
+      call mpas_log_write( &
+      'MPAS was not compiled with LAPACK/BLAS. LAPACK required for SI' &
+      , MPAS_LOG_CRIT)
 #endif
-
-      call mpas_pool_get_config(domain % configs, 'config_do_restart', config_do_restart)
-
-      ! Determine the number of barotropic subcycles based on the ratio of time steps
-      call mpas_pool_get_config(domain % configs, 'config_time_integrator', config_time_integrator)
-      call mpas_pool_get_config(domain % configs, 'config_btr_dt', config_btr_dt)
-      call mpas_pool_get_config(domain % configs, 'config_dt', config_dt)
-      call mpas_pool_get_config(domain % configs, 'config_n_ts_iter', config_n_ts_iter)
-
-      nowTime = mpas_get_clock_time(domain % clock, MPAS_NOW, ierr)
-      call mpas_set_timeInterval( zeroInterval, S=0 )
-
-      call mpas_set_timeInterval( fullTimeStep , timeString=config_dt )
 
       !*** Set mask for using velocity correction
       if (config_vel_correction) then
@@ -2961,16 +2978,18 @@ module ocn_time_integration_si
 
       case ('semi_implicit')
 
-         call mpas_log_write( '***********************************************************')
-         call mpas_log_write( 'The semi-implicit time integration is configured')
-         call mpas_log_write( '***********************************************************')
+         call mpas_log_write( &
+         '***********************************************************')
+         call mpas_log_write( &
+         'The semi-implicit time integration is configured')
+         call mpas_log_write( &
+         '***********************************************************')
 
       case default
          call mpas_log_write('Incorrect choice config_time_integrator',&
                              MPAS_LOG_CRIT)
 
       end select
-
 
       !*** set number of baroclinic iterations on each outer
       !*** time step iteration (number can be different on the
@@ -2979,9 +2998,10 @@ module ocn_time_integration_si
       numTSIterations = config_n_ts_iter
 
       if ( numTSIterations .ne. 2 ) then
-         call mpas_log_write('The semi-implicit method requires [config_n_ts_iter = 2]. &
-                              A current value is $i.', &
-                             MPAS_LOG_CRIT, .false., .true., (/numTSIterations/))
+         call mpas_log_write( &
+         'The semi-implicit method requires [config_n_ts_iter = 2]. &
+          A current value is $i.', &
+          MPAS_LOG_CRIT, .false., .true., (/numTSIterations/))
       endif
 
       allocate(numClinicIterations(numTSIterations))
@@ -2990,38 +3010,45 @@ module ocn_time_integration_si
       numClinicIterations(1) = config_n_bcl_iter_beg ! first iteration
       numClinicIterations(numTSIterations)=config_n_bcl_iter_end !last
 
-
-      ! Initialize z-level mesh variables from h, read in from input file.
       block => domain % blocklist
 
-      call mpas_pool_get_config(block % configs, 'config_time_integrator', config_time_integrator)
-      call mpas_pool_get_config(block % configs, 'config_filter_btr_mode', config_filter_btr_mode)
       call mpas_pool_get_subpool(block % structs, 'mesh', meshPool)
       call mpas_pool_get_subpool(block % structs, 'state', statePool)
-      call mpas_pool_get_subpool(statePool, 'tracers', tracersPool)
 
-      call mpas_pool_get_dimension(block % dimensions, 'nVertLevels', nVertLevels)
-      call mpas_pool_get_dimension(block % dimensions, 'nCells', nCells)
-      call mpas_pool_get_dimension(block % dimensions, 'nEdges', nEdges)
-      call mpas_pool_get_dimension(block % dimensions, 'nCellsArray', nCellsArray)
-      call mpas_pool_get_dimension(block % dimensions, 'nEdgesArray', nEdgesArray)
+      call mpas_pool_get_dimension(block % dimensions, 'nVertLevels', &
+                                                        nVertLevels)
 
-      call mpas_pool_get_array(statePool, 'layerThickness', layerThickness, 1)
-      call mpas_pool_get_array(statePool, 'normalVelocity', normalVelocity, 1)
-      call mpas_pool_get_array(statePool, 'normalBarotropicVelocity', normalBarotropicVelocity, 1)
-      call mpas_pool_get_array(statePool, 'normalBaroclinicVelocity', normalBaroclinicVelocity, 1)
+      call mpas_pool_get_dimension(block % dimensions, 'nCellsArray', &
+                                                        nCellsArray)
+      call mpas_pool_get_dimension(block % dimensions, 'nEdgesArray', &
+                                                        nEdgesArray)
 
-      call mpas_pool_get_array(meshPool, 'refBottomDepth', refBottomDepth)
-      call mpas_pool_get_array(meshPool, 'cellsOnEdge', cellsOnEdge)
-      call mpas_pool_get_array(meshPool, 'minLevelEdgeBot', minLevelEdgeBot)
-      call mpas_pool_get_array(meshPool, 'maxLevelEdgeTop', maxLevelEdgeTop)
+      call mpas_pool_get_array(statePool, 'layerThickness', &
+                                           layerThickness, 1)
+      call mpas_pool_get_array(statePool, 'normalVelocity', &
+                                           normalVelocity, 1)
+      call mpas_pool_get_array(statePool, 'normalBarotropicVelocity', &
+                                           normalBarotropicVelocity, 1)
+      call mpas_pool_get_array(statePool, 'normalBaroclinicVelocity', &
+                                           normalBaroclinicVelocity, 1)
+
+      call mpas_pool_get_array(meshPool, 'refBottomDepth', &
+                                          refBottomDepth)
+      call mpas_pool_get_array(meshPool, 'cellsOnEdge', &
+                                          cellsOnEdge)
+      call mpas_pool_get_array(meshPool, 'minLevelEdgeBot', &
+                                          minLevelEdgeBot)
+      call mpas_pool_get_array(meshPool, 'maxLevelEdgeTop', &
+                                          maxLevelEdgeTop)
       call mpas_pool_get_array(meshPool, 'minLevelCell', minLevelCell)
       call mpas_pool_get_array(meshPool, 'maxLevelCell', maxLevelCell)
-      call mpas_pool_get_array(meshPool, 'areaCell', areaCell)
       call mpas_pool_get_array(meshPool, 'bottomDepth', bottomDepth)
+      call mpas_pool_get_array(meshPool, 'areaCell', areaCell)
 
       call mpas_pool_get_array(statePool, 'ssh', sshCur, 1)
 
+      nCells = nCellsArray(config_num_halos)
+      nEdges = nEdgesArray(config_num_halos+1)
 
       if ( .not. config_do_restart ) then
 
@@ -3029,55 +3056,69 @@ module ocn_time_integration_si
       ! This is only done upon start-up.
          if (config_filter_btr_mode) then
             do iCell = 1, nCells
-               layerThickness(1,iCell) = refBottomDepth(1)
+               layerThickness(minLevelCell(iCell),iCell) = &
+                  refBottomDepth(minLevelCell(iCell))
             enddo
          endif
 
          do iEdge = 1, nEdges
             cell1 = cellsOnEdge(1,iEdge)
             cell2 = cellsOnEdge(2,iEdge)
+            kmax  = maxLevelEdgeTop(iEdge)
 
             ! normalBarotropicVelocity = sum(h*u)/sum(h) on each edge
-            ! ocn_diagnostic_solve has not yet been called, so compute hEdge
-            ! just for this edge.
+            ! ocn_diagnostic_solve has not yet been called, so
+            ! compute hEdge just for this edge.
 
-            ! thicknessSum is initialized outside the loop because on land boundaries
-            ! maxLevelEdgeTop=0, but I want to initialize thicknessSum with a
-            ! nonzero value to avoid a NaN.
-            layerThickEdge1 = 0.5_RKIND*( layerThickness(minLevelCell(cell1),cell1) + layerThickness(minLevelCell(cell2),cell2) )
-            normalThicknessFluxSum = layerThickEdge1 * normalVelocity(minLevelEdgeBot(iEdge),iEdge)
-            layerThicknessSum = layerThickEdge1
+            ! thicknessSum is initialized outside the loop because on
+            ! land boundaries maxLevelEdgeTop=0, but we want to
+            ! initialize thicknessSum with a nonzero value to avoid
+            ! a NaN.
+            layerThicknessEdge1 = 0.5_RKIND* &
+               (layerThickness(minLevelCell(cell1),cell1) + &
+                layerThickness(minLevelCell(cell2),cell2) )
 
-            do k=minLevelEdgeBot(iEdge)+1, maxLevelEdgeTop(iEdge)
-               ! ocn_diagnostic_solve has not yet been called, so compute hEdge
-               ! just for this edge.
-               layerThickEdge1 = 0.5_RKIND*( layerThickness(k,cell1) + layerThickness(k,cell2) )
+            normalThicknessFluxSum = layerThicknessEdge1* &
+               normalVelocity(minLevelEdgeBot(iEdge),iEdge)
 
-               normalThicknessFluxSum = normalThicknessFluxSum &
-                  + layerThickEdge1 * normalVelocity(k,iEdge)
-               layerThicknessSum = layerThicknessSum + layerThickEdge1
+            layerThicknessSum = layerThicknessEdge1
+
+            do k=minLevelEdgeBot(iEdge)+1, kmax
+               layerThicknessEdge1 = 0.5_RKIND* &
+                                    (layerThickness(k,cell1) + &
+                                     layerThickness(k,cell2))
+
+               normalThicknessFluxSum = normalThicknessFluxSum + &
+                                        layerThicknessEdge1* &
+                                        normalVelocity(k,iEdge)
+               layerThicknessSum = layerThicknessSum + &
+                                   layerThicknessEdge1
 
             enddo
-            normalBarotropicVelocity(iEdge) = normalThicknessFluxSum / layerThicknessSum
+            normalBarotropicVelocity(iEdge) = &
+                  normalThicknessFluxSum/layerThicknessSum
 
-            ! normalBaroclinicVelocity(k,iEdge) = normalVelocity(k,iEdge) - normalBarotropicVelocity(iEdge)
-            do k = minLevelEdgeBot(iEdge), maxLevelEdgeTop(iEdge)
-               normalBaroclinicVelocity(k,iEdge) = normalVelocity(k,iEdge) - normalBarotropicVelocity(iEdge)
+            ! normalBaroclinicVelocity = normalVelocity -
+            !     normalBarotropicVelocity
+            do k = minLevelEdgeBot(iEdge), kmax
+               normalBaroclinicVelocity(k,iEdge) = &
+                         normalVelocity(k,iEdge) - &
+                 normalBarotropicVelocity(iEdge)
             enddo
 
-            ! normalBaroclinicVelocity=0, normalVelocity=0 on land cells
-            do k = maxLevelEdgeTop(iEdge)+1, nVertLevels
+            ! normalBaroclinicVelocity=0,
+            ! normalVelocity=0 on land cells
+            do k = kmax+1, nVertLevels
                normalBaroclinicVelocity(k,iEdge) = 0.0_RKIND
                normalVelocity(k,iEdge) = 0.0_RKIND
             enddo
-
-         enddo
+         enddo ! edge loop
 
          if (config_filter_btr_mode) then
             ! filter normalBarotropicVelocity out of initial condition
 
-             normalVelocity(:,:) = normalBaroclinicVelocity(:,:)
-             normalBarotropicVelocity(:) = 0.0_RKIND
+            normalVelocity(:,:) = normalBaroclinicVelocity(:,:)
+            normalBarotropicVelocity(:) = 0.0_RKIND
 
          endif
 
@@ -3086,7 +3127,8 @@ module ocn_time_integration_si
       ! Compute the root mean square of areaCell 
       ! for the solver tolerance
       local_num_cells = nCells
-      call mpas_dmpar_sum_real(domain % dminfo,local_num_cells,total_num_cells)
+      call mpas_dmpar_sum_real(domain % dminfo, local_num_cells, &
+                               total_num_cells)
 
       local_area_sum = 0.0_RKIND
       do iCell = 1,nCells
@@ -3100,7 +3142,6 @@ module ocn_time_integration_si
       ncpus = domain % dminfo % nprocs
       mean_num_cells = total_num_cells/ncpus
 
-
       ! Tolerance for the outer iteration
       crit_out   = 0.01_RKIND * area_mean
 
@@ -3113,8 +3154,8 @@ module ocn_time_integration_si
       endif
 
       ! Impliciness parameters
-      alpha1=0.50_RKIND
-      alpha2=0.50_RKIND
+      alpha1= 0.5_RKIND
+      alpha2= 1.0_RKIND - alpha1
 
       ! Get time step size to compute coefficients for the SI solver
       read(config_dt(1:2),*) ihh
@@ -3124,14 +3165,17 @@ module ocn_time_integration_si
 
       ! Computation of coefficients which will be used in the SI solver
       R1_alpha1s_g_dts = 1.0_RKIND/((alpha1**2.0_RKIND) &
-                           * gravity * (tmp1**2.0_RKIND))
+                           * gravity * tmp1**2.0_RKIND)
       R1_alpha1s_g_dt  = 1.0_RKIND/((alpha1**2.0_RKIND) &
                            * gravity * tmp1)
       R1_alpha1_g      = 1.0_RKIND/(gravity*alpha1)
 
+
       ! Detection of ISMF (Temporariliy implemented. 
       !                    This will be revised in next SI version)
-      ! Compute ssh first
+      ! If ISMF is detected, the semi-implicit barotropic mode solver
+      ! will solve a 'quasi-linear' barotropic system for the more 
+      ! stable solver convergence.
       do iCell = 1, nCells
          k = maxLevelCell(iCell)
          zTop(k:nVertLevels,iCell) = -bottomDepth(iCell)      &
@@ -3167,73 +3211,94 @@ module ocn_time_integration_si
 !> \author  Hyun-Gyu Kang (Oak Ridge National Laboratory)
 !> \date    September 2019
 !> \details
-!>  This routine constructs a Block-Jacobi preconditioner for the
-!>  split-implicit time stepper.
+!>  This routine constructs preconditioners for the
+!>  semi-implicit time stepper.
 !
 !-----------------------------------------------------------------------
    subroutine ocn_time_integrator_si_preconditioner(domain, dt)!{{{
 
-      implicit none
+      !-----------------------------------------------------------------
+      ! Input variables
+      !-----------------------------------------------------------------
 
-      type (domain_type), intent(inout) :: domain
-      real (kind=RKIND) , intent(in)    :: dt
+      real (kind=RKIND), intent(in) :: &
+         dt              !< [in] time step (sec) to move forward
 
-      type (mpas_pool_type), pointer :: statePool
-      type (mpas_pool_type), pointer :: tracersPool
-      type (mpas_pool_type), pointer :: meshPool
-      type (mpas_pool_type), pointer :: tendPool
-      type (mpas_pool_type), pointer :: tracersTendPool
+      !-----------------------------------------------------------------
+      ! Input/output variables
+      !-----------------------------------------------------------------
 
-      type (block_type), pointer :: block
-      real (kind=RKIND) :: thicknessSum,fluxAx
-      integer :: iCell, i,k,j, iEdge, cell1, cell2
+      type (domain_type), intent(inout) :: &
+         domain  !< [inout] model state to advance forward
 
-      ! Dimensions
-      integer :: nCells, nEdges
-      integer,           dimension(:)  , pointer :: globalCellId
+      !-----------------------------------------------------------------
+      ! Local variables
+      !-----------------------------------------------------------------
 
-      real (kind=RKIND) :: temp1
-      integer :: local_num_cells,total_num_cells
-      integer :: local_start,local_end,nCellsA2,nCellsA3,nPrecMatPacked,info,itmp1
+      type (block_type), pointer :: &
+         block ! structure with subdomain data
+
+      type (mpas_pool_type), pointer :: &
+         meshPool ! structure holding mesh variables
+
+      integer,dimension(:),pointer :: &
+         globalCellId ! global index of each cell
+
+      integer ::         &
+         nCells, nEdges, &! number of cells or edges (excl halos) 
+         iCell, iEdge,   &! loop indices for cell and edge
+         cell1, cell2,   &! neighbor cell indices across edge
+         nCellsHalo1st,  &! number of cells within 1st halo layer
+         nCellsHalo2nd,  &! number of cells within 2st halo layer
+         nPrecMatPacked   ! number of matrix elements 
+                          !    of an uppder digonal matrix
+
+      integer ::  i, j, info, itmp1
+      real (kind=RKIND) :: thicknessSum, fluxAx, temp1
+
+      ! End preamble
+      !-----------------------------------------------------------------
+      ! Begin code
 
       block => domain % blocklist
-
-      call mpas_pool_get_subpool(block % structs, 'mesh'       , meshPool       )
-      call mpas_pool_get_array(meshPool, 'indexToCellID',   globalCellId    )
+      call mpas_pool_get_subpool(block % structs, 'mesh', meshPool)
+      call mpas_pool_get_array(meshPool, 'indexToCellID', globalCellId)
 
       nCells   = nCellsOwned
       nEdges   = nEdgesOwned
-      nCellsA2 = nCellsHalo(1)
-      nCellsA3 = nCellsHalo(2)
+      nCellsHalo1st = nCellsHalo(1)
+      nCellsHalo2nd = nCellsHalo(2)
 
-      call mpas_log_write('   config_btr_si_preconditioner: ' // trim(config_btr_si_preconditioner))
-
-      local_num_cells = nCellsOwned
-      call mpas_dmpar_sum_int(domain % dminfo,local_num_cells,total_num_cells)
+      call mpas_log_write('   config_btr_si_preconditioner: ' &
+                           // trim(config_btr_si_preconditioner) )
 
       if ( trim(config_btr_si_preconditioner) == 'ras' .or. &
-           trim(config_btr_si_preconditioner) == 'block_jacobi' ) then
-         ncpus = domain % dminfo % nprocs
-         itmp1 = int(total_num_cells/ncpus)
-         if ( itmp1 > 3000 ) then
-            call mpas_log_write('      nCells per core is larger than 3000.')
-            call mpas_log_write('      Because of memory and computational efficiency,')
-            call mpas_log_write('      the preconditioner is configured as jacobi.')
+           trim(config_btr_si_preconditioner) == 'block_jacobi') then
+         if ( int(mean_num_cells) > 3000 ) then
+            call mpas_log_write( &
+            '      nCells per core is larger than 3000.')
+            call mpas_log_write( &
+            '      Because of memory and computational efficiency,')
+            call mpas_log_write( &
+            '      the preconditioner is configured as jacobi.')
             config_btr_si_preconditioner = 'jacobi'
          endif
       endif
 
       if ( config_btr_si_partition_match_mode ) then
-         call mpas_log_write('       Thread-match mode is turned on.')
-         call mpas_log_write('       The preconditioner is configured as jacobi.')
-         call mpas_log_write('       The bit-for-bit allreduce is used.')
+         call mpas_log_write( &
+         '       Partition-match mode is turned on.')
+         call mpas_log_write( &
+         '       The preconditioner is configured as jacobi.')
          config_btr_si_preconditioner = 'jacobi'
+         call mpas_log_write( &
+         '       The bit-for-bit allreduce is used.')
       endif
 
-      ! Restricted Additive Schwarz preconditioner ---------------------------------------------!
+      ! Restricted Additive Schwarz preconditioner --------------------!
       if ( trim(config_btr_si_preconditioner) == 'ras' ) then
 
-         nPrecVec = nCellsA3
+         nPrecVec = nCellsHalo2nd ! length of preconditioning vector
          nPrecMatPacked = (nPrecVec*(nPrecVec+1))/2
 
          allocate(prec_ivmat(1:nPrecMatPacked))
@@ -3246,45 +3311,54 @@ module ocn_time_integration_si
                cell1 = cellsOnEdge(1, iEdge)
                cell2 = cellsOnEdge(2, iEdge)
 
-               ! method 1, matches method 0 without pbcs, works with pbcs.
-               thicknessSum = min(bottomDepth(cell1), bottomDepth(cell2))
-                     fluxAx = edgeSignOnCell(i,iCell)*dvEdge(iEdge)*thicknessSum / dcEdge(iEdge)
+               ! method 1, matches method 0 without pbcs,
+               ! works with pbcs.
+               thicknessSum = min(bottomDepth(cell1), &
+                                  bottomDepth(cell2))
+               fluxAx = edgeSignOnCell(i,iCell) * dvEdge(iEdge) &
+                      * thicknessSum / dcEdge(iEdge)
 
-               !-------------------------------------------------------------------------------!
-               if ( globalCellId(cell1) > 0 .and. globalCellId(cell1) < total_num_cells+1 ) then
+               if ( globalCellId(cell1) > 0 .and. &
+                    globalCellId(cell1) < total_num_cells+1 ) then
+
                   if ( cell1 >= iCell .and. cell1 <= nPrecVec) then
-                     prec_ivmat(iCell+((cell1-1)*cell1)/2) = prec_ivmat(iCell+((cell1-1)*cell1)/2) + fluxAx
+                     prec_ivmat(iCell+((cell1-1)*cell1)/2) = &
+                     prec_ivmat(iCell+((cell1-1)*cell1)/2) + fluxAx
                   endif
                endif
 
-               if ( globalCellId(cell2) > 0 .and. globalCellId(cell2) < total_num_cells+1 ) then
+               if ( globalCellId(cell2) > 0 .and. &
+                    globalCellId(cell2) < total_num_cells+1 ) then
+
                   if ( cell2 >= iCell .and. cell2 <= nPrecVec) then
-                     prec_ivmat(iCell+((cell2-1)*cell2)/2) = prec_ivmat(iCell+((cell2-1)*cell2)/2) - fluxAx
+                     prec_ivmat(iCell+((cell2-1)*cell2)/2) = &
+                     prec_ivmat(iCell+((cell2-1)*cell2)/2) - fluxAx
                   endif
                endif
-               !-------------------------------------------------------------------------------!
-
             end do ! i
 
-            prec_ivmat(iCell+((iCell-1)*iCell)/2) = prec_ivmat(iCell+((iCell-1)*iCell)/2)  &
-                                                  - (4.0_RKIND/(gravity*dt**2.0)) * areaCell(iCell)
-
+            prec_ivmat(iCell+((iCell-1)*iCell)/2) = &
+            prec_ivmat(iCell+((iCell-1)*iCell)/2)   &
+               - (4.0_RKIND/(gravity*dt**2.0)) * areaCell(iCell)
          end do ! iCell
 
          ! Inversiion
-           ! 1. Cholesky factorization of a real symmetric positive definite matirx A
+           ! 1. Cholesky factorization of a real symmetric 
+           !    positive definite matirx A
          prec_ivmat(:) = -prec_ivmat(:)
 #ifdef USE_LAPACK
          call DPPTRF('U',nPrecVec,prec_ivmat,info)
 #endif
-           ! 2. Inversion of a real symmetric positive definite matrix A using the Cholesky factorization
+           ! 2. Inversion of a real symmetric positive definite 
+           !    matrix A using the Cholesky factorization
 #ifdef USE_LAPACK
          call DPPTRI('U',nPrecVec,prec_ivmat,info)
 #endif
          prec_ivmat(:) = -prec_ivmat(:)
 
-         ! Block-Jacobi preconditioner ------------------------------------------------------------!
-      elseif ( trim(config_btr_si_preconditioner) == 'block_jacobi' ) then
+         ! Block-Jacobi preconditioner --------------------------------!
+      elseif ( trim(config_btr_si_preconditioner) == &
+                                        'block_jacobi' ) then
 
          nPrecVec = nCells ! length of preconditioning vector
          nPrecMatPacked = (nPrecVec*(nPrecVec+1))/2
@@ -3299,42 +3373,51 @@ module ocn_time_integration_si
                cell1 = cellsOnEdge(1, iEdge)
                cell2 = cellsOnEdge(2, iEdge)
 
-               ! method 1, matches method 0 without pbcs, works with pbcs.
-               thicknessSum = min(bottomDepth(cell1), bottomDepth(cell2))
-                     fluxAx = edgeSignOnCell(i,iCell)*dvEdge(iEdge)*thicknessSum / dcEdge(iEdge)
+               ! method 1, matches method 0 without pbcs,
+               ! works with pbcs.
+               thicknessSum = min(bottomDepth(cell1), &
+                                  bottomDepth(cell2))
+               fluxAx = edgeSignOnCell(i,iCell) * dvEdge(iEdge) &
+                      * thicknessSum / dcEdge(iEdge)
 
-               !-------------------------------------------------------------------------------!
-               if ( globalCellId(cell1) > 0 .and. globalCellId(cell1) < total_num_cells+1 ) then
+               if ( globalCellId(cell1) > 0 .and. &
+                    globalCellId(cell1) < total_num_cells+1 ) then
+
                   if ( cell1 >= iCell .and. cell1 <= nPrecVec) then
-                     prec_ivmat(iCell+((cell1-1)*cell1)/2) = prec_ivmat(iCell+((cell1-1)*cell1)/2) + fluxAx
+                     prec_ivmat(iCell+((cell1-1)*cell1)/2) = &
+                     prec_ivmat(iCell+((cell1-1)*cell1)/2) + fluxAx
                   endif
                endif
 
-               if ( globalCellId(cell2) > 0 .and. globalCellId(cell2) < total_num_cells+1 ) then
+               if ( globalCellId(cell2) > 0 .and. &
+                    globalCellId(cell2) < total_num_cells+1 ) then
                   if ( cell2 >= iCell .and. cell2 <= nPrecVec) then
-                     prec_ivmat(iCell+((cell2-1)*cell2)/2) = prec_ivmat(iCell+((cell2-1)*cell2)/2) - fluxAx
+                     prec_ivmat(iCell+((cell2-1)*cell2)/2) = &
+                     prec_ivmat(iCell+((cell2-1)*cell2)/2) - fluxAx
                   endif
                endif
-               !-------------------------------------------------------------------------------!
             end do ! i
 
-            prec_ivmat(iCell+((iCell-1)*iCell)/2) = prec_ivmat(iCell+((iCell-1)*iCell)/2)  &
-                                                  - (4.0_RKIND/(gravity*dt**2.0)) * areaCell(iCell)
+            prec_ivmat(iCell+((iCell-1)*iCell)/2) = &
+            prec_ivmat(iCell+((iCell-1)*iCell)/2)   &
+               - (4.0_RKIND/(gravity*dt**2.0)) * areaCell(iCell)
          end do ! iCell
 
          ! Inversion
-           ! 1. Cholesky factorization of a real symmetric positive definite matirx A
+           ! 1. Cholesky factorization of a real symmetric 
+           !    positive definite matirx A
          prec_ivmat(:) = -prec_ivmat(:)
 #ifdef USE_LAPACK
          call DPPTRF('U',nPrecVec,prec_ivmat,info)
 #endif
-           ! 2. Inversion of a real symmetric positive definite matrix A using the Cholesky factorization
+           ! 2. Inversion of a real symmetric positive definite
+           !    matrix A using the Cholesky factorization
 #ifdef USE_LAPACK
          call DPPTRI('U',nPrecVec,prec_ivmat,info)
 #endif
          prec_ivmat(:) = -prec_ivmat(:)
 
-      ! Jacobi preconditioner ------------------------------------------------------------------!
+      ! Jacobi preconditioner -----------------------------------------!
       else if ( trim(config_btr_si_preconditioner) == 'jacobi' ) then
 
          nPrecVec = nCells ! length of preconditioning vector
@@ -3349,39 +3432,45 @@ module ocn_time_integration_si
                cell1 = cellsOnEdge(1, iEdge)
                cell2 = cellsOnEdge(2, iEdge)
 
-               ! method 1, matches method 0 without pbcs, works with pbcs.
-               thicknessSum =  min(bottomDepth(cell1), bottomDepth(cell2))
+               ! method 1, matches method 0 without pbcs,
+               ! works with pbcs.
+               thicknessSum =  min(bottomDepth(cell1), &
+                                   bottomDepth(cell2))
 
-               !-------------------------------------------------------------------------!
-               fluxAx = edgeSignOnCell(i,iCell)*dvEdge(iEdge)*thicknessSum / dcEdge(iEdge)
+               fluxAx = edgeSignOnCell(i,iCell) * dvEdge(iEdge) &
+                      * thicknessSum / dcEdge(iEdge)
 
                if (cell1 == iCell) then
-                  prec_ivmat(iCell) = prec_ivmat(iCell) + fluxAx  ! reversed sign
+                  prec_ivmat(iCell) = prec_ivmat(iCell) + fluxAx 
+                                                        ! reversed sign
                elseif ( cell2 == iCell) then
-                  prec_ivmat(iCell) = prec_ivmat(iCell) - fluxAx  ! reversed sign
+                  prec_ivmat(iCell) = prec_ivmat(iCell) - fluxAx
+                                                        ! reversed sign
                endif
-               !-------------------------------------------------------------------------!
             end do ! i
 
-            temp1 = prec_ivmat(iCell) - (4.0_RKIND/(gravity*dt**2.0))*areaCell(iCell)
+            temp1 = prec_ivmat(iCell) &
+                  - (4.0_RKIND/(gravity*dt**2.0)) * areaCell(iCell)
 
             prec_ivmat(iCell) = 1.0_RKIND / temp1
 
          end do ! iCell
 
-
-      ! No preconditioner ----------------------------------------------------------------------!
+      ! No preconditioner ---------------------------------------------!
       else if ( trim(config_btr_si_preconditioner) == 'none' ) then
 
          nPrecVec = nCells ! length of preconditioning vector
 
          allocate(prec_ivmat(1))
-         prec_ivmat(:) = 1.0_RKIND ! This array is not used only for 'none'.
+         prec_ivmat(:) = 1.0_RKIND
 
       else
 
-         call mpas_log_write('Incorrect choice for config_btr_si_preconditioner: ' // trim(config_btr_si_preconditioner) // &
-                             '   choices are: ras, block_jacobi, jacobi, none',MPAS_LOG_CRIT)
+         call mpas_log_write( &
+         'Incorrect choice for config_btr_si_preconditioner: ' &
+         // trim(config_btr_si_preconditioner) //              &
+         '   choices are: ras, block_jacobi, jacobi, none',    &
+         MPAS_LOG_CRIT)
 
       endif ! config_btr_si_preconditioner
 
