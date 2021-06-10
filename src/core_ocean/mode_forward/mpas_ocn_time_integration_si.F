@@ -91,8 +91,8 @@ module ocn_time_integration_si
       R1_alpha1_g,      &! pre-computed coefficients
       alpha1,           &! implicitness parameter (=alpha)
       alpha2,           &! implicitness parameter (=1-alpha)
-      crit_out,         &! tolerance for the outer solver iterations
-      crit_main,        &! tolerance for the main solver iterations
+      tolerance_outer,  &! tolerance for the outer solver iterations
+      tolerance_inner,  &! tolerance for the main solver iterations
       total_num_cells,  &! total number of surface cells
       mean_num_cells     ! mean #cells for each core
    integer :: &
@@ -278,25 +278,33 @@ module ocn_time_integration_si
       real (kind=RKIND), dimension(2) :: &
          SIcst_allreduce2,       &! array for local  summations
          SIcst_allreduce_global2  ! array for global summations
+      real (kind=RKIND), dimension(2) :: &
+         SIcst_allreduce_local2   ! array for local  summations
       real (kind=RKIND), dimension(3) :: &
          SIcst_allreduce3,       &! array for local  summations
          SIcst_allreduce_global3  ! array for global summations
       real (kind=RKIND), dimension(5) :: &
-         SIcst_allreduce5,        &! array for local  summations
-         SIcst_allreduce_global5, &! array for global summations
-         SIcst_allreduce_temp5     !  temp for global summations
-      integer          , dimension(5) :: &
-         SIcst_allreduce_itemp5    !  temp for partition match mode
+         SIcst_allreduce5,       &! array for local  summations
+         SIcst_allreduce_global5  ! array for global summations
+      real (kind=RKIND), dimension(9) :: &
+         SIcst_allreduce_local9, &! array for local  summations
+         SIcst_allreduce_global9,&! array for global summations
+         SIcst_allreduce_temp9    !  temp for global summations
+      integer          , dimension(9) :: &
+         SIcst_allreduce_itemp9   !  temp for partition match mode
       real (kind=RKIND) ::  &
-                                   !  temp scalars for SI method
-         SIcst_r0r0 , SIcst_r1r1 , SIcst_q0y0  , SIcst_y0y0  ,       &
-         SIcst_r00r0, SIcst_r00w0, SIcst_r00r1 , SIcst_r00w1 ,       &
-         SIcst_r00s0, SIcst_r00z0, SIcst_alpha0, SIcst_alpha1,       &
-         SIcst_beta0, SIcst_beta1, SIcst_omega0, SIcst_omega1,       &
-         SIcst_r0r0_global , SIcst_r1r1_global , SIcst_q0y0_global , &
-         SIcst_y0y0_global , SIcst_r00r0_global, SIcst_r00w0_global, &
-         SIcst_r00r1_global, SIcst_r00w1_global, SIcst_r00s0_global, &
-         SIcst_r00z0_global, resid
+                                  !  temp scalars for the SI method
+         SIcst_q0y0        , SIcst_y0y0        , SIcst_q0q0        , &
+         SIcst_q0y0_global , SIcst_y0y0_global , SIcst_q0q0_global , &
+         SIcst_r00r0       , SIcst_r00w0       , SIcst_r00w1       , &
+         SIcst_r00r0_global, SIcst_r00w0_global, SIcst_r00w1_global, &
+         SIcst_r00q0       , SIcst_r00t0       , SIcst_r00v0       , &
+         SIcst_r00q0_global, SIcst_r00t0_global, SIcst_r00v0_global, &
+         SIcst_r00y0       , SIcst_r00s0       , SIcst_r00z0       , &
+         SIcst_r00y0_global, SIcst_r00s0_global, SIcst_r00z0_global, &
+         SIcst_alpha0      , SIcst_alpha1      , SIcst_beta0       , &
+         SIcst_omega0      , SIcst_rho0        , SIcst_rho1        , &
+         SIcst_gamma1,       resid
 
       integer :: iter ! Number of solver iterations
 
@@ -712,7 +720,57 @@ module ocn_time_integration_si
          !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
          ! Stage 2: Barotropic velocity (2D) prediction, semi-implicit
          !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
+         !
+         ! The semi-implicit barotropic mode solver
+         !    - uses the preconditioned communication-avoiding
+         !      (single-reduction) BiCGStab method 
+         !      (Cool and Vanroose, 2017) as a linear iterative solver
+         !                    
+         !    - solves the nonlinear barotropic system but deals with
+         !      it as the linear system by introducing the outer and                     
+         !      inner solver iteration (the solver matrix is updated                    
+         !      for every time step and inner solver iteration.)                    
+         !                    
+         !    - works with 'ras', 'block_jacobi', 'jacobi', 'none'
+         !      preconditioners
+         !                    
+         !    - consists of seven substages                    
+         !         :Stage 2.1. Initialization and preparation of vars
+         !                     before outer iterations
+         !          Stage 2.2. Computation of the initial residual
+         !          Stage 2.3. The outer solver iteration
+         !          Stage 2.4. The barotropic velocity update
+         !          Stage 2.5. Re-computation of the initial residual
+         !                     using lagged values
+         !          Stage 2.6. Main (inner) solver iterations to 
+         !                     obtain SSH at time (n+1) 
+         !          Stage 2.7. The barotropic velocity update
+         !
+         !    - requires 'config_n_ts_iter=2'
+         !         :Time line of variables
+         !
+         !          Start of large outer time step iteration loop
+         !             splitImplicitStep=1
+         !             |  SSH and BtrVel at time (n)
+         !             |  |  -> Advancing the barotropic system
+         !             |  |     -> SSH and BtrVel at time (n+1)
+         !             |  |        -> Averaging between time (n) 
+         !             |  |                         and time (n+1)
+         !             |  SSH and BtrVel at time (n+1/2)
+         !             |
+         !             splitImplicitStep=2
+         !                SSH and BtrVel at time (n+1/2)
+         !                |  -> Advancing the barotropic system
+         !                |     -> SSH and BtrVel at time (n+3/2)
+         !                |        -> Averaging between time (n+1/2)
+         !                |                         and time (n+3/2)
+         !                SSH and BtrVel at time (n+1)
+         !
+         !
+         ! Reference: Kang et al. (2021): A scalable semi-implicit
+         !            barotropic mode solver for the MPAS-Ocean, JAMES
+         !
+         !
          !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
          ! Stage 2.1 : Preparation of variables before outer iterations
          !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -758,7 +816,7 @@ module ocn_time_integration_si
                   normalBarotropicVelocitySubcycleCur(iEdge)
             end do
             !$omp end do
-            !$omp do schedule(runtime)
+            !$omp end parallel
          endif ! splitImplicitStep
 
          !$omp parallel
@@ -820,7 +878,7 @@ module ocn_time_integration_si
          call mpas_timer_stop('btr vel si init')
 
          !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-         ! Stage 2.2 : Compute initial residual
+         ! Stage 2.2 : Compution of the initial residual
          !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
          call mpas_timer_start("si btr residual")
@@ -1037,10 +1095,10 @@ module ocn_time_integration_si
                sshDiffCur = (SIvec_wh0(cell2)- SIvec_wh0(cell1)) &
                           / dcEdge(iEdge)
 
-                   fluxAx = thicknessSumCur * sshDiffCur
-                sshTendAx = sshTendAx + edgeSignOnCell(i, iCell) &
-                          * fluxAx * dvEdge(iEdge)
+               fluxAx = thicknessSumCur * sshDiffCur
 
+               sshTendAx = sshTendAx + edgeSignOnCell(i, iCell) &
+                         * fluxAx * dvEdge(iEdge)
             end do ! i
 
             sshCurArea = R1_alpha1s_g_dts * SIvec_wh0(iCell) &
@@ -1049,7 +1107,6 @@ module ocn_time_integration_si
             SIvec_t0(iCell) = -sshCurArea - sshTendAx
 
             SIvec_ph0(iCell) = 0.0_RKIND
-            SIvec_v0(iCell)  = 0.0_RKIND
             SIvec_sh0(iCell) = 0.0_RKIND
             SIvec_z0(iCell)  = 0.0_RKIND
             SIvec_zh0(iCell) = 0.0_RKIND
@@ -1058,38 +1115,39 @@ module ocn_time_integration_si
 
          end do ! iCell
 
-         SIcst_allreduce2(1) = SIcst_r00r0
-         SIcst_allreduce2(2) = SIcst_r00w0
+         SIcst_allreduce_local2(1) = SIcst_r00r0
+         SIcst_allreduce_local2(2) = SIcst_r00w0
 
          ! Global sum across CPUs
          call mpas_timer_start("si reduction r0")
-         call mpas_dmpar_sum_real_array(domain % dminfo, 2, &
-                                        SIcst_allreduce2,   &
+         call mpas_dmpar_sum_real_array(domain % dminfo, 2,      &
+                                        SIcst_allreduce_local2,  &
                                         SIcst_allreduce_global2)
          call mpas_timer_stop ("si reduction r0")
 
          if ( config_btr_si_partition_match_mode .and. ncpus > 1) then
-            SIcst_allreduce_temp5(:)    = 0.0_RKIND
-            SIcst_allreduce_itemp5(:)   = 0.0_RKIND
+            SIcst_allreduce_temp9(:)    = 0.0_RKIND
+            SIcst_allreduce_itemp9(:)   = 0.0_RKIND
 
-            SIcst_allreduce_itemp5(1:2) = &
+            SIcst_allreduce_itemp9(1:2) = &
                                  exponent(SIcst_allreduce_global2(:))
-            SIcst_allreduce_temp5(1:2)  = &
+            SIcst_allreduce_temp9(1:2)  = &
                                  fraction(SIcst_allreduce_global2(:))
-            SIcst_allreduce_temp5(1:2)  = &
-                                 anint(SIcst_allreduce_temp5(1:2) &
+            SIcst_allreduce_temp9(1:2)  = &
+                                 anint(SIcst_allreduce_temp9(1:2) &
                                        * 1.0000000000000000d+8)   &
                                        / 1.0000000000000000d+8
 
-            SIcst_allreduce_global2(:) =                          &
-                       SIcst_allreduce_temp5(1:2)                 &
-                     * 2.0_RKIND ** (SIcst_allreduce_itemp5(1:2))
+            SIcst_allreduce_global2(:) =          &
+                       SIcst_allreduce_temp9(1:2) &
+                     * 2.0_RKIND ** (SIcst_allreduce_itemp9(1:2))
          endif
 
          SIcst_r00r0_global = SIcst_allreduce_global2(1)
          SIcst_r00w0_global = SIcst_allreduce_global2(2)
 
-         SIcst_alpha0 = SIcst_r00r0_global / SIcst_r00w0_global
+         SIcst_rho0   = SIcst_r00r0_global
+         SIcst_alpha0 = SIcst_rho0 / SIcst_r00w0_global
          SIcst_beta0  = 0.0_RKIND
          SIcst_omega0 = 0.0_RKIND
 
@@ -1104,89 +1162,40 @@ module ocn_time_integration_si
          call mpas_timer_start("si btr iteration")
 
          iter = 0
-         resid = (crit_out+100.0)**2.0
+         resid = (tolerance_outer+100.0)**2.0
 
          !-------------------------------------------------------------!
-         do while ( dsqrt(resid) > crit_out )
+         do while ( dsqrt(resid) > tolerance_outer )
          !-------------------------------------------------------------!
 
             iter = iter + 1
 
             do iCell = 1, nCellsOwned
-               SIvec_ph1(iCell) = SIvec_rh0(iCell) + SIcst_beta0    &
-                                * ( SIvec_ph0(iCell)                &
-                                   -SIcst_omega0*SIvec_sh0(iCell) )
+               SIvec_ph1(iCell) =  SIvec_rh0(iCell) + SIcst_beta0      &
+                                * (SIvec_ph0(iCell) - SIcst_omega0     &
+                                                    * SIvec_sh0(iCell))
 
-               SIvec_s1(iCell)  = SIvec_w0(iCell)  + SIcst_beta0    &
-                                * ( SIvec_s0(iCell)                 &
-                                   -SIcst_omega0*SIvec_z0(iCell) )
+               SIvec_s1(iCell)  =  SIvec_w0(iCell)  + SIcst_beta0      &
+                                * (SIvec_s0(iCell)  - SIcst_omega0     &
+                                                    * SIvec_z0(iCell))
 
- 	       SIvec_sh1(iCell) = SIvec_wh0(iCell) + SIcst_beta0    &
-                                * ( SIvec_sh0(iCell)                &
-                                   -SIcst_omega0*SIvec_zh0(iCell) )
+               SIvec_sh1(iCell) =  SIvec_wh0(iCell) + SIcst_beta0      &
+                                * (SIvec_sh0(iCell) - SIcst_omega0     &
+                                                    * SIvec_zh0(iCell))
 
- 	       SIvec_z1(iCell)  = SIvec_t0(iCell)  + SIcst_beta0    &
-                                * ( SIvec_z0(iCell)                 &
-                                   -SIcst_omega0*SIvec_v0(iCell) )
+               SIvec_z1(iCell)  =  SIvec_t0(iCell)  + SIcst_beta0      &
+                                * (SIvec_z0(iCell)  - SIcst_omega0     &
+                                                    * SIvec_v0(iCell))
 
- 	       SIvec_q0(iCell)  = SIvec_r0(iCell)  - SIcst_alpha0   &
-                                * SIvec_s1(iCell)
+               SIvec_q0(iCell)  =  SIvec_r0(iCell)  - SIcst_alpha0     &
+                                                    * SIvec_s1(iCell)
 
-               SIvec_qh0(iCell) = SIvec_rh0(iCell) - SIcst_alpha0   &
-                                * SIvec_sh1(iCell)
+               SIvec_qh0(iCell) =  SIvec_rh0(iCell) - SIcst_alpha0     &
+                                                    * SIvec_sh1(iCell)
 
- 	       SIvec_y0(iCell)  = SIvec_w0(iCell)  - SIcst_alpha0   &
-                                * SIvec_z1(iCell)
+               SIvec_y0(iCell)  =  SIvec_w0(iCell)  - SIcst_alpha0     &
+                                                    * SIvec_z1(iCell)
             end do ! iCell
-
-
-            ! Begin reduction -----------------------------------------!
-
-            SIcst_q0y0  = 0.0_RKIND
-            SIcst_y0y0  = 0.0_RKIND
-            SIcst_r00r0 = 0.0_RKIND
-
-            do iCell = 1,nCellsOwned
-               SIcst_q0y0  = SIcst_q0y0  + SIvec_q0(iCell)  &
-                                         * SIvec_y0(iCell)
-               SIcst_y0y0  = SIcst_y0y0  + SIvec_y0(iCell)  &
-                                         * SIvec_y0(iCell)
-               SIcst_r00r0 = SIcst_r00r0 + SIvec_r00(iCell) &
-                                         * SIvec_r0(iCell)
-            end do
-
-            SIcst_allreduce3(1) = SIcst_q0y0
-            SIcst_allreduce3(2) = SIcst_y0y0
-            SIcst_allreduce3(3) = SIcst_r00r0
-
-            ! Global sum across CPUs
-            call mpas_timer_start("si reduction iter")
-            call mpas_dmpar_sum_real_array(domain % dminfo, 3,      &
-                                           SIcst_allreduce3,        &
-                                           SIcst_allreduce_global3)
-            call mpas_timer_stop("si reduction iter")
-
-            if ( config_btr_si_partition_match_mode .and. ncpus>1) then
-               SIcst_allreduce_temp5(:)    = 0.0_RKIND
-               SIcst_allreduce_itemp5(:)   = 0.0_RKIND
-
-               SIcst_allreduce_itemp5(1:3) = &
-                                  exponent(SIcst_allreduce_global3(:))
-               SIcst_allreduce_temp5(1:3)  = &
-                                  fraction(SIcst_allreduce_global3(:))
-               SIcst_allreduce_temp5(1:3)  = &
-                                  anint( SIcst_allreduce_temp5(1:3) &
-                                        * 1.0000000000000000d+8 )   &
-                                        / 1.0000000000000000d+8
-
-               SIcst_allreduce_global3(:)  =          &
-                           SIcst_allreduce_temp5(1:3) &
-                         * 2.0_RKIND ** (SIcst_allreduce_itemp5(1:3))
-            endif
-
-            SIcst_q0y0_global  = SIcst_allreduce_global3(1)
-            SIcst_y0y0_global  = SIcst_allreduce_global3(2)
-            SIcst_r00r0_global = SIcst_allreduce_global3(3)
 
 
             ! Preconditioning -----------------------------------------!
@@ -1232,6 +1241,7 @@ module ocn_time_integration_si
             call mpas_dmpar_field_halo_exch(domain, 'SIvec_zh1')
             call mpas_timer_stop("si halo iter")
 
+
             ! SpMV ----------------------------------------------------!
 
             do iCell = 1, nCellsOwned
@@ -1270,86 +1280,116 @@ module ocn_time_integration_si
 
             end do ! iCell
 
-            ! End reduction -------------------------------------------!
 
-            ! Omega1
-            SIcst_omega0 = SIcst_q0y0_global / SIcst_y0y0_global
-
-            do iCell = 1,nCellsOwned
-               sshSubcycleNew(iCell) = sshSubcycleNew(iCell) &
-                                     + SIcst_alpha0 * SIvec_ph1(iCell) &
-                                     + SIcst_omega0 * SIvec_qh0(iCell)
-
-               SIvec_r1(iCell)  = SIvec_q0(iCell) &
-                                - SIcst_omega0 * SIvec_y0(iCell)
-
-               SIvec_rh1(iCell) = SIvec_qh0(iCell) - SIcst_omega0   &
-                                * ( SIvec_wh0(iCell)                &
-                                   -SIcst_alpha0*SIvec_zh1(iCell) )
-
-               SIvec_w1(iCell)  = SIvec_y0(iCell) - SIcst_omega0    &
-                                * (  SIvec_t0(iCell)                &
-                                   - SIcst_alpha0*SIvec_v1(iCell) )
-            end do
-
-            ! Begin reduction -----------------------------------------!
-
-            SIcst_r00r1 = 0.0_RKIND
-            SIcst_r00w1 = 0.0_RKIND
+            ! Reduction -----------------------------------------------!
             SIcst_r00s0 = 0.0_RKIND
             SIcst_r00z0 = 0.0_RKIND
-            SIcst_r1r1  = 0.0_RKIND
+            SIcst_q0y0  = 0.0_RKIND
+            SIcst_y0y0  = 0.0_RKIND
+            SIcst_r00q0 = 0.0_RKIND
+            SIcst_r00y0 = 0.0_RKIND
+            SIcst_r00t0 = 0.0_RKIND
+            SIcst_r00v0 = 0.0_RKIND
+            SIcst_q0q0  = 0.0_RKIND
 
             do iCell = 1,nCellsOwned
-               SIcst_r00r1 = SIcst_r00r1 + SIvec_r00(iCell) &
-                                         * SIvec_r1(iCell)
-               SIcst_r00w1 = SIcst_r00w1 + SIvec_r00(iCell) &
-                                         * SIvec_w1(iCell)
                SIcst_r00s0 = SIcst_r00s0 + SIvec_r00(iCell) &
                                          * SIvec_s1(iCell) ! s1
+
                SIcst_r00z0 = SIcst_r00z0 + SIvec_r00(iCell) &
                                          * SIvec_z1(iCell) ! z1
-               SIcst_r1r1  = SIcst_r1r1  + SIvec_r1(iCell)  &
-                                         * SIvec_r1(iCell)
+
+               SIcst_q0y0  = SIcst_q0y0  + SIvec_q0(iCell)  &
+                                         * SIvec_y0(iCell)
+
+               SIcst_y0y0  = SIcst_y0y0  + SIvec_y0(iCell)  &
+                                         * SIvec_y0(iCell)
+
+               SIcst_r00q0 = SIcst_r00q0 + SIvec_r00(iCell) &
+                                         * SIvec_q0(iCell)
+
+               SIcst_r00y0 = SIcst_r00y0 + SIvec_r00(iCell) &
+                                         * SIvec_y0(iCell)
+
+               SIcst_r00t0 = SIcst_r00t0 + SIvec_r00(iCell) &
+                                         * SIvec_t0(iCell)
+
+               SIcst_r00v0 = SIcst_r00v0 + SIvec_r00(iCell) &
+                                         * SIvec_v1(iCell) ! v1
+
+               SIcst_q0q0 = SIcst_q0q0   + SIvec_q0(iCell) &
+                                         * SIvec_q0(iCell)
             end do
 
-            SIcst_allreduce5(1) = SIcst_r00r1
-            SIcst_allreduce5(2) = SIcst_r00w1
-            SIcst_allreduce5(3) = SIcst_r00s0
-            SIcst_allreduce5(4) = SIcst_r00z0
-            SIcst_allreduce5(5) = SIcst_r1r1
+            SIcst_allreduce_local9(1) = SIcst_r00s0
+            SIcst_allreduce_local9(2) = SIcst_r00z0
+            SIcst_allreduce_local9(3) = SIcst_q0y0 
+            SIcst_allreduce_local9(4) = SIcst_y0y0 
+            SIcst_allreduce_local9(5) = SIcst_r00q0
+            SIcst_allreduce_local9(6) = SIcst_r00y0
+            SIcst_allreduce_local9(7) = SIcst_r00t0
+            SIcst_allreduce_local9(8) = SIcst_r00v0
+            SIcst_allreduce_local9(9) = SIcst_q0q0
 
             ! Global sum across CPUs
             call mpas_timer_start("si reduction iter")
-            call mpas_dmpar_sum_real_array(domain % dminfo, 5,      &
-                                           SIcst_allreduce5,        &
-                                           SIcst_allreduce_global5)
+            call mpas_dmpar_sum_real_array(domain % dminfo, 9,      &
+                                           SIcst_allreduce_local9,  &
+                                           SIcst_allreduce_global9)
             call mpas_timer_stop("si reduction iter")
 
             if ( config_btr_si_partition_match_mode .and. ncpus>1) then
-               SIcst_allreduce_temp5(:)    = 0.0_RKIND
-               SIcst_allreduce_itemp5(:)   = 0.0_RKIND
+               SIcst_allreduce_temp9(:)    = 0.0_RKIND
+               SIcst_allreduce_itemp9(:)   = 0.0_RKIND
 
-               SIcst_allreduce_itemp5(1:5) = &
-                                  exponent(SIcst_allreduce_global5(:))
-               SIcst_allreduce_temp5(1:5)  = &
-                                  fraction(SIcst_allreduce_global5(:))
-               SIcst_allreduce_temp5(1:5)  = &
-                                  anint(SIcst_allreduce_temp5(1:5) &
-                                        *1.0000000000000000d+8)    &
-                                        /1.0000000000000000d+8
+               SIcst_allreduce_itemp9(:) = &
+                                  exponent(SIcst_allreduce_global9(:))
+               SIcst_allreduce_temp9(:)  = &
+                                  fraction(SIcst_allreduce_global9(:))
+               SIcst_allreduce_temp9(:)  = &
+                                  anint( SIcst_allreduce_temp9(:)  &
+                                        * 1.0000000000000000d+8  ) &
+                                        / 1.0000000000000000d+8
 
-               SIcst_allreduce_global5(:)  = &
-                            SIcst_allreduce_temp5(1:5) &
-                          * 2.0_RKIND ** (SIcst_allreduce_itemp5(1:5))
+               SIcst_allreduce_global9(:)  =                        &
+                           SIcst_allreduce_temp9(:)                 &
+                         * 2.0_RKIND ** (SIcst_allreduce_itemp9(:))
             endif
 
-            SIcst_r00r1_global = SIcst_allreduce_global5(1)
-            SIcst_r00w1_global = SIcst_allreduce_global5(2)
-            SIcst_r00s0_global = SIcst_allreduce_global5(3)
-            SIcst_r00z0_global = SIcst_allreduce_global5(4)
-                         resid = SIcst_allreduce_global5(5)
+            SIcst_r00s0_global = SIcst_allreduce_global9(1) 
+            SIcst_r00z0_global = SIcst_allreduce_global9(2)
+            SIcst_q0y0_global  = SIcst_allreduce_global9(3)
+            SIcst_y0y0_global  = SIcst_allreduce_global9(4)
+            SIcst_r00q0_global = SIcst_allreduce_global9(5)
+            SIcst_r00y0_global = SIcst_allreduce_global9(6)
+            SIcst_r00t0_global = SIcst_allreduce_global9(7)
+            SIcst_r00v0_global = SIcst_allreduce_global9(8)
+            SIcst_q0q0_global  = SIcst_allreduce_global9(9)
 
+            ! Omega0
+            SIcst_omega0 = SIcst_q0y0_global / SIcst_y0y0_global
+
+            ! Residual
+            resid = SIcst_q0q0_global &
+                  - 2.0_RKIND * SIcst_omega0 * SIcst_q0y0_global  &
+                  + SIcst_omega0**2.0_RKIND  * SIcst_y0y0_global
+
+            do iCell = 1,nCellsOwned
+               sshSubcycleNew(iCell) = sshSubcycleNew(iCell)           &
+                                     + SIcst_alpha0 * SIvec_ph1(iCell) &
+                                     + SIcst_omega0 * SIvec_qh0(iCell)
+
+               SIvec_r1(iCell)  = SIvec_q0(iCell) - SIcst_omega0       &
+                                * SIvec_y0(iCell)
+
+               SIvec_rh1(iCell) =  SIvec_qh0(iCell) - SIcst_omega0     &
+                                * (SIvec_wh0(iCell) - SIcst_alpha0     &
+                                                    * SIvec_zh1(iCell))
+
+               SIvec_w1(iCell)  =   SIvec_y0(iCell) - SIcst_omega0     &
+                                * ( SIvec_t0(iCell) - SIcst_alpha0     &
+                                                    * SIvec_v1(iCell))
+            end do
 
             ! Preconditioning -----------------------------------------!
 
@@ -1367,6 +1407,7 @@ module ocn_time_integration_si
                           SIvec_w1(1:nPrecVec), 1, 0.0_RKIND,   &
                           SIvec_wh1(1:nPrecVec),1)
 #endif
+
             elseif ( trim(config_btr_si_preconditioner) == &
                                               'block_jacobi' ) then
                ! Block-Jacobi preconditioning: Use BLAS 
@@ -1376,6 +1417,7 @@ module ocn_time_integration_si
                           SIvec_w1(1:nPrecVec), 1, 0.0_RKIND,   &
                           SIvec_wh1(1:nPrecVec),1)
 #endif
+
             elseif ( trim(config_btr_si_preconditioner) == &
                                                     'jacobi' ) then
                ! Jacobi preconditioning
@@ -1391,6 +1433,7 @@ module ocn_time_integration_si
             call mpas_timer_start("si halo iter")
             call mpas_dmpar_field_halo_exch(domain, 'SIvec_wh1')
             call mpas_timer_stop("si halo iter")
+
 
             ! SpMV ----------------------------------------------------!
 
@@ -1431,14 +1474,19 @@ module ocn_time_integration_si
 
             ! End reduction -------------------------------------------!
 
-            SIcst_beta0 = (SIcst_alpha0/SIcst_omega0) &
-                        * SIcst_r00r1_global / SIcst_r00r0_global
+            SIcst_rho1 = SIcst_r00q0 - SIcst_omega0 * SIcst_r00y0 
 
-            SIcst_alpha1 =  SIcst_r00r1_global                   &
-                         / (  SIcst_r00w1_global                 &
-                            + SIcst_beta0 * SIcst_r00s0_global   &
-                            - SIcst_beta0 * SIcst_omega0         &
-                                          * SIcst_r00z0_global )
+            SIcst_gamma1 = SIcst_r00y0 - SIcst_omega0 * SIcst_r00t0  &
+                                       + SIcst_omega0 * SIcst_alpha0 &
+                                                      * SIcst_r00v0
+ 
+            SIcst_beta0 = (SIcst_alpha0/SIcst_omega0) &
+                        * (SIcst_rho1 / SIcst_rho0)
+
+            SIcst_alpha1 = SIcst_rho1 &
+                         / ( SIcst_gamma1 + SIcst_beta0 * SIcst_r00s0   &
+                                          - SIcst_beta0 * SIcst_omega0  &
+                                                        * SIcst_r00z0 )
 
             do iCell = 1,nCellsOwned
                SIvec_r0(iCell) = SIvec_r1(iCell)
@@ -1455,12 +1503,13 @@ module ocn_time_integration_si
                SIvec_zh0(iCell) = SIvec_zh1(iCell)
             end do ! iCell
 
-            SIcst_r00r0_global = SIcst_r00r1_global
             SIcst_alpha0       = SIcst_alpha1
+            SIcst_rho0         = SIcst_rho1
 
          !-------------------------------------------------------------!
-         end do ! do iter = 2
+         end do ! do iter
          !-------------------------------------------------------------!
+ 
 
          !   boundary update on sshNew
          call mpas_timer_start("si halo iter")
@@ -1470,11 +1519,15 @@ module ocn_time_integration_si
 
          call mpas_timer_stop("si btr iteration")
 
+
+         !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+         ! Stage 2.4 : The barotropic velocity update
+         !             using the lagged SSH
+         !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
          call mpas_timer_start("si btr vel update")
-
-         ! Update normalBarotropicVelocitySubcycle --------------------!
-
          do iCell = 1,nCellsAll
+            ! Use of sshNew to save the lagged SSH
             sshNew(iCell) = sshSubcycleNew(iCell)
          end do
 
@@ -1483,15 +1536,20 @@ module ocn_time_integration_si
 
             cell1 = cellsOnEdge(1,iEdge)
             cell2 = cellsOnEdge(2,iEdge)
-            normalBarotropicVelocitySubcycleNew(iEdge) &
-               = temp_mask &
-               * (normalBarotropicVelocityCur(iEdge) &
-               - dt * (-barotropicCoriolisTerm(iEdge) + gravity &
-                    * ( ( alpha1*sshNew(cell2)            &
-                         +alpha2*sshSubcycleCur(cell2))   &
-                       -( alpha1*sshNew(cell1)            &
-                         +alpha2*sshSubcycleCur(cell1)) ) &
-                    / dcEdge(iEdge) - barotropicForcing(iEdge)))
+                   
+            ! Use of normBtrVelNew as a temp array for sshEdge
+            normalBarotropicVelocityNew(iEdge) =       &
+                       ( alpha1*sshNew(cell2)          &
+                        +alpha2*sshSubcycleCur(cell2)) &
+                      -( alpha1*sshNew(cell1)          &
+                        +alpha2*sshSubcycleCur(cell1)) 
+ 
+            normalBarotropicVelocitySubcycleNew(iEdge)    &
+               = temp_mask                                &
+               * (normalBarotropicVelocityCur(iEdge)      &
+               - dt * (-barotropicCoriolisTerm(iEdge)     &
+                       +gravity * normalBarotropicVelocityNew(iEdge) / dcEdge(iEdge) &
+                       -barotropicForcing(iEdge)))
          end do ! iEdge
 
          !$omp parallel
@@ -1510,11 +1568,41 @@ module ocn_time_integration_si
          !$omp end do
          !$omp end parallel
 
+         do iEdge = 1,nEdgesOwned
+            temp_mask = edgeMask(1, iEdge)
+
+            cell1 = cellsOnEdge(1,iEdge)
+            cell2 = cellsOnEdge(2,iEdge)
+            normalBarotropicVelocitySubcycleNew(iEdge) &
+               = temp_mask &
+               * (normalBarotropicVelocityCur(iEdge) &
+               - dt * (-barotropicCoriolisTerm(iEdge) + gravity &
+                    * normalBarotropicVelocityNew(iEdge)  &
+                    / dcEdge(iEdge) - barotropicForcing(iEdge)))
+         end do ! iEdge
+
+         !$omp parallel
+         !$omp do schedule(runtime) private(CoriolisTerm, i, eoe)
+         do iEdge = 1,nEdgesOwned
+            ! Compute the barotropic Coriolis term, -f*uPerp
+            CoriolisTerm = 0.0_RKIND
+            do i = 1, nEdgesOnEdge(iEdge)
+               eoe = edgesOnEdge(i,iEdge)
+               CoriolisTerm =  CoriolisTerm + weightsOnEdge(i,iEdge)   &
+                            * normalBarotropicVelocitySubcycleNew(eoe) &
+                            * fEdge(eoe)
+            end do
+            barotropicCoriolisTerm(iEdge) = CoriolisTerm
+         end do
+         !$omp end do
+         !$omp end parallel
+
          call mpas_timer_stop ("si btr vel update")
 
 
          !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-         ! Stage 2.4 : Recompute initial residual with lagged values
+         ! Stage 2.5 : Recompution of the initial residual
+         !             with lagged values
          !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
          call mpas_timer_start("si btr residual")
@@ -1766,36 +1854,39 @@ module ocn_time_integration_si
 
          end do ! iCell
 
-         SIcst_allreduce2(1) = SIcst_r00r0
-         SIcst_allreduce2(2) = SIcst_r00w0
+         SIcst_allreduce_local2(1) = SIcst_r00r0
+         SIcst_allreduce_local2(2) = SIcst_r00w0
 
-         ! Global sum across CPU
+         ! Global sum across CPUs
          call mpas_timer_start("si reduction r0")
          call mpas_dmpar_sum_real_array(domain % dminfo, 2,      &
-                                        SIcst_allreduce2,        &
+                                        SIcst_allreduce_local2,  &
                                         SIcst_allreduce_global2)
-         call mpas_timer_stop("si reduction r0")
+         call mpas_timer_stop ("si reduction r0")
 
-         if ( config_btr_si_partition_match_mode .and. ncpus>1) then
-            SIcst_allreduce_temp5(:)    = 0.0_RKIND
-            SIcst_allreduce_itemp5(:)   = 0.0_RKIND
-            SIcst_allreduce_itemp5(1:2) = &
-                               exponent(SIcst_allreduce_global2(:))
-            SIcst_allreduce_temp5(1:2)  = &
-                               fraction(SIcst_allreduce_global2(:))
-            SIcst_allreduce_temp5(1:2)  = &
-                               anint(SIcst_allreduce_temp5(1:2)  &
-                                     *1.0000000000000000d+8    ) &
-                                     /1.0000000000000000d+8
-            SIcst_allreduce_global2(:)  = &
-                         SIcst_allreduce_temp5(1:2) &
-                       * 2.0_RKIND ** (SIcst_allreduce_itemp5(1:2))
+         if ( config_btr_si_partition_match_mode .and. ncpus > 1) then
+            SIcst_allreduce_temp9(:)    = 0.0_RKIND
+            SIcst_allreduce_itemp9(:)   = 0.0_RKIND
+
+            SIcst_allreduce_itemp9(1:2) = &
+                                 exponent(SIcst_allreduce_global2(:))
+            SIcst_allreduce_temp9(1:2)  = &
+                                 fraction(SIcst_allreduce_global2(:))
+            SIcst_allreduce_temp9(1:2)  = &
+                                 anint(SIcst_allreduce_temp9(1:2) &
+                                       * 1.0000000000000000d+8)   &
+                                       / 1.0000000000000000d+8
+
+            SIcst_allreduce_global2(:) =          &
+                       SIcst_allreduce_temp9(1:2) &
+                     * 2.0_RKIND ** (SIcst_allreduce_itemp9(1:2))
          endif
 
          SIcst_r00r0_global = SIcst_allreduce_global2(1)
          SIcst_r00w0_global = SIcst_allreduce_global2(2)
 
-         SIcst_alpha0 = SIcst_r00r0_global / SIcst_r00w0_global
+         SIcst_rho0   = SIcst_r00r0_global
+         SIcst_alpha0 = SIcst_rho0 / SIcst_r00w0_global
          SIcst_beta0  = 0.0_RKIND
          SIcst_omega0 = 0.0_RKIND
 
@@ -1803,16 +1894,16 @@ module ocn_time_integration_si
 
 
          !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-         ! Stage 2.5 : Main (inner) solver iterations
+         ! Stage 2.6 : Main (inner) solver iterations
          !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
          call mpas_timer_start("si btr iteration")
 
          iter = 0
-         resid = (crit_main+100.0)**2.0
+         resid = SIcst_r00r0_global
 
          !-------------------------------------------------------------!
-         do while ( dsqrt(resid) > crit_main )
+         do while ( dsqrt(resid) > tolerance_inner )
          !-------------------------------------------------------------!
 
             iter = iter + 1
@@ -1843,55 +1934,6 @@ module ocn_time_integration_si
                SIvec_y0(iCell)  =  SIvec_w0(iCell)  - SIcst_alpha0     &
                                                     * SIvec_z1(iCell)
             end do ! iCell
-
-
-            ! Begin reduction -----------------------------------------!
-
-            SIcst_q0y0  = 0.0_RKIND
-            SIcst_y0y0  = 0.0_RKIND
-            SIcst_r00r0 = 0.0_RKIND
-
-            do iCell = 1,nCellsOwned
-               SIcst_q0y0  = SIcst_q0y0  + SIvec_q0(iCell)  &
-                                         * SIvec_y0(iCell)
-
-               SIcst_y0y0  = SIcst_y0y0  + SIvec_y0(iCell)  &
-                                         * SIvec_y0(iCell)
-
-               SIcst_r00r0 = SIcst_r00r0 + SIvec_r00(iCell) &
-                                         * SIvec_r0(iCell)
-            end do
-
-            SIcst_allreduce3(1) = SIcst_q0y0
-            SIcst_allreduce3(2) = SIcst_y0y0
-            SIcst_allreduce3(3) = SIcst_r00r0
-
-            ! Global sum across CPUs
-            call mpas_timer_start("si reduction iter")
-            call mpas_dmpar_sum_real_array(domain % dminfo, 3,      &
-                                           SIcst_allreduce3,        &
-                                           SIcst_allreduce_global3)
-            call mpas_timer_stop("si reduction iter")
-
-            if ( config_btr_si_partition_match_mode .and. ncpus>1) then
-               SIcst_allreduce_temp5(:)    = 0.0_RKIND
-               SIcst_allreduce_itemp5(:)   = 0.0_RKIND
-               SIcst_allreduce_itemp5(1:3) = &
-                                  exponent(SIcst_allreduce_global3(:))
-               SIcst_allreduce_temp5(1:3)  = &
-                                  fraction(SIcst_allreduce_global3(:))
-               SIcst_allreduce_temp5(1:3)  = &
-                                  anint( SIcst_allreduce_temp5(1:3) &
-                                        *1.0000000000000000d+8)     &
-                                        /1.0000000000000000d+8
-               SIcst_allreduce_global3(:)  = &
-                            SIcst_allreduce_temp5(1:3) &
-                          * 2.0_RKIND ** (SIcst_allreduce_itemp5(1:3))
-            endif
-
-            SIcst_q0y0_global  = SIcst_allreduce_global3(1)
-            SIcst_y0y0_global  = SIcst_allreduce_global3(2)
-            SIcst_r00r0_global = SIcst_allreduce_global3(3)
 
 
             ! Preconditioning -----------------------------------------!
@@ -1975,9 +2017,100 @@ module ocn_time_integration_si
 
             end do ! iCell
 
-            ! End reduction -------------------------------------------!
 
+            ! Reduction -----------------------------------------------!
+            SIcst_r00s0 = 0.0_RKIND
+            SIcst_r00z0 = 0.0_RKIND
+            SIcst_q0y0  = 0.0_RKIND
+            SIcst_y0y0  = 0.0_RKIND
+            SIcst_r00q0 = 0.0_RKIND
+            SIcst_r00y0 = 0.0_RKIND
+            SIcst_r00t0 = 0.0_RKIND
+            SIcst_r00v0 = 0.0_RKIND
+            SIcst_q0q0  = 0.0_RKIND
+
+            do iCell = 1,nCellsOwned
+               SIcst_r00s0 = SIcst_r00s0 + SIvec_r00(iCell) &
+                                         * SIvec_s1(iCell) ! s1
+
+               SIcst_r00z0 = SIcst_r00z0 + SIvec_r00(iCell) &
+                                         * SIvec_z1(iCell) ! z1
+
+               SIcst_q0y0  = SIcst_q0y0  + SIvec_q0(iCell)  &
+                                         * SIvec_y0(iCell)
+
+               SIcst_y0y0  = SIcst_y0y0  + SIvec_y0(iCell)  &
+                                         * SIvec_y0(iCell)
+
+               SIcst_r00q0 = SIcst_r00q0 + SIvec_r00(iCell) &
+                                         * SIvec_q0(iCell)
+
+               SIcst_r00y0 = SIcst_r00y0 + SIvec_r00(iCell) &
+                                         * SIvec_y0(iCell)
+
+               SIcst_r00t0 = SIcst_r00t0 + SIvec_r00(iCell) &
+                                         * SIvec_t0(iCell)
+
+               SIcst_r00v0 = SIcst_r00v0 + SIvec_r00(iCell) &
+                                         * SIvec_v1(iCell) ! v1
+
+               SIcst_q0q0 = SIcst_q0q0   + SIvec_q0(iCell) &
+                                         * SIvec_q0(iCell)
+
+            end do
+
+            SIcst_allreduce_local9(1) = SIcst_r00s0
+            SIcst_allreduce_local9(2) = SIcst_r00z0
+            SIcst_allreduce_local9(3) = SIcst_q0y0 
+            SIcst_allreduce_local9(4) = SIcst_y0y0 
+            SIcst_allreduce_local9(5) = SIcst_r00q0
+            SIcst_allreduce_local9(6) = SIcst_r00y0
+            SIcst_allreduce_local9(7) = SIcst_r00t0
+            SIcst_allreduce_local9(8) = SIcst_r00v0
+            SIcst_allreduce_local9(9) = SIcst_q0q0
+
+            ! Global sum across CPUs
+            call mpas_timer_start("si reduction iter")
+            call mpas_dmpar_sum_real_array(domain % dminfo, 9,      &
+                                           SIcst_allreduce_local9,  &
+                                           SIcst_allreduce_global9)
+            call mpas_timer_stop("si reduction iter")
+
+            if ( config_btr_si_partition_match_mode .and. ncpus>1) then
+               SIcst_allreduce_temp9(:)    = 0.0_RKIND
+               SIcst_allreduce_itemp9(:)   = 0.0_RKIND
+
+               SIcst_allreduce_itemp9(:) = &
+                                  exponent(SIcst_allreduce_global9(:))
+               SIcst_allreduce_temp9(:)  = &
+                                  fraction(SIcst_allreduce_global9(:))
+               SIcst_allreduce_temp9(:)  = &
+                                  anint( SIcst_allreduce_temp9(:)  &
+                                        * 1.0000000000000000d+8  ) &
+                                        / 1.0000000000000000d+8
+
+               SIcst_allreduce_global9(:)  =                        &
+                           SIcst_allreduce_temp9(:)                 &
+                         * 2.0_RKIND ** (SIcst_allreduce_itemp9(:))
+            endif
+
+            SIcst_r00s0_global = SIcst_allreduce_global9(1) 
+            SIcst_r00z0_global = SIcst_allreduce_global9(2)
+            SIcst_q0y0_global  = SIcst_allreduce_global9(3)
+            SIcst_y0y0_global  = SIcst_allreduce_global9(4)
+            SIcst_r00q0_global = SIcst_allreduce_global9(5)
+            SIcst_r00y0_global = SIcst_allreduce_global9(6)
+            SIcst_r00t0_global = SIcst_allreduce_global9(7)
+            SIcst_r00v0_global = SIcst_allreduce_global9(8)
+            SIcst_q0q0_global  = SIcst_allreduce_global9(9)
+
+            ! Omega0
             SIcst_omega0 = SIcst_q0y0_global / SIcst_y0y0_global
+
+            ! Residual
+            resid = SIcst_q0q0_global &
+                  - 2.0_RKIND * SIcst_omega0 * SIcst_q0y0_global  &
+                  + SIcst_omega0**2.0_RKIND  * SIcst_y0y0_global
 
             do iCell = 1,nCellsOwned
                sshSubcycleNew(iCell) = sshSubcycleNew(iCell)           &
@@ -1996,62 +2129,6 @@ module ocn_time_integration_si
                                                     * SIvec_v1(iCell))
             end do
 
-
-            ! Begin reduction -----------------------------------------!
-
-            SIcst_r00r1 = 0.0_RKIND
-            SIcst_r00w1 = 0.0_RKIND
-            SIcst_r00s0 = 0.0_RKIND
-            SIcst_r00z0 = 0.0_RKIND
-            SIcst_r1r1  = 0.0_RKIND
-
-            do iCell = 1,nCellsOwned
-               SIcst_r00r1 = SIcst_r00r1 + SIvec_r00(iCell) &
-                                         * SIvec_r1(iCell)
-               SIcst_r00w1 = SIcst_r00w1 + SIvec_r00(iCell) &
-                                         * SIvec_w1(iCell)
-               SIcst_r00s0 = SIcst_r00s0 + SIvec_r00(iCell) &
-                                         * SIvec_s1(iCell) ! s1
-               SIcst_r00z0 = SIcst_r00z0 + SIvec_r00(iCell) &
-                                         * SIvec_z1(iCell) ! z1
-               SIcst_r1r1  = SIcst_r1r1  + SIvec_r1(iCell)  &
-                                         * SIvec_r1(iCell)
-            end do
-
-            SIcst_allreduce5(1) = SIcst_r00r1
-            SIcst_allreduce5(2) = SIcst_r00w1
-            SIcst_allreduce5(3) = SIcst_r00s0
-            SIcst_allreduce5(4) = SIcst_r00z0
-            SIcst_allreduce5(5) = SIcst_r1r1
-
-            ! Global sum across CPUs
-            call mpas_timer_start("si reduction iter")
-            call mpas_dmpar_sum_real_array(domain % dminfo, 5,     &
-                                           SIcst_allreduce5,       &
-                                           SIcst_allreduce_global5)
-            call mpas_timer_stop("si reduction iter")
-
-            if ( config_btr_si_partition_match_mode .and. ncpus>1) then
-               SIcst_allreduce_temp5(:)    = 0.0_RKIND
-               SIcst_allreduce_itemp5(:)   = 0.0_RKIND
-               SIcst_allreduce_itemp5(1:5) = &
-                                  exponent(SIcst_allreduce_global5(:))
-               SIcst_allreduce_temp5(1:5)  = &
-                                  fraction(SIcst_allreduce_global5(:))
-               SIcst_allreduce_temp5(1:5)  =                        &
-                                  anint( SIcst_allreduce_temp5(1:5) &
-                                        *1.0000000000000000d+8 )    &
-                                        /1.0000000000000000d+8
-               SIcst_allreduce_global5(:)  =           &
-                            SIcst_allreduce_temp5(1:5) &
-                          * 2.0_RKIND ** (SIcst_allreduce_itemp5(1:5))
-            endif
-
-            SIcst_r00r1_global = SIcst_allreduce_global5(1)
-            SIcst_r00w1_global = SIcst_allreduce_global5(2)
-            SIcst_r00s0_global = SIcst_allreduce_global5(3)
-            SIcst_r00z0_global = SIcst_allreduce_global5(4)
-                         resid = SIcst_allreduce_global5(5)
 
             ! Preconditioning -----------------------------------------!
 
@@ -2079,6 +2156,7 @@ module ocn_time_integration_si
                           SIvec_w1(1:nPrecVec), 1, 0.0_RKIND,   &
                           SIvec_wh1(1:nPrecVec),1)
 #endif
+
             elseif ( trim(config_btr_si_preconditioner) == &
                                                     'jacobi' ) then
                ! Jacobi preconditioning
@@ -2133,17 +2211,19 @@ module ocn_time_integration_si
                SIvec_t1(iCell) = -sshLagArea - sshTendAx
             end do ! iCell
 
-            ! End reduction -------------------------------------------!
+            SIcst_rho1 = SIcst_r00q0 - SIcst_omega0 * SIcst_r00y0 
 
-            SIcst_beta0  = (SIcst_alpha0/SIcst_omega0) &
-                         *  SIcst_r00r1_global         &
-                         /  SIcst_r00r0_global
+            SIcst_gamma1 = SIcst_r00y0 - SIcst_omega0 * SIcst_r00t0  &
+                                       + SIcst_omega0 * SIcst_alpha0 &
+                                                      * SIcst_r00v0
 
-            SIcst_alpha1 =  SIcst_r00r1_global                   &
-                         / (  SIcst_r00w1_global                 &
-                            + SIcst_beta0 * SIcst_r00s0_global   &
-                            - SIcst_beta0 * SIcst_omega0         &
-                                          * SIcst_r00z0_global )
+            SIcst_beta0 = (SIcst_alpha0/SIcst_omega0) &
+                        * (SIcst_rho1 / SIcst_rho0)
+
+            SIcst_alpha1 = SIcst_rho1 &
+                         / ( SIcst_gamma1 + SIcst_beta0 * SIcst_r00s0   &
+                                          - SIcst_beta0 * SIcst_omega0  &
+                                                        * SIcst_r00z0 )
 
             do iCell = 1,nCellsOwned
                SIvec_r0(iCell) = SIvec_r1(iCell)
@@ -2160,8 +2240,8 @@ module ocn_time_integration_si
                SIvec_zh0(iCell) = SIvec_zh1(iCell)
             end do ! iCell
 
-            SIcst_r00r0_global = SIcst_r00r1_global
             SIcst_alpha0       = SIcst_alpha1
+            SIcst_rho0         = SIcst_rho1
 
             if ( iter > int(mean_num_cells*5) ) then
                call mpas_log_write(&
@@ -2182,6 +2262,7 @@ module ocn_time_integration_si
          end do ! do iter
          !-------------------------------------------------------------!
 
+
          ! boundary update on SSHnew
          call mpas_timer_start("si halo iter")
          call mpas_dmpar_field_halo_exch(domain, 'sshSubcycle', timeLevel=2)
@@ -2189,9 +2270,8 @@ module ocn_time_integration_si
 
          call mpas_timer_stop("si btr iteration")
 
-
          !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-         ! Stage 2.6 : Barotropic velocity update
+         ! Stage 2.7 : The barotropic velocity update
          !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
          call mpas_timer_start("si btr vel update")
@@ -2202,21 +2282,25 @@ module ocn_time_integration_si
             cell1 = cellsOnEdge(1,iEdge)
             cell2 = cellsOnEdge(2,iEdge)
 
-            normalBarotropicVelocitySubcycleNew(iEdge) &
-               = temp_mask &
-               * ( normalBarotropicVelocityCur(iEdge) &
-                  -dt * ( -barotropicCoriolisTerm(iEdge) + gravity  &
-                      * (  ( alpha1*sshSubcycleNew(cell2)           &
-                            +alpha2*sshSubcycleCur(cell2))          &
-                         - ( alpha1*sshSubcycleNew(cell1)           &
-                            +alpha2*sshSubcycleCur(cell1)) )        &
-                      / dcEdge(iEdge) - barotropicForcing(iEdge) ))
+            sshEdge =  ( alpha1*sshSubcycleNew(cell2)  &
+                        +alpha2*sshSubcycleCur(cell2)) &
+                      -( alpha1*sshSubcycleNew(cell1)  &
+                        +alpha2*sshSubcycleCur(cell1)) 
+
+            normalBarotropicVelocitySubcycleNew(iEdge)    &
+               = temp_mask                                &
+               * (normalBarotropicVelocityCur(iEdge)      &
+               - dt * (-barotropicCoriolisTerm(iEdge)     &
+                       +gravity * sshEdge / dcEdge(iEdge) &
+                       -barotropicForcing(iEdge)))
          end do ! iEdge
 
          do iEdge = 1, nEdgesOwned
             cell1 = cellsOnEdge(1,iEdge)
             cell2 = cellsOnEdge(2,iEdge)
 
+            ! normBtrVelSubCur is at time n+0.5 if splitImplicitStep=1
+            !                     at time n+1.0 if splitImplicitStep=2
             normalBarotropicVelocitySubcycleCur(iEdge)                &
                = 0.5_RKIND*normalBarotropicVelocitySubcycleNew(iEdge) &
                + 0.5_RKIND*normalBarotropicVelocityCur(iEdge)
@@ -2239,6 +2323,7 @@ module ocn_time_integration_si
                       * thicknessSum
          end do ! iEdge
 
+
          ! boundary update on F
          call mpas_timer_start("si halo btr vel")
          call mpas_dmpar_exch_group_create(domain, finalBtrGroupName)
@@ -2246,10 +2331,11 @@ module ocn_time_integration_si
                    finalBtrGroupName, 'barotropicThicknessFlux')
          call mpas_dmpar_exch_group_add_field(domain,             &
                    finalBtrGroupName, 'normalBarotropicVelocity', &
-                   timeLevel=2)
+                                                    timeLevel=2)
          call mpas_dmpar_exch_group_add_field(domain,             &
                    finalBtrGroupName,                             &
-                   'normalBarotropicVelocitySubcycle',timeLevel=1)
+                              'normalBarotropicVelocitySubcycle', &
+                                                    timeLevel=1)
          call mpas_dmpar_exch_group_full_halo_exch(domain, &
                    finalBtrGroupName)
          call mpas_dmpar_exch_group_destroy(domain, finalBtrGroupName)
@@ -3124,6 +3210,8 @@ module ocn_time_integration_si
 
       endif ! .not. config_do_restart
 
+      nCells = nCellsArray(1)
+
       ! Compute the root mean square of areaCell 
       ! for the solver tolerance
       local_num_cells = nCells
@@ -3143,10 +3231,10 @@ module ocn_time_integration_si
       mean_num_cells = total_num_cells/ncpus
 
       ! Tolerance for the outer iteration
-      crit_out   = 0.01_RKIND * area_mean
+      tolerance_outer   = 0.01_RKIND * area_mean
 
       ! Tolerance for the inner iteration
-      crit_main  = config_btr_si_tolerance * area_mean
+      tolerance_inner  = config_btr_si_tolerance * area_mean
 
       ! Tolerance for the partition match mode 
       if ( config_btr_si_partition_match_mode ) then
