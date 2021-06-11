@@ -23,7 +23,7 @@ f = netCDF4.Dataset(options.filename,'r+')
 thickness = f.variables['thickness'][0,:]
 sfcMassBal = f.variables['sfcMassBal'][0,:]
 bedTopography = f.variables['bedTopography'][0,:]
-beta = f.variables['beta'][0,:]
+mu = f.variables['muFriction'][0,:]
 cOnC= f.variables['cellsOnCell'][:]
 ncOnC= f.variables['nEdgesOnCell'][:]
 nCells = len(f.dimensions['nCells'])
@@ -52,12 +52,12 @@ sfcMassBal[thickness<1.0e-3] = killVal
 f.variables['sfcMassBal'][0,:] = sfcMassBal
 
 
-# put small-ish beta value beyond current GL in case GL advances
-beta[thickness*910.0/1028.0+bedTopography < 0.0] = 200.0
+# put small-ish mu value beyond current GL in case GL advances
+mu[thickness*910.0/1028.0+bedTopography < 0.0] = 200.0
 
-# optional: put larger beta on  shelf pinning point
-#beta[((yCell - (-453466.0))**2 + (xCell - (-1.5925e6))**2)**0.5 < 12000.0] = 250.0
+# optional: put larger mu on  shelf pinning point
+#mu[((yCell - (-453466.0))**2 + (xCell - (-1.5925e6))**2)**0.5 < 12000.0] = 250.0
 
-f.variables['beta'][0,:] = beta
+f.variables['muFriction'][0,:] = mu
 
 f.close()

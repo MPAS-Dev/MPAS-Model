@@ -7,11 +7,11 @@ ANONYMOUS:
 
   Problem: 
     LandIce Viscosity: 
-      Type: 'Glen''s Law'
+      Type: Glen's Law
       Flow Rate Type: Uniform
-      'Glen''s Law Homotopy Parameter': 1.0
-      'Glen''s Law A': 1.0e-04
-      'Glen''s Law n': 3.0e+00
+      Glen's Law Homotopy Parameter: 1.0
+      Glen's Law A: 3.17097919837645865e-24
+      Glen's Law n: 3.0e+00
     LandIce BCs: 
       Number: 2
       BC 0: 
@@ -20,11 +20,11 @@ ANONYMOUS:
         Type: Basal Friction
         Basal Friction Coefficient: 
           Type: Regularized Coulomb
-          Given Field Variable Name: basal_friction
-          Zero Beta On Floating Ice: true
-          Coulomb Friction Coefficient: 1.0e+05
+          Mu Type: Constant
+          Mu Coefficient: 1.0e+05
           Power Exponent: 1.0
           Bed Roughness: 1.0e+04
+          Zero Beta On Floating Ice: true
       BC 1: 
         Cubature Degree: 3
         Side Set Name: ice_margin_side

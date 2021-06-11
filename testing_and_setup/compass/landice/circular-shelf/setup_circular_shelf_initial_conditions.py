@@ -13,7 +13,7 @@ from math import sqrt
 from optparse import OptionParser
 parser = OptionParser()
 parser.add_option("-f", "--file", dest="filename", type='string', help="file in which to setup circular shelf", metavar="FILE")
-parser.add_option("-b","--beta", dest="use_beta", action="store_true", help="Use this flag to use a high value of the field 'beta' to specify 'no-slip' conditions in the grounded portion of the domain.  The default is to use Dirichlet boundary conditions.")
+parser.add_option("-b","--mu", dest="use_mu", action="store_true", help="Use this flag to use a high value of the field 'mu' to specify 'no-slip' conditions in the grounded portion of the domain.  The default is to use Dirichlet boundary conditions.")
 parser.add_option("-7","--7cells", dest="use_7cells", action="store_true", help="Use this flag to create 7 grounded cells (the center cell and its 6 neigbors).  The default is to only ground the center cell.")
 options, args = parser.parse_args()
 if not options.filename:
@@ -85,14 +85,14 @@ if options.use_7cells:
 else:
    print('Making the grounded portion of the domain cover 1 cell - the center cell.')
 
-if options.use_beta:
-   print('Setting no-slip on the grounded portion of the domain by setting a high beta field there.')
-   beta = gridfile.variables['beta']
-   # beta is 0 everywhere except a high value in the grounded cell
-   beta[:] = 0.
-   beta[centerCellIndex] = 1.0e8
+if options.use_mu:
+   print('Setting no-slip on the grounded portion of the domain by setting a high mu field there.')
+   mu = gridfile.variables['muFriction']
+   # mu is 0 everywhere except a high value in the grounded cell
+   mu[:] = 0.
+   mu[centerCellIndex] = 1.0e8
    if options.use_7cells:
-      beta[cellsOnCell[centerCellIndex,:]-1] = 1.0e8 # use this to make the grounded area 7 cells instead of 1
+      mu[cellsOnCell[centerCellIndex,:]-1] = 1.0e8 # use this to make the grounded area 7 cells instead of 1
 else: # use Dirichlet b.c.
    print('Setting no-slip on the grounded portion of the domain by setting no-slip Dirichlet velocity boundary conditions there.')
    dirMask = gridfile.variables['dirichletVelocityMask']

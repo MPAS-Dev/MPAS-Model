@@ -37,7 +37,7 @@
         <streams>
 
                 <stream name="input">
-                        <attribute name="filename_template">thwaites.4km.nc</attribute>
+                        <attribute name="filename_template">thwaites.4km.210608.nc</attribute>
                 </stream>
 
 
