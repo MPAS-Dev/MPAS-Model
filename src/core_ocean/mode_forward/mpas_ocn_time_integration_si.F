@@ -821,7 +821,7 @@ module ocn_time_integration_si
 
          !$omp parallel
          !$omp do schedule(runtime) private(CoriolisTerm, i, eoe)
-         do iEdge = 1, nEdges
+         do iEdge = 1, nEdgesAll
             ! Compute the barotropic Coriolis term, -f*uPerp
             CoriolisTerm = 0.d0
             do i = 1, nEdgesOnEdge(iEdge)
@@ -883,7 +883,7 @@ module ocn_time_integration_si
 
          call mpas_timer_start("si btr residual")
 
-         do iCell = 1, nCellsOwned
+         do iCell = 1, nPrecVec
             sshTendb1 = 0.0_RKIND
             sshTendb2 = 0.0_RKIND
             sshTendAx = 0.0_RKIND
@@ -939,12 +939,6 @@ module ocn_time_integration_si
          ! Preconditioning --------------------------------------------!
 
          if ( trim(config_btr_si_preconditioner) == 'ras' ) then
-            call mpas_timer_start("si halo r0")
-            call mpas_dmpar_field_halo_exch(domain, 'SIvec_r0')
-            call mpas_timer_stop("si halo r0")
-         end if
-
-         if ( trim(config_btr_si_preconditioner) == 'ras' ) then
             ! RAS preconditioning: Use BLAS for the symmetric 
             !                      matrix-vector multiplication
 #ifdef USE_LAPACK
@@ -981,10 +975,7 @@ module ocn_time_integration_si
 
          ! SpMV -------------------------------------------------------!
 
-         SIcst_r00r0 = 0.0_RKIND
-         SIcst_r00w0 = 0.0_RKIND
-
-         do iCell = 1, nCellsOwned
+         do iCell = 1, nPrecVec
 
             sshTendAx = 0.0_RKIND
 
@@ -1017,20 +1008,10 @@ module ocn_time_integration_si
 
             SIvec_w0(iCell) = -sshCurArea - sshTendAx
 
-            SIcst_r00r0 = SIcst_r00r0 + SIvec_r00(iCell) &
-                                      * SIvec_r0(iCell)
-            SIcst_r00w0 = SIcst_r00w0 + SIvec_r00(iCell) &
-                                      * SIvec_w0(iCell)
-
          end do ! iCell
 
-         ! Preconditioning --------------------------------------------!
 
-         if ( trim(config_btr_si_preconditioner) == 'ras' ) then
-            call mpas_timer_start("si halo r0")
-            call mpas_dmpar_field_halo_exch(domain, 'SIvec_w0')
-            call mpas_timer_stop("si halo r0")
-         end if
+         ! Preconditioning --------------------------------------------!
 
          if ( trim(config_btr_si_preconditioner) == 'ras' ) then
             ! RAS preconditioning: Use BLAS
@@ -1070,7 +1051,7 @@ module ocn_time_integration_si
 
          ! SpMV -------------------------------------------------------!
 
-         do iCell = 1, nCellsOwned
+         do iCell = 1, nPrecVec
 
             sshTendAx = 0.0_RKIND
 
@@ -1113,6 +1094,18 @@ module ocn_time_integration_si
             SIvec_v0(iCell)  = 0.0_RKIND
             SIvec_s0(iCell)  = 0.0_RKIND
 
+         end do ! iCell
+
+
+         ! Reduction --------------------------------------------------!
+         SIcst_r00r0 = 0.0_RKIND
+         SIcst_r00w0 = 0.0_RKIND
+
+         do iCell = 1, nCellsOwned
+            SIcst_r00r0 = SIcst_r00r0 + SIvec_r00(iCell) &
+                                      * SIvec_r0(iCell)
+            SIcst_r00w0 = SIcst_r00w0 + SIvec_r00(iCell) &
+                                      * SIvec_w0(iCell)
          end do ! iCell
 
          SIcst_allreduce_local2(1) = SIcst_r00r0
@@ -1170,7 +1163,7 @@ module ocn_time_integration_si
 
             iter = iter + 1
 
-            do iCell = 1, nCellsOwned
+            do iCell = 1, nPrecVec
                SIvec_ph1(iCell) =  SIvec_rh0(iCell) + SIcst_beta0      &
                                 * (SIvec_ph0(iCell) - SIcst_omega0     &
                                                     * SIvec_sh0(iCell))
@@ -1199,12 +1192,6 @@ module ocn_time_integration_si
 
 
             ! Preconditioning -----------------------------------------!
-
-            if ( trim(config_btr_si_preconditioner) == 'ras' ) then
-               call mpas_timer_start("si halo iter")
-               call mpas_dmpar_field_halo_exch(domain, 'SIvec_z1')
-               call mpas_timer_stop("si halo iter")
-            end if
 
             if ( trim(config_btr_si_preconditioner) == 'ras' ) then
                ! RAS preconditioning: Use BLAS 
@@ -1244,7 +1231,7 @@ module ocn_time_integration_si
 
             ! SpMV ----------------------------------------------------!
 
-            do iCell = 1, nCellsOwned
+            do iCell = 1, nPrecVec
                sshTendAx = 0.0_RKIND
 
                do i = 1, nEdgesOnCell(iCell)
@@ -1370,11 +1357,12 @@ module ocn_time_integration_si
             SIcst_omega0 = SIcst_q0y0_global / SIcst_y0y0_global
 
             ! Residual
+            ! = (r1,r1) = (q0,q0) - 2*Omega*(q0,y0) + Omega**2*(y0,y0)
             resid = SIcst_q0q0_global &
                   - 2.0_RKIND * SIcst_omega0 * SIcst_q0y0_global  &
                   + SIcst_omega0**2.0_RKIND  * SIcst_y0y0_global
 
-            do iCell = 1,nCellsOwned
+            do iCell = 1,nPrecVec
                sshSubcycleNew(iCell) = sshSubcycleNew(iCell)           &
                                      + SIcst_alpha0 * SIvec_ph1(iCell) &
                                      + SIcst_omega0 * SIvec_qh0(iCell)
@@ -1391,13 +1379,8 @@ module ocn_time_integration_si
                                                     * SIvec_v1(iCell))
             end do
 
-            ! Preconditioning -----------------------------------------!
 
-            if ( trim(config_btr_si_preconditioner) == 'ras' ) then
-               call mpas_timer_start("si halo iter")
-               call mpas_dmpar_field_halo_exch(domain, 'SIvec_w1')
-               call mpas_timer_stop("si halo iter")
-            end if
+            ! Preconditioning -----------------------------------------!
 
             if ( trim(config_btr_si_preconditioner) == 'ras' ) then
                ! RAS preconditioning: Use BLAS 
@@ -1437,7 +1420,7 @@ module ocn_time_integration_si
 
             ! SpMV ----------------------------------------------------!
 
-            do iCell = 1, nCellsOwned
+            do iCell = 1, nPrecVec
                sshTendAx = 0.0_RKIND
 
                do i = 1, nEdgesOnCell(iCell)
@@ -1488,7 +1471,7 @@ module ocn_time_integration_si
                                           - SIcst_beta0 * SIcst_omega0  &
                                                         * SIcst_r00z0 )
 
-            do iCell = 1,nCellsOwned
+            do iCell = 1,nPrecVec
                SIvec_r0(iCell) = SIvec_r1(iCell)
                SIvec_s0(iCell) = SIvec_s1(iCell)
                SIvec_z0(iCell) = SIvec_z1(iCell)
@@ -1539,17 +1522,17 @@ module ocn_time_integration_si
                    
             ! Use of normBtrVelNew as a temp array for sshEdge
             normalBarotropicVelocityNew(iEdge) =       &
-                       ( alpha1*sshNew(cell2)          &
-                        +alpha2*sshSubcycleCur(cell2)) &
-                      -( alpha1*sshNew(cell1)          &
-                        +alpha2*sshSubcycleCur(cell1)) 
+                       ( 0.5*sshNew(cell2)          &
+                        +0.5*sshSubcycleCur(cell2)) &
+                      -( 0.5*sshNew(cell1)          &
+                        +0.5*sshSubcycleCur(cell1)) 
  
-            normalBarotropicVelocitySubcycleNew(iEdge)    &
-               = temp_mask                                &
-               * (normalBarotropicVelocityCur(iEdge)      &
-               - dt * (-barotropicCoriolisTerm(iEdge)     &
-                       +gravity * normalBarotropicVelocityNew(iEdge) / dcEdge(iEdge) &
-                       -barotropicForcing(iEdge)))
+            normalBarotropicVelocitySubcycleNew(iEdge)              &
+               = temp_mask                                          &
+               * (normalBarotropicVelocityCur(iEdge)                &
+               - dt * (-barotropicCoriolisTerm(iEdge) + gravity     &
+                       *normalBarotropicVelocityNew(iEdge)          &
+                       /dcEdge(iEdge) - barotropicForcing(iEdge)))
          end do ! iEdge
 
          !$omp parallel
@@ -1559,8 +1542,10 @@ module ocn_time_integration_si
             CoriolisTerm = 0.0_RKIND
             do i = 1, nEdgesOnEdge(iEdge)
                eoe = edgesOnEdge(i,iEdge)
-               CoriolisTerm =  CoriolisTerm + weightsOnEdge(i,iEdge)   &
-                            * normalBarotropicVelocitySubcycleNew(eoe) &
+               CoriolisTerm = CoriolisTerm + weightsOnEdge(i,iEdge)       &
+                            * 0.5_RKIND                                   &
+                            * ( normalBarotropicVelocitySubcycleNew(eoe)  &
+                               +normalBarotropicVelocityCur(eoe)        ) &
                             * fEdge(eoe)
             end do
             barotropicCoriolisTerm(iEdge) = CoriolisTerm
@@ -1573,12 +1558,12 @@ module ocn_time_integration_si
 
             cell1 = cellsOnEdge(1,iEdge)
             cell2 = cellsOnEdge(2,iEdge)
-            normalBarotropicVelocitySubcycleNew(iEdge) &
-               = temp_mask &
-               * (normalBarotropicVelocityCur(iEdge) &
-               - dt * (-barotropicCoriolisTerm(iEdge) + gravity &
-                    * normalBarotropicVelocityNew(iEdge)  &
-                    / dcEdge(iEdge) - barotropicForcing(iEdge)))
+            normalBarotropicVelocitySubcycleNew(iEdge)            &
+               = temp_mask                                        &
+               * (normalBarotropicVelocityCur(iEdge)              &
+               - dt * (-barotropicCoriolisTerm(iEdge) + gravity   &
+                       *normalBarotropicVelocityNew(iEdge)        &
+                       /dcEdge(iEdge) - barotropicForcing(iEdge)))
          end do ! iEdge
 
          !$omp parallel
@@ -1588,14 +1573,20 @@ module ocn_time_integration_si
             CoriolisTerm = 0.0_RKIND
             do i = 1, nEdgesOnEdge(iEdge)
                eoe = edgesOnEdge(i,iEdge)
-               CoriolisTerm =  CoriolisTerm + weightsOnEdge(i,iEdge)   &
-                            * normalBarotropicVelocitySubcycleNew(eoe) &
+               CoriolisTerm = CoriolisTerm + weightsOnEdge(i,iEdge)      &
+                            * 0.5_RKIND                                  &
+                            * ( normalBarotropicVelocitySubcycleNew(eoe) &
+                               +normalBarotropicVelocityCur(eoe) )       &
                             * fEdge(eoe)
             end do
             barotropicCoriolisTerm(iEdge) = CoriolisTerm
          end do
          !$omp end do
          !$omp end parallel
+
+         call mpas_timer_start("si halo btr coriolis")
+         call mpas_dmpar_field_halo_exch(domain, 'barotropicCoriolisTerm')
+         call mpas_timer_stop("si halo btr coriolis")
 
          call mpas_timer_stop ("si btr vel update")
 
@@ -1609,7 +1600,7 @@ module ocn_time_integration_si
 
          ! SpMV -------------------------------------------------------!
 
-         do iCell = 1, nCellsOwned
+         do iCell = 1, nPrecVec
             sshTendb1 = 0.0_RKIND
             sshTendb2 = 0.0_RKIND
             sshTendAx = 0.0_RKIND
@@ -1673,13 +1664,8 @@ module ocn_time_integration_si
             SIvec_r00(iCell) = SIvec_r0(iCell)
          end do ! iCell
 
-         ! Preconditioning --------------------------------------------!
 
-         if ( trim(config_btr_si_preconditioner) == 'ras' ) then
-            call mpas_timer_start("si halo r0")
-            call mpas_dmpar_field_halo_exch(domain, 'SIvec_r0')
-            call mpas_timer_stop("si halo r0")
-         end if
+         ! Preconditioning --------------------------------------------!
 
          if ( trim(config_btr_si_preconditioner) == 'ras' ) then
             ! RAS preconditioning: Use BLAS
@@ -1719,10 +1705,7 @@ module ocn_time_integration_si
 
          ! SpMV -------------------------------------------------------!
 
-         SIcst_r00r0 = 0.0_RKIND
-         SIcst_r00w0 = 0.0_RKIND
-
-         do iCell = 1, nCellsOwned
+         do iCell = 1, nPrecVec
 
             sshTendAx = 0.0_RKIND
 
@@ -1756,21 +1739,10 @@ module ocn_time_integration_si
 
             SIvec_w0(iCell) = -sshCurArea - sshTendAx
 
-            SIcst_r00r0 = SIcst_r00r0 + SIvec_r00(iCell) &
-                                      * SIvec_r0(iCell)
-            SIcst_r00w0 = SIcst_r00w0 + SIvec_r00(iCell) &
-                                      * SIvec_w0(iCell)
          end do ! iCell
 
 
          ! Preconditioning --------------------------------------------!
-
-         if ( trim(config_btr_si_preconditioner) == 'ras' ) then
-            call mpas_timer_start("si halo r0")
-            call mpas_dmpar_field_halo_exch(domain, 'SIvec_w0')
-            call mpas_timer_stop("si halo r0")
-         end if
-
 
          if ( trim(config_btr_si_preconditioner) == 'ras' ) then
             ! RAS preconditioning: Use BLAS
@@ -1809,8 +1781,7 @@ module ocn_time_integration_si
 
 
          ! SpMV -------------------------------------------------------!
-
-         do iCell = 1, nCellsOwned
+         do iCell = 1, nPrecVec
 
             sshTendAx = 0.0_RKIND
 
@@ -1852,6 +1823,18 @@ module ocn_time_integration_si
             SIvec_v0(iCell)  = 0.0_RKIND
             SIvec_s0(iCell)  = 0.0_RKIND
 
+         end do ! iCell
+
+
+         ! Reduction -----------------------------------------------!
+         SIcst_r00r0 = 0.0_RKIND
+         SIcst_r00w0 = 0.0_RKIND
+
+         do iCell = 1, nCellsOwned
+            SIcst_r00r0 = SIcst_r00r0 + SIvec_r00(iCell) &
+                                      * SIvec_r0(iCell)
+            SIcst_r00w0 = SIcst_r00w0 + SIvec_r00(iCell) &
+                                      * SIvec_w0(iCell)
          end do ! iCell
 
          SIcst_allreduce_local2(1) = SIcst_r00r0
@@ -1908,7 +1891,7 @@ module ocn_time_integration_si
 
             iter = iter + 1
 
-            do iCell = 1, nCellsOwned
+            do iCell = 1, nPrecVec
                SIvec_ph1(iCell) =  SIvec_rh0(iCell) + SIcst_beta0      &
                                 * (SIvec_ph0(iCell) - SIcst_omega0     &
                                                     * SIvec_sh0(iCell))
@@ -1937,13 +1920,6 @@ module ocn_time_integration_si
 
 
             ! Preconditioning -----------------------------------------!
-
-            if ( trim(config_btr_si_preconditioner) == 'ras' ) then
-               call mpas_timer_start("si halo iter")
-               call mpas_dmpar_field_halo_exch(domain, 'SIvec_z1')
-               call mpas_timer_stop("si halo iter")
-            end if
-
             if ( trim(config_btr_si_preconditioner) == 'ras' ) then
                ! RAS preconditioning: Use BLAS
                ! for the symmetric matrix-vector multiplication
@@ -1982,7 +1958,7 @@ module ocn_time_integration_si
 
             ! SpMV ----------------------------------------------------!
 
-            do iCell = 1, nCellsOwned
+            do iCell = 1, nPrecVec
                sshTendAx = 0.0_RKIND
 
                do i = 1, nEdgesOnCell(iCell)
@@ -2056,7 +2032,6 @@ module ocn_time_integration_si
 
                SIcst_q0q0 = SIcst_q0q0   + SIvec_q0(iCell) &
                                          * SIvec_q0(iCell)
-
             end do
 
             SIcst_allreduce_local9(1) = SIcst_r00s0
@@ -2112,7 +2087,7 @@ module ocn_time_integration_si
                   - 2.0_RKIND * SIcst_omega0 * SIcst_q0y0_global  &
                   + SIcst_omega0**2.0_RKIND  * SIcst_y0y0_global
 
-            do iCell = 1,nCellsOwned
+            do iCell = 1,nPrecVec
                sshSubcycleNew(iCell) = sshSubcycleNew(iCell)           &
                                      + SIcst_alpha0 * SIvec_ph1(iCell) &
                                      + SIcst_omega0 * SIvec_qh0(iCell)
@@ -2131,13 +2106,6 @@ module ocn_time_integration_si
 
 
             ! Preconditioning -----------------------------------------!
-
-            if ( trim(config_btr_si_preconditioner) == 'ras' ) then
-               call mpas_timer_start("si halo iter")
-               call mpas_dmpar_field_halo_exch(domain, 'SIvec_w1')
-               call mpas_timer_stop("si halo iter")
-            end if
-
             if ( trim(config_btr_si_preconditioner) == 'ras' ) then
                ! RAS preconditioning: Use BLAS 
                ! for the symmetric matrix-vector multiplication
@@ -2176,7 +2144,7 @@ module ocn_time_integration_si
 
             ! SpMV ----------------------------------------------------!
 
-            do iCell = 1, nCellsOwned
+            do iCell = 1, nPrecVec
                sshTendAx = 0.0_RKIND
 
                do i = 1, nEdgesOnCell(iCell)
@@ -2225,7 +2193,7 @@ module ocn_time_integration_si
                                           - SIcst_beta0 * SIcst_omega0  &
                                                         * SIcst_r00z0 )
 
-            do iCell = 1,nCellsOwned
+            do iCell = 1,nPrecVec
                SIvec_r0(iCell) = SIvec_r1(iCell)
                SIvec_s0(iCell) = SIvec_s1(iCell)
                SIvec_z0(iCell) = SIvec_z1(iCell)
@@ -2262,7 +2230,6 @@ module ocn_time_integration_si
          end do ! do iter
          !-------------------------------------------------------------!
 
-
          ! boundary update on SSHnew
          call mpas_timer_start("si halo iter")
          call mpas_dmpar_field_halo_exch(domain, 'sshSubcycle', timeLevel=2)
@@ -2276,24 +2243,59 @@ module ocn_time_integration_si
 
          call mpas_timer_start("si btr vel update")
 
+         do iEdge = 1, nEdgesHalo(2)
+            temp_mask = edgeMask(1, iEdge)
+
+            cell1 = cellsOnEdge(1,iEdge)
+            cell2 = cellsOnEdge(2,iEdge)
+
+            ! Use of normBtrVelNew as a temp array for sshEdge
+            normalBarotropicVelocityNew(iEdge) =    &
+                       ( 0.5*sshSubcycleNew(cell2)  &
+                        +0.5*sshSubcycleCur(cell2)) &
+                      -( 0.5*sshSubcycleNew(cell1)  &
+                        +0.5*sshSubcycleCur(cell1)) 
+
+            normalBarotropicVelocitySubcycleNew(iEdge)              &
+               = temp_mask                                          &
+               * (normalBarotropicVelocityCur(iEdge)                &
+               - dt * (-barotropicCoriolisTerm(iEdge) + gravity     &
+                       *normalBarotropicVelocityNew(iEdge)          &
+                       /dcEdge(iEdge) - barotropicForcing(iEdge)))
+         end do ! iEdge
+
+         !$omp parallel
+         !$omp do schedule(runtime) private(CoriolisTerm, i, eoe)
+         do iEdge = 1,nEdgesHalo(1)
+            ! Compute the barotropic Coriolis term, -f*uPerp
+            CoriolisTerm = 0.0_RKIND
+            do i = 1, nEdgesOnEdge(iEdge)
+               eoe = edgesOnEdge(i,iEdge)
+               CoriolisTerm =  CoriolisTerm + weightsOnEdge(i,iEdge)   &
+                            * 0.5_RKIND                                  &
+                            * ( normalBarotropicVelocitySubcycleNew(eoe) &
+                               +normalBarotropicVelocityCur(eoe) )       &
+                            * fEdge(eoe)
+            end do
+            barotropicCoriolisTerm(iEdge) = CoriolisTerm
+         end do
+         !$omp end do
+         !$omp end parallel
+
          do iEdge = 1, nEdgesOwned
             temp_mask = edgeMask(1, iEdge)
 
             cell1 = cellsOnEdge(1,iEdge)
             cell2 = cellsOnEdge(2,iEdge)
 
-            sshEdge =  ( alpha1*sshSubcycleNew(cell2)  &
-                        +alpha2*sshSubcycleCur(cell2)) &
-                      -( alpha1*sshSubcycleNew(cell1)  &
-                        +alpha2*sshSubcycleCur(cell1)) 
-
-            normalBarotropicVelocitySubcycleNew(iEdge)    &
-               = temp_mask                                &
-               * (normalBarotropicVelocityCur(iEdge)      &
-               - dt * (-barotropicCoriolisTerm(iEdge)     &
-                       +gravity * sshEdge / dcEdge(iEdge) &
-                       -barotropicForcing(iEdge)))
+            normalBarotropicVelocitySubcycleNew(iEdge)              &
+               = temp_mask                                          &
+               * (normalBarotropicVelocityCur(iEdge)                &
+               - dt * (-barotropicCoriolisTerm(iEdge) + gravity     &
+                       *normalBarotropicVelocityNew(iEdge)          &
+                       /dcEdge(iEdge) - barotropicForcing(iEdge)))
          end do ! iEdge
+
 
          do iEdge = 1, nEdgesOwned
             cell1 = cellsOnEdge(1,iEdge)
