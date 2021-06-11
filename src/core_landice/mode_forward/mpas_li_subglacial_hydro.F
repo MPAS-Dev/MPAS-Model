@@ -327,7 +327,7 @@ module li_subglacial_hydro
       ! =============
       ! =============
       ! =============
-      do while (timeLeft > 0.0_RKIND)
+      timecycling: do while (timeLeft > 0.0_RKIND)
       numSubCycles = numSubCycles + 1
 
 
@@ -466,8 +466,11 @@ module li_subglacial_hydro
       ! =============
       ! Calculate adaptive time step
       ! =============
-      call check_timestep(domain, timeLeft, err_tmp)
+      call check_timestep(domain, timeLeft, numSubCycles, err_tmp)
       err = ior(err, err_tmp)
+      if (err > 0) then
+         exit timecycling
+      endif
 
 
       ! =============
@@ -580,7 +583,7 @@ module li_subglacial_hydro
       ! =============
       ! =============
       ! =============
-      end do  ! while timeLeft>0
+      end do timecycling ! while timeLeft>0
       ! =============
       ! =============
       ! =============
@@ -968,11 +971,12 @@ module li_subglacial_hydro
 !>  This routine calculates the three timesteps associated with the
 !>  SGH solver and compares them to the current model timestep.
 !-----------------------------------------------------------------------
-   subroutine check_timestep(domain, timeLeft, err)
+   subroutine check_timestep(domain, timeLeft, numSubCycles, err)
 
       !-----------------------------------------------------------------
       ! input variables
       !-----------------------------------------------------------------
+      integer, intent(in) :: numSubCycles  !< Input: number of subcycles taken so far
 
       !-----------------------------------------------------------------
       ! input/output variables
@@ -991,11 +995,13 @@ module li_subglacial_hydro
       ! Pools pointers
       type (mpas_pool_type), pointer :: meshPool
       type (mpas_pool_type), pointer :: hydroPool
+      type (mpas_pool_type), pointer :: geometryPool
       real (kind=RKIND), dimension(:), pointer :: waterVelocity
       real (kind=RKIND), dimension(:), pointer :: channelVelocity
       real (kind=RKIND), dimension(:), pointer :: diffusivity
       real (kind=RKIND), dimension(:), pointer :: channelDiffusivity
       real (kind=RKIND), dimension(:), pointer :: dcEdge
+      integer, dimension(:), pointer :: edgeMask
       real (kind=RKIND), pointer :: deltatSGH
       real (kind=RKIND), pointer :: deltatSGHadvec
       real (kind=RKIND), pointer :: deltatSGHdiffu
@@ -1021,10 +1027,20 @@ module li_subglacial_hydro
       real(kind=RKIND) :: proposedDt
       real(kind=RKIND) :: masterDt
       real(kind=RKIND), dimension(5) :: localMinValues, reducedMinValues
+      integer :: iEdge
+      real(kind=RKIND), save :: minDtSoFar
+      integer, save :: numDtLess1
+      logical :: printDtInfo
 
 
       err = 0
       err_tmp = 0
+
+      printDtInfo = .false.
+      if (numSubCycles == 1) then
+         minDtSoFar = 1.0e36_RKIND
+         numDtLess1 = 0
+      endif
 
       call mpas_pool_get_config(liConfigs, 'config_SGH_englacial_porosity', porosity)
       call mpas_pool_get_config(liConfigs, 'config_SGH_chnl_active', config_SGH_chnl_active)
@@ -1044,6 +1060,7 @@ module li_subglacial_hydro
          ! Get pools things
          call mpas_pool_get_subpool(block % structs, 'mesh', meshPool)
          call mpas_pool_get_subpool(block % structs, 'hydro', hydroPool)
+         call mpas_pool_get_subpool(block % structs, 'geometry', geometryPool)
 
          call mpas_pool_get_dimension(meshPool, 'nEdgesSolve', nEdgesSolve)
 
@@ -1058,19 +1075,25 @@ module li_subglacial_hydro
          call mpas_pool_get_array(hydroPool, 'diffusivity', diffusivity)
          call mpas_pool_get_array(hydroPool, 'channelDiffusivity', channelDiffusivity)
          call mpas_pool_get_array(meshPool, 'dcEdge', dcEdge)
+         call mpas_pool_get_array(geometryPool, 'edgeMask', edgeMask)
 
          ! Calculate advective CFL-limited time step
          dtSGHadvecBlock = 0.5_RKIND * minval(dcEdge(1:nEdgesSolve) / (abs(waterVelocity(1:nEdgesSolve)) &
             + 1.0e-12_RKIND))  ! regularize
          dtSGHadvecProc = min(dtSGHadvecProc, dtSGHadvecBlock)
 
-         ! Calculate diffusive CFL-limited time step
-         dtSGHdiffuBlock = 0.25_RKIND * minval(dcEdge(1:nEdgesSolve)**2 / (diffusivity(1:nEdgesSolve) + 1.0e-12_RKIND))
+         ! Calculate diffusive CFL-limited time step & pressure-limited time step
+         dtSGHdiffuBlock = 1.0e36_RKIND
+         dtSGHpressureBlock = 1.0e36_RKIND
+         do iEdge = 1, nEdgesSolve
+            if (diffusivity(iEdge) > 0.0_RKIND .and. li_mask_is_grounded_ice(edgeMask(iEdge)) .and. &
+                    .not. li_mask_is_grounding_line(edgeMask(iEdge))) then
+               dtSGHdiffuBlock = min(dtSGHdiffuBlock, 0.25_RKIND * dcEdge(iEdge)**2 / diffusivity(iEdge) )
+               dtSGHpressureBlock = min(dtSGHpressureBlock, porosity * dcEdge(iEdge)**2 &
+                   / (2.0_RKIND * diffusivity(iEdge)))
+            endif
+         enddo
          dtSGHdiffuProc = min(dtSGHdiffuProc, dtSGHdiffuBlock)
-
-         ! Calculate pressure limited time step
-         dtSGHpressureBlock = 1.0_RKIND * minval(porosity * dcEdge(1:nEdgesSolve)**2 &
-                   / (2.0_RKIND * diffusivity(1:nEdgesSolve) + 1.0e-12_RKIND))
          dtSGHpressureProc = min(dtSGHpressureProc, dtSGHpressureBlock)
 
          if (config_SGH_chnl_active) then
@@ -1133,19 +1156,47 @@ module li_subglacial_hydro
       endif
       proposedDt = proposedDt * CFLfraction
 
+      if (proposedDt < 1.0_RKIND) then
+         numDtLess1 = numDtLess1 + 1
+      endif
+      minDtSoFar = min(minDtSoFar, proposedDt)
+
+      ! Write out dt stats every now and then
+      if (mod(numSubCycles, 2000)==0) then
+         call mpas_log_write("SGH subcycle #$i. Time left=$r s.", intArgs=(/numSubCycles/), realArgs=(/timeLeft/))
+         printDtInfo=.true.
+      endif
 
       ! Write out dt info on the final subcycle
       if (proposedDt >= timeLeft) then
-         if (config_SGH_chnl_active) then
-            call mpas_log_write("deltatSGH: used=$r, advec=$r, diffu=$r, pressure=$r, advecChannel=$r, diffuChannel=$r", &
-              realArgs=(/deltatSGH, deltatSGHadvec, deltatSGHdiffu, deltatSGHpressure, deltatSGHadvecChannel, &
-                         deltatSGHdiffuChannel/))
-         else
-            call mpas_log_write("deltatSGH: used=$r, advec=$r, diffu=$r, pressure=$r", &
-              realArgs=(/deltatSGH, deltatSGHadvec, deltatSGHdiffu, deltatSGHpressure/))
-         endif
+         call mpas_log_write("SGH completed subcycling with $i timesteps.", intArgs=(/numSubCycles/))
+         printDtInfo=.true.
       endif
 
+      if (proposedDt < 1.0E-2_RKIND) then
+         call mpas_log_write("CFL conditions are limiting subglacial hydrology timestep to <1e-2s ($r) on subcycle $i.", &
+                 MPAS_LOG_WARN, realArgs=(/proposedDt/), intArgs=(/numSubCycles/))
+         printDtInfo=.true.
+      endif
+
+      if (proposedDt < 1.0E-4_RKIND) then
+         call mpas_log_write("CFL conditions are limiting subglacial hydrology timestep to <1e-4s.", MPAS_LOG_ERR)
+         printDtInfo=.true.
+         err = ior(err, 1)
+      endif
+
+      if (printDtInfo) then
+         if (config_SGH_chnl_active) then
+            call mpas_log_write("deltatSGH: used=$r, prev=$r, advec=$r, diffu=$r, pressure=$r, advecChannel=$r, diffuChannel=$r",&
+              realArgs=(/proposedDt, deltatSGH, deltatSGHadvec, deltatSGHdiffu, deltatSGHpressure, deltatSGHadvecChannel, &
+                         deltatSGHdiffuChannel/))
+         else
+            call mpas_log_write("deltatSGH: used=$r, previous=$r, advec=$r, diffu=$r, pressure=$r", &
+              realArgs=(/proposedDt, deltatSGH, deltatSGHadvec, deltatSGHdiffu, deltatSGHpressure/))
+         endif
+         call mpas_log_write("  min hydro dt used=$r; There were $i subcyles with dt<1s.", &
+                 realArgs=(/minDtSoFar/), intArgs=(/numDtLess1/))
+      endif
 
       ! Don't exceed the maximum allowed hydro time step
       proposedDt = min(proposedDt, maxDt)
@@ -1190,6 +1241,7 @@ module li_subglacial_hydro
          call mpas_log_write("deltatSGH > deltatSGHdiffuChannel  $r > $r", MPAS_LOG_WARN, &
             realArgs=(/deltatSGH, deltatSGHdiffuChannel/))
       endif
+
 
    !--------------------------------------------------------------------
    end subroutine check_timestep
@@ -1501,7 +1553,7 @@ module li_subglacial_hydro
       real (kind=RKIND), dimension(:), pointer :: channelVelocity
       real (kind=RKIND), dimension(:), pointer :: gradMagPhiEdge
       real (kind=RKIND), dimension(:), pointer :: waterFlux
-      real (kind=RKIND), dimension(:), pointer :: hydropotentialSlopeNormal
+      real (kind=RKIND), dimension(:), pointer :: hydropotentialBaseSlopeNormal
       real (kind=RKIND), dimension(:), pointer :: waterPressureSlopeNormal
       real (kind=RKIND), dimension(:), pointer :: channelOpeningRate
       real (kind=RKIND), dimension(:), pointer :: channelClosingRate
@@ -1546,7 +1598,7 @@ module li_subglacial_hydro
       call mpas_pool_get_array(hydroPool, 'channelDischarge', channelDischarge)
       call mpas_pool_get_array(hydroPool, 'channelVelocity', channelVelocity)
       call mpas_pool_get_array(hydroPool, 'gradMagPhiEdge', gradMagPhiEdge)
-      call mpas_pool_get_array(hydroPool, 'hydropotentialSlopeNormal', hydropotentialSlopeNormal)
+      call mpas_pool_get_array(hydroPool, 'hydropotentialBaseSlopeNormal', hydropotentialBaseSlopeNormal)
       call mpas_pool_get_array(hydroPool, 'waterPressureSlopeNormal', waterPressureSlopeNormal)
       call mpas_pool_get_array(hydroPool, 'waterFlux', waterFlux)
       call mpas_pool_get_array(hydroPool, 'channelOpeningRate', channelOpeningRate)
@@ -1567,7 +1619,7 @@ module li_subglacial_hydro
          channelDischarge(:) = 0.0_RKIND
       elsewhere
          channelDischarge = -1.0_RKIND * Kc * channelArea**alpha_c * gradMagPhiEdge**(beta_c - 2.0_RKIND) * &
-            hydropotentialSlopeNormal
+            hydropotentialBaseSlopeNormal
       end where
 
       where (waterFluxMask == 2)
@@ -1599,8 +1651,8 @@ module li_subglacial_hydro
             Kc * channelArea**(alpha_c - 1.0_RKIND) * gradMagPhiEdge**(beta_c - 2.0_RKIND))
       end where
 
-      channelMelt = (abs(channelDischarge * hydropotentialSlopeNormal) &  ! channel dissipation
-                  +  abs(waterFlux * hydropotentialSlopeNormal * config_SGH_incipient_channel_width) & !some sheet dissipation
+      channelMelt = (abs(channelDischarge * hydropotentialBaseSlopeNormal) &  ! channel dissipation
+                  +  abs(waterFlux * hydropotentialBaseSlopeNormal * config_SGH_incipient_channel_width) & !some sheet dissipation
                   ) / latent_heat_ice
       channelPressureFreeze = -1.0_RKIND * iceMeltingPointPressureDependence * cp_freshwater * rho_water * &
          (channelDischarge + waterFlux * config_SGH_incipient_channel_width) &
