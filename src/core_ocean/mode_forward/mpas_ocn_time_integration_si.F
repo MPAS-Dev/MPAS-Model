@@ -1263,7 +1263,7 @@ module ocn_time_integration_si
                sshLagArea = R1_alpha1s_g_dts * SIvec_zh1(iCell) &
                           * areaCell(iCell)
 
-               SIvec_v1(iCell) = -sshLagArea - sshTendAx
+               SIvec_v0(iCell) = -sshLagArea - sshTendAx
 
             end do ! iCell
 
@@ -1302,7 +1302,7 @@ module ocn_time_integration_si
                                          * SIvec_t0(iCell)
 
                SIcst_r00v0 = SIcst_r00v0 + SIvec_r00(iCell) &
-                                         * SIvec_v1(iCell) ! v1
+                                         * SIvec_v0(iCell) ! v1
 
                SIcst_q0q0 = SIcst_q0q0   + SIvec_q0(iCell) &
                                          * SIvec_q0(iCell)
@@ -1376,7 +1376,7 @@ module ocn_time_integration_si
 
                SIvec_w1(iCell)  =   SIvec_y0(iCell) - SIcst_omega0     &
                                 * ( SIvec_t0(iCell) - SIcst_alpha0     &
-                                                    * SIvec_v1(iCell))
+                                                    * SIvec_v0(iCell))
             end do
 
 
@@ -1477,7 +1477,6 @@ module ocn_time_integration_si
                SIvec_z0(iCell) = SIvec_z1(iCell)
                SIvec_w0(iCell) = SIvec_w1(iCell)
                SIvec_t0(iCell) = SIvec_t1(iCell)
-               SIvec_v0(iCell) = SIvec_v1(iCell)
 
                SIvec_rh0(iCell) = SIvec_rh1(iCell)
                SIvec_sh0(iCell) = SIvec_sh1(iCell)
@@ -1537,7 +1536,7 @@ module ocn_time_integration_si
 
          !$omp parallel
          !$omp do schedule(runtime) private(CoriolisTerm, i, eoe)
-         do iEdge = 1,nEdgesHalo( edgeHaloComputeCounter-2 ) 
+         do iEdge = 1,nEdgesHalo(2)
             ! Compute the barotropic Coriolis term, -f*uPerp
             CoriolisTerm = 0.0_RKIND
             do i = 1, nEdgesOnEdge(iEdge)
@@ -1553,7 +1552,7 @@ module ocn_time_integration_si
          !$omp end do
          !$omp end parallel
 
-         do iEdge = 1,nEdgesOwned
+         do iEdge = 1,nEdgesHalo(1)
             temp_mask = edgeMask(1, iEdge)
 
             cell1 = cellsOnEdge(1,iEdge)
@@ -1989,7 +1988,7 @@ module ocn_time_integration_si
 
                sshLagArea = R1_alpha1s_g_dts * SIvec_zh1(iCell) * areaCell(iCell)
 
-               SIvec_v1(iCell) = -sshLagArea - sshTendAx
+               SIvec_v0(iCell) = -sshLagArea - sshTendAx
 
             end do ! iCell
 
@@ -2028,7 +2027,7 @@ module ocn_time_integration_si
                                          * SIvec_t0(iCell)
 
                SIcst_r00v0 = SIcst_r00v0 + SIvec_r00(iCell) &
-                                         * SIvec_v1(iCell) ! v1
+                                         * SIvec_v0(iCell) ! v1
 
                SIcst_q0q0 = SIcst_q0q0   + SIvec_q0(iCell) &
                                          * SIvec_q0(iCell)
@@ -2101,7 +2100,7 @@ module ocn_time_integration_si
 
                SIvec_w1(iCell)  =   SIvec_y0(iCell) - SIcst_omega0     &
                                 * ( SIvec_t0(iCell) - SIcst_alpha0     &
-                                                    * SIvec_v1(iCell))
+                                                    * SIvec_v0(iCell))
             end do
 
 
@@ -2199,7 +2198,6 @@ module ocn_time_integration_si
                SIvec_z0(iCell) = SIvec_z1(iCell)
                SIvec_w0(iCell) = SIvec_w1(iCell)
                SIvec_t0(iCell) = SIvec_t1(iCell)
-               SIvec_v0(iCell) = SIvec_v1(iCell)
 
                SIvec_rh0(iCell) = SIvec_rh1(iCell)
                SIvec_sh0(iCell) = SIvec_sh1(iCell)

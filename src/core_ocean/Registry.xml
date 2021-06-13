@@ -2987,10 +2987,6 @@
 			description="A vector used in the semi-implicit barotropic mode solver"
 			packages="semiImplicitTimePKG"
 		/>
-		<var name="SIvec_v1" type="real" dimensions="nCells Time" units="unitless"
-			description="A vector used in the semi-implicit barotropic mode solver"
-			packages="semiImplicitTimePKG"
-		/>
 		<var name="SIvec_s0" type="real" dimensions="nCells Time" units="unitless"
 			description="A vector used in the semi-implicit barotropic mode solver"
 			packages="semiImplicitTimePKG"

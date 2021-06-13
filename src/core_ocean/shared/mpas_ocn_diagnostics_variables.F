@@ -193,7 +193,7 @@ module ocn_diagnostics_variables
 
    ! Semi-implicit Array Pointers
    real (kind=RKIND), dimension(:), pointer :: SIvec_r0,SIvec_r00,SIvec_r1 ,SIvec_rh0,SIvec_rh1,SIvec_ph0,SIvec_ph1
-   real (kind=RKIND), dimension(:), pointer :: SIvec_v0,SIvec_v1 ,SIvec_s0 ,SIvec_s1 ,SIvec_sh0,SIvec_sh1
+   real (kind=RKIND), dimension(:), pointer :: SIvec_v0,SIvec_s0 ,SIvec_s1 ,SIvec_sh0,SIvec_sh1
    real (kind=RKIND), dimension(:), pointer :: SIvec_t0,SIvec_t1 ,SIvec_q0 ,SIvec_q1 ,SIvec_qh0
    real (kind=RKIND), dimension(:), pointer :: SIvec_w0,SIvec_w1 ,SIvec_wh0,SIvec_wh1,SIvec_y0
    real (kind=RKIND), dimension(:), pointer :: SIvec_z0,SIvec_z1 ,SIvec_zh0,SIvec_zh1
@@ -439,7 +439,6 @@ contains
          call mpas_pool_get_array(diagnosticsPool, 'SIvec_r0', SIvec_r0)
          call mpas_pool_get_array(diagnosticsPool, 'SIvec_r1', SIvec_r1)
          call mpas_pool_get_array(diagnosticsPool, 'SIvec_v0', SIvec_v0)
-         call mpas_pool_get_array(diagnosticsPool, 'SIvec_v1', SIvec_v1)
          call mpas_pool_get_array(diagnosticsPool, 'SIvec_w0', SIvec_w0)
          call mpas_pool_get_array(diagnosticsPool, 'SIvec_w1', SIvec_w1)
          call mpas_pool_get_array(diagnosticsPool, 'SIvec_t0', SIvec_t0)
