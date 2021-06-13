@@ -302,7 +302,7 @@ module ocn_time_integration_si
          SIcst_r00q0_global, SIcst_r00t0_global, SIcst_r00v0_global, &
          SIcst_r00y0       , SIcst_r00s0       , SIcst_r00z0       , &
          SIcst_r00y0_global, SIcst_r00s0_global, SIcst_r00z0_global, &
-         SIcst_alpha0      , SIcst_alpha1      , SIcst_beta0       , &
+         SIcst_alpha0      , SIcst_beta0       , &
          SIcst_omega0      , SIcst_rho0        , SIcst_rho1        , &
          SIcst_gamma1,       resid
 
@@ -1457,19 +1457,19 @@ module ocn_time_integration_si
 
             ! End reduction -------------------------------------------!
 
-            SIcst_rho1 = SIcst_r00q0 - SIcst_omega0 * SIcst_r00y0 
+            SIcst_rho1 = SIcst_r00q0_global - SIcst_omega0 * SIcst_r00y0_global 
 
-            SIcst_gamma1 = SIcst_r00y0 - SIcst_omega0 * SIcst_r00t0  &
+            SIcst_gamma1 = SIcst_r00y0_global - SIcst_omega0 * SIcst_r00t0_global  &
                                        + SIcst_omega0 * SIcst_alpha0 &
-                                                      * SIcst_r00v0
+                                                      * SIcst_r00v0_global
  
             SIcst_beta0 = (SIcst_alpha0/SIcst_omega0) &
                         * (SIcst_rho1 / SIcst_rho0)
 
-            SIcst_alpha1 = SIcst_rho1 &
-                         / ( SIcst_gamma1 + SIcst_beta0 * SIcst_r00s0   &
+            SIcst_alpha0 = SIcst_rho1 &
+                         / ( SIcst_gamma1 + SIcst_beta0 * SIcst_r00s0_global   &
                                           - SIcst_beta0 * SIcst_omega0  &
-                                                        * SIcst_r00z0 )
+                                                        * SIcst_r00z0_global )
 
             do iCell = 1,nPrecVec
                SIvec_r0(iCell) = SIvec_r1(iCell)
@@ -1485,7 +1485,6 @@ module ocn_time_integration_si
                SIvec_zh0(iCell) = SIvec_zh1(iCell)
             end do ! iCell
 
-            SIcst_alpha0       = SIcst_alpha1
             SIcst_rho0         = SIcst_rho1
 
          !-------------------------------------------------------------!
@@ -2178,20 +2177,19 @@ module ocn_time_integration_si
                SIvec_t1(iCell) = -sshLagArea - sshTendAx
             end do ! iCell
 
-            SIcst_rho1 = SIcst_r00q0 - SIcst_omega0 * SIcst_r00y0 
+            SIcst_rho1 = SIcst_r00q0_global - SIcst_omega0 * SIcst_r00y0_global 
 
-            SIcst_gamma1 = SIcst_r00y0 - SIcst_omega0 * SIcst_r00t0  &
+            SIcst_gamma1 = SIcst_r00y0_global - SIcst_omega0 * SIcst_r00t0_global  &
                                        + SIcst_omega0 * SIcst_alpha0 &
-                                                      * SIcst_r00v0
-
+                                                      * SIcst_r00v0_global
+ 
             SIcst_beta0 = (SIcst_alpha0/SIcst_omega0) &
                         * (SIcst_rho1 / SIcst_rho0)
 
-            SIcst_alpha1 = SIcst_rho1 &
-                         / ( SIcst_gamma1 + SIcst_beta0 * SIcst_r00s0   &
+            SIcst_alpha0 = SIcst_rho1 &
+                         / ( SIcst_gamma1 + SIcst_beta0 * SIcst_r00s0_global   &
                                           - SIcst_beta0 * SIcst_omega0  &
-                                                        * SIcst_r00z0 )
-
+                                                        * SIcst_r00z0_global )
             do iCell = 1,nPrecVec
                SIvec_r0(iCell) = SIvec_r1(iCell)
                SIvec_s0(iCell) = SIvec_s1(iCell)
@@ -2206,7 +2204,6 @@ module ocn_time_integration_si
                SIvec_zh0(iCell) = SIvec_zh1(iCell)
             end do ! iCell
 
-            SIcst_alpha0       = SIcst_alpha1
             SIcst_rho0         = SIcst_rho1
 
             if ( iter > int(mean_num_cells*5) ) then
