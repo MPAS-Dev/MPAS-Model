@@ -1128,8 +1128,8 @@ module ocn_time_integration_si
                                  fraction(SIcst_allreduce_global2(:))
             SIcst_allreduce_temp9(1:2)  = &
                                  anint(SIcst_allreduce_temp9(1:2) &
-                                       * 1.0000000000000000d+8)   &
-                                       / 1.0000000000000000d+8
+                                        * 1.0e+4_RKIND  ) &
+                                        / 1.0e+4_RKIND
 
             SIcst_allreduce_global2(:) =          &
                        SIcst_allreduce_temp9(1:2) &
@@ -1335,8 +1335,8 @@ module ocn_time_integration_si
                                   fraction(SIcst_allreduce_global9(:))
                SIcst_allreduce_temp9(:)  = &
                                   anint( SIcst_allreduce_temp9(:)  &
-                                        * 1.0000000000000000d+8  ) &
-                                        / 1.0000000000000000d+8
+                                        * 1.0e+4_RKIND  ) &
+                                        / 1.0e+4_RKIND
 
                SIcst_allreduce_global9(:)  =                        &
                            SIcst_allreduce_temp9(:)                 &
@@ -1551,7 +1551,7 @@ module ocn_time_integration_si
          !$omp end do
          !$omp end parallel
 
-         do iEdge = 1,nEdgesHalo(1)
+         do iEdge = 1,nEdgesHalo(2)
             temp_mask = edgeMask(1, iEdge)
 
             cell1 = cellsOnEdge(1,iEdge)
@@ -1838,12 +1838,14 @@ module ocn_time_integration_si
          SIcst_allreduce_local2(1) = SIcst_r00r0
          SIcst_allreduce_local2(2) = SIcst_r00w0
 
+
          ! Global sum across CPUs
          call mpas_timer_start("si reduction r0")
          call mpas_dmpar_sum_real_array(domain % dminfo, 2,      &
                                         SIcst_allreduce_local2,  &
                                         SIcst_allreduce_global2)
          call mpas_timer_stop ("si reduction r0")
+
 
          if ( config_btr_si_partition_match_mode .and. ncpus > 1) then
             SIcst_allreduce_temp9(:)    = 0.0_RKIND
@@ -1855,13 +1857,14 @@ module ocn_time_integration_si
                                  fraction(SIcst_allreduce_global2(:))
             SIcst_allreduce_temp9(1:2)  = &
                                  anint(SIcst_allreduce_temp9(1:2) &
-                                       * 1.0000000000000000d+8)   &
-                                       / 1.0000000000000000d+8
+                                        * 1.0e+4_RKIND  ) &
+                                        / 1.0e+4_RKIND
 
             SIcst_allreduce_global2(:) =          &
                        SIcst_allreduce_temp9(1:2) &
                      * 2.0_RKIND ** (SIcst_allreduce_itemp9(1:2))
          endif
+
 
          SIcst_r00r0_global = SIcst_allreduce_global2(1)
          SIcst_r00w0_global = SIcst_allreduce_global2(2)
@@ -2059,8 +2062,8 @@ module ocn_time_integration_si
                                   fraction(SIcst_allreduce_global9(:))
                SIcst_allreduce_temp9(:)  = &
                                   anint( SIcst_allreduce_temp9(:)  &
-                                        * 1.0000000000000000d+8  ) &
-                                        / 1.0000000000000000d+8
+                                        * 1.0e+4_RKIND  ) &
+                                        / 1.0e+4_RKIND
 
                SIcst_allreduce_global9(:)  =                        &
                            SIcst_allreduce_temp9(:)                 &
@@ -3231,11 +3234,11 @@ module ocn_time_integration_si
       tolerance_outer   = 0.01_RKIND * area_mean
 
       ! Tolerance for the inner iteration
-      tolerance_inner  = config_btr_si_tolerance * area_mean
-
-      ! Tolerance for the partition match mode 
       if ( config_btr_si_partition_match_mode ) then
-         config_btr_si_tolerance = 1.0e-8_RKIND
+         ! Tolerance for the partition match mode 
+         tolerance_inner  = 1.0e-8_RKIND * area_mean
+      else
+         tolerance_inner  = config_btr_si_tolerance * area_mean
       endif
 
       ! Impliciness parameters
