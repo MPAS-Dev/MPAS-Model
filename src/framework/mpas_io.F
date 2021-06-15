@@ -212,7 +212,8 @@ module mpas_io
    end subroutine MPAS_io_unset_iotype
 
    
-   type (MPAS_IO_Handle_type) function MPAS_io_open(filename, mode, ioformat, ioContext, clobber_file, truncate_file, ierr)
+   type (MPAS_IO_Handle_type) function MPAS_io_open(filename, mode, ioformat, ioContext, &
+                                                    clobber_file, truncate_file, pio_file_desc, ierr)
 
       implicit none
 
@@ -222,6 +223,7 @@ module mpas_io
       type (mpas_io_context_type), pointer :: ioContext
       logical, intent(in), optional :: clobber_file
       logical, intent(in), optional :: truncate_file
+      type (file_desc_t), pointer, optional :: pio_file_desc
       integer, intent(out), optional :: ierr
 
       integer :: pio_ierr, pio_iotype, pio_mode
@@ -289,44 +291,50 @@ module mpas_io
          end if
       end if
 
-      if (mode == MPAS_IO_WRITE) then
-!call mpas_log_write('MGD PIO_createfile')
-         if (ioContext % dminfo % my_proc_id == 0) then
-            inquire(file=trim(filename), exist=exists)
-         end if
-         call mpas_dmpar_bcast_logical(ioContext % dminfo, exists)
-
-         ! If the file exists and we are not allowed to clobber it, return an
-         !    appropriate error code
-         if (exists .and. (.not. local_clobber)) then
-            if (present(ierr)) ierr = MPAS_IO_ERR_WOULD_CLOBBER
-            return
-         end if
- 
-         if (exists .and. (.not. local_truncate)) then
-            pio_ierr = PIO_openfile(ioContext % pio_iosystem, MPAS_io_open % pio_file, pio_iotype, trim(filename), PIO_write)
-            MPAS_io_open % preexisting_file = .true.
-         else
-            pio_ierr = PIO_createfile(ioContext % pio_iosystem, MPAS_io_open % pio_file, pio_iotype, trim(filename), pio_mode)
-#ifdef MPAS_DEBUG
-            if (exists) then
-               call mpas_log_write('MPAS I/O: Truncating existing data in output file '//trim(filename), MPAS_LOG_WARN)
-            end if
-#endif
-         end if
+      if (present(pio_file_desc)) then
+         MPAS_io_open % pio_file = pio_file_desc
+         MPAS_io_open % external_file_desc = .true.
       else
-         inquire(file=trim(filename), exist=exists)
+         if (mode == MPAS_IO_WRITE) then
+!call mpas_log_write('MGD PIO_createfile')
+            if (ioContext % dminfo % my_proc_id == 0) then
+               inquire(file=trim(filename), exist=exists)
+            end if
+            call mpas_dmpar_bcast_logical(ioContext % dminfo, exists)
 
-         if (.not. exists) then
-            if (present(ierr)) ierr = MPAS_IO_ERR_NOEXIST_READ
+            ! If the file exists and we are not allowed to clobber it, return an
+            !    appropriate error code
+            if (exists .and. (.not. local_clobber)) then
+               if (present(ierr)) ierr = MPAS_IO_ERR_WOULD_CLOBBER
+               return
+            end if
+ 
+            if (exists .and. (.not. local_truncate)) then
+               pio_ierr = PIO_openfile(ioContext % pio_iosystem, MPAS_io_open % pio_file, pio_iotype, trim(filename), PIO_write)
+               MPAS_io_open % preexisting_file = .true.
+            else
+               pio_ierr = PIO_createfile(ioContext % pio_iosystem, MPAS_io_open % pio_file, pio_iotype, trim(filename), pio_mode)
+#ifdef MPAS_DEBUG
+               if (exists) then
+                  call mpas_log_write('MPAS I/O: Truncating existing data in output file '//trim(filename), MPAS_LOG_WARN)
+               end if
+#endif
+            end if
+         else
+            inquire(file=trim(filename), exist=exists)
+
+            if (.not. exists) then
+               if (present(ierr)) ierr = MPAS_IO_ERR_NOEXIST_READ
+               return
+            end if
+!call mpas_log_write('MGD PIO_openfile')
+            pio_ierr = PIO_openfile(ioContext % pio_iosystem, MPAS_io_open % pio_file, pio_iotype, trim(filename), PIO_nowrite)
+         endif
+         if (pio_ierr /= PIO_noerr) then
+            if (present(ierr)) ierr = MPAS_IO_ERR_PIO
             return
          end if
-!call mpas_log_write('MGD PIO_openfile')
-         pio_ierr = PIO_openfile(ioContext % pio_iosystem, MPAS_io_open % pio_file, pio_iotype, trim(filename), PIO_nowrite)
-      endif
-      if (pio_ierr /= PIO_noerr) then
-         if (present(ierr)) ierr = MPAS_IO_ERR_PIO
-         return
+         MPAS_io_open % external_file_desc = .false.
       end if
 
       if (mode == MPAS_IO_READ .or. MPAS_io_open % preexisting_file) then
@@ -4886,7 +4894,9 @@ module mpas_io
       handle % initialized = .false.
 
 !call mpas_log_write('MGD PIO_closefile')
-      call PIO_closefile(handle % pio_file)
+      if (.not. handle % external_file_desc) then
+         call PIO_closefile(handle % pio_file)
+      end if
 
    end subroutine MPAS_io_close
 

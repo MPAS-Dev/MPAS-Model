@@ -61,6 +61,7 @@
       logical :: initialized = .false.
       logical :: preexisting_file = .false.
       logical :: data_mode = .false.
+      logical :: external_file_desc = .false.
       type (file_desc_t) :: pio_file
       character (len=StrKIND) :: filename
       integer :: iomode
