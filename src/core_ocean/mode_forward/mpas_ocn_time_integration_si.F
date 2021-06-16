@@ -94,12 +94,13 @@ module ocn_time_integration_si
       tolerance_outer,  &! tolerance for the outer solver iterations
       tolerance_inner,  &! tolerance for the main solver iterations
       total_num_cells,  &! total number of surface cells
-      mean_num_cells     ! mean #cells for each core
+      mean_num_cells,   &! mean #cells for each core
+      dt_si              ! dt for the SI btr mode solver
    integer :: &
       nPrecVec,         &! vector lenghts for preconditioner
-      si_opt,           &! SI stepping within config_n_ts_iter loop
       si_ismf,          &! SI solver linearization for ISMF cases
-      ncpus              ! Total number of cores
+      ncpus,            &! Total number of cores
+      nSiLargeIter       ! #iteration for the barotropic system
 
 !***********************************************************************
 
@@ -306,7 +307,9 @@ module ocn_time_integration_si
          SIcst_omega0      , SIcst_rho0        , SIcst_rho1        , &
          SIcst_gamma1,       resid
 
-      integer :: iter ! Number of solver iterations
+      integer ::     &
+         iter,       &! Number of solver iterations
+         siLargeIter  ! Index of the large btr system iteration
 
       ! These are public variables used from the diagnostics module
       ! indexSurfaceVelocityZonal, indexSurfaceVelocityMeridional
@@ -780,9 +783,6 @@ module ocn_time_integration_si
          cellHaloComputeCounter = config_num_halos
          edgeHaloComputeCounter = config_num_halos + 1
 
-         ! Initialize variables for barotropic subcycling
-         call mpas_timer_start('btr vel si init')
-
          nCells = nCellsHalo(cellHaloComputeCounter-1)
          nEdges = nEdgesHalo(edgeHaloComputeCounter-1)
 
@@ -796,1552 +796,1568 @@ module ocn_time_integration_si
             !$omp end parallel
          endif
 
-         if ( splitImplicitStep == 2 ) then
-            ! Here sshSubcycleNew and normalBarotropicVelocityCur
-            ! are at time n+1/2.
-
-            !$omp parallel
-            !$omp do schedule(runtime)
-            do iCell = 1,nCellsAll
-               sshSubcycleNew(iCell) = &
-                  0.5_RKIND*( sshSubcycleNew(iCell) &
-                             +sshCur(iCell) )
-               sshSubcycleCur(iCell) = sshSubcycleNew(iCell)
-            end do
-            !$omp end do
-
-            !$omp do schedule(runtime)
-            do iEdge = 1,nEdgesAll
-               normalBarotropicVelocityCur(iEdge) = &
-                  normalBarotropicVelocitySubcycleCur(iEdge)
-            end do
-            !$omp end do
-            !$omp end parallel
-         endif ! splitImplicitStep
-
-         !$omp parallel
-         !$omp do schedule(runtime) private(CoriolisTerm, i, eoe)
-         do iEdge = 1, nEdgesAll
-            ! Compute the barotropic Coriolis term, -f*uPerp
-            CoriolisTerm = 0.d0
-            do i = 1, nEdgesOnEdge(iEdge)
-               eoe = edgesOnEdge(i,iEdge)
-               CoriolisTerm = CoriolisTerm + weightsOnEdge(i,iEdge) &
-                            * normalBarotropicVelocityCur(eoe)      &
-                            * fEdge(eoe)
-            end do ! i
-               barotropicCoriolisTerm(iEdge) = CoriolisTerm
-         end do ! iEdge
-         !$omp end do
-         !$omp end parallel
-
-         ! Subtract tidal potential from ssh, if needed
-         ! Subtract the tidal potential from the current
-         !    subcycle ssh and store and a work array.
-         ! Then point sshSubcycleCur to the work array so the
-         ! tidal potential terms are included in the grad
-         ! operator inside the edge loop.
-         if (config_use_tidal_potential_forcing) then
-
-            call mpas_pool_get_array(forcingPool,            &
-                                  'sshSubcycleCurWithTides', &
-                                   sshSubcycleCurWithTides)
-            call mpas_pool_get_array(forcingPool,        &
-                                    'tidalPotentialEta', &
-                                     tidalPotentialEta)
-
-            !$omp parallel
-            !$omp do schedule(runtime)
-            do iCell = 1, nCellsAll
-              sshSubcycleCurWithTides(iCell) = sshSubcycleCur(iCell) &
-                         - tidalPotentialEta(iCell)                  &
-                         - config_self_attraction_and_loading_beta   &
-                         * sshSubcycleCur(iCell)
-            end do
-            !$omp end do
-            !$omp end parallel
-
-            call mpas_pool_get_array(forcingPool,            &
-                                  'sshSubcycleCurWithTides', &
-                                   sshSubcycleNew)
-
-            !$omp parallel
-            !$omp do schedule(runtime)
-            do iCell = 1,nCellsAll
-               sshSubcycleCur(iCell) = sshSubcycleNew(iCell)
-            end do
-            !$omp end do
-            !$omp end parallel
-
-         endif !config_use_tidal_potential_forcing
-
-         call mpas_timer_stop('btr vel si init')
-
-         !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-         ! Stage 2.2 : Compution of the initial residual
-         !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
-         call mpas_timer_start("si btr residual")
-
-         do iCell = 1, nPrecVec
-            sshTendb1 = 0.0_RKIND
-            sshTendb2 = 0.0_RKIND
-            sshTendAx = 0.0_RKIND
-
-            do i = 1, nEdgesOnCell(iCell)
-               iEdge = edgesOnCell(i, iCell)
-
-               cell1 = cellsOnEdge(1, iEdge)
-               cell2 = cellsOnEdge(2, iEdge)
-
-               ! Interpolation sshEdge
-               sshEdgeCur = 0.5_RKIND * ( sshSubcycleCur(cell1)  &
-                                        + sshSubcycleCur(cell2) )
-
-               ! method 1, matches method 0 without pbcs, 
-               ! works with pbcs.
-               thicknessSumCur = si_ismf * sshEdgeCur    &
-                               + min(bottomDepth(cell1), &
-                                     bottomDepth(cell2))
-
-               ! nabla (ssh^0)
-               sshDiffCur = (  sshSubcycleCur(cell2)   &
-                             - sshSubcycleCur(cell1) ) &
-                            /  dcEdge(iEdge)
-
-               fluxb1 = thicknessSumCur &
-                      * normalBarotropicVelocityCur(iEdge)
-               fluxb2 = thicknessSumCur                    &
-                      * (alpha2*gravity*sshDiffCur         &
-                      + (-barotropicCoriolisTerm(iEdge)    &
-                         -barotropicForcing(iEdge)))
-               fluxAx = thicknessSumCur * sshDiffCur
-
-               sshTendb1 = sshTendb1 + edgeSignOnCell(i, iCell) &
-                                     * fluxb1 * dvEdge(iEdge)
-               sshTendb2 = sshTendb2 + edgeSignOnCell(i, iCell) &
-                                     * fluxb2 * dvEdge(iEdge)
-               sshTendAx = sshTendAx + edgeSignOnCell(i, iCell) &
-                                     * fluxAx * dvEdge(iEdge)
-            end do ! i
-
-            sshTendb1  = R1_alpha1s_g_dt  * sshTendb1
-            sshTendb2  = R1_alpha1_g      * sshTendb2
-            sshCurArea = R1_alpha1s_g_dts * sshSubcycleCur(iCell) &
-                                          * areaCell(iCell)
-
-            SIvec_r0(iCell) = (-sshCurArea - sshTendb1 + sshTendb2) &
-                             -(-sshCurArea - sshTendAx)
-            SIvec_r00(iCell) = SIvec_r0(iCell)
-
-         end do ! iCell
-
-         ! Preconditioning --------------------------------------------!
-
-         if ( trim(config_btr_si_preconditioner) == 'ras' ) then
-            ! RAS preconditioning: Use BLAS for the symmetric 
-            !                      matrix-vector multiplication
-#ifdef USE_LAPACK
-            call DSPMV('U', nPrecVec, 1.0_RKIND, prec_ivmat, &
-                       SIvec_r0(1:nPrecVec) , 1, 0.0_RKIND,  &
-                       SIvec_rh0(1:nPrecVec), 1)
-#endif
-
-         elseif ( trim(config_btr_si_preconditioner) == &
-                                           'block_jacobi' ) then
-            ! Block-Jacobi preconditioning: Use BLAS for the symmetric 
-            !                               matrix-vector multiplication
-#ifdef USE_LAPACK
-            call DSPMV('U', nPrecVec, 1.0_RKIND, prec_ivmat, &
-                       SIvec_r0(1:nPrecVec) , 1, 0.0_RKIND,  &
-                       SIvec_rh0(1:nPrecVec), 1)
-#endif
-
-         elseif ( trim(config_btr_si_preconditioner) == &
-                                                 'jacobi' ) then
-            ! Jacobi preconditioning
-            SIvec_rh0(1:nPrecVec) = SIvec_r0(1:nPrecVec) &
-                                  * prec_ivmat(1:nPrecVec)
-
-         elseif ( trim(config_btr_si_preconditioner) == &
-                                                   'none' ) then
-            ! No preconditioning
-            SIvec_rh0(1:nPrecVec) = SIvec_r0(1:nPrecVec)
-         end if
-
-         call mpas_timer_start("si halo r0")
-         call mpas_dmpar_field_halo_exch(domain, 'SIvec_rh0')
-         call mpas_timer_stop("si halo r0")
-
-         ! SpMV -------------------------------------------------------!
-
-         do iCell = 1, nPrecVec
-
-            sshTendAx = 0.0_RKIND
-
-            do i = 1, nEdgesOnCell(iCell)
-               iEdge = edgesOnCell(i, iCell)
-
-               cell1 = cellsOnEdge(1, iEdge)
-               cell2 = cellsOnEdge(2, iEdge)
-
-               ! Interpolation sshEdge
-               sshEdgeCur = 0.5_RKIND * (  sshSubcycleCur(cell1) &
-                                         + sshSubcycleCur(cell2))
-
-               ! method 1, matches method 0 without pbcs,
-               ! works with pbcs.
-               thicknessSumCur = si_ismf * sshEdgeCur    &
-                               + min(bottomDepth(cell1), &
-                                     bottomDepth(cell2))
-
-               ! nabla (ssh^0)
-               sshDiffCur = (SIvec_rh0(cell2)- SIvec_rh0(cell1)) &
-                          / dcEdge(iEdge)
-                   fluxAx = thicknessSumCur * sshDiffCur
-                sshTendAx = sshTendAx + edgeSignOnCell(i, iCell) &
-                          * fluxAx * dvEdge(iEdge)
-            end do ! i
-
-            sshCurArea = (1.0_RKIND/(gravity*dt**2.0*alpha1**2.0)) &
-                       * SIvec_rh0(iCell) * areaCell(iCell)
-
-            SIvec_w0(iCell) = -sshCurArea - sshTendAx
-
-         end do ! iCell
-
-
-         ! Preconditioning --------------------------------------------!
-
-         if ( trim(config_btr_si_preconditioner) == 'ras' ) then
-            ! RAS preconditioning: Use BLAS
-            ! for the symmetric matrix-vector multiplication
-#ifdef USE_LAPACK
-            call DSPMV('U', nPrecVec, 1.0_RKIND, prec_ivmat, &
-                       SIvec_w0(1:nPrecVec) , 1, 0.0_RKIND,  &
-                       SIvec_wh0(1:nPrecVec), 1)
-#endif
-
-         elseif ( trim(config_btr_si_preconditioner) == &
-                                           'block_jacobi' ) then
-            ! Block-Jacobi preconditioning: Use BLAS 
-            ! for the symmetric matrix-vector multiplication
-#ifdef USE_LAPACK
-            call DSPMV('U', nPrecVec, 1.0_RKIND, prec_ivmat, &
-                       SIvec_w0(1:nPrecVec), 1, 0.0_RKIND,   &
-                       SIvec_wh0(1:nPrecVec),1)
-#endif
-
-         elseif ( trim(config_btr_si_preconditioner) == &
-                                                 'jacobi' ) then
-            ! Jacobi preconditioning
-            SIvec_wh0(1:nPrecVec) = SIvec_w0(1:nPrecVec) &
-                                  * prec_ivmat(1:nPrecVec)
-
-         elseif ( trim(config_btr_si_preconditioner) == &
-                                                   'none' ) then
-            ! No preconditioning
-            SIvec_wh0(1:nPrecVec) = SIvec_w0(1:nPrecVec)
-         end if
-
-         call mpas_timer_start("si halo r0")
-         call mpas_dmpar_field_halo_exch(domain, 'SIvec_wh0')
-         call mpas_timer_stop("si halo r0")
-
-
-         ! SpMV -------------------------------------------------------!
-
-         do iCell = 1, nPrecVec
-
-            sshTendAx = 0.0_RKIND
-
-            do i = 1, nEdgesOnCell(iCell)
-
-               iEdge = edgesOnCell(i, iCell)
-
-               cell1 = cellsOnEdge(1, iEdge)
-               cell2 = cellsOnEdge(2, iEdge)
-
-               ! Interpolation sshEdge
-               sshEdgeCur = 0.5_RKIND * (  sshSubcycleCur(cell1) &
-                                         + sshSubcycleCur(cell2))
-
-               ! method 1, matches method 0 without pbcs,
-               ! works with pbcs.
-               thicknessSumCur = si_ismf * sshEdgeCur    &
-                               + min(bottomDepth(cell1), &
-                                     bottomDepth(cell2))
-
-               ! nabla (ssh^0)
-               sshDiffCur = (SIvec_wh0(cell2)- SIvec_wh0(cell1)) &
-                          / dcEdge(iEdge)
-
-               fluxAx = thicknessSumCur * sshDiffCur
-
-               sshTendAx = sshTendAx + edgeSignOnCell(i, iCell) &
-                         * fluxAx * dvEdge(iEdge)
-            end do ! i
-
-            sshCurArea = R1_alpha1s_g_dts * SIvec_wh0(iCell) &
-                       * areaCell(iCell)
-
-            SIvec_t0(iCell) = -sshCurArea - sshTendAx
-
-            SIvec_ph0(iCell) = 0.0_RKIND
-            SIvec_sh0(iCell) = 0.0_RKIND
-            SIvec_z0(iCell)  = 0.0_RKIND
-            SIvec_zh0(iCell) = 0.0_RKIND
-            SIvec_v0(iCell)  = 0.0_RKIND
-            SIvec_s0(iCell)  = 0.0_RKIND
-
-         end do ! iCell
-
-
-         ! Reduction --------------------------------------------------!
-         SIcst_r00r0 = 0.0_RKIND
-         SIcst_r00w0 = 0.0_RKIND
-
-         do iCell = 1, nCellsOwned
-            SIcst_r00r0 = SIcst_r00r0 + SIvec_r00(iCell) &
-                                      * SIvec_r0(iCell)
-            SIcst_r00w0 = SIcst_r00w0 + SIvec_r00(iCell) &
-                                      * SIvec_w0(iCell)
-         end do ! iCell
-
-         SIcst_allreduce_local2(1) = SIcst_r00r0
-         SIcst_allreduce_local2(2) = SIcst_r00w0
-
-         ! Global sum across CPUs
-         call mpas_timer_start("si reduction r0")
-         call mpas_dmpar_sum_real_array(domain % dminfo, 2,      &
-                                        SIcst_allreduce_local2,  &
-                                        SIcst_allreduce_global2)
-         call mpas_timer_stop ("si reduction r0")
-
-         if ( config_btr_si_partition_match_mode .and. ncpus > 1) then
-            SIcst_allreduce_temp9(:)    = 0.0_RKIND
-            SIcst_allreduce_itemp9(:)   = 0.0_RKIND
-
-            SIcst_allreduce_itemp9(1:2) = &
-                                 exponent(SIcst_allreduce_global2(:))
-            SIcst_allreduce_temp9(1:2)  = &
-                                 fraction(SIcst_allreduce_global2(:))
-            SIcst_allreduce_temp9(1:2)  = &
-                                 anint(SIcst_allreduce_temp9(1:2) &
-                                        * 1.0e+4_RKIND  ) &
-                                        / 1.0e+4_RKIND
-
-            SIcst_allreduce_global2(:) =          &
-                       SIcst_allreduce_temp9(1:2) &
-                     * 2.0_RKIND ** (SIcst_allreduce_itemp9(1:2))
-         endif
-
-         SIcst_r00r0_global = SIcst_allreduce_global2(1)
-         SIcst_r00w0_global = SIcst_allreduce_global2(2)
-
-         SIcst_rho0   = SIcst_r00r0_global
-         SIcst_alpha0 = SIcst_rho0 / SIcst_r00w0_global
-         SIcst_beta0  = 0.0_RKIND
-         SIcst_omega0 = 0.0_RKIND
-
-         call mpas_timer_stop("si btr residual")
-
-
-         !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-         ! Stage 2.3 : Outer iterations 
-         !             - lagged values are sufficiently up to date
-         !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
-         call mpas_timer_start("si btr iteration")
-
-         iter = 0
-         resid = (tolerance_outer+100.0)**2.0
-
          !-------------------------------------------------------------!
-         do while ( dsqrt(resid) > tolerance_outer )
+         ! BEGIN Large barotropic system iteration loop
+         !-------------------------------------------------------------!
+         do siLargeIter = 1, nSiLargeIter
          !-------------------------------------------------------------!
 
-            iter = iter + 1
-
+            ! Initialize variables for barotropic subcycling
+            call mpas_timer_start('btr vel si init')
+   
+            if ( splitImplicitStep == 2 .or. siLargeIter > 1 ) then
+               ! Here sshSubcycleNew and normalBarotropicVelocityCur
+               ! are at time n+1/2.
+   
+               !$omp parallel
+               !$omp do schedule(runtime)
+               do iCell = 1,nCellsAll
+                  sshSubcycleNew(iCell) = &
+                     0.5_RKIND*( sshSubcycleNew(iCell) &
+                                +sshCur(iCell) )
+                  sshSubcycleCur(iCell) = sshSubcycleNew(iCell)
+               end do
+               !$omp end do
+   
+               !$omp do schedule(runtime)
+               do iEdge = 1,nEdgesAll
+                  normalBarotropicVelocityCur(iEdge) = &
+                     normalBarotropicVelocitySubcycleCur(iEdge)
+               end do
+               !$omp end do
+               !$omp end parallel
+            endif ! splitImplicitStep
+   
+            !$omp parallel
+            !$omp do schedule(runtime) private(CoriolisTerm, i, eoe)
+            do iEdge = 1, nEdgesAll
+               ! Compute the barotropic Coriolis term, -f*uPerp
+               CoriolisTerm = 0.d0
+               do i = 1, nEdgesOnEdge(iEdge)
+                  eoe = edgesOnEdge(i,iEdge)
+                  CoriolisTerm = CoriolisTerm + weightsOnEdge(i,iEdge) &
+                               * normalBarotropicVelocityCur(eoe)      &
+                               * fEdge(eoe)
+               end do ! i
+                  barotropicCoriolisTerm(iEdge) = CoriolisTerm
+            end do ! iEdge
+            !$omp end do
+            !$omp end parallel
+   
+            ! Subtract tidal potential from ssh, if needed
+            ! Subtract the tidal potential from the current
+            !    subcycle ssh and store and a work array.
+            ! Then point sshSubcycleCur to the work array so the
+            ! tidal potential terms are included in the grad
+            ! operator inside the edge loop.
+            if (config_use_tidal_potential_forcing) then
+   
+               call mpas_pool_get_array(forcingPool,            &
+                                     'sshSubcycleCurWithTides', &
+                                      sshSubcycleCurWithTides)
+               call mpas_pool_get_array(forcingPool,        &
+                                       'tidalPotentialEta', &
+                                        tidalPotentialEta)
+   
+               !$omp parallel
+               !$omp do schedule(runtime)
+               do iCell = 1, nCellsAll
+                 sshSubcycleCurWithTides(iCell) = sshSubcycleCur(iCell) &
+                            - tidalPotentialEta(iCell)                  &
+                            - config_self_attraction_and_loading_beta   &
+                            * sshSubcycleCur(iCell)
+               end do
+               !$omp end do
+               !$omp end parallel
+   
+               call mpas_pool_get_array(forcingPool,            &
+                                     'sshSubcycleCurWithTides', &
+                                      sshSubcycleNew)
+   
+               !$omp parallel
+               !$omp do schedule(runtime)
+               do iCell = 1,nCellsAll
+                  sshSubcycleCur(iCell) = sshSubcycleNew(iCell)
+               end do
+               !$omp end do
+               !$omp end parallel
+   
+            endif !config_use_tidal_potential_forcing
+   
+            call mpas_timer_stop('btr vel si init')
+   
+   
+            !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+            ! Stage 2.2 : Compution of the initial residual
+            !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+   
+            call mpas_timer_start("si btr residual")
+   
             do iCell = 1, nPrecVec
-               SIvec_ph1(iCell) =  SIvec_rh0(iCell) + SIcst_beta0      &
-                                * (SIvec_ph0(iCell) - SIcst_omega0     &
-                                                    * SIvec_sh0(iCell))
-
-               SIvec_s1(iCell)  =  SIvec_w0(iCell)  + SIcst_beta0      &
-                                * (SIvec_s0(iCell)  - SIcst_omega0     &
-                                                    * SIvec_z0(iCell))
-
-               SIvec_sh1(iCell) =  SIvec_wh0(iCell) + SIcst_beta0      &
-                                * (SIvec_sh0(iCell) - SIcst_omega0     &
-                                                    * SIvec_zh0(iCell))
-
-               SIvec_z1(iCell)  =  SIvec_t0(iCell)  + SIcst_beta0      &
-                                * (SIvec_z0(iCell)  - SIcst_omega0     &
-                                                    * SIvec_v0(iCell))
-
-               SIvec_q0(iCell)  =  SIvec_r0(iCell)  - SIcst_alpha0     &
-                                                    * SIvec_s1(iCell)
-
-               SIvec_qh0(iCell) =  SIvec_rh0(iCell) - SIcst_alpha0     &
-                                                    * SIvec_sh1(iCell)
-
-               SIvec_y0(iCell)  =  SIvec_w0(iCell)  - SIcst_alpha0     &
-                                                    * SIvec_z1(iCell)
+               sshTendb1 = 0.0_RKIND
+               sshTendb2 = 0.0_RKIND
+               sshTendAx = 0.0_RKIND
+   
+               do i = 1, nEdgesOnCell(iCell)
+                  iEdge = edgesOnCell(i, iCell)
+   
+                  cell1 = cellsOnEdge(1, iEdge)
+                  cell2 = cellsOnEdge(2, iEdge)
+   
+                  ! Interpolation sshEdge
+                  sshEdgeCur = 0.5_RKIND * ( sshSubcycleCur(cell1)  &
+                                           + sshSubcycleCur(cell2) )
+   
+                  ! method 1, matches method 0 without pbcs, 
+                  ! works with pbcs.
+                  thicknessSumCur = si_ismf * sshEdgeCur    &
+                                  + min(bottomDepth(cell1), &
+                                        bottomDepth(cell2))
+   
+                  ! nabla (ssh^0)
+                  sshDiffCur = (  sshSubcycleCur(cell2)   &
+                                - sshSubcycleCur(cell1) ) &
+                               /  dcEdge(iEdge)
+   
+                  fluxb1 = thicknessSumCur &
+                         * normalBarotropicVelocityCur(iEdge)
+                  fluxb2 = thicknessSumCur                    &
+                         * (alpha2*gravity*sshDiffCur         &
+                         + (-barotropicCoriolisTerm(iEdge)    &
+                            -barotropicForcing(iEdge)))
+                  fluxAx = thicknessSumCur * sshDiffCur
+   
+                  sshTendb1 = sshTendb1 + edgeSignOnCell(i, iCell) &
+                                        * fluxb1 * dvEdge(iEdge)
+                  sshTendb2 = sshTendb2 + edgeSignOnCell(i, iCell) &
+                                        * fluxb2 * dvEdge(iEdge)
+                  sshTendAx = sshTendAx + edgeSignOnCell(i, iCell) &
+                                        * fluxAx * dvEdge(iEdge)
+               end do ! i
+   
+               sshTendb1  = R1_alpha1s_g_dt  * sshTendb1
+               sshTendb2  = R1_alpha1_g      * sshTendb2
+               sshCurArea = R1_alpha1s_g_dts * sshSubcycleCur(iCell) &
+                                             * areaCell(iCell)
+   
+               SIvec_r0(iCell) = (-sshCurArea - sshTendb1 + sshTendb2) &
+                                -(-sshCurArea - sshTendAx)
+               SIvec_r00(iCell) = SIvec_r0(iCell)
+   
             end do ! iCell
-
-
-            ! Preconditioning -----------------------------------------!
-
+   
+            ! Preconditioning --------------------------------------------!
+   
             if ( trim(config_btr_si_preconditioner) == 'ras' ) then
-               ! RAS preconditioning: Use BLAS 
-               ! for the symmetric matrix-vector multiplication
+               ! RAS preconditioning: Use BLAS for the symmetric 
+               !                      matrix-vector multiplication
 #ifdef USE_LAPACK
                call DSPMV('U', nPrecVec, 1.0_RKIND, prec_ivmat, &
-                          SIvec_z1(1:nPrecVec), 1, 0.0_RKIND,   &
-                          SIvec_zh1(1:nPrecVec),1)
+                          SIvec_r0(1:nPrecVec) , 1, 0.0_RKIND,  &
+                          SIvec_rh0(1:nPrecVec), 1)
 #endif
-
+   
             elseif ( trim(config_btr_si_preconditioner) == &
                                               'block_jacobi' ) then
-               ! Block-Jacobi preconditioning: Use BLAS 
-               ! for the symmetric matrix-vector multiplication
+               ! Block-Jacobi preconditioning: Use BLAS for the symmetric 
+               !                               matrix-vector multiplication
 #ifdef USE_LAPACK
                call DSPMV('U', nPrecVec, 1.0_RKIND, prec_ivmat, &
-                          SIvec_z1(1:nPrecVec), 1, 0.0_RKIND,   &
-                          SIvec_zh1(1:nPrecVec),1)
+                          SIvec_r0(1:nPrecVec) , 1, 0.0_RKIND,  &
+                          SIvec_rh0(1:nPrecVec), 1)
 #endif
-
+   
             elseif ( trim(config_btr_si_preconditioner) == &
                                                     'jacobi' ) then
                ! Jacobi preconditioning
-               SIvec_zh1(1:nPrecVec) = SIvec_z1(1:nPrecVec) &
+               SIvec_rh0(1:nPrecVec) = SIvec_r0(1:nPrecVec) &
                                      * prec_ivmat(1:nPrecVec)
-
+   
             elseif ( trim(config_btr_si_preconditioner) == &
                                                       'none' ) then
                ! No preconditioning
-               SIvec_zh1(1:nPrecVec) = SIvec_z1(1:nPrecVec)
+               SIvec_rh0(1:nPrecVec) = SIvec_r0(1:nPrecVec)
             end if
-
-            call mpas_timer_start("si halo iter")
-            call mpas_dmpar_field_halo_exch(domain, 'SIvec_zh1')
-            call mpas_timer_stop("si halo iter")
-
-
-            ! SpMV ----------------------------------------------------!
-
+   
+            call mpas_timer_start("si halo r0")
+            call mpas_dmpar_field_halo_exch(domain, 'SIvec_rh0')
+            call mpas_timer_stop("si halo r0")
+   
+            ! SpMV -------------------------------------------------------!
+   
             do iCell = 1, nPrecVec
+   
                sshTendAx = 0.0_RKIND
-
+   
                do i = 1, nEdgesOnCell(iCell)
                   iEdge = edgesOnCell(i, iCell)
-
+   
                   cell1 = cellsOnEdge(1, iEdge)
                   cell2 = cellsOnEdge(2, iEdge)
-
+   
                   ! Interpolation sshEdge
-                  sshEdgeLag = 0.5_RKIND * (  sshSubcycleCur(cell1)   &
-                                            + sshSubcycleCur(cell2) )
-
+                  sshEdgeCur = 0.5_RKIND * (  sshSubcycleCur(cell1) &
+                                            + sshSubcycleCur(cell2))
+   
                   ! method 1, matches method 0 without pbcs,
                   ! works with pbcs.
-                  thicknessSumLag = si_ismf * sshEdgeLag    &
+                  thicknessSumCur = si_ismf * sshEdgeCur    &
                                   + min(bottomDepth(cell1), &
                                         bottomDepth(cell2))
-
+   
                   ! nabla (ssh^0)
-                  sshDiffLag = (SIvec_zh1(cell2)-SIvec_zh1(cell1)) &
+                  sshDiffCur = (SIvec_rh0(cell2)- SIvec_rh0(cell1)) &
                              / dcEdge(iEdge)
-
-                  fluxAx = thicknessSumLag * sshDiffLag
-
-                  sshTendAx = sshTendAx + edgeSignOnCell(i, iCell) &
-                            * fluxAx * dvEdge(iEdge)
+                      fluxAx = thicknessSumCur * sshDiffCur
+                   sshTendAx = sshTendAx + edgeSignOnCell(i, iCell) &
+                             * fluxAx * dvEdge(iEdge)
                end do ! i
-
-               sshLagArea = R1_alpha1s_g_dts * SIvec_zh1(iCell) &
-                          * areaCell(iCell)
-
-               SIvec_v0(iCell) = -sshLagArea - sshTendAx
-
+   
+               sshCurArea = (1.0_RKIND/(gravity*dt_si**2.0*alpha1**2.0)) &
+                          * SIvec_rh0(iCell) * areaCell(iCell)
+   
+               SIvec_w0(iCell) = -sshCurArea - sshTendAx
+   
             end do ! iCell
-
-
-            ! Reduction -----------------------------------------------!
-            SIcst_r00s0 = 0.0_RKIND
-            SIcst_r00z0 = 0.0_RKIND
-            SIcst_q0y0  = 0.0_RKIND
-            SIcst_y0y0  = 0.0_RKIND
-            SIcst_r00q0 = 0.0_RKIND
-            SIcst_r00y0 = 0.0_RKIND
-            SIcst_r00t0 = 0.0_RKIND
-            SIcst_r00v0 = 0.0_RKIND
-            SIcst_q0q0  = 0.0_RKIND
-
-            do iCell = 1,nCellsOwned
-               SIcst_r00s0 = SIcst_r00s0 + SIvec_r00(iCell) &
-                                         * SIvec_s1(iCell) ! s1
-
-               SIcst_r00z0 = SIcst_r00z0 + SIvec_r00(iCell) &
-                                         * SIvec_z1(iCell) ! z1
-
-               SIcst_q0y0  = SIcst_q0y0  + SIvec_q0(iCell)  &
-                                         * SIvec_y0(iCell)
-
-               SIcst_y0y0  = SIcst_y0y0  + SIvec_y0(iCell)  &
-                                         * SIvec_y0(iCell)
-
-               SIcst_r00q0 = SIcst_r00q0 + SIvec_r00(iCell) &
-                                         * SIvec_q0(iCell)
-
-               SIcst_r00y0 = SIcst_r00y0 + SIvec_r00(iCell) &
-                                         * SIvec_y0(iCell)
-
-               SIcst_r00t0 = SIcst_r00t0 + SIvec_r00(iCell) &
-                                         * SIvec_t0(iCell)
-
-               SIcst_r00v0 = SIcst_r00v0 + SIvec_r00(iCell) &
-                                         * SIvec_v0(iCell) ! v1
-
-               SIcst_q0q0 = SIcst_q0q0   + SIvec_q0(iCell) &
-                                         * SIvec_q0(iCell)
-            end do
-
-            SIcst_allreduce_local9(1) = SIcst_r00s0
-            SIcst_allreduce_local9(2) = SIcst_r00z0
-            SIcst_allreduce_local9(3) = SIcst_q0y0 
-            SIcst_allreduce_local9(4) = SIcst_y0y0 
-            SIcst_allreduce_local9(5) = SIcst_r00q0
-            SIcst_allreduce_local9(6) = SIcst_r00y0
-            SIcst_allreduce_local9(7) = SIcst_r00t0
-            SIcst_allreduce_local9(8) = SIcst_r00v0
-            SIcst_allreduce_local9(9) = SIcst_q0q0
-
-            ! Global sum across CPUs
-            call mpas_timer_start("si reduction iter")
-            call mpas_dmpar_sum_real_array(domain % dminfo, 9,      &
-                                           SIcst_allreduce_local9,  &
-                                           SIcst_allreduce_global9)
-            call mpas_timer_stop("si reduction iter")
-
-            if ( config_btr_si_partition_match_mode .and. ncpus>1) then
-               SIcst_allreduce_temp9(:)    = 0.0_RKIND
-               SIcst_allreduce_itemp9(:)   = 0.0_RKIND
-
-               SIcst_allreduce_itemp9(:) = &
-                                  exponent(SIcst_allreduce_global9(:))
-               SIcst_allreduce_temp9(:)  = &
-                                  fraction(SIcst_allreduce_global9(:))
-               SIcst_allreduce_temp9(:)  = &
-                                  anint( SIcst_allreduce_temp9(:)  &
-                                        * 1.0e+4_RKIND  ) &
-                                        / 1.0e+4_RKIND
-
-               SIcst_allreduce_global9(:)  =                        &
-                           SIcst_allreduce_temp9(:)                 &
-                         * 2.0_RKIND ** (SIcst_allreduce_itemp9(:))
-            endif
-
-            SIcst_r00s0_global = SIcst_allreduce_global9(1) 
-            SIcst_r00z0_global = SIcst_allreduce_global9(2)
-            SIcst_q0y0_global  = SIcst_allreduce_global9(3)
-            SIcst_y0y0_global  = SIcst_allreduce_global9(4)
-            SIcst_r00q0_global = SIcst_allreduce_global9(5)
-            SIcst_r00y0_global = SIcst_allreduce_global9(6)
-            SIcst_r00t0_global = SIcst_allreduce_global9(7)
-            SIcst_r00v0_global = SIcst_allreduce_global9(8)
-            SIcst_q0q0_global  = SIcst_allreduce_global9(9)
-
-            ! Omega0
-            SIcst_omega0 = SIcst_q0y0_global / SIcst_y0y0_global
-
-            ! Residual
-            ! = (r1,r1) = (q0,q0) - 2*Omega*(q0,y0) + Omega**2*(y0,y0)
-            resid = SIcst_q0q0_global &
-                  - 2.0_RKIND * SIcst_omega0 * SIcst_q0y0_global  &
-                  + SIcst_omega0**2.0_RKIND  * SIcst_y0y0_global
-
-            do iCell = 1,nPrecVec
-               sshSubcycleNew(iCell) = sshSubcycleNew(iCell)           &
-                                     + SIcst_alpha0 * SIvec_ph1(iCell) &
-                                     + SIcst_omega0 * SIvec_qh0(iCell)
-
-               SIvec_r1(iCell)  = SIvec_q0(iCell) - SIcst_omega0       &
-                                * SIvec_y0(iCell)
-
-               SIvec_rh1(iCell) =  SIvec_qh0(iCell) - SIcst_omega0     &
-                                * (SIvec_wh0(iCell) - SIcst_alpha0     &
-                                                    * SIvec_zh1(iCell))
-
-               SIvec_w1(iCell)  =   SIvec_y0(iCell) - SIcst_omega0     &
-                                * ( SIvec_t0(iCell) - SIcst_alpha0     &
-                                                    * SIvec_v0(iCell))
-            end do
-
-
-            ! Preconditioning -----------------------------------------!
-
-            if ( trim(config_btr_si_preconditioner) == 'ras' ) then
-               ! RAS preconditioning: Use BLAS 
-               ! for the symmetric matrix-vector multiplication
-#ifdef USE_LAPACK
-               call DSPMV('U', nPrecVec, 1.0_RKIND, prec_ivmat, &
-                          SIvec_w1(1:nPrecVec), 1, 0.0_RKIND,   &
-                          SIvec_wh1(1:nPrecVec),1)
-#endif
-
-            elseif ( trim(config_btr_si_preconditioner) == &
-                                              'block_jacobi' ) then
-               ! Block-Jacobi preconditioning: Use BLAS 
-               ! for the symmetric matrix-vector multiplication
-#ifdef USE_LAPACK
-               call DSPMV('U', nPrecVec, 1.0_RKIND, prec_ivmat, &
-                          SIvec_w1(1:nPrecVec), 1, 0.0_RKIND,   &
-                          SIvec_wh1(1:nPrecVec),1)
-#endif
-
-            elseif ( trim(config_btr_si_preconditioner) == &
-                                                    'jacobi' ) then
-               ! Jacobi preconditioning
-               SIvec_wh1(1:nPrecVec) = SIvec_w1(1:nPrecVec)  &
-                                     * prec_ivmat(1:nPrecVec)
-
-            elseif ( trim(config_btr_si_preconditioner) == &
-                                                      'none' ) then
-               ! No preconditioning
-               SIvec_wh1(1:nPrecVec) = SIvec_w1(1:nPrecVec)
-            end if
-
-            call mpas_timer_start("si halo iter")
-            call mpas_dmpar_field_halo_exch(domain, 'SIvec_wh1')
-            call mpas_timer_stop("si halo iter")
-
-
-            ! SpMV ----------------------------------------------------!
-
-            do iCell = 1, nPrecVec
-               sshTendAx = 0.0_RKIND
-
-               do i = 1, nEdgesOnCell(iCell)
-                  iEdge = edgesOnCell(i, iCell)
-
-                  cell1 = cellsOnEdge(1, iEdge)
-                  cell2 = cellsOnEdge(2, iEdge)
-
-                  ! Interpolation sshEdge
-                  sshEdgeLag = 0.5_RKIND * (  sshSubcycleCur(cell1)   &
-                                            + sshSubcycleCur(cell2) )
-
-                  ! method 1, matches method 0 without pbcs,
-                  ! works with pbcs.
-                  thicknessSumLag = si_ismf * sshEdgeLag    &
-                                  + min(bottomDepth(cell1), &
-                                        bottomDepth(cell2))
-
-                  ! nabla (ssh^0)
-                  sshDiffLag = (SIvec_wh1(cell2)-SIvec_wh1(cell1)) &
-                             / dcEdge(iEdge)
-
-                  fluxAx = thicknessSumLag * sshDiffLag
-
-                  sshTendAx = sshTendAx + edgeSignOnCell(i, iCell) &
-                            * fluxAx * dvEdge(iEdge)
-               end do ! i
-
-               sshLagArea = R1_alpha1s_g_dts * SIvec_wh1(iCell) &
-                          * areaCell(iCell)
-
-               SIvec_t1(iCell) = -sshLagArea - sshTendAx
-            end do ! iCell
-
-            ! End reduction -------------------------------------------!
-
-            SIcst_rho1 = SIcst_r00q0_global - SIcst_omega0 * SIcst_r00y0_global 
-
-            SIcst_gamma1 = SIcst_r00y0_global - SIcst_omega0 * SIcst_r00t0_global  &
-                                       + SIcst_omega0 * SIcst_alpha0 &
-                                                      * SIcst_r00v0_global
- 
-            SIcst_beta0 = (SIcst_alpha0/SIcst_omega0) &
-                        * (SIcst_rho1 / SIcst_rho0)
-
-            SIcst_alpha0 = SIcst_rho1 &
-                         / ( SIcst_gamma1 + SIcst_beta0 * SIcst_r00s0_global   &
-                                          - SIcst_beta0 * SIcst_omega0  &
-                                                        * SIcst_r00z0_global )
-
-            do iCell = 1,nPrecVec
-               SIvec_r0(iCell) = SIvec_r1(iCell)
-               SIvec_s0(iCell) = SIvec_s1(iCell)
-               SIvec_z0(iCell) = SIvec_z1(iCell)
-               SIvec_w0(iCell) = SIvec_w1(iCell)
-               SIvec_t0(iCell) = SIvec_t1(iCell)
-
-               SIvec_rh0(iCell) = SIvec_rh1(iCell)
-               SIvec_sh0(iCell) = SIvec_sh1(iCell)
-               SIvec_ph0(iCell) = SIvec_ph1(iCell)
-               SIvec_wh0(iCell) = SIvec_wh1(iCell)
-               SIvec_zh0(iCell) = SIvec_zh1(iCell)
-            end do ! iCell
-
-            SIcst_rho0         = SIcst_rho1
-
-         !-------------------------------------------------------------!
-         end do ! do iter
-         !-------------------------------------------------------------!
- 
-
-         !   boundary update on sshNew
-         call mpas_timer_start("si halo iter")
-         call mpas_dmpar_field_halo_exch(domain, 'sshSubcycle', &
-                                         timeLevel=2)
-         call mpas_timer_stop("si halo iter")
-
-         call mpas_timer_stop("si btr iteration")
-
-
-         !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-         ! Stage 2.4 : The barotropic velocity update
-         !             using the lagged SSH
-         !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
-         call mpas_timer_start("si btr vel update")
-         do iCell = 1,nCellsAll
-            ! Use of sshNew to save the lagged SSH
-            sshNew(iCell) = sshSubcycleNew(iCell)
-         end do
-
-         do iEdge = 1,nEdgesHalo( edgeHaloComputeCounter-1 )
-            temp_mask = edgeMask(1, iEdge)
-
-            cell1 = cellsOnEdge(1,iEdge)
-            cell2 = cellsOnEdge(2,iEdge)
-                   
-            ! Use of normBtrVelNew as a temp array for sshEdge
-            normalBarotropicVelocityNew(iEdge) =       &
-                       ( 0.5*sshNew(cell2)          &
-                        +0.5*sshSubcycleCur(cell2)) &
-                      -( 0.5*sshNew(cell1)          &
-                        +0.5*sshSubcycleCur(cell1)) 
- 
-            normalBarotropicVelocitySubcycleNew(iEdge)              &
-               = temp_mask                                          &
-               * (normalBarotropicVelocityCur(iEdge)                &
-               - dt * (-barotropicCoriolisTerm(iEdge) + gravity     &
-                       *normalBarotropicVelocityNew(iEdge)          &
-                       /dcEdge(iEdge) - barotropicForcing(iEdge)))
-         end do ! iEdge
-
-         !$omp parallel
-         !$omp do schedule(runtime) private(CoriolisTerm, i, eoe)
-         do iEdge = 1,nEdgesHalo(2)
-            ! Compute the barotropic Coriolis term, -f*uPerp
-            CoriolisTerm = 0.0_RKIND
-            do i = 1, nEdgesOnEdge(iEdge)
-               eoe = edgesOnEdge(i,iEdge)
-               CoriolisTerm = CoriolisTerm + weightsOnEdge(i,iEdge)       &
-                            * 0.5_RKIND                                   &
-                            * ( normalBarotropicVelocitySubcycleNew(eoe)  &
-                               +normalBarotropicVelocityCur(eoe)        ) &
-                            * fEdge(eoe)
-            end do
-            barotropicCoriolisTerm(iEdge) = CoriolisTerm
-         end do
-         !$omp end do
-         !$omp end parallel
-
-         do iEdge = 1,nEdgesHalo(2)
-            temp_mask = edgeMask(1, iEdge)
-
-            cell1 = cellsOnEdge(1,iEdge)
-            cell2 = cellsOnEdge(2,iEdge)
-            normalBarotropicVelocitySubcycleNew(iEdge)            &
-               = temp_mask                                        &
-               * (normalBarotropicVelocityCur(iEdge)              &
-               - dt * (-barotropicCoriolisTerm(iEdge) + gravity   &
-                       *normalBarotropicVelocityNew(iEdge)        &
-                       /dcEdge(iEdge) - barotropicForcing(iEdge)))
-         end do ! iEdge
-
-         !$omp parallel
-         !$omp do schedule(runtime) private(CoriolisTerm, i, eoe)
-         do iEdge = 1,nEdgesOwned
-            ! Compute the barotropic Coriolis term, -f*uPerp
-            CoriolisTerm = 0.0_RKIND
-            do i = 1, nEdgesOnEdge(iEdge)
-               eoe = edgesOnEdge(i,iEdge)
-               CoriolisTerm = CoriolisTerm + weightsOnEdge(i,iEdge)      &
-                            * 0.5_RKIND                                  &
-                            * ( normalBarotropicVelocitySubcycleNew(eoe) &
-                               +normalBarotropicVelocityCur(eoe) )       &
-                            * fEdge(eoe)
-            end do
-            barotropicCoriolisTerm(iEdge) = CoriolisTerm
-         end do
-         !$omp end do
-         !$omp end parallel
-
-         call mpas_timer_start("si halo btr coriolis")
-         call mpas_dmpar_field_halo_exch(domain, 'barotropicCoriolisTerm')
-         call mpas_timer_stop("si halo btr coriolis")
-
-         call mpas_timer_stop ("si btr vel update")
-
-
-         !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-         ! Stage 2.5 : Recompution of the initial residual
-         !             with lagged values
-         !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
-         call mpas_timer_start("si btr residual")
-
-         ! SpMV -------------------------------------------------------!
-
-         do iCell = 1, nPrecVec
-            sshTendb1 = 0.0_RKIND
-            sshTendb2 = 0.0_RKIND
-            sshTendAx = 0.0_RKIND
-
-            do i = 1, nEdgesOnCell(iCell)
-               iEdge = edgesOnCell(i, iCell)
-
-               cell1 = cellsOnEdge(1, iEdge)
-               cell2 = cellsOnEdge(2, iEdge)
-
-               ! Interpolation sshEdge
-               sshEdgeCur = 0.5_RKIND * (  sshSubcycleCur(cell1)   &
-                                         + sshSubcycleCur(cell2) )
-               sshEdgeLag = 0.5_RKIND * (sshNew(cell1) + sshNew(cell2))
-               sshEdgeMid = alpha1 * sshEdgeLag + alpha2 * sshEdgeCur
-
-               ! method 1, matches method 0 without pbcs,
-               ! works with pbcs.
-               thicknessSumCur = si_ismf * sshEdgeCur    &
-                               + min(bottomDepth(cell1), &
-                                     bottomDepth(cell2))
-               thicknessSumLag = si_ismf * sshEdgeLag    &
-                               + min(bottomDepth(cell1), &
-                                     bottomDepth(cell2))
-               thicknessSumMid = si_ismf * sshEdgeMid    &
-                               + min(bottomDepth(cell1), &
-                                     bottomDepth(cell2))
-
-               ! nabla (ssh^0)
-               sshDiffCur = ( sshSubcycleCur(cell2)   &
-                             -sshSubcycleCur(cell1) ) &
-                            / dcEdge(iEdge)
-               sshDiffLag = (sshNew(cell2)-sshNew(cell1)) &
-                            / dcEdge(iEdge)
-
-               fluxb1 = thicknessSumMid &
-                      * normalBarotropicVelocityCur(iEdge)
-               fluxb2 = thicknessSumLag &
-                      * ( alpha2*gravity*sshDiffCur &
-                         + (-barotropicCoriolisTerm(iEdge) &
-                            -barotropicForcing(iEdge)) )
-               fluxAx = thicknessSumLag * sshDiffLag
-
-               sshTendb1 = sshTendb1 + edgeSignOnCell(i, iCell) &
-                                     * fluxb1 * dvEdge(iEdge)
-               sshTendb2 = sshTendb2 + edgeSignOnCell(i, iCell) &
-                                     * fluxb2 * dvEdge(iEdge)
-               sshTendAx = sshTendAx + edgeSignOnCell(i, iCell) &
-                                     * fluxAx * dvEdge(iEdge)
-            end do ! i
-
-            sshTendb1  = R1_alpha1s_g_dt  * sshTendb1
-            sshTendb2  = R1_alpha1_g      * sshTendb2
-            sshCurArea = R1_alpha1s_g_dts * sshSubcycleCur(iCell) &
-                                          * areaCell(iCell)
-            sshLagArea = R1_alpha1s_g_dts * sshNew(iCell) &
-                                          * areaCell(iCell)
-
-            SIvec_r0(iCell) = (-sshCurArea - sshTendb1 + sshTendb2) &
-                             -(-sshLagArea - sshTendAx)
-            SIvec_r00(iCell) = SIvec_r0(iCell)
-         end do ! iCell
-
-
-         ! Preconditioning --------------------------------------------!
-
-         if ( trim(config_btr_si_preconditioner) == 'ras' ) then
-            ! RAS preconditioning: Use BLAS
-            ! for the symmetric matrix-vector multiplication
-#ifdef USE_LAPACK
-            call DSPMV('U', nPrecVec, 1.0_RKIND, prec_ivmat, &
-                       SIvec_r0(1:nPrecVec), 1, 0.0_RKIND,   &
-                       SIvec_rh0(1:nPrecVec),1)
-#endif
-
-         elseif ( trim(config_btr_si_preconditioner) == &
-                                           'block_jacobi' ) then
-            ! Block-Jacobi preconditioning: Use BLAS 
-            ! for the symmetric matrix-vector multiplication
-#ifdef USE_LAPACK
-            call DSPMV('U', nPrecVec, 1.0_RKIND, prec_ivmat, &
-                       SIvec_r0(1:nPrecVec), 1, 0.0_RKIND,   &
-                       SIvec_rh0(1:nPrecVec),1)
-#endif
-
-         elseif ( trim(config_btr_si_preconditioner) == &
-                                                 'jacobi' ) then
-            ! Jacobi preconditioning
-            SIvec_rh0(1:nPrecVec) = SIvec_r0(1:nPrecVec) &
-                                  * prec_ivmat(1:nPrecVec)
-
-         elseif ( trim(config_btr_si_preconditioner) == &
-                                                   'none' ) then
-            ! No preconditioning
-            SIvec_rh0(1:nPrecVec) = SIvec_r0(1:nPrecVec)
-         end if
-
-         call mpas_timer_start("si halo r0")
-         call mpas_dmpar_field_halo_exch(domain, 'SIvec_rh0')
-         call mpas_timer_stop("si halo r0")
-
-
-         ! SpMV -------------------------------------------------------!
-
-         do iCell = 1, nPrecVec
-
-            sshTendAx = 0.0_RKIND
-
-            do i = 1, nEdgesOnCell(iCell)
-               iEdge = edgesOnCell(i, iCell)
-
-               cell1 = cellsOnEdge(1, iEdge)
-               cell2 = cellsOnEdge(2, iEdge)
-
-               ! Interpolation sshEdge
-               sshEdgeLag = 0.5_RKIND * (sshNew(cell1) + sshNew(cell2))
-
-               ! method 1, matches method 0 without pbcs,
-               ! works with pbcs.
-               thicknessSumLag = si_ismf * sshEdgeLag    &
-                               + min(bottomDepth(cell1), &
-                                     bottomDepth(cell2))
-
-               ! nabla (ssh^0)
-               sshDiffLag = (SIvec_rh0(cell2)- SIvec_rh0(cell1)) &
-                          / dcEdge(iEdge)
-
-               fluxAx = thicknessSumLag * sshDiffLag
-
-               sshTendAx = sshTendAx + edgeSignOnCell(i, iCell) &
-                         * fluxAx * dvEdge(iEdge)
-            end do ! i
-
-            sshCurArea = R1_alpha1s_g_dts * SIvec_rh0(iCell) &
-                                          * areaCell(iCell)
-
-            SIvec_w0(iCell) = -sshCurArea - sshTendAx
-
-         end do ! iCell
-
-
-         ! Preconditioning --------------------------------------------!
-
-         if ( trim(config_btr_si_preconditioner) == 'ras' ) then
-            ! RAS preconditioning: Use BLAS
-            ! the for symmetric matrix-vector multiplication
-#ifdef USE_LAPACK
-            call DSPMV('U', nPrecVec, 1.0_RKIND, prec_ivmat, &
-                       SIvec_w0(1:nPrecVec), 1, 0.0_RKIND,   &
-                       SIvec_wh0(1:nPrecVec),1)
-#endif
-
-         elseif ( trim(config_btr_si_preconditioner) == &
-                                           'block_jacobi' ) then
-            ! Block-Jacobi preconditioning: Use BLAS
-            ! for the symmetric matrix-vector multiplication
-#ifdef USE_LAPACK
-            call DSPMV('U', nPrecVec, 1.0_RKIND, prec_ivmat, &
-                       SIvec_w0(1:nPrecVec), 1, 0.0_RKIND,   &
-                       SIvec_wh0(1:nPrecVec),1)
-#endif
-
-         elseif ( trim(config_btr_si_preconditioner) == &
-                                                 'jacobi' ) then
-            ! Jacobi preconditioning
-            SIvec_wh0(1:nPrecVec) = SIvec_w0(1:nPrecVec) &
-                                  * prec_ivmat(1:nPrecVec)
-
-         elseif ( trim(config_btr_si_preconditioner) == &
-                                                   'none' ) then
-            ! No preconditioning
-            SIvec_wh0(1:nPrecVec) = SIvec_w0(1:nPrecVec)
-         end if
-
-         call mpas_timer_start("si halo r0")
-         call mpas_dmpar_field_halo_exch(domain, 'SIvec_wh0')
-         call mpas_timer_stop("si halo r0")
-
-
-         ! SpMV -------------------------------------------------------!
-         do iCell = 1, nPrecVec
-
-            sshTendAx = 0.0_RKIND
-
-            do i = 1, nEdgesOnCell(iCell)
-               iEdge = edgesOnCell(i, iCell)
-
-               cell1 = cellsOnEdge(1, iEdge)
-               cell2 = cellsOnEdge(2, iEdge)
-
-               ! Interpolation sshEdge
-               sshEdgeLag = 0.5_RKIND * (  sshNew(cell1)   &
-                                         + sshNew(cell2) )
-
-               ! method 1, matches method 0 without pbcs,
-               ! works with pbcs.
-               thicknessSumLag = si_ismf * sshEdgeLag    &
-                               + min(bottomDepth(cell1), &
-                                     bottomDepth(cell2))
-
-               ! nabla (ssh^0)
-               sshDiffCur = (SIvec_wh0(cell2) - SIvec_wh0(cell1)) &
-                          / dcEdge(iEdge)
-
-               fluxAx = thicknessSumLag * sshDiffCur
-
-               sshTendAx = sshTendAx + edgeSignOnCell(i, iCell) &
-                         * fluxAx * dvEdge(iEdge)
-            end do ! i
-
-            sshCurArea = R1_alpha1s_g_dts * SIvec_wh0(iCell) &
-                       * areaCell(iCell)
-
-            SIvec_t0(iCell) = -sshCurArea - sshTendAx
-
-            SIvec_ph0(iCell) = 0.0_RKIND
-            SIvec_sh0(iCell) = 0.0_RKIND
-            SIvec_z0(iCell)  = 0.0_RKIND
-            SIvec_zh0(iCell) = 0.0_RKIND
-            SIvec_v0(iCell)  = 0.0_RKIND
-            SIvec_s0(iCell)  = 0.0_RKIND
-
-         end do ! iCell
-
-
-         ! Reduction -----------------------------------------------!
-         SIcst_r00r0 = 0.0_RKIND
-         SIcst_r00w0 = 0.0_RKIND
-
-         do iCell = 1, nCellsOwned
-            SIcst_r00r0 = SIcst_r00r0 + SIvec_r00(iCell) &
-                                      * SIvec_r0(iCell)
-            SIcst_r00w0 = SIcst_r00w0 + SIvec_r00(iCell) &
-                                      * SIvec_w0(iCell)
-         end do ! iCell
-
-         SIcst_allreduce_local2(1) = SIcst_r00r0
-         SIcst_allreduce_local2(2) = SIcst_r00w0
-
-
-         ! Global sum across CPUs
-         call mpas_timer_start("si reduction r0")
-         call mpas_dmpar_sum_real_array(domain % dminfo, 2,      &
-                                        SIcst_allreduce_local2,  &
-                                        SIcst_allreduce_global2)
-         call mpas_timer_stop ("si reduction r0")
-
-
-         if ( config_btr_si_partition_match_mode .and. ncpus > 1) then
-            SIcst_allreduce_temp9(:)    = 0.0_RKIND
-            SIcst_allreduce_itemp9(:)   = 0.0_RKIND
-
-            SIcst_allreduce_itemp9(1:2) = &
-                                 exponent(SIcst_allreduce_global2(:))
-            SIcst_allreduce_temp9(1:2)  = &
-                                 fraction(SIcst_allreduce_global2(:))
-            SIcst_allreduce_temp9(1:2)  = &
-                                 anint(SIcst_allreduce_temp9(1:2) &
-                                        * 1.0e+4_RKIND  ) &
-                                        / 1.0e+4_RKIND
-
-            SIcst_allreduce_global2(:) =          &
-                       SIcst_allreduce_temp9(1:2) &
-                     * 2.0_RKIND ** (SIcst_allreduce_itemp9(1:2))
-         endif
-
-
-         SIcst_r00r0_global = SIcst_allreduce_global2(1)
-         SIcst_r00w0_global = SIcst_allreduce_global2(2)
-
-         SIcst_rho0   = SIcst_r00r0_global
-         SIcst_alpha0 = SIcst_rho0 / SIcst_r00w0_global
-         SIcst_beta0  = 0.0_RKIND
-         SIcst_omega0 = 0.0_RKIND
-
-         call mpas_timer_stop("si btr residual")
-
-
-         !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-         ! Stage 2.6 : Main (inner) solver iterations
-         !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
-         call mpas_timer_start("si btr iteration")
-
-         iter = 0
-         resid = SIcst_r00r0_global
-
-         !-------------------------------------------------------------!
-         do while ( dsqrt(resid) > tolerance_inner )
-         !-------------------------------------------------------------!
-
-            iter = iter + 1
-
-            do iCell = 1, nPrecVec
-               SIvec_ph1(iCell) =  SIvec_rh0(iCell) + SIcst_beta0      &
-                                * (SIvec_ph0(iCell) - SIcst_omega0     &
-                                                    * SIvec_sh0(iCell))
-
-               SIvec_s1(iCell)  =  SIvec_w0(iCell)  + SIcst_beta0      &
-                                * (SIvec_s0(iCell)  - SIcst_omega0     &
-                                                    * SIvec_z0(iCell))
-
-               SIvec_sh1(iCell) =  SIvec_wh0(iCell) + SIcst_beta0      &
-                                * (SIvec_sh0(iCell) - SIcst_omega0     &
-                                                    * SIvec_zh0(iCell))
-
-               SIvec_z1(iCell)  =  SIvec_t0(iCell)  + SIcst_beta0      &
-                                * (SIvec_z0(iCell)  - SIcst_omega0     &
-                                                    * SIvec_v0(iCell))
-
-               SIvec_q0(iCell)  =  SIvec_r0(iCell)  - SIcst_alpha0     &
-                                                    * SIvec_s1(iCell)
-
-               SIvec_qh0(iCell) =  SIvec_rh0(iCell) - SIcst_alpha0     &
-                                                    * SIvec_sh1(iCell)
-
-               SIvec_y0(iCell)  =  SIvec_w0(iCell)  - SIcst_alpha0     &
-                                                    * SIvec_z1(iCell)
-            end do ! iCell
-
-
-            ! Preconditioning -----------------------------------------!
+   
+   
+            ! Preconditioning --------------------------------------------!
+   
             if ( trim(config_btr_si_preconditioner) == 'ras' ) then
                ! RAS preconditioning: Use BLAS
                ! for the symmetric matrix-vector multiplication
 #ifdef USE_LAPACK
                call DSPMV('U', nPrecVec, 1.0_RKIND, prec_ivmat, &
-                          SIvec_z1(1:nPrecVec), 1, 0.0_RKIND,   &
-                          SIvec_zh1(1:nPrecVec),1)
+                          SIvec_w0(1:nPrecVec) , 1, 0.0_RKIND,  &
+                          SIvec_wh0(1:nPrecVec), 1)
 #endif
-
+   
             elseif ( trim(config_btr_si_preconditioner) == &
                                               'block_jacobi' ) then
                ! Block-Jacobi preconditioning: Use BLAS 
                ! for the symmetric matrix-vector multiplication
 #ifdef USE_LAPACK
                call DSPMV('U', nPrecVec, 1.0_RKIND, prec_ivmat, &
-                          SIvec_z1(1:nPrecVec), 1, 0.0_RKIND,   &
-                          SIvec_zh1(1:nPrecVec),1)
+                          SIvec_w0(1:nPrecVec), 1, 0.0_RKIND,   &
+                          SIvec_wh0(1:nPrecVec),1)
 #endif
-
+   
             elseif ( trim(config_btr_si_preconditioner) == &
                                                     'jacobi' ) then
                ! Jacobi preconditioning
-               SIvec_zh1(1:nPrecVec) = SIvec_z1(1:nPrecVec) &
+               SIvec_wh0(1:nPrecVec) = SIvec_w0(1:nPrecVec) &
                                      * prec_ivmat(1:nPrecVec)
-
+   
             elseif ( trim(config_btr_si_preconditioner) == &
                                                       'none' ) then
                ! No preconditioning
-               SIvec_zh1(1:nPrecVec) = SIvec_z1(1:nPrecVec)
+               SIvec_wh0(1:nPrecVec) = SIvec_w0(1:nPrecVec)
             end if
-
-            call mpas_timer_start("si halo iter")
-            call mpas_dmpar_field_halo_exch(domain, 'SIvec_zh1')
-            call mpas_timer_stop("si halo iter")
-
-
-            ! SpMV ----------------------------------------------------!
-
+   
+            call mpas_timer_start("si halo r0")
+            call mpas_dmpar_field_halo_exch(domain, 'SIvec_wh0')
+            call mpas_timer_stop("si halo r0")
+   
+   
+            ! SpMV -------------------------------------------------------!
+   
             do iCell = 1, nPrecVec
+   
                sshTendAx = 0.0_RKIND
-
+   
                do i = 1, nEdgesOnCell(iCell)
+   
                   iEdge = edgesOnCell(i, iCell)
-
+   
                   cell1 = cellsOnEdge(1, iEdge)
                   cell2 = cellsOnEdge(2, iEdge)
-
+   
                   ! Interpolation sshEdge
-                  sshEdgeLag = 0.5_RKIND * (  sshNew(cell1)   &
-                                            + sshNew(cell2) )
-
+                  sshEdgeCur = 0.5_RKIND * (  sshSubcycleCur(cell1) &
+                                            + sshSubcycleCur(cell2))
+   
+                  ! method 1, matches method 0 without pbcs,
+                  ! works with pbcs.
+                  thicknessSumCur = si_ismf * sshEdgeCur    &
+                                  + min(bottomDepth(cell1), &
+                                        bottomDepth(cell2))
+   
+                  ! nabla (ssh^0)
+                  sshDiffCur = (SIvec_wh0(cell2)- SIvec_wh0(cell1)) &
+                             / dcEdge(iEdge)
+   
+                  fluxAx = thicknessSumCur * sshDiffCur
+   
+                  sshTendAx = sshTendAx + edgeSignOnCell(i, iCell) &
+                            * fluxAx * dvEdge(iEdge)
+               end do ! i
+   
+               sshCurArea = R1_alpha1s_g_dts * SIvec_wh0(iCell) &
+                          * areaCell(iCell)
+   
+               SIvec_t0(iCell) = -sshCurArea - sshTendAx
+   
+               SIvec_ph0(iCell) = 0.0_RKIND
+               SIvec_sh0(iCell) = 0.0_RKIND
+               SIvec_z0(iCell)  = 0.0_RKIND
+               SIvec_zh0(iCell) = 0.0_RKIND
+               SIvec_v0(iCell)  = 0.0_RKIND
+               SIvec_s0(iCell)  = 0.0_RKIND
+   
+            end do ! iCell
+   
+   
+            ! Reduction --------------------------------------------------!
+            SIcst_r00r0 = 0.0_RKIND
+            SIcst_r00w0 = 0.0_RKIND
+   
+            do iCell = 1, nCellsOwned
+               SIcst_r00r0 = SIcst_r00r0 + SIvec_r00(iCell) &
+                                         * SIvec_r0(iCell)
+               SIcst_r00w0 = SIcst_r00w0 + SIvec_r00(iCell) &
+                                         * SIvec_w0(iCell)
+            end do ! iCell
+   
+            SIcst_allreduce_local2(1) = SIcst_r00r0
+            SIcst_allreduce_local2(2) = SIcst_r00w0
+   
+            ! Global sum across CPUs
+            call mpas_timer_start("si reduction r0")
+            call mpas_dmpar_sum_real_array(domain % dminfo, 2,      &
+                                           SIcst_allreduce_local2,  &
+                                           SIcst_allreduce_global2)
+            call mpas_timer_stop ("si reduction r0")
+   
+            if ( config_btr_si_partition_match_mode .and. ncpus > 1) then
+               SIcst_allreduce_temp9(:)    = 0.0_RKIND
+               SIcst_allreduce_itemp9(:)   = 0.0_RKIND
+   
+               SIcst_allreduce_itemp9(1:2) = &
+                                    exponent(SIcst_allreduce_global2(:))
+               SIcst_allreduce_temp9(1:2)  = &
+                                    fraction(SIcst_allreduce_global2(:))
+               SIcst_allreduce_temp9(1:2)  = &
+                                    anint(SIcst_allreduce_temp9(1:2) &
+                                           * 1.0e+4_RKIND  ) &
+                                           / 1.0e+4_RKIND
+   
+               SIcst_allreduce_global2(:) =          &
+                          SIcst_allreduce_temp9(1:2) &
+                        * 2.0_RKIND ** (SIcst_allreduce_itemp9(1:2))
+            endif
+   
+            SIcst_r00r0_global = SIcst_allreduce_global2(1)
+            SIcst_r00w0_global = SIcst_allreduce_global2(2)
+   
+            SIcst_rho0   = SIcst_r00r0_global
+            SIcst_alpha0 = SIcst_rho0 / SIcst_r00w0_global
+            SIcst_beta0  = 0.0_RKIND
+            SIcst_omega0 = 0.0_RKIND
+   
+            call mpas_timer_stop("si btr residual")
+   
+   
+            !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+            ! Stage 2.3 : Outer iterations 
+            !             - lagged values are sufficiently up to date
+            !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+   
+            call mpas_timer_start("si btr iteration")
+   
+            iter = 0
+            resid = (tolerance_outer+100.0)**2.0
+   
+            !-------------------------------------------------------------!
+            do while ( dsqrt(resid) > tolerance_outer )
+            !-------------------------------------------------------------!
+   
+               iter = iter + 1
+   
+               do iCell = 1, nPrecVec
+                  SIvec_ph1(iCell) =  SIvec_rh0(iCell) + SIcst_beta0      &
+                                   * (SIvec_ph0(iCell) - SIcst_omega0     &
+                                                       * SIvec_sh0(iCell))
+   
+                  SIvec_s1(iCell)  =  SIvec_w0(iCell)  + SIcst_beta0      &
+                                   * (SIvec_s0(iCell)  - SIcst_omega0     &
+                                                       * SIvec_z0(iCell))
+   
+                  SIvec_sh1(iCell) =  SIvec_wh0(iCell) + SIcst_beta0      &
+                                   * (SIvec_sh0(iCell) - SIcst_omega0     &
+                                                       * SIvec_zh0(iCell))
+   
+                  SIvec_z1(iCell)  =  SIvec_t0(iCell)  + SIcst_beta0      &
+                                   * (SIvec_z0(iCell)  - SIcst_omega0     &
+                                                       * SIvec_v0(iCell))
+   
+                  SIvec_q0(iCell)  =  SIvec_r0(iCell)  - SIcst_alpha0     &
+                                                       * SIvec_s1(iCell)
+   
+                  SIvec_qh0(iCell) =  SIvec_rh0(iCell) - SIcst_alpha0     &
+                                                       * SIvec_sh1(iCell)
+   
+                  SIvec_y0(iCell)  =  SIvec_w0(iCell)  - SIcst_alpha0     &
+                                                       * SIvec_z1(iCell)
+               end do ! iCell
+   
+   
+               ! Preconditioning -----------------------------------------!
+   
+               if ( trim(config_btr_si_preconditioner) == 'ras' ) then
+                  ! RAS preconditioning: Use BLAS 
+                  ! for the symmetric matrix-vector multiplication
+#ifdef USE_LAPACK
+                  call DSPMV('U', nPrecVec, 1.0_RKIND, prec_ivmat, &
+                             SIvec_z1(1:nPrecVec), 1, 0.0_RKIND,   &
+                             SIvec_zh1(1:nPrecVec),1)
+#endif
+   
+               elseif ( trim(config_btr_si_preconditioner) == &
+                                                 'block_jacobi' ) then
+                  ! Block-Jacobi preconditioning: Use BLAS 
+                  ! for the symmetric matrix-vector multiplication
+#ifdef USE_LAPACK
+                  call DSPMV('U', nPrecVec, 1.0_RKIND, prec_ivmat, &
+                             SIvec_z1(1:nPrecVec), 1, 0.0_RKIND,   &
+                             SIvec_zh1(1:nPrecVec),1)
+#endif
+   
+               elseif ( trim(config_btr_si_preconditioner) == &
+                                                       'jacobi' ) then
+                  ! Jacobi preconditioning
+                  SIvec_zh1(1:nPrecVec) = SIvec_z1(1:nPrecVec) &
+                                        * prec_ivmat(1:nPrecVec)
+   
+               elseif ( trim(config_btr_si_preconditioner) == &
+                                                         'none' ) then
+                  ! No preconditioning
+                  SIvec_zh1(1:nPrecVec) = SIvec_z1(1:nPrecVec)
+               end if
+   
+               call mpas_timer_start("si halo iter")
+               call mpas_dmpar_field_halo_exch(domain, 'SIvec_zh1')
+               call mpas_timer_stop("si halo iter")
+   
+   
+               ! SpMV ----------------------------------------------------!
+   
+               do iCell = 1, nPrecVec
+                  sshTendAx = 0.0_RKIND
+   
+                  do i = 1, nEdgesOnCell(iCell)
+                     iEdge = edgesOnCell(i, iCell)
+   
+                     cell1 = cellsOnEdge(1, iEdge)
+                     cell2 = cellsOnEdge(2, iEdge)
+   
+                     ! Interpolation sshEdge
+                     sshEdgeLag = 0.5_RKIND * (  sshSubcycleCur(cell1)   &
+                                               + sshSubcycleCur(cell2) )
+   
+                     ! method 1, matches method 0 without pbcs,
+                     ! works with pbcs.
+                     thicknessSumLag = si_ismf * sshEdgeLag    &
+                                     + min(bottomDepth(cell1), &
+                                           bottomDepth(cell2))
+   
+                     ! nabla (ssh^0)
+                     sshDiffLag = (SIvec_zh1(cell2)-SIvec_zh1(cell1)) &
+                                / dcEdge(iEdge)
+   
+                     fluxAx = thicknessSumLag * sshDiffLag
+   
+                     sshTendAx = sshTendAx + edgeSignOnCell(i, iCell) &
+                               * fluxAx * dvEdge(iEdge)
+                  end do ! i
+   
+                  sshLagArea = R1_alpha1s_g_dts * SIvec_zh1(iCell) &
+                             * areaCell(iCell)
+   
+                  SIvec_v0(iCell) = -sshLagArea - sshTendAx
+   
+               end do ! iCell
+   
+   
+               ! Reduction -----------------------------------------------!
+               SIcst_r00s0 = 0.0_RKIND
+               SIcst_r00z0 = 0.0_RKIND
+               SIcst_q0y0  = 0.0_RKIND
+               SIcst_y0y0  = 0.0_RKIND
+               SIcst_r00q0 = 0.0_RKIND
+               SIcst_r00y0 = 0.0_RKIND
+               SIcst_r00t0 = 0.0_RKIND
+               SIcst_r00v0 = 0.0_RKIND
+               SIcst_q0q0  = 0.0_RKIND
+   
+               do iCell = 1,nCellsOwned
+                  SIcst_r00s0 = SIcst_r00s0 + SIvec_r00(iCell) &
+                                            * SIvec_s1(iCell) ! s1
+   
+                  SIcst_r00z0 = SIcst_r00z0 + SIvec_r00(iCell) &
+                                            * SIvec_z1(iCell) ! z1
+   
+                  SIcst_q0y0  = SIcst_q0y0  + SIvec_q0(iCell)  &
+                                            * SIvec_y0(iCell)
+   
+                  SIcst_y0y0  = SIcst_y0y0  + SIvec_y0(iCell)  &
+                                            * SIvec_y0(iCell)
+   
+                  SIcst_r00q0 = SIcst_r00q0 + SIvec_r00(iCell) &
+                                            * SIvec_q0(iCell)
+   
+                  SIcst_r00y0 = SIcst_r00y0 + SIvec_r00(iCell) &
+                                            * SIvec_y0(iCell)
+   
+                  SIcst_r00t0 = SIcst_r00t0 + SIvec_r00(iCell) &
+                                            * SIvec_t0(iCell)
+   
+                  SIcst_r00v0 = SIcst_r00v0 + SIvec_r00(iCell) &
+                                            * SIvec_v0(iCell) ! v1
+   
+                  SIcst_q0q0 = SIcst_q0q0   + SIvec_q0(iCell) &
+                                            * SIvec_q0(iCell)
+               end do
+   
+               SIcst_allreduce_local9(1) = SIcst_r00s0
+               SIcst_allreduce_local9(2) = SIcst_r00z0
+               SIcst_allreduce_local9(3) = SIcst_q0y0 
+               SIcst_allreduce_local9(4) = SIcst_y0y0 
+               SIcst_allreduce_local9(5) = SIcst_r00q0
+               SIcst_allreduce_local9(6) = SIcst_r00y0
+               SIcst_allreduce_local9(7) = SIcst_r00t0
+               SIcst_allreduce_local9(8) = SIcst_r00v0
+               SIcst_allreduce_local9(9) = SIcst_q0q0
+   
+               ! Global sum across CPUs
+               call mpas_timer_start("si reduction iter")
+               call mpas_dmpar_sum_real_array(domain % dminfo, 9,      &
+                                              SIcst_allreduce_local9,  &
+                                              SIcst_allreduce_global9)
+               call mpas_timer_stop("si reduction iter")
+   
+               if ( config_btr_si_partition_match_mode .and. ncpus>1) then
+                  SIcst_allreduce_temp9(:)    = 0.0_RKIND
+                  SIcst_allreduce_itemp9(:)   = 0.0_RKIND
+   
+                  SIcst_allreduce_itemp9(:) = &
+                                     exponent(SIcst_allreduce_global9(:))
+                  SIcst_allreduce_temp9(:)  = &
+                                     fraction(SIcst_allreduce_global9(:))
+                  SIcst_allreduce_temp9(:)  = &
+                                     anint( SIcst_allreduce_temp9(:)  &
+                                           * 1.0e+4_RKIND  ) &
+                                           / 1.0e+4_RKIND
+   
+                  SIcst_allreduce_global9(:)  =                        &
+                              SIcst_allreduce_temp9(:)                 &
+                            * 2.0_RKIND ** (SIcst_allreduce_itemp9(:))
+               endif
+   
+               SIcst_r00s0_global = SIcst_allreduce_global9(1) 
+               SIcst_r00z0_global = SIcst_allreduce_global9(2)
+               SIcst_q0y0_global  = SIcst_allreduce_global9(3)
+               SIcst_y0y0_global  = SIcst_allreduce_global9(4)
+               SIcst_r00q0_global = SIcst_allreduce_global9(5)
+               SIcst_r00y0_global = SIcst_allreduce_global9(6)
+               SIcst_r00t0_global = SIcst_allreduce_global9(7)
+               SIcst_r00v0_global = SIcst_allreduce_global9(8)
+               SIcst_q0q0_global  = SIcst_allreduce_global9(9)
+   
+               ! Omega0
+               SIcst_omega0 = SIcst_q0y0_global / SIcst_y0y0_global
+   
+               ! Residual
+               ! = (r1,r1) = (q0,q0) - 2*Omega*(q0,y0) + Omega**2*(y0,y0)
+               resid = SIcst_q0q0_global &
+                     - 2.0_RKIND * SIcst_omega0 * SIcst_q0y0_global  &
+                     + SIcst_omega0**2.0_RKIND  * SIcst_y0y0_global
+   
+               do iCell = 1,nPrecVec
+                  sshSubcycleNew(iCell) = sshSubcycleNew(iCell)           &
+                                        + SIcst_alpha0 * SIvec_ph1(iCell) &
+                                        + SIcst_omega0 * SIvec_qh0(iCell)
+   
+                  SIvec_r1(iCell)  = SIvec_q0(iCell) - SIcst_omega0       &
+                                   * SIvec_y0(iCell)
+   
+                  SIvec_rh1(iCell) =  SIvec_qh0(iCell) - SIcst_omega0     &
+                                   * (SIvec_wh0(iCell) - SIcst_alpha0     &
+                                                       * SIvec_zh1(iCell))
+   
+                  SIvec_w1(iCell)  =   SIvec_y0(iCell) - SIcst_omega0     &
+                                   * ( SIvec_t0(iCell) - SIcst_alpha0     &
+                                                       * SIvec_v0(iCell))
+               end do
+   
+   
+               ! Preconditioning -----------------------------------------!
+   
+               if ( trim(config_btr_si_preconditioner) == 'ras' ) then
+                  ! RAS preconditioning: Use BLAS 
+                  ! for the symmetric matrix-vector multiplication
+#ifdef USE_LAPACK
+                  call DSPMV('U', nPrecVec, 1.0_RKIND, prec_ivmat, &
+                             SIvec_w1(1:nPrecVec), 1, 0.0_RKIND,   &
+                             SIvec_wh1(1:nPrecVec),1)
+#endif
+   
+               elseif ( trim(config_btr_si_preconditioner) == &
+                                                 'block_jacobi' ) then
+                  ! Block-Jacobi preconditioning: Use BLAS 
+                  ! for the symmetric matrix-vector multiplication
+#ifdef USE_LAPACK
+                  call DSPMV('U', nPrecVec, 1.0_RKIND, prec_ivmat, &
+                             SIvec_w1(1:nPrecVec), 1, 0.0_RKIND,   &
+                             SIvec_wh1(1:nPrecVec),1)
+#endif
+   
+               elseif ( trim(config_btr_si_preconditioner) == &
+                                                       'jacobi' ) then
+                  ! Jacobi preconditioning
+                  SIvec_wh1(1:nPrecVec) = SIvec_w1(1:nPrecVec)  &
+                                        * prec_ivmat(1:nPrecVec)
+   
+               elseif ( trim(config_btr_si_preconditioner) == &
+                                                         'none' ) then
+                  ! No preconditioning
+                  SIvec_wh1(1:nPrecVec) = SIvec_w1(1:nPrecVec)
+               end if
+   
+               call mpas_timer_start("si halo iter")
+               call mpas_dmpar_field_halo_exch(domain, 'SIvec_wh1')
+               call mpas_timer_stop("si halo iter")
+   
+   
+               ! SpMV ----------------------------------------------------!
+   
+               do iCell = 1, nPrecVec
+                  sshTendAx = 0.0_RKIND
+   
+                  do i = 1, nEdgesOnCell(iCell)
+                     iEdge = edgesOnCell(i, iCell)
+   
+                     cell1 = cellsOnEdge(1, iEdge)
+                     cell2 = cellsOnEdge(2, iEdge)
+   
+                     ! Interpolation sshEdge
+                     sshEdgeLag = 0.5_RKIND * (  sshSubcycleCur(cell1)   &
+                                               + sshSubcycleCur(cell2) )
+   
+                     ! method 1, matches method 0 without pbcs,
+                     ! works with pbcs.
+                     thicknessSumLag = si_ismf * sshEdgeLag    &
+                                     + min(bottomDepth(cell1), &
+                                           bottomDepth(cell2))
+   
+                     ! nabla (ssh^0)
+                     sshDiffLag = (SIvec_wh1(cell2)-SIvec_wh1(cell1)) &
+                                / dcEdge(iEdge)
+   
+                     fluxAx = thicknessSumLag * sshDiffLag
+   
+                     sshTendAx = sshTendAx + edgeSignOnCell(i, iCell) &
+                               * fluxAx * dvEdge(iEdge)
+                  end do ! i
+   
+                  sshLagArea = R1_alpha1s_g_dts * SIvec_wh1(iCell) &
+                             * areaCell(iCell)
+   
+                  SIvec_t1(iCell) = -sshLagArea - sshTendAx
+               end do ! iCell
+   
+               ! End reduction -------------------------------------------!
+   
+               SIcst_rho1 = SIcst_r00q0_global - SIcst_omega0 * SIcst_r00y0_global 
+   
+               SIcst_gamma1 = SIcst_r00y0_global - SIcst_omega0 * SIcst_r00t0_global  &
+                                          + SIcst_omega0 * SIcst_alpha0 &
+                                                         * SIcst_r00v0_global
+    
+               SIcst_beta0 = (SIcst_alpha0/SIcst_omega0) &
+                           * (SIcst_rho1 / SIcst_rho0)
+   
+               SIcst_alpha0 = SIcst_rho1 &
+                            / ( SIcst_gamma1 + SIcst_beta0 * SIcst_r00s0_global   &
+                                             - SIcst_beta0 * SIcst_omega0  &
+                                                           * SIcst_r00z0_global )
+   
+               do iCell = 1,nPrecVec
+                  SIvec_r0(iCell) = SIvec_r1(iCell)
+                  SIvec_s0(iCell) = SIvec_s1(iCell)
+                  SIvec_z0(iCell) = SIvec_z1(iCell)
+                  SIvec_w0(iCell) = SIvec_w1(iCell)
+                  SIvec_t0(iCell) = SIvec_t1(iCell)
+   
+                  SIvec_rh0(iCell) = SIvec_rh1(iCell)
+                  SIvec_sh0(iCell) = SIvec_sh1(iCell)
+                  SIvec_ph0(iCell) = SIvec_ph1(iCell)
+                  SIvec_wh0(iCell) = SIvec_wh1(iCell)
+                  SIvec_zh0(iCell) = SIvec_zh1(iCell)
+               end do ! iCell
+   
+               SIcst_rho0         = SIcst_rho1
+   
+            !-------------------------------------------------------------!
+            end do ! do iter
+            !-------------------------------------------------------------!
+    
+   
+            !   boundary update on sshNew
+            call mpas_timer_start("si halo iter")
+            call mpas_dmpar_field_halo_exch(domain, 'sshSubcycle', &
+                                            timeLevel=2)
+            call mpas_timer_stop("si halo iter")
+   
+            call mpas_timer_stop("si btr iteration")
+   
+   
+            !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+            ! Stage 2.4 : The barotropic velocity update
+            !             using the lagged SSH
+            !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+   
+            call mpas_timer_start("si btr vel update")
+            do iCell = 1,nCellsAll
+               ! Use of sshNew to save the lagged SSH
+               sshNew(iCell) = sshSubcycleNew(iCell)
+            end do
+   
+            do iEdge = 1,nEdgesHalo( edgeHaloComputeCounter-1 )
+               temp_mask = edgeMask(1, iEdge)
+   
+               cell1 = cellsOnEdge(1,iEdge)
+               cell2 = cellsOnEdge(2,iEdge)
+                      
+               ! Use of normBtrVelNew as a temp array for sshEdge
+               normalBarotropicVelocityNew(iEdge) =       &
+                          ( 0.5*sshNew(cell2)          &
+                           +0.5*sshSubcycleCur(cell2)) &
+                         -( 0.5*sshNew(cell1)          &
+                           +0.5*sshSubcycleCur(cell1)) 
+    
+               normalBarotropicVelocitySubcycleNew(iEdge)              &
+                  = temp_mask                                          &
+                  * (normalBarotropicVelocityCur(iEdge)                &
+                  - dt_si * (-barotropicCoriolisTerm(iEdge) + gravity     &
+                          *normalBarotropicVelocityNew(iEdge)          &
+                          /dcEdge(iEdge) - barotropicForcing(iEdge)))
+            end do ! iEdge
+   
+            !$omp parallel
+            !$omp do schedule(runtime) private(CoriolisTerm, i, eoe)
+            do iEdge = 1,nEdgesHalo(2)
+               ! Compute the barotropic Coriolis term, -f*uPerp
+               CoriolisTerm = 0.0_RKIND
+               do i = 1, nEdgesOnEdge(iEdge)
+                  eoe = edgesOnEdge(i,iEdge)
+                  CoriolisTerm = CoriolisTerm + weightsOnEdge(i,iEdge)       &
+                               * 0.5_RKIND                                   &
+                               * ( normalBarotropicVelocitySubcycleNew(eoe)  &
+                                  +normalBarotropicVelocityCur(eoe)        ) &
+                               * fEdge(eoe)
+               end do
+               barotropicCoriolisTerm(iEdge) = CoriolisTerm
+            end do
+            !$omp end do
+            !$omp end parallel
+   
+            do iEdge = 1,nEdgesHalo(2)
+               temp_mask = edgeMask(1, iEdge)
+   
+               cell1 = cellsOnEdge(1,iEdge)
+               cell2 = cellsOnEdge(2,iEdge)
+               normalBarotropicVelocitySubcycleNew(iEdge)            &
+                  = temp_mask                                        &
+                  * (normalBarotropicVelocityCur(iEdge)              &
+                  - dt_si * (-barotropicCoriolisTerm(iEdge) + gravity   &
+                          *normalBarotropicVelocityNew(iEdge)        &
+                          /dcEdge(iEdge) - barotropicForcing(iEdge)))
+            end do ! iEdge
+   
+            !$omp parallel
+            !$omp do schedule(runtime) private(CoriolisTerm, i, eoe)
+            do iEdge = 1,nEdgesOwned
+               ! Compute the barotropic Coriolis term, -f*uPerp
+               CoriolisTerm = 0.0_RKIND
+               do i = 1, nEdgesOnEdge(iEdge)
+                  eoe = edgesOnEdge(i,iEdge)
+                  CoriolisTerm = CoriolisTerm + weightsOnEdge(i,iEdge)      &
+                               * 0.5_RKIND                                  &
+                               * ( normalBarotropicVelocitySubcycleNew(eoe) &
+                                  +normalBarotropicVelocityCur(eoe) )       &
+                               * fEdge(eoe)
+               end do
+               barotropicCoriolisTerm(iEdge) = CoriolisTerm
+            end do
+            !$omp end do
+            !$omp end parallel
+   
+            call mpas_timer_start("si halo btr coriolis")
+            call mpas_dmpar_field_halo_exch(domain, 'barotropicCoriolisTerm')
+            call mpas_timer_stop("si halo btr coriolis")
+   
+            call mpas_timer_stop ("si btr vel update")
+   
+   
+            !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+            ! Stage 2.5 : Recompution of the initial residual
+            !             with lagged values
+            !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+   
+            call mpas_timer_start("si btr residual")
+   
+            ! SpMV -------------------------------------------------------!
+   
+            do iCell = 1, nPrecVec
+               sshTendb1 = 0.0_RKIND
+               sshTendb2 = 0.0_RKIND
+               sshTendAx = 0.0_RKIND
+   
+               do i = 1, nEdgesOnCell(iCell)
+                  iEdge = edgesOnCell(i, iCell)
+   
+                  cell1 = cellsOnEdge(1, iEdge)
+                  cell2 = cellsOnEdge(2, iEdge)
+   
+                  ! Interpolation sshEdge
+                  sshEdgeCur = 0.5_RKIND * (  sshSubcycleCur(cell1)   &
+                                            + sshSubcycleCur(cell2) )
+                  sshEdgeLag = 0.5_RKIND * (sshNew(cell1) + sshNew(cell2))
+                  sshEdgeMid = alpha1 * sshEdgeLag + alpha2 * sshEdgeCur
+   
+                  ! method 1, matches method 0 without pbcs,
+                  ! works with pbcs.
+                  thicknessSumCur = si_ismf * sshEdgeCur    &
+                                  + min(bottomDepth(cell1), &
+                                        bottomDepth(cell2))
+                  thicknessSumLag = si_ismf * sshEdgeLag    &
+                                  + min(bottomDepth(cell1), &
+                                        bottomDepth(cell2))
+                  thicknessSumMid = si_ismf * sshEdgeMid    &
+                                  + min(bottomDepth(cell1), &
+                                        bottomDepth(cell2))
+   
+                  ! nabla (ssh^0)
+                  sshDiffCur = ( sshSubcycleCur(cell2)   &
+                                -sshSubcycleCur(cell1) ) &
+                               / dcEdge(iEdge)
+                  sshDiffLag = (sshNew(cell2)-sshNew(cell1)) &
+                               / dcEdge(iEdge)
+   
+                  fluxb1 = thicknessSumMid &
+                         * normalBarotropicVelocityCur(iEdge)
+                  fluxb2 = thicknessSumLag &
+                         * ( alpha2*gravity*sshDiffCur &
+                            + (-barotropicCoriolisTerm(iEdge) &
+                               -barotropicForcing(iEdge)) )
+                  fluxAx = thicknessSumLag * sshDiffLag
+   
+                  sshTendb1 = sshTendb1 + edgeSignOnCell(i, iCell) &
+                                        * fluxb1 * dvEdge(iEdge)
+                  sshTendb2 = sshTendb2 + edgeSignOnCell(i, iCell) &
+                                        * fluxb2 * dvEdge(iEdge)
+                  sshTendAx = sshTendAx + edgeSignOnCell(i, iCell) &
+                                        * fluxAx * dvEdge(iEdge)
+               end do ! i
+   
+               sshTendb1  = R1_alpha1s_g_dt  * sshTendb1
+               sshTendb2  = R1_alpha1_g      * sshTendb2
+               sshCurArea = R1_alpha1s_g_dts * sshSubcycleCur(iCell) &
+                                             * areaCell(iCell)
+               sshLagArea = R1_alpha1s_g_dts * sshNew(iCell) &
+                                             * areaCell(iCell)
+   
+               SIvec_r0(iCell) = (-sshCurArea - sshTendb1 + sshTendb2) &
+                                -(-sshLagArea - sshTendAx)
+               SIvec_r00(iCell) = SIvec_r0(iCell)
+            end do ! iCell
+   
+   
+            ! Preconditioning --------------------------------------------!
+   
+            if ( trim(config_btr_si_preconditioner) == 'ras' ) then
+               ! RAS preconditioning: Use BLAS
+               ! for the symmetric matrix-vector multiplication
+#ifdef USE_LAPACK
+               call DSPMV('U', nPrecVec, 1.0_RKIND, prec_ivmat, &
+                          SIvec_r0(1:nPrecVec), 1, 0.0_RKIND,   &
+                          SIvec_rh0(1:nPrecVec),1)
+#endif
+   
+            elseif ( trim(config_btr_si_preconditioner) == &
+                                              'block_jacobi' ) then
+               ! Block-Jacobi preconditioning: Use BLAS 
+               ! for the symmetric matrix-vector multiplication
+#ifdef USE_LAPACK
+               call DSPMV('U', nPrecVec, 1.0_RKIND, prec_ivmat, &
+                          SIvec_r0(1:nPrecVec), 1, 0.0_RKIND,   &
+                          SIvec_rh0(1:nPrecVec),1)
+#endif
+   
+            elseif ( trim(config_btr_si_preconditioner) == &
+                                                    'jacobi' ) then
+               ! Jacobi preconditioning
+               SIvec_rh0(1:nPrecVec) = SIvec_r0(1:nPrecVec) &
+                                     * prec_ivmat(1:nPrecVec)
+   
+            elseif ( trim(config_btr_si_preconditioner) == &
+                                                      'none' ) then
+               ! No preconditioning
+               SIvec_rh0(1:nPrecVec) = SIvec_r0(1:nPrecVec)
+            end if
+   
+            call mpas_timer_start("si halo r0")
+            call mpas_dmpar_field_halo_exch(domain, 'SIvec_rh0')
+            call mpas_timer_stop("si halo r0")
+   
+   
+            ! SpMV -------------------------------------------------------!
+   
+            do iCell = 1, nPrecVec
+   
+               sshTendAx = 0.0_RKIND
+   
+               do i = 1, nEdgesOnCell(iCell)
+                  iEdge = edgesOnCell(i, iCell)
+   
+                  cell1 = cellsOnEdge(1, iEdge)
+                  cell2 = cellsOnEdge(2, iEdge)
+   
+                  ! Interpolation sshEdge
+                  sshEdgeLag = 0.5_RKIND * (sshNew(cell1) + sshNew(cell2))
+   
                   ! method 1, matches method 0 without pbcs,
                   ! works with pbcs.
                   thicknessSumLag = si_ismf * sshEdgeLag    &
                                   + min(bottomDepth(cell1), &
                                         bottomDepth(cell2))
-
+   
                   ! nabla (ssh^0)
-                  sshDiffLag = (SIvec_zh1(cell2)-SIvec_zh1(cell1)) &
+                  sshDiffLag = (SIvec_rh0(cell2)- SIvec_rh0(cell1)) &
                              / dcEdge(iEdge)
-
+   
                   fluxAx = thicknessSumLag * sshDiffLag
-
+   
                   sshTendAx = sshTendAx + edgeSignOnCell(i, iCell) &
                             * fluxAx * dvEdge(iEdge)
                end do ! i
-
-               sshLagArea = R1_alpha1s_g_dts * SIvec_zh1(iCell) * areaCell(iCell)
-
-               SIvec_v0(iCell) = -sshLagArea - sshTendAx
-
+   
+               sshCurArea = R1_alpha1s_g_dts * SIvec_rh0(iCell) &
+                                             * areaCell(iCell)
+   
+               SIvec_w0(iCell) = -sshCurArea - sshTendAx
+   
             end do ! iCell
-
-
-            ! Reduction -----------------------------------------------!
-            SIcst_r00s0 = 0.0_RKIND
-            SIcst_r00z0 = 0.0_RKIND
-            SIcst_q0y0  = 0.0_RKIND
-            SIcst_y0y0  = 0.0_RKIND
-            SIcst_r00q0 = 0.0_RKIND
-            SIcst_r00y0 = 0.0_RKIND
-            SIcst_r00t0 = 0.0_RKIND
-            SIcst_r00v0 = 0.0_RKIND
-            SIcst_q0q0  = 0.0_RKIND
-
-            do iCell = 1,nCellsOwned
-               SIcst_r00s0 = SIcst_r00s0 + SIvec_r00(iCell) &
-                                         * SIvec_s1(iCell) ! s1
-
-               SIcst_r00z0 = SIcst_r00z0 + SIvec_r00(iCell) &
-                                         * SIvec_z1(iCell) ! z1
-
-               SIcst_q0y0  = SIcst_q0y0  + SIvec_q0(iCell)  &
-                                         * SIvec_y0(iCell)
-
-               SIcst_y0y0  = SIcst_y0y0  + SIvec_y0(iCell)  &
-                                         * SIvec_y0(iCell)
-
-               SIcst_r00q0 = SIcst_r00q0 + SIvec_r00(iCell) &
-                                         * SIvec_q0(iCell)
-
-               SIcst_r00y0 = SIcst_r00y0 + SIvec_r00(iCell) &
-                                         * SIvec_y0(iCell)
-
-               SIcst_r00t0 = SIcst_r00t0 + SIvec_r00(iCell) &
-                                         * SIvec_t0(iCell)
-
-               SIcst_r00v0 = SIcst_r00v0 + SIvec_r00(iCell) &
-                                         * SIvec_v0(iCell) ! v1
-
-               SIcst_q0q0 = SIcst_q0q0   + SIvec_q0(iCell) &
-                                         * SIvec_q0(iCell)
-            end do
-
-            SIcst_allreduce_local9(1) = SIcst_r00s0
-            SIcst_allreduce_local9(2) = SIcst_r00z0
-            SIcst_allreduce_local9(3) = SIcst_q0y0 
-            SIcst_allreduce_local9(4) = SIcst_y0y0 
-            SIcst_allreduce_local9(5) = SIcst_r00q0
-            SIcst_allreduce_local9(6) = SIcst_r00y0
-            SIcst_allreduce_local9(7) = SIcst_r00t0
-            SIcst_allreduce_local9(8) = SIcst_r00v0
-            SIcst_allreduce_local9(9) = SIcst_q0q0
-
-            ! Global sum across CPUs
-            call mpas_timer_start("si reduction iter")
-            call mpas_dmpar_sum_real_array(domain % dminfo, 9,      &
-                                           SIcst_allreduce_local9,  &
-                                           SIcst_allreduce_global9)
-            call mpas_timer_stop("si reduction iter")
-
-            if ( config_btr_si_partition_match_mode .and. ncpus>1) then
-               SIcst_allreduce_temp9(:)    = 0.0_RKIND
-               SIcst_allreduce_itemp9(:)   = 0.0_RKIND
-
-               SIcst_allreduce_itemp9(:) = &
-                                  exponent(SIcst_allreduce_global9(:))
-               SIcst_allreduce_temp9(:)  = &
-                                  fraction(SIcst_allreduce_global9(:))
-               SIcst_allreduce_temp9(:)  = &
-                                  anint( SIcst_allreduce_temp9(:)  &
-                                        * 1.0e+4_RKIND  ) &
-                                        / 1.0e+4_RKIND
-
-               SIcst_allreduce_global9(:)  =                        &
-                           SIcst_allreduce_temp9(:)                 &
-                         * 2.0_RKIND ** (SIcst_allreduce_itemp9(:))
-            endif
-
-            SIcst_r00s0_global = SIcst_allreduce_global9(1) 
-            SIcst_r00z0_global = SIcst_allreduce_global9(2)
-            SIcst_q0y0_global  = SIcst_allreduce_global9(3)
-            SIcst_y0y0_global  = SIcst_allreduce_global9(4)
-            SIcst_r00q0_global = SIcst_allreduce_global9(5)
-            SIcst_r00y0_global = SIcst_allreduce_global9(6)
-            SIcst_r00t0_global = SIcst_allreduce_global9(7)
-            SIcst_r00v0_global = SIcst_allreduce_global9(8)
-            SIcst_q0q0_global  = SIcst_allreduce_global9(9)
-
-            ! Omega0
-            SIcst_omega0 = SIcst_q0y0_global / SIcst_y0y0_global
-
-            ! Residual
-            resid = SIcst_q0q0_global &
-                  - 2.0_RKIND * SIcst_omega0 * SIcst_q0y0_global  &
-                  + SIcst_omega0**2.0_RKIND  * SIcst_y0y0_global
-
-            do iCell = 1,nPrecVec
-               sshSubcycleNew(iCell) = sshSubcycleNew(iCell)           &
-                                     + SIcst_alpha0 * SIvec_ph1(iCell) &
-                                     + SIcst_omega0 * SIvec_qh0(iCell)
-
-               SIvec_r1(iCell)  = SIvec_q0(iCell) - SIcst_omega0       &
-                                * SIvec_y0(iCell)
-
-               SIvec_rh1(iCell) =  SIvec_qh0(iCell) - SIcst_omega0     &
-                                * (SIvec_wh0(iCell) - SIcst_alpha0     &
-                                                    * SIvec_zh1(iCell))
-
-               SIvec_w1(iCell)  =   SIvec_y0(iCell) - SIcst_omega0     &
-                                * ( SIvec_t0(iCell) - SIcst_alpha0     &
-                                                    * SIvec_v0(iCell))
-            end do
-
-
-            ! Preconditioning -----------------------------------------!
+   
+   
+            ! Preconditioning --------------------------------------------!
+   
             if ( trim(config_btr_si_preconditioner) == 'ras' ) then
-               ! RAS preconditioning: Use BLAS 
-               ! for the symmetric matrix-vector multiplication
+               ! RAS preconditioning: Use BLAS
+               ! the for symmetric matrix-vector multiplication
 #ifdef USE_LAPACK
                call DSPMV('U', nPrecVec, 1.0_RKIND, prec_ivmat, &
-                          SIvec_w1(1:nPrecVec), 1, 0.0_RKIND,   &
-                          SIvec_wh1(1:nPrecVec),1)
+                          SIvec_w0(1:nPrecVec), 1, 0.0_RKIND,   &
+                          SIvec_wh0(1:nPrecVec),1)
 #endif
-
+   
             elseif ( trim(config_btr_si_preconditioner) == &
                                               'block_jacobi' ) then
                ! Block-Jacobi preconditioning: Use BLAS
                ! for the symmetric matrix-vector multiplication
 #ifdef USE_LAPACK
                call DSPMV('U', nPrecVec, 1.0_RKIND, prec_ivmat, &
-                          SIvec_w1(1:nPrecVec), 1, 0.0_RKIND,   &
-                          SIvec_wh1(1:nPrecVec),1)
+                          SIvec_w0(1:nPrecVec), 1, 0.0_RKIND,   &
+                          SIvec_wh0(1:nPrecVec),1)
 #endif
-
+   
             elseif ( trim(config_btr_si_preconditioner) == &
                                                     'jacobi' ) then
                ! Jacobi preconditioning
-               SIvec_wh1(1:nPrecVec) = SIvec_w1(1:nPrecVec) &
+               SIvec_wh0(1:nPrecVec) = SIvec_w0(1:nPrecVec) &
                                      * prec_ivmat(1:nPrecVec)
-
+   
             elseif ( trim(config_btr_si_preconditioner) == &
                                                       'none' ) then
                ! No preconditioning
-               SIvec_wh1(1:nPrecVec) = SIvec_w1(1:nPrecVec)
+               SIvec_wh0(1:nPrecVec) = SIvec_w0(1:nPrecVec)
             end if
-
-            call mpas_timer_start("si halo iter")
-            call mpas_dmpar_field_halo_exch(domain, 'SIvec_wh1')
-            call mpas_timer_stop("si halo iter")
-
-
-            ! SpMV ----------------------------------------------------!
-
+   
+            call mpas_timer_start("si halo r0")
+            call mpas_dmpar_field_halo_exch(domain, 'SIvec_wh0')
+            call mpas_timer_stop("si halo r0")
+   
+   
+            ! SpMV -------------------------------------------------------!
             do iCell = 1, nPrecVec
+   
                sshTendAx = 0.0_RKIND
-
+   
                do i = 1, nEdgesOnCell(iCell)
                   iEdge = edgesOnCell(i, iCell)
-
+   
                   cell1 = cellsOnEdge(1, iEdge)
                   cell2 = cellsOnEdge(2, iEdge)
-
+   
                   ! Interpolation sshEdge
                   sshEdgeLag = 0.5_RKIND * (  sshNew(cell1)   &
                                             + sshNew(cell2) )
-
-                  ! method 1, matches method 0 without pbcs, 
+   
+                  ! method 1, matches method 0 without pbcs,
                   ! works with pbcs.
                   thicknessSumLag = si_ismf * sshEdgeLag    &
                                   + min(bottomDepth(cell1), &
                                         bottomDepth(cell2))
-
+   
                   ! nabla (ssh^0)
-                  sshDiffLag = (SIvec_wh1(cell2)-SIvec_wh1(cell1)) &
+                  sshDiffCur = (SIvec_wh0(cell2) - SIvec_wh0(cell1)) &
                              / dcEdge(iEdge)
-
-                  fluxAx = thicknessSumLag * sshDiffLag
-
+   
+                  fluxAx = thicknessSumLag * sshDiffCur
+   
                   sshTendAx = sshTendAx + edgeSignOnCell(i, iCell) &
                             * fluxAx * dvEdge(iEdge)
                end do ! i
-
-               sshLagArea = R1_alpha1s_g_dts * SIvec_wh1(iCell) &
+   
+               sshCurArea = R1_alpha1s_g_dts * SIvec_wh0(iCell) &
                           * areaCell(iCell)
-
-               SIvec_t1(iCell) = -sshLagArea - sshTendAx
+   
+               SIvec_t0(iCell) = -sshCurArea - sshTendAx
+   
+               SIvec_ph0(iCell) = 0.0_RKIND
+               SIvec_sh0(iCell) = 0.0_RKIND
+               SIvec_z0(iCell)  = 0.0_RKIND
+               SIvec_zh0(iCell) = 0.0_RKIND
+               SIvec_v0(iCell)  = 0.0_RKIND
+               SIvec_s0(iCell)  = 0.0_RKIND
+   
             end do ! iCell
-
-            SIcst_rho1 = SIcst_r00q0_global - SIcst_omega0 * SIcst_r00y0_global 
-
-            SIcst_gamma1 = SIcst_r00y0_global - SIcst_omega0 * SIcst_r00t0_global  &
-                                       + SIcst_omega0 * SIcst_alpha0 &
-                                                      * SIcst_r00v0_global
- 
-            SIcst_beta0 = (SIcst_alpha0/SIcst_omega0) &
-                        * (SIcst_rho1 / SIcst_rho0)
-
-            SIcst_alpha0 = SIcst_rho1 &
-                         / ( SIcst_gamma1 + SIcst_beta0 * SIcst_r00s0_global   &
-                                          - SIcst_beta0 * SIcst_omega0  &
-                                                        * SIcst_r00z0_global )
-            do iCell = 1,nPrecVec
-               SIvec_r0(iCell) = SIvec_r1(iCell)
-               SIvec_s0(iCell) = SIvec_s1(iCell)
-               SIvec_z0(iCell) = SIvec_z1(iCell)
-               SIvec_w0(iCell) = SIvec_w1(iCell)
-               SIvec_t0(iCell) = SIvec_t1(iCell)
-
-               SIvec_rh0(iCell) = SIvec_rh1(iCell)
-               SIvec_sh0(iCell) = SIvec_sh1(iCell)
-               SIvec_ph0(iCell) = SIvec_ph1(iCell)
-               SIvec_wh0(iCell) = SIvec_wh1(iCell)
-               SIvec_zh0(iCell) = SIvec_zh1(iCell)
+   
+   
+            ! Reduction -----------------------------------------------!
+            SIcst_r00r0 = 0.0_RKIND
+            SIcst_r00w0 = 0.0_RKIND
+   
+            do iCell = 1, nCellsOwned
+               SIcst_r00r0 = SIcst_r00r0 + SIvec_r00(iCell) &
+                                         * SIvec_r0(iCell)
+               SIcst_r00w0 = SIcst_r00w0 + SIvec_r00(iCell) &
+                                         * SIvec_w0(iCell)
             end do ! iCell
-
-            SIcst_rho0         = SIcst_rho1
-
-            if ( iter > int(mean_num_cells*5) ) then
-               call mpas_log_write(&
-               '******************************************************')
-               call mpas_log_write(&
-               'Iteration number exceeds Max. #iteration: PROGRAM STOP')
-               call mpas_log_write(&
-               'Current #Iteration = $i ', intArgs=(/ iter /) )
-               call mpas_log_write(&
-               'Max.    #Iteration = $i ', &
-               intArgs=(/ int(mean_num_cells*5) /) )
-               call mpas_log_write(&
-               '******************************************************')
-               call mpas_log_write('',MPAS_LOG_CRIT)
+   
+            SIcst_allreduce_local2(1) = SIcst_r00r0
+            SIcst_allreduce_local2(2) = SIcst_r00w0
+   
+   
+            ! Global sum across CPUs
+            call mpas_timer_start("si reduction r0")
+            call mpas_dmpar_sum_real_array(domain % dminfo, 2,      &
+                                           SIcst_allreduce_local2,  &
+                                           SIcst_allreduce_global2)
+            call mpas_timer_stop ("si reduction r0")
+   
+   
+            if ( config_btr_si_partition_match_mode .and. ncpus > 1) then
+               SIcst_allreduce_temp9(:)    = 0.0_RKIND
+               SIcst_allreduce_itemp9(:)   = 0.0_RKIND
+   
+               SIcst_allreduce_itemp9(1:2) = &
+                                    exponent(SIcst_allreduce_global2(:))
+               SIcst_allreduce_temp9(1:2)  = &
+                                    fraction(SIcst_allreduce_global2(:))
+               SIcst_allreduce_temp9(1:2)  = &
+                                    anint(SIcst_allreduce_temp9(1:2) &
+                                           * 1.0e+4_RKIND  ) &
+                                           / 1.0e+4_RKIND
+   
+               SIcst_allreduce_global2(:) =          &
+                          SIcst_allreduce_temp9(1:2) &
+                        * 2.0_RKIND ** (SIcst_allreduce_itemp9(1:2))
             endif
-
-         !-------------------------------------------------------------!
-         end do ! do iter
-         !-------------------------------------------------------------!
-
-         ! boundary update on SSHnew
-         call mpas_timer_start("si halo iter")
-         call mpas_dmpar_field_halo_exch(domain, 'sshSubcycle', timeLevel=2)
-         call mpas_timer_stop("si halo iter")
-
-         call mpas_timer_stop("si btr iteration")
-
-         !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-         ! Stage 2.7 : The barotropic velocity update
-         !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
-         call mpas_timer_start("si btr vel update")
-
-         do iEdge = 1, nEdgesHalo(2)
-            temp_mask = edgeMask(1, iEdge)
-
-            cell1 = cellsOnEdge(1,iEdge)
-            cell2 = cellsOnEdge(2,iEdge)
-
-            ! Use of normBtrVelNew as a temp array for sshEdge
-            normalBarotropicVelocityNew(iEdge) =    &
-                       ( 0.5*sshSubcycleNew(cell2)  &
-                        +0.5*sshSubcycleCur(cell2)) &
-                      -( 0.5*sshSubcycleNew(cell1)  &
-                        +0.5*sshSubcycleCur(cell1)) 
-
-            normalBarotropicVelocitySubcycleNew(iEdge)              &
-               = temp_mask                                          &
-               * (normalBarotropicVelocityCur(iEdge)                &
-               - dt * (-barotropicCoriolisTerm(iEdge) + gravity     &
-                       *normalBarotropicVelocityNew(iEdge)          &
-                       /dcEdge(iEdge) - barotropicForcing(iEdge)))
-         end do ! iEdge
-
-         !$omp parallel
-         !$omp do schedule(runtime) private(CoriolisTerm, i, eoe)
-         do iEdge = 1,nEdgesHalo(1)
-            ! Compute the barotropic Coriolis term, -f*uPerp
-            CoriolisTerm = 0.0_RKIND
-            do i = 1, nEdgesOnEdge(iEdge)
-               eoe = edgesOnEdge(i,iEdge)
-               CoriolisTerm =  CoriolisTerm + weightsOnEdge(i,iEdge)   &
-                            * 0.5_RKIND                                  &
-                            * ( normalBarotropicVelocitySubcycleNew(eoe) &
-                               +normalBarotropicVelocityCur(eoe) )       &
-                            * fEdge(eoe)
+   
+   
+            SIcst_r00r0_global = SIcst_allreduce_global2(1)
+            SIcst_r00w0_global = SIcst_allreduce_global2(2)
+   
+            SIcst_rho0   = SIcst_r00r0_global
+            SIcst_alpha0 = SIcst_rho0 / SIcst_r00w0_global
+            SIcst_beta0  = 0.0_RKIND
+            SIcst_omega0 = 0.0_RKIND
+   
+            call mpas_timer_stop("si btr residual")
+   
+   
+            !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+            ! Stage 2.6 : Main (inner) solver iterations
+            !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+   
+            call mpas_timer_start("si btr iteration")
+   
+            iter = 0
+            resid = SIcst_r00r0_global
+   
+            !-------------------------------------------------------------!
+            do while ( dsqrt(resid) > tolerance_inner )
+            !-------------------------------------------------------------!
+   
+               iter = iter + 1
+   
+               do iCell = 1, nPrecVec
+                  SIvec_ph1(iCell) =  SIvec_rh0(iCell) + SIcst_beta0      &
+                                   * (SIvec_ph0(iCell) - SIcst_omega0     &
+                                                       * SIvec_sh0(iCell))
+   
+                  SIvec_s1(iCell)  =  SIvec_w0(iCell)  + SIcst_beta0      &
+                                   * (SIvec_s0(iCell)  - SIcst_omega0     &
+                                                       * SIvec_z0(iCell))
+   
+                  SIvec_sh1(iCell) =  SIvec_wh0(iCell) + SIcst_beta0      &
+                                   * (SIvec_sh0(iCell) - SIcst_omega0     &
+                                                       * SIvec_zh0(iCell))
+   
+                  SIvec_z1(iCell)  =  SIvec_t0(iCell)  + SIcst_beta0      &
+                                   * (SIvec_z0(iCell)  - SIcst_omega0     &
+                                                       * SIvec_v0(iCell))
+   
+                  SIvec_q0(iCell)  =  SIvec_r0(iCell)  - SIcst_alpha0     &
+                                                       * SIvec_s1(iCell)
+   
+                  SIvec_qh0(iCell) =  SIvec_rh0(iCell) - SIcst_alpha0     &
+                                                       * SIvec_sh1(iCell)
+   
+                  SIvec_y0(iCell)  =  SIvec_w0(iCell)  - SIcst_alpha0     &
+                                                       * SIvec_z1(iCell)
+               end do ! iCell
+   
+   
+               ! Preconditioning -----------------------------------------!
+               if ( trim(config_btr_si_preconditioner) == 'ras' ) then
+                  ! RAS preconditioning: Use BLAS
+                  ! for the symmetric matrix-vector multiplication
+#ifdef USE_LAPACK
+                  call DSPMV('U', nPrecVec, 1.0_RKIND, prec_ivmat, &
+                             SIvec_z1(1:nPrecVec), 1, 0.0_RKIND,   &
+                             SIvec_zh1(1:nPrecVec),1)
+#endif
+   
+               elseif ( trim(config_btr_si_preconditioner) == &
+                                                 'block_jacobi' ) then
+                  ! Block-Jacobi preconditioning: Use BLAS 
+                  ! for the symmetric matrix-vector multiplication
+#ifdef USE_LAPACK
+                  call DSPMV('U', nPrecVec, 1.0_RKIND, prec_ivmat, &
+                             SIvec_z1(1:nPrecVec), 1, 0.0_RKIND,   &
+                             SIvec_zh1(1:nPrecVec),1)
+#endif
+   
+               elseif ( trim(config_btr_si_preconditioner) == &
+                                                       'jacobi' ) then
+                  ! Jacobi preconditioning
+                  SIvec_zh1(1:nPrecVec) = SIvec_z1(1:nPrecVec) &
+                                        * prec_ivmat(1:nPrecVec)
+   
+               elseif ( trim(config_btr_si_preconditioner) == &
+                                                         'none' ) then
+                  ! No preconditioning
+                  SIvec_zh1(1:nPrecVec) = SIvec_z1(1:nPrecVec)
+               end if
+   
+               call mpas_timer_start("si halo iter")
+               call mpas_dmpar_field_halo_exch(domain, 'SIvec_zh1')
+               call mpas_timer_stop("si halo iter")
+   
+   
+               ! SpMV ----------------------------------------------------!
+   
+               do iCell = 1, nPrecVec
+                  sshTendAx = 0.0_RKIND
+   
+                  do i = 1, nEdgesOnCell(iCell)
+                     iEdge = edgesOnCell(i, iCell)
+   
+                     cell1 = cellsOnEdge(1, iEdge)
+                     cell2 = cellsOnEdge(2, iEdge)
+   
+                     ! Interpolation sshEdge
+                     sshEdgeLag = 0.5_RKIND * (  sshNew(cell1)   &
+                                               + sshNew(cell2) )
+   
+                     ! method 1, matches method 0 without pbcs,
+                     ! works with pbcs.
+                     thicknessSumLag = si_ismf * sshEdgeLag    &
+                                     + min(bottomDepth(cell1), &
+                                           bottomDepth(cell2))
+   
+                     ! nabla (ssh^0)
+                     sshDiffLag = (SIvec_zh1(cell2)-SIvec_zh1(cell1)) &
+                                / dcEdge(iEdge)
+   
+                     fluxAx = thicknessSumLag * sshDiffLag
+   
+                     sshTendAx = sshTendAx + edgeSignOnCell(i, iCell) &
+                               * fluxAx * dvEdge(iEdge)
+                  end do ! i
+   
+                  sshLagArea = R1_alpha1s_g_dts * SIvec_zh1(iCell) * areaCell(iCell)
+   
+                  SIvec_v0(iCell) = -sshLagArea - sshTendAx
+   
+               end do ! iCell
+   
+   
+               ! Reduction -----------------------------------------------!
+               SIcst_r00s0 = 0.0_RKIND
+               SIcst_r00z0 = 0.0_RKIND
+               SIcst_q0y0  = 0.0_RKIND
+               SIcst_y0y0  = 0.0_RKIND
+               SIcst_r00q0 = 0.0_RKIND
+               SIcst_r00y0 = 0.0_RKIND
+               SIcst_r00t0 = 0.0_RKIND
+               SIcst_r00v0 = 0.0_RKIND
+               SIcst_q0q0  = 0.0_RKIND
+   
+               do iCell = 1,nCellsOwned
+                  SIcst_r00s0 = SIcst_r00s0 + SIvec_r00(iCell) &
+                                            * SIvec_s1(iCell) ! s1
+   
+                  SIcst_r00z0 = SIcst_r00z0 + SIvec_r00(iCell) &
+                                            * SIvec_z1(iCell) ! z1
+   
+                  SIcst_q0y0  = SIcst_q0y0  + SIvec_q0(iCell)  &
+                                            * SIvec_y0(iCell)
+   
+                  SIcst_y0y0  = SIcst_y0y0  + SIvec_y0(iCell)  &
+                                            * SIvec_y0(iCell)
+   
+                  SIcst_r00q0 = SIcst_r00q0 + SIvec_r00(iCell) &
+                                            * SIvec_q0(iCell)
+   
+                  SIcst_r00y0 = SIcst_r00y0 + SIvec_r00(iCell) &
+                                            * SIvec_y0(iCell)
+   
+                  SIcst_r00t0 = SIcst_r00t0 + SIvec_r00(iCell) &
+                                            * SIvec_t0(iCell)
+   
+                  SIcst_r00v0 = SIcst_r00v0 + SIvec_r00(iCell) &
+                                            * SIvec_v0(iCell) ! v1
+   
+                  SIcst_q0q0 = SIcst_q0q0   + SIvec_q0(iCell) &
+                                            * SIvec_q0(iCell)
+               end do
+   
+               SIcst_allreduce_local9(1) = SIcst_r00s0
+               SIcst_allreduce_local9(2) = SIcst_r00z0
+               SIcst_allreduce_local9(3) = SIcst_q0y0 
+               SIcst_allreduce_local9(4) = SIcst_y0y0 
+               SIcst_allreduce_local9(5) = SIcst_r00q0
+               SIcst_allreduce_local9(6) = SIcst_r00y0
+               SIcst_allreduce_local9(7) = SIcst_r00t0
+               SIcst_allreduce_local9(8) = SIcst_r00v0
+               SIcst_allreduce_local9(9) = SIcst_q0q0
+   
+               ! Global sum across CPUs
+               call mpas_timer_start("si reduction iter")
+               call mpas_dmpar_sum_real_array(domain % dminfo, 9,      &
+                                              SIcst_allreduce_local9,  &
+                                              SIcst_allreduce_global9)
+               call mpas_timer_stop("si reduction iter")
+   
+               if ( config_btr_si_partition_match_mode .and. ncpus>1) then
+                  SIcst_allreduce_temp9(:)    = 0.0_RKIND
+                  SIcst_allreduce_itemp9(:)   = 0.0_RKIND
+   
+                  SIcst_allreduce_itemp9(:) = &
+                                     exponent(SIcst_allreduce_global9(:))
+                  SIcst_allreduce_temp9(:)  = &
+                                     fraction(SIcst_allreduce_global9(:))
+                  SIcst_allreduce_temp9(:)  = &
+                                     anint( SIcst_allreduce_temp9(:)  &
+                                           * 1.0e+4_RKIND  ) &
+                                           / 1.0e+4_RKIND
+   
+                  SIcst_allreduce_global9(:)  =                        &
+                              SIcst_allreduce_temp9(:)                 &
+                            * 2.0_RKIND ** (SIcst_allreduce_itemp9(:))
+               endif
+   
+               SIcst_r00s0_global = SIcst_allreduce_global9(1) 
+               SIcst_r00z0_global = SIcst_allreduce_global9(2)
+               SIcst_q0y0_global  = SIcst_allreduce_global9(3)
+               SIcst_y0y0_global  = SIcst_allreduce_global9(4)
+               SIcst_r00q0_global = SIcst_allreduce_global9(5)
+               SIcst_r00y0_global = SIcst_allreduce_global9(6)
+               SIcst_r00t0_global = SIcst_allreduce_global9(7)
+               SIcst_r00v0_global = SIcst_allreduce_global9(8)
+               SIcst_q0q0_global  = SIcst_allreduce_global9(9)
+   
+               ! Omega0
+               SIcst_omega0 = SIcst_q0y0_global / SIcst_y0y0_global
+   
+               ! Residual
+               resid = SIcst_q0q0_global &
+                     - 2.0_RKIND * SIcst_omega0 * SIcst_q0y0_global  &
+                     + SIcst_omega0**2.0_RKIND  * SIcst_y0y0_global
+   
+               do iCell = 1,nPrecVec
+                  sshSubcycleNew(iCell) = sshSubcycleNew(iCell)           &
+                                        + SIcst_alpha0 * SIvec_ph1(iCell) &
+                                        + SIcst_omega0 * SIvec_qh0(iCell)
+   
+                  SIvec_r1(iCell)  = SIvec_q0(iCell) - SIcst_omega0       &
+                                   * SIvec_y0(iCell)
+   
+                  SIvec_rh1(iCell) =  SIvec_qh0(iCell) - SIcst_omega0     &
+                                   * (SIvec_wh0(iCell) - SIcst_alpha0     &
+                                                       * SIvec_zh1(iCell))
+   
+                  SIvec_w1(iCell)  =   SIvec_y0(iCell) - SIcst_omega0     &
+                                   * ( SIvec_t0(iCell) - SIcst_alpha0     &
+                                                       * SIvec_v0(iCell))
+               end do
+   
+   
+               ! Preconditioning -----------------------------------------!
+               if ( trim(config_btr_si_preconditioner) == 'ras' ) then
+                  ! RAS preconditioning: Use BLAS 
+                  ! for the symmetric matrix-vector multiplication
+#ifdef USE_LAPACK
+                  call DSPMV('U', nPrecVec, 1.0_RKIND, prec_ivmat, &
+                             SIvec_w1(1:nPrecVec), 1, 0.0_RKIND,   &
+                             SIvec_wh1(1:nPrecVec),1)
+#endif
+   
+               elseif ( trim(config_btr_si_preconditioner) == &
+                                                 'block_jacobi' ) then
+                  ! Block-Jacobi preconditioning: Use BLAS
+                  ! for the symmetric matrix-vector multiplication
+#ifdef USE_LAPACK
+                  call DSPMV('U', nPrecVec, 1.0_RKIND, prec_ivmat, &
+                             SIvec_w1(1:nPrecVec), 1, 0.0_RKIND,   &
+                             SIvec_wh1(1:nPrecVec),1)
+#endif
+   
+               elseif ( trim(config_btr_si_preconditioner) == &
+                                                       'jacobi' ) then
+                  ! Jacobi preconditioning
+                  SIvec_wh1(1:nPrecVec) = SIvec_w1(1:nPrecVec) &
+                                        * prec_ivmat(1:nPrecVec)
+   
+               elseif ( trim(config_btr_si_preconditioner) == &
+                                                         'none' ) then
+                  ! No preconditioning
+                  SIvec_wh1(1:nPrecVec) = SIvec_w1(1:nPrecVec)
+               end if
+   
+               call mpas_timer_start("si halo iter")
+               call mpas_dmpar_field_halo_exch(domain, 'SIvec_wh1')
+               call mpas_timer_stop("si halo iter")
+   
+   
+               ! SpMV ----------------------------------------------------!
+   
+               do iCell = 1, nPrecVec
+                  sshTendAx = 0.0_RKIND
+   
+                  do i = 1, nEdgesOnCell(iCell)
+                     iEdge = edgesOnCell(i, iCell)
+   
+                     cell1 = cellsOnEdge(1, iEdge)
+                     cell2 = cellsOnEdge(2, iEdge)
+   
+                     ! Interpolation sshEdge
+                     sshEdgeLag = 0.5_RKIND * (  sshNew(cell1)   &
+                                               + sshNew(cell2) )
+   
+                     ! method 1, matches method 0 without pbcs, 
+                     ! works with pbcs.
+                     thicknessSumLag = si_ismf * sshEdgeLag    &
+                                     + min(bottomDepth(cell1), &
+                                           bottomDepth(cell2))
+   
+                     ! nabla (ssh^0)
+                     sshDiffLag = (SIvec_wh1(cell2)-SIvec_wh1(cell1)) &
+                                / dcEdge(iEdge)
+   
+                     fluxAx = thicknessSumLag * sshDiffLag
+   
+                     sshTendAx = sshTendAx + edgeSignOnCell(i, iCell) &
+                               * fluxAx * dvEdge(iEdge)
+                  end do ! i
+   
+                  sshLagArea = R1_alpha1s_g_dts * SIvec_wh1(iCell) &
+                             * areaCell(iCell)
+   
+                  SIvec_t1(iCell) = -sshLagArea - sshTendAx
+               end do ! iCell
+   
+               SIcst_rho1 = SIcst_r00q0_global - SIcst_omega0 * SIcst_r00y0_global 
+   
+               SIcst_gamma1 = SIcst_r00y0_global - SIcst_omega0 * SIcst_r00t0_global  &
+                                          + SIcst_omega0 * SIcst_alpha0 &
+                                                         * SIcst_r00v0_global
+    
+               SIcst_beta0 = (SIcst_alpha0/SIcst_omega0) &
+                           * (SIcst_rho1 / SIcst_rho0)
+   
+               SIcst_alpha0 = SIcst_rho1 &
+                            / ( SIcst_gamma1 + SIcst_beta0 * SIcst_r00s0_global   &
+                                             - SIcst_beta0 * SIcst_omega0  &
+                                                           * SIcst_r00z0_global )
+               do iCell = 1,nPrecVec
+                  SIvec_r0(iCell) = SIvec_r1(iCell)
+                  SIvec_s0(iCell) = SIvec_s1(iCell)
+                  SIvec_z0(iCell) = SIvec_z1(iCell)
+                  SIvec_w0(iCell) = SIvec_w1(iCell)
+                  SIvec_t0(iCell) = SIvec_t1(iCell)
+   
+                  SIvec_rh0(iCell) = SIvec_rh1(iCell)
+                  SIvec_sh0(iCell) = SIvec_sh1(iCell)
+                  SIvec_ph0(iCell) = SIvec_ph1(iCell)
+                  SIvec_wh0(iCell) = SIvec_wh1(iCell)
+                  SIvec_zh0(iCell) = SIvec_zh1(iCell)
+               end do ! iCell
+   
+               SIcst_rho0         = SIcst_rho1
+   
+               if ( iter > int(mean_num_cells*5) ) then
+                  call mpas_log_write(&
+                  '******************************************************')
+                  call mpas_log_write(&
+                  'Iteration number exceeds Max. #iteration: PROGRAM STOP')
+                  call mpas_log_write(&
+                  'Current #Iteration = $i ', intArgs=(/ iter /) )
+                  call mpas_log_write(&
+                  'Max.    #Iteration = $i ', &
+                  intArgs=(/ int(mean_num_cells*5) /) )
+                  call mpas_log_write(&
+                  '******************************************************')
+                  call mpas_log_write('',MPAS_LOG_CRIT)
+               endif
+   
+            !-------------------------------------------------------------!
+            end do ! do iter
+            !-------------------------------------------------------------!
+   
+            ! boundary update on SSHnew
+            call mpas_timer_start("si halo iter")
+            call mpas_dmpar_field_halo_exch(domain, 'sshSubcycle', timeLevel=2)
+            call mpas_timer_stop("si halo iter")
+   
+            call mpas_timer_stop("si btr iteration")
+   
+            !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+            ! Stage 2.7 : The barotropic velocity update
+            !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+   
+            call mpas_timer_start("si btr vel update")
+   
+            do iEdge = 1, nEdgesHalo(2)
+               temp_mask = edgeMask(1, iEdge)
+   
+               cell1 = cellsOnEdge(1,iEdge)
+               cell2 = cellsOnEdge(2,iEdge)
+   
+               ! Use of normBtrVelNew as a temp array for sshEdge
+               normalBarotropicVelocityNew(iEdge) =    &
+                          ( 0.5*sshSubcycleNew(cell2)  &
+                           +0.5*sshSubcycleCur(cell2)) &
+                         -( 0.5*sshSubcycleNew(cell1)  &
+                           +0.5*sshSubcycleCur(cell1)) 
+   
+               normalBarotropicVelocitySubcycleNew(iEdge)              &
+                  = temp_mask                                          &
+                  * (normalBarotropicVelocityCur(iEdge)                &
+                  - dt_si * (-barotropicCoriolisTerm(iEdge) + gravity     &
+                          *normalBarotropicVelocityNew(iEdge)          &
+                          /dcEdge(iEdge) - barotropicForcing(iEdge)))
+            end do ! iEdge
+   
+            !$omp parallel
+            !$omp do schedule(runtime) private(CoriolisTerm, i, eoe)
+            do iEdge = 1,nEdgesHalo(1)
+               ! Compute the barotropic Coriolis term, -f*uPerp
+               CoriolisTerm = 0.0_RKIND
+               do i = 1, nEdgesOnEdge(iEdge)
+                  eoe = edgesOnEdge(i,iEdge)
+                  CoriolisTerm =  CoriolisTerm + weightsOnEdge(i,iEdge)   &
+                               * 0.5_RKIND                                  &
+                               * ( normalBarotropicVelocitySubcycleNew(eoe) &
+                                  +normalBarotropicVelocityCur(eoe) )       &
+                               * fEdge(eoe)
+               end do
+               barotropicCoriolisTerm(iEdge) = CoriolisTerm
             end do
-            barotropicCoriolisTerm(iEdge) = CoriolisTerm
-         end do
-         !$omp end do
-         !$omp end parallel
+            !$omp end do
+            !$omp end parallel
+   
+            do iEdge = 1, nEdgesOwned
+               temp_mask = edgeMask(1, iEdge)
+   
+               cell1 = cellsOnEdge(1,iEdge)
+               cell2 = cellsOnEdge(2,iEdge)
+   
+               normalBarotropicVelocitySubcycleNew(iEdge)              &
+                  = temp_mask                                          &
+                  * (normalBarotropicVelocityCur(iEdge)                &
+                  - dt_si * (-barotropicCoriolisTerm(iEdge) + gravity     &
+                          *normalBarotropicVelocityNew(iEdge)          &
+                          /dcEdge(iEdge) - barotropicForcing(iEdge)))
+            end do ! iEdge
+   
+   
+            do iEdge = 1, nEdgesOwned
+               cell1 = cellsOnEdge(1,iEdge)
+               cell2 = cellsOnEdge(2,iEdge)
+   
+               ! normBtrVelSubCur is at time n+0.5 if splitImplicitStep=1
+               !                     at time n+1.0 if splitImplicitStep=2
+               normalBarotropicVelocitySubcycleCur(iEdge)                &
+                  = 0.5_RKIND*normalBarotropicVelocitySubcycleNew(iEdge) &
+                  + 0.5_RKIND*normalBarotropicVelocityCur(iEdge)
+   
+               normalBarotropicVelocityNew(iEdge) &
+                  = normalBarotropicVelocitySubcycleCur(iEdge)
+   
+                         ! 0.25 = 0.5 * 0.5
+               sshEdge = 0.25_RKIND * (  sshSubcycleCur(cell1)   &
+                                       + sshSubcycleCur(cell2) ) &
+                       + 0.25_RKIND * (  sshSubcycleNew(cell1)   &
+                                       + sshSubcycleNew(cell2) )
+   
+               thicknessSum = sshEdge + min(bottomDepth(cell1), &
+                                            bottomDepth(cell2))
+   
+               barotropicThicknessFlux(iEdge) &
+                  = 0.5*(  normalBarotropicVelocitySubcycleNew(iEdge) &
+                         + normalBarotropicVelocityCur(iEdge) )       &
+                         * thicknessSum
+            end do ! iEdge
+   
+   
+            ! boundary update on F
+            call mpas_timer_start("si halo btr vel")
+            call mpas_dmpar_exch_group_create(domain, finalBtrGroupName)
+            call mpas_dmpar_exch_group_add_field(domain, &
+                      finalBtrGroupName, 'barotropicThicknessFlux')
+            call mpas_dmpar_exch_group_add_field(domain,             &
+                      finalBtrGroupName, 'normalBarotropicVelocity', &
+                                                       timeLevel=2)
+            call mpas_dmpar_exch_group_add_field(domain,             &
+                      finalBtrGroupName,                             &
+                                 'normalBarotropicVelocitySubcycle', &
+                                                       timeLevel=1)
+            call mpas_dmpar_exch_group_full_halo_exch(domain, &
+                      finalBtrGroupName)
+            call mpas_dmpar_exch_group_destroy(domain, finalBtrGroupName)
+            call mpas_timer_stop("si halo btr vel")
+   
+            call mpas_timer_stop("si btr vel update")
 
-         do iEdge = 1, nEdgesOwned
-            temp_mask = edgeMask(1, iEdge)
-
-            cell1 = cellsOnEdge(1,iEdge)
-            cell2 = cellsOnEdge(2,iEdge)
-
-            normalBarotropicVelocitySubcycleNew(iEdge)              &
-               = temp_mask                                          &
-               * (normalBarotropicVelocityCur(iEdge)                &
-               - dt * (-barotropicCoriolisTerm(iEdge) + gravity     &
-                       *normalBarotropicVelocityNew(iEdge)          &
-                       /dcEdge(iEdge) - barotropicForcing(iEdge)))
-         end do ! iEdge
-
-
-         do iEdge = 1, nEdgesOwned
-            cell1 = cellsOnEdge(1,iEdge)
-            cell2 = cellsOnEdge(2,iEdge)
-
-            ! normBtrVelSubCur is at time n+0.5 if splitImplicitStep=1
-            !                     at time n+1.0 if splitImplicitStep=2
-            normalBarotropicVelocitySubcycleCur(iEdge)                &
-               = 0.5_RKIND*normalBarotropicVelocitySubcycleNew(iEdge) &
-               + 0.5_RKIND*normalBarotropicVelocityCur(iEdge)
-
-            normalBarotropicVelocityNew(iEdge) &
-               = normalBarotropicVelocitySubcycleCur(iEdge)
-
-                      ! 0.25 = 0.5 * 0.5
-            sshEdge = 0.25_RKIND * (  sshSubcycleCur(cell1)   &
-                                    + sshSubcycleCur(cell2) ) &
-                    + 0.25_RKIND * (  sshSubcycleNew(cell1)   &
-                                    + sshSubcycleNew(cell2) )
-
-            thicknessSum = sshEdge + min(bottomDepth(cell1), &
-                                         bottomDepth(cell2))
-
-            barotropicThicknessFlux(iEdge) &
-               = 0.5*(  normalBarotropicVelocitySubcycleNew(iEdge) &
-                      + normalBarotropicVelocityCur(iEdge) )       &
-                      * thicknessSum
-         end do ! iEdge
-
-
-         ! boundary update on F
-         call mpas_timer_start("si halo btr vel")
-         call mpas_dmpar_exch_group_create(domain, finalBtrGroupName)
-         call mpas_dmpar_exch_group_add_field(domain, &
-                   finalBtrGroupName, 'barotropicThicknessFlux')
-         call mpas_dmpar_exch_group_add_field(domain,             &
-                   finalBtrGroupName, 'normalBarotropicVelocity', &
-                                                    timeLevel=2)
-         call mpas_dmpar_exch_group_add_field(domain,             &
-                   finalBtrGroupName,                             &
-                              'normalBarotropicVelocitySubcycle', &
-                                                    timeLevel=1)
-         call mpas_dmpar_exch_group_full_halo_exch(domain, &
-                   finalBtrGroupName)
-         call mpas_dmpar_exch_group_destroy(domain, finalBtrGroupName)
-         call mpas_timer_stop("si halo btr vel")
-
-         call mpas_timer_stop("si btr vel update")
+         !-------------------------------------------------------------!
+         end do ! siLargeIter
+         !-------------------------------------------------------------!
+         ! END   Large barotropic system iteration loop
+         !-------------------------------------------------------------!
 
          ! Check that you can compute SSH using the total sum or the
          ! individual increments over the barotropic subcycles.
@@ -3083,13 +3099,6 @@ module ocn_time_integration_si
 
       numTSIterations = config_n_ts_iter
 
-      if ( numTSIterations .ne. 2 ) then
-         call mpas_log_write( &
-         'The semi-implicit method requires [config_n_ts_iter = 2]. &
-          A current value is $i.', &
-          MPAS_LOG_CRIT, .false., .true., (/numTSIterations/))
-      endif
-
       allocate(numClinicIterations(numTSIterations))
 
       numClinicIterations    = config_n_bcl_iter_mid ! most iterations
@@ -3241,23 +3250,6 @@ module ocn_time_integration_si
          tolerance_inner  = config_btr_si_tolerance * area_mean
       endif
 
-      ! Impliciness parameters
-      alpha1= 0.5_RKIND
-      alpha2= 1.0_RKIND - alpha1
-
-      ! Get time step size to compute coefficients for the SI solver
-      read(config_dt(1:2),*) ihh
-      read(config_dt(4:5),*) imm
-      read(config_dt(7:8),*) iss
-      tmp1 = ihh * 3600.0_RKIND + imm * 60.0_RKIND + iss
-
-      ! Computation of coefficients which will be used in the SI solver
-      R1_alpha1s_g_dts = 1.0_RKIND/((alpha1**2.0_RKIND) &
-                           * gravity * tmp1**2.0_RKIND)
-      R1_alpha1s_g_dt  = 1.0_RKIND/((alpha1**2.0_RKIND) &
-                           * gravity * tmp1)
-      R1_alpha1_g      = 1.0_RKIND/(gravity*alpha1)
-
 
       ! Detection of ISMF (Temporariliy implemented. 
       !                    This will be revised in next SI version)
@@ -3288,6 +3280,46 @@ module ocn_time_integration_si
       ! Reinitialize ssh and zTop
       sshCur(:) = 0.0
       zTop(:,:) = 0.0
+
+
+      ! Impliciness parameters
+      alpha1= 0.5_RKIND
+      alpha2= 1.0_RKIND - alpha1
+
+      ! Get time step size to compute coefficients for the SI solver
+      read(config_dt(1:2),*) ihh
+      read(config_dt(4:5),*) imm
+      read(config_dt(7:8),*) iss
+      dt_si = ihh * 3600.0_RKIND + imm * 60.0_RKIND + iss
+
+      ! Determination of nSiLargeIter (the barotropic system 
+      !                                large iteration loop)
+      !    - Currently, it is set as 2 for the ISMF case.
+      !    - Also, nSiLargeIter can be controlled by user if needed.
+      !    - Higher nSiLargeIter can make simulations more stable and
+      !      accurate, but runtime for the barotropic system will 
+      !      increase.
+      !    - Do not set larger than 2. This will be improved in next
+      !      version.
+      nSiLargeIter = config_n_btr_si_large_iter
+
+      if ( tmp2 < -10.d0 .and. nSiLargeIter == 1 ) then ! For ISMF case
+         nSiLargeIter = 2
+         dt_si = dt_si / real(nSiLargeIter)
+      elseif ( numTSIterations == 1 ) then
+         nSiLargeIter = 2
+      else
+         nSiLargeIter = config_n_btr_si_large_iter
+         dt_si = dt_si / real(nSiLargeIter)
+      endif
+
+
+      ! Computation of coefficients which will be used in the SI solver
+      R1_alpha1s_g_dts = 1.0_RKIND/((alpha1**2.0_RKIND) &
+                           * gravity * dt_si**2.0_RKIND)
+      R1_alpha1s_g_dt  = 1.0_RKIND/((alpha1**2.0_RKIND) &
+                           * gravity * dt_si)
+      R1_alpha1_g      = 1.0_RKIND/(gravity*alpha1)
 
    end subroutine ocn_time_integration_si_init!}}}
 

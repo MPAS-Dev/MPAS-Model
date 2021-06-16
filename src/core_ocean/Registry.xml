@@ -1158,10 +1158,10 @@
 					description="Tolerance for the barotropic mode solver"
 					possible_values="any positive real, but typically less than 1.0e-9"
 		/>
-		<nml_option name="config_n_btr_si_outer_iter" type="integer" default_value="2" units="unitless"
-					description="number of outer iterations"
-					possible_values="any positive integer, but typically 2"
-		/>
+                <nml_option name="config_n_btr_si_large_iter" type="integer" default_value="1" units="unitless"
+                                        description="number of large barotropic system iterations"
+                                        possible_values="any positive integer, but typically 1 and less than 2"
+                />
 		<nml_option name="config_btr_si_partition_match_mode" type="logical" default_value=".false." units="unitless"
 					description="If true, the semi-implicit method uses the Jacobi preconditioner with the bit-for-bit all-reduce. This is less performant, so should only be used for testing."
 					possible_values=".true. or .false."
