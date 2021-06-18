@@ -54,8 +54,9 @@
  end interface
 
  ! Abstract interface for determining if the cell, iCell, needs to be added to the stack
- ! for processing. Returning .true. will indicate that the cell has not received any mappings
- ! and needs to be processed. .false. will indicate that the cell has received mappings.
+ ! for processing. If an interface returns .true., it will indicate to the calling code
+ ! that the cell has not recived any mappings and needs to be processed. Returning .false.
+ ! will indicate that the cell has recived mappings and does not need to be procssed.
  abstract interface
     function interp_criteria_function(mgr, iCell)
         import mpas_geotile_mgr_type
@@ -65,13 +66,18 @@
     end function interp_criteria_function
  end interface
 
- ! Abstract interface to accumulate pixel values with the cell they map to.
+ ! Abstract interface to accumulate pixel values with the cell they map to. Depending on
+ ! the dataset, values may need to be accumulated in different ways (continuous vs.
+ ! categorical) or specific values of a dataset may need to be ignored (see snowalb),
+ ! this routine allows different interpolations of datasets to accumulate to each datasets
+ ! specific needs.
  abstract interface
     subroutine interp_accumulation_function(mgr, iCell, pixel)
         use mpas_derived_types, only : I8KIND
         import mpas_geotile_mgr_type
         type (mpas_geotile_mgr_type), intent(in) :: mgr
         integer, intent(in) :: iCell
+        ! Datasets with tile_z = 1 will access values as pixel(1)
         integer (kind=I8KIND), dimension(:), intent(in) :: pixel
     end subroutine interp_accumulation_function
  end interface
@@ -91,6 +97,7 @@
  integer, dimension(:), pointer :: soilcat_top
  integer, dimension(:), pointer :: nhs
  integer, dimension(:,:), allocatable:: ncat
+ ! Landmask is used by the accumulation function for maxsnoalb so it needs to be a global variable
  integer, dimension(:), pointer :: landmask
 
  real (kind=RKIND), dimension(:), pointer :: snoalb
@@ -103,7 +110,6 @@
  real (kind=RKIND), dimension(:,:), pointer :: albedo12m
  integer (kind=I8KIND), dimension(:,:), pointer :: albedo12m_int
 
- ! These global variables are starting to smell...
  integer, pointer :: category_min
  integer, pointer :: category_max
 
@@ -112,9 +118,6 @@
 !==================================================================================================
  subroutine init_atm_static(mesh, dims, configs)
 !==================================================================================================
-
-! TODO: Once the unified function routine is implemented, then we should run this with -Wall and
-! remove any unused variables.
 
 !inout arguments:
  type (mpas_pool_type), intent(inout) :: mesh
@@ -239,6 +242,9 @@
  call mpas_pool_get_dimension(dims, 'nVertices', nVertices)
  call mpas_pool_get_dimension(dims, 'maxEdges', maxEdges)
 
+!
+! Scale all distances and areas from a unit sphere to one with a radius of sphere_radius
+!
  xCell = xCell * sphere_radius
  yCell = yCell * sphere_radius
  zCell = zCell * sphere_radius
@@ -434,22 +440,29 @@
  !> \date    25 January 2020
  !> \details
  !>  Given a initialized geotile manager object, and an initialized KD tree built of
- !> xCell, yCell, zCells, and two function pointers, this subroutine maps values of each
- !> pixel to the cell it resides in. Because this routine uses a K-Dimensional tree
- !> to map pixels to cells, it can safely map pixels to cells on a non-cvt decomposition
- !> in parallel.
+ !> xCell, yCell, zCell, and two function pointers, this subroutine maps pixels of
+ !> a Geogrid binary format dataset (as described in the WRF User's Guide 3-41) to the
+ !> cells they reside in. Because this routine uses a K-Dimensional tree to map pixels
+ !> to cells, it can safely map datasets to MPAS meshes in parallel.
+ !>
+ !> For limited-area meshes, only a portion of a datasets tiles will be loaded based on
+ !> cell locations.
  !>
  !> The procedure interp_criteria will need to match the interp_criteria_function abstract
- !> interface. The procedure is used to determine if the cell passed in needs to be processed
- !> or not. Returning .true. in this function will add the tile that contains iCell to
- !> be processed contains. Returning .false. for all cells will result in no mapping
- !> done.
+ !> interface. The procedure is used to determine if the tile that contains iCell has been
+ !> proccseed or not. If it has not, then it will be added to the process stack for proccessing.
+ !> If a cell has not recived any mappings than it is possible the tile that contains
+ !> that cell has not been added to process stack. Thus, in that case, the function should return
+ !> .true. to add the tile to the stack. A value of .false. will signify that the cell has
+ !> recived values, and does not need to be proccssed. Different datasets may need to implement
+ !> this function in a way that meets their definitions (e.g. categorical vs continuous).
  !>
  !> The accumulation_method procedure will be called with the mappings between pixel values
  !> and the cells in which they map to. Currently, the accumulation_method does not need to
  !> return any values.
  !>
- !> TODO: Supersample factor information - How to document fields within the mgr pool?
+ !> If supersample_fac is present each pixel will be subdivided into supersampel_fac ^ 2
+ !> sub-pixels.
  !
  !-----------------------------------------------------------------------
  subroutine init_atm_map_static_data(mesh, mgr, kdtree, interp_criteria, accumulation_method, supersample_fac)
@@ -524,9 +537,8 @@
     call mpas_pool_get_config(mgr % pool, 'scale_factor', scale_factor)
 
     ! Currently, the namelist option config_supersample_factor is only for max snow albedo and
-    ! monthly climatological albedo. We should have additional hidden namelist options for each
-    ! additional field as meshes that are higher resolutions are now being used for current
-    ! MPAS datasets.
+    ! monthly climatological albedo. Should we have a namelist value for each field? This will
+    ! be helpful in the future as experiements are run on finer grid spacing.
     if (present(supersample_fac)) then
         supersample_fac_lcl = supersample_fac
     else
@@ -537,18 +549,13 @@
        call mpas_log_write('   Dataset will be supersampled by a factor of $i', intArgs=(/supersample_fac_lcl/))
     end if
 
-    ! TODO: How should we handle subsample_fac? We may not want users to change this values other
-    ! than during the tutorial and development. So perhaps it is best set just hard coded and not
-    ! as a hidden namelist.
-    !
-    ! If we do have make it a hidden namelist option perhaps we could have throw and error or a
-    ! warning to really prompt the user if they want to sub-sample fields.
+    ! Subsample_fac should always be 1, else datasets can be incorrectly interpolated!!
     subsample_fac = 1
 
     do iCell = 1, nCells
         !
-        ! Insure all cells receive values by loading tiles that have not recivied values, when
-        ! interp_criteria(iCell) == .true..
+        ! Insure all cells receive values by loading tiles that have not recivied values and
+        ! pushing them onto the stack.
         !
         if (interp_criteria(mgr, iCell)) then
             tile => null()
@@ -639,8 +646,8 @@
  !> \author  Miles Curry
  !> \date    25 January 2020
  !> \details
- !> This is a generic routine that can be used to determine if the tile that contains iCell needs
- !> to be loaded and processed by init_atm_map_static_data.
+ !> This routine can be used to determine if the tile that contains iCell needs
+ !> to be loaded and processed by init_atm_map_static_data for continuous datasets.
  !
  !-----------------------------------------------------------------------
  function continuous_interp_criteria(mgr, iCell)
@@ -727,6 +734,12 @@
     allocate(ter_integer(nCells))
     allocate(nhs(nCells))
 
+    !
+    ! Store tile values as a I8KIND integer temporarily to avoid floating
+    ! point round off differences and to have +/- 9.22x10^18 range of representative
+    ! values. For example, a 120 km mesh with a 1 meter data set with 6 decimal of
+    ! precision will allow for values of 180x10^12.
+    !
     ter(:) = 0.0
     ter_integer(:) = 0
     nhs(:) = 0
@@ -761,8 +774,8 @@
  !> \author  Miles Curry
  !> \date    25 January 2020
  !> \details
- !> This is a generic routine that can be used to determine if the tile that contains iCell needs
- !> to be loaded and processed by init_atm_map_static_data.
+ !> This routine can be used to determine if the tile that contains iCell needs
+ !> to be loaded and processed by init_atm_map_static_data for categorical datasets.
  !
  !-----------------------------------------------------------------------
  function categorical_interp_criteria(mgr, iCell)
@@ -787,8 +800,8 @@
  !> \author  Miles Curry
  !> \date    25 January 2020
  !> \details
- !> This routine will be passed in to init_atm_map_static_data to accumulate terrain values
- !> to cells.
+ !> This routine will be passed in to init_atm_map_static_data to accumulate categorical
+ !> values to cells.
  !
  !-----------------------------------------------------------------------
  subroutine categorical_interp_accumulation(mgr, iCell, pixel)
@@ -814,8 +827,11 @@
  !> \author  Miles Curry
  !> \date    25 January 2020
  !> \details
- !> Interpolate terrain by using the init_atm_map_static_data routine and
- !> accumulating the pixel values into each cell using terrain_interp_accumulation.
+ !> Interpolate landuse by using the init_atm_map_static_data routine and
+ !> accumulating the pixel values into each cell using categorical_interp_accumulation.
+ !> The values used by this dataset to specify water and ice values will be set in
+ !> isice_lu, iswater_lu, assuming that isice and iswater are in the dataset's
+ !> index file.
  !
  !-----------------------------------------------------------------------
  subroutine interp_landuse(mesh, kdtree, geog_data_path, isice_lu, iswater_lu)
@@ -854,6 +870,7 @@
      call mpas_pool_get_config(mgr % pool, 'isice', isice_lu_ptr)
      call mpas_pool_get_config(mgr % pool, 'iswater', iswater_lu_ptr)
 
+     ! What happens if isice_lu and iswater_lu are not present in the index file?
      isice_lu = isice_lu_ptr
      iswater_lu = iswater_lu_ptr
 
@@ -889,7 +906,8 @@
  !> \details
  !> Interpolate soil category top by using the init_atm_map_static_data routine and
  !> accumulating the pixel values into each cell using category_interp_accumulation.
- !
+ !> The values used by this dataset to signify water will be set in iswater_soil,
+ !> assuming that iswater is present in the index file.
  !-----------------------------------------------------------------------
  subroutine interp_soilcat(mesh, kdtree, geog_data_path, iswater_soil)
 
@@ -991,7 +1009,7 @@
  !
  !> \brief   Interpolate soil temperature
  !> \details
- !> Interpolate soil templerature
+ !> Interpolate soil temperature.
  !
  !-----------------------------------------------------------------------
  subroutine interp_soiltemp(mesh, dims, configs)
@@ -1121,8 +1139,8 @@
  !> \author  Miles Curry
  !> \date    25 January 2020
  !> \details
- !> This routine will be passed in to init_atm_map_static_data to accumulate maximum snoalbedo values
- !> to cells.
+ !> This routine will be passed in to init_atm_map_static_data to accumulate maximum
+ !> snoalbedo values to cells.
  !
  !-----------------------------------------------------------------------
  subroutine snoalb_interp_accumulation(mgr, iCell, pixel)
@@ -1207,6 +1225,12 @@
          call mpas_pool_get_config(mgr % pool, 'scale_factor', scalefactor)
          call mpas_pool_get_config(configs, 'config_supersample_factor', supersample_fac)
 
+         !
+         ! Store tile values as a I8KIND integer temporarily to avoid floating
+         ! point round off differences and to have +/- 9.22x10^18 range of representative
+         ! values. For example, a 120 km mesh with a 1 meter data set with 6 decimal of
+         ! precision will allow for values of 180x10^12.
+         !
          allocate(nhs(nCells))
          allocate(snoalb_integer(nCells))
          snoalb_integer(:) = 0
@@ -1389,6 +1413,9 @@
  !> \date    25 January 2020
  !> \details
  !>
+ !>  Interpolate climatological vegetation fraction (greenfrac) by using the
+ !> ini_atm_map_static_data routine and accumulating pixel values into each cell using
+ !> greenfrac_interp_accumulation.
  !
  !-----------------------------------------------------------------------
  subroutine interp_greenfrac(mesh, configs, kdtree, landmask)
@@ -1623,6 +1650,19 @@
 
  end subroutine albedo12m_interp_accumulation
 
+ !***********************************************************************
+ !
+ !  routine interp_albedo12m
+ !
+ !> \brief   Interpolate climatological monthly albedo (albedo12m)
+ !> \author  Miles Curry
+ !> \date    25 January 2020
+ !> \details
+ !>  Interpolate climatological monthly albedo (abledo12m) by using the
+ !> init_atm_map_static_data routine and accumulating pixel value into each
+ !> cell using albedo12m_interp_accumulation.
+ !
+ !-----------------------------------------------------------------------
  subroutine interp_albedo12m(mesh, configs, kdtree, landmask, isice_lu)
 
      implicit none
@@ -1696,7 +1736,7 @@
                  albedo12m(:,iCell) = albedo12m(:,iCell) * scalefactor
              end if
              if (lu_index(iCell) == isice_lu) then
-                 albedo12m(:,iCell) = 70.0 ! TODO: Where does this come from?
+                 albedo12m(:,iCell) = 70.0 ! TODO: Can we grab this number from somewhere?
              endif
          end do
 
