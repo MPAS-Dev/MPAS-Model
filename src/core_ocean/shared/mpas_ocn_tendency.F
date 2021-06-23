@@ -177,7 +177,7 @@ contains
       ! surface flux tendency
       !
 
-      call ocn_thick_surface_flux_tend(meshPool, fractionAbsorbed, fractionAbsorbedRunoff, layerThickness,  &
+      call ocn_thick_surface_flux_tend(meshPool, fractionAbsorbed, fractionAbsorbedRunoff, &
          surfaceThicknessFlux, surfaceThicknessFluxRunoff, tend_layerThickness, err)
 
       !
