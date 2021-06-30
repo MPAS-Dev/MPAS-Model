@@ -13,11 +13,11 @@ xlf:
 	"CC_SERIAL = xlc_r" \
 	"CXX_SERIAL = xlc++_r" \
 	"FFLAGS_PROMOTION = -qrealsize=8" \
-	"FFLAGS_OPT = -O3 -qufmt=be" \
+	"FFLAGS_OPT = -O3 -qufmt=be -WF,-qnotrigraph" \
 	"CFLAGS_OPT = -O3" \
 	"CXXFLAGS_OPT = -O3" \
 	"LDFLAGS_OPT = -O3" \
-	"FFLAGS_DEBUG = -O0 -g -C -qufmt=be" \
+	"FFLAGS_DEBUG = -O0 -g -C -qufmt=be -WF,-qnotrigraph" \
 	"CFLAGS_DEBUG = -O0 -g" \
 	"CXXFLAGS_DEBUG = -O0 -g" \
 	"LDFLAGS_DEBUG = -O0 -g" \
@@ -54,7 +54,7 @@ ftn:
 	"USE_PAPI = $(USE_PAPI)" \
 	"OPENMP = $(OPENMP)" \
 	"OPENACC = $(OPENACC)" \
-	"CPPFLAGS = $(MODEL_FORMULATION) -D_MPI -DUNDERSCORE" )
+	"CPPFLAGS = $(MODEL_FORMULATION) -D_MPI" )
 
 titan-cray:
 	( $(MAKE) all \
@@ -75,7 +75,7 @@ titan-cray:
 	"USE_PAPI = $(USE_PAPI)" \
 	"OPENMP = $(OPENMP)" \
 	"OPENACC = $(OPENACC)" \
-	"CPPFLAGS = $(MODEL_FORMULATION) -D_MPI -DUNDERSCORE" )
+	"CPPFLAGS = $(MODEL_FORMULATION) -D_MPI" )
 
 pgi:
 	( $(MAKE) all \
@@ -103,7 +103,7 @@ pgi:
 	"USE_PAPI = $(USE_PAPI)" \
 	"OPENMP = $(OPENMP)" \
 	"OPENACC = $(OPENACC)" \
-	"CPPFLAGS = $(MODEL_FORMULATION) -D_MPI -DUNDERSCORE" )
+	"CPPFLAGS = $(MODEL_FORMULATION) -D_MPI" )
 
 pgi-nersc:
 	( $(MAKE) all \
@@ -127,7 +127,7 @@ pgi-nersc:
 	"USE_PAPI = $(USE_PAPI)" \
 	"OPENMP = $(OPENMP)" \
 	"OPENACC = $(OPENACC)" \
-	"CPPFLAGS = $(MODEL_FORMULATION) -D_MPI -DUNDERSCORE" )
+	"CPPFLAGS = $(MODEL_FORMULATION) -D_MPI" )
 
 pgi-llnl:
 	( $(MAKE) all \
@@ -151,7 +151,7 @@ pgi-llnl:
 	"USE_PAPI = $(USE_PAPI)" \
 	"OPENMP = $(OPENMP)" \
 	"OPENACC = $(OPENACC)" \
-	"CPPFLAGS = $(MODEL_FORMULATION) -D_MPI -DUNDERSCORE" )
+	"CPPFLAGS = $(MODEL_FORMULATION) -D_MPI" )
 
 ifort:
 	( $(MAKE) all \
@@ -162,11 +162,11 @@ ifort:
 	"CC_SERIAL = icc" \
 	"CXX_SERIAL = icpc" \
 	"FFLAGS_PROMOTION = -real-size 64" \
-	"FFLAGS_OPT = -O3 -convert big_endian -FR" \
+	"FFLAGS_OPT = -O3 -convert big_endian -free -align array64byte" \
 	"CFLAGS_OPT = -O3" \
 	"CXXFLAGS_OPT = -O3" \
 	"LDFLAGS_OPT = -O3" \
-	"FFLAGS_DEBUG = -g -convert big_endian -FR -CU -CB -check all -fpe0 -traceback" \
+	"FFLAGS_DEBUG = -g -convert big_endian -free -CU -CB -check all -fpe0 -traceback" \
 	"CFLAGS_DEBUG = -g -traceback" \
 	"CXXFLAGS_DEBUG = -g -traceback" \
 	"LDFLAGS_DEBUG = -g -fpe0 -traceback" \
@@ -179,7 +179,7 @@ ifort:
 	"USE_PAPI = $(USE_PAPI)" \
 	"OPENMP = $(OPENMP)" \
 	"OPENACC = $(OPENACC)" \
-	"CPPFLAGS = $(MODEL_FORMULATION) -D_MPI -DUNDERSCORE" )
+	"CPPFLAGS = $(MODEL_FORMULATION) -D_MPI" )
 
 ifort-scorep:
 	( $(MAKE) all \
@@ -190,11 +190,11 @@ ifort-scorep:
 	"CC_SERIAL = icc" \
 	"CXX_SERIAL = icpc" \
 	"FFLAGS_PROMOTION = -real-size 64" \
-	"FFLAGS_OPT = -O3 -g -convert big_endian -FR" \
+	"FFLAGS_OPT = -O3 -g -convert big_endian -free -align array64byte" \
 	"CFLAGS_OPT = -O3 -g" \
 	"CXXFLAGS_OPT = -O3 -g" \
 	"LDFLAGS_OPT = -O3 -g" \
-	"FFLAGS_DEBUG = -g -convert big_endian -FR -CU -CB -check all -fpe0 -traceback" \
+	"FFLAGS_DEBUG = -g -convert big_endian -free -CU -CB -check all -fpe0 -traceback" \
 	"CFLAGS_DEBUG = -g -traceback" \
 	"CXXFLAGS_DEBUG = -g -traceback" \
 	"LDFLAGS_DEBUG = -g -fpe0 -traceback" \
@@ -207,7 +207,7 @@ ifort-scorep:
 	"USE_PAPI = $(USE_PAPI)" \
 	"OPENMP = $(OPENMP)" \
 	"OPENACC = $(OPENACC)" \
-	"CPPFLAGS = $(MODEL_FORMULATION) -D_MPI -DUNDERSCORE" )
+	"CPPFLAGS = $(MODEL_FORMULATION) -D_MPI" )
 
 ifort-gcc:
 	( $(MAKE) all \
@@ -218,11 +218,11 @@ ifort-gcc:
 	"CC_SERIAL = gcc" \
 	"CXX_SERIAL = g++" \
 	"FFLAGS_PROMOTION = -real-size 64" \
-	"FFLAGS_OPT = -O3 -convert big_endian -FR" \
+	"FFLAGS_OPT = -O3 -convert big_endian -free -align array64byte" \
 	"CFLAGS_OPT = -O3" \
 	"CXXFLAGS_OPT = -O3" \
 	"LDFLAGS_OPT = -O3" \
-	"FFLAGS_DEBUG = -g -convert big_endian -FR -CU -CB -check all -fpe0 -traceback" \
+	"FFLAGS_DEBUG = -g -convert big_endian -free -CU -CB -check all -fpe0 -traceback" \
 	"CFLAGS_DEBUG = -g" \
 	"CXXFLAGS_DEBUG = -g" \
 	"LDFLAGS_DEBUG = -g -fpe0 -traceback" \
@@ -235,7 +235,7 @@ ifort-gcc:
 	"USE_PAPI = $(USE_PAPI)" \
 	"OPENMP = $(OPENMP)" \
 	"OPENACC = $(OPENACC)" \
-	"CPPFLAGS = $(MODEL_FORMULATION) -D_MPI -DUNDERSCORE" )
+	"CPPFLAGS = $(MODEL_FORMULATION) -D_MPI" )
 
 gfortran:
 	( $(MAKE) all \
@@ -263,7 +263,7 @@ gfortran:
 	"USE_PAPI = $(USE_PAPI)" \
 	"OPENMP = $(OPENMP)" \
 	"OPENACC = $(OPENACC)" \
-	"CPPFLAGS = $(MODEL_FORMULATION) -D_MPI -DUNDERSCORE" )
+	"CPPFLAGS = $(MODEL_FORMULATION) -D_MPI" )
 
 gfortran-clang:
 	( $(MAKE) all \
@@ -291,7 +291,7 @@ gfortran-clang:
 	"USE_PAPI = $(USE_PAPI)" \
 	"OPENMP = $(OPENMP)" \
 	"OPENACC = $(OPENACC)" \
-	"CPPFLAGS = $(MODEL_FORMULATION) -D_MPI -DUNDERSCORE" )
+	"CPPFLAGS = $(MODEL_FORMULATION) -D_MPI" )
 
 g95:
 	( $(MAKE) all \
@@ -315,7 +315,7 @@ g95:
 	"USE_PAPI = $(USE_PAPI)" \
 	"OPENMP = $(OPENMP)" \
 	"OPENACC = $(OPENACC)" \
-	"CPPFLAGS = $(MODEL_FORMULATION) -D_MPI -DUNDERSCORE" )
+	"CPPFLAGS = $(MODEL_FORMULATION) -D_MPI" )
 
 pathscale-nersc:
 	( $(MAKE) all \
@@ -339,7 +339,7 @@ pathscale-nersc:
 	"USE_PAPI = $(USE_PAPI)" \
 	"OPENMP = $(OPENMP)" \
 	"OPENACC = $(OPENACC)" \
-	"CPPFLAGS = $(MODEL_FORMULATION) -D_MPI -DUNDERSCORE" )
+	"CPPFLAGS = $(MODEL_FORMULATION) -D_MPI" )
 
 cray-nersc:
 	( $(MAKE) all \
@@ -363,7 +363,7 @@ cray-nersc:
 	"USE_PAPI = $(USE_PAPI)" \
 	"OPENMP = $(OPENMP)" \
 	"OPENACC = $(OPENACC)" \
-	"CPPFLAGS = $(MODEL_FORMULATION) -D_MPI -DUNDERSCORE" )
+	"CPPFLAGS = $(MODEL_FORMULATION) -D_MPI" )
 
 gnu-nersc:
 	( $(MAKE) all \
@@ -386,7 +386,7 @@ gnu-nersc:
 	"DEBUG = $(DEBUG)" \
 	"SERIAL = $(SERIAL)" \
 	"USE_PAPI = $(USE_PAPI)" \
-	"CPPFLAGS = $(MODEL_FORMULATION) -DUNDERSCORE -D_MPI $(FILE_OFFSET) $(ZOLTAN_DEFINE)" )
+	"CPPFLAGS = $(MODEL_FORMULATION) -D_MPI $(FILE_OFFSET) $(ZOLTAN_DEFINE)" )
 
 intel-nersc:
 	( $(MAKE) all \
@@ -397,7 +397,7 @@ intel-nersc:
 	"CC_SERIAL = cc" \
 	"CXX_SERIAL = CC" \
 	"FFLAGS_PROMOTION = -real-size 64" \
-	"FFLAGS_OPT = -O3 -convert big_endian -FR" \
+	"FFLAGS_OPT = -O3 -convert big_endian -free -align array64byte" \
 	"CFLAGS_OPT = -O3" \
 	"CXXFLAGS_OPT = -O3" \
 	"LDFLAGS_OPT = -O3" \
@@ -405,7 +405,7 @@ intel-nersc:
 	"CFLAGS_OMP = -qopenmp" \
 	"FFLAGS_ACC =" \
 	"CFLAGS_ACC =" \
-	"FFLAGS_DEBUG = -real-size 64 -g -convert big_endian -FR -CU -CB -check all -gen-interfaces -warn interfaces -traceback" \
+	"FFLAGS_DEBUG = -real-size 64 -g -convert big_endian -free -CU -CB -check all -gen-interfaces -warn interfaces -traceback" \
 	"CFLAGS_DEBUG = -g -traceback" \
 	"CXXFLAGS_DEBUG = -g -traceback" \
 	"LDFLAGS_DEBUG = -g -traceback" \
@@ -414,7 +414,7 @@ intel-nersc:
 	"USE_PAPI = $(USE_PAPI)" \
 	"OPENMP = $(OPENMP)" \
 	"OPENACC = $(OPENACC)" \
-	"CPPFLAGS = $(MODEL_FORMULATION) -D_MPI -DUNDERSCORE" )
+	"CPPFLAGS = $(MODEL_FORMULATION) -D_MPI" )
 
 bluegene:
 	( $(MAKE) all \
@@ -444,41 +444,79 @@ bluegene:
 	"OPENACC = $(OPENACC)" \
 	"CPPFLAGS = $(MODEL_FORMULATION) -D_MPI" )
 
+llvm:
+	( $(MAKE) all \
+	"FC_PARALLEL = mpifort" \
+	"CC_PARALLEL = mpicc" \
+	"CXX_PARALLEL = mpic++" \
+	"FC_SERIAL = flang" \
+	"CC_SERIAL = clang" \
+	"CXX_SERIAL = clang++" \
+	"FFLAGS_PROMOTION = -r8" \
+	"FFLAGS_OPT = -O3 -g -Mbyteswapio -Mfreeform" \
+	"CFLAGS_OPT = -O3 -g" \
+	"CXXFLAGS_OPT = -O3 -g" \
+	"LDFLAGS_OPT = -O3 -g" \
+	"FFLAGS_DEBUG = -O0 -g -Mbounds -Mchkptr -Mbyteswapio -Mfreeform -Mstandard" \
+	"CFLAGS_DEBUG = -O0 -g -Weverything" \
+	"CXXFLAGS_DEBUG = -O0 -g -Weverything" \
+	"LDFLAGS_DEBUG = -O0 -g" \
+	"FFLAGS_OMP = -mp" \
+	"CFLAGS_OMP = -fopenmp" \
+	"CORE = $(CORE)" \
+	"DEBUG = $(DEBUG)" \
+	"USE_PAPI = $(USE_PAPI)" \
+	"OPENMP = $(OPENMP)" \
+	"CPPFLAGS = $(MODEL_FORMULATION) -D_MPI" )
+
 CPPINCLUDES = 
 FCINCLUDES = 
 LIBS = 
-ifneq ($(wildcard $(PIO)/lib), ) # Check for newer PIO version
+
+#
+# If user has indicated a PIO2 library, define USE_PIO2 pre-processor macro
+#
 ifeq "$(USE_PIO2)" "true"
-	FCINCLUDES = -I$(PIO)/include
 	override CPPFLAGS += -DUSE_PIO2
-	LIBS = -L$(PIO)/lib -lpiof -lpioc
-ifneq ($(wildcard $(PIO)/lib/libgptl.a), ) # Check for GPTL library for PIO2
-	LIBS += -lgptl
-endif
-else
-	CPPINCLUDES = -I$(PIO)/include
-	FCINCLUDES = -I$(PIO)/include
-	LIBS = -L$(PIO)/lib -lpio
-endif
-else
-ifeq "$(USE_PIO2)" "true"
-	FCINCLUDES = -I$(PIO)/include
-	override CPPFLAGS += -DUSE_PIO2
-	LIBS = -L$(PIO) -lpiof -lpioc
-ifneq ($(wildcard $(PIO)/libgptl.a), ) # Check for GPTL library for PIO2
-	LIBS += -lgptl
-endif
-else
-	CPPINCLUDES = -I$(PIO)
-	FCINCLUDES = -I$(PIO)
-	LIBS = -L$(PIO) -lpio
-endif
 endif
 
-ifneq "$(PNETCDF)" ""
-	CPPINCLUDES += -I$(PNETCDF)/include
-	FCINCLUDES += -I$(PNETCDF)/include
-	LIBS += -L$(PNETCDF)/lib -lpnetcdf
+#
+# Regardless of PIO library version, look for a lib subdirectory of PIO path
+# NB: PIO_LIB is used later, so we don't just set LIBS directly
+#
+ifneq ($(wildcard $(PIO)/lib), )
+	PIO_LIB = $(PIO)/lib
+else
+	PIO_LIB = $(PIO)
+endif
+LIBS = -L$(PIO_LIB)
+
+#
+# Regardless of PIO library version, look for an include subdirectory of PIO path
+#
+ifneq ($(wildcard $(PIO)/include), )
+	CPPINCLUDES += -I$(PIO)/include
+	FCINCLUDES += -I$(PIO)/include
+else
+	CPPINCLUDES += -I$(PIO)
+	FCINCLUDES += -I$(PIO)
+endif
+
+#
+# Depending on PIO version, libraries may be libpio.a, or libpiof.a and libpioc.a
+# Keep open the possibility of shared libraries in future with, e.g., .so suffix
+#
+ifneq ($(wildcard $(PIO_LIB)/libpio\.*), )
+	LIBS += -lpio
+endif
+ifneq ($(wildcard $(PIO_LIB)/libpiof\.*), )
+	LIBS += -lpiof
+endif
+ifneq ($(wildcard $(PIO_LIB)/libpioc\.*), )
+	LIBS += -lpioc
+endif
+ifneq ($(wildcard $(PIO_LIB)/libgptl\.*), )
+	LIBS += -lgptl
 endif
 
 ifneq "$(NETCDF)" ""
@@ -496,6 +534,13 @@ ifneq "$(NETCDF)" ""
 		LIBS += $(NCLIBF)
 	endif
 	LIBS += $(NCLIB)
+endif
+
+
+ifneq "$(PNETCDF)" ""
+	CPPINCLUDES += -I$(PNETCDF)/include
+	FCINCLUDES += -I$(PNETCDF)/include
+	LIBS += -L$(PNETCDF)/lib -lpnetcdf
 endif
 
 RM = rm -f
@@ -732,7 +777,7 @@ endif
 endif
 
 
-compiler_test:
+openmp_test:
 ifeq "$(OPENMP)" "true"
 	@echo "Testing compiler for OpenMP support"
 	@echo "#include <omp.h>" > conftest.c; echo "int main() { int n = omp_get_num_threads(); return 0; }" >> conftest.c; $(SCC) $(CFLAGS) -o conftest.out conftest.c || \
@@ -753,7 +798,47 @@ ifeq "$(OPENACC)" "true"
 endif
 
 
-mpas_main: compiler_test
+pio_test:
+	@#
+	@# Create two test programs: one that should work with PIO1 and a second that should work with PIO2
+	@#
+	@echo "program pio1; use pio; use pionfatt_mod; integer, parameter :: MPAS_IO_OFFSET_KIND = PIO_OFFSET; integer, parameter :: MPAS_INT_FILLVAL = NF_FILL_INT; end program" > pio1.f90
+	@echo "program pio2; use pio; integer, parameter :: MPAS_IO_OFFSET_KIND = PIO_OFFSET_KIND; integer, parameter :: MPAS_INT_FILLVAL = PIO_FILL_INT; end program" > pio2.f90
+
+	@#
+	@# See whether either of the test programs can be compiled
+	@#
+	@echo "Checking for a usable PIO library..."
+	@($(FC) pio1.f90 $(FCINCLUDES) $(FFLAGS) $(LDFLAGS) $(LIBS) -o pio1.out &> /dev/null && echo "=> PIO 1 detected") || \
+	 ($(FC) pio2.f90 $(FCINCLUDES) $(FFLAGS) $(LDFLAGS) $(LIBS) -o pio2.out &> /dev/null && echo "=> PIO 2 detected") || \
+	 (echo "************ ERROR ************"; \
+	  echo "Failed to compile a PIO test program"; \
+	  echo "Please ensure the PIO environment variable is set to the PIO installation directory"; \
+	  echo "************ ERROR ************"; \
+	  rm -rf pio[12].f90 pio[12].out; exit 1)
+
+	@rm -rf pio[12].out
+
+	@#
+	@# Check that what the user has specified agrees with the PIO library version that was detected
+	@#
+ifeq "$(USE_PIO2)" "true"
+	@($(FC) pio2.f90 $(FCINCLUDES) $(FFLAGS) $(LDFLAGS) $(LIBS) -o pio2.out &> /dev/null) || \
+	(echo "************ ERROR ************"; \
+	 echo "PIO 1 was detected, but USE_PIO2=true was specified in the make command"; \
+	 echo "************ ERROR ************"; \
+	 rm -rf pio[12].f90 pio[12].out; exit 1)
+else
+	@($(FC) pio1.f90 $(FCINCLUDES) $(FFLAGS) $(LDFLAGS) $(LIBS) -o pio1.out &> /dev/null) || \
+	(echo "************ ERROR ************"; \
+	 echo "PIO 2 was detected. Please specify USE_PIO2=true in the make command"; \
+	 echo "************ ERROR ************"; \
+	 rm -rf pio[12].f90 pio[12].out; exit 1)
+endif
+	@rm -rf pio[12].f90 pio[12].out
+
+
+mpas_main: openmp_test pio_test
 ifeq "$(AUTOCLEAN)" "true"
 	$(RM) .mpas_core_*
 endif

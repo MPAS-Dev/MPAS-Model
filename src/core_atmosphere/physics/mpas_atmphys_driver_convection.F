@@ -756,20 +756,17 @@
              pratec    = pratec_p    , qfx         = qfx_p       ,                   &
              hfx       = hfx_p       , xland       = xland_p     ,                   &
              dx        = dx_p        , u3d         = u_p         ,                   &
-             v3d       = v_p         , w3d         = w_p         ,                   &
+             v3d       = v_p         , w           = w_p         ,                   &
              qv3d      = qv_p        , qc3d        = qc_p        ,                   &
              qi3d      = qi_p        , pi3d        = pi_p        ,                   &
              rho3d     = rho_p       , qvften      = rqvften_p   ,                   &
              thften    = rthften_p   , cu_act_flag = cu_act_flag ,                   &
-             cutop     = cutop_p     , cubot       = cubot_p     ,                   &
              f_qv      = f_qv        , f_qc        = f_qc        ,                   &
              f_qr      = f_qr        , f_qi        = f_qi        ,                   &
              f_qs      = f_qs        , rthcuten    = rthcuten_p  ,                   &
              rqvcuten  = rqvcuten_p  , rqccuten    = rqccuten_p  ,                   &
              rqicuten  = rqicuten_p  , rucuten     = rucuten_p   ,                   &
-             rvcuten   = rvcuten_p   , ust         = ust_p       ,                   &
-             wstar     = wstar_p     , hgamt       = hgamt_p     ,                   &
-             hgamq     = hgamq_p     , entpbl      = entpbl_p    ,                   &
+             rvcuten   = rvcuten_p   ,                                               &
              ids = ids , ide = ide , jds = jds , jde = jde , kds = kds , kde = kde , &
              ims = ims , ime = ime , jms = jms , jme = jme , kms = kds , kme = kme , &
              its = its , ite = ite , jts = jts , jte = jte , kts = kts , kte = kte   &

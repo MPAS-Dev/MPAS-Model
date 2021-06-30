@@ -729,7 +729,7 @@ module mpas_pool_routines
                         deallocate(newmem % data % r0)
                      end do
 
-                     do j = minTimeLevels, newmem % data % contentsTimeLevs
+                     do j = minTimeLevels+1, newmem % data % contentsTimeLevs
                         call mpas_duplicate_field(dptr % r0a(dptr % contentsTimeLevs), newmem % data % r0)
                         newmem % data % r0a(j) = newmem % data % r0
                         deallocate(newmem % data % r0)
@@ -747,7 +747,7 @@ module mpas_pool_routines
                         deallocate(newmem % data % r1)
                      end do
 
-                     do j = minTimeLevels, newmem % data % contentsTimeLevs
+                     do j = minTimeLevels+1, newmem % data % contentsTimeLevs
                         call mpas_duplicate_field(dptr % r1a(dptr % contentsTimeLevs), newmem % data % r1)
                         newmem % data % r1a(j) = newmem % data % r1
                         deallocate(newmem % data % r1)
@@ -765,7 +765,7 @@ module mpas_pool_routines
                         deallocate(newmem % data % r2)
                      end do
 
-                     do j = minTimeLevels, newmem % data % contentsTimeLevs
+                     do j = minTimeLevels+1, newmem % data % contentsTimeLevs
                         call mpas_duplicate_field(dptr % r2a(dptr % contentsTimeLevs), newmem % data % r2)
                         newmem % data % r2a(j) = newmem % data % r2
                         deallocate(newmem % data % r2)
@@ -783,7 +783,7 @@ module mpas_pool_routines
                         deallocate(newmem % data % r3)
                      end do
 
-                     do j = minTimeLevels, newmem % data % contentsTimeLevs
+                     do j = minTimeLevels+1, newmem % data % contentsTimeLevs
                         call mpas_duplicate_field(dptr % r3a(dptr % contentsTimeLevs), newmem % data % r3)
                         newmem % data % r3a(j) = newmem % data % r3
                         deallocate(newmem % data % r3)
@@ -801,7 +801,7 @@ module mpas_pool_routines
                         deallocate(newmem % data % r4)
                      end do
 
-                     do j = minTimeLevels, newmem % data % contentsTimeLevs
+                     do j = minTimeLevels+1, newmem % data % contentsTimeLevs
                         call mpas_duplicate_field(dptr % r4a(dptr % contentsTimeLevs), newmem % data % r4)
                         newmem % data % r4a(j) = newmem % data % r4
                         deallocate(newmem % data % r4)
@@ -819,7 +819,7 @@ module mpas_pool_routines
                         deallocate(newmem % data % r5)
                      end do
 
-                     do j = minTimeLevels, newmem % data % contentsTimeLevs
+                     do j = minTimeLevels+1, newmem % data % contentsTimeLevs
                         call mpas_duplicate_field(dptr % r5a(dptr % contentsTimeLevs), newmem % data % r5)
                         newmem % data % r5a(j) = newmem % data % r5
                         deallocate(newmem % data % r5)
@@ -837,7 +837,7 @@ module mpas_pool_routines
                         deallocate(newmem % data % i0)
                      end do
 
-                     do j = minTimeLevels, newmem % data % contentsTimeLevs
+                     do j = minTimeLevels+1, newmem % data % contentsTimeLevs
                         call mpas_duplicate_field(dptr % i0a(dptr % contentsTimeLevs), newmem % data % i0)
                         newmem % data % i0a(j) = newmem % data % i0
                         deallocate(newmem % data % i0)
@@ -855,7 +855,7 @@ module mpas_pool_routines
                         deallocate(newmem % data % i1)
                      end do
 
-                     do j = minTimeLevels, newmem % data % contentsTimeLevs
+                     do j = minTimeLevels+1, newmem % data % contentsTimeLevs
                         call mpas_duplicate_field(dptr % i1a(dptr % contentsTimeLevs), newmem % data % i1)
                         newmem % data % i1a(j) = newmem % data % i1
                         deallocate(newmem % data % i1)
@@ -873,7 +873,7 @@ module mpas_pool_routines
                         deallocate(newmem % data % i2)
                      end do
 
-                     do j = minTimeLevels, newmem % data % contentsTimeLevs
+                     do j = minTimeLevels+1, newmem % data % contentsTimeLevs
                         call mpas_duplicate_field(dptr % i2a(dptr % contentsTimeLevs), newmem % data % i2)
                         newmem % data % i2a(j) = newmem % data % i2
                         deallocate(newmem % data % i2)
@@ -891,7 +891,7 @@ module mpas_pool_routines
                         deallocate(newmem % data % i3)
                      end do
 
-                     do j = minTimeLevels, newmem % data % contentsTimeLevs
+                     do j = minTimeLevels+1, newmem % data % contentsTimeLevs
                         call mpas_duplicate_field(dptr % i3a(dptr % contentsTimeLevs), newmem % data % i3)
                         newmem % data % i3a(j) = newmem % data % i3
                         deallocate(newmem % data % i3)
@@ -909,7 +909,7 @@ module mpas_pool_routines
                         deallocate(newmem % data % c0)
                      end do
 
-                     do j = minTimeLevels, newmem % data % contentsTimeLevs
+                     do j = minTimeLevels+1, newmem % data % contentsTimeLevs
                         call mpas_duplicate_field(dptr % c0a(dptr % contentsTimeLevs), newmem % data % c0)
                         newmem % data % c0a(j) = newmem % data % c0
                         deallocate(newmem % data % c0)
@@ -927,7 +927,7 @@ module mpas_pool_routines
                         deallocate(newmem % data % c1)
                      end do
 
-                     do j = minTimeLevels, newmem % data % contentsTimeLevs
+                     do j = minTimeLevels+1, newmem % data % contentsTimeLevs
                         call mpas_duplicate_field(dptr % c1a(dptr % contentsTimeLevs), newmem % data % c1)
                         newmem % data % c1a(j) = newmem % data % c1
                         deallocate(newmem % data % c1)
@@ -945,7 +945,7 @@ module mpas_pool_routines
                         deallocate(newmem % data % l0)
                      end do
 
-                     do j = minTimeLevels, newmem % data % contentsTimeLevs
+                     do j = minTimeLevels+1, newmem % data % contentsTimeLevs
                         call mpas_duplicate_field(dptr % l0a(dptr % contentsTimeLevs), newmem % data % l0)
                         newmem % data % l0a(j) = newmem % data % l0
                         deallocate(newmem % data % l0)
@@ -3290,7 +3290,7 @@ module mpas_pool_routines
       info % isActive = .false.
 
       endl = len_trim(key)
-      call pool_hash(hash, key, endl)
+      call pool_hash(hash, key)
 
       hash = mod(hash, inPool % size) + 1
 
@@ -6056,7 +6056,7 @@ module mpas_pool_routines
       integer :: hash, oldLevel
       type (mpas_pool_member_type), pointer :: ptr
 
-      call pool_hash(hash, trim(newmem % key), newmem % keylen)
+      call pool_hash(hash, trim(newmem % key))
 
       hash = mod(hash, inPool % size) + 1
 
@@ -6115,7 +6115,7 @@ module mpas_pool_routines
       nullify(pool_get_member)
 
       endl = len_trim(key)
-      call pool_hash(hash, key, endl)
+      call pool_hash(hash, key)
 
       hash = mod(hash, inPool % size) + 1
 
@@ -6150,7 +6150,7 @@ module mpas_pool_routines
       threadNum = mpas_threading_get_thread_num()
 
       endl = len_trim(key)
-      call pool_hash(hash, key, endl)
+      call pool_hash(hash, key)
 
       hash = mod(hash, inPool % size) + 1
 
@@ -6344,6 +6344,31 @@ module mpas_pool_routines
       end if
 
    end function pool_get_member_decomp_type!}}}
+
+   subroutine pool_hash(hash, key)!{{{
+
+      use iso_c_binding, only : c_int, c_char
+      use mpas_c_interfacing, only : mpas_f_to_c_string
+
+      implicit none
+
+      interface
+        subroutine c_pool_hash(hash, key) bind(c)
+           use iso_c_binding, only : c_int, c_char
+           integer (c_int), intent(inout) :: hash
+           character (c_char), dimension(*), intent(in) :: key
+        end subroutine c_pool_hash
+      end interface
+
+      integer (c_int), intent(inout) :: hash
+      character(len=*), intent(in) :: key
+
+      character(kind=c_char), dimension(StrKIND+1) :: c_key
+
+      call mpas_f_to_c_string(key, c_key)
+      call c_pool_hash(hash, c_key)
+
+   end subroutine pool_hash!}}}
 
 
 end module mpas_pool_routines

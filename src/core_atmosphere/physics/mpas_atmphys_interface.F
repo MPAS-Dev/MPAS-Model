@@ -1169,6 +1169,9 @@
           qi_p(i,k,j) = scalars(sindex_qi,k,i)
           qs_p(i,k,j) = scalars(sindex_qs,k,i)
           qg_p(i,k,j) = scalars(sindex_qg,k,i)
+          recloud_p(i,k,j) = re_cloud(k,i)
+          reice_p(i,k,j)   = re_ice(k,i)
+          resnow_p(i,k,j)  = re_snow(k,i)
        enddo
        enddo
        enddo
@@ -1195,9 +1198,6 @@
              nr_p(i,k,j) = nr(k,i)
              rainprod_p(i,k,j) = rainprod(k,i)
              evapprod_p(i,k,j) = evapprod(k,i)
-             recloud_p(i,k,j)  = re_cloud(k,i)
-             reice_p(i,k,j)    = re_ice(k,i)
-             resnow_p(i,k,j)   = re_snow(k,i)
           enddo
           enddo
           enddo
@@ -1382,6 +1382,9 @@
           scalars(sindex_qi,k,i) = qi_p(i,k,j)
           scalars(sindex_qs,k,i) = qs_p(i,k,j)
           scalars(sindex_qg,k,i) = qg_p(i,k,j)
+          re_cloud(k,i) = recloud_p(i,k,j)
+          re_ice(k,i)   = reice_p(i,k,j)
+          re_snow(k,i)  = resnow_p(i,k,j)
        enddo
        enddo
 !$acc end parallel
@@ -1400,9 +1403,6 @@
              nr(k,i) = nr_p(i,k,j)
              rainprod(k,i) = rainprod_p(i,k,j)
              evapprod(k,i) = evapprod_p(i,k,j)
-             re_cloud(k,i) = recloud_p(i,k,j)
-             re_ice(k,i)   = reice_p(i,k,j)
-             re_snow(k,i)  = resnow_p(i,k,j)
           enddo
           enddo
           enddo

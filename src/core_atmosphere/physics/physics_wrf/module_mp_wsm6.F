@@ -1,18 +1,4 @@
-!=================================================================================================================
-!module_mp_wsm6.F was originally copied from ./phys/module_mp_wsm6.F from WRF version 3.8.1.
-!Laura D. Fowler (laura@ucar.edu) / 2016-09-23.
-
-!modifications to sourcecode for MPAS:
-!   * replaced the line "#if ( RWORDSIZE == 4 )" with "#ifdef SINGLE_PRECISION".
-!   * commented out the lines:
-!     USE module_utility, ONLY: WRFU_Clock, WRFU_Alarm
-!     USE module_domain, ONLY : HISTORY_ALARM, Is_alarm_tstep
-!   * changed the declaration of refl_10cm to optional since subroutine refl10cm_wsm6 is called
-!     in mpas_atmphys_driver_microphysics.F.
-!     Laura D. Fowler (laura@ucar.edu) / 2016-10-17.
-
-!=================================================================================================================
-#ifdef SINGLE_PRECISION
+#if ( (defined(wrfmodel) ) && ( RWORDSIZE == 4 ) ) || ( ( defined(mpas) ) && defined(SINGLE_PRECISION) )
 #  define VREC vsrec
 #  define VSQRT vssqrt
 #else
@@ -22,8 +8,6 @@
 
 MODULE module_mp_wsm6
 !
-!  USE module_utility, ONLY: WRFU_Clock, WRFU_Alarm
-!  USE module_domain, ONLY : HISTORY_ALARM, Is_alarm_tstep
    USE module_mp_radar
 !
    REAL, PARAMETER, PRIVATE :: dtcldcr     = 120. ! maximum time step for minor loops
@@ -71,7 +55,6 @@ MODULE module_mp_wsm6
              rsloperbmax,rslopesbmax,rslopegbmax,     &
              rsloper2max,rslopes2max,rslopeg2max,     &
              rsloper3max,rslopes3max,rslopeg3max
-!$acc declare create(n0g, pi)
 CONTAINS
 !===================================================================
 !
@@ -91,6 +74,9 @@ CONTAINS
                  ,ids,ide, jds,jde, kds,kde                        &
                  ,ims,ime, jms,jme, kms,kme                        &
                  ,its,ite, jts,jte, kts,kte                        &
+#ifdef WRF_CHEM
+                 ,evapprod, rainprod                               &
+#endif
                                                                    )
 !-------------------------------------------------------------------
   IMPLICIT NONE
@@ -146,8 +132,8 @@ CONTAINS
                                                           re_ice, &
                                                          re_snow
 !+---+-----------------------------------------------------------------+
-  REAL, DIMENSION(ims:ime, kms:kme, jms:jme), INTENT(INOUT), OPTIONAL::     &  ! GT
-                                                       refl_10cm
+  REAL, DIMENSION(ims:ime, kms:kme, jms:jme), OPTIONAL,           &   ! GT
+        INTENT(INOUT) ::                               refl_10cm
 !+---+-----------------------------------------------------------------+
 
   REAL, DIMENSION( ims:ime , jms:jme ), OPTIONAL,                 &
@@ -156,6 +142,17 @@ CONTAINS
   REAL, DIMENSION( ims:ime , jms:jme ), OPTIONAL,                 &
         INTENT(INOUT) ::                                 graupel, &
                                                       graupelncv
+
+#ifdef WRF_CHEM
+  REAL, DIMENSION( ims:ime , kms:kme, jms:jme ), INTENT(INOUT) :: &
+                                                      rainprod,   &
+                                                      evapprod
+! local variable
+  REAL, DIMENSION( its:ite , kts:kte )                 ::         &
+                                                      rainprod2d, &
+                                                      evapprod2d
+#endif
+
 ! LOCAL VAR
   REAL, DIMENSION( its:ite , kts:kte ) ::   t
   REAL, DIMENSION( its:ite , kts:kte, 2 ) ::   qci
@@ -172,13 +169,8 @@ CONTAINS
   REAL, DIMENSION( kts:kte ) :: qc1d
   REAL, DIMENSION( kts:kte ) :: qi1d
   REAL, DIMENSION( kts:kte ) :: re_qc, re_qi, re_qs
- !$acc data create(t, qci, qrs, qv1d, t1d, p1d, qr1d, qs1d, qg1d, dBZ, &
- !$acc den1d, qc1d, qi1d, re_qc, re_qi, re_qs)
 
-!write(*,*) "*** Section 2.0 ***"
       DO j=jts,jte
-!$acc parallel vector_length(32)
-!$acc loop gang vector collapse(2)
          DO k=kts,kte
          DO i=its,ite
             t(i,k)=th(i,k,j)*pii(i,k,j)
@@ -189,10 +181,8 @@ CONTAINS
             qrs(i,k,3) = qg(i,k,j)
          ENDDO
          ENDDO
-!$acc end parallel
          !  Sending array starting locations of optional variables may cause
          !  troubles, so we explicitly change the call.
-!write(*,*) "*** Section 2.1 ***"
          CALL wsm62D(t, q(ims,kms,j), qci, qrs                     &
                     ,den(ims,kms,j)                                &
                     ,p(ims,kms,j), delz(ims,kms,j)                 &
@@ -208,10 +198,10 @@ CONTAINS
                     ,its,ite, jts,jte, kts,kte                     &
                     ,snow,snowncv                                  &
                     ,graupel,graupelncv                            &
+#ifdef WRF_CHEM
+                   ,rainprod2d, evapprod2d                        &
+#endif
                                                                    )
-!write(*,*) "*** Section 2.2 ***"
-!$acc parallel vector_length(32)
-!$acc loop gang vector collapse(2)
          DO K=kts,kte
          DO I=its,ite
             th(i,k,j)=t(i,k)/pii(i,k,j)
@@ -222,9 +212,7 @@ CONTAINS
             qg(i,k,j) = qrs(i,k,3)
          ENDDO
          ENDDO
-!$acc end parallel
 
-!write(*,*) "*** Section 2.3 ***"
 !+---+-----------------------------------------------------------------+
          IF ( PRESENT (diagflag) ) THEN
          if (diagflag .and. do_radar_ref == 1) then
@@ -270,9 +258,15 @@ CONTAINS
           enddo   
         endif     ! has_reqc, etc...
 !+---+-----------------------------------------------------------------+
-
+#ifdef WRF_CHEM
+        do i=its,ite
+          do k=kts,kte
+            rainprod(i,k,j) = rainprod2d(i,k)
+            evapprod(i,k,j) = evapprod2d(i,k)
+          enddo
+        enddo
+#endif
       ENDDO
-!$acc end data
   END SUBROUTINE wsm6
 !===================================================================
 !
@@ -290,6 +284,9 @@ CONTAINS
                    ,its,ite, jts,jte, kts,kte                     &
                    ,snow,snowncv                                  &
                    ,graupel,graupelncv                            &
+#ifdef WRF_CHEM
+                   ,rainprod2d, evapprod2d                        &
+#endif
                                                                   )
 !-------------------------------------------------------------------
   IMPLICIT NONE
@@ -381,6 +378,13 @@ CONTAINS
   REAL, DIMENSION( ims:ime, jms:jme ), OPTIONAL,                  &
         INTENT(INOUT) ::                                 graupel, &
                                                       graupelncv
+
+#ifdef WRF_CHEM
+  REAL, DIMENSION( its:ite , kts:kte ), INTENT(INOUT)  ::         &
+                                                      rainprod2d, &
+                                                      evapprod2d
+#endif
+
 ! LOCAL VAR
   REAL, DIMENSION( its:ite , kts:kte , 3) ::                      &
                                                               rh, &
@@ -471,47 +475,33 @@ CONTAINS
   REAL  :: dldti, xb, xai, tr, xbi, xa, hvap, cvap, hsub, dldt, ttp
 ! variables for optimization
   REAL, DIMENSION( its:ite ) ::                             tvec1
-  REAL                       ::                              temp, &
-                                                       n0smax_n0s
-
-!$acc data create(rh, qs, rslope, rslope2, rslope3, rslopeb, qrs_tmp, falk, &
-!$acc fall, work1, fallc, falkc, work1c, work2c, workr, worka, den_tmp, delz_tmp, &
-!$acc pigen, pidep, pcond, prevp, psevp, pgevp, psdep, pgdep, praut, psaut, &
-!$acc pgaut, piacr, pracw, praci, pracs, psacw, psaci, psacr, pgacw, pgaci, &
-!$acc pgacr, pgacs, paacw, psmlt, pgmlt, pseml, pgeml,  qsum, xl, cpm, work2, &
-!$acc denfac, xni, denqrs1, denqrs2, denqrs3, denqci, n0sfac, delqrs1, delqrs2,&
-!$acc delqrs3, delqi, tstepsnow, tstepgraup, mstep, numdt, flgcld, tvec1)
-
-!write(*,*) "*** Section 2.1.0 ***"
-
+  REAL                       ::                              temp
 !
 !=================================================================
 !   compute internal functions
 !
-!!!      cpmcal(x) = cpd*(1.-max(x,qmin))+max(x,qmin)*cpv
-!!!      xlcal(x) = xlv0-xlv1*(x-t0c)
+      cpmcal(x) = cpd*(1.-max(x,qmin))+max(x,qmin)*cpv
+      xlcal(x) = xlv0-xlv1*(x-t0c)
 !----------------------------------------------------------------
 !     diffus: diffusion coefficient of the water vapor
 !     viscos: kinematic viscosity(m2s-1)
 !     Optimizatin : A**B => exp(log(A)*(B))
 !
-!!!      diffus(x,y) = 8.794e-5 * exp(log(x)*(1.81)) / y        !8.794e-5*x**1.81/y
-!!!      viscos(x,y) = 1.496e-6 * (x*sqrt(x)) /(x+120.)/y  !1.496e-6*x**1.5/(x+120.)/y
-!!!      xka(x,y) = 1.414e3*(1.496e-6 * (x*sqrt(x)) /(x+120.)/y)*y
-!!!      diffac(a,b,c,d,e) = d*a*a/((1.414e3*(1.496e-6 * (c*sqrt(c)) /(c+120.)/d)*d)*rv*c*c)+1./(e*(8.794e-5 * exp(log(c)*(1.81)) / b))
-!!!      venfac(a,b,c) = exp(log(((1.496e-6 * (b*sqrt(b)) /(b+120.)/c)/(8.794e-5 * exp(log(b)*(1.81)) / a)))*((.3333333)))/sqrt((1.496e-6 * (b*sqrt(b)) /(b+120.)/c))*sqrt(sqrt(den0/c))
-!!!      conden(a,b,c,d,e) = (max(b,qmin)-c)/(1.+d*d/(rv*e)*c/(a*a))
+      diffus(x,y) = 8.794e-5 * exp(log(x)*(1.81)) / y        ! 8.794e-5*x**1.81/y
+      viscos(x,y) = 1.496e-6 * (x*sqrt(x)) /(x+120.)/y  ! 1.496e-6*x**1.5/(x+120.)/y
+      xka(x,y) = 1.414e3*viscos(x,y)*y
+      diffac(a,b,c,d,e) = d*a*a/(xka(c,d)*rv*c*c)+1./(e*diffus(c,b))
+      venfac(a,b,c) = exp(log((viscos(b,c)/diffus(b,a)))*((.3333333)))         &
+                     /sqrt(viscos(b,c))*sqrt(sqrt(den0/c))
+      conden(a,b,c,d,e) = (max(b,qmin)-c)/(1.+d*d/(rv*e)*c/(a*a))
 !
 !
-!!!      idim = ite-its+1
-!!!      kdim = kte-kts+1
-      n0smax_n0s = n0smax/n0s
+      idim = ite-its+1
+      kdim = kte-kts+1
 !
 !----------------------------------------------------------------
 !     paddint 0 for negative values generated by dynamics
 !
-!$acc parallel vector_length(32)
-!$acc loop gang vector collapse(2)
       do k = kts, kte
         do i = its, ite
           qci(i,k,1) = max(qci(i,k,1),0.0)
@@ -521,37 +511,28 @@ CONTAINS
           qrs(i,k,3) = max(qrs(i,k,3),0.0)
         enddo
       enddo
-!$acc end parallel
 !
 !----------------------------------------------------------------
 !     latent heat for phase changes and heat capacity. neglect the
 !     changes during microphysical process calculation
 !     emanuel(1994)
 !
-!$acc parallel vector_length(32)
-!$acc loop gang vector collapse(2)
       do k = kts, kte
         do i = its, ite
-!!!          cpm(i,k) = cpmcal(q(i,k))
-          cpm(i,k) = cpd*(1.-max(q(i,k),qmin))+max(q(i,k),qmin)*cpv
-!!!          xl(i,k) = xlcal(t(i,k))
-          xl(i,k) = xlv0-xlv1*(t(i,k)-t0c)
+          cpm(i,k) = cpmcal(q(i,k))
+          xl(i,k) = xlcal(t(i,k))
         enddo
       enddo
-!$acc loop gang vector collapse(2)
       do k = kts, kte
         do i = its, ite
           delz_tmp(i,k) = delz(i,k)
           den_tmp(i,k) = den(i,k)
         enddo
       enddo
-!$acc end parallel
 !
 !----------------------------------------------------------------
 !    initialize the surface rain, snow, graupel
 !
-!$acc parallel vector_length(32)
-!$acc loop gang vector
       do i = its, ite
         rainncv(i) = 0.
         if(PRESENT (snowncv) .AND. PRESENT (snow)) snowncv(i,lat) = 0.
@@ -561,63 +542,40 @@ CONTAINS
         tstepsnow(i) = 0.
         tstepgraup(i) = 0.
       enddo
-!$acc end parallel
-!write(*,*) "*** Section 2.1.1 ***"
 !
 !----------------------------------------------------------------
 !     compute the minor time steps.
 !
-!$acc parallel num_gangs(1) num_workers(1) vector_length(1)
       loops = max(nint(delt/dtcldcr),1)
       dtcld = delt/loops
       if(delt.le.dtcldcr) dtcld = delt
-!$acc end parallel
 !
       do loop = 1,loops
 !
 !----------------------------------------------------------------
 !     initialize the large scale variables
 !
-!$acc parallel vector_length(32)
-!$acc loop gang vector
       do i = its, ite
         mstep(i) = 1
         flgcld(i) = .true.
       enddo
-!$acc end parallel
 !
 !     do k = kts, kte
 !       do i = its, ite
 !         denfac(i,k) = sqrt(den0/den(i,k))
 !       enddo
 !     enddo
-!$acc parallel vector_length(32)
-!$acc loop gang vector collapse(2)
-       do k = kts, kte
-         do i = its, ite
-#ifdef SINGLE_PRECISION
-!!!           tvec1(i) = (1.e0/den(i,k))*den0
-!!!           denfac(i,k) = sqrt(tvec1(i))
-           denfac(i,k) = sqrt((1.e0/den(i,k))*den0)
-#else
-           tvec1(i) = DBLE((1.d0/DBLE(den(i,k)))*den0)
-           denfac(i,k) = sqrt(DBLE(tvec1(i)))
-#endif
-         enddo
-       enddo
-!$acc end parallel
-!!!      do k = kts, kte
-!!!        CALL VREC( tvec1(its), den(its,k), ite-its+1)
-!!!        do i = its, ite
-!!!          tvec1(i) = tvec1(i)*den0
-!!!        enddo
-!!!        CALL VSQRT( denfac(its,k), tvec1(its), ite-its+1)
-!!!      enddo
+      do k = kts, kte
+        CALL VREC( tvec1(its), den(its,k), ite-its+1)
+        do i = its, ite
+          tvec1(i) = tvec1(i)*den0
+        enddo
+        CALL VSQRT( denfac(its,k), tvec1(its), ite-its+1)
+      enddo
 !
 ! Inline expansion for fpvs
 !         qs(i,k,1) = fpvs(t(i,k),0,rd,rv,cpv,cliq,cice,xlv0,xls,psat,t0c)
 !         qs(i,k,2) = fpvs(t(i,k),1,rd,rv,cpv,cliq,cice,xlv0,xls,psat,t0c)
-!$acc parallel num_gangs(1) num_workers(1) vector_length(1)
       hsub = xls
       hvap = xlv0
       cvap = cpv
@@ -628,9 +586,6 @@ CONTAINS
       dldti=cvap-cice
       xai=-dldti/rv
       xbi=xai+hsub/(rv*ttp)
-!$acc end parallel
-!$acc parallel vector_length(32)
-!$acc loop gang vector collapse(2) private(tr)
       do k = kts, kte
         do i = its, ite
           tr=ttp/t(i,k)
@@ -651,14 +606,11 @@ CONTAINS
           rh(i,k,2) = max(q(i,k) / qs(i,k,2),qmin)
         enddo
       enddo
-!$acc end parallel
 !
 !----------------------------------------------------------------
 !     initialize the variables for microphysical physics
 !
 !
-!$acc parallel vector_length(32)
-!$acc loop gang vector collapse(2)
       do k = kts, kte
         do i = its, ite
           prevp(i,k) = 0.
@@ -699,12 +651,9 @@ CONTAINS
           xni(i,k) = 1.e3
         enddo
       enddo
-!$acc end parallel
 !-------------------------------------------------------------
 ! Ni: ice crystal number concentraiton   [HDC 5c]
 !-------------------------------------------------------------
-!$acc parallel vector_length(32)
-!$acc loop gang vector collapse(2) private(temp)
       do k = kts, kte
         do i = its, ite
           temp = (den(i,k)*max(qci(i,k,2),qmin))
@@ -717,7 +666,6 @@ CONTAINS
 !     compute the fallout term:
 !     first, vertical terminal velosity for minor loops
 !----------------------------------------------------------------
-!$acc loop gang vector collapse(2)
       do k = kts, kte
         do i = its, ite
           qrs_tmp(i,k,1) = qrs(i,k,1)
@@ -725,14 +673,10 @@ CONTAINS
           qrs_tmp(i,k,3) = qrs(i,k,3)
         enddo
       enddo
-!$acc end parallel
-!write(*,*) "*** Section 2.1.2 ***"
       call slope_wsm6(qrs_tmp,den_tmp,denfac,t,rslope,rslopeb,rslope2,rslope3, & 
                      work1,its,ite,kts,kte)
 !
-!$acc parallel vector_length(32)
-!$acc loop gang vector collapse(2)
-      do k = kts, kte
+      do k = kte, kts, -1
         do i = its, ite
           workr(i,k) = work1(i,k,1)
           qsum(i,k) = max( (qrs(i,k,2)+qrs(i,k,3)), 1.E-15)
@@ -748,21 +692,10 @@ CONTAINS
           if(qrs(i,k,1).le.0.0) workr(i,k) = 0.0
         enddo
       enddo
-!$acc end parallel
-!write(*,*) "*** Section 2.1.3 ***"
-!!!      call nislfv_rain_plm(idim,kdim,den_tmp,denfac,t,delz_tmp,workr,denqrs1,  &
-!!!                           delqrs1,dtcld,1,1)
-      call nislfv_rain_plm(its,ite,kts,kte,den_tmp,denfac,t,delz_tmp,workr,denqrs1,  &
+      call nislfv_rain_plm(idim,kdim,den_tmp,denfac,t,delz_tmp,workr,denqrs1,  &
                            delqrs1,dtcld,1,1)
-
-!write(*,*) "*** Section 2.1.4 ***"
-!!!      call nislfv_rain_plm6(idim,kdim,den_tmp,denfac,t,delz_tmp,worka,         & 
-!!!                           denqrs2,denqrs3,delqrs2,delqrs3,dtcld,1,1)
-      call nislfv_rain_plm6(its,ite,kts,kte,den_tmp,denfac,t,delz_tmp,worka,         & 
+      call nislfv_rain_plm6(idim,kdim,den_tmp,denfac,t,delz_tmp,worka,         & 
                            denqrs2,denqrs3,delqrs2,delqrs3,dtcld,1,1)
-
-!$acc parallel vector_length(32)
-!$acc loop gang vector collapse(2)
       do k = kts, kte
         do i = its, ite
           qrs(i,k,1) = max(denqrs1(i,k)/den(i,k),0.)
@@ -773,13 +706,11 @@ CONTAINS
           fall(i,k,3) = denqrs3(i,k)*worka(i,k)/delz(i,k)
         enddo
       enddo
-!$acc loop gang vector
       do i = its, ite
         fall(i,1,1) = delqrs1(i)/delz(i,1)/dtcld
         fall(i,1,2) = delqrs2(i)/delz(i,1)/dtcld
         fall(i,1,3) = delqrs3(i)/delz(i,1)/dtcld
       enddo
-!$acc loop gang vector collapse(2)
       do k = kts, kte
         do i = its, ite
           qrs_tmp(i,k,1) = qrs(i,k,1)
@@ -787,31 +718,23 @@ CONTAINS
           qrs_tmp(i,k,3) = qrs(i,k,3)
         enddo
       enddo
-!$acc end parallel
-!write(*,*) "*** Section 2.1.5 ***"
       call slope_wsm6(qrs_tmp,den_tmp,denfac,t,rslope,rslopeb,rslope2,rslope3, &
                      work1,its,ite,kts,kte)
 !
-!$acc parallel vector_length(32)
-!$acc loop gang vector collapse(2) private(supcol,xlf,coeres)
-      do k = kts, kte 
+      do k = kte, kts, -1 
         do i = its, ite
           supcol = t0c-t(i,k)
-          n0sfac(i,k) = max(min(exp(alpha*supcol),n0smax_n0s),1.)
+          n0sfac(i,k) = max(min(exp(alpha*supcol),n0smax/n0s),1.)
           if(t(i,k).gt.t0c) then
 !---------------------------------------------------------------
 ! psmlt: melting of snow [HL A33] [RH83 A25]
 !       (T>T0: S->R)
 !---------------------------------------------------------------
             xlf = xlf0
-!!!            work2(i,k) = venfac(p(i,k),t(i,k),den(i,k))
-            work2(i,k) = exp(log(((1.496e-6 * (t(i,k)*sqrt(t(i,k))) /(t(i,k)+120.)/den(i,k))/(8.794e-5 * exp(log(t(i,k))*(1.81)) / p(i,k))))*((.3333333)))/sqrt((1.496e-6 * (t(i,k)*sqrt(t(i,k)))/(t(i,k)+120.)/den(i,k)))*sqrt(sqrt(den0/den(i,k)))
+            work2(i,k) = venfac(p(i,k),t(i,k),den(i,k))
             if(qrs(i,k,2).gt.0.) then
               coeres = rslope2(i,k,2)*sqrt(rslope(i,k,2)*rslopeb(i,k,2))
-!!!              psmlt(i,k) = xka(t(i,k),den(i,k))/xlf*(t0c-t(i,k))*pi/2.       &
-!!!                         *n0sfac(i,k)*(precs1*rslope2(i,k,2)                 &
-!!!                         +precs2*work2(i,k)*coeres)/den(i,k)
-              psmlt(i,k) = (1.414e3*(1.496e-6 * (t(i,k)*sqrt(t(i,k))) /(t(i,k)+120.)/den(i,k))*den(i,k))/xlf*(t0c-t(i,k))*pi/2.       &
+              psmlt(i,k) = xka(t(i,k),den(i,k))/xlf*(t0c-t(i,k))*pi/2.       &
                          *n0sfac(i,k)*(precs1*rslope2(i,k,2)                 &
                          +precs2*work2(i,k)*coeres)/den(i,k)
               psmlt(i,k) = min(max(psmlt(i,k)*dtcld/mstep(i),                &
@@ -826,10 +749,7 @@ CONTAINS
 !---------------------------------------------------------------
             if(qrs(i,k,3).gt.0.) then
               coeres = rslope2(i,k,3)*sqrt(rslope(i,k,3)*rslopeb(i,k,3))
-!!!              pgmlt(i,k) = xka(t(i,k),den(i,k))/xlf                          &
-!!!                         *(t0c-t(i,k))*(precg1*rslope2(i,k,3)                &
-!!!                         +precg2*work2(i,k)*coeres)/den(i,k)
-              pgmlt(i,k) = (1.414e3*(1.496e-6 * (t(i,k)*sqrt(t(i,k)))/(t(i,k)+120.)/den(i,k))*den(i,k))/xlf                             &
+              pgmlt(i,k) = xka(t(i,k),den(i,k))/xlf                          &
                          *(t0c-t(i,k))*(precg1*rslope2(i,k,3)                &
                          +precg2*work2(i,k)*coeres)/den(i,k)
               pgmlt(i,k) = min(max(pgmlt(i,k)*dtcld/mstep(i),                &
@@ -841,13 +761,10 @@ CONTAINS
           endif
         enddo
       enddo
-!$acc end parallel
 !---------------------------------------------------------------
 ! Vice [ms-1] : fallout of ice crystal [HDC 5a]
 !---------------------------------------------------------------
-!$acc parallel vector_length(32)
-!$acc loop gang vector collapse(2) private(xmi, diameter)
-      do k = kts, kte
+      do k = kte, kts, -1
         do i = its, ite
           if(qci(i,k,2).le.0.) then
             work1c(i,k) = 0.
@@ -858,43 +775,28 @@ CONTAINS
           endif
         enddo
       enddo
-!$acc end parallel
 !
 !  forward semi-laglangian scheme (JH), PCM (piecewise constant),  (linear)
 !
-!$acc parallel vector_length(32)
-!$acc loop gang vector collapse(2)
-      do k = kts, kte
+      do k = kte, kts, -1
         do i = its, ite
           denqci(i,k) = den(i,k)*qci(i,k,2)
         enddo
       enddo
-!$acc end parallel
-
-!write(*,*) "*** Section 2.1.6 ***"
-!!!      call nislfv_rain_plm(idim,kdim,den_tmp,denfac,t,delz_tmp,work1c,denqci,  &
-!!!                           delqi,dtcld,1,0)
-      call nislfv_rain_plm(its,ite,kts,kte,den_tmp,denfac,t,delz_tmp,work1c,denqci,  &
+      call nislfv_rain_plm(idim,kdim,den_tmp,denfac,t,delz_tmp,work1c,denqci,  &
                            delqi,dtcld,1,0)
-
-!$acc parallel vector_length(32)
-!$acc loop gang vector collapse(2)
       do k = kts, kte
         do i = its, ite
           qci(i,k,2) = max(denqci(i,k)/den(i,k),0.)
         enddo
       enddo
-!$acc loop gang vector
       do i = its, ite
         fallc(i,1) = delqi(i)/delz(i,1)/dtcld
       enddo
-!$acc end parallel
 !
 !----------------------------------------------------------------
 !      rain (unit is mm/sec;kgm-2s-1: /1000*delt ===> m)==> mm for wrf
 !
-!$acc parallel vector_length(32)
-!$acc loop gang vector private(fallsum, fallsum_qsi, fallsum_qg)
       do i = its, ite
         fallsum = fall(i,kts,1)+fall(i,kts,2)+fall(i,kts,3)+fallc(i,kts)
         fallsum_qsi = fall(i,kts,2)+fallc(i,kts)
@@ -927,15 +829,11 @@ CONTAINS
           if(fallsum.gt.0.)sr(i)=(tstepsnow(i) + tstepgraup(i))/(rainncv(i)+1.e-12)
         ENDIF
       enddo
-!$acc end parallel
 !
 !---------------------------------------------------------------
 ! pimlt: instantaneous melting of cloud ice [HL A47] [RH83 A28]
 !       (T>T0: I->C)
 !---------------------------------------------------------------
-!$acc parallel vector_length(32)
-!$acc loop gang vector collapse(2) private(supcol, xlf, supcolt, pfrzdtc, &
-!$acc temp, pfrzdtr)
       do k = kts, kte
         do i = its, ite
           supcol = t0c-t(i,k)
@@ -989,14 +887,11 @@ CONTAINS
           endif
         enddo
       enddo
-!$acc end parallel
 !
 !
 !----------------------------------------------------------------
 !     update the slope parameters for microphysics computation
 !
-!$acc parallel vector_length(32)
-!$acc loop gang vector collapse(2)
       do k = kts, kte
         do i = its, ite
           qrs_tmp(i,k,1) = qrs(i,k,1)
@@ -1004,8 +899,6 @@ CONTAINS
           qrs_tmp(i,k,3) = qrs(i,k,3)
         enddo
       enddo
-!$acc end parallel
-!write(*,*) "*** Section 2.1.6 ***"
       call slope_wsm6(qrs_tmp,den_tmp,denfac,t,rslope,rslopeb,rslope2,rslope3, &
                      work1,its,ite,kts,kte)
 !------------------------------------------------------------------
@@ -1014,19 +907,13 @@ CONTAINS
 !             (ry88, y93, h85)
 !     work2: parameter associated with the ventilation effects(y93)
 !
-!$acc parallel vector_length(32)
-!$acc loop gang vector collapse(2)
       do k = kts, kte
         do i = its, ite
-!!!          work1(i,k,1) = diffac(xl(i,k),p(i,k),t(i,k),den(i,k),qs(i,k,1))
-           work1(i,k,1) = den(i,k)*xl(i,k)*xl(i,k)/((1.414e3*(1.496e-6 * (t(i,k)*sqrt(t(i,k)))/(t(i,k)+120.)/den(i,k))*den(i,k))*rv*t(i,k)*t(i,k))+1./(qs(i,k,1)*(8.794e-5 * exp(log(t(i,k))*(1.81)) / p(i,k)))
-!!!          work1(i,k,2) = diffac(xls,p(i,k),t(i,k),den(i,k),qs(i,k,2))
-           work1(i,k,2) = den(i,k)*xls*xls/((1.414e3*(1.496e-6 * (t(i,k)*sqrt(t(i,k)))/(t(i,k)+120.)/den(i,k))*den(i,k))*rv*t(i,k)*t(i,k))+1./(qs(i,k,2)*(8.794e-5 * exp(log(t(i,k))*(1.81)) / p(i,k)))
-!!!          work2(i,k) = venfac(p(i,k),t(i,k),den(i,k))
-           work2(i,k) = exp(log(((1.496e-6 * (t(i,k)*sqrt(t(i,k))) /(t(i,k)+120.)/den(i,k))/(8.794e-5 * exp(log(t(i,k))*(1.81)) / p(i,k))))*((.3333333)))/sqrt((1.496e-6 * (t(i,k)*sqrt(t(i,k)))/(t(i,k)+120.)/den(i,k)))*sqrt(sqrt(den0/den(i,k)))
+          work1(i,k,1) = diffac(xl(i,k),p(i,k),t(i,k),den(i,k),qs(i,k,1))
+          work1(i,k,2) = diffac(xls,p(i,k),t(i,k),den(i,k),qs(i,k,2))
+          work2(i,k) = venfac(p(i,k),t(i,k),den(i,k))
         enddo
       enddo
-!$acc end parallel
 !
 !===============================================================
 !
@@ -1036,8 +923,6 @@ CONTAINS
 !
 !===============================================================
 !
-!$acc parallel vector_length(32)
-!$acc loop gang vector collapse(2) private(supsat, satdt, coeres)
       do k = kts, kte
         do i = its, ite
           supsat = max(q(i,k),qmin)-qs(i,k,1)
@@ -1075,7 +960,6 @@ CONTAINS
           endif
         enddo
       enddo
-!$acc end parallel
 !
 !===============================================================
 !
@@ -1090,14 +974,10 @@ CONTAINS
 !
 !===============================================================
 !
-!$acc parallel vector_length(32)
-!$acc loop gang vector collapse(2) private(supcol, supsat, satdt, ifsat, &
-!$acc temp, eacrs, xmi, diameter, vt2i, vt2r, vt2s, vt2g, vt2ave, acrfac, &
-!$acc egi, xlf, supice, coeres, xni0, roqi0, qimax, alpha2)
       do k = kts, kte
         do i = its, ite
           supcol = t0c-t(i,k)
-          n0sfac(i,k) = max(min(exp(alpha*supcol),n0smax_n0s),1.)
+          n0sfac(i,k) = max(min(exp(alpha*supcol),n0smax/n0s),1.)
           supsat = max(q(i,k),qmin)-qs(i,k,2)
           satdt = supsat/dtcld
           ifsat = 0
@@ -1132,6 +1012,8 @@ CONTAINS
               acrfac = 2.*rslope3(i,k,1)+2.*diameter*rslope2(i,k,1)            &
                       +diameter**2*rslope(i,k,1)
               praci(i,k) = pi*qci(i,k,2)*n0r*abs(vt2r-vt2i)*acrfac/4.
+              ! reduce collection efficiency (suggested by B. Wilt)
+              praci(i,k) = praci(i,k)*min(max(0.0,qrs(i,k,1)/qci(i,k,2)),1.)**2
               praci(i,k) = min(praci(i,k),qci(i,k,2)/dtcld)
 !-------------------------------------------------------------
 ! piacr: Accretion of rain by cloud ice [HL A19] [LFO 26]
@@ -1140,6 +1022,8 @@ CONTAINS
               piacr(i,k) = pi**2*avtr*n0r*denr*xni(i,k)*denfac(i,k)            &
                           *g6pbr*rslope3(i,k,1)*rslope3(i,k,1)                 &
                           *rslopeb(i,k,1)/24./den(i,k)
+              ! reduce collection efficiency (suggested by B. Wilt)
+              piacr(i,k) = piacr(i,k)*min(max(0.0,qci(i,k,2)/qrs(i,k,1)),1.)**2
               piacr(i,k) = min(piacr(i,k),qrs(i,k,1)/dtcld)
             endif
 !-------------------------------------------------------------
@@ -1171,6 +1055,8 @@ CONTAINS
 !-------------------------------------------------------------
           if(qrs(i,k,2).gt.qcrmin.and.qci(i,k,1).gt.qmin) then
             psacw(i,k) = min(pacrc*n0sfac(i,k)*rslope3(i,k,2)*rslopeb(i,k,2)   &    
+              ! reduce collection efficiency (suggested by B. Wilt)
+                        *min(max(0.0,qrs(i,k,2)/qci(i,k,1)),1.)**2             &
                         *qci(i,k,1)*denfac(i,k),qci(i,k,1)/dtcld)
           endif
 !-------------------------------------------------------------
@@ -1179,6 +1065,8 @@ CONTAINS
 !-------------------------------------------------------------
           if(qrs(i,k,3).gt.qcrmin.and.qci(i,k,1).gt.qmin) then
             pgacw(i,k) = min(pacrg*rslope3(i,k,3)*rslopeb(i,k,3)               &
+              ! reduce collection efficiency (suggested by B. Wilt)
+                        *min(max(0.0,qrs(i,k,3)/qci(i,k,1)),1.)**2             &
                         *qci(i,k,1)*denfac(i,k),qci(i,k,1)/dtcld)
           endif
 !-------------------------------------------------------------
@@ -1200,6 +1088,8 @@ CONTAINS
                       +.5*rslope2(i,k,2)*rslope2(i,k,2)*rslope3(i,k,1)
               pracs(i,k) = pi**2*n0r*n0s*n0sfac(i,k)*abs(vt2r-vt2ave)          &
                           *(dens/den(i,k))*acrfac
+              ! reduce collection efficiency (suggested by B. Wilt)
+              pracs(i,k) = pracs(i,k)*min(max(0.0,qrs(i,k,1)/qrs(i,k,2)),1.)**2
               pracs(i,k) = min(pracs(i,k),qrs(i,k,2)/dtcld)
             endif
 !-------------------------------------------------------------
@@ -1211,6 +1101,8 @@ CONTAINS
                     +.5*rslope2(i,k,1)*rslope2(i,k,1)*rslope3(i,k,2)
             psacr(i,k) = pi**2*n0r*n0s*n0sfac(i,k)*abs(vt2ave-vt2r)            &
                         *(denr/den(i,k))*acrfac
+              ! reduce collection efficiency (suggested by B. Wilt)
+            psacr(i,k) = psacr(i,k)*min(max(0.0,qrs(i,k,2)/qrs(i,k,1)),1.)**2
             psacr(i,k) = min(psacr(i,k),qrs(i,k,1)/dtcld)
           endif
 !-------------------------------------------------------------
@@ -1223,6 +1115,8 @@ CONTAINS
                     +.5*rslope2(i,k,1)*rslope2(i,k,1)*rslope3(i,k,3)
             pgacr(i,k) = pi**2*n0r*n0g*abs(vt2ave-vt2r)*(denr/den(i,k))        &
                         *acrfac
+              ! reduce collection efficiency (suggested by B. Wilt)
+            pgacr(i,k) = pgacr(i,k)*min(max(0.0,qrs(i,k,3)/qrs(i,k,1)),1.)**2
             pgacr(i,k) = min(pgacr(i,k),qrs(i,k,1)/dtcld)
           endif
 !
@@ -1359,17 +1253,12 @@ CONTAINS
           endif
         enddo
       enddo
-!$acc end parallel
-!write(*,*) "*** Section 2.1.7 ***"
 !
 !
 !----------------------------------------------------------------
 !     check mass conservation of generation terms and feedback to the
 !     large scale
 !
-!$acc parallel vector_length(32)
-!$acc loop gang vector collapse(2) private(delta2, delta3, value, source, &
-!$acc factor, xlf, xlwork2)
       do k = kts, kte
         do i = its, ite
 !
@@ -1555,13 +1444,10 @@ CONTAINS
           endif
         enddo
       enddo
-!$acc end parallel
 !
-!write(*,*) "*** Section 2.1.8 ***"
 ! Inline expansion for fpvs
 !         qs(i,k,1) = fpvs(t(i,k),0,rd,rv,cpv,cliq,cice,xlv0,xls,psat,t0c)
 !         qs(i,k,2) = fpvs(t(i,k),1,rd,rv,cpv,cliq,cice,xlv0,xls,psat,t0c)
-!$acc parallel num_gangs(1) num_workers(1) vector_length(1)
       hsub = xls
       hvap = xlv0
       cvap = cpv
@@ -1572,9 +1458,6 @@ CONTAINS
       dldti=cvap-cice
       xai=-dldti/rv
       xbi=xai+hsub/(rv*ttp)
-!$acc end parallel
-!$acc parallel vector_length(32)
-!$acc loop gang vector collapse(2) private(tr)
       do k = kts, kte
         do i = its, ite
           tr=ttp/t(i,k)
@@ -1593,19 +1476,15 @@ CONTAINS
           qs(i,k,2) = max(qs(i,k,2),qmin)
         enddo
       enddo
-!$acc end parallel
 !
 !----------------------------------------------------------------
 !  pcond: condensational/evaporational rate of cloud water [HL A46] [RH83 A6]
 !     if there exists additional water vapor condensated/if
 !     evaporation of cloud water is not enough to remove subsaturation
 !
-!$acc parallel vector_length(32)
-!$acc loop gang vector collapse(2)
       do k = kts, kte
         do i = its, ite
-!!!          work1(i,k,1) = conden(t(i,k),q(i,k),qs(i,k,1),xl(i,k),cpm(i,k))
-          work1(i,k,1) = (max(q(i,k),qmin)-qs(i,k,1))/(1.+xl(i,k)*xl(i,k)/(rv*cpm(i,k))*qs(i,k,1)/(t(i,k)*t(i,k)))
+          work1(i,k,1) = conden(t(i,k),q(i,k),qs(i,k,1),xl(i,k),cpm(i,k))
           work2(i,k) = qci(i,k,1)+work1(i,k,1)
           pcond(i,k) = min(max(work1(i,k,1)/dtcld,0.),max(q(i,k),0.)/dtcld)
           if(qci(i,k,1).gt.0..and.work1(i,k,1).lt.0.)                          &
@@ -1615,24 +1494,24 @@ CONTAINS
           t(i,k) = t(i,k)+pcond(i,k)*xl(i,k)/cpm(i,k)*dtcld
         enddo
       enddo
-!$acc end parallel
 !
 !
 !----------------------------------------------------------------
 !     padding for small values
 !
-!$acc parallel vector_length(32)
-!$acc loop gang vector collapse(2)
       do k = kts, kte
         do i = its, ite
           if(qci(i,k,1).le.qmin) qci(i,k,1) = 0.0
           if(qci(i,k,2).le.qmin) qci(i,k,2) = 0.0
         enddo
       enddo
-!$acc end parallel
       enddo                  ! big loops
-!$acc end data
-!write(*,*) "*** Section 2.1.9 ***"
+
+#ifdef WRF_CHEM
+      rainprod2d = praut+pracw+praci+psaci+pgaci+psacw+pgacw+paacw+psaut
+      evapprod2d = -(prevp+psevp+pgevp+psdep+pgdep)
+#endif
+
   END SUBROUTINE wsm62d
 ! ...................................................................
       REAL FUNCTION rgmma(x)
@@ -1788,8 +1667,6 @@ CONTAINS
    xbm_g = 3.
    xmu_g = 0.
 
-!$acc update device(xam_g, xam_s, xam_r, n0g, pi)
-
    call radar_init
 !+---+-----------------------------------------------------------------+
 
@@ -1814,34 +1691,29 @@ CONTAINS
   REAL, PARAMETER  :: t0c = 273.15
   REAL, DIMENSION( its:ite , kts:kte ) ::                                      &
                                                                        n0sfac
-  REAL       ::  lamdar, lamdas, lamdag, x, y, z, supcol, n0smax_n0s
+  REAL       ::  lamdar, lamdas, lamdag, x, y, z, supcol
   integer :: i, j, k
-!$acc data create(n0sfac)
 !----------------------------------------------------------------
 !     size distributions: (x=mixing ratio, y=air density):
 !     valid for mixing ratio > 1.e-9 kg/kg.
-!!!      lamdar(x,y)=   sqrt(sqrt(pidn0r/(x*y)))      ! (pidn0r/(x*y))**.25
-!!!      lamdas(x,y,z)= sqrt(sqrt(pidn0s*z/(x*y)))    ! (pidn0s*z/(x*y))**.25
-!!!      lamdag(x,y)=   sqrt(sqrt(pidn0g/(x*y)))      ! (pidn0g/(x*y))**.25
+      lamdar(x,y)=   sqrt(sqrt(pidn0r/(x*y)))      ! (pidn0r/(x*y))**.25
+      lamdas(x,y,z)= sqrt(sqrt(pidn0s*z/(x*y)))    ! (pidn0s*z/(x*y))**.25
+      lamdag(x,y)=   sqrt(sqrt(pidn0g/(x*y)))      ! (pidn0g/(x*y))**.25
 !
- n0smax_n0s = n0smax/n0s
-!$acc parallel vector_length(32)
-!$acc loop gang vector collapse(2) private(supcol)
       do k = kts, kte
         do i = its, ite
           supcol = t0c-t(i,k)
 !---------------------------------------------------------------
 ! n0s: Intercept parameter for snow [m-4] [HDC 6]
 !---------------------------------------------------------------
-          n0sfac(i,k) = max(min(exp(alpha*supcol),n0smax_n0s),1.)
+          n0sfac(i,k) = max(min(exp(alpha*supcol),n0smax/n0s),1.)
           if(qrs(i,k,1).le.qcrmin)then
             rslope(i,k,1) = rslopermax
             rslopeb(i,k,1) = rsloperbmax
             rslope2(i,k,1) = rsloper2max
             rslope3(i,k,1) = rsloper3max
           else
-!!!            rslope(i,k,1) = 1./lamdar(qrs(i,k,1),den(i,k))
-            rslope(i,k,1) = 1./(sqrt(sqrt(pidn0r/(qrs(i,k,1)*den(i,k)))))
+            rslope(i,k,1) = 1./lamdar(qrs(i,k,1),den(i,k))
             rslopeb(i,k,1) = rslope(i,k,1)**bvtr
             rslope2(i,k,1) = rslope(i,k,1)*rslope(i,k,1)
             rslope3(i,k,1) = rslope2(i,k,1)*rslope(i,k,1)
@@ -1852,8 +1724,7 @@ CONTAINS
             rslope2(i,k,2) = rslopes2max
             rslope3(i,k,2) = rslopes3max
           else
-!!!            rslope(i,k,2) = 1./lamdas(qrs(i,k,2),den(i,k),n0sfac(i,k))
-            rslope(i,k,2) = 1./(sqrt(sqrt(pidn0s*n0sfac(i,k)/(qrs(i,k,2)*den(i,k)))))
+            rslope(i,k,2) = 1./lamdas(qrs(i,k,2),den(i,k),n0sfac(i,k))
             rslopeb(i,k,2) = rslope(i,k,2)**bvts
             rslope2(i,k,2) = rslope(i,k,2)*rslope(i,k,2)
             rslope3(i,k,2) = rslope2(i,k,2)*rslope(i,k,2)
@@ -1864,8 +1735,7 @@ CONTAINS
             rslope2(i,k,3) = rslopeg2max
             rslope3(i,k,3) = rslopeg3max
           else
-!!!            rslope(i,k,3) = 1./lamdag(qrs(i,k,3),den(i,k))
-            rslope(i,k,3) = 1./(sqrt(sqrt(pidn0g/(qrs(i,k,3)*den(i,k)))))
+            rslope(i,k,3) = 1./lamdag(qrs(i,k,3),den(i,k))
             rslopeb(i,k,3) = rslope(i,k,3)**bvtg
             rslope2(i,k,3) = rslope(i,k,3)*rslope(i,k,3)
             rslope3(i,k,3) = rslope2(i,k,3)*rslope(i,k,3)
@@ -1878,8 +1748,6 @@ CONTAINS
           if(qrs(i,k,3).le.0.0) vt(i,k,3) = 0.0
         enddo
       enddo
-!$acc end parallel
-!$acc end data
   END subroutine slope_wsm6
 !-----------------------------------------------------------------------------
       subroutine slope_rain(qrs,den,denfac,t,rslope,rslopeb,rslope2,rslope3,   & 
@@ -1904,7 +1772,7 @@ CONTAINS
 !----------------------------------------------------------------
 !     size distributions: (x=mixing ratio, y=air density):
 !     valid for mixing ratio > 1.e-9 kg/kg.
-!!!      lamdar(x,y)=   sqrt(sqrt(pidn0r/(x*y)))      ! (pidn0r/(x*y))**.25
+      lamdar(x,y)=   sqrt(sqrt(pidn0r/(x*y)))      ! (pidn0r/(x*y))**.25
 !
       do k = kts, kte
         do i = its, ite
@@ -1914,8 +1782,7 @@ CONTAINS
             rslope2(i,k) = rsloper2max
             rslope3(i,k) = rsloper3max
           else
-!!!            rslope(i,k) = 1./lamdar(qrs(i,k),den(i,k))
-            rslope(i,k) = 1./(sqrt(sqrt(pidn0r/(qrs(i,k)*den(i,k)))))
+            rslope(i,k) = 1./lamdar(qrs(i,k),den(i,k))
             rslopeb(i,k) = rslope(i,k)**bvtr
             rslope2(i,k) = rslope(i,k)*rslope(i,k)
             rslope3(i,k) = rslope2(i,k)*rslope(i,k)
@@ -1948,7 +1815,7 @@ CONTAINS
 !----------------------------------------------------------------
 !     size distributions: (x=mixing ratio, y=air density):
 !     valid for mixing ratio > 1.e-9 kg/kg.
-!!!      lamdas(x,y,z)= sqrt(sqrt(pidn0s*z/(x*y)))    ! (pidn0s*z/(x*y))**.25
+      lamdas(x,y,z)= sqrt(sqrt(pidn0s*z/(x*y)))    ! (pidn0s*z/(x*y))**.25
 !
       do k = kts, kte
         do i = its, ite
@@ -1963,8 +1830,7 @@ CONTAINS
             rslope2(i,k) = rslopes2max
             rslope3(i,k) = rslopes3max
           else
-!!!            rslope(i,k) = 1./lamdas(qrs(i,k),den(i,k),n0sfac(i,k))
-            rslope(i,k) = 1./(sqrt(sqrt(pidn0s*n0sfac(i,k)/(qrs(i,k)*den(i,k)))))
+            rslope(i,k) = 1./lamdas(qrs(i,k),den(i,k),n0sfac(i,k))
             rslopeb(i,k) = rslope(i,k)**bvts
             rslope2(i,k) = rslope(i,k)*rslope(i,k)
             rslope3(i,k) = rslope2(i,k)*rslope(i,k)
@@ -1997,7 +1863,7 @@ CONTAINS
 !----------------------------------------------------------------
 !     size distributions: (x=mixing ratio, y=air density):
 !     valid for mixing ratio > 1.e-9 kg/kg.
-!!!      lamdag(x,y)=   sqrt(sqrt(pidn0g/(x*y)))      ! (pidn0g/(x*y))**.25
+      lamdag(x,y)=   sqrt(sqrt(pidn0g/(x*y)))      ! (pidn0g/(x*y))**.25
 !
       do k = kts, kte
         do i = its, ite
@@ -2010,8 +1876,7 @@ CONTAINS
             rslope2(i,k) = rslopeg2max
             rslope3(i,k) = rslopeg3max
           else
-!!!            rslope(i,k) = 1./lamdag(qrs(i,k),den(i,k))
-            rslope(i,k) = 1./(sqrt(sqrt(pidn0g/(qrs(i,k)*den(i,k)))))
+            rslope(i,k) = 1./lamdag(qrs(i,k),den(i,k))
             rslopeb(i,k) = rslope(i,k)**bvtg
             rslope2(i,k) = rslope(i,k)*rslope(i,k)
             rslope3(i,k) = rslope2(i,k)*rslope(i,k)
@@ -2023,7 +1888,7 @@ CONTAINS
   END subroutine slope_graup
 !---------------------------------------------------------------------------------
 !-------------------------------------------------------------------
-      SUBROUTINE nislfv_rain_plm(its,ite,kts,kte,denl,denfacl,tkl,dzl,wwl,rql,precip,dt,id,iter)
+      SUBROUTINE nislfv_rain_plm(im,km,denl,denfacl,tkl,dzl,wwl,rql,precip,dt,id,iter)
 !-------------------------------------------------------------------
 !
 ! for non-iteration semi-Lagrangain forward advection for cloud
@@ -2046,239 +1911,151 @@ CONTAINS
 !         implemented by song-you hong
 !
       implicit none
-      INTEGER, INTENT(IN) :: its,ite,kts,kte,id,iter
-      REAL, INTENT(INOUT) :: dt
-      REAL, DIMENSION( its:ite,kts:kte ),INTENT(INOUT) ::  dzl,wwl,rql
-      REAL, DIMENSION( its:ite ), INTENT(INOUT) :: precip
-      REAL, DIMENSION( its:ite,kts:kte ), INTENT(INOUT) :: denl,denfacl,tkl
+      integer  im,km,id
+      real  dt
+      real  dzl(im,km),wwl(im,km),rql(im,km),precip(im)
+      real  denl(im,km),denfacl(im,km),tkl(im,km)
 !
-      INTEGER :: i,k,n,m,kk,kb,kt,im,km
-      REAL :: tl,tl2,qql,dql,qqd
-      REAL :: th,th2,qqh,dqh
-      REAL :: zsum,qsum,dim,dip,c1,con1,fa1,fa2
-      REAL, DIMENSION( its:ite ) :: allold
-      REAL :: allnew, zz, dzamin, cflmax, decfl
-      REAL, DIMENSION( kts:kte,its:ite ) :: ww, wd, wa, was
-      REAL, DIMENSION( kts:kte+1,its:ite ) :: wi, zi, za
-      REAL, DIMENSION( kts:kte,its:ite ) :: qn, qr
-      REAL tmp, tmp1
-      REAL, DIMENSION( kts:kte+1,its:ite ) :: dza, qa
-      REAL, DIMENSION( kts:kte+1,its:ite ) :: qmi, qpi
-!$acc enter data create(allold,ww,wd,wa,was,wi,zi,za, &
-!$acc qn,qr,dza,qa,qmi,qpi)
+      integer  i,k,n,m,kk,kb,kt,iter
+      real  tl,tl2,qql,dql,qqd
+      real  th,th2,qqh,dqh
+      real  zsum,qsum,dim,dip,c1,con1,fa1,fa2
+      real  allold, allnew, zz, dzamin, cflmax, decfl
+      real  dz(km), ww(km), qq(km), wd(km), wa(km), was(km)
+      real  den(km), denfac(km), tk(km)
+      real  wi(km+1), zi(km+1), za(km+1)
+      real  qn(km), qr(km),tmp(km),tmp1(km),tmp2(km),tmp3(km)
+      real  dza(km+1), qa(km+1), qmi(km+1), qpi(km+1)
 !
-      fa1 = 9./16.
-      fa2 = 1./16.
-      con1 = 0.05
-
-!$acc parallel num_gangs(1) num_workers(1) vector_length(1)
-      im = ite-its+1
-      km = kte-kts+1
-!$acc end parallel
+      precip(:) = 0.0
 !
-!$acc parallel vector_length(32)
-!$acc loop gang 
       i_loop : do i=1,im
 ! -----------------------------------
-!!!      dz(:) = dzl(i,:)
-!!!      qq(:) = rql(i,:)
-      precip(i) = 0.0
-      allold(i) = 0.0
-!$acc loop vector
-    do k=1,km
-      ww(k,i) = wwl(i,k)
-    enddo
-!!!      den(:) = denl(i,:)
-!!!      denfac(:) = denfacl(i,:)
-!!!      tk(:) = tkl(i,:)
+      dz(:) = dzl(i,:)
+      qq(:) = rql(i,:)
+      ww(:) = wwl(i,:)
+      den(:) = denl(i,:)
+      denfac(:) = denfacl(i,:)
+      tk(:) = tkl(i,:)
 ! skip for no precipitation for all layers
-!$acc loop seq
+      allold = 0.0
       do k=1,km
-        allold(i) = allold(i) + rql(i,k)
+        allold = allold + qq(k)
       enddo
-if(allold(i).gt.0.0) then
-!!!        cycle i_loop
-!!!      endif
+      if(allold.le.0.0) then
+        cycle i_loop
+      endif
 !
 ! compute interface values
-      zi(1,i)=0.0
-!$acc loop seq
+      zi(1)=0.0
       do k=1,km
-        zi(k+1,i) = zi(k,i)+dzl(i,k)
+        zi(k+1) = zi(k)+dz(k)
       enddo
 !
 ! save departure wind
-!$acc loop vector
-    do k=1,km
-      wd(k,i) = ww(k,i)
-    enddo
-endif
-   enddo i_loop
-!$acc end parallel
-
-!!!      n=1
-!!! 100  continue
-!$acc parallel vector_length(32)
-!$acc loop gang private(n, decfl)
-   i_loop1 : do i=1,im
-if(allold(i).gt.0.0) then
-!$acc loop seq
-      do n=1,(iter+1) 
+      wd(:) = ww(:)
+      n=1
+ 100  continue
 ! plm is 2nd order, we can use 2nd order wi or 3rd order wi
 ! 2nd order interpolation to get wi
-      wi(1,i) = ww(1,i)
-      wi(km+1,i) = ww(km,i)
-!$acc loop vector
+      wi(1) = ww(1)
+      wi(km+1) = ww(km)
       do k=2,km
-        wi(k,i) = (ww(k,i)*dzl(i,k-1)+ww(k-1,i)*dzl(i,k))/(dzl(i,k-1)+dzl(i,k))
+        wi(k) = (ww(k)*dz(k-1)+ww(k-1)*dz(k))/(dz(k-1)+dz(k))
       enddo
 ! 3rd order interpolation to get wi
-      wi(1,i) = ww(1,i)
-      wi(2,i) = 0.5*(ww(2,i)+ww(1,i))
-!$acc loop vector
+      fa1 = 9./16.
+      fa2 = 1./16.
+      wi(1) = ww(1)
+      wi(2) = 0.5*(ww(2)+ww(1))
       do k=3,km-1
-        wi(k,i) = fa1*(ww(k,i)+ww(k-1,i))-fa2*(ww(k+1,i)+ww(k-2,i))
+        wi(k) = fa1*(ww(k)+ww(k-1))-fa2*(ww(k+1)+ww(k-2))
       enddo
-      wi(km,i) = 0.5*(ww(km,i)+ww(km-1,i))
-      wi(km+1,i) = ww(km,i)
+      wi(km) = 0.5*(ww(km)+ww(km-1))
+      wi(km+1) = ww(km)
 !
 ! terminate of top of raingroup
-!$acc loop vector
       do k=2,km
-        if( ww(k,i).eq.0.0 ) wi(k,i)=ww(k-1,i)
+        if( ww(k).eq.0.0 ) wi(k)=ww(k-1)
       enddo
 !
 ! diffusivity of wi
-!$acc loop seq
+      con1 = 0.05
       do k=km,1,-1
-        decfl = (wi(k+1,i)-wi(k,i))*dt/dzl(i,k)
+        decfl = (wi(k+1)-wi(k))*dt/dz(k)
         if( decfl .gt. con1 ) then
-          wi(k,i) = wi(k+1,i) - con1*dzl(i,k)/dt
+          wi(k) = wi(k+1) - con1*dz(k)/dt
         endif
       enddo
 ! compute arrival point
-!$acc loop vector
       do k=1,km+1
-        za(k,i) = zi(k,i) - wi(k,i)*dt
+        za(k) = zi(k) - wi(k)*dt
       enddo
 !
-!$acc loop vector
       do k=1,km
-        dza(k,i) = za(k+1,i)-za(k,i)
+        dza(k) = za(k+1)-za(k)
       enddo
-      dza(km+1,i) = zi(km+1,i) - za(km+1,i)
+      dza(km+1) = zi(km+1) - za(km+1)
 !
 ! computer deformation at arrival point
-!$acc loop vector
       do k=1,km
-        qa(k,i) = rql(i,k)*dzl(i,k)/dza(k,i)
-        qr(k,i) = qa(k,i)/denl(i,k)
+        qa(k) = qq(k)*dz(k)/dza(k)
+        qr(k) = qa(k)/den(k)
       enddo
-      qa(km+1,i) = 0.0
+      qa(km+1) = 0.0
 !     call maxmin(km,1,qa,' arrival points ')
 !
 ! compute arrival terminal velocity, and estimate mean terminal velocity
 ! then back to use mean terminal velocity
       if( n.le.iter ) then
-
-!******************** Slope Rain Subroutine Start ********************
-!!!        call slope_rain(qr,den,denfac,tk,tmp,tmp1,tmp2,tmp3,wa,1,1,1,km)
-!!!                       (qrs,den,denfac,t,rslope,rslopeb,rslope2,rslope3,vt,its,ite,kts,kte)
-!----------------------------------------------------------------
-!     size distributions: (x=mixing ratio, y=air density):
-!     valid for mixing ratio > 1.e-9 kg/kg.
-!!!      lamdar(x,y)=   sqrt(sqrt(pidn0r/(x*y)))      ! (pidn0r/(x*y))**.25
-!
-!$acc loop vector private(tmp, tmp1)
-      do k = 1, km
-          if(qr(k,i).le.qcrmin)then
-            tmp = rslopermax
-            tmp1 = rsloperbmax
-!!!            tmp2(i,k) = rsloper2max
-!!!            tmp3(i,k) = rsloper3max
-          else
-!!!            rslope(i,k) = 1./lamdar(qrs(i,k),den(i,k))
-            tmp = 1./(sqrt(sqrt(pidn0r/(qr(k,i)*denl(i,k)))))
-            tmp1 = tmp**bvtr
-!!!            tmp2(i,k) = tmp(i,k)*tmp(i,k)
-!!!            tmp3(i,k) = tmp2(i,k)*tmp(i,k)
-          endif
-          wa(k,i) = pvtr*tmp1*denfacl(i,k)
-          if(qr(k,i).le.0.0) wa(k,i) = 0.0
-      enddo
-!*******************Slope Rain Subroutine End ************************
-
-        if( n.ge.2 ) then
-!$acc loop vector
-          do k=1,km
-            wa(k,i)=0.5*(wa(k,i)+was(k,i))
-          enddo
-        endif
-!$acc loop vector
+        call slope_rain(qr,den,denfac,tk,tmp,tmp1,tmp2,tmp3,wa,1,1,1,km)
+        if( n.ge.2 ) wa(1:km)=0.5*(wa(1:km)+was(1:km))
         do k=1,km
 !#ifdef DEBUG
 !        print*,' slope_wsm3 ',qr(k)*1000.,den(k),denfac(k),tk(k),tmp(k),tmp1(k),tmp2(k),ww(k),wa(k)
 !#endif
 ! mean wind is average of departure and new arrival winds
-          ww(k,i) = 0.5* ( wd(k,i)+wa(k,i) )
+          ww(k) = 0.5* ( wd(k)+wa(k) )
         enddo
-!$acc loop vector
-        do k=1,km
-          was(k,i) = wa(k,i)
-        enddo
-!!!        n=n+1
-!!!        go to 100
+        was(:) = wa(:)
+        n=n+1
+        go to 100
       endif
-      enddo
-endif
-   enddo i_loop1
-!$acc end parallel
-
-!$acc parallel vector_length(32)
-!$acc loop gang private(kb, kt, tl, th, tl2, th2, qqd, qqh, &
-!$acc qql, dql, zsum, qsum, dqh)
-   i_loop2 : do i=1,im
-if(allold(i).gt.0.0) then
 !
 ! estimate values at arrival cell interface with monotone
-!$acc loop vector private(dip, dim)
       do k=2,km
-        dip=(qa(k+1,i)-qa(k,i))/(dza(k+1,i)+dza(k,i))
-        dim=(qa(k,i)-qa(k-1,i))/(dza(k-1,i)+dza(k,i))
+        dip=(qa(k+1)-qa(k))/(dza(k+1)+dza(k))
+        dim=(qa(k)-qa(k-1))/(dza(k-1)+dza(k))
         if( dip*dim.le.0.0 ) then
-          qmi(k,i)=qa(k,i)
-          qpi(k,i)=qa(k,i)
+          qmi(k)=qa(k)
+          qpi(k)=qa(k)
         else
-          qpi(k,i)=qa(k,i)+0.5*(dip+dim)*dza(k,i)
-          qmi(k,i)=2.0*qa(k,i)-qpi(k,i)
-          if( qpi(k,i).lt.0.0 .or. qmi(k,i).lt.0.0 ) then
-            qpi(k,i) = qa(k,i)
-            qmi(k,i) = qa(k,i)
+          qpi(k)=qa(k)+0.5*(dip+dim)*dza(k)
+          qmi(k)=2.0*qa(k)-qpi(k)
+          if( qpi(k).lt.0.0 .or. qmi(k).lt.0.0 ) then
+            qpi(k) = qa(k)
+            qmi(k) = qa(k)
           endif
         endif
       enddo
-      qpi(1,i)=qa(1,i)
-      qmi(1,i)=qa(1,i)
-      qmi(km+1,i)=qa(km+1,i)
-      qpi(km+1,i)=qa(km+1,i)
+      qpi(1)=qa(1)
+      qmi(1)=qa(1)
+      qmi(km+1)=qa(km+1)
+      qpi(km+1)=qa(km+1)
 !
 ! interpolation to regular point
-!$acc loop vector
-      do k=1,km
-        qn(k,i) = 0.0
-      enddo
+      qn = 0.0
       kb=1
       kt=1
-!$acc loop seq
       intp : do k=1,km
              kb=max(kb-1,1)
              kt=max(kt-1,1)
 ! find kb and kt
-             if( zi(k,i).ge.za(km+1,i) ) then
+             if( zi(k).ge.za(km+1) ) then
                exit intp
              else
                find_kb : do kk=kb,km
-                         if( zi(k,i).le.za(kk+1,i) ) then
+                         if( zi(k).le.za(kk+1) ) then
                            kb = kk
                            exit find_kb
                          else
@@ -2286,7 +2063,7 @@ if(allold(i).gt.0.0) then
                          endif
                enddo find_kb
                find_kt : do kk=kt,km
-                         if( zi(k+1,i).le.za(kk,i) ) then
+                         if( zi(k+1).le.za(kk) ) then
                            kt = kk
                            exit find_kt
                          else
@@ -2296,78 +2073,62 @@ if(allold(i).gt.0.0) then
                kt = kt - 1
 ! compute q with piecewise constant method
                if( kt.eq.kb ) then
-                 tl=(zi(k,i)-za(kb,i))/dza(kb,i)
-                 th=(zi(k+1,i)-za(kb,i))/dza(kb,i)
+                 tl=(zi(k)-za(kb))/dza(kb)
+                 th=(zi(k+1)-za(kb))/dza(kb)
                  tl2=tl*tl
                  th2=th*th
-                 qqd=0.5*(qpi(kb,i)-qmi(kb,i))
-                 qqh=qqd*th2+qmi(kb,i)*th
-                 qql=qqd*tl2+qmi(kb,i)*tl
-                 qn(k,i) = (qqh-qql)/(th-tl)
+                 qqd=0.5*(qpi(kb)-qmi(kb))
+                 qqh=qqd*th2+qmi(kb)*th
+                 qql=qqd*tl2+qmi(kb)*tl
+                 qn(k) = (qqh-qql)/(th-tl)
                else if( kt.gt.kb ) then
-                 tl=(zi(k,i)-za(kb,i))/dza(kb,i)
+                 tl=(zi(k)-za(kb))/dza(kb)
                  tl2=tl*tl
-                 qqd=0.5*(qpi(kb,i)-qmi(kb,i))
-                 qql=qqd*tl2+qmi(kb,i)*tl
-                 dql = qa(kb,i)-qql
-                 zsum  = (1.-tl)*dza(kb,i)
-                 qsum  = dql*dza(kb,i)
+                 qqd=0.5*(qpi(kb)-qmi(kb))
+                 qql=qqd*tl2+qmi(kb)*tl
+                 dql = qa(kb)-qql
+                 zsum  = (1.-tl)*dza(kb)
+                 qsum  = dql*dza(kb)
                  if( kt-kb.gt.1 ) then
                  do m=kb+1,kt-1
-                   zsum = zsum + dza(m,i)
-                   qsum = qsum + qa(m,i) * dza(m,i)
+                   zsum = zsum + dza(m)
+                   qsum = qsum + qa(m) * dza(m)
                  enddo
                  endif
-                 th=(zi(k+1,i)-za(kt,i))/dza(kt,i)
+                 th=(zi(k+1)-za(kt))/dza(kt)
                  th2=th*th
-                 qqd=0.5*(qpi(kt,i)-qmi(kt,i))
-                 dqh=qqd*th2+qmi(kt,i)*th
-                 zsum  = zsum + th*dza(kt,i)
-                 qsum  = qsum + dqh*dza(kt,i)
-                 qn(k,i) = qsum/zsum
+                 qqd=0.5*(qpi(kt)-qmi(kt))
+                 dqh=qqd*th2+qmi(kt)*th
+                 zsum  = zsum + th*dza(kt)
+                 qsum  = qsum + dqh*dza(kt)
+                 qn(k) = qsum/zsum
                endif
                cycle intp
              endif
 !
        enddo intp
-endif
-   enddo i_loop2
-!$acc end parallel
-
-!$acc parallel vector_length(32)
-!$acc loop gang
-   i_loop3 : do i=1,im
-if(allold(i).gt.0.0) then
 !
 ! rain out
-!$acc loop seq
       sum_precip: do k=1,km
-                    if( za(k,i).lt.0.0 .and. za(k+1,i).lt.0.0 ) then
-                      precip(i) = precip(i) + qa(k,i)*dza(k,i)
+                    if( za(k).lt.0.0 .and. za(k+1).lt.0.0 ) then
+                      precip(i) = precip(i) + qa(k)*dza(k)
                       cycle sum_precip
-                    else if ( za(k,i).lt.0.0 .and. za(k+1,i).ge.0.0 ) then
-                      precip(i) = precip(i) + qa(k,i)*(0.0-za(k,i))
+                    else if ( za(k).lt.0.0 .and. za(k+1).ge.0.0 ) then
+                      precip(i) = precip(i) + qa(k)*(0.0-za(k))
                       exit sum_precip
                     endif
                     exit sum_precip
       enddo sum_precip
 !
 ! replace the new values
-!$acc loop vector
-      do k=1,km
-        rql(i,k) = qn(k,i)
-      enddo
+      rql(i,:) = qn(:)
 !
 ! ----------------------------------
-endif
-      enddo i_loop3
-!$acc end parallel
+      enddo i_loop
 !
-!$acc exit data delete(allold,ww,wd,wa,was,wi,zi,za, &
-!$acc qn,qr,dza,qa,qmi,qpi)
   END SUBROUTINE nislfv_rain_plm
 !-------------------------------------------------------------------
-      SUBROUTINE nislfv_rain_plm6(its,ite,kts,kte,denl,denfacl,tkl,dzl,wwl,rql,rql2, precip1, precip2,dt,id,iter)
+      SUBROUTINE nislfv_rain_plm6(im,km,denl,denfacl,tkl,dzl,wwl,rql,rql2, precip1, precip2,dt,id,iter)
 !-------------------------------------------------------------------
 !
 ! for non-iteration semi-Lagrangain forward advection for cloud
@@ -2390,302 +2151,173 @@ endif
 !         implemented by song-you hong
 !
       implicit none
-      INTEGER, INTENT(IN) :: its,ite,kts,kte,id,iter
-      REAL, INTENT(INOUT) :: dt
-      REAL, DIMENSION( its:ite,kts:kte ), INTENT(INOUT) :: dzl,wwl,rql,rql2
-      REAL, DIMENSION( its:ite ), INTENT(INOUT) :: precip1,precip2
-      REAL, DIMENSION( its:ite,kts:kte ), INTENT(INOUT) :: denl,denfacl,tkl
+      integer  im,km,id
+      real  dt
+      real  dzl(im,km),wwl(im,km),rql(im,km),rql2(im,km),precip(im),precip1(im),precip2(im)
+      real  denl(im,km),denfacl(im,km),tkl(im,km)
 !
-      INTEGER i,k,n,m,kk,kb,kt,ist,im,km
-      REAL tl,tl2,qql,dql,qqd
-      REAL th,th2,qqh,dqh
-      REAL zsum,qsum,dim,dip,c1,con1,fa1,fa2
-      REAL allnew, zz, dzamin, cflmax, decfl
-      REAL, DIMENSION( its:ite ) :: allold, precip
-      REAL, DIMENSION( kts:kte,its:ite ) :: ww, wd, wa, wa2, was
-      REAL, DIMENSION( kts:kte+1,its:ite ) :: wi, zi, za
-      REAL, DIMENSION( kts:kte,its:ite ) :: qn, qr,qr2
-      REAL :: tmp, tmp1
-      REAL, DIMENSION( kts:kte+1,its:ite ) :: dza, qa, qa2
-      REAL, DIMENSION( kts:kte+1,its:ite ) :: qmi, qpi
-      REAL, DIMENSION( kts:kte,its:ite ) :: n0sfac
-      REAL :: supcol, n0smax_n0s
-!$acc enter data create(allold, precip, ww, wd, wa, wa2, was, &
-!$acc wi, zi, za, qn, qr,qr2, dza, qa, qa2, qmi, qpi, n0sfac)
+      integer  i,k,n,m,kk,kb,kt,iter,ist
+      real  tl,tl2,qql,dql,qqd
+      real  th,th2,qqh,dqh
+      real  zsum,qsum,dim,dip,c1,con1,fa1,fa2
+      real  allold, allnew, zz, dzamin, cflmax, decfl
+      real  dz(km), ww(km), qq(km), qq2(km), wd(km), wa(km), wa2(km), was(km)
+      real  den(km), denfac(km), tk(km)
+      real  wi(km+1), zi(km+1), za(km+1)
+      real  qn(km), qr(km),qr2(km),tmp(km),tmp1(km),tmp2(km),tmp3(km)
+      real  dza(km+1), qa(km+1), qa2(km+1),qmi(km+1), qpi(km+1)
 !
-      fa1 = 9./16.
-      fa2 = 1./16.
-      con1 = 0.05
-      n0smax_n0s = n0smax/n0s
-
-!$acc parallel num_gangs(1) num_workers(1) vector_length(1)
-      im = ite-its+1
-      km = kte-kts+1
-!$acc end parallel
+      precip(:) = 0.0
+      precip1(:) = 0.0
+      precip2(:) = 0.0
 !
-!$acc parallel vector_length(32)
-!$acc loop gang
       i_loop : do i=1,im
 ! -----------------------------------
-      precip(i) = 0.0
-      precip1(i) = 0.0
-      precip2(i) = 0.0
-      allold(i) = 0.0
-
-!!!      dz(:) = dzl(i,:)
-!!!      qq(:) = rql(i,:)
-!!!      qq2(:) = rql2(i,:)
-!$acc loop vector
-      do k=1,km
-        ww(k,i) = wwl(i,k)
-      enddo
-!!!      den(:) = denl(i,:)
-!!!      denfac(:) = denfacl(i,:)
-!!!      tk(:) = tkl(i,:)
+      dz(:) = dzl(i,:)
+      qq(:) = rql(i,:)
+      qq2(:) = rql2(i,:)
+      ww(:) = wwl(i,:)
+      den(:) = denl(i,:)
+      denfac(:) = denfacl(i,:)
+      tk(:) = tkl(i,:)
 ! skip for no precipitation for all layers
-!$acc loop seq
+      allold = 0.0
       do k=1,km
-        allold(i) = allold(i) + rql(i,k) + rql2(i,k)
+        allold = allold + qq(k) + qq2(k)
       enddo
-if(allold(i).gt.0.0) then
-!!!        cycle i_loop
-!!!      endif
+      if(allold.le.0.0) then
+        cycle i_loop
+      endif
 !
 ! compute interface values
-      zi(1,i)=0.0
-!$acc loop seq
+      zi(1)=0.0
       do k=1,km
-        zi(k+1,i) = zi(k,i)+dzl(i,k)
+        zi(k+1) = zi(k)+dz(k)
       enddo
 !
 ! save departure wind
-!$acc loop vector
-      do k=1,km
-        wd(k,i) = ww(k,i)
-      enddo
-endif
-   enddo i_loop
-!$acc end parallel
-
-!!!      n=1
-!!! 100  continue
-!$acc parallel vector_length(32)
-!$acc loop gang private(n, decfl)
-   i_loop1 : do i=1,im
-if(allold(i).gt.0.0) then
-!$acc loop seq
-      do n=1,(iter+1)
+      wd(:) = ww(:)
+      n=1
+ 100  continue
 ! plm is 2nd order, we can use 2nd order wi or 3rd order wi
 ! 2nd order interpolation to get wi
-      wi(1,i) = ww(1,i)
-      wi(km+1,i) = ww(km,i)
-!$acc loop vector
+      wi(1) = ww(1)
+      wi(km+1) = ww(km)
       do k=2,km
-        wi(k,i) = (ww(k,i)*dzl(i,k-1)+ww(k-1,i)*dzl(i,k))/(dzl(i,k-1)+dzl(i,k))
+        wi(k) = (ww(k)*dz(k-1)+ww(k-1)*dz(k))/(dz(k-1)+dz(k))
       enddo
 ! 3rd order interpolation to get wi
-      wi(1,i) = ww(1,i)
-      wi(2,i) = 0.5*(ww(2,i)+ww(1,i))
-!$acc loop vector
+      fa1 = 9./16.
+      fa2 = 1./16.
+      wi(1) = ww(1)
+      wi(2) = 0.5*(ww(2)+ww(1))
       do k=3,km-1
-        wi(k,i) = fa1*(ww(k,i)+ww(k-1,i))-fa2*(ww(k+1,i)+ww(k-2,i))
+        wi(k) = fa1*(ww(k)+ww(k-1))-fa2*(ww(k+1)+ww(k-2))
       enddo
-      wi(km,i) = 0.5*(ww(km,i)+ww(km-1,i))
-      wi(km+1,i) = ww(km,i)
+      wi(km) = 0.5*(ww(km)+ww(km-1))
+      wi(km+1) = ww(km)
 !
 ! terminate of top of raingroup
-!$acc loop vector
       do k=2,km
-        if( ww(k,i).eq.0.0 ) wi(k,i)=ww(k-1,i)
+        if( ww(k).eq.0.0 ) wi(k)=ww(k-1)
       enddo
 !
 ! diffusivity of wi
-!$acc loop seq
+      con1 = 0.05
       do k=km,1,-1
-        decfl = (wi(k+1,i)-wi(k,i))*dt/dzl(i,k)
+        decfl = (wi(k+1)-wi(k))*dt/dz(k)
         if( decfl .gt. con1 ) then
-          wi(k,i) = wi(k+1,i) - con1*dzl(i,k)/dt
+          wi(k) = wi(k+1) - con1*dz(k)/dt
         endif
       enddo
 ! compute arrival point
-!$acc loop vector
       do k=1,km+1
-        za(k,i) = zi(k,i) - wi(k,i)*dt
+        za(k) = zi(k) - wi(k)*dt
       enddo
 !
-!$acc loop vector
       do k=1,km
-        dza(k,i) = za(k+1,i)-za(k,i)
+        dza(k) = za(k+1)-za(k)
       enddo
-      dza(km+1,i) = zi(km+1,i) - za(km+1,i)
+      dza(km+1) = zi(km+1) - za(km+1)
 !
 ! computer deformation at arrival point
-!$acc loop vector
       do k=1,km
-        qa(k,i) = rql(i,k)*dzl(i,k)/dza(k,i)
-        qa2(k,i) = rql2(i,k)*dzl(i,k)/dza(k,i)
-        qr(k,i) = qa(k,i)/denl(i,k)
-        qr2(k,i) = qa2(k,i)/denl(i,k)
+        qa(k) = qq(k)*dz(k)/dza(k)
+        qa2(k) = qq2(k)*dz(k)/dza(k)
+        qr(k) = qa(k)/den(k)
+        qr2(k) = qa2(k)/den(k)
       enddo
-      qa(km+1,i) = 0.0
-      qa2(km+1,i) = 0.0
+      qa(km+1) = 0.0
+      qa2(km+1) = 0.0
 !     call maxmin(km,1,qa,' arrival points ')
 !
 ! compute arrival terminal velocity, and estimate mean terminal velocity
 ! then back to use mean terminal velocity
       if( n.le.iter ) then
-
-!*********************** Slope Snow Subroutine Start **************************
-!!!        call slope_snow(qr,den,denfac,tk,tmp,tmp1,tmp2,tmp3,wa,1,1,1,km)
-!!!                       (qrs,den,denfac,t,rslope,rslopeb,rslope2,rslope3,vt,its,ite,kts,kte)
-!----------------------------------------------------------------
-!     size distributions: (x=mixing ratio, y=air density):
-!     valid for mixing ratio > 1.e-9 kg/kg.
-!!!      lamdas(x,y,z)= sqrt(sqrt(pidn0s*z/(x*y)))    ! (pidn0s*z/(x*y))**.25
-!
-!$acc loop vector private(supcol, tmp, tmp1)
-      do k = 1, km
-          supcol = 273.15-tkl(i,k)
-!---------------------------------------------------------------
-! n0s: Intercept parameter for snow [m-4] [HDC 6]
-!---------------------------------------------------------------
-          n0sfac(k,i) = max(min(exp(alpha*supcol),n0smax_n0s),1.)
-          if(qr(k,i).le.qcrmin)then
-            tmp = rslopesmax
-            tmp1 = rslopesbmax
-!!!            tmp2(i,k) = rslopes2max
-!!!            tmp3(i,k) = rslopes3max
-          else
-!!!            rslope(i,k) = 1./lamdas(qrs(i,k),den(i,k),n0sfac(i,k))
-            tmp = 1./(sqrt(sqrt(pidn0s*n0sfac(k,i)/(qr(k,i)*denl(i,k)))))
-            tmp1 = tmp**bvts
-!!!            tmp2(i,k) = tmp(i,k)*tmp(i,k)
-!!!            tmp3(i,k) = tmp2(i,k)*tmp(i,k)
-          endif
-          wa(k,i) = pvts*tmp1*denfacl(i,k)
-          if(qr(k,i).le.0.0) wa(k,i) = 0.0
-      enddo
-!*********************** Slope Snow Subroutine End ****************************
-
-!*********************** Slope Graup Subroutine Start ************************
-!!!        call slope_graup(qr2,den,denfac,tk,tmp,tmp1,tmp2,tmp3,wa2,1,1,1,km)
-!!!                        (qrs,den,denfac,t,rslope,rslopeb,rslope2,rslope3,vt,its,ite,kts,kte)
-!----------------------------------------------------------------
-!     size distributions: (x=mixing ratio, y=air density):
-!     valid for mixing ratio > 1.e-9 kg/kg.
-!!!      lamdag(x,y)=   sqrt(sqrt(pidn0g/(x*y)))      ! (pidn0g/(x*y))**.25
-!
-!$acc loop vector private(tmp, tmp1)
-      do k = 1, km
-!---------------------------------------------------------------
-! n0s: Intercept parameter for snow [m-4] [HDC 6]
-!---------------------------------------------------------------
-          if(qr2(k,i).le.qcrmin)then
-            tmp = rslopegmax
-            tmp1 = rslopegbmax
-!!!            tmp2(i,k) = rslopeg2max
-!!!            tmp3(i,k) = rslopeg3max
-          else
-!!!            rslope(i,k) = 1./lamdag(qrs(i,k),den(i,k))
-            tmp = 1./(sqrt(sqrt(pidn0g/(qr2(k,i)*denl(i,k)))))
-            tmp1 = tmp**bvtg
-!!!            tmp2(i,k) = tmp(i,k)*tmp(i,k)
-!!!            tmp3(i,k) = tmp2(i,k)*tmp(i,k)
-          endif
-          wa2(k,i) = pvtg*tmp1*denfacl(i,k)
-          if(qr2(k,i).le.0.0) wa2(k,i) = 0.0
-      enddo
-!*********************** Slope Graup Subroutine End **************************
-!$acc loop vector private(tmp)
+        call slope_snow(qr,den,denfac,tk,tmp,tmp1,tmp2,tmp3,wa,1,1,1,km)
+        call slope_graup(qr2,den,denfac,tk,tmp,tmp1,tmp2,tmp3,wa2,1,1,1,km)
         do k = 1, km
-          tmp = max((qr(k,i)+qr2(k,i)), 1.E-15)
-          IF ( tmp .gt. 1.e-15 ) THEN
-            wa(k,i) = (wa(k,i)*qr(k,i) + wa2(k,i)*qr2(k,i))/tmp
+          tmp(k) = max((qr(k)+qr2(k)), 1.E-15)
+          IF ( tmp(k) .gt. 1.e-15 ) THEN
+            wa(k) = (wa(k)*qr(k) + wa2(k)*qr2(k))/tmp(k)
           ELSE
-            wa(k,i) = 0.
+            wa(k) = 0.
           ENDIF
         enddo
-        if( n.ge.2 ) then
-!$acc loop vector
-        do k=1,km
-          wa(k,i)=0.5*(wa(k,i)+was(k,i))
-        enddo 
-        endif
-!$acc loop vector
+        if( n.ge.2 ) wa(1:km)=0.5*(wa(1:km)+was(1:km))
         do k=1,km
 !#ifdef DEBUG
 !        print*,' slope_wsm3 ',qr(k)*1000.,den(k),denfac(k),tk(k),tmp(k),tmp1(k),tmp2(k), &
 !           ww(k),wa(k)
 !#endif
 ! mean wind is average of departure and new arrival winds
-          ww(k,i) = 0.5* ( wd(k,i)+wa(k,i) )
+          ww(k) = 0.5* ( wd(k)+wa(k) )
         enddo
-!$acc loop vector
-        do k=1,km
-          was(k,i) = wa(k,i)
-        enddo
-!!!        n=n+1
-!!!        go to 100
+        was(:) = wa(:)
+        n=n+1
+        go to 100
       endif
-      enddo
-endif
-   enddo i_loop1
-!$acc end parallel
-
-!$acc parallel vector_length(32)
-!$acc loop gang private(ist, kb, kt, tl, th, tl2, th2, qqd, qqh, &
-!$acc qql, dql, zsum, qsum, dqh)
-   i_loop2 : do i=1,im
-if(allold(i).gt.0.0) then
       ist_loop : do ist = 1, 2
       if (ist.eq.2) then
-!$acc loop vector
-       do k=1,km+1
-         qa(k,i) = qa2(k,i)
-       enddo
+       qa(:) = qa2(:)
       endif
 !
       precip(i) = 0.
 !
 ! estimate values at arrival cell interface with monotone
-!$acc loop vector private(dip, dim)
       do k=2,km
-        dip=(qa(k+1,i)-qa(k,i))/(dza(k+1,i)+dza(k,i))
-        dim=(qa(k,i)-qa(k-1,i))/(dza(k-1,i)+dza(k,i))
+        dip=(qa(k+1)-qa(k))/(dza(k+1)+dza(k))
+        dim=(qa(k)-qa(k-1))/(dza(k-1)+dza(k))
         if( dip*dim.le.0.0 ) then
-          qmi(k,i)=qa(k,i)
-          qpi(k,i)=qa(k,i)
+          qmi(k)=qa(k)
+          qpi(k)=qa(k)
         else
-          qpi(k,i)=qa(k,i)+0.5*(dip+dim)*dza(k,i)
-          qmi(k,i)=2.0*qa(k,i)-qpi(k,i)
-          if( qpi(k,i).lt.0.0 .or. qmi(k,i).lt.0.0 ) then
-            qpi(k,i) = qa(k,i)
-            qmi(k,i) = qa(k,i)
+          qpi(k)=qa(k)+0.5*(dip+dim)*dza(k)
+          qmi(k)=2.0*qa(k)-qpi(k)
+          if( qpi(k).lt.0.0 .or. qmi(k).lt.0.0 ) then
+            qpi(k) = qa(k)
+            qmi(k) = qa(k)
           endif
         endif
       enddo
-      qpi(1,i)=qa(1,i)
-      qmi(1,i)=qa(1,i)
-      qmi(km+1,i)=qa(km+1,i)
-      qpi(km+1,i)=qa(km+1,i)
+      qpi(1)=qa(1)
+      qmi(1)=qa(1)
+      qmi(km+1)=qa(km+1)
+      qpi(km+1)=qa(km+1)
 !
 ! interpolation to regular point
-!$acc loop vector
-      do k=1,km
-        qn(k,i) = 0.0
-      enddo
+      qn = 0.0
       kb=1
       kt=1
-!$acc loop seq
       intp : do k=1,km
              kb=max(kb-1,1)
              kt=max(kt-1,1)
 ! find kb and kt
-             if( zi(k,i).ge.za(km+1,i) ) then
+             if( zi(k).ge.za(km+1) ) then
                exit intp
              else
                find_kb : do kk=kb,km
-                         if( zi(k,i).le.za(kk+1,i) ) then
+                         if( zi(k).le.za(kk+1) ) then
                            kb = kk
                            exit find_kb
                          else
@@ -2693,7 +2325,7 @@ if(allold(i).gt.0.0) then
                          endif
                enddo find_kb
                find_kt : do kk=kt,km
-                         if( zi(k+1,i).le.za(kk,i) ) then
+                         if( zi(k+1).le.za(kk) ) then
                            kt = kk
                            exit find_kt
                          else
@@ -2703,35 +2335,35 @@ if(allold(i).gt.0.0) then
                kt = kt - 1
 ! compute q with piecewise constant method
                if( kt.eq.kb ) then
-                 tl=(zi(k,i)-za(kb,i))/dza(kb,i)
-                 th=(zi(k+1,i)-za(kb,i))/dza(kb,i)
+                 tl=(zi(k)-za(kb))/dza(kb)
+                 th=(zi(k+1)-za(kb))/dza(kb)
                  tl2=tl*tl
                  th2=th*th
-                 qqd=0.5*(qpi(kb,i)-qmi(kb,i))
-                 qqh=qqd*th2+qmi(kb,i)*th
-                 qql=qqd*tl2+qmi(kb,i)*tl
-                 qn(k,i) = (qqh-qql)/(th-tl)
+                 qqd=0.5*(qpi(kb)-qmi(kb))
+                 qqh=qqd*th2+qmi(kb)*th
+                 qql=qqd*tl2+qmi(kb)*tl
+                 qn(k) = (qqh-qql)/(th-tl)
                else if( kt.gt.kb ) then
-                 tl=(zi(k,i)-za(kb,i))/dza(kb,i)
+                 tl=(zi(k)-za(kb))/dza(kb)
                  tl2=tl*tl
-                 qqd=0.5*(qpi(kb,i)-qmi(kb,i))
-                 qql=qqd*tl2+qmi(kb,i)*tl
-                 dql = qa(kb,i)-qql
-                 zsum  = (1.-tl)*dza(kb,i)
-                 qsum  = dql*dza(kb,i)
+                 qqd=0.5*(qpi(kb)-qmi(kb))
+                 qql=qqd*tl2+qmi(kb)*tl
+                 dql = qa(kb)-qql
+                 zsum  = (1.-tl)*dza(kb)
+                 qsum  = dql*dza(kb)
                  if( kt-kb.gt.1 ) then
                  do m=kb+1,kt-1
-                   zsum = zsum + dza(m,i)
-                   qsum = qsum + qa(m,i) * dza(m,i)
+                   zsum = zsum + dza(m)
+                   qsum = qsum + qa(m) * dza(m)
                  enddo
                  endif
-                 th=(zi(k+1,i)-za(kt,i))/dza(kt,i)
+                 th=(zi(k+1)-za(kt))/dza(kt)
                  th2=th*th
-                 qqd=0.5*(qpi(kt,i)-qmi(kt,i))
-                 dqh=qqd*th2+qmi(kt,i)*th
-                 zsum  = zsum + th*dza(kt,i)
-                 qsum  = qsum + dqh*dza(kt,i)
-                 qn(k,i) = qsum/zsum
+                 qqd=0.5*(qpi(kt)-qmi(kt))
+                 dqh=qqd*th2+qmi(kt)*th
+                 zsum  = zsum + th*dza(kt)
+                 qsum  = qsum + dqh*dza(kt)
+                 qn(k) = qsum/zsum
                endif
                cycle intp
              endif
@@ -2739,13 +2371,12 @@ if(allold(i).gt.0.0) then
        enddo intp
 !
 ! rain out
-!$acc loop seq
       sum_precip: do k=1,km
-                    if( za(k,i).lt.0.0 .and. za(k+1,i).lt.0.0 ) then
-                      precip(i) = precip(i) + qa(k,i)*dza(k,i)
+                    if( za(k).lt.0.0 .and. za(k+1).lt.0.0 ) then
+                      precip(i) = precip(i) + qa(k)*dza(k)
                       cycle sum_precip
-                    else if ( za(k,i).lt.0.0 .and. za(k+1,i).ge.0.0 ) then
-                      precip(i) = precip(i) + qa(k,i)*(0.0-za(k,i))
+                    else if ( za(k).lt.0.0 .and. za(k+1).ge.0.0 ) then
+                      precip(i) = precip(i) + qa(k)*(0.0-za(k))
                       exit sum_precip
                     endif
                     exit sum_precip
@@ -2753,34 +2384,24 @@ if(allold(i).gt.0.0) then
 !
 ! replace the new values
       if(ist.eq.1) then
-!$acc loop vector
-        do k=1,km
-          rql(i,k) = qn(k,i)
-        enddo
+        rql(i,:) = qn(:)
         precip1(i) = precip(i)
       else
-!$acc loop vector
-        do k=1,km
-          rql2(i,k) = qn(k,i)
-        enddo
+        rql2(i,:) = qn(:)
         precip2(i) = precip(i)
       endif
       enddo ist_loop
 !
 ! ----------------------------------
-endif
-      enddo i_loop2
-!$acc end parallel
+      enddo i_loop
 !
-!$acc exit data delete(allold, precip, ww, wd, wa, wa2, was, &
-!$acc wi, zi, za, qn, qr,qr2, dza, qa, qa2, qmi, qpi, n0sfac)
   END SUBROUTINE nislfv_rain_plm6
 
 !+---+-----------------------------------------------------------------+
 
       subroutine refl10cm_wsm6 (qv1d, qr1d, qs1d, qg1d,                 &
                        t1d, p1d, dBZ, kts, kte, ii, jj)
-!$acc routine vector
+
       IMPLICIT NONE
 
 !..Sub arguments
@@ -2807,12 +2428,9 @@ endif
 
       DOUBLE PRECISION:: cback, x, eta, f_d
       REAL, PARAMETER:: R=287.
-! !$acc data create(temp, pres, qv, rho, rr, rs, rg, &
-! !$acc ilamr, ilams, ilamg, N0_r, N0_s, N0_g, L_qr, L_qs, L_qg, &
-! !$acc ze_rain, ze_snow, ze_graupel)
+
 !+---+
 
-!$acc loop vector
       do k = kts, kte
          dBZ(k) = -35.0
       enddo
@@ -2820,7 +2438,6 @@ endif
 !+---+-----------------------------------------------------------------+
 !..Put column of data into local arrays.
 !+---+-----------------------------------------------------------------+
-!$acc loop vector private(temp_C,lamr,lams,lamg)
       do k = kts, kte
          temp(k) = t1d(k)
          temp_C = min(-0.001, temp(K)-273.15)
@@ -2867,7 +2484,6 @@ endif
 !+---+-----------------------------------------------------------------+
       melti = .false.
       k_0 = kts
-!$acc loop seq
       do k = kte-1, kts, -1
          if ( (temp(k).gt.273.15) .and. L_qr(k)                         &
                                   .and. (L_qs(k+1).or.L_qg(k+1)) ) then
@@ -2883,7 +2499,7 @@ endif
 !.. and non-water-coated snow and graupel when below freezing are
 !.. simple. Integrations of m(D)*m(D)*N(D)*dD.
 !+---+-----------------------------------------------------------------+
-!$acc loop vector 
+
       do k = kts, kte
          ze_rain(k) = 1.e-22
          ze_snow(k) = 1.e-22
@@ -2897,6 +2513,7 @@ endif
                                     * N0_g(k)*xcgg(4)*ilamg(k)**xcge(4)
       enddo
 
+
 !+---+-----------------------------------------------------------------+
 !..Special case of melting ice (snow/graupel) particles.  Assume the
 !.. ice is surrounded by the liquid water.  Fraction of meltwater is
@@ -2904,9 +2521,8 @@ endif
 !.. Uses code from Uli Blahak (rayleigh_soak_wetgraupel and supporting
 !.. routines).
 !+---+-----------------------------------------------------------------+
+
       if (melti .and. k_0.ge.kts+1) then
-!$acc loop vector private(fmelt_s, eta, lams, n, x, CBACK, f_d, &
-!$acc fmelt_g, lamg)
        do k = k_0-1, kts, -1
 
 !..Reflectivity contributed by melting snow
@@ -2914,7 +2530,6 @@ endif
            fmelt_s = MAX(0.005d0, MIN(1.0d0-rs(k)/rs(k_0), 0.99d0))
            eta = 0.d0
            lams = 1./ilams(k)
-!$acc loop seq
            do n = 1, nrbins
               x = xam_s * xxDs(n)**xbm_s
               call rayleigh_soak_wetgraupel (x,DBLE(xocms),DBLE(xobms), &
@@ -2935,7 +2550,6 @@ endif
            fmelt_g = MAX(0.005d0, MIN(1.0d0-rg(k)/rg(k_0), 0.99d0))
            eta = 0.d0
            lamg = 1./ilamg(k)
-!$acc loop seq
            do n = 1, nrbins
               x = xam_g * xxDg(n)**xbm_g
               call rayleigh_soak_wetgraupel (x,DBLE(xocmg),DBLE(xobmg), &
@@ -2952,204 +2566,12 @@ endif
        enddo
       endif
 
-!$acc loop vector
       do k = kte, kts, -1
          dBZ(k) = 10.*log10((ze_rain(k)+ze_snow(k)+ze_graupel(k))*1.d18)
       enddo
 
-! !$acc end data
+
       end subroutine refl10cm_wsm6
-
-!+---+-----------------------------------------------------------------+
-
-      subroutine refl10cm_wsm6_1(qv1d, qr1d, qs1d, qg1d,                 &
-                       t1d, p1d, dBZ, kts, kte, its, ite, ii, jj)
-!!!$acc routine vector
-      IMPLICIT NONE
-
-!..Sub arguments
-      INTEGER, INTENT(IN):: kts, kte, its, ite, ii, jj
-      REAL, DIMENSION(kts:kte,its:ite), INTENT(IN)::                            &
-                      qv1d, qr1d, qs1d, qg1d, t1d, p1d
-      REAL, DIMENSION(kts:kte,its:ite), INTENT(INOUT):: dBZ
-
-!..Local variables
-      REAL, DIMENSION(kts:kte):: temp, pres, qv, rho
-      REAL, DIMENSION(kts:kte):: rr, rs, rg
-      REAL:: temp_C
-
-      DOUBLE PRECISION, DIMENSION(kts:kte):: ilamr, ilams, ilamg
-      DOUBLE PRECISION, DIMENSION(kts:kte):: N0_r, N0_s, N0_g
-      DOUBLE PRECISION:: lamr, lams, lamg
-      LOGICAL, DIMENSION(kts:kte):: L_qr, L_qs, L_qg
-
-      REAL, DIMENSION(kts:kte):: ze_rain, ze_snow, ze_graupel
-      DOUBLE PRECISION:: fmelt_s, fmelt_g
-
-      INTEGER:: i, k, k_0, kbot, n
-      LOGICAL:: melti
-
-      DOUBLE PRECISION:: cback, x, eta, f_d
-      REAL, PARAMETER:: R=287.
-! !$acc data create(temp, pres, qv, rho, rr, rs, rg, &
-! !$acc ilamr, ilams, ilamg, N0_r, N0_s, N0_g, L_qr, L_qs, L_qg, &
-! !$acc ze_rain, ze_snow, ze_graupel)
-!+---+
-
-!$acc parallel vector_length(32)
-!$acc loop gang private(k, temp, qv, pres, rho, rr, N0_r, ilamr, L_qr, &
-!$acc rs, N0_s, ilams, L_qs, rg, N0_g, ilamg, L_qg, melti, k_0, &
-!$acc ze_rain, ze_snow, ze_graupel)
-  do i = its, ite
-!$acc loop vector
-      do k = kts, kte
-         dBZ(k,i) = -35.0
-      enddo
-
-!+---+-----------------------------------------------------------------+
-!..Put column of data into local arrays.
-!+---+-----------------------------------------------------------------+
-!$acc loop vector private(temp_C,lamr,lams,lamg)
-      do k = kts, kte
-         temp(k) = t1d(k,i)
-         temp_C = min(-0.001, temp(K)-273.15)
-         qv(k) = MAX(1.E-10, qv1d(k,i))
-         pres(k) = p1d(k,i)
-         rho(k) = 0.622*pres(k)/(R*temp(k)*(qv(k)+0.622))
-
-         if (qr1d(k,i) .gt. 1.E-9) then
-            rr(k) = qr1d(k,i)*rho(k)
-            N0_r(k) = n0r
-            lamr = (xam_r*xcrg(3)*N0_r(k)/rr(k))**(1./xcre(1))
-            ilamr(k) = 1./lamr
-            L_qr(k) = .true.
-         else
-            rr(k) = 1.E-12
-            L_qr(k) = .false.
-         endif
-
-         if (qs1d(k,i) .gt. 1.E-9) then
-            rs(k) = qs1d(k,i)*rho(k)
-            N0_s(k) = min(n0smax, n0s*exp(-alpha*temp_C))
-            lams = (xam_s*xcsg(3)*N0_s(k)/rs(k))**(1./xcse(1))
-            ilams(k) = 1./lams
-            L_qs(k) = .true.
-         else
-            rs(k) = 1.E-12
-            L_qs(k) = .false.
-         endif
-
-         if (qg1d(k,i) .gt. 1.E-9) then
-            rg(k) = qg1d(k,i)*rho(k)
-            N0_g(k) = n0g
-            lamg = (xam_g*xcgg(3)*N0_g(k)/rg(k))**(1./xcge(1))
-            ilamg(k) = 1./lamg
-            L_qg(k) = .true.
-         else
-            rg(k) = 1.E-12
-            L_qg(k) = .false.
-         endif
-      enddo
-
-!+---+-----------------------------------------------------------------+
-!..Locate K-level of start of melting (k_0 is level above).
-!+---+-----------------------------------------------------------------+
-      melti = .false.
-      k_0 = kts
-!$acc loop seq
-      do k = kte-1, kts, -1
-         if ( (temp(k).gt.273.15) .and. L_qr(k)                         &
-                                  .and. (L_qs(k+1).or.L_qg(k+1)) ) then
-            k_0 = MAX(k+1, k_0)
-            melti=.true.
-            goto 195
-         endif
-      enddo
- 195  continue
-
-!+---+-----------------------------------------------------------------+
-!..Assume Rayleigh approximation at 10 cm wavelength. Rain (all temps)
-!.. and non-water-coated snow and graupel when below freezing are
-!.. simple. Integrations of m(D)*m(D)*N(D)*dD.
-!+---+-----------------------------------------------------------------+
-!$acc loop vector 
-      do k = kts, kte
-         ze_rain(k) = 1.e-22
-         ze_snow(k) = 1.e-22
-         ze_graupel(k) = 1.e-22
-         if (L_qr(k)) ze_rain(k) = N0_r(k)*xcrg(4)*ilamr(k)**xcre(4)
-         if (L_qs(k)) ze_snow(k) = (0.176/0.93) * (6.0/PI)*(6.0/PI)     &
-                                 * (xam_s/900.0)*(xam_s/900.0)          &
-                                 * N0_s(k)*xcsg(4)*ilams(k)**xcse(4)
-         if (L_qg(k)) ze_graupel(k) = (0.176/0.93) * (6.0/PI)*(6.0/PI)  &
-                                    * (xam_g/900.0)*(xam_g/900.0)       &
-                                    * N0_g(k)*xcgg(4)*ilamg(k)**xcge(4)
-      enddo
-
-!+---+-----------------------------------------------------------------+
-!..Special case of melting ice (snow/graupel) particles.  Assume the
-!.. ice is surrounded by the liquid water.  Fraction of meltwater is
-!.. extremely simple based on amount found above the melting level.
-!.. Uses code from Uli Blahak (rayleigh_soak_wetgraupel and supporting
-!.. routines).
-!+---+-----------------------------------------------------------------+
-      if (melti .and. k_0.ge.kts+1) then
-!$acc loop vector private(fmelt_s, eta, lams, n, x, CBACK, f_d, &
-!$acc fmelt_g, lamg)
-       do k = k_0-1, kts, -1
-
-!..Reflectivity contributed by melting snow
-          if (L_qs(k) .and. L_qs(k_0) ) then
-           fmelt_s = MAX(0.005d0, MIN(1.0d0-rs(k)/rs(k_0), 0.99d0))
-           eta = 0.d0
-           lams = 1./ilams(k)
-!$acc loop seq
-           do n = 1, nrbins
-              x = xam_s * xxDs(n)**xbm_s
-              call rayleigh_soak_wetgraupel (x,DBLE(xocms),DBLE(xobms), &
-                    fmelt_s, melt_outside_s, m_w_0, m_i_0, lamda_radar, &
-                    CBACK, mixingrulestring_s, matrixstring_s,          &
-                    inclusionstring_s, hoststring_s,                    &
-                    hostmatrixstring_s, hostinclusionstring_s)
-              f_d = N0_s(k)*xxDs(n)**xmu_s * DEXP(-lams*xxDs(n))
-              eta = eta + f_d * CBACK * simpson(n) * xdts(n)
-           enddo
-           ze_snow(k) = SNGL(lamda4 / (pi5 * K_w) * eta)
-          endif
-
-
-!..Reflectivity contributed by melting graupel
-
-          if (L_qg(k) .and. L_qg(k_0) ) then
-           fmelt_g = MAX(0.005d0, MIN(1.0d0-rg(k)/rg(k_0), 0.99d0))
-           eta = 0.d0
-           lamg = 1./ilamg(k)
-!$acc loop seq
-           do n = 1, nrbins
-              x = xam_g * xxDg(n)**xbm_g
-              call rayleigh_soak_wetgraupel (x,DBLE(xocmg),DBLE(xobmg), &
-                    fmelt_g, melt_outside_g, m_w_0, m_i_0, lamda_radar, &
-                    CBACK, mixingrulestring_g, matrixstring_g,          &
-                    inclusionstring_g, hoststring_g,                    &
-                    hostmatrixstring_g, hostinclusionstring_g)
-              f_d = N0_g(k)*xxDg(n)**xmu_g * DEXP(-lamg*xxDg(n))
-              eta = eta + f_d * CBACK * simpson(n) * xdtg(n)
-           enddo
-           ze_graupel(k) = SNGL(lamda4 / (pi5 * K_w) * eta)
-          endif
-
-       enddo
-      endif
-
-!$acc loop vector
-      do k = kte, kts, -1
-         dBZ(k,i) = 10.*log10((ze_rain(k)+ze_snow(k)+ze_graupel(k))*1.d18)
-      enddo
-  enddo
-!$acc end parallel
-
-! !$acc end data
-      end subroutine refl10cm_wsm6_1
 !+---+-----------------------------------------------------------------+
 
 !-----------------------------------------------------------------------
