@@ -26,12 +26,15 @@ xlf:
 	"LDFLAGS_DEBUG = -O0 -g" \
 	"FFLAGS_OMP = -qsmp=omp" \
 	"CFLAGS_OMP = -qsmp=omp" \
+	"FFLAGS_ACC =" \
+	"CFLAGS_ACC =" \
 	"PICFLAG = -qpic" \
 	"BUILD_TARGET = $(@)" \
 	"CORE = $(CORE)" \
 	"DEBUG = $(DEBUG)" \
 	"USE_PAPI = $(USE_PAPI)" \
 	"OPENMP = $(OPENMP)" \
+	"OPENACC = $(OPENACC)" \
 	"CPPFLAGS = $(MODEL_FORMULATION) -D_MPI" )
 
 xlf-summit-omp-offload:
@@ -79,11 +82,14 @@ ftn:
 	"LDFLAGS_OPT = " \
 	"FFLAGS_OMP = -mp" \
 	"CFLAGS_OMP = -mp" \
+	"FFLAGS_ACC =" \
+	"CFLAGS_ACC =" \
 	"BUILD_TARGET = $(@)" \
 	"CORE = $(CORE)" \
 	"DEBUG = $(DEBUG)" \
 	"USE_PAPI = $(USE_PAPI)" \
 	"OPENMP = $(OPENMP)" \
+	"OPENACC = $(OPENACC)" \
 	"CPPFLAGS = $(MODEL_FORMULATION) -D_MPI" )
 
 titan-cray:
@@ -98,11 +104,14 @@ titan-cray:
 	"LDFLAGS_OPT = -O3" \
 	"FFLAGS_OMP = " \
 	"CFLAGS_OMP = " \
+	"FFLAGS_ACC =" \
+	"CFLAGS_ACC =" \
 	"BUILD_TARGET = $(@)" \
 	"CORE = $(CORE)" \
 	"DEBUG = $(DEBUG)" \
 	"USE_PAPI = $(USE_PAPI)" \
 	"OPENMP = $(OPENMP)" \
+	"OPENACC = $(OPENACC)" \
 	"CPPFLAGS = $(MODEL_FORMULATION) -D_MPI" )
 
 pgi:
@@ -114,7 +123,7 @@ pgi:
 	"CC_SERIAL = pgcc" \
 	"CXX_SERIAL = pgc++" \
 	"FFLAGS_PROMOTION = -r8" \
-	"FFLAGS_OPT = -O3 -byteswapio -Mfree" \
+	"FFLAGS_OPT = -O4 -byteswapio -Mfree" \
 	"CFLAGS_OPT = -O3" \
 	"CXXFLAGS_OPT = -O3" \
 	"LDFLAGS_OPT = -O3" \
@@ -124,12 +133,15 @@ pgi:
 	"LDFLAGS_DEBUG = -O0 -g -Mbounds -Mchkptr -Ktrap=divz,fp,inv,ovf -traceback" \
 	"FFLAGS_OMP = -mp" \
 	"CFLAGS_OMP = -mp" \
+	"FFLAGS_ACC = -Mnofma -acc -ta=tesla:cc70 -Minfo=accel" \
+	"CFLAGS_ACC =" \
 	"PICFLAG = -fpic" \
 	"BUILD_TARGET = $(@)" \
 	"CORE = $(CORE)" \
 	"DEBUG = $(DEBUG)" \
 	"USE_PAPI = $(USE_PAPI)" \
 	"OPENMP = $(OPENMP)" \
+	"OPENACC = $(OPENACC)" \
 	"CPPFLAGS = $(MODEL_FORMULATION) -D_MPI -DCPRPGI" )
 
 pgi-summit:
@@ -177,11 +189,14 @@ pgi-nersc:
 	"LDFLAGS_OPT = -O3" \
 	"FFLAGS_OMP = -mp" \
 	"CFLAGS_OMP = -mp" \
+	"FFLAGS_ACC =" \
+	"CFLAGS_ACC =" \
 	"BUILD_TARGET = $(@)" \
 	"CORE = $(CORE)" \
 	"DEBUG = $(DEBUG)" \
 	"USE_PAPI = $(USE_PAPI)" \
 	"OPENMP = $(OPENMP)" \
+	"OPENACC = $(OPENACC)" \
 	"CPPFLAGS = $(MODEL_FORMULATION) -D_MPI -DCPRPGI" )
 
 pgi-llnl:
@@ -199,11 +214,14 @@ pgi-llnl:
 	"LDFLAGS_OPT = " \
 	"FFLAGS_OMP = -mp" \
 	"CFLAGS_OMP = -mp" \
+	"FFLAGS_ACC =" \
+	"CFLAGS_ACC =" \
 	"BUILD_TARGET = $(@)" \
 	"CORE = $(CORE)" \
 	"DEBUG = $(DEBUG)" \
 	"USE_PAPI = $(USE_PAPI)" \
 	"OPENMP = $(OPENMP)" \
+	"OPENACC = $(OPENACC)" \
 	"CPPFLAGS = $(MODEL_FORMULATION) -D_MPI -DCPRPGI" )
 
 ifort:
@@ -225,12 +243,15 @@ ifort:
 	"LDFLAGS_DEBUG = -g -fpe0 -traceback" \
 	"FFLAGS_OMP = -qopenmp" \
 	"CFLAGS_OMP = -qopenmp" \
+	"FFLAGS_ACC =" \
+	"CFLAGS_ACC =" \
 	"PICFLAG = -fpic" \
 	"BUILD_TARGET = $(@)" \
 	"CORE = $(CORE)" \
 	"DEBUG = $(DEBUG)" \
 	"USE_PAPI = $(USE_PAPI)" \
 	"OPENMP = $(OPENMP)" \
+	"OPENACC = $(OPENACC)" \
 	"CPPFLAGS = $(MODEL_FORMULATION) -D_MPI" )
 
 ifort-scorep:
@@ -252,11 +273,14 @@ ifort-scorep:
 	"LDFLAGS_DEBUG = -g -fpe0 -traceback" \
 	"FFLAGS_OMP = -qopenmp" \
 	"CFLAGS_OMP = -qopenmp" \
+	"FFLAGS_ACC =" \
+	"CFLAGS_ACC =" \
 	"BUILD_TARGET = $(@)" \
 	"CORE = $(CORE)" \
 	"DEBUG = $(DEBUG)" \
 	"USE_PAPI = $(USE_PAPI)" \
 	"OPENMP = $(OPENMP)" \
+	"OPENACC = $(OPENACC)" \
 	"CPPFLAGS = $(MODEL_FORMULATION) -D_MPI" )
 
 ifort-gcc:
@@ -278,11 +302,14 @@ ifort-gcc:
 	"LDFLAGS_DEBUG = -g -fpe0 -traceback" \
 	"FFLAGS_OMP = -qopenmp" \
 	"CFLAGS_OMP = -fopenmp" \
+	"FFLAGS_ACC =" \
+	"CFLAGS_ACC =" \
 	"BUILD_TARGET = $(@)" \
 	"CORE = $(CORE)" \
 	"DEBUG = $(DEBUG)" \
 	"USE_PAPI = $(USE_PAPI)" \
 	"OPENMP = $(OPENMP)" \
+	"OPENACC = $(OPENACC)" \
 	"CPPFLAGS = $(MODEL_FORMULATION) -D_MPI" )
 
 intel-mpi:
@@ -304,12 +331,15 @@ intel-mpi:
 	"LDFLAGS_DEBUG = -g -fpe0 -traceback" \
 	"FFLAGS_OMP = -qopenmp" \
 	"CFLAGS_OMP = -qopenmp" \
+	"FFLAGS_ACC =" \
+	"CFLAGS_ACC =" \
 	"PICFLAG = -fpic" \
 	"BUILD_TARGET = $(@)" \
 	"CORE = $(CORE)" \
 	"DEBUG = $(DEBUG)" \
 	"USE_PAPI = $(USE_PAPI)" \
 	"OPENMP = $(OPENMP)" \
+	"OPENACC = $(OPENACC)" \
 	"CPPFLAGS = $(MODEL_FORMULATION) -D_MPI" )
 
 gfortran:
@@ -331,12 +361,15 @@ gfortran:
 	"LDFLAGS_DEBUG = -g -m64" \
 	"FFLAGS_OMP = -fopenmp" \
 	"CFLAGS_OMP = -fopenmp" \
+	"FFLAGS_ACC =" \
+	"CFLAGS_ACC =" \
 	"PICFLAG = -fPIC" \
 	"BUILD_TARGET = $(@)" \
 	"CORE = $(CORE)" \
 	"DEBUG = $(DEBUG)" \
 	"USE_PAPI = $(USE_PAPI)" \
 	"OPENMP = $(OPENMP)" \
+	"OPENACC = $(OPENACC)" \
 	"CPPFLAGS = $(MODEL_FORMULATION) -D_MPI" )
 
 gfortran-clang:
@@ -358,11 +391,14 @@ gfortran-clang:
 	"LDFLAGS_DEBUG = -g -m64" \
 	"FFLAGS_OMP = -fopenmp" \
 	"CFLAGS_OMP = -fopenmp" \
+	"FFLAGS_ACC =" \
+	"CFLAGS_ACC =" \
 	"BUILD_TARGET = $(@)" \
 	"CORE = $(CORE)" \
 	"DEBUG = $(DEBUG)" \
 	"USE_PAPI = $(USE_PAPI)" \
 	"OPENMP = $(OPENMP)" \
+	"OPENACC = $(OPENACC)" \
 	"CPPFLAGS = $(MODEL_FORMULATION) -D_MPI" )
 
 g95:
@@ -380,11 +416,14 @@ g95:
 	"LDFLAGS_OPT = -O3" \
 	"FFLAGS_OMP = -fopenmp" \
 	"CFLAGS_OMP = -fopenmp" \
+	"FFLAGS_ACC =" \
+	"CFLAGS_ACC =" \
 	"BUILD_TARGET = $(@)" \
 	"CORE = $(CORE)" \
 	"DEBUG = $(DEBUG)" \
 	"USE_PAPI = $(USE_PAPI)" \
 	"OPENMP = $(OPENMP)" \
+	"OPENACC = $(OPENACC)" \
 	"CPPFLAGS = $(MODEL_FORMULATION) -D_MPI" )
 
 pathscale-nersc:
@@ -402,11 +441,14 @@ pathscale-nersc:
 	"LDFLAGS_OPT = -O3" \
 	"FFLAGS_OMP = -mp" \
 	"CFLAGS_OMP = -mp" \
+	"FFLAGS_ACC =" \
+	"CFLAGS_ACC =" \
 	"BUILD_TARGET = $(@)" \
 	"CORE = $(CORE)" \
 	"DEBUG = $(DEBUG)" \
 	"USE_PAPI = $(USE_PAPI)" \
 	"OPENMP = $(OPENMP)" \
+	"OPENACC = $(OPENACC)" \
 	"CPPFLAGS = $(MODEL_FORMULATION) -D_MPI" )
 
 cray-nersc:
@@ -424,11 +466,14 @@ cray-nersc:
 	"LDFLAGS_OPT = -O3" \
 	"FFLAGS_OMP = " \
 	"CFLAGS_OMP = " \
+	"FFLAGS_ACC =" \
+	"CFLAGS_ACC =" \
 	"BUILD_TARGET = $(@)" \
 	"CORE = $(CORE)" \
 	"DEBUG = $(DEBUG)" \
 	"USE_PAPI = $(USE_PAPI)" \
 	"OPENMP = $(OPENMP)" \
+	"OPENACC = $(OPENACC)" \
 	"CPPFLAGS = $(MODEL_FORMULATION) -D_MPI" )
 
 gnu-nersc:
@@ -470,6 +515,8 @@ intel-nersc:
 	"LDFLAGS_OPT = -O3" \
 	"FFLAGS_OMP = -qopenmp" \
 	"CFLAGS_OMP = -qopenmp" \
+	"FFLAGS_ACC =" \
+	"CFLAGS_ACC =" \
 	"FFLAGS_DEBUG = -real-size 64 -g -convert big_endian -free -CU -CB -check all -gen-interfaces -warn interfaces -traceback" \
 	"CFLAGS_DEBUG = -g -traceback" \
 	"CXXFLAGS_DEBUG = -g -traceback" \
@@ -479,6 +526,7 @@ intel-nersc:
 	"DEBUG = $(DEBUG)" \
 	"USE_PAPI = $(USE_PAPI)" \
 	"OPENMP = $(OPENMP)" \
+	"OPENACC = $(OPENACC)" \
 	"CPPFLAGS = $(MODEL_FORMULATION) -D_MPI" )
 
 bluegene:
@@ -500,11 +548,14 @@ bluegene:
 	"LDFLAGS_DEBUG = -O0 -g" \
 	"FFLAGS_OMP = -qsmp=omp" \
 	"CFLAGS_OMP = -qsmp=omp" \
+	"FFLAGS_ACC =" \
+	"CFLAGS_ACC =" \
 	"BUILD_TARGET = $(@)" \
 	"CORE = $(CORE)" \
 	"DEBUG = $(DEBUG)" \
 	"USE_PAPI = $(USE_PAPI)" \
 	"OPENMP = $(OPENMP)" \
+	"OPENACC = $(OPENACC)" \
 	"CPPFLAGS = $(MODEL_FORMULATION) -D_MPI" )
 
 llvm:
@@ -939,6 +990,10 @@ ifeq "$(OPENMP)" "true"
 	@rm -fr conftest.*
 endif
 
+ifeq "$(OPENACC)" "true"
+	@echo "Testing compiler for OpenACC support"
+endif
+
 
 pio_test:
 	@#
@@ -1100,6 +1155,7 @@ errmsg:
 	@echo "                    TIMER_LIB=gptl - Uses gptl for the timer interface instead of the native interface"
 	@echo "                    TIMER_LIB=tau - Uses TAU for the timer interface instead of the native interface"
 	@echo "    OPENMP=true   - builds and links with OpenMP flags. Default is to not use OpenMP."
+	@echo "    OPENACC=true  - builds and links with OpenACC flags. Default is to not use OpenACC."
 	@echo "    USE_PIO2=true - links with the PIO 2 library. Default is to use the PIO 1.x library."
 	@echo "    PRECISION=single - builds with default single-precision real kind. Default is to use double-precision."
 	@echo "    SHAREDLIB=true - generate position-independent code suitable for use in a shared library. Default is false."

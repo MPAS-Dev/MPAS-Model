@@ -396,9 +396,8 @@ module mpas_bootstrapping
       call mpas_deallocate_field(indexToCellIDField)
       call mpas_deallocate_field(indexToEdgeIDField)
       call mpas_deallocate_field(indexToVertexIDField)
-
-      call mpas_deallocate_field(nEdgesOnCellField)
       call mpas_deallocate_field(cellsOnCellField)
+
       call mpas_deallocate_field(edgesOnCellField)
       call mpas_deallocate_field(verticesOnCellField)
       call mpas_deallocate_field(cellsOnEdgeField)

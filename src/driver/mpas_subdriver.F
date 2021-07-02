@@ -36,6 +36,7 @@ module mpas_subdriver
 #endif
 
 
+
    contains
 
 
@@ -47,6 +48,8 @@ module mpas_subdriver
       use mpas_timekeeping, only : mpas_get_clock_time, mpas_get_time
       use mpas_bootstrapping, only : mpas_bootstrap_framework_phase1, mpas_bootstrap_framework_phase2
       use mpas_log
+      use mpas_intracoupler, only : MPAS_coupler_init
+      use mpas_derived_types, only : mpas_coupler_type
  
       implicit none
 
@@ -82,6 +85,7 @@ module mpas_subdriver
       character(len=StrKIND) :: iotype
       logical :: streamsExists
       integer :: mesh_iotype
+      type (mpas_coupler_type), pointer :: mpas_cpl
       integer, save :: domainID = 0
 
       interface
@@ -156,38 +160,59 @@ module mpas_subdriver
       domain_ptr % domainID = domainID
       domainID = domainID + 1
 
-      !
-      ! Initialize infrastructure
-      !
-      call mpas_framework_init_phase1(domain_ptr % dminfo, mpi_comm=mpi_comm)
-
-
 #ifdef CORE_ATMOSPHERE
       call atm_setup_core(corelist)
-      call atm_setup_domain(domain_ptr)
 #endif
 #ifdef CORE_SEAICE
       call seaice_setup_core(corelist)
-      call seaice_setup_domain(domain_ptr)
 #endif
 #ifdef CORE_INIT_ATMOSPHERE
       call init_atm_setup_core(corelist)
-      call init_atm_setup_domain(domain_ptr)
 #endif
 #ifdef CORE_LANDICE
       call li_setup_core(corelist)
-      call li_setup_domain(domain_ptr)
 #endif
 #ifdef CORE_OCEAN
       call ocn_setup_core(corelist)
-      call ocn_setup_domain(domain_ptr)
 #endif
 #ifdef CORE_SW
       call sw_setup_core(corelist)
-      call sw_setup_domain(domain_ptr)
 #endif
 #ifdef CORE_TEST
       call test_setup_core(corelist)
+#endif
+
+      call MPAS_coupler_init(corelist, domain_ptr % mpas_cpl)
+      mpas_cpl => domain_ptr % mpas_cpl
+write(0,*) 'My role is ', mpas_cpl % role()
+write(0,*) 'Role leader is ', mpas_cpl % role_leader(mpas_cpl % role())
+
+
+      !
+      ! Initialize infrastructure
+      !
+      call mpas_framework_init_phase1(domain_ptr % dminfo, mpi_comm=mpas_cpl % intracomm)
+
+
+#ifdef CORE_ATMOSPHERE
+      call atm_setup_domain(domain_ptr)
+#endif
+#ifdef CORE_SEAICE
+      call seaice_setup_domain(domain_ptr)
+#endif
+#ifdef CORE_INIT_ATMOSPHERE
+      call init_atm_setup_domain(domain_ptr)
+#endif
+#ifdef CORE_LANDICE
+      call li_setup_domain(domain_ptr)
+#endif
+#ifdef CORE_OCEAN
+      call ocn_setup_domain(domain_ptr)
+#endif
+#ifdef CORE_SW
+      call sw_setup_domain(domain_ptr)
+#endif
+#ifdef CORE_TEST
       call test_setup_domain(domain_ptr)
 #endif
 
@@ -340,12 +365,15 @@ module mpas_subdriver
 
       call mpas_timer_stop('initialize')
 
+
    end subroutine mpas_init
 
 
    subroutine mpas_run(domain_ptr)
 
       use mpas_log, only: mpas_log_info
+
+      use mpas_derived_types, only : mpas_coupler_type
 
       implicit none
 
@@ -367,14 +395,19 @@ module mpas_subdriver
 
       use mpas_stream_manager, only : MPAS_stream_mgr_finalize
       use mpas_log, only : mpas_log_finalize, mpas_log_info
+      use mpas_intracoupler, only : MPAS_coupler_sync, MPAS_coupler_finalize
+      use mpas_derived_types, only: mpas_coupler_type
 
       implicit none
 
       type (core_type), intent(inout), pointer :: corelist
       type (domain_type), intent(inout), pointer :: domain_ptr
 
+      type (mpas_coupler_type), pointer :: mpas_cpl
       integer :: iErr
 
+
+      mpas_cpl => domain_ptr % mpas_cpl
 
       !
       ! Finalize core
@@ -389,11 +422,6 @@ module mpas_subdriver
       call mpas_timer_write()
       call mpas_timer_finalize(domain_ptr)
 
-      !
-      ! Finalize infrastructure
-      !
-      call MPAS_stream_mgr_finalize(domain_ptr % streamManager)
-
       ! Print out log stats and close log file
       !   (Do this after timer stats are printed and stream mgr finalized,
       !    but before framework is finalized because domain is destroyed there.)
@@ -404,7 +432,18 @@ module mpas_subdriver
          call mpas_dmpar_global_abort('ERROR: Log finalize failed for core ' // trim(domain_ptr % core % coreName))
       end if
 
+      !
+      ! Finalize infrastructure
+      !
+      call MPAS_stream_mgr_finalize(domain_ptr % streamManager)
+
       call mpas_framework_finalize(domain_ptr % dminfo, domain_ptr)
+
+      call mpas_coupler_sync(mpas_cpl)
+
+      call mpas_coupler_finalize(mpas_cpl)
+
+      call mpas_deallocate_domain(domain_ptr)
 
       deallocate(corelist % domainlist)
       deallocate(corelist)

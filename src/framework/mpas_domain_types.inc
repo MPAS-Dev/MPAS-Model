@@ -37,4 +37,7 @@
 
       ! Domain_type is a linked list
       type (domain_type), pointer :: next => null()
+
+      ! Intra-component coupler
+      type (mpas_coupler_type), pointer :: mpas_cpl => null()
    end type domain_type

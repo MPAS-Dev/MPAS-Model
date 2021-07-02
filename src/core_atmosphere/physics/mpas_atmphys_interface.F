@@ -14,10 +14,12 @@
  use mpas_atmphys_vars
 
  implicit none
+ 
  private
  public:: allocate_forall_physics,   &
           deallocate_forall_physics, &
           MPAS_to_physics,           &
+          MPAS_to_physics_gpu,           &
           microphysics_from_MPAS,    &
           microphysics_to_MPAS
 
@@ -197,14 +199,21 @@
  end subroutine deallocate_forall_physics
 
 !=================================================================================================================
- subroutine MPAS_to_physics(configs,mesh,state,time_lev,diag,diag_physics,its,ite)
+ subroutine MPAS_to_physics(configs,mesh,state,time_lev,diag,diag_physics,mpas_cpl,cells_to_rad_handle,cells_from_rad_handle,its,ite)
 !=================================================================================================================
+
+ use mpas_derived_types, only : mpas_coupler_type
+ use mpas_intracoupler, only : mpas_coupler_transfer_field
+ use mpas_intracoupler, only : ROLE_INTEGRATE, ROLE_RADIATION
 
 !input variables:
  type(mpas_pool_type),intent(in):: configs
  type(mpas_pool_type),intent(in):: mesh
  type(mpas_pool_type),intent(in):: state
  type(mpas_pool_type),intent(in):: diag
+
+ type (mpas_coupler_type), pointer :: mpas_cpl
+ integer, intent(in) :: cells_to_rad_handle, cells_from_rad_handle
 
  integer,intent(in):: its,ite
  integer,intent(in):: time_lev
@@ -216,7 +225,9 @@
  character(len=StrKIND),pointer:: pbl_scheme
 
  integer,pointer:: index_qv,index_qc,index_qr,index_qi,index_qs,index_qg
+ integer:: sindex_qv,sindex_qc,sindex_qr,sindex_qi,sindex_qs,sindex_qg
  integer,pointer:: index_ni
+ integer:: sindex_ni
 
  real(kind=RKIND),dimension(:),pointer    :: latCell,lonCell
  real(kind=RKIND),dimension(:),pointer    :: fzm,fzp,rdzw
@@ -228,12 +239,40 @@
  real(kind=RKIND),dimension(:,:),pointer  :: ni
  real(kind=RKIND),dimension(:,:,:),pointer:: scalars
 
+ type (field1DReal), pointer :: surface_pressureField, plradField
+ type (field2DReal), pointer :: exnerField, pressure_bField, rtheta_pField, rtheta_bField
+ type (field2DReal), pointer :: rho_zzField, theta_mField, pressure_pField, uField, vField, wField
+ type (field3DReal), pointer :: scalarsField
+
 !local variables:
  integer:: i,k,j
+ integer :: iErr
 
  real(kind=RKIND):: z0,z1,z2,w1,w2
  real(kind=RKIND):: rho_a,rho1,rho2,tem1,tem2
 
+ integer :: istart, iend
+ integer, parameter :: iblock = 8
+ logical, save :: first_call
+ data first_call /.true./
+
+!YKT: arrays to hold 2D transposes
+ real(kind=RKIND), allocatable, save :: tr_zz(:,:)
+ real(kind=RKIND), allocatable, save :: tr_rho_zz(:,:)
+ real(kind=RKIND), allocatable, save :: tr_theta_m(:,:)
+ real(kind=RKIND), allocatable, save :: tr_exner(:,:)
+ real(kind=RKIND), allocatable, save :: tr_u(:,:)
+ real(kind=RKIND), allocatable, save :: tr_v(:,:)
+ real(kind=RKIND), allocatable, save :: tr_w(:,:)
+ real(kind=RKIND), allocatable, save :: tr_pressure_p(:,:)
+ real(kind=RKIND), allocatable, save :: tr_pressure_b(:,:)
+ real(kind=RKIND), allocatable, save :: tr_zgrid(:,:)
+ real(kind=RKIND), allocatable, save :: tr_qv(:,:)
+ real(kind=RKIND), allocatable, save :: tr_qc(:,:)
+ real(kind=RKIND), allocatable, save :: tr_qr(:,:)
+ real(kind=RKIND), allocatable, save :: tr_qi(:,:)
+ real(kind=RKIND), allocatable, save :: tr_qs(:,:)
+ real(kind=RKIND), allocatable, save :: tr_qg(:,:)
 !-----------------------------------------------------------------------------------------------------------------
 !call mpas_log_write('')
 !call mpas_log_write('--- enter subroutine MPAS_to_phys:')
@@ -248,26 +287,39 @@
 !initialization:
  call mpas_pool_get_config(configs,'config_pbl_scheme',pbl_scheme)
 
- call mpas_pool_get_array(mesh,'latCell',latCell)
- call mpas_pool_get_array(mesh,'lonCell',lonCell)
- call mpas_pool_get_array(mesh,'fzm'    ,fzm    )
- call mpas_pool_get_array(mesh,'fzp'    ,fzp    )
- call mpas_pool_get_array(mesh,'rdzw'   ,rdzw   )
- call mpas_pool_get_array(mesh,'zgrid'  ,zgrid  )
- call mpas_pool_get_array(mesh,'zz'     ,zz     )
+ call mpas_pool_get_array_gpu(mesh,'latCell',latCell)
+ call mpas_pool_get_array_gpu(mesh,'lonCell',lonCell)
+ call mpas_pool_get_array_gpu(mesh,'fzm'    ,fzm    )
+ call mpas_pool_get_array_gpu(mesh,'fzp'    ,fzp    )
+ call mpas_pool_get_array_gpu(mesh,'rdzw'   ,rdzw   )
+ call mpas_pool_get_array_gpu(mesh,'zgrid'  ,zgrid  )
+ call mpas_pool_get_array_gpu(mesh,'zz'     ,zz     )
 
- call mpas_pool_get_array(diag,'surface_pressure'      ,surface_pressure)
- call mpas_pool_get_array(diag,'exner'                 ,exner           )
- call mpas_pool_get_array(diag,'pressure_base'         ,pressure_b      )
- call mpas_pool_get_array(diag,'pressure_p'            ,pressure_p      )
- call mpas_pool_get_array(diag,'rtheta_base'           ,rtheta_b        )
- call mpas_pool_get_array(diag,'rtheta_p'              ,rtheta_p        )
- call mpas_pool_get_array(diag,'uReconstructZonal'     ,u               )
- call mpas_pool_get_array(diag,'uReconstructMeridional',v               )
+ call mpas_pool_get_array_gpu(diag,'surface_pressure'      ,surface_pressure)
+ call mpas_pool_get_array_gpu(diag,'exner'                 ,exner           )
+ call mpas_pool_get_array_gpu(diag,'pressure_base'         ,pressure_b      )
+ call mpas_pool_get_array_gpu(diag,'pressure_p'            ,pressure_p      )
+ call mpas_pool_get_array_gpu(diag,'rtheta_base'           ,rtheta_b        )
+ call mpas_pool_get_array_gpu(diag,'rtheta_p'              ,rtheta_p        )
+ call mpas_pool_get_array_gpu(diag,'uReconstructZonal'     ,u               )
+ call mpas_pool_get_array_gpu(diag,'uReconstructMeridional',v               )
 
- call mpas_pool_get_array(state,'rho_zz' ,rho_zz ,time_lev)
- call mpas_pool_get_array(state,'theta_m',theta_m,time_lev)
- call mpas_pool_get_array(state,'w'      ,w      ,time_lev)
+ call mpas_pool_get_field(diag,'surface_pressure'      ,surface_pressureField)
+ call mpas_pool_get_field(diag,'exner'                 ,exnerField           )
+ call mpas_pool_get_field(diag,'pressure_base'         ,pressure_bField      )
+ call mpas_pool_get_field(diag,'pressure_p'            ,pressure_pField      )
+ call mpas_pool_get_field(diag,'rtheta_base'           ,rtheta_bField        )
+ call mpas_pool_get_field(diag,'rtheta_p'              ,rtheta_pField        )
+ call mpas_pool_get_field(diag,'uReconstructZonal'     ,uField               )
+ call mpas_pool_get_field(diag,'uReconstructMeridional',vField               )
+
+ call mpas_pool_get_array_gpu(state,'rho_zz' ,rho_zz ,time_lev)
+ call mpas_pool_get_array_gpu(state,'theta_m',theta_m,time_lev)
+ call mpas_pool_get_array_gpu(state,'w'      ,w      ,time_lev)
+
+ call mpas_pool_get_field(state,'rho_zz' ,rho_zzField ,time_lev)
+ call mpas_pool_get_field(state,'theta_m',theta_mField,time_lev)
+ call mpas_pool_get_field(state,'w'      ,wField      ,time_lev)
 
  call mpas_pool_get_dimension(state,'index_qv',index_qv)
  call mpas_pool_get_dimension(state,'index_qc',index_qc)
@@ -276,43 +328,137 @@
  call mpas_pool_get_dimension(state,'index_qs',index_qs)
  call mpas_pool_get_dimension(state,'index_qg',index_qg)
 
- call mpas_pool_get_array(state,'scalars',scalars,time_lev)
- qv => scalars(index_qv,:,:)
- qc => scalars(index_qc,:,:)
- qr => scalars(index_qr,:,:)
- qi => scalars(index_qi,:,:)
- qs => scalars(index_qs,:,:)
- qg => scalars(index_qg,:,:)
+ sindex_qv = index_qv
+ sindex_qc = index_qc
+ sindex_qr = index_qr
+ sindex_qi = index_qi
+ sindex_qs = index_qs
+ sindex_qg = index_qg
 
- call mpas_pool_get_array(diag_physics,'plrad',plrad)
+ call mpas_pool_get_field(state,'scalars',scalarsField,time_lev)
 
+ call mpas_pool_get_array_gpu(diag_physics,'plrad',plrad)
+ call mpas_pool_get_array_gpu(state,'scalars',scalars,time_lev)
+
+
+! qv => scalars(index_qv,:,:)
+! qc => scalars(index_qc,:,:)
+! qr => scalars(index_qr,:,:)
+! qi => scalars(index_qi,:,:)
+! qs => scalars(index_qs,:,:)
+! qg => scalars(index_qg,:,:)
+
+ call mpas_pool_get_field(diag_physics,'plrad',plradField)
+
+ if (l_radtlw .or. l_radtsw) then
+    if (mpas_cpl%role_is(ROLE_INTEGRATE) .or. &
+        mpas_cpl%role_is(ROLE_RADIATION)) then
+
+       call MPAS_coupler_transfer_field(mpas_cpl, cells_to_rad_handle, exnerField, ierr=ierr)
+       call MPAS_coupler_transfer_field(mpas_cpl, cells_to_rad_handle, pressure_bField, ierr=ierr)
+       call MPAS_coupler_transfer_field(mpas_cpl, cells_to_rad_handle, pressure_pField, ierr=ierr)
+       call MPAS_coupler_transfer_field(mpas_cpl, cells_to_rad_handle, rtheta_bField, ierr=ierr)
+       call MPAS_coupler_transfer_field(mpas_cpl, cells_to_rad_handle, rtheta_pField, ierr=ierr)
+       call MPAS_coupler_transfer_field(mpas_cpl, cells_to_rad_handle, uField, ierr=ierr)
+       call MPAS_coupler_transfer_field(mpas_cpl, cells_to_rad_handle, vField, ierr=ierr)
+       call MPAS_coupler_transfer_field(mpas_cpl, cells_to_rad_handle, rho_zzField, ierr=ierr)
+       call MPAS_coupler_transfer_field(mpas_cpl, cells_to_rad_handle, theta_mField, ierr=ierr)
+       call MPAS_coupler_transfer_field(mpas_cpl, cells_to_rad_handle, wField, ierr=ierr)
+       call MPAS_coupler_transfer_field(mpas_cpl, cells_to_rad_handle, scalarsField, ierr=ierr)
+       call MPAS_coupler_transfer_field(mpas_cpl, cells_to_rad_handle, surface_pressureField, ierr=ierr)
+       call MPAS_coupler_transfer_field(mpas_cpl, cells_to_rad_handle, plradField, ierr=ierr)
+
+    end if
+ end if
+
+ if (first_call) then
+   allocate(tr_zz(its:ite,kts:kte))
+   allocate(tr_rho_zz(its:ite,kts:kte))
+   allocate(tr_theta_m(its:ite,kts:kte))
+   allocate(tr_exner(its:ite,kts:kte))
+   allocate(tr_u(its:ite,kts:kte))
+   allocate(tr_v(its:ite,kts:kte))
+   allocate(tr_w(its:ite,kts:kte+1))
+   allocate(tr_pressure_p(its:ite,kts:kte))
+   allocate(tr_pressure_b(its:ite,kts:kte))
+   allocate(tr_zgrid(its:ite,kts:kte+1))
+   allocate(tr_qv(its:ite,kts:kte))
+   allocate(tr_qc(its:ite,kts:kte))
+   allocate(tr_qr(its:ite,kts:kte))
+   allocate(tr_qi(its:ite,kts:kte))
+   allocate(tr_qs(its:ite,kts:kte))
+   allocate(tr_qg(its:ite,kts:kte))
+   first_call = .false.
+ end if
+
+!do 2D transposes just one time, then access data at stride-1
+ do istart = its, ite, iblock
+   iend = min(ite, istart + iblock - 1)
+   do k = kts, kte
+     do i = istart, iend
+       tr_zz(i,k) = zz(k,i)
+       tr_rho_zz(i,k) = rho_zz(k,i)
+       tr_theta_m(i,k) = theta_m(k,i)
+       tr_u(i,k) = u(k,i)
+       tr_v(i,k) = v(k,i)
+       tr_exner(i,k) = exner(k,i)
+       tr_pressure_p(i,k) = pressure_p(k,i)
+       tr_pressure_b(i,k) = pressure_b(k,i)
+     end do
+   end do
+ end do
+
+ do istart = its, ite, iblock
+   iend = min(ite, istart + iblock - 1)
+   do k = kts, kte
+     do i = istart, iend
+       tr_qv(i,k) = max(0.,scalars(sindex_qv,k,i))
+       tr_qc(i,k) = max(0.,scalars(sindex_qc,k,i))
+       tr_qr(i,k) = max(0.,scalars(sindex_qr,k,i))
+       tr_qi(i,k) = max(0.,scalars(sindex_qi,k,i))
+       tr_qs(i,k) = max(0.,scalars(sindex_qs,k,i))
+       tr_qg(i,k) = max(0.,scalars(sindex_qg,k,i))
+     end do
+   end do
+ end do
+
+ do istart = its, ite, iblock
+   iend = min(ite, istart + iblock - 1)
+   do k = kts, kte + 1
+     do i = istart, iend
+       tr_zgrid(i,k) = zgrid(k,i)
+       tr_w(i,k) = w(k,i)
+     end do
+   end do
+ end do
+
+! use transposed data on the right-hand side for stride-one access
  do j = jts, jte
  do k = kts, kte
  do i = its, ite
-
     !water vapor and moist arrays:
-    qv_p(i,k,j) = max(0.,qv(k,i))
-    qc_p(i,k,j) = max(0.,qc(k,i))
-    qr_p(i,k,j) = max(0.,qr(k,i))
-    qi_p(i,k,j) = max(0.,qi(k,i))
-    qs_p(i,k,j) = max(0.,qs(k,i))
-    qg_p(i,k,j) = max(0.,qg(k,i))
+    qv_p(i,k,j) = tr_qv(i,k)
+
+    zz_p(i,k,j)  = tr_zz(i,k)
+    rho_p(i,k,j) = tr_zz(i,k) * tr_rho_zz(i,k) * (1._RKIND + qv_p(i,k,j))
+    th_p(i,k,j)  = tr_theta_m(i,k) / (1._RKIND + R_v/R_d * qv_p(i,k,j))
+    t_p(i,k,j)   = th_p(i,k,j)*tr_exner(i,k)
+
+    qc_p(i,k,j) = tr_qc(i,k)
+    qr_p(i,k,j) = tr_qr(i,k)
+    qi_p(i,k,j) = tr_qi(i,k)
+    qs_p(i,k,j) = tr_qs(i,k)
+    qg_p(i,k,j) = tr_qg(i,k)
 
     !arrays located at theta points:
-    u_p(i,k,j) = u(k,i)
-    v_p(i,k,j) = v(k,i)
+    u_p(i,k,j) = tr_u(i,k)
+    v_p(i,k,j) = tr_v(i,k)
 
-    zz_p(i,k,j)  = zz(k,i)
-    rho_p(i,k,j) = zz(k,i) * rho_zz(k,i)
-    rho_p(i,k,j) = rho_p(i,k,j)*(1._RKIND + qv_p(i,k,j))
-    th_p(i,k,j)  = theta_m(k,i) / (1._RKIND + R_v/R_d * qv_p(i,k,j))
-    t_p(i,k,j)   = th_p(i,k,j)*exner(k,i)
+    pi_p(i,k,j)   = tr_exner(i,k)
+    pres_p(i,k,j) = tr_pressure_p(i,k) + tr_pressure_b(i,k)
 
-    pi_p(i,k,j)   = exner(k,i)
-    pres_p(i,k,j) = pressure_p(k,i) + pressure_b(k,i)
-
-    zmid_p(i,k,j) = 0.5*(zgrid(k+1,i)+zgrid(k,i))
-    dz_p(i,k,j)   = zgrid(k+1,i)-zgrid(k,i)
+    zmid_p(i,k,j) = 0.5*(tr_zgrid(i,k+1)+tr_zgrid(i,k))
+    dz_p(i,k,j)   = tr_zgrid(i,k+1)-tr_zgrid(i,k)
 
  enddo
  enddo
@@ -470,6 +616,432 @@
  end subroutine MPAS_to_physics
 
 !=================================================================================================================
+ subroutine MPAS_to_physics_gpu(configs,mesh,state,time_lev,diag,diag_physics,mpas_cpl,cells_to_rad_handle,cells_from_rad_handle,its,ite)
+!=================================================================================================================
+
+ use mpas_derived_types, only : mpas_coupler_type
+ use mpas_intracoupler, only : mpas_coupler_transfer_field
+ use mpas_intracoupler, only : ROLE_INTEGRATE, ROLE_RADIATION
+
+!input variables:
+ type(mpas_pool_type),intent(in):: configs
+ type(mpas_pool_type),intent(in):: mesh
+ type(mpas_pool_type),intent(in):: state
+ type(mpas_pool_type),intent(in):: diag
+
+ type (mpas_coupler_type), pointer :: mpas_cpl
+ integer, intent(in) :: cells_to_rad_handle, cells_from_rad_handle
+
+ integer,intent(in):: its,ite
+ integer,intent(in):: time_lev
+
+!inout variables:
+ type(mpas_pool_type),intent(inout):: diag_physics
+
+!local pointers:
+ character(len=StrKIND),pointer:: pbl_scheme
+
+ integer,pointer:: index_qv,index_qc,index_qr,index_qi,index_qs,index_qg
+ integer:: sindex_qv,sindex_qc,sindex_qr,sindex_qi,sindex_qs,sindex_qg
+ integer,pointer:: index_ni
+ integer:: sindex_ni
+
+ real(kind=RKIND),dimension(:),pointer    :: latCell,lonCell
+ real(kind=RKIND),dimension(:),pointer    :: fzm,fzp,rdzw
+ real(kind=RKIND),dimension(:),pointer    :: surface_pressure,plrad
+ real(kind=RKIND),dimension(:,:),pointer  :: zgrid
+ real(kind=RKIND),dimension(:,:),pointer  :: zz,exner,pressure_b,rtheta_p,rtheta_b
+ real(kind=RKIND),dimension(:,:),pointer  :: rho_zz,theta_m,pressure_p,u,v,w
+ real(kind=RKIND),dimension(:,:),pointer  :: qv,qc,qr,qi,qs,qg
+ real(kind=RKIND),dimension(:,:),pointer  :: ni
+ real(kind=RKIND),dimension(:,:,:),pointer:: scalars
+
+ type (field1DReal), pointer :: surface_pressureField, plradField
+ type (field2DReal), pointer :: exnerField, pressure_bField, rtheta_pField, rtheta_bField
+ type (field2DReal), pointer :: rho_zzField, theta_mField, pressure_pField, uField, vField, wField
+ type (field3DReal), pointer :: scalarsField
+
+!local variables:
+ integer:: i,k,j
+ integer :: iErr
+
+ real(kind=RKIND):: z0,z1,z2,w1,w2
+ real(kind=RKIND):: rho_a,rho1,rho2,tem1,tem2
+
+!-----------------------------------------------------------------------------------------------------------------
+!call mpas_log_write('')
+!call mpas_log_write('--- enter subroutine MPAS_to_phys:')
+!call mpas_log_write('ims=$i ime=$i',intArgs=(/ims,ime/))
+!call mpas_log_write('jms=$i jme=$i',intArgs=(/jms,jme/))
+!call mpas_log_write('kms=$i kme=$i',intArgs=(/kms,kme/))
+!call mpas_log_write('')
+!call mpas_log_write('its=$i ite=$i',intArgs=(/its,ite/))
+!call mpas_log_write('jts=$i jte=$i',intArgs=(/jts,jte/))
+!call mpas_log_write('kts=$i kte=$i',intArgs=(/kts,kte/))
+
+!initialization:
+ call mpas_pool_get_config(configs,'config_pbl_scheme',pbl_scheme)
+
+ call mpas_pool_get_array_gpu(mesh,'latCell',latCell)
+ call mpas_pool_get_array_gpu(mesh,'lonCell',lonCell)
+ call mpas_pool_get_array_gpu(mesh,'fzm'    ,fzm    )
+ call mpas_pool_get_array_gpu(mesh,'fzp'    ,fzp    )
+ call mpas_pool_get_array_gpu(mesh,'rdzw'   ,rdzw   )
+ call mpas_pool_get_array_gpu(mesh,'zgrid'  ,zgrid  )
+ call mpas_pool_get_array_gpu(mesh,'zz'     ,zz     )
+
+ call mpas_pool_get_array_gpu(diag,'surface_pressure'      ,surface_pressure)
+ call mpas_pool_get_array_gpu(diag,'exner'                 ,exner           )
+ call mpas_pool_get_array_gpu(diag,'pressure_base'         ,pressure_b      )
+ call mpas_pool_get_array_gpu(diag,'pressure_p'            ,pressure_p      )
+ call mpas_pool_get_array_gpu(diag,'rtheta_base'           ,rtheta_b        )
+ call mpas_pool_get_array_gpu(diag,'rtheta_p'              ,rtheta_p        )
+ call mpas_pool_get_array_gpu(diag,'uReconstructZonal'     ,u               )
+ call mpas_pool_get_array_gpu(diag,'uReconstructMeridional',v               )
+
+ call mpas_pool_get_field(diag,'surface_pressure'      ,surface_pressureField)
+ call mpas_pool_get_field(diag,'exner'                 ,exnerField           )
+ call mpas_pool_get_field(diag,'pressure_base'         ,pressure_bField      )
+ call mpas_pool_get_field(diag,'pressure_p'            ,pressure_pField      )
+ call mpas_pool_get_field(diag,'rtheta_base'           ,rtheta_bField        )
+ call mpas_pool_get_field(diag,'rtheta_p'              ,rtheta_pField        )
+ call mpas_pool_get_field(diag,'uReconstructZonal'     ,uField               )
+ call mpas_pool_get_field(diag,'uReconstructMeridional',vField               )
+
+ call mpas_pool_get_array_gpu(state,'rho_zz' ,rho_zz ,time_lev)
+ call mpas_pool_get_array_gpu(state,'theta_m',theta_m,time_lev)
+ call mpas_pool_get_array_gpu(state,'w'      ,w      ,time_lev)
+
+ call mpas_pool_get_field(state,'rho_zz' ,rho_zzField ,time_lev)
+ call mpas_pool_get_field(state,'theta_m',theta_mField,time_lev)
+ call mpas_pool_get_field(state,'w'      ,wField      ,time_lev)
+
+ call mpas_pool_get_dimension(state,'index_qv',index_qv)
+ call mpas_pool_get_dimension(state,'index_qc',index_qc)
+ call mpas_pool_get_dimension(state,'index_qr',index_qr)
+ call mpas_pool_get_dimension(state,'index_qi',index_qi)
+ call mpas_pool_get_dimension(state,'index_qs',index_qs)
+ call mpas_pool_get_dimension(state,'index_qg',index_qg)
+
+ sindex_qv = index_qv
+ sindex_qc = index_qc
+ sindex_qr = index_qr
+ sindex_qi = index_qi
+ sindex_qs = index_qs
+ sindex_qg = index_qg
+
+ call mpas_pool_get_field(state,'scalars',scalarsField,time_lev)
+
+ call mpas_pool_get_array_gpu(diag_physics,'plrad',plrad)
+ call mpas_pool_get_array_gpu(state,'scalars',scalars,time_lev)
+
+!!!
+! !$acc update host(latCell, lonCell, fzm, fzp, rdzw, zgrid, zz, &
+! !$acc surface_pressure, exner, pressure_b, pressure_p, rtheta_b, &
+! !$acc rtheta_p, u, v, rho_zz, theta_m, w, plrad, scalars)
+
+! qv => scalars(index_qv,:,:)
+! qc => scalars(index_qc,:,:)
+! qr => scalars(index_qr,:,:)
+! qi => scalars(index_qi,:,:)
+! qs => scalars(index_qs,:,:)
+! qg => scalars(index_qg,:,:)
+
+ call mpas_pool_get_field(diag_physics,'plrad',plradField)
+
+ if (l_radtlw .or. l_radtsw) then
+    !$acc update host(exner,pressure_b,pressure_p,rtheta_b,rtheta_p,u,v,rho_zz,theta_m,&
+    !$acc w,scalars, surface_pressure,plrad)
+    if (mpas_cpl%role_is(ROLE_INTEGRATE) .or. &
+        mpas_cpl%role_is(ROLE_RADIATION)) then
+
+       call MPAS_coupler_transfer_field(mpas_cpl, cells_to_rad_handle, exnerField, ierr=ierr)
+       call MPAS_coupler_transfer_field(mpas_cpl, cells_to_rad_handle, pressure_bField, ierr=ierr)
+       call MPAS_coupler_transfer_field(mpas_cpl, cells_to_rad_handle, pressure_pField, ierr=ierr)
+       call MPAS_coupler_transfer_field(mpas_cpl, cells_to_rad_handle, rtheta_bField, ierr=ierr)
+       call MPAS_coupler_transfer_field(mpas_cpl, cells_to_rad_handle, rtheta_pField, ierr=ierr)
+       call MPAS_coupler_transfer_field(mpas_cpl, cells_to_rad_handle, uField, ierr=ierr)
+       call MPAS_coupler_transfer_field(mpas_cpl, cells_to_rad_handle, vField, ierr=ierr)
+       call MPAS_coupler_transfer_field(mpas_cpl, cells_to_rad_handle, rho_zzField, ierr=ierr)
+       call MPAS_coupler_transfer_field(mpas_cpl, cells_to_rad_handle, theta_mField, ierr=ierr)
+       call MPAS_coupler_transfer_field(mpas_cpl, cells_to_rad_handle, wField, ierr=ierr)
+       call MPAS_coupler_transfer_field(mpas_cpl, cells_to_rad_handle, scalarsField, ierr=ierr)
+       call MPAS_coupler_transfer_field(mpas_cpl, cells_to_rad_handle, surface_pressureField, ierr=ierr)
+       call MPAS_coupler_transfer_field(mpas_cpl, cells_to_rad_handle, plradField, ierr=ierr)
+
+    end if
+    !$acc update device(exner,pressure_b,pressure_p,rtheta_b,rtheta_p,u,v,rho_zz,theta_m,&
+    !$acc w,scalars, surface_pressure,plrad)
+ end if
+
+ do j = jts, jte
+!$acc parallel vector_length(128)
+!$acc loop gang vector collapse(2)
+ do i = its, ite
+ do k = kts, kte
+
+    !water vapor and moist arrays:
+    qv_p(i,k,j) = max(0.,scalars(sindex_qv,k,i))
+    qc_p(i,k,j) = max(0.,scalars(sindex_qc,k,i))
+    qr_p(i,k,j) = max(0.,scalars(sindex_qr,k,i))
+    qi_p(i,k,j) = max(0.,scalars(sindex_qi,k,i))
+    qs_p(i,k,j) = max(0.,scalars(sindex_qs,k,i))
+    qg_p(i,k,j) = max(0.,scalars(sindex_qg,k,i))    
+
+    !arrays located at theta points:
+    u_p(i,k,j) = u(k,i)
+    v_p(i,k,j) = v(k,i)
+
+    zz_p(i,k,j)  = zz(k,i)
+    rho_p(i,k,j) = zz(k,i) * rho_zz(k,i)
+    rho_p(i,k,j) = rho_p(i,k,j)*(1._RKIND + qv_p(i,k,j))
+    th_p(i,k,j)  = theta_m(k,i) / (1._RKIND + R_v/R_d * qv_p(i,k,j))
+    t_p(i,k,j)   = th_p(i,k,j)*exner(k,i)
+
+    pi_p(i,k,j)   = exner(k,i)
+    pres_p(i,k,j) = pressure_p(k,i) + pressure_b(k,i)
+
+    zmid_p(i,k,j) = 0.5*(zgrid(k+1,i)+zgrid(k,i))
+    dz_p(i,k,j)   = zgrid(k+1,i)-zgrid(k,i)
+
+ enddo
+ enddo
+!$acc end parallel
+ enddo
+!$acc update host(qv_p,qc_p,qr_p,qi_p,qs_p,qg_p,u_p,v_p, &
+!$acc zz_p,rho_p,th_p,t_p,pi_p,pres_p,zmid_p,dz_p)
+
+ pbl_select: select case (trim(pbl_scheme))
+    case("bl_mynn")
+       call mpas_pool_get_dimension(state,'index_ni',index_ni)
+       ni => scalars(index_ni,:,:)
+
+       do j = jts,jte
+       do k = kts,kte
+       do i = its,ite
+          ni_p(i,k,j) = max(0.,ni(k,i))
+       enddo
+       enddo
+       enddo
+
+    case default
+
+ end select pbl_select
+
+!calculation of the surface pressure using hydrostatic assumption down to the surface::
+ do j = jts,jte
+!$acc parallel vector_length(128)
+!$acc loop gang vector private(tem1,tem2,rho1,rho2)
+ do i = its,ite
+    tem1 = zgrid(2,i)-zgrid(1,i)
+    tem2 = zgrid(3,i)-zgrid(2,i)
+    rho1 = rho_zz(1,i) * zz(1,i) * (1. + qv_p(i,1,j))
+    rho2 = rho_zz(2,i) * zz(2,i) * (1. + qv_p(i,2,j))
+!   surface_pressure(i) = 0.5*gravity*(zgrid(2,i)-zgrid(1,i)) &
+!                   * (rho1 + 0.5*(rho2-rho1)*tem1/(tem1+tem2))
+    surface_pressure(i) = 0.5*gravity*(zgrid(2,i)-zgrid(1,i)) &
+                    * (rho1 - 0.5*(rho2-rho1)*tem1/(tem1+tem2))
+    surface_pressure(i) = surface_pressure(i) + pressure_p(1,i) + pressure_b(1,i)
+ enddo
+!$acc end parallel
+ 
+!$acc parallel vector_length(128)
+!$acc loop gang vector collapse(2)
+ do k = kts,kte
+ do i = its,ite
+    znu_p(i,k,j)  = pres_p(i,k,j) / surface_pressure(i)
+ enddo
+ enddo
+!$acc end parallel
+ enddo
+!!$acc update host(znu_p)
+!!$acc update host(surface_pressure)
+
+!arrays located at w points:
+ do j = jts, jte
+!$acc parallel vector_length(128)
+!$acc loop gang vector collapse(2)
+ do i = its,ite
+ do k = kts,kte+1
+    w_p(i,k,j) = w(k,i)
+    z_p(i,k,j) = zgrid(k,i)
+ enddo
+ enddo
+!$acc end parallel
+ enddo
+!$acc update host(znu_p,w_p,z_p)
+
+!check that the pressure in the layer above the surface is greater than that in the layer
+!above it:
+!!$acc update host(dz_p,pressure_b,pressure_p,pres_p,rho_p,th_p,t_p,qv_p)
+!$acc update host(pressure_b,pressure_p)
+ do j = jts,jte
+ do i = its,ite
+    if(pres_p(i,1,j) .le. pres_p(i,2,j)) then
+       call mpas_log_write('')
+       call mpas_log_write('--- subroutine MPAS_to_phys - pressure(1) < pressure(2):')
+       call mpas_log_write('i      =$i', intArgs=(/i/))
+       call mpas_log_write('latCell=$r', realArgs=(/latCell(i)/degrad/))
+       call mpas_log_write('lonCell=$r', realArgs=(/lonCell(i)/degrad/))
+       do k = kts,kte
+          call mpas_log_write('$i $i $i $r $r $r $r $r $r $r $r', intArgs=(/j,i,k/),&
+             realArgs=(/dz_p(i,k,j),pressure_b(k,i),pressure_p(k,i),pres_p(i,k,j), &
+                        rho_p(i,k,j),th_p(i,k,j),t_p(i,k,j),qv_p(i,k,j)/))
+       enddo
+!      call mpas_log_write('pressure increasing with height', messageType=MPAS_LOG_CRIT)
+    endif
+ enddo
+ enddo
+
+!interpolation of pressure and temperature from theta points to w points:
+ do j = jts,jte
+!$acc parallel vector_length(128)
+!$acc loop gang vector collapse(2) private(tem1)
+ do k = kts+1,kte
+ do i = its,ite
+    tem1 = 1./(zgrid(k+1,i)-zgrid(k-1,i))
+    fzm_p(i,k,j) = (zgrid(k,i)-zgrid(k-1,i)) * tem1
+    fzp_p(i,k,j) = (zgrid(k+1,i)-zgrid(k,i)) * tem1
+    t2_p(i,k,j)    = fzm_p(i,k,j)*t_p(i,k,j) + fzp_p(i,k,j)*t_p(i,k-1,j)
+    pres2_p(i,k,j) = fzm_p(i,k,j)*pres_p(i,k,j) + fzp_p(i,k,j)*pres_p(i,k-1,j)
+ enddo
+ enddo
+!$acc end parallel
+ enddo
+!!$acc update host(fzm_p,fzp_p,t2_p,pres2_p)
+
+!interpolation of pressure and temperature from theta points to the top-of-the-model: follows
+!the calculation of the top-of-the-model pressure and temperature in WRF (subroutine phy_prep
+!in ./dyn_em/module_big_step_utilities.F):
+!!! k = kte+1
+ do j = jts,jte
+!$acc parallel vector_length(128)
+!$acc loop gang vector private(z0,z1,z2,w1,w2)
+ do i = its,ite
+    z0 = zgrid(kte+1,i)
+    z1 = 0.5*(zgrid(kte+1,i)+zgrid(kte+1-1,i)) 
+    z2 = 0.5*(zgrid(kte+1-1,i)+zgrid(kte+1-2,i))
+    w1 = (z0-z2)/(z1-z2)
+    w2 = 1.-w1
+    t2_p(i,kte+1,j) = w1*t_p(i,kte+1-1,j) + w2*t_p(i,kte+1-2,j)
+    !use log of pressure to avoid occurrences of negative top-of-the-model pressure.
+    pres2_p(i,kte+1,j) = exp(w1*log(pres_p(i,kte+1-1,j))+w2*log(pres_p(i,kte+1-2,j)))
+ enddo
+!$acc end parallel
+ enddo
+!!$acc update host(t2_p,pres2_p)
+
+!ldf (2012-06-22): recalculates the pressure at the surface as an extrapolation of the
+!pressures in the 2 layers above the surface, as was originally done:
+!!! k = kts
+ do j = jts,jte
+!$acc parallel vector_length(128)
+!$acc loop gang vector private(z0,z1,z2,w1,w2)
+ do i = its,ite
+    z0 = zgrid(kts,i)
+    z1 = 0.5*(zgrid(kts,i)+zgrid(kts+1,i)) 
+    z2 = 0.5*(zgrid(kts+1,i)+zgrid(kts+2,i))
+    w1 = (z0-z2)/(z1-z2)
+    w2 = 1.-w1
+    t2_p(i,kts,j)    = w1*t_p(i,kts,j)+w2*t_p(i,kts+1,j)
+    pres2_p(i,kts,j) = w1*pres_p(i,kts,j)+w2*pres_p(i,kts+1,j)
+!   psfc_p(i,j) = pres2_p(i,kts,j)
+    psfc_p(i,j) = surface_pressure(i)
+ enddo
+!$acc end parallel
+ enddo
+!$acc update host(fzm_p,fzp_p,t2_p,pres2_p,psfc_p)
+
+!calculation of the hydrostatic pressure:
+ do j = jts,jte
+!$acc parallel vector_length(128)
+!$acc loop gang vector 
+ do i = its,ite
+    !pressure at w-points:
+!!!    k = kte+1
+    pres2_hyd_p(i,kte+1,j)  = pres2_p(i,kte+1,j)
+    pres2_hydd_p(i,kte+1,j) = pres2_p(i,kte+1,j)
+ enddo
+!$acc end parallel
+ enddo
+!!$acc update host(pres2_hyd_p,pres2_hydd_p)
+ do j = jts,jte
+!$acc parallel vector_length(128)
+!$acc loop seq
+ do k = kte,1,-1
+!$acc loop gang vector private(rho_a)
+    do i = its,ite
+       rho_a = rho_p(i,k,j) / (1.+qv_p(i,k,j))
+       pres2_hyd_p(i,k,j)  = pres2_hyd_p(i,k+1,j)  + gravity*rho_p(i,k,j)*dz_p(i,k,j)
+       pres2_hydd_p(i,k,j) = pres2_hydd_p(i,k+1,j) + gravity*rho_a*dz_p(i,k,j)
+    enddo
+ enddo
+!$acc end parallel
+ enddo
+!!$acc update host(pres2_hyd_p,pres2_hydd_p)
+ do j = jts,jte
+!$acc parallel vector_length(128)
+!$acc loop gang vector collapse(2)
+    !pressure at theta-points:
+    do k = kte,1,-1
+ do i = its,ite
+       pres_hyd_p(i,k,j)  = 0.5*(pres2_hyd_p(i,k+1,j)+pres2_hyd_p(i,k,j))
+       pres_hydd_p(i,k,j) = 0.5*(pres2_hydd_p(i,k+1,j)+pres2_hydd_p(i,k,j))
+    enddo
+ enddo
+!$acc end parallel
+ enddo
+!!$acc update host(pres_hyd_p,pres_hydd_p)
+ do j = jts,jte
+!$acc parallel vector_length(128)
+!$acc loop gang vector
+ do i = its,ite
+    !surface pressure:
+    psfc_hyd_p(i,j) = pres2_hyd_p(i,1,j)
+    psfc_hydd_p(i,j) = pres2_hydd_p(i,1,j)
+ enddo
+!$acc end parallel
+ enddo
+!!$acc update host(pres2_hyd_p,pres2_hydd_p,pres_hyd_p,pres_hydd_p,psfc_hyd_p,psfc_hydd_p)
+ do j = jts,jte
+!$acc parallel vector_length(128)
+!$acc loop gang vector collapse(2)
+    !znu:
+    do k = kte,1,-1
+ do i = its,ite
+       znu_hyd_p(i,k,j) = pres_hyd_p(i,k,j) / psfc_hyd_p(i,j) 
+    enddo
+ enddo
+!$acc end parallel
+ enddo
+!$acc update host(pres2_hyd_p,pres2_hydd_p,pres_hyd_p, &
+!$acc pres_hydd_p,psfc_hyd_p,psfc_hydd_p,znu_hyd_p)
+
+!save the model-top pressure:
+ do j = jts,jte
+!$acc parallel vector_length(128)
+!$acc loop gang vector 
+ do i = its,ite
+    plrad(i) = pres2_p(i,kte+1,j) 
+ enddo
+!$acc end parallel
+ enddo
+!!$acc update host(plrad)
+
+!!!
+! !$acc update device(latCell, lonCell, fzm, fzp, rdzw, zgrid, zz, &
+! !$acc surface_pressure, exner, pressure_b, pressure_p, rtheta_b, &
+! !$acc rtheta_p, u, v, rho_zz, theta_m, w, plrad, scalars)
+ 
+! !$acc update device(qv_p,qc_p,qr_p,qi_p,qs_p,qg_p,u_p,v_p, &
+! !$acc zz_p,rho_p,th_p,t_p,pi_p,pres_p,zmid_p,dz_p,znu_p, w_p, &
+! !$acc z_p,fzm_p,fzp_p,t2_p,pres2_p,psfc_p,pres2_hyd_p, &
+! !$acc pres2_hydd_p,pres_hyd_p,pres_hydd_p,psfc_hyd_p, &
+! !$acc psfc_hydd_p,znu_hyd_p)
+
+ end subroutine MPAS_to_physics_gpu
+
+!=================================================================================================================
  subroutine microphysics_from_MPAS(configs,mesh,state,time_lev,diag,diag_physics,its,ite)
 !=================================================================================================================
 
@@ -486,7 +1058,9 @@
 !local pointers:
  character(len=StrKIND),pointer:: microp_scheme
  integer,pointer:: index_qv,index_qc,index_qr,index_qi,index_qs,index_qg
+ integer:: sindex_qv,sindex_qc,sindex_qr,sindex_qi,sindex_qs,sindex_qg
  integer,pointer:: index_ni,index_nr
+ integer:: sindex_ni,sindex_nr
  real(kind=RKIND),dimension(:),pointer    :: nt_c,mu_c
  real(kind=RKIND),dimension(:,:),pointer  :: zgrid,w
  real(kind=RKIND),dimension(:,:),pointer  :: zz,exner,pressure_b
@@ -504,24 +1078,24 @@
 
  call mpas_pool_get_config(configs,'config_microp_scheme',microp_scheme)
 
- call mpas_pool_get_array(mesh,'zgrid',zgrid)
- call mpas_pool_get_array(mesh,'zz'   ,zz   )
+ call mpas_pool_get_array_gpu(mesh,'zgrid',zgrid)
+ call mpas_pool_get_array_gpu(mesh,'zz'   ,zz   )
 
- call mpas_pool_get_array(diag,'exner'        ,exner     )
- call mpas_pool_get_array(diag,'pressure_base',pressure_b)
- call mpas_pool_get_array(diag,'pressure_p'   ,pressure_p)
+ call mpas_pool_get_array_gpu(diag,'exner'        ,exner     )
+ call mpas_pool_get_array_gpu(diag,'pressure_base',pressure_b)
+ call mpas_pool_get_array_gpu(diag,'pressure_p'   ,pressure_p)
 
- call mpas_pool_get_array(diag_physics,'nt_c'    ,nt_c    )
- call mpas_pool_get_array(diag_physics,'mu_c'    ,mu_c    )
- call mpas_pool_get_array(diag_physics,'rainprod',rainprod)
- call mpas_pool_get_array(diag_physics,'evapprod',evapprod)
- call mpas_pool_get_array(diag_physics,'re_cloud',re_cloud)
- call mpas_pool_get_array(diag_physics,'re_ice'  ,re_ice  )
- call mpas_pool_get_array(diag_physics,'re_snow' ,re_snow )
+ call mpas_pool_get_array_gpu(diag_physics,'nt_c'    ,nt_c    )
+ call mpas_pool_get_array_gpu(diag_physics,'mu_c'    ,mu_c    )
+ call mpas_pool_get_array_gpu(diag_physics,'rainprod',rainprod)
+ call mpas_pool_get_array_gpu(diag_physics,'evapprod',evapprod)
+ call mpas_pool_get_array_gpu(diag_physics,'re_cloud',re_cloud)
+ call mpas_pool_get_array_gpu(diag_physics,'re_ice'  ,re_ice  )
+ call mpas_pool_get_array_gpu(diag_physics,'re_snow' ,re_snow )
 
- call mpas_pool_get_array(state,'rho_zz' ,rho_zz ,time_lev)
- call mpas_pool_get_array(state,'theta_m',theta_m,time_lev)
- call mpas_pool_get_array(state,'w'      ,w      ,time_lev)
+ call mpas_pool_get_array_gpu(state,'rho_zz' ,rho_zz ,time_lev)
+ call mpas_pool_get_array_gpu(state,'theta_m',theta_m,time_lev)
+ call mpas_pool_get_array_gpu(state,'w'      ,w      ,time_lev)
 
  call mpas_pool_get_dimension(state,'index_qv'  ,index_qv  )
  call mpas_pool_get_dimension(state,'index_qc'  ,index_qc  )
@@ -532,18 +1106,35 @@
  call mpas_pool_get_dimension(state,'index_ni'  ,index_ni  )
  call mpas_pool_get_dimension(state,'index_nr'  ,index_nr  )
 
- call mpas_pool_get_array(state,'scalars',scalars,time_lev)
- qv   => scalars(index_qv,:,:)
- qc   => scalars(index_qc,:,:)
- qr   => scalars(index_qr,:,:)
+ sindex_qv = index_qv
+ sindex_qc = index_qc
+ sindex_qr = index_qr
+ sindex_qi = index_qi
+ sindex_qs = index_qs
+ sindex_qg = index_qg
+ sindex_ni = index_ni
+ sindex_nr = index_nr
 
+ call mpas_pool_get_array_gpu(state,'scalars',scalars,time_lev)
+
+!!!
+! !$acc update host(zgrid, zz, exner, pressure_b, pressure_p, &
+! !$acc nt_c, mu_c, rainprod, evapprod, re_cloud, re_ice, re_snow, &
+! !$acc rho_zz, theta_m, w, scalars)
+
+! qv   => scalars(index_qv,:,:)
+! qc   => scalars(index_qc,:,:)
+! qr   => scalars(index_qr,:,:)
+
+!$acc parallel vector_length(32)
+!$acc loop gang vector collapse(3)
 !initialize variables needed in the cloud microphysics schemes:
  do j = jts, jte
- do k = kts, kte
  do i = its, ite
-    qv_p(i,k,j) = qv(k,i)
-    qc_p(i,k,j) = qc(k,i)
-    qr_p(i,k,j) = qr(k,i)
+ do k = kts, kte
+    qv_p(i,k,j) = scalars(sindex_qv,k,i)
+    qc_p(i,k,j) = scalars(sindex_qc,k,i)
+    qr_p(i,k,j) = scalars(sindex_qr,k,i)
 
     rho_p(i,k,j)  = zz(k,i) * rho_zz(k,i)
     th_p(i,k,j)   = theta_m(k,i) / (1._RKIND + R_v/R_d * max(0._RKIND,qv_p(i,k,j)))
@@ -557,27 +1148,36 @@
  enddo
  enddo
  enddo
+!$acc end parallel
+
+! !$acc update host(qv_p, qc_p, qr_p, rho_p, th_p, pi_p, pres_p, z_p, &
+! !$acc dz_p, w_p)
 
 !additional initialization as function of cloud microphysics scheme:
  microp_select_init: select case(microp_scheme)
 
     case ("mp_thompson","mp_wsm6")
-       qi   => scalars(index_qi,:,:)
-       qs   => scalars(index_qs,:,:)
-       qg   => scalars(index_qg,:,:)
+!       qi   => scalars(index_qi,:,:)
+!       qs   => scalars(index_qs,:,:)
+!       qg   => scalars(index_qg,:,:)
 
+!$acc parallel vector_length(32)
+!$acc loop gang vector collapse(3)
        do j = jts, jte
        do k = kts, kte
        do i = its, ite
-          qi_p(i,k,j) = qi(k,i)
-          qs_p(i,k,j) = qs(k,i)
-          qg_p(i,k,j) = qg(k,i)
+          qi_p(i,k,j) = scalars(sindex_qi,k,i)
+          qs_p(i,k,j) = scalars(sindex_qs,k,i)
+          qg_p(i,k,j) = scalars(sindex_qg,k,i)
           recloud_p(i,k,j) = re_cloud(k,i)
           reice_p(i,k,j)   = re_ice(k,i)
           resnow_p(i,k,j)  = re_snow(k,i)
        enddo
        enddo
        enddo
+!$acc end parallel
+
+! !$acc update host(qi_p, qs_p, qg_p)
 
     microp2_select: select case(microp_scheme)
 
@@ -610,6 +1210,11 @@
 
  end select microp_select_init
 
+!!!
+! !$acc update device(zgrid, zz, exner, pressure_b, pressure_p, &
+! !$acc nt_c, mu_c, rainprod, evapprod, re_cloud, re_ice, re_snow, &
+! !$acc rho_zz, theta_m, w, scalars)
+
  end subroutine microphysics_from_MPAS
 
 !=================================================================================================================
@@ -632,7 +1237,9 @@
 !local pointers:
  character(len=StrKIND),pointer:: microp_scheme
  integer,pointer:: index_qv,index_qc,index_qr,index_qi,index_qs,index_qg
+ integer:: sindex_qv,sindex_qc,sindex_qr,sindex_qi,sindex_qs,sindex_qg
  integer,pointer:: index_ni,index_nr
+ integer:: sindex_ni,sindex_nr
  real(kind=RKIND),dimension(:),pointer    :: surface_pressure,tend_sfc_pressure
  real(kind=RKIND),dimension(:,:),pointer  :: zgrid
  real(kind=RKIND),dimension(:,:),pointer  :: zz,exner,exner_b,pressure_b,rtheta_p,rtheta_b
@@ -653,27 +1260,27 @@
 
  call mpas_pool_get_config(configs,'config_microp_scheme',microp_scheme)
 
- call mpas_pool_get_array(mesh,'zz'   ,zz   )
- call mpas_pool_get_array(mesh,'zgrid',zgrid)
+ call mpas_pool_get_array_gpu(mesh,'zz'   ,zz   )
+ call mpas_pool_get_array_gpu(mesh,'zgrid',zgrid)
 
- call mpas_pool_get_array(diag,'exner'           ,exner           )
- call mpas_pool_get_array(diag,'exner_base'      ,exner_b         )
- call mpas_pool_get_array(diag,'pressure_base'   ,pressure_b      )
- call mpas_pool_get_array(diag,'pressure_p'      ,pressure_p      )
- call mpas_pool_get_array(diag,'rtheta_base'     ,rtheta_b        )
- call mpas_pool_get_array(diag,'rtheta_p'        ,rtheta_p        )
- call mpas_pool_get_array(diag,'surface_pressure',surface_pressure)
+ call mpas_pool_get_array_gpu(diag,'exner'           ,exner           )
+ call mpas_pool_get_array_gpu(diag,'exner_base'      ,exner_b         )
+ call mpas_pool_get_array_gpu(diag,'pressure_base'   ,pressure_b      )
+ call mpas_pool_get_array_gpu(diag,'pressure_p'      ,pressure_p      )
+ call mpas_pool_get_array_gpu(diag,'rtheta_base'     ,rtheta_b        )
+ call mpas_pool_get_array_gpu(diag,'rtheta_p'        ,rtheta_p        )
+ call mpas_pool_get_array_gpu(diag,'surface_pressure',surface_pressure)
 
- call mpas_pool_get_array(diag_physics,'rainprod',rainprod)
- call mpas_pool_get_array(diag_physics,'evapprod',evapprod)
- call mpas_pool_get_array(diag_physics,'re_cloud',re_cloud)
- call mpas_pool_get_array(diag_physics,'re_ice'  ,re_ice  )
- call mpas_pool_get_array(diag_physics,'re_snow' ,re_snow )
+ call mpas_pool_get_array_gpu(diag_physics,'rainprod',rainprod)
+ call mpas_pool_get_array_gpu(diag_physics,'evapprod',evapprod)
+ call mpas_pool_get_array_gpu(diag_physics,'re_cloud',re_cloud)
+ call mpas_pool_get_array_gpu(diag_physics,'re_ice'  ,re_ice  )
+ call mpas_pool_get_array_gpu(diag_physics,'re_snow' ,re_snow )
 
- call mpas_pool_get_array(tend,'tend_sfc_pressure',tend_sfc_pressure)
+ call mpas_pool_get_array_gpu(tend,'tend_sfc_pressure',tend_sfc_pressure)
 
- call mpas_pool_get_array(state,'rho_zz' ,rho_zz ,time_lev)
- call mpas_pool_get_array(state,'theta_m',theta_m,time_lev)
+ call mpas_pool_get_array_gpu(state,'rho_zz' ,rho_zz ,time_lev)
+ call mpas_pool_get_array_gpu(state,'theta_m',theta_m,time_lev)
 
  call mpas_pool_get_dimension(state,'index_qv'  ,index_qv  )
  call mpas_pool_get_dimension(state,'index_qc'  ,index_qc  )
@@ -684,20 +1291,40 @@
  call mpas_pool_get_dimension(state,'index_ni'  ,index_ni  )
  call mpas_pool_get_dimension(state,'index_nr'  ,index_nr  )
 
- call mpas_pool_get_array(state,'scalars',scalars,time_lev)
- qv   => scalars(index_qv,:,:)
- qc   => scalars(index_qc,:,:)
- qr   => scalars(index_qr,:,:)
+ sindex_qv = index_qv
+ sindex_qc = index_qc
+ sindex_qr = index_qr
+ sindex_qi = index_qi
+ sindex_qs = index_qs
+ sindex_qg = index_qg
+ sindex_ni = index_ni
+ sindex_nr = index_nr
 
- call mpas_pool_get_array(tend,'rt_diabatic_tend',rt_diabatic_tend)
+ call mpas_pool_get_array_gpu(tend,'rt_diabatic_tend',rt_diabatic_tend)
+ call mpas_pool_get_array_gpu(state,'scalars',scalars,time_lev)
+
+!!!
+! !$acc update device(qv_p, qc_p, qr_p, th_p, qi_p, qs_p, qg_p)
+
+!!!
+! !$acc update host(zz, zgrid, exner, exner_b, pressure_b, pressure_p, &
+! !$acc rtheta_b, rtheta_p, surface_pressure, rainprod, evapprod, re_cloud, &
+! !$acc re_ice, re_snow, tend_sfc_pressure, rho_zz, theta_m, rt_diabatic_tend, &
+! !$acc scalars)
+
+! qv   => scalars(index_qv,:,:)
+! qc   => scalars(index_qc,:,:)
+! qr   => scalars(index_qr,:,:)
 
 !update variables needed in the dynamical core:
  do j = jts,jte
- do k = kts,kte
+!$acc parallel vector_length(32)
+!$acc loop gang vector collapse(2)
  do i = its,ite
-    qv(k,i) = qv_p(i,k,j)
-    qc(k,i) = qc_p(i,k,j)
-    qr(k,i) = qr_p(i,k,j)
+ do k = kts,kte
+    scalars(sindex_qv,k,i) = qv_p(i,k,j)
+    scalars(sindex_qc,k,i) = qc_p(i,k,j)
+    scalars(sindex_qr,k,i) = qr_p(i,k,j)
 
     !potential temperature and diabatic forcing:
     rt_diabatic_tend(k,i) = theta_m(k,i)
@@ -716,10 +1343,13 @@
 
  enddo
  enddo
+!$acc end parallel
  enddo
 
 !updates the surface pressure and calculates the surface pressure tendency:
  do j = jts,jte
+!$acc parallel vector_length(32)
+!$acc loop gang vector private(tem1,tem2,rho1,rho2)
  do i = its,ite
     tem1 = zgrid(2,i)-zgrid(1,i)
     tem2 = zgrid(3,i)-zgrid(2,i)
@@ -734,27 +1364,30 @@
     surface_pressure(i)  = surface_pressure(i) + pressure_p(1,i) + pressure_b(1,i)
     tend_sfc_pressure(i)   = (surface_pressure(i)-tend_sfc_pressure(i)) / dt_dyn
  enddo
+!$acc end parallel
  enddo
 
 !variables specific to different cloud microphysics schemes:
  microp_select_init: select case(microp_scheme)
 
     case ("mp_thompson","mp_wsm6")
-       qi   => scalars(index_qi,:,:)
-       qs   => scalars(index_qs,:,:)
-       qg   => scalars(index_qg,:,:)
-
+!       qi   => scalars(index_qi,:,:)
+!       qs   => scalars(index_qs,:,:)
+!       qg   => scalars(index_qg,:,:)
        do j = jts, jte
+!$acc parallel vector_length(32)
+!$acc loop gang vector collapse(2)
        do k = kts, kte
        do i = its, ite
-          qi(k,i) = qi_p(i,k,j)
-          qs(k,i) = qs_p(i,k,j)
-          qg(k,i) = qg_p(i,k,j)
+          scalars(sindex_qi,k,i) = qi_p(i,k,j)
+          scalars(sindex_qs,k,i) = qs_p(i,k,j)
+          scalars(sindex_qg,k,i) = qg_p(i,k,j)
           re_cloud(k,i) = recloud_p(i,k,j)
           re_ice(k,i)   = reice_p(i,k,j)
           re_snow(k,i)  = resnow_p(i,k,j)
        enddo
        enddo
+!$acc end parallel
        enddo
 
     microp2_select: select case(microp_scheme)
@@ -781,6 +1414,12 @@
     case default
 
  end select microp_select_init
+
+!!!
+! !$acc update host(zz, zgrid, exner, exner_b, pressure_b, pressure_p, &
+! !$acc rtheta_b, rtheta_p, surface_pressure, rainprod, evapprod, re_cloud, &
+! !$acc re_ice, re_snow, tend_sfc_pressure, rho_zz, theta_m, rt_diabatic_tend, &
+! !$acc scalars)
 
  end subroutine microphysics_to_MPAS
 

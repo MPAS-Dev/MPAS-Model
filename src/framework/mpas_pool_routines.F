@@ -81,6 +81,21 @@ module mpas_pool_routines
       module procedure mpas_pool_get_array_1d_char
    end interface
 
+   interface mpas_pool_get_array_gpu
+      module procedure mpas_pool_get_array_0d_real_gpu
+      module procedure mpas_pool_get_array_1d_real_gpu
+      module procedure mpas_pool_get_array_2d_real_gpu
+      module procedure mpas_pool_get_array_3d_real_gpu
+      module procedure mpas_pool_get_array_4d_real_gpu
+      module procedure mpas_pool_get_array_5d_real_gpu
+      module procedure mpas_pool_get_array_0d_int_gpu
+      module procedure mpas_pool_get_array_1d_int_gpu
+      module procedure mpas_pool_get_array_2d_int_gpu
+      module procedure mpas_pool_get_array_3d_int_gpu
+      module procedure mpas_pool_get_array_0d_char_gpu
+      module procedure mpas_pool_get_array_1d_char_gpu
+   end interface
+
    interface mpas_pool_add_config
       module procedure mpas_pool_add_config_real
       module procedure mpas_pool_add_config_int
@@ -106,6 +121,10 @@ module mpas_pool_routines
    end interface
 
    integer :: currentErrorLevel = MPAS_POOL_SILENT
+
+#ifdef CORE_ATMOSPHERE
+    integer, parameter, private :: ROLE_INTEGRATE = ibset(0,0)
+#endif
 
    contains
 
@@ -4196,6 +4215,33 @@ module mpas_pool_routines
 
    end subroutine mpas_pool_get_array_0d_real!}}}
 
+   subroutine mpas_pool_get_array_0d_real_gpu(inPool, key, scalar, timeLevel)!{{{
+
+      implicit none
+
+      type (mpas_pool_type), intent(in) :: inPool
+      character (len=*), intent(in) :: key
+      real (kind=RKIND), pointer :: scalar
+      integer, intent(in), optional :: timeLevel
+
+      type (field0DReal), pointer :: field
+      type (mpas_coupler_type), pointer :: coupler
+      
+      call mpas_pool_get_field_0d_real(inPool, key, field, timeLevel)
+
+      coupler => field%block%domain%mpas_cpl
+
+      nullify(scalar)
+      if (associated(field)) then 
+              scalar => field % scalar
+#ifdef CORE_ATMOSPHERE
+              if (coupler%role() == ROLE_INTEGRATE) then
+                      !$acc enter data copyin(field%scalar)
+              end if
+#endif
+      end if
+   end subroutine mpas_pool_get_array_0d_real_gpu!}}}
+
 
 !-----------------------------------------------------------------------
 !  subroutine mpas_pool_get_array_1d_real
@@ -4226,6 +4272,33 @@ module mpas_pool_routines
 
    end subroutine mpas_pool_get_array_1d_real!}}}
 
+   subroutine mpas_pool_get_array_1d_real_gpu(inPool, key, array, timeLevel)!{{{
+
+      implicit none
+
+      type (mpas_pool_type), intent(in) :: inPool
+      character (len=*), intent(in) :: key
+      real (kind=RKIND), dimension(:), pointer :: array
+      integer, intent(in), optional :: timeLevel
+
+      type (field1DReal), pointer :: field
+      type (mpas_coupler_type), pointer :: coupler
+
+
+      call mpas_pool_get_field_1d_real(inPool, key, field, timeLevel)
+
+      nullify(array)
+      if (associated(field)) then 
+              coupler => field%block%domain%mpas_cpl
+              array => field % array
+#ifdef CORE_ATMOSPHERE
+              if (coupler%role() == ROLE_INTEGRATE) then
+                      !$acc enter data copyin(field%array)
+              end if
+#endif
+      end if
+   end subroutine mpas_pool_get_array_1d_real_gpu!}}}
+
 
 !-----------------------------------------------------------------------
 !  subroutine mpas_pool_get_array_2d_real
@@ -4255,6 +4328,34 @@ module mpas_pool_routines
       if (associated(field)) array => field % array
 
    end subroutine mpas_pool_get_array_2d_real!}}}
+
+   subroutine mpas_pool_get_array_2d_real_gpu(inPool, key, array, timeLevel)!{{{
+
+      implicit none
+
+      type (mpas_pool_type), intent(in) :: inPool
+      character (len=*), intent(in) :: key
+      real (kind=RKIND), dimension(:,:), pointer :: array
+      integer, intent(in), optional :: timeLevel
+
+      type (field2DReal), pointer :: field
+      type (mpas_coupler_type), pointer :: coupler
+
+
+      call mpas_pool_get_field_2d_real(inPool, key, field, timeLevel)
+
+      nullify(array)
+      if (associated(field)) then 
+              coupler => field%block%domain%mpas_cpl
+              array => field % array
+#ifdef CORE_ATMOSPHERE
+              if (coupler%role() == ROLE_INTEGRATE) then
+                      !$acc enter data copyin(field%array)
+              end if
+#endif
+      end if
+
+   end subroutine mpas_pool_get_array_2d_real_gpu!}}}
 
 
 !-----------------------------------------------------------------------
@@ -4287,6 +4388,34 @@ module mpas_pool_routines
    end subroutine mpas_pool_get_array_3d_real!}}}
 
 
+   subroutine mpas_pool_get_array_3d_real_gpu(inPool, key, array, timeLevel)!{{{
+
+      implicit none
+
+      type (mpas_pool_type), intent(in) :: inPool
+      character (len=*), intent(in) :: key
+      real (kind=RKIND), dimension(:,:,:), pointer :: array
+      integer, intent(in), optional :: timeLevel
+
+      type (field3DReal), pointer :: field
+      type (mpas_coupler_type), pointer :: coupler
+
+
+      call mpas_pool_get_field_3d_real(inPool, key, field, timeLevel)
+
+      nullify(array)
+      if (associated(field)) then 
+              coupler => field%block%domain%mpas_cpl
+              array => field % array
+#ifdef CORE_ATMOSPHERE
+              if (coupler%role() == ROLE_INTEGRATE) then
+                      !$acc enter data copyin(field%array)
+              end if
+#endif
+      end if
+
+   end subroutine mpas_pool_get_array_3d_real_gpu!}}}
+
 !-----------------------------------------------------------------------
 !  subroutine mpas_pool_get_array_4d_real
 !
@@ -4315,6 +4444,34 @@ module mpas_pool_routines
       if (associated(field)) array => field % array
 
    end subroutine mpas_pool_get_array_4d_real!}}}
+
+   subroutine mpas_pool_get_array_4d_real_gpu(inPool, key, array, timeLevel)!{{{
+
+      implicit none
+
+      type (mpas_pool_type), intent(in) :: inPool
+      character (len=*), intent(in) :: key
+      real (kind=RKIND), dimension(:,:,:,:), pointer :: array
+      integer, intent(in), optional :: timeLevel
+
+      type (field4DReal), pointer :: field
+      type (mpas_coupler_type), pointer :: coupler
+
+
+      call mpas_pool_get_field_4d_real(inPool, key, field, timeLevel)
+
+      nullify(array)
+      if (associated(field)) then 
+              coupler => field%block%domain%mpas_cpl
+              array => field % array
+#ifdef CORE_ATMOSPHERE
+              if (coupler%role() == ROLE_INTEGRATE) then
+                      !$acc enter data copyin(field%array)
+              end if
+#endif
+      end if
+
+   end subroutine mpas_pool_get_array_4d_real_gpu!}}}
 
 
 !-----------------------------------------------------------------------
@@ -4346,6 +4503,34 @@ module mpas_pool_routines
 
    end subroutine mpas_pool_get_array_5d_real!}}}
 
+   subroutine mpas_pool_get_array_5d_real_gpu(inPool, key, array, timeLevel)!{{{
+
+      implicit none
+
+      type (mpas_pool_type), intent(in) :: inPool
+      character (len=*), intent(in) :: key
+      real (kind=RKIND), dimension(:,:,:,:,:), pointer :: array
+      integer, intent(in), optional :: timeLevel
+
+      type (field5DReal), pointer :: field
+      type (mpas_coupler_type), pointer :: coupler
+
+
+      call mpas_pool_get_field_5d_real(inPool, key, field, timeLevel)
+
+      nullify(array)
+      if (associated(field)) then 
+              coupler => field%block%domain%mpas_cpl
+              array => field % array
+#ifdef CORE_ATMOSPHERE
+              if (coupler%role() == ROLE_INTEGRATE) then
+                      !$acc enter data copyin(field%array)
+              end if
+#endif
+      end if
+
+   end subroutine mpas_pool_get_array_5d_real_gpu!}}}
+
 
 !-----------------------------------------------------------------------
 !  subroutine mpas_pool_get_array_0d_int
@@ -4375,6 +4560,34 @@ module mpas_pool_routines
       if (associated(field)) scalar => field % scalar
 
    end subroutine mpas_pool_get_array_0d_int!}}}
+
+   subroutine mpas_pool_get_array_0d_int_gpu(inPool, key, scalar, timeLevel)!{{{
+
+      implicit none
+
+      type (mpas_pool_type), intent(in) :: inPool
+      character (len=*), intent(in) :: key
+      integer, pointer :: scalar
+      integer, intent(in), optional :: timeLevel
+
+      type (field0DInteger), pointer :: field
+      type (mpas_coupler_type), pointer :: coupler
+
+
+      call mpas_pool_get_field_0d_int(inPool, key, field, timeLevel)
+
+      nullify(scalar)
+      if (associated(field)) then 
+              coupler => field%block%domain%mpas_cpl
+              scalar => field % scalar
+#ifdef CORE_ATMOSPHERE
+              if (coupler%role() == ROLE_INTEGRATE) then
+                      !$acc enter data copyin(field%scalar)
+              end if
+#endif
+      end if
+
+   end subroutine mpas_pool_get_array_0d_int_gpu!}}}
 
 
 !-----------------------------------------------------------------------
@@ -4406,6 +4619,34 @@ module mpas_pool_routines
 
    end subroutine mpas_pool_get_array_1d_int!}}}
 
+   subroutine mpas_pool_get_array_1d_int_gpu(inPool, key, array, timeLevel)!{{{
+
+      implicit none
+
+      type (mpas_pool_type), intent(in) :: inPool
+      character (len=*), intent(in) :: key
+      integer, dimension(:), pointer :: array
+      integer, intent(in), optional :: timeLevel
+
+      type (field1DInteger), pointer :: field
+      type (mpas_coupler_type), pointer :: coupler
+
+
+      call mpas_pool_get_field_1d_int(inPool, key, field, timeLevel)
+
+      nullify(array)
+      if (associated(field)) then 
+              coupler => field%block%domain%mpas_cpl
+              array => field % array
+#ifdef CORE_ATMOSPHERE
+              if (coupler%role() == ROLE_INTEGRATE) then
+                      !$acc enter data copyin(field%array)
+              end if
+#endif
+      end if
+
+   end subroutine mpas_pool_get_array_1d_int_gpu!}}}
+
 
 !-----------------------------------------------------------------------
 !  subroutine mpas_pool_get_array_2d_int
@@ -4435,6 +4676,34 @@ module mpas_pool_routines
       if (associated(field)) array => field % array
 
    end subroutine mpas_pool_get_array_2d_int!}}}
+
+   subroutine mpas_pool_get_array_2d_int_gpu(inPool, key, array, timeLevel)!{{{
+
+      implicit none
+
+      type (mpas_pool_type), intent(in) :: inPool
+      character (len=*), intent(in) :: key
+      integer, dimension(:,:), pointer :: array
+      integer, intent(in), optional :: timeLevel
+
+      type (field2DInteger), pointer :: field
+      type (mpas_coupler_type), pointer :: coupler
+
+
+      call mpas_pool_get_field_2d_int(inPool, key, field, timeLevel)
+
+      nullify(array)
+      if (associated(field)) then 
+              coupler => field%block%domain%mpas_cpl
+              array => field % array
+#ifdef CORE_ATMOSPHERE
+              if (coupler%role() == ROLE_INTEGRATE) then
+                      !$acc enter data copyin(field%array)
+              end if
+#endif
+      end if
+
+   end subroutine mpas_pool_get_array_2d_int_gpu!}}}
 
 
 !-----------------------------------------------------------------------
@@ -4466,6 +4735,34 @@ module mpas_pool_routines
 
    end subroutine mpas_pool_get_array_3d_int!}}}
 
+   subroutine mpas_pool_get_array_3d_int_gpu(inPool, key, array, timeLevel)!{{{
+
+      implicit none
+
+      type (mpas_pool_type), intent(in) :: inPool
+      character (len=*), intent(in) :: key
+      integer, dimension(:,:,:), pointer :: array
+      integer, intent(in), optional :: timeLevel
+
+      type (field3DInteger), pointer :: field
+      type (mpas_coupler_type), pointer :: coupler
+
+
+      call mpas_pool_get_field_3d_int(inPool, key, field, timeLevel)
+
+      nullify(array)
+      if (associated(field)) then 
+              coupler => field%block%domain%mpas_cpl
+              array => field % array
+#ifdef CORE_ATMOSPHERE
+              if (coupler%role() == ROLE_INTEGRATE) then
+                      !$acc enter data copyin(field%array)
+              end if
+#endif
+      end if
+
+   end subroutine mpas_pool_get_array_3d_int_gpu!}}}
+
 
 !-----------------------------------------------------------------------
 !  subroutine mpas_pool_get_array_0d_char
@@ -4496,6 +4793,34 @@ module mpas_pool_routines
 
    end subroutine mpas_pool_get_array_0d_char!}}}
 
+   subroutine mpas_pool_get_array_0d_char_gpu(inPool, key, string, timeLevel)!{{{
+
+      implicit none
+
+      type (mpas_pool_type), intent(in) :: inPool
+      character (len=*), intent(in) :: key
+      character (len=StrKIND), pointer :: string
+      integer, intent(in), optional :: timeLevel
+
+      type (field0DChar), pointer :: field
+      type (mpas_coupler_type), pointer :: coupler
+
+
+      call mpas_pool_get_field_0d_char(inPool, key, field, timeLevel)
+
+      nullify(string)
+      if (associated(field)) then 
+              coupler => field%block%domain%mpas_cpl
+              string => field % scalar
+#ifdef CORE_ATMOSPHERE
+              if (coupler%role() == ROLE_INTEGRATE) then
+                      !$acc enter data copyin(field%scalar)
+              end if
+#endif
+      end if
+
+   end subroutine mpas_pool_get_array_0d_char_gpu!}}}
+
 
 !-----------------------------------------------------------------------
 !  subroutine mpas_pool_get_array_1d_char
@@ -4525,6 +4850,34 @@ module mpas_pool_routines
       if (associated(field)) array => field % array
 
    end subroutine mpas_pool_get_array_1d_char!}}}
+
+   subroutine mpas_pool_get_array_1d_char_gpu(inPool, key, array, timeLevel)!{{{
+
+      implicit none
+
+      type (mpas_pool_type), intent(in) :: inPool
+      character (len=*), intent(in) :: key
+      character (len=StrKIND), dimension(:), pointer :: array
+      integer, intent(in), optional :: timeLevel
+
+      type (field1DChar), pointer :: field
+      type (mpas_coupler_type), pointer :: coupler
+
+
+      call mpas_pool_get_field_1d_char(inPool, key, field, timeLevel)
+
+      nullify(array)
+      if (associated(field)) then 
+              coupler => field%block%domain%mpas_cpl
+              array => field % array
+#ifdef CORE_ATMOSPHERE
+              if (coupler%role() == ROLE_INTEGRATE) then
+                      !$acc enter data copyin(field%array)
+              end if
+#endif
+      end if
+
+   end subroutine mpas_pool_get_array_1d_char_gpu!}}}
 
 
 !-----------------------------------------------------------------------
