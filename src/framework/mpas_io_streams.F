@@ -78,7 +78,7 @@ module mpas_io_streams
 
 
    subroutine MPAS_createStream(stream, ioContext, fileName, ioFormat, ioDirection, precision, &
-                                clobberRecords, clobberFiles, truncateFiles, ierr)
+                                clobberRecords, clobberFiles, truncateFiles, pio_file_desc, ierr)
 
       implicit none
 
@@ -91,6 +91,7 @@ module mpas_io_streams
       logical, intent(in), optional :: clobberRecords
       logical, intent(in), optional :: clobberFiles
       logical, intent(in), optional :: truncateFiles
+      type (file_desc_t), pointer, optional :: pio_file_desc
       integer, intent(out), optional :: ierr
 
       integer :: io_err
@@ -99,7 +100,7 @@ module mpas_io_streams
 
 
       stream % fileHandle = MPAS_io_open(fileName, ioDirection, ioFormat, ioContext, clobber_file=clobberFiles, truncate_file=truncateFiles, &
-                                         ierr=io_err) 
+                                         pio_file_desc=pio_file_desc, ierr=io_err) 
       !
       ! Catch a few special errors
       !
