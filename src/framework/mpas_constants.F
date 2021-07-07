@@ -1,4 +1,4 @@
-! Copyright (c) 2013-2020  Los Alamos National Security, LLC (LANS)
+! Copyright (c) 2013,  Los Alamos National Security, LLC (LANS)
 ! and the University Corporation for Atmospheric Research (UCAR).
 !
 ! Unless noted otherwise source code is licensed under the BSD license.
@@ -58,7 +58,16 @@ module mpas_constants
 !> \author  Michael Duda
 !> \date    8 May 2020
 !> \details 
-!>  This routine computes constants that are derived from others.
+!>  This routine provides a place where physical constants provided by
+!>  the mpas_constants module may be computed at runtime. For example,
+!>  if some constants depend on namelist options or other runtime
+!>  settings, other constants that derive from them may be computed in
+!>  this routine.
+!>
+!>  At present, the MPAS infrastructure does not call this routine, and
+!>  it is the responsibility of any MPAS core that needs to compute
+!>  derived constants at runtime to add calls to this routine, e.g., in
+!>  its core_init routine.
 !
 !-----------------------------------------------------------------------
    subroutine mpas_constants_compute_derived()
@@ -66,6 +75,12 @@ module mpas_constants
        implicit none
 
 #ifdef MPAS_CAM_DYCORE
+       !
+       ! In the case of CAM-MPAS, rgas may depend on a CAM namelist option,
+       ! so physical constants that depend on rgas must be computed here after
+       ! CAM has called the physconst_readnl routine.
+       !
+
        rvord   = rv / rgas
        cv      = cp - rgas
 #endif
