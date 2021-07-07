@@ -32,6 +32,7 @@ module mpas_constants
    use physconst, only : rv => rh2o
    real (kind=RKIND) :: rvord = huge(1.0_RKIND)                       ! Derived in mpas_constants_compute_derived
    real (kind=RKIND) :: cv = huge(1.0_RKIND)                          ! Derived in mpas_constants_compute_derived
+   real (kind=RKIND) :: cvpm = huge(1.0_RKIND)                        ! Derived in mpas_constants_compute_derived
 #else
    real (kind=RKIND), parameter :: pii     = 3.141592653589793_RKIND  !< Constant: Pi
    real (kind=RKIND), parameter :: a       = 6371229.0_RKIND          !< Constant: Spherical Earth radius [m]
@@ -43,6 +44,7 @@ module mpas_constants
    real (kind=RKIND), parameter :: cp      = 7.0_RKIND*rgas/2.0_RKIND !< Constant: Specific heat of dry air at constant pressure [J kg-1 K-1]
    real (kind=RKIND), parameter :: rvord   = rv / rgas                !
    real (kind=RKIND), parameter :: cv      = cp - rgas                !< Constant: Specific heat of dry air at constant volume [J kg-1 K-1]
+   real (kind=RKIND), parameter :: cvpm    = -cv / cp                 !
 #endif
    real (kind=RKIND), parameter :: p0 = 1.0e5_RKIND                   !< Constant: 100000 Pa
    real (kind=RKIND), parameter :: prandtl = 1.0_RKIND                !< Constant: Prandtl number
@@ -83,6 +85,7 @@ module mpas_constants
 
        rvord   = rv / rgas
        cv      = cp - rgas
+       cvpm    = -cv / cp
 #endif
 
    end subroutine mpas_constants_compute_derived

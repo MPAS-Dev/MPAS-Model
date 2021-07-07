@@ -1,10 +1,14 @@
 .SUFFIXES: .F .o
 
-all: build_tables
-	mv build_tables ../../..
+ifdef PHYSICS
+    UTILS = build_tables
+endif
+
+all: $(UTILS)
 
 build_tables: build_tables.o atmphys_build_tables_thompson.o
 	$(LINKER) $(LDFLAGS) -o build_tables build_tables.o atmphys_build_tables_thompson.o -L../../framework -L../physics -lphys -lframework $(LIBS) -L../../external/esmf_time_f90 -lesmf_time
+	mv build_tables ../../..
 
 
 build_tables.o: \

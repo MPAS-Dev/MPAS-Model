@@ -78,7 +78,7 @@ module mpas_io_streams
 
 
    subroutine MPAS_createStream(stream, ioContext, fileName, ioFormat, ioDirection, precision, &
-                                clobberRecords, clobberFiles, truncateFiles, ierr)
+                                clobberRecords, clobberFiles, truncateFiles, pio_file_desc, ierr)
 
       implicit none
 
@@ -91,6 +91,7 @@ module mpas_io_streams
       logical, intent(in), optional :: clobberRecords
       logical, intent(in), optional :: clobberFiles
       logical, intent(in), optional :: truncateFiles
+      type (file_desc_t), pointer, optional :: pio_file_desc
       integer, intent(out), optional :: ierr
 
       integer :: io_err
@@ -99,7 +100,7 @@ module mpas_io_streams
 
 
       stream % fileHandle = MPAS_io_open(fileName, ioDirection, ioFormat, ioContext, clobber_file=clobberFiles, truncate_file=truncateFiles, &
-                                         ierr=io_err) 
+                                         pio_file_desc=pio_file_desc, ierr=io_err) 
       !
       ! Catch a few special errors
       !
@@ -148,12 +149,12 @@ module mpas_io_streams
       integer :: io_err
       integer :: i
       integer :: timeDim
-      character (len=StrKIND), dimension(:), pointer :: xtimes
-      character (len=StrKIND) :: strTemp
+      character (len=ShortStrKIND), dimension(:), pointer :: xtimes
+      character (len=ShortStrKIND) :: strTemp
       type (MPAS_Time_type) :: sliceTime, startTime
       type (MPAS_TimeInterval_type) :: timeDiff, minTimeDiff
 
-      character (len=StrKIND) :: xtime0, xtime1, xtime2, xtimeGuess
+      character (len=ShortStrKIND) :: xtime0, xtime1, xtime2, xtimeGuess
       type (MPAS_Time_type) :: time0, time1, time2, timeGuess, timeGuessData
       type (MPAS_TimeInterval_type) :: timeInterval
 
@@ -1510,10 +1511,10 @@ module mpas_io_streams
       idim = ndims
       allocate(indices(0))
       allocate(dimSizes(1))
-      dimSizes(1) = 64
+      dimSizes(1) = ShortStrKIND
       dimNames(1) = 'StrLen'
-      globalDimSize = 64
-      totalDimSize = 64
+      globalDimSize = ShortStrKIND
+      totalDimSize = ShortStrKIND
 
       
       if (field % isVarArray) then
@@ -1602,7 +1603,7 @@ module mpas_io_streams
       idim = ndims
       allocate(indices(1))
       allocate(dimSizes(2))
-      dimSizes(1) = 64
+      dimSizes(1) = ShortStrKIND
       dimNames(1) = 'StrLen'
       dimSizes(2) = field % dimSizes(1)
       dimNames(2) = field % dimNames(1)
