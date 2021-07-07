@@ -226,27 +226,15 @@
     ! For all timesteps, we transfer MPAS state to physics
     !
 !$OMP PARALLEL DO
-    if (mpas_cpl%role_includes(ROLE_RADIATION)) then
     do thread=1,nThreads
        call MPAS_to_physics(block%configs,mesh,state,time_lev,diag,diag_physics, &
                             mpas_cpl, cells_to_rad_handle, cells_from_rad_handle, &
                             cellSolveThreadStart(thread), cellSolveThreadEnd(thread))
     end do
-    else
-    do thread=1,nThreads
-       call MPAS_to_physics_gpu(block%configs,mesh,state,time_lev,diag,diag_physics, &
-                            mpas_cpl, cells_to_rad_handle, cells_from_rad_handle, &
-                            cellSolveThreadStart(thread), cellSolveThreadEnd(thread))
-    end do
-    end if
 !$OMP END PARALLEL DO
-
-
-
 
     !call to cloud scheme:
     if(l_radtlw .or. l_radtsw) then
-
        call allocate_cloudiness
 !$OMP PARALLEL DO
        do thread=1,nThreads
@@ -359,6 +347,7 @@ if (mpas_cpl%role_includes(ROLE_INTEGRATE)) then
        end do
 !$OMP END PARALLEL DO
        call deallocate_pbl(block%configs)
+
     endif
 
     !call to gravity wave drag over orography scheme:

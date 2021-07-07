@@ -84,9 +84,7 @@
 ! * since we removed the local variable microp_scheme from mpas_atmphys_vars.F, now defines microp_scheme as a
 !   pointer to config_microp_scheme.
 !   Laura D. Fowler (laura@ucar.edu) / 2917-02-16.
-! * Removed all 1-dimensional arrays and allocations from compute_relhum, and replaced them with local scalars, 
-!   then, removed openacc data creations in order to save memory on GPU.
-!   Todd Hutchinson (todd.hutchinson@us.ibm.com) 2019-03-02.
+
 !--- initialization option for WSM6 from WRF version 3.8.1. this option could also be set as a namelist parameter.
  integer,parameter:: hail_opt = 0
 
@@ -405,9 +403,7 @@
 
     !calculate the relative humidity over water if the temperature is strictly greater than 0.C,
     !over ice otherwise.
-    call mpas_timer_start('compute_relhum')
     call compute_relhum(diag,its,ite)
-    call mpas_timer_stop('compute_relhum')
 
  end if
 
@@ -452,39 +448,27 @@
 
  call mpas_pool_get_config(configs,'config_microp_scheme',microp_scheme)
 
- call mpas_pool_get_array_gpu(diag_physics,'graupelncv',graupelncv)
- call mpas_pool_get_array_gpu(diag_physics,'rainncv'   ,rainncv   )
- call mpas_pool_get_array_gpu(diag_physics,'snowncv'   ,snowncv   )
- call mpas_pool_get_array_gpu(diag_physics,'sr'        ,sr        )
-
-!!!
-! !$acc update host(graupelncv, rainncv, snowncv, sr)
-
-!!!
-! !$acc update device(rainncv_p, rainnc_p, snowncv_p, graupelncv_p, &
-! !$acc snownc_p, graupelnc_p, sr_p)
+ call mpas_pool_get_array(diag_physics,'graupelncv',graupelncv)
+ call mpas_pool_get_array(diag_physics,'rainncv'   ,rainncv   )
+ call mpas_pool_get_array(diag_physics,'snowncv'   ,snowncv   )
+ call mpas_pool_get_array(diag_physics,'sr'        ,sr        )
 
 !variables common to all cloud microphysics schemes:
-!$acc parallel vector_length(32)
-!$acc loop gang vector collapse(2)
  do j = jts, jte
  do i = its, ite
     rainncv_p(i,j) = 0._RKIND
     rainnc_p(i,j)  = 0._RKIND
  enddo
  enddo
-!$acc loop gang vector
+
  do i = its,ite
     rainncv(i) = 0._RKIND
  enddo
-!$acc end parallel
 
 !variables specific to different cloud microphysics schemes:
  microp_select: select case(microp_scheme)
 
     case ("mp_thompson","mp_wsm6")
-!$acc parallel vector_length(32)
-!$acc loop gang vector collapse(2)
        do j = jts, jte
        do i = its, ite
           snowncv_p(i,j)    = 0._RKIND
@@ -494,24 +478,16 @@
           sr_p(i,j)         = 0._RKIND
        enddo
        enddo
-!$acc loop gang vector
+
        do i = its,ite
           snowncv(i)    = 0._RKIND
           graupelncv(i) = 0._RKIND
           sr(i)         = 0._RKIND
        enddo 
-!$acc end parallel
 
     case default
 
  end select microp_select
-
-!!!
-! !$acc update device(graupelncv, rainncv, snowncv, sr)
-
-!!!
-! !$acc update host(rainncv_p, rainnc_p, snowncv_p, graupelncv_p, &
-! !$acc snownc_p, graupelnc_p, sr_p)
 
  end subroutine precip_from_MPAS
 
@@ -531,7 +507,6 @@
  integer,dimension(:),pointer:: i_rainnc
 
  real(kind=RKIND),pointer:: config_bucket_rainnc
- real(kind=RKIND):: sconfig_bucket_rainnc
  real(kind=RKIND),dimension(:),pointer:: precipw
  real(kind=RKIND),dimension(:),pointer:: graupelnc,rainnc,snownc
  real(kind=RKIND),dimension(:),pointer:: graupelncv,rainncv,snowncv,sr
@@ -545,59 +520,43 @@
  call mpas_pool_get_config(configs,'config_microp_scheme',microp_scheme       )
  call mpas_pool_get_config(configs,'config_bucket_rainnc',config_bucket_rainnc)
 
- sconfig_bucket_rainnc = config_bucket_rainnc
+ call mpas_pool_get_array(diag_physics,'i_rainnc'  ,i_rainnc  )
+ call mpas_pool_get_array(diag_physics,'precipw'   ,precipw   )
+ call mpas_pool_get_array(diag_physics,'graupelnc' ,graupelnc )
+ call mpas_pool_get_array(diag_physics,'graupelncv',graupelncv)
+ call mpas_pool_get_array(diag_physics,'rainnc'    ,rainnc    )
+ call mpas_pool_get_array(diag_physics,'rainncv'   ,rainncv   )
+ call mpas_pool_get_array(diag_physics,'snownc'    ,snownc    )
+ call mpas_pool_get_array(diag_physics,'snowncv'   ,snowncv   )
+ call mpas_pool_get_array(diag_physics,'sr'        ,sr        )
 
- call mpas_pool_get_array_gpu(diag_physics,'i_rainnc'  ,i_rainnc  )
- call mpas_pool_get_array_gpu(diag_physics,'precipw'   ,precipw   )
- call mpas_pool_get_array_gpu(diag_physics,'graupelnc' ,graupelnc )
- call mpas_pool_get_array_gpu(diag_physics,'graupelncv',graupelncv)
- call mpas_pool_get_array_gpu(diag_physics,'rainnc'    ,rainnc    )
- call mpas_pool_get_array_gpu(diag_physics,'rainncv'   ,rainncv   )
- call mpas_pool_get_array_gpu(diag_physics,'snownc'    ,snownc    )
- call mpas_pool_get_array_gpu(diag_physics,'snowncv'   ,snowncv   )
- call mpas_pool_get_array_gpu(diag_physics,'sr'        ,sr        )
-
-!!!
-! !$acc update host(i_rainnc, precipw, graupelnc, graupelncv, rainnc, &
-! !$acc rainncv, snownc, snowncv, sr)
-
-! !$acc update device(rho_p, qv_p, qv_p, dz_p, rainnc_p, &
-! !$acc snownc_p, graupelnc_p, rainnc_p)
-
-!$acc parallel vector_length(32)
-!$acc loop gang vector
  do i = its,ite
     precipw(i) = 0._RKIND    
  enddo
-!$acc end parallel
 
 !variables common to all cloud microphysics schemes:
  do j = jts,jte
-!$acc parallel vector_length(32)
-!$acc loop gang vector private(rho_a)
  do i = its,ite
 
     !precipitable water:
-!$acc loop seq
     do k = kts,kte
        rho_a = rho_p(i,k,j) / (1._RKIND + qv_p(i,k,j))
        precipw(i) = precipw(i) + qv_p(i,k,j) * rho_a * dz_p(i,k,j)
     enddo
-    
+
     !time-step precipitation:
     rainncv(i) = rainnc_p(i,j)
     
     !accumulated precipitation:
     rainnc(i) = rainnc(i) + rainncv(i)
 
-   if(l_acrain .and. sconfig_bucket_rainnc.gt.0._RKIND .and. &
-      rainnc(i).gt.sconfig_bucket_rainnc) then
+   if(l_acrain .and. config_bucket_rainnc.gt.0._RKIND .and. &
+      rainnc(i).gt.config_bucket_rainnc) then
       i_rainnc(i) = i_rainnc(i) + 1
-      rainnc(i)   = rainnc(i) - sconfig_bucket_rainnc
+      rainnc(i)   = rainnc(i) - config_bucket_rainnc
    endif
  
  enddo
-!$acc end parallel
  enddo
 
 !variables specific to different cloud microphysics schemes:
@@ -605,8 +564,6 @@
 
     case ("mp_thompson","mp_wsm6")
        do j = jts,jte
-!$acc parallel vector_length(32)
-!$acc loop gang vector
        do i = its,ite
           !time-step precipitation:
           snowncv(i)    = snownc_p(i,j)
@@ -617,18 +574,11 @@
           snownc(i)    = snownc(i) + snowncv(i)
           graupelnc(i) = graupelnc(i) + graupelncv(i)
        enddo
-!$acc end parallel
        enddo
 
     case default
 
  end select microp_select_init
-
-!!!
-! !$acc update host(i_rainnc, precipw, graupelnc, graupelncv, rainnc, &
-! !$acc rainncv, snownc, snowncv, sr)
-! !$acc update host(rho_p, qv_p, qv_p, dz_p, rainnc_p, &
-! !$acc snownc_p, graupelnc_p, rainnc_p)
 
  end subroutine precip_to_MPAS
 
@@ -789,49 +739,41 @@
  integer:: i,j,k
 
  real(kind=RKIND):: tempc, rh
- real(kind=RKIND):: qv,qvs,t,p
+ real(kind=RKIND),dimension(:),allocatable:: qv1d,qvs1d,t1d,p1d
 
 !-----------------------------------------------------------------------------------------------------------------
 
- call mpas_pool_get_array_gpu(diag,'relhum',relhum)
-
-! !$acc update device(pres_p, th_p, pi_p, qv_p)
-!!!
-!!!$acc update host(relhum)
-
-!$acc parallel vector_length(32)
-!$acc loop gang vector 
+ call mpas_pool_get_array(diag,'relhum',relhum)
  do k = kts,kte
     do i = its,ite
        relhum(k,i) = 0._RKIND
     enddo
  enddo
-!$acc end parallel
 
+ if(.not.allocated(p1d)  ) allocate(p1d(kts:kte)  )
+ if(.not.allocated(t1d)  ) allocate(t1d(kts:kte)  )
+ if(.not.allocated(qv1d) ) allocate(qv1d(kts:kte) )
+ if(.not.allocated(qvs1d)) allocate(qvs1d(kts:kte))
 
  do j = jts,jte
-!$acc parallel vector_length(32)
-!$acc loop gang vector collapse(2) private(p,t,tempc,qvs,qv)
  do i = its,ite
     do k = kts,kte
-       p  = pres_p(i,k,j)
-       t  = th_p(i,k,j) * pi_p(i,k,j)
-       tempc   = t - 273.16_RKIND
-       qvs = rslf(p,t)
-       if(tempc .le. 0._RKIND) qvs = rsif(p,t)
-       qv = qv_p(i,k,j)
-       relhum(k,i) = qv / qvs
+       p1d(k)  = pres_p(i,k,j)
+       t1d(k)  = th_p(i,k,j) * pi_p(i,k,j)
+       tempc   = t1d(k) - 273.16_RKIND
+       qvs1d(k) = rslf(p1d(k),t1d(k))
+       if(tempc .le. 0._RKIND) qvs1d(k) = rsif(p1d(k),t1d(k))
+       qv1d(k) = qv_p(i,k,j)
+       relhum(k,i) = qv1d(k) / qvs1d(k)
        relhum(k,i) = relhum(k,i) * 100._RKIND
     enddo
  enddo
-!$acc end parallel
  enddo
 
-! !$acc update host(relhum)
-
-
-!!!
-!!$acc update device(relhum)
+ if(allocated(p1d)  ) deallocate(p1d  )
+ if(allocated(t1d)  ) deallocate(t1d  )
+ if(allocated(qv1d) ) deallocate(qv1d )
+ if(allocated(qvs1d)) deallocate(qvs1d)
 
  end subroutine compute_relhum
 

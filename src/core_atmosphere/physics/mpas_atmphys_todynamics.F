@@ -25,7 +25,7 @@
 !
 ! subroutines in mpas_atmphys_todynamics:
 ! ---------------------------------------
-! physics_addtend: add and mass-weigh tendencies before being added to dynamics tendencies.
+! physics_get_tend: add and mass-weigh tendencies before being added to dynamics tendencies.
 ! tend_toEdges   : interpolate wind-tendencies from centers to edges of grid-cells.
 !
 ! add-ons and modifications to sourcecode:
@@ -54,7 +54,7 @@
 
  contains
 
-
+ 
 !=================================================================================================================
  subroutine physics_get_tend( block, mesh, state, diag, tend, tend_physics, configs, rk_step, dynamics_substep, &
                               tend_ru_physics, tend_rtheta_physics, tend_rho_physics, tend_th, &
