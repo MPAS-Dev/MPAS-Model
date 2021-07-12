@@ -4235,7 +4235,7 @@ module mpas_pool_routines
       if (associated(field)) then 
               scalar => field % scalar
 #ifdef CORE_ATMOSPHERE
-              if (coupler%role() == ROLE_INTEGRATE) then
+              if (coupler % role_includes(ROLE_INTEGRATE)) then
                       !$acc enter data copyin(field%scalar)
               end if
 #endif
@@ -4292,7 +4292,7 @@ module mpas_pool_routines
               coupler => field%block%domain%mpas_cpl
               array => field % array
 #ifdef CORE_ATMOSPHERE
-              if (coupler%role() == ROLE_INTEGRATE) then
+              if (coupler % role_includes(ROLE_INTEGRATE)) then
                       !$acc enter data copyin(field%array)
               end if
 #endif
@@ -4349,7 +4349,7 @@ module mpas_pool_routines
               coupler => field%block%domain%mpas_cpl
               array => field % array
 #ifdef CORE_ATMOSPHERE
-              if (coupler%role() == ROLE_INTEGRATE) then
+              if (coupler % role_includes(ROLE_INTEGRATE)) then
                       !$acc enter data copyin(field%array)
               end if
 #endif
@@ -4408,7 +4408,7 @@ module mpas_pool_routines
               coupler => field%block%domain%mpas_cpl
               array => field % array
 #ifdef CORE_ATMOSPHERE
-              if (coupler%role() == ROLE_INTEGRATE) then
+              if (coupler % role_includes(ROLE_INTEGRATE)) then
                       !$acc enter data copyin(field%array)
               end if
 #endif
@@ -4465,7 +4465,7 @@ module mpas_pool_routines
               coupler => field%block%domain%mpas_cpl
               array => field % array
 #ifdef CORE_ATMOSPHERE
-              if (coupler%role() == ROLE_INTEGRATE) then
+              if (coupler % role_includes(ROLE_INTEGRATE)) then
                       !$acc enter data copyin(field%array)
               end if
 #endif
@@ -4523,7 +4523,7 @@ module mpas_pool_routines
               coupler => field%block%domain%mpas_cpl
               array => field % array
 #ifdef CORE_ATMOSPHERE
-              if (coupler%role() == ROLE_INTEGRATE) then
+              if (coupler % role_includes(ROLE_INTEGRATE)) then
                       !$acc enter data copyin(field%array)
               end if
 #endif
@@ -4581,7 +4581,7 @@ module mpas_pool_routines
               coupler => field%block%domain%mpas_cpl
               scalar => field % scalar
 #ifdef CORE_ATMOSPHERE
-              if (coupler%role() == ROLE_INTEGRATE) then
+              if (coupler % role_includes(ROLE_INTEGRATE)) then
                       !$acc enter data copyin(field%scalar)
               end if
 #endif
@@ -4639,7 +4639,7 @@ module mpas_pool_routines
               coupler => field%block%domain%mpas_cpl
               array => field % array
 #ifdef CORE_ATMOSPHERE
-              if (coupler%role() == ROLE_INTEGRATE) then
+              if (coupler % role_includes(ROLE_INTEGRATE)) then
                       !$acc enter data copyin(field%array)
               end if
 #endif
@@ -4697,7 +4697,7 @@ module mpas_pool_routines
               coupler => field%block%domain%mpas_cpl
               array => field % array
 #ifdef CORE_ATMOSPHERE
-              if (coupler%role() == ROLE_INTEGRATE) then
+              if (coupler % role_includes(ROLE_INTEGRATE)) then
                       !$acc enter data copyin(field%array)
               end if
 #endif
