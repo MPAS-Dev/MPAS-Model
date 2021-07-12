@@ -1,0 +1,58 @@
+	<!-- A note about names (remove this when creating a new analysis member)
+		A camel case name should be selected for the analysis member. This should be something like: globalStats, or zonalMean
+		Replace writePartitions in this file with your camel case name.
+		All namelist options should be named: config_AM_[name]_[opt]. In this
+		case [name] would be replaced with the camel case name, and [opt] is
+		the specific option (like enable) (e.g. config_AM_globalStats_enable)
+		The package should be named: [name]AMPKG where again [name] is the camel case name (e.g. globalStatsAMPKG)
+		Pools and streams should be named with the camel case name as well (e.g. globalStatsOutput and globalStatsAM)
+	-->
+	<nml_record name="AM_writePartitions" mode="forward;analysis">
+		<nml_option name="config_AM_writePartitions_enable" type="logical" default_value=".false." units="unitless"
+			description="If true, ocean analysis member writePartitions is called."
+			possible_values=".true. or .false."
+		/>
+		<nml_option name="config_AM_writePartitions_compute_interval" type="character" default_value="output_interval" units="unitless"
+			description="Timestamp determining how often analysis member computation should be performed."
+			possible_values="Any valid time stamp, 'dt', or 'output_interval'"
+		/>
+		<nml_option name="config_AM_writePartitions_output_stream" type="character" default_value="writePartitionsOutput" units="unitless"
+			description="Name of the stream that the writePartitions analysis member should be tied to."
+			possible_values="Any existing stream name or 'none'"
+		/>
+		<nml_option name="config_AM_writePartitions_compute_on_startup" type="logical" default_value=".true." units="unitless"
+			description="Logical flag determining if an analysis member computation occurs on start-up."
+			possible_values=".true. or .false."
+		/>
+		<nml_option name="config_AM_writePartitions_write_on_startup" type="logical" default_value=".true." units="unitless"
+			description="Logical flag determining if an analysis member write occurs on start-up."
+			possible_values=".true. or .false."
+		/>
+	</nml_record>
+	<packages>
+		<package name="writePartitionsAMPKG" description="This package includes variables required for the writePartitions analysis member."/>
+	</packages>
+	<var_struct name="writePartitionsAM" time_levs="1" packages="writePartitionsAMPKG">
+		<var name="example_variable1" type="real" dimensions="nVertLevels nCells Time" units="UNITS HERE"
+			description="DESCRIPTION HERE"
+		/>
+		<var name="example_variable2" type="real" dimensions="nVertLevels nCells Time" units="UNITS HERE"
+			description="DESCRIPTION HERE"
+		/>
+	</var_struct>
+	<streams>
+		<stream name="writePartitionsOutput" type="output"
+				mode="forward;analysis"
+				precision="single"
+				filename_template="analysis_members/writePartitions.$Y-$M-$D.nc"
+				filename_interval="01-00-00_00:00:00"
+				output_interval="00-00-01_00:00:00"
+				reference_time="0001-01-01_00:00:00"
+				packages="writePartitionsAMPKG"
+				clobber_mode="truncate"
+				runtime_format="single_file">
+			<var name="xtime"/>
+			<var name="example_variable1"/>
+			<var name="example_variable2"/>
+		</stream>
+	</streams>
