@@ -82,7 +82,7 @@
  integer(c_int):: endian,isigned,istatus,wordsize
  integer:: i,j,k
  integer :: ii, jj
- integer:: iCell,iEdge,iVtx,iPoint,iTileStart,iTileEnd,jTileStart,jTileEnd
+ integer:: iCell,iEdge,iVtx
  integer,dimension(5) :: interp_list
  integer,dimension(:),allocatable  :: nhs
  integer,dimension(:,:),allocatable:: ncat
@@ -92,12 +92,9 @@
  real(kind=c_float),dimension(:,:,:),pointer,contiguous :: rarray
  type(c_ptr) :: rarray_ptr
 
- real(kind=RKIND):: start_lat
- real(kind=RKIND):: start_lon
-
  integer, pointer :: supersample_fac
 
- real(kind=RKIND):: lat,lon,x,y,z
+ real(kind=RKIND):: lat,lon,x,y
  real(kind=RKIND):: lat_pt,lon_pt
  real(kind=RKIND),dimension(:,:),allocatable  :: soiltemp_1deg
  real(kind=RKIND),dimension(:,:),allocatable  :: maxsnowalb
@@ -135,7 +132,7 @@
  real (kind=RKIND), dimension(:,:), pointer :: greenfrac
  real (kind=RKIND), dimension(:,:), pointer :: albedo12m
  integer (kind=I8KIND), dimension(:,:), pointer :: albedo12m_int
- real (kind=RKIND) :: msgval, fillval
+ real (kind=RKIND) :: fillval
  real (kind=RKIND), pointer :: missing_value
  integer, pointer :: category_min, category_max
  integer, dimension(:), pointer :: lu_index
@@ -436,7 +433,7 @@
  end do
 
  do iCell = 1, nCells
-    ter(iCell) = real(ter_integer(iCell), kind=R8KIND) / real(nhs(iCell), kind=R8KIND)
+    ter(iCell) = real(real(ter_integer(iCell), kind=R8KIND) / real(nhs(iCell), kind=R8KIND), kind=RKIND)
     ter(iCell) = ter(iCell) * scalefactor
  end do
 
@@ -783,7 +780,7 @@
  call read_geogrid(c_fname,rarray_ptr,nx,ny,nz,isigned, endian, &
                    wordsize,istatus)
  call init_atm_check_read_error(istatus, fname)
- rarray(:,:,:) = rarray(:,:,:) * scalefactor
+ rarray(:,:,:) = rarray(:,:,:) * real(scalefactor, kind=c_float)
  soiltemp_1deg(-2:180,-2:183) = rarray(1:183,1:186,1)
 
  write(fname,'(a,i5.5,a1,i5.5,a1,i5.5,a1,i5.5)') trim(geog_data_path)// &
@@ -794,7 +791,7 @@
  call read_geogrid(c_fname,rarray_ptr,nx,ny,nz,isigned,endian, &
                    wordsize,istatus)
  call init_atm_check_read_error(istatus,fname)
- rarray(:,:,:) = rarray(:,:,:) * scalefactor
+ rarray(:,:,:) = rarray(:,:,:) * real(scalefactor, kind=c_float)
  soiltemp_1deg(181:363,-2:183) = rarray(4:186,1:186,1)
 
  interp_list(1) = FOUR_POINT
@@ -967,7 +964,7 @@
         if (nhs(iCell) == 0) then
             snoalb(iCell) = fillval
         else
-            snoalb(iCell) = real(snoalb_integer(iCell), kind=R8KIND) / real(nhs(iCell), kind=R8KIND)
+            snoalb(iCell) = real(real(snoalb_integer(iCell), kind=R8KIND) / real(nhs(iCell), kind=R8KIND), kind=RKIND)
             snoalb(iCell) = snoalb(iCell) * scalefactor
             snoalb(iCell) = 0.01_RKIND * snoalb(iCell) ! Convert from percent to fraction
         endif
@@ -1015,7 +1012,7 @@
     call read_geogrid(c_fname,rarray_ptr,nx,ny,nz,isigned,endian, &
                       wordsize,istatus)
     call init_atm_check_read_error(istatus,fname)
-    rarray(:,:,:) = rarray(:,:,:) * scalefactor
+    rarray(:,:,:) = rarray(:,:,:) * real(scalefactor, kind=c_float)
     maxsnowalb(-2:180,-2:183) = rarray(1:183,1:186,1)
 
     write(fname,'(a,i5.5,a1,i5.5,a1,i5.5,a1,i5.5)') trim(geog_data_path)// &
@@ -1026,7 +1023,7 @@
     call read_geogrid(c_fname,rarray_ptr,nx,ny,nz,isigned,endian, &
                       wordsize,istatus)
     call init_atm_check_read_error(istatus, fname)
-    rarray(:,:,:) = rarray(:,:,:) * scalefactor
+    rarray(:,:,:) = rarray(:,:,:) * real(scalefactor, kind=c_float)
     maxsnowalb(181:363,-2:183) = rarray(4:186,1:186,1)
 
     interp_list(1) = FOUR_POINT
@@ -1196,7 +1193,7 @@
         if (nhs(iCell) == 0) then
             greenfrac(:,iCell) = fillval
         else
-            greenfrac(:,iCell) = real(greenfrac_int(:,iCell), kind=R8KIND) / real(nhs(iCell), kind=R8KIND)
+            greenfrac(:,iCell) = real(real(greenfrac_int(:,iCell), kind=R8KIND) / real(nhs(iCell), kind=R8KIND), kind=RKIND)
         end if
         shdmin(iCell) = minval(greenfrac(:,iCell))
         shdmax(iCell) = maxval(greenfrac(:,iCell))
@@ -1244,7 +1241,7 @@
     call read_geogrid(c_fname,rarray_ptr,nx,ny,nz,isigned,endian, &
                       wordsize,istatus)
     call init_atm_check_read_error(istatus,fname)
-    rarray(:,:,:) = rarray(:,:,:) * scalefactor
+    rarray(:,:,:) = rarray(:,:,:) * real(scalefactor, kind=c_float)
     vegfra(-2:1250,-2:1253,1:12) = rarray(1:1253,1:1256,1:12)
 
     write(fname,'(a,i5.5,a1,i5.5,a1,i5.5,a1,i5.5)') trim(geog_data_path)// &
@@ -1255,7 +1252,7 @@
     call read_geogrid(c_fname,rarray_ptr,nx,ny,nz,isigned,endian, &
                       wordsize,istatus)
     call init_atm_check_read_error(istatus,fname)
-    rarray(:,:,:) = rarray(:,:,:) * scalefactor
+    rarray(:,:,:) = rarray(:,:,:) * real(scalefactor, kind=c_float)
     vegfra(1251:2503,-2:1253,1:12) = rarray(4:1256,1:1256,1:12)
 
     do iCell = 1,nCells
@@ -1425,7 +1422,7 @@
         if (nhs(iCell) == 0) then
             albedo12m(:,iCell) = fillVal
         else
-            albedo12m(:,iCell) = real(albedo12m_int(:,iCell), kind=R8KIND) / real(nhs(iCell), kind=R8KIND)
+            albedo12m(:,iCell) = real(real(albedo12m_int(:,iCell), kind=R8KIND) / real(nhs(iCell), kind=R8KIND), kind=RKIND)
             albedo12m(:,iCell) = albedo12m(:,iCell) * scalefactor
         end if
         if (lu_index(iCell) == isice_lu) then
@@ -1475,7 +1472,7 @@
     call read_geogrid(c_fname,rarray_ptr,nx,ny,nz,isigned,endian, &
                       wordsize, istatus)
     call init_atm_check_read_error(istatus,fname)
-    rarray(:,:,:) = rarray(:,:,:) * scalefactor
+    rarray(:,:,:) = rarray(:,:,:) * real(scalefactor, kind=c_float)
     vegfra(-2:1250,-2:1253,1:12) = rarray(1:1253,1:1256,1:12)
 
     write(fname,'(a,i5.5,a1,i5.5,a1,i5.5,a1,i5.5)') trim(geog_data_path)// &
@@ -1486,7 +1483,7 @@
     call read_geogrid(c_fname,rarray_ptr,nx,ny,nz,isigned,endian, &
                       wordsize,istatus)
     call init_atm_check_read_error(istatus,fname)
-    rarray(:,:,:) = rarray(:,:,:) * scalefactor
+    rarray(:,:,:) = rarray(:,:,:) * real(scalefactor, kind=c_float)
     vegfra(1251:2503,-2:1253,1:12) = rarray(4:1256,1:1256,1:12)
 
     do iCell = 1,nCells
