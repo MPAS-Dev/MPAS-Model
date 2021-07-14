@@ -54,7 +54,6 @@ module atm_time_integration
    real (kind=RKIND), dimension(:,:), allocatable :: flux_tmp_arr
    real (kind=RKIND), dimension(:,:), allocatable :: wdtn_arr
    real (kind=RKIND), dimension(:,:), allocatable :: rho_zz_int
-   real (kind=RKIND), dimension(:,:,:), allocatable :: scalar_tend_array
 
    real (kind=RKIND), dimension(:,:,:), allocatable :: scalars_driving ! regional_MPAS addition 
    real (kind=RKIND), dimension(:,:), allocatable :: ru_driving_tend ! regional_MPAS addition 
@@ -992,119 +991,8 @@ module atm_time_integration
 
             if (config_scalar_advection .and. (.not. config_split_dynamics_transport) ) then
 
-               if (rk_step < 3 .or. (.not. config_monotonic .and. .not. config_positive_definite)) then
-                  call mpas_timer_start('atm_advance_scalars')
-               else
-                  call mpas_timer_start('atm_advance_scalars_mono')
-               end if
-               block => domain % blocklist
-               do while (associated(block))
-                  call mpas_pool_get_subpool(block % structs, 'tend', tend)
-                  call mpas_pool_get_subpool(block % structs, 'state', state)
-                  call mpas_pool_get_subpool(block % structs, 'diag', diag)
-                  call mpas_pool_get_subpool(block % structs, 'mesh', mesh)
-
-                  call mpas_pool_get_dimension(mesh, 'nCells', nCells)
-                  call mpas_pool_get_dimension(mesh, 'nEdges', nEdges)
-                  call mpas_pool_get_dimension(mesh, 'nVertLevels', nVertLevels)
-                  call mpas_pool_get_dimension(state, 'num_scalars', num_scalars)
-
-                  call mpas_pool_get_dimension(block % dimensions, 'nThreads', nThreads)
-
-                  call mpas_pool_get_dimension(block % dimensions, 'cellThreadStart', cellThreadStart)
-                  call mpas_pool_get_dimension(block % dimensions, 'cellThreadEnd', cellThreadEnd)
-                  call mpas_pool_get_dimension(block % dimensions, 'cellSolveThreadStart', cellSolveThreadStart)
-                  call mpas_pool_get_dimension(block % dimensions, 'cellSolveThreadEnd', cellSolveThreadEnd)
-
-                  call mpas_pool_get_dimension(block % dimensions, 'vertexThreadStart', vertexThreadStart)
-                  call mpas_pool_get_dimension(block % dimensions, 'vertexThreadEnd', vertexThreadEnd)
-                  call mpas_pool_get_dimension(block % dimensions, 'vertexSolveThreadStart', vertexSolveThreadStart)
-                  call mpas_pool_get_dimension(block % dimensions, 'vertexSolveThreadEnd', vertexSolveThreadEnd)
-
-                  call mpas_pool_get_dimension(block % dimensions, 'edgeThreadStart', edgeThreadStart)
-                  call mpas_pool_get_dimension(block % dimensions, 'edgeThreadEnd', edgeThreadEnd)
-                  call mpas_pool_get_dimension(block % dimensions, 'edgeSolveThreadStart', edgeSolveThreadStart)
-                  call mpas_pool_get_dimension(block % dimensions, 'edgeSolveThreadEnd', edgeSolveThreadEnd)
-
-                  allocate(scalar_old_arr(nVertLevels,nCells+1))
-                  scalar_old_arr(:,nCells+1) = 0.0_RKIND
-                  allocate(scalar_new_arr(nVertLevels,nCells+1))
-                  scalar_new_arr(:,nCells+1) = 0.0_RKIND
-                  allocate(s_max_arr(nVertLevels,nCells+1))
-                  s_max_arr(:,nCells+1) = 0.0_RKIND
-                  allocate(s_min_arr(nVertLevels,nCells+1))
-                  s_min_arr(:,nCells+1) = 0.0_RKIND
-                  allocate(scale_array(nVertLevels,2,nCells+1))
-                  scale_array(:,:,nCells+1) = 0.0_RKIND
-                  allocate(flux_array(nVertLevels,nEdges+1))
-                  flux_array(:,nEdges+1) = 0.0_RKIND
-                  allocate(wdtn_arr(nVertLevels+1,nCells+1))
-                  wdtn_arr(:,nCells+1) = 0.0_RKIND
-                  if (rk_step < 3 .or. (.not. config_monotonic .and. .not. config_positive_definite)) then
-                     allocate(horiz_flux_array(num_scalars,nVertLevels,nEdges+1))
-                     horiz_flux_array(:,:,nEdges+1) = 0.0_RKIND
-                  else
-                     allocate(flux_upwind_tmp_arr(nVertLevels,nEdges+1))
-                     flux_upwind_tmp_arr(:,nEdges+1) = 0.0_RKIND
-                     allocate(flux_tmp_arr(nVertLevels,nEdges+1))
-                     flux_tmp_arr(:,nEdges+1) = 0.0_RKIND
-                  end if
-
-                  !
-                  ! Note: The advance_scalars_mono routine can be used without limiting, and thus, encompasses 
-                  !       the functionality of the advance_scalars routine; however, it is noticeably slower, 
-                  !       so we use the advance_scalars routine for the first two RK substeps.
-                  !
-!$OMP PARALLEL DO
-                  do thread=1,nThreads
-                     if (rk_step < 3 .or. (.not. config_monotonic .and. .not. config_positive_definite)) then
-                        call atm_advance_scalars( tend, state, diag, mesh, block % configs, num_scalars, nCells, nVertLevels, rk_timestep(rk_step), &
-                                                cellThreadStart(thread), cellThreadEnd(thread), &
-                                                vertexThreadStart(thread), vertexThreadEnd(thread), &
-                                                edgeThreadStart(thread), edgeThreadEnd(thread), &
-                                                cellSolveThreadStart(thread), cellSolveThreadEnd(thread), &
-                                                vertexSolveThreadStart(thread), vertexSolveThreadEnd(thread), &
-                                                edgeSolveThreadStart(thread), edgeSolveThreadEnd(thread), &
-                                                horiz_flux_array, rk_step, config_time_integration_order, &
-                                                advance_density=.false. )
-                     else
-         
-                        block % domain = domain 
-                        call atm_advance_scalars_mono( block, tend, state, diag, mesh, block % configs, nCells, nEdges, nVertLevels, rk_timestep(rk_step), &
-                                                cellThreadStart(thread), cellThreadEnd(thread), &
-                                                vertexThreadStart(thread), vertexThreadEnd(thread), &
-                                                edgeThreadStart(thread), edgeThreadEnd(thread), &
-                                                cellSolveThreadStart(thread), cellSolveThreadEnd(thread), &
-                                                vertexSolveThreadStart(thread), vertexSolveThreadEnd(thread), &
-                                                edgeSolveThreadStart(thread), edgeSolveThreadEnd(thread), &
-                                                scalar_old_arr, scalar_new_arr, s_max_arr, s_min_arr, wdtn_arr, &
-                                                scale_array, flux_array, flux_upwind_tmp_arr, flux_tmp_arr, &
-                                                advance_density=.false.)
-                     end if
-                  end do
-!$OMP END PARALLEL DO
-
-                  deallocate(scalar_old_arr)
-                  deallocate(scalar_new_arr)
-                  deallocate(s_max_arr)
-                  deallocate(s_min_arr)
-                  deallocate(scale_array)
-                  deallocate(flux_array)
-                  deallocate(wdtn_arr)
-                  if (rk_step < 3 .or. (.not. config_monotonic .and. .not. config_positive_definite)) then
-                     deallocate(horiz_flux_array)
-                  else
-                     deallocate(flux_upwind_tmp_arr)
-                     deallocate(flux_tmp_arr)
-                  end if
-
-                  block => block % next
-               end do
-               if (rk_step < 3 .or. (.not. config_monotonic .and. .not. config_positive_definite)) then
-                  call mpas_timer_stop('atm_advance_scalars')
-               else
-                  call mpas_timer_stop('atm_advance_scalars_mono')
-               end if
+               call advance_scalars('scalars', domain, rk_step, rk_timestep, config_monotonic, config_positive_definite, &
+                                    config_time_integration_order, config_split_dynamics_transport)
 
                if (config_apply_lbcs) then  ! adjust boundary tendencies for regional_MPAS scalar transport
 
@@ -1363,130 +1251,8 @@ module atm_time_integration
          RK3_SPLIT_TRANSPORT : do rk_step = 1, 3  ! Runge-Kutta loop
 
 
-            if (rk_step < 3 .or. (.not. config_monotonic .and. .not. config_positive_definite)) then
-               call mpas_timer_start('atm_advance_scalars')
-            else
-               call mpas_timer_start('atm_advance_scalars_mono')
-            end if
-            block => domain % blocklist
-            do while (associated(block))
-               call mpas_pool_get_subpool(block % structs, 'tend', tend)
-               call mpas_pool_get_subpool(block % structs, 'state', state)
-               call mpas_pool_get_subpool(block % structs, 'diag', diag)
-               call mpas_pool_get_subpool(block % structs, 'mesh', mesh)
-
-               call mpas_pool_get_dimension(mesh, 'nCells', nCells)
-               call mpas_pool_get_dimension(mesh, 'nEdges', nEdges)
-               call mpas_pool_get_dimension(mesh, 'nVertLevels', nVertLevels)
-               call mpas_pool_get_dimension(state, 'num_scalars', num_scalars)
-
-               call mpas_pool_get_dimension(block % dimensions, 'nThreads', nThreads)
-
-               call mpas_pool_get_dimension(block % dimensions, 'cellThreadStart', cellThreadStart)
-               call mpas_pool_get_dimension(block % dimensions, 'cellThreadEnd', cellThreadEnd)
-               call mpas_pool_get_dimension(block % dimensions, 'cellSolveThreadStart', cellSolveThreadStart)
-               call mpas_pool_get_dimension(block % dimensions, 'cellSolveThreadEnd', cellSolveThreadEnd)
-
-               call mpas_pool_get_dimension(block % dimensions, 'vertexThreadStart', vertexThreadStart)
-               call mpas_pool_get_dimension(block % dimensions, 'vertexThreadEnd', vertexThreadEnd)
-               call mpas_pool_get_dimension(block % dimensions, 'vertexSolveThreadStart', vertexSolveThreadStart)
-               call mpas_pool_get_dimension(block % dimensions, 'vertexSolveThreadEnd', vertexSolveThreadEnd)
-
-               call mpas_pool_get_dimension(block % dimensions, 'edgeThreadStart', edgeThreadStart)
-               call mpas_pool_get_dimension(block % dimensions, 'edgeThreadEnd', edgeThreadEnd)
-               call mpas_pool_get_dimension(block % dimensions, 'edgeSolveThreadStart', edgeSolveThreadStart)
-               call mpas_pool_get_dimension(block % dimensions, 'edgeSolveThreadEnd', edgeSolveThreadEnd)
-
-               allocate(scalar_old_arr(nVertLevels,nCells+1))
-               scalar_old_arr(:,nCells+1) = 0.0_RKIND
-               allocate(scalar_new_arr(nVertLevels,nCells+1))
-               scalar_new_arr(:,nCells+1) = 0.0_RKIND
-               allocate(s_max_arr(nVertLevels,nCells+1))
-               s_max_arr(:,nCells+1) = 0.0_RKIND
-               allocate(s_min_arr(nVertLevels,nCells+1))
-               s_min_arr(:,nCells+1) = 0.0_RKIND
-               allocate(scale_array(nVertLevels,2,nCells+1))
-               scale_array(:,:,nCells+1) = 0.0_RKIND
-               allocate(flux_array(nVertLevels,nEdges+1))
-               flux_array(:,nEdges+1) = 0.0_RKIND
-               allocate(wdtn_arr(nVertLevels+1,nCells+1))
-               wdtn_arr(:,nCells+1) = 0.0_RKIND
-               allocate(rho_zz_int(nVertLevels,nCells+1))
-               rho_zz_int(:,nCells+1) = 0.0_RKIND
-               allocate(scalar_tend_array(num_scalars,nVertLevels,nCells+1))
-               scalar_tend_array(:,:,nCells+1) = 0.0_RKIND
-               if (rk_step < 3 .or. (.not. config_monotonic .and. .not. config_positive_definite)) then
-                  allocate(horiz_flux_array(num_scalars,nVertLevels,nEdges+1))
-                  horiz_flux_array(:,:,nEdges+1) = 0.0_RKIND
-               else
-                  allocate(flux_upwind_tmp_arr(nVertLevels,nEdges+1))
-                  flux_upwind_tmp_arr(:,nEdges+1) = 0.0_RKIND
-                  allocate(flux_tmp_arr(nVertLevels,nEdges+1))
-                  flux_tmp_arr(:,nEdges+1) = 0.0_RKIND
-               end if
-
-               !
-               ! Note: The advance_scalars_mono routine can be used without limiting, and thus, encompasses 
-               !       the functionality of the advance_scalars routine; however, it is noticeably slower, 
-               !       so we use the advance_scalars routine for the first two RK substeps.
-               !
-
-               !  The latest version of atm_advance_scalars does not need the arrays scalar_tend_array or rho_zz_int
-               !  We can remove scalar_tend_array????  WCS 20160921
-!$OMP PARALLEL DO
-               do thread=1,nThreads
-                  if (rk_step < 3 .or. (.not. config_monotonic .and. .not. config_positive_definite)) then
-                     call atm_advance_scalars( tend, state, diag, mesh, block % configs, num_scalars, nCells, nVertLevels, rk_timestep(rk_step), &
-                                             cellThreadStart(thread), cellThreadEnd(thread), &
-                                             vertexThreadStart(thread), vertexThreadEnd(thread), &
-                                             edgeThreadStart(thread), edgeThreadEnd(thread), &
-                                             cellSolveThreadStart(thread), cellSolveThreadEnd(thread), &
-                                             vertexSolveThreadStart(thread), vertexSolveThreadEnd(thread), &
-                                             edgeSolveThreadStart(thread), edgeSolveThreadEnd(thread), &
-                                             horiz_flux_array, rk_step, config_time_integration_order, &
-                                             advance_density=.true., scalar_tend=scalar_tend_array, rho_zz_int=rho_zz_int )
-                  else
-      
-                     block % domain = domain 
-                     call atm_advance_scalars_mono( block, tend, state, diag, mesh, block % configs, nCells, nEdges, nVertLevels, rk_timestep(rk_step), &
-                                             cellThreadStart(thread), cellThreadEnd(thread), &
-                                             vertexThreadStart(thread), vertexThreadEnd(thread), &
-                                             edgeThreadStart(thread), edgeThreadEnd(thread), &
-                                             cellSolveThreadStart(thread), cellSolveThreadEnd(thread), &
-                                             vertexSolveThreadStart(thread), vertexSolveThreadEnd(thread), &
-                                             edgeSolveThreadStart(thread), edgeSolveThreadEnd(thread), &
-                                             scalar_old_arr, scalar_new_arr, s_max_arr, s_min_arr, wdtn_arr, &
-                                             scale_array, flux_array, flux_upwind_tmp_arr, flux_tmp_arr, &
-                                             advance_density=.true., rho_zz_int=rho_zz_int)
-                  end if
-               end do
-!$OMP END PARALLEL DO
-
-               deallocate(scalar_old_arr)
-               deallocate(scalar_new_arr)
-               deallocate(s_max_arr)
-               deallocate(s_min_arr)
-               deallocate(scale_array)
-               deallocate(flux_array)
-               deallocate(wdtn_arr)
-               deallocate(rho_zz_int)
-               deallocate(scalar_tend_array)
-               if (rk_step < 3 .or. (.not. config_monotonic .and. .not. config_positive_definite)) then
-                  deallocate(horiz_flux_array)
-               else
-                  deallocate(flux_upwind_tmp_arr)
-                  deallocate(flux_tmp_arr)
-               end if
-
-               block => block % next
-            end do
-            if (rk_step < 3 .or. (.not. config_monotonic .and. .not. config_positive_definite)) then
-               call mpas_timer_stop('atm_advance_scalars')
-            else
-               call mpas_timer_stop('atm_advance_scalars_mono')
-            end if
-
-!------------------------------------------------------------------------------------------------------------------------
+            call advance_scalars('scalars', domain, rk_step, rk_timestep, config_monotonic, config_positive_definite, &
+                                 config_time_integration_order, config_split_dynamics_transport)
 
             if (config_apply_lbcs) then  ! adjust boundary tendencies for regional_MPAS scalar transport
 
@@ -1797,6 +1563,181 @@ module atm_time_integration
       call summarize_timestep(domain)
 
    end subroutine atm_srk3
+
+
+   !-----------------------------------------------------------------------
+   !  routine advance_scalars
+   !
+   !> \brief Advance the scalar fields
+   !> \date 10 February 2020
+   !> \details
+   !>  Manages the advance of the model scalar fields, taking into account
+   !>  runtime selection of monotonicity and scalar transport splitting.
+   !>
+   !>  The first argument, field_name, indicates the base name for the array
+   !>  of scalars to be advected. It is assumed that, if the name of
+   !>  the array is XYZ, then there will exist:
+   !>
+   !>  (1) An array in the 'state' pool named XYZ with dimensions
+   !>      (num_XYZ, nVertLevels, nCells) and two time levels
+   !>
+   !>  (2) A dimension, num_XYZ, in the 'state' pool
+   !>
+   !>  (3) An array in the 'tend' pool named XYZ_tend with dimensions
+   !>      (num_XYZ, nVertLevels, nCells) and one time level
+   !>
+   !>  The scalars arrays can either be var_arrays formed from multiple
+   !>  constituents, each with dimensions (nVertLevels, nCells), or they can
+   !>  simply be vars with dimensions (num_???, nVertLevels, nCells).
+   !
+   !-----------------------------------------------------------------------
+   subroutine advance_scalars(field_name, domain, rk_step, rk_timestep, config_monotonic, config_positive_definite, &
+                              config_time_integration_order, config_split_dynamics_transport)
+
+      implicit none
+
+      ! Arguments
+      character(len=*), intent(in) :: field_name
+      type (domain_type), intent(inout) :: domain
+      integer, intent(in) :: rk_step
+      real(kind=RKIND), dimension(:), intent(in) :: rk_timestep
+      logical, intent(in) :: config_monotonic
+      logical, intent(in) :: config_positive_definite
+      integer, intent(in) :: config_time_integration_order
+      logical, intent(in) :: config_split_dynamics_transport
+
+      ! Local variables
+      integer :: thread
+
+      type (mpas_pool_type), pointer :: tend
+      type (mpas_pool_type), pointer :: state
+      type (mpas_pool_type), pointer :: diag
+      type (mpas_pool_type), pointer :: mesh
+
+      type (block_type), pointer :: block
+
+      integer, pointer :: nCells
+      integer, pointer :: nEdges
+      integer, pointer :: nVertLevels
+      integer, pointer :: num_scalars
+
+      integer, pointer :: nThreads
+      integer, dimension(:), pointer :: cellThreadStart
+      integer, dimension(:), pointer :: cellThreadEnd
+      integer, dimension(:), pointer :: cellSolveThreadStart
+      integer, dimension(:), pointer :: cellSolveThreadEnd
+      integer, dimension(:), pointer :: edgeThreadStart
+      integer, dimension(:), pointer :: edgeThreadEnd
+
+
+      if (rk_step < 3 .or. (.not. config_monotonic .and. .not. config_positive_definite)) then
+         call mpas_timer_start('atm_advance_scalars')
+      else
+         call mpas_timer_start('atm_advance_scalars_mono')
+      end if
+
+      block => domain % blocklist
+      do while (associated(block))
+         call mpas_pool_get_subpool(block % structs, 'tend', tend)
+         call mpas_pool_get_subpool(block % structs, 'state', state)
+         call mpas_pool_get_subpool(block % structs, 'diag', diag)
+         call mpas_pool_get_subpool(block % structs, 'mesh', mesh)
+
+         call mpas_pool_get_dimension(mesh, 'nCells', nCells)
+         call mpas_pool_get_dimension(mesh, 'nEdges', nEdges)
+         call mpas_pool_get_dimension(mesh, 'nVertLevels', nVertLevels)
+         call mpas_pool_get_dimension(state, 'num_scalars', num_scalars)
+
+         call mpas_pool_get_dimension(block % dimensions, 'nThreads', nThreads)
+
+         call mpas_pool_get_dimension(block % dimensions, 'cellThreadStart', cellThreadStart)
+         call mpas_pool_get_dimension(block % dimensions, 'cellThreadEnd', cellThreadEnd)
+         call mpas_pool_get_dimension(block % dimensions, 'cellSolveThreadStart', cellSolveThreadStart)
+         call mpas_pool_get_dimension(block % dimensions, 'cellSolveThreadEnd', cellSolveThreadEnd)
+
+         call mpas_pool_get_dimension(block % dimensions, 'edgeThreadStart', edgeThreadStart)
+         call mpas_pool_get_dimension(block % dimensions, 'edgeThreadEnd', edgeThreadEnd)
+
+         allocate(scalar_old_arr(nVertLevels,nCells+1))
+         scalar_old_arr(:,nCells+1) = 0.0_RKIND
+         allocate(scalar_new_arr(nVertLevels,nCells+1))
+         scalar_new_arr(:,nCells+1) = 0.0_RKIND
+         allocate(s_max_arr(nVertLevels,nCells+1))
+         s_max_arr(:,nCells+1) = 0.0_RKIND
+         allocate(s_min_arr(nVertLevels,nCells+1))
+         s_min_arr(:,nCells+1) = 0.0_RKIND
+         allocate(scale_array(nVertLevels,2,nCells+1))
+         scale_array(:,:,nCells+1) = 0.0_RKIND
+         allocate(flux_array(nVertLevels,nEdges+1))
+         flux_array(:,nEdges+1) = 0.0_RKIND
+         allocate(wdtn_arr(nVertLevels+1,nCells+1))
+         wdtn_arr(:,nCells+1) = 0.0_RKIND
+         if (config_split_dynamics_transport) then
+            allocate(rho_zz_int(nVertLevels,nCells+1))
+            rho_zz_int(:,nCells+1) = 0.0_RKIND
+         else
+            allocate(rho_zz_int(1,1))
+         end if
+         if (rk_step < 3 .or. (.not. config_monotonic .and. .not. config_positive_definite)) then
+            allocate(horiz_flux_array(num_scalars,nVertLevels,nEdges+1))
+            horiz_flux_array(:,:,nEdges+1) = 0.0_RKIND
+         else
+            allocate(flux_upwind_tmp_arr(nVertLevels,nEdges+1))
+            flux_upwind_tmp_arr(:,nEdges+1) = 0.0_RKIND
+            allocate(flux_tmp_arr(nVertLevels,nEdges+1))
+            flux_tmp_arr(:,nEdges+1) = 0.0_RKIND
+         end if
+
+         !
+         ! Note: The advance_scalars_mono routine can be used without limiting, and thus, encompasses 
+         !       the functionality of the advance_scalars routine; however, it is noticeably slower, 
+         !       so we use the advance_scalars routine for the first two RK substeps.
+         !
+         !$OMP PARALLEL DO
+         do thread=1,nThreads
+            if (rk_step < 3 .or. (.not. config_monotonic .and. .not. config_positive_definite)) then
+               call atm_advance_scalars(field_name, tend, state, diag, mesh, block % configs, rk_timestep(rk_step), &
+                                        edgeThreadStart(thread), edgeThreadEnd(thread), &
+                                        cellSolveThreadStart(thread), cellSolveThreadEnd(thread), &
+                                        horiz_flux_array, rk_step, config_time_integration_order, &
+                                        advance_density=config_split_dynamics_transport)
+            else
+               call atm_advance_scalars_mono(field_name, block, tend, state, diag, mesh, block % configs, rk_timestep(rk_step), &
+                                             cellThreadStart(thread), cellThreadEnd(thread), &
+                                             edgeThreadStart(thread), edgeThreadEnd(thread), &
+                                             cellSolveThreadStart(thread), cellSolveThreadEnd(thread), &
+                                             scalar_old_arr, scalar_new_arr, s_max_arr, s_min_arr, wdtn_arr, &
+                                             scale_array, flux_array, flux_upwind_tmp_arr, flux_tmp_arr, &
+                                             advance_density=config_split_dynamics_transport, rho_zz_int=rho_zz_int)
+            end if
+         end do
+         !$OMP END PARALLEL DO
+
+         deallocate(scalar_old_arr)
+         deallocate(scalar_new_arr)
+         deallocate(s_max_arr)
+         deallocate(s_min_arr)
+         deallocate(scale_array)
+         deallocate(flux_array)
+         deallocate(wdtn_arr)
+         deallocate(rho_zz_int)
+         if (rk_step < 3 .or. (.not. config_monotonic .and. .not. config_positive_definite)) then
+            deallocate(horiz_flux_array)
+         else
+            deallocate(flux_upwind_tmp_arr)
+            deallocate(flux_tmp_arr)
+         end if
+
+         block => block % next
+      end do
+
+      if (rk_step < 3 .or. (.not. config_monotonic .and. .not. config_positive_definite)) then
+         call mpas_timer_stop('atm_advance_scalars')
+      else
+         call mpas_timer_stop('atm_advance_scalars_mono')
+      end if
+
+   end subroutine advance_scalars
 
 
    subroutine atm_rk_integration_setup( state, diag, &
@@ -3102,47 +3043,45 @@ module atm_time_integration
    end subroutine atm_recover_large_step_variables_work
 
 
-   subroutine atm_advance_scalars( tend, state, diag, mesh, configs, num_scalars, nCells, nVertLevels, dt, &
-                                   cellStart, cellEnd, vertexStart, vertexEnd, edgeStart, edgeEnd, &
-                                   cellSolveStart, cellSolveEnd, vertexSolveStart, vertexSolveEnd, edgeSolveStart, edgeSolveEnd, &
-                                   horiz_flux_arr, rk_step, config_time_integration_order, advance_density, scalar_tend, rho_zz_int)
-   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 
+   !-----------------------------------------------------------------------
+   !  routine atm_advance_scalars
    !
-   ! Integrate scalar equations - explicit transport plus other tendencies
+   !> \brief Integrate scalar equations - explicit transport plus other tendencies
+   !> \date 18 November 2014
+   !> \details
+   !>  This routine is a wrapper for atm_advance_scalars_work and is primarily
+   !>  intended to allow pointers to fields to be dereferenced through the call
+   !>  to the work routine.
    !
-   !  Wrapper for atm_advance_scalars_work() to de-reference pointers
-   !
-   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 
+   !-----------------------------------------------------------------------
+   subroutine atm_advance_scalars(field_name, tend, state, diag, mesh, configs, dt, &
+                                  edgeStart, edgeEnd, &
+                                  cellSolveStart, cellSolveEnd, &
+                                  horiz_flux_arr, rk_step, config_time_integration_order, advance_density)
 
       implicit none
 
+      ! Arguments
+      character(len=*), intent(in) :: field_name
       type (mpas_pool_type), intent(in) :: tend
       type (mpas_pool_type), intent(inout) :: state
       type (mpas_pool_type), intent(in) :: diag
       type (mpas_pool_type), intent(in) :: mesh
       type (mpas_pool_type), intent(in) :: configs
-      integer, intent(in) :: num_scalars      ! for allocating stack variables
-      integer, intent(in) :: nCells           ! for allocating stack variables
-      integer, intent(in) :: nVertLevels      ! for allocating stack variables
       integer, intent(in) :: rk_step    !  rk substep we are integrating
       integer, intent(in) :: config_time_integration_order  ! time integration order
       real (kind=RKIND) :: dt
-      integer, intent(in) :: cellStart, cellEnd, vertexStart, vertexEnd, edgeStart, edgeEnd
-      integer, intent(in) :: cellSolveStart, cellSolveEnd, vertexSolveStart, vertexSolveEnd, edgeSolveStart, edgeSolveEnd
+      integer, intent(in) :: edgeStart, edgeEnd
+      integer, intent(in) :: cellSolveStart, cellSolveEnd
       logical, intent(in), optional :: advance_density
-      real (kind=RKIND), dimension(:,:,:), intent(inout), optional :: scalar_tend
-      real (kind=RKIND), dimension(:,:), intent(inout), optional :: rho_zz_int
 
-      integer :: i, j, iCell, iAdvCell, iEdge, k, iScalar, cell1, cell2
+
+      ! Local variables
       real (kind=RKIND), dimension(:), pointer :: invAreaCell
-      real (kind=RKIND) :: rho_zz_new_inv
-
-      real (kind=RKIND) :: scalar_weight
 
       real (kind=RKIND), dimension(:,:,:), pointer :: scalar_old, scalar_new, scalar_tend_save
-      real (kind=RKIND), dimension(:,:,:), pointer :: deriv_two
-      real (kind=RKIND), dimension(:,:), pointer :: uhAvg, rho_zz_old, rho_zz_new, wwAvg, rho_edge, zgrid, kdiff
-      real (kind=RKIND), dimension(:), pointer :: dvEdge, qv_init
+      real (kind=RKIND), dimension(:,:), pointer :: uhAvg, rho_zz_old, rho_zz_new, wwAvg
+      real (kind=RKIND), dimension(:), pointer :: dvEdge
       integer, dimension(:,:), pointer :: cellsOnEdge
       real (kind=RKIND), dimension(:,:,:), intent(inout) :: horiz_flux_arr
 
@@ -3150,15 +3089,17 @@ module atm_time_integration
       integer, dimension(:), pointer :: nAdvCellsForEdge, nEdgesOnCell
       real (kind=RKIND), dimension(:,:), pointer :: adv_coefs, adv_coefs_3rd, edgesOnCell_sign
 
-      real (kind=RKIND), dimension( num_scalars, nVertLevels + 1 ) :: wdtn
-      integer, pointer :: nCellsSolve, nEdges
+      integer, pointer :: nCells
+      integer, pointer :: nEdges
+      integer, pointer :: num_scalars
 
-      real (kind=RKIND), dimension(:), pointer :: fnm, fnp, rdnw, meshScalingDel2, meshScalingDel4
+      real (kind=RKIND), dimension(:), pointer :: fnm, fnp, rdnw
       real (kind=RKIND), pointer :: coef_3rd_order
 
       integer, dimension(:), pointer :: bdyMaskCell, bdyMaskEdge    ! regional_MPAS addition
 
       logical :: local_advance_density
+
 
       if (present(advance_density)) then
          local_advance_density = advance_density
@@ -3168,145 +3109,120 @@ module atm_time_integration
 
       call mpas_pool_get_config(configs, 'config_coef_3rd_order', coef_3rd_order)
 
-      call mpas_pool_get_array(state, 'scalars', scalar_old, 1)
-      call mpas_pool_get_array(state, 'scalars', scalar_new, 2)
+      call mpas_pool_get_array(state, trim(field_name), scalar_old, 1)
+      call mpas_pool_get_array(state, trim(field_name), scalar_new, 2)
       call mpas_pool_get_array(state, 'rho_zz', rho_zz_old, 1)
       call mpas_pool_get_array(state, 'rho_zz', rho_zz_new, 2)
 
-      call mpas_pool_get_array(diag, 'kdiff', kdiff)
       call mpas_pool_get_array(diag, 'ruAvg', uhAvg)
       call mpas_pool_get_array(diag, 'wwAvg', wwAvg)
 
-      call mpas_pool_get_array(mesh, 'deriv_two', deriv_two)
       call mpas_pool_get_array(mesh, 'dvEdge', dvEdge)
       call mpas_pool_get_array(mesh, 'cellsOnEdge', cellsOnEdge)
       call mpas_pool_get_array(mesh, 'edgesOnCell', edgesOnCell)
       call mpas_pool_get_array(mesh, 'nEdgesOnCell', nEdgesOnCell)
       call mpas_pool_get_array(mesh, 'edgesOnCell_sign', edgesOnCell_sign)
       call mpas_pool_get_array(mesh, 'invAreaCell', invAreaCell)
-      call mpas_pool_get_array(tend, 'scalars_tend', scalar_tend_save)
-
-      call mpas_pool_get_array(tend, 'scalars_tend', scalar_tend_save)  ! regional_MPAS addition
+      call mpas_pool_get_array(tend, trim(field_name)//'_tend', scalar_tend_save)
       
       call mpas_pool_get_array(mesh, 'fzm', fnm)
       call mpas_pool_get_array(mesh, 'fzp', fnp)
       call mpas_pool_get_array(mesh, 'rdzw', rdnw)
-      call mpas_pool_get_array(mesh, 'meshScalingDel2', meshScalingDel2)
-      call mpas_pool_get_array(mesh, 'meshScalingDel4', meshScalingDel4)
 
       call mpas_pool_get_array(mesh, 'nAdvCellsForEdge', nAdvCellsForEdge)
       call mpas_pool_get_array(mesh, 'advCellsForEdge', advCellsForEdge)
       call mpas_pool_get_array(mesh, 'adv_coefs', adv_coefs)
       call mpas_pool_get_array(mesh, 'adv_coefs_3rd', adv_coefs_3rd)
 
-      call mpas_pool_get_array(diag, 'rho_edge', rho_edge)
-      call mpas_pool_get_array(mesh, 'qv_init', qv_init)
-      call mpas_pool_get_array(mesh, 'zgrid', zgrid)
-
-      call mpas_pool_get_dimension(mesh, 'nCellsSolve', nCellsSolve)
+      call mpas_pool_get_dimension(mesh, 'nCells', nCells)
       call mpas_pool_get_dimension(mesh, 'nEdges', nEdges)
+      call mpas_pool_get_dimension(state, 'num_'//trim(field_name), num_scalars)
 
       call mpas_pool_get_array(mesh, 'bdyMaskCell', bdyMaskCell)
       call mpas_pool_get_array(mesh, 'bdyMaskEdge', bdyMaskEdge)
 
-      if (local_advance_density) then
-      call atm_advance_scalars_work(num_scalars, nCells, nVertLevels, dt, &
-             cellStart, cellEnd, vertexStart, vertexEnd, edgeStart, edgeEnd, &
-             cellSolveStart, cellSolveEnd, vertexSolveStart, vertexSolveEnd, edgeSolveStart, edgeSolveEnd, &
-             coef_3rd_order, scalar_old, scalar_new, rho_zz_old, rho_zz_new, kdiff, &
-             uhAvg, wwAvg, deriv_two, dvEdge, &
+      call atm_advance_scalars_work(nCells, num_scalars, dt, &
+             edgeStart, edgeEnd, &
+             cellSolveStart, cellSolveEnd, &
+             coef_3rd_order, scalar_old, scalar_new, rho_zz_old, rho_zz_new, &
+             uhAvg, wwAvg, dvEdge, &
              cellsOnEdge, edgesOnCell, nEdgesOnCell, edgesOnCell_sign, invAreaCell, &
-             scalar_tend_save, fnm, fnp, rdnw, meshScalingDel2, meshScalingDel4, &
+             scalar_tend_save, fnm, fnp, rdnw, &
              bdyMaskCell, bdyMaskEdge, &
-             nAdvCellsForEdge, advCellsForEdge, adv_coefs, adv_coefs_3rd, rho_edge, qv_init, zgrid, &
-             nCellsSolve, nEdges, horiz_flux_arr, rk_step, config_time_integration_order, &
-             local_advance_density, scalar_tend, rho_zz_int)
-      else
-      call atm_advance_scalars_work(num_scalars, nCells, nVertLevels, dt, &
-             cellStart, cellEnd, vertexStart, vertexEnd, edgeStart, edgeEnd, &
-             cellSolveStart, cellSolveEnd, vertexSolveStart, vertexSolveEnd, edgeSolveStart, edgeSolveEnd, &
-             coef_3rd_order, scalar_old, scalar_new, rho_zz_old, rho_zz_new, kdiff, &
-             uhAvg, wwAvg, deriv_two, dvEdge, &
-             cellsOnEdge, edgesOnCell, nEdgesOnCell, edgesOnCell_sign, invAreaCell, &
-             scalar_tend_save, fnm, fnp, rdnw, meshScalingDel2, meshScalingDel4, &
-             bdyMaskCell, bdyMaskEdge, &
-             nAdvCellsForEdge, advCellsForEdge, adv_coefs, adv_coefs_3rd, rho_edge, qv_init, zgrid, &
-             nCellsSolve, nEdges, horiz_flux_arr, rk_step, config_time_integration_order, &
+             nAdvCellsForEdge, advCellsForEdge, adv_coefs, adv_coefs_3rd, &
+             nEdges, horiz_flux_arr, rk_step, config_time_integration_order, &
              local_advance_density)
-      end if
 
    end subroutine atm_advance_scalars
 
 
-   subroutine atm_advance_scalars_work( num_scalars_dummy, nCells, nVertLevels_dummy, dt, &
-             cellStart, cellEnd, vertexStart, vertexEnd, edgeStart, edgeEnd, &
-             cellSolveStart, cellSolveEnd, vertexSolveStart, vertexSolveEnd, edgeSolveStart, edgeSolveEnd, &
-             coef_3rd_order, scalar_old, scalar_new, rho_zz_old, rho_zz_new, kdiff, &
-             uhAvg, wwAvg, deriv_two, dvEdge, &
+   !-----------------------------------------------------------------------
+   !  routine atm_advance_scalars_work
+   !
+   !> \brief Integrate scalar equations - explicit transport plus other tendencies
+   !> \date 18 November 2014
+   !> \details
+   !>  This transport routine is similar to the original atm_advance_scalars, except
+   !>  it also advances (re-integrates) the density.  This re-integration allows the scalar
+   !>  transport routine to use a different timestep than the dry dynamics, and also makes
+   !>  possible a spatial splitting of the scalar transport integration (and density
+   !>  integration).  The current integration is, however, not spatially split.
+   !>
+   !>  WCS 18 November 2014
+   !>
+   !>  Input: s - current model state, 
+   !>             including tendencies from sources other than resolved transport.
+   !>         grid - grid metadata
+   !>
+   !>  input scalars in state are uncoupled (i.e. not mulitplied by density)
+   !>
+   !>  Output: updated uncoupled scalars (scalars in state).
+   !>  Note: scalar tendencies are also modified by this routine.
+   !>
+   !>  This routine DOES NOT apply any positive definite or monotonic renormalizations.
+   !>
+   !>  The transport scheme is from Skamarock and Gassmann MWR 2011.
+   !
+   !-----------------------------------------------------------------------
+   subroutine atm_advance_scalars_work(nCells, num_scalars, dt, &
+             edgeStart, edgeEnd, &
+             cellSolveStart, cellSolveEnd, &
+             coef_3rd_order, scalar_old, scalar_new, rho_zz_old, rho_zz_new, &
+             uhAvg, wwAvg, dvEdge, &
              cellsOnEdge, edgesOnCell, nEdgesOnCell, edgesOnCell_sign, invAreaCell, &
-             scalar_tend_save, fnm, fnp, rdnw, meshScalingDel2, meshScalingDel4, &
+             scalar_tend_save, fnm, fnp, rdnw, &
              bdyMaskCell, bdyMaskEdge, &
-             nAdvCellsForEdge, advCellsForEdge, adv_coefs, adv_coefs_3rd, rho_edge, qv_init, zgrid, &
-             nCellsSolve, nEdges, horiz_flux_arr, rk_step, config_time_integration_order, &
-             advance_density, scalar_tend, rho_zz_int)
-   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 
-   !
-   ! Integrate scalar equations - explicit transport plus other tendencies
-   !
-   !  this transport routine is similar to the original atm_advance_scalars, except it also advances
-   !  (re-integrates) the density.  This re-integration allows the scalar transport routine to use a different 
-   !  timestep than the dry dynamics, and also makes possible a spatial splitting of the scalar transport integration
-   !  (and density integration).  The current integration is, however, not spatially split.
-   !
-   !  WCS 18 November 2014
-   !-----------------------
-   ! Input: s - current model state, 
-   !            including tendencies from sources other than resolved transport.
-   !        grid - grid metadata
-   !
-   ! input scalars in state are uncoupled (i.e. not mulitplied by density)
-   ! 
-   ! Output: updated uncoupled scalars (scalars in state).
-   ! Note: scalar tendencies are also modified by this routine.
-   !
-   ! This routine DOES NOT apply any positive definite or monotonic renormalizations.
-   !
-   ! The transport scheme is from Skamarock and Gassmann MWR 2011.
-   !
-   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 
+             nAdvCellsForEdge, advCellsForEdge, adv_coefs, adv_coefs_3rd, &
+             nEdges, horiz_flux_arr, rk_step, config_time_integration_order, &
+             advance_density)
 
-      use mpas_atm_dimensions
+      use mpas_atm_dimensions, only : nVertLevels
 
       implicit none
 
+      integer, intent(in) :: nCells           ! for allocating stack variables
       integer, intent(in) :: nEdges            ! for allocating stack variables
-      integer, intent(in) :: num_scalars_dummy ! for allocating stack variables
-      integer, intent(in) :: nCells            ! for allocating stack variables
-      integer, intent(in) :: nVertLevels_dummy ! for allocating stack variables
+      integer, intent(in) :: num_scalars
       real (kind=RKIND), intent(in) :: dt
-      integer, intent(in) :: cellStart, cellEnd, vertexStart, vertexEnd, edgeStart, edgeEnd
-      integer, intent(in) :: cellSolveStart, cellSolveEnd, vertexSolveStart, vertexSolveEnd, edgeSolveStart, edgeSolveEnd
+      integer, intent(in) :: edgeStart, edgeEnd
+      integer, intent(in) :: cellSolveStart, cellSolveEnd
       integer, intent(in) :: rk_step, config_time_integration_order
       logical, intent(in) :: advance_density
       real (kind=RKIND), dimension(:,:,:), intent(in) :: scalar_old
       real (kind=RKIND), dimension(:,:,:), intent(inout) :: scalar_new
       real (kind=RKIND), dimension(num_scalars,nVertLevels,nCells+1), intent(inout) :: scalar_tend_save
-      real (kind=RKIND), dimension(:,:,:), intent(in) :: deriv_two
       real (kind=RKIND), dimension(:,:), intent(in) :: rho_zz_old
-      real (kind=RKIND), dimension(:,:), intent(in) :: uhAvg, wwAvg, rho_edge, zgrid, rho_zz_new, kdiff
-      real (kind=RKIND), dimension(:), intent(in) :: dvEdge, qv_init
+      real (kind=RKIND), dimension(:,:), intent(in) :: uhAvg, wwAvg, rho_zz_new
+      real (kind=RKIND), dimension(:), intent(in) :: dvEdge
       integer, dimension(:,:), intent(in) :: cellsOnEdge
       integer, dimension(:,:), intent(in) :: advCellsForEdge, edgesOnCell
       integer, dimension(:), intent(in) :: nAdvCellsForEdge, nEdgesOnCell
       real (kind=RKIND), dimension(:,:), intent(in) :: adv_coefs, adv_coefs_3rd, edgesOnCell_sign
-      real (kind=RKIND), dimension(:), intent(in) :: fnm, fnp, rdnw, meshScalingDel2, meshScalingDel4
+      real (kind=RKIND), dimension(:), intent(in) :: fnm, fnp, rdnw
       real (kind=RKIND), intent(in) :: coef_3rd_order
       real (kind=RKIND), dimension(num_scalars,nVertLevels,nEdges+1), intent(inout) :: horiz_flux_arr
-      real (kind=RKIND), dimension(num_scalars,nVertLevels,nCells+1), intent(inout), optional :: scalar_tend
-      real (kind=RKIND), dimension(nVertLevels,nCells+1), intent(inout), optional :: rho_zz_int
       real (kind=RKIND), dimension(:), intent(in) :: invAreaCell
       integer, dimension(:), intent(in) :: bdyMaskCell, bdyMaskEdge ! regional_MPAS addition
-      integer, intent(in) :: nCellsSolve
 
       integer :: i, j, iCell, iAdvCell, iEdge, k, iScalar, cell1, cell2
       real (kind=RKIND) :: rho_zz_new_inv
@@ -3339,7 +3255,6 @@ module atm_time_integration
       !
       ! Runge Kutta integration, so we compute fluxes from scalar_new values, update starts from scalar_old
       !
-      !  horizontal flux divergence, accumulate in scalar_tend
 
 
       !  horiz_flux_arr stores the value of the scalar at the edge.
@@ -3510,44 +3425,46 @@ module atm_time_integration
    end subroutine atm_advance_scalars_work
 
 
-   subroutine atm_advance_scalars_mono(block, tend, state, diag, mesh, configs, nCells, nEdges, nVertLevels_dummy, dt, &
-                                   cellStart, cellEnd, vertexStart, vertexEnd, edgeStart, edgeEnd, &
-                                   cellSolveStart, cellSolveEnd, vertexSolveStart, vertexSolveEnd, edgeSolveStart, edgeSolveEnd, &
-                                   scalar_old, scalar_new, s_max, s_min, wdtn, scale_arr, flux_arr, &
-                                   flux_upwind_tmp, flux_tmp, advance_density, rho_zz_int)
-   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 
+   !-----------------------------------------------------------------------
+   !  routine atm_advance_scalars_mono
    !
-   ! Integrate scalar equations - transport plus other tendencies
+   !> \brief Integrate scalar equations - transport plus other tendencies
+   !> \date 18 November 2014
+   !> \details
+   !>  This routine is a wrapper for atm_advance_scalars_mono_work and is primarily
+   !>  intended to allow pointers to fields to be dereferenced through the call
+   !>  to the work routine.
    !
-   !  wrapper routine for atm_advance_scalars_mono_work
-   !
-   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 
-
-      use mpas_atm_dimensions
+   !-----------------------------------------------------------------------
+   subroutine atm_advance_scalars_mono(field_name, block, tend, state, diag, mesh, configs, dt, &
+                                       cellStart, cellEnd, edgeStart, edgeEnd, &
+                                       cellSolveStart, cellSolveEnd, &
+                                       scalar_old, scalar_new, s_max, s_min, wdtn, scale_arr, flux_arr, &
+                                       flux_upwind_tmp, flux_tmp, advance_density, rho_zz_int)
 
       implicit none
 
+      ! Arguments
+      character(len=*), intent(in) :: field_name
       type (block_type), intent(inout), target :: block
       type (mpas_pool_type), intent(in)    :: tend
       type (mpas_pool_type), intent(inout) :: state
       type (mpas_pool_type), intent(in)    :: diag
       type (mpas_pool_type), intent(in)    :: mesh
       type (mpas_pool_type), intent(in)    :: configs
-      integer, intent(in)                  :: nCells           ! for allocating stack variables
-      integer, intent(in)                  :: nEdges           ! for allocating stack variables
-      integer, intent(in)                  :: nVertLevels_dummy      ! for allocating stack variables
       real (kind=RKIND), intent(in)        :: dt
-      integer, intent(in) :: cellStart, cellEnd, vertexStart, vertexEnd, edgeStart, edgeEnd
-      integer, intent(in) :: cellSolveStart, cellSolveEnd, vertexSolveStart, vertexSolveEnd, edgeSolveStart, edgeSolveEnd
-      real (kind=RKIND), dimension(nVertLevels,nCells+1), intent(inout) :: scalar_old, scalar_new
-      real (kind=RKIND), dimension(nVertLevels,nCells+1), intent(inout) :: s_max, s_min
-      real (kind=RKIND), dimension(nVertLevels+1,nCells+1), intent(inout) :: wdtn
-      real (kind=RKIND), dimension(nVertLevels,2,nCells+1), intent(inout) :: scale_arr
-      real (kind=RKIND), dimension(nVertLevels,nEdges+1), intent(inout) :: flux_arr
-      real (kind=RKIND), dimension(nVertLevels,nEdges+1), intent(inout) :: flux_upwind_tmp, flux_tmp
+      integer, intent(in) :: cellStart, cellEnd, edgeStart, edgeEnd
+      integer, intent(in) :: cellSolveStart, cellSolveEnd
+      real (kind=RKIND), dimension(:,:), intent(inout) :: scalar_old, scalar_new
+      real (kind=RKIND), dimension(:,:), intent(inout) :: s_max, s_min
+      real (kind=RKIND), dimension(:,:), intent(inout) :: wdtn
+      real (kind=RKIND), dimension(:,:,:), intent(inout) :: scale_arr
+      real (kind=RKIND), dimension(:,:), intent(inout) :: flux_arr
+      real (kind=RKIND), dimension(:,:), intent(inout) :: flux_upwind_tmp, flux_tmp
       logical, intent(in), optional :: advance_density
-      real (kind=RKIND), dimension(nVertLevels,nCells+1), intent(inout), optional :: rho_zz_int
+      real (kind=RKIND), dimension(:,:), intent(inout), optional :: rho_zz_int
 
+      ! Local variables
       real (kind=RKIND), dimension(:,:,:), pointer :: scalar_tend
       real (kind=RKIND), dimension(:,:), pointer :: uhAvg, rho_zz_old, rho_zz_new, wwAvg
       real (kind=RKIND), dimension(:), pointer :: dvEdge, invAreaCell
@@ -3561,25 +3478,32 @@ module atm_time_integration
 
       integer, dimension(:), pointer :: bdyMaskCell, bdyMaskEdge  ! regional_MPAS addition
 
+      integer, pointer :: nCells
+      integer, pointer :: nEdges
       integer, pointer :: nCellsSolve
+      integer, pointer :: num_scalars
 
       real (kind=RKIND), dimension(:), pointer :: fnm, fnp, rdnw
       integer, dimension(:), pointer :: nEdgesOnCell
       real (kind=RKIND), pointer :: coef_3rd_order
 
+
       call mpas_pool_get_config(configs, 'config_coef_3rd_order', coef_3rd_order)
 
+      call mpas_pool_get_dimension(mesh, 'nCells', nCells)
+      call mpas_pool_get_dimension(mesh, 'nEdges', nEdges)
       call mpas_pool_get_dimension(mesh, 'nCellsSolve', nCellsSolve)
+      call mpas_pool_get_dimension(state, 'num_'//trim(field_name), num_scalars)
 
       call mpas_pool_get_array(diag, 'ruAvg', uhAvg)
       call mpas_pool_get_array(diag, 'wwAvg', wwAvg)
 
-      call mpas_pool_get_array(tend, 'scalars_tend', scalar_tend)
+      call mpas_pool_get_array(tend, trim(field_name)//'_tend', scalar_tend)
 
       call mpas_pool_get_array(state, 'rho_zz', rho_zz_old, 1)
       call mpas_pool_get_array(state, 'rho_zz', rho_zz_new, 2)
-      call mpas_pool_get_array(state, 'scalars', scalars_old, 1)
-      call mpas_pool_get_array(state, 'scalars', scalars_new, 2)
+      call mpas_pool_get_array(state, trim(field_name), scalars_old, 1)
+      call mpas_pool_get_array(state, trim(field_name), scalars_new, 2)
 
       call mpas_pool_get_array(mesh, 'invAreaCell', invAreaCell)
       call mpas_pool_get_array(mesh, 'dvEdge', dvEdge)
@@ -3599,10 +3523,10 @@ module atm_time_integration
       call mpas_pool_get_array(mesh, 'bdyMaskCell', bdyMaskCell)  ! MPAS_regional addition
       call mpas_pool_get_array(mesh, 'bdyMaskEdge', bdyMaskEdge)  ! MPAS_regional addition
 
-      call atm_advance_scalars_mono_work(block, state, nCells, nEdges, nVertLevels, dt, &
-                                   cellStart, cellEnd, vertexStart, vertexEnd, edgeStart, edgeEnd, &
-                                   cellSolveStart, cellSolveEnd, vertexSolveStart, vertexSolveEnd, edgeSolveStart, edgeSolveEnd, &
-                                   coef_3rd_order, nCellsSolve, num_scalars, uhAvg, wwAvg, scalar_tend, rho_zz_old, &
+      call atm_advance_scalars_mono_work(block, state, nCells, nEdges, num_scalars, dt, &
+                                   cellStart, cellEnd, edgeStart, edgeEnd, &
+                                   cellSolveStart, cellSolveEnd, &
+                                   coef_3rd_order, nCellsSolve, uhAvg, wwAvg, scalar_tend, rho_zz_old, &
                                    rho_zz_new, scalars_old, scalars_new, invAreaCell, dvEdge, cellsOnEdge, cellsOnCell, &
                                    edgesOnCell, edgesOnCell_sign, nEdgesOnCell, fnm, fnp, rdnw, nAdvCellsForEdge, &
                                    advCellsForEdge, adv_coefs, adv_coefs_3rd, scalar_old, scalar_new, s_max, s_min, &
@@ -3613,46 +3537,50 @@ module atm_time_integration
    end subroutine atm_advance_scalars_mono
 
 
-   subroutine atm_advance_scalars_mono_work(block, state, nCells, nEdges, nVertLevels_dummy, dt, &
-                                   cellStart, cellEnd, vertexStart, vertexEnd, edgeStart, edgeEnd, &
-                                   cellSolveStart, cellSolveEnd, vertexSolveStart, vertexSolveEnd, edgeSolveStart, edgeSolveEnd, &
-                                   coef_3rd_order, nCellsSolve, num_scalars_dummy, uhAvg, wwAvg, scalar_tend, rho_zz_old, &
+   !-----------------------------------------------------------------------
+   !  routine atm_advance_scalars_mono_work
+   !
+   !> \brief Integrate scalar equations - transport plus other tendencies
+   !> \date 18 November 2014
+   !> \details
+   !>  This transport routine is similar to the original atm_advance_scalars_mono_work,
+   !>  except it also advances (re-integrates) the density.  This re-integration allows
+   !>  the scalar transport routine to use a different timestep than the dry dynamics,
+   !>  and also makes possible a spatial splitting of the scalar transport integration
+   !>  (and density integration).  The current integration is, however, not spatially split.
+   !>
+   !>  WCS 18 November 2014
+   !>
+   !>
+   !>  Input: s - current model state, 
+   !>             including tendencies from sources other than resolved transport.
+   !>         grid - grid metadata
+   !>
+   !>  input scalars in state are uncoupled (i.e. not mulitplied by density)
+   !>
+   !>  Output: updated uncoupled scalars (scalars in s_new).
+   !>  Note: scalar tendencies are also modified by this routine.
+   !>
+   !>  This routine DOES apply positive definite or monotonic renormalizations.
+   !>
+   !>  The transport scheme is from Skamarock and Gassmann MWR 2011.
+   !>
+   !>  The positive-definite or monotonic renormalization is from Zalesak JCP 1979
+   !>  as used in the RK3 scheme as described in Wang et al MWR 2009
+   !
+   !-----------------------------------------------------------------------
+   subroutine atm_advance_scalars_mono_work(block, state, nCells, nEdges, num_scalars, dt, &
+                                   cellStart, cellEnd, edgeStart, edgeEnd, &
+                                   cellSolveStart, cellSolveEnd, &
+                                   coef_3rd_order, nCellsSolve, uhAvg, wwAvg, scalar_tend, rho_zz_old, &
                                    rho_zz_new, scalars_old, scalars_new, invAreaCell, dvEdge, cellsOnEdge, cellsOnCell, &
                                    edgesOnCell, edgesOnCell_sign, nEdgesOnCell, fnm, fnp, rdnw, nAdvCellsForEdge, &
                                    advCellsForEdge, adv_coefs, adv_coefs_3rd, scalar_old, scalar_new, s_max, s_min, &
                                    wdtn, scale_arr, flux_arr, flux_upwind_tmp, flux_tmp, &
                                    bdyMaskCell, bdyMaskEdge, &
                                    advance_density, rho_zz_int)
-   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 
-   !
-   ! Integrate scalar equations - transport plus other tendencies
-   !
-   !  this transport routine is similar to the original atm_advance_scalars_mono_work, except it also advances
-   !  (re-integrates) the density.  This re-integration allows the scalar transport routine to use a different 
-   !  timestep than the dry dynamics, and also makes possible a spatial splitting of the scalar transport integration
-   !  (and density integration).  The current integration is, however, not spatially split.
-   !
-   !  WCS 18 November 2014
-   !-----------------------
-   !
-   ! Input: s - current model state, 
-   !            including tendencies from sources other than resolved transport.
-   !        grid - grid metadata
-   !
-   ! input scalars in state are uncoupled (i.e. not mulitplied by density)
-   ! 
-   ! Output: updated uncoupled scalars (scalars in s_new).
-   ! Note: scalar tendencies are also modified by this routine.
-   !
-   ! This routine DOES apply positive definite or monotonic renormalizations.
-   !
-   ! The transport scheme is from Skamarock and Gassmann MWR 2011.
-   !
-   ! The positive-definite or monotonic renormalization is from Zalesak JCP 1979
-   !   as used in the RK3 scheme as described in Wang et al MWR 2009
-   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 
 
-      use mpas_atm_dimensions
+      use mpas_atm_dimensions, only : nVertLevels
 
       implicit none
 
@@ -3660,10 +3588,10 @@ module atm_time_integration
       type (mpas_pool_type), intent(inout) :: state
       integer, intent(in)                  :: nCells           ! for allocating stack variables
       integer, intent(in)                  :: nEdges           ! for allocating stack variables
-      integer, intent(in)                  :: nVertLevels_dummy ! for allocating stack variables
+      integer, intent(in)                  :: num_scalars
       real (kind=RKIND), intent(in)        :: dt
-      integer, intent(in) :: cellStart, cellEnd, vertexStart, vertexEnd, edgeStart, edgeEnd
-      integer, intent(in) :: cellSolveStart, cellSolveEnd, vertexSolveStart, vertexSolveEnd, edgeSolveStart, edgeSolveEnd
+      integer, intent(in) :: cellStart, cellEnd, edgeStart, edgeEnd
+      integer, intent(in) :: cellSolveStart, cellSolveEnd
       logical, intent(in), optional :: advance_density
       real (kind=RKIND), dimension(nVertLevels,nCells+1), intent(inout), optional :: rho_zz_int
 
@@ -3701,8 +3629,10 @@ module atm_time_integration
 
       integer, parameter :: SCALE_IN = 1, SCALE_OUT = 2
 
-      integer, intent(in) :: nCellsSolve, num_scalars_dummy
+      integer, intent(in) :: nCellsSolve
+#ifdef DEBUG_TRANSPORT
       integer :: icellmax, kmax
+#endif
 
       real (kind=RKIND), dimension(nVertLevels), intent(in) :: fnm, fnp, rdnw
       integer, dimension(:), intent(in) :: nEdgesOnCell
@@ -3711,7 +3641,10 @@ module atm_time_integration
 
       real (kind=RKIND), dimension(nVertLevels) :: flux_upwind_arr
       real (kind=RKIND) :: flux3, flux4, flux_upwind
-      real (kind=RKIND) :: q_im2, q_im1, q_i, q_ip1, ua, coef3, scmin,scmax
+      real (kind=RKIND) :: q_im2, q_im1, q_i, q_ip1, ua, coef3
+#ifdef DEBUG_TRANSPORT
+      real (kind=RKIND) :: scmin,scmax
+#endif
       real (kind=RKIND) :: scale_factor
 
       logical :: local_advance_density
@@ -3773,11 +3706,8 @@ module atm_time_integration
          end if
 
          !  begin with update of density
-         do iCell=cellStart,cellEnd
-            rho_zz_int(:,iCell) = 0.0
-         end do
-!$OMP BARRIER
          do iCell=cellSolveStart,cellSolveEnd
+            rho_zz_int(:,iCell) = 0.0
             do i=1,nEdgesOnCell(iCell)
                iEdge = edgesOnCell(i,iCell)
    
