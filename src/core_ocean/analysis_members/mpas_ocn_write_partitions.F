@@ -49,6 +49,12 @@ module ocn_write_partitions
    character(len=6) :: charMPIRank
    character(len=2) :: Hem
    character(len=17), parameter :: subdir = 'write_partitions/'
+   real(KIND=RKIND), parameter :: minT = -2.0_RKIND
+   real(KIND=RKIND), parameter :: maxT = 30.0_RKIND
+   real(KIND=RKIND), parameter :: minS =  0.0_RKIND
+   real(KIND=RKIND), parameter :: maxS = 40.0_RKIND
+   real(KIND=RKIND), parameter :: minV = -1.0_RKIND
+   real(KIND=RKIND), parameter :: maxV =  1.0_RKIND
 
 !***********************************************************************
 
@@ -100,10 +106,10 @@ contains
       type (block_type), pointer :: block
       type (mpas_pool_type), pointer :: meshPool
       real (kind=RKIND), dimension(:), pointer :: latCell, lonCell
-      real (kind=RKIND) :: latMin, latMax
+      real (kind=RKIND) :: latMin, latMax, lonMin, lonMax
       integer, dimension(:), pointer :: indexToCellID
       integer, dimension(:), pointer :: maxLevelCell
-      integer, pointer :: nCellsSolve
+      integer, pointer :: nCellsSolve, nVertLevels
       integer :: mpiRank
       character(len=StrKIND) :: filename
       err = 0
@@ -114,6 +120,7 @@ contains
       block => domain % blocklist
       do while (associated(block))
          call mpas_pool_get_subpool(block % structs, 'mesh', meshPool)
+         call mpas_pool_get_dimension(block % dimensions, 'nVertLevels', nVertLevels)
          call mpas_pool_get_dimension(meshPool, 'nCellsSolve', nCellsSolve)
          call mpas_pool_get_array(meshPool, 'lonCell', lonCell)
          call mpas_pool_get_array(meshPool, 'latCell', latCell)
@@ -121,6 +128,8 @@ contains
          call mpas_pool_get_array(meshPool, 'maxLevelCell', maxLevelCell)
          latMax = maxval(latCell(1:nCellsSolve))*180.0_RKIND/pii
          latMin = minval(latCell(1:nCellsSolve))*180.0_RKIND/pii
+         lonMax = maxval(lonCell(1:nCellsSolve))*180.0_RKIND/pii
+         lonMin = minval(lonCell(1:nCellsSolve))*180.0_RKIND/pii
          if (latMax > 50.0) then
              write_this_partition = .true.
              Hem = 'NH'
@@ -133,23 +142,50 @@ contains
          endif
 
          filename = 'mpaso.stats.'//Hem//'.p'//charMPIRank//'.txt'
-         open(unit=10, file=subdir//filename)
-         write (10, '(A, I10)')  'nCells = ', nCellsSolve
-         write (10, '(A, F7.2)') 'latMin = ', latMin
-         write (10, '(A, F7.2)') 'latMax = ', latMax
-         close(unit=10)
+         open(10, file=subdir//filename)
+         write (10, '(A)')  'nCells, latMin, latMax, lonMin, lonMax'
+         write (10, '(I10)')  nCellsSolve
+         write (10, '(F7.2)') latMin
+         write (10, '(F7.2)') latMax
+         write (10, '(F7.2)') lonMin
+         write (10, '(F7.2)') lonMax
+         close(10)
+
+         if (mpiRank==0) then
+            filename = 'mpaso.info.txt'
+            open(10, file=subdir//filename)
+            write (10, '(A)')  'nVertLevels, minT, maxT, minS, maxS, minV, maxV'
+            write (10, '(I5)')  nVertLevels
+            write (10, '(F8.2)') minT
+            write (10, '(F8.2)') maxT
+            write (10, '(F8.2)') minS
+            write (10, '(F8.2)') maxS
+            write (10, '(F8.2)') minV
+            write (10, '(F8.2)') maxV
+            close(10)
+         endif
 
          if (.not.write_this_partition) return
 
          filename = 'mpaso.indexToCellID.'//Hem//'.p'//charMPIRank//'.I2.dat'
-         open(unit=10, file=subdir//filename, status='replace', form='unformatted')
+         open(10, file=subdir//filename, status='replace', access='stream')
          write (10) int(indexToCellID(1:nCellsSolve),2)
-         close(unit=10)
+         close(10)
 
          filename = 'mpaso.maxLevelCell.'//Hem//'.p'//charMPIRank//'.I1.dat'
-         open(unit=10, file=subdir//filename, status='replace', form='unformatted')
+         open(10, file=subdir//filename, status='replace', access='stream')
          write (10) int(maxLevelCell(1:nCellsSolve),1)
-         close(unit=10)
+         close(10)
+
+         filename = 'mpaso.latCell.'//Hem//'.p'//charMPIRank//'.R4.dat'
+         open(10, file=subdir//filename, status='replace', access='stream')
+         write (10) real(latCell(1:nCellsSolve),4)
+         close(10)
+
+         filename = 'mpaso.lonCell.'//Hem//'.p'//charMPIRank//'.R4.dat'
+         open(10, file=subdir//filename, status='replace', access='stream')
+         write (10) real(lonCell(1:nCellsSolve),4)
+         close(10)
 
          block => block % next
       end do
@@ -207,15 +243,12 @@ contains
       type (block_type), pointer :: block
       type (mpas_pool_type), pointer :: statePool, meshPool, diagnosticsPool, tracersPool
       character (len=StrKIND), pointer :: xtime
-      real (kind=RKIND), dimension(:), pointer :: latCell, lonCell
       real (kind=RKIND), dimension(:,:,:), pointer :: activeTracers
       real (kind=RKIND), dimension(:,:), pointer :: velocityZonal, velocityMeridional, vertVelocityTop
       integer, dimension(:), pointer :: maxLevelCell
-      integer, pointer :: indexTemperature
-      integer, pointer :: indexSalinity
-      integer, pointer :: nCellsSolve
+      integer, pointer :: indexTemperature, indexSalinity, nCellsSolve
       integer(KIND=2), dimension(100) :: intCol
-      integer :: iCell, kMax, minScale, maxScale
+      integer :: iCell, kMax
       character(len=StrKIND) :: filename
 
       err = 0
@@ -229,6 +262,7 @@ contains
          call mpas_pool_get_subpool(block % structs, 'mesh', meshPool)
          call mpas_pool_get_subpool(block % structs, 'state', statePool)
          call mpas_pool_get_subpool(block % structs, 'diagnostics', diagnosticsPool)
+
          call mpas_pool_get_dimension(meshPool, 'nCellsSolve', nCellsSolve)
          call mpas_pool_get_array(meshPool, 'maxLevelCell', maxLevelCell)
          call mpas_pool_get_array(diagnosticsPool, 'xtime', xtime)
@@ -241,56 +275,48 @@ contains
          call mpas_pool_get_array(diagnosticsPool, 'velocityMeridional', velocityMeridional)
          call mpas_pool_get_array(diagnosticsPool, 'vertVelocityTop', vertVelocityTop)
 
-         minScale = -2.0_RKIND
-         maxScale = 30.0_RKIND
          filename = 'mpaso.temperature.'//xtime(1:10)//'.'//Hem//'.p'//charMPIRank//'.I2.dat'
-         open(unit=10, file=subdir//filename, status='replace', form='unformatted')
+         open(10, file=subdir//filename, status='replace', access='stream')
          do iCell = 1, nCellsSolve
             kMax = maxLevelCell(iCell)
-            intCol(1:kMax) = (activeTracers(indexTemperature,1:kMax,iCell) - minScale)/(maxScale - minScale) * 65535
+            intCol(1:kMax) = (activeTracers(indexTemperature,1:kMax,iCell) - minT)/(maxT - minT) * 65535
             write (10) intCol(1:kMax)
          enddo
-         close(unit=10)
+         close(10)
 
-         minScale =  0.0_RKIND
-         maxScale = 40.0_RKIND
          filename = 'mpaso.salinity.'//xtime(1:10)//'.'//Hem//'.p'//charMPIRank//'.I2.dat'
-         open(unit=10, file=subdir//filename, status='replace', form='unformatted')
+         open(10, file=subdir//filename, status='replace', access='stream')
          do iCell = 1, nCellsSolve
             kMax = maxLevelCell(iCell)
-            intCol(1:kMax) = (activeTracers(indexSalinity,1:kMax,iCell) - minScale)/(maxScale - minScale) * 65535
+            intCol(1:kMax) = (activeTracers(indexSalinity,1:kMax,iCell) - minS)/(maxS - minS) * 65535
             write (10) intCol(1:kMax)
          enddo
-         close(unit=10)
+         close(10)
 
-         minScale = -1.0_RKIND
-         maxScale =  1.0_RKIND
          filename = 'mpaso.velocityZonal.'//xtime(1:10)//'.'//Hem//'.p'//charMPIRank//'.I2.dat'
-         open(unit=10, file=subdir//filename, status='replace', form='unformatted')
+         open(10, file=subdir//filename, status='replace', access='stream')
          do iCell = 1, nCellsSolve
             kMax = maxLevelCell(iCell)
-            intCol(1:kMax) = (velocityZonal(1:kMax,iCell) - minScale)/(maxScale - minScale) * 65535
+            intCol(1:kMax) = (velocityZonal(1:kMax,iCell) - minV)/(maxV - minV) * 65535
             write (10) intCol(1:kMax)
          enddo
-         close(unit=10)
+         close(10)
 
-         minScale = -1.0_RKIND
-         maxScale =  1.0_RKIND
          filename = 'mpaso.velocityMeridional.'//xtime(1:10)//'.'//Hem//'.p'//charMPIRank//'.I2.dat'
-         open(unit=10, file=subdir//filename, status='replace', form='unformatted')
+         open(10, file=subdir//filename, status='replace', access='stream')
          do iCell = 1, nCellsSolve
             kMax = maxLevelCell(iCell)
-            intCol(1:kMax) = (velocityMeridional(1:kMax,iCell) - minScale)/(maxScale - minScale) * 65535
+            intCol(1:kMax) = (velocityMeridional(1:kMax,iCell) - minV)/(maxV - minV) * 65535
             write (10) intCol(1:kMax)
          enddo
-         close(unit=10)
+         close(10)
 
          filename = 'mpaso.vertVelocityTop.'//xtime(1:10)//'.'//Hem//'.p'//charMPIRank//'.R4.dat'
-         open(unit=10, file=subdir//filename, status='replace', form='unformatted')
+         open(10, file=subdir//filename, status='replace', access='stream')
          do iCell = 1, nCellsSolve
             write (10) real(vertVelocityTop(1:maxLevelCell(iCell),iCell), 4)
          enddo
-         close(unit=10)
+         close(10)
 
          block => block % next
       end do
