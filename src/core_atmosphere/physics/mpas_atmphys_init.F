@@ -128,6 +128,8 @@
  logical,pointer:: config_oml1d
  type (mpas_coupler_type), pointer :: coupler
  
+ 
+
 !local variables and arrays:
  type(MPAS_Time_Type):: currTime
 
@@ -212,7 +214,6 @@
  coupler => block % domain % mpas_cpl
 
 if (coupler%role_includes(ROLE_INTEGRATE)) then
-!write(*,*) "my role inside physics init ---------- ",coupler%role()
  currTime = mpas_get_clock_time(clock,MPAS_NOW,ierr)
  call mpas_get_time(curr_time=currTime,DoY=julday,ierr=ierr)
 

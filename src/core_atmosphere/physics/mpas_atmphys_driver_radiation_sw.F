@@ -355,40 +355,38 @@
  call mpas_pool_get_config(configs,'config_microp_scheme' ,microp_scheme       )
  call mpas_pool_get_config(configs,'config_microp_re'     ,config_microp_re    )
 
- call mpas_pool_get_array_gpu(mesh,'latCell',latCell)
- call mpas_pool_get_array_gpu(mesh,'lonCell',lonCell)
+ call mpas_pool_get_array(mesh,'latCell',latCell)
+ call mpas_pool_get_array(mesh,'lonCell',lonCell)
 
  call mpas_pool_get_field(mesh,'latCell',latCellField)
  call mpas_pool_get_field(mesh,'lonCell',lonCellField)
 
- call mpas_pool_get_array_gpu(state,'aerosols',aerosols,time_lev)
+ call mpas_pool_get_array(state,'aerosols',aerosols,time_lev)
 
  call mpas_pool_get_field(state,'aerosols',aerosolsField,time_lev)
 
- call mpas_pool_get_array_gpu(sfc_input,'skintemp',skintemp)
- call mpas_pool_get_array_gpu(sfc_input,'snow'    ,snow    )
- call mpas_pool_get_array_gpu(sfc_input,'xice'    ,xice    )
- call mpas_pool_get_array_gpu(sfc_input,'xland'   ,xland   )
+ call mpas_pool_get_array(sfc_input,'skintemp',skintemp)
+ call mpas_pool_get_array(sfc_input,'snow'    ,snow    )
+ call mpas_pool_get_array(sfc_input,'xice'    ,xice    )
+ call mpas_pool_get_array(sfc_input,'xland'   ,xland   )
 
  call mpas_pool_get_field(sfc_input,'skintemp',skintempField)
  call mpas_pool_get_field(sfc_input,'snow'    ,snowField    )
  call mpas_pool_get_field(sfc_input,'xice'    ,xiceField    )
  call mpas_pool_get_field(sfc_input,'xland'   ,xlandField   )
 
- call mpas_pool_get_array_gpu(atm_input,'pin'     ,pin     )
- call mpas_pool_get_array_gpu(atm_input,'ozmixm'  ,ozmixm  )
+ call mpas_pool_get_array(atm_input,'pin'     ,pin     )
+ call mpas_pool_get_array(atm_input,'ozmixm'  ,ozmixm  )
 
  call mpas_pool_get_field(atm_input,'pin'     ,pinField     )
  call mpas_pool_get_field(atm_input,'ozmixm'  ,ozmixmField  )
 
- call mpas_pool_get_array_gpu(diag_physics,'sfc_albedo',sfc_albedo)
- call mpas_pool_get_array_gpu(diag_physics,'sfc_emiss' ,sfc_emiss )
- call mpas_pool_get_array_gpu(diag_physics,'cldfrac'   ,cldfrac   )
- call mpas_pool_get_array_gpu(diag_physics,'o3clim'    ,o3clim    )
- call mpas_pool_get_array_gpu(diag_physics,'m_hybi'    ,m_hybi    )
- call mpas_pool_get_array_gpu(diag_physics,'m_ps'      ,m_ps      )
-
-!!!
+ call mpas_pool_get_array(diag_physics,'sfc_albedo',sfc_albedo)
+ call mpas_pool_get_array(diag_physics,'sfc_emiss' ,sfc_emiss )
+ call mpas_pool_get_array(diag_physics,'cldfrac'   ,cldfrac   )
+ call mpas_pool_get_array(diag_physics,'o3clim'    ,o3clim    )
+ call mpas_pool_get_array(diag_physics,'m_hybi'    ,m_hybi    )
+ call mpas_pool_get_array(diag_physics,'m_ps'      ,m_ps      )
 
  call mpas_pool_get_field(diag_physics,'sfc_albedo',sfc_albedoField)
  call mpas_pool_get_field(diag_physics,'sfc_emiss' ,sfc_emissField )
@@ -396,12 +394,6 @@
  call mpas_pool_get_field(diag_physics,'o3clim'    ,o3climField    )
  call mpas_pool_get_field(diag_physics,'m_hybi'    ,m_hybiField )
  call mpas_pool_get_field(diag_physics,'m_ps'      ,m_psField,time_lev)
-
- if (mpas_cpl%role_is(ROLE_INTEGRATE)) then
-    !$acc update host(latCell, lonCell, aerosols, skintemp, snow, &
-    !$acc xice, xland, sfc_albedo, sfc_emiss, cldfrac, &
-    !$acc o3clim, m_hybi, m_ps)
- endif
 
  if (mpas_cpl%role_is(ROLE_INTEGRATE) .or. &
      mpas_cpl%role_is(ROLE_RADIATION)) then
@@ -427,12 +419,6 @@
     call MPAS_coupler_transfer_field(mpas_cpl, cells_to_rad_handle, o3climField, ierr=ierr)
 
  end if
-
- if (mpas_cpl%role_is(ROLE_INTEGRATE)) then
-    !$acc update device(latCell, lonCell, aerosols, skintemp, snow, &
-    !$acc xice, xland, sfc_albedo, sfc_emiss, cldfrac, &
-    !$acc o3clim, m_hybi, m_ps)
- endif
 
  if (mpas_cpl%role_includes(ROLE_RADIATION)) then
  do j = jts,jte
@@ -494,14 +480,9 @@
        microp_select: select case(microp_scheme)
           case("mp_thompson","mp_wsm6")
              if(config_microp_re) then
-                call mpas_pool_get_array_gpu(diag_physics,'re_cloud',re_cloud)
-                call mpas_pool_get_array_gpu(diag_physics,'re_ice'  ,re_ice  )
-                call mpas_pool_get_array_gpu(diag_physics,'re_snow' ,re_snow )
-
-!!!
- if (mpas_cpl%role_is(ROLE_INTEGRATE)) then
- !$acc update host(re_cloud, re_ice, re_snow)
- end if
+                call mpas_pool_get_array(diag_physics,'re_cloud',re_cloud)
+                call mpas_pool_get_array(diag_physics,'re_ice'  ,re_ice  )
+                call mpas_pool_get_array(diag_physics,'re_snow' ,re_snow )
 
                 do j = jts,jte
                 do k = kts,kte
@@ -512,10 +493,6 @@
                 enddo
                 enddo
                 enddo
-!!!
- if (mpas_cpl%role_is(ROLE_INTEGRATE)) then
- !$acc update device(re_cloud, re_ice, re_snow)
- end if
              else
                 ! These are set in module mpas_atmphys_manager and should not be set again
                 !has_reqc = 0
@@ -660,11 +637,6 @@
  end select radiation_sw_select
  end if
 
- if (mpas_cpl%role_is(ROLE_INTEGRATE)) then
- !$acc update device(latCell, lonCell, aerosols, skintemp, snow, &
- !$acc xice, xland, pin, ozmixm, sfc_albedo, sfc_emiss, cldfrac, &
- !$acc o3clim, m_hybi, m_ps)
- end if
  end subroutine radiation_sw_from_MPAS
 
 !=================================================================================================================
@@ -706,20 +678,18 @@
 
 !-----------------------------------------------------------------------------------------------------------------
 
- call mpas_pool_get_array_gpu(diag_physics,'coszr'     ,coszr     )
- call mpas_pool_get_array_gpu(diag_physics,'gsw'       ,gsw       )
- call mpas_pool_get_array_gpu(diag_physics,'swcf'      ,swcf      )
- call mpas_pool_get_array_gpu(diag_physics,'swdnb'     ,swdnb     )
- call mpas_pool_get_array_gpu(diag_physics,'swdnbc'    ,swdnbc    )
- call mpas_pool_get_array_gpu(diag_physics,'swdnt'     ,swdnt     )
- call mpas_pool_get_array_gpu(diag_physics,'swdntc'    ,swdntc    )
- call mpas_pool_get_array_gpu(diag_physics,'swupb'     ,swupb     )
- call mpas_pool_get_array_gpu(diag_physics,'swupbc'    ,swupbc    )
- call mpas_pool_get_array_gpu(diag_physics,'swupt'     ,swupt     )
- call mpas_pool_get_array_gpu(diag_physics,'swuptc'    ,swuptc    )
- call mpas_pool_get_array_gpu(tend_physics,'rthratensw',rthratensw)
-
-!!!
+ call mpas_pool_get_array(diag_physics,'coszr'     ,coszr     )
+ call mpas_pool_get_array(diag_physics,'gsw'       ,gsw       )
+ call mpas_pool_get_array(diag_physics,'swcf'      ,swcf      )
+ call mpas_pool_get_array(diag_physics,'swdnb'     ,swdnb     )
+ call mpas_pool_get_array(diag_physics,'swdnbc'    ,swdnbc    )
+ call mpas_pool_get_array(diag_physics,'swdnt'     ,swdnt     )
+ call mpas_pool_get_array(diag_physics,'swdntc'    ,swdntc    )
+ call mpas_pool_get_array(diag_physics,'swupb'     ,swupb     )
+ call mpas_pool_get_array(diag_physics,'swupbc'    ,swupbc    )
+ call mpas_pool_get_array(diag_physics,'swupt'     ,swupt     )
+ call mpas_pool_get_array(diag_physics,'swuptc'    ,swuptc    )
+ call mpas_pool_get_array(tend_physics,'rthratensw',rthratensw)
 
  call mpas_pool_get_field(diag_physics,'coszr'     ,coszrField     )
  call mpas_pool_get_field(diag_physics,'gsw'       ,gswField       )
@@ -762,11 +732,6 @@
 
  if (transfer_fields) then
 
-    if (mpas_cpl%role_is(ROLE_INTEGRATE)) then
-       !$acc update host(coszr, gsw, swcf, swdnb, swdnbc, swdnt, swdntc, &
-       !$acc swupb, swupbc, swupt, swuptc, rthratensw)
-    end if
-
     if (mpas_cpl%role_is(ROLE_INTEGRATE) .or. &
         mpas_cpl%role_is(ROLE_RADIATION)) then
 
@@ -783,11 +748,6 @@
        call MPAS_coupler_transfer_field(mpas_cpl, cells_from_rad_handle, swuptcField, ierr=ierr)
        call MPAS_coupler_transfer_field(mpas_cpl, cells_from_rad_handle, rthratenswField, ierr=ierr)
 
-    end if
-
-    if (mpas_cpl%role_is(ROLE_INTEGRATE)) then
-       !$acc update device(coszr, gsw, swcf, swdnb, swdnbc, swdnt, swdntc, &
-       !$acc swupb, swupbc, swupt, swuptc, rthratensw)
     end if
 
  end if
@@ -828,18 +788,18 @@
 
 !-----------------------------------------------------------------------------------------------------------------
 
- call mpas_pool_get_array_gpu(diag_physics,'coszr'     ,coszr     )
- call mpas_pool_get_array_gpu(diag_physics,'gsw'       ,gsw       )
- call mpas_pool_get_array_gpu(diag_physics,'swcf'      ,swcf      )
- call mpas_pool_get_array_gpu(diag_physics,'swdnb'     ,swdnb     )
- call mpas_pool_get_array_gpu(diag_physics,'swdnbc'    ,swdnbc    )
- call mpas_pool_get_array_gpu(diag_physics,'swdnt'     ,swdnt     )
- call mpas_pool_get_array_gpu(diag_physics,'swdntc'    ,swdntc    )
- call mpas_pool_get_array_gpu(diag_physics,'swupb'     ,swupb     )
- call mpas_pool_get_array_gpu(diag_physics,'swupbc'    ,swupbc    )
- call mpas_pool_get_array_gpu(diag_physics,'swupt'     ,swupt     )
- call mpas_pool_get_array_gpu(diag_physics,'swuptc'    ,swuptc    )
- call mpas_pool_get_array_gpu(tend_physics,'rthratensw',rthratensw)
+ call mpas_pool_get_array(diag_physics,'coszr'     ,coszr     )
+ call mpas_pool_get_array(diag_physics,'gsw'       ,gsw       )
+ call mpas_pool_get_array(diag_physics,'swcf'      ,swcf      )
+ call mpas_pool_get_array(diag_physics,'swdnb'     ,swdnb     )
+ call mpas_pool_get_array(diag_physics,'swdnbc'    ,swdnbc    )
+ call mpas_pool_get_array(diag_physics,'swdnt'     ,swdnt     )
+ call mpas_pool_get_array(diag_physics,'swdntc'    ,swdntc    )
+ call mpas_pool_get_array(diag_physics,'swupb'     ,swupb     )
+ call mpas_pool_get_array(diag_physics,'swupbc'    ,swupbc    )
+ call mpas_pool_get_array(diag_physics,'swupt'     ,swupt     )
+ call mpas_pool_get_array(diag_physics,'swuptc'    ,swuptc    )
+ call mpas_pool_get_array(tend_physics,'rthratensw',rthratensw)
  call mpas_pool_get_field(diag_physics,'coszr'     ,coszrField     )
  call mpas_pool_get_field(diag_physics,'gsw'       ,gswField       )
  call mpas_pool_get_field(diag_physics,'swcf'      ,swcfField      )
@@ -852,11 +812,6 @@
  call mpas_pool_get_field(diag_physics,'swupt'     ,swuptField     )
  call mpas_pool_get_field(diag_physics,'swuptc'    ,swuptcField    )
  call mpas_pool_get_field(tend_physics,'rthratensw',rthratenswField)
-
- if (mpas_cpl%role_is(ROLE_INTEGRATE)) then
-    !$acc update host(coszr, gsw, swcf, swdnb, swdnbc, swdnt, swdntc, &
-    !$acc swupb, swupbc, swupt, swuptc, rthratensw)
- endif
 
  if (mpas_cpl%role_is(ROLE_INTEGRATE) .or. &
      mpas_cpl%role_is(ROLE_RADIATION)) then
@@ -875,11 +830,6 @@
     call MPAS_coupler_transfer_field(mpas_cpl, cells_from_rad_handle, rthratenswField, ierr=ierr)
 
  end if
-
- if (mpas_cpl%role_is(ROLE_INTEGRATE)) then
-    !$acc update device(coszr, gsw, swcf, swdnb, swdnbc, swdnt, swdntc, &
-    !$acc swupb, swupbc, swupt, swuptc, rthratensw)
- endif
 
  end subroutine lagged_radiation_sw_to_MPAS
 

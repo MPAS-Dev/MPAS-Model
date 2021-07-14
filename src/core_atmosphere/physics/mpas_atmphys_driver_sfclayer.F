@@ -346,11 +346,9 @@
 
 !local pointers:
  logical,pointer:: config_frac_seaice
- logical:: sconfig_frac_seaice
  character(len=StrKIND),pointer:: sfclayer_scheme
 
  real(kind=RKIND),pointer:: len_disp
- real(kind=RKIND):: slen_disp
  real(kind=RKIND),dimension(:),pointer:: meshDensity
  real(kind=RKIND),dimension(:),pointer:: skintemp,sst,xice,xland
  real(kind=RKIND),dimension(:),pointer:: hpbl,mavail
@@ -371,52 +369,42 @@
  call mpas_pool_get_config(configs,'config_frac_seaice'    ,config_frac_seaice)
  call mpas_pool_get_config(configs,'config_sfclayer_scheme',sfclayer_scheme   )
  call mpas_pool_get_config(configs,'config_len_disp'       ,len_disp          )
- call mpas_pool_get_array_gpu(mesh,'meshDensity',meshDensity)
+ call mpas_pool_get_array(mesh,'meshDensity',meshDensity)
 
- slen_disp = len_disp
- sconfig_frac_seaice = config_frac_seaice
-
- call mpas_pool_get_array_gpu(diag_physics,'hpbl'    ,hpbl    )
- call mpas_pool_get_array_gpu(diag_physics,'mavail'  ,mavail  )
- call mpas_pool_get_array_gpu(sfc_input   ,'skintemp',skintemp)
- call mpas_pool_get_array_gpu(sfc_input   ,'xland'   ,xland   )
+ call mpas_pool_get_array(diag_physics,'hpbl'    ,hpbl    )
+ call mpas_pool_get_array(diag_physics,'mavail'  ,mavail  )
+ call mpas_pool_get_array(sfc_input   ,'skintemp',skintemp)
+ call mpas_pool_get_array(sfc_input   ,'xland'   ,xland   )
 
 !inout variables:
- call mpas_pool_get_array_gpu(diag_physics,'br'      ,br      )
- call mpas_pool_get_array_gpu(diag_physics,'cpm'     ,cpm     )
- call mpas_pool_get_array_gpu(diag_physics,'chs'     ,chs     )
- call mpas_pool_get_array_gpu(diag_physics,'chs2'    ,chs2    )
- call mpas_pool_get_array_gpu(diag_physics,'cqs2'    ,cqs2    )
- call mpas_pool_get_array_gpu(diag_physics,'flhc'    ,flhc    )
- call mpas_pool_get_array_gpu(diag_physics,'flqc'    ,flqc    )
- call mpas_pool_get_array_gpu(diag_physics,'gz1oz0'  ,gz1oz0  )
- call mpas_pool_get_array_gpu(diag_physics,'hfx'     ,hfx     )
- call mpas_pool_get_array_gpu(diag_physics,'qfx'     ,qfx     )
- call mpas_pool_get_array_gpu(diag_physics,'qgh'     ,qgh     )
- call mpas_pool_get_array_gpu(diag_physics,'qsfc'    ,qsfc    )
- call mpas_pool_get_array_gpu(diag_physics,'lh'      ,lh      )
- call mpas_pool_get_array_gpu(diag_physics,'mol'     ,mol     )
- call mpas_pool_get_array_gpu(diag_physics,'psih'    ,psih    )
- call mpas_pool_get_array_gpu(diag_physics,'psim'    ,psim    )
- call mpas_pool_get_array_gpu(diag_physics,'regime'  ,regime  )
- call mpas_pool_get_array_gpu(diag_physics,'rmol'    ,rmol    )
- call mpas_pool_get_array_gpu(diag_physics,'ust'     ,ust     )
- call mpas_pool_get_array_gpu(diag_physics,'ustm'    ,ustm    )
- call mpas_pool_get_array_gpu(diag_physics,'wspd'    ,wspd    )
- call mpas_pool_get_array_gpu(diag_physics,'znt'     ,znt     )
- call mpas_pool_get_array_gpu(diag_physics,'zol'     ,zol     )
+ call mpas_pool_get_array(diag_physics,'br'      ,br      )
+ call mpas_pool_get_array(diag_physics,'cpm'     ,cpm     )
+ call mpas_pool_get_array(diag_physics,'chs'     ,chs     )
+ call mpas_pool_get_array(diag_physics,'chs2'    ,chs2    )
+ call mpas_pool_get_array(diag_physics,'cqs2'    ,cqs2    )
+ call mpas_pool_get_array(diag_physics,'flhc'    ,flhc    )
+ call mpas_pool_get_array(diag_physics,'flqc'    ,flqc    )
+ call mpas_pool_get_array(diag_physics,'gz1oz0'  ,gz1oz0  )
+ call mpas_pool_get_array(diag_physics,'hfx'     ,hfx     )
+ call mpas_pool_get_array(diag_physics,'qfx'     ,qfx     )
+ call mpas_pool_get_array(diag_physics,'qgh'     ,qgh     )
+ call mpas_pool_get_array(diag_physics,'qsfc'    ,qsfc    )
+ call mpas_pool_get_array(diag_physics,'lh'      ,lh      )
+ call mpas_pool_get_array(diag_physics,'mol'     ,mol     )
+ call mpas_pool_get_array(diag_physics,'psih'    ,psih    )
+ call mpas_pool_get_array(diag_physics,'psim'    ,psim    )
+ call mpas_pool_get_array(diag_physics,'regime'  ,regime  )
+ call mpas_pool_get_array(diag_physics,'rmol'    ,rmol    )
+ call mpas_pool_get_array(diag_physics,'ust'     ,ust     )
+ call mpas_pool_get_array(diag_physics,'ustm'    ,ustm    )
+ call mpas_pool_get_array(diag_physics,'wspd'    ,wspd    )
+ call mpas_pool_get_array(diag_physics,'znt'     ,znt     )
+ call mpas_pool_get_array(diag_physics,'zol'     ,zol     )
 
-!!!
-! !$acc update host(hpbl, mavail, skintemp, xland, br, cpm, chs, &
-! !$acc chs2, cqs2, flhc, flqc, gz1oz0, hfx, qfx, qgh, qsfc, lh, &
-! !$acc mol, psih, psim, regime, rmol, ust, ustm, wspd, znt, zol)
-
-!$acc parallel vector_length(32)
-!$acc loop gang vector collapse(2)
  do j = jts,jte
  do i = its,ite
     !input variables:
-    dx_p(i,j)     = slen_disp / meshDensity(i)**0.25
+    dx_p(i,j)     = len_disp / meshDensity(i)**0.25
     hpbl_p(i,j)   = hpbl(i)
     mavail_p(i,j) = mavail(i)
     tsk_p(i,j)    = skintemp(i)
@@ -461,23 +449,10 @@
     ustm_p(i,j)   = ustm(i)
  enddo
  enddo
-!$acc end parallel
 
-!!$acc update host(dx_p, hpbl_p, mavail_p, tsk_p, xland_p, br_p, cpm_p, &
-!!$acc chs_p, chs2_p, cqs2_p, flhc_p, flqc_p, gz1oz0_p, hfx_p, qfx_p, &
-!!$acc qgh_p, qsfc_p, lh_p, mol_p, psim_p, psih_p, regime_p, rmol_p, &
-!!$acc ust_p, wspd_p, znt_p, zol_p, q2_p, t2m_p, th2m_p, u10_p, v10_p, &
-!!$acc cd_p, cda_p, ck_p, cka_p, ustm_p)
-
- if(sconfig_frac_seaice) then
-    call mpas_pool_get_array_gpu(sfc_input,'sst' ,sst)
-    call mpas_pool_get_array_gpu(sfc_input,'xice',xice)
-
-!!!
-! !$acc update host(sst, xice)
-
-!$acc parallel vector_length(32)
-!$acc loop gang vector collapse(2)
+ if(config_frac_seaice) then
+    call mpas_pool_get_array(sfc_input,'sst' ,sst)
+    call mpas_pool_get_array(sfc_input,'xice',xice)
     do j = jts,jte
     do i = its,ite
        sst_p(i,j)      = sst(i)
@@ -537,58 +512,36 @@
        endif
     enddo
     enddo
-!$acc end parallel
-
-!!$acc update host(sst_p, xice_p, mavail_sea, tsk_sea, xland_sea, br_sea, &
-!!$acc cpm_sea, chs_sea, chs2_sea, cqs2_sea, flhc_sea, flqc_sea, gz1oz0_sea, &
-!!$acc lh_sea, hfx_sea, qfx_sea, mol_sea, psim_sea, psih_sea, qgh_sea, rmol_sea, &
-!!$acc regime_sea, ust_sea, ustm_sea, wspd_sea, zol_sea, znt_sea, regime_hold, &
-!!$acc cd_sea, cda_sea, ck_sea, cka_sea, qsfc_sea, q2_sea, t2m_sea, th2m_sea, &
-!!$acc u10_sea, v10_sea )
-
-!!!
-! !$acc update device(sst, xice)
  endif
 
  sfclayer_select: select case (trim(sfclayer_scheme))
 
     case("sf_monin_obukhov")
-       call mpas_pool_get_array_gpu(diag_physics,'fh',fh)
-       call mpas_pool_get_array_gpu(diag_physics,'fm',fm)
+       call mpas_pool_get_array(diag_physics,'fh',fh)
+       call mpas_pool_get_array(diag_physics,'fm',fm)
 
-!!!
-! !$acc update host(fh, fm)
-!$acc parallel vector_length(32)
-!$acc loop gang vector collapse(2)
        do j = jts,jte
        do i = its,ite
           fh_p(i,j) = fh(i)
           fm_p(i,j) = fm(i)
-          if(sconfig_frac_seaice) then
+          if(config_frac_seaice) then
              fh_sea(i,j) = fh(i)
              fm_sea(i,j) = fm(i)
           endif
        enddo
        enddo
-!$acc end parallel
-!!!
-!!$acc update host(fh_p, fm_p, fh_sea, fm_sea)
-! !$acc update device(fh, fm)
 
     case("sf_mynn")
        !input variables:
-       call mpas_pool_get_array_gpu(diag_physics,'qcg'   ,qcg   )
-       call mpas_pool_get_array_gpu(sfc_input   ,'snowh' ,snowh )
-       call mpas_pool_get_array_gpu(diag_physics,'cov'   ,cov   )
-       call mpas_pool_get_array_gpu(diag_physics,'el_pbl',el_pbl)
-       call mpas_pool_get_array_gpu(diag_physics,'qsq'   ,qsq   )
-       call mpas_pool_get_array_gpu(diag_physics,'sh3d'  ,sh3d  )
-       call mpas_pool_get_array_gpu(diag_physics,'tsq'   ,tsq   )
+       call mpas_pool_get_array(diag_physics,'qcg'   ,qcg   )
+       call mpas_pool_get_array(sfc_input   ,'snowh' ,snowh )
+       call mpas_pool_get_array(diag_physics,'cov'   ,cov   )
+       call mpas_pool_get_array(diag_physics,'el_pbl',el_pbl)
+       call mpas_pool_get_array(diag_physics,'qsq'   ,qsq   )
+       call mpas_pool_get_array(diag_physics,'sh3d'  ,sh3d  )
+       call mpas_pool_get_array(diag_physics,'tsq'   ,tsq   )
        !inout variables:
-       call mpas_pool_get_array_gpu(diag_physics,'ch',ch        )
-
-!!!
-! !$acc update host(qcg, snowh, cov, el_pbl, qsq, sh3d, tsq, ch)
+       call mpas_pool_get_array(diag_physics,'ch',ch        )
 
        do j = jts,jte
        do i = its,ite
@@ -615,17 +568,10 @@
        enddo
        enddo
        enddo
-!!!
-! !$acc update device(qcg, snowh, cov, el_pbl, qsq, sh3d, tsq, ch)
 
     case default
 
  end select sfclayer_select
-
-!!!
-! !$acc update device(hpbl, mavail, skintemp, xland, br, cpm, chs, &
-! !$acc chs2, cqs2, flhc, flqc, gz1oz0, hfx, qfx, qgh, qsfc, lh, &
-! !$acc mol, psih, psim, regime, rmol, ust, ustm, wspd, znt, zol)
 
  end subroutine sfclayer_from_MPAS
 
@@ -646,7 +592,6 @@
 
 !local pointers:
  logical,pointer:: config_frac_seaice
- logical:: sconfig_frac_seaice
  character(len=StrKIND),pointer:: sfclayer_scheme
 
  real(kind=RKIND),dimension(:),pointer:: br,cpm,chs,chs2,cqs2,flhc,flqc,gz1oz0,hfx,qfx,  &
@@ -668,70 +613,50 @@
  call mpas_pool_get_config(configs,'config_frac_seaice'    ,config_frac_seaice)
  call mpas_pool_get_config(configs,'config_sfclayer_scheme',sfclayer_scheme   )
 
- sconfig_frac_seaice = config_frac_seaice
-
 !inout variables:
- call mpas_pool_get_array_gpu(diag_physics,'br'    ,br    )
- call mpas_pool_get_array_gpu(diag_physics,'cpm'   ,cpm   )
- call mpas_pool_get_array_gpu(diag_physics,'chs'   ,chs   )
- call mpas_pool_get_array_gpu(diag_physics,'chs2'  ,chs2  )
- call mpas_pool_get_array_gpu(diag_physics,'cqs2'  ,cqs2  )
- call mpas_pool_get_array_gpu(diag_physics,'flhc'  ,flhc  )
- call mpas_pool_get_array_gpu(diag_physics,'flqc'  ,flqc  )
- call mpas_pool_get_array_gpu(diag_physics,'gz1oz0',gz1oz0)
- call mpas_pool_get_array_gpu(diag_physics,'hfx'   ,hfx   )
- call mpas_pool_get_array_gpu(diag_physics,'qfx'   ,qfx   )
- call mpas_pool_get_array_gpu(diag_physics,'qgh'   ,qgh   )
- call mpas_pool_get_array_gpu(diag_physics,'qsfc'  ,qsfc  )
- call mpas_pool_get_array_gpu(diag_physics,'lh'    ,lh    )
- call mpas_pool_get_array_gpu(diag_physics,'mol'   ,mol   )
- call mpas_pool_get_array_gpu(diag_physics,'psih'  ,psih  )
- call mpas_pool_get_array_gpu(diag_physics,'psim'  ,psim  )
- call mpas_pool_get_array_gpu(diag_physics,'regime',regime)
- call mpas_pool_get_array_gpu(diag_physics,'rmol'  ,rmol  )
- call mpas_pool_get_array_gpu(diag_physics,'ust'   ,ust   )
- call mpas_pool_get_array_gpu(diag_physics,'wspd'  ,wspd  )
- call mpas_pool_get_array_gpu(diag_physics,'znt'   ,znt   )
- call mpas_pool_get_array_gpu(diag_physics,'zol'   ,zol   )
+ call mpas_pool_get_array(diag_physics,'br'    ,br    )
+ call mpas_pool_get_array(diag_physics,'cpm'   ,cpm   )
+ call mpas_pool_get_array(diag_physics,'chs'   ,chs   )
+ call mpas_pool_get_array(diag_physics,'chs2'  ,chs2  )
+ call mpas_pool_get_array(diag_physics,'cqs2'  ,cqs2  )
+ call mpas_pool_get_array(diag_physics,'flhc'  ,flhc  )
+ call mpas_pool_get_array(diag_physics,'flqc'  ,flqc  )
+ call mpas_pool_get_array(diag_physics,'gz1oz0',gz1oz0)
+ call mpas_pool_get_array(diag_physics,'hfx'   ,hfx   )
+ call mpas_pool_get_array(diag_physics,'qfx'   ,qfx   )
+ call mpas_pool_get_array(diag_physics,'qgh'   ,qgh   )
+ call mpas_pool_get_array(diag_physics,'qsfc'  ,qsfc  )
+ call mpas_pool_get_array(diag_physics,'lh'    ,lh    )
+ call mpas_pool_get_array(diag_physics,'mol'   ,mol   )
+ call mpas_pool_get_array(diag_physics,'psih'  ,psih  )
+ call mpas_pool_get_array(diag_physics,'psim'  ,psim  )
+ call mpas_pool_get_array(diag_physics,'regime',regime)
+ call mpas_pool_get_array(diag_physics,'rmol'  ,rmol  )
+ call mpas_pool_get_array(diag_physics,'ust'   ,ust   )
+ call mpas_pool_get_array(diag_physics,'wspd'  ,wspd  )
+ call mpas_pool_get_array(diag_physics,'znt'   ,znt   )
+ call mpas_pool_get_array(diag_physics,'zol'   ,zol   )
 
 !output variables:
- call mpas_pool_get_array_gpu(diag_physics,'q2'    ,q2    )
- call mpas_pool_get_array_gpu(diag_physics,'t2m'   ,t2m   )
- call mpas_pool_get_array_gpu(diag_physics,'th2m'  ,th2m  )
- call mpas_pool_get_array_gpu(diag_physics,'u10'   ,u10   )
- call mpas_pool_get_array_gpu(diag_physics,'v10'   ,v10   )
+ call mpas_pool_get_array(diag_physics,'q2'    ,q2    )
+ call mpas_pool_get_array(diag_physics,'t2m'   ,t2m   )
+ call mpas_pool_get_array(diag_physics,'th2m'  ,th2m  )
+ call mpas_pool_get_array(diag_physics,'u10'   ,u10   )
+ call mpas_pool_get_array(diag_physics,'v10'   ,v10   )
 
 !output variables (optional):
- call mpas_pool_get_array_gpu(diag_physics,'cd'    ,cd    )
- call mpas_pool_get_array_gpu(diag_physics,'cda'   ,cda   )
- call mpas_pool_get_array_gpu(diag_physics,'ck'    ,ck    )
- call mpas_pool_get_array_gpu(diag_physics,'cka'   ,cka   )
- call mpas_pool_get_array_gpu(diag_physics,'ustm'  ,ustm  )
+ call mpas_pool_get_array(diag_physics,'cd'    ,cd    )
+ call mpas_pool_get_array(diag_physics,'cda'   ,cda   )
+ call mpas_pool_get_array(diag_physics,'ck'    ,ck    )
+ call mpas_pool_get_array(diag_physics,'cka'   ,cka   )
+ call mpas_pool_get_array(diag_physics,'ustm'  ,ustm  )
 
 !output variables (optional):
- call mpas_pool_get_array_gpu(diag_physics,'cd'    ,cd    )
- call mpas_pool_get_array_gpu(diag_physics,'cda'   ,cda   )
- call mpas_pool_get_array_gpu(diag_physics,'ck'    ,ck    )
- call mpas_pool_get_array_gpu(diag_physics,'cka'   ,cka   )
+ call mpas_pool_get_array(diag_physics,'cd'    ,cd    )
+ call mpas_pool_get_array(diag_physics,'cda'   ,cda   )
+ call mpas_pool_get_array(diag_physics,'ck'    ,ck    )
+ call mpas_pool_get_array(diag_physics,'cka'   ,cka   )
 
-!!!
-! !$acc update host(br, cpm, chs, chs2, cqs2, flhc, flqc, gz1oz0, &
-! !$acc hfx, qfx, qgh, qsfc, lh, mol, psih, psim, regime, rmol, &
-! !$acc ust, wspd, znt, zol, q2, t2m, th2m, u10, v10, cd, cda, &
-! !$acc ck, cka, ustm)
-
-! !$acc update device(br_p, cpm_p, chs_p, chs2_p, cqs2_p, flhc_p, flqc_p, &
-! !$acc gz1oz0_p, hfx_p, lh_p, mol_p, qfx_p, qgh_p, qsfc_p, psim_p, psih_p, &
-! !$acc regime_p, rmol_p, ust_p, wspd_p, zol_p, znt_p, q2_p, t2m_p, th2m_p, &
-! !$acc u10_p, v10_p, cd_p, cda_p, ck_p, cka_p, ustm_p)
-
-!!$acc update host(br_p, cpm_p, chs_p, chs2_p, cqs2_p, flhc_p, flqc_p, &
-!!$acc gz1oz0_p, hfx_p, lh_p, mol_p, qfx_p, qgh_p, qsfc_p, psim_p, psih_p, &
-!!$acc regime_p, rmol_p, ust_p, wspd_p, zol_p, znt_p, q2_p, t2m_p, th2m_p, &
-!!$acc u10_p, v10_p, cd_p, cda_p, ck_p, cka_p, ustm_p)
-
-!$acc parallel vector_length(32)
-!$acc loop gang vector collapse(2)
  do j = jts,jte
  do i = its,ite
     !inout variables:
@@ -771,24 +696,9 @@
     ustm(i)   = ustm_p(i,j)
  enddo
  enddo
-!$acc end parallel
 
  if(config_frac_seaice) then
-    call mpas_pool_get_array_gpu(sfc_input,'xice',xice)
-!!!
-! !$acc update host(xice)
-! !$acc update device(br_sea, flhc_sea, flqc_sea, gz1oz0_sea, mol_sea, psih_sea, &
-! !$acc psim_sea, rmol_sea, ust_sea, wspd_sea, zol_sea, regime_hold, q2_sea, &
-! !$acc t2m_sea, th2m_sea, u10_sea, v10_sea, cd_sea, cda_sea, ck_sea, cka_sea, &
-! !$acc ustm_sea)
-
-!!$acc update host(br_sea, flhc_sea, flqc_sea, gz1oz0_sea, mol_sea, psih_sea,&
-!!$acc psim_sea, rmol_sea, ust_sea, wspd_sea, zol_sea, regime_hold, q2_sea, &
-!!$acc t2m_sea, th2m_sea, u10_sea, v10_sea, cd_sea, cda_sea, ck_sea, cka_sea, &
-!!$acc ustm_sea)
-
-!$acc parallel vector_length(32)
-!$acc loop gang vector collapse(2)
+    call mpas_pool_get_array(sfc_input,'xice',xice)
     do j = jts,jte
     do i = its,ite
        if(xice(i).ge.xice_threshold .and. xice(i).le.1._RKIND) then
@@ -819,33 +729,22 @@
        endif
     enddo
     enddo
-!$acc end parallel
-!!!
-! !$acc update device(xice)
  endif
 
  sfclayer_select: select case (trim(sfclayer_scheme))
 
     case("sf_monin_obukhov")
-       call mpas_pool_get_array_gpu(diag_physics,'fh',fh)
-       call mpas_pool_get_array_gpu(diag_physics,'fm',fm)
-!!!
-! !$acc update host(fh, fm)
-! !$acc update device(fh_p, fm_p, fh_sea, fm_sea)
-!!$acc update host(fh_p, fm_p, fh_sea, fm_sea)
-!$acc parallel vector_length(32)
-!$acc loop gang vector collapse(2)
+       call mpas_pool_get_array(diag_physics,'fh',fh)
+       call mpas_pool_get_array(diag_physics,'fm',fm)
+
        do j = jts,jte
        do i = its,ite
           fh(i) = fh_p(i,j)
           fm(i) = fm_p(i,j)
        enddo
        enddo
-!$acc end parallel
-       if(sconfig_frac_seaice) then
-          call mpas_pool_get_array_gpu(sfc_input,'xice',xice)
-!$acc parallel vector_length(32)
-!$acc loop gang vector collapse(2)
+       if(config_frac_seaice) then
+          call mpas_pool_get_array(sfc_input,'xice',xice)
           do j = jts,jte
           do i = its,ite
              if(xice(i).ge.xice_threshold .and. xice(i).le.1._RKIND) then
@@ -854,15 +753,10 @@
              endif
           enddo
           enddo
-!$acc end parallel
        endif
-!!!
-! !$acc update device(fh, fm)
 
     case("sf_mynn")
-       call mpas_pool_get_array_gpu(diag_physics,'ch',ch)
-!!!
-! !$acc update host(ch)
+       call mpas_pool_get_array(diag_physics,'ch',ch)
 
        do j = jts,jte
        do i = its,ite
@@ -879,18 +773,10 @@
           enddo
           enddo
        endif
-!!!
-! !$acc update device(ch)
 
     case default
 
  end select sfclayer_select
-
-!!!
-! !$acc update device(br, cpm, chs, chs2, cqs2, flhc, flqc, gz1oz0, &
-! !$acc hfx, qfx, qgh, qsfc, lh, mol, psih, psim, regime, rmol, &
-! !$acc ust, wspd, znt, zol, q2, t2m, th2m, u10, v10, cd, cda, &
-! !$acc ck, cka, ustm)
 
  end subroutine sfclayer_to_MPAS
 
@@ -951,15 +837,11 @@
 !call mpas_log_write('')
 !call mpas_log_write('--- enter subroutine driver_sfclayer:')
 
- call mpas_timer_start('driver_sfclayer')
-
  call mpas_pool_get_config(configs,'config_do_restart'     ,config_do_restart )
  call mpas_pool_get_config(configs,'config_frac_seaice'    ,config_frac_seaice)
  call mpas_pool_get_config(configs,'config_sfclayer_scheme',sfclayer_scheme   )
 
- call mpas_pool_get_array_gpu(mesh,'areaCell',areaCell)
-!!!
-!$acc update host(areaCell)
+ call mpas_pool_get_array(mesh,'areaCell',areaCell)
 
 !copy all MPAS arrays to rectanguler grid:
  call sfclayer_from_MPAS(configs,mesh,diag_physics,sfc_input,its,ite)
@@ -1106,7 +988,6 @@
 !copy local arrays to MPAS grid:
  call sfclayer_to_MPAS(configs,sfc_input,diag_physics,its,ite)
 
- call mpas_timer_stop('driver_sfclayer')
 !call mpas_log_write('--- end subroutine driver_sfclayer.')
 
  end subroutine driver_sfclayer
