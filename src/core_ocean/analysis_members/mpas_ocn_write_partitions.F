@@ -116,11 +116,11 @@ contains
 
       mpiRank = domain % dminfo % my_proc_id
       write (charMPIRank,'(I6.6)' ) mpiRank
+      call mpas_pool_get_dimension(domain % blocklist % dimensions, 'nVertLevels', nVertLevels)
 
       block => domain % blocklist
       do while (associated(block))
          call mpas_pool_get_subpool(block % structs, 'mesh', meshPool)
-         call mpas_pool_get_dimension(block % dimensions, 'nVertLevels', nVertLevels)
          call mpas_pool_get_dimension(meshPool, 'nCellsSolve', nCellsSolve)
          call mpas_pool_get_array(meshPool, 'lonCell', lonCell)
          call mpas_pool_get_array(meshPool, 'latCell', latCell)
@@ -143,33 +143,20 @@ contains
 
          filename = 'mpaso.stats.'//Hem//'.p'//charMPIRank//'.txt'
          open(10, file=subdir//filename)
-         write (10, '(A)')  'nCells, latMin, latMax, lonMin, lonMax'
+         write (10, '(A)')  'nCells, nVertLevels, latMin, latMax, lonMin, lonMax'
          write (10, '(I10)')  nCellsSolve
+         write (10, '(I10)')  nVertLevels
          write (10, '(F7.2)') latMin
          write (10, '(F7.2)') latMax
          write (10, '(F7.2)') lonMin
          write (10, '(F7.2)') lonMax
          close(10)
 
-         if (mpiRank==0) then
-            filename = 'mpaso.info.txt'
-            open(10, file=subdir//filename)
-            write (10, '(A)')  'nVertLevels, minT, maxT, minS, maxS, minV, maxV'
-            write (10, '(I5)')  nVertLevels
-            write (10, '(F8.2)') minT
-            write (10, '(F8.2)') maxT
-            write (10, '(F8.2)') minS
-            write (10, '(F8.2)') maxS
-            write (10, '(F8.2)') minV
-            write (10, '(F8.2)') maxV
-            close(10)
-         endif
-
          if (.not.write_this_partition) return
 
-         filename = 'mpaso.indexToCellID.'//Hem//'.p'//charMPIRank//'.I2.dat'
+         filename = 'mpaso.indexToCellID.'//Hem//'.p'//charMPIRank//'.I4.dat'
          open(10, file=subdir//filename, status='replace', access='stream')
-         write (10) int(indexToCellID(1:nCellsSolve),2)
+         write (10) int(indexToCellID(1:nCellsSolve),4)
          close(10)
 
          filename = 'mpaso.maxLevelCell.'//Hem//'.p'//charMPIRank//'.I1.dat'
@@ -246,8 +233,8 @@ contains
       real (kind=RKIND), dimension(:,:,:), pointer :: activeTracers
       real (kind=RKIND), dimension(:,:), pointer :: velocityZonal, velocityMeridional, vertVelocityTop
       integer, dimension(:), pointer :: maxLevelCell
-      integer, pointer :: indexTemperature, indexSalinity, nCellsSolve
-      integer(KIND=2), dimension(100) :: intCol
+      integer, pointer :: indexTemperature, indexSalinity, nCellsSolve, nVertLevels
+      real(KIND=4), dimension(:), allocatable :: R4Col
       integer :: iCell, kMax
       character(len=StrKIND) :: filename
 
@@ -256,6 +243,8 @@ contains
       if (.not.write_this_partition) return
 
       dminfo = domain % dminfo
+      call mpas_pool_get_dimension(domain % blocklist % dimensions, 'nVertLevels', nVertLevels)
+      allocate(R4Col(nVertLevels))
 
       block => domain % blocklist
       do while (associated(block))
@@ -275,39 +264,31 @@ contains
          call mpas_pool_get_array(diagnosticsPool, 'velocityMeridional', velocityMeridional)
          call mpas_pool_get_array(diagnosticsPool, 'vertVelocityTop', vertVelocityTop)
 
-         filename = 'mpaso.temperature.'//xtime(1:10)//'.'//Hem//'.p'//charMPIRank//'.I2.dat'
+         filename = 'mpaso.temperature.'//xtime(1:10)//'.'//Hem//'.p'//charMPIRank//'.R4.dat'
          open(10, file=subdir//filename, status='replace', access='stream')
          do iCell = 1, nCellsSolve
-            kMax = maxLevelCell(iCell)
-            intCol(1:kMax) = (activeTracers(indexTemperature,1:kMax,iCell) - minT)/(maxT - minT) * 65535
-            write (10) intCol(1:kMax)
+            write (10) real(activeTracers(indexTemperature,1:maxLevelCell(iCell),iCell), 4)
          enddo
          close(10)
 
-         filename = 'mpaso.salinity.'//xtime(1:10)//'.'//Hem//'.p'//charMPIRank//'.I2.dat'
+         filename = 'mpaso.salinity.'//xtime(1:10)//'.'//Hem//'.p'//charMPIRank//'.R4.dat'
          open(10, file=subdir//filename, status='replace', access='stream')
          do iCell = 1, nCellsSolve
-            kMax = maxLevelCell(iCell)
-            intCol(1:kMax) = (activeTracers(indexSalinity,1:kMax,iCell) - minS)/(maxS - minS) * 65535
-            write (10) intCol(1:kMax)
+            write (10) real(activeTracers(indexSalinity,1:maxLevelCell(iCell),iCell), 4)
          enddo
          close(10)
 
-         filename = 'mpaso.velocityZonal.'//xtime(1:10)//'.'//Hem//'.p'//charMPIRank//'.I2.dat'
+         filename = 'mpaso.velocityZonal.'//xtime(1:10)//'.'//Hem//'.p'//charMPIRank//'.R4.dat'
          open(10, file=subdir//filename, status='replace', access='stream')
          do iCell = 1, nCellsSolve
-            kMax = maxLevelCell(iCell)
-            intCol(1:kMax) = (velocityZonal(1:kMax,iCell) - minV)/(maxV - minV) * 65535
-            write (10) intCol(1:kMax)
+            write (10) real(velocityZonal(1:maxLevelCell(iCell),iCell), 4)
          enddo
          close(10)
 
-         filename = 'mpaso.velocityMeridional.'//xtime(1:10)//'.'//Hem//'.p'//charMPIRank//'.I2.dat'
+         filename = 'mpaso.velocityMeridional.'//xtime(1:10)//'.'//Hem//'.p'//charMPIRank//'.R4.dat'
          open(10, file=subdir//filename, status='replace', access='stream')
          do iCell = 1, nCellsSolve
-            kMax = maxLevelCell(iCell)
-            intCol(1:kMax) = (velocityMeridional(1:kMax,iCell) - minV)/(maxV - minV) * 65535
-            write (10) intCol(1:kMax)
+            write (10) real(velocityMeridional(1:maxLevelCell(iCell),iCell), 4)
          enddo
          close(10)
 
