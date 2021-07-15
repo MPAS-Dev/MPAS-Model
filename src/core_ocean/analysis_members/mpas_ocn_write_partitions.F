@@ -159,7 +159,7 @@ contains
          write (10) indexToCellID(1:nCellsSolve)
          close(10)
 
-         filename = 'mpaso.maxLevelCell.'//Hem//'.p'//charMPIRank//'.I1.dat'
+         filename = 'mpaso.maxLevelCell.'//Hem//'.p'//charMPIRank//'.I4.dat'
          open(10, file=subdir//filename, status='replace', access='stream')
          write (10) maxLevelCell(1:nCellsSolve)
          close(10)
@@ -234,7 +234,6 @@ contains
       real (kind=RKIND), dimension(:,:), pointer :: velocityZonal, velocityMeridional, vertVelocityTop
       integer, dimension(:), pointer :: maxLevelCell
       integer, pointer :: indexTemperature, indexSalinity, nCellsSolve, nVertLevels
-      real(KIND=4), dimension(:), allocatable :: R4Col
       integer :: iCell, kMax
       character(len=StrKIND) :: filename
 
@@ -244,7 +243,6 @@ contains
 
       dminfo = domain % dminfo
       call mpas_pool_get_dimension(domain % blocklist % dimensions, 'nVertLevels', nVertLevels)
-      allocate(R4Col(nVertLevels))
 
       block => domain % blocklist
       do while (associated(block))
@@ -267,9 +265,7 @@ contains
          filename = 'mpaso.temperature.'//xtime(1:10)//'.'//Hem//'.p'//charMPIRank//'.R4.dat'
          open(10, file=subdir//filename, status='replace', access='stream')
          do iCell = 1, nCellsSolve
-            kMax = maxLevelCell(iCell)
-            R4Col(1:kMax) =  real(activeTracers(indexTemperature,1:kMax,iCell), 4)
-            write (10) R4Col(1:kMax)
+            write (10) real(activeTracers(indexTemperature,1:maxLevelCell(iCell),iCell), 4)
          enddo
          close(10)
 
