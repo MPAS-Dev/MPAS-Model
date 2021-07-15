@@ -1,3 +1,5 @@
+! compile with -fconvert=big-endian  !!!!!
+!  gfortran write_int.F90 -fconvert=big-endian
 program read_partition
   implicit none
   integer, parameter :: RKIND  = selected_real_kind(12)
