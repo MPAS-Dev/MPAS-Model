@@ -110,8 +110,42 @@ contains
       integer, dimension(:), pointer :: indexToCellID
       integer, dimension(:), pointer :: maxLevelCell
       integer, pointer :: nCellsSolve, nVertLevels
-      integer :: mpiRank
+      integer :: mpiRank, iCell
       character(len=StrKIND) :: filename
+   integer, dimension(10) :: varI
+   integer(KIND=1), dimension(10) :: varI1
+   integer(KIND=2), dimension(10) :: varI2
+   integer(KIND=4), dimension(10) :: varI4
+   integer(KIND=8), dimension(10) :: varI8
+
+   do iCell = 1,10
+       varI(iCell) = iCell
+   enddo
+   varI1 = varI
+   varI2 = varI
+   varI4 = varI
+   varI8 = varI
+
+         filename = 'varI.dat'
+         open(10, file=subdir//filename, status='replace', access='stream')
+         write (10) varI
+         close(10)
+         filename = 'varI1.dat'
+         open(10, file=subdir//filename, status='replace', access='stream')
+         write (10) varI1
+         close(10)
+         filename = 'varI2.dat'
+         open(10, file=subdir//filename, status='replace', access='stream')
+         write (10) varI2
+         close(10)
+         filename = 'varI4.dat'
+         open(10, file=subdir//filename, status='replace', access='stream')
+         write (10) varI4
+         close(10)
+         filename = 'varI8.dat'
+         open(10, file=subdir//filename, status='replace', access='stream')
+         write (10) varI8
+         close(10)
       err = 0
 
       mpiRank = domain % dminfo % my_proc_id
@@ -156,7 +190,7 @@ contains
 
          filename = 'mpaso.indexToCellID.'//Hem//'.p'//charMPIRank//'.I4.dat'
          open(10, file=subdir//filename, status='replace', access='stream')
-         write (10) int(indexToCellID(1:nCellsSolve),4)
+         write (10) real(indexToCellID(1:nCellsSolve),4)
          close(10)
 
          filename = 'mpaso.maxLevelCell.'//Hem//'.p'//charMPIRank//'.I1.dat'
@@ -267,7 +301,9 @@ contains
          filename = 'mpaso.temperature.'//xtime(1:10)//'.'//Hem//'.p'//charMPIRank//'.R4.dat'
          open(10, file=subdir//filename, status='replace', access='stream')
          do iCell = 1, nCellsSolve
-            write (10) real(activeTracers(indexTemperature,1:maxLevelCell(iCell),iCell), 4)
+            kMax = maxLevelCell(iCell)
+            R4Col(1:kMax) =  real(activeTracers(indexTemperature,1:kMax,iCell), 4)
+            write (10) R4Col(1:kMax)
          enddo
          close(10)
 
