@@ -51,7 +51,6 @@ module init_atm_cases
       type (MPAS_streamManager_type), intent(inout) :: stream_manager
 
 
-      integer :: i
       integer :: ierr
       type (block_type), pointer :: block_ptr
 
@@ -380,7 +379,7 @@ module init_atm_cases
       real (kind=RKIND), dimension(:), pointer :: rdzw, dzu, rdzu, fzm, fzp
       real (kind=RKIND), dimension(:), pointer :: surface_pressure
       real (kind=RKIND), dimension(:,:), pointer :: zgrid, zxu, zz, hx
-      real (kind=RKIND), dimension(:,:), pointer :: pressure, ppb, pb, rho_zz, rb, rr, tb, rtb, p, pp, dss, t, rt
+      real (kind=RKIND), dimension(:,:), pointer :: ppb, pb, rho_zz, rb, rr, tb, rtb, p, pp, dss, t, rt
       real (kind=RKIND), dimension(:,:), pointer :: u, ru, w, rw, v
       real (kind=RKIND), dimension(:,:), pointer :: rho, theta
       real (kind=RKIND), dimension(:,:,:), pointer :: zb, zb3
@@ -398,29 +397,25 @@ module init_atm_cases
       integer, pointer :: nz1, nCellsSolve, nEdges, maxEdges, nVertices
 
       !This is temporary variable here. It just need when calculate tangential velocity v.
-      integer :: eoe, j
+      integer :: eoe
       integer, dimension(:), pointer :: nEdgesOnEdge, nEdgesOnCell
       integer, dimension(:,:), pointer :: edgesOnEdge, cellsOnEdge, verticesOnEdge, cellsOnCell
       real (kind=RKIND), dimension(:,:), pointer :: weightsOnEdge
 
-      real (kind=RKIND) :: flux, fluxk, lat1, lat2, eta_v, r_pert, u_pert, lat_pert, lon_pert, r
+      real (kind=RKIND) :: flux, fluxk, lat1, lat2, r_pert, u_pert, lat_pert, lon_pert
 
-      real (kind=RKIND) :: ptop, p0, phi
+      real (kind=RKIND) :: p0, phi
       real (kind=RKIND) :: lon_Edge
 
-      real (kind=RKIND) :: r_earth, etavs, ztemp, zd, zt, dz, gam, delt, str
+      real (kind=RKIND) :: r_earth, etavs, ztemp, zd, zt, dz, str
 
-      real (kind=RKIND) :: es, qvs, xnutr, znut, ptemp 
-      integer :: iter
-
-      real (kind=RKIND), dimension(nVertLevels + 1 ) :: hyai, hybi, znu, znw, znwc, znwv, hyam, hybm
-      real (kind=RKIND), dimension(nVertLevels + 1 ) :: znuc, znuv, bn, divh, dpn
+      real (kind=RKIND) :: es, xnutr, znut, ptemp
 
       real (kind=RKIND), dimension(nVertLevels + 1 ) :: sh, zw, ah
       real (kind=RKIND), dimension(nVertLevels ) :: zu, dzw, rdzwp, rdzwm
       real (kind=RKIND), dimension(nVertLevels ) :: eta, etav, teta, ppi, tt, temperature_1d
 
-      real (kind=RKIND) :: d1, d2, d3, cof1, cof2, psurf
+      real (kind=RKIND) :: cof1, cof2, psurf
       real (kind=RKIND), pointer :: cf1, cf2, cf3
 
       !  storage for (lat,z) arrays for zonal velocity calculation
@@ -1318,34 +1313,31 @@ module init_atm_cases
       real (kind=RKIND), dimension(:,:,:), pointer :: zb, zb3
 
       !This is temporary variable here. It just need when calculate tangential velocity v.
-      integer :: eoe, j
+      integer :: eoe
       integer, dimension(:), pointer :: nEdgesOnEdge 
       integer, dimension(:,:), pointer :: edgesOnEdge, cellsOnEdge
       real (kind=RKIND), dimension(:,:), pointer :: weightsOnEdge
 
-      integer :: iCell, iCell1, iCell2 , iEdge, vtx1, vtx2, ivtx, i, k, nz, nz1, itr, cell1, cell2
+      integer :: iCell, iCell1, iCell2 , iEdge, ivtx, i, k, nz, nz1, itr, cell1, cell2
       integer, pointer :: nEdges, nVertices, maxEdges, nCellsSolve
       integer, pointer :: index_qv
-
-      real (kind=RKIND), dimension(nVertLevels + 1 ) :: znu, znw, znwc, znwv
-      real (kind=RKIND), dimension(nVertLevels + 1 ) :: znuc, znuv
 
       real (kind=RKIND), dimension(nVertLevels + 1 ) :: zc, zw, ah
       real (kind=RKIND), dimension(nVertLevels ) :: zu, dzw, rdzwp, rdzwm
 
       real (kind=RKIND), dimension(nVertLevels, nCells) :: relhum, thi, tbi, cqwb
 
-      real (kind=RKIND) ::  r, xnutr
+      real (kind=RKIND) ::  xnutr
       real (kind=RKIND) ::  ztemp, zd, zt, dz, str
 
       real (kind=RKIND), dimension(nVertLevels ) :: qvb
       real (kind=RKIND), dimension(nVertLevels ) :: t_init_1d
 
-      real (kind=RKIND) :: d1, d2, d3, cof1, cof2
+      real (kind=RKIND) :: cof1, cof2
       real (kind=RKIND), pointer :: cf1, cf2, cf3
       real (kind=RKIND) :: ztr, thetar, ttr, thetas, um, us, zts, pitop, pibtop, ptopb, ptop, rcp, rcv, p0
       real (kind=RKIND) :: radx, radz, zcent, xmid, delt, xloc, rad, yloc, ymid, a_scale
-      real (kind=RKIND) :: pres, temp, es, qvs
+      real (kind=RKIND) :: pres, temp, qvs
 
       real (kind=RKIND), dimension(:), pointer :: xCell, yCell, zCell
       real (kind=RKIND), dimension(:), pointer :: xEdge, yEdge, zEdge
@@ -1905,12 +1897,12 @@ module init_atm_cases
       real (kind=RKIND), dimension(:,:,:), pointer :: scalars, deriv_two, zb, zb3
 
       !This is temporary variable here. It just need when calculate tangential velocity v.
-      integer :: eoe, j
+      integer :: eoe
       integer, dimension(:), pointer :: nEdgesOnEdge, nEdgesOnCell
       integer, dimension(:,:), pointer :: edgesOnEdge, cellsOnEdge, cellsOnCell
       real (kind=RKIND), dimension(:,:), pointer :: weightsOnEdge
 
-      integer :: iCell, iCell1, iCell2 , iEdge, vtx1, vtx2, ivtx, i, k, nz, itr, itrp, cell1, cell2, nz1
+      integer :: iCell, iCell1, iCell2 , iEdge, ivtx, i, k, nz, itr, cell1, cell2, nz1
       integer, pointer :: nEdges, maxEdges, nCellsSolve, nVertices
       integer, pointer :: index_qv
 
@@ -1919,20 +1911,18 @@ module init_atm_cases
       real (kind=RKIND) :: ztemp, zd, zt, dz, str
 
       real (kind=RKIND), dimension(nVertLevels, nCells) :: relhum
-      real (kind=RKIND) :: es, qvs, xnutr, ptemp
-      integer :: iter
+      real (kind=RKIND) :: qvs, xnutr
 
       real (kind=RKIND), dimension(nVertLevels + 1 ) :: zc, zw, ah
       real (kind=RKIND), dimension(nVertLevels ) :: zu, dzw, rdzwp, rdzwm
 
       real (kind=RKIND) :: d1, d2, d3, cof1, cof2
       real (kind=RKIND) :: um, vm,rcp, rcv
-      real (kind=RKIND) :: xmid, temp, pres, a_scale
+      real (kind=RKIND) :: temp, pres, a_scale
 
-      real (kind=RKIND) :: xi, xa, xc, xla, zinv, xn2, xn2m, xn2l, sm, dzh, dzht, dzmin, z_edge, z_edge3 
+      real (kind=RKIND) :: xi, xa, xc, xla, zinv, xn2, xn2m, xn2l, z_edge, z_edge3
 
       integer, dimension(nCells, 2) :: next_cell
-      real (kind=RKIND),  dimension(nCells) :: hxzt
       logical, parameter :: terrain_smooth = .false.
 
       real (kind=RKIND), dimension(:), pointer :: xCell, yCell, zCell
@@ -2567,7 +2557,7 @@ module init_atm_cases
       real (kind=RKIND), dimension(:,:,:), pointer :: deriv_two
 
       real (kind=RKIND) :: target_z
-      integer :: iCell, iCell1, iCell2 , iEdge, vtx1, vtx2, ivtx, i, k, nz, itr, itrp, cell1, cell2
+      integer :: iCell, iCell1, iCell2 , iEdge, i, k, nz, cell1, cell2
       integer, pointer :: nCellsSolve, nz1
       integer :: nInterpPoints, ndims
 
@@ -2581,11 +2571,10 @@ module init_atm_cases
       integer :: masked
 
       !This is temporary variable here. It just need when calculate tangential velocity v.
-      integer :: eoe, j
+      integer :: j
       integer, dimension(:), pointer :: nEdgesOnCell
       integer, dimension(:,:), pointer :: edgesOnEdge, cellsOnEdge, edgesOnCell, cellsOnCell
       real (kind=RKIND), dimension(:), pointer :: dvEdge, dcEdge, areaCell 
-      real (kind=RKIND), dimension(:,:), pointer :: v
       real (kind=RKIND), dimension(:,:), pointer :: sorted_arr
       integer, dimension(:), pointer :: bdyMaskCell
 
@@ -2594,7 +2583,7 @@ module init_atm_cases
       type (field1DReal), target :: tempFieldTarget
 
       real(kind=RKIND), dimension(:), pointer :: hs, hs1, sm0
-      real(kind=RKIND) :: hm, hm_global, zh, dzmin, dzmina, dzmina_global, dzminf, dzminf_global, sm
+      real(kind=RKIND) :: hm, hm_global, zh, dzmin, dzmina, dzminf, dzminf_global, sm
       real(kind=RKIND) :: dcsum
       integer :: nsmterrain, kz, sfc_k
       logical :: hybrid, smooth
@@ -2603,46 +2592,31 @@ module init_atm_cases
       real (kind=RKIND) :: p_check
 
       ! For interpolating terrain and land use
-      integer :: nx, ny
       integer :: istatus
 
       real (kind=RKIND), allocatable, dimension(:,:) :: rslab, maskslab
       integer, dimension(:), pointer :: mask_array
       integer, dimension(nEdges), target :: edge_mask
-      character (len=StrKIND) :: fname
       logical :: is_sfc_field
 
-      real (kind=RKIND) :: flux, fluxk, lat1, lat2, eta_v, r_pert, u_pert, lat_pert, lon_pert, r
+      real (kind=RKIND) :: flux
       real (kind=RKIND) :: lat, lon, x, y
 
-      real (kind=RKIND) :: ptop, p0, phi
-      real (kind=RKIND) :: lon_Edge
+      real (kind=RKIND) :: p0
 
-      real (kind=RKIND) :: r_earth, etavs, ztemp, zd, zt, dz, gam, delt, str
+      real (kind=RKIND) :: etavs, ztemp, zd, zt, dz, str
 
-      real (kind=RKIND), dimension(nVertLevels, nCells) :: rel_hum, temperature, qv
-      real (kind=RKIND) :: ptmp, es, rs, rgas_moist, qvs, xnutr, znut, ptemp, rcv
-      integer :: iter
-
-      real (kind=RKIND), dimension(nVertLevels + 1) :: hyai, hybi, znu, znw, znwc, znwv, hyam, hybm
-      real (kind=RKIND), dimension(nVertLevels + 1) :: znuc, znuv, bn, divh, dpn
+      real (kind=RKIND) :: es, rs, xnutr, znut, rcv
 
       real (kind=RKIND), dimension(:), pointer :: specified_zw
-      real (kind=RKIND), dimension(nVertLevels + 1) :: sh, zw, ah
+      real (kind=RKIND), dimension(nVertLevels + 1) :: zw, ah
       real (kind=RKIND), dimension(nVertLevels) :: zu, dzw, rdzwp, rdzwm
-      real (kind=RKIND), dimension(nVertLevels) :: eta, etav, teta, ppi, tt
 
-      real (kind=RKIND) :: d1, d2, d3, cof1, cof2, psurf
+      real (kind=RKIND) :: cof1, cof2
 
       !  storage for (lat,z) arrays for zonal velocity calculation
 
       integer, parameter :: nlat=361
-      real (kind=RKIND), dimension(nVertLevels + 1) :: zz_1d, zgrid_1d, hx_1d
-      real (kind=RKIND), dimension(nVertLevels) :: flux_zonal
-      real (kind=RKIND), dimension(nlat, nVertLevels) :: u_2d, etavs_2d
-      real (kind=RKIND), dimension(nVertLevels + 1) :: fsum
-      real (kind=RKIND), dimension(nlat) :: lat_2d
-      real (kind=RKIND) :: dlat
       real (kind=RKIND) :: z_edge, z_edge3, d2fdx2_cell1, d2fdx2_cell2
       real (kind=RKIND) :: alt, als, zetal, zl
 
@@ -2718,8 +2692,6 @@ module init_atm_cases
       integer :: level_value
 
       ! For outputting surface fields u10, v10, q2, rh2, and t2m from first-guess data
-      real (kind=RKIND), dimension(:), pointer :: u10
-      real (kind=RKIND), dimension(:), pointer :: v10
       real (kind=RKIND), dimension(:), pointer :: q2
       real (kind=RKIND), dimension(:), pointer :: rh2
       real (kind=RKIND), dimension(:), pointer :: t2m
@@ -4995,8 +4967,6 @@ call mpas_log_write('Done with soil consistency check')
 
       real (kind=RKIND) :: rs, rcv
 
-      real (kind=RKIND), dimension(nVertLevels + 1) :: sh
-
       !  calculation of the water vapor mixing ratio:
       real (kind=RKIND) :: sh_max,sh_min,global_sh_max,global_sh_min
 
@@ -5864,7 +5834,7 @@ call mpas_log_write('Done with soil consistency check')
    real (kind=RKIND) function env_qv( z, temperature, pressure, rh_max )
 
       implicit none
-      real (kind=RKIND) :: z, temperature, pressure, ztr, es, qvs, p0, rh_max
+      real (kind=RKIND) :: z, temperature, pressure, es, qvs, p0, rh_max
 
       p0 = 100000.
 
@@ -6011,7 +5981,7 @@ call mpas_log_write('Done with soil consistency check')
       type (mpas_pool_type), intent(inout) :: state
       type (mpas_pool_type), intent(inout) :: diag
 
-      integer :: iCell, iEdge, k
+      integer :: iCell, k
 
       integer, dimension(:,:), pointer :: cellsOnEdge
       real (kind=RKIND), dimension(:), pointer :: rdzw
