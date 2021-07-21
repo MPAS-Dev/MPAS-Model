@@ -2687,7 +2687,7 @@ module init_atm_cases
       real (kind=RKIND), dimension(:,:), pointer :: sm_fg
       real (kind=RKIND), dimension(:), pointer :: soilz
 
-      type (hashtable) :: level_hash
+      type (hashtable), allocatable :: level_hash
       logical :: too_many_fg_levs
       integer :: level_value
 
@@ -3337,6 +3337,7 @@ module init_atm_cases
          call mpas_log_write('********************************************************************************', messageType=MPAS_LOG_CRIT)
       end if
 
+      allocate(level_hash)
       call mpas_hash_init(level_hash)
       too_many_fg_levs = .false.
 
@@ -4141,6 +4142,7 @@ module init_atm_cases
       call read_met_close()
       level_value = mpas_hash_size(level_hash)
       call mpas_hash_destroy(level_hash)
+      deallocate(level_hash)
 
       if (too_many_fg_levs) then
          write(errstring,'(a,i4)') '       Please increase config_nfglevels to at least ', level_value
@@ -5001,7 +5003,7 @@ call mpas_log_write('Done with soil consistency check')
       real (kind=RKIND), dimension(:,:), pointer :: p_fg
       real (kind=RKIND), dimension(:), pointer :: soilz
 
-      type (hashtable) :: level_hash
+      type (hashtable), allocatable :: level_hash
       logical :: too_many_fg_levs
       integer :: level_value
 
@@ -5131,6 +5133,7 @@ call mpas_log_write('Done with soil consistency check')
                              messageType=MPAS_LOG_CRIT)
       end if
 
+      allocate(level_hash)
       call mpas_hash_init(level_hash)
       too_many_fg_levs = .false.
 
@@ -5318,6 +5321,7 @@ call mpas_log_write('Done with soil consistency check')
       call read_met_close()
       level_value = mpas_hash_size(level_hash)
       call mpas_hash_destroy(level_hash)
+      deallocate(level_hash)
 
       if (too_many_fg_levs) then
          write(errstring,'(a,i4)') '       Please increase config_nfglevels to at least ', level_value
