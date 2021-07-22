@@ -262,36 +262,20 @@ contains
          call mpas_pool_get_array(diagnosticsPool, 'velocityMeridional', velocityMeridional)
          call mpas_pool_get_array(diagnosticsPool, 'vertVelocityTop', vertVelocityTop)
 
-         filename = 'mpaso.temperature.'//xtime(1:10)//'.'//Hem//'.p'//charMPIRank//'.R4.dat'
+         filename = 'mpaso.TSUVW.'//xtime(1:10)//'.'//Hem//'.p'//charMPIRank//'.R4.dat'
          open(10, file=subdir//filename, status='replace', access='stream')
          do iCell = 1, nCellsSolve
             write (10) real(activeTracers(indexTemperature,1:maxLevelCell(iCell),iCell), 4)
          enddo
-         close(10)
-
-         filename = 'mpaso.salinity.'//xtime(1:10)//'.'//Hem//'.p'//charMPIRank//'.R4.dat'
-         open(10, file=subdir//filename, status='replace', access='stream')
          do iCell = 1, nCellsSolve
             write (10) real(activeTracers(indexSalinity,1:maxLevelCell(iCell),iCell), 4)
          enddo
-         close(10)
-
-         filename = 'mpaso.velocityZonal.'//xtime(1:10)//'.'//Hem//'.p'//charMPIRank//'.R4.dat'
-         open(10, file=subdir//filename, status='replace', access='stream')
          do iCell = 1, nCellsSolve
             write (10) real(velocityZonal(1:maxLevelCell(iCell),iCell), 4)
          enddo
-         close(10)
-
-         filename = 'mpaso.velocityMeridional.'//xtime(1:10)//'.'//Hem//'.p'//charMPIRank//'.R4.dat'
-         open(10, file=subdir//filename, status='replace', access='stream')
          do iCell = 1, nCellsSolve
             write (10) real(velocityMeridional(1:maxLevelCell(iCell),iCell), 4)
          enddo
-         close(10)
-
-         filename = 'mpaso.vertVelocityTop.'//xtime(1:10)//'.'//Hem//'.p'//charMPIRank//'.R4.dat'
-         open(10, file=subdir//filename, status='replace', access='stream')
          do iCell = 1, nCellsSolve
             write (10) real(vertVelocityTop(1:maxLevelCell(iCell),iCell), 4)
          enddo
