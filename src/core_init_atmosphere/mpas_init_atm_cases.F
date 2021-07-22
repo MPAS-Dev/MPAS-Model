@@ -759,7 +759,7 @@ module init_atm_cases
 
             !get moisture 
             if (moisture) then
-              qv_2d(k,i) = env_qv( ztemp, temperature_1d(k), ptemp, rh_max )
+              qv_2d(k,i) = env_qv( temperature_1d(k), ptemp, rh_max )
             end if
 
             tt(k) = temperature_1d(k)*(1.+1.61*qv_2d(k,i))
@@ -867,7 +867,7 @@ module init_atm_cases
             !get moisture 
             if (moisture) then
  
-                !scalars(index_qv,k,i) = env_qv( ztemp, temperature_1d(k), ptemp, rh_max )
+                !scalars(index_qv,k,i) = env_qv( temperature_1d(k), ptemp, rh_max )
 
                if(ptemp < 50000.) then
                   relhum(k,i) = 0.0
@@ -5835,24 +5835,12 @@ call mpas_log_write('Done with soil consistency check')
 
 !----------------------------------------------------------------------------------------------------------
 
-   real (kind=RKIND) function env_qv( z, temperature, pressure, rh_max )
+   real (kind=RKIND) function env_qv( temperature, pressure, rh_max )
 
       implicit none
-      real (kind=RKIND) :: z, temperature, pressure, es, qvs, p0, rh_max
+      real (kind=RKIND) :: temperature, pressure, es, qvs, p0, rh_max
 
       p0 = 100000.
-
-!      ztr = 5000.
-!
-!      if(z .gt. ztr) then
-!         env_qv = 0.
-!      else
-!         if(z.lt.2000.) then
-!            env_qv = .5
-!         else
-!            env_qv = .5*(1.-(z-2000.)/(ztr-2000.))
-!         end if
-!      end if
 
        if (pressure .lt. 50000. ) then
            env_qv = 0.0
