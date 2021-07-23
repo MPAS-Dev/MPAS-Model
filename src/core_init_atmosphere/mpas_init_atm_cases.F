@@ -237,7 +237,7 @@ module init_atm_cases
             end if
 
             call init_atm_case_gfs(block_ptr, mesh, nCells, nEdges, nVertLevels, fg, state, &
-                                   diag, diag_physics, config_init_case, block_ptr % dimensions, block_ptr % configs)
+                                   diag, diag_physics, block_ptr % dimensions, block_ptr % configs)
             
             if (config_met_interp) then
                call physics_initialize_real(mesh, fg, domain % dminfo, block_ptr % dimensions, block_ptr % configs)
@@ -2499,7 +2499,7 @@ module init_atm_cases
    end subroutine init_atm_case_mtn_wave
 
 
-   subroutine init_atm_case_gfs(block, mesh, nCells, nEdges, nVertLevels, fg, state, diag, diag_physics, init_case, dims, configs)
+   subroutine init_atm_case_gfs(block, mesh, nCells, nEdges, nVertLevels, fg, state, diag, diag_physics, dims, configs)
    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
    ! Real-data test case using GFS data
    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -2522,7 +2522,6 @@ module init_atm_cases
       type (mpas_pool_type), intent(inout) :: state
       type (mpas_pool_type), intent(inout) :: diag
       type (mpas_pool_type), intent(inout):: diag_physics
-      integer, intent(in) :: init_case
       type (mpas_pool_type), intent(inout):: dims
       type (mpas_pool_type), intent(inout):: configs
 
