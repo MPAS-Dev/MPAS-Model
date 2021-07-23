@@ -977,7 +977,7 @@ module init_atm_cases
 
          if (rebalance) then
 
-           call init_atm_calc_flux_zonal(u_2d,etavs_2d,lat_2d,flux_zonal,lat1,lat2,dvEdge(iEdge),sphere_radius,u0,nz1,nlat)
+           call init_atm_calc_flux_zonal(u_2d,lat_2d,flux_zonal,lat1,lat2,dvEdge(iEdge),sphere_radius,u0,nz1,nlat)
            do k=1,nVertLevels
              fluxk = u0*flux_zonal(k)/(0.5*(rb(k,iCell1)+rb(k,iCell2)+rr(k,iCell1)+rr(k,iCell2)))
              u(k,iEdge) = fluxk + u_pert
@@ -1141,12 +1141,12 @@ module init_atm_cases
    end subroutine init_atm_case_jw
 
 
-   subroutine init_atm_calc_flux_zonal(u_2d,etavs_2d,lat_2d,flux_zonal,lat1_in,lat2_in,dvEdge,a,u0,nz1,nlat)
+   subroutine init_atm_calc_flux_zonal(u_2d,lat_2d,flux_zonal,lat1_in,lat2_in,dvEdge,a,u0,nz1,nlat)
 
       implicit none
    
       integer, intent(in) :: nz1,nlat
-      real (kind=RKIND), dimension(nz1,nlat), intent(in) :: u_2d,etavs_2d
+      real (kind=RKIND), dimension(nz1,nlat), intent(in) :: u_2d
       real (kind=RKIND), dimension(nlat), intent(in) :: lat_2d
       real (kind=RKIND), dimension(nz1), intent(out) :: flux_zonal
       real (kind=RKIND), intent(in) :: lat1_in, lat2_in, dvEdge, a, u0
