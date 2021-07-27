@@ -877,22 +877,27 @@
  call mpas_pool_get_field(diag_physics,'lwuptc',lwuptcField)
  call mpas_pool_get_field(diag_physics,'olrtoa',olrtoaField)
  call mpas_pool_get_field(tend_physics,'rthratenlw',rthratenlwField)
- call mpas_pool_get_array(diag_physics,'glw'   ,glw   )
- call mpas_pool_get_array(diag_physics,'lwcf'  ,lwcf  )
- call mpas_pool_get_array(diag_physics,'lwdnb' ,lwdnb )
- call mpas_pool_get_array(diag_physics,'lwdnbc',lwdnbc)
- call mpas_pool_get_array(diag_physics,'lwdnt' ,lwdnt )
- call mpas_pool_get_array(diag_physics,'lwdntc',lwdntc)
- call mpas_pool_get_array(diag_physics,'lwupb' ,lwupb )
- call mpas_pool_get_array(diag_physics,'lwupbc',lwupbc)
- call mpas_pool_get_array(diag_physics,'lwupt' ,lwupt )
- call mpas_pool_get_array(diag_physics,'lwuptc',lwuptc)
- call mpas_pool_get_array(diag_physics,'olrtoa',olrtoa)
+ call mpas_pool_get_array_gpu(diag_physics,'glw'   ,glw   )
+ call mpas_pool_get_array_gpu(diag_physics,'lwcf'  ,lwcf  )
+ call mpas_pool_get_array_gpu(diag_physics,'lwdnb' ,lwdnb )
+ call mpas_pool_get_array_gpu(diag_physics,'lwdnbc',lwdnbc)
+ call mpas_pool_get_array_gpu(diag_physics,'lwdnt' ,lwdnt )
+ call mpas_pool_get_array_gpu(diag_physics,'lwdntc',lwdntc)
+ call mpas_pool_get_array_gpu(diag_physics,'lwupb' ,lwupb )
+ call mpas_pool_get_array_gpu(diag_physics,'lwupbc',lwupbc)
+ call mpas_pool_get_array_gpu(diag_physics,'lwupt' ,lwupt )
+ call mpas_pool_get_array_gpu(diag_physics,'lwuptc',lwuptc)
+ call mpas_pool_get_array_gpu(diag_physics,'olrtoa',olrtoa)
 
- call mpas_pool_get_array(tend_physics,'rthratenlw',rthratenlw)
+ call mpas_pool_get_array_gpu(tend_physics,'rthratenlw',rthratenlw)
 
- if (mpas_cpl%role_is(ROLE_INTEGRATE) .or. &
-     mpas_cpl%role_is(ROLE_RADIATION)) then
+ if (mpas_cpl%role_includes(ROLE_INTEGRATE)) then
+    !$acc update host(glw, lwcf, lwdnb, lwdnbc, lwdnt, lwdntc, lwupb, &
+    !$acc lwupbc, lwupt, lwuptc, olrtoa, rthratenlw)
+ end if
+
+ if (mpas_cpl%role_includes(ROLE_INTEGRATE) .or. &
+     mpas_cpl%role_includes(ROLE_RADIATION)) then
 
     call MPAS_coupler_transfer_field(mpas_cpl, cells_from_rad_handle, glwField   , ierr=ierr)
     call MPAS_coupler_transfer_field(mpas_cpl, cells_from_rad_handle, lwcfField  , ierr=ierr)
@@ -907,6 +912,11 @@
     call MPAS_coupler_transfer_field(mpas_cpl, cells_from_rad_handle, olrtoaField, ierr=ierr)
     call MPAS_coupler_transfer_field(mpas_cpl, cells_from_rad_handle, rthratenlwField, ierr=ierr)
 
+ end if
+
+ if (mpas_cpl%role_includes(ROLE_INTEGRATE)) then
+    !$acc update device(glw, lwcf, lwdnb, lwdnbc, lwdnt, lwdntc, lwupb, &
+    !$acc lwupbc, lwupt, lwuptc, olrtoa, rthratenlw)
  end if
 
  end subroutine lagged_radiation_lw_to_MPAS
