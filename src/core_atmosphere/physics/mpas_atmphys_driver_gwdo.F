@@ -150,26 +150,29 @@
 !-----------------------------------------------------------------------------------------------------------------
 
  call mpas_pool_get_config(configs,'config_len_disp',len_disp)
- call mpas_pool_get_array(mesh,'meshDensity',meshDensity)
+ call mpas_pool_get_array_gpu(mesh,'meshDensity',meshDensity)
 
- call mpas_pool_get_array(sfc_input,'oa1'  ,oa1  )
- call mpas_pool_get_array(sfc_input,'oa2'  ,oa2  )
- call mpas_pool_get_array(sfc_input,'oa3'  ,oa3  )
- call mpas_pool_get_array(sfc_input,'oa4'  ,oa4  )
- call mpas_pool_get_array(sfc_input,'ol1'  ,ol1  )
- call mpas_pool_get_array(sfc_input,'ol2'  ,ol2  )
- call mpas_pool_get_array(sfc_input,'ol3'  ,ol3  )
- call mpas_pool_get_array(sfc_input,'ol4'  ,ol4  )
- call mpas_pool_get_array(sfc_input,'con'  ,con  )
- call mpas_pool_get_array(sfc_input,'var2d',var2d)
+ call mpas_pool_get_array_gpu(sfc_input,'oa1'  ,oa1  )
+ call mpas_pool_get_array_gpu(sfc_input,'oa2'  ,oa2  )
+ call mpas_pool_get_array_gpu(sfc_input,'oa3'  ,oa3  )
+ call mpas_pool_get_array_gpu(sfc_input,'oa4'  ,oa4  )
+ call mpas_pool_get_array_gpu(sfc_input,'ol1'  ,ol1  )
+ call mpas_pool_get_array_gpu(sfc_input,'ol2'  ,ol2  )
+ call mpas_pool_get_array_gpu(sfc_input,'ol3'  ,ol3  )
+ call mpas_pool_get_array_gpu(sfc_input,'ol4'  ,ol4  )
+ call mpas_pool_get_array_gpu(sfc_input,'con'  ,con  )
+ call mpas_pool_get_array_gpu(sfc_input,'var2d',var2d)
 
- call mpas_pool_get_array(diag_physics,'kpbl'    ,kpbl    )
- call mpas_pool_get_array(diag_physics,'dusfcg'  ,dusfcg  )
- call mpas_pool_get_array(diag_physics,'dvsfcg'  ,dvsfcg  )
- call mpas_pool_get_array(diag_physics,'dtaux3d' ,dtaux3d )
- call mpas_pool_get_array(diag_physics,'dtauy3d' ,dtauy3d )
- call mpas_pool_get_array(tend_physics,'rublten' ,rublten )
- call mpas_pool_get_array(tend_physics,'rvblten' ,rvblten )
+ call mpas_pool_get_array_gpu(diag_physics,'kpbl'    ,kpbl    )
+ call mpas_pool_get_array_gpu(diag_physics,'dusfcg'  ,dusfcg  )
+ call mpas_pool_get_array_gpu(diag_physics,'dvsfcg'  ,dvsfcg  )
+ call mpas_pool_get_array_gpu(diag_physics,'dtaux3d' ,dtaux3d )
+ call mpas_pool_get_array_gpu(diag_physics,'dtauy3d' ,dtauy3d )
+ call mpas_pool_get_array_gpu(tend_physics,'rublten' ,rublten )
+ call mpas_pool_get_array_gpu(tend_physics,'rvblten' ,rvblten )
+!$acc update host(meshDensity, oa1, oa2, oa3, oa4, ol1, ol2, ol3, ol4, &
+!$acc             con, var2d, kpbl, dusfcg, dvsfcg, dtaux3d, dtauy3d, &
+!$acc             rublten, rvblten)
 
  do j = jts,jte
  do i = its,ite
@@ -232,14 +235,14 @@
 
 !-----------------------------------------------------------------------------------------------------------------
 
- call mpas_pool_get_array(diag_physics,'dusfcg'  ,dusfcg  )
- call mpas_pool_get_array(diag_physics,'dvsfcg'  ,dvsfcg  )
- call mpas_pool_get_array(diag_physics,'dtaux3d' ,dtaux3d )
- call mpas_pool_get_array(diag_physics,'dtauy3d' ,dtauy3d )
- call mpas_pool_get_array(diag_physics,'rubldiff',rubldiff)
- call mpas_pool_get_array(diag_physics,'rvbldiff',rvbldiff)
- call mpas_pool_get_array(tend_physics,'rublten' ,rublten )
- call mpas_pool_get_array(tend_physics,'rvblten' ,rvblten )
+ call mpas_pool_get_array_gpu(diag_physics,'dusfcg'  ,dusfcg  )
+ call mpas_pool_get_array_gpu(diag_physics,'dvsfcg'  ,dvsfcg  )
+ call mpas_pool_get_array_gpu(diag_physics,'dtaux3d' ,dtaux3d )
+ call mpas_pool_get_array_gpu(diag_physics,'dtauy3d' ,dtauy3d )
+ call mpas_pool_get_array_gpu(diag_physics,'rubldiff',rubldiff)
+ call mpas_pool_get_array_gpu(diag_physics,'rvbldiff',rvbldiff)
+ call mpas_pool_get_array_gpu(tend_physics,'rublten' ,rublten )
+ call mpas_pool_get_array_gpu(tend_physics,'rvblten' ,rvblten )
 
  do j = jts,jte
  do i = its,ite
@@ -260,6 +263,8 @@
  enddo
  enddo
  enddo
+!$acc update device(dusfcg, dvsfcg, dtaux3d, dtauy3d, rubldiff, &
+!$acc               rvbldiff, rublten, rvblten)
 
  end subroutine gwdo_to_MPAS
  
