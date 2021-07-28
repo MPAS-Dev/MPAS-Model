@@ -645,13 +645,14 @@
 
  call mpas_pool_get_config(configs,'config_convection_scheme',convection_scheme)
 
- call mpas_pool_get_array(diag_physics,'cuprec',cuprec)
- call mpas_pool_get_array(diag_physics,'raincv',raincv)
+ call mpas_pool_get_array_gpu(diag_physics,'cuprec',cuprec)
+ call mpas_pool_get_array_gpu(diag_physics,'raincv',raincv)
 
- call mpas_pool_get_array(tend_physics,'rthcuten',rthcuten)
- call mpas_pool_get_array(tend_physics,'rqvcuten',rqvcuten)
- call mpas_pool_get_array(tend_physics,'rqccuten',rqccuten)
- call mpas_pool_get_array(tend_physics,'rqicuten',rqicuten)
+ call mpas_pool_get_array_gpu(tend_physics,'rthcuten',rthcuten)
+ call mpas_pool_get_array_gpu(tend_physics,'rqvcuten',rqvcuten)
+ call mpas_pool_get_array_gpu(tend_physics,'rqccuten',rqccuten)
+ call mpas_pool_get_array_gpu(tend_physics,'rqicuten',rqicuten)
+!$acc update host(cuprec, raincv, rthcuten, rqvcuten, rqccuten, rqicuten)
 
  do j = jts,jte
  do i = its,ite
@@ -671,35 +672,39 @@
     case ("cu_grell_freitas")
        call mpas_pool_get_config(configs,'config_len_disp',len_disp)
 
-       call mpas_pool_get_array(mesh,'areaCell'   ,areaCell   )
-       call mpas_pool_get_array(mesh,'meshDensity',meshDensity)
-       call mpas_pool_get_array(mesh,'zgrid'      ,zgrid      )
+       call mpas_pool_get_array_gpu(mesh,'areaCell'   ,areaCell   )
+       call mpas_pool_get_array_gpu(mesh,'meshDensity',meshDensity)
+       call mpas_pool_get_array_gpu(mesh,'zgrid'      ,zgrid      )
 
-       call mpas_pool_get_array(sfc_input,'xland',xland)
+       call mpas_pool_get_array_gpu(sfc_input,'xland',xland)
 
-       call mpas_pool_get_array(diag_physics,'gsw'          ,gsw          )
-       call mpas_pool_get_array(diag_physics,'hfx'          ,hfx          )
-       call mpas_pool_get_array(diag_physics,'qfx'          ,qfx          )
-       call mpas_pool_get_array(diag_physics,'kpbl'         ,kpbl         )
-       call mpas_pool_get_array(diag_physics,'cubot'        ,cubot        )
-       call mpas_pool_get_array(diag_physics,'cutop'        ,cutop        )
-       call mpas_pool_get_array(diag_physics,'xmb_total'    ,xmb_total    )
-       call mpas_pool_get_array(diag_physics,'xmb_shallow'  ,xmb_shallow  )
-       call mpas_pool_get_array(diag_physics,'k22_shallow'  ,k22_shallow  )
-       call mpas_pool_get_array(diag_physics,'kbcon_shallow',kbcon_shallow)
-       call mpas_pool_get_array(diag_physics,'ktop_shallow' ,ktop_shallow )
-       call mpas_pool_get_array(diag_physics,'ktop_deep'    ,ktop_deep    )
-       call mpas_pool_get_array(diag_physics,'qc_cu'        ,qc_cu        )
-       call mpas_pool_get_array(diag_physics,'qi_cu'        ,qi_cu        )
+       call mpas_pool_get_array_gpu(diag_physics,'gsw'          ,gsw          )
+       call mpas_pool_get_array_gpu(diag_physics,'hfx'          ,hfx          )
+       call mpas_pool_get_array_gpu(diag_physics,'qfx'          ,qfx          )
+       call mpas_pool_get_array_gpu(diag_physics,'kpbl'         ,kpbl         )
+       call mpas_pool_get_array_gpu(diag_physics,'cubot'        ,cubot        )
+       call mpas_pool_get_array_gpu(diag_physics,'cutop'        ,cutop        )
+       call mpas_pool_get_array_gpu(diag_physics,'xmb_total'    ,xmb_total    )
+       call mpas_pool_get_array_gpu(diag_physics,'xmb_shallow'  ,xmb_shallow  )
+       call mpas_pool_get_array_gpu(diag_physics,'k22_shallow'  ,k22_shallow  )
+       call mpas_pool_get_array_gpu(diag_physics,'kbcon_shallow',kbcon_shallow)
+       call mpas_pool_get_array_gpu(diag_physics,'ktop_shallow' ,ktop_shallow )
+       call mpas_pool_get_array_gpu(diag_physics,'ktop_deep'    ,ktop_deep    )
+       call mpas_pool_get_array_gpu(diag_physics,'qc_cu'        ,qc_cu        )
+       call mpas_pool_get_array_gpu(diag_physics,'qi_cu'        ,qi_cu        )
 
-       call mpas_pool_get_array(tend_physics,'rqvblten'  ,rqvblten  )
-       call mpas_pool_get_array(tend_physics,'rqvdynten' ,rqvdynten )
-       call mpas_pool_get_array(tend_physics,'rthblten'  ,rthblten  )
-       call mpas_pool_get_array(tend_physics,'rthdynten' ,rthdynten )
-       call mpas_pool_get_array(tend_physics,'rthratenlw',rthratenlw)
-       call mpas_pool_get_array(tend_physics,'rthratensw',rthratensw)
-       call mpas_pool_get_array(tend_physics,'rucuten'   ,rucuten   )
-       call mpas_pool_get_array(tend_physics,'rvcuten'   ,rvcuten   )
+       call mpas_pool_get_array_gpu(tend_physics,'rqvblten'  ,rqvblten  )
+       call mpas_pool_get_array_gpu(tend_physics,'rqvdynten' ,rqvdynten )
+       call mpas_pool_get_array_gpu(tend_physics,'rthblten'  ,rthblten  )
+       call mpas_pool_get_array_gpu(tend_physics,'rthdynten' ,rthdynten )
+       call mpas_pool_get_array_gpu(tend_physics,'rthratenlw',rthratenlw)
+       call mpas_pool_get_array_gpu(tend_physics,'rthratensw',rthratensw)
+       call mpas_pool_get_array_gpu(tend_physics,'rucuten'   ,rucuten   )
+       call mpas_pool_get_array_gpu(tend_physics,'rvcuten'   ,rvcuten   )
+!$acc update host(areaCell, meshDensity, zgrid, xland, gsw, hfx, qfx, kpbl, cubot, &
+!$acc             cutop, xmb_total, xmb_shallow, k22_shallow, kbcon_shallow, ktop_shallow, &
+!$acc             ktop_deep, qc_cu, qi_cu, rqvblten, rqvdynten, rthblten, rthdynten, &
+!$acc             rthratenlw, rthratensw, rucuten, rvcuten)
 
        do j = jts,jte
        do i = its,ite
@@ -740,16 +745,17 @@
     case ("cu_kain_fritsch")
        call mpas_pool_get_config(configs,'config_len_disp',len_disp)
 
-       call mpas_pool_get_array(mesh,'areaCell',areaCell)
-       call mpas_pool_get_array(mesh,'meshDensity',meshDensity)
+       call mpas_pool_get_array_gpu(mesh,'areaCell',areaCell)
+       call mpas_pool_get_array_gpu(mesh,'meshDensity',meshDensity)
 
-       call mpas_pool_get_array(diag_physics,'cubot'   ,cubot   )
-       call mpas_pool_get_array(diag_physics,'cutop'   ,cutop   )
-       call mpas_pool_get_array(diag_physics,'nca'     ,nca     )
-       call mpas_pool_get_array(diag_physics,'w0avg'   ,w0avg   )
+       call mpas_pool_get_array_gpu(diag_physics,'cubot'   ,cubot   )
+       call mpas_pool_get_array_gpu(diag_physics,'cutop'   ,cutop   )
+       call mpas_pool_get_array_gpu(diag_physics,'nca'     ,nca     )
+       call mpas_pool_get_array_gpu(diag_physics,'w0avg'   ,w0avg   )
 
-       call mpas_pool_get_array(tend_physics,'rqrcuten',rqrcuten)
-       call mpas_pool_get_array(tend_physics,'rqscuten',rqscuten)
+       call mpas_pool_get_array_gpu(tend_physics,'rqrcuten',rqrcuten)
+       call mpas_pool_get_array_gpu(tend_physics,'rqscuten',rqscuten)
+!$acc update host(areaCell, meshDensity, cubot, cutop, nca, w0avg, rqrcuten, rqscuten)
 
        do j = jts,jte
        do i = its,ite
@@ -776,14 +782,15 @@
        enddo
 
     case ("cu_tiedtke","cu_ntiedtke")
-       call mpas_pool_get_array(sfc_input,'xland',xland)
-       call mpas_pool_get_array(diag_physics,'hfx',hfx)
-       call mpas_pool_get_array(diag_physics,'qfx',qfx)
+       call mpas_pool_get_array_gpu(sfc_input,'xland',xland)
+       call mpas_pool_get_array_gpu(diag_physics,'hfx',hfx)
+       call mpas_pool_get_array_gpu(diag_physics,'qfx',qfx)
 
-       call mpas_pool_get_array(tend_physics,'rqvblten' ,rqvblten )
-       call mpas_pool_get_array(tend_physics,'rqvdynten',rqvdynten)
-       call mpas_pool_get_array(tend_physics,'rucuten'  ,rucuten  )
-       call mpas_pool_get_array(tend_physics,'rvcuten'  ,rvcuten  )
+       call mpas_pool_get_array_gpu(tend_physics,'rqvblten' ,rqvblten )
+       call mpas_pool_get_array_gpu(tend_physics,'rqvdynten',rqvdynten)
+       call mpas_pool_get_array_gpu(tend_physics,'rucuten'  ,rucuten  )
+       call mpas_pool_get_array_gpu(tend_physics,'rvcuten'  ,rvcuten  )
+!$acc update host(xland, hfx, qfx, rqvblten, rqvdynten, rucuten, rvcuten)
 
        do j = jts,jte
        do i = its,ite
@@ -814,14 +821,15 @@
  
           case("cu_ntiedtke")
              call mpas_pool_get_config(configs,'config_len_disp',len_disp)
-             call mpas_pool_get_array(mesh,'meshDensity',meshDensity)
+             call mpas_pool_get_array_gpu(mesh,'meshDensity',meshDensity)
 
-             call mpas_pool_get_array(tend_physics,'rqvdynten' ,rqvdynten )
-             call mpas_pool_get_array(tend_physics,'rqvblten'  ,rqvblten  )
-             call mpas_pool_get_array(tend_physics,'rthdynten' ,rthdynten )
-             call mpas_pool_get_array(tend_physics,'rthblten'  ,rthblten  )
-             call mpas_pool_get_array(tend_physics,'rthratenlw',rthratenlw)
-             call mpas_pool_get_array(tend_physics,'rthratensw',rthratensw)
+             call mpas_pool_get_array_gpu(tend_physics,'rqvdynten' ,rqvdynten )
+             call mpas_pool_get_array_gpu(tend_physics,'rqvblten'  ,rqvblten  )
+             call mpas_pool_get_array_gpu(tend_physics,'rthdynten' ,rthdynten )
+             call mpas_pool_get_array_gpu(tend_physics,'rthblten'  ,rthblten  )
+             call mpas_pool_get_array_gpu(tend_physics,'rthratenlw',rthratenlw)
+             call mpas_pool_get_array_gpu(tend_physics,'rthratensw',rthratensw)
+!$acc update host(meshDensity, rqvdynten, rqvblten, rthdynten, rthblten, rthratenlw, rthratensw)
              
              do j = jts,jte
              do i = its,ite
@@ -876,13 +884,13 @@
 
  call mpas_pool_get_config(configs,'config_convection_scheme',convection_scheme)
 
- call mpas_pool_get_array(diag_physics,'cuprec',cuprec)
- call mpas_pool_get_array(diag_physics,'raincv',raincv)
+ call mpas_pool_get_array_gpu(diag_physics,'cuprec',cuprec)
+ call mpas_pool_get_array_gpu(diag_physics,'raincv',raincv)
 
- call mpas_pool_get_array(tend_physics,'rthcuten',rthcuten)
- call mpas_pool_get_array(tend_physics,'rqvcuten',rqvcuten)
- call mpas_pool_get_array(tend_physics,'rqccuten',rqccuten)
- call mpas_pool_get_array(tend_physics,'rqicuten',rqicuten)
+ call mpas_pool_get_array_gpu(tend_physics,'rthcuten',rthcuten)
+ call mpas_pool_get_array_gpu(tend_physics,'rqvcuten',rqvcuten)
+ call mpas_pool_get_array_gpu(tend_physics,'rqccuten',rqccuten)
+ call mpas_pool_get_array_gpu(tend_physics,'rqicuten',rqicuten)
 
  do j = jts,jte
  do i = its,ite
@@ -900,19 +908,19 @@
  convection_select: select case(convection_scheme)
 
     case ("cu_grell_freitas")
-       call mpas_pool_get_array(diag_physics,'cubot'        ,cubot        )
-       call mpas_pool_get_array(diag_physics,'cutop'        ,cutop        )
-       call mpas_pool_get_array(diag_physics,'xmb_total'    ,xmb_total    )
-       call mpas_pool_get_array(diag_physics,'xmb_shallow'  ,xmb_shallow  )
-       call mpas_pool_get_array(diag_physics,'k22_shallow'  ,k22_shallow  )
-       call mpas_pool_get_array(diag_physics,'kbcon_shallow',kbcon_shallow)
-       call mpas_pool_get_array(diag_physics,'ktop_shallow' ,ktop_shallow )
-       call mpas_pool_get_array(diag_physics,'ktop_deep'    ,ktop_deep    )
-       call mpas_pool_get_array(diag_physics,'qc_cu'        ,qc_cu        )
-       call mpas_pool_get_array(diag_physics,'qi_cu'        ,qi_cu        )
+       call mpas_pool_get_array_gpu(diag_physics,'cubot'        ,cubot        )
+       call mpas_pool_get_array_gpu(diag_physics,'cutop'        ,cutop        )
+       call mpas_pool_get_array_gpu(diag_physics,'xmb_total'    ,xmb_total    )
+       call mpas_pool_get_array_gpu(diag_physics,'xmb_shallow'  ,xmb_shallow  )
+       call mpas_pool_get_array_gpu(diag_physics,'k22_shallow'  ,k22_shallow  )
+       call mpas_pool_get_array_gpu(diag_physics,'kbcon_shallow',kbcon_shallow)
+       call mpas_pool_get_array_gpu(diag_physics,'ktop_shallow' ,ktop_shallow )
+       call mpas_pool_get_array_gpu(diag_physics,'ktop_deep'    ,ktop_deep    )
+       call mpas_pool_get_array_gpu(diag_physics,'qc_cu'        ,qc_cu        )
+       call mpas_pool_get_array_gpu(diag_physics,'qi_cu'        ,qi_cu        )
 
-       call mpas_pool_get_array(tend_physics,'rucuten',rucuten)
-       call mpas_pool_get_array(tend_physics,'rvcuten',rvcuten)
+       call mpas_pool_get_array_gpu(tend_physics,'rucuten',rucuten)
+       call mpas_pool_get_array_gpu(tend_physics,'rvcuten',rvcuten)
 
        do j = jts,jte
        do i = its,ite
@@ -933,15 +941,18 @@
           enddo
        enddo
        enddo
+!$acc update device(cubot, cutop, xmb_total, xmb_shallow, k22_shallow, &
+!$acc               kbcon_shallow, ktop_shallow, ktop_deep, qc_cu, qi_cu, &
+!$acc               rucuten, rvcuten)
 
     case ("cu_kain_fritsch")
-       call mpas_pool_get_array(diag_physics,'cubot',cubot)
-       call mpas_pool_get_array(diag_physics,'cutop',cutop)
-       call mpas_pool_get_array(diag_physics,'nca'  ,nca  )
-       call mpas_pool_get_array(diag_physics,'w0avg',w0avg)
+       call mpas_pool_get_array_gpu(diag_physics,'cubot',cubot)
+       call mpas_pool_get_array_gpu(diag_physics,'cutop',cutop)
+       call mpas_pool_get_array_gpu(diag_physics,'nca'  ,nca  )
+       call mpas_pool_get_array_gpu(diag_physics,'w0avg',w0avg)
 
-       call mpas_pool_get_array(tend_physics,'rqrcuten',rqrcuten)
-       call mpas_pool_get_array(tend_physics,'rqscuten',rqscuten)
+       call mpas_pool_get_array_gpu(tend_physics,'rqrcuten',rqrcuten)
+       call mpas_pool_get_array_gpu(tend_physics,'rqscuten',rqscuten)
 
        do j = jts,jte
        do i = its,ite
@@ -955,10 +966,11 @@
           enddo                          
        enddo
        enddo
+!$acc update device(cubot, cutop, nca, w0avg, rqrcuten, rqscuten)
 
     case ("cu_tiedtke","cu_ntiedtke")
-       call mpas_pool_get_array(tend_physics,'rucuten',rucuten)
-       call mpas_pool_get_array(tend_physics,'rvcuten',rvcuten)
+       call mpas_pool_get_array_gpu(tend_physics,'rucuten',rucuten)
+       call mpas_pool_get_array_gpu(tend_physics,'rvcuten',rvcuten)
 
        do j = jts,jte
        do k = kts,kte
@@ -968,11 +980,13 @@
        enddo
        enddo
        enddo
+!$acc update device(rucuten, rvcuten)
 
     case default
 
  end select convection_select
 
+!$acc update device(cuprec, raincv, rthcuten, rqvcuten, rqccuten, rqicuten)
  end subroutine convection_to_MPAS
 
 !=================================================================================================================
