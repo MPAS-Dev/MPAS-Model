@@ -330,17 +330,20 @@ contains
 !-------other local variables----
       integer                      :: zz, pp
 !-----------------------------------------------------------------------
+!$acc data create(rcs,rn,evap,heatflux,dx2d, &
+!$acc slimsk,prsi,ghti,zi,dot,prsl,q1,q2,q3,q1b,t1b,q11,q12,t1,u1,v1,zl, &
+!$acc omg,ghtl,kbot,ktop)
 !
 !
 !***  check to see if this is a convection timestep
 !
 
 !-----------------------------------------------------------------------
-      do j=jts,jte
-         do i=its,ite
-            cu_act_flag(i,j)=.true.
-         enddo
-      enddo
+!!!   do j=jts,jte
+!!!      do i=its,ite
+!!!         cu_act_flag(i,j)=.true.
+!!!      enddo
+!!!   enddo
 
       im=ite-its+1
       kx=kte-kts+1
@@ -353,42 +356,61 @@ contains
    do j=jts,jte
 
 ! --------------- compute zi and zl -----------------------------------------
+!$acc parallel vector_length(128)
+!$acc loop gang vector
       do i=its,ite
+        cu_act_flag(i,j)=.true.
         zi(i,kts)=0.0
       enddo
+!$acc end parallel
 !
       do k=kts,kte
+!$acc parallel vector_length(128)
+!$acc loop gang vector
         do i=its,ite
           zi(i,k+1)=zi(i,k)+dz8w(i,k,j)
         enddo
+!$acc end parallel
       enddo
 !
+!$acc parallel vector_length(128)
+!$acc loop gang vector collapse(2)
       do k=kts,kte
         do i=its,ite
           zl(i,k)=0.5*(zi(i,k)+zi(i,k+1))
         enddo
       enddo
+!$acc end parallel
 
 ! --------------- end compute zi and zl -------------------------------------
+!$acc parallel vector_length(128)
+!$acc loop gang vector
       do i=its,ite
         slimsk(i)=int(abs(xland(i,j)-2.))
       enddo
+!$acc end parallel
 
+!$acc parallel vector_length(128)
       do i=its,ite
          dx2d(i) = dx(i,j)
       enddo
+!$acc end parallel
 
+!$acc parallel vector_length(128)
+!$acc loop gang vector collapse(2)
       do k=kts,kte
-        kp=k+1
+!!!     kp=k+1
         do i=its,ite
-          dot(i,k)=-0.5*g*rho3d(i,k,j)*(w(i,k,j)+w(i,kp,j))
+          dot(i,k)=-0.5*g*rho3d(i,k,j)*(w(i,k,j)+w(i,k+1,j))
         enddo
       enddo
 
-      pp = 0
+!!!   pp = 0
+!$acc loop gang vector collapse(2) private(zz)
       do k=kts,kte
-        zz = kte-pp
+!!!     zz = kte-pp
         do i=its,ite
+          zz = kte+1-k
           u1(i,zz)=u3d(i,k,j)
           v1(i,zz)=v3d(i,k,j)
           t1(i,zz)=t3d(i,k,j)
@@ -406,73 +428,94 @@ contains
           ghtl(i,zz)=zl(i,k)
           prsl(i,zz) = pcps(i,k,j)
         enddo
-        pp = pp + 1
+!!!     pp = pp + 1
       enddo
+!$acc end parallel
 
-      pp = 0
+!!!   pp = 0
+!$acc parallel vector_length(128)
+!$acc loop gang vector collapse(2) private(zz)
       do k=kts,kte+1
-        zz = kte+1-pp
+!!!     zz = kte+1-pp
         do i=its,ite
+          zz = kte+2-k
           ghti(i,zz) = zi(i,k)
           prsi(i,zz) = p8w(i,k,j) 
         enddo
-        pp = pp + 1
+!!!     pp = pp + 1
       enddo
+!$acc end parallel
 !
+!$acc parallel vector_length(128)
+!$acc loop gang vector
       do i=its,ite
         evap(i)    = qfx(i,j)
         heatflux(i)= hfx(i,j)
       enddo
+!$acc end parallel
 !
 !########################################################################
       call tiecnvn(u1,v1,t1,q1,q2,q3,q1b,t1b,ghtl,ghti,omg,prsl,prsi,evap,heatflux,  &
                   rn,slimsk,im,kx,kx1,delt,dx2d)
 
+!$acc parallel vector_length(128)
+!$acc loop gang vector
       do i=its,ite
          raincv(i,j)=rn(i)/stepcu
          pratec(i,j)=rn(i)/(stepcu * dt)
       enddo
-
-      pp = 0
+!!!   pp = 0
+!$acc loop gang vector collapse(2) private(zz)
       do k=kts,kte
-        zz = kte-pp
+!!!     zz = kte-pp
         do i=its,ite
+          zz = kte+1-k
           rthcuten(i,k,j)=(t1(i,zz)-t3d(i,k,j))/pi3d(i,k,j)*rdelt
           rqvcuten(i,k,j)=(q1(i,zz)-qv3d(i,k,j))*rdelt
           rucuten(i,k,j) =(u1(i,zz)-u3d(i,k,j))*rdelt
           rvcuten(i,k,j) =(v1(i,zz)-v3d(i,k,j))*rdelt
         enddo
-        pp = pp + 1
+!!!     pp = pp + 1
       enddo
+!$acc end parallel
 
       if(present(rqccuten))then
         if ( f_qc ) then
-          pp = 0
+!!!       pp = 0
+!$acc parallel vector_length(128)
+!$acc loop gang vector collapse(2)
           do k=kts,kte
-            zz = kte-pp
+!!!         zz = kte-pp
+!!!         zz = kte+1-k
             do i=its,ite
-              rqccuten(i,k,j)=(q2(i,zz)-qc3d(i,k,j))*rdelt
+              rqccuten(i,k,j)=(q2(i,kte+1-k)-qc3d(i,k,j))*rdelt
             enddo
             pp = pp + 1
           enddo
+!$acc end parallel
         endif
       endif
 
       if(present(rqicuten))then
         if ( f_qi ) then
-          pp = 0
+!!!       pp = 0
+!$acc parallel vector_length(128)
+!$acc loop gang vector collapse(2)
           do k=kts,kte
-            zz = kte-pp
+!!!         zz = kte-pp
+!!!         zz = kte+1-k
             do i=its,ite
-              rqicuten(i,k,j)=(q3(i,zz)-qi3d(i,k,j))*rdelt
+              rqicuten(i,k,j)=(q3(i,kte+1-k)-qi3d(i,k,j))*rdelt
             enddo
-            pp = pp + 1
+!!!         pp = pp + 1
           enddo
+!$acc end parallel
         endif
       endif
 
 
    enddo
+!$acc end data
 
    end subroutine cu_ntiedtke
 
@@ -585,11 +628,16 @@ contains
       integer i,j,k,lq,km,km1
       real dt,ztpp1
       real zew,zqs,zcor
+!$acc data create(pum1,pvm1,ztt,ptte,pqte,pvom,pvol,pverv,pgeo, &
+!$acc zqq,pcte,ztp1,zqp1,ztu,zqu,zlu,zlude,zmfu,zmfd,zqsat,pqhfl, &
+!$acc prsfc,pssfc,phhfl,zrain,pgeoh,icbot,ictop,locum)
 !
       ztmst=dt
 !
 !  masv flux diagnostics.
 !
+!$acc parallel vector_length(128)
+!$acc loop gang vector
       do j=1,lq
         zrain(j)=0.0
         locum(j)=.false.
@@ -599,9 +647,12 @@ contains
         phhfl(j)=hfx(j)
         pgeoh(j,km1)=g*pzz(j,km1)
       end do
+!$acc end parallel
 !
 !     convert model variables for mflux scheme
 !
+!$acc parallel vector_length(128)
+!$acc loop gang vector collapse(2) private(zew,zqs,zcor)
       do k=1,km
         do j=1,lq
           pcte(j,k)=0.0
@@ -626,6 +677,7 @@ contains
           ztt(j,k) =ptte(j,k)
         end do
       end do
+!$acc end parallel
 !
 !-----------------------------------------------------------------------
 !*    2.     call 'cumastrn'(master-routine for cumulus parameterization)
@@ -642,6 +694,8 @@ contains
 !
 !     to include the cloud water and cloud ice detrained from convection
 !
+!$acc parallel vector_length(128)
+!$acc loop gang vector collapse(2) private(fliq,fice)
       do k=1,km
       do j=1,lq
       if(pcte(j,k).gt.0.) then
@@ -653,6 +707,7 @@ contains
       end do
       end do
 !
+!$acc loop gang vector collapse(2)
       do k=1,km
         do j=1,lq
           pt(j,k)=  ztp1(j,k)+(ptte(j,k)-ztt(j,k))*ztmst
@@ -660,20 +715,28 @@ contains
           pqv(j,k)=zqp1(j,k)/(1.0-zqp1(j,k))
         end do
       end do
+!$acc end parallel
 
+!$acc parallel vector_length(128)
+!$acc loop gang vector
       do j=1,lq
         zprecc(j)=amax1(0.0,(prsfc(j)+pssfc(j))*ztmst)
       end do
+!$acc end parallel
 
       if (lmfdudv) then
+!$acc parallel vector_length(128)
+!$acc loop gang vector collapse(2)
         do k=1,km
           do j=1,lq
             pu(j,k)=pu(j,k)+pvom(j,k)*ztmst
             pv(j,k)=pv(j,k)+pvol(j,k)*ztmst
           end do
         end do
+!$acc end parallel
       endif
 !
+!$acc end data
       return
       end subroutine tiecnvn
 
@@ -811,6 +874,14 @@ contains
       real     ztmst,ztau,zerate,zderate,zmfa
       real     zmfs(klon),pmean(klev),zlon
       real     zduten,zdvten,ztdis,pgf_u,pgf_v
+
+!$acc data create(ztenh,zqenh,zqsenh,ztd,zqd,zmfus,zmfds,zmfuq, &
+!$acc zmfdq,zdmfup,zdmfdp,zmful,zuu,zvu,zud,zvd,zlglac,zrfl, &
+!$acc zdpmel,pmfude_rate,pmfdde_rate,zmfuus,zmfdus,zuv2,ztenu, &
+!$acc ztenv,zhcbase,zmfub,zmfub1,zdhpbl,zsfl,zcape,zcape1,zcape2, &
+!$acc ztauc,ztaubl,zheat,wup,wbase,zmfuub,upbl,zmfuvb,zsum12, &
+!$acc zsum22,pmflxr,pmflxs,ilab,idtop,ictop0,ilwmin,kdpl, &
+!$acc loddraf,llo2,zmfs,pmean)
 !-------------------------------------------
 !     1.    specify constants and parameters
 !-------------------------------------------
@@ -845,13 +916,19 @@ contains
 
 !*         (b) assign the first guess mass flux at cloud base
 !              ------------------------------------------
+!$acc parallel vector_length(128)
+!$acc loop gang vector
        do jl=1,klon
          zdhpbl(jl)=0.0
          upbl(jl) = 0.0
          idtop(jl)=0
        end do
+!$acc end parallel
 
+!$acc parallel vector_length(128)
+!$acc loop seq
        do jk=2,klev
+!$acc loop gang vector private(wspeed)
        do jl=1,klon
          if(jk.ge.kcbot(jl) .and. ldcum(jl)) then
             zdhpbl(jl)=zdhpbl(jl)+(alv*pqte(jl,jk)+cpd*ptte(jl,jk))&
@@ -863,7 +940,10 @@ contains
          end if
        end do
        end do
+!$acc end parallel
 
+!$acc parallel vector_length(128)
+!$acc loop gang vector private(ikb,zmfmax,zqumqe,zdqmin,zdh)
       do jl=1,klon
         if(ldcum(jl)) then
            ikb=kcbot(jl)
@@ -887,6 +967,7 @@ contains
            zmfub(jl) = 0.
         end if
       end do
+!$acc end parallel
 !------------------------------------------------------
 !*    4.0   determine cloud ascent for entraining plume
 !------------------------------------------------------
@@ -906,6 +987,8 @@ contains
 !*     (b) check cloud depth and change entrainment rate accordingly
 !          calculate precipitation rate (for downdraft calculation)
 !------------------------------------------------------------------
+!$acc parallel vector_length(128)
+!$acc loop gang vector private(ikb,itopm2,zpbmpt)
       do jl=1,klon
         if ( ldcum(jl) ) then
           ikb = kcbot(jl)
@@ -917,13 +1000,19 @@ contains
         end if
         zrfl(jl)=zdmfup(jl,1)
       end do
+!$acc end parallel
 
       do jk=2,klev
+!$acc parallel vector_length(128)
+!$acc loop gang vector
         do jl=1,klon
           zrfl(jl)=zrfl(jl)+zdmfup(jl,jk)
         end do
+!$acc end parallel
       end do
 
+!$acc parallel vector_length(128)
+!$acc loop gang vector collapse(2)
       do jk = 1,klev
       do jl = 1,klon
         pmfd(jl,jk) = 0.
@@ -933,6 +1022,7 @@ contains
         zdpmel(jl,jk) = 0.
       end do
       end do
+!$acc end parallel
 
 !-----------------------------------------
 !*    6.0   cumulus downdraft calculations
@@ -967,6 +1057,8 @@ contains
 !-- 6.1 recalculate cloud base massflux from a cape closure
 !       for deep convection (ktype=1) 
 !
+!$acc parallel vector_length(128)
+!$acc loop gang vector private(ikb,ikt)
       do jl=1,klon
       if(ldcum(jl) .and. ktype(jl) .eq. 1) then
         ikb = kcbot(jl)
@@ -988,8 +1080,11 @@ contains
         end if
       end if    
       end do
+!$acc end parallel
 !
       do jk = 1 , klev
+!$acc parallel vector_length(128)
+!$acc loop gang vector private(llo1,ikb,zdz,zdp)
       do jl = 1 , klon
         llo1 = ldcum(jl) .and. ktype(jl) .eq. 1
         if ( llo1 .and. jk <= kcbot(jl) .and. jk > kctop(jl) ) then
@@ -1011,8 +1106,12 @@ contains
         end if
         end if
       end do
+!$acc end parallel
       end do
 
+!$acc parallel vector_length(128)
+!$acc loop gang vector private(ikb,ikt,ztau, &
+!$acc zmfmax)
       do jl=1,klon
        if(ldcum(jl).and.ktype(jl).eq.1) then
            ikb = kcbot(jl)
@@ -1034,10 +1133,13 @@ contains
            zmfub1(jl)=min(zmfub1(jl),zmfmax)
        end if
       end do
+!$acc end parallel
 !
 !*  6.2   recalculate convective fluxes due to effect of
 !         downdrafts on boundary layer moist static energy budget (ktype=2)
 !--------------------------------------------------------
+!$acc parallel vector_length(128)
+!$acc loop gang vector private(ikb,zeps,zqumqe,zdqmin,zmfmax,zdh)
        do jl=1,klon
          if(ldcum(jl) .and. ktype(jl) .eq. 2) then
            ikb=kcbot(jl)
@@ -1069,9 +1171,12 @@ contains
          end if
 
        end do
+!$acc end parallel
 
 !*  6.4   scaling the downdraft mass flux
 !---------------------------------------------------------
+!$acc parallel vector_length(128)
+!$acc loop gang vector collapse(2) private(zfac)
        do jk=1,klev
        do jl=1,klon
         if( ldcum(jl) ) then
@@ -1084,13 +1189,19 @@ contains
         end if
        end do
        end do
+!$acc end parallel
 
 !*  6.5   scaling the updraft mass flux
 ! --------------------------------------------------------
+!$acc parallel vector_length(128)
+!$acc loop gang vector
     do jl = 1,klon
       if ( ldcum(jl) ) zmfs(jl) = zmfub1(jl)/max(cmfcmin,zmfub(jl))
     end do
+ !$acc end parallel
     do jk = 2 , klev
+ !$acc parallel vector_length(128)
+!$acc loop gang vector private(ikb,zdz,zmfmax)
       do jl = 1,klon
         if ( ldcum(jl) .and. jk >= kctop(jl)-1 ) then
           ikb = kcbot(jl)
@@ -1104,7 +1215,10 @@ contains
           end if
         end if
       end do
+!$acc end parallel
     end do
+!$acc parallel vector_length(128)
+!$acc loop gang vector collapse(2)
     do jk = 2 , klev
       do jl = 1,klon
         if ( ldcum(jl) .and. jk <= kcbot(jl) .and. jk >= kctop(jl)-1 ) then
@@ -1118,9 +1232,12 @@ contains
         end if
       end do
     end do
+!$acc end parallel
 
 !*    6.6  if ktype = 2, kcbot=kctop is not allowed
 ! ---------------------------------------------------
+!$acc parallel vector_length(128)
+!$acc loop gang vector
     do jl = 1,klon
       if ( ktype(jl) == 2 .and. &
            kcbot(jl) == kctop(jl) .and. kcbot(jl) >= klev-1 ) then
@@ -1128,8 +1245,11 @@ contains
         ktype(jl) = 0
       end if
     end do
+!$acc end parallel
 
     if ( .not. lmfscv .or. .not. lmfpen ) then
+!$acc parallel vector_length(128)
+!$acc loop gang vector
       do jl = 1,klon
         llo2(jl) = .false.
         if ( (.not. lmfscv .and. ktype(jl) == 2) .or. &
@@ -1138,15 +1258,21 @@ contains
           ldcum(jl) = .false.
         end if
       end do
+!$acc end parallel
     end if
 
 !*   6.7  set downdraft mass fluxes to zero above cloud top
 !----------------------------------------------------
+!$acc parallel vector_length(128)
+!$acc loop gang vector
     do jl = 1,klon
       if ( loddraf(jl) .and. idtop(jl) <= kctop(jl) ) then
         idtop(jl) = kctop(jl) + 1
       end if
     end do
+!$acc end parallel
+!$acc parallel vector_length(128)
+!$acc loop gang vector collapse(2)
     do jk = 2 , klev
       do jl = 1,klon
         if ( loddraf(jl) ) then
@@ -1162,6 +1288,7 @@ contains
         end if
       end do
     end do
+!$acc end parallel
 !----------------------------------------------------------
 !*    7.0      determine final convective fluxes in 'cuflx'
 !----------------------------------------------------------
@@ -1177,11 +1304,16 @@ contains
      &  ,  prain,    pmfdde_rate, pmflxr, pmflxs )     
 
 ! some adjustments needed
+!$acc parallel vector_length(128)
+!$acc loop gang vector
     do jl=1,klon
       zmfs(jl) = 1.
       zmfuub(jl)=0.
     end do
+!$acc end parallel
     do jk = 2 , klev
+!$acc parallel vector_length(128)
+!$acc loop gang vector private(zmfmax)
       do jl = 1,klon
         if ( loddraf(jl) .and. jk >= idtop(jl)-1 ) then
           zmfmax = pmfu(jl,jk)*0.98
@@ -1190,9 +1322,13 @@ contains
           end if
         end if
       end do
+!$acc end parallel
     end do
 
+!$acc parallel vector_length(128)
+!$acc loop seq
     do jk = 2 , klev
+!$acc loop gang vector
       do jl = 1 , klon
         if ( zmfs(jl) < 1. .and. jk >= idtop(jl)-1 ) then
           pmfd(jl,jk) = pmfd(jl,jk)*zmfs(jl)
@@ -1205,7 +1341,10 @@ contains
         end if
       end do
     end do
+!$acc end parallel
 
+!$acc parallel vector_length(128)
+!$acc loop gang vector collapse(2) private(zerate)
     do jk = 2 , klev - 1
       do jl = 1, klon
         if ( loddraf(jl) .and. jk >= idtop(jl)-1 ) then
@@ -1225,8 +1364,11 @@ contains
         end if
       end do
     end do
+!$acc end parallel
 
 ! avoid negative humidities at ddraught top
+!$acc parallel vector_length(128)
+!$acc loop gang vector private(jk,ik)
     do jl = 1,klon
       if ( loddraf(jl) ) then
         jk = idtop(jl)
@@ -1236,9 +1378,12 @@ contains
         end if
       end if
     end do
+!$acc end parallel
 
 ! avoid negative humidities near cloud top because gradient of precip flux
 ! and detrainment / liquid water flux are too large
+!$acc parallel vector_length(128)
+!$acc loop gang vector collapse(2) private(zdz,zmfa)
     do jk = 2 , klev
       do jl = 1, klon
         if ( ldcum(jl) .and. jk >= kctop(jl)-1 .and. jk < kcbot(jl) ) then
@@ -1256,11 +1401,15 @@ contains
         if ( abs(pmfd(jl,jk-1)) < 1.0e-20 ) pmfdde_rate(jl,jk) = 0.
       end do
     end do
+!$acc end parallel
 
+!$acc parallel vector_length(128)
+!$acc loop gang vector
     do jl=1,klon
       prsfc(jl) = pmflxr(jl,klev+1)
       pssfc(jl) = pmflxs(jl,klev+1)
     end do
+!$acc end parallel
 
 !----------------------------------------------------------------
 !*    8.0      update tendencies for t and q in subroutine cudtdq
@@ -1273,8 +1422,11 @@ contains
 !*    9.0      update tendencies for u and u in subroutine cududv
 !----------------------------------------------------------------
       if(lmfdudv) then
+!$acc parallel vector_length(128)
+!$acc loop seq
       do jk = klev-1 , 2 , -1
-        ik = jk + 1
+!!!     ik = jk + 1
+!$acc loop gang vector private(ikb,zfac,zerate,zderate,zmfa,pgf_u,pgf_v)
         do jl = 1,klon
           if ( ldcum(jl) ) then
             if ( jk == kcbot(jl) .and. ktype(jl) < 3 ) then
@@ -1290,57 +1442,69 @@ contains
               zfac = 0.
               if ( ktype(jl) == 1 .or. ktype(jl) == 3 ) zfac = 2.
               if ( ktype(jl) == 1 .and. jk <= kctop(jl)+2 ) zfac = 3.
-              zerate = pmfu(jl,jk) - pmfu(jl,ik) + &
+              zerate = pmfu(jl,jk) - pmfu(jl,jk+1) + &
                 (1.+zfac)*pmfude_rate(jl,jk)
               zderate = (1.+zfac)*pmfude_rate(jl,jk)
               zmfa = 1./max(cmfcmin,pmfu(jl,jk))
-              zuu(jl,jk) = (zuu(jl,ik)*pmfu(jl,ik) + &
-                zerate*puen(jl,jk)-zderate*zuu(jl,ik))*zmfa
-              zvu(jl,jk) = (zvu(jl,ik)*pmfu(jl,ik) + &
-                zerate*pven(jl,jk)-zderate*zvu(jl,ik))*zmfa
+              zuu(jl,jk) = (zuu(jl,jk+1)*pmfu(jl,jk+1) + &
+                zerate*puen(jl,jk)-zderate*zuu(jl,jk+1))*zmfa
+              zvu(jl,jk) = (zvu(jl,jk+1)*pmfu(jl,jk+1) + &
+                zerate*pven(jl,jk)-zderate*zvu(jl,jk+1))*zmfa
             else
-              pgf_u = -pgcoef*0.5*(pmfu(jl,ik)*(puen(jl,ik)-puen(jl,jk))+&
+              pgf_u = -pgcoef*0.5*(pmfu(jl,jk+1)*(puen(jl,jk+1)-puen(jl,jk))+&
                                    pmfu(jl,jk)*(puen(jl,jk)-puen(jl,jk-1)))
-              pgf_v = -pgcoef*0.5*(pmfu(jl,ik)*(pven(jl,ik)-pven(jl,jk))+&
+              pgf_v = -pgcoef*0.5*(pmfu(jl,jk+1)*(pven(jl,jk+1)-pven(jl,jk))+&
                                    pmfu(jl,jk)*(pven(jl,jk)-pven(jl,jk-1)))
-              zerate = pmfu(jl,jk) - pmfu(jl,ik) + pmfude_rate(jl,jk)
+              zerate = pmfu(jl,jk) - pmfu(jl,jk+1) + pmfude_rate(jl,jk)
               zderate = pmfude_rate(jl,jk)
               zmfa = 1./max(cmfcmin,pmfu(jl,jk))
-              zuu(jl,jk) = (zuu(jl,ik)*pmfu(jl,ik) + &
-                zerate*puen(jl,jk)-zderate*zuu(jl,ik)+pgf_u)*zmfa
-              zvu(jl,jk) = (zvu(jl,ik)*pmfu(jl,ik) + &
-                zerate*pven(jl,jk)-zderate*zvu(jl,ik)+pgf_v)*zmfa
+              zuu(jl,jk) = (zuu(jl,jk+1)*pmfu(jl,jk+1) + &
+                zerate*puen(jl,jk)-zderate*zuu(jl,jk+1)+pgf_u)*zmfa
+              zvu(jl,jk) = (zvu(jl,jk+1)*pmfu(jl,jk+1) + &
+                zerate*pven(jl,jk)-zderate*zvu(jl,jk+1)+pgf_v)*zmfa
             end if
             end if
           end if
         end do
       end do
+!$acc end parallel
 
       if(lmfdd) then
+!$acc parallel vector_length(128)
+!$acc loop seq
       do jk = 3 , klev
-        ik = jk - 1
+!!!     ik = jk - 1
+!$acc loop gang vector private(zerate,zmfa)
         do jl = 1,klon
           if ( ldcum(jl) ) then
             if ( jk == idtop(jl) ) then
-              zud(jl,jk) = 0.5*(zuu(jl,jk)+puen(jl,ik))
-              zvd(jl,jk) = 0.5*(zvu(jl,jk)+pven(jl,ik))
+              zud(jl,jk) = 0.5*(zuu(jl,jk)+puen(jl,jk+1))
+              zvd(jl,jk) = 0.5*(zvu(jl,jk)+pven(jl,jk+1))
             else if ( jk > idtop(jl) ) then
-              zerate = -pmfd(jl,jk) + pmfd(jl,ik) + pmfdde_rate(jl,jk)
+              zerate = -pmfd(jl,jk) + pmfd(jl,jk+1) + pmfdde_rate(jl,jk)
               zmfa = 1./min(-cmfcmin,pmfd(jl,jk))
-              zud(jl,jk) = (zud(jl,ik)*pmfd(jl,ik) - &
-                zerate*puen(jl,ik)+pmfdde_rate(jl,jk)*zud(jl,ik))*zmfa
-              zvd(jl,jk) = (zvd(jl,ik)*pmfd(jl,ik) - &
-                zerate*pven(jl,ik)+pmfdde_rate(jl,jk)*zvd(jl,ik))*zmfa
+              zud(jl,jk) = (zud(jl,jk+1)*pmfd(jl,jk+1) - &
+                zerate*puen(jl,jk+1)+pmfdde_rate(jl,jk)*zud(jl,jk+1))*zmfa
+              zvd(jl,jk) = (zvd(jl,jk+1)*pmfd(jl,jk+1) - &
+                zerate*pven(jl,jk+1)+pmfdde_rate(jl,jk)*zvd(jl,jk+1))*zmfa
             end if
           end if
         end do
       end do
+!$acc end parallel
       end if
 !   --------------------------------------------------
 !   rescale massfluxes for stability in Momentum
 !------------------------------------------------------------------------
+!$acc parallel vector_length(128)
+!!!!$acc loop gang vector
       zmfs(:) = 1.
+!$acc end parallel
+
+!$acc parallel vector_length(128)
+!$acc loop seq
       do jk = 2 , klev
+!$acc loop gang vector private(zmfmax)
         do jl = 1, klon
           if ( ldcum(jl) .and. jk >= kctop(jl)-1 ) then
             zmfmax = (paph(jl,jk)-paph(jl,jk-1))*zcons
@@ -1350,6 +1514,9 @@ contains
           end if
         end do
       end do
+!$acc end parallel
+!$acc parallel vector_length(128)
+!$acc loop gang vector collapse(2)
       do jk = 1 , klev
         do jl = 1, klon
           zmfuus(jl,jk) = pmfu(jl,jk)
@@ -1360,25 +1527,35 @@ contains
           end if
         end do
       end do
+!$acc end parallel
 !*  9.1          update u and v in subroutine cududvn
 !-------------------------------------------------------------------
+!$acc parallel vector_length(128)
+!$acc loop gang vector collapse(2)
      do jk = 1 , klev
         do jl = 1, klon
           ztenu(jl,jk) = pvom(jl,jk)
           ztenv(jl,jk) = pvol(jl,jk)
         end do
       end do
+!$acc end parallel
 
       call cududvn(klon,klev,itopm2,ktype,kcbot,kctop, &
                   ldcum,ztmst,paph,puen,pven,zmfuus,zmfdus,zuu,  &
                   zud,zvu,zvd,pvom,pvol)
 
 !  calculate KE dissipation
+!$acc parallel vector_length(128)
+!$acc loop gang vector
       do jl = 1, klon
         zsum12(jl) = 0.
         zsum22(jl) = 0.
       end do
+!$acc end parallel
+!$acc parallel vector_length(128)
+!$acc loop seq
         do jk = 1 , klev
+!$acc loop gang vector private(zdz,zduten,zdvten)
           do jl = 1, klon
             zuv2(jl,jk) = 0.
             if ( ldcum(jl) .and. jk >= kctop(jl)-1 ) then
@@ -1392,6 +1569,9 @@ contains
             end if
           end do
         end do
+!$acc end parallel
+!$acc parallel vector_length(128)
+!$acc loop gang vector collapse(2) private(ztdis)
         do jk = 1 , klev
           do jl = 1, klon
             if ( ldcum(jl) .and. jk>=kctop(jl)-1 ) then
@@ -1400,7 +1580,7 @@ contains
             end if
           end do
         end do
-
+!$acc end parallel
       end if
 
 !----------------------------------------------------------------------
@@ -1408,6 +1588,8 @@ contains
 ! NEED TO SET SOME VARIABLES A POSTERIORI TO ZERO
 ! ---------------------------------------------------
     if ( .not. lmfscv .or. .not. lmfpen ) then
+!$acc parallel vector_length(128)
+!$acc loop gang vector collapse(2)
       do jk = 2 , klev
         do jl = 1, klon
           if ( llo2(jl) .and. jk >= kctop(jl)-1 ) then
@@ -1419,14 +1601,18 @@ contains
           end if
         end do
       end do
+!$acc end parallel
+!$acc parallel vector_length(128)
+!$acc loop gang vector
       do jl = 1, klon
         if ( llo2(jl) ) then
           kctop(jl) = klev - 1
           kcbot(jl) = klev - 1
         end if
       end do
+!$acc end parallel
     end if
-
+!$acc end data
       return
       end subroutine cumastrn
 
@@ -1484,12 +1670,15 @@ contains
       integer  jl,jk
       integer  icall,ik
       real     zzs
+!$acc data create(zwmax,zph,loflag)
 !------------------------------------------------------------
 !*    1.       specify large scale parameters at half levels
 !*             adjust temperature fields if staticly unstable
 !*             find level of maximum vertical velocity
 ! -----------------------------------------------------------
       do jk=2,klev
+!$acc parallel vector_length(128)
+!$acc loop gang vector
       do jl=1,klon
         ptenh(jl,jk)=(max(cpd*pten(jl,jk-1)+pgeo(jl,jk-1), &
      &             cpd*pten(jl,jk)+pgeo(jl,jk))-pgeoh(jl,jk))*rcpd
@@ -1498,19 +1687,27 @@ contains
         zph(jl)=paph(jl,jk)
         loflag(jl)=.true.
       end do
+!$acc end parallel
 
       if ( jk >= klev-1 .or. jk < 2 ) cycle
       ik=jk
       icall=0
       call cuadjtqn(klon,klev,ik,zph,ptenh,pqsenh,loflag,icall)
+
+!$acc parallel vector_length(128)
+!$acc loop gang vector
       do jl=1,klon
         pqenh(jl,jk)=min(pqen(jl,jk-1),pqsen(jl,jk-1)) &
      &            +(pqsenh(jl,jk)-pqsen(jl,jk-1))
         pqenh(jl,jk)=max(pqenh(jl,jk),0.)
       end do
+!$acc end parallel
       end do
 
+!$acc parallel vector_length(128)
+!$acc loop gang vector
       do jl=1,klon
+
         ptenh(jl,klev)=(cpd*pten(jl,klev)+pgeo(jl,klev)- &
      &                pgeoh(jl,klev))*rcpd
         pqenh(jl,klev)=pqen(jl,klev)
@@ -1519,16 +1716,24 @@ contains
         klwmin(jl)=klev
         zwmax(jl)=0.
       end do
+!$acc end parallel
 
+!$acc parallel vector_length(128)
+!$acc loop seq
       do jk=klevm1,2,-1
+!$acc loop gang vector private(zzs)
       do jl=1,klon
         zzs=max(cpd*ptenh(jl,jk)+pgeoh(jl,jk), &
      &        cpd*ptenh(jl,jk+1)+pgeoh(jl,jk+1))
         ptenh(jl,jk)=(zzs-pgeoh(jl,jk))*rcpd
       end do
       end do
+!$acc end parallel
 
+!$acc parallel vector_length(128)
+!$acc loop seq
       do jk=klev,3,-1
+!$acc loop gang vector
       do jl=1,klon
         if(pverv(jl,jk).lt.zwmax(jl)) then
            zwmax(jl)=pverv(jl,jk)
@@ -1536,13 +1741,16 @@ contains
         end if
       end do
       end do
+!$acc end parallel
 !-----------------------------------------------------------
 !*    2.0      initialize values for updrafts and downdrafts
 !-----------------------------------------------------------
+!$acc parallel vector_length(128)
+!$acc loop gang vector collapse(2) private(ik)
       do jk=1,klev
+      do jl=1,klon
       ik=jk-1
       if(jk.eq.1) ik=1
-      do jl=1,klon
       ptu(jl,jk)=ptenh(jl,jk)
       ptd(jl,jk)=ptenh(jl,jk)
       pqu(jl,jk)=pqenh(jl,jk)
@@ -1555,6 +1763,8 @@ contains
       klab(jl,jk)=0
       end do
       end do
+!$acc end parallel
+!$acc end data
       return
       end subroutine cuinin
 
@@ -1655,7 +1865,13 @@ contains
       integer  zcbase(klon), itoppacel(klon)
       integer  jl,jk,ik,icall,levels
       logical  needreset, lldcum(klon)
+	  logical  flag
+!$acc data create(ptu,pqu,plu,zph,klab,kctop,kcbot,loflag,deepflag, &
+!$acc resetflag,dhen,dh,plude,kup,vptu,vten,zbuo,abuoy,zqold,eta,dz, &
+!$acc coef,zcbase,itoppacel,lldcum)
 !--------------------------------------------------------------
+!$acc parallel vector_length(128)
+!$acc loop gang vector
       do jl=1,klon
         kcbot(jl)=klev
         kctop(jl)=klev
@@ -1664,12 +1880,15 @@ contains
         wbase(jl)=0.
         ldcum(jl)=.false.
       end do
+!$acc end parallel
 
 !-----------------------------------------------------------
 ! let's do test,and check the shallow convection first
 ! the first level is klev
 ! define deltat and deltaq
 !-----------------------------------------------------------
+!$acc parallel vector_length(128)
+!$acc loop gang vector collapse(2)
       do jk=1,klev
       do jl=1,klon
           plu(jl,jk)=culu(jl,jk)  ! parcel liquid water
@@ -1685,18 +1904,25 @@ contains
          abuoy(jl,jk)=0.0
       end do
       end do
+!$acc end parallel
 
+!$acc parallel vector_length(128)
+!$acc loop gang vector
       do jl=1,klon
          zqold(jl) = 0.
          lldcum(jl) = .false.
          loflag(jl) = .true.
       end do
+!$acc end parallel
 
 ! check the levels from lowest level to second top level
       do jk=klevm1,2,-1
-
 ! define the variables at the first level      
+      flag=.false.
       if(jk .eq. klevm1) then
+!$acc parallel vector_length(128)
+!$acc loop gang vector reduction(.or.:flag) &
+!$acc private(deltt,deltq,rho,part1,part2,root,flag,conw)
       do jl=1,klon
         rho=pap(jl,klev)/ &
      &         (rd*(pten(jl,klev)*(1.+vtmpc1*pqen(jl,klev))))
@@ -1717,21 +1943,26 @@ contains
           vten(jl,klev)=ptenh(jl,klev)*(1.+vtmpc1*pqenh(jl,klev))
           zbuo(jl,klev)=(vptu(jl,klev)-vten(jl,klev))/vten(jl,klev)
           klab(jl,klev) = 1
+          flag = .true.
         else
           loflag(jl) = .false.
         end if
       end do
+!$acc end parallel
       end if
  
-      is=0
-      do jl=1,klon
-         if(loflag(jl))then
-            is=is+1
-         endif
-      enddo
-      if(is.eq.0) exit
+!!!   is=0
+!!!   do jl=1,klon
+!!!      if(loflag(jl))then
+!!!         is=is+1
+!!!      endif
+!!!   enddo
+!!!   if(is.eq.0) exit
+      if  ( flag .eq. .false. ) exit
 
 ! the next levels, we use the variables at the first level as initial values
+!$acc parallel vector_length(128)
+!$acc loop gang vector
       do jl=1,klon
       if(loflag(jl)) then
         eta(jl) = 0.8/(pgeo(jl,jk)*zrg)+2.e-4
@@ -1747,10 +1978,19 @@ contains
         zph(jl)=paph(jl,jk)
       end if
       end do
+!$acc end parallel
+
 ! check if the parcel is saturated
       ik=jk
       icall=1
       call cuadjtqn(klon,klev,ik,zph,ptu,pqu,loflag,icall)
+
+!$acc parallel vector_length(128)
+!$acc loop gang vector &
+!$acc private ( zcor, zdq,zlglac,atop1,atop2,abot,ik,zqsu, &
+!$acc zdq,zlglac,atop1,atop2,abot,ik,zqsu, &
+!$acc zalfaw,zfacw,zfaci,zfac,zesdp,zdqsdt,zdtdp,zdp,zpdifftop, &
+!$acc zpdiffbot,ikb)
       do jl=1,klon
         if( loflag(jl) ) then
           zdq = max((zqold(jl) - pqu(jl,jk)),0.)
@@ -1820,9 +2060,11 @@ contains
           end if
         end if
       end do
+!$acc end parallel
+     end do ! end all the levels
 
-      end do ! end all the levels
-
+!$acc parallel vector_length(128)
+!$acc loop gang vector private(ikb,ikt)
       do jl=1,klon
         ikb = kcbot(jl)
         ikt = kctop(jl)
@@ -1842,11 +2084,14 @@ contains
             wbase(jl) = 0.
         end if
       end do
+!$acc end parallel
 
+!$acc parallel vector_length(128)
+!$acc loop gang vector collapse(2)
       do jk=klev,1,-1
        do jl=1,klon
-           ikt = kctop(jl)
-           if(jk .ge. ikt)then
+!!!        ikt = kctop(jl)
+           if(jk .ge. kctop(jl)) then
              culab(jl,jk) = klab(jl,jk)
              cutu(jl,jk)  = ptu(jl,jk)
              cuqu(jl,jk)  = pqu(jl,jk)
@@ -1854,6 +2099,7 @@ contains
            end if
        end do
       end do
+!$acc end parallel
       
 !-----------------------------------------------------------
 ! next, let's check the deep convection
@@ -1864,17 +2110,27 @@ contains
 ! assume the mix-layer is 60hPa
       deltt = 0.2
       deltq = 1.0e-4
+!$acc parallel vector_length(128)
+!$acc loop gang vector
       do jl=1,klon
         deepflag(jl) = .false.
       end do
+!$acc end parallel
 
+!$acc parallel vector_length(128)
+!$acc loop seq
       do jk=klev,1,-1
+!$acc loop gang vector
        do jl=1,klon
          if((paph(jl,klev+1)-paph(jl,jk)) .lt. 350.e2) itoppacel(jl) = jk
        end do
       end do
+!$acc end parallel
 
       do levels=klevm1-1,klev/2+1,-1 ! loop starts
+
+!$acc parallel vector_length(128)
+!$acc loop gang vector collapse(2)
         do jk=1,klev
           do jl=1,klon
              plu(jl,jk)=0.0  ! parcel liquid water
@@ -1890,7 +2146,11 @@ contains
              klab(jl,jk)=0
           end do
         end do
+!$acc end parallel
 
+        flag = .false.
+!$acc parallel vector_length(128) reduction(.or.:flag)
+!$acc loop gang vector
         do jl=1,klon
            kcbot(jl)    =  levels
            kctop(jl)    =  levels
@@ -1898,20 +2158,25 @@ contains
            lldcum(jl)   = .false.
            resetflag(jl)= .false.
            loflag(jl)   = (.not. deepflag(jl)) .and. (levels.ge.itoppacel(jl))
+           flag         = loflag(jl)
         end do
+!$acc end parallel
 
 ! start the inner loop to search the deep convection points
+      if ( flag ) then
       do jk=levels,2,-1
-        is=0
-        do jl=1,klon
-         if(loflag(jl))then
-            is=is+1
-         endif
-        enddo
-        if(is.eq.0) exit
+!!!     is=0
+!!!     do jl=1,klon
+!!!      if(loflag(jl))then
+!!!         is=is+1
+!!!      endif
+!!!     enddo
+!!!     if(is.eq.0) exit
 
 ! define the variables at the departure level 
         if(jk .eq. levels) then
+!$acc parallel vector_length(128)
+!$acc loop gang vector private(tmix,qmix,zmix,pmix,nk,dp)
           do jl=1,klon
           if(loflag(jl)) then
             if((paph(jl,klev+1)-paph(jl,jk)) < 60.e2) then
@@ -1919,6 +2184,7 @@ contains
               qmix=0.
               zmix=0.
               pmix=0.
+!$acc loop seq
               do nk=jk+2,jk,-1
               if(pmix < 50.e2) then
                 dp = paph(jl,nk) - paph(jl,nk-1)
@@ -1948,9 +2214,12 @@ contains
             zbuo(jl,jk+1)=(vptu(jl,jk+1)-vten(jl,jk+1))/vten(jl,jk+1)
           end if
           end do
+!$acc end parallel
         end if
 
 ! the next levels, we use the variables at the first level as initial values
+!$acc parallel vector_length(128)
+!$acc loop gang vector private(fscale)
         do jl=1,klon
            if(loflag(jl)) then
 ! define the fscale
@@ -1969,10 +2238,13 @@ contains
            end if
         end do
 ! check if the parcel is saturated
+!$acc end parallel
         ik=jk
         icall=1
         call cuadjtqn(klon,klev,ik,zph,ptu,pqu,loflag,icall)
  
+!$acc parallel vector_length(128)
+!$acc loop gang vector private(zdp,zdq,atop1,atop2,abot,zqsu,zcor,zalfaw,zfacw,zfaci,zfac,zesdp,zdqsdt,zdtdp,zpdifftop,zpdiffbot,ik,ikb)
       do jl=1,klon
         if( loflag(jl) ) then
           zdq = max((zqold(jl) - pqu(jl,jk)),0.)
@@ -2041,10 +2313,13 @@ contains
           end if
         end if
       end do
-
+!$acc end parallel
       end do ! end all the levels
+      end if
 
       needreset = .false.
+!$acc parallel vector_length(128)
+!$acc loop gang vector private(ikb,ikt) reduction(.or.:needreset)
       do jl=1,klon
         ikb = kcbot(jl)
         ikt = kctop(jl)
@@ -2061,14 +2336,17 @@ contains
          resetflag(jl)= .true.
         end if
       end do
+!$acc end parallel
 
       if(needreset) then
+!$acc parallel vector_length(128)
+!$acc loop gang vector collapse(2)
       do jk=klev,1,-1
         do jl=1,klon
           if(resetflag(jl)) then
-            ikt = kctop(jl)
-            ikb = kdpl(jl)
-            if(jk .le. ikb .and. jk .ge. ikt )then
+!!!         ikt = kctop(jl)
+!!!         ikb = kdpl(jl)
+            if(jk .le. kdpl(jl) .and. jk .ge. kctop(jl) )then
              culab(jl,jk) = klab(jl,jk)
              cutu(jl,jk)  = ptu(jl,jk)
              cuqu(jl,jk)  = pqu(jl,jk)
@@ -2079,14 +2357,15 @@ contains
              cuqu(jl,jk)  = pqenh(jl,jk)
              culu(jl,jk)  = 0.
             end if
-            if ( jk .lt. ikt ) culab(jl,jk) = 0
+            if ( jk .lt. kctop(jl) ) culab(jl,jk) = 0
           end if
         end do
       end do
+!$acc end parallel
       end if
 
       end do ! end all cycles
-
+!$acc end data
       return
       end subroutine cutypen
 
@@ -2214,7 +2493,7 @@ contains
 ! local variables
       integer  jl,jk
       integer  ikb,icum,itopm2,ik,icall,is,kcum,jlm,jll
-      integer  jlx(klon)
+!!!   integer  jlx(klon)
       real     ztmst,zcons2,zfacbuo,zprcdgw,z_cwdrag,z_cldmax,z_cwifrac,z_cprc2
       real     zmftest,zmfmax,zqeen,zseen,zscde,zqude
       real     zmfusk,zmfuqk,zmfulk
@@ -2223,6 +2502,9 @@ contains
       real     zrnew,zz,zdmfeu,zdmfdu,dp
       real     zfac,zbuoc,zdkbuo,zdken,zvv,zarg,zchange,zxe,zxs,zdshrd
       real     atop1,atop2,abot
+!$acc data create(zlrain,zbuo,kup,zodetr,zph,zdmfen,zdmfde,zmfuu, &
+!$acc zmfuv,zpbase,zqold,zluold,zprecip,eta,dz,pdmfen,zoentr, &
+!$acc zdpmean,loflag,llo1)
 !--------------------------------
 !*    1.       specify parameters
 !--------------------------------
@@ -2237,6 +2519,8 @@ contains
 !     2.        set default values
 !---------------------------------
       llo3 = .false.
+!$acc parallel vector_length(128)
+!$acc loop vector
       do jl=1,klon
         zluold(jl)=0.
         wup(jl)=0.
@@ -2249,8 +2533,11 @@ contains
           pqu(jl,klev) = 0.
         end if
       end do
+!$acc end parallel
 
  ! initialize variout quantities     
+!$acc parallel vector_length(128)
+!$acc loop vector collapse(2)
       do jk=1,klev
       do jl=1,klon
           if(jk.ne.kcbot(jl)) plu(jl,jk)=0.
@@ -2267,16 +2554,30 @@ contains
           pdmfen(jl,jk) = 0.
           pmfude_rate(jl,jk) = 0.
           if(.not.ldcum(jl).or.ktype(jl).eq.3) klab(jl,jk)=0
+!!!       if(.not.ldcum(jl).and.paph(jl,jk).lt.4.e4) kctop0(jl)=jk
+      end do
+      end do
+!$acc end parallel
+
+!$acc parallel vector_length(128)
+!$acc loop seq
+      do jk=1,klev
+!$acc loop vector
+      do jl=1,klon
           if(.not.ldcum(jl).and.paph(jl,jk).lt.4.e4) kctop0(jl)=jk
       end do
       end do
+!$acc end parallel
 
+!$acc parallel vector_length(128)
+!$acc loop vector
       do jl = 1,klon
         if ( ktype(jl) == 3 ) ldcum(jl) = .false.
       end do
 !------------------------------------------------
 !     3.0      initialize values at cloud base level
 !------------------------------------------------
+!$acc loop vector private(ikb)
       do jl=1,klon
         kctop(jl)=kcbot(jl)
         if(ldcum(jl)) then
@@ -2288,6 +2589,7 @@ contains
           pmful(jl,ikb) = pmfub(jl)*plu(jl,ikb)
         end if
       end do
+!$acc end parallel
 !
 !-----------------------------------------------------------------
 !     4.       do ascent: subcloud layer (klab=1) ,clouds (klab=2)
@@ -2310,17 +2612,20 @@ contains
      &     pmfuq,    pmful,    pdmfup)
       is = 0
       jlm = 0
+!$acc parallel vector_length(128)
+!$acc loop vector private(zmfmax,zfac) reduction(+:is)
       do jl = 1,klon
         loflag(jl) = .false.
         zprecip(jl) = 0.
         llo1(jl) = .false.
-        is = is + klab(jl,jk+1)
+!!!     is = is + klab(jl,jk+1)
+        is = klab(jl,jk+1)
         if ( klab(jl,jk+1) == 0 ) klab(jl,jk) = 0
         if ( (ldcum(jl) .and. klab(jl,jk+1) == 2) .or.   &
              (ktype(jl) == 3 .and. klab(jl,jk+1) == 1) ) then
           loflag(jl) = .true.
-          jlm = jlm + 1
-          jlx(jlm) = jl
+!!!       jlm = jlm + 1
+!!!       jlx(jlm) = jl
         end if
         zph(jl) = paph(jl,jk)
         if ( ktype(jl) == 3 .and. jk == kcbot(jl) ) then
@@ -2335,6 +2640,7 @@ contains
           pmfub(jl)=min(pmfub(jl),zmfmax)
         end if
       end do
+!$acc end parallel
 
       if(is.gt.0) llo3 = .true.
 !
@@ -2348,11 +2654,17 @@ contains
       if(llo3) then
 ! -------------------------------------------------------
 !
+!$acc parallel vector_length(128)
+!$acc loop vector
         do jl = 1,klon
           zqold(jl) = 0.
         end do
-        do jll = 1 , jlm
-          jl = jlx(jll)
+!$acc loop vector private(jl,zmfmax,zxs,zmftest,zchange, &
+!$acc zxe,zqeen,zseen,zscde,zqude,zmfusk,zmfuqk,zmfulk)
+!!!     do jll = 1 , jlm
+!!!       jl = jlx(jll)
+        do jl = 1,klon
+        if(loflag(jl)) then
           zdmfde(jl) = min(zdmfde(jl),0.75*pmfu(jl,jk+1))
           if ( jk == kcbot(jl) ) then
             zoentr(jl) = -1.75e-3*(min(1.,pqen(jl,jk)/pqsen(jl,jk)) - &
@@ -2398,8 +2710,10 @@ contains
           zlrain(jl,jk) = zlrain(jl,jk+1)*(pmfu(jl,jk+1)-zdmfde(jl)) * &
                           (1./max(cmfcmin,pmfu(jl,jk)))
           zluold(jl) = plu(jl,jk)
+        end if
         end do
 ! reset to environmental values if below departure level
+!$acc loop vector
         do jl = 1,klon
           if ( jk > kdpl(jl) ) then
             ptu(jl,jk) = ptenh(jl,jk)
@@ -2408,6 +2722,7 @@ contains
             zluold(jl) = plu(jl,jk)
           end if
         end do
+!$acc end parallel
 !*             do corrections for moist ascent
 !*             by adjusting t,q and l in *cuadjtq*
 !------------------------------------------------
@@ -2418,17 +2733,26 @@ contains
         call cuadjtqn(klon,klev,ik,zph,ptu,pqu,loflag,icall)
       end if
 ! compute the upfraft speed in cloud layer
-        do jll = 1 , jlm
-          jl = jlx(jll)
+!$acc parallel vector_length(128)
+!$acc loop vector private(jl)
+!!!     do jll = 1 , jlm
+!!!       jl = jlx(jll)
+        do jl = 1, klon
+        if(loflag(jl)) then
           if ( pqu(jl,jk) /= zqold(jl) ) then
             plglac(jl,jk) = plu(jl,jk) * &
                            ((1.-foealfa(ptu(jl,jk)))- &
                             (1.-foealfa(ptu(jl,jk+1))))
             ptu(jl,jk) = ptu(jl,jk) + ralfdcp*plglac(jl,jk)
           end if
+        end if
         end do
-        do jll = 1 , jlm
-          jl = jlx(jll)
+!$acc loop vector private(jl,zbc,zbe,zbuoc,zdkbuo,zdken, &
+!$acc zkedke,zmfun,ikb)
+!!!     do jll = 1 , jlm
+!!!       jl = jlx(jll)
+        do jl = 1, klon
+        if(loflag(jl)) then
           if ( pqu(jl,jk) /= zqold(jl) ) then
             klab(jl,jk) = 2
             plu(jl,jk) = plu(jl,jk) + zqold(jl) - pqu(jl,jk)
@@ -2512,8 +2836,11 @@ contains
             plude(jl,jk) = plu(jl,jk+1)*zdmfde(jl)
             pmfude_rate(jl,jk) = zdmfde(jl)
           end if
+        end if
         end do
 
+!$acc loop vector private(zdshrd,ikb,zwu,zprcon,zdt,zcbf,zzco,zlcrit, &
+!$acc zdfi,zc,zarg,zd,zint,zlnew)
         do jl = 1,klon
           if ( llo1(jl) ) then
 ! conversions only proceeds if plu is greater than a threshold liquid water
@@ -2525,7 +2852,7 @@ contains
               zdshrd = 3.e-4
             end if
             ikb=kcbot(jl)
-            if ( plu(jl,jk) > zdshrd )then
+            if ( plu(jl,jk) > zdshrd ) then
               zwu = min(15.0,sqrt(2.*max(0.1,kup(jl,jk+1))))
               zprcon = zprcdgw/(0.75*zwu)
 ! PARAMETERS FOR BERGERON-FINDEISEN PROCESS (T < -5C)
@@ -2552,6 +2879,10 @@ contains
             end if
           end if
         end do
+!$acc end parallel
+!$acc parallel vector_length(128)
+!$acc loop vector private(zvw,zvi,zalfaw,zvv,zrold, &
+!$acc zc,zwu,zd,zint,zrnew)
         do jl = 1, klon
           if ( llo1(jl) ) then
             if ( zlrain(jl,jk) > 0. ) then
@@ -2570,17 +2901,24 @@ contains
             end if
           end if
         end do
-        do jll = 1 , jlm
-          jl = jlx(jll)
+!$acc loop vector private(jl)
+!!!     do jll = 1 , jlm
+!!!       jl = jlx(jll)
+        do jl = 1, klon
+          if(loflag(jl)) then
           pmful(jl,jk) = plu(jl,jk)*pmfu(jl,jk)
           pmfus(jl,jk) = (cpd*ptu(jl,jk)+pgeoh(jl,jk))*pmfu(jl,jk)
           pmfuq(jl,jk) = pqu(jl,jk)*pmfu(jl,jk)
+          end if
         end do
+!$acc end parallel
       end if
     end do
 !----------------------------------------------------------------------
 ! 5.       final calculations
 ! ------------------
+!$acc parallel vector_length(128)
+!$acc loop vector
       do jl = 1,klon
        if ( kctop(jl) == -1 ) ldcum(jl) = .false.
         kcbot(jl) = max(kcbot(jl),kctop(jl))
@@ -2589,7 +2927,9 @@ contains
           wup(jl) = sqrt(2.*wup(jl))
         end if
       end do
+!$acc end parallel
 
+!$acc end data
       return
       end subroutine cuascn
 !---------------------------------------------------------
@@ -2720,16 +3060,20 @@ contains
       integer  is,ik,icall,ike
       real     zhsk,zttest,zqtest,zbuo,zmftop
                                                                                    
+!$acc data create(ztenwb,zqenwb,zcond,zph,zhsmin,ikhsmin,llo2)
 !----------------------------------------------------------------------          
                                                                                  
 !     1.           set default values for downdrafts                             
 !                  ---------------------------------                             
+!$acc parallel vector_length(128)
+!$acc loop gang vector
       do jl=1,klon                                                          
         lddraf(jl)=.false.                                                       
         kdtop(jl)=klev+1      
         ikhsmin(jl)=klev+1
         zhsmin(jl)=1.e8                                                  
       enddo                                                                      
+!$acc end parallel
 !----------------------------------------------------------------------          
                                                                                  
 !     2.           determine level of free sinking:                              
@@ -2751,7 +3095,10 @@ contains
 !                  temperature (i.e. which became saturated due to               
 !                  evaporation of rain and cloud water)                          
 !                  ----------------------------------------------------          
+!$acc parallel vector_length(128)
+!$acc loop seq
       do jk=3,klev-2
+!$acc loop gang vector private(zhsk)
          do jl=1,klon
            zhsk=cpd*pten(jl,jk)+pgeo(jl,jk) +  &
      &         foelhm(pten(jl,jk))*pqsen(jl,jk)
@@ -2761,7 +3108,7 @@ contains
            end if
          end do
       end do
-
+!$acc end parallel
 
       ike=klev-3                                                                 
       do jk=3,ike                                                                
@@ -2770,6 +3117,8 @@ contains
 !                  for environmental air in *cuadjtq*                            
 !                  -------------------------------------------                   
         is=0                                                                     
+!$acc parallel vector_length(128)
+!$acc loop gang vector reduction(+:is)
         do jl=1,klon                                                        
           ztenwb(jl,jk)=ptenh(jl,jk)                                             
           zqenwb(jl,jk)=pqenh(jl,jk)                                             
@@ -2780,6 +3129,7 @@ contains
             is=is+1                                                              
           endif                                                                  
         enddo                                                                    
+!$acc end parallel
         if(is.eq.0) cycle                                                        
                                                                                  
         ik=jk                                                                    
@@ -2791,6 +3141,8 @@ contains
 !                  and check for negative buoyancy.                              
 !                  then set values for downdraft at lfs.                         
 !                  ----------------------------------------                      
+!$acc parallel vector_length(128)
+!$acc loop gang vector private(zttest,zqtest,zbuo,zmftop)
         do jl=1,klon                                                        
           if(llo2(jl)) then                                                      
             zttest=0.5*(ptu(jl,jk)+ztenwb(jl,jk))                                
@@ -2812,9 +3164,10 @@ contains
             endif                                                                
           endif                                                                  
         enddo                                                                    
-                                                                                 
+!$acc end parallel
       enddo                                                                      
                                                                                  
+!$acc end data
       return                                                                     
       end subroutine cudlfsn  
 
@@ -2919,11 +3272,12 @@ contains
       logical  llo2(klon)                                   
       logical  llo1
 ! local variables
+      logical flag
       integer  jl,jk
-      integer  is,ik,icall,ike, itopde(klon)
+      integer  ik,icall,ike, itopde(klon)
       real     zentr,zdz,zzentr,zseen,zqeen,zsdde,zqdde,zdmfdp
       real     zmfdsk,zmfdqk,zbuo,zrain,zbuoyz,zmfduk,zmfdvk
-                                                                
+!$acc data create(zdmfen,zdmfde,zcond,zoentr,zbuoy,zph,llo2,itopde)
 !----------------------------------------------------------------------   
 !     1.           calculate moist descent for cumulus downdraft by       
 !                     (a) calculating entrainment/detrainment rates,      
@@ -2935,31 +3289,45 @@ contains
 !                     (c) checking for negative buoyancy and              
 !                         specifying final t,q,u,v and downward fluxes    
 !                    -------------------------------------------------    
+!$acc parallel vector_length(128)
+!$acc loop gang vector
       do jl=1,klon                                                   
         zoentr(jl)=0.                                                     
         zbuoy(jl)=0.                                                      
         zdmfen(jl)=0.                                                     
         zdmfde(jl)=0.
       enddo 
+!$acc end parallel
 
+!$acc parallel vector_length(128)
+!$acc loop seq
       do jk=klev,1,-1
+!$acc loop gang vector
        do jl=1,klon
          pmfdde_rate(jl,jk) = 0.
          if((paph(jl,klev+1)-paph(jl,jk)).lt. 60.e2) itopde(jl) = jk
        end do
       end do                                                              
-                                                                 
+!$acc end parallel
+
       do jk=3,klev                                                        
-        is=0                                                              
+!!!     is=0                                                              
+		flag = .false.
+!$acc parallel vector_length(128)
+!$acc loop gang vector reduction(.or.:flag)
         do jl=1,klon                                                 
           zph(jl)=paph(jl,jk)                                             
           llo2(jl)=lddraf(jl).and.pmfd(jl,jk-1).lt.0.                     
           if(llo2(jl)) then                                               
-            is=is+1                                                       
+            flag = .true.
           endif                                                           
         enddo                                                             
-        if(is.eq.0) cycle                                                 
+!$acc end parallel
+!!!     if(is.eq.0) cycle                                                 
+        if ( flag .eq. .true. ) then
                                                                           
+!$acc parallel vector_length(128)
+!$acc loop gang vector private(zentr)
         do jl=1,klon                                                 
           if(llo2(jl)) then    
             zentr = entrdd*pmfd(jl,jk-1)*(pgeoh(jl,jk-1)-pgeoh(jl,jk))*zrg
@@ -2968,6 +3336,7 @@ contains
           endif                                                           
         enddo 
                                                             
+!$acc loop gang vector
         do jl=1,klon
           if(llo2(jl)) then
           if(jk.gt.itopde(jl)) then
@@ -2979,6 +3348,7 @@ contains
           endif
         enddo
 
+!$acc loop gang vector private(zdz,zzentr)
         do jl=1,klon
           if(llo2(jl)) then
           if(jk.le.itopde(jl)) then
@@ -2993,6 +3363,7 @@ contains
           endif
         enddo
 
+!$acc loop gang vector private(zseen,zqeen,zsdde,zqdde,zmfdsk,zmfdqk)
         do jl=1,klon                                                 
           if(llo2(jl)) then                                               
             pmfd(jl,jk)=pmfd(jl,jk-1)+zdmfen(jl)-zdmfde(jl)
@@ -3010,11 +3381,14 @@ contains
             zcond(jl)=pqd(jl,jk)                                          
           endif                                                           
         enddo                                                             
+!$acc end parallel
                                                                           
         ik=jk                                                             
         icall=2                                                           
         call cuadjtqn(klon, klev, ik, zph, ptd, pqd, llo2, icall )                
                                                                           
+!$acc parallel vector_length(128)
+!$acc loop gang vector private(zbuo,zrain,zdmfdp,zbuoyz,zdz)
         do jl=1,klon                                                 
           if(llo2(jl)) then                                               
             zcond(jl)=zcond(jl)-pqd(jl,jk)
@@ -3043,9 +3417,12 @@ contains
             pmfdde_rate(jl,jk) = -zdmfde(jl)
           endif                                                           
         enddo
-                                                             
+
+!$acc end parallel
+        endif
       enddo                                                               
                                                                           
+!$acc end data
       return                                                              
       end subroutine cuddrafn
 !---------------------------------------------------------
@@ -3167,6 +3544,7 @@ contains
       real     rhevap(klon)
       integer  idbas(klon)
       logical  llddraf
+!$acc data create(rhevap,idbas)
 !--------------------------------------------------------------------          
 !*             specify constants  
 
@@ -3178,6 +3556,8 @@ contains
 
 !*    1.0          determine final convective fluxes                           
 !                  ---------------------------------                           
+!$acc parallel vector_length(128)
+!$acc loop gang vector
       do jl=1,klon
         prain(jl)=0.
         if(.not.ldcum(jl).or.kdtop(jl).lt.kctop(jl)) lddraf(jl)=.false.
@@ -3189,10 +3569,14 @@ contains
           rhevap(jl) = 0.9
         end if
       enddo
+!$acc end parallel
 
       ktopm2= 2
+!$acc parallel vector_length(128)
+!$acc loop seq
       do jk=ktopm2,klev
         ikb = min(jk+1,klev)
+!$acc loop gang vector private(llddraf)
         do jl=1,klon
           pmflxr(jl,jk) = 0.
           pmflxs(jl,jk) = 0.
@@ -3232,11 +3616,17 @@ contains
           endif
         enddo
       enddo
+!$acc end parallel
 
+!$acc parallel vector_length(128)
+!$acc loop gang vector
       do jl=1,klon
         pmflxr(jl,klev+1) = 0.
         pmflxs(jl,klev+1) = 0.
       end do
+!$acc end parallel
+!$acc parallel vector_length(128)
+!$acc loop gang vector private(ikb,ik,zzp)
       do jl=1,klon
         if(ldcum(jl)) then
           ikb=kcbot(jl)
@@ -3253,8 +3643,12 @@ contains
           pmful(jl,ik)=0.
         endif
       enddo
+!$acc end parallel
 
+!$acc parallel vector_length(128)
+!$acc loop seq
       do jk=ktopm2,klev
+!$acc loop gang vector private(ikb,zzp,ik,llddraf)
         do jl=1,klon
           if(ldcum(jl).and.jk.gt.kcbot(jl)+1) then
             ikb=kcbot(jl)+1
@@ -3282,12 +3676,15 @@ contains
            end if
         enddo
       enddo
+!$acc end parallel
 !*    2.            calculate rain/snow fall rates                             
 !*                  calculate melting of snow                                  
 !*                  calculate evaporation of precip                            
 !                   -------------------------------                            
 
         do jk=ktopm2,klev
+!$acc parallel vector_length(128)
+!$acc loop gang vector private(zcons1,zfac,zsnmlt,zalfaw)
         do jl=1,klon
           if(ldcum(jl) .and. jk >=kctop(jl)-1 ) then
             prain(jl)=prain(jl)+pdmfup(jl,jk)
@@ -3324,8 +3721,12 @@ contains
             end if
           endif
         enddo
+!$acc end parallel
       enddo
       do jk=ktopm2,klev
+!$acc parallel vector_length(128)
+!$acc loop gang vector private(zrfl,zdrfl1,zrnew,zrmin,zrfln,zdrfl,zdenom, &
+!$acc zalfaw,zpdr,zpds)
         do jl=1,klon
           if(ldcum(jl).and.jk.ge.kcbot(jl)) then
             zrfl=pmflxr(jl,jk)+pmflxs(jl,jk)
@@ -3370,8 +3771,10 @@ contains
             endif
           endif
         enddo
+!$acc end parallel
       enddo
                                       
+!$acc end data
       return
       end subroutine cuflxn 
 !---------------------------------------------------------
@@ -3403,8 +3806,11 @@ contains
     integer  jk , ik , jl
     real     zalv , zzp
     real     zdtdt(klon,klev) , zdqdt(klon,klev) , zdp(klon,klev)
+!$acc data create(zdtdt,zdqdt,zdp)
     !*    1.0          SETUP AND INITIALIZATIONS
     ! -------------------------
+!$acc parallel vector_length(128)
+!$acc loop gang vector collapse(2)
     do jk = 1 , klev
       do jl = 1, klon
         if ( ldcum(jl) ) then
@@ -3412,11 +3818,14 @@ contains
         end if
       end do
     end do
+!$acc end parallel
     !-----------------------------------------------------------------------
     !*    2.0          COMPUTE TENDENCIES
     ! ------------------
-    do jk = ktopm2 , klev
-      if ( jk < klev ) then
+!$acc parallel vector_length(128)
+!$acc loop gang vector collapse(2) private(zalv)
+    do jk = ktopm2 , klev-1
+!!!   if ( jk < klev ) then
         do jl = 1,klon
           if ( ldcum(jl) ) then
             zalv = foelhm(pten(jl,jk))
@@ -3429,7 +3838,12 @@ contains
               pmful(jl,jk)-plude(jl,jk)-pdmfup(jl,jk)-pdmfdp(jl,jk))
           end if
         end do
-      else
+    end do
+!$acc end parallel
+!!!   else
+      jk=klev
+!$acc parallel vector_length(128)
+!$acc loop gang vector private(zalv)
         do jl = 1,klon
           if ( ldcum(jl) ) then
             zalv = foelhm(pten(jl,jk))
@@ -3440,11 +3854,14 @@ contains
               pmfdq(jl,jk)+(pmful(jl,jk)+pdmfup(jl,jk)+pdmfdp(jl,jk)))
           end if
         end do
-      end if
-    end do
+!$acc end parallel
+!!!   end if
+!!! end do
   !---------------------------------------------------------------
   !*  3.0          UPDATE TENDENCIES
   !   -----------------
+!$acc parallel vector_length(128)
+!$acc loop gang vector collapse(2)
     do jk = ktopm2 , klev
      do jl = 1, klon
        if ( ldcum(jl) ) then
@@ -3454,6 +3871,9 @@ contains
        end if
      end do
     end do
+!$acc end parallel
+
+!$acc end data
 
     return
   end subroutine cudtdqn
@@ -3483,7 +3903,10 @@ contains
     real     zzp, zdtdt
    
     real     zdudt(klon,klev), zdvdt(klon,klev), zdp(klon,klev)
+!$acc data create(zuen,zven,zmfuu,zmfdu,zmfuv,zmfdv,zdudt,zdvdt,zdp)
 !
+!$acc parallel vector_length(128)
+!$acc loop gang vector collapse(2)
     do jk = 1 , klev
       do jl = 1, klon
         if ( ldcum(jl) ) then
@@ -3493,21 +3916,25 @@ contains
         end if
       end do
     end do
+!$acc end parallel
 !----------------------------------------------------------------------
 !*    1.0          CALCULATE FLUXES AND UPDATE U AND V TENDENCIES
 ! ----------------------------------------------
+!$acc parallel vector_length(128)
+!$acc loop gang vector collapse(2)
     do jk = ktopm2 , klev
-      ik = jk - 1
+!!!   ik = jk - 1
       do jl = 1,klon
         if ( ldcum(jl) ) then
-          zmfuu(jl,jk) = pmfu(jl,jk)*(puu(jl,jk)-zuen(jl,ik))
-          zmfuv(jl,jk) = pmfu(jl,jk)*(pvu(jl,jk)-zven(jl,ik))
-          zmfdu(jl,jk) = pmfd(jl,jk)*(pud(jl,jk)-zuen(jl,ik))
-          zmfdv(jl,jk) = pmfd(jl,jk)*(pvd(jl,jk)-zven(jl,ik))
+          zmfuu(jl,jk) = pmfu(jl,jk)*(puu(jl,jk)-zuen(jl,jk - 1))
+          zmfuv(jl,jk) = pmfu(jl,jk)*(pvu(jl,jk)-zven(jl,jk - 1))
+          zmfdu(jl,jk) = pmfd(jl,jk)*(pud(jl,jk)-zuen(jl,jk - 1))
+          zmfdv(jl,jk) = pmfd(jl,jk)*(pvd(jl,jk)-zven(jl,jk - 1))
         end if
       end do
     end do
     ! linear fluxes below cloud
+!$acc loop gang vector collapse(2) private(ikb,zzp)
       do jk = ktopm2 , klev
         do jl = 1, klon
           if ( ldcum(jl) .and. jk > kcbot(jl) ) then
@@ -3521,32 +3948,43 @@ contains
           end if
         end do
       end do
+!$acc end parallel
 !----------------------------------------------------------------------
 !*    2.0          COMPUTE TENDENCIES
 ! ------------------
-    do jk = ktopm2 , klev
-      if ( jk < klev ) then
-        ik = jk + 1
+!$acc parallel vector_length(128)
+!$acc loop gang vector collapse(2)
+    do jk = ktopm2 , klev-1
+!!!   if ( jk < klev ) then
+!!!     ik = jk + 1
         do jl = 1,klon
           if ( ldcum(jl) ) then
             zdudt(jl,jk) = zdp(jl,jk) * &
-                          (zmfuu(jl,ik)-zmfuu(jl,jk)+zmfdu(jl,ik)-zmfdu(jl,jk))
+                          (zmfuu(jl,jk + 1)-zmfuu(jl,jk)+zmfdu(jl,jk + 1)-zmfdu(jl,jk))
             zdvdt(jl,jk) = zdp(jl,jk) * &
-                          (zmfuv(jl,ik)-zmfuv(jl,jk)+zmfdv(jl,ik)-zmfdv(jl,jk))
+                          (zmfuv(jl,jk + 1)-zmfuv(jl,jk)+zmfdv(jl,jk + 1)-zmfdv(jl,jk))
           end if
         end do
-      else
+     end do
+!$acc end parallel
+!!!   else
+        jk=klev
+!$acc parallel vector_length(128)
+!$acc loop gang vector
         do jl = 1,klon
           if ( ldcum(jl) ) then
             zdudt(jl,jk) = -zdp(jl,jk)*(zmfuu(jl,jk)+zmfdu(jl,jk))
             zdvdt(jl,jk) = -zdp(jl,jk)*(zmfuv(jl,jk)+zmfdv(jl,jk))
           end if
         end do
-      end if
-    end do
+!$acc end parallel
+!!!   end if
+!!! end do
 !---------------------------------------------------------------------
 !*  3.0        UPDATE TENDENCIES
-!   -----------------
+!   ----------------
+!$acc parallel vector_length(128)
+!$acc loop gang vector collapse(2)
     do jk = ktopm2 , klev
       do jl = 1, klon
         if ( ldcum(jl) ) then
@@ -3555,7 +3993,9 @@ contains
         end if
       end do
     end do
+!$acc end parallel
 !----------------------------------------------------------------------
+!$acc end data
     return
     end subroutine cududvn
 !---------------------------------------------------------
@@ -3623,6 +4063,8 @@ contains
 !                  -----------------------------------------------------            
                                                                                     
       if ( kcall == 1 ) then
+!$acc parallel vector_length(128)
+!$acc loop gang vector private(zqp,zl,zi,zf,zqsat,zcor,zcond)
       do jl = 1,klon
         if ( ldflag(jl) ) then
           zqp = 1./psp(jl)
@@ -3656,7 +4098,10 @@ contains
           end if
         end if
       end do
+!$acc end parallel
       elseif ( kcall == 2 ) then
+!$acc parallel vector_length(128)
+!$acc loop gang vector private(zqp,zqsat,zcor,zcond)
       do jl = 1,klon
         if ( ldflag(jl) ) then
           zqp = 1./psp(jl)
@@ -3678,7 +4123,10 @@ contains
           pq(jl,kk) = pq(jl,kk) - zcond1
         end if
       end do
+!$acc end parallel
       else if ( kcall == 0 ) then
+!$acc parallel vector_length(128)
+!$acc loop gang vector private(zqp,zqsat,zcor,zcond1)
       do jl = 1,klon
         zqp = 1./psp(jl)
         zqsat = foeewm(pt(jl,kk))*zqp
@@ -3696,6 +4144,7 @@ contains
         pt(jl,kk) = pt(jl,kk) + foeldcpm(pt(jl,kk))*zcond1
         pq(jl,kk) = pq(jl,kk) - zcond1
       end do
+!$acc end parallel
       end if
 
       return
@@ -3749,6 +4198,8 @@ contains
 !--------------------------------------------------------
 !*    1.      calculate entrainment and detrainment rates
 ! -------------------------------------------------------
+!$acc parallel vector_length(128)
+!$acc loop gang vector private(zzzmb)
          do jl=1,klon
           if(.not.ldcum(jl) .and. klab(jl,kk+1).eq.0) then
             if(lmfmid .and. pqen(jl,kk) .gt. 0.80*pqsen(jl,kk).and. &
@@ -3773,6 +4224,7 @@ contains
           end if
          end if
         end do
+!$acc end parallel
       return
       end subroutine cubasmcn
 !---------------------------------------------------------
@@ -3797,15 +4249,17 @@ contains
     !* 1. CALCULATE ENTRAINMENT AND DETRAINMENT RATES
     ! -------------------------------------------
     if ( ldwork ) then
+!$acc parallel vector_length(128)
+!$acc loop gang vector private(zdz,zmf,llo1)
       do jl = 1,klon
         pdmfen(jl) = 0.
         pdmfde(jl) = 0.
         zentr(jl) = 0.
-      end do
+!!!   end do
       !
       !*  1.1 SPECIFY ENTRAINMENT RATES
       !   -------------------------
-      do jl = 1, klon
+!!!   do jl = 1, klon
         if ( ldcum(jl) ) then
           zdz = (pgeoh(jl,kk)-pgeoh(jl,kk+1))*zrg
           zmf = pmfu(jl,kk+1)*zdz
@@ -3816,12 +4270,14 @@ contains
           end if
         end if
       end do
+!$acc end parallel
     end if
     end subroutine cuentrn
 !--------------------------------------------------------
 ! external functions
 !------------------------------------------------------
       real function foealfa(tt)
+!$acc routine seq
 !     foealfa is calculated to distinguish the three cases:
 !
 !                       foealfa=1            water phase
@@ -3839,6 +4295,7 @@ contains
       end function foealfa
 
       real function foelhm(tt)
+!$acc routine seq
         implicit none
         real tt
         foelhm = foealfa(tt)*alv + (1.-foealfa(tt))*als
@@ -3846,6 +4303,7 @@ contains
       end function foelhm
 
       real function foeewm(tt)
+!$acc routine seq
         implicit none
         real tt
         foeewm  = c2es * &
@@ -3855,6 +4313,7 @@ contains
       end function foeewm
 
       real function foedem(tt)
+!$acc routine seq
         implicit none
         real tt
         foedem  = foealfa(tt)*r5alvcp*(1./(tt-c4les)**2)+ &
@@ -3863,6 +4322,7 @@ contains
       end function foedem
 
       real function foeldcpm(tt)
+!$acc routine seq
         implicit none
         real tt
         foeldcpm = foealfa(tt)*ralvdcp+ &
