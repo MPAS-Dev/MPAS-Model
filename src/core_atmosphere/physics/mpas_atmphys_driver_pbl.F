@@ -287,16 +287,17 @@
 
  call mpas_pool_get_config(configs,'config_pbl_scheme',pbl_scheme)
 
- call mpas_pool_get_array(diag_physics,'hfx'   ,hfx   )
- call mpas_pool_get_array(diag_physics,'hpbl'  ,hpbl  )
- call mpas_pool_get_array(diag_physics,'qfx'   ,qfx   )
- call mpas_pool_get_array(diag_physics,'ust'   ,ust   )
- call mpas_pool_get_array(diag_physics,'wspd'  ,wspd  )
- call mpas_pool_get_array(diag_physics,'znt'   ,znt   )
- call mpas_pool_get_array(diag_physics,'delta' ,delta )
- call mpas_pool_get_array(diag_physics,'wstar' ,wstar )
+ call mpas_pool_get_array_gpu(diag_physics,'hfx'   ,hfx   )
+ call mpas_pool_get_array_gpu(diag_physics,'hpbl'  ,hpbl  )
+ call mpas_pool_get_array_gpu(diag_physics,'qfx'   ,qfx   )
+ call mpas_pool_get_array_gpu(diag_physics,'ust'   ,ust   )
+ call mpas_pool_get_array_gpu(diag_physics,'wspd'  ,wspd  )
+ call mpas_pool_get_array_gpu(diag_physics,'znt'   ,znt   )
+ call mpas_pool_get_array_gpu(diag_physics,'delta' ,delta )
+ call mpas_pool_get_array_gpu(diag_physics,'wstar' ,wstar )
 
- call mpas_pool_get_array(sfc_input   ,'xland' ,xland )
+ call mpas_pool_get_array_gpu(sfc_input   ,'xland' ,xland )
+!$acc update host(hfx, hpbl, qfx, ust, wspd, znt, delta, wstar, xland)
 
  do j = jts,jte
  do i = its,ite
@@ -322,15 +323,16 @@
     case("bl_ysu")
        call mpas_pool_get_config(configs,'config_ysu_pblmix',config_ysu_pblmix)
 
-       call mpas_pool_get_array(diag_physics,'br'    ,br    )
-       call mpas_pool_get_array(diag_physics,'fm'    ,fm    )
-       call mpas_pool_get_array(diag_physics,'fh'    ,fh    )
-       call mpas_pool_get_array(diag_physics,'regime',regime)
-       call mpas_pool_get_array(diag_physics,'u10'   ,u10   )
-       call mpas_pool_get_array(diag_physics,'v10'   ,v10   )
+       call mpas_pool_get_array_gpu(diag_physics,'br'    ,br    )
+       call mpas_pool_get_array_gpu(diag_physics,'fm'    ,fm    )
+       call mpas_pool_get_array_gpu(diag_physics,'fh'    ,fh    )
+       call mpas_pool_get_array_gpu(diag_physics,'regime',regime)
+       call mpas_pool_get_array_gpu(diag_physics,'u10'   ,u10   )
+       call mpas_pool_get_array_gpu(diag_physics,'v10'   ,v10   )
 
-       call mpas_pool_get_array(tend_physics,'rthratenlw',rthratenlw)
-       call mpas_pool_get_array(tend_physics,'rthratensw',rthratensw)
+       call mpas_pool_get_array_gpu(tend_physics,'rthratenlw',rthratenlw)
+       call mpas_pool_get_array_gpu(tend_physics,'rthratensw',rthratensw)
+!$acc update host(br, fm, fh, regime, u10, v10, rthratenlw, rthratensw)
 
        ysu_pblmix = 0
        if(config_ysu_pblmix) ysu_pblmix = 1
@@ -361,22 +363,24 @@
 
     case("bl_mynn")
        call mpas_pool_get_config(configs,'config_len_disp',len_disp)
-       call mpas_pool_get_array(mesh,'meshDensity',meshDensity)
+       call mpas_pool_get_array_gpu(mesh,'meshDensity',meshDensity)
 
-       call mpas_pool_get_array(sfc_input   ,'skintemp',skintemp)
-       call mpas_pool_get_array(diag_physics,'ch'      ,ch      )
-       call mpas_pool_get_array(diag_physics,'qcg'     ,qcg     )
-       call mpas_pool_get_array(diag_physics,'qsfc'    ,qsfc    )
-       call mpas_pool_get_array(diag_physics,'rmol'    ,rmol    )
+       call mpas_pool_get_array_gpu(sfc_input   ,'skintemp',skintemp)
+       call mpas_pool_get_array_gpu(diag_physics,'ch'      ,ch      )
+       call mpas_pool_get_array_gpu(diag_physics,'qcg'     ,qcg     )
+       call mpas_pool_get_array_gpu(diag_physics,'qsfc'    ,qsfc    )
+       call mpas_pool_get_array_gpu(diag_physics,'rmol'    ,rmol    )
 
-       call mpas_pool_get_array(diag_physics,'el_pbl' ,el_pbl   )
-       call mpas_pool_get_array(diag_physics,'cov'    ,cov      )
-       call mpas_pool_get_array(diag_physics,'qke'    ,qke      )
-       call mpas_pool_get_array(diag_physics,'qke_adv',qke_adv  )
-       call mpas_pool_get_array(diag_physics,'qsq'    ,qsq      )
-       call mpas_pool_get_array(diag_physics,'tsq'    ,tsq      )
-       call mpas_pool_get_array(diag_physics,'tke_pbl',tke_pbl  )
-       call mpas_pool_get_array(diag_physics,'sh3d'   ,sh3d     )
+       call mpas_pool_get_array_gpu(diag_physics,'el_pbl' ,el_pbl   )
+       call mpas_pool_get_array_gpu(diag_physics,'cov'    ,cov      )
+       call mpas_pool_get_array_gpu(diag_physics,'qke'    ,qke      )
+       call mpas_pool_get_array_gpu(diag_physics,'qke_adv',qke_adv  )
+       call mpas_pool_get_array_gpu(diag_physics,'qsq'    ,qsq      )
+       call mpas_pool_get_array_gpu(diag_physics,'tsq'    ,tsq      )
+       call mpas_pool_get_array_gpu(diag_physics,'tke_pbl',tke_pbl  )
+       call mpas_pool_get_array_gpu(diag_physics,'sh3d'   ,sh3d     )
+!$acc update host(meshDensity, skintemp, ch, qcg, qsfc, rmol, el_pbl, cov, &
+!$acc             qke, qke_adv, qsq, tsq, tke_pbl, sh3d)
 
        do j = jts,jte
        do i = its,ite
@@ -475,20 +479,20 @@
 
  call mpas_pool_get_config(configs,'config_pbl_scheme',pbl_scheme)
 
- call mpas_pool_get_array(diag_physics,'kpbl' ,kpbl )
- call mpas_pool_get_array(diag_physics,'hpbl' ,hpbl )
- call mpas_pool_get_array(diag_physics,'kzh'  ,kzh  )
- call mpas_pool_get_array(diag_physics,'kzm'  ,kzm  )
- call mpas_pool_get_array(diag_physics,'kzq'  ,kzq  )
- call mpas_pool_get_array(diag_physics,'delta',delta)
- call mpas_pool_get_array(diag_physics,'wstar',wstar)
+ call mpas_pool_get_array_gpu(diag_physics,'kpbl' ,kpbl )
+ call mpas_pool_get_array_gpu(diag_physics,'hpbl' ,hpbl )
+ call mpas_pool_get_array_gpu(diag_physics,'kzh'  ,kzh  )
+ call mpas_pool_get_array_gpu(diag_physics,'kzm'  ,kzm  )
+ call mpas_pool_get_array_gpu(diag_physics,'kzq'  ,kzq  )
+ call mpas_pool_get_array_gpu(diag_physics,'delta',delta)
+ call mpas_pool_get_array_gpu(diag_physics,'wstar',wstar)
 
- call mpas_pool_get_array(tend_physics,'rublten' ,rublten )
- call mpas_pool_get_array(tend_physics,'rvblten' ,rvblten )
- call mpas_pool_get_array(tend_physics,'rthblten',rthblten)
- call mpas_pool_get_array(tend_physics,'rqvblten',rqvblten)
- call mpas_pool_get_array(tend_physics,'rqcblten',rqcblten)
- call mpas_pool_get_array(tend_physics,'rqiblten',rqiblten)
+ call mpas_pool_get_array_gpu(tend_physics,'rublten' ,rublten )
+ call mpas_pool_get_array_gpu(tend_physics,'rvblten' ,rvblten )
+ call mpas_pool_get_array_gpu(tend_physics,'rthblten',rthblten)
+ call mpas_pool_get_array_gpu(tend_physics,'rqvblten',rqvblten)
+ call mpas_pool_get_array_gpu(tend_physics,'rqcblten',rqcblten)
+ call mpas_pool_get_array_gpu(tend_physics,'rqiblten',rqiblten)
 
  do j = jts,jte
  do i = its,ite
@@ -519,7 +523,7 @@
  pbl_select: select case (trim(pbl_scheme))
 
     case("bl_ysu")
-       call mpas_pool_get_array(diag_physics,'exch_h',exch_h)
+       call mpas_pool_get_array_gpu(diag_physics,'exch_h',exch_h)
 
        do j = jts,jte
        do k = kts,kte
@@ -528,22 +532,23 @@
        enddo
        enddo
        enddo
+!$acc update device(exch_h)
 
     case("bl_mynn")
-       call mpas_pool_get_array(diag_physics,'el_pbl'  ,el_pbl  )
-       call mpas_pool_get_array(diag_physics,'cov'     ,cov     )
-       call mpas_pool_get_array(diag_physics,'qke'     ,qke     )
-       call mpas_pool_get_array(diag_physics,'qke_adv' ,qke_adv )
-       call mpas_pool_get_array(diag_physics,'qsq'     ,qsq     )
-       call mpas_pool_get_array(diag_physics,'tsq'     ,tsq     )
-       call mpas_pool_get_array(diag_physics,'tke_pbl' ,tke_pbl )
-       call mpas_pool_get_array(diag_physics,'sh3d'    ,sh3d    )
-       call mpas_pool_get_array(diag_physics,'dqke'    ,dqke    )
-       call mpas_pool_get_array(diag_physics,'qbuoy'   ,qbuoy   )
-       call mpas_pool_get_array(diag_physics,'qdiss'   ,qdiss   )
-       call mpas_pool_get_array(diag_physics,'qshear'  ,qshear  )
-       call mpas_pool_get_array(diag_physics,'qwt'     ,qwt     )
-       call mpas_pool_get_array(tend_physics,'rniblten',rniblten)
+       call mpas_pool_get_array_gpu(diag_physics,'el_pbl'  ,el_pbl  )
+       call mpas_pool_get_array_gpu(diag_physics,'cov'     ,cov     )
+       call mpas_pool_get_array_gpu(diag_physics,'qke'     ,qke     )
+       call mpas_pool_get_array_gpu(diag_physics,'qke_adv' ,qke_adv )
+       call mpas_pool_get_array_gpu(diag_physics,'qsq'     ,qsq     )
+       call mpas_pool_get_array_gpu(diag_physics,'tsq'     ,tsq     )
+       call mpas_pool_get_array_gpu(diag_physics,'tke_pbl' ,tke_pbl )
+       call mpas_pool_get_array_gpu(diag_physics,'sh3d'    ,sh3d    )
+       call mpas_pool_get_array_gpu(diag_physics,'dqke'    ,dqke    )
+       call mpas_pool_get_array_gpu(diag_physics,'qbuoy'   ,qbuoy   )
+       call mpas_pool_get_array_gpu(diag_physics,'qdiss'   ,qdiss   )
+       call mpas_pool_get_array_gpu(diag_physics,'qshear'  ,qshear  )
+       call mpas_pool_get_array_gpu(diag_physics,'qwt'     ,qwt     )
+       call mpas_pool_get_array_gpu(tend_physics,'rniblten',rniblten)
 
        do j = jts,jte
        do k = kts,kte
@@ -567,11 +572,15 @@
        enddo
        enddo
        enddo
+!$acc update device(el_pbl, cov, qke, qke_adv, qsq, tsq, tke_pbl, sh3d, &
+!$acc               dqke, qbuoy, qdiss, qshear, qwt, rniblten)
 
     case default
 
  end select pbl_select
 
+!$acc update device(kpbl, hpbl, kzh, kzm, kzq, delta, wstar, rublten, rvblten, &
+!$acc               rthblten, rqvblten, rqcblten, rqiblten)
  end subroutine pbl_to_MPAS
  
 !=================================================================================================================
