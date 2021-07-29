@@ -448,10 +448,11 @@
 
  call mpas_pool_get_config(configs,'config_microp_scheme',microp_scheme)
 
- call mpas_pool_get_array(diag_physics,'graupelncv',graupelncv)
- call mpas_pool_get_array(diag_physics,'rainncv'   ,rainncv   )
- call mpas_pool_get_array(diag_physics,'snowncv'   ,snowncv   )
- call mpas_pool_get_array(diag_physics,'sr'        ,sr        )
+ call mpas_pool_get_array_gpu(diag_physics,'graupelncv',graupelncv)
+ call mpas_pool_get_array_gpu(diag_physics,'rainncv'   ,rainncv   )
+ call mpas_pool_get_array_gpu(diag_physics,'snowncv'   ,snowncv   )
+ call mpas_pool_get_array_gpu(diag_physics,'sr'        ,sr        )
+!$acc update host(graupelncv, rainncv, snowncv, sr)
 
 !variables common to all cloud microphysics schemes:
  do j = jts, jte
@@ -520,15 +521,15 @@
  call mpas_pool_get_config(configs,'config_microp_scheme',microp_scheme       )
  call mpas_pool_get_config(configs,'config_bucket_rainnc',config_bucket_rainnc)
 
- call mpas_pool_get_array(diag_physics,'i_rainnc'  ,i_rainnc  )
- call mpas_pool_get_array(diag_physics,'precipw'   ,precipw   )
- call mpas_pool_get_array(diag_physics,'graupelnc' ,graupelnc )
- call mpas_pool_get_array(diag_physics,'graupelncv',graupelncv)
- call mpas_pool_get_array(diag_physics,'rainnc'    ,rainnc    )
- call mpas_pool_get_array(diag_physics,'rainncv'   ,rainncv   )
- call mpas_pool_get_array(diag_physics,'snownc'    ,snownc    )
- call mpas_pool_get_array(diag_physics,'snowncv'   ,snowncv   )
- call mpas_pool_get_array(diag_physics,'sr'        ,sr        )
+ call mpas_pool_get_array_gpu(diag_physics,'i_rainnc'  ,i_rainnc  )
+ call mpas_pool_get_array_gpu(diag_physics,'precipw'   ,precipw   )
+ call mpas_pool_get_array_gpu(diag_physics,'graupelnc' ,graupelnc )
+ call mpas_pool_get_array_gpu(diag_physics,'graupelncv',graupelncv)
+ call mpas_pool_get_array_gpu(diag_physics,'rainnc'    ,rainnc    )
+ call mpas_pool_get_array_gpu(diag_physics,'rainncv'   ,rainncv   )
+ call mpas_pool_get_array_gpu(diag_physics,'snownc'    ,snownc    )
+ call mpas_pool_get_array_gpu(diag_physics,'snowncv'   ,snowncv   )
+ call mpas_pool_get_array_gpu(diag_physics,'sr'        ,sr        )
 
  do i = its,ite
     precipw(i) = 0._RKIND    
@@ -580,6 +581,8 @@
 
  end select microp_select_init
 
+!$acc update device(i_rainnc, precipw, graupelnc, graupelncv, rainnc, rainncv, &
+!$acc               snownc, snowncv, sr)
  end subroutine precip_to_MPAS
 
 !=================================================================================================================
@@ -606,9 +609,10 @@
 
  call mpas_pool_get_config(configs,'config_microp_scheme',microp_scheme)
 
- call mpas_pool_get_array(diag_physics,'refl10cm_max',refl10cm_max)
- call mpas_pool_get_array(diag_physics,'refl10cm_1km',refl10cm_1km)
- call mpas_pool_get_array(diag_physics,'refl10cm_1km_max',refl10cm_1km_max)
+ call mpas_pool_get_array_gpu(diag_physics,'refl10cm_max',refl10cm_max)
+ call mpas_pool_get_array_gpu(diag_physics,'refl10cm_1km',refl10cm_1km)
+ call mpas_pool_get_array_gpu(diag_physics,'refl10cm_1km_max',refl10cm_1km_max)
+!$acc update host(refl10cm_max, refl10cm_1km, refl10cm_1km_max)
 
  microp_select: select case(microp_scheme)
 
@@ -720,6 +724,7 @@
 
  end select microp_select
 
+!$acc update device(refl10cm_max, refl10cm_1km, refl10cm_1km_max)
  end subroutine compute_radar_reflectivity
 
 !=================================================================================================================
@@ -743,7 +748,8 @@
 
 !-----------------------------------------------------------------------------------------------------------------
 
- call mpas_pool_get_array(diag,'relhum',relhum)
+ call mpas_pool_get_array_gpu(diag,'relhum',relhum)
+!$acc update host(relhum)
  do k = kts,kte
     do i = its,ite
        relhum(k,i) = 0._RKIND
@@ -775,6 +781,7 @@
  if(allocated(qv1d) ) deallocate(qv1d )
  if(allocated(qvs1d)) deallocate(qvs1d)
 
+!$acc update device(relhum)
  end subroutine compute_relhum
 
 !=================================================================================================================
