@@ -219,12 +219,10 @@ CONTAINS
         DO i=its,ite
            DX2D(i)=DX(i,j)
         ENDDO
-!$acc parallel vector_length(32)
 !$acc loop gang vector
         DO i=its,ite
           dz8w1d(I) = dz8w(i,1,j)
         ENDDO
-!$acc parallel vector_length(32)
 !$acc loop gang vector
         DO i=its,ite
            U1D(i) =U3D(i,1,j)
@@ -1012,9 +1010,11 @@ CONTAINS
             HFX(I)=AMAX1(HFX(I),-250.)                                       
           ENDIF                                                                  
        END DO                                                                 
+!$acc end parallel
 !!!  400 CONTINUE                                                                 
     END IF
 !!!  405 CONTINUE                                                                 
+!$acc parallel vector_length(32)
 !$acc loop gang vector private(ZL)         
         DO I=its,ite
           IF((XLAND(I)-1.5).GE.0)THEN
