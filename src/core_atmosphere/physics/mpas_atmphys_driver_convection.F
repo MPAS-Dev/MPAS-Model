@@ -928,8 +928,8 @@
 
 !!!write(*,*) "*** from-18"
 #ifdef OPENACC_CONVECTION
-!$acc update host(rqvdynten,rqvblten,rthdynten,rthblten,rthratenlw, &
-!$acc rthratensw,ust,wstar,hgamt,hgamq,entpbl)
+!$acc update host(rqvdynten,rqvblten,rthdynten,rthblten,rthratenlw, rthratensw )
+!!!$acc (ust,wstar,hgamt,hgamq,entpbl)
 #endif
              do j = jts,jte
 !$acc parallel vector_length(32)
