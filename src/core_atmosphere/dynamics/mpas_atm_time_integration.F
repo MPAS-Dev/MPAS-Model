@@ -83,6 +83,56 @@ module atm_time_integration
    contains
 
 
+   !----------------------------------------------------------------------------
+   !  routine MPAS_atm_dynamics_init
+   !
+   !> \brief Initialize the dynamics
+   !> \date  28 July 2021
+   !> \details
+   !>  Prepare the dynamics component of MPAS-Atmosphere for time integration.
+   !>  This may involve, for example, allocating dynamics-local storage or
+   !>  initializing data structures used throughout the dynamics. Since this
+   !>  routine is called once before the first integration step, the work done
+   !>  by this routine is generally persistent across all calls to the dynamical
+   !>  core, in contrast to work that is performed at the beginning of each call
+   !>  to the dynamical core.
+   !
+   !----------------------------------------------------------------------------
+   subroutine mpas_atm_dynamics_init(domain)
+
+      implicit none
+
+      type (domain_type), intent(inout) :: domain
+
+
+   end subroutine mpas_atm_dynamics_init
+
+
+   !----------------------------------------------------------------------------
+   !  routine MPAS_atm_dynamics_finalize
+   !
+   !> \brief Finalize the dynamics
+   !> \author Michael Duda
+   !> \date   28 July 2021
+   !> \details
+   !>  Finalizes the dynamics component of MPAS-Atmosphere by, for example,
+   !>  freeing up dynamics-local memory and shut down infrastructure used only
+   !>  in the dynamics component of MPAS-Atmosphere. This routine is called once
+   !>  after the last integration step, and the work done here is usually the
+   !>  inverse of that done in the mpas_atm_dynamics_init routine (e.g.,
+   !>  deallocating memory that was allocated by mpas_atm_dynamics_init).
+   !
+   !----------------------------------------------------------------------------
+   subroutine mpas_atm_dynamics_finalize(domain)
+
+      implicit none
+
+      type (domain_type), intent(inout) :: domain
+
+
+   end subroutine mpas_atm_dynamics_finalize
+
+
    subroutine atm_timestep(domain, dt, nowTime, itimestep)
    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 
    ! Advance model state forward in time by the specified time step
