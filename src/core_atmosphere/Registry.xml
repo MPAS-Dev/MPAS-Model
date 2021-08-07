@@ -2896,13 +2896,16 @@
         <var_struct name="tend_physics" time_levs="1">
 
                 <var name="tend_ru_physics" type="real" dimensions="nVertLevels nEdges Time" units="kg m^{-2} s^{-1}"
-                     description="Total horizontal momentum tendency from physics"/>
+                     description="Total horizontal momentum tendency from physics"
+                     persistence="scratch" />
 
                 <var name="tend_rtheta_physics" type="real" dimensions="nVertLevels nCells Time" units="kg K m^{-3}"
-                     description="Total rho*theta/zz tendency from physics"/>
+                     description="Total rho*theta/zz tendency from physics"
+                     persistence="scratch" />
 
                 <var name="tend_rho_physics" type="real" dimensions="nVertLevels nCells Time" units="kg m^{-3} s^{-1}"
-                     description="Total dry air tendency from physics"/>
+                     description="Total dry air tendency from physics"
+                     persistence="scratch" />
 
                 <!-- Scratch variables used when propagating cell-centered winds to edges -->
                 <var name="tend_uzonal" type="real" dimensions="nVertLevels nCells Time" units="m s^{-1} s^{-1}"
