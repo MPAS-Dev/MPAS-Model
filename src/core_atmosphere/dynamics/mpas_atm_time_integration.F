@@ -9305,8 +9305,8 @@ if (config_horiz_mixing == "2d_smagorinsky") then
 
 !call to mpas pool get array to get the pointer to the array that needs to be
 !updated on the host
-            call mpas_pool_get_array(state, 'w', w, 2)
-            call mpas_pool_get_array(state, 'u', u, 2)
+            call mpas_pool_get_array_gpu(state, 'w', w, 2)
+            call mpas_pool_get_array_gpu(state, 'u', u, 2)
 
 !add the variables in the "update host" clause below to update the data on host
         !$acc update host(w, &
