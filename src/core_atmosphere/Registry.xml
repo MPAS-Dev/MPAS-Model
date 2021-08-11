@@ -1873,6 +1873,12 @@
                 </var_array>
         </var_struct>
 
+        <var_struct name="halo_scratch" time_levs="1">
+                <var name="scale" type="real" dimensions="nVertLevels TWO nCells" units="-"
+                     description="Scaling coefficients for monotonic-limited horizontal fluxes"
+                     persistence="scratch" />
+        </var_struct>
+
 
 <!-- ================================================================================================== -->
 <!--  DECLARATIONS OF ALL PHYSICS VARIABLES (will need to be moved to a Physics Registry shared by the  -->

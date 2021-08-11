@@ -82,6 +82,29 @@ module atm_core
       clock => domain % clock
       mpas_log_info => domain % logInfo
 
+      !
+      ! Set up halo exchange groups used during atmosphere core initialization
+      !
+      call mpas_dmpar_exch_group_create(domain, 'initialization:u')
+      call mpas_dmpar_exch_group_add_field(domain, 'initialization:u', 'u', timeLevel=1, haloLayers=(/1,2,3/))
+
+      call mpas_dmpar_exch_group_create(domain, 'initialization:pv_edge,ru,rw')
+      call mpas_dmpar_exch_group_add_field(domain, 'initialization:pv_edge,ru,rw', 'pv_edge', timeLevel=1, haloLayers=(/1,2,3/))
+      call mpas_dmpar_exch_group_add_field(domain, 'initialization:pv_edge,ru,rw', 'ru', timeLevel=1, haloLayers=(/1,2,3/))
+      call mpas_dmpar_exch_group_add_field(domain, 'initialization:pv_edge,ru,rw', 'rw', timeLevel=1, haloLayers=(/1,2/))
+
+#ifdef DO_PHYSICS
+      !
+      ! Set up halo exchange groups used by physics
+      !
+      call mpas_dmpar_exch_group_create(domain, 'physics:blten')
+      call mpas_dmpar_exch_group_add_field(domain, 'physics:blten', 'rublten', timeLevel=1, haloLayers=(/1,2/))
+      call mpas_dmpar_exch_group_add_field(domain, 'physics:blten', 'rvblten', timeLevel=1, haloLayers=(/1,2/))
+
+      call mpas_dmpar_exch_group_create(domain, 'physics:cuten')
+      call mpas_dmpar_exch_group_add_field(domain, 'physics:cuten', 'rucuten', timeLevel=1, haloLayers=(/1,2/))
+      call mpas_dmpar_exch_group_add_field(domain, 'physics:cuten', 'rvcuten', timeLevel=1, haloLayers=(/1,2/))
+#endif
 
       call mpas_pool_get_config(domain % blocklist % configs, 'config_do_restart', config_do_restart)
       call mpas_pool_get_config(domain % blocklist % configs, 'config_dt', dt)
@@ -157,10 +180,7 @@ module atm_core
       startTime = mpas_get_clock_time(clock, MPAS_START_TIME, ierr)
       call mpas_get_time(startTime, dateTimeString=startTimeStamp) 
 
-
-      call mpas_pool_get_subpool(domain % blocklist % structs, 'state', state)
-      call mpas_pool_get_field(state, 'u', u_field, 1)
-      call mpas_dmpar_exch_halo_field(u_field)
+      call mpas_dmpar_exch_group_full_halo_exch(domain, 'initialization:u')
 
 
       !
@@ -193,18 +213,16 @@ module atm_core
          block => block % next
       end do
 
-      call mpas_pool_get_subpool(domain % blocklist % structs, 'diag', diag)
-      call mpas_pool_get_field(diag, 'pv_edge', pv_edge_field)
-      call mpas_dmpar_exch_halo_field(pv_edge_field)
-
-      call mpas_pool_get_field(diag, 'ru', ru_field)
-      call mpas_dmpar_exch_halo_field(ru_field)
-
-      call mpas_pool_get_field(diag, 'rw', rw_field)
-      call mpas_dmpar_exch_halo_field(rw_field)
+      call mpas_dmpar_exch_group_full_halo_exch(domain, 'initialization:pv_edge,ru,rw')
 
       call mpas_atm_diag_setup(domain % streamManager, domain % blocklist % configs, &
                                domain % blocklist % structs, domain % clock, domain % dminfo)
+
+      !
+      ! Destroy halo exchange groups used only during initialization
+      !
+      call mpas_dmpar_exch_group_destroy(domain, 'initialization:u')
+      call mpas_dmpar_exch_group_destroy(domain, 'initialization:pv_edge,ru,rw')
 
       !
       ! Prepare the dynamics for integration
@@ -961,6 +979,12 @@ module atm_core
 
             block_ptr => block_ptr%next
          end do
+
+         !
+         ! Destroy halo exchange groups used by physics
+         !
+         call mpas_dmpar_exch_group_destroy(domain, 'physics:blten')
+         call mpas_dmpar_exch_group_destroy(domain, 'physics:cuten')
 #endif
 
       !
