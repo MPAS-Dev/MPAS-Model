@@ -316,8 +316,8 @@
  call mpas_pool_get_field(state,'scalars',scalarsField,time_lev)
 
  if (l_radtlw .or. l_radtsw) then
-    if (mpas_cpl%role_includes(ROLE_INTEGRATE) .or. &
-        mpas_cpl%role_includes(ROLE_RADIATION)) then
+    if (mpas_cpl%role_is(ROLE_INTEGRATE) .or. &
+        mpas_cpl%role_is(ROLE_RADIATION)) then
 
        call MPAS_coupler_transfer_field(mpas_cpl, cells_to_rad_handle, exnerField, ierr=ierr)
        call MPAS_coupler_transfer_field(mpas_cpl, cells_to_rad_handle, pressure_bField, ierr=ierr)
@@ -643,8 +643,8 @@
  if (l_radtlw .or. l_radtsw) then
 !$acc update host(exner, pressure_b, pressure_p, rtheta_b, rtheta_p, u, v, rho_zz, &
 !$acc             theta_m, w, scalars, surface_pressure, plrad)
-    if (mpas_cpl%role_includes(ROLE_INTEGRATE) .or. &
-        mpas_cpl%role_includes(ROLE_RADIATION)) then
+    if (mpas_cpl%role_is(ROLE_INTEGRATE) .or. &
+        mpas_cpl%role_is(ROLE_RADIATION)) then
 
        call MPAS_coupler_transfer_field(mpas_cpl, cells_to_rad_handle, exnerField, ierr=ierr)
        call MPAS_coupler_transfer_field(mpas_cpl, cells_to_rad_handle, pressure_bField, ierr=ierr)

@@ -226,7 +226,7 @@
     ! For all timesteps, we transfer MPAS state to physics
     !
 !$OMP PARALLEL DO
-    if (mpas_cpl%role_includes(ROLE_RADIATION)) then
+    if (mpas_cpl%role_is(ROLE_RADIATION)) then
     do thread=1,nThreads
        call MPAS_to_physics(block%configs,mesh,state,time_lev,diag,diag_physics, &
                             mpas_cpl, cells_to_rad_handle, cells_from_rad_handle, &
