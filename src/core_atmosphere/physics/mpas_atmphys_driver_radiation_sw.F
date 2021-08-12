@@ -395,14 +395,14 @@
  call mpas_pool_get_field(diag_physics,'m_hybi'    ,m_hybiField )
  call mpas_pool_get_field(diag_physics,'m_ps'      ,m_psField,time_lev)
 
- if (mpas_cpl%role_includes(ROLE_INTEGRATE)) then
+ if (mpas_cpl%role_is(ROLE_INTEGRATE)) then
     !$acc update host(latCell, lonCell, aerosols, skintemp, snow, &
     !$acc xice, xland, pin, ozmixm, sfc_albedo, sfc_emiss, cldfrac, &
     !$acc o3clim, m_hybi, m_ps)
  endif
 
- if (mpas_cpl%role_includes(ROLE_INTEGRATE) .or. &
-     mpas_cpl%role_includes(ROLE_RADIATION)) then
+ if (mpas_cpl%role_is(ROLE_INTEGRATE) .or. &
+     mpas_cpl%role_is(ROLE_RADIATION)) then
 
     call MPAS_coupler_transfer_field(mpas_cpl, cells_to_rad_handle, latCellField, ierr=ierr)
     call MPAS_coupler_transfer_field(mpas_cpl, cells_to_rad_handle, lonCellField, ierr=ierr)
@@ -426,7 +426,7 @@
 
  end if
 
- if (mpas_cpl%role_includes(ROLE_INTEGRATE)) then
+ if (mpas_cpl%role_is(ROLE_INTEGRATE)) then
     !$acc update device(latCell, lonCell, aerosols, skintemp, snow, &
     !$acc xice, xland, pin, ozmixm, sfc_albedo, sfc_emiss, cldfrac, &
     !$acc o3clim, m_hybi, m_ps)
@@ -649,7 +649,7 @@
  end select radiation_sw_select
  end if
 
- if (mpas_cpl%role_includes(ROLE_INTEGRATE)) then
+ if (mpas_cpl%role_is(ROLE_INTEGRATE)) then
  !$acc update device(latCell, lonCell, aerosols, skintemp, snow, &
  !$acc xice, xland, pin, ozmixm, sfc_albedo, sfc_emiss, cldfrac, &
  !$acc o3clim, m_hybi, m_ps)
@@ -749,13 +749,13 @@
 
  if (transfer_fields) then
 
-    if (mpas_cpl%role_includes(ROLE_INTEGRATE)) then
+    if (mpas_cpl%role_is(ROLE_INTEGRATE)) then
        !$acc update host(coszr, gsw, swcf, swdnb, swdnbc, swdnt, swdntc, &
        !$acc swupb, swupbc, swupt, swuptc, rthratensw)
     end if
 
-    if (mpas_cpl%role_includes(ROLE_INTEGRATE) .or. &
-        mpas_cpl%role_includes(ROLE_RADIATION)) then
+    if (mpas_cpl%role_is(ROLE_INTEGRATE) .or. &
+        mpas_cpl%role_is(ROLE_RADIATION)) then
 
        call MPAS_coupler_transfer_field(mpas_cpl, cells_from_rad_handle, coszrField, ierr=ierr)
        call MPAS_coupler_transfer_field(mpas_cpl, cells_from_rad_handle, gswField, ierr=ierr)
@@ -772,7 +772,7 @@
 
     end if
 
-    if (mpas_cpl%role_includes(ROLE_INTEGRATE)) then
+    if (mpas_cpl%role_is(ROLE_INTEGRATE)) then
        !$acc update device(coszr, gsw, swcf, swdnb, swdnbc, swdnt, swdntc, &
        !$acc swupb, swupbc, swupt, swuptc, rthratensw)
     end if
