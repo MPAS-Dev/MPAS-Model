@@ -813,13 +813,13 @@
  call mpas_pool_get_field(diag_physics,'swuptc'    ,swuptcField    )
  call mpas_pool_get_field(tend_physics,'rthratensw',rthratenswField)
 
- if (mpas_cpl%role_includes(ROLE_INTEGRATE)) then
+ if (mpas_cpl%role_is(ROLE_INTEGRATE)) then
     !$acc update host(coszr, gsw, swcf, swdnb, swdnbc, swdnt, swdntc, &
     !$acc swupb, swupbc, swupt, swuptc, rthratensw)
  endif
 
- if (mpas_cpl%role_includes(ROLE_INTEGRATE) .or. &
-     mpas_cpl%role_includes(ROLE_RADIATION)) then
+ if (mpas_cpl%role_is(ROLE_INTEGRATE) .or. &
+     mpas_cpl%role_is(ROLE_RADIATION)) then
 
     call MPAS_coupler_transfer_field(mpas_cpl, cells_from_rad_handle, coszrField, ierr=ierr)
     call MPAS_coupler_transfer_field(mpas_cpl, cells_from_rad_handle, gswField, ierr=ierr)
@@ -836,7 +836,7 @@
 
  end if
 
- if (mpas_cpl%role_includes(ROLE_INTEGRATE)) then
+ if (mpas_cpl%role_is(ROLE_INTEGRATE)) then
     !$acc update device(coszr, gsw, swcf, swdnb, swdnbc, swdnt, swdntc, &
     !$acc swupb, swupbc, swupt, swuptc, rthratensw)
  endif
