@@ -119,9 +119,16 @@ module atm_core_interface
 
       logical, pointer :: iauActive
       character(len=StrKIND), pointer :: config_iau_option
+      logical, pointer :: limited_areaActive
+      logical, pointer :: config_apply_lbcs
+      logical, pointer :: config_jedi_da, jedi_daActive
+      integer :: local_ierr
 
       ierr = 0
 
+      !
+      ! Incremental analysis update
+      !
       nullify(config_iau_option)
       call mpas_pool_get_config(configs, 'config_IAU_option', config_iau_option)
 
@@ -134,15 +141,49 @@ module atm_core_interface
          iauActive = .false.
       end if
 
+      !
+      ! Limited-area
+      !
+      nullify(config_apply_lbcs)
+      call mpas_pool_get_config(configs, 'config_apply_lbcs', config_apply_lbcs)
+
+      nullify(limited_areaActive)
+      call mpas_pool_get_package(packages, 'limited_areaActive', limited_areaActive)
+
+      if (config_apply_lbcs) then
+         limited_areaActive = .true.
+      else
+         limited_areaActive = .false.
+      end if
+
+      !
+      ! JEDI data assimilation
+      !
+      nullify(config_jedi_da)
+      call mpas_pool_get_config(configs, 'config_jedi_da', config_jedi_da)
+
+      nullify(jedi_daActive)
+      call mpas_pool_get_package(packages, 'jedi_daActive', jedi_daActive)
+
+      if (associated(config_jedi_da) .and. associated(jedi_daActive)) then
+         jedi_daActive = config_jedi_da
+      else
+         ierr = ierr + 1
+         call mpas_log_write('Package setup failed for ''jedi_da''. '// &
+              'Either ''jedi_da'' is not a package, or ''config_jedi_da'' is not a namelist option.', &
+              messageType=MPAS_LOG_ERR)
+      end if
+
 #ifdef DO_PHYSICS
       !check that all the physics options are correctly defined and that at
       !least one physics parameterization is called (using the logical moist_physics):
       call physics_namelist_check(configs)
 
-      ierr = atmphys_setup_packages(configs,packages,iocontext)
-      if(ierr /= 0) then
+      local_ierr = atmphys_setup_packages(configs, packages, iocontext)
+      if (local_ierr /= 0) then
+         ierr = ierr + 1
          call mpas_log_write('Package setup failed for atmphys in core_atmosphere', messageType=MPAS_LOG_ERR)
-      endif
+      end if
 #endif
 
    end function atm_setup_packages
@@ -355,19 +396,17 @@ module atm_core_interface
       ! should have added a config, cam_pcnst, to the configs pool to indicate how many scalars
       ! are to be allocated.
       !
-      if (associated(block % domain % configs)) then
-          nullify(cam_pcnst)
-          err_level = mpas_pool_get_error_level()
-          call mpas_pool_set_error_level(MPAS_POOL_SILENT)
-          call mpas_pool_get_config(block % domain % configs, 'cam_pcnst', cam_pcnst)
-          call mpas_pool_set_error_level(err_level)
-          if (associated(cam_pcnst)) then
-             call mpas_log_write('')
-             call mpas_log_write('** Config ''cam_pcnst'' is defined with a value of $i', intArgs=[cam_pcnst])
-             call mpas_log_write('   Scalars will be allocated separately from Registry-defined variables')
-             call mpas_log_write('')
-             ierr = atm_allocate_scalars(block, cam_pcnst)
-          end if
+      nullify(cam_pcnst)
+      err_level = mpas_pool_get_error_level()
+      call mpas_pool_set_error_level(MPAS_POOL_SILENT)
+      call mpas_pool_get_config(block % domain % configs, 'cam_pcnst', cam_pcnst)
+      call mpas_pool_set_error_level(err_level)
+      if (associated(cam_pcnst)) then
+         call mpas_log_write('')
+         call mpas_log_write('** Config ''cam_pcnst'' is defined with a value of $i', intArgs=[cam_pcnst])
+         call mpas_log_write('   Scalars will be allocated separately from Registry-defined variables')
+         call mpas_log_write('')
+         ierr = atm_allocate_scalars(block, cam_pcnst)
       end if
 
    end function atm_setup_block

@@ -67,6 +67,9 @@ module mpas_framework
 !-----------------------------------------------------------------------
    subroutine mpas_framework_init_phase2(domain, io_system, calendar)!{{{
 
+      use mpas_log, only : mpas_log_write
+      use mpas_derived_types, only : MPAS_LOG_CRIT
+
       implicit none
 
       type (domain_type), pointer :: domain
@@ -103,9 +106,29 @@ module mpas_framework
          call mpas_pool_get_config(domain % configs, 'config_pio_stride', config_pio_stride)
          pio_num_iotasks = config_pio_num_iotasks
          pio_stride = config_pio_stride
-         if (pio_num_iotasks == 0) then
-            pio_num_iotasks = domain % dminfo % nprocs
+
+         !
+         ! If at most one of config_pio_num_iotasks and config_io_stride are zero, compute
+         ! a sensible value for the zero-valued option
+         !
+         if (pio_num_iotasks == 0 .and. pio_stride == 0) then
+            call mpas_log_write('Namelist options config_pio_num_iotasks and config_pio_stride cannot both be zero.', &
+                                messageType=MPAS_LOG_CRIT)
+         else if (pio_num_iotasks == 0) then
+            pio_num_iotasks = domain % dminfo % nprocs / pio_stride
+         else if (pio_stride == 0) then
+            pio_stride = domain % dminfo % nprocs / pio_num_iotasks
          end if
+
+         call mpas_log_write('')
+         call mpas_log_write('----- I/O task configuration: -----')
+         call mpas_log_write('')
+         call mpas_log_write('    I/O task count  = $i', intArgs=[pio_num_iotasks])
+         call mpas_log_write('    I/O task stride = $i', intArgs=[pio_stride])
+         call mpas_log_write('')
+      else
+         pio_num_iotasks = -1    ! Not used when external io_system is provided
+         pio_stride      = -1    ! Not used when external io_system is provided
       end if
 
       domain % ioContext % dminfo => domain % dminfo

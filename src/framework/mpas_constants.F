@@ -1,4 +1,4 @@
-! Copyright (c) 2013-2020  Los Alamos National Security, LLC (LANS)
+! Copyright (c) 2013,  Los Alamos National Security, LLC (LANS)
 ! and the University Corporation for Atmospheric Research (UCAR).
 !
 ! Unless noted otherwise source code is licensed under the BSD license.
@@ -32,6 +32,7 @@ module mpas_constants
    use physconst, only : rv => rh2o
    real (kind=RKIND) :: rvord = huge(1.0_RKIND)                       ! Derived in mpas_constants_compute_derived
    real (kind=RKIND) :: cv = huge(1.0_RKIND)                          ! Derived in mpas_constants_compute_derived
+   real (kind=RKIND) :: cvpm = huge(1.0_RKIND)                        ! Derived in mpas_constants_compute_derived
 #else
    real (kind=RKIND), parameter :: pii     = 3.141592653589793_RKIND  !< Constant: Pi
    real (kind=RKIND), parameter :: a       = 6371229.0_RKIND          !< Constant: Spherical Earth radius [m]
@@ -43,6 +44,7 @@ module mpas_constants
    real (kind=RKIND), parameter :: cp      = 7.0_RKIND*rgas/2.0_RKIND !< Constant: Specific heat of dry air at constant pressure [J kg-1 K-1]
    real (kind=RKIND), parameter :: rvord   = rv / rgas                !
    real (kind=RKIND), parameter :: cv      = cp - rgas                !< Constant: Specific heat of dry air at constant volume [J kg-1 K-1]
+   real (kind=RKIND), parameter :: cvpm    = -cv / cp                 !
 #endif
    real (kind=RKIND), parameter :: p0 = 1.0e5_RKIND                   !< Constant: 100000 Pa
    real (kind=RKIND), parameter :: prandtl = 1.0_RKIND                !< Constant: Prandtl number
@@ -58,7 +60,16 @@ module mpas_constants
 !> \author  Michael Duda
 !> \date    8 May 2020
 !> \details 
-!>  This routine computes constants that are derived from others.
+!>  This routine provides a place where physical constants provided by
+!>  the mpas_constants module may be computed at runtime. For example,
+!>  if some constants depend on namelist options or other runtime
+!>  settings, other constants that derive from them may be computed in
+!>  this routine.
+!>
+!>  At present, the MPAS infrastructure does not call this routine, and
+!>  it is the responsibility of any MPAS core that needs to compute
+!>  derived constants at runtime to add calls to this routine, e.g., in
+!>  its core_init routine.
 !
 !-----------------------------------------------------------------------
    subroutine mpas_constants_compute_derived()
@@ -66,8 +77,15 @@ module mpas_constants
        implicit none
 
 #ifdef MPAS_CAM_DYCORE
+       !
+       ! In the case of CAM-MPAS, rgas may depend on a CAM namelist option,
+       ! so physical constants that depend on rgas must be computed here after
+       ! CAM has called the physconst_readnl routine.
+       !
+
        rvord   = rv / rgas
        cv      = cp - rgas
+       cvpm    = -cv / cp
 #endif
 
    end subroutine mpas_constants_compute_derived
