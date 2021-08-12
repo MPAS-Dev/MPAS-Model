@@ -891,13 +891,13 @@
 
  call mpas_pool_get_array_gpu(tend_physics,'rthratenlw',rthratenlw)
 
- if (mpas_cpl%role_includes(ROLE_INTEGRATE)) then
+ if (mpas_cpl%role_is(ROLE_INTEGRATE)) then
     !$acc update host(glw, lwcf, lwdnb, lwdnbc, lwdnt, lwdntc, lwupb, &
     !$acc lwupbc, lwupt, lwuptc, olrtoa, rthratenlw)
  end if
 
- if (mpas_cpl%role_includes(ROLE_INTEGRATE) .or. &
-     mpas_cpl%role_includes(ROLE_RADIATION)) then
+ if (mpas_cpl%role_is(ROLE_INTEGRATE) .or. &
+     mpas_cpl%role_is(ROLE_RADIATION)) then
 
     call MPAS_coupler_transfer_field(mpas_cpl, cells_from_rad_handle, glwField   , ierr=ierr)
     call MPAS_coupler_transfer_field(mpas_cpl, cells_from_rad_handle, lwcfField  , ierr=ierr)
@@ -914,7 +914,7 @@
 
  end if
 
- if (mpas_cpl%role_includes(ROLE_INTEGRATE)) then
+ if (mpas_cpl%role_is(ROLE_INTEGRATE)) then
     !$acc update device(glw, lwcf, lwdnb, lwdnbc, lwdnt, lwdntc, lwupb, &
     !$acc lwupbc, lwupt, lwuptc, olrtoa, rthratenlw)
  end if
