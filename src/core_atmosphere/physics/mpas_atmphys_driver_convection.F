@@ -1016,18 +1016,20 @@
  convection_select: select case(convection_scheme)
 
     case ("cu_kain_fritsch")
-      call mpas_pool_get_array(diag_physics,'nca'   ,nca   )
-      call mpas_pool_get_array(diag_physics,'cubot' ,cubot )
-      call mpas_pool_get_array(diag_physics,'cutop' ,cutop )
-      call mpas_pool_get_array(diag_physics,'cuprec',cuprec)
-      call mpas_pool_get_array(diag_physics,'raincv',raincv)
+      call mpas_pool_get_array_gpu(diag_physics,'nca'   ,nca   )
+      call mpas_pool_get_array_gpu(diag_physics,'cubot' ,cubot )
+      call mpas_pool_get_array_gpu(diag_physics,'cutop' ,cutop )
+      call mpas_pool_get_array_gpu(diag_physics,'cuprec',cuprec)
+      call mpas_pool_get_array_gpu(diag_physics,'raincv',raincv)
 
-      call mpas_pool_get_array(tend_physics,'rthcuten',rthcuten)
-      call mpas_pool_get_array(tend_physics,'rqvcuten',rqvcuten)
-      call mpas_pool_get_array(tend_physics,'rqccuten',rqccuten)
-      call mpas_pool_get_array(tend_physics,'rqicuten',rqicuten)
-      call mpas_pool_get_array(tend_physics,'rqrcuten',rqrcuten)
-      call mpas_pool_get_array(tend_physics,'rqscuten',rqscuten)
+      call mpas_pool_get_array_gpu(tend_physics,'rthcuten',rthcuten)
+      call mpas_pool_get_array_gpu(tend_physics,'rqvcuten',rqvcuten)
+      call mpas_pool_get_array_gpu(tend_physics,'rqccuten',rqccuten)
+      call mpas_pool_get_array_gpu(tend_physics,'rqicuten',rqicuten)
+      call mpas_pool_get_array_gpu(tend_physics,'rqrcuten',rqrcuten)
+      call mpas_pool_get_array_gpu(tend_physics,'rqscuten',rqscuten)
+!$acc update host(nca, cubot, cutop, cuprec, raincv, rthcuten, rqvcuten, &
+!$acc             rqccuten, rqicuten, rqrcuten, rqscuten)
 
        do i = its, ite
           !decreases the characteristic time period that convection remains active. When nca_p
@@ -1052,6 +1054,8 @@
              endif
           endif
        enddo
+!$acc update device(nca, cubot, cutop, cuprec, raincv, rthcuten, rqvcuten, &
+!$acc             rqccuten, rqicuten, rqrcuten, rqscuten)
 
     case default
 
@@ -1083,9 +1087,10 @@
 
  call mpas_pool_get_config(configs,'config_bucket_rainc',bucket_rainc)
 
- call mpas_pool_get_array(diag_physics,'i_rainc',i_rainc)
- call mpas_pool_get_array(diag_physics,'cuprec' ,cuprec )
- call mpas_pool_get_array(diag_physics,'rainc'  ,rainc  )
+ call mpas_pool_get_array_gpu(diag_physics,'i_rainc',i_rainc)
+ call mpas_pool_get_array_gpu(diag_physics,'cuprec' ,cuprec )
+ call mpas_pool_get_array_gpu(diag_physics,'rainc'  ,rainc  )
+!$acc update host(i_rainc, cuprec, rainc)
 
 !update the accumulated precipitation at the end of each dynamic time-step:
  do i = its, ite
@@ -1098,6 +1103,7 @@
     endif
  enddo
 
+!$acc update device(i_rainc, cuprec, rainc)
  end subroutine update_convection_step2
 
 !=================================================================================================================
