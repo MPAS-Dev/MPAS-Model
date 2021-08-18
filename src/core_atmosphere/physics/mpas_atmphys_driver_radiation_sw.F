@@ -815,18 +815,18 @@
 
 !-----------------------------------------------------------------------------------------------------------------
 
- call mpas_pool_get_array(diag_physics,'coszr'     ,coszr     )
- call mpas_pool_get_array(diag_physics,'gsw'       ,gsw       )
- call mpas_pool_get_array(diag_physics,'swcf'      ,swcf      )
- call mpas_pool_get_array(diag_physics,'swdnb'     ,swdnb     )
- call mpas_pool_get_array(diag_physics,'swdnbc'    ,swdnbc    )
- call mpas_pool_get_array(diag_physics,'swdnt'     ,swdnt     )
- call mpas_pool_get_array(diag_physics,'swdntc'    ,swdntc    )
- call mpas_pool_get_array(diag_physics,'swupb'     ,swupb     )
- call mpas_pool_get_array(diag_physics,'swupbc'    ,swupbc    )
- call mpas_pool_get_array(diag_physics,'swupt'     ,swupt     )
- call mpas_pool_get_array(diag_physics,'swuptc'    ,swuptc    )
- call mpas_pool_get_array(tend_physics,'rthratensw',rthratensw)
+ call mpas_pool_get_array_gpu(diag_physics,'coszr'     ,coszr     )
+ call mpas_pool_get_array_gpu(diag_physics,'gsw'       ,gsw       )
+ call mpas_pool_get_array_gpu(diag_physics,'swcf'      ,swcf      )
+ call mpas_pool_get_array_gpu(diag_physics,'swdnb'     ,swdnb     )
+ call mpas_pool_get_array_gpu(diag_physics,'swdnbc'    ,swdnbc    )
+ call mpas_pool_get_array_gpu(diag_physics,'swdnt'     ,swdnt     )
+ call mpas_pool_get_array_gpu(diag_physics,'swdntc'    ,swdntc    )
+ call mpas_pool_get_array_gpu(diag_physics,'swupb'     ,swupb     )
+ call mpas_pool_get_array_gpu(diag_physics,'swupbc'    ,swupbc    )
+ call mpas_pool_get_array_gpu(diag_physics,'swupt'     ,swupt     )
+ call mpas_pool_get_array_gpu(diag_physics,'swuptc'    ,swuptc    )
+ call mpas_pool_get_array_gpu(tend_physics,'rthratensw',rthratensw)
  call mpas_pool_get_field(diag_physics,'coszr'     ,coszrField     )
  call mpas_pool_get_field(diag_physics,'gsw'       ,gswField       )
  call mpas_pool_get_field(diag_physics,'swcf'      ,swcfField      )
@@ -839,6 +839,11 @@
  call mpas_pool_get_field(diag_physics,'swupt'     ,swuptField     )
  call mpas_pool_get_field(diag_physics,'swuptc'    ,swuptcField    )
  call mpas_pool_get_field(tend_physics,'rthratensw',rthratenswField)
+
+ if (mpas_cpl%role_is(ROLE_INTEGRATE)) then
+    !$acc update host(coszr, gsw, swcf, swdnb, swdnbc, swdnt, swdntc, &
+    !$acc swupb, swupbc, swupt, swuptc, rthratensw)
+ endif
 
  if (mpas_cpl%role_is(ROLE_INTEGRATE) .or. &
      mpas_cpl%role_is(ROLE_RADIATION)) then
@@ -857,6 +862,11 @@
     call MPAS_coupler_transfer_field(mpas_cpl, cells_from_rad_handle, rthratenswField, ierr=ierr)
 
  end if
+
+ if (mpas_cpl%role_is(ROLE_INTEGRATE)) then
+    !$acc update device(coszr, gsw, swcf, swdnb, swdnbc, swdnt, swdntc, &
+    !$acc swupb, swupbc, swupt, swuptc, rthratensw)
+ endif
 
  end subroutine lagged_radiation_sw_to_MPAS
 
