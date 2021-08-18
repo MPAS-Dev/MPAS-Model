@@ -2386,7 +2386,7 @@ module atm_time_integration
       integer:: i,j, k
 !$acc data present(ru, ru_save, rw, rw_save, &
 !$acc rtheta_p,rtheta_p_save,rho_p,rho_p_save, &
-!$acc rho_zz_old_split, &
+!$acc rho_zz_old_split,scalars_1,scalars_2, &
 !$acc u_1,u_2,w_1,w_2,theta_m_1,theta_m_2,rho_zz_1,rho_zz_2)
 
 !$acc parallel vector_length(32)
