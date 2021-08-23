@@ -135,7 +135,7 @@ contains
         if (znu(k).gt.0.6) kpblmax = k + 1
       enddo
    else
-      kpblmax = kte
+      kpblmax = kte - 1
    endif
 !
    do j = jts,jte
