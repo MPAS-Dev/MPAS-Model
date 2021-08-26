@@ -68,6 +68,7 @@ module init_atm_cases
       logical, pointer :: config_blend_bdy_terrain
       character (len=StrKIND), pointer :: config_start_time
       character (len=StrKIND), pointer :: config_met_prefix
+      character (len=StrKIND), pointer :: config_specified_zeta_levels
 
       character(len=StrKIND), pointer :: mminlu
       character(len=StrKIND), pointer :: xtime
@@ -322,11 +323,40 @@ module init_atm_cases
          !
          call mpas_stream_mgr_reset_alarms(stream_manager, streamID='lbc', direction=MPAS_STREAM_OUTPUT, ierr=ierr)
 
+      else if (config_init_case == 13 ) then
+
+         call mpas_log_write(' CAM-MPAS grid ')
+
+         block_ptr => domain % blocklist
+         do while (associated(block_ptr))
+            call mpas_pool_get_config(block_ptr % configs, 'config_specified_zeta_levels', config_specified_zeta_levels)
+
+            if (len_trim(config_specified_zeta_levels) < 1) then
+                call mpas_log_write('*************************************************************', messageType=MPAS_LOG_ERR)
+                call mpas_log_write('Setup of CAM-MPAS grid requires a specified set of zeta levels.', messageType=MPAS_LOG_ERR)
+                call mpas_log_write('Please set the namelist option config_specified_zeta_levels', messageType=MPAS_LOG_ERR)
+                call mpas_log_write('in the &vertical_grid namelist group.', messageType=MPAS_LOG_ERR)
+                call mpas_log_write('*************************************************************', messageType=MPAS_LOG_ERR)
+
+                call mpas_log_write('Errors were detected in the namelist.init_atmosphere file.', messageType=MPAS_LOG_CRIT)
+            end if
+
+            call mpas_pool_get_subpool(block_ptr % structs, 'mesh', mesh)
+
+            ! nVertLevels is used to allocate variables on the stack in init_atm_case_cam_mpas
+            call mpas_pool_get_dimension(block_ptr % dimensions, 'nVertLevels', nVertLevels)
+
+            call init_atm_case_cam_mpas(stream_manager, domain % dminfo, block_ptr, &
+                                        mesh, block_ptr % dimensions, block_ptr % configs, nVertLevels)
+
+            block_ptr => block_ptr % next
+         end do
+
       else
 
-         call mpas_log_write(' ****************************************************', messageType=MPAS_LOG_ERR)
-         call mpas_log_write(' Only test cases 1 through 9 are currently supported.', messageType=MPAS_LOG_ERR)
-         call mpas_log_write(' ****************************************************', messageType=MPAS_LOG_CRIT)
+         call mpas_log_write(' ***********************************************************', messageType=MPAS_LOG_ERR)
+         call mpas_log_write(' Only test cases 1 through 9 and 13 are currently supported.', messageType=MPAS_LOG_ERR)
+         call mpas_log_write(' ***********************************************************', messageType=MPAS_LOG_CRIT)
 
       end if
 
@@ -5678,6 +5708,630 @@ call mpas_log_write('Done with soil consistency check')
       end do
 
    end subroutine init_atm_case_lbc
+
+
+   !-----------------------------------------------------------------------
+   !  routine init_atm_case_cam_mpas
+   !
+   !> \brief Generate a 3-d grid for use with CAM-MPAS
+   !> \author Michael Duda
+   !> \date   20 October 2020
+   !> \details
+   !>  Given a unit-sphere SCVT, this initialization case produces an earth-radius
+   !>  mesh with a vertical grid suitable for use with CAM-MPAS.
+   !>
+   !>  The config_specified_zeta_levels must be set to the name of a text file with
+   !>  zeta levels, the number of which must be one more than config_nvertlevels.
+   !>
+   !>  Optionally, a mutable stream named 'cam_topo' may also be defined with
+   !>  a single field, PHIS, that provides the surface geopotential to be used in
+   !>  generating the vertical grid.
+   !>
+   !>  Namelist options used by this routine:
+   !>  * config_specified_zeta_levels
+   !>  * config_nsmterrain
+   !>  * config_nsm
+   !>  * config_smooth_surfaces
+   !>  * config_smooth_dzmin
+   !>  * config_smooth_theta_adv_order
+   !
+   !-----------------------------------------------------------------------
+   subroutine init_atm_case_cam_mpas(stream_manager, dminfo, block, mesh, &
+                                     dims, configs, nVertLevels)
+
+      use mpas_dmpar, only : mpas_dmpar_exch_halo_field, mpas_dmpar_min_real, mpas_dmpar_max_real
+      use mpas_stream_manager, only : MPAS_stream_mgr_stream_exists, MPAS_stream_mgr_read
+      use mpas_derived_types, only : MPAS_STREAM_MGR_NOERR
+
+      implicit none
+
+      !
+      ! Arguments
+      !
+      type (MPAS_streamManager_type), intent(inout) :: stream_manager
+      type (dm_info), intent(inout) :: dminfo
+      type (block_type), intent(inout), target :: block
+      type (mpas_pool_type), intent(inout) :: mesh
+      type (mpas_pool_type), intent(inout):: dims
+      type (mpas_pool_type), intent(inout):: configs
+      integer, intent(in) :: nVertLevels
+
+
+      !
+      ! Local variables
+      !
+      integer :: i, j, k
+      integer :: iCell, iEdge, iVtx
+      integer :: ierr
+
+      integer, pointer :: nCells
+      integer, pointer :: nEdges
+      integer, pointer :: nCellsSolve
+      integer, pointer :: nVertices
+      integer, pointer :: maxEdges
+
+      character (len=StrKIND), pointer :: config_specified_zeta_levels
+
+      real(kind=RKIND), dimension(:), pointer :: specified_zw
+
+      logical, pointer :: on_a_sphere
+      real(kind=RKIND), pointer :: sphere_radius
+
+      real(kind=RKIND), dimension(:), pointer :: xCell, yCell, zCell
+      real(kind=RKIND), dimension(:), pointer :: xEdge, yEdge, zEdge
+      real(kind=RKIND), dimension(:), pointer :: xVertex, yVertex, zVertex
+      real(kind=RKIND), dimension(:), pointer :: dcEdge, dvEdge, areaCell, areaTriangle
+      real(kind=RKIND), dimension(:,:), pointer :: kiteAreasOnVertex
+
+      real(kind=RKIND), dimension(:), pointer :: fEdge, fVertex
+      real(kind=RKIND), dimension(:), pointer :: latEdge
+      real(kind=RKIND), dimension(:), pointer :: latVertex
+
+      integer, dimension(:), pointer :: nEdgesOnCell
+      integer, dimension(:,:), pointer :: cellsOnCell
+      integer, dimension(:,:), pointer :: cellsOnEdge
+      integer, dimension(:,:), pointer :: edgesOnCell
+
+      real(kind=RKIND), dimension(:), pointer :: PHIS
+      real(kind=RKIND), dimension(:), pointer :: ter
+      real(kind=RKIND) :: min_ter, max_ter
+      type (field1DReal), pointer :: ter_field
+
+      real(kind=RKIND), dimension(:), pointer :: hs, hs1
+      integer, pointer :: config_nsmterrain
+      integer :: nsmterrain
+
+      logical :: hybrid
+      integer :: kz
+      real(kind=RKIND), dimension(nVertLevels+1) :: zw, ah
+      real (kind=RKIND), dimension(nVertLevels) :: zu, dzw, rdzwp, rdzwm
+      real(kind=RKIND), dimension(:,:), pointer :: zgrid
+      real(kind=RKIND), dimension(:), pointer :: rdzw
+      real(kind=RKIND), dimension(:), pointer :: dzu
+      real(kind=RKIND), dimension(:), pointer :: rdzu
+      real(kind=RKIND), dimension(:), pointer :: fzm
+      real(kind=RKIND), dimension(:), pointer :: fzp
+      real(kind=RKIND), dimension(:,:), pointer :: zxu
+      real(kind=RKIND), dimension(:,:), pointer :: zz
+
+      real(kind=RKIND) :: zh, zt
+
+      real(kind=RKIND), dimension(:,:), pointer :: hx
+
+      real(kind=RKIND) :: cof1, cof2
+      real(kind=RKIND), pointer :: cf1, cf2, cf3
+
+      logical, pointer :: config_smooth_surfaces
+      integer, pointer :: config_nsm
+      real(kind=RKIND), pointer :: config_dzmin
+
+      real(kind=RKIND) :: dzmin, dzmina, dzminf, dzminf_global, sm
+      real(kind=RKIND), dimension(:), pointer :: sm0
+      real(kind=RKIND) :: dcsum
+
+      type (field1DReal), pointer :: tempField
+      type (field1DReal), target :: tempFieldTarget
+
+      integer :: cell1, cell2
+
+      integer, pointer :: config_theta_adv_order
+      real(kind=RKIND) :: z_edge, z_edge3
+      real(kind=RKIND) :: d2fdx2_cell1, d2fdx2_cell2
+      real(kind=RKIND), dimension(:,:,:), pointer :: deriv_two
+      real(kind=RKIND), dimension(:,:,:), pointer :: zb, zb3
+
+
+      !
+      ! Get dimensions
+      !
+      call mpas_pool_get_dimension(dims, 'nCells', nCells)
+      call mpas_pool_get_dimension(dims, 'nEdges', nEdges)
+      call mpas_pool_get_dimension(dims, 'nVertices', nVertices)
+      call mpas_pool_get_dimension(dims, 'nCellsSolve', nCellsSolve)
+      call mpas_pool_get_dimension(dims, 'maxEdges', maxEdges)
+
+
+      !
+      ! Scale all distances and areas from a unit sphere to one with radius sphere_radius
+      !
+      call mpas_pool_get_array(mesh, 'xCell', xCell)
+      call mpas_pool_get_array(mesh, 'yCell', yCell)
+      call mpas_pool_get_array(mesh, 'zCell', zCell)
+      call mpas_pool_get_array(mesh, 'xEdge', xEdge)
+      call mpas_pool_get_array(mesh, 'yEdge', yEdge)
+      call mpas_pool_get_array(mesh, 'zEdge', zEdge)
+      call mpas_pool_get_array(mesh, 'xVertex', xVertex)
+      call mpas_pool_get_array(mesh, 'yVertex', yVertex)
+      call mpas_pool_get_array(mesh, 'zVertex', zVertex)
+      call mpas_pool_get_array(mesh, 'dvEdge', dvEdge)
+      call mpas_pool_get_array(mesh, 'dcEdge', dcEdge)
+      call mpas_pool_get_array(mesh, 'areaCell', areaCell)
+      call mpas_pool_get_array(mesh, 'areaTriangle', areaTriangle)
+      call mpas_pool_get_array(mesh, 'kiteAreasOnVertex', kiteAreasOnVertex)
+      call mpas_pool_get_config(mesh, 'on_a_sphere', on_a_sphere)
+      call mpas_pool_get_config(mesh, 'sphere_radius', sphere_radius)
+
+      xCell(:) = xCell(:) * sphere_radius
+      yCell(:) = yCell(:) * sphere_radius
+      zCell(:) = zCell(:) * sphere_radius
+      xVertex(:) = xVertex(:) * sphere_radius
+      yVertex(:) = yVertex(:) * sphere_radius
+      zVertex(:) = zVertex(:) * sphere_radius
+      xEdge(:) = xEdge(:) * sphere_radius
+      yEdge(:) = yEdge(:) * sphere_radius
+      zEdge(:) = zEdge(:) * sphere_radius
+      dvEdge(:) = dvEdge(:) * sphere_radius
+      dcEdge(:) = dcEdge(:) * sphere_radius
+      areaCell(:) = areaCell(:) * sphere_radius**2
+      areaTriangle(:) = areaTriangle(:) * sphere_radius**2
+      kiteAreasOnVertex(:,:) = kiteAreasOnVertex(:,:) * sphere_radius**2
+
+
+      !
+      ! Initialize Coriolis parameter field on edges and vertices
+      !
+      call mpas_pool_get_array(mesh, 'fEdge', fEdge)
+      call mpas_pool_get_array(mesh, 'fVertex', fVertex)
+      call mpas_pool_get_array(mesh, 'latEdge', latEdge)
+      call mpas_pool_get_array(mesh, 'latVertex', latVertex)
+
+      do iEdge=1,nEdges
+         fEdge(iEdge)  = 2.0 * omega * sin(latEdge(iEdge))
+      end do
+      do iVtx=1,nVertices
+         fVertex(iVtx) = 2.0 * omega * sin(latVertex(iVtx))
+      end do
+
+
+      !
+      ! Compute weights used in advection and deformation calculation
+      !
+      call atm_initialize_advection_rk(mesh, nCells, nEdges, maxEdges, on_a_sphere, sphere_radius)
+      call atm_initialize_deformation_weights(mesh, nCells, on_a_sphere, sphere_radius)
+
+
+      !
+      ! Read PHIS field from cam_topo stream
+      !
+      if (MPAS_stream_mgr_stream_exists(stream_manager, 'cam_topo')) then
+         call MPAS_stream_mgr_read(stream_manager, 'cam_topo', rightNow=.true., whence=MPAS_STREAM_NEAREST, ierr=ierr)
+         if (ierr /= MPAS_STREAM_MGR_NOERR) then
+            call mpas_log_write('Error reading the ''cam_topo'' stream.', messageType=MPAS_LOG_CRIT)
+         end if
+      else
+         call mpas_log_write('')
+         call mpas_log_write('*************************************************************', messageType=MPAS_LOG_WARN)
+         call mpas_log_write('No ''cam_topo'' input stream with a PHIS field was defined.', messageType=MPAS_LOG_WARN)
+         call mpas_log_write('', messageType=MPAS_LOG_WARN)
+         call mpas_log_write('The terrain field will be set to zero everywhere. To specify', messageType=MPAS_LOG_WARN)
+         call mpas_log_write('a non-zero terrain field, define a ''cam_topo'' stream, e.g.,', messageType=MPAS_LOG_WARN)
+         call mpas_log_write('',                                    messageType=MPAS_LOG_WARN)
+         call mpas_log_write('<stream name="cam_topo"',             messageType=MPAS_LOG_WARN)
+         call mpas_log_write('        type="input"',                messageType=MPAS_LOG_WARN)
+         call mpas_log_write('        filename_template="topo.nc"', messageType=MPAS_LOG_WARN)
+         call mpas_log_write('        input_interval="none">',      messageType=MPAS_LOG_WARN)
+         call mpas_log_write('',                                    messageType=MPAS_LOG_WARN)
+         call mpas_log_write('    <var name="PHIS"/>',              messageType=MPAS_LOG_WARN)
+         call mpas_log_write('</stream>',                           messageType=MPAS_LOG_WARN)
+         call mpas_log_write('',                                    messageType=MPAS_LOG_WARN)
+         call mpas_log_write('*************************************************************', messageType=MPAS_LOG_WARN)
+         call mpas_log_write('')
+     end if
+
+
+      !
+      ! Set terrain field based on PHIS
+      !
+      call mpas_pool_get_array(mesh, 'ter', ter)
+      call mpas_pool_get_array(mesh, 'PHIS', PHIS)
+
+      ter(:) = PHIS(:) / gravity
+
+      call mpas_dmpar_min_real(dminfo, minval(ter(1:nCellsSolve)), min_ter)
+      call mpas_dmpar_max_real(dminfo, maxval(ter(1:nCellsSolve)), max_ter)
+      call mpas_log_write('')
+      call mpas_log_write('Terrain min/max = $r / $r', realArgs=[min_ter, max_ter])
+      call mpas_log_write('')
+
+
+      !
+      ! Read zeta levels from a text file
+      !
+      call mpas_pool_get_config(configs, 'config_specified_zeta_levels', config_specified_zeta_levels)
+
+      call mpas_log_write('Setting up vertical grid using levels from '''//trim(config_specified_zeta_levels)//'''')
+
+      if (read_text_array(dminfo, trim(config_specified_zeta_levels), specified_zw) /= 0) then
+         call mpas_log_write('Failed to read vertical levels from '''//trim(config_specified_zeta_levels)//'''', &
+                              messageType=MPAS_LOG_CRIT)
+      end if
+
+      if (size(specified_zw) /= nVertLevels+1) then
+         call mpas_log_write('In the namelist.init_atmosphere file, config_nvertlevels = $i, ', &
+                             intArgs=(/nVertLevels/), &
+                             messageType=MPAS_LOG_ERR)
+         call mpas_log_write('but '''//trim(config_specified_zeta_levels)//''' has $i values.', &
+                             intArgs=(/size(specified_zw)/), &
+                             messageType=MPAS_LOG_ERR)
+         call mpas_log_write(''''//trim(config_specified_zeta_levels)//''' must contain nVertLevels+1 ($i) values.', &
+                             intArgs=(/nVertLevels+1/), &
+                             messageType=MPAS_LOG_CRIT)
+      end if
+
+
+      !
+      ! Fourth order smoother for terrain
+      !
+      allocate(hs (nCells+1))
+      allocate(hs1(nCells+1))
+
+      call mpas_pool_get_array(mesh, 'nEdgesOnCell', nEdgesOnCell)
+      call mpas_pool_get_array(mesh, 'cellsOnCell', cellsOnCell)
+      call mpas_pool_get_array(mesh, 'edgesOnCell', edgesOnCell)
+      call mpas_pool_get_field(mesh, 'ter', ter_field)
+      call mpas_pool_get_config(configs, 'config_nsmterrain', config_nsmterrain)
+      nsmterrain = config_nsmterrain
+
+      do i = 1, nsmterrain
+
+         do iCell = 1, nCells
+            hs(iCell) = 0.0
+            if (ter(iCell) /= 0.0) then
+               do j = 1, nEdgesOnCell(iCell)
+
+                  ! For smoothing at cells along the boundary of the mesh, set the terrain value
+                  ! for non-existent neighbors, which map to the "garbage cell", to the same as
+                  ! the terrain in the cell being smoothed
+                  if (cellsOnCell(j,iCell) == nCells+1) then
+                     ter(nCells+1) = ter(iCell)
+                  end if
+
+                  hs(iCell) = hs(iCell) + dvEdge(edgesOnCell(j,iCell))    &
+                                        / dcEdge(edgesOnCell(j,iCell))    &
+                                        * (ter(cellsOnCell(j,iCell))-ter(iCell))
+               end do
+            end if
+
+            hs(iCell) = ter(iCell) + 0.216 * hs(iCell)
+         end do
+
+         do iCell = 1, nCells
+            ter(iCell) = 0.0
+            if (hs(iCell) /= 0.0) then
+               do j = 1, nEdgesOnCell(iCell)
+
+                  ! For smoothing at cells along the boundary of the mesh, set the terrain value
+                  ! for non-existent neighbors, which map to the "garbage cell", to the same as
+                  ! the terrain in the cell being smoothed
+                  if (cellsOnCell(j,iCell) == nCells+1) then
+                     hs(nCells+1) = hs(iCell)
+                  end if
+
+                  ter(iCell) = ter(iCell) + dvEdge(edgesOnCell(j,iCell))    &
+                                          / dcEdge(edgesOnCell(j,iCell))    &
+                                          * (hs(cellsOnCell(j,iCell))-hs(iCell))
+               end do
+            end if
+
+            ter(iCell) = hs(iCell) - 0.216 * ter(iCell)
+         end do
+
+         call mpas_dmpar_exch_halo_field(ter_field)
+      end do
+
+      call mpas_pool_get_array(mesh, 'hx', hx)
+      do iCell = 1, nCells
+         hx(:,iCell) = ter(iCell)
+      end do
+
+
+      !
+      ! Metrics for hybrid coordinate and vertical stretching
+      !
+
+      zw(:) = specified_zw(:)
+      zt = zw(nVertLevels+1)
+
+      deallocate(specified_zw)
+
+
+!     ah(k) governs the transition between terrain-following
+!        and pure height coordinates
+!           ah(k) = 1           is a smoothed terrain-following coordinate
+!           ah(k) = 1.-zw(k)/zt is the basic terrain-following coordinate
+!           ah(k) = 0           is a height coordinate
+ 
+      hybrid = .true.
+
+      kz = nVertLevels+1
+      if (hybrid) then
+
+         zh = 30000.0
+!         zh = 0.5*zt
+
+         do k = 1, nVertLevels+1
+            if (zw(k) < zh) then
+               ah(k) = cos(0.5*pii*zw(k)/zh)**6
+
+!!!               ah(k) = ah(k)*(1.0 - zw(k)/zt)
+
+            else
+               ah(k) = 0.0
+               kz = min(kz,k)
+            end if
+         end do
+
+      else
+
+         do k = 1, nVertLevels+1
+            ah(k) = 1.0 - zw(k)/zt
+         end do
+
+      end if
+
+      call mpas_log_write('')
+      call mpas_log_write('k     zw(k)           ah(k)')
+      call mpas_log_write('-----------------------------------------')
+      do k = 1, nVertLevels+1
+         call mpas_log_write('$i $r $r', intArgs=(/k/), realArgs=(/zw(k), ah(k)/))
+      end do
+
+      call mpas_pool_get_array(mesh, 'rdzw', rdzw)
+      call mpas_pool_get_array(mesh, 'dzu', dzu)
+      call mpas_pool_get_array(mesh, 'rdzu', rdzu)
+      call mpas_pool_get_array(mesh, 'fzm', fzm)
+      call mpas_pool_get_array(mesh, 'fzp', fzp)
+
+      do k = 1, nVertLevels
+         dzw (k) = zw(k+1) - zw(k)
+         rdzw(k) = 1.0 / dzw(k)
+         zu(k  ) = 0.5*(zw(k) + zw(k+1))
+      end do
+      do k = 2, nVertLevels
+         dzu(k)   = 0.5*(dzw(k) + dzw(k-1))
+         rdzu(k)  = 1.0 / dzu(k)
+         fzm(k)   = 0.5*dzw(k  )/dzu(k)
+         fzp(k)   = 0.5*dzw(k-1)/dzu(k)
+         rdzwp(k) = dzw(k-1)/(dzw(k  )*(dzw(k)+dzw(k-1)))
+         rdzwm(k) = dzw(k  )/(dzw(k-1)*(dzw(k)+dzw(k-1)))
+      end do
+
+
+      call mpas_pool_get_array(mesh, 'cf1', cf1)
+      call mpas_pool_get_array(mesh, 'cf2', cf2)
+      call mpas_pool_get_array(mesh, 'cf3', cf3)
+
+      cof1 = (2.0*dzu(2)+dzu(3))/(dzu(2)+dzu(3))*dzw(1)/dzu(2)
+      cof2 =     dzu(2)        /(dzu(2)+dzu(3))*dzw(1)/dzu(3)
+      cf1  = fzp(2) + cof1
+      cf2  = fzm(2) - cof1 - cof2
+      cf3  = cof2
+
+!      d1  = .5*dzw(1)
+!      d2  = dzw(1)+.5*dzw(2)
+!      d3  = dzw(1)+dzw(2)+.5*dzw(3)
+!      cf1 = d2*d3*(d3-d2)/(d2*d3*(d3-d2)+d1*d3*(d1-d3)+d1*d2*(d2-d1))
+!      cf2 = d1*d3*(d1-d3)/(d2*d3*(d3-d2)+d1*d3*(d1-d3)+d1*d2*(d2-d1))
+!      cf3 = d1*d2*(d2-d1)/(d2*d3*(d3-d2)+d1*d3*(d1-d3)+d1*d2*(d2-d1))
+
+
+      !
+      ! Smoothing algorithm for coordinate surfaces
+      !
+      call mpas_pool_get_config(configs, 'config_smooth_surfaces', config_smooth_surfaces)
+      call mpas_pool_get_config(configs, 'config_nsm', config_nsm)
+      call mpas_pool_get_config(configs, 'config_dzmin', config_dzmin)
+
+      if (config_smooth_surfaces) then
+
+         dzmin = config_dzmin
+
+         allocate(sm0(nCells+1))
+
+         do iCell = 1, nCells
+            dcsum = 0.0
+            do j = 1, nEdgesOnCell(iCell)
+               dcsum = dcsum + dcEdge(edgesOnCell(j,iCell))
+            end do
+            dcsum = dcsum / real(nEdgesOnCell(iCell))
+            sm0(iCell) = max(0.01_RKIND, 0.125 * min(1.0_RKIND, 3000.0_RKIND/dcsum))
+         end do
+
+
+         call mpas_log_write('')
+         call mpas_log_write('k nsm  sm                    dzminf / dzw')
+         call mpas_log_write('-----------------------------------------')
+
+         do k = 2, kz-1
+            hx(k,:) = hx(k-1,:)
+            dzminf = zw(k) - zw(k-1)
+
+            do i = 1, config_nsm + k
+               do iCell = 1, nCells
+
+                  sm = sm0(iCell) * min((3.0*zw(k)/zt)**2.0, 1.0_RKIND)
+
+                  hs1(iCell) = 0.0
+                  do j = 1, nEdgesOnCell(iCell)
+
+                     ! For smoothing at cells along the boundary of the mesh, set the hx value
+                     ! for non-existent neighbors, which map to the "garbage cell", to the same as
+                     ! the hx in the cell being smoothed
+                     if (cellsOnCell(j,iCell) == nCells+1) then
+                        hx(k,nCells+1) = hx(k,iCell)
+                     end if
+
+                     hs1(iCell) = hs1(iCell) + dvEdge(edgesOnCell(j,iCell))    &
+                                           / dcEdge(edgesOnCell(j,iCell))    &
+                                           *  (hx(k,cellsOnCell(j,iCell))-hx(k,iCell))
+                  end do
+                  hs(iCell) = hx(k,iCell) + sm*hs1(iCell)
+
+               end do
+
+               tempField => tempFieldTarget
+               tempField % block => block
+               tempField % dimSizes(1) = nCells
+               tempField % sendList => block % parinfo % cellsToSend
+               tempField % recvList => block % parinfo % cellsToRecv
+               tempField % copyList => block % parinfo % cellsToCopy
+               tempField % array => hs
+               tempField % isActive = .true.
+               tempField % prev => null()
+               tempField % next => null()
+
+               call mpas_dmpar_exch_halo_field(tempField)
+
+               do iCell = 1, nCells
+                  dzmina = (zw(k) + ah(k)*hs(iCell)) - (zw(k-1) + ah(k-1)*hx(k-1,iCell))
+                  if (dzmina > dzmin*(zw(k)-zw(k-1))) then
+                     hx(k,iCell) = hs(iCell)
+                     if (dzmina < dzminf) then
+                        dzminf = dzmina
+                     end if
+                  end if
+               end do
+
+            end do
+            call mpas_dmpar_min_real(dminfo, dzminf, dzminf_global)
+            call mpas_log_write('$i $i $r $r', intArgs=(/k,i/), realArgs=(/sm,dzminf_global/(zw(k)-zw(k-1))/))
+         end do
+
+         deallocate(sm0)
+
+         do k = kz, nVertLevels+1
+            hx(k,:) = 0.0
+         end do
+
+      else
+
+         do k = 2, nVertLevels+1
+            dzmina = minval(zw(k)+ah(k)*hx(k,:)-zw(k-1)-ah(k-1)*hx(k-1,:))
+            call mpas_log_write('$i $r', intArgs=(/k/), realArgs=(/dzmina/(zw(k)-zw(k-1))/))
+         end do
+
+      end if
+
+      deallocate(hs )
+      deallocate(hs1)
+
+
+      !
+      ! Height of coordinate levels (calculation of zgrid)
+      !
+
+      call mpas_pool_get_array(mesh, 'cellsOnEdge', cellsOnEdge)
+      call mpas_pool_get_array(mesh, 'zgrid', zgrid)
+      call mpas_pool_get_array(mesh, 'zxu', zxu)
+      call mpas_pool_get_array(mesh, 'zz', zz)
+
+      do iCell = 1, nCells
+         do k = 1, nVertLevels+1
+            zgrid(k,iCell) = zw(k) + ah(k)*hx(k,iCell)
+         end do
+         do k = 1, nVertLevels
+            zz (k,iCell) = (zw(k+1)-zw(k))/(zgrid(k+1,iCell)-zgrid(k,iCell))
+         end do
+      end do
+
+      do i = 1, nEdges
+         cell1 = cellsOnEdge(1,i)
+         cell2 = cellsOnEdge(2,i)
+         do k = 1, nVertLevels
+            zxu (k,i) = 0.5 * (zgrid(k,cell2)-zgrid(k,cell1) + zgrid(k+1,cell2)-zgrid(k+1,cell1)) / dcEdge(i)
+         end do
+      end do
+
+
+      !
+      ! For z-metric term in omega equation
+      !
+
+      call mpas_pool_get_config(configs, 'config_theta_adv_order', config_theta_adv_order)
+
+      call mpas_pool_get_array(mesh, 'deriv_two', deriv_two)
+      call mpas_pool_get_array(mesh, 'zb', zb)
+      call mpas_pool_get_array(mesh, 'zb3', zb3)
+
+      do iEdge = 1, nEdges
+         cell1 = cellsOnEdge(1,iEdge)
+         cell2 = cellsOnEdge(2,iEdge)
+
+         ! Avoid referencing the garbage cell for exterior edges
+         if (cell1 == nCells+1) then
+            cell1 = cell2
+         end if
+         if (cell2 == nCells+1) then
+            cell2 = cell1
+         end if
+
+         if (cell1 <= nCellsSolve .or. cell2 <= nCellsSolve) then
+
+            do k = 1, nVertLevels
+
+               if (config_theta_adv_order == 2) then
+
+                  z_edge = 0.5 * (zgrid(k,cell1)+zgrid(k,cell2))
+
+               else !theta_adv_order == 3 or 4
+
+                  d2fdx2_cell1 = deriv_two(1,1,iEdge) * zgrid(k,cell1)
+                  d2fdx2_cell2 = deriv_two(1,2,iEdge) * zgrid(k,cell2)
+                  do i = 1, nEdgesOnCell(cell1)
+                     if (cellsOnCell(i,cell1) > 0) then
+                        d2fdx2_cell1 = d2fdx2_cell1 + deriv_two(i+1,1,iEdge) * zgrid(k,cellsOnCell(i,cell1))
+                     end if
+                  end do
+                  do i = 1, nEdgesOnCell(cell2)
+                     if (cellsOnCell(i,cell2) > 0) then
+                        d2fdx2_cell2 = d2fdx2_cell2 + deriv_two(i+1,2,iEdge) * zgrid(k,cellsOnCell(i,cell2))
+                     end if
+                  end do
+
+                  z_edge =  0.5*(zgrid(k,cell1) + zgrid(k,cell2))         &
+                                - (dcEdge(iEdge) **2) * (d2fdx2_cell1 + d2fdx2_cell2) / 12.0
+
+                  if (config_theta_adv_order == 3) then
+                     z_edge3 =  - (dcEdge(iEdge) **2) * (d2fdx2_cell1 - d2fdx2_cell2) / 12.0
+                  else
+                     z_edge3 = 0.0
+                  end if
+
+               end if
+
+               zb(k,1,iEdge) = (z_edge-zgrid(k,cell1))*dvEdge(iEdge)/areaCell(cell1)
+               zb(k,2,iEdge) = (z_edge-zgrid(k,cell2))*dvEdge(iEdge)/areaCell(cell2)
+
+               zb3(k,1,iEdge) = z_edge3*dvEdge(iEdge)/areaCell(cell1)
+               zb3(k,2,iEdge) = z_edge3*dvEdge(iEdge)/areaCell(cell2)
+
+            end do
+
+         end if
+
+      end do
+
+   end subroutine init_atm_case_cam_mpas
 
 
    integer function nearest_edge(target_lat, target_lon, &

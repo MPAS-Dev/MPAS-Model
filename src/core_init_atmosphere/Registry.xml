@@ -60,7 +60,8 @@
                                         6 = mountain wave, \newline
                                         7 = real-data initial conditions from, e.g., GFS, \newline
                                         8 = surface field (SST, sea-ice) update file for use with real-data simulations \newline
-                                        9 = lateral boundary conditions update file for use with real-data simulations"
+                                        9 = lateral boundary conditions update file for use with real-data simulations \newline
+                                        13 = CAM-MPAS 3-d grid with specified topography and zeta levels"
                      possible_values="1 -- 9"/>
 
                 <nml_option name="config_calendar_type" type="character" default_value="gregorian" in_defaults="false"
@@ -735,6 +736,9 @@
                 <!-- static terrestrial fields -->
                 <var name="ter" type="real" dimensions="nCells" units="m"
                      description="terrain height"/>
+
+                <var name="PHIS" type="real" dimensions="nCells" units="m^2 s^{-2}"
+                     description="CAM Surface geopotential"/>
 
                 <var name="landmask" type="integer"  dimensions="nCells" units="unitless"
                      description="land-ocean mask (1=land ; 0=ocean)"/>
