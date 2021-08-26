@@ -201,7 +201,7 @@
     !
     ! For timesteps other than the first, we transfer previous radiation tendencies back to integration tasks
     !
-    if ((itimestep > 1) .and. (l_radtsw .or. l_radtlw)) then
+    if ((itimestep > 2) .and. (l_radtsw .or. l_radtlw)) then
 !$OMP PARALLEL DO
        do thread=1,nThreads
           call lagged_driver_radiation_sw(itimestep,block%configs,mesh,state,time_lev,diag_physics, &

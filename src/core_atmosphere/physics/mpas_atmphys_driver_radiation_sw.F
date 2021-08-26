@@ -939,9 +939,11 @@
 !local pointers:
  logical,pointer:: config_o3climatology
  character(len=StrKIND),pointer:: radt_sw_scheme
+ real(kind=RKIND),pointer:: dt
 
 !local variables:
  integer:: o3input
+ logical:: is_lagged
  real(kind=RKIND):: radt,xtime_m
 
 !-----------------------------------------------------------------------------------------------------------------
@@ -949,13 +951,37 @@
 
  call mpas_pool_get_config(configs,'config_o3climatology' ,config_o3climatology)
  call mpas_pool_get_config(configs,'config_radt_sw_scheme',radt_sw_scheme      )
+ call mpas_pool_get_config(configs,'config_dt'            ,dt                  )
 
  xtime_m = xtime_s/60.
+
+ is_lagged = (mpas_cpl%role_is(ROLE_INTEGRATE) .or. mpas_cpl%role_is(ROLE_RADIATION))
+
+ if (itimestep == 1 .and. dt_radtsw == dt .and. is_lagged) then
+     ! When running lagged radiation with dt == radt, the 2nd and 3rd timesteps would receive
+     ! SW radiation computed at 1 radt behind.
+     call mpas_log_write('')
+     call mpas_log_write('Lagged radiation with dt==radt is not fully supported.', messageType=MPAS_LOG_WARN)
+     call mpas_log_write('')
+ end if
 
  if (mpas_cpl%role_includes(ROLE_RADIATION)) then
 ! This should be OMP MASTER with barrier afterwards or OMP SINGLE, since declin and solcon
 ! are global variables in mpas_atmphys_vars.F and race conditions may occur otherwise!
 !$OMP SINGLE
+
+!... convert the radiation time_step to minutes:
+ radt = dt_radtsw/60.
+
+!... Adjust effective solar time for lagged radiation
+ if (is_lagged) then
+    if (itimestep == 2) then
+       xtime_m = xtime_m - dt/60. + radt ! Special radiation step after init
+    elseif (itimestep > 2) then
+       xtime_m = xtime_m + radt
+    end if
+ end if
+
 !... calculates solar declination:
 !call radconst(declin,solcon,julday,degrad,dpd)
  call radconst(declin,solcon,curr_julday,degrad,dpd)
@@ -969,10 +995,7 @@
 !call mpas_log_write('     DECLIN      = $r', realArgs=(/declin/))
 !$OMP END SINGLE
 
-!... convert the radiation time_step to minutes:
- radt = dt_radtsw/60.
-
- call mpas_log_write('RUNNING SW RADIATION SCHEME')
+ call mpas_log_write('RUNNING SW RADIATION SCHEME FOR XTIME_M = $r', realArgs=(/xtime_m/))
     
 !call to shortwave radiation scheme:
  radiation_sw_select: select case (trim(radt_sw_scheme))

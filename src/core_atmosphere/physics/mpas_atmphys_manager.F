@@ -130,13 +130,14 @@
 
 
 !=================================================================================================================
- subroutine physics_timetracker(domain,dt,clock,itimestep,xtime_s)
+ subroutine physics_timetracker(domain,dt,clock,itimestep,xtime_s,radiation_is_lagged)
 !=================================================================================================================
 
 !input arguments:
  integer,intent(in):: itimestep
  real(kind=RKIND),intent(in):: dt
  real(kind=RKIND),intent(in) :: xtime_s
+ logical,intent(in):: radiation_is_lagged
 
 !inout arguments:
  type(MPAS_Clock_type),intent(inout):: clock
@@ -260,6 +261,8 @@
        if(mpas_is_alarm_ringing(clock,radtlwAlarmID,ierr=ierr)) then
           call mpas_reset_clock_alarm(clock,radtlwAlarmID,ierr=ierr)
           l_radtlw = .true.
+       elseif(radiation_is_lagged .and. itimestep==2) then
+          l_radtlw = .true.
        endif
     elseif(config_radtlw_interval == "none") then
        l_radtlw = .true.
@@ -273,6 +276,8 @@
     if(config_radtsw_interval /= "none") then
        if(mpas_is_alarm_ringing(clock,radtswAlarmID,ierr=ierr)) then
           call mpas_reset_clock_alarm(clock,radtswAlarmID,ierr=ierr)
+          l_radtsw = .true.
+       elseif(radiation_is_lagged .and. itimestep==2) then
           l_radtsw = .true.
        endif
     elseif(config_radtsw_interval == "none") then
