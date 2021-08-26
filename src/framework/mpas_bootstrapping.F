@@ -616,6 +616,15 @@ module mpas_bootstrapping
                            end if
                         else
                            call mpas_log_write('       ' // trim(poolItr % memberName) // ' *** not found in stream ***')
+                           call mpas_log_write('')
+                           call mpas_log_write("At least one fields to be read from the '" // trim(streamName) &
+                                               // "' stream is dimensioned", messageType=MPAS_LOG_ERR)
+                           call mpas_log_write("by '" // trim(poolItr % memberName) // "', but the '" &
+                                               // trim(poolItr % memberName) // "' dimension is not defined", &
+                                               messageType=MPAS_LOG_ERR)
+                           call mpas_log_write('in the file '//trim(streamFilename), messageType=MPAS_LOG_ERR)
+                           call mpas_log_write("Please check the input file(s) to be read by the '" // trim(streamName) &
+                                               // "' input stream.", messageType=MPAS_LOG_CRIT)
                         end if
 
                      end if
