@@ -696,6 +696,8 @@
  enddo
  enddo
  enddo
+!$acc update device(qv_p,qc_p,qr_p,qi_p,qs_p,qg_p,u_p,v_p,zz_p, &
+!$acc               rho_p,th_p,t_p,pi_p,pres_p,zmid_p,dz_p)
 
  pbl_select: select case (trim(pbl_scheme))
     case("bl_mynn")
@@ -744,6 +746,7 @@
  enddo
  enddo
  enddo
+!$acc update device(znu_p,w_p,z_p)
 
 !check that the pressure in the layer above the surface is greater than that in the layer
 !above it:
@@ -846,6 +849,8 @@
  enddo
  enddo
 
+!$acc update device(fzm_p,fzp_p,t2_p,pres2_p,psfc_p,pres2_hyd_p,pres2_hydd_p, &
+!$acc               pres_hyd_p,pres_hydd_p,psfc_hyd_p,psfc_hydd_p,znu_hyd_p)
 !$acc update device(surface_pressure, plrad)
 
  end subroutine MPAS_to_physics_gpu
