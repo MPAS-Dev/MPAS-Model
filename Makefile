@@ -1,4 +1,4 @@
-MODEL_FORMULATION = 
+MODEL_FORMULATION =
 
 
 dummy:
@@ -219,14 +219,14 @@ gfortran:
 	"CC_SERIAL = gcc" \
 	"CXX_SERIAL = g++" \
 	"FFLAGS_PROMOTION = -fdefault-real-8 -fdefault-double-8" \
-	"FFLAGS_OPT = -O3 -m64 -ffree-line-length-none -fconvert=big-endian -ffree-form" \
-	"CFLAGS_OPT = -O3 -m64" \
-	"CXXFLAGS_OPT = -O3 -m64" \
-	"LDFLAGS_OPT = -O3 -m64" \
-	"FFLAGS_DEBUG = -g -m64 -ffree-line-length-none -fconvert=big-endian -ffree-form -fbounds-check -fbacktrace -ffpe-trap=invalid,zero,overflow" \
-	"CFLAGS_DEBUG = -g -m64" \
-	"CXXFLAGS_DEBUG = -O3 -m64" \
-	"LDFLAGS_DEBUG = -g -m64" \
+	"FFLAGS_OPT = -O3 -ffree-line-length-none -fconvert=big-endian -ffree-form" \
+	"CFLAGS_OPT = -O3" \
+	"CXXFLAGS_OPT = -O3" \
+	"LDFLAGS_OPT = -O3" \
+	"FFLAGS_DEBUG = -g -ffree-line-length-none -fconvert=big-endian -ffree-form -fcheck=all -fbacktrace -ffpe-trap=invalid,zero,overflow" \
+	"CFLAGS_DEBUG = -g" \
+	"CXXFLAGS_DEBUG = -g" \
+	"LDFLAGS_DEBUG = -g" \
 	"FFLAGS_OMP = -fopenmp" \
 	"CFLAGS_OMP = -fopenmp" \
 	"CORE = $(CORE)" \
@@ -421,9 +421,9 @@ llvm:
 	"OPENMP = $(OPENMP)" \
 	"CPPFLAGS = $(MODEL_FORMULATION) -D_MPI" )
 
-CPPINCLUDES = 
-FCINCLUDES = 
-LIBS = 
+CPPINCLUDES =
+FCINCLUDES =
+LIBS =
 
 #
 # If user has indicated a PIO2 library, define USE_PIO2 pre-processor macro
@@ -458,9 +458,15 @@ endif
 # Depending on PIO version, libraries may be libpio.a, or libpiof.a and libpioc.a
 # Keep open the possibility of shared libraries in future with, e.g., .so suffix
 #
+# Check if libpio.* exists and link -lpio if so, but we make an exception for
+# libpio.settings (a file added in PIO2), which is not a library to link
 ifneq ($(wildcard $(PIO_LIB)/libpio\.*), )
-	LIBS += -lpio
+	# Makefiles don't support "and" operators so we have nested "if" instead
+	ifneq "$(wildcard $(PIO_LIB)/libpio\.*)" "$(PIO_LIB)/libpio.settings"
+		LIBS += -lpio
+	endif
 endif
+
 ifneq ($(wildcard $(PIO_LIB)/libpiof\.*), )
 	LIBS += -lpiof
 endif

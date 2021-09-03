@@ -8,7 +8,7 @@ MODULE module_ra_cam_support
   implicit none
       integer, parameter :: r8 = 8
       real(r8), parameter:: inf = 1.e20 ! CAM sets this differently in infnan.F90
-      integer, parameter:: bigint = O'17777777777'           ! largest possible 32-bit integer 
+      integer, parameter:: bigint = int(O'17777777777')      ! largest possible 32-bit integer 
 
       integer :: ixcldliq 
       integer :: ixcldice
