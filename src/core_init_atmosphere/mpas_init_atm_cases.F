@@ -74,7 +74,7 @@ module init_atm_cases
       character(len=StrKIND), pointer :: xtime
 
       type (MPAS_Time_type)  :: curr_time, stop_time
-      type (MPAS_TimeInterval_type)  :: clock_interval, lbc_stream_interval
+      type (MPAS_TimeInterval_type)  :: clock_interval, lbc_stream_interval, surface_stream_interval
       character(len=StrKIND) :: timeString
 
       integer, pointer :: nCells
@@ -250,6 +250,21 @@ module init_atm_cases
       else if (config_init_case == 8 ) then
 
          call mpas_log_write('real-data surface (SST) update test case ')
+
+         !
+         ! Check that config_fg_interval matches the output_interval of the surface stream
+         !
+         clock_interval = mpas_get_clock_timestep(domain % clock, ierr=ierr)
+         surface_stream_interval = MPAS_stream_mgr_get_stream_interval(stream_manager, 'surface', MPAS_STREAM_OUTPUT, ierr)
+         if (clock_interval /= surface_stream_interval) then
+            call mpas_log_write('****************************************************************',       messageType=MPAS_LOG_ERR)
+            call mpas_log_write('The intermediate SST file interval specified by ''config_fg_interval''', messageType=MPAS_LOG_ERR)
+            call mpas_log_write('does not match the output_interval for the ''surface'' stream.',         messageType=MPAS_LOG_ERR)
+            call mpas_log_write('Please correct the namelist.init_atmosphere and/or',                     messageType=MPAS_LOG_ERR)
+            call mpas_log_write('streams.init_atmosphere files.',                                         messageType=MPAS_LOG_ERR)
+            call mpas_log_write('****************************************************************',       messageType=MPAS_LOG_CRIT)
+         end if
+
          block_ptr => domain % blocklist
          do while (associated(block_ptr))
             call mpas_pool_get_subpool(block_ptr % structs, 'mesh', mesh)
@@ -4744,7 +4759,8 @@ call mpas_log_write('Done with soil consistency check')
             t(k,iCell) = t(k,iCell) * (p0 / pressure(k,iCell)) ** (rgas / cp)
 
             ! RHO_ZZ
-            rho_zz(k,iCell) = pressure(k,iCell) / rgas / (p(k,iCell) * t(k,iCell))
+            rho_zz(k,iCell) = pressure(k,iCell) / rgas / (p(k,iCell) * t(k,iCell) &
+                              * (1.0 + (rvord - 1.0) * scalars(index_qv,k,iCell)))
             rho_zz(k,iCell) = rho_zz(k,iCell) / (1.0 + scalars(index_qv,k,iCell))
          end do
       end do

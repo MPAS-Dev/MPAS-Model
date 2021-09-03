@@ -1,5 +1,5 @@
 <?xml version="1.0"?>
-<registry model="mpas" core="atmosphere" core_abbrev="atm" version="7.0">
+<registry model="mpas" core="atmosphere" core_abbrev="atm" version="7.1">
 
 <!-- **************************************************************************************** -->
 <!-- ************************************** Dimensions ************************************** -->
@@ -1370,10 +1370,10 @@
                      description="weights for cell-centered second derivative, normal to edge, for transport scheme"/>
 
                 <var name="adv_coefs" type="real" dimensions="FIFTEEN nEdges" units="unitless"
-                     description="Weighting coefficents used for reconstructing cell-based foelds at edges"/>
+                     description="Weighting coefficients used for reconstructing cell-based fields at edges"/>
 
                 <var name="adv_coefs_3rd" type="real" dimensions="FIFTEEN nEdges" units="unitless"
-                     description="Weighting coefficents used for reconstructing cell-based foelds at edges"/>
+                     description="Weighting coefficients used for reconstructing cell-based fields at edges"/>
 
                 <var name="advCellsForEdge" type="integer" dimensions="FIFTEEN nEdges" units="-"
                      description="Cells used to reconstruct a cell-based field at an edge"/>
@@ -3067,7 +3067,7 @@
                      description="terrain height"/>
 
                 <var name="albedo12m" type="real" dimensions="nMonths nCells" units="unitless"
-                     description="monthly-mean climatological aurface albedo"/>
+                     description="monthly-mean climatological surface albedo"/>
 
                 <var name="greenfrac" type="real" dimensions="nMonths nCells" units="unitless"
                      description="monthly-mean climatological greeness fraction"/>
