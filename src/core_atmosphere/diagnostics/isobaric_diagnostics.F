@@ -34,7 +34,8 @@ module isobaric_diagnostics
                need_umeridional_200, need_umeridional_250, need_umeridional_500, need_umeridional_700, need_umeridional_850, need_umeridional_925, &
                need_w_200, need_w_250, need_w_500, need_w_700, need_w_850, need_w_925, &
                need_vorticity_200, need_vorticity_250, need_vorticity_500, need_vorticity_700, need_vorticity_850, need_vorticity_925, &
-               need_t_isobaric, need_z_isobaric, need_meanT_500_300
+               need_t_isobaric, need_z_isobaric, need_w_isobaric, need_meanT_500_300, &
+               need_relhum_isobaric, need_qc_isobaric, need_uzonal_isobaric, need_umeridional_isobaric
     logical :: need_temp, need_relhum, need_dewpoint, need_w, need_uzonal, need_umeridional, need_vorticity, need_height
 
 
@@ -48,19 +49,36 @@ module isobaric_diagnostics
     !> \author Michael Duda
     !> \date   21 October 2016
     !> \details
-    !>  This routine sets up the isobaric diagnostics module, principally by
-    !>  saving pointers to pools that are used in the computation of diagnostics.
+    !>  This routine sets up the isobaric diagnostics module, by saving
+    !>  pointers to pools that are used in the computation of diagnostics
+    !>  and by parsing isobaric levels from namelist settings.
     !
     !-----------------------------------------------------------------------
-    subroutine isobaric_diagnostics_setup(all_pools, simulation_clock)
+    subroutine isobaric_diagnostics_setup(configs, all_pools, simulation_clock)
 
         use mpas_derived_types, only : MPAS_pool_type, MPAS_clock_type
         use mpas_pool_routines, only : mpas_pool_get_subpool
 
         implicit none
 
+        type (MPAS_pool_type), pointer :: configs
         type (MPAS_pool_type), pointer :: all_pools
         type (MPAS_clock_type), pointer :: simulation_clock
+
+        character(len=StrKIND), pointer :: isobaric_diagnostic_levels_t
+        character(len=StrKIND), pointer :: isobaric_diagnostic_levels_z
+        character(len=StrKIND), pointer :: isobaric_diagnostic_levels_relhum
+        character(len=StrKIND), pointer :: isobaric_diagnostic_levels_qc
+        character(len=StrKIND), pointer :: isobaric_diagnostic_levels_uzonal
+        character(len=StrKIND), pointer :: isobaric_diagnostic_levels_umeridional
+        character(len=StrKIND), pointer :: isobaric_diagnostic_levels_w
+        real (kind=RKIND), dimension(:), pointer :: t_iso_levels
+        real (kind=RKIND), dimension(:), pointer :: z_iso_levels
+        real (kind=RKIND), dimension(:), pointer :: relhum_iso_levels
+        real (kind=RKIND), dimension(:), pointer :: qc_iso_levels
+        real (kind=RKIND), dimension(:), pointer :: uzonal_iso_levels
+        real (kind=RKIND), dimension(:), pointer :: umeridional_iso_levels
+        real (kind=RKIND), dimension(:), pointer :: w_iso_levels
 
         clock => simulation_clock
 
@@ -68,6 +86,30 @@ module isobaric_diagnostics
         call mpas_pool_get_subpool(all_pools, 'state', state)
         call mpas_pool_get_subpool(all_pools, 'diag', diag)
    
+        call mpas_pool_get_config(configs, 'config_isobaric_diagnostic_levels_t', isobaric_diagnostic_levels_t)
+        call mpas_pool_get_config(configs, 'config_isobaric_diagnostic_levels_z', isobaric_diagnostic_levels_z)
+        call mpas_pool_get_config(configs, 'config_isobaric_diagnostic_levels_relhum', isobaric_diagnostic_levels_relhum)
+        call mpas_pool_get_config(configs, 'config_isobaric_diagnostic_levels_qc', isobaric_diagnostic_levels_qc)
+        call mpas_pool_get_config(configs, 'config_isobaric_diagnostic_levels_uzonal', isobaric_diagnostic_levels_uzonal)
+        call mpas_pool_get_config(configs, 'config_isobaric_diagnostic_levels_umeridional', isobaric_diagnostic_levels_umeridional)
+        call mpas_pool_get_config(configs, 'config_isobaric_diagnostic_levels_w', isobaric_diagnostic_levels_w)
+
+        call mpas_pool_get_array(diag, 't_iso_levels', t_iso_levels)
+        call mpas_pool_get_array(diag, 'z_iso_levels', z_iso_levels)
+        call mpas_pool_get_array(diag, 'relhum_iso_levels', relhum_iso_levels)
+        call mpas_pool_get_array(diag, 'qc_iso_levels', qc_iso_levels)
+        call mpas_pool_get_array(diag, 'uzonal_iso_levels', uzonal_iso_levels)
+        call mpas_pool_get_array(diag, 'umeridional_iso_levels', umeridional_iso_levels)
+        call mpas_pool_get_array(diag, 'w_iso_levels', w_iso_levels)
+
+        call readCSVreals(trim(isobaric_diagnostic_levels_t), t_iso_levels, 't')
+        call readCSVreals(trim(isobaric_diagnostic_levels_z), z_iso_levels, 'z')
+        call readCSVreals(trim(isobaric_diagnostic_levels_relhum), relhum_iso_levels, 'relhum')
+        call readCSVreals(trim(isobaric_diagnostic_levels_qc), qc_iso_levels, 'qc')
+        call readCSVreals(trim(isobaric_diagnostic_levels_uzonal), uzonal_iso_levels, 'uzonal')
+        call readCSVreals(trim(isobaric_diagnostic_levels_umeridional), umeridional_iso_levels, 'umeridional')
+        call readCSVreals(trim(isobaric_diagnostic_levels_w), w_iso_levels, 'w')
+
     end subroutine isobaric_diagnostics_setup
 
 
@@ -251,6 +293,16 @@ module isobaric_diagnostics
         need_any_diags = need_any_diags .or. need_t_isobaric
         need_z_isobaric = MPAS_field_will_be_written('z_isobaric')
         need_any_diags = need_any_diags .or. need_z_isobaric
+        need_relhum_isobaric = MPAS_field_will_be_written('relhum_isobaric')
+        need_any_diags = need_any_diags .or. need_relhum_isobaric
+        need_qc_isobaric = MPAS_field_will_be_written('qc_isobaric')
+        need_any_diags = need_any_diags .or. need_qc_isobaric
+        need_uzonal_isobaric = MPAS_field_will_be_written('uzonal_isobaric')
+        need_any_diags = need_any_diags .or. need_uzonal_isobaric
+        need_umeridional_isobaric = MPAS_field_will_be_written('umeridional_isobaric')
+        need_any_diags = need_any_diags .or. need_umeridional_isobaric
+        need_w_isobaric = MPAS_field_will_be_written('w_isobaric')
+        need_any_diags = need_any_diags .or. need_w_isobaric
         need_meanT_500_300 = MPAS_field_will_be_written('meanT_500_300')
         need_any_diags = need_any_diags .or. need_meanT_500_300
 
@@ -275,9 +327,10 @@ module isobaric_diagnostics
        
        !local variables:
         integer :: iCell,iVert,iVertD,k,kk
-        integer, pointer :: nCells, nCellsSolve, nVertLevels, nVertices, vertexDegree, nIsoLevelsT, nIsoLevelsZ
+        integer, pointer :: nCells, nCellsSolve, nVertLevels, nVertices, vertexDegree, nIsoLevelsT, nIsoLevelsZ, &
+                            nIsoLevelsRELHUM, nIsoLevelsQC, nIsoLevelsUZONAL, nIsoLevelsUMERIDIONAL, nIsoLevelsW
         integer :: nVertLevelsP1
-        integer, pointer :: index_qv, num_scalars
+        integer, pointer :: index_qv, index_qc, num_scalars
         integer, dimension(:,:), pointer :: cellsOnVertex
        
         type (field2DReal), pointer:: pressure_p_field
@@ -290,11 +343,22 @@ module isobaric_diagnostics
         real (kind=RKIND), dimension(:,:), pointer :: relhum, theta_m, vorticity
         real (kind=RKIND), dimension(:,:), pointer :: umeridional, uzonal, vvel
         real (kind=RKIND), dimension(:,:,:), pointer :: scalars
+        real (kind=RKIND), dimension(:,:), pointer :: qc
        
         real (kind=RKIND), dimension(:), pointer :: t_iso_levels
         real (kind=RKIND), dimension(:), pointer :: z_iso_levels
+        real (kind=RKIND), dimension(:), pointer :: relhum_iso_levels
+        real (kind=RKIND), dimension(:), pointer :: qc_iso_levels
+        real (kind=RKIND), dimension(:), pointer :: uzonal_iso_levels
+        real (kind=RKIND), dimension(:), pointer :: umeridional_iso_levels
+        real (kind=RKIND), dimension(:), pointer :: w_iso_levels
         real (kind=RKIND), dimension(:,:), pointer :: t_isobaric
         real (kind=RKIND), dimension(:,:), pointer :: z_isobaric
+        real (kind=RKIND), dimension(:,:), pointer :: relhum_isobaric
+        real (kind=RKIND), dimension(:,:), pointer :: qc_isobaric
+        real (kind=RKIND), dimension(:,:), pointer :: uzonal_isobaric
+        real (kind=RKIND), dimension(:,:), pointer :: umeridional_isobaric
+        real (kind=RKIND), dimension(:,:), pointer :: w_isobaric
         real (kind=RKIND), dimension(:), pointer :: meanT_500_300
        
         real (kind=RKIND), dimension(:), pointer :: temperature_200hPa
@@ -380,7 +444,13 @@ module isobaric_diagnostics
         call mpas_pool_get_dimension(mesh, 'vertexDegree', vertexDegree)
         call mpas_pool_get_dimension(mesh, 'nIsoLevelsT', nIsoLevelsT)
         call mpas_pool_get_dimension(mesh, 'nIsoLevelsZ', nIsoLevelsZ)
+        call mpas_pool_get_dimension(mesh, 'nIsoLevelsRELHUM', nIsoLevelsRELHUM)
+        call mpas_pool_get_dimension(mesh, 'nIsoLevelsQC', nIsoLevelsQC)
+        call mpas_pool_get_dimension(mesh, 'nIsoLevelsUZONAL', nIsoLevelsUZONAL)
+        call mpas_pool_get_dimension(mesh, 'nIsoLevelsUMERIDIONAL', nIsoLevelsUMERIDIONAL)
+        call mpas_pool_get_dimension(mesh, 'nIsoLevelsW', nIsoLevelsW)
         call mpas_pool_get_dimension(state, 'index_qv', index_qv)
+        call mpas_pool_get_dimension(state, 'index_qc', index_qc)
         call mpas_pool_get_dimension(state, 'num_scalars', num_scalars)
        
         nVertLevelsP1 = nVertLevels + 1
@@ -393,6 +463,7 @@ module isobaric_diagnostics
         call mpas_pool_get_array(state, 'w', vvel, time_lev)
         call mpas_pool_get_array(state, 'theta_m', theta_m, time_lev)
         call mpas_pool_get_array(state, 'scalars', scalars, time_lev)
+        qc => scalars(index_qc,:,:)
        
         call mpas_pool_get_field(diag, 'pressure_p', pressure_p_field)
         call mpas_dmpar_exch_halo_field(pressure_p_field)
@@ -407,8 +478,18 @@ module isobaric_diagnostics
        
         call mpas_pool_get_array(diag, 't_iso_levels', t_iso_levels)
         call mpas_pool_get_array(diag, 'z_iso_levels', z_iso_levels)
+        call mpas_pool_get_array(diag, 'relhum_iso_levels', relhum_iso_levels)
+        call mpas_pool_get_array(diag, 'qc_iso_levels', qc_iso_levels)
+        call mpas_pool_get_array(diag, 'uzonal_iso_levels', uzonal_iso_levels)
+        call mpas_pool_get_array(diag, 'umeridional_iso_levels', umeridional_iso_levels)
+        call mpas_pool_get_array(diag, 'w_iso_levels', w_iso_levels)
         call mpas_pool_get_array(diag, 't_isobaric', t_isobaric)
         call mpas_pool_get_array(diag, 'z_isobaric', z_isobaric)
+        call mpas_pool_get_array(diag, 'relhum_isobaric', relhum_isobaric)
+        call mpas_pool_get_array(diag, 'qc_isobaric', qc_isobaric)
+        call mpas_pool_get_array(diag, 'uzonal_isobaric', uzonal_isobaric)
+        call mpas_pool_get_array(diag, 'umeridional_isobaric', umeridional_isobaric)
+        call mpas_pool_get_array(diag, 'w_isobaric', w_isobaric)
         call mpas_pool_get_array(diag, 'meanT_500_300', meanT_500_300)
        
         call mpas_pool_get_array(diag, 'temperature_200hPa', temperature_200hPa)
@@ -476,30 +557,6 @@ module isobaric_diagnostics
         if(.not.allocated(temperature) ) allocate(temperature(nVertLevels,nCells)   )
         if(.not.allocated(dewpoint) ) allocate(dewpoint(nVertLevels,nCells)   )
        
-        if (need_t_isobaric) then
-            t_iso_levels(1) = 30000.0
-            t_iso_levels(2) = 35000.0
-            t_iso_levels(3) = 40000.0
-            t_iso_levels(4) = 45000.0
-            t_iso_levels(5) = 50000.0
-        end if
-       
-        if (need_z_isobaric) then
-            z_iso_levels(1)  = 30000.0
-            z_iso_levels(2)  = 35000.0
-            z_iso_levels(3)  = 40000.0
-            z_iso_levels(4)  = 45000.0
-            z_iso_levels(5)  = 50000.0
-            z_iso_levels(6)  = 55000.0
-            z_iso_levels(7)  = 60000.0
-            z_iso_levels(8)  = 65000.0
-            z_iso_levels(9)  = 70000.0
-            z_iso_levels(10) = 75000.0
-            z_iso_levels(11) = 80000.0
-            z_iso_levels(12) = 85000.0
-            z_iso_levels(13) = 90000.0
-       end if
-       
        !calculation of total pressure at cell centers (at mass points):
         do iCell = 1, nCells
         do k = 1, nVertLevels
@@ -554,7 +611,7 @@ module isobaric_diagnostics
            enddo
         enddo
        
-        if (NEED_TEMP .or. NEED_RELHUM .or. NEED_DEWPOINT .or. need_mslp) then
+        if (NEED_TEMP .or. need_t_isobaric .or. need_meanT_500_300 .or. NEED_RELHUM .or. NEED_DEWPOINT .or. need_mslp) then
            !calculation of temperature at cell centers:
             do iCell = 1,nCells
             do k = 1,nVertLevels
@@ -849,44 +906,48 @@ module isobaric_diagnostics
             deallocate(press_interp)
         end if
      
-     
-        !!!!!!!!!!! Additional height levels for vortex tracking !!!!!!!!!!!
+
         if (need_z_isobaric) then
-            allocate(field_in(nCells, nVertLevelsP1))
-            allocate(press_in(nCells, nVertLevelsP1))
-            allocate(field_interp(nCells, nIsoLevelsZ))
-            allocate(press_interp(nCells, nIsoLevelsZ))
-     
-            do k=1,nIsoLevelsZ
-               press_interp(:,k) = z_iso_levels(k)
-            end do
-     
-            do iCell=1,nCells
-            do k=1,nVertLevelsP1
-               kk = nVertLevelsP1+1-k
-               field_in(iCell,kk) = height(k,iCell)
-            end do
-            end do
-     
-            do iCell=1,nCells
-            do k=1,nVertLevelsP1
-               kk = nVertLevelsP1+1-k
-               press_in(iCell,kk) = pressure2(k,iCell) * 100.0
-            end do
-            end do
-     
-            call interp_tofixed_pressure(nCells, nVertLevelsP1, nIsoLevelsZ, press_in, field_in, press_interp, field_interp)
-     
-            do k=1,nIsoLevelsZ
-               z_isobaric(k,1:nCells) = field_interp(1:nCells,k)
-            end do
-     
-            deallocate(field_in)
-            deallocate(field_interp)
-            deallocate(press_in)
-            deallocate(press_interp)
+            call compute_isobaric_cell_centers(nCells, nVertLevelsP1, &
+                nIsoLevelsZ, z_iso_levels, height, &
+                pressure2, z_isobaric)
         end if
-    
+
+
+        if (need_relhum_isobaric) then
+            call compute_isobaric_cell_centers(nCells, nVertLevels, &
+                nIsoLevelsRELHUM, relhum_iso_levels, relhum, &
+                pressure, relhum_isobaric)
+        end if
+
+
+        if (need_qc_isobaric) then
+            call compute_isobaric_cell_centers(nCells, nVertLevels, &
+                nIsoLevelsQC, qc_iso_levels, qc, &
+                pressure, qc_isobaric)
+        end if
+
+
+        if (need_uzonal_isobaric) then
+            call compute_isobaric_cell_centers(nCells, nVertLevels, &
+                nIsoLevelsUZONAL, uzonal_iso_levels, uzonal, &
+                pressure, uzonal_isobaric)
+        end if
+
+
+        if (need_umeridional_isobaric) then
+            call compute_isobaric_cell_centers(nCells, nVertLevels, &
+                nIsoLevelsUMERIDIONAL, umeridional_iso_levels, umeridional, &
+                pressure, umeridional_isobaric)
+        end if
+
+
+        if (need_w_isobaric) then
+            call compute_isobaric_cell_centers(nCells, nVertLevelsP1, &
+                nIsoLevelsW, w_iso_levels, vvel, &
+                pressure2, w_isobaric)
+        end if
+
         if(allocated(temperature) ) deallocate(temperature )
         if(allocated(pressure2)   ) deallocate(pressure2   )
         if(allocated(pressure)    ) deallocate(pressure    )
@@ -984,6 +1045,49 @@ module isobaric_diagnostics
    
     end subroutine interp_tofixed_pressure
    
+
+    subroutine compute_isobaric_cell_centers(nCells, numVertLevels, numIsoLevels, iso_levels, in_field, in_pressure, out_field)
+
+        implicit none
+
+        integer, intent(in) :: nCells, numVertLevels, numIsoLevels
+        real (kind=RKIND), dimension(numIsoLevels), intent(in) :: iso_levels
+        real (kind=RKIND), dimension(numVertLevels, nCells), intent(in) :: in_field
+        real (kind=RKIND), dimension(numVertLevels, nCells), intent(in) :: in_pressure
+        real (kind=RKIND), dimension(numIsoLevels, nCells), intent(out) :: out_field
+
+        integer :: k, iCell, kk
+        real (kind=RKIND), dimension(nCells, numVertLevels) :: field_in
+        real (kind=RKIND), dimension(nCells, numVertLevels) :: press_in
+        real (kind=RKIND), dimension(nCells, numIsoLevels) :: field_interp
+        real (kind=RKIND), dimension(nCells, numIsoLevels) :: press_interp
+
+        do k=1,numIsoLevels
+           press_interp(:,k) = iso_levels(k)
+        end do
+     
+        do iCell=1,nCells
+        do k=1,numVertLevels
+           kk = numVertLevels+1-k
+           field_in(iCell,kk) = in_field(k,iCell)
+        end do
+        end do
+     
+        do iCell=1,nCells
+        do k=1,numVertLevels
+           kk = numVertLevels+1-k
+           press_in(iCell,kk) = in_pressure(k,iCell) * 100.0
+        end do
+        end do
+     
+        call interp_tofixed_pressure(nCells, numVertLevels, numIsoLevels, press_in, field_in, press_interp, field_interp)
+     
+        do k=1,numIsoLevels
+           out_field(k,1:nCells) = field_interp(1:nCells,k)
+        end do
+     
+    end subroutine compute_isobaric_cell_centers
+
 
     subroutine compute_slp(ncol,nlev_in,nscalars,t,height,p,index_qv,scalars,slp)
    
@@ -1244,4 +1348,64 @@ module isobaric_diagnostics
    
     end subroutine compute_layer_mean
    
+
+    ! read csv reals from str and store them in vals_out
+    ! does not modify vals_out if str is empty
+    ! logs a critical error iff number of values read from str does not match length of
+    ! vals_out
+    subroutine readCSVreals(str, vals_out, varname)
+      character(len=*), intent(in) :: str
+      real (kind=RKIND), pointer :: vals_out(:)
+      character(len=*), intent(in) :: varname
+      real (kind=RKIND) :: val
+      real (kind=RKIND), allocatable :: vals(:)
+      integer :: i, numvals, ierr, pos, newpos
+      logical :: still_reading
+      numvals = 0
+      pos = 0
+      if (len_trim(str) > 0) then
+        still_reading = .true.
+      else
+        still_reading = .false.
+      endif
+      ! count number of values
+      do while (still_reading)
+        read (str(pos+1:), *, iostat=ierr) val
+        if (ierr == 0) then
+          numvals = numvals + 1
+        else
+          still_reading = .false.
+        endif
+        newpos = index(str(pos+1:), ",")
+        if (newpos == 0) then
+          still_reading = .false.
+        else
+          pos = pos + newpos
+        endif
+        if (pos >= len_trim(str)) then
+          call mpas_log_write( &
+            'readCSVreals():  ran off end of str, check for incorrect csv '// &
+            'format in namelist:config_isobaric_diagnostic_num_levels_'//trim(varname), &
+            MPAS_LOG_WARN)
+          still_reading = .false.
+        endif
+      enddo
+      if (numvals == size(vals_out)) then
+        if (numvals > 0) then
+          allocate(vals(numvals))
+          read (str, *) vals
+          do i = 1, numvals
+            vals_out(i) = vals(i)
+          enddo
+          deallocate(vals)
+        endif
+      else
+        call mpas_log_write( &
+          'Error: mismatched config_isobaric_diagnostic_levels_'//trim(varname)// &
+          ' and namelist:config_isobaric_diagnostic_num_levels_'//trim(varname), &
+          messageType=MPAS_LOG_CRIT)
+      endif
+    end subroutine readCSVreals
+
+
 end module isobaric_diagnostics

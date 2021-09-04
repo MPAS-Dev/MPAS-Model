@@ -3,11 +3,27 @@
 <!-- ******************************* -->
 
 <dims>
-        <dim name="nIsoLevelsT"         definition="5"
+        <dim name="nIsoLevelsT"         definition="namelist:config_isobaric_diagnostic_num_levels_t"
              description="Number of isobaric levels to which temperature will be vertically interpolated"/>
 
-        <dim name="nIsoLevelsZ"         definition="13"
+        <dim name="nIsoLevelsZ"         definition="namelist:config_isobaric_diagnostic_num_levels_z"
              description="Number of isobaric levels to which height will be vertically interpolated"/>
+
+        <dim name="nIsoLevelsRELHUM"    definition="namelist:config_isobaric_diagnostic_num_levels_relhum"
+             description="Number of isobaric levels to which relative humidity will be vertically interpolated"/>
+
+        <dim name="nIsoLevelsQC"        definition="namelist:config_isobaric_diagnostic_num_levels_qc"
+             description="Number of isobaric levels to which cloud water mixing ratio will be vertically interpolated"/>
+
+        <dim name="nIsoLevelsUMERIDIONAL"    definition="namelist:config_isobaric_diagnostic_num_levels_umeridional"
+             description="Number of isobaric levels to which meridional component of reconstructed horizontal velocity at cell centers will be vertically interpolated"/>
+
+        <dim name="nIsoLevelsUZONAL"    definition="namelist:config_isobaric_diagnostic_num_levels_uzonal"
+             description="Number of isobaric levels to which zonal component of reconstructed horizontal velocity at cell centers will be vertically interpolated"/>
+
+        <dim name="nIsoLevelsW"         definition="namelist:config_isobaric_diagnostic_num_levels_w"
+             description="Number of isobaric levels to which vertical velocity will be vertically interpolated"/>
+
 </dims>
 
 
@@ -161,18 +177,137 @@
              description="Relative vorticity vertically interpolated to 925 hPa"/>
 
         <var name="t_isobaric"       type="real" dimensions="nIsoLevelsT nCells Time" units="K"
-             description="Temperature interpolated to isobaric surfaces defined in t_iso_levels"/>
+             description="Temperature vertically interpolated to isobaric surfaces defined in t_iso_levels"/>
 
         <var name="z_isobaric"       type="real" dimensions="nIsoLevelsZ nCells Time" units="m"
-             description="Height interpolated to isobaric surfaces defined in z_iso_levels"/>
+             description="Height vertically interpolated to isobaric surfaces defined in z_iso_levels"/>
+
+        <var name="relhum_isobaric"  type="real" dimensions="nIsoLevelsRELHUM nCells Time" units="percent"
+             description="Relative humidity vertically interpolated to isobaric surfaces defined in relhum_iso_levels"/>
+
+        <var name="qc_isobaric"      type="real" dimensions="nIsoLevelsQC nCells Time" units="kg kg^{-1}"
+             description="Cloud water mixing ratio vertically interpolated to isobaric surfaces defined in qc_iso_levels"/>
+
+        <var name="uzonal_isobaric"  type="real" dimensions="nIsoLevelsUZONAL nCells Time" units="m s^{-1}"
+             description="Zonal component of reconstructed horizontal velocity at cell centers vertically interpolated to isobaric surfaces defined in uzonal_iso_levels"/>
+
+        <var name="umeridional_isobaric"  type="real" dimensions="nIsoLevelsUMERIDIONAL nCells Time" units="m s^{-1}"
+             description="Meridional component of reconstructed horizontal velocity at cell centers vertically interpolated to isobaric surfaces defined in umeridional_iso_levels"/>
+
+        <var name="w_isobaric"       type="real" dimensions="nIsoLevelsW nCells Time" units="m s^{-1}"
+             description="Vertical velocity vertically interpolated to isobaric surfaces defined in w_iso_levels"/>
 
         <var name="meanT_500_300"    type="real" dimensions="nCells Time" units="K"
              description="Mean temperature in the 300 hPa - 500 hPa layer"/>
 
-        <var name="t_iso_levels" type="real" dimensions="nIsoLevelsT" units="Pa"
+        <var name="t_iso_levels"     type="real" dimensions="nIsoLevelsT" units="Pa"
              description="Levels for vertical interpolation of temperature to isobaric surfaces"/>
 
-        <var name="z_iso_levels" type="real" dimensions="nIsoLevelsZ" units="Pa"
+        <var name="z_iso_levels"     type="real" dimensions="nIsoLevelsZ" units="Pa"
              description="Levels for vertical interpolation of height to isobaric surfaces"/>
 
+        <var name="relhum_iso_levels" type="real" dimensions="nIsoLevelsRELHUM" units="Pa"
+             description="Levels for vertical interpolation of relative humidity to isobaric surfaces"/>
+
+        <var name="qc_iso_levels"    type="real" dimensions="nIsoLevelsQC" units="Pa"
+             description="Levels for vertical interpolation of cloud water mixing ratio to isobaric surfaces"/>
+
+        <var name="uzonal_iso_levels" type="real" dimensions="nIsoLevelsUZONAL" units="Pa"
+             description="Levels for vertical interpolation of zonal component of reconstructed horizontal velocity at cell centers to isobaric surfaces"/>
+
+        <var name="umeridional_iso_levels" type="real" dimensions="nIsoLevelsUMERIDIONAL" units="Pa"
+             description="Levels for vertical interpolation of meridional component of reconstructed horizontal velocity at cell centers to isobaric surfaces"/>
+
+        <var name="w_iso_levels"     type="real" dimensions="nIsoLevelsW" units="Pa"
+             description="Levels for vertical interpolation of vertical velocity to isobaric surfaces"/>
+
 </var_struct>
+
+<nml_record name="isobaric_diagnostics" in_defaults="true">
+
+        <nml_option name="config_isobaric_diagnostic_num_levels_t" type="integer" default_value="5" in_defaults="false"
+             units="-"
+             description="Number of isobaric levels for 3D temperature."
+             possible_values="Positive integers"/>
+
+        <nml_option name="config_isobaric_diagnostic_num_levels_z" type="integer" default_value="13" in_defaults="false"
+             units="-"
+             description="Number of isobaric levels for 3D height."
+             possible_values="Positive integers"/>
+
+        <nml_option name="config_isobaric_diagnostic_num_levels_relhum" type="integer" default_value="5" in_defaults="false"
+             units="-"
+             description="Number of isobaric levels for 3D relative humidity."
+             possible_values="Positive integers"/>
+
+        <nml_option name="config_isobaric_diagnostic_num_levels_qc" type="integer" default_value="5" in_defaults="false"
+             units="-"
+             description="Number of isobaric levels for 3D cloud water mixing ratio."
+             possible_values="Positive integers"/>
+
+        <nml_option name="config_isobaric_diagnostic_num_levels_uzonal" type="integer" default_value="5" in_defaults="false"
+             units="-"
+             description="Number of isobaric levels for 3D zonal component of reconstructed horizontal velocity at cell centers."
+             possible_values="Positive integers"/>
+
+        <nml_option name="config_isobaric_diagnostic_num_levels_umeridional" type="integer" default_value="5" in_defaults="false"
+             units="-"
+             description="Number of isobaric levels for 3D meridional component of reconstructed horizontal velocity at cell centers."
+             possible_values="Positive integers"/>
+
+        <nml_option name="config_isobaric_diagnostic_num_levels_w" type="integer" default_value="5" in_defaults="false"
+             units="-"
+             description="Number of isobaric levels for vertical velocity."
+             possible_values="Positive integers"/>
+
+        <nml_option name="config_isobaric_diagnostic_levels_t" type="character"
+             default_value="30000.0, 35000.0, 40000.0, 45000.0, 50000.0"
+             in_defaults="false"
+             units="-"
+             description="Isobaric levels for 3D temperature."
+             possible_values="csv list of reals"/>
+
+        <nml_option name="config_isobaric_diagnostic_levels_z" type="character"
+             default_value="30000.0, 35000.0, 40000.0, 45000.0, 50000.0, 55000.0, 60000.0, 65000.0, 70000.0, 75000.0, 80000.0, 85000.0, 90000.0"
+             in_defaults="false"
+             units="-"
+             description="Isobaric levels for 3D height."
+             possible_values="csv list of reals"/>
+
+        <nml_option name="config_isobaric_diagnostic_levels_relhum" type="character"
+             default_value="30000.0, 35000.0, 40000.0, 45000.0, 50000.0"
+             in_defaults="false"
+             units="-"
+             description="Isobaric levels for 3D relative humidity."
+             possible_values="csv list of reals"/>
+
+        <nml_option name="config_isobaric_diagnostic_levels_qc" type="character"
+             default_value="30000.0, 35000.0, 40000.0, 45000.0, 50000.0"
+             in_defaults="false"
+             units="-"
+             description="Isobaric levels for 3D cloud water mixing ratio."
+             possible_values="'csv list of reals"/>
+
+        <nml_option name="config_isobaric_diagnostic_levels_uzonal" type="character"
+             default_value="30000.0, 35000.0, 40000.0, 45000.0, 50000.0"
+             in_defaults="false"
+             units="-"
+             description="Isobaric levels for 3D zonal component of reconstructed horizontal velocity at cell centers."
+             possible_values="csv list of reals"/>
+
+        <nml_option name="config_isobaric_diagnostic_levels_umeridional" type="character"
+             default_value="30000.0, 35000.0, 40000.0, 45000.0, 50000.0"
+             in_defaults="false"
+             units="-"
+             description="Isobaric levels for 3D meridional component of reconstructed horizontal velocity at cell centers."
+             possible_values="csv list of reals"/>
+
+        <nml_option name="config_isobaric_diagnostic_levels_w" type="character"
+             default_value="30000.0, 35000.0, 40000.0, 45000.0, 50000.0"
+             in_defaults="false"
+             units="-"
+             description="Isobaric levels for 3D vertical velocity."
+             possible_values="csv list of reals"/>
+
+</nml_record>
+

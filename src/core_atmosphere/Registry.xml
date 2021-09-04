@@ -1045,6 +1045,16 @@
 			<var name="t_iso_levels"/>
 			<var name="z_isobaric"/>
 			<var name="z_iso_levels"/>
+			<var name="relhum_isobaric"/>
+			<var name="relhum_iso_levels"/>
+			<var name="qc_isobaric"/>
+			<var name="qc_iso_levels"/>
+			<var name="uzonal_isobaric"/>
+			<var name="uzonal_iso_levels"/>
+			<var name="umeridional_isobaric"/>
+			<var name="umeridional_iso_levels"/>
+			<var name="w_isobaric"/>
+			<var name="w_iso_levels"/>
 			<var name="meanT_500_300"/>
                         <!-- End isobaric diagnostics defined in diagnostics/Registry_isobaric.xml -->
 
