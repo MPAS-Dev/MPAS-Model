@@ -1,0 +1,96 @@
+<?xml version="1.0"?>
+<config case="russell_1km">
+
+        <!-- Set up needed files and executables -->
+<!--
+        <add_link source_path="script_test_dir" source="antarctica_8km_2018_04_20.nc" dest="ais_input_data.nc"/>
+-->
+
+<!--
+        <namelist name="namelist.landice" mode="forward">
+                <template file="thwaites_template.xml" path_base="script_configuration_dir"/>
+        </namelist>
+
+        <streams name="streams.landice" keep="immutable" mode="forward">
+                <template file="thwaites_template.xml" path_base="script_configuration_dir"/>
+                <stream name="input">
+                   <attribute name="filename_template">thwaites_1-8km_resolution.nc</attribute>
+                </stream>
+        </streams>
+-->
+
+        <run_script name="setup_test.py">
+
+                <!-- make base mesh -->
+                <step executable="planar_hex" pre_message="\n\n### Creating periodic_hex mesh\n\n" post_message="\n\n### periodic_hex mesh creation complete\n\n">
+                        <argument flag="--nx">200</argument>
+                        <argument flag="--ny">100</argument>
+                        <argument flag="--dc">1000</argument>
+                        <argument flag="--nonperiodic_x"></argument>
+                        <argument flag="--nonperiodic_y"></argument>
+                        <argument flag="-o">grid.nc</argument>
+                </step>
+
+                <step executable="MpasCellCuller.x" >
+                        <argument flag="">grid.nc</argument>
+                        <argument flag="">grid_culled.nc</argument>
+                </step>
+
+
+                <step executable="MpasMeshConverter.x" >
+                        <argument flag="">grid_culled.nc</argument>
+                        <argument flag="">grid_converted.nc</argument>
+                </step>
+
+                <!-- Translate  -->
+                <step executable="translate_planar_grid" pre_message="\n\n### Translating\n\n" post_message="\n\n### Translating complete\n\n">
+                        <argument flag="-f">grid_converted.nc</argument>
+                        <argument flag="-x">-250000.0</argument>
+                        <argument flag="-y">-2.56e6</argument>
+                </step>
+
+                <!-- Convert from basic MPAS mesh to MPASLI mesh -->
+                <step executable="create_landice_grid_from_generic_MPAS_grid.py" pre_message="\n\n### Creating LI mesh\n\n" post_message="\n\n### LI mesh creation complete\n\n">
+                        <argument flag="-i">grid_converted.nc</argument>
+                        <argument flag="-o">russell_1km.nc</argument>
+                        <argument flag="-l">10</argument>
+                        <argument flag="-v">glimmer</argument>
+                        <argument flag="--beta"></argument>
+                        <argument flag="--thermal"></argument>
+                        <argument flag="--obs"></argument>
+                        <argument flag="--diri"></argument>
+                </step>
+
+                <!-- Set up initial condition on to landice mesh -->
+                <step executable="interpolate_to_mpasli_grid.py" pre_message="\n\n### Setting up initial condition\n\n" post_message="\n\n### Initial condition setup complete\n\n">
+                        <argument flag="-s">greenland_1km_2019_04_17.epsg3413.nc</argument>
+                        <argument flag="-d">russell_1km.nc</argument>
+                        <argument flag="-m">b</argument>
+                </step>
+
+                <!-- Add lat/lon  -->
+                <step executable="set_lat_lon_fields_in_planar_grid.py" pre_message="\n\n### Setting lat/lon\n\n" post_message="\n\n### Setting lat/lon complete\n\n">
+                        <argument flag="-f">russell_1km.nc</argument>
+                        <argument flag="-p">gimp</argument>
+                </step>
+
+                <!-- Set up temperature initial condition on to landice mesh -->
+<!--
+                <step executable="interpolate_to_mpasli_grid.py" pre_message="\n\n### Setting up initial condition\n\n" post_message="\n\n### Initial condition setup complete\n\n">
+                        <argument flag="-s">ais_temperature_input_data.nc</argument>
+                        <argument flag="-d">ais_200_to_40_km.nc</argument>
+                        <argument flag="-m">b</argument>
+                </step>
+-->
+
+
+
+                <!-- Set up a graph file
+                <step executable="metis" pre_message="\n\n### Creating graph.info.part file\n\n" post_message="\n\n### graph.info.part file creation complete\n\n">
+                        <argument flag="graph.info">32</argument>
+                        <argument flag="graph.info">64</argument>
+                </step> -->
+
+        </run_script>
+
+</config>
