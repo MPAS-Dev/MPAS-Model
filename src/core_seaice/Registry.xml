@@ -438,7 +438,7 @@
 			description="The number of ice layers in the vertical direction to use."
 			possible_values="Any positive integer."
 		/>
-		<nml_option name="config_nSnowLayers" type="integer" default_value="1" units="unitless"
+		<nml_option name="config_nSnowLayers" type="integer" default_value="5" units="unitless"
 			description="The number of snow layers in the vertical direction to use."
 			possible_values="Any positive integer."
 		/>
@@ -691,7 +691,7 @@
 			description="Run the ridging column physics calculation."
 			possible_values="true or false"
 		/>
-		<nml_option name="config_use_column_snow_tracers" type="logical" default_value="false" units="unitless"
+		<nml_option name="config_use_column_snow_tracers" type="logical" default_value="true" units="unitless"
 			description="Allow snow modifications plus additional snow tracers"
 			possible_values="true or false"
 		/>
@@ -733,12 +733,12 @@
 			possible_values="true or false"
 			icepack_name="tr_aero"
 		/>
-		<nml_option name="config_use_effective_snow_density" type="logical" default_value="false" units="unitless"
+		<nml_option name="config_use_effective_snow_density" type="logical" default_value="true" units="unitless"
 			description="Use effective snow density"
 			possible_values="true or false"
 			icepack_name="tr_snow"
 		/>
-		<nml_option name="config_use_snow_grain_radius" type="logical" default_value="false" units="unitless"
+		<nml_option name="config_use_snow_grain_radius" type="logical" default_value="true" units="unitless"
 			description="Use prognosed snow grain radius aging"
 			possible_values="true or false"
 			icepack_name="tr_rsnw"
@@ -1478,7 +1478,7 @@
 			possible_values="'ccsm3' or 'constant'"
 			icepack_name="albedo_type"
 		/>
-		 <nml_option name="config_use_snicar_ad" type="logical" default_value="false" units="unitless"
+		 <nml_option name="config_use_snicar_ad" type="logical" default_value="true" units="unitless"
 			description="If true turn on snicar_ad 5-band snow system"
 			possible_values="true or false"
 		/>
@@ -1540,17 +1540,17 @@
 	</nml_record>
 
 	<nml_record name="snow" in_defaults="true">
-	  	<nml_option name="config_snow_redistribution_scheme" type="character" default_value="none" units="none"
+		<nml_option name="config_snow_redistribution_scheme" type="character" default_value="ITDrdg" units="none"
 			description="Use a snow redistribution scheme"
 			possible_values="'30percent (30% rule, precip only)','30percentsw (30% rulewith shortwave)','ITDsd (Lecomte PhD, 2014)','ITDrdg (like ITDsd but use level/ridged ice)','default or none (none)'"
 			icepack_name="snwredist"
 		/>
-		<nml_option name="config_fallen_snow_radius" type="real" default_value="54.4" units="um"
+		<nml_option name="config_fallen_snow_radius" type="real" default_value="54.526" units="um"
 			description="fallen snow grain radius"
 			possible_values="positive real"
 			icepack_name="rsnw_fall"
 		/>
-		<nml_option name="config_use_snow_liquid_ponds" type="logical" default_value="false" units="none"
+		<nml_option name="config_use_snow_liquid_ponds" type="logical" default_value="true" units="none"
 			description="use snow liquid tracer for ponds"
 			possible_values="true or false"
 			icepack_name="use_smliq_pnd"
@@ -2089,7 +2089,7 @@
 		<!-- Aerosols input -->
 		<stream name="StandardAerosolsInput"
 				type="input"
-				filename_template="standard_optics_mpas_cice.nc"
+				filename_template="forcing/standard_optics_mpas_cice.nc"
 				filename_interval="none"
 				input_interval="initial_only"
 				immutable="true">
@@ -2100,7 +2100,7 @@
 
 		<stream name="ModalAerosolsInput"
 				type="input"
-				filename_template="snicar_optics_5bnd_mam_c140303_mpas_cice.nc"
+				filename_template="forcing/snicar_optics_5bnd_mam_c140303_mpas_cice.nc"
 				filename_interval="none"
 				input_interval="initial_only"
 				immutable="true">
@@ -2112,7 +2112,7 @@
 
 		<stream name="SnicarInput"
 			type="input"
-				filename_template="snicar_optics_5bnd_snow_and_aerosols.nc"
+				filename_template="forcing/snicar_optics_5bnd_snow_and_aerosols.nc"
 				filename_interval="none"
 				input_interval="initial_only"
 				immutable="true">
@@ -2133,7 +2133,7 @@
 
 		<stream name="SnowAgingPropertiesInput"
 				type="input"
-				filename_template="snicar_drdt_bst_fit_60_c04182019.nc"
+				filename_template="forcing/snicar_drdt_bst_fit_60_c04262019.nc"
 				filename_interval="none"
 				input_interval="initial_only"
 				immutable="true">

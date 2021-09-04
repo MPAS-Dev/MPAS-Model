@@ -7,13 +7,22 @@
 			<test name="restartability"/>
 		</domain>
 	</configuration>
+	<configuration name="e3sm_default">
+		<domain name="domain_QU120km">
+			<test name="regression"/>
+			<test name="parallelism"/>
+			<test name="restartability">
+				<option name="snow_tracer_physics" value="True"/>
+			</test>
+		</domain>
+	</configuration>
 	<configuration name="aerosol_shortwave_physics">
 		<domain name="domain_QU240km">
 			<test name="regression"/>
 			<test name="parallelism"/>
 			<test name="restartability">
-			      <option name="bgc" value="True"/>
-			    </test>
+				<option name="bgc" value="True"/>
+			</test>
 		</domain>
 	</configuration>
 	<configuration name="snow_tracer_physics">
@@ -21,8 +30,8 @@
 			<test name="regression"/>
 			<test name="parallelism"/>
 			<test name="restartability">
-			      <option name="snow_tracer_physics" value="True"/>
-			 </test>
+				<option name="snow_tracer_physics" value="True"/>
+			</test>
 		</domain>
 	</configuration>
 	<configuration name="standard_bgc">
@@ -30,8 +39,8 @@
 			<test name="regression"/>
 			<test name="parallelism"/>
 			<test name="restartability">
-			      <option name="bgc" value="True"/>
-			    </test>
+				<option name="bgc" value="True"/>
+			</test>
 		</domain>
 	</configuration>
 	<configuration name="prescribed_ice">
