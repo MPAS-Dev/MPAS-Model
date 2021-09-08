@@ -7,6 +7,7 @@ MODULE module_sf_sfclay
  REAL    , PARAMETER ::  OZO=1.59E-5
 
  REAL,   DIMENSION(0:1000 ),SAVE          :: PSIMTB,PSIHTB
+!$acc declare create(PSIMTB,PSIHTB)
 
 CONTAINS
 
@@ -211,16 +212,18 @@ CONTAINS
 
       INTEGER ::  I,J
 
+!$acc data create(dz8w1d,U1D,V1D,QV1D,P1D,T1D)
       DO J=jts,jte
-
+!$acc parallel vector_length(32)
+!$acc loop gang vector
         DO i=its,ite
            DX2D(i)=DX(i,j)
         ENDDO
-
+!$acc loop gang vector
         DO i=its,ite
           dz8w1d(I) = dz8w(i,1,j)
         ENDDO
-   
+!$acc loop gang vector
         DO i=its,ite
            U1D(i) =U3D(i,1,j)
            V1D(i) =V3D(i,1,j)
@@ -228,6 +231,8 @@ CONTAINS
            P1D(i) =P3D(i,1,j)
            T1D(i) =T3D(i,1,j)
         ENDDO
+!$acc end parallel
+!-!-!$acc update host(dz8w1d,U1D,V1D,QV1D,P1D,T1D)
 
         !  Sending array starting locations of optional variables may cause
         !  troubles, so we explicitly change the call.
@@ -255,7 +260,7 @@ CONTAINS
 #endif
                                                                    )
       ENDDO
-
+!$acc end data
  
    END SUBROUTINE SFCLAY
 
@@ -388,9 +393,14 @@ CONTAINS
       REAL    ::  FLUXC,VSGD,Z0Q,VISC,RESTAR,CZIL,GZ0OZQ,GZ0OZT
       REAL    ::  ZW, ZN1, ZN2
       REAL    ::  Z0T, CZC
+!$acc data create(PSFC,TGDSA,THGB,SCR3,THX,SCR4,THVX,QX,ZQKLP1, &
+!$acc ZQKL,ZA,GOVRTH,RHOX,GZ2OZ0,GZ10OZ0,PSIM10,PSIH10,PSIM2, &
+!$acc PSIH2,WSPDI,DENOMQ,DENOMQ2,DENOMT2)
 !-------------------------------------------------------------------
       KL=kte
 
+!$acc parallel vector_length(32)
+!$acc loop gang vector
       DO i=its,ite
 ! PSFC cb
          PSFC(I)=PSFCPA(I)/1000.
@@ -398,12 +408,17 @@ CONTAINS
 !                                                      
 !----CONVERT GROUND TEMPERATURE TO POTENTIAL TEMPERATURE:  
 !                                                            
-      DO 5 I=its,ite                                   
+!!!   DO 5 I=its,ite                                   
+!$acc loop gang vector
+      DO I=its,ite                                   
         TGDSA(I)=TSK(I)                                    
 ! PSFC cb
 !        THGB(I)=TSK(I)*(100./PSFC(I))**ROVCP                
         THGB(I)=TSK(I)*(P1000mb/PSFCPA(I))**ROVCP   
-    5 CONTINUE                                               
+      END DO
+!$acc end parallel
+!-!-!$acc update host(PSFC,TGDSA,THGB)
+!!!i   5 CONTINUE                                               
 !                                                            
 !-----DECOUPLE FLUX-FORM VARIABLES TO GIVE U,V,T,THETA,THETA-VIR.,
 !     T-VIR., QV, AND QC AT CROSS POINTS AND AT KTAU-1.  
@@ -413,19 +428,22 @@ CONTAINS
 !         SO USE ONLY INTERIOR VALUES OF UX AND VX TO CALCULATE 
 !         TENDENCIES.                             
 !                                                           
-   10 CONTINUE                                                     
+!!!   10 CONTINUE                                                     
 
 !     DO 24 I=its,ite
 !        UX(I)=U1D(I)
 !        VX(I)=V1D(I)
 !  24 CONTINUE                                             
                                                              
-   26 CONTINUE                                               
+!!!   26 CONTINUE                                               
                                                    
 !.....SCR3(I,K) STORE TEMPERATURE,                           
 !     SCR4(I,K) STORE VIRTUAL TEMPERATURE.                                       
                                                                                  
-      DO 30 I=its,ite
+!!!       DO 30 I=its,ite
+!$acc parallel vector_length(32)
+!$acc loop gang vector private(PL,THCON)
+      DO I=its,ite
 ! PL cb
          PL=P1D(I)/1000.
          SCR3(I)=T1D(I)                                                   
@@ -435,8 +453,10 @@ CONTAINS
          SCR4(I)=SCR3(I)                                                    
          THVX(I)=THX(I)                                                     
          QX(I)=0.                                                             
-   30 CONTINUE                                                                 
-!                                                                                
+      END DO
+!!!   30 CONTINUE                                                                 
+!      
+!$acc loop gang vector
       DO I=its,ite
          QGH(I)=0.                                                                
          FLHC(I)=0.                                                               
@@ -445,14 +465,23 @@ CONTAINS
       ENDDO
 !                                                                                
 !     IF(IDRY.EQ.1)GOTO 80                                                   
-      DO 50 I=its,ite
+!!!      DO 50 I=its,ite
+!$acc loop gang vector private(TVCON)
+      DO I=its,ite
          QX(I)=QV1D(I)                                                    
          TVCON=(1.+EP1*QX(I))                                      
          THVX(I)=THX(I)*TVCON                                               
          SCR4(I)=SCR3(I)*TVCON                                              
-   50 CONTINUE                                                                 
+      END DO
+!$acc end parallel
+!-!-!$acc update host(SCR3,THX,SCR4,THVX,QX)
+!-!-!$acc update host(QGH,FLHC,FLQC,CPM)
+!!!   50 CONTINUE                                                                 
 !                                                                                
-      DO 60 I=its,ite
+!!!      DO 60 I=its,ite
+!$acc parallel vector_length(32)
+!$acc loop gang vector private(E1,PL)
+      DO I=its,ite
         E1=SVP1*EXP(SVP2*(TGDSA(I)-SVPT0)/(TGDSA(I)-SVP3))                       
 !  for land points QSFC can come from previous time step
         if(xland(i).gt.1.5.or.qsfc(i).le.0.0)QSFC(I)=EP2*E1/(PSFC(I)-E1)                                                 
@@ -462,33 +491,53 @@ CONTAINS
         PL=P1D(I)/1000.
         QGH(I)=EP2*E1/(PL-E1)                                                 
         CPM(I)=CP*(1.+0.8*QX(I))                                   
-   60 CONTINUE                                                                   
-   80 CONTINUE
+      END DO                                                                  
+!!!   60 CONTINUE                                                                   
+!!!   80 CONTINUE
                                                                                  
 !-----COMPUTE THE HEIGHT OF FULL- AND HALF-SIGMA LEVELS ABOVE GROUND             
 !     LEVEL, AND THE LAYER THICKNESSES.                                          
                                                                                  
-      DO 90 I=its,ite
+!!!      DO 90 I=its,ite
+!$acc loop gang vector
+      DO I=its,ite
         ZQKLP1(I)=0.
         RHOX(I)=PSFC(I)*1000./(R*SCR4(I))                                       
-   90 CONTINUE                                                                   
+      END DO
+!!!   90 CONTINUE                                                                   
 !                                                                                
-      DO 110 I=its,ite                                                   
+!!!      DO 110 I=its,ite                                                   
+!$acc loop gang vector
+      DO I=its,ite                                                   
            ZQKL(I)=dz8w1d(I)+ZQKLP1(I)
-  110 CONTINUE                                                                 
+      END DO                                                              
+!!!  110 CONTINUE                                                                 
 !                                                                                
-      DO 120 I=its,ite
+!!!      DO 120 I=its,ite
+!$acc loop gang vector
+      DO I=its,ite
          ZA(I)=0.5*(ZQKL(I)+ZQKLP1(I))                                        
-  120 CONTINUE                                                                 
+      END DO
+!!!  120 CONTINUE                                                                 
 !                                                                                
-      DO 160 I=its,ite
+!!!      DO 160 I=its,ite
+!$acc loop gang vector
+      DO I=its,ite
         GOVRTH(I)=G/THX(I)                                                    
-  160 CONTINUE                                                                   
+      END DO
+!$acc end parallel
+!-!-!$acc update host(QGH,CPM,QSFC)
+!-!-!$acc update host(ZQKLP1,RHOX,ZQKL,ZA,GOVRTH)
+!!!  160 CONTINUE                                                                   
                                                                                  
 !-----CALCULATE BULK RICHARDSON NO. OF SURFACE LAYER, ACCORDING TO               
 !     AKB(1976), EQ(12).                                                         
                    
-      DO 260 I=its,ite
+!!!    DO 260 I=its,ite
+!$acc parallel vector_length(32)
+!$acc loop gang vector private(ZL,TSKV,DTHVDZ,fluxc,VCONV,DTHVM, &
+!$acc VSGD)
+      DO I=its,ite
         GZ1OZ0(I)=ALOG(ZA(I)/ZNT(I))                                        
         GZ2OZ0(I)=ALOG(2./ZNT(I))                                        
         GZ10OZ0(I)=ALOG(10./ZNT(I))                                        
@@ -532,7 +581,11 @@ CONTAINS
         RMOL(I)=-GOVRTH(I)*DTHVDZ*ZA(I)*KARMAN
 !jdf
 
-  260 CONTINUE                                                                   
+     END DO                                                                 
+!$acc end parallel
+!-!-!$acc update host(GZ1OZ0,WSPD,BR,RMOL)
+!-!-!$acc update host(GZ2OZ0,GZ10OZ0)
+!!!  260 CONTINUE                                                                   
 
 !                                                                                
 !-----DIAGNOSE BASIC PARAMETERS FOR THE APPROPRIATED STABILITY CLASS:            
@@ -558,15 +611,19 @@ CONTAINS
 !                                                                                
 !CCCCC                                                                           
 
-      DO 320 I=its,ite
+!!!      DO 320 I=its,ite
+!$acc parallel vector_length(32)
+!$acc loop gang vector private(ZOL10,ZOL2,NZOL,RZOL,NZOL10,RZOL10,NZOL2,RZOL2)
+      DO I=its,ite
 !CCCCC                                                                           
 !CC     REMOVE REGIME 3 DEPENDENCE ON PBL HEIGHT                                 
 !CC          IF(BR(I).LT.0..AND.HOL(I,J).GT.1.5)GOTO 310                         
-        IF(BR(I).LT.0.)GOTO 310                                                  
+!!!        IF(BR(I).LT.0.)GOTO 310                                                  
 !                                                                                
 !-----CLASS 1; STABLE (NIGHTTIME) CONDITIONS:                                    
 !                                                                                
-        IF(BR(I).LT.0.2)GOTO 270                                                 
+!!!          IF(BR(I).LT.0.2)GOTO 270                                                 
+      IF(BR(I) .GE. 0.2) THEN
         REGIME(I)=1.                                                           
         PSIM(I)=-10.*GZ1OZ0(I)                                                   
 !    LOWER LIMIT ON PSI IN STABLE CONDITIONS                                     
@@ -587,12 +644,13 @@ CONTAINS
         ENDIF
         RMOL(I)=AMIN1(RMOL(I),9.999) ! ZA/L
         RMOL(I) = RMOL(I)/ZA(I) !1.0/L
-
-        GOTO 320                                                                 
+      ENDIF
+!!!        GOTO 320                                                                 
 !                                                                                
 !-----CLASS 2; DAMPED MECHANICAL TURBULENCE:                                     
 !                                                                                
-  270   IF(BR(I).EQ.0.0)GOTO 280                                                 
+!!!  270   IF(BR(I).EQ.0.0)GOTO 280                                                 
+      IF((BR(I) .LT. 0.2) .AND. (BR(I) .GT. 0.0)) THEN
         REGIME(I)=2.                                                           
         PSIM(I)=-5.0*BR(I)*GZ1OZ0(I)/(1.1-5.0*BR(I))                             
 !    LOWER LIMIT ON PSI IN STABLE CONDITIONS                                     
@@ -623,12 +681,14 @@ CONTAINS
 
         ! 1.0 over Monin-Obukhov length
         RMOL(I)= ZOL(I)/ZA(I)
-
-        GOTO 320                                                                 
+      ENDIF
+!!!        GOTO 320                                                                 
 !                                                                                
 !-----CLASS 3; FORCED CONVECTION:                                                
 !                                                                                
-  280   REGIME(I)=3.                                                           
+!!!  280   REGIME(I)=3.                                                           
+      IF(BR(I).EQ.0.0) THEN
+	        REGIME(I)=3.
         PSIM(I)=0.0                                                              
         PSIH(I)=PSIM(I)                                                          
         PSIM10(I)=0.                                                   
@@ -644,12 +704,13 @@ CONTAINS
         ENDIF                                                                    
 
         RMOL(I) = ZOL(I)/ZA(I)  
-
-        GOTO 320                                                                 
+      ENDIF
+!!!        GOTO 320                                                                 
 !                                                                                
 !-----CLASS 4; FREE CONVECTION:                                                  
 !                                                                                
-  310   CONTINUE                                                                 
+!!!  310   CONTINUE                                                                 
+      IF(BR(I).LT.0.) THEN
         REGIME(I)=4.                                                           
         IF(UST(I).LT.0.01)THEN                                                 
           ZOL(I)=BR(I)*GZ1OZ0(I)                                               
@@ -689,13 +750,21 @@ CONTAINS
         PSIH10(I)=AMIN1(PSIH10(I),0.9*GZ10OZ0(I))
 
         RMOL(I) = ZOL(I)/ZA(I)  
-
-  320 CONTINUE                                                                   
+      ENDIF
+      ENDDO
+!$acc end parallel
+!-!-!$acc update host(REGIME,PSIM,PSIH,RMOL,ZOL)
+!-!-!$acc update host(PSIM10,PSIH10,PSIM2,PSIH2)
+!!!  320 CONTINUE                                                                   
 !                                                                                
 !-----COMPUTE THE FRICTIONAL VELOCITY:                                           
 !     ZA(1982) EQS(2.60),(2.61).                                                 
 !                                                                                
-      DO 330 I=its,ite
+!!!      DO 330 I=its,ite
+!$acc parallel vector_length(32)
+!$acc loop gang vector private(DTG,PSIX,PSIX10,PSIT,ZL,PSIQ,PSIT2, &
+!$acc PSIQ2,PSIQ10,VISC,RESTAR,Z0T,Z0Q,GZ0OZT,GZ0OZQ,CZIL)
+      DO I=its,ite
         DTG=THX(I)-THGB(I)                                                   
         PSIX=GZ1OZ0(I)-PSIM(I)                                                   
         PSIX10=GZ10OZ0(I)-PSIM10(I)
@@ -821,25 +890,40 @@ CONTAINS
         DENOMT2(I)=PSIT2
         FM(I)=PSIX
         FH(I)=PSIT
-  330 CONTINUE                                                                   
+      END DO
+!$acc end parallel
+!-!-!$acc update host(Ck,Cd,Cka,Cda,UST,USTM,U10,V10,TH2,&
+!-!-!$acc Q2,T2,MOL,FM,FH)
+!-!-!$acc update host(WSPDI,DENOMQ,DENOMQ2,DENOMT2)
+!!!  330 CONTINUE                                                                   
 !                                                                                
-  335 CONTINUE                                                                   
+!!!  335 CONTINUE                                                                   
                                                                                   
 !-----COMPUTE THE SURFACE SENSIBLE AND LATENT HEAT FLUXES:                       
-      IF ( PRESENT(SCM_FORCE_FLUX) ) THEN
-         IF (SCM_FORCE_FLUX.EQ.1) GOTO 350              
-      ENDIF
+!!!   IF ( PRESENT(SCM_FORCE_FLUX) ) THEN
+!!!       IF (SCM_FORCE_FLUX.EQ.1) GOTO 350              
+!!!   ENDIF
+      IF ( .NOT. ( PRESENT(SCM_FORCE_FLUX) .AND. SCM_FORCE_FLUX.EQ.1 ) ) THEN
+!$acc parallel vector_length(32)
+!$acc loop gang vector
       DO i=its,ite
         QFX(i)=0.                                                              
         HFX(i)=0.                                                              
       ENDDO
-  350 CONTINUE
+!$acc end parallel
+      ENDIF
+!-!-!$acc update host(QFX,HFX)
+!!!  350 CONTINUE
 
-      IF (ISFFLX.EQ.0) GOTO 410                                                
+!!!      IF (ISFFLX.EQ.0) GOTO 410                                                
+    IF (ISFFLX.NE.0) THEN
                                                                                  
 !-----OVER WATER, ALTER ROUGHNESS LENGTH (ZNT) ACCORDING TO WIND (UST).
                                                                                  
-      DO 360 I=its,ite
+!!!      DO 360 I=its,ite
+!$acc parallel vector_length(32)
+!$acc loop gang vector private(ZW,ZN1,ZN2,ZL,DTTHX)
+      DO I=its,ite
         IF((XLAND(I)-1.5).GE.0)THEN                                            
 !         ZNT(I)=CZO*UST(I)*UST(I)/G+OZO                                   
 ! Since V3.7 (ref: EC Physics document for Cy36r1)
@@ -879,62 +963,77 @@ CONTAINS
         IF(DTTHX.GT.1.E-5)THEN                                                   
           FLHC(I)=CPM(I)*RHOX(I)*UST(I)*MOL(I)/(THX(I)-THGB(I))          
 !         write(*,1001)FLHC(I),CPM(I),RHOX(I),UST(I),MOL(I),THX(I),THGB(I),I
- 1001   format(f8.5,2x,f12.7,2x,f12.10,2x,f12.10,2x,f13.10,2x,f12.8,f12.8,2x,i3)
+! 1001   format(f8.5,2x,f12.7,2x,f12.10,2x,f12.10,2x,f13.10,2x,f12.8,f12.8,2x,i3)
         ELSE                                                                     
           FLHC(I)=0.                                                             
         ENDIF                                                                    
-  360 CONTINUE
+     END DO
+!$acc end parallel
+!-!-!$acc update host(ZNT,FLQC,FLHC)
+!!!  360 CONTINUE
 
 !                                                                                
 !-----COMPUTE SURFACE MOIST FLUX:                                               
 !
 !     IF(IDRY.EQ.1)GOTO 390
-     IF ( PRESENT(SCM_FORCE_FLUX) ) THEN
-        IF (SCM_FORCE_FLUX.EQ.1) GOTO 405                                     
-     ENDIF
+!!!  IF ( PRESENT(SCM_FORCE_FLUX) ) THEN
+!!!       IF (SCM_FORCE_FLUX.EQ.1) GOTO 405                                     
+!!!  ENDIF
+     IF ( .NOT. ( PRESENT(SCM_FORCE_FLUX) .AND. (SCM_FORCE_FLUX.EQ.1) ) ) THEN
 !                                                                               
-      DO 370 I=its,ite
-        QFX(I)=FLQC(I)*(QSFC(I)-QX(I))                                     
-        QFX(I)=AMAX1(QFX(I),0.)                                            
-        LH(I)=XLV*QFX(I)
-  370 CONTINUE                                                                 
+!!!      DO 370 I=its,ite
+!$acc parallel vector_length(32)
+!$acc loop gang vector
+        DO I=its,ite
+          QFX(I)=FLQC(I)*(QSFC(I)-QX(I))                                     
+          QFX(I)=AMAX1(QFX(I),0.)                                            
+          LH(I)=XLV*QFX(I)
+        END DO                                                               
+!!!  370 CONTINUE                                                                 
                                                                                 
 !-----COMPUTE SURFACE HEAT FLUX:                                                 
 !                                                                                
-  390 CONTINUE                                                                 
-      DO 400 I=its,ite
-        IF(XLAND(I)-1.5.GT.0.)THEN                                           
-          HFX(I)=FLHC(I)*(THGB(I)-THX(I))                                
+!!!  390 CONTINUE                                                                 
+!!!      DO 400 I=its,ite
+!$acc loop gang vector
+        DO I=its,ite
+          IF(XLAND(I)-1.5.GT.0.)THEN                                           
+            HFX(I)=FLHC(I)*(THGB(I)-THX(I))                                
 !         IF ( PRESENT(ISFTCFLX) ) THEN
 !            IF ( ISFTCFLX.NE.0 ) THEN
 ! AHW: add dissipative heating term (commented out in 3.6.1)
 !               HFX(I)=HFX(I)+RHOX(I)*USTM(I)*USTM(I)*WSPDI(I)
 !            ENDIF
 !         ENDIF
-        ELSEIF(XLAND(I)-1.5.LT.0.)THEN                                       
-          HFX(I)=FLHC(I)*(THGB(I)-THX(I))                                
-          HFX(I)=AMAX1(HFX(I),-250.)                                       
-        ENDIF                                                                  
-  400 CONTINUE                                                                 
-
-  405 CONTINUE                                                                 
-         
-      DO I=its,ite
-         IF((XLAND(I)-1.5).GE.0)THEN
-           ZL=ZNT(I)
-         ELSE
-           ZL=0.01
-         ENDIF
-         CHS(I)=UST(I)*KARMAN/DENOMQ(I)
-!        GZ2OZ0(I)=ALOG(2./ZNT(I))
-!        PSIM2(I)=-10.*GZ2OZ0(I)
-!        PSIM2(I)=AMAX1(PSIM2(I),-10.)
-!        PSIH2(I)=PSIM2(I)
-         CQS2(I)=UST(I)*KARMAN/DENOMQ2(I)
-         CHS2(I)=UST(I)*KARMAN/DENOMT2(I)
-      ENDDO
-                                                                        
-  410 CONTINUE                                                                   
+          ELSEIF(XLAND(I)-1.5.LT.0.)THEN                                       
+            HFX(I)=FLHC(I)*(THGB(I)-THX(I))                                
+            HFX(I)=AMAX1(HFX(I),-250.)                                       
+          ENDIF                                                                  
+       END DO                                                                 
+!$acc end parallel
+!!!  400 CONTINUE                                                                 
+    END IF
+!!!  405 CONTINUE                                                                 
+!$acc parallel vector_length(32)
+!$acc loop gang vector private(ZL)         
+        DO I=its,ite
+          IF((XLAND(I)-1.5).GE.0)THEN
+            ZL=ZNT(I)
+          ELSE
+            ZL=0.01
+          ENDIF
+          CHS(I)=UST(I)*KARMAN/DENOMQ(I)
+!         GZ2OZ0(I)=ALOG(2./ZNT(I))
+!         PSIM2(I)=-10.*GZ2OZ0(I)
+!         PSIM2(I)=AMAX1(PSIM2(I),-10.)
+!         PSIH2(I)=PSIM2(I)
+          CQS2(I)=UST(I)*KARMAN/DENOMQ2(I)
+          CHS2(I)=UST(I)*KARMAN/DENOMT2(I)
+        ENDDO
+!$acc end parallel
+!-!-!$acc update host(QFX,LH,HFX,CHS,CQS2,CHS2)
+   ENDIF
+!!!  410 CONTINUE                                                                   
 !jdf
 !     DO I=its,ite
 !       IF(UST(I).GE.0.1) THEN
@@ -944,7 +1043,7 @@ CONTAINS
 !       ENDIF
 !     ENDDO
 !jdf
-
+!$acc end data
 !                                                                                
    END SUBROUTINE SFCLAY1D
 
@@ -963,6 +1062,7 @@ CONTAINS
       Y=(1-16*ZOLN)**0.5
       PSIHTB(N)=2*ALOG(0.5*(1+Y))
    ENDDO
+!$acc update device(PSIMTB,PSIHTB)
 
    END SUBROUTINE sfclayinit
 

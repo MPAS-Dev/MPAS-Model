@@ -715,6 +715,7 @@
  enddo
 
  if(config_frac_seaice) then
+!$acc update host(chs_sea,chs2_sea,cqs2_sea,cpm_sea,hfx_sea,lh_sea,qfx_sea,qgh_sea,qsfc_sea,tsk_sea)
     do j = jts,jte
     do i = its,ite
        if(xice_p(i,j).ge.xice_threshold .and. xice_p(i,j).le.1._RKIND) then
