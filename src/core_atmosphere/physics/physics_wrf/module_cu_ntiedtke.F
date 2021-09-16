@@ -1958,7 +1958,7 @@ contains
 !!!      endif
 !!!   enddo
 !!!   if(is.eq.0) exit
-      if  ( flag .eq. .false. ) exit
+      if  ( .not. flag ) exit
 
 ! the next levels, we use the variables at the first level as initial values
 !$acc parallel vector_length(128)
@@ -3324,7 +3324,7 @@ contains
         enddo                                                             
 !$acc end parallel
 !!!     if(is.eq.0) cycle                                                 
-        if ( flag .eq. .true. ) then
+        if ( flag ) then
                                                                           
 !$acc parallel vector_length(128)
 !$acc loop gang vector private(zentr)
