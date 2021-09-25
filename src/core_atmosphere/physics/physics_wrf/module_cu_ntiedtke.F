@@ -2492,7 +2492,7 @@ contains
       real     pdmfen(klon,klev),      pmfude_rate(klon,klev)
 ! local variables
       integer  jl,jk
-      integer  ikb,icum,itopm2,ik,icall,is,kcum,jlm,jll
+      integer  ikb,icum,itopm2,ik,icall,is,kcum,jll
 !!!   integer  jlx(klon)
       real     ztmst,zcons2,zfacbuo,zprcdgw,z_cwdrag,z_cldmax,z_cwifrac,z_cprc2
       real     zmftest,zmfmax,zqeen,zseen,zscde,zqude
@@ -2611,7 +2611,7 @@ contains
      &     pqu,      plu,      puu,     pvu,      pmfus,&
      &     pmfuq,    pmful,    pdmfup)
       is = 0
-      jlm = 0
+!!!      jlm = 0
 !$acc parallel vector_length(128)
 !$acc loop vector private(zmfmax,zfac) reduction(+:is)
       do jl = 1,klon
@@ -2729,9 +2729,9 @@ contains
       ik=jk
       icall=1
 !
-      if ( jlm > 0 ) then
+!!!      if ( jlm > 0 ) then
         call cuadjtqn(klon,klev,ik,zph,ptu,pqu,loflag,icall)
-      end if
+!!!      end if
 ! compute the upfraft speed in cloud layer
 !$acc parallel vector_length(128)
 !$acc loop vector private(jl)
