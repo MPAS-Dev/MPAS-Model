@@ -673,19 +673,19 @@
  call mpas_pool_get_array_gpu(tend_physics,'rqccuten',rqccuten)
  call mpas_pool_get_array_gpu(tend_physics,'rqicuten',rqicuten)
 
- do j = jts,jte
 !$acc parallel vector_length(32)
-!$acc loop gang vector
+!$acc loop gang vector collapse(2)
+ do j = jts,jte
  do i = its,ite
     raincv_p(i,j) = raincv(i)
     pratec_p(i,j) = cuprec(i)
  enddo
-!$acc end parallel
  enddo
+!$acc end parallel
 
- do j = jts,jte
 !$acc parallel vector_length(32)
-!$acc loop gang vector collapse(2)
+!$acc loop gang vector collapse(3)
+ do j = jts,jte
  do i = its,ite
  do k = kts,kte
     rthcuten_p(i,k,j) = rthcuten(k,i)
@@ -694,8 +694,8 @@
     rqicuten_p(i,k,j) = rqicuten(k,i)
  enddo
  enddo
-!$acc end parallel
  enddo
+!$acc end parallel
 
  convection_select: select case(convection_scheme)
 
@@ -821,28 +821,28 @@
        call mpas_pool_get_array_gpu(tend_physics,'rucuten'  ,rucuten  )
        call mpas_pool_get_array_gpu(tend_physics,'rvcuten'  ,rvcuten  )
 
-       do j = jts,jte
 !$acc parallel vector_length(32)
-!$acc loop gang vector
+!$acc loop gang vector collapse(2)
+       do j = jts,jte
        do i = its,ite
           xland_p(i,j) = xland(i)
           hfx_p(i,j)   = hfx(i)
           qfx_p(i,j)   = qfx(i)
        enddo
-!$acc end parallel
        enddo
+!$acc end parallel
 
-       do j = jts,jte
 !$acc parallel vector_length(32)
-!$acc loop gang vector collapse(2)
+!$acc loop gang vector collapse(3)
+       do j = jts,jte
        do i = its,ite
        do k = kts,kte
           rucuten_p(i,k,j) = rucuten(k,i)
           rvcuten_p(i,k,j) = rvcuten(k,i)
        enddo
        enddo
-!$acc end parallel
        enddo
+!$acc end parallel
 
        cu_tiedtke_select: select case(convection_scheme)
 
@@ -868,18 +868,18 @@
              call mpas_pool_get_array_gpu(tend_physics,'rthratenlw',rthratenlw)
              call mpas_pool_get_array_gpu(tend_physics,'rthratensw',rthratensw)
 
-             do j = jts,jte
 !$acc parallel vector_length(32)
-!$acc loop gang vector
+!$acc loop gang vector collapse(2)
+             do j = jts,jte
              do i = its,ite
                 dx_p(i,j) = len_disp / meshDensity(i)**0.25
              enddo
-!$acc end parallel
              enddo
+!$acc end parallel
 
-             do j = jts,jte
 !$acc parallel vector_length(32)
-!$acc loop gang vector collapse(2)
+!$acc loop gang vector collapse(3)
+             do j = jts,jte
              do i = its,ite
              do k = kts,kte
                 rqvften_p(i,k,j) = rqvdynten(k,i) + rqvblten(k,i)
@@ -887,8 +887,8 @@
                                  + rthratenlw(k,i) + rthratensw(k,i)) * pi_p(i,k,j)
              enddo
              enddo
-!$acc end parallel
              enddo
+!$acc end parallel
 
           case default
 
@@ -937,19 +937,19 @@
  call mpas_pool_get_array_gpu(tend_physics,'rqccuten',rqccuten)
  call mpas_pool_get_array_gpu(tend_physics,'rqicuten',rqicuten)
 
- do j = jts,jte
 !$acc parallel vector_length(32)
-!$acc loop gang vector
+!$acc loop gang vector collapse(2)
+ do j = jts,jte
  do i = its,ite
     raincv(i) = raincv_p(i,j)
     cuprec(i) = pratec_p(i,j)
  enddo
-!$acc end parallel
  enddo
+!$acc end parallel
 
- do j = jts,jte
 !$acc parallel vector_length(32)
-!$acc loop gang vector collapse(2)
+!$acc loop gang vector collapse(3)
+ do j = jts,jte
  do k = kts, kte
  do i = its,ite
     rthcuten(k,i) = rthcuten_p(i,k,j)
@@ -958,8 +958,8 @@
     rqicuten(k,i) = rqicuten_p(i,k,j)
  enddo
  enddo
-!$acc end parallel
  enddo
+!$acc end parallel
 
  convection_select: select case(convection_scheme)
 
@@ -1032,17 +1032,17 @@
        call mpas_pool_get_array_gpu(tend_physics,'rucuten',rucuten)
        call mpas_pool_get_array_gpu(tend_physics,'rvcuten',rvcuten)
 
-       do j = jts,jte
 !$acc parallel vector_length(32)
-!$acc loop gang vector collapse(2)
+!$acc loop gang vector collapse(3)
+       do j = jts,jte
        do k = kts,kte
        do i = its,ite
           rucuten(k,i) = rucuten_p(i,k,j)
           rvcuten(k,i) = rvcuten_p(i,k,j)
        enddo
        enddo
-!$acc end parallel
        enddo
+!$acc end parallel
 !!!  For the ntiedke we will use the GPU copy. If we actually use the tiedke (before porting it) then we would need the below:
 !!!$acc update host(rucuten,rvcuten)
 
