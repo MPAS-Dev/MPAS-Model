@@ -490,7 +490,7 @@ contains
             do i=its,ite
               rqccuten(i,k,j)=(q2(i,kte+1-k)-qc3d(i,k,j))*rdelt
             enddo
-            pp = pp + 1
+!!!         pp = pp + 1
           enddo
 !$acc end parallel
         endif
@@ -1478,15 +1478,15 @@ contains
         do jl = 1,klon
           if ( ldcum(jl) ) then
             if ( jk == idtop(jl) ) then
-              zud(jl,jk) = 0.5*(zuu(jl,jk)+puen(jl,jk+1))
-              zvd(jl,jk) = 0.5*(zvu(jl,jk)+pven(jl,jk+1))
+              zud(jl,jk) = 0.5*(zuu(jl,jk)+puen(jl,jk-1))
+              zvd(jl,jk) = 0.5*(zvu(jl,jk)+pven(jl,jk-1))
             else if ( jk > idtop(jl) ) then
-              zerate = -pmfd(jl,jk) + pmfd(jl,jk+1) + pmfdde_rate(jl,jk)
+              zerate = -pmfd(jl,jk) + pmfd(jl,jk-1) + pmfdde_rate(jl,jk)
               zmfa = 1./min(-cmfcmin,pmfd(jl,jk))
-              zud(jl,jk) = (zud(jl,jk+1)*pmfd(jl,jk+1) - &
-                zerate*puen(jl,jk+1)+pmfdde_rate(jl,jk)*zud(jl,jk+1))*zmfa
-              zvd(jl,jk) = (zvd(jl,jk+1)*pmfd(jl,jk+1) - &
-                zerate*pven(jl,jk+1)+pmfdde_rate(jl,jk)*zvd(jl,jk+1))*zmfa
+              zud(jl,jk) = (zud(jl,jk-1)*pmfd(jl,jk-1) - &
+                zerate*puen(jl,jk-1)+pmfdde_rate(jl,jk)*zud(jl,jk-1))*zmfa
+              zvd(jl,jk) = (zvd(jl,jk-1)*pmfd(jl,jk-1) - &
+                zerate*pven(jl,jk-1)+pmfdde_rate(jl,jk)*zvd(jl,jk-1))*zmfa
             end if
           end if
         end do
