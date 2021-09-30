@@ -2618,8 +2618,7 @@ contains
         loflag(jl) = .false.
         zprecip(jl) = 0.
         llo1(jl) = .false.
-!!!     is = is + klab(jl,jk+1)
-        is = klab(jl,jk+1)
+        is = is + klab(jl,jk+1)
         if ( klab(jl,jk+1) == 0 ) klab(jl,jk) = 0
         if ( (ldcum(jl) .and. klab(jl,jk+1) == 2) .or.   &
              (ktype(jl) == 3 .and. klab(jl,jk+1) == 1) ) then
