@@ -58,9 +58,7 @@
  ! that the cell has not received any mappings and needs to be processed. Returning .false.
  ! will indicate that the cell has received mappings and does not need to be processed.
  abstract interface
-    function interp_criteria_function(mgr, iCell)
-        use mpas_geotile_manager, only : mpas_geotile_mgr_type
-        type (mpas_geotile_mgr_type), intent(in) :: mgr
+    function interp_criteria_function(iCell)
         integer, intent(in) :: iCell
         logical :: interp_criteria_function
     end function interp_criteria_function
@@ -72,10 +70,8 @@
  ! ignoring pixels over water), this routine allows interpolations to differ according
  ! to each dataset's needs
  abstract interface
-    subroutine interp_accumulation_function(mgr, iCell, pixel)
+    subroutine interp_accumulation_function(iCell, pixel)
         use mpas_derived_types, only : I8KIND
-        use mpas_geotile_manager, only : mpas_geotile_mgr_type
-        type (mpas_geotile_mgr_type), intent(in) :: mgr
         integer, intent(in) :: iCell
         ! Note: Datasets that are have one grid point in the z direction (tile_z = 1)
         ! will need to access pixel values as pixel(1)
@@ -1683,7 +1679,7 @@
         ! Insure all cells receive values by loading tiles that have not received values and
         ! pushing them onto the stack.
         !
-        if (interp_criteria(mgr, iCell)) then
+        if (interp_criteria(iCell)) then
             tile => null()
             ierr = mgr % get_tile(latCell(iCell), lonCell(iCell), tile)
             if (ierr /= 0 .or. .not. associated(tile)) then
@@ -1739,7 +1735,7 @@
                     !
                     ! Send the entire pixel column to the accumulation method
                     !
-                    call accumulation_method(mgr, res % id, int(tile % tile(ii,jj,:), kind=I8KIND))
+                    call accumulation_method(res % id, int(tile % tile(ii,jj,:), kind=I8KIND))
 
                     if (res % id <= nCellsSolve) then
                         all_pixels_mapped_to_halo_cells = .false.
