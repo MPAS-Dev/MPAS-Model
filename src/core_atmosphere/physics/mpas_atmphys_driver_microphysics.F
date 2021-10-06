@@ -279,6 +279,8 @@
  subroutine driver_microphysics(configs,mesh,state,time_lev,diag,diag_physics,tend,itimestep,its,ite)
 !=================================================================================================================
 
+ use mpas_constants, only : rvord
+
 !input arguments:
  type(mpas_pool_type),intent(in):: configs
  type(mpas_pool_type),intent(in):: mesh
@@ -303,7 +305,6 @@
 !Calculate dtheta_dt_mp (NS: 2018-04-24)
 !Store theta, call microphysics->updates theta, calculate tendency
  integer, pointer :: nCells, nVertLevels, index_qv
- real(kind=RKIND) :: rvord
  real(kind=RKIND), dimension(:,:), pointer :: dtheta_dt_mp, theta_m
  real (kind=RKIND), dimension(:,:,:), pointer :: scalars
 
@@ -317,7 +318,6 @@
  
  !initialize to theta before microphysics call. 
  !I think the physics call actually updates variables, not generate a tendency.
- rvord = R_v/R_d
  do icell=1,nCells
   do k=1,nVertLevels
     dtheta_dt_mp(k,icell) = theta_m(k,icell) / (1._RKIND + rvord * scalars(index_qv,k,icell))
