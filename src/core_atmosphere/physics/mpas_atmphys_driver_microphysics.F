@@ -440,9 +440,6 @@
 
 !Calculate dtheta_dt_mp (NS: 2018-04-24)
 !From stored dtheta_dt_mp, calculate changeInTheta/timeStep
- call mpas_pool_get_array(state, 'theta_m', theta_m, time_lev)
- call mpas_pool_get_array(diag, 'dtheta_dt_mp', dtheta_dt_mp)
- call mpas_pool_get_array(state, 'scalars', scalars, time_lev)
  do icell=1,nCells
     do k=1,nVertLevels
        dtheta_dt_mp(k,icell) = (theta_m(k,icell)/(1._RKIND+rvord*scalars(index_qv,k,icell)) - dtheta_dt_mp(k,icell))/(dt_dyn)
