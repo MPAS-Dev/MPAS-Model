@@ -58,9 +58,7 @@
  ! that the cell has not received any mappings and needs to be processed. Returning .false.
  ! will indicate that the cell has received mappings and does not need to be processed.
  abstract interface
-    function interp_criteria_function(mgr, iCell)
-        use mpas_geotile_manager, only : mpas_geotile_mgr_type
-        type (mpas_geotile_mgr_type), intent(in) :: mgr
+    function interp_criteria_function(iCell)
         integer, intent(in) :: iCell
         logical :: interp_criteria_function
     end function interp_criteria_function
@@ -72,16 +70,26 @@
  ! ignoring pixels over water), this routine allows interpolations to differ according
  ! to each dataset's needs
  abstract interface
-    subroutine interp_accumulation_function(mgr, iCell, pixel)
+    subroutine interp_accumulation_function(iCell, pixel)
         use mpas_derived_types, only : I8KIND
-        use mpas_geotile_manager, only : mpas_geotile_mgr_type
-        type (mpas_geotile_mgr_type), intent(in) :: mgr
         integer, intent(in) :: iCell
         ! Note: Datasets that are have one grid point in the z direction (tile_z = 1)
         ! will need to access pixel values as pixel(1)
         integer (kind=I8KIND), dimension(:), intent(in) :: pixel
     end subroutine interp_accumulation_function
  end interface
+
+ !
+ ! Module level variables needed for the unified static interpolation function. This is not
+ ! ideal, a better solution would be to have these variables reside in each interpolation
+ ! function (e.g. interp_terrain) and then have the criteria and accumulation functions
+ ! be internal/nested subroutines; however, passing a nested subroutine (internal
+ ! subroutine) as an actual argument is not allowed in the 2003 standard (Section
+ ! 12.1.2.2 of the Fortran standard) and currently, only PGI does not support this, so
+ ! use module level variables for now...
+ !
+ integer (kind=I8KIND), dimension(:), pointer :: ter_integer
+ integer, dimension(:), pointer :: nhs
 
  contains
 
@@ -152,8 +160,6 @@
  real (kind=RKIND), dimension(:), pointer :: latEdge, lonEdge
  real (kind=RKIND), dimension(:), pointer :: fEdge, fVertex
 
- real (kind=RKIND), dimension(:), pointer :: ter
- integer (kind=I8KIND), dimension(:), pointer :: ter_integer
  integer (kind=I8KIND), dimension(:,:), pointer :: greenfrac_int
  real (kind=RKIND), dimension(:), pointer :: soiltemp
  real (kind=RKIND), dimension(:), pointer :: snoalb
@@ -180,7 +186,6 @@
  type (mpas_geotile_mgr_type) :: mgr
  type (mpas_geotile_type), pointer :: tile
 
- real (kind=RKIND) :: tval
  integer (kind=I8KIND) :: i8val
  integer, pointer :: tile_bdr
  integer, pointer :: tile_nx, tile_ny, tile_nz
@@ -242,7 +247,6 @@
  call mpas_pool_get_array(mesh, 'cellsOnCell', cellsOnCell)
  call mpas_pool_get_array(mesh, 'verticesOnCell', verticesOnCell)
 
- call mpas_pool_get_array(mesh, 'ter', ter)
  call mpas_pool_get_array(mesh, 'lu_index', lu_index)
  call mpas_pool_get_array(mesh, 'mminlu', mminlu)
  call mpas_pool_get_array(mesh, 'isice_lu', isice_lu)
@@ -331,7 +335,6 @@
          call mpas_log_write('Please correct the namelist.', messageType=MPAS_LOG_CRIT)
  end select surface_input_select0
 
-
 !
 ! Interpolate HGT
 !
@@ -351,130 +354,8 @@
        call mpas_log_write('Please correct the namelist.', messageType=MPAS_LOG_CRIT)
  end select
 
- ierr = mgr % init(trim(config_geog_data_path)//trim(geog_sub_path))
- if (ierr /= 0) then
-    call mpas_log_write('Error occured when initalizing the interpolation of terrain height (ter)', messageType=MPAS_LOG_CRIT)
- endif
-
-
- allocate(ter_integer(nCells))
- allocate(nhs(nCells))
-
- !
- ! Store tile values as a I8KIND integer temporarily to avoid floating
- ! point round off differences and to have +/- 9.22x10^18 range of representative
- ! values. For example, a 120 km mesh with a 1 meter data set with 6 decimal of
- ! precision will allow for values of 180x10^12.
- !
- ter_integer(:) = 0_I8KIND
- ter(:) = 0.0_RKIND
- nhs(:) = 0
-
- call mpas_pool_get_config(mgr % pool, 'tile_bdr', tile_bdr)
- call mpas_pool_get_config(mgr % pool, 'tile_x', tile_nx)
- call mpas_pool_get_config(mgr % pool, 'tile_y', tile_ny)
- call mpas_pool_get_config(mgr % pool, 'scale_factor', scalefactor_ptr)
- scalefactor = scalefactor_ptr
-
- do iCell = 1, nCells
-     !
-     ! Load the tile at each cell center. This insures all cells receive values
-     !
-     if (nhs(iCell) == 0) then
-         tile => null()
-         ierr = mgr % get_tile(latCell(iCell), lonCell(iCell), tile)
-         if (ierr /= 0 .or. .not. associated(tile)) then
-             call mpas_log_write('Could not get tile that contained cell $i', intArgs=(/iCell/), messageType=MPAS_LOG_CRIT)
-         end if
-
-         ierr = mgr % push_tile(tile)
-         if (ierr /= 0) then
-             call mpas_log_write("Error pushing this tile onto the stack: "//trim(tile%fname), messageType=MPAS_LOG_CRIT)
-         end if
-     end if
-
-     !
-     ! Process each tile by removing it from the stack. Determine the closest cell center to each tile
-     ! pixel by using a KD search and assign its value to that cell.
-     !
-     do while (.not. mgr % is_stack_empty())
-         tile => mgr % pop_tile()
-
-         if (tile % is_processed) then
-             cycle
-         end if
-
-         call mpas_log_write('Processing tile: '//trim(tile%fname))
-
-         all_pixels_mapped_to_halo_cells = .true.
-
-         do j = 1 + tile_bdr, tile_ny + tile_bdr, 1
-            do i = 1 + tile_bdr, tile_nx + tile_bdr, 1
-
-               tval = tile % tile(i, j, 1)
-
-               call mgr % tile_to_latlon(tile, j, i, lat_pt, lon_pt)
-               call mpas_latlon_to_xyz(xPixel, yPixel, zPixel, sphere_radius, lat_pt, lon_pt)
-               call mpas_kd_search(tree, (/xPixel, yPixel, zPixel/), res)
-
-               !
-               ! For all but the outermost boundary cells, we can safely assume that the nearest
-               ! model grid cell contains the pixel (else, a different cell would be nearest)
-               !
-               if (bdyMaskCell(res % id) < nBdyLayers) then
-                  ter_integer(res % id) = ter_integer(res % id) + int(tval, kind=I8KIND)
-                  nhs(res % id) = nhs(res % id) + 1
-
-                  if (res % id <= nCellsSolve) then
-                      all_pixels_mapped_to_halo_cells = .false.
-                  end if
-
-               ! For outermost boundary cells, additional work is needed to verify that the pixel
-               ! actually lies within the nearest cell
-               else
-                  if (mpas_in_cell(xPixel, yPixel, zPixel, xCell(res % id), yCell(res % id), zCell(res % id), &
-                                   nEdgesOnCell(res % id), verticesOnCell(:,res % id), xVertex, yVertex, zVertex)) then
-
-                     ter_integer(res % id) = ter_integer(res % id) + int(tval, kind=I8KIND)
-                     nhs(res % id) = nhs(res % id) + 1
-
-                     if (res % id <= nCellsSolve) then
-                         all_pixels_mapped_to_halo_cells = .false.
-                     end if
-                  end if
-               end if
-            end do
-        end do
-
-        tile % is_processed = .true.
-
-        !
-        ! If a single pixel value maps to an owned cell (i.e. <= nCellsSolve) then
-        ! it is possible that the neighboring tiles might contain pixels that map
-        ! to this process' compute cells, so add them to the stack.
-        !
-        if (.not. all_pixels_mapped_to_halo_cells) then
-            ierr = mgr % push_neighbors(tile)
-            if (ierr /= 0) then
-                call mpas_log_write("Error pushing the tile neighbors of: "//trim(tile%fname), messageType=MPAS_LOG_CRIT)
-            end if
-        end if
-     end do
- end do
-
- do iCell = 1, nCells
-    ter(iCell) = real(real(ter_integer(iCell), kind=R8KIND) / real(nhs(iCell), kind=R8KIND), kind=RKIND)
-    ter(iCell) = ter(iCell) * scalefactor
- end do
-
- deallocate(ter_integer)
- deallocate(nhs)
-
- ierr = mgr % finalize()
- if (ierr /= 0) then
-    call mpas_log_write('Error occured when finalizing the interpolation of terrain height (ter)', messageType=MPAS_LOG_CRIT)
- endif
-
+ call mpas_log_write('--- start interpolate TER')
+ call interp_terrain(mesh, tree, trim(config_geog_data_path)//trim(geog_sub_path))
  call mpas_log_write('--- end interpolate TER')
 
 
@@ -1683,7 +1564,7 @@
         ! Insure all cells receive values by loading tiles that have not received values and
         ! pushing them onto the stack.
         !
-        if (interp_criteria(mgr, iCell)) then
+        if (interp_criteria(iCell)) then
             tile => null()
             ierr = mgr % get_tile(latCell(iCell), lonCell(iCell), tile)
             if (ierr /= 0 .or. .not. associated(tile)) then
@@ -1739,7 +1620,7 @@
                     !
                     ! Send the entire pixel column to the accumulation method
                     !
-                    call accumulation_method(mgr, res % id, int(tile % tile(ii,jj,:), kind=I8KIND))
+                    call accumulation_method(res % id, int(tile % tile(ii,jj,:), kind=I8KIND))
 
                     if (res % id <= nCellsSolve) then
                         all_pixels_mapped_to_halo_cells = .false.
@@ -1761,6 +1642,136 @@
     end do
 
  end subroutine init_atm_map_static_data
+
+
+!--------------------------------------------------------------------------------------------------
+! Terrain interpolation
+!--------------------------------------------------------------------------------------------------
+
+ !***********************************************************************
+ !
+ !  routine continuous_interp_criteria
+ !
+ !> \brief   Continuous dataset interpolation criteria
+ !> \author  Miles Curry
+ !> \date    25 January 2020
+ !> \details
+ !> This routine can be used to determine if the tile that contains iCell needs
+ !> to be loaded and processed by init_atm_map_static_data for continuous datasets.
+ !
+ !-----------------------------------------------------------------------
+ function continuous_interp_criteria(iCell)
+
+     integer, intent(in) :: iCell
+     logical :: continuous_interp_criteria
+
+     continuous_interp_criteria = .false.
+
+     if (nhs(iCell) == 0) then
+         continuous_interp_criteria = .true.
+     end if
+
+ end function continuous_interp_criteria
+
+
+ !***********************************************************************
+ !
+ !  routine terrain_interp_accumulation
+ !
+ !> \brief   Accumulate terrain dataset values
+ !> \author  Miles Curry
+ !> \date    25 January 2020
+ !> \details
+ !> This routine accumulates terrain values for the init_atm_map_static_data unified
+ !> function.
+ !
+ !-----------------------------------------------------------------------
+ subroutine terrain_interp_accumulation(iCell, pixel)
+
+     integer, intent(in) ::iCell
+     integer (kind=I8KIND), dimension(:), intent(in) :: pixel
+
+     ter_integer(iCell) = ter_integer(iCell) + int(pixel(1), kind=I8KIND)
+     nhs(iCell) = nhs(iCell) + 1
+
+ end subroutine terrain_interp_accumulation
+
+
+ !***********************************************************************
+ !
+ !  routine interp_terrain
+ !
+ !> \brief   Interpolate terrain
+ !> \author  Miles Curry
+ !> \date    25 January 2020
+ !> \details
+ !> Interpolate terrain by using the init_atm_map_static_data routine and
+ !> accumulating pixel values into cells using terrain_interp_accumulation.
+ !> mesh, should be a mpas_pool that contains ter and the nCells dimension. kdtree
+ !> should be a initialized kdtree of (xCell, yCell, zCell), and geog_data_path
+ !> should be the path to the terrain dataset.
+ !
+ !-----------------------------------------------------------------------
+ subroutine interp_terrain(mesh, kdtree, geog_data_path)
+
+    implicit none
+
+    ! Input variables
+    type (mpas_pool_type), intent(inout) :: mesh
+    type (mpas_kd_type), pointer, intent(in) :: kdtree
+    character (len=*), intent(in) :: geog_data_path
+
+    ! Local variables
+    type (mpas_geotile_mgr_type) :: mgr
+    integer, pointer :: nCells
+
+    real (kind=RKIND), dimension(:), pointer :: ter
+
+    real (kind=RKIND), pointer :: scalefactor
+
+    integer :: iCell
+    integer :: ierr
+
+    ierr = mgr % init(trim(geog_data_path))
+    if (ierr /= 0) then
+        call mpas_log_write("Error occurred initializing interpolation for "//trim(geog_data_path), messageType=MPAS_LOG_CRIT)
+        return ! Program execution should not reach this statement since the preceding message is a critical error
+    end if
+
+    call mpas_pool_get_dimension(mesh, 'nCells', nCells)
+    call mpas_pool_get_array(mesh, 'ter', ter)
+    call mpas_pool_get_config(mgr % pool, 'scale_factor', scalefactor)
+
+    allocate(ter_integer(nCells))
+    allocate(nhs(nCells))
+
+    !
+    ! Store tile values as a I8KIND integer temporarily to avoid floating
+    ! point round off differences and to have +/- 9.22x10^18 range of representative
+    ! values. For example, a 120 km mesh with a 1 meter data set with 6 decimal of
+    ! precision will allow for values of 180x10^12.
+    !
+    ter(:) = 0.0
+    ter_integer(:) = 0
+    nhs(:) = 0
+
+    call init_atm_map_static_data(mesh, mgr, kdtree, continuous_interp_criteria, terrain_interp_accumulation)
+
+    do iCell = 1, nCells
+       ter(iCell) = real(real(ter_integer(iCell), kind=R8KIND) / real(nhs(iCell), kind=R8KIND), kind=RKIND)
+       ter(iCell) = ter(iCell) * scalefactor
+    end do
+
+    deallocate(ter_integer)
+    deallocate(nhs)
+
+    ierr = mgr % finalize()
+    if (ierr /= 0) then
+        call mpas_log_write("Error occurred finalizing interpolation for "//trim(geog_data_path), messageType=MPAS_LOG_CRIT)
+        return ! Program execution should not reach this statement since the preceding message is a critical error
+    end if
+
+ end subroutine interp_terrain
 
 
 !==================================================================================================
