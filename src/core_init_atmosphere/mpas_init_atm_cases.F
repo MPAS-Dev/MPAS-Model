@@ -1652,6 +1652,8 @@ module init_atm_cases
 !
 !    for reference sounding 
 !
+     qvb(:) = 0.0_RKIND
+
      do itr=1,30
 
       pitop = 1.-.5*dzw(1)*gravity*(1.+scalars(index_qv,1,1))/(cp*t(1,1)*zz(1,1))
