@@ -1457,7 +1457,7 @@ module pv_diagnostics
                depv_dt_mp(k,iCell) = 0.0_RKIND
             end if
             
-            if (associated(dtheta_dt_mp)) then
+            if (associated(dtheta_dt_mix)) then
                call calc_grad_cell(gradtheta, &
                                 iCell, k, nVertLevels, nEdgesOnCell(iCell), verticesOnCell, kiteAreasOnVertex, &
                                 cellsOnCell, edgesOnCell, cellsOnEdge, dvEdge, edgeNormalVectors, &
