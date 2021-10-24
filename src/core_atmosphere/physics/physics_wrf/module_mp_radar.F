@@ -71,7 +71,20 @@ MODULE module_mp_radar
       DOUBLE PRECISION, PARAMETER:: melt_outside_g = 0.9d0
 
       CHARACTER*256:: radar_debug
-
+!$acc declare create(pi5,lamda4)
+!$acc declare create(xxdg,xxds,xcrg,xcrg)
+!$acc declare create(xbm_g,xbm_s,xcse,xcsg)
+!$acc declare create(xocmg,xocms,xcge,xcgg)
+!$acc declare create(xobmg,xobms)
+!$acc declare create(radar_debug)
+!$acc declare create(xmu_g,xmu_s)
+!$acc declare create(simpson,xdts)
+!$acc declare create(xdtg)
+!$acc declare create(K_w)
+!$acc declare create(m_w_0,m_i_0,mixingrulestring_s,matrixstring_s,inclusionstring_s,hoststring_s)
+!$acc declare create(hostmatrixstring_s,hostinclusionstring_s,mixingrulestring_g,matrixstring_g)
+!$acc declare create(inclusionstring_g,hoststring_g,hostmatrixstring_g,hostinclusionstring_g)
+!$acc declare create(xam_g,xam_s,xcre,xam_r)
 CONTAINS
 
 !+---+-----------------------------------------------------------------+
@@ -275,7 +288,7 @@ CONTAINS
                      meltratio_outside, m_w, m_i, lambda, C_back,       &
                      mixingrule,matrix,inclusion,                       &
                      host,hostmatrix,hostinclusion)
-
+!$acc routine seq
       IMPLICIT NONE
 
       DOUBLE PRECISION, INTENT(in):: x_g, a_geo, b_geo, fmelt, lambda,  &
@@ -371,7 +384,7 @@ CONTAINS
       complex*16 function get_m_mix_nested (m_a, m_i, m_w, volair,      &
                      volice, volwater, mixingrule, host, matrix,        &
                      inclusion, hostmatrix, hostinclusion, cumulerror)
-
+!$acc routine seq
       IMPLICIT NONE
 
       DOUBLE PRECISION, INTENT(in):: volice, volair, volwater
@@ -393,11 +406,11 @@ CONTAINS
       if (host .eq. 'air') then
 
        if (matrix .eq. 'air') then
-        write(radar_debug,*) 'GET_M_MIX_NESTED: bad matrix: ', matrix
+!!!        write(radar_debug,*) 'GET_M_MIX_NESTED: bad matrix: ', matrix
 #if defined(mpas)
-        call physics_message(radar_debug)
+!!!        call physics_message(radar_debug)
 #else
-        CALL wrf_debug(150, radar_debug)
+!!!        CALL wrf_debug(150, radar_debug)
 #endif
         cumulerror = cumulerror + 1
        else
@@ -418,12 +431,12 @@ CONTAINS
                          'ice', hostinclusion, error)
          cumulerror = cumulerror + error
         else
-         write(radar_debug,*) 'GET_M_MIX_NESTED: bad hostmatrix: ',        &
-                           hostmatrix
+!!!         write(radar_debug,*) 'GET_M_MIX_NESTED: bad hostmatrix: ',        &
+!!!                           hostmatrix
 #if defined(mpas)
-        call physics_message(radar_debug)
+!!!        call physics_message(radar_debug)
 #else
-         CALL wrf_debug(150, radar_debug)
+!!!         CALL wrf_debug(150, radar_debug)
 #endif
          cumulerror = cumulerror + 1
         endif
@@ -432,11 +445,11 @@ CONTAINS
       elseif (host .eq. 'ice') then
 
        if (matrix .eq. 'ice') then
-        write(radar_debug,*) 'GET_M_MIX_NESTED: bad matrix: ', matrix
+!!!        write(radar_debug,*) 'GET_M_MIX_NESTED: bad matrix: ', matrix
 #if defined(mpas)
-        call physics_message(radar_debug)
+!!!        call physics_message(radar_debug)
 #else
-        CALL wrf_debug(150, radar_debug)
+!!!        CALL wrf_debug(150, radar_debug)
 #endif
         cumulerror = cumulerror + 1
        else
@@ -457,12 +470,12 @@ CONTAINS
                          'air', hostinclusion, error)
          cumulerror = cumulerror + error          
         else
-         write(radar_debug,*) 'GET_M_MIX_NESTED: bad hostmatrix: ',        &
-                           hostmatrix
+!!!         write(radar_debug,*) 'GET_M_MIX_NESTED: bad hostmatrix: ',        &
+!!!                           hostmatrix
 #if defined(mpas)
-        call physics_message(radar_debug)
+!!!        call physics_message(radar_debug)
 #else
-         CALL wrf_debug(150, radar_debug)
+!!!         CALL wrf_debug(150, radar_debug)
 #endif
          cumulerror = cumulerror + 1
         endif
@@ -471,11 +484,11 @@ CONTAINS
       elseif (host .eq. 'water') then
 
        if (matrix .eq. 'water') then
-        write(radar_debug,*) 'GET_M_MIX_NESTED: bad matrix: ', matrix
+!!!        write(radar_debug,*) 'GET_M_MIX_NESTED: bad matrix: ', matrix
 #if defined(mpas)
-        call physics_message(radar_debug)
+!!!        call physics_message(radar_debug)
 #else
-        CALL wrf_debug(150, radar_debug)
+!!!        CALL wrf_debug(150, radar_debug)
 #endif
         cumulerror = cumulerror + 1
        else
@@ -496,12 +509,12 @@ CONTAINS
                          'ice', hostinclusion, error)
          cumulerror = cumulerror + error          
         else
-         write(radar_debug,*) 'GET_M_MIX_NESTED: bad hostmatrix: ',         &
-                           hostmatrix
+!!!         write(radar_debug,*) 'GET_M_MIX_NESTED: bad hostmatrix: ',         &
+!!!                           hostmatrix
 #if defined(mpas)
-        call physics_message(radar_debug)
+!!!        call physics_message(radar_debug)
 #else
-         CALL wrf_debug(150, radar_debug)
+!!!         CALL wrf_debug(150, radar_debug)
 #endif
          cumulerror = cumulerror + 1
         endif
@@ -515,21 +528,21 @@ CONTAINS
        cumulerror = cumulerror + error
         
       else
-       write(radar_debug,*) 'GET_M_MIX_NESTED: unknown matrix: ', host
+!!!       write(radar_debug,*) 'GET_M_MIX_NESTED: unknown matrix: ', host
 #if defined(mpas)
-        call physics_message(radar_debug)
+!!!        call physics_message(radar_debug)
 #else
-       CALL wrf_debug(150, radar_debug)
+!!!       CALL wrf_debug(150, radar_debug)
 #endif
        cumulerror = cumulerror + 1
       endif
 
       IF (cumulerror .ne. 0) THEN
-       write(radar_debug,*) 'GET_M_MIX_NESTED: error encountered'
+!!!       write(radar_debug,*) 'GET_M_MIX_NESTED: error encountered'
 #if defined(mpas)
-        call physics_message(radar_debug)
+!!!        call physics_message(radar_debug)
 #else
-       CALL wrf_debug(150, radar_debug)
+!!!       CALL wrf_debug(150, radar_debug)
 #endif
        get_m_mix_nested = CMPLX(1.0d0,0.0d0)    
       endif
@@ -540,7 +553,7 @@ CONTAINS
 
       COMPLEX*16 FUNCTION get_m_mix (m_a, m_i, m_w, volair, volice,     &
                      volwater, mixingrule, matrix, inclusion, error)
-
+!$acc routine seq
       IMPLICIT NONE
 
       DOUBLE PRECISION, INTENT(in):: volice, volair, volwater
@@ -562,31 +575,31 @@ CONTAINS
         get_m_mix = m_complex_maxwellgarnett(volair, volwater, volice,  &
                            m_a, m_w, m_i, inclusion, error)
        else
-        write(radar_debug,*) 'GET_M_MIX: unknown matrix: ', matrix
+!!!        write(radar_debug,*) 'GET_M_MIX: unknown matrix: ', matrix
 #if defined(mpas)
-        call physics_message(radar_debug)
+!!!        call physics_message(radar_debug)
 #else
-        CALL wrf_debug(150, radar_debug)
+!!!        CALL wrf_debug(150, radar_debug)
 #endif
         error = 1
        endif
 
       else
-       write(radar_debug,*) 'GET_M_MIX: unknown mixingrule: ', mixingrule
+!!!       write(radar_debug,*) 'GET_M_MIX: unknown mixingrule: ', mixingrule
 #if defined(mpas)
-        call physics_message(radar_debug)
+!!!        call physics_message(radar_debug)
 #else
-       CALL wrf_debug(150, radar_debug)
+!!!       CALL wrf_debug(150, radar_debug)
 #endif
        error = 2
       endif
 
       if (error .ne. 0) then
-       write(radar_debug,*) 'GET_M_MIX: error encountered'
+!!!       write(radar_debug,*) 'GET_M_MIX: error encountered'
 #if defined(mpas)
-        call physics_message(radar_debug)
+!!!        call physics_message(radar_debug)
 #else
-       CALL wrf_debug(150, radar_debug)
+!!!       CALL wrf_debug(150, radar_debug)
 #endif
       endif
 
@@ -596,7 +609,7 @@ CONTAINS
 
       COMPLEX*16 FUNCTION m_complex_maxwellgarnett(vol1, vol2, vol3,    &
                      m1, m2, m3, inclusion, error)
-
+!$acc routine seq
       IMPLICIT NONE
 
       COMPLEX*16 :: m1, m2, m3
@@ -609,12 +622,12 @@ CONTAINS
       error = 0
 
       if (DABS(vol1+vol2+vol3-1.0d0) .gt. 1d-6) then
-       write(radar_debug,*) 'M_COMPLEX_MAXWELLGARNETT: sum of the ',       &
-              'partial volume fractions is not 1...ERROR'
+!!!       write(radar_debug,*) 'M_COMPLEX_MAXWELLGARNETT: sum of the ',       &
+!!!              'partial volume fractions is not 1...ERROR'
 #if defined(mpas)
-        call physics_message(radar_debug)
+!!!        call physics_message(radar_debug)
 #else
-       CALL wrf_debug(150, radar_debug)
+!!!       CALL wrf_debug(150, radar_debug)
 #endif
        m_complex_maxwellgarnett=CMPLX(-999.99d0,-999.99d0)
        error = 1
@@ -632,12 +645,12 @@ CONTAINS
        beta2 = 2.0d0*m1t/(m2t-m1t) * (m2t/(m2t-m1t)*LOG(m2t/m1t)-1.0d0)
        beta3 = 2.0d0*m1t/(m3t-m1t) * (m3t/(m3t-m1t)*LOG(m3t/m1t)-1.0d0)
       else
-       write(radar_debug,*) 'M_COMPLEX_MAXWELLGARNETT: ',                  &
-                         'unknown inclusion: ', inclusion
+!!!       write(radar_debug,*) 'M_COMPLEX_MAXWELLGARNETT: ',                  &
+!!!                         'unknown inclusion: ', inclusion
 #if defined(mpas)
-        call physics_message(radar_debug)
+!!!        call physics_message(radar_debug)
 #else
-       CALL wrf_debug(150, radar_debug)
+!!!       CALL wrf_debug(150, radar_debug)
 #endif
        m_complex_maxwellgarnett=DCMPLX(-999.99d0,-999.99d0)
        error = 1
