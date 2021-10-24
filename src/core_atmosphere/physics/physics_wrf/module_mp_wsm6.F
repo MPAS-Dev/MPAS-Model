@@ -178,7 +178,7 @@ CONTAINS
   REAL, DIMENSION( kts:kte ) :: qi1d
   REAL, DIMENSION( kts:kte ) :: re_qc, re_qi, re_qs
 
-   print *, "Checkpoint 0000A -- Enter wsm6"
+!!!   print *, "Checkpoint 0000A -- Enter wsm6"
    call flush
 
 !$acc data create(t, qci, qrs, qv1d, t1d, p1d, qr1d, qs1d, qg1d, dBZ, &
@@ -288,7 +288,7 @@ CONTAINS
 #endif
       ENDDO
 !$acc end data
-   print *, "Checkpoint 0000B -- Exit wsm6"
+!!!   print *, "Checkpoint 0000B -- Exit wsm6"
    call flush
   END SUBROUTINE wsm6
 !===================================================================
@@ -2109,7 +2109,7 @@ CONTAINS
 !!!$acc data present ( dzl, wwl, rql, precip, denl, denfacl, tkl )
 !
 !
-   print *, "Checkpoint 1010A -- Enter nislfv_rain_plm"
+!!!   print *, "Checkpoint 1010A -- Enter nislfv_rain_plm"
    call flush
 !$acc parallel vector_length(32)
 !$acc loop gang private(den,denfac,tk,allold,wd,decfl,za,zi,qa,qr,qmi,qpi,qn, &
@@ -2349,7 +2349,7 @@ n_loop : do n=1,iter+1
       enddo i_loop
 !$acc end parallel
 !!$acc end data
-   print *, "Checkpoint 1010B -- Exit nislfv_rain_plm"
+!!!   print *, "Checkpoint 1010B -- Exit nislfv_rain_plm"
    call flush
 
   END SUBROUTINE nislfv_rain_plm
@@ -2397,7 +2397,7 @@ n_loop : do n=1,iter+1
       real  X
       real  dza(km+1), qa(km+1), qa2(km+1),qmi(km+1), qpi(km+1)
   
-   print *, "Checkpoint 2010A -- Enter nislfv_rain_plm6"
+!!!   print *, "Checkpoint 2010A -- Enter nislfv_rain_plm6"
    call flush
 !!$acc enter data create ( precip,precip1,precip2,dz,qq,qq2,wd,ww,wi,zi,den,denfac,tk)
 !
@@ -2676,7 +2676,7 @@ n_loop : do n=1,iter+1
       enddo i_loop
 !$acc end parallel
 !
-   print *, "Checkpoint 2010B -- Exit nislfv_rain_plm6"
+!!!   print *, "Checkpoint 2010B -- Exit nislfv_rain_plm6"
    call flush
   END SUBROUTINE nislfv_rain_plm6
 
