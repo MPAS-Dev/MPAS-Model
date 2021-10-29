@@ -89,7 +89,12 @@
  ! use module level variables for now...
  !
  integer (kind=I8KIND), dimension(:), pointer :: ter_integer
+ integer, dimension(:), pointer :: lu_index
  integer, dimension(:), pointer :: nhs
+ integer, dimension(:,:), allocatable:: ncat
+
+ integer, pointer :: category_min
+ integer, pointer :: category_max
 
  contains
 
@@ -139,7 +144,6 @@
  real(kind=RKIND),dimension(:,:,:),allocatable:: vegfra
 
  integer, pointer :: isice_lu, iswater_lu
- integer, pointer :: isice_lu_ptr, iswater_lu_ptr
  integer :: iswater_soil
  integer, pointer :: iswater_soil_ptr
  integer, pointer :: nCells, nCellsSolve, nEdges, nVertices, maxEdges
@@ -378,128 +382,8 @@
        call mpas_log_write('Please correct the namelist.', messageType=MPAS_LOG_CRIT)
  end select surface_input_select1
 
- ierr = mgr % init(trim(config_geog_data_path)//trim(geog_sub_path))
- if (ierr /= 0) then
-    call mpas_log_write('Error occurred when initializing the interpolation of landuse category (lu_index)', &
-                         messageType=MPAS_LOG_CRIT)
- endif
-
- call mpas_pool_get_config(mgr % pool, 'iswater', iswater_lu_ptr)
- call mpas_pool_get_config(mgr % pool, 'isice', isice_lu_ptr)
- call mpas_pool_get_config(mgr % pool, 'tile_bdr', tile_bdr)
- call mpas_pool_get_config(mgr % pool, 'tile_x', tile_nx)
- call mpas_pool_get_config(mgr % pool, 'tile_y', tile_ny)
- call mpas_pool_get_config(mgr % pool, 'category_min', category_min)
- call mpas_pool_get_config(mgr % pool, 'category_max', category_max)
-
- ! Transfer iswater_lu_ptr, isice_lu_ptr to iswater_lu and isice_lu because
- ! isawter_lu_ptr and isice_lu_ptr will become unassociated when calling
- ! mgr % finalize. iswater_lu and isice_lu will be written to the output
- ! stream
- iswater_lu = iswater_lu_ptr
- isice_lu = isice_lu_ptr
-
- allocate(ncat(category_min:category_max, nCells))
- ncat(:,:) = 0
- lu_index(:) = 0
-
- do iCell = 1, nCells
-
-     if (all(ncat(:,iCell) == 0)) then
-         tile => null()
-         ierr = mgr % get_tile(latCell(iCell), lonCell(iCell), tile)
-         if (ierr /= 0 .or. .not. associated(tile)) then
-             call mpas_log_write('Could not get the tile that contained cell $i', intArgs=(/iCell/), messageType=MPAS_LOG_CRIT)
-         end if
-
-         ierr = mgr % push_tile(tile)
-         if (ierr /= 0) then
-             call mpas_log_write('Error pushing this tile onto the stack: '//trim(tile%fname), messageType=MPAS_LOG_CRIT)
-         end if
-     end if
-
-
-     do while (.not. mgr % is_stack_empty())
-         tile => mgr % pop_tile()
-
-         if (tile % is_processed) then
-             cycle
-         endif
-
-         call mpas_log_write('Processing tile: '//trim(tile%fname))
-
-         all_pixels_mapped_to_halo_cells = .true.
-
-         do j = 1 + tile_bdr, tile_ny + tile_bdr, 1
-             do i = 1 + tile_bdr, tile_nx + tile_bdr, 1
-
-                !
-                ! The MODIS dataset has zeros at the South Pole, and possibly other places, so
-                ! skip any value that is less than category_min or greater than category_max as
-                ! reported in the index file.
-                !
-                if (tile % tile(i,j,1) < category_min .or. tile % tile(i,j,1) > category_max) then
-                    cycle
-                end if
-
-                call mgr % tile_to_latlon(tile, j, i, lat_pt, lon_pt)
-                call mpas_latlon_to_xyz(xPixel, yPixel, zPixel, sphere_radius, lat_pt, lon_pt)
-                call mpas_kd_search(tree, (/xPixel, yPixel, zPixel/), res)
-
-                !
-                ! For all but the outermost boundary cells, we can safely assume that the nearest
-                ! model grid cell contains the pixel (else, a different cell would be nearest)
-                !
-                if (bdyMaskCell(res % id) < nBdyLayers) then
-
-                   ncat(int(tile % tile(i,j,1)), res % id) = ncat(int(tile % tile(i,j,1)), res % id) + 1
-
-                   if (res % id <= nCellsSolve) then
-                       all_pixels_mapped_to_halo_cells = .false.
-                   end if
-
-                ! For outermost boundary cells, additional work is needed to verify that the pixel
-                ! actually lies within the nearest cell
-                else
-                   if (mpas_in_cell(xPixel, yPixel, zPixel, xCell(res % id), yCell(res % id), zCell(res % id), &
-                                    nEdgesOnCell(res % id), verticesOnCell(:,res % id), xVertex, yVertex, zVertex)) then
-
-                      ncat(int(tile % tile(i,j,1)), res % id) = ncat(int(tile % tile(i,j,1)), res % id) + 1
-
-                      if (res % id <= nCellsSolve) then
-                          all_pixels_mapped_to_halo_cells = .false.
-                      end if
-                   end if
-                end if
-             end do
-         end do
-
-         tile % is_processed = .true.
-
-         if (.not. all_pixels_mapped_to_halo_cells) then
-             ierr = mgr % push_neighbors(tile)
-             if (ierr /= 0) then
-                 call mpas_log_write("Error pushing the tile neighbors of: "//trim(tile%fname), messageType=MPAS_LOG_CRIT)
-             endif
-         end if
-
-     end do
- end do
-
- do iCell = 1, nCells
-    ! Because maxloc returns the location of the maximum value of an array as if the
-    ! starting index of the array is 1, and dataset categories do not necessarily start
-    ! at 1, we need to use category_min to ensure the correct category location is chosen.
-    lu_index(iCell) = maxloc(ncat(:,iCell), dim=1) - 1 + category_min
- end do
- deallocate(ncat)
-
- ierr = mgr % finalize()
- if (ierr /= 0) then
-    call mpas_log_write('Error occurred when finalizing the interpolation of landuse category (lu_index)', &
-                         messageType=MPAS_LOG_CRIT)
- endif
-
+ call mpas_log_write('--- start interpolate LU_INDEX')
+ call interp_landuse(mesh, tree, trim(config_geog_data_path)//trim(geog_sub_path), isice_lu, iswater_lu)
  call mpas_log_write('--- end interpolate LU_INDEX')
 
 !
@@ -1773,6 +1657,143 @@
 
  end subroutine interp_terrain
 
+!--------------------------------------------------------------------------------------------------
+! Categorical interpolations - Landuse and Soiltype
+!--------------------------------------------------------------------------------------------------
+
+ !***********************************************************************
+ !
+ !  routine categorical_interp_criteria
+ !
+ !> \brief   Categorical dataset interp criteria
+ !> \author  Miles Curry
+ !> \date    25 January 2020
+ !> \details
+ !> This routine can be used to determine if the tile that contains iCell needs
+ !> to be loaded and processed by init_atm_map_static_data for categorical datasets.
+ !
+ !-----------------------------------------------------------------------
+ function categorical_interp_criteria(iCell)
+
+     integer, intent(in) :: iCell
+     logical :: categorical_interp_criteria
+
+     categorical_interp_criteria = .false.
+
+     if (all(ncat(:,iCell) == 0)) then
+         categorical_interp_criteria = .true.
+     end if
+
+ end function categorical_interp_criteria
+
+ !***********************************************************************
+ !
+ !  routine categorical_interp_accumulation
+ !
+ !> \brief   Accumulate categorical dataset values
+ !> \author  Miles Curry
+ !> \date    25 January 2020
+ !> \details
+ !> This routine accumulates categorical values for the init_atm_map_static_data unified
+ !> function.
+ !
+ !-----------------------------------------------------------------------
+ subroutine categorical_interp_accumulation(iCell, cat)
+
+     integer, intent(in) :: iCell
+     integer (kind=I8KIND), dimension(:), intent(in) :: cat
+     ! Use the module level category_min and category_max variables
+
+    !
+    ! Currently, the MODIS landuse dataset has zeros at the South Pole, and possibly other
+    ! places, so we need a check on the validity of the category to be accumulated.
+    !
+     if (cat(1) >= category_min .and. cat(1) <= category_max) then
+        ncat(cat(1), iCell) = ncat(cat(1), iCell) + 1
+     end if
+
+ end subroutine categorical_interp_accumulation
+
+ !***********************************************************************
+ !
+ !  routine interp_landuse
+ !
+ !> \brief   Interpolate landuse
+ !> \author  Miles Curry
+ !> \date    25 January 2020
+ !> \details
+ !> Interpolate landuse by using the init_atm_map_static_data routine and
+ !> accumulating the pixel values into each cell using categorical_interp_accumulation.
+ !>
+ !> mesh should be a mpas_pool that contains nCells and lu_index, kdtree should be an
+ !> initialized mpas_kd_type tree with (xCell, yCell, zCell), and geog_data_path
+ !> should be the path to the landuse dataset. The values used by this dataset to
+ !> specify water and ice values will be set in isice_lu, iswater_lu, assuming
+ !> that isice and iswater are in the dataset's index file.
+ !
+ !-----------------------------------------------------------------------
+ subroutine interp_landuse(mesh, kdtree, geog_data_path, isice_lu, iswater_lu)
+
+     implicit none
+
+     ! Input variables
+     type (mpas_pool_type), intent(inout) :: mesh
+     type (mpas_kd_type), pointer, intent(in) :: kdtree
+     character (len=*), intent(in) :: geog_data_path
+     integer, intent(out) :: isice_lu
+     integer, intent(out) :: iswater_lu
+
+     ! Local variables
+     type (mpas_geotile_mgr_type) :: mgr
+     integer, pointer :: nCells
+     integer, pointer :: isice_lu_ptr
+     integer, pointer :: iswater_lu_ptr
+
+     real (kind=RKIND), pointer :: scalefactor
+
+     integer :: iCell
+     integer :: ierr
+
+     ierr = mgr % init(trim(geog_data_path))
+     if (ierr /= 0) then
+         call mpas_log_write("Error occured initalizing interpolation for "//trim(geog_data_path), messageType=MPAS_LOG_CRIT)
+         return ! Program execution should not reach this statement since the preceding message is a critical error
+     end if
+
+     call mpas_pool_get_dimension(mesh, 'nCells', nCells)
+     call mpas_pool_get_array(mesh, 'lu_index', lu_index)
+     call mpas_pool_get_config(mgr % pool, 'scale_factor', scalefactor)
+     call mpas_pool_get_config(mgr % pool, 'category_min', category_min)
+     call mpas_pool_get_config(mgr % pool, 'category_max', category_max)
+     call mpas_pool_get_config(mgr % pool, 'isice', isice_lu_ptr)
+     call mpas_pool_get_config(mgr % pool, 'iswater', iswater_lu_ptr)
+
+     isice_lu = isice_lu_ptr
+     iswater_lu = iswater_lu_ptr
+
+     allocate(ncat(category_min:category_max, nCells))
+     ncat(:,:) = 0
+
+     call init_atm_map_static_data(mesh, mgr, kdtree, categorical_interp_criteria, categorical_interp_accumulation)
+
+     do iCell = 1, nCells
+         ! Because maxloc returns the location of the maximum value of an array as if the
+         ! starting index of the array is 1, and dataset categories do not necessarily start
+         ! at 1, we need to use category_min to ensure the correct category location is chosen.
+         lu_index(iCell) = maxloc(ncat(:,iCell), dim=1) - 1 + category_min
+     end do
+     deallocate(ncat)
+
+     ierr = mgr % finalize()
+     if (ierr /= 0) then
+         call mpas_log_write("Error occured finalizing interpolation for "//trim(geog_data_path), messageType=MPAS_LOG_CRIT)
+         return ! Program execution should not reach this statement since the preceding message is a critical error
+     end if
+
+     nullify(category_min)
+     nullify(category_max)
+
+ end subroutine interp_landuse
 
 !==================================================================================================
  subroutine init_atm_check_read_error(istatus, fname)
