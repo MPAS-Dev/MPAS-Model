@@ -90,6 +90,7 @@
  !
  integer (kind=I8KIND), dimension(:), pointer :: ter_integer
  integer, dimension(:), pointer :: lu_index
+ integer, dimension(:), pointer :: soilcat_top
  integer, dimension(:), pointer :: nhs
  integer, dimension(:,:), allocatable:: ncat
 
@@ -128,7 +129,6 @@
  integer:: iCell,iEdge,iVtx
  integer,dimension(5) :: interp_list
  integer,dimension(:),allocatable  :: nhs
- integer,dimension(:,:),allocatable:: ncat
       
  real(kind=RKIND), pointer :: scalefactor_ptr
  real(kind=RKIND) :: scalefactor
@@ -145,7 +145,6 @@
 
  integer, pointer :: isice_lu, iswater_lu
  integer :: iswater_soil
- integer, pointer :: iswater_soil_ptr
  integer, pointer :: nCells, nCellsSolve, nEdges, nVertices, maxEdges
  logical, pointer :: on_a_sphere
  real (kind=RKIND), pointer :: sphere_radius
@@ -174,7 +173,6 @@
  integer (kind=I8KIND), dimension(:,:), pointer :: albedo12m_int
  real (kind=RKIND) :: fillval
  real (kind=RKIND), pointer :: missing_value
- integer, pointer :: category_min, category_max
  integer, dimension(:), pointer :: lu_index
  integer, dimension(:), pointer :: soilcat_top
  integer, dimension(:), pointer :: landmask
@@ -391,124 +389,9 @@
 !
  geog_sub_path = 'soiltype_top_30s/'
 
- ierr = mgr % init(trim(config_geog_data_path)//trim(geog_sub_path))
- if (ierr /= 0) then
-    call mpas_log_write('Error occurred when initalizing the interpolation of soil top category (soilcat_top)', &
-                         messageType=MPAS_LOG_CRIT)
- endif
-
- call mpas_pool_get_config(mgr % pool, 'tile_bdr', tile_bdr)
- call mpas_pool_get_config(mgr % pool, 'tile_x', tile_nx)
- call mpas_pool_get_config(mgr % pool, 'tile_y', tile_ny)
- call mpas_pool_get_config(mgr % pool, 'category_min', category_min)
- call mpas_pool_get_config(mgr % pool, 'category_max', category_max)
- call mpas_pool_get_config(mgr % pool, 'isoilwater', iswater_soil_ptr)
-
- iswater_soil = iswater_soil_ptr
-
- allocate(ncat(category_min:category_max, nCells))
- soilcat_top(:) = 0
- ncat(:,:) = 0
-
- do iCell = 1, nCells
-
-     if (all(ncat(:,iCell) == 0)) then
-         tile => null()
-         ierr = mgr % get_tile(latCell(iCell), lonCell(iCell), tile)
-         if (ierr /= 0 .or. .not. associated(tile)) then
-             call mpas_log_write('Could not get the tile that contained cell $i', intArgs=(/iCell/), messageType=MPAS_LOG_CRIT)
-         end if
-
-         ierr = mgr % push_tile(tile)
-         if (ierr /= 0) then
-             call mpas_log_write('Error pushing this tile onto the stack: '//trim(tile%fname), messageType=MPAS_LOG_CRIT)
-         end if
-    end if
-
-    do while(.not. mgr % is_stack_empty())
-        tile => mgr % pop_tile()
-
-        if (tile % is_processed) then
-            cycle
-        end if
-
-        call mpas_log_write('Processing tile: '//trim(tile%fname))
-
-        all_pixels_mapped_to_halo_cells = .true.
-
-        do j = 1 + tile_bdr, tile_ny + tile_bdr, 1
-            do i = 1 + tile_bdr, tile_nx + tile_bdr, 1
-
-                !
-                ! While the currently used soil type dataset, soiltype_top_30s, does not contain any
-                ! invalid values, have this sanity check for any future soil type datasets
-                !
-                if (tile % tile(i,j,1) < category_min .or. tile % tile(i,j,1) > category_max) then
-                    cycle
-                end if
-
-                call mgr % tile_to_latlon(tile, j, i, lat_pt, lon_pt)
-                call mpas_latlon_to_xyz(xPixel, yPixel, zPixel, sphere_radius, lat_pt, lon_pt)
-
-                res => null()
-                call mpas_kd_search(tree, (/xPixel, yPixel, zPixel/), res)
-
-                !
-                ! For all but the outermost boundary cells, we can safely assume that the nearest
-                ! model grid cell contains the pixel (else, a different cell would be nearest)
-                !
-                if (bdyMaskCell(res % id) < nBdyLayers) then
-
-                   ncat(int(tile % tile(i,j,1)), res % id) = ncat(int(tile % tile(i,j,1)), res % id) + 1
-
-                   if (res % id <= nCellsSolve) then
-                       all_pixels_mapped_to_halo_cells = .false.
-                   end if
-
-                ! For outermost boundary cells, additional work is needed to verify that the pixel
-                ! actually lies within the nearest cell
-                else
-                   if (mpas_in_cell(xPixel, yPixel, zPixel, xCell(res % id), yCell(res % id), zCell(res % id), &
-                                    nEdgesOnCell(res % id), verticesOnCell(:,res % id), xVertex, yVertex, zVertex)) then
-
-                      ncat(int(tile % tile(i,j,1)), res % id) = ncat(int(tile % tile(i,j,1)), res % id) + 1
-
-                      if (res % id <= nCellsSolve) then
-                          all_pixels_mapped_to_halo_cells = .false.
-                      end if
-                   end if
-                 end if
-            end do
-        end do
-
-        tile % is_processed = .true.
-
-        if (.not. all_pixels_mapped_to_halo_cells) then
-            ierr = mgr % push_neighbors(tile)
-            if (ierr /=0) then
-                call mpas_log_write("Error pushing the tile neighbors of: "//trim(tile%fname), messageType=MPAS_LOG_CRIT)
-            end if
-        end if
-
-    end do
- end do
-
- do iCell = 1, nCells
-    ! Because maxloc returns the location of the maximum value of an array as if the
-    ! starting index of the array is 1, and dataset categories do not necessarily start
-    ! at 1, we need to use category_min to ensure the correct category location is chosen.
-    soilcat_top(iCell) = maxloc(ncat(:,iCell), dim=1) - 1 + category_min
- end do
-
- deallocate(ncat)
-
- ierr = mgr % finalize()
- if (ierr /= 0) then
-    call mpas_log_write('Error occurred when finalizing the interpolation of soil top category (soilcat_top)', &
-                         messageType=MPAS_LOG_CRIT)
- endif
+ call mpas_log_write('--- start interpolate SOILCAT_TOP')
+ call interp_soilcat(mesh, tree, trim(config_geog_data_path)//trim(geog_sub_path), iswater_soil)
  call mpas_log_write('--- end interpolate SOILCAT_TOP')
-
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! KLUDGE TO FIX SOIL TYPE OVER ANTARCTICA
@@ -1794,6 +1677,83 @@
      nullify(category_max)
 
  end subroutine interp_landuse
+
+ !***********************************************************************
+ !
+ !  routine interp_soilcat
+ !
+ !> \brief   Interpolate soiltop category
+ !> \author  Miles Curry
+ !> \date    25 January 2020
+ !> \details
+ !> Interpolate soil category top by using the init_atm_map_static_data routine and
+ !> accumulating the pixel values into each cell using category_interp_accumulation.
+ !>
+ !> mesh should be an mpas_pool that contains and lu_index, kdtree should be an
+ !> initialized mpas_kd_type tree with (xCell, yCell, zCell), and geog_data_path
+ !> should be the path to the landuse dataset.The values used by this dataset to
+ !> signify water will be set in iswater_soil, assuming that
+ !> iswater is present in the dataset's index file.
+ !>
+ !-----------------------------------------------------------------------
+ subroutine interp_soilcat(mesh, kdtree, geog_data_path, iswater_soil)
+
+     implicit none
+
+     ! Input variables
+     type (mpas_pool_type), intent(inout) :: mesh
+     type (mpas_kd_type), pointer, intent(in) :: kdtree
+     character (len=*), intent(in) :: geog_data_path
+     integer, intent(out) :: iswater_soil
+
+     ! Local variables
+     type (mpas_geotile_mgr_type) :: mgr
+     integer, pointer :: nCells
+     integer, pointer :: iswater_soil_ptr
+
+     real (kind=RKIND), pointer :: scalefactor
+
+     integer :: iCell
+     integer :: ierr
+
+     ierr = mgr % init(trim(geog_data_path))
+     if (ierr /= 0) then
+         call mpas_log_write("Error occured initalizing interpolation for "//trim(geog_data_path), messageType=MPAS_LOG_CRIT)
+         return
+     end if
+
+     call mpas_pool_get_dimension(mesh, 'nCells', nCells)
+     call mpas_pool_get_array(mesh, 'soilcat_top', soilcat_top)
+     call mpas_pool_get_config(mgr % pool, 'scale_factor', scalefactor)
+     call mpas_pool_get_config(mgr % pool, 'category_min', category_min)
+     call mpas_pool_get_config(mgr % pool, 'category_max', category_max)
+     call mpas_pool_get_config(mgr % pool, 'isoilwater', iswater_soil_ptr)
+
+     iswater_soil = iswater_soil_ptr
+
+     allocate(ncat(category_min:category_max, nCells))
+     ncat(:,:) = 0
+
+     call init_atm_map_static_data(mesh, mgr, kdtree, categorical_interp_criteria, categorical_interp_accumulation)
+
+     do iCell = 1, nCells
+        ! Because maxloc returns the location of the maximum value of an array as if the
+        ! starting index of the array is 1, and dataset categories do not necessarily start
+        ! at 1, we need to use category_min to ensure the correct category location is chosen.
+        soilcat_top(iCell) = maxloc(ncat(:,iCell), dim=1) - 1 + category_min
+     end do
+     deallocate(ncat)
+
+     ierr = mgr % finalize()
+     if (ierr /= 0) then
+         call mpas_log_write("Error occured finalizing interpolation for "//trim(geog_data_path), messageType=MPAS_LOG_CRIT)
+         return
+     end if
+
+     nullify(category_min)
+     nullify(category_max)
+
+ end subroutine interp_soilcat
 
 !==================================================================================================
  subroutine init_atm_check_read_error(istatus, fname)
