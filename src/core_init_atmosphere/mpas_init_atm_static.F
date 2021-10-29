@@ -93,6 +93,8 @@
  integer, dimension(:), pointer :: soilcat_top
  integer, dimension(:), pointer :: nhs
  integer, dimension(:,:), allocatable:: ncat
+ ! Landmask is used by the accumulation function for maxsnoalb so it needs to be a global variable
+ integer, dimension(:), pointer :: landmask
 
  integer, pointer :: category_min
  integer, pointer :: category_max
@@ -419,10 +421,8 @@
 !
 ! Derive LANDMASK
 !
- landmask(:) = 0
- do iCell=1, nCells
-    if (lu_index(iCell) /= iswater_lu) landmask(iCell) = 1
- end do
+ call mpas_log_write('--- start interpolate LANDMASK')
+ call derive_landmask(mesh, dims, iswater_lu)
  call mpas_log_write('--- end interpolate LANDMASK')
 
 
@@ -1754,6 +1754,46 @@
      nullify(category_max)
 
  end subroutine interp_soilcat
+
+ !***********************************************************************
+ !
+ !  routine derive_landmask
+ !
+ !> \brief   Derive the landmask field
+ !> \details
+ !> Derive the landmask field from lu_index. mesh should be an mpas_pool
+ !> that contains landmask, and lu_index. iswater_lu should be the value that
+ !> the landuse dataset uses to signify water. Before calling this function,
+ !> the landuse dataset will need to be successfully interpolated to lu_index.
+ !
+ !-----------------------------------------------------------------------
+ subroutine derive_landmask(mesh, dims, iswater_lu)
+
+    implicit none
+
+    ! Input variables
+    type (mpas_pool_type), intent(inout) :: mesh
+    type (mpas_pool_type), intent(in) :: dims
+    integer, intent(in) :: iswater_lu
+
+    ! Local variables
+    integer :: iCell
+    integer, pointer :: nCells
+    integer, dimension(:), pointer :: lu_index
+
+    call mpas_pool_get_dimension(dims, 'nCells', nCells)
+    call mpas_pool_get_array(mesh, 'landmask', landmask)
+    call mpas_pool_get_array(mesh, 'lu_index', lu_index)
+
+    !
+    ! Derive LANDMASK
+    !
+    landmask(:) = 0
+    do iCell=1, nCells
+       if (lu_index(iCell) /= iswater_lu) landmask(iCell) = 1
+    end do
+
+ end subroutine derive_landmask
 
 !==================================================================================================
  subroutine init_atm_check_read_error(istatus, fname)
