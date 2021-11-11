@@ -559,6 +559,32 @@ nag:   # BUILDTARGET NAG Fortran compiler and GNU C/C++ compilers
 	"OPENMP = $(OPENMP)" \
 	"CPPFLAGS = $(MODEL_FORMULATION) -D_MPI -DUNDERSCORE -DNAG_COMPILER" )
 
+cray:   # BUILDTARGET Cray Programming Environment
+	( $(MAKE) all \
+	"FC_PARALLEL = ftn" \
+	"CC_PARALLEL = cc" \
+	"CXX_PARALLEL = CC" \
+	"FC_SERIAL = ftn" \
+	"CC_SERIAL = cc" \
+	"CXX_SERIAL = CC" \
+	"FFLAGS_PROMOTION = -sreal64" \
+	"FFLAGS_OPT = -Ofast -ffree" \
+	"CFLAGS_OPT =  -Ofast" \
+	"CXXFLAGS_OPT = -Ofast" \
+	"LDFLAGS_OPT =  -Ofast -hbyteswapio" \
+	"FFLAGS_DEBUG = -eD -O0 -ffree" \
+	"CFLAGS_DEBUG = -O0 -g -Weverything" \
+	"CXXFLAGS_DEBUG = -O0 -g -Weverything" \
+	"LDFLAGS_DEBUG = -eD -O0 -hbyteswapio" \
+	"FFLAGS_OMP = -homp" \
+	"CFLAGS_OMP = -fopenmp" \
+	"BUILD_TARGET = $(@)" \
+	"CORE = $(CORE)" \
+	"DEBUG = $(DEBUG)" \
+	"USE_PAPI = $(USE_PAPI)" \
+	"OPENMP = $(OPENMP)" \
+	"CPPFLAGS = $(MODEL_FORMULATION) -D_MPI" )
+
 CPPINCLUDES =
 FCINCLUDES =
 LIBS =
