@@ -752,8 +752,8 @@
 !$acc end parallel
 
  if(config_frac_seaice) then
-!$acc update device(chs_sea,chs2_sea,cqs2_sea,cpm_sea,      &
-!$acc        hfx_sea,lh_sea,qfx_sea,qgh_sea,qsfc_sea)
+!!!$acc update device(chs_sea,chs2_sea,cqs2_sea,cpm_sea,      &
+!!!$acc        hfx_sea,lh_sea,qfx_sea,qgh_sea,qsfc_sea)
     do j = jts,jte
 !$acc parallel vector_length(128)
 !$acc loop gang vector
