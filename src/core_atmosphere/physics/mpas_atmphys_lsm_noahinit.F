@@ -109,7 +109,7 @@
 
 !-----------------------------------------------------------------------------------------------------------------
 
- call mpas_pool_get_array(sfc_input,'mminlu'              ,mminlu          )
+ call mpas_pool_get_array_gpu(sfc_input,'mminlu'              ,mminlu          )
  call mpas_pool_get_config(configs,'input_soil_data'      ,mminsl          )
  call mpas_pool_get_config(configs,'config_sfc_snowalbedo',input_sfc_albedo)
  call mpas_pool_get_config(configs,'config_do_restart'    ,restart         )
@@ -117,14 +117,16 @@
  call mpas_pool_get_dimension(mesh,'nCells'     ,nCells     )
  call mpas_pool_get_dimension(mesh,'nSoilLevels',nSoilLevels)
 
- call mpas_pool_get_array(sfc_input,'isltyp', isltyp)
- call mpas_pool_get_array(sfc_input,'ivgtyp', ivgtyp)
- call mpas_pool_get_array(sfc_input,'sh2o'  , sh2o  )
- call mpas_pool_get_array(sfc_input,'smois' , smois )
- call mpas_pool_get_array(sfc_input,'tslb'  , tslb  )
- call mpas_pool_get_array(sfc_input,'snoalb', snoalb)
- call mpas_pool_get_array(sfc_input,'snow'  , snow  )
- call mpas_pool_get_array(sfc_input,'snowh' , snowh )
+ call mpas_pool_get_array_gpu(sfc_input,'isltyp', isltyp)
+ call mpas_pool_get_array_gpu(sfc_input,'ivgtyp', ivgtyp)
+ call mpas_pool_get_array_gpu(sfc_input,'sh2o'  , sh2o  )
+ call mpas_pool_get_array_gpu(sfc_input,'smois' , smois )
+ call mpas_pool_get_array_gpu(sfc_input,'tslb'  , tslb  )
+ call mpas_pool_get_array_gpu(sfc_input,'snoalb', snoalb)
+ call mpas_pool_get_array_gpu(sfc_input,'snow'  , snow  )
+ call mpas_pool_get_array_gpu(sfc_input,'snowh' , snowh )
+
+!$acc update host(mminlu,isltyp,ivgtyp,sh2o,smois,tslb,snoalb,snow,snowh)
 
 !reads the NOAH LSM tables:
  call mpas_log_write('')
@@ -203,6 +205,8 @@
     110 continue
 
  endif
+
+!$acc update device(mminlu,isltyp,ivgtyp,sh2o,smois,tslb,snoalb,snow,snowh)
 
  end subroutine lsminit
 
@@ -548,6 +552,15 @@
 !enddo
 !call mpas_log_write('       end subroutine soil_veg_gen_parm:')
  call mpas_log_write('    end read GENPARM.TBL')
+
+!$acc update device(LUTYPE,LUCATS,SHDTBL,NROTBL,RSTBL,RGLTBL,HSTBL,SNUPTBL,MAXALB, &
+!$acc         LAIMINTBL,LAIMAXTBL,EMISSMINTBL,EMISSMAXTBL,ALBEDOMINTBL,ALBEDOMAXTBL,&
+!$acc         Z0MINTBL,Z0MAXTBL,ZTOPVTBL,ZBOTVTBL,TOPT_DATA,CMCMAX_DATA,CFACTR_DATA,&
+!$acc         RSMAX_DATA,BARE,NATURAL,LOW_DENSITY_RESIDENTIAL,                      &
+!$acc         HIGH_DENSITY_RESIDENTIAL,HIGH_INTENSITY_INDUSTRIAL,SLTYPE,SLCATS,BB,  &
+!$acc         DRYSMC,F11,MAXSMC,REFSMC,SATPSI,SATDK,SATDW,WLTSMC,QTZ,SLPCATS,       &
+!$acc         SLOPE_DATA,SBETA_DATA,FXEXP_DATA,CSOIL_DATA,SALP_DATA,REFDK_DATA,     &
+!$acc         REFKDT_DATA,FRZK_DATA,ZBOT_DATA,CZIL_DATA,SMLOW_DATA,SMHIGH_DATA,LVCOEF_DATA)
 
  end subroutine soil_veg_gen_parm
 
