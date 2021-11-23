@@ -109,21 +109,14 @@
  real(kind=RKIND),pointer:: len_disp
  real(kind=RKIND),dimension(:),pointer:: areaCell,meshDensity
  real(kind=RKIND),dimension(:),pointer:: xland
- type(Field1DReal), pointer :: areaCellField
- type(mpas_coupler_type), pointer :: coupler
 !-----------------------------------------------------------------------------------------------------------------
 
  call mpas_pool_get_config(configs,'config_len_disp',len_disp)
 
- call mpas_pool_get_array_gpu(mesh,'areaCell'   ,areaCell   )
- call mpas_pool_get_field(mesh,'areaCell'   ,areaCellField   )
- call mpas_pool_get_array_gpu(mesh,'meshDensity',meshDensity)
+ call mpas_pool_get_array(mesh,'areaCell'   ,areaCell   )
+ call mpas_pool_get_array(mesh,'meshDensity',meshDensity)
 
- call mpas_pool_get_array_gpu(sfc_input,'xland',xland)
- coupler => areaCellField%block%domain%mpas_cpl
- if (coupler%role_includes(ROLE_INTEGRATE)) then
-        !$acc update host(areaCell, meshDensity, xland)
- end if
+ call mpas_pool_get_array(sfc_input,'xland',xland)
 
  do j = jts,jte
     do i = its,ite
@@ -147,6 +140,65 @@
  end subroutine cloudiness_from_MPAS
 
 !=================================================================================================================
+ subroutine cloudiness_from_MPAS_gpu(configs,mesh,diag_physics,sfc_input,its,ite)
+!=================================================================================================================
+
+!input arguments:
+ integer,intent(in):: its,ite
+
+!input and inout arguments:
+ type(mpas_pool_type),intent(in)   :: configs
+ type(mpas_pool_type),intent(in)   :: mesh
+ type(mpas_pool_type),intent(in)   :: sfc_input
+
+!inout arguments:
+ type(mpas_pool_type),intent(inout):: diag_physics
+
+!local variables and pointers:
+ integer:: i,j,k
+
+ real(kind=RKIND),pointer:: len_disp
+ real(kind=RKIND),dimension(:),pointer:: areaCell,meshDensity
+ real(kind=RKIND),dimension(:),pointer:: xland
+!-----------------------------------------------------------------------------------------------------------------
+
+ call mpas_pool_get_config(configs,'config_len_disp',len_disp)
+
+ call mpas_pool_get_array_gpu(mesh,'areaCell'   ,areaCell   )
+ call mpas_pool_get_array_gpu(mesh,'meshDensity',meshDensity)
+
+ call mpas_pool_get_array_gpu(sfc_input,'xland',xland)
+!! !$acc update host(areaCell, meshDensity, xland)
+
+ do j = jts,jte
+!$acc parallel vector_length(128)
+!$acc loop gang vector 
+    do i = its,ite
+       dx_p(i,j)    = len_disp / meshDensity(i)**0.25
+       xland_p(i,j) = xland(i)
+    enddo
+!$acc end parallel
+
+    !--- initialize the radiative cloud fraction and water vapor, cloud water, cloud ice,
+    !    and snow mixing ratios:
+!$acc parallel vector_length(128)
+!$acc loop gang vector collapse(2)
+    do k = kts,kte
+    do i = its,ite
+       qvrad_p(i,k,j)   = qv_p(i,k,j)
+       qcrad_p(i,k,j)   = qc_p(i,k,j)
+       qirad_p(i,k,j)   = qi_p(i,k,j)
+       qsrad_p(i,k,j)   = qs_p(i,k,j)
+       cldfrac_p(i,k,j) = 0._RKIND
+    enddo
+    enddo
+!$acc end parallel
+ enddo
+!!!$acc update host(qvrad_p,qcrad_p,qirad_p)
+
+ end subroutine cloudiness_from_MPAS_gpu
+
+!=================================================================================================================
  subroutine cloudiness_to_MPAS(diag_physics,its,ite)
 !=================================================================================================================
 
@@ -160,12 +212,9 @@
  integer:: i,j,k
 
  real(kind=RKIND),dimension(:,:),pointer:: cldfrac
- type(Field2DReal), pointer :: cldfracField
- type(mpas_coupler_type), pointer :: coupler
 !-----------------------------------------------------------------------------------------------------------------
 
  call mpas_pool_get_array_gpu(diag_physics,'cldfrac',cldfrac)
- call mpas_pool_get_field(diag_physics,'cldfrac',cldfracField)
 
  do j = jts,jte
  do k = kts,kte
@@ -175,11 +224,39 @@
  enddo
  enddo
  
- coupler => cldfracField%block%domain%mpas_cpl
- if (coupler%role_includes(ROLE_INTEGRATE)) then
-        !$acc update device(cldfrac)
- end if
  end subroutine cloudiness_to_MPAS
+
+!=================================================================================================================
+ subroutine cloudiness_to_MPAS_gpu(diag_physics,its,ite)
+!=================================================================================================================
+
+!input arguments:
+ integer,intent(in):: its,ite
+
+!inout arguments:
+ type(mpas_pool_type),intent(inout):: diag_physics
+
+!local variables and pointers:
+ integer:: i,j,k
+
+ real(kind=RKIND),dimension(:,:),pointer:: cldfrac
+!-----------------------------------------------------------------------------------------------------------------
+
+ call mpas_pool_get_array_gpu(diag_physics,'cldfrac',cldfrac)
+
+ do j = jts,jte
+!$acc parallel vector_length(128)
+!$acc loop gang vector collapse(2)
+ do k = kts,kte
+ do i = its,ite
+    cldfrac(k,i) = cldfrac_p(i,k,j)
+ enddo
+ enddo
+!$acc end parallel
+ enddo
+ 
+!! !$acc update device(cldfrac)
+ end subroutine cloudiness_to_MPAS_gpu
 
 !=================================================================================================================
  subroutine driver_cloudiness(configs,mesh,diag_physics,sfc_input,its,ite)
@@ -197,15 +274,20 @@
 
 !local variables and pointers:
  character(len=StrKIND),pointer:: radt_cld_scheme
+ type(Field1DReal), pointer :: areaCellField
+ type(mpas_coupler_type), pointer :: coupler
 
  integer:: i,j,k
 
 !-----------------------------------------------------------------------------------------------------------------
 !call mpas_log_write('')
 !call mpas_log_write('--- enter subroutine driver_cloudiness:')
+ call mpas_pool_get_field(mesh,'areaCell'   ,areaCellField   )
+ coupler => areaCellField%block%domain%mpas_cpl
 
  call mpas_pool_get_config(configs,'config_radt_cld_scheme',radt_cld_scheme)
 
+if (coupler%role_is(ROLE_RADIATION)) then
 !copy MPAS arrays to local arrays:
  call cloudiness_from_MPAS(configs,mesh,diag_physics,sfc_input,its,ite)
 
@@ -238,6 +320,42 @@
 
 !copy local arrays to MPAS grid:
  call cloudiness_to_MPAS(diag_physics,its,ite)
+else
+!copy MPAS arrays to local arrays:
+ call cloudiness_from_MPAS_gpu(configs,mesh,diag_physics,sfc_input,its,ite)
+
+ cld_fraction_select_gpu: select case (trim(radt_cld_scheme))
+    case("cld_incidence")
+      call mpas_timer_start('calc_cldincidence')
+      call calc_cldincidence(cldfrac_p,qcrad_p,qirad_p,f_qc,f_qi,its,ite)
+      call mpas_timer_stop('calc_cldincidence')
+
+    case("cld_fraction")
+      call mpas_timer_start('calc_cldfraction_gpu')
+!!!$acc update device(qcrad_p,qirad_p,qvrad_p)
+      call calc_cldfraction_gpu(cldfrac_p,t_p,pres_p,qvrad_p,qcrad_p,qirad_p,qs_p,its,ite)
+      call mpas_timer_stop('calc_cldfraction_gpu')
+
+    case("cld_fraction_thompson")
+      call mpas_timer_start('cal_cldfra3')
+!$acc update host(dx_p,xland_p,qsrad_p)
+      call cal_cldfra3( &
+           cldfra = cldfrac_p , qv     = qvrad_p    , qc = qcrad_p , qi  = qirad_p , &
+           qs     = qsrad_p   , p      = pres_hyd_p , t  = t_p     , rho = rho_p   , &
+           xland  = xland_p   , gridkm = dx_p       ,                                &
+           ids = ids , ide = ide , jds = jds , jde = jde , kds = kds , kde = kde ,   &
+           ims = ims , ime = ime , jms = jms , jme = jme , kms = kds , kme = kme ,   &
+           its = its , ite = ite , jts = jts , jte = jte , kts = kts , kte = kte     &
+                      )
+      call mpas_timer_stop('cal_cldfra3')
+
+    case default
+
+ end select cld_fraction_select_gpu
+
+!copy local arrays to MPAS grid:
+ call cloudiness_to_MPAS_gpu(diag_physics,its,ite)
+endif
 
 !call mpas_log_write('--- end subroutine driver_cloudiness.')
 
@@ -378,6 +496,105 @@
  enddo
 
  end subroutine calc_cldfraction
+
+!=================================================================================================================
+ subroutine calc_cldfraction_gpu(cldfrac,t_p,pres_p,qv,qc,qi,qs,its,ite)
+!=================================================================================================================
+
+!input arguments:
+ integer,intent(in):: its,ite
+ real(kind=RKIND),intent(in),dimension(ims:ime,kms:kme,jms:jme):: qv,qc,qi,qs
+ real(kind=RKIND),intent(in),dimension(ims:ime,kms:kme,jms:jme):: t_p,pres_p
+
+!output arguments:
+ real(kind=RKIND),intent(out),dimension(ims:ime,kms:kme,jms:jme):: cldfrac
+
+!local variables:
+ integer:: i,j,k
+
+ real(kind=RKIND),parameter:: alpha0  = 100.
+ real(kind=RKIND),parameter:: gamma   = 0.49
+ real(kind=RKIND),parameter:: qcldmin = 1.e-12
+ real(kind=RKIND),parameter:: pexp    = 0.25
+ real(kind=RKIND),parameter:: rhgrid  = 1.0
+
+ real(kind=RKIND),parameter:: svp1  = 0.61078
+ real(kind=RKIND),parameter:: svp2  = 17.2693882
+ real(kind=RKIND),parameter:: svpi2 = 21.8745584
+ real(kind=RKIND),parameter:: svp3  = 35.86
+ real(kind=RKIND),parameter:: svpi3 = 7.66
+ real(kind=RKIND),parameter:: svpt0 = 273.15
+
+ real(kind=RKIND):: esi,esw,qvsi,qvsw
+ real(kind=RKIND):: arg,denom,qcld,qvs,rhum,subsat,weight
+
+!-----------------------------------------------------------------------------------------------------------------
+!!!$acc update device(t_p,pres_p,qc,qi,qs,qv,cldfrac)
+
+!$acc data present(t_p,pres_p,qc,qi,qs,qv,cldfrac)
+ do j = jts,jte
+!$acc parallel vector_length(128)
+!$acc loop gang vector collapse(2)
+ do k = kts,kte
+ do i = its,ite
+    cldfrac(i,k,j) = 0._RKIND
+ enddo
+ enddo
+!$acc end parallel
+ enddo
+ 
+ do j = jts,jte
+!$acc parallel vector_length(128)
+!$acc loop gang vector collapse(2) private(esw,esi,qvsw,qvsi,qcld,weight,qvs,rhum,subsat,denom,arg)
+ do k = kts,kte
+ do i = its,ite
+
+!... calculation of the saturation mixing ratios over water and over ice (Murray, 1966):
+    esw = 1000. * svp1 * exp(svp2 * (t_p(i,k,j) - svpt0) / (t_p(i,k,j) - svp3))
+    esi = 1000. * svp1 * exp(svpi2 * (t_p(i,k,j) - svpt0) / (t_p(i,k,j) - svpi3))
+
+    qvsw = ep_2 * esw / (pres_p(i,k,j) - esw)
+    qvsi = ep_2 * esi / (pres_p(i,k,j) - esi)
+
+    qcld = qc(i,k,j) + qi(i,k,j) + qs(i,k,j)
+    if(qcld .lt. qcldmin) then
+       weight = 0.
+    else
+       weight = (qi(i,k,j) + qs(i,k,j)) / qcld
+    endif
+
+    qvs = (1-weight) * qvsw + weight * qvsi
+    rhum = qv(i,k,j) / qvs
+
+    if(qcld .lt. qcldmin) then
+
+       !assume that the cloud fraction is equal to 0. when the cloudy mixing ratio equals 0.
+       cldfrac(i,k,j) = 0.
+
+    elseif(rhum .ge. rhgrid) then
+       !assume that the cloud fraction is equal to 1. when the relative humidity equal 100%.
+       cldfrac(i,k,j) = 1.
+
+    else
+       !computation of the cloud fraction:
+       subsat = max(1.e-10,rhgrid*qvs-qv(i,k,j))
+       denom  = subsat**gamma
+       arg    = max(-6.9,-alpha0*qcld/denom) ! exp(-6.9) = 0.001
+
+       rhum = max(1.e-10,rhum)
+       cldfrac(i,k,j) = (rhum/rhgrid)**pexp*(1.-exp(arg))
+       if(cldfrac(i,k,j) .lt. 0.01) cldfrac(i,k,j) = 0.
+
+    endif
+
+ enddo
+ enddo
+!$acc end parallel
+ enddo
+!$acc end data
+
+!!!$acc update host(cldfrac)
+ end subroutine calc_cldfraction_gpu
 
 !=================================================================================================================
  end module mpas_atmphys_driver_cloudiness
