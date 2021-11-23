@@ -676,6 +676,7 @@
     qcrad_p,          &!cloud liquid water mixing ratio local to cloudiness and radiation                  [kg/kg]
     qirad_p,          &!cloud ice mixing ratio local to cloudiness and radiation                           [kg/kg]
     qsrad_p            !snow mixing ratio local to cloudiness and radiation                                [kg/kg]
+!$acc declare create(cldfrac_p,qvrad_p,qcrad_p,qirad_p,qsrad_p)
 
 !=================================================================================================================
 !.. variables and arrays related to land-surface parameterization:
