@@ -297,8 +297,10 @@
  call mpas_pool_get_array_gpu(diag_physics,'wstar' ,wstar )
 
  call mpas_pool_get_array_gpu(sfc_input   ,'xland' ,xland )
-!$acc update host(hfx, hpbl, qfx, ust, wspd, znt, delta, wstar, xland)
+!!!$acc update host(hfx, hpbl, qfx, ust, wspd, znt, delta, wstar, xland)
 
+!$acc parallel vector_length(128)
+!$acc loop gang vector collapse(2)
  do j = jts,jte
  do i = its,ite
     !from surface-layer model:
@@ -317,6 +319,9 @@
     voce_p(i,j)  = 0._RKIND
  enddo
  enddo
+!$acc end parallel
+
+!!!$acc update host(hfx_p,hpbl_p,qfx_p,ust_p,wspd_p,xland_p,kpbl_p,znt_p,delta_p,wstar_p,uoce_p,voce_p)
 
  pbl_select: select case (trim(pbl_scheme))
 
@@ -332,11 +337,13 @@
 
        call mpas_pool_get_array_gpu(tend_physics,'rthratenlw',rthratenlw)
        call mpas_pool_get_array_gpu(tend_physics,'rthratensw',rthratensw)
-!$acc update host(br, fm, fh, regime, u10, v10, rthratenlw, rthratensw)
+!!!$acc update host(br, fm, fh, regime, u10, v10, rthratenlw, rthratensw)
 
        ysu_pblmix = 0
        if(config_ysu_pblmix) ysu_pblmix = 1
 
+!$acc parallel vector_length(128)
+!$acc loop gang vector collapse(2)
        do j = jts,jte
        do i = its,ite
           !from surface-layer model:
@@ -351,7 +358,10 @@
           ctopo2_p(i,j) = 1._RKIND
        enddo
        enddo
+!$acc end parallel
 
+!$acc parallel vector_length(128)
+!$acc loop gang vector collapse(3)
        do j = jts,jte
        do k = kts,kte
        do i = its,ite
@@ -360,6 +370,9 @@
        enddo
        enddo
        enddo
+!$acc end parallel
+
+!!!$acc update host(br_p,psim_p,psih_p,regime_p,u10_p,v10_p,ctopo_p,ctopo2_p,exch_p,rthraten_p)
 
     case("bl_mynn")
        call mpas_pool_get_config(configs,'config_len_disp',len_disp)
@@ -422,6 +435,8 @@
 
  end select pbl_select
 
+!$acc parallel vector_length(128)
+!$acc loop gang vector collapse(3)
  do j = jts,jte
  do k = kts,kte
  do i = its,ite
@@ -438,6 +453,9 @@
  enddo
  enddo
  enddo
+!$acc end parallel
+
+!!!$acc update host(rublten_p,rvblten_p,rthblten_p,rqvblten_p,rqcblten_p,rqiblten_p,kzh_p,kzm_p,kzq_p)
 
  end subroutine pbl_from_MPAS
 
@@ -494,18 +512,25 @@
  call mpas_pool_get_array_gpu(tend_physics,'rqcblten',rqcblten)
  call mpas_pool_get_array_gpu(tend_physics,'rqiblten',rqiblten)
 
+!!!$acc update device(hpbl_p,kpbl_p,delta_p,wstar_p,rublten_p,rvblten_p,rthblten_p,rqvblten_p,rqcblten_p,rqiblten_p,kzh_p,kzm_p,kzh_p)
+
  do j = jts,jte
+!$acc parallel vector_length(128)
+!$acc loop gang vector 
  do i = its,ite
     hpbl(i)  = hpbl_p(i,j)
     kpbl(i)  = kpbl_p(i,j)
     delta(i) = delta_p(i,j)
     wstar(i) = wstar_p(i,j)
  enddo
+!$acc end parallel
  enddo
 
  do j = jts,jte
- do k = kts,kte
+!$acc parallel vector_length(128)
+!$acc loop gang vector collapse(2)
  do i = its,ite
+ do k = kts,kte
     rublten(k,i)  = rublten_p(i,k,j)
     rvblten(k,i)  = rvblten_p(i,k,j)
     rthblten(k,i) = rthblten_p(i,k,j)
@@ -518,21 +543,25 @@
     kzq(k,i) = kzh_p(i,k,j)
  enddo
  enddo
+!$acc end parallel
  enddo
 
  pbl_select: select case (trim(pbl_scheme))
 
     case("bl_ysu")
        call mpas_pool_get_array_gpu(diag_physics,'exch_h',exch_h)
+!!!$acc update device(exch_p)
 
        do j = jts,jte
-       do k = kts,kte
+!$acc parallel vector_length(128)
+!$acc loop gang vector collapse(2)
        do i = its,ite
+       do k = kts,kte
           exch_h(k,i) = exch_p(i,k,j)
        enddo
        enddo
+!$acc end parallel
        enddo
-!$acc update device(exch_h)
 
     case("bl_mynn")
        call mpas_pool_get_array_gpu(diag_physics,'el_pbl'  ,el_pbl  )
@@ -579,8 +608,8 @@
 
  end select pbl_select
 
-!$acc update device(kpbl, hpbl, kzh, kzm, kzq, delta, wstar, rublten, rvblten, &
-!$acc               rthblten, rqvblten, rqcblten, rqiblten)
+!!!$acc update device(kpbl, hpbl, kzh, kzm, kzq, delta, wstar, rublten, rvblten, &
+!!!$acc               rthblten, rqvblten, rqcblten, rqiblten)
  end subroutine pbl_to_MPAS
  
 !=================================================================================================================
