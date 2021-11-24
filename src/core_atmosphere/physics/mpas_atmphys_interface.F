@@ -627,15 +627,15 @@
 
  call mpas_pool_get_array_gpu(diag_physics,'plrad',plrad)
  call mpas_pool_get_array_gpu(state,'scalars',scalars,time_lev)
-!$acc update host(latCell, lonCell, fzm, fzp, rdzw, zgrid, zz, surface_pressure, &
-!$acc             exner, pressure_b, pressure_p, rtheta_b, rtheta_p, u, v, rho_zz, &
-!$acc             theta_m, w, plrad, scalars)
- qv => scalars(index_qv,:,:)
- qc => scalars(index_qc,:,:)
- qr => scalars(index_qr,:,:)
- qi => scalars(index_qi,:,:)
- qs => scalars(index_qs,:,:)
- qg => scalars(index_qg,:,:)
+!!!$acc update host(latCell, lonCell, fzm, fzp, rdzw, zgrid, zz, surface_pressure, &
+!!!$acc             exner, pressure_b, pressure_p, rtheta_b, rtheta_p, u, v, rho_zz, &
+!!!$acc             theta_m, w, plrad, scalars)
+!!! qv => scalars(index_qv,:,:)
+!!! qc => scalars(index_qc,:,:)
+!!! qr => scalars(index_qr,:,:)
+!!! qi => scalars(index_qi,:,:)
+!!! qs => scalars(index_qs,:,:)
+!!! qg => scalars(index_qg,:,:)
 
  call mpas_pool_get_field(diag_physics,'plrad',plradField)
  call mpas_pool_get_field(state,'scalars',scalarsField,time_lev)
@@ -666,16 +666,18 @@
  end if
 
  do j = jts, jte
+!$acc parallel vector_length(128)
+!$acc loop gang vector collapse(2)
  do k = kts, kte
  do i = its, ite
 
     !water vapor and moist arrays:
-    qv_p(i,k,j) = max(0.,qv(k,i))
-    qc_p(i,k,j) = max(0.,qc(k,i))
-    qr_p(i,k,j) = max(0.,qr(k,i))
-    qi_p(i,k,j) = max(0.,qi(k,i))
-    qs_p(i,k,j) = max(0.,qs(k,i))
-    qg_p(i,k,j) = max(0.,qg(k,i))
+    qv_p(i,k,j) = max(0.,scalars(index_qv,k,i))
+    qc_p(i,k,j) = max(0.,scalars(index_qc,k,i))
+    qr_p(i,k,j) = max(0.,scalars(index_qr,k,i))
+    qi_p(i,k,j) = max(0.,scalars(index_qi,k,i))
+    qs_p(i,k,j) = max(0.,scalars(index_qs,k,i))
+    qg_p(i,k,j) = max(0.,scalars(index_qg,k,i))
 
     !arrays located at theta points:
     u_p(i,k,j) = u(k,i)
@@ -695,7 +697,10 @@
 
  enddo
  enddo
+!$acc end parallel
  enddo
+!$acc update host(qv_p,qc_p,qr_p,qi_p,qs_p,qg_p,u_p,v_p, &
+!$acc zz_p,rho_p,th_p,t_p,pi_p,pres_p,zmid_p,dz_p)
 
  pbl_select: select case (trim(pbl_scheme))
     case("bl_mynn")
@@ -716,6 +721,8 @@
 
 !calculation of the surface pressure using hydrostatic assumption down to the surface::
  do j = jts,jte
+!$acc parallel vector_length(128)
+!$acc loop gang vector private(tem1,tem2,rho1,rho2)
  do i = its,ite
     tem1 = zgrid(2,i)-zgrid(1,i)
     tem2 = zgrid(3,i)-zgrid(2,i)
@@ -727,26 +734,35 @@
                     * (rho1 - 0.5*(rho2-rho1)*tem1/(tem1+tem2))
     surface_pressure(i) = surface_pressure(i) + pressure_p(1,i) + pressure_b(1,i)
  enddo
+!$acc end parallel
  
+!$acc parallel vector_length(128)
+!$acc loop gang vector collapse(2)
  do k = kts,kte
  do i = its,ite
     znu_p(i,k,j)  = pres_p(i,k,j) / surface_pressure(i)
  enddo
  enddo
+!$acc end parallel
  enddo
 
 !arrays located at w points:
  do j = jts, jte
+!$acc parallel vector_length(128)
+!$acc loop gang vector collapse(2)
  do k = kts,kte+1
  do i = its,ite
     w_p(i,k,j) = w(k,i)
     z_p(i,k,j) = zgrid(k,i)
  enddo
  enddo
+!$acc end parallel
  enddo
+!$acc update host(znu_p,w_p,z_p)
 
 !check that the pressure in the layer above the surface is greater than that in the layer
 !above it:
+!$acc update host(pressure_b,pressure_p)
  do j = jts,jte
  do i = its,ite
     if(pres_p(i,1,j) .le. pres_p(i,2,j)) then
@@ -767,6 +783,8 @@
 
 !interpolation of pressure and temperature from theta points to w points:
  do j = jts,jte
+!$acc parallel vector_length(128)
+!$acc loop gang vector collapse(2) private(tem1)
  do k = kts+1,kte
  do i = its,ite
     tem1 = 1./(zgrid(k+1,i)-zgrid(k-1,i))
@@ -776,6 +794,7 @@
     pres2_p(i,k,j) = fzm_p(i,k,j)*pres_p(i,k,j) + fzp_p(i,k,j)*pres_p(i,k-1,j)
  enddo
  enddo
+!$acc end parallel
  enddo
 
 !interpolation of pressure and temperature from theta points to the top-of-the-model: follows
@@ -783,6 +802,8 @@
 !in ./dyn_em/module_big_step_utilities.F):
  k = kte+1
  do j = jts,jte
+!$acc parallel vector_length(128)
+!$acc loop gang vector private(z0,z1,z2,w1,w2)
  do i = its,ite
     z0 = zgrid(k,i)
     z1 = 0.5*(zgrid(k,i)+zgrid(k-1,i)) 
@@ -793,12 +814,15 @@
     !use log of pressure to avoid occurrences of negative top-of-the-model pressure.
     pres2_p(i,k,j) = exp(w1*log(pres_p(i,k-1,j))+w2*log(pres_p(i,k-2,j)))
  enddo
+!$acc end parallel
  enddo
 
 !ldf (2012-06-22): recalculates the pressure at the surface as an extrapolation of the
 !pressures in the 2 layers above the surface, as was originally done:
  k = kts
  do j = jts,jte
+!$acc parallel vector_length(128)
+!$acc loop gang vector private(z0,z1,z2,w1,w2)
  do i = its,ite
     z0 = zgrid(k,i)
     z1 = 0.5*(zgrid(k,i)+zgrid(k+1,i)) 
@@ -810,43 +834,80 @@
 !   psfc_p(i,j) = pres2_p(i,k,j)
     psfc_p(i,j) = surface_pressure(i)
  enddo
+!$acc end parallel
  enddo
+!$acc update host(fzm_p,fzp_p,t2_p,pres2_p,psfc_p)
 
 !calculation of the hydrostatic pressure:
  do j = jts,jte
+!$acc parallel vector_length(128)
+!$acc loop gang vector
  do i = its,ite
     !pressure at w-points:
-    k = kte+1
-    pres2_hyd_p(i,k,j)  = pres2_p(i,k,j)
-    pres2_hydd_p(i,k,j) = pres2_p(i,k,j)
-    do k = kte,1,-1
+!!!    k = kte+1
+    pres2_hyd_p(i,kte+1,j)  = pres2_p(i,kte+1,j)
+    pres2_hydd_p(i,kte+1,j) = pres2_p(i,kte+1,j)
+ enddo
+!$acc end parallel
+ enddo
+ do j = jts,jte
+!$acc parallel vector_length(128)
+!$acc loop seq
+ do k = kte,1,-1
+!$acc loop gang vector private(rho_a)
+    do i = its,ite
        rho_a = rho_p(i,k,j) / (1.+qv_p(i,k,j))
        pres2_hyd_p(i,k,j)  = pres2_hyd_p(i,k+1,j)  + gravity*rho_p(i,k,j)*dz_p(i,k,j)
        pres2_hydd_p(i,k,j) = pres2_hydd_p(i,k+1,j) + gravity*rho_a*dz_p(i,k,j)
     enddo
+ enddo
+!$acc end parallel
+ enddo
+ do j = jts,jte
+!$acc parallel vector_length(128)
     !pressure at theta-points:
-    do k = kte,1,-1
+!$acc loop gang vector collapse(2)
+ do k = kte,1,-1
+    do i = its,ite
        pres_hyd_p(i,k,j)  = 0.5*(pres2_hyd_p(i,k+1,j)+pres2_hyd_p(i,k,j))
        pres_hydd_p(i,k,j) = 0.5*(pres2_hydd_p(i,k+1,j)+pres2_hydd_p(i,k,j))
     enddo
+ enddo
+!$acc end parallel
+ enddo
+ do j = jts,jte
+!$acc parallel vector_length(128)
+!$acc loop gang vector
+ do i = its,ite
     !surface pressure:
     psfc_hyd_p(i,j) = pres2_hyd_p(i,1,j)
     psfc_hydd_p(i,j) = pres2_hydd_p(i,1,j)
     !znu:
-    do k = kte,1,-1
+ enddo
+!$acc end parallel
+ enddo
+ do j = jts,jte
+!$acc parallel vector_length(128)
+!$acc loop gang vector collapse(2)
+ do k = kte,1,-1
+    do i = its,ite
        znu_hyd_p(i,k,j) = pres_hyd_p(i,k,j) / psfc_hyd_p(i,j) 
     enddo
  enddo
+!$acc end parallel
  enddo
+!$acc update host(pres2_hyd_p,pres2_hydd_p,pres_hyd_p, &
+!$acc pres_hydd_p,psfc_hyd_p,psfc_hydd_p,znu_hyd_p)
 
 !save the model-top pressure:
  do j = jts,jte
+!$acc parallel vector_length(128)
+!$acc loop gang vector
  do i = its,ite
     plrad(i) = pres2_p(i,kte+1,j) 
  enddo
+!$acc end parallel
  enddo
-
-!$acc update device(surface_pressure, plrad)
 
  end subroutine MPAS_to_physics_gpu
 
