@@ -2959,5 +2959,193 @@ n_loop : do n=1,iter+1
 
       end subroutine effectRad_wsm6
 !-----------------------------------------------------------------------
+      subroutine refl10cm_wsm6_1(qv1d, qr1d, qs1d, qg1d,                 &
+                       t1d, p1d, dBZ, kts, kte, its, ite, ii, jj)
+!!!$acc routine vector
+      IMPLICIT NONE
+
+!..Sub arguments
+      INTEGER, INTENT(IN):: kts, kte, its, ite, ii, jj
+      REAL, DIMENSION(kts:kte,its:ite), INTENT(IN)::                            &
+                      qv1d, qr1d, qs1d, qg1d, t1d, p1d
+      REAL, DIMENSION(kts:kte,its:ite), INTENT(INOUT):: dBZ
+
+!..Local variables
+      REAL, DIMENSION(kts:kte):: temp, pres, qv, rho
+      REAL, DIMENSION(kts:kte):: rr, rs, rg
+      REAL:: temp_C
+
+      DOUBLE PRECISION, DIMENSION(kts:kte):: ilamr, ilams, ilamg
+      DOUBLE PRECISION, DIMENSION(kts:kte):: N0_r, N0_s, N0_g
+      DOUBLE PRECISION:: lamr, lams, lamg
+      LOGICAL, DIMENSION(kts:kte):: L_qr, L_qs, L_qg
+
+      REAL, DIMENSION(kts:kte):: ze_rain, ze_snow, ze_graupel
+      DOUBLE PRECISION:: fmelt_s, fmelt_g
+
+      INTEGER:: i, k, k_0, kbot, n
+      LOGICAL:: melti
+
+      DOUBLE PRECISION:: cback, x, eta, f_d
+      REAL, PARAMETER:: R=287.
+! !$acc data create(temp, pres, qv, rho, rr, rs, rg, &
+! !$acc ilamr, ilams, ilamg, N0_r, N0_s, N0_g, L_qr, L_qs, L_qg, &
+! !$acc ze_rain, ze_snow, ze_graupel)
+!+---+
+
+!$acc parallel vector_length(32)
+!$acc loop gang private(k, temp, qv, pres, rho, rr, N0_r, ilamr, L_qr, &
+!$acc rs, N0_s, ilams, L_qs, rg, N0_g, ilamg, L_qg, melti, k_0, &
+!$acc ze_rain, ze_snow, ze_graupel)
+  do i = its, ite
+!$acc loop vector
+      do k = kts, kte
+         dBZ(k,i) = -35.0
+      enddo
+
+!+---+-----------------------------------------------------------------+
+!..Put column of data into local arrays.
+!+---+-----------------------------------------------------------------+
+!$acc loop vector private(temp_C,lamr,lams,lamg)
+      do k = kts, kte
+         temp(k) = t1d(k,i)
+         temp_C = min(-0.001, temp(K)-273.15)
+         qv(k) = MAX(1.E-10, qv1d(k,i))
+         pres(k) = p1d(k,i)
+         rho(k) = 0.622*pres(k)/(R*temp(k)*(qv(k)+0.622))
+
+         if (qr1d(k,i) .gt. 1.E-9) then
+            rr(k) = qr1d(k,i)*rho(k)
+            N0_r(k) = n0r
+            lamr = (xam_r*xcrg(3)*N0_r(k)/rr(k))**(1./xcre(1))
+            ilamr(k) = 1./lamr
+            L_qr(k) = .true.
+         else
+            rr(k) = 1.E-12
+            L_qr(k) = .false.
+         endif
+
+         if (qs1d(k,i) .gt. 1.E-9) then
+            rs(k) = qs1d(k,i)*rho(k)
+            N0_s(k) = min(n0smax, n0s*exp(-alpha*temp_C))
+            lams = (xam_s*xcsg(3)*N0_s(k)/rs(k))**(1./xcse(1))
+            ilams(k) = 1./lams
+            L_qs(k) = .true.
+         else
+            rs(k) = 1.E-12
+            L_qs(k) = .false.
+         endif
+
+         if (qg1d(k,i) .gt. 1.E-9) then
+            rg(k) = qg1d(k,i)*rho(k)
+            N0_g(k) = n0g
+            lamg = (xam_g*xcgg(3)*N0_g(k)/rg(k))**(1./xcge(1))
+            ilamg(k) = 1./lamg
+            L_qg(k) = .true.
+         else
+            rg(k) = 1.E-12
+            L_qg(k) = .false.
+         endif
+      enddo
+
+!+---+-----------------------------------------------------------------+
+!..Locate K-level of start of melting (k_0 is level above).
+!+---+-----------------------------------------------------------------+
+      melti = .false.
+      k_0 = kts
+!$acc loop seq
+      do k = kte-1, kts, -1
+         if ( (temp(k).gt.273.15) .and. L_qr(k)                         &
+                                  .and. (L_qs(k+1).or.L_qg(k+1)) ) then
+            k_0 = MAX(k+1, k_0)
+            melti=.true.
+            goto 195
+         endif
+      enddo
+ 195  continue
+
+!+---+-----------------------------------------------------------------+
+!..Assume Rayleigh approximation at 10 cm wavelength. Rain (all temps)
+!.. and non-water-coated snow and graupel when below freezing are
+!.. simple. Integrations of m(D)*m(D)*N(D)*dD.
+!+---+-----------------------------------------------------------------+
+!$acc loop vector
+      do k = kts, kte
+         ze_rain(k) = 1.e-22
+         ze_snow(k) = 1.e-22
+         ze_graupel(k) = 1.e-22
+         if (L_qr(k)) ze_rain(k) = N0_r(k)*xcrg(4)*ilamr(k)**xcre(4)
+         if (L_qs(k)) ze_snow(k) = (0.176/0.93) * (6.0/PI)*(6.0/PI)     &
+                                 * (xam_s/900.0)*(xam_s/900.0)          &
+                                 * N0_s(k)*xcsg(4)*ilams(k)**xcse(4)
+         if (L_qg(k)) ze_graupel(k) = (0.176/0.93) * (6.0/PI)*(6.0/PI)  &
+                                    * (xam_g/900.0)*(xam_g/900.0)       &
+                                    * N0_g(k)*xcgg(4)*ilamg(k)**xcge(4)
+      enddo
+
+!+---+-----------------------------------------------------------------+
+!..Special case of melting ice (snow/graupel) particles.  Assume the
+!.. ice is surrounded by the liquid water.  Fraction of meltwater is
+!.. extremely simple based on amount found above the melting level.
+!.. Uses code from Uli Blahak (rayleigh_soak_wetgraupel and supporting
+!.. routines).
+!+---+-----------------------------------------------------------------+
+      if (melti .and. k_0.ge.kts+1) then
+!$acc loop vector private(fmelt_s, eta, lams, n, x, CBACK, f_d, &
+!$acc fmelt_g, lamg)
+       do k = k_0-1, kts, -1
+
+!..Reflectivity contributed by melting snow
+          if (L_qs(k) .and. L_qs(k_0) ) then
+           fmelt_s = MAX(0.005d0, MIN(1.0d0-rs(k)/rs(k_0), 0.99d0))
+           eta = 0.d0
+           lams = 1./ilams(k)
+!$acc loop seq
+           do n = 1, nrbins
+              x = xam_s * xxDs(n)**xbm_s
+              call rayleigh_soak_wetgraupel (x,DBLE(xocms),DBLE(xobms), &
+                    fmelt_s, melt_outside_s, m_w_0, m_i_0, lamda_radar, &
+                    CBACK, mixingrulestring_s, matrixstring_s,          &
+                    inclusionstring_s, hoststring_s,                    &
+                    hostmatrixstring_s, hostinclusionstring_s)
+              f_d = N0_s(k)*xxDs(n)**xmu_s * DEXP(-lams*xxDs(n))
+              eta = eta + f_d * CBACK * simpson(n) * xdts(n)
+           enddo
+           ze_snow(k) = SNGL(lamda4 / (pi5 * K_w) * eta)
+          endif
+
+
+!..Reflectivity contributed by melting graupel
+
+          if (L_qg(k) .and. L_qg(k_0) ) then
+           fmelt_g = MAX(0.005d0, MIN(1.0d0-rg(k)/rg(k_0), 0.99d0))
+           eta = 0.d0
+           lamg = 1./ilamg(k)
+!$acc loop seq
+           do n = 1, nrbins
+              x = xam_g * xxDg(n)**xbm_g
+              call rayleigh_soak_wetgraupel (x,DBLE(xocmg),DBLE(xobmg), &
+                    fmelt_g, melt_outside_g, m_w_0, m_i_0, lamda_radar, &
+                    CBACK, mixingrulestring_g, matrixstring_g,          &
+                    inclusionstring_g, hoststring_g,                    &
+                    hostmatrixstring_g, hostinclusionstring_g)
+              f_d = N0_g(k)*xxDg(n)**xmu_g * DEXP(-lamg*xxDg(n))
+              eta = eta + f_d * CBACK * simpson(n) * xdtg(n)
+           enddo
+           ze_graupel(k) = SNGL(lamda4 / (pi5 * K_w) * eta)
+          endif
+
+       enddo
+      endif
+
+!$acc loop vector
+      do k = kte, kts, -1
+         dBZ(k,i) = 10.*log10((ze_rain(k)+ze_snow(k)+ze_graupel(k))*1.d18)
+      enddo
+  enddo
+!$acc end parallel
+
+! !$acc end data
+      end subroutine refl10cm_wsm6_1
 
 END MODULE module_mp_wsm6
