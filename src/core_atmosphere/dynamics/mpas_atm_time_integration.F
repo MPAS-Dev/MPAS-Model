@@ -486,7 +486,7 @@ module atm_time_integration
       real (kind=RKIND), dimension(:,:,:), pointer :: gpu_scalars_1, gpu_scalars_2
       integer, dimension(3) :: gpuArraySize
       ! Local variables for indexing
-      integer :: levelsIdx, scalarsIdx
+      integer :: levelsIdx, scalarsIdx, cellsIdx
       integer :: tmpnum_scalars, tmpnCells, tmpnVertLevels, tmpnEdges
       !
       ! Retrieve configuration options
@@ -2125,25 +2125,51 @@ module atm_time_integration
             call mpas_pool_get_array_gpu(tend_physics, 'rqvdynten', rqvdynten)
 
 !!!
-!$acc update host(scalars_1, scalars_2, rqvdynten)
+!!!!$acc update host(scalars_1, scalars_2, rqvdynten)
 
             !NOTE: The calculation of the tendency due to horizontal and vertical advection for the water vapor mixing ratio
             !requires that the subroutine atm_advance_scalars_mono was called on the third Runge Kutta step, so that a halo
             !update for the scalars at time_levs(1) is applied. A halo update for the scalars at time_levs(2) is done above. 
             if (config_monotonic) then
-               rqvdynten(:,:) = ( scalars_2(index_qv,:,:) - scalars_1(index_qv,:,:) ) / config_dt
+!$acc parallel vector_length(128)
+!$acc loop gang vector collapse(2)
+               do cellsIdx=1,nCells+1
+                 do levelsIdx=1,nVertLevels
+                   rqvdynten(levelsIdx,cellsIdx) = ( scalars_2(index_qv,levelsIdx,cellsIdx) - scalars_1(index_qv,levelsIdx,cellsIdx) ) / config_dt
+                 end do
+               end do
+!$acc end parallel
+!!!               rqvdynten(:,:) = ( scalars_2(index_qv,:,:) - scalars_1(index_qv,:,:) ) / config_dt
             else
-               rqvdynten(:,:) = 0._RKIND
+!$acc parallel vector_length(128)
+!$acc loop gang vector collapse(2)
+               do cellsIdx=1,nCells+1
+                 do levelsIdx=1,nVertLevels
+                   rqvdynten(levelsIdx,cellsIdx) = 0._RKIND
+                 end do
+               end do
+!$acc end parallel
+!!!               rqvdynten(:,:) = 0._RKIND
             end if
 
          end if
 
          !simply set to zero negative mixing ratios of different water species (for now):
-         where ( scalars_2(:,:,:) < 0.0)  &
-            scalars_2(:,:,:) = 0.0
+!$acc parallel vector_length(128)
+!$acc loop gang vector collapse(3)
+         do cellsIdx=1,nCells+1
+           do levelsIdx=1,nVertLevels
+             do scalarsIdx=1,num_scalars
+               if (scalars_2(scalarsIdx,levelsIdx,cellsIdx)<0.0) scalars_2(scalarsIdx,levelsIdx,cellsIdx) = 0.0
+             end do
+           end do
+         end do
+!$acc end parallel
+!!!         where ( scalars_2(:,:,:) < 0.0)  &
+!!!            scalars_2(:,:,:) = 0.0
 
 !!!
-!$acc update device(scalars_1, scalars_2, rqvdynten)
+!!!!$acc update device(scalars_1, scalars_2, rqvdynten)
 
          !call microphysics schemes:
          if (trim(config_microp_scheme) /= 'off')  then
