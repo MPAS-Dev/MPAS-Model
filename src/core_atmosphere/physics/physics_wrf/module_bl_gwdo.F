@@ -130,22 +130,39 @@ contains
                                                                           ol4
   integer ::  i,j,k,kpblmax
 !
+!!!$acc update device(u3d,v3d,t3d,qv3d,p3d,p3di,pi3d,z,rublten,rvblten,dtaux3d,dtauy3d,&
+!!!$acc               dusfcg,dvsfcg,var2d,oc12d,oa2d1,oa2d2,oa2d3,oa2d4,ol2d1,ol2d2,   &
+!!!$acc               ol2d3,ol2d4,sina,cosa,dx,kpbl2d)
+
+!$acc data create(delprsi,pdh,ugeo,vgeo,dudt,dvdt,dtaux,dtauy,dusfc,dvsfc,pdhi,oa4,ol4) &
+!$acc      present(u3d,v3d,t3d,qv3d,p3d,p3di,pi3d,z,rublten,rvblten,dtaux3d,dtauy3d,&
+!$acc               dusfcg,dvsfcg,var2d,oc12d,oa2d1,oa2d2,oa2d3,oa2d4,ol2d1,ol2d2,   &
+!$acc               ol2d3,ol2d4,sina,cosa,dx,kpbl2d)
+
    if(present(p_top) .and. present(znu) .and. present(znw)) then
+!!!$acc update device(znu)
+!$acc serial
       do k = kts,kte
         if (znu(k).gt.0.6) kpblmax = k + 1
       enddo
+!$acc end serial
    else
       kpblmax = kte - 1
    endif
 !
    do j = jts,jte
+!$acc parallel vector_length(128)
+!$acc loop gang vector collapse(2)
       do k = kts,kte+1
         do i = its,ite
            if (k.le.kte)pdh(i,k) = p3d(i,k,j)
            pdhi(i,k) = p3di(i,k,j)
         enddo
       enddo
+!$acc end parallel
 !
+!$acc parallel vector_length(128)
+!$acc loop gang vector collapse(2)
       do k = kts,kte
         do i = its,ite
           delprsi(i,k) = pdhi(i,k)-pdhi(i,k+1)
@@ -156,6 +173,9 @@ contains
           dvdt(i,k) = 0.0
         enddo
       enddo
+!$acc end parallel
+!$acc parallel vector_length(128)
+!$acc loop gang vector
         do i = its,ite
             oa4(i,1) = oa2d1(i,j)
             oa4(i,2) = oa2d2(i,j)
@@ -166,6 +186,8 @@ contains
             ol4(i,3) = ol2d3(i,j)
             ol4(i,4) = ol2d4(i,j)
         enddo
+!$acc end parallel
+
       call gwdo2d(dudt=dudt(its,kts),dvdt=dvdt(its,kts)                        &
               ,dtaux2d=dtaux(its,kts),dtauy2d=dtauy(its,kts)                   &
               ,u1=ugeo(its,kts),v1=vgeo(its,kts)                               &
@@ -184,6 +206,9 @@ contains
               ,ids=ids,ide=ide, jds=jds,jde=jde, kds=kds,kde=kde               &
               ,ims=ims,ime=ime, jms=jms,jme=jme, kms=kms,kme=kme               &
               ,its=its,ite=ite, jts=jts,jte=jte, kts=kts,kte=kte   )
+
+!$acc parallel vector_length(128)
+!$acc loop gang vector collapse(2)
       do k = kts,kte
         do i = its,ite
 ! rotate tendencies from zonal/meridional to model grid
@@ -197,8 +222,12 @@ contains
           endif
         enddo
       enddo
+!$acc end parallel
    enddo
 !
+!$acc end data
+
+!!!$acc update host(rublten,rvblten,dtaux3d,dtauy3d,dusfcg,dvsfcg)
    end subroutine gwdo
 !-------------------------------------------------------------------------------
 !-------------------------------------------------------------------------------
@@ -345,6 +374,15 @@ contains
    integer, dimension(its:ite)        :: komax
    integer                            :: kblk
 !-------------------------------------------------------------------------------
+!!!$acc update device(dudt,dvdt,dtaux2d,dtauy2d,u1,v1,t1,q1,del,prsi,prsl,prslk,zl,&
+!!!$acc               var,oc1,oa4,ol4,dusfc,dvsfc,dxmeter,kpbl)
+
+!$acc data create(ldrag,icrilv,flag,kloop1,coefm,taub, xn, yn, ubar, vbar, fr,&
+!$acc             ulow, rulow, bnv, oa, ol, rhobar,dtfac, brvf, xlinv, delks,delks1,&
+!$acc             zlowtop,cleff,taup,velco,bnv2, usqj, taud, rho, vtk, vtj,kbl, klowtop,&
+!$acc             delx, dely,dxy4, dxy4p,dxy, dxyp, olp, od,taufb,komax) copyin(nwdir) &
+!$acc      present(dudt,dvdt,dtaux2d,dtauy2d,u1,v1,t1,q1,del,prsi,prsl,prslk,zl, &
+!$acc             var,oc1,oa4,ol4,dusfc,dvsfc,dxmeter,kpbl)
 !
 ! constants                                                         
 !                                                                       
@@ -354,39 +392,65 @@ contains
 !
 ! calculate length of grid for flow-blocking drag
 !
-   delx(its:ite) = dxmeter(its:ite)
-   dely(its:ite) = dxmeter(its:ite)
-   dxy4(its:ite,1)  = delx(its:ite)
-   dxy4(its:ite,2)  = dely(its:ite)
-   dxy4(its:ite,3)  = sqrt(delx(its:ite)**2. + dely(its:ite)**2.)
-   dxy4(its:ite,4)  = dxy4(its:ite,3)
-   dxy4p(its:ite,1) = dxy4(its:ite,2)
-   dxy4p(its:ite,2) = dxy4(its:ite,1)
-   dxy4p(its:ite,3) = dxy4(its:ite,4)
-   dxy4p(its:ite,4) = dxy4(its:ite,3)
+!$acc parallel vector_length(128)
+!$acc loop gang vector
+  do i = its, ite
+   delx(i) = dxmeter(i)
+   dely(i) = dxmeter(i)
+   dxy4(i,1)  = delx(i)
+   dxy4(i,2)  = dely(i)
+   dxy4(i,3)  = sqrt(delx(i)**2. + dely(i)**2.)
+   dxy4(i,4)  = dxy4(i,3)
+   dxy4p(i,1) = dxy4(i,2)
+   dxy4p(i,2) = dxy4(i,1)
+   dxy4p(i,3) = dxy4(i,4)
+   dxy4p(i,4) = dxy4(i,3)
 !
-   cleff(its:ite) = dxmeter
+   cleff(i) = dxmeter(i)
 !
 ! initialize arrays                                                 
 !                                                                       
-   ldrag   = .false. ; icrilv = .false. ; flag    = .true.
+   ldrag(i)   = .false. ; icrilv(i) = .false. ; flag(i)    = .true.
 !
-   klowtop = 0       ; kbl    = 0
+   klowtop(i) = 0       ; kbl(i)    = 0
+   xn(i)   = 0.     ; yn(i)    = 0.
+   ubar(i) = 0.      ; vbar(i) = 0.      ; rhobar(i) = 0.     ; ulow(i)  = 0.
+   oa(i)  = 0.      ; ol(i)  = 0.      ; taub(i)  = 0. 
+   dtfac(i) = 1.0     ; xlinv(i) = 1.0/xl
+   komax(i) = 0 
+  enddo
+!$acc end parallel
 !
-   dtaux   = 0.      ; dtauy  = 0.      ; xn      = 0.     ; yn      = 0.  
-   ubar    = 0.      ; vbar   = 0.      ; rhobar  = 0.     ; ulow    = 0.
-   oa      = 0.      ; ol     = 0.      ; taub    = 0.  
+  
+   dtaux   = 0.      ; dtauy  = 0. 
 !
-   usqj    = 0.      ; bnv2   = 0.      ; vtj     = 0.     ; vtk     = 0. 
-   taup    = 0.      ; taud   = 0.      ; dtaux2d = 0.     ; dtauy2d = 0.
-!
-   dtfac   = 1.0     ; xlinv  = 1.0/xl
+!$acc parallel vector_length(128)
+!$acc loop gang vector collapse(2)
+  do k = kts,kte
+    do i = its,ite
+      usqj(i,k)    = 0.
+      bnv2(i,k)    = 0.
+      vtj(i,k)     = 0.
+      vtk(i,k)     = 0. 
+      taud(i,k)    = 0.
+      dtaux2d(i,k) = 0.
+      dtauy2d(i,k) = 0.
+    enddo
+  enddo
+!$acc loop gang vector collapse(2)
+  do k = kts,kte+1
+    do i = its,ite
+      taup(i,k)    = 0.
+      taufb(i,k) = 0.0
+    enddo
+  enddo
+!$acc end parallel
 !
 ! initialize arrays for flow-blocking drag
 !
-   komax = 0
-   taufb = 0.0
 !
+!$acc parallel vector_length(128)
+!$acc loop gang vector collapse(2)
    do k = kts,kte
      do i = its,ite
        vtj(i,k) = t1(i,k)  * (1.+fv_*q1(i,k))
@@ -394,17 +458,24 @@ contains
        rho(i,k) = 1./rd_ * prsl(i,k) / vtj(i,k) ! density kg/m**3
      enddo
    enddo
+!$acc end parallel
 !
+!$acc parallel vector_length(128)
+!$acc loop gang vector
    do i = its,ite
      zlowtop(i) = 2. * var(i)
-   enddo
+!!!   enddo
 !
-   do i = its,ite
+!!!   do i = its,ite
      kloop1(i) = .true.
    enddo
+!$acc end parallel
 !
-   do k = kts+1,kte
-     do i = its,ite
+!$acc parallel vector_length(128)
+!$acc loop gang vector
+   do i = its,ite
+!$acc loop seq
+     do k = kts+1,kte
        if(zlowtop(i) .gt. 0.) then
        if (kloop1(i).and.zl(i,k)-zl(i,1).ge.zlowtop(i)) then
          klowtop(i) = k+1
@@ -413,7 +484,10 @@ contains
        endif
      enddo
    enddo
+!$acc end parallel
 !
+!$acc parallel vector_length(128)
+!$acc loop gang vector
    do i = its,ite
 !
 ! determine reference level: 2*var
@@ -421,20 +495,27 @@ contains
      kbl(i) = klowtop(i)
      kbl(i) = max(min(kbl(i),kpblmax),kpblmin)
    enddo
+!$acc end parallel
 !
 ! determine the level of maximum orographic height
 !
-   komax(:) = kbl(:)
 !
+!$acc parallel vector_length(128)
+!$acc loop gang vector
    do i = its,ite
+     komax(i) = kbl(i)
      delks(i)  = 1.0 / (prsi(i,1) - prsi(i,kbl(i)))
      delks1(i) = 1.0 / (prsl(i,1) - prsl(i,kbl(i)))
    enddo
+!$acc end parallel
 !
 ! compute low level averages within pbl
 !
-   do k = kts,kpblmax
-     do i = its,ite
+!$acc parallel vector_length(128)
+!$acc loop gang vector private(rcsks,rdelks)
+   do i = its,ite
+!$acc loop seq
+     do k = kts,kpblmax
        if (k.lt.kbl(i)) then
          rcsks     = del(i,k) * delks(i)
          rdelks    = del(i,k)  * delks(i)
@@ -444,12 +525,15 @@ contains
        endif
      enddo
    enddo
+!$acc end parallel
 !
 ! figure out low-level horizontal wind direction 
 !
 ! nwd  1   2   3   4   5   6   7   8
 ! wd   w   s  sw  nw   e   n  ne  se
 !
+!$acc parallel vector_length(128)
+!$acc loop gang vector private(wdir,idir,nwd,ol4p)
    do i = its,ite                                                       
      wdir  = atan2(ubar(i),vbar(i)) + pi_
      idir  = mod(nint(fdir*wdir),mdir) + 1
@@ -476,9 +560,12 @@ contains
      dxy(i)  = dxy4(i,MOD(nwd-1,4)+1)
      dxyp(i) = dxy4p(i,MOD(nwd-1,4)+1)
    enddo
+!$acc end parallel
 !                                                                       
 ! saving richardson number in usqj for migwdi                       
 !
+!$acc parallel vector_length(128)
+!$acc loop gang vector collapse(2) private(ti,rdz,tem1,tem2,dw2,shr2,bvf2)
    do k = kts,kte-1                                                     
      do i = its,ite                                                     
        ti        = 2.0 / (t1(i,k)+t1(i,k+1))                                
@@ -492,14 +579,20 @@ contains
        bnv2(i,k) = 2.0*g_*rdz*(vtk(i,k+1)-vtk(i,k))/(vtk(i,k+1)+vtk(i,k))
      enddo                                                          
    enddo                                                             
+!$acc end parallel
 !
 ! compute the "low level" or 1/3 wind magnitude (m/s)                
-!                                                                       
+!                          
+!$acc parallel vector_length(128)
+!$acc loop gang vector                                             
    do i = its,ite                                                       
      ulow(i) = max(sqrt(ubar(i)*ubar(i) + vbar(i)*vbar(i)), 1.0)
      rulow(i) = 1./ulow(i)
-   enddo                                                             
+   enddo              
+!$acc end parallel
 !
+!$acc parallel vector_length(128)
+!$acc loop gang vector collapse(2)
    do k = kts,kte-1                                                    
      do i = its,ite                                                   
        velco(i,k) = 0.5 * ((u1(i,k)+u1(i,k+1)) * ubar(i)                       &
@@ -509,57 +602,80 @@ contains
          velco(i,k) = veleps                                      
        endif
      enddo                                                          
-   enddo                                                             
+   enddo                          
+!$acc end parallel
 !                                                                       
 ! no drag when critical level in the base layer                        
-!                                                                       
+!                      
+!$acc parallel vector_length(128)
+!$acc loop gang vector                                                 
    do i = its,ite                                                       
      ldrag(i) = velco(i,1).le.0.                                    
-   enddo                                                             
+   enddo              
+!$acc end parallel
 !
 !  no drag when velco.lt.0                                               
 !                                                                       
-   do k = kpblmin,kpblmax
-     do i = its,ite                                                    
+!$acc parallel vector_length(128)
+!$acc loop gang vector
+   do i = its,ite                                                    
+!$acc loop seq
+     do k = kpblmin,kpblmax
        if (k .lt. kbl(i)) ldrag(i) = ldrag(i).or. velco(i,k).le.0.
      enddo                                                          
-   enddo                                                             
+   enddo      
+!$acc end parallel
 !                                                                       
 ! the low level weighted average ri is stored in usqj(1,1; im)      
 ! the low level weighted average n**2 is stored in bnv2(1,1; im)    
 ! this is called bnvl2 in phy_gwd_alpert_sub not bnv2                           
 ! rdelks (del(k)/delks) vert ave factor so we can * instead of /    
 !                                                                       
+!$acc parallel vector_length(128)
+!$acc loop gang vector private(wtkbj)
    do i = its,ite                                                       
      wtkbj     = (prsl(i,1)-prsl(i,2)) * delks1(i)
      bnv2(i,1) = wtkbj * bnv2(i,1)                                
      usqj(i,1) = wtkbj * usqj(i,1)                                
    enddo                                                             
+!$acc end parallel
 !
-   do k = kpblmin,kpblmax                                                
-     do i = its,ite                                                    
+!$acc parallel vector_length(128)
+!$acc loop gang vector private(rdelks)
+   do i = its,ite                                                    
+!$acc loop seq
+     do k = kpblmin,kpblmax                                                
        if (k .lt. kbl(i)) then
          rdelks    = (prsl(i,k)-prsl(i,k+1)) * delks1(i)
          bnv2(i,1) = bnv2(i,1) + bnv2(i,k) * rdelks
          usqj(i,1) = usqj(i,1) + usqj(i,k) * rdelks
        endif
      enddo                                                          
-   enddo                                                             
-!                                                                       
+   enddo      
+!$acc end parallel
+!                                                                      
+!$acc parallel vector_length(128)
+!$acc loop gang vector
    do i = its,ite                                                       
      ldrag(i) = ldrag(i) .or. bnv2(i,1).le.0.0                         
      ldrag(i) = ldrag(i) .or. ulow(i).eq.1.0                           
      ldrag(i) = ldrag(i) .or. var(i) .le. 0.0
    enddo                                                             
+!$acc end parallel
 !                                                                       
 ! set all ri low level values to the low level value          
-!                                                                       
+!                                                                      
+!$acc parallel vector_length(128)
+!$acc loop gang vector collapse(2) 
    do k = kpblmin,kpblmax
      do i = its,ite                                                    
        if (k .lt. kbl(i)) usqj(i,k) = usqj(i,1)
      enddo                                                          
    enddo                                                             
+!$acc end parallel
 !
+!$acc parallel vector_length(128)
+!$acc loop gang vector
    do i = its,ite 
      if (.not.ldrag(i))   then   
        bnv(i) = sqrt( bnv2(i,1) )                                  
@@ -569,12 +685,15 @@ contains
        yn(i)  = vbar(i) * rulow(i)
      endif
    enddo
+!$acc end parallel
 !
 ! compute the base level stress and store it in taub
 ! calculate enhancement factor, number of mountains & aspect        
 ! ratio const. use simplified relationship between standard            
 ! deviation & critical hgt                                          
 !
+!$acc parallel vector_length(128)
+!$acc loop gang vector private(efact,tem,gfobnv)
    do i = its,ite                                                       
      if (.not. ldrag(i))   then   
        efact    = (oa(i) + 2.) ** (ce*fr(i)/frc)                         
@@ -590,18 +709,25 @@ contains
        xn(i)   = 0.0                                             
        yn(i)   = 0.0                                             
      endif                                                         
-   enddo                                                             
+   enddo    
+!$acc end parallel
 !                                                                       
 ! now compute vertical structure of the stress.
 !
+!$acc parallel vector_length(128)
+!$acc loop gang vector collapse(2)
    do k = kts,kpblmax
      do i = its,ite
        if (k .le. kbl(i)) taup(i,k) = taub(i)
      enddo
    enddo
+!$acc end parallel
 !
+!$acc parallel vector_length(128)
+!$acc loop seq
    do k = kpblmin, kte-1                   ! vertical level k loop!
      kp1 = k + 1
+!$acc loop gang vector
      do i = its,ite
 !
 ! unstablelayer if ri < ric
@@ -616,6 +742,7 @@ contains
        endif
      enddo
 !
+!$acc loop gang vector private(temv,tem1,hd,fro,tem2,tem,rim,temc)
      do i = its,ite
        if (k .ge. kbl(i) .and. (.not. ldrag(i)))   then   
          if (.not.icrilv(i) .and. taup(i,k) .gt. 0.0 ) then
@@ -646,14 +773,20 @@ contains
        endif
      enddo      
    enddo
+!$acc end parallel
 !
    if (lcap.lt.kte) then                                               
+!$acc parallel vector_length(128)
+!$acc loop gang vector collapse(2)
      do klcap = lcapp1,kte                                          
        do i = its,ite                                                 
          taup(i,klcap) = prsi(i,klcap) / prsi(i,lcap) * taup(i,lcap)      
        enddo                                                       
      enddo                                                          
+!$acc end parallel
    endif                                                             
+!$acc parallel vector_length(128)
+!$acc loop gang vector private(kblk,fbdpe,fbdke,kblk,zblk,fbdcd,tautem)
    do i = its,ite
      if (.not.ldrag(i)) then
 !
@@ -691,39 +824,55 @@ contains
 !
 ! sum orographic GW stress and flow-blocking stress
 !
-         taup(i,:) = taup(i,:) + taufb(i,:)
+         do k = kts, kte+1
+           taup(i,k) = taup(i,k) + taufb(i,k)
+         enddo
        endif
      endif
    enddo 
+!$acc end parallel
 !                                                                       
 ! calculate - (g)*d(tau)/d(pressure) and deceleration terms dtaux, dtauy
 !
+!$acc parallel vector_length(128)
+!$acc loop gang vector collapse(2)
    do k = kts,kte                                                       
      do i = its,ite                                                       
        taud(i,k) = 1. * (taup(i,k+1) - taup(i,k)) * g_ / del(i,k)
      enddo                                                             
    enddo                                                             
+!$acc end parallel
 !                                                                       
 ! if the gravity wave drag would force a critical line             
 ! in the lower ksmm1 layers during the next deltim timestep,     
 ! then only apply drag until that critical line is reached.        
 !                                                                       
-   do k = kts,kpblmax-1                                                    
-     do i = its,ite                                                    
+!$acc parallel vector_length(128)
+!$acc loop gang vector
+   do i = its,ite                                                    
+!$acc loop seq
+     do k = kts,kpblmax-1                                                    
        if (k .le. kbl(i)) then
          if (taud(i,k).ne.0.)                                                   &
            dtfac(i) = min(dtfac(i),abs(velco(i,k)/(deltim*taud(i,k))))  
        endif
      enddo                                                          
    enddo                                                             
+!$acc end parallel
 !
+!$acc parallel vector_length(128)
+!$acc loop gang vector
    do i = its,ite
      dusfc(i) = 0.
      dvsfc(i) = 0.
    enddo
+!$acc end parallel
 !
-   do k = kts,kte                                                       
-     do i = its,ite 
+!$acc parallel vector_length(128)
+!$acc loop gang vector private(dtaux,dtauy)
+   do i = its,ite 
+!$acc loop seq
+     do k = kts,kte                                                       
        taud(i,k) = taud(i,k) * dtfac(i)                              
        dtaux = taud(i,k) * xn(i)
        dtauy = taud(i,k) * yn(i)
@@ -735,12 +884,19 @@ contains
        dvsfc(i)  = dvsfc(i) + dtauy * del(i,k)
      enddo                                                          
    enddo                                                             
+!$acc end parallel
 !
+!$acc parallel vector_length(128)
+!$acc loop gang vector
    do i = its,ite
      dusfc(i) = (-1./g_) * dusfc(i)
      dvsfc(i) = (-1./g_) * dvsfc(i)
    enddo
+!$acc end parallel
 !
+!$acc end data
+
+!!!$acc update host(dudt,dvdt,dtaux2d,dtauy2d,dusfc,dvsfc)
    return                                                            
    end subroutine gwdo2d
 !-------------------------------------------------------------------------------

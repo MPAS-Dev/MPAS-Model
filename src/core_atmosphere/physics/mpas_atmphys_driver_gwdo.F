@@ -170,10 +170,12 @@
  call mpas_pool_get_array_gpu(diag_physics,'dtauy3d' ,dtauy3d )
  call mpas_pool_get_array_gpu(tend_physics,'rublten' ,rublten )
  call mpas_pool_get_array_gpu(tend_physics,'rvblten' ,rvblten )
-!$acc update host(meshDensity, oa1, oa2, oa3, oa4, ol1, ol2, ol3, ol4, &
-!$acc             con, var2d, kpbl, dusfcg, dvsfcg, dtaux3d, dtauy3d, &
-!$acc             rublten, rvblten)
+!!!$acc update host(meshDensity, oa1, oa2, oa3, oa4, ol1, ol2, ol3, ol4, &
+!!!$acc             con, var2d, kpbl, dusfcg, dvsfcg, dtaux3d, dtauy3d, &
+!!!$acc             rublten, rvblten)
 
+!$acc parallel vector_length(128)
+!$acc loop gang vector collapse(2)
  do j = jts,jte
  do i = its,ite
 
@@ -193,6 +195,7 @@
  enddo
  enddo
 
+!$acc loop gang vector collapse(2)
  do j = jts,jte
  do i = its,ite
     dx_p(i,j) = len_disp / meshDensity(i)**0.25
@@ -201,7 +204,10 @@
     dvsfcg_p(i,j) = dvsfcg(i)
  enddo
  enddo
+!$acc end parallel
 
+!$acc parallel vector_length(128)
+!$acc loop gang vector collapse(3)
  do j = jts,jte
  do k = kts,kte
  do i = its,ite
@@ -212,6 +218,12 @@
  enddo
  enddo
  enddo
+!$acc end parallel
+
+!!!$acc update host(sina_p,cosa_p,var2d_p,con_p,oa1_p,oa2_p,oa3_p,oa4_p,ol1_p, &
+!!!$acc        ol2_p,ol3_p,ol4_p,dx_p,kpbl_p,dusfcg_p,dvsfcg_p,dtaux3d_p, &
+!!!$acc        dtauy3d_p,rublten_p,rvblten_p)
+
 
  end subroutine gwdo_from_MPAS
  
@@ -244,14 +256,20 @@
  call mpas_pool_get_array_gpu(tend_physics,'rublten' ,rublten )
  call mpas_pool_get_array_gpu(tend_physics,'rvblten' ,rvblten )
 
+
  do j = jts,jte
+!$acc parallel vector_length(128)
+!$acc loop gang vector
  do i = its,ite
     dusfcg(i) = dusfcg_p(i,j) 
     dvsfcg(i) = dvsfcg_p(i,j)
  enddo
+!$acc end parallel
  enddo
 
  do j = jts,jte
+!$acc parallel vector_length(128)
+!$acc loop gang vector collapse(2)
  do k = kts,kte
  do i = its,ite
     dtaux3d(k,i)  = dtaux3d_p(i,k,j)
@@ -262,9 +280,10 @@
     rvblten(k,i)  = rvblten_p(i,k,j)
  enddo
  enddo
+!$acc end parallel
  enddo
-!$acc update device(dusfcg, dvsfcg, dtaux3d, dtauy3d, rubldiff, &
-!$acc               rvbldiff, rublten, rvblten)
+!!!$acc update device(dusfcg, dvsfcg, dtaux3d, dtauy3d, rubldiff, &
+!!!$acc               rvbldiff, rublten, rvblten)
 
  end subroutine gwdo_to_MPAS
  
