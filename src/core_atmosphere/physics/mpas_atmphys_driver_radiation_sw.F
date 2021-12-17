@@ -953,6 +953,9 @@
  xtime_m = xtime_s/60.
 
  if (mpas_cpl%role_includes(ROLE_RADIATION)) then
+
+!$acc update host(qvrad_p,qcrad_p,qirad_p)
+
 ! This should be OMP MASTER with barrier afterwards or OMP SINGLE, since declin and solcon
 ! are global variables in mpas_atmphys_vars.F and race conditions may occur otherwise!
 !$OMP SINGLE
