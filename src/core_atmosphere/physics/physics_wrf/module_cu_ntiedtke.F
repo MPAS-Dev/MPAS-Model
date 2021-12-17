@@ -1918,11 +1918,10 @@ contains
 ! check the levels from lowest level to second top level
       do jk=klevm1,2,-1
 ! define the variables at the first level      
-      flag=.false.
       if(jk .eq. klevm1) then
 !$acc parallel vector_length(128)
-!$acc loop gang vector reduction(.or.:flag) &
-!$acc private(deltt,deltq,rho,part1,part2,root,flag,conw)
+!$acc loop gang vector
+!$acc private(deltt,deltq,rho,part1,part2,root,conw)
       do jl=1,klon
         rho=pap(jl,klev)/ &
      &         (rd*(pten(jl,klev)*(1.+vtmpc1*pqen(jl,klev))))
@@ -1943,7 +1942,6 @@ contains
           vten(jl,klev)=ptenh(jl,klev)*(1.+vtmpc1*pqenh(jl,klev))
           zbuo(jl,klev)=(vptu(jl,klev)-vten(jl,klev))/vten(jl,klev)
           klab(jl,klev) = 1
-          flag = .true.
         else
           loflag(jl) = .false.
         end if
@@ -1951,13 +1949,15 @@ contains
 !$acc end parallel
       end if
  
-!!!   is=0
-!!!   do jl=1,klon
-!!!      if(loflag(jl))then
-!!!         is=is+1
-!!!      endif
-!!!   enddo
-!!!   if(is.eq.0) exit
+      flag=.false.
+!$acc parallel vector_length(128)
+!$acc loop gang vector reduction(.or.:flag) &
+      do jl=1,klon
+         if(loflag(jl))then
+             flag = .true.
+         endif
+      enddo
+!$acc end parallel
       if  ( .not. flag ) exit
 
 ! the next levels, we use the variables at the first level as initial values
