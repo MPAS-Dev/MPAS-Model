@@ -120,16 +120,21 @@
  if(.not.allocated(pratec_p)   ) allocate(pratec_p(ims:ime,jms:jme)          )
  if(.not.allocated(raincv_p)   ) allocate(raincv_p(ims:ime,jms:jme)          )
 
- do i = its,ite
+!$acc parallel vector_length(32)
+!$acc loop gang vector collapse(2)
  do j = jts,jte
+ do i = its,ite
     pratec_p(i,j) = 0._RKIND
     raincv_p(i,j) = 0._RKIND
  enddo
  enddo
+!$acc end parallel
 
- do i = its,ite
- do k = kts,kte
+!$acc parallel vector_length(32)
+!$acc loop gang vector collapse(3)
  do j = jts,jte
+ do k = kts,kte
+ do i = its,ite
     rthcuten_p(i,k,j) = 0._RKIND
     rqvcuten_p(i,k,j) = 0._RKIND
     rqccuten_p(i,k,j) = 0._RKIND
@@ -137,6 +142,7 @@
  enddo
  enddo
  enddo
+!$acc end parallel
 
  convection_select: select case(convection_scheme)
 
@@ -205,22 +211,28 @@
        if(.not.allocated(rucuten_p)    ) allocate(rucuten_p(ims:ime,kms:kme,jms:jme)    )
        if(.not.allocated(rvcuten_p)    ) allocate(rvcuten_p(ims:ime,kms:kme,jms:jme)    )
 
-       do i = its,ite
+!$acc parallel vector_length(32)
+!$acc loop gang vector collapse(2)
        do j = jts,jte
+       do i = its,ite
           hfx_p(i,j)   = 0._RKIND
           qfx_p(i,j)   = 0._RKIND
           xland_p(i,j) = 0._RKIND
        enddo
        enddo
+!$acc end parallel
 
-       do i = its,ite
-       do k = kts,kte
+!$acc parallel vector_length(32)
+!$acc loop gang vector collapse(3)
        do j = jts,jte
+       do k = kts,kte
+       do i = its,ite
           rucuten_p(i,k,j)     = 0._RKIND
           rvcuten_p(i,k,j)     = 0._RKIND
        enddo
        enddo
        enddo
+!$acc end parallel
 
        cu_tiedtke_select: select case(convection_scheme)
 
@@ -242,14 +254,17 @@
              if(.not.allocated(rqvften_p)) allocate(rqvften_p(ims:ime,kms:kme,jms:jme))
              if(.not.allocated(rthften_p)) allocate(rthften_p(ims:ime,kms:kme,jms:jme))
 
-             do i = its,ite
-             do k = kts,kte
+!$acc parallel vector_length(32)
+!$acc loop gang vector collapse(3)
              do j = jts,jte
+             do k = kts,kte
+             do i = its,ite
                 rqvften_p(i,k,j) = 0._RKIND
                 rthften_p(i,k,j) = 0._RKIND
              enddo
              enddo
              enddo
+!$acc end parallel
 
            case default
 
@@ -384,7 +399,8 @@
  convection_select: select case(convection_scheme)
 
     case ("cu_kain_fritsch")
-       call mpas_pool_get_array(diag_physics,'nca',nca)
+       call mpas_pool_get_array_gpu(diag_physics,'nca',nca)
+!$acc update host(nca)
        if(.not. config_do_restart) then
           do iCell = 1, nCells
              nca(iCell) = -100._RKIND
@@ -456,12 +472,14 @@
  curr_secs   = -1
  cudtacttime = -1
  adapt_step_flag = .false.
+!$acc parallel vector_length(32)
+!$acc loop gang vector collapse(2)
  do j = jts, jte
  do i = its, ite
     cu_act_flag(i,j) = .false.
  enddo
  enddo
-
+!$acc end parallel
 !... initialization of initflag needed in the calls cu_tiedtke and cu_ntiedtke:
  initflag = 1
  if(config_do_restart .or. itimestep > 1) initflag = 0
@@ -508,6 +526,7 @@
        else
           ktau = itimestep + 1
        endif
+!$acc update host(cu_act_flag)
 
        call mpas_timer_start('Kain-Fritsch')
        call  kf_eta_cps ( &
@@ -543,6 +562,7 @@
        call mpas_timer_stop('Kain-Fritsch')
 
     case("cu_tiedtke")
+!$acc update host(cu_act_flag)
        call mpas_timer_start('Tiedtke')
        call cu_tiedtke( &
              pcps        = pres_hyd_p    , p8w       = pres2_hyd_p   ,               &
@@ -652,20 +672,30 @@
  call mpas_pool_get_array_gpu(tend_physics,'rqvcuten',rqvcuten)
  call mpas_pool_get_array_gpu(tend_physics,'rqccuten',rqccuten)
  call mpas_pool_get_array_gpu(tend_physics,'rqicuten',rqicuten)
-!$acc update host(cuprec, raincv, rthcuten, rqvcuten, rqccuten, rqicuten)
 
+!$acc parallel vector_length(32)
+!$acc loop gang vector collapse(2)
  do j = jts,jte
  do i = its,ite
     raincv_p(i,j) = raincv(i)
     pratec_p(i,j) = cuprec(i)
-    do k = kts,kte
-       rthcuten_p(i,k,j) = rthcuten(k,i)
-       rqvcuten_p(i,k,j) = rqvcuten(k,i)
-       rqccuten_p(i,k,j) = rqccuten(k,i)
-       rqicuten_p(i,k,j) = rqicuten(k,i)
-    enddo
  enddo
  enddo
+!$acc end parallel
+
+!$acc parallel vector_length(32)
+!$acc loop gang vector collapse(3)
+ do j = jts,jte
+ do i = its,ite
+ do k = kts,kte
+    rthcuten_p(i,k,j) = rthcuten(k,i)
+    rqvcuten_p(i,k,j) = rqvcuten(k,i)
+    rqccuten_p(i,k,j) = rqccuten(k,i)
+    rqicuten_p(i,k,j) = rqicuten(k,i)
+ enddo
+ enddo
+ enddo
+!$acc end parallel
 
  convection_select: select case(convection_scheme)
 
@@ -790,26 +820,34 @@
        call mpas_pool_get_array_gpu(tend_physics,'rqvdynten',rqvdynten)
        call mpas_pool_get_array_gpu(tend_physics,'rucuten'  ,rucuten  )
        call mpas_pool_get_array_gpu(tend_physics,'rvcuten'  ,rvcuten  )
-!$acc update host(xland, hfx, qfx, rqvblten, rqvdynten, rucuten, rvcuten)
 
+!$acc parallel vector_length(32)
+!$acc loop gang vector collapse(2)
        do j = jts,jte
        do i = its,ite
           xland_p(i,j) = xland(i)
           hfx_p(i,j)   = hfx(i)
           qfx_p(i,j)   = qfx(i)
        enddo
+       enddo
+!$acc end parallel
 
-       do k = kts,kte
+!$acc parallel vector_length(32)
+!$acc loop gang vector collapse(3)
+       do j = jts,jte
        do i = its,ite
+       do k = kts,kte
           rucuten_p(i,k,j) = rucuten(k,i)
           rvcuten_p(i,k,j) = rvcuten(k,i)
        enddo
        enddo
        enddo
+!$acc end parallel
 
        cu_tiedtke_select: select case(convection_scheme)
 
           case ("cu_tiedtke")
+!!$acc update host(dx_p, xland_p, hfx_p, qfx_p, cubot_p, cutop_p, rucuten_p, rvcuten_p)
              do j = jts,jte
              do k = kts,kte
              do i = its,ite
@@ -818,7 +856,7 @@
              enddo
              enddo
              enddo
- 
+
           case("cu_ntiedtke")
              call mpas_pool_get_config(configs,'config_len_disp',len_disp)
              call mpas_pool_get_array_gpu(mesh,'meshDensity',meshDensity)
@@ -829,21 +867,28 @@
              call mpas_pool_get_array_gpu(tend_physics,'rthblten'  ,rthblten  )
              call mpas_pool_get_array_gpu(tend_physics,'rthratenlw',rthratenlw)
              call mpas_pool_get_array_gpu(tend_physics,'rthratensw',rthratensw)
-!$acc update host(meshDensity, rqvdynten, rqvblten, rthdynten, rthblten, rthratenlw, rthratensw)
-             
+
+!$acc parallel vector_length(32)
+!$acc loop gang vector collapse(2)
              do j = jts,jte
              do i = its,ite
                 dx_p(i,j) = len_disp / meshDensity(i)**0.25
              enddo
+             enddo
+!$acc end parallel
 
-             do k = kts,kte
+!$acc parallel vector_length(32)
+!$acc loop gang vector collapse(3)
+             do j = jts,jte
              do i = its,ite
+             do k = kts,kte
                 rqvften_p(i,k,j) = rqvdynten(k,i) + rqvblten(k,i)
                 rthften_p(i,k,j) = (rthdynten(k,i) + rthblten(k,i) &
-                                 + rthratenlw(k,i) + rthratensw(k,i)) * pi_p(i,k,j) 
+                                 + rthratenlw(k,i) + rthratensw(k,i)) * pi_p(i,k,j)
              enddo
              enddo
              enddo
+!$acc end parallel
 
           case default
 
@@ -892,18 +937,29 @@
  call mpas_pool_get_array_gpu(tend_physics,'rqccuten',rqccuten)
  call mpas_pool_get_array_gpu(tend_physics,'rqicuten',rqicuten)
 
+!$acc parallel vector_length(32)
+!$acc loop gang vector collapse(2)
  do j = jts,jte
  do i = its,ite
     raincv(i) = raincv_p(i,j)
     cuprec(i) = pratec_p(i,j)
-    do k = kts, kte
-       rthcuten(k,i) = rthcuten_p(i,k,j)
-       rqvcuten(k,i) = rqvcuten_p(i,k,j)
-       rqccuten(k,i) = rqccuten_p(i,k,j)
-       rqicuten(k,i) = rqicuten_p(i,k,j)
-    enddo
  enddo
  enddo
+!$acc end parallel
+
+!$acc parallel vector_length(32)
+!$acc loop gang vector collapse(3)
+ do j = jts,jte
+ do k = kts, kte
+ do i = its,ite
+    rthcuten(k,i) = rthcuten_p(i,k,j)
+    rqvcuten(k,i) = rqvcuten_p(i,k,j)
+    rqccuten(k,i) = rqccuten_p(i,k,j)
+    rqicuten(k,i) = rqicuten_p(i,k,j)
+ enddo
+ enddo
+ enddo
+!$acc end parallel
 
  convection_select: select case(convection_scheme)
 
@@ -921,6 +977,10 @@
 
        call mpas_pool_get_array_gpu(tend_physics,'rucuten',rucuten)
        call mpas_pool_get_array_gpu(tend_physics,'rvcuten',rvcuten)
+
+ !$acc update host(cubot, cutop, xmb_total, xmb_shallow, k22_shallow, &
+ !$acc kbcon_shallow, ktop_shallow, ktop_deep, qc_cu, qi_cu, rucuten, &
+ !$acc rvcuten)
 
        do j = jts,jte
        do i = its,ite
@@ -972,6 +1032,8 @@
        call mpas_pool_get_array_gpu(tend_physics,'rucuten',rucuten)
        call mpas_pool_get_array_gpu(tend_physics,'rvcuten',rvcuten)
 
+!$acc parallel vector_length(32)
+!$acc loop gang vector collapse(3)
        do j = jts,jte
        do k = kts,kte
        do i = its,ite
@@ -980,13 +1042,15 @@
        enddo
        enddo
        enddo
-!$acc update device(rucuten, rvcuten)
+!$acc end parallel
+!!!  For the ntiedke we will use the GPU copy. If we actually use the tiedke (before porting it) then we would need the below:
+!!!$acc update host(rucuten,rvcuten)
 
     case default
 
  end select convection_select
 
-!$acc update device(cuprec, raincv, rthcuten, rqvcuten, rqccuten, rqicuten)
+!!$acc update device(cuprec, raincv, rthcuten, rqvcuten, rqccuten, rqicuten)
  end subroutine convection_to_MPAS
 
 !=================================================================================================================
