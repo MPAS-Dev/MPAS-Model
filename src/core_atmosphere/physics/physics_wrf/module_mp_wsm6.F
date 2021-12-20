@@ -736,6 +736,8 @@ CONTAINS
         enddo
       enddo
 !$acc end parallel
+!!   print *, "Checkpoint 000100 -- wsm62D"
+!!   call flush(6)
       call slope_wsm6(qrs_tmp,den_tmp,denfac,t,rslope,rslopeb,rslope2,rslope3, & 
                      work1,its,ite,kts,kte)
 !!   print *, "Checkpoint 000200 -- wsm62D"
@@ -837,6 +839,8 @@ CONTAINS
         enddo
       enddo
 !$acc end parallel
+!!   print *, "Checkpoint 000300 -- wsm62D"
+!!   call flush(6)
 !---------------------------------------------------------------
 ! Vice [ms-1] : fallout of ice crystal [HDC 5a]
 !---------------------------------------------------------------
@@ -919,6 +923,8 @@ CONTAINS
         ENDIF
       enddo
 !$acc end parallel
+!!   print *, "Checkpoint 000400 -- wsm62D"
+!!   call flush(6)
 !
 !---------------------------------------------------------------
 ! pimlt: instantaneous melting of cloud ice [HL A47] [RH83 A28]
@@ -1634,6 +1640,8 @@ CONTAINS
       evapprod2d = -(prevp+psevp+pgevp+psdep+pgdep)
 #endif
 !$acc end data
+!!   print *, "Checkpoint 001000 -- exit wsm62D"
+!!   call flush(6)
 
   END SUBROUTINE wsm62d
 ! ...................................................................
@@ -2123,9 +2131,10 @@ CONTAINS
       do k=1,km
         allold = allold + rql(i,k)
       enddo
-      if(allold.le.0.0) then
-        cycle i_loop
-      endif
+   
+      if(allold.gt.0.0) then
+!        cycle i_loop
+!      endif
 !$acc loop vector
       do k=1,km
         ww(k) = wwl(i,k)
@@ -2147,6 +2156,7 @@ CONTAINS
        wd(k) = ww(k)
 !!              wd(:) = ww(:)
      enddo
+
 
 !$acc loop seq
 n_loop : do n=1,iter+1
@@ -2208,7 +2218,7 @@ n_loop : do n=1,iter+1
 !
 ! compute arrival terminal velocity, and estimate mean terminal velocity
 ! then back to use mean terminal velocity
-      if( n .gt. iter ) exit n_loop
+      if( n .le. iter ) then
         call slope_rain(qr,den,denfac,tk, &
 !#ifdef DEBUG
 !!!                     tmp,tmp1,tmp2,tmp3, &
@@ -2230,7 +2240,9 @@ n_loop : do n=1,iter+1
           was(k) = wa(k)
 !!      was(:) = wa(:)
         enddo
+      end if
       enddo n_loop
+   
 !
 ! estimate values at arrival cell interface with monotone
       !$acc loop vector private(dip,dim)
@@ -2260,18 +2272,18 @@ n_loop : do n=1,iter+1
       kt=1
 !$acc loop seq private(dqh, th, th2, tl, tl2, qqd, qqh, qql, qsum, zsum)
       intp : do k=1,km
-             if( zi(k).ge.za(km+1) ) exit intp
+             if( zi(k).lt.za(km+1) ) then
              kb=max(kb-1,1)
              kt=max(kt-1,1)
 ! find kb and kt
                !$acc loop seq
-               find_kb : do kk=kb,km
+               find_kb : do kk=km,kb,-1
                          if( zi(k).le.za(kk+1) ) then
                            kb = kk
                          endif
                enddo find_kb
                !$acc loop seq
-               find_kt : do kk=kt,km
+               find_kt : do kk=km,kt,-1
                          if( zi(k+1).le.za(kk) ) then
                            kt = kk
                          endif
@@ -2310,7 +2322,7 @@ n_loop : do n=1,iter+1
                  qsum  = qsum + dqh*dza(kt)
                  qn(k) = qsum/zsum
                endif
-!
+       end if
        enddo intp
 !
 ! rain out
@@ -2401,9 +2413,9 @@ n_loop : do n=1,iter+1
       do k=1,km
         allold = allold + rql(i,k) + rql2(i,k)
       enddo
-      if(allold.le.0.0) then
-        cycle i_loop
-      endif
+      if(allold.gt.0.0) then
+!        cycle i_loop
+!      endif
 !$acc loop vector
       do k=1,km
       ww(k) = wwl(i,k)
@@ -2489,7 +2501,7 @@ n_loop : do n=1,iter+1
 !
 ! compute arrival terminal velocity, and estimate mean terminal velocity
 ! then back to use mean terminal velocity
-      if ( n .gt. iter ) exit n_loop
+      if ( n .lt. iter ) then
         call slope_snow(qr,den,denfac,tk, &
 !#ifdef DEBUG
 !		                tmp,tmp1,tmp2,tmp3, &
@@ -2528,6 +2540,7 @@ n_loop : do n=1,iter+1
           ww(k) = 0.5* ( wd(k)+wa(k) )
           was(k) = wa(k)
         enddo
+      end if
       enddo n_loop
 
 !$acc loop seq
@@ -2569,17 +2582,17 @@ n_loop : do n=1,iter+1
       !$acc loop seq private(kk,tl,tl2,th,th2,qqd,qqh,qql,qn,zsum,qsum,dqh)
       intp : do k=1,km
 ! find kb and kt
-             if( zi(k).ge.za(km+1) ) exit intp
+             if( zi(k).lt.za(km+1) ) then
              kb=max(kb-1,1)
              kt=max(kt-1,1)
                !$acc loop seq
-               find_kb : do kk=kb,km
+               find_kb : do kk=km,kb,-1
                          if( zi(k).le.za(kk+1) ) then
                            kb = kk
                          endif
                enddo find_kb
                !$acc loop seq
-               find_kt : do kk=kt,km
+               find_kt : do kk=km,kt,-1
                          if( zi(k+1).le.za(kk) ) then
                            kt = kk
                          endif
@@ -2618,7 +2631,7 @@ n_loop : do n=1,iter+1
                  qsum  = qsum + dqh*dza(kt)
                  qn(k) = qsum/zsum
                endif
-!
+       end if
        enddo intp
 !
 ! rain out
