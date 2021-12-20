@@ -1092,9 +1092,10 @@
       call mpas_pool_get_array_gpu(tend_physics,'rqicuten',rqicuten)
       call mpas_pool_get_array_gpu(tend_physics,'rqrcuten',rqrcuten)
       call mpas_pool_get_array_gpu(tend_physics,'rqscuten',rqscuten)
-!$acc update host(nca, cubot, cutop, cuprec, raincv, rthcuten, rqvcuten, &
-!$acc             rqccuten, rqicuten, rqrcuten, rqscuten)
 
+!$acc data present(nca,cubot,cutop,cuprec,raincv,rthcuten,rqvcuten,rqccuten,rqicuten,rqrcuten,rqscuten)
+!$acc parallel vector_length(32)
+!$acc loop gang
        do i = its, ite
           !decreases the characteristic time period that convection remains active. When nca_p
           !becomes less than the convective timestep, convective tendencies and precipitation
@@ -1103,6 +1104,7 @@
              nca(i) = nca(i) - dt_dyn
              
              if(nca(i) .lt. 0.5*dt_dyn) then
+!$acc loop vector
                 do k = kts,kte
                    rthcuten(k,i) = 0._RKIND
                    rqvcuten(k,i) = 0._RKIND
@@ -1118,8 +1120,8 @@
              endif
           endif
        enddo
-!$acc update device(nca, cubot, cutop, cuprec, raincv, rthcuten, rqvcuten, &
-!$acc             rqccuten, rqicuten, rqrcuten, rqscuten)
+!$acc end parallel
+!$acc end data
 
     case default
 
@@ -1154,9 +1156,11 @@
  call mpas_pool_get_array_gpu(diag_physics,'i_rainc',i_rainc)
  call mpas_pool_get_array_gpu(diag_physics,'cuprec' ,cuprec )
  call mpas_pool_get_array_gpu(diag_physics,'rainc'  ,rainc  )
-!$acc update host(i_rainc, cuprec, rainc)
 
+!$acc data present(i_rainc,cuprec,rainc)
 !update the accumulated precipitation at the end of each dynamic time-step:
+!$acc parallel vector_length(128)
+!$acc loop gang vector
  do i = its, ite
     rainc(i) = rainc(i) + cuprec(i) * dt_dyn
 
@@ -1166,8 +1170,9 @@
        rainc(i)   = rainc(i) - bucket_rainc
     endif
  enddo
+!$acc end parallel
+!$acc end data
 
-!$acc update device(i_rainc, cuprec, rainc)
  end subroutine update_convection_step2
 
 !=================================================================================================================
