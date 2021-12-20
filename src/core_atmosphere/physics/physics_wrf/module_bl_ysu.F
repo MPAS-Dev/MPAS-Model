@@ -206,11 +206,31 @@ contains
                                                                         dvsfc, &
                                                                         dtsfc, &
                                                                         dqsfc
+!!!$acc update device(u3d,v3d,th3d,t3d,qv3d,qc3d,qi3d,p3d,p3di,pi3d,               &
+!!!$acc               rublten,rvblten,rthblten,rqvblten,rqcblten,rqiblten,         &
+!!!$acc               dz8w,psfc,znt,ust,hpbl,psim,psih,&
+!!!$acc               xland,hfx,qfx,wspd,br,kpbl2d,exch_h,exch_m,wstar,delta,   &
+!!!$acc               u10,v10,uoce,voce,rthraten,ctopo,ctopo2,regime)
+!$acc data create(rqvbl2dt,qv2d,pdh,pdhi,dusfc,dvsfc,dtsfc,dqsfc) &
+!$acc     present(u3d,v3d,th3d,t3d,qv3d,qc3d,qi3d,p3d,p3di,pi3d,               &
+!$acc               rublten,rvblten,rthblten,rqvblten,rqcblten,rqiblten,         &
+!$acc               dz8w,psfc,znt,ust,hpbl,psim,psih,&
+!$acc               xland,hfx,qfx,wspd,br,kpbl2d,exch_h,exch_m,wstar,delta,   &
+!$acc               u10,v10,uoce,voce,rthraten,ctopo,ctopo2,regime)
 
 !
-   qv2d(its:ite,:) = 0.0
+!$acc parallel vector_length(128)
+!$acc loop gang vector collapse(2)
+   do k = kts,kte*ndiff
+      do i = its,ite
+         qv2d(i,k) = 0.0
+      enddo
+   enddo
+!$acc end parallel
 !
    do j = jts,jte
+!$acc parallel vector_length(128)
+!$acc loop gang vector collapse(2)
       do k = kts,kte+1
         do i = its,ite
           if(k.le.kte)pdh(i,k) = p3d(i,k,j)
@@ -218,6 +238,7 @@ contains
         enddo
       enddo
 
+!$acc loop gang vector collapse(2)
       do k = kts,kte
         do i = its,ite
           qv2d(i,k) = qv3d(i,k,j)
@@ -225,6 +246,7 @@ contains
           if(present(rqiblten)) qv2d(i,k+kte+kte) = qi3d(i,k,j)
         enddo
       enddo
+!$acc end parallel
 !
       call ysu2d(J=j,ux=u3d(ims,kms,j),vx=v3d(ims,kms,j)                       &
               ,tx=t3d(ims,kms,j)                                               &
@@ -258,6 +280,8 @@ contains
               ,ims=ims,ime=ime, jms=jms,jme=jme, kms=kms,kme=kme               &
               ,its=its,ite=ite, jts=jts,jte=jte, kts=kts,kte=kte   )
 !
+!$acc parallel vector_length(128)
+!$acc loop gang vector collapse(2)
      do k = kts,kte
        do i = its,ite
          rthblten(i,k,j) = rthblten(i,k,j)/pi3d(i,k,j)
@@ -266,8 +290,15 @@ contains
          if(present(rqiblten)) rqiblten(i,k,j) = rqvbl2dt(i,k+kte+kte)
        enddo
      enddo
+!$acc end parallel
 !
    enddo
+
+!$acc end data
+!!!$acc update host(rublten,rvblten,rthblten,rqvblten,rqcblten,rqiblten,   &
+!!!$acc               znt,ust,hpbl,&
+!!!$acc               wspd,kpbl2d,exch_h,exch_m,wstar,delta,   &
+!!!$acc               u10,v10,regime)
 !
    end subroutine ysu
 !
@@ -537,9 +568,32 @@ contains
                                                                      buoy_ysu
    real,    dimension( ims:ime )             ::                       pblh_ysu,&
                                                                       vconvfx
+   real,    dimension( kts:kte, its:ite )    ::                        thvxTmp,&
+                                                                        dzqTmp
+   real,    dimension( kms:kme, ims:ime )    ::                      tke_ysuTmp
+   real,    dimension( kts:kte+1, its:ite )  ::                           zqTmp
 !
 !-------------------------------------------------------------------------------
 !
+!!!$acc update device(ux,vx,tx,qx,p2d,p2di,pi2d,utnp,vtnp,ttnp,qtnp,dz8w2d,psfcpa,znt,ust,hpbl,psim,psih,&
+!!!$acc               xland,hfx,qfx,wspd,br,dusfc,dvsfc,dtsfc,dqsfc,kpbl1d,exch_hx,&
+!!!$acc               exch_mx,wstar,delta,u10,v10,uox,vox,rthraten,p2diORG,&
+!!!$acc               ctopo,ctopo2,regime)
+
+!$acc data create(hol,zq,thx,thvx,thlix,del,dza,dzq,xkzom,xkzoh,za,rhox,govrth,zl1, &
+!$acc             thermal,wscale,hgamt,hgamq,brdn,brup,phim,phih, &
+!$acc             prpbl,wspd1,thermalli,xkzm,xkzh,f1,f2,r1,r2,ad,au,cu,al,xkzq,&
+!$acc             zfac,rhox2,hgamt2,brcr,sflux,zol1, &
+!$acc             brcr_sbro,r3,f3,kpbl,kpblold,pblflg,sfcflg,stable,cloudflg,wscalek,&
+!$acc             wscalek2,xkzml,xkzhl,zfacent,entfac,ust3,wstar3,wstar3_2,&
+!$acc             hgamu,hgamv,wm2,we,bfxpbl,hfxpbl,qfxpbl,ufxpbl,vfxpbl,dthvx,fric,  &
+!$acc             tke_ysu,el_ysu,shear_ysu,buoy_ysu,pblh_ysu,vconvfx,thvxTmp,dzqTmp, &
+!$acc             tke_ysuTmp,zqTmp) &
+!$acc     present(ux,vx,tx,qx,p2d,p2di,pi2d,utnp,vtnp,ttnp,qtnp,dz8w2d,psfcpa,znt,ust,&
+!$acc             hpbl,psim,psih,xland,hfx,qfx,wspd,br,dusfc,dvsfc,dtsfc,dqsfc,kpbl1d,&
+!$acc             exch_hx,exch_mx,wstar,delta,u10,v10,uox,vox,rthraten,p2diORG,ctopo, &
+!$acc             ctopo2,regime)
+
    klpbl = kte
 !
    cont=cp/g
@@ -554,70 +608,115 @@ contains
    ktrace2 = 0 + kte
    ktrace3 = 0 + kte*2
 !
+!$acc parallel vector_length(128)
+!$acc loop gang vector collapse(2)
    do k = kts,kte
      do i = its,ite
        thx(i,k) = tx(i,k)/pi2d(i,k)
        thlix(i,k) = (tx(i,k)-xlv*qx(i,ktrace2+k)/cp-2.834E6*qx(i,ktrace3+k)/cp)/pi2d(i,k)
+!!!     enddo
+!!!   enddo
+!
+!!!   do k = kts,kte
+!!!     do i = its,ite
+!!!       tvcon = (1.+ep1*qx(i,k))
+!!!       thvx(i,k) = thx(i,k)*tvcon
+        thvx(i,k) = thx(i,k)*(1.+ep1*qx(i,k))
      enddo
    enddo
+!$acc end parallel
 !
-   do k = kts,kte
-     do i = its,ite
-       tvcon = (1.+ep1*qx(i,k))
-       thvx(i,k) = thx(i,k)*tvcon
-     enddo
-   enddo
-!
+!$acc parallel vector_length(128)
+!$acc loop gang vector
    do i = its,ite
-     tvcon = (1.+ep1*qx(i,1))
-     rhox(i) = psfcpa(i)/(rd*tx(i,1)*tvcon)
+!!!     tvcon = (1.+ep1*qx(i,1))
+!!!     rhox(i) = psfcpa(i)/(rd*tx(i,1)*tvcon)
+     rhox(i) = psfcpa(i)/(rd*tx(i,1)*(1.+ep1*qx(i,1)))
      govrth(i) = g/thx(i,1)
-   enddo
+!!!   enddo
 !
 !-----compute the height of full- and half-sigma levels above ground
 !     level, and the layer thicknesses.
 !
-   do i = its,ite
+!!!   do i = its,ite
      zq(i,1) = 0.
    enddo
+!$acc end parallel
 !
-   do k = kts,kte
-     do i = its,ite
-       zq(i,k+1) = dz8w2d(i,k)+zq(i,k)
-       tvcon = (1.+ep1*qx(i,k))
-       rhox2(i,k) = p2d(i,k)/(rd*tx(i,k)*tvcon)
-     enddo
+!$acc parallel vector_length(128)
+!$acc loop gang vector
+   do i = its,ite
+!$acc loop seq
+      do k = kts,kte
+         zq(i,k+1) = dz8w2d(i,k)+zq(i,k)
+      enddo
    enddo
-!
+!$acc end parallel
+
+!$acc parallel vector_length(128)
+!$acc loop gang vector collapse(2)
    do k = kts,kte
      do i = its,ite
+!!!       tvcon = (1.+ep1*qx(i,k))
+!!!       rhox2(i,k) = p2d(i,k)/(rd*tx(i,k)*tvcon)
+        rhox2(i,k) = p2d(i,k)/(rd*tx(i,k)*(1.+ep1*qx(i,k)))
+!!!     enddo
+!!!   enddo
+!
+!!!   do k = kts,kte
+!!!     do i = its,ite
        za(i,k) = 0.5*(zq(i,k)+zq(i,k+1))
        dzq(i,k) = zq(i,k+1)-zq(i,k)
        del(i,k) = p2di(i,k)-p2di(i,k+1)
      enddo
    enddo
+!$acc end parallel
 !
+!$acc parallel vector_length(128)
+!$acc loop gang vector
    do i = its,ite
      dza(i,1) = za(i,1)
    enddo
+!$acc end parallel
 !
+!$acc parallel vector_length(128)
+!$acc loop gang vector collapse(2)
    do k = kts+1,kte
      do i = its,ite
        dza(i,k) = za(i,k)-za(i,k-1)
      enddo
    enddo
+!$acc end parallel
 !
 !
 !-----initialize vertical tendencies and
 !
-   utnp(its:ite,:) = 0.
-   vtnp(its:ite,:) = 0.
-   ttnp(its:ite,:) = 0.
-   qtnp(its:ite,:) = 0.
+!$acc parallel vector_length(128)
+!$acc loop gang vector collapse(2)
+   do k = kms, kme 
+     do i = its,ite
+       utnp(i,k) = 0.
+       vtnp(i,k) = 0.
+       ttnp(i,k) = 0.
+     enddo
+   enddo
+!$acc end parallel
+ 
+!$acc parallel vector_length(128)
+!$acc loop gang vector collapse(2) 
+   do k = kts, kte*ndiff 
+     do i = its,ite
+       qtnp(i,k) = 0.
+     enddo
+   enddo
+!$acc end parallel
 !
+!$acc parallel vector_length(128)
+!$acc loop gang vector
    do i = its,ite
      wspd1(i) = sqrt( (ux(i,1)-uox(i))*(ux(i,1)-uox(i)) + (vx(i,1)-vox(i))*(vx(i,1)-vox(i)) )+1.e-9
    enddo
+!$acc end parallel
 !
 !---- compute vertical diffusion
 !
@@ -628,6 +727,8 @@ contains
    dt2 = 2.*dtstep
    rdt = 1./dt2
 !
+!$acc parallel vector_length(128)
+!$acc loop gang vector
    do i = its,ite
      bfxpbl(i) = 0.0
      hfxpbl(i) = 0.0
@@ -639,7 +740,10 @@ contains
      delta(i)  = 0.0
      wstar3_2(i) =  0.0
    enddo
+!$acc end parallel
 !
+!$acc parallel vector_length(128)
+!$acc loop gang vector collapse(2)
    do k = kts,klpbl
      do i = its,ite
        wscalek(i,k) = 0.0
@@ -647,18 +751,23 @@ contains
      enddo
    enddo
 !
+!$acc loop gang vector collapse(2)
    do k = kts,klpbl
      do i = its,ite
        zfac(i,k) = 0.0
      enddo
    enddo
+!$acc loop gang vector collapse(2)
    do k = kts,klpbl-1
      do i = its,ite
        xkzom(i,k) = xkzminm
        xkzoh(i,k) = xkzminh
      enddo
    enddo
+!$acc end parallel
 !
+!$acc parallel vector_length(128)
+!$acc loop gang vector
    do i = its,ite
      dusfc(i) = 0.
      dvsfc(i) = 0.
@@ -666,6 +775,7 @@ contains
      dqsfc(i) = 0.
    enddo
 !
+!$acc loop gang vector
    do i = its,ite
      hgamt(i)  = 0.
      hgamq(i)  = 0.
@@ -683,14 +793,19 @@ contains
 !
 !     compute the first guess of pbl height
 !
+!$acc loop gang vector
    do i = its,ite
      stable(i) = .false.
      brup(i) = br(i)
      brcr(i) = brcr_ub
    enddo
+!$acc end parallel
 !
-   do k = 2,klpbl
-     do i = its,ite
+!$acc parallel vector_length(128)
+!$acc loop gang vector private(spdk2)
+   do i = its,ite
+!$acc loop seq
+     do k = 2,klpbl
        if(.not.stable(i))then
          brdn(i) = brup(i)
          spdk2   = max(ux(i,k)**2+vx(i,k)**2,1.)
@@ -700,7 +815,10 @@ contains
        endif
      enddo
    enddo
+!$acc end parallel
 !
+!$acc parallel vector_length(128)
+!$acc loop gang vector private(k,brint)
    do i = its,ite
      k = kpbl(i)
      if(brdn(i).ge.brcr(i))then
@@ -714,7 +832,10 @@ contains
      if(hpbl(i).lt.zq(i,2)) kpbl(i) = 1
      if(kpbl(i).le.1) pblflg(i) = .false.
    enddo
+!!!$acc end parallel
 !
+!!!$acc parallel vector_length(128)
+!$acc loop gang vector private(fm,fh,hol1,bfx0,hfx0,qfx0)
    do i = its,ite
      fm = psim(i)
      fh = psih(i)
@@ -744,10 +865,13 @@ contains
      wscale(i) = min(wscale(i),ust(i)*aphi16)
      wscale(i) = max(wscale(i),ust(i)/aphi5)
    enddo
+!$acc end parallel
 !
 !     compute the surface variables for pbl height estimation
 !     under unstable conditions
 !
+!$acc parallel vector_length(128)
+!$acc loop gang vector private(gamfac,vpert,brint)
    do i = its,ite
      if(sfcflg(i).and.sflux(i).gt.0.0)then
        gamfac   = bfac/rhox(i)/wscale(i)
@@ -768,6 +892,7 @@ contains
 !
 !     enhance the pbl height by considering the thermal
 !
+!$acc loop gang vector
    do i = its,ite
      if(pblflg(i))then
        kpbl(i) = 1
@@ -775,6 +900,7 @@ contains
      endif
    enddo
 !
+!$acc loop gang vector
    do i = its,ite
      if(pblflg(i))then
        stable(i) = .false.
@@ -782,9 +908,13 @@ contains
        brcr(i) = brcr_ub
      endif
    enddo
+!$acc end parallel
 !
-   do k = 2,klpbl
-     do i = its,ite
+!$acc parallel vector_length(128)
+!$acc loop gang vector private(spdk2)
+   do i = its,ite
+!$acc loop seq
+     do k = 2,klpbl
        if(.not.stable(i).and.pblflg(i))then
          brdn(i) = brup(i)
          spdk2   = max(ux(i,k)**2+vx(i,k)**2,1.)
@@ -794,13 +924,17 @@ contains
        endif
      enddo
    enddo
+!$acc end parallel
 !
 !     enhance pbl by theta-li
 !
    if (ysu_topdown_pblmix.eq.1)then
+!$acc parallel vector_length(128)
+!$acc loop gang vector private(definebrup,spdk2,bruptmp)
      do i = its,ite
         kpblold(i) = kpbl(i)
         definebrup=.false.
+!$acc loop seq
         do k = kpblold(i), kte-1
            spdk2   = max(ux(i,k)**2+vx(i,k)**2,1.)
            bruptmp = (thlix(i,k)-thermalli(i))*(g*za(i,k)/thlix(i,1))/spdk2
@@ -817,8 +951,11 @@ contains
            endif
         enddo
      enddo
+!$acc end parallel
    endif
 
+!$acc parallel vector_length(128)
+!$acc loop gang vector private(k,brint,wspd10,ross)
    do i = its,ite
      if(pblflg(i)) then
        k = kpbl(i)
@@ -837,6 +974,7 @@ contains
 !
 !     stable boundary layer
 !
+!$acc loop gang vector
    do i = its,ite
      if((.not.sfcflg(i)).and.hpbl(i).lt.zq(i,2)) then
        brup(i) = br(i)
@@ -845,7 +983,10 @@ contains
        stable(i) = .true.
      endif
    enddo
+!!!$acc end parallel
 !
+!!!$acc parallel vector_length(128)
+!$acc loop gang vector private(wspd10,ross)
    do i = its,ite
      if((.not.stable(i)).and.((xland(i)-1.5).ge.0))then
        wspd10 = u10(i)*u10(i) + v10(i)*v10(i)
@@ -855,6 +996,7 @@ contains
      endif
    enddo
 !
+!$acc loop gang vector
    do i = its,ite
      if(.not.stable(i))then
        if((xland(i)-1.5).ge.0)then
@@ -864,9 +1006,13 @@ contains
        endif
      endif
    enddo
+!$acc end parallel
 !
-   do k = 2,klpbl
-     do i = its,ite
+!$acc parallel vector_length(128)
+!$acc loop gang vector private(spdk2)
+   do i = its,ite
+!$acc loop seq
+     do k = 2,klpbl
        if(.not.stable(i))then
          brdn(i) = brup(i)
          spdk2   = max(ux(i,k)**2+vx(i,k)**2,1.)
@@ -876,7 +1022,10 @@ contains
        endif
      enddo
    enddo
+!!!$acc end parallel
 !
+!!!$acc parallel vector_length(128)
+!$acc loop gang vector private(k,brint)
    do i = its,ite
      if((.not.sfcflg(i)).and.hpbl(i).lt.zq(i,2)) then
        k = kpbl(i)
@@ -892,9 +1041,12 @@ contains
        if(kpbl(i).le.1) pblflg(i) = .false.
      endif
    enddo
+!!!$acc end parallel
 !
 !     estimate the entrainment parameters
 !
+!!!$acc parallel vector_length(32)
+!$acc loop gang vector private(k,wm3,templ,rvls,temps,rcldb,tmp1,ent_eff,radsum,bfx0,gamfac,brint,dthx,dqx,dux,dvx,delb)
    do i = its,ite
      cloudflg(i)=.false. 
      if(pblflg(i)) then
@@ -922,6 +1074,7 @@ contains
                 ent_eff   = 0.2 * 8. * tmp1 +0.2
 
                 radsum=0.
+!$acc loop seq
                 do kk = 1,kpbl(i)-1
                    radflux=rthraten(i,kk)*pi2d(i,kk) !converts theta/s to temp/s
                    radflux=radflux*cp/g*(p2diORG(i,kk)-p2diORG(i,kk+1)) ! converts temp/s to W/m^2
@@ -991,7 +1144,10 @@ contains
        delta(i) = min(d1*hpbl(i) + d2*wm2(i)/delb,100.)
      endif
    enddo
+!$acc end parallel
 !
+!$acc parallel vector_length(128)
+!$acc loop gang vector collapse(2)
    do k = kts,klpbl
      do i = its,ite
        if(pblflg(i).and.k.ge.kpbl(i))then
@@ -1001,9 +1157,12 @@ contains
        endif
      enddo
    enddo
+!!!$acc end parallel
 !
 !     compute diffusion coefficients below pbl
 !
+!!!$acc parallel vector_length(32)
+!$acc loop gang vector collapse(2) private(prfac,prfac2,prnumfac,phim8z,prnum0,prnum)
    do k = kts,klpbl
      do i = its,ite
        if(k.lt.kpbl(i)) then
@@ -1045,9 +1204,12 @@ contains
        endif
      enddo
    enddo
+!$acc end parallel
 !
 !     compute diffusion coefficients over pbl (free atmosphere)
 !
+!$acc parallel vector_length(32)
+!$acc loop gang vector collapse(2) private(ss,govrthv,ri,qmean,tmean,alph,chi,ri,zk,rlamdz,rl2,dk,sri,prnum)
    do k = kts,kte-1
      do i = its,ite
        if(k.ge.kpbl(i)) then
@@ -1095,9 +1257,12 @@ contains
        endif
      enddo
    enddo
+!$acc end parallel
 !
 !     compute tridiagonal matrix elements for heat
 !
+!$acc parallel vector_length(128)
+!$acc loop gang vector collapse(2)
    do k = kts,kte
      do i = its,ite
        au(i,k) = 0.
@@ -1106,14 +1271,21 @@ contains
        f1(i,k) = 0.
      enddo
    enddo
+!$acc end parallel
 !
+!$acc parallel vector_length(128)
+!$acc loop gang vector
    do i = its,ite
      ad(i,1) = 1.
      f1(i,1) = thx(i,1)-300.+hfx(i)/cont/del(i,1)*dt2
    enddo
+!$acc end parallel
 !
-   do k = kts,kte-1
-     do i = its,ite
+!$acc parallel vector_length(32)
+!$acc loop gang vector private(dtodsd,dtodsu,dsig,rdz,tem1,dsdzt,dsdz2)
+   do i = its,ite
+!$acc loop seq
+     do k = kts,kte-1
        dtodsd = dt2/del(i,k)
        dtodsu = dt2/del(i,k+1)
        dsig   = p2d(i,k)-p2d(i,k+1)
@@ -1141,30 +1313,40 @@ contains
        exch_hx(i,k+1) = xkzh(i,k)
      enddo
    enddo
+!$acc end parallel
 !
 ! copies here to avoid duplicate input args for tridin
 !
+!$acc parallel vector_length(128)
+!$acc loop gang vector collapse(2)
    do k = kts,kte
      do i = its,ite
        cu(i,k) = au(i,k)
        r1(i,k) = f1(i,k)
      enddo
    enddo
+!$acc end parallel
 !
    call tridin_ysu(al,ad,cu,r1,au,f1,its,ite,kts,kte,1)
 !
 !     recover tendencies of heat
 !
-   do k = kte,kts,-1
-     do i = its,ite
+!$acc parallel vector_length(128)
+!$acc loop gang vector private(ttend)
+   do i = its,ite
+!$acc loop seq
+     do k = kte,kts,-1
        ttend = (f1(i,k)-thx(i,k)+300.)*rdt*pi2d(i,k)
        ttnp(i,k) = ttnp(i,k)+ttend
        dtsfc(i) = dtsfc(i)+ttend*cont*del(i,k)/pi2d(i,k)
      enddo
    enddo
+!$acc end parallel
 !
 !     compute tridiagonal matrix elements for moisture, clouds, and gases
 !
+!$acc parallel vector_length(128)
+!$acc loop gang vector collapse(2)
    do k = kts,kte
      do i = its,ite
        au(i,k) = 0.
@@ -1172,7 +1354,10 @@ contains
        ad(i,k) = 0.
      enddo
    enddo
+!$acc end parallel
 !
+!$acc parallel vector_length(128)
+!$acc loop gang vector collapse(3)
    do ic = 1,ndiff
      do i = its,ite
        do k = kts,kte
@@ -1180,21 +1365,31 @@ contains
        enddo
      enddo
    enddo
+!$acc end parallel
 !
+!$acc parallel vector_length(128)
+!$acc loop gang vector
    do i = its,ite
      ad(i,1) = 1.
      f3(i,1,1) = qx(i,1)+qfx(i)*g/del(i,1)*dt2
    enddo
+!$acc end parallel
 !
    if(ndiff.ge.2) then
+
      do ic = 2,ndiff
        is = (ic-1) * kte
+!$acc parallel vector_length(128)
+!$acc loop gang vector
        do i = its,ite
          f3(i,1,ic) = qx(i,1+is)
        enddo
+!$acc end parallel
      enddo
    endif
 !
+!$acc parallel vector_length(128)
+!$acc loop gang vector collapse(2)
    do k = kts,kte-1
      do i = its,ite
        if(k.ge.kpbl(i)) then
@@ -1202,9 +1397,13 @@ contains
        endif
      enddo
    enddo
+!$acc end parallel
 !
-   do k = kts,kte-1
-     do i = its,ite
+!$acc parallel vector_length(128)
+!$acc loop gang vector private(dtodsd,dtodsu,dsig,rdz,tem1,dsdzq,dsdz2)
+   do i = its,ite
+!$acc loop seq
+     do k = kts,kte-1
        dtodsd = dt2/del(i,k)
        dtodsu = dt2/del(i,k+1)
        dsig   = p2d(i,k)-p2d(i,k+1)
@@ -1232,26 +1431,35 @@ contains
 !      exch_hx(i,k+1) = xkzh(i,k)
      enddo
    enddo
+!$acc end parallel
 !
    if(ndiff.ge.2) then
      do ic = 2,ndiff
        is = (ic-1) * kte
+!$acc parallel vector_length(128)
+!$acc loop gang vector collapse(2)
        do k = kts,kte-1
          do i = its,ite
            f3(i,k+1,ic) = qx(i,k+1+is)
          enddo
        enddo
+!$acc end parallel
      enddo
    endif
 !
 ! copies here to avoid duplicate input args for tridin
 !
+!$acc parallel vector_length(128)
+!$acc loop gang vector collapse(2)
    do k = kts,kte
      do i = its,ite
        cu(i,k) = au(i,k)
      enddo
    enddo
+!$acc end parallel
 !
+!$acc parallel vector_length(128)
+!$acc loop gang vector collapse(3)
    do ic = 1,ndiff
      do k = kts,kte
        do i = its,ite
@@ -1259,6 +1467,7 @@ contains
        enddo
      enddo
    enddo
+!$acc end parallel
 !
 !     solve tridiagonal problem for moisture, clouds, and gases
 !
@@ -1266,28 +1475,38 @@ contains
 !
 !     recover tendencies of heat and moisture
 !
-   do k = kte,kts,-1
-     do i = its,ite
+!$acc parallel vector_length(128)
+!$acc loop gang vector private(qtend)
+   do i = its,ite
+!$acc loop seq
+     do k = kte,kts,-1
        qtend = (f3(i,k,1)-qx(i,k))*rdt
        qtnp(i,k) = qtnp(i,k)+qtend
        dqsfc(i) = dqsfc(i)+qtend*conq*del(i,k)
      enddo
    enddo
+!$acc end parallel
 !
    if(ndiff.ge.2) then
      do ic = 2,ndiff
        is = (ic-1) * kte
+!$acc parallel vector_length(128)
+!$acc loop gang vector collapse(2)
        do k = kte,kts,-1
          do i = its,ite
-           qtend = (f3(i,k,ic)-qx(i,k+is))*rdt
-           qtnp(i,k+is) = qtnp(i,k+is)+qtend
+!!!           qtend = (f3(i,k,ic)-qx(i,k+is))*rdt
+!!!           qtnp(i,k+is) = qtnp(i,k+is)+qtend
+            qtnp(i,k+is) = qtnp(i,k+is)+((f3(i,k,ic)-qx(i,k+is))*rdt)
          enddo
        enddo
+!$acc end parallel
      enddo
    endif
 !
 !     compute tridiagonal matrix elements for momentum
 !
+!$acc parallel vector_length(128)
+!$acc loop gang vector collapse(2)
    do i = its,ite
      do k = kts,kte
        au(i,k) = 0.
@@ -1297,9 +1516,12 @@ contains
        f2(i,k) = 0.
      enddo
    enddo
+!$acc end parallel
 !
 ! paj: ctopo=1 if topo_wind=0 (default)
 !raquel---paj tke code (could be replaced with shin-hong tke in future
+!$acc parallel vector_length(128)
+!$acc loop gang vector collapse(2) private(zk,rlamdz)
    do i = its,ite
       do k= kts, kte-1
         shear_ysu(i,k)=xkzm(i,k)*((-hgamu(i)/hpbl(i)+(ux(i,k+1)-ux(i,k))/dza(i,k+1))*(ux(i,k+1)-ux(i,k))/dza(i,k+1) &
@@ -1326,9 +1548,37 @@ contains
       enddo
  !Hybrid pblh of MYNN
  !tke is q2
-      CALL GET_PBLH(KTS,KTE,pblh_ysu(i),thvx(i,kts:kte),&
-      &    tke_ysu(i,kts:kte),zq(i,kts:kte+1),dzq(i,kts:kte),xland(i))
+   enddo
+!$acc end parallel
 
+!$acc parallel vector_length(128)
+!$acc loop gang
+   do i = its,ite
+!$acc loop vector
+      do k = kts,kte
+         thvxTmp(k,i) = thvx(i,k)
+         tke_ysuTmp(k,i) = tke_ysu(i,k)
+         dzqTmp(k,i) = dzq(i,k)
+         zqTmp(k,i) = zq(i,k)
+      enddo
+      zqTmp(kte+1,i) = zq(i,kte+1)
+   enddo
+!$acc end parallel
+      
+!$acc parallel vector_length(128)
+!$acc loop gang vector
+   do i = its,ite
+!!!      CALL GET_PBLH(KTS,KTE,pblh_ysu(i),thvx(i,kts:kte),&
+!!!      &    tke_ysu(i,kts:kte),zq(i,kts:kte+1),dzq(i,kts:kte),xland(i))
+      CALL GET_PBLH(KTS,KTE,pblh_ysu(i),thvxTmp(kts:kte,i),&
+      &    tke_ysuTmp(kts:kte,i),zqTmp(kts:kte+1,i),dzqTmp(kts:kte,i),xland(i))
+
+   enddo
+!$acc end parallel
+
+!$acc parallel vector_length(128)
+!$acc loop gang vector private(fluxc,vconvc,VCONV,vconvnew,vconvlim)
+   do i = its,ite
 !--- end of paj tke
 ! compute vconv
 !      Use Beljaars over land
@@ -1355,9 +1605,13 @@ contains
      f1(i,1) = ux(i,1)+uox(i)*ust(i)**2*rhox(i)*g/del(i,1)*dt2/wspd1(i)*(wspd1(i)/wspd(i))**2
      f2(i,1) = vx(i,1)+vox(i)*ust(i)**2*rhox(i)*g/del(i,1)*dt2/wspd1(i)*(wspd1(i)/wspd(i))**2
    enddo
+!$acc end parallel
 !
-   do k = kts,kte-1
-     do i = its,ite
+!$acc parallel vector_length(128)
+!$acc loop gang vector private(dtodsd,dtodsu,dsig,rdz,tem1,dsdzu,dsdzv,dsdz2)
+   do i = its,ite
+!$acc loop seq
+     do k = kts,kte-1
        dtodsd = dt2/del(i,k)
        dtodsu = dt2/del(i,k+1)
        dsig   = p2d(i,k)-p2d(i,k+1)
@@ -1390,9 +1644,12 @@ contains
        exch_mx(i,k+1) = xkzm(i,k)
      enddo
    enddo
+!$acc end parallel
 !
 ! copies here to avoid duplicate input args for tridin
 !
+!$acc parallel vector_length(128)
+!$acc loop gang vector collapse(2)
    do k = kts,kte
      do i = its,ite
        cu(i,k) = au(i,k)
@@ -1400,6 +1657,7 @@ contains
        r2(i,k) = f2(i,k)
      enddo
    enddo
+!$acc end parallel
 !
 !     solve tridiagonal problem for momentum
 !
@@ -1407,8 +1665,11 @@ contains
 !
 !     recover tendencies of momentum
 !
-   do k = kte,kts,-1
-     do i = its,ite
+!$acc parallel vector_length(128)
+!$acc loop gang vector private(utend,vtend)
+   do i = its,ite
+!$acc loop seq
+     do k = kte,kts,-1
        utend = (f1(i,k)-ux(i,k))*rdt
        vtend = (f2(i,k)-vx(i,k))*rdt
        utnp(i,k) = utnp(i,k)+utend
@@ -1417,9 +1678,12 @@ contains
        dvsfc(i) = dvsfc(i) + vtend*conwrc*del(i,k)
      enddo
    enddo
+!$acc end parallel
 !
 ! paj: ctopo2=1 if topo_wind=0 (default)
 !
+!$acc parallel vector_length(128)
+!$acc loop gang vector
    do i = its,ite
      if(present(ctopo).and.present(ctopo2)) then ! mchen for NMM
        u10(i) = ctopo2(i)*u10(i)+(1-ctopo2(i))*ux(i,1)
@@ -1429,10 +1693,18 @@ contains
 !
 !---- end of vertical diffusion
 !
+!$acc loop gang vector
    do i = its,ite
      kpbl1d(i) = kpbl(i)
    enddo
+!$acc end parallel
 !
+!$acc end data
+
+!!!$acc update host(utnp,vtnp,ttnp,qtnp,znt,ust,hpbl,&
+!!!$acc               wspd,dusfc,dvsfc,dtsfc,dqsfc,kpbl1d,exch_hx,&
+!!!$acc               exch_mx,wstar,delta,u10,v10,regime)
+
    end subroutine ysu2d
 !-------------------------------------------------------------------------------
 !
@@ -1468,61 +1740,91 @@ contains
    l = ite
    n = kte
 !
+!$acc data present(cl,cm,cu,r1,r2,au,f1,f2)
+!$acc parallel vector_length(128)
+!$acc loop gang vector private(fk)
    do i = its,l
      fk = 1./cm(i,1)
      au(i,1) = fk*cu(i,1)
      f1(i,1) = fk*r1(i,1)
    enddo
+!$acc end parallel
 !
+!$acc parallel vector_length(128)
+!$acc loop gang vector collapse(2) private(fk)
    do it = 1,nt
      do i = its,l
        fk = 1./cm(i,1)
        f2(i,1,it) = fk*r2(i,1,it)
      enddo
    enddo
+!$acc end parallel
 !
-   do k = kts+1,n-1
-     do i = its,l
+!$acc parallel vector_length(128)
+!$acc loop gang vector private(fk)
+   do i = its,l
+!$acc loop seq
+     do k = kts+1,n-1
        fk = 1./(cm(i,k)-cl(i,k)*au(i,k-1))
        au(i,k) = fk*cu(i,k)
        f1(i,k) = fk*(r1(i,k)-cl(i,k)*f1(i,k-1))
      enddo
    enddo
+!$acc end parallel
 !
+!$acc parallel vector_length(128)
+!$acc loop gang vector collapse(2) private(fk)
    do it = 1,nt
-     do k = kts+1,n-1
-       do i = its,l
+     do i = its,l
+!$acc loop seq
+       do k = kts+1,n-1
          fk = 1./(cm(i,k)-cl(i,k)*au(i,k-1))
          f2(i,k,it) = fk*(r2(i,k,it)-cl(i,k)*f2(i,k-1,it))
        enddo
      enddo
    enddo
+!$acc end parallel
 !
+!$acc parallel vector_length(128)
+!$acc loop gang vector private(fk)
    do i = its,l
      fk = 1./(cm(i,n)-cl(i,n)*au(i,n-1))
      f1(i,n) = fk*(r1(i,n)-cl(i,n)*f1(i,n-1))
    enddo
+!$acc end parallel
 !
+!$acc parallel vector_length(128)
+!$acc loop gang vector collapse(2) private(fk)
    do it = 1,nt
      do i = its,l
        fk = 1./(cm(i,n)-cl(i,n)*au(i,n-1))
        f2(i,n,it) = fk*(r2(i,n,it)-cl(i,n)*f2(i,n-1,it))
      enddo
    enddo
+!$acc end parallel
 !
-   do k = n-1,kts,-1
-     do i = its,l
+!$acc parallel vector_length(128)
+!$acc loop gang vector
+   do i = its,l
+!$acc loop seq
+     do k = n-1,kts,-1
        f1(i,k) = f1(i,k)-au(i,k)*f1(i,k+1)
      enddo
    enddo
+!$acc end parallel
 !
+!$acc parallel vector_length(128)
+!$acc loop gang vector collapse(2)
    do it = 1,nt
-     do k = n-1,kts,-1
-       do i = its,l
+     do i = its,l
+!$acc loop seq
+       do k = n-1,kts,-1
          f2(i,k,it) = f2(i,k,it)-au(i,k)*f2(i,k+1,it)
        enddo
      enddo
    enddo
+!$acc end parallel
+!$acc end data
 !
    end subroutine tridi1n
 !-------------------------------------------------------------------------------
@@ -1557,38 +1859,67 @@ contains
    l = ite
    n = kte
 !
+!$acc data present(cl,cm,cu,r2,au,f2)
+!$acc parallel vector_length(128)
+!$acc loop gang vector
+   do i = its,l
+      fk = 1./cm(i,1)
+      au(i,1) = fk*cu(i,1)
+   enddo
+!$acc end parallel
+!$acc parallel vector_length(128)
+!$acc loop gang vector collapse(2)
    do it = 1,nt
      do i = its,l
        fk = 1./cm(i,1)
-       au(i,1) = fk*cu(i,1)
        f2(i,1,it) = fk*r2(i,1,it)
      enddo
    enddo
+!$acc end parallel
 !
-   do it = 1,nt
-     do k = kts+1,n-1
-       do i = its,l
+!$acc parallel vector_length(128)
+!$acc loop gang vector
+   do i = its,l
+!$acc loop seq
+      do k = kts+1,n-1
          fk = 1./(cm(i,k)-cl(i,k)*au(i,k-1))
          au(i,k) = fk*cu(i,k)
+      enddo
+   enddo
+!$acc end parallel
+!$acc parallel vector_length(128)
+!$acc loop gang vector collapse(2)
+   do it = 1,nt
+     do i = its,l
+!$acc loop seq
+       do k = kts+1,n-1
+         fk = 1./(cm(i,k)-cl(i,k)*au(i,k-1))
          f2(i,k,it) = fk*(r2(i,k,it)-cl(i,k)*f2(i,k-1,it))
        enddo
      enddo
    enddo
-!
+!$acc end parallel
+!$acc parallel vector_length(128)
+!$acc loop gang vector collapse(2)
    do it = 1,nt
      do i = its,l
        fk = 1./(cm(i,n)-cl(i,n)*au(i,n-1))
        f2(i,n,it) = fk*(r2(i,n,it)-cl(i,n)*f2(i,n-1,it))
      enddo
    enddo
-!
+!$acc end parallel
+!$acc parallel vector_length(128)
+!$acc loop gang vector collapse(2)
    do it = 1,nt
-     do k = n-1,kts,-1
-       do i = its,l
+     do i = its,l
+!$acc loop seq
+       do k = n-1,kts,-1
          f2(i,k,it) = f2(i,k,it)-au(i,k)*f2(i,k+1,it)
        enddo
      enddo
    enddo
+!$acc end parallel
+!$acc end data
 !
    end subroutine tridin_ysu
 !-------------------------------------------------------------------------------
@@ -1649,8 +1980,8 @@ contains
    end subroutine ysuinit
 !-------------------------------------------------------------------------------
 ! ==================================================================
-
       SUBROUTINE GET_PBLH(KTS,KTE,zi,thetav1D,qke1D,zw1D,dz1D,landsea)
+!$acc routine seq
 ! Copied from MYNN PBL
 
       !---------------------------------------------------------------
@@ -1758,7 +2089,6 @@ contains
       zi=PBLH_TKE*(1.-wt) + zi*wt
 
    END SUBROUTINE GET_PBLH
-! ==================================================================
 
 end module module_bl_ysu
 !-------------------------------------------------------------------------------
