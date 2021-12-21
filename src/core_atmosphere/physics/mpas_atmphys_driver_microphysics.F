@@ -10,7 +10,7 @@
  use mpas_kind_types
  use mpas_pool_routines
  use mpas_timer, only : mpas_timer_start, mpas_timer_stop
- 
+
  use mpas_atmphys_constants
  use mpas_atmphys_init_microphysics
  use mpas_atmphys_interface
@@ -47,7 +47,7 @@
 ! WRF physics called from microphysics_driver:
 ! --------------------------------------------
 ! * module_mp_kessler : Kessler cloud microphysics.
-! * module_mp_thompson: Thompson cloud microphysics.   
+! * module_mp_thompson: Thompson cloud microphysics.
 ! * module_mp_wsm6    : WSM6 cloud microphysics.
 !
 ! comments:
@@ -58,12 +58,12 @@
 ! ----------------------------------------
 ! * removed call to the Thompson cloud microphysics scheme until scheme is updated to that in WRF revision 3.5.
 !   Laura D. Fowler (laura@ucar.edu) / 2013-05-29.
-! * added subroutine compute_relhum to calculate the relative humidity using the functions rslf and rsif from 
+! * added subroutine compute_relhum to calculate the relative humidity using the functions rslf and rsif from
 !   the Thompson cloud microphysics scheme.
-!   Laura D. Fowler (laura@ucar.edu) / 2013-07-12. 
+!   Laura D. Fowler (laura@ucar.edu) / 2013-07-12.
 ! * removed the argument tend from the call to microphysics_from_MPAS (not needed).
 !   Laura D. Fowler (laura@ucar.edu) / 2013-11-07.
-! * in call to subroutine wsm6, replaced the variable g (that originally pointed to gravity) with gravity, 
+! * in call to subroutine wsm6, replaced the variable g (that originally pointed to gravity) with gravity,
 !   for simplicity.
 !   Laura D. Fowler (laura@ucar.edu) / 2014-03-21.
 ! * throughout the sourcecode, replaced all "var_struct" defined arrays by local pointers.
@@ -270,7 +270,7 @@
         call wsm6init(rho_a,rho_r,rho_s,cliq,cpv,hail_opt,.false.)
 
      case default
-    
+
   end select microp_select
 
  end subroutine microphysics_init
@@ -279,6 +279,8 @@
  subroutine driver_microphysics(configs,mesh,state,time_lev,diag,diag_physics,tend,itimestep,its,ite)
 !=================================================================================================================
 
+ use mpas_constants, only : rvord
+
 !input arguments:
  type(mpas_pool_type),intent(in):: configs
  type(mpas_pool_type),intent(in):: mesh
@@ -286,7 +288,7 @@
  integer,intent(in):: time_lev
  integer,intent(in):: itimestep
  integer,intent(in):: its,ite
-    
+
 !inout arguments:
  type(mpas_pool_type),intent(inout):: state
  type(mpas_pool_type),intent(inout):: diag
@@ -299,6 +301,28 @@
 !local variables and arrays:
  logical:: log_microphysics
  integer:: i,icell,icount,istep,j,k,kk
+
+!Calculate dtheta_dt_mp (NS: 2018-04-24)
+!Store theta, call microphysics->updates theta, calculate tendency
+ integer, pointer :: nCells, nVertLevels, index_qv
+ real(kind=RKIND), dimension(:,:), pointer :: dtheta_dt_mp, theta_m
+ real (kind=RKIND), dimension(:,:,:), pointer :: scalars
+
+ call mpas_pool_get_dimension(mesh, 'nCells', nCells)
+ call mpas_pool_get_dimension(mesh, 'nVertLevels', nVertLevels)
+ call mpas_pool_get_dimension(state, 'index_qv', index_qv)
+
+ call mpas_pool_get_array(state, 'theta_m', theta_m, time_lev)
+ call mpas_pool_get_array(diag, 'dtheta_dt_mp', dtheta_dt_mp)
+ call mpas_pool_get_array(state, 'scalars', scalars, time_lev)
+
+ !initialize to theta before microphysics call.
+ !I think the physics call actually updates variables, not generate a tendency.
+ do icell=1,nCells
+    do k=1,nVertLevels
+       dtheta_dt_mp(k,icell) = theta_m(k,icell) / (1._RKIND + rvord * scalars(index_qv,k,icell))
+    end do
+ end do
 
 !-----------------------------------------------------------------------------------------------------------------
 !call mpas_log_write('')
@@ -320,7 +344,7 @@
 
 !... call to different cloud microphysics schemes:
  microp_select: select case(microp_scheme)
-    
+
     case ("mp_kessler")
        call mpas_timer_start('Kessler')
        call kessler( &
@@ -345,7 +369,7 @@
                   th        = th_p        , qv         = qv_p         , qc         = qc_p         , &
                   qr        = qr_p        , qi         = qi_p         , qs         = qs_p         , &
                   qg        = qg_p        , ni         = ni_p         , nr         = nr_p         , &
-                  pii       = pi_p        , p          = pres_p       , dz         = dz_p         , & 
+                  pii       = pi_p        , p          = pres_p       , dz         = dz_p         , &
                   w         = w_p         , dt_in      = dt_microp    , itimestep  = itimestep    , &
                   rainnc    = rainnc_p    , rainncv    = rainncv_p    , snownc     = snownc_p     , &
                   snowncv   = snowncv_p   , graupelnc  = graupelnc_p  , graupelncv = graupelncv_p , &
@@ -385,12 +409,12 @@
        call mpas_timer_stop('WSM6')
 
     case default
-       
+
  end select microp_select
 
 !... calculate the 10cm radar reflectivity and relative humidity, if needed:
  if (l_diags) then
- 
+
     !ensure that we only call compute_radar_reflectivity() if we are using an MPS that supports
     !the computation of simulated radar reflectivity:
     if(trim(microp_scheme) == "mp_wsm6"     .or. &
@@ -413,6 +437,14 @@
 !... copy updated cloud microphysics variables from the wrf-physics grid back to the geodesic-
 !    dynamics grid:
  call microphysics_to_MPAS(configs,mesh,state,time_lev,diag,diag_physics,tend,itimestep,its,ite)
+
+!Calculate dtheta_dt_mp (NS: 2018-04-24)
+!From stored dtheta_dt_mp, calculate changeInTheta/timeStep
+ do icell=1,nCells
+    do k=1,nVertLevels
+       dtheta_dt_mp(k,icell) = (theta_m(k,icell)/(1._RKIND+rvord*scalars(index_qv,k,icell)) - dtheta_dt_mp(k,icell))/(dt_dyn)
+    end do
+ end do
 
 !... deallocation of all microphysics arrays:
 !$OMP BARRIER
@@ -439,7 +471,7 @@
 !local pointers:
  character(len=StrKIND),pointer:: microp_scheme
  integer,pointer:: nCellsSolve
- real,dimension(:),pointer:: graupelncv,rainncv,snowncv,sr 
+ real,dimension(:),pointer:: graupelncv,rainncv,snowncv,sr
 
 !local variables and arrays:
  integer:: i,j
@@ -483,7 +515,7 @@
           snowncv(i)    = 0._RKIND
           graupelncv(i) = 0._RKIND
           sr(i)         = 0._RKIND
-       enddo 
+       enddo
 
     case default
 
@@ -531,7 +563,7 @@
  call mpas_pool_get_array(diag_physics,'sr'        ,sr        )
 
  do i = its,ite
-    precipw(i) = 0._RKIND    
+    precipw(i) = 0._RKIND
  enddo
 
 !variables common to all cloud microphysics schemes:
@@ -546,7 +578,7 @@
 
     !time-step precipitation:
     rainncv(i) = rainnc_p(i,j)
-    
+
     !accumulated precipitation:
     rainnc(i) = rainnc(i) + rainncv(i)
 
@@ -555,7 +587,7 @@
       i_rainnc(i) = i_rainnc(i) + 1
       rainnc(i)   = rainnc(i) - config_bucket_rainnc
    endif
- 
+
  enddo
  enddo
 
