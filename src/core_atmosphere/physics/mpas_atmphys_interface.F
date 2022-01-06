@@ -37,9 +37,9 @@
 !
 ! add-ons and modifications to sourcecode:
 ! ----------------------------------------
-! * in subroutine MPAS_to_physics, moved the calculation of the local arrays qv_p,qc_p, and qr_p above the 
+! * in subroutine MPAS_to_physics, moved the calculation of the local arrays qv_p,qc_p, and qr_p above the
 !   calculation of th_p so that we do not need to use the pointer qv.
-! * in subroutine microphysics_from_MPAS, moved the calculation of the local arrays qv_p,qc_p, and qr_p above 
+! * in subroutine microphysics_from_MPAS, moved the calculation of the local arrays qv_p,qc_p, and qr_p above
 !   the calculation of th_p so that we do not need to use the pointer qv.
 ! * in subroutine microphysics_to_MPAS, since microphysics schemes update the temperature and water vapor
 !   mixing ratio, we first update the total pressure and exner functions. Then, we update the modified
@@ -51,15 +51,15 @@
 !   Laura D. Fowler (laura@ucar.edu) / 2014-04-22.
 ! * modified sourcecode to use pools.
 !   Laura D. Fowler (laura@ucar.edu) / 2014-05-15.
-! * added calculation of the surface pressure tendency. Moved the calculation of znu_p below the calculation 
+! * added calculation of the surface pressure tendency. Moved the calculation of znu_p below the calculation
 !   of the surface pressure to avoid dividing by zero if the surface pressure is not output in the init file.
-!   Laura D. Fowler (birch.mmm.ucar.ecu) / 2014-06-23. 
+!   Laura D. Fowler (birch.mmm.ucar.ecu) / 2014-06-23.
 ! * renamed module mpas_atmphys_interface_nhyd to mpas_atmphys_interface.
 !   Laura D. Fowler (laura@ucar.edu) / 2014-09-19.
-! * in subroutine microphysics_to_MPAS, reverted the calculation of cloud microphysics tendency rt_diabatic_tend, 
+! * in subroutine microphysics_to_MPAS, reverted the calculation of cloud microphysics tendency rt_diabatic_tend,
 !   and update of the state variables to git hash identifier 7a66f273e182f4. This change reflects the fact that
 !   we want to compute rt_diabatic_tend at constant volume.
-!   Laura D. Fowler (laura@ucar.edu) / 2014-01-015. 
+!   Laura D. Fowler (laura@ucar.edu) / 2014-01-015.
 ! * added the initialization of local variables needed in the parameterization of the MYNN surface layer scheme
 !   and planetary boundary layer scheme from WRF 3.6.1.
 !   Laura D. Fowler (laura@ucar.edu) / 2016-04-11.
@@ -107,7 +107,7 @@
  if(.not.allocated(w_p)    ) allocate(w_p(ims:ime,kms:kme,jms:jme)    )
  if(.not.allocated(pres2_p)) allocate(pres2_p(ims:ime,kms:kme,jms:jme))
  if(.not.allocated(t2_p)   ) allocate(t2_p(ims:ime,kms:kme,jms:jme)   )
- 
+
  if(.not.allocated(qv_p)   ) allocate(qv_p(ims:ime,kms:kme,jms:jme)   )
  if(.not.allocated(qc_p)   ) allocate(qc_p(ims:ime,kms:kme,jms:jme)   )
  if(.not.allocated(qr_p)   ) allocate(qr_p(ims:ime,kms:kme,jms:jme)   )
@@ -131,7 +131,7 @@
  if(.not.allocated(pres2_hyd_p) ) allocate(pres2_hyd_p(ims:ime,kms:kme,jms:jme) )
  if(.not.allocated(pres2_hydd_p)) allocate(pres2_hydd_p(ims:ime,kms:kme,jms:jme))
  if(.not.allocated(znu_hyd_p)   ) allocate(znu_hyd_p(ims:ime,kms:kme,jms:jme)   )
- 
+
  end subroutine allocate_forall_physics
 
 !=================================================================================================================
@@ -164,8 +164,8 @@
  if(allocated(t_p)     ) deallocate(t_p     )
  if(allocated(th_p)    ) deallocate(th_p    )
  if(allocated(al_p)    ) deallocate(al_p    )
- if(allocated(rho_p)   ) deallocate(rho_p   ) 
- if(allocated(rh_p)    ) deallocate(rh_p    ) 
+ if(allocated(rho_p)   ) deallocate(rho_p   )
+ if(allocated(rh_p)    ) deallocate(rh_p    )
  if(allocated(znu_p)   ) deallocate(znu_p   )
 
  if(allocated(w_p)     ) deallocate(w_p     )
@@ -194,7 +194,7 @@
  if(allocated(pres2_hyd_p) ) deallocate(pres2_hyd_p )
  if(allocated(pres2_hydd_p)) deallocate(pres2_hydd_p)
  if(allocated(znu_hyd_p)   ) deallocate(znu_hyd_p   )
- 
+
  end subroutine deallocate_forall_physics
 
 !=================================================================================================================
@@ -398,7 +398,7 @@
                     * (rho1 - 0.5*(rho2-rho1)*tem1/(tem1+tem2))
     surface_pressure(i) = surface_pressure(i) + pressure_p(1,i) + pressure_b(1,i)
  enddo
- 
+
  do k = kts,kte
  do i = its,ite
     znu_p(i,k,j)  = pres_p(i,k,j) / surface_pressure(i)
@@ -456,7 +456,7 @@
  do j = jts,jte
  do i = its,ite
     z0 = zgrid(k,i)
-    z1 = 0.5*(zgrid(k,i)+zgrid(k-1,i)) 
+    z1 = 0.5*(zgrid(k,i)+zgrid(k-1,i))
     z2 = 0.5*(zgrid(k-1,i)+zgrid(k-2,i))
     w1 = (z0-z2)/(z1-z2)
     w2 = 1.-w1
@@ -472,7 +472,7 @@
  do j = jts,jte
  do i = its,ite
     z0 = zgrid(k,i)
-    z1 = 0.5*(zgrid(k,i)+zgrid(k+1,i)) 
+    z1 = 0.5*(zgrid(k,i)+zgrid(k+1,i))
     z2 = 0.5*(zgrid(k+1,i)+zgrid(k+2,i))
     w1 = (z0-z2)/(z1-z2)
     w2 = 1.-w1
@@ -505,7 +505,7 @@
     psfc_hydd_p(i,j) = pres2_hydd_p(i,1,j)
     !znu:
     do k = kte,1,-1
-       znu_hyd_p(i,k,j) = pres_hyd_p(i,k,j) / psfc_hyd_p(i,j) 
+       znu_hyd_p(i,k,j) = pres_hyd_p(i,k,j) / psfc_hyd_p(i,j)
     enddo
  enddo
  enddo
@@ -513,7 +513,7 @@
 !save the model-top pressure:
  do j = jts,jte
  do i = its,ite
-    plrad(i) = pres2_p(i,kte+1,j) 
+    plrad(i) = pres2_p(i,kte+1,j)
  enddo
  enddo
 
@@ -727,7 +727,7 @@
                     * (rho1 - 0.5*(rho2-rho1)*tem1/(tem1+tem2))
     surface_pressure(i) = surface_pressure(i) + pressure_p(1,i) + pressure_b(1,i)
  enddo
- 
+
  do k = kts,kte
  do i = its,ite
     znu_p(i,k,j)  = pres_p(i,k,j) / surface_pressure(i)
@@ -785,7 +785,7 @@
  do j = jts,jte
  do i = its,ite
     z0 = zgrid(k,i)
-    z1 = 0.5*(zgrid(k,i)+zgrid(k-1,i)) 
+    z1 = 0.5*(zgrid(k,i)+zgrid(k-1,i))
     z2 = 0.5*(zgrid(k-1,i)+zgrid(k-2,i))
     w1 = (z0-z2)/(z1-z2)
     w2 = 1.-w1
@@ -801,7 +801,7 @@
  do j = jts,jte
  do i = its,ite
     z0 = zgrid(k,i)
-    z1 = 0.5*(zgrid(k,i)+zgrid(k+1,i)) 
+    z1 = 0.5*(zgrid(k,i)+zgrid(k+1,i))
     z2 = 0.5*(zgrid(k+1,i)+zgrid(k+2,i))
     w1 = (z0-z2)/(z1-z2)
     w2 = 1.-w1
@@ -834,7 +834,7 @@
     psfc_hydd_p(i,j) = pres2_hydd_p(i,1,j)
     !znu:
     do k = kte,1,-1
-       znu_hyd_p(i,k,j) = pres_hyd_p(i,k,j) / psfc_hyd_p(i,j) 
+       znu_hyd_p(i,k,j) = pres_hyd_p(i,k,j) / psfc_hyd_p(i,j)
     enddo
  enddo
  enddo
@@ -842,7 +842,7 @@
 !save the model-top pressure:
  do j = jts,jte
  do i = its,ite
-    plrad(i) = pres2_p(i,kte+1,j) 
+    plrad(i) = pres2_p(i,kte+1,j)
  enddo
  enddo
 
@@ -867,7 +867,9 @@
 !local pointers:
  character(len=StrKIND),pointer:: microp_scheme
  integer,pointer:: index_qv,index_qc,index_qr,index_qi,index_qs,index_qg
+ integer:: sindex_qv,sindex_qc,sindex_qr,sindex_qi,sindex_qs,sindex_qg
  integer,pointer:: index_ni,index_nr
+ integer:: sindex_ni,sindex_nr
  real(kind=RKIND),dimension(:),pointer    :: nt_c,mu_c
  real(kind=RKIND),dimension(:,:),pointer  :: zgrid,w
  real(kind=RKIND),dimension(:,:),pointer  :: zz,exner,pressure_b
@@ -913,21 +915,32 @@
  call mpas_pool_get_dimension(state,'index_ni'  ,index_ni  )
  call mpas_pool_get_dimension(state,'index_nr'  ,index_nr  )
 
- call mpas_pool_get_array_gpu(state,'scalars',scalars,time_lev)
-!$acc update host(zgrid, zz, exner, pressure_b, pressure_p, nt_c, mu_c, &
-!$acc             rainprod, evapprod, re_cloud, re_ice, re_snow, rho_zz, &
-!$acc             theta_m, w, scalars)
- qv   => scalars(index_qv,:,:)
- qc   => scalars(index_qc,:,:)
- qr   => scalars(index_qr,:,:)
+ sindex_qv = index_qv
+ sindex_qc = index_qc
+ sindex_qr = index_qr
+ sindex_qi = index_qi
+ sindex_qs = index_qs
+ sindex_qg = index_qg
+ sindex_ni = index_ni
+ sindex_nr = index_nr
 
+ call mpas_pool_get_array_gpu(state,'scalars',scalars,time_lev)
+!!$acc update host(zgrid, zz, exner, pressure_b, pressure_p, nt_c, mu_c, &
+!!$acc             rainprod, evapprod, re_cloud, re_ice, re_snow, rho_zz, &
+!!$acc             theta_m, w, scalars)
+! qv   => scalars(index_qv,:,:)
+! qc   => scalars(index_qc,:,:)
+! qr   => scalars(index_qr,:,:)
+
+!$acc parallel vector_length(32)
+!$acc loop gang vector collapse(3)
 !initialize variables needed in the cloud microphysics schemes:
  do j = jts, jte
- do k = kts, kte
  do i = its, ite
-    qv_p(i,k,j) = qv(k,i)
-    qc_p(i,k,j) = qc(k,i)
-    qr_p(i,k,j) = qr(k,i)
+ do k = kts, kte
+    qv_p(i,k,j) = scalars(sindex_qv,k,i)
+    qc_p(i,k,j) = scalars(sindex_qc,k,i)
+    qr_p(i,k,j) = scalars(sindex_qr,k,i)
 
     rho_p(i,k,j)  = zz(k,i) * rho_zz(k,i)
     th_p(i,k,j)   = theta_m(k,i) / (1._RKIND + R_v/R_d * max(0._RKIND,qv_p(i,k,j)))
@@ -941,27 +954,31 @@
  enddo
  enddo
  enddo
+ !$acc end parallel
 
 !additional initialization as function of cloud microphysics scheme:
  microp_select_init: select case(microp_scheme)
 
     case ("mp_thompson","mp_wsm6")
-       qi   => scalars(index_qi,:,:)
-       qs   => scalars(index_qs,:,:)
-       qg   => scalars(index_qg,:,:)
+!       qi   => scalars(index_qi,:,:)
+!       qs   => scalars(index_qs,:,:)
+!       qg   => scalars(index_qg,:,:)
 
+!$acc parallel vector_length(32)
+!$acc loop gang vector collapse(3)
        do j = jts, jte
        do k = kts, kte
        do i = its, ite
-          qi_p(i,k,j) = qi(k,i)
-          qs_p(i,k,j) = qs(k,i)
-          qg_p(i,k,j) = qg(k,i)
+          qi_p(i,k,j) = scalars(sindex_qi,k,i)
+          qs_p(i,k,j) = scalars(sindex_qs,k,i)
+          qg_p(i,k,j) = scalars(sindex_qg,k,i)
           recloud_p(i,k,j) = re_cloud(k,i)
           reice_p(i,k,j)   = re_ice(k,i)
           resnow_p(i,k,j)  = re_snow(k,i)
        enddo
        enddo
        enddo
+!$acc end parallel
 
     microp2_select: select case(microp_scheme)
 
@@ -1016,7 +1033,9 @@
 !local pointers:
  character(len=StrKIND),pointer:: microp_scheme
  integer,pointer:: index_qv,index_qc,index_qr,index_qi,index_qs,index_qg
+  integer:: sindex_qv,sindex_qc,sindex_qr,sindex_qi,sindex_qs,sindex_qg
  integer,pointer:: index_ni,index_nr
+ integer:: sindex_ni,sindex_nr
  real(kind=RKIND),dimension(:),pointer    :: surface_pressure,tend_sfc_pressure
  real(kind=RKIND),dimension(:,:),pointer  :: zgrid
  real(kind=RKIND),dimension(:,:),pointer  :: zz,exner,exner_b,pressure_b,rtheta_p,rtheta_b
@@ -1068,20 +1087,30 @@
  call mpas_pool_get_dimension(state,'index_ni'  ,index_ni  )
  call mpas_pool_get_dimension(state,'index_nr'  ,index_nr  )
 
+ sindex_qv = index_qv
+ sindex_qc = index_qc
+ sindex_qr = index_qr
+ sindex_qi = index_qi
+ sindex_qs = index_qs
+ sindex_qg = index_qg
+ sindex_ni = index_ni
+ sindex_nr = index_nr
  call mpas_pool_get_array_gpu(state,'scalars',scalars,time_lev)
- qv   => scalars(index_qv,:,:)
- qc   => scalars(index_qc,:,:)
- qr   => scalars(index_qr,:,:)
+ !qv   => scalars(index_qv,:,:)
+ !qc   => scalars(index_qc,:,:)
+ !qr   => scalars(index_qr,:,:)
 
  call mpas_pool_get_array_gpu(tend,'rt_diabatic_tend',rt_diabatic_tend)
 
 !update variables needed in the dynamical core:
  do j = jts,jte
- do k = kts,kte
+!$acc parallel vector_length(32)
+!$acc loop gang vector collapse(2)
  do i = its,ite
-    qv(k,i) = qv_p(i,k,j)
-    qc(k,i) = qc_p(i,k,j)
-    qr(k,i) = qr_p(i,k,j)
+ do k = kts,kte
+    scalars(sindex_qv,k,i) = qv_p(i,k,j)
+    scalars(sindex_qc,k,i) = qc_p(i,k,j)
+    scalars(sindex_qr,k,i) = qr_p(i,k,j)
 
     !potential temperature and diabatic forcing:
     rt_diabatic_tend(k,i) = theta_m(k,i)
@@ -1100,10 +1129,13 @@
 
  enddo
  enddo
+ !$acc end parallel
  enddo
 
 !updates the surface pressure and calculates the surface pressure tendency:
  do j = jts,jte
+ !$acc parallel vector_length(32)
+!$acc loop gang vector private(tem1,tem2,rho1,rho2)
  do i = its,ite
     tem1 = zgrid(2,i)-zgrid(1,i)
     tem2 = zgrid(3,i)-zgrid(2,i)
@@ -1118,27 +1150,30 @@
     surface_pressure(i)  = surface_pressure(i) + pressure_p(1,i) + pressure_b(1,i)
     tend_sfc_pressure(i)   = (surface_pressure(i)-tend_sfc_pressure(i)) / dt_dyn
  enddo
+ !$acc end parallel
  enddo
 
 !variables specific to different cloud microphysics schemes:
  microp_select_init: select case(microp_scheme)
 
     case ("mp_thompson","mp_wsm6")
-       qi   => scalars(index_qi,:,:)
-       qs   => scalars(index_qs,:,:)
-       qg   => scalars(index_qg,:,:)
-
+!       qi   => scalars(index_qi,:,:)
+!       qs   => scalars(index_qs,:,:)
+!       qg   => scalars(index_qg,:,:)
        do j = jts, jte
+!$acc parallel vector_length(32)
+!$acc loop gang vector collapse(2)
        do k = kts, kte
        do i = its, ite
-          qi(k,i) = qi_p(i,k,j)
-          qs(k,i) = qs_p(i,k,j)
-          qg(k,i) = qg_p(i,k,j)
+          scalars(sindex_qi,k,i) = qi_p(i,k,j)
+          scalars(sindex_qs,k,i) = qs_p(i,k,j)
+          scalars(sindex_qg,k,i) = qg_p(i,k,j)
           re_cloud(k,i) = recloud_p(i,k,j)
           re_ice(k,i)   = reice_p(i,k,j)
           re_snow(k,i)  = resnow_p(i,k,j)
        enddo
        enddo
+!$acc end parallel
        enddo
 
     microp2_select: select case(microp_scheme)
@@ -1166,9 +1201,9 @@
 
  end select microp_select_init
 
-!$acc update device(zz, zgrid, exner, exner_b, pressure_b, pressure_p, rtheta_b, &
-!$acc               rtheta_p, surface_pressure, rainprod, evapprod, re_cloud, re_ice, &
-!$acc               re_snow, tend_sfc_pressure, rho_zz, theta_m, scalars, rt_diabatic_tend)
+!!$acc update device(zz, zgrid, exner, exner_b, pressure_b, pressure_p, rtheta_b, &
+!!$acc               rtheta_p, surface_pressure, rainprod, evapprod, re_cloud, re_ice, &
+!!$acc               re_snow, tend_sfc_pressure, rho_zz, theta_m, scalars, rt_diabatic_tend)
  end subroutine microphysics_to_MPAS
 
 !=================================================================================================================
