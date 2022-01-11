@@ -431,13 +431,13 @@
     real (kind=RKIND) :: coeff
 
 !!!
- !$acc data present(rublten, rvblten, mass_edge, rublten_Edge, tend_u, &
- !$acc              rucuten, rvcuten, rucuten_Edge, &
- !$acc              tend_scalars, mass, rthblten, rqvblten, rqcblten, rqiblten, &
- !$acc              rthcuten, rqvcuten, rqccuten, rqicuten,  &
- !$acc              rthratenlw, rthratensw, rthdynten, &
- !$acc              tend_u_phys, tend_rtheta_adv, tend_diabatic, &
- !$acc              theta_m, scalars, tend_theta, tend_theta_euler)
+ !!$acc data present(rublten, rvblten, mass_edge, rublten_Edge, tend_u, &
+ !!$acc              rucuten, rvcuten, rucuten_Edge, &
+ !!$acc              tend_scalars, mass, rthblten, rqvblten, rqcblten, rqiblten, &
+ !!$acc              rthcuten, rqvcuten, rqccuten, rqicuten,  &
+ !!$acc              rthratenlw, rthratensw, rthdynten, &
+ !!$acc              tend_u_phys, tend_rtheta_adv, tend_diabatic, &
+ !!$acc              theta_m, scalars, tend_theta, tend_theta_euler)
 
     !add coupled tendencies due to PBL processes:
     if (config_pbl_scheme .ne. 'off') then
@@ -627,7 +627,7 @@
     enddo
 !!!
  !$acc end parallel
- !$acc end data
+ !!$acc end data
 
  end subroutine physics_get_tend_work
 

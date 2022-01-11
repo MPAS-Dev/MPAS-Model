@@ -2109,6 +2109,7 @@ module atm_time_integration
          call mpas_pool_get_array_gpu(state, 'scalars', scalars_1, 1)
          call mpas_pool_get_array_gpu(state, 'scalars', scalars_2, 2)
          call mpas_pool_get_dimension(state, 'index_qv', index_qv)
+         call mpas_pool_get_dimension(state, 'num_scalars', num_scalars)
 
          call mpas_pool_get_config(block % configs, 'config_microp_scheme', config_microp_scheme)
          call mpas_pool_get_config(block % configs, 'config_convection_scheme', config_convection_scheme)
