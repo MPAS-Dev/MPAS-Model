@@ -92,6 +92,33 @@ ftn:
 	"OPENACC = $(OPENACC)" \
 	"CPPFLAGS = $(MODEL_FORMULATION) -D_MPI" )
 
+ftn-offload:
+	( $(MAKE) all \
+	"FC_PARALLEL = ftn" \
+	"CC_PARALLEL = cc" \
+	"CXX_PARALLEL = CC" \
+	"FC_SERIAL = ftn" \
+	"CC_SERIAL = cc" \
+	"CXX_SERIAL = CC" \
+	"FFLAGS_PROMOTION = -default64" \
+	"FFLAGS_OPT = -s integer32 -O2 -f free -N 1023 -em -ef" \
+	"CFLAGS_OPT = -O2" \
+	"LDFLAGS_OPT = -O2" \
+	"FFLAGS_OMP = -fopenmp" \
+	"CFLAGS_OMP = -fopenmp" \
+	"FFLAGS_ACC =" \
+	"CFLAGS_ACC =" \
+        "FFLAGS_GPU = -fopenmp -hnoacc -homp" \
+	"BUILD_TARGET = $(@)" \
+	"CORE = $(CORE)" \
+	"DEBUG = $(DEBUG)" \
+	"USE_PAPI = $(USE_PAPI)" \
+	"OPENMP_AMD_OFFLOAD = $(OPENMP_AMD_OFFLOAD)" \
+	"OPENMP = $(OPENMP)" \
+	"OPENACC = $(OPENACC)" \
+	"CPPFLAGS = $(MODEL_FORMULATION) -D_MPI" )
+
+
 titan-cray:
 	( $(MAKE) all \
 	"FC_PARALLEL = ftn" \
@@ -818,6 +845,14 @@ ifeq "$(OPENMP_OFFLOAD)" "true"
 	LDFLAGS += $(LDFLAGS_GPU)
 endif #OPENMP_OFFLOAD IF
 
+ifeq "$(OPENMP_AMD_OFFLOAD)" "true"
+	FFLAGS += $(FFLAGS_GPU)
+	CFLAGS += $(FFLAGS_GPU)
+	CXXFLAGS += $(FFLAGS_GPU)
+	override CPPFLAGS += "-DMPAS_AMD_OFFLOAD"
+	LDFLAGS += $(LDFLAGS_GPU)
+endif #OPENMP_AMD_OFFLOAD IF
+
 ifeq "$(PRECISION)" "single"
 	CFLAGS += "-DSINGLE_PRECISION"
 	CXXFLAGS += "-DSINGLE_PRECISION"
@@ -911,7 +946,11 @@ endif
 ifeq "$(OPENMP_OFFLOAD)" "true"
 	OPENMP_OFFLOAD_MESSAGE="MPAS was built with OpenMP-offload GPU support enabled."
 else
-	OPENMP_OFFLOAD_MESSAGE="MPAS was built without OpenMP-offload GPU support."
+ifeq "$(OPENMP_AMD_OFFLOAD)" "true"
+	OPENMP_OFFLOAD_MESSAGE="MPAS was built with OpenMP-offload AMD GPU support enabled."
+else
+        OPENMP_OFFLOAD_MESSAGE="MPAS was built without OpenMP-offload GPU support."
+endif
 endif
 
 ifeq "$(OPENACC)" "true"
