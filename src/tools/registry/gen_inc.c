@@ -22,6 +22,7 @@ void write_model_variables(ezxml_t registry){/*{{{*/
 	const char * suffix = MACRO_TO_STR(MPAS_NAMELIST_SUFFIX);
 	const char * exe_name = MACRO_TO_STR(MPAS_EXE_NAME);
 	const char * git_ver = MACRO_TO_STR(MPAS_GIT_VERSION);
+	const char * build_target = MACRO_TO_STR(MPAS_BUILD_TARGET);
 
 	const char *modelname, *corename, *version;
 	FILE *fd;
@@ -37,6 +38,7 @@ void write_model_variables(ezxml_t registry){/*{{{*/
 	fortprintf(fd, "       core %% modelVersion = '%s'\n", version);
 	fortprintf(fd, "       core %% executableName = '%s'\n", exe_name);
 	fortprintf(fd, "       core %% git_version = '%s'\n", git_ver);
+	fortprintf(fd, "       core %% build_target = '%s'\n", build_target);
 
 	fclose(fd);
 
