@@ -903,6 +903,8 @@ ifdef MPAS_EXTERNAL_CPPFLAGS
 endif
 ####################################################
 
+override CPPFLAGS += -DMPAS_BUILD_TARGET=$(BUILD_TARGET)
+
 ifeq ($(wildcard src/core_$(CORE)), ) # CHECK FOR EXISTENCE OF CORE DIRECTORY
 
 all: core_error
