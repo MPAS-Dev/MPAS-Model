@@ -70,7 +70,11 @@ module mpas_derived_types
 
 #include "mpas_forcing_types.inc"
 
-#include "mpas_omp_offload.inc"
+! Note: This header include must be included in every *.F file containing OpenMP code
+!       Use "CPUONLY" for code that runs OpenMP on the host
+!       Use "GPUONLY" for code that runs OpenMP on the device
+!       Only applies to core_atmosphere, framework, and operators directories
+#include "mpas_openmp.inc"
 
    contains
 
