@@ -16,6 +16,7 @@
 !> This module provides routines for performing vector reconstruction from edges to cell centers.
 !
 !-----------------------------------------------------------------------
+#include "mpas_openmp.inc"
 module mpas_vector_reconstruction
 
   use mpas_derived_types
@@ -248,7 +249,7 @@ module mpas_vector_reconstruction
     call mpas_pool_get_config(meshPool, 'on_a_sphere', on_a_sphere)
 
     ! loop over cell centers
-    !$omp do schedule(runtime)
+    CPUOMP !$omp do schedule(runtime)
     do iCell = 1, nCells
       ! initialize the reconstructed vectors
       uReconstructX(:,iCell) = 0.0
@@ -268,12 +269,12 @@ module mpas_vector_reconstruction
 
       enddo
     enddo   ! iCell
-    !$omp end do
+    CPUOMP !$omp end do
 
     call mpas_threading_barrier()
 
     if (on_a_sphere) then
-      !$omp do schedule(runtime)
+      CPUOMP !$omp do schedule(runtime)
       do iCell = 1, nCells
         clat = cos(latCell(iCell))
         slat = sin(latCell(iCell))
@@ -285,14 +286,14 @@ module mpas_vector_reconstruction
                                           + uReconstructY(:,iCell)*slon)*slat &
                                           + uReconstructZ(:,iCell)*clat
       end do
-      !$omp end do
+      CPUOMP !$omp end do
     else
-      !$omp do schedule(runtime)
+      CPUOMP !$omp do schedule(runtime)
       do iCell = 1, nCells
         uReconstructZonal     (:,iCell) = uReconstructX(:,iCell)
         uReconstructMeridional(:,iCell) = uReconstructY(:,iCell)
       end do
-      !$omp end do
+      CPUOMP !$omp end do
     end if
 
   end subroutine mpas_reconstruct_2d!}}}
@@ -541,7 +542,7 @@ end subroutine mpas_reconstruct_2d_gpu_work
     call mpas_pool_get_config(meshPool, 'on_a_sphere', on_a_sphere)
 
     ! loop over cell centers
-    !$omp do schedule(runtime)
+    CPUOMP !$omp do schedule(runtime)
     do iCell = 1, nCells
       ! initialize the reconstructed vectors
       uReconstructX(iCell) = 0.0
@@ -561,12 +562,12 @@ end subroutine mpas_reconstruct_2d_gpu_work
 
       enddo
     enddo   ! iCell
-    !$omp end do
+    CPUOMP !$omp end do
 
     call mpas_threading_barrier()
 
     if (on_a_sphere) then
-      !$omp do schedule(runtime)
+      CPUOMP !$omp do schedule(runtime)
       do iCell = 1, nCells
         clat = cos(latCell(iCell))
         slat = sin(latCell(iCell))
@@ -578,14 +579,14 @@ end subroutine mpas_reconstruct_2d_gpu_work
                                         + uReconstructY(iCell)*slon)*slat &
                                         + uReconstructZ(iCell)*clat
       end do
-      !$omp end do
+      CPUOMP !$omp end do
     else
-      !$omp do schedule(runtime)
+      CPUOMP !$omp do schedule(runtime)
       do iCell = 1, nCells
         uReconstructZonal     (iCell) = uReconstructX(iCell)
         uReconstructMeridional(iCell) = uReconstructY(iCell)
       end do
-      !$omp end do
+      CPUOMP !$omp end do
     end if
 
   end subroutine mpas_reconstruct_1d!}}}
