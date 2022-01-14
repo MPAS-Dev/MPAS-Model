@@ -5,6 +5,7 @@
 ! Additional copyright and license information can be found in the LICENSE file
 ! distributed with this code, or at http://mpas-dev.github.com/license.html
 !
+#include "mpas_openmp.inc"
 module mpas_atm_threading
 
 
@@ -64,11 +65,11 @@ module mpas_atm_threading
         block => blocklist
         do while (associated(block))
 #ifdef MPAS_OPENMP
-!$OMP PARALLEL
-!$OMP MASTER
+CPUOMP !$OMP PARALLEL
+CPUOMP !$OMP MASTER
             nThreads = OMP_get_num_threads()
-!$OMP END MASTER
-!$OMP END PARALLEL
+CPUOMP !$OMP END MASTER
+CPUOMP !$OMP END PARALLEL
 #else 
             nThreads = 1
 #endif 
@@ -94,7 +95,7 @@ module mpas_atm_threading
             call mpas_pool_get_dimension(block % dimensions, 'nVerticesSolve', nVerticesSolve)
 
 #ifdef MPAS_OPENMP
-!$OMP PARALLEL PRIVATE(threadid)
+CPUOMP !$OMP PARALLEL PRIVATE(threadid)
             threadid = OMP_get_thread_num()
 
             cellThreadStart(threadid+1) = (threadid * nCells / nThreads) + 1
@@ -109,7 +110,7 @@ module mpas_atm_threading
             vertexThreadEnd(threadid+1)   = ((threadid+1) * nVertices / nThreads)
             vertexSolveThreadStart(threadid+1) = (threadid * nVerticesSolve / nThreads) + 1
             vertexSolveThreadEnd(threadid+1)   = ((threadid+1) * nVerticesSolve / nThreads)
-!$OMP END PARALLEL
+CPUOMP !$OMP END PARALLEL
 #else 
             cellThreadStart(1) = 1
             cellThreadEnd(1)   = nCells

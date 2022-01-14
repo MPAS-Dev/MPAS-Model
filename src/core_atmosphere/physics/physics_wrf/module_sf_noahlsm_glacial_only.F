@@ -1,3 +1,4 @@
+#include "mpas_openmp.inc"
 MODULE module_sf_noahlsm_glacial_only
 #if defined(mpas)
 use mpas_atmphys_constants
@@ -24,7 +25,7 @@ use module_wrf_error
   PRIVATE :: SNOW_NEW
 
   integer, private :: iloc, jloc
-!$omp threadprivate(iloc, jloc)
+CPUOMP !$omp threadprivate(iloc, jloc)
 
 CONTAINS
 

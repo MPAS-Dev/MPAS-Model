@@ -6,7 +6,8 @@
 ! distributed with this code, or at http://mpas-dev.github.com/license.html
 !
 !=================================================================================================================
- module mpas_atmphys_driver_microphysics
+#include "mpas_openmp.inc"
+module mpas_atmphys_driver_microphysics
  use mpas_kind_types
  use mpas_pool_routines
  use mpas_timer, only : mpas_timer_start, mpas_timer_stop
@@ -307,10 +308,10 @@
  call mpas_pool_get_config(configs,'config_microp_scheme',microp_scheme)
 
 !... allocation of microphysics arrays:
-!$OMP MASTER
+CPUOMP !$OMP MASTER
  call allocate_microphysics(configs)
-!$OMP END MASTER
-!$OMP BARRIER
+CPUOMP !$OMP END MASTER
+CPUOMP !$OMP BARRIER
 
 !... initialization of precipitation related arrays:
  call precip_from_MPAS(configs,diag_physics,its,ite)
@@ -415,10 +416,10 @@
  call microphysics_to_MPAS(configs,mesh,state,time_lev,diag,diag_physics,tend,itimestep,its,ite)
 
 !... deallocation of all microphysics arrays:
-!$OMP BARRIER
-!$OMP MASTER
+CPUOMP !$OMP BARRIER
+CPUOMP !$OMP MASTER
  call deallocate_microphysics(configs)
-!$OMP END MASTER
+CPUOMP !$OMP END MASTER
 
 !call mpas_log_write('---enter subroutine driver_microphysics:')
 !call mpas_log_write('')

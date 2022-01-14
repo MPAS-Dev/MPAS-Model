@@ -1,3 +1,4 @@
+#include "mpas_openmp.inc"
 MODULE module_sf_noahlsm
 #if defined(mpas)
 use mpas_atmphys_constants,only: CP=>cp,R_D=>R_d,XLF=>xlf,XLV=>xlv,RHOWATER=>rho_w,STBOLT=>stbolt,KARMAN=>karman
@@ -61,7 +62,7 @@ use module_wrf_error
         CHARACTER*256  :: err_message
 
         integer, private :: iloc, jloc
-!$omp threadprivate(iloc, jloc)
+CPUOMP !$omp threadprivate(iloc, jloc)
 !
 CONTAINS
 !
