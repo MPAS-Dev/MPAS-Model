@@ -3067,35 +3067,35 @@
                 <!-- ... PARAMETERIZATION OF GRAVITY WAVE DRAG OVER OROGRAPHY:                                          -->
                 <!-- ================================================================================================== -->
 
-                <var name="var2d" type="real" dimensions="nCells" units="m^{2}"
-                     description="variance of orography"/>
+                <var name="var2d" type="real" dimensions="nCells" units="m"
+                     description="standard deviation of subgrid-scale orography"/>
 
-                <var name="con" type="real" dimensions="nCells" units="m^{2}"
-                     description="convexity of orography"/>
+                <var name="con" type="real" dimensions="nCells" units="unitless"
+                     description="orographic convexity"/>
 
                 <var name="oa1" type="real" dimensions="nCells" units="unitless"
-                     description="directional asymmetry function of orography"/>
+                     description="asymmetry of subgrid-scale orography for westerly flow"/>
 
                 <var name="oa2" type="real" dimensions="nCells" units="unitless"
-                     description="directional asymmetry function of orography"/>
+                     description="asymmetry of subgrid-scale orography for southerly flow"/>
 
                 <var name="oa3" type="real" dimensions="nCells" units="unitless"
-                     description="directional asymmetry function of orography"/>
+                     description="asymmetry of subgrid-scale orography for south-westerly flow"/>
 
                 <var name="oa4" type="real" dimensions="nCells" units="unitless"
-                     description="directional asymmetry function of orography"/>
+                     description="asymmetry of subgrid-scale orography for north-westerly flow"/>
 
                 <var name="ol1" type="real" dimensions="nCells" units="unitless"
-                     description="directional asymmetry function of orography"/>
+                     description="effective orographic length for westerly flow"/>
 
                 <var name="ol2" type="real" dimensions="nCells" units="unitless"
-                     description="directional asymmetry function of orography"/>
+                     description="effective orographic length for southerly flow"/>
 
                 <var name="ol3" type="real" dimensions="nCells" units="unitles"
-                     description="directional asymmetry function of orography"/>
+                     description="effective orographic length for south-westerly flow"/>
 
                 <var name="ol4" type="real" dimensions="nCells" units="unitless"
-                     description="directional asymmetry function of orography"/>
+                     description="effective orographic length for north-westerly flow"/>
         </var_struct>
 
         <var_struct name="tend_iau" time_levs="1" packages="iau">
