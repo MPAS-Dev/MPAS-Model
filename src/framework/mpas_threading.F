@@ -16,6 +16,7 @@
 !
 !-----------------------------------------------------------------------
 
+#include "mpas_openmp.inc"
 module mpas_threading
 
    use mpas_kind_types
@@ -129,7 +130,7 @@ module mpas_threading
    subroutine mpas_threading_barrier()!{{{
 
 #ifdef MPAS_OPENMP
-      !$omp barrier
+      CPUOMP !$omp barrier
 #endif
 
    end subroutine mpas_threading_barrier!}}}
