@@ -275,17 +275,28 @@ module atm_time_integration
 !      call mpas_log_write(' MPI rank $i',intArgs=(/rrpk_rank/))
 !#endif
 
-!$acc enter data copyin(compactHaloInfo_c_v,compactHaloInfo_c_vP1,compactHaloInfo_c_v_s,compactHaloInfo_e_v, compactHaloInfo_c_2_v,&
-!$acc gpu_bufferOffset_send_c_v, gpu_nList_send_c_v, gpu_idx_send_c_v, gpu_bufferOffset_recv_c_v, gpu_nList_recv_c_v,&
-!$acc gpu_idx_recv_c_v, gpu_dimsizes_c_v, gpu_nHaloLayers_c_v, gpu_bufferOffset_send_c_vP1, &
-!$acc gpu_nList_send_c_vP1, gpu_idx_send_c_vP1, gpu_bufferOffset_recv_c_vP1, gpu_nList_recv_c_vP1,&
-!$acc gpu_idx_recv_c_vP1, gpu_dimsizes_c_vP1, gpu_nHaloLayers_c_vP1, gpu_bufferOffset_send_e_v, &
-!$acc gpu_nList_send_e_v, gpu_idx_send_e_v, gpu_bufferOffset_recv_e_v, gpu_nList_recv_e_v,&
-!$acc gpu_idx_recv_e_v, gpu_dimsizes_e_v, gpu_nHaloLayers_e_v,gpu_bufferOffset_send_c_v_s, &
-!$acc gpu_nList_send_c_v_s, gpu_idx_send_c_v_s, gpu_bufferOffset_recv_c_v_s, gpu_nList_recv_c_v_s,&
-!$acc gpu_idx_recv_c_v_s, gpu_dimsizes_c_v_s, gpu_nHaloLayers_c_v_s, gpu_bufferOffset_send_c_2_v, &
-!$acc gpu_nList_send_c_2_v, gpu_idx_send_c_2_v, gpu_bufferOffset_recv_c_2_v, gpu_nList_recv_c_2_v,&
-!$acc gpu_idx_recv_c_2_v, gpu_dimsizes_c_2_v, gpu_nHaloLayers_c_2_v)
+GPUOMP !$omp target enter data map(to:compactHaloInfo_c_v,compactHaloInfo_c_vP1,compactHaloInfo_c_v_s,compactHaloInfo_e_v, compactHaloInfo_c_2_v,&
+GPUOMP !$omp gpu_bufferOffset_send_c_v, gpu_nList_send_c_v, gpu_idx_send_c_v, gpu_bufferOffset_recv_c_v, gpu_nList_recv_c_v,&
+GPUOMP !$omp gpu_idx_recv_c_v, gpu_dimsizes_c_v, gpu_nHaloLayers_c_v, gpu_bufferOffset_send_c_vP1, &
+GPUOMP !$omp gpu_nList_send_c_vP1, gpu_idx_send_c_vP1, gpu_bufferOffset_recv_c_vP1, gpu_nList_recv_c_vP1,&
+GPUOMP !$omp gpu_idx_recv_c_vP1, gpu_dimsizes_c_vP1, gpu_nHaloLayers_c_vP1, gpu_bufferOffset_send_e_v, &
+GPUOMP !$omp gpu_nList_send_e_v, gpu_idx_send_e_v, gpu_bufferOffset_recv_e_v, gpu_nList_recv_e_v,&
+GPUOMP !$omp gpu_idx_recv_e_v, gpu_dimsizes_e_v, gpu_nHaloLayers_e_v,gpu_bufferOffset_send_c_v_s, &
+GPUOMP !$omp gpu_nList_send_c_v_s, gpu_idx_send_c_v_s, gpu_bufferOffset_recv_c_v_s, gpu_nList_recv_c_v_s,&
+GPUOMP !$omp gpu_idx_recv_c_v_s, gpu_dimsizes_c_v_s, gpu_nHaloLayers_c_v_s, gpu_bufferOffset_send_c_2_v, &
+GPUOMP !$omp gpu_nList_send_c_2_v, gpu_idx_send_c_2_v, gpu_bufferOffset_recv_c_2_v, gpu_nList_recv_c_2_v,&
+GPUOMP !$omp gpu_idx_recv_c_2_v, gpu_dimsizes_c_2_v, gpu_nHaloLayers_c_2_v)
+GPUOMP !$omp enter data copyin(compactHaloInfo_c_v,compactHaloInfo_c_vP1,compactHaloInfo_c_v_s,compactHaloInfo_e_v, compactHaloInfo_c_2_v,&
+GPUOMP !$omp gpu_bufferOffset_send_c_v, gpu_nList_send_c_v, gpu_idx_send_c_v, gpu_bufferOffset_recv_c_v, gpu_nList_recv_c_v,&
+GPUOMP !$omp gpu_idx_recv_c_v, gpu_dimsizes_c_v, gpu_nHaloLayers_c_v, gpu_bufferOffset_send_c_vP1, &
+GPUOMP !$omp gpu_nList_send_c_vP1, gpu_idx_send_c_vP1, gpu_bufferOffset_recv_c_vP1, gpu_nList_recv_c_vP1,&
+GPUOMP !$omp gpu_idx_recv_c_vP1, gpu_dimsizes_c_vP1, gpu_nHaloLayers_c_vP1, gpu_bufferOffset_send_e_v, &
+GPUOMP !$omp gpu_nList_send_e_v, gpu_idx_send_e_v, gpu_bufferOffset_recv_e_v, gpu_nList_recv_e_v,&
+GPUOMP !$omp gpu_idx_recv_e_v, gpu_dimsizes_e_v, gpu_nHaloLayers_e_v,gpu_bufferOffset_send_c_v_s, &
+GPUOMP !$omp gpu_nList_send_c_v_s, gpu_idx_send_c_v_s, gpu_bufferOffset_recv_c_v_s, gpu_nList_recv_c_v_s,&
+GPUOMP !$omp gpu_idx_recv_c_v_s, gpu_dimsizes_c_v_s, gpu_nHaloLayers_c_v_s, gpu_bufferOffset_send_c_2_v, &
+GPUOMP !$omp gpu_nList_send_c_2_v, gpu_idx_send_c_2_v, gpu_bufferOffset_recv_c_2_v, gpu_nList_recv_c_2_v,&
+GPUOMP !$omp gpu_idx_recv_c_2_v, gpu_dimsizes_c_2_v, gpu_nHaloLayers_c_2_v)
    end subroutine mpas_gpu_halo_init
 
 
