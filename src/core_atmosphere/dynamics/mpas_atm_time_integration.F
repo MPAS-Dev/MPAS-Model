@@ -531,6 +531,8 @@ module atm_time_integration
       allocate(tend_ru_physics(nVertLevels,nEdges+1))
 !      tend_ru_physics(:,nEdges+1) = 0.0_RKIND
       allocate(tend_th(nVertLevels,nCellsSolve))
+      GPUOMP !$omp target enter data map(alloc:qtot,tend_rtheta_physics,tend_rho_physics,&
+      GPUOMP !$omp tend_ru_physics,tend_th)
 
       !
       ! Initialize RK weights
@@ -761,6 +763,8 @@ CPUOMP !$OMP END PARALLEL DO
 !               ke_vertex(:,nVertices+1) = 0.0_RKIND
                allocate(ke_edge(nVertLevels,nEdges+1))
 !               ke_edge(:,nEdges+1) = 0.0_RKIND
+GPUOMP !$omp target enter data map(alloc:delsq_theta,delsq_w,delsq_divergence,delsq_u,&
+GPUOMP !$omp delsq_vorticity,dpdz,ke_vertex,ke_edge)
 
       DYNAMICS_SUBSTEPS : do dynamics_substep = 1, dynamics_split
 
@@ -1384,14 +1388,18 @@ CPUOMP !$OMP END PARALLEL DO
                   !flux_array(:,nEdges+1) = 0.0_RKIND
                   allocate(wdtn_arr(nVertLevels+1,nCells+1))
                   !wdtn_arr(:,nCells+1) = 0.0_RKIND
+GPUOMP !$omp target enter data map(alloc:scalar_old_arr,scalar_new_arr,s_max_arr,s_min_arr,scale_array,&
+GPUOMP !$omp flux_array,wdtn_arr)
                   if (rk_step < 3 .or. (.not. config_monotonic .and. .not. config_positive_definite)) then
                      allocate(horiz_flux_array(num_scalars,nVertLevels,nEdges+1))
+GPUOMP !$omp target enter data map(alloc:horiz_flux_array)
                      !horiz_flux_array(:,:,nEdges+1) = 0.0_RKIND
                   else
                      allocate(flux_upwind_tmp_arr(nVertLevels,nEdges+1))
                      !flux_upwind_tmp_arr(:,nEdges+1) = 0.0_RKIND
                      allocate(flux_tmp_arr(nVertLevels,nEdges+1))
                      !flux_tmp_arr(:,nEdges+1) = 0.0_RKIND
+GPUOMP !$omp target enter data map(alloc:flux_upwind_tmp_arr,flux_tmp_arr)
                   end if
 
 !$acc parallel
@@ -1463,6 +1471,8 @@ CPUOMP !$OMP PARALLEL DO
                   end do
 CPUOMP !$OMP END PARALLEL DO
 
+GPUOMP !$omp target exit data map(delete:scalar_old_arr,scalar_new_arr,s_max_arr,s_min_arr,scale_array,&
+GPUOMP !$omp flux_array,wdtn_arr)
                   deallocate(scalar_old_arr)
                   deallocate(scalar_new_arr)
                   deallocate(s_max_arr)
@@ -1471,8 +1481,10 @@ CPUOMP !$OMP END PARALLEL DO
                   deallocate(flux_array)
                   deallocate(wdtn_arr)
                   if (rk_step < 3 .or. (.not. config_monotonic .and. .not. config_positive_definite)) then
+GPUOMP !$omp target exit data map(delete:horiz_flux_array)
                      deallocate(horiz_flux_array)
                   else
+GPUOMP !$omp target exit data map(delete:flux_upwind_tmp_arr,flux_tmp_arr)
                      deallocate(flux_upwind_tmp_arr)
                      deallocate(flux_tmp_arr)
                   end if
@@ -1758,6 +1770,8 @@ CPUOMP !$OMP END PARALLEL DO
 
       end do DYNAMICS_SUBSTEPS
 
+GPUOMP !$omp target exit data map(delete:delsq_theta,delsq_w,delsq_divergence,delsq_u,&
+GPUOMP !$omp delsq_vorticity,dpdz,ke_vertex,ke_edge)
                deallocate(ke_vertex)
                deallocate(ke_edge)
                deallocate(delsq_theta)
@@ -1768,7 +1782,9 @@ CPUOMP !$OMP END PARALLEL DO
 !!               deallocate(delsq_circulation)    ! no longer used -> removed 
                deallocate(delsq_vorticity)
                deallocate(dpdz)
-
+      
+GPUOMP !$omp target exit data map(delete:qtot,tend_rtheta_physics,tend_rho_physics,&
+GPUOMP !$omp tend_ru_physics,tend_th)
       deallocate(qtot)  !  we are finished with these now
       deallocate(tend_rtheta_physics)
       deallocate(tend_rho_physics)
@@ -1846,13 +1862,17 @@ CPUOMP !$OMP END PARALLEL DO
                !rho_zz_int(:,nCells+1) = 0.0_RKIND
                allocate(scalar_tend_array(num_scalars,nVertLevels,nCells+1))
                !scalar_tend_array(:,:,nCells+1) = 0.0_RKIND
+GPUOMP !$omp target enter data map(alloc:scalar_old_arr,scalar_new_arr,s_max_arr,s_min_arr,scale_array,&
+GPUOMP !$omp flux_array,wdtn_arr,rho_zz_int,scalar_tend_array)
                if (rk_step < 3 .or. (.not. config_monotonic .and. .not. config_positive_definite)) then
                   allocate(horiz_flux_array(num_scalars,nVertLevels,nEdges+1))
+GPUOMP !$omp target enter data map(alloc:horiz_flux_array)
                   !horiz_flux_array(:,:,nEdges+1) = 0.0_RKIND
                else
                   allocate(flux_upwind_tmp_arr(nVertLevels,nEdges+1))
                   !flux_upwind_tmp_arr(:,nEdges+1) = 0.0_RKIND
                   allocate(flux_tmp_arr(nVertLevels,nEdges+1))
+GPUOMP !$omp target enter data map(alloc:flux_upwind_tmp_arr,flux_tmp_arr)
                   !flux_tmp_arr(:,nEdges+1) = 0.0_RKIND
                end if
 
@@ -1934,6 +1954,8 @@ CPUOMP !$OMP PARALLEL DO
                end do
 CPUOMP !$OMP END PARALLEL DO
 
+GPUOMP !$omp target exit data map(delete:scalar_old_arr,scalar_new_arr,s_max_arr,s_min_arr,scale_array,&
+GPUOMP !$omp flux_array,wdtn_arr,rho_zz_int,scalar_tend_array)
                deallocate(scalar_old_arr)
                deallocate(scalar_new_arr)
                deallocate(s_max_arr)
@@ -1944,8 +1966,10 @@ CPUOMP !$OMP END PARALLEL DO
                deallocate(rho_zz_int)
                deallocate(scalar_tend_array)
                if (rk_step < 3 .or. (.not. config_monotonic .and. .not. config_positive_definite)) then
+GPUOMP !$omp target exit data map(delete:horiz_flux_array)
                   deallocate(horiz_flux_array)
                else
+GPUOMP !$omp target exit data map(delete:flux_upwind_tmp_arr,flux_tmp_arr)
                   deallocate(flux_upwind_tmp_arr)
                   deallocate(flux_tmp_arr)
                end if
@@ -2690,7 +2714,7 @@ CPUOMP !$OMP END PARALLEL DO
       integer :: iCell, k, iq
       real (kind=RKIND) :: dtseps, c2, qtotal, rcv
       real (kind=RKIND), dimension( nVertLevels ,nCells+1) :: b_tri, c_tri
-
+GPUOMP !$omp target data map(alloc:b_tri,c_tri)
 !$acc data present(cofrz, gamma_tri, a_tri, alpha_tri, &
 !$acc coftz, cofwr, cofwt, cofwz, &
 !$acc rdzw, cqw, fzm, fzp, p, pb, qtot, rb, rdzu, rt, rtb, t, zz)&
@@ -2784,7 +2808,7 @@ CPUOMP !$OMP END PARALLEL DO
 !$acc end parallel
 
 !$acc end data
-
+GPUOMP !$omp end target data
    end subroutine atm_compute_vert_imp_coefs_work
 
 
@@ -5392,6 +5416,7 @@ CPUOMP !$OMP BARRIER
          !rthdynten(:,nCells+1) = 0.0_RKIND\
          inactive_rthdynten = .true.
       end if
+GPUOMP !$omp target data map(alloc:rthdynten)
       !$acc data create(rthdynten)
       !$acc kernels
       do temp1=1,nVertLevels
@@ -5447,6 +5472,7 @@ CPUOMP !$OMP BARRIER
 	  end if 
 	  
       !$acc end data
+GPUOMP !$omp end target data
       if (inactive_rthdynten) then
          deallocate(rthdynten)
       end if
