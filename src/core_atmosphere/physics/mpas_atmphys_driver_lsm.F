@@ -389,19 +389,24 @@
  call mpas_pool_get_array_gpu(sfc_input,'smois'     ,smois     )
  call mpas_pool_get_array_gpu(sfc_input,'tslb'      ,tslb      )
 
-!$acc update host(acsnom, acsnow, canwat, chs, chs2, chklowq, cpm, cqs2, glw, grdflx, &
-!$acc             gsw, hfx, lai, lh, noahres, potevp, qfx, qgh, qsfc, br, sfc_albedo, &
-!$acc             sfc_albedo_seaice, sfc_emibck, sfc_emiss, sfcrunoff, smstav, smstot, &
-!$acc             snotime, snopcx, udrunoff, z0, znt, t2m, th2m, q2, isltyp, ivgtyp,  &
-!$acc             shdmin, shdmax, snoalb, sfc_albbck, snow, snowc, snowh, tmn, skintemp, &
-!$acc             vegfra, xice, xland, dzs, sh2o, smcrel, smois, tslb)
+!!!$acc update host(acsnom, acsnow, canwat, chs, chs2, chklowq, cpm, cqs2, glw, grdflx, &
+!!!$acc             gsw, hfx, lai, lh, noahres, potevp, qfx, qgh, qsfc, br, sfc_albedo, &
+!!!$acc             sfc_albedo_seaice, sfc_emibck, sfc_emiss, sfcrunoff, smstav, smstot, &
+!!!$acc             snotime, snopcx, udrunoff, z0, znt, t2m, th2m, q2, isltyp, ivgtyp,  &
+!!!$acc             shdmin, shdmax, snoalb, sfc_albbck, snow, snowc, snowh, tmn, skintemp, &
+!!!$acc             vegfra, xice, xland, dzs, sh2o, smcrel, smois, tslb)
 
 !In Registry.xml, dzs is a function of nCells. In the Noah lsm scheme, dzs is independent
 !of cell locations:
+!$acc parallel vector_length(128)
+!$acc loop gang vector
  do n = 1,num_soils
     dzs_p(n) = dzs(n,its)
  enddo
+!$acc end parallel
 
+!$acc parallel vector_length(128)
+!$acc loop gang vector collapse(3)
  do j = jts,jte
  do n = 1,num_soils
  do i = its,ite
@@ -412,7 +417,10 @@
  enddo
  enddo
  enddo
+!$acc end parallel
 
+!$acc parallel vector_length(32)
+!$acc loop gang vector collapse(2)
  do j = jts,jte
  do i = its,ite
     acsnom_p(i,j)     = acsnom(i)
@@ -485,8 +493,11 @@
     soldrain_p(i,j)   = 0._RKIND
  enddo
  enddo
+!$acc end parallel
 
  if(config_frac_seaice) then
+!$acc parallel vector_length(128)
+!$acc loop gang vector collapse(2)
     do j = jts,jte
     do i = its,ite
        !modify the surface albedo and surface emissivity, and surface temperatures over sea-ice points:
@@ -499,19 +510,25 @@
        endif
     enddo
     enddo
+!$acc end parallel
 
     !calculate sea-surface and sea-ice temperatures over sea-ice grid cells:
     call correct_tsk_over_seaice(ims,ime,jms,jme,its,ite,jts,jte,xice_threshold,xice_p, &
                                  tsk_p,tsk_sea,tsk_ice)
 
+!$acc parallel vector_length(128)
+!$acc loop gang vector collapse(2)
     do j = jts,jte
     do i = its,ite
        tsk_p(i,j) = tsk_ice(i,j)
     enddo
     enddo
+!$acc end parallel
 
     !initialize the surface albedo, the surface albedo over snow-covered seaice, and the
     !seaice thickness.
+!$acc parallel vector_length(128)
+!$acc loop gang vector collapse(2)
     do j = jts,jte
     do i = its,ite
        albsi_p(i,j)    = sfc_albedo_seaice(i)
@@ -519,43 +536,57 @@
        snowsi_p(i,j)   = seaice_snowdepth_min
     enddo
     enddo
+!$acc end parallel
  endif
 
+!$acc parallel vector_length(128)
+!$acc loop gang vector collapse(2)
  do j = jts,jte
  do i = its,ite
     sr_p(i,j)     = 0._RKIND
     rainbl_p(i,j) = 0._RKIND
  enddo
  enddo
+!$acc end parallel
 
  if(config_microp_scheme .ne. 'off') then
     call mpas_pool_get_array_gpu(diag_physics,'sr'     ,sr     ) 
     call mpas_pool_get_array_gpu(diag_physics,'rainncv',rainncv)
-!$acc update host(sr, rainncv)
+!!!$acc update host(sr, rainncv)
 
+!$acc parallel vector_length(128)
+!$acc loop gang vector collapse(2)
     do j = jts,jte
     do i = its,ite
        sr_p(i,j) = sr(i)
        rainbl_p(i,j) = rainbl_p(i,j) + rainncv(i)
     enddo
     enddo
+!$acc end parallel
  endif
  if(config_convection_scheme .ne. 'off') then
     call mpas_pool_get_array_gpu(diag_physics,'raincv',raincv)
-!$acc update host(raincv)
+!!!$acc update host(raincv)
 
+!$acc parallel vector_length(128)
+!$acc loop gang vector collapse(2)
     do j = jts,jte
     do i = its,ite
        rainbl_p(i,j) = rainbl_p(i,j) + raincv(i)
     enddo
     enddo
+!$acc end parallel
  endif
 
+!$acc parallel vector_length(128)
+!$acc loop gang vector collapse(2)
  do j = jts,jte
  do i = its,ite
     swdown_p(i,j) = gsw(i) / (1._RKIND - sfc_albedo(i))
  enddo
  enddo
+!$acc end parallel
+
 
  end subroutine lsm_from_MPAS
  
@@ -653,6 +684,8 @@
  call mpas_pool_get_array_gpu(sfc_input,'smois'        ,smois     )
  call mpas_pool_get_array_gpu(sfc_input,'tslb'         ,tslb      )
 
+!$acc parallel vector_length(128)
+!$acc loop gang vector collapse(3)
  do j = jts,jte
  do n = 1,num_soils
  do i = its,ite
@@ -663,7 +696,10 @@
  enddo
  enddo
  enddo
+!$acc end parallel
 
+!$acc parallel vector_length(2)
+!$acc loop gang vector collapse(2)
  do j = jts,jte
  do i = its,ite
     acsnom(i)     = acsnom_p(i,j)
@@ -713,10 +749,16 @@
     xland(i)      = xland_p(i,j)
  enddo
  enddo
+!$acc end parallel
 
  if(config_frac_seaice) then
+!!!$acc update device(chs_sea,chs2_sea,cqs2_sea,cpm_sea,      &
+!!!$acc        hfx_sea,lh_sea,qfx_sea,qgh_sea,qsfc_sea)
+
 !$acc update host(chs_sea,chs2_sea,cqs2_sea,cpm_sea,hfx_sea,lh_sea,qfx_sea,qgh_sea,qsfc_sea,tsk_sea)
     do j = jts,jte
+!$acc parallel vector_length(128)
+!$acc loop gang vector
     do i = its,ite
        if(xice_p(i,j).ge.xice_threshold .and. xice_p(i,j).le.1._RKIND) then
           chs(i)        = xice_p(i,j)*chs_p(i,j)  + (1._RKIND-xice_p(i,j))*chs_sea(i,j)
@@ -733,6 +775,7 @@
           sfc_emiss(i)  = xice_p(i,j)*sfc_emiss_p(i,j)  + (1._RKIND-xice_p(i,j))*0.98_RKIND
        endif
     enddo
+!$acc end parallel
     enddo
  endif
 
@@ -740,18 +783,21 @@
     call mpas_pool_get_array_gpu(diag_physics,'sr',sr) 
 
     do j = jts,jte
+!$acc parallel vector_length(128)
+!$acc loop gang vector 
     do i = its,ite
        sr(i) = sr_p(i,j)
     enddo
+!$acc end parallel
     enddo
-!$acc update device(sr)
+!!!$acc update device(sr)
  endif
 
-!$acc update device(acsnom, acsnow, canwat, chs, chs2, chklowq, cpm, cqs2, glw, grdflx, gsw, &
-!$acc               hfx, lai, lh, noahres, potevp, qfx, qgh, qsfc, br, raincv, rainncv, sfc_albedo, &
-!$acc               sfc_emibck, sfc_emiss, sfcrunoff, smstav, smstot, snotime, snopcx, udrunoff, z0, &
-!$acc               znt, t2m, th2m, q2, isltyp, ivgtyp, shdmin, shdmax, snoalb, sfc_albbck, snow, &
-!$acc               snowc, snowh, tmn, skintemp, vegfra, xice, xland, sh2o, smcrel, smois, tslb)
+!!!$acc update device(acsnom, acsnow, canwat, chs, chs2, chklowq, cpm, cqs2, glw, grdflx, gsw, &
+!!!$acc               hfx, lai, lh, noahres, potevp, qfx, qgh, qsfc, br, raincv, rainncv, sfc_albedo, &
+!!!$acc               sfc_emibck, sfc_emiss, sfcrunoff, smstav, smstot, snotime, snopcx, udrunoff, z0, &
+!!!$acc               znt, t2m, th2m, q2, isltyp, ivgtyp, shdmin, shdmax, snoalb, sfc_albbck, snow, &
+!!!$acc               snowc, snowh, tmn, skintemp, vegfra, xice, xland, sh2o, smcrel, smois, tslb)
 
  end subroutine lsm_to_MPAS
  
@@ -827,7 +873,7 @@
 
     case("noah")
        call mpas_timer_start('Noah')
-       call lsm( &
+       call lsm_gpu( &
                 dz8w        = dz_p        , p8w3d       = pres2_hyd_p  , t3d       = t_p          , &
                 qv3d        = qv_p        , xland       = xland_p      , xice      = xice_p       , &
                 ivgtyp      = ivgtyp_p    , isltyp      = isltyp_p     , tmn       = tmn_p        , &
@@ -871,7 +917,7 @@
                )
 
        if(config_frac_seaice) then
-          call seaice_noah( &
+          call seaice_noah_gpu( &
                 dz8w      = dz_p        , p8w3d   = pres2_hyd_p  , t3d      = t_p      , &
                 qv3d      = qv_p        , xice    = xice_p       , snoalb2d = snoalb_p , &
                 glw       = glw_p       , swdown  = swdown_p     , rainbl   = rainbl_p , &
@@ -902,7 +948,7 @@
                           )
        endif
 
-       call sfcdiags( &
+       call sfcdiags_gpu( &
                 hfx   = hfx_p  , qfx     = qfx_p   , tsk  = tsk_p , qsfc = qsfc_p , chs = chs_p , &
                 chs2  = chs2_p , cqs2    = cqs2_p  , t2   = t2m_p , th2  = th2m_p , q2  = q2_p  , &
                 psfc  = psfc_p , t3d     = t_p     , qv3d = qv_p  , cp   = cp     , R_d = R_d   , &
@@ -944,6 +990,8 @@
 
 !initialize the local sea-surface temperature and local sea-ice temperature to the local surface
 !temperature:
+!$acc parallel vector_length(128)
+!$acc loop gang vector collapse(2)
  do j = jts,jte
  do i = its,ite
     tsk_sea(i,j) = tsk(i,j)
@@ -960,6 +1008,7 @@
     endif
  enddo
  enddo
+!$acc end parallel
 
  end subroutine correct_tsk_over_seaice
 
