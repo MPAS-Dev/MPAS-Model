@@ -555,6 +555,7 @@
     albsi_p,          &!surface albedo over seaice                                                             [-]
     snowsi_p,         &!snow depth over seaice                                                                 [m]
     icedepth_p         !seaice thickness                                                                       [m]
+!$acc declare create(albsi_p,snowsi_p,icedepth_p)
 
 !=================================================================================================================
 !... variables and arrays related to parameterization of short-wave radiation:
@@ -576,6 +577,7 @@
     swupbc_p,         &!clear-sky upwelling shortwave flux at bottom-of-atmosphere          [J m-2]
     swupt_p,          &!all-sky upwelling shortwave flux at top-of-atmosphere               [J m-2]
     swuptc_p           !clear-sky upwelling shortwave flux at top-of-atmosphere             [J m-2]
+!$acc declare create(gsw_p)
 
  real(kind=RKIND),dimension(:,:),allocatable:: &
     swvisdir_p,       &!visible direct downward flux                                        [W m-2]
@@ -613,6 +615,7 @@
     lwupt_p,          &!all-sky upwelling longwave flux at top-of-atmosphere                [J m-2]
     lwuptc_p,         &!clear-sky upwelling longwave flux at top-of-atmosphere              [J m-2]
     olrtoa_p           !outgoing longwave radiation at top-of-the-atmosphere                [W m-2]
+!$acc declare create(glw_p)
 
   real(kind=RKIND),dimension(:,:,:),allocatable:: &
     lwdnflx_p,        &!
@@ -705,6 +708,7 @@
  integer,dimension(:,:),allocatable:: &
     isltyp_p,         &!dominant soil type category                                                            [-]
     ivgtyp_p           !dominant vegetation category                                                           [-]
+!$acc declare create(isltyp_p,ivgtyp_p)
 
  real(kind=RKIND),dimension(:),allocatable:: &
     dzs_p              !thickness of soil layers                                                               [m]
@@ -713,6 +717,7 @@
     sh2o_p,           &!unfrozen soil moisture content                                       [volumetric fraction]
     smois_p,          &!soil moisture                                                        [volumetric fraction]
     tslb_p             !soil temperature                                                                       [K]
+!$acc declare create(dzs_p,sh2o_p,smcrel_p,smois_p,tslb_p)
 
  real(kind=RKIND),dimension(:,:),allocatable:: &
     acsnom_p,         &!accumulated melted snow                                                           [kg m-2]
@@ -739,6 +744,9 @@
     tmn_p,            &!soil temperature at lower boundary                                                     [K]
     vegfra_p,         &!vegetation fraction                                                                    [-]
     z0_p               !background roughness length                                                            [m]
+!$acc declare create(acsnom_p,acsnow_p,canwat_p,chklowq_p,grdflx_p,lai_p,noahres_p,potevp_p, &
+!$acc                sfcrunoff_p,smstav_p,smstot_p,snotime_p,snopcx_p,udrunoff_p,z0_p,       &
+!$acc                shdmin_p,shdmax_p,snowc_p,snowh_p,tmn_p,vegfra_p,qz0_p,rainbl_p,swdown_p)
 
  real(kind=RKIND),dimension(:,:),allocatable:: &
     alswvisdir_p,     &!direct-beam surface albedo in visible spectrum                                         [-]
@@ -762,6 +770,7 @@
  real(kind=RKIND),dimension(:,:),allocatable:: &
     frc_urb_p,        &!urban fraction                                                                         [-]
     ust_urb_p          !urban u* in similarity theory                                                        [m/s]
+!$acc declare create(frc_urb_p,ust_urb_p,utype_urb_p)
 
 !.. arrays needed in the argument list in the call to the Noah LSM hydrology model: note that these arrays are
 !.. initialized to zero since we do not run a hydrology model:
@@ -769,6 +778,7 @@
     infxsrt_p,        &!timestep infiltration excess                                                          [mm]
     sfcheadrt_p,      &!surface water detph                                                                   [mm]
     soldrain_p         !soil column drainage                                                                  [mm]
+!$acc declare create(infxsrt_p,sfcheadrt_p,soldrain_p)
 
 !=================================================================================================================
 !.. variables and arrays related to surface characteristics:
@@ -789,7 +799,8 @@
     sst_p,            &!sea-surface temperature                                                                [K]
     xice_p,           &!ice mask                                                                               [-]
     xland_p            !land mask    (1 for land; 2 for water)                                                 [-]
-!$acc declare create(xland_p, tsk_p, sst_p, xice_p)
+!$acc declare create(xland_p,tsk_p,sst_p,xice_p,sfc_albedo_p,sfc_emibck_p,sfc_emiss_p, &
+!$acc                snoalb_p,sfc_albbck_p,snow_p)
 
 !=================================================================================================================
 !.. variables needed for the surface layer scheme and land surface scheme when config_frac_seaice
@@ -810,7 +821,7 @@
 !$acc psih_sea, psim_sea, qgh_sea, qsfc_sea, regime_sea, rmol_sea, tsk_sea, &
 !$acc ust_sea, ustm_sea, wspd_sea, xland_sea, zol_sea, znt_sea, cd_sea, &
 !$acc cda_sea, ck_sea, cka_sea, t2m_sea, th2m_sea, q2_sea, u10_sea, v10_sea, &
-!$acc regime_hold, fh_sea, fm_sea)
+!$acc regime_hold, fh_sea, fm_sea, tsk_ice)
 
  contains
 
