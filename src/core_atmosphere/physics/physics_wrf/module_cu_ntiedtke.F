@@ -43,6 +43,7 @@
 !===========================================================
 !###########################################################
 
+#include "mpas_openmp.inc"
 module module_cu_ntiedtke
 
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -330,6 +331,9 @@ contains
 !-------other local variables----
       integer                      :: zz, pp
 !-----------------------------------------------------------------------
+GPUOMP !$omp target data map(alloc:rcs,rn,evap,heatflux,dx2d, &
+GPUOMP !$omp slimsk,prsi,ghti,zi,dot,prsl,q1,q2,q3,q1b,t1b,q11,q12,t1,u1,v1,zl, &
+GPUOMP !$omp omg,ghtl,kbot,ktop)
 !$acc data create(rcs,rn,evap,heatflux,dx2d, &
 !$acc slimsk,prsi,ghti,zi,dot,prsl,q1,q2,q3,q1b,t1b,q11,q12,t1,u1,v1,zl, &
 !$acc omg,ghtl,kbot,ktop)
@@ -516,6 +520,7 @@ contains
 
    enddo
 !$acc end data
+GPUOMP !$omp end target data
 
    end subroutine cu_ntiedtke
 
@@ -628,6 +633,9 @@ contains
       integer i,j,k,lq,km,km1
       real dt,ztpp1
       real zew,zqs,zcor
+GPUOMP !$omp target data map(alloc:pum1,pvm1,ztt,ptte,pqte,pvom,pvol,pverv,pgeo, &
+GPUOMP !$omp zqq,pcte,ztp1,zqp1,ztu,zqu,zlu,zlude,zmfu,zmfd,zqsat,pqhfl, &
+GPUOMP !$omp prsfc,pssfc,phhfl,zrain,pgeoh,icbot,ictop,locum)
 !$acc data create(pum1,pvm1,ztt,ptte,pqte,pvom,pvol,pverv,pgeo, &
 !$acc zqq,pcte,ztp1,zqp1,ztu,zqu,zlu,zlude,zmfu,zmfd,zqsat,pqhfl, &
 !$acc prsfc,pssfc,phhfl,zrain,pgeoh,icbot,ictop,locum)
@@ -737,6 +745,7 @@ contains
       endif
 !
 !$acc end data
+GPUOMP !$omp end target data
       return
       end subroutine tiecnvn
 
@@ -1670,6 +1679,7 @@ contains
       integer  jl,jk
       integer  icall,ik
       real     zzs
+GPUOMP !$omp target data map(alloc:zwmax,zph,loflag)
 !$acc data create(zwmax,zph,loflag)
 !------------------------------------------------------------
 !*    1.       specify large scale parameters at half levels
@@ -1765,6 +1775,7 @@ contains
       end do
 !$acc end parallel
 !$acc end data
+GPUOMP !$omp end target data
       return
       end subroutine cuinin
 
@@ -1866,6 +1877,9 @@ contains
       integer  jl,jk,ik,icall,levels
       logical  needreset, lldcum(klon)
 	  logical  flag
+GPUOMP !$omp target data map(alloc:ptu,pqu,plu,zph,klab,kctop,kcbot,loflag,deepflag, &
+GPUOMP !$omp resetflag,dhen,dh,plude,kup,vptu,vten,zbuo,abuoy,zqold,eta,dz, &
+GPUOMP !$omp coef,zcbase,itoppacel,lldcum)
 !$acc data create(ptu,pqu,plu,zph,klab,kctop,kcbot,loflag,deepflag, &
 !$acc resetflag,dhen,dh,plude,kup,vptu,vten,zbuo,abuoy,zqold,eta,dz, &
 !$acc coef,zcbase,itoppacel,lldcum)
@@ -2366,6 +2380,7 @@ contains
 
       end do ! end all cycles
 !$acc end data
+GPUOMP !$omp end target data
       return
       end subroutine cutypen
 
@@ -2502,6 +2517,9 @@ contains
       real     zrnew,zz,zdmfeu,zdmfdu,dp
       real     zfac,zbuoc,zdkbuo,zdken,zvv,zarg,zchange,zxe,zxs,zdshrd
       real     atop1,atop2,abot
+GPUOMP !$omp target data map(alloc:zlrain,zbuo,kup,zodetr,zph,zdmfen,zdmfde,zmfuu, &
+GPUOMP !$omp zmfuv,zpbase,zqold,zluold,zprecip,eta,dz,pdmfen,zoentr, &
+GPUOMP !$omp zdpmean,loflag,llo1)
 !$acc data create(zlrain,zbuo,kup,zodetr,zph,zdmfen,zdmfde,zmfuu, &
 !$acc zmfuv,zpbase,zqold,zluold,zprecip,eta,dz,pdmfen,zoentr, &
 !$acc zdpmean,loflag,llo1)
@@ -2929,6 +2947,7 @@ contains
 !$acc end parallel
 
 !$acc end data
+GPUOMP !$omp end target data
       return
       end subroutine cuascn
 !---------------------------------------------------------
@@ -3059,6 +3078,7 @@ contains
       integer  is,ik,icall,ike
       real     zhsk,zttest,zqtest,zbuo,zmftop
                                                                                    
+GPUOMP !$omp target data map(alloc:ztenwb,zqenwb,zcond,zph,zhsmin,ikhsmin,llo2)
 !$acc data create(ztenwb,zqenwb,zcond,zph,zhsmin,ikhsmin,llo2)
 !----------------------------------------------------------------------          
                                                                                  
@@ -3167,6 +3187,7 @@ contains
       enddo                                                                      
                                                                                  
 !$acc end data
+GPUOMP !$omp end target data
       return                                                                     
       end subroutine cudlfsn  
 
@@ -3276,6 +3297,7 @@ contains
       integer  ik,icall,ike, itopde(klon)
       real     zentr,zdz,zzentr,zseen,zqeen,zsdde,zqdde,zdmfdp
       real     zmfdsk,zmfdqk,zbuo,zrain,zbuoyz,zmfduk,zmfdvk
+GPUOMP !$omp target data map(alloc:zdmfen,zdmfde,zcond,zoentr,zbuoy,zph,llo2,itopde)
 !$acc data create(zdmfen,zdmfde,zcond,zoentr,zbuoy,zph,llo2,itopde)
 !----------------------------------------------------------------------   
 !     1.           calculate moist descent for cumulus downdraft by       
@@ -3422,6 +3444,7 @@ contains
       enddo                                                               
                                                                           
 !$acc end data
+GPUOMP !$omp end target data
       return                                                              
       end subroutine cuddrafn
 !---------------------------------------------------------
@@ -3543,6 +3566,7 @@ contains
       real     rhevap(klon)
       integer  idbas(klon)
       logical  llddraf
+GPUOMP !$omp target data map(alloc:rhevap,idbas)
 !$acc data create(rhevap,idbas)
 !--------------------------------------------------------------------          
 !*             specify constants  
@@ -3774,6 +3798,7 @@ contains
       enddo
                                       
 !$acc end data
+GPUOMP !$omp end target data
       return
       end subroutine cuflxn 
 !---------------------------------------------------------
@@ -3805,6 +3830,7 @@ contains
     integer  jk , ik , jl
     real     zalv , zzp
     real     zdtdt(klon,klev) , zdqdt(klon,klev) , zdp(klon,klev)
+GPUOMP !$omp target data map(alloc:zdtdt,zdqdt,zdp)
 !$acc data create(zdtdt,zdqdt,zdp)
     !*    1.0          SETUP AND INITIALIZATIONS
     ! -------------------------
@@ -3873,6 +3899,7 @@ contains
 !$acc end parallel
 
 !$acc end data
+GPUOMP !$omp end target data
 
     return
   end subroutine cudtdqn
@@ -3902,6 +3929,7 @@ contains
     real     zzp, zdtdt
    
     real     zdudt(klon,klev), zdvdt(klon,klev), zdp(klon,klev)
+GPUOMP !$omp target data map(alloc:zuen,zven,zmfuu,zmfdu,zmfuv,zmfdv,zdudt,zdvdt,zdp)
 !$acc data create(zuen,zven,zmfuu,zmfdu,zmfuv,zmfdv,zdudt,zdvdt,zdp)
 !
 !$acc parallel vector_length(128)
@@ -3995,6 +4023,7 @@ contains
 !$acc end parallel
 !----------------------------------------------------------------------
 !$acc end data
+GPUOMP !$omp end target data
     return
     end subroutine cududvn
 !---------------------------------------------------------
