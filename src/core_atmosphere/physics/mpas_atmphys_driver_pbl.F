@@ -6,6 +6,7 @@
 ! distributed with this code, or at http://mpas-dev.github.com/license.html
 !
 !=================================================================================================================
+#include "mpas_openmp.inc"
  module mpas_atmphys_driver_pbl
  use mpas_kind_types
  use mpas_pool_routines
@@ -114,6 +115,8 @@
  if(.not.allocated(kzh_p)) allocate(kzh_p(ims:ime,kms:kme,jms:jme))
  if(.not.allocated(kzm_p)) allocate(kzm_p(ims:ime,kms:kme,jms:jme))
  if(.not.allocated(kzq_p)) allocate(kzq_p(ims:ime,kms:kme,jms:jme))
+GPUOMP !$omp target enter data map(alloc:hfx_p,qfx_p,ust_p,wspd_p,xland_p,hpbl_p,kpbl_p,znt_p,delta_p,wstar_p,&
+GPUOMP !$omp uoce_p,voce_p,rublten_p,rvblten_p,rthblten_p,rqvblten_p,rqiblten_p,kzh_p,kzm_p,kzq_p)
 
  pbl_select: select case (trim(pbl_scheme))
 
@@ -130,6 +133,7 @@
        if(.not.allocated(exch_p)  ) allocate(exch_p(ims:ime,kms:kme,jms:jme))
        !from radiation schemes:
        if(.not.allocated(rthraten_p)) allocate(rthraten_p(ims:ime,kms:kme,jms:jme))
+GPUOMP !$omp target enter data map(alloc:br_p,ctopo_p,ctopo2_p,psih_p,psim_p,regime_p,u10_p,v10_p,exch_p,rthraten_p)
 
     case("bl_mynn")
        if(.not.allocated(dx_p)   ) allocate(dx_p(ims:ime,jms:jme)   )
@@ -156,6 +160,8 @@
        if(.not.allocated(qwt_p)   ) allocate(qwt_p(ims:ime,kms:kme,jms:jme)   )
 
        if(.not.allocated(rniblten_p)) allocate(rniblten_p(ims:ime,kms:kme,jms:jme))
+GPUOMP !$omp target enter data map(alloc:dx_p,ch_p,qcg_p,qsfc_p,rmol_p,tsk_p,vdfg_p,cov_p,qke_p,qsq_p,tsq_p,qkeadv_p,&
+GPUOMP !$omp elpbl_p,tkepbl_p,sh3d_p,dqke_p,qbuoy_p,qdiss_p,qshear_p,qwt_p,rniblten_p)
 
     case default
 
@@ -177,6 +183,8 @@
 
  call mpas_pool_get_config(configs,'config_pbl_scheme',pbl_scheme)
 
+GPUOMP !$omp target exit data map(delete:hfx_p,qfx_p,ust_p,wspd_p,xland_p,hpbl_p,kpbl_p,znt_p,delta_p,wstar_p,&
+GPUOMP !$omp uoce_p,voce_p,rublten_p,rvblten_p,rthblten_p,rqvblten_p,rqiblten_p,kzh_p,kzm_p,kzq_p)
  if(allocated(hfx_p)  ) deallocate(hfx_p  )
  if(allocated(qfx_p)  ) deallocate(qfx_p  )
  if(allocated(ust_p)  ) deallocate(ust_p  )
@@ -206,6 +214,7 @@
  pbl_select: select case (trim(pbl_scheme))
 
     case("bl_ysu")
+GPUOMP !$omp target exit data map(delete:br_p,ctopo_p,ctopo2_p,psih_p,psim_p,regime_p,u10_p,v10_p,exch_p,rthraten_p)
        !from surface-layer model:
        if(allocated(br_p)    ) deallocate(br_p    )
        if(allocated(ctopo_p) ) deallocate(ctopo_p )
@@ -220,6 +229,8 @@
        if(allocated(rthraten_p)) deallocate(rthraten_p)
 
     case("bl_mynn")
+GPUOMP !$omp target exit data map(delete:dx_p,ch_p,qcg_p,qsfc_p,rmol_p,tsk_p,vdfg_p,cov_p,qke_p,qsq_p,tsq_p,qkeadv_p,&
+GPUOMP !$omp elpbl_p,tkepbl_p,sh3d_p,dqke_p,qbuoy_p,qdiss_p,qshear_p,qwt_p,rniblten_p)
        if(allocated(dx_p)   ) deallocate(dx_p   )
        if(allocated(ch_p)   ) deallocate(ch_p   )
        if(allocated(qcg_p)  ) deallocate(qcg_p  )

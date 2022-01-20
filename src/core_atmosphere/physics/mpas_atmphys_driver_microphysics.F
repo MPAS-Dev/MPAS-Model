@@ -125,6 +125,8 @@ module mpas_atmphys_driver_microphysics
  if(.not.allocated(rainnc_p) ) allocate(rainnc_p(ims:ime,jms:jme) )
  if(.not.allocated(rainncv_p)) allocate(rainncv_p(ims:ime,jms:jme))
 
+GPUOMP !$omp target enter data map(alloc:rho_p,th_p,pi_p,pres_p,z_p,dz_p,w_p,qv_p,qc_p,qr_p,&
+GPUOMP !$omp rainnc_p,rainncv_p)
  microp_select: select case(microp_scheme)
 
     case ("mp_thompson","mp_wsm6")
@@ -144,6 +146,8 @@ module mpas_atmphys_driver_microphysics
        if(.not.allocated(recloud_p) ) allocate(recloud_p(ims:ime,kms:kme,jms:jme))
        if(.not.allocated(reice_p)   ) allocate(reice_p(ims:ime,kms:kme,jms:jme)  )
        if(.not.allocated(resnow_p)  ) allocate(resnow_p(ims:ime,kms:kme,jms:jme) )
+GPUOMP !$omp target enter data map(alloc:qi_p,qs_p,qg_p,sr_p,snownc_p,snowncv_p,snowncv_p,&
+GPUOMP !$omp graupelnc_p,graupelncv_p,recloud_p,reice_p,resnow_p)
 
     microp2_select: select case(microp_scheme)
 
@@ -156,6 +160,7 @@ module mpas_atmphys_driver_microphysics
 
           if(.not.allocated(rainprod_p)) allocate(rainprod_p(ims:ime,kms:kme,jms:jme))
           if(.not.allocated(evapprod_p)) allocate(evapprod_p(ims:ime,kms:kme,jms:jme))
+GPUOMP !$omp target enter data map(alloc:ntc_p,muc_p,ni_p,nr_p,rainprod_p,evapprod_p)
 
        case default
 
@@ -181,6 +186,8 @@ module mpas_atmphys_driver_microphysics
 
  call mpas_pool_get_config(configs,'config_microp_scheme',microp_scheme)
 
+GPUOMP !$omp target exit data map(delete:rho_p,th_p,pi_p,pres_p,z_p,dz_p,w_p,qv_p,qc_p,qr_p,&
+GPUOMP !$omp rainnc_p,rainncv_p)
 !sounding variables:
  if(allocated(rho_p)     ) deallocate(rho_p     )
  if(allocated(th_p)      ) deallocate(th_p      )
@@ -202,6 +209,8 @@ module mpas_atmphys_driver_microphysics
  microp_select: select case(microp_scheme)
 
     case ("mp_thompson","mp_wsm6")
+GPUOMP !$omp target exit data map(delete:qi_p,qs_p,qg_p,sr_p,snownc_p,snowncv_p,snowncv_p,&
+GPUOMP !$omp graupelnc_p,graupelncv_p,recloud_p,reice_p,resnow_p)
        !mass mixing ratios:
        if(allocated(qi_p)         ) deallocate(qi_p         )
        if(allocated(qs_p)         ) deallocate(qs_p         )
@@ -222,6 +231,7 @@ module mpas_atmphys_driver_microphysics
     microp2_select: select case(microp_scheme)
 
        case("mp_thompson")
+GPUOMP !$omp target exit data map(delete:ntc_p,muc_p,ni_p,nr_p,rainprod_p,evapprod_p)
           !number concentrations:
           if(allocated(ntc_p)) deallocate(ntc_p)
           if(allocated(muc_p)) deallocate(muc_p)

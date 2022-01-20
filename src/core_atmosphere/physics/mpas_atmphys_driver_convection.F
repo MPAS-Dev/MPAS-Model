@@ -6,6 +6,7 @@
 ! distributed with this code, or at http://mpas-dev.github.com/license.html
 !
 !=================================================================================================================
+#include "mpas_openmp.inc"
  module mpas_atmphys_driver_convection
  use mpas_kind_types
  use mpas_pool_routines
@@ -119,6 +120,8 @@
  if(.not.allocated(rqicuten_p) ) allocate(rqicuten_p(ims:ime,kms:kme,jms:jme))
  if(.not.allocated(pratec_p)   ) allocate(pratec_p(ims:ime,jms:jme)          )
  if(.not.allocated(raincv_p)   ) allocate(raincv_p(ims:ime,jms:jme)          )
+GPUOMP !$omp target enter data map(alloc:cu_act_flag,rthcuten_p,rqvcuten_p,rqccuten_p,&
+GPUOMP !$omp rqicuten_p,pratec_p,raincv_p)
 
 !$acc parallel vector_length(32)
 !$acc loop gang vector collapse(2)
@@ -210,7 +213,7 @@
        if(.not.allocated(xland_p)      ) allocate(xland_p(ims:ime,jms:jme)              )
        if(.not.allocated(rucuten_p)    ) allocate(rucuten_p(ims:ime,kms:kme,jms:jme)    )
        if(.not.allocated(rvcuten_p)    ) allocate(rvcuten_p(ims:ime,kms:kme,jms:jme)    )
-
+GPUOMP !$omp target enter data map(alloc:hfx_p,qfx_p,xland_p,rucuten_p,rvcuten_p)
 !$acc parallel vector_length(32)
 !$acc loop gang vector collapse(2)
        do j = jts,jte
@@ -253,6 +256,7 @@
              if(.not.allocated(dx_p)     ) allocate(dx_p(ims:ime,jms:jme)             )
              if(.not.allocated(rqvften_p)) allocate(rqvften_p(ims:ime,kms:kme,jms:jme))
              if(.not.allocated(rthften_p)) allocate(rthften_p(ims:ime,kms:kme,jms:jme))
+GPUOMP !$omp target enter data map(alloc:dx_p,rqvften_p,rthften_p)
 
 !$acc parallel vector_length(32)
 !$acc loop gang vector collapse(3)
@@ -290,6 +294,8 @@
 
  call mpas_pool_get_config(configs,'config_convection_scheme',convection_scheme)
 
+GPUOMP !$omp target exit data map(delete:cu_act_flag,rthcuten_p,rqvcuten_p,rqccuten_p,&
+GPUOMP !$omp rqicuten_p,pratec_p,raincv_p)
  if(allocated(cu_act_flag)) deallocate(cu_act_flag)
  if(allocated(rthcuten_p) ) deallocate(rthcuten_p )
  if(allocated(rqvcuten_p) ) deallocate(rqvcuten_p )
@@ -297,6 +303,7 @@
  if(allocated(rqicuten_p) ) deallocate(rqicuten_p )
  if(allocated(pratec_p)   ) deallocate(pratec_p   )
  if(allocated(raincv_p)   ) deallocate(raincv_p   )
+GPUOMP
 
  convection_select: select case(convection_scheme)
 
@@ -342,6 +349,7 @@
        if(allocated(rqscuten_p)   ) deallocate(rqscuten_p   )
 
     case ("cu_tiedtke","cu_ntiedtke")
+GPUOMP !$omp target exit data map(delete:hfx_p,qfx_p,xland_p,rucuten_p,rvcuten_p)
        if(allocated(hfx_p)        ) deallocate(hfx_p        )
        if(allocated(qfx_p)        ) deallocate(qfx_p        )
        if(allocated(xland_p)      ) deallocate(xland_p      )
@@ -355,6 +363,7 @@
              if(allocated(rqvdynblten_p)) deallocate(rqvdynblten_p)
 
           case ("cu_ntiedtke")
+GPUOMP !$omp target enter data map(alloc:dx_p,rqvften_p,rthften_p)
              if(allocated(dx_p)     ) deallocate(dx_p)
              if(allocated(rqvften_p)) deallocate(rqvften_p)
              if(allocated(rthften_p)) deallocate(rthften_p)

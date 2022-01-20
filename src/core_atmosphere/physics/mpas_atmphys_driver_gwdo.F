@@ -6,6 +6,7 @@
 ! distributed with this code, or at http://mpas-dev.github.com/license.html
 !
 !=================================================================================================================
+#include "mpas_openmp.inc"
  module mpas_atmphys_driver_gwdo
  use mpas_kind_types
  use mpas_pool_routines
@@ -91,6 +92,8 @@
  if(.not.allocated(dtauy3d_p)) allocate(dtauy3d_p(ims:ime,kms:kme,jms:jme))
  if(.not.allocated(rublten_p)) allocate(rublten_p(ims:ime,kms:kme,jms:jme))
  if(.not.allocated(rvblten_p)) allocate(rvblten_p(ims:ime,kms:kme,jms:jme))
+GPUOMP !$omp target enter data map(alloc:cosa_p,sina_p,dx_p,var2d_p,con_p,oa1_p,oa2_p,oa3_p,oa4_p,ol1_p,ol2_p,&
+GPUOMP !$omp ol3_p,ol4_p,kpbl_p,dusfcg_p,dvsfcg_p,dtaux3d_p,dtauy3d_p,rublten_p,rvblten_p)
 
  end subroutine allocate_gwdo
 
@@ -98,6 +101,8 @@
  subroutine deallocate_gwdo
 !=================================================================================================================
 
+GPUOMP !$omp target exit data map(delete:cosa_p,sina_p,dx_p,var2d_p,con_p,oa1_p,oa2_p,oa3_p,oa4_p,ol1_p,ol2_p,&
+GPUOMP !$omp ol3_p,ol4_p,kpbl_p,dusfcg_p,dvsfcg_p,dtaux3d_p,dtauy3d_p,rublten_p,rvblten_p)
  if(allocated(cosa_p)  ) deallocate(cosa_p  )
  if(allocated(sina_p)  ) deallocate(sina_p  )
 

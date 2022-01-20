@@ -6,6 +6,7 @@
 ! distributed with this code, or at http://mpas-dev.github.com/license.html
 !
 !=================================================================================================================
+#include "mpas_openmp.inc"
  module mpas_atmphys_driver_sfclayer
  use mpas_kind_types
  use mpas_pool_routines
@@ -137,6 +138,9 @@
  if(.not.allocated(xland_p) ) allocate(xland_p(ims:ime,jms:jme) )
  if(.not.allocated(zol_p)   ) allocate(zol_p(ims:ime,jms:jme)   )
  if(.not.allocated(znt_p)   ) allocate(znt_p(ims:ime,jms:jme)   )
+GPUOMP !$omp target enter data map(alloc:dx_p,br_p,cd_p,cda_p,chs_p,chs2_p,ck_p,cka_p,cpm_p,cqs2_p,gz1oz0_p,&
+GPUOMP !$omp flhc_p,flqc_p,hfx_p,hpbl_p,lh_p,mavail_p,mol_p,psih_p,psim_p,q2_p,qfx_p,qgh_p,qsfc_p,regime_p,&
+GPUOMP !$omp rmol_p,t2m_p,tsk_p,th2m_p,u10_p,ust_p,ustm_p,v10_p,wspd_p,xland_p,zol_p,znt_p)
 
  if(config_frac_seaice) then
     if(.not.allocated(sst_p)      ) allocate(sst_p(ims:ime,jms:jme)      )
@@ -180,6 +184,10 @@
     if(.not.allocated(v10_sea)    ) allocate(v10_sea(ims:ime,jms:jme)    )
 
     if(.not.allocated(regime_hold)) allocate(regime_hold(ims:ime,jms:jme))
+GPUOMP !$omp target enter data map(alloc:sst_p,xice_p,br_sea,chs_sea,chs2_sea,cqs2_sea,flhc_sea,flqc_sea,gz1oz0_sea,&
+GPUOMP !$omp hfx_sea,qfx_sea,mavail_sea,mol_sea,lh_sea,psih_sea,psim_sea,qgh_sea,qsfc_sea,regime_sea,rmol_sea,tsk_sea,&
+GPUOMP !$omp ust_sea,ustm_sea,wspd_sea,xland_sea,zol_sea,znt_sea,cd_sea,cda_sea,ck_sea,cka_sea,t2m_sea,th2m_sea,q2_sea,&
+GPUOMP !$omp u10_sea,v10_sea,regime_hold)
  endif
 
  sfclayer_select: select case (trim(sfclayer_scheme))
@@ -191,6 +199,7 @@
           if(.not.allocated(fh_sea)) allocate(fh_sea(ims:ime,jms:jme))
           if(.not.allocated(fm_sea)) allocate(fm_sea(ims:ime,jms:jme))
        endif
+GPUOMP !$omp target enter data map(alloc:fh_p,fm_p,fh_sea,fm_sea)
 
     case("sf_mynn")
        if(.not.allocated(snowh_p)) allocate(snowh_p(ims:ime,jms:jme))
@@ -205,6 +214,7 @@
        if(.not.allocated(tsq_p)     ) allocate(tsq_p(ims:ime,kms:kme,jms:jme)     )
        if(.not.allocated(sh3d_p)    ) allocate(sh3d_p(ims:ime,kms:kme,jms:jme)    )
        if(.not.allocated(elpbl_p)   ) allocate(elpbl_p(ims:ime,kms:kme,jms:jme)   )
+GPUOMP !$omp target enter data map(alloc:snowh_p,ch_p,qcg_p,ch_sea,ch_sea,cov_p,qsq_p,tsq_p,sh3d_p,elpbl_p)
 
     case default
 
@@ -228,6 +238,9 @@
  call mpas_pool_get_config(configs,'config_frac_seaice'    ,config_frac_seaice)
  call mpas_pool_get_config(configs,'config_sfclayer_scheme',sfclayer_scheme   )
 
+GPUOMP !$omp target exit data map(delete:dx_p,br_p,cd_p,cda_p,chs_p,chs2_p,ck_p,cka_p,cpm_p,cqs2_p,gz1oz0_p,&
+GPUOMP !$omp flhc_p,flqc_p,hfx_p,hpbl_p,lh_p,mavail_p,mol_p,psih_p,psim_p,q2_p,qfx_p,qgh_p,qsfc_p,regime_p,&
+GPUOMP !$omp rmol_p,t2m_p,tsk_p,th2m_p,u10_p,ust_p,ustm_p,v10_p,wspd_p,xland_p,zol_p,znt_p)
  if(allocated(dx_p)    ) deallocate(dx_p    )
  if(allocated(br_p)    ) deallocate(br_p    )
  if(allocated(cd_p)    ) deallocate(cd_p    )
@@ -267,6 +280,10 @@
  if(allocated(znt_p)   ) deallocate(znt_p   )
 
  if(config_frac_seaice) then
+GPUOMP !$omp target exit data map(delete:sst_p,xice_p,br_sea,chs_sea,chs2_sea,cqs2_sea,flhc_sea,flqc_sea,gz1oz0_sea,&
+GPUOMP !$omp hfx_sea,qfx_sea,mavail_sea,mol_sea,lh_sea,psih_sea,psim_sea,qgh_sea,qsfc_sea,regime_sea,rmol_sea,tsk_sea,&
+GPUOMP !$omp ust_sea,ustm_sea,wspd_sea,xland_sea,zol_sea,znt_sea,cd_sea,cda_sea,ck_sea,cka_sea,t2m_sea,th2m_sea,q2_sea,&
+GPUOMP !$omp u10_sea,v10_sea,regime_hold)
     if(allocated(sst_p)      ) deallocate(sst_p      )
     if(allocated(xice_p)     ) deallocate(xice_p     )
 
@@ -302,6 +319,7 @@
  sfclayer_select: select case (trim(sfclayer_scheme))
 
     case("sf_monin_obukhov")
+GPUOMP !$omp target exit data map(delete:fh_p,fm_p,fh_sea,fm_sea)
        if(allocated(fh_p)) deallocate(fh_p)
        if(allocated(fm_p)) deallocate(fm_p)
        if(config_frac_seaice) then
@@ -310,6 +328,7 @@
        endif
 
     case("sf_mynn")
+GPUOMP !$omp target exit data map(delete:snowh_p,ch_p,qcg_p,ch_sea,ch_sea,cov_p,qsq_p,tsq_p,sh3d_p,elpbl_p)
        if(allocated(snowh_p)) deallocate(snowh_p)
        if(allocated(ch_p)   ) deallocate(ch_p   )
        if(allocated(qcg_p)  ) deallocate(qcg_p  )
