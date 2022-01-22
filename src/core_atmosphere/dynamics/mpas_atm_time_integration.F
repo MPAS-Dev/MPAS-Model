@@ -3245,9 +3245,17 @@ GPUOMP !$omp end target data
 !$acc coftz, cofwr, cofwt, cofwz, dss, dvedge, edgesoncell, edgesoncell_sign, &
 !$acc fzm, fzp, gamma_tri, invareacell, nedgesoncell, rdzw, rho_zz, rw, &
 !$acc rw_save, tend_rho, tend_rt, tend_rw, theta_m, w)
+TMPOMP !$omp target enter data map(to:rtheta_pp, rtheta_pp_old, ru_p, ruavg, rho_pp, &
+TMPOMP !$omp rw_p, wwavg, &
+TMPOMP !$omp zz, cellsonedge, cqu, dcedge, exner, invdcedge, &
+TMPOMP !$omp tend_ru, zxu, tend_rho, a_tri, alpha_tri, cofrz, &
+TMPOMP !$omp coftz, cofwr, cofwt, cofwz, dss, dvedge, edgesoncell, edgesoncell_sign, &
+TMPOMP !$omp fzm, fzp, gamma_tri, invareacell, nedgesoncell, rdzw, rho_zz, rw, &
+TMPOMP !$omp rw_save, tend_rho, tend_rt, tend_rw, theta_m, w)
 
       if(small_step /= 1) then  !  not needed on first small step 
 
+GPUOMP !$omp target teams distribute parallel do
 !$acc parallel vector_length(32)
 !$acc loop gang
         do iEdge=edgeStart,edgeEnd ! MGD do we really just need edges touching owned cells?
@@ -3259,28 +3267,34 @@ GPUOMP !$omp end target data
            if (cell1 <= nCellsSolve .or. cell2 <= nCellsSolve ) then
 !DIR$ IVDEP
 !$acc loop vector
+GPUOMP !$omp do simd
               do k=1,nVertLevels
                  pgrad = ((rtheta_pp(k,cell2)-rtheta_pp(k,cell1))*invDcEdge(iEdge) )/(.5*(zz(k,cell2)+zz(k,cell1)))
                  pgrad = cqu(k,iEdge)*0.5*c2*(exner(k,cell1)+exner(k,cell2))*pgrad
                  pgrad = pgrad + 0.5*zxu(k,iEdge)*gravity*(rho_pp(k,cell1)+rho_pp(k,cell2))
                  ru_p(k,iEdge) = ru_p(k,iEdge) + dts*(tend_ru(k,iEdge) - (1.0_RKIND - specZoneMaskEdge(iEdge))*pgrad)
               end do
+GPUOMP !$omp end do simd
 
               ! accumulate ru_p for use later in scalar transport
 !DIR$ IVDEP
 !$acc loop vector
+GPUOMP !$omp do simd
               do k=1,nVertLevels
                  ruAvg(k,iEdge) = ruAvg(k,iEdge) + ru_p(k,iEdge)
               end do
+GPUOMP !$omp end do simd
 
            end if ! end test for block-owned cells
 
         end do ! end loop over edges
 !$acc end parallel
+GPUOMP !$omp end target teams distribute parallel do
         end if
 
         if(small_step ==1) then
 !      else !  this is all that us needed for ru_p update for first acoustic step in RK substep
+GPUOMP !$omp target teams distribute parallel do
 !$acc parallel vector_length(32)
 !$acc loop gang
         do iEdge=edgeStart,edgeEnd ! MGD do we really just need edges touching owned cells?
@@ -3292,42 +3306,52 @@ GPUOMP !$omp end target data
            if (cell1 <= nCellsSolve .or. cell2 <= nCellsSolve ) then
 !DIR$ IVDEP
 !$acc loop vector
+GPUOMP !$omp do simd
               do k=1,nVertLevels
                  ru_p(k,iEdge) = dts*tend_ru(k,iEdge)
               end do
+GPUOMP !$omp end do simd
 !DIR$ IVDEP
 !$acc loop vector
+GPUOMP !$omp do simd
               do k=1,nVertLevels
 !!                 ruAvg(k,iEdge) = ruAvg(k,iEdge) + ru_p(k,iEdge)
                  ruAvg(k,iEdge) = ru_p(k,iEdge)                 
               end do
+GPUOMP !$omp end do simd
 
            end if ! end test for block-owned cells
 
         end do ! end loop over edges
 !$acc end parallel
+GPUOMP !$omp end target teams distribute parallel do
       end if ! test for first acoustic step
 
 CPUOMP !$OMP BARRIER
 
       if (small_step == 1) then  ! initialize here on first small timestep.
+GPUOMP !$omp target teams distribute parallel do
 !$acc parallel vector_length(32)
 !$acc loop gang vector
          do iCell=cellStart,cellEnd
             rtheta_pp_old(1:nVertLevels,iCell) = 0.0
          end do
 !$acc end parallel
+GPUOMP !$omp end target teams distribute parallel do
       else
+GPUOMP !$omp target teams distribute parallel do
 !$acc parallel vector_length(32)
 !$acc loop gang vector
         do iCell=cellStart,cellEnd
            rtheta_pp_old(1:nVertLevels,iCell) = rtheta_pp(1:nVertLevels,iCell)
         end do
 !$acc end parallel
+GPUOMP !$omp end target teams distribute parallel do
       end if
 
 
 !!!OMP BARRIER -- not needed, since rtheta_pp_old not used below when small_step == 1
+GPUOMP !$omp target teams distribute parallel do private(rs,ts)
 !$acc parallel vector_length(32)
 !$acc loop gang private(ts, rs)
       do iCell=cellSolveStart,cellSolveEnd  ! loop over all owned cells to solve
@@ -3345,11 +3369,13 @@ CPUOMP !$OMP BARRIER
             
          if(specZoneMaskCell(iCell) == 0.0) then  ! not specified zone, compute...
 
+GPUOMP !$omp do simd
 !$acc loop vector
          do k=1,nVertLevels
             ts(k) = 0.0
             rs(k) = 0.0
          end do
+GPUOMP !$omp end do simd
 
 !$acc loop seq
 
@@ -3358,18 +3384,21 @@ CPUOMP !$OMP BARRIER
             cell1 = cellsOnEdge(1,iEdge)
             cell2 = cellsOnEdge(2,iEdge)
 !DIR$ IVDEP
+GPUOMP !$omp do simd
 !$acc loop vector
             do k=1,nVertLevels
                flux = edgesOnCell_sign(i,iCell)*dts*dvEdge(iEdge)*ru_p(k,iEdge) * invAreaCell(iCell)
                rs(k) = rs(k)-flux
                ts(k) = ts(k)-flux*0.5*(theta_m(k,cell2)+theta_m(k,cell1))
             end do
+GPUOMP !$omp end do simd
          end do
       ! vertically implicit acoustic and gravity wave integration.
       ! this follows Klemp et al MWR 2007, with the addition of an implicit Rayleigh damping of w
       ! serves as a gravity-wave absorbing layer, from Klemp et al 2008.
 
 !DIR$ IVDEP
+GPUOMP !$omp do simd
 !$acc loop vector
          do k=1, nVertLevels
             rs(k) = rho_pp(k,iCell) + dts*tend_rho(k,iCell) + rs(k)                  &
@@ -3378,14 +3407,18 @@ CPUOMP !$OMP BARRIER
                                - resm*rdzw(k)*( coftz(k+1,iCell)*rw_p(k+1,iCell)     &
                                                -coftz(k,iCell)*rw_p(k,iCell))
          end do
+GPUOMP !$omp end do simd
 
 !DIR$ IVDEP
+GPUOMP !$omp do simd
 !$acc loop vector
          do k=2, nVertLevels
             wwavg(k,iCell) = wwavg(k,iCell) + 0.5*(1.0-epssm)*rw_p(k,iCell)
          end do
+GPUOMP !$omp end do simd
 
 !DIR$ IVDEP
+GPUOMP !$omp do simd
 !$acc loop vector
          do k=2, nVertLevels
             rw_p(k,iCell) = rw_p(k,iCell) +  dts*tend_rw(k,iCell)                       &
@@ -3398,6 +3431,7 @@ CPUOMP !$OMP BARRIER
                        + cofwt(k  ,iCell)*(ts(k)+resm*rtheta_pp(k  ,iCell))           &
                        + cofwt(k-1,iCell)*(ts(k-1)+resm*rtheta_pp(k-1,iCell))
          end do
+GPUOMP !$omp end do simd
 
          ! tridiagonal solve sweeping up and then down the column
 
@@ -3415,6 +3449,7 @@ CPUOMP !$OMP BARRIER
 
          ! the implicit Rayleigh damping on w (gravity-wave absorbing) 
 !DIR$ IVDEP
+GPUOMP !$omp do simd
 !$acc loop vector
          do k=2,nVertLevels
             rw_p(k,iCell) = (rw_p(k,iCell) + (rw_save(k  ,iCell) - rw(k  ,iCell)) -dts*dss(k,iCell)*               &
@@ -3423,22 +3458,27 @@ CPUOMP !$OMP BARRIER
                                  *w(k,iCell)    )/(1.0+dts*dss(k,iCell)) &
                          - (rw_save(k  ,iCell) - rw(k  ,iCell))
          end do
+GPUOMP !$omp end do simd
 
          ! accumulate (rho*omega)' for use later in scalar transport
 !DIR$ IVDEP
+GPUOMP !$omp do simd
 !$acc loop vector
          do k=2,nVertLevels
             wwAvg(k,iCell) = wwAvg(k,iCell) + 0.5*(1.0+epssm)*rw_p(k,iCell)
          end do
+GPUOMP !$omp end do simd
 
          ! update rho_pp and theta_pp given updated rw_p
 !DIR$ IVDEP
+GPUOMP !$omp do simd
 !$acc loop vector
          do k=1,nVertLevels
             rho_pp(k,iCell) = rs(k) - cofrz(k) *(rw_p(k+1,iCell)-rw_p(k  ,iCell))
             rtheta_pp(k,iCell) = ts(k) - rdzw(k)*(coftz(k+1,iCell)*rw_p(k+1,iCell)  &
                                -coftz(k  ,iCell)*rw_p(k  ,iCell))
          end do
+GPUOMP !$omp end do simd
 
          else ! specifed zone in regional_MPAS
 
@@ -3453,7 +3493,9 @@ CPUOMP !$OMP BARRIER
 
       end do !  end of loop over cells
 !$acc end parallel
+GPUOMP !$omp end target teams distribute parallel do
 !$acc end data
+TMPOMP !$omp target update from(rtheta_pp,rtheta_pp_old,ru_p,ruavg,rho_pp,rw_p,wwavg)
    end subroutine atm_advance_acoustic_step_work
 
    subroutine atm_divergence_damping_3d( state, diag, mesh, configs, dts, edgeStart, edgeEnd )
