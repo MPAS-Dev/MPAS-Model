@@ -5744,6 +5744,20 @@ GPUOMP !$omp end target data
 !$acc adv_coefs_3rd, advcellsforedge, nadvcellsforedge, w, cqw, rdzu, rho_zz, &
 !$acc theta_m, theta_m_save, rt_diabatic_tend, tend_rtheta_physics, t_init, &
 !$acc rw_save,tend_rtheta_adv,rthdynten)
+TMPOMP !$omp target update to(kdiff, h_divergence, dpdz, tend_rho, tend_u_euler, &
+TMPOMP !$omp tend_u, delsq_u, delsq_vorticity, delsq_divergence, &
+TMPOMP !$omp tend_w, delsq_w, tend_w_euler, tend_theta, &
+TMPOMP !$omp delsq_theta, tend_theta_euler, &
+TMPOMP !$omp defc_a, defc_b, edgesoncell, nedgesoncell, u, v, &
+TMPOMP !$omp dvedge, edgesoncell_sign, invareacell, ru, qtot, rb, rdzw, rr_save, rw, &
+TMPOMP !$omp tend_rho_physics, cellsonedge, cqu, invdcedge, pp, zxu, zz, &
+TMPOMP !$omp fzm, fzp, edgesonedge, ke, nedgesonedge, pv_edge, rho_edge, weightsonedge, &
+TMPOMP !$omp divergence, invdvedge, meshscalingdel2, verticesonedge, vorticity, &
+TMPOMP !$omp dcedge, edgesonvertex, edgesonvertex_sign, invareatriangle, &
+TMPOMP !$omp meshscalingdel4, zgrid, angleedge, u_init, tend_ru_physics, adv_coefs, &
+TMPOMP !$omp adv_coefs_3rd, advcellsforedge, nadvcellsforedge, w, cqw, rdzu, rho_zz, &
+TMPOMP !$omp theta_m, theta_m_save, rt_diabatic_tend, tend_rtheta_physics, t_init, &
+TMPOMP !$omp rw_save,tend_rtheta_adv,rthdynten)
 
 
          ! Smagorinsky eddy viscosity, based on horizontal deformation (in this case on model coordinate surfaces).
@@ -5751,9 +5765,11 @@ GPUOMP !$omp end target data
 !!$acc kernels
 
 if (config_horiz_mixing == "2d_smagorinsky") then
+GPUOMP !$omp target teams distribute parallel do private (d_diag,d_off_diag)
 !$acc parallel vector_length(64)
 !$acc loop gang private(d_diag,d_off_diag)
          do iCell = cellStart,cellEnd
+GPUOMP !$omp do simd
 !$acc cache(d_diag)
 !$acc cache(d_off_diag)
 !$acc loop vector
@@ -5761,8 +5777,10 @@ if (config_horiz_mixing == "2d_smagorinsky") then
                d_diag(k) = 0.0
                d_off_diag(k) = 0.0
             end do
+GPUOMP !$omp end do simd
 !$acc loop seq
             do iEdge=1,nEdgesOnCell(iCell)
+GPUOMP !$omp do simd
 !$acc loop vector
                do k=1,nVertLevels
                   d_diag(k)     = d_diag(k)     + defc_a(iEdge,iCell)*u(k,EdgesOnCell(iEdge,iCell))  &
@@ -5770,19 +5788,22 @@ if (config_horiz_mixing == "2d_smagorinsky") then
                   d_off_diag(k) = d_off_diag(k) + defc_b(iEdge,iCell)*u(k,EdgesOnCell(iEdge,iCell))  &
                                                 + defc_a(iEdge,iCell)*v(k,EdgesOnCell(iEdge,iCell))
                end do
+GPUOMP !$omp end do simd
             end do
 !DIR$ IVDEP
+GPUOMP !$omp do simd
 !$acc loop vector
             do k=1, nVertLevels
                kdiff(k,iCell) = min((c_s * config_len_disp)**2 * sqrt(d_diag(k)**2 + d_off_diag(k)**2),(0.01*config_len_disp**2) * invDt)
             end do
+GPUOMP !$omp end do simd
          end do
+GPUOMP !$omp end target teams distribute parallel do
 
          h_mom_eddy_visc4   = config_visc4_2dsmag * config_len_disp**3
          h_theta_eddy_visc4 = h_mom_eddy_visc4
 
 !$acc end parallel
-
       end if
         ! else
          if(config_horiz_mixing == "2d_fixed") then
@@ -5813,31 +5834,39 @@ if (config_horiz_mixing == "2d_smagorinsky") then
 
       ! accumulate horizontal mass-flux
 
+GPUOMP !$omp target teams distribute parallel do private(h_wk)
 !$acc parallel vector_length(64)
 !$acc loop gang private(h_wk)
  do iCell=cellStart,cellEnd
+GPUOMP !omp do simd
 !$acc cache(h_wk)
 !$acc loop vector
          do k=1,nVertLevels
             h_wk(k) = 0.0
          end do
+GPUOMP !omp end do simd
 !$acc loop seq
          do i=1,nEdgesOnCell(iCell)
             iEdge = edgesOnCell(i,iCell)
             edge_sign = edgesOnCell_sign(i,iCell) * dvEdge(iEdge)
 !DIR$ IVDEP
+GPUOMP !omp do simd
 !$acc loop vector
             do k=1,nVertLevels
                h_wk(k) = h_wk(k) + edge_sign * ru(k,iEdge)
             end do
+GPUOMP !omp end do simd
          end do
+GPUOMP !omp do simd
 !$acc loop vector
          do k=1,nVertLevels
             r = invAreaCell(iCell)
             h_divergence(k,iCell) = h_wk(k) * r
          end do
+GPUOMP !omp do simd
       end do
 !$acc end parallel 
+GPUOMP !$omp end target teams distribute parallel do
 
       !
       ! dp / dz and tend_rho
@@ -5847,24 +5876,29 @@ if (config_horiz_mixing == "2d_smagorinsky") then
 
       !  rgas_cprcv = rgas*cp/cv
 
+GPUOMP !$omp target teams distribute parallel do
 !$acc parallel vector_length(64)
 !$acc loop gang
         do iCell = cellStart,cellEnd
 !DIR$ IVDEP
+GPUOMP !$omp do simd
 !$acc loop vector
           do k = 1,nVertLevels
             tend_rho(k,iCell) = -h_divergence(k,iCell)-rdzw(k)*(rw(k+1,iCell)-rw(k,iCell)) + tend_rho_physics(k,iCell)
             dpdz(k,iCell) = -gravity*(rb(k,iCell)*(qtot(k,iCell)) + rr_save(k,iCell)*(1.+qtot(k,iCell)))
           end do
+GPUOMP !$omp end do simd
         end do
 !$acc end parallel
+GPUOMP !$omp end target teams distribute parallel do
 
 CPUOMP !$OMP BARRIER
 
       !
       ! Compute u (normal) velocity tendency for each edge (cell face)
       !
-
+GPUOMP !$omp target teams distribute parallel do &
+GPUOMP !$omp private(wduz, tend_wk, eoe_w, we_w)
 !$acc parallel vector_length(64)
 !$acc loop gang private(wduz, tend_wk, eoe_w, we_w)
       do iEdge=edgeSolveStart,edgeSolveEnd
@@ -5878,6 +5912,7 @@ CPUOMP !$OMP BARRIER
 
          ! horizontal pressure gradient 
 !DIR$ IVDEP
+!GPUOMP !$omp do simd
 !$acc loop vector
          do k=1,nVertLevels
             tend_u_euler(k,iEdge) = - cqu(k,iEdge) * &
@@ -5886,27 +5921,37 @@ CPUOMP !$OMP BARRIER
                               -0.5*zxu(k,iEdge)*(dpdz(k,cell1)+dpdz(k,cell2)) )
             tend_wk(k) = u(k,iEdge)
          end do
+!GPUOMP !$omp end do simd
 
+!GPUOMP !$omp do simd
 !$acc loop vector shortloop
          do k=1,nVertLevels+1,nVertLevels
             wduz(k) = 0.
          end do
+!GPUOMP !$omp end do simd
+!GPUOMP !$omp do simd
 !$acc loop vector shortloop
          do k=2,nVertLevels,nVertLevels-2
             wduz(k) = 0.5*( rw(k,cell1)+rw(k,cell2))*(fzm(k)*tend_wk(k)+fzp(k)*tend_wk(k-1))
          end do
+!GPUOMP !$omp end do simd
+!GPUOMP !$omp do simd
 !$acc loop vector
          do k=3,nVertLevels-1
             wduz(k) = flux3( tend_wk(k-2),tend_wk(k-1),tend_wk(k),tend_wk(k+1),0.5*(rw(k,cell1)+rw(k,cell2)), 1.0_RKIND )
          end do
+!GPUOMP !$omp end do simd
 
+!GPUOMP !$omp do simd
 !$acc loop vector shortloop
          do j = 1,nEdgesOnEdge(iEdge)
             eoe_w(j) = edgesOnEdge(j,iEdge)
             we_w(j)  = weightsOnEdge(j,iEdge)
          end do
+!GPUOMP !$omp end do simd
 
 !DIR$ IVDEP
+!GPUOMP !$omp do simd
 !$acc loop vector
          do k=1,nVertLevels
             q1 = pv_edge(k,iEdge)
@@ -5923,9 +5968,11 @@ CPUOMP !$OMP BARRIER
                              invDcEdge(iEdge)) - tend_wk(k) * 0.5 * &
                              (h_divergence(k,cell1)+h_divergence(k,cell2))
          end do
+!GPUOMP !$omp end do simd
       end do
 !$acc end parallel
-
+GPUOMP !$omp end target teams distribute parallel do
+TMPOMP !$omp target update from(kdiff,h_divergence,tend_rho,dpdz,tend_u_euler,tend_u)
 
       !
       !  horizontal mixing for u
@@ -5939,6 +5986,7 @@ CPUOMP !$OMP BARRIER
          ! del^4 horizontal filter.  We compute this as del^2 ( del^2 (u) ).
          ! First, storage to hold the result from the first del^2 computation.
 
+!GPUOMP !$omp target teams distribute parallel do
 !$acc parallel vector_length(64)   
 !$acc loop gang
          do iEdge=edgeStart,edgeEnd
@@ -5966,9 +6014,11 @@ CPUOMP !$OMP BARRIER
             end do
          end do
 !$acc end parallel
+!GPUOMP !$omp end target teams distribute parallel do
 
          if (h_mom_eddy_visc4 > 0.0) then
 CPUOMP !$OMP BARRIER
+!GPUOMP !$omp target teams distribute parallel do private(delsq_wk)
 !$acc parallel vector_length(64)
 !$acc loop gang private(delsq_wk)
             do iVertex=vertexStart,vertexEnd
@@ -5992,7 +6042,9 @@ CPUOMP !$OMP BARRIER
                end do
             end do
 !$acc end parallel
+!GPUOMP !$omp end target teams distribute parallel do
 
+!GPUOMP !$omp target teams distribute parallel do
 !$acc parallel vector_length(64)
 !$acc loop gang private(delsq_wk)
             do iCell=cellStart,cellEnd
@@ -6017,11 +6069,16 @@ CPUOMP !$OMP BARRIER
                end do
             end do
 !$acc end parallel
+!GPUOMP !$omp end target teams distribute parallel do
+!GPUOMP !$omp target update from(delsq_vorticity,delsq_divergence)
          end if
+!TMPOMP !$omp target update from(kdiff,h_divergence,tend_rho,dpdz,tend_u_euler,tend_u,&
+!TMPOMP !$omp delsq_u)
 
 CPUOMP !$OMP BARRIER
 
          if (h_mom_eddy_visc4 > 0.0) then
+!GPUOMP !$omp target teams distribute parallel do
 !$acc parallel vector_length(64)
 !$acc loop gang
             do iEdge=edgeSolveStart,edgeSolveEnd
@@ -6051,6 +6108,7 @@ CPUOMP !$OMP BARRIER
                end do
             end do
 !$acc end parallel
+!GPUOMP !$omp end target teams distribute parallel do
          end if
 
       !
@@ -6059,6 +6117,7 @@ CPUOMP !$OMP BARRIER
          if ( v_mom_eddy_visc2 > 0.0 ) then
             if (config_mix_full) then  ! mix full state
 
+!GPUOMP !$omp target teams distribute parallel do
 !$acc parallel vector_length(64)
 !$acc loop gang
                do iEdge=edgeSolveStart,edgeSolveEnd
@@ -6084,10 +6143,12 @@ CPUOMP !$OMP BARRIER
                   end do
                end do
 !$acc end parallel
+!GPUOMP !$omp target teams distribute parallel do
             end if
 
             if (.not. config_mix_full) then  ! mix full state
             !else  ! idealized cases where we mix on the perturbation from the initial 1-D state
+!GPUOMP !$omp target teams distribute parallel do
 !$acc parallel vector_length(64)
 !$acc loop gang private(u_mix)
                do iEdge=edgeSolveStart,edgeSolveEnd
@@ -6121,6 +6182,7 @@ CPUOMP !$OMP BARRIER
                end do
 
 !$acc end parallel
+!GPUOMP !$omp target teams distribute parallel do
             end if  ! mix perturbation state
          end if  ! vertical mixing of horizontal momentum
 
