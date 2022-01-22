@@ -3245,7 +3245,7 @@ GPUOMP !$omp end target data
 !$acc coftz, cofwr, cofwt, cofwz, dss, dvedge, edgesoncell, edgesoncell_sign, &
 !$acc fzm, fzp, gamma_tri, invareacell, nedgesoncell, rdzw, rho_zz, rw, &
 !$acc rw_save, tend_rho, tend_rt, tend_rw, theta_m, w)
-TMPOMP !$omp target enter data map(to:rtheta_pp, rtheta_pp_old, ru_p, ruavg, rho_pp, &
+TMPOMP !$omp target update to(rtheta_pp, rtheta_pp_old, ru_p, ruavg, rho_pp, &
 TMPOMP !$omp rw_p, wwavg, &
 TMPOMP !$omp zz, cellsonedge, cqu, dcedge, exner, invdcedge, &
 TMPOMP !$omp tend_ru, zxu, tend_rho, a_tri, alpha_tri, cofrz, &
@@ -5470,12 +5470,15 @@ CPUOMP !$OMP BARRIER
          inactive_rthdynten = .true.
       end if
 GPUOMP !$omp target data map(alloc:rthdynten)
+GPUOMP !$omp target teams distribute parallel do
       !$acc data create(rthdynten)
       !$acc kernels
       do temp1=1,nVertLevels
            rthdynten(temp1,temp_nCells+1) = 0.0_RKIND
       end do
       !$acc end kernels
+GPUOMP !$omp end target teams distribute parallel do
+TMPOMP !$omp target update from(rthdynten)
  
       if(rk_step == 1) then
 
