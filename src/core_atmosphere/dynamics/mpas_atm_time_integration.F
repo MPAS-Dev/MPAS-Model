@@ -5912,7 +5912,7 @@ GPUOMP !$omp private(wduz, tend_wk, eoe_w, we_w)
 
          ! horizontal pressure gradient 
 !DIR$ IVDEP
-!GPUOMP !$omp do simd
+GPUOMP !$omp do simd
 !$acc loop vector
          do k=1,nVertLevels
             tend_u_euler(k,iEdge) = - cqu(k,iEdge) * &
@@ -5921,36 +5921,37 @@ GPUOMP !$omp private(wduz, tend_wk, eoe_w, we_w)
                               -0.5*zxu(k,iEdge)*(dpdz(k,cell1)+dpdz(k,cell2)) )
             tend_wk(k) = u(k,iEdge)
          end do
-!GPUOMP !$omp end do simd
+GPUOMP !$omp end do simd
 
-!GPUOMP !$omp do simd
+GPUOMP !$omp do simd
 !$acc loop vector shortloop
          do k=1,nVertLevels+1,nVertLevels
             wduz(k) = 0.
          end do
-!GPUOMP !$omp end do simd
-!GPUOMP !$omp do simd
+GPUOMP !$omp end do simd
+GPUOMP !$omp do simd
 !$acc loop vector shortloop
          do k=2,nVertLevels,nVertLevels-2
             wduz(k) = 0.5*( rw(k,cell1)+rw(k,cell2))*(fzm(k)*tend_wk(k)+fzp(k)*tend_wk(k-1))
          end do
-!GPUOMP !$omp end do simd
-!GPUOMP !$omp do simd
+GPUOMP !$omp end do simd
+GPUOMP !$omp do simd
 !$acc loop vector
          do k=3,nVertLevels-1
             wduz(k) = flux3( tend_wk(k-2),tend_wk(k-1),tend_wk(k),tend_wk(k+1),0.5*(rw(k,cell1)+rw(k,cell2)), 1.0_RKIND )
          end do
-!GPUOMP !$omp end do simd
+GPUOMP !$omp end do simd
 
-!GPUOMP !$omp do simd
+GPUOMP !$omp do simd
 !$acc loop vector shortloop
          do j = 1,nEdgesOnEdge(iEdge)
             eoe_w(j) = edgesOnEdge(j,iEdge)
             we_w(j)  = weightsOnEdge(j,iEdge)
          end do
-!GPUOMP !$omp end do simd
+GPUOMP !$omp end do simd
 
 !DIR$ IVDEP
+!GPUOMP NOTE: compiler error for nested do loop
 !GPUOMP !$omp do simd
 !$acc loop vector
          do k=1,nVertLevels
@@ -5972,7 +5973,6 @@ GPUOMP !$omp private(wduz, tend_wk, eoe_w, we_w)
       end do
 !$acc end parallel
 GPUOMP !$omp end target teams distribute parallel do
-TMPOMP !$omp target update from(kdiff,h_divergence,tend_rho,dpdz,tend_u_euler,tend_u)
 
       !
       !  horizontal mixing for u
@@ -5986,7 +5986,7 @@ CPUOMP !$OMP BARRIER
          ! del^4 horizontal filter.  We compute this as del^2 ( del^2 (u) ).
          ! First, storage to hold the result from the first del^2 computation.
 
-!GPUOMP !$omp target teams distribute parallel do
+GPUOMP !$omp target teams distribute parallel do
 !$acc parallel vector_length(64)   
 !$acc loop gang
          do iEdge=edgeStart,edgeEnd
@@ -5997,6 +5997,7 @@ CPUOMP !$OMP BARRIER
             r_dc = invDcEdge(iEdge)
             r_dv = min(invDvEdge(iEdge), 4*invDcEdge(iEdge))
 !DIR$ IVDEP
+GPUOMP !$omp do simd
 !$acc loop vector
             do k=1,nVertLevels
 
@@ -6012,73 +6013,85 @@ CPUOMP !$OMP BARRIER
                                        + rho_edge(k,iEdge)* kdiffu * u_diffusion * meshScalingDel2(iEdge)
 
             end do
+GPUOMP !$omp end do simd
          end do
 !$acc end parallel
-!GPUOMP !$omp end target teams distribute parallel do
+GPUOMP !$omp end target teams distribute parallel do
 
          if (h_mom_eddy_visc4 > 0.0) then
 CPUOMP !$OMP BARRIER
-!GPUOMP !$omp target teams distribute parallel do private(delsq_wk)
+GPUOMP !$omp target teams distribute parallel do private(delsq_wk)
 !$acc parallel vector_length(64)
 !$acc loop gang private(delsq_wk)
             do iVertex=vertexStart,vertexEnd
 !$acc cache(delsq_wk)
+GPUOMP !$omp do simd
 !$acc loop vector
                do k=1,nVertLevels
                   delsq_wk(k) = 0.0
                end do
+GPUOMP !$omp end do simd
 !$acc loop seq
                do i=1,vertexDegree
                   iEdge = edgesOnVertex(i,iVertex)
                   edge_sign = invAreaTriangle(iVertex) * dcEdge(iEdge) * edgesOnVertex_sign(i,iVertex)
+GPUOMP !$omp do simd
 !$acc loop vector
                   do k=1,nVertLevels
                      delsq_wk(k) = delsq_wk(k) + edge_sign * delsq_u(k,iEdge)
                   end do
+GPUOMP !$omp end do simd
                end do
+GPUOMP !$omp do simd
 !$acc loop vector
                do k=1,nVertLevels
                   delsq_vorticity(k,iVertex) = delsq_wk(k)
                end do
+GPUOMP !$omp end do simd
             end do
 !$acc end parallel
-!GPUOMP !$omp end target teams distribute parallel do
+GPUOMP !$omp end target teams distribute parallel do
 
-!GPUOMP !$omp target teams distribute parallel do
+GPUOMP !$omp target teams distribute parallel do private(delsq_wk)
 !$acc parallel vector_length(64)
 !$acc loop gang private(delsq_wk)
             do iCell=cellStart,cellEnd
 !$acc cache(delsq_wk)
+GPUOMP !$omp do simd
 !$acc loop vector
                do k=1,nVertLevels
                   delsq_wk(k) = 0.0
                end do
+GPUOMP !$omp end do simd
                r = invAreaCell(iCell)
 !$acc loop seq
                do i=1,nEdgesOnCell(iCell)
                   iEdge = edgesOnCell(i,iCell)
                   edge_sign = r * dvEdge(iEdge) * edgesOnCell_sign(i,iCell)
+GPUOMP !$omp do simd
 !$acc loop vector
                   do k=1,nVertLevels
                      delsq_wk(k) = delsq_wk(k) + edge_sign * delsq_u(k,iEdge)
                   end do
+GPUOMP !$omp end do simd
                end do
+GPUOMP !$omp do simd
 !$acc loop vector
                do k=1,nVertLevels
                   delsq_divergence(k,iCell) = delsq_wk(k)
                end do
+GPUOMP !$omp end do simd
             end do
 !$acc end parallel
-!GPUOMP !$omp end target teams distribute parallel do
-!GPUOMP !$omp target update from(delsq_vorticity,delsq_divergence)
+GPUOMP !$omp end target teams distribute parallel do
+!TMPOMP !$omp target update from(delsq_vorticity,delsq_divergence)
          end if
-!TMPOMP !$omp target update from(kdiff,h_divergence,tend_rho,dpdz,tend_u_euler,tend_u,&
-!TMPOMP !$omp delsq_u)
+TMPOMP !$omp target update from(kdiff,h_divergence,tend_rho,dpdz,tend_u_euler,tend_u,delsq_u)
 
 CPUOMP !$OMP BARRIER
 
          if (h_mom_eddy_visc4 > 0.0) then
-!GPUOMP !$omp target teams distribute parallel do
+GPUOMP !$omp target teams distribute parallel do
 !$acc parallel vector_length(64)
 !$acc loop gang
             do iEdge=edgeSolveStart,edgeSolveEnd
@@ -6092,6 +6105,7 @@ CPUOMP !$OMP BARRIER
                r_dv = u_mix_scale * min(invDvEdge(iEdge), 4*invDcEdge(iEdge))
 
 !DIR$ IVDEP
+GPUOMP !$omp do simd
 !$acc loop vector
                do k=1,nVertLevels
 
@@ -6106,9 +6120,10 @@ CPUOMP !$OMP BARRIER
                                                        -( delsq_vorticity(k,vertex2) - delsq_vorticity(k,vertex1) ) * r_dv )
                   tend_u_euler(k,iEdge) = tend_u_euler(k,iEdge) - u_diffusion
                end do
+GPUOMP !$omp end do simd
             end do
 !$acc end parallel
-!GPUOMP !$omp end target teams distribute parallel do
+GPUOMP !$omp end target teams distribute parallel do
          end if
 
       !
@@ -6117,14 +6132,14 @@ CPUOMP !$OMP BARRIER
          if ( v_mom_eddy_visc2 > 0.0 ) then
             if (config_mix_full) then  ! mix full state
 
-!GPUOMP !$omp target teams distribute parallel do
+GPUOMP !$omp target teams distribute parallel do
 !$acc parallel vector_length(64)
 !$acc loop gang
                do iEdge=edgeSolveStart,edgeSolveEnd
 
                   cell1 = cellsOnEdge(1,iEdge)
                   cell2 = cellsOnEdge(2,iEdge)
-
+GPUOMP !$omp do simd
 !$acc loop vector
                   do k=2,nVertLevels-1
 
@@ -6141,14 +6156,15 @@ CPUOMP !$OMP BARRIER
                                         (u(k+1,iEdge)-u(k  ,iEdge))/(zp-z0)                      &
                                        -(u(k  ,iEdge)-u(k-1,iEdge))/(z0-zm) )/(0.5*(zp-zm))
                   end do
+GPUOMP !$omp end do simd
                end do
 !$acc end parallel
-!GPUOMP !$omp target teams distribute parallel do
+GPUOMP !$omp end target teams distribute parallel do
             end if
 
             if (.not. config_mix_full) then  ! mix full state
             !else  ! idealized cases where we mix on the perturbation from the initial 1-D state
-!GPUOMP !$omp target teams distribute parallel do
+GPUOMP !$omp target teams distribute parallel do private(u_mix)
 !$acc parallel vector_length(64)
 !$acc loop gang private(u_mix)
                do iEdge=edgeSolveStart,edgeSolveEnd
@@ -6157,12 +6173,15 @@ CPUOMP !$OMP BARRIER
                   cell1 = cellsOnEdge(1,iEdge)
                   cell2 = cellsOnEdge(2,iEdge)
 
+GPUOMP !$omp do simd
 !$acc loop vector
                   do k=1,nVertLevels
                      u_mix(k) = u(k,iEdge) - u_init(k) * cos( angleEdge(iEdge) ) &
                                            - v_init(k) * sin( angleEdge(iEdge) )
                   end do
+GPUOMP !$omp end do simd
 
+GPUOMP !$omp do simd
 !$acc loop vector
                   do k=2,nVertLevels-1
 
@@ -6179,10 +6198,11 @@ CPUOMP !$OMP BARRIER
                                         (u_mix(k+1)-u_mix(k  ))/(zp-z0)                      &
                                        -(u_mix(k  )-u_mix(k-1))/(z0-zm) )/(0.5*(zp-zm))
                   end do
+GPUOMP !$omp end do simd
                end do
 
 !$acc end parallel
-!GPUOMP !$omp target teams distribute parallel do
+GPUOMP !$omp end target teams distribute parallel do
             end if  ! mix perturbation state
          end if  ! vertical mixing of horizontal momentum
 
@@ -6193,6 +6213,7 @@ CPUOMP !$OMP BARRIER
 
 !  Rayleigh damping on u
       if (config_rayleigh_damp_u) then
+GPUOMP !$omp target
 !$acc kernels
          rayleigh_coef_inverse = 1.0 / ( real(config_number_rayleigh_damp_u_levels) &
                                          * (config_rayleigh_damp_u_timescale_days*seconds_per_day) )
@@ -6207,18 +6228,24 @@ CPUOMP !$OMP BARRIER
             end do
          end do
 !$acc end kernels
+GPUOMP !$omp end target
       end if
 
+
+GPUOMP !$omp target teams distribute parallel do
 !$acc parallel vector_length(64)
 !$acc loop gang
       do iEdge=edgeSolveStart,edgeSolveEnd
 !DIR$ IVDEP
+GPUOMP !$omp do simd
 !$acc loop vector
          do k=1,nVertLevels
             tend_u(k,iEdge) = tend_u(k,iEdge) + tend_u_euler(k,iEdge)  + tend_ru_physics(k,iEdge)
          end do
+GPUOMP !$omp end do simd
       end do
 !$acc end parallel
+GPUOMP !$omp end target teams distribute parallel do
 
 
 !----------- rhs for w
@@ -6228,6 +6255,8 @@ CPUOMP !$OMP BARRIER
       !  horizontal advection for w
       !
 
+GPUOMP !$omp target teams distribute parallel do &
+GPUOMP !$omp private(ru_edge_w,flux_arr,iadv_cell_w,coefs_w,coefs_3rd_w,tend_wk)
 !$acc parallel vector_length(64)
 !$acc loop gang private(ru_edge_w, flux_arr, iadv_cell_w, coefs_w, coefs_3rd_w, tend_wk)
       do iCell=cellSolveStart,cellSolveEnd    ! Technically updating fewer cells than before...
@@ -6239,29 +6268,37 @@ CPUOMP !$OMP BARRIER
 !$acc cache(tend_wk)
 
 !$acc loop vector
+GPUOMP !$omp do simd
          do k=1,nVertLevels+1
            tend_wk(k) = 0.0
          end do
+GPUOMP !$omp end do simd
 
 !$acc loop seq
          do i=1,nEdgesOnCell(iCell)
             iEdge = edgesOnCell(i,iCell)
 !$acc loop vector
+GPUOMP !$omp do simd
             do k=2,nVertLevels
                ru_edge_w(k) = fzm(k)*ru(k,iEdge) + fzp(k)*ru(k-1,iEdge)
             end do
+GPUOMP !$omp end do simd
 
 !$acc loop vector
+GPUOMP !$omp do simd
             do j=1,nAdvCellsForEdge(iEdge)
                iadv_cell_w(j) = advCellsForEdge(j,iEdge)
                coefs_w(j)     = adv_coefs(j,iEdge)
                coefs_3rd_w(j) = adv_coefs_3rd(j,iEdge)
             end do
+GPUOMP !$omp end do simd
 
 !$acc loop vector
+GPUOMP !$omp do simd
             do k=1,nVertLevels
                flux_arr(k) = 0.0
             end do
+GPUOMP !$omp end do simd
 
             ! flux_arr stores the value of w at the cell edge used in the
             ! horizontal transport
@@ -6269,27 +6306,34 @@ CPUOMP !$OMP BARRIER
 !$acc loop seq
             do j=1,nAdvCellsForEdge(iEdge)
 !$acc loop vector
+GPUOMP !$omp do simd
                do k=2,nVertLevels
                   iAdvCell = iadv_cell_w(j)
                   scalar_weight = coefs_w(j) + sign(1.0_RKIND,ru_edge_w(k)) * coefs_3rd_w(j)
                   flux_arr(k) = flux_arr(k) + scalar_weight * w(k,iAdvCell)
                end do
+GPUOMP !$omp end do simd
             end do
 
 !DIR$ IVDEP
+GPUOMP !$omp do simd
 !$acc loop vector
             do k=2,nVertLevels
                tend_wk(k) = tend_wk(k) - edgesOnCell_sign(i,iCell)*ru_edge_w(k)*flux_arr(k)
             end do
+GPUOMP !$omp end do simd
          end do
 
 !DIR$ IVDEP
+GPUOMP !$omp do simd
 !$acc loop vector
          do k=2,nVertLevels
            tend_w(k,iCell) = tend_wk(k)
          end do
+GPUOMP !$omp end do simd
       end do
 !$acc end parallel
+GPUOMP !$omp end target teams distribute parallel do
 
       !
       !  horizontal mixing for w - we could combine this with advection directly (i.e. as a turbulent flux),
@@ -6304,6 +6348,7 @@ CPUOMP !$OMP BARRIER
          ! First, storage to hold the result from the first del^2 computation.
          !  we copied code from the theta mixing, hence the theta* names.
 
+GPUOMP !$omp target teams distribute parallel do private(tend_wk,delsq_wk)
 !$acc parallel vector_length(64)
 !$acc loop gang private(tend_wk, delsq_wk)
          do iCell=cellStart,cellEnd
@@ -6312,10 +6357,12 @@ CPUOMP !$OMP BARRIER
 
             r_areaCell = invAreaCell(iCell)
 !$acc loop vector
+GPUOMP !$omp do simd
             do k = 1, nVertLevels+1
                delsq_wk(k) = 0.0
                tend_wk(k) = 0.0
             end do
+GPUOMP !$omp end do simd
 
 ! BDL could do something here with edgesOnCell and edgesOnCell_sign
 !$acc loop seq
@@ -6328,6 +6375,7 @@ CPUOMP !$OMP BARRIER
                cell2 = cellsOnEdge(2,iEdge)
 
 !DIR$ IVDEP
+GPUOMP !$omp do simd
 !$acc loop vector
               do k=2,nVertLevels
 
@@ -6337,28 +6385,35 @@ CPUOMP !$OMP BARRIER
                                   (kdiff(k,cell1)+kdiff(k,cell2)+kdiff(k-1,cell1)+kdiff(k-1,cell2))
                   tend_wk(k) = tend_wk(k) + w_turb_flux
                end do
+GPUOMP !$omp end do simd
             end do
 !$acc loop vector
+GPUOMP !$omp do simd
             do k=1,nVertLevels
                delsq_w(k,iCell) = delsq_wk(k)
                tend_w_euler(k,iCell) = tend_wk(k)
             end do
+GPUOMP !$omp end do simd
          end do
 !$acc end parallel
+GPUOMP !$omp end target teams distribute parallel do
 
 
 CPUOMP !$OMP BARRIER
 
         if(h_mom_eddy_visc4 > 0.0) then
+GPUOMP !$omp target teams distribute parallel do private(tend_wk)
 !$acc parallel vector_length(64)
 !$acc loop gang private(tend_wk)
          do iCell=cellSolveStart,cellSolveEnd    ! Technically updating fewer cells than before...
 !$acc cache(tend_wk)
             r_areaCell = h_mom_eddy_visc4 * invAreaCell(iCell)
+GPUOMP !$omp do simd
 !$acc loop vector
             do k = 1, nVertLevels
                tend_wk(k) = tend_w_euler(k,iCell)
             end do
+GPUOMP !$omp end do simd
 !$acc loop seq
             do i=1,nEdgesOnCell(iCell)
                iEdge = edgesOnCell(i,iCell)
@@ -6367,18 +6422,23 @@ CPUOMP !$OMP BARRIER
 
                edge_sign = meshScalingDel4(iEdge)*r_areaCell*dvEdge(iEdge)*edgesOnCell_sign(i,iCell) * invDcEdge(iEdge)
 
+GPUOMP !$omp do simd
 !$acc loop vector
                do k=2,nVertLevels
                   tend_wk(k) = tend_wk(k) - edge_sign * (delsq_w(k,cell2) - delsq_w(k,cell1))
                end do
+GPUOMP !$omp end do simd
 
             end do
 !$acc loop vector
+GPUOMP !$omp do simd
             do k=2,nVertLevels
                tend_w_euler(k,iCell) = tend_wk(k)
             end do
+GPUOMP !$omp end do simd
          end do
 !$acc end parallel
+GPUOMP !$omp end target teams distribute parallel do
       end if ! horizontal mixing for w computed in first rk_step
 
 
@@ -6393,76 +6453,102 @@ CPUOMP !$OMP BARRIER
       !  vertical advection, pressure gradient and buoyancy for w
       !
 
+GPUOMP !$omp target teams distribute parallel do private(tend_wk,wdwz)
 !$acc parallel vector_length(64)
 !$acc loop gang private(tend_wk, wdwz)
       do iCell=cellSolveStart,cellSolveEnd
 
+GPUOMP !$omp do simd
 !$acc loop vector
          do k=1,nVertLevels
             tend_wk(k) = w(k,iCell)
          end do
+GPUOMP !$omp end do simd
 
+GPUOMP !$omp do simd
 !$acc loop vector shortloop
          do k=1,nVertLevels+1,nVertLevels
             wdwz(k) = 0.
          end do
+GPUOMP !$omp end do simd
+
+GPUOMP !$omp do simd
 !$acc loop vector shortloop
          do k=2,nVertLevels,nVertLevels-2
             wdwz(k) = 0.25*(rw(k,iCell)+rw(k-1,iCell))*(tend_wk(k)+tend_wk(k-1))
          end do
+GPUOMP !$omp end do simd
+
+GPUOMP !$omp do simd
 !$acc loop vector
          do k=3,nVertLevels-1
             wdwz(k) = flux3(tend_wk(k-2),tend_wk(k-1),tend_wk(k),tend_wk(k+1),0.5*(rw(k,iCell)+rw(k-1,iCell)), 1.0_RKIND )
          end do
+GPUOMP !$omp end do simd
 
 !DIR$ IVDEP
+GPUOMP !$omp do simd
 !$acc loop vector
          do k=2,nVertLevels
             tend_w(k,iCell) = tend_w(k,iCell) * invAreaCell(iCell) - rdzu(k)*(wdwz(k+1)-wdwz(k))
          end do
+GPUOMP !$omp end do simd
 
 !DIR$ IVDEP
+GPUOMP !$omp do simd
 !$acc loop vector
          do k=2,nVertLevels
             tend_w_euler(k,iCell) = tend_w_euler(k,iCell) - cqw(k,iCell)*(   &
                                            rdzu(k)*(pp(k,iCell)-pp(k-1,iCell)) &
                                          - (fzm(k)*dpdz(k,iCell) + fzp(k)*dpdz(k-1,iCell)) )  ! dpdz is the buoyancy term here.
             end do
+GPUOMP !$omp end do simd
       end do
 !$acc end parallel
+GPUOMP !$omp end target teams distribute parallel do
 
          if ( v_mom_eddy_visc2 > 0.0 ) then
+GPUOMP !$omp target teams distribute parallel do
 !$acc parallel vector_length(64)
 !$acc loop gang
             do iCell=cellSolveStart,cellSolveEnd
 !DIR$ IVDEP
+GPUOMP !$omp do simd
 !$acc loop vector
                do k=2,nVertLevels
                   tend_w_euler(k,iCell) = tend_w_euler(k,iCell) + v_mom_eddy_visc2*0.5*(rho_zz(k,iCell)+rho_zz(k-1,iCell))*(  &
                                            (w(k+1,iCell)-w(k  ,iCell))*rdzw(k) &
                                           -(w(k  ,iCell)-w(k-1,iCell))*rdzw(k-1) )*rdzu(k)
                end do
+GPUOMP !$omp end do simd
             end do
+GPUOMP !$omp end target teams distribute parallel do
 !$acc end parallel
          end if
 
+GPUOMP !$omp target teams distribute parallel do
 !$acc parallel vector_length(64)
 !$acc loop gang
       do iCell = cellSolveStart,cellSolveEnd
 !DIR$ IVDEP
+GPUOMP !$omp do simd
 !$acc loop vector
          do k=2,nVertLevels
             tend_w(k,iCell) = tend_w(k,iCell) + tend_w_euler(k,iCell)
          end do
+GPUOMP !$omp end do simd
       end do
 !$acc end parallel 
+GPUOMP !$omp end target teams distribute parallel do
+
 
 !----------- rhs for theta
 
       !
       !  horizontal advection for theta
       !
-
+GPUOMP !$omp target teams distribute parallel do &
+GPUOMP !$omp private(ru_edge_w, flux_arr, iadv_cell_w, coefs_w, coefs_3rd_w, tend_wk)
 !$acc parallel vector_length(64)
 !$acc loop gang private(ru_edge_w, flux_arr, iadv_cell_w, coefs_w, coefs_3rd_w, tend_wk)
       do iCell=cellSolveStart,cellSolveEnd    ! Technically updating fewer cells than before...
@@ -6473,58 +6559,73 @@ CPUOMP !$OMP BARRIER
 !$acc cache(coefs_3rd_w)
 !$acc cache(tend_wk)
 
+GPUOMP !$omp do simd
 !$acc loop vector
          do k=1,nVertLevels+1
            tend_wk(k) = 0.0
          end do
+GPUOMP !$omp end do simd
 
 !$acc loop seq
          do i=1,nEdgesOnCell(iCell)
             iEdge = edgesOnCell(i,iCell)
 
+GPUOMP !$omp do simd
 !$acc loop vector
             do k=1,nVertLevels
                ru_edge_w(k) = ru(k,iEdge)
                flux_arr(k) = 0.0
             end do
+GPUOMP !$omp end do simd
 
+GPUOMP !$omp do simd
 !$acc loop vector shortloop
             do j=1,nAdvCellsForEdge(iEdge)
                iadv_cell_w(j) = advCellsForEdge(j,iEdge)
                coefs_w(j)     = adv_coefs(j,iEdge)
                coefs_3rd_w(j) = adv_coefs_3rd(j,iEdge)
             end do
+GPUOMP !$omp end do simd
 
 !$acc loop seq
             do j=1,nAdvCellsForEdge(iEdge)
+GPUOMP !$omp do simd
 !$acc loop vector
                do k=1,nVertLevels
                   iAdvCell = iadv_cell_w(j)
                   scalar_weight = coefs_w(j) + sign(1.0_RKIND,ru_edge_w(k))*coefs_3rd_w(j)
                   flux_arr(k) = flux_arr(k) + scalar_weight* theta_m(k,iAdvCell)
                end do
+GPUOMP !$omp end do simd
             end do
 
 !DIR$ IVDEP
+GPUOMP !$omp do simd
 !$acc loop vector
             do k=1,nVertLevels
                tend_wk(k) = tend_wk(k) - edgesOnCell_sign(i,iCell) * ru_edge_w(k) * flux_arr(k)
             end do
+GPUOMP !$omp end do simd
 
          end do
 
 !DIR$ IVDEP
+GPUOMP !$omp do simd
 !$acc loop vector
          do k=1,nVertLevels
             tend_theta(k,iCell) = tend_wk(k)
          end do
+GPUOMP !$omp end do simd
       end do
 !$acc end parallel
+GPUOMP !$omp end target teams distribute parallel do
+
 
       !
       !  horizontal mixing for theta_m - we could combine this with advection directly (i.e. as a turbulent flux),
       !  but here we can also code in hyperdiffusion if we wish (2nd order at present)
       !
+GPUOMP !$omp target teams distribute parallel do private(tend_wk,delsq_wk)
 !$acc parallel vector_length(64)
 !$acc loop gang private(tend_wk, delsq_wk)
          do iCell=cellStart,cellEnd
@@ -6532,11 +6633,13 @@ CPUOMP !$OMP BARRIER
 !$acc cache(delsq_wk)
 
             r_areaCell = invAreaCell(iCell)
+GPUOMP !$omp do simd
 !$acc loop vector
             do k = 1, nVertLevels
                delsq_wk(k) = 0.0
                tend_wk(k) = 0.0
             end do
+GPUOMP !$omp end do simd
 !$acc loop seq
             do i=1,nEdgesOnCell(iCell)
                iEdge = edgesOnCell(i,iCell)
@@ -6546,6 +6649,7 @@ CPUOMP !$OMP BARRIER
                cell2 = cellsOnEdge(2,iEdge)
 
 !DIR$ IVDEP
+GPUOMP !$omp do simd
 !$acc loop vector
                do k = 1, nVertLevels
                   theta_turb_flux = edge_sign*(theta_m(k,cell2) - theta_m(k,cell1))*rho_edge(k,iEdge)
@@ -6553,29 +6657,36 @@ CPUOMP !$OMP BARRIER
                   theta_turb_flux = theta_turb_flux*0.5*(kdiff(k,cell1)+kdiff(k,cell2)) * pr_scale
                   tend_wk(k) = tend_wk(k) + theta_turb_flux
                end do
+GPUOMP !$omp end do simd
             end do
 !DIR$ IVDEP
+GPUOMP !$omp do simd
 !$acc loop vector
             do k = 1, nVertLevels
                delsq_theta(k,iCell) = delsq_wk(k)
                tend_theta_euler(k,iCell) = tend_wk(k)
             end do
+GPUOMP !$omp end do simd
          end do
 !$acc end parallel
+GPUOMP !$omp end target teams distribute parallel do
 
 
 CPUOMP !$OMP BARRIER
 
         if(h_theta_eddy_visc4 > 0.0) then
+GPUOMP !$omp target teams distribute parallel do private(tend_wk)
 !$acc parallel vector_length(64) private(tend_wk)
 !$acc loop gang
          do iCell=cellSolveStart,cellSolveEnd    ! Technically updating fewer cells than before...
 !$acc cache(tend_wk)
             r_areaCell = h_theta_eddy_visc4 * prandtl_inv * invAreaCell(iCell)
+GPUOMP !$omp do simd
 !$acc loop vector
             do k = 1, nVertLevels
                tend_wk(k) = tend_theta_euler(k,iCell)
             end do
+GPUOMP !$omp end do simd
 !$acc loop seq
             do i=1,nEdgesOnCell(iCell)
 
@@ -6585,18 +6696,23 @@ CPUOMP !$OMP BARRIER
                cell1 = cellsOnEdge(1,iEdge)
                cell2 = cellsOnEdge(2,iEdge)
 
+GPUOMP !$omp do simd
 !$acc loop vector
                do k=1,nVertLevels
                   tend_wk(k) = tend_wk(k) - edge_sign*(delsq_theta(k,cell2) - delsq_theta(k,cell1))
                end do
+GPUOMP !$omp end do simd
 
             end do
+GPUOMP !$omp do simd
 !$acc loop vector
             do k=1,nVertLevels
                tend_theta_euler(k,iCell) = tend_wk(k)
             end do
+GPUOMP !$omp end do simd
          end do
 !$acc end parallel
+GPUOMP !$omp end target teams distribute parallel do
       end if ! theta mixing calculated first rk_step
             
 
@@ -6605,15 +6721,24 @@ CPUOMP !$OMP BARRIER
       !  Note: we are also dividing through by the cell area after the horizontal flux divergence
       !
 
+GPUOMP !$omp target teams distribute parallel do private(wdtz)
 !$acc parallel vector_length(64)
 !$acc loop gang private(wdtz)
       do iCell = cellSolveStart,cellSolveEnd
 !$acc cache(wdtz)
 
+GPUOMP !$omp do simd
 !$acc loop vector shortloop
          do k=1,nVertLevels+1,nVertLevels
             wdtz(k) = 0.
          end do
+GPUOMP !$omp end do simd
+!GPUOMP NOTE: workaround for shortloop with if statement
+#ifdef MPAS_AMD_OFFLOAD
+         wdtz(2) = rw(2,icell)*(fzm(2)*theta_m(2,iCell)+fzp(2)*theta_m(1,iCell))
+         wdtz(2) = wdtz(2) + (rw_save(2,icell)-rw(2,icell))*(fzm(2)*theta_m_save(2,iCell)+fzp(2)*theta_m_save(1,iCell))
+         wdtz(nVertLevels) = rw_save(nVertLevels,icell)*(fzm(nVertLevels)*theta_m(nVertLevels,iCell)+fzp(nVertLevels)*theta_m(nVertLevels-1,iCell))
+#else
 !$acc loop vector shortloop
          do k=2,nVertLevels,nVertLevels-2
             if (k.eq.2) then
@@ -6623,13 +6748,17 @@ CPUOMP !$OMP BARRIER
                wdtz(k) = rw_save(k,icell)*(fzm(k)*theta_m(k,iCell)+fzp(k)*theta_m(k-1,iCell))  !rtheta_pp redefinition
             end if
          end do
+#endif
+GPUOMP !$omp do simd
 !$acc loop vector
          do k=3,nVertLevels-1
             wdtz(k) = flux3( theta_m(k-2,iCell),theta_m(k-1,iCell),theta_m(k,iCell),theta_m(k+1,iCell), rw(k,iCell), coef_3rd_order )
             wdtz(k) =  wdtz(k) + (rw_save(k,icell)-rw(k,iCell))*(fzm(k)*theta_m_save(k,iCell)+fzp(k)*theta_m_save(k-1,iCell)) ! rtheta_pp redefinition
          end do
+GPUOMP !$omp end do simd
 
 !DIR$ IVDEP
+GPUOMP !$omp do simd
 !$acc loop vector
          do k=1,nVertLevels
             tend_theta(k,iCell) = tend_theta(k,iCell)*invAreaCell(iCell) -rdzw(k)*(wdtz(k+1)-wdtz(k))
@@ -6637,8 +6766,10 @@ CPUOMP !$OMP BARRIER
             rthdynten(k,iCell) = tend_theta(k,iCell)/rho_zz(k,iCell)  !  this is for the Grell-Freitas scheme
             tend_theta(k,iCell) = tend_theta(k,iCell) + rho_zz(k,iCell)*rt_diabatic_tend(k,iCell)
          end do
+GPUOMP !$omp end do simd
       end do
 !$acc end parallel
+GPUOMP !$omp end target teams distribute parallel do
 
       !
       !  vertical mixing for theta - 2nd order 
@@ -6649,6 +6780,7 @@ CPUOMP !$OMP BARRIER
 !$acc parallel num_gangs(256) num_workers(4) vector_length(32)
             if (config_mix_full) then
 !$acc loop gang worker
+GPUOMP !$omp target teams distribute parallel do collapse(2)
                do iCell = cellSolveStart,cellSolveEnd
                   do k=2,nVertLevels-1
                      z1 = zgrid(k-1,iCell)
@@ -6665,6 +6797,7 @@ CPUOMP !$OMP BARRIER
                                              -(theta_m(k  ,iCell)-theta_m(k-1,iCell))/(z0-zm) )/(0.5*(zp-zm))
                   end do
                end do
+GPUOMP !$omp end target teams distribute parallel do
           end if
 !$acc end parallel
 
@@ -6672,6 +6805,7 @@ CPUOMP !$OMP BARRIER
           if (.not.config_mix_full) then
          !else  ! idealized cases where we mix on the perturbation from the initial 1-D state
 !$acc loop gang worker
+GPUOMP !$omp target teams distribute parallel do collapse(2)
                do iCell = cellSolveStart,cellSolveEnd
                   do k=2,nVertLevels-1
                      z1 = zgrid(k-1,iCell)
@@ -6688,11 +6822,13 @@ CPUOMP !$OMP BARRIER
                                              -((theta_m(k  ,iCell)-t_init(k,iCell))-(theta_m(k-1,iCell)-t_init(k-1,iCell)))/(z0-zm) )/(0.5*(zp-zm))
                   end do
                end do
+GPUOMP !$omp end target teams distribute parallel do
 
             end if
 !$acc end parallel
          end if
 
+GPUOMP !$omp target teams distribute parallel do collapse(2)
 !$acc parallel vector_length(64)
 !$acc loop gang
       do iCell = cellSolveStart,cellSolveEnd
@@ -6703,6 +6839,9 @@ CPUOMP !$OMP BARRIER
          end do
       end do
 !$acc end parallel
+GPUOMP !$omp end target teams distribute parallel do
+TMPOMP !$omp target update from(kdiff,h_divergence,tend_rho,dpdz,tend_u_euler,tend_u,delsq_u,delsq_w,tend_w,&
+TMPOMP !$omp tend_w_euler,tend_theta,tend_theta_euler,tend_rtheta_adv,rthdynten)
 !$acc end data
    end subroutine atm_compute_dyn_tend_work
 
