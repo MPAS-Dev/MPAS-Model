@@ -6084,9 +6084,7 @@ GPUOMP !$omp end do simd
             end do
 !$acc end parallel
 GPUOMP !$omp end target teams distribute parallel do
-!TMPOMP !$omp target update from(delsq_vorticity,delsq_divergence)
          end if
-TMPOMP !$omp target update from(kdiff,h_divergence,tend_rho,dpdz,tend_u_euler,tend_u,delsq_u)
 
 CPUOMP !$OMP BARRIER
 
