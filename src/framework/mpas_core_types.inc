@@ -152,6 +152,7 @@
       character (len=StrKIND) :: modelVersion !< Constant: Version number
       character (len=StrKIND) :: executableName !< Constant: Name of executable generated at build time.
       character (len=StrKIND) :: git_version !< Constant: Version string from git-describe.
+      character (len=StrKIND) :: build_target !< Constant: Build target from top-level Makefile.
       character (len=StrKIND*2) :: history !< History attribute, read in from input file.
       character (len=StrKIND) :: Conventions !< Conventions attribute, read in from input file.
       character (len=StrKIND) :: source !< source attribute, read in from input file.
