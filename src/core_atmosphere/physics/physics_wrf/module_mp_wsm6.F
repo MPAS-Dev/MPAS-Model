@@ -736,12 +736,8 @@ CONTAINS
         enddo
       enddo
 !$acc end parallel
-!!   print *, "Checkpoint 000100 -- wsm62D"
-!!   call flush(6)
       call slope_wsm6(qrs_tmp,den_tmp,denfac,t,rslope,rslopeb,rslope2,rslope3, & 
                      work1,its,ite,kts,kte)
-!!   print *, "Checkpoint 000200 -- wsm62D"
-!!   call flush(6)
 !
 !$acc parallel vector_length(32)
 !$acc loop gang vector collapse(2)
@@ -839,8 +835,6 @@ CONTAINS
         enddo
       enddo
 !$acc end parallel
-!!   print *, "Checkpoint 000300 -- wsm62D"
-!!   call flush(6)
 !---------------------------------------------------------------
 ! Vice [ms-1] : fallout of ice crystal [HDC 5a]
 !---------------------------------------------------------------
@@ -923,8 +917,6 @@ CONTAINS
         ENDIF
       enddo
 !$acc end parallel
-!!   print *, "Checkpoint 000400 -- wsm62D"
-!!   call flush(6)
 !
 !---------------------------------------------------------------
 ! pimlt: instantaneous melting of cloud ice [HL A47] [RH83 A28]
@@ -1640,8 +1632,6 @@ CONTAINS
       evapprod2d = -(prevp+psevp+pgevp+psdep+pgdep)
 #endif
 !$acc end data
-!!   print *, "Checkpoint 001000 -- exit wsm62D"
-!!   call flush(6)
 
   END SUBROUTINE wsm62d
 ! ...................................................................
