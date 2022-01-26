@@ -3608,6 +3608,10 @@ TMPOMP !$omp target update from(rtheta_pp,rtheta_pp_old,ru_p,ruavg,rho_pp,rw_p,w
 
 !$acc data present(rtheta_pp, rtheta_pp_old, &
 !$acc ru_p, theta_m, cellsOnEdge, specZoneMaskEdge)
+TMPOMP !$omp target update to(rtheta_pp, rtheta_pp_old, &
+TMPOMP !$omp ru_p, theta_m, cellsOnEdge, specZoneMaskEdge)
+GPUOMP !$omp target teams distribute parallel do &
+GPUOMP !$omp private(cell1, cell2, divCell1, divCell2)
 !$acc parallel num_workers(8) vector_length(16)
 !$acc loop gang worker private(cell1, cell2, divCell1, divCell2)
       do iEdge=edgeStart,edgeEnd ! MGD do we really just need edges touching owned cells?
@@ -3619,6 +3623,7 @@ TMPOMP !$omp target update from(rtheta_pp,rtheta_pp_old,ru_p,ruavg,rho_pp,rw_p,w
          if (cell1 <= nCellsSolve .or. cell2 <= nCellsSolve ) then
 
 !DIR$ IVDEP
+GPUOMP !$omp do simd
             do k=1,nVertLevels
 
 !!  unscaled 3d divergence damping
@@ -3634,9 +3639,12 @@ TMPOMP !$omp target update from(rtheta_pp,rtheta_pp_old,ru_p,ruavg,rho_pp,rw_p,w
                                                       /(theta_m(k,cell1)+theta_m(k,cell2))
 
             end do
+GPUOMP !$omp end do simd
          end if ! edges for block-owned cells
       end do ! end loop over edges
 !$acc end parallel
+GPUOMP !$omp end target teams distribute parallel do
+TMPOMP !$omp target update from(ru_p)
 !$acc end data
 
    end subroutine atm_divergence_damping_3d_work
