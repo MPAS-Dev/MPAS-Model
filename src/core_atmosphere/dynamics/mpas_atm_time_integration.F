@@ -2546,6 +2546,8 @@ CPUOMP !$OMP END PARALLEL DO
       real (kind=RKIND), dimension(nVertLevels,nCells+1) :: cqw
       real (kind=RKIND), dimension(nVertLevels,nEdges+1) :: cqu
       integer, dimension(2,nEdges+1) :: cellsOnEdge
+TMPOMP !$omp target update to(scalars,cqw,cqu,qtot)
+GPUOMP !$omp target teams distribute parallel do collapse(2)
 !$acc data present(scalars,cqw,cqu, qtot)
 !$acc parallel num_gangs(256)  vector_length(32)
 !$acc loop gang 
@@ -2556,6 +2558,9 @@ CPUOMP !$OMP END PARALLEL DO
             end do
          end do
 !$acc end parallel
+GPUOMP !$omp end target teams distribute parallel do
+!GPUOMP NOTE: below two regions should be optimized somehow
+GPUOMP !$omp target teams distribute parallel do
 !$acc parallel num_gangs(256)  vector_length(32)
 !$acc loop gang 
       do iCell = cellStart,cellEnd
@@ -2576,7 +2581,9 @@ CPUOMP !$OMP END PARALLEL DO
          end do
       end do
 !$acc end parallel
+GPUOMP !$omp end target teams distribute parallel do
 
+GPUOMP !$omp target teams distribute parallel do
 !$acc parallel  vector_length(32)
 !$acc loop gang
       do iEdge = edgeStart,edgeEnd
@@ -2595,6 +2602,8 @@ CPUOMP !$OMP END PARALLEL DO
          end if
       end do
 !$acc end parallel
+GPUOMP !$omp end target teams distribute parallel do
+TMPOMP !$omp target update from(cqw,cqu,qtot,tend_ru_physics,tend_rtheta_physics,tend_rho_physics)
 !$acc end data
    end subroutine atm_compute_moist_coefficients_work
 
