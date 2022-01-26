@@ -2735,6 +2735,9 @@ TMPOMP !$omp target update from(cqw,cqu,qtot,tend_ru_physics,tend_rtheta_physics
       real (kind=RKIND) :: dtseps, c2, qtotal, rcv
       real (kind=RKIND), dimension( nVertLevels ,nCells+1) :: b_tri, c_tri
 GPUOMP !$omp target data map(alloc:b_tri,c_tri)
+TMPOMP !$omp target update to(cofrz, gamma_tri, a_tri, alpha_tri, &
+TMPOMP !$omp coftz, cofwr, cofwt, cofwz, &
+TMPOMP !$omp rdzw, cqw, fzm, fzp, p, pb, qtot, rb, rdzu, rt, rtb, t, zz)
 !$acc data present(cofrz, gamma_tri, a_tri, alpha_tri, &
 !$acc coftz, cofwr, cofwt, cofwz, &
 !$acc rdzw, cqw, fzm, fzp, p, pb, qtot, rb, rdzu, rt, rtb, t, zz)&
@@ -2746,32 +2749,41 @@ GPUOMP !$omp target data map(alloc:b_tri,c_tri)
       c2 = cp*rcv
 
 !$acc parallel num_workers(8) vector_length(32)
+GPUOMP !$omp target teams distribute parallel do
 !$acc loop vector
 ! MGD bad to have all threads setting this variable?
       do k=1,nVertLevels
          cofrz(k) = dtseps*rdzw(k)
       end do
 !$acc end parallel
+GPUOMP !$omp end target teams distribute parallel do
 
 
+GPUOMP !$omp target teams distribute parallel do
 !$acc parallel num_workers(8) vector_length(32)
 !$acc loop gang worker
       do iCell = cellSolveStart,cellSolveEnd  !  we only need to do cells we are solving for, not halo cells
 !DIR$ IVDEP
+GPUOMP !$omp do simd
          do k=2,nVertLevels
             cofwr(k,iCell) =.5*dtseps*gravity*(fzm(k)*zz(k,iCell)+fzp(k)*zz(k-1,iCell))
          end do
+GPUOMP !$omp end do simd
          coftz(1,iCell) = 0.0
 !DIR$ IVDEP
+GPUOMP !$omp do simd
          do k=2,nVertLevels
             cofwz(k,iCell) = dtseps*c2*(fzm(k)*zz(k,iCell)+fzp(k)*zz(k-1,iCell))  &
                  *rdzu(k)*cqw(k,iCell)*(fzm(k)*p (k,iCell)+fzp(k)*p (k-1,iCell))
             coftz(k,iCell) = dtseps*   (fzm(k)*t (k,iCell)+fzp(k)*t (k-1,iCell))
          end do
+GPUOMP !$omp end do simd
          coftz(nVertLevels+1,iCell) = 0.0
         end do
 !$acc end parallel	  
+GPUOMP !$omp end target teams distribute parallel do
 
+GPUOMP !$omp target teams distribute parallel do private(qtotal) collapse(2)
 !$acc parallel num_workers(8) vector_length(32)
 !$acc loop gang worker private(qtotal)
         do iCell = cellSolveStart,cellSolveEnd
@@ -2786,7 +2798,9 @@ GPUOMP !$omp target data map(alloc:b_tri,c_tri)
          end do
         end do
 !$acc end parallel
+GPUOMP !$omp end target teams distribute parallel do
 
+GPUOMP !$omp target teams distribute parallel do
 !$acc parallel num_workers(8) vector_length(32)
 !$acc loop gang worker
         do iCell = cellSolveStart,cellSolveEnd
@@ -2797,11 +2811,14 @@ GPUOMP !$omp target data map(alloc:b_tri,c_tri)
          alpha_tri(1,iCell) = 0.  ! note, this value is never used
         enddo
 !$acc end parallel
+GPUOMP !$omp end target teams distribute parallel do
 
+GPUOMP !$omp target teams distribute parallel do
 !$acc parallel num_workers(8) vector_length(32)
 !$acc loop gang worker
         do iCell = cellSolveStart,cellSolveEnd
 !DIR$ IVDEP
+GPUOMP !$omp do simd
          do k=2,nVertLevels
             a_tri(k,iCell) = -cofwz(k  ,iCell)* coftz(k-1,iCell)*rdzw(k-1)*zz(k-1,iCell)   &
                          +cofwr(k  ,iCell)* cofrz(k-1  )                       &
@@ -2816,16 +2833,21 @@ GPUOMP !$omp target data map(alloc:b_tri,c_tri)
                          -cofwr(k  ,iCell)* cofrz(k    )                       &
                          +cofwt(k  ,iCell)* coftz(k+1,iCell)*rdzw(k  )
          end do
+GPUOMP !$omp end do simd
 !        end do
 !MGD VECTOR DEPENDENCE
 !        do iCell = cellSolveStart,cellSolveEnd
+GPUOMP !$omp do simd
          do k=2,nVertLevels
             alpha_tri(k,iCell) = 1./(b_tri(k,iCell)-a_tri(k,iCell)*gamma_tri(k-1,iCell))
             gamma_tri(k,iCell) = c_tri(k,iCell)*alpha_tri(k,iCell)
          end do
+GPUOMP !$omp end do simd
 
       end do ! loop over cells
 !$acc end parallel
+GPUOMP !$omp end target teams distribute parallel do
+TMPOMP !$omp target update from(cofrz,cofwz,cofwr,coftz,cofwt,a_tri,gamma_tri,alpha_tri)
 
 !$acc end data
 GPUOMP !$omp end target data
