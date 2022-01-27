@@ -1412,7 +1412,7 @@ GPUOMP !$omp target enter data map(alloc:horiz_flux_array)
                      !flux_tmp_arr(:,nEdges+1) = 0.0_RKIND
 GPUOMP !$omp target enter data map(alloc:flux_upwind_tmp_arr,flux_tmp_arr)
                   end if
-
+GPUOMP !$omp target teams distribute parallel do
 !$acc parallel
 !$acc loop gang worker vector
                   do levelsIdx=1,tmpnVertLevels
@@ -1426,10 +1426,14 @@ GPUOMP !$omp target enter data map(alloc:flux_upwind_tmp_arr,flux_tmp_arr)
                      wdtn_arr(levelsIdx,tmpnCells+1) = 0.0_RKIND
                   enddo
 !$acc end parallel
+GPUOMP !$omp end target teams distribute parallel do
+GPUOMP !$omp target
 !$acc parallel num_gangs(1) num_workers(1) vector_length(1)
                   wdtn_arr(tmpnVertLevels+1,tmpnCells+1) = 0.0_RKIND
 !$acc end parallel
+GPUOMP !$omp end target
                   if (rk_step < 3 .or. (.not. config_monotonic .and. .not. config_positive_definite)) then
+GPUOMP !$omp target teams distribute parallel do collapse(2)
 !$acc parallel
 !$acc loop gang worker vector collapse(2)
                      do levelsIdx=1,tmpnVertLevels
@@ -1438,7 +1442,9 @@ GPUOMP !$omp target enter data map(alloc:flux_upwind_tmp_arr,flux_tmp_arr)
                         enddo
                      enddo
 !$acc end parallel
+GPUOMP !$omp end target teams distribute parallel do
                   else
+GPUOMP !$omp target teams distribute parallel do
 !$acc parallel
 !$acc loop gang worker vector
                      do levelsIdx=1,tmpnVertLevels
@@ -1446,6 +1452,7 @@ GPUOMP !$omp target enter data map(alloc:flux_upwind_tmp_arr,flux_tmp_arr)
                         flux_tmp_arr(levelsIdx,tmpnEdges+1) = 0.0_RKIND
                      enddo
 !$acc end parallel
+GPUOMP !$omp end target teams distribute parallel do
                   end if
 
                   !
@@ -1887,6 +1894,7 @@ GPUOMP !$omp target enter data map(alloc:flux_upwind_tmp_arr,flux_tmp_arr)
                   !flux_tmp_arr(:,nEdges+1) = 0.0_RKIND
                end if
 
+GPUOMP !$omp target teams distribute parallel do
 !$acc parallel
 !$acc loop gang worker
                   do levelsIdx=1,tmpnVertLevels
@@ -1905,10 +1913,14 @@ GPUOMP !$omp target enter data map(alloc:flux_upwind_tmp_arr,flux_tmp_arr)
                      enddo
                   enddo
 !$acc end parallel
+GPUOMP !$omp end target teams distribute parallel do
+GPUOMP !$omp target
 !$acc parallel num_gangs(1) num_workers(1) vector_length(1)
                   wdtn_arr(tmpnVertLevels+1,tmpnCells+1) = 0.0_RKIND
 !$acc end parallel
+GPUOMP !$omp end target
                   if (rk_step < 3 .or. (.not. config_monotonic .and. .not. config_positive_definite)) then
+GPUOMP !$omp target teams distribute parallel do collapse(2)
 !$acc parallel
 !$acc loop gang worker vector collapse(2)
                      do levelsIdx=1,tmpnVertLevels
@@ -1917,7 +1929,9 @@ GPUOMP !$omp target enter data map(alloc:flux_upwind_tmp_arr,flux_tmp_arr)
                         enddo
                      enddo
 !$acc end parallel
+GPUOMP !$omp end target teams distribute parallel do
                   else
+GPUOMP !$omp target teams distribute parallel do
 !$acc parallel
 !$acc loop gang worker vector
                      do levelsIdx=1,tmpnVertLevels
@@ -1925,6 +1939,7 @@ GPUOMP !$omp target enter data map(alloc:flux_upwind_tmp_arr,flux_tmp_arr)
                         flux_tmp_arr(levelsIdx,tmpnEdges+1) = 0.0_RKIND
                      enddo
 !$acc end parallel
+GPUOMP !$omp end target teams distribute parallel do
                   end if
 
 
@@ -2168,6 +2183,7 @@ CPUOMP !$OMP END PARALLEL DO
             !requires that the subroutine atm_advance_scalars_mono was called on the third Runge Kutta step, so that a halo
             !update for the scalars at time_levs(1) is applied. A halo update for the scalars at time_levs(2) is done above. 
             if (config_monotonic) then
+GPUOMP !$omp target teams distribute parallel do collapse(2)
 !$acc parallel vector_length(128)
 !$acc loop gang vector collapse(2)
                do cellsIdx=1,nCells+1
@@ -2176,8 +2192,10 @@ CPUOMP !$OMP END PARALLEL DO
                  end do
                end do
 !$acc end parallel
+GPUOMP !$omp end target teams distribute parallel do
 !!!               rqvdynten(:,:) = ( scalars_2(index_qv,:,:) - scalars_1(index_qv,:,:) ) / config_dt
             else
+GPUOMP !$omp target teams distribute parallel do collapse(2)
 !$acc parallel vector_length(128)
 !$acc loop gang vector collapse(2)
                do cellsIdx=1,nCells+1
@@ -2186,12 +2204,14 @@ CPUOMP !$OMP END PARALLEL DO
                  end do
                end do
 !$acc end parallel
+GPUOMP !$omp end target teams distribute parallel do
 !!!               rqvdynten(:,:) = 0._RKIND
             end if
 
          end if
 
          !simply set to zero negative mixing ratios of different water species (for now):
+GPUOMP !$omp target teams distribute parallel do collapse(3)
 !$acc parallel vector_length(128)
 !$acc loop gang vector collapse(3)
          do cellsIdx=1,nCells+1
@@ -2202,6 +2222,7 @@ CPUOMP !$OMP END PARALLEL DO
            end do
          end do
 !$acc end parallel
+GPUOMP !$omp end target teams distribute parallel do
 !!!         where ( scalars_2(:,:,:) < 0.0)  &
 !!!            scalars_2(:,:,:) = 0.0
 
@@ -2447,11 +2468,16 @@ CPUOMP !$OMP END PARALLEL DO
                                                         theta_m_1, theta_m_2
       real (kind=RKIND), dimension(num_scalars,nVertLevels,nCells+1) :: scalars_1, scalars_2
       integer:: i,j, k
+TMPOMP !$omp target update to(ru, ru_save, rw, rw_save, &
+TMPOMP !$omp rtheta_p,rtheta_p_save,rho_p,rho_p_save, &
+TMPOMP !$omp rho_zz_old_split,scalars_1,scalars_2, &
+TMPOMP !$omp u_1,u_2,w_1,w_2,theta_m_1,theta_m_2,rho_zz_1,rho_zz_2)
 !$acc data present(ru, ru_save, rw, rw_save, &
 !$acc rtheta_p,rtheta_p_save,rho_p,rho_p_save, &
 !$acc rho_zz_old_split,scalars_1,scalars_2, &
 !$acc u_1,u_2,w_1,w_2,theta_m_1,theta_m_2,rho_zz_1,rho_zz_2)
 
+GPUOMP !$omp target teams distribute parallel do
 !$acc parallel vector_length(32)
 !$acc loop gang
          do i = cellStart,cellEnd
@@ -2472,6 +2498,8 @@ CPUOMP !$OMP END PARALLEL DO
                       w_2(j,i) = w_1(j,i)
                 enddo
          enddo
+GPUOMP !$omp end target teams distribute parallel do
+GPUOMP !$omp target teams distribute parallel do collapse(2)
 !$acc loop gang
          do i = edgeStart,edgeEnd
 !$acc loop vector
@@ -2481,6 +2509,9 @@ CPUOMP !$OMP END PARALLEL DO
                 enddo
          enddo
 !$acc end parallel
+GPUOMP !$omp end target teams distribute parallel do
+TMPOMP !$omp target update from(rtheta_p_save,rho_p_save,theta_m_2,rho_zz_2,rho_zz_old_split,scalars_2,&
+TMPOMP !$omp rw_save,w_2,ru_save,u_2)
 !$acc end data
    end subroutine atm_rk_integration_setup_work
 
@@ -3009,9 +3040,13 @@ GPUOMP !$omp end target data
       ! here we need to compute the omega tendency in a manner consistent with our diagnosis of omega.
       ! this requires us to use the same flux divergence as is used in the theta eqn - see Klemp et al MWR 2003.
 
+TMPOMP !$omp target update to(w_tend, &
+TMPOMP !$omp edgesoncell, edgesoncell_sign, fzm, fzp,nedgesoncell, u_tend, &
+TMPOMP !$omp zb3_cell, zb_cell, zz)
 !$acc data present(w_tend, &
 !$acc edgesoncell, edgesoncell_sign, fzm, fzp,nedgesoncell, u_tend, &
 !$acc zb3_cell, zb_cell, zz)
+GPUOMP !$omp target teams distribute parallel do private(iEdge,flux)
 !$acc parallel num_workers(8) vector_length(32)
 !$acc loop gang worker private(iEdge, flux)
       do iCell=cellSolveStart,cellSolveEnd
@@ -3033,7 +3068,9 @@ GPUOMP !$omp end target data
          end if ! no conversion in specified zone
       end do
 !$acc end parallel
+GPUOMP !$omp end target teams distribute parallel do
 !$acc end data
+TMPOMP !$omp target update from(w_tend)
 
    end subroutine atm_set_smlstep_pert_variables_work
 
@@ -8778,14 +8815,20 @@ CPUOMP !$OMP BARRIER
       real (kind=RKIND) :: inv_dynamics_split
       integer:: i,j
       inv_dynamics_split = 1.0_RKIND / real(dynamics_split)
+TMPOMP !$omp target update to(ru, ru_save, rw, rw_save, &
+TMPOMP !$omp rtheta_p,rtheta_p_save,rho_p,rho_p_save, &
+TMPOMP !$omp rho_zz_old_split,ruAvg,ruAvg_split, wwAvg, wwAvg_split, &
+TMPOMP !$omp u_1,u_2,w_1,w_2,theta_m_1,theta_m_2,rho_zz_1,rho_zz_2)
 !$acc data present(ru, ru_save, rw, rw_save, &
 !$acc rtheta_p,rtheta_p_save,rho_p,rho_p_save, &
 !$acc rho_zz_old_split,ruAvg,ruAvg_split, wwAvg, wwAvg_split, &
 !$acc u_1,u_2,w_1,w_2,theta_m_1,theta_m_2,rho_zz_1,rho_zz_2)
       if (dynamics_substep < dynamics_split) then
+GPUOMP !$omp target teams distribute parallel do
 !$acc parallel vector_length(32)
 !$acc loop gang
          do i = cellStart,cellEnd
+GPUOMP !$omp do simd
 !$acc loop vector
                 do j=1,nVertLevels
                          rho_p_save(j,i) = rho_p(j,i)
@@ -8793,12 +8836,17 @@ CPUOMP !$OMP BARRIER
                          rtheta_p_save(j,i) = rtheta_p(j,i)
                          rho_zz_1(j,i) = rho_zz_2(j,i)
                 enddo
+GPUOMP !$omp end do simd
+GPUOMP !$omp do simd
 !$acc loop vector
                 do j=1,nVertLevels+1
                          rw_save(j,i) = rw(j,i)
                          w_1(j,i) = w_2(j,i)
                 enddo
+GPUOMP !$omp end do simd
          enddo
+GPUOMP !$omp end target teams distribute parallel do
+GPUOMP !$omp target teams distribute parallel do collapse(2)
 !$acc loop gang
          do i = edgeStart,edgeEnd
 !$acc loop vector
@@ -8808,6 +8856,7 @@ CPUOMP !$OMP BARRIER
                 enddo
          enddo
 !$acc end parallel
+GPUOMP !$omp end target teams distribute parallel do
 
 !         ru_save(:,edgeStart:edgeEnd) = ru(:,edgeStart:edgeEnd)
 !         rw_save(:,cellStart:cellEnd) = rw(:,cellStart:cellEnd)
@@ -8822,6 +8871,7 @@ CPUOMP !$OMP BARRIER
       end if
       if (dynamics_substep == 1) then
 
+GPUOMP !$omp target teams distribute parallel do collapse(2)
 !$acc parallel num_gangs(256) vector_length(32)
 !$acc loop gang
          do i = cellStart,cellEnd
@@ -8830,7 +8880,9 @@ CPUOMP !$OMP BARRIER
                         wwAvg_split(j,i) = wwAvg(j,i)
                 enddo
          enddo
+GPUOMP !$omp end target teams distribute parallel do
 
+GPUOMP !$omp target teams distribute parallel do collapse(2)
 !$acc loop gang
          do i = edgeStart,edgeEnd
 !$acc loop vector
@@ -8838,9 +8890,11 @@ CPUOMP !$OMP BARRIER
                         ruAvg_split(j,i) = ruAvg(j,i)
                 enddo
          enddo
+GPUOMP !$omp end target teams distribute parallel do
 !$acc end parallel
       else
 
+GPUOMP !$omp target teams distribute parallel do collapse(2)
 !$acc parallel num_gangs(256) vector_length(32)
 !$acc loop gang
          do i = cellStart,cellEnd
@@ -8849,7 +8903,9 @@ CPUOMP !$OMP BARRIER
                         wwAvg_split(j,i) = wwAvg(j,i)+wwAvg_split(j,i)
                 enddo
          enddo
+GPUOMP !$omp end target teams distribute parallel do
 
+GPUOMP !$omp target teams distribute parallel do collapse(2)
 !$acc loop gang
          do i = edgeStart,edgeEnd
 !$acc loop vector
@@ -8857,24 +8913,32 @@ CPUOMP !$OMP BARRIER
                         ruAvg_split(j,i) = ruAvg(j,i)+ruAvg_split(j,i)
                 enddo
          enddo
+GPUOMP !$omp end target teams distribute parallel do
 !$acc end parallel
 
       end if
 
 
       if (dynamics_substep == dynamics_split) then
+GPUOMP !$omp target teams distribute parallel do
 !$acc parallel num_gangs(256) vector_length(32)
 !$acc loop gang
          do i = cellStart,cellEnd
+GPUOMP !$omp do simd
 !$acc loop vector
                 do j=1,nVertLevels+1
                         wwAvg(j,i) = wwAvg_split(j,i) * inv_dynamics_split
                 enddo
+GPUOMP !$omp end do simd
+GPUOMP !$omp do simd
                 do j=1,nVertLevels
                         rho_zz_1(j,i) = rho_zz_old_split(j,i)
                 enddo
+GPUOMP !$omp end do simd
          enddo
+GPUOMP !$omp end target teams distribute parallel do
 
+GPUOMP !$omp target teams distribute parallel do collapse(2)
 !$acc loop gang
          do i = edgeStart,edgeEnd
 !$acc loop vector
@@ -8882,9 +8946,12 @@ CPUOMP !$OMP BARRIER
                         ruAvg(j,i) = ruAvg_split(j,i) * inv_dynamics_split
                 enddo
          enddo
+GPUOMP !$omp end target teams distribute parallel do
 !$acc end parallel
       end if
 
+TMPOMP !$omp target update from(rho_p_save,theta_m_1,rtheta_p_save,rho_zz_1,rw_save,w_1,ru_save,u_1,&
+TMPOMP !$omp wwAvg_split,ruAvg_split,wwAvg,ruAvg)
 
 !$acc end data
 
@@ -9862,6 +9929,8 @@ CPUOMP !$OMP BARRIER
             call mpas_pool_get_array_gpu(state, 'u', u, 2)
 
 !add the variables in the "update host" clause below to update the data on host
+        GPUOMP !$omp target update from(w, &
+        GPUOMP !$omp u)
         !$acc update host(w, &
         !$acc u)
 
