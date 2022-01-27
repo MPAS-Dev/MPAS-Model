@@ -3839,6 +3839,12 @@ TMPOMP !$omp target update from(ru_p)
       rcv = rgas/(cp-rgas)
       p0 = 1.0e+05  ! this should come from somewhere else...
 
+TMPOMP !$omp target update to(rho_zz, exner, pressure_p, rho_p, rtheta_p, rw, theta_m, w, &
+TMPOMP !$omp wwavg, ru, ruavg, u, &
+TMPOMP !$omp exner_base, fzm, fzp, rho_base, rho_p_save, rho_pp, rt_diabatic_tend, &
+TMPOMP !$omp rtheta_base, rtheta_p_save, rtheta_pp, rw_p, rw_save, zz, cellsonedge, &
+TMPOMP !$omp ru_p, ru_save, edgesoncell, edgesoncell_sign, nedgesoncell, zb3_cell, &
+TMPOMP !$omp zb_cell)
 !$acc data present(rho_zz, exner, pressure_p, rho_p, rtheta_p, rw, theta_m, w, &
 !$acc wwavg, ru, ruavg, u, &
 !$acc exner_base, fzm, fzp, rho_base, rho_p_save, rho_pp, rt_diabatic_tend, &
@@ -3848,17 +3854,20 @@ TMPOMP !$omp target update from(ru_p)
 
       ! Avoid FP errors caused by a potential division by zero below by 
       ! initializing the "garbage cell" of rho_zz to a non-zero value
+GPUOMP !$omp target teams distribute parallel do
 !$acc parallel num_workers(8) vector_length(32)
 !$acc loop vector
       do k=1,nVertLevels
          rho_zz(k,nCells+1) = 1.0
       end do
 !$acc end parallel
+GPUOMP !$omp end target teams distribute parallel do
       ! compute new density everywhere so we can compute u from ru.
       ! we will also need it to compute theta_m below
 
       invNs = 1 / real(ns,RKIND)
 
+GPUOMP !$omp target teams distribute parallel do collapse(2)
 !$acc parallel num_workers(8) vector_length(32)
 !$acc loop gang worker
       do iCell=cellStart,cellEnd
@@ -3873,7 +3882,9 @@ TMPOMP !$omp target update from(ru_p)
          w(1,iCell) = 0.0
         end do
 !$acc end parallel
+GPUOMP !$omp end target teams distribute parallel do
 
+GPUOMP !$omp target teams distribute parallel do collapse(2)
 !$acc parallel num_workers(8) vector_length(32)
 !$acc loop gang worker
         do iCell=cellStart,cellEnd
@@ -3890,9 +3901,11 @@ TMPOMP !$omp target update from(ru_p)
          w(nVertLevels+1,iCell) = 0.0
         end do
 !$acc end parallel
+GPUOMP !$omp end target teams distribute parallel do
 
 
          if (rk_step == 3) then
+GPUOMP !$omp target teams distribute parallel do collapse(2)
 !$acc parallel num_workers(8) vector_length(32)
 !$acc loop gang worker collapse(2)
         do iCell=cellStart,cellEnd
@@ -3908,10 +3921,12 @@ TMPOMP !$omp target update from(ru_p)
             end do
         end do
 !$acc end parallel
+GPUOMP !$omp end target teams distribute parallel do
         end if
 
         if (rk_step /= 3) then
 !         else
+GPUOMP !$omp target teams distribute parallel do collapse(2)
 !$acc parallel num_workers(8) vector_length(32)
 !$acc loop gang worker collapse(2)
         do iCell=cellStart,cellEnd
@@ -3922,6 +3937,7 @@ TMPOMP !$omp target update from(ru_p)
             end do
       end do
 !$acc end parallel
+GPUOMP !$omp end target teams distribute parallel do
          end if
 
 
@@ -3931,6 +3947,7 @@ TMPOMP !$omp target update from(ru_p)
 
 CPUOMP !$OMP BARRIER
 
+GPUOMP !$omp target teams distribute parallel do private(cell1,cell2)
 !$acc parallel num_workers(8) vector_length(32)
 !$acc loop gang worker private(cell1, cell2)
       do iEdge=edgeStart,edgeEnd
@@ -3946,7 +3963,9 @@ CPUOMP !$OMP BARRIER
          end do
       end do
 !$acc end parallel
+GPUOMP !$omp end target teams distribute parallel do
 CPUOMP !$OMP BARRIER
+GPUOMP !$omp target teams distribute parallel do private(iEdge,flux)
 !$acc parallel num_workers(8) vector_length(32)
 !$acc loop gang worker private(iEdge, flux)
       do iCell=cellStart,cellEnd
@@ -3985,6 +4004,8 @@ CPUOMP !$OMP BARRIER
 
       end do
 !$acc end parallel
+GPUOMP !$omp end target teams distribute parallel do
+TMPOMP !$omp target update from(rho_zz,rho_p,w,wwAvg,rw,u,ruAvg,ru,rtheta_p,theta_m,exner,pressure_p)
 !$acc end data
    end subroutine atm_recover_large_step_variables_work
 
