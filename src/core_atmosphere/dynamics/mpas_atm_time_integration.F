@@ -4301,6 +4301,13 @@ TMPOMP !$omp target update from(rho_zz,rho_p,w,wwAvg,rw,u,ruAvg,ru,rtheta_p,thet
       end if
       weight_time_old = 1. - weight_time_new
 
+!GPUOMP NOTE: this subroutine atm_advance_scalars_work untested!
+TMPOMP !$omp target update to(adv_coefs, uhAvg, adv_coefs_3rd, &
+TMPOMP !$omp advCellsForEdge, scalar_new, &
+TMPOMP !$omp scalar_tend_save,horiz_flux_arr,edgesoncell_sign, &
+TMPOMP !$omp invAreaCell, wwAvg, fnm, fnp,edgesoncell,scalar_old, &
+TMPOMP !$omp nadvcellsforedge, rho_zz_old, rho_zz_new, &
+TMPOMP !$omp nEdgesOnCell,rdnw,bdyMaskCell,bdyMaskEdge,cellsOnEdge,dvEdge,edgesOnCell)
 !$acc data present(adv_coefs, uhAvg, adv_coefs_3rd, &
 !$acc advCellsForEdge, scalar_new, &
 !$acc scalar_tend_save,horiz_flux_arr,edgesoncell_sign, &
@@ -4308,6 +4315,7 @@ TMPOMP !$omp target update from(rho_zz,rho_p,w,wwAvg,rw,u,ruAvg,ru,rtheta_p,thet
 !$acc nadvcellsforedge, rho_zz_old, rho_zz_new, &
 !$acc nEdgesOnCell,rdnw,bdyMaskCell,bdyMaskEdge,cellsOnEdge,dvEdge,edgesOnCell)
 
+GPUOMP !$omp target teams distribute parallel do private(scalar_weight2,ica,iAdvCell,cell1,cell2)
 !$acc parallel vector_length(32)
 !$acc loop gang private(scalar_weight2,ica,iAdvCell,cell1,cell2)
       do iEdge=edgeStart,edgeEnd
@@ -4399,11 +4407,13 @@ TMPOMP !$omp target update from(rho_zz,rho_p,w,wwAvg,rw,u,ruAvg,ru,rtheta_p,thet
 
       end do
 !$acc end parallel
+GPUOMP !$omp end target teams distribute parallel do
 
 CPUOMP !$OMP BARRIER
 
 !  scalar update, for each column sum fluxes over horizontal edges, add physics tendency, and add vertical flux divergence in update.
 
+GPUOMP !$omp target teams distribute parallel do private(scalar_tend_column,iEdge,wdtn)
 !$acc parallel vector_length(32)
 !$acc loop gang private(scalar_tend_column,iEdge,wdtn)
       do iCell=cellSolveStart,cellSolveEnd
@@ -4500,6 +4510,8 @@ CPUOMP !$OMP BARRIER
 
       end do
 !$acc end parallel
+GPUOMP !$omp end target teams distribute parallel do
+TMPOMP !$omp target update from(scalar_new,wdtn,scalar_tend_column,scalar_tend_save,horiz_flux_arr)
 !$acc end data
 
    end subroutine atm_advance_scalars_work
@@ -4733,6 +4745,15 @@ CPUOMP !$OMP BARRIER
       !  Note, however, that we enforce positive-definiteness in this update.
       !  The transport will maintain this positive definite solution and optionally, shape preservation (monotonicity).
 
+!GPUOMP NOTE: this subroutine atm_advance_scalars_mono_work is untested
+TMPOMP !$omp target update to(uhAvg,wwAvg,scalar_tend, &
+TMPOMP !$omp rho_zz_old,rho_zz_new,scalars_old, &
+TMPOMP !$omp invAreaCell,dvEdge,cellsOnEdge,cellsOnCell, &
+TMPOMP !$omp edgesOnCell,edgesOnCell_sign,nEdgesOnCell,fnm, &
+TMPOMP !$omp fnp,rdnw,nAdvCellsForEdge,advCellsForEdge,adv_coefs, &
+TMPOMP !$omp adv_coefs_3rd, scalars_new, flux_arr, rho_zz_int, &
+TMPOMP !$omp scalar_new, wdtn, scale_arr, scalar_old, flux_upwind_tmp, &
+TMPOMP !$omp s_min, s_max, flux_tmp, bdyMaskCell, bdyMaskEdge)
 !$acc data present(uhAvg,wwAvg,scalar_tend, &
 !$acc rho_zz_old,rho_zz_new,scalars_old, &
 !$acc invAreaCell,dvEdge,cellsOnEdge,cellsOnCell, &
@@ -4742,6 +4763,7 @@ CPUOMP !$OMP BARRIER
 !$acc scalar_new, wdtn, scale_arr, scalar_old, flux_upwind_tmp, &
 !$acc s_min, s_max, flux_tmp, bdyMaskCell, bdyMaskEdge)
 
+GPUOMP !$omp target teams distribute parallel do collapse(3)
 !$acc parallel vector_length(128)
 !$acc loop gang vector collapse(3)
 
@@ -4762,6 +4784,7 @@ CPUOMP !$OMP BARRIER
       end do
       end do
 !$acc end parallel
+GPUOMP !$omp end target teams distribute parallel do
 
 CPUOMP !$OMP BARRIER
 CPUOMP !$OMP MASTER
@@ -4783,6 +4806,7 @@ CPUOMP !$OMP BARRIER
          end if
 
          !  begin with update of density
+GPUOMP !$omp target teams distribute parallel do collapse(2)
 !$acc parallel vector_length(128)
 !$acc loop gang vector collapse(2)
          do iCell=cellStart,cellEnd
@@ -4791,8 +4815,10 @@ CPUOMP !$OMP BARRIER
          end do
          end do
 !$acc end parallel
+GPUOMP !$omp end target teams distribute parallel do
 
 CPUOMP !$OMP BARRIER
+GPUOMP !$omp target teams distribute parallel do collapse(2) private(iEdge)
 !$acc parallel vector_length(32)
 !$acc loop gang vector collapse(2) private(iEdge)
          do iCell=cellSolveStart,cellSolveEnd
@@ -4812,7 +4838,9 @@ CPUOMP !$OMP BARRIER
             end do
          end do
 !$acc end parallel
+GPUOMP !$omp end target teams distribute parallel do
 
+GPUOMP !$omp target teams distribute parallel do collapse(2)
 !$acc parallel vector_length(128)
 !$acc loop gang vector collapse(2)
          do iCell=cellSolveStart,cellSolveEnd
@@ -4821,6 +4849,7 @@ CPUOMP !$OMP BARRIER
                rho_zz_int(k,iCell) = rho_zz_old(k,iCell) + dt*( rho_zz_int(k,iCell) - rdnw(k)*(wwAvg(k+1,iCell)-wwAvg(k,iCell)) )
             end do
          end do
+GPUOMP !$omp end target teams distribute parallel do
 CPUOMP !$OMP BARRIER
 !$acc end parallel
       end if
@@ -4828,6 +4857,7 @@ CPUOMP !$OMP BARRIER
       ! next, do one scalar at a time
 
       do iScalar = 1, num_scalars
+GPUOMP !$omp target teams distribute parallel do collapse(2)
 !$acc parallel vector_length(128)
 !$acc loop gang vector collapse(2)
          do iCell=cellStart,cellEnd
@@ -4838,8 +4868,10 @@ CPUOMP !$OMP BARRIER
             end do
          end do
 !$acc end parallel
+GPUOMP !$omp end target teams distribute parallel do
 
 ! ***** TEMPORARY TEST ******* WCS 20161012
+GPUOMP !$omp target teams distribute parallel do
 !$acc parallel vector_length(64)
 !$acc loop gang vector
             do k=1,nVertLevels
@@ -4847,6 +4879,7 @@ CPUOMP !$OMP BARRIER
                scalar_new(k,nCells+1) = 0.
             end do
 !$acc end parallel
+GPUOMP !$omp end target teams distribute parallel do
 
 CPUOMP !$OMP BARRIER
 
@@ -4880,6 +4913,7 @@ CPUOMP !$OMP BARRIER
          !
          !  vertical flux divergence, and min and max bounds for flux limiter
          !
+GPUOMP !$omp target teams distribute parallel do
 !$acc parallel vector_length(32)
 !$acc loop gang
          do iCell=cellSolveStart,cellSolveEnd
@@ -4953,11 +4987,13 @@ CPUOMP !$OMP BARRIER
 
          end do
 !$acc end parallel
+GPUOMP !$omp end target teams distribute parallel do
 CPUOMP !$OMP BARRIER
 
          !
          !  horizontal flux divergence
          !
+GPUOMP !$omp target teams distribute parallel do private(cell1,cell2,ica,swa,iCell)
 !$acc parallel vector_length(32)
 !$acc loop gang private(cell1, cell2,ica,swa,iCell)
          do iEdge=edgeStart,edgeEnd
@@ -5010,11 +5046,13 @@ CPUOMP !$OMP BARRIER
 
          end do
 !$acc end parallel
+GPUOMP !$omp end target teams distribute parallel do
 CPUOMP !$OMP BARRIER
 
          !
          !  vertical flux divergence for upwind update, we will put upwind update into scalar_new, and put factor of dt in fluxes
          !
+GPUOMP !$omp target teams distribute parallel do
 !$acc parallel vector_length(32)
 !$acc loop gang private(flux_upwind_arr)
          do iCell=cellSolveStart,cellSolveEnd
@@ -5054,11 +5092,13 @@ CPUOMP !$OMP BARRIER
 
          end do
 !$acc end parallel
+GPUOMP !$omp end target teams distribute parallel do
          !
          !  horizontal flux divergence for upwind update
          !
 
          !  upwind flux computation
+GPUOMP !$omp target teams distribute parallel do
 !$acc parallel vector_length(64)
 !$acc loop gang
          do iEdge=edgeStart,edgeEnd
@@ -5084,7 +5124,9 @@ CPUOMP !$OMP BARRIER
 
          end do
 !$acc end parallel
+GPUOMP !$omp end target teams distribute parallel do
 CPUOMP !$OMP BARRIER
+GPUOMP !$omp target teams distribute parallel do collapse(2) private(iEdge)
 !$acc parallel vector_length(128)
 !$acc loop gang vector collapse(2) private(iEdge)
          do iCell=cellSolveStart,cellSolveEnd
@@ -5108,6 +5150,7 @@ CPUOMP !$OMP BARRIER
             end do
          end do
 !$acc end parallel
+GPUOMP !$omp end target teams distribute parallel do
          !
          !  next, the limiter
          !
@@ -5116,6 +5159,7 @@ CPUOMP !$OMP BARRIER
          ! worked through algebra and found equivalent form
          ! added benefit that it should address ifort single prec overflow issue
       if (local_advance_density) then
+GPUOMP !$omp target teams distribute parallel do collapse(2) private(scale_factor)
 !$acc parallel vector_length(128)
 !$acc loop gang vector collapse(2) private(scale_factor)
          do iCell=cellSolveStart,cellSolveEnd
@@ -5132,7 +5176,9 @@ CPUOMP !$OMP BARRIER
             end do
          end do
 !$acc end parallel
+GPUOMP !$omp end target teams distribute parallel do
       else
+GPUOMP !$omp target teams distribute parallel do collapse(2) private(scale_factor)
 !$acc parallel vector_length(128)
 !$acc loop gang vector collapse(2) private(scale_factor)
          do iCell=cellSolveStart,cellSolveEnd
@@ -5149,6 +5195,7 @@ CPUOMP !$OMP BARRIER
             end do
          end do
 !$acc end parallel
+GPUOMP !$omp end target teams distribute parallel do
       end if
 
          !
@@ -5166,6 +5213,7 @@ CPUOMP !$OMP END MASTER
 CPUOMP !$OMP BARRIER
 
 
+GPUOMP !$omp target teams distribute parallel do private(cell1,cell2)
 !$acc parallel vector_length(32)
 !$acc loop gang worker private(cell1,cell2)
          do iEdge=edgeStart,edgeEnd
@@ -5190,12 +5238,14 @@ CPUOMP !$OMP BARRIER
             end if
          end do
 !$acc end parallel
+GPUOMP !$omp end target teams distribute parallel do
          !
          !  rescale the fluxes
          !
 
          ! moved assignment to scalar_new from separate loop (see commented code below)
          ! into the following loops. Avoids having to save elements of flux array
+GPUOMP !$omp target teams distribute parallel do private(cell1,cell2)
 !$acc parallel vector_length(32)
 !$acc loop gang worker private(cell1, cell2)
          do iEdge=edgeStart,edgeEnd
@@ -5213,11 +5263,13 @@ CPUOMP !$OMP BARRIER
             end if
          end do
 !$acc end parallel
- 
+GPUOMP !$omp end target teams distribute parallel do
+
         !
         ! rescale the vertical flux
         !
 CPUOMP !$OMP BARRIER
+GPUOMP !$omp target teams distribute parallel do private(flux)
 !$acc parallel vector_length(128)
 !$acc loop gang vector collapse(2) private(flux)
          do iCell=cellSolveStart,cellSolveEnd
@@ -5230,10 +5282,12 @@ CPUOMP !$OMP BARRIER
             end do
          end do
 !$acc end parallel
+GPUOMP !$omp end target teams distribute parallel do
 
          !
          !  do the scalar update now that we have the fluxes
          !
+GPUOMP !$omp target teams distribute parallel do
 !$acc parallel vector_length(32)
 !$acc loop gang
          do iCell=cellSolveStart,cellSolveEnd
@@ -5265,6 +5319,7 @@ CPUOMP !$OMP BARRIER
       end if
          end do
 !$acc end parallel
+GPUOMP !$omp end target teams distribute parallel do
 #ifdef DEBUG_TRANSPORT
          scmin = scalar_new(1,1)
          scmax = scalar_new(1,1)
@@ -5308,6 +5363,7 @@ CPUOMP !$OMP BARRIER
 !$acc end parallel
       end do !  loop over scalars
 #else
+GPUOMP !$omp target teams distribute parallel do
 !$acc parallel vector_length(64)
 !$acc loop gang
          do iCell=cellStart,cellEnd
@@ -5319,9 +5375,11 @@ CPUOMP !$OMP BARRIER
             end if
          end do
 !$acc end parallel
+GPUOMP !$omp end target teams distribute parallel do
       end do !  loop over scalars
 #endif
-
+TMPOMP !$omp target update from(scalars_old,scalar_tend,rho_zz_int,scalar_old,scalar_new,wdtn,s_max,s_min,flux_arr,&
+TMPOMP !$omp flux_upwind_tmp,flux_tmp,flux_arr,scale_arr,scalars_new)
 !$acc end data
    end subroutine atm_advance_scalars_mono_work
 
