@@ -398,7 +398,9 @@ uReconstructZonal, uReconstructMeridional, includeHalos)!{{{
    
      ! loop over cell centers
     !!!$omp do schedule(runtime)
+TMPOMP !$omp target update to(u, uReconstructZonal, uReconstructMeridional, nedgesOnCell,edgesOnCell,latCell,lonCell, coeffs_reconstruct)
 !$acc data present(u,uReconstructX, uReconstructY, uReconstructZ, uReconstructZonal, uReconstructMeridional, nedgesOnCell,edgesOnCell,latCell,lonCell, coeffs_reconstruct)
+GPUOMP !$omp target teams distribute parallel do collapse(2)
 !$acc parallel
 !$acc loop gang worker
     do iCell = 1, nCellParent
@@ -411,12 +413,14 @@ uReconstructZonal, uReconstructMeridional, includeHalos)!{{{
      end do
    enddo
 !$acc end parallel
+GPUOMP !$omp end target teams distribute parallel do
 
       ! a more efficient reconstruction where
       ! rbf_values*matrix_reconstruct
 
       ! has been precomputed in coeffs_reconstruct
 
+GPUOMP !$omp target teams distribute parallel do
 !$acc parallel
 !$acc loop gang private(iEdge)
     do iCell = 1, nCellParent
@@ -434,6 +438,7 @@ uReconstructZonal, uReconstructMeridional, includeHalos)!{{{
  
       enddo
     enddo   ! iCell
+GPUOMP !$omp end target teams distribute parallel do
 
 !$acc end parallel
     !!!$omp end do
@@ -442,6 +447,7 @@ uReconstructZonal, uReconstructMeridional, includeHalos)!{{{
  
     if (on_a_sphere) then
       !!!$omp do schedule(runtime)
+GPUOMP !$omp target teams distribute parallel do private(clat,slat,clon,slon)
 !$acc parallel
 !$acc loop gang worker private(clat,slat,clon,slon)
       do iCell = 1, nCellParent
@@ -459,9 +465,11 @@ uReconstructZonal, uReconstructMeridional, includeHalos)!{{{
         end do
       end do
 !$acc end parallel
+GPUOMP !$omp end target teams distribute parallel do
       !!!$omp end do
     else
       !!!$omp do schedule(runtime)
+GPUOMP !$omp target teams distribute parallel do
 !$acc parallel
 !$acc loop gang worker vector
       do iCell = 1, nCellParent
@@ -469,9 +477,12 @@ uReconstructZonal, uReconstructMeridional, includeHalos)!{{{
         uReconstructMeridional(:,iCell) = uReconstructY(:,iCell)
       end do
 !$acc end parallel
+GPUOMP !$omp end target teams distribute parallel do
       !!!$omp end do
     end if
 !$acc end data
+TMPOMP !$omp target update from(uReconstructZ,uReconstructY,uReconstructZ,&
+TMPOMP !$omp uReconstructZonal,uReconstructMeridional)
 
    
 end subroutine mpas_reconstruct_2d_gpu_work
