@@ -1228,6 +1228,10 @@ module mpas_block_creator
      integer, pointer :: dim0d
      integer, dimension(:), pointer :: dim1d
 
+     integer(kind=I8KIND) :: allocated_bytes
+     integer :: total_allocated_mb
+
+
      domain => blocklist % domain
 
      ! Loop over blocks
@@ -1266,7 +1270,19 @@ module mpas_block_creator
           call mpas_log_write('Derived dimension setup failed for core ' // trim(block_ptr % domain % core % coreName), MPAS_LOG_CRIT)
        end if
 
-       call mpas_block_creator_allocate_pool_fields(block_ptr % structs, block_ptr % dimensions)
+
+       call mpas_log_write('Allocating fields ...')
+       allocated_bytes = 0_I8KIND
+
+       call mpas_block_creator_allocate_pool_fields(block_ptr % structs, block_ptr % dimensions, allocated_bytes)
+
+       call mpas_log_write(' $i MB allocated for fields on this task', intArgs=[int(allocated_bytes / 1000000_I8KIND)])
+       if (domain % dminfo % nprocs > 1) then
+          call mpas_dmpar_sum_int(domain % dminfo, int(allocated_bytes / 1000000_I8KIND), total_allocated_mb)
+          call mpas_log_write(' $i MB total allocated for fields across all tasks', intArgs=[total_allocated_mb])
+       end if
+       call mpas_log_write(' ----- done allocating fields -----')
+       call mpas_log_write('')
 
        err_level = mpas_pool_get_error_level()
        call mpas_pool_set_error_level(MPAS_POOL_SILENT)
@@ -1534,9 +1550,19 @@ module mpas_block_creator
 !>  This routine also copies all dimensions from dimensionPool to currentPool
 !
 !-----------------------------------------------------------------------
-   recursive subroutine mpas_block_creator_allocate_pool_fields(currentPool, dimensionPool)!{{{
+   recursive subroutine mpas_block_creator_allocate_pool_fields(currentPool, dimensionPool, allocated_bytes)!{{{
+
       type (mpas_pool_type), pointer :: currentPool !< Input: Current pool to allocate and copy dimensions.
       type (mpas_pool_type), pointer :: dimensionPool !< Input: Pool of dimensions for the current block
+      integer(kind=I8KIND), intent(inout) :: allocated_bytes !< Input/Output: The total number of bytes allocated for fields
+
+#ifdef SINGLE_PRECISION
+      integer(kind=I8KIND), parameter :: real_size = 4_I8KIND
+#else
+      integer(kind=I8KIND), parameter :: real_size = 8_I8KIND
+#endif
+      integer(kind=I8KIND), parameter :: int_size = 4_I8KIND
+
       type (mpas_pool_type), pointer :: subPool
       type (mpas_pool_iterator_type) :: poolItr
 
@@ -1556,6 +1582,9 @@ module mpas_block_creator
       integer :: dimSize
       integer :: localErr
 
+      integer(kind=I8KIND) :: field_bytes
+
+
       call mpas_pool_begin_iteration(dimensionPool)
       do while( mpas_pool_get_next_member(dimensionPool, poolItr) )
          if (poolItr % memberType == MPAS_POOL_DIMENSION) then
@@ -1573,7 +1602,7 @@ module mpas_block_creator
       do while ( mpas_pool_get_next_member(currentPool, poolItr) )
          if ( poolItr % memberType == MPAS_POOL_SUBPOOL ) then
             call mpas_pool_get_subpool(currentPool, poolItr % memberName, subPool)
-            call mpas_block_creator_allocate_pool_fields(subPool, dimensionPool)
+            call mpas_block_creator_allocate_pool_fields(subPool, dimensionPool, allocated_bytes)
          else if ( poolItr % memberType == MPAS_POOL_FIELD ) then
             if ( poolItr % dataType == MPAS_POOL_REAL ) then
                if ( poolItr % nDims == 1 ) then
@@ -1592,7 +1621,9 @@ module mpas_block_creator
                         end do
 
                         if ( real1DField % isPersistent ) then
+                           field_bytes = int(real1DField % dimSizes(1), kind=I8KIND) * real_size
                            allocate(real1DField % array(real1DField % dimSizes(1)))
+                           allocated_bytes = allocated_bytes + field_bytes
                            real1DField % array(:) = real1DField % defaultValue
                         end if
                      end if
@@ -1612,7 +1643,11 @@ module mpas_block_creator
                         end do
 
                         if ( real2DField % isPersistent ) then
+                           field_bytes = int(real2DField % dimSizes(1), kind=I8KIND) &
+                                       * int(real2DField % dimSizes(2), kind=I8KIND) &
+                                       * real_size
                            allocate(real2DField % array(real2DField % dimSizes(1), real2DField % dimSizes(2)))
+                           allocated_bytes = allocated_bytes + field_bytes
                            real2DField % array(:,:) = real2DField % defaultValue
                         end if
                      end if
@@ -1632,7 +1667,12 @@ module mpas_block_creator
                         end do
 
                         if ( real3DField % isPersistent ) then
+                           field_bytes = int(real3DField % dimSizes(1), kind=I8KIND) &
+                                       * int(real3DField % dimSizes(2), kind=I8KIND) &
+                                       * int(real3DField % dimSizes(3), kind=I8KIND) &
+                                       * real_size
                            allocate(real3DField % array(real3DField % dimSizes(1), real3DField % dimSizes(2), real3DField % dimSizes(3)))
+                           allocated_bytes = allocated_bytes + field_bytes
                            real3DField % array(:,:,:) = real3DField % defaultValue
                         end if
                      end if
@@ -1652,8 +1692,14 @@ module mpas_block_creator
                         end do
 
                         if ( real4DField % isPersistent ) then
+                           field_bytes = int(real4DField % dimSizes(1), kind=I8KIND) &
+                                       * int(real4DField % dimSizes(2), kind=I8KIND) &
+                                       * int(real4DField % dimSizes(3), kind=I8KIND) &
+                                       * int(real4DField % dimSizes(4), kind=I8KIND) &
+                                       * real_size
                            allocate(real4DField % array(real4DField % dimSizes(1), real4DField % dimSizes(2), &
                                                         real4DField % dimSizes(3), real4DField % dimSizes(4)))
+                           allocated_bytes = allocated_bytes + field_bytes
                            real4DField % array(:,:,:,:) = real4DField % defaultValue
                         end if
                      end if
@@ -1673,9 +1719,16 @@ module mpas_block_creator
                         end do
 
                         if ( real5DField % isPersistent ) then
+                           field_bytes = int(real5DField % dimSizes(1), kind=I8KIND) &
+                                       * int(real5DField % dimSizes(2), kind=I8KIND) &
+                                       * int(real5DField % dimSizes(3), kind=I8KIND) &
+                                       * int(real5DField % dimSizes(4), kind=I8KIND) &
+                                       * int(real5DField % dimSizes(5), kind=I8KIND) &
+                                       * real_size
                            allocate(real5DField % array(real5DField % dimSizes(1), real5DField % dimSizes(2), &
                                                         real5DField % dimSizes(3), real5DField % dimSizes(4), &
                                                         real5DField % dimSizes(5)))
+                           allocated_bytes = allocated_bytes + field_bytes
                            real5DField % array(:,:,:,:,:) = real5DField % defaultValue
                         end if
                      end if
@@ -1697,7 +1750,9 @@ module mpas_block_creator
                         end do
 
                         if ( int1DField % isPersistent ) then
+                           field_bytes = int(int1DField % dimSizes(1), kind=I8KIND) * int_size
                            allocate(int1DField % array(int1DField % dimSizes(1)))
+                           allocated_bytes = allocated_bytes + field_bytes
                            int1DField % array(:) = int1DField % defaultValue
                         end if
                      end if
@@ -1717,7 +1772,11 @@ module mpas_block_creator
                         end do
 
                         if ( int2DField % isPersistent ) then
+                           field_bytes = int(int2DField % dimSizes(1), kind=I8KIND) &
+                                       * int(int2DField % dimSizes(2), kind=I8KIND) &
+                                       * int_size
                            allocate(int2DField % array(int2DField % dimSizes(1), int2DField % dimSizes(2)))
+                           allocated_bytes = allocated_bytes + field_bytes
                            int2DField % array(:,:) = int2DField % defaultValue
                         end if
                      end if
@@ -1737,7 +1796,12 @@ module mpas_block_creator
                         end do
 
                         if ( int3DField % isPersistent ) then
+                           field_bytes = int(int3DField % dimSizes(1), kind=I8KIND) &
+                                       * int(int3DField % dimSizes(2), kind=I8KIND) &
+                                       * int(int3DField % dimSizes(3), kind=I8KIND) &
+                                       * int_size
                            allocate(int3DField % array(int3DField % dimSizes(1), int3DField % dimSizes(2), int3DField % dimSizes(3)))
+                           allocated_bytes = allocated_bytes + field_bytes
                            int3DField % array(:,:,:) = int3DField % defaultValue
                         end if
                      end if
@@ -1759,7 +1823,9 @@ module mpas_block_creator
                         end do
 
                         if ( char1DField % isPersistent ) then
+                           field_bytes = char1DField % dimSizes(1)
                            allocate(char1DField % array(char1DField % dimSizes(1)))
+                           allocated_bytes = allocated_bytes + field_bytes
                            char1DField % array(:) = char1DField % defaultValue
                         end if
                      end if
