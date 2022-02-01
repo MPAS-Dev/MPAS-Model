@@ -1,9 +1,12 @@
 .SUFFIXES: .F .o
 
-OBJS = mpas_atm_time_integration.o \
+OBJS = opt_subroutines.o \
+       mpas_atm_time_integration.o \
        mpas_atm_boundaries.o
 
 all: $(OBJS)
+
+opt_subroutines.o: mpas_atm_iau.o
 
 mpas_atm_time_integration.o: mpas_atm_boundaries.o mpas_atm_iau.o
 
