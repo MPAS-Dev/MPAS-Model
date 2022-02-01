@@ -4,7 +4,7 @@ OBJS = mpas_subdriver.o \
        mpas.o
 
 all:
-	($(MAKE) clean)
+	#($(MAKE) clean)
 	($(MAKE) driver)
 
 driver: $(OBJS)

@@ -1,12 +1,14 @@
 .SUFFIXES: .F .o
 
-OBJS = opt_subroutines.o \
-       mpas_atm_time_integration.o \
+OBJS = mpas_atm_time_integration.o \
        mpas_atm_boundaries.o
+#OBJS = opt_subroutines.o \
+#       mpas_atm_time_integration.o \
+#       mpas_atm_boundaries.o
 
 all: $(OBJS)
 
-opt_subroutines.o: mpas_atm_iau.o
+#opt_subroutines.o: mpas_atm_iau.o
 
 mpas_atm_time_integration.o: mpas_atm_boundaries.o mpas_atm_iau.o
 
@@ -18,6 +20,7 @@ clean:
 	@# Certain systems with intel compilers generate *.i files
 	@# This removes them during the clean process
 	$(RM) *.i
+	$(RM) *.acc.s
 
 .F.o:
 	$(RM) $@ $*.mod
