@@ -11,3 +11,10 @@
 #define TMPOMP !
 #define CPUOMP
 #endif
+#ifdef _GPUMPI_OFF
+#define MPIGPU !
+#define MPICPU
+#else
+#define MPIGPU 
+#define MPICPU !
+#endif

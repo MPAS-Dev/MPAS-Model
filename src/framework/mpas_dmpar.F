@@ -7372,11 +7372,11 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
            tempRbuffer => commListPtr % rbuffer
         end if
         nullify(commListPtr % ibuffer)
-        GPUOMP !$omp target data use_device_ptr(tempRbuffer)
+        MPIGPU !$omp target data use_device_ptr(tempRbuffer)
         !$acc host_data use_device(tempRbuffer) 
         call MPI_Irecv(tempRbuffer, commListPtr % nList, MPI_REALKIND, commListPtr % procID, commListPtr % procID, mpi_comm, commListPtr % reqID, mpi_ierr)
         !$acc end host_data
-        GPUOMP !$omp end target data
+        MPIGPU !$omp end target data
         commListPtr => commListPtr % next
       end do
       ! Allocate space in send lists, copy data into buffer, and initiate mpi_isend calls
@@ -7399,7 +7399,8 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
       do while(associated(commListPtr))
           tempRbuffer => commListPtr % rbuffer
           !$acc data present(tempRbuffer, array, compactHaloInfo, dimsizes, nHaloLayers, gpu_nList_send, gpu_idx_send, gpu_bufferOffset_send) async(counter+1)
-          GPUOMP !$omp target teams distribute parallel do collapse(3) nowait
+          MPIGPU !$omp target teams distribute parallel do collapse(3) nowait
+          MPICPU !$omp target teams distribute parallel do collapse(3) nowait depend(out:tempRbuffer)
           !$acc parallel default(none) num_workers(4) vector_length(128) async(counter+1) 
           !$acc loop independent collapse(3) gang worker vector
           do iHalo = 1, nHaloLayers
@@ -7414,6 +7415,7 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
           end do
           !$acc end parallel
           GPUOMP !$omp end target teams distribute parallel do
+          MPICPU !$omp target update from(tempRbuffer) nowait depend(in:tempRbuffer)
           !$acc end data
         counter=counter+1
         commListPtr => commListPtr % next
@@ -7423,11 +7425,11 @@ GPUOMP !$omp taskwait
       commListPtr => sendList
       do while(associated(commListPtr))
         tempRbuffer => commListPtr % rbuffer
-        GPUOMP !$omp target data use_device_ptr(tempRbuffer)
+        MPIGPU !$omp target data use_device_ptr(tempRbuffer)
         !$acc host_data use_device(tempRbuffer)
         call MPI_Isend(tempRbuffer, commListPtr % nList, MPI_REALKIND, commListPtr % procID, mpi_proc_id, mpi_comm, commListPtr % reqID, mpi_ierr)
         !$acc end host_data
-        GPUOMP !$omp end target data
+        MPIGPU !$omp end target data
         commListPtr => commListPtr % next
       end do
       commListPtr => recvList
@@ -7444,7 +7446,9 @@ GPUOMP !$omp taskwait
       do while(associated(commListPtr))
         tempRbuffer => commListPtr % rbuffer
           !$acc data present(tempRbuffer,array,compactHaloInfo,dimsizes, nHaloLayers,dimSizes,gpu_idx_recv,gpu_bufferOffset_recv,gpu_nList_recv) async(counter+1)
-          GPUOMP !$omp target teams distribute parallel do collapse(3) nowait
+          MPICPU !$omp target update to(tempRbuffer) nowait depend(out:tempRbuffer)
+          MPICPU !$omp target teams distribute parallel do collapse(3) nowait depend(in:tempRbuffer)
+          MPIGPU !$omp target teams distribute parallel do collapse(3) nowait
           !$acc parallel num_workers(4) vector_length(128) async(counter+1)
           !$acc loop independent collapse(3) gang worker vector
           do iHalo = 1, nHaloLayers
