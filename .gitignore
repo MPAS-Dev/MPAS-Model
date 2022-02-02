@@ -63,3 +63,7 @@ src/core_*/inc
 
 # cray acc offloading assembly files
 *.acc.s
+# cray intermediate files
+*.opt
+*.cg
+*.lst
