@@ -48,6 +48,9 @@ module atm_core
       type (MPAS_Time_Type) :: startTime
 
       integer, pointer :: nVertLevels, maxEdges, maxEdges2, num_scalars
+      character (len=ShortStrKIND) :: init_stream_name
+      real (kind=R8KIND) :: input_start_time, input_stop_time
+
 
       ierr = 0
 
@@ -90,17 +93,28 @@ module atm_core
       ! input streams.
       !
       if (config_do_restart) then
-         call MPAS_stream_mgr_read(domain % streamManager, streamID='restart', ierr=ierr)
+         init_stream_name = 'restart'
       else
-         call MPAS_stream_mgr_read(domain % streamManager, streamID='input', ierr=ierr)
+         init_stream_name = 'input'
       end if
+      call mpas_log_write('Reading initial state from '''//trim(init_stream_name)//''' stream')
+
+      call mpas_dmpar_get_time(input_start_time)
+      call MPAS_stream_mgr_read(domain % streamManager, streamID=trim(init_stream_name), ierr=ierr)
+      call mpas_dmpar_get_time(input_stop_time)
+
       if (ierr /= MPAS_STREAM_MGR_NOERR) then
          call mpas_log_write('********************************************************************************', messageType=MPAS_LOG_ERR)
          call mpas_log_write('Error reading initial conditions',                                                 messageType=MPAS_LOG_ERR)
          call mpas_log_write('********************************************************************************', messageType=MPAS_LOG_CRIT)
       end if
+
+      call mpas_log_write(' Timing for read of '''//trim(init_stream_name)//''' stream: $r s', &
+                          realArgs=(/real(input_stop_time - input_start_time, kind=RKIND)/))
+
       call MPAS_stream_mgr_reset_alarms(domain % streamManager, streamID='input', direction=MPAS_STREAM_INPUT, ierr=ierr)
       call MPAS_stream_mgr_reset_alarms(domain % streamManager, streamID='restart', direction=MPAS_STREAM_INPUT, ierr=ierr)
+      call mpas_log_write(' ----- done reading initial state -----')
 
       !
       ! Read all other inputs
