@@ -1,6 +1,7 @@
 #ifdef MPAS_AMD_OFFLOAD
 #define GPUOMP
 #define TMPOMP !
+#define GPUACC !
 #ifdef MPAS_OPENMP
 #define CPUOMP
 #else
@@ -9,6 +10,7 @@
 #else
 #define GPUOMP !
 #define TMPOMP !
+#define GPUACC
 #define CPUOMP
 #endif
 #ifdef _GPUMPI_OFF
