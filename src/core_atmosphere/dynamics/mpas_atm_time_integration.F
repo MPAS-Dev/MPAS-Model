@@ -2482,10 +2482,11 @@ TMPOMP !$omp u_1,u_2,w_1,w_2,theta_m_1,theta_m_2,rho_zz_1,rho_zz_2)
 !$acc rho_zz_old_split,scalars_1,scalars_2, &
 !$acc u_1,u_2,w_1,w_2,theta_m_1,theta_m_2,rho_zz_1,rho_zz_2)
 
-GPUOMP !$omp target teams distribute parallel do
+GPUOMP !$omp target teams distribute parallel do thread_limit(64)
 !$acc parallel vector_length(32)
 !$acc loop gang
          do i = cellStart,cellEnd
+GPUOMP !$omp do simd
 !$acc loop vector
                 do j=1,nVertLevels
                       rtheta_p_save(j,i) = rtheta_p(j,i)
@@ -2497,11 +2498,14 @@ GPUOMP !$omp target teams distribute parallel do
                            scalars_2(k,j,i) = scalars_1(k,j,i)
                       enddo
                 enddo
+GPUOMP !$omp end do simd
+GPUOMP !$omp do simd
 !$acc loop vector
                 do j=1,nVertLevels+1
                       rw_save(j,i) = rw(j,i)
                       w_2(j,i) = w_1(j,i)
                 enddo
+GPUOMP !$omp end do simd
          enddo
 GPUOMP !$omp end target teams distribute parallel do
 GPUOMP !$omp target teams distribute parallel do collapse(2)
@@ -2583,7 +2587,7 @@ TMPOMP !$omp rw_save,w_2,ru_save,u_2)
       real (kind=RKIND), dimension(nVertLevels,nEdges+1) :: cqu
       integer, dimension(2,nEdges+1) :: cellsOnEdge
 TMPOMP !$omp target update to(scalars,cqw,cqu,qtot)
-GPUOMP !$omp target teams distribute parallel do collapse(2)
+GPUOMP !$omp target teams distribute parallel do collapse(2) thread_limit(256)
 !$acc data present(scalars,cqw,cqu, qtot)
 !$acc parallel num_gangs(256)  vector_length(32)
 !$acc loop gang 
@@ -2595,11 +2599,12 @@ GPUOMP !$omp target teams distribute parallel do collapse(2)
          end do
 !$acc end parallel
 GPUOMP !$omp end target teams distribute parallel do
-!GPUOMP NOTE: below two regions should be optimized somehow
-GPUOMP !$omp target teams distribute parallel do
+
+GPUOMP !$omp target teams distribute parallel do thread_limit(64)
 !$acc parallel num_gangs(256)  vector_length(32)
 !$acc loop gang 
       do iCell = cellStart,cellEnd
+GPUOMP !$omp do simd
 !$acc loop vector
          do k = 1,nVertLevels
            qtot(k,iCell) = 0.0
@@ -2610,22 +2615,26 @@ GPUOMP !$omp target teams distribute parallel do
                qtot(k,iCell) = qtot(k,iCell) + scalars(iq, k, iCell)
             end do
          end do
+GPUOMP !$omp end do simd
+GPUOMP !$omp do simd
 !$acc loop vector
          do k = 2, nVertLevels
             qtotal = 0.5*(qtot(k,iCell)+qtot(k-1,iCell))
             cqw(k,iCell) = 1.0 / (1.0 + qtotal)
          end do
+GPUOMP !$omp end do simd
       end do
 !$acc end parallel
 GPUOMP !$omp end target teams distribute parallel do
 
-GPUOMP !$omp target teams distribute parallel do
+GPUOMP !$omp target teams distribute parallel do thread_limit(64)
 !$acc parallel  vector_length(32)
 !$acc loop gang
       do iEdge = edgeStart,edgeEnd
          cell1 = cellsOnEdge(1,iEdge)
          cell2 = cellsOnEdge(2,iEdge)
          if (cell1 <= nCellsSolve .or. cell2 <= nCellsSolve) then
+GPUOMP !$omp do simd
 !$acc loop vector  
            do k = 1, nVertLevels
                qtotal = 0.0
@@ -2635,6 +2644,7 @@ GPUOMP !$omp target teams distribute parallel do
                end do
                cqu(k,iEdge) = 1.0 / (1.0 + qtotal)
             end do
+GPUOMP !$omp end do simd
          end if
       end do
 !$acc end parallel
