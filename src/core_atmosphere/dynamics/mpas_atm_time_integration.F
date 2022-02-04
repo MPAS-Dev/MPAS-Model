@@ -7914,37 +7914,35 @@ TMPOMP !$omp invdcedge, invdvedge)
       !
       ! Compute height on cell edges at velocity locations
       !
-GPUOMP !$omp target teams distribute parallel do thread_limit(64)
+GPUOMP !$omp target teams distribute parallel do simd collapse(2) thread_limit(256)
 !$acc parallel vector_length(32) 
 !$acc loop gang
       do iEdge=edgeStart,edgeEnd
+GPUOMP         do k=1,nVertLevels
          cell1 = cellsOnEdge(1,iEdge)
          cell2 = cellsOnEdge(2,iEdge)
          efac = dcEdge(iEdge)*dvEdge(iEdge)
        !   efactemp = dcEdge(iEdge)
        !   efac = efactemp * efactemp
 !DIR$ IVDEP
-GPUOMP !$omp do simd
 !$acc loop vector
-         do k=1,nVertLevels
+         GPUACC do k=1,nVertLevels
             h_edge(k,iEdge) = 0.5 * (h(k,cell1) + h(k,cell2))
             ke_edge(k,iEdge) = efac*u(k,iEdge)**2
          end do
-GPUOMP !$omp end do simd
       end do
 !$acc end parallel
-GPUOMP !$omp end target teams distribute parallel do
+GPUOMP !$omp end target teams distribute parallel do simd
 
       !
       ! Compute circulation and relative vorticity at each vertex
       !
 
-GPUOMP !$omp target teams distribute parallel do thread_limit(64)
+GPUOMP !$omp target teams distribute parallel do simd collapse(2) thread_limit(256)
 !$acc parallel num_workers(4) vector_length(32)
 !$acc loop gang worker
       do iVertex=vertexStart,vertexEnd
 !DIR$ IVDEP
-GPUOMP !$omp do simd
 !$acc loop vector
          do k=1,nVertLevels
          vorticity(k,iVertex) = 0.0
@@ -7955,25 +7953,24 @@ GPUOMP !$omp do simd
          end do
             vorticity(k,iVertex) = vorticity(k,iVertex) * invAreaTriangle(iVertex)
          end do
-GPUOMP !$omp end do simd
       end do
 !$acc end parallel
-GPUOMP !$omp end target teams distribute parallel do
+GPUOMP !$omp end target teams distribute parallel do simd
 
 
       !
       ! Compute the divergence at each cell center
       !
 
-GPUOMP !$omp target teams distribute parallel do thread_limit(64)
+GPUOMP !$omp target teams distribute parallel do simd collapse(2) thread_limit(256)
 !$acc parallel vector_length(32)
 !$acc loop gang
       do iCell=cellStart,cellEnd
+GPUOMP         do k=1,nVertLevels
        r = invAreaCell(iCell)
 !DIR$ IVDEP
-GPUOMP !$omp do simd
 !$acc loop vector
-         do k=1,nVertLevels
+       GPUACC do k=1,nVertLevels
          divergence(k,iCell) = 0.0
          do i=1,nEdgesOnCell(iCell)
             iEdge = edgesOnCell(i,iCell)
@@ -7982,10 +7979,9 @@ GPUOMP !$omp do simd
          end do
             divergence(k,iCell) = divergence(k,iCell) * r
          end do
-GPUOMP !$omp end do simd
       end do
 !$acc end parallel
-GPUOMP !$omp end target teams distribute parallel do
+GPUOMP !$omp end target teams distribute parallel do simd
 
 CPUOMP !$OMP BARRIER
       !
@@ -7994,12 +7990,11 @@ CPUOMP !$OMP BARRIER
       ! Replace 2.0 with 2 in exponentiation to avoid outside chance that
       ! compiler will actually allow "float raised to float" operation
 
-GPUOMP !$omp target teams distribute parallel do thread_limit(64)
+GPUOMP !$omp target teams distribute parallel do simd collapse(2) thread_limit(256)
 !$acc parallel num_workers(4) vector_length(32)
 !$acc loop gang worker
      do iCell=cellStart,cellEnd
 !DIR$ IVDEP
-GPUOMP !$omp do simd
 !$acc loop vector
          do k=1,nVertLevels
          ke(k,iCell) = 0.0
@@ -8009,32 +8004,30 @@ GPUOMP !$omp do simd
          end do
             ke(k,iCell) = ke(k,iCell) * invAreaCell(iCell)
          end do
-GPUOMP !$omp end do simd
       end do
 !$acc end parallel
-GPUOMP !$omp end target teams distribute parallel do
+GPUOMP !$omp end target teams distribute parallel do simd
 
 
       if (hollingsworth) then
-GPUOMP !$omp target teams distribute parallel do thread_limit(64)
+GPUOMP !$omp target teams distribute parallel do simd collapse(2) thread_limit(256)
 !$acc parallel vector_length(32)
       ! if (hollingsworth) then
 !$acc loop gang
          do iVertex=vertexStart,vertexEnd
+            GPUOMP do k=1,nVertLevels
             temp1 = EdgesOnVertex(1,iVertex)
             temp2 = EdgesOnVertex(2,iVertex)
             temp3 = EdgesOnVertex(3,iVertex)
             r = 0.25 * invAreaTriangle(iVertex)
-GPUOMP !$omp do simd
 !$acc loop vector
-            do k=1,nVertLevels
+            GPUACC do k=1,nVertLevels
 
                ke_vertex(k,iVertex) = ( ke_edge(k,temp1)+ke_edge(k,temp2)+ke_edge(k,temp3) )*r
             end do
-GPUOMP !$omp end do simd
          end do
 !$acc end parallel
-GPUOMP !$omp end target teams distribute parallel do
+GPUOMP !$omp end target teams distribute parallel do simd
 
 CPUOMP !$OMP BARRIER
 
@@ -8042,7 +8035,7 @@ CPUOMP !$OMP BARRIER
          !
 
 
-GPUOMP !$omp target teams distribute parallel do collapse(2) thread_limit(256)
+GPUOMP !$omp target teams distribute parallel do simd collapse(2) thread_limit(256)
 !$acc parallel num_workers(4) vector_length(32)
 !$acc loop gang worker
          do iCell=cellStart,cellEnd
@@ -8053,15 +8046,14 @@ GPUOMP !$omp target teams distribute parallel do collapse(2) thread_limit(256)
             end do
          end do
 !$acc end parallel
-GPUOMP !$omp end target teams distribute parallel do
+GPUOMP !$omp end target teams distribute parallel do simd
 
 
-GPUOMP !$omp target teams distribute parallel do thread_limit(64)
+GPUOMP !$omp target teams distribute parallel do simd collapse(2) thread_limit(256)
 !$acc parallel vector_length(32)
 !$acc loop gang
          do iCell=cellStart,cellEnd
 !DIR$ IVDEP
-GPUOMP !$omp do simd
 !$acc loop vector
             do k = 1,nVertLevels
             r = invAreaCell(iCell)
@@ -8071,10 +8063,9 @@ GPUOMP !$omp do simd
                   ke(k,iCell) = ke(k,iCell) + (1.-ke_fact)*kiteAreasOnVertex(j,iVertex) * ke_vertex(k,iVertex) * r
                end do
             end do
-GPUOMP !$omp end do simd
          end do
 !$acc end parallel
-GPUOMP !$omp end target teams distribute parallel do
+GPUOMP !$omp end target teams distribute parallel do simd
       end if
 
 
@@ -8088,12 +8079,11 @@ GPUOMP !$omp end target teams distribute parallel do
       end if
 
       if (reconstruct_v) then
-GPUOMP !$omp target teams distribute parallel do thread_limit(64)
+GPUOMP !$omp target teams distribute parallel do simd collapse(2) thread_limit(256)
 !$acc parallel vector_length(32)
 !$acc loop gang
         do iEdge = edgeStart,edgeEnd
 !DIR$ IVDEP
-GPUOMP !$omp do simd
 !$acc loop vector
           do k = 1,nVertLevels
           v(k,iEdge) = 0.0
@@ -8102,10 +8092,9 @@ GPUOMP !$omp do simd
               v(k,iEdge) = v(k,iEdge) + weightsOnEdge(i,iEdge) * u(k, eoe)
             end do
            end do
-GPUOMP !$omp end do simd
         end do
 !$acc end parallel
-GPUOMP !$omp end target teams distribute parallel do
+GPUOMP !$omp end target teams distribute parallel do simd
       end if
 
 
@@ -8116,7 +8105,7 @@ GPUOMP !$omp end target teams distribute parallel do
       ! Avoid dividing h_vertex by areaTriangle and move areaTriangle into
       ! numerator for the pv_vertex calculation
 
-GPUOMP !$omp target teams distribute parallel do collapse(2) thread_limit(256)
+GPUOMP !$omp target teams distribute parallel do simd collapse(2) thread_limit(256)
 !$acc parallel num_workers(4) vector_length(32)
 !$acc loop gang worker
       do iVertex = vertexStart,vertexEnd
@@ -8127,7 +8116,7 @@ GPUOMP !$omp target teams distribute parallel do collapse(2) thread_limit(256)
          end do
       end do
 !$acc end parallel
-GPUOMP !$omp end target teams distribute parallel do
+GPUOMP !$omp end target teams distribute parallel do simd
 
 
 CPUOMP !$OMP BARRIER
@@ -8137,7 +8126,7 @@ CPUOMP !$OMP BARRIER
       !   ( this computes pv_edge at all edges bounding real cells )
       !
 
-GPUOMP !$omp target teams distribute parallel do collapse(2) thread_limit(256)
+GPUOMP !$omp target teams distribute parallel do simd collapse(2) thread_limit(256)
 !$acc parallel num_workers(4) vector_length(32)
 !$acc loop gang worker
       do iEdge = edgeStart,edgeEnd
@@ -8148,16 +8137,15 @@ GPUOMP !$omp target teams distribute parallel do collapse(2) thread_limit(256)
          end do
       end do
 !$acc end parallel
-GPUOMP !$omp end target teams distribute parallel do
+GPUOMP !$omp end target teams distribute parallel do simd
 
 
       if (config_apvm_upwinding > 0.0) then
-GPUOMP !$omp target teams distribute parallel do thread_limit(64)
+GPUOMP !$omp target teams distribute parallel do simd collapse(2) thread_limit(256)
 !$acc parallel vector_length(32)
 !$acc loop gang
       do iCell=cellStart,cellEnd
 !DIR$ IVDEP
-GPUOMP !$omp do simd
 !$acc loop vector
          do k = 1,nVertLevels
          pv_cell(k,iCell) = 0.0
@@ -8168,10 +8156,9 @@ GPUOMP !$omp do simd
                pv_cell(k,iCell) = pv_cell(k,iCell) + kiteAreasOnVertex(j,iVertex) * pv_vertex(k,iVertex) * r
             end do
          end do
-GPUOMP !$omp end do simd
       end do
 !$acc end parallel
-GPUOMP !$omp end target teams distribute parallel do
+GPUOMP !$omp end target teams distribute parallel do simd
 
 CPUOMP !$OMP BARRIER
 
@@ -8190,10 +8177,11 @@ CPUOMP !$OMP BARRIER
          ! Also precomputed inverses of dvEdge and dcEdge to avoid repeated divisions
          !
 
-GPUOMP !$omp target teams distribute parallel do thread_limit(64)
+GPUOMP !$omp target teams distribute parallel do simd collapse(2) thread_limit(256)
 !$acc parallel vector_length(32)
 !$acc loop gang
          do iEdge = edgeStart,edgeEnd
+            GPUOMP do k = 1,nVertLevels
             r1 = 1.0_RKIND * invDvEdge(iEdge)
             r2 = 1.0_RKIND * invDcEdge(iEdge)
             cell1 = cellsOnEdge(1,iEdge)
@@ -8201,9 +8189,8 @@ GPUOMP !$omp target teams distribute parallel do thread_limit(64)
             v1 = verticesOnEdge(1,iEdge)
             v2 = verticesOnEdge(2,iEdge)
 !DIR$ IVDEP
-GPUOMP !$omp do simd
 !$acc loop vector
-            do k = 1,nVertLevels
+            GPUACC do k = 1,nVertLevels
 
                gradPVt(k,iEdge) = (pv_vertex(k,v2) - pv_vertex(k,v1)) * r1
                gradPVn(k,iEdge) = (pv_cell(k,cell2) - pv_cell(k,cell1)) * r2
@@ -8211,10 +8198,9 @@ GPUOMP !$omp do simd
 
 
             end do
-GPUOMP !$omp end do simd
          end do
 !$acc end parallel
-GPUOMP !$omp end target teams distribute parallel do
+GPUOMP !$omp end target teams distribute parallel do simd
       end if  ! apvm upwinding
 TMPOMP !$omp target update from(h_edge,ke_edge,vorticity,divergence,ke,ke_vertex,v,pv_vertex,pv_edge,pv_cell,gradPVt,gradPVn)
 !$acc end data
