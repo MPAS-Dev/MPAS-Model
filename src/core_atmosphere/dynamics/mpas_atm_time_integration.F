@@ -3338,7 +3338,7 @@ TMPOMP !$omp rw_save, tend_rho, tend_rt, tend_rw, theta_m, w)
 
       if(small_step /= 1) then  !  not needed on first small step 
 
-GPUOMP !$omp target teams distribute parallel do
+GPUOMP !$omp target teams distribute parallel do thread_limit(64)
 !$acc parallel vector_length(32)
 !$acc loop gang
         do iEdge=edgeStart,edgeEnd ! MGD do we really just need edges touching owned cells?
@@ -3377,7 +3377,7 @@ GPUOMP !$omp end target teams distribute parallel do
 
         if(small_step ==1) then
 !      else !  this is all that us needed for ru_p update for first acoustic step in RK substep
-GPUOMP !$omp target teams distribute parallel do
+GPUOMP !$omp target teams distribute parallel do thread_limit(64)
 !$acc parallel vector_length(32)
 !$acc loop gang
         do iEdge=edgeStart,edgeEnd ! MGD do we really just need edges touching owned cells?
@@ -3413,28 +3413,34 @@ GPUOMP !$omp end target teams distribute parallel do
 CPUOMP !$OMP BARRIER
 
       if (small_step == 1) then  ! initialize here on first small timestep.
-GPUOMP !$omp target teams distribute parallel do
+GPUOMP !$omp target teams distribute parallel do simd collapse(2)
 !$acc parallel vector_length(32)
 !$acc loop gang vector
          do iCell=cellStart,cellEnd
-            rtheta_pp_old(1:nVertLevels,iCell) = 0.0
+            GPUACC rtheta_pp_old(1:nVertLevels,iCell) = 0.0
+            GPUOMP do k=1,nVertLevels
+            GPUOMP   rtheta_pp_old(k,iCell) = 0.0
+            GPUOMP enddo
          end do
 !$acc end parallel
-GPUOMP !$omp end target teams distribute parallel do
+GPUOMP !$omp end target teams distribute parallel do simd
       else
-GPUOMP !$omp target teams distribute parallel do
+GPUOMP !$omp target teams distribute parallel do simd collapse(2)
 !$acc parallel vector_length(32)
 !$acc loop gang vector
         do iCell=cellStart,cellEnd
-           rtheta_pp_old(1:nVertLevels,iCell) = rtheta_pp(1:nVertLevels,iCell)
+           GPUACC rtheta_pp_old(1:nVertLevels,iCell) = rtheta_pp(1:nVertLevels,iCell)
+           GPUOMP do k=1,nVertLevels
+           GPUOMP    rtheta_pp_old(k,iCell) = rtheta_pp(k,iCell)
+           GPUOMP enddo
         end do
 !$acc end parallel
-GPUOMP !$omp end target teams distribute parallel do
+GPUOMP !$omp end target teams distribute parallel do simd
       end if
 
 
 !!!OMP BARRIER -- not needed, since rtheta_pp_old not used below when small_step == 1
-GPUOMP !$omp target teams distribute parallel do private(rs,ts)
+GPUOMP !$omp target teams distribute parallel do private(rs,ts) thread_limit(64)
 !$acc parallel vector_length(32)
 !$acc loop gang private(ts, rs)
       do iCell=cellSolveStart,cellSolveEnd  ! loop over all owned cells to solve
@@ -3461,7 +3467,6 @@ GPUOMP !$omp do simd
 GPUOMP !$omp end do simd
 
 !$acc loop seq
-
          do i=1,nEdgesOnCell(iCell) 
             iEdge = edgesOnCell(i,iCell)
             cell1 = cellsOnEdge(1,iEdge)
@@ -3565,12 +3570,14 @@ GPUOMP !$omp end do simd
 
          else ! specifed zone in regional_MPAS
 
+GPUOMP !$omp do simd
             do k=1,nVertLevels
                rho_pp(k,iCell) = rho_pp(k,iCell) + dts*tend_rho(k,iCell)
                rtheta_pp(k,iCell) = rtheta_pp(k,iCell) + dts*tend_rt(k,iCell)
                rw_p(k,iCell) = rw_p(k,iCell) + dts*tend_rw(k,iCell)
                wwAvg(k,iCell) = wwAvg(k,iCell) + 0.5*(1.0+epssm)*rw_p(k,iCell)
             end do
+GPUOMP !$omp end do simd
 
          end if
 
