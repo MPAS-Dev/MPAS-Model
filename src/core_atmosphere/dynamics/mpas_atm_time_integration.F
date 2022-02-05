@@ -3670,7 +3670,7 @@ TMPOMP !$omp target update from(rtheta_pp,rtheta_pp_old,ru_p,ruavg,rho_pp,rw_p,w
 TMPOMP !$omp target update to(rtheta_pp, rtheta_pp_old, &
 TMPOMP !$omp ru_p, theta_m, cellsOnEdge, specZoneMaskEdge)
 GPUOMP !$omp target teams distribute parallel do &
-GPUOMP !$omp private(cell1, cell2, divCell1, divCell2)
+GPUOMP !$omp private(cell1, cell2, divCell1, divCell2) thread_limit(64)
 !$acc parallel num_workers(8) vector_length(16)
 !$acc loop gang worker private(cell1, cell2, divCell1, divCell2)
       do iEdge=edgeStart,edgeEnd ! MGD do we really just need edges touching owned cells?
@@ -3913,20 +3913,20 @@ TMPOMP !$omp zb_cell)
 
       ! Avoid FP errors caused by a potential division by zero below by 
       ! initializing the "garbage cell" of rho_zz to a non-zero value
-GPUOMP !$omp target teams distribute parallel do
+GPUOMP !$omp target teams distribute parallel do simd thread_limit(64)
 !$acc parallel num_workers(8) vector_length(32)
 !$acc loop vector
       do k=1,nVertLevels
          rho_zz(k,nCells+1) = 1.0
       end do
-!$acc end parallel
-GPUOMP !$omp end target teams distribute parallel do
+!$acc end parallel simd
+GPUOMP !$omp end target teams distribute parallel do simd
       ! compute new density everywhere so we can compute u from ru.
       ! we will also need it to compute theta_m below
 
       invNs = 1 / real(ns,RKIND)
 
-GPUOMP !$omp target teams distribute parallel do collapse(2)
+GPUOMP !$omp target teams distribute parallel do simd collapse(2)
 !$acc parallel num_workers(8) vector_length(32)
 !$acc loop gang worker
       do iCell=cellStart,cellEnd
@@ -3941,9 +3941,9 @@ GPUOMP !$omp target teams distribute parallel do collapse(2)
          w(1,iCell) = 0.0
         end do
 !$acc end parallel
-GPUOMP !$omp end target teams distribute parallel do
+GPUOMP !$omp end target teams distribute parallel do simd
 
-GPUOMP !$omp target teams distribute parallel do collapse(2)
+GPUOMP !$omp target teams distribute parallel do simd collapse(2)
 !$acc parallel num_workers(8) vector_length(32)
 !$acc loop gang worker
         do iCell=cellStart,cellEnd
@@ -3960,11 +3960,11 @@ GPUOMP !$omp target teams distribute parallel do collapse(2)
          w(nVertLevels+1,iCell) = 0.0
         end do
 !$acc end parallel
-GPUOMP !$omp end target teams distribute parallel do
+GPUOMP !$omp end target teams distribute parallel do simd
 
 
          if (rk_step == 3) then
-GPUOMP !$omp target teams distribute parallel do collapse(2)
+GPUOMP !$omp target teams distribute parallel do simd collapse(2)
 !$acc parallel num_workers(8) vector_length(32)
 !$acc loop gang worker collapse(2)
         do iCell=cellStart,cellEnd
@@ -3980,12 +3980,12 @@ GPUOMP !$omp target teams distribute parallel do collapse(2)
             end do
         end do
 !$acc end parallel
-GPUOMP !$omp end target teams distribute parallel do
+GPUOMP !$omp end target teams distribute parallel do simd
         end if
 
         if (rk_step /= 3) then
 !         else
-GPUOMP !$omp target teams distribute parallel do collapse(2)
+GPUOMP !$omp target teams distribute parallel do simd collapse(2)
 !$acc parallel num_workers(8) vector_length(32)
 !$acc loop gang worker collapse(2)
         do iCell=cellStart,cellEnd
@@ -3996,7 +3996,7 @@ GPUOMP !$omp target teams distribute parallel do collapse(2)
             end do
       end do
 !$acc end parallel
-GPUOMP !$omp end target teams distribute parallel do
+GPUOMP !$omp end target teams distribute parallel do simd
          end if
 
 
@@ -4006,25 +4006,26 @@ GPUOMP !$omp end target teams distribute parallel do
 
 CPUOMP !$OMP BARRIER
 
-GPUOMP !$omp target teams distribute parallel do private(cell1,cell2)
+GPUOMP !$omp target teams distribute parallel do simd collapse(2) private(cell1,cell2)
 !$acc parallel num_workers(8) vector_length(32)
 !$acc loop gang worker private(cell1, cell2)
       do iEdge=edgeStart,edgeEnd
+         GPUOMP do k = 1, nVertLevels
 
          cell1 = cellsOnEdge(1,iEdge)
          cell2 = cellsOnEdge(2,iEdge)
 
 !DIR$ IVDEP
-         do k = 1, nVertLevels
+         GPUACC do k = 1, nVertLevels
             ruAvg(k,iEdge) = ru_save(k,iEdge) + (ruAvg(k,iEdge) * invNs)
             ru(k,iEdge) = ru_save(k,iEdge) + ru_p(k,iEdge)
             u(k,iEdge) = 2.*ru(k,iEdge)/(rho_zz(k,cell1)+rho_zz(k,cell2))
          end do
       end do
 !$acc end parallel
-GPUOMP !$omp end target teams distribute parallel do
+GPUOMP !$omp end target teams distribute parallel do simd
 CPUOMP !$OMP BARRIER
-GPUOMP !$omp target teams distribute parallel do private(iEdge,flux)
+GPUOMP !$omp target teams distribute parallel do private(iEdge,flux) thread_limit(64)
 !$acc parallel num_workers(8) vector_length(32)
 !$acc loop gang worker private(iEdge, flux)
       do iCell=cellStart,cellEnd
@@ -4043,11 +4044,13 @@ GPUOMP !$omp target teams distribute parallel do private(iEdge,flux)
                                    (zb_cell(1,i,iCell) + sign(1.0_RKIND,flux)*zb3_cell(1,i,iCell))*flux
 
 !DIR$ IVDEP
+GPUOMP !$omp do simd
             do k = 2, nVertLevels
                flux = (fzm(k)*ru(k,iEdge)+fzp(k)*ru(k-1,iEdge))
                w(k,iCell) = w(k,iCell) + edgesOnCell_sign(i,iCell) * &
                                     (zb_cell(k,i,iCell)+sign(1.0_RKIND,flux)*zb3_cell(k,i,iCell))*flux
             end do
+GPUOMP !$omp end do simd
 
          end do
 
@@ -4055,9 +4058,11 @@ GPUOMP !$omp target teams distribute parallel do private(iEdge,flux)
 
 
          !DIR$ IVDEP
+GPUOMP !$omp do simd
          do k = 2, nVertLevels
            w(k,iCell) = w(k,iCell)/(fzm(k)*rho_zz(k,iCell)+fzp(k)*rho_zz(k-1,iCell))
          end do
+GPUOMP !$omp end do simd
 
          end if ! addition for regional_MPAS, no spec zone update
 
