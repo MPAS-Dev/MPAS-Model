@@ -7399,8 +7399,8 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
       do while(associated(commListPtr))
           tempRbuffer => commListPtr % rbuffer
           !$acc data present(tempRbuffer, array, compactHaloInfo, dimsizes, nHaloLayers, gpu_nList_send, gpu_idx_send, gpu_bufferOffset_send) async(counter+1)
-          MPIGPU !$omp target teams distribute parallel do collapse(3) nowait
-          MPICPU !$omp target teams distribute parallel do collapse(3) nowait depend(out:tempRbuffer)
+          MPIGPU !$omp target teams distribute parallel do simd collapse(3) nowait
+          MPICPU !$omp target teams distribute parallel do simd collapse(3) nowait depend(out:tempRbuffer)
           !$acc parallel default(none) num_workers(4) vector_length(128) async(counter+1) 
           !$acc loop independent collapse(3) gang worker vector
           do iHalo = 1, nHaloLayers
@@ -7414,7 +7414,7 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
             end do
           end do
           !$acc end parallel
-          GPUOMP !$omp end target teams distribute parallel do
+          GPUOMP !$omp end target teams distribute parallel do simd
           MPICPU !$omp target update from(tempRbuffer) nowait depend(in:tempRbuffer)
           !$acc end data
         counter=counter+1
@@ -7447,8 +7447,8 @@ GPUOMP !$omp taskwait
         tempRbuffer => commListPtr % rbuffer
           !$acc data present(tempRbuffer,array,compactHaloInfo,dimsizes, nHaloLayers,dimSizes,gpu_idx_recv,gpu_bufferOffset_recv,gpu_nList_recv) async(counter+1)
           MPICPU !$omp target update to(tempRbuffer) nowait depend(out:tempRbuffer)
-          MPICPU !$omp target teams distribute parallel do collapse(3) nowait depend(in:tempRbuffer)
-          MPIGPU !$omp target teams distribute parallel do collapse(3) nowait
+          MPICPU !$omp target teams distribute parallel do simd collapse(3) nowait depend(in:tempRbuffer)
+          MPIGPU !$omp target teams distribute parallel do simd collapse(3) nowait
           !$acc parallel num_workers(4) vector_length(128) async(counter+1)
           !$acc loop independent collapse(3) gang worker vector
           do iHalo = 1, nHaloLayers
@@ -7462,7 +7462,7 @@ GPUOMP !$omp taskwait
             end do
           end do
           !$acc end parallel
-          GPUOMP !$omp end target teams distribute parallel do
+          GPUOMP !$omp end target teams distribute parallel do simd
           !$acc end data
         commListPtr => commListPtr % next
         counter=counter+1
@@ -8333,7 +8333,7 @@ GPUOMP !$omp taskwait
       do while(associated(commListPtr))
           tempRbuffer => commListPtr % rbuffer
           !$acc data present(tempRbuffer, array, compactHaloInfo, dimsizes, nHaloLayers, gpu_nList_send, gpu_idx_send, gpu_bufferOffset_send) async(counter+1)
-          GPUOMP !$omp target teams distribute parallel do collapse(4) nowait
+          GPUOMP !$omp target teams distribute parallel do simd collapse(4) nowait
           !$acc parallel default(none) num_workers(8) vector_length(128) async(counter+1)
           !!$acc kernels async(counter+1)
           !$acc loop independent collapse(4) gang worker vector
@@ -8350,7 +8350,7 @@ GPUOMP !$omp taskwait
           end do
           !!$acc end kernels
           !$acc end parallel
-          GPUOMP !$omp end target teams distribute parallel do
+          GPUOMP !$omp end target teams distribute parallel do simd
           !$acc end data
         counter=counter+1
         commListPtr => commListPtr % next
@@ -8381,7 +8381,7 @@ GPUOMP !$omp taskwait
       do while(associated(commListPtr))
         tempRbuffer => commListPtr % rbuffer
           !$acc data present(tempRbuffer,array,compactHaloInfo,dimsizes, nHaloLayers,dimSizes,gpu_idx_recv,gpu_bufferOffset_recv,gpu_nList_recv) async(counter+1)
-          GPUOMP !$omp target teams distribute parallel do collapse(4) nowait
+          GPUOMP !$omp target teams distribute parallel do simd collapse(4) nowait
           !$acc parallel num_workers(8) vector_length(128) async(counter+1)
           !$acc loop independent collapse(4) gang worker vector
           !!$acc kernels async(counter+1)
@@ -8398,7 +8398,7 @@ GPUOMP !$omp taskwait
           end do
           !!$acc end kernels
           !$acc end parallel
-          GPUOMP !$omp end target teams distribute parallel do
+          GPUOMP !$omp end target teams distribute parallel do simd
           !$acc end data
         commListPtr => commListPtr % next
         counter=counter+1
