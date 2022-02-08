@@ -400,7 +400,7 @@ uReconstructZonal, uReconstructMeridional, includeHalos)!{{{
     !!!$omp do schedule(runtime)
 TMPOMP !$omp target update to(u, uReconstructZonal, uReconstructMeridional, nedgesOnCell,edgesOnCell,latCell,lonCell, coeffs_reconstruct)
 !$acc data present(u,uReconstructX, uReconstructY, uReconstructZ, uReconstructZonal, uReconstructMeridional, nedgesOnCell,edgesOnCell,latCell,lonCell, coeffs_reconstruct)
-GPUOMP !$omp target teams distribute parallel do collapse(2)
+GPUOMP !$omp target teams distribute parallel do simd collapse(2)
 !$acc parallel
 !$acc loop gang worker
     do iCell = 1, nCellParent
@@ -413,14 +413,14 @@ GPUOMP !$omp target teams distribute parallel do collapse(2)
      end do
    enddo
 !$acc end parallel
-GPUOMP !$omp end target teams distribute parallel do
+GPUOMP !$omp end target teams distribute parallel do simd
 
       ! a more efficient reconstruction where
       ! rbf_values*matrix_reconstruct
 
       ! has been precomputed in coeffs_reconstruct
 
-GPUOMP !$omp target teams distribute parallel do
+GPUOMP !$omp target teams distribute parallel do thread_limit(64)
 !$acc parallel
 !$acc loop gang private(iEdge)
     do iCell = 1, nCellParent
@@ -447,16 +447,17 @@ GPUOMP !$omp end target teams distribute parallel do
  
     if (on_a_sphere) then
       !!!$omp do schedule(runtime)
-GPUOMP !$omp target teams distribute parallel do private(clat,slat,clon,slon)
+GPUOMP !$omp target teams distribute parallel do simd collapse(2) private(clat,slat,clon,slon)
 !$acc parallel
 !$acc loop gang worker private(clat,slat,clon,slon)
       do iCell = 1, nCellParent
+        GPUOMP do temp= 1, nVertLevels
         clat = cos(latCell(iCell))
         slat = sin(latCell(iCell))
         clon = cos(lonCell(iCell))
         slon = sin(lonCell(iCell))
         !$acc loop vector
-        do temp= 1, nVertLevels
+        GPUACC do temp= 1, nVertLevels
           uReconstructZonal(temp,iCell) = -uReconstructX(temp,iCell)*slon + &
                                       uReconstructY(temp,iCell)*clon
           uReconstructMeridional(temp,iCell) = -(uReconstructX(temp,iCell)*clon       &
@@ -465,11 +466,11 @@ GPUOMP !$omp target teams distribute parallel do private(clat,slat,clon,slon)
         end do
       end do
 !$acc end parallel
-GPUOMP !$omp end target teams distribute parallel do
+GPUOMP !$omp end target teams distribute parallel do simd
       !!!$omp end do
     else
       !!!$omp do schedule(runtime)
-GPUOMP !$omp target teams distribute parallel do
+GPUOMP !$omp target teams distribute parallel do simd
 !$acc parallel
 !$acc loop gang worker vector
       do iCell = 1, nCellParent
@@ -477,7 +478,7 @@ GPUOMP !$omp target teams distribute parallel do
         uReconstructMeridional(:,iCell) = uReconstructY(:,iCell)
       end do
 !$acc end parallel
-GPUOMP !$omp end target teams distribute parallel do
+GPUOMP !$omp end target teams distribute parallel do simd
       !!!$omp end do
     end if
 !$acc end data
