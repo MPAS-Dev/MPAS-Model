@@ -218,7 +218,7 @@
 ! tend_rho_physics(:,:) = 0._RKIND       ! NB: rho tendency is not currently supplied by physics, but this
                                         !     field may be later filled with IAU or other tendencies
 
-GPUOMP !$omp target teams distribute parallel do collapse(2)
+GPUOMP !$omp target teams distribute parallel do simd collapse(2)
 !$acc parallel vector_length(32)
 !$acc loop gang vector collapse(2)
  do i = 1, nCellsSolveScalar
@@ -226,8 +226,8 @@ GPUOMP !$omp target teams distribute parallel do collapse(2)
     tend_th(k,i) = 0._RKIND
  enddo
  enddo
-GPUOMP !$omp end target teams distribute parallel do
-GPUOMP !$omp target teams distribute parallel do collapse(2)
+GPUOMP !$omp end target teams distribute parallel do simd
+GPUOMP !$omp target teams distribute parallel do simd collapse(2)
 !$acc loop gang vector collapse(2)
  do i = 1, nCellsScalar+1
  do k = 1, nVertLevels
@@ -235,16 +235,16 @@ GPUOMP !$omp target teams distribute parallel do collapse(2)
     tend_rho_physics(k,i) = 0._RKIND
  enddo
  enddo
-GPUOMP !$omp end target teams distribute parallel do
-GPUOMP !$omp target teams distribute parallel do collapse(2)
+GPUOMP !$omp end target teams distribute parallel do simd
+GPUOMP !$omp target teams distribute parallel do simd collapse(2)
 !$acc loop gang vector collapse(2)
  do i = 1, nEdgesScalar+1
  do k = 1, nVertLevels
     tend_ru_physics(k,i) = 0._RKIND
  enddo
  enddo
-GPUOMP !$omp end target teams distribute parallel do
-GPUOMP !$omp target teams distribute parallel do collapse(3)
+GPUOMP !$omp end target teams distribute parallel do simd
+GPUOMP !$omp target teams distribute parallel do simd collapse(3)
 !$acc loop gang vector collapse(3)
  do i = 1, nCellsScalar+1
  do j = 1, nVertLevels
@@ -254,7 +254,7 @@ GPUOMP !$omp target teams distribute parallel do collapse(3)
  enddo
  enddo
 !$acc end parallel
-GPUOMP !$omp end target teams distribute parallel do
+GPUOMP !$omp end target teams distribute parallel do simd
 
 !!!
 ! !$acc update device(tend_th, tend_scalars, tend_ru_physics, tend_rtheta_physics, tend_rho_physics)
@@ -471,7 +471,7 @@ GPUOMP !$omp end target teams distribute parallel do
 
           !MGD for PV budget? should a similar line be in the cumulus section below?
 !!!
-GPUOMP !$omp target teams distribute parallel do collapse(2)
+GPUOMP !$omp target teams distribute parallel do simd collapse(2)
  !$acc parallel vector_length(32)
  !$acc loop gang vector collapse(2)
           do i = 1, nEdges
@@ -480,14 +480,14 @@ GPUOMP !$omp target teams distribute parallel do collapse(2)
           tend_u_phys(k,i) = rublten_Edge(k,i)
           enddo
           enddo
-GPUOMP !$omp end target teams distribute parallel do
+GPUOMP !$omp end target teams distribute parallel do simd
 
 !!!
  !$acc end parallel
        end if
 
 !!!
-GPUOMP !$omp target teams distribute parallel do collapse(2)
+GPUOMP !$omp target teams distribute parallel do simd collapse(2)
  !$acc parallel vector_length(32)
  !$acc loop gang vector collapse(2)
        do i = 1, nEdgesSolve
@@ -497,10 +497,10 @@ GPUOMP !$omp target teams distribute parallel do collapse(2)
        enddo
 !!!
  !$acc end parallel
-GPUOMP !$omp end target teams distribute parallel do
+GPUOMP !$omp end target teams distribute parallel do simd
 
 !!!
-GPUOMP !$omp target teams distribute parallel do collapse(2)
+GPUOMP !$omp target teams distribute parallel do simd collapse(2)
  !$acc parallel vector_length(32)
  !$acc loop gang vector collapse(2)
        do i = 1, nCellsSolve
@@ -513,14 +513,14 @@ GPUOMP !$omp target teams distribute parallel do collapse(2)
        enddo
 !!!
  !$acc end parallel
-GPUOMP !$omp end target teams distribute parallel do
+GPUOMP !$omp end target teams distribute parallel do simd
 
        pbl_select: select case (trim(config_pbl_scheme))
 
           case("bl_mynn")
 
 !!!
-GPUOMP !$omp target teams distribute parallel do collapse(2)
+GPUOMP !$omp target teams distribute parallel do simd collapse(2)
  !$acc parallel vector_length(32)
  !$acc loop gang vector collapse(2)
              do i = 1, nCellsSolve
@@ -530,7 +530,7 @@ GPUOMP !$omp target teams distribute parallel do collapse(2)
              enddo
 !!!
  !$acc end parallel
-GPUOMP !$omp end target teams distribute parallel do
+GPUOMP !$omp end target teams distribute parallel do simd
    
           case default         
 
@@ -541,7 +541,7 @@ GPUOMP !$omp end target teams distribute parallel do
     if (config_convection_scheme .ne. 'off') then
 
 !!!
-GPUOMP !$omp target teams distribute parallel do collapse(2)
+GPUOMP !$omp target teams distribute parallel do simd collapse(2)
  !$acc parallel vector_length(32)
  !$acc loop gang vector collapse(2)
        do i = 1, nCellsSolve
@@ -554,13 +554,13 @@ GPUOMP !$omp target teams distribute parallel do collapse(2)
        enddo
 !!!
  !$acc end parallel
-GPUOMP !$omp end target teams distribute parallel do
+GPUOMP !$omp end target teams distribute parallel do simd
 
         convection_select: select case(config_convection_scheme)
 
            case('cu_kain_fritsch')
 !!!
-GPUOMP !$omp target teams distribute parallel do collapse(2)
+GPUOMP !$omp target teams distribute parallel do simd collapse(2)
  !$acc parallel vector_length(32)
  !$acc loop gang vector collapse(2)
               do i = 1, nCellsSolve
@@ -569,7 +569,7 @@ GPUOMP !$omp target teams distribute parallel do collapse(2)
                  tend_scalars(index_qs,k,i) = tend_scalars(index_qs,k,i) + rqscuten(k,i)*mass(k,i)
               enddo
               enddo
-GPUOMP !$omp end target teams distribute parallel do
+GPUOMP !$omp end target teams distribute parallel do simd
 !!!
  !$acc end parallel
     
@@ -587,7 +587,7 @@ GPUOMP !$omp end target teams distribute parallel do
                                        gpu_compactHaloInfoSize_c_v )
                  
 !!!
-GPUOMP !$omp target teams distribute parallel do collapse(2)
+GPUOMP !$omp target teams distribute parallel do simd collapse(2)
  !$acc parallel vector_length(32)
  !$acc loop gang vector collapse(2)
                  do i = 1, nEdges
@@ -595,13 +595,13 @@ GPUOMP !$omp target teams distribute parallel do collapse(2)
                     tend_u_phys(k,i) = tend_u_phys(k,i) + rucuten_Edge(k,i)
                  enddo
                  enddo
-GPUOMP !$omp end target teams distribute parallel do
+GPUOMP !$omp end target teams distribute parallel do simd
 
 !!!
  !$acc end parallel
               end if
 !!!
-GPUOMP !$omp target teams distribute parallel do collapse(2)
+GPUOMP !$omp target teams distribute parallel do simd collapse(2)
  !$acc parallel vector_length(32)
  !$acc loop gang vector collapse(2)
               do i = 1, nEdgesSolve
@@ -611,7 +611,7 @@ GPUOMP !$omp target teams distribute parallel do collapse(2)
               enddo
 !!!
  !$acc end parallel
-GPUOMP !$omp end target teams distribute parallel do
+GPUOMP !$omp end target teams distribute parallel do simd
 
             case default
         end select convection_select
@@ -620,7 +620,7 @@ GPUOMP !$omp end target teams distribute parallel do
     !add coupled tendencies due to longwave radiation:
     if (config_radt_lw_scheme .ne. 'off') then
 !!!
-GPUOMP !$omp target teams distribute parallel do collapse(2)
+GPUOMP !$omp target teams distribute parallel do simd collapse(2)
  !$acc parallel vector_length(32)
  !$acc loop gang vector collapse(2)
        do i = 1, nCellsSolve
@@ -629,14 +629,14 @@ GPUOMP !$omp target teams distribute parallel do collapse(2)
        enddo
        enddo
 !!!
-GPUOMP !$omp end target teams distribute parallel do
+GPUOMP !$omp end target teams distribute parallel do simd
  !$acc end parallel
     endif
     
     !add coupled tendencies due to shortwave radiation:
     if (config_radt_sw_scheme .ne. 'off') then
 !!!
-GPUOMP !$omp target teams distribute parallel do collapse(2)
+GPUOMP !$omp target teams distribute parallel do simd collapse(2)
  !$acc parallel vector_length(32)
  !$acc loop gang vector collapse(2)
        do i = 1, nCellsSolve
@@ -646,13 +646,13 @@ GPUOMP !$omp target teams distribute parallel do collapse(2)
        enddo
 !!!
  !$acc end parallel
-GPUOMP !$omp end target teams distribute parallel do
+GPUOMP !$omp end target teams distribute parallel do simd
     endif
 
     !if non-hydrostatic core, convert the tendency for the potential temperature to a
     !tendency for the modified potential temperature:
 !!!
-GPUOMP !$omp target teams distribute parallel do collapse(2)
+GPUOMP !$omp target teams distribute parallel do simd collapse(2)
  !$acc parallel vector_length(32)
  !$acc loop gang vector collapse(2)
     do i = 1, nCellsSolve
@@ -662,7 +662,7 @@ GPUOMP !$omp target teams distribute parallel do collapse(2)
        tend_theta(k,i) = tend_theta(k,i) + tend_th(k,i)
     enddo
     enddo
-GPUOMP !$omp end target teams distribute parallel do
+GPUOMP !$omp end target teams distribute parallel do simd
 TMPOMP !$omp target update from(tend_u_phys,tend_u,tend_scalars,tend_th(1:nCellsSolve),tend_theta)
 !!!
  !$acc end parallel
