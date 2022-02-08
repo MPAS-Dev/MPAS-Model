@@ -8881,29 +8881,29 @@ TMPOMP !$omp u_1,u_2,w_1,w_2,theta_m_1,theta_m_2,rho_zz_1,rho_zz_2)
 !$acc rho_zz_old_split,ruAvg,ruAvg_split, wwAvg, wwAvg_split, &
 !$acc u_1,u_2,w_1,w_2,theta_m_1,theta_m_2,rho_zz_1,rho_zz_2)
       if (dynamics_substep < dynamics_split) then
-GPUOMP !$omp target teams distribute parallel do
+GPUOMP !$omp target teams distribute parallel do simd collapse(2)
 !$acc parallel vector_length(32)
 !$acc loop gang
          do i = cellStart,cellEnd
-GPUOMP !$omp do simd
 !$acc loop vector
                 do j=1,nVertLevels
                          rho_p_save(j,i) = rho_p(j,i)
                          theta_m_1(j,i) = theta_m_2(j,i)
                          rtheta_p_save(j,i) = rtheta_p(j,i)
                          rho_zz_1(j,i) = rho_zz_2(j,i)
+                GPUOMP   rw_save(j,i) = rw(j,i)
+                GPUOMP   w_1(j,i) = w_2(j,i)
                 enddo
-GPUOMP !$omp end do simd
-GPUOMP !$omp do simd
+                GPUOMP rw_save(nVertLevels+1,i) = rw(nVertLevels+1,i)
+                GPUOMP w_1(nVertLevels+1,i) = w_2(nVertLevels+1,i)
 !$acc loop vector
-                do j=1,nVertLevels+1
-                         rw_save(j,i) = rw(j,i)
-                         w_1(j,i) = w_2(j,i)
-                enddo
-GPUOMP !$omp end do simd
+                GPUACC do j=1,nVertLevels+1
+                GPUACC          rw_save(j,i) = rw(j,i)
+                GPUACC          w_1(j,i) = w_2(j,i)
+                GPUACC enddo
          enddo
-GPUOMP !$omp end target teams distribute parallel do
-GPUOMP !$omp target teams distribute parallel do collapse(2)
+GPUOMP !$omp end target teams distribute parallel do simd
+GPUOMP !$omp target teams distribute parallel do simd collapse(2)
 !$acc loop gang
          do i = edgeStart,edgeEnd
 !$acc loop vector
@@ -8913,7 +8913,7 @@ GPUOMP !$omp target teams distribute parallel do collapse(2)
                 enddo
          enddo
 !$acc end parallel
-GPUOMP !$omp end target teams distribute parallel do
+GPUOMP !$omp end target teams distribute parallel do simd
 
 !         ru_save(:,edgeStart:edgeEnd) = ru(:,edgeStart:edgeEnd)
 !         rw_save(:,cellStart:cellEnd) = rw(:,cellStart:cellEnd)
@@ -8928,7 +8928,7 @@ GPUOMP !$omp end target teams distribute parallel do
       end if
       if (dynamics_substep == 1) then
 
-GPUOMP !$omp target teams distribute parallel do collapse(2)
+GPUOMP !$omp target teams distribute parallel do simd collapse(2)
 !$acc parallel num_gangs(256) vector_length(32)
 !$acc loop gang
          do i = cellStart,cellEnd
@@ -8937,9 +8937,9 @@ GPUOMP !$omp target teams distribute parallel do collapse(2)
                         wwAvg_split(j,i) = wwAvg(j,i)
                 enddo
          enddo
-GPUOMP !$omp end target teams distribute parallel do
+GPUOMP !$omp end target teams distribute parallel do simd
 
-GPUOMP !$omp target teams distribute parallel do collapse(2)
+GPUOMP !$omp target teams distribute parallel do simd collapse(2)
 !$acc loop gang
          do i = edgeStart,edgeEnd
 !$acc loop vector
@@ -8947,11 +8947,11 @@ GPUOMP !$omp target teams distribute parallel do collapse(2)
                         ruAvg_split(j,i) = ruAvg(j,i)
                 enddo
          enddo
-GPUOMP !$omp end target teams distribute parallel do
+GPUOMP !$omp end target teams distribute parallel do simd
 !$acc end parallel
       else
 
-GPUOMP !$omp target teams distribute parallel do collapse(2)
+GPUOMP !$omp target teams distribute parallel do simd collapse(2)
 !$acc parallel num_gangs(256) vector_length(32)
 !$acc loop gang
          do i = cellStart,cellEnd
@@ -8960,9 +8960,9 @@ GPUOMP !$omp target teams distribute parallel do collapse(2)
                         wwAvg_split(j,i) = wwAvg(j,i)+wwAvg_split(j,i)
                 enddo
          enddo
-GPUOMP !$omp end target teams distribute parallel do
+GPUOMP !$omp end target teams distribute parallel do simd
 
-GPUOMP !$omp target teams distribute parallel do collapse(2)
+GPUOMP !$omp target teams distribute parallel do simd collapse(2)
 !$acc loop gang
          do i = edgeStart,edgeEnd
 !$acc loop vector
@@ -8970,32 +8970,30 @@ GPUOMP !$omp target teams distribute parallel do collapse(2)
                         ruAvg_split(j,i) = ruAvg(j,i)+ruAvg_split(j,i)
                 enddo
          enddo
-GPUOMP !$omp end target teams distribute parallel do
+GPUOMP !$omp end target teams distribute parallel do simd
 !$acc end parallel
 
       end if
 
 
       if (dynamics_substep == dynamics_split) then
-GPUOMP !$omp target teams distribute parallel do
+GPUOMP !$omp target teams distribute parallel do simd collapse(2)
 !$acc parallel num_gangs(256) vector_length(32)
 !$acc loop gang
          do i = cellStart,cellEnd
-GPUOMP !$omp do simd
 !$acc loop vector
-                do j=1,nVertLevels+1
-                        wwAvg(j,i) = wwAvg_split(j,i) * inv_dynamics_split
-                enddo
-GPUOMP !$omp end do simd
-GPUOMP !$omp do simd
+                GPUACC do j=1,nVertLevels+1
+                GPUACC         wwAvg(j,i) = wwAvg_split(j,i) * inv_dynamics_split
+                GPUACC enddo
                 do j=1,nVertLevels
+                GPUOMP  wwAvg(j,i) = wwAvg_split(j,i) * inv_dynamics_split
                         rho_zz_1(j,i) = rho_zz_old_split(j,i)
                 enddo
-GPUOMP !$omp end do simd
+                GPUOMP  wwAvg(nVertLevels+1,i) = wwAvg_split(nVertLevels+1,i) * inv_dynamics_split
          enddo
-GPUOMP !$omp end target teams distribute parallel do
+GPUOMP !$omp end target teams distribute parallel do simd
 
-GPUOMP !$omp target teams distribute parallel do collapse(2)
+GPUOMP !$omp target teams distribute parallel do simd collapse(2)
 !$acc loop gang
          do i = edgeStart,edgeEnd
 !$acc loop vector
@@ -9003,7 +9001,7 @@ GPUOMP !$omp target teams distribute parallel do collapse(2)
                         ruAvg(j,i) = ruAvg_split(j,i) * inv_dynamics_split
                 enddo
          enddo
-GPUOMP !$omp end target teams distribute parallel do
+GPUOMP !$omp end target teams distribute parallel do simd
 !$acc end parallel
       end if
 
