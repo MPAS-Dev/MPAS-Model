@@ -2795,41 +2795,39 @@ TMPOMP !$omp rdzw, cqw, fzm, fzp, p, pb, qtot, rb, rdzu, rt, rtb, t, zz)
       c2 = cp*rcv
 
 !$acc parallel num_workers(8) vector_length(32)
-GPUOMP !$omp target teams distribute parallel do
+GPUOMP !$omp target teams distribute parallel do simd thread_limit(64)
 !$acc loop vector
 ! MGD bad to have all threads setting this variable?
       do k=1,nVertLevels
          cofrz(k) = dtseps*rdzw(k)
       end do
 !$acc end parallel
-GPUOMP !$omp end target teams distribute parallel do
+GPUOMP !$omp end target teams distribute parallel do simd
 
 
-GPUOMP !$omp target teams distribute parallel do
+GPUOMP !$omp target teams distribute parallel do simd collapse(2)
 !$acc parallel num_workers(8) vector_length(32)
 !$acc loop gang worker
       do iCell = cellSolveStart,cellSolveEnd  !  we only need to do cells we are solving for, not halo cells
 !DIR$ IVDEP
-GPUOMP !$omp do simd
-         do k=2,nVertLevels
-            cofwr(k,iCell) =.5*dtseps*gravity*(fzm(k)*zz(k,iCell)+fzp(k)*zz(k-1,iCell))
-         end do
-GPUOMP !$omp end do simd
-         coftz(1,iCell) = 0.0
+         GPUACC do k=2,nVertLevels
+         GPUACC    cofwr(k,iCell) =.5*dtseps*gravity*(fzm(k)*zz(k,iCell)+fzp(k)*zz(k-1,iCell))
+         GPUACC end do
+         GPUACC coftz(1,iCell) = 0.0
 !DIR$ IVDEP
-GPUOMP !$omp do simd
          do k=2,nVertLevels
+         GPUOMP    cofwr(k,iCell) =.5*dtseps*gravity*(fzm(k)*zz(k,iCell)+fzp(k)*zz(k-1,iCell))
             cofwz(k,iCell) = dtseps*c2*(fzm(k)*zz(k,iCell)+fzp(k)*zz(k-1,iCell))  &
                  *rdzu(k)*cqw(k,iCell)*(fzm(k)*p (k,iCell)+fzp(k)*p (k-1,iCell))
             coftz(k,iCell) = dtseps*   (fzm(k)*t (k,iCell)+fzp(k)*t (k-1,iCell))
          end do
-GPUOMP !$omp end do simd
+         GPUOMP coftz(1,iCell) = 0.0
          coftz(nVertLevels+1,iCell) = 0.0
         end do
 !$acc end parallel	  
-GPUOMP !$omp end target teams distribute parallel do
+GPUOMP !$omp end target teams distribute parallel do simd
 
-GPUOMP !$omp target teams distribute parallel do private(qtotal) collapse(2)
+GPUOMP !$omp target teams distribute parallel do simd private(qtotal) collapse(2)
 !$acc parallel num_workers(8) vector_length(32)
 !$acc loop gang worker private(qtotal)
         do iCell = cellSolveStart,cellSolveEnd
@@ -2844,9 +2842,9 @@ GPUOMP !$omp target teams distribute parallel do private(qtotal) collapse(2)
          end do
         end do
 !$acc end parallel
-GPUOMP !$omp end target teams distribute parallel do
+GPUOMP !$omp end target teams distribute parallel do simd
 
-GPUOMP !$omp target teams distribute parallel do
+GPUOMP !$omp target teams distribute parallel do simd
 !$acc parallel num_workers(8) vector_length(32)
 !$acc loop gang worker
         do iCell = cellSolveStart,cellSolveEnd
@@ -2857,9 +2855,10 @@ GPUOMP !$omp target teams distribute parallel do
          alpha_tri(1,iCell) = 0.  ! note, this value is never used
         enddo
 !$acc end parallel
-GPUOMP !$omp end target teams distribute parallel do
+GPUOMP !$omp end target teams distribute parallel do simd
 
-GPUOMP !$omp target teams distribute parallel do
+!GPUOMP NOTE: Problematic subroutine below
+GPUOMP !$omp target teams distribute parallel do thread_limit(64)
 !$acc parallel num_workers(8) vector_length(32)
 !$acc loop gang worker
         do iCell = cellSolveStart,cellSolveEnd
@@ -2893,6 +2892,7 @@ GPUOMP !$omp end do simd
       end do ! loop over cells
 !$acc end parallel
 GPUOMP !$omp end target teams distribute parallel do
+!GPUOMP NOTE: Problematic subroutine above
 TMPOMP !$omp target update from(cofrz,cofwz,cofwr,coftz,cofwt,a_tri,gamma_tri,alpha_tri)
 
 !$acc end data
@@ -3061,7 +3061,7 @@ TMPOMP !$omp zb3_cell, zb_cell, zz)
 !$acc data present(w_tend, &
 !$acc edgesoncell, edgesoncell_sign, fzm, fzp,nedgesoncell, u_tend, &
 !$acc zb3_cell, zb_cell, zz)
-GPUOMP !$omp target teams distribute parallel do private(iEdge,flux)
+GPUOMP !$omp target teams distribute parallel do private(iEdge,flux) thread_limit(64)
 !$acc parallel num_workers(8) vector_length(32)
 !$acc loop gang worker private(iEdge, flux)
       do iCell=cellSolveStart,cellSolveEnd
@@ -3070,16 +3070,20 @@ GPUOMP !$omp target teams distribute parallel do private(iEdge,flux)
          do i=1,nEdgesOnCell(iCell)
             iEdge = edgesOnCell(i,iCell)
 !DIR$ IVDEP
+GPUOMP !$omp do simd
             do k = 2, nVertLevels
                flux = edgesOnCell_sign(i,iCell) * (fzm(k) * u_tend(k,iEdge) + fzp(k) * u_tend(k-1,iEdge))
                w_tend(k,iCell) = w_tend(k,iCell)   &
                         - (zb_cell(k,i,iCell) + sign(1.0_RKIND, u_tend(k,iEdge)) * zb3_cell(k,i,iCell)) * flux
             end do
+GPUOMP !$omp end do simd
          end do
 !DIR$ IVDEP
+GPUOMP !$omp do simd
          do k = 2, nVertLevels
             w_tend(k,iCell) = ( fzm(k) * zz(k,iCell) + fzp(k) * zz(k-1,iCell)   ) * w_tend(k,iCell)
          end do
+GPUOMP !$omp end do simd
          end if ! no conversion in specified zone
       end do
 !$acc end parallel
