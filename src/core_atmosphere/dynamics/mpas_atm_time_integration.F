@@ -1413,7 +1413,7 @@ GPUOMP !$omp target enter data map(alloc:horiz_flux_array)
                      !flux_tmp_arr(:,nEdges+1) = 0.0_RKIND
 GPUOMP !$omp target enter data map(alloc:flux_upwind_tmp_arr,flux_tmp_arr)
                   end if
-GPUOMP !$omp target teams distribute parallel do
+GPUOMP !$omp target teams distribute parallel do simd
 !$acc parallel
 !$acc loop gang worker vector
                   do levelsIdx=1,tmpnVertLevels
@@ -1427,14 +1427,14 @@ GPUOMP !$omp target teams distribute parallel do
                      wdtn_arr(levelsIdx,tmpnCells+1) = 0.0_RKIND
                   enddo
 !$acc end parallel
-GPUOMP !$omp end target teams distribute parallel do
+GPUOMP !$omp end target teams distribute parallel do simd
 GPUOMP !$omp target
 !$acc parallel num_gangs(1) num_workers(1) vector_length(1)
                   wdtn_arr(tmpnVertLevels+1,tmpnCells+1) = 0.0_RKIND
 !$acc end parallel
 GPUOMP !$omp end target
                   if (rk_step < 3 .or. (.not. config_monotonic .and. .not. config_positive_definite)) then
-GPUOMP !$omp target teams distribute parallel do collapse(2)
+GPUOMP !$omp target teams distribute parallel do simd collapse(2)
 !$acc parallel
 !$acc loop gang worker vector collapse(2)
                      do levelsIdx=1,tmpnVertLevels
@@ -1443,9 +1443,9 @@ GPUOMP !$omp target teams distribute parallel do collapse(2)
                         enddo
                      enddo
 !$acc end parallel
-GPUOMP !$omp end target teams distribute parallel do
+GPUOMP !$omp end target teams distribute parallel do simd
                   else
-GPUOMP !$omp target teams distribute parallel do
+GPUOMP !$omp target teams distribute parallel do simd
 !$acc parallel
 !$acc loop gang worker vector
                      do levelsIdx=1,tmpnVertLevels
@@ -1453,7 +1453,7 @@ GPUOMP !$omp target teams distribute parallel do
                         flux_tmp_arr(levelsIdx,tmpnEdges+1) = 0.0_RKIND
                      enddo
 !$acc end parallel
-GPUOMP !$omp end target teams distribute parallel do
+GPUOMP !$omp end target teams distribute parallel do simd
                   end if
 
                   !
@@ -1899,7 +1899,7 @@ GPUOMP !$omp target enter data map(alloc:flux_upwind_tmp_arr,flux_tmp_arr)
                   !flux_tmp_arr(:,nEdges+1) = 0.0_RKIND
                end if
 
-GPUOMP !$omp target teams distribute parallel do
+GPUOMP !$omp target teams distribute parallel do thread_limit(64)
 !$acc parallel
 !$acc loop gang worker
                   do levelsIdx=1,tmpnVertLevels
@@ -1913,9 +1913,11 @@ GPUOMP !$omp target teams distribute parallel do
                      wdtn_arr(levelsIdx,tmpnCells+1) = 0.0_RKIND
                      rho_zz_int(levelsIdx,tmpnCells+1) = 0.0_RKIND
 !$acc loop gang vector
+GPUOMP !$omp do simd
                      do scalarsIdx=1,tmpnum_scalars
                         scalar_tend_array(scalarsIdx,levelsIdx,tmpnCells+1) = 0.0_RKIND
                      enddo
+GPUOMP !$omp end do simd
                   enddo
 !$acc end parallel
 GPUOMP !$omp end target teams distribute parallel do
@@ -1925,7 +1927,7 @@ GPUOMP !$omp target
 !$acc end parallel
 GPUOMP !$omp end target
                   if (rk_step < 3 .or. (.not. config_monotonic .and. .not. config_positive_definite)) then
-GPUOMP !$omp target teams distribute parallel do collapse(2)
+GPUOMP !$omp target teams distribute parallel do simd collapse(2)
 !$acc parallel
 !$acc loop gang worker vector collapse(2)
                      do levelsIdx=1,tmpnVertLevels
@@ -1934,9 +1936,9 @@ GPUOMP !$omp target teams distribute parallel do collapse(2)
                         enddo
                      enddo
 !$acc end parallel
-GPUOMP !$omp end target teams distribute parallel do
+GPUOMP !$omp end target teams distribute parallel do simd
                   else
-GPUOMP !$omp target teams distribute parallel do
+GPUOMP !$omp target teams distribute parallel do simd
 !$acc parallel
 !$acc loop gang worker vector
                      do levelsIdx=1,tmpnVertLevels
@@ -1944,7 +1946,7 @@ GPUOMP !$omp target teams distribute parallel do
                         flux_tmp_arr(levelsIdx,tmpnEdges+1) = 0.0_RKIND
                      enddo
 !$acc end parallel
-GPUOMP !$omp end target teams distribute parallel do
+GPUOMP !$omp end target teams distribute parallel do simd
                   end if
 
 
@@ -2188,7 +2190,7 @@ CPUOMP !$OMP END PARALLEL DO
             !requires that the subroutine atm_advance_scalars_mono was called on the third Runge Kutta step, so that a halo
             !update for the scalars at time_levs(1) is applied. A halo update for the scalars at time_levs(2) is done above. 
             if (config_monotonic) then
-GPUOMP !$omp target teams distribute parallel do collapse(2)
+GPUOMP !$omp target teams distribute parallel do simd collapse(2)
 !$acc parallel vector_length(128)
 !$acc loop gang vector collapse(2)
                do cellsIdx=1,nCells+1
@@ -2197,10 +2199,10 @@ GPUOMP !$omp target teams distribute parallel do collapse(2)
                  end do
                end do
 !$acc end parallel
-GPUOMP !$omp end target teams distribute parallel do
+GPUOMP !$omp end target teams distribute parallel do simd
 !!!               rqvdynten(:,:) = ( scalars_2(index_qv,:,:) - scalars_1(index_qv,:,:) ) / config_dt
             else
-GPUOMP !$omp target teams distribute parallel do collapse(2)
+GPUOMP !$omp target teams distribute parallel do simd collapse(2)
 !$acc parallel vector_length(128)
 !$acc loop gang vector collapse(2)
                do cellsIdx=1,nCells+1
@@ -2209,14 +2211,14 @@ GPUOMP !$omp target teams distribute parallel do collapse(2)
                  end do
                end do
 !$acc end parallel
-GPUOMP !$omp end target teams distribute parallel do
+GPUOMP !$omp end target teams distribute parallel do simd
 !!!               rqvdynten(:,:) = 0._RKIND
             end if
 
          end if
 
          !simply set to zero negative mixing ratios of different water species (for now):
-GPUOMP !$omp target teams distribute parallel do collapse(3)
+GPUOMP !$omp target teams distribute parallel do simd collapse(3)
 !$acc parallel vector_length(128)
 !$acc loop gang vector collapse(3)
          do cellsIdx=1,nCells+1
@@ -2227,7 +2229,7 @@ GPUOMP !$omp target teams distribute parallel do collapse(3)
            end do
          end do
 !$acc end parallel
-GPUOMP !$omp end target teams distribute parallel do
+GPUOMP !$omp end target teams distribute parallel do simd
 !!!         where ( scalars_2(:,:,:) < 0.0)  &
 !!!            scalars_2(:,:,:) = 0.0
 
