@@ -20,6 +20,9 @@
 !
 !-----------------------------------------------------------------------
 
+#define REPORT_FIELD_ALLOCATION(F,B) ! call field_allocate_mesg(F, B)
+#define REPORT_TOTAL_ALLOCATION(B) ! call total_allocated_mesg(B)
+
 module mpas_block_creator
 
    use mpas_dmpar
@@ -1632,6 +1635,7 @@ module mpas_block_creator
 
                         if ( real1DField % isPersistent ) then
                            field_bytes = int(real1DField % dimSizes(1), kind=I8KIND) * real_size
+                           REPORT_FIELD_ALLOCATION(real1DField % fieldName, field_bytes)
                            allocate(real1DField % array(real1DField % dimSizes(1)), stat=ierr_alloc)
                            if (ierr_alloc /= 0) then
                               call mpas_log_write('failed to allocate '//trim(real1DField % fieldName), messageType=MPAS_LOG_ERR)
@@ -1639,6 +1643,7 @@ module mpas_block_creator
                               return
                            end if
                            allocated_bytes = allocated_bytes + field_bytes
+                           REPORT_TOTAL_ALLOCATION(allocated_bytes)
                            real1DField % array(:) = real1DField % defaultValue
                         end if
                      end if
@@ -1661,6 +1666,7 @@ module mpas_block_creator
                            field_bytes = int(real2DField % dimSizes(1), kind=I8KIND) &
                                        * int(real2DField % dimSizes(2), kind=I8KIND) &
                                        * real_size
+                           REPORT_FIELD_ALLOCATION(real2DField % fieldName, field_bytes)
                            allocate(real2DField % array(real2DField % dimSizes(1), real2DField % dimSizes(2)), stat=ierr_alloc)
                            if (ierr_alloc /= 0) then
                               call mpas_log_write('failed to allocate '//trim(real2DField % fieldName), messageType=MPAS_LOG_ERR)
@@ -1668,6 +1674,7 @@ module mpas_block_creator
                               return
                            end if
                            allocated_bytes = allocated_bytes + field_bytes
+                           REPORT_TOTAL_ALLOCATION(allocated_bytes)
                            real2DField % array(:,:) = real2DField % defaultValue
                         end if
                      end if
@@ -1691,6 +1698,7 @@ module mpas_block_creator
                                        * int(real3DField % dimSizes(2), kind=I8KIND) &
                                        * int(real3DField % dimSizes(3), kind=I8KIND) &
                                        * real_size
+                           REPORT_FIELD_ALLOCATION(real3DField % fieldName, field_bytes)
                            allocate(real3DField % array(real3DField % dimSizes(1), real3DField % dimSizes(2), &
                                                         real3DField % dimSizes(3)), stat=ierr_alloc)
                            if (ierr_alloc /= 0) then
@@ -1699,6 +1707,7 @@ module mpas_block_creator
                               return
                            end if
                            allocated_bytes = allocated_bytes + field_bytes
+                           REPORT_TOTAL_ALLOCATION(allocated_bytes)
                            real3DField % array(:,:,:) = real3DField % defaultValue
                         end if
                      end if
@@ -1723,6 +1732,7 @@ module mpas_block_creator
                                        * int(real4DField % dimSizes(3), kind=I8KIND) &
                                        * int(real4DField % dimSizes(4), kind=I8KIND) &
                                        * real_size
+                           REPORT_FIELD_ALLOCATION(real4DField % fieldName, field_bytes)
                            allocate(real4DField % array(real4DField % dimSizes(1), real4DField % dimSizes(2), &
                                                         real4DField % dimSizes(3), real4DField % dimSizes(4)), &
                                                         stat=ierr_alloc)
@@ -1732,6 +1742,7 @@ module mpas_block_creator
                               return
                            end if
                            allocated_bytes = allocated_bytes + field_bytes
+                           REPORT_TOTAL_ALLOCATION(allocated_bytes)
                            real4DField % array(:,:,:,:) = real4DField % defaultValue
                         end if
                      end if
@@ -1757,6 +1768,7 @@ module mpas_block_creator
                                        * int(real5DField % dimSizes(4), kind=I8KIND) &
                                        * int(real5DField % dimSizes(5), kind=I8KIND) &
                                        * real_size
+                           REPORT_FIELD_ALLOCATION(real5DField % fieldName, field_bytes)
                            allocate(real5DField % array(real5DField % dimSizes(1), real5DField % dimSizes(2), &
                                                         real5DField % dimSizes(3), real5DField % dimSizes(4), &
                                                         real5DField % dimSizes(5)), stat=ierr_alloc)
@@ -1766,6 +1778,7 @@ module mpas_block_creator
                               return
                            end if
                            allocated_bytes = allocated_bytes + field_bytes
+                           REPORT_TOTAL_ALLOCATION(allocated_bytes)
                            real5DField % array(:,:,:,:,:) = real5DField % defaultValue
                         end if
                      end if
@@ -1788,6 +1801,7 @@ module mpas_block_creator
 
                         if ( int1DField % isPersistent ) then
                            field_bytes = int(int1DField % dimSizes(1), kind=I8KIND) * int_size
+                           REPORT_FIELD_ALLOCATION(int1DField % fieldName, field_bytes)
                            allocate(int1DField % array(int1DField % dimSizes(1)), stat=ierr_alloc)
                            if (ierr_alloc /= 0) then
                               call mpas_log_write('failed to allocate '//trim(int1DField % fieldName), messageType=MPAS_LOG_ERR)
@@ -1795,6 +1809,7 @@ module mpas_block_creator
                               return
                            end if
                            allocated_bytes = allocated_bytes + field_bytes
+                           REPORT_TOTAL_ALLOCATION(allocated_bytes)
                            int1DField % array(:) = int1DField % defaultValue
                         end if
                      end if
@@ -1817,6 +1832,7 @@ module mpas_block_creator
                            field_bytes = int(int2DField % dimSizes(1), kind=I8KIND) &
                                        * int(int2DField % dimSizes(2), kind=I8KIND) &
                                        * int_size
+                           REPORT_FIELD_ALLOCATION(int2DField % fieldName, field_bytes)
                            allocate(int2DField % array(int2DField % dimSizes(1), int2DField % dimSizes(2)), stat=ierr_alloc)
                            if (ierr_alloc /= 0) then
                               call mpas_log_write('failed to allocate '//trim(int2DField % fieldName), messageType=MPAS_LOG_ERR)
@@ -1824,6 +1840,7 @@ module mpas_block_creator
                               return
                            end if
                            allocated_bytes = allocated_bytes + field_bytes
+                           REPORT_TOTAL_ALLOCATION(allocated_bytes)
                            int2DField % array(:,:) = int2DField % defaultValue
                         end if
                      end if
@@ -1847,6 +1864,7 @@ module mpas_block_creator
                                        * int(int3DField % dimSizes(2), kind=I8KIND) &
                                        * int(int3DField % dimSizes(3), kind=I8KIND) &
                                        * int_size
+                           REPORT_FIELD_ALLOCATION(int3DField % fieldName, field_bytes)
                            allocate(int3DField % array(int3DField % dimSizes(1), int3DField % dimSizes(2), &
                                                        int3DField % dimSizes(3)), stat=ierr_alloc)
                            if (ierr_alloc /= 0) then
@@ -1855,6 +1873,7 @@ module mpas_block_creator
                               return
                            end if
                            allocated_bytes = allocated_bytes + field_bytes
+                           REPORT_TOTAL_ALLOCATION(allocated_bytes)
                            int3DField % array(:,:,:) = int3DField % defaultValue
                         end if
                      end if
@@ -1877,6 +1896,7 @@ module mpas_block_creator
 
                         if ( char1DField % isPersistent ) then
                            field_bytes = char1DField % dimSizes(1)
+                           REPORT_FIELD_ALLOCATION(char1DField % fieldName, field_bytes)
                            allocate(char1DField % array(char1DField % dimSizes(1)), stat=ierr_alloc)
                            if (ierr_alloc /= 0) then
                               call mpas_log_write('failed to allocate '//trim(char1DField % fieldName), messageType=MPAS_LOG_ERR)
@@ -1884,6 +1904,7 @@ module mpas_block_creator
                               return
                            end if
                            allocated_bytes = allocated_bytes + field_bytes
+                           REPORT_TOTAL_ALLOCATION(allocated_bytes)
                            char1DField % array(:) = char1DField % defaultValue
                         end if
                      end if
@@ -1908,5 +1929,51 @@ module mpas_block_creator
                           //' was neither read nor defined.', MPAS_LOG_CRIT)
 
    end subroutine missing_dim_abort 
+
+
+!***********************************************************************
+!
+!  routine field_allocate_mesg
+!
+!> \brief   Adds message to log file about memory to be allocated for a field
+!> \author  Michael Duda
+!> \date    8 February 2022
+!> \details 
+!>  Given the name of a field and the number of bytes to be allocated for that
+!>  field, write a message to the log file indicating that the specified number
+!>  of bytes will be allocated for the field.
+!
+!-----------------------------------------------------------------------
+   subroutine field_allocate_mesg(fieldName, field_bytes)
+
+      character(len=*), intent(in) :: fieldName
+      integer(kind=I8KIND), intent(in) :: field_bytes
+
+      call mpas_log_write(' allocating $i bytes for '//trim(fieldName), intArgs=[int(field_bytes)])
+
+   end subroutine field_allocate_mesg
+
+
+!***********************************************************************
+!
+!  routine total_allocated_mesg
+!
+!> \brief   Adds message to log file about total memory allocated for fields
+!> \author  Michael Duda
+!> \date    8 February 2022
+!> \details 
+!>  Given the the total number of bytes allocated as of the call to this routine,
+!>  write a message to the log file indicating the total number of kB that have
+!>  been allocated for fields. The allocated_bytes argument is measured in bytes,
+!>  and this value is internally converted to kB by this routine.
+!
+!-----------------------------------------------------------------------
+   subroutine total_allocated_mesg(allocated_bytes)
+
+      integer(kind=I8KIND), intent(in) :: allocated_bytes
+
+      call mpas_log_write('  total $i kB allocated on this task', intArgs=[int(allocated_bytes / 1000_I8KIND)])
+
+   end subroutine total_allocated_mesg
 
 end module mpas_block_creator
