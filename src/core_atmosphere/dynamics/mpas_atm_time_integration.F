@@ -9,7 +9,7 @@
 
 #include "mpas_openmp.inc"
 module atm_time_integration
-   use atm_time_integration_test
+   !use atm_time_integration_test
    use mpas_derived_types
    use mpas_pool_routines
    use mpas_kind_types
