@@ -218,34 +218,42 @@
 ! tend_rho_physics(:,:) = 0._RKIND       ! NB: rho tendency is not currently supplied by physics, but this
                                         !     field may be later filled with IAU or other tendencies
 
-GPUOMP !$omp target teams distribute parallel do simd collapse(2)
+!GPUOMP !$omp target teams distribute parallel do simd collapse(2)
 !$acc parallel vector_length(32)
 !$acc loop gang vector collapse(2)
+ GPUOMP !$omp target teams
+ GPUOMP !$omp distribute parallel do simd collapse(2)
  do i = 1, nCellsSolveScalar
  do k = 1, nVertLevels
     tend_th(k,i) = 0._RKIND
  enddo
  enddo
-GPUOMP !$omp end target teams distribute parallel do simd
-GPUOMP !$omp target teams distribute parallel do simd collapse(2)
+ GPUOMP !$omp end distribute parallel do simd
+!GPUOMP !$omp end target teams distribute parallel do simd
+!GPUOMP !$omp target teams distribute parallel do simd collapse(2)
 !$acc loop gang vector collapse(2)
+ GPUOMP !$omp distribute parallel do simd collapse(2)
  do i = 1, nCellsScalar+1
  do k = 1, nVertLevels
     tend_rtheta_physics(k,i) = 0._RKIND
     tend_rho_physics(k,i) = 0._RKIND
  enddo
  enddo
-GPUOMP !$omp end target teams distribute parallel do simd
-GPUOMP !$omp target teams distribute parallel do simd collapse(2)
+ GPUOMP !$omp end distribute parallel do simd
+!GPUOMP !$omp end target teams distribute parallel do simd
+!GPUOMP !$omp target teams distribute parallel do simd collapse(2)
 !$acc loop gang vector collapse(2)
+ GPUOMP !$omp distribute parallel do simd collapse(2)
  do i = 1, nEdgesScalar+1
  do k = 1, nVertLevels
     tend_ru_physics(k,i) = 0._RKIND
  enddo
  enddo
-GPUOMP !$omp end target teams distribute parallel do simd
-GPUOMP !$omp target teams distribute parallel do simd collapse(3)
+ GPUOMP !$omp end distribute parallel do simd
+!GPUOMP !$omp end target teams distribute parallel do simd
+!GPUOMP !$omp target teams distribute parallel do simd collapse(3)
 !$acc loop gang vector collapse(3)
+ GPUOMP !$omp distribute parallel do simd collapse(3)
  do i = 1, nCellsScalar+1
  do j = 1, nVertLevels
  do k = 1, num_scalars
@@ -253,8 +261,10 @@ GPUOMP !$omp target teams distribute parallel do simd collapse(3)
  enddo
  enddo
  enddo
+ GPUOMP !$omp end distribute parallel do simd
+ GPUOMP !$omp end target teams
 !$acc end parallel
-GPUOMP !$omp end target teams distribute parallel do simd
+!GPUOMP !$omp end target teams distribute parallel do simd
 
 !!!
 ! !$acc update device(tend_th, tend_scalars, tend_ru_physics, tend_rtheta_physics, tend_rho_physics)
