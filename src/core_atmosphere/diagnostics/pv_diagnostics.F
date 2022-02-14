@@ -599,29 +599,41 @@ module pv_diagnostics
       ! (2) flood fill troposphere (<2pvu) from troposphere seeds near surface.
       !Somewhat paradoxically, the bottom of the stratosphere is lower than the top of the troposphere.
       
+      !Originally, it was assumed that each (MPI) domain would have >0 cells with "right" DT found by flood filling.
+      !However, for "small" domains over the Arctic say during winter, the entire surface can be capped by high PV.
+      !So, we need to communicate between domains during the flood fill or else we find the DT at the surface.
+      !The extreme limiting case is if we had every cell as its own domain; then, it's clear that there has to be communication.
+
       !The "output" is iLev_DT, which is the vertical index for the level >= pvuVal. If >nVertLevels, pvuVal above column. If <2, pvuVal below column.
       !Communication between blocks during the flood fill may be needed to treat some edge cases appropriately.
 
-      use mpas_pool_routines, only : mpas_pool_get_dimension, mpas_pool_get_array
+      use mpas_pool_routines, only : mpas_pool_get_dimension, mpas_pool_get_array, mpas_pool_get_field
+      use mpas_dmpar, only : mpas_dmpar_max_int,mpas_dmpar_exch_halo_field
+      use mpas_derived_types, only : dm_info, field2DInteger
      
       implicit none
       
       type (mpas_pool_type), intent(in) :: mesh
       type (mpas_pool_type), intent(inout) :: diag
       real(kind=RKIND), intent(in) :: pvuVal
-      
-      integer :: iCell, k, nChanged, iNbr, iCellNbr, levInd
-      integer, pointer :: nCells, nVertLevels
+
+      integer :: iCell, k, nChanged, iNbr, iCellNbr, levInd, haloChanged, global_haloChanged
+      integer, pointer :: nCells, nVertLevels, nCellsSolve
       integer, dimension(:), pointer :: nEdgesOnCell, iLev_DT
-      integer, dimension(:,:), pointer :: cellsOnCell
-      
+      integer, dimension(:,:), pointer :: cellsOnCell, inTropo
+
+      type (field2DInteger), pointer :: inTropo_f
+
       real(kind=RKIND) :: sgnHemi, sgn
       real(kind=RKIND),dimension(:),pointer:: latCell
       real(kind=RKIND), dimension(:,:), pointer :: ertel_pv
       
-      integer, dimension(:,:), allocatable :: candInTropo, inTropo !whether in troposphere
+      type (dm_info), pointer :: dminfo
+
+      integer, dimension(:,:), allocatable :: candInTropo !whether in troposphere
       
       call mpas_pool_get_dimension(mesh, 'nCells', nCells)
+      call mpas_pool_get_dimension(mesh, 'nCellsSolve', nCellsSolve)
       call mpas_pool_get_dimension(mesh, 'nVertLevels', nVertLevels)
       call mpas_pool_get_array(mesh, 'nEdgesOnCell', nEdgesOnCell)
       call mpas_pool_get_array(mesh, 'cellsOnCell', cellsOnCell)
@@ -630,9 +642,9 @@ module pv_diagnostics
       call mpas_pool_get_array(diag, 'ertel_pv', ertel_pv)
       !call mpas_pool_get_array(diag, 'iLev_DT_trop', iLev_DT)
       call mpas_pool_get_array(diag, 'iLev_DT', iLev_DT)
+      call mpas_pool_get_array(diag, 'inTropo', inTropo)
       
       allocate(candInTropo(nVertLevels, nCells+1))
-      allocate(inTropo(nVertLevels, nCells+1))
       candInTropo(:,:) = 0
       inTropo(:,:) = 0
       !store whether each level above DT to avoid repeating logic. we'll use cand as a isVisited marker further below.
@@ -653,7 +665,7 @@ module pv_diagnostics
          do k=1,levInd
             if (candInTropo(k,iCell) .GT. 0) then
                inTropo(k,iCell) = 1
-               candInTropo(k,iCell) = 0
+               !candInTropo(k,iCell) = 0
                nChanged = nChanged+1
             end if
          end do
@@ -661,48 +673,63 @@ module pv_diagnostics
       
       !flood fill from the given seeds. since I don't know enough fortran,
       !we'll just brute force a continuing loop rather than queue.
-      do while(nChanged .GT. 0)
-        nChanged = 0
-        do iCell=1,nCells
-          do k=1,nVertLevels
-             !update if candidate and neighbor in troposphere
-             if (candInTropo(k,iCell) .GT. 0) then
-                !nbr below
-                if (k .GT. 1) then
-                  if (inTropo(k-1,iCell) .GT. 0) then
-                    inTropo(k,iCell) = 1
-                    candInTropo(k,iCell) = 0
-                    nChanged = nChanged+1
-                    cycle
+      call mpas_pool_get_field(diag, 'inTropo', inTropo_f)
+      dminfo => inTropo_f % block % domain % dminfo
+      global_haloChanged = 1
+      do while(global_haloChanged .GT. 0) !any cell in a halo has changed, to propagate to other domains
+        global_haloChanged = 0 !aggregate the number of changed cells w/in the loop below
+        do while(nChanged .GT. 0)
+          nChanged = 0
+          do iCell=1,nCells !should we look for neighbors of hallo cells?
+          !do iCell=1,nCellsSolve !should we look for neighbors of hallo cells?
+            do k=1,nVertLevels
+               !update if candidate and neighbor in troposphere
+               if ((candInTropo(k,iCell) .GT. 0) .AND. (inTropo(k,iCell).LT.1) ) then
+                  !nbr below
+                  if (k .GT. 1) then
+                    if (inTropo(k-1,iCell) .GT. 0) then
+                      inTropo(k,iCell) = 1
+                      !candInTropo(k,iCell) = 0
+                      nChanged = nChanged+1
+                      cycle
+                    end if
                   end if
-                end if
-                
-                !side nbrs
-                do iNbr = 1, nEdgesOnCell(iCell)
-                  iCellNbr = cellsOnCell(iNbr,iCell)
-                  if (inTropo(k,iCellNbr) .GT. 0) then
-                    inTropo(k,iCell) = 1
-                    candInTropo(k,iCell) = 0
-                    nChanged = nChanged+1
-                    cycle
+
+                  !side nbrs
+                  do iNbr = 1, nEdgesOnCell(iCell)
+                    iCellNbr = cellsOnCell(iNbr,iCell)
+                    if (inTropo(k,iCellNbr) .GT. 0) then
+                      inTropo(k,iCell) = 1
+                      !candInTropo(k,iCell) = 0
+                      nChanged = nChanged+1
+                      exit
+                    end if
+                  end do
+
+                  !nbr above
+                  if (k .LT. nVertLevels) then
+                    if (inTropo(k+1,iCell) .GT. 0) then
+                      inTropo(k,iCell) = 1
+                      !candInTropo(k,iCell) = 0
+                      nChanged = nChanged+1
+                      cycle
+                    end if
                   end if
-                end do
-                
-                !nbr above
-                if (k .LT. nVertLevels) then
-                  if (inTropo(k+1,iCell) .GT. 0) then
-                    inTropo(k,iCell) = 1
-                    candInTropo(k,iCell) = 0
-                    nChanged = nChanged+1
-                    cycle
-                  end if
-                end if
-                
-             end if !candIn
-          end do !levels
-        end do !cells
-        !here's where a communication would be needed for edge cases !!! 
-      end do !while
+
+               end if !candIn
+            end do !levels
+          end do !cells
+          global_haloChanged = global_haloChanged+nChanged
+        end do !while w/in domain
+        !communicate to other domains for edge case where a chunk of a block hasn't gotten to fill
+        nChanged = global_haloChanged
+        call mpas_dmpar_max_int(dminfo, nChanged, global_haloChanged)
+        if (global_haloChanged .GT. 0) then !communicate inTropo everywhere
+          call mpas_dmpar_exch_halo_field(inTropo_f)
+        end if
+        nChanged = global_haloChanged !so each block will iterate again if anything changed
+      end do !while haloChanged
+      deallocate(candInTropo)
       
       !Fill iLev_DT with the lowest level above the tropopause (If DT above column, iLev>nVertLevels. If DT below column, iLev=0.
       do iCell=1,nCells
@@ -1465,7 +1492,7 @@ module pv_diagnostics
                depv_dt_mp(k,iCell) = 0.0_RKIND
             end if
             
-            if (associated(dtheta_dt_mp)) then
+            if (associated(dtheta_dt_mix)) then
                call calc_grad_cell(gradtheta, &
                                 iCell, k, nVertLevels, nEdgesOnCell(iCell), verticesOnCell, kiteAreasOnVertex, &
                                 cellsOnCell, edgesOnCell, cellsOnEdge, dvEdge, edgeNormalVectors, &

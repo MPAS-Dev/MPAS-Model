@@ -64,5 +64,8 @@
              description="Frictional EPV tendency on dynamic tropopause"/>
 #endif
 
+        <var name="inTropo" type="integer" dimensions="nVertLevels nCells Time" units="0/1"
+             description="1 if within troposphere based on EPV flood fill"/>
+
 </var_struct>
 

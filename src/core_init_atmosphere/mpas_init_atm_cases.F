@@ -1674,6 +1674,8 @@ module init_atm_cases
 !
 !    for reference sounding 
 !
+     qvb(:) = 0.0_RKIND
+
      do itr=1,30
 
       pitop = 1.-.5*dzw(1)*gravity*(1.+scalars(index_qv,1,1))/(cp*t(1,1)*zz(1,1))
@@ -4564,7 +4566,6 @@ call mpas_log_write('Done with soil consistency check')
             target_z = 0.5 * (zgrid(k,iCell) + zgrid(k+1,iCell))
             relhum(k,iCell) = vertical_interp(target_z, nfglevels_actual-1, &
                                        sorted_arr(:,1:nfglevels_actual-1), order=1, extrap=0)
-            if (target_z < z_fg(1,iCell) .and. k < nVertLevels) relhum(k,iCell) = relhum(k+1,iCell)
          end do
 
 
@@ -4582,7 +4583,6 @@ call mpas_log_write('Done with soil consistency check')
             target_z = 0.5 * (zgrid(k,iCell) + zgrid(k+1,iCell))
             spechum(k,iCell) = vertical_interp(target_z, nfglevels_actual-1, &
                                         sorted_arr(:,1:nfglevels_actual-1), order=1, extrap=0)
-            if (target_z < z_fg(1,iCell) .and. k < nVertLevels) spechum(k,iCell) = spechum(k+1,iCell)
          end do
 
 
