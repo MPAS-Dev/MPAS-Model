@@ -1,0 +1,682 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<diagram program="umlet" version="13.3">
+  <zoom_level>10</zoom_level>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>40</x>
+      <y>80</y>
+      <w>250</w>
+      <h>80</h>
+    </coordinates>
+    <panel_attributes>mpas.F
+--
+driver/
+--
+calls mpas_subdriver.F routines
+
+
+
+</panel_attributes>
+    <additional_attributes/>
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>40</x>
+      <y>190</y>
+      <w>150</w>
+      <h>120</h>
+    </coordinates>
+    <panel_attributes>mpas_subdriver.F
+--
+driver/
+--
+calls:
+mpas_init
+mpas_run
+mpas_finalize
+
+</panel_attributes>
+    <additional_attributes/>
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>40</x>
+      <y>360</y>
+      <w>360</w>
+      <h>210</h>
+    </coordinates>
+    <panel_attributes>mpas_init
+--
+driver/mpas_subdriver.F
+--
+-Reads arguments
+-Allocates core (mpas_core_types.inc)
+-Allocates domain (mpas_domain_routines.F)
+-Initializes MPI stuff (mpas_framework.F)
+Calls:
+-init_atm_setup_core
+-init_atm_setup_domain
+Then
+- core_init(domain_ptr, timeStamp) =&gt;
+  init_atm_core_init in mpas_init_atm_core.F
+
+
+</panel_attributes>
+    <additional_attributes/>
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>480</x>
+      <y>200</y>
+      <w>270</w>
+      <h>110</h>
+    </coordinates>
+    <panel_attributes>mpas_allocate_domain
+--
+framework/mpas_domain_routines.F
+--
+Allocate domain: 
+framework/mpas_derived_types.F
+mpas_domain_types.inc
+</panel_attributes>
+    <additional_attributes/>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>60</x>
+      <y>150</y>
+      <w>30</w>
+      <h>60</h>
+    </coordinates>
+    <panel_attributes>lt=&lt;-</panel_attributes>
+    <additional_attributes>10.0;40.0;10.0;10.0</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>390</x>
+      <y>200</y>
+      <w>110</w>
+      <h>270</h>
+    </coordinates>
+    <panel_attributes>lt=&lt;-&gt;
+</panel_attributes>
+    <additional_attributes>10.0;250.0;90.0;10.0</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>60</x>
+      <y>300</y>
+      <w>30</w>
+      <h>80</h>
+    </coordinates>
+    <panel_attributes>lt=&lt;-</panel_attributes>
+    <additional_attributes>10.0;60.0;10.0;10.0</additional_attributes>
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>480</x>
+      <y>330</y>
+      <w>370</w>
+      <h>200</h>
+    </coordinates>
+    <panel_attributes>init_atm_setup_core &amp; init_atm_setup_domain
+--
+core_init_atmosphere/init_atm_core_interface.F
+--
+Sets basic core/domain variables
+Core:
+ inc/core_variables.inc
+ uses atm_core funcs which lives in 
+ core_atmosphere/mpas_atm_core.F
+Domain
+ inc/domain_variables.inc
+
+
+</panel_attributes>
+    <additional_attributes/>
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>0</x>
+      <y>0</y>
+      <w>470</w>
+      <h>70</h>
+    </coordinates>
+    <panel_attributes>INIT_ATMOSPHERE_MODEL
+PROGRAM
+--
+CORE_INIT_ATMOSPHERE
+
+
+bg=yellow</panel_attributes>
+    <additional_attributes/>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>390</x>
+      <y>340</y>
+      <w>110</w>
+      <h>200</h>
+    </coordinates>
+    <panel_attributes>lt=&lt;-&gt;
+</panel_attributes>
+    <additional_attributes>10.0;180.0;90.0;10.0</additional_attributes>
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>40</x>
+      <y>600</y>
+      <w>360</w>
+      <h>210</h>
+    </coordinates>
+    <panel_attributes>mpas_run
+--
+driver/mpas_subdriver.F
+--
+Calls
+domain_ptr % core % core_run(domain_ptr)
+  =&gt; init_atm_core_run
+which lives in 
+core_init_atmosphere/mpas_init_atm_core.F
+
+
+</panel_attributes>
+    <additional_attributes/>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>60</x>
+      <y>560</y>
+      <w>30</w>
+      <h>60</h>
+    </coordinates>
+    <panel_attributes>lt=&lt;-</panel_attributes>
+    <additional_attributes>10.0;40.0;10.0;10.0</additional_attributes>
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>470</x>
+      <y>730</y>
+      <w>390</w>
+      <h>110</h>
+    </coordinates>
+    <panel_attributes>init_atm_core_run
+--
+core_init_atmosphere/mpas_init_atm_core.F
+--
+Receives a domain
+calls: init_atm_setup_case
+
+
+
+</panel_attributes>
+    <additional_attributes/>
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>890</x>
+      <y>310</y>
+      <w>270</w>
+      <h>130</h>
+    </coordinates>
+    <panel_attributes>Domain
+--
+inc/domain_variables.inc
+framework/mpas_domain_types.inc
+--
+domain % namelist_filename
+domain % streams_filename 
+
+</panel_attributes>
+    <additional_attributes/>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>840</x>
+      <y>310</y>
+      <w>70</w>
+      <h>110</h>
+    </coordinates>
+    <panel_attributes>lt=&lt;-&gt;
+</panel_attributes>
+    <additional_attributes>10.0;90.0;50.0;10.0</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>390</x>
+      <y>720</y>
+      <w>100</w>
+      <h>50</h>
+    </coordinates>
+    <panel_attributes>lt=&lt;-&gt;
+</panel_attributes>
+    <additional_attributes>10.0;30.0;80.0;20.0</additional_attributes>
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>470</x>
+      <y>560</y>
+      <w>390</w>
+      <h>120</h>
+    </coordinates>
+    <panel_attributes>init_atm_core_init
+--
+core_init_atmosphere/mpas_init_atm_core.F
+--
+Receives a domain
+Get pools (???)
+Stream managers (add, read, reset)
+   this reads the streams - grid as well?
+
+
+</panel_attributes>
+    <additional_attributes/>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>390</x>
+      <y>540</y>
+      <w>100</w>
+      <h>50</h>
+    </coordinates>
+    <panel_attributes>lt=&lt;-&gt;
+</panel_attributes>
+    <additional_attributes>10.0;20.0;80.0;30.0</additional_attributes>
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>470</x>
+      <y>860</y>
+      <w>300</w>
+      <h>110</h>
+    </coordinates>
+    <panel_attributes>init_atm_setup_case
+--
+mpas_init_atm_cases.F
+--
+gets pool stuff and
+calls init_atm_case_jw
+
+</panel_attributes>
+    <additional_attributes/>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>500</x>
+      <y>830</y>
+      <w>30</w>
+      <h>50</h>
+    </coordinates>
+    <panel_attributes>lt=&lt;-</panel_attributes>
+    <additional_attributes>10.0;30.0;10.0;10.0</additional_attributes>
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>470</x>
+      <y>990</y>
+      <w>180</w>
+      <h>110</h>
+    </coordinates>
+    <panel_attributes>init_atm_case_jw
+--
+mpas_init_atm_cases.F
+--
+Set the initial condition
+for JW test case
+
+</panel_attributes>
+    <additional_attributes/>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>500</x>
+      <y>950</y>
+      <w>30</w>
+      <h>60</h>
+    </coordinates>
+    <panel_attributes>lt=&lt;-</panel_attributes>
+    <additional_attributes>10.0;40.0;10.0;10.0</additional_attributes>
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>890</x>
+      <y>480</y>
+      <w>540</w>
+      <h>280</h>
+    </coordinates>
+    <panel_attributes>init_atm_setup_core
+--
+init_atm_core_interface.F
+--
+What is setup in core:
+     core % core_init =&gt; init_atm_core_init
+      core % core_run =&gt; init_atm_core_run
+      core % core_finalize =&gt; init_atm_core_finalize
+      core % define_packages =&gt; init_atm_define_packages
+      core % setup_packages =&gt; init_atm_setup_packages
+      core % setup_decompositions =&gt; init_atm_setup_decompositions
+      core % setup_clock =&gt; init_atm_setup_clock
+      core % get_mesh_stream =&gt; init_atm_get_mesh_stream
+      core % setup_immutable_streams =&gt; init_atm_setup_immutable_streams
+      core % setup_derived_dimensions =&gt; init_atm_setup_derived_dimensions
+      core % setup_block =&gt; init_atm_setup_block
+      core % setup_namelist =&gt; init_atm_setup_namelists
+
+</panel_attributes>
+    <additional_attributes/>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>840</x>
+      <y>460</y>
+      <w>70</w>
+      <h>50</h>
+    </coordinates>
+    <panel_attributes>lt=&lt;-&gt;
+</panel_attributes>
+    <additional_attributes>10.0;10.0;50.0;30.0</additional_attributes>
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>40</x>
+      <y>980</y>
+      <w>360</w>
+      <h>290</h>
+    </coordinates>
+    <panel_attributes>mpas_finalize
+--
+driver/mpas_subdriver.F
+--
+Calls:
+domain_ptr % core % core_finalize(domain_ptr)
+  =&gt; init_atm_core_finalize
+which lives in 
+core_init_atmosphere/mpas_init_atm_core.F
+Which just destroys decomposition list
+Then destroy the rest:
+MPAS_stream_mgr_finalize (Destroys a streamManager)
+mpas_framework_finalize 
+
+Where is the output writting!!??
+
+
+</panel_attributes>
+    <additional_attributes/>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>70</x>
+      <y>800</y>
+      <w>30</w>
+      <h>200</h>
+    </coordinates>
+    <panel_attributes>lt=&lt;-</panel_attributes>
+    <additional_attributes>10.0;180.0;10.0;10.0</additional_attributes>
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>1470</x>
+      <y>30</y>
+      <w>470</w>
+      <h>70</h>
+    </coordinates>
+    <panel_attributes>ATMOSPHERE_MODEL
+PROGRAM
+--
+CORE_ATMOSPHERE
+
+
+bg=yellow</panel_attributes>
+    <additional_attributes/>
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>1480</x>
+      <y>150</y>
+      <w>250</w>
+      <h>80</h>
+    </coordinates>
+    <panel_attributes>mpas.F
+--
+driver/
+--
+calls mpas_subdriver.F routines
+
+
+
+</panel_attributes>
+    <additional_attributes/>
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>1480</x>
+      <y>260</y>
+      <w>150</w>
+      <h>120</h>
+    </coordinates>
+    <panel_attributes>mpas_subdriver.F
+--
+driver/
+--
+calls:
+mpas_init
+mpas_run
+mpas_finalize
+
+</panel_attributes>
+    <additional_attributes/>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>1500</x>
+      <y>220</y>
+      <w>30</w>
+      <h>60</h>
+    </coordinates>
+    <panel_attributes>lt=&lt;-</panel_attributes>
+    <additional_attributes>10.0;40.0;10.0;10.0</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>1500</x>
+      <y>370</y>
+      <w>30</w>
+      <h>80</h>
+    </coordinates>
+    <panel_attributes>lt=&lt;-</panel_attributes>
+    <additional_attributes>10.0;60.0;10.0;10.0</additional_attributes>
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>1480</x>
+      <y>430</y>
+      <w>360</w>
+      <h>210</h>
+    </coordinates>
+    <panel_attributes>mpas_init
+--
+driver/mpas_subdriver.F
+--
+-Reads arguments
+-Allocates core (mpas_core_types.inc)
+-Allocates domain (mpas_domain_routines.F)
+-Initializes MPI stuff (mpas_framework.F)
+Calls:
+-atm_setup_core
+-atm_setup_domain
+Then
+- core_init(domain_ptr, timeStamp) =&gt;
+  atm_core_init in mpas_atm_core.F
+
+
+</panel_attributes>
+    <additional_attributes/>
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>1890</x>
+      <y>430</y>
+      <w>370</w>
+      <h>200</h>
+    </coordinates>
+    <panel_attributes>atm_setup_core &amp; atm_setup_domain
+--
+core_atmosphere/mpas_atm_core_interface.F
+--
+Sets basic core/domain variables
+Core:
+ inc/core_variables.inc
+ uses atm_core funcs which lives in 
+ core_atmosphere/mpas_atm_core.F
+Domain
+ inc/domain_variables.inc
+
+
+</panel_attributes>
+    <additional_attributes/>
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>2300</x>
+      <y>410</y>
+      <w>270</w>
+      <h>130</h>
+    </coordinates>
+    <panel_attributes>Domain
+--
+inc/domain_variables.inc
+framework/mpas_domain_types.inc
+--
+domain % namelist_filename
+domain % streams_filename 
+
+</panel_attributes>
+    <additional_attributes/>
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>2300</x>
+      <y>580</y>
+      <w>540</w>
+      <h>280</h>
+    </coordinates>
+    <panel_attributes>atm_setup_core
+--
+atm_core_interface.F
+--
+What is setup in core:
+      core % core_init =&gt; atm_core_init
+      core % core_run =&gt; atm_core_run
+      core % core_finalize =&gt; atm_core_finalize
+      core % define_packages =&gt; atm_define_packages
+      core % setup_packages =&gt; atm_setup_packages
+      core % setup_decompositions =&gt; atm_setup_decompositions
+      core % setup_clock =&gt; atm_setup_clock
+      core % get_mesh_stream =&gt; atm_get_mesh_stream
+      core % setup_immutable_streams =&gt; atm_setup_immutable_streams
+      core % setup_derived_dimensions =&gt; atm_setup_derived_dimensions
+      core % setup_block =&gt; atm_setup_block
+      core % setup_namelist =&gt; atm_setup_namelists
+
+</panel_attributes>
+    <additional_attributes/>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>2250</x>
+      <y>560</y>
+      <w>70</w>
+      <h>50</h>
+    </coordinates>
+    <panel_attributes>lt=&lt;-&gt;
+</panel_attributes>
+    <additional_attributes>10.0;10.0;50.0;30.0</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>2250</x>
+      <y>410</y>
+      <w>70</w>
+      <h>110</h>
+    </coordinates>
+    <panel_attributes>lt=&lt;-&gt;
+</panel_attributes>
+    <additional_attributes>10.0;90.0;50.0;10.0</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>1830</x>
+      <y>440</y>
+      <w>80</w>
+      <h>120</h>
+    </coordinates>
+    <panel_attributes>lt=&lt;-</panel_attributes>
+    <additional_attributes>60.0;10.0;10.0;100.0</additional_attributes>
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>1890</x>
+      <y>650</y>
+      <w>280</w>
+      <h>90</h>
+    </coordinates>
+    <panel_attributes>atm_core_init
+--
+mpas_atm_core.F
+--
+Reads streams (initial condition)
+
+</panel_attributes>
+    <additional_attributes/>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>1830</x>
+      <y>620</y>
+      <w>80</w>
+      <h>60</h>
+    </coordinates>
+    <panel_attributes>lt=&lt;-</panel_attributes>
+    <additional_attributes>60.0;40.0;10.0;10.0</additional_attributes>
+  </element>
+</diagram>
