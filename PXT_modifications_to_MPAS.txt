@@ -36,6 +36,19 @@
          make gfortran CORE=atmosphere OPENMP=true USE_PIO2=true AUTOCLEAN=true
 
 ----------------------------------
+        BENCHMARKS
+----------------------------------
+* benchmarks folder:
+- scripts to create namelists and streams for test cases (ex: create_benchmark_jw_tc1.sh )
+
+----------------------------------
+        DOCS 
+----------------------------------
+* docs folder: documentation and notes
+- pxt_useful/ : some day-to-day useful notes to use mpas
+
+
+----------------------------------
         OPERATORS
 ----------------------------------
 * mpas_consistent.F: new module with implmentantion regarding Peixoto 2016 paper.   
