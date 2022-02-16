@@ -63,7 +63,7 @@ def cellWidthVsLatLon(r=70):
     return cellWidth, lon, lat
 
 
-def localrefVsLatLon(r, earth_radius=6371.0e3):
+def localrefVsLatLon(r, earth_radius=6371.0e3, p=False):
     """
     Create cell width array for this mesh on a locally refined latitude-longitude grid.
     Input
@@ -94,7 +94,7 @@ def localrefVsLatLon(r, earth_radius=6371.0e3):
     #Calculate distances to center (lat=0,lon=0)
     dists = latlon_to_distance_center(lons, lats)
 
-    if False:
+    if p:
         h = plt.contourf(lons, lats, dists)
         plt.axis('scaled')
         plt.colorbar()
@@ -130,7 +130,7 @@ def localrefVsLatLon(r, earth_radius=6371.0e3):
     far_from_center = (dists > maxdist + epsilons)
     resolution[far_from_center] += epsilons * slope
     
-    if True:
+    if p:
         h = plt.contourf(lons, lats, resolution, cmap="viridis", levels=100)
         plt.axis('scaled')
         plt.colorbar()

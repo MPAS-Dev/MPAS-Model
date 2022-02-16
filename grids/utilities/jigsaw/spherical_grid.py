@@ -54,7 +54,8 @@ def main(args):
     out_base=os.path.basename(args.output)
     out_basepath=out_dir+"/"+out_base
     out_filename=out_dir+"/"+out_base+"_mpas.nc"
-    
+    p = bool(args.plots)
+    print(p)
     if not os.path.exists(out_dir):
         os.makedirs(out_dir)
     else:
@@ -66,7 +67,7 @@ def main(args):
         if (args.opt=="unif"):
             cellWidth, lon, lat = jutil.cellWidthVsLatLon(args.r)
         elif (args.opt=="localref"):
-            cellWidth, lon, lat = jutil.localrefVsLatLon(args.r)
+            cellWidth, lon, lat = jutil.localrefVsLatLon(args.r, p=p)
 
         mesh_file = jutil.jigsaw_gen_sph_grid(cellWidth, lon, lat, basename=out_basepath) 
 
@@ -116,6 +117,14 @@ if __name__ == '__main__':
         metavar="STR")
 
     parser.add_argument(
+        "-p",
+        "--plot",
+        dest="plots",
+        default=0,
+        help="do plots of grid resolutions",
+        metavar="INT")
+
+    parser.add_argument(
         "-g",
         "--grid",
         dest="opt",
@@ -133,4 +142,5 @@ if __name__ == '__main__':
 
     
     args = parser.parse_args()
+    
     main(args)
