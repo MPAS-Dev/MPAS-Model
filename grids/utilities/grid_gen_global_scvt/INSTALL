@@ -1,0 +1,6 @@
+1) Edit the Makefile to set appropriate compilers and compiler flags.
+   The main loop of the Lloyd iteration code is parallelized with OpenMP,
+   so if desired, OpenMP flags may be specified in FFLAGS and LDFLAGS.
+
+2) Run 'make' to create an executable, grid_gen, in the src directory, as
+   well as a symbolic link to the executable in the top-level directory.

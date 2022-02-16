@@ -1,0 +1,77 @@
+GRID_GEN README
+Last modified 8 Oct 2015 - Peixoto
+--------------------------------------------------------------------------------
+
+The grid_gen utility converts a set of generating points into a complete MPAS
+input file, grid.nc. Additionally, grid_gen creates a graph description file
+suitable for use with METIS, plots of the initial Delaunay triangulation and
+final Delaunay triangulation (after any further adjustment by grid_gen), and 
+a list of the final generating points.
+
+
+
+Input files:
+
+     namelist.input - a Fortran namelist with the following variables
+           np - the number of generating points in the locs.dat input file
+           n_scvt_iterations - the number of Lloyd iterations to perform, 
+                  beginning with the generating points in the locs.dat file, 
+                  using the density function specified programmatically in 
+                  src/module_scvt.F::density_for_point(). Even in the iteration
+                  has converged, when the maximum number of iterations has been
+                  reached, grid.nc and graph.info file will be created. 
+           restart_interval - the number of Lloyd iterations to perform 
+                  between writes of a 'restart.dat' file, which can be used
+                  in place of a 'locs.dat' input file to restart the iteration
+           eps - the convergence criterion for the Lloyd iteration; when the L2
+                  movement of generating points falls below this threshold, 
+                  the mesh will be considered to have converged, and the program
+                  will create  grid.nc and graph.info files
+           min_dx - if set to a value >0, causes the code to invoke 
+                  a Monte-Carlo method to estimate the total number of 
+                  generating points needed to achieve the specified minimum dx 
+                  (in meters) based on the density function defined in 
+                  src/module_scvt.F::density_for_point()
+           filenames for input and output (added by Peixoto)
+       
+	
+     locs.dat - a list of generating points, either given as (lat,lon) 
+           coordinates or as (x,y,z) coordinates; the coorinates used in the 
+           file should be indicated to grid_gen using the locs_as_xyz logical 
+           value in the namelist.input file.
+
+	   The format of the file for (x,y,z) coordinates has a header line
+           giving the number of generating points and the maximum degree of any 
+           node in the Delaunay triangulation, followed by np lines with the 
+           format '(10x,f22.10,f23.10,f23.10)' giving the x, y, and z 
+           coordinates (on the unit sphere) of each generating point.
+
+           The format of the file for (lat,lon) coordinates has np lines with 
+           the format '(f13.10,1x,f13.10)' giving the latitude and longitude 
+           coorinates of each generating point.
+
+
+
+Output files:
+
+     scvt_initial.ps - a plot of the Delaunay triangulation of the generating 
+           points specified in the locs.dat file
+ 
+     scvt_final.ps - a plot of the Delaunay triangulation of the final
+           generating points, after adjustment by the number of Lloyd iterations
+           specified in the namelist.input file
+ 
+     locs.dat.out - a list of the final generating points, after adjustment by 
+           the number of Lloyd iterations specified in the namelist.input file.
+           This file also contains a list of refinement points appended to 
+           the list of final generating points, allowing this file to be used
+           as input for the generation of a mesh with twice the resolution.
+
+     restart.dat - a list of generating points that can be used as input 
+           (i.e., locs.dat) for a successive set of iterations if the program 
+           was prematurely stopped
+ 
+     graph.info - a description of the output mesh in a format suitable for use
+           with METIS to produce graph decomposition files for MPAS
+ 
+     grid.nc - an MPAS input file

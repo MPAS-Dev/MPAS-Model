@@ -1,0 +1,25 @@
+object "positions list" class array type float rank 1 shape 3 items          960
+ascii data file vor.position.data                                     
+ 
+object "edge list" class array type int rank 0 items                         960
+ascii data file vor.edge.data                                         
+attribute "ref" string "positions"                                    
+ 
+object "loops list" class array type int rank 0 items                        162
+ascii data file vor.loop.data                                         
+attribute "ref" string "edges"                                        
+ 
+object "face list" class array type int rank 0 items                         162
+ascii data file vor.face.data                                         
+attribute "ref" string "loops"                                        
+ 
+object 0  class array type float rank 0 items                                162
+data file vor.area.data                                               
+attribute "dep" string "faces"                                        
+ 
+object "area" class field                                             
+component "positions"     "positions list"                            
+component "edges"         "edge list"                                 
+component "loops"         "loops list"                                
+component "faces"         "face list"                                 
+component "data"           0                                          
