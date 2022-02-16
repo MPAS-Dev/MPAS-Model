@@ -24,7 +24,16 @@
   - jigsaw : jigsaw grid generation tools -> build directly to mpas grid format
   - double_to_float_grid : float type grid convertion tool
 
- 
+
+----------------------------------
+        INSTALATION
+----------------------------------
+ * local_software folder:
+ - iolib_installation.sh : install all required dependencies for MPAS, with the correct versions
+ - setup_env.sh : script to load mpas env variables to use local_software
+ - make : use USE_PIO2=true OPENMP=true
+     ex: make gfortran CORE=init_atmosphere OPENMP=true USE_PIO2=true AUTOCLEAN=true
+         make gfortran CORE=atmosphere OPENMP=true USE_PIO2=true AUTOCLEAN=true
 
 ----------------------------------
         INIT_ATMOSPHERE CORE
