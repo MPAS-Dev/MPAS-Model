@@ -49,6 +49,13 @@
 - mpas_refs/  : mpas papers and tutorials
 
 ----------------------------------
+        POST_PROCESSING
+----------------------------------
+*post_proc folder: scripts for post processing 
+- py: python scripts 
+    -- geometry_lat_lon_2d_plot : scripts to plot geometric grid features 
+
+----------------------------------
         OPERATORS
 ----------------------------------
 * mpas_consistent.F: new module with implmentantion regarding Peixoto 2016 paper.   
