@@ -46,7 +46,7 @@
 ----------------------------------
 * docs folder: documentation and notes
 - pxt_useful/ : some day-to-day useful notes to use mpas
-
+- mpas_refs/  : mpas papers and tutorials
 
 ----------------------------------
         OPERATORS
@@ -196,7 +196,4 @@
       call mpas_pool_get_config(configs, 'config_hollingsworth', config_hollingsworth)
 
 
-----------------------------------
-        GRID_GENERATOR
-----------------------------------
-* It is now possible to read any set of xyz points and also to output a HCm grid
+
