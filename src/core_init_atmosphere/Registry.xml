@@ -93,6 +93,14 @@
                      description="Number of halo layers for fields"
                      possible_values="Integer values, typically 2 or 3; DO NOT CHANGE"/>
 
+               <!-- ************************************** PXT-ADDED************************************ -->
+               <nml_option name="config_hcm_staggering"        type="logical"       default_value="false" in_defaults="false"
+                     units="-"
+                     description="Flag to set wind position to cell edge midpoint instead of the \newline
+                                   default edge triangle vs cell edge intersection point. This is known as \newline
+                                   HCm staggering from Peixoto (2016) JCP paper."
+                     possible_values="True or False"/>
+                     
         </nml_record>
 
         <nml_record name="dimensions" in_defaults="true">

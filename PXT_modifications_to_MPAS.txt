@@ -36,6 +36,17 @@
          make gfortran CORE=atmosphere OPENMP=true USE_PIO2=true AUTOCLEAN=true
 
 ----------------------------------
+        OPERATORS
+----------------------------------
+* mpas_consistent.F: new module with implmentantion regarding Peixoto 2016 paper.   
+* Makefile : Added: 
+	OBJS = 
+	mpas_consistent.o #PXT added mpas_consitent
+	
+        #PXT added mpas_consitent
+	mpas_consistent.o: mpas_vector_operations.o
+
+----------------------------------
         INIT_ATMOSPHERE CORE
 ----------------------------------
 * Registry : Added new config to allow generation of initial conditions on HCm grid in  <nml_record name="nhyd_model" in_defaults="true">
@@ -48,25 +59,32 @@
                                    HCm staggering from Peixoto (2016) JCP paper."
                      possible_values="True or False"/>
 
-
 * namelist.init_atmosphere : New parameter choice (not automatic)
    config_hcm_staggering = true
   
-* mpas_init_atm_cases.F
-  - Added call to 'convert_grid_to_hcm' if flag config_hcm_staggering = true 
-  - Added 2 new test cases: Solid Body Rotation and Rest
+* mpas_init_atm_cases.F: Added HCm capability in specific points:
+   !PXT - module to convert to HCm grid
+   use mpas_consistent
+   !PXT - config to use HCm grid - use midpoint of Voronoi edges instead of midpoint of Triangle edges
+   logical, pointer :: config_hcm_staggering
+   
+   !PXT - config to use HCm grid - use midpoint of Voronoi edges instead of midpoint of Triangle edges
+   call mpas_pool_get_config(domain % blocklist % configs, 'config_hcm_staggering', config_hcm_staggering)
 
-* operators/mpas_consistent.F (new) 
-  - New module that reads meshPool and overwrites edge data to HCm grid (routine convert_grid_to_hcm)
-    
-* Variable calls from pool
-      call mpas_pool_get_config(domain % blocklist % configs, 'config_hcm_staggering', config_hcm_staggering)
-
-* Variable declaration
-      logical, pointer :: config_hcm_staggering
-  
-* Makefile (of operators)
-   - Added: mpas_consistent.o
+   !PXT - Convert grid to HCm if required
+   ! It overrides the content of latEdge, lonEdge
+   if(config_hcm_staggering)then
+      block_ptr => domain % blocklist
+         do while (associated(block_ptr))
+           call mpas_pool_get_subpool(block_ptr % structs, 'mesh', mesh)
+           !Configure grid for modified/consistent scheme
+           !call mpas_log_write( ' Converting grid to HCm staggering ' )
+           call mpas_convert_grid_to_hcm(mesh)
+           !call mpas_consist_verify_config(mesh, block_ptr % configs)
+           block_ptr => block_ptr % next
+         end do
+      endif
+      
   
 ----------------------------------
         ATMOSPHERE_MODEL

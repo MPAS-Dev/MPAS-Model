@@ -28,7 +28,8 @@ module init_atm_cases
    use mpas_timekeeping !, only: MPAS_Time_type, MPAS_TimeInterval_type, MPAS_Clock_type, &
                         !        mpas_set_time, mpas_set_timeInterval, mpas_get_time, operator(+), add_t_ti
    
-
+   !PXT - module to convert to HCm grid
+   use mpas_consistent
 
    contains
 
@@ -89,8 +90,27 @@ module init_atm_cases
       real (kind=RKIND), dimension(:), pointer :: ter
       integer, dimension(:), pointer :: bdyMaskCell
 
+      !PXT - config to use HCm grid - use midpoint of Voronoi edges instead of midpoint of Triangle edges
+      logical, pointer :: config_hcm_staggering
 
       call mpas_pool_get_config(domain % blocklist % configs, 'config_init_case', config_init_case)
+
+      !PXT - config to use HCm grid - use midpoint of Voronoi edges instead of midpoint of Triangle edges
+      call mpas_pool_get_config(domain % blocklist % configs, 'config_hcm_staggering', config_hcm_staggering)
+
+      !PXT - Convert grid to HCm if required
+      ! It overrides the content of latEdge, lonEdge
+      if(config_hcm_staggering)then
+         block_ptr => domain % blocklist
+         do while (associated(block_ptr))
+               call mpas_pool_get_subpool(block_ptr % structs, 'mesh', mesh)
+               !Configure grid for modified/consistent scheme
+               !call mpas_log_write( ' Converting grid to HCm staggering ' )
+               call mpas_convert_grid_to_hcm(mesh)
+               !call mpas_consist_verify_config(mesh, block_ptr % configs)
+               block_ptr => block_ptr % next
+         end do
+      endif
 
       if ((config_init_case == 1) .or. (config_init_case == 2) .or. (config_init_case == 3)) then
 
