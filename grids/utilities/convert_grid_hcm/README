@@ -1,0 +1,44 @@
+grid_hcm: conververts grid to HCm positioning overwritting the edge info
+ 
+This routine is no longer necessary for MPAS-A, since it is possible for select the 
+hcm grid option when generating the initial conditions in init_atmosphere
+
+I. OVERVIEW
+
+   This standalone application converts a spherical NetCDF mesh to HCm type and saves the
+   output to a new NetCDF file. 
+
+   This is a standalone application written in Fortran90.
+
+
+II. BUILDING THE CODE
+
+   This standalone consists of the files: convert_grid_to_hcm.f90 and
+   Makefile
+
+   Building requires NetCDF and a Fortran compiler.
+
+   Update the Makefile to use your preferred compiler and make certain the
+   environment variable NETCDF points to your installation of NetCDF; make
+
+
+III.  RUNNING THE CODE
+
+   Execute the application and specify as command-line arguments the NetCDF file
+   that is to be rotated and the name to be given the generated output file.
+
+      > grid_rotate input_filename.nc output_filename.nc
+
+
+IV.   ADDITIONAL TOOLS
+    
+   The NCL file mesh.ncl is included with this application and can be used to
+   plot grids before and after rotation.  To plot a file, modify the input
+   filename on the line: 
+
+      f = addfile("grid.nc","r")
+
+   and run the script: 
+
+      > ncl mesh.ncl
+ 
