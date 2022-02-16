@@ -1,0 +1,109 @@
+grid_rotate: Rotates a spherical NetCDF mesh according to user-specified
+latitude, longitude, and bird's eye rotations
+
+REVISION HISTORY:
+
+   10 July 2013 - Fix issue where angleEdge was overwritten in output files
+                  for meshes that don't provide fEdge and fVertex fields.
+
+   14 June 2013 - Initial public release.
+
+
+
+I. OVERVIEW
+
+   This standalone application rotates a spherical NetCDF mesh and saves the
+   output to a new NetCDF file.  There are three types of rotations that can be
+   performed: a latitude shift, a longitude shift, and a rotation around an
+   arbitrary axis.
+
+   This is a standalone application written in Fortran90.
+
+
+II. BUILDING THE CODE
+
+   This standalone consists of the files: grid_rotate.f90, namelist.input, and
+   Makefile .
+
+   Building requires NetCDF and a Fortran compiler.
+
+   Before building, ensure that the directory containing the 'nc-config' utility
+   is in your $PATH; this directory is usually in bin/ subdirectory of your
+   NetCDF installation root directory. The 'nc-config' utility is part of most
+   modern NetCDF installations, and if you do not have nc-config, it will be
+   necessary to manually set the name of your Fortran compiler, as well as the
+   library paths, in the Makefile; specifically, the following variables must be
+   manually set: FC, FCINCLUDES, and FCLIBS.
+
+
+III.  RUNNING THE CODE
+
+   Update the namelist.input file to specify the desired location. The variables
+   are:
+      config_original_latitude_degrees
+      config_original_longitude_degrees
+      config_new_latitude_degrees
+      config_new_latitude_degrees
+      config_birdseye_rotation_counter_clockwise_degrees
+
+      config_original_latitude_degrees and config_original_longitude_degrees
+         specify a reference point on the sphere (typically the center of a fine
+         resolution region of the original mesh).
+
+      config_new_latitude_degrees and config_new_latitude_degrees determine the
+         latitude and longitude shift by specifying where the reference point is 
+         rotated to.
+
+      config_birdseye_rotation_counter_clockwise_degrees will adjust the
+         orientation of the mesh with respect to the poles by rotating the mesh
+         counter-clockwise around the reference point as viewed from a bird's eye
+         perspective.
+
+
+   Execute the application and specify as command-line arguments the NetCDF file
+   that is to be rotated and the name to be given the generated output file.
+
+      > grid_rotate input_filename.nc output_filename.nc
+
+   This tool can also be used to rotate a planar mesh, by using the fact that a
+   planar mesh is in the same 3d coordinate system as a spherical mesh, but that
+   z=0 everywhere in a planar mesh.  For example, to rotate a planar mesh by 90 deg,
+   the following nameslist settings will work:
+
+&input
+   config_original_latitude_degrees = 0
+   config_original_longitude_degrees = 0
+
+   config_new_latitude_degrees = 0
+   config_new_longitude_degrees = 90
+   config_birdseye_rotation_counter_clockwise_degrees = 0
+/
+
+   Alternatively, perhaps more intuitively, the following also works (specifying
+   the origin of the rotation to be the north pole, without modifying it, and then
+   using the bird's eye rotation):
+
+&input
+   config_original_latitude_degrees = 90
+   config_original_longitude_degrees = 0
+
+   config_new_latitude_degrees = 90
+   config_new_longitude_degrees = 0
+   config_birdseye_rotation_counter_clockwise_degrees = 90
+/
+
+   Note that if you have filled the lat/lon fields on a planar mesh, you may need
+   to re-calculate them after using this tool.
+
+IV.   ADDITIONAL TOOLS
+    
+   The NCL file mesh.ncl is included with this application and can be used to
+   plot grids before and after rotation.  To plot a file, modify the input
+   filename on the line: 
+
+      f = addfile("grid.nc","r")
+
+   and run the script: 
+
+      > ncl mesh.ncl
+ 
