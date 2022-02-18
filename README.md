@@ -1,4 +1,4 @@
-MPAS-v7.2
+MPAS-v7.2 + Peixoto Modifications (See PXT_modifications_to_MPAS.txt file)
 ====
 
 The Model for Prediction Across Scales (MPAS) is a collaborative project for
