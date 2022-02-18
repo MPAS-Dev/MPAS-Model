@@ -83,7 +83,7 @@ def main(args):
     #Convert jigsaw mesh to netcdf
     jigsaw_to_netcdf(msh_filename=mesh_file,
                          output_name=out_basepath+'_triangles.nc', on_sphere=True,
-                         sphere_radius=earth_radius)
+                         sphere_radius=1.0)
 
     #convert to mpas grid specific format
     write_netcdf(
