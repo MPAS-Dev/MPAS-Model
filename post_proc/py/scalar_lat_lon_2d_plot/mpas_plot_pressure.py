@@ -70,6 +70,10 @@ if not os.path.isfile(file):
     print("That file was not found :(")
     sys.exit(-1)
 
+dir = variable
+if not os.path.isdir(dir):
+    os.makedirs(dir)
+
 '''
 Open the mesh using NetCDF4 Dataset.
 '''
@@ -90,6 +94,7 @@ shap = var.shape
 print(dims)
 print(shap)
 nlevels = shap[2]
+ntimes = shap[0]
 print("nlevels:", nlevels)
 
 
@@ -122,8 +127,8 @@ As well as the official documentation
 bmap = Basemap(projection='cyl', 
                llcrnrlat=-90,
                urcrnrlat=90,
-               llcrnrlon=-180,
-               urcrnrlon=180,
+               llcrnrlon=0,
+               urcrnrlon=360,
                resolution='l')
 
 
@@ -137,7 +142,8 @@ We can also alter the styles of the plots we produce if we desire:
 - https://matplotlib.org/gallery/style_sheets/style_sheets_reference.html
 
 '''
-color_map = cm.gist_ncar
+#color_map = cm.gist_ncar
+color_map = cm.bwr
 style = 'ggplot'
 
 '''
@@ -148,8 +154,8 @@ be vertical plots, 0, 1, 2, 3, and 4 and for all the times in this mesh file
 
 print(mesh)
 
-levels = range(nlevels)
-times = [0]
+levels = [1] #range(nlevels)
+times = range(ntimes)
 for l in levels:
     for t in times:
 
@@ -158,7 +164,7 @@ for l in levels:
         saved to its own file.
         '''
 
-        print("Creating a plot of ", variable, " at ", l, " level and time", t)
+        print("Creating a plot of ", variable, " at ", l, " level and time", t, dir+"/"+variable+'_'+str(t)+'_'+str(l)+'.png')
         fig = plt.figure()
         ax = plt.gca()
 
@@ -186,7 +192,7 @@ for l in levels:
                            linewidth=1, 
                            labels=[1,0,0,0],
                            color='b')
-        bmap.drawmeridians(range(-180, 180, 45),
+        bmap.drawmeridians(range(0, 360, 45),
                           linewidth=1, 
                           labels=[0,0,0,1],
                           color='b',
@@ -237,6 +243,6 @@ for l in levels:
         You'll need to always remove the patch_collection when generating
         plots on the same collection, else MPL will complain.
         '''
-        plt.savefig(variable+'_'+str(t)+'_'+str(l)+'.png')
+        plt.savefig(dir+"/"+variable+'_'+str(t)+'_'+str(l)+'.png')
         patch_collection.remove()
         plt.close(fig)
