@@ -148,7 +148,7 @@ contains
       write(55, *) nCells
 
       do i=1,nCells
-          write(55,'(3f16.8)') xCell(i), yCell(i), zCell(i)
+          write(55,'(3f32.16)') xCell(i), yCell(i), zCell(i)
       end do
 
       close(55)
