@@ -14,13 +14,13 @@ BENCH_DIR=$WORK_DIR/benchmarks
 #---------------------------------
 
 #Grid
-GRD_NAME="x1.2562"
+GRD_NAME="mpas-a-test_mpas"
 #GRD_NAME="HR95xxx"
-GRD_DIR=${WORK_DIR}"/grids/grids/"${GRD_NAME}
+GRD_DIR=${WORK_DIR}"/grids/utilities/jigsaw/"${GRD_NAME}
 #GRD_DIR=${MPAS_DIR}"/grids/"x1.10242
 
 #Init
-BENCH_NAME="jw_tc1"
+BENCH_NAME="jw_tc1_icos"
 BENCH_DIR=${BENCH_DIR}/${BENCH_NAME}
 
 LEVELS=20     #Vertical levels

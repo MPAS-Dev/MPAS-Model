@@ -14,18 +14,18 @@ BENCH_DIR=$WORK_DIR/benchmarks
 #---------------------------------
 
 #Grid
-GRD_NAME="x1.2562"
+GRD_NAME="mpas-a-test_mpas"
 #GRD_NAME="HR95xxx"
-GRD_DIR=${WORK_DIR}"/grids/grids/"${GRD_NAME}
+GRD_DIR=${WORK_DIR}"/grids/utilities/jigsaw/"${GRD_NAME}
 #GRD_DIR=${MPAS_DIR}"/grids/"x1.10242
 
 #Init
-BENCH_NAME="jw_tc1"
+BENCH_NAME="jw_tc1_icos"
 BENCH_DIR=${BENCH_DIR}/${BENCH_NAME}
 
 LEVELS=20     #Vertical levels
-TC=1          #Test case JW 0,1,2
-HCM=1         #1=HCm, 0=HCt
+TC=1          #Test case JW 1,2, 3
+HCM=0         #1=HCm, 0=HCt
 
 #Output and Diagnostics
 USE_SEP_FILES=0
@@ -37,7 +37,7 @@ USE_REDUCED_OUT=1
 
 # Time
 DT=120.0
-RUN_NML="config_run_duration = '9_00:00:00'"
+RUN_NML="config_run_duration = '1_00:00:00'"
 OUT_INT='output_interval="1_00:00:00"'
 
 #Filters and diffusion
@@ -149,7 +149,7 @@ function setup_vars (){
 
 	#Graph path
 	GRAPH_PATH="config_block_decomp_file_prefix = '${GRD_DIR}/${GRD_NAME}.graph.info.part.'"
-	
+	PHYSICS_NML="config_physics_suite = 'none'"
 	if [ $USE_SEP_FILES -eq 1 ] ;then 
 		DATE_NAME='.$Y-$M-$D_$h.$m.$s'
 	else
@@ -234,6 +234,9 @@ function namelist_atmosphere (){
 	echo ${HOLS_NML}
 	sed -i "s+config_block_decomp_file_prefix.*+${GRAPH_PATH//\//\/}+" namelist.atmosphere
 	echo ${GRAPH_PATH//\//\/}
+	config_physics_suite = 'none'
+	sed -i "s+config_physics_suite.*+${PHYSICS_NML//\//\/}+" namelist.atmosphere
+	echo ${PHYSICS_NML//\//\/}
 	}
 
 #STREAMS.ATM
