@@ -200,6 +200,7 @@ function streams_init_atmosphere (){
 	}
 	
 
+#clobber mode="append"
 
 #NAMELIST ATMOSPHERE
 function namelist_atmosphere (){
@@ -234,7 +235,6 @@ function namelist_atmosphere (){
 	echo ${HOLS_NML}
 	sed -i "s+config_block_decomp_file_prefix.*+${GRAPH_PATH//\//\/}+" namelist.atmosphere
 	echo ${GRAPH_PATH//\//\/}
-	config_physics_suite = 'none'
 	sed -i "s+config_physics_suite.*+${PHYSICS_NML//\//\/}+" namelist.atmosphere
 	echo ${PHYSICS_NML//\//\/}
 	}

@@ -106,17 +106,19 @@ dur = timedelta(days=int(dys), hours=t.hour, minutes=t.minute, seconds=t.second)
 t_ini = timedelta(days=0, hours=0, minutes=0, seconds=0)
 delta = dur/(ntimes-1)
 print(delta)
+
 ts = []
 for i in range(ntimes):
     t = t_ini+i*delta
-    hours = t.seconds//3600
+    hours = t.total_seconds()/3600
     ts.append(hours)
 
-f=open(dir+"/"+variable+"errors.csv",'w')
+f=open(dir+"/"+variable+"_errors.csv",'w')
 np.savetxt(f, [ts], delimiter =", ",   fmt ='% s')
 
+print(ts)
 print()
-
+#exit(1)
 
 ''' In this example, we will be plotting actual MPAS polygons. The
 `get_mpas_patches` function will create a collection of patches for the current
@@ -279,8 +281,8 @@ for l in levels:
         plt.savefig(dir+"/"+variable+'_'+str(t)+'_'+str(l)+'error.png')
         patch_collection.remove()
         plt.close(fig)
-        print( )
-
+        
+    
     print( "ploting error time series")
     fig = plt.figure()
     ax = plt.gca()

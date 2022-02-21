@@ -1,3 +1,4 @@
+!----------------------------------------------------
 !   Modifications made by Pedro. S. Peixoto
 !   Date: Feb 2022
 !
@@ -54,6 +55,8 @@
 *post_proc folder: scripts for post processing 
 - py: python scripts 
     -- geometry_lat_lon_2d_plot : scripts to plot geometric grid features 
+    -- scalar_lat_lon_2d_plot   : scripts to plot scalar fields
+    -- time_series_error_plot   : error plot of time series for idealized tests
 
 ----------------------------------
         OPERATORS
