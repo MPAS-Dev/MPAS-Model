@@ -26,6 +26,7 @@ module atm_core
       use mpas_atm_dimensions, only : mpas_atm_set_dims
       use mpas_atm_diagnostics_manager, only : mpas_atm_diag_setup
       use mpas_atm_threading, only : mpas_atm_threading_init
+      use atm_time_integration, only : mpas_atm_dynamics_init
 
       implicit none
 
@@ -36,7 +37,6 @@ module atm_core
       real (kind=RKIND), pointer :: dt
       type (block_type), pointer :: block
 
-      integer :: i
       logical, pointer :: config_do_restart
 
       type (mpas_pool_type), pointer :: state
@@ -48,6 +48,9 @@ module atm_core
       type (MPAS_Time_Type) :: startTime
 
       integer, pointer :: nVertLevels, maxEdges, maxEdges2, num_scalars
+      character (len=ShortStrKIND) :: init_stream_name
+      real (kind=R8KIND) :: input_start_time, input_stop_time
+
 
       ierr = 0
 
@@ -90,17 +93,28 @@ module atm_core
       ! input streams.
       !
       if (config_do_restart) then
-         call MPAS_stream_mgr_read(domain % streamManager, streamID='restart', ierr=ierr)
+         init_stream_name = 'restart'
       else
-         call MPAS_stream_mgr_read(domain % streamManager, streamID='input', ierr=ierr)
+         init_stream_name = 'input'
       end if
+      call mpas_log_write('Reading initial state from '''//trim(init_stream_name)//''' stream')
+
+      call mpas_dmpar_get_time(input_start_time)
+      call MPAS_stream_mgr_read(domain % streamManager, streamID=trim(init_stream_name), ierr=ierr)
+      call mpas_dmpar_get_time(input_stop_time)
+
       if (ierr /= MPAS_STREAM_MGR_NOERR) then
          call mpas_log_write('********************************************************************************', messageType=MPAS_LOG_ERR)
          call mpas_log_write('Error reading initial conditions',                                                 messageType=MPAS_LOG_ERR)
          call mpas_log_write('********************************************************************************', messageType=MPAS_LOG_CRIT)
       end if
+
+      call mpas_log_write(' Timing for read of '''//trim(init_stream_name)//''' stream: $r s', &
+                          realArgs=(/real(input_stop_time - input_start_time, kind=RKIND)/))
+
       call MPAS_stream_mgr_reset_alarms(domain % streamManager, streamID='input', direction=MPAS_STREAM_INPUT, ierr=ierr)
       call MPAS_stream_mgr_reset_alarms(domain % streamManager, streamID='restart', direction=MPAS_STREAM_INPUT, ierr=ierr)
+      call mpas_log_write(' ----- done reading initial state -----')
 
       !
       ! Read all other inputs
@@ -130,6 +144,10 @@ module atm_core
          call mpas_log_write('********************************************************************************', messageType=MPAS_LOG_ERR)
          call mpas_log_write('Error reading IAU files',                                                          messageType=MPAS_LOG_ERR)
          call mpas_log_write('********************************************************************************', messageType=MPAS_LOG_CRIT)
+      else
+         call mpas_log_write('*********************************')
+         call mpas_log_write('Done reading the IAU input stream')
+         call mpas_log_write('*********************************')
       end if
       call MPAS_stream_mgr_reset_alarms(domain % streamManager, streamID='iau', ierr=ierr)
 
@@ -188,6 +206,11 @@ module atm_core
       call mpas_atm_diag_setup(domain % streamManager, domain % blocklist % configs, &
                                domain % blocklist % structs, domain % clock, domain % dminfo)
 
+      !
+      ! Prepare the dynamics for integration
+      !
+      call mpas_atm_dynamics_init(domain)
+
    end function atm_core_init
 
 
@@ -201,8 +224,8 @@ module atm_core
       type (mpas_pool_type), intent(inout) :: configs
       integer, intent(out) :: ierr
 
-      type (MPAS_Time_Type) :: startTime, stopTime, alarmStartTime
-      type (MPAS_TimeInterval_type) :: runDuration, timeStep, alarmTimeStep
+      type (MPAS_Time_Type) :: startTime, stopTime
+      type (MPAS_TimeInterval_type) :: runDuration, timeStep
       integer :: local_err
       real (kind=RKIND), pointer :: config_dt
       character (len=StrKIND), pointer :: config_start_time
@@ -288,7 +311,6 @@ module atm_core
       
       real (kind=RKIND), dimension(:,:), pointer :: u, uReconstructX, uReconstructY, uReconstructZ, uReconstructZonal, uReconstructMeridional
       real (kind=RKIND), dimension(:), pointer :: meshScalingDel2, meshScalingDel4
-      real (kind=RKIND), dimension(:), pointer :: meshScalingRegionalCell, meshScalingRegionalEdge
       real (kind=RKIND), dimension(:), pointer :: areaCell, invAreaCell
       real (kind=RKIND), dimension(:), pointer :: dvEdge, invDvEdge
       real (kind=RKIND), dimension(:), pointer :: dcEdge, invDcEdge
@@ -504,9 +526,6 @@ module atm_core
 
       type (mpas_pool_type), pointer :: state, diag, mesh, diag_physics, tend, tend_physics
 
-      ! For high-frequency diagnostics output
-      character (len=StrKIND) :: tempfilename
-
       ! For timing information
       real (kind=R8KIND) :: integ_start_time, integ_stop_time
       real (kind=R8KIND) :: diag_start_time, diag_stop_time
@@ -539,7 +558,9 @@ module atm_core
          do while (associated(block_ptr))
             call mpas_pool_get_subpool(block_ptr % structs, 'state', state)
             call mpas_pool_get_subpool(block_ptr % structs, 'diag', diag)
+#ifdef DO_PHYSICS
             call mpas_pool_get_subpool(block_ptr % structs, 'diag_physics', diag_physics)
+#endif
             call mpas_pool_get_subpool(block_ptr % structs, 'mesh', mesh)
             call atm_compute_output_diagnostics(state, 1, diag, mesh)
 
@@ -575,7 +596,9 @@ module atm_core
       call mpas_pool_get_subpool(block_ptr % structs, 'mesh', mesh)
       call mpas_pool_get_subpool(block_ptr % structs, 'state', state)
       call mpas_pool_get_subpool(block_ptr % structs, 'diag', diag)
+#ifdef DO_PHYSICS
       call mpas_pool_get_subpool(block_ptr % structs, 'diag_physics', diag_physics)
+#endif
 
       call mpas_pool_get_config(domain % blocklist % configs, 'config_apply_lbcs', config_apply_lbcs)
 
@@ -687,10 +710,12 @@ module atm_core
            do while (associated(block_ptr))
               call mpas_pool_get_subpool(block_ptr % structs, 'state', state)
               call mpas_pool_get_subpool(block_ptr % structs, 'diag', diag)
+#ifdef DO_PHYSICS
               call mpas_pool_get_subpool(block_ptr % structs, 'diag_physics', diag_physics)
+              call mpas_pool_get_subpool(block_ptr % structs, 'tend_physics', tend_physics)
+#endif
               call mpas_pool_get_subpool(block_ptr % structs, 'mesh', mesh)
               call mpas_pool_get_subpool(block_ptr % structs, 'tend', tend)
-              call mpas_pool_get_subpool(block_ptr % structs, 'tend_physics', tend_physics)
               call atm_compute_output_diagnostics(state, 1, diag, mesh)
 
               block_ptr => block_ptr % next
@@ -722,9 +747,10 @@ module atm_core
             block_ptr => domain % blocklist
             do while (associated(block_ptr))
 
-               call mpas_pool_get_subpool(block_ptr % structs, 'diag', diag)
+#ifdef DO_PHYSICS
                call mpas_pool_get_subpool(block_ptr % structs, 'diag_physics', diag_physics)
-               call atm_reset_diagnostics(diag, diag_physics)
+#endif
+               call atm_reset_diagnostics(diag_physics)
 
                block_ptr => block_ptr % next
             end do
@@ -802,27 +828,27 @@ module atm_core
    end subroutine atm_compute_output_diagnostics
    
    
-   subroutine atm_reset_diagnostics(diag, diag_physics)
+   subroutine atm_reset_diagnostics(diag_physics)
    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
    ! reset some diagnostics after output
    !
-   ! Input: diag          - contains dynamics diagnostic fields
-   !        daig_physics  - contains physics diagnostic fields
+   ! Input: diag_physics  - contains physics diagnostic fields
    !
    ! Output: whatever diagnostics need resetting after output
    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
    
       implicit none
    
-      type (mpas_pool_type), intent(inout) :: diag
-      type (mpas_pool_type), intent(inout) :: diag_physics
+      type (mpas_pool_type), pointer :: diag_physics
    
       real (kind=RKIND), dimension(:), pointer :: refl10cm_1km_max
 
+#ifdef DO_PHYSICS
       call mpas_pool_get_array(diag_physics, 'refl10cm_1km_max', refl10cm_1km_max)
       if(associated(refl10cm_1km_max)) then
          refl10cm_1km_max(:) = 0.
       endif
+#endif
    
    end subroutine atm_reset_diagnostics
 
@@ -881,6 +907,7 @@ module atm_core
       use mpas_timekeeping
       use mpas_atm_diagnostics_manager, only : mpas_atm_diag_cleanup
       use mpas_atm_threading, only : mpas_atm_threading_finalize
+      use atm_time_integration, only : mpas_atm_dynamics_finalize
    
 #ifdef DO_PHYSICS
       use mpas_atmphys_finalize
@@ -896,6 +923,11 @@ module atm_core
 
       clock => domain % clock
       mpas_log_info => domain % logInfo
+
+      !
+      ! Finalize the dynamics
+      !
+      call mpas_atm_dynamics_finalize(domain)
 
       call mpas_atm_diag_cleanup()
 
@@ -1307,7 +1339,9 @@ module atm_core
    !-----------------------------------------------------------------------
    subroutine mpas_atm_run_compatibility(dminfo, blockList, streamManager, ierr)
 
+#ifdef DO_PHYSICS
       use mpas_atmphys_control, only : physics_compatibility_check
+#endif
       use mpas_atm_boundaries, only : mpas_atm_bdy_checks
 
       implicit none
@@ -1321,11 +1355,13 @@ module atm_core
 
       ierr = 0
 
+#ifdef DO_PHYSICS
       !
       ! Physics specific checks found in physics/mpas_atmphys_control.F
       !
       call physics_compatibility_check(dminfo, blockList, streamManager, local_ierr)
       ierr = ierr + local_ierr
+#endif
 
       !
       ! Checks for limited-area simulations
