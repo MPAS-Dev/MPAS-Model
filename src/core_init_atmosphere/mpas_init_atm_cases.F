@@ -474,7 +474,11 @@ module init_atm_cases
 
       !  storage for (lat,z) arrays for zonal velocity calculation
 
-      logical, parameter :: rebalance = .true.
+      logical, parameter :: rebalance = .false.
+      !logical, parameter :: rebalance = .false.
+      !PXT - added the possibility of initialization with pointwise edges value (for wind)
+      logical, parameter :: pointwise_normal_proj = .true.
+      !logical, parameter :: pointwise_normal_proj = .false.
       integer, parameter :: nlat=721
       real (kind=RKIND), dimension(nVertLevels) :: flux_zonal
       real (kind=RKIND), dimension(nVertLevels + 1, nlat) :: zgrid_2d
@@ -496,6 +500,9 @@ module init_atm_cases
 
       real (kind=RKIND), dimension(:), pointer :: latCell, latVertex, lonVertex, latEdge, lonEdge
       real (kind=RKIND), dimension(:), pointer :: fEdge, fVertex
+
+!PXT - added
+      real (kind=RKIND), dimension(:), pointer :: angleEdge
 
       real (kind=RKIND), pointer :: sphere_radius
       logical, pointer :: on_a_sphere
@@ -543,6 +550,9 @@ module init_atm_cases
       areaCell(:) = areaCell(:) * sphere_radius**2.0
       areaTriangle(:) = areaTriangle(:) * sphere_radius**2.0
       kiteAreasOnVertex(:,:) = kiteAreasOnVertex(:,:) * sphere_radius**2.0
+
+!PXT - added
+      call mpas_pool_get_array(mesh, 'angleEdge', angleEdge)
 
       call mpas_pool_get_array(mesh, 'weightsOnEdge', weightsOnEdge)
       call mpas_pool_get_array(mesh, 'nEdgesOnEdge', nEdgesOnEdge)
@@ -1014,24 +1024,50 @@ module init_atm_cases
          lat2 = latVertex(vtx2)
          iCell1 = cellsOnEdge(1,iEdge)
          iCell2 = cellsOnEdge(2,iEdge)
-         flux = (0.5*(lat2-lat1) - 0.125*(sin(4.*lat2) - sin(4.*lat1))) * sphere_radius / dvEdge(iEdge)
-
+         
+         !PXT-added this possibility of a pointwise normal edge velocity calculation
+         if (pointwise_normal_proj) then 
+            !PXT - this is exactly the pointwise flux in the J&W paper. The initialization on triangle or voronoi edge midpoint can
+            !       be controled with HCt or HCm config flag 
+            !       zonal_flux = (sin(2*latEdge))**2=(0.5)*(1.0-cos(4*latEdge(iEdge)))
+            !       normal_flux = cos(angleEdge(iEdge))*zonal_flux
+            flux = cos(angleEdge(iEdge))*(0.5)*(1.0-cos(4*latEdge(iEdge)))
+            !print*, iEdge, flux
+         else
+            !PXT - this seems to use an approximation of the pointwise projection to normal edge
+            !      based on the integral formulation
+            !      cos(angleEdge)~(lat2-lat1) * sphere_radius / dvEdge(iEdge)
+            flux = (0.5*(lat2-lat1) - 0.125*(sin(4.*lat2) - sin(4.*lat1))) * sphere_radius / dvEdge(iEdge)
+            !print*, iEdge, flux
+         end if
+         
          if (config_init_case == 2) then
             r_pert = sphere_distance( latEdge(iEdge), lonEdge(iEdge), &
                                       lat_pert, lon_pert, 1.0_RKIND)/(pert_radius)
+            if (pointwise_normal_proj) then 
+               !PXT - added the possibility of getting normal component from the pointwise edge angle
+               u_pert = u_perturbation*exp(-r_pert**2)*cos(angleEdge(iEdge))
+            else
+               !PXT - original perturbation
             u_pert = u_perturbation*exp(-r_pert**2)*(lat2-lat1) * sphere_radius / dvEdge(iEdge)
-
+            end if
          else if (config_init_case == 3) then
             lon_Edge = lonEdge(iEdge)
-            u_pert = u_perturbation*cos(k_x*(lon_Edge - lon_pert)) &
-                         *(0.5*(lat2-lat1) - 0.125*(sin(4.*lat2) - sin(4.*lat1))) * sphere_radius / dvEdge(iEdge)
+            !PXT - changed to accomodate to pointwise flux calculation
+            u_pert = u_perturbation*cos(k_x*(lon_Edge - lon_pert)) * flux !&
+                         !*(0.5*(lat2-lat1) - 0.125*(sin(4.*lat2) - sin(4.*lat1))) * sphere_radius / dvEdge(iEdge)
          else
             u_pert = 0.0
          end if
 
-         if (rebalance) then
+         if (rebalance) then           
+           !PXT - added the possibility of rebalancing using the pointwise normal edge calculation
+           if (pointwise_normal_proj) then     
+               call init_atm_calc_flux_zonal_edge(u_2d,lat_2d,flux_zonal, u0, nz1, nlat, latEdge(iEdge), cos(angleEdge(iEdge)))
+           else
+               call init_atm_calc_flux_zonal(u_2d,etavs_2d,lat_2d,flux_zonal,lat1,lat2,dvEdge(iEdge),sphere_radius,u0,nz1,nlat)
+           end if
 
-           call init_atm_calc_flux_zonal(u_2d,etavs_2d,lat_2d,flux_zonal,lat1,lat2,dvEdge(iEdge),sphere_radius,u0,nz1,nlat)
            do k=1,nVertLevels
              fluxk = u0*flux_zonal(k)/(0.5*(rb(k,iCell1)+rb(k,iCell2)+rr(k,iCell1)+rr(k,iCell2)))
              u(k,iEdge) = fluxk + u_pert
@@ -1238,12 +1274,51 @@ module init_atm_cases
       end do
    
    !  renormalize for setting cell-face fluxes
-   
       do k=1,nz1
         flux_zonal(k) = sign(1.0_RKIND,lat2_in-lat1_in)*flux_zonal(k)*dlat*a/dvEdge/u0
       end do
         
    end subroutine init_atm_calc_flux_zonal
+
+!PXT - added this function, a copy with modifications of init_atm_calc_flux_zonal
+!      to allow the calculation of the edge normal wind with a poitwise calculation
+   subroutine init_atm_calc_flux_zonal_edge(u_2d ,lat_2d,flux_zonal, u0, nz1, nlat, lat_edge, cos_angle_edge)
+
+      implicit none
+   
+      integer, intent(in) :: nz1, nlat
+      real (kind=RKIND), dimension(nz1,nlat), intent(in) :: u_2d
+      real (kind=RKIND), dimension(nlat), intent(in) :: lat_2d
+      real (kind=RKIND), dimension(nz1), intent(out) :: flux_zonal
+      real (kind=RKIND), intent(in) :: u0, lat_edge, cos_angle_edge
+   
+      integer :: k,i
+      real (kind=RKIND) :: lat1, lat2, w1, w2
+      real (kind=RKIND) :: dlat,da,db
+   
+      lat1 = abs(lat_edge)
+
+      do i=1,nlat-1 !This could be optimized to directly get the the index of interest
+        if( ( lat_2d(i) <= lat1 ) .and. (lat1 <= lat_2d(i+1))) then
+         dlat = lat_2d(i+1)-lat_2d(i)
+         !Linear interpolation
+         w1 = (lat1-lat_2d(i))/dlat
+         w2 = (lat_2d(i+1)-lat1)/dlat
+         
+         !print*, i, lat_2d(i), lat_2d(i+1), lat1, w1, w2 
+         do k=1,nz1
+            flux_zonal(k) = w2*u_2d(k,i) + w1*u_2d(k,i+1)
+         end do   
+        end if
+      end do
+   
+   !  renormalize for setting cell-face fluxes
+      do k=1,nz1
+        !flux_zonal(k) = sign(1.0_RKIND,lat2_in-lat1_in)*flux_zonal(k)*dlat*a/dvEdge/u0
+        flux_zonal(k) = cos_angle_edge*flux_zonal(k)/u0
+      end do
+        
+   end subroutine init_atm_calc_flux_zonal_edge
 
 
    !SHP-balance
