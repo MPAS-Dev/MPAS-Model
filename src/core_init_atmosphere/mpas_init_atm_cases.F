@@ -474,10 +474,10 @@ module init_atm_cases
 
       !  storage for (lat,z) arrays for zonal velocity calculation
 
-      logical, parameter :: rebalance = .false.
+      logical, parameter :: rebalance = .true.
       !logical, parameter :: rebalance = .false.
       !PXT - added the possibility of initialization with pointwise edges value (for wind)
-      logical, parameter :: pointwise_normal_proj = .true.
+      logical, parameter :: pointwise_normal_proj = .false.
       !logical, parameter :: pointwise_normal_proj = .false.
       integer, parameter :: nlat=721
       real (kind=RKIND), dimension(nVertLevels) :: flux_zonal
