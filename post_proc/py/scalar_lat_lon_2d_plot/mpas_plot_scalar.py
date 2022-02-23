@@ -91,12 +91,22 @@ var = mesh.variables[variable]
 
 dims = var.dimensions
 shap = var.shape
-print(dims)
-print(shap)
+
 nlevels = shap[2]
 ntimes = shap[0]
 print("nlevels:", nlevels)
+if 'nEdges' in dims:
+    patchtype="edge"
+else:
+    patchtype="cell"
 
+if( variable == "u"):
+    #plot zonal wind?
+    cosangleedge=np.cos(mesh.variables['angleEdge'])
+    print(cosangleedge)
+    cosangleedge[cosangleedge==0]=np.nan
+    print(cosangleedge)
+    
 
 ''' In this example, we will be plotting actual MPAS polygons. The
 `get_mpas_patches` function will create a collection of patches for the current
@@ -109,7 +119,7 @@ to the `get_mpas_patches` function.
 Doing things this way is slower, as we will have to not only loop through
 nCells, but also nEdges of all nCells.
 '''
-patch_collection = get_mpas_patches(mesh, pickleFile=None)
+patch_collection = get_mpas_patches(mesh, type=patchtype, pickleFile=None)
 
 '''  Initialize Basemap
 
@@ -211,10 +221,14 @@ for l in levels:
 
         But I have choosen the way below for the brevity.
         '''
-        
-        vmax=np.max(var[t,:,l])
-        vmin=np.min(var[t,:,l])
-        patch_collection.set_array(var[t,:,l])
+        if(variable=="u"):
+            #Try to write the zonal velocity
+            var_tmp=var[t,:,l]/cosangleedge
+        else:
+            var_tmp=var[t,:,l]
+        vmax=np.max(var_tmp)
+        vmin=np.min(var_tmp)
+        patch_collection.set_array(var_tmp)
         #patch_collection.set_edgecolors("")         # No Edge Colors
         patch_collection.set_antialiaseds(True)    # Blends things a little
         patch_collection.set_cmap(color_map)        # Select our color_map
@@ -243,6 +257,6 @@ for l in levels:
         You'll need to always remove the patch_collection when generating
         plots on the same collection, else MPL will complain.
         '''
-        plt.savefig(dir+"/"+variable+'_'+str(t)+'_'+str(l)+'.png')
+        plt.savefig(dir+"/"+variable+'_'+str(t)+'_'+str(l)+'.png', dpi=500)
         patch_collection.remove()
         plt.close(fig)
