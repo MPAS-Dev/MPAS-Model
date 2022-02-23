@@ -21,7 +21,7 @@ but is the same as mpas_plot_pressure.py.
 This file was created with great help and reference from:
 * https://github.com/lmadaus/mpas_python
 
-*Modified by P. Peixoto in Nov 2021 <ppeixoto@usp.br>
+*Modified by P. Peixoto in Feb 2021 <ppeixoto@usp.br>
 '''
 
 import os
@@ -85,14 +85,16 @@ lons = mesh.variables['lon'+variable][:] * (180 / np.pi)
 
 
 # Normalize latitude and longitude
-lons[lons > 180.0] = lons[lons > 180.] - 360.
-lons[lons < -180.0] = lons[lons < -180.] + 360.
+#lons[lons > 180.0] = lons[lons > 180.] - 360.
+#lons[lons < -180.0] = lons[lons < -180.] + 360.
 
 # Create or get the patch file for our current mesh
-patch_collection = get_mpas_patches(mesh, pickleFile=None)
+patchtype="edge"
+patchtype="cell"
+patch_collection = get_mpas_patches(mesh, type=patchtype, pickleFile=None)
 
 # Initalize Basemap
-bmap = Basemap(projection='cyl', llcrnrlat=-90, urcrnrlat=90, llcrnrlon=-180, urcrnrlon=180, resolution='l')
+bmap = Basemap(projection='cyl', llcrnrlat=-90, urcrnrlat=90, llcrnrlon=0, urcrnrlon=360, resolution='l')
 
 
 color_map = cm.gist_ncar
@@ -106,8 +108,8 @@ ax = plt.gca()
 
 #bmap.drawcoastlines()
 
-#bmap.drawparallels(range(-90, 90, 30), linewidth=1, labels=[1,0,0,0], color='b')
-#bmap.drawmeridians(range(-180, 180, 45), linewidth=1, labels=[0,0,0,1], color='b', rotation=45)
+bmap.drawparallels(range(-90, 90, 30), linewidth=1, labels=[1,0,0,0], color='b')
+bmap.drawmeridians(range(-180, 180, 45), linewidth=1, labels=[0,0,0,1], color='b', rotation=45)
 
 #patch_collection.set_array(lat[:])
 patch_collection.set_linewidths(0.1)
