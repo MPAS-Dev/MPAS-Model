@@ -81,7 +81,7 @@ if not os.path.isfile(file):
     sys.exit(-1)
 
 #Create dir for output
-dir = variable
+dir = "figures/"+variable
 if not os.path.isdir(dir):
     os.makedirs(dir)
 
