@@ -47,29 +47,40 @@ of colormaps for a plot. A reference to colormaps can be found at:
 import matplotlib.cm as cm
 from mpl_toolkits.basemap import Basemap
 
-from mpas_patches import get_mpas_patches
-    
+from mpas_patches import get_mpas_patches, plot_var_in_patch
+
 parser = argparse.ArgumentParser()
 
 parser.add_argument('file', 
                     type=str, 
-                    help='''File you want to plot from''')
+                    help='''File you want to plot from''',
+                    nargs='+'
+                    )
+
 parser.add_argument('-v',
                     '--var', 
                     type=str,
                     default='pressure',
                     help='''Variable you want to plot from that file''')
 
+
 args = parser.parse_args()
 variable = args.var
-file = args.file
 
-# Open the NetCDF file and pull out the var at the given levels.
-# Check to see if the mesh contains the variable
+file = args.file[0]
+compare = False
+nFiles = len(args.file)
+if nFiles>1:
+    print(args.file)
+    compare = True
+    files = args.file
+
+#Check ref file existence
 if not os.path.isfile(file):
     print("That file was not found :(")
     sys.exit(-1)
 
+#Create dir for output
 dir = variable
 if not os.path.isdir(dir):
     os.makedirs(dir)
@@ -88,6 +99,12 @@ if variable not in mesh.variables.keys():
 # Pull the variable out of the mesh. Now we can manipulate it any way we choose
 # do some 'post-processing' or other meteorological stuff
 var = mesh.variables[variable]
+vars = []
+if nFiles>1:
+    meshes = []
+    for i, f in enumerate(files):
+        meshes.append(Dataset(os.path.join(f), 'r'))
+        vars.append(meshes[i].variables[variable])
 
 dims = var.dimensions
 shap = var.shape
@@ -101,162 +118,39 @@ else:
     patchtype="cell"
 
 if( variable == "u"):
-    #plot zonal wind?
+    #plot assuming zonal wind, since otherwise it contains incomplete wind information
     cosangleedge=np.cos(mesh.variables['angleEdge'])
-    print(cosangleedge)
     cosangleedge[cosangleedge==0]=np.nan
-    print(cosangleedge)
     
-
-''' In this example, we will be plotting actual MPAS polygons. The
-`get_mpas_patches` function will create a collection of patches for the current
-mesh for us AND it will save it, so that later we do not need to create it
-again (Because often time creation is very slow).
-
-If you have a PickleFile someone where can supply it as the pickleFile argument
-to the `get_mpas_patches` function.
-
-Doing things this way is slower, as we will have to not only loop through
-nCells, but also nEdges of all nCells.
-'''
+#Get MPAS grid patches, for either cells or edges (triangles need to be implmented!!)
 patch_collection = get_mpas_patches(mesh, type=patchtype, pickleFile=None)
 
-'''  Initialize Basemap
-
-Basemap handles all things map projections. It can translate between one map
-projection to another, drawcoastliens, draw latitude liens and a number of map
-related things. I encourage you to check out this tutorial here:
-
-    - https://basemaptutorial.readthedocs.io/en/latest/
-
-As well as the official documentation
-
-    - https://matplotlib.org/basemap/index.html
-    
-'''
-bmap = Basemap(projection='cyl', 
-               llcrnrlat=-90,
-               urcrnrlat=90,
-               llcrnrlon=0,
-               urcrnrlon=360,
-               resolution='l')
-
-
-''' Colormaps can be choosen using MatPlotLib's colormaps collection. A
-reference of the colormaps can be found below.:
-
-- https://matplotlib.org/examples/color/colormaps_reference.html
-
-We can also alter the styles of the plots we produce if we desire:
-
-- https://matplotlib.org/gallery/style_sheets/style_sheets_reference.html
 
 '''
-#color_map = cm.gist_ncar
-color_map = cm.bwr
-style = 'ggplot'
-
+Select levels and time instants for plotting
 '''
-Make plots at vertical levels that is specified the range below, not this will
-be vertical plots, 0, 1, 2, 3, and 4 and for all the times in this mesh file
-(if there are any).
-'''
-
-print(mesh)
-
 levels = [1] #range(nlevels)
 times = range(ntimes)
 for l in levels:
     for t in times:
 
-        ''' A figure is the final image that contains one or more axes. In this
-        case we will produce three figures, all with three axes. Each figure is
-        saved to its own file.
-        '''
+        if nFiles==1:
+            title = variable+' at time '+str(t)+' and at level '+str(l)
+            outfile = dir+"/"+variable+'_'+str(t)+'_'+str(l)+'.png'
+            var_tmp = var[t,:,l]
+        else:
+            title = variable+' diff at time '+str(t)+' and at level '+str(l)
+            outfile = dir+"/"+variable+'_diff_'+str(t)+'_'+str(l)+'.png'
+            var_tmp = vars[1][t,:,l]-var[t,:,l]
 
-        print("Creating a plot of ", variable, " at ", l, " level and time", t, dir+"/"+variable+'_'+str(t)+'_'+str(l)+'.png')
-        fig = plt.figure()
-        ax = plt.gca()
-
-        bmap.drawcoastlines()
-
-        ''' Basemap allows latitude and longitude lines to be drawn with ease
-        and much flexibility. The only thing that is required of you is to
-        select the latitude or longitude lines you want respectivly. Everything
-        else is optional.
-
-        Easily select a range using python's `range` builtin. Range is a handy
-        function that will create a list and is useful in loops and array
-        creation. It is defined as:
-
-            my_range = range(start, end, stride)
-
-        Note, that this will not include end.
-
-            my_range1 = range(2, 10, 2)  # [2, 4, 6, 8]
-            my_range2 = range(3)         # [0, 1, 2]
-            my_range3 = range(1, 3)      # [1, 2]
-
-        '''
-        bmap.drawparallels(range(-90, 90, 30), 
-                           linewidth=1, 
-                           labels=[1,0,0,0],
-                           color='b')
-        bmap.drawmeridians(range(0, 360, 45),
-                          linewidth=1, 
-                          labels=[0,0,0,1],
-                          color='b',
-                          rotation=45)
-
-
-        ''' For plotting MPAS meshes, set the patch_color ro the variable that
-        we are plotting: var. Here we are taking the 't' time and the 'l'
-        level while pulling out the pressure values ie: `var[t,:,l]`
-
-        
-        We could also choose to write the following as:
-
-            pressure = var[t,:,l]
-            patch_collection.set_array(pressure)
-
-        But I have choosen the way below for the brevity.
-        '''
+        print("Creating a plot of ", title, outfile)
+        #Plot variables in patches
         if(variable=="u"):
             #Try to write the zonal velocity
-            var_tmp=var[t,:,l]/cosangleedge
-        else:
-            var_tmp=var[t,:,l]
-        vmax=np.max(var_tmp)
-        vmin=np.min(var_tmp)
-        patch_collection.set_array(var_tmp)
-        #patch_collection.set_edgecolors("")         # No Edge Colors
-        patch_collection.set_antialiaseds(True)    # Blends things a little
-        patch_collection.set_cmap(color_map)        # Select our color_map
-        #patch_collection.set_norm(None)
-        patch_collection.set_clim(vmin, vmax)
-        ''' Now apply the patch_collection to our axis '''
-        ax.add_collection(patch_collection)
+            var_tmp = var_tmp/cosangleedge
 
-        '''
-        Add a colorbar (if desired), and add a label to it. In this example the
-        color bar will automatically be generated. See ll-plotting for a more
-        advance colorbar example.
+        plot_var_in_patch(var_tmp, patch_collection, variable, title, outfile)
+            
 
-        https://matplotlib.org/api/colorbar_api.html
-        '''
-        plt.rcParams['axes.grid'] = False
-        cbar = plt.colorbar(patch_collection, fraction=0.046, pad=0.04)
-        cbar.set_label(variable)
-        
 
-        ''' Create the title as you see fit '''
-        plt.title(variable+' at time '+str(t)+' and at level '+str(l))
-        plt.style.use(style) # Set the style that we choose above
 
-        ''' Save the file, remove the patch_collection, and close the figure.
-        You'll need to always remove the patch_collection when generating
-        plots on the same collection, else MPL will complain.
-        '''
-        plt.savefig(dir+"/"+variable+'_'+str(t)+'_'+str(l)+'.png', dpi=500)
-        patch_collection.remove()
-        plt.close(fig)
