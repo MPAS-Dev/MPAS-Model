@@ -145,10 +145,11 @@ for l in levels:
 
         print("Creating a plot of ", title, outfile)
         #Plot variables in patches
+        print(var_tmp)
         if(variable=="u"):
             #Try to write the zonal velocity
             var_tmp = var_tmp/cosangleedge
-
+            
         plot_var_in_patch(var_tmp, patch_collection, variable, title, outfile)
             
 
