@@ -18,7 +18,7 @@ def call_parser():
     group.add_argument('--init', action='store_true', help='Use init_atmo core')
     group.add_argument('--run', action='store_true', help='Use run atm core')
     parser.add_argument('--make', action='store_true', help='evoke make', default=False)
-    parser.add_argument('--name', type=str, default='jw_tc1', help='''main name of benchmark''')
+    parser.add_argument('--name', type=str, default='basic_test', help='''main name of benchmark''')
 
     args = parser.parse_args()
     return args
@@ -44,10 +44,12 @@ class Bench:
         #compile mpas to get defauls namelists and streams
         if args.init:
             self.core="init_atmosphere_model"
+            self.core0="init_atmosphere"
             self.nml_filename = "namelist.init_atmosphere"
             self.stream_filename = "streams.init_atmosphere"
         else:
             self.core="atmosphere_model"
+            self.core0="atmosphere"
             self.nml_filename = "namelist.atmosphere"
             self.stream_filename = "streams.atmosphere"
 
@@ -62,7 +64,7 @@ class Bench:
         if args.make:
             make_args = ["make"]
             make_args.append("gfortran")
-            make_args.append("CORE="+self.core)
+            make_args.append("CORE="+self.core0)
             make_args.append("OPENMP=true")
             make_args.append("USE_PIO2=true")
             make_args.append("AUTOCLEAN=true")
