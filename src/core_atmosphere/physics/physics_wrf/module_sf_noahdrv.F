@@ -1,7 +1,7 @@
 MODULE module_sf_noahdrv
 
 !-------------------------------
-  USE module_sf_noahlsm,  only: SFLX, XLF, XLV, CP, R_D, RHOWATER, NATURAL, SHDTBL, LUTYPE, SLTYPE, STBOLT, &
+  USE module_sf_noahlsm,  only: SFLX, SFLX_gpu, XLF, XLV, CP, R_D, RHOWATER, NATURAL, SHDTBL, LUTYPE, SLTYPE, STBOLT, &
       &                         KARMAN, LUCATS, NROTBL, RSTBL, RGLTBL, HSTBL, SNUPTBL, MAXALB, LAIMINTBL,   &
       &                         LAIMAXTBL, Z0MINTBL, Z0MAXTBL, ALBEDOMINTBL, ALBEDOMAXTBL, EMISSMINTBL,     &
       &                         EMISSMAXTBL, TOPT_DATA, CMCMAX_DATA, CFACTR_DATA, RSMAX_DATA, BARE, NLUS,   &
@@ -13,7 +13,7 @@ MODULE module_sf_noahdrv
       &                         LOW_DENSITY_RESIDENTIAL, HIGH_DENSITY_RESIDENTIAL, HIGH_INTENSITY_INDUSTRIAL
 
   USE module_sf_urban,    only: urban, oasis, IRI_SCHEME
-  USE module_sf_noahlsm_glacial_only, only: sflx_glacial
+  USE module_sf_noahlsm_glacial_only, only: sflx_glacial, SFLX_GLACIAL_gpu
   USE module_sf_bep,      only: bep
   USE module_sf_bep_bem,  only: bep_bem
 #if defined(mpas)
@@ -1684,6 +1684,1271 @@ CONTAINS
 !------------------------------------------------------
    END SUBROUTINE lsm
 !------------------------------------------------------
+
+!
+!----------------------------------------------------------------
+! Urban related variable are added to arguments - urban
+!----------------------------------------------------------------
+   SUBROUTINE lsm_gpu(DZ8W,QV3D,P8W3D,T3D,TSK,                      &
+                  HFX,QFX,LH,GRDFLX, QGH,GSW,SWDOWN,GLW,SMSTAV,SMSTOT, &
+                  SFCRUNOFF, UDRUNOFF,IVGTYP,ISLTYP,ISURBAN,ISICE,VEGFRA,    &
+                  ALBEDO,ALBBCK,ZNT,Z0,TMN,XLAND,XICE,EMISS,EMBCK,   &
+                  SNOWC,QSFC,RAINBL,MMINLU,                     &
+                  NUM_SOIL_LAYERS,DT,DZS,ITIMESTEP,             &
+                  SMOIS,TSLB,SNOW,CANWAT,                       &
+                  CHS,CHS2,CQS2,CPM,ROVCP,SR,CHKLOWQ,LAI,QZ0,   & !H
+                  MYJ,FRPCPN,                                   &
+                  SH2O,SNOWH,                                   & !H
+                  U_PHY,V_PHY,                                  & !I
+                  SNOALB,SHDMIN,SHDMAX,                         & !I
+                  SNOTIME,                                      & !?
+                  ACSNOM,ACSNOW,                                & !O
+                  SNOPCX,                                       & !O
+                  POTEVP,                                       & !O
+                  SMCREL,                                       & !O
+                  XICE_THRESHOLD,                               &
+                  RDLAI2D,USEMONALB,                            &
+                  RIB,                                          & !?
+                  NOAHRES,OPT_THCND,                            &
+! Noah UA changes
+                  UA_PHYS,FLX4_2D,FVB_2D,FBUR_2D,FGSN_2D,       &
+                  ids,ide, jds,jde, kds,kde,                    &
+                  ims,ime, jms,jme, kms,kme,                    &
+                  its,ite, jts,jte, kts,kte,                    &
+                  SF_URBAN_PHYSICS,                             &
+                  CMR_SFCDIF,CHR_SFCDIF,CMC_SFCDIF,CHC_SFCDIF,  &
+                  CMGR_SFCDIF,CHGR_SFCDIF,                      &
+!Optional Urban
+                  TR_URB2D,TB_URB2D,TG_URB2D,TC_URB2D,QC_URB2D, & !H urban
+                  UC_URB2D,                                     & !H urban
+                  XXXR_URB2D,XXXB_URB2D,XXXG_URB2D,XXXC_URB2D,  & !H urban
+                  TRL_URB3D,TBL_URB3D,TGL_URB3D,                & !H urban
+                  SH_URB2D,LH_URB2D,G_URB2D,RN_URB2D,TS_URB2D,  & !H urban
+                  PSIM_URB2D,PSIH_URB2D,U10_URB2D,V10_URB2D,    & !O urban
+                  GZ1OZ0_URB2D,  AKMS_URB2D,                    & !O urban
+                  TH2_URB2D,Q2_URB2D, UST_URB2D,                & !O urban
+                  DECLIN_URB,COSZ_URB2D,OMG_URB2D,              & !I urban
+                  XLAT_URB2D,                                   & !I urban
+                  NUM_ROOF_LAYERS,NUM_WALL_LAYERS,             & !I urban
+                  NUM_ROAD_LAYERS, DZR, DZB, DZG,               & !I urban
+                  CMCR_URB2D,TGR_URB2D,TGRL_URB3D,SMR_URB3D,    & !H urban
+                  DRELR_URB2D,DRELB_URB2D,DRELG_URB2D,          & !H urban
+                  FLXHUMR_URB2D,FLXHUMB_URB2D,FLXHUMG_URB2D,    & !H urban
+                  JULIAN, JULYR,                                & !H urban
+                  FRC_URB2D,UTYPE_URB2D,                        & !O
+                  NUM_URBAN_LAYERS,                             & !I multi-layer urban
+                  NUM_URBAN_HI,                                 & !I multi-layer urban
+                  TSK_RURAL_BEP,                                & !H multi-layer urban
+                  TRB_URB4D,TW1_URB4D,TW2_URB4D,TGB_URB4D,      & !H multi-layer urban
+                  TLEV_URB3D,QLEV_URB3D,                        & !H multi-layer urban
+                  TW1LEV_URB3D,TW2LEV_URB3D,                    & !H multi-layer urban
+                  TGLEV_URB3D,TFLEV_URB3D,                      & !H multi-layer urban
+                  SF_AC_URB3D,LF_AC_URB3D,CM_AC_URB3D,          & !H multi-layer urban
+                  SFVENT_URB3D,LFVENT_URB3D,                    & !H multi-layer urban
+                  SFWIN1_URB3D,SFWIN2_URB3D,                    & !H multi-layer urban
+                  SFW1_URB3D,SFW2_URB3D,SFR_URB3D,SFG_URB3D,    & !H multi-layer urban
+                  LP_URB2D,HI_URB2D,LB_URB2D,HGT_URB2D,         & !H multi-layer urban
+                  MH_URB2D,STDH_URB2D,LF_URB2D,                 & !SLUCM
+                  TH_PHY,RHO,P_PHY,UST,                         & !I multi-layer urban
+                  GMT,JULDAY,XLONG,XLAT,                        & !I multi-layer urban
+                  A_U_BEP,A_V_BEP,A_T_BEP,A_Q_BEP,              & !O multi-layer urban
+                  A_E_BEP,B_U_BEP,B_V_BEP,                      & !O multi-layer urban
+                  B_T_BEP,B_Q_BEP,B_E_BEP,DLG_BEP,              & !O multi-layer urban
+                  DL_U_BEP,SF_BEP,VL_BEP,SFCHEADRT,INFXSRT,SOLDRAIN,      &   !O multi-layer urban         
+                  SDA_HFX, SDA_QFX, HFX_BOTH, QFX_BOTH, QNORM, FASDAS,     &   !fasdas
+                  RC2,XLAI2                                               &
+                  )
+
+!----------------------------------------------------------------
+    IMPLICIT NONE
+!----------------------------------------------------------------
+!----------------------------------------------------------------
+! --- atmospheric (WRF generic) variables
+!-- DT          time step (seconds)
+!-- DZ8W        thickness of layers (m)
+!-- T3D         temperature (K)
+!-- QV3D        3D water vapor mixing ratio (Kg/Kg)
+!-- P3D         3D pressure (Pa)
+!-- FLHC        exchange coefficient for heat (m/s)
+!-- FLQC        exchange coefficient for moisture (m/s)
+!-- PSFC        surface pressure (Pa)
+!-- XLAND       land mask (1 for land, 2 for water)
+!-- QGH         saturated mixing ratio at 2 meter
+!-- GSW         downward short wave flux at ground surface (W/m^2)
+!-- GLW         downward long wave flux at ground surface (W/m^2)
+!-- History variables
+!-- CANWAT      canopy moisture content (mm)
+!-- TSK         surface temperature (K)
+!-- TSLB        soil temp (k)
+!-- SMOIS       total soil moisture content (volumetric fraction)
+!-- SH2O        unfrozen soil moisture content (volumetric fraction)
+!                note: frozen soil moisture (i.e., soil ice) = SMOIS - SH2O
+!-- SNOWH       actual snow depth (m)
+!-- SNOW        liquid water-equivalent snow depth (m)
+!-- ALBEDO      time-varying surface albedo including snow effect (unitless fraction)
+!-- ALBBCK      background surface albedo (unitless fraction)
+!-- CHS          surface exchange coefficient for heat and moisture (m s-1);
+!-- CHS2        2m surface exchange coefficient for heat  (m s-1);
+!-- CQS2        2m surface exchange coefficient for moisture (m s-1);
+! --- soil variables
+!-- NUM_SOIL_LAYERS   the number of soil layers
+!-- ZS          depths of centers of soil layers   (m)
+!-- DZS         thicknesses of soil layers (m)
+!-- SLDPTH      thickness of each soil layer (m, same as DZS)
+!-- TMN         soil temperature at lower boundary (K)
+!-- SMCWLT      wilting point (volumetric)
+!-- SMCDRY      dry soil moisture threshold where direct evap from
+!               top soil layer ends (volumetric)
+!-- SMCREF      soil moisture threshold below which transpiration begins to
+!                   stress (volumetric)
+!-- SMCMAX      porosity, i.e. saturated value of soil moisture (volumetric)
+!-- NROOT       number of root layers, a function of veg type, determined
+!               in subroutine redprm.
+!-- SMSTAV      Soil moisture availability for evapotranspiration (
+!                   fraction between SMCWLT and SMCMXA)
+!-- SMSTOT      Total soil moisture content frozen+unfrozen) in the soil column (mm)
+! --- snow variables
+!-- SNOWC       fraction snow coverage (0-1.0)
+! --- vegetation variables
+!-- SNOALB      upper bound on maximum albedo over deep snow
+!-- SHDMIN      minimum areal fractional coverage of annual green vegetation
+!-- SHDMAX      maximum areal fractional coverage of annual green vegetation
+!-- XLAI        leaf area index (dimensionless)
+!-- XLAI2       leaf area index (same as XLAI) passed to output (dimensionless)
+!-- Z0BRD       Background fixed roughness length (M)
+!-- Z0          Background vroughness length (M) as function
+!-- ZNT         Time varying roughness length (M) as function
+!-- ALBD(IVGTPK,ISN) background albedo reading from a table
+! --- LSM output
+!-- HFX         upward heat flux at the surface (W/m^2)
+!-- QFX         upward moisture flux at the surface (kg/m^2/s)
+!-- LH          upward moisture flux at the surface (W m-2)
+!-- GRDFLX(I,J) ground heat flux (W m-2)
+!-- FDOWN       radiation forcing at the surface (W m-2) = SOLDN*(1-alb)+LWDN
+!----------------------------------------------------------------------------
+!-- EC          canopy water evaporation ((W m-2)
+!-- EDIR        direct soil evaporation (W m-2)
+!-- ET          plant transpiration from a particular root layer (W m-2)
+!-- ETT         total plant transpiration (W m-2)
+!-- ESNOW       sublimation from (or deposition to if <0) snowpack (W m-2)
+!-- DRIP        through-fall of precip and/or dew in excess of canopy
+!                 water-holding capacity (m)
+!-- DEW         dewfall (or frostfall for t<273.15) (M)
+!-- SMAV        Soil Moisture Availability for each layer, as a fraction
+!                 between SMCWLT and SMCMAX (dimensionless fraction)
+! ----------------------------------------------------------------------
+!-- BETA        ratio of actual/potential evap (dimensionless)
+!-- ETP         potential evaporation (W m-2)
+! ----------------------------------------------------------------------
+!-- FLX1        precip-snow sfc (W m-2)
+!-- FLX2        freezing rain latent heat flux (W m-2)
+!-- FLX3        phase-change heat flux from snowmelt (W m-2)
+! ----------------------------------------------------------------------
+!-- ACSNOM      snow melt (mm) (water equivalent)
+!-- ACSNOW      accumulated snow fall (mm) (water equivalent)
+!-- SNOPCX      snow phase change heat flux (W/m^2)
+!-- POTEVP      accumulated potential evaporation (m)
+!-- RIB         Documentation needed!!!
+! ----------------------------------------------------------------------
+!-- RUNOFF1     surface runoff (m s-1), not infiltrating the surface
+!-- RUNOFF2     subsurface runoff (m s-1), drainage out bottom of last
+!                  soil layer (baseflow)
+!  important note: here RUNOFF2 is actually the sum of RUNOFF2 and RUNOFF3
+!-- RUNOFF3     numerical trunctation in excess of porosity (smcmax)
+!                  for a given soil layer at the end of a time step (m s-1).
+!SFCRUNOFF     Surface Runoff (mm)
+!UDRUNOFF      Total Underground Runoff (mm), which is the sum of RUNOFF2 and RUNOFF3
+! ----------------------------------------------------------------------
+!-- RC          canopy resistance (s m-1)
+!-- RC2         canopy resistance (same as RC) passed to output
+!-- PC          plant coefficient (unitless fraction, 0-1) where PC*ETP = actual transp
+!-- RSMIN       minimum canopy resistance (s m-1)
+!-- RCS         incoming solar rc factor (dimensionless)
+!-- RCT         air temperature rc factor (dimensionless)
+!-- RCQ         atmos vapor pressure deficit rc factor (dimensionless)
+!-- RCSOIL      soil moisture rc factor (dimensionless)
+
+!-- EMISS       surface emissivity (between 0 and 1)
+!-- EMBCK       Background surface emissivity (between 0 and 1)
+
+!-- ROVCP       R/CP
+!               (R_d/R_v) (dimensionless)
+!-- ids         start index for i in domain
+!-- ide         end index for i in domain
+!-- jds         start index for j in domain
+!-- jde         end index for j in domain
+!-- kds         start index for k in domain
+!-- kde         end index for k in domain
+!-- ims         start index for i in memory
+!-- ime         end index for i in memory
+!-- jms         start index for j in memory
+!-- jme         end index for j in memory
+!-- kms         start index for k in memory
+!-- kme         end index for k in memory
+!-- its         start index for i in tile
+!-- ite         end index for i in tile
+!-- jts         start index for j in tile
+!-- jte         end index for j in tile
+!-- kts         start index for k in tile
+!-- kte         end index for k in tile
+!
+!-- SR          fraction of frozen precip (0.0 to 1.0)
+!----------------------------------------------------------------
+
+! IN only
+
+   INTEGER,  INTENT(IN   )   ::     ids,ide, jds,jde, kds,kde,  &
+                                    ims,ime, jms,jme, kms,kme,  &
+                                    its,ite, jts,jte, kts,kte
+
+   INTEGER,  INTENT(IN   )   ::  SF_URBAN_PHYSICS               !urban
+   INTEGER,  INTENT(IN   )   ::  ISURBAN
+   INTEGER,  INTENT(IN   )   ::  ISICE
+   INTEGER,  INTENT(IN   )   ::  JULIAN, JULYR                  !urban
+
+!added by Wei Yu  for routing
+    REAL,    DIMENSION( ims:ime, jms:jme )                     , &
+             INTENT(INOUT)  :: SFCHEADRT,INFXSRT,SOLDRAIN
+    REAL,    DIMENSION( ims:ime) :: ETPND1
+!end added
+
+
+
+   REAL,    DIMENSION( ims:ime, jms:jme )                     , &
+            INTENT(IN   )    ::                            TMN, &
+                                                         XLAND, &
+                                                          XICE, &
+                                                        VEGFRA, &
+                                                        SHDMIN, &
+                                                        SHDMAX, &
+                                                        SNOALB, &
+                                                           GSW, &
+                                                        SWDOWN, & !added 10 jan 2007
+                                                           GLW, &
+                                                        RAINBL, &
+                                                        EMBCK,  &
+                                                        SR
+
+   REAL,    DIMENSION( ims:ime, jms:jme )                     , &
+            INTENT(INOUT)    ::                         ALBBCK, &
+                                                            Z0
+   CHARACTER(LEN=*), INTENT(IN   )    ::                 MMINLU
+
+   REAL,    DIMENSION( ims:ime, kms:kme, jms:jme )            , &
+            INTENT(IN   )    ::                           QV3D, &
+                                                         P8W3D, &
+                                                          DZ8W, &
+                                                          T3D
+   REAL,     DIMENSION( ims:ime, jms:jme )                    , &
+             INTENT(IN   )               ::               QGH,  &
+                                                          CPM
+
+   INTEGER, DIMENSION( ims:ime, jms:jme )                     , &
+            INTENT(IN   )    ::                         IVGTYP, &
+                                                        ISLTYP
+
+   INTEGER, INTENT(IN)       ::     NUM_SOIL_LAYERS,ITIMESTEP
+
+   REAL,     INTENT(IN   )   ::     DT,ROVCP
+
+   REAL,     DIMENSION(1:num_soil_layers), INTENT(IN)::DZS
+
+! IN and OUT
+
+   REAL,     DIMENSION( ims:ime , 1:num_soil_layers, jms:jme ), &
+             INTENT(INOUT)   ::                          SMOIS, & ! total soil moisture
+                                                         SH2O,  & ! new soil liquid
+                                                         TSLB     ! TSLB     STEMP
+
+   REAL,     DIMENSION( ims:ime , 1:num_soil_layers, jms:jme ), &
+             INTENT(OUT)     ::                         SMCREL
+
+   REAL,    DIMENSION( ims:ime, jms:jme )                     , &
+            INTENT(INOUT)    ::                            TSK, & !was TGB (temperature)
+                                                           HFX, &
+                                                           QFX, &
+                                                            LH, &
+                                                        GRDFLX, &
+                                                          QSFC,&
+                                                          CQS2,&
+                                                          CHS,   &
+                                                          CHS2,&
+                                                          SNOW, &
+                                                         SNOWC, &
+                                                         SNOWH, & !new
+                                                        CANWAT, &
+                                                        SMSTAV, &
+                                                        SMSTOT, &
+                                                     SFCRUNOFF, &
+                                                      UDRUNOFF, &
+                                                        ACSNOM, &
+                                                        ACSNOW, &
+                                                       SNOTIME, &
+                                                        SNOPCX, &
+                                                        EMISS,  &
+                                                          RIB,  &
+                                                        POTEVP, &
+                                                        ALBEDO, &
+                                                           ZNT
+   REAL,    DIMENSION( ims:ime, jms:jme )                     , &
+            INTENT(OUT)      ::                         NOAHRES
+   INTEGER, INTENT(IN)       ::                         OPT_THCND
+
+! Noah UA changes
+   LOGICAL,                                INTENT(IN)  :: UA_PHYS
+   REAL,    DIMENSION( ims:ime, jms:jme ), INTENT(OUT) :: FLX4_2D,FVB_2D,FBUR_2D,FGSN_2D
+   REAL,    DIMENSION( ims:ime) :: FLX4,FVB,FBUR,FGSN
+
+   REAL,    DIMENSION( ims:ime, jms:jme )                     , &
+               INTENT(OUT)    ::                        CHKLOWQ
+   REAL,    DIMENSION( ims:ime, jms:jme ), INTENT(INOUT) :: LAI
+   REAL,DIMENSION(IMS:IME,JMS:JME),INTENT(IN) ::        QZ0
+   REAL, OPTIONAL, DIMENSION( ims:ime, jms:jme ), INTENT(OUT) ::  RC2, XLAI2
+
+   REAL, OPTIONAL, DIMENSION( ims:ime, jms:jme ), INTENT(INOUT) :: CMR_SFCDIF
+   REAL, OPTIONAL, DIMENSION( ims:ime, jms:jme ), INTENT(INOUT) :: CHR_SFCDIF
+   REAL, OPTIONAL, DIMENSION( ims:ime, jms:jme ), INTENT(INOUT) :: CMGR_SFCDIF
+   REAL, OPTIONAL, DIMENSION( ims:ime, jms:jme ), INTENT(INOUT) :: CHGR_SFCDIF
+   REAL, OPTIONAL, DIMENSION( ims:ime, jms:jme ), INTENT(INOUT) :: CMC_SFCDIF
+   REAL, OPTIONAL, DIMENSION( ims:ime, jms:jme ), INTENT(INOUT) :: CHC_SFCDIF
+! Local variables (moved here from driver to make routine thread safe, 20031007 jm)
+
+      REAL, DIMENSION(1:num_soil_layers,ims:ime) ::  ET
+
+      REAL, DIMENSION(1:num_soil_layers,ims:ime) ::  SMAV
+
+    REAL, DIMENSION(ims:ime) :: FFROZP,XLAI,FDOWN,EC,EDIR,ETT,ESNOW, &
+                DRIP,DEW,BETA,ETP,SSOIL,FLX1,FLX2,FLX3,RC,PC,RSMIN,  &
+                RCS,RCT,RCQ,RCSOIL
+
+    LOGICAL,    INTENT(IN   )    ::     MYJ,FRPCPN
+
+! DECLARATIONS - LOGICAL
+! ----------------------------------------------------------------------
+      LOGICAL, PARAMETER :: LOCAL=.false.
+      LOGICAL :: FRZGRA, SNOWNG
+
+      LOGICAL :: IPRINT
+
+! ----------------------------------------------------------------------
+! DECLARATIONS - INTEGER
+! ----------------------------------------------------------------------
+      INTEGER :: I,J, NSOIL,SLOPETYP
+      INTEGER, DIMENSION( ims:ime ) :: VEGTYP,SOILTYP,ICE
+      INTEGER, DIMENSION( ims:ime ) :: NROOT
+      INTEGER :: KZ ,K
+      INTEGER :: NS
+! ----------------------------------------------------------------------
+! DECLARATIONS - REAL
+! ----------------------------------------------------------------------
+
+      REAL  :: PRCPRAIN,                    &
+               SFCSPD,         &
+! mek, WRF testing, expanded diagnostics
+               SOLUP,LWUP,RNET,RES,Q1SFC,TAIRV,SATFLG
+      REAL, DIMENSION(ims:ime) :: SFCPRS,Q2K,Q2SAT,SFCTMP,ZLVL,LWDN,     &
+               SOLDN,SOLNET,PRCP,SHDFAC,SHMIN,SHMAX,DQSDT2,SFCTSNO,      &
+               E2SAT,Q2SATI,TBOT,SNOALB1,ALBBRD,EMBRD,Z0K,ALBEDOK,       &
+               ETA,SHEAT,ETA_KINEMATIC,RUNOFF1,RUNOFF2,RUNOFF3
+! MEK MAY 2007
+      REAL ::  FDTLIW
+! MEK JUL2007 for pot. evap.
+      REAL, DIMENSION(ims:ime) :: RIBB
+      REAL ::  FDTW
+
+      REAL, DIMENSION(ims:ime) :: EMISSI
+
+      REAL, DIMENSION(ims:ime) :: TH2,CHK,SNEQV,SNCOVR,SNOWHK,CMC
+
+      REAL, DIMENSION(ims:ime) :: T1,SNOMLT,SOILM,SOILW,Q1,SMCDRY,SMCMAX,SMCREF,SMCWLT
+      REAL, DIMENSION(ims:ime) :: SNOTIME1    ! LSTSNW1 INITIAL NUMBER OF TIMESTEPS SINCE LAST SNOWFALL
+
+      REAL, DIMENSION(ims:ime) :: DUMMY
+      REAL, DIMENSION(ims:ime) :: Z0BRD
+!
+      REAL  :: COSZ, SOLARDIRECT
+!
+      REAL, DIMENSION(1:NUM_SOIL_LAYERS, ims:ime):: SMC,STC,SWC,SLDPTH
+!
+      REAL, DIMENSION(1:NUM_SOIL_LAYERS) ::     ZSOIL, RTDIS
+      REAL, PARAMETER  :: TRESH=.95E0, A2=17.67,A3=273.15,A4=29.65,   &
+                          T0=273.16E0, ELWV=2.50E6,  A23M4=A2*(A3-A4)
+! MEK MAY 2007
+      REAL, PARAMETER  :: ROW=1.E3,ELIW=XLF,ROWLIW=ROW*ELIW
+
+! ----------------------------------------------------------------------
+! DECLARATIONS START - urban
+! ----------------------------------------------------------------------
+
+! input variables surface_driver --> lsm
+     INTEGER, INTENT(IN) :: NUM_ROOF_LAYERS
+     INTEGER, INTENT(IN) :: NUM_WALL_LAYERS
+     INTEGER, INTENT(IN) :: NUM_ROAD_LAYERS
+     REAL, OPTIONAL, DIMENSION(1:NUM_ROOF_LAYERS), INTENT(IN) :: DZR
+     REAL, OPTIONAL, DIMENSION(1:NUM_WALL_LAYERS), INTENT(IN) :: DZB
+     REAL, OPTIONAL, DIMENSION(1:NUM_ROAD_LAYERS), INTENT(IN) :: DZG
+     REAL, OPTIONAL, INTENT(IN) :: DECLIN_URB
+     REAL, OPTIONAL, DIMENSION( ims:ime, jms:jme ), INTENT(IN) :: COSZ_URB2D
+     REAL, OPTIONAL, DIMENSION( ims:ime, jms:jme ), INTENT(IN) :: OMG_URB2D
+     REAL, OPTIONAL, DIMENSION( ims:ime, jms:jme ), INTENT(IN) :: XLAT_URB2D
+     REAL, OPTIONAL, DIMENSION( ims:ime, kms:kme, jms:jme ), INTENT(IN) :: U_PHY
+     REAL, OPTIONAL, DIMENSION( ims:ime, kms:kme, jms:jme ), INTENT(IN) :: V_PHY
+     REAL, OPTIONAL, DIMENSION( ims:ime, kms:kme, jms:jme ), INTENT(IN) :: TH_PHY
+     REAL, OPTIONAL, DIMENSION( ims:ime, kms:kme, jms:jme ), INTENT(IN) :: P_PHY
+     REAL, OPTIONAL, DIMENSION( ims:ime, kms:kme, jms:jme ), INTENT(IN) :: RHO
+     REAL, OPTIONAL, DIMENSION( ims:ime, jms:jme ), INTENT(INOUT) :: UST
+
+     LOGICAL, intent(in) :: RDLAI2D
+     LOGICAL, intent(in) :: USEMONALB
+
+! input variables lsm --> urban
+     INTEGER :: UTYPE_URB ! urban type [urban=1, suburban=2, rural=3]
+     REAL :: TA_URB       ! potential temp at 1st atmospheric level [K]
+     REAL :: QA_URB       ! mixing ratio at 1st atmospheric level  [kg/kg]
+     REAL :: UA_URB       ! wind speed at 1st atmospheric level    [m/s]
+     REAL :: U1_URB       ! u at 1st atmospheric level             [m/s]
+     REAL :: V1_URB       ! v at 1st atmospheric level             [m/s]
+     REAL :: SSG_URB      ! downward total short wave radiation    [W/m/m]
+     REAL :: LLG_URB      ! downward long wave radiation           [W/m/m]
+     REAL :: RAIN_URB     ! precipitation                          [mm/h]
+     REAL :: RHOO_URB     ! air density                            [kg/m^3]
+     REAL :: ZA_URB       ! first atmospheric level                [m]
+     REAL :: DELT_URB     ! time step                              [s]
+     REAL :: SSGD_URB     ! downward direct short wave radiation   [W/m/m]
+     REAL :: SSGQ_URB     ! downward diffuse short wave radiation  [W/m/m]
+     REAL :: XLAT_URB     ! latitude                               [deg]
+     REAL :: COSZ_URB     ! cosz
+     REAL :: OMG_URB      ! hour angle
+     REAL :: ZNT_URB      ! roughness length                       [m]
+     REAL :: TR_URB
+     REAL :: TB_URB
+     REAL :: TG_URB
+     REAL :: TC_URB
+     REAL :: QC_URB
+     REAL :: UC_URB
+     REAL :: XXXR_URB
+     REAL :: XXXB_URB
+     REAL :: XXXG_URB
+     REAL :: XXXC_URB
+     REAL, DIMENSION(1:NUM_ROOF_LAYERS) :: TRL_URB  ! roof layer temp [K]
+     REAL, DIMENSION(1:NUM_WALL_LAYERS) :: TBL_URB  ! wall layer temp [K]
+     REAL, DIMENSION(1:NUM_ROAD_LAYERS) :: TGL_URB  ! road layer temp [K]
+     LOGICAL  :: LSOLAR_URB
+
+!===Yang,2014/10/08,hydrological variable for single layer UCM===
+     INTEGER :: JMONTH, JDAY, TLOC
+     INTEGER :: IRIOPTION, USOIL, DSOIL
+     REAL :: AOASIS, OMG
+     REAL :: DRELR_URB
+     REAL :: DRELB_URB
+     REAL :: DRELG_URB
+     REAL :: FLXHUMR_URB
+     REAL :: FLXHUMB_URB
+     REAL :: FLXHUMG_URB
+     REAL :: CMCR_URB
+     REAL :: TGR_URB
+     REAL, DIMENSION(1:NUM_ROOF_LAYERS) :: SMR_URB  ! green roof layer moisture
+     REAL, DIMENSION(1:NUM_ROOF_LAYERS) :: TGRL_URB ! green roof layer temp [K]
+
+     REAL, OPTIONAL, DIMENSION( ims:ime, jms:jme ), INTENT(INOUT) :: DRELR_URB2D
+     REAL, OPTIONAL, DIMENSION( ims:ime, jms:jme ), INTENT(INOUT) :: DRELB_URB2D
+     REAL, OPTIONAL, DIMENSION( ims:ime, jms:jme ), INTENT(INOUT) :: DRELG_URB2D
+     REAL, OPTIONAL, DIMENSION( ims:ime, jms:jme ), INTENT(INOUT) :: FLXHUMR_URB2D
+     REAL, OPTIONAL, DIMENSION( ims:ime, jms:jme ), INTENT(INOUT) :: FLXHUMB_URB2D
+     REAL, OPTIONAL, DIMENSION( ims:ime, jms:jme ), INTENT(INOUT) :: FLXHUMG_URB2D
+     REAL, OPTIONAL, DIMENSION( ims:ime, jms:jme ), INTENT(INOUT) :: CMCR_URB2D
+     REAL, OPTIONAL, DIMENSION( ims:ime, jms:jme ), INTENT(INOUT) :: TGR_URB2D
+     REAL, OPTIONAL, DIMENSION( ims:ime, 1:NUM_ROOF_LAYERS, jms:jme ), INTENT(INOUT) :: TGRL_URB3D
+     REAL, OPTIONAL, DIMENSION( ims:ime, 1:NUM_ROOF_LAYERS, jms:jme ), INTENT(INOUT) :: SMR_URB3D
+
+
+! state variable surface_driver <--> lsm <--> urban
+     REAL, OPTIONAL, DIMENSION( ims:ime, jms:jme ), INTENT(INOUT) :: TR_URB2D
+     REAL, OPTIONAL, DIMENSION( ims:ime, jms:jme ), INTENT(INOUT) :: TB_URB2D
+     REAL, OPTIONAL, DIMENSION( ims:ime, jms:jme ), INTENT(INOUT) :: TG_URB2D
+     REAL, OPTIONAL, DIMENSION( ims:ime, jms:jme ), INTENT(INOUT) :: TC_URB2D
+     REAL, OPTIONAL, DIMENSION( ims:ime, jms:jme ), INTENT(INOUT) :: QC_URB2D
+     REAL, OPTIONAL, DIMENSION( ims:ime, jms:jme ), INTENT(INOUT) :: UC_URB2D
+     REAL, OPTIONAL, DIMENSION( ims:ime, jms:jme ), INTENT(INOUT) :: XXXR_URB2D
+     REAL, OPTIONAL, DIMENSION( ims:ime, jms:jme ), INTENT(INOUT) :: XXXB_URB2D
+     REAL, OPTIONAL, DIMENSION( ims:ime, jms:jme ), INTENT(INOUT) :: XXXG_URB2D
+     REAL, OPTIONAL, DIMENSION( ims:ime, jms:jme ), INTENT(INOUT) :: XXXC_URB2D
+     REAL, OPTIONAL, DIMENSION( ims:ime, jms:jme ), INTENT(INOUT) :: SH_URB2D
+     REAL, OPTIONAL, DIMENSION( ims:ime, jms:jme ), INTENT(INOUT) :: LH_URB2D
+     REAL, OPTIONAL, DIMENSION( ims:ime, jms:jme ), INTENT(INOUT) :: G_URB2D
+     REAL, OPTIONAL, DIMENSION( ims:ime, jms:jme ), INTENT(INOUT) :: RN_URB2D
+!
+     REAL, OPTIONAL, DIMENSION( ims:ime, jms:jme ), INTENT(INOUT) :: TS_URB2D
+
+     REAL, OPTIONAL, DIMENSION( ims:ime, 1:NUM_ROOF_LAYERS, jms:jme ), INTENT(INOUT) :: TRL_URB3D
+     REAL, OPTIONAL, DIMENSION( ims:ime, 1:NUM_WALL_LAYERS, jms:jme ), INTENT(INOUT) :: TBL_URB3D
+     REAL, OPTIONAL, DIMENSION( ims:ime, 1:NUM_ROAD_LAYERS, jms:jme ), INTENT(INOUT) :: TGL_URB3D
+
+! output variable lsm --> surface_driver
+     REAL, OPTIONAL, DIMENSION( ims:ime, jms:jme ), INTENT(OUT) :: PSIM_URB2D
+     REAL, OPTIONAL, DIMENSION( ims:ime, jms:jme ), INTENT(OUT) :: PSIH_URB2D
+     REAL, OPTIONAL, DIMENSION( ims:ime, jms:jme ), INTENT(OUT) :: GZ1OZ0_URB2D
+     REAL, OPTIONAL, DIMENSION( ims:ime, jms:jme ), INTENT(OUT) :: U10_URB2D
+     REAL, OPTIONAL, DIMENSION( ims:ime, jms:jme ), INTENT(OUT) :: V10_URB2D
+     REAL, OPTIONAL, DIMENSION( ims:ime, jms:jme ), INTENT(OUT) :: TH2_URB2D
+     REAL, OPTIONAL, DIMENSION( ims:ime, jms:jme ), INTENT(OUT) :: Q2_URB2D
+!
+     REAL, OPTIONAL, DIMENSION( ims:ime, jms:jme ), INTENT(OUT) :: AKMS_URB2D
+!
+     REAL, DIMENSION( ims:ime, jms:jme ), INTENT(OUT) :: UST_URB2D
+     REAL, DIMENSION( ims:ime, jms:jme ), INTENT(IN) :: FRC_URB2D
+     INTEGER, DIMENSION( ims:ime, jms:jme ), INTENT(IN) :: UTYPE_URB2D
+
+
+! output variables urban --> lsm
+     REAL :: TS_URB     ! surface radiative temperature    [K]
+     REAL :: QS_URB     ! surface humidity                 [-]
+     REAL :: SH_URB     ! sensible heat flux               [W/m/m]
+     REAL :: LH_URB     ! latent heat flux                 [W/m/m]
+     REAL :: LH_KINEMATIC_URB ! latent heat flux, kinetic  [kg/m/m/s]
+     REAL :: SW_URB     ! upward short wave radiation flux [W/m/m]
+     REAL :: ALB_URB    ! time-varying albedo            [fraction]
+     REAL :: LW_URB     ! upward long wave radiation flux  [W/m/m]
+     REAL :: G_URB      ! heat flux into the ground        [W/m/m]
+     REAL :: RN_URB     ! net radiation                    [W/m/m]
+     REAL :: PSIM_URB   ! shear f for momentum             [-]
+     REAL :: PSIH_URB   ! shear f for heat                 [-]
+     REAL :: GZ1OZ0_URB   ! shear f for heat                 [-]
+     REAL :: U10_URB    ! wind u component at 10 m         [m/s]
+     REAL :: V10_URB    ! wind v component at 10 m         [m/s]
+     REAL :: TH2_URB    ! potential temperature at 2 m     [K]
+     REAL :: Q2_URB     ! humidity at 2 m                  [-]
+     REAL :: CHS_URB
+     REAL :: CHS2_URB
+     REAL :: UST_URB
+! NUDAPT Parameters urban --> lam
+     REAL :: MH_URB
+     REAL :: STDH_URB
+     REAL :: LP_URB
+     REAL :: HGT_URB
+     REAL, DIMENSION(4) :: LF_URB
+! Variables for multi-layer UCM (Martilli et al. 2002)
+   REAL, OPTIONAL, INTENT(IN  )   ::                                   GMT 
+   INTEGER, OPTIONAL, INTENT(IN  ) ::                               JULDAY
+   REAL, OPTIONAL, DIMENSION( ims:ime, jms:jme ), INTENT(IN   )        ::XLAT, XLONG
+   INTEGER, INTENT(IN  ) ::                               NUM_URBAN_LAYERS
+   INTEGER, INTENT(IN  ) ::                               NUM_URBAN_HI
+   REAL, OPTIONAL, DIMENSION( ims:ime,                     jms:jme ), INTENT(INOUT) :: TSK_RURAL_BEP
+   REAL, OPTIONAL, DIMENSION( ims:ime, 1:NUM_URBAN_LAYERS, jms:jme ), INTENT(INOUT) :: TRB_URB4D
+   REAL, OPTIONAL, DIMENSION( ims:ime, 1:NUM_URBAN_LAYERS, jms:jme ), INTENT(INOUT) :: TW1_URB4D
+   REAL, OPTIONAL, DIMENSION( ims:ime, 1:NUM_URBAN_LAYERS, jms:jme ), INTENT(INOUT) :: TW2_URB4D
+   REAL, OPTIONAL, DIMENSION( ims:ime, 1:NUM_URBAN_LAYERS, jms:jme ), INTENT(INOUT) :: TGB_URB4D
+   REAL, OPTIONAL, DIMENSION( ims:ime, 1:NUM_URBAN_LAYERS, jms:jme ), INTENT(INOUT) :: TLEV_URB3D
+   REAL, OPTIONAL, DIMENSION( ims:ime, 1:NUM_URBAN_LAYERS, jms:jme ), INTENT(INOUT) :: QLEV_URB3D
+   REAL, OPTIONAL, DIMENSION( ims:ime, 1:NUM_URBAN_LAYERS, jms:jme ), INTENT(INOUT) :: TW1LEV_URB3D
+   REAL, OPTIONAL, DIMENSION( ims:ime, 1:NUM_URBAN_LAYERS, jms:jme ), INTENT(INOUT) :: TW2LEV_URB3D
+   REAL, OPTIONAL, DIMENSION( ims:ime, 1:NUM_URBAN_LAYERS, jms:jme ), INTENT(INOUT) :: TGLEV_URB3D
+   REAL, OPTIONAL, DIMENSION( ims:ime, 1:NUM_URBAN_LAYERS, jms:jme ), INTENT(INOUT) :: TFLEV_URB3D
+   REAL, OPTIONAL, DIMENSION( ims:ime, jms:jme ), INTENT(INOUT) :: LF_AC_URB3D
+   REAL, OPTIONAL, DIMENSION( ims:ime, jms:jme ), INTENT(INOUT) :: SF_AC_URB3D
+   REAL, OPTIONAL, DIMENSION( ims:ime, jms:jme ), INTENT(INOUT) :: CM_AC_URB3D
+   REAL, OPTIONAL, DIMENSION( ims:ime, jms:jme ), INTENT(INOUT) :: SFVENT_URB3D
+   REAL, OPTIONAL, DIMENSION( ims:ime, jms:jme ), INTENT(INOUT) :: LFVENT_URB3D
+   REAL, OPTIONAL, DIMENSION( ims:ime, 1:NUM_URBAN_LAYERS, jms:jme ), INTENT(INOUT) :: SFWIN1_URB3D
+   REAL, OPTIONAL, DIMENSION( ims:ime, 1:NUM_URBAN_LAYERS, jms:jme ), INTENT(INOUT) :: SFWIN2_URB3D
+   REAL, OPTIONAL, DIMENSION( ims:ime, 1:NUM_URBAN_LAYERS, jms:jme ), INTENT(INOUT) :: SFW1_URB3D
+   REAL, OPTIONAL, DIMENSION( ims:ime, 1:NUM_URBAN_LAYERS, jms:jme ), INTENT(INOUT) :: SFW2_URB3D
+   REAL, OPTIONAL, DIMENSION( ims:ime, 1:NUM_URBAN_LAYERS, jms:jme ), INTENT(INOUT) :: SFR_URB3D
+   REAL, OPTIONAL, DIMENSION( ims:ime, 1:NUM_URBAN_LAYERS, jms:jme ), INTENT(INOUT) :: SFG_URB3D
+   REAL, OPTIONAL, DIMENSION( ims:ime, 1:NUM_URBAN_HI, jms:jme ), INTENT(IN) :: HI_URB2D
+   REAL, OPTIONAL, DIMENSION( ims:ime, jms:jme ), INTENT(IN) :: LP_URB2D
+   REAL, OPTIONAL, DIMENSION( ims:ime, jms:jme ), INTENT(IN) :: LB_URB2D
+   REAL, OPTIONAL, DIMENSION( ims:ime, jms:jme ), INTENT(IN) :: HGT_URB2D
+   REAL, OPTIONAL, DIMENSION( ims:ime, jms:jme ), INTENT(IN) :: MH_URB2D
+   REAL, OPTIONAL, DIMENSION( ims:ime, jms:jme ), INTENT(IN) :: STDH_URB2D
+   REAL, OPTIONAL, DIMENSION( ims:ime, 4, jms:jme ), INTENT(IN) :: LF_URB2D
+   REAL, OPTIONAL, DIMENSION( ims:ime, kms:kme, jms:jme ), INTENT(INOUT) ::A_U_BEP   !Implicit momemtum component X-direction
+   REAL, OPTIONAL, DIMENSION( ims:ime, kms:kme, jms:jme ), INTENT(INOUT) ::A_V_BEP   !Implicit momemtum component Y-direction
+   REAL, OPTIONAL, DIMENSION( ims:ime, kms:kme, jms:jme ), INTENT(INOUT) ::A_T_BEP   !Implicit component pot. temperature
+   REAL, OPTIONAL, DIMENSION( ims:ime, kms:kme, jms:jme ), INTENT(INOUT) ::A_Q_BEP   !Implicit momemtum component X-direction
+   REAL, OPTIONAL, DIMENSION( ims:ime, kms:kme, jms:jme ), INTENT(INOUT) ::A_E_BEP   !Implicit component TKE
+   REAL, OPTIONAL, DIMENSION( ims:ime, kms:kme, jms:jme ), INTENT(INOUT) ::B_U_BEP   !Explicit momentum component X-direction
+   REAL, OPTIONAL, DIMENSION( ims:ime, kms:kme, jms:jme ), INTENT(INOUT) ::B_V_BEP   !Explicit momentum component Y-direction
+   REAL, OPTIONAL, DIMENSION( ims:ime, kms:kme, jms:jme ), INTENT(INOUT) ::B_T_BEP   !Explicit component pot. temperature
+   REAL, OPTIONAL, DIMENSION( ims:ime, kms:kme, jms:jme ), INTENT(INOUT) ::B_Q_BEP   !Implicit momemtum component Y-direction
+   REAL, OPTIONAL, DIMENSION( ims:ime, kms:kme, jms:jme ), INTENT(INOUT) ::B_E_BEP   !Explicit component TKE
+   REAL, OPTIONAL, DIMENSION( ims:ime, kms:kme, jms:jme ), INTENT(INOUT) ::VL_BEP    !Fraction air volume in grid cell
+   REAL, OPTIONAL, DIMENSION( ims:ime, kms:kme, jms:jme ), INTENT(INOUT) ::DLG_BEP   !Height above ground
+   REAL, OPTIONAL, DIMENSION( ims:ime, kms:kme, jms:jme ), INTENT(INOUT) ::SF_BEP  !Fraction air at the face of grid cell
+   REAL, OPTIONAL, DIMENSION( ims:ime, kms:kme, jms:jme ), INTENT(INOUT) ::DL_U_BEP  !Length scale
+
+! Local variables for multi-layer UCM (Martilli et al. 2002)
+   REAL,    DIMENSION( its:ite, jts:jte ) :: HFX_RURAL,LH_RURAL,GRDFLX_RURAL ! ,RN_RURAL
+   REAL,    DIMENSION( its:ite, jts:jte ) :: QFX_RURAL ! ,QSFC_RURAL,UMOM_RURAL,VMOM_RURAL
+   REAL,    DIMENSION( its:ite, jts:jte ) :: ALB_RURAL,EMISS_RURAL,TSK_RURAL ! ,UST_RURAL
+!   REAL,    DIMENSION( ims:ime, jms:jme ) :: QSFC_URB
+   REAL,    DIMENSION( its:ite, jts:jte ) :: HFX_URB,UMOM_URB,VMOM_URB
+   REAL,    DIMENSION( its:ite, jts:jte ) :: QFX_URB
+!   REAL,    DIMENSION( ims:ime, jms:jme ) :: ALBEDO_URB,EMISS_URB,UMOM,VMOM,UST
+   REAL, DIMENSION(its:ite,jts:jte) ::EMISS_URB
+   REAL, DIMENSION(its:ite,jts:jte) :: RL_UP_URB
+   REAL, DIMENSION(its:ite,jts:jte) ::RS_ABS_URB
+   REAL, DIMENSION(its:ite,jts:jte) ::GRDFLX_URB
+   REAL :: SIGMA_SB,RL_UP_RURAL,RL_UP_TOT,RS_ABS_TOT,UMOM,VMOM
+   REAL :: CMR_URB, CHR_URB, CMC_URB, CHC_URB, CMGR_URB, CHGR_URB
+   REAL :: frc_urb,lb_urb
+   REAL :: check 
+! ----------------------------------------------------------------------
+! DECLARATIONS END - urban
+! ----------------------------------------------------------------------
+
+  REAL, PARAMETER  :: CAPA=R_D/CP
+  REAL :: APELM,APES,SFCTH2,PSFC
+  real, intent(in) :: XICE_THRESHOLD
+  character(len=80) :: message_text
+!
+!  FASDAS
+!
+   REAL,    DIMENSION( ims:ime, jms:jme ),  OPTIONAL,                     &
+            INTENT(INOUT)  ::   SDA_HFX, SDA_QFX, HFX_BOTH, QFX_BOTH, QNORM
+   INTEGER, INTENT(IN   )  ::  FASDAS
+!  local vars
+   REAL, DIMENSION( ims:ime ) :: XSDA_HFX, XSDA_QFX, XQNORM,HFX_PHY,QFX_PHY,HCPCT_FASDAS
+   REAL                    ::  DZQ
+
+!!!$acc update device(DZ8W,P8W3D,T3D,QV3D,XLAND,XICE,IVGTYP,ISLTYP,TMN,VEGFRA,SHDMIN,SHDMAX, &
+!!!$acc               SNOALB,GLW,GSW,SWDOWN,RAINBL,EMBCK,SR,QGH,CPM,QZ0,TSK,HFX,QFX,LH,      &
+!!!$acc               GRDFLX,QSFC,CQS2,CHS,CHS2,SNOW,SNOWC,SNOWH,CANWAT,SMSTAV,SMSTOT,       &
+!!!$acc               SFCRUNOFF,UDRUNOFF,ACSNOM,ACSNOW,SNOTIME,SNOPCX,EMISS,RIB,POTEVP,      &
+!!!$acc               ALBEDO,ALBBCK,Z0,ZNT,LAI,NOAHRES,CHKLOWQ,SH2O,SMOIS,TSLB,SMCREL,DZS,   &
+!!!$acc               FLX4_2D,FVB_2D,FBUR_2D,FGSN_2D,UTYPE_URB2D,FRC_URB2D,UST_URB2D,INFXSRT,&
+!!!$acc               SFCHEADRT,SOLDRAIN)
+
+!$acc data create(HFX_PHY,QFX_PHY,XQNORM,XSDA_HFX,XSDA_QFX,FLX4,FVB,FBUR,FGSN,SOILW, &
+!$acc             SLDPTH,SFCPRS,Q2K,Q2SAT,SFCTMP,ZLVL,LWDN,SOLDN,SOLNET,PRCP,SHDFAC, &
+!$acc             SHMIN,SHMAX,DQSDT2,SFCTSNO,E2SAT,Q2SATI,TBOT,SNOALB1,ALBBRD,EMBRD, &
+!$acc             Z0K,ALBEDOK,ETA,SHEAT,ETA_KINEMATIC,RUNOFF1,RUNOFF2,RUNOFF3,TH2,   &
+!$acc             EMISSI,VEGTYP,SOILTYP,T1,CHK,SNEQV,SNCOVR,SNOWHK,CMC,FFROZP,XLAI,  &
+!$acc             FDOWN,EC,EDIR,ETT,ESNOW,DRIP,DEW,BETA,ETP,SSOIL,FLX1,FLX2,FLX3,RC, &
+!$acc             PC,RSMIN,RCS,RCT,RCQ,RCSOIL,TSK_RURAL,HFX_RURAL,QFX_RURAL,LH_RURAL,&
+!$acc             GRDFLX_RURAL,EMISS_RURAL,Z0BRD,SNOTIME1,RIBB,SMC,STC,SWC,ICE,SOILM,&
+!$acc             SMAV,ALB_RURAL,HCPCT_FASDAS,Q1,SNOMLT,SMCMAX,SMCREF,SMCDRY,SMCWLT, &
+!$acc             ETPND1,ET,NROOT,DUMMY)
+
+!$acc parallel vector_length(32)
+!$acc loop gang vector
+   DO I=its,ite
+      HFX_PHY(I) = 0.0   ! initialize
+      QFX_PHY(I) = 0.0
+      XQNORM(I)  = 0.0
+      XSDA_HFX(I) = 0.0
+      XSDA_QFX(I) = 0.0
+!
+!  END FASDAS
+!
+      FLX4(I)  = 0.0 !BSINGH - Initialized to 0.0
+      FVB(I)   = 0.0 !BSINGH - Initialized to 0.0
+      FBUR(I)  = 0.0 !BSINGH - Initialized to 0.0
+      FGSN(I)  = 0.0 !BSINGH - Initialized to 0.0
+      SOILW(I) = 0.0 !BSINGH - Initialized to 0.0
+   ENDDO
+!$acc end parallel
+
+  SIGMA_SB=5.67e-08
+
+! MEK MAY 2007
+      FDTLIW=DT/ROWLIW
+! MEK JUL2007
+      FDTW=DT/(XLV*RHOWATER)
+! debug printout
+         IPRINT=.false.
+
+!      SLOPETYP=2
+      SLOPETYP=1
+!      SHDMIN=0.00
+
+
+      NSOIL=NUM_SOIL_LAYERS
+
+
+     JLOOP : DO J=jts,jte
+
+      IF(ITIMESTEP.EQ.1)THEN
+!$acc parallel vector_length(32)
+!$acc loop gang vector
+        DO 50 I=its,ite
+!*** initialize soil conditions for IHOP 31 May case
+!         IF((XLAND(I,J)-1.5) < 0.)THEN
+!            if (I==108.and.j==85) then
+!                  DO NS=1,NSOIL
+!                      SMOIS(I,NS,J)=0.10
+!                      SH2O(I,NS,J)=0.10
+!                  enddo
+!             endif
+!         ENDIF
+
+!*** SET ZERO-VALUE FOR SOME OUTPUT DIAGNOSTIC ARRAYS
+          IF((XLAND(I,J)-1.5).GE.0.)THEN
+! check sea-ice point
+#if 0
+            IF( XICE(I,J).GE. XICE_THRESHOLD .and. IPRINT ) PRINT*, ' sea-ice at water point, I=',I,'J=',J
+#endif
+!***   Open Water Case
+            SMSTAV(I,J)=1.0
+            SMSTOT(I,J)=1.0
+            DO NS=1,NSOIL
+              SMOIS(I,NS,J)=1.0
+              TSLB(I,NS,J)=273.16                                          !STEMP
+              SMCREL(I,NS,J)=1.0
+            ENDDO
+          ELSE
+            IF ( XICE(I,J) .GE. XICE_THRESHOLD ) THEN
+!***        SEA-ICE CASE
+              SMSTAV(I,J)=1.0
+              SMSTOT(I,J)=1.0
+              DO NS=1,NSOIL
+                SMOIS(I,NS,J)=1.0
+                SMCREL(I,NS,J)=1.0
+              ENDDO
+            ENDIF
+          ENDIF
+!
+   50   CONTINUE
+!$acc end parallel
+      ENDIF                                                               ! end of initialization over ocean
+
+!-----------------------------------------------------------------------
+!$acc parallel vector_length(32)
+!$acc loop gang vector private(PSFC,SATFLG,APES,APELM,SFCTH2)
+      ILOOP1 : DO I=its,ite
+
+        DO NS=1,NSOIL
+          SLDPTH(NS,I)=DZS(NS)
+        ENDDO
+
+! surface pressure
+        PSFC=P8W3D(i,1,j)
+! pressure in middle of lowest layer
+        SFCPRS(I)=(P8W3D(I,KTS+1,J)+P8W3D(I,KTS,j))*0.5
+! convert from mixing ratio to specific humidity
+         Q2K(I)=QV3D(I,1,J)/(1.0+QV3D(I,1,J))
+!
+!         Q2SAT(I)=QGH(I,j)
+         Q2SAT(I)=QGH(I,J)/(1.0+QGH(I,J))        ! Q2SAT is sp humidity
+! add check on myj=.true.
+!        IF((Q2K(I).GE.Q2SAT(I)*TRESH).AND.Q2K(I).LT.QZ0(I,J))THEN
+        IF((MYJ).AND.(Q2K(I).GE.Q2SAT(I)*TRESH).AND.Q2K(I).LT.QZ0(I,J))THEN
+          SATFLG=0.
+          CHKLOWQ(I,J)=0.
+        ELSE
+          SATFLG=1.0
+          CHKLOWQ(I,J)=1.
+        ENDIF
+
+        SFCTMP(I)=T3D(i,1,j)
+        ZLVL(I)=0.5*DZ8W(i,1,j)
+
+!        TH2(I)=SFCTMP(I)+(0.0097545*ZLVL(I))
+! calculate SFCTH2 via Exner function vs lapse-rate (above)
+         APES=(1.E5/PSFC)**CAPA
+         APELM=(1.E5/SFCPRS(I))**CAPA
+         SFCTH2=SFCTMP(I)*APELM
+         TH2(I)=SFCTH2/APES
+!
+         EMISSI(I) = EMISS(I,J)
+         LWDN(I)=GLW(I,J)*EMISSI(I)
+! SOLDN is total incoming solar
+        SOLDN(I)=SWDOWN(I,J)
+! GSW is net downward solar
+!        SOLNET(I)=GSW(I,J)
+! use mid-day albedo to determine net downward solar (no solar zenith angle correction)
+        SOLNET(I)=SOLDN(I)*(1.-ALBEDO(I,J))
+        PRCP(I)=RAINBL(i,j)/DT
+        VEGTYP(I)=IVGTYP(I,J)
+        SOILTYP(I)=ISLTYP(I,J)
+        SHDFAC(I)=VEGFRA(I,J)/100.
+        T1(I)=TSK(I,J)
+        CHK(I)=CHS(I,J)
+        SHMIN(I)=SHDMIN(I,J)/100. !NEW
+        SHMAX(I)=SHDMAX(I,J)/100. !NEW
+! convert snow water equivalent from mm to meter
+        SNEQV(I)=SNOW(I,J)*0.001
+! snow depth in meters
+        SNOWHK(I)=SNOWH(I,J)
+        SNCOVR(I)=SNOWC(I,J)
+
+! if "SR" present, set frac of frozen precip ("FFROZP") = snow-ratio ("SR", range:0-1)
+! SR from e.g. Ferrier microphysics
+! otherwise define from 1st atmos level temperature
+       IF(FRPCPN) THEN
+          FFROZP(I)=SR(I,J)
+        ELSE
+          IF (SFCTMP(I) <=  273.15) THEN
+            FFROZP(I) = 1.0
+          ELSE
+            FFROZP(I) = 0.0
+          ENDIF
+        ENDIF
+
+      ENDDO ILOOP1
+!$acc end parallel
+!***
+
+!$acc parallel vector_length(32)
+!$acc loop gang vector 
+      ILOOP2 : DO I=its,ite
+        IF((XLAND(I,J)-1.5).GE.0.)THEN                                  ! begining of land/sea if block
+! Open water points
+          TSK_RURAL(I,J)=TSK(I,J)
+          HFX_RURAL(I,J)=HFX(I,J)
+          QFX_RURAL(I,J)=QFX(I,J)
+          LH_RURAL(I,J)=LH(I,J)
+          EMISS_RURAL(I,J)=EMISS(I,J)
+          GRDFLX_RURAL(I,J)=GRDFLX(I,J)
+        ENDIF
+      ENDDO ILOOP2
+!$acc end parallel
+
+!===Yang, 2014/10/08, hydrological processes for urban vegetation in single layer UCM===
+          AOASIS = 1.0
+          USOIL = 1
+          DSOIL = 2
+          IRIOPTION=IRI_SCHEME
+
+!$acc parallel vector_length(32)
+!$acc loop gang vector
+      ILOOP31 : DO I=its,ite
+        IF((XLAND(I,J)-1.5).LT.0.)THEN
+! Land or sea-ice case
+
+          IF (XICE(I,J) >= XICE_THRESHOLD) THEN
+             ! Sea-ice point
+             ICE(I) = 1
+          ELSE IF ( VEGTYP(I) == ISICE ) THEN
+             ! Land-ice point
+             ICE(I) = -1
+          ELSE
+             ! Neither sea ice or land ice.
+             ICE(I) = 0
+          ENDIF
+          DQSDT2(I)=Q2SAT(I)*A23M4/(SFCTMP(I)-A4)**2
+
+          IF(SNOW(I,J).GT.0.0)THEN
+! snow on surface (use ice saturation properties)
+            SFCTSNO(I)=SFCTMP(I)
+            E2SAT(I)=611.2*EXP(6174.*(1./273.15 - 1./SFCTSNO(I)))
+            Q2SATI(I)=0.622*E2SAT(I)/(SFCPRS(I)-E2SAT(I))
+            Q2SATI(I)=Q2SATI(I)/(1.0+Q2SATI(I))    ! spec. hum.
+            IF (T1(I) .GT. 273.14) THEN
+! warm ground temps, weight the saturation between ice and water according to SNOWC
+              Q2SAT(I)=Q2SAT(I)*(1.-SNOWC(I,J)) + Q2SATI(I)*SNOWC(I,J)
+              DQSDT2(I)=DQSDT2(I)*(1.-SNOWC(I,J)) + Q2SATI(I)*6174./(SFCTSNO(I)**2)*SNOWC(I,J)
+            ELSE
+! cold ground temps, use ice saturation only
+              Q2SAT(I)=Q2SATI(I)
+              DQSDT2(I)=Q2SATI(I)*6174./(SFCTSNO(I)**2)
+            ENDIF
+! for snow cover fraction at 0 C, ground temp will not change, so DQSDT2 effectively zero
+! V3.8 add condition for SWDOWN to restrict condition to positive forcing (JD)
+            IF(T1(I) .GT. 273. .AND. SNOWC(I,J) .GT. 0. .AND. SWDOWN(I,J) .GT. 10.)DQSDT2(I)=DQSDT2(I)*(1.-SNOWC(I,J))
+          ENDIF
+        ENDIF
+      ENDDO ILOOP31
+!$acc end parallel
+
+!$acc parallel vector_length(32)
+!$acc loop gang vector 
+      ILOOP32 : DO I=its,ite
+        IF((XLAND(I,J)-1.5).LT.0.)THEN
+          ! Land-ice or land points use the usual deep-soil temperature.
+          TBOT(I)=TMN(I,J)
+
+          IF(ISURBAN.EQ.1) THEN
+! assumes these only need to be set for USGS land data
+            IF(VEGTYP(I).EQ.25) SHDFAC(I)=0.0000
+            IF(VEGTYP(I).EQ.26) SHDFAC(I)=0.0000
+            IF(VEGTYP(I).EQ.27) SHDFAC(I)=0.0000
+          ENDIF
+          IF(SOILTYP(I).EQ.14.AND.XICE(I,J).EQ.0.)THEN
+#if 0
+         IF(IPRINT)PRINT*,' SOIL TYPE FOUND TO BE WATER AT A LAND-POINT'
+         IF(IPRINT)PRINT*,I,J,'RESET SOIL in surfce.F'
+#endif
+            SOILTYP(I)=7
+          ENDIF
+          SNOALB1(I) = SNOALB(I,J)
+! converts canwat in mm to CMC in meters
+          CMC(I)=CANWAT(I,J)/1000.
+
+!-------------------------------------------
+!*** convert snow depth from mm to meter
+!
+!          IF(RDMAXALB) THEN
+!           SNOALB=ALBMAX(I,J)*0.01
+!         ELSE
+!           SNOALB=MAXALB(IVGTPK)*0.01
+!         ENDIF
+
+!        SNOALB1(I)=0.80
+!        SHMIN(I)=0.00
+          ALBBRD(I)=ALBBCK(I,J)
+          Z0BRD(I)=Z0(I,J)
+          EMBRD(I)=EMBCK(I,J)
+          SNOTIME1(I) = SNOTIME(I,J)
+          RIBB(I)=RIB(I,J)
+!FEI: temporaray arrays above need to be changed later by using SI
+
+          DO NS=1,NSOIL
+            SMC(NS,I)=SMOIS(I,NS,J)
+            STC(NS,I)=TSLB(I,NS,J)                                          !STEMP
+            SWC(NS,I)=SH2O(I,NS,J)
+          ENDDO
+!
+          IF ( (SNEQV(I).ne.0..AND.SNOWHK(I).eq.0.).or.(SNOWHK(I).le.SNEQV(I)) )THEN
+            SNOWHK(I)= 5.*SNEQV(I)
+          ENDIF
+!
+
+
+#if 0
+          IF(IPRINT) THEN
+!
+       print*, 'BEFORE SFLX, in Noahlsm_driver'
+       print*, 'ICE', ICE(I), 'DT',DT, 'ZLVL',ZLVL(I), 'NSOIL', NSOIL,   &
+       'SLDPTH', SLDPTH(1:NSOIL,I), 'LOCAL',LOCAL, 'LUTYPE',&
+        LUTYPE, 'SLTYPE',SLTYPE, 'LWDN',LWDN(I), 'SOLDN',SOLDN(I),      &
+        'SFCPRS',SFCPRS(I), 'PRCP',PRCP(I),'SFCTMP',SFCTMP(I),'Q2K',Q2K(I),   &
+         'TH2',TH2(I),'Q2SAT',Q2SAT(I),'DQSDT2',DQSDT2(I),'VEGTYP', VEGTYP(I),&
+         'SOILTYP',SOILTYP(I), 'SLOPETYP',SLOPETYP, 'SHDFAC',SHDFAC(I),&
+         'SHMIN',SHMIN(I), 'ALBBRD',ALBBRD(I),'SNOALB1',SNOALB1(I),'TBOT',&
+          TBOT(I), 'Z0BRD',Z0BRD(I), 'Z0K',Z0K(I), 'CMC',CMC(I), 'T1',T1(I),'STC',&
+          STC(1:NSOIL,I), 'SMC',SMC(1:NSOIL,I), 'SWC',SWC(1:NSOIL,I),'SNOWHK',SNOWHK(I),'SNEQV',SNEQV(I),&
+          'ALBEDOK',ALBEDOK(I),'CHK',CHK(I),'ETA',ETA(I),'SHEAT',SHEAT(I),      &
+          'ETA_KINEMATIC',ETA_KINEMATIC(I), 'FDOWN',FDOWN(I),'EC',EC(I),   &
+          'EDIR',EDIR(I),'ET',ET(1:NSOIL,I),'ETT',ETT(I),'ESNOW',ESNOW(I),'DRIP',DRIP(I),&
+          'DEW',DEW(I),'BETA',BETA(I),'ETP',ETP(I),'SSOIL',SSOIL(I),'FLX1',FLX1(I),&
+          'FLX2',FLX2(I),'FLX3',FLX3(I),'SNOMLT',SNOMLT(I),'SNCOVR',SNCOVR(I),&
+          'RUNOFF1',RUNOFF1(I),'RUNOFF2',RUNOFF2(I),'RUNOFF3',RUNOFF3(I), &
+          'RC',RC(I), 'PC',PC(I),'RSMIN',RSMIN(I),'XLAI',XLAI,'RCS',RCS(I),  &
+          'RCT',RCT(I),'RCQ',RCQ(I),'RCSOIL',RCSOIL(I),'SOILW',SOILW(I),     &
+          'SOILM',SOILM(I),'Q1',Q1(I),'SMCWLT',SMCWLT(I),'SMCDRY',SMCDRY(I),&
+          'SMCREF',SMCREF(I),'SMCMAX',SMCMAX(I),'NROOT',NROOT(I)
+          endif
+#endif
+
+          IF (RDLAI2D) THEN
+             IF (SHDFAC(I) > 0.0 .AND. LAI(I,J) <= 0.0) LAI(I,J) = 0.01
+             XLAI(I) = LAI(i,j)
+          ENDIF
+        ENDIF
+      ENDDO ILOOP32
+!$acc end parallel
+
+      ! Non-glacial land
+!
+!  FASDAS
+!
+      IF( FASDAS == 1 ) THEN
+!!!$acc update device(SDA_HFX,RHO,SDA_QFX,QNORM)
+!$acc parallel vector_length(128)
+!$acc loop gang vector private(DZQ)
+        ILOOP41 : DO I=its,ite
+          IF((XLAND(I,J)-1.5).LT.0.)THEN
+            IF (ICE(I) == 0) THEN
+              DZQ = DZ8W(I,1,J)
+              XSDA_HFX(I)= SDA_HFX(I,J)*RHO(I,1,J)*CPM(I,J)*DZQ  ! W/m^2
+            ! TWG2015 Bugfix remove factor of 1000.0 for correct units
+              XSDA_QFX(I)= SDA_QFX(I,J)*RHO(I,1,J)*DZQ          ! Kg/m2/s of water
+              XQNORM(I) = QNORM(I,J)
+            ENDIF
+          ENDIF
+        ENDDO ILOOP41
+!$acc end parallel
+      ENDIF
+!
+!  END FASDAS
+!
+!!!$acc update device(LUTYPE,SLTYPE)
+            CALL SFLX_gpu (ims,ime,its,ite,XLAND,ICE,              &
+                 I,J,FFROZP, ISURBAN, DT,ZLVL,NSOIL,SLDPTH,       &    !C
+                 LOCAL,                                            &    !L
+                 LUTYPE, SLTYPE,                                   &    !CL
+                 LWDN,SOLDN,SOLNET,SFCPRS,PRCP,SFCTMP,Q2K,DUMMY,   &    !F
+                 DUMMY,DUMMY, DUMMY,                               &    !F PRCPRAIN not used
+                 TH2,Q2SAT,DQSDT2,                                 &    !I
+                 VEGTYP,SOILTYP,SLOPETYP,SHDFAC,SHMIN,SHMAX,       &    !I
+                 ALBBRD, SNOALB1,TBOT,Z0BRD,Z0K,EMISSI,EMBRD,  &    !S
+                 CMC,T1,STC,SMC,SWC,SNOWHK,SNEQV,ALBEDOK,CHK,DUMMY,&    !H
+                 ETA,SHEAT,ETA_KINEMATIC,FDOWN,                   &    !O
+                 EC,EDIR,ET,ETT,ESNOW,DRIP,DEW,                    &    !O
+                 BETA,ETP,SSOIL,                                   &    !O
+                 FLX1,FLX2,FLX3,                                   &    !O
+                 FLX4,FVB,FBUR,FGSN,UA_PHYS,                       &    !UA 
+                 SNOMLT,SNCOVR,                                    &    !O
+                 RUNOFF1,RUNOFF2,RUNOFF3,                          &    !O
+                 RC,PC,RSMIN,XLAI,RCS,RCT,RCQ,RCSOIL,              &    !O
+                 SOILW,SOILM,Q1,SMAV,                              &    !D
+                 RDLAI2D,USEMONALB,                                &
+                 SNOTIME1,                                         &
+                 RIBB,                                             &
+                 SMCWLT,SMCDRY,SMCREF,SMCMAX,NROOT,                &
+                 SFCHEADRT,                                   &    !I
+                 INFXSRT,ETPND1,OPT_THCND,AOASIS              &    !O
+                ,XSDA_QFX, HFX_PHY, QFX_PHY, XQNORM, FASDAS, HCPCT_FASDAS    &   ! fasdas
+                 )
+
+!$acc parallel vector_length(128)
+!$acc loop gang vector
+      ILOOP43 : DO I=its,ite
+        IF((XLAND(I,J)-1.5).LT.0.)THEN
+          IF (ICE(I) == 0) THEN
+#ifdef WRF_HYDRO
+            SOLDRAIN(I,J) = RUNOFF2(I)*DT*1000.0
+#endif
+          ENDIF
+        ENDIF
+      ENDDO ILOOP43
+!$acc end parallel
+
+!$acc parallel vector_length(128)
+!$acc loop gang vector
+      ILOOP51 : DO I=its,ite
+        IF((XLAND(I,J)-1.5).LT.0.)THEN
+          IF (ICE(I) == -1) THEN
+       !
+       ! Set values that the LSM is expected to update,
+       ! but don't get updated for glacial points.
+       !
+            SOILM(I) = 0.0 !BSINGH(PNNL)- SOILM is undefined for this case, it is used for diagnostics so setting it to zero
+            XLAI(I) = 0.01 ! KWM Should this be Zero over land ice?  Does this value matter?
+            RUNOFF2(I) = 0.0
+            RUNOFF3(I) = 0.0
+            DO NS = 1, NSOIL
+              SWC(NS,I) = 1.0
+              SMC(NS,I) = 1.0
+              SMAV(NS,I) = 1.0
+            ENDDO
+          ENDIF
+        ENDIF
+      ENDDO ILOOP51
+!$acc end parallel
+!
+!  FASDAS
+! 
+      IF( FASDAS == 1 ) THEN
+!!!$acc update device(SDA_HFX,RHO)
+!$acc parallel vector_length(128)
+!$acc loop gang vector private(DZQ)
+        ILOOP52 : DO I=its,ite
+          IF((XLAND(I,J)-1.5).LT.0.)THEN
+            IF (ICE(I) == -1) THEN
+
+              DZQ = DZ8W(I,1,J)
+              XSDA_HFX(I)= SDA_HFX(I,J)*RHO(I,1,J)*CPM(I,J)*DZQ  ! W/m^2
+              XSDA_QFX(I)= 0.0          ! Kg/m2/s of water
+              XQNORM(I) = 0.0
+            ENDIF
+          ENDIF
+        ENDDO ILOOP52
+!$acc end parallel
+      ENDIF
+!
+!  END FASDAS
+!
+
+            CALL SFLX_GLACIAL_gpu(ims,ime,its,ite,XLAND,ICE,         &
+                 I,J,ISICE,FFROZP,DT,ZLVL,NSOIL,SLDPTH,           &    !C
+            &    LWDN,SOLNET,SFCPRS,PRCP,SFCTMP,Q2K,              &    !F
+            &    TH2,Q2SAT,DQSDT2,                                &    !I
+            &    ALBBRD, SNOALB1,TBOT, Z0BRD, Z0K, EMISSI, EMBRD, &    !S
+            &    T1,STC,SNOWHK,SNEQV,ALBEDOK,CHK,        &    !H
+            &    ETA,SHEAT,ETA_KINEMATIC,FDOWN,                   &    !O
+            &    ESNOW,DEW,                                       &    !O
+            &    ETP,SSOIL,                                       &    !O
+            &    FLX1,FLX2,FLX3,                                  &    !O
+            &    SNOMLT,SNCOVR,                                   &    !O
+            &    RUNOFF1,                                         &    !O
+            &    Q1,                                              &    !D
+            &    SNOTIME1,                                        &
+            &    RIBB)
+
+!!!$acc update device(RC2,XLAI2)
+!$acc parallel vector_length(32)
+!$acc loop gang vector 
+      ILOOP6 : DO I=its,ite
+        IF((XLAND(I,J)-1.5).LT.0.)THEN
+          IF ( ICE(I) == 1 ) THEN
+          ! Sea-ice case
+
+            DO NS = 1, NSOIL
+              SH2O(I,NS,J) = 1.0
+            ENDDO
+            LAI(I,J) = 0.01
+
+!!!            CYCLE ILOOP3
+
+          ELSE
+
+            LAI(i,j) = XLAI(I)
+            if (present(RC2) .and. present(XLAI2)) then
+              RC2(I,J) = RC(I)                                             ! for output
+              XLAI2(I,J) = XLAI(I)
+            endif
+
+#if 0
+            IF(IPRINT) THEN
+
+       print*, 'AFTER SFLX, in Noahlsm_driver'
+       print*, 'ICE', ICE(I), 'DT',DT, 'ZLVL',ZLVL(I), 'NSOIL', NSOIL,   &
+       'SLDPTH', SLDPTH(1:NSOIL,I), 'LOCAL',LOCAL, 'LUTYPE',&
+        LUTYPE, 'SLTYPE',SLTYPE, 'LWDN',LWDN(I), 'SOLDN',SOLDN(I),      &
+        'SFCPRS',SFCPRS(I), 'PRCP',PRCP(I),'SFCTMP',SFCTMP(I),'Q2K',Q2K(I),   &
+         'TH2',TH2(I),'Q2SAT',Q2SAT(I),'DQSDT2',DQSDT2(I),'VEGTYP', VEGTYP(I),&
+          'SOILTYP',SOILTYP(I), 'SLOPETYP',SLOPETYP, 'SHDFAC',SHDFAC(I),&
+         'SHDMIN',SHMIN(I), 'ALBBRD',ALBBRD(I),'SNOALB',SNOALB1(I),'TBOT',&
+          TBOT(I), 'Z0BRD',Z0BRD(I), 'Z0K',Z0K(I), 'CMC',CMC(I), 'T1',T1(I),'STC',&
+          STC(1:NSOIL,I), 'SMC',SMC(1:NSOIL,I), 'SWc',SWC(1:NSOIL,I),'SNOWHK',SNOWHK(I),'SNEQV',SNEQV(I),&
+          'ALBEDOK',ALBEDOK(I),'CHK',CHK(I),'ETA',ETA(I),'SHEAT',SHEAT(I),      &
+          'ETA_KINEMATIC',ETA_KINEMATIC(I), 'FDOWN',FDOWN(I),'EC',EC(I),   &
+          'EDIR',EDIR(I),'ET',ET(1:NSOIL,I),'ETT',ETT(I),'ESNOW',ESNOW(I),'DRIP',DRIP(I),&
+          'DEW',DEW(I),'BETA',BETA(I),'ETP',ETP(I),'SSOIL',SSOIL(I),'FLX1',FLX1(I),&
+          'FLX2',FLX2(I),'FLX3',FLX3(I),'SNOMLT',SNOMLT(I),'SNCOVR',SNCOVR(I),&
+          'RUNOFF1',RUNOFF1(I),'RUNOFF2',RUNOFF2(I),'RUNOFF3',RUNOFF3(I), &
+          'RC',RC(I), 'PC',PC(I),'RSMIN',RSMIN(I),'XLAI',XLAI(I),'RCS',RCS(I),  &
+          'RCT',RCT(I),'RCQ',RCQ(I),'RCSOIL',RCSOIL(I),'SOILW',SOILW(I),     &
+          'SOILM',SOILM(I),'Q1',Q1(I),'SMCWLT',SMCWLT(I),'SMCDRY',SMCDRY(I),&
+          'SMCREF',SMCREF(I),'SMCMAX',SMCMAX(I),'NROOT',NROOT(I)
+            endif
+#endif
+
+!***  UPDATE STATE VARIABLES
+            CANWAT(I,J)=CMC(I)*1000.
+            SNOW(I,J)=SNEQV(I)*1000.
+!          SNOWH(I,J)=SNOWHK(I)*1000.
+            SNOWH(I,J)=SNOWHK(I)                   ! SNOWHK in meters
+            ALBEDO(I,J)=ALBEDOK(I)
+            ALB_RURAL(I,J)=ALBEDOK(I)
+            ALBBCK(I,J)=ALBBRD(I)
+            Z0(I,J)=Z0BRD(I)
+            EMISS(I,J) = EMISSI(I)
+            EMISS_RURAL(I,J) = EMISSI(I)
+! Noah: activate time-varying roughness length (V3.3 Feb 2011)
+            ZNT(I,J)=Z0K(I)
+!
+! FASDAS
+!
+! Update Skin Temperature
+            IF( FASDAS == 1 ) THEN
+              XSDA_QFX(I)= XSDA_QFX(I)*ELWV*XQNORM(I)
+
+        !TWG2015 Bugfix to multiply Heat Capacity by Soil Depth for correct
+        !units 
+
+              T1(I) = T1(I) + (XSDA_HFX(I)-XSDA_QFX(I))*DT/(HCPCT_FASDAS(I)*DZS(1))
+
+            END IF
+!
+! END FASDAS
+!
+            TSK(I,J)=T1(I)
+            TSK_RURAL(I,J)=T1(I)
+            HFX(I,J)=SHEAT(I)
+            HFX_RURAL(I,J)=SHEAT(I)
+! MEk Jul07 add potential evap accum
+            POTEVP(I,J)=POTEVP(I,J)+ETP(I)*FDTW
+            QFX(I,J)=ETA_KINEMATIC(I)
+            QFX_RURAL(I,J)=ETA_KINEMATIC(I)
+
+#ifdef WRF_HYDRO
+!added by Wei Yu
+!         QFX(I,J) = QFX(I,J) + ETPND1(I)
+!         ETA(I) = ETA(I) + ETPND1(I)/2.501E6*dt
+!end added by Wei Yu
+#endif
+
+
+            LH(I,J)=ETA(I)
+            LH_RURAL(I,J)=ETA(I)
+            GRDFLX(I,J)=SSOIL(I)
+            GRDFLX_RURAL(I,J)=SSOIL(I)
+            SNOWC(I,J)=SNCOVR(I)
+            CHS2(I,J)=CQS2(I,J)
+            SNOTIME(I,J) = SNOTIME1(I)
+!      prevent diagnostic ground q (q1) from being greater than qsat(tsk)
+!      as happens over snow cover where the cqs2 value also becomes irrelevant
+!      by setting cqs2=chs in this situation the 2m q should become just qv(k=1)
+! ww: comment out this change to avoid Q2 drop due to change of radiative flux
+!         IF (Q1(I) .GT. QSFC(I,J)) THEN
+!           CQS2(I,J) = CHS(I,J)
+!         ENDIF
+!          QSFC(I,J)=Q1(I)
+! Convert QSFC back to mixing ratio
+             QSFC(I,J)= Q1(I)/(1.0-Q1(I))
+!
+           ! QSFC_RURAL(I,J)= Q1(I)/(1.0-Q1(I))
+! Calculate momentum flux from rural surface for use with multi-layer UCM (Martilli et al. 2002)
+
+            DO 80 NS=1,NSOIL
+              SMOIS(I,NS,J)=SMC(NS,I)
+              TSLB(I,NS,J)=STC(NS,I)                                        !  STEMP
+              SH2O(I,NS,J)=SWC(NS,I)
+     80     CONTINUE
+!       ENDIF
+
+            FLX4_2D(I,J)  = FLX4(I)
+            FVB_2D(I,J)   = FVB(I)
+            FBUR_2D(I,J)  = FBUR(I)
+            FGSN_2D(I,J)  = FGSN(I)
+
+     !
+     ! Residual of surface energy balance equation terms
+     !
+
+            IF ( UA_PHYS ) THEN
+              NOAHRES(I,J) = ( SOLNET(I) + LWDN(I) ) - SHEAT(I) + SSOIL(I) - ETA(I) &
+                - ( EMISSI(I) * STBOLT * (T1(I)**4) ) - FLX1(I) - FLX2(I) - FLX3(I) - FLX4(I)
+            ELSE
+              NOAHRES(I,J) = ( SOLNET(I) + LWDN(I) ) - SHEAT(I) + SSOIL(I) - ETA(I) &
+                - ( EMISSI(I) * STBOLT * (T1(I)**4) ) - FLX1(I) - FLX2(I) - FLX3(I)
+            ENDIF
+
+
+!***  DIAGNOSTICS
+            SMSTAV(I,J)=SOILW(I)
+            SMSTOT(I,J)=SOILM(I)*1000.
+            DO NS=1,NSOIL
+              SMCREL(I,NS,J)=SMAV(NS,I)
+            ENDDO
+
+
+!         Convert the water unit into mm
+            SFCRUNOFF(I,J)=SFCRUNOFF(I,J)+RUNOFF1(I)*DT*1000.0
+            UDRUNOFF(I,J)=UDRUNOFF(I,J)+RUNOFF2(I)*DT*1000.0
+! snow defined when fraction of frozen precip (FFROZP(I)) > 0.5,
+            IF(FFROZP(I).GT.0.5)THEN
+              ACSNOW(I,J)=ACSNOW(I,J)+PRCP(I)*DT
+            ENDIF
+            IF(SNOW(I,J).GT.0.)THEN
+              ACSNOM(I,J)=ACSNOM(I,J)+SNOMLT(I)*1000.
+! accumulated snow-melt energy
+              SNOPCX(I,J)=SNOPCX(I,J)-SNOMLT(I)/FDTLIW
+            ENDIF
+
+          ENDIF
+        ENDIF                                                           ! endif of land-sea test
+      ENDDO ILOOP6                                                       ! of I loop
+!$acc end parallel
+!!!$acc update host(RC2,XLAI2)
+   ENDDO JLOOP                                                          ! of J loop
+
+!$acc end data
+
+!!!$acc update host(TSK,HFX,QFX,LH,      &
+!!!$acc               GRDFLX,QSFC,CQS2,CHS,CHS2,SNOW,SNOWC,SNOWH,CANWAT,SMSTAV,SMSTOT,       &
+!!!$acc               SFCRUNOFF,UDRUNOFF,ACSNOM,ACSNOW,SNOTIME,SNOPCX,EMISS,RIB,POTEVP,      &
+!!!$acc               ALBEDO,ALBBCK,Z0,ZNT,LAI,NOAHRES,CHKLOWQ,SH2O,SMOIS,TSLB,SMCREL,   &
+!!!$acc               FLX4_2D,FVB_2D,FBUR_2D,FGSN_2D,UST_URB2D,INFXSRT,&
+!!!$acc               SFCHEADRT,SOLDRAIN)
+
+!------------------------------------------------------
+   END SUBROUTINE lsm_gpu
+!------------------------------------------------------
+
 
 !For MPAS, the below section of the module is moved to module_physics_lsm_noahinit.F in
 !./../core_physics to accomodate differences in the mpi calls between WRF and MPAS.I thought
