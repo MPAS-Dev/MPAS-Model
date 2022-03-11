@@ -1,3 +1,6 @@
+! Copyright (c) 2022, Advanced Micro Devices, Inc. All rights reserved
+!
+! Unless noted otherwise source code is licensed under the BSD license.
 #ifdef MPAS_AMD_OFFLOAD
 #define GPUOMP
 #define TMPOMP !

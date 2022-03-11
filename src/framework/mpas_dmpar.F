@@ -1,5 +1,6 @@
-! Copyright (c) 2013,  Los Alamos National Security, LLC (LANS)
-! and the University Corporation for Atmospheric Research (UCAR).
+! Copyright (c) 2013 - 2022,  Los Alamos National Security, LLC (LANS),
+! the University Corporation for Atmospheric Research (UCAR), and
+! Advanced Micro Devices, Inc (AMD). All rights reserved.
 !
 ! Unless noted otherwise source code is licensed under the BSD license.
 ! Additional copyright and license information can be found in the LICENSE file
@@ -6776,7 +6777,6 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
         !if (.not. associated(commListPtr % rbuffer)) then
         !   allocate(tempRbuffer(commListPtr % nList))
         !   commListPtr % rbuffer => tempRbuffer
-        GPUOMP !$omp target enter data map(alloc:tempRbuffer)
         !$acc enter data create(tempRbuffer)
         !else 
         !   tempRbuffer => commListPtr % rbuffer
@@ -7711,7 +7711,6 @@ GPUOMP !$omp taskwait
         !if (.not. associated(commListPtr % rbuffer)) then
         !   allocate(tempRbuffer(commListPtr % nList))
         !   commListPtr % rbuffer => tempRbuffer
-        GPUOMP !$omp target enter data map(alloc:tempRbuffer)
         !$acc enter data create(tempRbuffer)
         !else 
         !   tempRbuffer => commListPtr % rbuffer
