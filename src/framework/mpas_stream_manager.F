@@ -1,4 +1,4 @@
-! Copyright (C) 2022, Advanced Micro Devices, Inc (AMD). All rights reserved.
+! Modification Copyright (C) 2022, Advanced Micro Devices, Inc (AMD). All rights reserved.
 #include "mpas_openmp.inc"
 module mpas_stream_manager
 

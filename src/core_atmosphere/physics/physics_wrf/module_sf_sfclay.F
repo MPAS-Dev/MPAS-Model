@@ -1,6 +1,6 @@
 !WRF:MODEL_LAYER:PHYSICS
 !
-! Copyright (c) 2022, Advanced Micro Devices, Inc (AMD). All rights reserved
+! Modifications Copyright (c) 2022, Advanced Micro Devices, Inc (AMD). All rights reserved
 #include "mpas_openmp.inc"
 MODULE module_sf_sfclay
 

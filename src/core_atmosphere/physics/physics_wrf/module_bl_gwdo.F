@@ -13,7 +13,7 @@
 
 !WRF:model_layer:physics
 !
-! Copyright (c) 2022, Advanced Micro Devices, Inc (AMD). All rights reserved
+! Modifications Copyright (c) 2022, Advanced Micro Devices, Inc (AMD). All rights reserved
 #include "mpas_openmp.inc"
 module module_bl_gwdo
 contains

@@ -1,6 +1,6 @@
-! Copyright (c) 2013-2022,  Los Alamos National Security, LLC (LANS),
-! the University Corporation for Atmospheric Research (UCAR), and
-! Advanced Micro Devices, Inc (AMD). All rights reserved.
+! Copyright (c) 2013,  Los Alamos National Security, LLC (LANS)
+! and the University Corporation for Atmospheric Research (UCAR).
+! Modifications Copyright (c) 2022, Advanced Micro Devices, Inc (AMD). All rights Reserved.
 !
 ! Unless noted otherwise source code is licensed under the BSD license.
 ! Additional copyright and license information can be found in the LICENSE file
