@@ -11,6 +11,7 @@ module atm_core
    use mpas_pool_routines
    use mpas_dmpar
    use mpas_log, only : mpas_log_write, mpas_log_info
+   use mpas_io_units, only : mpas_new_unit, mpas_release_unit
 
    type (MPAS_Clock_type), pointer :: clock
 
@@ -232,6 +233,7 @@ module atm_core
       character (len=StrKIND), pointer :: config_run_duration
       character (len=StrKIND), pointer :: config_stop_time
       character (len=StrKIND) :: startTimeStamp
+      integer :: iounit
 
 
       ierr = 0
@@ -243,9 +245,11 @@ module atm_core
       call mpas_pool_get_config(configs, 'config_stop_time', config_stop_time)
 
       if(trim(config_start_time) == 'file') then
-         open(22,file=trim(config_restart_timestamp_name),form='formatted',status='old')
-         read(22,*) startTimeStamp
-         close(22)
+         call mpas_new_unit(iounit)
+         open(iounit,file=trim(config_restart_timestamp_name),form='formatted',status='old')
+         read(iounit,*) startTimeStamp
+         close(iounit)
+         call mpas_release_unit(iounit)
       else
         startTimeStamp = config_start_time
       end if
@@ -519,6 +523,7 @@ module atm_core
       character(len=StrKIND) :: timeStamp
       character (len=StrKIND), pointer :: config_restart_timestamp_name
       integer :: itimestep
+      integer :: iounit
 
       integer :: stream_dir
       character(len=StrKIND) :: input_stream, read_time
@@ -772,9 +777,11 @@ module atm_core
          !    write the restart_timestamp file
          if (MPAS_stream_mgr_ringing_alarms(domain % streamManager, streamID='restart', direction=MPAS_STREAM_OUTPUT, ierr=ierr)) then
             if (domain % dminfo % my_proc_id == 0) then
-               open(22,file=trim(config_restart_timestamp_name),form='formatted',status='replace')
-               write(22,*) trim(timeStamp)
-               close(22)
+               call mpas_new_unit(iounit)
+               open(iounit,file=trim(config_restart_timestamp_name),form='formatted',status='replace')
+               write(iounit,*) trim(timeStamp)
+               close(iounit)
+               call mpas_release_unit(iounit)
             end if
          end if
 
