@@ -3477,7 +3477,6 @@ GPUOMP !$omp target teams distribute parallel do thread_limit(64)
 GPUOMP !$omp end target teams distribute parallel do
       end if
 
-!GPUOMP !$omp target teams distribute parallel do private(rs,ts,k1,k2) thread_limit(64)
 GPUOMP !$omp target teams distribute private(rs,ts,k1,k2) thread_limit(64)
       do iCell=cellsolveStart,cellSolveEnd
          if (specZoneMaskCell(iCell) == 0.0) then
@@ -3543,8 +3542,7 @@ GPUOMP !$omp end parallel do simd
          endif
       end do
 GPUOMP !$omp end target teams distribute !parallel do
-
-GPUOMP !$omp target teams distribute parallel do
+GPUOMP !$omp target teams distribute parallel do simd thread_limit(128)
       do iCell=cellsolveStart,cellSolveEnd
          if(specZoneMaskCell(iCell) == 0.0) then  ! not specified zone, compute...
             do k=2,nVertLevels
@@ -3555,7 +3553,7 @@ GPUOMP !$omp target teams distribute parallel do
             end do
          endif
       end do
-GPUOMP !$omp end target teams distribute parallel do
+GPUOMP !$omp end target teams distribute parallel do simd
 
 GPUOMP !$omp target teams distribute parallel do simd collapse(2)
 !$acc loop vector
