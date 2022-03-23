@@ -56,7 +56,7 @@ fi
 which git
 if [ $? -eq 0 ]; then
    echo "*** trying git to obtain WRF physics tables ***"
-   git clone git://github.com/MPAS-Dev/MPAS-Data.git
+   git clone https://github.com/MPAS-Dev/MPAS-Data.git
    if [ $? -eq 0 ]; then
       mv MPAS-Data/atmosphere/physics_wrf/files/* physics_wrf/files
       rm -rf MPAS-Data
