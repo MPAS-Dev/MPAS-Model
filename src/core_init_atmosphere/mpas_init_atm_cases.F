@@ -4559,9 +4559,6 @@ call mpas_log_write('Done with soil consistency check')
 
       if (allocated(maskslab)) deallocate(maskslab)
 
-      ! Freeze really cold ocean
-      where (sst < 271.0 .and. landmask == 0) xice = 1.0
-
       ! Limit XICE to values between 0 and 1. Although the input meteorological field is between 0.
       ! and 1., interpolation to the MPAS grid can yield values of XiCE less than 0. and greater
       ! than 1.:
