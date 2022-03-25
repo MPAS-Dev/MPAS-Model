@@ -8397,6 +8397,8 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
       integer, intent(in) :: nHaloLayers
       integer :: mpi_comm, mpi_proc_id
       real (kind=RKIND), dimension(:), pointer :: tempRbuffer
+      real (kind=RKIND), dimension(:), pointer :: tempRbufferTotal
+      integer, dimension(:), pointer :: rStartTotal
       integer :: localMax, counter
       !
       ! Unpack fields from the compacted halo info array
@@ -8423,6 +8425,26 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
       TMPOMP !$omp target update to(array)
       ! Allocate space in recv lists, and initiate mpi_irecv calls
       commListPtr => recvList
+#ifdef PACKHALO
+      do while(associated(commListPtr))
+        if (.not. associated(recvList % rbufferTotal)) then
+           allocate(tempRbufferTotal(recvList % nListTotal))
+           recvList % rbufferTotal => tempRbufferTotal
+        GPUOMP !$omp target enter data map(alloc:tempRbufferTotal)
+        !$acc enter data create(tempRbufferTotal)
+        else 
+           tempRbufferTotal => recvList % rbufferTotal
+        end if
+        nullify(commListPtr % ibuffer)
+        tempRbuffer => tempRbufferTotal(commListPtr % rStart: commListPtr % rEnd)
+        MPIGPU !$omp target data use_device_ptr(tempRbuffer)
+        !$acc host_data use_device(tempRbuffer) 
+        call MPI_Irecv(tempRbuffer, commListPtr % nList, MPI_REALKIND, commListPtr % procID, commListPtr % procID, mpi_comm, commListPtr % reqID, mpi_ierr)
+        !$acc end host_data
+        MPIGPU !$omp end target data
+        commListPtr => commListPtr % next
+      end do
+#else
       do while(associated(commListPtr))
         if (.not. associated(commListPtr % rbuffer)) then
            allocate(tempRbuffer(commListPtr % nList))
@@ -8440,8 +8462,51 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
         GPUOMP !$omp end target data
         commListPtr => commListPtr % next
       end do
+#endif
       ! Allocate space in send lists, copy data into buffer, and initiate mpi_isend calls
       commListPtr => sendList
+#ifdef PACKHALO
+      do while(associated(commListPtr))
+        if (.not. associated(sendList % rbufferTotal)) then
+           allocate(tempRbufferTotal(sendList % nListTotal))
+           sendList % rbufferTotal => tempRbufferTotal
+        GPUOMP !$omp target enter data map(alloc:tempRbufferTotal)
+        !$acc enter data create(tempRbufferTotal)
+        else 
+           tempRbufferTotal => sendList % rbufferTotal
+        end if
+        nullify(commListPtr % ibuffer)
+        commListPtr => commListPtr % next
+      enddo
+      commListPtr => sendList   
+      tempRbufferTotal => commListPtr % rbufferTotal
+      rStartTotal => commListPtr % rStartTotal
+      if (associated(commListPtr)) then
+        localMax=maxval(gpu_nList_send(:))
+        !$acc data present(tempRbufferTotal, rStartTotal, array, compactHaloInfo, dimsizes, nHaloLayers, gpu_nList_send, gpu_idx_send, gpu_bufferOffset_send) async(counter+1)
+        GPUOMP !$omp target teams distribute parallel do simd collapse(5) !nowait
+        !$acc parallel default(none) num_workers(8) vector_length(128) async(counter+1)
+        !!$acc kernels async(counter+1)
+        !$acc loop independent collapse(4) gang worker vector
+        do counter = 0, size(rStartTotal)-1
+          do iHalo = 1, nHaloLayers
+            do  i = 1, localMax
+              do j = 1, dimSizes(2) 
+                do k = 1, dimSizes(1)
+                  if(i<=gpu_nList_send(counter*nHaloLayers+iHalo)) then
+                    tempRbufferTotal(rStartTotal(counter+1)+(compactHaloInfo(gpu_idx_send(counter*nHaloLayers+iHalo) + gpu_nList_send(counter*nHaloLayers+iHalo) + i)-1) * dimSizes(1) * dimSizes(2) + (j-1) * dimSizes(1) + k + gpu_bufferOffset_send(counter*nHaloLayers+iHalo)) = array(k, j, compactHaloInfo(gpu_idx_send(counter*nHaloLayers+iHalo) + i))
+                  end if
+                end do
+              end do
+            end do
+          end do
+        end do
+        !!$acc end kernels
+        !$acc end parallel
+        GPUOMP !$omp end target teams distribute parallel do simd
+        !$acc end data
+      endif
+#else
       do while(associated(commListPtr))
         if (.not. associated(commListPtr % rbuffer)) then
            allocate(tempRbuffer(commListPtr % nList))
@@ -8484,7 +8549,20 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
       end do
 !GPUOMP !$omp taskwait
 !$acc wait
+#endif
       commListPtr => sendList
+#ifdef PACKHALO
+      tempRbufferTotal => commListPtr % rbuffertotal
+      do while(associated(commListPtr))
+        tempRbuffer => tempRbufferTotal(commListPtr % rStart : commListPtr % rEnd)
+        MPIGPU !$omp target data use_device_ptr(tempRbuffer)
+        !$acc host_data use_device(tempRbuffer)
+        call MPI_Isend(tempRbuffer, commListPtr % nList, MPI_REALKIND, commListPtr % procID, mpi_proc_id, mpi_comm, commListPtr % reqID, mpi_ierr)
+        !$acc end host_data
+        MPIGPU !$omp end target data
+        commListPtr => commListPtr % next
+      end do
+#else
       do while(associated(commListPtr))
         tempRbuffer => commListPtr % rbuffer
         GPUOMP !$omp target data use_device_ptr(tempRbuffer)
@@ -8494,6 +8572,7 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
         GPUOMP !$omp end target data
         commListPtr => commListPtr % next
       end do
+#endif
       commListPtr => recvList
 !RRPKComment: Forced to wait for all recv buffers to be filled up else CUDA streams throws exceptions
 !RRPKComment: I'll figure out to wait for any, after consulting with PGI/OpenMPI
@@ -8503,6 +8582,35 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
       end do
 
       commListPtr => recvList
+#ifdef PACKHALO
+      localMax=maxval(gpu_nList_recv(:))
+      tempRbufferTotal => commListPtr % rbufferTotal
+      rStartTotal => commListPtr % rStartTotal
+      if (associated(commListPtr)) then
+        !$acc data present(tempRbufferTotal,rStartTotal,array,compactHaloInfo,dimsizes, nHaloLayers,dimSizes,gpu_idx_recv,gpu_bufferOffset_recv,gpu_nList_recv) async(counter+1)
+        GPUOMP !$omp target teams distribute parallel do simd collapse(5) !nowait
+        !$acc parallel num_workers(8) vector_length(128) async(counter+1)
+        !$acc loop independent collapse(4) gang worker vector
+        !!$acc kernels async(counter+1)
+        do counter = 0, size(rStartTotal)-1
+          do iHalo = 1, nHaloLayers
+           do i = 1, localMax 
+             do j = 1, dimSizes(2)
+               do k = 1, dimSizes(1)
+                 if(i<=gpu_nList_recv(counter*nHaloLayers+iHalo)) then
+                    array(k, j, compactHaloInfo(gpu_idx_recv(counter*nHaloLayers+iHalo) + gpu_nList_recv(counter*nHaloLayers+iHalo) + i)) = tempRbufferTotal(rStartTotal(counter+1)+(compactHaloInfo(gpu_idx_recv(counter*nHaloLayers+iHalo) + i)-1)*dimSizes(1) * dimSizes(2) + (j-1) * dimSizes(1) + k + gpu_bufferOffset_recv(counter*nHaloLayers+iHalo))
+                 end if
+               end do
+             end do
+            end do
+          end do
+        end do
+        !!$acc end kernels
+        !$acc end parallel
+        GPUOMP !$omp end target teams distribute parallel do simd
+        !$acc end data
+      endif
+#else
       counter=0
       localMax=maxval(gpu_nList_recv(:))
       do while(associated(commListPtr))
@@ -8532,6 +8640,7 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
       end do
 !GPUOMP !$omp taskwait
 !$acc wait
+#endif
 
       ! wait for mpi_isend to finish.
       commListPtr => sendList
