@@ -52,6 +52,12 @@
      integer :: commListSize
      logical :: received
      logical :: unpacked
+     ! Packed halo exch buffers
+     real (kind=RKIND), dimension(:), pointer :: rbufferTotal => null()
+     integer, dimension(:), pointer :: rstartTotal => null()
+     integer :: nListTotal
+     integer :: rStart
+     integer :: rEnd
    end type mpas_communication_list
 
    type mpas_exchange_field_list
