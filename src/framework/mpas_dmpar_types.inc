@@ -1,3 +1,4 @@
+! Modifications Copyright (c) 2022, Advanced Micro Devices, Inc (AMD). All rights Reserved.
    integer, parameter :: MPAS_DMPAR_NOERR = 0
    integer, parameter :: MPAS_DMPAR_MISSING_GROUP = 1
    integer, parameter :: MPAS_DMPAR_EXISTING_GROUP = 2
