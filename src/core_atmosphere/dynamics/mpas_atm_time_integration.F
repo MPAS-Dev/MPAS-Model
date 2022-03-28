@@ -4036,7 +4036,7 @@ GPUOMP !$omp target teams distribute parallel do simd thread_limit(64)
       do k=1,nVertLevels
          rho_zz(k,nCells+1) = 1.0
       end do
-!$acc end parallel simd
+!$acc end parallel
 GPUOMP !$omp end target teams distribute parallel do simd
       ! compute new density everywhere so we can compute u from ru.
       ! we will also need it to compute theta_m below
