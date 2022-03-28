@@ -2448,6 +2448,7 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
       recvCommList % nListTotal = nListTotal_recv
       recvCommList % rStartTotal => recvListTotal
       GPUOMP !$omp target enter data map(to:sendListTotal,recvListTotal)
+      !$acc enter data copyin(sendListTotal,recvListTotal)
 
    end subroutine mpas_dmpar_build_comm_lists_acc !}}}
 
@@ -7443,11 +7444,10 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
       rStartTotal => commListPtr % rStartTotal
       if (associated(commListPtr)) then
         localMax=maxval(gpu_nList_send(:))
-        !$acc data present(tempRbufferTotal, rStartTotal, array, compactHaloInfo, dimsizes, nHaloLayers, gpu_nList_send, gpu_idx_send, gpu_bufferOffset_send) async(counter+1)
-        MPIGPU !$omp target teams distribute parallel do simd collapse(4)
-        MPICPU !$omp target teams distribute parallel do simd collapse(3) nowait depend(out:tempRbufferTotal)
-        !$acc parallel default(none) num_workers(4) vector_length(128) async(counter+1) 
-        !$acc loop independent collapse(3) gang worker vector
+        !$acc data present(tempRbufferTotal, rStartTotal, array, compactHaloInfo, dimsizes, nHaloLayers, gpu_nList_send, gpu_idx_send, gpu_bufferOffset_send)
+        GPUOMP !$omp target teams distribute parallel do simd collapse(4)
+        !$acc parallel num_workers(4) vector_length(128)
+        !$acc loop independent collapse(4) gang worker vector
         do counter = 0,size(rStartTotal)-1
           do iHalo = 1, nHaloLayers
             do  i = 1, localMax
@@ -7462,7 +7462,7 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
         end do
         !$acc end parallel
         GPUOMP !$omp end target teams distribute parallel do simd
-        MPICPU !$omp target update from(tempRbufferTotal) nowait depend(in:tempRbufferTotal)
+        MPICPU !$omp target update from(tempRbufferTotal)
         !$acc end data
       endif
 #else
@@ -7545,12 +7545,11 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
       tempRbufferTotal => commListPtr % rbufferTotal
       rStartTotal => commListPtr % rStartTotal
       if (associated(commListPtr)) then
-        !$acc data present(tempRbufferTotal,rStartTotal,array,compactHaloInfo,dimsizes, nHaloLayers,dimSizes,gpu_idx_recv,gpu_bufferOffset_recv,gpu_nList_recv) async(counter+1)
-        MPICPU !$omp target update to(tempRbuffer) nowait depend(out:tempRbuffer)
-        MPICPU !$omp target teams distribute parallel do simd collapse(3) nowait depend(in:tempRbuffer)
-        MPIGPU !$omp target teams distribute parallel do simd collapse(4) 
-        !$acc parallel num_workers(4) vector_length(128) async(counter+1)
-        !$acc loop independent collapse(3) gang worker vector
+        !$acc data present(tempRbufferTotal,rStartTotal,array,compactHaloInfo,dimsizes, nHaloLayers,dimSizes,gpu_idx_recv,gpu_bufferOffset_recv,gpu_nList_recv)
+        MPICPU !$omp target update to(tempRbufferTotal)
+        GPUOMP !$omp target teams distribute parallel do simd collapse(4) 
+        !$acc parallel num_workers(4) vector_length(128)
+        !$acc loop independent collapse(4) gang worker vector
         do counter = 0,size(rStartTotal)-1
           do iHalo = 1, nHaloLayers
             do i = 1, localMax 
@@ -7839,7 +7838,7 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
         !if (.not. associated(commListPtr % rbuffer)) then
         !   allocate(tempRbuffer(commListPtr % nList))
         !   commListPtr % rbuffer => tempRbuffer
-        !$acc enter data create(tempRbuffer)
+        !!$acc enter data create(tempRbuffer)
         !else 
         !   tempRbuffer => commListPtr % rbuffer
         !end if
@@ -8483,11 +8482,10 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
       rStartTotal => commListPtr % rStartTotal
       if (associated(commListPtr)) then
         localMax=maxval(gpu_nList_send(:))
-        !$acc data present(tempRbufferTotal, rStartTotal, array, compactHaloInfo, dimsizes, nHaloLayers, gpu_nList_send, gpu_idx_send, gpu_bufferOffset_send) async(counter+1)
-        GPUOMP !$omp target teams distribute parallel do simd collapse(5) !nowait
-        !$acc parallel default(none) num_workers(8) vector_length(128) async(counter+1)
-        !!$acc kernels async(counter+1)
-        !$acc loop independent collapse(4) gang worker vector
+        !$acc data present(tempRbufferTotal, rStartTotal, array, compactHaloInfo, dimsizes, nHaloLayers, gpu_nList_send, gpu_idx_send, gpu_bufferOffset_send)
+        GPUOMP !$omp target teams distribute parallel do simd collapse(5)
+        !$acc parallel default(none) num_workers(8) vector_length(128)
+        !$acc loop independent collapse(5) gang worker vector
         do counter = 0, size(rStartTotal)-1
           do iHalo = 1, nHaloLayers
             do  i = 1, localMax
@@ -8504,6 +8502,7 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
         !!$acc end kernels
         !$acc end parallel
         GPUOMP !$omp end target teams distribute parallel do simd
+        MPICPU !$omp target update from(tempRbufferTotal)
         !$acc end data
       endif
 #else
@@ -8587,11 +8586,11 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
       tempRbufferTotal => commListPtr % rbufferTotal
       rStartTotal => commListPtr % rStartTotal
       if (associated(commListPtr)) then
-        !$acc data present(tempRbufferTotal,rStartTotal,array,compactHaloInfo,dimsizes, nHaloLayers,dimSizes,gpu_idx_recv,gpu_bufferOffset_recv,gpu_nList_recv) async(counter+1)
-        GPUOMP !$omp target teams distribute parallel do simd collapse(5) !nowait
-        !$acc parallel num_workers(8) vector_length(128) async(counter+1)
-        !$acc loop independent collapse(4) gang worker vector
-        !!$acc kernels async(counter+1)
+        !$acc data present(tempRbufferTotal,rStartTotal,array,compactHaloInfo,dimsizes, nHaloLayers,dimSizes,gpu_idx_recv,gpu_bufferOffset_recv,gpu_nList_recv)
+        MPICPU !$omp target update to(tempRbufferTotal)
+        GPUOMP !$omp target teams distribute parallel do simd collapse(5)
+        !$acc parallel num_workers(8) vector_length(128)
+        !$acc loop independent collapse(5) gang worker vector
         do counter = 0, size(rStartTotal)-1
           do iHalo = 1, nHaloLayers
            do i = 1, localMax 
@@ -8605,7 +8604,6 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
             end do
           end do
         end do
-        !!$acc end kernels
         !$acc end parallel
         GPUOMP !$omp end target teams distribute parallel do simd
         !$acc end data
