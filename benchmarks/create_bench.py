@@ -54,7 +54,7 @@ nml_opts["nhyd_model"]["config_time_integration_order"] = 2
 nml_opts["nhyd_model"]["config_dt"] = 120
 nml_opts["nhyd_model"]["config_run_duration"] = '1_00:00:00'
 nml_opts["nhyd_model"]["config_horiz_mixing"] = '2d_smagorinsky'
-nml_opts["nhyd_model"]["config_len_disp"] = 120000.
+nml_opts["nhyd_model"]["config_len_disp"] = 1200000.
 nml_opts["nhyd_model"]["config_visc4_2dsmag"] = 0.05
 nml_opts["nhyd_model"]["config_smdiv"] = 0.1
 nml_opts["decomposition"]["config_block_decomp_file_prefix"] = grid_dir+"/"+grid_name+".graph.info.part."
@@ -68,11 +68,11 @@ str_opt = {"input":{}, "output":{}, "restart" : {}, "diagnostics" : {}, "surface
 str_opt["input"]["filename_template"] = str_init_opt["output"]["filename_template"]
 str_opt["output"]["filename_template"] = b_full_name+"/out.nc"
 str_opt["output"]["output_interval"] = "1:00:00"
-str_opt["output"]["clobber_mode"] = "append"
+str_opt["output"]["clobber_mode"] = "overwrite"
 str_opt["surface"]["filename_template"] = str_init_opt["surface"]["filename_template"]
 str_opt["diagnostics"]["filename_template"] = b_full_name+"/diag.nc"
 str_opt["diagnostics"]["output_interval"] = "1:00:00"
-str_opt["diagnostics"]["clobber_mode"] = "append"
+str_opt["diagnostics"]["clobber_mode"] = "overwrite"
 
 
 #Init_atmosphere setup

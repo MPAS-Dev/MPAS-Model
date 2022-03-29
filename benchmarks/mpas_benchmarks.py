@@ -11,6 +11,7 @@ import subprocess
 import sys
 import xml.etree.ElementTree as ET
 import f90nml
+import fnmatch
 
 def call_parser():
     parser = argparse.ArgumentParser()
@@ -19,10 +20,40 @@ def call_parser():
     group.add_argument('--run', action='store_true', help='Use run atm core')
     parser.add_argument('--make', action='store_true', help='evoke make', default=False)
     parser.add_argument('--name', type=str, default='basic_test', help='''main name of benchmark''')
+    parser.add_argument('--bdir', type=str, default='basic_test/x1.10242', help='''path to directory of benchmark''')
 
     args = parser.parse_args()
     return args
 
+def find(pattern, path):
+    result = []
+    for root, dirs, files in os.walk(path):
+        for name in files:
+            if fnmatch.fnmatch(name, pattern):
+                result.append(os.path.join(root, name))
+    return result
+
+class LogFollower:
+    def __init__(self, fp):
+        self.position = 0
+        self.fp = fp
+
+    def seek(self):
+        self.fp.seek(self.position)
+
+    def has(self):
+        self.seek()
+        return '\n' in self.fp.read()
+
+    def __iter__(self):
+        while self.has():
+            self.seek()
+            line = self.fp.read().split('\n')[0]
+            yield line
+
+            # advance position - this is the 'state machine' part!
+            self.position += len(line) + 1
+            
 class Bench:
     def __init__(self, args):
         print()
