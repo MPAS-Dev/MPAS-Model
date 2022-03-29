@@ -23,6 +23,7 @@ b_name = args.name
 b_dir = work_dir+"/benchmarks/"+args.bdir
 print(b_dir)
 
+os.environ['OMP_NUM_THREADS'] = "2"
 
 #Init_atmosphere setup
 if args.init:
@@ -33,7 +34,7 @@ if args.init:
         print()
         p = subprocess.Popen("./init_atmosphere_model", stdout = subprocess.PIPE, stderr=subprocess.PIPE, cwd=b, shell=False)
 
-        outfile = bench.find("log.*out", b)[0]    
+        outfile = bench.find("log.*out", b)[0]  
         print(outfile)   
         follow = bench.LogFollower(open(outfile))
 

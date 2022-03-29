@@ -14,7 +14,7 @@ BENCH_DIR=$WORK_DIR/benchmarks
 #---------------------------------
 
 #Grid
-GRD_NAME="x1.2562"
+GRD_NAME="x1.10242"
 #GRD_NAME="HR95xxx"
 GRD_DIR=${WORK_DIR}"/grids/grids/"${GRD_NAME}
 #GRD_DIR=${MPAS_DIR}"/grids/"x1.10242
@@ -23,8 +23,9 @@ GRD_DIR=${WORK_DIR}"/grids/grids/"${GRD_NAME}
 BENCH_NAME="jw_tc1"
 BENCH_DIR=${BENCH_DIR}/${BENCH_NAME}
 
+#Used in model init
 LEVELS=20     #Vertical levels
-TC=1          #Test case JW 0,1,2
+TC=1          #Test case JW 1,2,3
 HCM=1         #1=HCm, 0=HCt
 
 #Output and Diagnostics
@@ -36,17 +37,20 @@ USE_REDUCED_OUT=1
 # 1=true, 0=false
 
 # Time
+#Only used for run, not init
 DT=120.0
-RUN_NML="config_run_duration = '9_00:00:00'"
-OUT_INT='output_interval="1_00:00:00"'
+RUN_NML="config_run_duration = '1_00:00:00'"
+OUT_INT='output_interval="0_02:00:00"'
 
 #Filters and diffusion
+#Only used for run, not init
 SMAG=120000.	#Smagorinsky horizontal diffusion length (set to mean grid length)
 SMDV=0.1	#3d div damp coef (non-dimensional - default =0.1)
 APVM=0.5	#Vorticicy filter (default=0.5)
 HOLS=1		#Use A. Gassmann Hollingsworth correction
 
 #Consistent scheme options
+#Only used for run, not init
 CONS=0		#Full consistent scheme (overwrites options bellow)
 KPER=0		#Perot kinetic energy
 KRBF=0		#RBF kinetic energy

@@ -53,13 +53,13 @@ class LogFollower:
 
             # advance position - this is the 'state machine' part!
             self.position += len(line) + 1
-            
+
 class Bench:
-    def __init__(self, args):
+    def __init__(self, args, dummy_string=""):
         print()
-        print("-----------------------------")
-        print("Setting up benchmark:", args.name)
-        print("-----------------------------")
+        print("--------------------------------------------------")
+        print("Setting up benchmark:", args.name, dummy_string)
+        print("--------------------------------------------------")
         self.args = args
         self.name = args.name
         self.work_dir = os.getenv('MPAS_DIR')
