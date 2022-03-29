@@ -28,19 +28,26 @@ os.environ['OMP_NUM_THREADS'] = "2"
 #Init_atmosphere setup
 if args.init:
     benchs = glob.glob(b_dir+"/init*")
+    print("---------------------------")
+    print(" Running :", benchs)
+    print("---------------------------")
     for b in benchs:
         print()
-        print(" Running :", benchs)
+        print(" Running :", b)
         print()
         p = subprocess.Popen("./init_atmosphere_model", stdout = subprocess.PIPE, stderr=subprocess.PIPE, cwd=b, shell=False)
+        time.sleep(1)
+        try:
+            outfile = bench.find("log.*out", b)[0]  
+            print(outfile)   
+            follow = bench.LogFollower(open(outfile))
 
-        outfile = bench.find("log.*out", b)[0]  
-        print(outfile)   
-        follow = bench.LogFollower(open(outfile))
-
-        while p.poll() is None:
-            for line in follow:
-                print(line)
+            while p.poll() is None:
+                for line in follow:
+                    print(line)
+        except:
+            print("Couldn't reach log file, check manually, just in case")   
+        
             
 else:
     #Make sure the init test exists!
