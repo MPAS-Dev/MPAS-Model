@@ -54,7 +54,7 @@ benchnames = [ os.path.split(x)[1] for x in benchs ]
 benchnames_clean = [ os.path.split(x)[1].replace("run.", "") for x in benchs ]
 
 print( "ploting time series")
-fig = plt.figure()
+fig = plt.figure(figsize=(20, 12))
 ax = plt.gca()
 
 for ib, b in enumerate(benchs):
@@ -87,28 +87,33 @@ for ib, b in enumerate(benchs):
     delta = dur/(ntimes-1)
     print(delta)
 
-    ts = []
-    ys = []
-    for i in range(ntimes):
-        t = t_ini+i*delta
-        hours = t.total_seconds()/3600
-        ts.append(hours)
-        var_agg = var[i]
-        var_agg = np.sqrt(np.sum(np.sum(np.square(var_agg))))
-        ys.append(var_agg)
-        print(t,var_agg)
-    
-    ax.plot(ts, ys, label=benchnames_clean[ib] )
+    if (True): #if (benchnames_clean[ib].endswith("visc4smag_0.0") ):
+        ts = []
+        ys = []
+        for i in range(ntimes):
+            t = t_ini+i*delta
+            hours = t.total_seconds()/3600
+            ts.append(hours)
+            var_agg = var[i]
+            var_agg = np.sqrt(np.sum(np.sum(np.square(var_agg))))
+            ys.append(var_agg)
+            print(t,var_agg)
+	    
+
+        ax.plot(ts, ys, label=benchnames_clean[ib] )
 
     
 
 
 #print(ts, len(ts))
 #print(ts_error, len(ts_error))
-plt.legend(loc="upper left")
+#plt.legend(loc="upper left")
+ax.legend(loc='center left', bbox_to_anchor=(1, 0.5))
+
 plt.xlabel("Hours")
 plt.ylabel( "RMS "+variable )
 plt.title(variable)
+plt.tight_layout()
 plt.savefig(dir+"/"+variable+'_ts.png')
 print( "-----------------------------------------")
 print( )

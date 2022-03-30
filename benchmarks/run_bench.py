@@ -28,42 +28,34 @@ os.environ['OMP_NUM_THREADS'] = "2"
 #Init_atmosphere setup
 if args.init:
     benchs = glob.glob(b_dir+"/init*")
-    print("---------------------------")
-    print(" Running :", benchs)
-    print("---------------------------")
-    for b in benchs:
-        print()
-        print(" Running :", b)
-        print()
-        p = subprocess.Popen("./init_atmosphere_model", stdout = subprocess.PIPE, stderr=subprocess.PIPE, cwd=b, shell=False)
-        time.sleep(1)
-        try:
-            outfile = bench.find("log.*out", b)[0]  
-            print(outfile)   
-            follow = bench.LogFollower(open(outfile))
-
-            while p.poll() is None:
-                for line in follow:
-                    print(line)
-        except:
-            print("Couldn't reach log file, check manually, just in case")   
-        
-            
+    mainexec = "./init_atmosphere_model"
 else:
     #Make sure the init test exists!
-    benchs = glob.glob(b_dir+"/run.*")  
-    for b in benchs:
-        print()
-        print(" Running :", benchs)
-        print()
-        p = subprocess.Popen("./atmosphere_model", stdout = subprocess.PIPE, stderr=subprocess.PIPE, cwd=b, shell=False)
+    benchs = glob.glob(b_dir+"/run.*") 
+    mainexec = "./atmosphere_model"
 
-        outfile = bench.find("log.*out", b)[0]    
+print("---------------------------")
+print(" Running :", benchs)
+print("---------------------------")
+for b in benchs:
+    print()
+    print(" Running :", b)
+    print()
+    
+    p = subprocess.Popen(mainexec, stdout = subprocess.PIPE, stderr=subprocess.PIPE, cwd=b, shell=False)
+
+    time.sleep(1)
+    try:
+        outfile = bench.find("log.*out", b)[0]  
         print(outfile)   
         follow = bench.LogFollower(open(outfile))
 
         while p.poll() is None:
             for line in follow:
                 print(line)
+    except:
+        print("Couldn't reach log file, check manually, just in case")   
+    
+        
     
 
