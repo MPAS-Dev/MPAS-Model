@@ -92,6 +92,33 @@ ftn:
 	"OPENACC = $(OPENACC)" \
 	"CPPFLAGS = $(MODEL_FORMULATION) -D_MPI" )
 
+ftn-offload:
+	( $(MAKE) all \
+	"FC_PARALLEL = ftn" \
+	"CC_PARALLEL = cc" \
+	"CXX_PARALLEL = CC" \
+	"FC_SERIAL = ftn" \
+	"CC_SERIAL = cc" \
+	"CXX_SERIAL = CC" \
+	"FFLAGS_PROMOTION = -default64" \
+	"FFLAGS_OPT = -s integer32 -O2 -f free -N 1023 -em -ef -hlist=aimd" \
+	"CFLAGS_OPT = -O2" \
+	"LDFLAGS_OPT = -O2 -fopenmp" \
+	"FFLAGS_OMP = -fopenmp" \
+	"CFLAGS_OMP = -fopenmp" \
+	"FFLAGS_ACC =" \
+	"CFLAGS_ACC =" \
+        "FFLAGS_GPU = -fopenmp -hnoacc -homp" \
+	"BUILD_TARGET = $(@)" \
+	"CORE = $(CORE)" \
+	"DEBUG = $(DEBUG)" \
+	"USE_PAPI = $(USE_PAPI)" \
+	"OPENMP_AMD_OFFLOAD = $(OPENMP_AMD_OFFLOAD)" \
+	"OPENMP = $(OPENMP)" \
+	"OPENACC = $(OPENACC)" \
+	"CPPFLAGS = $(MODEL_FORMULATION) -D_MPI" )
+
+
 titan-cray:
 	( $(MAKE) all \
 	"FC_PARALLEL = ftn" \
@@ -128,6 +155,36 @@ pgi:
 	"CXXFLAGS_OPT = -O3" \
 	"LDFLAGS_OPT = -O3" \
 	"FFLAGS_DEBUG = -O0 -g -Mbounds -Mchkptr -byteswapio -Mfree -Ktrap=divz,fp,inv,ovf -traceback" \
+	"CFLAGS_DEBUG = -O0 -g -traceback" \
+	"CXXFLAGS_DEBUG = -O0 -g -traceback" \
+	"LDFLAGS_DEBUG = -O0 -g -Mbounds -Mchkptr -Ktrap=divz,fp,inv,ovf -traceback" \
+	"FFLAGS_OMP = -mp" \
+	"CFLAGS_OMP = -mp" \
+	"FFLAGS_ACC = -Mnofma -acc -ta=tesla:cc70,cc80 -Minfo=accel" \
+	"CFLAGS_ACC =" \
+	"PICFLAG = -fpic" \
+	"BUILD_TARGET = $(@)" \
+	"CORE = $(CORE)" \
+	"DEBUG = $(DEBUG)" \
+	"USE_PAPI = $(USE_PAPI)" \
+	"OPENMP = $(OPENMP)" \
+	"OPENACC = $(OPENACC)" \
+	"CPPFLAGS = $(MODEL_FORMULATION) -D_MPI -DCPRPGI" )
+
+nvfortran:
+	( $(MAKE) all \
+	"FC_PARALLEL = mpif90" \
+	"CC_PARALLEL = mpicc" \
+	"CXX_PARALLEL = mpicxx" \
+	"FC_SERIAL = pgf90" \
+	"CC_SERIAL = pgcc" \
+	"CXX_SERIAL = pgc++" \
+	"FFLAGS_PROMOTION = -r8" \
+	"FFLAGS_OPT = -O4 -Mbyteswapio -Mfree" \
+	"CFLAGS_OPT = -O3" \
+	"CXXFLAGS_OPT = -O3" \
+	"LDFLAGS_OPT = -O3 -lhdf5 -lhdf5_hl" \
+	"FFLAGS_DEBUG = -O0 -g -Mbounds -Mchkptr -Mbyteswapio -Mfree -Ktrap=divz,fp,inv,ovf -traceback" \
 	"CFLAGS_DEBUG = -O0 -g -traceback" \
 	"CXXFLAGS_DEBUG = -O0 -g -traceback" \
 	"LDFLAGS_DEBUG = -O0 -g -Mbounds -Mchkptr -Ktrap=divz,fp,inv,ovf -traceback" \
@@ -788,6 +845,14 @@ ifeq "$(OPENMP_OFFLOAD)" "true"
 	LDFLAGS += $(LDFLAGS_GPU)
 endif #OPENMP_OFFLOAD IF
 
+ifeq "$(OPENMP_AMD_OFFLOAD)" "true"
+	FFLAGS += $(FFLAGS_GPU)
+	CFLAGS += $(FFLAGS_GPU)
+	CXXFLAGS += $(FFLAGS_GPU)
+	override CPPFLAGS += "-DMPAS_AMD_OFFLOAD"
+	LDFLAGS += $(LDFLAGS_GPU)
+endif #OPENMP_AMD_OFFLOAD IF
+
 ifeq "$(PRECISION)" "single"
 	CFLAGS += "-DSINGLE_PRECISION"
 	CXXFLAGS += "-DSINGLE_PRECISION"
@@ -881,7 +946,11 @@ endif
 ifeq "$(OPENMP_OFFLOAD)" "true"
 	OPENMP_OFFLOAD_MESSAGE="MPAS was built with OpenMP-offload GPU support enabled."
 else
-	OPENMP_OFFLOAD_MESSAGE="MPAS was built without OpenMP-offload GPU support."
+ifeq "$(OPENMP_AMD_OFFLOAD)" "true"
+	OPENMP_OFFLOAD_MESSAGE="MPAS was built with OpenMP-offload AMD GPU support enabled."
+else
+        OPENMP_OFFLOAD_MESSAGE="MPAS was built without OpenMP-offload GPU support."
+endif
 endif
 
 ifeq "$(OPENACC)" "true"

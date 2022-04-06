@@ -101,6 +101,7 @@ clean:
 	@# Certain systems with intel compilers generate *.i files
 	@# This removes them during the clean process
 	$(RM) *.i
+	$(RM) *.acc.s
 
 .F.o:
 ifeq "$(GEN_F90)" "true"

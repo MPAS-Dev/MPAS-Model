@@ -1,5 +1,6 @@
 ! Copyright (c) 2013,  Los Alamos National Security, LLC (LANS)
 ! and the University Corporation for Atmospheric Research (UCAR).
+! Modifications Copyright (c) 2022, Advanced Micro Devices, Inc (AMD). All rights Reserved.
 !
 ! Unless noted otherwise source code is licensed under the BSD license.
 ! Additional copyright and license information can be found in the LICENSE file
@@ -16,6 +17,7 @@
 !
 !-----------------------------------------------------------------------
 
+#include "mpas_openmp.inc"
 module mpas_threading
 
    use mpas_kind_types
@@ -129,7 +131,7 @@ module mpas_threading
    subroutine mpas_threading_barrier()!{{{
 
 #ifdef MPAS_OPENMP
-      !$omp barrier
+      CPUOMP !$omp barrier
 #endif
 
    end subroutine mpas_threading_barrier!}}}

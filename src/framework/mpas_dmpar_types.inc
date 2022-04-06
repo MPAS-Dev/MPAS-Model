@@ -1,3 +1,4 @@
+! Modifications Copyright (c) 2022, Advanced Micro Devices, Inc (AMD). All rights Reserved.
    integer, parameter :: MPAS_DMPAR_NOERR = 0
    integer, parameter :: MPAS_DMPAR_MISSING_GROUP = 1
    integer, parameter :: MPAS_DMPAR_EXISTING_GROUP = 2
@@ -52,6 +53,12 @@
      integer :: commListSize
      logical :: received
      logical :: unpacked
+     ! Packed halo exch buffers
+     real (kind=RKIND), dimension(:), pointer :: rbufferTotal => null()
+     integer, dimension(:), pointer :: rstartTotal => null()
+     integer :: nListTotal
+     integer :: rStart
+     integer :: rEnd
    end type mpas_communication_list
 
    type mpas_exchange_field_list

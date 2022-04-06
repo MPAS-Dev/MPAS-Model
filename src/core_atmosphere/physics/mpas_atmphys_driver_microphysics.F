@@ -1,12 +1,14 @@
 ! Copyright (c) 2013,  Los Alamos National Security, LLC (LANS)
 ! and the University Corporation for Atmospheric Research (UCAR).
+! Modifications Copyright (c) 2022, Advanced Micro Devices, Inc (AMD). All rights Reserved.
 !
 ! Unless noted otherwise source code is licensed under the BSD license.
 ! Additional copyright and license information can be found in the LICENSE file
 ! distributed with this code, or at http://mpas-dev.github.com/license.html
 !
 !=================================================================================================================
- module mpas_atmphys_driver_microphysics
+#include "mpas_openmp.inc"
+module mpas_atmphys_driver_microphysics
  use mpas_kind_types
  use mpas_pool_routines
  use mpas_timer, only : mpas_timer_start, mpas_timer_stop
@@ -124,6 +126,8 @@
  if(.not.allocated(rainnc_p) ) allocate(rainnc_p(ims:ime,jms:jme) )
  if(.not.allocated(rainncv_p)) allocate(rainncv_p(ims:ime,jms:jme))
 
+GPUOMP !$omp target enter data map(alloc:rho_p,th_p,pi_p,pres_p,z_p,dz_p,w_p,qv_p,qc_p,qr_p,&
+GPUOMP !$omp rainnc_p,rainncv_p)
  microp_select: select case(microp_scheme)
 
     case ("mp_thompson","mp_wsm6")
@@ -143,6 +147,8 @@
        if(.not.allocated(recloud_p) ) allocate(recloud_p(ims:ime,kms:kme,jms:jme))
        if(.not.allocated(reice_p)   ) allocate(reice_p(ims:ime,kms:kme,jms:jme)  )
        if(.not.allocated(resnow_p)  ) allocate(resnow_p(ims:ime,kms:kme,jms:jme) )
+GPUOMP !$omp target enter data map(alloc:qi_p,qs_p,qg_p,sr_p,snownc_p,snowncv_p,snowncv_p,&
+GPUOMP !$omp graupelnc_p,graupelncv_p,recloud_p,reice_p,resnow_p)
 
     microp2_select: select case(microp_scheme)
 
@@ -155,6 +161,7 @@
 
           if(.not.allocated(rainprod_p)) allocate(rainprod_p(ims:ime,kms:kme,jms:jme))
           if(.not.allocated(evapprod_p)) allocate(evapprod_p(ims:ime,kms:kme,jms:jme))
+GPUOMP !$omp target enter data map(alloc:ntc_p,muc_p,ni_p,nr_p,rainprod_p,evapprod_p)
 
        case default
 
@@ -180,6 +187,8 @@
 
  call mpas_pool_get_config(configs,'config_microp_scheme',microp_scheme)
 
+GPUOMP !$omp target exit data map(delete:rho_p,th_p,pi_p,pres_p,z_p,dz_p,w_p,qv_p,qc_p,qr_p,&
+GPUOMP !$omp rainnc_p,rainncv_p)
 !sounding variables:
  if(allocated(rho_p)     ) deallocate(rho_p     )
  if(allocated(th_p)      ) deallocate(th_p      )
@@ -201,6 +210,8 @@
  microp_select: select case(microp_scheme)
 
     case ("mp_thompson","mp_wsm6")
+GPUOMP !$omp target exit data map(delete:qi_p,qs_p,qg_p,sr_p,snownc_p,snowncv_p,snowncv_p,&
+GPUOMP !$omp graupelnc_p,graupelncv_p,recloud_p,reice_p,resnow_p)
        !mass mixing ratios:
        if(allocated(qi_p)         ) deallocate(qi_p         )
        if(allocated(qs_p)         ) deallocate(qs_p         )
@@ -221,6 +232,7 @@
     microp2_select: select case(microp_scheme)
 
        case("mp_thompson")
+GPUOMP !$omp target exit data map(delete:ntc_p,muc_p,ni_p,nr_p,rainprod_p,evapprod_p)
           !number concentrations:
           if(allocated(ntc_p)) deallocate(ntc_p)
           if(allocated(muc_p)) deallocate(muc_p)
@@ -307,10 +319,10 @@
  call mpas_pool_get_config(configs,'config_microp_scheme',microp_scheme)
 
 !... allocation of microphysics arrays:
-!$OMP MASTER
+CPUOMP !$OMP MASTER
  call allocate_microphysics(configs)
-!$OMP END MASTER
-!$OMP BARRIER
+CPUOMP !$OMP END MASTER
+CPUOMP !$OMP BARRIER
 
 !... initialization of precipitation related arrays:
  call precip_from_MPAS(configs,diag_physics,its,ite)
@@ -415,10 +427,10 @@
  call microphysics_to_MPAS(configs,mesh,state,time_lev,diag,diag_physics,tend,itimestep,its,ite)
 
 !... deallocation of all microphysics arrays:
-!$OMP BARRIER
-!$OMP MASTER
+CPUOMP !$OMP BARRIER
+CPUOMP !$OMP MASTER
  call deallocate_microphysics(configs)
-!$OMP END MASTER
+CPUOMP !$OMP END MASTER
 
 !call mpas_log_write('---enter subroutine driver_microphysics:')
 !call mpas_log_write('')

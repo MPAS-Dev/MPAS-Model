@@ -1,3 +1,5 @@
+! Modifications Copyright (c) 2022, Advanced Micro Devices, Inc (AMD). All rights reserved
+#include "mpas_openmp.inc"
 MODULE module_sf_noahlsm
 #if defined(mpas)
 use mpas_atmphys_constants,only: CP=>cp,R_D=>R_d,XLF=>xlf,XLV=>xlv,RHOWATER=>rho_w,STBOLT=>stbolt,KARMAN=>karman
@@ -71,7 +73,7 @@ use module_wrf_error
 !$acc         SLOPE_DATA,SBETA_DATA,FXEXP_DATA,CSOIL_DATA,SALP_DATA,REFDK_DATA,     &
 !$acc         REFKDT_DATA,FRZK_DATA,ZBOT_DATA,CZIL_DATA,SMLOW_DATA,SMHIGH_DATA,LVCOEF_DATA)
 
-!$omp threadprivate(iloc, jloc)
+CPUOMP !$omp threadprivate(iloc, jloc)
 !
 CONTAINS
 !

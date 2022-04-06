@@ -1,5 +1,6 @@
 ! Copyright (c) 2017,  Los Alamos National Security, LLC (LANS)
 ! and the University Corporation for Atmospheric Research (UCAR).
+! Modifications Copyright (c) 2022, Advanced Micro Devices, Inc (AMD). All rights Reserved.
 !
 ! Unless noted otherwise source code is licensed under the BSD license.
 ! Additional copyright and license information can be found in the LICENSE file
@@ -36,7 +37,7 @@
 !
 !-----------------------------------------------------------------------
 
-
+#include "mpas_openmp.inc"
 module mpas_log
 
    use mpas_derived_types
@@ -571,7 +572,7 @@ module mpas_log
             ! --- Actually write the message here! ---
             !    We have to treat MPAS_LOG_OUT messages separately from others because that type
             !    does not have a prefix and we want to add a space after the trimmed prefix for other types.
-!$OMP CRITICAL (mpas_log_write_section)
+CPUOMP !$OMP CRITICAL (mpas_log_write_section)
             write(mpas_log_info % outputLog % unitNum, '(a,a,a)') trim(messageExtendedPrefix), ' ', trim(messageExpanded)
 
             ! Optionally flush the buffer (only attempt if the file is active)
@@ -599,7 +600,7 @@ module mpas_log
             case default
                ! TODO handle this error? (would have encountered it above...)
             end select
-!$OMP END CRITICAL (mpas_log_write_section)
+CPUOMP !$OMP END CRITICAL (mpas_log_write_section)
 
          endif
       endif
@@ -611,7 +612,7 @@ module mpas_log
          if ( ( ((masterOnlyWrite) .and. (mpas_log_info % taskID == 0)) .or. (.not. masterOnlyWrite)) .and. &  ! Check masterOnly
                mpas_log_info % errorLog % isActive ) then ! By default, all error logs are active, but a core could override that!
 
-!$OMP CRITICAL (mpas_log_critical_write)
+CPUOMP !$OMP CRITICAL (mpas_log_critical_write)
             ! if err file is not already open, we need to open it
             if (.not. mpas_log_info % errorLog % isOpen) then
                call mpas_log_open(openErrorFile = .true., err = ierr_tmp)
@@ -627,7 +628,7 @@ module mpas_log
                ! Now abort
                call log_abort()
             endif
-!$OMP END CRITICAL (mpas_log_critical_write)
+CPUOMP !$OMP END CRITICAL (mpas_log_critical_write)
 
          endif
       endif

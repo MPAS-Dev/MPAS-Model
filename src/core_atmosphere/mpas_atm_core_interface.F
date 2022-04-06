@@ -102,6 +102,10 @@ module atm_core_interface
       use openacc, only : acc_get_num_devices, acc_set_device_num, acc_set_device_type, &
                           acc_device_nvidia, acc_device_host
 #endif
+#ifdef MPAS_AMD_OFFLOAD
+      ! NOTE: crayftn only
+      use omp_lib
+#endif
 
       implicit none
 
@@ -127,7 +131,7 @@ module atm_core_interface
       integer :: on_node_comm
       integer :: socket_rank
 
-#ifdef MPAS_OPENACC
+#if defined(MPAS_OPENACC) || defined(MPAS_AMD_OFFLOAD) 
       integer :: num_devices, my_device
       integer :: role_comm, role_rank, role_size
 #endif
@@ -197,7 +201,7 @@ module atm_core_interface
               !
               ! Assign devices based on rank in the role within a shared-memory node
               !
-#ifdef MPAS_OPENACC
+#if defined(MPAS_OPENACC) || defined(MPAS_AMD_OFFLOAD)
 #ifdef _MPI
               call MPI_Comm_split(on_node_comm, role, local_rank, role_comm, ierr)
               call MPI_Comm_rank(role_comm, role_rank, ierr)
@@ -208,11 +212,19 @@ module atm_core_interface
 #endif
 
               if (role == ROLE_INTEGRATE) then
+#ifdef MPAS_OPENACC
                   num_devices = acc_get_num_devices(acc_device_nvidia)
                   my_device = (role_rank * num_devices) / role_size
                   call acc_set_device_num(my_device, acc_device_nvidia)
+#else
+                  num_devices = omp_get_num_devices()
+                  my_device = (role_rank * num_devices) / role_size
+                  call omp_set_default_device(my_device)
+#endif
               else
+#ifdef MPAS_OPENACC
                   call acc_set_device_type(acc_device_host)
+#endif
               end if
 #endif
 

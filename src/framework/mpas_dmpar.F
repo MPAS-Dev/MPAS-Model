@@ -1,5 +1,6 @@
 ! Copyright (c) 2013,  Los Alamos National Security, LLC (LANS)
 ! and the University Corporation for Atmospheric Research (UCAR).
+! Modifications Copyright (c) 2022, Advanced Micro Devices, Inc (AMD). All rights Reserved.
 !
 ! Unless noted otherwise source code is licensed under the BSD license.
 ! Additional copyright and license information can be found in the LICENSE file
@@ -15,6 +16,8 @@
 !>  This module contains all communication routines. All MPI calls should be made in this module.
 !
 !-----------------------------------------------------------------------
+#include "mpas_openmp.inc"
+#define PACKHALO 1
 module mpas_dmpar
 
 #define COMMA ,
@@ -2342,6 +2345,8 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
       integer :: idx
       integer :: endPointID
       integer :: i, n
+      integer, dimension(:), pointer :: sendListTotal, recvListTotal
+      integer :: nListTotal_send, nListTotal_recv
 
 
       ! We only need the product of all dimension sizes (except the last), so calculate that now
@@ -2368,6 +2373,8 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
       n = idx         ! The number of endpoints to send to
       idx = idx + 1
       commListPtr => sendCommList
+      allocate(sendListTotal(compactHaloInfo(n)))
+      nListTotal_send = 0
       do iEndpt=1,compactHaloInfo(n)
          endPointID = compactHaloInfo(idx)
          idx = idx + 1
@@ -2388,12 +2395,18 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
 
             idx = idx + 2 * compactHaloInfo(idx) + 1
          end do
+         commListPtr % rStart = nListTotal_send + 1
+         sendListTotal(iEndpt) = nListTotal_send
+         nListTotal_send = nListTotal_send + commListPtr % nList
+         commListPtr % rEnd = nListTotal_send
       end do
 
 
       n = idx         ! The number of endpoints to receive from
       idx = idx + 1   ! The index of the first recv list (nList, srcList, destList)
       commListPtr => recvCommList
+      allocate(recvListTotal(compactHaloInfo(n)))
+      nListTotal_recv = 0
       do iEndpt=1,compactHaloInfo(n)
          endPointID = compactHaloInfo(idx)
          idx = idx + 1
@@ -2414,6 +2427,10 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
 
             idx = idx + 2 * compactHaloInfo(idx) + 1
          end do
+         commListPtr % rStart = nListTotal_recv + 1
+         recvListTotal(iEndpt) = nListTotal_recv
+         nListTotal_recv = nListTotal_recv + commListPtr % nList
+         commListPtr % rEnd = nListTotal_recv
       end do
 
 
@@ -2425,6 +2442,13 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
       commListPtr => recvCommList
       recvCommList => recvCommList % next
       deallocate(commListPtr)
+
+      sendCommList % nListTotal = nListTotal_send
+      sendCommList % rStartTotal => sendListTotal
+      recvCommList % nListTotal = nListTotal_recv
+      recvCommList % rStartTotal => recvListTotal
+      GPUOMP !$omp target enter data map(to:sendListTotal,recvListTotal)
+      !$acc enter data copyin(sendListTotal,recvListTotal)
 
    end subroutine mpas_dmpar_build_comm_lists_acc !}}}
 
@@ -6449,6 +6473,7 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
         if (.not. associated(commListPtr % rbuffer)) then
            allocate(tempRbuffer(commListPtr % nList))
            commListPtr % rbuffer => tempRbuffer
+        GPUOMP !$omp target enter data map(alloc:tempRbuffer)
         !$acc enter data create(tempRbuffer)
         else 
            tempRbuffer => commListPtr % rbuffer
@@ -6465,6 +6490,7 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
         if (.not. associated(commListPtr % rbuffer)) then
            allocate(tempRbuffer(commListPtr % nList))
            commListPtr % rbuffer => tempRbuffer
+        GPUOMP !$omp target enter data map(alloc:tempRbuffer)
         !$acc enter data create(tempRbuffer)
         else 
            tempRbuffer => commListPtr % rbuffer
@@ -7334,6 +7360,8 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
       integer, intent(in) :: nHaloLayers
       integer :: mpi_comm, mpi_proc_id
       real (kind=RKIND), dimension(:), pointer :: tempRbuffer
+      real (kind=RKIND), dimension(:), pointer :: tempRbufferTotal
+      integer, dimension(:), pointer :: rStartTotal
       integer :: localMax, counter
       !
       ! Unpack fields from the compacted halo info array
@@ -7355,28 +7383,94 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
       
       nFieldHaloLayers = compactHaloInfo(9)
 #ifdef _MPI
+      TMPOMP !$omp target update to(array)
       ! Allocate space in recv lists, and initiate mpi_irecv calls
       commListPtr => recvList
+#ifdef PACKHALO
+      do while(associated(commListPtr))
+        if (.not. associated(recvList % rbufferTotal)) then
+           allocate(tempRbufferTotal(recvList % nListTotal))
+           recvList % rbufferTotal => tempRbufferTotal
+        GPUOMP !$omp target enter data map(alloc:tempRbufferTotal)
+        !$acc enter data create(tempRbufferTotal)
+        else 
+           tempRbufferTotal => recvList % rbufferTotal
+        end if
+        nullify(commListPtr % ibuffer)
+        tempRbuffer => tempRbufferTotal(commListPtr % rStart: commListPtr % rEnd)
+        MPIGPU !$omp target data use_device_ptr(tempRbuffer)
+        !$acc host_data use_device(tempRbuffer) 
+        call MPI_Irecv(tempRbuffer, commListPtr % nList, MPI_REALKIND, commListPtr % procID, commListPtr % procID, mpi_comm, commListPtr % reqID, mpi_ierr)
+        !$acc end host_data
+        MPIGPU !$omp end target data
+        commListPtr => commListPtr % next
+      end do
+#else
       do while(associated(commListPtr))
         if (.not. associated(commListPtr % rbuffer)) then
            allocate(tempRbuffer(commListPtr % nList))
            commListPtr % rbuffer => tempRbuffer
+        GPUOMP !$omp target enter data map(alloc:tempRbuffer)
         !$acc enter data create(tempRbuffer)
         else 
            tempRbuffer => commListPtr % rbuffer
         end if
         nullify(commListPtr % ibuffer)
+        MPIGPU !$omp target data use_device_ptr(tempRbuffer)
         !$acc host_data use_device(tempRbuffer) 
         call MPI_Irecv(tempRbuffer, commListPtr % nList, MPI_REALKIND, commListPtr % procID, commListPtr % procID, mpi_comm, commListPtr % reqID, mpi_ierr)
         !$acc end host_data
+        MPIGPU !$omp end target data
         commListPtr => commListPtr % next
       end do
+#endif
       ! Allocate space in send lists, copy data into buffer, and initiate mpi_isend calls
       commListPtr => sendList
+#ifdef PACKHALO
+      do while(associated(commListPtr))
+        if (.not. associated(sendList % rbufferTotal)) then
+           allocate(tempRbufferTotal(sendList % nListTotal))
+           sendList % rbufferTotal => tempRbufferTotal
+        GPUOMP !$omp target enter data map(alloc:tempRbufferTotal)
+        !$acc enter data create(tempRbufferTotal)
+        else 
+           tempRbufferTotal => sendList % rbufferTotal
+        end if
+        nullify(commListPtr % ibuffer)
+        commListPtr => commListPtr % next
+      enddo
+      commListPtr => sendList   
+      tempRbufferTotal => commListPtr % rbufferTotal
+      rStartTotal => commListPtr % rStartTotal
+      if (associated(commListPtr)) then
+        localMax=maxval(gpu_nList_send(:))
+        !$acc data present(tempRbufferTotal, rStartTotal, array, compactHaloInfo, dimsizes, nHaloLayers, gpu_nList_send, gpu_idx_send, gpu_bufferOffset_send)
+        GPUOMP !$omp target teams distribute parallel do simd collapse(4)
+        !$acc parallel num_workers(4) vector_length(128)
+        !$acc loop independent collapse(4) gang worker vector
+        do counter = 0,size(rStartTotal)-1
+          do iHalo = 1, nHaloLayers
+            do  i = 1, localMax
+              do j = 1, dimSizes(1)
+                if(i<=gpu_nList_send(counter*nHaloLayers+iHalo)) then
+                   tempRbufferTotal(rStartTotal(counter+1) + (compactHaloInfo(gpu_idx_send(counter*nHaloLayers+iHalo) + gpu_nList_send(counter*nHaloLayers+iHalo) + i)-1) * dimSizes(1) + j &
+                  + gpu_bufferOffset_send(counter*nHaloLayers+iHalo)) = array(j, compactHaloInfo(gpu_idx_send(counter*nHaloLayers+iHalo) + i))
+                end if 
+              end do
+            end do
+          end do
+        end do
+        !$acc end parallel
+        GPUOMP !$omp end target teams distribute parallel do simd
+        MPICPU !$omp target update from(tempRbufferTotal)
+        !$acc end data
+      endif
+#else
       do while(associated(commListPtr))
         if (.not. associated(commListPtr % rbuffer)) then
            allocate(tempRbuffer(commListPtr % nList))
            commListPtr % rbuffer => tempRbuffer
+        GPUOMP !$omp target enter data map(alloc:tempRbuffer)
         !$acc enter data create(tempRbuffer)
         else 
            tempRbuffer => commListPtr % rbuffer
@@ -7390,6 +7484,8 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
       do while(associated(commListPtr))
           tempRbuffer => commListPtr % rbuffer
           !$acc data present(tempRbuffer, array, compactHaloInfo, dimsizes, nHaloLayers, gpu_nList_send, gpu_idx_send, gpu_bufferOffset_send) async(counter+1)
+          MPIGPU !$omp target teams distribute parallel do simd collapse(3)
+          MPICPU !$omp target teams distribute parallel do simd collapse(3) nowait depend(out:tempRbuffer)
           !$acc parallel default(none) num_workers(4) vector_length(128) async(counter+1) 
           !$acc loop independent collapse(3) gang worker vector
           do iHalo = 1, nHaloLayers
@@ -7403,19 +7499,38 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
             end do
           end do
           !$acc end parallel
+          GPUOMP !$omp end target teams distribute parallel do simd
+          MPICPU !$omp target update from(tempRbuffer) nowait depend(in:tempRbuffer)
           !$acc end data
         counter=counter+1
         commListPtr => commListPtr % next
       end do
+!GPUOMP !$omp taskwait
 !$acc wait
+#endif
       commListPtr => sendList
+#ifdef PACKHALO
+      tempRbufferTotal => commListPtr % rbuffertotal
       do while(associated(commListPtr))
-        tempRbuffer => commListPtr % rbuffer
+        tempRbuffer => tempRbufferTotal(commListPtr % rStart : commListPtr % rEnd)
+        MPIGPU !$omp target data use_device_ptr(tempRbuffer)
         !$acc host_data use_device(tempRbuffer)
         call MPI_Isend(tempRbuffer, commListPtr % nList, MPI_REALKIND, commListPtr % procID, mpi_proc_id, mpi_comm, commListPtr % reqID, mpi_ierr)
         !$acc end host_data
+        MPIGPU !$omp end target data
         commListPtr => commListPtr % next
       end do
+#else
+      do while(associated(commListPtr))
+        tempRbuffer => commListPtr % rbuffer
+        MPIGPU !$omp target data use_device_ptr(tempRbuffer)
+        !$acc host_data use_device(tempRbuffer)
+        call MPI_Isend(tempRbuffer, commListPtr % nList, MPI_REALKIND, commListPtr % procID, mpi_proc_id, mpi_comm, commListPtr % reqID, mpi_ierr)
+        !$acc end host_data
+        MPIGPU !$omp end target data
+        commListPtr => commListPtr % next
+      end do
+#endif
       commListPtr => recvList
 !RRPKComment: Forced to wait for all recv buffers to be filled up else CUDA streams throws exceptions
 !RRPKComment: I'll figure out to wait for any, after consulting with PGI/OpenMPI
@@ -7425,11 +7540,41 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
       end do
 
       commListPtr => recvList
+#ifdef PACKHALO
+      localMax=maxval(gpu_nList_recv(:))
+      tempRbufferTotal => commListPtr % rbufferTotal
+      rStartTotal => commListPtr % rStartTotal
+      if (associated(commListPtr)) then
+        !$acc data present(tempRbufferTotal,rStartTotal,array,compactHaloInfo,dimsizes, nHaloLayers,dimSizes,gpu_idx_recv,gpu_bufferOffset_recv,gpu_nList_recv)
+        MPICPU !$omp target update to(tempRbufferTotal)
+        GPUOMP !$omp target teams distribute parallel do simd collapse(4) 
+        !$acc parallel num_workers(4) vector_length(128)
+        !$acc loop independent collapse(4) gang worker vector
+        do counter = 0,size(rStartTotal)-1
+          do iHalo = 1, nHaloLayers
+            do i = 1, localMax 
+              do j = 1, dimSizes(1)
+                if(i<=gpu_nList_recv(counter*nHaloLayers+iHalo)) then
+                  array(j, compactHaloInfo(gpu_idx_recv(counter*nHaloLayers+iHalo) + gpu_nList_recv(counter*nHaloLayers+iHalo) + i)) &
+                  = tempRbufferTotal(rStartTotal(counter+1)+(compactHaloInfo(gpu_idx_recv(counter*nHaloLayers+iHalo) + i)-1)*dimSizes(1) + j + gpu_bufferOffset_recv(counter*nHaloLayers+iHalo))
+                end if
+              end do
+            end do
+          end do
+        end do
+        !$acc end parallel
+        GPUOMP !$omp end target teams distribute parallel do simd
+        !$acc end data
+      endif 
+#else
       counter=0
       localMax=maxval(gpu_nList_recv(:))
       do while(associated(commListPtr))
         tempRbuffer => commListPtr % rbuffer
           !$acc data present(tempRbuffer,array,compactHaloInfo,dimsizes, nHaloLayers,dimSizes,gpu_idx_recv,gpu_bufferOffset_recv,gpu_nList_recv) async(counter+1)
+          MPICPU !$omp target update to(tempRbuffer) nowait depend(out:tempRbuffer)
+          MPICPU !$omp target teams distribute parallel do simd collapse(3) nowait depend(in:tempRbuffer)
+          MPIGPU !$omp target teams distribute parallel do simd collapse(3) 
           !$acc parallel num_workers(4) vector_length(128) async(counter+1)
           !$acc loop independent collapse(3) gang worker vector
           do iHalo = 1, nHaloLayers
@@ -7443,11 +7588,14 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
             end do
           end do
           !$acc end parallel
+          GPUOMP !$omp end target teams distribute parallel do simd
           !$acc end data
         commListPtr => commListPtr % next
         counter=counter+1
       end do
+!GPUOMP !$omp taskwait
 !$acc wait
+#endif
 
       ! wait for mpi_isend to finish.
       commListPtr => sendList
@@ -7458,6 +7606,7 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
      ! Destroy commLists.
 !     call mpas_dmpar_destroy_communication_list(sendList)
 !     call mpas_dmpar_destroy_communication_list(recvList)
+      TMPOMP !$omp target update from(array)
 #endif
 
      deallocate(haloLayers)
@@ -7689,7 +7838,7 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
         !if (.not. associated(commListPtr % rbuffer)) then
         !   allocate(tempRbuffer(commListPtr % nList))
         !   commListPtr % rbuffer => tempRbuffer
-        !$acc enter data create(tempRbuffer)
+        !!$acc enter data create(tempRbuffer)
         !else 
         !   tempRbuffer => commListPtr % rbuffer
         !end if
@@ -8247,6 +8396,8 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
       integer, intent(in) :: nHaloLayers
       integer :: mpi_comm, mpi_proc_id
       real (kind=RKIND), dimension(:), pointer :: tempRbuffer
+      real (kind=RKIND), dimension(:), pointer :: tempRbufferTotal
+      integer, dimension(:), pointer :: rStartTotal
       integer :: localMax, counter
       !
       ! Unpack fields from the compacted halo info array
@@ -8270,28 +8421,96 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
 
       nFieldHaloLayers = compactHaloInfo(9)
 #ifdef _MPI
+      TMPOMP !$omp target update to(array)
       ! Allocate space in recv lists, and initiate mpi_irecv calls
       commListPtr => recvList
+#ifdef PACKHALO
+      do while(associated(commListPtr))
+        if (.not. associated(recvList % rbufferTotal)) then
+           allocate(tempRbufferTotal(recvList % nListTotal))
+           recvList % rbufferTotal => tempRbufferTotal
+        GPUOMP !$omp target enter data map(alloc:tempRbufferTotal)
+        !$acc enter data create(tempRbufferTotal)
+        else 
+           tempRbufferTotal => recvList % rbufferTotal
+        end if
+        nullify(commListPtr % ibuffer)
+        tempRbuffer => tempRbufferTotal(commListPtr % rStart: commListPtr % rEnd)
+        MPIGPU !$omp target data use_device_ptr(tempRbuffer)
+        !$acc host_data use_device(tempRbuffer) 
+        call MPI_Irecv(tempRbuffer, commListPtr % nList, MPI_REALKIND, commListPtr % procID, commListPtr % procID, mpi_comm, commListPtr % reqID, mpi_ierr)
+        !$acc end host_data
+        MPIGPU !$omp end target data
+        commListPtr => commListPtr % next
+      end do
+#else
       do while(associated(commListPtr))
         if (.not. associated(commListPtr % rbuffer)) then
            allocate(tempRbuffer(commListPtr % nList))
            commListPtr % rbuffer => tempRbuffer
+        GPUOMP !$omp target enter data map(alloc:tempRbuffer)
         !$acc enter data create(tempRbuffer)
         else 
            tempRbuffer => commListPtr % rbuffer
         end if
         nullify(commListPtr % ibuffer)
+        GPUOMP !$omp target data use_device_ptr(tempRbuffer)
         !$acc host_data use_device(tempRbuffer) 
         call MPI_Irecv(tempRbuffer, commListPtr % nList, MPI_REALKIND, commListPtr % procID, commListPtr % procID, mpi_comm, commListPtr % reqID, mpi_ierr)
         !$acc end host_data
+        GPUOMP !$omp end target data
         commListPtr => commListPtr % next
       end do
+#endif
       ! Allocate space in send lists, copy data into buffer, and initiate mpi_isend calls
       commListPtr => sendList
+#ifdef PACKHALO
+      do while(associated(commListPtr))
+        if (.not. associated(sendList % rbufferTotal)) then
+           allocate(tempRbufferTotal(sendList % nListTotal))
+           sendList % rbufferTotal => tempRbufferTotal
+        GPUOMP !$omp target enter data map(alloc:tempRbufferTotal)
+        !$acc enter data create(tempRbufferTotal)
+        else 
+           tempRbufferTotal => sendList % rbufferTotal
+        end if
+        nullify(commListPtr % ibuffer)
+        commListPtr => commListPtr % next
+      enddo
+      commListPtr => sendList   
+      tempRbufferTotal => commListPtr % rbufferTotal
+      rStartTotal => commListPtr % rStartTotal
+      if (associated(commListPtr)) then
+        localMax=maxval(gpu_nList_send(:))
+        !$acc data present(tempRbufferTotal, rStartTotal, array, compactHaloInfo, dimsizes, nHaloLayers, gpu_nList_send, gpu_idx_send, gpu_bufferOffset_send)
+        GPUOMP !$omp target teams distribute parallel do simd collapse(5)
+        !$acc parallel default(none) num_workers(8) vector_length(128)
+        !$acc loop independent collapse(5) gang worker vector
+        do counter = 0, size(rStartTotal)-1
+          do iHalo = 1, nHaloLayers
+            do  i = 1, localMax
+              do j = 1, dimSizes(2) 
+                do k = 1, dimSizes(1)
+                  if(i<=gpu_nList_send(counter*nHaloLayers+iHalo)) then
+                    tempRbufferTotal(rStartTotal(counter+1)+(compactHaloInfo(gpu_idx_send(counter*nHaloLayers+iHalo) + gpu_nList_send(counter*nHaloLayers+iHalo) + i)-1) * dimSizes(1) * dimSizes(2) + (j-1) * dimSizes(1) + k + gpu_bufferOffset_send(counter*nHaloLayers+iHalo)) = array(k, j, compactHaloInfo(gpu_idx_send(counter*nHaloLayers+iHalo) + i))
+                  end if
+                end do
+              end do
+            end do
+          end do
+        end do
+        !!$acc end kernels
+        !$acc end parallel
+        GPUOMP !$omp end target teams distribute parallel do simd
+        MPICPU !$omp target update from(tempRbufferTotal)
+        !$acc end data
+      endif
+#else
       do while(associated(commListPtr))
         if (.not. associated(commListPtr % rbuffer)) then
            allocate(tempRbuffer(commListPtr % nList))
            commListPtr % rbuffer => tempRbuffer
+        GPUOMP !$omp target enter data map(alloc:tempRbuffer)
         !$acc enter data create(tempRbuffer)
         else 
            tempRbuffer => commListPtr % rbuffer
@@ -8305,6 +8524,7 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
       do while(associated(commListPtr))
           tempRbuffer => commListPtr % rbuffer
           !$acc data present(tempRbuffer, array, compactHaloInfo, dimsizes, nHaloLayers, gpu_nList_send, gpu_idx_send, gpu_bufferOffset_send) async(counter+1)
+          GPUOMP !$omp target teams distribute parallel do simd collapse(4) !nowait
           !$acc parallel default(none) num_workers(8) vector_length(128) async(counter+1)
           !!$acc kernels async(counter+1)
           !$acc loop independent collapse(4) gang worker vector
@@ -8321,19 +8541,37 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
           end do
           !!$acc end kernels
           !$acc end parallel
+          GPUOMP !$omp end target teams distribute parallel do simd
           !$acc end data
         counter=counter+1
         commListPtr => commListPtr % next
       end do
+!GPUOMP !$omp taskwait
 !$acc wait
+#endif
       commListPtr => sendList
+#ifdef PACKHALO
+      tempRbufferTotal => commListPtr % rbuffertotal
       do while(associated(commListPtr))
-        tempRbuffer => commListPtr % rbuffer
+        tempRbuffer => tempRbufferTotal(commListPtr % rStart : commListPtr % rEnd)
+        MPIGPU !$omp target data use_device_ptr(tempRbuffer)
         !$acc host_data use_device(tempRbuffer)
         call MPI_Isend(tempRbuffer, commListPtr % nList, MPI_REALKIND, commListPtr % procID, mpi_proc_id, mpi_comm, commListPtr % reqID, mpi_ierr)
         !$acc end host_data
+        MPIGPU !$omp end target data
         commListPtr => commListPtr % next
       end do
+#else
+      do while(associated(commListPtr))
+        tempRbuffer => commListPtr % rbuffer
+        GPUOMP !$omp target data use_device_ptr(tempRbuffer)
+        !$acc host_data use_device(tempRbuffer)
+        call MPI_Isend(tempRbuffer, commListPtr % nList, MPI_REALKIND, commListPtr % procID, mpi_proc_id, mpi_comm, commListPtr % reqID, mpi_ierr)
+        !$acc end host_data
+        GPUOMP !$omp end target data
+        commListPtr => commListPtr % next
+      end do
+#endif
       commListPtr => recvList
 !RRPKComment: Forced to wait for all recv buffers to be filled up else CUDA streams throws exceptions
 !RRPKComment: I'll figure out to wait for any, after consulting with PGI/OpenMPI
@@ -8343,11 +8581,40 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
       end do
 
       commListPtr => recvList
+#ifdef PACKHALO
+      localMax=maxval(gpu_nList_recv(:))
+      tempRbufferTotal => commListPtr % rbufferTotal
+      rStartTotal => commListPtr % rStartTotal
+      if (associated(commListPtr)) then
+        !$acc data present(tempRbufferTotal,rStartTotal,array,compactHaloInfo,dimsizes, nHaloLayers,dimSizes,gpu_idx_recv,gpu_bufferOffset_recv,gpu_nList_recv)
+        MPICPU !$omp target update to(tempRbufferTotal)
+        GPUOMP !$omp target teams distribute parallel do simd collapse(5)
+        !$acc parallel num_workers(8) vector_length(128)
+        !$acc loop independent collapse(5) gang worker vector
+        do counter = 0, size(rStartTotal)-1
+          do iHalo = 1, nHaloLayers
+           do i = 1, localMax 
+             do j = 1, dimSizes(2)
+               do k = 1, dimSizes(1)
+                 if(i<=gpu_nList_recv(counter*nHaloLayers+iHalo)) then
+                    array(k, j, compactHaloInfo(gpu_idx_recv(counter*nHaloLayers+iHalo) + gpu_nList_recv(counter*nHaloLayers+iHalo) + i)) = tempRbufferTotal(rStartTotal(counter+1)+(compactHaloInfo(gpu_idx_recv(counter*nHaloLayers+iHalo) + i)-1)*dimSizes(1) * dimSizes(2) + (j-1) * dimSizes(1) + k + gpu_bufferOffset_recv(counter*nHaloLayers+iHalo))
+                 end if
+               end do
+             end do
+            end do
+          end do
+        end do
+        !$acc end parallel
+        GPUOMP !$omp end target teams distribute parallel do simd
+        !$acc end data
+      endif
+#else
       counter=0
       localMax=maxval(gpu_nList_recv(:))
       do while(associated(commListPtr))
         tempRbuffer => commListPtr % rbuffer
           !$acc data present(tempRbuffer,array,compactHaloInfo,dimsizes, nHaloLayers,dimSizes,gpu_idx_recv,gpu_bufferOffset_recv,gpu_nList_recv) async(counter+1)
+          GPUOMP !$omp target teams distribute parallel do simd collapse(4) !nowait
           !$acc parallel num_workers(8) vector_length(128) async(counter+1)
           !$acc loop independent collapse(4) gang worker vector
           !!$acc kernels async(counter+1)
@@ -8364,11 +8631,14 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
           end do
           !!$acc end kernels
           !$acc end parallel
+          GPUOMP !$omp end target teams distribute parallel do simd
           !$acc end data
         commListPtr => commListPtr % next
         counter=counter+1
       end do
+!GPUOMP !$omp taskwait
 !$acc wait
+#endif
 
       ! wait for mpi_isend to finish.
       commListPtr => sendList
@@ -8376,6 +8646,7 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
         call MPI_Wait(commListPtr % reqID, MPI_STATUS_IGNORE, mpi_ierr)
         commListPtr => commListPtr % next
       end do
+      TMPOMP !$omp target update from(array)
      ! Destroy commLists.
 !     call mpas_dmpar_destroy_communication_list(sendList)
 !     call mpas_dmpar_destroy_communication_list(recvList)
@@ -10492,7 +10763,7 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
           if ( groupName(1:nLen) == exchGroupPtr % groupName(1:exchGroupPtr % nLen) ) then
             DMPAR_DEBUG_WRITE(' -- Performing a full exchange for reused group ' // trim(groupName))
 
-            !$omp master
+            CPUOMP !$omp master
               commListPtr => exchGroupPtr % sendList
               do while ( associated(commListPtr) )
                 commListPtr % bufferOffset = 0
@@ -10524,7 +10795,7 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
                   exchFieldListPtr => exchFieldListPtr % next
                 end do
               end if
-            !$omp end master
+            CPUOMP !$omp end master
             call mpas_threading_barrier()
 
             call mpas_dmpar_exch_group_start_recv(domain % dminfo, exchGroupPtr)
@@ -10540,14 +10811,14 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
             ! Print out buffers for debugging
             !call mpas_dmpar_exch_group_print_buffers(exchGroupPtr)
 
-            !$omp master
+            CPUOMP !$omp master
               ! Wait for isends to finish
               commListPtr => exchGroupPtr % sendList
               do while ( associated(commListPtr) )
                 call MPI_Wait(commListPtr % reqID, MPI_STATUS_IGNORE, mpi_ierr)
                 commListPtr => commListPtr % next
               end do
-            !$omp end master
+            CPUOMP !$omp end master
             call mpas_threading_barrier()
 
             return
@@ -10589,7 +10860,7 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
       end if
 
       call mpas_threading_barrier()
-      !$omp master
+      CPUOMP !$omp master
         ! Destroy communication lists
         nLen = len_trim(groupName)
         exchGroupPtr => domain % exchangeGroups
@@ -10604,7 +10875,7 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
           exchGroupPtr => exchGroupPtr % next
         end do
         call mpas_dmpar_exch_group_destroy(domain, groupName)
-      !$omp end master
+      CPUOMP !$omp end master
       call mpas_threading_barrier()
 
    end subroutine mpas_dmpar_exch_group_destroy_reusable_buffers!}}}
@@ -11428,7 +11699,7 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
             commListPtr => commListPtr % next 
           end do
         end if
-        !$omp flush
+        CPUOMP !$omp flush
 
         call mpas_threading_barrier()   !! to make sure thread 0 has tested the list before \
                                         !! any thread attempts to read its status
@@ -11671,9 +11942,9 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
       commListSize = commListPtr % commListSize
 #ifdef CPRPGI
       ! workaround for PGI compiler (CPR): ICE on pointers in private clause of omp-do workshare
-      !$omp do private(listPosition, bufferOffset, nAdded, iExch, iBuffer)
+      CPUOMP !$omp do private(listPosition, bufferOffset, nAdded, iExch, iBuffer)
 #else
-      !$omp do private(commListPtr, listPosition, bufferOffset, nAdded, fieldCursor, exchListPtr, iExch, iBuffer) 
+      CPUOMP !$omp do private(commListPtr, listPosition, bufferOffset, nAdded, fieldCursor, exchListPtr, iExch, iBuffer) 
 #endif
       do listItem = 1, commListSize
         commListPtr => exchangeGroup % sendList
@@ -11700,7 +11971,7 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
         commListPtr % bufferOffset = commListPtr % bufferOffset + nAdded
         commListPtr => commListPtr % next
       end do
-      !$omp end do
+      CPUOMP !$omp end do
 
    end subroutine mpas_dmpar_exch_group_pack_buffer_field1d_integer!}}}
 
@@ -11740,9 +12011,9 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
       if (.not. associated(commListPtr)) return
       commListSize = commListPtr % commListSize
 #ifdef CPRPGI
-      !$omp do private(listPosition, bufferOffset, nAdded, iExch, iBuffer)
+      CPUOMP !$omp do private(listPosition, bufferOffset, nAdded, iExch, iBuffer)
 #else
-      !$omp do private(commListPtr, listPosition, bufferOffset, nAdded, fieldCursor, exchListPtr, iExch, j, iBuffer) 
+      CPUOMP !$omp do private(commListPtr, listPosition, bufferOffset, nAdded, fieldCursor, exchListPtr, iExch, j, iBuffer) 
 #endif
       do listItem = 1, commListSize
         commListPtr => exchangeGroup % sendList
@@ -11772,7 +12043,7 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
         commListPtr % bufferOffset = commListPtr % bufferOffset + nAdded
         commListPtr => commListPtr % next
       end do
-      !$omp end do
+      CPUOMP !$omp end do
 
    end subroutine mpas_dmpar_exch_group_pack_buffer_field2d_integer!}}}
 
@@ -11812,9 +12083,9 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
       if (.not. associated(commListPtr)) return
       commListSize = commListPtr % commListSize
 #ifdef CPRPGI
-      !$omp do private(listPosition, bufferOffset, nAdded, iExch, iBuffer)
+      CPUOMP !$omp do private(listPosition, bufferOffset, nAdded, iExch, iBuffer)
 #else
-      !$omp do private(commListPtr, listPosition, bufferOffset, nAdded, fieldCursor, exchListPtr, iExch, j, k, iBuffer) 
+      CPUOMP !$omp do private(commListPtr, listPosition, bufferOffset, nAdded, fieldCursor, exchListPtr, iExch, j, k, iBuffer) 
 #endif
       do listItem = 1, commListSize
         commListPtr => exchangeGroup % sendList
@@ -11847,7 +12118,7 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
         commListPtr % bufferOffset = commListPtr % bufferOffset + nAdded
         commListPtr => commListPtr % next
       end do
-      !$omp end do
+      CPUOMP !$omp end do
 
    end subroutine mpas_dmpar_exch_group_pack_buffer_field3d_integer!}}}
 
@@ -11886,9 +12157,9 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
       if (.not. associated(commListPtr)) return
       commListSize = commListPtr % commListSize
 #ifdef CPRPGI
-      !$omp do private(listPosition, bufferOffset, nAdded, iExch, iBuffer)
+      CPUOMP !$omp do private(listPosition, bufferOffset, nAdded, iExch, iBuffer)
 #else
-      !$omp do private(commListPtr, listPosition, bufferOffset, nAdded, fieldCursor, exchListPtr, iExch, iBuffer) 
+      CPUOMP !$omp do private(commListPtr, listPosition, bufferOffset, nAdded, fieldCursor, exchListPtr, iExch, iBuffer) 
 #endif
       do listItem = 1, commListSize
         commListPtr => exchangeGroup % sendList
@@ -11915,7 +12186,7 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
         commListPtr % bufferOffset = commListPtr % bufferOffset + nAdded
         commListPtr => commListPtr % next
       end do
-      !$omp end do
+      CPUOMP !$omp end do
 
    end subroutine mpas_dmpar_exch_group_pack_buffer_field1d_real!}}}
 
@@ -11955,9 +12226,9 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
       if (.not. associated(commListPtr)) return
       commListSize = commListPtr % commListSize
 #ifdef CPRPGI
-      !$omp do private(listPosition, bufferOffset, nAdded, iExch, iBuffer)
+      CPUOMP !$omp do private(listPosition, bufferOffset, nAdded, iExch, iBuffer)
 #else
-      !$omp do private(commListPtr, listPosition, bufferOffset, nAdded, fieldCursor, exchListPtr, iExch, j, iBuffer) 
+      CPUOMP !$omp do private(commListPtr, listPosition, bufferOffset, nAdded, fieldCursor, exchListPtr, iExch, j, iBuffer) 
 #endif
       do listItem = 1, commListSize
         commListPtr => exchangeGroup % sendList
@@ -11986,7 +12257,7 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
         commListPtr % bufferOffset = commListPtr % bufferOffset + nAdded
         commListPtr => commListPtr % next
       end do
-      !$omp end do
+      CPUOMP !$omp end do
 
    end subroutine mpas_dmpar_exch_group_pack_buffer_field2d_real!}}}
 
@@ -12026,9 +12297,9 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
       if (.not. associated(commListPtr)) return
       commListSize = commListPtr % commListSize
 #ifdef CPRPGI
-      !$omp do private(listPosition, bufferOffset, nAdded, iExch, iBuffer)
+      CPUOMP !$omp do private(listPosition, bufferOffset, nAdded, iExch, iBuffer)
 #else
-      !$omp do private(commListPtr, listPosition, bufferOffset, nAdded, fieldCursor, exchListPtr, iExch, j, k, iBuffer) 
+      CPUOMP !$omp do private(commListPtr, listPosition, bufferOffset, nAdded, fieldCursor, exchListPtr, iExch, j, k, iBuffer) 
 #endif
       do listItem = 1, commListSize
         commListPtr => exchangeGroup % sendList
@@ -12060,7 +12331,7 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
         commListPtr % bufferOffset = commListPtr % bufferOffset + nAdded
         commListPtr => commListPtr % next
       end do
-      !$omp end do
+      CPUOMP !$omp end do
 
    end subroutine mpas_dmpar_exch_group_pack_buffer_field3d_real!}}}
 
@@ -12100,9 +12371,9 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
       if (.not. associated(commListPtr)) return
       commListSize = commListPtr % commListSize
 #ifdef CPRPGI
-      !$omp do private(listPosition, bufferOffset, nAdded, iExch, iBuffer)
+      CPUOMP !$omp do private(listPosition, bufferOffset, nAdded, iExch, iBuffer)
 #else
-      !$omp do private(commListPtr, listPosition, bufferOffset, nAdded, fieldCursor, exchListPtr, iExch, j, k, l, iBuffer) 
+      CPUOMP !$omp do private(commListPtr, listPosition, bufferOffset, nAdded, fieldCursor, exchListPtr, iExch, j, k, l, iBuffer) 
 #endif
       do listItem = 1, commListSize
         commListPtr => exchangeGroup % sendList
@@ -12137,7 +12408,7 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
         commListPtr % bufferOffset = commListPtr % bufferOffset + nAdded
         commListPtr => commListPtr % next
       end do
-      !$omp end do
+      CPUOMP !$omp end do
 
    end subroutine mpas_dmpar_exch_group_pack_buffer_field4d_real!}}}
 
@@ -12177,9 +12448,9 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
       if (.not. associated(commListPtr)) return
       commListSize = commListPtr % commListSize
 #ifdef CPRPGI
-      !$omp do private(listPosition, bufferOffset, nAdded, iExch, iBuffer)
+      CPUOMP !$omp do private(listPosition, bufferOffset, nAdded, iExch, iBuffer)
 #else
-      !$omp do private(commListPtr, listPosition, bufferOffset, nAdded, fieldCursor, exchListPtr, iExch, j, k, l, m, iBuffer) 
+      CPUOMP !$omp do private(commListPtr, listPosition, bufferOffset, nAdded, fieldCursor, exchListPtr, iExch, j, k, l, m, iBuffer) 
 #endif
       do listItem = 1, commListSize
         commListPtr => exchangeGroup % sendList
@@ -12261,11 +12532,11 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
             fieldCursor2 => field
             do while ( associated(fieldCursor2) )
                if ( exchListPtr % endPointID == fieldCursor2 % block % localBlockID ) then
-                  !$omp do schedule(runtime)
+                  CPUOMP !$omp do schedule(runtime)
                   do iExch = 1, exchListPtr % nList
                      fieldCursor2 % array(exchListPtr % destList(iExch)) = fieldCursor % array(exchListPtr % srcList(iExch))
                   end do
-                  !$omp end do
+                  CPUOMP !$omp end do
                end if
 
                fieldCursor2 => fieldCursor2 % next
@@ -12316,11 +12587,11 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
             fieldCursor2 => field
             do while ( associated(fieldCursor2) )
                if ( exchListPtr % endPointID == fieldCursor2 % block % localBlockID ) then
-                  !$omp do schedule(runtime)
+                  CPUOMP !$omp do schedule(runtime)
                   do iExch = 1, exchListPtr % nList
                      fieldCursor2 % array(:, exchListPtr % destList(iExch)) = fieldCursor % array(:, exchListPtr % srcList(iExch))
                   end do
-                  !$omp end do
+                  CPUOMP !$omp end do
                end if
 
                fieldCursor2 => fieldCursor2 % next
@@ -12371,12 +12642,12 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
             fieldCursor2 => field
             do while ( associated(fieldCursor2) )
                if ( exchListPtr % endPointID == fieldCursor2 % block % localBlockID ) then
-                  !$omp do schedule(runtime)
+                  CPUOMP !$omp do schedule(runtime)
                   do iExch = 1, exchListPtr % nList
                      fieldCursor2 % array(:, :, exchListPtr % destList(iExch)) = &
                                   fieldCursor % array(:, :, exchListPtr % srcList(iExch))
                   end do
-                  !$omp end do
+                  CPUOMP !$omp end do
                end if
 
                fieldCursor2 => fieldCursor2 % next
@@ -12427,11 +12698,11 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
             fieldCursor2 => field
             do while ( associated(fieldCursor2) )
                if ( exchListPtr % endPointID == fieldCursor2 % block % localBlockID ) then
-                  !$omp do schedule(runtime)
+                  CPUOMP !$omp do schedule(runtime)
                   do iExch = 1, exchListPtr % nList
                      fieldCursor2 % array(exchListPtr % destList(iExch)) = fieldCursor % array(exchListPtr % srcList(iExch))
                   end do
-                  !$omp end do
+                  CPUOMP !$omp end do
                end if
 
                fieldCursor2 => fieldCursor2 % next
@@ -12482,11 +12753,11 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
             fieldCursor2 => field
             do while ( associated(fieldCursor2) )
                if ( exchListPtr % endPointID == fieldCursor2 % block % localBlockID ) then
-                  !$omp do schedule(runtime)
+                  CPUOMP !$omp do schedule(runtime)
                   do iExch = 1, exchListPtr % nList
                      fieldCursor2 % array(:, exchListPtr % destList(iExch)) = fieldCursor % array(:, exchListPtr % srcList(iExch))
                   end do
-                  !$omp end do
+                  CPUOMP !$omp end do
                end if
 
                fieldCursor2 => fieldCursor2 % next
@@ -12537,12 +12808,12 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
             fieldCursor2 => field
             do while ( associated(fieldCursor2) )
                if(exchListPtr % endPointID == fieldCursor2 % block % localBlockID) then
-                  !$omp do schedule(runtime)
+                  CPUOMP !$omp do schedule(runtime)
                   do iExch = 1, exchListPtr % nList
                      fieldCursor2 % array(:, :, exchListPtr % destList(iExch)) = &
                                   fieldCursor % array(:, :, exchListPtr % srcList(iExch))
                   end do
-                  !$omp end do
+                  CPUOMP !$omp end do
                end if
 
                fieldCursor2 => fieldCursor2 % next
@@ -12593,12 +12864,12 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
             fieldCursor2 => field
             do while ( associated(fieldCursor2) )
                if ( exchListPtr % endPointID == fieldCursor2 % block % localBlockID ) then
-                  !$omp do schedule(runtime)
+                  CPUOMP !$omp do schedule(runtime)
                   do iExch = 1, exchListPtr % nList
                      fieldCursor2 % array(:, :, :, exchListPtr % destList(iExch)) = &
                                   fieldCursor % array(:, :, :, exchListPtr % srcList(iExch))
                   end do
-                  !$omp end do
+                  CPUOMP !$omp end do
                end if
 
                fieldCursor2 => fieldCursor2 % next
@@ -12649,12 +12920,12 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
             fieldCursor2 => field
             do while ( associated(fieldCursor2) )
                if ( exchListPtr % endPointID == fieldCursor2 % block % localBlockID ) then
-                  !$omp do schedule(runtime)
+                  CPUOMP !$omp do schedule(runtime)
                   do iExch = 1, exchListPtr % nList
                      fieldCursor2 % array(:, :, :, :, exchListPtr % destList(iExch)) = &
                                   fieldCursor % array(:, :, :, :, exchListPtr % srcList(iExch))
                   end do
-                  !$omp end do
+                  CPUOMP !$omp end do
                end if
 
                fieldCursor2 => fieldCursor2 % next
@@ -12716,13 +12987,13 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
          exchListPtr => fieldCursor % recvList % halos(haloLayer) % exchList
          do while ( associated(exchListPtr) )
             if ( exchListPtr % endPointID == recvList % procID ) then
-               !$omp do schedule(runtime) private(iBuffer)
+               CPUOMP !$omp do schedule(runtime) private(iBuffer)
                do iExch = 1, exchListPtr % nList
                   iBuffer = exchListPtr % srcList(iExch) + bufferOffset
                   fieldCursor % array(exchListPtr % destList(iExch)) = transfer(recvList % rbuffer(iBuffer), &
                                                                                 fieldCursor % array(1))
                end do
-               !$omp end do
+               CPUOMP !$omp end do
                nAdded = max(nAdded, maxval(exchListPtr % srcList))
             end if
             exchListPtr => exchListPtr % next
@@ -12779,7 +13050,7 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
          exchListPtr => fieldCursor % recvList % halos(haloLayer) % exchList
          do while ( associated(exchListPtr) )
             if ( exchListPtr % endPointID == recvList % procID ) then
-               !$omp do schedule(runtime) private(j, iBuffer)
+               CPUOMP !$omp do schedule(runtime) private(j, iBuffer)
                do iExch = 1, exchListPtr % nList
                   do j = 1, fieldCursor % dimSizes(1)
                      iBuffer = (exchListPtr % srcList(iExch)-1) * fieldCursor % dimSizes(1) + j + bufferOffset
@@ -12787,7 +13058,7 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
                                                                                       fieldCursor % array(1,1))
                   end do
                end do
-               !$omp end do
+               CPUOMP !$omp end do
                nAdded = max(nAdded, maxval(exchListPtr % srcList) * fieldCursor % dimSizes(1))
             end if
             exchListPtr => exchListPtr % next
@@ -12844,7 +13115,7 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
          exchListPtr => fieldCursor % recvList % halos(haloLayer) % exchList
          do while ( associated(exchListPtr) )
             if ( exchListPtr % endPointID == recvList % procID ) then
-               !$omp do schedule(runtime) private(j, k, iBuffer)
+               CPUOMP !$omp do schedule(runtime) private(j, k, iBuffer)
                do iExch = 1, exchListPtr % nList
                   do j = 1, fieldCursor % dimSizes(2)
                      do k = 1, fieldCursor % dimSizes(1)
@@ -12855,7 +13126,7 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
                      end do
                   end do
                end do
-               !$omp end do
+               CPUOMP !$omp end do
                nAdded = max(nAdded, maxval(exchListPtr % srcList) * fieldCursor % dimSizes(1) * fieldCursor % dimSizes(2))
             end if
             exchListPtr => exchListPtr % next
@@ -12911,12 +13182,12 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
          exchListPtr => fieldCursor % recvList % halos(haloLayer) % exchList
          do while ( associated(exchListPtr) )
             if ( exchListPtr % endPointID == recvList % procID ) then
-               !$omp do schedule(runtime) private(iBuffer)
+               CPUOMP !$omp do schedule(runtime) private(iBuffer)
                do iExch = 1, exchListPtr % nList
                   iBuffer = exchListPtr % srcList(iExch) + bufferOffset
                   fieldCursor % array(exchListPtr % destList(iExch)) = recvList % rbuffer(iBuffer)
                end do
-               !$omp end do
+               CPUOMP !$omp end do
                nAdded = max(nAdded, maxval(exchListPtr % srcList))
             end if
             exchListPtr => exchListPtr % next
@@ -12973,14 +13244,14 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
          exchListPtr => fieldCursor % recvList % halos(haloLayer) % exchList
          do while ( associated(exchListPtr) )
             if ( exchListPtr % endPointID == recvList % procID ) then
-               !$omp do schedule(runtime) private(j, iBuffer)
+               CPUOMP !$omp do schedule(runtime) private(j, iBuffer)
                do iExch = 1, exchListPtr % nList
                   do j = 1, fieldCursor % dimSizes(1)
                      iBuffer = (exchListPtr % srcList(iExch)-1) * fieldCursor % dimSizes(1) + j + bufferOffset
                      fieldCursor % array(j, exchListPtr % destList(iExch)) = recvList % rbuffer(iBuffer)
                   end do
                end do
-               !$omp end do
+               CPUOMP !$omp end do
                nAdded = max(nAdded, maxval(exchListPtr % srcList) * fieldCursor % dimSizes(1))
             end if
             exchListPtr => exchListPtr % next
@@ -13037,7 +13308,7 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
          exchListPtr => fieldCursor % recvList % halos(haloLayer) % exchList
          do while ( associated(exchListPtr) )
             if ( exchListPtr % endPointID == recvList % procID ) then
-               !$omp do schedule(runtime) private(j, k, iBuffer)
+               CPUOMP !$omp do schedule(runtime) private(j, k, iBuffer)
                do iExch = 1, exchListPtr % nList
                   do j = 1, fieldCursor % dimSizes(2)
                      do k = 1, fieldCursor % dimSizes(1)
@@ -13047,7 +13318,7 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
                      end do
                   end do
                end do
-               !$omp end do
+               CPUOMP !$omp end do
                nAdded = max(nAdded, maxval(exchListPtr % srcList) * fieldCursor % dimSizes(1) * fieldCursor % dimSizes(2))
             end if
             exchListPtr => exchListPtr % next
@@ -13104,7 +13375,7 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
          exchListPtr => fieldCursor % recvList % halos(haloLayer) % exchList
          do while ( associated(exchListPtr) )
             if ( exchListPtr % endPointID == recvList % procID ) then
-               !$omp do schedule(runtime) private(j, k, l, iBuffer)
+               CPUOMP !$omp do schedule(runtime) private(j, k, l, iBuffer)
                do iExch = 1, exchListPtr % nList
                   do j = 1, fieldCursor % dimSizes(3)
                      do k = 1, fieldCursor % dimSizes(2)
@@ -13118,7 +13389,7 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
                      end do
                   end do
                end do
-               !$omp end do
+               CPUOMP !$omp end do
                nAdded = max(nAdded, maxval(exchListPtr % srcList) * fieldCursor % dimSizes(1) &
                       * fieldCursor % dimSizes(2) * fieldCursor % dimSizes(3))
             end if
@@ -13176,7 +13447,7 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
          exchListPtr => fieldCursor % recvList % halos(haloLayer) % exchList
          do while ( associated(exchListPtr) )
             if ( exchListPtr % endPointID == recvList % procID ) then
-               !$omp do schedule(runtime) private(j, k, l, m, iBuffer)
+               CPUOMP !$omp do schedule(runtime) private(j, k, l, m, iBuffer)
                do iExch = 1, exchListPtr % nList
                   do j = 1, fieldCursor % dimSizes(4)
                      do k = 1, fieldCursor % dimSizes(3)
@@ -13194,7 +13465,7 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
                      end do
                   end do
                end do
-               !$omp end do
+               CPUOMP !$omp end do
                nAdded = max(nAdded, maxval(exchListPtr % srcList) * fieldCursor % dimSizes(1) * fieldCursor % dimSizes(2) &
                       * fieldCursor % dimSizes(3) * fieldCursor % dimSizes(4))
             end if

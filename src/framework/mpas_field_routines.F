@@ -1,5 +1,6 @@
 ! Copyright (c) 2013,  Los Alamos National Security, LLC (LANS)
 ! and the University Corporation for Atmospheric Research (UCAR).
+! Modifications Copyright (c) 2022, Advanced Micro Devices, Inc (AMD). All rights Reserved.
 !
 ! Unless noted otherwise source code is licensed under the BSD license.
 ! Additional copyright and license information can be found in the LICENSE file
@@ -17,6 +18,7 @@
 !> All routines defined in this module are non-blocking for threads.
 !
 !-----------------------------------------------------------------------
+#include "mpas_openmp.inc"
 module mpas_field_routines
 
    use mpas_kind_types
@@ -182,11 +184,11 @@ module mpas_field_routines
          if ( init_array ) then
          f_cursor => f
          do while(associated(f_cursor))
-           !$omp do schedule(runtime)
+           CPUOMP !$omp do schedule(runtime)
            do i = 1, f_cursor % dimSizes(1)
              f_cursor % array(i) = f_cursor % defaultValue
            end do
-           !$omp end do
+           CPUOMP !$omp end do
            f_cursor => f_cursor % next
          end do
          end if
@@ -203,11 +205,11 @@ module mpas_field_routines
 
          ! then all threads initialize it
          if ( init_array ) then
-         !$omp do schedule(runtime)
+         CPUOMP !$omp do schedule(runtime)
          do i = 1, f % dimSizes(1)
            f % array(i) = f % defaultValue
          end do
-         !$omp end do
+         CPUOMP !$omp end do
          end if
        end if
 
@@ -270,13 +272,13 @@ module mpas_field_routines
          if ( init_array ) then
          f_cursor => f
          do while(associated(f_cursor))
-           !$omp do collapse(2) schedule(runtime)
+           CPUOMP !$omp do collapse(2) schedule(runtime)
            do i = 1, f_cursor % dimSizes(2)
              do j = 1, f_cursor % dimSizes(1)
                f_cursor % array(j, i) = f_cursor % defaultValue
              end do
            end do
-           !$omp end do
+           CPUOMP !$omp end do
            f_cursor => f_cursor % next
          end do
          end if
@@ -293,13 +295,13 @@ module mpas_field_routines
 
          ! then all threads initialize it
          if ( init_array ) then
-         !$omp do collapse(2) schedule(runtime)
+         CPUOMP !$omp do collapse(2) schedule(runtime)
          do i = 1, f % dimSizes(2)
            do j = 1, f % dimSizes(1)
              f % array(j, i) = f % defaultValue
            end do
          end do
-         !$omp end do
+         CPUOMP !$omp end do
          end if
        end if
 
@@ -360,7 +362,7 @@ module mpas_field_routines
          if ( init_array ) then
          f_cursor => f
          do while(associated(f_cursor))
-           !$omp do collapse(3) schedule(runtime)
+           CPUOMP !$omp do collapse(3) schedule(runtime)
            do i = 1, f_cursor % dimSizes(3)
              do j = 1, f_cursor % dimSizes(2)
                do k = 1, f_cursor % dimSizes(1)
@@ -368,7 +370,7 @@ module mpas_field_routines
                end do
              end do
            end do
-           !$omp end do
+           CPUOMP !$omp end do
            f_cursor => f_cursor % next
          end do
          end if
@@ -383,7 +385,7 @@ module mpas_field_routines
          call mpas_threading_barrier()
 
          if ( init_array ) then
-         !$omp do collapse(3) schedule(runtime)
+         CPUOMP !$omp do collapse(3) schedule(runtime)
          do i = 1, f % dimSizes(3)
            do j = 1, f % dimSizes(2)
              do k = 1, f % dimSizes(1)
@@ -391,7 +393,7 @@ module mpas_field_routines
              end do
            end do
          end do
-         !$omp end do
+         CPUOMP !$omp end do
          end if
        end if
 
@@ -454,11 +456,11 @@ module mpas_field_routines
          if ( init_array ) then
          f_cursor => f
          do while(associated(f_cursor))
-           !$omp do schedule(runtime)
+           CPUOMP !$omp do schedule(runtime)
            do i = 1, f_cursor % dimSizes(1)
              f_cursor % array(i) = f_cursor % defaultValue
            end do
-           !$omp end do
+           CPUOMP !$omp end do
            f_cursor => f_cursor % next
          end do
          end if
@@ -475,11 +477,11 @@ module mpas_field_routines
 
          ! then all threads initialize
          if ( init_array ) then
-         !$omp do schedule(runtime)
+         CPUOMP !$omp do schedule(runtime)
          do i = 1, f % dimSizes(1)
            f % array(i) = f % defaultValue
          end do
-         !$omp end do
+         CPUOMP !$omp end do
          end if
        end if
 
@@ -542,13 +544,13 @@ module mpas_field_routines
          if ( init_array ) then
          f_cursor => f
          do while(associated(f_cursor))
-           !$omp do collapse(2) schedule(runtime)
+           CPUOMP !$omp do collapse(2) schedule(runtime)
            do i = 1, f_cursor % dimSizes(2)
              do j = 1, f_cursor % dimSizes(1)
                f_cursor % array(j, i) = f_cursor % defaultValue
              end do
            end do
-           !$omp end do
+           CPUOMP !$omp end do
            f_cursor => f_cursor % next
          end do
          end if
@@ -563,13 +565,13 @@ module mpas_field_routines
          call mpas_threading_barrier()
 
          if ( init_array ) then
-         !$omp do schedule(runtime) collapse(2)
+         CPUOMP !$omp do schedule(runtime) collapse(2)
          do i = 1, f % dimSizes(2)
            do j = 1, f % dimSizes(1)
              f % array(j, i) = f % defaultValue
            end do
          end do
-         !$omp end do
+         CPUOMP !$omp end do
          end if
        end if
 
@@ -630,7 +632,7 @@ module mpas_field_routines
          if ( init_array ) then
          f_cursor => f
          do while(associated(f_cursor))
-           !$omp do collapse(3) schedule(runtime)
+           CPUOMP !$omp do collapse(3) schedule(runtime)
            do i = 1, f_cursor % dimSizes(3)
              do j = 1, f_cursor % dimSizes(2)
                do k = 1, f_cursor % dimSizes(1)
@@ -638,7 +640,7 @@ module mpas_field_routines
                end do
              end do
            end do
-           !$omp end do
+           CPUOMP !$omp end do
            f_cursor => f_cursor % next
          end do
          end if
@@ -653,7 +655,7 @@ module mpas_field_routines
          call mpas_threading_barrier()
 
          if ( init_array ) then
-         !$omp do collapse(3) schedule(runtime)
+         CPUOMP !$omp do collapse(3) schedule(runtime)
          do i = 1, f % dimSizes(3)
            do j = 1, f % dimSizes(2)
              do k = 1, f % dimSizes(1)
@@ -661,7 +663,7 @@ module mpas_field_routines
              end do
            end do
          end do
-         !$omp end do
+         CPUOMP !$omp end do
          end if
        end if
 
@@ -722,7 +724,7 @@ module mpas_field_routines
          if ( init_array ) then
          f_cursor => f
          do while(associated(f_cursor))
-           !$omp do collapse(4) schedule(runtime)
+           CPUOMP !$omp do collapse(4) schedule(runtime)
            do i = 1, f_cursor % dimSizes(4)
              do j = 1, f_cursor % dimSizes(3)
                do k = 1, f_cursor % dimSizes(2)
@@ -732,7 +734,7 @@ module mpas_field_routines
                end do
              end do
            end do
-           !$omp end do
+           CPUOMP !$omp end do
            f_cursor => f_cursor % next
          end do
          end if
@@ -747,7 +749,7 @@ module mpas_field_routines
          call mpas_threading_barrier()
 
          if ( init_array ) then
-         !$omp do collapse(4) schedule(runtime)
+         CPUOMP !$omp do collapse(4) schedule(runtime)
          do i = 1, f % dimSizes(4)
            do j = 1, f % dimSizes(3)
              do k = 1, f % dimSizes(2)
@@ -757,7 +759,7 @@ module mpas_field_routines
              end do
            end do
          end do
-         !$omp end do
+         CPUOMP !$omp end do
          end if
        end if
 
@@ -818,7 +820,7 @@ module mpas_field_routines
          if ( init_array ) then
          f_cursor => f
          do while(associated(f_cursor))
-           !$omp do collapse(5) schedule(runtime)
+           CPUOMP !$omp do collapse(5) schedule(runtime)
            do i = 1, f_cursor % dimSizes(5)
              do j = 1, f_cursor % dimSizes(4)
                do k = 1, f_cursor % dimSizes(3)
@@ -830,7 +832,7 @@ module mpas_field_routines
                end do
              end do
            end do
-           !$omp end do
+           CPUOMP !$omp end do
            f_cursor => f_cursor % next
          end do
          end if
@@ -845,7 +847,7 @@ module mpas_field_routines
          call mpas_threading_barrier()
 
          if ( init_array ) then
-         !$omp do collapse(5) schedule(runtime)
+         CPUOMP !$omp do collapse(5) schedule(runtime)
          do i = 1, f % dimSizes(5)
            do j = 1, f % dimSizes(4)
              do k = 1, f % dimSizes(3)
@@ -857,7 +859,7 @@ module mpas_field_routines
              end do
            end do
          end do
-         !$omp end do
+         CPUOMP !$omp end do
          end if
        end if
 
@@ -920,11 +922,11 @@ module mpas_field_routines
          if ( init_array ) then
          f_cursor => f
          do while(associated(f_cursor))
-           !$omp do schedule(runtime)
+           CPUOMP !$omp do schedule(runtime)
            do i = 1, f_cursor % dimSizes(1)
              f_cursor % array(i) = f_cursor % defaultValue
            end do
-           !$omp end do
+           CPUOMP !$omp end do
            f_cursor => f_cursor % next
          end do
          end if
@@ -941,11 +943,11 @@ module mpas_field_routines
 
          ! then all threads initialize
          if ( init_array ) then
-         !$omp do schedule(runtime)
+         CPUOMP !$omp do schedule(runtime)
          do i = 1, f % dimSizes(1)
            f % array(i) = f % defaultValue
          end do
-         !$omp end do
+         CPUOMP !$omp end do
          end if
        end if
 
