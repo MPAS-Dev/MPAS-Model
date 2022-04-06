@@ -1,3 +1,5 @@
+! Modification Copyright (C) 2022, Advanced Micro Devices, Inc (AMD). All rights reserved.
+#include "mpas_openmp.inc"
 module mpas_stream_manager
 
 #define COMMA ,
@@ -5583,7 +5585,7 @@ module mpas_stream_manager
 
         end if
 
-        !$omp barrier
+        CPUOMP !$omp barrier
 
     end subroutine MPAS_stream_mgr_begin_iteration !}}}
 
@@ -5642,7 +5644,7 @@ module mpas_stream_manager
            return
         end if
 
-        !$omp barrier
+        CPUOMP !$omp barrier
 
         if ( present(streamID) ) then
            streamID = manager % currentStream % name

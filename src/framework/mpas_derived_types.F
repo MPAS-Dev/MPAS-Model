@@ -1,5 +1,6 @@
 ! Copyright (c) 2013,  Los Alamos National Security, LLC (LANS)
 ! and the University Corporation for Atmospheric Research (UCAR).
+! Modifications Copyright (c) 2022, Advanced Micro Devices, Inc (AMD). All rights Reserved.
 !
 ! Unless noted otherwise source code is licensed under the BSD license.
 ! Additional copyright and license information can be found in the LICENSE file
@@ -69,6 +70,12 @@ module mpas_derived_types
 #include "mpas_core_types.inc"
 
 #include "mpas_forcing_types.inc"
+
+! Note: This header include must be included in every *.F file containing OpenMP code
+!       Use "CPUONLY" for code that runs OpenMP on the host
+!       Use "GPUONLY" for code that runs OpenMP on the device
+!       Only applies to core_atmosphere, framework, and operators directories
+#include "mpas_openmp.inc"
 
    contains
 

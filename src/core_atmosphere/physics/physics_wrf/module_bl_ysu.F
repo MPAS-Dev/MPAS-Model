@@ -9,6 +9,8 @@
 !
 !
 !
+! Modifications Copyright (c) 2022, Advanced Micro Devices, Inc (AMD). All rights reserved
+#include "mpas_openmp.inc"
 module module_bl_ysu
 contains
 !
@@ -211,6 +213,7 @@ contains
 !!!$acc               dz8w,psfc,znt,ust,hpbl,psim,psih,&
 !!!$acc               xland,hfx,qfx,wspd,br,kpbl2d,exch_h,exch_m,wstar,delta,   &
 !!!$acc               u10,v10,uoce,voce,rthraten,ctopo,ctopo2,regime)
+GPUOMP !$omp target data map(alloc:rqvbl2dt,qv2d,pdh,pdhi,dusfc,dvsfc,dtsfc,dqsfc)
 !$acc data create(rqvbl2dt,qv2d,pdh,pdhi,dusfc,dvsfc,dtsfc,dqsfc) &
 !$acc     present(u3d,v3d,th3d,t3d,qv3d,qc3d,qi3d,p3d,p3di,pi3d,               &
 !$acc               rublten,rvblten,rthblten,rqvblten,rqcblten,rqiblten,         &
@@ -295,6 +298,7 @@ contains
    enddo
 
 !$acc end data
+GPUOMP !$omp end target data
 !!!$acc update host(rublten,rvblten,rthblten,rqvblten,rqcblten,rqiblten,   &
 !!!$acc               znt,ust,hpbl,&
 !!!$acc               wspd,kpbl2d,exch_h,exch_m,wstar,delta,   &
@@ -580,6 +584,15 @@ contains
 !!!$acc               exch_mx,wstar,delta,u10,v10,uox,vox,rthraten,p2diORG,&
 !!!$acc               ctopo,ctopo2,regime)
 
+GPUOMP !$omp target data map(alloc:hol,zq,thx,thvx,thlix,del,dza,dzq,xkzom,xkzoh,za,rhox,govrth,zl1, &
+GPUOMP !$omp             thermal,wscale,hgamt,hgamq,brdn,brup,phim,phih, &
+GPUOMP !$omp             prpbl,wspd1,thermalli,xkzm,xkzh,f1,f2,r1,r2,ad,au,cu,al,xkzq,&
+GPUOMP !$omp             zfac,rhox2,hgamt2,brcr,sflux,zol1, &
+GPUOMP !$omp             brcr_sbro,r3,f3,kpbl,kpblold,pblflg,sfcflg,stable,cloudflg,wscalek,&
+GPUOMP !$omp             wscalek2,xkzml,xkzhl,zfacent,entfac,ust3,wstar3,wstar3_2,&
+GPUOMP !$omp             hgamu,hgamv,wm2,we,bfxpbl,hfxpbl,qfxpbl,ufxpbl,vfxpbl,dthvx,fric,  &
+GPUOMP !$omp             tke_ysu,el_ysu,shear_ysu,buoy_ysu,pblh_ysu,vconvfx,thvxTmp,dzqTmp, &
+GPUOMP !$omp             tke_ysuTmp,zqTmp)
 !$acc data create(hol,zq,thx,thvx,thlix,del,dza,dzq,xkzom,xkzoh,za,rhox,govrth,zl1, &
 !$acc             thermal,wscale,hgamt,hgamq,brdn,brup,phim,phih, &
 !$acc             prpbl,wspd1,thermalli,xkzm,xkzh,f1,f2,r1,r2,ad,au,cu,al,xkzq,&
@@ -1700,6 +1713,7 @@ contains
 !$acc end parallel
 !
 !$acc end data
+GPUOMP !$omp end target data
 
 !!!$acc update host(utnp,vtnp,ttnp,qtnp,znt,ust,hpbl,&
 !!!$acc               wspd,dusfc,dvsfc,dtsfc,dqsfc,kpbl1d,exch_hx,&

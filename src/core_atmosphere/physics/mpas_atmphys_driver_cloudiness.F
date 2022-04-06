@@ -1,11 +1,13 @@
 ! Copyright (c) 2013,  Los Alamos National Security, LLC (LANS)
 ! and the University Corporation for Atmospheric Research (UCAR).
+! Modifications Copyright (c) 2022, Advanced Micro Devices, Inc (AMD). All rights Reserved.
 !
 ! Unless noted otherwise source code is licensed under the BSD license.
 ! Additional copyright and license information can be found in the LICENSE file
 ! distributed with this code, or at http://mpas-dev.github.com/license.html
 !
 !=================================================================================================================
+#include "mpas_openmp.inc"
  module mpas_atmphys_driver_cloudiness
  use mpas_kind_types
  use mpas_derived_types
@@ -71,6 +73,7 @@
  if(.not.allocated(qcrad_p)  ) allocate(qcrad_p(ims:ime,kms:kme,jms:jme)  )
  if(.not.allocated(qirad_p)  ) allocate(qirad_p(ims:ime,kms:kme,jms:jme)  )
  if(.not.allocated(qsrad_p)  ) allocate(qsrad_p(ims:ime,kms:kme,jms:jme)  )
+GPUOMP !$omp target enter data map(alloc:dx_p,xland_p,cldfrac_p,qvrad_p,qcrad_p,qirad_p,qsrad_p)
 
  end subroutine allocate_cloudiness
 
@@ -78,6 +81,7 @@
  subroutine deallocate_cloudiness
 !=================================================================================================================
 
+GPUOMP !$omp target exit data map(delete:dx_p,xland_p,cldfrac_p,qvrad_p,qcrad_p,qirad_p,qsrad_p)
  if(allocated(dx_p)     ) deallocate(dx_p     )
  if(allocated(xland_p)  ) deallocate(xland_p  )
  if(allocated(cldfrac_p)) deallocate(cldfrac_p)

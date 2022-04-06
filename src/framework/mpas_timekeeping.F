@@ -1,10 +1,12 @@
 ! Copyright (c) 2013,  Los Alamos National Security, LLC (LANS)
 ! and the University Corporation for Atmospheric Research (UCAR).
+! Modifications Copyright (c) 2022, Advanced Micro Devices, Inc (AMD). All rights Reserved.
 !
 ! Unless noted otherwise source code is licensed under the BSD license.
 ! Additional copyright and license information can be found in the LICENSE file
 ! distributed with this code, or at http://mpas-dev.github.com/license.html
 !
+#include "mpas_openmp.inc"
 module mpas_timekeeping
 
    use mpas_kind_types
@@ -214,7 +216,7 @@ module mpas_timekeeping
          nullify(clock % alarmListHead)
       end if
 
-      !$omp barrier
+      CPUOMP !$omp barrier
 
    end subroutine mpas_create_clock
 
@@ -245,7 +247,7 @@ module mpas_timekeeping
          end if
       end if
 
-      !$omp barrier
+      CPUOMP !$omp barrier
 
    end subroutine mpas_destroy_clock
 
@@ -330,7 +332,7 @@ module mpas_timekeeping
          end if
       end if
 
-      !$omp barrier
+      CPUOMP !$omp barrier
 
    end subroutine mpas_set_clock_direction
 
@@ -368,7 +370,7 @@ module mpas_timekeeping
          end if
       end if
 
-      !$omp barrier
+      CPUOMP !$omp barrier
 
    end subroutine mpas_set_clock_timestep
 
@@ -419,7 +421,7 @@ module mpas_timekeeping
          end if
       end if
 
-      !$omp barrier
+      CPUOMP !$omp barrier
 
    end subroutine mpas_advance_clock
 
@@ -452,7 +454,7 @@ module mpas_timekeeping
          end if
       end if
 
-      !$omp barrier
+      CPUOMP !$omp barrier
 
    end subroutine mpas_set_clock_time
 
@@ -559,7 +561,7 @@ module mpas_timekeeping
          end if
       end if
 
-      !$omp barrier
+      CPUOMP !$omp barrier
 
    end subroutine mpas_add_clock_alarm
 
@@ -598,7 +600,7 @@ module mpas_timekeeping
          end do
       end if
 
-      !$omp barrier
+      CPUOMP !$omp barrier
 
    end subroutine mpas_remove_clock_alarm
 
@@ -804,7 +806,7 @@ module mpas_timekeeping
             alarmPtr => alarmPtr % next
          end do
       end if
-      !$omp barrier
+      CPUOMP !$omp barrier
 
    end subroutine mpas_print_alarm
 
@@ -978,7 +980,7 @@ module mpas_timekeeping
          end do
       end if
 
-      !$omp barrier
+      CPUOMP !$omp barrier
 
    end subroutine mpas_reset_clock_alarm
 
@@ -1048,7 +1050,7 @@ module mpas_timekeeping
          end do
       end if ! thread check
 
-      !$omp barrier
+      CPUOMP !$omp barrier
    end subroutine mpas_adjust_alarm_to_reference_time
 
 
@@ -1125,7 +1127,7 @@ module mpas_timekeeping
          end if
       end if
 
-      !$omp barrier
+      CPUOMP !$omp barrier
    
    end subroutine mpas_calibrate_alarms
 

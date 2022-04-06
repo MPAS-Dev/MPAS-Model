@@ -1,11 +1,13 @@
 ! Copyright (c) 2013,  Los Alamos National Security, LLC (LANS)
 ! and the University Corporation for Atmospheric Research (UCAR).
+! Modifications Copyright (c) 2022, Advanced Micro Devices, Inc (AMD). All rights Reserved.
 !
 ! Unless noted otherwise source code is licensed under the BSD license.
 ! Additional copyright and license information can be found in the LICENSE file
 ! distributed with this code, or at http://mpas-dev.github.com/license.html
 !
 !=================================================================================================================
+#include "mpas_openmp.inc"
  module mpas_atmphys_interface
  use mpas_kind_types
  use mpas_pool_routines
@@ -114,10 +116,16 @@
  if(.not.allocated(qi_p)   ) allocate(qi_p(ims:ime,kms:kme,jms:jme)   )
  if(.not.allocated(qs_p)   ) allocate(qs_p(ims:ime,kms:kme,jms:jme)   )
  if(.not.allocated(qg_p)   ) allocate(qg_p(ims:ime,kms:kme,jms:jme)   )
+GPUOMP !$omp target enter data map(alloc:psfc_p,ptop_p,u_p,v_p,fzm_p,fzp_p,&
+GPUOMP !$omp zz_p,pres_p,pi_p,z_p,zmid_p,dz_p,t_p,th_p,al_p,rho_p,rh_p,znu_p,&
+GPUOMP !$omp w_p,pres2_p,t2_p,qv_p,qc_p,qr_p,qi_p,qs_p,qg_p)
+GPUOMP !$omp target enter data map(alloc:psfc_hyd_p,psfc_hydd_p,pres_hyd_p,pres_hydd_p,&
+GPUOMP !$omp pres2_hyd_p,pres2_hydd_p,znu_hyd_p)
 
  pbl_select: select case (trim(pbl_scheme))
     case("bl_mynn")
        if(.not.allocated(ni_p)) allocate(ni_p(ims:ime,kms:kme,jms:jme))
+GPUOMP !$omp target enter data map(alloc:ni_p)
 
     case default
 
@@ -148,6 +156,11 @@
 
  call mpas_pool_get_config(configs,'config_pbl_scheme',pbl_scheme)
 
+GPUOMP !$omp target exit data map(delete:psfc_p,ptop_p,u_p,v_p,fzm_p,fzp_p,&
+GPUOMP !$omp zz_p,pres_p,pi_p,z_p,zmid_p,dz_p,t_p,th_p,al_p,rho_p,rh_p,znu_p,&
+GPUOMP !$omp w_p,pres2_p,t2_p,qv_p,qc_p,qr_p,qi_p,qs_p,qg_p)
+GPUOMP !$omp target exit data map(delete:psfc_hyd_p,psfc_hydd_p,pres_hyd_p,pres_hydd_p,&
+GPUOMP !$omp pres2_hyd_p,pres2_hydd_p,znu_hyd_p)
  if(allocated(psfc_p)  ) deallocate(psfc_p  )
  if(allocated(ptop_p)  ) deallocate(ptop_p  )
 
@@ -181,6 +194,7 @@
 
  pbl_select: select case (trim(pbl_scheme))
     case("bl_mynn")
+GPUOMP !$omp target exit data map(delete:ni_p)
        if(allocated(ni_p)) deallocate(ni_p)
 
     case default

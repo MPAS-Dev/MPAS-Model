@@ -13,6 +13,8 @@
 
 !WRF:model_layer:physics
 !
+! Modifications Copyright (c) 2022, Advanced Micro Devices, Inc (AMD). All rights reserved
+#include "mpas_openmp.inc"
 module module_bl_gwdo
 contains
 !-------------------------------------------------------------------------------
@@ -133,7 +135,7 @@ contains
 !!!$acc update device(u3d,v3d,t3d,qv3d,p3d,p3di,pi3d,z,rublten,rvblten,dtaux3d,dtauy3d,&
 !!!$acc               dusfcg,dvsfcg,var2d,oc12d,oa2d1,oa2d2,oa2d3,oa2d4,ol2d1,ol2d2,   &
 !!!$acc               ol2d3,ol2d4,sina,cosa,dx,kpbl2d)
-
+GPUOMP !$omp target data map(alloc:delprsi,pdh,ugeo,vgeo,dudt,dvdt,dtaux,dtauy,dusfc,dvsfc,pdhi,oa4,ol4)
 !$acc data create(delprsi,pdh,ugeo,vgeo,dudt,dvdt,dtaux,dtauy,dusfc,dvsfc,pdhi,oa4,ol4) &
 !$acc      present(u3d,v3d,t3d,qv3d,p3d,p3di,pi3d,z,rublten,rvblten,dtaux3d,dtauy3d,&
 !$acc               dusfcg,dvsfcg,var2d,oc12d,oa2d1,oa2d2,oa2d3,oa2d4,ol2d1,ol2d2,   &
@@ -226,6 +228,7 @@ contains
    enddo
 !
 !$acc end data
+GPUOMP !$omp end target data
 
 !!!$acc update host(rublten,rvblten,dtaux3d,dtauy3d,dusfcg,dvsfcg)
    end subroutine gwdo
@@ -377,6 +380,10 @@ contains
 !!!$acc update device(dudt,dvdt,dtaux2d,dtauy2d,u1,v1,t1,q1,del,prsi,prsl,prslk,zl,&
 !!!$acc               var,oc1,oa4,ol4,dusfc,dvsfc,dxmeter,kpbl)
 
+GPUOMP !$omp target data map(alloc:ldrag,icrilv,flag,kloop1,coefm,taub, xn, yn, ubar, vbar, fr,&
+GPUOMP !$omp      ulow, rulow, bnv, oa, ol, rhobar,dtfac, brvf, xlinv, delks,delks1,&
+GPUOMP !$omp      zlowtop,cleff,taup,velco,bnv2, usqj, taud, rho, vtk, vtj,kbl, klowtop,&
+GPUOMP !$omp      delx, dely,dxy4, dxy4p,dxy, dxyp, olp, od,taufb,komax) map(to:nwdir) 
 !$acc data create(ldrag,icrilv,flag,kloop1,coefm,taub, xn, yn, ubar, vbar, fr,&
 !$acc             ulow, rulow, bnv, oa, ol, rhobar,dtfac, brvf, xlinv, delks,delks1,&
 !$acc             zlowtop,cleff,taup,velco,bnv2, usqj, taud, rho, vtk, vtj,kbl, klowtop,&
@@ -895,6 +902,7 @@ contains
 !$acc end parallel
 !
 !$acc end data
+GPUOMP !$omp end target data
 
 !!!$acc update host(dudt,dvdt,dtaux2d,dtauy2d,dusfc,dvsfc)
    return                                                            

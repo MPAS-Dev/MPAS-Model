@@ -1,5 +1,6 @@
 ! Copyright (c) 2013,  Los Alamos National Security, LLC (LANS)
 ! and the University Corporation for Atmospheric Research (UCAR).
+! Modifications Copyright (c) 2022, Advanced Micro Devices, Inc (AMD). All rights Reserved.
 !
 ! Unless noted otherwise source code is licensed under the BSD license.
 ! Additional copyright and license information can be found in the LICENSE file
@@ -16,6 +17,7 @@
 !> This module provides routines for performing vector reconstruction from edges to cell centers.
 !
 !-----------------------------------------------------------------------
+#include "mpas_openmp.inc"
 module mpas_vector_reconstruction
 
   use mpas_derived_types
@@ -248,7 +250,7 @@ module mpas_vector_reconstruction
     call mpas_pool_get_config(meshPool, 'on_a_sphere', on_a_sphere)
 
     ! loop over cell centers
-    !$omp do schedule(runtime)
+    CPUOMP !$omp do schedule(runtime)
     do iCell = 1, nCells
       ! initialize the reconstructed vectors
       uReconstructX(:,iCell) = 0.0
@@ -268,12 +270,12 @@ module mpas_vector_reconstruction
 
       enddo
     enddo   ! iCell
-    !$omp end do
+    CPUOMP !$omp end do
 
     call mpas_threading_barrier()
 
     if (on_a_sphere) then
-      !$omp do schedule(runtime)
+      CPUOMP !$omp do schedule(runtime)
       do iCell = 1, nCells
         clat = cos(latCell(iCell))
         slat = sin(latCell(iCell))
@@ -285,14 +287,14 @@ module mpas_vector_reconstruction
                                           + uReconstructY(:,iCell)*slon)*slat &
                                           + uReconstructZ(:,iCell)*clat
       end do
-      !$omp end do
+      CPUOMP !$omp end do
     else
-      !$omp do schedule(runtime)
+      CPUOMP !$omp do schedule(runtime)
       do iCell = 1, nCells
         uReconstructZonal     (:,iCell) = uReconstructX(:,iCell)
         uReconstructMeridional(:,iCell) = uReconstructY(:,iCell)
       end do
-      !$omp end do
+      CPUOMP !$omp end do
     end if
 
   end subroutine mpas_reconstruct_2d!}}}
@@ -397,7 +399,9 @@ uReconstructZonal, uReconstructMeridional, includeHalos)!{{{
    
      ! loop over cell centers
     !!!$omp do schedule(runtime)
+TMPOMP !$omp target update to(u, uReconstructZonal, uReconstructMeridional, nedgesOnCell,edgesOnCell,latCell,lonCell, coeffs_reconstruct)
 !$acc data present(u,uReconstructX, uReconstructY, uReconstructZ, uReconstructZonal, uReconstructMeridional, nedgesOnCell,edgesOnCell,latCell,lonCell, coeffs_reconstruct)
+GPUOMP !$omp target teams distribute parallel do simd collapse(2)
 !$acc parallel
 !$acc loop gang worker
     do iCell = 1, nCellParent
@@ -410,12 +414,14 @@ uReconstructZonal, uReconstructMeridional, includeHalos)!{{{
      end do
    enddo
 !$acc end parallel
+GPUOMP !$omp end target teams distribute parallel do simd
 
       ! a more efficient reconstruction where
       ! rbf_values*matrix_reconstruct
 
       ! has been precomputed in coeffs_reconstruct
 
+GPUOMP !$omp target teams distribute parallel do thread_limit(64)
 !$acc parallel
 !$acc loop gang private(iEdge)
     do iCell = 1, nCellParent
@@ -433,6 +439,7 @@ uReconstructZonal, uReconstructMeridional, includeHalos)!{{{
  
       enddo
     enddo   ! iCell
+GPUOMP !$omp end target teams distribute parallel do
 
 !$acc end parallel
     !!!$omp end do
@@ -441,15 +448,17 @@ uReconstructZonal, uReconstructMeridional, includeHalos)!{{{
  
     if (on_a_sphere) then
       !!!$omp do schedule(runtime)
+GPUOMP !$omp target teams distribute parallel do simd collapse(2) private(clat,slat,clon,slon)
 !$acc parallel
 !$acc loop gang worker private(clat,slat,clon,slon)
       do iCell = 1, nCellParent
+        GPUOMP do temp= 1, nVertLevels
         clat = cos(latCell(iCell))
         slat = sin(latCell(iCell))
         clon = cos(lonCell(iCell))
         slon = sin(lonCell(iCell))
         !$acc loop vector
-        do temp= 1, nVertLevels
+        GPUACC do temp= 1, nVertLevels
           uReconstructZonal(temp,iCell) = -uReconstructX(temp,iCell)*slon + &
                                       uReconstructY(temp,iCell)*clon
           uReconstructMeridional(temp,iCell) = -(uReconstructX(temp,iCell)*clon       &
@@ -458,9 +467,11 @@ uReconstructZonal, uReconstructMeridional, includeHalos)!{{{
         end do
       end do
 !$acc end parallel
+GPUOMP !$omp end target teams distribute parallel do simd
       !!!$omp end do
     else
       !!!$omp do schedule(runtime)
+GPUOMP !$omp target teams distribute parallel do simd
 !$acc parallel
 !$acc loop gang worker vector
       do iCell = 1, nCellParent
@@ -468,9 +479,12 @@ uReconstructZonal, uReconstructMeridional, includeHalos)!{{{
         uReconstructMeridional(:,iCell) = uReconstructY(:,iCell)
       end do
 !$acc end parallel
+GPUOMP !$omp end target teams distribute parallel do simd
       !!!$omp end do
     end if
 !$acc end data
+TMPOMP !$omp target update from(uReconstructZ,uReconstructY,uReconstructZ,&
+TMPOMP !$omp uReconstructZonal,uReconstructMeridional)
 
    
 end subroutine mpas_reconstruct_2d_gpu_work
@@ -541,7 +555,7 @@ end subroutine mpas_reconstruct_2d_gpu_work
     call mpas_pool_get_config(meshPool, 'on_a_sphere', on_a_sphere)
 
     ! loop over cell centers
-    !$omp do schedule(runtime)
+    CPUOMP !$omp do schedule(runtime)
     do iCell = 1, nCells
       ! initialize the reconstructed vectors
       uReconstructX(iCell) = 0.0
@@ -561,12 +575,12 @@ end subroutine mpas_reconstruct_2d_gpu_work
 
       enddo
     enddo   ! iCell
-    !$omp end do
+    CPUOMP !$omp end do
 
     call mpas_threading_barrier()
 
     if (on_a_sphere) then
-      !$omp do schedule(runtime)
+      CPUOMP !$omp do schedule(runtime)
       do iCell = 1, nCells
         clat = cos(latCell(iCell))
         slat = sin(latCell(iCell))
@@ -578,14 +592,14 @@ end subroutine mpas_reconstruct_2d_gpu_work
                                         + uReconstructY(iCell)*slon)*slat &
                                         + uReconstructZ(iCell)*clat
       end do
-      !$omp end do
+      CPUOMP !$omp end do
     else
-      !$omp do schedule(runtime)
+      CPUOMP !$omp do schedule(runtime)
       do iCell = 1, nCells
         uReconstructZonal     (iCell) = uReconstructX(iCell)
         uReconstructMeridional(iCell) = uReconstructY(iCell)
       end do
-      !$omp end do
+      CPUOMP !$omp end do
     end if
 
   end subroutine mpas_reconstruct_1d!}}}

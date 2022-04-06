@@ -1,13 +1,16 @@
 ! Copyright (c) 2013,  Los Alamos National Security, LLC (LANS)
 ! and the University Corporation for Atmospheric Research (UCAR).
+! Modifications Copyright (c) 2022, Advanced Micro Devices, Inc (AMD). All rights Reserved.
 !
 ! Unless noted otherwise source code is licensed under the BSD license.
 ! Additional copyright and license information can be found in the LICENSE file
 ! distributed with this code, or at http://mpas-dev.github.com/license.html
 !
 
-module atm_time_integration
 
+#include "mpas_openmp.inc"
+module atm_time_integration
+   !use atm_time_integration_test
    use mpas_derived_types
    use mpas_pool_routines
    use mpas_kind_types
@@ -274,6 +277,17 @@ module atm_time_integration
 !      call mpas_log_write(' MPI rank $i',intArgs=(/rrpk_rank/))
 !#endif
 
+GPUOMP !$omp target enter data map(to:compactHaloInfo_c_v,compactHaloInfo_c_vP1,compactHaloInfo_c_v_s,compactHaloInfo_e_v, compactHaloInfo_c_2_v,&
+GPUOMP !$omp gpu_bufferOffset_send_c_v, gpu_nList_send_c_v, gpu_idx_send_c_v, gpu_bufferOffset_recv_c_v, gpu_nList_recv_c_v,&
+GPUOMP !$omp gpu_idx_recv_c_v, gpu_dimsizes_c_v, gpu_nHaloLayers_c_v, gpu_bufferOffset_send_c_vP1, &
+GPUOMP !$omp gpu_nList_send_c_vP1, gpu_idx_send_c_vP1, gpu_bufferOffset_recv_c_vP1, gpu_nList_recv_c_vP1,&
+GPUOMP !$omp gpu_idx_recv_c_vP1, gpu_dimsizes_c_vP1, gpu_nHaloLayers_c_vP1, gpu_bufferOffset_send_e_v, &
+GPUOMP !$omp gpu_nList_send_e_v, gpu_idx_send_e_v, gpu_bufferOffset_recv_e_v, gpu_nList_recv_e_v,&
+GPUOMP !$omp gpu_idx_recv_e_v, gpu_dimsizes_e_v, gpu_nHaloLayers_e_v,gpu_bufferOffset_send_c_v_s, &
+GPUOMP !$omp gpu_nList_send_c_v_s, gpu_idx_send_c_v_s, gpu_bufferOffset_recv_c_v_s, gpu_nList_recv_c_v_s,&
+GPUOMP !$omp gpu_idx_recv_c_v_s, gpu_dimsizes_c_v_s, gpu_nHaloLayers_c_v_s, gpu_bufferOffset_send_c_2_v, &
+GPUOMP !$omp gpu_nList_send_c_2_v, gpu_idx_send_c_2_v, gpu_bufferOffset_recv_c_2_v, gpu_nList_recv_c_2_v,&
+GPUOMP !$omp gpu_idx_recv_c_2_v, gpu_dimsizes_c_2_v, gpu_nHaloLayers_c_2_v)
 !$acc enter data copyin(compactHaloInfo_c_v,compactHaloInfo_c_vP1,compactHaloInfo_c_v_s,compactHaloInfo_e_v, compactHaloInfo_c_2_v,&
 !$acc gpu_bufferOffset_send_c_v, gpu_nList_send_c_v, gpu_idx_send_c_v, gpu_bufferOffset_recv_c_v, gpu_nList_recv_c_v,&
 !$acc gpu_idx_recv_c_v, gpu_dimsizes_c_v, gpu_nHaloLayers_c_v, gpu_bufferOffset_send_c_vP1, &
@@ -530,6 +544,8 @@ module atm_time_integration
       allocate(tend_ru_physics(nVertLevels,nEdges+1))
 !      tend_ru_physics(:,nEdges+1) = 0.0_RKIND
       allocate(tend_th(nVertLevels,nCellsSolve))
+      GPUOMP !$omp target enter data map(alloc:qtot,tend_rtheta_physics,tend_rho_physics,&
+      GPUOMP !$omp tend_ru_physics,tend_th)
 
       !
       ! Initialize RK weights
@@ -635,7 +651,7 @@ module atm_time_integration
          call mpas_pool_get_dimension(block % dimensions, 'edgeSolveThreadStart', edgeSolveThreadStart)
          call mpas_pool_get_dimension(block % dimensions, 'edgeSolveThreadEnd', edgeSolveThreadEnd)
 
-!$OMP PARALLEL DO
+CPUOMP !$OMP PARALLEL DO
          do thread=1,nThreads
             call atm_rk_integration_setup(state, diag, &
                                           cellThreadStart(thread), cellThreadEnd(thread), &
@@ -645,7 +661,7 @@ module atm_time_integration
                                           vertexSolveThreadStart(thread), vertexSolveThreadEnd(thread), &
                                           edgeSolveThreadStart(thread), edgeSolveThreadEnd(thread))
          end do
-!$OMP END PARALLEL DO
+CPUOMP !$OMP END PARALLEL DO
 
          block => block % next
       end do
@@ -676,7 +692,7 @@ module atm_time_integration
          call mpas_pool_get_dimension(block % dimensions, 'edgeSolveThreadStart', edgeSolveThreadStart)
          call mpas_pool_get_dimension(block % dimensions, 'edgeSolveThreadEnd', edgeSolveThreadEnd)
 
-!$OMP PARALLEL DO
+CPUOMP !$OMP PARALLEL DO
          do thread=1,nThreads
             call atm_compute_moist_coefficients( block % dimensions, state, diag, mesh, &     !MGD could do away with dimensions arg
                                                  cellThreadStart(thread), cellThreadEnd(thread), &
@@ -686,7 +702,7 @@ module atm_time_integration
                                                  vertexSolveThreadStart(thread), vertexSolveThreadEnd(thread), &
                                                  edgeSolveThreadStart(thread), edgeSolveThreadEnd(thread))
          end do
-!$OMP END PARALLEL DO
+CPUOMP !$OMP END PARALLEL DO
 
          block => block % next
       end do
@@ -760,6 +776,8 @@ module atm_time_integration
 !               ke_vertex(:,nVertices+1) = 0.0_RKIND
                allocate(ke_edge(nVertLevels,nEdges+1))
 !               ke_edge(:,nEdges+1) = 0.0_RKIND
+GPUOMP !$omp target enter data map(alloc:delsq_theta,delsq_w,delsq_divergence,delsq_u,&
+GPUOMP !$omp delsq_vorticity,dpdz,ke_vertex,ke_edge)
 
       DYNAMICS_SUBSTEPS : do dynamics_substep = 1, dynamics_split
 
@@ -788,7 +806,7 @@ module atm_time_integration
             call mpas_pool_get_dimension(block % dimensions, 'edgeSolveThreadEnd', edgeSolveThreadEnd)
 
             rk_step = 1
-!$OMP PARALLEL DO
+CPUOMP !$OMP PARALLEL DO
             do thread=1,nThreads
                call atm_compute_vert_imp_coefs( state, mesh, diag, block % configs, nVertLevels, rk_sub_timestep(rk_step), &
                                           cellThreadStart(thread), cellThreadEnd(thread), &
@@ -796,7 +814,7 @@ module atm_time_integration
                                           cellSolveThreadStart(thread), cellSolveThreadEnd(thread), &
                                           edgeSolveThreadStart(thread), edgeSolveThreadEnd(thread))
             end do
-!$OMP END PARALLEL DO
+CPUOMP !$OMP END PARALLEL DO
             block => block % next
          end do
          call mpas_timer_stop('atm_compute_vert_imp_coefs')
@@ -842,7 +860,7 @@ module atm_time_integration
                  call mpas_pool_get_dimension(block % dimensions, 'edgeSolveThreadStart', edgeSolveThreadStart)
                  call mpas_pool_get_dimension(block % dimensions, 'edgeSolveThreadEnd', edgeSolveThreadEnd)
 
-!$OMP PARALLEL DO
+CPUOMP !$OMP PARALLEL DO
                  do thread=1,nThreads
                     call atm_compute_vert_imp_coefs( state, mesh, diag, block % configs, nVertLevels, rk_sub_timestep(rk_step), &
                                                      cellThreadStart(thread), cellThreadEnd(thread), &
@@ -850,7 +868,7 @@ module atm_time_integration
                                                      cellSolveThreadStart(thread), cellSolveThreadEnd(thread), &
                                                      edgeSolveThreadStart(thread), edgeSolveThreadEnd(thread))
                  end do
-!$OMP END PARALLEL DO
+CPUOMP !$OMP END PARALLEL DO
                  block => block % next
               end do
             end if  
@@ -903,7 +921,7 @@ module atm_time_integration
 !               allocate(dpdz(nVertLevels,nCells+1))
 !               dpdz(:,nCells+1) = 0.0_RKIND
 
-!$OMP PARALLEL DO
+CPUOMP !$OMP PARALLEL DO
                do thread=1,nThreads
                   call atm_compute_dyn_tend( tend, tend_physics, state, diag, mesh, block % configs, nVertLevels, rk_step, dt, & 
                                              cellThreadStart(thread), cellThreadEnd(thread), &
@@ -913,7 +931,7 @@ module atm_time_integration
                                              vertexSolveThreadStart(thread), vertexSolveThreadEnd(thread), &
                                              edgeSolveThreadStart(thread), edgeSolveThreadEnd(thread))
                end do
-!$OMP END PARALLEL DO
+CPUOMP !$OMP END PARALLEL DO
 
    
                block => block % next
@@ -961,7 +979,7 @@ module atm_time_integration
                call mpas_pool_get_dimension(block % dimensions, 'edgeSolveThreadStart', edgeSolveThreadStart)
                call mpas_pool_get_dimension(block % dimensions, 'edgeSolveThreadEnd', edgeSolveThreadEnd)
                
-!$OMP PARALLEL DO
+CPUOMP !$OMP PARALLEL DO
                do thread=1,nThreads
                   call atm_set_smlstep_pert_variables( tend, diag, mesh, block % configs, &
                                              cellThreadStart(thread), cellThreadEnd(thread), &
@@ -969,7 +987,7 @@ module atm_time_integration
                                              cellSolveThreadStart(thread), cellSolveThreadEnd(thread), &
                                              edgeSolveThreadStart(thread), edgeSolveThreadEnd(thread))
                end do
-!$OMP END PARALLEL DO
+CPUOMP !$OMP END PARALLEL DO
                block => block % next
             end do
             call mpas_timer_stop('small_step_prep')
@@ -1006,7 +1024,7 @@ module atm_time_integration
                   ru_driving_tend(1:nVertLevels,1:nEdges+1) =  mpas_atm_get_bdy_tend( clock, domain % blocklist, nVertLevels, nEdges, 'ru', 0.0_RKIND )
                   rt_driving_tend(1:nVertLevels,1:nCells+1) =  mpas_atm_get_bdy_tend( clock, domain % blocklist, nVertLevels, nCells, 'rtheta_m', 0.0_RKIND )
                   rho_driving_tend(1:nVertLevels,1:nCells+1) =  mpas_atm_get_bdy_tend( clock, domain % blocklist, nVertLevels, nCells, 'rho_zz', 0.0_RKIND )
-!$OMP PARALLEL DO
+CPUOMP !$OMP PARALLEL DO
                   do thread=1,nThreads
                      call atm_bdy_adjust_dynamics_speczone_tend( tend, mesh, block % configs, nVertLevels,                 &
                                                                  ru_driving_tend, rt_driving_tend, rho_driving_tend,       &
@@ -1015,7 +1033,7 @@ module atm_time_integration
                                                                  cellSolveThreadStart(thread), cellSolveThreadEnd(thread), &
                                                                  edgeSolveThreadStart(thread), edgeSolveThreadEnd(thread) )
                   end do
-!$OMP END PARALLEL DO
+CPUOMP !$OMP END PARALLEL DO
 
                   deallocate(ru_driving_tend)
                   deallocate(rt_driving_tend)
@@ -1056,7 +1074,7 @@ module atm_time_integration
                   rt_driving_values(1:nVertLevels,1:nCells+1) =  mpas_atm_get_bdy_state( clock, domain % blocklist, nVertLevels, nCells, 'rtheta_m', time_dyn_step )
                   rho_driving_values(1:nVertLevels,1:nCells+1) =  mpas_atm_get_bdy_state( clock, domain % blocklist, nVertLevels, nCells, 'rho_zz', time_dyn_step )
 
-!$OMP PARALLEL DO
+CPUOMP !$OMP PARALLEL DO
                   do thread=1,nThreads
                      call atm_bdy_adjust_dynamics_relaxzone_tend( tend, state, diag, mesh, nVertLevels, dt,                   &
                                                                   ru_driving_values, rt_driving_values, rho_driving_values,   &
@@ -1065,7 +1083,7 @@ module atm_time_integration
                                                                   cellSolveThreadStart(thread), cellSolveThreadEnd(thread),   &
                                                                   edgeSolveThreadStart(thread), edgeSolveThreadEnd(thread) )
                   end do
-!$OMP END PARALLEL DO
+CPUOMP !$OMP END PARALLEL DO
 
                   deallocate(ru_driving_values)
                   deallocate(rt_driving_values)
@@ -1122,7 +1140,7 @@ module atm_time_integration
                   call mpas_pool_get_dimension(block % dimensions, 'edgeSolveThreadStart', edgeSolveThreadStart)
                   call mpas_pool_get_dimension(block % dimensions, 'edgeSolveThreadEnd', edgeSolveThreadEnd)
 
-!$OMP PARALLEL DO
+CPUOMP !$OMP PARALLEL DO
                   do thread=1,nThreads
                      call atm_advance_acoustic_step( state, diag, tend,  mesh, block % configs, nCells, nVertLevels, &
                                              rk_sub_timestep(rk_step), small_step, &
@@ -1133,7 +1151,7 @@ module atm_time_integration
                                              vertexSolveThreadStart(thread), vertexSolveThreadEnd(thread), &
                                              edgeSolveThreadStart(thread), edgeSolveThreadEnd(thread))
                   end do
-!$OMP END PARALLEL DO
+CPUOMP !$OMP END PARALLEL DO
 
                   block => block % next
                end do
@@ -1167,12 +1185,12 @@ module atm_time_integration
                   call mpas_pool_get_dimension(block % dimensions, 'edgeThreadStart', edgeThreadStart)
                   call mpas_pool_get_dimension(block % dimensions, 'edgeThreadEnd', edgeThreadEnd)
 
-!$OMP PARALLEL DO
+CPUOMP !$OMP PARALLEL DO
                   do thread=1,nThreads
                      call atm_divergence_damping_3d( state, diag, mesh, block % configs, rk_sub_timestep(rk_step), &
                                                      edgeThreadStart(thread), edgeThreadEnd(thread) )
                   end do
-!$OMP END PARALLEL DO
+CPUOMP !$OMP END PARALLEL DO
 
                   block => block % next
                end do
@@ -1244,7 +1262,7 @@ module atm_time_integration
                call mpas_pool_get_dimension(block % dimensions, 'edgeSolveThreadStart', edgeSolveThreadStart)
                call mpas_pool_get_dimension(block % dimensions, 'edgeSolveThreadEnd', edgeSolveThreadEnd)
 
-!$OMP PARALLEL DO
+CPUOMP !$OMP PARALLEL DO
                do thread=1,nThreads
                   call atm_recover_large_step_variables( state, diag, tend, mesh, block % configs, rk_timestep(rk_step), &
                                              number_sub_steps(rk_step), rk_step, &
@@ -1255,7 +1273,7 @@ module atm_time_integration
                                              vertexSolveThreadStart(thread), vertexSolveThreadEnd(thread), &
                                              edgeSolveThreadStart(thread), edgeSolveThreadEnd(thread))
                end do
-!$OMP END PARALLEL DO
+CPUOMP !$OMP END PARALLEL DO
 
                block => block % next
             end do
@@ -1383,16 +1401,20 @@ module atm_time_integration
                   !flux_array(:,nEdges+1) = 0.0_RKIND
                   allocate(wdtn_arr(nVertLevels+1,nCells+1))
                   !wdtn_arr(:,nCells+1) = 0.0_RKIND
+GPUOMP !$omp target enter data map(alloc:scalar_old_arr,scalar_new_arr,s_max_arr,s_min_arr,scale_array,&
+GPUOMP !$omp flux_array,wdtn_arr)
                   if (rk_step < 3 .or. (.not. config_monotonic .and. .not. config_positive_definite)) then
                      allocate(horiz_flux_array(num_scalars,nVertLevels,nEdges+1))
+GPUOMP !$omp target enter data map(alloc:horiz_flux_array)
                      !horiz_flux_array(:,:,nEdges+1) = 0.0_RKIND
                   else
                      allocate(flux_upwind_tmp_arr(nVertLevels,nEdges+1))
                      !flux_upwind_tmp_arr(:,nEdges+1) = 0.0_RKIND
                      allocate(flux_tmp_arr(nVertLevels,nEdges+1))
                      !flux_tmp_arr(:,nEdges+1) = 0.0_RKIND
+GPUOMP !$omp target enter data map(alloc:flux_upwind_tmp_arr,flux_tmp_arr)
                   end if
-
+GPUOMP !$omp target teams distribute parallel do simd
 !$acc parallel
 !$acc loop gang worker vector
                   do levelsIdx=1,tmpnVertLevels
@@ -1406,10 +1428,14 @@ module atm_time_integration
                      wdtn_arr(levelsIdx,tmpnCells+1) = 0.0_RKIND
                   enddo
 !$acc end parallel
+GPUOMP !$omp end target teams distribute parallel do simd
+GPUOMP !$omp target
 !$acc parallel num_gangs(1) num_workers(1) vector_length(1)
                   wdtn_arr(tmpnVertLevels+1,tmpnCells+1) = 0.0_RKIND
 !$acc end parallel
+GPUOMP !$omp end target
                   if (rk_step < 3 .or. (.not. config_monotonic .and. .not. config_positive_definite)) then
+GPUOMP !$omp target teams distribute parallel do simd collapse(2)
 !$acc parallel
 !$acc loop gang worker vector collapse(2)
                      do levelsIdx=1,tmpnVertLevels
@@ -1418,7 +1444,9 @@ module atm_time_integration
                         enddo
                      enddo
 !$acc end parallel
+GPUOMP !$omp end target teams distribute parallel do simd
                   else
+GPUOMP !$omp target teams distribute parallel do simd
 !$acc parallel
 !$acc loop gang worker vector
                      do levelsIdx=1,tmpnVertLevels
@@ -1426,6 +1454,7 @@ module atm_time_integration
                         flux_tmp_arr(levelsIdx,tmpnEdges+1) = 0.0_RKIND
                      enddo
 !$acc end parallel
+GPUOMP !$omp end target teams distribute parallel do simd
                   end if
 
                   !
@@ -1433,7 +1462,7 @@ module atm_time_integration
                   !       the functionality of the advance_scalars routine; however, it is noticeably slower, 
                   !       so we use the advance_scalars routine for the first two RK substeps.
                   !
-!$OMP PARALLEL DO
+CPUOMP !$OMP PARALLEL DO
                   do thread=1,nThreads
                      if (rk_step < 3 .or. (.not. config_monotonic .and. .not. config_positive_definite)) then
                         call atm_advance_scalars( tend, state, diag, mesh, block % configs, num_scalars, nCells, nVertLevels, rk_timestep(rk_step), &
@@ -1460,8 +1489,10 @@ module atm_time_integration
                                                 advance_density=.false.)
                      end if
                   end do
-!$OMP END PARALLEL DO
+CPUOMP !$OMP END PARALLEL DO
 
+GPUOMP !$omp target exit data map(delete:scalar_old_arr,scalar_new_arr,s_max_arr,s_min_arr,scale_array,&
+GPUOMP !$omp flux_array,wdtn_arr)
                   deallocate(scalar_old_arr)
                   deallocate(scalar_new_arr)
                   deallocate(s_max_arr)
@@ -1470,8 +1501,10 @@ module atm_time_integration
                   deallocate(flux_array)
                   deallocate(wdtn_arr)
                   if (rk_step < 3 .or. (.not. config_monotonic .and. .not. config_positive_definite)) then
+GPUOMP !$omp target exit data map(delete:horiz_flux_array)
                      deallocate(horiz_flux_array)
                   else
+GPUOMP !$omp target exit data map(delete:flux_upwind_tmp_arr,flux_tmp_arr)
                      deallocate(flux_upwind_tmp_arr)
                      deallocate(flux_tmp_arr)
                   end if
@@ -1545,13 +1578,13 @@ module atm_time_integration
                         scalars_driving(index_ni,1:nVertLevels,1:nCells+1) = mpas_atm_get_bdy_state( clock, domain % blocklist, nVertLevels, nCells, 'ni', rk_timestep(rk_step) )
                      end if
                   
-                     !$OMP PARALLEL DO
+                     CPUOMP !$OMP PARALLEL DO
                      do thread=1,nThreads
                         call atm_bdy_adjust_scalars( state, diag, mesh, block % configs, scalars_driving, nVertLevels, dt, rk_timestep(rk_step), &
                                                      cellThreadStart(thread), cellThreadEnd(thread), &
                                                      cellSolveThreadStart(thread), cellSolveThreadEnd(thread) )
                      end do
-                     !$OMP END PARALLEL DO
+                     CPUOMP !$OMP END PARALLEL DO
 
                      deallocate(scalars_driving)
 
@@ -1585,14 +1618,18 @@ module atm_time_integration
                call mpas_pool_get_dimension(block % dimensions, 'edgeThreadEnd', edgeThreadEnd)
 
    
-!$OMP PARALLEL DO
+CPUOMP !$OMP PARALLEL DO
                do thread=1,nThreads
+                  !call atm_compute_solve_diagnostics_gpu_test(dt, state, 2, diag, mesh, block % configs, &
+                  !                                   cellThreadStart(thread), cellThreadEnd(thread), &
+                  !                                   vertexThreadStart(thread), vertexThreadEnd(thread), &
+                  !                                   edgeThreadStart(thread), edgeThreadEnd(thread), rk_step,ke_edge,ke_vertex)
                   call atm_compute_solve_diagnostics_gpu(dt, state, 2, diag, mesh, block % configs, &
                                                      cellThreadStart(thread), cellThreadEnd(thread), &
                                                      vertexThreadStart(thread), vertexThreadEnd(thread), &
                                                      edgeThreadStart(thread), edgeThreadEnd(thread), rk_step)
                end do
-!$OMP END PARALLEL DO
+CPUOMP !$OMP END PARALLEL DO
 
 
                block => block % next
@@ -1656,12 +1693,12 @@ module atm_time_integration
 
                 call mpas_pool_get_dimension(block % dimensions, 'cellSolveThreadStart', cellSolveThreadStart)
                 call mpas_pool_get_dimension(block % dimensions, 'cellSolveThreadEnd', cellSolveThreadEnd)
-!$OMP PARALLEL DO
+CPUOMP !$OMP PARALLEL DO
                 do thread=1,nThreads
                    call atm_zero_gradient_w_bdy( state, mesh, &
                                                  cellSolveThreadStart(thread), cellSolveThreadEnd(thread) )
                 end do
-!$OMP END PARALLEL DO
+CPUOMP !$OMP END PARALLEL DO
 
                 block => block % next
               end do
@@ -1739,7 +1776,7 @@ module atm_time_integration
             call mpas_pool_get_dimension(block % dimensions, 'edgeSolveThreadStart', edgeSolveThreadStart)
             call mpas_pool_get_dimension(block % dimensions, 'edgeSolveThreadEnd', edgeSolveThreadEnd)
 
-!$OMP PARALLEL DO
+CPUOMP !$OMP PARALLEL DO
             do thread=1,nThreads
                call atm_rk_dynamics_substep_finish(state, diag, dynamics_substep, dynamics_split, &
                                                 cellThreadStart(thread), cellThreadEnd(thread), &
@@ -1749,7 +1786,7 @@ module atm_time_integration
                                                 vertexSolveThreadStart(thread), vertexSolveThreadEnd(thread), &
                                                 edgeSolveThreadStart(thread), edgeSolveThreadEnd(thread))
             end do
-!$OMP END PARALLEL DO
+CPUOMP !$OMP END PARALLEL DO
 
             block => block % next
          end do
@@ -1757,6 +1794,8 @@ module atm_time_integration
 
       end do DYNAMICS_SUBSTEPS
 
+GPUOMP !$omp target exit data map(delete:delsq_theta,delsq_w,delsq_divergence,delsq_u,&
+GPUOMP !$omp delsq_vorticity,dpdz,ke_vertex,ke_edge)
                deallocate(ke_vertex)
                deallocate(ke_edge)
                deallocate(delsq_theta)
@@ -1767,7 +1806,9 @@ module atm_time_integration
 !!               deallocate(delsq_circulation)    ! no longer used -> removed 
                deallocate(delsq_vorticity)
                deallocate(dpdz)
-
+      
+GPUOMP !$omp target exit data map(delete:qtot,tend_rtheta_physics,tend_rho_physics,&
+GPUOMP !$omp tend_ru_physics,tend_th)
       deallocate(qtot)  !  we are finished with these now
       deallocate(tend_rtheta_physics)
       deallocate(tend_rho_physics)
@@ -1845,16 +1886,21 @@ module atm_time_integration
                !rho_zz_int(:,nCells+1) = 0.0_RKIND
                allocate(scalar_tend_array(num_scalars,nVertLevels,nCells+1))
                !scalar_tend_array(:,:,nCells+1) = 0.0_RKIND
+GPUOMP !$omp target enter data map(alloc:scalar_old_arr,scalar_new_arr,s_max_arr,s_min_arr,scale_array,&
+GPUOMP !$omp flux_array,wdtn_arr,rho_zz_int,scalar_tend_array)
                if (rk_step < 3 .or. (.not. config_monotonic .and. .not. config_positive_definite)) then
                   allocate(horiz_flux_array(num_scalars,nVertLevels,nEdges+1))
+GPUOMP !$omp target enter data map(alloc:horiz_flux_array)
                   !horiz_flux_array(:,:,nEdges+1) = 0.0_RKIND
                else
                   allocate(flux_upwind_tmp_arr(nVertLevels,nEdges+1))
                   !flux_upwind_tmp_arr(:,nEdges+1) = 0.0_RKIND
                   allocate(flux_tmp_arr(nVertLevels,nEdges+1))
+GPUOMP !$omp target enter data map(alloc:flux_upwind_tmp_arr,flux_tmp_arr)
                   !flux_tmp_arr(:,nEdges+1) = 0.0_RKIND
                end if
 
+GPUOMP !$omp target teams distribute !parallel do thread_limit(64)
 !$acc parallel
 !$acc loop gang worker
                   do levelsIdx=1,tmpnVertLevels
@@ -1868,24 +1914,34 @@ module atm_time_integration
                      wdtn_arr(levelsIdx,tmpnCells+1) = 0.0_RKIND
                      rho_zz_int(levelsIdx,tmpnCells+1) = 0.0_RKIND
 !$acc loop gang vector
+GPUOMP !$omp parallel do simd
                      do scalarsIdx=1,tmpnum_scalars
                         scalar_tend_array(scalarsIdx,levelsIdx,tmpnCells+1) = 0.0_RKIND
                      enddo
+GPUOMP !$omp end parallel do simd
                   enddo
 !$acc end parallel
+GPUOMP !$omp end target teams distribute !parallel do
+GPUOMP !$omp target
 !$acc parallel num_gangs(1) num_workers(1) vector_length(1)
                   wdtn_arr(tmpnVertLevels+1,tmpnCells+1) = 0.0_RKIND
 !$acc end parallel
+GPUOMP !$omp end target
                   if (rk_step < 3 .or. (.not. config_monotonic .and. .not. config_positive_definite)) then
+GPUOMP !$omp target teams distribute !parallel do simd collapse(2)
 !$acc parallel
 !$acc loop gang worker vector collapse(2)
                      do levelsIdx=1,tmpnVertLevels
+GPUOMP !$omp parallel do simd
                         do scalarsIdx=1,tmpnum_scalars
                            horiz_flux_array(scalarsIdx,levelsIdx,tmpnEdges+1) = 0.0_RKIND
                         enddo
+GPUOMP !$omp end parallel do simd
                      enddo
 !$acc end parallel
+GPUOMP !$omp end target teams distribute !parallel do simd
                   else
+GPUOMP !$omp target teams distribute !parallel do simd
 !$acc parallel
 !$acc loop gang worker vector
                      do levelsIdx=1,tmpnVertLevels
@@ -1893,6 +1949,7 @@ module atm_time_integration
                         flux_tmp_arr(levelsIdx,tmpnEdges+1) = 0.0_RKIND
                      enddo
 !$acc end parallel
+GPUOMP !$omp end target teams distribute !parallel do simd
                   end if
 
 
@@ -1904,7 +1961,7 @@ module atm_time_integration
 
                !  The latest version of atm_advance_scalars does not need the arrays scalar_tend_array or rho_zz_int
                !  We can remove scalar_tend_array????  WCS 20160921
-!$OMP PARALLEL DO
+CPUOMP !$OMP PARALLEL DO
                do thread=1,nThreads
                   if (rk_step < 3 .or. (.not. config_monotonic .and. .not. config_positive_definite)) then
                      call atm_advance_scalars( tend, state, diag, mesh, block % configs, num_scalars, nCells, nVertLevels, rk_timestep(rk_step), &
@@ -1931,8 +1988,10 @@ module atm_time_integration
                                              advance_density=.true., rho_zz_int=rho_zz_int)
                   end if
                end do
-!$OMP END PARALLEL DO
+CPUOMP !$OMP END PARALLEL DO
 
+GPUOMP !$omp target exit data map(delete:scalar_old_arr,scalar_new_arr,s_max_arr,s_min_arr,scale_array,&
+GPUOMP !$omp flux_array,wdtn_arr,rho_zz_int,scalar_tend_array)
                deallocate(scalar_old_arr)
                deallocate(scalar_new_arr)
                deallocate(s_max_arr)
@@ -1943,8 +2002,10 @@ module atm_time_integration
                deallocate(rho_zz_int)
                deallocate(scalar_tend_array)
                if (rk_step < 3 .or. (.not. config_monotonic .and. .not. config_positive_definite)) then
+GPUOMP !$omp target exit data map(delete:horiz_flux_array)
                   deallocate(horiz_flux_array)
                else
+GPUOMP !$omp target exit data map(delete:flux_upwind_tmp_arr,flux_tmp_arr)
                   deallocate(flux_upwind_tmp_arr)
                   deallocate(flux_tmp_arr)
                end if
@@ -2020,13 +2081,13 @@ module atm_time_integration
                      scalars_driving(index_ni,1:nVertLevels,1:nCells+1) = mpas_atm_get_bdy_state( clock, domain % blocklist, nVertLevels, nCells, 'ni', rk_timestep(rk_step) )
                   end if
                   
-!$OMP PARALLEL DO
+CPUOMP !$OMP PARALLEL DO
                   do thread=1,nThreads
                      call atm_bdy_adjust_scalars( state, diag, mesh, block % configs, scalars_driving, nVertLevels, dt, rk_timestep(rk_step), &
                                                   cellThreadStart(thread), cellThreadEnd(thread), &
                                                   cellSolveThreadStart(thread), cellSolveThreadEnd(thread) )
                   end do
-!$OMP END PARALLEL DO
+CPUOMP !$OMP END PARALLEL DO
 
                   deallocate(scalars_driving)
 
@@ -2109,6 +2170,7 @@ module atm_time_integration
          call mpas_pool_get_array_gpu(state, 'scalars', scalars_1, 1)
          call mpas_pool_get_array_gpu(state, 'scalars', scalars_2, 2)
          call mpas_pool_get_dimension(state, 'index_qv', index_qv)
+         call mpas_pool_get_dimension(state, 'num_scalars', num_scalars)
 
          call mpas_pool_get_config(block % configs, 'config_microp_scheme', config_microp_scheme)
          call mpas_pool_get_config(block % configs, 'config_convection_scheme', config_convection_scheme)
@@ -2131,6 +2193,7 @@ module atm_time_integration
             !requires that the subroutine atm_advance_scalars_mono was called on the third Runge Kutta step, so that a halo
             !update for the scalars at time_levs(1) is applied. A halo update for the scalars at time_levs(2) is done above. 
             if (config_monotonic) then
+GPUOMP !$omp target teams distribute parallel do simd collapse(2)
 !$acc parallel vector_length(128)
 !$acc loop gang vector collapse(2)
                do cellsIdx=1,nCells+1
@@ -2139,8 +2202,10 @@ module atm_time_integration
                  end do
                end do
 !$acc end parallel
+GPUOMP !$omp end target teams distribute parallel do simd
 !!!               rqvdynten(:,:) = ( scalars_2(index_qv,:,:) - scalars_1(index_qv,:,:) ) / config_dt
             else
+GPUOMP !$omp target teams distribute parallel do simd collapse(2)
 !$acc parallel vector_length(128)
 !$acc loop gang vector collapse(2)
                do cellsIdx=1,nCells+1
@@ -2149,12 +2214,14 @@ module atm_time_integration
                  end do
                end do
 !$acc end parallel
+GPUOMP !$omp end target teams distribute parallel do simd
 !!!               rqvdynten(:,:) = 0._RKIND
             end if
 
          end if
 
          !simply set to zero negative mixing ratios of different water species (for now):
+GPUOMP !$omp target teams distribute parallel do simd collapse(3)
 !$acc parallel vector_length(128)
 !$acc loop gang vector collapse(3)
          do cellsIdx=1,nCells+1
@@ -2165,6 +2232,7 @@ module atm_time_integration
            end do
          end do
 !$acc end parallel
+GPUOMP !$omp end target teams distribute parallel do simd
 !!!         where ( scalars_2(:,:,:) < 0.0)  &
 !!!            scalars_2(:,:,:) = 0.0
 
@@ -2174,12 +2242,12 @@ module atm_time_integration
          !call microphysics schemes:
          if (trim(config_microp_scheme) /= 'off')  then
             call mpas_timer_start('microphysics')
-!$OMP PARALLEL DO
+CPUOMP !$OMP PARALLEL DO
             do thread=1,nThreads
                call driver_microphysics ( block % configs, mesh, state, 2, diag, diag_physics, tend, itimestep, &
                                           cellSolveThreadStart(thread), cellSolveThreadEnd(thread))
             end do
-!$OMP END PARALLEL DO
+CPUOMP !$OMP END PARALLEL DO
             call mpas_timer_stop('microphysics')
          end if
          block => block % next
@@ -2218,14 +2286,14 @@ module atm_time_integration
             rt_driving_values(1:nVertLevels,1:nCells+1) =  mpas_atm_get_bdy_state( clock, domain % blocklist, nVertLevels, nCells, 'rtheta_m', time_dyn_step )
             rho_driving_values(1:nVertLevels,1:nCells+1) =  mpas_atm_get_bdy_state( clock, domain % blocklist, nVertLevels, nCells, 'rho_zz', time_dyn_step )
 
-!$OMP PARALLEL DO
+CPUOMP !$OMP PARALLEL DO
             do thread=1,nThreads
                call atm_bdy_reset_speczone_values( state, diag, mesh, nVertLevels, &
                                                    rt_driving_values, rho_driving_values,                        &
                                                    cellThreadStart(thread), cellThreadEnd(thread),               &
                                                    cellSolveThreadStart(thread), cellSolveThreadEnd(thread) )
             end do
-!$OMP END PARALLEL DO
+CPUOMP !$OMP END PARALLEL DO
 
             deallocate(rt_driving_values)
             deallocate(rho_driving_values)
@@ -2301,13 +2369,13 @@ module atm_time_integration
                scalars_driving(index_ni,1:nVertLevels,1:nCells+1) = mpas_atm_get_bdy_state( clock, domain % blocklist, nVertLevels, nCells, 'ni', dt )
             end if
       
-!$OMP PARALLEL DO
+CPUOMP !$OMP PARALLEL DO
             do thread=1,nThreads
                call atm_bdy_set_scalars( state, mesh, scalars_driving, nVertLevels, &
                                          cellThreadStart(thread), cellThreadEnd(thread), &
                                          cellSolveThreadStart(thread), cellSolveThreadEnd(thread) )
             end do
-!$OMP END PARALLEL DO
+CPUOMP !$OMP END PARALLEL DO
 
             deallocate(scalars_driving)
 
@@ -2410,14 +2478,20 @@ module atm_time_integration
                                                         theta_m_1, theta_m_2
       real (kind=RKIND), dimension(num_scalars,nVertLevels,nCells+1) :: scalars_1, scalars_2
       integer:: i,j, k
+TMPOMP !$omp target update to(ru, ru_save, rw, rw_save, &
+TMPOMP !$omp rtheta_p,rtheta_p_save,rho_p,rho_p_save, &
+TMPOMP !$omp rho_zz_old_split,scalars_1,scalars_2, &
+TMPOMP !$omp u_1,u_2,w_1,w_2,theta_m_1,theta_m_2,rho_zz_1,rho_zz_2)
 !$acc data present(ru, ru_save, rw, rw_save, &
 !$acc rtheta_p,rtheta_p_save,rho_p,rho_p_save, &
 !$acc rho_zz_old_split,scalars_1,scalars_2, &
 !$acc u_1,u_2,w_1,w_2,theta_m_1,theta_m_2,rho_zz_1,rho_zz_2)
 
+GPUOMP !$omp target teams distribute thread_limit(64) !parallel do thread_limit(64)
 !$acc parallel vector_length(32)
 !$acc loop gang
          do i = cellStart,cellEnd
+GPUOMP !$omp parallel do simd
 !$acc loop vector
                 do j=1,nVertLevels
                       rtheta_p_save(j,i) = rtheta_p(j,i)
@@ -2429,12 +2503,17 @@ module atm_time_integration
                            scalars_2(k,j,i) = scalars_1(k,j,i)
                       enddo
                 enddo
+GPUOMP !$omp end parallel do simd
+GPUOMP !$omp parallel do simd
 !$acc loop vector
                 do j=1,nVertLevels+1
                       rw_save(j,i) = rw(j,i)
                       w_2(j,i) = w_1(j,i)
                 enddo
+GPUOMP !$omp end parallel do simd
          enddo
+GPUOMP !$omp end target teams distribute !parallel do
+GPUOMP !$omp target teams distribute parallel do collapse(2)
 !$acc loop gang
          do i = edgeStart,edgeEnd
 !$acc loop vector
@@ -2444,6 +2523,9 @@ module atm_time_integration
                 enddo
          enddo
 !$acc end parallel
+GPUOMP !$omp end target teams distribute parallel do
+TMPOMP !$omp target update from(rtheta_p_save,rho_p_save,theta_m_2,rho_zz_2,rho_zz_old_split,scalars_2,&
+TMPOMP !$omp rw_save,w_2,ru_save,u_2)
 !$acc end data
    end subroutine atm_rk_integration_setup_work
 
@@ -2509,6 +2591,8 @@ module atm_time_integration
       real (kind=RKIND), dimension(nVertLevels,nCells+1) :: cqw
       real (kind=RKIND), dimension(nVertLevels,nEdges+1) :: cqu
       integer, dimension(2,nEdges+1) :: cellsOnEdge
+TMPOMP !$omp target update to(scalars,cqw,cqu,qtot)
+GPUOMP !$omp target teams distribute parallel do collapse(2) thread_limit(256)
 !$acc data present(scalars,cqw,cqu, qtot)
 !$acc parallel num_gangs(256)  vector_length(32)
 !$acc loop gang 
@@ -2519,9 +2603,13 @@ module atm_time_integration
             end do
          end do
 !$acc end parallel
+GPUOMP !$omp end target teams distribute parallel do
+
+GPUOMP !$omp target teams distribute thread_limit(64) !parallel do thread_limit(64)
 !$acc parallel num_gangs(256)  vector_length(32)
 !$acc loop gang 
       do iCell = cellStart,cellEnd
+GPUOMP !$omp parallel do simd
 !$acc loop vector
          do k = 1,nVertLevels
            qtot(k,iCell) = 0.0
@@ -2532,20 +2620,26 @@ module atm_time_integration
                qtot(k,iCell) = qtot(k,iCell) + scalars(iq, k, iCell)
             end do
          end do
+GPUOMP !$omp end parallel do simd
+GPUOMP !$omp parallel do simd
 !$acc loop vector
          do k = 2, nVertLevels
             qtotal = 0.5*(qtot(k,iCell)+qtot(k-1,iCell))
             cqw(k,iCell) = 1.0 / (1.0 + qtotal)
          end do
+GPUOMP !$omp end parallel do simd
       end do
 !$acc end parallel
+GPUOMP !$omp end target teams distribute !parallel do
 
+GPUOMP !$omp target teams distribute thread_limit(64) !parallel do thread_limit(64)
 !$acc parallel  vector_length(32)
 !$acc loop gang
       do iEdge = edgeStart,edgeEnd
          cell1 = cellsOnEdge(1,iEdge)
          cell2 = cellsOnEdge(2,iEdge)
          if (cell1 <= nCellsSolve .or. cell2 <= nCellsSolve) then
+GPUOMP !$omp parallel do simd
 !$acc loop vector  
            do k = 1, nVertLevels
                qtotal = 0.0
@@ -2555,9 +2649,12 @@ module atm_time_integration
                end do
                cqu(k,iEdge) = 1.0 / (1.0 + qtotal)
             end do
+GPUOMP !$omp end parallel do simd
          end if
       end do
 !$acc end parallel
+GPUOMP !$omp end target teams distribute !parallel do
+TMPOMP !$omp target update from(cqw,cqu,qtot,tend_ru_physics,tend_rtheta_physics,tend_rho_physics)
 !$acc end data
    end subroutine atm_compute_moist_coefficients_work
 
@@ -2628,6 +2725,11 @@ module atm_time_integration
       call mpas_pool_get_dimension(state, 'moist_end', moist_end)
 
 
+      !call atm_compute_vert_imp_coefs_work_test(nCells, moist_start, moist_end, dts, epssm, &
+      !                             zz, cqw, p, t, rb, rtb, pb, rt, cofwr, cofwz, coftz, cofwt, &
+      !                             a_tri, alpha_tri, gamma_tri, cofrz, rdzw, fzm, fzp, rdzu, scalars, &
+      !                             cellStart, cellEnd, edgeStart, edgeEnd, &
+      !                             cellSolveStart, cellSolveEnd, edgeSolveStart, edgeSolveEnd,qtot)
       call atm_compute_vert_imp_coefs_work(nCells, moist_start, moist_end, dts, epssm, &
                                    zz, cqw, p, t, rb, rtb, pb, rt, cofwr, cofwz, coftz, cofwt, &
                                    a_tri, alpha_tri, gamma_tri, cofrz, rdzw, fzm, fzp, rdzu, scalars, &
@@ -2688,7 +2790,10 @@ module atm_time_integration
       integer :: iCell, k, iq
       real (kind=RKIND) :: dtseps, c2, qtotal, rcv
       real (kind=RKIND), dimension( nVertLevels ,nCells+1) :: b_tri, c_tri
-
+GPUOMP !$omp target data map(alloc:b_tri,c_tri)
+TMPOMP !$omp target update to(cofrz, gamma_tri, a_tri, alpha_tri, &
+TMPOMP !$omp coftz, cofwr, cofwt, cofwz, &
+TMPOMP !$omp rdzw, cqw, fzm, fzp, p, pb, qtot, rb, rdzu, rt, rtb, t, zz)
 !$acc data present(cofrz, gamma_tri, a_tri, alpha_tri, &
 !$acc coftz, cofwr, cofwt, cofwz, &
 !$acc rdzw, cqw, fzm, fzp, p, pb, qtot, rb, rdzu, rt, rtb, t, zz)&
@@ -2700,32 +2805,39 @@ module atm_time_integration
       c2 = cp*rcv
 
 !$acc parallel num_workers(8) vector_length(32)
+GPUOMP !$omp target teams distribute parallel do simd thread_limit(64)
 !$acc loop vector
 ! MGD bad to have all threads setting this variable?
       do k=1,nVertLevels
          cofrz(k) = dtseps*rdzw(k)
       end do
 !$acc end parallel
+GPUOMP !$omp end target teams distribute parallel do simd
 
 
+GPUOMP !$omp target teams distribute parallel do simd collapse(2)
 !$acc parallel num_workers(8) vector_length(32)
 !$acc loop gang worker
       do iCell = cellSolveStart,cellSolveEnd  !  we only need to do cells we are solving for, not halo cells
 !DIR$ IVDEP
-         do k=2,nVertLevels
-            cofwr(k,iCell) =.5*dtseps*gravity*(fzm(k)*zz(k,iCell)+fzp(k)*zz(k-1,iCell))
-         end do
-         coftz(1,iCell) = 0.0
+         GPUACC do k=2,nVertLevels
+         GPUACC    cofwr(k,iCell) =.5*dtseps*gravity*(fzm(k)*zz(k,iCell)+fzp(k)*zz(k-1,iCell))
+         GPUACC end do
+         GPUACC coftz(1,iCell) = 0.0
 !DIR$ IVDEP
          do k=2,nVertLevels
+         GPUOMP    cofwr(k,iCell) =.5*dtseps*gravity*(fzm(k)*zz(k,iCell)+fzp(k)*zz(k-1,iCell))
             cofwz(k,iCell) = dtseps*c2*(fzm(k)*zz(k,iCell)+fzp(k)*zz(k-1,iCell))  &
                  *rdzu(k)*cqw(k,iCell)*(fzm(k)*p (k,iCell)+fzp(k)*p (k-1,iCell))
             coftz(k,iCell) = dtseps*   (fzm(k)*t (k,iCell)+fzp(k)*t (k-1,iCell))
          end do
+         GPUOMP coftz(1,iCell) = 0.0
          coftz(nVertLevels+1,iCell) = 0.0
         end do
 !$acc end parallel	  
+GPUOMP !$omp end target teams distribute parallel do simd
 
+GPUOMP !$omp target teams distribute parallel do simd private(qtotal) collapse(2)
 !$acc parallel num_workers(8) vector_length(32)
 !$acc loop gang worker private(qtotal)
         do iCell = cellSolveStart,cellSolveEnd
@@ -2740,7 +2852,9 @@ module atm_time_integration
          end do
         end do
 !$acc end parallel
+GPUOMP !$omp end target teams distribute parallel do simd
 
+GPUOMP !$omp target teams distribute parallel do simd
 !$acc parallel num_workers(8) vector_length(32)
 !$acc loop gang worker
         do iCell = cellSolveStart,cellSolveEnd
@@ -2751,11 +2865,16 @@ module atm_time_integration
          alpha_tri(1,iCell) = 0.  ! note, this value is never used
         enddo
 !$acc end parallel
+GPUOMP !$omp end target teams distribute parallel do simd
 
+!GPUOMP NOTE: Problematic subroutine below
+!GPUOMP !$omp target teams distribute parallel do thread_limit(64)
+GPUOMP !$omp target teams distribute thread_limit(64)
 !$acc parallel num_workers(8) vector_length(32)
 !$acc loop gang worker
         do iCell = cellSolveStart,cellSolveEnd
 !DIR$ IVDEP
+GPUOMP !$omp parallel do simd
          do k=2,nVertLevels
             a_tri(k,iCell) = -cofwz(k  ,iCell)* coftz(k-1,iCell)*rdzw(k-1)*zz(k-1,iCell)   &
                          +cofwr(k  ,iCell)* cofrz(k-1  )                       &
@@ -2770,19 +2889,25 @@ module atm_time_integration
                          -cofwr(k  ,iCell)* cofrz(k    )                       &
                          +cofwt(k  ,iCell)* coftz(k+1,iCell)*rdzw(k  )
          end do
+GPUOMP !$omp end parallel do simd
 !        end do
 !MGD VECTOR DEPENDENCE
 !        do iCell = cellSolveStart,cellSolveEnd
+GPUOMP !$omp parallel do simd
          do k=2,nVertLevels
             alpha_tri(k,iCell) = 1./(b_tri(k,iCell)-a_tri(k,iCell)*gamma_tri(k-1,iCell))
             gamma_tri(k,iCell) = c_tri(k,iCell)*alpha_tri(k,iCell)
          end do
+GPUOMP !$omp end parallel do simd
 
       end do ! loop over cells
 !$acc end parallel
+GPUOMP !$omp end target teams distribute !parallel do
+!GPUOMP NOTE: Problematic subroutine above
+TMPOMP !$omp target update from(cofrz,cofwz,cofwr,coftz,cofwt,a_tri,gamma_tri,alpha_tri)
 
 !$acc end data
-
+GPUOMP !$omp end target data
    end subroutine atm_compute_vert_imp_coefs_work
 
 
@@ -2941,9 +3066,14 @@ module atm_time_integration
       ! here we need to compute the omega tendency in a manner consistent with our diagnosis of omega.
       ! this requires us to use the same flux divergence as is used in the theta eqn - see Klemp et al MWR 2003.
 
+TMPOMP !$omp target update to(w_tend, &
+TMPOMP !$omp edgesoncell, edgesoncell_sign, fzm, fzp,nedgesoncell, u_tend, &
+TMPOMP !$omp zb3_cell, zb_cell, zz)
 !$acc data present(w_tend, &
 !$acc edgesoncell, edgesoncell_sign, fzm, fzp,nedgesoncell, u_tend, &
 !$acc zb3_cell, zb_cell, zz)
+!GPUOMP !$omp target teams distribute parallel do private(iEdge,flux) thread_limit(64)
+GPUOMP !$omp target teams distribute private(iEdge,flux) thread_limit(64)
 !$acc parallel num_workers(8) vector_length(32)
 !$acc loop gang worker private(iEdge, flux)
       do iCell=cellSolveStart,cellSolveEnd
@@ -2952,20 +3082,26 @@ module atm_time_integration
          do i=1,nEdgesOnCell(iCell)
             iEdge = edgesOnCell(i,iCell)
 !DIR$ IVDEP
+GPUOMP !$omp parallel do simd
             do k = 2, nVertLevels
                flux = edgesOnCell_sign(i,iCell) * (fzm(k) * u_tend(k,iEdge) + fzp(k) * u_tend(k-1,iEdge))
                w_tend(k,iCell) = w_tend(k,iCell)   &
                         - (zb_cell(k,i,iCell) + sign(1.0_RKIND, u_tend(k,iEdge)) * zb3_cell(k,i,iCell)) * flux
             end do
+GPUOMP !$omp end parallel do simd
          end do
 !DIR$ IVDEP
+GPUOMP !$omp parallel do simd
          do k = 2, nVertLevels
             w_tend(k,iCell) = ( fzm(k) * zz(k,iCell) + fzp(k) * zz(k-1,iCell)   ) * w_tend(k,iCell)
          end do
+GPUOMP !$omp end parallel do simd
          end if ! no conversion in specified zone
       end do
 !$acc end parallel
+GPUOMP !$omp end target teams distribute !parallel do
 !$acc end data
+TMPOMP !$omp target update from(w_tend)
 
    end subroutine atm_set_smlstep_pert_variables_work
 
@@ -3095,6 +3231,15 @@ module atm_time_integration
 !      call mpas_pool_get_config(configs, 'config_smdiv', smdiv) 
 !      call mpas_pool_get_config(configs, 'config_smdiv_p_forward', smdiv_p_forward) 
 
+      !call atm_advance_acoustic_step_work_test(nCells, nEdges, nCellsSolve, cellStart, cellEnd, vertexStart, vertexEnd, edgeStart, edgeEnd, &
+      !                             cellSolveStart, cellSolveEnd, vertexSolveStart, vertexSolveEnd, edgeSolveStart, edgeSolveEnd, &
+      !                             rho_zz, theta_m, ru_p, rw_p, rtheta_pp, rtheta_pp_old, zz, exner, cqu, ruAvg, wwAvg, &
+      !                             rho_pp, cofwt, coftz, zxu, a_tri, alpha_tri, gamma_tri, dss, tend_ru, tend_rho, tend_rt, &
+      !                             tend_rw, zgrid, cofwr, cofwz, w, ru, ru_save, rw, rw_save, fzm, fzp, rdzw, dcEdge, invDcEdge, &
+      !                             invAreaCell, cofrz, dvEdge, nEdgesOnCell, cellsOnEdge, edgesOnCell, edgesOnCell_sign, &
+      !                             dts, small_step, epssm, cf1, cf2, cf3, &
+      !                             specZoneMaskEdge, specZoneMaskCell &
+      !                             )
       call atm_advance_acoustic_step_work(nCells, nEdges, nCellsSolve, cellStart, cellEnd, vertexStart, vertexEnd, edgeStart, edgeEnd, &
                                    cellSolveStart, cellSolveEnd, vertexSolveStart, vertexSolveEnd, edgeSolveStart, edgeSolveEnd, &
                                    rho_zz, theta_m, ru_p, rw_p, rtheta_pp, rtheta_pp_old, zz, exner, cqu, ruAvg, wwAvg, &
@@ -3191,9 +3336,9 @@ module atm_time_integration
       !
       ! Local variables
       !
-      integer :: cell1, cell2, iEdge, iCell, i, k
+      integer :: cell1, cell2, iEdge, iCell, i, k, k1
       real (kind=RKIND) :: c2, rcv, rtheta_pp_tmp
-      real (kind=RKIND) :: pgrad, flux, resm, rdts
+      real (kind=RKIND) :: pgrad, flux, resm, rdts, k2
 
 
       rcv = rgas / (cp - rgas)
@@ -3208,13 +3353,22 @@ module atm_time_integration
 !$acc coftz, cofwr, cofwt, cofwz, dss, dvedge, edgesoncell, edgesoncell_sign, &
 !$acc fzm, fzp, gamma_tri, invareacell, nedgesoncell, rdzw, rho_zz, rw, &
 !$acc rw_save, tend_rho, tend_rt, tend_rw, theta_m, w)
+TMPOMP !$omp target update to(rtheta_pp, rtheta_pp_old, ru_p, ruavg, rho_pp, &
+TMPOMP !$omp rw_p, wwavg, &
+TMPOMP !$omp zz, cellsonedge, cqu, dcedge, exner, invdcedge, &
+TMPOMP !$omp tend_ru, zxu, tend_rho, a_tri, alpha_tri, cofrz, &
+TMPOMP !$omp coftz, cofwr, cofwt, cofwz, dss, dvedge, edgesoncell, edgesoncell_sign, &
+TMPOMP !$omp fzm, fzp, gamma_tri, invareacell, nedgesoncell, rdzw, rho_zz, rw, &
+TMPOMP !$omp rw_save, tend_rho, tend_rt, tend_rw, theta_m, w)
 
       if(small_step /= 1) then  !  not needed on first small step 
 
+GPUOMP !$omp target teams distribute parallel do simd collapse(2)
 !$acc parallel vector_length(32)
 !$acc loop gang
         do iEdge=edgeStart,edgeEnd ! MGD do we really just need edges touching owned cells?
-
+GPUOMP     do k=1,nVertLevels
+           
            cell1 = cellsOnEdge(1,iEdge)
            cell2 = cellsOnEdge(2,iEdge)
 
@@ -3222,31 +3376,36 @@ module atm_time_integration
            if (cell1 <= nCellsSolve .or. cell2 <= nCellsSolve ) then
 !DIR$ IVDEP
 !$acc loop vector
-              do k=1,nVertLevels
+              GPUACC do k=1,nVertLevels
                  pgrad = ((rtheta_pp(k,cell2)-rtheta_pp(k,cell1))*invDcEdge(iEdge) )/(.5*(zz(k,cell2)+zz(k,cell1)))
                  pgrad = cqu(k,iEdge)*0.5*c2*(exner(k,cell1)+exner(k,cell2))*pgrad
                  pgrad = pgrad + 0.5*zxu(k,iEdge)*gravity*(rho_pp(k,cell1)+rho_pp(k,cell2))
                  ru_p(k,iEdge) = ru_p(k,iEdge) + dts*(tend_ru(k,iEdge) - (1.0_RKIND - specZoneMaskEdge(iEdge))*pgrad)
-              end do
+                 GPUOMP ruAvg(k,iEdge) = ruAvg(k,iEdge) + ru_p(k,iEdge)
+              GPUACC end do
 
               ! accumulate ru_p for use later in scalar transport
 !DIR$ IVDEP
 !$acc loop vector
-              do k=1,nVertLevels
-                 ruAvg(k,iEdge) = ruAvg(k,iEdge) + ru_p(k,iEdge)
-              end do
+              GPUACC do k=1,nVertLevels
+              GPUACC    ruAvg(k,iEdge) = ruAvg(k,iEdge) + ru_p(k,iEdge)
+              GPUACC end do
 
            end if ! end test for block-owned cells
 
+GPUOMP  end do
         end do ! end loop over edges
 !$acc end parallel
+GPUOMP !$omp end target teams distribute parallel do simd
         end if
 
         if(small_step ==1) then
 !      else !  this is all that us needed for ru_p update for first acoustic step in RK substep
+GPUOMP !$omp target teams distribute parallel do simd collapse(2)
 !$acc parallel vector_length(32)
 !$acc loop gang
         do iEdge=edgeStart,edgeEnd ! MGD do we really just need edges touching owned cells?
+GPUOMP     do k=1,nVertLevels
 
            cell1 = cellsOnEdge(1,iEdge)
            cell2 = cellsOnEdge(2,iEdge)
@@ -3255,42 +3414,168 @@ module atm_time_integration
            if (cell1 <= nCellsSolve .or. cell2 <= nCellsSolve ) then
 !DIR$ IVDEP
 !$acc loop vector
-              do k=1,nVertLevels
+              GPUACC do k=1,nVertLevels
                  ru_p(k,iEdge) = dts*tend_ru(k,iEdge)
-              end do
+                 GPUOMP ruAvg(k,iEdge) = ru_p(k,iEdge)                 
+              GPUACC end do
 !DIR$ IVDEP
 !$acc loop vector
-              do k=1,nVertLevels
-!!                 ruAvg(k,iEdge) = ruAvg(k,iEdge) + ru_p(k,iEdge)
-                 ruAvg(k,iEdge) = ru_p(k,iEdge)                 
-              end do
+              GPUACC do k=1,nVertLevels
+!!                  ruAvg(k,iEdge) = ruAvg(k,iEdge) + ru_p(k,iEdge)
+              GPUACC    ruAvg(k,iEdge) = ru_p(k,iEdge)                 
+              GPUACC end do
 
            end if ! end test for block-owned cells
 
+GPUOMP  end do
         end do ! end loop over edges
 !$acc end parallel
+GPUOMP !$omp end target teams distribute parallel do simd
       end if ! test for first acoustic step
 
-!$OMP BARRIER
+CPUOMP !$OMP BARRIER
 
       if (small_step == 1) then  ! initialize here on first small timestep.
+GPUOMP !$omp target teams distribute parallel do simd collapse(2)
 !$acc parallel vector_length(32)
 !$acc loop gang vector
          do iCell=cellStart,cellEnd
-            rtheta_pp_old(1:nVertLevels,iCell) = 0.0
+            GPUACC rtheta_pp_old(1:nVertLevels,iCell) = 0.0
+            GPUOMP do k=1,nVertLevels
+            GPUOMP   rtheta_pp_old(k,iCell) = 0.0
+            GPUOMP enddo
          end do
 !$acc end parallel
+GPUOMP !$omp end target teams distribute parallel do simd
       else
+GPUOMP !$omp target teams distribute parallel do simd collapse(2)
 !$acc parallel vector_length(32)
 !$acc loop gang vector
         do iCell=cellStart,cellEnd
-           rtheta_pp_old(1:nVertLevels,iCell) = rtheta_pp(1:nVertLevels,iCell)
+           GPUACC rtheta_pp_old(1:nVertLevels,iCell) = rtheta_pp(1:nVertLevels,iCell)
+           GPUOMP do k=1,nVertLevels
+           GPUOMP    rtheta_pp_old(k,iCell) = rtheta_pp(k,iCell)
+           GPUOMP enddo
         end do
 !$acc end parallel
+GPUOMP !$omp end target teams distribute parallel do simd
       end if
 
 
 !!!OMP BARRIER -- not needed, since rtheta_pp_old not used below when small_step == 1
+#ifdef MPAS_AMD_OFFLOAD
+      if(small_step == 1) then  ! initialize here on first small timestep.
+GPUOMP !$omp target teams distribute parallel do thread_limit(64)
+      do iCell=cellSolveStart,cellSolveEnd
+         wwAvg(1:nVertLevels+1,iCell) = 0.0            
+         rho_pp(1:nVertLevels,iCell) = 0.0            
+         rtheta_pp(1:nVertLevels,iCell) = 0.0            
+!MGD moved to loop above over all cells
+!            rtheta_pp_old(1:nVertLevels,iCell) = 0.0
+         rw_p(:,iCell) = 0.0
+      end do
+GPUOMP !$omp end target teams distribute parallel do
+      end if
+
+GPUOMP !$omp target teams distribute private(rs,ts,k1,k2) thread_limit(64)
+      do iCell=cellsolveStart,cellSolveEnd
+         if (specZoneMaskCell(iCell) == 0.0) then
+GPUOMP !$omp parallel do simd
+            do k=1,nVertLevels
+               ts(k) = 0.0
+               rs(k) = 0.0
+            end do
+GPUOMP !$omp end parallel do simd
+            do i=1,nEdgesOnCell(iCell)
+               iEdge = edgesOnCell(i,iCell)
+               cell1 = cellsOnEdge(1,iEdge)
+               cell2 = cellsOnEdge(2,iEdge)
+GPUOMP !$omp parallel do simd
+               do k=1,nVertLevels
+                  flux = edgesOnCell_sign(i,iCell)*dts*dvEdge(iEdge)*ru_p(k,iEdge) * invAreaCell(iCell)
+                  rs(k) = rs(k)-flux
+                  ts(k) = ts(k)-flux*0.5*(theta_m(k,cell2)+theta_m(k,cell1))
+               end do
+GPUOMP !$omp end parallel do simd
+            end do
+GPUOMP !$omp parallel do simd
+            do k=1,nVertLevels
+               rs(k) = rho_pp(k,iCell) + dts*tend_rho(k,iCell) + rs(k)                  &
+                               - cofrz(k)*resm*(rw_p(k+1,iCell)-rw_p(k,iCell)) 
+               ts(k) = rtheta_pp(k,iCell) + dts*tend_rt(k,iCell) + ts(k)                &
+                                  - resm*rdzw(k)*( coftz(k+1,iCell)*rw_p(k+1,iCell)     &
+                                                  -coftz(k,iCell)*rw_p(k,iCell))
+            end do
+GPUOMP !$omp end parallel do simd
+GPUOMP !$omp parallel do simd
+            do k=1,nVertLevels
+               k1 = max(k-1,1)
+               k2 = merge(1,0,k>1)
+               wwavg(k,iCell) = wwavg(k,iCell) + k2*0.5*(1.0-epssm)*rw_p(k,iCell)
+               rw_p(k,iCell) = rw_p(k,iCell) +  k2*(dts*tend_rw(k,iCell)                   &
+                          - cofwz(k,iCell)*((zz(k  ,iCell)*ts(k)                           &
+                                        -zz(k1,iCell)*ts(k1))                            &
+                                  +resm*(zz(k  ,iCell)*rtheta_pp(k  ,iCell)                &
+                                        -zz(k1,iCell)*rtheta_pp(k1,iCell)))              &
+                          - cofwr(k,iCell)*((rs(k)+rs(k1))                                &
+                                  +resm*(rho_pp(k,iCell)+rho_pp(k1,iCell)))               &
+                          + cofwt(k  ,iCell)*(ts(k)+resm*rtheta_pp(k  ,iCell))           &
+                          + cofwt(k1,iCell)*(ts(k1)+resm*rtheta_pp(k1,iCell)))
+            end do
+GPUOMP !$omp end parallel do simd
+GPUOMP !$omp parallel do simd
+            do k=1,nVertLevels
+               ! Store local arrays
+               rho_pp(k,iCell) = rs(k)
+               rtheta_pp(k,iCell) = ts(k)
+            end do
+GPUOMP !$omp end parallel do simd
+         else
+GPUOMP !$omp parallel do simd
+            do k=1,nVertLevels
+               rho_pp(k,iCell) = rho_pp(k,iCell) + dts*tend_rho(k,iCell)
+               rtheta_pp(k,iCell) = rtheta_pp(k,iCell) + dts*tend_rt(k,iCell)
+               rw_p(k,iCell) = rw_p(k,iCell) + dts*tend_rw(k,iCell)
+               wwAvg(k,iCell) = wwAvg(k,iCell) + 0.5*(1.0+epssm)*rw_p(k,iCell)
+            end do
+GPUOMP !$omp end parallel do simd
+         endif
+      end do
+GPUOMP !$omp end target teams distribute !parallel do
+GPUOMP !$omp target teams distribute parallel do simd thread_limit(128)
+      do iCell=cellsolveStart,cellSolveEnd
+         if(specZoneMaskCell(iCell) == 0.0) then  ! not specified zone, compute...
+            do k=2,nVertLevels
+               rw_p(k,iCell) = (rw_p(k,iCell)-a_tri(k,iCell)*rw_p(k-1,iCell))*alpha_tri(k,iCell)
+            end do
+            do k=nVertLevels,1,-1
+               rw_p(k,iCell) = rw_p(k,iCell) - gamma_tri(k,iCell)*rw_p(k+1,iCell)     
+            end do
+         endif
+      end do
+GPUOMP !$omp end target teams distribute parallel do simd
+
+GPUOMP !$omp target teams distribute parallel do simd collapse(2)
+!$acc loop vector
+      do iCell=cellSolveStart,cellSolveEnd
+         do k=1,nVertLevels
+            if(specZoneMaskCell(iCell) == 0.0) then  ! not specified zone, compute...
+                k1 = max(k-1,1)
+                k2 = merge(1,0,k>1)
+                rw_p(k,iCell) = (rw_p(k,iCell) +k2*((rw_save(k  ,iCell) - rw(k  ,iCell)) -dts*dss(k,iCell)*               &
+                            (fzm(k)*zz (k,iCell)+fzp(k)*zz (k1,iCell))        &
+                            *(fzm(k)*rho_zz(k,iCell)+fzp(k)*rho_zz(k1,iCell))       &
+                                     *w(k,iCell)    ))/(1.0+k2*dts*dss(k,iCell)) &
+                             - (rw_save(k  ,iCell) - rw(k  ,iCell))
+                wwAvg(k,iCell) = wwAvg(k,iCell) + 0.5*(1.0+epssm)*rw_p(k,iCell)
+                rho_pp(k,iCell) = rho_pp(k,iCell) - cofrz(k) *(rw_p(k+1,iCell)-rw_p(k  ,iCell))
+                rtheta_pp(k,iCell) = rtheta_pp(k,iCell) - rdzw(k)*(coftz(k+1,iCell)*rw_p(k+1,iCell)  &
+                                   -coftz(k  ,iCell)*rw_p(k  ,iCell))
+            endif
+         end do
+      end do
+GPUOMP !$omp end target teams distribute parallel do simd
+#else
 !$acc parallel vector_length(32)
 !$acc loop gang private(ts, rs)
       do iCell=cellSolveStart,cellSolveEnd  ! loop over all owned cells to solve
@@ -3315,7 +3600,6 @@ module atm_time_integration
          end do
 
 !$acc loop seq
-
          do i=1,nEdgesOnCell(iCell) 
             iEdge = edgesOnCell(i,iCell)
             cell1 = cellsOnEdge(1,iEdge)
@@ -3416,7 +3700,9 @@ module atm_time_integration
 
       end do !  end of loop over cells
 !$acc end parallel
+#endif
 !$acc end data
+TMPOMP !$omp target update from(rtheta_pp,rtheta_pp_old,ru_p,ruavg,rho_pp,rw_p,wwavg)
    end subroutine atm_advance_acoustic_step_work
 
    subroutine atm_divergence_damping_3d( state, diag, mesh, configs, dts, edgeStart, edgeEnd )
@@ -3498,18 +3784,23 @@ module atm_time_integration
 
 !$acc data present(rtheta_pp, rtheta_pp_old, &
 !$acc ru_p, theta_m, cellsOnEdge, specZoneMaskEdge)
+TMPOMP !$omp target update to(rtheta_pp, rtheta_pp_old, &
+TMPOMP !$omp ru_p, theta_m, cellsOnEdge, specZoneMaskEdge)
+GPUOMP !$omp target teams distribute parallel do simd collapse(2) &
+GPUOMP !$omp private(cell1, cell2, divCell1, divCell2)
 !$acc parallel num_workers(8) vector_length(16)
 !$acc loop gang worker private(cell1, cell2, divCell1, divCell2)
       do iEdge=edgeStart,edgeEnd ! MGD do we really just need edges touching owned cells?
 
+            GPUOMP do k=1,nVertLevels
          cell1 = cellsOnEdge(1,iEdge)
          cell2 = cellsOnEdge(2,iEdge)
-
+         
          ! update edges for block-owned cells
          if (cell1 <= nCellsSolve .or. cell2 <= nCellsSolve ) then
 
 !DIR$ IVDEP
-            do k=1,nVertLevels
+            GPUACC do k=1,nVertLevels
 
 !!  unscaled 3d divergence damping
 !!               divCell1 = -(rtheta_pp(k,cell1)-rtheta_pp_old(k,cell1))*rdts
@@ -3523,10 +3814,13 @@ module atm_time_integration
                ru_p(k,iEdge) = ru_p(k,iEdge) + coef_divdamp*(divCell2-divCell1)*(1.0_RKIND - specZoneMaskEdge(iEdge)) &
                                                       /(theta_m(k,cell1)+theta_m(k,cell2))
 
-            end do
+            GPUACC end do
          end if ! edges for block-owned cells
+         GPUOMP end do
       end do ! end loop over edges
 !$acc end parallel
+GPUOMP !$omp end target teams distribute parallel do simd
+TMPOMP !$omp target update from(ru_p)
 !$acc end data
 
    end subroutine atm_divergence_damping_3d_work
@@ -3721,6 +4015,12 @@ module atm_time_integration
       rcv = rgas/(cp-rgas)
       p0 = 1.0e+05  ! this should come from somewhere else...
 
+TMPOMP !$omp target update to(rho_zz, exner, pressure_p, rho_p, rtheta_p, rw, theta_m, w, &
+TMPOMP !$omp wwavg, ru, ruavg, u, &
+TMPOMP !$omp exner_base, fzm, fzp, rho_base, rho_p_save, rho_pp, rt_diabatic_tend, &
+TMPOMP !$omp rtheta_base, rtheta_p_save, rtheta_pp, rw_p, rw_save, zz, cellsonedge, &
+TMPOMP !$omp ru_p, ru_save, edgesoncell, edgesoncell_sign, nedgesoncell, zb3_cell, &
+TMPOMP !$omp zb_cell)
 !$acc data present(rho_zz, exner, pressure_p, rho_p, rtheta_p, rw, theta_m, w, &
 !$acc wwavg, ru, ruavg, u, &
 !$acc exner_base, fzm, fzp, rho_base, rho_p_save, rho_pp, rt_diabatic_tend, &
@@ -3730,17 +4030,20 @@ module atm_time_integration
 
       ! Avoid FP errors caused by a potential division by zero below by 
       ! initializing the "garbage cell" of rho_zz to a non-zero value
+GPUOMP !$omp target teams distribute parallel do simd thread_limit(64)
 !$acc parallel num_workers(8) vector_length(32)
 !$acc loop vector
       do k=1,nVertLevels
          rho_zz(k,nCells+1) = 1.0
       end do
 !$acc end parallel
+GPUOMP !$omp end target teams distribute parallel do simd
       ! compute new density everywhere so we can compute u from ru.
       ! we will also need it to compute theta_m below
 
       invNs = 1 / real(ns,RKIND)
 
+GPUOMP !$omp target teams distribute parallel do simd collapse(2)
 !$acc parallel num_workers(8) vector_length(32)
 !$acc loop gang worker
       do iCell=cellStart,cellEnd
@@ -3755,7 +4058,9 @@ module atm_time_integration
          w(1,iCell) = 0.0
         end do
 !$acc end parallel
+GPUOMP !$omp end target teams distribute parallel do simd
 
+GPUOMP !$omp target teams distribute parallel do simd collapse(2)
 !$acc parallel num_workers(8) vector_length(32)
 !$acc loop gang worker
         do iCell=cellStart,cellEnd
@@ -3772,9 +4077,11 @@ module atm_time_integration
          w(nVertLevels+1,iCell) = 0.0
         end do
 !$acc end parallel
+GPUOMP !$omp end target teams distribute parallel do simd
 
 
          if (rk_step == 3) then
+GPUOMP !$omp target teams distribute parallel do simd collapse(2)
 !$acc parallel num_workers(8) vector_length(32)
 !$acc loop gang worker collapse(2)
         do iCell=cellStart,cellEnd
@@ -3790,10 +4097,12 @@ module atm_time_integration
             end do
         end do
 !$acc end parallel
+GPUOMP !$omp end target teams distribute parallel do simd
         end if
 
         if (rk_step /= 3) then
 !         else
+GPUOMP !$omp target teams distribute parallel do simd collapse(2)
 !$acc parallel num_workers(8) vector_length(32)
 !$acc loop gang worker collapse(2)
         do iCell=cellStart,cellEnd
@@ -3804,6 +4113,7 @@ module atm_time_integration
             end do
       end do
 !$acc end parallel
+GPUOMP !$omp end target teams distribute parallel do simd
          end if
 
 
@@ -3811,24 +4121,29 @@ module atm_time_integration
       ! we solved for these in the acoustic-step loop.  
       ! we will compute ru and u here also, given we are here, even though we only need them on nEdgesSolve
 
-!$OMP BARRIER
+CPUOMP !$OMP BARRIER
 
+GPUOMP !$omp target teams distribute parallel do simd collapse(2) private(cell1,cell2)
 !$acc parallel num_workers(8) vector_length(32)
 !$acc loop gang worker private(cell1, cell2)
       do iEdge=edgeStart,edgeEnd
+         GPUOMP do k = 1, nVertLevels
 
          cell1 = cellsOnEdge(1,iEdge)
          cell2 = cellsOnEdge(2,iEdge)
 
 !DIR$ IVDEP
-         do k = 1, nVertLevels
+         GPUACC do k = 1, nVertLevels
             ruAvg(k,iEdge) = ru_save(k,iEdge) + (ruAvg(k,iEdge) * invNs)
             ru(k,iEdge) = ru_save(k,iEdge) + ru_p(k,iEdge)
             u(k,iEdge) = 2.*ru(k,iEdge)/(rho_zz(k,cell1)+rho_zz(k,cell2))
          end do
       end do
 !$acc end parallel
-!$OMP BARRIER
+GPUOMP !$omp end target teams distribute parallel do simd
+CPUOMP !$OMP BARRIER
+!GPUOMP !$omp target teams distribute parallel do private(iEdge,flux) thread_limit(64)
+GPUOMP !$omp target teams distribute private(iEdge,flux) thread_limit(64)
 !$acc parallel num_workers(8) vector_length(32)
 !$acc loop gang worker private(iEdge, flux)
       do iCell=cellStart,cellEnd
@@ -3847,11 +4162,13 @@ module atm_time_integration
                                    (zb_cell(1,i,iCell) + sign(1.0_RKIND,flux)*zb3_cell(1,i,iCell))*flux
 
 !DIR$ IVDEP
+GPUOMP !$omp parallel do simd
             do k = 2, nVertLevels
                flux = (fzm(k)*ru(k,iEdge)+fzp(k)*ru(k-1,iEdge))
                w(k,iCell) = w(k,iCell) + edgesOnCell_sign(i,iCell) * &
                                     (zb_cell(k,i,iCell)+sign(1.0_RKIND,flux)*zb3_cell(k,i,iCell))*flux
             end do
+GPUOMP !$omp end parallel do simd
 
          end do
 
@@ -3859,14 +4176,18 @@ module atm_time_integration
 
 
          !DIR$ IVDEP
+GPUOMP !$omp parallel do simd
          do k = 2, nVertLevels
            w(k,iCell) = w(k,iCell)/(fzm(k)*rho_zz(k,iCell)+fzp(k)*rho_zz(k-1,iCell))
          end do
+GPUOMP !$omp end parallel do simd
 
          end if ! addition for regional_MPAS, no spec zone update
 
       end do
 !$acc end parallel
+GPUOMP !$omp end target teams distribute !parallel do
+TMPOMP !$omp target update from(rho_zz,rho_p,w,wwAvg,rw,u,ruAvg,ru,rtheta_p,theta_m,exner,pressure_p)
 !$acc end data
    end subroutine atm_recover_large_step_variables_work
 
@@ -4125,6 +4446,13 @@ module atm_time_integration
       end if
       weight_time_old = 1. - weight_time_new
 
+!GPUOMP NOTE: this subroutine atm_advance_scalars_work untested!
+TMPOMP !$omp target update to(adv_coefs, uhAvg, adv_coefs_3rd, &
+TMPOMP !$omp advCellsForEdge, scalar_new, &
+TMPOMP !$omp scalar_tend_save,horiz_flux_arr,edgesoncell_sign, &
+TMPOMP !$omp invAreaCell, wwAvg, fnm, fnp,edgesoncell,scalar_old, &
+TMPOMP !$omp nadvcellsforedge, rho_zz_old, rho_zz_new, &
+TMPOMP !$omp nEdgesOnCell,rdnw,bdyMaskCell,bdyMaskEdge,cellsOnEdge,dvEdge,edgesOnCell)
 !$acc data present(adv_coefs, uhAvg, adv_coefs_3rd, &
 !$acc advCellsForEdge, scalar_new, &
 !$acc scalar_tend_save,horiz_flux_arr,edgesoncell_sign, &
@@ -4132,6 +4460,7 @@ module atm_time_integration
 !$acc nadvcellsforedge, rho_zz_old, rho_zz_new, &
 !$acc nEdgesOnCell,rdnw,bdyMaskCell,bdyMaskEdge,cellsOnEdge,dvEdge,edgesOnCell)
 
+GPUOMP !$omp target teams distribute parallel do private(scalar_weight2,ica,iAdvCell,cell1,cell2)
 !$acc parallel vector_length(32)
 !$acc loop gang private(scalar_weight2,ica,iAdvCell,cell1,cell2)
       do iEdge=edgeStart,edgeEnd
@@ -4223,11 +4552,13 @@ module atm_time_integration
 
       end do
 !$acc end parallel
+GPUOMP !$omp end target teams distribute parallel do
 
-!$OMP BARRIER
+CPUOMP !$OMP BARRIER
 
 !  scalar update, for each column sum fluxes over horizontal edges, add physics tendency, and add vertical flux divergence in update.
 
+GPUOMP !$omp target teams distribute parallel do private(scalar_tend_column,iEdge,wdtn)
 !$acc parallel vector_length(32)
 !$acc loop gang private(scalar_tend_column,iEdge,wdtn)
       do iCell=cellSolveStart,cellSolveEnd
@@ -4324,6 +4655,8 @@ module atm_time_integration
 
       end do
 !$acc end parallel
+GPUOMP !$omp end target teams distribute parallel do
+TMPOMP !$omp target update from(scalar_new,wdtn,scalar_tend_column,scalar_tend_save,horiz_flux_arr)
 !$acc end data
 
    end subroutine atm_advance_scalars_work
@@ -4557,6 +4890,15 @@ module atm_time_integration
       !  Note, however, that we enforce positive-definiteness in this update.
       !  The transport will maintain this positive definite solution and optionally, shape preservation (monotonicity).
 
+!GPUOMP NOTE: this subroutine atm_advance_scalars_mono_work is untested
+TMPOMP !$omp target update to(uhAvg,wwAvg,scalar_tend, &
+TMPOMP !$omp rho_zz_old,rho_zz_new,scalars_old, &
+TMPOMP !$omp invAreaCell,dvEdge,cellsOnEdge,cellsOnCell, &
+TMPOMP !$omp edgesOnCell,edgesOnCell_sign,nEdgesOnCell,fnm, &
+TMPOMP !$omp fnp,rdnw,nAdvCellsForEdge,advCellsForEdge,adv_coefs, &
+TMPOMP !$omp adv_coefs_3rd, scalars_new, flux_arr, rho_zz_int, &
+TMPOMP !$omp scalar_new, wdtn, scale_arr, scalar_old, flux_upwind_tmp, &
+TMPOMP !$omp s_min, s_max, flux_tmp, bdyMaskCell, bdyMaskEdge)
 !$acc data present(uhAvg,wwAvg,scalar_tend, &
 !$acc rho_zz_old,rho_zz_new,scalars_old, &
 !$acc invAreaCell,dvEdge,cellsOnEdge,cellsOnCell, &
@@ -4566,6 +4908,7 @@ module atm_time_integration
 !$acc scalar_new, wdtn, scale_arr, scalar_old, flux_upwind_tmp, &
 !$acc s_min, s_max, flux_tmp, bdyMaskCell, bdyMaskEdge)
 
+GPUOMP !$omp target teams distribute parallel do collapse(3)
 !$acc parallel vector_length(128)
 !$acc loop gang vector collapse(3)
 
@@ -4586,15 +4929,16 @@ module atm_time_integration
       end do
       end do
 !$acc end parallel
+GPUOMP !$omp end target teams distribute parallel do
 
-!$OMP BARRIER
-!$OMP MASTER
+CPUOMP !$OMP BARRIER
+CPUOMP !$OMP MASTER
       call mpas_dmpar_exch_halo_acc(scalars_old, compactHaloInfo_c_v_s, sendList_c_v_s, recvList_c_v_s, gpu_bufferOffset_send_c_v_s, &
                                      gpu_nList_send_c_v_s, gpu_idx_send_c_v_s, gpu_bufferOffset_recv_c_v_s, gpu_nList_recv_c_v_s,&
                                      gpu_idx_recv_c_v_s, gpu_dimsizes_c_v_s, gpu_nHaloLayers_c_v_s, gpu_send_size_c_v_s, gpu_recv_size_c_v_s,&
                                      gpu_compactHaloInfoSize_c_v_s, num_scalars, nVertLevels, nCells+1)
-!$OMP END MASTER
-!$OMP BARRIER
+CPUOMP !$OMP END MASTER
+CPUOMP !$OMP BARRIER
 
 
       !
@@ -4607,6 +4951,7 @@ module atm_time_integration
          end if
 
          !  begin with update of density
+GPUOMP !$omp target teams distribute parallel do collapse(2)
 !$acc parallel vector_length(128)
 !$acc loop gang vector collapse(2)
          do iCell=cellStart,cellEnd
@@ -4615,8 +4960,10 @@ module atm_time_integration
          end do
          end do
 !$acc end parallel
+GPUOMP !$omp end target teams distribute parallel do
 
-!$OMP BARRIER
+CPUOMP !$OMP BARRIER
+GPUOMP !$omp target teams distribute parallel do collapse(2) private(iEdge)
 !$acc parallel vector_length(32)
 !$acc loop gang vector collapse(2) private(iEdge)
          do iCell=cellSolveStart,cellSolveEnd
@@ -4636,7 +4983,9 @@ module atm_time_integration
             end do
          end do
 !$acc end parallel
+GPUOMP !$omp end target teams distribute parallel do
 
+GPUOMP !$omp target teams distribute parallel do collapse(2)
 !$acc parallel vector_length(128)
 !$acc loop gang vector collapse(2)
          do iCell=cellSolveStart,cellSolveEnd
@@ -4645,13 +4994,15 @@ module atm_time_integration
                rho_zz_int(k,iCell) = rho_zz_old(k,iCell) + dt*( rho_zz_int(k,iCell) - rdnw(k)*(wwAvg(k+1,iCell)-wwAvg(k,iCell)) )
             end do
          end do
-!$OMP BARRIER
+GPUOMP !$omp end target teams distribute parallel do
+CPUOMP !$OMP BARRIER
 !$acc end parallel
       end if
 
       ! next, do one scalar at a time
 
       do iScalar = 1, num_scalars
+GPUOMP !$omp target teams distribute parallel do collapse(2)
 !$acc parallel vector_length(128)
 !$acc loop gang vector collapse(2)
          do iCell=cellStart,cellEnd
@@ -4662,8 +5013,10 @@ module atm_time_integration
             end do
          end do
 !$acc end parallel
+GPUOMP !$omp end target teams distribute parallel do
 
 ! ***** TEMPORARY TEST ******* WCS 20161012
+GPUOMP !$omp target teams distribute parallel do
 !$acc parallel vector_length(64)
 !$acc loop gang vector
             do k=1,nVertLevels
@@ -4671,8 +5024,9 @@ module atm_time_integration
                scalar_new(k,nCells+1) = 0.
             end do
 !$acc end parallel
+GPUOMP !$omp end target teams distribute parallel do
 
-!$OMP BARRIER
+CPUOMP !$OMP BARRIER
 
 #ifdef DEBUG_TRANSPORT
          scmin = scalar_old(1,1)
@@ -4704,6 +5058,7 @@ module atm_time_integration
          !
          !  vertical flux divergence, and min and max bounds for flux limiter
          !
+GPUOMP !$omp target teams distribute parallel do
 !$acc parallel vector_length(32)
 !$acc loop gang
          do iCell=cellSolveStart,cellSolveEnd
@@ -4777,11 +5132,13 @@ module atm_time_integration
 
          end do
 !$acc end parallel
-!$OMP BARRIER
+GPUOMP !$omp end target teams distribute parallel do
+CPUOMP !$OMP BARRIER
 
          !
          !  horizontal flux divergence
          !
+GPUOMP !$omp target teams distribute parallel do private(cell1,cell2,ica,swa,iCell)
 !$acc parallel vector_length(32)
 !$acc loop gang private(cell1, cell2,ica,swa,iCell)
          do iEdge=edgeStart,edgeEnd
@@ -4834,11 +5191,13 @@ module atm_time_integration
 
          end do
 !$acc end parallel
-!$OMP BARRIER
+GPUOMP !$omp end target teams distribute parallel do
+CPUOMP !$OMP BARRIER
 
          !
          !  vertical flux divergence for upwind update, we will put upwind update into scalar_new, and put factor of dt in fluxes
          !
+GPUOMP !$omp target teams distribute parallel do
 !$acc parallel vector_length(32)
 !$acc loop gang private(flux_upwind_arr)
          do iCell=cellSolveStart,cellSolveEnd
@@ -4878,11 +5237,13 @@ module atm_time_integration
 
          end do
 !$acc end parallel
+GPUOMP !$omp end target teams distribute parallel do
          !
          !  horizontal flux divergence for upwind update
          !
 
          !  upwind flux computation
+GPUOMP !$omp target teams distribute parallel do
 !$acc parallel vector_length(64)
 !$acc loop gang
          do iEdge=edgeStart,edgeEnd
@@ -4908,7 +5269,9 @@ module atm_time_integration
 
          end do
 !$acc end parallel
-!$OMP BARRIER
+GPUOMP !$omp end target teams distribute parallel do
+CPUOMP !$OMP BARRIER
+GPUOMP !$omp target teams distribute parallel do collapse(2) private(iEdge)
 !$acc parallel vector_length(128)
 !$acc loop gang vector collapse(2) private(iEdge)
          do iCell=cellSolveStart,cellSolveEnd
@@ -4932,6 +5295,7 @@ module atm_time_integration
             end do
          end do
 !$acc end parallel
+GPUOMP !$omp end target teams distribute parallel do
          !
          !  next, the limiter
          !
@@ -4940,6 +5304,7 @@ module atm_time_integration
          ! worked through algebra and found equivalent form
          ! added benefit that it should address ifort single prec overflow issue
       if (local_advance_density) then
+GPUOMP !$omp target teams distribute parallel do collapse(2) private(scale_factor)
 !$acc parallel vector_length(128)
 !$acc loop gang vector collapse(2) private(scale_factor)
          do iCell=cellSolveStart,cellSolveEnd
@@ -4956,7 +5321,9 @@ module atm_time_integration
             end do
          end do
 !$acc end parallel
+GPUOMP !$omp end target teams distribute parallel do
       else
+GPUOMP !$omp target teams distribute parallel do collapse(2) private(scale_factor)
 !$acc parallel vector_length(128)
 !$acc loop gang vector collapse(2) private(scale_factor)
          do iCell=cellSolveStart,cellSolveEnd
@@ -4973,23 +5340,25 @@ module atm_time_integration
             end do
          end do
 !$acc end parallel
+GPUOMP !$omp end target teams distribute parallel do
       end if
 
          !
          !  communicate scale factors here.
          !  communicate only first halo row in these next two exchanges
          !
-!$OMP BARRIER
-!$OMP MASTER
+CPUOMP !$OMP BARRIER
+CPUOMP !$OMP MASTER
 !MGDHALO         call mpas_dmpar_exch_halo_acc(scale_arr, compactHaloInfo_c_2_v, sendList_c_2_v, recvList_c_2_v, (/ 1 /))
          call mpas_dmpar_exch_halo_acc(scale_arr, compactHaloInfo_c_2_v, sendList_c_2_v, recvList_c_2_v, gpu_bufferOffset_send_c_2_v, &
                                        gpu_nList_send_c_2_v, gpu_idx_send_c_2_v, gpu_bufferOffset_recv_c_2_v, gpu_nList_recv_c_2_v,&
                                        gpu_idx_recv_c_2_v, gpu_dimsizes_c_2_v, gpu_nHaloLayers_c_2_v, gpu_send_size_c_2_v, gpu_recv_size_c_2_v,&
                                        gpu_compactHaloInfoSize_c_2_v, nVertLevels, 2, nCells+1 )
-!$OMP END MASTER
-!$OMP BARRIER
+CPUOMP !$OMP END MASTER
+CPUOMP !$OMP BARRIER
 
 
+GPUOMP !$omp target teams distribute parallel do private(cell1,cell2)
 !$acc parallel vector_length(32)
 !$acc loop gang worker private(cell1,cell2)
          do iEdge=edgeStart,edgeEnd
@@ -5014,12 +5383,14 @@ module atm_time_integration
             end if
          end do
 !$acc end parallel
+GPUOMP !$omp end target teams distribute parallel do
          !
          !  rescale the fluxes
          !
 
          ! moved assignment to scalar_new from separate loop (see commented code below)
          ! into the following loops. Avoids having to save elements of flux array
+GPUOMP !$omp target teams distribute parallel do private(cell1,cell2)
 !$acc parallel vector_length(32)
 !$acc loop gang worker private(cell1, cell2)
          do iEdge=edgeStart,edgeEnd
@@ -5037,11 +5408,13 @@ module atm_time_integration
             end if
          end do
 !$acc end parallel
- 
+GPUOMP !$omp end target teams distribute parallel do
+
         !
         ! rescale the vertical flux
         !
-!$OMP BARRIER
+CPUOMP !$OMP BARRIER
+GPUOMP !$omp target teams distribute parallel do private(flux)
 !$acc parallel vector_length(128)
 !$acc loop gang vector collapse(2) private(flux)
          do iCell=cellSolveStart,cellSolveEnd
@@ -5054,10 +5427,12 @@ module atm_time_integration
             end do
          end do
 !$acc end parallel
+GPUOMP !$omp end target teams distribute parallel do
 
          !
          !  do the scalar update now that we have the fluxes
          !
+GPUOMP !$omp target teams distribute parallel do
 !$acc parallel vector_length(32)
 !$acc loop gang
          do iCell=cellSolveStart,cellSolveEnd
@@ -5089,6 +5464,7 @@ module atm_time_integration
       end if
          end do
 !$acc end parallel
+GPUOMP !$omp end target teams distribute parallel do
 #ifdef DEBUG_TRANSPORT
          scmin = scalar_new(1,1)
          scmax = scalar_new(1,1)
@@ -5113,7 +5489,7 @@ module atm_time_integration
 
          ! the update should be positive definite. but roundoff can sometimes leave small negative values
          ! hence the enforcement of PD in the copy back to the model state.
-!$OMP BARRIER
+CPUOMP !$OMP BARRIER
 #if 0
 !!!
 !!! MGD OPENACC TO DO: here is the original code that we can probably handle
@@ -5132,6 +5508,7 @@ module atm_time_integration
 !$acc end parallel
       end do !  loop over scalars
 #else
+GPUOMP !$omp target teams distribute parallel do
 !$acc parallel vector_length(64)
 !$acc loop gang
          do iCell=cellStart,cellEnd
@@ -5143,9 +5520,11 @@ module atm_time_integration
             end if
          end do
 !$acc end parallel
+GPUOMP !$omp end target teams distribute parallel do
       end do !  loop over scalars
 #endif
-
+TMPOMP !$omp target update from(scalars_old,scalar_tend,rho_zz_int,scalar_old,scalar_new,wdtn,s_max,s_min,flux_arr,&
+TMPOMP !$omp flux_upwind_tmp,flux_tmp,flux_arr,scale_arr,scalars_new)
 !$acc end data
    end subroutine atm_advance_scalars_mono_work
 
@@ -5390,12 +5769,15 @@ module atm_time_integration
          !rthdynten(:,nCells+1) = 0.0_RKIND\
          inactive_rthdynten = .true.
       end if
+GPUOMP !$omp target data map(alloc:rthdynten)
+GPUOMP !$omp target teams distribute parallel do thread_limit(64)
       !$acc data create(rthdynten)
       !$acc kernels
       do temp1=1,nVertLevels
            rthdynten(temp1,temp_nCells+1) = 0.0_RKIND
       end do
       !$acc end kernels
+GPUOMP !$omp end target teams distribute parallel do
  
       if(rk_step == 1) then
 
@@ -5445,6 +5827,7 @@ module atm_time_integration
 	  end if 
 	  
       !$acc end data
+GPUOMP !$omp end target data
       if (inactive_rthdynten) then
          deallocate(rthdynten)
       end if
@@ -5660,6 +6043,20 @@ module atm_time_integration
 !$acc adv_coefs_3rd, advcellsforedge, nadvcellsforedge, w, cqw, rdzu, rho_zz, &
 !$acc theta_m, theta_m_save, rt_diabatic_tend, tend_rtheta_physics, t_init, &
 !$acc rw_save,tend_rtheta_adv,rthdynten)
+TMPOMP !$omp target update to(kdiff, h_divergence, dpdz, tend_rho, tend_u_euler, &
+TMPOMP !$omp tend_u, delsq_u, delsq_vorticity, delsq_divergence, &
+TMPOMP !$omp tend_w, delsq_w, tend_w_euler, tend_theta, &
+TMPOMP !$omp delsq_theta, tend_theta_euler, &
+TMPOMP !$omp defc_a, defc_b, edgesoncell, nedgesoncell, u, v, &
+TMPOMP !$omp dvedge, edgesoncell_sign, invareacell, ru, qtot, rb, rdzw, rr_save, rw, &
+TMPOMP !$omp tend_rho_physics, cellsonedge, cqu, invdcedge, pp, zxu, zz, &
+TMPOMP !$omp fzm, fzp, edgesonedge, ke, nedgesonedge, pv_edge, rho_edge, weightsonedge, &
+TMPOMP !$omp divergence, invdvedge, meshscalingdel2, verticesonedge, vorticity, &
+TMPOMP !$omp dcedge, edgesonvertex, edgesonvertex_sign, invareatriangle, &
+TMPOMP !$omp meshscalingdel4, zgrid, angleedge, u_init, tend_ru_physics, adv_coefs, &
+TMPOMP !$omp adv_coefs_3rd, advcellsforedge, nadvcellsforedge, w, cqw, rdzu, rho_zz, &
+TMPOMP !$omp theta_m, theta_m_save, rt_diabatic_tend, tend_rtheta_physics, t_init, &
+TMPOMP !$omp rw_save,tend_rtheta_adv)
 
 
          ! Smagorinsky eddy viscosity, based on horizontal deformation (in this case on model coordinate surfaces).
@@ -5667,9 +6064,12 @@ module atm_time_integration
 !!$acc kernels
 
 if (config_horiz_mixing == "2d_smagorinsky") then
+!GPUOMP !$omp target teams distribute parallel do private (d_diag,d_off_diag)
+GPUOMP !$omp target teams distribute private (d_diag,d_off_diag)
 !$acc parallel vector_length(64)
 !$acc loop gang private(d_diag,d_off_diag)
          do iCell = cellStart,cellEnd
+GPUOMP !$omp parallel do simd
 !$acc cache(d_diag)
 !$acc cache(d_off_diag)
 !$acc loop vector
@@ -5677,8 +6077,10 @@ if (config_horiz_mixing == "2d_smagorinsky") then
                d_diag(k) = 0.0
                d_off_diag(k) = 0.0
             end do
+GPUOMP !$omp end parallel do simd
 !$acc loop seq
             do iEdge=1,nEdgesOnCell(iCell)
+GPUOMP !$omp parallel do simd
 !$acc loop vector
                do k=1,nVertLevels
                   d_diag(k)     = d_diag(k)     + defc_a(iEdge,iCell)*u(k,EdgesOnCell(iEdge,iCell))  &
@@ -5686,19 +6088,22 @@ if (config_horiz_mixing == "2d_smagorinsky") then
                   d_off_diag(k) = d_off_diag(k) + defc_b(iEdge,iCell)*u(k,EdgesOnCell(iEdge,iCell))  &
                                                 + defc_a(iEdge,iCell)*v(k,EdgesOnCell(iEdge,iCell))
                end do
+GPUOMP !$omp end parallel do simd
             end do
 !DIR$ IVDEP
+GPUOMP !$omp parallel do simd
 !$acc loop vector
             do k=1, nVertLevels
                kdiff(k,iCell) = min((c_s * config_len_disp)**2 * sqrt(d_diag(k)**2 + d_off_diag(k)**2),(0.01*config_len_disp**2) * invDt)
             end do
+GPUOMP !$omp end parallel do simd
          end do
+GPUOMP !$omp end target teams distribute !parallel do
 
          h_mom_eddy_visc4   = config_visc4_2dsmag * config_len_disp**3
          h_theta_eddy_visc4 = h_mom_eddy_visc4
 
 !$acc end parallel
-
       end if
         ! else
          if(config_horiz_mixing == "2d_fixed") then
@@ -5729,31 +6134,40 @@ if (config_horiz_mixing == "2d_smagorinsky") then
 
       ! accumulate horizontal mass-flux
 
+!GPUOMP !$omp target teams distribute parallel do private(h_wk) thread_limit(64)
+GPUOMP !$omp target teams distribute private(h_wk) thread_limit(64)
 !$acc parallel vector_length(64)
 !$acc loop gang private(h_wk)
  do iCell=cellStart,cellEnd
+GPUOMP !omp parallel do simd
 !$acc cache(h_wk)
 !$acc loop vector
          do k=1,nVertLevels
             h_wk(k) = 0.0
          end do
+GPUOMP !omp end parallel do simd
 !$acc loop seq
          do i=1,nEdgesOnCell(iCell)
             iEdge = edgesOnCell(i,iCell)
             edge_sign = edgesOnCell_sign(i,iCell) * dvEdge(iEdge)
 !DIR$ IVDEP
+GPUOMP !omp parallel do simd
 !$acc loop vector
             do k=1,nVertLevels
                h_wk(k) = h_wk(k) + edge_sign * ru(k,iEdge)
             end do
+GPUOMP !omp end parallel do simd
          end do
+GPUOMP !omp parallel do simd
 !$acc loop vector
          do k=1,nVertLevels
             r = invAreaCell(iCell)
             h_divergence(k,iCell) = h_wk(k) * r
          end do
+GPUOMP !omp parallel do simd
       end do
 !$acc end parallel 
+GPUOMP !$omp end target teams distribute !parallel do
 
       !
       ! dp / dz and tend_rho
@@ -5763,6 +6177,7 @@ if (config_horiz_mixing == "2d_smagorinsky") then
 
       !  rgas_cprcv = rgas*cp/cv
 
+GPUOMP !$omp target teams distribute parallel do simd collapse(2)
 !$acc parallel vector_length(64)
 !$acc loop gang
         do iCell = cellStart,cellEnd
@@ -5774,13 +6189,17 @@ if (config_horiz_mixing == "2d_smagorinsky") then
           end do
         end do
 !$acc end parallel
+GPUOMP !$omp end target teams distribute parallel do simd
 
-!$OMP BARRIER
+CPUOMP !$OMP BARRIER
 
       !
       ! Compute u (normal) velocity tendency for each edge (cell face)
       !
-
+!GPUOMP NOTE: Problematic region below
+!GPUOMP !$omp target teams distribute parallel do &
+GPUOMP !$omp target teams distribute &
+GPUOMP !$omp private(wduz, tend_wk, eoe_w, we_w) thread_limit(64)
 !$acc parallel vector_length(64)
 !$acc loop gang private(wduz, tend_wk, eoe_w, we_w)
       do iEdge=edgeSolveStart,edgeSolveEnd
@@ -5794,6 +6213,7 @@ if (config_horiz_mixing == "2d_smagorinsky") then
 
          ! horizontal pressure gradient 
 !DIR$ IVDEP
+GPUOMP !$omp parallel do simd
 !$acc loop vector
          do k=1,nVertLevels
             tend_u_euler(k,iEdge) = - cqu(k,iEdge) * &
@@ -5802,26 +6222,52 @@ if (config_horiz_mixing == "2d_smagorinsky") then
                               -0.5*zxu(k,iEdge)*(dpdz(k,cell1)+dpdz(k,cell2)) )
             tend_wk(k) = u(k,iEdge)
          end do
-
+GPUOMP !$omp end parallel do simd
+         GPUOMP wduz(k) = 0
+         GPUOMP wduz(nVertLevels+1) = 0
 !$acc loop vector shortloop
-         do k=1,nVertLevels+1,nVertLevels
-            wduz(k) = 0.
-         end do
+         GPUACC do k=1,nVertLevels+1,nVertLevels
+         GPUACC    wduz(k) = 0.
+         GPUACC end do
+         GPUOMP wduz(2) = 0.5*( rw(2,cell1)+rw(2,cell2))*(fzm(2)*tend_wk(2)+fzp(2)*tend_wk(2-1))
+         GPUOMP wduz(nVertLevels) = 0.5*( rw(nVertLevels,cell1)+rw(nVertLevels,cell2))*(fzm(nVertLevels)*tend_wk(nVertLevels)+fzp(nVertLevels)*tend_wk(nVertLevels-1))
 !$acc loop vector shortloop
-         do k=2,nVertLevels,nVertLevels-2
-            wduz(k) = 0.5*( rw(k,cell1)+rw(k,cell2))*(fzm(k)*tend_wk(k)+fzp(k)*tend_wk(k-1))
-         end do
+         GPUACC do k=2,nVertLevels,nVertLevels-2
+         GPUACC    wduz(k) = 0.5*( rw(k,cell1)+rw(k,cell2))*(fzm(k)*tend_wk(k)+fzp(k)*tend_wk(k-1))
+         GPUACC end do
+GPUOMP !$omp parallel do simd
 !$acc loop vector
          do k=3,nVertLevels-1
             wduz(k) = flux3( tend_wk(k-2),tend_wk(k-1),tend_wk(k),tend_wk(k+1),0.5*(rw(k,cell1)+rw(k,cell2)), 1.0_RKIND )
          end do
+GPUOMP !$omp end parallel do simd
 
+GPUOMP !$omp parallel do simd
 !$acc loop vector shortloop
          do j = 1,nEdgesOnEdge(iEdge)
             eoe_w(j) = edgesOnEdge(j,iEdge)
             we_w(j)  = weightsOnEdge(j,iEdge)
          end do
+GPUOMP !$omp end parallel do simd
 
+#ifdef MPAS_AMD_OFFLOAD
+GPUOMP !$omp parallel do simd
+        do k=1,nVertLevels
+            t_w = - rdzw(k)*(wduz(k+1)-wduz(k))
+            tend_u(k,iEdge) = t_w + rho_edge(k,iEdge) * &
+                             (-(ke(k,cell2) - ke(k,cell1))* invDcEdge(iEdge)) - tend_wk(k) * 0.5 * &
+                             (h_divergence(k,cell1)+h_divergence(k,cell2))
+        end do
+GPUOMP !$omp end parallel do simd
+        do j = 1,nEdgesOnEdge(iEdge)
+           eoe = eoe_w(j)
+GPUOMP !$omp parallel do simd
+           do k=1,nVertLevels
+              tend_u(k,iEdge) = tend_u(k,iEdge) + rho_edge(k,iEdge) * we_w(j) * u(k,eoe) * 0.5 * (pv_edge(k,iEdge) + pv_edge(k,eoe))
+           end do
+GPUOMP !$omp end parallel do simd
+        end do
+#else
 !DIR$ IVDEP
 !$acc loop vector
          do k=1,nVertLevels
@@ -5839,9 +6285,10 @@ if (config_horiz_mixing == "2d_smagorinsky") then
                              invDcEdge(iEdge)) - tend_wk(k) * 0.5 * &
                              (h_divergence(k,cell1)+h_divergence(k,cell2))
          end do
+#endif
       end do
 !$acc end parallel
-
+GPUOMP !$omp end target teams distribute !parallel do
 
       !
       !  horizontal mixing for u
@@ -5850,14 +6297,16 @@ if (config_horiz_mixing == "2d_smagorinsky") then
       !
 
 
-!$OMP BARRIER
+CPUOMP !$OMP BARRIER
 
          ! del^4 horizontal filter.  We compute this as del^2 ( del^2 (u) ).
          ! First, storage to hold the result from the first del^2 computation.
 
+GPUOMP !$omp target teams distribute parallel do simd collapse(2)
 !$acc parallel vector_length(64)   
 !$acc loop gang
          do iEdge=edgeStart,edgeEnd
+            GPUOMP do k=1,nVertLevels
             cell1 = cellsOnEdge(1,iEdge)
             cell2 = cellsOnEdge(2,iEdge)
             vertex1 = verticesOnEdge(1,iEdge)
@@ -5866,7 +6315,7 @@ if (config_horiz_mixing == "2d_smagorinsky") then
             r_dv = min(invDvEdge(iEdge), 4*invDcEdge(iEdge))
 !DIR$ IVDEP
 !$acc loop vector
-            do k=1,nVertLevels
+            GPUACC do k=1,nVertLevels
 
               u_diffusion =   ( divergence(k,cell2)  - divergence(k,cell1) ) * r_dc  &
                               -( vorticity(k,vertex2) - vorticity(k,vertex1) ) * r_dv
@@ -5882,65 +6331,86 @@ if (config_horiz_mixing == "2d_smagorinsky") then
             end do
          end do
 !$acc end parallel
+GPUOMP !$omp end target teams distribute parallel do simd
 
          if (h_mom_eddy_visc4 > 0.0) then
-!$OMP BARRIER
+CPUOMP !$OMP BARRIER
+!GPUOMP !$omp target teams distribute parallel do private(delsq_wk) thread_limit(64)
+GPUOMP !$omp target teams distribute private(delsq_wk) thread_limit(64)
 !$acc parallel vector_length(64)
 !$acc loop gang private(delsq_wk)
             do iVertex=vertexStart,vertexEnd
 !$acc cache(delsq_wk)
+GPUOMP !$omp parallel do simd
 !$acc loop vector
                do k=1,nVertLevels
                   delsq_wk(k) = 0.0
                end do
+GPUOMP !$omp end parallel do simd
 !$acc loop seq
                do i=1,vertexDegree
                   iEdge = edgesOnVertex(i,iVertex)
                   edge_sign = invAreaTriangle(iVertex) * dcEdge(iEdge) * edgesOnVertex_sign(i,iVertex)
+GPUOMP !$omp parallel do simd
 !$acc loop vector
                   do k=1,nVertLevels
                      delsq_wk(k) = delsq_wk(k) + edge_sign * delsq_u(k,iEdge)
                   end do
+GPUOMP !$omp end parallel do simd
                end do
+GPUOMP !$omp parallel do simd
 !$acc loop vector
                do k=1,nVertLevels
                   delsq_vorticity(k,iVertex) = delsq_wk(k)
                end do
+GPUOMP !$omp end parallel do simd
             end do
 !$acc end parallel
+GPUOMP !$omp end target teams distribute !parallel do
 
+!GPUOMP !$omp target teams distribute parallel do private(delsq_wk) thread_limit(64)
+GPUOMP !$omp target teams distribute private(delsq_wk) thread_limit(64)
 !$acc parallel vector_length(64)
 !$acc loop gang private(delsq_wk)
             do iCell=cellStart,cellEnd
 !$acc cache(delsq_wk)
+GPUOMP !$omp parallel do simd
 !$acc loop vector
                do k=1,nVertLevels
                   delsq_wk(k) = 0.0
                end do
+GPUOMP !$omp end parallel do simd
                r = invAreaCell(iCell)
 !$acc loop seq
                do i=1,nEdgesOnCell(iCell)
                   iEdge = edgesOnCell(i,iCell)
                   edge_sign = r * dvEdge(iEdge) * edgesOnCell_sign(i,iCell)
+GPUOMP !$omp parallel do simd
 !$acc loop vector
                   do k=1,nVertLevels
                      delsq_wk(k) = delsq_wk(k) + edge_sign * delsq_u(k,iEdge)
                   end do
+GPUOMP !$omp end parallel do simd
                end do
+GPUOMP !$omp parallel do simd
 !$acc loop vector
                do k=1,nVertLevels
                   delsq_divergence(k,iCell) = delsq_wk(k)
                end do
+GPUOMP !$omp end parallel do simd
             end do
 !$acc end parallel
+GPUOMP !$omp end target teams distribute !parallel do
          end if
 
-!$OMP BARRIER
+CPUOMP !$OMP BARRIER
 
          if (h_mom_eddy_visc4 > 0.0) then
+GPUOMP !$omp target teams distribute parallel do simd collapse(2)
 !$acc parallel vector_length(64)
 !$acc loop gang
             do iEdge=edgeSolveStart,edgeSolveEnd
+               GPUOMP do k=1,nVertLevels
                cell1 = cellsOnEdge(1,iEdge)
                cell2 = cellsOnEdge(2,iEdge)
                vertex1 = verticesOnEdge(1,iEdge)
@@ -5952,7 +6422,7 @@ if (config_horiz_mixing == "2d_smagorinsky") then
 
 !DIR$ IVDEP
 !$acc loop vector
-               do k=1,nVertLevels
+               GPUACC do k=1,nVertLevels
 
                   ! Compute diffusion, computed as \nabla divergence - k \times \nabla vorticity
                   !                    only valid for h_mom_eddy_visc4 == constant
@@ -5967,6 +6437,7 @@ if (config_horiz_mixing == "2d_smagorinsky") then
                end do
             end do
 !$acc end parallel
+GPUOMP !$omp end target teams distribute parallel do simd
          end if
 
       !
@@ -5975,15 +6446,16 @@ if (config_horiz_mixing == "2d_smagorinsky") then
          if ( v_mom_eddy_visc2 > 0.0 ) then
             if (config_mix_full) then  ! mix full state
 
+GPUOMP !$omp target teams distribute parallel do simd collapse(2)
 !$acc parallel vector_length(64)
 !$acc loop gang
                do iEdge=edgeSolveStart,edgeSolveEnd
+                  GPUOMP do k=2,nVertLevels-1
 
                   cell1 = cellsOnEdge(1,iEdge)
                   cell2 = cellsOnEdge(2,iEdge)
-
 !$acc loop vector
-                  do k=2,nVertLevels-1
+                  GPUACC do k=2,nVertLevels-1
 
                      z1 = 0.5*(zgrid(k-1,cell1)+zgrid(k-1,cell2))
                      z2 = 0.5*(zgrid(k  ,cell1)+zgrid(k  ,cell2))
@@ -6000,10 +6472,13 @@ if (config_horiz_mixing == "2d_smagorinsky") then
                   end do
                end do
 !$acc end parallel
+GPUOMP !$omp end target teams distribute parallel do simd
             end if
 
             if (.not. config_mix_full) then  ! mix full state
             !else  ! idealized cases where we mix on the perturbation from the initial 1-D state
+!GPUOMP !$omp target teams distribute parallel do private(u_mix) thread_limit(64)
+GPUOMP !$omp target teams distribute private(u_mix) thread_limit(64)
 !$acc parallel vector_length(64)
 !$acc loop gang private(u_mix)
                do iEdge=edgeSolveStart,edgeSolveEnd
@@ -6012,12 +6487,15 @@ if (config_horiz_mixing == "2d_smagorinsky") then
                   cell1 = cellsOnEdge(1,iEdge)
                   cell2 = cellsOnEdge(2,iEdge)
 
+GPUOMP !$omp parallel do simd
 !$acc loop vector
                   do k=1,nVertLevels
                      u_mix(k) = u(k,iEdge) - u_init(k) * cos( angleEdge(iEdge) ) &
                                            - v_init(k) * sin( angleEdge(iEdge) )
                   end do
+GPUOMP !$omp end parallel do simd
 
+GPUOMP !$omp parallel do simd
 !$acc loop vector
                   do k=2,nVertLevels-1
 
@@ -6034,19 +6512,22 @@ if (config_horiz_mixing == "2d_smagorinsky") then
                                         (u_mix(k+1)-u_mix(k  ))/(zp-z0)                      &
                                        -(u_mix(k  )-u_mix(k-1))/(z0-zm) )/(0.5*(zp-zm))
                   end do
+GPUOMP !$omp end parallel do simd
                end do
 
 !$acc end parallel
+GPUOMP !$omp end target teams distribute !parallel do
             end if  ! mix perturbation state
          end if  ! vertical mixing of horizontal momentum
 
 
-!$OMP BARRIER
+CPUOMP !$OMP BARRIER
 
 !  add in mixing and physics tendency for u
 
 !  Rayleigh damping on u
       if (config_rayleigh_damp_u) then
+GPUOMP !$omp target
 !$acc kernels
          rayleigh_coef_inverse = 1.0 / ( real(config_number_rayleigh_damp_u_levels) &
                                          * (config_rayleigh_damp_u_timescale_days*seconds_per_day) )
@@ -6061,8 +6542,11 @@ if (config_horiz_mixing == "2d_smagorinsky") then
             end do
          end do
 !$acc end kernels
+GPUOMP !$omp end target
       end if
 
+
+GPUOMP !$omp target teams distribute parallel do simd collapse(2)
 !$acc parallel vector_length(64)
 !$acc loop gang
       do iEdge=edgeSolveStart,edgeSolveEnd
@@ -6073,6 +6557,7 @@ if (config_horiz_mixing == "2d_smagorinsky") then
          end do
       end do
 !$acc end parallel
+GPUOMP !$omp end target teams distribute parallel do simd
 
 
 !----------- rhs for w
@@ -6082,6 +6567,9 @@ if (config_horiz_mixing == "2d_smagorinsky") then
       !  horizontal advection for w
       !
 
+!GPUOMP !$omp target teams distribute parallel do &
+GPUOMP !$omp target teams distribute &
+GPUOMP !$omp private(ru_edge_w,flux_arr,iadv_cell_w,coefs_w,coefs_3rd_w,tend_wk) thread_limit(64)
 !$acc parallel vector_length(64)
 !$acc loop gang private(ru_edge_w, flux_arr, iadv_cell_w, coefs_w, coefs_3rd_w, tend_wk)
       do iCell=cellSolveStart,cellSolveEnd    ! Technically updating fewer cells than before...
@@ -6093,29 +6581,37 @@ if (config_horiz_mixing == "2d_smagorinsky") then
 !$acc cache(tend_wk)
 
 !$acc loop vector
+GPUOMP !$omp parallel do simd
          do k=1,nVertLevels+1
            tend_wk(k) = 0.0
          end do
+GPUOMP !$omp end parallel do simd
 
 !$acc loop seq
          do i=1,nEdgesOnCell(iCell)
             iEdge = edgesOnCell(i,iCell)
 !$acc loop vector
+GPUOMP !$omp parallel do simd
             do k=2,nVertLevels
                ru_edge_w(k) = fzm(k)*ru(k,iEdge) + fzp(k)*ru(k-1,iEdge)
             end do
+GPUOMP !$omp end parallel do simd
 
 !$acc loop vector
+GPUOMP !$omp parallel do simd
             do j=1,nAdvCellsForEdge(iEdge)
                iadv_cell_w(j) = advCellsForEdge(j,iEdge)
                coefs_w(j)     = adv_coefs(j,iEdge)
                coefs_3rd_w(j) = adv_coefs_3rd(j,iEdge)
             end do
+GPUOMP !$omp end parallel do simd
 
 !$acc loop vector
+GPUOMP !$omp parallel do simd
             do k=1,nVertLevels
                flux_arr(k) = 0.0
             end do
+GPUOMP !$omp end parallel do simd
 
             ! flux_arr stores the value of w at the cell edge used in the
             ! horizontal transport
@@ -6123,27 +6619,34 @@ if (config_horiz_mixing == "2d_smagorinsky") then
 !$acc loop seq
             do j=1,nAdvCellsForEdge(iEdge)
 !$acc loop vector
+GPUOMP !$omp parallel do simd
                do k=2,nVertLevels
                   iAdvCell = iadv_cell_w(j)
                   scalar_weight = coefs_w(j) + sign(1.0_RKIND,ru_edge_w(k)) * coefs_3rd_w(j)
                   flux_arr(k) = flux_arr(k) + scalar_weight * w(k,iAdvCell)
                end do
+GPUOMP !$omp end parallel do simd
             end do
 
 !DIR$ IVDEP
+GPUOMP !$omp parallel do simd
 !$acc loop vector
             do k=2,nVertLevels
                tend_wk(k) = tend_wk(k) - edgesOnCell_sign(i,iCell)*ru_edge_w(k)*flux_arr(k)
             end do
+GPUOMP !$omp end parallel do simd
          end do
 
 !DIR$ IVDEP
+GPUOMP !$omp parallel do simd
 !$acc loop vector
          do k=2,nVertLevels
            tend_w(k,iCell) = tend_wk(k)
          end do
+GPUOMP !$omp end parallel do simd
       end do
 !$acc end parallel
+GPUOMP !$omp end target teams distribute !parallel do
 
       !
       !  horizontal mixing for w - we could combine this with advection directly (i.e. as a turbulent flux),
@@ -6158,6 +6661,8 @@ if (config_horiz_mixing == "2d_smagorinsky") then
          ! First, storage to hold the result from the first del^2 computation.
          !  we copied code from the theta mixing, hence the theta* names.
 
+!GPUOMP !$omp target teams distribute parallel do private(tend_wk,delsq_wk) thread_limit(64)
+GPUOMP !$omp target teams distribute private(tend_wk,delsq_wk) thread_limit(64)
 !$acc parallel vector_length(64)
 !$acc loop gang private(tend_wk, delsq_wk)
          do iCell=cellStart,cellEnd
@@ -6166,10 +6671,12 @@ if (config_horiz_mixing == "2d_smagorinsky") then
 
             r_areaCell = invAreaCell(iCell)
 !$acc loop vector
+GPUOMP !$omp parallel do simd
             do k = 1, nVertLevels+1
                delsq_wk(k) = 0.0
                tend_wk(k) = 0.0
             end do
+GPUOMP !$omp end parallel do simd
 
 ! BDL could do something here with edgesOnCell and edgesOnCell_sign
 !$acc loop seq
@@ -6182,6 +6689,7 @@ if (config_horiz_mixing == "2d_smagorinsky") then
                cell2 = cellsOnEdge(2,iEdge)
 
 !DIR$ IVDEP
+GPUOMP !$omp parallel do simd
 !$acc loop vector
               do k=2,nVertLevels
 
@@ -6191,28 +6699,36 @@ if (config_horiz_mixing == "2d_smagorinsky") then
                                   (kdiff(k,cell1)+kdiff(k,cell2)+kdiff(k-1,cell1)+kdiff(k-1,cell2))
                   tend_wk(k) = tend_wk(k) + w_turb_flux
                end do
+GPUOMP !$omp end parallel do simd
             end do
 !$acc loop vector
+GPUOMP !$omp parallel do simd
             do k=1,nVertLevels
                delsq_w(k,iCell) = delsq_wk(k)
                tend_w_euler(k,iCell) = tend_wk(k)
             end do
+GPUOMP !$omp end parallel do simd
          end do
 !$acc end parallel
+GPUOMP !$omp end target teams distribute !parallel do
 
 
-!$OMP BARRIER
+CPUOMP !$OMP BARRIER
 
         if(h_mom_eddy_visc4 > 0.0) then
+!GPUOMP !$omp target teams distribute parallel do private(tend_wk) thread_limit(64)
+GPUOMP !$omp target teams distribute private(tend_wk) thread_limit(64)
 !$acc parallel vector_length(64)
 !$acc loop gang private(tend_wk)
          do iCell=cellSolveStart,cellSolveEnd    ! Technically updating fewer cells than before...
 !$acc cache(tend_wk)
             r_areaCell = h_mom_eddy_visc4 * invAreaCell(iCell)
+GPUOMP !$omp parallel do simd
 !$acc loop vector
             do k = 1, nVertLevels
                tend_wk(k) = tend_w_euler(k,iCell)
             end do
+GPUOMP !$omp end parallel do simd
 !$acc loop seq
             do i=1,nEdgesOnCell(iCell)
                iEdge = edgesOnCell(i,iCell)
@@ -6221,18 +6737,23 @@ if (config_horiz_mixing == "2d_smagorinsky") then
 
                edge_sign = meshScalingDel4(iEdge)*r_areaCell*dvEdge(iEdge)*edgesOnCell_sign(i,iCell) * invDcEdge(iEdge)
 
+GPUOMP !$omp parallel do simd
 !$acc loop vector
                do k=2,nVertLevels
                   tend_wk(k) = tend_wk(k) - edge_sign * (delsq_w(k,cell2) - delsq_w(k,cell1))
                end do
+GPUOMP !$omp end parallel do simd
 
             end do
 !$acc loop vector
+GPUOMP !$omp parallel do simd
             do k=2,nVertLevels
                tend_w_euler(k,iCell) = tend_wk(k)
             end do
+GPUOMP !$omp end parallel do simd
          end do
 !$acc end parallel
+GPUOMP !$omp end target teams distribute !parallel do
       end if ! horizontal mixing for w computed in first rk_step
 
 
@@ -6247,45 +6768,62 @@ if (config_horiz_mixing == "2d_smagorinsky") then
       !  vertical advection, pressure gradient and buoyancy for w
       !
 
+!GPUOMP !$omp target teams distribute parallel do private(tend_wk,wdwz) thread_limit(64)
+GPUOMP !$omp target teams distribute private(tend_wk,wdwz) thread_limit(64)
 !$acc parallel vector_length(64)
 !$acc loop gang private(tend_wk, wdwz)
       do iCell=cellSolveStart,cellSolveEnd
 
+GPUOMP !$omp parallel do simd
 !$acc loop vector
          do k=1,nVertLevels
             tend_wk(k) = w(k,iCell)
          end do
+GPUOMP !$omp end parallel do simd
 
+GPUOMP !$omp parallel do simd
 !$acc loop vector shortloop
          do k=1,nVertLevels+1,nVertLevels
             wdwz(k) = 0.
          end do
+GPUOMP !$omp end parallel do simd
+
+GPUOMP !$omp parallel do simd
 !$acc loop vector shortloop
          do k=2,nVertLevels,nVertLevels-2
             wdwz(k) = 0.25*(rw(k,iCell)+rw(k-1,iCell))*(tend_wk(k)+tend_wk(k-1))
          end do
+GPUOMP !$omp end parallel do simd
+
+GPUOMP !$omp parallel do simd
 !$acc loop vector
          do k=3,nVertLevels-1
             wdwz(k) = flux3(tend_wk(k-2),tend_wk(k-1),tend_wk(k),tend_wk(k+1),0.5*(rw(k,iCell)+rw(k-1,iCell)), 1.0_RKIND )
          end do
+GPUOMP !$omp end parallel do simd
 
 !DIR$ IVDEP
 !$acc loop vector
-         do k=2,nVertLevels
-            tend_w(k,iCell) = tend_w(k,iCell) * invAreaCell(iCell) - rdzu(k)*(wdwz(k+1)-wdwz(k))
-         end do
+         GPUACC do k=2,nVertLevels
+         GPUACC    tend_w(k,iCell) = tend_w(k,iCell) * invAreaCell(iCell) - rdzu(k)*(wdwz(k+1)-wdwz(k))
+         GPUACC end do
 
 !DIR$ IVDEP
+GPUOMP !$omp parallel do simd
 !$acc loop vector
          do k=2,nVertLevels
+            GPUOMP tend_w(k,iCell) = tend_w(k,iCell) * invAreaCell(iCell) - rdzu(k)*(wdwz(k+1)-wdwz(k))
             tend_w_euler(k,iCell) = tend_w_euler(k,iCell) - cqw(k,iCell)*(   &
                                            rdzu(k)*(pp(k,iCell)-pp(k-1,iCell)) &
                                          - (fzm(k)*dpdz(k,iCell) + fzp(k)*dpdz(k-1,iCell)) )  ! dpdz is the buoyancy term here.
             end do
+GPUOMP !$omp end parallel do simd
       end do
 !$acc end parallel
+GPUOMP !$omp end target teams distribute !parallel do
 
          if ( v_mom_eddy_visc2 > 0.0 ) then
+GPUOMP !$omp target teams distribute parallel do simd collapse(2)
 !$acc parallel vector_length(64)
 !$acc loop gang
             do iCell=cellSolveStart,cellSolveEnd
@@ -6297,9 +6835,11 @@ if (config_horiz_mixing == "2d_smagorinsky") then
                                           -(w(k  ,iCell)-w(k-1,iCell))*rdzw(k-1) )*rdzu(k)
                end do
             end do
+GPUOMP !$omp end target teams distribute parallel do simd
 !$acc end parallel
          end if
 
+GPUOMP !$omp target teams distribute parallel do simd collapse(2)
 !$acc parallel vector_length(64)
 !$acc loop gang
       do iCell = cellSolveStart,cellSolveEnd
@@ -6310,13 +6850,17 @@ if (config_horiz_mixing == "2d_smagorinsky") then
          end do
       end do
 !$acc end parallel 
+GPUOMP !$omp end target teams distribute parallel do simd
+
 
 !----------- rhs for theta
 
       !
       !  horizontal advection for theta
       !
-
+!GPUOMP !$omp target teams distribute parallel do &
+GPUOMP !$omp target teams distribute &
+GPUOMP !$omp private(ru_edge_w, flux_arr, iadv_cell_w, coefs_w, coefs_3rd_w, tend_wk) thread_limit(64)
 !$acc parallel vector_length(64)
 !$acc loop gang private(ru_edge_w, flux_arr, iadv_cell_w, coefs_w, coefs_3rd_w, tend_wk)
       do iCell=cellSolveStart,cellSolveEnd    ! Technically updating fewer cells than before...
@@ -6327,58 +6871,74 @@ if (config_horiz_mixing == "2d_smagorinsky") then
 !$acc cache(coefs_3rd_w)
 !$acc cache(tend_wk)
 
+GPUOMP !$omp parallel do simd
 !$acc loop vector
          do k=1,nVertLevels+1
            tend_wk(k) = 0.0
          end do
+GPUOMP !$omp end parallel do simd
 
 !$acc loop seq
          do i=1,nEdgesOnCell(iCell)
             iEdge = edgesOnCell(i,iCell)
 
+GPUOMP !$omp parallel do simd
 !$acc loop vector
             do k=1,nVertLevels
                ru_edge_w(k) = ru(k,iEdge)
                flux_arr(k) = 0.0
             end do
+GPUOMP !$omp end parallel do simd
 
+GPUOMP !$omp parallel do simd
 !$acc loop vector shortloop
             do j=1,nAdvCellsForEdge(iEdge)
                iadv_cell_w(j) = advCellsForEdge(j,iEdge)
                coefs_w(j)     = adv_coefs(j,iEdge)
                coefs_3rd_w(j) = adv_coefs_3rd(j,iEdge)
             end do
+GPUOMP !$omp end parallel do simd
 
 !$acc loop seq
             do j=1,nAdvCellsForEdge(iEdge)
+GPUOMP !$omp parallel do simd
 !$acc loop vector
                do k=1,nVertLevels
                   iAdvCell = iadv_cell_w(j)
                   scalar_weight = coefs_w(j) + sign(1.0_RKIND,ru_edge_w(k))*coefs_3rd_w(j)
                   flux_arr(k) = flux_arr(k) + scalar_weight* theta_m(k,iAdvCell)
                end do
+GPUOMP !$omp end parallel do simd
             end do
 
 !DIR$ IVDEP
+GPUOMP !$omp parallel do simd
 !$acc loop vector
             do k=1,nVertLevels
                tend_wk(k) = tend_wk(k) - edgesOnCell_sign(i,iCell) * ru_edge_w(k) * flux_arr(k)
             end do
+GPUOMP !$omp end parallel do simd
 
          end do
 
 !DIR$ IVDEP
+GPUOMP !$omp parallel do simd
 !$acc loop vector
          do k=1,nVertLevels
             tend_theta(k,iCell) = tend_wk(k)
          end do
+GPUOMP !$omp end parallel do simd
       end do
 !$acc end parallel
+GPUOMP !$omp end target teams distribute !parallel do
+
 
       !
       !  horizontal mixing for theta_m - we could combine this with advection directly (i.e. as a turbulent flux),
       !  but here we can also code in hyperdiffusion if we wish (2nd order at present)
       !
+!GPUOMP !$omp target teams distribute parallel do private(tend_wk,delsq_wk) thread_limit(64)
+GPUOMP !$omp target teams distribute private(tend_wk,delsq_wk) thread_limit(64)
 !$acc parallel vector_length(64)
 !$acc loop gang private(tend_wk, delsq_wk)
          do iCell=cellStart,cellEnd
@@ -6386,11 +6946,13 @@ if (config_horiz_mixing == "2d_smagorinsky") then
 !$acc cache(delsq_wk)
 
             r_areaCell = invAreaCell(iCell)
+GPUOMP !$omp parallel do simd
 !$acc loop vector
             do k = 1, nVertLevels
                delsq_wk(k) = 0.0
                tend_wk(k) = 0.0
             end do
+GPUOMP !$omp end parallel do simd
 !$acc loop seq
             do i=1,nEdgesOnCell(iCell)
                iEdge = edgesOnCell(i,iCell)
@@ -6400,6 +6962,7 @@ if (config_horiz_mixing == "2d_smagorinsky") then
                cell2 = cellsOnEdge(2,iEdge)
 
 !DIR$ IVDEP
+GPUOMP !$omp parallel do simd
 !$acc loop vector
                do k = 1, nVertLevels
                   theta_turb_flux = edge_sign*(theta_m(k,cell2) - theta_m(k,cell1))*rho_edge(k,iEdge)
@@ -6407,29 +6970,37 @@ if (config_horiz_mixing == "2d_smagorinsky") then
                   theta_turb_flux = theta_turb_flux*0.5*(kdiff(k,cell1)+kdiff(k,cell2)) * pr_scale
                   tend_wk(k) = tend_wk(k) + theta_turb_flux
                end do
+GPUOMP !$omp end parallel do simd
             end do
 !DIR$ IVDEP
+GPUOMP !$omp parallel do simd
 !$acc loop vector
             do k = 1, nVertLevels
                delsq_theta(k,iCell) = delsq_wk(k)
                tend_theta_euler(k,iCell) = tend_wk(k)
             end do
+GPUOMP !$omp end parallel do simd
          end do
 !$acc end parallel
+GPUOMP !$omp end target teams distribute !parallel do
 
 
-!$OMP BARRIER
+CPUOMP !$OMP BARRIER
 
         if(h_theta_eddy_visc4 > 0.0) then
+!GPUOMP !$omp target teams distribute parallel do private(tend_wk) thread_limit(64)
+GPUOMP !$omp target teams distribute private(tend_wk) thread_limit(64)
 !$acc parallel vector_length(64) private(tend_wk)
 !$acc loop gang
          do iCell=cellSolveStart,cellSolveEnd    ! Technically updating fewer cells than before...
 !$acc cache(tend_wk)
             r_areaCell = h_theta_eddy_visc4 * prandtl_inv * invAreaCell(iCell)
+GPUOMP !$omp parallel do simd
 !$acc loop vector
             do k = 1, nVertLevels
                tend_wk(k) = tend_theta_euler(k,iCell)
             end do
+GPUOMP !$omp end parallel do simd
 !$acc loop seq
             do i=1,nEdgesOnCell(iCell)
 
@@ -6439,18 +7010,23 @@ if (config_horiz_mixing == "2d_smagorinsky") then
                cell1 = cellsOnEdge(1,iEdge)
                cell2 = cellsOnEdge(2,iEdge)
 
+GPUOMP !$omp parallel do simd
 !$acc loop vector
                do k=1,nVertLevels
                   tend_wk(k) = tend_wk(k) - edge_sign*(delsq_theta(k,cell2) - delsq_theta(k,cell1))
                end do
+GPUOMP !$omp end parallel do simd
 
             end do
+GPUOMP !$omp parallel do simd
 !$acc loop vector
             do k=1,nVertLevels
                tend_theta_euler(k,iCell) = tend_wk(k)
             end do
+GPUOMP !$omp end parallel do simd
          end do
 !$acc end parallel
+GPUOMP !$omp end target teams distribute !parallel do
       end if ! theta mixing calculated first rk_step
             
 
@@ -6459,15 +7035,25 @@ if (config_horiz_mixing == "2d_smagorinsky") then
       !  Note: we are also dividing through by the cell area after the horizontal flux divergence
       !
 
+!GPUOMP !$omp target teams distribute parallel do private(wdtz) thread_limit(64)
+GPUOMP !$omp target teams distribute private(wdtz) thread_limit(64)
 !$acc parallel vector_length(64)
 !$acc loop gang private(wdtz)
       do iCell = cellSolveStart,cellSolveEnd
 !$acc cache(wdtz)
 
+GPUOMP !$omp parallel do simd
 !$acc loop vector shortloop
          do k=1,nVertLevels+1,nVertLevels
             wdtz(k) = 0.
          end do
+GPUOMP !$omp end parallel do simd
+!GPUOMP NOTE: workaround for shortloop with if statement
+#ifdef MPAS_AMD_OFFLOAD
+         wdtz(2) = rw(2,icell)*(fzm(2)*theta_m(2,iCell)+fzp(2)*theta_m(1,iCell))
+         wdtz(2) = wdtz(2) + (rw_save(2,icell)-rw(2,icell))*(fzm(2)*theta_m_save(2,iCell)+fzp(2)*theta_m_save(1,iCell))
+         wdtz(nVertLevels) = rw_save(nVertLevels,icell)*(fzm(nVertLevels)*theta_m(nVertLevels,iCell)+fzp(nVertLevels)*theta_m(nVertLevels-1,iCell))
+#else
 !$acc loop vector shortloop
          do k=2,nVertLevels,nVertLevels-2
             if (k.eq.2) then
@@ -6477,13 +7063,17 @@ if (config_horiz_mixing == "2d_smagorinsky") then
                wdtz(k) = rw_save(k,icell)*(fzm(k)*theta_m(k,iCell)+fzp(k)*theta_m(k-1,iCell))  !rtheta_pp redefinition
             end if
          end do
+#endif
+GPUOMP !$omp parallel do simd
 !$acc loop vector
          do k=3,nVertLevels-1
             wdtz(k) = flux3( theta_m(k-2,iCell),theta_m(k-1,iCell),theta_m(k,iCell),theta_m(k+1,iCell), rw(k,iCell), coef_3rd_order )
             wdtz(k) =  wdtz(k) + (rw_save(k,icell)-rw(k,iCell))*(fzm(k)*theta_m_save(k,iCell)+fzp(k)*theta_m_save(k-1,iCell)) ! rtheta_pp redefinition
          end do
+GPUOMP !$omp end parallel do simd
 
 !DIR$ IVDEP
+GPUOMP !$omp parallel do simd
 !$acc loop vector
          do k=1,nVertLevels
             tend_theta(k,iCell) = tend_theta(k,iCell)*invAreaCell(iCell) -rdzw(k)*(wdtz(k+1)-wdtz(k))
@@ -6491,8 +7081,10 @@ if (config_horiz_mixing == "2d_smagorinsky") then
             rthdynten(k,iCell) = tend_theta(k,iCell)/rho_zz(k,iCell)  !  this is for the Grell-Freitas scheme
             tend_theta(k,iCell) = tend_theta(k,iCell) + rho_zz(k,iCell)*rt_diabatic_tend(k,iCell)
          end do
+GPUOMP !$omp end parallel do simd
       end do
 !$acc end parallel
+GPUOMP !$omp end target teams distribute !parallel do
 
       !
       !  vertical mixing for theta - 2nd order 
@@ -6503,6 +7095,7 @@ if (config_horiz_mixing == "2d_smagorinsky") then
 !$acc parallel num_gangs(256) num_workers(4) vector_length(32)
             if (config_mix_full) then
 !$acc loop gang worker
+GPUOMP !$omp target teams distribute parallel do simd collapse(2)
                do iCell = cellSolveStart,cellSolveEnd
                   do k=2,nVertLevels-1
                      z1 = zgrid(k-1,iCell)
@@ -6519,6 +7112,7 @@ if (config_horiz_mixing == "2d_smagorinsky") then
                                              -(theta_m(k  ,iCell)-theta_m(k-1,iCell))/(z0-zm) )/(0.5*(zp-zm))
                   end do
                end do
+GPUOMP !$omp end target teams distribute parallel do simd
           end if
 !$acc end parallel
 
@@ -6526,6 +7120,7 @@ if (config_horiz_mixing == "2d_smagorinsky") then
           if (.not.config_mix_full) then
          !else  ! idealized cases where we mix on the perturbation from the initial 1-D state
 !$acc loop gang worker
+GPUOMP !$omp target teams distribute parallel do simd collapse(2)
                do iCell = cellSolveStart,cellSolveEnd
                   do k=2,nVertLevels-1
                      z1 = zgrid(k-1,iCell)
@@ -6542,11 +7137,13 @@ if (config_horiz_mixing == "2d_smagorinsky") then
                                              -((theta_m(k  ,iCell)-t_init(k,iCell))-(theta_m(k-1,iCell)-t_init(k-1,iCell)))/(z0-zm) )/(0.5*(zp-zm))
                   end do
                end do
+GPUOMP !$omp end target teams distribute parallel do simd
 
             end if
 !$acc end parallel
          end if
 
+GPUOMP !$omp target teams distribute parallel do simd collapse(2)
 !$acc parallel vector_length(64)
 !$acc loop gang
       do iCell = cellSolveStart,cellSolveEnd
@@ -6557,6 +7154,9 @@ if (config_horiz_mixing == "2d_smagorinsky") then
          end do
       end do
 !$acc end parallel
+GPUOMP !$omp end target teams distribute parallel do simd
+TMPOMP !$omp target update from(kdiff,h_divergence,tend_rho,dpdz,tend_u_euler,tend_u,delsq_u,delsq_w,tend_w,&
+TMPOMP !$omp tend_w_euler,tend_theta,tend_theta_euler,tend_rtheta_adv,rthdynten)
 !$acc end data
    end subroutine atm_compute_dyn_tend_work
 
@@ -6759,6 +7359,22 @@ if (config_horiz_mixing == "2d_smagorinsky") then
 !$acc h_divergence,tend_u, &
 !$acc tend_theta,tend_w,&
 !$acc tend_rtheta_adv, rthdynten)
+TMPOMP !$omp target update to(cellsonedge,dvedge,edgesoncell, &
+TMPOMP !$omp tend_ru_physics, &
+TMPOMP !$omp tend_rtheta_physics, &
+TMPOMP !$omp edgesoncell_sign,fzm,fzp,invareacell,nedgesoncell &
+TMPOMP !$omp ,ru,rw,u,edgesonedge, &
+TMPOMP !$omp invdcedge,ke,nedgesonedge, &
+TMPOMP !$omp pv_edge,rdzw,rho_edge, &
+TMPOMP !$omp weightsonedge,adv_coefs,adv_coefs_3rd,advcellsforedge, &
+TMPOMP !$omp w,rdzu, tend_w_euler, &
+TMPOMP !$omp theta_m,ru_save,theta_m_save,tend_u_euler, &
+TMPOMP !$omp nadvcellsforedge,rho_zz, &
+TMPOMP !$omp rt_diabatic_tend,rw_save, &
+TMPOMP !$omp tend_theta_euler,  &
+TMPOMP !$omp h_divergence,tend_u, &
+TMPOMP !$omp tend_theta,tend_w,&
+TMPOMP !$omp tend_rtheta_adv)
 
  
 
@@ -6767,31 +7383,40 @@ if (config_horiz_mixing == "2d_smagorinsky") then
       ! accumulate total water here for later use in w tendency calculation.
 
       ! accumulate horizontal mass-flux
+!GPUOMP !$omp target teams distribute parallel do private(h_wk) thread_limit(64)
+GPUOMP !$omp target teams distribute private(h_wk) thread_limit(64)
 !$acc parallel vector_length(64)
 !$acc loop gang private(h_wk)
  do iCell=cellStart,cellEnd
 !$acc cache(h_wk)
+GPUOMP !$omp parallel do simd
 !$acc loop vector
          do k=1,nVertLevels
             h_wk(k) = 0.0
          end do
+GPUOMP !$omp end parallel do simd
 !$acc loop seq
          do i=1,nEdgesOnCell(iCell)
             iEdge = edgesOnCell(i,iCell)
             edge_sign = edgesOnCell_sign(i,iCell) * dvEdge(iEdge)
 !DIR$ IVDEP
+GPUOMP !$omp parallel do simd
 !$acc loop vector
             do k=1,nVertLevels
                h_wk(k) = h_wk(k) + edge_sign * ru(k,iEdge)
             end do
+GPUOMP !$omp end parallel do simd
          end do
+GPUOMP !$omp parallel do simd
 !$acc loop vector
          do k=1,nVertLevels
             r = invAreaCell(iCell)
             h_divergence(k,iCell) = h_wk(k) * r
          end do
+GPUOMP !$omp end parallel do simd
       end do
 !$acc end parallel 
+GPUOMP !$omp end target teams distribute !parallel do
 
      
 
@@ -6800,10 +7425,12 @@ if (config_horiz_mixing == "2d_smagorinsky") then
       !
       ! only needed on first rk_step with pert variables defined a pert from time t
       !
-!$OMP BARRIER
+CPUOMP !$OMP BARRIER
       !
       ! Compute u (normal) velocity tendency for each edge (cell face)
       !
+!GPUOMP !$omp target teams distribute parallel do private(tend_wk, wduz, eoe_w, we_w) thread_limit(64)
+GPUOMP !$omp target teams distribute private(tend_wk, wduz, eoe_w, we_w) thread_limit(64)
 !$acc parallel vector_length(64)
 !$acc loop gang private(wduz, tend_wk, eoe_w, we_w)
       do iEdge=edgeSolveStart,edgeSolveEnd
@@ -6816,30 +7443,59 @@ if (config_horiz_mixing == "2d_smagorinsky") then
          cell2 = cellsOnEdge(2,iEdge)
 
          ! horizontal pressure gradient 
+GPUOMP !$omp parallel do simd
 !$acc loop vector
          do k=1,nVertLevels
             tend_wk(k) = u(k,iEdge)
          end do
+GPUOMP !$omp end parallel do simd
 
+         GPUOMP wduz(1) = 0
+         GPUOMP wduz(nVertLevels+1) = 0
 !$acc loop vector shortloop
-         do k=1,nVertLevels+1,nVertLevels
-            wduz(k) = 0.
-         end do
+         GPUACC do k=1,nVertLevels+1,nVertLevels
+         GPUACC    wduz(k) = 0.
+         GPUACC end do
+         GPUOMP wduz(2) = 0.5*( rw(2,cell1)+rw(2,cell2))*(fzm(2)*tend_wk(2)+fzp(2)*tend_wk(2-1))
+         GPUOMP wduz(nVertLevels) = 0.5*( rw(nVertLevels,cell1)+rw(nVertLevels,cell2))*(fzm(nVertLevels)*tend_wk(nVertLevels)+fzp(nVertLevels)*tend_wk(nVertLevels-1))
 !$acc loop vector shortloop
-         do k=2,nVertLevels,nVertLevels-2
-            wduz(k) = 0.5*( rw(k,cell1)+rw(k,cell2))*(fzm(k)*tend_wk(k)+fzp(k)*tend_wk(k-1))
-         end do
+         GPUACC do k=2,nVertLevels,nVertLevels-2
+         GPUACC    wduz(k) = 0.5*( rw(k,cell1)+rw(k,cell2))*(fzm(k)*tend_wk(k)+fzp(k)*tend_wk(k-1))
+         GPUACC end do
+
+GPUOMP !$omp parallel do simd
 !$acc loop vector
          do k=3,nVertLevels-1
             wduz(k) = flux3( tend_wk(k-2),tend_wk(k-1),tend_wk(k),tend_wk(k+1),0.5*(rw(k,cell1)+rw(k,cell2)), 1.0_RKIND )
          end do
+GPUOMP !$omp end parallel do simd
 
 !$acc loop vector shortloop
+GPUOMP !$omp parallel do simd
          do j = 1,nEdgesOnEdge(iEdge)
             eoe_w(j) = edgesOnEdge(j,iEdge)
             we_w(j)  = weightsOnEdge(j,iEdge)
          end do
+GPUOMP !$omp end parallel do simd
 
+#ifdef MPAS_AMD_OFFLOAD
+GPUOMP !$omp parallel do simd
+         do k=1,nVertLevels
+            t_w = - rdzw(k)*(wduz(k+1)-wduz(k))
+            tend_u(k,iEdge) = t_w + rho_edge(k,iEdge) * &
+                             (-(ke(k,cell2) - ke(k,cell1))* invDcEdge(iEdge)) - tend_wk(k) * 0.5 * &
+                             (h_divergence(k,cell1)+h_divergence(k,cell2))
+         end do
+GPUOMP !$omp end parallel do simd
+         do j = 1,nEdgesOnEdge(iEdge)
+            eoe = eoe_w(j)
+GPUOMP !$omp parallel do simd
+            do k=1,nVertLevels
+              tend_u(k,iEdge) = tend_u(k,iEdge) + rho_edge(k,iEdge) * we_w(j) * u(k,eoe) * 0.5 * (pv_edge(k,iEdge) + pv_edge(k,eoe))
+            enddo
+GPUOMP !$omp end parallel do simd
+         end do
+#else
 !$acc loop vector
          do k=1,nVertLevels
             q1 = pv_edge(k,iEdge)
@@ -6856,9 +7512,12 @@ if (config_horiz_mixing == "2d_smagorinsky") then
                              invDcEdge(iEdge)) - tend_wk(k) * 0.5 * &
                              (h_divergence(k,cell1)+h_divergence(k,cell2))
          end do
+#endif
       end do
 !$acc end parallel
+GPUOMP !$omp end target teams distribute !parallel do
 
+GPUOMP !$omp target teams distribute parallel do simd collapse(2)
 !$acc parallel vector_length(64)
 !$acc loop gang
       do iEdge=edgeSolveStart,edgeSolveEnd
@@ -6868,13 +7527,14 @@ if (config_horiz_mixing == "2d_smagorinsky") then
          end do
       end do
 !$acc end parallel
+GPUOMP !$omp end target teams distribute parallel do simd
 
       !  mixing terms are integrated using forward-Euler, so this tendency is only computed in the
       !  first Runge-Kutta substep and saved for use in later RK substeps 2 and 3.
       !
 
 
-!$OMP BARRIER
+CPUOMP !$OMP BARRIER
 
 !  add in mixing for u
 
@@ -6885,6 +7545,9 @@ if (config_horiz_mixing == "2d_smagorinsky") then
       !
       !  horizontal advection for w
       !
+!GPUOMP !$omp target teams distribute parallel do &
+GPUOMP !$omp target teams distribute &
+GPUOMP !$omp private(ru_edge_w,flux_arr,iadv_cell_w,coefs_w,coefs_3rd_w,tend_wk) thread_limit(64)
 !$acc parallel vector_length(64)
 !$acc loop gang private(ru_edge_w, flux_arr, iadv_cell_w, coefs_w, coefs_3rd_w, tend_wk)
       do iCell=cellSolveStart,cellSolveEnd    ! Technically updating fewer cells than before...
@@ -6895,58 +7558,73 @@ if (config_horiz_mixing == "2d_smagorinsky") then
 !$acc cache(coefs_3rd_w)
 !$acc cache(tend_wk)
 
+GPUOMP !$omp parallel do simd
 !$acc loop vector
          do k=1,nVertLevels+1
            tend_wk(k) = 0.0
          end do
+GPUOMP !$omp end parallel do simd
 
 !$acc loop seq
          do i=1,nEdgesOnCell(iCell)
             iEdge = edgesOnCell(i,iCell)
+GPUOMP !$omp parallel do simd
 !$acc loop vector
             do k=2,nVertLevels
                ru_edge_w(k) = fzm(k)*ru(k,iEdge) + fzp(k)*ru(k-1,iEdge)
             end do
+GPUOMP !$omp end parallel do simd
 
+GPUOMP !$omp parallel do simd
 !$acc loop vector
             do j=1,nAdvCellsForEdge(iEdge)
                iadv_cell_w(j) = advCellsForEdge(j,iEdge)
                coefs_w(j)     = adv_coefs(j,iEdge)
                coefs_3rd_w(j) = adv_coefs_3rd(j,iEdge)
             end do
+GPUOMP !$omp end parallel do simd
 
+GPUOMP !$omp parallel do simd
 !$acc loop vector
             do k=1,nVertLevels
                flux_arr(k) = 0.0
             end do
+GPUOMP !$omp end parallel do simd
 
             ! flux_arr stores the value of w at the cell edge used in the
             ! horizontal transport
 
 !$acc loop seq
             do j=1,nAdvCellsForEdge(iEdge)
+GPUOMP !$omp parallel do simd
 !$acc loop vector
                do k=2,nVertLevels
                   iAdvCell = iadv_cell_w(j)
                   scalar_weight = coefs_w(j) + sign(1.0_RKIND,ru_edge_w(k)) * coefs_3rd_w(j)
                   flux_arr(k) = flux_arr(k) + scalar_weight * w(k,iAdvCell)
                end do
+GPUOMP !$omp end parallel do simd
             end do
 
 !DIR$ IVDEP
+GPUOMP !$omp parallel do simd
 !$acc loop vector
             do k=2,nVertLevels
                tend_wk(k) = tend_wk(k) - edgesOnCell_sign(i,iCell)*ru_edge_w(k)*flux_arr(k)
             end do
+GPUOMP !$omp end parallel do simd
          end do
 
 !DIR$ IVDEP
 !$acc loop vector
+GPUOMP !$omp parallel do simd
          do k=2,nVertLevels
            tend_w(k,iCell) = tend_wk(k)
          end do
+GPUOMP !$omp end parallel do simd
       end do
 !$acc end parallel
+GPUOMP !$omp end target teams distribute !parallel do
 
 
 
@@ -6967,14 +7645,18 @@ if (config_horiz_mixing == "2d_smagorinsky") then
       !  vertical advection, pressure gradient and buoyancy for w
       !
 
+!GPUOMP !$omp target teams distribute parallel do private(tend_wk,wdwz) thread_limit(64)
+GPUOMP !$omp target teams distribute private(tend_wk,wdwz) thread_limit(64)
 !$acc parallel vector_length(64)
 !$acc loop gang private(tend_wk, wdwz)
       do iCell=cellSolveStart,cellSolveEnd
 
+GPUOMP !$omp parallel do simd
 !$acc loop vector
          do k=1,nVertLevels
             tend_wk(k) = w(k,iCell)
          end do
+GPUOMP !$omp end parallel do simd
 
 !$acc loop vector shortloop
          do k=1,nVertLevels+1,nVertLevels
@@ -6984,19 +7666,25 @@ if (config_horiz_mixing == "2d_smagorinsky") then
          do k=2,nVertLevels,nVertLevels-2
             wdwz(k) = 0.25*(rw(k,iCell)+rw(k-1,iCell))*(tend_wk(k)+tend_wk(k-1))
          end do
+GPUOMP !$omp parallel do simd
 !$acc loop vector
          do k=3,nVertLevels-1
             wdwz(k) = flux3(tend_wk(k-2),tend_wk(k-1),tend_wk(k),tend_wk(k+1),0.5*(rw(k,iCell)+rw(k-1,iCell)), 1.0_RKIND )
          end do
+GPUOMP !$omp end parallel do simd
 
 !DIR$ IVDEP
+GPUOMP !$omp parallel do simd
 !$acc loop vector
          do k=2,nVertLevels
             tend_w(k,iCell) = tend_w(k,iCell) * invAreaCell(iCell) - rdzu(k)*(wdwz(k+1)-wdwz(k))
          end do
+GPUOMP !$omp end parallel do simd
      end do
 !$acc end parallel
+GPUOMP !$omp end target teams distribute !parallel do
 
+GPUOMP !$omp target teams distribute parallel do simd collapse(2)
 !$acc parallel vector_length(64)
 !$acc loop gang worker
       do iCell = cellSolveStart,cellSolveEnd
@@ -7006,6 +7694,7 @@ if (config_horiz_mixing == "2d_smagorinsky") then
          end do
       end do
 !$acc end parallel 
+GPUOMP !$omp end target teams distribute parallel do simd
 
 
 !----------- rhs for theta
@@ -7013,6 +7702,10 @@ if (config_horiz_mixing == "2d_smagorinsky") then
       !
       !  horizontal advection for theta
       !
+!GPUOMP Note: could likely be optimized a lot
+!GPUOMP !$omp target teams distribute parallel do &
+GPUOMP !$omp target teams distribute &
+GPUOMP !$omp private(ru_edge_w, flux_arr, iadv_cell_w, coefs_w, coefs_3rd_w, tend_wk) thread_limit(64)
 !$acc parallel vector_length(64)
 !$acc loop gang private(ru_edge_w, flux_arr, iadv_cell_w, coefs_w, coefs_3rd_w, tend_wk)
       do iCell=cellSolveStart,cellSolveEnd    ! Technically updating fewer cells than before...
@@ -7023,54 +7716,70 @@ if (config_horiz_mixing == "2d_smagorinsky") then
 !$acc cache(coefs_3rd_w)
 !$acc cache(tend_wk)
 
+GPUOMP !$omp parallel do simd
 !$acc loop vector
          do k=1,nVertLevels+1
            tend_wk(k) = 0.0
          end do
+GPUOMP !$omp end parallel do simd
 
 !$acc loop seq
          do i=1,nEdgesOnCell(iCell)
             iEdge = edgesOnCell(i,iCell)
 
+GPUOMP !$omp parallel do simd
 !$acc loop vector
             do k=1,nVertLevels
                ru_edge_w(k) = ru(k,iEdge)
                flux_arr(k) = 0.0
             end do
+GPUOMP !$omp end parallel do simd
 
+GPUOMP !$omp parallel do simd
 !$acc loop vector shortloop
             do j=1,nAdvCellsForEdge(iEdge)
                iadv_cell_w(j) = advCellsForEdge(j,iEdge)
                coefs_w(j)     = adv_coefs(j,iEdge)
                coefs_3rd_w(j) = adv_coefs_3rd(j,iEdge)
             end do
+GPUOMP !$omp end parallel do simd
 
 !$acc loop seq
             do j=1,nAdvCellsForEdge(iEdge)
+GPUOMP !$omp parallel do simd
 !$acc loop vector
                do k=1,nVertLevels
                   iAdvCell = iadv_cell_w(j)
                   scalar_weight = coefs_w(j) + sign(1.0_RKIND,ru_edge_w(k))*coefs_3rd_w(j)
                   flux_arr(k) = flux_arr(k) + scalar_weight* theta_m(k,iAdvCell)
                end do
+GPUOMP !$omp end parallel do simd
             end do
 
 !DIR$ IVDEP
+GPUOMP !$omp parallel do simd
 !$acc loop vector
             do k=1,nVertLevels
                tend_wk(k) = tend_wk(k) - edgesOnCell_sign(i,iCell) * ru_edge_w(k) * flux_arr(k)
             end do
+GPUOMP !$omp end parallel do simd
 
          end do
 
+GPUOMP !$omp parallel do simd
 !$acc loop vector
          do k=1,nVertLevels
             tend_theta(k,iCell) = tend_wk(k)
          end do
+GPUOMP !$omp end parallel do simd
       end do
 !$acc end parallel
+GPUOMP !$omp end target teams distribute !parallel do
 !  addition to pick up perturbation flux for rtheta_pp equation
 
+!GPUOMP !$omp target teams distribute parallel do thread_limit(64) &
+GPUOMP !$omp target teams distribute thread_limit(64) &
+GPUOMP !$omp private(flux_arr1,tend_wk, ru_edge_w,ru_save_temp)
 !$acc parallel vector_length(64)
 !$acc loop gang private(flux_arr1,tend_wk, ru_edge_w,ru_save_temp)
         do iCell=cellSolveStart,cellSolveEnd
@@ -7079,35 +7788,43 @@ if (config_horiz_mixing == "2d_smagorinsky") then
 !$acc cache(ru_save_temp)
 !$acc cache(tend_wk)
 
+GPUOMP !$omp parallel do simd
 !$acc loop vector
          do k=1,nVertLevels
            tend_wk(k) = tend_theta(k,iCell)
          end do
+GPUOMP !$omp end parallel do simd
 
 !$acc loop vector
             do i=1,nEdgesOnCell(iCell)
                iEdge = edgesOnCell(i,iCell)
                cell1 = cellsOnEdge(1,iEdge)
                cell2 = cellsOnEdge(2,iEdge)
+GPUOMP !$omp parallel do simd
 !$acc loop vector
             do k=1,nVertLevels
                ru_edge_w(k) = ru(k,iEdge)
                ru_save_temp(k) = ru_save(k,iEdge)
                flux_arr1(k) = 0.0
             end do
+GPUOMP !$omp end parallel do simd
 !DIR$ IVDEP
+GPUOMP !$omp parallel do simd
 !$acc loop vector
             do k=1,nVertLevels
                flux_arr1(k) = edgesOnCell_sign(i,iCell)*dvEdge(iEdge)*(ru_save_temp(k)-ru_edge_w(k))*0.5*(theta_m_save(k,cell2)+theta_m_save(k,cell1))
                !flux_arr1(k) = edgesOnCell_sign(i,iCell) *dvEdge(iEdge)*(ru_save(k,iCell)-ru_edge_w(k)) &
                ! *0.5*(theta_m_save(k,cell2)+theta_m_save(k,cell1))
             end do
+GPUOMP !$omp end parallel do simd
 !DIR$ IVDEP
+GPUOMP !$omp parallel do simd
 !$acc loop vector
             do k = 1,nVertLevels
 !               tend_theta(k,iCell) = tend_theta(k,iCell)-flux_arr1(k)  ! division by areaCell picked up down below
                tend_wk(k) = tend_wk(k)-flux_arr1(k)
             end do
+GPUOMP !$omp end parallel do simd
           end do
 !$acc loop vector
          do k=1,nVertLevels
@@ -7116,6 +7833,7 @@ if (config_horiz_mixing == "2d_smagorinsky") then
 
         end do
 !$acc end parallel
+GPUOMP !$omp end target teams distribute !parallel do
 
       !
       !  horizontal mixing for theta_m - we could combine this with advection directly (i.e. as a turbulent flux),
@@ -7124,6 +7842,8 @@ if (config_horiz_mixing == "2d_smagorinsky") then
       !  Note: we are also dividing through by the cell area after the horizontal flux divergence
       !
 
+!GPUOMP !$omp target teams distribute parallel do private(wdtz) thread_limit(64)
+GPUOMP !$omp target teams distribute private(wdtz) thread_limit(64)
 !$acc parallel vector_length(64)
 !$acc loop gang private(wdtz)
       do iCell = cellSolveStart,cellSolveEnd
@@ -7133,6 +7853,12 @@ if (config_horiz_mixing == "2d_smagorinsky") then
          do k=1,nVertLevels+1,nVertLevels
             wdtz(k) = 0.
          end do
+#ifdef MPAS_AMD_OFFLOAD
+         wdtz(2) = rw(2,icell)*(fzm(2)*theta_m(2,iCell)+fzp(2)*theta_m(1,iCell))
+         wdtz(2) = wdtz(2)+(rw_save(2,icell)-rw(2,icell))*(fzm(2)*theta_m_save(2,iCell)+fzp(2)*theta_m_save(1,iCell))
+         wdtz(nVertLevels) = rw_save(nVertLevels,icell)*(fzm(nVertLevels)*theta_m(nVertLevels,iCell)+fzp(nVertLevels)*theta_m(nVertLevels-1,iCell))  !rtheta_pp redefinition
+
+#else
 !$acc loop vector shortloop
          do k=2,nVertLevels,nVertLevels-2
             if (k.eq.2) then
@@ -7142,13 +7868,17 @@ if (config_horiz_mixing == "2d_smagorinsky") then
                wdtz(k) = rw_save(k,icell)*(fzm(k)*theta_m(k,iCell)+fzp(k)*theta_m(k-1,iCell))  !rtheta_pp redefinition
             end if
          end do
+#endif
+GPUOMP !$omp parallel do simd
 !$acc loop vector
          do k=3,nVertLevels-1
             wdtz(k) = flux3( theta_m(k-2,iCell),theta_m(k-1,iCell),theta_m(k,iCell),theta_m(k+1,iCell), rw(k,iCell), coef_3rd_order )
             wdtz(k) =  wdtz(k) + (rw_save(k,icell)-rw(k,iCell))*(fzm(k)*theta_m_save(k,iCell)+fzp(k)*theta_m_save(k-1,iCell))! rtheta_pp redefinition
          end do
+GPUOMP !$omp end parallel do simd
 
 !DIR$ IVDEP
+GPUOMP !$omp parallel do simd
 !$acc loop vector
          do k=1,nVertLevels
             tend_theta(k,iCell) = tend_theta(k,iCell)*invAreaCell(iCell) -rdzw(k)*(wdtz(k+1)-wdtz(k))
@@ -7157,8 +7887,11 @@ if (config_horiz_mixing == "2d_smagorinsky") then
             tend_theta(k,iCell) = tend_theta(k,iCell) + rho_zz(k,iCell)*rt_diabatic_tend(k,iCell)
             tend_theta(k,iCell) = tend_theta(k,iCell) + tend_theta_euler(k,iCell) + tend_rtheta_physics(k,iCell)
          end do
+GPUOMP !$omp end parallel do simd
       end do
 !$acc end parallel
+GPUOMP !$omp end target teams distribute !parallel do
+TMPOMP !$omp target update from(h_divergence,tend_u,tend_w,tend_theta,tend_rtheta_adv,rthdynten)
 
 !$acc end data
    end subroutine atm_compute_dyn_tend_work_rk23
@@ -7339,13 +8072,24 @@ if (config_horiz_mixing == "2d_smagorinsky") then
 !$acc kiteareasonvertex, kiteforcell, verticesoncell, edgesonedge, &
 !$acc nedgesonedge, weightsonedge, fvertex, verticesonedge, &
 !$acc invdcedge, invdvedge)
+TMPOMP !$omp target update to(h_edge,  vorticity, divergence, ke, &
+TMPOMP !$omp ke_vertex, v, pv_vertex, pv_edge, pv_cell, gradpvn, &
+TMPOMP !$omp gradpvt, ke_edge, &
+TMPOMP !$omp cellsonedge, dcedge, dvedge, h, u, edgesonvertex, &
+TMPOMP !$omp edgesonvertex_sign, invareatriangle, edgesoncell, &
+TMPOMP !$omp edgesoncell_sign, invareacell, nedgesoncell, &
+TMPOMP !$omp kiteareasonvertex, kiteforcell, verticesoncell, edgesonedge, &
+TMPOMP !$omp nedgesonedge, weightsonedge, fvertex, verticesonedge, &
+TMPOMP !$omp invdcedge, invdvedge)
 
       !
       ! Compute height on cell edges at velocity locations
       !
+GPUOMP !$omp target teams distribute parallel do simd collapse(2) thread_limit(256)
 !$acc parallel vector_length(32) 
 !$acc loop gang
       do iEdge=edgeStart,edgeEnd
+GPUOMP         do k=1,nVertLevels
          cell1 = cellsOnEdge(1,iEdge)
          cell2 = cellsOnEdge(2,iEdge)
          efac = dcEdge(iEdge)*dvEdge(iEdge)
@@ -7353,17 +8097,19 @@ if (config_horiz_mixing == "2d_smagorinsky") then
        !   efac = efactemp * efactemp
 !DIR$ IVDEP
 !$acc loop vector
-         do k=1,nVertLevels
+         GPUACC do k=1,nVertLevels
             h_edge(k,iEdge) = 0.5 * (h(k,cell1) + h(k,cell2))
             ke_edge(k,iEdge) = efac*u(k,iEdge)**2
          end do
       end do
 !$acc end parallel
+GPUOMP !$omp end target teams distribute parallel do simd
 
       !
       ! Compute circulation and relative vorticity at each vertex
       !
 
+GPUOMP !$omp target teams distribute parallel do simd collapse(2) thread_limit(256)
 !$acc parallel num_workers(4) vector_length(32)
 !$acc loop gang worker
       do iVertex=vertexStart,vertexEnd
@@ -7380,19 +8126,22 @@ if (config_horiz_mixing == "2d_smagorinsky") then
          end do
       end do
 !$acc end parallel
+GPUOMP !$omp end target teams distribute parallel do simd
 
 
       !
       ! Compute the divergence at each cell center
       !
 
+GPUOMP !$omp target teams distribute parallel do simd collapse(2) thread_limit(256)
 !$acc parallel vector_length(32)
 !$acc loop gang
       do iCell=cellStart,cellEnd
+GPUOMP         do k=1,nVertLevels
        r = invAreaCell(iCell)
 !DIR$ IVDEP
 !$acc loop vector
-         do k=1,nVertLevels
+       GPUACC do k=1,nVertLevels
          divergence(k,iCell) = 0.0
          do i=1,nEdgesOnCell(iCell)
             iEdge = edgesOnCell(i,iCell)
@@ -7403,14 +8152,16 @@ if (config_horiz_mixing == "2d_smagorinsky") then
          end do
       end do
 !$acc end parallel
+GPUOMP !$omp end target teams distribute parallel do simd
 
-!$OMP BARRIER
+CPUOMP !$OMP BARRIER
       !
       ! Compute kinetic energy in each cell (Ringler et al JCP 2009)
       !
       ! Replace 2.0 with 2 in exponentiation to avoid outside chance that
       ! compiler will actually allow "float raised to float" operation
 
+GPUOMP !$omp target teams distribute parallel do simd collapse(2) thread_limit(256)
 !$acc parallel num_workers(4) vector_length(32)
 !$acc loop gang worker
      do iCell=cellStart,cellEnd
@@ -7426,31 +8177,36 @@ if (config_horiz_mixing == "2d_smagorinsky") then
          end do
       end do
 !$acc end parallel
+GPUOMP !$omp end target teams distribute parallel do simd
 
 
       if (hollingsworth) then
+GPUOMP !$omp target teams distribute parallel do simd collapse(2) thread_limit(256)
 !$acc parallel vector_length(32)
       ! if (hollingsworth) then
 !$acc loop gang
          do iVertex=vertexStart,vertexEnd
+            GPUOMP do k=1,nVertLevels
             temp1 = EdgesOnVertex(1,iVertex)
             temp2 = EdgesOnVertex(2,iVertex)
             temp3 = EdgesOnVertex(3,iVertex)
             r = 0.25 * invAreaTriangle(iVertex)
 !$acc loop vector
-            do k=1,nVertLevels
+            GPUACC do k=1,nVertLevels
 
                ke_vertex(k,iVertex) = ( ke_edge(k,temp1)+ke_edge(k,temp2)+ke_edge(k,temp3) )*r
             end do
          end do
 !$acc end parallel
+GPUOMP !$omp end target teams distribute parallel do simd
 
-!$OMP BARRIER
+CPUOMP !$OMP BARRIER
 
          ! adjust ke at cell vertices - AG's new KE construction, part 2
          !
 
 
+GPUOMP !$omp target teams distribute parallel do simd collapse(2) thread_limit(256)
 !$acc parallel num_workers(4) vector_length(32)
 !$acc loop gang worker
          do iCell=cellStart,cellEnd
@@ -7461,8 +8217,10 @@ if (config_horiz_mixing == "2d_smagorinsky") then
             end do
          end do
 !$acc end parallel
+GPUOMP !$omp end target teams distribute parallel do simd
 
 
+GPUOMP !$omp target teams distribute parallel do simd collapse(2) thread_limit(256)
 !$acc parallel vector_length(32)
 !$acc loop gang
          do iCell=cellStart,cellEnd
@@ -7478,6 +8236,7 @@ if (config_horiz_mixing == "2d_smagorinsky") then
             end do
          end do
 !$acc end parallel
+GPUOMP !$omp end target teams distribute parallel do simd
       end if
 
 
@@ -7491,6 +8250,7 @@ if (config_horiz_mixing == "2d_smagorinsky") then
       end if
 
       if (reconstruct_v) then
+GPUOMP !$omp target teams distribute parallel do simd collapse(2) thread_limit(256)
 !$acc parallel vector_length(32)
 !$acc loop gang
         do iEdge = edgeStart,edgeEnd
@@ -7505,6 +8265,7 @@ if (config_horiz_mixing == "2d_smagorinsky") then
            end do
         end do
 !$acc end parallel
+GPUOMP !$omp end target teams distribute parallel do simd
       end if
 
 
@@ -7515,6 +8276,7 @@ if (config_horiz_mixing == "2d_smagorinsky") then
       ! Avoid dividing h_vertex by areaTriangle and move areaTriangle into
       ! numerator for the pv_vertex calculation
 
+GPUOMP !$omp target teams distribute parallel do simd collapse(2) thread_limit(256)
 !$acc parallel num_workers(4) vector_length(32)
 !$acc loop gang worker
       do iVertex = vertexStart,vertexEnd
@@ -7525,15 +8287,17 @@ if (config_horiz_mixing == "2d_smagorinsky") then
          end do
       end do
 !$acc end parallel
+GPUOMP !$omp end target teams distribute parallel do simd
 
 
-!$OMP BARRIER
+CPUOMP !$OMP BARRIER
 
       !
       ! Compute pv at the edges
       !   ( this computes pv_edge at all edges bounding real cells )
       !
 
+GPUOMP !$omp target teams distribute parallel do simd collapse(2) thread_limit(256)
 !$acc parallel num_workers(4) vector_length(32)
 !$acc loop gang worker
       do iEdge = edgeStart,edgeEnd
@@ -7544,9 +8308,11 @@ if (config_horiz_mixing == "2d_smagorinsky") then
          end do
       end do
 !$acc end parallel
+GPUOMP !$omp end target teams distribute parallel do simd
 
 
       if (config_apvm_upwinding > 0.0) then
+GPUOMP !$omp target teams distribute parallel do simd collapse(2) thread_limit(256)
 !$acc parallel vector_length(32)
 !$acc loop gang
       do iCell=cellStart,cellEnd
@@ -7563,8 +8329,9 @@ if (config_horiz_mixing == "2d_smagorinsky") then
          end do
       end do
 !$acc end parallel
+GPUOMP !$omp end target teams distribute parallel do simd
 
-!$OMP BARRIER
+CPUOMP !$OMP BARRIER
 
          !
          ! Modify PV edge with upstream bias. 
@@ -7581,9 +8348,11 @@ if (config_horiz_mixing == "2d_smagorinsky") then
          ! Also precomputed inverses of dvEdge and dcEdge to avoid repeated divisions
          !
 
+GPUOMP !$omp target teams distribute parallel do simd collapse(2) thread_limit(256)
 !$acc parallel vector_length(32)
 !$acc loop gang
          do iEdge = edgeStart,edgeEnd
+            GPUOMP do k = 1,nVertLevels
             r1 = 1.0_RKIND * invDvEdge(iEdge)
             r2 = 1.0_RKIND * invDcEdge(iEdge)
             cell1 = cellsOnEdge(1,iEdge)
@@ -7592,7 +8361,7 @@ if (config_horiz_mixing == "2d_smagorinsky") then
             v2 = verticesOnEdge(2,iEdge)
 !DIR$ IVDEP
 !$acc loop vector
-            do k = 1,nVertLevels
+            GPUACC do k = 1,nVertLevels
 
                gradPVt(k,iEdge) = (pv_vertex(k,v2) - pv_vertex(k,v1)) * r1
                gradPVn(k,iEdge) = (pv_cell(k,cell2) - pv_cell(k,cell1)) * r2
@@ -7602,7 +8371,9 @@ if (config_horiz_mixing == "2d_smagorinsky") then
             end do
          end do
 !$acc end parallel
+GPUOMP !$omp end target teams distribute parallel do simd
       end if  ! apvm upwinding
+TMPOMP !$omp target update from(h_edge,ke_edge,vorticity,divergence,ke,ke_vertex,v,pv_vertex,pv_edge,pv_cell,gradPVt,gradPVn)
 !$acc end data
 
    end subroutine atm_compute_solve_diagnostics_work_gpu
@@ -7831,7 +8602,7 @@ if (config_horiz_mixing == "2d_smagorinsky") then
       end do
 
 
-!$OMP BARRIER
+CPUOMP !$OMP BARRIER
 
       !
       ! Compute kinetic energy in each cell (Ringler et al JCP 2009)
@@ -7876,7 +8647,7 @@ if (config_horiz_mixing == "2d_smagorinsky") then
             end do
          end do
 
-!$OMP BARRIER
+CPUOMP !$OMP BARRIER
 
          ! adjust ke at cell vertices - AG's new KE construction, part 2
          !
@@ -7946,7 +8717,7 @@ if (config_horiz_mixing == "2d_smagorinsky") then
          end do
       end do
 
-!$OMP BARRIER
+CPUOMP !$OMP BARRIER
 
       !
       ! Compute pv at the edges
@@ -7980,7 +8751,7 @@ if (config_horiz_mixing == "2d_smagorinsky") then
       end do
 
 
-!$OMP BARRIER
+CPUOMP !$OMP BARRIER
 
          !
          ! Modify PV edge with upstream bias. 
@@ -8104,7 +8875,7 @@ if (config_horiz_mixing == "2d_smagorinsky") then
          end do
       end do
 
-!$OMP BARRIER
+CPUOMP !$OMP BARRIER
 
       do iEdge=edgeStart,edgeEnd
          cell1 = cellsOnEdge(1,iEdge)
@@ -8114,7 +8885,7 @@ if (config_horiz_mixing == "2d_smagorinsky") then
          end do
       end do
 
-!$OMP BARRIER
+CPUOMP !$OMP BARRIER
 
       ! Compute rw (i.e. rho_zz * omega) from rho_zz, w, and ru.
       ! We are reversing the procedure we use in subroutine atm_recover_large_step_variables.
@@ -8276,11 +9047,16 @@ if (config_horiz_mixing == "2d_smagorinsky") then
       real (kind=RKIND) :: inv_dynamics_split
       integer:: i,j
       inv_dynamics_split = 1.0_RKIND / real(dynamics_split)
+TMPOMP !$omp target update to(ru, ru_save, rw, rw_save, &
+TMPOMP !$omp rtheta_p,rtheta_p_save,rho_p,rho_p_save, &
+TMPOMP !$omp rho_zz_old_split,ruAvg,ruAvg_split, wwAvg, wwAvg_split, &
+TMPOMP !$omp u_1,u_2,w_1,w_2,theta_m_1,theta_m_2,rho_zz_1,rho_zz_2)
 !$acc data present(ru, ru_save, rw, rw_save, &
 !$acc rtheta_p,rtheta_p_save,rho_p,rho_p_save, &
 !$acc rho_zz_old_split,ruAvg,ruAvg_split, wwAvg, wwAvg_split, &
 !$acc u_1,u_2,w_1,w_2,theta_m_1,theta_m_2,rho_zz_1,rho_zz_2)
       if (dynamics_substep < dynamics_split) then
+GPUOMP !$omp target teams distribute parallel do simd collapse(2)
 !$acc parallel vector_length(32)
 !$acc loop gang
          do i = cellStart,cellEnd
@@ -8290,13 +9066,19 @@ if (config_horiz_mixing == "2d_smagorinsky") then
                          theta_m_1(j,i) = theta_m_2(j,i)
                          rtheta_p_save(j,i) = rtheta_p(j,i)
                          rho_zz_1(j,i) = rho_zz_2(j,i)
+                GPUOMP   rw_save(j,i) = rw(j,i)
+                GPUOMP   w_1(j,i) = w_2(j,i)
                 enddo
+                GPUOMP rw_save(nVertLevels+1,i) = rw(nVertLevels+1,i)
+                GPUOMP w_1(nVertLevels+1,i) = w_2(nVertLevels+1,i)
 !$acc loop vector
-                do j=1,nVertLevels+1
-                         rw_save(j,i) = rw(j,i)
-                         w_1(j,i) = w_2(j,i)
-                enddo
+                GPUACC do j=1,nVertLevels+1
+                GPUACC          rw_save(j,i) = rw(j,i)
+                GPUACC          w_1(j,i) = w_2(j,i)
+                GPUACC enddo
          enddo
+GPUOMP !$omp end target teams distribute parallel do simd
+GPUOMP !$omp target teams distribute parallel do simd collapse(2)
 !$acc loop gang
          do i = edgeStart,edgeEnd
 !$acc loop vector
@@ -8306,6 +9088,7 @@ if (config_horiz_mixing == "2d_smagorinsky") then
                 enddo
          enddo
 !$acc end parallel
+GPUOMP !$omp end target teams distribute parallel do simd
 
 !         ru_save(:,edgeStart:edgeEnd) = ru(:,edgeStart:edgeEnd)
 !         rw_save(:,cellStart:cellEnd) = rw(:,cellStart:cellEnd)
@@ -8320,6 +9103,7 @@ if (config_horiz_mixing == "2d_smagorinsky") then
       end if
       if (dynamics_substep == 1) then
 
+GPUOMP !$omp target teams distribute parallel do simd collapse(2)
 !$acc parallel num_gangs(256) vector_length(32)
 !$acc loop gang
          do i = cellStart,cellEnd
@@ -8328,7 +9112,9 @@ if (config_horiz_mixing == "2d_smagorinsky") then
                         wwAvg_split(j,i) = wwAvg(j,i)
                 enddo
          enddo
+GPUOMP !$omp end target teams distribute parallel do simd
 
+GPUOMP !$omp target teams distribute parallel do simd collapse(2)
 !$acc loop gang
          do i = edgeStart,edgeEnd
 !$acc loop vector
@@ -8336,9 +9122,11 @@ if (config_horiz_mixing == "2d_smagorinsky") then
                         ruAvg_split(j,i) = ruAvg(j,i)
                 enddo
          enddo
+GPUOMP !$omp end target teams distribute parallel do simd
 !$acc end parallel
       else
 
+GPUOMP !$omp target teams distribute parallel do simd collapse(2)
 !$acc parallel num_gangs(256) vector_length(32)
 !$acc loop gang
          do i = cellStart,cellEnd
@@ -8347,7 +9135,9 @@ if (config_horiz_mixing == "2d_smagorinsky") then
                         wwAvg_split(j,i) = wwAvg(j,i)+wwAvg_split(j,i)
                 enddo
          enddo
+GPUOMP !$omp end target teams distribute parallel do simd
 
+GPUOMP !$omp target teams distribute parallel do simd collapse(2)
 !$acc loop gang
          do i = edgeStart,edgeEnd
 !$acc loop vector
@@ -8355,24 +9145,30 @@ if (config_horiz_mixing == "2d_smagorinsky") then
                         ruAvg_split(j,i) = ruAvg(j,i)+ruAvg_split(j,i)
                 enddo
          enddo
+GPUOMP !$omp end target teams distribute parallel do simd
 !$acc end parallel
 
       end if
 
 
       if (dynamics_substep == dynamics_split) then
+GPUOMP !$omp target teams distribute parallel do simd collapse(2)
 !$acc parallel num_gangs(256) vector_length(32)
 !$acc loop gang
          do i = cellStart,cellEnd
 !$acc loop vector
-                do j=1,nVertLevels+1
-                        wwAvg(j,i) = wwAvg_split(j,i) * inv_dynamics_split
-                enddo
+                GPUACC do j=1,nVertLevels+1
+                GPUACC         wwAvg(j,i) = wwAvg_split(j,i) * inv_dynamics_split
+                GPUACC enddo
                 do j=1,nVertLevels
+                GPUOMP  wwAvg(j,i) = wwAvg_split(j,i) * inv_dynamics_split
                         rho_zz_1(j,i) = rho_zz_old_split(j,i)
                 enddo
+                GPUOMP  wwAvg(nVertLevels+1,i) = wwAvg_split(nVertLevels+1,i) * inv_dynamics_split
          enddo
+GPUOMP !$omp end target teams distribute parallel do simd
 
+GPUOMP !$omp target teams distribute parallel do simd collapse(2)
 !$acc loop gang
          do i = edgeStart,edgeEnd
 !$acc loop vector
@@ -8380,9 +9176,12 @@ if (config_horiz_mixing == "2d_smagorinsky") then
                         ruAvg(j,i) = ruAvg_split(j,i) * inv_dynamics_split
                 enddo
          enddo
+GPUOMP !$omp end target teams distribute parallel do simd
 !$acc end parallel
       end if
 
+TMPOMP !$omp target update from(rho_p_save,theta_m_1,rtheta_p_save,rho_zz_1,rw_save,w_1,ru_save,u_1,&
+TMPOMP !$omp wwAvg_split,ruAvg_split,wwAvg,ruAvg)
 
 !$acc end data
 
@@ -8884,7 +9683,7 @@ if (config_horiz_mixing == "2d_smagorinsky") then
 
       end do  ! updates now in temp storage
             
-!$OMP BARRIER
+CPUOMP !$OMP BARRIER
 
       do iCell = cellSolveStart, cellSolveEnd ! threaded over cells
          if (bdyMaskCell(iCell) > 1) then ! update values
@@ -9360,6 +10159,8 @@ if (config_horiz_mixing == "2d_smagorinsky") then
             call mpas_pool_get_array_gpu(state, 'u', u, 2)
 
 !add the variables in the "update host" clause below to update the data on host
+        GPUOMP !$omp target update from(w, &
+        GPUOMP !$omp u)
         !$acc update host(w, &
         !$acc u)
 

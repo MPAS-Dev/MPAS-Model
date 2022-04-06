@@ -1,11 +1,13 @@
 ! Copyright (c) 2013,  Los Alamos National Security, LLC (LANS)
 ! and the University Corporation for Atmospheric Research (UCAR).
+! Modifications Copyright (c) 2022, Advanced Micro Devices, Inc (AMD). All rights Reserved.
 !
 ! Unless noted otherwise source code is licensed under the BSD license.
 ! Additional copyright and license information can be found in the LICENSE file
 ! distributed with this code, or at http://mpas-dev.github.com/license.html
 !
 !=================================================================================================================
+#include "mpas_openmp.inc"
  module mpas_atmphys_driver_radiation_sw
  use mpas_kind_types
  use mpas_pool_routines
@@ -971,7 +973,7 @@
 
 ! This should be OMP MASTER with barrier afterwards or OMP SINGLE, since declin and solcon
 ! are global variables in mpas_atmphys_vars.F and race conditions may occur otherwise!
-!$OMP SINGLE
+CPUOMP !$OMP SINGLE
 
 !... convert the radiation time_step to minutes:
  radt = dt_radtsw/60.
@@ -996,7 +998,7 @@
 !call mpas_log_write('     CURR_JULDAY = $r', realArgs=(/curr_julday/))
 !call mpas_log_write('     SOLCON      = $r', realArgs=(/solcon/))
 !call mpas_log_write('     DECLIN      = $r', realArgs=(/declin/))
-!$OMP END SINGLE
+CPUOMP !$OMP END SINGLE
 
  call mpas_log_write('RUNNING SW RADIATION SCHEME FOR XTIME_M = $r', realArgs=(/xtime_m/))
     

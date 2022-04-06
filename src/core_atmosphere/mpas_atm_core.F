@@ -1,10 +1,12 @@
 ! Copyright (c) 2013,  Los Alamos National Security, LLC (LANS)
 ! and the University Corporation for Atmospheric Research (UCAR).
+! Modifications Copyright (c) 2022, Advanced Micro Devices, Inc (AMD). All rights Reserved.
 !
 ! Unless noted otherwise source code is licensed under the BSD license.
 ! Additional copyright and license information can be found in the LICENSE file
 ! distributed with this code, or at http://mpas-dev.github.com/license.html
 !
+#include "mpas_openmp.inc"
 module atm_core
 
    use mpas_derived_types
@@ -440,7 +442,7 @@ end if
       call mpas_pool_get_dimension(block % dimensions, 'edgeSolveThreadStart', edgeSolveThreadStart)
       call mpas_pool_get_dimension(block % dimensions, 'edgeSolveThreadEnd', edgeSolveThreadEnd)
 
-!$OMP PARALLEL DO
+CPUOMP !$OMP PARALLEL DO
       do thread=1,nThreads
          if (.not. config_do_restart .or. (config_do_restart .and. config_do_DAcycling)) then
             call atm_init_coupled_diagnostics(state, 1, diag, mesh, block % configs, &
@@ -457,7 +459,7 @@ end if
                                             vertexThreadStart(thread), vertexThreadEnd(thread), &
                                             edgeThreadStart(thread), edgeThreadEnd(thread))
       end do
-!$OMP END PARALLEL DO
+CPUOMP !$OMP END PARALLEL DO
 
       deallocate(ke_vertex)
       deallocate(ke_edge)

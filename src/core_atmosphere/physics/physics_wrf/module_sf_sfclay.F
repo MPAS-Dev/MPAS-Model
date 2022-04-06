@@ -1,5 +1,7 @@
 !WRF:MODEL_LAYER:PHYSICS
 !
+! Modifications Copyright (c) 2022, Advanced Micro Devices, Inc (AMD). All rights reserved
+#include "mpas_openmp.inc"
 MODULE module_sf_sfclay
 
  REAL    , PARAMETER ::  VCONVC=1.
@@ -7,6 +9,7 @@ MODULE module_sf_sfclay
  REAL    , PARAMETER ::  OZO=1.59E-5
 
  REAL,   DIMENSION(0:1000 ),SAVE          :: PSIMTB,PSIHTB
+GPUOMP !$omp declare target to(PSIMTB,PSIHTB)
 !$acc declare create(PSIMTB,PSIHTB)
 
 CONTAINS
@@ -212,6 +215,7 @@ CONTAINS
 
       INTEGER ::  I,J
 
+GPUOMP !$omp target data map(alloc:dz8w1d,U1D,V1D,QV1D,P1D,T1D)
 !$acc data create(dz8w1d,U1D,V1D,QV1D,P1D,T1D)
       DO J=jts,jte
 !$acc parallel vector_length(32)
@@ -261,6 +265,7 @@ CONTAINS
                                                                    )
       ENDDO
 !$acc end data
+GPUOMP !$omp end target data
  
    END SUBROUTINE SFCLAY
 
@@ -393,6 +398,9 @@ CONTAINS
       REAL    ::  FLUXC,VSGD,Z0Q,VISC,RESTAR,CZIL,GZ0OZQ,GZ0OZT
       REAL    ::  ZW, ZN1, ZN2
       REAL    ::  Z0T, CZC
+GPUOMP !$omp target data map(alloc:PSFC,TGDSA,THGB,SCR3,THX,SCR4,THVX,QX,ZQKLP1, &
+GPUOMP !$omp ZQKL,ZA,GOVRTH,RHOX,GZ2OZ0,GZ10OZ0,PSIM10,PSIH10,PSIM2, &
+GPUOMP !$omp PSIH2,WSPDI,DENOMQ,DENOMQ2,DENOMT2)
 !$acc data create(PSFC,TGDSA,THGB,SCR3,THX,SCR4,THVX,QX,ZQKLP1, &
 !$acc ZQKL,ZA,GOVRTH,RHOX,GZ2OZ0,GZ10OZ0,PSIM10,PSIH10,PSIM2, &
 !$acc PSIH2,WSPDI,DENOMQ,DENOMQ2,DENOMT2)
@@ -1044,6 +1052,7 @@ CONTAINS
 !     ENDDO
 !jdf
 !$acc end data
+GPUOMP !$omp end target data
 !                                                                                
    END SUBROUTINE SFCLAY1D
 

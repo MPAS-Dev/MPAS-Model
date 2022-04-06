@@ -1,5 +1,6 @@
 Copyright (c) 2013-2019,  Los Alamos National Security, LLC (LANS) (Ocean: LA-CC-13-047;
 Land Ice: LA-CC-13-117) and the University Corporation for Atmospheric Research (UCAR).
+Modifications Copyright (c) 2022, Advanced Micro Devices, Inc (AMD)
 
 All rights reserved. 
 
@@ -23,7 +24,7 @@ list of conditions and the following disclaimer.
 this list of conditions and the following disclaimer in the documentation and/or
 other materials provided with the distribution.
 
-3) None of the names of LANS, UCAR or the names of its contributors, if any, may
+3) None of the names of LANS, UCAR, AMD, or the names of its contributors, if any, may
 be used to endorse or promote products derived from this software without
 specific prior written permission.
 

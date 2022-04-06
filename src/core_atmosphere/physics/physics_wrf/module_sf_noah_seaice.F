@@ -1,3 +1,5 @@
+! Modifications Copyright (c) 2022, Advanced Micro Devices, Inc (AMD). All rights reserved
+#include "mpas_openmp.inc"
 MODULE module_sf_noah_seaice
 #if defined(mpas)
 use mpas_atmphys_constants,only: cp,R_D=>R_d,XLF,XLV,RHOWATER=>rho_w,STBOLT
@@ -24,7 +26,7 @@ use module_wrf_error
 
   INTEGER, PRIVATE :: ILOC
   INTEGER, PRIVATE :: JLOC
-!$omp threadprivate(iloc, jloc)
+CPUOMP !$omp threadprivate(iloc, jloc)
 
   REAL, PARAMETER, PRIVATE :: TFREEZ = 273.15
 !

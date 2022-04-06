@@ -1,5 +1,6 @@
 ! Copyright (c) 2013,  Los Alamos National Security, LLC (LANS)
 ! and the University Corporation for Atmospheric Research (UCAR).
+! Modifications Copyright (c) 2022, Advanced Micro Devices, Inc (AMD). All rights Reserved.
 !
 ! Unless noted otherwise source code is licensed under the BSD license.
 ! Additional copyright and license information can be found in the LICENSE file
@@ -16,6 +17,7 @@
 !> This module defines subroutines and functions for handling pools.
 !
 !-----------------------------------------------------------------------
+#include "mpas_openmp.inc"
 module mpas_pool_routines
 
    use mpas_kind_types
@@ -4236,6 +4238,7 @@ module mpas_pool_routines
               scalar => field % scalar
 #ifdef CORE_ATMOSPHERE
               if (coupler % role_includes(ROLE_INTEGRATE)) then
+                      GPUOMP !$omp target enter data map(to:field%scalar)
                       !$acc enter data copyin(field%scalar)
               end if
 #endif
@@ -4293,6 +4296,7 @@ module mpas_pool_routines
               array => field % array
 #ifdef CORE_ATMOSPHERE
               if (coupler % role_includes(ROLE_INTEGRATE)) then
+                      GPUOMP !$omp target enter data map(to:field%array)
                       !$acc enter data copyin(field%array)
               end if
 #endif
@@ -4350,6 +4354,7 @@ module mpas_pool_routines
               array => field % array
 #ifdef CORE_ATMOSPHERE
               if (coupler % role_includes(ROLE_INTEGRATE)) then
+                      GPUOMP !$omp target enter data map(to:field%array)
                       !$acc enter data copyin(field%array)
               end if
 #endif
@@ -4409,6 +4414,7 @@ module mpas_pool_routines
               array => field % array
 #ifdef CORE_ATMOSPHERE
               if (coupler % role_includes(ROLE_INTEGRATE)) then
+                      GPUOMP !$omp target enter data map(to:field%array)
                       !$acc enter data copyin(field%array)
               end if
 #endif
@@ -4466,6 +4472,7 @@ module mpas_pool_routines
               array => field % array
 #ifdef CORE_ATMOSPHERE
               if (coupler % role_includes(ROLE_INTEGRATE)) then
+                      GPUOMP !$omp target enter data map(to:field%array)
                       !$acc enter data copyin(field%array)
               end if
 #endif
@@ -4524,6 +4531,7 @@ module mpas_pool_routines
               array => field % array
 #ifdef CORE_ATMOSPHERE
               if (coupler % role_includes(ROLE_INTEGRATE)) then
+                      GPUOMP !$omp target enter data map(to:field%array)
                       !$acc enter data copyin(field%array)
               end if
 #endif
@@ -4582,6 +4590,7 @@ module mpas_pool_routines
               scalar => field % scalar
 #ifdef CORE_ATMOSPHERE
               if (coupler % role_includes(ROLE_INTEGRATE)) then
+                      GPUOMP !$omp target enter data map(to:field%scalar)
                       !$acc enter data copyin(field%scalar)
               end if
 #endif
@@ -4640,6 +4649,7 @@ module mpas_pool_routines
               array => field % array
 #ifdef CORE_ATMOSPHERE
               if (coupler % role_includes(ROLE_INTEGRATE)) then
+                      GPUOMP !$omp target enter data map(to:field%array)
                       !$acc enter data copyin(field%array)
               end if
 #endif
@@ -4698,6 +4708,7 @@ module mpas_pool_routines
               array => field % array
 #ifdef CORE_ATMOSPHERE
               if (coupler % role_includes(ROLE_INTEGRATE)) then
+                      GPUOMP !$omp target enter data map(to:field%array)
                       !$acc enter data copyin(field%array)
               end if
 #endif
@@ -4756,6 +4767,7 @@ module mpas_pool_routines
               array => field % array
 #ifdef CORE_ATMOSPHERE
               if (coupler % role_includes(ROLE_INTEGRATE)) then
+                      GPUOMP !$omp target enter data map(to:field%array)
                       !$acc enter data copyin(field%array)
               end if
 #endif
@@ -4814,6 +4826,7 @@ module mpas_pool_routines
               string => field % scalar
 #ifdef CORE_ATMOSPHERE
               if (coupler % role_includes(ROLE_INTEGRATE)) then
+                      GPUOMP !$omp target enter data map(to:string)
                       !$acc enter data copyin(field%scalar)
               end if
 #endif
@@ -4872,6 +4885,7 @@ module mpas_pool_routines
               array => field % array
 #ifdef CORE_ATMOSPHERE
               if (coupler % role_includes(ROLE_INTEGRATE)) then
+                      GPUOMP !$omp target enter data map(to:array)
                       !$acc enter data copyin(field%array)
               end if
 #endif
@@ -5776,7 +5790,7 @@ module mpas_pool_routines
          inPool % iterator => inPool % iteration_head
       end if
 
-      !$omp barrier
+      CPUOMP !$omp barrier
 
    end subroutine mpas_pool_begin_iteration!}}}
 
@@ -5804,7 +5818,7 @@ module mpas_pool_routines
       integer :: i, threadNum
 
       threadNum = mpas_threading_get_thread_num()
-      !$omp barrier
+      CPUOMP !$omp barrier
 
       !
       ! As long as there are members left to be iterated over, the inPool%iterator
@@ -5828,7 +5842,7 @@ module mpas_pool_routines
          mpas_pool_get_next_member = .false.
       end if
 
-      !$omp barrier
+      CPUOMP !$omp barrier
 
       if ( threadNum == 0 .and. associated(inPool % iterator) ) then
          ! Only thread 0 can advance iterator to next item
