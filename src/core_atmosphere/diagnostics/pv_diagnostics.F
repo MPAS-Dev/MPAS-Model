@@ -421,6 +421,10 @@ module pv_diagnostics
 
    end function calc_vertDeriv_one
    
+   !Below are two subroutines (floodFill_strato and floodFill_tropo) designed to determine the model level above the dynamic tropopause, iLev_DT. 
+   !Only one of these subroutines is used (toggled with "call floodFill_strato(mesh, diag, pvuVal, stratoPV)" and "call floodFill_tropo(mesh,diag,pvuVal)"
+   !in the subroutines below.
+   
    subroutine floodFill_strato(mesh, diag, pvuVal, stratoPV)
       !Searching down each column from TOA to find 2pvu surface is buggy with stratospheric wave breaking,
       !since will find 2 pvu at a higher level than "tropopause". This looks to be worse as mesh gets finer and vertical vorticity jumps.
