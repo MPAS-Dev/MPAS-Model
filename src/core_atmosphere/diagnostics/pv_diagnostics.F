@@ -491,7 +491,7 @@ module pv_diagnostics
       end do
       
       !seed flood fill with model top that's above DT.
-      !can have model top below 2pvu (eg, tropics)
+      !can have model top with PV below 2 PVU (e.g., in tropics)
       nChanged = 0
       do iCell=1,nCells
          do k=nVertLevels-5,nVertLevels
@@ -591,25 +591,33 @@ module pv_diagnostics
    end subroutine floodFill_strato
    
    subroutine floodFill_tropo(mesh, diag, pvuVal)
-      !Searching down each column from TOA to find 2pvu surface is buggy with stratospheric wave breaking,
-      !since will find 2 pvu at a higher level than "tropopause". This looks to be worse as mesh gets finer and vertical vorticity jumps.
-      !Note that stratospheric blobs may persist for long times w/ slow mixing downstream of mountains or deep convection.
-      !A few quicker fixes (make sure <2pvu for a number of layers; search down from 10PVU instead of TOA) are hacky and not robust.
+      !To find model level of dynamic tropopause: 
+      !Simply searching down from TOA within each column to find first instance of 2-PVU surface (i.e., where the PV drops below values characteristic of the stratosphere) 
+      !is buggy due to stratospheric wave breaking, which may induce regions of low PV (i.e., PV < 2 PVU) within the stratosphere and thus yield artifically
+      !high estimations of the tropopause height. This seems to be more problematic as the mesh gets finer and the vertical vorticity field exhibits greater variability
+      !or jumps. 
+      !Note that these low-PV anomalies in the stratosphere may persist for long times w/ slow mixing downstream of mountains or deep convection.
+      !A few quicker fixes (e.g., make sure PV < 2 PVU for a number of layers; search down from 10 PVU instead of TOA) are hacky and not robust.
       
-      !Two flood fill options are to:
-      ! (1) flood fill stratosphere (>2pvu) from stratosphere seeds near model top. Strong surface PV anomalies can connect to 2pvu, 
-      !     and the resulting "flood-filled 2 pvu" can have sizeable areas that are just at the surface while there is clearly a tropopause above (e.g., in a cross-section).
-      !     To address large surface blobs, take the flood fill mask and try to go up from the surface to 10 pvu w/in column. If can, all stratosphere. Else, disconnect "surface blob".
-      ! (2) flood fill troposphere (<2pvu) from troposphere seeds near surface.
-      !Somewhat paradoxically, the bottom of the stratosphere is lower than the top of the troposphere.
-      
-      !Originally, it was assumed that each (MPI) domain would have >0 cells with "right" DT found by flood filling.
-      !However, for "small" domains over the Arctic say during winter, the entire surface can be capped by high PV.
-      !So, we need to communicate between domains during the flood fill or else we find the DT at the surface.
-      !The extreme limiting case is if we had every cell as its own domain; then, it's clear that there has to be communication.
-
-      !The "output" is iLev_DT, which is the vertical index for the level >= pvuVal. If >nVertLevels, pvuVal above column. If <2, pvuVal below column.
+      !Two flood fill subroutine options are to:
+      ! (1) floodFill_strato: flood fill the stratosphere (PV >= 2 PVU) from stratosphere seeds placed near model top. Strong surface PV anomalies can connect to 2-PVU region aloft, 
+      !     and the resulting "flood-filled 2 PVU" can have sizeable areas that are located just at/near the surface, while there is clearly a tropopause above
+      !     (i.e., as evident in a vertical cross-section). To address the large near-surface blobs of PV > 2 PVU, will take the flood fill mask and try to move upward from
+      !     near the surface to 10 PVU within a vertical column. If this can be done, then the low-level PV anomaly extends to the stratosphere. Else, remove the stratospheric
+      !     designation to disconnect the "surface blob".
+      ! (2) floodFill_tropo: flood fill the troposphere (PV < 2 PVU) from troposphere seeds placed near the surface.
+      !
+      ! Comparing the two procedures... Somewhat paradoxically, the bottom of the stratosphere is located lower than the top of the troposphere.  
+     
+      !The "output" is iLev_DT, which is the vertical index for the model level just above the dynamic tropopause (i.e., where PV >= pvuVal, which is set below in atm_compute_pv_diagnostics to 2 PVU). 
+      !If iLev_DT > nVertLevels, then pvuVal is found only above the column (i.e., entire column is in troposphere). If iLev_DT < 1, PV >= pvuVal extends vertically through the entire column 
+      !(i.e., the entire column is within the stratosphere).
       !Communication between blocks during the flood fill may be needed to treat some edge cases appropriately.
+      
+      !Originally, it was assumed that each (MPI) domain would have > 0 cells with "right" DT found by flood filling.
+      !However, for "small" domains (especially over the poles -- for example, in the Arctic say during winter, when the entire surface can be capped by high PV), 
+      !this becomes problematic. So, we need to communicate between domains during the flood fill procedure or else we will find the DT located at/near the surface.
+      !The extreme limiting case is if we had every cell as its own domain; then, it's clear that there has to be communication.
 
       use mpas_pool_routines, only : mpas_pool_get_dimension, mpas_pool_get_array, mpas_pool_get_field
       use mpas_dmpar, only : mpas_dmpar_max_int,mpas_dmpar_exch_halo_field
