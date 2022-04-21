@@ -421,23 +421,31 @@ module pv_diagnostics
 
    end function calc_vertDeriv_one
    
-   !Below are two subroutines (floodFill_strato and floodFill_tropo) designed to determine the model level above the dynamic tropopause, iLev_DT. 
+   !Below are two subroutines (floodFill_strato and floodFill_tropo) designed to determine the model level above the dynamic tropopause, iLev_DT, which
+   !is designated as the 2-PVU isosurface. 
    !Only one of these subroutines is used (toggled with "call floodFill_strato(mesh, diag, pvuVal, stratoPV)" and "call floodFill_tropo(mesh,diag,pvuVal)"
    !in the subroutines below.
    
    subroutine floodFill_strato(mesh, diag, pvuVal, stratoPV)
-      !Searching down each column from TOA to find 2pvu surface is buggy with stratospheric wave breaking,
-      !since will find 2 pvu at a higher level than "tropopause". This looks to be worse as mesh gets finer and vertical vorticity jumps.
-      !Note that stratospheric blobs may persist for long times w/ slow mixing downstream of mountains or deep convection.
-      !A few quicker fixes (make sure <2pvu for a number of layers; search down from 10PVU instead of TOA) are hacky and not robust.
+      !To find model level of dynamic tropopause: 
+      !Simply searching down from TOA within each column to find first instance of 2-PVU surface (i.e., where the PV drops below values characteristic of the stratosphere) 
+      !is buggy due to stratospheric wave breaking, which may induce regions of low PV (i.e., PV < 2 PVU) within the stratosphere and thus yield artifically
+      !high estimations of the tropopause height. This seems to be more problematic as the mesh gets finer and the vertical vorticity field exhibits greater variability
+      !or jumps. 
+      !Note that these low-PV anomalies in the stratosphere may persist for long times w/ slow mixing downstream of mountains or deep convection.
+      !A few quicker fixes (e.g., make sure PV < 2 PVU for a number of layers; search down from 10 PVU instead of TOA) are hacky and not robust.
       
-      !To alleviate the (hopefully) pockets of wave breaking, we can flood fill from a known
-      !stratosphere region (e.g., model top > 2pvu) and hopefully filter down around any trouble regions.
-      !The problem w/ using only the flood fill is that strong surface PV anomalies can connect to 2pvu, 
-      !and the resulting "flood-filled 2 pvu" can have sizeable areas that are just at the surface while there is clearly a tropopause above (e.g., in a cross-section).
-      !To address large surface blobs, take the flood fill mask and try to go up from the surface to 10 pvu w/in column. If can, all stratosphere. Else, disconnect "surface blob".
+      !To (hopefully) alleviate the problems resulting from wave breaking, we can flood fill from a known
+      !stratosphere region (e.g., where the model top > 2 PVU) and filter down and around any problematic regions.
+      !The problem w/ using only the flood fill is that strong surface PV anomalies can connect to the 2-PVU surface aloft,
+      !and the resulting "flood-filled 2 PVU" region can have sizeable areas that are located just at/near the surface, while there is clearly a 
+      !tropopause above (i.e., as evident in a vertical cross-section).
+      !To address the large near-surface blobs of PV > 2 PVU, will take the flood fill mask and try to move upward from near the surface to 10 PVU within a vertical column. 
+      !If this can be done, then the low-level PV anomaly extends to the stratosphere. Else, remove the stratospheric designation to disconnect the "surface blob".
       
-      !The "output" is iLev_DT, which is the vertical index for the level >= pvuVal. If >nVertLevels, pvuVal above column. If <2, pvuVal below column.
+      !The "output" is iLev_DT, which is the vertical index for the model level just above the dynamic tropopause (i.e., where PV >= pvuVal, which is set below in atm_compute_pv_diagnostics to 2 PVU). 
+      !If iLev_DT > nVertLevels, then pvuVal is found only above the column (i.e., entire column is in troposphere). If iLev_DT < 1, PV >= pvuVal extends vertically through the entire column 
+      !(i.e., the entire column is within the stratosphere).
       !Communication between blocks during the flood fill may be needed to treat some edge cases appropriately.
 
       use mpas_pool_routines, only : mpas_pool_get_dimension, mpas_pool_get_array
