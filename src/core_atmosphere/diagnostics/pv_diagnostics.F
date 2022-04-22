@@ -448,7 +448,9 @@ module pv_diagnostics
       !(i.e., the entire column is within the stratosphere).
       !Communication between blocks during the flood fill may be needed to treat some edge cases appropriately.
 
-      use mpas_pool_routines, only : mpas_pool_get_dimension, mpas_pool_get_array
+      use mpas_pool_routines, only : mpas_pool_get_dimension, mpas_pool_get_array, mpas_pool_get_field
+      use mpas_dmpar, only : mpas_dmpar_max_int,mpas_dmpar_exch_halo_field
+      use mpas_derived_types, only : dm_info, field2DInteger
      
       implicit none
       
@@ -456,18 +458,23 @@ module pv_diagnostics
       type (mpas_pool_type), intent(inout) :: diag
       real(kind=RKIND), intent(in) :: pvuVal, stratoPV
       
-      integer :: iCell, k, nChanged, iNbr, iCellNbr
-      integer, pointer :: nCells, nVertLevels
+      integer :: iCell, k, nChanged, iNbr, iCellNbr, levInd, haloChanged, global_haloChanged !INCORPORATE LEVEL INDEX FOR REMOVING SFC BLOB
+      integer, pointer :: nCells, nVertLevels, nCellsSolve
       integer, dimension(:), pointer :: nEdgesOnCell, iLev_DT
-      integer, dimension(:,:), pointer :: cellsOnCell
+      integer, dimension(:,:), pointer :: cellsOnCell, inStrato ! inStrato wasn't here in original procedure
+      
+      type (field2DInteger), pointer :: inStrato_f ! line added to match troposphere procedure workflow
       
       real(kind=RKIND) :: sgnHemi, sgn
       real(kind=RKIND),dimension(:),pointer:: latCell
       real(kind=RKIND), dimension(:,:), pointer :: ertel_pv
       
-      integer, dimension(:,:), allocatable :: candInStrato, inStrato
+      type (dm_info), pointer :: dminfo
+      
+      integer, dimension(:,:), allocatable :: candInStrato ! whether point is potentially inStrato
       
       call mpas_pool_get_dimension(mesh, 'nCells', nCells)
+      call mpas_pool_get_dimension(mesh, 'nCellsSolve', nCellsSolve)
       call mpas_pool_get_dimension(mesh, 'nVertLevels', nVertLevels)
       call mpas_pool_get_array(mesh, 'nEdgesOnCell', nEdgesOnCell)
       call mpas_pool_get_array(mesh, 'cellsOnCell', cellsOnCell)
@@ -475,12 +482,14 @@ module pv_diagnostics
 
       call mpas_pool_get_array(diag, 'ertel_pv', ertel_pv)
       call mpas_pool_get_array(diag, 'iLev_DT', iLev_DT)
+      call mpas_pool_get_array(diag, 'inStrato', inStrato) ! was allocated below in original script
       
       allocate(candInStrato(nVertLevels, nCells+1))
-      allocate(inStrato(nVertLevels, nCells+1))
+      !allocate(inStrato(nVertLevels, nCells+1))
       candInStrato(:,:) = 0
       inStrato(:,:) = 0
-      !store whether each level above DT to avoid repeating logic. we'll use candInStrato as a isVisited marker further below.
+      
+      !store whether each grid point has |PV| >= pvuVal to avoid repeating logic. we'll use candInStrato as a isVisited marker for potential stratosphere grid points further below.
       do iCell=1,nCells
          sgnHemi = sign(1.0_RKIND, latCell(iCell)) !at the equator, sign(0)=0
          if (sgnHemi .EQ. 0.0) sgnHemi = 1.0_RKIND
@@ -490,7 +499,7 @@ module pv_diagnostics
          end do
       end do
       
-      !seed flood fill with model top that's above DT.
+      !loop over cells and top 5 model levels to seed flood fill with model top that's located above DT (i.e., where |PV| >= pvuVal).
       !can have model top with PV below 2 PVU (e.g., in tropics)
       nChanged = 0
       do iCell=1,nCells
@@ -503,48 +512,70 @@ module pv_diagnostics
          end do
       end do
       
-      !flood fill from the given seeds. since I don't know enough fortran,
+      !flood fill from the determined seeds. since I don't know enough fortran,
       !we'll just brute force a continuing loop rather than queue.
-      do while(nChanged .GT. 0)
-        nChanged = 0
-        do iCell=1,nCells
-          do k=nVertLevels,1,-1
-             !update if candidate and neighbor in strato
-             if (candInStrato(k,iCell) .GT. 0) then
-                !nbr above
-                if (k .LT. nVertLevels) then
-                  if (inStrato(k+1,iCell) .GT. 0) then
-                    inStrato(k,iCell) = 1
-                    candInStrato(k,iCell) = 0
-                    nChanged = nChanged+1
-                    cycle
+      !here is where the changes to account for domain communication are needed.
+      
+      call mpas_pool_get_field(diag, 'inStrato', inStrato_f)
+      dminfo => inStrato_f % block % domain % dminfo
+      global_haloChanged = 1
+      
+      do while(global_haloChanged .GT. 0) !any cell in a halo has changed, to propagate to other domains
+        global_haloChanged = 0 !aggregate the number of changed cells w/in the loop below
+        do while(nChanged .GT. 0)
+          nChanged = 0
+          do iCell=1,nCells !should we look for neighbors of halo cells?
+          !do iCell=1,nCellsSolve !should we look for neighbors of halo cells?
+            do k=nVertLevels,1,-1 ! loop over vertical levels from top down
+               !update if candidate and neighbor in strato
+               if ((candInStrato(k,iCell) .GT. 0) .AND. (inStrato(k,iCell).LT.1) ) then ! modified to match trop routine
+                  !nbr above
+                  if (k .LT. nVertLevels) then
+                    if (inStrato(k+1,iCell) .GT. 0) then
+                      inStrato(k,iCell) = 1
+                      !candInStrato(k,iCell) = 0 ! commented out to be consistent with trop routine
+                      nChanged = nChanged+1
+                      cycle
+                    end if
                   end if
-                end if
                 
-                !side nbrs
-                do iNbr = 1, nEdgesOnCell(iCell)
-                  iCellNbr = cellsOnCell(iNbr,iCell)
-                  if (inStrato(k,iCellNbr) .GT. 0) then
-                    inStrato(k,iCell) = 1
-                    candInStrato(k,iCell) = 0
-                    nChanged = nChanged+1
-                    cycle
-                  end if
-                end do
+                  !side nbrs
+                  do iNbr = 1, nEdgesOnCell(iCell)
+                    iCellNbr = cellsOnCell(iNbr,iCell)
+                    if (inStrato(k,iCellNbr) .GT. 0) then
+                      inStrato(k,iCell) = 1
+                      !candInStrato(k,iCell) = 0 ! commented out to be consistent with trop routine
+                      nChanged = nChanged+1
+                      exit ! was cycle, but tropspheric loop has exit here. why?
+                    end if
+                  end do
                 
-                !nbr below
-                if (k .GT. 1) then
-                  if (inStrato(k-1,iCell) .GT. 0) then
-                    inStrato(k,iCell) = 1
-                    candInStrato(k,iCell) = 0
-                    nChanged = nChanged+1
-                    cycle
+                  !nbr below
+                  if (k .GT. 1) then
+                    if (inStrato(k-1,iCell) .GT. 0) then
+                      inStrato(k,iCell) = 1
+                      !candInStrato(k,iCell) = 0 ! commented out to be consistent with trop routine
+                      nChanged = nChanged+1
+                      cycle
+                    end if
                   end if
-                end if
-             end if !candInStrato
-          end do !levels
-        end do !cells
-      end do !while
+                    
+               end if !candInStrato
+            end do !levels
+          end do !cells
+          global_haloChanged = global_haloChanged+nChanged
+        end do !while w/in domain
+        
+        !communicate to other domains for edge case where a chunk of a block hasn't gotten to fill
+        nChanged = global_haloChanged
+        call mpas_dmpar_max_int(dminfo, nChanged, global_haloChanged)
+        if (global_haloChanged .GT. 0) then !communicate inStrato everywhere
+          call mpas_dmpar_exch_halo_field(inStrato_f)
+        end if
+        nChanged = global_haloChanged !so each block will iterate again if anything changed
+      end do !while haloChanged
+      deallocate(candInStrato)
+      
       
       !Detach high surface PV blobs w/o vertical connection to "stratosphere"
       do iCell=1,nCells
