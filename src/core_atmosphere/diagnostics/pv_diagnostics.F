@@ -1360,8 +1360,13 @@ module pv_diagnostics
       pvuVal = 2.0_RKIND
       missingVal = -99999.0_RKIND
       stratoPV = 10.0_RKIND
-      !call floodFill_strato(mesh, diag, pvuVal, stratoPV)
-      call floodFill_tropo(mesh,diag,pvuVal)
+      
+      ! Either call floodFill_strato or floodFill_tropo to estimate level of dynamic tropopause.
+      ! floodFill_tropo was toggled on, but switch to floodFill_strato. 
+      
+      call floodFill_strato(mesh, diag, pvuVal, stratoPV)
+      !call floodFill_tropo(mesh,diag,pvuVal)
+      
       call interp_pv_diagnostics(mesh, diag, pvuVal, missingVal)
    
    end subroutine atm_compute_pv_diagnostics
