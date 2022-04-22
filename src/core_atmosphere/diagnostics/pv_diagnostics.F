@@ -1396,6 +1396,7 @@ module pv_diagnostics
       real(kind=RKIND), dimension(:,:), pointer :: depv_dt_diab, depv_dt_fric
       real(kind=RKIND), dimension(:,:), pointer :: tend_u_phys, tend_u_euler, rho_edge, tend_w_euler
       real(kind=RKIND), dimension(:,:), pointer :: rthblten, rthcuten, rthratenlw, rthratensw, &
+                                                   rt_diabatic_tend, &  ! MW added 04/20/2022 
                                                    dtheta_dt_mp, dtheta_dt_mix
       real(kind=RKIND), dimension(:,:,:), pointer :: cellTangentPlane
       
@@ -1436,6 +1437,7 @@ module pv_diagnostics
       call mpas_pool_get_array(tend_physics, 'rthcuten', rthcuten)
       call mpas_pool_get_array(tend_physics, 'rthratenlw', rthratenlw)
       call mpas_pool_get_array(tend_physics, 'rthratensw', rthratensw)
+      call mpas_pool_get_array(tend, 'rt_diabatic_tend', rt_diabatic_tend)  !MW added 04/20/2022
       call mpas_pool_get_array(diag, 'dtheta_dt_mp', dtheta_dt_mp)
       call mpas_pool_get_array(diag, 'dtheta_dt_mix', dtheta_dt_mix)
       
@@ -1523,18 +1525,23 @@ module pv_diagnostics
                depv_dt_cu(k,iCell) = 0.0_RKIND
             end if
             
-            if (associated(dtheta_dt_mp)) then
+            
+            !if (associated(dtheta_dt_mp)) then -- routine modified on 04/21/22 by May Wong; original called dtheta_dt_mp instead of diabatic heating tendency from mp
+            if (associated(rt_diabatic_tend)) then
                call calc_grad_cell(gradtheta, &
                                 iCell, k, nVertLevels, nEdgesOnCell(iCell), verticesOnCell, kiteAreasOnVertex, &
                                 cellsOnCell, edgesOnCell, cellsOnEdge, dvEdge, edgeNormalVectors, &
                                 cellsOnVertex, &
                                 cellTangentPlane, localVerticalUnitVectors, zgrid, areaCell(iCell), &
-                                dtheta_dt_mp)
+                                rt_diabatic_tend)
+                                !dtheta_dt_mp)
+               dtheta_dt_mp(k,iCell) = rt_diabatic_tend(k,iCell) ! MW added 04/21/2022
                depv_dt_mp(k,iCell) = dotProduct(gradxu, gradtheta,3)* 1.0e6
             else
+               dtheta_dt_mp(k,iCell) = 0.0_RKIND ! MW added 04/21/2022
                depv_dt_mp(k,iCell) = 0.0_RKIND
             end if
-            
+           
             if (associated(dtheta_dt_mix)) then
                call calc_grad_cell(gradtheta, &
                                 iCell, k, nVertLevels, nEdgesOnCell(iCell), verticesOnCell, kiteAreasOnVertex, &
