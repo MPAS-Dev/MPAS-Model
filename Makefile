@@ -23,6 +23,8 @@ xlf:
 	"LDFLAGS_DEBUG = -O0 -g" \
 	"FFLAGS_OMP = -qsmp=omp" \
 	"CFLAGS_OMP = -qsmp=omp" \
+	"PICFLAG = -qpic" \
+	"BUILD_TARGET = $(@)" \
 	"CORE = $(CORE)" \
 	"DEBUG = $(DEBUG)" \
 	"USE_PAPI = $(USE_PAPI)" \
@@ -44,6 +46,7 @@ ftn:
 	"LDFLAGS_OPT = " \
 	"FFLAGS_OMP = -mp" \
 	"CFLAGS_OMP = -mp" \
+	"BUILD_TARGET = $(@)" \
 	"CORE = $(CORE)" \
 	"DEBUG = $(DEBUG)" \
 	"USE_PAPI = $(USE_PAPI)" \
@@ -62,6 +65,7 @@ titan-cray:
 	"LDFLAGS_OPT = -O3" \
 	"FFLAGS_OMP = " \
 	"CFLAGS_OMP = " \
+	"BUILD_TARGET = $(@)" \
 	"CORE = $(CORE)" \
 	"DEBUG = $(DEBUG)" \
 	"USE_PAPI = $(USE_PAPI)" \
@@ -87,6 +91,8 @@ pgi:
 	"LDFLAGS_DEBUG = -O0 -g -Mbounds -Mchkptr -Ktrap=divz,fp,inv,ovf -traceback" \
 	"FFLAGS_OMP = -mp" \
 	"CFLAGS_OMP = -mp" \
+	"PICFLAG = -fpic" \
+	"BUILD_TARGET = $(@)" \
 	"CORE = $(CORE)" \
 	"DEBUG = $(DEBUG)" \
 	"USE_PAPI = $(USE_PAPI)" \
@@ -108,6 +114,7 @@ pgi-nersc:
 	"LDFLAGS_OPT = -O3" \
 	"FFLAGS_OMP = -mp" \
 	"CFLAGS_OMP = -mp" \
+	"BUILD_TARGET = $(@)" \
 	"CORE = $(CORE)" \
 	"DEBUG = $(DEBUG)" \
 	"USE_PAPI = $(USE_PAPI)" \
@@ -129,6 +136,7 @@ pgi-llnl:
 	"LDFLAGS_OPT = " \
 	"FFLAGS_OMP = -mp" \
 	"CFLAGS_OMP = -mp" \
+	"BUILD_TARGET = $(@)" \
 	"CORE = $(CORE)" \
 	"DEBUG = $(DEBUG)" \
 	"USE_PAPI = $(USE_PAPI)" \
@@ -154,6 +162,8 @@ ifort:
 	"LDFLAGS_DEBUG = -g -fpe0 -traceback" \
 	"FFLAGS_OMP = -qopenmp" \
 	"CFLAGS_OMP = -qopenmp" \
+	"PICFLAG = -fpic" \
+	"BUILD_TARGET = $(@)" \
 	"CORE = $(CORE)" \
 	"DEBUG = $(DEBUG)" \
 	"USE_PAPI = $(USE_PAPI)" \
@@ -179,6 +189,7 @@ ifort-scorep:
 	"LDFLAGS_DEBUG = -g -fpe0 -traceback" \
 	"FFLAGS_OMP = -qopenmp" \
 	"CFLAGS_OMP = -qopenmp" \
+	"BUILD_TARGET = $(@)" \
 	"CORE = $(CORE)" \
 	"DEBUG = $(DEBUG)" \
 	"USE_PAPI = $(USE_PAPI)" \
@@ -204,6 +215,7 @@ ifort-gcc:
 	"LDFLAGS_DEBUG = -g -fpe0 -traceback" \
 	"FFLAGS_OMP = -qopenmp" \
 	"CFLAGS_OMP = -fopenmp" \
+	"BUILD_TARGET = $(@)" \
 	"CORE = $(CORE)" \
 	"DEBUG = $(DEBUG)" \
 	"USE_PAPI = $(USE_PAPI)" \
@@ -229,6 +241,8 @@ gfortran:
 	"LDFLAGS_DEBUG = -g" \
 	"FFLAGS_OMP = -fopenmp" \
 	"CFLAGS_OMP = -fopenmp" \
+	"PICFLAG = -fPIC" \
+	"BUILD_TARGET = $(@)" \
 	"CORE = $(CORE)" \
 	"DEBUG = $(DEBUG)" \
 	"USE_PAPI = $(USE_PAPI)" \
@@ -254,6 +268,7 @@ gfortran-clang:
 	"LDFLAGS_DEBUG = -g -m64" \
 	"FFLAGS_OMP = -fopenmp" \
 	"CFLAGS_OMP = -fopenmp" \
+	"BUILD_TARGET = $(@)" \
 	"CORE = $(CORE)" \
 	"DEBUG = $(DEBUG)" \
 	"USE_PAPI = $(USE_PAPI)" \
@@ -275,6 +290,7 @@ g95:
 	"LDFLAGS_OPT = -O3" \
 	"FFLAGS_OMP = -fopenmp" \
 	"CFLAGS_OMP = -fopenmp" \
+	"BUILD_TARGET = $(@)" \
 	"CORE = $(CORE)" \
 	"DEBUG = $(DEBUG)" \
 	"USE_PAPI = $(USE_PAPI)" \
@@ -296,6 +312,7 @@ pathscale-nersc:
 	"LDFLAGS_OPT = -O3" \
 	"FFLAGS_OMP = -mp" \
 	"CFLAGS_OMP = -mp" \
+	"BUILD_TARGET = $(@)" \
 	"CORE = $(CORE)" \
 	"DEBUG = $(DEBUG)" \
 	"USE_PAPI = $(USE_PAPI)" \
@@ -317,6 +334,7 @@ cray-nersc:
 	"LDFLAGS_OPT = -O3" \
 	"FFLAGS_OMP = " \
 	"CFLAGS_OMP = " \
+	"BUILD_TARGET = $(@)" \
 	"CORE = $(CORE)" \
 	"DEBUG = $(DEBUG)" \
 	"USE_PAPI = $(USE_PAPI)" \
@@ -340,6 +358,7 @@ gnu-nersc:
 	"CFLAGS_DEBUG = -g -m64" \
 	"CXXFLAGS_DEBUG = -g -m64" \
 	"LDFLAGS_DEBUG = -g -m64" \
+	"BUILD_TARGET = $(@)" \
 	"CORE = $(CORE)" \
 	"DEBUG = $(DEBUG)" \
 	"SERIAL = $(SERIAL)" \
@@ -365,6 +384,7 @@ intel-nersc:
 	"CFLAGS_DEBUG = -g -traceback" \
 	"CXXFLAGS_DEBUG = -g -traceback" \
 	"LDFLAGS_DEBUG = -g -traceback" \
+	"BUILD_TARGET = $(@)" \
 	"CORE = $(CORE)" \
 	"DEBUG = $(DEBUG)" \
 	"USE_PAPI = $(USE_PAPI)" \
@@ -390,6 +410,7 @@ bluegene:
 	"LDFLAGS_DEBUG = -O0 -g" \
 	"FFLAGS_OMP = -qsmp=omp" \
 	"CFLAGS_OMP = -qsmp=omp" \
+	"BUILD_TARGET = $(@)" \
 	"CORE = $(CORE)" \
 	"DEBUG = $(DEBUG)" \
 	"USE_PAPI = $(USE_PAPI)" \
@@ -415,6 +436,8 @@ llvm:
 	"LDFLAGS_DEBUG = -O0 -g" \
 	"FFLAGS_OMP = -mp" \
 	"CFLAGS_OMP = -fopenmp" \
+	"PICFLAG = -fpic" \
+	"BUILD_TARGET = $(@)" \
 	"CORE = $(CORE)" \
 	"DEBUG = $(DEBUG)" \
 	"USE_PAPI = $(USE_PAPI)" \
@@ -480,6 +503,7 @@ endif
 ifneq "$(NETCDF)" ""
 	CPPINCLUDES += -I$(NETCDF)/include
 	FCINCLUDES += -I$(NETCDF)/include
+        #LIBS += -L/opt/modules/centos7/netcdf/intel-2016/4.4.3-fortran/lib #manual add netcdf-fortran, setup on viz3/UMaine, ZG
 	LIBS += -L$(NETCDF)/lib
 	NCLIB = -lnetcdf
 	NCLIBF = -lnetcdff
@@ -583,6 +607,23 @@ ifeq "$(USE_PAPI)" "true"
 else # USE_PAPI IF
 	PAPI_MESSAGE="Papi libraries are off."
 endif # USE_PAPI IF
+
+# Only if this Makefile was invoked from a compiler target should we check that PICFLAG is set
+ifneq "$(FC_SERIAL)" ""
+ifeq "$(SHAREDLIB)" "true"
+ifneq "$(PICFLAG)" ""
+	FFLAGS += $(PICFLAG)
+	CFLAGS += $(PICFLAG)
+	CXXFLAGS += $(PICFLAG)
+	LDFLAGS += $(PICFLAG)
+	SHAREDLIB_MESSAGE="Position-independent code was generated."
+else
+$(error Position-independent code was requested but PIC flags are not available. Please add PIC flags for the '$(BUILD_TARGET)' target)
+endif
+else
+	SHAREDLIB_MESSAGE="Position-dependent code was generated."
+endif
+endif
 
 ifeq "$(USE_PIO2)" "true"
 	PIO_MESSAGE="Using the PIO 2 library."
@@ -700,6 +741,15 @@ endif
 ifdef MPAS_EXTERNAL_CPPFLAGS
 	override CPPFLAGS += $(MPAS_EXTERNAL_CPPFLAGS)
 endif
+
+###Add SCHISM lib (from git)
+LIBS += -L/global/homes/y/yinglong/SCHISM/git/schism/src/ -lschism -L/global/homes/y/yinglong/SCHISM/git/schism/src/ParMetis-3.1-Sep2010.cray/ -lparmetis -lmetis
+FCINCLUDES += -I/global/homes/y/yinglong/SCHISM/git/schism/src/o/svn.CORI2/
+
+#SCHISM setup on viz3/UMaine, ZG
+#LIBS += -L/home/zwang/mpas/schism/src/ -lschism -L/home/zwang/mpas/schism/src/ParMetis-3.1-Sep2010/ -lparmetis -lmetis
+#FCINCLUDES += -I/home/zwang/mpas/schism/src/o/svn.MAINE/
+
 ####################################################
 
 ifeq ($(wildcard src/core_$(CORE)), ) # CHECK FOR EXISTENCE OF CORE DIRECTORY
@@ -815,6 +865,7 @@ endif
 	@echo $(PAPI_MESSAGE)
 	@echo $(TAU_MESSAGE)
 	@echo $(OPENMP_MESSAGE)
+	@echo $(SHAREDLIB_MESSAGE)
 ifeq "$(AUTOCLEAN)" "true"
 	@echo $(AUTOCLEAN_MESSAGE)
 endif
@@ -898,6 +949,7 @@ errmsg:
 	@echo "    OPENMP=true   - builds and links with OpenMP flags. Default is to not use OpenMP."
 	@echo "    USE_PIO2=true - links with the PIO 2 library. Default is to use the PIO 1.x library."
 	@echo "    PRECISION=single - builds with default single-precision real kind. Default is to use double-precision."
+	@echo "    SHAREDLIB=true - generate position-independent code suitable for use in a shared library. Default is false."
 	@echo ""
 	@echo "Ensure that NETCDF, PNETCDF, PIO, and PAPI (if USE_PAPI=true) are environment variables"
 	@echo "that point to the absolute paths for the libraries."

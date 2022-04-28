@@ -1,0 +1,14 @@
+#!/usr/bin/env python
+import os,re
+
+#get hostname
+host=os.getenv('HOST')
+
+#compile mpas code
+os.system('make clean CORE=ocean')
+if re.match('cori',host): #on cori/nersc
+   os.system('make intel-nersc CORE=ocean')
+elif re.match('viz3',host): #on viz3/UMaine
+   os.system('make ifort CORE=ocean USE_PIO2=true')
+
+
