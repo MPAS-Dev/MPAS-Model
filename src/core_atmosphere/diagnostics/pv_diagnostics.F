@@ -424,7 +424,7 @@ module pv_diagnostics
    !Below are two subroutines (floodFill_strato and floodFill_tropo) designed to determine the model level above the dynamic tropopause, iLev_DT, which
    !is designated as the 2-PVU isosurface. 
    !Only one of these subroutines is used (toggled with "call floodFill_strato(mesh, diag, pvuVal, stratoPV)" and "call floodFill_tropo(mesh,diag,pvuVal)"
-   !in the subroutines below.
+   !in the subroutines below. The routines *should* produce equivalent estimates for iLev_DT. 
    
    subroutine floodFill_strato(mesh, diag, pvuVal, stratoPV)
       !To find model level of dynamic tropopause: 
@@ -506,7 +506,7 @@ module pv_diagnostics
          do k=nVertLevels-5,nVertLevels
             if (candInStrato(k,iCell) .GT. 0) then
                inStrato(k,iCell) = 1
-               candInStrato(k,iCell) = 0
+               !candInStrato(k,iCell) = 0
                nChanged = nChanged+1
             end if
          end do
@@ -546,7 +546,8 @@ module pv_diagnostics
                       inStrato(k,iCell) = 1
                       !candInStrato(k,iCell) = 0 ! commented out to be consistent with trop routine
                       nChanged = nChanged+1
-                      exit ! was cycle, but tropspheric loop has exit here. why?
+                      !exit ! was cycle, but tropspheric loop has exit here. why?
+                      cycle
                     end if
                   end do
                 
@@ -1362,10 +1363,9 @@ module pv_diagnostics
       stratoPV = 10.0_RKIND
       
       ! Either call floodFill_strato or floodFill_tropo to estimate level of dynamic tropopause.
-      ! floodFill_tropo was toggled on, but switch to floodFill_strato. 
       
-      call floodFill_strato(mesh, diag, pvuVal, stratoPV)
-      !call floodFill_tropo(mesh,diag,pvuVal)
+      !call floodFill_strato(mesh, diag, pvuVal, stratoPV)
+      call floodFill_tropo(mesh,diag,pvuVal)
       
       call interp_pv_diagnostics(mesh, diag, pvuVal, missingVal)
    
