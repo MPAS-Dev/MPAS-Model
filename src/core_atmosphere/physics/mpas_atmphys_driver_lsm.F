@@ -317,9 +317,8 @@
 
  real(kind=RKIND),dimension(:),pointer  :: acsnom,acsnow,canwat,chs,chs2,chklowq,cpm,cqs2,glw,   &
                                            grdflx,gsw,hfx,lai,lh,noahres,potevp,qfx,qgh,qsfc,    &
-                                           br,sfc_albedo,sfc_albedo_seaice,sfc_emibck,sfc_emiss, &
-                                           sfcrunoff,smstav,smstot,snotime,snopcx,sr,udrunoff,   &
-                                           z0,znt
+                                           br,sfc_albedo,sfc_emibck,sfc_emiss,sfcrunoff,smstav,  &
+                                           smstot,snotime,snopcx,sr,udrunoff,z0,znt
  real(kind=RKIND),dimension(:),pointer  :: shdmin,shdmax,snoalb,sfc_albbck,snow,snowc,snowh,tmn, &
                                            skintemp,vegfra,xice,xland
  real(kind=RKIND),dimension(:),pointer  :: t2m,th2m,q2
@@ -358,7 +357,6 @@
  call mpas_pool_get_array(diag_physics,'qsfc'             ,qsfc             )
  call mpas_pool_get_array(diag_physics,'br'               ,br               )
  call mpas_pool_get_array(diag_physics,'sfc_albedo'       ,sfc_albedo       )
- call mpas_pool_get_array(diag_physics,'sfc_albedo_seaice',sfc_albedo_seaice)
  call mpas_pool_get_array(diag_physics,'sfc_emibck'       ,sfc_emibck       )
  call mpas_pool_get_array(diag_physics,'sfc_emiss'        ,sfc_emiss        )
  call mpas_pool_get_array(diag_physics,'sfcrunoff'        ,sfcrunoff        )
