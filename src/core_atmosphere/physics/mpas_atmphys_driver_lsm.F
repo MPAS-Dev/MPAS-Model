@@ -93,6 +93,10 @@
 ! * added call to seaice_noah to include the parameterization of seaice for the updated Noah land surface
 !   scheme.
 !   Laura D. Fowler (laura@ucar.edu) / 2017-02-19.
+! * the initialization of the variable albsi_p is switched from sfc_albedo_seaice (which is originally
+!   initialized to albbck to seaice_albedo_default. Note that albsi_p is not used if seaice_albedo_opt = 0.
+!   Laura D. Fowler (laura@ucar.edu) / 2020-05-10.
+
 
 !
 ! DOCUMENTATION:
@@ -507,7 +511,7 @@
     !seaice thickness.
     do j = jts,jte
     do i = its,ite
-       albsi_p(i,j)    = sfc_albedo_seaice(i)
+       albsi_p(i,j)    = seaice_albedo_default
        icedepth_p(i,j) = seaice_thickness_default
        snowsi_p(i,j)   = seaice_snowdepth_min
     enddo
