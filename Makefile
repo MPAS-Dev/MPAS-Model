@@ -79,11 +79,14 @@ ftn:   # BUILDTARGET Cray compilers
 	"LDFLAGS_OPT = " \
 	"FFLAGS_OMP = -mp" \
 	"CFLAGS_OMP = -mp" \
+	"FFLAGS_ACC =" \
+	"CFLAGS_ACC =" \
 	"BUILD_TARGET = $(@)" \
 	"CORE = $(CORE)" \
 	"DEBUG = $(DEBUG)" \
 	"USE_PAPI = $(USE_PAPI)" \
 	"OPENMP = $(OPENMP)" \
+	"OPENACC = $(OPENACC)" \
 	"CPPFLAGS = $(MODEL_FORMULATION) -D_MPI" )
 
 titan-cray:   # BUILDTARGET (deprecated) Cray compilers with options for ORNL Titan
@@ -124,12 +127,15 @@ pgi:   # BUILDTARGET PGI compiler suite
 	"LDFLAGS_DEBUG = -O0 -g -Mbounds -Mchkptr -Ktrap=divz,fp,inv,ovf -traceback" \
 	"FFLAGS_OMP = -mp" \
 	"CFLAGS_OMP = -mp" \
+	"FFLAGS_ACC = -Mnofma -acc -ta=tesla:cc70,cc80 -Minfo=accel" \
+	"CFLAGS_ACC =" \
 	"PICFLAG = -fpic" \
 	"BUILD_TARGET = $(@)" \
 	"CORE = $(CORE)" \
 	"DEBUG = $(DEBUG)" \
 	"USE_PAPI = $(USE_PAPI)" \
 	"OPENMP = $(OPENMP)" \
+	"OPENACC = $(OPENACC)" \
 	"CPPFLAGS = $(MODEL_FORMULATION) -D_MPI -DCPRPGI" )
 
 pgi-summit:   # BUILDTARGET PGI compiler suite w/OpenACC options for ORNL Summit
@@ -331,12 +337,15 @@ gfortran:   # BUILDTARGET GNU Fortran, C, and C++ compilers
 	"LDFLAGS_DEBUG = -g" \
 	"FFLAGS_OMP = -fopenmp" \
 	"CFLAGS_OMP = -fopenmp" \
+	"FFLAGS_ACC =" \
+	"CFLAGS_ACC =" \
 	"PICFLAG = -fPIC" \
 	"BUILD_TARGET = $(@)" \
 	"CORE = $(CORE)" \
 	"DEBUG = $(DEBUG)" \
 	"USE_PAPI = $(USE_PAPI)" \
 	"OPENMP = $(OPENMP)" \
+	"OPENACC = $(OPENACC)" \
 	"CPPFLAGS = $(MODEL_FORMULATION) -D_MPI" )
 
 gfortran-clang:   # BUILDTARGET GNU Fortran compiler with LLVM clang/clang++ compilers
@@ -1099,6 +1108,7 @@ errmsg:
 	@echo "                    TIMER_LIB=gptl - Uses gptl for the timer interface instead of the native interface"
 	@echo "                    TIMER_LIB=tau - Uses TAU for the timer interface instead of the native interface"
 	@echo "    OPENMP=true   - builds and links with OpenMP flags. Default is to not use OpenMP."
+	@echo "    OPENACC=true  - builds and links with OpenACC flags. Default is to not use OpenACC."
 	@echo "    USE_PIO2=true - links with the PIO 2 library. Default is to use the PIO 1.x library."
 	@echo "    PRECISION=single - builds with default single-precision real kind. Default is to use double-precision."
 	@echo "    SHAREDLIB=true - generate position-independent code suitable for use in a shared library. Default is false."
