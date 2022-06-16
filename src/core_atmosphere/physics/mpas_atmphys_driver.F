@@ -225,21 +225,23 @@
     !
     ! For all timesteps, we transfer MPAS state to physics
     !
-!$OMP PARALLEL DO
     if (mpas_cpl%role_is(ROLE_RADIATION)) then
+!$OMP PARALLEL DO
     do thread=1,nThreads
        call MPAS_to_physics(block%configs,mesh,state,time_lev,diag,diag_physics, &
                             mpas_cpl, cells_to_rad_handle, cells_from_rad_handle, &
                             cellSolveThreadStart(thread), cellSolveThreadEnd(thread))
     end do
+!$OMP END PARALLEL DO
     else
+!$OMP PARALLEL DO
     do thread=1,nThreads
        call MPAS_to_physics_gpu(block%configs,mesh,state,time_lev,diag,diag_physics, &
                             mpas_cpl, cells_to_rad_handle, cells_from_rad_handle, &
                             cellSolveThreadStart(thread), cellSolveThreadEnd(thread))
     end do
-    end if
 !$OMP END PARALLEL DO
+    end if
 
     !call to cloud scheme:
     if(l_radtlw .or. l_radtsw) then
