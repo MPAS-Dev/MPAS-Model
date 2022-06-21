@@ -404,6 +404,8 @@
  if (mpas_cpl%role_is(ROLE_INTEGRATE) .or. &
      mpas_cpl%role_is(ROLE_RADIATION)) then
 
+!$OMP BARRIER
+!$OMP MASTER
     call MPAS_coupler_transfer_field(mpas_cpl, cells_to_rad_handle, latCellField, ierr=ierr)
     call MPAS_coupler_transfer_field(mpas_cpl, cells_to_rad_handle, lonCellField, ierr=ierr)
     call MPAS_coupler_transfer_field(mpas_cpl, cells_to_rad_handle, m_hybiField, ierr=ierr)
@@ -423,6 +425,8 @@
     call MPAS_coupler_transfer_field(mpas_cpl, cells_to_rad_handle, sfc_emissField, ierr=ierr)
     call MPAS_coupler_transfer_field(mpas_cpl, cells_to_rad_handle, cldfracField, ierr=ierr)
     call MPAS_coupler_transfer_field(mpas_cpl, cells_to_rad_handle, o3climField, ierr=ierr)
+!$OMP END MASTER
+!$OMP BARRIER
 
  end if
 
@@ -757,6 +761,8 @@
     if (mpas_cpl%role_is(ROLE_INTEGRATE) .or. &
         mpas_cpl%role_is(ROLE_RADIATION)) then
 
+!$OMP BARRIER
+!$OMP MASTER
        call MPAS_coupler_transfer_field(mpas_cpl, cells_from_rad_handle, coszrField, ierr=ierr)
        call MPAS_coupler_transfer_field(mpas_cpl, cells_from_rad_handle, gswField, ierr=ierr)
        call MPAS_coupler_transfer_field(mpas_cpl, cells_from_rad_handle, swcfField, ierr=ierr)
@@ -769,6 +775,8 @@
        call MPAS_coupler_transfer_field(mpas_cpl, cells_from_rad_handle, swuptField, ierr=ierr)
        call MPAS_coupler_transfer_field(mpas_cpl, cells_from_rad_handle, swuptcField, ierr=ierr)
        call MPAS_coupler_transfer_field(mpas_cpl, cells_from_rad_handle, rthratenswField, ierr=ierr)
+!$OMP END MASTER
+!$OMP BARRIER
 
     end if
 
@@ -848,6 +856,8 @@
  if (mpas_cpl%role_is(ROLE_INTEGRATE) .or. &
      mpas_cpl%role_is(ROLE_RADIATION)) then
 
+!$OMP BARRIER
+!$OMP MASTER
     call MPAS_coupler_transfer_field(mpas_cpl, cells_from_rad_handle, coszrField, ierr=ierr)
     call MPAS_coupler_transfer_field(mpas_cpl, cells_from_rad_handle, gswField, ierr=ierr)
     call MPAS_coupler_transfer_field(mpas_cpl, cells_from_rad_handle, swcfField, ierr=ierr)
@@ -860,6 +870,8 @@
     call MPAS_coupler_transfer_field(mpas_cpl, cells_from_rad_handle, swuptField, ierr=ierr)
     call MPAS_coupler_transfer_field(mpas_cpl, cells_from_rad_handle, swuptcField, ierr=ierr)
     call MPAS_coupler_transfer_field(mpas_cpl, cells_from_rad_handle, rthratenswField, ierr=ierr)
+!$OMP END MASTER
+!$OMP BARRIER
 
  end if
 

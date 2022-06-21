@@ -319,6 +319,8 @@
     if (mpas_cpl%role_is(ROLE_INTEGRATE) .or. &
         mpas_cpl%role_is(ROLE_RADIATION)) then
 
+!$OMP BARRIER
+!$OMP MASTER
        call MPAS_coupler_transfer_field(mpas_cpl, cells_to_rad_handle, exnerField, ierr=ierr)
        call MPAS_coupler_transfer_field(mpas_cpl, cells_to_rad_handle, pressure_bField, ierr=ierr)
        call MPAS_coupler_transfer_field(mpas_cpl, cells_to_rad_handle, pressure_pField, ierr=ierr)
@@ -332,6 +334,8 @@
        call MPAS_coupler_transfer_field(mpas_cpl, cells_to_rad_handle, scalarsField, ierr=ierr)
        call MPAS_coupler_transfer_field(mpas_cpl, cells_to_rad_handle, surface_pressureField, ierr=ierr)
        call MPAS_coupler_transfer_field(mpas_cpl, cells_to_rad_handle, plradField, ierr=ierr)
+!$OMP END MASTER
+!$OMP BARRIER
 
     end if
  end if
@@ -646,6 +650,8 @@
     if (mpas_cpl%role_is(ROLE_INTEGRATE) .or. &
         mpas_cpl%role_is(ROLE_RADIATION)) then
 
+!$OMP BARRIER
+!$OMP MASTER
        call MPAS_coupler_transfer_field(mpas_cpl, cells_to_rad_handle, exnerField, ierr=ierr)
        call MPAS_coupler_transfer_field(mpas_cpl, cells_to_rad_handle, pressure_bField, ierr=ierr)
        call MPAS_coupler_transfer_field(mpas_cpl, cells_to_rad_handle, pressure_pField, ierr=ierr)
@@ -659,6 +665,8 @@
        call MPAS_coupler_transfer_field(mpas_cpl, cells_to_rad_handle, scalarsField, ierr=ierr)
        call MPAS_coupler_transfer_field(mpas_cpl, cells_to_rad_handle, surface_pressureField, ierr=ierr)
        call MPAS_coupler_transfer_field(mpas_cpl, cells_to_rad_handle, plradField, ierr=ierr)
+!$OMP END MASTER
+!$OMP BARRIER
 
     end if
 !$acc update device(exner, pressure_b, pressure_p, rtheta_b, rtheta_p, u, v, rho_zz, &
