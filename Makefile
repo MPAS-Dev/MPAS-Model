@@ -573,13 +573,6 @@ FCINCLUDES =
 LIBS =
 
 #
-# If user has indicated a PIO2 library, define USE_PIO2 pre-processor macro
-#
-ifeq "$(USE_PIO2)" "true"
-	override CPPFLAGS += -DUSE_PIO2
-endif
-
-#
 # Regardless of PIO library version, look for a lib subdirectory of PIO path
 # NB: PIO_LIB is used later, so we don't just set LIBS directly
 #
@@ -782,12 +775,6 @@ else
 endif
 endif
 
-ifeq "$(USE_PIO2)" "true"
-	PIO_MESSAGE="Using the PIO 2 library."
-else # USE_PIO2 IF
-	PIO_MESSAGE="Using the PIO 1.x library."
-endif # USE_PIO2 IF
-
 ifdef TIMER_LIB
 ifeq "$(TIMER_LIB)" "tau"
 	override TAU=true
@@ -953,43 +940,79 @@ endif
 
 pio_test:
 	@#
-	@# Create two test programs: one that should work with PIO1 and a second that should work with PIO2
+	@# PIO_VERS will be set to:
+	@#  0 if no working PIO library was detected (and .piotest.log will contain error messages)
+	@#  1 if a PIO 1.x library was detected
+	@#  2 if a PIO 2.x library was detected
 	@#
-	@echo "program pio1; use pio; use pionfatt_mod; integer, parameter :: MPAS_IO_OFFSET_KIND = PIO_OFFSET; integer, parameter :: MPAS_INT_FILLVAL = NF_FILL_INT; end program" > pio1.f90
-	@echo "program pio2; use pio; integer, parameter :: MPAS_IO_OFFSET_KIND = PIO_OFFSET_KIND; integer, parameter :: MPAS_INT_FILLVAL = PIO_FILL_INT; end program" > pio2.f90
-
-	@#
-	@# See whether either of the test programs can be compiled
-	@#
-	@echo "Checking for a usable PIO library..."
-	@($(FC) pio1.f90 $(FCINCLUDES) $(FFLAGS) $(LDFLAGS) $(LIBS) -o pio1.out &> /dev/null && echo "=> PIO 1 detected") || \
-	 ($(FC) pio2.f90 $(FCINCLUDES) $(FFLAGS) $(LDFLAGS) $(LIBS) -o pio2.out &> /dev/null && echo "=> PIO 2 detected") || \
-	 (echo "************ ERROR ************"; \
-	  echo "Failed to compile a PIO test program"; \
-	  echo "Please ensure the PIO environment variable is set to the PIO installation directory"; \
-	  echo "************ ERROR ************"; \
-	  rm -rf pio[12].f90 pio[12].out; exit 1)
-
-	@rm -rf pio[12].out
-
-	@#
-	@# Check that what the user has specified agrees with the PIO library version that was detected
-	@#
-ifeq "$(USE_PIO2)" "true"
-	@($(FC) pio2.f90 $(FCINCLUDES) $(FFLAGS) $(LDFLAGS) $(LIBS) -o pio2.out &> /dev/null) || \
-	(echo "************ ERROR ************"; \
-	 echo "PIO 1 was detected, but USE_PIO2=true was specified in the make command"; \
-	 echo "************ ERROR ************"; \
-	 rm -rf pio[12].f90 pio[12].out; exit 1)
-else
-	@($(FC) pio1.f90 $(FCINCLUDES) $(FFLAGS) $(LDFLAGS) $(LIBS) -o pio1.out &> /dev/null) || \
-	(echo "************ ERROR ************"; \
-	 echo "PIO 2 was detected. Please specify USE_PIO2=true in the make command"; \
-	 echo "************ ERROR ************"; \
-	 rm -rf pio[12].f90 pio[12].out; exit 1)
+	$(info Checking for a working PIO library...)
+ifneq "$(USE_PIO2)" ""
+	$(info *** Note: The USE_PIO2 option has been deprecated and will be ignored.)
 endif
-	@rm -rf pio[12].f90 pio[12].out
-
+	$(eval PIO_VERS := $(shell $\
+		rm -f .piotest.log; $\
+		printf "program pio1\n$\
+		        &   use pio\n$\
+		        &   use pionfatt_mod\n$\
+		        &   integer, parameter :: MPAS_IO_OFFSET_KIND = PIO_OFFSET\n$\
+		        &   integer, parameter :: MPAS_INT_FILLVAL = NF_FILL_INT\n$\
+		        &   type (Var_desc_t) :: field_desc\n$\
+		        &   integer (kind=MPAS_IO_OFFSET_KIND) :: frame_number\n$\
+		        &   call PIO_setframe(field_desc, frame_number)\n$\
+		        end program\n" | sed 's/&/ /' > pio1.f90; $\
+		$\
+		printf "program pio2\n$\
+		        &   use pio\n$\
+		        &   integer, parameter :: MPAS_IO_OFFSET_KIND = PIO_OFFSET_KIND\n$\
+		        &   integer, parameter :: MPAS_INT_FILLVAL = PIO_FILL_INT\n$\
+		        &   type (file_desc_t) :: pio_file\n$\
+		        &   type (Var_desc_t) :: field_desc\n$\
+		        &   integer (kind=MPAS_IO_OFFSET_KIND) :: frame_number\n$\
+		        &   call PIO_setframe(pio_file, field_desc, frame_number)\n$\
+		        end program\n" | sed 's/&/ /' > pio2.f90; $\
+		$\
+		$(FC) pio1.f90 -o pio1.x $(FCINCLUDES) $(FFLAGS) $(LDFLAGS) $(LIBS) > /dev/null 2>&1; $\
+		pio1_status=$$?; $\
+		$\
+		$(FC) pio2.f90 -o pio2.x $(FCINCLUDES) $(FFLAGS) $(LDFLAGS) $(LIBS) > /dev/null 2>&1; $\
+		pio2_status=$$?; $\
+		$\
+		if [ $$pio1_status -ne 0 -a $$pio2_status -ne 0 ]; then $\
+		    printf "0"; $\
+		    printf "*********************************************************\n" > .piotest.log; $\
+		    printf "ERROR: Could not detect a working PIO library!\n" >> .piotest.log; $\
+		    printf "\n" >> .piotest.log; $\
+		    printf "Both of the following commands to compile a test program\n" >> .piotest.log; $\
+		    printf "failed with errors:\n" >> .piotest.log; $\
+		    printf "\n" >> .piotest.log; $\
+		    printf "$(FC) pio1.f90 -o pio1.x $(FCINCLUDES) $(FFLAGS) $(LDFLAGS) $(LIBS)\n" >> .piotest.log; $\
+		    printf "\n" >> .piotest.log; $\
+		    printf "$(FC) pio2.f90 -o pio2.x $(FCINCLUDES) $(FFLAGS) $(LDFLAGS) $(LIBS)\n" >> .piotest.log; $\
+		    printf "\n" >> .piotest.log; $\
+		    printf "The pio1.f90 and pio2.f90 test programs have been left in\n" >> .piotest.log; $\
+		    printf "the top-level MPAS directory for further debugging.\n" >> .piotest.log; $\
+		    printf "*********************************************************\n" >> .piotest.log; $\
+		elif [ $$pio1_status -eq 0 ]; then $\
+		    printf "1"; $\
+		    rm -f pio[12].f90 pio[12].x; $\
+		elif [ $$pio2_status -eq 0 ]; then $\
+		    printf "2"; $\
+		    rm -f pio[12].f90 pio[12].x; $\
+		fi $\
+	))
+	$(if $(findstring 1,$(PIO_VERS)), $(eval PIO_MESSAGE = "Using the PIO 1.x library."), )
+	$(if $(findstring 1,$(PIO_VERS)), $(info PIO 1.x detected.))
+	$(if $(findstring 2,$(PIO_VERS)), $(eval override CPPFLAGS += -DUSE_PIO2), )
+	$(if $(findstring 2,$(PIO_VERS)), $(eval PIO_MESSAGE = "Using the PIO 2.x library."), )
+	$(if $(findstring 2,$(PIO_VERS)), $(info PIO 2.x detected.))
+	@#
+	@# A .piotest.log file exists iff no working PIO library was detected
+	@#
+	@if [ -f .piotest.log ]; then \
+	    cat .piotest.log; \
+	    rm -f .piotest.log; \
+	    exit 1; \
+	fi
 
 mpas_main: openmp_test pio_test
 ifeq "$(AUTOCLEAN)" "true"
@@ -1109,7 +1132,6 @@ errmsg:
 	@echo "                    TIMER_LIB=tau - Uses TAU for the timer interface instead of the native interface"
 	@echo "    OPENMP=true   - builds and links with OpenMP flags. Default is to not use OpenMP."
 	@echo "    OPENACC=true  - builds and links with OpenACC flags. Default is to not use OpenACC."
-	@echo "    USE_PIO2=true - links with the PIO 2 library. Default is to use the PIO 1.x library."
 	@echo "    PRECISION=single - builds with default single-precision real kind. Default is to use double-precision."
 	@echo "    SHAREDLIB=true - generate position-independent code suitable for use in a shared library. Default is false."
 	@echo ""
