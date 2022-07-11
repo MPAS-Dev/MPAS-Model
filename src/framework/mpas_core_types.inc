@@ -23,7 +23,7 @@
    abstract interface
       function mpas_setup_packages_function(configs, packages, iocontext) result(iErr)
          import mpas_pool_type
-		 import mpas_io_context_type
+         import mpas_io_context_type
 
          type (mpas_pool_type), intent(inout) :: configs
          type (mpas_pool_type), intent(inout) :: packages
@@ -106,15 +106,15 @@
 
    abstract interface
       function mpas_setup_decomposed_dimensions_function(block, streamManager, readDimensions, dimensionPool, totalBlocks) result(iErr)
-		 import block_type
-		 import mpas_streamManager_type
+         import block_type
+         import mpas_streamManager_type
          import mpas_pool_type
 
-		 type (block_type), intent(inout) :: block
-		 type (mpas_streamManager_type), intent(inout) :: streamManager
+         type (block_type), intent(inout) :: block
+         type (mpas_streamManager_type), intent(inout) :: streamManager
          type (mpas_pool_type), intent(inout) :: readDimensions
          type (mpas_pool_type), intent(inout) :: dimensionPool
-		 integer, intent(in) :: totalBlocks
+         integer, intent(in) :: totalBlocks
          integer :: iErr
       end function mpas_setup_decomposed_dimensions_function
    end interface
