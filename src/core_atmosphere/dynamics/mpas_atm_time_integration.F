@@ -330,10 +330,14 @@ module atm_time_integration
       call mpas_pool_get_config(block % configs, 'config_monotonic', config_monotonic)
       call mpas_pool_get_config(block % configs, 'config_dt', config_dt)
       call mpas_pool_get_config(block % configs, 'config_IAU_option', config_IAU_option)
-
       !  config variables for dynamics-transport splitting, WCS 18 November 2014
       call mpas_pool_get_config(block % configs, 'config_split_dynamics_transport', config_split_dynamics_transport)
       call mpas_pool_get_config(block % configs, 'config_dynamics_split_steps', config_dynamics_split)
+      !  config variables for cloud microphysics
+#ifdef DO_PHYSICS
+      call mpas_pool_get_config(block % configs, 'config_microp_scheme', config_microp_scheme)
+      call mpas_pool_get_config(block % configs, 'config_convection_scheme', config_convection_scheme)
+#endif
 
       !
       ! Retrieve field structures
@@ -1407,10 +1411,6 @@ module atm_time_integration
       call mpas_pool_get_array(state, 'scalars', scalars_1, 1)
       call mpas_pool_get_array(state, 'scalars', scalars_2, 2)
       call mpas_pool_get_dimension(state, 'index_qv', index_qv)
-
-      call mpas_pool_get_config(block % configs, 'config_microp_scheme', config_microp_scheme)
-      call mpas_pool_get_config(block % configs, 'config_convection_scheme', config_convection_scheme)
-
       call mpas_pool_get_dimension(block % dimensions, 'nThreads', nThreads)
 
       call mpas_pool_get_dimension(block % dimensions, 'cellSolveThreadStart', cellSolveThreadStart)
