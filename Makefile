@@ -127,7 +127,7 @@ pgi:   # BUILDTARGET PGI compiler suite
 	"LDFLAGS_DEBUG = -O0 -g -Mbounds -Mchkptr -Ktrap=divz,fp,inv,ovf -traceback" \
 	"FFLAGS_OMP = -mp" \
 	"CFLAGS_OMP = -mp" \
-	"FFLAGS_ACC = -Mnofma -acc -ta=tesla:cc70,cc80 -Minfo=accel" \
+	"FFLAGS_ACC = -Mnofma -acc -Minfo=accel" \
 	"CFLAGS_ACC =" \
 	"PICFLAG = -fpic" \
 	"BUILD_TARGET = $(@)" \
@@ -938,7 +938,126 @@ ifeq "$(OPENMP)" "true"
 endif
 
 
-pio_test:
+openacc_test:
+ifeq "$(OPENACC)" "true"
+	@#
+	@# First ensure that both FFLAGS_ACC and CFLAGS_ACC are not blank
+	@# If these are not set for a target, then OpenACC most likely cannot compile
+	@#
+	@echo "Checking if FFLAGS_ACC and CFLAGS_ACC are defined for [$(BUILD_TARGET)]..."
+	@( if ([ -z "$(FFLAGS_ACC)" ] && [ -z "$(CFLAGS_ACC)" ]); then \
+	      echo "*********************************************************"; \
+	      echo "ERROR: OPENACC=true was specified, but [$(BUILD_TARGET)] build target does not seem to support OpenACC:"; \
+	      echo "    FFLAGS_ACC and CFLAGS_ACC are both undefined for [$(BUILD_TARGET)] in the top-level Makefile."; \
+	      echo "Please set these variables to appropriate OpenACC compilation flags in the [$(BUILD_TARGET)] target to enable OpenACC support."; \
+	      echo "*********************************************************"; exit 1; \
+	   else \
+	      echo "=> FFLAGS_ACC or CFLAGS_ACC are defined"; \
+	   fi )
+
+	@#
+	@# Create test C and Fortran programs that look for OpenACC header file and parallelize a loop
+	@#
+	@printf "#include <openacc.h>\n\
+	        &int main(){\n\
+	        &    int n_devs=acc_get_num_devices( acc_device_default );\n\
+	        &    int i,n=0;\n\
+	        &    #pragma acc kernels\n\
+	        &    for (i=0; i<10; i++)\n\
+	        &      n=n+i;\n\
+	        &    return 0;\n\
+	        &}\n" | sed 's/^ *&//' > openacc.c
+	@printf "program openacc\n\
+	        &    use openacc\n\
+	        &    integer :: i,n=0,n_devs=0\n\
+	        &    n_devs=acc_get_num_devices( acc_device_default )\n\
+	        &    !\$$acc kernels\n\
+	        &    do i=0,10\n\
+	        &      n=n+i\n\
+	        &    end do\n\
+	        &    !\$$acc end kernels\n\
+	        &end program\n" | sed 's/^ *&//' > openacc.f90
+
+	@#
+	@# See whether the test programs can be compiled
+	@#
+	@echo "Checking [$(BUILD_TARGET)] compilers for OpenACC support..."
+	@( $(SCC) openacc.c $(CPPINCLUDES) $(CFLAGS) $(LDFLAGS) $(LIBS) -o openacc_c.out > openacc_c.log 2>&1; \
+	   if [ $$? -eq 0 ]; then \
+	       echo "=> $(SCC) can compile test OpenACC program"; \
+	   else \
+	       echo "*********************************************************"; \
+	       echo "ERROR: Test OpenACC C program could not be compiled by $(SCC)."; \
+	       echo "Following compilation command failed with errors:" ; \
+	       echo "$(SCC) openacc.c $(CPPINCLUDES) $(CFLAGS) $(LDFLAGS) $(LIBS) -o openacc_c.out"; \
+	       echo ""; \
+	       echo "Test program openacc.c and output openacc_c.log have been left"; \
+	       echo "in the top-level MPAS directory for further debugging"; \
+	       echo "*********************************************************"; \
+	      rm -f openacc.f90 openacc_[cf].out openacc_f.log; exit 1; \
+	   fi )
+	@( $(CC) openacc.c $(CPPINCLUDES) $(CFLAGS) $(LDFLAGS) $(LIBS) -o openacc_c.out > openacc_c.log 2>&1; \
+	   if [ $$? -eq 0 ] ; then \
+	       echo "=> $(CC) can compile test OpenACC program"; \
+	   else \
+	       echo "*********************************************************"; \
+	       echo "ERROR: Test OpenACC C program could not be compiled by $(CC)."; \
+	       echo "Following compilation command failed with errors:" ; \
+	       echo "$(CC) openacc.c $(CPPINCLUDES) $(CFLAGS) $(LDFLAGS) $(LIBS) -o openacc_c.out"; \
+	       echo ""; \
+	       echo "Test program openacc.c and output openacc_c.log have been left"; \
+	       echo "in the top-level MPAS directory for further debugging"; \
+	       echo "*********************************************************"; \
+	      rm -f openacc.f90 openacc_[cf].out openacc_f.log; exit 1; \
+	   fi )
+	@( $(CXX) openacc.c $(CPPINCLUDES) $(CFLAGS) $(LDFLAGS) $(LIBS) -o openacc_c.out > openacc_c.log 2>&1; \
+	   if [ $$? -eq 0 ] ; then \
+	       echo "=> $(CXX) can compile test OpenACC program"; \
+	   else \
+	       echo "*********************************************************"; \
+	       echo "ERROR: Test OpenACC C program could not be compiled by $(CXX)."; \
+	       echo "Following compilation command failed with errors:" ; \
+	       echo "$(CXX) openacc.c $(CPPINCLUDES) $(CFLAGS) $(LDFLAGS) $(LIBS) -o openacc_c.out"; \
+	       echo ""; \
+	       echo "Test program openacc.c and output openacc_c.log have been left"; \
+	       echo "in the top-level MPAS directory for further debugging"; \
+	       echo "*********************************************************"; \
+	      rm -f openacc.f90 openacc_[cf].out openacc_f.log; exit 1; \
+	   fi )
+	@( $(SFC) openacc.f90 $(FCINCLUDES) $(FFLAGS) $(LDFLAGS) $(LIBS) -o openacc_f.out > openacc_f.log 2>&1; \
+	   if [ $$? -eq 0 ] ; then \
+	       echo "=> $(SFC) can compile test OpenACC program"; \
+	   else \
+	       echo "*********************************************************"; \
+	       echo "ERROR: Test OpenACC Fortran program could not be compiled by $(SFC)."; \
+	       echo "Following compilation command failed with errors:" ; \
+	       echo "$(SFC) openacc.f90 $(FCINCLUDES) $(FFLAGS) $(LDFLAGS) $(LIBS) -o openacc_f.out"; \
+	       echo ""; \
+	       echo "Test program openacc.f90 and output openacc_f.log have been left"; \
+	       echo "in the top-level MPAS directory for further debugging"; \
+	       echo "*********************************************************"; \
+	      rm -f openacc.c openacc_[cf].out openacc_c.log; exit 1; \
+	   fi )
+	@( $(FC) openacc.f90 $(FCINCLUDES) $(FFLAGS) $(LDFLAGS) $(LIBS) -o openacc_f.out > openacc_f.log 2>&1; \
+	   if [ $$? -eq 0 ] ; then \
+	       echo "=> $(FC) can compile test OpenACC program"; \
+	   else \
+	       echo "*********************************************************"; \
+	       echo "ERROR: Test OpenACC Fortran program could not be compiled by $(FC)."; \
+	       echo "Following compilation command failed with errors:" ; \
+	       echo "$(FC) openacc.f90 $(FCINCLUDES) $(FFLAGS) $(LDFLAGS) $(LIBS) -o openacc_f.out"; \
+	       echo ""; \
+	       echo "Test program openacc.f90 and output openacc_f.log have been left"; \
+	       echo "in the top-level MPAS directory for further debugging"; \
+	       echo "*********************************************************"; \
+	       rm -f openacc.c openacc_[cf].out openacc_c.log; exit 1; \
+	   fi )
+
+	@rm -f openacc.c openacc.f90 openacc_[cf].out openacc_[cf].log
+endif # OPENACC eq true
+
+
+pio_test: openmp_test openacc_test
 	@#
 	@# PIO_VERS will be set to:
 	@#  0 if no working PIO library was detected (and .piotest.log will contain error messages)
@@ -1014,7 +1133,7 @@ endif
 	    exit 1; \
 	fi
 
-mpas_main: openmp_test pio_test
+mpas_main: openmp_test openacc_test pio_test
 ifeq "$(AUTOCLEAN)" "true"
 	$(RM) .mpas_core_*
 endif
