@@ -311,6 +311,9 @@ module init_atm_core_interface
 
       use mpas_derived_types, only : mpas_log_type, domain_type
       use mpas_log, only : mpas_log_init, mpas_log_open
+#ifdef MPAS_OPENMP
+      use mpas_threading, only : mpas_threading_get_num_threads
+#endif
 
       implicit none
 
@@ -373,6 +376,13 @@ module init_atm_core_interface
                           '2.x')
 #else
                           '1.x')
+#endif
+      call mpas_log_write('')
+
+      call mpas_log_write('Run-time settings:')
+      call mpas_log_write('  MPI task count: $i', intArgs=[domain % dminfo % nprocs])
+#ifdef MPAS_OPENMP
+      call mpas_log_write('  OpenMP max threads: $i', intArgs=[mpas_threading_get_max_threads()])
 #endif
       call mpas_log_write('')
 
