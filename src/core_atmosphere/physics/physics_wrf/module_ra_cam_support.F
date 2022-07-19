@@ -4,9 +4,13 @@ MODULE module_ra_cam_support
 ! background.
 ! Laura D. Fowler (birch.ucar.edu) / 2013-07-01.
   use mpas_atmphys_utilities
-#endif
+  use mpas_kind_types, only : R8KIND
+  implicit none
+      integer, parameter :: r8 = R8KIND
+#else
   implicit none
       integer, parameter :: r8 = 8
+#endif
       real(r8), parameter:: inf = 1.e20 ! CAM sets this differently in infnan.F90
       integer, parameter:: bigint = int(O'17777777777')      ! largest possible 32-bit integer 
 
