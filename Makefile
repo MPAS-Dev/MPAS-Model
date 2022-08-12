@@ -28,7 +28,7 @@ xlf:
 	"USE_PAPI = $(USE_PAPI)" \
 	"OPENMP = $(OPENMP)" \
 	"CPPFLAGS = $(MODEL_FORMULATION) -D_MPI" )
- 
+
 ftn:
 	( $(MAKE) all \
 	"FC_PARALLEL = ftn" \
