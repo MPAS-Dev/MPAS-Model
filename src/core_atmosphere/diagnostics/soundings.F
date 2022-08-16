@@ -232,6 +232,7 @@ module soundings
         use mpas_derived_types, only : MPAS_Time_type, MPAS_NOW
         use mpas_timekeeping, only : MPAS_is_alarm_ringing, MPAS_reset_clock_alarm, MPAS_get_clock_time, MPAS_get_time
         use mpas_constants, only : rvord
+        use mpas_io_units, only: mpas_new_unit, mpas_release_unit
 
         implicit none
 
@@ -244,6 +245,7 @@ module soundings
         type (MPAS_time_type) :: now
         character(len=StrKIND) :: nowString
         integer :: yyyy, mm, dd, h, m, s
+        integer :: sndUnit
         character(len=StrKIND) :: fname
         character(len=10) :: stid
 
@@ -271,16 +273,17 @@ module soundings
 !                    call mpas_log_write('Writing sounding for station '//trim(stationNames(iStn)))
 
                     write(fname,'(a,i4.4,i2.2,i2.2,i2.2,i2.2,a)') trim(stationNames(iStn))//'.', yyyy, mm, dd, h, m, '.snd'
-                    open(97,file=trim(fname),form='formatted',status='replace')
+                    call mpas_new_unit(sndUnit)
+                    open(sndUnit,file=trim(fname),form='formatted',status='replace')
 
                     write(stid,'(a)') trim(stationNames(iStn))
 
-                    write(97,'(a)') '  SNPARM = PRES;HGHT;TMPC;DWPC;DRCT;SPED;'
-                    write(97,'(a)') ''
-                    write(97,'(a,i2.2,i2.2,i2.2,a,i2.2,i2.2)') ' STID = '//stid//'  STNM = 99999       TIME = ', mod(yyyy,100), mm, dd,'/', h, m
-                    write(97,'(a,f6.2,a,f7.2,a)') ' SLAT = ', stationLats(iStn), '      SLON = ', stationLons(iStn), '     SELV =    -999'
-                    write(97,'(a)') ''
-                    write(97,'(a)') '      PRES      HGHT     TMPC     DWPC     DRCT     SPED'
+                    write(sndUnit,'(a)') '  SNPARM = PRES;HGHT;TMPC;DWPC;DRCT;SPED;'
+                    write(sndUnit,'(a)') ''
+                    write(sndUnit,'(a,i2.2,i2.2,i2.2,a,i2.2,i2.2)') ' STID = '//stid//'  STNM = 99999       TIME = ', mod(yyyy,100), mm, dd,'/', h, m
+                    write(sndUnit,'(a,f6.2,a,f7.2,a)') ' SLAT = ', stationLats(iStn), '      SLON = ', stationLons(iStn), '     SELV =    -999'
+                    write(sndUnit,'(a)') ''
+                    write(sndUnit,'(a)') '      PRES      HGHT     TMPC     DWPC     DRCT     SPED'
 
                     do k=1,nVertLevels
                         tmpc = theta_m(k,stationCells(iStn)) / (1.0_RKIND + rvord * scalars(index_qv,k,stationCells(iStn))) * exner(k,stationCells(iStn))
@@ -305,7 +308,7 @@ module soundings
                             end if
                             dir = dir * 180.0_RKIND / pi_const
                         end if
-                        write(97,'(f10.2,f10.2,f9.2,f9.2,f9.2,f9.2)') &
+                        write(sndUnit,'(f10.2,f10.2,f9.2,f9.2,f9.2,f9.2)') &
                                     pres, &
                                     0.5 * (zgrid(k,stationCells(iStn)) + zgrid(k+1,stationCells(iStn))), &               ! Avg to layer midpoint
                                     tmpc, &
@@ -314,7 +317,8 @@ module soundings
                                     spd
                     end do
 
-                    close(97)
+                    close(sndUnit)
+                    call mpas_release_unit(sndUnit)
                 end if
             end do
 
