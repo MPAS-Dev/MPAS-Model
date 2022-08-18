@@ -63,6 +63,7 @@
       use mpas_kind_types
       use mpas_atmphys_functions, only: gammp,wgamma,rslf,rsif
       use mpas_atmphys_utilities
+      use mpas_io_units, only : mpas_new_unit, mpas_release_unit
       use module_mp_radar
 
       implicit none
@@ -411,7 +412,6 @@
 
 !=================================================================================================================
  subroutine thompson_init(l_mp_tables)
- use mpas_io_units, only : mpas_new_unit, mpas_release_unit
  implicit none
 !=================================================================================================================
 
@@ -835,7 +835,11 @@
       call table_dropEvap
 
 !..Rain collecting graupel & graupel collecting rain.
+#if defined(mpas)
       call mpas_new_unit(mp_unit, unformatted = .true.)
+#else
+      mp_unit = 11
+#endif
       open(unit=mp_unit,file='MP_THOMPSON_QRacrQG_DATA.DBL',form='UNFORMATTED',status='OLD',action='READ', &
            iostat = istat)
       if(istat /= open_OK) &
@@ -944,7 +948,9 @@
       read(mp_unit) tps_iaus
       read(mp_unit) tni_iaus
       close(unit=mp_unit)
+#if defined(mpas)
       call mpas_release_unit(mp_unit)
+#endif
 !     write(0,*) '--- end read MP_THOMPSON_QIautQS.DBL '
 !     write(0,*) 'max tps_iaus =',maxval(tps_iaus)
 !     write(0,*) 'min tps_iaus =',minval(tps_iaus)
