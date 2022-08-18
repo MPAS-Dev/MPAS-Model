@@ -5,6 +5,7 @@ MODULE module_ra_cam_support
 ! Laura D. Fowler (birch.ucar.edu) / 2013-07-01.
   use mpas_atmphys_utilities
   use mpas_kind_types, only : R8KIND
+  use mpas_io_units, only: mpas_new_unit, mpas_release_unit
   implicit none
       integer, parameter :: r8 = R8KIND
 #else
@@ -3348,12 +3349,19 @@ subroutine oznini(ozmixm,pin,levsiz,num_months,XLAT,                &
      WRITE(message,*)'num_months = ',num_months
      CALL wrf_debug(50,message)
 
+#if defined(mpas)
+      call mpas_new_unit(pin_unit)
+#else
       pin_unit = 27
+#endif
         OPEN(pin_unit, FILE='ozone_plev.formatted',FORM='FORMATTED',STATUS='OLD')
         do k = 1,levsiz
         READ (pin_unit,*)pin(k)
         end do
-      close(27)
+      close(pin_unit)
+#if defined(mpas)
+      call mpas_release_unit(pin_unit)
+#endif
 
       do k=1,levsiz
         pin(k) = pin(k)*100.
@@ -3361,17 +3369,28 @@ subroutine oznini(ozmixm,pin,levsiz,num_months,XLAT,                &
 
 !-- read in ozone lat data
 
+#if defined(mpas)
+      call mpas_new_unit(lat_unit)
+#else
       lat_unit = 28
+#endif
         OPEN(lat_unit, FILE='ozone_lat.formatted',FORM='FORMATTED',STATUS='OLD')
         do j = 1,latsiz
         READ (lat_unit,*)lat_ozone(j)
         end do
-      close(28)
+      close(lat_unit)
+#if defined(mpas)
+      call mpas_release_unit(lat_unit)
+#endif
 
 
 !-- read in ozone data
 
+#if defined(mpas)
+      call mpas_new_unit(oz_unit)
+#else
       oz_unit = 29
+#endif
       OPEN(oz_unit, FILE='ozone.formatted',FORM='FORMATTED',STATUS='OLD')
 
       do m=2,num_months
@@ -3383,7 +3402,10 @@ subroutine oznini(ozmixm,pin,levsiz,num_months,XLAT,                &
       enddo
       enddo
       enddo
-      close(29)
+      close(oz_unit)
+#if defined(mpas)
+      call mpas_release_unit(oz_unit)
+#endif
 
 
 !-- latitudinally interpolate ozone data (and extend longitudinally)

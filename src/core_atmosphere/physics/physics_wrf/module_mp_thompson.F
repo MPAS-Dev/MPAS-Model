@@ -63,6 +63,7 @@
       use mpas_kind_types
       use mpas_atmphys_functions, only: gammp,wgamma,rslf,rsif
       use mpas_atmphys_utilities
+      use mpas_io_units, only : mpas_new_unit, mpas_release_unit
       use module_mp_radar
 
       implicit none
@@ -421,6 +422,7 @@
  integer:: i,j,k,l,m,n
  integer:: istat
  logical:: micro_init
+ integer:: mp_unit
 
 !..Allocate space for lookup tables (J. Michalakes 2009Jun08).
       micro_init = .FALSE.
@@ -833,18 +835,23 @@
       call table_dropEvap
 
 !..Rain collecting graupel & graupel collecting rain.
-      open(unit=11,file='MP_THOMPSON_QRacrQG_DATA.DBL',form='UNFORMATTED',status='OLD',action='READ', &
+#if defined(mpas)
+      call mpas_new_unit(mp_unit, unformatted = .true.)
+#else
+      mp_unit = 11
+#endif
+      open(unit=mp_unit,file='MP_THOMPSON_QRacrQG_DATA.DBL',form='UNFORMATTED',status='OLD',action='READ', &
            iostat = istat)
       if(istat /= open_OK) &
          call physics_error_fatal('subroutine thompson_init: ' // &
                                   'failure opening MP_THOMPSON_QRacrQG.DBL')
-      read(11) tcg_racg
-      read(11) tmr_racg
-      read(11) tcr_gacr
-      read(11) tmg_gacr
-      read(11) tnr_racg
-      read(11) tnr_gacr
-      close(unit=11)
+      read(mp_unit) tcg_racg
+      read(mp_unit) tmr_racg
+      read(mp_unit) tcr_gacr
+      read(mp_unit) tmg_gacr
+      read(mp_unit) tnr_racg
+      read(mp_unit) tnr_gacr
+      close(unit=mp_unit)
 !     write(0,*) '--- end read MP_THOMPSON_QRacrQG.DBL'
 !     write(0,*) 'max tcg_racg =',maxval(tcg_racg)
 !     write(0,*) 'min tcg_racg =',minval(tcg_racg)
@@ -860,24 +867,24 @@
 !     write(0,*) 'min tnr_gacr =',minval(tnr_gacr)
 
 !..Rain collecting snow & snow collecting rain.
-      open(unit=11,file='MP_THOMPSON_QRacrQS_DATA.DBL',form='UNFORMATTED',status='OLD',action='READ', &
+      open(unit=mp_unit,file='MP_THOMPSON_QRacrQS_DATA.DBL',form='UNFORMATTED',status='OLD',action='READ', &
            iostat=istat)
       if(istat /= open_OK) &
          call physics_error_fatal('subroutine thompson_init: ' // &
                                   'failure opening MP_THOMPSON_QRacrQS.DBL')
-      read(11) tcs_racs1
-      read(11) tmr_racs1
-      read(11) tcs_racs2
-      read(11) tmr_racs2
-      read(11) tcr_sacr1
-      read(11) tms_sacr1
-      read(11) tcr_sacr2
-      read(11) tms_sacr2
-      read(11) tnr_racs1
-      read(11) tnr_racs2
-      read(11) tnr_sacr1
-      read(11) tnr_sacr2
-      close(unit=11)
+      read(mp_unit) tcs_racs1
+      read(mp_unit) tmr_racs1
+      read(mp_unit) tcs_racs2
+      read(mp_unit) tmr_racs2
+      read(mp_unit) tcr_sacr1
+      read(mp_unit) tms_sacr1
+      read(mp_unit) tcr_sacr2
+      read(mp_unit) tms_sacr2
+      read(mp_unit) tnr_racs1
+      read(mp_unit) tnr_racs2
+      read(mp_unit) tnr_sacr1
+      read(mp_unit) tnr_sacr2
+      close(unit=mp_unit)
 !     write(0,*) '--- end read MP_THOMPSON_QRacrQS.DBL'
 !     write(0,*) 'max tcs_racs1 =',maxval(tcs_racs1)
 !     write(0,*) 'min tcs_racs1 =',minval(tcs_racs1)
@@ -905,18 +912,18 @@
 !     write(0,*) 'min tnr_sacr2 =',minval(tnr_sacr2)
 
 !..Cloud water and rain freezing (Bigg, 1953).
-      open(unit=11,file='MP_THOMPSON_freezeH2O_DATA.DBL',form='UNFORMATTED',status='OLD',action='READ', &
+      open(unit=mp_unit,file='MP_THOMPSON_freezeH2O_DATA.DBL',form='UNFORMATTED',status='OLD',action='READ', &
            iostat=istat)
       if(istat /= open_OK) &
          call physics_error_fatal('subroutine thompson_init: ' // &
                                   'failure opening MP_THOMPSON_freezeH2O.DBL')
-      read(11) tpi_qrfz
-      read(11) tni_qrfz
-      read(11) tpg_qrfz
-      read(11) tnr_qrfz
-      read(11) tpi_qcfz
-      read(11) tni_qcfz
-      close(unit=11)
+      read(mp_unit) tpi_qrfz
+      read(mp_unit) tni_qrfz
+      read(mp_unit) tpg_qrfz
+      read(mp_unit) tnr_qrfz
+      read(mp_unit) tpi_qcfz
+      read(mp_unit) tni_qcfz
+      close(unit=mp_unit)
 !     write(0,*) '--- end read MP_THOMPSON_freezeH2O.DBL:'
 !     write(0,*) 'max tpi_qrfz =',maxval(tpi_qrfz)
 !     write(0,*) 'min tpi_qrfz =',minval(tpi_qrfz)
@@ -932,15 +939,18 @@
 !     write(0,*) 'min tni_qcfz =',minval(tni_qcfz)
 
 !..Conversion of some ice mass into snow category.
-      open(unit=11,file='MP_THOMPSON_QIautQS_DATA.DBL',form='UNFORMATTED',status='OLD',action='READ', &
+      open(unit=mp_unit,file='MP_THOMPSON_QIautQS_DATA.DBL',form='UNFORMATTED',status='OLD',action='READ', &
            iostat=istat)
       if(istat /= open_OK) &
          call physics_error_fatal('subroutine thompson_init: ' // &
                                   'failure opening MP_THOMPSON_QIautQS.DBL')
-      read(11) tpi_ide
-      read(11) tps_iaus
-      read(11) tni_iaus
-      close(unit=11)
+      read(mp_unit) tpi_ide
+      read(mp_unit) tps_iaus
+      read(mp_unit) tni_iaus
+      close(unit=mp_unit)
+#if defined(mpas)
+      call mpas_release_unit(mp_unit)
+#endif
 !     write(0,*) '--- end read MP_THOMPSON_QIautQS.DBL '
 !     write(0,*) 'max tps_iaus =',maxval(tps_iaus)
 !     write(0,*) 'min tps_iaus =',minval(tps_iaus)
