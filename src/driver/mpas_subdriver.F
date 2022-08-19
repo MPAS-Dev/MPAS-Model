@@ -116,7 +116,8 @@ module mpas_subdriver
          if (len_trim(namelistFileParam) == 0) then
             write (0,*) 'WARNING: mpas_init argument namelistFileParam has 0 length and will be ignored'
          else if (len_trim(namelistFileParam) > len(namelistFile)) then
-            write (0,*) 'CRITICAL ERROR: mpas_init argument namelistFileParam is too long for namelistFile variable.'
+            write(0,'(A,I5,A,I5,A)') 'CRITICAL ERROR: mpas_init argument ''namelistFileParam'' has length ',&
+                                     len_trim(namelistFileParam), ', but the maximum allowed is ', len(namelistFile), ' characters'
             stop
          else
             readNamelistArg = .true.
@@ -128,7 +129,8 @@ module mpas_subdriver
          if (len_trim(streamsFileParam) == 0) then
             write (0,*) 'WARNING: mpas_init argument streamsFileParam has 0 length and will be ignored'
          else if (len_trim(streamsFileParam) > len(streamsFile)) then
-            write(0,*) 'CRITICAL ERROR: mpas_init argument streamsFileParam is too long for streamsFile variable.'
+            write(0,'(A,I5,A,I5,A)') 'CRITICAL ERROR: mpas_init argument ''streamsFileParam'' has length ',&
+                                     len_trim(streamsFileParam), ', but the maximum allowed is ', len(streamsFile), ' characters'
             stop
          else
             readStreamsArg = .true.
