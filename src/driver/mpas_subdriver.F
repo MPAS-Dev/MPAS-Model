@@ -39,7 +39,7 @@ module mpas_subdriver
    contains
 
 
-   subroutine mpas_init(corelist, domain_ptr, mpi_comm)
+   subroutine mpas_init(corelist, domain_ptr, mpi_comm, namelistFileParam, streamsFileParam)
 
       use mpas_stream_manager, only : MPAS_stream_mgr_init, MPAS_build_stream_filename, MPAS_stream_mgr_validate_streams
       use iso_c_binding, only : c_char, c_loc, c_ptr, c_int
@@ -53,6 +53,8 @@ module mpas_subdriver
       type (core_type), intent(inout), pointer :: corelist
       type (domain_type), intent(inout), pointer :: domain_ptr
       integer, intent(in), optional :: mpi_comm
+      character(len=*), intent(in), optional :: namelistFileParam
+      character(len=*), intent(in), optional :: streamsFileParam
 
       integer :: iArg, nArgs
       logical :: readNamelistArg, readStreamsArg
@@ -109,38 +111,68 @@ module mpas_subdriver
       readNamelistArg = .false.
       readStreamsArg = .false.
 
-      nArgs = command_argument_count()
-      iArg = 1
-      do while (iArg < nArgs)
-         call get_command_argument(iArg, argument)
-         if (len_trim(argument) == 0) exit
-
-         if ( trim(argument) == '-n' ) then
-            iArg = iArg + 1
+      ! If provided, error check the namelistFileParam and copy it to namelistFile to override default
+      if (present(namelistFileParam)) then
+         if (len_trim(namelistFileParam) == 0) then
+            write (0,*) 'WARNING: mpas_init argument namelistFileParam has 0 length and will be ignored'
+         else if (len_trim(namelistFileParam) > len(namelistFile)) then
+            write(0,'(A,I5,A,I5,A)') 'CRITICAL ERROR: mpas_init argument ''namelistFileParam'' has length ',&
+                                     len_trim(namelistFileParam), ', but the maximum allowed is ', len(namelistFile), ' characters'
+            stop
+         else
             readNamelistArg = .true.
-            call get_command_argument(iArg, namelistFile)
-            if ( len_trim(namelistFile) == 0 ) then
-                write(0,*) 'ERROR: The -n argument requires a namelist file argument.'
-                stop
-            else if ( trim(namelistFile) == '-s' ) then
-                write(0,*) 'ERROR: The -n argument requires a namelist file argument.'
-                stop
-            end if
-         else if ( trim(argument) == '-s' ) then
-            iArg = iArg + 1
-            readStreamsArg = .true.
-            call get_command_argument(iArg, streamsFile)
-            if ( len_trim(streamsFile) == 0 ) then
-                write(0,*) 'ERROR: The -s argument requires a streams file argument.'
-                stop
-            else if ( trim(streamsFile) == '-n' ) then
-                write(0,*) 'ERROR: The -s argument requires a streams file argument.'
-                stop
-            end if
+            namelistFile = trim(namelistFileParam)
          end if
+      end if
+      ! If provided, error check the streamsFileParam and copy it to streamsFile to override default
+      if (present(streamsFileParam)) then
+         if (len_trim(streamsFileParam) == 0) then
+            write (0,*) 'WARNING: mpas_init argument streamsFileParam has 0 length and will be ignored'
+         else if (len_trim(streamsFileParam) > len(streamsFile)) then
+            write(0,'(A,I5,A,I5,A)') 'CRITICAL ERROR: mpas_init argument ''streamsFileParam'' has length ',&
+                                     len_trim(streamsFileParam), ', but the maximum allowed is ', len(streamsFile), ' characters'
+            stop
+         else
+            readStreamsArg = .true.
+            streamsFile = trim(streamsFileParam)
+         end if
+      end if
 
-         iArg = iArg + 1
-      end do
+      ! If optional arguments weren't used, parse the command-line arguments for -n and -s
+      if (.not. (present(namelistFileParam) .or. present(streamsFileParam))) then
+         nArgs = command_argument_count()
+         iArg = 1
+         do while (iArg < nArgs)
+            call get_command_argument(iArg, argument)
+            if (len_trim(argument) == 0) exit
+
+            if ( trim(argument) == '-n' ) then
+               iArg = iArg + 1
+               readNamelistArg = .true.
+               call get_command_argument(iArg, namelistFile)
+               if ( len_trim(namelistFile) == 0 ) then
+                   write(0,*) 'ERROR: The -n argument requires a namelist file argument.'
+                   stop
+               else if ( trim(namelistFile) == '-s' ) then
+                   write(0,*) 'ERROR: The -n argument requires a namelist file argument.'
+                   stop
+               end if
+            else if ( trim(argument) == '-s' ) then
+               iArg = iArg + 1
+               readStreamsArg = .true.
+               call get_command_argument(iArg, streamsFile)
+               if ( len_trim(streamsFile) == 0 ) then
+                   write(0,*) 'ERROR: The -s argument requires a streams file argument.'
+                   stop
+               else if ( trim(streamsFile) == '-n' ) then
+                   write(0,*) 'ERROR: The -s argument requires a streams file argument.'
+                   stop
+               end if
+            end if
+
+            iArg = iArg + 1
+         end do
+      end if
 
       allocate(corelist)
       nullify(corelist % next)
