@@ -20,6 +20,7 @@
  use module_mp_kessler
  use module_mp_thompson
  use module_mp_wsm6
+ use module_mp_nssl_2mom
 
  implicit none
  private
@@ -126,7 +127,7 @@
 
  microp_select: select case(microp_scheme)
 
-    case ("mp_thompson","mp_wsm6")
+    case ("mp_thompson","mp_wsm6","mp_nssl2m")
        !mass mixing ratios:
        if(.not.allocated(qi_p)        ) allocate(qi_p(ims:ime,kms:kme,jms:jme))
        if(.not.allocated(qs_p)        ) allocate(qs_p(ims:ime,kms:kme,jms:jme))
@@ -155,6 +156,25 @@
 
           if(.not.allocated(rainprod_p)) allocate(rainprod_p(ims:ime,kms:kme,jms:jme))
           if(.not.allocated(evapprod_p)) allocate(evapprod_p(ims:ime,kms:kme,jms:jme))
+
+       case("mp_nssl2m")
+          if(.not.allocated(qh_p)        ) allocate(qh_p(ims:ime,kms:kme,jms:jme))
+          !number concentrations:
+          if(.not.allocated(nc_p) ) allocate(nc_p(ims:ime,kms:kme,jms:jme))
+          if(.not.allocated(ni_p) ) allocate(ni_p(ims:ime,kms:kme,jms:jme))
+          if(.not.allocated(nr_p) ) allocate(nr_p(ims:ime,kms:kme,jms:jme))
+          if(.not.allocated(ns_p) ) allocate(ns_p(ims:ime,kms:kme,jms:jme))
+          if(.not.allocated(ng_p) ) allocate(ng_p(ims:ime,kms:kme,jms:jme))
+          if(.not.allocated(nh_p) ) allocate(nh_p(ims:ime,kms:kme,jms:jme))
+
+          if(.not.allocated(nccn_p) ) allocate(nccn_p(ims:ime,kms:kme,jms:jme))
+
+          if(.not.allocated(volg_p)) allocate(volg_p(ims:ime,kms:kme,jms:jme))
+          if(.not.allocated(volh_p)) allocate(volh_p(ims:ime,kms:kme,jms:jme))
+
+          if(.not.allocated(rainprod_p)) allocate(rainprod_p(ims:ime,kms:kme,jms:jme))
+          if(.not.allocated(evapprod_p)) allocate(evapprod_p(ims:ime,kms:kme,jms:jme))
+          if(.not.allocated(refl10cm_p)) allocate(refl10cm_p(ims:ime,kms:kme,jms:jme))
 
        case default
 
@@ -200,7 +220,7 @@
 
  microp_select: select case(microp_scheme)
 
-    case ("mp_thompson","mp_wsm6")
+    case ("mp_thompson","mp_wsm6","mp_nssl2m")
        !mass mixing ratios:
        if(allocated(qi_p)         ) deallocate(qi_p         )
        if(allocated(qs_p)         ) deallocate(qs_p         )
@@ -229,6 +249,24 @@
 
           if(allocated(rainprod_p)) deallocate(rainprod_p)
           if(allocated(evapprod_p)) deallocate(evapprod_p)
+
+       case("mp_nssl2m")
+          if(allocated(qh_p)         ) deallocate(qh_p         )
+          !number concentrations:
+          if(allocated(nc_p) ) deallocate(nc_p )
+          if(allocated(nr_p) ) deallocate(nr_p )
+          if(allocated(ni_p) ) deallocate(ni_p )
+          if(allocated(ns_p) ) deallocate(ns_p )
+          if(allocated(ng_p) ) deallocate(ng_p )
+          if(allocated(nh_p) ) deallocate(nh_p )
+          if(allocated(nccn_p) ) deallocate(nccn_p )
+
+          if(allocated(volg_p) ) deallocate(volg_p )
+          if(allocated(volh_p) ) deallocate(volh_p )
+
+          if(allocated(rainprod_p)) deallocate(rainprod_p)
+          if(allocated(evapprod_p)) deallocate(evapprod_p)
+          if(allocated(refl10cm_p)) deallocate(refl10cm_p)
 
        case default
 
@@ -269,6 +307,9 @@
      case("mp_wsm6")
         call wsm6init(rho_a,rho_r,rho_s,cliq,cpv,hail_opt,.false.)
 
+     case("mp_nssl2m")
+        CALL nssl_2mom_init(ipctmp=5,mixphase=0,ihvol=1)
+     
      case default
 
   end select microp_select
@@ -408,6 +449,31 @@
                )
        call mpas_timer_stop('WSM6')
 
+
+    case ("mp_nssl2m")
+       call mpas_timer_start('NSSL2M')
+       call nssl_2mom_driver( &
+                  th        = th_p        , qv         = qv_p         , qc         = qc_p         , &
+                  qr        = qr_p        , qi         = qi_p         , qs         = qs_p         , &
+                  qh        = qg_p        , qhl        = qh_p         , cn         = nccn_p       , &
+                  ccw       = nc_p        , crw        = nr_p         , cci        = ni_p         , &
+                  csw       = ns_p        , chw        = ng_p         , chl        = nh_p         , &
+                  vhw       = volg_p      , vhl        = volh_p       , dn         = rho_p        , &
+                  pii       = pi_p        , p          = pres_p       , dz         = dz_p         , &
+                  w         = w_p         , dtp        = dt_microp    , itimestep  = itimestep    , &
+                  rainnc    = rainnc_p    , rainncv    = rainncv_p    , snownc     = snownc_p     , &
+                  snowncv   = snowncv_p   , grplnc     = graupelnc_p  , grplncv    = graupelncv_p , &
+                  sr        = sr_p        , rainprod   = rainprod_p   , evapprod   = evapprod_p   , &
+                  re_cloud  = recloud_p   , re_ice     = reice_p      , re_snow    = resnow_p     , &
+                  has_reqc  = has_reqc    , has_reqi   = has_reqi     , has_reqs   = has_reqs     , &
+                  diagflag  = l_diags     , dbz        = refl10cm_p   , &
+                  ids = ids , ide = ide , jds = jds , jde = jde , kds = kds , kde = kde           , &
+                  ims = ims , ime = ime , jms = jms , jme = jme , kms = kms , kme = kme           , &
+                  its = its , ite = ite , jts = jts , jte = jte , kts = kts , kte = kte             &
+                           )
+
+       call mpas_timer_stop('NSSL2M')
+
     case default
 
  end select microp_select
@@ -500,7 +566,7 @@
 !variables specific to different cloud microphysics schemes:
  microp_select: select case(microp_scheme)
 
-    case ("mp_thompson","mp_wsm6")
+    case ("mp_thompson","mp_wsm6","mp_nssl2m")
        do j = jts, jte
        do i = its, ite
           snowncv_p(i,j)    = 0._RKIND
@@ -594,7 +660,7 @@
 !variables specific to different cloud microphysics schemes:
  microp_select_init: select case(microp_scheme)
 
-    case ("mp_thompson","mp_wsm6")
+    case ("mp_thompson","mp_wsm6","mp_nssl2m")
        do j = jts,jte
        do i = its,ite
           !time-step precipitation:

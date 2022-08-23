@@ -179,12 +179,15 @@
     qr_p,             &!rain mixing ratio                                                   [kg/kg]
     qi_p,             &!cloud ice mixing ratio                                              [kg/kg]
     qs_p,             &!snow mixing ratio                                                   [kg/kg]
-    qg_p               !graupel mixing ratio                                                [kg/kg]
+    qg_p,             &!graupel mixing ratio                                                [kg/kg]
+    qh_p               !hail mixing ratio                                                   [kg/kg]
 
  real(kind=RKIND),dimension(:,:,:),allocatable:: &
     nc_p,             &!
     ni_p,             &!
-    nr_p               !
+    nr_p,             &!
+    ns_p, ng_p, nh_p, nccn_p, &
+    volg_p, volh_p
 
 !... arrays located at w (vertical velocity) points, or at interface between layers:
  real(kind=RKIND),dimension(:,:,:),allocatable:: &
@@ -232,7 +235,8 @@
     f_qr = .true.,    &!
     f_qi = .true.,    &!
     f_qs = .true.,    &!
-    f_qg = .true.      !
+    f_qg = .true.,    &!
+    f_qh = .true.
 
  logical,parameter:: &
     f_qnc = .true.,   &!

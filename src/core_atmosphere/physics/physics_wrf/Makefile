@@ -18,6 +18,7 @@ OBJS = \
 	module_cu_ntiedtke.o           \
 	module_cu_kfeta.o              \
 	module_mp_kessler.o            \
+	module_mp_nssl_2mom.o          \
 	module_mp_radar.o              \
 	module_mp_thompson.o           \
 	module_mp_thompson_cldfra3.o   \
