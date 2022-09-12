@@ -187,7 +187,8 @@
     ni_p,             &!
     nr_p,             &!
     ns_p, ng_p, nh_p, nccn_p, &
-    volg_p, volh_p
+    volg_p, volh_p,   &
+    zrw_p, zgw_p, zhw_p
 
 !... arrays located at w (vertical velocity) points, or at interface between layers:
  real(kind=RKIND),dimension(:,:,:),allocatable:: &

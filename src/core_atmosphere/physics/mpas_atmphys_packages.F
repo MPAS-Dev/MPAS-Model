@@ -34,9 +34,10 @@
 
 !local variables:
  character(len=StrKIND),pointer:: config_microp_scheme
+ character(len=StrKIND),pointer:: config_nssl_moments
  character(len=StrKIND),pointer:: config_convection_scheme
  character(len=StrKIND),pointer:: config_pbl_scheme
- logical,pointer:: mp_kessler_in,mp_thompson_in,mp_wsm6_in,mp_nssl2m_in
+ logical,pointer:: mp_kessler_in,mp_thompson_in,mp_wsm6_in,mp_nssl2m_in,nssl3m_in
  logical,pointer:: cu_grell_freitas_in,cu_kain_fritsch_in,cu_tiedtke_in
  logical,pointer:: bl_mynn_in,bl_ysu_in
 
@@ -55,6 +56,8 @@
 
  call mpas_pool_get_config(configs,'config_microp_scheme',config_microp_scheme)
 
+ call mpas_pool_get_config(configs,'config_nssl_moments',config_nssl_moments)
+
  nullify(mp_kessler_in)
  call mpas_pool_get_package(packages,'mp_kessler_inActive',mp_kessler_in)
 
@@ -66,6 +69,9 @@
 
  nullify(mp_nssl2m_in)
  call mpas_pool_get_package(packages,'mp_nssl2m_inActive',mp_nssl2m_in)
+
+ nullify(nssl3m_in)
+ call mpas_pool_get_package(packages,'nssl3m_inActive',nssl3m_in)
 
  if(.not.associated(mp_kessler_in)  .or. &
     .not.associated(mp_thompson_in) .or. &
@@ -82,6 +88,7 @@
  mp_thompson_in          = .false.
  mp_wsm6_in              = .false.
  mp_nssl2m_in            = .false.
+ nssl3m_in               = .false.
 
  if(config_microp_scheme == 'mp_kessler') then
     mp_kessler_in = .true.
@@ -91,12 +98,16 @@
     mp_wsm6_in = .true.
  elseif(config_microp_scheme == 'mp_nssl2m') then
     mp_nssl2m_in = .true.
+    IF ( config_nssl_moments == 'nssl3m' ) THEN
+      nssl3m_in = .true.
+    ENDIF
  endif
 
  call mpas_log_write('    mp_kessler_in           = $l', logicArgs=(/mp_kessler_in/))
  call mpas_log_write('    mp_thompson_in          = $l', logicArgs=(/mp_thompson_in/))
  call mpas_log_write('    mp_wsm6_in              = $l', logicArgs=(/mp_wsm6_in/))
  call mpas_log_write('    mp_nssl2m_in            = $l', logicArgs=(/mp_nssl2m_in/))
+ call mpas_log_write('    nssl3m_in               = $l', logicArgs=(/nssl3m_in/))
 
 !--- initialization of all packages for parameterizations of convection:
 

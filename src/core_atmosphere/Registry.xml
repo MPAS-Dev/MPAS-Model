@@ -379,6 +379,7 @@
                 <package name="mp_thompson_in" description="parameterization of Thompson cloud microphysics."/>
                 <package name="mp_wsm6_in" description="parameterization of WSM6 cloud microphysics."/>
                 <package name="mp_nssl2m_in" description="parameterization of NSSL 2-moment microphysics."/>
+                <package name="nssl3m_in" description="variables for NSSL 3-moment microphysics."/>
                 <package name="cu_grell_freitas_in" description="parameterization of Grell-Freitas convection."/>
                 <package name="cu_kain_fritsch_in" description="parameterization of Kain-Fritsch convection."/>
                 <package name="cu_tiedtke_in" description="parameterization of Tiedtke convection."/>
@@ -1496,6 +1497,18 @@
                              description="Hail particle volume"
                              packages="mp_nssl2m_in"/>
 
+                        <var name="zrw" array_group="reflectivity" units="nb kg^{-1}"
+                             description="Rain reflectivity moment"
+                             packages="nssl3m_in"/>
+
+                        <var name="zgw" array_group="reflectivity" units="nb kg^{-1}"
+                             description="Graupel reflectivity moment"
+                             packages="nssl3m_in"/>
+
+                        <var name="zhw" array_group="reflectivity" units="nb kg^{-1}"
+                             description="Hail reflectivity moment"
+                             packages="nssl3m_in"/>
+
 
                 </var_array>
 
@@ -1843,6 +1856,18 @@
                         <var name="tend_volh" name_in_code="volh" array_group="volume" units="m^{3} s^{-1}" 
                              description="Tendency of hail volume multiplied by dry air density divided by d(zeta)/dz"
                              packages="mp_nssl2m_in"/>
+
+                        <var name="tend_zrw" name_in_code="zrw" array_group="reflectivity" units="m^6 m^{-3} s^{-1}" 
+                             description="Tendency of rain reflectivity multiplied by dry air density divided by d(zeta)/dz"
+                             packages="nssl3m_in"/>
+
+                        <var name="tend_zgw" name_in_code="zgw" array_group="reflectivity" units="m^6 m^{-3} s^{-1}" 
+                             description="Tendency of graupel reflectivity multiplied by dry air density divided by d(zeta)/dz"
+                             packages="nssl3m_in"/>
+
+                        <var name="tend_zhw" name_in_code="zhw" array_group="reflectivity" units="m^6 m^{-3} s^{-1}" 
+                             description="Tendency of hail reflectivity multiplied by dry air density divided by d(zeta)/dz"
+                             packages="nssl3m_in"/>
                 </var_array>
         </var_struct>
 
@@ -2069,6 +2094,11 @@
                      units="-"
                      description="configuration for cloud microphysics schemes"
                      possible_values="`suite',`mp_wsm6',`mp_thompson',`mp_kessler',`mp_nssl2m',`off'"/>
+
+                <nml_option name="config_nssl_moments" type="character" default_value="nssl2m" in_defaults="false"
+                     units="-"
+                     description="Whether to activate the 3moment version of NSSL"
+                     possible_values="`nssl2m',`nssl3m'"/>
 
                 <nml_option name="config_convection_scheme" type="character" default_value="suite" in_defaults="false"
                      units="-"
