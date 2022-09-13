@@ -495,6 +495,7 @@
                   re_cloud  = recloud_p   , re_ice     = reice_p      , re_snow    = resnow_p     , &
                   has_reqc  = has_reqc    , has_reqi   = has_reqi     , has_reqs   = has_reqs     , &
                   diagflag  = l_diags     , dbz        = refl10cm_p   , &
+                  ntmul      = n_microp   , ntcnt      = 1            , lastloop   = .true.       , &
                   ids = ids , ide = ide , jds = jds , jde = jde , kds = kds , kde = kde           , &
                   ims = ims , ime = ime , jms = jms , jme = jme , kms = kms , kme = kme           , &
                   its = its , ite = ite , jts = jts , jte = jte , kts = kts , kte = kte             &
@@ -516,6 +517,7 @@
                   re_cloud  = recloud_p   , re_ice     = reice_p      , re_snow    = resnow_p     , &
                   has_reqc  = has_reqc    , has_reqi   = has_reqi     , has_reqs   = has_reqs     , &
                   diagflag  = l_diags     , dbz        = refl10cm_p   , &
+                  ntmul      = n_microp   , ntcnt      = 1            , lastloop   = .true.       , &
                   ids = ids , ide = ide , jds = jds , jde = jde , kds = kds , kde = kde           , &
                   ims = ims , ime = ime , jms = jms , jme = jme , kms = kms , kme = kme           , &
                   its = its , ite = ite , jts = jts , jte = jte , kts = kts , kte = kte             &
