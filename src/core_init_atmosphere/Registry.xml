@@ -417,7 +417,6 @@
                         <var name="cf1" packages="met_stage_in"/>
                         <var name="cf2" packages="met_stage_in"/>
                         <var name="cf3" packages="met_stage_in"/>
-                        <var name="hx" packages="met_stage_in"/>
                         <var name="zgrid" packages="met_stage_in"/>
                         <var name="rdzw" packages="met_stage_in"/>
                         <var name="dzu" packages="met_stage_in"/>
@@ -515,7 +514,6 @@
                         <var name="cf1" packages="vertical_stage_out;met_stage_out"/>
                         <var name="cf2" packages="vertical_stage_out;met_stage_out"/>
                         <var name="cf3" packages="vertical_stage_out;met_stage_out"/>
-                        <var name="hx" packages="vertical_stage_out;met_stage_out"/>
                         <var name="zgrid" packages="vertical_stage_out;met_stage_out"/>
                         <var name="rdzw" packages="vertical_stage_out;met_stage_out"/>
                         <var name="dzu" packages="vertical_stage_out;met_stage_out"/>
