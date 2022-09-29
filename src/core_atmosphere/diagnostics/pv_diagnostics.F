@@ -5,7 +5,7 @@
 ! Additional copyright and license information can be found in the LICENSE file
 ! distributed with this code, or at http://mpas-dev.github.com/license.html
 !
-module pv_diagnostics
+module mpas_pv_diagnostics
 
     use mpas_derived_types, only : MPAS_pool_type, MPAS_clock_type
     use mpas_kind_types, only : RKIND
@@ -1647,4 +1647,4 @@ module pv_diagnostics
    
    end subroutine atm_compute_pvBudget_diagnostics
 
-end module pv_diagnostics
+end module mpas_pv_diagnostics

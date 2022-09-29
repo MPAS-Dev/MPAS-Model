@@ -36,7 +36,7 @@ module mpas_atm_diagnostics_manager
         use mpas_isobaric_diagnostics, only : isobaric_diagnostics_setup
         use mpas_cloud_diagnostics, only : cloud_diagnostics_setup
         use mpas_convective_diagnostics, only : convective_diagnostics_setup
-        use pv_diagnostics, only : pv_diagnostics_setup
+        use mpas_pv_diagnostics, only : pv_diagnostics_setup
         use soundings, only : soundings_setup
 
         implicit none
@@ -103,7 +103,7 @@ module mpas_atm_diagnostics_manager
         use mpas_isobaric_diagnostics, only : isobaric_diagnostics_compute
         use mpas_cloud_diagnostics, only : cloud_diagnostics_compute
         use mpas_convective_diagnostics, only : convective_diagnostics_compute
-        use pv_diagnostics, only : pv_diagnostics_compute
+        use mpas_pv_diagnostics, only : pv_diagnostics_compute
         use soundings, only : soundings_compute
 
         implicit none
