@@ -5,7 +5,7 @@
 ! Additional copyright and license information can be found in the LICENSE file
 ! distributed with this code, or at http://mpas-dev.github.com/license.html
 !
-module convective_diagnostics
+module mpas_convective_diagnostics
 
     use mpas_derived_types, only : MPAS_pool_type, MPAS_clock_type, MPAS_LOG_ERR, MPAS_LOG_CRIT
     use mpas_kind_types, only : RKIND, R8KIND
@@ -1096,4 +1096,4 @@ module convective_diagnostics
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 !-----------------------------------------------------------------------
 
-end module convective_diagnostics
+end module mpas_convective_diagnostics

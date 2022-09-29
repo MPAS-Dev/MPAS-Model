@@ -35,7 +35,7 @@ module mpas_atm_diagnostics_manager
         use diagnostic_template, only : diagnostic_template_setup
         use isobaric_diagnostics, only : isobaric_diagnostics_setup
         use mpas_cloud_diagnostics, only : cloud_diagnostics_setup
-        use convective_diagnostics, only : convective_diagnostics_setup
+        use mpas_convective_diagnostics, only : convective_diagnostics_setup
         use pv_diagnostics, only : pv_diagnostics_setup
         use soundings, only : soundings_setup
 
@@ -76,7 +76,7 @@ module mpas_atm_diagnostics_manager
     subroutine mpas_atm_diag_update()
 
         use diagnostic_template, only : diagnostic_template_update
-        use convective_diagnostics, only : convective_diagnostics_update
+        use mpas_convective_diagnostics, only : convective_diagnostics_update
 
         implicit none
 
@@ -102,7 +102,7 @@ module mpas_atm_diagnostics_manager
         use diagnostic_template, only : diagnostic_template_compute
         use isobaric_diagnostics, only : isobaric_diagnostics_compute
         use mpas_cloud_diagnostics, only : cloud_diagnostics_compute
-        use convective_diagnostics, only : convective_diagnostics_compute
+        use mpas_convective_diagnostics, only : convective_diagnostics_compute
         use pv_diagnostics, only : pv_diagnostics_compute
         use soundings, only : soundings_compute
 
@@ -132,7 +132,7 @@ module mpas_atm_diagnostics_manager
     subroutine mpas_atm_diag_reset()
 
         use diagnostic_template, only : diagnostic_template_reset
-        use convective_diagnostics, only : convective_diagnostics_reset
+        use mpas_convective_diagnostics, only : convective_diagnostics_reset
 
         implicit none
 
