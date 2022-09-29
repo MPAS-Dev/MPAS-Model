@@ -5,7 +5,7 @@
 ! Additional copyright and license information can be found in the LICENSE file
 ! distributed with this code, or at http://mpas-dev.github.com/license.html
 !
-module isobaric_diagnostics
+module mpas_isobaric_diagnostics
 
     use mpas_dmpar
     use mpas_kind_types
@@ -1244,4 +1244,4 @@ module isobaric_diagnostics
    
     end subroutine compute_layer_mean
    
-end module isobaric_diagnostics
+end module mpas_isobaric_diagnostics
