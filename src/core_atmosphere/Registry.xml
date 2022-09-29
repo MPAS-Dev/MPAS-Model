@@ -784,6 +784,8 @@
 			<var name="ktop_deep"/>
 			<var name="xmb_total"/>
 			<var name="xmb_shallow"/>
+			<var name="cldfrac_dp"/>
+			<var name="cldfrac_sh"/>
 			<var name="qc_cu"/>
 			<var name="qi_cu"/>
 			<var name="rthmpten"/>
@@ -934,10 +936,12 @@
 
 			<var name="i_rainnc"/>
 			<var name="rainnc"/>
+			<var name="rainncv"/>
 			<var name="precipw"/>
 			<var name="cuprec"/>
 			<var name="i_rainc"/>
 			<var name="rainc"/>
+			<var name="raincv"/>
 			<var name="kpbl"/>
 			<var name="hpbl"/>
 			<var name="hfx"/>
@@ -2179,6 +2183,16 @@
                      description="configuration for convection schemes"
                      possible_values="`suite',`cu_kain_fritsch',`cu_tiedtke',`cu_ntiedtke',`cu_grell_freitas',`off'"/>
 
+                <nml_option name="config_kfeta_trigger" type="integer" default_value="1" in_defaults="false"
+                     units="-"
+                     description="KF (1) original or (2) moisture-advection based convection trigger"
+                     possible_values="1 or 2"/>
+
+                <nml_option name="config_cu_rad_feedback" type="logical" default_value="false" in_defaults="false"
+                     units="-"
+                     description="whether to enable KF subgrid-scale cloud feedbacks to the SW and LW radiation schemes"
+                     possible_values=".true. or .false."/>
+
                 <nml_option name="config_lsm_scheme" type="character" default_value="suite" in_defaults="false"
                      units="-"
                      description="configuration for land-surface schemes"
@@ -2487,6 +2501,22 @@
                      description="time running-averaged vertical velocity"
                      packages="cu_kain_fritsch_in"/>
 
+                <var name="cldfrac_dp" type="real" dimensions="nVertLevels nCells Time" units="unitless"
+                     description="sugbgrid-scale cloud fraction from KF deep convection"
+                     packages="cu_kain_fritsch_in"/>
+
+                <var name="cldfrac_sh" type="real" dimensions="nVertLevels nCells Time" units="unitless"
+                     description="subgrid-scale cloud fraction from KF shallow convection"
+                     packages="cu_kain_fritsch_in"/>
+
+                <var name="cldfracwcu" type="real" dimensions="nVertLevels nCells Time" units="unitless"
+                     description="horizontal cloud fraction including Cu"
+                     packages="cu_kain_fritsch_in"/>
+
+                <var name="cldfracwcut" type="real" dimensions="nCells Time" units="unitless"
+                     description="total cloud fraction including Cu"
+                     packages="cu_kain_fritsch_in"/>
+
 
                 <!-- ... GRELL-FREITAS ONLY: -->
                 <var name="k22_shallow" type="integer" dimensions="nCells Time" units="unitless"
@@ -2513,14 +2543,6 @@
                      description="cloud base mass flux for shallow convection"
                      packages="cu_grell_freitas_in"/>
 
-                <var name="qc_cu" type="real" dimensions="nVertLevels nCells Time" units="kg kg^{-1}"
-                     description="in-cloud cloud water mixing ratio in Grell-Freitas cloud model"
-                     packages="cu_grell_freitas_in"/>
-
-                <var name="qi_cu" type="real" dimensions="nVertLevels nCells Time" units="kg kg^{-1}"
-                     description="in-cloud cloud ice mixing ratio in Grell-Freitas cloud model"
-                     packages="cu_grell_freitas_in"/>
-
 
                 <!-- ... KAIN_FRITSCH AND GRELL-FREITAS: -->
                 <var name="cubot" type="real" dimensions="nCells Time" units="unitless"
@@ -2529,6 +2551,14 @@
 
                 <var name="cutop" type="real" dimensions="nCells Time" units="unitless"
                      description="index of lowest level of convection"
+                     packages="cu_grell_freitas_in;cu_kain_fritsch_in"/>
+
+                <var name="qc_cu" type="real" dimensions="nVertLevels nCells Time" units="kg kg^{-1}"
+                     description="in-cloud cloud water mixing ratio from convection parameterization"
+                     packages="cu_grell_freitas_in;cu_kain_fritsch_in"/>
+
+                <var name="qi_cu" type="real" dimensions="nVertLevels nCells Time" units="kg kg^{-1}"
+                     description="in-cloud cloud ice mixing ratio from convection parameterization"
                      packages="cu_grell_freitas_in;cu_kain_fritsch_in"/>
 
 
@@ -3100,7 +3130,10 @@
                 <!-- ================================================================================================== -->
 
                 <var name="cldfrac" type="real" dimensions="nVertLevels nCells Time" units="unitless"
-                     description="horizontal cloud fraction"/>
+                     description="grid-scale horizontal cloud fraction"/>
+
+                <var name="cldfract" type="real" dimensions="nCells Time" units="unitless"
+                     description="grid-scale total cloud fraction"/>
 
 
                 <!-- ================================================================================================== -->
@@ -3322,6 +3355,10 @@
                      description="tendency of cloud ice mixing ratio due to cumulus convection"
                      packages="cu_grell_freitas_in;cu_kain_fritsch_in;cu_ntiedtke_in"/>
 
+                <var name="rqvdynten" type="real" dimensions="nVertLevels nCells Time" units="kg kg^{-1} s^{-1}"
+                     description="tendency of water vapor due to horizontal and vertical advections"
+                     packages="cu_grell_freitas_in;cu_kain_fritsch_in;cu_tiedtke_in"/>
+
 
                 <!-- KAIN_FRITSCH: -->
                 <var name="rqrcuten" type="real" dimensions="nVertLevels nCells Time" units="kg kg^{-1} s^{-1}"
@@ -3333,10 +3370,6 @@
                      packages="cu_kain_fritsch_in"/>
 
                 <!-- TIEDTKE AND GRELL -->
-                <var name="rqvdynten" type="real" dimensions="nVertLevels nCells Time" units="kg kg^{-1} s^{-1}"
-                     description="tendency of water vapor due to horizontal and vertical advections"
-                     packages="cu_grell_freitas_in;cu_ntiedtke_in"/>
-
                 <var name="rucuten" type="real" dimensions="nVertLevels nCells Time" units="m s^{-1} s^{-1}"
                      description="tendency of zonal wind due to cumulus convection"
                      packages="cu_grell_freitas_in;cu_ntiedtke_in"/>

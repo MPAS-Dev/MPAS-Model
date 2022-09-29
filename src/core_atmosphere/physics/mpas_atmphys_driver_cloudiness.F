@@ -49,6 +49,8 @@
 !   cloud formation, but changes to the cloud water and cloud ice mixing ratios only affect the long wave and
 !   short wave radiation codes.
 !   Laura D. Fowler (laura@ucar.edu) / 2016-07-05.
+! * implemented cloud fraction and condensates from Kain-Fritsch convection parameterization.
+!   Jerold A. Herwehe (herwehe.jerry@epa.gov) / 2016-12-08.
 ! * since we removed the local variable radt_cld_scheme from mpas_atmphys_vars.F, now defines radt_cld_scheme
 !   as a pointer to config_radt_cld_scheme.
 !   Laura D. Fowler (laura@ucar.edu) / 2017-02-16.
@@ -67,6 +69,11 @@
  if(.not.allocated(dx_p)     ) allocate(dx_p(ims:ime,jms:jme)             ) 
  if(.not.allocated(xland_p)  ) allocate(xland_p(ims:ime,jms:jme)          )
  if(.not.allocated(cldfrac_p)) allocate(cldfrac_p(ims:ime,kms:kme,jms:jme))
+ if(.not.allocated(cldfracrad_p))allocate(cldfracrad_p(ims:ime,kms:kme,jms:jme))
+ if(.not.allocated(cldfrac_dp_p))allocate(cldfrac_dp_p(ims:ime,kms:kme,jms:jme))
+ if(.not.allocated(cldfrac_sh_p))allocate(cldfrac_sh_p(ims:ime,kms:kme,jms:jme))
+ if(.not.allocated(qccu_p)   ) allocate(qccu_p(ims:ime,kms:kme,jms:jme)   )
+ if(.not.allocated(qicu_p)   ) allocate(qicu_p(ims:ime,kms:kme,jms:jme)   )
  if(.not.allocated(qvrad_p)  ) allocate(qvrad_p(ims:ime,kms:kme,jms:jme)  )
  if(.not.allocated(qcrad_p)  ) allocate(qcrad_p(ims:ime,kms:kme,jms:jme)  )
  if(.not.allocated(qirad_p)  ) allocate(qirad_p(ims:ime,kms:kme,jms:jme)  )
@@ -81,6 +88,11 @@
  if(allocated(dx_p)     ) deallocate(dx_p     )
  if(allocated(xland_p)  ) deallocate(xland_p  )
  if(allocated(cldfrac_p)) deallocate(cldfrac_p)
+ if(allocated(cldfracrad_p))deallocate(cldfracrad_p)
+ if(allocated(cldfrac_dp_p))deallocate(cldfrac_dp_p )
+ if(allocated(cldfrac_sh_p))deallocate(cldfrac_sh_p )
+ if(allocated(qccu_p)   ) deallocate(qccu_p   )
+ if(allocated(qicu_p)   ) deallocate(qicu_p   )
  if(allocated(qvrad_p)  ) deallocate(qvrad_p  )
  if(allocated(qcrad_p)  ) deallocate(qcrad_p  )
  if(allocated(qirad_p)  ) deallocate(qirad_p  )
@@ -105,14 +117,16 @@
 
 !local variables and pointers:
  integer:: i,j,k
-
+ real(kind=RKIND),dimension(:,:),pointer:: cldfrac_dp,cldfrac_sh,qc_cu,qi_cu
  real(kind=RKIND),pointer:: len_disp
  real(kind=RKIND),dimension(:),pointer:: areaCell,meshDensity
  real(kind=RKIND),dimension(:),pointer:: xland
+ character(len=StrKIND),pointer:: convection_scheme
 
 !-----------------------------------------------------------------------------------------------------------------
 
  call mpas_pool_get_config(configs,'config_len_disp',len_disp)
+ call mpas_pool_get_config(configs,'config_convection_scheme',convection_scheme)
 
  call mpas_pool_get_array(mesh,'areaCell'   ,areaCell   )
  call mpas_pool_get_array(mesh,'meshDensity',meshDensity)
@@ -126,28 +140,61 @@
        dx_p(i,j)    = dx_p(i,j)*0.001
        xland_p(i,j) = xland(i)
     enddo
-
-    !--- initialize the radiative cloud fraction and water vapor, cloud water, cloud ice,
-    !    and snow mixing ratios:
-    do k = kts,kte
-    do i = its,ite
-       qvrad_p(i,k,j)   = qv_p(i,k,j)
-       qcrad_p(i,k,j)   = qc_p(i,k,j)
-       qirad_p(i,k,j)   = qi_p(i,k,j)
-       qsrad_p(i,k,j)   = qs_p(i,k,j)
-       cldfrac_p(i,k,j) = 0._RKIND
-    enddo
-    enddo
  enddo
+
+ !--- initialize the radiative cloud fraction and water vapor, cloud water, cloud ice,
+ !    and snow mixing ratios:
+
+ convection_select: select case(convection_scheme)
+
+    case("cu_kain_fritsch")
+       call mpas_pool_get_array(diag_physics,'cldfrac_dp',cldfrac_dp)
+       call mpas_pool_get_array(diag_physics,'cldfrac_sh',cldfrac_sh)
+       call mpas_pool_get_array(diag_physics,'qc_cu'     ,qc_cu     )
+       call mpas_pool_get_array(diag_physics,'qi_cu'     ,qi_cu     )
+
+       do j = jts,jte
+       do k = kts,kte
+       do i = its,ite
+          qvrad_p(i,k,j)   = qv_p(i,k,j)
+          qcrad_p(i,k,j)   = qc_p(i,k,j)
+          qirad_p(i,k,j)   = qi_p(i,k,j)
+          qsrad_p(i,k,j)   = qs_p(i,k,j)
+          cldfrac_p(i,k,j) = 0._RKIND
+          cldfracrad_p(i,k,j) = 0._RKIND
+          cldfrac_dp_p(i,k,j) = cldfrac_dp(k,i)
+          cldfrac_sh_p(i,k,j) = cldfrac_sh(k,i)
+          qccu_p(i,k,j)    = qc_cu(k,i)
+          qicu_p(i,k,j)    = qi_cu(k,i)
+       enddo
+       enddo
+       enddo
+
+    case default
+       do j = jts,jte
+       do k = kts,kte
+       do i = its,ite
+          qvrad_p(i,k,j)   = qv_p(i,k,j)
+          qcrad_p(i,k,j)   = qc_p(i,k,j)
+          qirad_p(i,k,j)   = qi_p(i,k,j)
+          qsrad_p(i,k,j)   = qs_p(i,k,j)
+          cldfrac_p(i,k,j) = 0._RKIND
+          cldfracrad_p(i,k,j) = 0._RKIND
+       enddo
+       enddo
+       enddo
+
+ end select convection_select
 
  end subroutine cloudiness_from_MPAS
 
 !=================================================================================================================
- subroutine cloudiness_to_MPAS(diag_physics,its,ite)
+ subroutine cloudiness_to_MPAS(configs,diag_physics,its,ite)
 !=================================================================================================================
 
 !input arguments:
  integer,intent(in):: its,ite
+ type(mpas_pool_type),intent(in)   :: configs
 
 !inout arguments:
  type(mpas_pool_type),intent(inout):: diag_physics
@@ -155,19 +202,69 @@
 !local variables and pointers:
  integer:: i,j,k
 
- real(kind=RKIND),dimension(:,:),pointer:: cldfrac
+ real(kind=RKIND),dimension(:,:),pointer:: cldfrac,cldfracwcu
+ real(kind=RKIND),dimension(:),pointer:: cldfract,cldfracwcut
+
+ real(kind=RKIND):: cldji,cldwcuji
+ character(len=StrKIND),pointer:: convection_scheme
 
 !-----------------------------------------------------------------------------------------------------------------
 
- call mpas_pool_get_array(diag_physics,'cldfrac',cldfrac)
+ call mpas_pool_get_config(configs,'config_convection_scheme',convection_scheme)
 
- do j = jts,jte
- do k = kts,kte
- do i = its,ite
-    cldfrac(k,i) = cldfrac_p(i,k,j)
- enddo
- enddo
- enddo
+ call mpas_pool_get_array(diag_physics,'cldfrac' ,cldfrac)
+ call mpas_pool_get_array(diag_physics,'cldfract',cldfract)
+
+ convection_select: select case(convection_scheme)
+
+    case("cu_kain_fritsch")
+       call mpas_pool_get_array(diag_physics,'cldfracwcu',cldfracwcu)
+       call mpas_pool_get_array(diag_physics,'cldfracwcut',cldfracwcut)
+
+       do j = jts,jte
+       do k = kts,kte
+       do i = its,ite
+          cldfrac(k,i)    = cldfrac_p(i,k,j)
+          cldfracwcu(k,i) = cldfracrad_p(i,k,j)
+       enddo
+       enddo
+       enddo
+
+      !compute cloud diagnosis (random overlapping) by ZCX (from WRF)
+       do j = jts,jte
+       do i = its,ite
+          cldji    = 1._RKIND
+          cldwcuji = 1._RKIND
+          do k = kte-1,kts,-1
+             cldji    = cldji * (1.0 - cldfrac_p(i,k,j))
+             cldwcuji = cldwcuji * (1.0 - cldfracrad_p(i,k,j))
+          enddo
+          cldfract(i)    = 1.0 - cldji
+          cldfracwcut(i) = 1.0 - cldwcuji
+       enddo
+       enddo
+
+    case default
+       do j = jts,jte
+       do k = kts,kte
+       do i = its,ite
+          cldfrac(k,i) = cldfrac_p(i,k,j)
+       enddo
+       enddo
+       enddo
+
+      !compute cloud diagnosis (random overlapping) by ZCX (from WRF)
+       do j = jts,jte
+       do i = its,ite
+          cldji    = 1._RKIND
+          do k = kte-1,kts,-1
+             cldji    = cldji * (1.0 - cldfrac_p(i,k,j))
+          enddo
+          cldfract(i)    = 1.0 - cldji
+       enddo
+       enddo
+
+ end select convection_select
  
  end subroutine cloudiness_to_MPAS
 
@@ -185,16 +282,23 @@
 !inout arguments:
  type(mpas_pool_type),intent(inout):: diag_physics
 
+ logical, pointer:: cu_rad_feedback
+
 !local variables and pointers:
  character(len=StrKIND),pointer:: radt_cld_scheme
 
  integer:: i,j,k
 
+ real(kind=RKIND):: cldfrac_cu
+ character(len=StrKIND),pointer:: convection_scheme
+
 !-----------------------------------------------------------------------------------------------------------------
 !call mpas_log_write('')
 !call mpas_log_write('--- enter subroutine driver_cloudiness:')
 
- call mpas_pool_get_config(configs,'config_radt_cld_scheme',radt_cld_scheme)
+ call mpas_pool_get_config(configs,'config_radt_cld_scheme'  ,radt_cld_scheme  )
+ call mpas_pool_get_config(configs,'config_convection_scheme',convection_scheme)
+ call mpas_pool_get_config(configs,'config_cu_rad_feedback'  ,cu_rad_feedback  )
 
 !copy MPAS arrays to local arrays:
  call cloudiness_from_MPAS(configs,mesh,diag_physics,sfc_input,its,ite)
@@ -226,8 +330,41 @@
 
  end select cld_fraction_select
 
+ convection_select: select case(convection_scheme)
+
+    case("cu_kain_fritsch")
+       !--- assign radiative cloud fraction:
+       do j = jts,jte
+       do k = kts,kte
+       do i = its,ite
+          cldfracrad_p(i,k,j) = cldfrac_p(i,k,j)
+       enddo
+       enddo
+       enddo
+
+       if(cu_rad_feedback) then
+      !adjust cloud fraction and condensates before radiation calls if Cu feedback is enabled by
+      !incorporating subgrid-scale convective clouds into resolved cloudiness (based on CESM):
+          do j = jts,jte
+          do k = kts,kte
+          do i = its,ite
+             cldfrac_cu=cldfrac_dp_p(i,k,j)+cldfrac_sh_p(i,k,j)         !Cu cloud fraction
+             cldfracrad_p(i,k,j)=(1.-cldfrac_cu)*cldfracrad_p(i,k,j)    !update resolved cloud fraction for Cu punch-through
+             cldfracrad_p(i,k,j)=cldfracrad_p(i,k,j)+cldfrac_cu         !new total cloud fraction for radiation
+             cldfracrad_p(i,k,j)=amin1(1.0,cldfracrad_p(i,k,j))
+             qcrad_p(i,k,j) = qcrad_p(i,k,j)+(qccu_p(i,k,j)*cldfrac_cu) !new total cloud water for radiation
+             qirad_p(i,k,j) = qirad_p(i,k,j)+(qicu_p(i,k,j)*cldfrac_cu) !new total cloud ice for radiation
+          enddo
+          enddo
+          enddo
+       endif
+
+    case default
+
+ end select convection_select
+
 !copy local arrays to MPAS grid:
- call cloudiness_to_MPAS(diag_physics,its,ite)
+ call cloudiness_to_MPAS(configs,diag_physics,its,ite)
 
 !call mpas_log_write('--- end subroutine driver_cloudiness.')
 

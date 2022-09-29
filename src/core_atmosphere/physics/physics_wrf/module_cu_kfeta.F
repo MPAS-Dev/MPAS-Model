@@ -1,10 +1,47 @@
+!===============================================================================
+! This version of module_cu_kfeta.F comes from WRF v3.8.1 (also the same 
+! module as in WRF v4.4) and was adapted for use in MPAS, including the KF 
+! trigger option and subgrid-scale cloudiness and condensate feedbacks to the
+! radiation schemes.
+! Jerold A. Herwehe (herwehe.jerry@epa.gov) / 2016-12-05.
+!
+! This version of module_cu_kfeta.F also computes the convective time
+! scale (variable TIMEC) based on updraft dynamics, rather than a 
+! horizontal grid scale advective time.  Look-up table error checking
+! is also improved.
+! O. Russell Bullock Jr. (bullock.russell@epa.gov) / 2017-01-04. 
+!
+! Additional modifications:
+!    * Generalized module for use in both the MPAS and WRF models.
+!      Jerold A. Herwehe (herwehe.jerry@epa.gov) / 2019-11-19.
+!===============================================================================
+!
 MODULE module_cu_kfeta
 
-!  USE module_wrf_error
+#if defined(mpas)
+use mpas_atmphys_utilities, only: physics_message,physics_error_fatal
+#define FATAL_ERROR(M) call physics_error_fatal( M )
+#define WRITE_MESSAGE(M) call physics_message( M )
+#else
+use module_wrf_error
+#define FATAL_ERROR(M) call wrf_error_fatal( M )
+#define WRITE_MESSAGE(M) call wrf_message( M )
+#endif
 
+!
+!  V3.3: A new trigger function is added based Ma and Tan (2009):
+!   Ma, L.-M. and Z.-M. Tan, 2009: Improving the behavior of 
+!   the cumulus parameterization for tropical cyclone prediction: 
+!   Convection trigger. Atmospheric Research, 92, 190 - 211.
+!
+!ckay
+!  WRF v3.5 with diagnosed deep and shallow KF cloud fraction using 
+!  CAM3-CAM5 methodology, along with captured liquid and ice condensates.
+!    JAH & KA (U.S. EPA) -- May 2013
+!
 !--------------------------------------------------------------------
 ! Lookup table variables:
-      INTEGER, PARAMETER :: KFNT=250,KFNP=220
+      INTEGER, PARAMETER, PRIVATE :: KFNT=300,KFNP=250
       REAL, DIMENSION(KFNT,KFNP),PRIVATE, SAVE :: TTAB,QSTAB
       REAL, DIMENSION(KFNP),PRIVATE, SAVE :: THE0K
       REAL, DIMENSION(200),PRIVATE, SAVE :: ALU
@@ -16,6 +53,7 @@ MODULE module_cu_kfeta
 CONTAINS
 
 #if defined(mpas)
+<<<<<<< HEAD
    SUBROUTINE KF_eta_CPS(                                            &
               ids,ide, jds,jde, kds,kde                              &
              ,ims,ime, jms,jme, kms,kme                              &
@@ -33,11 +71,14 @@ CONTAINS
              ,RQICUTEN,RQSCUTEN                                      &
                                                              )
 #else
+=======
+>>>>>>> 4909e7f04 (Update the MPAS-A Kain-Fritsch CPS to WRF 4.4.1)
    SUBROUTINE KF_eta_CPS(                                    &
               ids,ide, jds,jde, kds,kde                      &
              ,ims,ime, jms,jme, kms,kme                      &
              ,its,ite, jts,jte, kts,kte                      &
-             ,DT,KTAU,DX,CUDT,CURR_SECS,ADAPT_STEP_FLAG      &
+             ,trigger                                        &
+             ,DT,KTAU,dxCell,areaCell,CUDT,ADAPT_STEP_FLAG   &
              ,rho,RAINCV,PRATEC,NCA                          &
              ,U,V,TH,T,W,dz8w,Pcps,pi                        &
              ,W0AVG,XLV0,XLV1,XLS0,XLS1,CP,R,G,EP1           &
@@ -47,7 +88,35 @@ CONTAINS
             ! optionals
              ,F_QR    ,F_QI    ,F_QS                         &
              ,RTHCUTEN,RQVCUTEN,RQCCUTEN,RQRCUTEN            &
-             ,RQICUTEN,RQSCUTEN                              &
+             ,RQICUTEN,RQSCUTEN, RQVFTEN                     &
+             ,cldfra_dp_KF,cldfra_sh_KF                      &
+             ,qc_KF,qi_KF                                    &
+                                                             )
+#else
+   SUBROUTINE KF_eta_CPS(                                    &
+              ids,ide, jds,jde, kds,kde                      &
+             ,ims,ime, jms,jme, kms,kme                      &
+             ,its,ite, jts,jte, kts,kte                      &
+             ,trigger                                        &
+             ,DT,KTAU,DX,CUDT,ADAPT_STEP_FLAG                &
+             ,rho,RAINCV,PRATEC,NCA                          &
+             ,U,V,TH,T,W,dz8w,Pcps,pi                        &
+             ,W0AVG,XLV0,XLV1,XLS0,XLS1,CP,R,G,EP1           &
+             ,EP2,SVP1,SVP2,SVP3,SVPT0                       &
+             ,STEPCU,CU_ACT_FLAG,warm_rain,CUTOP,CUBOT       &
+             ,QV                                             &
+             ,shall                                          & !BSINGH - For WRFCuP scheme added "shall"
+            ! optionals
+             ,F_QV    ,F_QC    ,F_QR    ,F_QI    ,F_QS       &
+             ,RTHCUTEN,RQVCUTEN,RQCCUTEN,RQRCUTEN            &
+             ,RQICUTEN,RQSCUTEN, RQVFTEN                     &
+!ckay
+             ,cldfra_dp_KF,cldfra_sh_KF                      &
+             ,qc_KF,qi_KF                                    &
+!kf_edrates
+             ,UDR_KF,DDR_KF                                  &
+             ,UER_KF,DER_KF                                  &
+             ,TIMEC_KF,KF_EDRATES                            &
                                                              )
 #endif
 
@@ -60,6 +129,7 @@ CONTAINS
                                   ims,ime, jms,jme, kms,kme, &
                                   its,ite, jts,jte, kts,kte
 
+   INTEGER,      INTENT(IN   ) :: trigger
    INTEGER,      INTENT(IN   ) :: STEPCU
    LOGICAL,      INTENT(IN   ) :: warm_rain
 
@@ -84,7 +154,7 @@ CONTAINS
 !
    REAL,  DIMENSION( ims:ime , kms:kme , jms:jme )         , &
           INTENT(INOUT) ::                                   &
-                                                      W0AVG
+                                                      W0AVG   
 
 !MPAS specific (Laura D. Fowler 2013-08-23): In MPAS, the mean distance between cell
 !centers varies between cells, in particular, for variable-resolution meshes. Below,
@@ -97,8 +167,7 @@ CONTAINS
 #endif
 
    REAL,  INTENT(IN   ) :: CUDT
-   REAL,  INTENT(IN   ) :: CURR_SECS
-   LOGICAL,INTENT(IN   ) :: ADAPT_STEP_FLAG
+   LOGICAL,OPTIONAL,INTENT(IN   ) :: ADAPT_STEP_FLAG
 !
    REAL, DIMENSION( ims:ime , jms:jme ),                     &
           INTENT(INOUT) ::                           RAINCV
@@ -109,6 +178,11 @@ CONTAINS
    REAL,    DIMENSION( ims:ime , jms:jme ),                  &
             INTENT(INOUT) ::                            NCA
 
+#if !(defined(mpas))
+   REAL,    DIMENSION( ims:ime , jms:jme ), OPTIONAL,        &
+        INTENT(INOUT) ::                            SHALL !BSINGH -  For WRFCuP scheme
+#endif
+   
    REAL, DIMENSION( ims:ime , jms:jme ),                     &
           INTENT(OUT) ::                              CUBOT, &
                                                       CUTOP    
@@ -128,8 +202,8 @@ CONTAINS
                                                    RQCCUTEN, &
                                                    RQRCUTEN, &
                                                    RQICUTEN, &
-                                                   RQSCUTEN
-
+                                                   RQSCUTEN, &
+                                                   RQVFTEN
 !
 ! Flags relating to the optional tendency arrays declared above
 ! Models that carry the optional tendencies will provdide the
@@ -142,6 +216,29 @@ CONTAINS
                                                   ,F_QI      &
                                                   ,F_QS
 
+!ckay
+   REAL,  DIMENSION( ims:ime , kms:kme , jms:jme )         , &
+          INTENT(INOUT) ::                                   &
+                                               cldfra_dp_KF, &
+                                               cldfra_sh_KF, &
+                                                      qc_KF, &
+                                                      qi_KF
+
+#if !(defined(mpas))
+!kf_edrates
+   REAL,  DIMENSION( ims:ime , kms:kme , jms:jme )         , &
+          INTENT(INOUT) ::                         &
+                                                     UDR_KF, &
+                                                     DDR_KF, &
+                                                     UER_KF, &
+                                                     DER_KF
+
+   REAL,  DIMENSION( ims:ime , jms:jme )                   , &
+          INTENT(INOUT) ::                         &
+                                                   TIMEC_KF
+
+   INTEGER, INTENT(IN) ::              KF_EDRATES
+#endif
 
 ! LOCAL VARS
 
@@ -155,6 +252,8 @@ CONTAINS
                                                        QV1D, &
                                                         P1D, &
                                                       RHO1D, &
+                                                  tpart_v1D, &
+                                                  tpart_h1D, &
                                                     W0AVG1D
 
    REAL, DIMENSION( kts:kte )::                              &
@@ -165,22 +264,35 @@ CONTAINS
                                                       DQSDT, &
                                                        DTDT
 
+  REAL, DIMENSION (its-1:ite+1,kts:kte,jts-1:jte+1) ::  aveh_t, aveh_q
+  REAL, DIMENSION (its:ite,kts:kte,jts:jte) :: aveh_qmax, aveh_qmin
+  REAL, DIMENSION (its:ite,kts:kte,jts:jte) ::  avev_t, avev_q 
+  REAL, DIMENSION (its:ite,kts:kte,jts:jte) :: avev_qmax, avev_qmin
+  REAL, DIMENSION (its:ite,kts:kte,jts:jte) ::  coef_v, coef_h, tpart_h, tpart_v
+  INTEGER :: ii,jj,kk
+
+  REAL :: ttop
+  REAL, DIMENSION (kts:kte)  :: z0
+
 #if defined(mpas)
    real:: tst,tv,prs,rhoe,w0,scr1,dx,dxsq,tmp
 #else
    REAL    ::         TST,tv,PRS,RHOE,W0,SCR1,DXSQ,tmp
 #endif
 
+   integer :: ibegh,iendh,jbegh,jendh
+   integer :: istart,iend,jstart,jend
    INTEGER :: i,j,k,NTST
+#if !(defined(mpas))
+   INTEGER :: ishall !BSINGH -  For WRFCuP Scheme
+#endif
    REAL    :: lastdt = -1.0
    REAL    :: W0AVGfctr, W0fctr, W0den
-   LOGICAL :: run_param
    
 !
 #if !(defined(mpas))
    DXSQ=DX*DX
 #endif
-
 
 !----------------------
    NTST=STEPCU
@@ -227,33 +339,152 @@ CONTAINS
    ENDDO
    lastdt = dt
 
-            
+! New trigger function
+     IF (trigger.eq.2) THEN         
 !
-!...CHECK FOR CONVECTIVE INITIATION EVERY 5 MINUTES (OR NTST/2)...
+! calculate 9-point average of moisture advection and temperature using halo (Horizontal)
 !
-!----------------------
+     aveh_t=-999   ! horizontal 9-point ave
+     aveh_q=-999
+     avev_t=0   ! vertical 3-level ave
+     avev_q=0
+     avev_qmax=0
+     avev_qmin=0
+     aveh_qmax=0
+     aveh_qmin=0
+     tpart_h=0
+     tpart_v=0
+     coef_h=0
+     coef_v=0
+     ibegh=max(its-1, ids+1)   ! start from 2
+     jbegh=max(jts-1, jds+1)
+     iendh=min(ite+1, ide-2)   ! end at ide-2
+     jendh=min(jte+1, jde-2)
+        DO J = jbegh,jendh
+        DO K = kts,kte
+        DO I = ibegh,iendh
+          aveh_t(i,k,j)=(T(i-1,k,j-1)+T(i-1,k,j)  +T(i-1,k,j+1)+ &
+                         T(i,k,j-1)   +T(i,k,j)   +T(i,k,j+1)+         &
+                         T(i+1,k,j-1) +T(i+1,k,j) +T(i+1,k,j+1))/9.
+          aveh_q(i,k,j)=(rqvften(i-1,k,j-1)+rqvften(i-1,k,j)  +rqvften(i-1,k,j+1)+ &
+                         rqvften(i,k,j-1)   +rqvften(i,k,j)   +rqvften(i,k,j+1)+         &
+                         rqvften(i+1,k,j-1) +rqvften(i+1,k,j) +rqvften(i+1,k,j+1))/9.
+        ENDDO
+        ENDDO
+        ENDDO
+! boundary value ( all processors will do the following? Or just those processsors handling sub-area including boundary)
+        DO K = kts,kte
+           DO J = jts-1,jte+1
+            DO I = its-1,ite+1
 
-!
-! Modified for adaptive time step
-!
-   if (ADAPT_STEP_FLAG) then
-      if ( (KTAU .eq. 1) .or. (cudt .eq. 0) .or. &
-           ( CURR_SECS + dt >= &
-           ( int( CURR_SECS / ( cudt * 60 ) ) + 1 ) * cudt * 60 ) ) then
-         run_param = .TRUE.
-      else
-         run_param = .FALSE.
-      endif
+            if(i.eq.ids) then
+            aveh_t(i,k,j)=aveh_t(i+1,k,j)
+            aveh_q(i,k,j)=aveh_q(i+1,k,j)
+            elseif(i.eq.ide-1) then
+            aveh_t(i,k,j)=aveh_t(i-1,k,j)
+            aveh_q(i,k,j)=aveh_q(i-1,k,j)
+            endif
 
-   else
-      if (MOD(KTAU,NTST) .EQ. 0 .or. KTAU .eq. 1) then
-         run_param = .TRUE.
-      else
-         run_param = .FALSE.
-      endif
-   endif
+            if(j.eq.jds) then
+             aveh_t(i,k,j)=aveh_t(i,k,j+1)
+             aveh_q(i,k,j)=aveh_q(i,k,j+1)
+            elseif(j.eq.jde-1) then
+            aveh_t(i,k,j)=aveh_t(i,k,j-1)
+            aveh_q(i,k,j)=aveh_q(i,k,j-1)
+            endif
 
-   if (run_param) then
+            if(j.eq.jds.and.i.eq.ids) then
+            aveh_q(i,k,j)=aveh_q(i+1,k,j+1) 
+            aveh_t(i,k,j)=aveh_t(i+1,k,j+1) 
+            endif
+
+            if(j.eq.jde-1.and.i.eq.ids) then
+            aveh_q(i,k,j)=aveh_q(i+1,k,j-1) 
+            aveh_t(i,k,j)=aveh_t(i+1,k,j-1) 
+            endif
+
+            if(j.eq.jde-1.and.i.eq.ide-1) then
+            aveh_q(i,k,j)=aveh_q(i-1,k,j-1) 
+            aveh_t(i,k,j)=aveh_t(i-1,k,j-1) 
+            endif
+
+            if(j.eq.jds.and.i.eq.ide-1) then
+            aveh_q(i,k,j)=aveh_q(i-1,k,j+1) 
+            aveh_t(i,k,j)=aveh_t(i-1,k,j+1) 
+            endif
+
+            ENDDO
+           ENDDO
+        ENDDO
+! search for max/min moisture advection in 9-point range, calculate horizontal T-perturbation (tpart_h)
+     istart=max(its, ids+1)   ! start from 2
+     jstart=max(jts, jds+1)
+     iend=min(ite, ide-2)   ! end at ide-2
+     jend=min(jte, jde-2)
+        DO K = kts,kte
+        DO J = jstart,jend
+        DO I = istart,iend
+           aveh_qmax(i,k,j)=aveh_q(i,k,j)
+           aveh_qmin(i,k,j)=aveh_q(i,k,j)
+          DO ii=-1, 1
+           DO jj=-1,1
+             if(aveh_q(i+II,k,j+JJ).gt.aveh_qmax(i,k,j)) aveh_qmax(i,k,j)=aveh_q(i+II,k,j+JJ)
+             if(aveh_q(i+II,k,j+JJ).lt.aveh_qmin(i,k,j)) aveh_qmin(i,k,j)=aveh_q(i+II,k,j+JJ)
+           ENDDO
+          ENDDO 
+          if(aveh_qmax(i,k,j).gt.aveh_qmin(i,k,j))then
+          coef_h(i,k,j)=(aveh_q(i,k,j)-aveh_qmin(i,k,j))/(aveh_qmax(i,k,j)-aveh_qmin(i,k,j))
+          else
+          coef_h(i,k,j)=0.
+          endif
+          coef_h(i,k,j)=amin1(coef_h(i,k,j),1.0)
+          coef_h(i,k,j)=amax1(coef_h(i,k,j),0.0)
+          tpart_h(i,k,j)=coef_h(i,k,j)*(T(i,k,j)-aveh_t(i,k,j))
+        ENDDO
+        ENDDO
+        ENDDO
+    89 continue 
+! vertical 3-layer calculation
+        DO J = jts, jte
+        DO I = its, ite
+          z0(1) = 0.5 * dz8w(i,1,j)
+          DO K = 2, kte
+            Z0(K) = Z0(K-1) + .5 * (DZ8W(i,K,j) + DZ8W(i,K-1,j))
+          ENDDO
+        DO K = kts+1,kte-1
+          ttop = t(i,k,j) + ((t(i,k,j) - t(i,k+1,j)) / (z0(k) - z0(k+1))) * (z0(k)-z0(k-1))
+          avev_t(i,k,j)=(T(i,k-1,j) + T(i,k,j) + ttop)/3.
+!         avev_t(i,k,j)=(T(i,k-1,j)+T(i,k,j) + T(i,k+1,j))/3.
+          avev_q(i,k,j)=(rqvften(i,k-1,j)+rqvften(i,k,j) + rqvften(i,k+1,j))/3.
+        ENDDO
+          avev_t(i,kts,j)=avev_t(i,kts+1,j)   ! lowest level value, is it the same as avev_t(i,kds,j)=avev_t(i,kds+1,j)?
+          avev_q(i,kts,j)=avev_q(i,kts+1,j)   
+          avev_t(i,kte,j)=avev_t(i,kte-1,j)   ! highest level value
+          avev_q(i,kte,j)=avev_q(i,kte-1,j)   
+        ENDDO
+        ENDDO
+! max /min value
+        DO J = jts, jte
+        DO I = its, ite
+        DO K = kts+1,kte-1
+          avev_qmax(i,k,j)=avev_q(i,k,j)
+          avev_qmin(i,k,j)=avev_q(i,k,j)
+         DO kk=-1,1
+         if(avev_q(i,k+kk,j).gt.avev_qmax(i,k,j)) avev_qmax(i,k,j)=avev_q(i,k+kk,j) 
+         if(avev_q(i,k+kk,j).lt.avev_qmin(i,k,j)) avev_qmin(i,k,j)=avev_q(i,k+kk,j) 
+         ENDDO
+         if(avev_qmax(i,k,j).gt.avev_qmin(i,k,j)) then
+         coef_v(i,k,j)=(avev_q(i,k,j)-avev_qmin(i,k,j))/(avev_qmax(i,k,j)-avev_qmin(i,k,j))
+         else
+         coef_v(i,k,j)=0
+         endif
+         tpart_v(i,k,j)=coef_v(i,k,j)*(T(i,k,j)-avev_t(i,k,j))
+        ENDDO
+         tpart_v(i,kts,j)= tpart_v(i,kts+1,j)    ! lowest level
+         tpart_v(i,kte,j)= tpart_v(i,kte-1,j)    ! highest level
+        ENDDO
+        ENDDO
+     ENDIF       ! endif (trigger.eq.2)          
 !
      DO J = jts,jte
      DO I= its,ite
@@ -282,7 +513,24 @@ CONTAINS
                DQRDT(k)=0.
                DQSDT(k)=0.
                DTDT(k)=0.
+!ckay
+               cldfra_dp_KF(I,k,J)=0.
+               cldfra_sh_KF(I,k,J)=0.
+               qc_KF(I,k,J)=0.
+               qi_KF(I,k,J)=0.
             ENDDO
+#if !(defined(mpas))
+!kf_edrates
+            IF (KF_EDRATES == 1) THEN
+               DO k=kts,kte
+                  UDR_KF(I,k,J)=0.
+                  DDR_KF(I,k,J)=0.
+                  UER_KF(I,k,J)=0.
+                  DER_KF(I,k,J)=0.
+               ENDDO
+               TIMEC_KF(I,J)=0.
+            ENDIF
+#endif
             RAINCV(I,J)=0.
             CUTOP(I,J)=KTS
             CUBOT(I,J)=KTE+1
@@ -299,19 +547,47 @@ CONTAINS
                P1D(K) =Pcps(I,K,J)
                W0AVG1D(K) =W0AVG(I,K,J)
                DZ1D(k)=dz8w(I,K,J)
+               IF (trigger.eq.2) THEN
+                  tpart_h1D(K) =tpart_h(I,K,J)
+                  tpart_v1D(K) =tpart_v(I,K,J)
+               ELSE
+                  tpart_h1D(K) = 0.
+                  tpart_v1D(K) = 0.
+               ENDIF
             ENDDO
             CALL KF_eta_PARA(I, J,                  &
-                 U1D,V1D,T1D,QV1D,P1D,DZ1D,         &
-                 W0AVG1D,DT,DX,DXSQ,RHO1D,          &
+                 U1D,V1D,T1D,QV1D,P1D,DZ1D,W0AVG1D, &
+                 tpart_h1D,tpart_v1D,               &
+                 trigger,                           &
+                 DT,DX,DXSQ,RHO1D,                  &
                  XLV0,XLV1,XLS0,XLS1,CP,R,G,        &
                  EP2,SVP1,SVP2,SVP3,SVPT0,          &
                  DQDT,DQIDT,DQCDT,DQRDT,DQSDT,DTDT, &
                  RAINCV,PRATEC,NCA,                 &
                  flag_QI,flag_QS,warm_rain,         &
+#if defined(mpas)
                  CUTOP,CUBOT,CUDT,                  &
+#else
+                 CUTOP,CUBOT,ishall,CUDT,           & !BSINGH -  Added ishall as arg for WRFCuP
+#endif
                  ids,ide, jds,jde, kds,kde,         &
                  ims,ime, jms,jme, kms,kme,         &
-                 its,ite, jts,jte, kts,kte)
+                 its,ite, jts,jte, kts,kte,         &
+!ckay
+                 cldfra_dp_KF,cldfra_sh_KF,         &
+                 qc_KF,qi_KF                        &
+#if !(defined(mpas))
+!kf_edrates
+                 ,UDR_KF,DDR_KF,                    &
+                 UER_KF,DER_KF,                     &
+                 TIMEC_KF,KF_EDRATES                &
+#endif
+                                                    )
+#if !(defined(mpas))
+            if(present(shall))shall(i,j) = ishall !,BSINGH -  For WRFCuP scheme
+#endif
+
+
             IF(PRESENT(rthcuten).AND.PRESENT(rqvcuten)) THEN
               DO K=kts,kte
                  RTHCUTEN(I,K,J)=DTDT(K)/pi(I,K,J)
@@ -356,23 +632,38 @@ CONTAINS
          ENDIF 
        ENDDO     ! i-loop
      ENDDO       ! j-loop
-   ENDIF         ! run_param
 !
    END SUBROUTINE KF_eta_CPS
 ! ****************************************************************************
 !-----------------------------------------------------------
    SUBROUTINE KF_eta_PARA (I, J,                           &
                       U0,V0,T0,QV0,P0,DZQ,W0AVG1D,         &
+                      TPART_H0,TPART_V0,                   &
+                      trigger,                             &
                       DT,DX,DXSQ,rhoe,                     &
                       XLV0,XLV1,XLS0,XLS1,CP,R,G,          &
                       EP2,SVP1,SVP2,SVP3,SVPT0,            &
                       DQDT,DQIDT,DQCDT,DQRDT,DQSDT,DTDT,   &
                       RAINCV,PRATEC,NCA,                   &
                       F_QI,F_QS,warm_rain,                 &
+#if defined(mpas)
                       CUTOP,CUBOT,CUDT,                    &
+#else
+                      CUTOP,CUBOT,ishall,CUDT,             & !BSINGH - For WRFCuP scheme
+#endif
                       ids,ide, jds,jde, kds,kde,           &
                       ims,ime, jms,jme, kms,kme,           &
-                      its,ite, jts,jte, kts,kte)
+                      its,ite, jts,jte, kts,kte,           &
+!ckay
+                      cldfra_dp_KF,cldfra_sh_KF,           &
+                      qc_KF,qi_KF                          &
+#if !(defined(mpas))
+!kf_edrates
+                      ,UDR_KF,DDR_KF,                      &
+                      UER_KF,DER_KF,                       &
+                      TIMEC_KF,KF_EDRATES                  &
+#endif
+                                                           )
 !-----------------------------------------------------------
 !***** The KF scheme that is currently used in experimental runs of EMCs 
 !***** Eta model....jsk 8/00
@@ -384,6 +675,7 @@ CONTAINS
                                 its,ite, jts,jte, kts,kte, &
                                 I,J
           ! ,P_QI,P_QS,P_FIRST_SCALAR
+      INTEGER, INTENT(IN   ) ::  trigger
 
       LOGICAL, INTENT(IN   ) :: F_QI, F_QS
 
@@ -392,6 +684,8 @@ CONTAINS
       REAL, DIMENSION( kts:kte ),                          &
             INTENT(IN   ) ::                           U0, &
                                                        V0, &
+                                                 TPART_H0, &
+                                                 TPART_V0, &
                                                        T0, &
                                                       QV0, &
                                                        P0, &
@@ -406,6 +700,11 @@ CONTAINS
       REAL,  INTENT(IN   ) :: EP2,SVP1,SVP2,SVP3,SVPT0
 
 !
+#if defined(mpas)
+      INTEGER :: ISHALL          ! make ISHALL local for now
+#else
+      INTEGER, INTENT(INOUT) :: ISHALL
+#endif
       REAL, DIMENSION( kts:kte ), INTENT(INOUT) ::         &
                                                      DQDT, &
                                                     DQIDT, &
@@ -416,6 +715,26 @@ CONTAINS
 
       REAL,    DIMENSION( ims:ime , jms:jme ),             &
             INTENT(INOUT) ::                          NCA
+
+!ckay
+      REAL, DIMENSION( ims:ime , kms:kme , jms:jme ),      &
+            INTENT(INOUT) ::                 cldfra_dp_KF, &
+                                             cldfra_sh_KF, &
+                                                    qc_KF, &
+                                                    qi_KF
+#if !(defined(mpas))
+!kf_edrates
+      REAL, DIMENSION( ims:ime , kms:kme , jms:jme ),      &
+            INTENT(INOUT) ::       UDR_KF,       &
+                                             DDR_KF,       &
+                                             UER_KF,       &
+                                             DER_KF
+
+      REAL, DIMENSION( ims:ime , jms:jme ),                &
+            INTENT(INOUT) ::     TIMEC_KF
+
+      INTEGER, INTENT(IN) ::         KF_EDRATES
+#endif
 
       REAL, DIMENSION( ims:ime , jms:jme ),                &
             INTENT(INOUT) ::                       RAINCV
@@ -465,14 +784,14 @@ CONTAINS
                  CPORQ,PLCL,ES,DLP,TENV,QENV,TVEN,TVBAR,   &
                  ZLCL,WKL,WABS,TRPPT,WSIGNE,DTLCL,GDT,WLCL,&
                  TVAVG,QESE,WTW,RHOLCL,AU0,VMFLCL,UPOLD,   &
-                 UPNEW,ABE,WKLCL,TTEMP,FRC1,   &
+                 UPNEW,ABE,WKLCL,TTEMP,FRC1,               &
                  QNEWIC,RL,R1,QNWFRZ,EFFQ,BE,BOTERM,ENTERM,&
                  DZZ,UDLBE,REI,EE2,UD2,TTMP,F1,F2,         &
                  THTTMP,QTMP,TMPLIQ,TMPICE,TU95,TU10,EE1,  &
                  UD1,DPTT,QNEWLQ,DUMFDP,EE,TSAT,           &
-                 THTA,VCONV,TIMEC,SHSIGN,VWS,PEF, &
+                 THTA,UPFLX,TIMEC,SHSIGN,VWS,PEF,          &
                  CBH,RCBH,PEFCBH,PEFF,PEFF2,TDER,THTMIN,   &
-                 DTMLTD,QS,TADVEC,DPDD,FRC,DPT,RDD,A1,     &
+                 DTMLTD,QS,TCONV,DPDD,FRC,DPT,RDD,A1,      &
                  DSSDT,DTMP,T1RH,QSRH,PPTFLX,CPR,CNDTNF,   &
                  UPDINC,AINCM2,DEVDMF,PPR,RCED,DPPTDF,     &
                  DMFLFS,DMFLFS2,RCED2,DDINC,AINCMX,AINCM1, &
@@ -488,6 +807,9 @@ CONTAINS
       INTEGER :: INDLU,NU,NUCHM,NNN,KLFS
    REAL    :: CHMIN,PM15,CHMAX,DTRH,RAD,DPPP
    REAL    :: TVDIFF,DTTOT,ABSOMG,ABSOMGTC,FRDP
+   REAL    :: DPLUME
+!ckay
+   REAL    :: xcldfra,UMF_new
 
       INTEGER :: KX,K,KL
 !
@@ -501,16 +823,18 @@ CONTAINS
                  LTOPM1,LVF,KSTART,KMIN,LFS,               &
                  ND,NIC,LDB,LDT,ND1,NDK,                   &
                  NM,LMAX,NCOUNT,NOITR,                     &
-                 NSTEP,NTC,NCHM,ISHALL,NSHALL
+                 NSTEP,NTC,NCHM,NSHALL
       LOGICAL :: IPRNT
+      REAL :: u00,qslcl,rhlcl,dqssdt    !jfb
       CHARACTER*1024 message
 !
       DATA P00,T00/1.E5,273.16/
       DATA RLF/3.339E5/
       DATA RHIC,RHBC/1.,0.90/
       DATA PIE,TTFRZ,TBFRZ,C5/3.141592654,268.16,248.16,1.0723E-3/
-      DATA RATE/0.03/
+      DATA RATE/0.03/   ! wrf default
 !      DATA RATE/0.01/  ! value used in NRCM
+!      DATA RATE/0.001/  ! effectively turn off autoconversion
 !-----------------------------------------------------------
       IPRNT=.FALSE.
       GDRY=-G/CP
@@ -518,6 +842,7 @@ CONTAINS
       NSHALL = 0
       KL=kte
       KX=kte
+      TCONV=0.0
 !
 !     ALIQ = 613.3
 !     BLIQ = 17.502
@@ -556,6 +881,7 @@ CONTAINS
 !
       DO K=1,KX
 !
+!  Saturation vapor pressure (ES) is calculated following Buck (1981)
 !...IF Q0 IS ABOVE SATURATION VALUE, REDUCE IT TO SATURATION LEVEL...
 !
          ES=ALIQ*EXP((BLIQ*T0(K)-CLIQ)/(T0(K)-DLIQ))
@@ -630,6 +956,13 @@ usl:   DO
                FBFRC=1.
                CYCLE usl
              ELSE
+                !BSINGH - For WRFCuP scheme
+                ! wig, 29-Aug-2006: I think this is where no convecion occurs. So, force
+                ! ishall to a flag value to indicate this for accounting purposes.
+#if !(defined(mpas))
+                ishall = 2
+#endif
+                !BSINGH -ENDS                
                RETURN
              ENDIF
            ENDIF      
@@ -648,13 +981,13 @@ usl:   DO
            NK=LC-1
            IF ( NK+1 .LT. KTS ) THEN
              WRITE(message,*)'WOULD GO OFF BOTTOM: KF_ETA_PARA I,J,NK',I,J,NK
-!            CALL wrf_message (TRIM(message)) 
+             WRITE_MESSAGE (TRIM(message))
            ELSE
              DO 
                NK=NK+1   
                IF ( NK .GT. KTE ) THEN
                  WRITE(message,*)'WOULD GO OFF TOP: KF_ETA_PARA I,J,DPTHMX,DPMIN',I,J,DPTHMX,DPMIN
-!                CALL wrf_message (TRIM(message))
+                 WRITE_MESSAGE (TRIM(message))
                  EXIT
                ENDIF
                DPTHMX=DPTHMX+DP(NK)
@@ -665,6 +998,12 @@ usl:   DO
              END DO    
            ENDIF
            IF(DPTHMX.LT.DPMIN)THEN 
+              !BSINGH - For WRFCuP scheme
+              ! wig, 29-Aug-2006: Indicate no convection occurred in ishall.
+#if !(defined(mpas))
+              ishall = 2
+#endif
+              !BSINGH -ENDS
              RETURN
            ENDIF
            KPBL=LC+NLAYRS-1   
@@ -715,18 +1054,36 @@ usl:   DO
           TLCL=AMIN1(TLCL,TMIX)
           TVLCL=TLCL*(1.+0.608*QMIX)
           ZLCL = ZMIX+(TLCL-TMIX)/GDRY
-          NK = LC-1
-          DO 
-            NK = NK+1
-            KLCL=NK
-            IF(ZLCL.LE.Z0(NK) .or. NK.GT.KL)THEN
-              EXIT
-            ENDIF 
-          ENDDO   
-          IF(NK.GT.KL)THEN
-            RETURN  
-          ENDIF
+     !     NK = LC-1
+     !     DO 
+     !       NK = NK+1
+     !       KLCL=NK
+     !       IF(ZLCL.LE.Z0(NK) .or. NK.GT.KL)THEN
+     !         EXIT
+     !       ENDIF 
+     !     ENDDO   
+     !     IF(NK.GT.KL)THEN
+     !       RETURN  
+     !     ENDIF
+
+       DO NK = LC, KL
+         KLCL = NK
+         IF ( ZLCL.LE.Z0(NK) )  EXIT
+     END DO
+     IF ( ZLCL.GT.Z0(KL) ) then
+        !BSINGH - For WRFCuP scheme 
+        !BSINGH - Improvised based on the following reason
+        !Before every "RETURN" statement assign ishall=2
+        ! wig, 29-Aug-2006: Indicate no convection occurred in ishall.
+#if !(defined(mpas))
+        ishall = 2
+#endif
+        !BSINGH -ENDS
+        RETURN
+     endif
+
           K=KLCL-1
+! calculate DLP using Z instead of log(P)
           DLP=(ZLCL-Z0(K))/(Z0(KLCL)-Z0(K))
 !     
 !...ESTIMATE ENVIRONMENTAL TEMPERATURE AND MIXING RATIO AT THE LCL...
@@ -745,41 +1102,51 @@ usl:   DO
 !...ADJUST VERTICAL VELOCITY TO EQUIVALENT VALUE FOR 25 KM GRID
 !...LENGTH, ASSUMING LINEAR DEPENDENCE OF W ON GRID LENGTH...
 !     
-          IF(ZLCL.LT.2.E3)THEN
+          IF(ZLCL.LT.2.E3)THEN        ! Kain (2004) Eq. 2
             WKLCL=0.02*ZLCL/2.E3
           ELSE
-            WKLCL=0.02
+            WKLCL=0.02                ! units of m/s
           ENDIF
           WKL=(W0AVG1D(K)+(W0AVG1D(KLCL)-W0AVG1D(K))*DLP)*DX/25.E3-WKLCL
           IF(WKL.LT.0.0001)THEN
             DTLCL=0.
           ELSE 
-            DTLCL=4.64*WKL**0.33
+            DTLCL=4.64*WKL**0.33      ! Kain (2004) Eq. 1
           ENDIF
+
+! New trigger function
+           IF(trigger.eq.2) then
+              DTLCL=amax1(TPART_H0(KLCL)+TPART_V0(KLCL),0.0)
+           ENDIF
+! end for trigger function
 !
+        dtrh = 0.
+	if (trigger  .eq. 3) then
 !...for ETA model, give parcel an extra temperature perturbation based
 !...the threshold RH for condensation (U00)...
+! as described in Narita and Ohmori (2007, 12th Mesoscale Conf.
 !
 !...for now, just assume U00=0.75...
 !...!!!!!! for MM5, SET DTRH = 0. !!!!!!!!
-!         U00 = 0.75
-!         IF(U00.lt.1.)THEN
-!           QSLCL=QES(K)+(QES(KLCL)-QES(K))*DLP
-!           RHLCL = QENV/QSLCL
-!           DQSSDT = QMIX*(CLIQ-BLIQ*DLIQ)/((TLCL-DLIQ)*(TLCL-DLIQ))
-!           IF(RHLCL.ge.0.75 .and. RHLCL.le.0.95)then
-!             DTRH = 0.25*(RHLCL-0.75)*QMIX/DQSSDT
-!           ELSEIF(RHLCL.GT.0.95)THEN
-!             DTRH = (1./RHLCL-1.)*QMIX/DQSSDT
-!           ELSE
+          U00 = 0.75
+          IF(U00.lt.1.)THEN
+            QSLCL=QES(K)+(QES(KLCL)-QES(K))*DLP
+            RHLCL = QENV/QSLCL
+            DQSSDT = QMIX*(CLIQ-BLIQ*DLIQ)/((TLCL-DLIQ)*(TLCL-DLIQ))
+            IF(RHLCL.ge.0.75 .and. RHLCL.le.0.95)then
+              DTRH = 0.25*(RHLCL-0.75)*QMIX/DQSSDT
+            ELSEIF(RHLCL.GT.0.95)THEN
+              DTRH = (1./RHLCL-1.)*QMIX/DQSSDT
+            ELSE
                DTRH = 0.
-!           ENDIF
-!         ENDIF   
+            ENDIF
+          ENDIF   
+        endif   ! trigger 3
 !         IF(ISHALL.EQ.1)IPRNT=.TRUE.
 !         IPRNT=.TRUE.
 !         IF(TLCL+DTLCL.GT.TENV)GOTO 45
-!
-trigger:  IF(TLCL+DTLCL+DTRH.LT.TENV)THEN   
+ 
+trigger2:  IF(TLCL+DTLCL+DTRH.LT.TENV)THEN   
 !
 ! Parcel not buoyant, CYCLE back to start of trigger and evaluate next potential USL...
 !
@@ -797,7 +1164,7 @@ trigger:  IF(TLCL+DTLCL+DTRH.LT.TENV)THEN
 !
             DTTOT = DTLCL+DTRH
             IF(DTTOT.GT.1.E-4)THEN
-              GDT=2.*G*DTTOT*500./TVEN
+              GDT=2.*G*DTTOT*500./TVEN     ! Kain (2004) Eq. 3  (sort of)
               WLCL=1.+0.5*SQRT(GDT)
               WLCL = AMIN1(WLCL,3.)
             ELSE
@@ -811,7 +1178,7 @@ trigger:  IF(TLCL+DTLCL+DTRH.LT.TENV)THEN
 !        
             LCL=KLCL
             LET=LCL
-! make RAD a function of background vertical velocity...
+! make RAD a function of background vertical velocity...    (Kain (2004) Eq. 6)
             IF(WKL.LT.0.)THEN
               RAD = 1000.
             ELSEIF(WKL.GT.0.1)THEN
@@ -872,6 +1239,8 @@ trigger:  IF(TLCL+DTLCL+DTRH.LT.TENV)THEN
 !...MIXING RATIO, VERTICAL MASS FLUX, LATERAL DETRAINMENT OF MASS AND
 !...MOISTURE, PRECIPITATION RATES AT EACH MODEL LEVEL...
 !     
+!    **1 variables indicate the bottom of a model layer
+!    **2 variables indicate the top of a model layer
 !     
             EE1=1.
             UD1=0.
@@ -949,7 +1318,7 @@ updraft:    DO NK=K,KL-1
 !
 !...REI IS THE RATE OF ENVIRONMENTAL INFLOW...
 !
-              REI=VMFLCL*DP(NK1)*0.03/RAD
+              REI=VMFLCL*DP(NK1)*0.03/RAD          !    KF (1990) Eq. 1; Kain (2004) Eq. 5
               TVQU(NK1)=TU(NK1)*(1.+0.608*QU(NK1)-QLIQ(NK1)-QICE(NK1))
               IF(NK.EQ.K)THEN
                 DILBE=((TVLCL+TVQU(NK1))/(TVEN+TV0(NK1))-1.)*DZZ
@@ -962,7 +1331,7 @@ updraft:    DO NK=K,KL-1
 !...ENTRAINMENT (0.5*REI) IS IMPOSED...
 !
               IF(TVQU(NK1).LE.TV0(NK1))THEN    ! Entrain/Detrain IF BLOCK
-                EE2=0.5
+                EE2=0.5       ! Kain (2004)  Eq. 4
                 UD2=1.
                 EQFRC(NK1)=0.
               ELSE
@@ -1077,12 +1446,12 @@ updraft:    DO NK=K,KL-1
 !
             END DO updraft
 !
-!...CHECK CLOUD DEPTH...IF CLOUD IS TALL ENOUGH, ESTIMATE THE EQUILIBRIU
+!...CHECK CLOUD DEPTH...IF CLOUD IS TALL ENOUGH, ESTIMATE THE EQUILIBRIUM
 !   TEMPERATURE LEVEL (LET) AND ADJUST MASS FLUX PROFILE AT CLOUD TOP SO
-!   THAT MASS FLUX DECREASES TO ZERO AS A LINEAR FUNCTION OF PRESSURE BE
+!   THAT MASS FLUX DECREASES TO ZERO AS A LINEAR FUNCTION OF PRESSURE BETWEEN
 !   THE LET AND CLOUD TOP...
 !     
-!...LTOP IS THE MODEL LEVEL JUST BELOW THE LEVEL AT WHICH VERTICAL VELOC
+!...LTOP IS THE MODEL LEVEL JUST BELOW THE LEVEL AT WHICH VERTICAL VELOCITY
 !   FIRST BECOMES NEGATIVE...
 !     
             LTOP=NK
@@ -1091,7 +1460,7 @@ updraft:    DO NK=K,KL-1
 !...Instead of using the same minimum cloud height (for deep convection)
 !...everywhere, try specifying minimum cloud depth as a function of TLCL...
 !
-!
+!   Kain (2004)  Eq. 7
 !
             IF(TLCL.GT.293.)THEN
               CHMIN = 4.E3
@@ -1100,6 +1469,11 @@ updraft:    DO NK=K,KL-1
             ELSEIF(TLCL.LT.273.)THEN
               CHMIN = 2.E3
             ENDIF
+!ckay
+            DO NK=K,LTOP
+              qc_KF(I,NK,J)=QLIQ(NK)
+              qi_KF(I,NK,J)=QICE(NK)
+            END DO
 
 !     
 !...If cloud top height is less than the specified minimum for deep 
@@ -1127,15 +1501,28 @@ updraft:    DO NK=K,KL-1
                 DETIC(NK)=0.
                 PPTLIQ(NK)=0.
                 PPTICE(NK)=0.
+!ckay
+                cldfra_dp_KF(I,NK,J)=0.
+                cldfra_sh_KF(I,NK,J)=0.
+                qc_KF(I,NK,J)=0.
+                qi_KF(I,NK,J)=0.
               ENDDO
 !        
             ELSEIF(CLDHGT(LC).GT.CHMIN .and. ABE.GT.1)THEN      ! Deep Convection allowed
               ISHALL=0
+!ckay
+              DO NK=K,LTOP
+                cldfra_sh_KF(I,NK,J)=0.
+              ENDDO
               EXIT usl
             ELSE
 !
 !...TO DISALLOW SHALLOW CONVECTION, COMMENT OUT NEXT LINE !!!!!!!!
               ISHALL = 1
+!ckay
+              DO NK=K,LTOP
+                cldfra_dp_KF(I,NK,J)=0.
+              ENDDO
               IF(NU.EQ.NUCHM)THEN
                 EXIT usl               ! Shallow Convection from this layer
               ELSE
@@ -1148,10 +1535,15 @@ updraft:    DO NK=K,KL-1
                   DETIC(NK)=0.
                   PPTLIQ(NK)=0.
                   PPTICE(NK)=0.
+!ckay
+                  cldfra_dp_KF(I,NK,J)=0.
+                  cldfra_sh_KF(I,NK,J)=0.
+                  qc_KF(I,NK,J)=0.
+                  qi_KF(I,NK,J)=0.
                 ENDDO
               ENDIF
             ENDIF
-          ENDIF trigger
+          ENDIF trigger2
         END DO usl
     IF(ISHALL.EQ.1)THEN
       KSTART=MAX0(KPBL,KLCL)
@@ -1184,7 +1576,7 @@ updraft:    DO NK=K,KL-1
 !
 !...entrainment is allowed at every level except for LTOP, so disallow
 !...entrainment at LTOP and adjust entrainment rates between LET and LTOP
-!...so the the dilution factor due to entyrianment is not changed but 
+!...so the the dilution factor due to entrainment is not changed but 
 !...the actual entrainment rate will change due due forced total 
 !...detrainment in this layer...
 !
@@ -1235,6 +1627,11 @@ updraft:    DO NK=K,KL-1
         UMF(NK)=0.
         WU(NK)=0.
         UER(NK)=0.
+!ckay
+        cldfra_dp_KF(I,NK,J)=0.
+        cldfra_sh_KF(I,NK,J)=0.
+        qc_KF(I,NK,J)=0.
+        qi_KF(I,NK,J)=0.
       ENDIF
       UDR(NK)=0.
       QDT(NK)=0.
@@ -1273,6 +1670,11 @@ updraft:    DO NK=K,KL-1
           TU(NK)=0.
           QU(NK)=0.
           WU(NK)=0.
+!ckay
+          cldfra_dp_KF(I,NK,J)=0.
+          cldfra_sh_KF(I,NK,J)=0.
+          qc_KF(I,NK,J)=0.
+          qi_KF(I,NK,J)=0.
         ENDIF
         THTA0(NK)=0.
         THTAU(NK)=0.
@@ -1291,7 +1693,7 @@ updraft:    DO NK=K,KL-1
           EMS(NK)=DP(NK)*DXSQ/G
           EMSD(NK)=1./EMS(NK)
 !     
-!...INITIALIZE SOME VARIABLES TO BE USED LATER IN THE VERT ADVECTION SCH
+!...INITIALIZE SOME VARIABLES TO BE USED LATER IN THE VERT ADVECTION SCHEME
 !     
           EXN(NK)=(P00/P0(NK))**(0.2854*(1.-0.28*QDT(NK)))
           THTAU(NK)=TU(NK)*EXN(NK)
@@ -1307,25 +1709,27 @@ updraft:    DO NK=K,KL-1
 !    * WLCL,CLDHGT
 !     ENDIF
 !     
-!...COMPUTE CONVECTIVE TIME SCALE(TIMEC). THE MEAN WIND AT THE LCL
-!...AND MIDTROPOSPHERE IS USED.
-!     
-        WSPD(KLCL)=SQRT(U0(KLCL)*U0(KLCL)+V0(KLCL)*V0(KLCL))
-        WSPD(L5)=SQRT(U0(L5)*U0(L5)+V0(L5)*V0(L5))
-        WSPD(LTOP)=SQRT(U0(LTOP)*U0(LTOP)+V0(LTOP)*V0(LTOP))
-        VCONV=.5*(WSPD(KLCL)+WSPD(L5))
-!...for ETA model, DX is a function of location...
-!       TIMEC=DX(I,J)/VCONV
-        TIMEC=DX/VCONV
-        TADVEC=TIMEC
-        TIMEC=AMAX1(1800.,TIMEC)
-        TIMEC=AMIN1(3600.,TIMEC)
-        IF(ISHALL.EQ.1)TIMEC=2400.
+!...COMPUTE CONVECTIVE TIME SCALE (TIMEC) BASED ON UPDRAFT DYNAMICS
+!
+        IF(ISHALL.NE.1)THEN
+          UPFLX=UMF(KLCL)/DXSQ
+          DPLUME=P0(KLCL)/(R*TU(KLCL))
+          UPFLX=UPFLX/DPLUME
+          TIMEC=CLDHGT(LC)/((UPFLX*ABE)**0.3333)
+          TCONV=TIMEC
+          TIMEC=AMAX1(1800.,TIMEC)
+          TIMEC=AMIN1(18000.,TIMEC)
+        ELSE
+          TIMEC=2400.
+        ENDIF
+
         NIC=NINT(TIMEC/DT)
         TIMEC=FLOAT(NIC)*DT
 !     
 !...COMPUTE WIND SHEAR AND PRECIPITATION EFFICIENCY.
 !     
+        WSPD(LTOP)=SQRT(U0(LTOP)*U0(LTOP)+V0(LTOP)*V0(LTOP))
+        WSPD(KLCL)=SQRT(U0(KLCL)*U0(KLCL)+V0(KLCL)*V0(KLCL))
         IF(WSPD(LTOP).GT.WSPD(KLCL))THEN
           SHSIGN=1.
         ELSE
@@ -1358,8 +1762,8 @@ updraft:    DO NK=K,KL-1
        IF(IPRNT)THEN  
 !         WRITE(98,1035)PEF,PEFCBH,LC,LET,WKL,VWS
          WRITE(message,1035)PEF,PEFCBH,LC,LET,WKL,VWS
-!        CALL wrf_message( message )
-!       call flush(98)   
+         WRITE_MESSAGE( message )
+!       flush(98)   
        endif     
 !        WRITE(98,1035)PEF,PEFCBH,LC,LET,WKL,VWS
 !*****************************************************************
@@ -1425,7 +1829,7 @@ updraft:    DO NK=K,KL-1
             RHBAR = RHBAR+RH(ND)*DP(ND)
           ENDDO
           RHBAR = RHBAR/DPTT
-          DMFFRC = 2.*(1.-RHBAR)
+          DMFFRC = 2.*(1.-RHBAR)    ! Kain (2004) eq. 11
           DPDD = 0.
 !...Calculate melting effect
 !... first, compute total frozen precipitation generated...
@@ -1542,15 +1946,16 @@ d_mf:   IF(TDER.LT.1.)THEN
             DER(NK)=DER(NK)*DDINC
             DDR(NK)=DDR(NK)*DDINC
           ENDDO
-         CPR=TRPPT
-         PPTFLX = TRPPT-TDER
-         PEFF=PPTFLX/TRPPT
-         IF(IPRNT)THEN
+          CPR=TRPPT
+          PPTFLX = TRPPT-TDER
+          IF(PPTFLX.LT.0.) PPTFLX=0.                                       !JAH
+          PEFF=PPTFLX/TRPPT
+          IF(IPRNT)THEN
 !           write(98,*)'PRECIP EFFICIENCY =',PEFF
-           write(message,*)'PRECIP EFFICIENCY =',PEFF
-!          CALL wrf_message(message)
-!          call flush(98)   
-         ENDIF
+            write(message,*)'PRECIP EFFICIENCY =',PEFF
+            WRITE_MESSAGE(message)
+!           flush(98)   
+          ENDIF
 !
 !
 !...ADJUST UPDRAFT MASS FLUX, MASS DETRAINMENT RATE, AND LIQUID WATER AN
@@ -1597,8 +2002,8 @@ d_mf:   IF(TDER.LT.1.)THEN
          ENDDO
        ENDIF d_mf
 !
-!...SET LIMITS ON THE UPDRAFT AND DOWNDRAFT MASS FLUXES SO THAT THE INFL
-!   INTO CONVECTIVE DRAFTS FROM A GIVEN LAYER IS NO MORE THAN IS AVAILAB
+!...SET LIMITS ON THE UPDRAFT AND DOWNDRAFT MASS FLUXES SO THAT THE INFLOW
+!   INTO CONVECTIVE DRAFTS FROM A GIVEN LAYER IS NO MORE THAN IS AVAILABLE
 !   IN THAT LAYER INITIALLY...
 !     
        AINCMX=1000.
@@ -1709,7 +2114,7 @@ iter:     DO NCOUNT=1,10
 !     
         DO NTC=1,NSTEP
 !     
-!...ASSIGN THETA AND Q VALUES AT THE TOP AND BOTTOM OF EACH LAYER BASED
+!...ASSIGN THETA AND Q VALUES AT THE TOP AND BOTTOM OF EACH LAYER BASED ON
 !...SIGN OF OMEGA...
 !     
             DO  NK=1,LTOP
@@ -1747,7 +2152,7 @@ iter:     DO NCOUNT=1,10
             QG(NK)=QPA(NK)
           ENDDO
 !     
-!...CHECK TO SEE IF MIXING RATIO DIPS BELOW ZERO ANYWHERE;  IF SO, BORRO
+!...CHECK TO SEE IF MIXING RATIO DIPS BELOW ZERO ANYWHERE;  IF SO, BORROW
 !...MOISTURE FROM ADJACENT LAYERS TO BRING IT BACK UP ABOVE ZERO...
 !     
         DO NK=1,LTOP
@@ -1755,7 +2160,7 @@ iter:     DO NCOUNT=1,10
             IF(NK.EQ.1)THEN                             ! JSK MODS
 !              PRINT *,' PROBLEM WITH KF SCHEME:  ' ! JSK MODS
 !              PRINT *,'QG = 0 AT THE SURFACE!!!!!!!'    ! JSK MODS
-!             CALL wrf_error_fatal ( 'QG, QG(NK).LT.0') ! JSK MODS
+              FATAL_ERROR ( 'QG, QG(NK).LT.0')          ! JSK MODS
             ENDIF                                       ! JSK MODS
             NK1=NK+1
             IF(NK.EQ.LTOP)THEN
@@ -1913,6 +2318,14 @@ iter:     DO NCOUNT=1,10
           IF(FABE.GT.1. .and. ISHALL.EQ.0)THEN
 !          WRITE(98,*)'UPDRAFT/DOWNDRAFT COUPLET INCREASES CAPE AT THIS
 !     *GRID POINT; NO CONVECTION ALLOWED!'
+             !BSINGH - For WRFCuP scheme
+             !BSINGH - Improvised based on the following reason
+             !Before every "RETURN" statement assign ishall=2
+             ! wig, 29-Aug-2006: Indicate no convection occurred in ishall.
+#if !(defined(mpas))
+             ishall = 2
+#endif
+             !BSINGH -ENDS
             RETURN  
           ENDIF
           IF(NCOUNT.NE.1)THEN
@@ -1948,7 +2361,7 @@ iter:     DO NCOUNT=1,10
               EXIT
             ENDIF
 !     
-!...IF MORE THAN 10% OF THE ORIGINAL CAPE REMAINS, INCREASE THE CONVECTI
+!...IF MORE THAN 10% OF THE ORIGINAL CAPE REMAINS, INCREASE THE CONVECTIVE
 !...MASS FLUX BY THE FACTOR AINC:
 !     
             IF(FABE.EQ.0.)THEN
@@ -1967,13 +2380,22 @@ iter:     DO NCOUNT=1,10
 !...IF AINC BECOMES VERY SMALL, EFFECTS OF CONVECTION ! JSK MODS
 !...WILL BE MINIMAL SO JUST IGNORE IT...              ! JSK MODS
             IF(AINC.LT.0.05)then
+               !BSINGH - For WRFCuP scheme
+               !BSINGH - Improvised based on the following reason
+               !Before every "RETURN" statement assign ishall=2
+               ! wig, 29-Aug-2006: Indicate no convection occurred in ishall.
+#if !(defined(mpas))
+               ishall = 2
+#endif
+               !BSINGH -ENDS
+
               RETURN                          ! JSK MODS
             ENDIF
 !            AINC=AMAX1(AINC,0.05)                        ! JSK MODS
             TDER=TDER2*AINC
             PPTFLX=PPTFL2*AINC
 !           IF (XTIME.LT.10.)THEN
-!           WRITE(98,1080)LFS,LDB,LDT,TIMEC,TADVEC,NSTEP,NCOUNT,
+!           WRITE(98,1080)LFS,LDB,LDT,TIMEC,TCONV,NSTEP,NCOUNT,
 !          *              FABEOLD,AINCOLD 
 !           ENDIF
             DO NK=1,LTOP
@@ -1991,6 +2413,36 @@ iter:     DO NCOUNT=1,10
 !     
           ENDIF
         ENDDO iter
+!ckay
+! get the cloud fraction for layer NK+1=NK1
+        IF(ISHALL.EQ.1) THEN
+          DO NK=KLCL-1, LTOP1
+            UMF_new = UMF(NK)/DXSQ
+            xcldfra = 0.07*alog(1.+(500.*UMF_new))
+            xcldfra = amax1(0.01,xcldfra)
+            cldfra_sh_KF(I,NK,J) = amin1(0.2,xcldfra)
+          ENDDO
+        ELSE 
+          DO NK=KLCL-1, LTOP1
+            UMF_new = UMF(NK)/DXSQ
+            xcldfra = 0.14*alog(1.+(500.*UMF_new))
+            xcldfra = amax1(0.01,xcldfra)
+            cldfra_dp_KF(I,NK,J) = amin1(0.6,xcldfra)
+          ENDDO
+        ENDIF
+
+#if !(defined(mpas))
+!kf_edrates
+!Save up/down entrainment/detrainment rates as 3D variables
+        IF (KF_EDRATES == 1) THEN
+           DO NK=1,LTOP
+             UDR_KF(I,NK,J)=UDR(NK)
+             DDR_KF(I,NK,J)=DDR(NK)
+             UER_KF(I,NK,J)=UER(NK)
+             DER_KF(I,NK,J)=DER(NK)
+           ENDDO
+        ENDIF
+#endif
 !     
 !...COMPUTE HYDROMETEOR TENDENCIES AS IS DONE FOR T, QV...
 !     
@@ -2014,7 +2466,7 @@ iter:     DO NCOUNT=1,10
         ENDDO
         DO NTC=1,NSTEP
 !     
-!...ASSIGN HYDROMETEORS CONCENTRATIONS AT THE TOP AND BOTTOM OF EACH LAY
+!...ASSIGN HYDROMETEORS CONCENTRATIONS AT THE TOP AND BOTTOM OF EACH LAYER
 !...BASED ON THE SIGN OF OMEGA...
 !     
           DO NK=1,LTOP
@@ -2064,18 +2516,26 @@ iter:     DO NCOUNT=1,10
           QRG(NK)=QRPA(NK)
           QSG(NK)=QSPA(NK)
         ENDDO   
+
+#if !(defined(mpas))
+!kf_edrates
+!Save convective timescale (TIMEC) as 2D variable
+        IF (KF_EDRATES == 1) THEN
+           TIMEC_KF(I,J)=TIMEC
+        ENDIF
+#endif
 !
 !...CLEAN THINGS UP, CALCULATE CONVECTIVE FEEDBACK TENDENCIES FOR THIS
 !...GRID POINT...
 !     
 !     IF (XTIME.LT.10.)THEN
-!     WRITE(98,1080)LFS,LDB,LDT,TIMEC,TADVEC,NSTEP,NCOUNT,FABE,AINC 
+!     WRITE(98,1080)LFS,LDB,LDT,TIMEC,TCONV,NSTEP,NCOUNT,FABE,AINC 
 !     ENDIF
        IF(IPRNT)THEN  
-!         WRITE(98,1080)LFS,LDB,LDT,TIMEC,TADVEC,NSTEP,NCOUNT,FABE,AINC
-         WRITE(message,1080)LFS,LDB,LDT,TIMEC,TADVEC,NSTEP,NCOUNT,FABE,AINC
-!        CALL wrf_message(message)
-!        call flush(98)   
+!         WRITE(98,1080)LFS,LDB,LDT,TIMEC,TCONV,NSTEP,NCOUNT,FABE,AINC
+         WRITE(message,1080)LFS,LDB,LDT,TIMEC,TCONV,NSTEP,NCOUNT,FABE,AINC
+         WRITE_MESSAGE(message)
+!        flush(98)   
        endif  
 !     
 !...SEND FINAL PARAMETERIZED VALUES TO OUTPUT FILES...
@@ -2088,31 +2548,31 @@ iter:     DO NCOUNT=1,10
 !        write(98,*)'At t(h), I, J =',float(NTSD)*72./3600.,I,J
          write(message,*)'P(LC), DTP, WKL, WKLCL =',p0(LC)/100.,       &
                      TLCL+DTLCL+dtrh-TENV,WKL,WKLCL
-!        call wrf_message(message)
+         WRITE_MESSAGE(message)
          write(message,*)'TLCL, DTLCL, DTRH, TENV =',TLCL,DTLCL,       &
                       DTRH,TENV   
-!        call wrf_message(message)
+         WRITE_MESSAGE(message)
          WRITE(message,1025)KLCL,ZLCL,DTLCL,LTOP,P0(LTOP),IFLAG,       &
          TMIX-T00,PMIX,QMIX,ABE
-!        call wrf_message(message)
+         WRITE_MESSAGE(message)
          WRITE(message,1030)P0(LET)/100.,P0(LTOP)/100.,VMFLCL,PLCL/100.,  &
          WLCL,CLDHGT(LC)
-!        call wrf_message(message)
+         WRITE_MESSAGE(message)
          WRITE(message,1035)PEF,PEFCBH,LC,LET,WKL,VWS 
-!        call wrf_message(message)
+         WRITE_MESSAGE(message)
          write(message,*)'PRECIP EFFICIENCY =',PEFF 
-!        call wrf_message(message)
-      WRITE(message,1080)LFS,LDB,LDT,TIMEC,TADVEC,NSTEP,NCOUNT,FABE,AINC
-!        call wrf_message(message)
+         WRITE_MESSAGE(message)
+      WRITE(message,1080)LFS,LDB,LDT,TIMEC,TCONV,NSTEP,NCOUNT,FABE,AINC
+         WRITE_MESSAGE(message)
 !      ENDIF
 !!!!! HERE !!!!!!!
            WRITE(message,1070)'  P  ','   DP ',' DT K/D ',' DR K/D ','   OMG  ',        &
           ' DOMGDP ','   UMF  ','   UER  ','   UDR  ','   DMF  ','   DER  '        &
           ,'   DDR  ','   EMS  ','    W0  ','  DETLQ ',' DETIC '
-!       call wrf_message(message)
+           WRITE_MESSAGE(message)
            write(message,*)'just before DO 300...'
-!       call wrf_message(message)
-!          call flush(98)
+           WRITE_MESSAGE(message)
+!          flush(98)
            DO NK=1,LTOP
              K=LTOP-NK+1
              DTT=(TG(K)-T0(K))*86400./TIMEC
@@ -2126,11 +2586,11 @@ iter:     DO NCOUNT=1,10
              UMF(K)/1.E6,UEFRC,UDFRC,DMF(K)/1.E6,DEFRC,DDFRC,EMS(K)/1.E11,           &
              W0AVG1D(K)*1.E2,DETLQ(K)*TIMEC*EMSD(K)*1.E3,DETIC(K)*                   &
              TIMEC*EMSD(K)*1.E3
-!        call wrf_message(message)
+             WRITE_MESSAGE(message)
            ENDDO
            WRITE(message,1085)'K','P','Z','T0','TG','DT','TU','TD','Q0','QG',             &
                   'DQ','QU','QD','QLG','QIG','QRG','QSG','RH0','RHG'
-!        call wrf_message(message)
+           WRITE_MESSAGE(message)
            DO NK=1,KL
              K=KX-NK+1
              DTT=TG(K)-T0(K)
@@ -2150,7 +2610,7 @@ iter:     DO NCOUNT=1,10
              TDC,Q0(K)*1000.,QG(K)*1000.,(QG(K)-Q0(K))*1000.,QU(K)*                   &
              1000.,QD(K)*1000.,QLG(K)*1000.,QIG(K)*1000.,QRG(K)*1000.,                &
              QSG(K)*1000.,RH0,RHG
-!        call wrf_message(message)
+             WRITE_MESSAGE(message)
            ENDDO
 !     
 !...IF CALCULATIONS ABOVE SHOW AN ERROR IN THE MASS BUDGET, PRINT OUT A
@@ -2173,7 +2633,7 @@ iter:     DO NCOUNT=1,10
 !    *               U0(K),V0(K),DP(K)/100.,W0AVG(I,J,K)
  310        CONTINUE
             IF(ISTOP.EQ.1)THEN
-!             CALL wrf_error_fatal ( 'KAIN-FRITSCH, istop=1, diags' )
+              FATAL_ERROR ( 'KAIN-FRITSCH, istop=1, diags' )
             ENDIF
 !         ENDIF
   4455  format(8f11.3) 
@@ -2221,7 +2681,7 @@ iter:     DO NCOUNT=1,10
             WRITE(98,4456)P0(K)/100.,T0(K)-273.16,Q0(K)*1000.,          &
                      U0(K),V0(K),W0AVG1D(K),dp(k)/100.,tke(k)
  311        CONTINUE
-!           call flush(98)
+!           flush(98)
 
 !        GOTO 297
 !         STOP 'QVERR'
@@ -2241,10 +2701,10 @@ iter:     DO NCOUNT=1,10
 !     
 !...FEEDBACK TO RESOLVABLE SCALE TENDENCIES.
 !     
-!...IF THE ADVECTIVE TIME PERIOD (TADVEC) IS LESS THAN SPECIFIED MINIMUM
-!...TIMEC, ALLOW FEEDBACK TO OCCUR ONLY DURING TADVEC...
+!...IF THE CONVECTIVE TIME PERIOD (TCONV) IS LESS THAN SPECIFIED MINIMUM
+!...TIMEC, ALLOW FEEDBACK TO OCCUR ONLY DURING TCONV...
 !     
-        IF(TADVEC.LT.TIMEC)NIC=NINT(TADVEC/DT)
+        IF(TCONV.LT.TIMEC)NIC=NINT(TCONV/DT)
         NCA(I,J) = REAL(NIC)*DT
         IF(ISHALL.EQ.1)THEN
            TIMEC = 2400.
@@ -2255,7 +2715,7 @@ iter:     DO NCOUNT=1,10
         DO K=1,KX
 !         IF(IMOIST(INEST).NE.2)THEN
 !
-!...IF HYDROMETEORS ARE NOT ALLOWED, THEY MUST BE EVAPORATED OR SUBLIMAT
+!...IF HYDROMETEORS ARE NOT ALLOWED, THEY MUST BE EVAPORATED OR SUBLIMATED
 !...AND FED BACK AS VAPOR, ALONG WITH ASSOCIATED CHANGES IN TEMPERATURE.
 !...NOTE:  THIS WILL INTRODUCE CHANGES IN THE CONVECTIVE TEMPERATURE AND
 !...WATER VAPOR FEEDBACK TENDENCIES AND MAY LEAD TO SUPERSATURATED VALUE
@@ -2274,7 +2734,7 @@ iter:     DO NCOUNT=1,10
 !
 !...IF ICE PHASE IS NOT ALLOWED, MELT ALL FROZEN HYDROMETEORS...
 !
-          IF(.NOT. F_QI .and. warm_rain)THEN
+          IF(warm_rain)THEN
 
             CPM=CP*(1.+0.887*QG(K))
             TG(K)=TG(K)-(QIG(K)+QSG(K))*RLF/CPM
@@ -2282,9 +2742,9 @@ iter:     DO NCOUNT=1,10
             DQIDT(K)=0.
             DQRDT(K)=(QRG(K)+QSG(K)-QR0(K)-QS0(K))/TIMEC
             DQSDT(K)=0.
-          ELSEIF(.NOT. F_QI .and. .not. warm_rain)THEN
+          ELSEIF(.NOT. F_QS)THEN
 !
-!...IF ICE PHASE IS ALLOWED, BUT MIXED PHASE IS NOT, MELT FROZEN HYDROME
+!...IF ICE PHASE IS ALLOWED, BUT MIXED PHASE IS NOT, MELT FROZEN HYDROMETEORS
 !...BELOW THE MELTING LEVEL, FREEZE LIQUID WATER ABOVE THE MELTING LEVEL
 !
             CPM=CP*(1.+0.887*QG(K))
@@ -2297,22 +2757,22 @@ iter:     DO NCOUNT=1,10
             DQIDT(K)=0.
             DQRDT(K)=(QRG(K)+QSG(K)-QR0(K)-QS0(K))/TIMEC
             DQSDT(K)=0.
-          ELSEIF(F_QI) THEN
+          ELSEIF(F_QS) THEN
 !
-!...IF MIXED PHASE HYDROMETEORS ARE ALLOWED, FEED BACK CONVECTIVE TENDEN
+!...IF MIXED PHASE HYDROMETEORS ARE ALLOWED, FEED BACK CONVECTIVE TENDENCIES
 !...OF HYDROMETEORS DIRECTLY...
 !
             DQCDT(K)=(QLG(K)-QL0(K))/TIMEC
-            DQIDT(K)=(QIG(K)-QI0(K))/TIMEC
+            DQSDT(K)=(QSG(K)-QS0(K))/TIMEC
             DQRDT(K)=(QRG(K)-QR0(K))/TIMEC
-            IF (F_QS) THEN
-               DQSDT(K)=(QSG(K)-QS0(K))/TIMEC
+            IF (F_QI) THEN
+               DQIDT(K)=(QIG(K)-QI0(K))/TIMEC
             ELSE
-               DQIDT(K)=DQIDT(K)+(QSG(K)-QS0(K))/TIMEC
+               DQSDT(K)=DQSDT(K)+(QIG(K)-QI0(K))/TIMEC
             ENDIF
           ELSE
 !              PRINT *,'THIS COMBINATION OF IMOIST, IEXICE, IICE NOT ALLOWED!'
-!             CALL wrf_error_fatal ( 'KAIN-FRITSCH, THIS COMBINATION OF IMOIST, IEXICE, IICE NOT ALLOWED' )
+               FATAL_ERROR ( 'KAIN-FRITSCH, THIS MICROPHYSICS CHOICE IS NOT ALLOWED' )
           ENDIF
           DTDT(K)=(TG(K)-T0(K))/TIMEC
           DQDT(K)=(QG(K)-Q0(K))/TIMEC
@@ -2327,7 +2787,7 @@ iter:     DO NCOUNT=1,10
 !      write (6,909)I,J,RNC
 !      WRITE(98,*)'at NTSD =',NTSD,',No. of KF points activated =',
 !     *            NCCNT
-!      call flush(98)
+!      flush(98)
 1000  FORMAT(' ',10A8)
 1005  FORMAT(' ',F6.0,2X,F6.4,2X,F7.3,1X,F6.4,2X,4(F6.3,2X),2(F7.3,1X))
 1010  FORMAT(' ',' VERTICAL VELOCITY IS NEGATIVE AT ',F4.0,' MB')
@@ -2347,7 +2807,7 @@ iter:     DO NCOUNT=1,10
 !      &DEGREE OF STABILIZATION!  FABE= ',F6.4) 
  1070 FORMAT (16A8) 
  1075 FORMAT (F8.2,3(F8.2),2(F8.3),F8.2,2F8.3,F8.2,6F8.3) 
- 1080 FORMAT(2X,'LFS,LDB,LDT =',3I3,' TIMEC, TADVEC, NSTEP=',           &
+ 1080 FORMAT(2X,'LFS,LDB,LDT =',3I3,' TIMEC, TCONV, NSTEP=',           &
               2(1X,F5.0),I3,'NCOUNT, FABE, AINC=',I2,1X,F5.3,F6.2) 
  1085 FORMAT (A3,16A7,2A8) 
  1090 FORMAT (I3,F7.2,F7.0,10F7.2,4F7.3,2F8.3) 
@@ -2373,7 +2833,7 @@ iter:     DO NCOUNT=1,10
    SUBROUTINE TPMIX2(p,thes,tu,qu,qliq,qice,qnewlq,qnewic,XLV1,XLV0)
 !
 ! Lookup table variables:
-!     INTEGER, PARAMETER :: (KFNT=250,KFNP=220)
+!     INTEGER, PARAMETER :: (KFNT=300,KFNP=250)
 !     REAL, SAVE, DIMENSION(1:KFNT,1:KFNP) :: TTAB,QSTAB
 !     REAL, SAVE, DIMENSION(1:KFNP) :: THE0K
 !     REAL, SAVE, DIMENSION(1:200) :: ALU
@@ -2391,7 +2851,7 @@ iter:     DO NCOUNT=1,10
 !-----------------------------------------------------------------------
 
 !c******** LOOKUP TABLE VARIABLES... ****************************
-!      parameter(kfnt=250,kfnp=220)
+!      parameter(kfnt=300,kfnp=250)
 !c
 !      COMMON/KFLUT/ ttab(kfnt,kfnp),qstab(kfnt,kfnp),the0k(kfnp),
 !     *              alu(200),rdpr,rdthk,plutop 
@@ -2411,13 +2871,25 @@ iter:     DO NCOUNT=1,10
 !***********************************************************************
 !
 !  scaling the and tt table index                                        
+       IF (IPTB.LT.1) THEN
+         write(98,*)'*** IPTB OUT OF BOUNDS ***  IPTB = ',IPTB
+         write(98,*)'    setting IPTB = 1'
+         write(98,*)
+         IPTB = 1
+       ENDIF
       bth=(the0k(iptb+1)-the0k(iptb))*qq+the0k(iptb)
       tth=(thes-bth)*rdthk
       pp   =tth-aint(tth)
       ithtb=int(tth)+1
-       IF(IPTB.GE.220 .OR. IPTB.LE.1 .OR. ITHTB.GE.250 .OR. ITHTB.LE.1)THEN
-         write(98,*)'**** OUT OF BOUNDS *********'
-!        call flush(98)
+       IF(IPTB.GE.250 .OR. IPTB.LE.1 .OR. ITHTB.GE.300 .OR. ITHTB.LE.1)THEN
+         write(98,*)'**** OUT OF BOUNDS in KF routine lookup table ****'
+         write(98,*)'    IPTB = ',iptb,'  ITHTB = ',ithtb
+         write(98,*)
+         IF(IPTB.GT.250 .OR. IPTB.LT.1 .OR. ITHTB.GT.300 .OR. ITHTB.LT.1)THEN
+           print *, 'Abort by module_cu_kfeta:  Lookup location is outside table array'
+           call exit (1) 
+         ENDIF
+!        flush(98)
        ENDIF
 !
       t00=ttab(ithtb  ,iptb  )
@@ -2504,7 +2976,7 @@ iter:     DO NCOUNT=1,10
 !...ALLOW THE FREEZING OF LIQUID WATER IN THE UPDRAFT TO PROCEED AS AN 
 !...APPROXIMATELY LINEAR FUNCTION OF TEMPERATURE IN THE TEMPERATURE RANGE 
 !...TTFRZ TO TBFRZ...
-!...FOR COLDER TERMPERATURES, FREEZE ALL LIQUID WATER...
+!...FOR COLDER TEMPERATURES, FREEZE ALL LIQUID WATER...
 !...THERMODYNAMIC PROPERTIES ARE STILL CALCULATED WITH RESPECT TO LIQUID WATER
 !...TO ALLOW THE USE OF LOOKUP TABLE TO EXTRACT TMP FROM THETAE...
 !
@@ -2530,7 +3002,12 @@ iter:     DO NCOUNT=1,10
 !...TEMPERATURE TO THE SATURATION VALUE...
 !
       DQEVAP = QS-QU
-      QICE = QICE-DQEVAP
+      IF(DQEVAP.GE.QICE)THEN                                               !JAH
+        DQEVAP=QICE                                                        !JAH
+        QICE=0.                                                            !JAH
+      ELSE                                                                 !JAH
+        QICE = QICE-DQEVAP
+      ENDIF                                                                !JAH
       QU = QU+DQEVAP
       PII=(1.E5/P)**(0.2854*(1.-0.28*QU))
       THTEU=TU*PII*EXP((3374.6525/TU-2.5403)*QU*(1.+0.81*QU))
@@ -2554,13 +3031,7 @@ iter:     DO NCOUNT=1,10
       REAL, INTENT(IN   )   :: DZ,BOTERM,ENTERM,RATE
       REAL, INTENT(INOUT)   :: QLQOUT,QICOUT,WTW,QLIQ,QICE,QNEWLQ,QNEWIC
       REAL :: QTOT,QNEW,QEST,G1,WAVG,CONV,RATIO3,OLDQ,RATIO4,DQ,PPTDRG
-
 !
-!  9/18/88...THIS PRECIPITATION FALLOUT SCHEME IS BASED ON THE SCHEME US
-!  BY OGURA AND CHO (1973).  LIQUID WATER FALLOUT FROM A PARCEL IS CAL- 
-!  CULATED USING THE EQUATION DQ=-RATE*Q*DT, BUT TO SIMULATE A QUASI-   
-!  CONTINUOUS PROCESS, AND TO ELIMINATE A DEPENDENCY ON VERTICAL        
-!  RESOLUTION THIS IS EXPRESSED AS Q=Q*EXP(-RATE*DZ).                   
       QTOT=QLIQ+QICE                                                    
       QNEW=QNEWLQ+QNEWIC                                                
 !                                                                       
@@ -2572,7 +3043,7 @@ iter:     DO NCOUNT=1,10
       G1=WTW+BOTERM-ENTERM-2.*G*DZ*QEST/1.5                             
       IF(G1.LT.0.0)G1=0.                                                
       WAVG=0.5*(SQRT(WTW)+SQRT(G1))                                      
-      CONV=RATE*DZ/WAVG                                                 
+      CONV=RATE*DZ/WAVG               ! KF90  Eq. 9
 !                                                                       
 !  RATIO3 IS THE FRACTION OF LIQUID WATER IN FRESH CONDENSATE, RATIO4 IS
 !  THE FRACTION OF LIQUID WATER IN THE TOTAL AMOUNT OF CONDENSATE INVOLV
@@ -2584,7 +3055,7 @@ iter:     DO NCOUNT=1,10
       QTOT=QTOT+0.6*QNEW                                                
       OLDQ=QTOT                                                         
       RATIO4=(0.6*QNEWLQ+QLIQ)/(QTOT+1.E-8)                            
-      QTOT=QTOT*EXP(-CONV)                                              
+      QTOT=QTOT*EXP(-CONV)            ! KF90  Eq. 9                                              
 !                                                                       
 !  DETERMINE THE AMOUNT OF PRECIPITATION THAT FALLS OUT OF THE UPDRAFT  
 !  PARCEL AT THIS LEVEL...                                              
@@ -2623,6 +3094,8 @@ iter:     DO NCOUNT=1,10
 !  MATHEMATICS SERIES.  JUNE, 1964., MAY, 1968.                         
 !                                     JACK KAIN                         
 !                                     7/6/89                            
+!  Solves for KF90 Eq. 2
+!
 !CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC
 !-----------------------------------------------------------------------
    IMPLICIT NONE
@@ -2659,7 +3132,7 @@ iter:     DO NCOUNT=1,10
    SUBROUTINE TPMIX2DD(p,thes,ts,qs,i,j)
 !
 ! Lookup table variables:
-!     INTEGER, PARAMETER :: (KFNT=250,KFNP=220)
+!     INTEGER, PARAMETER :: (KFNT=300,KFNP=250)
 !     REAL, SAVE, DIMENSION(1:KFNT,1:KFNP) :: TTAB,QSTAB
 !     REAL, SAVE, DIMENSION(1:KFNP) :: THE0K
 !     REAL, SAVE, DIMENSION(1:200) :: ALU
@@ -2678,7 +3151,7 @@ iter:     DO NCOUNT=1,10
 
 !
 !******** LOOKUP TABLE VARIABLES (F77 format)... ****************************
-!     parameter(kfnt=250,kfnp=220)
+!     parameter(kfnt=300,kfnp=250)
 !
 !     COMMON/KFLUT/ ttab(kfnt,kfnp),qstab(kfnt,kfnp),the0k(kfnp),        &
 !                   alu(200),rdpr,rdthk,plutop 
@@ -2740,6 +3213,7 @@ iter:     DO NCOUNT=1,10
 !  CALCULATE ENVIRONMENTAL EQUIVALENT POTENTIAL TEMPERATURE...          
 !                                                                       
 ! NOTE: Calculations for mixed/ice phase no longer used...jsk 8/00
+!        For example, KF90 Eq. 10 no longer used
 !
       EE=Q1*P1/(0.622+Q1)                                             
 !     TLOG=ALOG(EE/ALIQ)                                              
@@ -2862,7 +3336,7 @@ iter:     DO NCOUNT=1,10
    IMPLICIT NONE
 !--------------------------------------------------------------------
 ! Lookup table variables
-!     INTEGER, SAVE, PARAMETER :: KFNT=250,KFNP=220
+!     INTEGER, SAVE, PARAMETER :: KFNT=300,KFNP=250
 !     REAL, SAVE, DIMENSION(1:KFNT,1:KFNP) :: TTAB,QSTAB
 !     REAL, SAVE, DIMENSION(1:KFNP) :: THE0K
 !     REAL, SAVE, DIMENSION(1:200) :: ALU
@@ -2884,7 +3358,7 @@ iter:     DO NCOUNT=1,10
 ! tolerance for accuracy of temperature 
       data toler/0.001/
 ! top pressure (pascals)
-      plutop=5000.0
+      plutop=1000.0
 ! bottom pressure (pascals)
       pbot=110000.0
 
