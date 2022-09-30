@@ -815,7 +815,7 @@ module mpas_io
    end subroutine MPAS_io_inq_var
 
 
-   subroutine MPAS_io_def_var(handle, fieldname, fieldtype, dimnames, precision, ierr)
+   subroutine MPAS_io_def_var(handle, fieldname, fieldtype, dimnames, ioFormat, precision, ierr) ! io_type
 
       implicit none
 
@@ -823,6 +823,7 @@ module mpas_io
       character (len=*), intent(in) :: fieldname
       integer, intent(in) :: fieldtype
       character (len=StrKIND), dimension(:), intent(in) :: dimnames
+      integer, intent(in) :: ioFormat
       integer, intent(in), optional :: precision
       integer, intent(out), optional :: ierr
 
@@ -1003,6 +1004,18 @@ module mpas_io
          pio_ierr = PIO_def_var(handle % pio_file, trim(fieldname), pio_type, new_fieldlist_node % fieldhandle % field_desc)
       else
          pio_ierr = PIO_def_var(handle % pio_file, trim(fieldname), pio_type, dimids, new_fieldlist_node % fieldhandle % field_desc)
+         if (pio_ierr /= PIO_noerr) then
+            if (present(ierr)) ierr = MPAS_IO_ERR_PIO
+            return
+         end if
+         IF ( ioformat == MPAS_IO_NETCDF4 .and. ( pio_type == PIO_real .or. pio_type == PIO_double .or. pio_type == PIO_int) ) THEN
+         pio_ierr = pio_def_var_deflate(handle % pio_file, new_fieldlist_node % fieldhandle % field_desc, shuffle=1, deflate=1, deflate_level=1)
+            if (pio_ierr /= PIO_noerr) then
+              call mpas_log_write('error from pio_def_var_deflate, var = '//trim(fieldname) )
+            ELSE
+              call mpas_log_write('OK setting pio_def_var_deflate, var = '//trim(fieldname) )
+            ENDIF
+         ENDIF
       end if
       if (pio_ierr /= PIO_noerr) then
          if (present(ierr)) ierr = MPAS_IO_ERR_PIO
