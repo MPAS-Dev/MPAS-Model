@@ -410,14 +410,12 @@
                         <var name="ol3" packages="vertical_stage_in;met_stage_in"/>
                         <var name="ol4" packages="vertical_stage_in;met_stage_in"/>
                         <var name="deriv_two" packages="gwd_stage_in;vertical_stage_in;met_stage_in"/>
-                        <var name="advCells" packages="gwd_stage_in;vertical_stage_in;met_stage_in"/>
                         <var name="defc_a" packages="gwd_stage_in;vertical_stage_in;met_stage_in"/>
                         <var name="defc_b" packages="gwd_stage_in;vertical_stage_in;met_stage_in"/>
                         <var name="coeffs_reconstruct" packages="gwd_stage_in;vertical_stage_in;met_stage_in"/>
                         <var name="cf1" packages="met_stage_in"/>
                         <var name="cf2" packages="met_stage_in"/>
                         <var name="cf3" packages="met_stage_in"/>
-                        <var name="hx" packages="met_stage_in"/>
                         <var name="zgrid" packages="met_stage_in"/>
                         <var name="rdzw" packages="met_stage_in"/>
                         <var name="dzu" packages="met_stage_in"/>
@@ -508,14 +506,12 @@
                         <var name="ol3" packages="gwd_stage_out;vertical_stage_out;met_stage_out"/>
                         <var name="ol4" packages="gwd_stage_out;vertical_stage_out;met_stage_out"/>
                         <var name="deriv_two"/>
-                        <var name="advCells"/>
                         <var name="defc_a"/>
                         <var name="defc_b"/>
                         <var name="coeffs_reconstruct"/>
                         <var name="cf1" packages="vertical_stage_out;met_stage_out"/>
                         <var name="cf2" packages="vertical_stage_out;met_stage_out"/>
                         <var name="cf3" packages="vertical_stage_out;met_stage_out"/>
-                        <var name="hx" packages="vertical_stage_out;met_stage_out"/>
                         <var name="zgrid" packages="vertical_stage_out;met_stage_out"/>
                         <var name="rdzw" packages="vertical_stage_out;met_stage_out"/>
                         <var name="dzu" packages="vertical_stage_out;met_stage_out"/>
