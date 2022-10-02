@@ -56,6 +56,7 @@ include 'mpif.h'
 
    integer, parameter, public :: IO_NODE = 0
    integer, parameter, public :: BUFSIZE = 6000
+   integer, public :: numprocs = 1
 
 #ifdef _MPI
    public :: MPI_COMM_SELF
@@ -267,6 +268,7 @@ include 'mpif.h'
       call MPI_Comm_rank(dminfo % comm, mpi_rank, mpi_ierr)
       call MPI_Comm_size(dminfo % comm, mpi_size, mpi_ierr)
 
+      numprocs = mpi_size
       dminfo % nprocs = mpi_size
       dminfo % my_proc_id = mpi_rank
 
