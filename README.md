@@ -1,5 +1,5 @@
-MPAS-v7.2 + 
-Contributions 
+MPAS-v7.2 + Contributions 
+=======
 
 (For contributions, see:
 BR_contributions.txt and specific contributions in AUTHOR_modifications_to_MPAS.txt files)
