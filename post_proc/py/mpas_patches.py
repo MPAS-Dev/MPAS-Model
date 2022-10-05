@@ -58,9 +58,12 @@ def get_mpas_patches_cell(mesh, pickle=True, pickleFile=None):
     if pickleFile:
         pickle_fname = pickleFile
     else:
-        pickle_fname = mesh.config_block_decomp_file_prefix.split('/')[-1]
-        pickle_fname = pickle_fname.split('.')[0]
-        pickle_fname = pickle_fname+'.'+str(nCells)+'.'+'patches'
+        try:
+            pickle_fname = mesh.config_block_decomp_file_prefix.split('/')[-1]
+            pickle_fname = pickle_fname.split('.')[0]
+            pickle_fname = pickle_fname+'.'+str(nCells)+'.'+'patches'
+        except:
+            pickle_fname = 'patches'
 
     print(pickle_fname)
 
