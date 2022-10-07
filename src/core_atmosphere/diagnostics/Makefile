@@ -8,7 +8,7 @@ DIAGNOSTIC_MODULES = \
 	mpas_isobaric_diagnostics.o \
 	mpas_cloud_diagnostics.o \
 	mpas_convective_diagnostics.o \
-	pv_diagnostics.o \
+	mpas_pv_diagnostics.o \
 	soundings.o \
 
 mpas_isobaric_diagnostics.o: mpas_atm_diagnostics_utils.o
@@ -17,7 +17,7 @@ mpas_cloud_diagnostics.o: mpas_atm_diagnostics_utils.o
 
 mpas_convective_diagnostics.o: mpas_atm_diagnostics_utils.o
 
-pv_diagnostics.o: mpas_atm_diagnostics_utils.o
+mpas_pv_diagnostics.o: mpas_atm_diagnostics_utils.o
 
 soundings.o:
 
