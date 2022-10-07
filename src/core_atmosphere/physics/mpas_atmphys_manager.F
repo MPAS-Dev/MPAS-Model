@@ -386,7 +386,8 @@
                                   config_lsm_scheme,             &
                                   config_microp_scheme,          &
                                   config_radt_lw_scheme,         &
-                                  config_radt_sw_scheme
+                                  config_radt_sw_scheme,         &
+                                  config_fdda_scheme
 
  character(len=StrKIND),pointer:: config_conv_interval,          &
                                   config_pbl_interval,           &
@@ -423,6 +424,7 @@
  call mpas_pool_get_config(configs,'config_microp_scheme'    ,config_microp_scheme    )
  call mpas_pool_get_config(configs,'config_radt_lw_scheme'   ,config_radt_lw_scheme   )
  call mpas_pool_get_config(configs,'config_radt_sw_scheme'   ,config_radt_sw_scheme   )
+ call mpas_pool_get_config(configs,'config_fdda_scheme'      ,config_fdda_scheme      )
 
  call mpas_pool_get_config(configs,'config_conv_interval'    ,config_conv_interval    )
  call mpas_pool_get_config(configs,'config_pbl_interval'     ,config_pbl_interval     )

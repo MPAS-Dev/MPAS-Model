@@ -300,11 +300,11 @@ intel-mpi:   # BUILDTARGET Intel compiler suite with Intel MPI library
 	"CC_SERIAL = icc" \
 	"CXX_SERIAL = icpc" \
 	"FFLAGS_PROMOTION = -real-size 64" \
-	"FFLAGS_OPT = -O3 -convert big_endian -free -align array64byte" \
-	"CFLAGS_OPT = -O3" \
-	"CXXFLAGS_OPT = -O3" \
+	"FFLAGS_OPT = -O3 -xBROADWELL -fma -fp-model precise -traceback -no-wrap-margin -convert big_endian -free -align array64byte" \
+	"CFLAGS_OPT = -O3 -xBROADWELL -fma -fp-model precise -traceback" \
+	"CXXFLAGS_OPT = -O3 -xBROADWELL -fma -fp-model precise -traceback" \
 	"LDFLAGS_OPT = -O3" \
-	"FFLAGS_DEBUG = -g -convert big_endian -free -CU -CB -check all -fpe0 -traceback" \
+	"FFLAGS_DEBUG = -g -convert big_endian -free -CU -CB -check all -fpe0 -traceback -no-wrap-margin" \
 	"CFLAGS_DEBUG = -g -traceback" \
 	"CXXFLAGS_DEBUG = -g -traceback" \
 	"LDFLAGS_DEBUG = -g -fpe0 -traceback" \
@@ -660,7 +660,7 @@ ifneq "$(LAPACK)" ""
 endif
 
 RM = rm -f
-CPP = cpp -P -traditional
+CPP = ${CXX_SERIAL} -E   # Modified for use with the Intel C++ compiler
 RANLIB = ranlib
 
 ifdef CORE
@@ -875,7 +875,7 @@ ifeq "$(findstring clean, $(MAKECMDGOALS))" "clean" # CHECK FOR CLEAN TARGET
 	override AUTOCLEAN=false
 endif # END OF CLEAN TARGET CHECK
 
-VER=$(shell git describe --dirty 2> /dev/null)
+VER="v7.3.develop.EPA_FDDA"   # Hard-coded specific version identifier
 #override CPPFLAGS += -DMPAS_GIT_VERSION=$(VER)
 
 ifeq "$(findstring v, $(VER))" "v"
