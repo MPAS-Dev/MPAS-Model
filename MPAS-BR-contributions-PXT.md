@@ -15,9 +15,10 @@ Modifications made by Pedro. S. Peixoto
 
    Updated on Feb 2022 to account for version 7.2
 
-----------------------------------
-        GRID UTILITIES
-----------------------------------
+
+GRID UTILITIES
+-------------------------------
+
 * grids folder:
 - grids/ : script to get grids from ncar site
 - utilities/ :
@@ -30,9 +31,10 @@ Modifications made by Pedro. S. Peixoto
   - double_to_float_grid : float type grid convertion tool
 
 
+
+INSTALATION
 ----------------------------------
-        INSTALATION
-----------------------------------
+
  * local_software folder:
  - iolib_installation.sh : install all required dependencies for MPAS, with the correct versions
  - setup_env.sh : script to load mpas env variables to use local_software
@@ -40,22 +42,24 @@ Modifications made by Pedro. S. Peixoto
      ex: make gfortran CORE=init_atmosphere OPENMP=true USE_PIO2=true AUTOCLEAN=true
          make gfortran CORE=atmosphere OPENMP=true USE_PIO2=true AUTOCLEAN=true
 
+
+BENCHMARKS
 ----------------------------------
-        BENCHMARKS
-----------------------------------
+
 * benchmarks folder:
 - Python scripts to create namelists and streams for test cases 
 
-----------------------------------
-        DOCS 
+
+DOCS 
 ----------------------------------
 * docs folder: documentation and notes
 - pxt_useful/ : some day-to-day useful notes to use mpas
 - mpas_refs/  : mpas papers and tutorials
 
+
+POST_PROCESSING
 ----------------------------------
-        POST_PROCESSING
-----------------------------------
+
 *post_proc folder: scripts for post processing 
 - py: python scripts 
     -- geometry_lat_lon_2d_plot : scripts to plot geometric grid features 
@@ -63,8 +67,8 @@ Modifications made by Pedro. S. Peixoto
     -- time_series_error_plot   : error plot of time series for idealized tests
     -- other scrips -- see folder
 
-----------------------------------
-        OPERATORS
+
+OPERATORS
 ----------------------------------
 * mpas_consistent.F: new module with implmentantion regarding Peixoto 2016 paper.   
 * Makefile : Added: 
@@ -74,8 +78,8 @@ Modifications made by Pedro. S. Peixoto
         #PXT added mpas_consitent
 	mpas_consistent.o: mpas_vector_operations.o
 
-----------------------------------
-        INIT_ATMOSPHERE CORE
+
+INIT_ATMOSPHERE CORE
 ----------------------------------
 * Registry : Added new config to allow generation of initial conditions on HCm grid in  <nml_record name="nhyd_model" in_defaults="true">
 
@@ -114,9 +118,9 @@ Modifications made by Pedro. S. Peixoto
       endif
       
   
-----------------------------------
-        ATMOSPHERE_MODEL
-----------------------------------
+
+ATMOSPHERE_MODEL
+-------------------------------
 
 * Registry : added new config on nhyd_model
                <!-- PXT - Added configuration flags-->
