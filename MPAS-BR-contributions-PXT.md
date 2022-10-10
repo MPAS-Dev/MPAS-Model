@@ -123,6 +123,7 @@ ATMOSPHERE_MODEL
 -------------------------------
 
 * Registry : added new config on nhyd_model
+
                <!-- PXT - Added configuration flags-->
                 <nml_option name="config_consistent_scheme"          type="logical"       default_value="false"
                      units="-"
@@ -163,6 +164,7 @@ ATMOSPHERE_MODEL
 
 
 * namelist.atmosphere : Will automatically have new parameter choices:
+
 	config_consistent_scheme = true
     	config_KE_vecrecon_perot = true
       config_KE_vecrecon_rbf = true
@@ -176,14 +178,17 @@ ATMOSPHERE_MODEL
 	       config_KE_vecrecon_rbf = false
 
 * mpas_atm_core/atm_mpas_init_block
+
 	- Added use mpas_consistent and a warning stating that for the consistent scheme it is recommended to be on HCm grid
 	- Moved RBF initialisation (mpas_init_reconstruct) to before solve_diagonstics
 	- Moved RBF reconstruction to inside solve_diagnostics 
 
 * atm_time_integration/atm_init_coupled_diagnostics 
+
 	- Added calculation of barycentric coordinates on mass flux (ru) calculation to alow HCm (TODO)
 
 * atm_time_integration/atm_compute_solve_diagnostics (TODO)
+
 	- Added calculation of barycentric coordinates for h_edge (TODO)
 	- Added vector reconstruction to cell centre - either Perot or RBF
 	   Perot calculates for halos as well, but RBF not, because the coefficients
