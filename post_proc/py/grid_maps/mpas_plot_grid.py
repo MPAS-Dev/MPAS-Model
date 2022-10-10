@@ -143,10 +143,10 @@ def colorvalue(val, cmap='Spectral', vmin=None, vmax=None):
 
 def plot_cells_mpas(ds, vname, ax, **plot_kwargs):
     
-    ax = start_cartopy_map_axis()
+    # ax = start_cartopy_map_axis()
     ax.set_extent([-60.0, -10, -60.0, -20],
                   crs=ccrs.PlateCarree())
-    
+                      
     
     for i, cell in enumerate(ds['nCells'].values):
         value = ds[vname].sel(nCells=cell)
@@ -156,11 +156,15 @@ def plot_cells_mpas(ds, vname, ax, **plot_kwargs):
         vals = vals[:num_sides] - 1
         lats = ds['latitudeVertex'].sel(nVertices=vals)
         lons = ds['longitudeVertex'].sel(nVertices=vals)
-
+        
+        
+        # if all(i <=  -53 for i in lats) and all(i >=  -57 for i in lats
+        #     ) and all(i <=  -48 for i in lons) and all(i >  -52 for i in lons):
         color = colorvalue(value, **plot_kwargs)
-
+        
         ax.fill(lons, lats, edgecolor=None, linewidth=0.0,
-                facecolor=color)
+                facecolor=color(value))
+        
         
 def plot_dual_mpas(ds, vname, ax, **plot_kwargs):
     for vertex in ds['nVertices'].values:
@@ -241,10 +245,10 @@ def plot_mpas_darray(ds, vname, ax=None, outfile=None, **kwargs):
             print('Selecting first slice for ' + coord + '.')
             da = da.isel({coord: 0})      
             
-    final = False
-    if ax is None:
-        final = True
-        ax = start_cartopy_map_axis()
+    # final = False
+    # if ax is None:
+    #     final = True
+    #     ax = start_cartopy_map_axis()
         
     ax.set_extent([-70.0, 0,-60.0, 0],
                   crs=ccrs.PlateCarree())
@@ -268,13 +272,13 @@ def plot_mpas_darray(ds, vname, ax=None, outfile=None, **kwargs):
     title = vname
     ax.set_title(title)
     
-    if final:
-        title_legend = kwargs.get('title_legend', '<VAR>: <UNITS>')
-        title_legend = title_legend.replace('<VAR>', vname)
-        title_legend = title_legend.replace('<UNITS>', units)
-        add_colorbar(ax, label=title_legend, **plot_kwargs)
+    # if final:
+    #     title_legend = kwargs.get('title_legend', '<VAR>: <UNITS>')
+    #     title_legend = title_legend.replace('<VAR>', vname)
+    #     title_legend = title_legend.replace('<UNITS>', units)
+    #     add_colorbar(ax, label=title_legend, **plot_kwargs)
     
-        close_plot(outfile=outfile)
+    #     close_plot(outfile=outfile)
 
 def view_mpas_mesh(mpas_grid_file, outfile=None,
                             do_plot_resolution_rings=True,
