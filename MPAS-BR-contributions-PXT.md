@@ -72,6 +72,7 @@ OPERATORS
 ----------------------------------
 * mpas_consistent.F: new module with implmentantion regarding Peixoto 2016 paper.   
 * Makefile : Added: 
+
 	OBJS = 
 	mpas_consistent.o #PXT added mpas_consitent
 	
@@ -92,9 +93,11 @@ INIT_ATMOSPHERE CORE
                      possible_values="True or False"/>
 
 * namelist.init_atmosphere : New parameter choice (not automatic)
+
    config_hcm_staggering = true
   
 * mpas_init_atm_cases.F: Added HCm capability in specific points:
+
    !PXT - module to convert to HCm grid
    use mpas_consistent
    !PXT - config to use HCm grid - use midpoint of Voronoi edges instead of midpoint of Triangle edges
