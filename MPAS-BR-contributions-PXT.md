@@ -1,19 +1,19 @@
-!----------------------------------------------------
-!   Modifications made by Pedro. S. Peixoto
-!-------------------------------------------------
-!
-!   Date: Oct 2022
-!
-!   Features:
-!   - Added grid utilities
-!   - Pre/post processing tools 
-!   - Add consistent scheme of Peixoto JCP 2016 to MPAS 
-!              (this is currently functioning only in a Branch of MPAS version 4)
-!
-!   All Modifications where marked with PXT text and a comment
-!   All things that would be moved/removed was commented
 
-!   Updated on Feb 2022 to account for version 7.2
+Modifications made by Pedro. S. Peixoto
+===========================================
+
+   Date: Oct 2022
+
+   Features:
+   - Added grid utilities
+   - Pre/post processing tools 
+   - Add consistent scheme of Peixoto JCP 2016 to MPAS 
+              (this is currently functioning only in a Branch of MPAS version 4)
+
+   All Modifications where marked with PXT text and a comment
+   All things that would be moved/removed was commented
+
+   Updated on Feb 2022 to account for version 7.2
 
 ----------------------------------
         GRID UTILITIES
