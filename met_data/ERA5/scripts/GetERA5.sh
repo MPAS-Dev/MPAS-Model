@@ -10,8 +10,8 @@ DATADIR=$MPAS_DIR/met_data/ERA5/DATA
 source activate root
 cd $CODEDIR
 
-DATE1=20200301
-DATE2=20200302
+DATE1=19920605
+DATE2=19920606
 YY1=`echo $DATE1 | cut -c1-4`
 MM1=`echo $DATE1 | cut -c5-6`
 DD1=`echo $DATE1 | cut -c7-8`
@@ -20,10 +20,10 @@ MM2=`echo $DATE2 | cut -c5-6`
 DD2=`echo $DATE2 | cut -c7-8`
 
 # Grib data
-Nort=-3.45
-West=-38.75
-Sout=-5.45
-East=-36.75
+Nort=90
+West=-180
+Sout=-90
+East=-180
 
 sed -e "s/DATE1/${DATE1}/g;s/DATE2/${DATE2}/g;s/Nort/${Nort}/g;s/West/${West}/g;s/Sout/${Sout}/g;s/East/${East}/g;" GetERA5-sl.py > GetERA5-${DATE1}-${DATE2}-sl.py
 
