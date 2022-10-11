@@ -26,7 +26,7 @@ cd $CODEDIR
 
 # Specify dates
 DATE1=19920605
-DATE2=19920615
+DATE2=19920616
 HH1=09
 YY1=`echo $DATE1 | cut -c1-4`
 MM1=`echo $DATE1 | cut -c5-6`
@@ -63,3 +63,4 @@ mv ERA5-${DATE1}-${HH1}00-sl.grib ERA5-${DATE1}-${HH1}00-pl.grib ERA5-${DATE1}-$
 mkdir -p ${CODEDIR}/APIs
 mv GetERA5-${DATE1}${HH1}00-sl_init.py GetERA5-${DATE1}${HH1}00-pl_init.py GetERA5-${DATE1}-${DATE2}-sst.py ${CODEDIR}/APIs/
 
+exit 0

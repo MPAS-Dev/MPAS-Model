@@ -63,7 +63,7 @@ if not os.path.isfile(file):
 
 # Open the mesh using NetCDF4 Dataset.
 mesh = Dataset(os.path.join(file), 'r')
-
+print(mesh)
 lat_var = "lat"+variable
 lon_var = "lon"+variable
 # Check to see the variable is in the mesh
@@ -127,7 +127,7 @@ ax.add_collection(patch_collection)
 
 lons, lats = bmap(lons, lats) #, marker = '.', color='r')
 
-bmap.scatter(lons, lats, s=1, marker = '.', color='r', zorder=5)
+bmap.scatter(lons, lats, s=0.001, marker = 'x', color='r', zorder=5)
 
 
 # Create the title as you see fit
@@ -137,3 +137,4 @@ plt.style.use(style) # Set the style that we choose above
 plt.savefig(variable+'.png', dpi=500)
 patch_collection.remove()
 plt.close(fig)
+
