@@ -49,7 +49,7 @@ b_main_dir = work_dir+"/benchmarks/"+b_name
 
 #Define grid
 grid_name = "cyclones_test"
-grid_dir = "./inputs"+grid_name
+grid_dir = "./inputs/"+grid_name
 
 
 #loop over options
@@ -124,9 +124,9 @@ for par1, par2 in itertools.product(loop_parameter, loop_parameter2):
         b_init = bench.Bench(args, dummy_string=" Pars:"+str(par1)+" - "+str(par2))
         b_init.set_options(nml_opts, str_opt, b_full_name)
 
-        shutil.copy(work_dir+"/default_inputs/stream_list.atmosphere.diagnostics", b_full_name+"/stream_list.atmosphere.diagnostics")
-        shutil.copy(work_dir+"/default_inputs/stream_list.atmosphere.output", b_full_name+"/stream_list.atmosphere.output")
-        shutil.copy(work_dir+"/default_inputs/stream_list.atmosphere.surface", b_full_name+"/stream_list.atmosphere.surface")
+        shutil.copy(work_dir+"./inputs/stream_list.atmosphere.diagnostics", b_full_name+"/stream_list.atmosphere.diagnostics")
+        shutil.copy(work_dir+"./inputs/stream_list.atmosphere.output", b_full_name+"/stream_list.atmosphere.output")
+        shutil.copy(work_dir+"./inputs/stream_list.atmosphere.surface", b_full_name+"/stream_list.atmosphere.surface")
 
         print("Benchmark dir:", b_full_name)
 
