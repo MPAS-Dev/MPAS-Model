@@ -37,7 +37,7 @@ import sys
 import shutil
 import itertools
 
-import mpas_benchmarks as bench
+import mpas_benchmarks_RealCase as bench
 
 # Get args: init or run core
 args = bench.call_parser()
@@ -46,6 +46,10 @@ args = bench.call_parser()
 work_dir = os.getenv('MPAS_DIR')
 b_name = args.name
 b_main_dir = work_dir+"/benchmarks/"+b_name
+
+#Define grid
+grid_name = "cyclones_test"
+grid_dir = "./inputs"+grid_name
 
 
 #loop over options
@@ -58,10 +62,6 @@ par_in_init = False
 
 for par1, par2 in itertools.product(loop_parameter, loop_parameter2):
     
-    #Define grid
-    grid_name = "x1.10242"
-    grid_dir = work_dir+"/grids/grids/"+grid_name
-
     #Init options
     nml_init_opts = {"nhyd_model":{}, "dimensions": {}, "decomposition":{} }
 
