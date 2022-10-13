@@ -25,11 +25,17 @@ import fnmatch
 def call_parser():
     parser = argparse.ArgumentParser()
     group = parser.add_mutually_exclusive_group(required=True)
-    group.add_argument('--init', action='store_true', help='Use init_atmo core')
-    group.add_argument('--run', action='store_true', help='Use run atm core')
-    parser.add_argument('--make', action='store_true', help='evoke make', default=False)
-    parser.add_argument('--name', type=str, default='basic_test', help='''main name of benchmark''')
-    parser.add_argument('--bdir', type=str, default='basic_test/x1.10242', help='''path to directory of benchmark''')
+    group.add_argument('--static', action='store_true',
+                       help='Use init_atmo core to interpolate static fields. \
+See Users Guide Section 7.2.1')
+    group.add_argument('--run', action='store_true',
+                       help='Use run atm core')
+    parser.add_argument('--make', action='store_true', help='evoke make',
+                        default=False)
+    parser.add_argument('--name', type=str, default='basic_test',
+                        help='''main name of benchmark''')
+    parser.add_argument('--bdir', type=str, default='basic_test/x1.10242', 
+                        help='''path to directory of benchmark''')
 
     args = parser.parse_args()
     return args
@@ -81,20 +87,23 @@ class Bench:
         if not os.path.isdir(self.bench_dir):
             os.makedirs(self.bench_dir)
 
-        #compile mpas to get defauls namelists and streams
-        if args.init:
-            self.core="init_atmosphere_model"
-            self.core0="init_atmosphere"
-            self.nml_filename = "namelist.init_atmosphere"
-            self.stream_filename = "streams.init_atmosphere"
-        else:
+        ## Set mpas to get defauls namelists and streams ##
+        # If using --run will use the atmosphere_model, but for any other
+        # option, will use the init_atmosphere model
+        if args.run:
             self.core="atmosphere_model"
             self.core0="atmosphere"
             self.nml_filename = "namelist.atmosphere"
             self.stream_filename = "streams.atmosphere"
+        else:
+            self.core="init_atmosphere_model"
+            self.core0="init_atmosphere"
+            self.nml_filename = "namelist.init_atmosphere"
+            self.stream_filename = "streams.init_atmosphere"
 
-        self.default_nml="./inputs/"+self.nml_filename
-        self.default_stream="./inputs/"+self.stream_filename
+
+        self.default_nml=self.work_dir+"/default_inputs/"+self.nml_filename
+        self.default_stream=self.work_dir+"/default_inputs/"+self.stream_filename
 
         if not os.path.isfile(self.default_nml):
             print("Default namelist not found, compiling mpas..")
@@ -109,7 +118,9 @@ class Bench:
             make_args.append("USE_PIO2=true")
             make_args.append("AUTOCLEAN=true")
 
-            with subprocess.Popen(make_args, stdout = subprocess.PIPE, stderr=subprocess.PIPE, cwd=self.work_dir, shell=False) as p:
+            with subprocess.Popen(make_args, stdout = subprocess.PIPE,
+                                  stderr=subprocess.PIPE, cwd=self.work_dir,
+                                  shell=False) as p:
                 for line in p.stdout:
                     print(line, end='\n') # process line here
             
@@ -126,7 +137,8 @@ class Bench:
 
         #Link mpas to folder
         link = ["ln", "-sf", self.work_dir+"/"+self.core, b_dir+"/"+self.core ]
-        subprocess.run(link, stdout = subprocess.PIPE, stderr=subprocess.PIPE, cwd=self.work_dir, shell=False) 
+        subprocess.run(link, stdout = subprocess.PIPE, stderr=subprocess.PIPE,
+                       cwd=self.work_dir, shell=False) 
 
         #Namelist
         nml = f90nml.read(self.default_nml)
