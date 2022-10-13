@@ -49,7 +49,8 @@ b_main_dir = work_dir+"/benchmarks/"+b_name
 
 #Define grid
 grid_name = "cyclones_test"
-grid_dir = "./inputs/"+grid_name
+# grid_dir = work_dir+"/benchmarks/inputs/"+grid_name
+grid_dir = work_dir+"/benchmarks/inputs/"
 
 
 #loop over options

@@ -148,7 +148,6 @@ class Bench:
         stream_tree = ET.parse(self.default_stream)
         stream_root = stream_tree.getroot()
         self.stream_root_orig = stream_root
-        #print(ET.tostringlist(stream_root))
         print("  Setting up streams:")
         for s in stream_root:
             #print(s.tag, s.attrib)
@@ -156,6 +155,7 @@ class Bench:
             if name in stream_options.keys():
                 for op in stream_options[name]: 
                     print("    ", name, op, stream_options[name][op])
+                    # strm[name][op] = stream_options[name][op] #
                     s.set(op, stream_options[name][op])
             #print(s.attrib)
         #print(ET.tostringlist(stream_root))
