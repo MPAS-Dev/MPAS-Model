@@ -229,11 +229,6 @@ def run(par1,par2):
                "diagnostics" : {}, "surface" : {}}
 
     str_opt["input"]["filename_template"] = b_dir+"/init/"+b_name+".static.nc"
-    
-    print('\n-------------------------------------')
-    print(b_dir+"/init/"+b_name+".static.nc")
-    print('\n-------------------------------------')
-    
     str_opt["output"]["filename_template"] = b_full_name+"/out.nc"
     str_opt["output"]["output_interval"] = "1:00:00"
     str_opt["output"]["clobber_mode"] = "overwrite"
@@ -283,9 +278,6 @@ for par1, par2 in itertools.product(loop_parameter1, loop_parameter2):
             break
             
     if args.run:
-        print('\n-------------------------------------')
-        print('RUNNNNNN')
-        print('\n-------------------------------------')
         
         #Make sure the init test exists!
         opts = run(par1,par2)
