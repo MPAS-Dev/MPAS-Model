@@ -23,7 +23,7 @@ b_name = args.name
 b_dir = work_dir+"/benchmarks/"+args.bdir
 print(b_dir)
 
-os.environ['OMP_NUM_THREADS'] = "2"
+os.environ['OMP_NUM_THREADS'] = str(args.threads)
 
 #Init_atmosphere setup
 if args.init:
