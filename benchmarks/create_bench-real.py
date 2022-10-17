@@ -119,8 +119,8 @@ def init_interp(par1,par2):
                      "data_sources":{}, "preproc_stages": {}}
     # Real-data initialization case
     nml_init_opts["nhyd_model"]["config_init_case"] = 7
-    # Should be set to 1 for this step (see doc)
-    nml_init_opts["dimensions"]["config_start_time"] = init_date
+    nml_init_opts["nhyd_model"]["config_start_time"] = init_date
+    # Now, set the vertical levels correctly
     nml_init_opts["dimensions"]["config_nvertlevels"] = n_vert_levels
     nml_init_opts["dimensions"]["config_nsoillevels"] = 4
     nml_init_opts["dimensions"]["config_nfglevels"] = 38
