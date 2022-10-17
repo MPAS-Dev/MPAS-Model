@@ -168,7 +168,7 @@ def sfc_update(par1,par2):
     # Real-data initialization case
     nml_init_opts["nhyd_model"]["config_init_case"] = 8
     nml_init_opts["nhyd_model"]["config_start_time"] = init_date
-    nml_init_opts["nhyd_model"]["config_start_time"] = finish_date
+    nml_init_opts["nhyd_model"]["config_stop_time"] = finish_date
     ## Be careful with the interval for updating the sfc conditions
     nml_init_opts["data_sources"]["config_sfc_prefix"] = \
         work_dir+"/input_data/"+sfc_prefix
