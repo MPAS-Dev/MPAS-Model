@@ -288,7 +288,7 @@ for par1, par2 in itertools.product(loop_parameter1, loop_parameter2):
 
         print("Benchmark dir:", b_full_name)
 
-        if len(par1)+len(par2)>1:
+        if len(loop_parameter1)+len(loop_parameter2)>1:
             args.make = False
             
     else:
