@@ -195,7 +195,7 @@ def sfc_update(par1,par2):
 
     str_init_opt["surface"]["filename_template"] = \
         b_dir+"/init/"+b_name+".sfc_update.nc"
-    str_init_opt["output"]["filename_interval"] = sfc_interval
+    str_init_opt["surface"]["filename_interval"] = sfc_interval
     
     return nml_init_opts, b_dir, str_init_opt
 
