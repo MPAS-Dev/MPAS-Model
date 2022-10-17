@@ -11,7 +11,7 @@ import sys
 import shutil
 import glob
 import time 
-import mpas_benchmarks_RealCase as bench
+import mpas_benchmarks as bench
 
 # Get args: init or run core
 args = bench.call_parser()
@@ -23,13 +23,8 @@ b_name = args.name
 b_dir = work_dir+"/benchmarks/"+args.bdir
 print(b_dir)
 
-if args.threads:
-    cores = args.threads
-    print("Running with "+cores+" threads")
-    os.environ['OMP_NUM_THREADS'] = cores
-else:
-    os.environ['OMP_NUM_THREADS'] ="2"
-    
+os.environ['OMP_NUM_THREADS'] = "2"
+
 #Init_atmosphere setup
 if args.init:
     benchs = glob.glob(b_dir+"/init*")
@@ -63,4 +58,5 @@ for b in benchs:
     
         
     
+
 
