@@ -59,8 +59,6 @@ met_prefix = 'ERA5'
 sfc_prefix = 'SST'
 # Interval of the SST files
 sfc_interval = 3600
-# highest model level
-ztop = 30000.0
 
 # =============================================================================
 ## LOOP OVER DESIRED OPTIONS ##
@@ -195,7 +193,7 @@ def sfc_update(par1,par2):
 
     str_init_opt["surface"]["filename_template"] = \
         b_dir+"/init/"+b_name+".sfc_update.nc"
-    str_init_opt["surface"]["filename_interval"] = sfc_interval
+    str_init_opt["surface"]["filename_interval"] = str(sfc_interval)
     
     return nml_init_opts, b_dir, str_init_opt
 
