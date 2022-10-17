@@ -26,8 +26,11 @@ def call_parser():
     parser = argparse.ArgumentParser()
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument('--static', action='store_true',
-                       help='Use init_atmo core to interpolate static fields. \
-See Users Guide Section 7.2.1')
+                       help='Use init_atmosphere core to interpolate static \
+fields. See Users Guide Section 7.2.1')
+    group.add_argument('--init', action='store_true',
+                       help='Use init_atmosphere core for vertical grid\
+generation and initial field interpolation. See Users Guide Section 7.2.2')
     group.add_argument('--run', action='store_true',
                        help='Use run atm core')
     parser.add_argument('--make', action='store_true', help='evoke make',
