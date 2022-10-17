@@ -24,6 +24,8 @@ import fnmatch
 
 def call_parser():
     parser = argparse.ArgumentParser()
+    # Arguments for different steps of model pre-processing routines and
+    # model intialization
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument('--static', action='store_true',
                        help='Use init_atmosphere core to interpolate static \
@@ -31,14 +33,21 @@ fields. See Users Guide Section 7.2.1')
     group.add_argument('--init', action='store_true',
                        help='Use init_atmosphere core for vertical grid\
 generation and initial field interpolation. See Users Guide Section 7.2.2')
+    group.add_argument('--sfc', action='store_true',
+                       help='Use init_atmosphere core for generating\
+periodic SST and sea-ice updates. See Users Guide Section 8.1')
     group.add_argument('--run', action='store_true',
                        help='Use run atm core')
+    # Optional arguments
     parser.add_argument('--make', action='store_true', help='evoke make',
                         default=False)
     parser.add_argument('--name', type=str, default='basic_test',
                         help='''main name of benchmark''')
     parser.add_argument('--bdir', type=str, default='basic_test/x1.10242', 
                         help='''path to directory of benchmark''')
+    parser.add_argument('--threads', type=str, default='2', 
+                        help='''number of threads for running the model \
+(only valid for  --init, --sfc and --run)''')
 
     args = parser.parse_args()
     return args

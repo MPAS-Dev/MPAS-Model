@@ -30,6 +30,7 @@ import subprocess
 import sys
 import shutil
 import itertools
+import datetime
 
 import mpas_benchmarks_RealCase as bench
 
@@ -56,6 +57,8 @@ geog_data_path = '/p1-nemo/danilocs/mpas/mpas_tutorial/geog/'
 # prefix used to generate intermediatie files with ungrib.exe
 met_prefix = 'ERA5'
 sfc_prefix = 'SST'
+# Interval of the SST files
+sfc_interval = 3600
 # highest model level
 ztop = 30000.0
 
@@ -116,7 +119,8 @@ def static_interp(par1,par2):
 def init_interp(par1,par2):
     
     nml_init_opts = {"nhyd_model":{}, "dimensions": {}, 
-                     "data_sources":{}, "preproc_stages": {}}
+                     "data_sources":{}, "preproc_stages": {},
+                     "decomposition":{}}
     # Real-data initialization case
     nml_init_opts["nhyd_model"]["config_init_case"] = 7
     nml_init_opts["nhyd_model"]["config_start_time"] = init_date
@@ -128,8 +132,6 @@ def init_interp(par1,par2):
     ## Be careful to path to files for land files!! ##
     nml_init_opts["data_sources"]["config_met_prefix"] = \
         work_dir+"/input_data/"+met_prefix
-    nml_init_opts["data_sources"]["config_sfc_prefix"] = \
-        work_dir+"/input_data/"+sfc_prefix
     # Enable and disable steps of pre-processing fields
     nml_init_opts["preproc_stages"]["config_static_interp"] = False
     nml_init_opts["preproc_stages"]["config_native_gwd_static"] = False
@@ -137,11 +139,16 @@ def init_interp(par1,par2):
     nml_init_opts["preproc_stages"]["config_met_interp"] = True
     nml_init_opts["preproc_stages"]["config_input_sst"] = False
     nml_init_opts["preproc_stages"]["config_frac_seaice"] = True
+    # Decomposition file for running in parallel
+    nml_init_opts["decomposition"]["config_block_decomp_file_prefix"] = \
+        grid_dir+grid_name+'.graph.info.part.'
 
     b_name = grid_name+"."+loop_parameter1_name+"."+str(par1)+"."+\
         loop_parameter2_name+"."+str(par2)
 
     b_dir = b_main_dir+"/"+b_name
+    
+    
 
     str_init_opt = {"input":{}, "output":{}}
 
@@ -149,6 +156,47 @@ def init_interp(par1,par2):
     str_init_opt["output"]["filename_template"] = b_dir+"/init/"+b_name+".init.nc"
     str_init_opt["output"]["clobber_mode"] = "overwrite"
 
+    return nml_init_opts, b_dir, str_init_opt
+
+def sfc_update(par1,par2):
+    
+    start = datetime.datetime.strptime(init_date, '%Y-%m-%d_%H:%M:%S')
+    dt = datetime.datetime.strptime(run_duration,'%d_%H:%M')
+    end = start + datetime.timedelta(days=dt.day,hours=dt.hour)
+    finish_date = end.strftime('%Y-%m-%d_%H:%M:%S')
+    
+    nml_init_opts = {"nhyd_model":{}, "dimensions": {}, 
+                     "data_sources":{}, "preproc_stages": {}}
+    # Real-data initialization case
+    nml_init_opts["nhyd_model"]["config_init_case"] = 8
+    nml_init_opts["nhyd_model"]["config_start_time"] = init_date
+    nml_init_opts["nhyd_model"]["config_start_time"] = finish_date
+    ## Be careful with the interval for updating the sfc conditions
+    nml_init_opts["data_sources"]["config_sfc_prefix"] = \
+        work_dir+"/input_data/"+sfc_prefix
+    nml_init_opts["data_sources"]["config_fg_interval "] = sfc_interval
+    # Enable and disable steps of pre-processing fields
+    nml_init_opts["preproc_stages"]["config_static_interp"] = False
+    nml_init_opts["preproc_stages"]["config_native_gwd_static"] = False
+    nml_init_opts["preproc_stages"]["config_vertical_grid"] = False
+    nml_init_opts["preproc_stages"]["config_met_interp"] = False
+    nml_init_opts["preproc_stages"]["config_input_sst"] = True
+    nml_init_opts["preproc_stages"]["config_frac_seaice"] = True
+    # Decomposition file for running in parallel
+    nml_init_opts["decomposition"]["config_block_decomp_file_prefix"] = \
+        grid_dir+grid_name+'.graph.info.part.'
+
+    b_name = grid_name+"."+loop_parameter1_name+"."+str(par1)+"."+\
+        loop_parameter2_name+"."+str(par2)
+
+    b_dir = b_main_dir+"/"+b_name
+
+    str_init_opt = {"surface":{}}
+
+    str_init_opt["surface"]["filename_template"] = \
+        b_dir+"/init/"+b_name+".sfc_update.nc"
+    str_init_opt["output"]["filename_interval"] = sfc_interval
+    
     return nml_init_opts, b_dir, str_init_opt
 
 for par1, par2 in itertools.product(loop_parameter1, loop_parameter2):
@@ -192,9 +240,20 @@ for par1, par2 in itertools.product(loop_parameter1, loop_parameter2):
             break
      
     # Setup for vertical grid generation and initial field interpolation
-    # Make sure the init test exists!
+    # Make sure the static file exists!
     if args.init:
         opts = init_interp(par1,par2)
+        nml_init_opts, b_dir, str_init_opt = opts[0], opts[1], opts[2]
+        b_init = bench.Bench(args, dummy_string="Init")
+        b_init.set_options(nml_init_opts, str_init_opt, b_dir+"/init")
+        print("Benchmark dir:", b_dir)
+        if(not par_in_static):
+            break
+        
+    # Setup for generating periodic SST and sea-ice Updates
+    # Make sure the init and static files exist!
+    if args.init:
+        opts = sfc_update(par1,par2)
         nml_init_opts, b_dir, str_init_opt = opts[0], opts[1], opts[2]
         b_init = bench.Bench(args, dummy_string="Init")
         b_init.set_options(nml_init_opts, str_init_opt, b_dir+"/init")
