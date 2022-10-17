@@ -171,7 +171,7 @@ def sfc_update(par1,par2):
     ## Be careful with the interval for updating the sfc conditions
     nml_init_opts["data_sources"]["config_sfc_prefix"] = \
         work_dir+"/input_data/"+sfc_prefix
-    nml_init_opts["data_sources"]["config_fg_interval "] = sfc_interval
+    nml_init_opts["data_sources"]["config_fg_interval"] = sfc_interval
     # Enable and disable steps of pre-processing fields
     nml_init_opts["preproc_stages"]["config_static_interp"] = False
     nml_init_opts["preproc_stages"]["config_native_gwd_static"] = False
