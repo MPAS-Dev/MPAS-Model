@@ -216,9 +216,13 @@ def run(par1,par2):
     nml_opts["nhyd_model"]["config_visc4_2dsmag"] = par2 #0.05
     nml_opts["decomposition"]["config_block_decomp_file_prefix"] = grid_dir+"/"+grid_name+".graph.info.part."
 
+    b_name = grid_name+"."+loop_parameter1_name+"."+str(par1)+"."+\
+        loop_parameter2_name+"."+str(par2)
+        
     b_dir = b_main_dir+"/"+b_name
     
-    b_full_name = b_dir+"/run."+"smag_"+str(nml_opts["nhyd_model"]["config_len_disp"])+ \
+    b_full_name = b_dir+"/run."+"smag_"+str(
+        nml_opts["nhyd_model"]["config_len_disp"])+ \
         ".visc4smag_"+str(nml_opts["nhyd_model"]["config_visc4_2dsmag"])
 
     str_opt = {"input":{}, "output":{}, "restart" : {},
