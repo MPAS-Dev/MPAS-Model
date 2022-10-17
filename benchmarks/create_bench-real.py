@@ -252,7 +252,7 @@ for par1, par2 in itertools.product(loop_parameter1, loop_parameter2):
         
     # Setup for generating periodic SST and sea-ice Updates
     # Make sure the init and static files exist!
-    if args.init:
+    if args.sfc:
         opts = sfc_update(par1,par2)
         nml_init_opts, b_dir, str_init_opt = opts[0], opts[1], opts[2]
         b_init = bench.Bench(args, dummy_string="Init")
