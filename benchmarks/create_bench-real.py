@@ -283,6 +283,10 @@ for par1, par2 in itertools.product(loop_parameter1, loop_parameter2):
             break
             
     if args.run:
+        print('\n-------------------------------------')
+        print('RUNNNNNN')
+        print('\n-------------------------------------')
+        
         #Make sure the init test exists!
         opts = run(par1,par2)
         nml_opts, b_full_name, str_opt = opts[0], opts[1], opts[2]
