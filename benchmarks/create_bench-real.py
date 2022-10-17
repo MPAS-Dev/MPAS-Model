@@ -127,9 +127,9 @@ def init_interp(par1,par2):
     nml_init_opts["dimensions"]["config_nfgsoillevels"] = 4
     ## Be careful to path to files for land files!! ##
     nml_init_opts["data_sources"]["config_met_prefix"] = \
-        b_main_dir+"/input_data/"+met_prefix
+        work_dir+"/input_data/"+met_prefix
     nml_init_opts["data_sources"]["config_sfc_prefix"] = \
-        b_main_dir+"/input_data/"+sfc_prefix
+        work_dir+"/input_data/"+sfc_prefix
     # Enable and disable steps of pre-processing fields
     nml_init_opts["preproc_stages"]["config_static_interp"] = False
     nml_init_opts["preproc_stages"]["config_native_gwd_static"] = False
