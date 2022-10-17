@@ -191,7 +191,7 @@ def sfc_update(par1,par2):
     str_init_opt = {"input":{}, "output":{}, "surface":{}}
 
     # Setup grid and init file
-    str_init_opt["input"]["filename_template"] = grid_dir+"/"+grid_name+".grid.nc"
+    str_init_opt["input"]["filename_template"] = grid_dir+"/"+grid_name+".static.nc"
     str_init_opt["output"]["filename_template"] = b_dir+"/init/"+b_name+".init.nc"
     str_init_opt["output"]["clobber_mode"] = "overwrite"    
     # Setup surface update file
