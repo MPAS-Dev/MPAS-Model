@@ -46,8 +46,9 @@ periodic SST and sea-ice updates. See Users Guide Section 8.1')
     parser.add_argument('--bdir', type=str, default='basic_test/x1.10242', 
                         help='''path to directory of benchmark''')
     parser.add_argument('--threads', type=str, default='2', 
-                        help='''number of threads for running the model \
-(only valid for  --init, --sfc and --run)''')
+                        help='''number of threads for running the model. \
+Only works for --init, --sfc and --run and is only usable for using the \
+run_bench.py (default: 2)''')
 
     args = parser.parse_args()
     return args
