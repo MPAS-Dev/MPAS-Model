@@ -50,7 +50,7 @@ grid_name = "x1.10242"
 grid_dir = work_dir+"/grids/grids/"
 # define dates in format: 'YYYY-MM-DD_hh:mm:ss'
 init_date = '1992-06-05_09:00:00'
-run_duration = '9_16:00'
+run_duration = '1_00:00:00'
 n_vert_levels = 70
 # path to geographical data
 geog_data_path = '/p1-nemo/danilocs/mpas/mpas_tutorial/geog/'
@@ -59,7 +59,8 @@ met_prefix = 'ERA5'
 sfc_prefix = 'SST'
 # Interval of the SST files
 sfc_interval = 3600
-
+# Model timestep
+dt = 12
 # =============================================================================
 ## LOOP OVER DESIRED OPTIONS ##
 # difussion length coefs
@@ -158,8 +159,8 @@ def init_interp(par1,par2):
 def sfc_update(par1,par2):
     
     start = datetime.datetime.strptime(init_date, '%Y-%m-%d_%H:%M:%S')
-    dt = datetime.datetime.strptime(run_duration,'%d_%H:%M')
-    end = start + datetime.timedelta(days=dt.day,hours=dt.hour)
+    lenght = datetime.datetime.strptime(run_duration,'%d_%H:%M')
+    end = start + datetime.timedelta(days=lenght.day,hours=lenght.hour)
     finish_date = end.strftime('%Y-%m-%d_%H:%M:%S')
     
     nml_init_opts = {"nhyd_model":{}, "decomposition": {}, 
@@ -202,35 +203,44 @@ def sfc_update(par1,par2):
     
     return nml_init_opts, b_dir, str_init_opt
 
+def run(par1,par2):
+    #Runtime options
+
+    nml_opts = {"nhyd_model":{}, "damping": {},
+                "decomposition":{}, "physics":{}  }
+
+    nml_opts["nhyd_model"]["config_dt"] = dt
+    nml_opts["nhyd_model"]["config_start_time"] = init_date
+    nml_opts["nhyd_model"]["config_run_duration"] = '1_00:00:00'
+    nml_opts["nhyd_model"]["config_len_disp"] = par1 #1200000.
+    nml_opts["nhyd_model"]["config_visc4_2dsmag"] = par2 #0.05
+    nml_opts["decomposition"]["config_block_decomp_file_prefix"] = grid_dir+"/"+grid_name+".graph.info.part."
+
+    b_dir = b_main_dir+"/"+b_name
+    
+    b_full_name = b_dir+"/run."+"smag_"+str(nml_opts["nhyd_model"]["config_len_disp"])+ \
+        ".visc4smag_"+str(nml_opts["nhyd_model"]["config_visc4_2dsmag"])
+
+    str_opt = {"input":{}, "output":{}, "restart" : {}, "diagnostics" : {}, "surface" : {}}
+
+    str_opt["input"]["filename_template"] = str_init_opt["output"]["filename_template"]
+    str_opt["output"]["filename_template"] = b_full_name+"/out.nc"
+    str_opt["output"]["output_interval"] = "1:00:00"
+    str_opt["output"]["clobber_mode"] = "overwrite"
+    str_opt["surface"]["filename_template"] = \
+        b_dir+"/init/"+b_name+".sfc_update.nc"
+    str_opt["surface"]["filename_interval"] = str(sfc_interval)
+    str_opt["surface"]["input_interval"] = str(sfc_interval)
+    str_opt["diagnostics"]["filename_template"] = b_full_name+"/diag.nc"
+    str_opt["diagnostics"]["output_interval"] = "1:00:00"
+    str_opt["diagnostics"]["clobber_mode"] = "overwrite"
+    
+    return nml_opts, b_full_name, str_opt
+
+
 for par1, par2 in itertools.product(loop_parameter1, loop_parameter2):
 
-    # #Runtime options
 
-    # nml_opts = {"nhyd_model":{}, "damping": {}, "decomposition":{}, "physics":{}  }
-
-    # nml_opts["nhyd_model"]["config_time_integration_order"] = 2
-    # nml_opts["nhyd_model"]["config_dt"] = 120
-    # nml_opts["nhyd_model"]["config_run_duration"] = '1_00:00:00'
-    # nml_opts["nhyd_model"]["config_horiz_mixing"] = '2d_smagorinsky'
-    # nml_opts["nhyd_model"]["config_len_disp"] = par1 #1200000.
-    # nml_opts["nhyd_model"]["config_visc4_2dsmag"] = par2 #0.05
-    # nml_opts["nhyd_model"]["config_smdiv"] = 0.1
-    # nml_opts["decomposition"]["config_block_decomp_file_prefix"] = grid_dir+"/"+grid_name+".graph.info.part."
-    # nml_opts["physics"]["config_physics_suite"] = 'none'
-
-    # b_full_name = b_dir+"/run."+"smag_"+str(nml_opts["nhyd_model"]["config_len_disp"])+ \
-    #     ".visc4smag_"+str(nml_opts["nhyd_model"]["config_visc4_2dsmag"])
-
-    # str_opt = {"input":{}, "output":{}, "restart" : {}, "diagnostics" : {}, "surface" : {}}
-
-    # str_opt["input"]["filename_template"] = str_init_opt["output"]["filename_template"]
-    # str_opt["output"]["filename_template"] = b_full_name+"/out.nc"
-    # str_opt["output"]["output_interval"] = "1:00:00"
-    # str_opt["output"]["clobber_mode"] = "overwrite"
-    # str_opt["surface"]["filename_template"] = str_init_opt["surface"]["filename_template"]
-    # str_opt["diagnostics"]["filename_template"] = b_full_name+"/diag.nc"
-    # str_opt["diagnostics"]["output_interval"] = "1:00:00"
-    # str_opt["diagnostics"]["clobber_mode"] = "overwrite"
 
     # Setup for creating static fields
     if args.static:
@@ -264,17 +274,22 @@ for par1, par2 in itertools.product(loop_parameter1, loop_parameter2):
         if(not par_in_static):
             break
             
-    # else:
-    #     #Make sure the init test exists!
-    #     b_init = bench.Bench(args, dummy_string=" Pars:"+str(par1)+" - "+str(par2))
-    #     b_init.set_options(nml_opts, str_opt, b_full_name)
+    if args.run:
+        #Make sure the init test exists!
+        opts = run(par1,par2)
+        nml_opts, b_full_name, str_opt = opts[0], opts[1], opts[2]
+        b_init = bench.Bench(args, dummy_string=" Pars:"+str(par1)+" - "+str(par2))
+        b_init.set_options(nml_opts, str_opt, b_full_name)
 
-    #     shutil.copy(work_dir+"/benchmarks/inputs/stream_list.atmosphere.diagnostics", b_full_name+"/stream_list.atmosphere.diagnostics")
-    #     shutil.copy(work_dir+"/benchmarks/inputs/stream_list.atmosphere.output", b_full_name+"/stream_list.atmosphere.output")
-    #     shutil.copy(work_dir+"/benchmarks/inputs/stream_list.atmosphere.surface", b_full_name+"/stream_list.atmosphere.surface")
+        shutil.copy(work_dir+"/benchmarks/inputs/stream_list.atmosphere.diagnostics", b_full_name+"/stream_list.atmosphere.diagnostics")
+        shutil.copy(work_dir+"/benchmarks/inputs/stream_list.atmosphere.output", b_full_name+"/stream_list.atmosphere.output")
+        shutil.copy(work_dir+"/benchmarks/inputs/stream_list.atmosphere.surface", b_full_name+"/stream_list.atmosphere.surface")
 
-    #     print("Benchmark dir:", b_full_name)
+        print("Benchmark dir:", b_full_name)
 
-    #     if len(loop_parameter)+len(loop_parameter2)>1:
-    #         args.make = False
+        if len(par1)+len(par2)>1:
+            args.make = False
+            
+    else:
+        print("Argument not recognized!")
 
