@@ -23,8 +23,13 @@ b_name = args.name
 b_dir = work_dir+"/benchmarks/"+args.bdir
 print(b_dir)
 
-os.environ['OMP_NUM_THREADS'] = str(args.threads)
-
+if args.threads:
+    cores = str(args.threads)
+    print("Running with "+cores+" threads")
+    os.environ['OMP_NUM_THREADS'] = cores
+else:
+    os.environ['OMP_NUM_THREADS'] ="2"
+    
 #Init_atmosphere setup
 if args.init:
     benchs = glob.glob(b_dir+"/init*")
