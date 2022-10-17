@@ -165,7 +165,7 @@ def sfc_update(par1,par2):
     end = start + datetime.timedelta(days=dt.day,hours=dt.hour)
     finish_date = end.strftime('%Y-%m-%d_%H:%M:%S')
     
-    nml_init_opts = {"nhyd_model":{}, "dimensions": {}, 
+    nml_init_opts = {"nhyd_model":{}, "decomposition": {}, 
                      "data_sources":{}, "preproc_stages": {}}
     # Real-data initialization case
     nml_init_opts["nhyd_model"]["config_init_case"] = 8
