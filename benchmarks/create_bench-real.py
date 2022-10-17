@@ -146,7 +146,6 @@ def init_interp(par1,par2):
 
     b_dir = b_main_dir+"/"+b_name
     
-    
 
     str_init_opt = {"input":{}, "output":{}}
 
@@ -189,8 +188,13 @@ def sfc_update(par1,par2):
 
     b_dir = b_main_dir+"/"+b_name
 
-    str_init_opt = {"surface":{}}
+    str_init_opt = {"input":{}, "output":{}, "surface":{}}
 
+    # Setup grid and init file
+    str_init_opt["input"]["filename_template"] = grid_dir+"/"+grid_name+".grid.nc"
+    str_init_opt["output"]["filename_template"] = b_dir+"/init/"+b_name+".init.nc"
+    str_init_opt["output"]["clobber_mode"] = "overwrite"    
+    # Setup surface update file
     str_init_opt["surface"]["filename_template"] = \
         b_dir+"/init/"+b_name+".sfc_update.nc"
     str_init_opt["surface"]["filename_interval"] = str(sfc_interval)
