@@ -221,9 +221,10 @@ def run(par1,par2):
     b_full_name = b_dir+"/run."+"smag_"+str(nml_opts["nhyd_model"]["config_len_disp"])+ \
         ".visc4smag_"+str(nml_opts["nhyd_model"]["config_visc4_2dsmag"])
 
-    str_opt = {"input":{}, "output":{}, "restart" : {}, "diagnostics" : {}, "surface" : {}}
+    str_opt = {"input":{}, "output":{}, "restart" : {},
+               "diagnostics" : {}, "surface" : {}}
 
-    str_opt["input"]["filename_template"] = str_opt["output"]["filename_template"]
+    str_init_opt["input"]["filename_template"] = b_dir+"/init/"+b_name+".static.nc"
     str_opt["output"]["filename_template"] = b_full_name+"/out.nc"
     str_opt["output"]["output_interval"] = "1:00:00"
     str_opt["output"]["clobber_mode"] = "overwrite"
