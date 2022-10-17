@@ -48,8 +48,8 @@ b_main_dir = work_dir+"/benchmarks/"+b_name
 grid_name = "x1.10242"
 grid_dir = work_dir+"/grids/grids/"
 # define dates in format: 'YYYY-MM-DD_hh:mm:ss'
-init_date = '2004-03-22_00:00:00'
-end_date = '2004-03-29_00:00:00'
+init_date = '1992-06-05_09:00:00'
+run_duration = '9_16:00'
 n_vert_levels = 70
 # path to geographical data
 geog_data_path = '/p1-nemo/danilocs/mpas/mpas_tutorial/geog/'
@@ -126,8 +126,10 @@ def init_interp(par1,par2):
     nml_init_opts["dimensions"]["config_nfglevels"] = 38
     nml_init_opts["dimensions"]["config_nfgsoillevels"] = 4
     ## Be careful to path to files for land files!! ##
-    nml_init_opts["data_sources"]["config_met_prefix"] = met_prefix
-    nml_init_opts["data_sources"]["config_sfc_prefix"] = sfc_prefix
+    nml_init_opts["data_sources"]["config_met_prefix"] = \
+        b_main_dir+"/input_data/"+met_prefix
+    nml_init_opts["data_sources"]["config_sfc_prefix"] = \
+        b_main_dir+"/input_data/"+sfc_prefix
     # Enable and disable steps of pre-processing fields
     nml_init_opts["preproc_stages"]["config_static_interp"] = False
     nml_init_opts["preproc_stages"]["config_native_gwd_static"] = False
@@ -150,28 +152,6 @@ def init_interp(par1,par2):
     return nml_init_opts, b_dir, str_init_opt
 
 for par1, par2 in itertools.product(loop_parameter1, loop_parameter2):
-    
-    # #Init options
-    # nml_init_opts = {"nhyd_model":{}, "dimensions": {}, 
-    #                  "data_sources":{}, "decomposition ":{} }
-
-    # nml_init_opts["nhyd_model"]["config_init_case"] = 7
-    # nml_init_opts["nhyd_model"]["config_hcm_staggering"] = False
-    # nml_init_opts["dimensions"]["config_nvertlevels"] = 20
-    # nml_init_opts["decomposition"]["config_block_decomp_file_prefix"] = grid_dir+"/"+grid_name+".graph.info.part."
-
-    # b_name = grid_name + ".tc_"+str(nml_init_opts["nhyd_model"]["config_init_case"]) \
-    #     + ".hcm_"+str(nml_init_opts["nhyd_model"]["config_hcm_staggering"]) \
-    #     + ".lv_"+str(nml_init_opts["dimensions"]["config_nvertlevels"])
-
-    # b_dir = b_main_dir+"/"+b_name
-
-    # str_init_opt = {"input":{}, "output":{}, "surface" : {}}
-
-    # str_init_opt["input"]["filename_template"] = grid_dir+"/"+grid_name+".grid.nc"
-    # str_init_opt["output"]["filename_template"] = b_dir+"/init/"+b_name+".init.nc"
-    # str_init_opt["surface"]["filename_template"] = b_dir+"/init/"+b_name+".sfc_update.nc"
-    # str_init_opt["output"]["clobber_mode"] = "overwrite"
 
     # #Runtime options
 
