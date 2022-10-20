@@ -31,13 +31,14 @@ else:
     os.environ['OMP_NUM_THREADS'] ="2"
     
 #Init_atmosphere setup
-if args.init:
-    benchs = glob.glob(b_dir+"/init*")
-    mainexec = "./init_atmosphere_model"
-else:
+if args.run:
     #Make sure the init test exists!
     benchs = glob.glob(b_dir+"/run.*") 
     mainexec = "./atmosphere_model"
+else:
+    benchs = glob.glob(b_dir+"/init*")
+    mainexec = "./init_atmosphere_model"
+
 
 print("---------------------------")
 print(" Running :", benchs)
