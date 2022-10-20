@@ -149,6 +149,34 @@ elif [[ $host == ybytu* ]]; then
 	export FCFLAGS="-g -fbacktrace"
 	export F77FLAGS="-g -fbacktrace" 
 
+
+elif [[ $host == nemo ]]; then
+
+        echo "Detected MASTER's nemo machine, loading enviroment..."
+        export MPI_FC=mpifort
+        export MPI_F77=mpifort
+	export SERIAL_FC=gfortran
+	export SERIAL_F77=gfortran
+	export SERIAL_CC=gcc
+	export SERIAL_CXX=g++
+	export MPI_FC=mpifort
+	export MPI_F77=mpifort
+	export MPI_CC=mpicc
+	export MPI_CXX=mpic++
+
+
+        export CC=$SERIAL_CC
+        export CXX=$SERIAL_CXX
+        export F77=$SERIAL_F77
+        export FC=$SERIAL_FC
+        #export F90=$SERIAL_FC
+        unset F90  # required to install mpich (God knows why...)
+        unset F90FLAGS  # required to install mpich (God knows why...)
+        export CFLAGS="-g"
+        export FFLAGS="-g -fbacktrace"
+        export FCFLAGS="-g -fbacktrace"
+        export F77FLAGS="-g -fbacktrace"
+
 else
 	echo "********************************************************"
 	echo "****************** ENVIRONMENT UNKNOWN *****************"
