@@ -38,7 +38,7 @@ import mpas_benchmarks_RealCase as bench
 # Get args: init or run core
 args = bench.call_parser()
 
-#Workspace
+# Workspace
 work_dir = os.getenv('MPAS_DIR')
 b_name = args.name
 b_main_dir = work_dir+"/benchmarks/"+b_name
@@ -95,8 +95,7 @@ def static_interp(par1,par2):
     nml_init_opts["preproc_stages"]["config_input_sst"] = False
     nml_init_opts["preproc_stages"]["config_frac_seaice"] = False
 
-    b_name = grid_name+"."+loop_parameter1_name+"."+str(par1)+"."+\
-        loop_parameter2_name+"."+str(par2)
+    b_name = grid_name+"."+loop_parameter1_name+"."+loop_parameter2_name
 
     b_dir = b_main_dir+"/"+b_name
 
@@ -135,8 +134,7 @@ def init_interp(par1,par2):
     nml_init_opts["decomposition"]["config_block_decomp_file_prefix"] = \
         grid_dir+grid_name+'.graph.info.part.'
 
-    b_name = grid_name+"."+loop_parameter1_name+"."+str(par1)+"."+\
-        loop_parameter2_name+"."+str(par2)
+    b_name = grid_name+"."+loop_parameter1_name+"."+loop_parameter2_name
 
     b_dir = b_main_dir+"/"+b_name
     
@@ -177,8 +175,7 @@ def sfc_update(par1,par2):
     nml_init_opts["decomposition"]["config_block_decomp_file_prefix"] = \
         grid_dir+grid_name+'.graph.info.part.'
 
-    b_name = grid_name+"."+loop_parameter1_name+"."+str(par1)+"."+\
-        loop_parameter2_name+"."+str(par2)
+    b_name = grid_name+"."+loop_parameter1_name+"."+loop_parameter2_name
 
     b_dir = b_main_dir+"/"+b_name
 
@@ -209,8 +206,7 @@ def run(par1,par2):
     nml_opts["nhyd_model"]["config_visc4_2dsmag"] = par2 #0.05
     nml_opts["decomposition"]["config_block_decomp_file_prefix"] = grid_dir+"/"+grid_name+".graph.info.part."
     
-    b_name = grid_name+"."+loop_parameter1_name+"."+str(par1)+"."+\
-        loop_parameter2_name+"."+str(par2)
+    b_name = grid_name+"."+loop_parameter1_name+"."+loop_parameter2_name
     
     b_dir = b_main_dir+"/"+b_name
     
