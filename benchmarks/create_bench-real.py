@@ -217,7 +217,7 @@ def run(par1,par2):
     str_opt = {"input":{}, "output":{}, "restart" : {},
                "diagnostics" : {}, "surface" : {}}
     
-    str_opt["input"]["filename_template"] = b_main_dir+"/init/"+b_name+".static.nc"
+    str_opt["input"]["filename_template"] = b_dir+"/init/"+b_name+".static.nc"
     str_opt["output"]["filename_template"] = b_full_name+"/out.nc"
     str_opt["output"]["output_interval"] = "1:00:00"
     str_opt["output"]["clobber_mode"] = "overwrite"
