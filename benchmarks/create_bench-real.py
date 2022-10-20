@@ -152,7 +152,7 @@ def init_interp(par1,par2):
 def sfc_update(par1,par2):
     
     start = datetime.datetime.strptime(init_date, '%Y-%m-%d_%H:%M:%S')
-    lenght = datetime.datetime.strptime(run_duration,'%d_%H:%M')
+    lenght = datetime.datetime.strptime(run_duration,'%d_%H:%M:%S')
     end = start + datetime.timedelta(days=lenght.day,hours=lenght.hour)
     finish_date = end.strftime('%Y-%m-%d_%H:%M:%S')
     
