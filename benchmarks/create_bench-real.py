@@ -208,11 +208,6 @@ def run(par1,par2):
     nml_opts["nhyd_model"]["config_len_disp"] = par1 #1200000.
     nml_opts["nhyd_model"]["config_visc4_2dsmag"] = par2 #0.05
     nml_opts["decomposition"]["config_block_decomp_file_prefix"] = grid_dir+"/"+grid_name+".graph.info.part."
-
-    b_name = grid_name+"."+loop_parameter1_name+"."+str(par1)+"."+\
-        loop_parameter2_name+"."+str(par2)
-        
-    b_dir = b_main_dir+"/"+b_name
     
     b_full_name = b_dir+"/run."+"smag_"+str(
         nml_opts["nhyd_model"]["config_len_disp"])+ \
@@ -263,10 +258,9 @@ for par1, par2 in itertools.product(loop_parameter1, loop_parameter2):
         b_init = bench.Bench(args, dummy_string="Init")
         b_init.set_options(nml_init_opts, str_init_opt, b_dir+"/init")
         print("Benchmark dir:", b_dir)
-            
+         
+    #Make sure the init test exists!
     if args.run:
-        
-        #Make sure the init test exists!
         opts = run(par1,par2)
         nml_opts, b_full_name, str_opt = opts[0], opts[1], opts[2]
         b_init = bench.Bench(args, dummy_string=" Pars:"+str(par1)+" - "+str(par2))
