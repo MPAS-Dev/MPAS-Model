@@ -69,13 +69,6 @@ loop_parameter1_name = "len_disp"
 # smag coefficients
 loop_parameter2 = [0.00, 0.05]
 loop_parameter2_name = "visc4_2dsmag"
-
-# Set true the option refering to the stage of model run where the parameters
-# are set
-par_in_static = False
-par_in_met = False
-par_in_sfc = False
-par_in_run = False
 # =============================================================================
 
 
@@ -252,8 +245,6 @@ for par1, par2 in itertools.product(loop_parameter1, loop_parameter2):
         b_init = bench.Bench(args, dummy_string="Init")
         b_init.set_options(nml_init_opts, str_init_opt, b_dir+"/init")
         print("Benchmark dir:", b_dir)
-        if(not par_in_static):
-            break
      
     # Setup for vertical grid generation and initial field interpolation
     # Make sure the static file exists!
@@ -263,8 +254,6 @@ for par1, par2 in itertools.product(loop_parameter1, loop_parameter2):
         b_init = bench.Bench(args, dummy_string="Init")
         b_init.set_options(nml_init_opts, str_init_opt, b_dir+"/init")
         print("Benchmark dir:", b_dir)
-        if(not par_in_static):
-            break
         
     # Setup for generating periodic SST and sea-ice Updates
     # Make sure the init and static files exist!
@@ -274,8 +263,6 @@ for par1, par2 in itertools.product(loop_parameter1, loop_parameter2):
         b_init = bench.Bench(args, dummy_string="Init")
         b_init.set_options(nml_init_opts, str_init_opt, b_dir+"/init")
         print("Benchmark dir:", b_dir)
-        if(not par_in_static):
-            break
             
     if args.run:
         
