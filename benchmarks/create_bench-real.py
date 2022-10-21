@@ -130,7 +130,7 @@ def init_interp():
     nml_init_opts["preproc_stages"]["config_vertical_grid"] = True
     nml_init_opts["preproc_stages"]["config_met_interp"] = True
     nml_init_opts["preproc_stages"]["config_input_sst"] = False
-    nml_init_opts["preproc_stages"]["config_frac_seaice"] = True
+    nml_init_opts["preproc_stages"]["config_frac_seaice"] = False
     # Decomposition file for running in parallel
     nml_init_opts["decomposition"]["config_block_decomp_file_prefix"] = \
         grid_dir+grid_name+'.graph.info.part.'
