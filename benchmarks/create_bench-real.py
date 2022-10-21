@@ -225,7 +225,7 @@ def run(par1,par2):
     str_opt["output"]["output_interval"] = "1:00:00"
     str_opt["output"]["clobber_mode"] = "overwrite"
     str_opt["surface"]["filename_template"] = \
-        b_main_dir+"/init/"+b_name+".sfc_update.nc"
+        b_dir+"/init/"+b_name+".sfc_update.nc"
     str_opt["surface"]["filename_interval"] = str(sfc_interval)
     str_opt["surface"]["input_interval"] = str(sfc_interval)
     str_opt["diagnostics"]["filename_template"] = b_full_name+"/diag.nc"
