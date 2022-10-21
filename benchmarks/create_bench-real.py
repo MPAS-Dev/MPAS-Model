@@ -1,39 +1,117 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-#-------------------------------------------------
-#  Script to generate namelists and stream for MPAS
-#  Author: Danilo Couto de Souza <danilo.oceano@gmail.com>
-#  Last update: Oct 2022
-#  Adapted from: P. Peixoto <ppeixoto@usp.br>
-# --------------------------------------------------
 """
 Created on Tue Oct 11 14:25:30 2022
 
-    This script will run the MPAS-A for testing distinct model configurations.
-It is required that the terrestrial static fields, surface fields and the
-meteorological variables pre-processing were performed previously. When using
-this scrtips, firstly make sure that MPAS_DIR in on path should direct towards 
-the path to MPAS-BR directory) and then check if folder ./inputs contain all 
-required files for running the cases:
-    1. namelists and streams files: contains model configuration options
-    2. <grid_name>.grid.nc: computational mesh;
-    3. <grid_name>.graph.info.part.<n>: partition file for runing the model in 
-    paralel mode using n cores
+Created by:
+    Danilo Couto de Souza
+    Universidade de São Paulo (USP)
+    Instituto de Astornomia, Ciências Atmosféricas e Geociências
+    São Paulo - Brazil
+    
+Contact:
+    danilo.oceano@gmail.com
+    
+Adapted from: P. Peixoto <ppeixoto@usp.br>
+
+-------------------------------------------------------------------------------
+
+This script was created with the intent to set an environment for testing
+    distinct model configurations for the MPAS-A model. 
+
+For using this script it is highly advisible that you are very familiar with 
+    the MPAS-A structure, the steps required for running the model its 
+    namelists and streams files.
+
+For running the model, it is necessary to perform all steps for generating 
+    static fields file (static), meteorological initial conditions (init) and 
+    surface update files (sfc), this last one being optional. Here's some 
+    example of how to use this code:
+
+    1) Firsty, make sure that the path to the MPAS-BR directory is set in the
+    environment variable MPAS_DIR. 
+    
+    2) Then, go to the first section of this script and set the desired 
+    options, such as grid name and path, initial date, etc.
+    
+    3) For testing distinct options, it is necessary to change the 
+    loop_parameters in this script second section and then change the options 
+    in the script's third section.
+    
+Now, it's time to go to the actual pre-processing stages. Supose that you are 
+    going to run some tests called "test" (using the most of your creative
+    abillities), and you will test the model parameters len_disp and
+    visc4_2dsmag, using the custom MPAS grid x1.10242. Here's how to perform 
+    the first step, i.e., the static fields interpolation process. On the 
+    terminal, on the bechmark directory:
+    
+    python create_bench-real.py --static --name test --bdir ./
+
+This will create the directory "test" with a subdirectory called
+    x1.10242.len_disp.visc4_2dsmag, with another subdirectory inside it, named
+    init, containing the namelist.init_atmosphere, streams.init_atmosphere 
+    files and a symbolic link for the model core init_atmosphere_model. Then, 
+    let's start the static fields interpolation with the command:
+    
+    python run_bench-real.py --static --name test \
+    --bdir cyclone_bench/x1.10242.len_disp.visc4_2dsmag
+    
+This process will take up to an hour, depending on the machine. Suppose you did
+    not find any erros in this stage, we can move to updating the namelist and
+    streams files for creating the the initial contiions for starting the model.
+    After doing the WRF ungrib process for generating intermediate files, move
+    those files to the $MPAS_DIR/input_files directory and, on the benchmark
+    directory, run:
+    
+    python create_bench-real.py --init --name test --bdir ./
+    
+And then, for creating the init file:
+        
+     python run_bench-real.py --init --name test \
+     --bdir cyclone_bench/x1.10242.len_disp.visc4_2dsmag
+     
+If the simulation will be performed using sea surface temperature boundary
+    conditions from another dataset, it is required to create the sfc_update 
+    file. As for the init files, it is required to perform the ungrib process 
+    in the files containing the SST, land-sea mask and sea-ice fraction data, 
+    for all the model run lenght. Also, adjust in the second section of this 
+    script the the interval for updating the surface conditions (sfc_interval).
+    Also, the  sst_update must be set to True. After moving the SST
+    intermediate files to the $MPAS_DIR/input_files directory, on the benchmark
+    directory, run:
+    
+    python create_bench-real.py --sfc --name test --bdir ./
+    
+And then, for creating the sfc_update file:
+        
+    python run_bench-real.py --sfc --name test \
+    --bdir cyclone_bench/x1.10242.len_disp.visc4_2dsmag
+    
+Now, with all the pre-processing stages ready, one can set the environment for
+    actually running the model. First, on the benchmark directory, run:
+    
+    python create_bench-real.py --run --name cyclone_bench --bdir ./
+    
+This will create a list of subdirectories (benchmarks), one for each 
+    combination of model configuration, from the loop_parameter options. Now,
+    let's start running each bench created:
+    
+    python run_bench-real.py --run --name test \
+    --bdir cyclone_bench/x1.10242.len_disp.visc4_2dsmag
+
+-------------------------------------------------------------------------------
+
+TO DO: Read loop_parameters from a text file. Use default_inputs for defining 
+    the parameters for creating the benchmarks, instead of specifying them here.
 
 @author: daniloceano
 """
 
-import f90nml
 import os
-import argparse
-import subprocess
-import sys
 import shutil
 import itertools
 import datetime
-
 import mpas_benchmarks_RealCase as bench
-
 
 # Get args: init or run core
 args = bench.call_parser()
@@ -43,7 +121,7 @@ work_dir = os.getenv('MPAS_DIR')
 b_name = args.name
 b_main_dir = work_dir+"/benchmarks/"+b_name
 
-# =============================================================================
+# 1 ===========================================================================
 # ## DEFINE PARAMETERS FOR NAMELIST.INIT ##
 # define grid
 grid_name = "x1.10242"
@@ -63,7 +141,8 @@ sfc_interval = 3600
 dt = 12
 # SST Update on or off
 sst_update = True
-# =============================================================================
+
+# 2 ===========================================================================
 ## LOOP OVER DESIRED OPTIONS ##
 # difussion length coefs
 loop_parameter1 = [0.,120000.0]
@@ -71,9 +150,8 @@ loop_parameter1_name = "len_disp"
 # smag coefficients
 loop_parameter2 = [0.00, 0.05]
 loop_parameter2_name = "visc4_2dsmag"
-# =============================================================================
 
-
+# 3 ===========================================================================
 def static_interp():
     
     nml_init_opts = {"nhyd_model":{}, "dimensions": {}, 
@@ -234,6 +312,7 @@ def run(par1,par2):
     
     return nml_opts, b_full_name, str_opt
 
+# 4 ===========================================================================
 # Setup for creating static fields
 if args.static:
     opts = static_interp()
@@ -260,7 +339,8 @@ elif args.sfc:
     b_init.set_options(nml_init_opts, str_init_opt, b_dir+"/init")
     print("Benchmark dir:", b_dir)
 
-         
+
+# 5 ===========================================================================     
 #Make sure the init test exists!
 elif args.run:
     for par1, par2 in itertools.product(loop_parameter1, loop_parameter2):

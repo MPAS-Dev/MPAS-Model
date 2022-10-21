@@ -3,12 +3,8 @@
 #  Author: P. Peixoto <ppeixoto@usp.br>
 #  Last update: Mar 2022
 # --------------------------------------------------
-import f90nml
 import os
-import argparse
 import subprocess
-import sys
-import shutil
 import glob
 import time 
 import mpas_benchmarks_RealCase as bench
@@ -48,7 +44,11 @@ for b in benchs:
     print(" Running :", b)
     print()
     
-    p = subprocess.Popen(mainexec, stdout = subprocess.PIPE, stderr=subprocess.PIPE, cwd=b, shell=False)
+    # Time model run: get initial time 
+    start_time = time.time()
+    
+    p = subprocess.Popen(mainexec, stdout = subprocess.PIPE,
+                         stderr=subprocess.PIPE, cwd=b, shell=False)
 
     time.sleep(1)
     try:
@@ -62,6 +62,14 @@ for b in benchs:
     except:
         print("Couldn't reach log file, check manually, just in case")   
     
+    # Duration of model run 
+    lenght = (time.time() - start_time)/60/60
+    print("--- %s hours for running model ---" % (lenght))
+    
+    # Write time required for model run into text file
+    f = open(b+'/run_duration', 'w' )
+    f.write(str(lenght)+' hours')
+    f.close()
         
     
 
