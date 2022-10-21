@@ -244,7 +244,7 @@ for par1, par2 in itertools.product(loop_parameter1, loop_parameter2):
      
     # Setup for vertical grid generation and initial field interpolation
     # Make sure the static file exists!
-    if args.init:
+    elif args.init:
         opts = init_interp(par1,par2)
         nml_init_opts, b_dir, str_init_opt = opts[0], opts[1], opts[2]
         b_init = bench.Bench(args, dummy_string="Init")
@@ -253,7 +253,7 @@ for par1, par2 in itertools.product(loop_parameter1, loop_parameter2):
         
     # Setup for generating periodic SST and sea-ice Updates
     # Make sure the init and static files exist!
-    if args.sfc:
+    elif args.sfc:
         opts = sfc_update(par1,par2)
         nml_init_opts, b_dir, str_init_opt = opts[0], opts[1], opts[2]
         b_init = bench.Bench(args, dummy_string="Init")
@@ -261,7 +261,7 @@ for par1, par2 in itertools.product(loop_parameter1, loop_parameter2):
         print("Benchmark dir:", b_dir)
          
     #Make sure the init test exists!
-    if args.run:
+    elif args.run:
         opts = run(par1,par2)
         nml_opts, b_full_name, str_opt = opts[0], opts[1], opts[2]
         b_init = bench.Bench(args, dummy_string=" Pars:"+str(par1)+" - "+str(par2))
