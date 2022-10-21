@@ -83,7 +83,7 @@ class LogFollower:
             self.position += len(line) + 1
 
 class Bench:
-    def __init__(self, args, dummy_string=""):
+    def __init__(self, args, dummy_string="", b_dir=""):
         print()
         print("--------------------------------------------------")
         print("Setting up benchmark:", args.name, dummy_string)
@@ -92,6 +92,7 @@ class Bench:
         self.name = args.name
         self.work_dir = os.getenv('MPAS_DIR')
         self.bench_dir = self.work_dir+"/benchmarks"
+        self.b_dir = b_dir
         print("Working directory:", self.work_dir)
 
         #Check if dir exists, or create
@@ -114,9 +115,17 @@ class Bench:
             self.nml_filename = "namelist.init_atmosphere"
             self.stream_filename = "streams.init_atmosphere"
 
-
-        self.default_nml=self.work_dir+"/default_inputs/"+self.nml_filename
-        self.default_stream=self.work_dir+"/default_inputs/"+self.stream_filename
+        # If interpolating static fields (first step for running the model),
+        # or setting the environment for model run (namelist.atmosphere), it 
+        # will copy namelist from defaults.
+        if args.static or args.run:
+            self.default_nml=self.work_dir+"/default_inputs/"+self.nml_filename
+            self.default_stream=self.work_dir+"/default_inputs/"+self.stream_filename
+        # But if running any other steps, re-use the namelist generated
+        # in the previous steps 
+        else:
+            self.default_nml=self.b_dir+"/init/"+self.nml_filename
+            self.default_stream=self.b_dir+"/init/"+self.stream_filename
 
         if not os.path.isfile(self.default_nml):
             print("Default namelist not found, compiling mpas..")

@@ -74,21 +74,17 @@ loop_parameter2_name = "visc4_2dsmag"
 # =============================================================================
 
 
-def static_interp(par1,par2):
+def static_interp():
     
     nml_init_opts = {"nhyd_model":{}, "dimensions": {}, 
                      "data_sources":{}, "preproc_stages": {}}
     # Real-data initialization case
     nml_init_opts["nhyd_model"]["config_init_case"] = 7
-    # # Should be set to 1 for this step (see doc)  
-    # nml_init_opts["dimensions"]["config_nvertlevels"] = 1
-    # nml_init_opts["dimensions"]["config_nsoillevels"] = 1
-    # nml_init_opts["dimensions"]["config_nfglevels"] = 1
-    # nml_init_opts["dimensions"]["config_nfgsoillevels"] = 1
-    nml_init_opts["dimensions"]["config_nvertlevels"] = n_vert_levels
-    nml_init_opts["dimensions"]["config_nsoillevels"] = 4
-    nml_init_opts["dimensions"]["config_nfglevels"] = 38
-    nml_init_opts["dimensions"]["config_nfgsoillevels"] = 4
+    # Should be set to 1 for this step (see doc)  
+    nml_init_opts["dimensions"]["config_nvertlevels"] = 1
+    nml_init_opts["dimensions"]["config_nsoillevels"] = 1
+    nml_init_opts["dimensions"]["config_nfglevels"] = 1
+    nml_init_opts["dimensions"]["config_nfgsoillevels"] = 1
     ## Be careful to path to files for land files!! ##
     nml_init_opts["data_sources"]["config_geog_data_path"] = \
         '/p1-nemo/danilocs/mpas/mpas_tutorial/geog/'
@@ -112,7 +108,7 @@ def static_interp(par1,par2):
 
     return nml_init_opts, b_dir, str_init_opt
 
-def init_interp(par1,par2):
+def init_interp():
     
     nml_init_opts = {"nhyd_model":{}, "dimensions": {}, 
                      "data_sources":{}, "preproc_stages": {},
@@ -152,7 +148,7 @@ def init_interp(par1,par2):
 
     return nml_init_opts, b_dir, str_init_opt
 
-def sfc_update(par1,par2):
+def sfc_update():
     
     start = datetime.datetime.strptime(init_date, '%Y-%m-%d_%H:%M:%S')
     lenght = datetime.datetime.strptime(run_duration,'%d_%H:%M:%S')
@@ -238,51 +234,51 @@ def run(par1,par2):
     
     return nml_opts, b_full_name, str_opt
 
+# Setup for creating static fields
+if args.static:
+    opts = static_interp()
+    nml_init_opts, b_dir, str_init_opt = opts[0], opts[1], opts[2]
+    b_init = bench.Bench(args, dummy_string="Init", b_dir=b_dir)
+    b_init.set_options(nml_init_opts, str_init_opt, b_dir+"/init")
+    print("Benchmark dir:", b_dir)
+ 
+# Setup for vertical grid generation and initial field interpolation
+# Make sure the static file exists!
+elif args.init:
+    opts = init_interp()
+    nml_init_opts, b_dir, str_init_opt = opts[0], opts[1], opts[2]
+    b_init = bench.Bench(args, dummy_string="Init", b_dir=b_dir)
+    b_init.set_options(nml_init_opts, str_init_opt, b_dir+"/init")
+    print("Benchmark dir:", b_dir)
+    
+# Setup for generating periodic SST and sea-ice Updates
+# Make sure the init and static files exist!
+elif args.sfc:
+    opts = sfc_update()
+    nml_init_opts, b_dir, str_init_opt = opts[0], opts[1], opts[2]
+    b_init = bench.Bench(args, dummy_string="Init", b_dir=b_dir)
+    b_init.set_options(nml_init_opts, str_init_opt, b_dir+"/init")
+    print("Benchmark dir:", b_dir)
 
-for par1, par2 in itertools.product(loop_parameter1, loop_parameter2):
-
-    # Setup for creating static fields
-    if args.static:
-        opts = static_interp(par1,par2)
-        nml_init_opts, b_dir, str_init_opt = opts[0], opts[1], opts[2]
-        b_init = bench.Bench(args, dummy_string="Init")
-        b_init.set_options(nml_init_opts, str_init_opt, b_dir+"/init")
-        print("Benchmark dir:", b_dir)
-     
-    # Setup for vertical grid generation and initial field interpolation
-    # Make sure the static file exists!
-    elif args.init:
-        opts = init_interp(par1,par2)
-        nml_init_opts, b_dir, str_init_opt = opts[0], opts[1], opts[2]
-        b_init = bench.Bench(args, dummy_string="Init")
-        b_init.set_options(nml_init_opts, str_init_opt, b_dir+"/init")
-        print("Benchmark dir:", b_dir)
-        
-    # Setup for generating periodic SST and sea-ice Updates
-    # Make sure the init and static files exist!
-    elif args.sfc:
-        opts = sfc_update(par1,par2)
-        nml_init_opts, b_dir, str_init_opt = opts[0], opts[1], opts[2]
-        b_init = bench.Bench(args, dummy_string="Init")
-        b_init.set_options(nml_init_opts, str_init_opt, b_dir+"/init")
-        print("Benchmark dir:", b_dir)
          
-    #Make sure the init test exists!
-    elif args.run:
+#Make sure the init test exists!
+elif args.run:
+    for par1, par2 in itertools.product(loop_parameter1, loop_parameter2):
         opts = run(par1,par2)
         nml_opts, b_full_name, str_opt = opts[0], opts[1], opts[2]
-        b_init = bench.Bench(args, dummy_string=" Pars:"+str(par1)+" - "+str(par2))
+        b_init = bench.Bench(args,
+                             dummy_string=" Pars:"+str(par1)+" - "+str(par2))
         b_init.set_options(nml_opts, str_opt, b_full_name)
-
+    
         shutil.copy(work_dir+"/default_inputs/stream_list.atmosphere.diagnostics", b_full_name+"/stream_list.atmosphere.diagnostics")
         shutil.copy(work_dir+"/default_inputs/stream_list.atmosphere.output", b_full_name+"/stream_list.atmosphere.output")
         shutil.copy(work_dir+"/default_inputs/stream_list.atmosphere.surface", b_full_name+"/stream_list.atmosphere.surface")
-
+    
         print("Benchmark dir:", b_full_name)
-
+    
         if len(loop_parameter1)+len(loop_parameter2)>1:
             args.make = False
-            
-    else:
-        print("Argument not recognized!")
+                
+        else:
+            print("Argument not recognized!")
 
