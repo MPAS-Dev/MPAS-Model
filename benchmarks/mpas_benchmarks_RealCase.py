@@ -160,7 +160,20 @@ class Bench:
         #Link mpas to folder
         link = ["ln", "-sf", self.work_dir+"/"+self.core, b_dir+"/"+self.core ]
         subprocess.run(link, stdout = subprocess.PIPE, stderr=subprocess.PIPE,
-                       cwd=self.work_dir, shell=False) 
+                       cwd=self.work_dir, shell=False)
+        
+        # If running model, link WRF physics files
+        if self.args.run:
+            for file in ["OZONE_PLEV.TBL", "OZONE_LAT.TBL", "OZONE_DAT.TBL",
+                         "LANDUSE.TBL", "GENPARM.TBL", "COMPATIBILITY",
+                         "CAM_AEROPT_DATA.DBL"," CAM_ABS_DATA.DBL",
+                         "VERSION", "VEGPARM.TBL", "SOILPARM.TBL", 
+                         "RRTMG_SW_DATA.DBL", "RRTMG_SW_DATA",
+                         "RRTMG_LW_DATA.DBL", "RRTMG_LW_DATA"]:
+                link = ["ln", "-sf", self.work_dir+"/"+file, b_dir+"/"]
+                subprocess.run(link, stdout = subprocess.PIPE,
+                               stderr=subprocess.PIPE, cwd=self.work_dir, 
+                               shell=False)
 
         #Namelist
         nml = f90nml.read(self.default_nml)
