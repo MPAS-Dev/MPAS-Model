@@ -61,6 +61,8 @@ sfc_prefix = 'SST'
 sfc_interval = 3600
 # Model timestep
 dt = 12
+# SST Update on or off
+sst_update = True
 # =============================================================================
 ## LOOP OVER DESIRED OPTIONS ##
 # difussion length coefs
@@ -78,12 +80,15 @@ def static_interp(par1,par2):
                      "data_sources":{}, "preproc_stages": {}}
     # Real-data initialization case
     nml_init_opts["nhyd_model"]["config_init_case"] = 7
-    # Should be set to 1 for this step (see doc)  
-    nml_init_opts["dimensions"]["config_nvertlevels"] = 1
-    nml_init_opts["dimensions"]["config_nvertlevels"] = 1
-    nml_init_opts["dimensions"]["config_nsoillevels"] = 1
-    nml_init_opts["dimensions"]["config_nfglevels"] = 1
-    nml_init_opts["dimensions"]["config_nfgsoillevels"] = 1
+    # # Should be set to 1 for this step (see doc)  
+    # nml_init_opts["dimensions"]["config_nvertlevels"] = 1
+    # nml_init_opts["dimensions"]["config_nsoillevels"] = 1
+    # nml_init_opts["dimensions"]["config_nfglevels"] = 1
+    # nml_init_opts["dimensions"]["config_nfgsoillevels"] = 1
+    nml_init_opts["dimensions"]["config_nvertlevels"] = n_vert_levels
+    nml_init_opts["dimensions"]["config_nsoillevels"] = 4
+    nml_init_opts["dimensions"]["config_nfglevels"] = 38
+    nml_init_opts["dimensions"]["config_nfgsoillevels"] = 4
     ## Be careful to path to files for land files!! ##
     nml_init_opts["data_sources"]["config_geog_data_path"] = \
         '/p1-nemo/danilocs/mpas/mpas_tutorial/geog/'
@@ -190,6 +195,7 @@ def sfc_update(par1,par2):
         b_dir+"/init/"+b_name+".sfc_update.nc"
     str_init_opt["surface"]["filename_interval"] = str(sfc_interval)
     str_init_opt["surface"]["output_interval"] = str(sfc_interval)
+    str_init_opt["surface"]["clobber_mode"] = "overwrite"
     
     return nml_init_opts, b_dir, str_init_opt
 
@@ -205,7 +211,8 @@ def run(par1,par2):
     nml_opts["nhyd_model"]["config_len_disp"] = par1 #1200000.
     nml_opts["nhyd_model"]["config_visc4_2dsmag"] = par2 #0.05
     nml_opts["decomposition"]["config_block_decomp_file_prefix"] = grid_dir+"/"+grid_name+".graph.info.part."
-    
+    # Control if SST Update will be performed
+    nml_opts["physics"]["config_sst_update"] = sst_update
     b_name = grid_name+"."+loop_parameter1_name+"."+loop_parameter2_name
     
     b_dir = b_main_dir+"/"+b_name
