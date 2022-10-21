@@ -166,7 +166,7 @@ class Bench:
         if self.args.run:
             for file in ["OZONE_PLEV.TBL", "OZONE_LAT.TBL", "OZONE_DAT.TBL",
                          "LANDUSE.TBL", "GENPARM.TBL", "COMPATIBILITY",
-                         "CAM_AEROPT_DATA.DBL"," CAM_ABS_DATA.DBL",
+                         "CAM_AEROPT_DATA.DBL","CAM_ABS_DATA.DBL",
                          "VERSION", "VEGPARM.TBL", "SOILPARM.TBL", 
                          "RRTMG_SW_DATA.DBL", "RRTMG_SW_DATA",
                          "RRTMG_LW_DATA.DBL", "RRTMG_LW_DATA"]:
