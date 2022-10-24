@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Created on Mon Oct 10 11:18:29 2022
+    Script for downloading the sea surface temperature, sea-ice cover and the
+land-sea mask from ERA5 data for creating surface update fields for running the
+MPAS-A model. This script is called by the GetERA5_MPAS-RUN.sh.
 
-@author: danilocoutodsouza
 """
 
 import cdsapi

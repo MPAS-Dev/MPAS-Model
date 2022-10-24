@@ -1,7 +1,13 @@
 #!/bin/bash -l
 #
-#   Created by Danilo Couto de Souza
-# danilo.oceano@gmail.com
+# Created by:
+#    Danilo Couto de Souza
+#    Universidade de São Paulo (USP)
+#    Instituto de Astornomia, Ciências Atmosféricas e Geociências
+#    São Paulo - Brazil
+#    
+# Contact:
+#    danilo.oceano@gmail.com
 #
 # Adapted from https://dreambooker.site/2019/10/03/Initializing-the-WRF-model-with-ERA5-pressure-level/
 #
