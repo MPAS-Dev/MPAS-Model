@@ -17,7 +17,7 @@ import mpas_benchmarks as bench
 args = bench.call_parser()
 
 #Workspace
-work_dir = os.getenv('MPAS_DIR')
+work_dir = os.getenv('MPAS_HOME')
 b_name = args.name
 b_main_dir = work_dir+"/benchmarks/"+b_name
 
