@@ -67,7 +67,8 @@ def main(args):
         if (args.opt=="unif"):
             cellWidth, lon, lat = jutil.cellWidthVsLatLon(args.r)
         elif (args.opt=="localref"):
-            cellWidth, lon, lat = jutil.localrefVsLatLon(args.r, l=args.l, p=p)
+            cellWidth, lon, lat = jutil.localrefVsLatLon(args.r, l=args.l,
+                        radius_low=args.rad, transition_radius=args.tr,p=p)
 
         mesh_file = jutil.jigsaw_gen_sph_grid(cellWidth, lon, lat, basename=out_basepath) 
 
