@@ -113,12 +113,12 @@ def localrefVsLatLon(r,l=150, radius_low=50, transition_radius=False,
     # Radius (in km) of high resolution area
     maxdist = radius_low
     print("Trying to set grid spacing of high resolution zone to approximately\
-: "+float(maxdist))
+: "+str(maxdist))
     #(increase_of_resolution) / (distance)
     slope = 10./600.
     # Gammas
     gammas = l
-    print("Trying to set global grid spacing to approximately: "+float(gammas))
+    print("Trying to set global grid spacing to approximately: "+str(gammas))
     ## If radius of transition zone is not provided, try to find best value
     if not(transition_radius):
         # distance (in km) of transition zone belt: ratio / slope
@@ -130,7 +130,7 @@ def localrefVsLatLon(r,l=150, radius_low=50, transition_radius=False,
         print("Transition zone radius not provided. Value set to: "+str(epsilons))
     else:
         epsilons = transition_radius
-        print("Transition zone radius provided: "+float(epsilons))
+        print("Transition zone radius provided: "+str(epsilons))
 
 
     # initialize with resolution = r (min resolution)
