@@ -32,7 +32,7 @@ module mpas_atm_diagnostics_manager
 
         use mpas_atm_diagnostics_utils, only : mpas_atm_diag_utils_init
         use mpas_derived_types, only : MPAS_streamManager_type, MPAS_pool_type, MPAS_clock_type, dm_info
-        use diagnostic_template, only : diagnostic_template_setup
+        use mpas_diagnostic_template, only : diagnostic_template_setup
         use mpas_isobaric_diagnostics, only : isobaric_diagnostics_setup
         use mpas_cloud_diagnostics, only : cloud_diagnostics_setup
         use mpas_convective_diagnostics, only : convective_diagnostics_setup
@@ -75,7 +75,7 @@ module mpas_atm_diagnostics_manager
     !-----------------------------------------------------------------------
     subroutine mpas_atm_diag_update()
 
-        use diagnostic_template, only : diagnostic_template_update
+        use mpas_diagnostic_template, only : diagnostic_template_update
         use mpas_convective_diagnostics, only : convective_diagnostics_update
 
         implicit none
@@ -99,7 +99,7 @@ module mpas_atm_diagnostics_manager
     !-----------------------------------------------------------------------
     subroutine mpas_atm_diag_compute()
 
-        use diagnostic_template, only : diagnostic_template_compute
+        use mpas_diagnostic_template, only : diagnostic_template_compute
         use mpas_isobaric_diagnostics, only : isobaric_diagnostics_compute
         use mpas_cloud_diagnostics, only : cloud_diagnostics_compute
         use mpas_convective_diagnostics, only : convective_diagnostics_compute
@@ -131,7 +131,7 @@ module mpas_atm_diagnostics_manager
     !-----------------------------------------------------------------------
     subroutine mpas_atm_diag_reset()
 
-        use diagnostic_template, only : diagnostic_template_reset
+        use mpas_diagnostic_template, only : diagnostic_template_reset
         use mpas_convective_diagnostics, only : convective_diagnostics_reset
 
         implicit none
@@ -156,7 +156,7 @@ module mpas_atm_diagnostics_manager
     subroutine mpas_atm_diag_cleanup()
 
         use mpas_atm_diagnostics_utils, only : mpas_atm_diag_utils_finalize
-        use diagnostic_template, only : diagnostic_template_cleanup
+        use mpas_diagnostic_template, only : diagnostic_template_cleanup
         use mpas_soundings, only : soundings_cleanup
 
         implicit none
