@@ -137,3 +137,4 @@ plt.style.use(style) # Set the style that we choose above
 plt.savefig(variable+'.png', dpi=500)
 patch_collection.remove()
 plt.close(fig)
+

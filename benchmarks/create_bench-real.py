@@ -116,6 +116,7 @@ import mpas_benchmarks_RealCase as bench
 # Get args: init or run core
 args = bench.call_parser()
 
+
 # Workspace
 work_dir = os.getenv('MPAS_DIR')
 b_name = args.name
