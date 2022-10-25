@@ -1,19 +1,24 @@
-!----------------------------------------------------
-!   Modifications made by Pedro. S. Peixoto
-!   Date: Feb 2022
-!
-!   Features:
-!   - Added grid utilities
-!   - Add consistent scheme of Peixoto JCP 2016 to MPAS
-!
-!   All Modifications where marked with PXT text and a comment
-!   All things that would be moved/removed was commented
 
-!   Updated on Feb 2022 to account for version 7.2
+Modifications made by Pedro. S. Peixoto
+===========================================
 
-----------------------------------
-        GRID UTILITIES
-----------------------------------
+   Date: Oct 2022
+
+   Features:
+   - Added grid utilities
+   - Pre/post processing tools 
+   - Add consistent scheme of Peixoto JCP 2016 to MPAS 
+              (this is currently functioning only in a Branch of MPAS version 4)
+
+   All Modifications where marked with PXT text and a comment
+   All things that would be moved/removed was commented
+
+   Updated on Feb 2022 to account for version 7.2
+
+
+GRID UTILITIES
+-------------------------------
+
 * grids folder:
 - grids/ : script to get grids from ncar site
 - utilities/ :
@@ -26,9 +31,10 @@
   - double_to_float_grid : float type grid convertion tool
 
 
+
+INSTALATION
 ----------------------------------
-        INSTALATION
-----------------------------------
+
  * local_software folder:
  - iolib_installation.sh : install all required dependencies for MPAS, with the correct versions
  - setup_env.sh : script to load mpas env variables to use local_software
@@ -36,41 +42,45 @@
      ex: make gfortran CORE=init_atmosphere OPENMP=true USE_PIO2=true AUTOCLEAN=true
          make gfortran CORE=atmosphere OPENMP=true USE_PIO2=true AUTOCLEAN=true
 
-----------------------------------
-        BENCHMARKS
-----------------------------------
-* benchmarks folder:
-- scripts to create namelists and streams for test cases (ex: create_benchmark_jw_tc1.sh )
 
+BENCHMARKS
 ----------------------------------
-        DOCS 
+
+* benchmarks folder:
+- Python scripts to create namelists and streams for test cases 
+
+
+DOCS 
 ----------------------------------
 * docs folder: documentation and notes
 - pxt_useful/ : some day-to-day useful notes to use mpas
 - mpas_refs/  : mpas papers and tutorials
 
+
+POST_PROCESSING
 ----------------------------------
-        POST_PROCESSING
-----------------------------------
+
 *post_proc folder: scripts for post processing 
 - py: python scripts 
     -- geometry_lat_lon_2d_plot : scripts to plot geometric grid features 
     -- scalar_lat_lon_2d_plot   : scripts to plot scalar fields
     -- time_series_error_plot   : error plot of time series for idealized tests
+    -- other scrips -- see folder
 
-----------------------------------
-        OPERATORS
+
+OPERATORS
 ----------------------------------
 * mpas_consistent.F: new module with implmentantion regarding Peixoto 2016 paper.   
 * Makefile : Added: 
+
 	OBJS = 
 	mpas_consistent.o #PXT added mpas_consitent
 	
         #PXT added mpas_consitent
 	mpas_consistent.o: mpas_vector_operations.o
 
-----------------------------------
-        INIT_ATMOSPHERE CORE
+
+INIT_ATMOSPHERE CORE
 ----------------------------------
 * Registry : Added new config to allow generation of initial conditions on HCm grid in  <nml_record name="nhyd_model" in_defaults="true">
 
@@ -83,9 +93,11 @@
                      possible_values="True or False"/>
 
 * namelist.init_atmosphere : New parameter choice (not automatic)
+
    config_hcm_staggering = true
   
 * mpas_init_atm_cases.F: Added HCm capability in specific points:
+
    !PXT - module to convert to HCm grid
    use mpas_consistent
    !PXT - config to use HCm grid - use midpoint of Voronoi edges instead of midpoint of Triangle edges
@@ -109,11 +121,12 @@
       endif
       
   
-----------------------------------
-        ATMOSPHERE_MODEL
-----------------------------------
+
+ATMOSPHERE_MODEL
+-------------------------------
 
 * Registry : added new config on nhyd_model
+
                <!-- PXT - Added configuration flags-->
                 <nml_option name="config_consistent_scheme"          type="logical"       default_value="false"
                      units="-"
@@ -154,6 +167,7 @@
 
 
 * namelist.atmosphere : Will automatically have new parameter choices:
+
 	config_consistent_scheme = true
     	config_KE_vecrecon_perot = true
       config_KE_vecrecon_rbf = true
@@ -167,14 +181,17 @@
 	       config_KE_vecrecon_rbf = false
 
 * mpas_atm_core/atm_mpas_init_block
+
 	- Added use mpas_consistent and a warning stating that for the consistent scheme it is recommended to be on HCm grid
 	- Moved RBF initialisation (mpas_init_reconstruct) to before solve_diagonstics
 	- Moved RBF reconstruction to inside solve_diagnostics 
 
 * atm_time_integration/atm_init_coupled_diagnostics 
+
 	- Added calculation of barycentric coordinates on mass flux (ru) calculation to alow HCm (TODO)
 
 * atm_time_integration/atm_compute_solve_diagnostics (TODO)
+
 	- Added calculation of barycentric coordinates for h_edge (TODO)
 	- Added vector reconstruction to cell centre - either Perot or RBF
 	   Perot calculates for halos as well, but RBF not, because the coefficients
