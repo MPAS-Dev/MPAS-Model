@@ -101,11 +101,22 @@ if __name__ == '__main__':
     
     parser.add_argument(
         "-r",
-        "--resolution",
+        "--high",
         dest="r",
         required=True,
         type=float,
-        help="Resolution of grid (depends on the grid choice, see -g)",
+        help="Grid spacing for high resolution area (depends on the grid \
+choice, see -g)",
+        metavar="FLOAT")
+    
+    parser.add_argument(
+        "-l",
+        "--low",
+        dest="l",
+        required=False,
+        type=float,
+        help="Grid spacing for low resolution area (only valid for localref\
+grid option)",
         metavar="FLOAT")
     
     parser.add_argument(
@@ -121,9 +132,10 @@ if __name__ == '__main__':
         "--plot",
         dest="plots",
         default=0,
-        help="do plots of grid resolutions",
+        help="do plots of grid resolutions (0 for no plots, any other value \
+for creating plots)",
         metavar="INT")
-
+    
     parser.add_argument(
         "-g",
         "--grid",
@@ -131,12 +143,11 @@ if __name__ == '__main__':
         default="icos",
         type=str,
         help="""Grid option: \n 
-        " unif": Uniform resolution spherical grid (hand tune cellWidthVsLatLon function) \n
-                 Provide also a resolution with -r 30 (in km) \n
-        " icos": Spherical icosahedral grid \n
-                 Provide also a resolution with -r 6 (grid refinement level) \n
-        " localref" : Variable resolution spherical grid (hand tune cellWidthVsLatLon function) \n
-                 Provide also a resolution with -r 30 (in km) \n
+        "unif": Uniform resolution spherical grid (hand tune \
+cellWidthVsLatLon function) \n
+        "icos": Spherical icosahedral grid \n
+        "localref" : Variable resolution spherical grid (hand tune \
+cellWidthVsLatLon function) \n
             """,
         metavar="STR")
 

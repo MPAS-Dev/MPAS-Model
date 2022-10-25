@@ -63,14 +63,16 @@ def cellWidthVsLatLon(r=70):
     return cellWidth, lon, lat
 
 
-def localrefVsLatLon(r, earth_radius=6371.0e3, p=False):
+def localrefVsLatLon(r,l=150, earth_radius=6371.0e3, p=False):
     """
     Create cell width array for this mesh on a locally refined latitude-longitude grid.
     Input
     ---------
-    r : float
-        minimun desired cell width resolution in km
-
+    h : float
+        grid spacing for high resolution area in km
+    l : float
+        grid spacing for low resolution area in km
+        
     Returns
     -------
     cellWidth : ndarray
@@ -107,8 +109,8 @@ def localrefVsLatLon(r, earth_radius=6371.0e3, p=False):
     maxdist = 50
     #(increase_of_resolution) / (distance)
     slope = 10./600.
-    #Gammas
-    gammas = 150.
+    # Gammas
+    gammas = float(l)
     # distance (in km) of transition zone belt: ratio / slope
     maxepsilons = 10000.
     epsilons = gammas/slope
