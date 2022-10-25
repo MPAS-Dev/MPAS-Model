@@ -114,8 +114,8 @@ choice, see -g)",
         dest="l",
         required=False,
         type=float,
-        help="Grid spacing for low resolution area (only valid for localref\
-grid option)",
+        help="Grid spacing for low resolution area (only valid for loca lref\
+grid option, see -g)",
         metavar="FLOAT")
     
     parser.add_argument(
@@ -125,7 +125,7 @@ grid option)",
         required=False,
         type=float,
         help="radius of influence of high resolution area in km (only valid for\
-localref grid option)",
+local ref grid option, see -g)",
         metavar="FLOAT")
 
     parser.add_argument(
@@ -135,7 +135,7 @@ localref grid option)",
         required=False,
         type=float,
         help="radius of transition zone between high and low resolution in km \
-(only valid for localref grid option)",
+(only valid for local ref grid option, see -g)",
         metavar="FLOAT")
     
     parser.add_argument(
