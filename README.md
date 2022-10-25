@@ -2,7 +2,7 @@ MPAS-v7.2 + Contributions
 =======
 
 (For contributions, see:
-BR_contributions.txt and specific contributions in MPAS-BR-contributions-AUTHOR.md  files)
+MPAS_BR_contributions.txt and specific contributions in MPAS-BR-contributions-AUTHOR.md  files)
 
 ====
 
