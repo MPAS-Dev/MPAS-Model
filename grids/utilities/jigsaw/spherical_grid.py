@@ -98,7 +98,6 @@ if __name__ == '__main__':
         description=__doc__,
         formatter_class=argparse.RawTextHelpFormatter)
 
-    
     parser.add_argument(
         "-r",
         "--high",
@@ -117,6 +116,26 @@ choice, see -g)",
         type=float,
         help="Grid spacing for low resolution area (only valid for localref\
 grid option)",
+        metavar="FLOAT")
+    
+    parser.add_argument(
+        "-rad",
+        "--radius",
+        dest="rad",
+        required=False,
+        type=float,
+        help="radius of influence of high resolution area in km (only valid for\
+localref grid option)",
+        metavar="FLOAT")
+
+    parser.add_argument(
+        "-tr",
+        "--transitionradius",
+        dest="tr",
+        required=False,
+        type=float,
+        help="radius of transition zone between high and low resolution in km \
+(only valid for localref grid option)",
         metavar="FLOAT")
     
     parser.add_argument(
