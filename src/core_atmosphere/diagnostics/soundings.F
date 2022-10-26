@@ -5,7 +5,7 @@
 ! Additional copyright and license information can be found in the LICENSE file
 ! distributed with this code, or at http://mpas-dev.github.com/license.html
 !
-module soundings
+module mpas_soundings
 
     use mpas_kind_types, only : RKIND, StrKIND
     use mpas_derived_types, only : MPAS_pool_type, MPAS_clock_type
@@ -491,4 +491,4 @@ module soundings
 
       END FUNCTION RSIF
 
-end module soundings
+end module mpas_soundings

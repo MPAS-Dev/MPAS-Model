@@ -4,7 +4,7 @@
 ! Additional copyright and license information can be found in the LICENSE file
 ! distributed with this code, or at https://mpas-dev.github.io/license.html
 !
-module cloud_diagnostics
+module mpas_cloud_diagnostics
 
     use mpas_derived_types, only : MPAS_pool_type, MPAS_clock_type
     use mpas_kind_types, only : RKIND
@@ -140,4 +140,4 @@ module cloud_diagnostics
 
     end subroutine cloud_diagnostics_compute
 
-end module cloud_diagnostics
+end module mpas_cloud_diagnostics
