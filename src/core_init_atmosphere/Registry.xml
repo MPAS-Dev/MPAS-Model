@@ -327,6 +327,7 @@
                 <package name="vertical_stage_out" description="Active only if a vertical grid is being generated"/>
                 <package name="met_stage_in" description="Active only if meteorological fields are being interpolated"/>
                 <package name="met_stage_out" description="Active only if meteorological fields are being interpolated"/>
+                <package name="first_guess_field" description="3-d atmospheric or land-surface fields on first-guess levels"/>
         </packages>
 
 
@@ -981,49 +982,64 @@
 
                 <!-- horizontally interpolated from first-guess data -->
                 <var name="u_fg" name_in_code="u" type="real" dimensions="nFGLevels nEdges Time" units="m s^{-1}"
-                     description="First guess zonal wind component"/>
+                     description="First guess zonal wind component"
+                     packages="first_guess_field"/>
 
                 <var name="v_fg" name_in_code="v" type="real" dimensions="nFGLevels nEdges Time" units="m s^{-1}"
-                     description="First guess merdian wind component"/>
+                     description="First guess merdian wind component"
+                     packages="first_guess_field"/>
 
                 <var name="t_fg" name_in_code="t" type="real" dimensions="nFGLevels nCells Time" units="K"
-                     description="First guess temperature"/>
+                     description="First guess temperature"
+                     packages="first_guess_field"/>
 
                 <var name="p_fg" name_in_code="p" type="real" dimensions="nFGLevels nCells Time" units="Pa"
-                     description="First guess pressure"/>
+                     description="First guess pressure"
+                     packages="first_guess_field"/>
 
                 <var name="z_fg" name_in_code="z" type="real" dimensions="nFGLevels nCells Time" units="m"
-                     description="First guess geopotential height"/>
+                     description="First guess geopotential height"
+                     packages="first_guess_field"/>
 
                 <var name="rh_fg" name_in_code="rh" type="real" dimensions="nFGLevels nCells Time" units="percent"
-                     description="First guess relative humidity with respect to liquid water"/>
+                     description="First guess relative humidity with respect to liquid water"
+                     packages="first_guess_field"/>
 
                 <var name="sh_fg" name_in_code="sh" type="real" dimensions="nFGLevels nCells Time" units="kg kg^{-1}"
-                     description="First guess specific humidity"/>
+                     description="First guess specific humidity"
+                     packages="first_guess_field"/>
 
                 <var name="soilz_fg" name_in_code="soilz" type="real" dimensions="nCells Time" units="m"
-                     description="First guess soil height"/>
+                     description="First guess soil height"
+                     packages="first_guess_field"/>
 
                 <var name="psfc_fg" name_in_code="psfc" type="real" dimensions="nCells Time" units="Pa"
-                     description="First guess surface pressure"/>
+                     description="First guess surface pressure"
+                     packages="first_guess_field"/>
 
                 <var name="pmsl_fg" name_in_code="pmsl" type="real" dimensions="nCells Time" units="Pa"
-                     description="First guess mean sea level pressure"/>
+                     description="First guess mean sea level pressure"
+                     packages="first_guess_field"/>
 
                 <var name="dz_fg" type="real" dimensions="nFGSoilLevels nCells Time" units="cm"
-                     description="First guess depth of soil layer bottom"/>
+                     description="First guess depth of soil layer bottom"
+                     packages="first_guess_field"/>
 
                 <var name="dzs_fg" type="real" dimensions="nFGSoilLevels nCells Time" units="cm"
-                     description="First guess soil layer thickness"/>
+                     description="First guess soil layer thickness"
+                     packages="first_guess_field"/>
 
                 <var name="zs_fg" type="real" dimensions="nFGSoilLevels nCells Time" units="cm"
-                     description="First guess depth of centers of soil levels"/>
+                     description="First guess depth of centers of soil levels"
+                     packages="first_guess_field"/>
 
                 <var name="st_fg" type="real" dimensions="nFGSoilLevels nCells Time" units="k"
-                     description="First guess soil temperature"/>
+                     description="First guess soil temperature"
+                     packages="first_guess_field"/>
 
                 <var name="sm_fg" type="real" dimensions="nFGSoilLevels nCells Time" units="m^{3} m^{-3}"
-                     description="First guess soil moisture"/>
+                     description="First guess soil moisture"
+                     packages="first_guess_field"/>
 
                 <!-- horizontally interpolated from first-guess data, and should be read in by model -->
                 <var name="dz" type="real" dimensions="nSoilLevels nCells Time" units="m"
