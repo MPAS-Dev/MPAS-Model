@@ -1920,6 +1920,40 @@
 
  end function sphere_distance
 
+!==================================================================================================
+ real (kind=RKIND) function max_cell_diameter(nCells, nEdgesOnCell, verticesOnCell, latCell, lonCell, &
+                                              latVertex, lonVertex, sphere_radius) result(max_diameter)
+
+! Calculate upper bound on maximum diameter of any cell in block owned by this task
+!==================================================================================================
+ implicit none
+
+ ! Arguments
+ integer, intent(in) :: nCells
+ integer, dimension(:), intent(in) :: nEdgesOnCell
+ integer, dimension(:,:), intent(in) :: verticesOnCell
+ real(kind=RKIND), dimension(:), intent(in) :: latCell, lonCell
+ real(kind=RKIND), dimension(:), intent(in) :: latVertex, lonVertex
+ real(kind=RKIND), intent(in) :: sphere_radius
+
+ ! Local variables
+ integer :: iCell, j
+
+
+ max_diameter = 0.0_RKIND
+ do iCell = 1, nCells
+    do j = 1, nEdgesOnCell(iCell)
+       max_diameter = max(max_diameter, &
+                          sphere_distance(latCell(iCell), lonCell(iCell), &
+                                          latVertex(verticesOnCell(j,iCell)), lonVertex(verticesOnCell(j,iCell)), &
+                                          sphere_radius))
+    end do
+ end do
+
+ max_diameter = 2.0_RKIND * max_diameter
+
+ end function max_cell_diameter
+
 
 !==================================================================================================
  end module mpas_init_atm_static
