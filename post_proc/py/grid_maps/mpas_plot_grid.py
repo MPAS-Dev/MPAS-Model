@@ -144,9 +144,7 @@ def colorvalue(val, cmap='Spectral', vmin=None, vmax=None):
 def plot_cells_mpas(ds, vname, ax, **plot_kwargs):
     
     # ax = start_cartopy_map_axis()
-    ax.set_extent([-60.0, -10, -60.0, -20],
-                  crs=ccrs.PlateCarree())
-                      
+             
     
     for i, cell in enumerate(ds['nCells'].values):
         value = ds[vname].sel(nCells=cell)
@@ -156,14 +154,18 @@ def plot_cells_mpas(ds, vname, ax, **plot_kwargs):
         vals = vals[:num_sides] - 1
         lats = ds['latitudeVertex'].sel(nVertices=vals)
         lons = ds['longitudeVertex'].sel(nVertices=vals)
+    
         
-        
-        # if all(i <=  -53 for i in lats) and all(i >=  -57 for i in lats
-        #     ) and all(i <=  -48 for i in lons) and all(i >  -52 for i in lons):
         color = colorvalue(value, **plot_kwargs)
         
-        ax.fill(lons, lats, edgecolor=None, linewidth=0.0,
-                facecolor=color(value))
+        ## For some reason, when plotting from -180 to 180 
+        # gives a strange mesh plot (actually, any value higher than
+        # 179 gives the strange result)
+        
+        if all(j for j in lons >= -179) and all(j for j in lons <= 179):
+            
+            ax.fill(lons, lats, edgecolor=None, linewidth=0.0,
+                    facecolor=color)
         
         
 def plot_dual_mpas(ds, vname, ax, **plot_kwargs):
@@ -250,15 +252,15 @@ def plot_mpas_darray(ds, vname, ax=None, outfile=None, **kwargs):
     #     final = True
     #     ax = start_cartopy_map_axis()
         
-    ax.set_extent([-70.0, 0,-60.0, 0],
+    ax.set_extent([-180.0, 180,-90.0, 90.0],
                   crs=ccrs.PlateCarree())
     
     plot_kwargs = set_plot_kwargs(da=da, **kwargs)
     
     if 'nCells' in ds[vname].dims:
         plot_cells_mpas(ds, vname, ax, **plot_kwargs)
-    elif 'nVertices' in ds[vname].dims:
-        plot_dual_mpas(ds, vname, ax, **plot_kwargs)
+    # elif 'nVertices' in ds[vname].dims:
+    #     plot_dual_mpas(ds, vname, ax, **plot_kwargs)
     else:
         print('WARNING  Impossible to plot!')
     
