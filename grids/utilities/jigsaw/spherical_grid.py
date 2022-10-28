@@ -105,8 +105,8 @@ if __name__ == '__main__':
         dest="r",
         required=True,
         type=float,
-        help="Grid spacing for high resolution area (depends on the grid \
-choice, see -g)",
+        help="Grid spacing for high resolution area - depends on the grid \
+choice, see -g (default: 12 km)",
         metavar="FLOAT")
     
     parser.add_argument(
@@ -115,8 +115,8 @@ choice, see -g)",
         dest="l",
         required=False,
         type=float,
-        help="Grid spacing for low resolution area (only valid for loca lref\
-grid option, see -g)",
+        help="Global grid spacing (resolution area) - only valid for localref\
+grid option, see -g (default: 150 km)",
         metavar="FLOAT")
     
     parser.add_argument(
@@ -125,8 +125,8 @@ grid option, see -g)",
         dest="rad",
         required=False,
         type=float,
-        help="radius of influence of high resolution area in km (only valid for\
-local ref grid option, see -g)",
+        help="radius of influence of high resolution area in km - only valid \
+for localref grid option, see -g (default: 50 km)",
         metavar="FLOAT")
 
     parser.add_argument(
@@ -136,7 +136,8 @@ local ref grid option, see -g)",
         required=False,
         type=float,
         help="radius of transition zone between high and low resolution in km \
-(only valid for local ref grid option, see -g)",
+- only valid for local ref grid option, see -g (default: automatically defines \
+a transition zone value)",
         metavar="FLOAT")
     
     parser.add_argument(

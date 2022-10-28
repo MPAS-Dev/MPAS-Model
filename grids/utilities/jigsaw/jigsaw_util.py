@@ -63,7 +63,7 @@ def cellWidthVsLatLon(r=70):
     return cellWidth, lon, lat
 
 
-def localrefVsLatLon(r,l=150, radius_low=50, transition_radius=False,
+def localrefVsLatLon(r=12,l=150, radius_low=50, transition_radius=False,
                      earth_radius=6371.0e3, p=False):
     """
     Create cell width array for this mesh on a locally refined latitude-longitude grid.
@@ -111,7 +111,7 @@ def localrefVsLatLon(r,l=150, radius_low=50, transition_radius=False,
     #------------------------------
 
     # Radius (in km) of high resolution area
-    maxdist = radius_low
+    maxdist = r
     print("Trying to set grid spacing of high resolution zone to approximately\
 : "+str(maxdist))
     #(increase_of_resolution) / (distance)
