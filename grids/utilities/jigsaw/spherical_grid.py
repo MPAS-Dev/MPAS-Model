@@ -67,7 +67,8 @@ def main(args):
         if (args.opt=="unif"):
             cellWidth, lon, lat = jutil.cellWidthVsLatLon(args.r)
         elif (args.opt=="localref"):
-            cellWidth, lon, lat = jutil.localrefVsLatLon(args.r, p=p)
+            cellWidth, lon, lat = jutil.localrefVsLatLon(args.r, l=args.l,
+                        radius_low=args.rad, transition_radius=args.tr,p=p)
 
         mesh_file = jutil.jigsaw_gen_sph_grid(cellWidth, lon, lat, basename=out_basepath) 
 
@@ -98,14 +99,44 @@ if __name__ == '__main__':
         description=__doc__,
         formatter_class=argparse.RawTextHelpFormatter)
 
-    
     parser.add_argument(
         "-r",
-        "--resolution",
+        "--high",
         dest="r",
         required=True,
         type=float,
-        help="Resolution of grid (depends on the grid choice, see -g)",
+        help="Grid spacing for high resolution area (depends on the grid \
+choice, see -g)",
+        metavar="FLOAT")
+    
+    parser.add_argument(
+        "-l",
+        "--low",
+        dest="l",
+        required=False,
+        type=float,
+        help="Grid spacing for low resolution area (only valid for loca lref\
+grid option, see -g)",
+        metavar="FLOAT")
+    
+    parser.add_argument(
+        "-rad",
+        "--radius",
+        dest="rad",
+        required=False,
+        type=float,
+        help="radius of influence of high resolution area in km (only valid for\
+local ref grid option, see -g)",
+        metavar="FLOAT")
+
+    parser.add_argument(
+        "-tr",
+        "--transitionradius",
+        dest="tr",
+        required=False,
+        type=float,
+        help="radius of transition zone between high and low resolution in km \
+(only valid for local ref grid option, see -g)",
         metavar="FLOAT")
     
     parser.add_argument(
@@ -121,9 +152,10 @@ if __name__ == '__main__':
         "--plot",
         dest="plots",
         default=0,
-        help="do plots of grid resolutions",
+        help="do plots of grid resolutions (0 for no plots, any other value \
+for creating plots)",
         metavar="INT")
-
+    
     parser.add_argument(
         "-g",
         "--grid",
@@ -131,12 +163,11 @@ if __name__ == '__main__':
         default="icos",
         type=str,
         help="""Grid option: \n 
-        " unif": Uniform resolution spherical grid (hand tune cellWidthVsLatLon function) \n
-                 Provide also a resolution with -r 30 (in km) \n
-        " icos": Spherical icosahedral grid \n
-                 Provide also a resolution with -r 6 (grid refinement level) \n
-        " localref" : Variable resolution spherical grid (hand tune cellWidthVsLatLon function) \n
-                 Provide also a resolution with -r 30 (in km) \n
+        "unif": Uniform resolution spherical grid (hand tune \
+cellWidthVsLatLon function) \n
+        "icos": Spherical icosahedral grid \n
+        "localref" : Variable resolution spherical grid (hand tune \
+cellWidthVsLatLon function) \n
             """,
         metavar="STR")
 

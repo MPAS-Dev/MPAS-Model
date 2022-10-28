@@ -63,14 +63,21 @@ def cellWidthVsLatLon(r=70):
     return cellWidth, lon, lat
 
 
-def localrefVsLatLon(r, earth_radius=6371.0e3, p=False):
+def localrefVsLatLon(r,l=150, radius_low=50, transition_radius=False,
+                     earth_radius=6371.0e3, p=False):
     """
     Create cell width array for this mesh on a locally refined latitude-longitude grid.
     Input
     ---------
-    r : float
-        minimun desired cell width resolution in km
-
+    h : float
+        grid spacing for high resolution area in km
+    l : float
+        grid spacing for low resolution area in km
+    radius_low : float
+        radius of influence of low resolution area in km
+    transition_radius : float
+        radius of the transition zone between high and low resolution in km 
+        
     Returns
     -------
     cellWidth : ndarray
@@ -104,17 +111,26 @@ def localrefVsLatLon(r, earth_radius=6371.0e3, p=False):
     #------------------------------
 
     # Radius (in km) of high resolution area
-    maxdist = 50
+    maxdist = radius_low
+    print("Trying to set grid spacing of high resolution zone to approximately\
+: "+str(maxdist))
     #(increase_of_resolution) / (distance)
     slope = 10./600.
-    #Gammas
-    gammas = 150.
-    # distance (in km) of transition zone belt: ratio / slope
-    maxepsilons = 10000.
-    epsilons = gammas/slope
-    
-    if(epsilons > maxepsilons):
-        epsilons = maxepsilons
+    # Gammas
+    gammas = l
+    print("Trying to set global grid spacing to approximately: "+str(gammas))
+    ## If radius of transition zone is not provided, try to find best value
+    if not(transition_radius):
+        # distance (in km) of transition zone belt: ratio / slope
+        maxepsilons = 10000.
+        epsilons = gammas/slope
+        
+        if(epsilons > maxepsilons):
+            epsilons = maxepsilons
+        print("Transition zone radius not provided. Value set to: "+str(epsilons))
+    else:
+        epsilons = transition_radius
+        print("Transition zone radius provided: "+str(epsilons))
 
 
     # initialize with resolution = r (min resolution)
