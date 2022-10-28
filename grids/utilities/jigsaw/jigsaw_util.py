@@ -90,6 +90,8 @@ def localrefVsLatLon(r=12,l=150, radius_low=50, transition_radius=False,
     dlat = 0.5 #Make the lat-lon grid ~ 10x finer than resolution at equator, where 1deg ~ 100km
     dlon = dlat
     constantCellWidth = r  #in km
+    print("Trying to set grid spacing of high resolution zone to approximately\
+: "+str(constantCellWidth))
 
     nlat = int(180./dlat) + 1
     nlon = int(360./dlon) + 1
@@ -111,9 +113,9 @@ def localrefVsLatLon(r=12,l=150, radius_low=50, transition_radius=False,
     #------------------------------
 
     # Radius (in km) of high resolution area
-    maxdist = r
-    print("Trying to set grid spacing of high resolution zone to approximately\
-: "+str(maxdist))
+    maxdist = radius_low
+    print("Transition zone from high to low resolution set to: "+str(maxdist))
+
     #(increase_of_resolution) / (distance)
     slope = 10./600.
     # Gammas
@@ -134,12 +136,12 @@ def localrefVsLatLon(r=12,l=150, radius_low=50, transition_radius=False,
 
 
     # initialize with resolution = r (min resolution)
-    resolution = r*np.ones(np.shape(dists))    
+    resolution = constantCellWidth * np.ones(np.shape(dists))    
 
     # point in transition zone
     transition_zone = (dists > maxdist) & (dists <= maxdist + epsilons)
-    sx = (dists - maxdist ) *slope
-    transition_values = r + sx
+    sx = (dists - maxdist ) * slope
+    transition_values = constantCellWidth + sx
     resolution = np.where(transition_zone, transition_values, resolution)
 
     # further points
