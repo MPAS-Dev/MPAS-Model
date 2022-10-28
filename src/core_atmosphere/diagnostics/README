@@ -9,8 +9,8 @@ generally required to implement a diagnostic.
    Registry_diagnostics.xml.
 
 2) Create a new module for the diagnostic; the "mpas_atm_diagnostic_template.F" 
-   module file may be used as a template. By convention, the module name is
-   expected to begin with "mpas_".
+   module file may be used as a template. By convention, the file and module
+   names are expected to begin with "mpas_".
 
 3) Add calls to the diagnostic's "setup", "update", "compute", "reset", and 
    "cleanup" routines in the main diagnostic driver. Note that some diagnostics
