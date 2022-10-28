@@ -63,7 +63,7 @@ def cellWidthVsLatLon(r=70):
     return cellWidth, lon, lat
 
 
-def localrefVsLatLon(r=12,l=150, radius_low=50, transition_radius=False,
+def localrefVsLatLon(r=12,l=150, radius_low=50, transition_radius=600,
                      earth_radius=6371.0e3, p=False):
     """
     Create cell width array for this mesh on a locally refined latitude-longitude grid.
@@ -114,25 +114,37 @@ def localrefVsLatLon(r=12,l=150, radius_low=50, transition_radius=False,
 
     # Radius (in km) of high resolution area
     maxdist = radius_low
-    print("Transition zone from high to low resolution set to: "+str(maxdist))
+    print("Radius of high resolution area set approximately to: "+str(maxdist))
 
-    #(increase_of_resolution) / (distance)
-    slope = 10./600.
+    distance = transition_radius/10
+    print("Transition zone from high to low resolution set approximately to: "+\
+          str(transition_radius))
+    # (increase_of_resolution) / (distance)
+    slope = 10./distance
     # Gammas
     gammas = l
-    print("Trying to set global grid spacing to approximately: "+str(gammas))
-    ## If radius of transition zone is not provided, try to find best value
-    if not(transition_radius):
-        # distance (in km) of transition zone belt: ratio / slope
-        maxepsilons = 10000.
-        epsilons = gammas/slope
+    print("Global grid spacing set to approximately: "+str(gammas))
+    
+    # distance (in km) of transition zone belt: ratio / slope
+    maxepsilons = 10000.
+    epsilons = gammas/slope
+    
+    if(epsilons > maxepsilons):
+        print("Transition zone too wide: set to 10,000 km")
+        epsilons = maxepsilons
+    
+    # ## If radius of transition zone is not provided, try to find best value
+    # if not(transition_radius):
+    #     # distance (in km) of transition zone belt: ratio / slope
+    #     maxepsilons = 10000.
+    #     epsilons = gammas/slope
         
-        if(epsilons > maxepsilons):
-            epsilons = maxepsilons
-        print("Transition zone radius not provided. Value set to: "+str(epsilons))
-    else:
-        epsilons = transition_radius
-        print("Transition zone radius provided: "+str(epsilons))
+    #     if(epsilons > maxepsilons):
+    #         epsilons = maxepsilons
+    #     print("Transition zone radius not provided. Value set to: "+str(epsilons))
+    # else:
+    #     epsilons = transition_radius
+    #     print("Transition zone radius provided: "+str(epsilons))
 
 
     # initialize with resolution = r (min resolution)

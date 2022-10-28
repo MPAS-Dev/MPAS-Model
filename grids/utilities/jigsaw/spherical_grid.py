@@ -100,69 +100,49 @@ if __name__ == '__main__':
         formatter_class=argparse.RawTextHelpFormatter)
 
     parser.add_argument(
-        "-r",
-        "--high",
-        dest="r",
-        required=True,
-        type=float,
+        "-r",  "--high", dest="r",
+        required=False, default=30, type=float,
         help="Grid spacing for high resolution area - depends on the grid \
-choice, see -g (default: 12 km)",
+choice, see -g (default: 30 km)",
         metavar="FLOAT")
     
     parser.add_argument(
-        "-l",
-        "--low",
-        dest="l",
-        required=False,
-        type=float,
+        "-l", "--low", dest="l", 
+        required=False, default=150, type=float,
         help="Global grid spacing (resolution area) - only valid for localref\
 grid option, see -g (default: 150 km)",
         metavar="FLOAT")
     
     parser.add_argument(
-        "-rad",
-        "--radius",
-        dest="rad",
-        required=False,
-        type=float,
+        "-rad", "--radius", dest="rad", 
+        required=False, default=50, type=float,
         help="radius of influence of high resolution area in km - only valid \
 for localref grid option, see -g (default: 50 km)",
         metavar="FLOAT")
 
     parser.add_argument(
-        "-tr",
-        "--transitionradius",
-        dest="tr",
-        required=False,
-        type=float,
+        "-tr",  "--transitionradius", dest="tr",
+        required=False, default=600, type=float,
         help="radius of transition zone between high and low resolution in km \
-- only valid for local ref grid option, see -g (default: automatically defines \
-a transition zone value)",
+- only valid for local ref grid option, see -g (default: 600 km)",
         metavar="FLOAT")
     
     parser.add_argument(
-        "-o",
-        "--output",
-        dest="output",
-        default="grid",
+        "-o", "--output", dest="output",
+        required=False, default="grid", type=str,
         help="output basename for directory and files.",
         metavar="STR")
 
     parser.add_argument(
-        "-p",
-        "--plot",
-        dest="plots",
-        default=0,
+        "-p", "--plot", dest="plots",
+        required=False, default=0, type=int,
         help="do plots of grid resolutions (0 for no plots, any other value \
 for creating plots)",
         metavar="INT")
     
     parser.add_argument(
-        "-g",
-        "--grid",
-        dest="opt",
-        default="icos",
-        type=str,
+        "-g", "--grid", dest="opt",
+        required=False, default="icos", type=str,
         help="""Grid option: \n 
         "unif": Uniform resolution spherical grid (hand tune \
 cellWidthVsLatLon function) \n
