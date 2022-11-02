@@ -17,6 +17,7 @@
 !wrf physics:
  use module_bl_mynn
  use module_bl_ysu
+ use module_bl_acm
 
  implicit none
  private
@@ -38,7 +39,9 @@
 !
 ! WRF physics called from driver_pbl:
 ! -----------------------------------
-! * module_bl_ysu : YSU PBL scheme.
+! * module_bl_mynn : MYNN PBL scheme.
+! * module_bl_ysu  : YSU PBL scheme.
+! * module_bl_acm  : ACM2 PBL scheme.
 !
 ! add-ons and modifications to sourcecode:
 ! ----------------------------------------
@@ -57,6 +60,8 @@
 !   Laura D. Fowler (laura@ucar.edu) / 2016-03-30.
 ! * corrected the initialization of sh3d for the mynn parameterization.
 !   Laura D. Fowler (laura@ucar.edu) / 2016-04-13.
+! * added acm2 pbl option.
+!   Hosein Foroutan (foroutan.hosein@epa.gov) / 2016-06-24.
 ! * for the mynn parameterization, change the definition of dx_p to match that used in other physics
 !   parameterizations.
 !   Laura D. Fowler (laura@ucar.edu) / 2016-10-18.
@@ -127,7 +132,6 @@
        if(.not.allocated(regime_p)) allocate(regime_p(ims:ime,jms:jme)      )
        if(.not.allocated(u10_p)   ) allocate(u10_p(ims:ime,jms:jme)         )
        if(.not.allocated(v10_p)   ) allocate(v10_p(ims:ime,jms:jme)         )
-       if(.not.allocated(exch_p)  ) allocate(exch_p(ims:ime,kms:kme,jms:jme))
        !from radiation schemes:
        if(.not.allocated(rthraten_p)) allocate(rthraten_p(ims:ime,kms:kme,jms:jme))
 
@@ -156,6 +160,13 @@
        if(.not.allocated(qwt_p)   ) allocate(qwt_p(ims:ime,kms:kme,jms:jme)   )
 
        if(.not.allocated(rniblten_p)) allocate(rniblten_p(ims:ime,kms:kme,jms:jme))
+
+    case("bl_acm")
+       if(.not.allocated(gz1oz0_p)) allocate(gz1oz0_p(ims:ime,jms:jme)      )
+       if(.not.allocated(tsk_p)   ) allocate(tsk_p(ims:ime,jms:jme)         )
+       if(.not.allocated(rmol_p)  ) allocate(rmol_p(ims:ime,jms:jme)        )
+       if(.not.allocated(psim_p)  ) allocate(psim_p(ims:ime,jms:jme)        )
+       if(.not.allocated(regime_p)) allocate(regime_p(ims:ime,jms:jme)      )
 
     case default
 
@@ -215,7 +226,6 @@
        if(allocated(regime_p)) deallocate(regime_p)
        if(allocated(u10_p)   ) deallocate(u10_p   )
        if(allocated(v10_p)   ) deallocate(v10_p   )
-       if(allocated(exch_p)  ) deallocate(exch_p  )
        !from radiation schemes:
        if(allocated(rthraten_p)) deallocate(rthraten_p)
 
@@ -243,6 +253,13 @@
        if(allocated(qwt_p)   ) deallocate(qwt_p   )
 
        if(allocated(rniblten_p)) deallocate(rniblten_p)
+
+    case("bl_acm")
+       if(allocated(gz1oz0_p)) deallocate(gz1oz0_p)
+       if(allocated(tsk_p)   ) deallocate(tsk_p   )
+       if(allocated(rmol_p)  ) deallocate(rmol_p  )
+       if(allocated(psim_p)  ) deallocate(psim_p  )
+       if(allocated(regime_p)) deallocate(regime_p)
 
     case default
 
@@ -282,6 +299,9 @@
  real(kind=RKIND),dimension(:),pointer  :: meshDensity
  real(kind=RKIND),dimension(:),pointer  :: ch,qsfc,qcg,rmol,skintemp
  real(kind=RKIND),dimension(:,:),pointer:: cov,qke,qsq,tsq,sh3d,tke_pbl,qke_adv,el_pbl
+
+!local pointers for ACM scheme:
+ real(kind=RKIND),dimension(:),pointer:: gz1oz0
 
 !-----------------------------------------------------------------------------------------------------------------
 
@@ -353,7 +373,6 @@
        do j = jts,jte
        do k = kts,kte
        do i = its,ite
-          exch_p(i,k,j)     = 0._RKIND
           rthraten_p(i,k,j) = rthratenlw(k,i) + rthratensw(k,i) 
        enddo
        enddo
@@ -414,6 +433,24 @@
        enddo
        enddo
 
+    case("bl_acm")
+       call mpas_pool_get_array(sfc_input   ,'skintemp',skintemp)
+       call mpas_pool_get_array(diag_physics,'gz1oz0'  ,gz1oz0  )
+       call mpas_pool_get_array(diag_physics,'rmol'    ,rmol    )
+       call mpas_pool_get_array(diag_physics,'fm'      ,fm      )
+       call mpas_pool_get_array(diag_physics,'regime'  ,regime  )
+
+       do j = jts,jte
+       do i = its,ite
+          !from surface-layer model:
+          gz1oz0_p(i,j) = gz1oz0(i)
+          psim_p(i,j)   = fm(i)
+          regime_p(i,j) = regime(i)
+          tsk_p(i,j)    = skintemp(i)
+          rmol_p(i,j)   = rmol(i)
+       enddo
+       enddo
+
     case default
 
  end select pbl_select
@@ -463,13 +500,16 @@
  real(kind=RKIND),dimension(:,:),pointer:: rublten,rvblten,rthblten,rqvblten,rqcblten,rqiblten, &
                                            rniblten
 
-!local pointers for YSU scheme:
- real(kind=RKIND),dimension(:,:),pointer:: exch_h
+!local pointers for YSU and ACM scheme:
+ real(kind=RKIND),dimension(:,:),pointer:: exch_h,exch_m
 
 !local pointers for MYNN scheme:
  real(kind=RKIND),dimension(:),pointer  :: delta,wstar
  real(kind=RKIND),dimension(:,:),pointer:: cov,qke,qsq,tsq,sh3d,tke_pbl,qke_adv,el_pbl,dqke,qbuoy, &
                                            qdiss,qshear,qwt
+
+!local pointers for ACM scheme:
+ real(kind=RKIND),dimension(:),pointer  :: rmol
 
 !-----------------------------------------------------------------------------------------------------------------
 
@@ -520,11 +560,13 @@
 
     case("bl_ysu")
        call mpas_pool_get_array(diag_physics,'exch_h',exch_h)
+       call mpas_pool_get_array(diag_physics,'exch_m',exch_m)
 
        do j = jts,jte
        do k = kts,kte
        do i = its,ite
-          exch_h(k,i) = exch_p(i,k,j)
+          exch_h(k,i) = kzh_p(i,k,j)
+          exch_m(k,i) = kzm_p(i,k,j)
        enddo
        enddo
        enddo
@@ -564,6 +606,26 @@
           qwt(k,i)      = qwt_p(i,k,j)
 
           rniblten(k,i) = rniblten_p(i,k,j)
+       enddo
+       enddo
+       enddo
+
+    case("bl_acm")
+       call mpas_pool_get_array(diag_physics,'exch_h',exch_h)
+       call mpas_pool_get_array(diag_physics,'exch_m',exch_m)
+       call mpas_pool_get_array(diag_physics,'rmol'  ,rmol  )
+
+       do j = jts,jte
+       do i = its,ite
+          rmol(i) = rmol_p(i,j)
+       enddo
+       enddo
+
+       do j = jts,jte
+       do k = kts,kte
+       do i = its,ite
+          exch_h(k,i) = kzh_p(i,k,j)
+          exch_m(k,i) = kzm_p(i,k,j)
        enddo
        enddo
        enddo
@@ -673,6 +735,29 @@
                  its = its , ite = ite , jts = jts , jte = jte , kts = kts , kte = kte     &
                             )
        call mpas_timer_stop('MYNN_pbl')
+
+    case("bl_acm")
+       call mpas_timer_start('ACM2')
+       call acmpbl ( &
+                 xtime    = itimestep   , dtpbl    = dt_pbl      , u3d      = u_p        , &
+                 v3d      = v_p         , pp3d     = pres_hyd_p  , dz8w     = dz_p       , &
+                 th3d     = th_p        , t3d      = t_p         , qv3d     = qv_p       , &
+                 qc3d     = qc_p        , qi3d     = qi_p        , ust      = ust_p      , &
+                 hfx      = hfx_p       , qfx      = qfx_p       , tsk      = tsk_p      , &
+                 psfc     = psfc_p      , ep1      = ep_1        , g        = gravity    , &
+                 rovcp    = rcp         , rd       = R_d         , cpd      = cp         , &
+                 pblh     = hpbl_p      , kpbl2d   = kpbl_p      , exch_h   = kzh_p      , &
+                 exch_m   = kzm_p                                                        , &
+                 regime   = regime_p    , GZ1OZ0   = gz1oz0_p    , wspd     = wspd_p     , &
+                 psim     = psim_p      , rr3d     = rho_p       , rmol     = rmol_p     , &
+                 mut      = mut_p                                                        , & 
+                 rublten  = rublten_p   , rvblten  = rvblten_p   , rthblten = rthblten_p , &
+                 rqvblten = rqvblten_p  , rqcblten = rqcblten_p  , rqiblten = rqiblten_p , &
+                 ids = ids , ide = ide , jds = jds , jde = jde , kds = kds , kde = kde   , &
+                 ims = ims , ime = ime , jms = jms , jme = jme , kms = kms , kme = kme   , &
+                 its = its , ite = ite , jts = jts , jte = jte , kts = kts , kte = kte     &
+                )
+       call mpas_timer_stop('ACM2')
 
     case default
 
