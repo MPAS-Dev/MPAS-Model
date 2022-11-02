@@ -28,52 +28,99 @@ import datetime
 import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
+import metpy.calc as mpcalc
+import seaborn as sns
+
+
+
+def df_data(model_data,inmet_data,variable):
+    # Dictionaries containing naming convections for each variable
+    model_variables = {'temperature':'t2m', 'pressure':'surface_pressure'}
+    inmet_variables = {'temperature':
+                       'TEMPERATURA DO AR - BULBO SECO, HORARIA (°C)',
+                       'precipitation':'PRECIPITAÇÃO TOTAL, HORÁRIO (mm)',
+                       'pressure':
+                       'PRESSAO ATMOSFERICA AO NIVEL DA ESTACAO, HORARIA (mB)',
+                       'windspeed':'VENTO, VELOCIDADE HORARIA (m/s)'}
+    
+    # If windpeed, calculate from components
+    if variable == 'windspeed':
+        model_var = mpcalc.wind_speed(model_data['u10'],model_data['v10'])
+    # Sum grid-scale and convective precipitation
+    elif variable == 'precipitation':
+        model_var = model_data['rainnc']+model_data['rainc']
+    else:
+        model_var = model_data[model_variables[variable]]
+        
+    # Get model data for the gridpoint closest to station   
+    model_var_station = model_var.sel(latitude=lat_station,
+                method='nearest').sel(longitude=lon_station,method='nearest'
+                                      ).values
+    mpas_df = pd.DataFrame(model_var_station,columns=['value'],
+                             index=times)
+    
+    # Convert temperature to celcius
+    if variable == 'temperature':
+        mpas_df = mpas_df-273.15
+    # Convert pressure to hPa
+    elif variable == 'pressure':
+        mpas_df = mpas_df/100
+        
+    mpas_df['source'], mpas_df['variable'] = 'MPAS', variable 
+    
+    # Get INMET data for the same dates as the model experiment
+    inmet_var = station_data[
+        (station_data['DATA (YYYY-MM-DD)_HORA (UTC)'] >= times[0]) &
+        (station_data['DATA (YYYY-MM-DD)_HORA (UTC)'] <= times[-1])
+        ].resample(dt)
+    
+    # If using precipitation, get accumulated values between model time steps
+    if variable == 'precipitation':
+        inmet_var = inmet_var.sum()[inmet_variables[variable]].cumsum()
+    # Else, get mean values between model time steps
+    else:
+        inmet_var = inmet_var.mean()[inmet_variables[variable]]
+        
+    inmet_df = pd.DataFrame(inmet_var.rename('value'))
+    inmet_df['source'],inmet_df['variable'] = 'INMET', variable
+    station_df = pd.concat([inmet_df,mpas_df])
+    # Add date as column and revert indexes to a range of numbers
+    station_df['date'] = station_df.index
+    station_df.index = range(len(station_df))
+    return station_df
+
+
+def convert_to_sns_fmt(df_list):                          
+    met_data_station = pd.concat(df_list)
+    met_data_station['date'] = met_data_station.index
+    met_data_station.index = range(len(met_data_station))
+    return met_data_station
 
 ## Workspace ##
 work_dir = os.getenv('MPAS_DIR')
+if work_dir is None:
+    print('Error: MPAS_DIR environment variable not defined! It should direct\
+to the MPAS-BR path')
+    sys.exit(-1)
 # work_dir = '~/Documents/MPAS/MPAS-BR/'
 INMET_dir = work_dir+'/met_data/INMET/'
 
 ## Parser options ##
 parser = argparse.ArgumentParser()
-parser.add_argument('-m','--model', type=str,
+parser.add_argument('-m','--model', type=str, required=True,
                         help='''path to model data in nc format, regridded to \
 latlon format (convert_mpas utility)''')
 
-parser.add_argument('-s','--station', type=str,
+parser.add_argument('-s','--station', type=str, required=True,
                         help='''station name to compare model data to''')
-parser.add_argument('-v','--variable', type=str, default='temperature',
-                        help='''variable to open. Options:\
-                            temperature, wind_speed, wind_direction, \
-                                precipitation, pressure''')
 
-## Dummy arguments for debugging ##
-args = parser.parse_args(['--model','/home/daniloceano/Downloads/latlon.nc',
-               '--station','Florianopolis', '--variable', 'temperature'])
+parser.add_argument('-o','--output', type=str, default=None,
+                        help='''output name to append file''')
 
-
-def plot_timeseries(model_data, inmet_data, **kwargs):
-    # Guarantee no plots are open
-    plt.close('all')
-    plt.figure(figsize=(8,8))
-    ax = plt.gca()
-    plt.plot(times,model_data,label='MPAS-A',c='#BF3D3B',linewidth=3,
-             marker='s')
-    plt.plot(times,inmet_data,label='INMET',c='#3B95BF',linewidth=3,
-             marker='o')
-    plt.grid(c='gray',linewidth=0.25,linestyle='dashdot')
-    plt.tick_params(axis='x', labelrotation=20)
-    ax.xaxis.set_tick_params(labelsize=16)
-    ax.yaxis.set_tick_params(labelsize=16)
-    plt.legend(prop={'size': 18})
-    plt.xlim(times[0],times[-1])
-    # Set x labels as dates
-    ax = plt.gca()
-    ax.xaxis.set_major_formatter(mdates.DateFormatter('%m-%d'))
-    figname = 'timeseries_'+station.replace(' ','-')+\
-        '_'+args.variable+'.png'
-    plt.savefig(figname,dpi=700)
-    print(figname+' created!')
+# ## Dummy arguments for debugging ##
+# args = parser.parse_args(['--model','/home/daniloceano/Downloads/latlon.nc',
+#                '--station','Florianopolis', '--variable', 'temperature'])
+args = parser.parse_args()
 
 ## Open model data with xarray ##
 if not os.path.isfile(args.model):
@@ -113,7 +160,11 @@ dt = times[1] - times[0]
 ## Get station data ##
 station = (args.station).upper()
 # Get data for corresponding year
-station_file = glob.glob(INMET_dir+'/'+str(start_date.year)+'/*'+station+'*')[0]
+try:
+    station_file = glob.glob(INMET_dir+'/'+str(start_date.year)+'/*'+station+'*')[0]
+except:
+    print('Error: station file not found!')
+    sys.exit(-1)
 # Open file with Pandas
 station_data = pd.read_csv(station_file,header=8,sep=';',encoding='latin-1',
                            parse_dates=[[0,1]],decimal=',')
@@ -126,43 +177,30 @@ with open(station_file, 'r',encoding='latin-1') as file:
         elif 'LONGITUDE' in line:
             lon_station = float((line[11:-1].replace(',','.')))
             pass
+
+# Get data in a seaborn-readable dataframe format
+
+# # Put all data together with seaborn format
+# met_data_station = convert_to_sns_fmt([station_temp_data,station_prec_data,
+#                               station_wspeed_data])
     
+## Plot with Seaborn
+sns.set_theme(style="ticks")
 
-default_vars = ['temperature', 'wind_speed', 'wind_direction',
-                         'precipitation', 'pressure']
-
-if args.variable not in default_vars:
-    print('Invalid option for variable! Choose one from: temperature, wind_speed\
-, wind_direction, precipitation, pressure')
-    sys.exit(-1)
+variables = ['temperature','precipitation','windspeed','pressure']
+fig, axes = plt.subplots(2, 2, figsize=(18, 10))
+i = 0
+for row in range(2):
+    for col in range(2):
+        var = variables[i]
+        data = df_data(model_data, station_data, var)
+        sns.lineplot(x="date", y="value", hue="source", markers=True,
+                     ax=axes[row,col],data=data, lw=4, 
+                     palette=['#e63946', '#1d3557'])
+        axes[row,col].set(ylabel=var, xlabel=None)
+        i +=1
+if args.output is not None:
+    fname = args.o
 else:
-    print('variable choosen for validation: '+args.variable)    
-
-if args.variable == 'temperature':
-    model_var_data = model_data['t2m']-273.15
-    model_var_data_station = model_var_data.sel(latitude=lat_station,
-                method='nearest').sel(longitude=lon_station,method='nearest'
-                                      ).values
-    inmet_data = station_data[
-        (station_data['DATA (YYYY-MM-DD)_HORA (UTC)'] >= times[0]) &
-        (station_data['DATA (YYYY-MM-DD)_HORA (UTC)'] <= times[-1])
-        ].resample(dt).mean()['TEMPERATURA DO AR - BULBO SECO, HORARIA (°C)'
-                             ]                         
-                                      
-elif args.variable == 'precipitation': 
-
-    model_var_data = model_data['rainc']
-    model_var_data_station = model_var_data.sel(latitude=lat_station,
-                method='nearest').sel(longitude=lon_station,method='nearest'
-                                      ).values                            
-    
-    inmet_data = station_data[
-        (station_data['DATA (YYYY-MM-DD)_HORA (UTC)'] >= times[0]) &
-        (station_data['DATA (YYYY-MM-DD)_HORA (UTC)'] <= times[-1])
-        ].resample(dt).sum()['PRECIPITAÇÃO TOTAL, HORÁRIO (mm)'].cumsum()
-
-else:
-    print('variable error')
-    
-    
-plot_timeseries(model_var_data_station, inmet_data)
+    fname = (args.model).split('/')[-1].split('.nc')[0]
+plt.savefig(fname+'_timeseries_'+station)
