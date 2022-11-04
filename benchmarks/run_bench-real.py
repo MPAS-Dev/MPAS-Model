@@ -47,11 +47,6 @@ for b in benchs:
     # Time model run: get initial time 
     start_time = time.time()
     
-    if args.run:
-        mainexec = "mpiexec -n "+str(cores)+" ./"+b+"/atmosphere_model"
-    else:
-        mainexec = b+"./init_atmosphere_model"
-    # subprocess.run(mainexec.split(' '))
     
     print('---------------')
     print('trying to run: '+mainexec)
