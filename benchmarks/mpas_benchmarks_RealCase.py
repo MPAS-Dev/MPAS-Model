@@ -169,7 +169,8 @@ class Bench:
                          "CAM_AEROPT_DATA.DBL","CAM_ABS_DATA.DBL",
                          "VERSION", "VEGPARM.TBL", "SOILPARM.TBL", 
                          "RRTMG_SW_DATA.DBL", "RRTMG_SW_DATA",
-                         "RRTMG_LW_DATA.DBL", "RRTMG_LW_DATA"]:
+                         "RRTMG_LW_DATA.DBL", "RRTMG_LW_DATA",
+                         "MP_THOMPSON*"]:
                 link = ["ln", "-sf", self.work_dir+"/"+file, b_dir+"/"]
                 subprocess.run(link, stdout = subprocess.PIPE,
                                stderr=subprocess.PIPE, cwd=self.work_dir, 
