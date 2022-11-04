@@ -51,7 +51,7 @@ for b in benchs:
     print('---------------')
     print('trying to run: '+mainexec)
     
-    p = subprocess.Popen(mainexec.split(' '), stdout = subprocess.PIPE,
+    p = subprocess.Popen(mainexec, stdout = subprocess.PIPE,
                           stderr=subprocess.PIPE, cwd=b, shell=True)
 
     time.sleep(1)
