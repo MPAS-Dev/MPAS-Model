@@ -59,6 +59,8 @@
 !   Laura D. Fowler (laura@ucar.edu) / 2016-03-31.
 ! * added the options sf_mynn and bl_mynn and for the MYNN parameterization from WRF version 3.6.1.
 !   Laura D. Fowler (laura@ucar.edu) / 2016-04-11.
+! * added Pleim surface layer scheme option sf_pxsfclay.
+!   Robert Gilliam (gilliam.robert@epa.gov) / 2016-09-19.
 ! * added the option cu_ntiedtke for the "new" Tiedtke parameterization of convection from WRF version 3.8.1.
 !   Laura D. Fowler (laura@ucar.edu) / 2016-09-19.
 ! * added the physics suite "convection_scale_aware" (see below for the physics options used in the suite).
@@ -267,15 +269,16 @@
  endif
 
 !surface-layer scheme:
- if(.not. (config_sfclayer_scheme .eq. 'off'              .or. &
-           config_sfclayer_scheme .eq. 'sf_mynn'          .or. &
-           config_sfclayer_scheme .eq. 'sf_monin_obukhov' .or. &
-           config_sfclayer_scheme .eq. 'sf_monin_obukhov_rev')) then
+ if(.not. (config_sfclayer_scheme .eq. 'off'                  .or. &
+           config_sfclayer_scheme .eq. 'sf_mynn'              .or. &
+           config_sfclayer_scheme .eq. 'sf_monin_obukhov'     .or. &
+           config_sfclayer_scheme .eq. 'sf_monin_obukhov_rev' .or. &
+           config_sfclayer_scheme .eq. 'sf_pxsfclay')) then
  
     write(mpas_err_message,'(A,A20)') 'illegal value for surface layer scheme: ', &
           trim(config_sfclayer_scheme)
     call physics_error_fatal(mpas_err_message)
- else
+ else if(config_sfclayer_scheme .ne. 'sf_pxsfclay') then
     if(config_pbl_scheme == 'bl_mynn') then
        config_sfclayer_scheme = 'sf_mynn'
     elseif(config_pbl_scheme == 'bl_ysu') then
