@@ -30,7 +30,7 @@ else:
 if args.run:
     #Make sure the init test exists!
     benchs = glob.glob(b_dir+"/run.*") 
-    mainexec = "mpiexec -n "+cores+" ./atmosphere_model"
+    mainexec = "mpiexec -n "+str(cores)+" ./atmosphere_model"
 else:
     benchs = glob.glob(b_dir+"/init*")
     mainexec = "./init_atmosphere_model"
@@ -47,8 +47,14 @@ for b in benchs:
     # Time model run: get initial time 
     start_time = time.time()
     
-    p = subprocess.Popen(mainexec, stdout = subprocess.PIPE,
-                         stderr=subprocess.PIPE, cwd=b, shell=False)
+    if args.run:
+        mainexec = "mpiexec -n "+str(cores)+" ./"+b+"/atmosphere_model"
+    else:
+        mainexec = b+"./init_atmosphere_model"
+    subprocess.run(mainexec.split(' '))
+    
+    # p = subprocess.Popen(mainexec, stdout = subprocess.PIPE,
+    #                      stderr=subprocess.PIPE, cwd=b, shell=False)
 
     time.sleep(1)
     try:
@@ -56,9 +62,9 @@ for b in benchs:
         print(outfile)   
         follow = bench.LogFollower(open(outfile))
 
-        while p.poll() is None:
-            for line in follow:
-                print(line)
+        # while p.poll() is None:
+        #     for line in follow:
+        #         print(line)
     except:
         print("Couldn't reach log file, check manually, just in case")   
     
