@@ -99,6 +99,8 @@
  integer, pointer :: category_min
  integer, pointer :: category_max
 
+ real(kind=RKIND) :: max_kdtree_distance2
+
  contains
 
 !==================================================================================================
@@ -196,6 +198,8 @@
  logical :: all_pixels_mapped_to_halo_cells
  integer :: ierr
 
+ real(kind=RKIND) :: max_diameter
+
 !--------------------------------------------------------------------------------------------------
 
 
@@ -284,6 +288,15 @@
  areaCell = areaCell * sphere_radius**2.0
  areaTriangle = areaTriangle * sphere_radius**2.0
  kiteAreasOnVertex = kiteAreasOnVertex * sphere_radius**2.0
+
+!
+! Set max squared distance for k-d tree search to twice the squared cell diameter
+! The factor of two is simply a safety factor to account for possible inaccuracies
+! in the distance function used in the k-d tree
+!
+ max_diameter = max_cell_diameter(nCells, nEdgesOnCell, verticesOnCell, latCell, lonCell, &
+                                  latVertex, lonVertex, sphere_radius)
+ max_kdtree_distance2 = 2.0_RKIND * max_diameter**2
 
 !
 ! Initialize the KD-Tree
@@ -498,7 +511,9 @@
 
                     call mgr % tile_to_latlon(tile, j, i, lat_pt, lon_pt, supersample_fac)
                     call mpas_latlon_to_xyz(xPixel, yPixel, zPixel, sphere_radius, lat_pt, lon_pt)
-                    call mpas_kd_search(tree, (/xPixel, yPixel, zPixel/), res)
+                    call mpas_kd_search(tree, (/xPixel, yPixel, zPixel/), res, max_distance=max_kdtree_distance2)
+
+                    if (.not. associated(res)) cycle
 
                     if (bdyMaskCell(res % id) < nBdyLayers) then
                         !
@@ -734,7 +749,9 @@
 
                     call mgr % tile_to_latlon(tile, j, i, lat_pt, lon_pt)
                     call mpas_latlon_to_xyz(xPixel, yPixel, zPixel, sphere_radius, lat_pt, lon_pt)
-                    call mpas_kd_search(tree, (/xPixel, yPixel, zPixel/), res)
+                    call mpas_kd_search(tree, (/xPixel, yPixel, zPixel/), res, max_distance=max_kdtree_distance2)
+
+                    if (.not. associated(res)) cycle
 
                     !
                     ! This field only matters for land cells, and for all but the outermost boundary cells,
@@ -969,7 +986,9 @@
 
                     call mgr % tile_to_latlon(tile, j, i, lat_pt, lon_pt, supersample_fac)
                     call mpas_latlon_to_xyz(xPixel, yPixel, zPixel, sphere_radius, lat_pt, lon_pt)
-                    call mpas_kd_search(tree, (/xPixel, yPixel, zPixel/), res)
+                    call mpas_kd_search(tree, (/xPixel, yPixel, zPixel/), res, max_distance=max_kdtree_distance2)
+
+                    if (.not. associated(res)) cycle
 
                     if (bdyMaskCell(res % id) < nBdyLayers) then
                         if (landMask(res % id) == 1) then
@@ -1291,7 +1310,9 @@
 
                     call mgr % tile_to_latlon(tile, j, i, lat, lon, supersample_fac_lcl)
                     call mpas_latlon_to_xyz(xPixel, yPixel, zPixel, sphere_radius, lat, lon)
-                    call mpas_kd_search(kdtree, (/xPixel, yPixel, zPixel/), res)
+                    call mpas_kd_search(kdtree, (/xPixel, yPixel, zPixel/), res, max_distance=max_kdtree_distance2)
+
+                    if (.not. associated(res)) cycle
 
                     !
                     ! For outermost boundary cells, extra work is needed to be done to determine if a pixel actually
