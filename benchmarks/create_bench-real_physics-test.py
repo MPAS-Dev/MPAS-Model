@@ -294,9 +294,8 @@ def run(par1,par2):
     
     b_name = grid_name+"."+loop_parameter1_name+"."+loop_parameter2_name
     b_dir = b_main_dir+"/"+b_name
-    b_full_name = b_dir+"/run."+"smag_"+str(
-        nml_opts["nhyd_model"]["config_len_disp"])+ \
-        ".visc4smag_"+str(nml_opts["nhyd_model"]["config_visc4_2dsmag"])
+    b_full_name = b_dir+"/run."+loop_parameter1+"_"+str(par1)+\
+        "."++loop_parameter2+"_"+str(par2)
 
     str_opt = {"input":{}, "output":{}, "restart" : {},
                "diagnostics" : {}, "surface" : {}}
