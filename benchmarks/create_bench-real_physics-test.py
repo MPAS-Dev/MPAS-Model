@@ -146,10 +146,10 @@ sst_update = False
 # 2 ===========================================================================
 ## LOOP OVER DESIRED OPTIONS ##
 # Microphysics parametrization choice
-loop_parameter1 = ['suite','mp_wsm6','mp_thompson','mp_kessler','off']
+loop_parameter1 = ['mp_wsm6','mp_thompson','mp_kessler','off']
 loop_parameter1_name = "microp_scheme"
 # Convective parametrization choice
-loop_parameter2 = ['suite',"cu_kain_fritsch",'cu_tiedtke', 
+loop_parameter2 = ["cu_kain_fritsch",'cu_tiedtke', 
                    'cu_ntiedtke','cu_grell_freitas','off']
 loop_parameter2_name = "convection_scheme"
 
@@ -291,11 +291,11 @@ def run(par1,par2):
     nml_opts["physics"]["config_sst_update"] = sst_update
     nml_opts["physics"]["config_microp_scheme"] = par1
     nml_opts["physics"]["config_convection_scheme"] = par2
-    
+        
     b_name = grid_name+"."+loop_parameter1_name+"."+loop_parameter2_name
     b_dir = b_main_dir+"/"+b_name
-    b_full_name = b_dir+"/run."+loop_parameter1+"_"+str(par1)+\
-        "."++loop_parameter2+"_"+str(par2)
+    b_full_name = b_dir+"/run."+loop_parameter1_name+"_"+str(par1)+\
+        "."+loop_parameter2_name+"_"+str(par2)
 
     str_opt = {"input":{}, "output":{}, "restart" : {},
                "diagnostics" : {}, "surface" : {}}
