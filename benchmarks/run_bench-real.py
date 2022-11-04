@@ -51,10 +51,13 @@ for b in benchs:
         mainexec = "mpiexec -n "+str(cores)+" ./"+b+"/atmosphere_model"
     else:
         mainexec = b+"./init_atmosphere_model"
-    subprocess.run(mainexec.split(' '))
+    # subprocess.run(mainexec.split(' '))
     
-    # p = subprocess.Popen(mainexec, stdout = subprocess.PIPE,
-    #                      stderr=subprocess.PIPE, cwd=b, shell=False)
+    print('---------------')
+    print('trying to run: '+mainexec)
+    
+    p = subprocess.Popen(mainexec.split(' '), stdout = subprocess.PIPE,
+                          stderr=subprocess.PIPE, cwd=b, shell=False)
 
     time.sleep(1)
     try:
