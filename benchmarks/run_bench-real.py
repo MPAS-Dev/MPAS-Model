@@ -30,7 +30,7 @@ else:
 if args.run:
     #Make sure the init test exists!
     benchs = glob.glob(b_dir+"/run.*") 
-    mainexec = "./atmosphere_model"
+    mainexec = "mpiexec -n "+cores+" ./atmosphere_model"
 else:
     benchs = glob.glob(b_dir+"/init*")
     mainexec = "./init_atmosphere_model"
