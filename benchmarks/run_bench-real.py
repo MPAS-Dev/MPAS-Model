@@ -47,10 +47,6 @@ for b in benchs:
     # Time model run: get initial time 
     start_time = time.time()
     
-    
-    print('---------------')
-    print('trying to run: '+mainexec)
-    
     p = subprocess.Popen(mainexec, stdout = subprocess.PIPE,
                           stderr=subprocess.PIPE, cwd=b, shell=True)
 
@@ -60,9 +56,9 @@ for b in benchs:
         print(outfile)   
         follow = bench.LogFollower(open(outfile))
 
-        # while p.poll() is None:
-        #     for line in follow:
-        #         print(line)
+        while p.poll() is None:
+            for line in follow:
+                print(line)
     except:
         print("Couldn't reach log file, check manually, just in case")   
     
