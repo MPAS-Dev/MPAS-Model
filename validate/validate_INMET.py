@@ -27,11 +27,25 @@ import f90nml
 import datetime
 import pandas as pd
 import matplotlib.pyplot as plt
-import matplotlib.dates as mdates
 import metpy.calc as mpcalc
 import seaborn as sns
+from metpy.units import units
+import metpy.constants as mpconsts
+
+# def convert_to_slp():
+#     # The following variables are constants for a standard atmosphere
+#     t0 = units.Quantity(288., 'kelvin')
+#     p0 = units.Quantity(1013.25, 'hPa')
+#     gamma = units.Quantity(6.5, 'K/km')
+
+#     n = (mpconsts.Rd * gamma / mpconsts.g).to_base_units()
 
 
+# def convert_to_slp(h,T,p):
+#     A = 0.0065*h
+#     B = T+(0.0065*h)
+#     C = (1-(A/B))**-5.257
+#     return p*C
 
 def df_data(model_data,inmet_data,variable):
     # Dictionaries containing naming convections for each variable
@@ -43,28 +57,31 @@ def df_data(model_data,inmet_data,variable):
                        'PRESSAO ATMOSFERICA AO NIVEL DA ESTACAO, HORARIA (mB)',
                        'windspeed':'VENTO, VELOCIDADE HORARIA (m/s)'}
     
+    # Get model data for the gridpoint closest to station   
+    model_station = model_data.sel(latitude=lat_station,
+                method='nearest').sel(longitude=lon_station,method='nearest')
+    
     # If windpeed, calculate from components
     if variable == 'windspeed':
-        model_var = mpcalc.wind_speed(model_data['u10'],model_data['v10'])
+        model_var = mpcalc.wind_speed(model_station['u10'],model_station['v10'])
     # Sum grid-scale and convective precipitation
     elif variable == 'precipitation':
-        model_var = model_data['rainnc']+model_data['rainc']
+        model_var = model_station['rainnc']+model_station['rainc']
+    # Convert pressure to MSLP
+    elif variable == 'pressure':
+        model_var = mpcalc.altimeter_to_sea_level_pressure(
+            (model_station['surface_pressure']/100)*units('hPa'),
+            model_station['zgrid'][0]*units('m'),
+            model_station['t2m']*units('K'))
     else:
-        model_var = model_data[model_variables[variable]]
+        model_var = model_station[model_variables[variable]]
         
-    # Get model data for the gridpoint closest to station   
-    model_var_station = model_var.sel(latitude=lat_station,
-                method='nearest').sel(longitude=lon_station,method='nearest'
-                                      ).values
-    mpas_df = pd.DataFrame(model_var_station,columns=['value'],
+    mpas_df = pd.DataFrame(model_var,columns=['value'],
                              index=times)
     
     # Convert temperature to celcius
     if variable == 'temperature':
         mpas_df = mpas_df-273.15
-    # Convert pressure to hPa
-    elif variable == 'pressure':
-        mpas_df = mpas_df/100
         
     mpas_df['source'], mpas_df['variable'] = 'MPAS', variable 
     
@@ -87,8 +104,13 @@ def df_data(model_data,inmet_data,variable):
     # Add date as column and revert indexes to a range of numbers
     station_df['date'] = station_df.index
     station_df.index = range(len(station_df))
-    return station_df
+    # Model location to export
+    lat = round(float(model_station.latitude),2)
+    lon = round(float(model_station.longitude),2)
+    z = round(float(model_station.zgrid[0]),2)
+    return [station_df, lat, lon, z]
 
+    
 
 def convert_to_sns_fmt(df_list):                          
     met_data_station = pd.concat(df_list)
@@ -176,7 +198,11 @@ with open(station_file, 'r',encoding='latin-1') as file:
             lat_station = float((line[10:-1].replace(',','.')))
         elif 'LONGITUDE' in line:
             lon_station = float((line[11:-1].replace(',','.')))
+        elif 'ALTITUDE' in line:
+            z_station = float((line[11:-1].replace(',','.')))
             pass
+        
+        
 
 # Get data in a seaborn-readable dataframe format
 
@@ -193,12 +219,17 @@ i = 0
 for row in range(2):
     for col in range(2):
         var = variables[i]
-        data = df_data(model_data, station_data, var)
+        data_n_loc = df_data(model_data, station_data, var)
+        data,lat,lon,z = data_n_loc[0],data_n_loc[1],data_n_loc[2],data_n_loc[3]
         sns.lineplot(x="date", y="value", hue="source", markers=True,
                      ax=axes[row,col],data=data, lw=4, 
                      palette=['#e63946', '#1d3557'])
         axes[row,col].set(ylabel=var, xlabel=None)
         i +=1
+plt.suptitle('Station: '+station+"\nStation lat, lon, z: "+
+             str(round(lat_station,2))+", "+str(round(lon_station,2))+", "+
+             str(round(z_station,2))+"\nModel lat, lon, z: "+ str(lat)+
+             ", "+str(lon)+", "+str(z))
 if args.output is not None:
     fname = args.o
 else:
