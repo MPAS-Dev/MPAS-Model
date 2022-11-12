@@ -166,8 +166,8 @@ met_data = pd.concat(met_list)
 met_data.index = range(len(met_data))
 palette=['#B9465F','#619147','#3F96BA','#E6C030']
 sns.set_theme(style="whitegrid", palette="deep",font_scale=1.5,
-              rc={"lines.linewidth":2,"grid.linewidth": 1})
+              rc={"lines.linewidth":2,"grid.linewidth": 0.25})
 sns.relplot(data=met_data, aspect=8, height=1.5,
-            x='date',y='value', hue='source', col='variable')
+            x='date',y='value', hue='source')
 plt.savefig('test.png')
 
