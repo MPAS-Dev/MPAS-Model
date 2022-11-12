@@ -30,24 +30,8 @@ import matplotlib.pyplot as plt
 import metpy.calc as mpcalc
 import seaborn as sns
 from metpy.units import units
-import metpy.constants as mpconsts
 
-# def convert_to_slp():
-#     # The following variables are constants for a standard atmosphere
-#     t0 = units.Quantity(288., 'kelvin')
-#     p0 = units.Quantity(1013.25, 'hPa')
-#     gamma = units.Quantity(6.5, 'K/km')
-
-#     n = (mpconsts.Rd * gamma / mpconsts.g).to_base_units()
-
-
-# def convert_to_slp(h,T,p):
-#     A = 0.0065*h
-#     B = T+(0.0065*h)
-#     C = (1-(A/B))**-5.257
-#     return p*C
-
-def df_data(model_data,inmet_data,variable):
+def df_data(model_data,inmet_data,variable,times):
     # Dictionaries containing naming convections for each variable
     model_variables = {'temperature':'t2m', 'pressure':'surface_pressure'}
     inmet_variables = {'temperature':
