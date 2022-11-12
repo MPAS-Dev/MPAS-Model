@@ -6,7 +6,6 @@ Created on Thu Nov  3 16:48:43 2022
 @author: daniloceano
 """
 
-import os
 import sys
 import argparse
 import xarray as xr
@@ -14,11 +13,12 @@ import glob
 import f90nml
 import datetime
 import pandas as pd
-import matplotlib.pyplot as plt
-import matplotlib.dates as mdates
 import metpy.calc as mpcalc
 import seaborn as sns
-import logging
+from metpy.units import units
+import matplotlib.pyplot as plt
+
+
 
 sys.tracebacklimit = 0
 
@@ -26,20 +26,27 @@ def df_model_data(model_data,times,variable,experiment):
     # Dictionaries containing naming convections for each variable
     model_variables = {'temperature':'t2m', 'pressure':'surface_pressure'}
     
+    # Get model data for the gridpoint closest to station   
+    model_station = model_data.sel(latitude=lat_station,
+                method='nearest').sel(longitude=lon_station,method='nearest')
+    
     # If windpeed, calculate from components
     if variable == 'windspeed':
-        model_var = mpcalc.wind_speed(model_data['u10'],model_data['v10'])
+        model_var = mpcalc.wind_speed(model_station['u10'],model_station['v10'])
     # Sum grid-scale and convective precipitation
     elif variable == 'precipitation':
-        model_var = model_data['rainnc']+model_data['rainc']
+        model_var = model_station['rainnc']+model_station['rainc']
+    # Convert pressure to MSLP
+    elif variable == 'pressure':
+        model_var = mpcalc.altimeter_to_sea_level_pressure(
+            (model_station['surface_pressure'])*units('hPa'),
+            model_station['zgrid'][0]*units('m'),
+            model_station['t2m']*units('K'))
     else:
-        model_var = model_data[model_variables[variable]]
+        model_var = model_station[model_variables[variable]]
         
-    # Get model data for the gridpoint closest to station   
-    model_var_station = model_var.sel(latitude=lat_station,
-                method='nearest').sel(longitude=lon_station,method='nearest'
-                                      ).values
-    mpas_df = pd.DataFrame(model_var_station,columns=['value'],
+
+    mpas_df = pd.DataFrame(model_var,columns=['value'],
                              index=times)
     
     # Convert temperature to celcius
@@ -94,10 +101,6 @@ def get_times_nml(namelist):
     # Convert strings to datetime object
     start_date = datetime.datetime.strptime(start_date_str, '%Y-%m-%d_%H:%M:%S')
     
-    #### DELETE THIS!!! ####
-    start_date = datetime.datetime.strptime(
-        '2005-06-05 09:00:00',"%Y-%m-%d %H:%M:%S")
-    
     run_duration = datetime.datetime.strptime(run_duration_str,'%d_%H:%M:%S')
     # Get simulation finish date as object and string
     finish_date  = start_date + datetime.timedelta(days=run_duration.day,
@@ -109,54 +112,62 @@ def get_times_nml(namelist):
     return times
 
 ## Workspace ##
-path = '/home/daniloceano/Documents/MPAS/MPAS-BR/benchmarks/cyclone_bench/x1.10242.len_disp.visc4_2dsmag/'
-INMET_dir = '/home/daniloceano/Documents/MPAS/MPAS-BR/met_data/INMET/'
+path = '/Users/danilocoutodsouza/Documents/USP/MPAS/MPAS-BR/benchmarks/Catarina-physics/physics_suite/'
+INMET_dir = '/Users/danilocoutodsouza/Documents/USP/MPAS/MPAS-BR/met_data/INMET/'
 benchs = glob.glob(path+'/run*')
 station = 'Florianopolis'.upper()
 variable = 'temperature'
 
-i = 0
-for bench in benchs[-1:]:
-    model_output = bench+'/out.nc'
-    namelist_path = bench+"/namelist.atmosphere"
-    experiment = bench.split('/')[-1].split('run.')[-1]    
-
-    model_data = xr.open_dataset(model_output)
-    namelist = f90nml.read(glob.glob(namelist_path)[0])
-    times = get_times_nml(namelist)
-    start_date = times[0]
+met_list = []
+for variable in ['temperature','precipitation','windspeed','pressure']:
+    j = 0
+    for bench in benchs:
+        model_output = bench+'/latlon.nc'
+        namelist_path = bench+"/namelist.atmosphere"
+        experiment = bench.split('/')[-1].split('run.')[-1]    
     
-    # Only open INMET file once
-    if i == 0:
-        # Get data for corresponding year
-        try:
-            station_file = glob.glob(INMET_dir+'/'+str(start_date.year)+'/*'+station+'*')[0]
-        except:
-            raise SystemExit('Error: not found data for '+station.upper()+' station \
-        for year '+str(start_date.year))
-        # Open file with Pandas
-        station_data = pd.read_csv(station_file,header=8,sep=';',encoding='latin-1',
-                                   parse_dates=[[0,1]],decimal=',')
-        station_data.index = station_data['DATA (YYYY-MM-DD)_HORA (UTC)']
-        df_inmet = df_inmet_data(station_data,times,variable,experiment)
-        # Get station lat and lon
-        with open(station_file, 'r',encoding='latin-1') as file:
-            for line in file:
-                if 'LATITUDE' in line:
-                    lat_station = float((line[10:-1].replace(',','.')))
-                elif 'LONGITUDE' in line:
-                    lon_station = float((line[11:-1].replace(',','.')))
-                    pass
-        # For the first iteration, concatenate INMET and Exp data
-        exp_df = df_model_data(model_data,times,variable,experiment)
-        met_data = pd.concat([df_inmet,exp_df])
-    # For other iterations, concatenate with previous existing df
-    else:
-        exp_df = df_model_data(model_data,times,variable,experiment)
-        met_data = pd.concat([met_data,exp_df])
-    
-    i+=1
-
-    
-
+        model_data = xr.open_dataset(model_output)
+        namelist = f90nml.read(glob.glob(namelist_path)[0])
+        times = get_times_nml(namelist)
+        start_date = times[0]
+        
+        # Only open INMET file once
+        if j == 0:
+            # Get data for corresponding year
+            try:
+                station_file = glob.glob(INMET_dir+'/'+str(start_date.year)+'/*'+station+'*')[0]
+            except:
+                raise SystemExit('Error: not found data for '+station.upper()+' station \
+            for year '+str(start_date.year))
+            # Open file with Pandas
+            station_data = pd.read_csv(station_file,header=8,sep=';',encoding='latin-1',
+                                       parse_dates=[[0,1]],decimal=',')
+            station_data.index = station_data['DATA (YYYY-MM-DD)_HORA (UTC)']
+            df_inmet = df_inmet_data(station_data,times,variable,experiment)
+            # Get station lat and lon
+            with open(station_file, 'r',encoding='latin-1') as file:
+                for line in file:
+                    if 'LATITUDE' in line:
+                        lat_station = float((line[10:-1].replace(',','.')))
+                    elif 'LONGITUDE' in line:
+                        lon_station = float((line[11:-1].replace(',','.')))
+                        pass
+            # For the first iteration, concatenate INMET and Exp data
+            exp_df = df_model_data(model_data,times,variable,experiment)
+            var_data = pd.concat([df_inmet,exp_df])
+        # For other iterations, concatenate with previous existing df
+        else:
+            exp_df = df_model_data(model_data,times,variable,experiment)
+            var_data = pd.concat([var_data,exp_df])
+            met_list.append(var_data)
+        
+        j+=1
+met_data = pd.concat(met_list)
+met_data.index = range(len(met_data))
+palette=['#B9465F','#619147','#3F96BA','#E6C030']
+sns.set_theme(style="whitegrid", palette="deep",font_scale=1.5,
+              rc={"lines.linewidth":2,"grid.linewidth": 1})
+sns.relplot(data=met_data, aspect=8, height=1.5,
+            x='date',y='value', hue='source', col='variable')
+plt.savefig('test.png')
 
