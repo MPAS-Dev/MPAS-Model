@@ -286,38 +286,55 @@ module mpas_kd_tree
    !> \date    01/28/20
    !> \details
    !> Search kdtree and returned the nearest point to query into the
-   !> res argument. Optionally, if distance is present, returned the
-   !> squared distance between query and res.
+   !> res argument, or an unassociated res pointer in case no point in the
+   !> tree is within a specified maximum distance from any point in the tree.
+   !>
+   !> If present, the optional distance argument will contain the squared
+   !> distance between query and res in the case that res is associated.
+   !>
+   !> The optional input argument max_distance, if provided, specifies an
+   !> upper bound on the distance from the query point for points in the tree
+   !> to be considered. (Note: the max_distance is more like the maximum
+   !> squared distance due to implementation details of the kd-tree.) This
+   !> parameter can be useful, for example, if some query points are known
+   !> to be far from any point in the tree and in such cases it is desirable
+   !> to return no closest point.
    !>
    !> If the dimension of query does not match the dimensions of points
    !> within kdtree, then res will be returned as unassociated. Likewise,
    !> if kdtree is empty/unassociated, res will be returned as unassociated.
    !
    !-----------------------------------------------------------------------
-   subroutine mpas_kd_search(kdtree, query, res, distance)
+   subroutine mpas_kd_search(kdtree, query, res, distance, max_distance)
 
       implicit none
       type (mpas_kd_type), pointer, intent(in) :: kdtree
       real (kind=RKIND), dimension(:), intent(in) :: query
       type (mpas_kd_type), pointer, intent(inout) :: res
-      real (kind=RKIND), intent(out), optional :: distance
+      real (kind=RKIND), intent(inout), optional :: distance
+      real (kind=RKIND), intent(in), optional :: max_distance
 
       real (kind=RKIND) :: dis
 
+      nullify(res)
+
       if (.not. associated(kdtree)) then
-         res => null()
          return
       end if
 
       if (size(kdtree % point) /= size(query)) then
-         res => null()
          return
       endif
 
-      dis = huge(dis)
+      if (present(max_distance)) then
+         dis = max_distance
+      else
+         dis = huge(dis)
+      endif
+
       call mpas_kd_search_internal(kdtree, query, res, dis)
 
-      if (present(distance)) then
+      if (present(distance) .and. associated(res)) then
          distance = dis
       endif
 
