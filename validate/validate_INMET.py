@@ -30,6 +30,7 @@ import matplotlib.pyplot as plt
 import metpy.calc as mpcalc
 import seaborn as sns
 from metpy.units import units
+import numpy as np
 
 def df_data(model_data,inmet_data,variable,times):
     # Dictionaries containing naming convections for each variable
@@ -59,6 +60,10 @@ def df_data(model_data,inmet_data,variable,times):
             model_station['t2m']*units('K'))
     else:
         model_var = model_station[model_variables[variable]]
+    
+    # The first item is zero
+    model_var = list(model_var.values)
+    model_var.insert(0,np.nan)
         
     mpas_df = pd.DataFrame(model_var,columns=['value'],
                              index=times)
@@ -159,7 +164,7 @@ finish_date  = start_date + datetime.timedelta(days=run_duration.day,
 finish_date_str = finish_date.strftime('%Y-%m-%d_%H:%M:%S')
 
 ## Create a range of dates ##
-times = pd.date_range(start_date,finish_date,periods=len(model_data.Time))
+times = pd.date_range(start_date,finish_date,periods=len(model_data.Time)+1)
 # Get time interval
 dt = times[1] - times[0]
 
@@ -186,14 +191,6 @@ with open(station_file, 'r',encoding='latin-1') as file:
             z_station = float((line[11:-1].replace(',','.')))
             pass
         
-        
-
-# Get data in a seaborn-readable dataframe format
-
-# # Put all data together with seaborn format
-# met_data_station = convert_to_sns_fmt([station_temp_data,station_prec_data,
-#                               station_wspeed_data])
-    
 ## Plot with Seaborn
 sns.set_theme(style="ticks")
 
@@ -203,7 +200,7 @@ i = 0
 for row in range(2):
     for col in range(2):
         var = variables[i]
-        data_n_loc = df_data(model_data, station_data, var)
+        data_n_loc = df_data(model_data, station_data, var, times)
         data,lat,lon,z = data_n_loc[0],data_n_loc[1],data_n_loc[2],data_n_loc[3]
         sns.lineplot(x="date", y="value", hue="source", markers=True,
                      ax=axes[row,col],data=data, lw=4, 
@@ -215,7 +212,8 @@ plt.suptitle('Station: '+station+"\nStation lat, lon, z: "+
              str(round(z_station,2))+"\nModel lat, lon, z: "+ str(lat)+
              ", "+str(lon)+", "+str(z))
 if args.output is not None:
-    fname = args.o
+    fname = args.output
 else:
     fname = (args.model).split('/')[-1].split('.nc')[0]
 plt.savefig(fname+'_timeseries_'+station)
+print(fname+'_timeseries_'+station+'.png created!')
