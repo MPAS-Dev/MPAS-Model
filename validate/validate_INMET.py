@@ -32,7 +32,7 @@ import seaborn as sns
 from metpy.units import units
 import numpy as np
 
-def df_data(model_data,inmet_data,variable,times):
+def df_data(model_data,inmet_data,variable,times,lat_station,lon_station):
     # Dictionaries containing naming convections for each variable
     model_variables = {'temperature':'t2m', 'pressure':'surface_pressure'}
     inmet_variables = {'temperature':
@@ -75,9 +75,10 @@ def df_data(model_data,inmet_data,variable,times):
     mpas_df['source'], mpas_df['variable'] = 'MPAS', variable 
     
     # Get INMET data for the same dates as the model experiment
-    inmet_var = station_data[
-        (station_data['DATA (YYYY-MM-DD)_HORA (UTC)'] >= times[0]) &
-        (station_data['DATA (YYYY-MM-DD)_HORA (UTC)'] <= times[-1])
+    dt = times[1] - times[0]
+    inmet_var = inmet_data[
+        (inmet_data['DATA (YYYY-MM-DD)_HORA (UTC)'] >= times[0]) &
+        (inmet_data['DATA (YYYY-MM-DD)_HORA (UTC)'] <= times[-1])
         ].resample(dt)
     
     # If using precipitation, get accumulated values between model time steps
@@ -129,8 +130,8 @@ parser.add_argument('-o','--output', type=str, default=None,
                         help='''output name to append file''')
 
 # ## Dummy arguments for debugging ##
-# args = parser.parse_args(['--model','/home/daniloceano/Downloads/latlon.nc',
-#                '--station','Florianopolis', '--variable', 'temperature'])
+# args = parser.parse_args(['--model', '/Users/danilocoutodsouza/Documents/USP/MPAS/MPAS-BR/benchmarks/Catarina-physics/physics_suite/run.mesoscale/latlon.nc',
+#                 '--station','Florianopolis' ])
 args = parser.parse_args()
 
 ## Open model data with xarray ##
@@ -200,7 +201,8 @@ i = 0
 for row in range(2):
     for col in range(2):
         var = variables[i]
-        data_n_loc = df_data(model_data, station_data, var, times)
+        data_n_loc = df_data(model_data, station_data, var, times,
+                             lat_station, lon_station)
         data,lat,lon,z = data_n_loc[0],data_n_loc[1],data_n_loc[2],data_n_loc[3]
         sns.lineplot(x="date", y="value", hue="source", markers=True,
                      ax=axes[row,col],data=data, lw=4, 

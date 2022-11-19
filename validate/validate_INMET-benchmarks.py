@@ -73,9 +73,9 @@ def df_inmet_data(inmet_data,times,variable,experiment):
     # Get time interval
     dt = times[1] - times[0]
     # Get INMET data for the same dates as the model experiment
-    inmet_var = station_data[
-        (station_data['DATA (YYYY-MM-DD)_HORA (UTC)'] >= times[0]) &
-        (station_data['DATA (YYYY-MM-DD)_HORA (UTC)'] <= times[-1])
+    inmet_var = inmet_data[
+        (inmet_data['DATA (YYYY-MM-DD)_HORA (UTC)'] >= times[0]) &
+        (inmet_data['DATA (YYYY-MM-DD)_HORA (UTC)'] <= times[-1])
         ].resample(dt)
     
     # If using precipitation, get accumulated values between model time steps
@@ -110,14 +110,36 @@ def get_times_nml(namelist):
     times = pd.date_range(start_date,finish_date,periods=len(model_data.Time))
     return times
 
+def get_inmet_data(start_date,station):
+    # Get data for corresponding year
+    try:
+        station_file = glob.glob(INMET_dir+'/'+str(start_date.year)+'/*'+station+'*')[0]
+    except:
+        raise SystemExit('Error: not found data for '+station.upper()+' station \
+    for year '+str(start_date.year))
+    # Open file with Pandas
+    station_data = pd.read_csv(station_file,header=8,sep=';',encoding='latin-1',
+                               parse_dates=[[0,1]],decimal=',')
+    station_data.index = station_data['DATA (YYYY-MM-DD)_HORA (UTC)']
+    df_inmet = df_inmet_data(station_data,times,variable,experiment)
+    # Get station lat and lon
+    with open(station_file, 'r',encoding='latin-1') as file:
+        for line in file:
+            if 'LATITUDE' in line:
+                lat_station = float((line[10:-1].replace(',','.')))
+            elif 'LONGITUDE' in line:
+                lon_station = float((line[11:-1].replace(',','.')))
+                pass
+    return df_inmet, lat_station, lon_station
+
 ## Workspace ##
 
 
 path = '/Users/danilocoutodsouza/Documents/USP/MPAS/MPAS-BR/benchmarks/Catarina-physics/physics_suite/'
 INMET_dir = '/Users/danilocoutodsouza/Documents/USP/MPAS/MPAS-BR/met_data/INMET/'
 
-path = '/home/daniloceano/Documents/MPAS/MPAS-BR/benchmarks/Catarina_physics-test/Catarina_250-8km_physics-suite'
-INMET_dir = '/home/daniloceano/Documents/MPAS/MPAS-BR/met_data/INMET'
+# path = '/home/daniloceano/Documents/MPAS/MPAS-BR/benchmarks/Catarina_physics-test/Catarina_250-8km_physics-suite'
+# INMET_dir = '/home/daniloceano/Documents/MPAS/MPAS-BR/met_data/INMET'
 
 benchs = glob.glob(path+'/run*')
 station = 'Florianopolis'.upper()
@@ -144,25 +166,9 @@ for row in range(2):
             
             # Only open INMET file once
             if j == 0:
-                # Get data for corresponding year
-                try:
-                    station_file = glob.glob(INMET_dir+'/'+str(start_date.year)+'/*'+station+'*')[0]
-                except:
-                    raise SystemExit('Error: not found data for '+station.upper()+' station \
-                for year '+str(start_date.year))
-                # Open file with Pandas
-                station_data = pd.read_csv(station_file,header=8,sep=';',encoding='latin-1',
-                                           parse_dates=[[0,1]],decimal=',')
-                station_data.index = station_data['DATA (YYYY-MM-DD)_HORA (UTC)']
-                df_inmet = df_inmet_data(station_data,times,variable,experiment)
-                # Get station lat and lon
-                with open(station_file, 'r',encoding='latin-1') as file:
-                    for line in file:
-                        if 'LATITUDE' in line:
-                            lat_station = float((line[10:-1].replace(',','.')))
-                        elif 'LONGITUDE' in line:
-                            lon_station = float((line[11:-1].replace(',','.')))
-                            pass
+                inmet_data = get_inmet_data(start_date,station)
+                df_inmet = inmet_data[0]
+                lat_station, lon_station = inmet_data[1], inmet_data[2]
                 # For the first iteration, concatenate INMET and Exp data
                 exp_df = df_model_data(model_data,times,variable,experiment)
                 var_data = pd.concat([df_inmet,exp_df])
