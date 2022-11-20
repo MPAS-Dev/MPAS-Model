@@ -478,6 +478,7 @@ contains
 !!!     pp = pp + 1
       enddo
 !$acc end parallel
+!$acc update host (raincv)
 
       if(present(rqccuten))then
         if ( f_qc ) then
