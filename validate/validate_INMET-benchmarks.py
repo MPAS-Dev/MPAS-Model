@@ -17,7 +17,9 @@ import metpy.calc as mpcalc
 import seaborn as sns
 from metpy.units import units
 import matplotlib.pyplot as plt
-
+from matplotlib import rcParams
+import numpy as np
+import skill_metrics as sm
 
 
 sys.tracebacklimit = 0
@@ -107,10 +109,10 @@ def get_times_nml(namelist):
                                                    hours=run_duration.hour)
     finish_date_str = finish_date.strftime('%Y-%m-%d_%H:%M:%S')
     ## Create a range of dates ##
-    times = pd.date_range(start_date,finish_date,periods=len(model_data.Time))
+    times = pd.date_range(start_date,finish_date,periods=len(model_data.Time)+1)[1:]
     return times
 
-def get_inmet_data(start_date,station):
+def get_inmet_data(start_date,station,variable):
     # Get data for corresponding year
     try:
         station_file = glob.glob(INMET_dir+'/'+str(start_date.year)+'/*'+station+'*')[0]
@@ -132,9 +134,78 @@ def get_inmet_data(start_date,station):
                 pass
     return df_inmet, lat_station, lon_station
 
+def get_stats(data):
+    ccoef, crmsd, sdev = [], [], []
+    sources = list(data['source'].unique())
+    data.index = data['date']
+    for source in sources:
+        if source == 'INMET':
+            predicted = data[
+                data['source'] == source].resample('1H').mean()['value']
+        else:
+            predicted = data[
+                data['source'] == source].resample('1H').mean()['value'][1:]
+        reference = data[
+            data['source'] == 'INMET'].resample('1H').mean()['value']
+        
+        stats = sm.taylor_statistics(predicted,reference)
+        ccoef.append(stats['ccoef'][1])
+        crmsd.append(stats['crmsd'][1])
+        sdev.append(stats['sdev'][1])
+    ccoef, crmsd, sdev = np.array(ccoef),np.array(crmsd),np.array(sdev)
+    return sdev,crmsd,ccoef,sources
+
+def plot_taylor(sdevs,crmsds,ccoefs,sources):
+    '''
+    Produce the Taylor diagram
+    Label the points and change the axis options for SDEV, CRMSD, and CCOEF.
+    Increase the upper limit for the SDEV axis and rotate the CRMSD contour 
+    labels (counter-clockwise from x-axis). Exchange color and line style
+    choices for SDEV, CRMSD, and CCOEFF variables to show effect. Increase
+    the line width of all lines.
+    For an exhaustive list of options to customize your diagram, 
+    please call the function at a Python command line:
+    >> taylor_diagram
+    '''
+    # Set the figure properties (optional)
+    rcParams.update({'font.size': 12}) # font size of axes text
+    STDmax = round(np.amax(sdevs))
+    RMSmax = round(np.amax(crmsds))
+    tickRMS = np.linspace(0,RMSmax,5)
+    axismax = STDmax*1.2
+    sm.taylor_diagram(sdevs,crmsds,ccoefs,
+                      markerLabelColor = 'b', 
+                      markerLabel = sources,
+                      markerColor = 'r', markerLegend = 'on', markerSize = 15, 
+                      tickRMS = tickRMS, titleRMS = 'off', widthRMS = 2.0,
+                      colRMS = '#728B92', styleRMS = '--',  
+                      widthSTD = 2, styleSTD = '--', colSTD = '#8A8A8A',
+                      colCOR = 'k', styleCOR = '-',
+                      widthCOR = 1.0, titleCOR = 'on',
+                      colObs = 'k', markerObs = '^',
+                      titleOBS = 'Obs.', styleObs =':',
+                      axismax = axismax, alpha = 1)
+
+def plot_qq(data,ax):
+    for source in data.source.unique():
+        if source == 'INMET':
+            predicted = data[
+                data['source'] == source].resample('1H').mean()['value']
+        else:
+            predicted = data[
+                data['source'] == source].resample('1H').mean()['value'][1:]
+        reference = data[
+            data['source'] == 'INMET'].resample('1H').mean()['value']
+        g = sns.regplot(x=reference, y=predicted, data=data, label=source,
+                        ax=ax)
+    g.set_ylabel('EXPERIMENT',fontsize=16)
+    g.set_xlabel('INMET',fontsize=16)
+    legend = ax.legend()
+    frame = legend.get_frame()
+    frame.set_color('white')
+    g.legend(fontsize=20)
+
 ## Workspace ##
-
-
 path = '/Users/danilocoutodsouza/Documents/USP/MPAS/MPAS-BR/benchmarks/Catarina-physics/physics_suite/'
 INMET_dir = '/Users/danilocoutodsouza/Documents/USP/MPAS/MPAS-BR/met_data/INMET/'
 
@@ -143,18 +214,20 @@ INMET_dir = '/Users/danilocoutodsouza/Documents/USP/MPAS/MPAS-BR/met_data/INMET/
 
 benchs = glob.glob(path+'/run*')
 station = 'Florianopolis'.upper()
-variable = 'temperature'
 
 met_list = []
 variables = ['temperature','precipitation','windspeed','pressure']
 plt.close('all')
-fig, axes = plt.subplots(2, 2, figsize=(18, 10))
-i = 0
-for row in range(2):
-    for col in range(2):
+fig, axes = plt.subplots(4, 3, figsize=(18, 18))
+fig.tight_layout(pad=5)
+i,v = 1,0
+for row in range(4):
+    # One variable for each row
+    variable = variables[v]
+    print('plotting variable: '+variable)
+    for col in range(3):
         j = 0
         for bench in benchs:
-            var = variables[i]
             model_output = bench+'/latlon.nc'
             namelist_path = bench+"/namelist.atmosphere"
             experiment = bench.split('/')[-1].split('run.')[-1]    
@@ -166,7 +239,7 @@ for row in range(2):
             
             # Only open INMET file once
             if j == 0:
-                inmet_data = get_inmet_data(start_date,station)
+                inmet_data = get_inmet_data(start_date,station,variable)
                 df_inmet = inmet_data[0]
                 lat_station, lon_station = inmet_data[1], inmet_data[2]
                 # For the first iteration, concatenate INMET and Exp data
@@ -177,13 +250,30 @@ for row in range(2):
             else:
                 exp_df = df_model_data(model_data,times,variable,experiment)
                 var_data = pd.concat([var_data,exp_df])
-        # plot data
-        sns.lineplot(x="date", y="value", hue="source", markers=True,
-                     ax=axes[row,col],data=var_data, lw=4)
-        axes[row,col].set(ylabel=var, xlabel=None)
-            
+                
+        # plot timeseries
+        if col == 0:
+            data = var_data[var_data['variable'] == variable]
+            data.index = range(len(data))
+            g = sns.lineplot(x="date", y="value", hue="source", markers=True,
+                         ax=axes[row,col],data=data, lw=4)
+            axes[row,col].set(ylabel=variable, xlabel=None)
+            axes[row,col].yaxis.label.set_size(20)
+            axes[row,col].tick_params(axis='x', rotation=50)
+        if col == 1:
+            ax = axes[row,col] = fig.add_subplot(4,3, i)
+            ax.set(adjustable='box', aspect='equal')
+            stats = get_stats(data)
+            sdev,crmsd,ccoef,sources = stats[0],stats[1],stats[2],stats[3]
+            plot_taylor(sdev,crmsd,ccoef,sources)
+        if col == 2:
+            ax = axes[row,col]
+            plot_qq(data,ax)
         
-    i+=1
-
+        # update cplumn indexer
+        i+=1
+    # update variable indexer
+    v+=1
+        
 plt.savefig('test.png')
 
