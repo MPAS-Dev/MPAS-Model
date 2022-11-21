@@ -130,6 +130,7 @@ grid_dir = work_dir+"/grids/grids/Catarina_250-8km/"
 # define dates in format: 'YYYY-MM-DD_hh:mm:ss'
 init_date = '2004-03-21_12:00:00'
 run_duration = '0_00:05:00'
+len_disp = 800.0
 n_vert_levels = 72
 # path to geographical data
 geog_data_path = '/p1-nemo/danilocs/mpas/mpas_tutorial/geog/'
@@ -137,7 +138,7 @@ geog_data_path = '/p1-nemo/danilocs/mpas/mpas_tutorial/geog/'
 met_prefix = 'ERA5'
 sfc_prefix = 'SST'
 # Interval of the SST files
-sfc_interval = 0
+sfc_interval = 'none'
 # Model timestep
 dt = 48
 # SST Update on or off
@@ -160,6 +161,7 @@ def static_interp():
                      "data_sources":{}, "preproc_stages": {}}
     # Real-data initialization case
     nml_init_opts["nhyd_model"]["config_init_case"] = 7
+    nml_init_opts["nhyd_model"]["config_len_disp"] = len_disp
     # Should be set to 1 for this step (see doc)  
     nml_init_opts["dimensions"]["config_nvertlevels"] = 1
     nml_init_opts["dimensions"]["config_nsoillevels"] = 1
