@@ -161,7 +161,6 @@ def static_interp():
                      "data_sources":{}, "preproc_stages": {}}
     # Real-data initialization case
     nml_init_opts["nhyd_model"]["config_init_case"] = 7
-    nml_init_opts["nhyd_model"]["config_len_disp"] = len_disp
     # Should be set to 1 for this step (see doc)  
     nml_init_opts["dimensions"]["config_nvertlevels"] = 1
     nml_init_opts["dimensions"]["config_nsoillevels"] = 1
@@ -286,7 +285,7 @@ def run(par1,par2):
     nml_opts["nhyd_model"]["config_dt"] = dt
     nml_opts["nhyd_model"]["config_start_time"] = init_date
     nml_opts["nhyd_model"]["config_run_duration"] = run_duration
-    nml_opts["nhyd_model"]["config_len_disp"] = 800000.
+    nml_opts["nhyd_model"]["config_len_disp"] = len_disp
     nml_opts["nhyd_model"]["config_visc4_2dsmag"] = 0.05
     nml_opts["decomposition"]["config_block_decomp_file_prefix"] =\
         grid_dir+"/"+grid_name+".graph.info.part."
