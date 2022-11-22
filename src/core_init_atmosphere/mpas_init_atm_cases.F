@@ -2894,8 +2894,6 @@ module init_atm_cases
       omega_e = omega
       p0 = 1.e+05
 
-      scalars(:,:,:) = 0.
-
 
       !
       ! If requested, blend the terrain along the domain boundaries with terrain from
