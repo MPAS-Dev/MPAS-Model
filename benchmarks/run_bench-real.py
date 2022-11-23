@@ -4,6 +4,7 @@
 #  Last update: Mar 2022
 # --------------------------------------------------
 import os
+import sys
 import subprocess
 import glob
 import time 
@@ -14,23 +15,26 @@ args = bench.call_parser()
 
 #Workspace
 work_dir = os.getenv('MPAS_DIR')
+if work_dir is None:
+    print('MPAS_DIR not on environment! Set it and try again')
+    sys.exit(1)
 b_name = args.name
 #b_dir = work_dir+"/benchmarks/"+b_name
 b_dir = work_dir+"/benchmarks/"+args.bdir
 print(b_dir)
 
-if args.threads:
-    cores = args.threads
-    print("Running with "+cores+" threads")
-    os.environ['OMP_NUM_THREADS'] = cores
-else:
-    os.environ['OMP_NUM_THREADS'] ="2"
+# if args.threads:
+#     cores = args.threads
+#     print("Running with "+cores+" threads")
+#     os.environ['OMP_NUM_THREADS'] = cores
+# else:
+#     os.environ['OMP_NUM_THREADS'] ="2"
     
 #Init_atmosphere setup
 if args.run:
     #Make sure the init test exists!
     benchs = glob.glob(b_dir+"/run.*") 
-    mainexec = "mpiexec -n "+str(cores)+" ./atmosphere_model"
+    mainexec = "mpiexec -n "+str(args.threads)+" ./atmosphere_model"
 else:
     benchs = glob.glob(b_dir+"/init*")
     mainexec = "./init_atmosphere_model"
