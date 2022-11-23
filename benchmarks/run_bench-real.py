@@ -50,7 +50,7 @@ for b in benchs:
     p = subprocess.Popen(mainexec, stdout = subprocess.PIPE,
                           stderr=subprocess.PIPE, cwd=b, shell=True)
 
-    time.sleep(1)
+    time.sleep(5)
     try:
         outfile = bench.find("log.*out", b)[0]  
         print(outfile)   
