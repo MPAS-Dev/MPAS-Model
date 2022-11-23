@@ -170,7 +170,10 @@ class Bench:
                          "VERSION", "VEGPARM.TBL", "SOILPARM.TBL", 
                          "RRTMG_SW_DATA.DBL", "RRTMG_SW_DATA",
                          "RRTMG_LW_DATA.DBL", "RRTMG_LW_DATA",
-                         "MP_THOMPSON*"]:
+                         "MP_THOMPSON_freezeH2O_DATA.DBL",
+                         "MP_THOMPSON_QIautQS_DATA.DBL",
+                         "MP_THOMPSON_QRacrQG_DATA.DBL",
+                         "MP_THOMPSON_QRacrQS_DATA.DBL"]:
                 link = ["ln", "-sf", self.work_dir+"/"+file, b_dir+"/"]
                 subprocess.run(link, stdout = subprocess.PIPE,
                                stderr=subprocess.PIPE, cwd=self.work_dir, 
