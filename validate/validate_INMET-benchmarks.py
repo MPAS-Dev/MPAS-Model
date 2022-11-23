@@ -7,9 +7,10 @@ Created on Thu Nov  3 16:48:43 2022
 """
 
 import sys
+import os
+import glob
 import argparse
 import xarray as xr
-import glob
 import f90nml
 import datetime
 import pandas as pd
@@ -206,14 +207,30 @@ def plot_qq(data,ax):
     g.legend(fontsize=20)
 
 ## Workspace ##
-path = '/Users/danilocoutodsouza/Documents/USP/MPAS/MPAS-BR/benchmarks/Catarina-physics/physics_suite/'
-INMET_dir = '/Users/danilocoutodsouza/Documents/USP/MPAS/MPAS-BR/met_data/INMET/'
+work_dir = os.getenv('MPAS_DIR')
+if work_dir is None:
+    print('Error: MPAS_DIR environment variable not defined! It should direct\
+to the MPAS-BR path')
+    sys.exit(-1)
+# work_dir = '~/Documents/MPAS/MPAS-BR/'
+INMET_dir = work_dir+'/met_data/INMET/'
 
-# path = '/home/daniloceano/Documents/MPAS/MPAS-BR/benchmarks/Catarina_physics-test/Catarina_250-8km_physics-suite'
-# INMET_dir = '/home/daniloceano/Documents/MPAS/MPAS-BR/met_data/INMET'
+## Parser options ##
+parser = argparse.ArgumentParser()
 
-benchs = glob.glob(path+'/run*')
-station = 'Florianopolis'.upper()
+parser.add_argument('-s','--station', type=str, required=True,
+                        help='''station name to compare model data to''')
+
+parser.add_argument('-bdir','--bench_directory', type=str, required=True,
+                        help='''path to benchmark directory''')
+
+parser.add_argument('-o','--output', type=str, default=None,
+                        help='''output name to append file''')
+
+args = parser.parse_args()
+
+benchs = glob.glob(args.bench_directory+'/run*')
+station = (args.station).upper()
 
 met_list = []
 variables = ['temperature','precipitation','windspeed','pressure']
@@ -275,5 +292,9 @@ for row in range(4):
     # update variable indexer
     v+=1
         
-plt.savefig('test.png')
-
+if args.output is not None:
+    fname = args.output
+else:
+    fname = (args.bench_directory).split('/')[-2].split('.nc')[0]
+plt.savefig(fname+'_timeseries_'+station)
+print(fname+'_timeseries_'+station+'.png created!')
