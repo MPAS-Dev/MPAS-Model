@@ -129,7 +129,7 @@ grid_name = "Catarina_250-8km"
 grid_dir = work_dir+"/grids/grids/Catarina_250-8km/"
 # define dates in format: 'YYYY-MM-DD_hh:mm:ss'
 init_date = '2004-03-21_12:00:00'
-run_duration = '0_00:05:00'
+run_duration = '1_00:00:00'
 len_disp = 800.0
 n_vert_levels = 72
 # path to geographical data
@@ -302,15 +302,14 @@ def run(par1,par2):
                "diagnostics" : {}, "surface" : {}}
     
     str_opt["input"]["filename_template"] = b_dir+"/init/"+b_name+".init.nc"
-    str_opt["output"]["filename_template"] = b_full_name+"/out.nc"
+    str_opt["output"]["filename_template"] = b_full_name+"/history.$Y-$M-$D_$h.$m.$s.nc"
     str_opt["output"]["output_interval"] = "1:00:00"
-    str_opt["output"]["clobber_mode"] = "overwrite"
     str_opt["surface"]["filename_template"] = \
         b_dir+"/init/"+b_name+".sfc_update.nc"
     str_opt["surface"]["filename_interval"] = str(sfc_interval)
     str_opt["surface"]["input_interval"] = str(sfc_interval)
     str_opt["diagnostics"]["filename_template"] = b_full_name+"/diag.nc"
-    str_opt["diagnostics"]["output_interval"] = "1:00:00"
+    str_opt["diagnostics"]["output_interval"] = "3:00:00"
     str_opt["diagnostics"]["clobber_mode"] = "overwrite"
     
     return nml_opts, b_full_name, str_opt
