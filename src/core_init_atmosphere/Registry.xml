@@ -36,6 +36,10 @@
                      description="The number of first-guess atmospheric layers"/>
                 <dim name="nFGSoilLevels" definition="namelist:config_nfgsoillevels"
                      description="The number of first-guess soil layers"/>
+                <dim name="nLandCat" definition="namelist:config_nlandcat"
+                     description="The number of land use categories used by the land-surface scheme"/>
+                <dim name="nSoilCat" definition="16"
+                     description="The number of soil type categories used by the land-surface scheme"/>
                 <dim name="nVertLevelsP1" definition="nVertLevels+1"
                      description="The number of atmospheric levels, always one more than the number of layers"/>
                 <dim name="nMonths" definition="namelist:config_months"
@@ -59,10 +63,11 @@
                                         5 = super-cell, \newline
                                         6 = mountain wave, \newline
                                         7 = real-data initial conditions from, e.g., GFS, \newline
-                                        8 = surface field (SST, sea-ice) update file for use with real-data simulations \newline
-                                        9 = lateral boundary conditions update file for use with real-data simulations \newline
-                                        13 = CAM-MPAS 3-d grid with specified topography and zeta levels"
-                     possible_values="1 -- 9"/>
+                                        8 = surface field (SST, sea-ice) update file for use with real-data simulations, \newline
+                                        9 = lateral boundary conditions update file for use with real-data simulations, \newline
+                                       10 = P-X soil nudging update file for use with real-data simulations, \newline
+                                       13 = CAM-MPAS 3-d grid with specified topography and zeta levels"
+                     possible_values="1 -- 10, or 13"/>
 
                 <nml_option name="config_calendar_type" type="character" default_value="gregorian" in_defaults="false"
                      units="-"
@@ -71,12 +76,12 @@
 
                 <nml_option name="config_start_time"            type="character"     default_value="2010-10-23_00:00:00"
                      units="-"
-                     description="Time to begin processing first-guess data (cases 7, 8, and 9 only)"
+                     description="Time to begin processing first-guess data (cases 7, 8, 9, and 10 only)"
                      possible_values="`YYYY-MM-DD_hh:mm:ss'"/>
 
                 <nml_option name="config_stop_time"             type="character"     default_value="2010-10-23_00:00:00"
                      units="-"
-                     description="Time to end processing first-guess data (cases 8 and 9 only)"
+                     description="Time to end processing first-guess data (cases 8, 9, and 10 only)"
                      possible_values="`YYYY-MM-DD_hh:mm:ss'"/>
 
                 <nml_option name="config_theta_adv_order" type="integer" default_value="3"
@@ -118,6 +123,11 @@
                      description="The number of vertical soil levels in the first-guess dataset (case 7 only)"
                      possible_values="Positive integer values"/>
 
+                <nml_option name="config_nlandcat"              type="integer"       default_value="40"
+                     units="-"
+                     description="The number of land categories"
+                     possible_values="Positive integer values"/>
+
                 <nml_option name="config_months"                type="integer"       default_value="12"      in_defaults="false"
                      units="-"
                      description="The number of months in a year"
@@ -139,18 +149,28 @@
 
                 <nml_option name="config_sfc_prefix"            type="character"     default_value="SST"
                      units="-"
-                     description="Filename prefix of ungrib intermediate file to use for SST and sea-ice (cases 7 and 8 only)"
+                     description="Filename prefix of ungrib intermediate file to use for SST and sea-ice (cases 7, 8, and 10 only)"
+                     possible_values="Any alpha-numeric string"/>
+
+                <nml_option name="config_sfc_prefix_hires"      type="character"     default_value="NONE"
+                     units="-"
+                     description="Filename prefix of ungrib intermediate file to use for high resolution SST and sea-ice (case 10 only)"
                      possible_values="Any alpha-numeric string"/>
 
                 <nml_option name="config_fg_interval"           type="integer"       default_value="86400"
                      units="-"
-                     description="Interval between intermediate files (cases 8 and 9 only)"
+                     description="Interval between intermediate files (cases 8, 9, and 10 only)"
                      possible_values="[DDD_]hh:mm:ss"/>
 
                 <nml_option name="config_landuse_data"          type="character"     default_value="MODIFIED_IGBP_MODIS_NOAH"
                      units="-"
                      description="The land use classification to use (case 7 only)"
-                     possible_values="`USGS' or `MODIFIED_IGBP_MODIS_NOAH'"/>
+                     possible_values="`USGS' or `MODIFIED_IGBP_MODIS_NOAH' or `NLCD40'"/>
+
+                <nml_option name="config_frac_landuse"          type="logical"       default_value="false"
+                     units="-"
+                     description="Whether to use dominant (false) or fractional (true) land use and soil categories (case 7 only)"
+                     possible_values="true or false"/>
 
                 <nml_option name="config_topo_data"             type="character"     default_value="GMTED2010"
                      units="-"
@@ -211,10 +231,100 @@
                      description="Maximum number of smoothing passes for coordinate surfaces"
                      possible_values="Positive integer values"/>
 
-                <nml_option name="config_tc_vertical_grid"      type="logical"       default_value="true"
+                <nml_option name="config_tc_vertical_grid"      type="logical"       default_value="false"
                      units="-"
                      description="Whether to use the vertical layer profile that was developed for use in real-time TC experiments"
                      possible_values="true or false"/>
+
+                <nml_option name="config_EPA_vertical_grid"     type="logical"       default_value="false"
+                     units="-"
+                     description="Whether to use the vertical layer profile originally used at EPA"
+                     possible_values="true or false"/>
+
+                <nml_option name="config_spline_vertical_grid"  type="logical"       default_value="false"
+                     units="-"
+                     description="Whether to use a vertical layer profile based on a cubic spline fit"
+                     possible_values="true or false"/>
+
+                <nml_option name="config_spline_x1"             type="real"          default_value="0.0"
+                     units="meters"
+                     description="spline control point #1 for height dimension"
+                     possible_values="Real values greater than or equal to zero"/>
+
+                <nml_option name="config_spline_y1"             type="real"          default_value="20.0"
+                     units="meters"
+                     description="spline control point #1 for layer thickness"
+                     possible_values="Real values greater than zero"/>
+
+                <nml_option name="config_spline_x2"             type="real"          default_value="350.0"
+                     units="meters"
+                     description="spline control point #2 for height dimension"
+                     possible_values="Real values greater than or equal to zero"/>
+
+                <nml_option name="config_spline_y2"             type="real"          default_value="100.0"
+                     units="meters"
+                     description="spline control point #2 for layer thickness"
+                     possible_values="Real values greater than zero"/>
+
+                <nml_option name="config_spline_x3"             type="real"          default_value="800.0"
+                     units="meters"
+                     description="spline control point #3 for height dimension"
+                     possible_values="Real values greater than or equal to zero"/>
+
+                <nml_option name="config_spline_y3"             type="real"          default_value="300.0"
+                     units="meters"
+                     description="spline control point #3 for layer thickness"
+                     possible_values="Real values greater than zero"/>
+
+                <nml_option name="config_spline_x4"             type="real"          default_value="2500.0"
+                     units="meters"
+                     description="spline control point #4 for height dimension"
+                     possible_values="Real values greater than or equal to zero"/>
+
+                <nml_option name="config_spline_y4"             type="real"          default_value="600.0"
+                     units="meters"
+                     description="spline control point #4 for layer thickness"
+                     possible_values="Real values greater than zero"/>
+
+                <nml_option name="config_spline_x5"             type="real"          default_value="8000.0"
+                     units="meters"
+                     description="spline control point #5 for height dimension"
+                     possible_values="Real values greater than or equal to zero"/>
+
+                <nml_option name="config_spline_y5"             type="real"          default_value="600.0"
+                     units="meters"
+                     description="spline control point #5 for layer thickness"
+                     possible_values="Real values greater than zero"/>
+
+                <nml_option name="config_spline_x6"             type="real"          default_value="16000.0"
+                     units="meters"
+                     description="spline control point #6 for height dimension"
+                     possible_values="Real values greater than or equal to zero"/>
+
+                <nml_option name="config_spline_y6"             type="real"          default_value="700.0"
+                     units="meters"
+                     description="spline control point #6 for layer thickness"
+                     possible_values="Real values greater than zero"/>
+
+                <nml_option name="config_spline_x7"             type="real"          default_value="30000.0"
+                     units="meters"
+                     description="spline control point #7 for height dimension"
+                     possible_values="Real values greater than or equal to zero"/>
+
+                <nml_option name="config_spline_y7"             type="real"          default_value="2000.0"
+                     units="meters"
+                     description="spline control point #7 for layer thickness"
+                     possible_values="Real values greater than zero"/>
+
+                <nml_option name="config_spline_x8"             type="real"          default_value="50000.0"
+                     units="meters"
+                     description="spline control point #8 for height dimension"
+                     possible_values="Real values greater than or equal to zero"/>
+
+                <nml_option name="config_spline_y8"             type="real"          default_value="4000.0"
+                     units="meters"
+                     description="spline control point #8 for layer thickness"
+                     possible_values="Real values greater than zero"/>
 
                 <nml_option name="config_specified_zeta_levels" type="character"     default_value=""    in_defaults="false"
                      units="-"
@@ -321,6 +431,7 @@
         <packages>
                 <package name="initial_conds" description="Used by test cases that produce initial conditions."/>
                 <package name="sfc_update" description="Used by test cases that produce surface updates."/>
+                <package name="soilndg_update" description="Used by test cases that produce soil nudging analysis fields."/>
                 <package name="lbcs" description="Active when lateral boundary conditions are interpolated and written."/>
                 <package name="gwd_stage_in" description="Active only if GWD static fields are be generated and other static fields are not being generated"/>
                 <package name="gwd_stage_out" description="Active only if GWD static fields are be generated and other static fields are not being generated"/>
@@ -391,13 +502,17 @@
                         <var name="mminlu" packages="gwd_stage_in;vertical_stage_in;met_stage_in"/>
                         <var name="isice_lu" packages="gwd_stage_in;vertical_stage_in;met_stage_in"/>
                         <var name="iswater_lu" packages="gwd_stage_in;vertical_stage_in;met_stage_in"/>
+                        <var name="ismax_lu" packages="gwd_stage_in;vertical_stage_in;met_stage_in"/>
                         <var name="ivgtyp" packages="gwd_stage_in;vertical_stage_in;met_stage_in"/>
+                        <var name="landusef" packages="gwd_stage_in;vertical_stage_in;met_stage_in"/>
                         <var name="isltyp" packages="gwd_stage_in;vertical_stage_in;met_stage_in"/>
+                        <var name="soiltypf" packages="gwd_stage_in;vertical_stage_in;met_stage_in"/>
                         <var name="snoalb" packages="gwd_stage_in;vertical_stage_in;met_stage_in"/>
                         <var name="soiltemp" packages="gwd_stage_in;vertical_stage_in;met_stage_in"/>
                         <var name="greenfrac" packages="gwd_stage_in;vertical_stage_in;met_stage_in"/>
                         <var name="shdmin" packages="gwd_stage_in;vertical_stage_in;met_stage_in"/>
                         <var name="shdmax" packages="gwd_stage_in;vertical_stage_in;met_stage_in"/>
+                        <var name="lai12m" packages="gwd_stage_in;vertical_stage_in;met_stage_in"/>
                         <var name="albedo12m" packages="gwd_stage_in;vertical_stage_in;met_stage_in"/>
                         <var name="var2d" packages="vertical_stage_in;met_stage_in"/>
                         <var name="con" packages="vertical_stage_in;met_stage_in"/>
@@ -487,13 +602,17 @@
                         <var name="mminlu"/>
                         <var name="isice_lu"/>
                         <var name="iswater_lu"/>
+                        <var name="ismax_lu"/>
                         <var name="ivgtyp"/>
+                        <var name="landusef"/>
                         <var name="isltyp"/>
+                        <var name="soiltypf"/>
                         <var name="snoalb"/>
                         <var name="soiltemp"/>
                         <var name="greenfrac"/>
                         <var name="shdmin"/>
                         <var name="shdmax"/>
+                        <var name="lai12m"/>
                         <var name="albedo12m"/>
                         <var name="var2d" packages="gwd_stage_out;vertical_stage_out;met_stage_out"/>
                         <var name="con" packages="gwd_stage_out;vertical_stage_out;met_stage_out"/>
@@ -546,10 +665,15 @@
                         <var name="seaice" packages="met_stage_out"/>
                         <var name="vegfra" packages="met_stage_out"/>
                         <var name="sfc_albbck" packages="met_stage_out"/>
+                        <var name="lai_modis" packages="met_stage_out"/>
                         <var name="xland" packages="met_stage_out"/>
                         <var name="rho" packages="met_stage_out"/>
                         <var name="theta" packages="met_stage_out"/>
                         <var name="relhum" packages="met_stage_out"/>
+                        <var name="ozone" packages="met_stage_out"/>
+                        <var name="spechum" packages="met_stage_out"/>
+                        <var name="uReconstructZonal" packages="met_stage_out"/>
+                        <var name="uReconstructMeridional" packages="met_stage_out"/>
                         <var name="rho_base" packages="met_stage_out"/>
                         <var name="theta_base" packages="met_stage_out"/>
                         <var name="surface_pressure" packages="met_stage_out"/>
@@ -560,6 +684,8 @@
                         <var name="q2" packages="met_stage_out"/>
                         <var name="rh2" packages="met_stage_out"/>
                         <var name="t2m" packages="met_stage_out"/>
+                        <var name="ptrop" packages="met_stage_out"/>
+                        <var name="hgttrop" packages="met_stage_out"/>
 		</stream>
 
 		<stream name="surface" 
@@ -573,6 +699,20 @@
 			<var name="xtime"/>
 			<var name="sst"/>
 			<var name="xice"/>
+		</stream>
+
+		<stream name="soilndg" 
+                        type="output" 
+                        filename_template="x1.40962.soilndg_update.nc"
+                        output_interval="10800" 
+                        filename_interval="none"
+                        packages="soilndg_update"
+                        immutable="true">
+
+			<var name="xtime" />
+			<var name="t2anl" />
+			<var name="rh2anl"/>
+			<var name="snoanl"/>
 		</stream>
 
 		<stream name="lbc"
@@ -742,11 +882,17 @@
                 <var name="ivgtyp" name_in_code="lu_index" type="integer"  dimensions="nCells" units="unitless"
                      description="dominant vegetation category"/>
 
+                <var name="landusef" type="real" dimensions="nLandCat nCells" units="unitless"
+                     description="grid cell fractional land use"/>
+
                 <var name="mminlu" type="text" dimensions="" units="unitless"
                      description="land use classification"/>
 
-                <var name="isltyp" name_in_code="soilcat_top"  type="integer"  dimensions="nCells" units="unitless"
-                     description="dominate soil category"/>
+                <var name="isltyp" name_in_code="soilcat"  type="integer"  dimensions="nCells" units="unitless"
+                     description="dominant soil category"/>
+
+                <var name="soiltypf" type="real" dimensions="nSoilCat nCells" units="unitless"
+                     description="grid cell fractional soil type"/>
 
                 <var name="snoalb" type="real" dimensions="nCells" units="unitless"
                      description="annual maximum snow albedo"/>
@@ -754,16 +900,19 @@
                 <var name="soiltemp" type="real" dimensions="nCells" units="K"
                      description="annual mean deep soil temperature"/>
 
-                <var name="greenfrac" type="real" dimensions="nMonths nCells" units="unitless"
-                     description="monthly-mean climatological greeness fraction"/>
+                <var name="greenfrac" type="real" dimensions="nMonths nCells" units="percent"
+                     description="monthly-mean climatological greenness fraction"/>
 
-                <var name="shdmin" type="real" dimensions="nCells" units="unitless"
+                <var name="shdmin" type="real" dimensions="nCells" units="percent"
                      description="minimum fractional coverage of annual green vegetation fraction"/>
 
-                <var name="shdmax" type="real" dimensions="nCells" units="unitless"
+                <var name="shdmax" type="real" dimensions="nCells" units="percent"
                      description="maximum fractional coverage of annual green vegetation fraction"/>
 
-                <var name="albedo12m" type="real" dimensions="nMonths nCells" units="unitless"
+                <var name="lai12m" type="real" dimensions="nMonths nCells" units="m^{2} m^{-2}"
+                     description="monthly-mean climatological leaf area index"/>
+
+                <var name="albedo12m" type="real" dimensions="nMonths nCells" units="percent"
                      description="monthly-mean climatological surface albedo"/>
 
                 <var name="isice_lu" type="integer" dimensions="" units="unitless" default_value="24"
@@ -771,6 +920,9 @@
 
                 <var name="iswater_lu" type="integer" dimensions="" units="unitless" default_value="16"
                      description="Index category for water"/>
+
+                <var name="ismax_lu" type="integer" dimensions="" units="unitless" default_value="24"
+                     description="Maximum number of land use categories"/>
 
                 <!-- GWDO fields -->
                 <var name="var2d" type="real" dimensions="nCells" units="m"
@@ -970,6 +1122,9 @@
                 <var name="sh_fg" name_in_code="sh" type="real" dimensions="nFGLevels nCells Time" units="kg kg^{-1}"
                      description="First guess specific humidity"/>
 
+                <var name="o3_fg" name_in_code="o3" type="real" dimensions="nFGLevels nCells Time" units="kg kg^{-1}"
+                     description="First guess ozone"/>
+
                 <var name="soilz_fg" name_in_code="soilz" type="real" dimensions="nCells Time" units="m"
                      description="First guess soil height"/>
 
@@ -1043,14 +1198,32 @@
                 <var name="gfs_z" type="real" dimensions="nVertLevels nCells Time" units="m"
                      description="geopotential height vertically interpolated from first guess"/>
 
-                <var name="vegfra" type="real" dimensions="nCells Time" units="unitless"
+                <var name="vegfra" type="real" dimensions="nCells Time" units="percent"
                      description="vegetation fraction"/>
 
                 <var name="sfc_albbck" type="real" dimensions="nCells Time" units="unitless"
                      description="background surface albedo"/>
 
+                <var name="lai_modis" type="real" dimensions="nCells Time" units="m^{2} m^{-2}"
+                     description="leaf area index"/>
+
                 <var name="xland" type="real" dimensions="nCells Time" units="unitless"
                      description="land-ocean mask (1=land including sea-ice ; 2=ocean)"/>
+
+                <var name="t2anl" type="real" dimensions="nCells Time" units="K"
+                     description="2-meter temperature analysis (interpolated to model time step during run)"/>
+
+                <var name="rh2anl" type="real" dimensions="nCells Time" units="percent"
+                     description="2-meter relative humidity analysis (interpolated to model time step during run)"/>
+
+                <var name="snoanl" type="real" dimensions="nCells Time" units="kg m^{-2}"
+                     description="snow water equivalent analysis (interpolated to model time step during run)"/>
+
+                <var name="ptrop" type="real" dimensions="nCells Time" units="Pa"
+                     description="tropopause pressure"/>
+
+                <var name="hgttrop" type="real" dimensions="nCells Time" units="m AMSL"
+                     description="tropopause height"/>
 
                 <!-- diagnostic fields that we get from first-guess data, and which we want to have at model initial output time -->
                 <var name="u10" type="real" dimensions="nCells Time" units="m s^{-1}"
@@ -1088,6 +1261,9 @@
 
                 <var name="spechum" type="real" dimensions="nVertLevels nCells Time" units="kg kg^{-1}"
                      description="Specific humidity"/>
+
+                <var name="ozone" type="real" dimensions="nVertLevels nCells Time" units="kg kg^{-1}"
+                     description="Ozone mass mixing ratio"/>
 
                 <!-- reconstructed horizontal velocity vectors at cell centers -->
                 <var name="uReconstructX" type="real" dimensions="nVertLevels nCells Time" units="m s^{-1}"
