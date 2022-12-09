@@ -115,6 +115,7 @@ module init_atm_core_interface
       logical :: lexist
 
       logical, pointer :: initial_conds, sfc_update, lbcs
+      logical, pointer :: soilndg_update
       logical, pointer :: gwd_stage_in, gwd_stage_out, vertical_stage_in, vertical_stage_out, met_stage_in, met_stage_out
       logical, pointer :: config_native_gwd_static, config_static_interp, config_vertical_grid, config_met_interp
       logical, pointer :: first_guess_field
@@ -136,6 +137,9 @@ module init_atm_core_interface
 
       nullify(sfc_update)
       call mpas_pool_get_package(packages, 'sfc_updateActive', sfc_update)
+
+      nullify(soilndg_update)
+      call mpas_pool_get_package(packages, 'soilndg_updateActive', soilndg_update)
 
       nullify(lbcs)
       call mpas_pool_get_package(packages, 'lbcsActive', lbcs)
@@ -163,6 +167,7 @@ module init_atm_core_interface
 
       if (.not. associated(initial_conds) .or. &
           .not. associated(sfc_update) .or. &
+          .not. associated(soilndg_update) .or. &
           .not. associated(gwd_stage_in) .or. &
           .not. associated(gwd_stage_out) .or. &
           .not. associated(vertical_stage_in) .or. &
@@ -193,6 +198,14 @@ module init_atm_core_interface
       else
          lbcs = .false.
          mp_thompson_aers_in = .false.
+      end if
+
+      if (config_init_case == 10) then
+         initial_conds  = .false.
+         soilndg_update = .true.
+      else
+         initial_conds = .true.
+         soilndg_update = .false.
       end if
 
       if (config_init_case == 7) then

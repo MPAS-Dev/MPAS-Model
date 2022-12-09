@@ -52,6 +52,13 @@
 ! * In subroutine physics_init_seaice, removed the initialization of isice_lu since it is now defined in
 !   Registry.xml and initialized in subroutine init_atm_static.
 !   Laura D. Fowler (laura@ucar.edu) / 2017-01-12.
+! * generalized soilcat (isltyp) to work with either soiltype_top or soiltype_bot data.
+!   Jerold A. Herwehe (herwehe.jerry@epa.gov) / 2018-09-10.
+! * added fractional soil type (soiltypf) and land use (landusef) dependent on config_frac_landuse option;
+!   otherwise dominant land use and soil type will be used by default.
+!   Jerold A. Herwehe (herwehe.jerry@epa.gov) / 2020-02-10.
+! * added initialization of lai_modis from MODIS climatological monthly mean LAI for use by PX LSM.
+!   Jerold A. Herwehe (herwehe.jerry@epa.gov) / 2020-02-20.
 ! * In subroutine physics_init_seaice, added the initialization of the annual maximum snow albedo over seaice
 !   points to 0.75.
 ! * Laura D. Fowler (laura@ucar.edu) / 2022-03-15).
@@ -88,9 +95,9 @@
  real(kind=RKIND),dimension(:,:),pointer:: albedo12m
 
  real(kind=RKIND),dimension(:),pointer:: seaice,xice,xland
- real(kind=RKIND),dimension(:),pointer:: vegfra,shdmin,shdmax
+ real(kind=RKIND),dimension(:),pointer:: vegfra,shdmin,shdmax,lai_modis
  real(kind=RKIND),dimension(:),pointer:: snow,snowc,snowh
- real(kind=RKIND),dimension(:,:),pointer:: greenfrac
+ real(kind=RKIND),dimension(:,:),pointer:: greenfrac,lai12m
 
  real(kind=RKIND),dimension(:),pointer:: skintemp,sst
 
@@ -116,9 +123,11 @@
  call mpas_pool_get_array(mesh, 'greenfrac', greenfrac)
  call mpas_pool_get_array(mesh, 'shdmin', shdmin)
  call mpas_pool_get_array(mesh, 'shdmax', shdmax)
+ call mpas_pool_get_array(mesh, 'lai12m', lai12m)
 
  call mpas_pool_get_array(fg, 'sfc_albbck', sfc_albbck)
  call mpas_pool_get_array(fg, 'vegfra', vegfra)
+ call mpas_pool_get_array(fg, 'lai_modis', lai_modis)
  call mpas_pool_get_array(fg, 'snow', snow)
  call mpas_pool_get_array(fg, 'snowc', snowc)
  call mpas_pool_get_array(fg, 'snowh', snowh)
@@ -157,10 +166,12 @@
     if(landmask(iCell) .eq. 0) sfc_albbck(iCell) = 0.08_RKIND
  enddo
 
-!initialization of the green-ness (vegetation) fraction: interpolation of the monthly values to
-!the initial date. get the min/max for each cell for the monthly green-ness fraction:
+!initialization of the green-ness (vegetation) fraction and leaf area index: 
+!interpolation of the monthly values to the initial date, and 
+!get the min/max for each cell for the monthly green-ness fraction:
  initial_date = trim(config_start_time)
  call monthly_interp_to_date(nCellsSolve,initial_date,greenfrac,vegfra)
+ call monthly_interp_to_date(nCellsSolve,initial_date,lai12m,lai_modis)
 
 !calculates the maximum and minimum green-ness (vegetation) fraction:
  call monthly_min_max(nCellsSolve,greenfrac,shdmin,shdmax)
@@ -304,9 +315,6 @@
 
  call mpas_pool_get_config(configs, 'config_nsoillevels', config_nsoillevels)
 
- if(config_nsoillevels .ne. 4) &
-    call physics_error_fatal('NOAH lsm uses 4 soil layers. Correct config_nsoillevels.')
-
  do iCell = 1, nCellsSolve
     iSoil = 1
     zs_fg(iSoil,iCell) = 0.5_RKIND * dzs_fg(iSoil,iCell)
@@ -317,21 +325,45 @@
     enddo
  enddo
 
- do iCell = 1, nCellsSolve
-    dzs(1,iCell) = 0.10_RKIND
-    dzs(2,iCell) = 0.30_RKIND
-    dzs(3,iCell) = 0.60_RKIND
-    dzs(4,iCell) = 1.00_RKIND
+ if(config_nsoillevels .eq. 4) then  ! for Noah lsm
 
-    iSoil = 1
-    zs(iSoil,iCell)  = 0.5_RKIND * dzs(iSoil,iCell)
-    do iSoil = 2, nSoilLevels
-       zs(iSoil,iCell) = zs(iSoil-1,iCell)              &
-                       + 0.5_RKIND * dzs(iSoil-1,iCell) &
-                       + 0.5_RKIND * dzs(iSoil,iCell)
+    do iCell = 1, nCellsSolve
+       dzs(1,iCell) = 0.10_RKIND
+       dzs(2,iCell) = 0.30_RKIND
+       dzs(3,iCell) = 0.60_RKIND
+       dzs(4,iCell) = 1.00_RKIND
+
+       iSoil = 1
+       zs(iSoil,iCell)  = 0.5_RKIND * dzs(iSoil,iCell)
+       do iSoil = 2, nSoilLevels
+          zs(iSoil,iCell) = zs(iSoil-1,iCell)              &
+                          + 0.5_RKIND * dzs(iSoil-1,iCell) &
+                          + 0.5_RKIND * dzs(iSoil,iCell)
+       enddo
+
     enddo
 
- enddo
+ elseif(config_nsoillevels .eq. 2) then  ! for PX lsm
+
+    do iCell = 1, nCellsSolve
+       dzs(1,iCell) = 0.01_RKIND
+       dzs(2,iCell) = 0.99_RKIND
+
+       iSoil = 1
+       zs(iSoil,iCell)  = 0.5_RKIND * dzs(iSoil,iCell)
+       do iSoil = 2, nSoilLevels
+          zs(iSoil,iCell) = zs(iSoil-1,iCell)              &
+                          + 0.5_RKIND * dzs(iSoil-1,iCell) &
+                          + 0.5_RKIND * dzs(iSoil,iCell)
+       enddo
+
+    enddo
+
+ else
+
+    call physics_error_fatal('NOAH lsm uses 4 and PX lsm uses 2 soil layers. Correct config_nsoillevels.')
+
+ endif
 
  end subroutine init_soil_layers_depth
 
@@ -409,8 +441,8 @@
     call mpas_log_write('Error in interpolation of sm_fg to MPAS grid: num_sm = $i', messageType=MPAS_LOG_CRIT, intArgs=(/num_sm/))
  endif 
 
- if(config_nsoillevels .ne. 4) &
-    call physics_error_fatal('NOAH lsm uses 4 soil layers. Correct config_nsoillevels.')
+ if(config_nsoillevels .ne. 4 .and. config_nsoillevels .ne. 2) &
+    call physics_error_fatal('NOAH lsm uses 4 and PX lsm uses 2 soil layers. Correct config_nsoillevels.')
 
  if(.not.allocated(zhave)   ) allocate(zhave(nFGSoilLevels+2,nCellsSolve)   )
  if(.not.allocated(st_input)) allocate(st_input(nFGSoilLevels+2,nCellsSolve))
@@ -441,14 +473,14 @@
 
  enddo
 
-!... interpolate the soil temperature, soil moisture, and soil liquid temperature to the four
-!    layers used in the NOAH land surface scheme:
+!... interpolate the soil temperature, soil moisture, and soil liquid temperature to either
+!    the four layers used in the NOAH land surface scheme or the two layers used in the PX LSM:
 
  do iCell = 1, nCellsSolve
 
     if(landmask(iCell) .eq. 1) then
 
-       noah: do iSoil = 1 , nSoilLevels
+       do iSoil = 1 , nSoilLevels
           input: do ifgSoil = 1 , nFGSoilLevels+2-1
              if(iCell .eq. 1) call mpas_log_write('$i $i $r $r $r', &
                                                   intArgs=(/iSoil,ifgSoil/), &
@@ -477,7 +509,7 @@
              endif
           enddo input
           if(iCell.eq. 1) call mpas_log_write('')
-       enddo noah
+       enddo
 
     elseif(landmask(iCell) .eq. 0) then
 
@@ -604,14 +636,16 @@
  real(kind=RKIND):: xice_threshold
  real(kind=RKIND):: mid_point_depth
  real(kind=RKIND),pointer:: tsk_seaice_threshold
- real(kind=RKIND),dimension(:),pointer  :: vegfra
+ real(kind=RKIND),dimension(:),pointer  :: vegfra,lai_modis
  real(kind=RKIND),dimension(:),pointer  :: seaice,snoalb,xice
  real(kind=RKIND),dimension(:),pointer  :: skintemp,tmn,xland
  real(kind=RKIND),dimension(:,:),pointer:: tslb,smois,sh2o,smcrel
+ real(kind=RKIND),dimension(:,:),pointer:: landusef,soiltypf
 
- logical, pointer :: config_frac_seaice
+ logical, pointer :: config_frac_seaice,config_frac_landuse
  character(len=StrKIND),pointer:: config_landuse_data
- integer,pointer:: isice_lu
+ integer,pointer:: isice_lu,ismax_lu
+ integer:: i
 
 !note that this threshold is also defined in module_physics_vars.F.It is defined here to avoid
 !adding "use module_physics_vars" since this subroutine is only used for the initialization of
@@ -625,19 +659,24 @@
  call mpas_pool_get_config(configs, 'config_frac_seaice'         , config_frac_seaice)
  call mpas_pool_get_config(configs, 'config_tsk_seaice_threshold', tsk_seaice_threshold)
  call mpas_pool_get_config(configs, 'config_landuse_data'        , config_landuse_data)
+ call mpas_pool_get_config(configs, 'config_frac_landuse'        , config_frac_landuse)
 
  call mpas_pool_get_dimension(dims, 'nCellsSolve', nCellsSolve)
  call mpas_pool_get_dimension(dims, 'nSoilLevels', nSoilLevels)
 
  call mpas_pool_get_array(mesh, 'isice_lu', isice_lu)
+ call mpas_pool_get_array(mesh, 'ismax_lu', ismax_lu)
  call mpas_pool_get_array(mesh, 'landmask', landmask)
  call mpas_pool_get_array(mesh, 'lu_index', ivgtyp)
- call mpas_pool_get_array(mesh, 'soilcat_top', isltyp)
  call mpas_pool_get_array(mesh, 'snoalb', snoalb)
+ call mpas_pool_get_array(mesh, 'landusef', landusef)
+ call mpas_pool_get_array(mesh, 'soilcat', isltyp)
+ call mpas_pool_get_array(mesh, 'soiltypf', soiltypf)
 
  call mpas_pool_get_array(input, 'seaice', seaice)
  call mpas_pool_get_array(input, 'xice', xice)
  call mpas_pool_get_array(input, 'vegfra', vegfra)
+ call mpas_pool_get_array(input, 'lai_modis', lai_modis)
 
  call mpas_pool_get_array(input, 'skintemp', skintemp)
  call mpas_pool_get_array(input, 'tmn', tmn)
@@ -649,6 +688,7 @@
  call mpas_pool_get_array(input, 'smcrel', smcrel)
 
  call mpas_log_write('--- isice_lu   = $i', intArgs=(/isice_lu/))
+ call mpas_log_write('--- ismax_lu   = $i', intArgs=(/ismax_lu/))
 
 !assign the threshold value for xice as a function of config_frac_seaice:
  if(.not. config_frac_seaice) then
@@ -678,10 +718,27 @@
        !... sea-ice points are converted to land points:
        if(landmask(iCell) .eq. 0) tmn(iCell) = 271.4_RKIND
        ivgtyp(iCell) = isice_lu
+!       if(.not. config_frac_landuse) then
+          landusef(isice_lu,iCell) = 1.0  ! defines dominant land use only
+          do i = 1,isice_lu-1
+             landusef(i,iCell) = 0.0
+          end do
+          do i = isice_lu+1,ismax_lu
+             landusef(i,iCell) = 0.0
+          end do
+!       else
+          ! Placeholder for land conversion with fractional land use
+!       endif
        isltyp(iCell) = 16
        snoalb(iCell) = 0.75
        vegfra(iCell) = 0._RKIND
        xland(iCell)  = 1._RKIND
+       lai_modis(iCell) = 0._RKIND
+
+       soiltypf(16,iCell) = 1.0  ! Currently defines dominant soil type fraction only
+       do i = 1,15
+          soiltypf(i,iCell) = 0.0
+       end do
 
        !... recalculate the soil temperature and soil moisture:
        do iSoil = 1, nSoilLevels

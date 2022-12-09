@@ -351,6 +351,20 @@ module init_atm_cases
          !
          call mpas_stream_mgr_reset_alarms(stream_manager, streamID='lbc', direction=MPAS_STREAM_OUTPUT, ierr=ierr)
 
+      else if (config_init_case == 10 ) then
+
+         call mpas_log_write('real-data P-X soil nudging update file case ')
+         block_ptr => domain % blocklist
+         do while (associated(block_ptr))
+            call mpas_pool_get_subpool(block_ptr % structs, 'mesh', mesh)
+            call mpas_pool_get_subpool(block_ptr % structs, 'fg', fg)
+            call mpas_pool_get_subpool(block_ptr % structs, 'state', state)
+
+            ! Defined in mpas_init_atm_surface.F
+            call init_atm_case_soilndg(domain, domain % dminfo, stream_manager, mesh, fg, state, block_ptr % dimensions, block_ptr % configs)
+            block_ptr => block_ptr % next
+         end do
+
       else if (config_init_case == 13 ) then
 
          call mpas_log_write(' CAM-MPAS grid ')
@@ -382,9 +396,9 @@ module init_atm_cases
 
       else
 
-         call mpas_log_write(' ***********************************************************', messageType=MPAS_LOG_ERR)
-         call mpas_log_write(' Only test cases 1 through 9 and 13 are currently supported.', messageType=MPAS_LOG_ERR)
-         call mpas_log_write(' ***********************************************************', messageType=MPAS_LOG_CRIT)
+         call mpas_log_write(' ************************************************************', messageType=MPAS_LOG_ERR)
+         call mpas_log_write(' Only test cases 1 through 10 and 13 are currently supported.', messageType=MPAS_LOG_ERR)
+         call mpas_log_write(' ************************************************************', messageType=MPAS_LOG_CRIT)
 
       end if
 
@@ -466,7 +480,7 @@ module init_atm_cases
 
       real (kind=RKIND) :: r_earth, etavs, ztemp, zd, zt, dz, str
 
-      real (kind=RKIND) :: es, xnutr, znut, ptemp
+      real (kind=RKIND) :: es, xnutr, znut, ptemp 
 
       real (kind=RKIND), dimension(nVertLevels + 1 ) :: sh, zw, ah
       real (kind=RKIND), dimension(nVertLevels ) :: zu, dzw, rdzwp, rdzwm
@@ -2014,7 +2028,7 @@ module init_atm_cases
       real (kind=RKIND) :: um, vm,rcp, rcv
       real (kind=RKIND) :: temp, pres, a_scale
 
-      real (kind=RKIND) :: xi, xa, xc, xla, zinv, xn2, xn2m, xn2l, z_edge, z_edge3
+      real (kind=RKIND) :: xi, xa, xc, xla, zinv, xn2, xn2m, xn2l, z_edge, z_edge3 
 
       integer, dimension(nCells, 2) :: next_cell
       logical, parameter :: terrain_smooth = .false.
@@ -2668,7 +2682,7 @@ module init_atm_cases
       real (kind=RKIND), dimension(:,:,:), pointer :: deriv_two
 
       real (kind=RKIND) :: target_z
-      integer :: iCell, iCell1, iCell2 , iEdge, i, k, nz, cell1, cell2
+      integer :: iCell, iCell1, iCell2 , iEdge, i, k, nz, itr, itrp, cell1, cell2
       integer, pointer :: nCellsSolve, nz1
       integer :: nInterpPoints, ndims
 
@@ -2715,7 +2729,7 @@ module init_atm_cases
 
       real (kind=RKIND) :: p0
 
-      real (kind=RKIND) :: etavs, ztemp, zd, zt, dz, str
+      real (kind=RKIND) :: etavs, ztemp, zd, zt, dz, str, grd, kfrac
 
       real (kind=RKIND) :: es, rs, xnutr, znut, rcv
 
@@ -2744,6 +2758,24 @@ module init_atm_cases
       real (kind=RKIND), pointer :: config_ztop
       logical, pointer :: config_tc_vertical_grid
       character (len=StrKIND), pointer :: config_specified_zeta_levels
+      logical, pointer :: config_spline_vertical_grid
+      real (kind=RKIND), pointer :: config_spline_x1
+      real (kind=RKIND), pointer :: config_spline_y1
+      real (kind=RKIND), pointer :: config_spline_x2
+      real (kind=RKIND), pointer :: config_spline_y2
+      real (kind=RKIND), pointer :: config_spline_x3
+      real (kind=RKIND), pointer :: config_spline_y3
+      real (kind=RKIND), pointer :: config_spline_x4
+      real (kind=RKIND), pointer :: config_spline_y4
+      real (kind=RKIND), pointer :: config_spline_x5
+      real (kind=RKIND), pointer :: config_spline_y5
+      real (kind=RKIND), pointer :: config_spline_x6
+      real (kind=RKIND), pointer :: config_spline_y6
+      real (kind=RKIND), pointer :: config_spline_x7
+      real (kind=RKIND), pointer :: config_spline_y7
+      real (kind=RKIND), pointer :: config_spline_x8
+      real (kind=RKIND), pointer :: config_spline_y8
+      logical, pointer :: config_EPA_vertical_grid
       logical, pointer :: config_use_spechumd
       integer, pointer :: config_nfglevels
       integer, pointer :: config_nfgsoillevels
@@ -2773,6 +2805,7 @@ module init_atm_cases
       real (kind=RKIND), dimension(:,:), pointer :: rho
       real (kind=RKIND), dimension(:,:), pointer :: relhum
       real (kind=RKIND), dimension(:,:), pointer :: spechum
+      real (kind=RKIND), dimension(:,:), pointer :: ozone
       real (kind=RKIND), dimension(:,:), pointer :: ru
       real (kind=RKIND), dimension(:,:), pointer :: rw
       real (kind=RKIND), dimension(:), pointer :: precipw
@@ -2783,6 +2816,8 @@ module init_atm_cases
       real (kind=RKIND), dimension(:,:), pointer :: uReconstructMeridional
 
       real (kind=RKIND), dimension(:), pointer :: psfc
+      real (kind=RKIND), dimension(:), pointer :: hgttrop
+      real (kind=RKIND), dimension(:), pointer :: ptrop
       real (kind=RKIND), dimension(:), pointer :: skintemp
       real (kind=RKIND), dimension(:), pointer :: snow
       real (kind=RKIND), dimension(:), pointer :: snowc
@@ -2792,6 +2827,7 @@ module init_atm_cases
       real (kind=RKIND), dimension(:,:), pointer :: t_fg
       real (kind=RKIND), dimension(:,:), pointer :: rh_fg
       real (kind=RKIND), dimension(:,:), pointer :: sh_fg
+      real (kind=RKIND), dimension(:,:), pointer :: o3_fg
       real (kind=RKIND), dimension(:,:), pointer :: gfs_z
       real (kind=RKIND), dimension(:,:), pointer :: p_fg
       real (kind=RKIND), dimension(:,:), pointer :: st_fg
@@ -2802,10 +2838,35 @@ module init_atm_cases
       logical :: too_many_fg_levs
       integer :: level_value
 
-      ! For outputting surface fields u10, v10, q2, rh2, and t2m from first-guess data
+      ! For outputting surface fields q2, rh2, and t2m from first-guess data
       real (kind=RKIND), dimension(:), pointer :: q2
       real (kind=RKIND), dimension(:), pointer :: rh2
       real (kind=RKIND), dimension(:), pointer :: t2m
+
+      ! For cubic spline definition of air quality layer thickness profile
+      integer, parameter :: nprof = 8
+      real (kind=RKIND), dimension(nprof) :: &
+        xx,      &!< x-dimension control point for cubic spline interpolation
+        yy        !< y-dimension control point for cubic spline interpolation
+      real (kind=RKIND), parameter :: &
+        cadj = 0.3,     &!< layer thickness adjustment coefficient
+        ctol = 0.001     !< tolerance for layer fit to model top
+      real (kind=RKIND), dimension(nprof) :: &
+        ya,      &!< Thickness scaled to match model top
+        y2ndDer, &!< 2nd derivative at nodes of layer profile definition
+        acoef     !< Tridiagonal decomposition factor
+      real (kind=RKIND) :: &
+        thick,   &!< Interpolated layer thickness
+        zint,    &!< Height for interpolation
+        ptef,    &!< Profile top error factor
+        adj,     &!< Thickness adjustment factor
+        xRatio,  &!< X-dimension scale for interpolation
+        tvar,    &!< temporary variable
+        aa,      &!< temporary variable
+        bb,      &!< temporary variable
+        cc        !< temporary variable
+      real (kind=RKIND), dimension(nVertLevels+1) :: zwtemp
+      integer :: nlayerint, klo, khi, ncount
 
       character (len=StrKIND) :: errstring
       character (len=StrKIND), pointer :: config_interface_projection
@@ -2820,6 +2881,24 @@ module init_atm_cases
       call mpas_pool_get_config(configs, 'config_ztop', config_ztop)
       call mpas_pool_get_config(configs, 'config_tc_vertical_grid', config_tc_vertical_grid)
       call mpas_pool_get_config(configs, 'config_specified_zeta_levels', config_specified_zeta_levels)
+      call mpas_pool_get_config(configs, 'config_EPA_vertical_grid', config_EPA_vertical_grid)
+      call mpas_pool_get_config(configs, 'config_spline_vertical_grid', config_spline_vertical_grid)
+      call mpas_pool_get_config(configs, 'config_spline_x1', config_spline_x1)
+      call mpas_pool_get_config(configs, 'config_spline_y1', config_spline_y1)
+      call mpas_pool_get_config(configs, 'config_spline_x2', config_spline_x2)
+      call mpas_pool_get_config(configs, 'config_spline_y2', config_spline_y2)
+      call mpas_pool_get_config(configs, 'config_spline_x3', config_spline_x3)
+      call mpas_pool_get_config(configs, 'config_spline_y3', config_spline_y3)
+      call mpas_pool_get_config(configs, 'config_spline_x4', config_spline_x4)
+      call mpas_pool_get_config(configs, 'config_spline_y4', config_spline_y4)
+      call mpas_pool_get_config(configs, 'config_spline_x5', config_spline_x5)
+      call mpas_pool_get_config(configs, 'config_spline_y5', config_spline_y5)
+      call mpas_pool_get_config(configs, 'config_spline_x6', config_spline_x6)
+      call mpas_pool_get_config(configs, 'config_spline_y6', config_spline_y6)
+      call mpas_pool_get_config(configs, 'config_spline_x7', config_spline_x7)
+      call mpas_pool_get_config(configs, 'config_spline_y7', config_spline_y7)
+      call mpas_pool_get_config(configs, 'config_spline_x8', config_spline_x8)
+      call mpas_pool_get_config(configs, 'config_spline_y8', config_spline_y8)
       call mpas_pool_get_config(configs, 'config_use_spechumd', config_use_spechumd)
       call mpas_pool_get_config(configs, 'config_nfglevels', config_nfglevels)
       call mpas_pool_get_config(configs, 'config_nfgsoillevels', config_nfgsoillevels)
@@ -2885,6 +2964,7 @@ module init_atm_cases
       call mpas_pool_get_array(diag, 'surface_pressure', surface_pressure)
       call mpas_pool_get_array(diag, 'relhum', relhum)
       call mpas_pool_get_array(diag, 'spechum', spechum)
+      call mpas_pool_get_array(diag, 'ozone', ozone)
       call mpas_pool_get_array(diag, 'ru', ru)
       call mpas_pool_get_array(diag, 'rw', rw)
 
@@ -2921,6 +3001,8 @@ module init_atm_cases
       call mpas_pool_get_array(fg, 'st_fg', st_fg)
       call mpas_pool_get_array(fg, 'sm_fg', sm_fg)
       call mpas_pool_get_array(fg, 'psfc', psfc)
+      call mpas_pool_get_array(fg, 'ptrop', ptrop)
+      call mpas_pool_get_array(fg, 'hgttrop', hgttrop)
       call mpas_pool_get_array(fg, 'skintemp', skintemp)
       call mpas_pool_get_array(fg, 'snow', snow)
       call mpas_pool_get_array(fg, 'snowc', snowc)
@@ -2930,6 +3012,7 @@ module init_atm_cases
       call mpas_pool_get_array(fg, 't', t_fg)
       call mpas_pool_get_array(fg, 'rh', rh_fg)
       call mpas_pool_get_array(fg, 'sh', sh_fg)
+      call mpas_pool_get_array(fg, 'o3', o3_fg)
       call mpas_pool_get_array(fg, 'gfs_z', gfs_z)
       call mpas_pool_get_array(fg, 'p', p_fg)
 
@@ -3110,6 +3193,127 @@ module init_atm_cases
             else
                  zw(K) = (zl+alt*(real(K-1)/real(nz1)-zetal))*zt
             end if
+            if (k > 1) dzw(k-1) = zw(k)-zw(k-1)
+         end do
+
+      else if (config_spline_vertical_grid) then
+
+         call mpas_log_write('Setting up vertical levels using a cubic spline fit')
+
+         zt = config_ztop
+         xx(1) = config_spline_x1
+         yy(1) = config_spline_y1
+         xx(2) = config_spline_x2
+         yy(2) = config_spline_y2
+         xx(3) = config_spline_x3
+         yy(3) = config_spline_y3
+         xx(4) = config_spline_x4
+         yy(4) = config_spline_y4
+         xx(5) = config_spline_x5
+         yy(5) = config_spline_y5
+         xx(6) = config_spline_x6
+         yy(6) = config_spline_y6
+         xx(7) = config_spline_x7
+         yy(7) = config_spline_y7
+         xx(8) = config_spline_x8
+         yy(8) = config_spline_y8
+
+! Set up cubic spline definition of layer thickness vertical profile
+         y2ndDer(1)=0.0
+         y2ndDer(nprof)=0.0
+         acoef(1)=0.0
+         ya(1:nprof) = yy(1:nprof)
+
+         do i=2,nprof-1
+            xRatio=(xx(i)-xx(i-1))/(xx(i+1)-xx(i-1))
+            tvar=1.0/(2.0+xRatio*y2ndDer(i-1))
+            y2ndDer(i)=tvar*(xRatio-1.0)
+            acoef(i) = tvar*(6.0*((ya(i+1)-ya(i))/(xx(i+1)-xx(i)) &
+                -(ya(i)-ya(i-1))/(xx(i)-xx(i-1)))/(xx(i+1)-xx(i-1)) &
+                -xRatio*acoef(i-1))
+         enddo
+
+         do i=nprof-1,1,-1
+            y2ndDer(i)=y2ndDer(i)*y2ndDer(i+1)+acoef(i)
+         enddo
+
+! Loop to set layer interface heights from air quality profile
+         ptef = 0.
+         zwtemp(1)= 0.
+         ncount = 0
+         do while(abs(1.0-ptef) > ctol)
+            zwtemp(2) = ya(1)
+            zint = ya(1)
+            nlayerint = 2
+            do while (nlayerint.lt.nz)
+               klo=1
+               khi=nprof
+               do while (khi-klo.gt.1)
+                  k=(khi+klo)/2
+                  if(xx(k).gt.zint)then
+                     khi=k
+                  else
+                     klo=k
+                  endif
+               enddo
+               cc=xx(khi)-xx(klo)
+               aa=(xx(khi)-zint)/cc
+               bb=(zint-xx(klo))/cc
+               thick=aa*ya(klo)+bb*ya(khi)+((aa**3-aa)*y2ndDer(klo)+ &
+                  (bb**3-bb)*y2ndDer(khi))*(cc**2)/6.
+               zint = zint+thick
+               nlayerint = nlayerint+1
+               zwtemp(nlayerint) = zint
+            enddo
+            if(ptef.eq.0.) then
+               ptef = zt/zint
+               if(ptef > 1.5) then
+                  call mpas_log_write('*** Significant layer inflation required ***')
+                  call mpas_log_write('***   You may want to use more layers    ***')
+                  call mpas_log_write('***      and/or a lower model top        ***')
+               else if(ptef < 0.6) then
+                  call mpas_log_write('*** Significant layer deflation required ***')
+                  call mpas_log_write('***   You may want to use fewer layers   ***')
+                  call mpas_log_write('***      and/or a higher model top       ***')
+               endif
+            else
+               ptef = zt/zint
+            endif
+            call mpas_log_write('Using first layer, ptef = $r $r',realArgs=(/ya(1),ptef/))
+            ncount = ncount+1
+            if(ncount > 20) then
+               call mpas_log_write('*** ERROR: layer adjustment failure ***')
+               call mpas_log_write('  *** Iteration did not converge ***')
+               call mpas_dmpar_global_abort('****************************************************************************', deferredAbort=.true.)
+               call mpas_dmpar_global_abort('ERROR: Aborted while setting up vertical levels for Air Quality applications', deferredAbort=.true.)
+               call mpas_dmpar_global_abort('****************************************************************************')
+            endif
+            adj = 1.0+(cadj*(ptef-1.0))
+            ya(1:nprof) = ya(1:nprof)*adj
+            y2ndDer(1:nprof) = y2ndDer(1:nprof)*adj
+         enddo
+
+! Now make minor adjustment to layers to fit within specified top
+         do k=1,nz
+            zw(k) = zwtemp(k)*ptef
+         enddo
+         call mpas_log_write('Layers for Air Quality applications generated')
+         call mpas_log_write('Number of layers and Model top = $i $r',intArgs=(/nz1/),realArgs=(/zt/))
+         call mpas_log_write('Adjusted bottom layer thickness (m) = $r',realArgs=(/zw(2)/))
+         call mpas_log_write('')
+
+      else if (config_EPA_vertical_grid) then
+
+         call mpas_log_write('Setting up vertical levels as in MPAS 4.0 and earlier, but')
+         call mpas_log_write('*** Using custom layer definition ***')
+
+         str = 3.
+         grd = 0.03
+         zt = config_ztop
+
+         do k=1,nz
+            kfrac = real(k-1)/real(nz1)
+            zw(k) = zt*((1-grd)*kfrac**str+grd*kfrac)
             if (k > 1) dzw(k-1) = zw(k)-zw(k-1)
          end do
 
@@ -3485,9 +3689,12 @@ module init_atm_cases
              trim(field % field) == 'TT' .or. &
              trim(field % field) == 'RH' .or. &
              trim(field % field) == 'SPECHUMD' .or. &
+             trim(field % field) == 'O3' .or. &
              trim(field % field) == 'GHT' .or. &
              trim(field % field) == 'PMSL' .or. &
              trim(field % field) == 'PSFC' .or. &
+             trim(field % field) == 'PTROP' .or. &
+             trim(field % field) == 'HGTTROP' .or. &
              trim(field % field) == 'SOILHGT' .or. &
              trim(field % field) == 'SM000010' .or. &
              trim(field % field) == 'SM010040' .or. &
@@ -3535,6 +3742,8 @@ module init_atm_cases
                 trim(field % field) == 'ST028100' .or. &
                 trim(field % field) == 'ST100255' .or. &
                 trim(field % field) == 'ST100289' .or. &
+                trim(field % field) == 'PTROP' .or. &
+                trim(field % field) == 'HGTTROP' .or. &
                 trim(field % field) == 'SNOW' .or. &
                 trim(field % field) == 'SEAICE' .or. &
                 trim(field % field) == 'SKINTEMP') then
@@ -3663,6 +3872,13 @@ module init_atm_cases
                lonPoints => lonCell
                call mpas_pool_get_array(fg, 'sh', destField2d)
                ndims = 2
+            else if (trim(field % field) == 'O3') then
+               call mpas_log_write('Interpolating O3 at $i $r', intArgs=(/k/), realArgs=(/vert_level(k)/))
+               nInterpPoints = nCells
+               latPoints => latCell
+               lonPoints => lonCell
+               call mpas_pool_get_array(fg, 'o3', destField2d)
+               ndims = 2
             else if (trim(field % field) == 'GHT') then
                call mpas_log_write('Interpolating GHT at $i $r', intArgs=(/k/), realArgs=(/vert_level(k)/))
                nInterpPoints = nCells
@@ -3697,6 +3913,20 @@ module init_atm_cases
                latPoints => latCell
                lonPoints => lonCell
                call mpas_pool_get_array(fg, 'psfc', destField1d)
+               ndims = 1
+            else if (trim(field % field) == 'PTROP') then
+               call mpas_log_write('Interpolating PTROP')
+               nInterpPoints = nCells
+               latPoints => latCell
+               lonPoints => lonCell
+               call mpas_pool_get_array(fg, 'ptrop', destField1d)
+               ndims = 1
+            else if (trim(field % field) == 'HGTTROP') then
+               call mpas_log_write('Interpolating HGTTROP')
+               nInterpPoints = nCells
+               latPoints => latCell
+               lonPoints => lonCell
+               call mpas_pool_get_array(fg, 'hgttrop', destField1d)
                ndims = 1
             else if (trim(field % field) == 'SOILHGT') then
                call mpas_log_write('Interpolating SOILHGT')
@@ -4661,6 +4891,22 @@ call mpas_log_write('Done with soil consistency check')
             target_z = 0.5 * (zgrid(k,iCell) + zgrid(k+1,iCell))
             spechum(k,iCell) = vertical_interp(target_z, nfglevels_actual-1, &
                                         sorted_arr(:,1:nfglevels_actual-1), order=1, extrap=0)
+         end do
+
+
+         ! O3
+         sorted_arr(:,:) = -999.0
+         ozone(:,iCell) = 0._RKIND
+         do k = 1, nfglevels_actual
+            sorted_arr(1,k) = z_fg(k,iCell)
+            if (vert_level(k) == 200100.0) sorted_arr(1,k) = 99999.0
+            sorted_arr(2,k) = o3_fg(k,iCell)
+         end do
+         call mpas_quicksort(nfglevels_actual, sorted_arr)
+         do k = nVertLevels, 1, -1
+            target_z = 0.5 * (zgrid(k,iCell) + zgrid(k+1,iCell))
+            ozone(k,iCell) = vertical_interp(target_z, nfglevels_actual-1, &
+                                      sorted_arr(:,1:nfglevels_actual-1), order=1, extrap=0)
          end do
 
 
@@ -6620,32 +6866,39 @@ call mpas_log_write('Done with soil consistency check')
       type (mpas_pool_type), intent(inout) :: fg
       
       !local variables:
-      integer :: iCell, iMonth, iSoil
-      integer, pointer :: nCells, nSoilLevels, nMonths
-      integer, dimension(:), pointer :: landmask, lu_index, soilcat_top
-      real (kind=RKIND), dimension(:), pointer :: ter, xice, shdmin, shdmax, vegfra, sfc_albbck, xland, seaice
+      integer :: iCell, iMonth, iSoil, iLandCat, iSoilCat
+      integer, pointer :: nCells, nSoilLevels, nMonths, nLandCat, nSoilCat
+      integer, dimension(:), pointer :: landmask, lu_index, soilcat
+      real (kind=RKIND), dimension(:), pointer :: ter, xice, shdmin, shdmax, vegfra, sfc_albbck, xland, seaice, lai_modis
       real (kind=RKIND), dimension(:), pointer :: snow, snowc, snoalb, snowh, skintemp, sst, tmn
-      real (kind=RKIND), dimension(:,:), pointer :: tslb, smcrel, sh2o, smois, dzs, albedo12m, greenfrac
+      real (kind=RKIND), dimension(:,:), pointer :: landusef, soiltypf
+      real (kind=RKIND), dimension(:,:), pointer :: tslb, smcrel, sh2o, smois, dzs, albedo12m, greenfrac, lai12m
       
       !---------------------------------------------------------------------------------------------
 
       call mpas_pool_get_dimension(mesh, 'nCells', nCells)
       call mpas_pool_get_dimension(mesh, 'nSoilLevels', nSoilLevels)
       call mpas_pool_get_dimension(mesh, 'nMonths', nMonths)
+      call mpas_pool_get_dimension(mesh, 'nLandCat', nLandCat)
+      call mpas_pool_get_dimension(mesh, 'nSoilCat', nSoilCat)
 
       call mpas_pool_get_array(mesh, 'ter', ter)
       call mpas_pool_get_array(mesh, 'landmask', landmask)
       call mpas_pool_get_array(mesh, 'lu_index', lu_index)
-      call mpas_pool_get_array(mesh, 'soilcat_top', soilcat_top)
+      call mpas_pool_get_array(mesh, 'landusef', landusef)
+      call mpas_pool_get_array(mesh, 'soilcat', soilcat)
+      call mpas_pool_get_array(mesh, 'soiltypf', soiltypf)
       call mpas_pool_get_array(mesh, 'shdmin', shdmin)
       call mpas_pool_get_array(mesh, 'shdmax', shdmax)
       call mpas_pool_get_array(mesh, 'snoalb', snoalb)
       call mpas_pool_get_array(mesh, 'albedo12m', albedo12m)
       call mpas_pool_get_array(mesh, 'greenfrac', greenfrac)
+      call mpas_pool_get_array(mesh, 'lai12m', lai12m)
 
       call mpas_pool_get_array(fg, 'xice', xice)
       call mpas_pool_get_array(fg, 'vegfra', vegfra)
       call mpas_pool_get_array(fg, 'sfc_albbck', sfc_albbck)
+      call mpas_pool_get_array(fg, 'lai_modis', lai_modis)
       call mpas_pool_get_array(fg, 'xland', xland)
       call mpas_pool_get_array(fg, 'seaice', seaice)
       call mpas_pool_get_array(fg, 'snow', snow)
@@ -6671,11 +6924,12 @@ call mpas_log_write('Done with soil consistency check')
          xice(iCell) = 0.0
          landmask(iCell) = 0
          lu_index(iCell) = 0
-         soilcat_top(iCell) = 0
+         soilcat(iCell) = 0
          shdmin(iCell) = 0.0
          shdmax(iCell) = 0.0
          vegfra(iCell) = 0.0
          sfc_albbck(iCell) = 0.0
+         lai_modis(iCell) = 0.0
          xland(iCell) = 0.0
          seaice(iCell) = 0.0
       
@@ -6698,11 +6952,22 @@ call mpas_log_write('Done with soil consistency check')
             smois(iSoil,iCell) =   0.0
             dzs(iSoil,iCell) =   0.0
          end do
+
+         !fractional soil type:
+         do iSoilCat = 1, nSoilCat
+            soiltypf(iSoilCat,iCell) = 0.0
+         end do
       
-         !monthly climatological surface albedo and greeness fraction:
+         !fractional land use:
+         do iLandCat = 1, nLandCat
+            landusef(iLandCat,iCell) = 0.0
+         end do
+      
+         !monthly climatological surface albedo, greeness fraction, and leaf area index:
          do iMonth = 1, nMonths
             albedo12m(iMonth,iCell) = 0.08
             greenfrac(iMonth,iCell) = 0.0
+            lai12m(iMonth,iCell)    = 0.0
          end do
       
       end do
