@@ -2521,7 +2521,7 @@ contains
 !---------------------------------
       llo3 = .false.
 !$acc parallel vector_length(128)
-!$acc loop vector
+!$acc loop gang vector
       do jl=1,klon
         zluold(jl)=0.
         wup(jl)=0.
@@ -2538,7 +2538,7 @@ contains
 
  ! initialize variout quantities     
 !$acc parallel vector_length(128)
-!$acc loop vector collapse(2)
+!$acc loop gang vector collapse(2)
       do jk=1,klev
       do jl=1,klon
           if(jk.ne.kcbot(jl)) plu(jl,jk)=0.
@@ -2563,7 +2563,7 @@ contains
 !$acc parallel vector_length(128)
 !$acc loop seq
       do jk=1,klev
-!$acc loop vector
+!$acc loop gang vector
       do jl=1,klon
           if(.not.ldcum(jl).and.paph(jl,jk).lt.4.e4) kctop0(jl)=jk
       end do
@@ -2571,14 +2571,14 @@ contains
 !$acc end parallel
 
 !$acc parallel vector_length(128)
-!$acc loop vector
+!$acc loop gang vector
       do jl = 1,klon
         if ( ktype(jl) == 3 ) ldcum(jl) = .false.
       end do
 !------------------------------------------------
 !     3.0      initialize values at cloud base level
 !------------------------------------------------
-!$acc loop vector private(ikb)
+!$acc loop gang vector private(ikb)
       do jl=1,klon
         kctop(jl)=kcbot(jl)
         if(ldcum(jl)) then
@@ -2614,7 +2614,7 @@ contains
       is = 0
 !!!      jlm = 0
 !$acc parallel vector_length(128)
-!$acc loop vector private(zmfmax,zfac) reduction(+:is)
+!$acc loop gang vector private(zmfmax,zfac) reduction(+:is)
       do jl = 1,klon
         loflag(jl) = .false.
         zprecip(jl) = 0.
@@ -2655,11 +2655,11 @@ contains
 ! -------------------------------------------------------
 !
 !$acc parallel vector_length(128)
-!$acc loop vector
+!$acc loop gang vector
         do jl = 1,klon
           zqold(jl) = 0.
         end do
-!$acc loop vector private(jl,zmfmax,zxs,zmftest,zchange, &
+!$acc loop gang vector private(jl,zmfmax,zxs,zmftest,zchange, &
 !$acc zxe,zqeen,zseen,zscde,zqude,zmfusk,zmfuqk,zmfulk)
 !!!     do jll = 1 , jlm
 !!!       jl = jlx(jll)
@@ -2713,7 +2713,7 @@ contains
         end if
         end do
 ! reset to environmental values if below departure level
-!$acc loop vector
+!$acc loop gang vector
         do jl = 1,klon
           if ( jk > kdpl(jl) ) then
             ptu(jl,jk) = ptenh(jl,jk)
@@ -2734,7 +2734,7 @@ contains
 !!!      end if
 ! compute the upfraft speed in cloud layer
 !$acc parallel vector_length(128)
-!$acc loop vector private(jl)
+!$acc loop gang vector private(jl)
 !!!     do jll = 1 , jlm
 !!!       jl = jlx(jll)
         do jl = 1, klon
@@ -2747,7 +2747,7 @@ contains
           end if
         end if
         end do
-!$acc loop vector private(jl,zbc,zbe,zbuoc,zdkbuo,zdken, &
+!$acc loop gang vector private(jl,zbc,zbe,zbuoc,zdkbuo,zdken, &
 !$acc zkedke,zmfun,ikb)
 !!!     do jll = 1 , jlm
 !!!       jl = jlx(jll)
@@ -2839,7 +2839,7 @@ contains
         end if
         end do
 
-!$acc loop vector private(zdshrd,ikb,zwu,zprcon,zdt,zcbf,zzco,zlcrit, &
+!$acc loop gang vector private(zdshrd,ikb,zwu,zprcon,zdt,zcbf,zzco,zlcrit, &
 !$acc zdfi,zc,zarg,zd,zint,zlnew)
         do jl = 1,klon
           if ( llo1(jl) ) then
@@ -2881,7 +2881,7 @@ contains
         end do
 !$acc end parallel
 !$acc parallel vector_length(128)
-!$acc loop vector private(zvw,zvi,zalfaw,zvv,zrold, &
+!$acc loop gang vector private(zvw,zvi,zalfaw,zvv,zrold, &
 !$acc zc,zwu,zd,zint,zrnew)
         do jl = 1, klon
           if ( llo1(jl) ) then
@@ -2901,7 +2901,7 @@ contains
             end if
           end if
         end do
-!$acc loop vector private(jl)
+!$acc loop gang vector private(jl)
 !!!     do jll = 1 , jlm
 !!!       jl = jlx(jll)
         do jl = 1, klon
@@ -2918,7 +2918,7 @@ contains
 ! 5.       final calculations
 ! ------------------
 !$acc parallel vector_length(128)
-!$acc loop vector
+!$acc loop gang vector
       do jl = 1,klon
        if ( kctop(jl) == -1 ) ldcum(jl) = .false.
         kcbot(jl) = max(kcbot(jl),kctop(jl))
