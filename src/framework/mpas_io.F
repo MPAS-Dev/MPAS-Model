@@ -1033,7 +1033,7 @@ module mpas_io
            end do
 
            DO i = 1,ndims
-             IF ( trim(dimnames(dimids(i)) )  == 'nCells' ) THEN
+             IF ( trim(dimnames(i) )  == 'nCells' ) THEN
                chunksizes(i) = dimsizes(i)/numprocs
              ELSE
                chunksizes(i) = dimsizes(i)
