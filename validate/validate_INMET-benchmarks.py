@@ -254,10 +254,12 @@ i,v = 1,0
 for row in range(4):
     # One variable for each row
     variable = variables[v]
-    print('plotting variable: '+variable)
+    print('-------------------------------------')
+    print('plotting variable: '+variable+'\n')
     for col in range(3):
         j = 0
         for bench in benchs:
+            print(bench)
             model_output = bench+'/latlon.nc'
             namelist_path = bench+"/namelist.atmosphere"
             experiment = bench.split('/')[-1].split('run.')[-1]    
