@@ -25,7 +25,7 @@ import skill_metrics as sm
 
 sys.tracebacklimit = 0
 
-def df_model_data(model_data,times,variable,experiment):
+def df_model_data(model_data,times,variable,experiment,lat_station,lon_station):
     # Dictionaries containing naming convections for each variable
     model_variables = {'temperature':'t2m', 'pressure':'surface_pressure'}
     
@@ -96,7 +96,7 @@ def df_inmet_data(inmet_data,times,variable,experiment):
     
     return inmet_df
 
-def get_times_nml(namelist):
+def get_times_nml(namelist,model_data):
     ## Identify time range of simulation using namelist ##
     # Get simulation start and end dates as strings
     start_date_str = namelist['nhyd_model']['config_start_time']
@@ -113,10 +113,11 @@ def get_times_nml(namelist):
     times = pd.date_range(start_date,finish_date,periods=len(model_data.Time)+1)[1:]
     return times
 
-def get_inmet_data(start_date,station,variable):
+def get_inmet_data(start_date,station,variable,INMET_dir,times,experiment):
     # Get data for corresponding year
     try:
-        station_file = glob.glob(INMET_dir+'/'+str(start_date.year)+'/*'+station+'*')[0]
+        station_file = glob.glob(
+            INMET_dir+'/'+str(start_date.year)+'/*'+station+'*')[0]
     except:
         raise SystemExit('Error: not found data for '+station.upper()+' station \
     for year '+str(start_date.year))
@@ -145,9 +146,14 @@ def get_stats(data):
                 data['source'] == source].resample('1H').mean()['value']
         else:
             predicted = data[
-                data['source'] == source].resample('1H').mean()['value'][1:]
+                data['source'] == source].resample('1H').mean()['value']
         reference = data[
             data['source'] == 'INMET'].resample('1H').mean()['value']
+        
+        predicted = predicted[(predicted.index >= data.index.min()) &
+                              (predicted.index <= data.index.max())]
+        reference = predicted[(reference.index >= data.index.min()) &
+                              (reference.index <= data.index.max())]
         
         stats = sm.taylor_statistics(predicted,reference)
         ccoef.append(stats['ccoef'][1])
@@ -194,9 +200,16 @@ def plot_qq(data,ax):
                 data['source'] == source].resample('1H').mean()['value']
         else:
             predicted = data[
-                data['source'] == source].resample('1H').mean()['value'][1:]
+                data['source'] == source].resample('1H').mean()['value']
+        
+        # Slice data for using teh same dates
+        predicted = predicted[(predicted.index >= data.index.min()) &
+                              (predicted.index <= data.index.max())]
         reference = data[
             data['source'] == 'INMET'].resample('1H').mean()['value']
+        reference = predicted[(reference.index >= data.index.min()) &
+                              (reference.index <= data.index.max())]
+        
         g = sns.regplot(x=reference, y=predicted, data=data, label=source,
                         ax=ax)
     g.set_ylabel('EXPERIMENT',fontsize=16)
@@ -251,21 +264,24 @@ for row in range(4):
         
             model_data = xr.open_dataset(model_output)
             namelist = f90nml.read(glob.glob(namelist_path)[0])
-            times = get_times_nml(namelist)
+            times = get_times_nml(namelist,model_data)
             start_date = times[0]
             
             # Only open INMET file once
             if j == 0:
-                inmet_data = get_inmet_data(start_date,station,variable)
+                inmet_data = get_inmet_data(start_date,station,
+                                        variable,INMET_dir,times,experiment)
                 df_inmet = inmet_data[0]
                 lat_station, lon_station = inmet_data[1], inmet_data[2]
                 # For the first iteration, concatenate INMET and Exp data
-                exp_df = df_model_data(model_data,times,variable,experiment)
+                exp_df = df_model_data(model_data,times,variable,experiment,
+                                       lat_station,lon_station)
                 var_data = pd.concat([df_inmet,exp_df])
                 j+=1
             # For other iterations, concatenate with previous existing df
             else:
-                exp_df = df_model_data(model_data,times,variable,experiment)
+                exp_df = df_model_data(model_data,times,variable,experiment,
+                                       lat_station,lon_station)
                 var_data = pd.concat([var_data,exp_df])
                 
         # plot timeseries
