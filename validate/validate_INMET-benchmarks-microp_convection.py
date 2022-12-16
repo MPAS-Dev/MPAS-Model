@@ -133,26 +133,14 @@ def get_times_nml(namelist,model_data):
 def get_inmet_data(start_date,INMET_dir,times,**kwargs):
     # Get data for corresponding year
     station = kwargs['station']
-    try:
-        station_file = glob.glob(
+    station_file = glob.glob(
             INMET_dir+'/'+str(start_date.year)+'/*'+station+'*')[0]
-    except:
-        raise SystemExit('Error: not found data for '+station.upper()+' station \
-    for year '+str(start_date.year))
     # Open file with Pandas
     station_data = pd.read_csv(station_file,header=8,sep=';',encoding='latin-1',
                                parse_dates=[[0,1]],decimal=',')
     station_data.index = station_data['DATA (YYYY-MM-DD)_HORA (UTC)']
     df_inmet = df_inmet_data(station_data,times,**kwargs)
-    # Get station lat and lon
-    with open(station_file, 'r',encoding='latin-1') as file:
-        for line in file:
-            if 'LATITUDE' in line:
-                lat_station = float((line[10:-1].replace(',','.')))
-            elif 'LONGITUDE' in line:
-                lon_station = float((line[11:-1].replace(',','.')))
-                pass
-    return df_inmet, lat_station, lon_station
+    return df_inmet
 
 def get_stats(data):
     ccoef, crmsd, sdev = [], [], []
@@ -258,11 +246,32 @@ parser.add_argument('-bdir','--bench_directory', type=str, required=True,
 
 parser.add_argument('-o','--output', type=str, default=None,
                         help='''output name to append file''')
-
 args = parser.parse_args()
-
 benchs = glob.glob(args.bench_directory+'/run*')
 station = (args.station).upper()
+# Dummy for getting model times
+model_output = benchs[0]+'/latlon.nc'
+namelist_path = benchs[0]+"/namelist.atmosphere"
+# open data and namelist
+model_data = xr.open_dataset(model_output)
+namelist = f90nml.read(glob.glob(namelist_path)[0])
+times = get_times_nml(namelist,model_data)
+start_date = times[0]
+# Getting station lat and lon
+try:
+    station_file = glob.glob(
+        INMET_dir+'/'+str(start_date.year)+'/*'+station+'*')[0]
+except:
+    raise SystemExit('Error: not found data for '+station.upper()+' station \
+for year '+str(start_date.year))
+# Get station lat and lon
+with open(station_file, 'r',encoding='latin-1') as file:
+    for line in file:
+        if 'LATITUDE' in line:
+            lat_station = float((line[10:-1].replace(',','.')))
+        elif 'LONGITUDE' in line:
+            lon_station = float((line[11:-1].replace(',','.')))
+            pass
 
 met_list = []
 variables = ['temperature','precipitation','windspeed','pressure']
@@ -278,9 +287,9 @@ for row in range(4):
     for col in range(3):
         j = 0
         for bench in benchs:
-            
+            # Open data
             model_output = bench+'/latlon.nc'
-            namelist_path = bench+"/namelist.atmosphere"
+            model_data = xr.open_dataset(model_output)
             expname = bench.split('/')[-1].split('run.')[-1]
             print('experiment: '+expname)
             microp = expname.split('.')[0].split('_')[-1]
@@ -289,33 +298,27 @@ for row in range(4):
             # Define kwargs for using in fuctions
             kwargs = {'variable':variable,'station':station,
                       'experiment':experiment,
-                      'microp':microp,'cumulus':cumulus}
+                      'microp':microp,'cumulus':cumulus,
+                      'lat_station':lat_station,
+                      'lon_station':lon_station}
             if j != 0:
-                kwargs['lat_station']  = kwargs['lat_station']
-                kwargs['lon_station'] = kwargs['lon_station']
-            # open data and namelist
-            model_data = xr.open_dataset(model_output)
-            namelist = f90nml.read(glob.glob(namelist_path)[0])
-            times = get_times_nml(namelist,model_data)
-            start_date = times[0]
-            # Only open INMET file once
+                kwargs['lat_station']  = lat_station
+                kwargs['lon_station'] = lon_station
+            # Only open INMET file once and for the first iteration,
+            # concatenate INMET and Exp data. For other iterations, 
+            # concatenate with previous existing df
             if j == 0:
                 inmet_data = get_inmet_data(start_date,INMET_dir,
                                             times,**kwargs)
-                df_inmet = inmet_data[0]
-                # Get station position and add to kwargs
-                kwargs['lat_station']  = inmet_data[1]
-                kwargs['lon_station'] = inmet_data[2]
-                # For the first iteration, concatenate INMET and Exp data
+                df_inmet = inmet_data
+                
                 exp_df = df_model_data(model_data,times,**kwargs)
                 var_data = pd.concat([df_inmet,exp_df])
                 j+=1
-            # For other iterations, concatenate with previous existing df
             else:
                 exp_df = df_model_data(model_data,times,**kwargs)
                 var_data = pd.concat([var_data,exp_df])
-                
-        # plot timeseries
+        # Plot timeseries in the first column
         if col == 0:
             data = var_data[var_data['variable'] == variable]
             data.index = range(len(data))
@@ -326,19 +329,20 @@ for row in range(4):
             axes[row,col].set(ylabel=variable, xlabel=None)
             axes[row,col].yaxis.label.set_size(20)
             axes[row,col].tick_params(axis='x', rotation=50)
+        # Plot taylo diagrams in the second columns
         if col == 1:
             ax = axes[row,col] = fig.add_subplot(4,3, i)
             ax.set(adjustable='box', aspect='equal')
             stats = get_stats(data)
             sdev,crmsd,ccoef,sources = stats[0],stats[1],stats[2],stats[3]
             plot_taylor(sdev,crmsd,ccoef,sources)
+        # Plot q-q plots in the third column
         if col == 2:
             ax = axes[row,col]
             plot_qq(data,ax)
-        
-        # update column indexer
+        # Update column indexer
         i+=1
-    # update variable indexer
+    # Update variable indexer
     v+=1
         
 if args.output is not None:
