@@ -37,9 +37,26 @@ def df_model_data(model_data,times,variable,experiment,lat_station,lon_station):
     # If windpeed, calculate from components
     if variable == 'windspeed':
         model_var = mpcalc.wind_speed(model_station['u10'],model_station['v10'])
-    # Sum grid-scale and convective precipitation
+    # If testing microphysics and/or convection schemes, the data might not
+    # have both grid-scale and convective precipitation variables, so the code
+    # has to figure out what's in there
     elif variable == 'precipitation':
-        model_var = model_station['rainnc']+model_station['rainc']
+        # Sum grid-scale and convective precipitation
+        if ('rainnc' in model_station.variables
+            ) and ('rainc' in model_station.variables):
+            model_var = model_station['rainnc']+model_station['rainc']
+        # Get only micrphysics precipitation
+        elif ('rainnc' in model_station.variables
+            ) and ('rainc' not in model_station.variables):
+            model_var = model_station['rainnc']
+        # Get convective precipitation
+        elif ('rainnc' not in model_station.variables
+            ) and ('rainc' in model_station.variables):
+            model_var = model_station['rainc']
+        # If there is no precipitation variable:
+        # (using nan gives error in statistical analysis)
+        else:
+            model_var = model_station['u10']*-0.1
     # Convert pressure to MSLP
     elif variable == 'pressure':
         model_var = mpcalc.altimeter_to_sea_level_pressure(
@@ -263,8 +280,11 @@ for row in range(4):
             
             model_output = bench+'/latlon.nc'
             namelist_path = bench+"/namelist.atmosphere"
-            experiment = bench.split('/')[-1].split('run.')[-1]    
-            print('experiment: '+experiment)
+            expname = bench.split('/')[-1].split('run.')[-1]
+            microp = expname.split('.')[0].split('_')[-1]
+            cum = expname.split('.')[-1].split('_')[-1] 
+            experiment = microp+'_'+cum  
+            print('experiment: '+expname)
             model_data = xr.open_dataset(model_output)
             namelist = f90nml.read(glob.glob(namelist_path)[0])
             times = get_times_nml(namelist,model_data)
@@ -306,7 +326,7 @@ for row in range(4):
             ax = axes[row,col]
             plot_qq(data,ax)
         
-        # update cplumn indexer
+        # update column indexer
         i+=1
     # update variable indexer
     v+=1
