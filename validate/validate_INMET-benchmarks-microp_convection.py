@@ -105,9 +105,10 @@ def df_inmet_data(inmet_data,times,**kwargs):
     # Else, get mean values between model time steps
     else:
         inmet_var = inmet_var.mean()[inmet_variables[variable]]
-        
+    # Add info to df
     inmet_df = pd.DataFrame(inmet_var.rename('value'))
     inmet_df['source'],inmet_df['experiment'] = 'INMET', 'INMET'
+    inmet_df['microp'],inmet_df['cumulus'] = 'INMET','INMET'
     inmet_df['variable'] = variable
     # Add date as column and revert indexes to a range of numbers
     inmet_df['date'] = inmet_df.index
