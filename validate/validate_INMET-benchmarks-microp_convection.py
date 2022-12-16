@@ -214,7 +214,7 @@ def plot_qq(data,ax):
                               (predicted.index <= data.index.max())]
         reference = data[
             data['experiment'] == 'INMET'].resample('1H').mean()['value']
-        reference = predicted[(reference.index >= data.index.min()) &
+        reference = reference[(reference.index >= data.index.min()) &
                               (reference.index <= data.index.max())]
         
         g = sns.regplot(x=reference, y=predicted, data=data, label=experiment,
