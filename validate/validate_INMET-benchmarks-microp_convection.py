@@ -168,9 +168,9 @@ def get_stats(data):
         crmsd.append(stats['crmsd'][1])
         sdev.append(stats['sdev'][1])
     ccoef, crmsd, sdev = np.array(ccoef),np.array(crmsd),np.array(sdev)
-    return sdev,crmsd,ccoef,sources
+    return sdev,crmsd,ccoef,expnames
 
-def plot_taylor(sdevs,crmsds,ccoefs,sources):
+def plot_taylor(sdevs,crmsds,ccoefs,expnames):
     '''
     Produce the Taylor diagram
     Label the points and change the axis options for SDEV, CRMSD, and CCOEF.
@@ -190,7 +190,7 @@ def plot_taylor(sdevs,crmsds,ccoefs,sources):
     axismax = STDmax*1.2
     sm.taylor_diagram(sdevs,crmsds,ccoefs,
                       markerLabelColor = 'b', 
-                      markerLabel = sources,
+                      markerLabel = expnames,
                       markerColor = 'r', markerLegend = 'on', markerSize = 15, 
                       tickRMS = tickRMS, titleRMS = 'off', widthRMS = 2.0,
                       colRMS = '#728B92', styleRMS = '--',  
@@ -337,8 +337,8 @@ for row in range(4):
             ax = axes[row,col] = fig.add_subplot(4,3, i)
             ax.set(adjustable='box', aspect='equal')
             stats = get_stats(data)
-            sdev,crmsd,ccoef,sources = stats[0],stats[1],stats[2],stats[3]
-            plot_taylor(sdev,crmsd,ccoef,sources)
+            sdev,crmsd,ccoef,expnames = stats[0],stats[1],stats[2],stats[3]
+            plot_taylor(sdev,crmsd,ccoef,expnames)
         # Plot q-q plots in the third column
         if col == 2:
             ax = axes[row,col]
