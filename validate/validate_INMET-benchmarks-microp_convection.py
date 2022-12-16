@@ -203,7 +203,7 @@ def plot_taylor(sdevs,crmsds,ccoefs,sources):
 
 def plot_qq(data,ax):
     for expname in data.expname.unique():
-        if source == 'INMET':
+        if expname == 'INMET':
             predicted = data[
                 data['expname'] == expname].resample('1H').mean()['value']
         else:
@@ -300,7 +300,7 @@ for row in range(4):
             # Define kwargs for using in fuctions
             kwargs = {'variable':variable,'station':station,
                       'experiment':experiment,
-                      'expname':expname
+                      'expname':expname,
                       'microp':microp,'cumulus':cumulus,
                       'lat_station':lat_station,
                       'lon_station':lon_station}
