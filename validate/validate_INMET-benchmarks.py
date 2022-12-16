@@ -36,9 +36,20 @@ def df_model_data(model_data,times,variable,experiment,lat_station,lon_station):
     # If windpeed, calculate from components
     if variable == 'windspeed':
         model_var = mpcalc.wind_speed(model_station['u10'],model_station['v10'])
-    # Sum grid-scale and convective precipitation
+    # If testing microphysics and/or convection schemes, the data might not
+    # have both grid-scale and convective precipitation variables, so the code
+    # has to figure out what's in there
     elif variable == 'precipitation':
-        model_var = model_station['rainnc']+model_station['rainc']
+        try:
+            # Sum grid-scale and convective precipitation
+            model_var = model_station['rainnc']+model_station['rainc']
+        except:
+            try:
+                # Get only micrphysics precipitation
+                model_var = model_station['rainnc']
+            except:
+                # Get convective precipitation
+                model_var = model_station['rainc']
     # Convert pressure to MSLP
     elif variable == 'pressure':
         model_var = mpcalc.altimeter_to_sea_level_pressure(
