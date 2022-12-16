@@ -266,7 +266,10 @@ station = (args.station).upper()
 met_list = []
 variables = ['temperature','precipitation','windspeed','pressure']
 plt.close('all')
-fig, axes = plt.subplots(4, 3, figsize=(18, 18))
+if len(benchs) > 4:
+    fig, axes = plt.subplots(4, 3, figsize=(18, 18))
+else:
+    fig, axes = plt.subplots(4, 3, figsize=(50, 50))
 fig.tight_layout(pad=5)
 i,v = 1,0
 for row in range(4):
