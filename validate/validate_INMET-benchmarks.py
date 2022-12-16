@@ -14,6 +14,7 @@ import xarray as xr
 import f90nml
 import datetime
 import pandas as pd
+import numpy as np
 import metpy.calc as mpcalc
 import seaborn as sns
 from metpy.units import units
@@ -40,16 +41,21 @@ def df_model_data(model_data,times,variable,experiment,lat_station,lon_station):
     # have both grid-scale and convective precipitation variables, so the code
     # has to figure out what's in there
     elif variable == 'precipitation':
-        try:
-            # Sum grid-scale and convective precipitation
+        # Sum grid-scale and convective precipitation
+        if ('rainnc' in model_station.variables
+            ) and ('rainc' in model_station.variables):
             model_var = model_station['rainnc']+model_station['rainc']
-        except:
-            try:
-                # Get only micrphysics precipitation
-                model_var = model_station['rainnc']
-            except:
-                # Get convective precipitation
-                model_var = model_station['rainc']
+        # Get only micrphysics precipitation
+        elif ('rainnc' in model_station.variables
+            ) and ('rainc' not in model_station.variables):
+            model_var = model_station['rainnc']
+        # Get convective precipitation
+        elif ('rainnc' not in model_station.variables
+            ) and ('rainc' in model_station.variables):
+            model_var = model_station['rainc']
+        # If there is no precipitation variable:
+        else:
+            model_var = model_station['u10']*np.nan
     # Convert pressure to MSLP
     elif variable == 'pressure':
         model_var = mpcalc.altimeter_to_sea_level_pressure(
