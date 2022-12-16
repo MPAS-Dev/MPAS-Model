@@ -149,21 +149,19 @@ def get_stats(data):
     ccoef, crmsd, sdev = [], [], []
     experiments = list(data['experiment'].unique())
     data.index = data['date']
+    # Resample for 1H for standardization
+    reference = data[
+        data['experiment'] == 'INMET'].resample('1H').mean()['value']
+    # Slice data for using only times present in model data
+    reference = reference[(reference.index >= data.index.min()) &
+                          (reference.index <= data.index.max())]
     for experiment in experiments:
-        if experiment == 'INMET':
-            predicted = data[
+        predicted = data[
                 data['experiment'] == experiment].resample('1H').mean()['value']
-        else:
-            predicted = data[
-                data['experiment'] == experiment].resample('1H').mean()['value']
-        reference = data[
-            data['experiment'] == 'INMET'].resample('1H').mean()['value']
-        
+        # Just to make sure
         predicted = predicted[(predicted.index >= data.index.min()) &
                               (predicted.index <= data.index.max())]
-        reference = predicted[(reference.index >= data.index.min()) &
-                              (reference.index <= data.index.max())]
-        
+        # Compute and store stats
         stats = sm.taylor_statistics(predicted,reference)
         ccoef.append(stats['ccoef'][1])
         crmsd.append(stats['crmsd'][1])
@@ -223,7 +221,7 @@ def plot_qq(data,ax):
                         ax=ax)
     g.set_ylabel('EXPERIMENT',fontsize=16)
     g.set_xlabel('INMET',fontsize=16)
-    legend = ax.legend()
+    legend = ax.legend(ncols=3)
     frame = legend.get_frame()
     frame.set_color('white')
     leg = g.legend(fontsize=20)
