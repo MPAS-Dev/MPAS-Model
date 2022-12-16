@@ -277,11 +277,11 @@ for row in range(4):
     for col in range(3):
         j = 0
         for bench in benchs:
-            print(bench)
+            
             model_output = bench+'/latlon.nc'
             namelist_path = bench+"/namelist.atmosphere"
             experiment = bench.split('/')[-1].split('run.')[-1]    
-        
+            print('experiment :'+bench)
             model_data = xr.open_dataset(model_output)
             namelist = f90nml.read(glob.glob(namelist_path)[0])
             times = get_times_nml(namelist,model_data)
@@ -332,5 +332,5 @@ if args.output is not None:
     fname = args.output
 else:
     fname = (args.bench_directory).split('/')[-2].split('.nc')[0]
-plt.savefig(fname+'_timeseries_'+station)
+plt.savefig(fname+'_timeseries_'+station+'.png')
 print(fname+'_timeseries_'+station+'.png created!')
