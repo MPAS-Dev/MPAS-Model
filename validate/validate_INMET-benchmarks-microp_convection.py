@@ -54,7 +54,7 @@ def df_model_data(model_data,times,**kwargs):
         # If there is no precipitation variable:
         # (using nan gives error in statistical analysis)
         else:
-            model_var = model_station['u10']*-0.1
+            model_var = model_station['u10']*0
     # Convert pressure to MSLP
     elif variable == 'pressure':
         model_var = mpcalc.altimeter_to_sea_level_pressure(
@@ -77,6 +77,7 @@ def df_model_data(model_data,times,**kwargs):
     mpas_df['variable'] = kwargs['variable'] 
     mpas_df['microp'] = kwargs['microp']
     mpas_df['cumulus'] = kwargs['cumulus']
+    mpas_df['expname'] = kwargs['expname']
     # Add date as column and revert indexes to a range of numbers
     mpas_df['date'] = mpas_df.index
     mpas_df.index = range(len(mpas_df))
@@ -106,7 +107,8 @@ def df_inmet_data(inmet_data,times,**kwargs):
         inmet_var = inmet_var.mean()[inmet_variables[variable]]
         
     inmet_df = pd.DataFrame(inmet_var.rename('value'))
-    inmet_df['source'],inmet_df['variable'] = 'INMET', variable
+    inmet_df['source'],inmet_df['expname'] = 'INMET', 'INMET'
+    inmet_df['variable'] = variable
     # Add date as column and revert indexes to a range of numbers
     inmet_df['date'] = inmet_df.index
     inmet_df.index = range(len(inmet_df))
@@ -144,17 +146,17 @@ def get_inmet_data(start_date,INMET_dir,times,**kwargs):
 
 def get_stats(data):
     ccoef, crmsd, sdev = [], [], []
-    sources = list(data['source'].unique())
+    expnames = list(data['expname'].unique())
     data.index = data['date']
-    for source in sources:
-        if source == 'INMET':
+    for expname in expnames:
+        if expname == 'INMET':
             predicted = data[
-                data['source'] == source].resample('1H').mean()['value']
+                data['expname'] == expname].resample('1H').mean()['value']
         else:
             predicted = data[
-                data['source'] == source].resample('1H').mean()['value']
+                data['expname'] == expname].resample('1H').mean()['value']
         reference = data[
-            data['source'] == 'INMET'].resample('1H').mean()['value']
+            data['expname'] == 'INMET'].resample('1H').mean()['value']
         
         predicted = predicted[(predicted.index >= data.index.min()) &
                               (predicted.index <= data.index.max())]
@@ -200,23 +202,23 @@ def plot_taylor(sdevs,crmsds,ccoefs,sources):
                       axismax = axismax, alpha = 1)
 
 def plot_qq(data,ax):
-    for source in data.source.unique():
+    for expname in data.expname.unique():
         if source == 'INMET':
             predicted = data[
-                data['source'] == source].resample('1H').mean()['value']
+                data['expname'] == expname].resample('1H').mean()['value']
         else:
             predicted = data[
-                data['source'] == source].resample('1H').mean()['value']
+                data['expname'] == expname].resample('1H').mean()['value']
         
         # Slice data for using teh same dates
         predicted = predicted[(predicted.index >= data.index.min()) &
                               (predicted.index <= data.index.max())]
         reference = data[
-            data['source'] == 'INMET'].resample('1H').mean()['value']
+            data['expname'] == 'INMET'].resample('1H').mean()['value']
         reference = predicted[(reference.index >= data.index.min()) &
                               (reference.index <= data.index.max())]
         
-        g = sns.regplot(x=reference, y=predicted, data=data, label=source,
+        g = sns.regplot(x=reference, y=predicted, data=data, label=expname,
                         ax=ax)
     g.set_ylabel('EXPERIMENT',fontsize=16)
     g.set_xlabel('INMET',fontsize=16)
@@ -298,6 +300,7 @@ for row in range(4):
             # Define kwargs for using in fuctions
             kwargs = {'variable':variable,'station':station,
                       'experiment':experiment,
+                      'expname':expname
                       'microp':microp,'cumulus':cumulus,
                       'lat_station':lat_station,
                       'lon_station':lon_station}
