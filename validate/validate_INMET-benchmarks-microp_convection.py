@@ -107,7 +107,7 @@ def df_inmet_data(inmet_data,times,**kwargs):
         inmet_var = inmet_var.mean()[inmet_variables[variable]]
         
     inmet_df = pd.DataFrame(inmet_var.rename('value'))
-    inmet_df['source'],inmet_df['expname'] = 'INMET', 'INMET'
+    inmet_df['source'],inmet_df['experiment'] = 'INMET', 'INMET'
     inmet_df['variable'] = variable
     # Add date as column and revert indexes to a range of numbers
     inmet_df['date'] = inmet_df.index
@@ -146,17 +146,17 @@ def get_inmet_data(start_date,INMET_dir,times,**kwargs):
 
 def get_stats(data):
     ccoef, crmsd, sdev = [], [], []
-    expnames = list(data['expname'].unique())
+    experiments = list(data['experiment'].unique())
     data.index = data['date']
-    for expname in expnames:
-        if expname == 'INMET':
+    for experiment in experiments:
+        if experiment == 'INMET':
             predicted = data[
-                data['expname'] == expname].resample('1H').mean()['value']
+                data['experiment'] == experiment].resample('1H').mean()['value']
         else:
             predicted = data[
-                data['expname'] == expname].resample('1H').mean()['value']
+                data['experiment'] == experiment].resample('1H').mean()['value']
         reference = data[
-            data['expname'] == 'INMET'].resample('1H').mean()['value']
+            data['experiment'] == 'INMET'].resample('1H').mean()['value']
         
         predicted = predicted[(predicted.index >= data.index.min()) &
                               (predicted.index <= data.index.max())]
@@ -168,9 +168,9 @@ def get_stats(data):
         crmsd.append(stats['crmsd'][1])
         sdev.append(stats['sdev'][1])
     ccoef, crmsd, sdev = np.array(ccoef),np.array(crmsd),np.array(sdev)
-    return sdev,crmsd,ccoef,expnames
+    return sdev,crmsd,ccoef,experiments
 
-def plot_taylor(sdevs,crmsds,ccoefs,expnames):
+def plot_taylor(sdevs,crmsds,ccoefs,experiments):
     '''
     Produce the Taylor diagram
     Label the points and change the axis options for SDEV, CRMSD, and CCOEF.
@@ -190,7 +190,7 @@ def plot_taylor(sdevs,crmsds,ccoefs,expnames):
     axismax = STDmax*1.2
     sm.taylor_diagram(sdevs,crmsds,ccoefs,
                       markerLabelColor = 'b', 
-                      markerLabel = expnames,
+                      markerLabel = experiments,
                       markerColor = 'r', markerLegend = 'on', markerSize = 15, 
                       tickRMS = tickRMS, titleRMS = 'off', widthRMS = 2.0,
                       colRMS = '#728B92', styleRMS = '--',  
@@ -202,23 +202,23 @@ def plot_taylor(sdevs,crmsds,ccoefs,expnames):
                       axismax = axismax, alpha = 1)
 
 def plot_qq(data,ax):
-    for expname in data.expname.unique():
-        if expname == 'INMET':
+    for experiment in data.experiment.unique():
+        if experiment == 'INMET':
             predicted = data[
-                data['expname'] == expname].resample('1H').mean()['value']
+                data['experiment'] == experiment].resample('1H').mean()['value']
         else:
             predicted = data[
-                data['expname'] == expname].resample('1H').mean()['value']
+                data['experiment'] == experiment].resample('1H').mean()['value']
         
         # Slice data for using teh same dates
         predicted = predicted[(predicted.index >= data.index.min()) &
                               (predicted.index <= data.index.max())]
         reference = data[
-            data['expname'] == 'INMET'].resample('1H').mean()['value']
+            data['experiment'] == 'INMET'].resample('1H').mean()['value']
         reference = predicted[(reference.index >= data.index.min()) &
                               (reference.index <= data.index.max())]
         
-        g = sns.regplot(x=reference, y=predicted, data=data, label=expname,
+        g = sns.regplot(x=reference, y=predicted, data=data, label=experiment,
                         ax=ax)
     g.set_ylabel('EXPERIMENT',fontsize=16)
     g.set_xlabel('INMET',fontsize=16)
@@ -300,7 +300,6 @@ for row in range(4):
             # Define kwargs for using in fuctions
             kwargs = {'variable':variable,'station':station,
                       'experiment':experiment,
-                      'expname':expname,
                       'microp':microp,'cumulus':cumulus,
                       'lat_station':lat_station,
                       'lon_station':lon_station}
