@@ -221,7 +221,7 @@ def plot_qq(data,ax):
                         ax=ax)
     g.set_ylabel('EXPERIMENT',fontsize=16)
     g.set_xlabel('INMET',fontsize=16)
-    legend = ax.legend(ncols=3)
+    legend = ax.legend(ncol=3)
     frame = legend.get_frame()
     frame.set_color('white')
     leg = g.legend(fontsize=20)
