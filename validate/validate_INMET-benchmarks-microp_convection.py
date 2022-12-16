@@ -77,7 +77,7 @@ def df_model_data(model_data,times,**kwargs):
     mpas_df['variable'] = kwargs['variable'] 
     mpas_df['microp'] = kwargs['microp']
     mpas_df['cumulus'] = kwargs['cumulus']
-    mpas_df['expname'] = kwargs['expname']
+    mpas_df['experiment'] = kwargs['experiment']
     # Add date as column and revert indexes to a range of numbers
     mpas_df['date'] = mpas_df.index
     mpas_df.index = range(len(mpas_df))
