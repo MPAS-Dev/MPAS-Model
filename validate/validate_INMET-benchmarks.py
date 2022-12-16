@@ -281,7 +281,7 @@ for row in range(4):
             model_output = bench+'/latlon.nc'
             namelist_path = bench+"/namelist.atmosphere"
             experiment = bench.split('/')[-1].split('run.')[-1]    
-            print('experiment :'+experiment)
+            print('experiment: '+experiment)
             model_data = xr.open_dataset(model_output)
             namelist = f90nml.read(glob.glob(namelist_path)[0])
             times = get_times_nml(namelist,model_data)
