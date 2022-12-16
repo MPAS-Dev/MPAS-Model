@@ -290,6 +290,9 @@ for row in range(4):
             kwargs = {'variable':variable,'station':station,
                       'experiment':experiment,
                       'microp':microp,'cumulus':cumulus}
+            if j != 0:
+                kwargs['lat_station']  = kwargs['lat_station']
+                kwargs['lon_station'] = kwargs['lon_station']
             # open data and namelist
             model_data = xr.open_dataset(model_output)
             namelist = f90nml.read(glob.glob(namelist_path)[0])
