@@ -224,8 +224,8 @@ def plot_qq(data,ax):
     legend = ax.legend(ncol=3)
     frame = legend.get_frame()
     frame.set_color('white')
-    leg = g.legend(fontsize=20)
-    leg._ncol = 3
+    g.legend(fontsize=20)
+
 
 ## Workspace ##
 work_dir = os.getenv('MPAS_DIR')
@@ -278,7 +278,7 @@ met_list = []
 variables = ['temperature','precipitation','windspeed','pressure']
 plt.close('all')
 fig, axes = plt.subplots(4, 3, figsize=(36, 18))
-fig.tight_layout(pad=5)
+fig.tight_layout()
 i,v = 1,0
 for row in range(4):
     # One variable for each row
