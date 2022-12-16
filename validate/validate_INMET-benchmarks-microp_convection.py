@@ -182,7 +182,7 @@ def plot_taylor(sdevs,crmsds,ccoefs,experiments):
     >> taylor_diagram
     '''
     # Set the figure properties (optional)
-    rcParams.update({'font.size': 12}) # font size of axes text
+    rcParams.update({'font.size': 14}) # font size of axes text
     STDmax = round(np.amax(sdevs))
     RMSmax = round(np.amax(crmsds))
     tickRMS = np.linspace(0,RMSmax,5)
@@ -221,10 +221,10 @@ def plot_qq(data,ax):
                         ax=ax)
     g.set_ylabel('EXPERIMENT',fontsize=16)
     g.set_xlabel('INMET',fontsize=16)
-    legend = ax.legend(ncol=3)
+    legend = ax.legend()
     frame = legend.get_frame()
     frame.set_color('white')
-    g.legend(fontsize=20)
+    g.legend(fontsize=20,ncol=3)
 
 
 ## Workspace ##
@@ -278,7 +278,7 @@ met_list = []
 variables = ['temperature','precipitation','windspeed','pressure']
 plt.close('all')
 fig, axes = plt.subplots(4, 3, figsize=(36, 18))
-fig.tight_layout(pad=10)
+fig.tight_layout(pad=30)
 i,v = 1,0
 for row in range(4):
     # One variable for each row
@@ -326,7 +326,8 @@ for row in range(4):
             g = sns.lineplot(x="date", y="value", size="source",
                              style='microp', hue='cumulus',
                              markers=True,
-                         ax=axes[row,col],data=data, lw=4)
+                         ax=axes[row,col],data=data)
+            g.legend(fontsize=20)
             axes[row,col].set(ylabel=variable, xlabel=None)
             axes[row,col].yaxis.label.set_size(20)
             axes[row,col].tick_params(axis='x', rotation=50)
