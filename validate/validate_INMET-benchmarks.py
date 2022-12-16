@@ -54,8 +54,9 @@ def df_model_data(model_data,times,variable,experiment,lat_station,lon_station):
             ) and ('rainc' in model_station.variables):
             model_var = model_station['rainc']
         # If there is no precipitation variable:
+        # (using nan gives error in statistical analysis)
         else:
-            model_var = model_station['u10']*np.nan
+            model_var = model_station['u10']*-0.1
     # Convert pressure to MSLP
     elif variable == 'pressure':
         model_var = mpcalc.altimeter_to_sea_level_pressure(
