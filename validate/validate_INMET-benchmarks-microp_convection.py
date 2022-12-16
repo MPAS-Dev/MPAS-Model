@@ -24,16 +24,14 @@ import numpy as np
 import skill_metrics as sm
 
 
-sys.tracebacklimit = 0
-
-def df_model_data(model_data,times,variable,experiment,lat_station,lon_station):
+def df_model_data(model_data,times,**kwargs):
     # Dictionaries containing naming convections for each variable
     model_variables = {'temperature':'t2m', 'pressure':'surface_pressure'}
-    
+    variable = kwargs['variable']
     # Get model data for the gridpoint closest to station   
-    model_station = model_data.sel(latitude=lat_station,
-                method='nearest').sel(longitude=lon_station,method='nearest')
-    
+    model_station = model_data.sel(latitude=kwargs['lat_station'],
+                method='nearest').sel(longitude=kwargs['lon_station'],
+                                      method='nearest')
     # If windpeed, calculate from components
     if variable == 'windspeed':
         model_var = mpcalc.wind_speed(model_station['u10'],model_station['v10'])
@@ -65,26 +63,27 @@ def df_model_data(model_data,times,variable,experiment,lat_station,lon_station):
             model_station['t2m']*units('K'))
     else:
         model_var = model_station[model_variables[variable]]
-        
-
+    # create df
     mpas_df = pd.DataFrame(model_var,columns=['value'],
                              index=times)
-    
     # Convert temperature to celcius
     if variable == 'temperature':
         mpas_df = mpas_df-273.15
     # Convert pressure to hPa
     elif variable == 'pressure':
         mpas_df = mpas_df/100
-        
-    mpas_df['source'], mpas_df['variable'] = experiment, variable 
+    # Add info to df
+    mpas_df['source'] = 'MPAS'
+    mpas_df['variable'] = kwargs['variable'] 
+    mpas_df['microp'] = kwargs['microp']
+    mpas_df['cumulus'] = kwargs['cumulus']
     # Add date as column and revert indexes to a range of numbers
     mpas_df['date'] = mpas_df.index
     mpas_df.index = range(len(mpas_df))
     
     return mpas_df
 
-def df_inmet_data(inmet_data,times,variable,experiment): 
+def df_inmet_data(inmet_data,times,**kwargs): 
     inmet_variables = {'temperature':
                        'TEMPERATURA DO AR - BULBO SECO, HORARIA (°C)',
                        'precipitation':'PRECIPITAÇÃO TOTAL, HORÁRIO (mm)',
@@ -98,7 +97,7 @@ def df_inmet_data(inmet_data,times,variable,experiment):
         (inmet_data['DATA (YYYY-MM-DD)_HORA (UTC)'] >= times[0]) &
         (inmet_data['DATA (YYYY-MM-DD)_HORA (UTC)'] <= times[-1])
         ].resample(dt)
-    
+    variable = kwargs['variable']
     # If using precipitation, get accumulated values between model time steps
     if variable == 'precipitation':
         inmet_var = inmet_var.sum()[inmet_variables[variable]].cumsum()
@@ -131,8 +130,9 @@ def get_times_nml(namelist,model_data):
     times = pd.date_range(start_date,finish_date,periods=len(model_data.Time)+1)[1:]
     return times
 
-def get_inmet_data(start_date,station,variable,INMET_dir,times,experiment):
+def get_inmet_data(start_date,INMET_dir,times,**kwargs):
     # Get data for corresponding year
+    station = kwargs['station']
     try:
         station_file = glob.glob(
             INMET_dir+'/'+str(start_date.year)+'/*'+station+'*')[0]
@@ -143,7 +143,7 @@ def get_inmet_data(start_date,station,variable,INMET_dir,times,experiment):
     station_data = pd.read_csv(station_file,header=8,sep=';',encoding='latin-1',
                                parse_dates=[[0,1]],decimal=',')
     station_data.index = station_data['DATA (YYYY-MM-DD)_HORA (UTC)']
-    df_inmet = df_inmet_data(station_data,times,variable,experiment)
+    df_inmet = df_inmet_data(station_data,times,**kwargs)
     # Get station lat and lon
     with open(station_file, 'r',encoding='latin-1') as file:
         for line in file:
@@ -232,10 +232,11 @@ def plot_qq(data,ax):
                         ax=ax)
     g.set_ylabel('EXPERIMENT',fontsize=16)
     g.set_xlabel('INMET',fontsize=16)
-    legend = ax.legend(ncols=3)
+    legend = ax.legend()
     frame = legend.get_frame()
     frame.set_color('white')
-    g.legend(fontsize=20)
+    leg = g.legend(fontsize=20)
+    leg._ncol = 3
 
 ## Workspace ##
 work_dir = os.getenv('MPAS_DIR')
@@ -281,37 +282,43 @@ for row in range(4):
             model_output = bench+'/latlon.nc'
             namelist_path = bench+"/namelist.atmosphere"
             expname = bench.split('/')[-1].split('run.')[-1]
-            microp = expname.split('.')[0].split('_')[-1]
-            cum = expname.split('.')[-1].split('_')[-1] 
-            experiment = microp+'_'+cum  
             print('experiment: '+expname)
+            microp = expname.split('.')[0].split('_')[-1]
+            cumulus = expname.split('.')[-1].split('_')[-1] 
+            experiment = microp+'_'+cumulus  
+            # Define kwargs for using in fuctions
+            kwargs = {'variable':variable,'station':station,
+                      'experiment':experiment,
+                      'microp':microp,'cumulus':cumulus}
+            # open data and namelist
             model_data = xr.open_dataset(model_output)
             namelist = f90nml.read(glob.glob(namelist_path)[0])
             times = get_times_nml(namelist,model_data)
             start_date = times[0]
-            
             # Only open INMET file once
             if j == 0:
-                inmet_data = get_inmet_data(start_date,station,
-                                        variable,INMET_dir,times,experiment)
+                inmet_data = get_inmet_data(start_date,INMET_dir,
+                                            times,**kwargs)
                 df_inmet = inmet_data[0]
-                lat_station, lon_station = inmet_data[1], inmet_data[2]
+                # Get station position and add to kwargs
+                kwargs['lat_station']  = inmet_data[1]
+                kwargs['lon_station'] = inmet_data[2]
                 # For the first iteration, concatenate INMET and Exp data
-                exp_df = df_model_data(model_data,times,variable,experiment,
-                                       lat_station,lon_station)
+                exp_df = df_model_data(model_data,times,**kwargs)
                 var_data = pd.concat([df_inmet,exp_df])
                 j+=1
             # For other iterations, concatenate with previous existing df
             else:
-                exp_df = df_model_data(model_data,times,variable,experiment,
-                                       lat_station,lon_station)
+                exp_df = df_model_data(model_data,times,**kwargs)
                 var_data = pd.concat([var_data,exp_df])
                 
         # plot timeseries
         if col == 0:
             data = var_data[var_data['variable'] == variable]
             data.index = range(len(data))
-            g = sns.lineplot(x="date", y="value", hue="source", markers=True,
+            g = sns.lineplot(x="date", y="value", size="source",
+                             style='microp', hue='cumulus',
+                             markers=True,
                          ax=axes[row,col],data=data, lw=4)
             axes[row,col].set(ylabel=variable, xlabel=None)
             axes[row,col].yaxis.label.set_size(20)
