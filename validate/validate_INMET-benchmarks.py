@@ -153,7 +153,7 @@ def get_stats(data):
         
         predicted = predicted[(predicted.index >= data.index.min()) &
                               (predicted.index <= data.index.max())]
-        reference = predicted[(reference.index >= data.index.min()) &
+        reference = reference[(reference.index >= data.index.min()) &
                               (reference.index <= data.index.max())]
         
         stats = sm.taylor_statistics(predicted,reference)
