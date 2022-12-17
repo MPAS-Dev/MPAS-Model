@@ -277,7 +277,7 @@ variables = ['temperature','precipitation','windspeed','pressure']
 plt.close('all')
 fig, axes = plt.subplots(4, 3, figsize=(28, 15))
 fig.tight_layout()
-plt.subplots_adjust(left=0.04,bottom=0.08,top=0.85, wspace=2, hspace=0.2)
+plt.subplots_adjust(left=0.04,right=1,bottom=0.08,top=0.85, wspace=2, hspace=0.5)
 i,v = 1,0
 for row in range(4):
     # One variable for each row
@@ -330,7 +330,7 @@ for row in range(4):
                                  bbox_to_anchor=(1.75, 1),ncol=2)
             axes[row,col].set(xlabel=None)
             g.set_ylabel(variable,fontsize=18)
-            axes[row,col].xaxis.set_tick_params(labelsize=16,rotation=30)
+            axes[row,col].xaxis.set_tick_params(labelsize=16,rotation=35)
             axes[row,col].yaxis.set_tick_params(labelsize=16)
         # Plot taylo diagrams in the second columns
         if col == 1:
