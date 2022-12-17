@@ -279,12 +279,12 @@ fig, axes = plt.subplots(4, 3, figsize=(30, 15))
 plt.subplots_adjust(left=0.04,bottom=0.08,top=0.95, wspace=2, hspace=0.5)
 # fig.tight_layout()
 i,v = 1,0
-for row in range(4):
+for col in range(4):
     # One variable for each row
     variable = variables[v]
     print('-------------------------------------')
     print('plotting variable: '+variable+'\n')
-    for col in range(3):
+    for row in range(3):
         j = 0
         for bench in benchs:
             # Open data
@@ -319,7 +319,7 @@ for row in range(4):
                 exp_df = df_model_data(model_data,times,**kwargs)
                 var_data = pd.concat([var_data,exp_df])
         # Plot timeseries in the first column
-        if col == 0:
+        if row == 0:
             data = var_data[var_data['variable'] == variable]
             data.index = range(len(data))
             g = sns.lineplot(x="date", y="value", size="source",
@@ -333,14 +333,14 @@ for row in range(4):
             axes[row,col].xaxis.set_tick_params(labelsize=16,rotation=35)
             axes[row,col].yaxis.set_tick_params(labelsize=16)
         # Plot taylo diagrams in the second columns
-        if col == 1:
+        if row == 1:
             ax = axes[row,col] = fig.add_subplot(4,3, i)
             ax.set_axis_off()
             stats = get_stats(data)
             sdev,crmsd,ccoef,expnames = stats[0],stats[1],stats[2],stats[3]
             plot_taylor(sdev,crmsd,ccoef,expnames)
         # Plot q-q plots in the third column
-        if col == 2:
+        if row == 2:
             ax = axes[row,col]
             plot_qq(data,ax)
         # Update column indexer
