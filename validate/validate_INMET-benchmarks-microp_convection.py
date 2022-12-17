@@ -278,7 +278,8 @@ met_list = []
 variables = ['temperature','precipitation','windspeed','pressure']
 plt.close('all')
 fig, axes = plt.subplots(4, 3, figsize=(36, 18))
-fig.tight_layout(pad=30)
+fig.tight_layout()
+plt.subplots_adjust(hspace=1)
 i,v = 1,0
 for row in range(4):
     # One variable for each row
