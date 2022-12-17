@@ -281,7 +281,7 @@ met_list = []
 variables = ['temperature','precipitation','windspeed','pressure']
 plt.close('all')
 fig, axes = plt.subplots(3, 4, figsize=(30, 15))
-plt.subplots_adjust(left=-0.1,wspace=0.25, hspace=0.5)
+plt.subplots_adjust(left=0.1,wspace=0.25, hspace=0.5)
 # Indexer for Taylor Digram axes and variable
 i,v = 5,0
 for col in range(4):
