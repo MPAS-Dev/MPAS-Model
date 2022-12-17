@@ -351,10 +351,10 @@ for col in range(4):
         if row == 2:
             ax = axes[row,col]
             plot_qq(data,ax)
-        # Update column indexer
-        v+=1
-    # Update variable indexer
+    # Update column indexer
     i+=1
+    # Update variable indexer
+    v+=1
         
 if args.output is not None:
     fname = args.output
