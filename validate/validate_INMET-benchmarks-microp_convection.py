@@ -192,7 +192,7 @@ def plot_taylor(sdevs,crmsds,ccoefs,experiments,col):
         label = experiments
     else:
         leg = 'off'
-        label= None
+        label= []
     sm.taylor_diagram(sdevs,crmsds,ccoefs,
                       markerLabelColor = 'b', 
                       markerLabel = label,
