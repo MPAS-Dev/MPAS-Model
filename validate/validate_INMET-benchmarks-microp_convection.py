@@ -222,8 +222,10 @@ def plot_qq(data,ax):
     ax.legend(loc='upper center', fontsize=14, bbox_to_anchor=(2.5, 1),ncol=3)
     g.set_ylabel('EXPERIMENT')
     g.set_xlabel('INMET')
-    
-    
+    ax.xaxis.set_tick_params(labelsize=16)
+    ax.yaxis.set_tick_params(labelsize=16)
+    ax.xaxis.set_label_params(labelsize=18)
+    ax.yaxis.set_label_params(labelsize=18)
 
 ## Workspace ##
 work_dir = os.getenv('MPAS_DIR')
@@ -329,7 +331,9 @@ for row in range(4):
             axes[row,col].legend(loc='upper center',fontsize=14,
                                  bbox_to_anchor=(1.5, 1),ncol=2)
             axes[row,col].set(ylabel=variable, xlabel=None)
-            axes[row,col].xaxis.set_tick_params(labelsize=16)
+            axes[row,col].xaxis.set_tick_params(labelsize=16,rotation=50)
+            axes[row,col].yaxis.set_tick_params(labelsize=16)
+            axes[row,col].yaxis.set_label_params(labelsize=18)
         # Plot taylo diagrams in the second columns
         if col == 1:
             ax = axes[row,col] = fig.add_subplot(4,3, i)
