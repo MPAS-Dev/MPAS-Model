@@ -189,8 +189,10 @@ def plot_taylor(sdevs,crmsds,ccoefs,experiments,col):
     axismax = STDmax*1.2
     if col == 3:
         leg = 'on'
+        label = experiments
     else:
         leg = 'off'
+        label= None
     sm.taylor_diagram(sdevs,crmsds,ccoefs,
                       markerLabelColor = 'b', 
                       markerLabel = experiments,
@@ -281,15 +283,15 @@ met_list = []
 variables = ['temperature','precipitation','windspeed','pressure']
 plt.close('all')
 fig, axes = plt.subplots(3, 4, figsize=(30, 15))
-# plt.subplots_adjust(left=0.04,bottom=0.08,top=0.95, wspace=2, hspace=0.5)
+plt.subplots_adjust(wspace=0.1, hspace=0.1)
 # fig.tight_layout()
 i,v = 1,0
-for row in range(3):
-    # One variable for each row
+for col in range(4):
+    # One variable for each columns
     variable = variables[v]
     print('-------------------------------------')
     print('plotting variable: '+variable+'\n')
-    for col in range(4):
+    for row in range(3):
         j = 0
         for bench in benchs:
             # Open data
