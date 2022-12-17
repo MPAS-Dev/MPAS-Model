@@ -277,7 +277,7 @@ variables = ['temperature','precipitation','windspeed','pressure']
 plt.close('all')
 fig, axes = plt.subplots(4, 3, figsize=(28, 13))
 fig.tight_layout()
-plt.subplots_adjust(left=0.05,bottom=0.05,top=0.02, wspace=1.7)
+plt.subplots_adjust(left=0.05,bottom=0.05,top=0.98, wspace=1.7)
 # sns.set(font_scale = 6)
 i,v = 1,0
 for row in range(4):
