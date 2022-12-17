@@ -219,7 +219,7 @@ def plot_qq(data,ax):
         
         g = sns.regplot(x=reference, y=predicted, data=data, label=experiment,
                         ax=ax)
-    ax.legend(loc='upper center', fontsize=10, bbox_to_anchor=(2, 1),ncol=3)
+    ax.legend(loc='upper center', fontsize=10, bbox_to_anchor=(2.5, 1),ncol=3)
     g.set_ylabel('EXPERIMENT')
     g.set_xlabel('INMET')
     
@@ -277,7 +277,7 @@ variables = ['temperature','precipitation','windspeed','pressure']
 plt.close('all')
 fig, axes = plt.subplots(4, 3, figsize=(28, 13))
 fig.tight_layout()
-plt.subplots_adjust(left=0.05,bottom=0.05,top=0.98, wspace=2)
+plt.subplots_adjust(left=0.05,bottom=0.05,top=0.98, wspace=2.2)
 # sns.set(font_scale = 6)
 i,v = 1,0
 for row in range(4):
@@ -333,7 +333,7 @@ for row in range(4):
         # Plot taylo diagrams in the second columns
         if col == 1:
             ax = axes[row,col] = fig.add_subplot(4,3, i)
-            ax.set(adjustable='box', aspect='equal')
+            #ax.set(adjustable='box', aspect='equal')
             stats = get_stats(data)
             sdev,crmsd,ccoef,expnames = stats[0],stats[1],stats[2],stats[3]
             plot_taylor(sdev,crmsd,ccoef,expnames)
