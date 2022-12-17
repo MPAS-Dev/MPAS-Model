@@ -225,7 +225,7 @@ def plot_qq(data,ax):
     frame = legend.get_frame()
     frame.set_color('white')
     g.legend(fontsize=20,ncol=3)
-
+    sns.move_legend(g, "upper left", bbox_to_anchor=(1, 1))
 
 ## Workspace ##
 work_dir = os.getenv('MPAS_DIR')
@@ -329,10 +329,10 @@ for row in range(4):
                              markers=True,
                          ax=axes[row,col],data=data)
             g.legend(fontsize=20,ncol=2)
+            sns.move_legend(g, "upper left", bbox_to_anchor=(1, 1))
             axes[row,col].set(ylabel=variable, xlabel=None)
             axes[row,col].yaxis.label.set_size(20)
             axes[row,col].tick_params(axis='x', rotation=50)
-            sns.move_legend(axes[row,col], "upper left", bbox_to_anchor=(1, 1))
         # Plot taylo diagrams in the second columns
         if col == 1:
             ax = axes[row,col] = fig.add_subplot(4,3, i)
