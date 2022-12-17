@@ -278,7 +278,6 @@ plt.close('all')
 fig, axes = plt.subplots(4, 3, figsize=(28, 13))
 fig.tight_layout()
 plt.subplots_adjust(left=0.05,bottom=0.05,top=0.98, wspace=1.5)
-plt.rcParams.update({'font.size': 16})
 i,v = 1,0
 for row in range(4):
     # One variable for each row
@@ -330,10 +329,13 @@ for row in range(4):
             axes[row,col].legend(loc='upper center',fontsize=14,
                                  bbox_to_anchor=(1.5, 1),ncol=2)
             axes[row,col].set(ylabel=variable, xlabel=None)
+            for tick in axes[row,col].xaxis.get_major_ticks():
+                tick.label.set_fontsize(14)
         # Plot taylo diagrams in the second columns
         if col == 1:
             ax = axes[row,col] = fig.add_subplot(4,3, i)
-            #ax.set(adjustable='box', aspect='equal')
+            ax.set_xlabel()
+            ax.set_ylabel()
             stats = get_stats(data)
             sdev,crmsd,ccoef,expnames = stats[0],stats[1],stats[2],stats[3]
             plot_taylor(sdev,crmsd,ccoef,expnames)
