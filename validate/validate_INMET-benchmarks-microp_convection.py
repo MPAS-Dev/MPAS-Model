@@ -277,7 +277,7 @@ variables = ['temperature','precipitation','windspeed','pressure']
 plt.close('all')
 fig, axes = plt.subplots(4, 3, figsize=(28, 15))
 fig.tight_layout()
-plt.subplots_adjust(left=0.05,bottom=0.05,top=0.98, wspace=1.5, hspace=0.2)
+plt.subplots_adjust(left=0.04,bottom=0.1,top=0.9, wspace=1.7, hspace=0.2)
 i,v = 1,0
 for row in range(4):
     # One variable for each row
@@ -335,6 +335,7 @@ for row in range(4):
         # Plot taylo diagrams in the second columns
         if col == 1:
             ax = axes[row,col] = fig.add_subplot(4,3, i)
+            ax.set_axis_off()
             stats = get_stats(data)
             sdev,crmsd,ccoef,expnames = stats[0],stats[1],stats[2],stats[3]
             plot_taylor(sdev,crmsd,ccoef,expnames)
