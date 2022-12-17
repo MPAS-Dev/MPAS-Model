@@ -219,7 +219,7 @@ def plot_qq(data,ax):
         
         g = sns.regplot(x=reference, y=predicted, data=data, label=experiment,
                         ax=ax)
-    ax.legend(loc='upper center', bbox_to_anchor=(0.5, 1.05),ncol=2)
+    ax.legend(loc='upper center', bbox_to_anchor=(1, 1),ncol=3)
     g.set_ylabel('EXPERIMENT',fontsize=16)
     g.set_xlabel('INMET',fontsize=16)
     
@@ -326,8 +326,8 @@ for row in range(4):
                              style='microp', hue='cumulus',
                              markers=True,
                          ax=axes[row,col],data=data)
-            sns.move_legend(g, "upper left", bbox_to_anchor=(1, 1))
-            legend = g.legend(fontsize=20)
+            axes[row,col].legend(loc='upper center',
+                                 bbox_to_anchor=(1, 1),ncol=2)
             axes[row,col].set(ylabel=variable, xlabel=None)
             axes[row,col].yaxis.label.set_size(20)
             axes[row,col].tick_params(axis='x', rotation=50, size=16)
