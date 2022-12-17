@@ -278,7 +278,7 @@ plt.close('all')
 fig, axes = plt.subplots(4, 3, figsize=(28, 13))
 fig.tight_layout()
 plt.subplots_adjust(left=0.05,bottom=0.05,wspace=1.5)
-sns.set(font_scale = 2)
+sns.set(font_scale = 6)
 i,v = 1,0
 for row in range(4):
     # One variable for each row
@@ -327,12 +327,9 @@ for row in range(4):
                              style='microp', hue='cumulus',
                              markers=True,
                          ax=axes[row,col],data=data)
-            axes[row,col].legend(loc='upper center', fontsize=20,
+            axes[row,col].legend(loc='upper center',
                                  bbox_to_anchor=(1.5, 1),ncol=2)
             axes[row,col].set(ylabel=variable, xlabel=None)
-            # axes[row,col].yaxis.label.set_size(20)
-            # axes[row,col].tick_params(axis='x', rotation=50, size=16)
-            # axes[row,col].tick_params(axis='y', size=16)
         # Plot taylo diagrams in the second columns
         if col == 1:
             ax = axes[row,col] = fig.add_subplot(4,3, i)
