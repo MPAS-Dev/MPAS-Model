@@ -283,7 +283,7 @@ met_list = []
 variables = ['temperature','precipitation','windspeed','pressure']
 plt.close('all')
 fig, axes = plt.subplots(3, 4, figsize=(30, 15))
-plt.subplots_adjust(wspace=0.1, hspace=0.1)
+plt.subplots_adjust(wspace=0.5, hspace=0.5)
 # fig.tight_layout()
 i,v = 1,0
 for col in range(4):
@@ -352,9 +352,9 @@ for col in range(4):
             ax = axes[row,col]
             plot_qq(data,ax)
         # Update column indexer
-        i+=1
+        v+=1
     # Update variable indexer
-    v+=1
+    i+=1
         
 if args.output is not None:
     fname = args.output
