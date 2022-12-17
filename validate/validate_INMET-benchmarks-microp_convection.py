@@ -342,7 +342,7 @@ for col in range(4):
             axes[row,col].yaxis.set_tick_params(labelsize=16)
         # Plot taylo diagrams in the second columns
         if row == 1:
-            ax = axes[row,col] = fig.add_subplot(3,4, col+1)
+            ax = axes[row,col] = fig.add_subplot(3,4, i)
             ax.set_axis_off()
             stats = get_stats(data)
             sdev,crmsd,ccoef,expnames = stats[0],stats[1],stats[2],stats[3]
@@ -351,8 +351,8 @@ for col in range(4):
         if row == 2:
             ax = axes[row,col]
             plot_qq(data,ax)
-    # Update column indexer
-    i+=1
+        # Update column indexer
+        i+=1
     # Update variable indexer
     v+=1
         
