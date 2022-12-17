@@ -189,12 +189,28 @@ def plot_taylor(sdevs,crmsds,ccoefs,experiments,col):
     axismax = STDmax*1.2
     if col == 3:
         leg = 'on'
+        label=[]
+        for i in range(len(experiments)):
+            label.append('')
     else:
         leg = 'off'
+        label = experiments
+    # sm.taylor_diagram(sdevs,crmsds,ccoefs,
+    #                   markerLabelColor = 'b', 
+    #                   markerLabel = experiments,
+    #                   markerColor = 'r', markerLegend = leg, markerSize = 15, 
+    #                   tickRMS = tickRMS, titleRMS = 'off', widthRMS = 2.0,
+    #                   colRMS = '#728B92', styleRMS = '--',  
+    #                   widthSTD = 2, styleSTD = '--', colSTD = '#8A8A8A',
+    #                   colCOR = 'k', styleCOR = '-',
+    #                   widthCOR = 1.0, titleCOR = 'on',
+    #                   colObs = 'k', markerObs = '^',
+    #                   titleOBS = 'Obs.', styleObs =':',
+    #                   axismax = axismax, alpha = 1)
     sm.taylor_diagram(sdevs,crmsds,ccoefs,
                       markerLabelColor = 'b', 
-                      markerLabel = experiments,
-                      markerColor = 'r', markerLegend = leg, markerSize = 15, 
+                      markerLabel = label,colorMap='on',
+                      markerColors = 'r', markerLegend = 'on', markerSize = 15, 
                       tickRMS = tickRMS, titleRMS = 'off', widthRMS = 2.0,
                       colRMS = '#728B92', styleRMS = '--',  
                       widthSTD = 2, styleSTD = '--', colSTD = '#8A8A8A',
@@ -224,7 +240,7 @@ def plot_qq(data,ax):
         g = sns.regplot(x=reference, y=predicted, data=data, label=experiment,
                         ax=ax)
     if col == 3:
-        ax.legend(loc='upper center', fontsize=14, bbox_to_anchor=(2.3, 1),ncol=3)
+        ax.legend(loc='upper center', fontsize=14, bbox_to_anchor=(1.75, 1),ncol=2)
     g.set_ylabel('EXPERIMENT',fontsize=18)
     g.set_xlabel('INMET',fontsize=18)
     ax.xaxis.set_tick_params(labelsize=16)
@@ -281,7 +297,7 @@ met_list = []
 variables = ['temperature','precipitation','windspeed','pressure']
 plt.close('all')
 fig, axes = plt.subplots(3, 4, figsize=(30, 15))
-plt.subplots_adjust(left=0.1,wspace=0.25, hspace=0.5)
+plt.subplots_adjust(left=0.05,wspace=0.25, hspace=0.5)
 # Indexer for Taylor Digram axes and variable
 i,v = 5,0
 for col in range(4):
@@ -334,7 +350,7 @@ for col in range(4):
                          ax=axes[row,col],data=data)
             if col == 3:
                 axes[row,col].legend(loc='upper center',fontsize=14,
-                                 bbox_to_anchor=(2, 1),ncol=2)
+                                 bbox_to_anchor=(1.75, 1),ncol=2)
             else:
                 axes[row,col].legend([],[], frameon=False)
             axes[row,col].set(xlabel=None)
