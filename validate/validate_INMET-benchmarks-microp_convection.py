@@ -187,10 +187,14 @@ def plot_taylor(sdevs,crmsds,ccoefs,experiments):
     RMSmax = round(np.amax(crmsds))
     tickRMS = np.linspace(0,RMSmax,5)
     axismax = STDmax*1.2
+    if col == 3:
+        leg = 'off'
+    else:
+        leg == 'on'
     sm.taylor_diagram(sdevs,crmsds,ccoefs,
                       markerLabelColor = 'b', 
                       markerLabel = experiments,
-                      markerColor = 'r', markerLegend = 'on', markerSize = 15, 
+                      markerColor = 'r', markerLegend = leg, markerSize = 15, 
                       tickRMS = tickRMS, titleRMS = 'off', widthRMS = 2.0,
                       colRMS = '#728B92', styleRMS = '--',  
                       widthSTD = 2, styleSTD = '--', colSTD = '#8A8A8A',
@@ -219,7 +223,8 @@ def plot_qq(data,ax):
         
         g = sns.regplot(x=reference, y=predicted, data=data, label=experiment,
                         ax=ax)
-    ax.legend(loc='upper center', fontsize=14, bbox_to_anchor=(2.3, 1),ncol=3)
+    if col == 3:
+        ax.legend(loc='upper center', fontsize=14, bbox_to_anchor=(2.3, 1),ncol=3)
     g.set_ylabel('EXPERIMENT',fontsize=18)
     g.set_xlabel('INMET',fontsize=18)
     ax.xaxis.set_tick_params(labelsize=16)
@@ -326,7 +331,8 @@ for row in range(3):
                              style='microp', hue='cumulus',
                              markers=True,
                          ax=axes[row,col],data=data)
-            axes[row,col].legend(loc='upper center',fontsize=14,
+            if col == 3:
+                axes[row,col].legend(loc='upper center',fontsize=14,
                                  bbox_to_anchor=(2, 1),ncol=2)
             axes[row,col].set(xlabel=None)
             g.set_ylabel(variable,fontsize=18)
