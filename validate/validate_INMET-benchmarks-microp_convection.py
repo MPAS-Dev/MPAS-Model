@@ -219,9 +219,9 @@ def plot_qq(data,ax):
         
         g = sns.regplot(x=reference, y=predicted, data=data, label=experiment,
                         ax=ax)
-    ax.legend(loc='upper center', bbox_to_anchor=(1.5, 1),ncol=3,fontsize=20)
-    g.set_ylabel('EXPERIMENT',fontsize=16)
-    g.set_xlabel('INMET',fontsize=16)
+    ax.legend(loc='upper center', bbox_to_anchor=(1.5, 1),ncol=3)
+    g.set_ylabel('EXPERIMENT')
+    g.set_xlabel('INMET')
     
     
 
@@ -278,6 +278,7 @@ plt.close('all')
 fig, axes = plt.subplots(4, 3, figsize=(28, 13))
 fig.tight_layout()
 plt.subplots_adjust(left=0.05,bottom=0.05,wspace=1.5)
+sns.set(font_scale = 2)
 i,v = 1,0
 for row in range(4):
     # One variable for each row
@@ -329,9 +330,9 @@ for row in range(4):
             axes[row,col].legend(loc='upper center', fontsize=20,
                                  bbox_to_anchor=(1.5, 1),ncol=2)
             axes[row,col].set(ylabel=variable, xlabel=None)
-            axes[row,col].yaxis.label.set_size(20)
-            axes[row,col].tick_params(axis='x', rotation=50, size=16)
-            axes[row,col].tick_params(axis='y', size=16)
+            # axes[row,col].yaxis.label.set_size(20)
+            # axes[row,col].tick_params(axis='x', rotation=50, size=16)
+            # axes[row,col].tick_params(axis='y', size=16)
         # Plot taylo diagrams in the second columns
         if col == 1:
             ax = axes[row,col] = fig.add_subplot(4,3, i)
