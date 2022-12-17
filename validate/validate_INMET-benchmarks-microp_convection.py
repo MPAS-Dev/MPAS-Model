@@ -169,7 +169,7 @@ def get_stats(data):
     ccoef, crmsd, sdev = np.array(ccoef),np.array(crmsd),np.array(sdev)
     return sdev,crmsd,ccoef,experiments
 
-def plot_taylor(sdevs,crmsds,ccoefs,experiments):
+def plot_taylor(sdevs,crmsds,ccoefs,experiments,col):
     '''
     Produce the Taylor diagram
     Label the points and change the axis options for SDEV, CRMSD, and CCOEF.
@@ -188,9 +188,9 @@ def plot_taylor(sdevs,crmsds,ccoefs,experiments):
     tickRMS = np.linspace(0,RMSmax,5)
     axismax = STDmax*1.2
     if col == 3:
-        leg = 'off'
-    else:
         leg = 'on'
+    else:
+        leg = 'off'
     sm.taylor_diagram(sdevs,crmsds,ccoefs,
                       markerLabelColor = 'b', 
                       markerLabel = experiments,
@@ -281,8 +281,8 @@ met_list = []
 variables = ['temperature','precipitation','windspeed','pressure']
 plt.close('all')
 fig, axes = plt.subplots(3, 4, figsize=(30, 15))
-plt.subplots_adjust(left=0.04,bottom=0.08,top=0.95, wspace=2, hspace=0.5)
-# fig.tight_layout()
+# plt.subplots_adjust(left=0.04,bottom=0.08,top=0.95, wspace=2, hspace=0.5)
+fig.tight_layout()
 i,v = 1,0
 for row in range(3):
     # One variable for each row
@@ -344,7 +344,7 @@ for row in range(3):
             ax.set_axis_off()
             stats = get_stats(data)
             sdev,crmsd,ccoef,expnames = stats[0],stats[1],stats[2],stats[3]
-            plot_taylor(sdev,crmsd,ccoef,expnames)
+            plot_taylor(sdev,crmsd,ccoef,expnames,col)
         # Plot q-q plots in the third column
         if row == 2:
             ax = axes[row,col]
