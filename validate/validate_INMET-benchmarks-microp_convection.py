@@ -190,7 +190,7 @@ def plot_taylor(sdevs,crmsds,ccoefs,experiments):
     if col == 3:
         leg = 'off'
     else:
-        leg == 'on'
+        leg = 'on'
     sm.taylor_diagram(sdevs,crmsds,ccoefs,
                       markerLabelColor = 'b', 
                       markerLabel = experiments,
