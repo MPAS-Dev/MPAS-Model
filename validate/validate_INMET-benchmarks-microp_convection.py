@@ -282,7 +282,7 @@ variables = ['temperature','precipitation','windspeed','pressure']
 plt.close('all')
 fig, axes = plt.subplots(3, 4, figsize=(30, 15))
 # plt.subplots_adjust(left=0.04,bottom=0.08,top=0.95, wspace=2, hspace=0.5)
-fig.tight_layout()
+# fig.tight_layout()
 i,v = 1,0
 for row in range(3):
     # One variable for each row
@@ -340,7 +340,7 @@ for row in range(3):
             axes[row,col].yaxis.set_tick_params(labelsize=16)
         # Plot taylo diagrams in the second columns
         if row == 1:
-            ax = axes[row,col] = fig.add_subplot(4,3, i)
+            ax = axes[row,col] = fig.add_subplot(3,4, i)
             ax.set_axis_off()
             stats = get_stats(data)
             sdev,crmsd,ccoef,expnames = stats[0],stats[1],stats[2],stats[3]
