@@ -219,13 +219,14 @@ def plot_qq(data,ax):
         
         g = sns.regplot(x=reference, y=predicted, data=data, label=experiment,
                         ax=ax)
+    sns.move_legend(g, "upper left", bbox_to_anchor=(1, 1))
     g.set_ylabel('EXPERIMENT',fontsize=16)
     g.set_xlabel('INMET',fontsize=16)
-    legend = ax.legend(ncol=3)
+    legend = g.legend(fontsize=20, ncol=3)
     frame = legend.get_frame()
     frame.set_color('white')
-    g.legend(fontsize=20)
-    sns.move_legend(g, "upper left", bbox_to_anchor=(1, 1))
+    
+    
 
 ## Workspace ##
 work_dir = os.getenv('MPAS_DIR')
@@ -328,12 +329,12 @@ for row in range(4):
                              style='microp', hue='cumulus',
                              markers=True,
                          ax=axes[row,col],data=data)
-            legend = axes[row,col].legend(ncol=2)
-            g.legend(fontsize=20,ncol=2)
             sns.move_legend(g, "upper left", bbox_to_anchor=(1, 1))
+            legend = g.legend(fontsize=20)
             axes[row,col].set(ylabel=variable, xlabel=None)
             axes[row,col].yaxis.label.set_size(20)
-            axes[row,col].tick_params(axis='x', rotation=50)
+            axes[row,col].tick_params(axis='x', rotation=50, size=16)
+            axes[row,col].tick_params(axis='y', size=16)
         # Plot taylo diagrams in the second columns
         if col == 1:
             ax = axes[row,col] = fig.add_subplot(4,3, i)
