@@ -284,8 +284,8 @@ variables = ['temperature','precipitation','windspeed','pressure']
 plt.close('all')
 fig, axes = plt.subplots(3, 4, figsize=(30, 15))
 plt.subplots_adjust(wspace=0.5, hspace=0.5)
-# fig.tight_layout()
-i,v = 1,0
+# Indexer for Taylor Digram axes and variable
+i,v = 5,0
 for col in range(4):
     # One variable for each columns
     variable = variables[v]
@@ -343,7 +343,6 @@ for col in range(4):
             axes[row,col].yaxis.set_tick_params(labelsize=16)
         # Plot taylo diagrams in the second columns
         if row == 1:
-            i = 5
             ax = axes[row,col] = fig.add_subplot(3,4, i)
             ax.set_axis_off()
             stats = get_stats(data)
