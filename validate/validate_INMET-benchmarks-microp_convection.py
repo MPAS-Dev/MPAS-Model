@@ -278,7 +278,7 @@ plt.close('all')
 fig, axes = plt.subplots(4, 3, figsize=(28, 13))
 fig.tight_layout()
 plt.subplots_adjust(left=0.05,bottom=0.05,wspace=1.5)
-sns.set(font_scale = 6)
+# sns.set(font_scale = 6)
 i,v = 1,0
 for row in range(4):
     # One variable for each row
