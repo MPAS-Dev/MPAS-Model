@@ -221,10 +221,10 @@ def plot_qq(data,ax):
                         ax=ax)
     g.set_ylabel('EXPERIMENT',fontsize=16)
     g.set_xlabel('INMET',fontsize=16)
-    legend = ax.legend()
+    legend = ax.legend(ncol=3)
     frame = legend.get_frame()
     frame.set_color('white')
-    g.legend(fontsize=20,ncol=3)
+    g.legend(fontsize=20)
     sns.move_legend(g, "upper left", bbox_to_anchor=(1, 1))
 
 ## Workspace ##
@@ -328,6 +328,7 @@ for row in range(4):
                              style='microp', hue='cumulus',
                              markers=True,
                          ax=axes[row,col],data=data)
+            legend = axes[row,col].legend(ncol=2)
             g.legend(fontsize=20,ncol=2)
             sns.move_legend(g, "upper left", bbox_to_anchor=(1, 1))
             axes[row,col].set(ylabel=variable, xlabel=None)
