@@ -219,7 +219,7 @@ def plot_qq(data,ax):
         
         g = sns.regplot(x=reference, y=predicted, data=data, label=experiment,
                         ax=ax)
-    legend = g.legend(fontsize=20, ncol=3)
+    legend = plt.legend(fontsize=20, ncol=3)
     sns.move_legend(g, "upper left", bbox_to_anchor=(1, 1))
     g.set_ylabel('EXPERIMENT',fontsize=16)
     g.set_xlabel('INMET',fontsize=16)
