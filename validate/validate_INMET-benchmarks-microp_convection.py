@@ -195,7 +195,7 @@ def plot_taylor(sdevs,crmsds,ccoefs,experiments,col):
         label= None
     sm.taylor_diagram(sdevs,crmsds,ccoefs,
                       markerLabelColor = 'b', 
-                      markerLabel = experiments,
+                      markerLabel = label,
                       markerColor = 'r', markerLegend = leg, markerSize = 15, 
                       tickRMS = tickRMS, titleRMS = 'off', widthRMS = 2.0,
                       colRMS = '#728B92', styleRMS = '--',  
@@ -337,6 +337,8 @@ for col in range(4):
             if col == 3:
                 axes[row,col].legend(loc='upper center',fontsize=14,
                                  bbox_to_anchor=(2, 1),ncol=2)
+            else:
+                axes[row,col].legend([],[], frameon=False)
             axes[row,col].set(xlabel=None)
             g.set_ylabel(variable,fontsize=18)
             axes[row,col].xaxis.set_tick_params(labelsize=16,rotation=35)
