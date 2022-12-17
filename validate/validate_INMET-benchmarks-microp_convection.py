@@ -279,12 +279,12 @@ fig, axes = plt.subplots(3, 4, figsize=(30, 15))
 plt.subplots_adjust(left=0.04,bottom=0.08,top=0.95, wspace=2, hspace=0.5)
 # fig.tight_layout()
 i,v = 1,0
-for col in range(4):
+for row in range(3):
     # One variable for each row
     variable = variables[v]
     print('-------------------------------------')
     print('plotting variable: '+variable+'\n')
-    for row in range(3):
+    for col in range(4):
         j = 0
         for bench in benchs:
             # Open data
