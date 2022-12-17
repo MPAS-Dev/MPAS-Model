@@ -145,22 +145,22 @@ def get_inmet_data(start_date,INMET_dir,times,**kwargs):
     df_inmet = df_inmet_data(station_data,times,**kwargs)
     return df_inmet
 
-def get_stats(data):
+def get_stats(var_data):
     ccoef, crmsd, sdev = [], [], []
-    experiments = list(data['experiment'].unique())
-    data.index = data['date']
+    experiments = list(var_data['experiment'].unique())
+    var_data.index = var_data['date']
     # Resample for 1H for standardization
-    reference = data[
-        data['experiment'] == 'INMET'].resample('1H').mean()['value']
+    reference = var_data[
+        var_data['experiment'] == 'INMET'].resample('1H').mean()['value']
     # Slice data for using only times present in model data
-    reference = reference[(reference.index >= data.index.min()) &
-                          (reference.index <= data.index.max())]
+    reference = reference[(reference.index >= var_data.index.min()) &
+                          (reference.index <= var_data.index.max())]
     for experiment in experiments:
-        predicted = data[
-                data['experiment'] == experiment].resample('1H').mean()['value']
+        predicted = var_data[
+                var_data['experiment'] == experiment].resample('1H').mean()['value']
         # Just to make sure
-        predicted = predicted[(predicted.index >= data.index.min()) &
-                              (predicted.index <= data.index.max())]
+        predicted = predicted[(predicted.index >= var_data.index.min()) &
+                              (predicted.index <= var_data.index.max())]
         # Compute and store stats
         stats = sm.taylor_statistics(predicted,reference)
         ccoef.append(stats['ccoef'][1])
@@ -169,7 +169,7 @@ def get_stats(data):
     ccoef, crmsd, sdev = np.array(ccoef),np.array(crmsd),np.array(sdev)
     return sdev,crmsd,ccoef,experiments
 
-def plot_taylor(sdevs,crmsds,ccoefs,experiments,col):
+def plot_taylor(sdevs,crmsds,ccoefs,experiments,):
     '''
     Produce the Taylor diagram
     Label the points and change the axis options for SDEV, CRMSD, and CCOEF.
@@ -185,19 +185,11 @@ def plot_taylor(sdevs,crmsds,ccoefs,experiments,col):
     rcParams.update({'font.size': 14}) # font size of axes text
     STDmax = round(np.amax(sdevs))
     RMSmax = round(np.amax(crmsds))
-    tickRMS = np.linspace(0,RMSmax,5)
-    axismax = STDmax*1.2
-    if col == 3:
-        leg = 'on'
-        label = experiments
-    else:
-        leg = 'off'
-        label=[]
-        for i in range(len(experiments)):
-            label.append('.')
+    tickRMS = np.linspace(0,round(RMSmax*1.2,1),6)
+    axismax = round(STDmax*1.2,1)
     sm.taylor_diagram(sdevs,crmsds,ccoefs,
                       markerLabelColor = 'b', 
-                      markerLabel = label,
+                      markerLabel = experiments,
                       markerColor = 'r', markerLegend = 'on', markerSize = 15, 
                       tickRMS = tickRMS, titleRMS = 'off', widthRMS = 2.0,
                       colRMS = '#728B92', styleRMS = '--',  
@@ -207,28 +199,42 @@ def plot_taylor(sdevs,crmsds,ccoefs,experiments,col):
                       colObs = 'k', markerObs = '^',
                       titleOBS = 'Obs.', styleObs =':',
                       axismax = axismax, alpha = 1)
+    
+def plot_time_series(data,ax, i):
+    legend = 'auto' if i == 3 else False
+    g = sns.lineplot(x="date", y="value",
+                     size="source", style='microp', hue='cumulus',
+                     markers=True, ax=ax,data=data, legend=legend)
+    ax.set(xlabel=None)
+    g.set_ylabel(data.variable.unique()[0],fontsize=18)
+    ax.xaxis.set_tick_params(labelsize=16,rotation=35)
+    ax.yaxis.set_tick_params(labelsize=16)
+    (ax.legend(loc='center',fontsize=20,
+                         bbox_to_anchor=(1.5, 1.2))) if i == 3 else None
 
-def plot_qq(data,ax):
-    for experiment in data.experiment.unique():
-        if experiment == 'INMET':
-            predicted = data[
-                data['experiment'] == experiment].resample('1H').mean()['value']
-        else:
-            predicted = data[
-                data['experiment'] == experiment].resample('1H').mean()['value']
-        
-        # Slice data for using teh same dates
-        predicted = predicted[(predicted.index >= data.index.min()) &
-                              (predicted.index <= data.index.max())]
-        reference = data[
-            data['experiment'] == 'INMET'].resample('1H').mean()['value']
-        reference = reference[(reference.index >= data.index.min()) &
-                              (reference.index <= data.index.max())]
-        
-        g = sns.regplot(x=reference, y=predicted, data=data, label=experiment,
-                        ax=ax)
-    if col == 3:
-        ax.legend(loc='upper center', fontsize=14, bbox_to_anchor=(1.75, 1),ncol=2)
+def plot_qq(var_data,ax,i,variable):
+    # Take hourly means from INMET
+    reference = var_data[var_data['experiment'] == 'INMET']
+    reference.index = reference['date']
+    reference = reference.resample('1H').mean()['value']
+    # Slice data for using the dates contained in MPAS data
+    MPAS_series = var_data[var_data['source']=='MPAS']
+    MPAS_series.index = MPAS_series['date']
+    reference = reference[(reference.index >= MPAS_series.index.min()) &
+                          (reference.index <= MPAS_series.index.max())]
+    for experiment in var_data.experiment.unique():
+        predicted = var_data[var_data['experiment'] == experiment]
+        predicted.index = predicted['date']
+        # Take hourly means for all data
+        predicted = predicted.resample('1H').mean()['value']
+        predicted = predicted[(predicted.index >= MPAS_series.index.min()) &
+                              (predicted.index <= MPAS_series.index.max())]
+        # plot
+        g = sns.regplot(x=reference, y=predicted, data=var_data,
+                        label=experiment, ax=ax)
+        ax.set_title(variable)
+    (ax.legend(loc='center',fontsize=20,
+                         bbox_to_anchor=(2, 1.2))) if i == 3 else None
     g.set_ylabel('EXPERIMENT',fontsize=18)
     g.set_xlabel('INMET',fontsize=18)
     ax.xaxis.set_tick_params(labelsize=16)
@@ -240,7 +246,6 @@ if work_dir is None:
     print('Error: MPAS_DIR environment variable not defined! It should direct\
 to the MPAS-BR path')
     sys.exit(-1)
-# work_dir = '~/Documents/MPAS/MPAS-BR/'
 INMET_dir = work_dir+'/met_data/INMET/'
 
 ## Parser options ##
@@ -255,6 +260,8 @@ parser.add_argument('-bdir','--bench_directory', type=str, required=True,
 parser.add_argument('-o','--output', type=str, default=None,
                         help='''output name to append file''')
 args = parser.parse_args()
+
+## Start the code ##
 benchs = glob.glob(args.bench_directory+'/run*')
 station = (args.station).upper()
 # Dummy for getting model times
@@ -280,90 +287,104 @@ with open(station_file, 'r',encoding='latin-1') as file:
         elif 'LONGITUDE' in line:
             lon_station = float((line[11:-1].replace(',','.')))
             pass
-
-met_list = []
+        elif 'ALTITUDE' in line:
+            z_station = float((line[11:-1].replace(',','.')))
+            pass
+        
+## Opens all data and create a single df ##
 variables = ['temperature','precipitation','windspeed','pressure']
-plt.close('all')
-fig, axes = plt.subplots(3, 4, figsize=(30, 15))
-plt.subplots_adjust(left=0.05,wspace=0.35, hspace=0.5)
-plt.tight_layout()
-# Indexer for Taylor Digram axes and variable
-i,v = 5,0
-for col in range(4):
-    # One variable for each columns
-    variable = variables[v]
+for variable in variables:
     print('-------------------------------------')
     print('plotting variable: '+variable+'\n')
-    for row in range(3):
-        # Flag for opening INMET data
-        j = 0
-        for bench in benchs:
-            # Open data
-            model_output = bench+'/latlon.nc'
-            model_data = xr.open_dataset(model_output)
-            expname = bench.split('/')[-1].split('run.')[-1]
-            print('experiment: '+expname)
-            microp = expname.split('.')[0].split('_')[-1]
-            cumulus = expname.split('.')[-1].split('_')[-1] 
-            experiment = microp+'_'+cumulus  
-            # Define kwargs for using in fuctions
-            kwargs = {'variable':variable,'station':station,
-                      'experiment':experiment,
-                      'microp':microp,'cumulus':cumulus,
-                      'lat_station':lat_station,
-                      'lon_station':lon_station}
-            if j != 0:
-                kwargs['lat_station']  = lat_station
-                kwargs['lon_station'] = lon_station
-            # Only open INMET file once and for the first iteration,
-            # concatenate INMET and Exp data. For other iterations, 
-            # concatenate with previous existing df
-            if j == 0:
-                inmet_data = get_inmet_data(start_date,INMET_dir,
-                                            times,**kwargs)
-                df_inmet = inmet_data
-                
-                exp_df = df_model_data(model_data,times,**kwargs)
-                var_data = pd.concat([df_inmet,exp_df])
-                j+=1
-            else:
-                exp_df = df_model_data(model_data,times,**kwargs)
-                var_data = pd.concat([var_data,exp_df])
-        # Plot timeseries in the first column
-        if row == 0:
-            data = var_data[var_data['variable'] == variable]
-            data.index = range(len(data))
-            g = sns.lineplot(x="date", y="value", size="source",
-                             style='microp', hue='cumulus',
-                             markers=True,
-                         ax=axes[row,col],data=data)
-            if col == 3:
-                axes[row,col].legend(loc='upper center',fontsize=14,
-                                 bbox_to_anchor=(1.75, 1),ncol=2)
-            else:
-                axes[row,col].legend([],[], frameon=False)
-            axes[row,col].set(xlabel=None)
-            g.set_ylabel(variable,fontsize=18)
-            axes[row,col].xaxis.set_tick_params(labelsize=16,rotation=35)
-            axes[row,col].yaxis.set_tick_params(labelsize=16)
-        # Plot taylo diagrams in the second columns
-        if row == 1:
-            ax = axes[row,col] = fig.add_subplot(3,4, i)
-            ax.set_axis_off()
-            stats = get_stats(data)
-            sdev,crmsd,ccoef,expnames = stats[0],stats[1],stats[2],stats[3]
-            plot_taylor(sdev,crmsd,ccoef,expnames,col)
-            i += 1
-        # Plot q-q plots in the third column
-        if row == 2:
-            ax = axes[row,col]
-            plot_qq(data,ax)
-    # Update variable indexer
-    v+=1
-        
+    # Flag for opening INMET data
+    for bench in benchs:
+        # Open data and get attributes
+        model_output = bench+'/latlon.nc'
+        model_data = xr.open_dataset(model_output)
+        expname = bench.split('/')[-1].split('run.')[-1]
+        print('experiment: '+expname)
+        microp = expname.split('.')[0].split('_')[-1]
+        cumulus = expname.split('.')[-1].split('_')[-1] 
+        experiment = microp+'_'+cumulus  
+        # Define kwargs for using in fuctions
+        kwargs = {'variable':variable,'station':station,
+                  'experiment':experiment,
+                  'microp':microp,'cumulus':cumulus,
+                  'lat_station':lat_station,
+                  'lon_station':lon_station}
+        # For first bench, open INMET data
+        if bench == benchs[0]:
+            df_inmet = get_inmet_data(start_date,INMET_dir,
+                                        times,**kwargs)
+        # For first bench and variable, create df from INMET data
+        if variable == variables[0] and bench == benchs[0]:
+            data = df_inmet
+        # If other variable but still for first bench, concat inmet data to df
+        elif variable != variables[0] and bench == benchs[0]:
+            data = pd.concat([data,df_inmet])       
+        # Then, just concat the df with bench data
+        exp_df = df_model_data(model_data,times,**kwargs)
+        data = pd.concat([data,exp_df])           
+data.index = range(len(data))
+            
+## Start plotting ##
+# Model location to export
+model_station = model_data.sel(latitude=kwargs['lat_station'],
+            method='nearest').sel(longitude=kwargs['lon_station'],
+                                  method='nearest')
+lat = round(float(model_station.latitude),2)
+lon = round(float(model_station.longitude),2)
+z = round(float(model_station.zgrid[0]),2)
+# Figure names
 if args.output is not None:
     fname = args.output
 else:
     fname = (args.bench_directory).split('/')[-2].split('.nc')[0]
+    
+## Plot time series ##
+fig = plt.figure(figsize=(15,10))
+for i in range(4):
+    variable = variables[i]
+    var_data = data[data['variable'] == variable]
+    ax = fig.add_subplot(2,2, i+1)
+    plot_time_series(var_data, ax, i)
+plt.suptitle('Station: '+station+"\nStation lat, lon, z: "+
+             str(round(lat_station,2))+", "+str(round(lon_station,2))+", "+
+             str(round(z_station,2))+"\nModel lat, lon, z: "+ str(lat)+
+             ", "+str(lon)+", "+str(z),fontsize=22)
+plt.tight_layout(h_pad=-20)
 plt.savefig(fname+'_timeseries_'+station+'.png')
 print(fname+'_timeseries_'+station+'.png created!')
+
+## Plot Taylor Diagrams ##
+fig = plt.figure(figsize=(10,20))
+for i in range(4):
+    variable = variables[i]
+    var_data = data[data['variable'] == variable]
+    stats = get_stats(var_data)
+    sdev,crmsd,ccoef,expnames = stats[0],stats[1],stats[2],stats[3]
+    ax = fig.add_subplot(4,1, i+1)
+    # ax.set_axis_off()
+    plot_taylor(sdev,crmsd,ccoef,expnames)
+plt.suptitle('Station: '+station+"\nStation lat, lon, z: "+
+             str(round(lat_station,2))+", "+str(round(lon_station,2))+", "+
+             str(round(z_station,2))+"\nModel lat, lon, z: "+ str(lat)+
+             ", "+str(lon)+", "+str(z),fontsize=22)
+plt.tight_layout()
+plt.savefig(fname+'_taylor-diagram_'+station+'.png')
+print(fname+'_taylor-diagram_'+station+'.png created!')
+
+## Plot q-q plots ##
+fig = plt.figure(figsize=(15,10))
+for i in range(4):
+    variable = variables[i]
+    var_data = data[data['variable'] == variable]
+    ax = fig.add_subplot(2,2, i+1)
+    plot_qq(var_data,ax,i,variable)
+plt.suptitle('Station: '+station+"\nStation lat, lon, z: "+
+             str(round(lat_station,2))+", "+str(round(lon_station,2))+", "+
+             str(round(z_station,2))+"\nModel lat, lon, z: "+ str(lat)+
+             ", "+str(lon)+", "+str(z),fontsize=22)
+plt.tight_layout(h_pad=-5)
+plt.savefig(fname+'_qq-plots_'+station+'.png')
+print(fname+'_qq-plots_'+station+'.png created!')
