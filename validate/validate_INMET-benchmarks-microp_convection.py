@@ -195,18 +195,6 @@ def plot_taylor(sdevs,crmsds,ccoefs,experiments,col):
         label=[]
         for i in range(len(experiments)):
             label.append('.')
-    # sm.taylor_diagram(sdevs,crmsds,ccoefs,
-    #                   markerLabelColor = 'b', 
-    #                   markerLabel = experiments,
-    #                   markerColor = 'r', markerLegend = leg, markerSize = 15, 
-    #                   tickRMS = tickRMS, titleRMS = 'off', widthRMS = 2.0,
-    #                   colRMS = '#728B92', styleRMS = '--',  
-    #                   widthSTD = 2, styleSTD = '--', colSTD = '#8A8A8A',
-    #                   colCOR = 'k', styleCOR = '-',
-    #                   widthCOR = 1.0, titleCOR = 'on',
-    #                   colObs = 'k', markerObs = '^',
-    #                   titleOBS = 'Obs.', styleObs =':',
-    #                   axismax = axismax, alpha = 1)
     sm.taylor_diagram(sdevs,crmsds,ccoefs,
                       markerLabelColor = 'b', 
                       markerLabel = label,
