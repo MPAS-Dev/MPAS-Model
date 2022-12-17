@@ -333,8 +333,6 @@ for row in range(4):
         # Plot taylo diagrams in the second columns
         if col == 1:
             ax = axes[row,col] = fig.add_subplot(4,3, i)
-            ax.set_xlabel()
-            ax.set_ylabel()
             stats = get_stats(data)
             sdev,crmsd,ccoef,expnames = stats[0],stats[1],stats[2],stats[3]
             plot_taylor(sdev,crmsd,ccoef,expnames)
