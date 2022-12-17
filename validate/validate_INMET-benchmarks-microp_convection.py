@@ -332,7 +332,7 @@ for row in range(4):
             axes[row,col].set(ylabel=variable, xlabel=None)
             axes[row,col].yaxis.label.set_size(20)
             axes[row,col].tick_params(axis='x', rotation=50)
-            sns.move_legend(ax, "upper left", bbox_to_anchor=(1, 1))
+            sns.move_legend(axes[row,col], "upper left", bbox_to_anchor=(1, 1))
         # Plot taylo diagrams in the second columns
         if col == 1:
             ax = axes[row,col] = fig.add_subplot(4,3, i)
