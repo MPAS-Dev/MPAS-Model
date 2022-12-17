@@ -209,7 +209,7 @@ def plot_taylor(sdevs,crmsds,ccoefs,experiments,col):
     #                   axismax = axismax, alpha = 1)
     sm.taylor_diagram(sdevs,crmsds,ccoefs,
                       markerLabelColor = 'b', 
-                      markerLabel = label,colorMap='on',
+                      markerLabel = label,
                       markerColors = 'r', markerLegend = 'on', markerSize = 15, 
                       tickRMS = tickRMS, titleRMS = 'off', widthRMS = 2.0,
                       colRMS = '#728B92', styleRMS = '--',  
