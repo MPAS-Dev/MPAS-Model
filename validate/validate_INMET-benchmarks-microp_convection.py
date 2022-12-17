@@ -328,7 +328,7 @@ for row in range(4):
                          ax=axes[row,col],data=data)
             axes[row,col].legend(loc='upper center',fontsize=14,
                                  bbox_to_anchor=(1.5, 1),ncol=2)
-            axes[row,col].set(ArithmeticErrorxlabel=None)
+            axes[row,col].set(xlabel=None)
             g.set_ylabel(variable,fontsize=18)
             axes[row,col].xaxis.set_tick_params(labelsize=16,rotation=50)
             axes[row,col].yaxis.set_tick_params(labelsize=16)
