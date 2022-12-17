@@ -279,7 +279,7 @@ variables = ['temperature','precipitation','windspeed','pressure']
 plt.close('all')
 fig, axes = plt.subplots(4, 3, figsize=(36, 18))
 fig.tight_layout()
-plt.subplots_adjust(wspace=1)
+plt.subplots_adjust(wspace=1.5)
 i,v = 1,0
 for row in range(4):
     # One variable for each row
@@ -328,10 +328,11 @@ for row in range(4):
                              style='microp', hue='cumulus',
                              markers=True,
                          ax=axes[row,col],data=data)
-            g.legend(fontsize=20)
+            g.legend(fontsize=20,ncol=2)
             axes[row,col].set(ylabel=variable, xlabel=None)
             axes[row,col].yaxis.label.set_size(20)
             axes[row,col].tick_params(axis='x', rotation=50)
+            sns.move_legend(ax, "upper left", bbox_to_anchor=(1, 1))
         # Plot taylo diagrams in the second columns
         if col == 1:
             ax = axes[row,col] = fig.add_subplot(4,3, i)
