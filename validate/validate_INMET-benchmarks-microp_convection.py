@@ -275,7 +275,7 @@ with open(station_file, 'r',encoding='latin-1') as file:
 met_list = []
 variables = ['temperature','precipitation','windspeed','pressure']
 plt.close('all')
-fig, axes = plt.subplots(4, 3, figsize=(30, 15))
+fig, axes = plt.subplots(3, 4, figsize=(30, 15))
 plt.subplots_adjust(left=0.04,bottom=0.08,top=0.95, wspace=2, hspace=0.5)
 # fig.tight_layout()
 i,v = 1,0
