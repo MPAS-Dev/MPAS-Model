@@ -189,16 +189,11 @@ def plot_taylor(sdevs,crmsds,ccoefs,experiments,col):
     axismax = STDmax*1.2
     if col == 3:
         leg = 'on'
-        label = experiments
     else:
         leg = 'off'
-        xs = []
-        for i in range(len(experiments)):
-            xs.append('')
-        label= xs
     sm.taylor_diagram(sdevs,crmsds,ccoefs,
                       markerLabelColor = 'b', 
-                      markerLabel = label,
+                      markerLabel = experiments,
                       markerColor = 'r', markerLegend = leg, markerSize = 15, 
                       tickRMS = tickRMS, titleRMS = 'off', widthRMS = 2.0,
                       colRMS = '#728B92', styleRMS = '--',  
@@ -286,7 +281,7 @@ met_list = []
 variables = ['temperature','precipitation','windspeed','pressure']
 plt.close('all')
 fig, axes = plt.subplots(3, 4, figsize=(30, 15))
-plt.subplots_adjust(wspace=0.5, hspace=0.5)
+plt.subplots_adjust(left=-0.3,wspace=0.5, hspace=0.5)
 # Indexer for Taylor Digram axes and variable
 i,v = 5,0
 for col in range(4):
