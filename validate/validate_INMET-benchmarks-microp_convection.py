@@ -189,12 +189,12 @@ def plot_taylor(sdevs,crmsds,ccoefs,experiments,col):
     axismax = STDmax*1.2
     if col == 3:
         leg = 'on'
+        label = experiments
+    else:
+        leg = 'off'
         label=[]
         for i in range(len(experiments)):
             label.append('')
-    else:
-        leg = 'off'
-        label = experiments
     # sm.taylor_diagram(sdevs,crmsds,ccoefs,
     #                   markerLabelColor = 'b', 
     #                   markerLabel = experiments,
@@ -210,7 +210,7 @@ def plot_taylor(sdevs,crmsds,ccoefs,experiments,col):
     sm.taylor_diagram(sdevs,crmsds,ccoefs,
                       markerLabelColor = 'b', 
                       markerLabel = label,
-                      markerColors = 'r', markerLegend = 'on', markerSize = 15, 
+                      markerColor = 'r', markerLegend = leg, markerSize = 15, 
                       tickRMS = tickRMS, titleRMS = 'off', widthRMS = 2.0,
                       colRMS = '#728B92', styleRMS = '--',  
                       widthSTD = 2, styleSTD = '--', colSTD = '#8A8A8A',
