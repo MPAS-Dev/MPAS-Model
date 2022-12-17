@@ -219,7 +219,7 @@ def plot_qq(data,ax):
         
         g = sns.regplot(x=reference, y=predicted, data=data, label=experiment,
                         ax=ax)
-    ax.legend(loc='upper center', fontsize=14, bbox_to_anchor=(2.5, 1),ncol=3)
+    ax.legend(loc='upper center', fontsize=14, bbox_to_anchor=(2.3, 1),ncol=3)
     g.set_ylabel('EXPERIMENT',fontsize=18)
     g.set_xlabel('INMET',fontsize=18)
     ax.xaxis.set_tick_params(labelsize=16)
@@ -277,7 +277,7 @@ variables = ['temperature','precipitation','windspeed','pressure']
 plt.close('all')
 fig, axes = plt.subplots(4, 3, figsize=(28, 15))
 fig.tight_layout()
-plt.subplots_adjust(left=0.04,right=1,bottom=0.08,top=0.85, wspace=2, hspace=0.5)
+plt.subplots_adjust(left=0.04,right=1.1,bottom=0.08,top=0.95, wspace=2, hspace=0.5)
 i,v = 1,0
 for row in range(4):
     # One variable for each row
@@ -327,7 +327,7 @@ for row in range(4):
                              markers=True,
                          ax=axes[row,col],data=data)
             axes[row,col].legend(loc='upper center',fontsize=14,
-                                 bbox_to_anchor=(1.75, 1),ncol=2)
+                                 bbox_to_anchor=(2, 1),ncol=2)
             axes[row,col].set(xlabel=None)
             g.set_ylabel(variable,fontsize=18)
             axes[row,col].xaxis.set_tick_params(labelsize=16,rotation=35)
