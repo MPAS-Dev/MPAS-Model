@@ -327,7 +327,7 @@ for row in range(4):
                              style='microp', hue='cumulus',
                              markers=True,
                          ax=axes[row,col],data=data)
-            axes[row,col].legend(loc='upper center',
+            axes[row,col].legend(loc='upper center',fontsize=10,
                                  bbox_to_anchor=(1.5, 1),ncol=2)
             axes[row,col].set(ylabel=variable, xlabel=None)
         # Plot taylo diagrams in the second columns
