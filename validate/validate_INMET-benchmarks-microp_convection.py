@@ -234,7 +234,7 @@ def plot_qq(var_data,ax,i,variable):
                         label=experiment, ax=ax)
         ax.set_title(variable)
     (ax.legend(loc='center',fontsize=20,
-                         bbox_to_anchor=(2, 1.2))) if i == 3 else None
+                         bbox_to_anchor=(1.6, 1.2))) if i == 3 else None
     g.set_ylabel('EXPERIMENT',fontsize=18)
     g.set_xlabel('INMET',fontsize=18)
     ax.xaxis.set_tick_params(labelsize=16)
@@ -375,7 +375,7 @@ plt.savefig(fname+'_taylor-diagram_'+station+'.png')
 print(fname+'_taylor-diagram_'+station+'.png created!')
 
 ## Plot q-q plots ##
-fig = plt.figure(figsize=(15,10))
+fig = plt.figure(figsize=(20,10))
 for i in range(4):
     variable = variables[i]
     var_data = data[data['variable'] == variable]
@@ -384,7 +384,7 @@ for i in range(4):
 plt.suptitle('Station: '+station+"\nStation lat, lon, z: "+
              str(round(lat_station,2))+", "+str(round(lon_station,2))+", "+
              str(round(z_station,2))+"\nModel lat, lon, z: "+ str(lat)+
-             ", "+str(lon)+", "+str(z),fontsize=22)
-plt.tight_layout(h_pad=-5)
+             ", "+str(lon)+", "+str(z),fontsize=22, y=0.98)
+plt.subplots_adjust(hspace=0.3,wspace=0.45,right=0.7, top=0.83)
 plt.savefig(fname+'_qq-plots_'+station+'.png')
 print(fname+'_qq-plots_'+station+'.png created!')
