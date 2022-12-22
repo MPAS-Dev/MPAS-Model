@@ -21,7 +21,6 @@ time dimension. This can be done using the -n flag.
 
 """
 
-import sys
 import argparse
 import datetime
 import f90nml
@@ -29,11 +28,9 @@ import glob
 import pandas as pd
 import xarray as xr
 
-from metpy.plots import add_timestamp
 from metpy.units import units
-from metpy.calc import temperature_from_potential_temperature
 
-from wrf import getvar, interplevel, interp1d
+from wrf import interplevel
 
 def get_times_nml(namelist,model_data):
     ## Identify time range of simulation using namelist ##
@@ -47,7 +44,6 @@ def get_times_nml(namelist,model_data):
     # Get simulation finish date as object and string
     finish_date  = start_date + datetime.timedelta(days=run_duration.day,
                                                    hours=run_duration.hour)
-    finish_date_str = finish_date.strftime('%Y-%m-%d_%H:%M:%S')
     ## Create a range of dates ##
     times = pd.date_range(start_date,finish_date,periods=len(model_data.Time)+1)[1:]
     return times
