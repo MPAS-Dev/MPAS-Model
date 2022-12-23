@@ -43,6 +43,10 @@ from metpy.interpolate import log_interpolate_1d
 
 from wrf import interplevel, vinterp
 
+from scipy.interpolate import RegularGridInterpolator
+
+
+
 def ext_temperature(temperature_IsobaricLevels_height, pressure_levels):
     '''
         Function for extrapolating temperature bellow the topography after the
@@ -210,40 +214,17 @@ def main():
     standard_height = pressure_to_height_std(t_isob.level* units. hPa)
     t_isob_z = t_isob.copy().assign_coords(standard_height=standard_height)
     t_isob_z = t_isob_z.assign_coords(Time=time)
+    # Extrapolate temperature on pressure levels bellow topography
     t_ext = ext_temperature(t_isob_z, plevs) * units.K
-
-
-
-
+    # Velocity components will be interpolated
     u_isob = interplevel(u, pressure, plevs) * u.metpy.units
-    u_isob_z = u_isob.copy().assign_coords(standard_height=standard_height)
-    u_isob_z = u_isob_z.assign_coords(Time=time)
-
-    u_isob_z = u_isob_z.metpy.dequantify()
-    # First start a loop from the top to the bottom of the atmosphere.
-    plevs_sorted = np.sort(plevs)
-    for i in range(len(plevs_sorted)):
-        
-        # Get values for each layer for simplicity
-        lev = plevs_sorted[i]
-        u_p = u_isob_z.sel(level=lev)
-                
-        if np.isnan(u_p.values).any() and lev > 50 * units.hPa:
-            print('interpolating data for level: '+str(lev))
-            # Change NaN values to -99999 for easier indexing
-            dummy = u_p.metpy.dequantify().fillna(-99999)
-            # Now, get only values where there are NaNs in the original variable
-            nans = dummy.where(dummy == -99999)
-            # Get wind from level above that
-            u_above = u_isob_z.isel(level=i-1).metpy.dequantify()
-            # Windform wind profile
-            u_profile = u_above*(u_p.standard_height/u_above.standard_height)**0.143
-            # Assign new temperature values to Nan dataset
-            extp_temp =  nans + 99999+u_profile
-            # Now, assign new values to where are the NaNs in the original data
-            u_isob_z.loc[dict(level=lev)] = dummy.where(dummy != -99999,
-                                                        extp_temp)
+    v_isob = interplevel(v, pressure, plevs) * v.metpy.units
     
+    
+    u_intp = u_isob.copy()
+    while np.isnan(u_intp.values).any():
+        print('interpolating u..')
+        u_intp = u_intp.interpolate_na(dim='latitude',method='cubic')
     
     # geopotential = height_to_geopotential(height)
     # geopotential_height = geopotential/g
