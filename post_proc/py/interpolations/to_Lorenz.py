@@ -221,10 +221,31 @@ def main():
     v_isob = interplevel(v, pressure, plevs) * v.metpy.units
     
     
-    u_intp = u_isob.copy()
-    while np.isnan(u_intp.values).any():
-        print('interpolating u..')
-        u_intp = u_intp.interpolate_na(dim='latitude',method='cubic')
+    # TO DO: wind profile in the first layers (check references to see 
+    # up to which altitude this makes sense) and then interpolate remaining
+    # levels
+    
+    # TO DO: make tests with missing data! d
+    
+    u_intp = u_isob[0].copy()
+    import matplotlib.pyplot as plt   
+    # u_intp = u_intp.interpolate_na(dim='level',method='polynomial',order=3)
+    for i in range(10):
+        u_intp = u_intp.interpolate_na(dim='latitude', method='cubic')
+        plt.figure()
+        u_intp[-1].plot()
+        plt.show()
+        u_intp = u_intp.interpolate_na(dim='longitude', method='cubic',limit=5)
+        u_intp = u_intp.interpolate_na(dim='latitude', method='cubic')
+        plt.figure()
+        u_intp[-1].plot()
+        plt.show()
+        u_intp = u_intp.interpolate_na(dim='level', method='cubic')
+        u_intp = u_intp.interpolate_na(dim='latitude', method='cubic')
+        plt.figure()
+        u_intp[-1].plot()
+        plt.show()
+
     
     # geopotential = height_to_geopotential(height)
     # geopotential_height = geopotential/g
