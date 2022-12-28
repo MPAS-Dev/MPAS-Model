@@ -619,8 +619,6 @@
 			<var name="rho"/>
 			<var name="theta"/>
 			<var name="relhum"/>
-			<var name="uReconstructZonal"/>
-			<var name="uReconstructMeridional"/>
 			<var name="circulation"/>
 			<var name="exner"/>
 			<var name="exner_base"/>
