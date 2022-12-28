@@ -599,8 +599,6 @@
 			<var name="defc_a"/>
 			<var name="defc_b"/>
 			<var name="coeffs_reconstruct"/>
-			<var name="east"/>
-			<var name="north"/>
 			<var_array name="scalars"/>
 			<var name="rainprod" packages="mp_thompson_in"/>
 			<var name="evapprod" packages="mp_thompson_in"/>
