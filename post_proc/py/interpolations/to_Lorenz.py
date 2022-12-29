@@ -15,15 +15,15 @@ Contact:
     
     Script for interpolating MPAS-A model variables that are used for the
 Lorenz Energy Cycle computations from hybrid vertical levels to pressure levels.
-Also, some other procedures are performed:
-    
-    
 The input must be the structured "latlon.nc" file created by the "convert_mpas"
 program. As MPAS-A data created by the "convert_mpas" does not (at least at the
 moment) present a time dimension with actual dates, there is the option for 
 using the namelist.atmosphere to assign dates to the variables time dimension. 
-This can be done using the -n flag.
-
+This can be done using the -n flag and passing any foo parameter.
+Usage example:
+    
+    python to_Lorenz.py -i path/to/file -n 0
+    
 """
 
 import argparse
@@ -35,9 +35,11 @@ import xarray as xr
 import numpy as np
 
 from metpy.units import units
-from metpy.calc import (temperature_from_potential_temperature, 
-                        height_to_geopotential, vertical_velocity_pressure,
-                        pressure_to_height_std)
+from metpy.calc import temperature_from_potential_temperature
+from metpy.calc import height_to_geopotential
+from metpy.calc import vertical_velocity_pressure
+from metpy.calc import pressure_to_height_std
+from metpy.calc import height_to_geopotential
 from metpy.constants import g
 from metpy.interpolate import log_interpolate_1d
 
@@ -74,10 +76,10 @@ def ext_temperature(temperature_IsobaricLevels_height, pressure_levels):
                 
         # Assuming standard atmosphere, lapse-rate for the troposphere is
         # 6.5°C per km.
-        if lev >= 226.32 * units.hPa:
+        if lev >= 226.32:# * units.hPa:
             lapse = 6.5
         # tropopause
-        elif lev < 226.32 * units.hPa and lev > 54.74 * units.hPa:
+        elif lev < 226.32 and lev > 54.74:
             lapse = 0
         # levels above that
         else:
@@ -87,8 +89,8 @@ def ext_temperature(temperature_IsobaricLevels_height, pressure_levels):
         # As missing values can be due to 1) topography or 2) highest plev 
         # level being higher than model data, firstly, let's fill levels
         # related to the first case.
-        if np.isnan(t_p.values).any() and lev > 50 * units.hPa:
-            print('interpolating data for level: '+str(lev))
+        if np.isnan(t_p.values).any() and lev > 50:
+            print('extrapolating temperature for level: '+str(lev))
             # Change NaN values to -99999 for easier indexing
             dummy = t_p.metpy.dequantify().fillna(-99999)
             # Now, get only values where there are NaNs in the original variable
@@ -117,13 +119,13 @@ def ext_temperature(temperature_IsobaricLevels_height, pressure_levels):
         t_p = t_isob_z.sel(level=lev)
         
         # Lapse rates
-        if lev >= 8.68 * units.hPa:
+        if lev >= 8.68:
             lapse = -2.8
         else:
             lapse = 0
             
-        if np.isnan(t_p.values).any() and lev < 50 * units.hPa:
-            print('interpolating data for level: '+str(lev))
+        if np.isnan(t_p.values).any() and lev < 50 :
+            print('extrapolating temperature for level: '+str(lev))
             # Change NaN values to -99999 for easier indexing
             dummy = t_p.metpy.dequantify().fillna(-99999)
             # Now, get only values where there are NaNs in the original variable
@@ -180,10 +182,18 @@ def main():
     plevs = [10.,   20.,   30.,   50.,   70.,
             100.,  125.,  150.,  175.,  200.,  225.,  250.,  300.,  350.,  400.,
             450.,  500.,  550.,  600.,  650.,  700.,  750.,  775.,  800.,  825.,
-            850.,  875.,  900.,  925.,  950.,  975., 1000.] * units.hPa
+            850.,  875.,  900.,  925.,  950.,  975., 1000.] 
     print("data will be interpolated to:",plevs)
     
+    plevs = xr.DataArray(data=np.array(plevs* units.hPa),
+                         attrs=dict(
+         long_name="isobaric_levels",
+         units="hPa",
+     )).assign_coords(dim_0=plevs
+                                    ).rename({'dim_0':'level'}) 
+    
     # Open variables
+    print('opening variables...')
     u = data['uReconstructMeridional'] * units('m/s')
     v = data['uReconstructZonal'] * units('m/s')
     theta = data['theta'] * units('K')
@@ -191,7 +201,7 @@ def main():
     w = data['w'] * units('m/s')
     pressure = (data['pressure'] * units(data['pressure'].units)
                 ).metpy.convert_units('hPa')
-    mixing_ratio  = data['qv']
+    mixing_ratio  = data['qv'] * units(data['qv'].units)
     
     # Create a 4D height field to interpolate it into pressure levels
     lat, lon = data.latitude, data.longitude
@@ -206,58 +216,109 @@ def main():
     z_4D = z_4D.expand_dims(dim={"Time": time})
     # Interpolate z to pressur elevels
     z_isob =  interplevel(z_4D, pressure, plevs)
+    z_isob['level'] = plevs
 
     # Get temperature and interpolate to pressure levels
     t = temperature_from_potential_temperature(pressure, theta)    
     t_isob = interplevel(t, pressure, plevs) * t.metpy.units
+    t_isob = t_isob.assign_coords(level=plevs)
     # Add a coordinate with heights using standard atmosphere
     standard_height = pressure_to_height_std(t_isob.level* units. hPa)
     t_isob_z = t_isob.copy().assign_coords(standard_height=standard_height)
     t_isob_z = t_isob_z.assign_coords(Time=time)
     # Extrapolate temperature on pressure levels bellow topography
     t_ext = ext_temperature(t_isob_z, plevs) * units.K
+    
     # Velocity components will be interpolated
-    u_isob = interplevel(u, pressure, plevs) * u.metpy.units
-    v_isob = interplevel(v, pressure, plevs) * v.metpy.units
+    print('interpolating wind components...')
+    u_isob = interplevel(u, pressure, plevs
+                         ).assign_coords(Time=time) * u.metpy.units
+    v_isob = interplevel(v, pressure, plevs
+                         ).assign_coords(Time=time) * v.metpy.units
     
     
+    # Geopotential
+    print('interpolating geootential...')
+    geop = height_to_geopotential(z_isob * units.m)
+    
+    # Vertical velocity
+    p_iso = interplevel(pressure.assign_coords(Time=time),
+                         pressure, plevs) * pressure.metpy.units
+    qv_isob = interplevel(mixing_ratio.assign_coords(Time=time),
+                         pressure, plevs) * mixing_ratio.metpy.units
+    w_isob = interplevel(w[:,:-1].assign_coords(Time=time),
+                         pressure, plevs) * w.metpy.units
+    omega = vertical_velocity_pressure(w_isob, p_iso, t_ext,
+                                       mixing_ratio=qv_isob)
+    
+    
+    # Create dataset from variables
+    t_ext['standard_height'] = t_ext.standard_height.metpy.dequantify()
+    ds = t_ext.metpy.dequantify().to_dataset(name="tempk")
+    ds = ds.assign(uwnd=u_isob.metpy.dequantify())
+    ds = ds.assign(vwnd=v_isob.metpy.dequantify())
+    ds = ds.assign(omega=omega.metpy.dequantify())
+    ds = ds.assign(geop=geop.metpy.dequantify())
+    ds.attrs=dict(description="MPAS-A data after 1) post processing with the\
+convert_mpas utility and 2) after using the to_Lorenz.py script from the\
+MPAS-BR repository: https://github.com/pedrospeixoto/MPAS-BR.")
+
+    ds['tempk']['units']  = str(t_ext.metpy.units)
+    ds['tempk']['long_name']  = 'temperature'
+    
+    ds['uwnd']['units']  = str(u_isob.metpy.units)
+    ds['uwnd']['long_name']  = 'wind meridional component'
+    
+    ds['vwnd']['units']  = str(v_isob.metpy.units)
+    ds['vwnd']['long_name']  = 'wind zonal component'
+    
+    ds['omega']['units']  = str(omega.metpy.units)
+    ds['omega']['long_name']  = 'vertical velocity in pressure levels'
+    
+    ds['geop']['units']  = str(geop.metpy.units)
+    ds['geop']['long_name']  = 'geopotential'
+    
+    
+            
     # TO DO: wind profile in the first layers (check references to see 
     # up to which altitude this makes sense) and then interpolate remaining
     # levels
     
     # TO DO: make tests with missing data! d
     
-    u_intp = u_isob[0].copy()
-    import matplotlib.pyplot as plt   
-    # u_intp = u_intp.interpolate_na(dim='level',method='polynomial',order=3)
-    for i in range(10):
-        u_intp = u_intp.interpolate_na(dim='latitude', method='cubic')
-        plt.figure()
-        u_intp[-1].plot()
-        plt.show()
-        u_intp = u_intp.interpolate_na(dim='longitude', method='cubic',limit=5)
-        u_intp = u_intp.interpolate_na(dim='latitude', method='cubic')
-        plt.figure()
-        u_intp[-1].plot()
-        plt.show()
-        u_intp = u_intp.interpolate_na(dim='level', method='cubic')
-        u_intp = u_intp.interpolate_na(dim='latitude', method='cubic')
-        plt.figure()
-        u_intp[-1].plot()
-        plt.show()
+    # u_intp = u_isob[0].copy()
+    # import matplotlib.pyplot as plt   
+    # # u_intp = u_intp.interpolate_na(dim='level',method='polynomial',order=3)
+    # for i in range(10):
+    #     u_intp = u_intp.interpolate_na(dim='latitude', method='cubic')
+    #     plt.figure()
+    #     u_intp[-1].plot()
+    #     plt.show()
+    #     u_intp = u_intp.interpolate_na(dim='longitude', method='cubic',limit=5)
+    #     u_intp = u_intp.interpolate_na(dim='latitude', method='cubic')
+    #     plt.figure()
+    #     u_intp[-1].plot()
+    #     plt.show()
+    #     u_intp = u_intp.interpolate_na(dim='level', method='cubic')
+    #     u_intp = u_intp.interpolate_na(dim='latitude', method='cubic')
+    #     plt.figure()
+    #     u_intp[-1].plot()
+    #     plt.show()
 
     
     # geopotential = height_to_geopotential(height)
     # geopotential_height = geopotential/g
     # omega = vertical_velocity_pressure(w, pressure, temperature, mixing_ratio)
     
-    # if args.output and ".nc" not in args.output:
-    #     fname = args.output+".nc"
-    # elif args.output and ".nc" in args.output:
-    #     fname = args.output
-    # else:
-        # fname = infile.split("/")[-1].split(".nc")[0]+"_isobaric.nc"
+    if args.output and ".nc" not in args.output:
+        fname = args.output+".nc"
+    elif args.output and ".nc" in args.output:
+        fname = args.output
+    else:
+        fname = infile.split("/")[-1].split(".nc")[0]+"_isobaric.nc"
         
+    ds.to_netcdf(fname)  
+    print(fname+' created!')
         
 if __name__ == "__main__":
     ## Parser options ##
