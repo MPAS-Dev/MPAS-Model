@@ -801,8 +801,6 @@
 			<var name="rniblten"/>
 			<var name="rthratensw"/>
 			<var name="rthratenlw"/>
-			<var name="pin"/>
-			<var name="ozmixm"/>
 			<var name="isltyp"/>
 			<var name="ivgtyp"/>
 			<var name="mminlu"/>
