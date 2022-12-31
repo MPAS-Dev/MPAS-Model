@@ -194,8 +194,8 @@ def main():
     
     # Open variables
     print('opening variables...')
-    u = data['uReconstructMeridional'] * units('m/s')
-    v = data['uReconstructZonal'] * units('m/s')
+    v = data['uReconstructMeridional'] * units('m/s')
+    u = data['uReconstructZonal'] * units('m/s')
     theta = data['theta'] * units('K')
     z = data['zgrid'] * units.m
     w = data['w'] * units('m/s')
@@ -213,7 +213,8 @@ def main():
                         coords={'latitude': lat, 'longitude': lon, 
                                 'nVertLevels': nVertLevels},
              dims=['nVertLevels', 'latitude', 'longitude'])
-    z_4D = z_4D.expand_dims(dim={"Time": time})
+    if args.namelist:
+        z_4D = z_4D.expand_dims(dim={"Time": time})
     # Interpolate z to pressur elevels
     z_isob =  interplevel(z_4D, pressure, plevs)
     z_isob['level'] = plevs
@@ -225,7 +226,8 @@ def main():
     # Add a coordinate with heights using standard atmosphere
     standard_height = pressure_to_height_std(t_isob.level* units. hPa)
     t_isob_z = t_isob.copy().assign_coords(standard_height=standard_height)
-    t_isob_z = t_isob_z.assign_coords(Time=time)
+    if args.namelist:
+        t_isob_z = t_isob_z.assign_coords(Time=time)
     # Extrapolate temperature on pressure levels bellow topography
     t_ext = ext_temperature(t_isob_z, plevs) * units.K
     
