@@ -1208,6 +1208,7 @@ CONTAINS
       REAL, DIMENSION(ims:ime) :: ALBEDOMIN, ALBEDOMAX
       REAL, DIMENSION(ims:ime) :: EMISSMIN,  EMISSMAX
       REAL, DIMENSION(ims:ime) :: Z0MIN,     Z0MAX
+      REAL, DIMENSION(ims:ime) :: SNEQVTMP
 
 ! ----------------------------------------------------------------------
 ! DECLARATIONS - PARAMETERS
@@ -1261,7 +1262,7 @@ CONTAINS
 !$acc             DSOIL,DTOT,FRCSNO,FRCSOI,DF1H,DF1A,T2V,T24,RCH,EPSCA,  &
 !$acc             RR,ETNS,SOILWM,SOILWW,LVCOEF,INTERP_FRACTION,   &
 !$acc             LAIMIN,LAIMAX,ALBEDOMIN,ALBEDOMAX,EMISSMIN,EMISSMAX,   &
-!$acc             Z0MIN,Z0MAX)
+!$acc             Z0MIN,Z0MAX,SNEQVTMP)
 
 !$acc parallel vector_length(128)
 !$acc loop gang vector
@@ -1724,71 +1725,122 @@ ENDDO
 !  FROZEN GROUND EXTENSION: TOTAL SOIL WATER "SMC" WAS REPLACED
 !  BY UNFROZEN SOIL WATER "SH2O" IN CALL TO CANRES BELOW
 ! ----------------------------------------------------------------------
-!$acc parallel vector_length(128)
-!$acc loop gang vector
-DO I=its,ite
-  IF((XLAND(I)-1.5).LT.0.)THEN
-    IF (ICE(I) == 0) THEN
-         IF ( (SHDFAC(I) > 0.) .AND. (XLAI(I) > 0.) ) THEN
-            CALL CANRES_gpu (SOLDN(I),CH(I),SFCTMP(I),Q2(I),SFCPRS(I),SH2O(1:NSOIL,I),ZSOIL(1:NSOIL,I),NSOIL,     &
-                          SMCWLT(I),SMCREF(I),RSMIN(I),RC(I),PC(I),NROOT(I),Q2SAT(I),DQSDT2(I),  &
-                          TOPT(I),RSMAX(I),RGL(I),HS(I),XLAI(I),                        &
-                          RCS(I),RCT(I),RCQ(I),RCSOIL(I),EMISSI(I))
-         ELSE
-            RC(I) = 0.0
-         END IF
-    ENDIF
-  ENDIF
-ENDDO
-!$acc end parallel
+!!!!$acc parallel vector_length(128)
+!!!!$acc loop gang vector
+!!!DO I=its,ite
+!!!  IF((XLAND(I)-1.5).LT.0.)THEN
+!!!    IF (ICE(I) == 0) THEN
+!!!         IF ( (SHDFAC(I) > 0.) .AND. (XLAI(I) > 0.) ) THEN
+!!!            CALL CANRES_gpu (SOLDN(I),CH(I),SFCTMP(I),Q2(I),SFCPRS(I),SH2O(1:NSOIL,I),ZSOIL(1:NSOIL,I),NSOIL,     &
+!!!                          SMCWLT(I),SMCREF(I),RSMIN(I),RC(I),PC(I),NROOT(I),Q2SAT(I),DQSDT2(I),  &
+!!!                          TOPT(I),RSMAX(I),RGL(I),HS(I),XLAI(I),                        &
+!!!                          RCS(I),RCT(I),RCQ(I),RCSOIL(I),EMISSI(I))
+!!!         ELSE
+!!!            RC(I) = 0.0
+!!!         END IF
+!!!    ENDIF
+!!!  ENDIF
+!!!ENDDO
+!!!!$acc end parallel
+CALL CANRES_gpu (SOLDN,CH,SFCTMP,Q2,SFCPRS,SH2O,ZSOIL,NSOIL,     &
+                 SMCWLT,SMCREF,RSMIN,RC,PC,NROOT,Q2SAT,DQSDT2,   &
+                 TOPT,RSMAX,RGL,HS,XLAI,                         &
+                 RCS,RCT,RCQ,RCSOIL,EMISSI,its,ite,XLAND,ICE,SHDFAC)
 ! ----------------------------------------------------------------------
 ! NOW DECIDE MAJOR PATHWAY BRANCH TO TAKE DEPENDING ON WHETHER SNOWPACK
 ! EXISTS OR NOT:
 ! ----------------------------------------------------------------------
+!!!!$acc parallel vector_length(128)
+!!!!$acc loop gang vector
+!!!DO I=its,ite
+!!!  IF((XLAND(I)-1.5).LT.0.)THEN
+!!!    IF (ICE(I) == 0) THEN
+!!!      IF (SNEQV(I)  == 0.0) THEN
+!!!        CALL NOPAC_gpu (ETP(I),ETA(I),PRCP(I),SMC(1:NSOIL,I),SMCMAX(I),SMCWLT(I),                  &
+!!!                        SMCREF(I),SMCDRY(I),CMC(I),CMCMAX(I),NSOIL,DT,           &
+!!!                        SHDFAC(I),                                      &
+!!!                        SBETA(I),Q2(I),T1(I),SFCTMP(I),T24(I),TH2(I),FDOWN(I),F1(I),EMISSI(I),  &
+!!!                        SSOIL(I),                                       &
+!!!                        STC(1:NSOIL,I),EPSCA(I),BEXP(I),PC(I),RCH(I),RR(I),CFACTR(I),             &
+!!!                        SH2O(1:NSOIL,I),SLOPE(I),KDT(I),FRZX(I),PSISAT(I),ZSOIL(1:NSOIL,I),            &
+!!!                        DKSAT(I),DWSAT(I),TBOT(I),ZBOT(I),RUNOFF1(I),RUNOFF2(I),       &
+!!!                        RUNOFF3(I),EDIR(I),EC(I),ET(1:NSOIL,I),ETT(I),NROOT(I),RTDIS(1:NSOIL,I),          &
+!!!                        QUARTZ(I),FXEXP(I),CSOIL(I),                          &
+!!!                        BETA(I),DRIP(I),DEW(I),FLX1(I),FLX3(I),VEGTYP(I),ISURBAN,      &
+!!!                        SFHEAD1RT(I),INFXS1RT(I),ETPND1(I),SOILTYP(I),OPT_THCND  &
+!!!                       ,XSDA_QFX(I),QFX_PHY(I),XQNORM(I),FASDAS,HCPCT_FASDAS(I),ETA_KINEMATIC(I)) !fasdas
+!!!      END IF
+!!!    ENDIF
+!!!  ENDIF
+!!!ENDDO
+!!!!$acc end parallel
+CALL NOPAC_gpu (ETP,ETA,PRCP,SMC,SMCMAX,SMCWLT,                  &
+                SMCREF,SMCDRY,CMC,CMCMAX,NSOIL,DT,           &
+                SHDFAC,                                      &
+                SBETA,Q2,T1,SFCTMP,T24,TH2,FDOWN,F1,EMISSI,  &
+                SSOIL,                                       &
+                STC,EPSCA,BEXP,PC,RCH,RR,CFACTR,             &
+                SH2O,SLOPE,KDT,FRZX,PSISAT,ZSOIL,            &
+                DKSAT,DWSAT,TBOT,ZBOT,RUNOFF1,RUNOFF2,       &
+                RUNOFF3,EDIR,EC,ET,ETT,NROOT,RTDIS,          &
+                QUARTZ,FXEXP,CSOIL,                          &
+                BETA,DRIP,DEW,FLX1,FLX3,VEGTYP,ISURBAN,      &
+                SFHEAD1RT,INFXS1RT,ETPND1,SOILTYP,OPT_THCND  &
+               ,XSDA_QFX,QFX_PHY,XQNORM,FASDAS,HCPCT_FASDAS, &
+                its,ite,ETA_KINEMATIC,XLAND,ICE,SNEQV) !fasdas
+!!!!$acc parallel vector_length(128)
+!!!!$acc loop gang vector
+!!!DO I=its,ite
+!!!  IF((XLAND(I)-1.5).LT.0.)THEN
+!!!    IF (ICE(I) == 0) THEN
+!!!      ESNOW(I) = 0.0
+!!!      IF (SNEQV(I)  /= 0.0) THEN
+!!!        CALL SNOPAC_gpu (ETP(I),ETA(I),PRCP(I),PRCPF(I),SNOWNG(I),SMC(1:NSOIL,I),SMCMAX(I),SMCWLT(I),    &
+!!!                         SMCREF(I),SMCDRY(I),CMC(I),CMCMAX(I),NSOIL,DT,              &
+!!!                         SBETA(I),DF1(I),                                      &
+!!!                         Q2(I),T1(I),SFCTMP(I),T24(I),TH2(I),FDOWN(I),F1(I),SSOIL(I),STC(1:NSOIL,I),EPSCA(I),  &
+!!!                         SFCPRS(I),BEXP(I),PC(I),RCH(I),RR(I),CFACTR(I),SNCOVR(I),SNEQV(I),SNDENS(I),&
+!!!                         SNOWH(I),SH2O(1:NSOIL,I),SLOPE(I),KDT(I),FRZX(I),PSISAT(I),               &
+!!!                         ZSOIL(1:NSOIL,I),DWSAT(I),DKSAT(I),TBOT(I),ZBOT(I),SHDFAC(I),RUNOFF1(I),     &
+!!!                         RUNOFF2(I),RUNOFF3(I),EDIR(I),EC(I),ET(1:NSOIL,I),ETT(I),NROOT(I),SNOMLT(I),    &
+!!!                         RTDIS(1:NSOIL,I),QUARTZ(I),FXEXP(I),CSOIL(I),                       &
+!!!                         BETA(I),DRIP(I),DEW(I),FLX1(I),FLX2(I),FLX3(I),ESNOW(I),ETNS(I),EMISSI(I), &
+!!!                         RIBB(I),SOLDN(I),                                     &
+!!!                         ISURBAN,                                        &
+!!!                         VEGTYP(I),                                         &
+!!!                         ETPN(I),FLX4(I),UA_PHYS,                              &
+!!!                         SFHEAD1RT(I),INFXS1RT(I),ETPND1(I),SOILTYP(I),OPT_THCND     &
+!!!                        ,QFX_PHY(I),FASDAS,HCPCT_FASDAS(I),ETA_KINEMATIC(I)) !fasdas
+!!!      END IF
+!!!    ENDIF
+!!!  ENDIF
+!!!ENDDO
+!!!!$acc end parallel
+
 !$acc parallel vector_length(128)
 !$acc loop gang vector
 DO I=its,ite
-  IF((XLAND(I)-1.5).LT.0.)THEN
-    IF (ICE(I) == 0) THEN
-         ESNOW(I) = 0.0
-         IF (SNEQV(I)  == 0.0) THEN
-            CALL NOPAC_gpu (ETP(I),ETA(I),PRCP(I),SMC(1:NSOIL,I),SMCMAX(I),SMCWLT(I),                  &
-                            SMCREF(I),SMCDRY(I),CMC(I),CMCMAX(I),NSOIL,DT,           &
-                            SHDFAC(I),                                      &
-                            SBETA(I),Q2(I),T1(I),SFCTMP(I),T24(I),TH2(I),FDOWN(I),F1(I),EMISSI(I),  &
-                            SSOIL(I),                                       &
-                            STC(1:NSOIL,I),EPSCA(I),BEXP(I),PC(I),RCH(I),RR(I),CFACTR(I),             &
-                            SH2O(1:NSOIL,I),SLOPE(I),KDT(I),FRZX(I),PSISAT(I),ZSOIL(1:NSOIL,I),            &
-                            DKSAT(I),DWSAT(I),TBOT(I),ZBOT(I),RUNOFF1(I),RUNOFF2(I),       &
-                            RUNOFF3(I),EDIR(I),EC(I),ET(1:NSOIL,I),ETT(I),NROOT(I),RTDIS(1:NSOIL,I),          &
-                            QUARTZ(I),FXEXP(I),CSOIL(I),                          &
-                            BETA(I),DRIP(I),DEW(I),FLX1(I),FLX3(I),VEGTYP(I),ISURBAN,      &
-                            SFHEAD1RT(I),INFXS1RT(I),ETPND1(I),SOILTYP(I),OPT_THCND  &
-                           ,XSDA_QFX(I),QFX_PHY(I),XQNORM(I),FASDAS,HCPCT_FASDAS(I)  ) !fasdas
-            ETA_KINEMATIC(I) = ETA(I)
-         ELSE
-            CALL SNOPAC_gpu (ETP(I),ETA(I),PRCP(I),PRCPF(I),SNOWNG(I),SMC(1:NSOIL,I),SMCMAX(I),SMCWLT(I),    &
-                         SMCREF(I),SMCDRY(I),CMC(I),CMCMAX(I),NSOIL,DT,              &
-                         SBETA(I),DF1(I),                                      &
-                         Q2(I),T1(I),SFCTMP(I),T24(I),TH2(I),FDOWN(I),F1(I),SSOIL(I),STC(1:NSOIL,I),EPSCA(I),  &
-                         SFCPRS(I),BEXP(I),PC(I),RCH(I),RR(I),CFACTR(I),SNCOVR(I),SNEQV(I),SNDENS(I),&
-                         SNOWH(I),SH2O(1:NSOIL,I),SLOPE(I),KDT(I),FRZX(I),PSISAT(I),               &
-                         ZSOIL(1:NSOIL,I),DWSAT(I),DKSAT(I),TBOT(I),ZBOT(I),SHDFAC(I),RUNOFF1(I),     &
-                         RUNOFF2(I),RUNOFF3(I),EDIR(I),EC(I),ET(1:NSOIL,I),ETT(I),NROOT(I),SNOMLT(I),    &
-                         RTDIS(1:NSOIL,I),QUARTZ(I),FXEXP(I),CSOIL(I),                       &
-                         BETA(I),DRIP(I),DEW(I),FLX1(I),FLX2(I),FLX3(I),ESNOW(I),ETNS(I),EMISSI(I), &
-                         RIBB(I),SOLDN(I),                                     &
-                         ISURBAN,                                        &
-                         VEGTYP(I),                                         &
-                         ETPN(I),FLX4(I),UA_PHYS,                              &
-                         SFHEAD1RT(I),INFXS1RT(I),ETPND1(I),SOILTYP(I),OPT_THCND     &
-                        ,QFX_PHY(I),FASDAS,HCPCT_FASDAS(I)                     ) !fasdas
-            ETA_KINEMATIC(I) =  ESNOW(I) + ETNS(I) - 1000.0*DEW(I)
-         END IF
-    ENDIF
-  ENDIF
+  SNEQVTMP(I) = SNEQV(I)
 ENDDO
 !$acc end parallel
+
+CALL SNOPAC_gpu (ETP,ETA,PRCP,PRCPF,SNOWNG,SMC,SMCMAX,SMCWLT,    &
+                 SMCREF,SMCDRY,CMC,CMCMAX,NSOIL,DT,              &
+                 SBETA,DF1,                                      &
+                 Q2,T1,SFCTMP,T24,TH2,FDOWN,F1,SSOIL,STC,EPSCA,  &
+                 SFCPRS,BEXP,PC,RCH,RR,CFACTR,SNCOVR,SNEQV,SNDENS,&
+                 SNOWH,SH2O,SLOPE,KDT,FRZX,PSISAT,               &
+                 ZSOIL,DWSAT,DKSAT,TBOT,ZBOT,SHDFAC,RUNOFF1,     &
+                 RUNOFF2,RUNOFF3,EDIR,EC,ET,ETT,NROOT,SNOMLT,    &
+                 RTDIS,QUARTZ,FXEXP,CSOIL,                       &
+                 BETA,DRIP,DEW,FLX1,FLX2,FLX3,ESNOW,ETNS,EMISSI, &
+                 RIBB,SOLDN,                                     &
+                 ISURBAN,                                        &
+                 VEGTYP,                                         &
+                 ETPN,FLX4,UA_PHYS,                              &
+                 SFHEAD1RT,INFXS1RT,ETPND1,SOILTYP,OPT_THCND     &
+                ,QFX_PHY,FASDAS,HCPCT_FASDAS,                    &
+                 its,ite,ETA_KINEMATIC,XLAND,ICE,SNEQVTMP) !fasdas
 
 !$acc parallel vector_length(128)
 !$acc loop gang vector
@@ -2277,12 +2329,14 @@ ENDDO
 ! ----------------------------------------------------------------------
   END SUBROUTINE CANRES
 ! ----------------------------------------------------------------------
-
+!!!            CALL CANRES_gpu (SOLDN(I),CH(I),SFCTMP(I),Q2(I),SFCPRS(I),SH2O(1:NSOIL,I),ZSOIL(1:NSOIL,I),NSOIL,     &
+!!!                          SMCWLT(I),SMCREF(I),RSMIN(I),RC(I),PC(I),NROOT(I),Q2SAT(I),DQSDT2(I),  &
+!!!                          TOPT(I),RSMAX(I),RGL(I),HS(I),XLAI(I),                        &
+!!!                          RCS(I),RCT(I),RCQ(I),RCSOIL(I),EMISSI(I))
       SUBROUTINE CANRES_gpu (SOLAR,CH,SFCTMP,Q2,SFCPRS,SMC,ZSOIL,NSOIL,       &
                          SMCWLT,SMCREF,RSMIN,RC,PC,NROOT,Q2SAT,DQSDT2,    &
                          TOPT,RSMAX,RGL,HS,XLAI,                          &
-                         RCS,RCT,RCQ,RCSOIL,EMISSI)
-!$acc routine seq
+                         RCS,RCT,RCQ,RCSOIL,EMISSI,its,ite,XLAND,ICE,SHDFAC)
 
 ! ----------------------------------------------------------------------
 ! SUBROUTINE CANRES
@@ -2321,55 +2375,62 @@ ENDDO
 ! ----------------------------------------------------------------------
 
       IMPLICIT NONE
-      INTEGER, INTENT(IN) :: NROOT,NSOIL
-      INTEGER  K
-      REAL,    INTENT(IN) :: CH,DQSDT2,HS,Q2,Q2SAT,RSMIN,RGL,RSMAX,        &
-                             SFCPRS,SFCTMP,SMCREF,SMCWLT, SOLAR,TOPT,XLAI, &
-                             EMISSI
-      REAL,DIMENSION(1:NSOIL), INTENT(IN) :: SMC,ZSOIL
-      REAL,    INTENT(OUT):: PC,RC,RCQ,RCS,RCSOIL,RCT
+      INTEGER, INTENT(IN) :: NSOIL,its,ite
+      INTEGER, DIMENSION(its:ite), INTENT(IN) :: NROOT,ICE
+      INTEGER  K,I
+      REAL, DIMENSION(its:ite), INTENT(IN) :: SOLAR,CH,SFCTMP,Q2,SFCPRS,SMCWLT,&
+                                              SMCREF,RSMIN,Q2SAT,DQSDT2,TOPT,&
+                                              RSMAX,RGL,HS,XLAI,EMISSI,SHDFAC,XLAND
+      REAL, DIMENSION(1:NSOIL,its:ite), INTENT(IN) :: SMC,ZSOIL
+      REAL, DIMENSION(its:ite), INTENT(OUT) :: RC,PC,RCS,RCT,RCQ,RCSOIL
       REAL                :: DELTA,FF,GX,P,RR
       REAL, DIMENSION(1:NSOIL) ::  PART
       REAL, PARAMETER     :: SLV = 2.501000E6
 
 
+!$acc parallel vector_length(128)
+!$acc loop gang vector private(FF,GX,RR,DELTA,PART)
+DO I=its,ite
+  IF((XLAND(I)-1.5).LT.0.)THEN
+    IF (ICE(I) == 0) THEN
+      IF ( (SHDFAC(I) > 0.) .AND. (XLAI(I) > 0.) ) THEN
 ! ----------------------------------------------------------------------
 ! INITIALIZE CANOPY RESISTANCE MULTIPLIER TERMS.
 ! ----------------------------------------------------------------------
-      RCS = 0.0
-      RCT = 0.0
-      RCQ = 0.0
-      RCSOIL = 0.0
+        RCS(I) = 0.0
+        RCT(I) = 0.0
+        RCQ(I) = 0.0
+        RCSOIL(I) = 0.0
 
 ! ----------------------------------------------------------------------
 ! CONTRIBUTION DUE TO INCOMING SOLAR RADIATION
 ! ----------------------------------------------------------------------
-      RC = 0.0
-      FF = 0.55*2.0* SOLAR / (RGL * XLAI)
-      RCS = (FF + RSMIN / RSMAX) / (1.0+ FF)
+        RC(I) = 0.0
+        FF = 0.55*2.0* SOLAR(I) / (RGL(I) * XLAI(I))
+        RCS(I) = (FF + RSMIN(I) / RSMAX(I)) / (1.0+ FF)
 
 ! ----------------------------------------------------------------------
 ! CONTRIBUTION DUE TO AIR TEMPERATURE AT FIRST MODEL LEVEL ABOVE GROUND
 ! RCT EXPRESSION FROM NOILHAN AND PLANTON (1989, MWR).
 ! ----------------------------------------------------------------------
-      RCS = MAX (RCS,0.0001)
-      RCT = 1.0- 0.0016* ( (TOPT - SFCTMP)**2.0)
+        RCS(I) = MAX (RCS(I),0.0001)
+        RCT(I) = 1.0- 0.0016* ( (TOPT(I) - SFCTMP(I))**2.0)
 
 ! ----------------------------------------------------------------------
 ! CONTRIBUTION DUE TO VAPOR PRESSURE DEFICIT AT FIRST MODEL LEVEL.
 ! RCQ EXPRESSION FROM SSIB
 ! ----------------------------------------------------------------------
-      RCT = MAX (RCT,0.0001)
-      RCQ = 1.0/ (1.0+ HS * (Q2SAT - Q2))
+        RCT(I) = MAX (RCT(I),0.0001)
+        RCQ(I) = 1.0/ (1.0+ HS(I) * (Q2SAT(I) - Q2(I)))
 
 ! ----------------------------------------------------------------------
 ! CONTRIBUTION DUE TO SOIL MOISTURE AVAILABILITY.
 ! DETERMINE CONTRIBUTION FROM EACH SOIL LAYER, THEN ADD THEM UP.
 ! ----------------------------------------------------------------------
-      RCQ = MAX (RCQ,0.01)
-      GX = (SMC (1) - SMCWLT) / (SMCREF - SMCWLT)
-      IF (GX  >  1.) GX = 1.
-      IF (GX  <  0.) GX = 0.
+        RCQ(I) = MAX (RCQ(I),0.01)
+        GX = (SMC (1,I) - SMCWLT(I)) / (SMCREF(I) - SMCWLT(I))
+        IF (GX  >  1.) GX = 1.
+        IF (GX  <  0.) GX = 0.
 
 ! ----------------------------------------------------------------------
 ! USE SOIL DEPTH AS WEIGHTING FACTOR
@@ -2378,11 +2439,11 @@ ENDDO
 ! USE ROOT DISTRIBUTION AS WEIGHTING FACTOR
 !      PART(1) = RTDIS(1) * GX
 ! ----------------------------------------------------------------------
-      PART (1) = (ZSOIL (1)/ ZSOIL (NROOT)) * GX
-      DO K = 2,NROOT
-         GX = (SMC (K) - SMCWLT) / (SMCREF - SMCWLT)
-         IF (GX >  1.) GX = 1.
-         IF (GX <  0.) GX = 0.
+        PART (1) = (ZSOIL (1,I)/ ZSOIL (NROOT(I),I)) * GX
+        DO K = 2,NROOT(I)
+          GX = (SMC (K,I) - SMCWLT(I)) / (SMCREF(I) - SMCWLT(I))
+          IF (GX >  1.) GX = 1.
+          IF (GX <  0.) GX = 0.
 ! ----------------------------------------------------------------------
 ! USE SOIL DEPTH AS WEIGHTING FACTOR
 ! ----------------------------------------------------------------------
@@ -2390,11 +2451,11 @@ ENDDO
 ! USE ROOT DISTRIBUTION AS WEIGHTING FACTOR
 !        PART(K) = RTDIS(K) * GX
 ! ----------------------------------------------------------------------
-         PART (K) = ( (ZSOIL (K) - ZSOIL (K -1))/ ZSOIL (NROOT)) * GX
-      END DO
-      DO K = 1,NROOT
-         RCSOIL = RCSOIL + PART (K)
-      END DO
+          PART (K) = ( (ZSOIL (K,I) - ZSOIL (K -1,I))/ ZSOIL (NROOT(I),I)) * GX
+        END DO
+        DO K = 1,NROOT(I)
+          RCSOIL(I) = RCSOIL(I) + PART (K)
+        END DO
 
 ! ----------------------------------------------------------------------
 ! DETERMINE CANOPY RESISTANCE DUE TO ALL FACTORS.  CONVERT CANOPY
@@ -2403,17 +2464,24 @@ ENDDO
 !   PC * LINERIZED PENMAN POTENTIAL EVAP =
 !   PENMAN-MONTEITH ACTUAL EVAPORATION (CONTAINING RC TERM).
 ! ----------------------------------------------------------------------
-      RCSOIL = MAX (RCSOIL,0.0001)
+        RCSOIL(I) = MAX (RCSOIL(I),0.0001)
 
-      RC = RSMIN / (XLAI * RCS * RCT * RCQ * RCSOIL)
+        RC(I) = RSMIN(I) / (XLAI(I) * RCS(I) * RCT(I) * RCQ(I) * RCSOIL(I))
 !      RR = (4.* SIGMA * RD / CP)* (SFCTMP **4.)/ (SFCPRS * CH) + 1.0
-      RR = (4.* EMISSI *SIGMA * RD / CP)* (SFCTMP **4.)/ (SFCPRS * CH) &
+        RR = (4.* EMISSI(I) *SIGMA * RD / CP)* (SFCTMP(I) **4.)/ (SFCPRS(I) * CH(I)) &
              + 1.0
 
-      DELTA = (SLV / CP)* DQSDT2
+        DELTA = (SLV / CP)* DQSDT2(I)
 
-      PC = (RR + DELTA)/ (RR * (1. + RC * CH) + DELTA)
+        PC(I) = (RR + DELTA)/ (RR * (1. + RC(I) * CH(I)) + DELTA)
 
+      ELSE
+        RC(I) = 0.0
+      END IF
+    ENDIF
+  ENDIF
+ENDDO
+!$acc end parallel
 ! ----------------------------------------------------------------------
   END SUBROUTINE CANRES_gpu
 ! ----------------------------------------------------------------------
@@ -2873,14 +2941,20 @@ ENDDO
   END SUBROUTINE EVAPO
 ! ----------------------------------------------------------------------
 
-      SUBROUTINE EVAPO_gpu (ETA1,SMC,NSOIL,CMC,ETP1,DT,ZSOIL,               &
+!!!                            (ETA1(I),SMC(1:NSOIL,I),NSOIL,CMC(I),ETP1(I),DT,ZSOIL(1:NSOIL,I),                  &
+!!!                          SH2O(1:NSOIL,I),                                             &
+!!!                          SMCMAX(I),BEXP(I),PC(I),SMCWLT(I),DKSAT(I),DWSAT(I),                &
+!!!                          SMCREF(I),SHDFAC(I),CMCMAX(I),                             &
+!!!                          SMCDRY(I),CFACTR(I),                                    &
+!!!                          EDIR1(I),EC1(I),ET1(1:NSOIL,I),ETT1(I),SFCTMP(I),Q2(I),NROOT(I),RTDIS(1:NSOIL,I),FXEXP(I),  &
+!!!                          SFHEAD1RT(I),ETPND1(I) )
+      SUBROUTINE EVAPO_gpu1 (ETA1,SMC,NSOIL,CMC,ETP1,DT,ZSOIL,               &
                          SH2O,                                          &
                          SMCMAX,BEXP,PC,SMCWLT,DKSAT,DWSAT,             &
                          SMCREF,SHDFAC,CMCMAX,                          &
                          SMCDRY,CFACTR,                                 &
                          EDIR,EC,ET,ETT,SFCTMP,Q2,NROOT,RTDIS,FXEXP,    &
-                         SFHEAD1RT,ETPND1)
-!$acc routine seq
+                         SFHEAD1RT,ETPND1,its,ite,XLAND,ICE,SNEQV,ETP)
 
 ! ----------------------------------------------------------------------
 ! SUBROUTINE EVAPO
@@ -2892,27 +2966,37 @@ ENDDO
 ! CORRECTION FACTOR, FRZFACT AND PARAMETER SLOPE.
 ! ----------------------------------------------------------------------
       IMPLICIT NONE
-      INTEGER, INTENT(IN)   :: NSOIL, NROOT
+      INTEGER, INTENT(IN)   :: NSOIL, its,ite
       INTEGER               :: I,K
-      REAL,    INTENT(IN)   :: BEXP, CFACTR,CMC,CMCMAX,DKSAT,           &
-                                 DT,DWSAT,ETP1,FXEXP,PC,Q2,SFCTMP,           &
-                                 SHDFAC,SMCDRY,SMCMAX,SMCREF,SMCWLT
-      REAL,    INTENT(OUT)  :: EC,EDIR,ETA1,ETT
+      REAL,    INTENT(IN)   :: DT
+      REAL, DIMENSION(its:ite), INTENT(IN) :: CMC,ETP1,SMCMAX,BEXP,   &
+                               PC,SMCWLT,DKSAT,DWSAT,SMCREF,SHDFAC,   &
+                               CMCMAX,SMCDRY,CFACTR,SFCTMP,Q2,FXEXP,  &
+                               XLAND,SNEQV,ETP
+      INTEGER, DIMENSION(its:ite), INTENT(IN) :: ICE,NROOT
+      REAL, DIMENSION(its:ite), INTENT(OUT) :: ETA1,EDIR,EC,ETT
       REAL                  :: CMC2MS
-      REAL,DIMENSION(1:NSOIL), INTENT(IN) :: RTDIS, SMC, SH2O, ZSOIL
-      REAL,DIMENSION(1:NSOIL), INTENT(OUT) :: ET
+      REAL, DIMENSION(1:NSOIL,its:ite), INTENT(IN) :: SMC,ZSOIL, SH2O,RTDIS
+      REAL,DIMENSION(1:NSOIL,its:ite), INTENT(OUT) :: ET
 
-      REAL,   INTENT(INOUT) :: SFHEAD1RT,ETPND1
+      REAL, DIMENSION(its:ite), INTENT(INOUT) :: SFHEAD1RT,ETPND1
 
+!$acc parallel vector_length(128)
+!$acc loop gang vector private(CMC2MS)
+DO I=its,ite
+  IF((XLAND(I)-1.5).LT.0.)THEN
+    IF (ICE(I) == 0) THEN
+      IF (SNEQV(I)  == 0.0) THEN
+        IF (ETP(I) > 0.0) THEN
 ! ----------------------------------------------------------------------
 ! EXECUTABLE CODE BEGINS HERE IF THE POTENTIAL EVAPOTRANSPIRATION IS
 ! GREATER THAN ZERO.
 ! ----------------------------------------------------------------------
-      EDIR = 0.
-      EC = 0.
-      ETT = 0.
+      EDIR(I) = 0.
+      EC(I) = 0.
+      ETT(I) = 0.
       DO K = 1,NSOIL
-         ET (K) = 0.
+         ET (K,I) = 0.
       END DO
 
 ! ----------------------------------------------------------------------
@@ -2920,8 +3004,8 @@ ENDDO
 ! ONLY IF VEG COVER NOT COMPLETE.
 ! FROZEN GROUND VERSION:  SH2O STATES REPLACE SMC STATES.
 ! ----------------------------------------------------------------------
-      IF (ETP1 > 0.0) THEN
-         IF (SHDFAC <  1.) THEN
+      IF (ETP1(I) > 0.0) THEN
+         IF (SHDFAC(I) <  1.) THEN
 #ifdef WRF_HYDRO
 !            CALL DEVAP_hydro (EDIR,ETP1,SMC (1),ZSOIL (1),SHDFAC,SMCMAX,      &
 !                        BEXP,DKSAT,DWSAT,SMCDRY,SMCREF,SMCWLT,FXEXP,    &
@@ -2930,12 +3014,12 @@ ENDDO
 !                ETP1=ETP1-EDIR-ETPND1
 
 ! following is the temparay setting ...
-             CALL DEVAP_gpu (EDIR,ETP1,SMC (1),ZSOIL (1),SHDFAC,SMCMAX,      &
-                         BEXP,DKSAT,DWSAT,SMCDRY,SMCREF,SMCWLT,FXEXP)
+             CALL DEVAP_gpu (EDIR(I),ETP1(I),SMC (1,I),ZSOIL (1,I),SHDFAC(I),SMCMAX(I),      &
+                         BEXP(I),DKSAT(I),DWSAT(I),SMCDRY(I),SMCREF(I),SMCWLT(I),FXEXP(I))
 !            ETP1=ETP1-EDIR
 #else
-             CALL DEVAP_gpu (EDIR,ETP1,SMC (1),ZSOIL (1),SHDFAC,SMCMAX,      &
-                         BEXP,DKSAT,DWSAT,SMCDRY,SMCREF,SMCWLT,FXEXP)
+             CALL DEVAP_gpu (EDIR(I),ETP1(I),SMC (1,I),ZSOIL (1,I),SHDFAC(I),SMCMAX(I),      &
+                         BEXP(I),DKSAT(I),DWSAT(I),SMCDRY(I),SMCREF(I),SMCWLT(I),FXEXP(I))
 #endif
          END IF
 ! ----------------------------------------------------------------------
@@ -2943,36 +3027,167 @@ ENDDO
 ! AND ACCUMULATE IT FOR ALL SOIL LAYERS.
 ! ----------------------------------------------------------------------
 
-         IF (SHDFAC > 0.0) THEN
-            CALL TRANSP_gpu (ET,NSOIL,ETP1,SH2O,CMC,ZSOIL,SHDFAC,SMCWLT,     &
-                          CMCMAX,PC,CFACTR,SMCREF,SFCTMP,Q2,NROOT,RTDIS)
+         IF (SHDFAC(I) > 0.0) THEN
+            CALL TRANSP_gpu (ET(1:NSOIL,I),NSOIL,ETP1(I),SH2O(1:NSOIL,I),CMC(I),ZSOIL(1:NSOIL,I),SHDFAC(I),SMCWLT(I),     &
+                          CMCMAX(I),PC(I),CFACTR(I),SMCREF(I),SFCTMP(I),Q2(I),NROOT(I),RTDIS(1:NSOIL,I))
             DO K = 1,NSOIL
-               ETT = ETT + ET ( K )
+               ETT(I) = ETT(I) + ET ( K,I )
             END DO
 ! ----------------------------------------------------------------------
 ! CALCULATE CANOPY EVAPORATION.
 ! IF STATEMENTS TO AVOID TANGENT LINEAR PROBLEMS NEAR CMC=0.0.
 ! ----------------------------------------------------------------------
-            IF (CMC > 0.0) THEN
-               EC = SHDFAC * ( ( CMC / CMCMAX ) ** CFACTR ) * ETP1
+            IF (CMC(I) > 0.0) THEN
+               EC(I) = SHDFAC(I) * ( ( CMC(I) / CMCMAX(I) ) ** CFACTR(I) ) * ETP1(I)
             ELSE
-               EC = 0.0
+               EC(I) = 0.0
             END IF
 ! ----------------------------------------------------------------------
 ! EC SHOULD BE LIMITED BY THE TOTAL AMOUNT OF AVAILABLE WATER ON THE
 ! CANOPY.  -F.CHEN, 18-OCT-1994
 ! ----------------------------------------------------------------------
-            CMC2MS = CMC / DT
-            EC = MIN ( CMC2MS, EC )
+            CMC2MS = CMC(I) / DT
+            EC(I) = MIN ( CMC2MS, EC(I) )
          END IF
       END IF
 ! ----------------------------------------------------------------------
 ! TOTAL UP EVAP AND TRANSP TYPES TO OBTAIN ACTUAL EVAPOTRANSP
 ! ----------------------------------------------------------------------
-      ETA1 = EDIR + ETT + EC
+      ETA1(I) = EDIR(I) + ETT(I) + EC(I)
+        ENDIF
+      END IF
+    ENDIF
+  ENDIF
+ENDDO
+!$acc end parallel
+! ----------------------------------------------------------------------
+  END SUBROUTINE EVAPO_gpu1
+! ----------------------------------------------------------------------
+
+!!!                          (ETNS1(I),SMC(1:NSOIL,I),NSOIL,CMC(I),ETP1(I),DT,ZSOIL(1:NSOIL,I),           &
+!!!                            SH2O(1:NSOIL,I),                                       &
+!!!                            SMCMAX(I),BEXP(I),PC(I),SMCWLT(I),DKSAT(I),DWSAT(I),          &
+!!!                            SMCREF(I),SHDFAC(I),CMCMAX(I),                       &
+!!!                            SMCDRY(I),CFACTR(I),                              &
+!!!                            EDIR1(I),EC1(I),ET1(1:NSOIL,I),ETT1(I),SFCTMP(I),Q2(I),NROOT(I),RTDIS(1:NSOIL,I),   &
+!!!                            FXEXP(I), SFHEAD1RT(I),ETPND1(I))
+      SUBROUTINE EVAPO_gpu2 (ETA1,SMC,NSOIL,CMC,ETP1,DT,ZSOIL,               &
+                         SH2O,                                          &
+                         SMCMAX,BEXP,PC,SMCWLT,DKSAT,DWSAT,             &
+                         SMCREF,SHDFAC,CMCMAX,                          &
+                         SMCDRY,CFACTR,                                 &
+                         EDIR,EC,ET,ETT,SFCTMP,Q2,NROOT,RTDIS,FXEXP,    &
+                         SFHEAD1RT,ETPND1,its,ite,XLAND,ICE,SNEQV,ETP,SNCOVR)
 
 ! ----------------------------------------------------------------------
-  END SUBROUTINE EVAPO_gpu
+! SUBROUTINE EVAPO
+! ----------------------------------------------------------------------
+! CALCULATE SOIL MOISTURE FLUX.  THE SOIL MOISTURE CONTENT (SMC - A PER
+! UNIT VOLUME MEASUREMENT) IS A DEPENDENT VARIABLE THAT IS UPDATED WITH
+! PROGNOSTIC EQNS. THE CANOPY MOISTURE CONTENT (CMC) IS ALSO UPDATED.
+! FROZEN GROUND VERSION:  NEW STATES ADDED: SH2O, AND FROZEN GROUND
+! CORRECTION FACTOR, FRZFACT AND PARAMETER SLOPE.
+! ----------------------------------------------------------------------
+      IMPLICIT NONE
+      INTEGER, INTENT(IN)   :: NSOIL, its,ite
+      INTEGER               :: I,K
+      REAL,    INTENT(IN)   :: DT
+      REAL, DIMENSION(its:ite), INTENT(IN) :: CMC,ETP1,SMCMAX,BEXP,   &
+                               PC,SMCWLT,DKSAT,DWSAT,SMCREF,SHDFAC,   &
+                               CMCMAX,SMCDRY,CFACTR,SFCTMP,Q2,FXEXP,  &
+                               XLAND,SNEQV,ETP,SNCOVR
+      INTEGER, DIMENSION(its:ite), INTENT(IN) :: ICE,NROOT
+      REAL, DIMENSION(its:ite), INTENT(OUT) :: ETA1,EDIR,EC,ETT
+      REAL                  :: CMC2MS
+      REAL, DIMENSION(1:NSOIL,its:ite), INTENT(IN) :: SMC,ZSOIL, SH2O,RTDIS
+      REAL,DIMENSION(1:NSOIL,its:ite), INTENT(OUT) :: ET
+
+      REAL, DIMENSION(its:ite), INTENT(INOUT) :: SFHEAD1RT,ETPND1
+
+!$acc parallel vector_length(128)
+!$acc loop gang vector private(CMC2MS)
+DO I=its,ite
+  IF((XLAND(I)-1.5).LT.0.)THEN
+    IF (ICE(I) == 0) THEN
+      IF (SNEQV(I)  /= 0.0) THEN
+        IF (ETP(I) > 0.0) THEN
+          !  LAND CASE
+          IF (SNCOVR(I) <  1.) THEN
+! ----------------------------------------------------------------------
+! EXECUTABLE CODE BEGINS HERE IF THE POTENTIAL EVAPOTRANSPIRATION IS
+! GREATER THAN ZERO.
+! ----------------------------------------------------------------------
+      EDIR(I) = 0.
+      EC(I) = 0.
+      ETT(I) = 0.
+      DO K = 1,NSOIL
+         ET (K,I) = 0.
+      END DO
+
+! ----------------------------------------------------------------------
+! RETRIEVE DIRECT EVAPORATION FROM SOIL SURFACE.  CALL THIS FUNCTION
+! ONLY IF VEG COVER NOT COMPLETE.
+! FROZEN GROUND VERSION:  SH2O STATES REPLACE SMC STATES.
+! ----------------------------------------------------------------------
+      IF (ETP1(I) > 0.0) THEN
+         IF (SHDFAC(I) <  1.) THEN
+#ifdef WRF_HYDRO
+!            CALL DEVAP_hydro (EDIR,ETP1,SMC (1),ZSOIL (1),SHDFAC,SMCMAX,      &
+!                        BEXP,DKSAT,DWSAT,SMCDRY,SMCREF,SMCWLT,FXEXP,    &
+!                         SFHEAD1RT,ETPND1,DT)
+!DJG Reduce ETP1 by EDIR & ETPND1...
+!                ETP1=ETP1-EDIR-ETPND1
+
+! following is the temparay setting ...
+             CALL DEVAP_gpu (EDIR(I),ETP1(I),SMC (1,I),ZSOIL (1,I),SHDFAC(I),SMCMAX(I),      &
+                         BEXP(I),DKSAT(I),DWSAT(I),SMCDRY(I),SMCREF(I),SMCWLT(I),FXEXP(I))
+!            ETP1=ETP1-EDIR
+#else
+             CALL DEVAP_gpu (EDIR(I),ETP1(I),SMC (1,I),ZSOIL (1,I),SHDFAC(I),SMCMAX(I),      &
+                         BEXP(I),DKSAT(I),DWSAT(I),SMCDRY(I),SMCREF(I),SMCWLT(I),FXEXP(I))
+#endif
+         END IF
+! ----------------------------------------------------------------------
+! INITIALIZE PLANT TOTAL TRANSPIRATION, RETRIEVE PLANT TRANSPIRATION,
+! AND ACCUMULATE IT FOR ALL SOIL LAYERS.
+! ----------------------------------------------------------------------
+
+         IF (SHDFAC(I) > 0.0) THEN
+            CALL TRANSP_gpu (ET(1:NSOIL,I),NSOIL,ETP1(I),SH2O(1:NSOIL,I),CMC(I),ZSOIL(1:NSOIL,I),SHDFAC(I),SMCWLT(I),     &
+                          CMCMAX(I),PC(I),CFACTR(I),SMCREF(I),SFCTMP(I),Q2(I),NROOT(I),RTDIS(1:NSOIL,I))
+            DO K = 1,NSOIL
+               ETT(I) = ETT(I) + ET ( K,I )
+            END DO
+! ----------------------------------------------------------------------
+! CALCULATE CANOPY EVAPORATION.
+! IF STATEMENTS TO AVOID TANGENT LINEAR PROBLEMS NEAR CMC=0.0.
+! ----------------------------------------------------------------------
+            IF (CMC(I) > 0.0) THEN
+               EC(I) = SHDFAC(I) * ( ( CMC(I) / CMCMAX(I) ) ** CFACTR(I) ) * ETP1(I)
+            ELSE
+               EC(I) = 0.0
+            END IF
+! ----------------------------------------------------------------------
+! EC SHOULD BE LIMITED BY THE TOTAL AMOUNT OF AVAILABLE WATER ON THE
+! CANOPY.  -F.CHEN, 18-OCT-1994
+! ----------------------------------------------------------------------
+            CMC2MS = CMC(I) / DT
+            EC(I) = MIN ( CMC2MS, EC(I) )
+         END IF
+      END IF
+! ----------------------------------------------------------------------
+! TOTAL UP EVAP AND TRANSP TYPES TO OBTAIN ACTUAL EVAPOTRANSP
+! ----------------------------------------------------------------------
+      ETA1(I) = EDIR(I) + ETT(I) + EC(I)
+          ENDIF
+        ENDIF
+      END IF
+    ENDIF
+  ENDIF
+ENDDO
+!$acc end parallel
+! ----------------------------------------------------------------------
+  END SUBROUTINE EVAPO_gpu2
 ! ----------------------------------------------------------------------
 
   SUBROUTINE FAC2MIT(SMCMAX,FLIMIT)
@@ -3570,11 +3785,14 @@ ENDDO
   END SUBROUTINE HRT
 ! ----------------------------------------------------------------------
 
-      SUBROUTINE HRT_gpu (RHSTS,STC,SMC,SMCMAX,NSOIL,ZSOIL,YY,ZZ1,          &
+!!!                      (RHSTS(1:NSOIL,I),STC(1:NSOIL,I),SMC(1:NSOIL,I),SMCMAX(I),NSOIL,ZSOIL(1:NSOIL,I),YY(I),ZZ1(I),
+!!!                     TBOT(I),ZBOT(I),PSISAT(I),SH2O(1:NSOIL,I),DT,BEXP(I),SOILTYP(I),OPT_THCND,       &
+!!!                     F1(I),DF1(I),QUARTZ(I),CSOIL(I),AI(1:NSOIL,I),BI(1:NSOIL,I),CI(1:NSOIL,I),VEGTYP(I),ISURBAN       &
+!!!               ,HCPCT_FASDAS(I))
+      SUBROUTINE HRT_gpu1 (RHSTS,STC,SMC,SMCMAX,NSOIL,ZSOIL,YY,ZZ1,          &
                        TBOT,ZBOT,PSISAT,SH2O,DT,BEXP,SOILTYP,OPT_THCND, &
                        F1,DF1,QUARTZ,CSOIL,AI,BI,CI,VEGTYP,ISURBAN      &
-                      ,HCPCT_FASDAS                                     ) !fasdas
-!$acc routine seq
+                      ,HCPCT_FASDAS,its,ite,XLAND,ICE,SNEQV) !fasdas
 
 ! ----------------------------------------------------------------------
 ! SUBROUTINE HRT
@@ -3585,17 +3803,20 @@ ENDDO
 ! ----------------------------------------------------------------------
       IMPLICIT NONE
       LOGICAL              :: ITAVG
-      INTEGER, INTENT(IN)  :: OPT_THCND
-      INTEGER, INTENT(IN)  :: NSOIL, VEGTYP, SOILTYP
+      INTEGER, INTENT(IN)  :: OPT_THCND,its,ite
+      INTEGER, INTENT(IN)  :: NSOIL
+      INTEGER, DIMENSION(its:ite), INTENT(IN) :: SOILTYP,VEGTYP,ICE
       INTEGER, INTENT(IN)  :: ISURBAN
       INTEGER              :: I, K
 
-      REAL, INTENT(IN)     :: BEXP, CSOIL, DF1, DT,F1,PSISAT,QUARTZ,     &
-                              SMCMAX ,TBOT,YY,ZZ1, ZBOT
-      REAL, DIMENSION(1:NSOIL), INTENT(IN)   :: SMC,STC,ZSOIL
-      REAL, DIMENSION(1:NSOIL), INTENT(INOUT):: SH2O
-      REAL, DIMENSION(1:NSOIL), INTENT(OUT)  :: RHSTS
-      REAL, DIMENSION(1:NSOIL), INTENT(OUT)  :: AI, BI,CI
+      REAL, INTENT(IN)     :: DT
+      REAL, DIMENSION(its:ite), INTENT(IN) :: SMCMAX,YY,ZZ1,TBOT,ZBOT, &
+                                              PSISAT,BEXP,F1,DF1,QUARTZ,&
+                                              CSOIL,XLAND,SNEQV
+      REAL, DIMENSION(1:NSOIL,its:ite), INTENT(IN) :: STC,SMC,ZSOIL
+      REAL, DIMENSION(1:NSOIL,its:ite), INTENT(INOUT):: SH2O
+      REAL, DIMENSION(1:NSOIL,its:ite), INTENT(OUT)  :: RHSTS
+      REAL, DIMENSION(1:NSOIL,its:ite), INTENT(OUT)  :: AI, BI,CI
       REAL                 :: DDZ, DDZ2, DENOM, DF1N, DF1K, DTSDZ,       &
                               DTSDZ2,HCPCT,QTOT,SSOIL,SICE,TAVG,TBK,     &
                               TBK1,TSNSR,TSURF,CSOIL_LOC
@@ -3605,16 +3826,24 @@ ENDDO
 !
 ! FASDAS
 !
-      REAL, INTENT(  OUT)       :: HCPCT_FASDAS
+      REAL, DIMENSION(its:ite), INTENT(  OUT)       :: HCPCT_FASDAS
 !
 ! END FASDAS
 !
 
+!$acc parallel vector_length(128)
+!$acc loop gang vector private(CSOIL_LOC,ITAVG,HCPCT,DDZ,DTSDZ,SSOIL,DENOM,&
+!$acc                          QTOT,SICE,TSURF,TBK,TAVG,TSNSR,DDZ2,DF1K,DF1N,&
+!$acc                          DTSDZ2,TBK1)
+DO I=its,ite
+  IF((XLAND(I)-1.5).LT.0.)THEN
+    IF (ICE(I) == 0) THEN
+      IF (SNEQV(I)  == 0.0) THEN
 !urban
-        IF( VEGTYP == ISURBAN ) then
+        IF( VEGTYP(I) == ISURBAN ) then
             CSOIL_LOC=3.0E6
         ELSE
-            CSOIL_LOC=CSOIL
+            CSOIL_LOC=CSOIL(I)
         ENDIF
 
 ! ----------------------------------------------------------------------
@@ -3626,22 +3855,22 @@ ENDDO
 ! ----------------------------------------------------------------------
 ! CALC THE HEAT CAPACITY OF THE TOP SOIL LAYER
 ! ----------------------------------------------------------------------
-      HCPCT = SH2O (1)* CH2O + (1.0- SMCMAX)* CSOIL_LOC + (SMCMAX - SMC (1))&
+      HCPCT = SH2O (1,I)* CH2O + (1.0- SMCMAX(I))* CSOIL_LOC + (SMCMAX(I) - SMC (1,I))&
        * CAIR                                                           &
-              + ( SMC (1) - SH2O (1) )* CICE
+              + ( SMC (1,I) - SH2O (1,I) )* CICE
 !
 ! FASDAS
 !
-      HCPCT_FASDAS = HCPCT
+      HCPCT_FASDAS(I) = HCPCT
 !
 ! END FASDAS
 !
 ! ----------------------------------------------------------------------
 ! CALC THE MATRIX COEFFICIENTS AI, BI, AND CI FOR THE TOP LAYER
 ! ----------------------------------------------------------------------
-      DDZ = 1.0 / ( -0.5 * ZSOIL (2) )
-      AI (1) = 0.0
-      CI (1) = (DF1 * DDZ) / (ZSOIL (1) * HCPCT)
+      DDZ = 1.0 / ( -0.5 * ZSOIL (2,I) )
+      AI (1,I) = 0.0
+      CI (1,I) = (DF1(I) * DDZ) / (ZSOIL (1,I) * HCPCT)
 
 ! ----------------------------------------------------------------------
 ! CALCULATE THE VERTICAL SOIL TEMP GRADIENT BTWN THE 1ST AND 2ND SOIL
@@ -3649,12 +3878,12 @@ ENDDO
 ! GRADIENT AND SUBSFC HEAT FLUX TO CALC "RIGHT-HAND SIDE TENDENCY
 ! TERMS", OR "RHSTS", FOR TOP SOIL LAYER.
 ! ----------------------------------------------------------------------
-      BI (1) = - CI (1) + DF1 / (0.5 * ZSOIL (1) * ZSOIL (1)* HCPCT *    &
-       ZZ1)
-      DTSDZ = (STC (1) - STC (2)) / ( -0.5 * ZSOIL (2))
-      SSOIL = DF1 * (STC (1) - YY) / (0.5 * ZSOIL (1) * ZZ1)
+      BI (1,I) = - CI (1,I) + DF1(I) / (0.5 * ZSOIL (1,I) * ZSOIL (1,I)* HCPCT *    &
+       ZZ1(I))
+      DTSDZ = (STC (1,I) - STC (2,I)) / ( -0.5 * ZSOIL (2,I))
+      SSOIL = DF1(I) * (STC (1,I) - YY(I)) / (0.5 * ZSOIL (1,I) * ZZ1(I))
 !      RHSTS(1) = (DF1 * DTSDZ - SSOIL) / (ZSOIL(1) * HCPCT)
-      DENOM = (ZSOIL (1) * HCPCT)
+      DENOM = (ZSOIL (1,I) * HCPCT)
 
 ! ----------------------------------------------------------------------
 ! NEXT CAPTURE THE VERTICAL DIFFERENCE OF THE HEAT FLUX AT TOP AND
@@ -3662,12 +3891,12 @@ ENDDO
 ! POTENTIAL SOIL FREEZING/THAWING IN ROUTINE SNKSRC.
 ! ----------------------------------------------------------------------
 !      QTOT = SSOIL - DF1*DTSDZ
-      RHSTS (1) = (DF1 * DTSDZ - SSOIL) / DENOM
+      RHSTS (1,I) = (DF1(I) * DTSDZ - SSOIL) / DENOM
 
 ! ----------------------------------------------------------------------
 ! CALCULATE FROZEN WATER CONTENT IN 1ST SOIL LAYER.
 ! ----------------------------------------------------------------------
-      QTOT = -1.0* RHSTS (1)* DENOM
+      QTOT = -1.0* RHSTS (1,I)* DENOM
 
 ! ----------------------------------------------------------------------
 ! IF TEMPERATURE AVERAGING INVOKED (ITAVG=TRUE; ELSE SKIP):
@@ -3679,32 +3908,32 @@ ENDDO
 ! CALCULATE TEMPERATURE AT BOTTOM INTERFACE OF 1ST SOIL LAYER FOR USE
 ! LATER IN FUNCTION SUBROUTINE SNKSRC
 ! ----------------------------------------------------------------------
-      SICE = SMC (1) - SH2O (1)
+      SICE = SMC (1,I) - SH2O (1,I)
       IF (ITAVG) THEN
-         TSURF = (YY + (ZZ1-1) * STC (1)) / ZZ1
+         TSURF = (YY(I) + (ZZ1(I)-1) * STC (1,I)) / ZZ1(I)
 ! ----------------------------------------------------------------------
 ! IF FROZEN WATER PRESENT OR ANY OF LAYER-1 MID-POINT OR BOUNDING
 ! INTERFACE TEMPERATURES BELOW FREEZING, THEN CALL SNKSRC TO
 ! COMPUTE HEAT SOURCE/SINK (AND CHANGE IN FROZEN WATER CONTENT)
 ! DUE TO POSSIBLE SOIL WATER PHASE CHANGE
 ! ----------------------------------------------------------------------
-         CALL TBND_gpu (STC (1),STC (2),ZSOIL,ZBOT,1,NSOIL,TBK)
-         IF ( (SICE > 0.) .OR. (STC (1) < T0) .OR.                         &
+         CALL TBND_gpu (STC (1,I),STC (2,I),ZSOIL(1:NSOIL,I),ZBOT(I),1,NSOIL,TBK)
+         IF ( (SICE > 0.) .OR. (STC (1,I) < T0) .OR.                         &
             (TSURF < T0) .OR. (TBK < T0) ) THEN
 !          TSNSR = SNKSRC (TAVG,SMC(1),SH2O(1),
-            CALL TMPAVG_gpu (TAVG,TSURF,STC (1),TBK,ZSOIL,NSOIL,1)
-            CALL SNKSRC_gpu (TSNSR,TAVG,SMC (1),SH2O (1),                      &
-                          ZSOIL,NSOIL,SMCMAX,PSISAT,BEXP,DT,1,QTOT)
+            CALL TMPAVG_gpu (TAVG,TSURF,STC (1,I),TBK,ZSOIL(1:NSOIL,I),NSOIL,1)
+            CALL SNKSRC_gpu (TSNSR,TAVG,SMC (1,I),SH2O (1,I),                      &
+                          ZSOIL(1:NSOIL,I),NSOIL,SMCMAX(I),PSISAT(I),BEXP(I),DT,1,QTOT)
 !          RHSTS(1) = RHSTS(1) - TSNSR / ( ZSOIL(1) * HCPCT )
-            RHSTS (1) = RHSTS (1) - TSNSR / DENOM
+            RHSTS (1,I) = RHSTS (1,I) - TSNSR / DENOM
          END IF
       ELSE
 !          TSNSR = SNKSRC (STC(1),SMC(1),SH2O(1),
-         IF ( (SICE > 0.) .OR. (STC (1) < T0) ) THEN
-            CALL SNKSRC_gpu (TSNSR,STC (1),SMC (1),SH2O (1),                   &
-                          ZSOIL,NSOIL,SMCMAX,PSISAT,BEXP,DT,1,QTOT)
+         IF ( (SICE > 0.) .OR. (STC (1,I) < T0) ) THEN
+            CALL SNKSRC_gpu (TSNSR,STC (1,I),SMC (1,I),SH2O (1,I),                   &
+                          ZSOIL(1:NSOIL,I),NSOIL,SMCMAX(I),PSISAT(I),BEXP(I),DT,1,QTOT)
 !          RHSTS(1) = RHSTS(1) - TSNSR / ( ZSOIL(1) * HCPCT )
-            RHSTS (1) = RHSTS (1) - TSNSR / DENOM
+            RHSTS (1,I) = RHSTS (1,I) - TSNSR / DENOM
          END IF
 ! ----------------------------------------------------------------------
 ! THIS ENDS SECTION FOR TOP SOIL LAYER.
@@ -3715,7 +3944,7 @@ ENDDO
 ! ----------------------------------------------------------------------
 
       DDZ2 = 0.0
-      DF1K = DF1
+      DF1K = DF1(I)
 
 ! ----------------------------------------------------------------------
 ! LOOP THRU THE REMAINING SOIL LAYERS, REPEATING THE ABOVE PROCESS
@@ -3724,8 +3953,8 @@ ENDDO
 ! CALCULATE HEAT CAPACITY FOR THIS SOIL LAYER.
 ! ----------------------------------------------------------------------
       DO K = 2,NSOIL
-         HCPCT = SH2O (K)* CH2O + (1.0- SMCMAX)* CSOIL_LOC + (SMCMAX - SMC (  &
-                K))* CAIR + ( SMC (K) - SH2O (K) )* CICE
+         HCPCT = SH2O (K,I)* CH2O + (1.0- SMCMAX(I))* CSOIL_LOC + (SMCMAX(I) - SMC (  &
+                K,I))* CAIR + ( SMC (K,I) - SH2O (K,I) )* CICE
 ! ----------------------------------------------------------------------
 ! THIS SECTION FOR LAYER 2 OR GREATER, BUT NOT LAST LAYER.
 ! ----------------------------------------------------------------------
@@ -3736,27 +3965,27 @@ ENDDO
 ! ----------------------------------------------------------------------
 ! CALC THE VERTICAL SOIL TEMP GRADIENT THRU THIS LAYER
 ! ----------------------------------------------------------------------
-            CALL TDFCND_gpu (DF1N,SMC (K),QUARTZ,SMCMAX,SH2O (K),BEXP, PSISAT, SOILTYP, OPT_THCND)
+            CALL TDFCND_gpu (DF1N,SMC (K,I),QUARTZ(I),SMCMAX(I),SH2O (K,I),BEXP(I), PSISAT(I), SOILTYP(I), OPT_THCND)
 
 !urban
-       IF ( VEGTYP == ISURBAN ) DF1N = 3.24
+       IF ( VEGTYP(I) == ISURBAN ) DF1N = 3.24
 
-            DENOM = 0.5 * ( ZSOIL (K -1) - ZSOIL (K +1) )
+            DENOM = 0.5 * ( ZSOIL (K -1,I) - ZSOIL (K +1,I) )
 
 ! ----------------------------------------------------------------------
 ! CALC THE MATRIX COEF, CI, AFTER CALC'NG ITS PARTIAL PRODUCT
 ! ----------------------------------------------------------------------
-            DTSDZ2 = ( STC (K) - STC (K +1) ) / DENOM
-            DDZ2 = 2. / (ZSOIL (K -1) - ZSOIL (K +1))
+            DTSDZ2 = ( STC (K,I) - STC (K +1,I) ) / DENOM
+            DDZ2 = 2. / (ZSOIL (K -1,I) - ZSOIL (K +1,I))
 
 ! ----------------------------------------------------------------------
 ! IF TEMPERATURE AVERAGING INVOKED (ITAVG=TRUE; ELSE SKIP):  CALCULATE
 ! TEMP AT BOTTOM OF LAYER.
 ! ----------------------------------------------------------------------
-            CI (K) = - DF1N * DDZ2 / ( (ZSOIL (K -1) - ZSOIL (K)) *      &
+            CI (K,I) = - DF1N * DDZ2 / ( (ZSOIL (K -1,I) - ZSOIL (K,I)) *      &
        HCPCT)
             IF (ITAVG) THEN
-               CALL TBND_gpu (STC (K),STC (K +1),ZSOIL,ZBOT,K,NSOIL,TBK1)
+               CALL TBND_gpu (STC (K,I),STC (K +1,I),ZSOIL(1:NSOIL,I),ZBOT(I),K,NSOIL,TBK1)
             END IF
 
          ELSE
@@ -3768,26 +3997,26 @@ ENDDO
 ! ----------------------------------------------------------------------
 ! CALC THE VERTICAL SOIL TEMP GRADIENT THRU BOTTOM LAYER.
 ! ----------------------------------------------------------------------
-            CALL TDFCND_gpu (DF1N,SMC (K),QUARTZ,SMCMAX,SH2O (K),BEXP, PSISAT, SOILTYP, OPT_THCND)
+            CALL TDFCND_gpu (DF1N,SMC (K,I),QUARTZ(I),SMCMAX(I),SH2O (K,I),BEXP(I), PSISAT(I), SOILTYP(I), OPT_THCND)
 
 
 !urban
-       IF ( VEGTYP == ISURBAN ) DF1N = 3.24
+       IF ( VEGTYP(I) == ISURBAN ) DF1N = 3.24
 
-            DENOM = .5 * (ZSOIL (K -1) + ZSOIL (K)) - ZBOT
+            DENOM = .5 * (ZSOIL (K -1,I) + ZSOIL (K,I)) - ZBOT(I)
 
 ! ----------------------------------------------------------------------
 ! SET MATRIX COEF, CI TO ZERO IF BOTTOM LAYER.
 ! ----------------------------------------------------------------------
-            DTSDZ2 = (STC (K) - TBOT) / DENOM
+            DTSDZ2 = (STC (K,I) - TBOT(I)) / DENOM
 
 ! ----------------------------------------------------------------------
 ! IF TEMPERATURE AVERAGING INVOKED (ITAVG=TRUE; ELSE SKIP):  CALCULATE
 ! TEMP AT BOTTOM OF LAST LAYER.
 ! ----------------------------------------------------------------------
-            CI (K) = 0.
+            CI (K,I) = 0.
             IF (ITAVG) THEN
-               CALL TBND_gpu (STC (K),TBOT,ZSOIL,ZBOT,K,NSOIL,TBK1)
+               CALL TBND_gpu (STC (K,I),TBOT(I),ZSOIL(1:NSOIL,I),ZBOT(I),K,NSOIL,TBK1)
             END IF
 ! ----------------------------------------------------------------------
 ! THIS ENDS SPECIAL LOOP FOR BOTTOM LAYER.
@@ -3795,45 +4024,331 @@ ENDDO
 ! ----------------------------------------------------------------------
 ! CALCULATE RHSTS FOR THIS LAYER AFTER CALC'NG A PARTIAL PRODUCT.
 ! ----------------------------------------------------------------------
-         DENOM = ( ZSOIL (K) - ZSOIL (K -1) ) * HCPCT
-         RHSTS (K) = ( DF1N * DTSDZ2- DF1K * DTSDZ ) / DENOM
-         QTOT = -1.0* DENOM * RHSTS (K)
+         DENOM = ( ZSOIL (K,I) - ZSOIL (K -1,I) ) * HCPCT
+         RHSTS (K,I) = ( DF1N * DTSDZ2- DF1K * DTSDZ ) / DENOM
+         QTOT = -1.0* DENOM * RHSTS (K,I)
 
-         SICE = SMC (K) - SH2O (K)
+         SICE = SMC (K,I) - SH2O (K,I)
          IF (ITAVG) THEN
-            CALL TMPAVG_gpu (TAVG,TBK,STC (K),TBK1,ZSOIL,NSOIL,K)
+            CALL TMPAVG_gpu (TAVG,TBK,STC (K,I),TBK1,ZSOIL(1:NSOIL,I),NSOIL,K)
 !            TSNSR = SNKSRC(TAVG,SMC(K),SH2O(K),ZSOIL,NSOIL,
-            IF ( (SICE > 0.) .OR. (STC (K) < T0) .OR.                   &
+            IF ( (SICE > 0.) .OR. (STC (K,I) < T0) .OR.                   &
                (TBK .lt. T0) .OR. (TBK1 .lt. T0) ) THEN
-               CALL SNKSRC_gpu (TSNSR,TAVG,SMC (K),SH2O (K),ZSOIL,NSOIL,    &
-                             SMCMAX,PSISAT,BEXP,DT,K,QTOT)
-               RHSTS (K) = RHSTS (K) - TSNSR / DENOM
+               CALL SNKSRC_gpu (TSNSR,TAVG,SMC (K,I),SH2O (K,I),ZSOIL(1:NSOIL,I),NSOIL,    &
+                             SMCMAX(I),PSISAT(I),BEXP(I),DT,K,QTOT)
+               RHSTS (K,I) = RHSTS (K,I) - TSNSR / DENOM
             END IF
          ELSE
 !            TSNSR = SNKSRC(STC(K),SMC(K),SH2O(K),ZSOIL,NSOIL,
-            IF ( (SICE > 0.) .OR. (STC (K) < T0) ) THEN
-               CALL SNKSRC_gpu (TSNSR,STC (K),SMC (K),SH2O (K),ZSOIL,NSOIL, &
-                             SMCMAX,PSISAT,BEXP,DT,K,QTOT)
-               RHSTS (K) = RHSTS (K) - TSNSR / DENOM
+            IF ( (SICE > 0.) .OR. (STC (K,I) < T0) ) THEN
+               CALL SNKSRC_gpu (TSNSR,STC (K,I),SMC (K,I),SH2O (K,I),ZSOIL(1:NSOIL,I),NSOIL, &
+                             SMCMAX(I),PSISAT(I),BEXP(I),DT,K,QTOT)
+               RHSTS (K,I) = RHSTS (K,I) - TSNSR / DENOM
             END IF
          END IF
 
 ! ----------------------------------------------------------------------
 ! CALC MATRIX COEFS, AI, AND BI FOR THIS LAYER.
 ! ----------------------------------------------------------------------
-         AI (K) = - DF1K * DDZ / ( (ZSOIL (K -1) - ZSOIL (K)) * HCPCT)
+         AI (K,I) = - DF1K * DDZ / ( (ZSOIL (K -1,I) - ZSOIL (K,I)) * HCPCT)
 
 ! ----------------------------------------------------------------------
 ! RESET VALUES OF DF1, DTSDZ, DDZ, AND TBK FOR LOOP TO NEXT SOIL LAYER.
 ! ----------------------------------------------------------------------
-         BI (K) = - (AI (K) + CI (K))
+         BI (K,I) = - (AI (K,I) + CI (K,I))
          TBK = TBK1
          DF1K = DF1N
          DTSDZ = DTSDZ2
          DDZ = DDZ2
       END DO
+      END IF
+    ENDIF
+  ENDIF
+ENDDO
+!$acc end parallel
 ! ----------------------------------------------------------------------
-  END SUBROUTINE HRT_gpu
+  END SUBROUTINE HRT_gpu1
+! ----------------------------------------------------------------------
+
+      SUBROUTINE HRT_gpu2 (RHSTS,STC,SMC,SMCMAX,NSOIL,ZSOIL,YY,ZZ1,          &
+                       TBOT,ZBOT,PSISAT,SH2O,DT,BEXP,SOILTYP,OPT_THCND, &
+                       F1,DF1,QUARTZ,CSOIL,AI,BI,CI,VEGTYP,ISURBAN      &
+                      ,HCPCT_FASDAS,its,ite,XLAND,ICE,SNEQV) !fasdas
+
+! ----------------------------------------------------------------------
+! SUBROUTINE HRT
+! ----------------------------------------------------------------------
+! CALCULATE THE RIGHT HAND SIDE OF THE TIME TENDENCY TERM OF THE SOIL
+! THERMAL DIFFUSION EQUATION.  ALSO TO COMPUTE ( PREPARE ) THE MATRIX
+! COEFFICIENTS FOR THE TRI-DIAGONAL MATRIX OF THE IMPLICIT TIME SCHEME.
+! ----------------------------------------------------------------------
+      IMPLICIT NONE
+      LOGICAL              :: ITAVG
+      INTEGER, INTENT(IN)  :: OPT_THCND,its,ite
+      INTEGER, INTENT(IN)  :: NSOIL
+      INTEGER, DIMENSION(its:ite), INTENT(IN) :: SOILTYP,VEGTYP,ICE
+      INTEGER, INTENT(IN)  :: ISURBAN
+      INTEGER              :: I, K
+
+      REAL, INTENT(IN)     :: DT
+      REAL, DIMENSION(its:ite), INTENT(IN) :: SMCMAX,YY,ZZ1,TBOT,ZBOT, &
+                                              PSISAT,BEXP,F1,DF1,QUARTZ,&
+                                              CSOIL,XLAND,SNEQV
+      REAL, DIMENSION(1:NSOIL,its:ite), INTENT(IN) :: STC,SMC,ZSOIL
+      REAL, DIMENSION(1:NSOIL,its:ite), INTENT(INOUT):: SH2O
+      REAL, DIMENSION(1:NSOIL,its:ite), INTENT(OUT)  :: RHSTS
+      REAL, DIMENSION(1:NSOIL,its:ite), INTENT(OUT)  :: AI, BI,CI
+      REAL                 :: DDZ, DDZ2, DENOM, DF1N, DF1K, DTSDZ,       &
+                              DTSDZ2,HCPCT,QTOT,SSOIL,SICE,TAVG,TBK,     &
+                              TBK1,TSNSR,TSURF,CSOIL_LOC
+      REAL, PARAMETER      :: T0 = 273.15, CAIR = 1004.0, CICE = 2.106E6,&
+                              CH2O = 4.2E6
+
+!
+! FASDAS
+!
+      REAL, DIMENSION(its:ite), INTENT(  OUT)       :: HCPCT_FASDAS
+!
+! END FASDAS
+!
+
+!$acc parallel vector_length(128)
+!$acc loop gang vector private(CSOIL_LOC,ITAVG,HCPCT,DDZ,DTSDZ,SSOIL,DENOM,&
+!$acc                          QTOT,SICE,TSURF,TBK,TAVG,TSNSR,DDZ2,DF1K,DF1N,&
+!$acc                          DTSDZ2,TBK1)
+DO I=its,ite
+  IF((XLAND(I)-1.5).LT.0.)THEN
+    IF (ICE(I) == 0) THEN
+      IF (SNEQV(I)  /= 0.0) THEN
+!urban
+        IF( VEGTYP(I) == ISURBAN ) then
+            CSOIL_LOC=3.0E6
+        ELSE
+            CSOIL_LOC=CSOIL(I)
+        ENDIF
+
+! ----------------------------------------------------------------------
+! INITIALIZE LOGICAL FOR SOIL LAYER TEMPERATURE AVERAGING.
+! ----------------------------------------------------------------------
+       ITAVG = .TRUE.
+! ----------------------------------------------------------------------
+! BEGIN SECTION FOR TOP SOIL LAYER
+! ----------------------------------------------------------------------
+! CALC THE HEAT CAPACITY OF THE TOP SOIL LAYER
+! ----------------------------------------------------------------------
+      HCPCT = SH2O (1,I)* CH2O + (1.0- SMCMAX(I))* CSOIL_LOC + (SMCMAX(I) - SMC (1,I))&
+       * CAIR                                                           &
+              + ( SMC (1,I) - SH2O (1,I) )* CICE
+!
+! FASDAS
+!
+      HCPCT_FASDAS(I) = HCPCT
+!
+! END FASDAS
+!
+! ----------------------------------------------------------------------
+! CALC THE MATRIX COEFFICIENTS AI, BI, AND CI FOR THE TOP LAYER
+! ----------------------------------------------------------------------
+      DDZ = 1.0 / ( -0.5 * ZSOIL (2,I) )
+      AI (1,I) = 0.0
+      CI (1,I) = (DF1(I) * DDZ) / (ZSOIL (1,I) * HCPCT)
+
+! ----------------------------------------------------------------------
+! CALCULATE THE VERTICAL SOIL TEMP GRADIENT BTWN THE 1ST AND 2ND SOIL
+! LAYERS.  THEN CALCULATE THE SUBSURFACE HEAT FLUX. USE THE TEMP
+! GRADIENT AND SUBSFC HEAT FLUX TO CALC "RIGHT-HAND SIDE TENDENCY
+! TERMS", OR "RHSTS", FOR TOP SOIL LAYER.
+! ----------------------------------------------------------------------
+      BI (1,I) = - CI (1,I) + DF1(I) / (0.5 * ZSOIL (1,I) * ZSOIL (1,I)* HCPCT *    &
+       ZZ1(I))
+      DTSDZ = (STC (1,I) - STC (2,I)) / ( -0.5 * ZSOIL (2,I))
+      SSOIL = DF1(I) * (STC (1,I) - YY(I)) / (0.5 * ZSOIL (1,I) * ZZ1(I))
+!      RHSTS(1) = (DF1 * DTSDZ - SSOIL) / (ZSOIL(1) * HCPCT)
+      DENOM = (ZSOIL (1,I) * HCPCT)
+
+! ----------------------------------------------------------------------
+! NEXT CAPTURE THE VERTICAL DIFFERENCE OF THE HEAT FLUX AT TOP AND
+! BOTTOM OF FIRST SOIL LAYER FOR USE IN HEAT FLUX CONSTRAINT APPLIED TO
+! POTENTIAL SOIL FREEZING/THAWING IN ROUTINE SNKSRC.
+! ----------------------------------------------------------------------
+!      QTOT = SSOIL - DF1*DTSDZ
+      RHSTS (1,I) = (DF1(I) * DTSDZ - SSOIL) / DENOM
+
+! ----------------------------------------------------------------------
+! CALCULATE FROZEN WATER CONTENT IN 1ST SOIL LAYER.
+! ----------------------------------------------------------------------
+      QTOT = -1.0* RHSTS (1,I)* DENOM
+
+! ----------------------------------------------------------------------
+! IF TEMPERATURE AVERAGING INVOKED (ITAVG=TRUE; ELSE SKIP):
+! SET TEMP "TSURF" AT TOP OF SOIL COLUMN (FOR USE IN FREEZING SOIL
+! PHYSICS LATER IN FUNCTION SUBROUTINE SNKSRC).  IF SNOWPACK CONTENT IS
+! ZERO, THEN TSURF EXPRESSION BELOW GIVES TSURF = SKIN TEMP.  IF
+! SNOWPACK IS NONZERO (HENCE ARGUMENT ZZ1=1), THEN TSURF EXPRESSION
+! BELOW YIELDS SOIL COLUMN TOP TEMPERATURE UNDER SNOWPACK.  THEN
+! CALCULATE TEMPERATURE AT BOTTOM INTERFACE OF 1ST SOIL LAYER FOR USE
+! LATER IN FUNCTION SUBROUTINE SNKSRC
+! ----------------------------------------------------------------------
+      SICE = SMC (1,I) - SH2O (1,I)
+      IF (ITAVG) THEN
+         TSURF = (YY(I) + (ZZ1(I)-1) * STC (1,I)) / ZZ1(I)
+! ----------------------------------------------------------------------
+! IF FROZEN WATER PRESENT OR ANY OF LAYER-1 MID-POINT OR BOUNDING
+! INTERFACE TEMPERATURES BELOW FREEZING, THEN CALL SNKSRC TO
+! COMPUTE HEAT SOURCE/SINK (AND CHANGE IN FROZEN WATER CONTENT)
+! DUE TO POSSIBLE SOIL WATER PHASE CHANGE
+! ----------------------------------------------------------------------
+         CALL TBND_gpu (STC (1,I),STC (2,I),ZSOIL(1:NSOIL,I),ZBOT(I),1,NSOIL,TBK)
+         IF ( (SICE > 0.) .OR. (STC (1,I) < T0) .OR.                         &
+            (TSURF < T0) .OR. (TBK < T0) ) THEN
+!          TSNSR = SNKSRC (TAVG,SMC(1),SH2O(1),
+            CALL TMPAVG_gpu (TAVG,TSURF,STC (1,I),TBK,ZSOIL(1:NSOIL,I),NSOIL,1)
+            CALL SNKSRC_gpu (TSNSR,TAVG,SMC (1,I),SH2O (1,I),                      &
+                          ZSOIL(1:NSOIL,I),NSOIL,SMCMAX(I),PSISAT(I),BEXP(I),DT,1,QTOT)
+!          RHSTS(1) = RHSTS(1) - TSNSR / ( ZSOIL(1) * HCPCT )
+            RHSTS (1,I) = RHSTS (1,I) - TSNSR / DENOM
+         END IF
+      ELSE
+!          TSNSR = SNKSRC (STC(1),SMC(1),SH2O(1),
+         IF ( (SICE > 0.) .OR. (STC (1,I) < T0) ) THEN
+            CALL SNKSRC_gpu (TSNSR,STC (1,I),SMC (1,I),SH2O (1,I),                   &
+                          ZSOIL(1:NSOIL,I),NSOIL,SMCMAX(I),PSISAT(I),BEXP(I),DT,1,QTOT)
+!          RHSTS(1) = RHSTS(1) - TSNSR / ( ZSOIL(1) * HCPCT )
+            RHSTS (1,I) = RHSTS (1,I) - TSNSR / DENOM
+         END IF
+! ----------------------------------------------------------------------
+! THIS ENDS SECTION FOR TOP SOIL LAYER.
+! ----------------------------------------------------------------------
+      END IF
+
+! INITIALIZE DDZ2
+! ----------------------------------------------------------------------
+
+      DDZ2 = 0.0
+      DF1K = DF1(I)
+
+! ----------------------------------------------------------------------
+! LOOP THRU THE REMAINING SOIL LAYERS, REPEATING THE ABOVE PROCESS
+! (EXCEPT SUBSFC OR "GROUND" HEAT FLUX NOT REPEATED IN LOWER LAYERS)
+! ----------------------------------------------------------------------
+! CALCULATE HEAT CAPACITY FOR THIS SOIL LAYER.
+! ----------------------------------------------------------------------
+      DO K = 2,NSOIL
+         HCPCT = SH2O (K,I)* CH2O + (1.0- SMCMAX(I))* CSOIL_LOC + (SMCMAX(I) - SMC (  &
+                K,I))* CAIR + ( SMC (K,I) - SH2O (K,I) )* CICE
+! ----------------------------------------------------------------------
+! THIS SECTION FOR LAYER 2 OR GREATER, BUT NOT LAST LAYER.
+! ----------------------------------------------------------------------
+! CALCULATE THERMAL DIFFUSIVITY FOR THIS LAYER.
+! ----------------------------------------------------------------------
+         IF (K /= NSOIL) THEN
+
+! ----------------------------------------------------------------------
+! CALC THE VERTICAL SOIL TEMP GRADIENT THRU THIS LAYER
+! ----------------------------------------------------------------------
+            CALL TDFCND_gpu (DF1N,SMC (K,I),QUARTZ(I),SMCMAX(I),SH2O (K,I),BEXP(I), PSISAT(I), SOILTYP(I), OPT_THCND)
+
+!urban
+       IF ( VEGTYP(I) == ISURBAN ) DF1N = 3.24
+
+            DENOM = 0.5 * ( ZSOIL (K -1,I) - ZSOIL (K +1,I) )
+
+! ----------------------------------------------------------------------
+! CALC THE MATRIX COEF, CI, AFTER CALC'NG ITS PARTIAL PRODUCT
+! ----------------------------------------------------------------------
+            DTSDZ2 = ( STC (K,I) - STC (K +1,I) ) / DENOM
+            DDZ2 = 2. / (ZSOIL (K -1,I) - ZSOIL (K +1,I))
+
+! ----------------------------------------------------------------------
+! IF TEMPERATURE AVERAGING INVOKED (ITAVG=TRUE; ELSE SKIP):  CALCULATE
+! TEMP AT BOTTOM OF LAYER.
+! ----------------------------------------------------------------------
+            CI (K,I) = - DF1N * DDZ2 / ( (ZSOIL (K -1,I) - ZSOIL (K,I)) *      &
+       HCPCT)
+            IF (ITAVG) THEN
+               CALL TBND_gpu (STC (K,I),STC (K +1,I),ZSOIL(1:NSOIL,I),ZBOT(I),K,NSOIL,TBK1)
+            END IF
+
+         ELSE
+! ----------------------------------------------------------------------
+! SPECIAL CASE OF BOTTOM SOIL LAYER:  CALCULATE THERMAL DIFFUSIVITY FOR
+! BOTTOM LAYER.
+! ----------------------------------------------------------------------
+
+! ----------------------------------------------------------------------
+! CALC THE VERTICAL SOIL TEMP GRADIENT THRU BOTTOM LAYER.
+! ----------------------------------------------------------------------
+            CALL TDFCND_gpu (DF1N,SMC (K,I),QUARTZ(I),SMCMAX(I),SH2O (K,I),BEXP(I), PSISAT(I), SOILTYP(I), OPT_THCND)
+
+
+!urban
+       IF ( VEGTYP(I) == ISURBAN ) DF1N = 3.24
+
+            DENOM = .5 * (ZSOIL (K -1,I) + ZSOIL (K,I)) - ZBOT(I)
+
+! ----------------------------------------------------------------------
+! SET MATRIX COEF, CI TO ZERO IF BOTTOM LAYER.
+! ----------------------------------------------------------------------
+            DTSDZ2 = (STC (K,I) - TBOT(I)) / DENOM
+
+! ----------------------------------------------------------------------
+! IF TEMPERATURE AVERAGING INVOKED (ITAVG=TRUE; ELSE SKIP):  CALCULATE
+! TEMP AT BOTTOM OF LAST LAYER.
+! ----------------------------------------------------------------------
+            CI (K,I) = 0.
+            IF (ITAVG) THEN
+               CALL TBND_gpu (STC (K,I),TBOT(I),ZSOIL(1:NSOIL,I),ZBOT(I),K,NSOIL,TBK1)
+            END IF
+! ----------------------------------------------------------------------
+! THIS ENDS SPECIAL LOOP FOR BOTTOM LAYER.
+         END IF
+! ----------------------------------------------------------------------
+! CALCULATE RHSTS FOR THIS LAYER AFTER CALC'NG A PARTIAL PRODUCT.
+! ----------------------------------------------------------------------
+         DENOM = ( ZSOIL (K,I) - ZSOIL (K -1,I) ) * HCPCT
+         RHSTS (K,I) = ( DF1N * DTSDZ2- DF1K * DTSDZ ) / DENOM
+         QTOT = -1.0* DENOM * RHSTS (K,I)
+
+         SICE = SMC (K,I) - SH2O (K,I)
+         IF (ITAVG) THEN
+            CALL TMPAVG_gpu (TAVG,TBK,STC (K,I),TBK1,ZSOIL(1:NSOIL,I),NSOIL,K)
+!            TSNSR = SNKSRC(TAVG,SMC(K),SH2O(K),ZSOIL,NSOIL,
+            IF ( (SICE > 0.) .OR. (STC (K,I) < T0) .OR.                   &
+               (TBK .lt. T0) .OR. (TBK1 .lt. T0) ) THEN
+               CALL SNKSRC_gpu (TSNSR,TAVG,SMC (K,I),SH2O (K,I),ZSOIL(1:NSOIL,I),NSOIL,    &
+                             SMCMAX(I),PSISAT(I),BEXP(I),DT,K,QTOT)
+               RHSTS (K,I) = RHSTS (K,I) - TSNSR / DENOM
+            END IF
+         ELSE
+!            TSNSR = SNKSRC(STC(K),SMC(K),SH2O(K),ZSOIL,NSOIL,
+            IF ( (SICE > 0.) .OR. (STC (K,I) < T0) ) THEN
+               CALL SNKSRC_gpu (TSNSR,STC (K,I),SMC (K,I),SH2O (K,I),ZSOIL(1:NSOIL,I),NSOIL, &
+                             SMCMAX(I),PSISAT(I),BEXP(I),DT,K,QTOT)
+               RHSTS (K,I) = RHSTS (K,I) - TSNSR / DENOM
+            END IF
+         END IF
+
+! ----------------------------------------------------------------------
+! CALC MATRIX COEFS, AI, AND BI FOR THIS LAYER.
+! ----------------------------------------------------------------------
+         AI (K,I) = - DF1K * DDZ / ( (ZSOIL (K -1,I) - ZSOIL (K,I)) * HCPCT)
+
+! ----------------------------------------------------------------------
+! RESET VALUES OF DF1, DTSDZ, DDZ, AND TBK FOR LOOP TO NEXT SOIL LAYER.
+! ----------------------------------------------------------------------
+         BI (K,I) = - (AI (K,I) + CI (K,I))
+         TBK = TBK1
+         DF1K = DF1N
+         DTSDZ = DTSDZ2
+         DDZ = DDZ2
+      END DO
+      END IF
+    ENDIF
+  ENDIF
+ENDDO
+!$acc end parallel
+! ----------------------------------------------------------------------
+  END SUBROUTINE HRT_gpu2
 ! ----------------------------------------------------------------------
 
       SUBROUTINE HSTEP (STCOUT,STCIN,RHSTS,DT,NSOIL,AI,BI,CI)
@@ -3936,6 +4451,199 @@ ENDDO
       END DO
 ! ----------------------------------------------------------------------
   END SUBROUTINE HSTEP_gpu
+! ----------------------------------------------------------------------
+
+!!!                        (STCF(1:NSOIL,I),STC(1:NSOIL,I),RHSTS(1:NSOIL,I),DT,NSOIL,AI(1:NSOIL,I),BI(1:NSOIL,I),CI(1:NSOIL,I))
+      SUBROUTINE HSTEP_gpu1 (STCOUT,STCIN,RHSTS,DT,NSOIL,AI,BI,CI,its,ite,XLAND,ICE,SNEQV)
+! ----------------------------------------------------------------------
+! SUBROUTINE HSTEP
+! ----------------------------------------------------------------------
+! CALCULATE/UPDATE THE SOIL TEMPERATURE FIELD.
+! ----------------------------------------------------------------------
+      IMPLICIT NONE
+      INTEGER, INTENT(IN)  :: NSOIL,its,ite
+      INTEGER              :: K,KK,I
+
+      INTEGER, DIMENSION(its:ite), INTENT(IN) :: ICE
+      REAL, DIMENSION(its:ite), INTENT(IN) :: XLAND,SNEQV
+      REAL, DIMENSION(1:NSOIL,its:ite), INTENT(IN):: STCIN
+      REAL, DIMENSION(1:NSOIL,its,ite), INTENT(OUT):: STCOUT
+      REAL, DIMENSION(1:NSOIL,its:ite), INTENT(INOUT):: RHSTS
+      REAL, DIMENSION(1:NSOIL,its:ite), INTENT(INOUT):: AI,BI,CI
+      REAL, DIMENSION(1:NSOIL) :: RHSTSIN
+      REAL, DIMENSION(1:NSOIL) :: CIIN
+      REAL                 :: DT
+
+!$acc parallel vector_length(128)
+!$acc loop gang vector private(RHSTSIN,CIIN)
+DO I=its,ite
+  IF((XLAND(I)-1.5).LT.0.)THEN
+    IF (ICE(I) == 0) THEN
+      IF (SNEQV(I)  == 0.0) THEN
+! ----------------------------------------------------------------------
+! CREATE FINITE DIFFERENCE VALUES FOR USE IN ROSR12 ROUTINE
+! ----------------------------------------------------------------------
+      DO K = 1,NSOIL
+         RHSTS (K,I) = RHSTS (K,I) * DT
+         AI (K,I) = AI (K,I) * DT
+         BI (K,I) = 1. + BI (K,I) * DT
+         CI (K,I) = CI (K,I) * DT
+      END DO
+! ----------------------------------------------------------------------
+! COPY VALUES FOR INPUT VARIABLES BEFORE CALL TO ROSR12
+! ----------------------------------------------------------------------
+      DO K = 1,NSOIL
+         RHSTSIN (K) = RHSTS (K,I)
+      END DO
+      DO K = 1,NSOIL
+         CIIN (K) = CI (K,I)
+      END DO
+! ----------------------------------------------------------------------
+! SOLVE THE TRI-DIAGONAL MATRIX EQUATION
+! ----------------------------------------------------------------------
+!!!                      (P, A, B, C,   D,      DELTA,NSOIL)
+!!!      CALL ROSR12_gpu (CI,AI,BI,CIIN,RHSTSIN,RHSTS,NSOIL)
+!!!--------------------------------------------------------------------------------
+! ----------------------------------------------------------------------
+! INITIALIZE EQN COEF C FOR THE LOWEST SOIL LAYER
+! ----------------------------------------------------------------------
+      CIIN (NSOIL) = 0.0
+      CI (1,I) = - CIIN (1) / BI (1,I)
+! ----------------------------------------------------------------------
+! SOLVE THE COEFS FOR THE 1ST SOIL LAYER
+! ----------------------------------------------------------------------
+
+! ----------------------------------------------------------------------
+! SOLVE THE COEFS FOR SOIL LAYERS 2 THRU NSOIL
+! ----------------------------------------------------------------------
+      RHSTS (1,I) = RHSTSIN (1) / BI (1,I)
+      DO K = 2,NSOIL
+         CI (K,I) = - CIIN (K) * ( 1.0 / (BI (K,I) + AI (K,I) * CI (K -1,I)) )
+         RHSTS (K,I) = (RHSTSIN (K) - AI (K,I)* RHSTS (K -1,I))* (1.0/ (BI (K,I) + AI (K,I)&
+                    * CI (K -1,I)))
+      END DO
+! ----------------------------------------------------------------------
+! SET P TO DELTA FOR LOWEST SOIL LAYER
+! ----------------------------------------------------------------------
+      CI (NSOIL,I) = RHSTS (NSOIL,I)
+
+! ----------------------------------------------------------------------
+! ADJUST P FOR SOIL LAYERS 2 THRU NSOIL
+! ----------------------------------------------------------------------
+      DO K = 2,NSOIL
+         KK = NSOIL - K + 1
+         CI (KK,I) = CI (KK,I) * CI (KK +1,I) + RHSTS (KK,I)
+      END DO
+!!!---------------------------------------------------------------------------------
+! ----------------------------------------------------------------------
+! CALC/UPDATE THE SOIL TEMPS USING MATRIX SOLUTION
+! ----------------------------------------------------------------------
+      DO K = 1,NSOIL
+         STCOUT (K,I) = STCIN (K,I) + CI (K,I)
+      END DO
+      END IF
+    ENDIF
+  ENDIF
+ENDDO
+!$acc end parallel
+! ----------------------------------------------------------------------
+  END SUBROUTINE HSTEP_gpu1
+! ----------------------------------------------------------------------
+
+      SUBROUTINE HSTEP_gpu2 (STCOUT,STCIN,RHSTS,DT,NSOIL,AI,BI,CI,its,ite,XLAND,ICE,SNEQV)
+! ----------------------------------------------------------------------
+! SUBROUTINE HSTEP
+! ----------------------------------------------------------------------
+! CALCULATE/UPDATE THE SOIL TEMPERATURE FIELD.
+! ----------------------------------------------------------------------
+      IMPLICIT NONE
+      INTEGER, INTENT(IN)  :: NSOIL,its,ite
+      INTEGER              :: K,KK,I
+
+      INTEGER, DIMENSION(its:ite), INTENT(IN) :: ICE
+      REAL, DIMENSION(its:ite), INTENT(IN) :: XLAND,SNEQV
+      REAL, DIMENSION(1:NSOIL,its:ite), INTENT(IN):: STCIN
+      REAL, DIMENSION(1:NSOIL,its,ite), INTENT(OUT):: STCOUT
+      REAL, DIMENSION(1:NSOIL,its:ite), INTENT(INOUT):: RHSTS
+      REAL, DIMENSION(1:NSOIL,its:ite), INTENT(INOUT):: AI,BI,CI
+      REAL, DIMENSION(1:NSOIL) :: RHSTSIN
+      REAL, DIMENSION(1:NSOIL) :: CIIN
+      REAL                 :: DT
+
+!$acc parallel vector_length(128)
+!$acc loop gang vector private(RHSTSIN,CIIN)
+DO I=its,ite
+  IF((XLAND(I)-1.5).LT.0.)THEN
+    IF (ICE(I) == 0) THEN
+      IF (SNEQV(I)  /= 0.0) THEN
+! ----------------------------------------------------------------------
+! CREATE FINITE DIFFERENCE VALUES FOR USE IN ROSR12 ROUTINE
+! ----------------------------------------------------------------------
+      DO K = 1,NSOIL
+         RHSTS (K,I) = RHSTS (K,I) * DT
+         AI (K,I) = AI (K,I) * DT
+         BI (K,I) = 1. + BI (K,I) * DT
+         CI (K,I) = CI (K,I) * DT
+      END DO
+! ----------------------------------------------------------------------
+! COPY VALUES FOR INPUT VARIABLES BEFORE CALL TO ROSR12
+! ----------------------------------------------------------------------
+      DO K = 1,NSOIL
+         RHSTSIN (K) = RHSTS (K,I)
+      END DO
+      DO K = 1,NSOIL
+         CIIN (K) = CI (K,I)
+      END DO
+! ----------------------------------------------------------------------
+! SOLVE THE TRI-DIAGONAL MATRIX EQUATION
+! ----------------------------------------------------------------------
+!!!                      (P, A, B, C,   D,      DELTA,NSOIL)
+!!!      CALL ROSR12_gpu (CI,AI,BI,CIIN,RHSTSIN,RHSTS,NSOIL)
+!!!--------------------------------------------------------------------------------
+! ----------------------------------------------------------------------
+! INITIALIZE EQN COEF C FOR THE LOWEST SOIL LAYER
+! ----------------------------------------------------------------------
+      CIIN (NSOIL) = 0.0
+      CI (1,I) = - CIIN (1) / BI (1,I)
+! ----------------------------------------------------------------------
+! SOLVE THE COEFS FOR THE 1ST SOIL LAYER
+! ----------------------------------------------------------------------
+
+! ----------------------------------------------------------------------
+! SOLVE THE COEFS FOR SOIL LAYERS 2 THRU NSOIL
+! ----------------------------------------------------------------------
+      RHSTS (1,I) = RHSTSIN (1) / BI (1,I)
+      DO K = 2,NSOIL
+         CI (K,I) = - CIIN (K) * ( 1.0 / (BI (K,I) + AI (K,I) * CI (K -1,I)) )
+         RHSTS (K,I) = (RHSTSIN (K) - AI (K,I)* RHSTS (K -1,I))* (1.0/ (BI (K,I) + AI (K,I)&
+                    * CI (K -1,I)))
+      END DO
+! ----------------------------------------------------------------------
+! SET P TO DELTA FOR LOWEST SOIL LAYER
+! ----------------------------------------------------------------------
+      CI (NSOIL,I) = RHSTS (NSOIL,I)
+
+! ----------------------------------------------------------------------
+! ADJUST P FOR SOIL LAYERS 2 THRU NSOIL
+! ----------------------------------------------------------------------
+      DO K = 2,NSOIL
+         KK = NSOIL - K + 1
+         CI (KK,I) = CI (KK,I) * CI (KK +1,I) + RHSTS (KK,I)
+      END DO
+!!!---------------------------------------------------------------------------------
+! ----------------------------------------------------------------------
+! CALC/UPDATE THE SOIL TEMPS USING MATRIX SOLUTION
+! ----------------------------------------------------------------------
+      DO K = 1,NSOIL
+         STCOUT (K,I) = STCIN (K,I) + CI (K,I)
+      END DO
+      END IF
+    ENDIF
+  ENDIF
+ENDDO
+!$acc end parallel
+! ----------------------------------------------------------------------
+  END SUBROUTINE HSTEP_gpu2
 ! ----------------------------------------------------------------------
 
       SUBROUTINE NOPAC (ETP,ETA,PRCP,SMC,SMCMAX,SMCWLT,                 &
@@ -4226,9 +4934,22 @@ ENDDO
 ! ----------------------------------------------------------------------
   END SUBROUTINE NOPAC
 ! ----------------------------------------------------------------------
-
-      SUBROUTINE NOPAC_gpu (ETP,ETA,PRCP,SMC,SMCMAX,SMCWLT,                 &
-                         SMCREF,SMCDRY,CMC,CMCMAX,NSOIL,DT,SHDFAC,      &
+!!!        CALL NOPAC_gpu (ETP(I),ETA(I),PRCP(I),SMC(1:NSOIL,I),SMCMAX(I),SMCWLT(I),                  &
+!!!                        SMCREF(I),SMCDRY(I),CMC(I),CMCMAX(I),NSOIL,DT,           &
+!!!                        SHDFAC(I),                                      &
+!!!                        SBETA(I),Q2(I),T1(I),SFCTMP(I),T24(I),TH2(I),FDOWN(I),F1(I),EMISSI(I),  &
+!!!                        SSOIL(I),                                       &
+!!!                        STC(1:NSOIL,I),EPSCA(I),BEXP(I),PC(I),RCH(I),RR(I),CFACTR(I),             &
+!!!                        SH2O(1:NSOIL,I),SLOPE(I),KDT(I),FRZX(I),PSISAT(I),ZSOIL(1:NSOIL,I),            &
+!!!                        DKSAT(I),DWSAT(I),TBOT(I),ZBOT(I),RUNOFF1(I),RUNOFF2(I),       &
+!!!                        RUNOFF3(I),EDIR(I),EC(I),ET(1:NSOIL,I),ETT(I),NROOT(I),RTDIS(1:NSOIL,I),          &
+!!!                        QUARTZ(I),FXEXP(I),CSOIL(I),                          &
+!!!                        BETA(I),DRIP(I),DEW(I),FLX1(I),FLX3(I),VEGTYP(I),ISURBAN,      &
+!!!                        SFHEAD1RT(I),INFXS1RT(I),ETPND1(I),SOILTYP(I),OPT_THCND  &
+!!!                       ,XSDA_QFX(I),QFX_PHY(I),XQNORM(I),FASDAS,HCPCT_FASDAS(I),ETA_KINEMATIC(I))
+      SUBROUTINE NOPAC_gpu (ETP,ETA,PRCP,SMC,SMCMAX,SMCWLT,             &
+                         SMCREF,SMCDRY,CMC,CMCMAX,NSOIL,DT,             &
+                         SHDFAC,                                        &
                          SBETA,Q2,T1,SFCTMP,T24,TH2,FDOWN,F1,EMISSI,    &
                          SSOIL,                                         &
                          STC,EPSCA,BEXP,PC,RCH,RR,CFACTR,               &
@@ -4238,8 +4959,8 @@ ENDDO
                          QUARTZ,FXEXP,CSOIL,                            &
                          BETA,DRIP,DEW,FLX1,FLX3,VEGTYP,ISURBAN,        &
                          SFHEAD1RT,INFXS1RT,ETPND1,SOILTYP,OPT_THCND    &
-                        ,XSDA_QFX,QFX_PHY,XQNORM,FASDAS,HCPCT_FASDAS    ) !fasdas
-!$acc routine seq
+                        ,XSDA_QFX,QFX_PHY,XQNORM,FASDAS,HCPCT_FASDAS,   &
+                         its,ite,ETA_KINEMATIC,XLAND,ICE,SNEQV) !fasdas
 
 ! ----------------------------------------------------------------------
 ! SUBROUTINE NOPAC
@@ -4250,236 +4971,365 @@ ENDDO
 ! ----------------------------------------------------------------------
       IMPLICIT NONE
 
-      INTEGER, INTENT(IN)  :: OPT_THCND
-      INTEGER, INTENT(IN)  :: NROOT,NSOIL,VEGTYP,SOILTYP
+      INTEGER, INTENT(IN)  :: OPT_THCND,its,ite
+      INTEGER, INTENT(IN)  :: NSOIL
+      INTEGER, DIMENSION(its:ite), INTENT(IN) :: NROOT,VEGTYP,SOILTYP,ICE
       INTEGER, INTENT(IN)  :: ISURBAN
-      INTEGER              :: K
+      INTEGER              :: K,I
 
-      REAL, INTENT(IN)     :: BEXP,CFACTR, CMCMAX,CSOIL,DKSAT,DT,DWSAT, &
-                              EPSCA,ETP,FDOWN,F1,FXEXP,FRZFACT,KDT,PC,  &
-                              PRCP,PSISAT,Q2,QUARTZ,RCH,RR,SBETA,SFCTMP,&
-                              SHDFAC,SLOPE,SMCDRY,SMCMAX,SMCREF,SMCWLT, &
-                              T24,TBOT,TH2,ZBOT,EMISSI
-      REAL, INTENT(INOUT)  :: CMC,BETA,T1
-      REAL, INTENT(OUT)    :: DEW,DRIP,EC,EDIR,ETA,ETT,FLX1,FLX3,       &
-                              RUNOFF1,RUNOFF2,RUNOFF3,SSOIL
+      REAL, INTENT(IN)     :: DT
+      REAL, DIMENSION(its:ite), INTENT(IN) ::ETP,PRCP,SMCMAX,SMCWLT,CMCMAX, &
+                                             SMCDRY,SMCREF,FDOWN,F1,Q2,SBETA, &
+                                             SFCTMP,SHDFAC,T24,TH2,EMISSI,BEXP, &
+                                             CFACTR,EPSCA,PC,RCH,RR,FRZFACT,KDT, &
+                                             PSISAT,SLOPE,DKSAT,DWSAT,TBOT,ZBOT, &
+                                             CSOIL,FXEXP,QUARTZ,XLAND,SNEQV
+      REAL, DIMENSION(its:ite), INTENT(INOUT) :: CMC,T1,BETA
+      REAL, DIMENSION(its:ite), INTENT(OUT) :: ETA,SSOIL,RUNOFF1,RUNOFF2,RUNOFF3, &
+                                               EC,EDIR,ETT,DEW,DRIP,FLX1,FLX3, &
+                                               ETA_KINEMATIC
 !DJG NDHMS/WRF-Hydro edit...
-      REAL, INTENT(INOUT)  :: SFHEAD1RT,INFXS1RT,ETPND1
+      REAL, DIMENSION(its:ite), INTENT(INOUT)  :: SFHEAD1RT,INFXS1RT,ETPND1
 
-      REAL, DIMENSION(1:NSOIL),INTENT(IN)     :: RTDIS,ZSOIL
-      REAL, DIMENSION(1:NSOIL),INTENT(OUT)    :: ET
-      REAL, DIMENSION(1:NSOIL), INTENT(INOUT) :: SMC,SH2O,STC
-      REAL, DIMENSION(1:NSOIL) :: ET1
-      REAL                 :: EC1,EDIR1,ETT1,DF1,ETA1,ETP1,PRCP1,YY,    &
-                              YYNUM,ZZ1
+      REAL, DIMENSION(1:NSOIL,its:ite), INTENT(IN) :: ZSOIL,RTDIS
+      REAL, DIMENSION(1:NSOIL,its:ite), INTENT(OUT)    :: ET
+      REAL, DIMENSION(1:NSOIL,its:ite), INTENT(INOUT) :: SMC,STC,SH2O
+      REAL, DIMENSION(1:NSOIL,its:ite) :: ET1
+      REAL                 :: YYNUM
+      REAL, DIMENSION(its:ite) :: EC1,EDIR1,ETT1,ETP1,PRCP1,ETA1,DF1,YY,ZZ1
 !
 ! FASDAS
 !
-      REAL                       ::  XSDA_QFX, QFX_PHY, XQNORM
+      REAL, DIMENSION(its:ite)   ::  XSDA_QFX, QFX_PHY, XQNORM
       INTEGER                    ::  FASDAS
-      REAL , DIMENSION(1:NSOIL)  ::  EFT(NSOIL), WETTY(1:NSOIL)
+      REAL , DIMENSION(1:NSOIL)  ::  EFT
+      REAL, DIMENSION(1:NSOIL,its:ite) :: WETTY
       REAL                       ::  EFDIR, EFC, EALL_NOW
-      REAL, INTENT(  OUT)        ::  HCPCT_FASDAS
+      REAL, DIMENSION(its:ite), INTENT(  OUT)        ::  HCPCT_FASDAS
 !
 ! END FASDAS
 !
+!$acc data present(ETP,ETA,PRCP,SMC,SMCMAX,SMCWLT,SMCREF,SMCDRY,CMC,CMCMAX, &
+!$acc              SHDFAC,SBETA,Q2,T1,SFCTMP,T24,TH2,FDOWN,F1,EMISSI,SSOIL, &
+!$acc              STC,EPSCA,BEXP,PC,RCH,RR,CFACTR,SH2O,SLOPE,KDT,FRZFACT,  &
+!$acc              PSISAT,ZSOIL,DKSAT,DWSAT,TBOT,ZBOT,RUNOFF1,RUNOFF2,      &
+!$acc              RUNOFF3,EDIR,EC,ET,ETT,NROOT,RTDIS,QUARTZ,FXEXP,CSOIL,   &
+!$acc              BETA,DRIP,DEW,FLX1,FLX3,VEGTYP,SFHEAD1RT,INFXS1RT,ETPND1,&
+!$acc              SOILTYP,XSDA_QFX,QFX_PHY,XQNORM,HCPCT_FASDAS,            &
+!$acc              ETA_KINEMATIC,XLAND,ICE,SNEQV) &
+!$acc      create(ET1,EC1,EDIR1,ETT1,ETP1,PRCP1,WETTY,ETA1,DF1,YY,ZZ1)
+
+!$acc parallel vector_length(128)
+!$acc loop gang vector
+DO I=its,ite
+  IF((XLAND(I)-1.5).LT.0.)THEN
+    IF (ICE(I) == 0) THEN
+      IF (SNEQV(I)  == 0.0) THEN
 ! ----------------------------------------------------------------------
 ! EXECUTABLE CODE BEGINS HERE:
 ! CONVERT ETP Fnd PRCP FROM KG M-2 S-1 TO M S-1 AND INITIALIZE DEW.
 ! ----------------------------------------------------------------------
-      PRCP1 = PRCP * 0.001
-      ETP1 = ETP * 0.001
-      DEW = 0.0
+        PRCP1(I) = PRCP(I) * 0.001
+        ETP1(I) = ETP(I) * 0.001
+        DEW(I) = 0.0
 ! ----------------------------------------------------------------------
 ! INITIALIZE EVAP TERMS.
 ! ----------------------------------------------------------------------
 !
 ! FASDAS
 !
-      QFX_PHY = 0.0
+        QFX_PHY(I) = 0.0
 !
 ! END FASDAS
 !
-      EDIR = 0.
-      EDIR1 = 0.
-      EC1 = 0.
-      EC = 0.
-      DO K = 1,NSOIL
-        ET(K) = 0.
-        ET1(K) = 0.
+        EDIR(I) = 0.
+        EDIR1(I) = 0.
+        EC1(I) = 0.
+        EC(I) = 0.
+        DO K = 1,NSOIL
+          ET(K,I) = 0.
+          ET1(K,I) = 0.
 !
 ! FASDAS
 !
-        WETTY(K) = 1.0
+          WETTY(K,I) = 1.0
 !
 ! END FASDAS
 !
-      END DO
-      ETT = 0.
-      ETT1 = 0.
+        END DO
+        ETT(I) = 0.
+        ETT1(I) = 0.
 
 !DJG NDHMS/WRF-Hydro edit...
-      ETPND1 = 0.
+        ETPND1(I) = 0.
+      END IF
+    ENDIF
+  ENDIF
+ENDDO
+!$acc end parallel
 
-
-      IF (ETP > 0.0) THEN
-         CALL EVAPO_gpu (ETA1,SMC,NSOIL,CMC,ETP1,DT,ZSOIL,                  &
-                      SH2O,                                             &
-                      SMCMAX,BEXP,PC,SMCWLT,DKSAT,DWSAT,                &
-                      SMCREF,SHDFAC,CMCMAX,                             &
-                      SMCDRY,CFACTR,                                    &
-                       EDIR1,EC1,ET1,ETT1,SFCTMP,Q2,NROOT,RTDIS,FXEXP,  &
-                      SFHEAD1RT,ETPND1 )
+!!!!$acc parallel vector_length(128)
+!!!!$acc loop gang vector
+!!!DO I=its,ite
+!!!  IF((XLAND(I)-1.5).LT.0.)THEN
+!!!    IF (ICE(I) == 0) THEN
+!!!      IF (SNEQV(I)  == 0.0) THEN
+!!!        IF (ETP(I) > 0.0) THEN
+!!!          CALL EVAPO_gpu1 (ETA1(I),SMC(1:NSOIL,I),NSOIL,CMC(I),ETP1(I),DT,ZSOIL(1:NSOIL,I),                  &
+!!!                          SH2O(1:NSOIL,I),                                             &
+!!!                          SMCMAX(I),BEXP(I),PC(I),SMCWLT(I),DKSAT(I),DWSAT(I),                &
+!!!                          SMCREF(I),SHDFAC(I),CMCMAX(I),                             &
+!!!                          SMCDRY(I),CFACTR(I),                                    &
+!!!                          EDIR1(I),EC1(I),ET1(1:NSOIL,I),ETT1(I),SFCTMP(I),Q2(I),NROOT(I),RTDIS(1:NSOIL,I),FXEXP(I),  &
+!!!                          SFHEAD1RT(I),ETPND1(I),its,ite,XLAND,ICE,SNEQV,ETP)
+!!!        ENDIF
+!!!      END IF
+!!!    ENDIF
+!!!  ENDIF
+!!!ENDDO
+!!!!$acc end parallel
+CALL EVAPO_gpu1 (ETA1,SMC,NSOIL,CMC,ETP1,DT,ZSOIL,                  &
+                  SH2O,                                             &
+                  SMCMAX,BEXP,PC,SMCWLT,DKSAT,DWSAT,                &
+                  SMCREF,SHDFAC,CMCMAX,                             &
+                  SMCDRY,CFACTR,                                    &
+                  EDIR1,EC1,ET1,ETT1,SFCTMP,Q2,NROOT,RTDIS,FXEXP,   &
+                  SFHEAD1RT,ETPND1,its,ite,XLAND,ICE,SNEQV,ETP)
 !
 ! FASDAS
 !
-      IF( FASDAS == 1 ) THEN
-        DO K=1,NSOIL
-        QFX_PHY = QFX_PHY + ET1(K)   ! m/s
+!$acc parallel vector_length(128)
+!$acc loop gang vector private(EALL_NOW,EFDIR,EFC,EFT)
+DO I=its,ite
+  IF((XLAND(I)-1.5).LT.0.)THEN
+    IF (ICE(I) == 0) THEN
+      IF (SNEQV(I)  == 0.0) THEN
+        IF (ETP(I) > 0.0) THEN
+          ETA(I) = ETA1(I) * 1000.0
+          IF( FASDAS == 1 ) THEN
+            DO K=1,NSOIL
+              QFX_PHY(I) = QFX_PHY(I) + ET1(K,I)   ! m/s
 ! dont add moisture fluxes if soil moisture is = or > smcref
-        IF(SMC(K).GE.SMCREF.and.XSDA_QFX.gt.0.0) WETTY(K)=0.0
-        END DO
-       QFX_PHY = EDIR1+EC1+QFX_PHY    ! m/s
-       EALL_NOW = QFX_PHY           ! m/s
-       QFX_PHY = QFX_PHY*1000.0     ! Kg/m2/s
+              IF(SMC(K,I).GE.SMCREF(I).and.XSDA_QFX(I).gt.0.0) WETTY(K,I)=0.0
+            END DO
+            QFX_PHY(I) = EDIR1(I)+EC1(I)+QFX_PHY(I)    ! m/s
+            EALL_NOW = QFX_PHY(I)           ! m/s
+            QFX_PHY(I) = QFX_PHY(I)*1000.0     ! Kg/m2/s
 
-       if(EALL_NOW.ne.0.0) then
-       EFDIR = (EDIR1/EALL_NOw)*XSDA_QFX*1.0E-03*XQNORM
-       EFDIR = EFDIR * WETTY(1)
+            if(EALL_NOW.ne.0.0) then
+              EFDIR = (EDIR1(I)/EALL_NOw)*XSDA_QFX(I)*1.0E-03*XQNORM(I)
+              EFDIR = EFDIR * WETTY(1,I)
           !TWG2015 Bugfix Flip Sign to conform to Net upward Flux
-           EDIR1 = EDIR1 + EFDIR    ! new value
+              EDIR1(I) = EDIR1(I) + EFDIR    ! new value
        
-       EFC = (EC1/EALL_NOW)*XSDA_QFX*1.0E-03*XQNORM
+              EFC = (EC1(I)/EALL_NOW)*XSDA_QFX(I)*1.0E-03*XQNORM(I)
        !TWG2015 Bugfix Flip Sign to conform to Net upward Flux
-       EC1 = EC1 + EFC         ! new value
+              EC1(I) = EC1(I) + EFC         ! new value
 
 
-       DO K=1,NSOIL
-        EFT(K) = (ET1(K)/EALL_NOW)*XSDA_QFX*1.0E-03*XQNORM
-        EFT(K) =  EFT(K) * WETTY(K)
+              DO K=1,NSOIL
+                EFT(K) = (ET1(K,I)/EALL_NOW)*XSDA_QFX(I)*1.0E-03*XQNORM(I)
+                EFT(K) =  EFT(K) * WETTY(K,I)
         !TWG2015 Bugfix Flip Sign to conform to Net upward Flux
-        ET1(K) = ET1(K) + EFT(K) ! new value
-       END DO
-
-
-       END IF ! for non-zero eall_now
-      ELSE
-        QFX_PHY = 0.0
-      ENDIF
+                ET1(K,I) = ET1(K,I) + EFT(K) ! new value
+              END DO
+            END IF ! for non-zero eall_now
+          ELSE
+            QFX_PHY(I) = 0.0
+          ENDIF
+        ENDIF
+      END IF
+    ENDIF
+  ENDIF
+ENDDO
+!$acc end parallel
 !
 ! END FASDAS
 !
-         CALL SMFLX_gpu (SMC,NSOIL,CMC,DT,PRCP1,ZSOIL,                      &
-                      SH2O,SLOPE,KDT,FRZFACT,                           &
-                      SMCMAX,BEXP,SMCWLT,DKSAT,DWSAT,                   &
-                      SHDFAC,CMCMAX,                                    &
-                      RUNOFF1,RUNOFF2,RUNOFF3,                          &
-                      EDIR1,EC1,ET1,                                    &
-                      DRIP, SFHEAD1RT,INFXS1RT)
+!!!!$acc parallel vector_length(128)
+!!!!$acc loop gang vector
+!!!DO I=its,ite
+!!!  IF((XLAND(I)-1.5).LT.0.)THEN
+!!!    IF (ICE(I) == 0) THEN
+!!!      IF (SNEQV(I)  == 0.0) THEN
+!!!        IF (ETP(I) > 0.0) THEN
+!!!          CALL SMFLX_gpu1 (SMC(1:NSOIL,I),NSOIL,CMC(I),DT,PRCP1(I),ZSOIL(1:NSOIL,I),                      &
+!!!                          SH2O(1:NSOIL,I),SLOPE(I),KDT(I),FRZFACT(I),                           &
+!!!                          SMCMAX(I),BEXP(I),SMCWLT(I),DKSAT(I),DWSAT(I),                   &
+!!!                          SHDFAC(I),CMCMAX(I),                                    &
+!!!                          RUNOFF1(I),RUNOFF2(I),RUNOFF3(I),                          &
+!!!                          EDIR1(I),EC1(I),ET1(1:NSOIL,I),                                    &
+!!!                          DRIP(I), SFHEAD1RT(I),INFXS1RT(I))
 
 ! ----------------------------------------------------------------------
 ! CONVERT MODELED EVAPOTRANSPIRATION FROM  M S-1  TO  KG M-2 S-1.
 ! ----------------------------------------------------------------------
-
-         ETA = ETA1 * 1000.0
-
 ! ----------------------------------------------------------------------
 ! IF ETP < 0, ASSUME DEW FORMS (TRANSFORM ETP1 INTO DEW AND REINITIALIZE
 ! ETP1 TO ZERO).
 ! ----------------------------------------------------------------------
-      ELSE
-         DEW = - ETP1
+!!!        ENDIF
+!!!      END IF
+!!!    ENDIF
+!!!  ENDIF
+!!!ENDDO
+!!!!$acc end parallel
+CALL SMFLX_gpu1 (SMC,NSOIL,CMC,DT,PRCP1,ZSOIL,                      &
+                  SH2O,SLOPE,KDT,FRZFACT,                           &
+                  SMCMAX,BEXP,SMCWLT,DKSAT,DWSAT,                   &
+                  SHDFAC,CMCMAX,                                    &
+                  RUNOFF1,RUNOFF2,RUNOFF3,                          &
+                  EDIR1,EC1,ET1,                                    &
+                  DRIP,SFHEAD1RT,INFXS1RT,its,ite,XLAND,ICE,SNEQV,ETP)
+
+!$acc parallel vector_length(128)
+!$acc loop gang vector private(EALL_NOW,EFDIR,EFC,EFT)
+DO I=its,ite
+  IF((XLAND(I)-1.5).LT.0.)THEN
+    IF (ICE(I) == 0) THEN
+      IF (SNEQV(I)  == 0.0) THEN
+        IF (ETP(I) <= 0.0) THEN
+          DEW(I) = - ETP1(I)
 
 ! ----------------------------------------------------------------------
 ! CONVERT PRCP FROM 'KG M-2 S-1' TO 'M S-1' AND ADD DEW AMOUNT.
 ! ----------------------------------------------------------------------
 
-         PRCP1 = PRCP1+ DEW
+          PRCP1(I) = PRCP1(I)+ DEW(I)
 !
 ! FASDAS
 !
-     IF( FASDAS == 1 ) THEN
-       DO K=1,NSOIL
-        QFX_PHY = QFX_PHY + ET1(K)   ! m/s
+          IF( FASDAS == 1 ) THEN
+            DO K=1,NSOIL
+              QFX_PHY(I) = QFX_PHY(I) + ET1(K,I)   ! m/s
 ! dont add moisture fluxes if soil moisture is = or > smcref
-        IF(SMC(K).GE.SMCREF.and.XSDA_QFX.gt.0.0) WETTY(K)=0.0
-       END DO
-       QFX_PHY = EDIR1+EC1+QFX_PHY    ! m/s
-        EALL_NOW = QFX_PHY     ! m/s
-       QFX_PHY = QFX_PHY*1000.0    ! Kg/m2/s
+              IF(SMC(K,I).GE.SMCREF(I).and.XSDA_QFX(I).gt.0.0) WETTY(K,I)=0.0
+            END DO
+            QFX_PHY(I) = EDIR1(I)+EC1(I)+QFX_PHY(I)    ! m/s
+            EALL_NOW = QFX_PHY(I)    ! m/s
+            QFX_PHY(I) = QFX_PHY(I)*1000.0    ! Kg/m2/s
 
-       IF(EALL_NOW.ne.0.0) then
-       EFDIR = (EDIR1/EALL_NOW)*XSDA_QFX*1.0E-03*XQNORM
-        EFDIR =  EFDIR * WETTY(1)
+            IF(EALL_NOW.ne.0.0) then
+              EFDIR = (EDIR1(I)/EALL_NOW)*XSDA_QFX(I)*1.0E-03*XQNORM(I)
+              EFDIR =  EFDIR * WETTY(1,I)
           !TWG2015 Bugfix Flip Sign to conform to Net Upward Flux
-           EDIR1 = EDIR1 + EFDIR    ! new value
+              EDIR1(I) = EDIR1(I) + EFDIR    ! new value
 
-        EFC = (EC1/EALL_NOW)*XSDA_QFX*1.0E-03*XQNORM
+              EFC = (EC1(I)/EALL_NOW)*XSDA_QFX(I)*1.0E-03*XQNORM(I)
         !TWG2015 Bugfix Flip Sign to conform to Net Upward Flux
-        EC1 = EC1+ EFC         ! new value
+              EC1(I) = EC1(I)+ EFC         ! new value
 
-       DO K=1,NSOIL
-        EFT(K) = (ET1(K)/EALL_NOW)*XSDA_QFX*1.0E-03*XQNORM
-        EFT(K) = EFT(K) * WETTY(K)
+              DO K=1,NSOIL
+                EFT(K) = (ET1(K,I)/EALL_NOW)*XSDA_QFX(I)*1.0E-03*XQNORM(I)
+                EFT(K) = EFT(K) * WETTY(K,I)
         !TWG2015 Bugfix Flip Sign to conform to Net Upward Flux
-        ET1(K) = ET1(K) + EFT(K)   ! new value
-       END DO
-
-        END IF ! for non-zero eall_now
-      ELSE
-        QFX_PHY = 0.0
-      ENDIF
+                ET1(K,I) = ET1(K,I) + EFT(K)   ! new value
+              END DO
+            END IF ! for non-zero eall_now
+          ELSE
+            QFX_PHY(I) = 0.0
+          ENDIF
+        END IF
+      END IF
+    ENDIF
+  ENDIF
+ENDDO
+!$acc end parallel
 !
 ! END FASDAS
 !
-         CALL SMFLX_gpu (SMC,NSOIL,CMC,DT,PRCP1,ZSOIL,                      &
-                      SH2O,SLOPE,KDT,FRZFACT,                           &
-                      SMCMAX,BEXP,SMCWLT,DKSAT,DWSAT,                   &
-                      SHDFAC,CMCMAX,                                    &
-                      RUNOFF1,RUNOFF2,RUNOFF3,                          &
-                      EDIR1,EC1,ET1,                                    &
-                      DRIP, SFHEAD1RT,INFXS1RT)
+!!!!$acc parallel vector_length(128)
+!!!!$acc loop gang vector
+!!!DO I=its,ite
+!!!  IF((XLAND(I)-1.5).LT.0.)THEN
+!!!    IF (ICE(I) == 0) THEN
+!!!      IF (SNEQV(I)  == 0.0) THEN
+!!!        IF (ETP(I) <= 0.0) THEN
+!!!          CALL SMFLX_gpu2 (SMC(1:NSOIL,I),NSOIL,CMC(I),DT,PRCP1(I),ZSOIL(1:NSOIL,I),                      &
+!!!                          SH2O(1:NSOIL,I),SLOPE(I),KDT(I),FRZFACT(I),                           &
+!!!                          SMCMAX(I),BEXP(I),SMCWLT(I),DKSAT(I),DWSAT(I),                   &
+!!!                          SHDFAC(I),CMCMAX(I),                                    &
+!!!                          RUNOFF1(I),RUNOFF2(I),RUNOFF3(I),                          &
+!!!                          EDIR1(I),EC1(I),ET1(1:NSOIL,I),                                    &
+!!!                          DRIP(I), SFHEAD1RT(I),INFXS1RT(I))
 
 ! ----------------------------------------------------------------------
 ! CONVERT MODELED EVAPOTRANSPIRATION FROM 'M S-1' TO 'KG M-2 S-1'.
 ! ----------------------------------------------------------------------
 !         ETA = ETA1 * 1000.0
-      END IF
-
+!!!        END IF
+!!!      END IF
+!!!    ENDIF
+!!!  ENDIF
+!!!ENDDO
+!!!!$acc end parallel
+CALL SMFLX_gpu2 (SMC,NSOIL,CMC,DT,PRCP1,ZSOIL,                      &
+                  SH2O,SLOPE,KDT,FRZFACT,                           &
+                  SMCMAX,BEXP,SMCWLT,DKSAT,DWSAT,                   &
+                  SHDFAC,CMCMAX,                                    &
+                  RUNOFF1,RUNOFF2,RUNOFF3,                          &
+                  EDIR1,EC1,ET1,                                    &
+                  DRIP,SFHEAD1RT,INFXS1RT,its,ite,XLAND,ICE,SNEQV,ETP)
 ! ----------------------------------------------------------------------
 ! BASED ON ETP AND E VALUES, DETERMINE BETA
 ! ----------------------------------------------------------------------
-
-      IF ( ETP <= 0.0 ) THEN
-         BETA = 0.0
-         ETA = ETP
-         IF ( ETP < 0.0 ) THEN
-            BETA = 1.0
-         END IF
-      ELSE
-         BETA = ETA / ETP
-      END IF
+!$acc parallel vector_length(128)
+!$acc loop gang vector 
+DO I=its,ite
+  IF((XLAND(I)-1.5).LT.0.)THEN
+    IF (ICE(I) == 0) THEN
+      IF (SNEQV(I)  == 0.0) THEN
+        IF ( ETP(I) <= 0.0 ) THEN
+          BETA(I) = 0.0
+          ETA(I) = ETP(I)
+          IF ( ETP(I) < 0.0 ) THEN
+            BETA(I) = 1.0
+          END IF
+        ELSE
+          BETA(I) = ETA(I) / ETP(I)
+        END IF
 
 ! ----------------------------------------------------------------------
 ! CONVERT MODELED EVAPOTRANSPIRATION COMPONENTS 'M S-1' TO 'KG M-2 S-1'.
 ! ----------------------------------------------------------------------
-      EDIR = EDIR1*1000.
-      EC = EC1*1000.
-      DO K = 1,NSOIL
-        ET(K) = ET1(K)*1000.
-      END DO
-      ETT = ETT1*1000.
-
+        EDIR(I) = EDIR1(I)*1000.
+        EC(I) = EC1(I)*1000.
+        DO K = 1,NSOIL
+          ET(K,I) = ET1(K,I)*1000.
+        END DO
+        ETT(I) = ETT1(I)*1000.
+      END IF
+    ENDIF
+  ENDIF
+ENDDO
+!$acc end parallel
 ! ----------------------------------------------------------------------
 ! GET SOIL THERMAL DIFFUXIVITY/CONDUCTIVITY FOR TOP SOIL LYR,
 ! CALC. ADJUSTED TOP LYR SOIL TEMP AND ADJUSTED SOIL FLUX, THEN
 ! CALL SHFLX TO COMPUTE/UPDATE SOIL HEAT FLUX AND SOIL TEMPS.
 ! ----------------------------------------------------------------------
 
-      CALL TDFCND_gpu (DF1,SMC (1),QUARTZ,SMCMAX,SH2O (1),BEXP, PSISAT, SOILTYP, OPT_THCND)
+!$acc parallel vector_length(128)
+!$acc loop gang vector
+DO I=its,ite
+  IF((XLAND(I)-1.5).LT.0.)THEN
+    IF (ICE(I) == 0) THEN
+      IF (SNEQV(I)  == 0.0) THEN
+        CALL TDFCND_gpu (DF1(I),SMC (1,I),QUARTZ(I),SMCMAX(I),SH2O (1,I),BEXP(I), PSISAT(I), SOILTYP(I), OPT_THCND)
+      END IF
+    ENDIF
+  ENDIF
+ENDDO
+!$acc end parallel
 
+!$acc parallel vector_length(128)
+!$acc loop gang vector private(YYNUM)
+DO I=its,ite
+  IF((XLAND(I)-1.5).LT.0.)THEN
+    IF (ICE(I) == 0) THEN
+      IF (SNEQV(I)  == 0.0) THEN
 !urban
-      IF ( VEGTYP == ISURBAN ) DF1=3.24
+        IF ( VEGTYP(I) == ISURBAN ) DF1(I)=3.24
 !
 
 ! ----------------------------------------------------------------------
@@ -4489,30 +5339,63 @@ ENDDO
 ! (SEE ADDITIONAL COMMENTS ON VEG EFFECT SUB-SFC HEAT FLX IN
 ! ROUTINE SFLX)
 ! ----------------------------------------------------------------------
-      DF1 = DF1 * EXP (SBETA * SHDFAC)
+        DF1(I) = DF1(I) * EXP (SBETA(I) * SHDFAC(I))
 ! ----------------------------------------------------------------------
 ! COMPUTE INTERMEDIATE TERMS PASSED TO ROUTINE HRT (VIA ROUTINE
 ! SHFLX BELOW) FOR USE IN COMPUTING SUBSURFACE HEAT FLUX IN HRT
 ! ----------------------------------------------------------------------
-      YYNUM = FDOWN - EMISSI*SIGMA * T24
-      YY = SFCTMP + (YYNUM / RCH + TH2- SFCTMP - BETA * EPSCA) / RR
+        YYNUM = FDOWN(I) - EMISSI(I)*SIGMA * T24(I)
+        YY(I) = SFCTMP(I) + (YYNUM / RCH(I) + TH2(I)- SFCTMP(I) - BETA(I) * EPSCA(I)) / RR(I)
 
-      ZZ1 = DF1 / ( -0.5 * ZSOIL (1) * RCH * RR ) + 1.0
+        ZZ1(I) = DF1(I) / ( -0.5 * ZSOIL (1,I) * RCH(I) * RR(I) ) + 1.0
+      END IF
+    ENDIF
+  ENDIF
+ENDDO
+!$acc end parallel
 
+!!!!$acc parallel vector_length(128)
+!!!!$acc loop gang vector
+!!!DO I=its,ite
+!!!  IF((XLAND(I)-1.5).LT.0.)THEN
+!!!    IF (ICE(I) == 0) THEN
+!!!      IF (SNEQV(I)  == 0.0) THEN
 !urban
-      CALL SHFLX_gpu (SSOIL,STC,SMC,SMCMAX,NSOIL,T1,DT,YY,ZZ1,ZSOIL,       &
-                  TBOT,ZBOT,SMCWLT,PSISAT,SH2O,BEXP,F1,DF1,            &
-                  QUARTZ,CSOIL,VEGTYP,ISURBAN,SOILTYP,OPT_THCND        &
-                 ,HCPCT_FASDAS                                         ) !fasdas
+!!!        CALL SHFLX_gpu1 (SSOIL(I),STC(1:NSOIL,I),SMC(1:NSOIL,I),SMCMAX(I),NSOIL,T1(I),DT,YY(I),ZZ1(I),ZSOIL(1:NSOIL,I),       &
+!!!                        TBOT(I),ZBOT(I),SMCWLT(I),PSISAT(I),SH2O(1:NSOIL,I),BEXP(I),F1(I),DF1(I),            &
+!!!                        QUARTZ(I),CSOIL(I),VEGTYP(I),ISURBAN,SOILTYP(I),OPT_THCND        &
+!!!                       ,HCPCT_FASDAS(I)                                         ) !fasdas
+!!!      END IF
+!!!    ENDIF
+!!!  ENDIF
+!!!ENDDO
+!!!!$acc end parallel
+CALL SHFLX_gpu1 (SSOIL,STC,SMC,SMCMAX,NSOIL,T1,DT,YY,ZZ1,ZSOIL,       &
+                 TBOT,ZBOT,SMCWLT,PSISAT,SH2O,BEXP,F1,DF1,            &
+                 QUARTZ,CSOIL,VEGTYP,ISURBAN,SOILTYP,OPT_THCND        &
+                ,HCPCT_FASDAS,its,ite,XLAND,ICE,SNEQV)
 
+!$acc parallel vector_length(128)
+!$acc loop gang vector
+DO I=its,ite
+  IF((XLAND(I)-1.5).LT.0.)THEN
+    IF (ICE(I) == 0) THEN
+      IF (SNEQV(I)  == 0.0) THEN
 ! ----------------------------------------------------------------------
 ! SET FLX1 AND FLX3 (SNOPACK PHASE CHANGE HEAT FLUXES) TO ZERO SINCE
 ! THEY ARE NOT USED HERE IN SNOPAC.  FLX2 (FREEZING RAIN HEAT FLUX) WAS
 ! SIMILARLY INITIALIZED IN THE PENMAN ROUTINE.
 ! ----------------------------------------------------------------------
-      FLX1 = CPH2O * PRCP * (T1- SFCTMP)
-      FLX3 = 0.0
+        FLX1(I) = CPH2O * PRCP(I) * (T1(I)- SFCTMP(I))
+        FLX3(I) = 0.0
 
+        ETA_KINEMATIC(I) = ETA(I)
+      END IF
+    ENDIF
+  ENDIF
+ENDDO
+!$acc end parallel
+!$acc end data
 ! ----------------------------------------------------------------------
   END SUBROUTINE NOPAC_gpu
 ! ----------------------------------------------------------------------
@@ -5396,11 +6279,14 @@ ENDDO
   END SUBROUTINE SHFLX
 ! ----------------------------------------------------------------------
 
-      SUBROUTINE SHFLX_gpu (SSOIL,STC,SMC,SMCMAX,NSOIL,T1,DT,YY,ZZ1,ZSOIL, &
+!!!                           (SSOIL(I),STC(1:NSOIL,I),SMC(1:NSOIL,I),SMCMAX(I),NSOIL,T1(I),DT,YY(I),ZZ1(I),ZSOIL(1:NSOIL,I),       &
+!!!                        TBOT(I),ZBOT(I),SMCWLT(I),PSISAT(I),SH2O(1:NSOIL,I),BEXP(I),F1(I),DF1(I),            &
+!!!                        QUARTZ(I),CSOIL(I),VEGTYP(I),ISURBAN,SOILTYP(I),OPT_THCND        &
+!!!                       ,HCPCT_FASDAS(I)
+      SUBROUTINE SHFLX_gpu1 (SSOIL,STC,SMC,SMCMAX,NSOIL,T1,DT,YY,ZZ1,ZSOIL, &
                          TBOT,ZBOT,SMCWLT,PSISAT,SH2O,BEXP,F1,DF1,     &
                          QUARTZ,CSOIL,VEGTYP,ISURBAN,SOILTYP,OPT_THCND &
-                        ,HCPCT_FASDAS                                  ) ! fasdas
-!$acc routine seq
+                        ,HCPCT_FASDAS,its,ite,XLAND,ICE,SNEQV) ! fasdas
 
 ! ----------------------------------------------------------------------
 ! SUBROUTINE SHFLX
@@ -5411,42 +6297,84 @@ ENDDO
 ! ----------------------------------------------------------------------
       IMPLICIT NONE
 
-      INTEGER, INTENT(IN)   :: OPT_THCND
-      INTEGER, INTENT(IN)   :: NSOIL, VEGTYP, ISURBAN, SOILTYP
-      INTEGER               :: I
+      INTEGER, INTENT(IN)   :: OPT_THCND,its,ite
+      INTEGER, INTENT(IN)   :: NSOIL, ISURBAN
+      INTEGER, DIMENSION(its:ite), INTENT(IN) :: VEGTYP,SOILTYP,ICE
+      INTEGER               :: I,K
 
-      REAL, INTENT(IN)      :: BEXP,CSOIL,DF1,DT,F1,PSISAT,QUARTZ,     &
-                               SMCMAX, SMCWLT, TBOT,YY, ZBOT,ZZ1
-      REAL, INTENT(INOUT)   :: T1
-      REAL, INTENT(OUT)     :: SSOIL
-      REAL, DIMENSION(1:NSOIL), INTENT(IN)    :: SMC,ZSOIL
-      REAL, DIMENSION(1:NSOIL), INTENT(INOUT) :: SH2O
-      REAL, DIMENSION(1:NSOIL), INTENT(INOUT) :: STC
-      REAL, DIMENSION(1:NSOIL)             :: AI, BI, CI, STCF,RHSTS
+      REAL, INTENT(IN)      :: DT
+      REAL, DIMENSION(its:ite), INTENT(IN) :: SMCMAX,YY,ZZ1,TBOT,ZBOT, &
+                               SMCWLT,PSISAT,BEXP,F1,DF1,QUARTZ,CSOIL, &
+                               XLAND,SNEQV
+      REAL, DIMENSION(its:ite), INTENT(INOUT)   :: T1
+      REAL, DIMENSION(its:ite), INTENT(OUT)     :: SSOIL
+      REAL, DIMENSION(1:NSOIL,its:ite), INTENT(IN)    :: ZSOIL
+      REAL, DIMENSION(1:NSOIL,its:ite), INTENT(IN) :: SMC
+      REAL, DIMENSION(1:NSOIL,its:ite), INTENT(INOUT) :: SH2O
+      REAL, DIMENSION(1:NSOIL,its:ite), INTENT(INOUT) :: STC
+      REAL, DIMENSION(1:NSOIL,its:ite) :: RHSTS,AI, BI, CI,STCF
       REAL, PARAMETER       :: T0 = 273.15
 
 !
 ! FASDAS
 !
-      REAL, INTENT(  OUT)     :: HCPCT_FASDAS
+      REAL, DIMENSION(its:ite), INTENT(  OUT)     :: HCPCT_FASDAS
 !
 ! END FASDAS
 !
 ! ----------------------------------------------------------------------
 ! HRT ROUTINE CALCS THE RIGHT HAND SIDE OF THE SOIL TEMP DIF EQN
 ! ----------------------------------------------------------------------
+!$acc data present(SSOIL,STC,SMC,SMCMAX,T1,YY,ZZ1,ZSOIL, &
+!$acc              TBOT,ZBOT,SMCWLT,PSISAT,SH2O,BEXP,F1,DF1,     &
+!$acc              QUARTZ,CSOIL,VEGTYP,SOILTYP,HCPCT_FASDAS, &
+!$acc              XLAND,ICE,SNEQV) &
+!$acc      create(RHSTS,AI,BI,CI,STCF)
 
+!!!!$acc parallel vector_length(128)
+!!!!$acc loop gang vector private(STCF)
+!!!DO I=its,ite
+!!!  IF((XLAND(I)-1.5).LT.0.)THEN
+!!!    IF (ICE(I) == 0) THEN
+!!!      IF (SNEQV(I)  == 0.0) THEN
       ! Land case
 
-      CALL HRT_gpu (RHSTS,STC,SMC,SMCMAX,NSOIL,ZSOIL,YY,ZZ1,TBOT,     &
-                ZBOT,PSISAT,SH2O,DT,BEXP,SOILTYP,OPT_THCND,       &
-                F1,DF1,QUARTZ,CSOIL,AI,BI,CI,VEGTYP,ISURBAN       &
-               ,HCPCT_FASDAS                                      ) !fasdas
+!!!      CALL HRT_gpu (RHSTS(1:NSOIL,I),STC(1:NSOIL,I),SMC(1:NSOIL,I),SMCMAX(I),NSOIL,ZSOIL(1:NSOIL,I),YY(I),ZZ1(I),TBOT(I),     &
+!!!                ZBOT(I),PSISAT(I),SH2O(1:NSOIL,I),DT,BEXP(I),SOILTYP(I),OPT_THCND,       &
+!!!                F1(I),DF1(I),QUARTZ(I),CSOIL(I),AI(1:NSOIL,I),BI(1:NSOIL,I),CI(1:NSOIL,I),VEGTYP(I),ISURBAN       &
+!!!               ,HCPCT_FASDAS(I)) !fasdas
+!!!      END IF
+!!!    ENDIF
+!!!  ENDIF
+!!!ENDDO
+!!!!$acc end parallel
+CALL HRT_gpu1 (RHSTS,STC,SMC,SMCMAX,NSOIL,ZSOIL,YY,ZZ1,TBOT,     &
+              ZBOT,PSISAT,SH2O,DT,BEXP,SOILTYP,OPT_THCND,       &
+              F1,DF1,QUARTZ,CSOIL,AI,BI,CI,VEGTYP,ISURBAN       &
+             ,HCPCT_FASDAS,its,ite,XLAND,ICE,SNEQV)
 
-      CALL HSTEP_gpu (STCF,STC,RHSTS,DT,NSOIL,AI,BI,CI)
+!!!!$acc parallel vector_length(128)
+!!!!$acc loop gang vector
+!!!DO I=its,ite
+!!!  IF((XLAND(I)-1.5).LT.0.)THEN
+!!!    IF (ICE(I) == 0) THEN
+!!!      IF (SNEQV(I)  == 0.0) THEN
+!!!      CALL HSTEP_gpu (STCF(1:NSOIL,I),STC(1:NSOIL,I),RHSTS(1:NSOIL,I),DT,NSOIL,AI(1:NSOIL,I),BI(1:NSOIL,I),CI(1:NSOIL,I))
+!!!      END IF
+!!!    ENDIF
+!!!  ENDIF
+!!!ENDDO
+!!!!$acc end parallel
+CALL HSTEP_gpu1 (STCF,STC,RHSTS,DT,NSOIL,AI,BI,CI,its,ite,XLAND,ICE,SNEQV)
 
-      DO I = 1,NSOIL
-         STC (I) = STCF (I)
+!$acc parallel vector_length(128)
+!$acc loop gang vector
+DO I=its,ite
+  IF((XLAND(I)-1.5).LT.0.)THEN
+    IF (ICE(I) == 0) THEN
+      IF (SNEQV(I)  == 0.0) THEN
+      DO K = 1,NSOIL
+         STC (K,I) = STCF (K,I)
       ENDDO
 
 ! ----------------------------------------------------------------------
@@ -5459,11 +6387,134 @@ ENDDO
 ! ----------------------------------------------------------------------
 ! CALCULATE SURFACE SOIL HEAT FLUX
 ! ----------------------------------------------------------------------
-      T1 = (YY + (ZZ1- 1.0) * STC (1)) / ZZ1
-      SSOIL = DF1 * (STC (1) - T1) / (0.5 * ZSOIL (1))
+      T1(I) = (YY(I) + (ZZ1(I)- 1.0) * STC (1,I)) / ZZ1(I)
+      SSOIL(I) = DF1(I) * (STC (1,I) - T1(I)) / (0.5 * ZSOIL (1,I))
+      END IF
+    ENDIF
+  ENDIF
+ENDDO
+!$acc end parallel
+
+!$acc end data
+! ----------------------------------------------------------------------
+  END SUBROUTINE SHFLX_gpu1
+! ----------------------------------------------------------------------
+
+      SUBROUTINE SHFLX_gpu2 (SSOIL,STC,SMC,SMCMAX,NSOIL,T1,DT,YY,ZZ1,ZSOIL, &
+                         TBOT,ZBOT,SMCWLT,PSISAT,SH2O,BEXP,F1,DF1,     &
+                         QUARTZ,CSOIL,VEGTYP,ISURBAN,SOILTYP,OPT_THCND &
+                        ,HCPCT_FASDAS,its,ite,XLAND,ICE,SNEQV) ! fasdas
 
 ! ----------------------------------------------------------------------
-  END SUBROUTINE SHFLX_gpu
+! SUBROUTINE SHFLX
+! ----------------------------------------------------------------------
+! UPDATE THE TEMPERATURE STATE OF THE SOIL COLUMN BASED ON THE THERMAL
+! DIFFUSION EQUATION AND UPDATE THE FROZEN SOIL MOISTURE CONTENT BASED
+! ON THE TEMPERATURE.
+! ----------------------------------------------------------------------
+      IMPLICIT NONE
+
+      INTEGER, INTENT(IN)   :: OPT_THCND,its,ite
+      INTEGER, INTENT(IN)   :: NSOIL, ISURBAN
+      INTEGER, DIMENSION(its:ite), INTENT(IN) :: VEGTYP,SOILTYP,ICE
+      INTEGER               :: I,K
+
+      REAL, INTENT(IN)      :: DT
+      REAL, DIMENSION(its:ite), INTENT(IN) :: SMCMAX,YY,ZZ1,TBOT,ZBOT, &
+                               SMCWLT,PSISAT,BEXP,F1,DF1,QUARTZ,CSOIL, &
+                               XLAND,SNEQV
+      REAL, DIMENSION(its:ite), INTENT(INOUT)   :: T1
+      REAL, DIMENSION(its:ite), INTENT(OUT)     :: SSOIL
+      REAL, DIMENSION(1:NSOIL,its:ite), INTENT(IN)    :: ZSOIL
+      REAL, DIMENSION(1:NSOIL,its:ite), INTENT(IN) :: SMC
+      REAL, DIMENSION(1:NSOIL,its:ite), INTENT(INOUT) :: SH2O
+      REAL, DIMENSION(1:NSOIL,its:ite), INTENT(INOUT) :: STC
+      REAL, DIMENSION(1:NSOIL,its:ite) :: AI, BI, CI, RHSTS,STCF
+      REAL, PARAMETER       :: T0 = 273.15
+
+!
+! FASDAS
+!
+      REAL, DIMENSION(its:ite), INTENT(  OUT)     :: HCPCT_FASDAS
+!
+! END FASDAS
+!
+! ----------------------------------------------------------------------
+! HRT ROUTINE CALCS THE RIGHT HAND SIDE OF THE SOIL TEMP DIF EQN
+! ----------------------------------------------------------------------
+!$acc data present(SSOIL,STC,SMC,SMCMAX,T1,YY,ZZ1,ZSOIL, &
+!$acc              TBOT,ZBOT,SMCWLT,PSISAT,SH2O,BEXP,F1,DF1,     &
+!$acc              QUARTZ,CSOIL,VEGTYP,SOILTYP,HCPCT_FASDAS, &
+!$acc              XLAND,ICE,SNEQV) &
+!$acc      create(RHSTS,AI,BI,CI,STCF)
+
+!!!!$acc parallel vector_length(128)
+!!!!$acc loop gang vector private(STCF)
+!!!DO I=its,ite
+!!!  IF((XLAND(I)-1.5).LT.0.)THEN
+!!!    IF (ICE(I) == 0) THEN
+!!!      IF (SNEQV(I)  /= 0.0) THEN
+      ! Land case
+
+!!!      CALL HRT_gpu (RHSTS(1:NSOIL,I),STC(1:NSOIL,I),SMC(1:NSOIL,I),SMCMAX(I),NSOIL,ZSOIL(1:NSOIL,I),YY(I),ZZ1(I),TBOT(I),     &
+!!!                ZBOT(I),PSISAT(I),SH2O(1:NSOIL,I),DT,BEXP(I),SOILTYP(I),OPT_THCND,       &
+!!!                F1(I),DF1(I),QUARTZ(I),CSOIL(I),AI(1:NSOIL,I),BI(1:NSOIL,I),CI(1:NSOIL,I),VEGTYP(I),ISURBAN       &
+!!!               ,HCPCT_FASDAS(I)) !fasdas
+!!!      END IF
+!!!    ENDIF
+!!!  ENDIF
+!!!ENDDO
+!!!!$acc end parallel
+CALL HRT_gpu2 (RHSTS,STC,SMC,SMCMAX,NSOIL,ZSOIL,YY,ZZ1,TBOT,     &
+              ZBOT,PSISAT,SH2O,DT,BEXP,SOILTYP,OPT_THCND,       &
+              F1,DF1,QUARTZ,CSOIL,AI,BI,CI,VEGTYP,ISURBAN       &
+             ,HCPCT_FASDAS,its,ite,XLAND,ICE,SNEQV)
+
+!!!!$acc parallel vector_length(128)
+!!!!$acc loop gang vector
+!!!DO I=its,ite
+!!!  IF((XLAND(I)-1.5).LT.0.)THEN
+!!!    IF (ICE(I) == 0) THEN
+!!!      IF (SNEQV(I)  /= 0.0) THEN
+!!!      CALL HSTEP_gpu (STCF(1:NSOIL,I),STC(1:NSOIL,I),RHSTS(1:NSOIL,I),DT,NSOIL,AI(1:NSOIL,I),BI(1:NSOIL,I),CI(1:NSOIL,I))
+!!!      END IF
+!!!    ENDIF
+!!!  ENDIF
+!!!ENDDO
+!!!!$acc end parallel
+CALL HSTEP_gpu2 (STCF,STC,RHSTS,DT,NSOIL,AI,BI,CI,its,ite,XLAND,ICE,SNEQV)
+
+!$acc parallel vector_length(128)
+!$acc loop gang vector
+DO I=its,ite
+  IF((XLAND(I)-1.5).LT.0.)THEN
+    IF (ICE(I) == 0) THEN
+      IF (SNEQV(I)  /= 0.0) THEN
+      DO K = 1,NSOIL
+         STC (K,I) = STCF (K,I)
+      ENDDO
+
+! ----------------------------------------------------------------------
+! IN THE NO SNOWPACK CASE (VIA ROUTINE NOPAC BRANCH,) UPDATE THE GRND
+! (SKIN) TEMPERATURE HERE IN RESPONSE TO THE UPDATED SOIL TEMPERATURE
+! PROFILE ABOVE.  (NOTE: INSPECTION OF ROUTINE SNOPAC SHOWS THAT T1
+! BELOW IS A DUMMY VARIABLE ONLY, AS SKIN TEMPERATURE IS UPDATED
+! DIFFERENTLY IN ROUTINE SNOPAC)
+! ----------------------------------------------------------------------
+! ----------------------------------------------------------------------
+! CALCULATE SURFACE SOIL HEAT FLUX
+! ----------------------------------------------------------------------
+      T1(I) = (YY(I) + (ZZ1(I)- 1.0) * STC (1,I)) / ZZ1(I)
+      SSOIL(I) = DF1(I) * (STC (1,I) - T1(I)) / (0.5 * ZSOIL (1,I))
+      END IF
+    ENDIF
+  ENDIF
+ENDDO
+!$acc end parallel
+
+!$acc end data
+! ----------------------------------------------------------------------
+  END SUBROUTINE SHFLX_gpu2
 ! ----------------------------------------------------------------------
 
       SUBROUTINE SMFLX (SMC,NSOIL,CMC,DT,PRCP1,ZSOIL,                   &
@@ -5608,14 +6659,21 @@ ENDDO
   END SUBROUTINE SMFLX
 ! ----------------------------------------------------------------------
 
-      SUBROUTINE SMFLX_gpu (SMC,NSOIL,CMC,DT,PRCP1,ZSOIL,                   &
+!!!                        (SMC(1:NSOIL,I),NSOIL,CMC(I),DT,PRCP1(I),ZSOIL(1:NSOIL,I),                      &
+!!!                          SH2O(1:NSOIL,I),SLOPE(I),KDT(I),FRZFACT(I),                           &
+!!!                          SMCMAX(I),BEXP(I),SMCWLT(I),DKSAT(I),DWSAT(I),                   &
+!!!                          SHDFAC(I),CMCMAX(I),                                    &
+!!!                          RUNOFF1(I),RUNOFF2(I),RUNOFF3(I),                          &
+!!!                          EDIR1(I),EC1(I),ET1(1:NSOIL,I),                                    &
+!!!                          DRIP(I), SFHEAD1RT(I),INFXS1RT(I))
+      SUBROUTINE SMFLX_gpu1 (SMC,NSOIL,CMC,DT,PRCP1,ZSOIL,                   &
      &                   SH2O,SLOPE,KDT,FRZFACT,                        &
      &                   SMCMAX,BEXP,SMCWLT,DKSAT,DWSAT,                &
      &                   SHDFAC,CMCMAX,                                 &
      &                   RUNOFF1,RUNOFF2,RUNOFF3,                       &
      &                   EDIR,EC,ET,                                    &
-     &                   DRIP, SFHEAD1RT,INFXS1RT)
-!$acc routine seq
+     &                   DRIP, SFHEAD1RT,INFXS1RT,                      &
+     &                   its,ite,XLAND,ICE,SNEQV,ETP)
 
 ! ----------------------------------------------------------------------
 ! SUBROUTINE SMFLX
@@ -5628,26 +6686,39 @@ ENDDO
 ! ----------------------------------------------------------------------
       IMPLICIT NONE
 
-      INTEGER, INTENT(IN)   :: NSOIL
+      INTEGER, INTENT(IN)   :: NSOIL,its,ite
       INTEGER               :: I,K
 
-      REAL, INTENT(IN)      :: BEXP, CMCMAX, DKSAT,DWSAT, DT, EC, EDIR,  &
-                               KDT, PRCP1, SHDFAC, SLOPE, SMCMAX, SMCWLT
-      REAL, INTENT(OUT)                      :: DRIP, RUNOFF1, RUNOFF2, RUNOFF3
-      REAL, INTENT(INOUT)   :: CMC
-      REAL, DIMENSION(1:NSOIL), INTENT(IN)   :: ET,ZSOIL
-      REAL, DIMENSION(1:NSOIL), INTENT(INOUT):: SMC, SH2O
+      REAL, INTENT(IN)      :: DT
+      REAL, DIMENSION(its:ite), INTENT(IN) :: PRCP1,SLOPE,KDT,SMCMAX,BEXP, &
+                                              SMCWLT,DKSAT,DWSAT,SHDFAC,   &
+                                              CMCMAX,EDIR,EC,XLAND,SNEQV,ETP
+      INTEGER, DIMENSION(its:ite), INTENT(IN) :: ICE
+      REAL, DIMENSION(its:ite), INTENT(OUT) :: RUNOFF1, RUNOFF2, RUNOFF3,DRIP
+      REAL, DIMENSION(its:ite), INTENT(INOUT)   :: CMC
+      REAL, DIMENSION(1:NSOIL,its:ite), INTENT(IN)   :: ET
+      REAL, DIMENSION(1:NSOIL,its:ite), INTENT(IN) :: ZSOIL
+      REAL, DIMENSION(1:NSOIL,its:ite), INTENT(INOUT):: SMC,SH2O
       REAL, DIMENSION(1:NSOIL)             :: AI, BI, CI, STCF,RHSTS, RHSTT, &
                                               SICE, SH2OA, SH2OFG
-      REAL                  :: DUMMY, EXCESS,FRZFACT,PCPDRP,RHSCT,TRHSCT
+      REAL                  :: DUMMY, EXCESS,PCPDRP,RHSCT,TRHSCT
+      REAL, DIMENSION(its:ite) :: FRZFACT
       REAL :: FAC2
       REAL :: FLIMIT
 
-      REAL,    INTENT(INOUT)                 :: SFHEAD1RT,INFXS1RT
+      REAL, DIMENSION(its:ite), INTENT(INOUT)                 :: SFHEAD1RT,INFXS1RT
 
 ! ----------------------------------------------------------------------
 ! EXECUTABLE CODE BEGINS HERE.
 ! ----------------------------------------------------------------------
+!$acc parallel vector_length(128)
+!$acc loop gang vector private(DUMMY,RHSCT,TRHSCT,EXCESS,PCPDRP,SICE,FAC2, &
+!$acc                          FLIMIT,RHSTT,AI,BI,CI,SH2OFG,SH2OA,SH2OFG)
+DO I=its,ite
+  IF((XLAND(I)-1.5).LT.0.)THEN
+    IF (ICE(I) == 0) THEN
+      IF (SNEQV(I)  == 0.0) THEN
+        IF (ETP(I) > 0.0) THEN
 ! ----------------------------------------------------------------------
 ! COMPUTE THE RIGHT HAND SIDE OF THE CANOPY EQN TERM ( RHSCT )
 ! ----------------------------------------------------------------------
@@ -5658,23 +6729,23 @@ ENDDO
 ! CMC.  IF RESULTING AMT EXCEEDS MAX CAPACITY, IT BECOMES DRIP AND WILL
 ! FALL TO THE GRND.
 ! ----------------------------------------------------------------------
-      RHSCT = SHDFAC * PRCP1- EC
-      DRIP = 0.
+      RHSCT = SHDFAC(I) * PRCP1(I)- EC(I)
+      DRIP(I) = 0.
       TRHSCT = DT * RHSCT
-      EXCESS = CMC + TRHSCT
+      EXCESS = CMC(I) + TRHSCT
 
 ! ----------------------------------------------------------------------
 ! PCPDRP IS THE COMBINED PRCP1 AND DRIP (FROM CMC) THAT GOES INTO THE
 ! SOIL
 ! ----------------------------------------------------------------------
-      IF (EXCESS > CMCMAX) DRIP = EXCESS - CMCMAX
-      PCPDRP = (1. - SHDFAC) * PRCP1+ DRIP / DT
+      IF (EXCESS > CMCMAX(I)) DRIP(I) = EXCESS - CMCMAX(I)
+      PCPDRP = (1. - SHDFAC(I)) * PRCP1(I)+ DRIP(I) / DT
 
 ! ----------------------------------------------------------------------
 ! STORE ICE CONTENT AT EACH SOIL LAYER BEFORE CALLING SRT and SSTEP
 !
-      DO I = 1,NSOIL
-         SICE (I) = SMC (I) - SH2O (I)
+      DO K = 1,NSOIL
+         SICE (K) = SMC (K,I) - SH2O (K,I)
       END DO
 ! ----------------------------------------------------------------------
 ! CALL SUBROUTINES SRT AND SSTEP TO SOLVE THE SOIL MOISTURE
@@ -5700,10 +6771,10 @@ ENDDO
 !  to remove numerical instability of runoff and soil moisture
 !  FLIMIT is a limit value for FAC2
       FAC2=0.0
-      DO I=1,NSOIL
-         FAC2=MAX(FAC2,SH2O(I)/SMCMAX)
+      DO K=1,NSOIL
+         FAC2=MAX(FAC2,SH2O(K,I)/SMCMAX(I))
       ENDDO
-      CALL FAC2MIT_gpu(SMCMAX,FLIMIT)
+      CALL FAC2MIT_gpu(SMCMAX(I),FLIMIT)
 
 ! ----------------------------------------------------------------------
 ! FROZEN GROUND VERSION:
@@ -5714,41 +6785,364 @@ ENDDO
 
 #ifdef WRF_HYDRO
 !DJG NDHMS/WRF-Hydro edit... Add previous ponded water to new precip drip...
-    PCPDRP = PCPDRP + SFHEAD1RT/1000./DT   ! convert SFHEAD1RT to (m/s)
+    PCPDRP = PCPDRP + SFHEAD1RT(I)/1000./DT   ! convert SFHEAD1RT to (m/s)
 #endif
 
 
-      IF ( ( (PCPDRP * DT) > (0.0001*1000.0* (- ZSOIL (1))* SMCMAX) )   &
+      IF ( ( (PCPDRP * DT) > (0.0001*1000.0* (- ZSOIL (1,I))* SMCMAX(I)) )   &
            .OR. (FAC2 > FLIMIT) ) THEN
-         CALL SRT_gpu (RHSTT,EDIR,ET,SH2O,SH2O,NSOIL,PCPDRP,ZSOIL,          &
-                    DWSAT,DKSAT,SMCMAX,BEXP,RUNOFF1,                    &
-                    RUNOFF2,DT,SMCWLT,SLOPE,KDT,FRZFACT,SICE,AI,BI,CI,  &
-                    SFHEAD1RT,INFXS1RT)
-         CALL SSTEP_gpu (SH2OFG,SH2O,DUMMY,RHSTT,RHSCT,DT,NSOIL,SMCMAX,     &
-                        CMCMAX,RUNOFF3,ZSOIL,SMC,SICE,AI,BI,CI,INFXS1RT)
+         CALL SRT_gpu (RHSTT,EDIR(I),ET(1:NSOIL,I),SH2O(1:NSOIL,I),SH2O(1:NSOIL,I),NSOIL,PCPDRP,ZSOIL(1:NSOIL,I),          &
+                    DWSAT(I),DKSAT(I),SMCMAX(I),BEXP(I),RUNOFF1(I),                    &
+                    RUNOFF2(I),DT,SMCWLT(I),SLOPE(I),KDT(I),FRZFACT(I),SICE,AI,BI,CI,  &
+                    SFHEAD1RT(I),INFXS1RT(I))
+         CALL SSTEP_gpu (SH2OFG,SH2O(1:NSOIL,I),DUMMY,RHSTT,RHSCT,DT,NSOIL,SMCMAX(I),     &
+                        CMCMAX(I),RUNOFF3(I),ZSOIL(1:NSOIL,I),SMC(1:NSOIL,I),SICE,AI,BI,CI,INFXS1RT(I))
          DO K = 1,NSOIL
-            SH2OA (K) = (SH2O (K) + SH2OFG (K)) * 0.5
+            SH2OA (K) = (SH2O (K,I) + SH2OFG (K)) * 0.5
          END DO
-         CALL SRT_gpu (RHSTT,EDIR,ET,SH2O,SH2OA,NSOIL,PCPDRP,ZSOIL,         &
-                    DWSAT,DKSAT,SMCMAX,BEXP,RUNOFF1,                    &
-                    RUNOFF2,DT,SMCWLT,SLOPE,KDT,FRZFACT,SICE,AI,BI,CI,  &
-                    SFHEAD1RT,INFXS1RT)
-         CALL SSTEP_gpu (SH2O,SH2O,CMC,RHSTT,RHSCT,DT,NSOIL,SMCMAX,         &
-                        CMCMAX,RUNOFF3,ZSOIL,SMC,SICE,AI,BI,CI,INFXS1RT)
+         CALL SRT_gpu (RHSTT,EDIR(I),ET(1:NSOIL,I),SH2O(1:NSOIL,I),SH2OA,NSOIL,PCPDRP,ZSOIL(1:NSOIL,I),         &
+                    DWSAT(I),DKSAT(I),SMCMAX(I),BEXP(I),RUNOFF1(I),                    &
+                    RUNOFF2(I),DT,SMCWLT(I),SLOPE(I),KDT(I),FRZFACT(I),SICE,AI,BI,CI,  &
+                    SFHEAD1RT(I),INFXS1RT(I))
+         CALL SSTEP_gpu (SH2O(1:NSOIL,I),SH2O(1:NSOIL,I),CMC(I),RHSTT,RHSCT,DT,NSOIL,SMCMAX(I),         &
+                        CMCMAX(I),RUNOFF3(I),ZSOIL(1:NSOIL,I),SMC(1:NSOIL,I),SICE,AI,BI,CI,INFXS1RT(I))
 
       ELSE
-         CALL SRT_gpu (RHSTT,EDIR,ET,SH2O,SH2O,NSOIL,PCPDRP,ZSOIL,          &
-                    DWSAT,DKSAT,SMCMAX,BEXP,RUNOFF1,                    &
-                    RUNOFF2,DT,SMCWLT,SLOPE,KDT,FRZFACT,SICE,AI,BI,CI,  &
-                   SFHEAD1RT,INFXS1RT)
-         CALL SSTEP_gpu (SH2O,SH2O,CMC,RHSTT,RHSCT,DT,NSOIL,SMCMAX,         &
-                     CMCMAX,RUNOFF3,ZSOIL,SMC,SICE,AI,BI,CI,INFXS1RT)
+         CALL SRT_gpu (RHSTT,EDIR(I),ET(1:NSOIL,I),SH2O(1:NSOIL,I),SH2O(1:NSOIL,I),NSOIL,PCPDRP,ZSOIL(1:NSOIL,I),          &
+                    DWSAT(I),DKSAT(I),SMCMAX(I),BEXP(I),RUNOFF1(I),                    &
+                    RUNOFF2(I),DT,SMCWLT(I),SLOPE(I),KDT(I),FRZFACT(I),SICE,AI,BI,CI,  &
+                   SFHEAD1RT(I),INFXS1RT(I))
+         CALL SSTEP_gpu (SH2O(1:NSOIL,I),SH2O(1:NSOIL,I),CMC(I),RHSTT,RHSCT,DT,NSOIL,SMCMAX(I),         &
+                     CMCMAX(I),RUNOFF3(I),ZSOIL(1:NSOIL,I),SMC(1:NSOIL,I),SICE,AI,BI,CI,INFXS1RT(I))
 !      RUNOF = RUNOFF
 
       END IF
+        ENDIF
+      END IF
+    ENDIF
+  ENDIF
+ENDDO
+!$acc end parallel
+! ----------------------------------------------------------------------
+  END SUBROUTINE SMFLX_gpu1
+! ----------------------------------------------------------------------
+
+      SUBROUTINE SMFLX_gpu2 (SMC,NSOIL,CMC,DT,PRCP1,ZSOIL,                   &
+     &                   SH2O,SLOPE,KDT,FRZFACT,                        &
+     &                   SMCMAX,BEXP,SMCWLT,DKSAT,DWSAT,                &
+     &                   SHDFAC,CMCMAX,                                 &
+     &                   RUNOFF1,RUNOFF2,RUNOFF3,                       &
+     &                   EDIR,EC,ET,                                    &
+     &                   DRIP, SFHEAD1RT,INFXS1RT,its,ite,XLAND,ICE,SNEQV,ETP)
 
 ! ----------------------------------------------------------------------
-  END SUBROUTINE SMFLX_gpu
+! SUBROUTINE SMFLX
+! ----------------------------------------------------------------------
+! CALCULATE SOIL MOISTURE FLUX.  THE SOIL MOISTURE CONTENT (SMC - A PER
+! UNIT VOLUME MEASUREMENT) IS A DEPENDENT VARIABLE THAT IS UPDATED WITH
+! PROGNOSTIC EQNS. THE CANOPY MOISTURE CONTENT (CMC) IS ALSO UPDATED.
+! FROZEN GROUND VERSION:  NEW STATES ADDED: SH2O, AND FROZEN GROUND
+! CORRECTION FACTOR, FRZFACT AND PARAMETER SLOPE.
+! ----------------------------------------------------------------------
+      IMPLICIT NONE
+
+      INTEGER, INTENT(IN)   :: NSOIL,its,ite
+      INTEGER               :: I,K
+
+      REAL, INTENT(IN)      :: DT
+      INTEGER, DIMENSION(its:ite), INTENT(IN) :: ICE
+      REAL, DIMENSION(its:ite), INTENT(IN) :: PRCP1,SLOPE,KDT,SMCMAX,BEXP, &
+                                              SMCWLT,DKSAT,DWSAT,SHDFAC,   &
+                                              CMCMAX,EDIR,EC,XLAND,SNEQV,ETP
+      REAL, DIMENSION(its:ite), INTENT(OUT) :: RUNOFF1, RUNOFF2, RUNOFF3,DRIP
+      REAL, DIMENSION(its:ite), INTENT(INOUT)   :: CMC
+      REAL, DIMENSION(1:NSOIL,its:ite), INTENT(IN)   :: ET
+      REAL, DIMENSION(1:NSOIL,its:ite), INTENT(IN) :: ZSOIL
+      REAL, DIMENSION(1:NSOIL,its:ite), INTENT(INOUT):: SMC,SH2O
+      REAL, DIMENSION(1:NSOIL)             :: AI, BI, CI, STCF,RHSTS, RHSTT, &
+                                              SICE, SH2OA, SH2OFG
+      REAL                  :: DUMMY, EXCESS,PCPDRP,RHSCT,TRHSCT
+      REAL, DIMENSION(its:ite) :: FRZFACT
+      REAL :: FAC2
+      REAL :: FLIMIT
+
+      REAL, DIMENSION(its:ite), INTENT(INOUT)                 :: SFHEAD1RT,INFXS1RT
+
+! ----------------------------------------------------------------------
+! EXECUTABLE CODE BEGINS HERE.
+! ----------------------------------------------------------------------
+!$acc parallel vector_length(128)
+!$acc loop gang vector private(DUMMY,RHSCT,TRHSCT,EXCESS,PCPDRP,SICE,FAC2, &
+!$acc                          FLIMIT,RHSTT,AI,BI,CI,SH2OFG,SH2OA,SH2OFG)
+DO I=its,ite
+  IF((XLAND(I)-1.5).LT.0.)THEN
+    IF (ICE(I) == 0) THEN
+      IF (SNEQV(I)  == 0.0) THEN
+        IF (ETP(I) <= 0.0) THEN
+! ----------------------------------------------------------------------
+! COMPUTE THE RIGHT HAND SIDE OF THE CANOPY EQN TERM ( RHSCT )
+! ----------------------------------------------------------------------
+      DUMMY = 0.
+
+! ----------------------------------------------------------------------
+! CONVERT RHSCT (A RATE) TO TRHSCT (AN AMOUNT) AND ADD IT TO EXISTING
+! CMC.  IF RESULTING AMT EXCEEDS MAX CAPACITY, IT BECOMES DRIP AND WILL
+! FALL TO THE GRND.
+! ----------------------------------------------------------------------
+      RHSCT = SHDFAC(I) * PRCP1(I)- EC(I)
+      DRIP(I) = 0.
+      TRHSCT = DT * RHSCT
+      EXCESS = CMC(I) + TRHSCT
+
+! ----------------------------------------------------------------------
+! PCPDRP IS THE COMBINED PRCP1 AND DRIP (FROM CMC) THAT GOES INTO THE
+! SOIL
+! ----------------------------------------------------------------------
+      IF (EXCESS > CMCMAX(I)) DRIP(I) = EXCESS - CMCMAX(I)
+      PCPDRP = (1. - SHDFAC(I)) * PRCP1(I)+ DRIP(I) / DT
+
+! ----------------------------------------------------------------------
+! STORE ICE CONTENT AT EACH SOIL LAYER BEFORE CALLING SRT and SSTEP
+!
+      DO K = 1,NSOIL
+         SICE (K) = SMC (K,I) - SH2O (K,I)
+      END DO
+! ----------------------------------------------------------------------
+! CALL SUBROUTINES SRT AND SSTEP TO SOLVE THE SOIL MOISTURE
+! TENDENCY EQUATIONS.
+! IF THE INFILTRATING PRECIP RATE IS NONTRIVIAL,
+!   (WE CONSIDER NONTRIVIAL TO BE A PRECIP TOTAL OVER THE TIME STEP
+!    EXCEEDING ONE ONE-THOUSANDTH OF THE WATER HOLDING CAPACITY OF
+!    THE FIRST SOIL LAYER)
+! THEN CALL THE SRT/SSTEP SUBROUTINE PAIR TWICE IN THE MANNER OF
+!   TIME SCHEME "F" (IMPLICIT STATE, AVERAGED COEFFICIENT)
+!   OF SECTION 2 OF KALNAY AND KANAMITSU (1988, MWR, VOL 116,
+!   PAGES 1945-1958)TO MINIMIZE 2-DELTA-T OSCILLATIONS IN THE
+!   SOIL MOISTURE VALUE OF THE TOP SOIL LAYER THAT CAN ARISE BECAUSE
+!   OF THE EXTREME NONLINEAR DEPENDENCE OF THE SOIL HYDRAULIC
+!   DIFFUSIVITY COEFFICIENT AND THE HYDRAULIC CONDUCTIVITY ON THE
+!   SOIL MOISTURE STATE
+! OTHERWISE CALL THE SRT/SSTEP SUBROUTINE PAIR ONCE IN THE MANNER OF
+!   TIME SCHEME "D" (IMPLICIT STATE, EXPLICIT COEFFICIENT)
+!   OF SECTION 2 OF KALNAY AND KANAMITSU
+! PCPDRP IS UNITS OF KG/M**2/S OR MM/S, ZSOIL IS NEGATIVE DEPTH IN M
+! ----------------------------------------------------------------------
+!  According to Dr. Ken Mitchell's suggestion, add the second contraint
+!  to remove numerical instability of runoff and soil moisture
+!  FLIMIT is a limit value for FAC2
+      FAC2=0.0
+      DO K=1,NSOIL
+         FAC2=MAX(FAC2,SH2O(K,I)/SMCMAX(I))
+      ENDDO
+      CALL FAC2MIT_gpu(SMCMAX(I),FLIMIT)
+
+! ----------------------------------------------------------------------
+! FROZEN GROUND VERSION:
+! SMC STATES REPLACED BY SH2O STATES IN SRT SUBR.  SH2O & SICE STATES
+! INC&UDED IN SSTEP SUBR.  FROZEN GROUND CORRECTION FACTOR, FRZFACT
+! ADDED.  ALL WATER BALANCE CALCULATIONS USING UNFROZEN WATER
+! ----------------------------------------------------------------------
+
+#ifdef WRF_HYDRO
+!DJG NDHMS/WRF-Hydro edit... Add previous ponded water to new precip drip...
+    PCPDRP = PCPDRP + SFHEAD1RT(I)/1000./DT   ! convert SFHEAD1RT to (m/s)
+#endif
+
+
+      IF ( ( (PCPDRP * DT) > (0.0001*1000.0* (- ZSOIL (1,I))* SMCMAX(I)) )   &
+           .OR. (FAC2 > FLIMIT) ) THEN
+         CALL SRT_gpu (RHSTT,EDIR(I),ET(1:NSOIL,I),SH2O(1:NSOIL,I),SH2O(1:NSOIL,I),NSOIL,PCPDRP,ZSOIL(1:NSOIL,I),          &
+                    DWSAT(I),DKSAT(I),SMCMAX(I),BEXP(I),RUNOFF1(I),                    &
+                    RUNOFF2(I),DT,SMCWLT(I),SLOPE(I),KDT(I),FRZFACT(I),SICE,AI,BI,CI,  &
+                    SFHEAD1RT(I),INFXS1RT(I))
+         CALL SSTEP_gpu (SH2OFG,SH2O(1:NSOIL,I),DUMMY,RHSTT,RHSCT,DT,NSOIL,SMCMAX(I),     &
+                        CMCMAX(I),RUNOFF3(I),ZSOIL(1:NSOIL,I),SMC(1:NSOIL,I),SICE,AI,BI,CI,INFXS1RT(I))
+         DO K = 1,NSOIL
+            SH2OA (K) = (SH2O (K,I) + SH2OFG (K)) * 0.5
+         END DO
+         CALL SRT_gpu (RHSTT,EDIR(I),ET(1:NSOIL,I),SH2O(1:NSOIL,I),SH2OA,NSOIL,PCPDRP,ZSOIL(1:NSOIL,I),         &
+                    DWSAT(I),DKSAT(I),SMCMAX(I),BEXP(I),RUNOFF1(I),                    &
+                    RUNOFF2(I),DT,SMCWLT(I),SLOPE(I),KDT(I),FRZFACT(I),SICE,AI,BI,CI,  &
+                    SFHEAD1RT(I),INFXS1RT(I))
+         CALL SSTEP_gpu (SH2O(1:NSOIL,I),SH2O(1:NSOIL,I),CMC(I),RHSTT,RHSCT,DT,NSOIL,SMCMAX(I),         &
+                        CMCMAX(I),RUNOFF3(I),ZSOIL(1:NSOIL,I),SMC(1:NSOIL,I),SICE,AI,BI,CI,INFXS1RT(I))
+
+      ELSE
+         CALL SRT_gpu (RHSTT,EDIR(I),ET(1:NSOIL,I),SH2O(1:NSOIL,I),SH2O(1:NSOIL,I),NSOIL,PCPDRP,ZSOIL(1:NSOIL,I),          &
+                    DWSAT(I),DKSAT(I),SMCMAX(I),BEXP(I),RUNOFF1(I),                    &
+                    RUNOFF2(I),DT,SMCWLT(I),SLOPE(I),KDT(I),FRZFACT(I),SICE,AI,BI,CI,  &
+                   SFHEAD1RT(I),INFXS1RT(I))
+         CALL SSTEP_gpu (SH2O(1:NSOIL,I),SH2O(1:NSOIL,I),CMC(I),RHSTT,RHSCT,DT,NSOIL,SMCMAX(I),         &
+                     CMCMAX(I),RUNOFF3(I),ZSOIL(1:NSOIL,I),SMC(1:NSOIL,I),SICE,AI,BI,CI,INFXS1RT(I))
+!      RUNOF = RUNOFF
+
+      END IF
+        END IF
+      END IF
+    ENDIF
+  ENDIF
+ENDDO
+!$acc end parallel
+! ----------------------------------------------------------------------
+  END SUBROUTINE SMFLX_gpu2
+! ----------------------------------------------------------------------
+
+      SUBROUTINE SMFLX_gpu3 (SMC,NSOIL,CMC,DT,PRCP1,ZSOIL,                   &
+     &                   SH2O,SLOPE,KDT,FRZFACT,                        &
+     &                   SMCMAX,BEXP,SMCWLT,DKSAT,DWSAT,                &
+     &                   SHDFAC,CMCMAX,                                 &
+     &                   RUNOFF1,RUNOFF2,RUNOFF3,                       &
+     &                   EDIR,EC,ET,                                    &
+     &                   DRIP, SFHEAD1RT,INFXS1RT,its,ite,XLAND,ICE,SNEQV)
+
+! ----------------------------------------------------------------------
+! SUBROUTINE SMFLX
+! ----------------------------------------------------------------------
+! CALCULATE SOIL MOISTURE FLUX.  THE SOIL MOISTURE CONTENT (SMC - A PER
+! UNIT VOLUME MEASUREMENT) IS A DEPENDENT VARIABLE THAT IS UPDATED WITH
+! PROGNOSTIC EQNS. THE CANOPY MOISTURE CONTENT (CMC) IS ALSO UPDATED.
+! FROZEN GROUND VERSION:  NEW STATES ADDED: SH2O, AND FROZEN GROUND
+! CORRECTION FACTOR, FRZFACT AND PARAMETER SLOPE.
+! ----------------------------------------------------------------------
+      IMPLICIT NONE
+
+      INTEGER, INTENT(IN)   :: NSOIL,its,ite
+      INTEGER               :: I,K
+
+      REAL, INTENT(IN)      :: DT
+      INTEGER, DIMENSION(its:ite), INTENT(IN) :: ICE
+      REAL, DIMENSION(its:ite), INTENT(IN) :: PRCP1,SLOPE,KDT,SMCMAX,BEXP, &
+                                              SMCWLT,DKSAT,DWSAT,SHDFAC,   &
+                                              CMCMAX,EDIR,EC,XLAND,SNEQV
+      REAL, DIMENSION(its:ite), INTENT(OUT) :: RUNOFF1, RUNOFF2, RUNOFF3,DRIP
+      REAL, DIMENSION(its:ite), INTENT(INOUT)   :: CMC
+      REAL, DIMENSION(1:NSOIL,its:ite), INTENT(IN)   :: ET
+      REAL, DIMENSION(1:NSOIL,its:ite), INTENT(IN) :: ZSOIL
+      REAL, DIMENSION(1:NSOIL,its:ite), INTENT(INOUT):: SMC,SH2O
+      REAL, DIMENSION(1:NSOIL)             :: AI, BI, CI, STCF,RHSTS, RHSTT, &
+                                              SICE, SH2OA, SH2OFG
+      REAL                  :: DUMMY, EXCESS,PCPDRP,RHSCT,TRHSCT
+      REAL, DIMENSION(its:ite) :: FRZFACT
+      REAL :: FAC2
+      REAL :: FLIMIT
+
+      REAL, DIMENSION(its:ite), INTENT(INOUT)                 :: SFHEAD1RT,INFXS1RT
+
+! ----------------------------------------------------------------------
+! EXECUTABLE CODE BEGINS HERE.
+! ----------------------------------------------------------------------
+!$acc parallel vector_length(128)
+!$acc loop gang vector private(DUMMY,RHSCT,TRHSCT,EXCESS,PCPDRP,SICE,FAC2, &
+!$acc                          FLIMIT,RHSTT,AI,BI,CI,SH2OFG,SH2OA,SH2OFG)
+DO I=its,ite
+  IF((XLAND(I)-1.5).LT.0.)THEN
+    IF (ICE(I) == 0) THEN
+      IF (SNEQV(I)  /= 0.0) THEN
+! ----------------------------------------------------------------------
+! COMPUTE THE RIGHT HAND SIDE OF THE CANOPY EQN TERM ( RHSCT )
+! ----------------------------------------------------------------------
+      DUMMY = 0.
+
+! ----------------------------------------------------------------------
+! CONVERT RHSCT (A RATE) TO TRHSCT (AN AMOUNT) AND ADD IT TO EXISTING
+! CMC.  IF RESULTING AMT EXCEEDS MAX CAPACITY, IT BECOMES DRIP AND WILL
+! FALL TO THE GRND.
+! ----------------------------------------------------------------------
+      RHSCT = SHDFAC(I) * PRCP1(I)- EC(I)
+      DRIP(I) = 0.
+      TRHSCT = DT * RHSCT
+      EXCESS = CMC(I) + TRHSCT
+
+! ----------------------------------------------------------------------
+! PCPDRP IS THE COMBINED PRCP1 AND DRIP (FROM CMC) THAT GOES INTO THE
+! SOIL
+! ----------------------------------------------------------------------
+      IF (EXCESS > CMCMAX(I)) DRIP(I) = EXCESS - CMCMAX(I)
+      PCPDRP = (1. - SHDFAC(I)) * PRCP1(I)+ DRIP(I) / DT
+
+! ----------------------------------------------------------------------
+! STORE ICE CONTENT AT EACH SOIL LAYER BEFORE CALLING SRT and SSTEP
+!
+      DO K = 1,NSOIL
+         SICE (K) = SMC (K,I) - SH2O (K,I)
+      END DO
+! ----------------------------------------------------------------------
+! CALL SUBROUTINES SRT AND SSTEP TO SOLVE THE SOIL MOISTURE
+! TENDENCY EQUATIONS.
+! IF THE INFILTRATING PRECIP RATE IS NONTRIVIAL,
+!   (WE CONSIDER NONTRIVIAL TO BE A PRECIP TOTAL OVER THE TIME STEP
+!    EXCEEDING ONE ONE-THOUSANDTH OF THE WATER HOLDING CAPACITY OF
+!    THE FIRST SOIL LAYER)
+! THEN CALL THE SRT/SSTEP SUBROUTINE PAIR TWICE IN THE MANNER OF
+!   TIME SCHEME "F" (IMPLICIT STATE, AVERAGED COEFFICIENT)
+!   OF SECTION 2 OF KALNAY AND KANAMITSU (1988, MWR, VOL 116,
+!   PAGES 1945-1958)TO MINIMIZE 2-DELTA-T OSCILLATIONS IN THE
+!   SOIL MOISTURE VALUE OF THE TOP SOIL LAYER THAT CAN ARISE BECAUSE
+!   OF THE EXTREME NONLINEAR DEPENDENCE OF THE SOIL HYDRAULIC
+!   DIFFUSIVITY COEFFICIENT AND THE HYDRAULIC CONDUCTIVITY ON THE
+!   SOIL MOISTURE STATE
+! OTHERWISE CALL THE SRT/SSTEP SUBROUTINE PAIR ONCE IN THE MANNER OF
+!   TIME SCHEME "D" (IMPLICIT STATE, EXPLICIT COEFFICIENT)
+!   OF SECTION 2 OF KALNAY AND KANAMITSU
+! PCPDRP IS UNITS OF KG/M**2/S OR MM/S, ZSOIL IS NEGATIVE DEPTH IN M
+! ----------------------------------------------------------------------
+!  According to Dr. Ken Mitchell's suggestion, add the second contraint
+!  to remove numerical instability of runoff and soil moisture
+!  FLIMIT is a limit value for FAC2
+      FAC2=0.0
+      DO K=1,NSOIL
+         FAC2=MAX(FAC2,SH2O(K,I)/SMCMAX(I))
+      ENDDO
+      CALL FAC2MIT_gpu(SMCMAX(I),FLIMIT)
+
+! ----------------------------------------------------------------------
+! FROZEN GROUND VERSION:
+! SMC STATES REPLACED BY SH2O STATES IN SRT SUBR.  SH2O & SICE STATES
+! INC&UDED IN SSTEP SUBR.  FROZEN GROUND CORRECTION FACTOR, FRZFACT
+! ADDED.  ALL WATER BALANCE CALCULATIONS USING UNFROZEN WATER
+! ----------------------------------------------------------------------
+
+#ifdef WRF_HYDRO
+!DJG NDHMS/WRF-Hydro edit... Add previous ponded water to new precip drip...
+    PCPDRP = PCPDRP + SFHEAD1RT(I)/1000./DT   ! convert SFHEAD1RT to (m/s)
+#endif
+
+
+      IF ( ( (PCPDRP * DT) > (0.0001*1000.0* (- ZSOIL (1,I))* SMCMAX(I)) )   &
+           .OR. (FAC2 > FLIMIT) ) THEN
+         CALL SRT_gpu (RHSTT,EDIR(I),ET(1:NSOIL,I),SH2O(1:NSOIL,I),SH2O(1:NSOIL,I),NSOIL,PCPDRP,ZSOIL(1:NSOIL,I),          &
+                    DWSAT(I),DKSAT(I),SMCMAX(I),BEXP(I),RUNOFF1(I),                    &
+                    RUNOFF2(I),DT,SMCWLT(I),SLOPE(I),KDT(I),FRZFACT(I),SICE,AI,BI,CI,  &
+                    SFHEAD1RT(I),INFXS1RT(I))
+         CALL SSTEP_gpu (SH2OFG,SH2O(1:NSOIL,I),DUMMY,RHSTT,RHSCT,DT,NSOIL,SMCMAX(I),     &
+                        CMCMAX(I),RUNOFF3(I),ZSOIL(1:NSOIL,I),SMC(1:NSOIL,I),SICE,AI,BI,CI,INFXS1RT(I))
+         DO K = 1,NSOIL
+            SH2OA (K) = (SH2O (K,I) + SH2OFG (K)) * 0.5
+         END DO
+         CALL SRT_gpu (RHSTT,EDIR(I),ET(1:NSOIL,I),SH2O(1:NSOIL,I),SH2OA,NSOIL,PCPDRP,ZSOIL(1:NSOIL,I),         &
+                    DWSAT(I),DKSAT(I),SMCMAX(I),BEXP(I),RUNOFF1(I),                    &
+                    RUNOFF2(I),DT,SMCWLT(I),SLOPE(I),KDT(I),FRZFACT(I),SICE,AI,BI,CI,  &
+                    SFHEAD1RT(I),INFXS1RT(I))
+         CALL SSTEP_gpu (SH2O(1:NSOIL,I),SH2O(1:NSOIL,I),CMC(I),RHSTT,RHSCT,DT,NSOIL,SMCMAX(I),         &
+                        CMCMAX(I),RUNOFF3(I),ZSOIL(1:NSOIL,I),SMC(1:NSOIL,I),SICE,AI,BI,CI,INFXS1RT(I))
+
+      ELSE
+         CALL SRT_gpu (RHSTT,EDIR(I),ET(1:NSOIL,I),SH2O(1:NSOIL,I),SH2O(1:NSOIL,I),NSOIL,PCPDRP,ZSOIL(1:NSOIL,I),          &
+                    DWSAT(I),DKSAT(I),SMCMAX(I),BEXP(I),RUNOFF1(I),                    &
+                    RUNOFF2(I),DT,SMCWLT(I),SLOPE(I),KDT(I),FRZFACT(I),SICE,AI,BI,CI,  &
+                   SFHEAD1RT(I),INFXS1RT(I))
+         CALL SSTEP_gpu (SH2O(1:NSOIL,I),SH2O(1:NSOIL,I),CMC(I),RHSTT,RHSCT,DT,NSOIL,SMCMAX(I),         &
+                     CMCMAX(I),RUNOFF3(I),ZSOIL(1:NSOIL,I),SMC(1:NSOIL,I),SICE,AI,BI,CI,INFXS1RT(I))
+!      RUNOF = RUNOFF
+
+      END IF
+      END IF
+    ENDIF
+  ENDIF
+ENDDO
+!$acc end parallel
+! ----------------------------------------------------------------------
+  END SUBROUTINE SMFLX_gpu3
 ! ----------------------------------------------------------------------
 
       SUBROUTINE SNFRAC (SNEQV,SNUP,SALP,SNOWH,SNCOVR, &
@@ -6543,7 +7937,22 @@ ENDDO
 ! ----------------------------------------------------------------------
   END SUBROUTINE SNOPAC
 ! ----------------------------------------------------------------------
-
+!!!        CALL SNOPAC_gpu (ETP(I),ETA(I),PRCP(I),PRCPF(I),SNOWNG(I),SMC(1:NSOIL,I),SMCMAX(I),SMCWLT(I),    &
+!!!                         SMCREF(I),SMCDRY(I),CMC(I),CMCMAX(I),NSOIL,DT,              &
+!!!                         SBETA(I),DF1(I),                                      &
+!!!                         Q2(I),T1(I),SFCTMP(I),T24(I),TH2(I),FDOWN(I),F1(I),SSOIL(I),STC(1:NSOIL,I),EPSCA(I),  &
+!!!                         SFCPRS(I),BEXP(I),PC(I),RCH(I),RR(I),CFACTR(I),SNCOVR(I),SNEQV(I),SNDENS(I),&
+!!!                         SNOWH(I),SH2O(1:NSOIL,I),SLOPE(I),KDT(I),FRZX(I),PSISAT(I),               &
+!!!                         ZSOIL(1:NSOIL,I),DWSAT(I),DKSAT(I),TBOT(I),ZBOT(I),SHDFAC(I),RUNOFF1(I),     &
+!!!                         RUNOFF2(I),RUNOFF3(I),EDIR(I),EC(I),ET(1:NSOIL,I),ETT(I),NROOT(I),SNOMLT(I),    &
+!!!                         RTDIS(1:NSOIL,I),QUARTZ(I),FXEXP(I),CSOIL(I),                       &
+!!!                         BETA(I),DRIP(I),DEW(I),FLX1(I),FLX2(I),FLX3(I),ESNOW(I),ETNS(I),EMISSI(I), &
+!!!                         RIBB(I),SOLDN(I),                                     &
+!!!                         ISURBAN,                                        &
+!!!                         VEGTYP(I),                                         &
+!!!                         ETPN(I),FLX4(I),UA_PHYS,                              &
+!!!                         SFHEAD1RT(I),INFXS1RT(I),ETPND1(I),SOILTYP(I),OPT_THCND     &
+!!!                        ,QFX_PHY(I),FASDAS,HCPCT_FASDAS(I),ETA_KINEMATIC(I)) !fasdas
       SUBROUTINE SNOPAC_gpu (ETP,ETA,PRCP,PRCPF,SNOWNG,SMC,SMCMAX,SMCWLT,   &
                           SMCREF,SMCDRY,CMC,CMCMAX,NSOIL,DT,            &
                           SBETA,DF1,                                    &
@@ -6559,8 +7968,8 @@ ENDDO
                           VEGTYP,                                       &
                           ETPN,FLX4,UA_PHYS,                            &
                           SFHEAD1RT,INFXS1RT,ETPND1,SOILTYP,OPT_THCND   &
-                         ,QFX_PHY,fasdas,HCPCT_FASDAS                   ) !fasdas
-!$acc routine seq
+                         ,QFX_PHY,fasdas,HCPCT_FASDAS,                  &
+                          its,ite,ETA_KINEMATIC,XLAND,ICE,SNEQV) !fasdas
 ! ----------------------------------------------------------------------
 ! SUBROUTINE SNOPAC
 ! ----------------------------------------------------------------------
@@ -6570,40 +7979,48 @@ ENDDO
 ! ----------------------------------------------------------------------
       IMPLICIT NONE
 
-      INTEGER, INTENT(IN)   :: OPT_THCND
-      INTEGER, INTENT(IN)   :: NROOT, NSOIL,VEGTYP,SOILTYP
+      INTEGER, INTENT(IN)   :: OPT_THCND,its,ite
+      INTEGER, INTENT(IN)   :: NSOIL
+      INTEGER, DIMENSION(its:ite), INTENT(IN) :: NROOT,VEGTYP,SOILTYP,ICE
       INTEGER, INTENT(IN)   :: ISURBAN
-      INTEGER               :: K
+      INTEGER               :: K,I
 !
 ! kmh 09/03/2006 add IT16 for surface temperature iteration
 !
       INTEGER               :: IT16
-      LOGICAL, INTENT(IN)   :: SNOWNG
+      LOGICAL, DIMENSION(its:ite), INTENT(IN)   :: SNOWNG
 
 !DJG NDHMS/WRF-Hydro edit...
-       REAL, INTENT(INOUT)    ::  SFHEAD1RT,INFXS1RT,ETPND1
+       REAL, DIMENSION(its:ite), INTENT(INOUT)    ::  SFHEAD1RT,INFXS1RT,ETPND1
 
-      REAL, INTENT(IN)      :: BEXP,CFACTR, CMCMAX,CSOIL,DF1,DKSAT,     &
-                               DT,DWSAT, EPSCA,FDOWN,F1,FXEXP,          &
-                               FRZFACT,KDT,PC, PRCP,PSISAT,Q2,QUARTZ,   &
-                               RCH,RR,SBETA,SFCPRS, SFCTMP, SHDFAC,     &
-                               SLOPE,SMCDRY,SMCMAX,SMCREF,SMCWLT, T24,  &
-                               TBOT,TH2,ZBOT,EMISSI,SOLDN
-      REAL, INTENT(INOUT)   :: CMC, BETA, ESD,FLX2,PRCPF,SNOWH,SNCOVR,  &
-                               SNDENS, T1, RIBB, ETP
-      REAL, INTENT(OUT)     :: DEW,DRIP,EC,EDIR, ETNS, ESNOW,ETT,       &
-                               FLX1,FLX3, RUNOFF1,RUNOFF2,RUNOFF3,      &
-                               SSOIL,SNOMLT
-      REAL, DIMENSION(1:NSOIL),INTENT(IN)     :: RTDIS,ZSOIL
-      REAL, DIMENSION(1:NSOIL),INTENT(OUT)    :: ET
-      REAL, DIMENSION(1:NSOIL), INTENT(INOUT) :: SMC,SH2O,STC
-      REAL, DIMENSION(1:NSOIL) :: ET1
-      REAL                  :: DENOM,DSOIL,DTOT,EC1,EDIR1,ESDFLX,ETA,   &
-                               ETT1, ESNOW1, ESNOW2, ETA1,ETP1,ETP2,    &
-                               ETP3, ETNS1, ETANRG, ETAX, EX, FLX3X,    &
-                               FRCSNO,FRCSOI, PRCP1, QSAT,RSNOW, SEH,   &
-                               SNCOND,SSOIL1, T11,T12, T12A, T12AX,     &
-                               T12B, T14, YY, ZZ1
+      REAL, INTENT(IN)      :: DT
+      REAL, DIMENSION(its:ite), INTENT(IN) :: PRCP,SMCMAX,SMCWLT,CMCMAX, &
+                                              DF1,SBETA,SMCDRY,SMCREF,F1,&
+                                              EPSCA,FDOWN,Q2,SFCTMP,T24, &
+                                              TH2,BEXP,CFACTR,PC,RCH,RR, &
+                                              SFCPRS,FRZFACT,KDT,PSISAT, &
+                                              SLOPE,DKSAT,DWSAT,SHDFAC,  &
+                                              TBOT,ZBOT,CSOIL,FXEXP,QUARTZ,&
+                                              EMISSI,SOLDN,XLAND,SNEQV
+      REAL, DIMENSION(its:ite), INTENT(INOUT) :: PRCPF,ETP,CMC,T1,ESD,   &
+                                                 SNCOVR,SNDENS,SNOWH,BETA,&
+                                                 FLX2,RIBB
+      REAL, DIMENSION(its:ite), INTENT(OUT) :: SSOIL,RUNOFF1,RUNOFF2, &
+                                               RUNOFF3,EC,EDIR,ETT,SNOMLT,&
+                                               DEW,DRIP,ETNS,ESNOW,FLX1,FLX3, &
+                                               ETA_KINEMATIC
+      REAL, DIMENSION(1:NSOIL,its:ite), INTENT(IN)     :: RTDIS,ZSOIL
+      REAL, DIMENSION(1:NSOIL,its:ite), INTENT(OUT)    :: ET
+      REAL, DIMENSION(1:NSOIL,its:ite), INTENT(INOUT) :: SMC,SH2O,STC
+      REAL, DIMENSION(1:NSOIL,its:ite) :: ET1
+      REAL                  :: DENOM,DSOIL,DTOT,ESDFLX,   &
+                               ETA1,ETP2,    &
+                               ETP3, ETAX, EX, FLX3X,    &
+                               FRCSNO,FRCSOI, QSAT,RSNOW, SEH,   &
+                               SNCOND,T12, T12A, T12AX,     &
+                               T12B, T14
+       REAL, DIMENSION(its:ite) :: ETA,EDIR1,EC1,ETT1,ESNOW1,ESNOW2,ETP1,ETNS1, &
+                                   ETANRG,PRCP1,SSOIL1,T11,YY,ZZ1
 !                               T12B, T14, YY, ZZ1,EMISSI_S
 !
 ! kmh 01/11/2007 add T15, T16, and DTOT2 for SFC T iteration and snow heat flux
@@ -6613,19 +8030,39 @@ ENDDO
                                LSUBS = 2.83E+6, TFREEZ = 273.15,        &
                                SNOEXP = 2.0
       LOGICAL, INTENT(IN)   :: UA_PHYS  ! UA: flag for UA option
-      REAL, INTENT(INOUT)   :: FLX4     ! UA: energy removed by canopy
-      REAL, INTENT(IN)      :: ETPN     ! UA: adjusted pot. evap. [mm/s]
+      REAL, DIMENSION(its:ite), INTENT(INOUT)   :: FLX4     ! UA: energy removed by canopy
+      REAL, DIMENSION(its:ite), INTENT(IN)      :: ETPN     ! UA: adjusted pot. evap. [mm/s]
       REAL                  :: ETP1N    ! UA: adjusted pot. evap. [m/s]
 
 !
 !  FASDAS
 !
-      REAL                  :: QFX_PHY
+      REAL, DIMENSION(its:ite)                  :: QFX_PHY
       INTEGER               :: FASDAS
-      REAL, INTENT(  OUT)   :: HCPCT_FASDAS
+      REAL, DIMENSION(its:ite), INTENT(  OUT)   :: HCPCT_FASDAS
 !
 !  END FASDAS
 !
+!$acc data present(ETP,ETA,PRCP,PRCPF,SNOWNG,SMC,SMCMAX,SMCWLT,SMCREF,  &
+!$acc              SMCDRY,CMC,CMCMAX,SBETA,DF1,Q2,T1,SFCTMP,T24,TH2,    &
+!$acc              FDOWN,F1,SSOIL,STC,EPSCA,SFCPRS,BEXP,PC,RCH,RR,      &
+!$acc              CFACTR,SNCOVR,ESD,SNDENS,SNOWH,SH2O,SLOPE,KDT,       &
+!$acc              FRZFACT,PSISAT,ZSOIL,DWSAT,DKSAT,TBOT,ZBOT,SHDFAC,   &
+!$acc              RUNOFF1,RUNOFF2,RUNOFF3,EDIR,EC,ET,ETT,NROOT,SNOMLT, &
+!$acc              RTDIS,QUARTZ,FXEXP,CSOIL,BETA,DRIP,DEW,FLX1,FLX2,    &
+!$acc              FLX3,ESNOW,ETNS,EMISSI,RIBB,SOLDN,VEGTYP,ETPN,FLX4,  &
+!$acc              SFHEAD1RT,INFXS1RT,ETPND1,SOILTYP,QFX_PHY, &
+!$acc              HCPCT_FASDAS,ETA_KINEMATIC,XLAND,ICE,SNEQV) &
+!$acc      create(EDIR1,EC1,ET1,ETT1,ETNS1,ESNOW1,ESNOW2,PRCP1,ETP1,    &
+!$acc             ETANRG,SSOIL1,T11,YY,ZZ1)
+
+!$acc parallel vector_length(128)
+!$acc loop gang vector private(ETP1N)
+DO I=its,ite
+  IF((XLAND(I)-1.5).LT.0.)THEN
+    IF (ICE(I) == 0) THEN
+      ESNOW(I) = 0.0
+      IF (SNEQV(I)  /= 0.0) THEN
 ! ----------------------------------------------------------------------
 ! EXECUTABLE CODE BEGINS HERE:
 ! ----------------------------------------------------------------------
@@ -6641,104 +8078,146 @@ ENDDO
 ! ETP1 [M S-1]
 ! ETP2 [M]
 ! ----------------------------------------------------------------------
-      DEW = 0.
-      EDIR = 0.
-      EDIR1 = 0.
-      EC1 = 0.
-      EC = 0.
+        DEW(I) = 0.
+        EDIR(I) = 0.
+        EDIR1(I) = 0.
+        EC1(I) = 0.
+        EC(I) = 0.
 !      EMISSI_S=0.95    ! For snow
 
-      DO K = 1,NSOIL
-         ET (K) = 0.
-         ET1 (K) = 0.
-      END DO
-      ETT = 0.
-      ETT1 = 0.
+        DO K = 1,NSOIL
+          ET (K,I) = 0.
+          ET1 (K,I) = 0.
+        END DO
+        ETT(I) = 0.
+        ETT1(I) = 0.
 
 !DJG NDHMS/WRF-Hydro edit...
-      ETPND1 = 0.
+        ETPND1(I) = 0.
 
 
-      ETNS = 0.
-      ETNS1 = 0.
-      ESNOW = 0.
-      ESNOW1 = 0.
-      ESNOW2 = 0.
+        ETNS(I) = 0.
+        ETNS1(I) = 0.
+        ESNOW(I) = 0.
+        ESNOW1(I) = 0.
+        ESNOW2(I) = 0.
 
 ! ----------------------------------------------------------------------
 ! CONVERT POTENTIAL EVAP (ETP) FROM KG M-2 S-1 TO ETP1 IN M S-1
 ! ----------------------------------------------------------------------
-      PRCP1 = PRCPF *0.001
+        PRCP1(I) = PRCPF(I) *0.001
 ! ----------------------------------------------------------------------
 ! IF ETP<0 (DOWNWARD) THEN DEWFALL (=FROSTFALL IN THIS CASE).
 ! ----------------------------------------------------------------------
-      BETA = 1.0
-      IF (ETP <= 0.0) THEN
-         IF ( ( RIBB >= 0.1 ) .AND. ( FDOWN > 150.0 ) ) THEN
-            ETP=(MIN(ETP*(1.0-RIBB),0.)*SNCOVR/0.980 + ETP*(0.980-SNCOVR))/0.980
-         ENDIF
-         IF(ETP == 0.) BETA = 0.0
-         ETP1 = ETP * 0.001
-         IF(UA_PHYS) ETP1N = ETPN * 0.001
-         DEW = -ETP1
-         ESNOW2 = ETP1*DT
-         ETANRG = ETP*((1.-SNCOVR)*LSUBC + SNCOVR*LSUBS)
-      ELSE
-         ETP1 = ETP * 0.001
-         IF(UA_PHYS) ETP1N = ETPN * 0.001
-         !  LAND CASE
-         IF (SNCOVR <  1.) THEN
-            CALL EVAPO_gpu (ETNS1,SMC,NSOIL,CMC,ETP1,DT,ZSOIL,           &
-                         SH2O,                                       &
-                         SMCMAX,BEXP,PC,SMCWLT,DKSAT,DWSAT,          &
-                         SMCREF,SHDFAC,CMCMAX,                       &
-                         SMCDRY,CFACTR,                              &
-                         EDIR1,EC1,ET1,ETT1,SFCTMP,Q2,NROOT,RTDIS,   &
-                         FXEXP, SFHEAD1RT,ETPND1)
+        BETA(I) = 1.0
+        IF (ETP(I) <= 0.0) THEN
+          IF ( ( RIBB(I) >= 0.1 ) .AND. ( FDOWN(I) > 150.0 ) ) THEN
+            ETP(I)=(MIN(ETP(I)*(1.0-RIBB(I)),0.)*SNCOVR(I)/0.980 + ETP(I)*(0.980-SNCOVR(I)))/0.980
+          ENDIF
+          IF(ETP(I) == 0.) BETA(I) = 0.0
+          ETP1(I) = ETP(I) * 0.001
+          IF(UA_PHYS) ETP1N = ETPN(I) * 0.001
+          DEW(I) = -ETP1(I)
+          ESNOW2(I) = ETP1(I)*DT
+          ETANRG(I) = ETP(I)*((1.-SNCOVR(I))*LSUBC + SNCOVR(I)*LSUBS)
+        ENDIF
+        IF (ETP(I) > 0.0) THEN
+          ETP1(I) = ETP(I) * 0.001
+          IF(UA_PHYS) ETP1N = ETPN(I) * 0.001
+        END IF
+      END IF
+    ENDIF
+  ENDIF
+ENDDO
+!$acc end parallel
+
+!!!!$acc parallel vector_length(128)
+!!!!$acc loop gang vector
+!!!DO I=its,ite
+!!!  IF((XLAND(I)-1.5).LT.0.)THEN
+!!!    IF (ICE(I) == 0) THEN
+!!!      IF (SNEQV(I)  /= 0.0) THEN
+!!!        IF (ETP(I) > 0.0) THEN
+!!!          !  LAND CASE
+!!!          IF (SNCOVR(I) <  1.) THEN
+!!!            CALL EVAPO_gpu2 (ETNS1(I),SMC(1:NSOIL,I),NSOIL,CMC(I),ETP1(I),DT,ZSOIL(1:NSOIL,I),           &
+!!!                            SH2O(1:NSOIL,I),                                       &
+!!!                            SMCMAX(I),BEXP(I),PC(I),SMCWLT(I),DKSAT(I),DWSAT(I),          &
+!!!                            SMCREF(I),SHDFAC(I),CMCMAX(I),                       &
+!!!                            SMCDRY(I),CFACTR(I),                              &
+!!!                            EDIR1(I),EC1(I),ET1(1:NSOIL,I),ETT1(I),SFCTMP(I),Q2(I),NROOT(I),RTDIS(1:NSOIL,I),   &
+!!!                            FXEXP(I), SFHEAD1RT(I),ETPND1(I))
+!!!          ENDIF
+!!!        ENDIF
+!!!      END IF
+!!!    ENDIF
+!!!  ENDIF
+!!!ENDDO
+!!!!$acc end parallel
+CALL EVAPO_gpu2 (ETNS1,SMC,NSOIL,CMC,ETP1,DT,ZSOIL,           &
+                  SH2O,                                       &
+                  SMCMAX,BEXP,PC,SMCWLT,DKSAT,DWSAT,          &
+                  SMCREF,SHDFAC,CMCMAX,                       &
+                  SMCDRY,CFACTR,                              &
+                  EDIR1,EC1,ET1,ETT1,SFCTMP,Q2,NROOT,RTDIS,   &
+                  FXEXP,SFHEAD1RT,ETPND1,its,ite,XLAND,ICE,SNEQV,ETP,SNCOVR)
 ! ----------------------------------------------------------------------------
-            EDIR1 = EDIR1* (1. - SNCOVR)
-            EC1 = EC1* (1. - SNCOVR)
+!$acc parallel vector_length(128)
+!$acc loop gang vector private(DENOM,DSOIL,DTOT,   &
+!$acc                          ETP3, EX,   &
+!$acc                          SEH,   &
+!$acc                          T12, T12A,     &
+!$acc                          T12B, T14)
+DO I=its,ite
+  IF((XLAND(I)-1.5).LT.0.)THEN
+    IF (ICE(I) == 0) THEN
+      IF (SNEQV(I)  /= 0.0) THEN
+        IF (ETP(I) > 0.0) THEN
+          !  LAND CASE
+          IF (SNCOVR(I) <  1.) THEN
+            EDIR1(I) = EDIR1(I)* (1. - SNCOVR(I))
+            EC1(I) = EC1(I)* (1. - SNCOVR(I))
             DO K = 1,NSOIL
-               ET1 (K) = ET1 (K)* (1. - SNCOVR)
+              ET1 (K,I) = ET1 (K,I)* (1. - SNCOVR(I))
             END DO
-            ETT1 = ETT1*(1.-SNCOVR)
+            ETT1(I) = ETT1(I)*(1.-SNCOVR(I))
 !            ETNS1 = EDIR1+ EC1+ ETT1
-            ETNS1 = ETNS1*(1.-SNCOVR)
+            ETNS1(I) = ETNS1(I)*(1.-SNCOVR(I))
 ! ----------------------------------------------------------------------------
-            EDIR = EDIR1*1000.
-            EC = EC1*1000.
+            EDIR(I) = EDIR1(I)*1000.
+            EC(I) = EC1(I)*1000.
             DO K = 1,NSOIL
-               ET (K) = ET1 (K)*1000.
+              ET (K,I) = ET1 (K,I)*1000.
             END DO
 !
 ! FASDAS
 !
             if( FASDAS ==  1 ) then
-              QFX_PHY = EDIR + EC
+              QFX_PHY(I) = EDIR(I) + EC(I)
               DO K=1,NSOIL
-                 QFX_PHY = QFX_PHY + ET(K)
+                QFX_PHY(I) = QFX_PHY(I) + ET(K,I)
               END DO
             endif
 !
 ! END FASDAS
 !
-            ETT = ETT1*1000.
-            ETNS = ETNS1*1000.
+            ETT(I) = ETT1(I)*1000.
+            ETNS(I) = ETNS1(I)*1000.
 
 
 !DJG NDHMS/WRF-Hydro edit...
-               ETPND1 = ETPND1*1000.
+            ETPND1(I) = ETPND1(I)*1000.
 
 
 ! ----------------------------------------------------------------------
 
-         ENDIF
-         ESNOW = ETP*SNCOVR
-         IF(UA_PHYS) ESNOW = ETPN*SNCOVR   ! USE ADJUSTED ETP
-         ESNOW1 = ESNOW*0.001
-         ESNOW2 = ESNOW1*DT
-         ETANRG = ESNOW*LSUBS + ETNS*LSUBC
-      ENDIF
+          ENDIF
+          ESNOW(I) = ETP(I)*SNCOVR(I)
+          IF(UA_PHYS) ESNOW(I) = ETPN(I)*SNCOVR(I)   ! USE ADJUSTED ETP
+          ESNOW1(I) = ESNOW(I)*0.001
+          ESNOW2(I) = ESNOW1(I)*DT
+          ETANRG(I) = ESNOW(I)*LSUBS + ETNS(I)*LSUBC
+        ENDIF
 
 ! ----------------------------------------------------------------------
 ! IF PRECIP IS FALLING, CALCULATE HEAT FLUX FROM SNOW SFC TO NEWLY
@@ -6746,11 +8225,11 @@ ENDDO
 ! THE NOT-YET-UPDATED SKIN TEMPERATURE (T1).  ASSUMES TEMPERATURE OF THE
 ! SNOWFALL STRIKING THE GROUND IS =SFCTMP (LOWEST MODEL LEVEL AIR TEMP).
 ! ----------------------------------------------------------------------
-      FLX1 = 0.0
-      IF (SNOWNG) THEN
-         FLX1 = CPICE * PRCP * (T1- SFCTMP)
-      ELSE
-         IF (PRCP >  0.0) FLX1 = CPH2O * PRCP * (T1- SFCTMP)
+        FLX1(I) = 0.0
+        IF (SNOWNG(I)) THEN
+          FLX1(I) = CPICE * PRCP(I) * (T1(I)- SFCTMP(I))
+        ELSE
+          IF (PRCP(I) >  0.0) FLX1(I) = CPH2O * PRCP(I) * (T1(I)- SFCTMP(I))
 ! ----------------------------------------------------------------------
 ! CALCULATE AN 'EFFECTIVE SNOW-GRND SFC TEMP' (T12) BASED ON HEAT FLUXES
 ! BETWEEN THE SNOW PACK AND THE SOIL AND ON NET RADIATION.
@@ -6759,18 +8238,18 @@ ENDDO
 ! FLX2 REFLECTS FREEZING RAIN LATENT HEAT FLUX USING T1 CALCULATED IN
 ! PENMAN.
 ! ----------------------------------------------------------------------
-      END IF
-      DSOIL = - (0.5 * ZSOIL (1))
-      DTOT = SNOWH + DSOIL
-      DENOM = 1.0+ DF1 / (DTOT * RR * RCH)
+        END IF
+        DSOIL = - (0.5 * ZSOIL (1,I))
+        DTOT = SNOWH(I) + DSOIL
+        DENOM = 1.0+ DF1(I) / (DTOT * RR(I) * RCH(I))
 ! surface emissivity weighted by snow cover fraction
 !      T12A = ( (FDOWN - FLX1 - FLX2 -                                   &
 !     &       ((SNCOVR*EMISSI_S)+EMISSI*(1.0-SNCOVR))*SIGMA *T24)/RCH    &
 !     &       + TH2 - SFCTMP - ETANRG/RCH ) / RR
-      T12A = ( (FDOWN - FLX1- FLX2- EMISSI * SIGMA * T24)/ RCH                    &
-                + TH2- SFCTMP - ETANRG / RCH ) / RR
+        T12A = ( (FDOWN(I) - FLX1(I)- FLX2(I)- EMISSI(I) * SIGMA * T24(I))/ RCH(I)                    &
+                + TH2(I)- SFCTMP(I) - ETANRG(I) / RCH(I) ) / RR(I)
 
-      T12B = DF1 * STC (1) / (DTOT * RR * RCH)
+        T12B = DF1(I) * STC (1,I) / (DTOT * RR(I) * RCH(I))
 
 ! ----------------------------------------------------------------------
 ! IF THE 'EFFECTIVE SNOW-GRND SFC TEMP' IS AT OR BELOW FREEZING, NO SNOW
@@ -6784,17 +8263,17 @@ ENDDO
 ! ----------------------------------------------------------------------
 ! SUB-FREEZING BLOCK
 ! ----------------------------------------------------------------------
-      T12 = (SFCTMP + T12A + T12B) / DENOM
-      IF (T12 <=  TFREEZ) THEN
-         T1 = T12
-         SSOIL = DF1 * (T1- STC (1)) / DTOT
+        T12 = (SFCTMP(I) + T12A + T12B) / DENOM
+        IF (T12 <=  TFREEZ) THEN
+          T1(I) = T12
+          SSOIL(I) = DF1(I) * (T1(I)- STC (1,I)) / DTOT
 !        ESD = MAX (0.0, ESD- ETP2)
-         ESD = MAX(0.0, ESD-ESNOW2)
-         FLX3 = 0.0
-         EX = 0.0
+          ESD(I) = MAX(0.0, ESD(I)-ESNOW2(I))
+          FLX3(I) = 0.0
+          EX = 0.0
 
-         SNOMLT = 0.0
-         IF(UA_PHYS) FLX4 = 0.0
+          SNOMLT(I) = 0.0
+          IF(UA_PHYS) FLX4(I) = 0.0
 ! ----------------------------------------------------------------------
 ! IF THE 'EFFECTIVE SNOW-GRND SFC TEMP' IS ABOVE FREEZING, SNOW MELT
 ! WILL OCCUR.  CALL THE SNOW MELT RATE,EX AND AMT, SNOMLT.  REVISE THE
@@ -6810,77 +8289,77 @@ ENDDO
 ! ----------------------------------------------------------------------
 ! ABOVE FREEZING BLOCK
 ! ----------------------------------------------------------------------
-      ELSE
+        ELSE
 !     From V3.9 original code (commented) replaced to allow complete melting of small snow amounts
 !        T1 = TFREEZ * SNCOVR ** SNOEXP + T12 * (1.0- SNCOVR ** SNOEXP)
-         T1 = TFREEZ * max(0.01,SNCOVR ** SNOEXP) + T12 * (1.0- max(0.01,SNCOVR ** SNOEXP))
-         BETA = 1.0
+          T1(I) = TFREEZ * max(0.01,SNCOVR(I) ** SNOEXP) + T12 * (1.0- max(0.01,SNCOVR(I) ** SNOEXP))
+          BETA(I) = 1.0
 
 ! ----------------------------------------------------------------------
 ! IF POTENTIAL EVAP (SUBLIMATION) GREATER THAN DEPTH OF SNOWPACK.
 ! BETA<1
 ! SNOWPACK HAS SUBLIMATED AWAY, SET DEPTH TO ZERO.
 ! ----------------------------------------------------------------------
-         SSOIL = DF1 * (T1- STC (1)) / DTOT
-         IF (ESD-ESNOW2 <= ESDMIN) THEN
-            ESD = 0.0
+          SSOIL(I) = DF1(I) * (T1(I)- STC (1,I)) / DTOT
+          IF (ESD(I)-ESNOW2(I) <= ESDMIN) THEN
+            ESD(I) = 0.0
             EX = 0.0
-            SNOMLT = 0.0
-            FLX3 = 0.0
-            IF(UA_PHYS) FLX4 = 0.0
+            SNOMLT(I) = 0.0
+            FLX3(I) = 0.0
+            IF(UA_PHYS) FLX4(I) = 0.0
 ! ----------------------------------------------------------------------
 ! SUBLIMATION LESS THAN DEPTH OF SNOWPACK
 ! SNOWPACK (ESD) REDUCED BY ESNOW2 (DEPTH OF SUBLIMATED SNOW)
 ! ----------------------------------------------------------------------
-         ELSE
-            ESD = ESD-ESNOW2
-            ETP3 = ETP * LSUBC
-            SEH = RCH * (T1- TH2)
-            T14 = T1* T1
+          ELSE
+            ESD(I) = ESD(I)-ESNOW2(I)
+            ETP3 = ETP(I) * LSUBC
+            SEH = RCH(I) * (T1(I)- TH2(I))
+            T14 = T1(I)* T1(I)
             T14 = T14* T14
 !           FLX3 = FDOWN - FLX1 - FLX2 -                                 &
 !                  ((SNCOVR*EMISSI_S)+EMISSI*(1-SNCOVR))*SIGMA*T14 -     &
 !                    SSOIL - SEH - ETANRG
-            FLX3 = FDOWN - FLX1- FLX2- EMISSI*SIGMA * T14- SSOIL - SEH - ETANRG
-            IF (FLX3 <= 0.0) FLX3 = 0.0
+            FLX3(I) = FDOWN(I) - FLX1(I)- FLX2(I)- EMISSI(I)*SIGMA * T14- SSOIL(I) - SEH - ETANRG(I)
+            IF (FLX3(I) <= 0.0) FLX3(I) = 0.0
 
-            IF(UA_PHYS .AND. FLX4 > 0. .AND. FLX3 > 0.) THEN
-              IF(FLX3 >= FLX4) THEN
-                FLX3 = FLX3 - FLX4
+            IF(UA_PHYS .AND. FLX4(I) > 0. .AND. FLX3(I) > 0.) THEN
+              IF(FLX3(I) >= FLX4(I)) THEN
+                FLX3(I) = FLX3(I) - FLX4(I)
               ELSE
-                FLX4 = FLX3
-                FLX3 = 0.
+                FLX4(I) = FLX3(I)
+                FLX3(I) = 0.
               ENDIF
             ELSE
-              FLX4 = 0.0
+              FLX4(I) = 0.0
             ENDIF
 
 ! ----------------------------------------------------------------------
 ! SNOWMELT REDUCTION DEPENDING ON SNOW COVER
 ! ----------------------------------------------------------------------
-            EX = FLX3*0.001/ LSUBF
+            EX = FLX3(I)*0.001/ LSUBF
 
 ! ----------------------------------------------------------------------
 ! ESDMIN REPRESENTS A SNOWPACK DEPTH THRESHOLD VALUE BELOW WHICH WE
 ! CHOOSE NOT TO RETAIN ANY SNOWPACK, AND INSTEAD INCLUDE IT IN SNOWMELT.
 ! ----------------------------------------------------------------------
-            SNOMLT = EX * DT
-            IF (ESD- SNOMLT >=  ESDMIN) THEN
-               ESD = ESD- SNOMLT
+            SNOMLT(I) = EX * DT
+            IF (ESD(I)- SNOMLT(I) >=  ESDMIN) THEN
+              ESD(I) = ESD(I)- SNOMLT(I)
 ! ----------------------------------------------------------------------
 ! SNOWMELT EXCEEDS SNOW DEPTH
 ! ----------------------------------------------------------------------
             ELSE
-               EX = ESD / DT
-               FLX3 = EX *1000.0* LSUBF
-               SNOMLT = ESD
+              EX = ESD(I) / DT
+              FLX3(I) = EX *1000.0* LSUBF
+              SNOMLT(I) = ESD(I)
 
-               ESD = 0.0
+              ESD(I) = 0.0
 ! ----------------------------------------------------------------------
 ! END OF 'ESD .LE. ETP2' IF-BLOCK
 ! ----------------------------------------------------------------------
             END IF
-         END IF
+          END IF
 
 ! ----------------------------------------------------------------------
 ! END OF 'T12 .LE. TFREEZ' IF-BLOCK
@@ -6892,7 +8371,7 @@ ENDDO
 ! RUNOFF/BASEFLOW LATER NEAR THE END OF SFLX (AFTER RETURN FROM CALL TO
 ! SUBROUTINE SNOPAC)
 ! ----------------------------------------------------------------------
-         PRCP1 = PRCP1+ EX
+          PRCP1(I) = PRCP1(I)+ EX
 
 ! ----------------------------------------------------------------------
 ! SET THE EFFECTIVE POTNL EVAPOTRANSP (ETP1) TO ZERO SINCE THIS IS SNOW
@@ -6900,14 +8379,38 @@ ENDDO
 ! (BELOW).
 ! SMFLX RETURNS UPDATED SOIL MOISTURE VALUES FOR NON-GLACIAL LAND.
 ! ----------------------------------------------------------------------
+        END IF
       END IF
-      CALL SMFLX_gpu (SMC,NSOIL,CMC,DT,PRCP1,ZSOIL,                      &
-                   SH2O,SLOPE,KDT,FRZFACT,                           &
-                   SMCMAX,BEXP,SMCWLT,DKSAT,DWSAT,                   &
-                   SHDFAC,CMCMAX,                                    &
-                   RUNOFF1,RUNOFF2,RUNOFF3,                          &
-                   EDIR1,EC1,ET1,                                    &
-                   DRIP, SFHEAD1RT,INFXS1RT)
+    ENDIF
+  ENDIF
+ENDDO
+!$acc end parallel
+
+!!!!$acc parallel vector_length(128)
+!!!!$acc loop gang vector
+!!!DO I=its,ite
+!!!  IF((XLAND(I)-1.5).LT.0.)THEN
+!!!    IF (ICE(I) == 0) THEN
+!!!      IF (SNEQV(I)  /= 0.0) THEN
+!!!        CALL SMFLX_gpu3 (SMC(1:NSOIL,I),NSOIL,CMC(I),DT,PRCP1(I),ZSOIL(1:NSOIL,I),                      &
+!!!                        SH2O(1:NSOIL,I),SLOPE(I),KDT(I),FRZFACT(I),                           &
+!!!                        SMCMAX(I),BEXP(I),SMCWLT(I),DKSAT(I),DWSAT(I),                   &
+!!!                        SHDFAC(I),CMCMAX(I),                                    &
+!!!                        RUNOFF1(I),RUNOFF2(I),RUNOFF3(I),                          &
+!!!                        EDIR1(I),EC1(I),ET1(1:NSOIL,I),                                    &
+!!!                        DRIP(I), SFHEAD1RT(I),INFXS1RT(I))
+!!!      END IF
+!!!    ENDIF
+!!!  ENDIF
+!!!ENDDO
+!!!!$acc end parallel
+CALL SMFLX_gpu3 (SMC,NSOIL,CMC,DT,PRCP1,ZSOIL,                      &
+                  SH2O,SLOPE,KDT,FRZFACT,                           &
+                  SMCMAX,BEXP,SMCWLT,DKSAT,DWSAT,                   &
+                  SHDFAC,CMCMAX,                                    &
+                  RUNOFF1,RUNOFF2,RUNOFF3,                          &
+                  EDIR1,EC1,ET1,                                    &
+                  DRIP,SFHEAD1RT,INFXS1RT,its,ite,XLAND,ICE,SNEQV)
 ! ----------------------------------------------------------------------
 ! BEFORE CALL SHFLX IN THIS SNOWPACK CASE, SET ZZ1 AND YY ARGUMENTS TO
 ! SPECIAL VALUES THAT ENSURE THAT GROUND HEAT FLUX CALCULATED IN SHFLX
@@ -6916,8 +8419,14 @@ ENDDO
 ! SNOW TOP SURFACE.  T11 IS A DUMMY ARGUEMENT SO WE WILL NOT USE THE
 ! SKIN TEMP VALUE AS REVISED BY SHFLX.
 ! ----------------------------------------------------------------------
-      ZZ1 = 1.0
-      YY = STC (1) -0.5* SSOIL * ZSOIL (1)* ZZ1/ DF1
+!$acc parallel vector_length(128)
+!$acc loop gang vector
+DO I=its,ite
+  IF((XLAND(I)-1.5).LT.0.)THEN
+    IF (ICE(I) == 0) THEN
+      IF (SNEQV(I)  /= 0.0) THEN
+        ZZ1(I) = 1.0
+        YY(I) = STC (1,I) -0.5* SSOIL(I) * ZSOIL (1,I)* ZZ1(I)/ DF1(I)
 
 ! ----------------------------------------------------------------------
 ! SHFLX WILL CALC/UPDATE THE SOIL TEMPS.  NOTE:  THE SUB-SFC HEAT FLUX
@@ -6926,27 +8435,75 @@ ENDDO
 ! HERE IN THE SNOPAC CASE, SINCE THE SKIN TEMP AND SUB-SFC HEAT FLUX ARE
 ! UPDATED INSTEAD NEAR THE BEGINNING OF THE CALL TO SNOPAC.
 ! ----------------------------------------------------------------------
-      T11 = T1
-      CALL SHFLX_gpu (SSOIL1,STC,SMC,SMCMAX,NSOIL,T11,DT,YY,ZZ1,ZSOIL,     &
-                   TBOT,ZBOT,SMCWLT,PSISAT,SH2O,BEXP,F1,DF1,           &
-                   QUARTZ,CSOIL,VEGTYP,ISURBAN,SOILTYP,OPT_THCND       &
-                  ,HCPCT_FASDAS                                        ) !fasdas
+        T11(I) = T1(I)
+      END IF
+    ENDIF
+  ENDIF
+ENDDO
+!$acc end parallel
 
+!!!!$acc parallel vector_length(128)
+!!!!$acc loop gang vector
+!!!DO I=its,ite
+!!!  IF((XLAND(I)-1.5).LT.0.)THEN
+!!!    IF (ICE(I) == 0) THEN
+!!!      IF (SNEQV(I)  /= 0.0) THEN
+!!!        CALL SHFLX_gpu2 (SSOIL1(I),STC(1:NSOIL,I),SMC(1:NSOIL,I),SMCMAX(I),NSOIL,T11(I),DT,YY(I),ZZ1(I),ZSOIL(1:NSOIL,I),     &
+!!!                        TBOT(I),ZBOT(I),SMCWLT(I),PSISAT(I),SH2O(1:NSOIL,I),BEXP(I),F1(I),DF1(I),           &
+!!!                        QUARTZ(I),CSOIL(I),VEGTYP(I),ISURBAN,SOILTYP(I),OPT_THCND       &
+!!!                       ,HCPCT_FASDAS(I)                                        ) !fasdas
+!!!      END IF
+!!!    ENDIF
+!!!  ENDIF
+!!!ENDDO
+!!!!$acc end parallel
+CALL SHFLX_gpu2 (SSOIL1,STC,SMC,SMCMAX,NSOIL,T11,DT,YY,ZZ1,ZSOIL,     &
+                  TBOT,ZBOT,SMCWLT,PSISAT,SH2O,BEXP,F1,DF1,           &
+                  QUARTZ,CSOIL,VEGTYP,ISURBAN,SOILTYP,OPT_THCND       &
+                 ,HCPCT_FASDAS,its,ite,XLAND,ICE,SNEQV)
 ! ----------------------------------------------------------------------
 ! SNOW DEPTH AND DENSITY ADJUSTMENT BASED ON SNOW COMPACTION.  YY IS
 ! ASSUMED TO BE THE SOIL TEMPERTURE AT THE TOP OF THE SOIL COLUMN.
 ! ----------------------------------------------------------------------
+!$acc parallel vector_length(128)
+!$acc loop gang vector
+DO I=its,ite
+  IF((XLAND(I)-1.5).LT.0.)THEN
+    IF (ICE(I) == 0) THEN
+      IF (SNEQV(I)  /= 0.0) THEN
       ! LAND
-      IF (ESD >  0.) THEN
-         CALL SNOWPACK_gpu (ESD,DT,SNOWH,SNDENS,T1,YY,SNOMLT,UA_PHYS)
-      ELSE
-         ESD = 0.
-         SNOWH = 0.
-         SNDENS = 0.
-         SNCOND = 1.
-         SNCOVR = 0.
+        IF (ESD(I) >  0.) THEN
+          CALL SNOWPACK_gpu (ESD(I),DT,SNOWH(I),SNDENS(I),T1(I),YY(I),SNOMLT(I),UA_PHYS)
+        ENDIF
       END IF
+    ENDIF
+  ENDIF
+ENDDO
+!$acc end parallel
 
+!$acc parallel vector_length(128)
+!$acc loop gang vector private(SNCOND)
+DO I=its,ite
+  IF((XLAND(I)-1.5).LT.0.)THEN
+    IF (ICE(I) == 0) THEN
+      IF (SNEQV(I)  /= 0.0) THEN
+        IF (ESD(I) <=  0.) THEN
+          ESD(I) = 0.
+          SNOWH(I) = 0.
+          SNDENS(I) = 0.
+          SNCOND = 1.
+          SNCOVR(I) = 0.
+        END IF
+
+        ETA_KINEMATIC(I) =  ESNOW(I) + ETNS(I) - 1000.0*DEW(I)
+
+      END IF
+    ENDIF
+  ENDIF
+ENDDO
+!$acc end parallel
+
+!$acc end data
 ! ----------------------------------------------------------------------
   END SUBROUTINE SNOPAC_gpu
 ! ----------------------------------------------------------------------
