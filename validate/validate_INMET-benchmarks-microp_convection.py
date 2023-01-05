@@ -32,9 +32,11 @@ def df_model_data(model_data,times,**kwargs):
     model_station = model_data.sel(latitude=kwargs['lat_station'],
                 method='nearest').sel(longitude=kwargs['lon_station'],
                                       method='nearest')
-    # If windpeed, calculate from components
-    if variable == 'windspeed':
-        model_var = mpcalc.wind_speed(model_station['u10'],model_station['v10'])
+    # Wind components components
+    if variable == 'u component':
+        model_var = model_station['u10']
+    elif variable == 'v component':
+        model_var = model_station['v10']
     # If testing microphysics and/or convection schemes, the data might not
     # have both grid-scale and convective precipitation variables, so the code
     # has to figure out what's in there
@@ -61,6 +63,11 @@ def df_model_data(model_data,times,**kwargs):
             (model_station['surface_pressure'])*units('hPa'),
             model_station['zgrid'][0]*units('m'),
             model_station['t2m']*units('K'))
+    elif variable == 'dew point':
+        model_var = mpcalc.dewpoint_from_specific_humidity(
+            model_station['surface_pressure'] * units.Pa,
+            model_station['t2m'] * units.K,
+            model_station['q2'] * units('kg kg^{-1}'))
     else:
         model_var = model_station[model_variables[variable]]
     # create df
@@ -90,7 +97,9 @@ def df_inmet_data(inmet_data,times,**kwargs):
                        'precipitation':'PRECIPITAÇÃO TOTAL, HORÁRIO (mm)',
                        'pressure':
                        'PRESSAO ATMOSFERICA AO NIVEL DA ESTACAO, HORARIA (mB)',
-                       'windspeed':'VENTO, VELOCIDADE HORARIA (m/s)'}
+                       'windspeed':'VENTO, VELOCIDADE HORARIA (m/s)',
+                       'windir': 'VENTO, DIREÇÃO HORARIA (gr) (° (gr))',
+                       'dew point':'TEMPERATURA DO PONTO DE ORVALHO (°C)'}
     # Get time interval
     dt = times[1] - times[0]
     # Get INMET data for the same dates as the model experiment
@@ -102,6 +111,23 @@ def df_inmet_data(inmet_data,times,**kwargs):
     # If using precipitation, get accumulated values between model time steps
     if variable == 'precipitation':
         inmet_var = inmet_var.sum()[inmet_variables[variable]].cumsum()
+    # Compute wind components:
+    elif variable == 'u component':
+        ws = inmet_var.mean()[inmet_variables['windspeed']].values
+        wd = inmet_var.mean()[inmet_variables['windir']].values
+        inmet_var = pd.Series(
+            mpcalc.wind_components((ws * units('m/s')),(wd * units.deg))[0],
+            index=inmet_var.mean().index)
+    elif variable == 'v component':
+        ws = inmet_var.mean()[inmet_variables['windspeed']].values
+        wd = inmet_var.mean()[inmet_variables['windir']].values
+        inmet_var = pd.Series(
+             mpcalc.wind_components((ws * units('m/s')),(wd * units.deg))[1],
+             index=inmet_var.mean().index)
+    elif variable == 'v component':
+        inmet_var = mpcalc.wind_components(
+            inmet_var[inmet_variables['windspeed']],
+            inmet_var[inmet_variables['windir']])[1]
     # Else, get mean values between model time steps
     else:
         inmet_var = inmet_var.mean()[inmet_variables[variable]]
@@ -169,7 +195,7 @@ def get_stats(var_data):
     ccoef, crmsd, sdev = np.array(ccoef),np.array(crmsd),np.array(sdev)
     return sdev,crmsd,ccoef,experiments
 
-def plot_taylor(sdevs,crmsds,ccoefs,experiments,):
+def plot_taylor(sdevs,crmsds,ccoefs,experiments,variable):
     '''
     Produce the Taylor diagram
     Label the points and change the axis options for SDEV, CRMSD, and CCOEF.
@@ -194,10 +220,11 @@ def plot_taylor(sdevs,crmsds,ccoefs,experiments,):
                       tickRMS = tickRMS, titleRMS = 'off', widthRMS = 2.0,
                       colRMS = '#728B92', styleRMS = '--',  
                       widthSTD = 2, styleSTD = '--', colSTD = '#8A8A8A',
+                      titleSTD = 'on',
                       colCOR = 'k', styleCOR = '-',
-                      widthCOR = 1.0, titleCOR = 'on',
+                      widthCOR = 1.0, titleCOR = 'off',
                       colObs = 'k', markerObs = '^',
-                      titleOBS = 'Obs.', styleObs =':',
+                      titleOBS = variable, styleObs =':',
                       axismax = axismax, alpha = 1)
     
 def plot_time_series(data,ax, i):
@@ -292,7 +319,8 @@ with open(station_file, 'r',encoding='latin-1') as file:
             pass
         
 ## Opens all data and create a single df ##
-variables = ['temperature','precipitation','windspeed','pressure']
+variables = ['temperature','precipitation','dew point','pressure',
+             'u component', 'v component']
 for variable in variables:
     print('-------------------------------------')
     print('plotting variable: '+variable+'\n')
@@ -335,6 +363,8 @@ model_station = model_data.sel(latitude=kwargs['lat_station'],
 lat = round(float(model_station.latitude),2)
 lon = round(float(model_station.longitude),2)
 z = round(float(model_station.zgrid[0]),2)
+# Directory for saving figures
+outdir = './Figures/'; os.makedirs(outdir, exist_ok=True)
 # Figure names
 if args.output is not None:
     fname = args.output
@@ -342,49 +372,49 @@ else:
     fname = (args.bench_directory).split('/')[-2].split('.nc')[0]
     
 ## Plot time series ##
-fig = plt.figure(figsize=(15,10))
-for i in range(4):
+fig = plt.figure(figsize=(12,15))
+for i in range(6):
     variable = variables[i]
     var_data = data[data['variable'] == variable]
-    ax = fig.add_subplot(2,2, i+1)
+    ax = fig.add_subplot(3,2, i+1)
     plot_time_series(var_data, ax, i)
 plt.suptitle('Station: '+station+"\nStation lat, lon, z: "+
              str(round(lat_station,2))+", "+str(round(lon_station,2))+", "+
              str(round(z_station,2))+"\nModel lat, lon, z: "+ str(lat)+
              ", "+str(lon)+", "+str(z),fontsize=22)
-plt.tight_layout(h_pad=-20)
-plt.savefig(fname+'_timeseries_'+station+'.png')
+plt.tight_layout(h_pad=-15, w_pad=-1)
+plt.savefig(outdir+fname+'_timeseries_'+station+'.png')
 print(fname+'_timeseries_'+station+'.png created!')
 
 ## Plot Taylor Diagrams ##
-fig = plt.figure(figsize=(10,20))
-for i in range(4):
+fig = plt.figure(figsize=(15,10))
+for i in range(6):
     variable = variables[i]
     var_data = data[data['variable'] == variable]
     stats = get_stats(var_data)
     sdev,crmsd,ccoef,expnames = stats[0],stats[1],stats[2],stats[3]
-    ax = fig.add_subplot(4,1, i+1)
+    ax = fig.add_subplot(3,2, i+1)
     # ax.set_axis_off()
-    plot_taylor(sdev,crmsd,ccoef,expnames)
+    plot_taylor(sdev,crmsd,ccoef,expnames,variable)
 plt.suptitle('Station: '+station+"\nStation lat, lon, z: "+
              str(round(lat_station,2))+", "+str(round(lon_station,2))+", "+
              str(round(z_station,2))+"\nModel lat, lon, z: "+ str(lat)+
              ", "+str(lon)+", "+str(z),fontsize=22)
 plt.tight_layout()
-plt.savefig(fname+'_taylor-diagram_'+station+'.png')
+plt.savefig(outdir+fname+'_taylor-diagram_'+station+'.png')
 print(fname+'_taylor-diagram_'+station+'.png created!')
 
 ## Plot q-q plots ##
 fig = plt.figure(figsize=(20,10))
-for i in range(4):
+for i in range(6):
     variable = variables[i]
     var_data = data[data['variable'] == variable]
-    ax = fig.add_subplot(2,2, i+1)
+    ax = fig.add_subplot(3,2, i+1)
     plot_qq(var_data,ax,i,variable)
 plt.suptitle('Station: '+station+"\nStation lat, lon, z: "+
              str(round(lat_station,2))+", "+str(round(lon_station,2))+", "+
              str(round(z_station,2))+"\nModel lat, lon, z: "+ str(lat)+
              ", "+str(lon)+", "+str(z),fontsize=22, y=0.98)
 plt.subplots_adjust(hspace=0.3,wspace=0.45,right=0.7, top=0.83)
-plt.savefig(fname+'_qq-plots_'+station+'.png')
+plt.savefig(outdir+fname+'_qq-plots_'+station+'.png')
 print(fname+'_qq-plots_'+station+'.png created!')
