@@ -260,7 +260,7 @@ def plot_qq(var_data,ax,i,variable):
         g = sns.regplot(x=reference, y=predicted, data=var_data,
                         label=experiment, ax=ax)
         ax.set_title(variable)
-    (ax.legend(loc='center',fontsize=20,
+    (ax.legend(loc='center',fontsize=20, ncol=2,
                          bbox_to_anchor=(1.6, 1.2))) if i == 3 else None
     g.set_ylabel('EXPERIMENT',fontsize=18)
     g.set_xlabel('INMET',fontsize=18)
@@ -382,26 +382,25 @@ plt.suptitle('Station: '+station+"\nStation lat, lon, z: "+
              str(round(lat_station,2))+", "+str(round(lon_station,2))+", "+
              str(round(z_station,2))+"\nModel lat, lon, z: "+ str(lat)+
              ", "+str(lon)+", "+str(z),fontsize=22)
-plt.tight_layout(h_pad=-15, w_pad=-1)
-plt.savefig(outdir+fname+'_timeseries_'+station+'.png')
+plt.tight_layout(h_pad=-20, w_pad=-1)
+plt.savefig(outdir+fname+'_timeseries_'+station+'.png', dpi=300)
 print(fname+'_timeseries_'+station+'.png created!')
 
 ## Plot Taylor Diagrams ##
-fig = plt.figure(figsize=(15,10))
+fig = plt.figure(figsize=(17,10))
 for i in range(6):
     variable = variables[i]
     var_data = data[data['variable'] == variable]
     stats = get_stats(var_data)
     sdev,crmsd,ccoef,expnames = stats[0],stats[1],stats[2],stats[3]
     ax = fig.add_subplot(3,2, i+1)
-    # ax.set_axis_off()
     plot_taylor(sdev,crmsd,ccoef,expnames,variable)
 plt.suptitle('Station: '+station+"\nStation lat, lon, z: "+
              str(round(lat_station,2))+", "+str(round(lon_station,2))+", "+
              str(round(z_station,2))+"\nModel lat, lon, z: "+ str(lat)+
              ", "+str(lon)+", "+str(z),fontsize=22)
-plt.tight_layout()
-plt.savefig(outdir+fname+'_taylor-diagram_'+station+'.png')
+plt.tight_layout(h_pad=10)
+plt.savefig(outdir+fname+'_taylor-diagram_'+station+'.png', dpi=300)
 print(fname+'_taylor-diagram_'+station+'.png created!')
 
 ## Plot q-q plots ##
@@ -416,5 +415,5 @@ plt.suptitle('Station: '+station+"\nStation lat, lon, z: "+
              str(round(z_station,2))+"\nModel lat, lon, z: "+ str(lat)+
              ", "+str(lon)+", "+str(z),fontsize=22, y=0.98)
 plt.subplots_adjust(hspace=0.3,wspace=0.45,right=0.7, top=0.83)
-plt.savefig(outdir+fname+'_qq-plots_'+station+'.png')
+plt.savefig(outdir+fname+'_qq-plots_'+station+'.png', dpi=300)
 print(fname+'_qq-plots_'+station+'.png created!')
