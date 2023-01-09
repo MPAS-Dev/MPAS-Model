@@ -261,7 +261,7 @@ def plot_qq(var_data,ax,i,variable):
                         label=experiment, ax=ax)
         ax.set_title(variable)
     (ax.legend(loc='center',fontsize=20, ncol=2,
-                         bbox_to_anchor=(1.6, 1.2))) if i == 3 else None
+                         bbox_to_anchor=(1.8, 1.1))) if i == 3 else None
     g.set_ylabel('EXPERIMENT',fontsize=18)
     g.set_xlabel('INMET',fontsize=18)
     ax.xaxis.set_tick_params(labelsize=16)
@@ -382,7 +382,7 @@ plt.suptitle('Station: '+station+"\nStation lat, lon, z: "+
              str(round(lat_station,2))+", "+str(round(lon_station,2))+", "+
              str(round(z_station,2))+"\nModel lat, lon, z: "+ str(lat)+
              ", "+str(lon)+", "+str(z),fontsize=22)
-plt.tight_layout(h_pad=-20, w_pad=-1)
+plt.tight_layout(h_pad=-30, w_pad=-1)
 plt.savefig(outdir+fname+'_timeseries_'+station+'.png', dpi=300)
 print(fname+'_timeseries_'+station+'.png created!')
 
@@ -399,7 +399,7 @@ plt.suptitle('Station: '+station+"\nStation lat, lon, z: "+
              str(round(lat_station,2))+", "+str(round(lon_station,2))+", "+
              str(round(z_station,2))+"\nModel lat, lon, z: "+ str(lat)+
              ", "+str(lon)+", "+str(z),fontsize=22)
-plt.tight_layout(h_pad=10)
+# plt.tight_layout(h_pad=10)
 plt.savefig(outdir+fname+'_taylor-diagram_'+station+'.png', dpi=300)
 print(fname+'_taylor-diagram_'+station+'.png created!')
 
@@ -414,6 +414,7 @@ plt.suptitle('Station: '+station+"\nStation lat, lon, z: "+
              str(round(lat_station,2))+", "+str(round(lon_station,2))+", "+
              str(round(z_station,2))+"\nModel lat, lon, z: "+ str(lat)+
              ", "+str(lon)+", "+str(z),fontsize=22, y=0.98)
-plt.subplots_adjust(hspace=0.3,wspace=0.45,right=0.7, top=0.83)
-plt.savefig(outdir+fname+'_qq-plots_'+station+'.png', dpi=300)
+plt.subplots_adjust(hspace=0.4,wspace=0.45,right=0.7, top=0.83)
+plt.savefig(outdir+fname+'_qq-plots_'+station+'.png',
+            bbox_inches='tight', dpi=300)
 print(fname+'_qq-plots_'+station+'.png created!')
