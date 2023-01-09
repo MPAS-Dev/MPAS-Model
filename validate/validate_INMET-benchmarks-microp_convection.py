@@ -178,12 +178,6 @@ def df_era_data(times,**kwargs):
                     ).sel(isobaricInhPa=1000)
     if kwargs['variable'] == 'temperature':
         era_var = era_station.t-273.15
-    elif kwargs['variable'] == 'precipitation':
-        era_var = era_station.t * np.nan
-    elif kwargs['variable'] == 'dew point':
-        era_var = era_station.t * np.nan
-    elif kwargs['variable'] == 'pressure':
-        era_var = era_station.t * np.nan
     elif kwargs['variable'] == 'u component':
         era_var = era_station.u
     elif kwargs['variable'] == 'v component':
@@ -385,7 +379,8 @@ for variable in variables:
         exp_df = df_model_data(model_data,times,**kwargs)
         data = pd.concat([data,exp_df])      
         # if requested, also add ERA5 data to df
-        if args.ERA5:
+        if args.ERA5 and variable not in [
+                'dew point','precipitation', 'pressure']:
             df_era = df_era_data(times,**kwargs)
             data = pd.concat([data,df_era])      
 data.index = range(len(data))
