@@ -174,14 +174,19 @@ def get_inmet_data(start_date,INMET_dir,times,**kwargs):
 def df_era_data(times,**kwargs):
     era_data = xr.open_dataset(args.ERA5,engine='cfgrib')
     era_station = era_data.sel(latitude=kwargs['lat_station'],method='nearest'
-                    ).sel(longitude=kwargs['lon_station'],method='nearest'
-                    ).sel(isobaricInhPa=1000)
+                    ).sel(longitude=kwargs['lon_station'],method='nearest')
     if kwargs['variable'] == 'temperature':
-        era_var = era_station.t-273.15
+        era_var = era_station.t2m-273.15
+    elif kwargs['variable'] == 'precipitation':
+        era_var = era_station.t2m*0
+    elif kwargs['variable'] == 'dew point':
+        era_var = era_station.d2m
+    elif kwargs['variable'] == 'pressure':
+        era_var = era_station.msl
     elif kwargs['variable'] == 'u component':
-        era_var = era_station.u
+        era_var = era_station.u10
     elif kwargs['variable'] == 'v component':
-        era_var = era_station.v
+        era_var = era_station.v10
     df_era = pd.DataFrame(era_var.values,columns=['value'])
     df_era.index = era_var.time
     df_era = df_era[(df_era.index >= times.min()) &
@@ -347,7 +352,7 @@ variables = ['temperature','precipitation','dew point','pressure',
              'u component', 'v component']
 for variable in variables:
     print('-------------------------------------')
-    print('plotting variable: '+variable+'\n')
+    print('organising data for variable: '+variable+'\n')
     # Flag for opening INMET data
     for bench in benchs:
         # Open data and get attributes
@@ -379,8 +384,7 @@ for variable in variables:
         exp_df = df_model_data(model_data,times,**kwargs)
         data = pd.concat([data,exp_df])      
         # if requested, also add ERA5 data to df
-        if args.ERA5 and variable not in [
-                'dew point','precipitation', 'pressure']:
+        if args.ERA5:
             df_era = df_era_data(times,**kwargs)
             data = pd.concat([data,df_era])      
 data.index = range(len(data))
@@ -402,6 +406,7 @@ else:
     fname = (args.bench_directory).split('/')[-2].split('.nc')[0]
     
 ## Plot time series ##
+print('plotting time series..')
 fig = plt.figure(figsize=(12,15))
 for i in range(6):
     variable = variables[i]
@@ -417,6 +422,7 @@ plt.savefig(outdir+fname+'_timeseries_'+station+'.png', dpi=300)
 print(fname+'_timeseries_'+station+'.png created!')
 
 ## Plot Taylor Diagrams ##
+print('plotting taylor diagrams..')
 fig = plt.figure(figsize=(20,15))
 for i in range(6):
     variable = variables[i]
@@ -434,6 +440,7 @@ plt.savefig(outdir+fname+'_taylor-diagram_'+station+'.png', dpi=300)
 print(fname+'_taylor-diagram_'+station+'.png created!')
 
 ## Plot q-q plots ##
+print('plotting q-q plots..')
 fig = plt.figure(figsize=(20,10))
 for i in range(6):
     variable = variables[i]
