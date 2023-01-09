@@ -1,0 +1,107 @@
+latitude latitude
+longitude longitude
+qv Water vapor mixing ratio
+qc Cloud water mixing ratio
+qr Rain water mixing ratio
+qi Ice mixing ratio
+latCell Latitude of cells
+lonCell Longitude of cells
+xCell Cartesian x-coordinate of cells
+yCell Cartesian y-coordinate of cells
+zCell Cartesian z-coordinate of cells
+indexToCellID Mapping from local array index to global cell ID
+latEdge Latitude of edges
+lonEdge Longitude of edges
+xEdge Cartesian x-coordinate of edges
+yEdge Cartesian y-coordinate of edges
+zEdge Cartesian z-coordinate of edges
+indexToEdgeID Mapping from local array index to global edge ID
+latVertex Latitude of vertices
+lonVertex Longitude of vertices
+xVertex Cartesian x-coordinate of vertices
+yVertex Cartesian y-coordinate of vertices
+zVertex Cartesian z-coordinate of vertices
+indexToVertexID Mapping from local array index to global vertex ID
+cellsOnEdge IDs of cells divided by an edge
+nEdgesOnCell Number of edges forming the boundary of a cell
+nEdgesOnEdge Number of edges involved in reconstruction of tangential velocity for an edge
+edgesOnCell IDs of edges forming the boundary of a cell
+edgesOnEdge IDs of edges involved in reconstruction of tangential velocity for an edge
+weightsOnEdge Weights used in reconstruction of tangential velocity for an edge
+dvEdge Spherical distance between vertex endpoints of an edge
+dcEdge Spherical distance between cells separated by an edge
+angleEdge Angle between local north and the positive tangential direction of an edge
+areaCell Spherical area of a Voronoi cell
+areaTriangle Spherical area of a Delaunay triangle
+cellsOnCell IDs of cells neighboring a cell
+verticesOnCell IDs of vertices (corner points) of a cell
+verticesOnEdge IDs of the two vertex endpoints of an edge
+edgesOnVertex IDs of the edges that meet at a vertex
+cellsOnVertex IDs of the cells that meet at a vertex
+kiteAreasOnVertex Intersection areas between primal (Voronoi) and dual (triangular) mesh cells
+meshDensity Mesh density function (used when generating the mesh) evaluated at a cell
+zgrid Geometric height of layer interfaces
+zz d(zeta)/dz, vertical metric term
+u Horizontal normal velocity at edges
+w Vertical velocity at vertical cell faces
+pressure Pressure
+surface_pressure Diagnosed surface pressure
+rho Dry air density
+theta Potential temperature
+relhum Relative humidity
+divergence Horizontal velocity divergence at cell center
+vorticity Relative vorticity at vertices
+ke Kinetic energy at a cell center
+uReconstructZonal Zonal component of reconstructed horizontal velocity at cell centers
+uReconstructMeridional Meridional component of reconstructed horizontal velocity at cell centers
+ertel_pv Ertel's potential vorticity
+u_pv Zonal wind on dynamic tropopause
+v_pv Meridional wind on dynamic tropopause
+theta_pv Potential temperature on dynamic tropopause
+vort_pv Relative vertical vorticity on dynamic tropopause
+depv_dt_lw Diabatic EPV tendency from longwave radiation
+depv_dt_sw Diabatic EPV tendency from shortwave radiation
+depv_dt_bl Diabatic EPV tendency from PBL
+depv_dt_cu Diabatic EPV tendency from convection
+depv_dt_mix Diabatic EPV tendency from explicit numerical mixing
+dtheta_dt_mp Potential temperature heating rate from microphysics
+depv_dt_mp Diabatic EPV tendency from microphysics
+depv_dt_diab Sum of calculated EPV tendencies from diabatic processes
+depv_dt_fric Sum of calculated EPV tendencies from frictional processes
+depv_dt_diab_pv Diabatic EPV tendency on dynamic tropopause
+depv_dt_fric_pv Frictional EPV tendency on dynamic tropopause
+iLev_DT Lowest vertical level at or above dynamic tropopause (.lt.1 if 2 PVU below column; .gt.nLevels if 2PVU above column)
+i_rainnc incidence of accumulated grid-scale precipitation greater than config_bucket_rainnc
+rainnc accumulated total grid-scale precipitation
+precipw precipitable water
+cuprec convective precipitation rate
+i_rainc incidence of accumulated convective precipitation greater than config_bucket_rainc
+rainc accumulated convective precipitation
+kpbl index level of PBL top
+hpbl Planetary Boundary Layer (PBL) height
+hfx upward heat flux at the surface
+qfx upward moisture flux at the surface
+cd drag coefficient at 10-meter
+cda drag coefficient at lowest model level
+ck enthalpy exchange coeff at 10-meter
+cka enthalpy exchange coefficient at lowest model level
+lh latent heat flux at the surface
+u10 10-meter zonal wind
+v10 10-meter meridional wind
+q2 2-meter specific humidity
+t2m 2-meter temperature
+th2m 2-meter potential temperature
+gsw net surface shortwave radiation flux
+glw all-sky downward surface longwave radiation
+acsnow accumulated snow
+ozmixm monthly-mean climatological ozone defined at fixed pressure levels
+xland land-ocean mask (1=land including sea-ice ; 2=ocean)
+skintemp ground or water surface temperature
+snow snow water equivalent
+snowh physical snow depth
+sst sea-surface temperature
+vegfra vegetation fraction
+xice fractional area coverage of sea-ice
+sh2o soil equivalent liquid water
+smois soil moisture
+tslb soil layer temperature
