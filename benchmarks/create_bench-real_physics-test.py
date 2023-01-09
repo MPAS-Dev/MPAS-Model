@@ -128,8 +128,8 @@ b_main_dir = work_dir+"/benchmarks/"+b_name
 grid_name = "Catarina_250-8km"
 grid_dir = work_dir+"/grids/grids/Catarina_250-8km/"
 # define dates in format: 'YYYY-MM-DD_hh:mm:ss'
-init_date = '2004-03-21_12:00:00'
-run_duration = '1_00:00:00'
+init_date = '2004-03-21_00:00:00'
+run_duration = '2_00:00:00'
 len_disp = 800.0
 n_vert_levels = 72
 # path to geographical data

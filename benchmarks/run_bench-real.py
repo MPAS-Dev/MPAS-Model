@@ -74,6 +74,7 @@ for b in benchs:
     f = open(b+'/run_duration', 'w' )
     f.write(str(lenght)+' hours')
     f.close()
-        
     
+    # wait process to finish before starting a new one    
+    p.wait()    
 
