@@ -387,7 +387,7 @@ plt.savefig(outdir+fname+'_timeseries_'+station+'.png', dpi=300)
 print(fname+'_timeseries_'+station+'.png created!')
 
 ## Plot Taylor Diagrams ##
-fig = plt.figure(figsize=(25,15))
+fig = plt.figure(figsize=(22,15))
 for i in range(6):
     variable = variables[i]
     var_data = data[data['variable'] == variable]
