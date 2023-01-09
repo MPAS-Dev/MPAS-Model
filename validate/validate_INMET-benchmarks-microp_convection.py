@@ -261,7 +261,7 @@ def plot_qq(var_data,ax,i,variable):
                         label=experiment, ax=ax)
         ax.set_title(variable)
     (ax.legend(loc='center',fontsize=20, ncol=2,
-                         bbox_to_anchor=(1.8, 1.1))) if i == 3 else None
+                         bbox_to_anchor=(1.8, 0.8))) if i == 3 else None
     g.set_ylabel('EXPERIMENT',fontsize=18)
     g.set_xlabel('INMET',fontsize=18)
     ax.xaxis.set_tick_params(labelsize=16)
@@ -382,12 +382,12 @@ plt.suptitle('Station: '+station+"\nStation lat, lon, z: "+
              str(round(lat_station,2))+", "+str(round(lon_station,2))+", "+
              str(round(z_station,2))+"\nModel lat, lon, z: "+ str(lat)+
              ", "+str(lon)+", "+str(z),fontsize=22)
-plt.tight_layout(h_pad=-30, w_pad=-1)
+plt.tight_layout(h_pad=-25, w_pad=-1)
 plt.savefig(outdir+fname+'_timeseries_'+station+'.png', dpi=300)
 print(fname+'_timeseries_'+station+'.png created!')
 
 ## Plot Taylor Diagrams ##
-fig = plt.figure(figsize=(17,10))
+fig = plt.figure(figsize=(20,10))
 for i in range(6):
     variable = variables[i]
     var_data = data[data['variable'] == variable]
@@ -400,7 +400,7 @@ plt.suptitle('Station: '+station+"\nStation lat, lon, z: "+
              str(round(z_station,2))+"\nModel lat, lon, z: "+ str(lat)+
              ", "+str(lon)+", "+str(z),fontsize=22)
 # plt.tight_layout(h_pad=10)
-plt.subplots_adjust(hspace=0.2,wspace=0.4)
+plt.subplots_adjust(hspace=0.4,wspace=0.8)
 plt.savefig(outdir+fname+'_taylor-diagram_'+station+'.png', dpi=300)
 print(fname+'_taylor-diagram_'+station+'.png created!')
 
@@ -415,7 +415,7 @@ plt.suptitle('Station: '+station+"\nStation lat, lon, z: "+
              str(round(lat_station,2))+", "+str(round(lon_station,2))+", "+
              str(round(z_station,2))+"\nModel lat, lon, z: "+ str(lat)+
              ", "+str(lon)+", "+str(z),fontsize=22, y=0.98)
-plt.subplots_adjust(hspace=0.5,wspace=0.45,right=0.7, top=0.83)
+plt.subplots_adjust(hspace=0.6,wspace=0.35,right=0.7, top=0.83)
 plt.savefig(outdir+fname+'_qq-plots_'+station+'.png',
             bbox_inches='tight', dpi=300)
 print(fname+'_qq-plots_'+station+'.png created!')
