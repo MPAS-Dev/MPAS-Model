@@ -172,7 +172,8 @@ def get_inmet_data(start_date,INMET_dir,times,**kwargs):
     return df_inmet
 
 def df_era_data(times,**kwargs):
-    era_data = xr.open_dataset(args.ERA5,engine='cfgrib')
+    era_data = xr.open_dataset(args.ERA5,engine='cfgrib',
+            backend_kwargs={'filter_by_keys': {'typeOfLevel': 'surface'}})
     era_station = era_data.sel(latitude=kwargs['lat_station'],method='nearest'
                     ).sel(longitude=kwargs['lon_station'],method='nearest')
     if kwargs['variable'] == 'temperature':
@@ -180,9 +181,9 @@ def df_era_data(times,**kwargs):
     elif kwargs['variable'] == 'precipitation':
         era_var = era_station.t2m*0
     elif kwargs['variable'] == 'dew point':
-        era_var = era_station.d2m
+        era_var = era_station.d2m-273.15
     elif kwargs['variable'] == 'pressure':
-        era_var = era_station.msl
+        era_var = era_station.msl/100
     elif kwargs['variable'] == 'u component':
         era_var = era_station.u10
     elif kwargs['variable'] == 'v component':
