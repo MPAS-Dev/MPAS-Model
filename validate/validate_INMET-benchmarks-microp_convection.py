@@ -177,7 +177,7 @@ def df_era_data(times,**kwargs):
                     ).sel(longitude=kwargs['lon_station'],method='nearest'
                     ).sel(isobaricInhPa=1000)
     if kwargs['variable'] == 'temperature':
-        era_var = era_station.t
+        era_var = era_station.t-273.15
     elif kwargs['variable'] == 'precipitation':
         era_var = era_station.t * np.nan
     elif kwargs['variable'] == 'dew point':
@@ -188,7 +188,7 @@ def df_era_data(times,**kwargs):
         era_var = era_station.u
     elif kwargs['variable'] == 'v component':
         era_var = era_station.v
-    df_era = pd.DataFrame(era_var.values)
+    df_era = pd.DataFrame(era_var.values,columns=['value'])
     df_era.index = era_var.time
     df_era = df_era[(df_era.index >= times.min()) &
                           (df_era.index <= times.max())]
