@@ -399,8 +399,7 @@ plt.suptitle('Station: '+station+"\nStation lat, lon, z: "+
              str(round(lat_station,2))+", "+str(round(lon_station,2))+", "+
              str(round(z_station,2))+"\nModel lat, lon, z: "+ str(lat)+
              ", "+str(lon)+", "+str(z),fontsize=22)
-plt.tight_layout(w_pad=5)
-# plt.subplots_adjust(hspace=0.4,wspace=0.8)
+plt.tight_layout(w_pad=2)
 plt.savefig(outdir+fname+'_taylor-diagram_'+station+'.png', dpi=300)
 print(fname+'_taylor-diagram_'+station+'.png created!')
 
