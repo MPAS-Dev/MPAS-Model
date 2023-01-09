@@ -171,6 +171,34 @@ def get_inmet_data(start_date,INMET_dir,times,**kwargs):
     df_inmet = df_inmet_data(station_data,times,**kwargs)
     return df_inmet
 
+def df_era_data(times,**kwargs):
+    era_data = xr.open_dataset(args.ERA5,engine='cfgrib')
+    era_station = era_data.sel(latitude=kwargs['lat_station'],method='nearest'
+                    ).sel(longitude=kwargs['lon_station'],method='nearest'
+                    ).sel(isobaricInhPa=1000)
+    if kwargs['variable'] == 'temperature':
+        era_var = era_station.t
+    elif kwargs['variable'] == 'precipitation':
+        era_var = era_station.t * np.nan
+    elif kwargs['variable'] == 'dew point':
+        era_var = era_station.t * np.nan
+    elif kwargs['variable'] == 'pressure':
+        era_var = era_station.t * np.nan
+    elif kwargs['variable'] == 'u component':
+        era_var = era_station.u
+    elif kwargs['variable'] == 'v component':
+        era_var = era_station.v
+    df_era = pd.DataFrame(era_var.values)
+    df_era.index = era_var.time
+    df_era = df_era[(df_era.index >= times.min()) &
+                          (df_era.index <= times.max())]
+    df_era['source'],df_era['experiment'] = 'ERA','ERA'
+    df_era['microp'],df_era['cumulus'] = 'ERA','ERA'
+    df_era['variable'] = kwargs['variable']
+    df_era['date'] = df_era.index
+    df_era.index = range(len(df_era))
+    return df_era
+
 def get_stats(var_data):
     ccoef, crmsd, sdev = [], [], []
     experiments = list(var_data['experiment'].unique())
@@ -228,7 +256,7 @@ def plot_taylor(sdevs,crmsds,ccoefs,experiments,variable):
                       axismax = axismax, alpha = 1)
     
 def plot_time_series(data,ax, i):
-    legend = 'auto' if i == 3 else False
+    legend = 'full' if i == 3 else False
     g = sns.lineplot(x="date", y="value",
                      size="source", style='microp', hue='cumulus',
                      markers=True, ax=ax,data=data, legend=legend)
@@ -286,6 +314,8 @@ parser.add_argument('-bdir','--bench_directory', type=str, required=True,
 
 parser.add_argument('-o','--output', type=str, default=None,
                         help='''output name to append file''')
+parser.add_argument('-e','--ERA5', type=str, default=None,
+                        help='''wether to validade with ERA5 data''')
 args = parser.parse_args()
 
 ## Start the code ##
@@ -339,7 +369,8 @@ for variable in variables:
                   'experiment':experiment,
                   'microp':microp,'cumulus':cumulus,
                   'lat_station':lat_station,
-                  'lon_station':lon_station}
+                  'lon_station':lon_station,
+                  'z_station':z_station}
         # For first bench, open INMET data
         if bench == benchs[0]:
             df_inmet = get_inmet_data(start_date,INMET_dir,
@@ -349,10 +380,14 @@ for variable in variables:
             data = df_inmet
         # If other variable but still for first bench, concat inmet data to df
         elif variable != variables[0] and bench == benchs[0]:
-            data = pd.concat([data,df_inmet])       
+            data = pd.concat([data,df_inmet])      
         # Then, just concat the df with bench data
         exp_df = df_model_data(model_data,times,**kwargs)
-        data = pd.concat([data,exp_df])           
+        data = pd.concat([data,exp_df])      
+        # if requested, also add ERA5 data to df
+        if args.ERA5:
+            df_era = df_era_data(times,**kwargs)
+            data = pd.concat([data,df_era])      
 data.index = range(len(data))
             
 ## Start plotting ##
