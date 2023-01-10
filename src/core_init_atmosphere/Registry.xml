@@ -1274,7 +1274,8 @@
                      packages="first_guess_field"/>
 
                 <var name="o3_fg" name_in_code="o3" type="real" dimensions="nFGLevels nCells Time" units="kg kg^{-1}"
-                     description="First guess ozone"/>
+                     description="First guess ozone"
+                     packages="first_guess_field"/>
 
                 <var name="soilz_fg" name_in_code="soilz" type="real" dimensions="nCells Time" units="m"
                      description="First guess soil height"
@@ -1382,26 +1383,32 @@
                      packages="met_stage_out"/>
 
                 <var name="lai_modis" type="real" dimensions="nCells Time" units="m^{2} m^{-2}"
-                     description="leaf area index"/>
+                     description="leaf area index"
+                     packages="met_stage_out"/>
 
                 <var name="xland" type="real" dimensions="nCells Time" units="unitless"
                      description="land-ocean mask (1=land including sea-ice ; 2=ocean)"
                      packages="met_stage_out"/>
 
                 <var name="t2anl" type="real" dimensions="nCells Time" units="K"
-                     description="2-meter temperature analysis (interpolated to model time step during run)"/>
+                     description="2-meter temperature analysis (interpolated to model time step during run)"
+                     packages="met_stage_out"/>
 
                 <var name="rh2anl" type="real" dimensions="nCells Time" units="percent"
-                     description="2-meter relative humidity analysis (interpolated to model time step during run)"/>
+                     description="2-meter relative humidity analysis (interpolated to model time step during run)"
+                     packages="met_stage_out"/>
 
                 <var name="snoanl" type="real" dimensions="nCells Time" units="kg m^{-2}"
-                     description="snow water equivalent analysis (interpolated to model time step during run)"/>
+                     description="snow water equivalent analysis (interpolated to model time step during run)"
+                     packages="met_stage_out"/>
 
                 <var name="ptrop" type="real" dimensions="nCells Time" units="Pa"
-                     description="tropopause pressure"/>
+                     description="tropopause pressure"
+                     packages="met_stage_out"/>
 
                 <var name="hgttrop" type="real" dimensions="nCells Time" units="m AMSL"
-                     description="tropopause height"/>
+                     description="tropopause height"
+                     packages="met_stage_out"/>
 
                 <!-- diagnostic fields that we get from first-guess data, and which we want to have at model initial output time -->
                 <var name="u10" type="real" dimensions="nCells Time" units="m s^{-1}"
@@ -1452,7 +1459,8 @@
                      packages="met_stage_out"/>
 
                 <var name="ozone" type="real" dimensions="nVertLevels nCells Time" units="kg kg^{-1}"
-                     description="Ozone mass mixing ratio"/>
+                     description="Ozone mass mixing ratio"
+                     packages="met_stage_out"/>
 
                 <!-- reconstructed horizontal velocity vectors at cell centers -->
                 <var name="uReconstructX" type="real" dimensions="nVertLevels nCells Time" units="m s^{-1}"
