@@ -576,10 +576,6 @@
 			<var name="fEdge"/>
 			<var name="fVertex"/>
 			<var name="meshDensity"/>
-			<var name="meshScalingDel2"/>
-			<var name="meshScalingDel4"/>
-			<var name="meshScalingRegionalCell"/>
-			<var name="meshScalingRegionalEdge"/>
 			<var name="bdyMaskCell"/>
 			<var name="bdyMaskEdge"/>
 			<var name="bdyMaskVertex"/>
