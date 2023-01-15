@@ -1,0 +1,63 @@
+<streams>
+<immutable_stream name="input"
+                  type="input"
+                  io_type="netcdf4"
+                  filename_template="init.$Y$M$D$h.nc"
+                  input_interval="initial_only" />
+
+<immutable_stream name="restart"
+                  type="input;output"
+                  filename_template="restart.$Y-$M-$D_$h.$m.$s.nc"
+                  input_interval="initial_only"
+                  clobber_mode="replace_files"
+                  io_type="pnetcdf,cdf5"
+                  output_interval="03:00:00" />
+
+<stream name="output"
+        type="output"
+        filename_template="history.$Y-$M-$D_$h.$m.$s.nc"
+        clobber_mode="replace_files"
+        io_type="pnetcdf,cdf5"
+        output_interval="00:01:15" >
+
+        <file name="stream_list.atmosphere.output"/>
+</stream>
+
+<stream name="diagnostics"
+        type="output"
+        filename_template="diag.$Y-$M-$D_$h.$m.$s.nc"
+        clobber_mode="replace_files"
+        io_type="pnetcdf,cdf5"
+        output_interval="00:01:15" >
+
+        <file name="stream_list.atmosphere.diagnostics"/>
+</stream>
+
+<stream name="surface"
+        type="input"
+        filename_template="sfc_update.nc"
+        filename_interval="none"
+        input_interval="none" >
+
+        <file name="stream_list.atmosphere.surface"/>
+</stream>
+
+<stream name="pv"
+        type="output"
+        filename_template="pv.$Y-$M-$D_$h.$m.$s.nc"
+        clobber_mode="replace_files"
+        io_type="pnetcdf,cdf5"
+        output_interval="00:01:15" >
+
+        <file name="stream_list.atmosphere.pv"/>
+</stream>
+
+
+<immutable_stream name="lbc_in"
+                  type="input"
+                  io_type="netcdf4"
+                  filename_template="lbc.$Y-$M-$D_$h.nc"
+                  filename_interval="input_interval"
+                  input_interval="3:00:00" />
+
+</streams>
