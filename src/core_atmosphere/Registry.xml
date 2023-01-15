@@ -928,7 +928,9 @@
 			<var name="depv_dt_fric"/>
 			<var name="depv_dt_diab_pv"/>
 			<var name="depv_dt_fric_pv"/>
+                        <var name="tend_u_phys"/>
 			<var name="iLev_DT"/>
+          
                         <!-- End Ertel PV diagnostics defined in diagnostics/Registry_pv.xml -->
 
 			<var name="i_rainnc"/>
@@ -1117,6 +1119,10 @@
                         <var_array name="lbc_scalars" />
 
                 </stream>
+
+                
+
+  
 	</streams>
 
 
@@ -1723,7 +1729,7 @@
                      description="tendency of coupled potential temperature rho*theta_m/zz from dynamics and physics, updated each RK step"/>
 
                 <var name="rt_diabatic_tend" type="real" dimensions="nVertLevels nCells Time" units="kg K s^{-1}"
-                     description="Tendency of coupled potential temperature from microphysics"/>
+                     description="Tendency of coupled potential temperature from physics"/>
 
                 <var name="euler_tend_u" name_in_code="u_euler" type="real" dimensions="nVertLevels nEdges Time" units="m s^{-2}"
                      description="Tendency of u from dynamics"/>

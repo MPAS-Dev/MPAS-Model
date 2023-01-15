@@ -28,15 +28,16 @@ module mpas_atm_diagnostics_manager
     !>  Initialize the diagnostics manager and all diagnostics.
     !
     !-----------------------------------------------------------------------
-    subroutine mpas_atm_diag_setup(stream_mgr, configs, structs, clock, dminfo)
+    subroutine mpas_atm_diag_setup(stream_mgr, configs, structs, clock, dminfo)    
 
         use mpas_atm_diagnostics_utils, only : mpas_atm_diag_utils_init
         use mpas_derived_types, only : MPAS_streamManager_type, MPAS_pool_type, MPAS_clock_type, dm_info
         use diagnostic_template, only : diagnostic_template_setup
-        use isobaric_diagnostics, only : isobaric_diagnostics_setup
-        use convective_diagnostics, only : convective_diagnostics_setup
-        use pv_diagnostics, only : pv_diagnostics_setup
-        use soundings, only : soundings_setup
+
+!        use isobaric_diagnostics, only : isobaric_diagnostics_setup
+!        use convective_diagnostics, only : convective_diagnostics_setup
+        use pv_diagnostics, only : pv_diagnostics_setup !, pv_diagnostics_init_prev
+!        use soundings, only : soundings_setup
 
         implicit none
 
@@ -53,10 +54,11 @@ module mpas_atm_diagnostics_manager
         call mpas_atm_diag_utils_init(stream_mgr)
 
         call diagnostic_template_setup(configs, structs, clock)
-        call isobaric_diagnostics_setup(structs, clock)
-        call convective_diagnostics_setup(structs, clock)
+!        call isobaric_diagnostics_setup(structs, clock)
+!        call convective_diagnostics_setup(structs, clock)
         call pv_diagnostics_setup(structs, clock)
-        call soundings_setup(configs, structs, clock, dminfo)
+!        call pv_diagnostics_init_prev(structs)                              ! MC ADDED
+!        call soundings_setup(configs, structs, clock, dminfo)
 
     end subroutine mpas_atm_diag_setup
 
@@ -74,13 +76,14 @@ module mpas_atm_diagnostics_manager
     subroutine mpas_atm_diag_update()
 
         use diagnostic_template, only : diagnostic_template_update
-        use convective_diagnostics, only : convective_diagnostics_update
+!        use convective_diagnostics, only : convective_diagnostics_update
+        use pv_diagnostics, only : pv_diagnostics_update
 
         implicit none
 
 
-        call diagnostic_template_update()
-        call convective_diagnostics_update()
+        call pv_diagnostics_update()
+!        call convective_diagnostics_update()
 
     end subroutine mpas_atm_diag_update
 
@@ -98,19 +101,19 @@ module mpas_atm_diagnostics_manager
     subroutine mpas_atm_diag_compute()
 
         use diagnostic_template, only : diagnostic_template_compute
-        use isobaric_diagnostics, only : isobaric_diagnostics_compute
-        use convective_diagnostics, only : convective_diagnostics_compute
+!        use isobaric_diagnostics, only : isobaric_diagnostics_compute
+!        use convective_diagnostics, only : convective_diagnostics_compute
         use pv_diagnostics, only : pv_diagnostics_compute
-        use soundings, only : soundings_compute
+!        use soundings, only : soundings_compute
 
         implicit none
 
 
         call diagnostic_template_compute()
-        call isobaric_diagnostics_compute()
-        call convective_diagnostics_compute()
+!        call isobaric_diagnostics_compute()
+!        call convective_diagnostics_compute()
         call pv_diagnostics_compute()
-        call soundings_compute()
+!        call soundings_compute()
 
     end subroutine mpas_atm_diag_compute
 
@@ -128,13 +131,11 @@ module mpas_atm_diagnostics_manager
     subroutine mpas_atm_diag_reset()
 
         use diagnostic_template, only : diagnostic_template_reset
-        use convective_diagnostics, only : convective_diagnostics_reset
+        use pv_diagnostics, only : pv_diagnostics_reset
 
         implicit none
 
-
-        call diagnostic_template_reset()
-        call convective_diagnostics_reset()
+        call pv_diagnostics_reset()
 
     end subroutine mpas_atm_diag_reset
 
@@ -153,13 +154,13 @@ module mpas_atm_diagnostics_manager
 
         use mpas_atm_diagnostics_utils, only : mpas_atm_diag_utils_finalize
         use diagnostic_template, only : diagnostic_template_cleanup
-        use soundings, only : soundings_cleanup
+!        use soundings, only : soundings_cleanup
 
         implicit none
 
 
         call diagnostic_template_cleanup()
-        call soundings_cleanup()
+!        call soundings_cleanup()
 
         !
         ! Take care of any needed cleanup in the diagnostics utility module

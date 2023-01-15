@@ -313,6 +313,8 @@ module atm_core
       call mpas_pool_get_subpool(block % structs, 'diag', diag)
       call mpas_pool_get_subpool(block % structs, 'state', state)
 
+      call mpas_pool_get_subpool(block % structs, 'state', state)
+
       call mpas_pool_get_config(block % configs, 'config_do_restart', config_do_restart)
       call mpas_pool_get_config(block % configs, 'config_do_DAcycling', config_do_DAcycling)
 
