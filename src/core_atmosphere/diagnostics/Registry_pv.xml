@@ -9,16 +9,37 @@
              description="Ertel's potential vorticity"/>
 
         <var name="u_pv" type="real" dimensions="nCells Time" units="m s^{-1}"
-             description="Zonal wind on dynamic tropopause"/>
+             description="Zonal wind on dynamic tropopause diagnosed at end of previous time step (i.e., iLev_DT)"/>
 
         <var name="v_pv" type="real" dimensions="nCells Time" units="m s^{-1}"
-             description="Meridional wind on dynamic tropopause"/>
+             description="Meridional wind on dynamic tropopause diagnosed at end of previous time step (i.e., iLev_DT)"/>
 
         <var name="theta_pv" type="real" dimensions="nCells Time" units="K"
-             description="Potential temperature on dynamic tropopause"/>
+             description="Potential temperature on dynamic tropopause diagnosed at end of previous time step (i.e., iLev_DT)"/>
 
         <var name="vort_pv" type="real" dimensions="nCells Time" units="s^{-1}"
-             description="Relative vertical vorticity on dynamic tropopause"/>
+             description="Relative vertical vorticity on dynamic tropopause diagnosed at end of previous time step (i.e., iLev_DT)"/>
+
+        <var name="wCell" type="real" dimensions="nVertLevels nCells Time" units="m s^{-1}"
+             description="Vertical velocity interpolated to cell centers"/>
+
+        <var name="dEPV_dxZonal" type="real" dimensions="nVertLevels nCells Time" units="PVU m^{-1}"
+             description="Reconstructed zonal gradient of Ertel's PV"/>
+
+        <var name="dEPV_dyMerid" type="real" dimensions="nVertLevels nCells Time" units="PVU m^{-1}"
+             description="Reconstructed meridional gradient of Ertel's PV"/>
+
+        <var name="dEPV_dz" type="real" dimensions="nVertLevels nCells Time" units="PVU m^{-1}"
+             description="Vertical gradient of Ertel's PV"/>
+
+        <var name="advectionPV_zonal" type="real" dimensions="nVertLevels nCells Time" units="PVU s^{-1}"
+             description="Zonal advection of Ertel's PV: +u*dPV/dx"/>
+
+        <var name="advectionPV_meridional" type="real" dimensions="nVertLevels nCells Time" units="PVU s^{-1}"
+             description="Meridional advection of Ertel's PV: +v*dPV/dy"/>
+
+        <var name="advectionPV_vertical" type="real" dimensions="nVertLevels nCells Time" units="PVU s^{-1}"
+             description="Vertical advection of Ertel's PV: +w*dPV/dz"/>
 
         <var name="depv_dt_lw" type="real" dimensions="nVertLevels nCells Time" units="PVU s^{-1}"
              description="Diabatic EPV tendency from longwave radiation"/>
@@ -53,17 +74,50 @@
         <var name="tend_u_phys" type="real" dimensions="nVertLevels nEdges Time" units="m s^{-2}"
              description="Normal wind tendencies from physics parameterizations"/>
 
+        <var name="uTend_curl" type="real" dimensions="nVertLevels nVertices Time" units="s^{-2}"
+             description="Curl of the normal wind tendencies at the cell vertices"/>
+
+        <var name="tend_wCell" type="real" dimensions="nVertLevels nCells Time" units="m s^{-2}"
+             description="Uncoupled vertical velocity tendency interpolated to cell center"/>
+
         <var name="depv_dt_diab_pv" type="real" dimensions="nCells Time" units="PVU s^{-1}"
-             description="Diabatic EPV tendency on dynamic tropopause"/>
+             description="Diabatic EPV tendency on dynamic tropopause diagnosed at beginning of previous time step (i.e., iLev_DT_prev)"/>
 
         <var name="depv_dt_fric_pv" type="real" dimensions="nCells Time" units="PVU s^{-1}"
-             description="Frictional EPV tendency on dynamic tropopause"/>
+             description="Frictional EPV tendency on dynamic tropopause diagnosed at beginning of previous time step (i.e., iLev_DT_prev)"/>
 
         <var name="iLev_DT" type="integer" dimensions="nCells Time" units="-"
              description="Lowest vertical level at or above dynamic tropopause (.lt.1 if 2 PVU below column; .gt.nLevels if 2PVU above column)"/>
 
         <var name="inTropo" type="integer" dimensions="nVertLevels nCells Time" units="0/1"
              description="1 if within troposphere based on EPV flood fill"/>
+
+        <var name="uReconstructZonal_prev" type="real" dimensions="nVertLevels nCells Time" units="m s^{-1}"
+             description="Reconstructed zonal wind at beginning of previous time step"/>
+
+        <var name="uReconstructMeridional_prev" type="real" dimensions="nVertLevels nCells Time" units="m s^{-1}"
+             description="Reconstructed meridional wind at beginning of previous time step"/>
+
+        <var name="wCell_prev" type="real" dimensions="nVertLevels nCells Time" units="m s^{-1}"
+             description="Vertical velocity interpolated to cell centers at beginning of previous time step"/>
+
+        <var name="theta_prev" type="real" dimensions="nVertLevels nCells Time" units="K"
+             description="Potential temperature at beginning of previous time step"/>
+
+        <var name="rho_prev" type="real" dimensions="nVertLevels nCells Time" units="kg m^{-3}"
+             description="Density at cell center at beginning of previous time step"/>
+
+        <var name="rho_edge_prev" type="real" dimensions="nVertLevels nEdges Time" units="kg m^{-3}"
+             description="Density at cell edge at beginning of previous time step"/>
+
+        <var name="ertel_pv_prev" type="real" dimensions="nVertLevels nCells Time" units="PVU"
+             description="Ertel's PV at beginning of previous time step"/>
+   
+        <var name="pv_vertex_prev" type="real" dimensions="nVertLevels nVertices Time" units="s^{-1}"
+             description="Absolute vertical voricity at cell vertices at beginning of previous time step"/>
+
+        <var name="iLev_DT_prev" type="integer" dimensions="nCells Time" units="-"
+             description="Lowest vertical level at or above dynamic tropopause at beginning of previous time step"/>
 
 </var_struct>
 
