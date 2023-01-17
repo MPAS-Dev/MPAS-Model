@@ -928,7 +928,7 @@
 			<var name="depv_dt_fric"/>
 			<var name="depv_dt_diab_pv"/>
 			<var name="depv_dt_fric_pv"/>
-                        <var name="tend_u_phys"/>
+			<var name="tend_u_phys"/>
 			<var name="iLev_DT"/>
           
                         <!-- End Ertel PV diagnostics defined in diagnostics/Registry_pv.xml -->
