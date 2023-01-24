@@ -37,7 +37,10 @@
 !defines alarm to update the surface boundary conditions:
  character(len=*), parameter:: sfcbdyAlarmID = 'sfcbdy'
 
-!defines alarm to update the background surface albedo and the greeness fraction:
+!defines alarm to update the soil nudging analyses:
+ character(len=*), parameter:: soilndgAlarmID = 'soilndg'
+
+!defines alarm to update the background surface albedo and the greenness fraction:
  character(len=*), parameter:: greenAlarmID  = 'green'
 
 !defines alarm to update the ozone path length,the trace gas path length,the total emissivity,
@@ -148,6 +151,7 @@
                    config_sfc_albedo,         &
                    config_sst_update,         &
                    config_sstdiurn_update,    &
+                   config_soilndg_update,     &
                    config_deepsoiltemp_update
 
  character(len=StrKIND),pointer:: config_convection_scheme, &
@@ -193,6 +197,7 @@
  call mpas_pool_get_config(domain%blocklist%configs,'config_sfc_albedo'         ,config_sfc_albedo         )
  call mpas_pool_get_config(domain%blocklist%configs,'config_sst_update'         ,config_sst_update         )
  call mpas_pool_get_config(domain%blocklist%configs,'config_sstdiurn_update'    ,config_sstdiurn_update    )
+ call mpas_pool_get_config(domain%blocklist%configs,'config_soilndg_update'     ,config_soilndg_update     )
  call mpas_pool_get_config(domain%blocklist%configs,'config_deepsoiltemp_update',config_deepsoiltemp_update)
 
 !update the current julian day and current year:
@@ -237,8 +242,15 @@
     if(mpas_is_alarm_ringing(clock,sfcbdyAlarmID,ierr=ierr)) then
        call mpas_reset_clock_alarm(clock,sfcbdyAlarmID,ierr=ierr)
        if(config_sst_update) &
-          call physics_update_sst(domain%dminfo,config_frac_seaice,mesh,sfc_input,diag_physics)
+          call physics_update_sst(domain%dminfo,config_frac_seaice,mesh,block%configs,sfc_input,diag_physics)
     endif   
+
+    ! Update P-X soil nudging analyses from soilndg file: T2, RH2 and SNOW
+    if(mpas_is_alarm_ringing(clock,soilndgAlarmID,ierr=ierr)) then
+       call mpas_reset_clock_alarm(clock,soilndgAlarmID,ierr=ierr)
+       if(config_soilndg_update) &
+          call physics_update_soilndg(domain%dminfo,mesh,block%configs,sfc_input,diag_physics,itimestep)
+    endif
 
     !apply a diurnal cycle to the sea-surface temperature:
     if(config_sstdiurn_update) &
@@ -394,7 +406,8 @@
                                   config_radtsw_interval,        &
                                   config_bucket_update,          &
                                   config_camrad_abs_update,      &
-                                  config_greeness_update
+                                  config_greeness_update,        &
+                                  config_soilndg_interval
 
  logical,pointer:: config_sst_update
  logical,pointer:: config_frac_seaice
@@ -404,7 +417,7 @@
  integer,pointer:: cam_dim1
  integer,pointer:: nMonths
  integer,pointer:: nAerosols,nAerLevels,nOznLevels
- integer,pointer:: nCellsSolve,nSoilLevels,nVertLevels
+ integer,pointer:: nCellsSolve,nSoilLevels,nVertLevels,nLandCat,nSoilCat
 
  real(kind=RKIND),pointer:: config_dt
 
@@ -428,6 +441,7 @@
  call mpas_pool_get_config(configs,'config_pbl_interval'     ,config_pbl_interval     )
  call mpas_pool_get_config(configs,'config_radtlw_interval'  ,config_radtlw_interval  )
  call mpas_pool_get_config(configs,'config_radtsw_interval'  ,config_radtsw_interval  )
+ call mpas_pool_get_config(configs,'config_soilndg_interval' ,config_soilndg_interval )
  call mpas_pool_get_config(configs,'config_bucket_update'    ,config_bucket_update    )
  call mpas_pool_get_config(configs,'config_camrad_abs_update',config_camrad_abs_update)
  call mpas_pool_get_config(configs,'config_greeness_update'  ,config_greeness_update  )
@@ -445,6 +459,8 @@
  call mpas_pool_get_dimension(mesh,'nCellsSolve',nCellsSolve)
  call mpas_pool_get_dimension(mesh,'nCellsSolve',nCellsSolve)
  call mpas_pool_get_dimension(mesh,'nSoilLevels',nSoilLevels)
+ call mpas_pool_get_dimension(mesh,'nLandCat'   ,nLandCat   )
+ call mpas_pool_get_dimension(mesh,'nSoilCat'   ,nSoilCat   )
  call mpas_pool_get_dimension(mesh,'nVertLevels',nVertLevels)
 
  call mpas_pool_get_dimension(state,'num_aerosols',nAerosols)
@@ -561,6 +577,17 @@
        call physics_error_fatal('subroutine physics_init: error creating alarm sfcbdy')
  endif
 
+!set alarm for updating the soil nudging:
+ call MPAS_stream_mgr_get_property(stream_manager, 'soilndg', MPAS_STREAM_PROPERTY_RECORD_INTV, stream_interval, &
+                                   direction=MPAS_STREAM_INPUT, ierr=ierr)
+ if(trim(config_soilndg_interval) /= 'none') then
+    call mpas_set_timeInterval(alarmTimeStep,timeString=config_soilndg_interval,ierr=ierr)
+    alarmStartTime = startTime
+    call mpas_add_clock_alarm(clock,soilndgAlarmID,alarmStartTime,alarmTimeStep,ierr=ierr)
+    if(ierr /= 0) &
+       call physics_error_fatal('subroutine physics_init: error creating alarm for soil nudging')
+ endif
+
 !set alarm to update the ozone path length, the trace gas path length, the total emissivity,
 !and the total absorptivity in the "CAM" long-wave radiation codes.
  if(trim(config_radt_lw_scheme) .eq. "cam_lw" .or. &
@@ -671,6 +698,8 @@
 !initialization local physics variables:
  num_months = nMonths
  num_soils  = nSoilLevels
+ num_landu  = nLandCat
+ num_soilc  = nSoilCat
 
  if(trim(config_lsm_scheme) .eq. "noah") sf_surface_physics = 2 
 
