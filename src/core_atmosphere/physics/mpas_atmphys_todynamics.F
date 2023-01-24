@@ -181,6 +181,8 @@
  tend_rtheta_physics(:,:) = 0._RKIND
  tend_rho_physics(:,:) = 0._RKIND       ! NB: rho tendency is not currently supplied by physics, but this
                                         !     field may be later filled with IAU or other tendencies
+                                        
+ tend_u_phys(:,:) = 0._RKIND            ! MC added 01/23/2023 
 
  !
  ! In case some variables are not allocated due to their associated packages,
