@@ -617,6 +617,7 @@
              nr_p(i,k,j) = nr(k,i)
              rainprod_p(i,k,j) = rainprod(k,i)
              evapprod_p(i,k,j) = evapprod(k,i)
+             refl10cm_p(i,k,j) = refl10cm(k,i)
           enddo
           enddo
           enddo
@@ -854,6 +855,7 @@
              nr(k,i) = nr_p(i,k,j)
              rainprod(k,i) = rainprod_p(i,k,j)
              evapprod(k,i) = evapprod_p(i,k,j)
+             refl10cm(k,i) = refl10cm_p(i,k,j)
           enddo
           enddo
           enddo
