@@ -817,6 +817,8 @@ module mpas_geotile_manager
 
         if (pixel_x < 0) then
             pixel_x = pixel_x + mgr % pixel_nx
+        else if (pixel_x >= mgr % pixel_nx) then
+            pixel_x = pixel_x - mgr % pixel_nx
         endif
 
         if (pixel_y < 0) then

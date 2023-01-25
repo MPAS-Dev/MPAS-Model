@@ -7,6 +7,9 @@
 <!-- isobaric diagnostics -->
 #include "Registry_isobaric.xml"
 
+<!-- cloud diagnostics -->
+#include "Registry_cloud.xml"
+
 <!-- convective diagnostics -->
 #include "Registry_convective.xml"
 

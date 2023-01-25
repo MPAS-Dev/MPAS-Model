@@ -115,6 +115,7 @@ module init_atm_core_interface
       logical, pointer :: initial_conds, sfc_update, lbcs
       logical, pointer :: gwd_stage_in, gwd_stage_out, vertical_stage_in, vertical_stage_out, met_stage_in, met_stage_out
       logical, pointer :: config_native_gwd_static, config_static_interp, config_vertical_grid, config_met_interp
+      logical, pointer :: first_guess_field
       integer, pointer :: config_init_case
 
 
@@ -239,6 +240,18 @@ module init_atm_core_interface
          vertical_stage_out = .false.
          met_stage_in = .false.
          met_stage_out = .true.
+      end if
+
+      !
+      ! Package for 3-d first-guess atmospheric and land-surface fields is only active if
+      ! we are interpolating real-data ICs or LBCs
+      !
+      nullify(first_guess_field)
+      call mpas_pool_get_package(packages, 'first_guess_fieldActive', first_guess_field)
+
+      first_guess_field = .false.
+      if ((config_init_case == 7 .and. config_met_interp) .or. config_init_case == 9) then
+         first_guess_field = .true.
       end if
 
    end function init_atm_setup_packages
