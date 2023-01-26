@@ -341,8 +341,7 @@
  endif
 
 !read the input files that contain the monthly-mean ozone climatology on fixed pressure levels:
- if(config_o3climatology .and. (.not. config_do_restart)) &
-    call init_o3climatology(mesh,atm_input)
+ if(config_o3climatology) call init_o3climatology(mesh,atm_input)
 
 !initialization of global surface properties. set here for now, but may be moved when time
 !manager is implemented:
