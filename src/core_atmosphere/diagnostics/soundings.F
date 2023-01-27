@@ -95,6 +95,9 @@ module soundings
 
         if (dminfo % my_proc_id == IO_NODE) then
             inquire(file='sounding_locations.txt', exist=exists)
+!$OMP MASTER
+            call EXECUTE_COMMAND_LINE ('[ ! -d "SOUNDINGS" ] && mkdir -p SOUNDINGS') 
+!$OMP END MASTER
         end if
         call mpas_dmpar_bcast_logical(dminfo, exists)
 
@@ -221,7 +224,7 @@ module soundings
         character(len=StrKIND) :: nowString
         integer :: yyyy, mm, dd, h, m, s
         character(len=StrKIND) :: fname
-        character(len=10) :: stid
+        character(len=20) :: stid
 
 
         if (MPAS_is_alarm_ringing(simulationClock, 'soundingAlarm')) then
@@ -246,17 +249,17 @@ module soundings
                 if (stationOwned(iStn)) then
 !                    call mpas_log_write('Writing sounding for station '//trim(stationNames(iStn)))
 
-                    write(fname,'(a,i4.4,i2.2,i2.2,i2.2,i2.2,a)') trim(stationNames(iStn))//'.', yyyy, mm, dd, h, m, '.snd'
+                    write(fname,'(a,i4.4,i2.2,i2.2,i2.2,i2.2,a)') trim('SOUNDINGS/'//stationNames(iStn))//'.', yyyy, mm, dd, h, m, '.snd'
                     open(97,file=trim(fname),form='formatted',status='replace')
 
                     write(stid,'(a)') trim(stationNames(iStn))
 
-                    write(97,'(a)') '  SNPARM = PRES;HGHT;TMPC;DWPC;DRCT;SPED;'
+                    write(97,'(a)') '  SNPARM = PRES;HGHT;TMPC;DWPC;DRCT;SPED;QV;RH'
                     write(97,'(a)') ''
                     write(97,'(a,i2.2,i2.2,i2.2,a,i2.2,i2.2)') ' STID = '//stid//'  STNM = 99999       TIME = ', mod(yyyy,100), mm, dd,'/', h, m
                     write(97,'(a,f6.2,a,f7.2,a)') ' SLAT = ', stationLats(iStn), '      SLON = ', stationLons(iStn), '     SELV =    -999'
                     write(97,'(a)') ''
-                    write(97,'(a)') '      PRES      HGHT     TMPC     DWPC     DRCT     SPED'
+                    write(97,'(a)') '      PRES      HGHT     TMPC     DWPC     DRCT     SPEED      QV    RH'
 
                     do k=1,nVertLevels
                         tmpc = theta_m(k,stationCells(iStn)) / (1.0_RKIND + rvord * scalars(index_qv,k,stationCells(iStn))) * exner(k,stationCells(iStn))
@@ -281,13 +284,15 @@ module soundings
                             end if
                             dir = dir * 180.0_RKIND / pi_const
                         end if
-                        write(97,'(f10.2,f10.2,f9.2,f9.2,f9.2,f9.2)') &
+                        write(97,'(f10.2,f10.2,f9.2,f9.2,f9.2,f9.2,F10.6,F7.2)') &
                                     pres, &
                                     0.5 * (zgrid(k,stationCells(iStn)) + zgrid(k+1,stationCells(iStn))), &               ! Avg to layer midpoint
                                     tmpc, &
                                     tdpc, &
                                     dir, &
-                                    spd
+                                    spd, &
+                                    scalars(index_qv,k,stationCells(iStn)), &
+                                    rh*100.
                     end do
 
                     close(97)
