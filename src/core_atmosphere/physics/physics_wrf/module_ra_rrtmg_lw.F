@@ -12083,8 +12083,8 @@ CONTAINS
           !output up and down toa fluxes for total and clear sky:
           lwupt(i,j)  = uflx(1,nlayers+1)
           lwuptc(i,j) = uflxc(1,nlayers+1)
-          lwdnt(i,j)  = dflx(1,nlayers+1)
-          lwdntc(i,j) = dflxc(1,nlayers+1)
+          lwdnt(i,j)  = dflx(1,nlayers)
+          lwdntc(i,j) = dflxc(1,nlayers)
           !output up and down surface fluxes for total and clear sky:
           lwupb(i,j)  = uflx(1,1)
           lwupbc(i,j) = uflxc(1,1)
