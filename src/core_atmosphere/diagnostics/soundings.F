@@ -284,7 +284,7 @@ module soundings
                             end if
                             dir = dir * 180.0_RKIND / pi_const
                         end if
-+                        write(97,'(f10.2,f10.2,f9.2,f9.2,f9.2,f9.2,F10.6,F7.2)') &
+                        write(97,'(f10.2,f10.2,f9.2,f9.2,f9.2,f9.2,F10.6,F7.2)') &
                                     pres, &
                                     0.5 * (zgrid(k,stationCells(iStn)) + zgrid(k+1,stationCells(iStn))), &               ! Avg to layer midpoint
                                     tmpc, &
