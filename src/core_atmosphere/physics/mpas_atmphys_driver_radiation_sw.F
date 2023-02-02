@@ -963,7 +963,12 @@
  call mpas_pool_get_config(configs,'config_o3climatology' ,config_o3climatology)
  call mpas_pool_get_config(configs,'config_radt_sw_scheme',radt_sw_scheme      )
 
- xtime_m = xtime_s/60.
+!convert the radiation time_step to minutes
+ radt = dt_radtsw/60.
+!xtime_m = xtime_s/60.
+!BW TWC/IBM (add radt on xtime_m to synchronize lagged radiation)
+!BW 2021-01-08
+ xtime_m = xtime_s/60. + radt
 
  if (mpas_cpl%role_includes(ROLE_RADIATION)) then
 ! This should be OMP MASTER with barrier afterwards or OMP SINGLE, since declin and solcon
@@ -981,9 +986,6 @@
 !call mpas_log_write('     SOLCON      = $r', realArgs=(/solcon/))
 !call mpas_log_write('     DECLIN      = $r', realArgs=(/declin/))
 !$OMP END SINGLE
-
-!... convert the radiation time_step to minutes:
- radt = dt_radtsw/60.
 
  call mpas_log_write('RUNNING SW RADIATION SCHEME')
     
