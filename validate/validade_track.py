@@ -34,7 +34,7 @@ import cartopy.crs as ccrs
 import cartopy
 
 colors = {'INMET':'tab:blue', 'fritsch':'tab:orange', 'ERA':'tab:green',
-          'tiedke':'tab:red', 'ntiedke':'tab:purple', 'freitas':'tab:brown',
+          'tiedtke':'tab:red', 'ntiedtke':'tab:purple', 'freitas':'tab:brown',
           'off':'tab:pink'}
 
 lines = {'INMET':'solid', 'wsm6':'dashed', 'ERA':'dotted',
