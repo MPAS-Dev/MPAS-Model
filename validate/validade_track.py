@@ -139,7 +139,7 @@ for col in range(3):
 # for col in range(1):
 #     for row in range(1):        
         
-        bench = benchs[0]
+        bench = benchs[i]
         expname = bench.split('/')[-1].split('run.')[-1]
         microp = expname.split('.')[0].split('_')[-1]
         cumulus = expname.split('.')[-1].split('_')[-1] 
