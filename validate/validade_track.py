@@ -86,29 +86,29 @@ def get_track(track_variable, TimeIndexer):
     
 
 
-# ## Workspace ##
-# work_dir = os.getenv('MPAS_DIR')
-# if work_dir is None:
-#     print('Error: MPAS_DIR environment variable not defined! It should direct\
-# to the MPAS-BR path')
-#     sys.exit(-1)
-# INMET_dir = work_dir+'/met_data/INMET/'
+## Workspace ##
+work_dir = os.getenv('MPAS_DIR')
+if work_dir is None:
+    print('Error: MPAS_DIR environment variable not defined! It should direct\
+to the MPAS-BR path')
+    sys.exit(-1)
+INMET_dir = work_dir+'/met_data/INMET/'
 
-# ## Parser options ##
-# parser = argparse.ArgumentParser()
+## Parser options ##
+parser = argparse.ArgumentParser()
 
-# parser.add_argument('-bdir','--bench_directory', type=str, required=True,
-#                         help='''path to benchmark directory''')
+parser.add_argument('-bdir','--bench_directory', type=str, required=True,
+                        help='''path to benchmark directory''')
 
-# parser.add_argument('-o','--output', type=str, default=None,
-#                         help='''output name to append file''')
-# parser.add_argument('-e','--ERA5', type=str, default=None,
-#                         help='''wether to validade with ERA5 data''')
-# args = parser.parse_args()
+parser.add_argument('-o','--output', type=str, default=None,
+                        help='''output name to append file''')
+parser.add_argument('-e','--ERA5', type=str, default=None,
+                        help='''wether to validade with ERA5 data''')
+args = parser.parse_args()
 
 ## Start the code ##
-#benchs = glob.glob(args.bench_directory+'/run*')
-benchs = glob.glob('/home/daniloceano/Documents/MPAS/MPAS-BR/benchmarks/Catarina_physics-test/Catarina_250-8km.microp_scheme.convection_scheme/run*')
+benchs = glob.glob(args.bench_directory+'/run*')
+# benchs = glob.glob('/home/daniloceano/Documents/MPAS/MPAS-BR/benchmarks/Catarina_physics-test/Catarina_250-8km.microp_scheme.convection_scheme/run*')
 # Dummy for getting model times
 model_output = benchs[0]+'/latlon.nc'
 namelist_path = benchs[0]+"/namelist.atmosphere"
