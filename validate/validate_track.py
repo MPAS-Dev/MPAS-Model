@@ -36,7 +36,7 @@ from matplotlib import pyplot
 import cartopy.crs as ccrs
 import cartopy
 
-colors = {'ERA':'tab:blue', 'fritsch':'tab:orange','tiedtke':'tab:red',
+colors = {'ERA':'k', 'fritsch':'tab:orange','tiedtke':'tab:red',
           'ntiedtke':'tab:purple', 'freitas':'tab:brown','off':'tab:green'}
 
 lines = {'ERA':'solid', 'wsm6':'dashed','thompson':'dashdot',
@@ -149,6 +149,7 @@ for bench in benchs:
         TimeIndexer = 'Time'
         LatIndexer, LonIndexer = 'latitude', 'longitude'
         markerfacecolor='None'
+        lw = 2
         
         model_data = model_data.assign_coords({"Time":times}).sel(
             latitude=slice(-20,-35),longitude=slice(-55,-30))
@@ -166,6 +167,7 @@ for bench in benchs:
         
         TimeIndexer = 'time'
         markerfacecolor='tab:blue'
+        lw=3
         
         model_data = xr.open_dataset(bench, engine='cfgrib',
                                      filter_by_keys={'typeOfLevel': 'surface'})
@@ -184,11 +186,11 @@ for bench in benchs:
     color = colors[cumulus]
     
     ax.plot(lons,lats,zorder=100,markeredgecolor=color,marker=marker,
-                markerfacecolor='None',linewidth=2, linestyle=ls,
+                markerfacecolor='None',linewidth=lw, linestyle=ls,
                 c=color, label=expname)
-    ax.scatter(lons.iloc[0],lats.iloc[0], s=100,
+    ax.scatter(lons.iloc[0],lats.iloc[0], s=150, marker=marker,
                 edgecolor='gray',facecolor='gray')
-    ax.scatter(lons.iloc[-1],lats.iloc[-1], s=100,
+    ax.scatter(lons.iloc[-1],lats.iloc[-1], s=150, markeredgecolor=color,
                 edgecolor='k',facecolor='gray')
 
 labels, handles = zip(*[(k, mpatches.Rectangle((0, 0), 1, 1, facecolor=v)) for k,v in colors.items()])
