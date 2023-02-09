@@ -182,7 +182,7 @@ for bench in benchs:
     ax.scatter(lons.iloc[-1],lats.iloc[-1], s=100,
                 edgecolor='k',facecolor='gray')
     
-    plt.legend(pl)
+plt.legend(pl)
 
     
 plt.savefig('test_track.png', dpi=500)
