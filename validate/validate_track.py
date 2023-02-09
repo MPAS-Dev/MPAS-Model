@@ -121,99 +121,100 @@ times = get_times_nml(namelist,model_data)
 # =============================================================================
 # One plot for all experiments
 # =============================================================================
-plt.close('all')
-fig = plt.figure(figsize=(15, 12))
-datacrs = ccrs.PlateCarree()
-ax = fig.add_subplot(1, 1, 1, projection=datacrs)
-ax.set_extent([-55, -30, -20, -35], crs=datacrs) 
-ax.coastlines(zorder = 1)
-ax.add_feature(cartopy.feature.LAND)
-ax.add_feature(cartopy.feature.OCEAN,facecolor=("lightblue"))
-gl = ax.gridlines(draw_labels=True,zorder=2,linestyle='dashed',alpha=0.8,
-             color='#383838')
-gl.xlabel_style = {'size': 14, 'color': '#383838'}
-gl.ylabel_style = {'size': 14, 'color': '#383838'}
-gl.bottom_labels = None
-gl.right_labels = None
+
+# plt.close('all')
+# fig = plt.figure(figsize=(15, 12))
+# datacrs = ccrs.PlateCarree()
+# ax = fig.add_subplot(1, 1, 1, projection=datacrs)
+# ax.set_extent([-55, -30, -20, -35], crs=datacrs) 
+# ax.coastlines(zorder = 1)
+# ax.add_feature(cartopy.feature.LAND)
+# ax.add_feature(cartopy.feature.OCEAN,facecolor=("lightblue"))
+# gl = ax.gridlines(draw_labels=True,zorder=2,linestyle='dashed',alpha=0.8,
+#              color='#383838')
+# gl.xlabel_style = {'size': 14, 'color': '#383838'}
+# gl.ylabel_style = {'size': 14, 'color': '#383838'}
+# gl.bottom_labels = None
+# gl.right_labels = None
 
 
-for bench in benchs:   
+# for bench in benchs:   
     
-    if bench != benchs[-1]:
+#     if bench != benchs[-1]:
         
-        expname = bench.split('/')[-1].split('run.')[-1]
-        microp = expname.split('.')[0].split('_')[-1]
-        cumulus = expname.split('.')[-1].split('_')[-1] 
-        experiment = microp+'_'+cumulus
-        print(experiment)
+#         expname = bench.split('/')[-1].split('run.')[-1]
+#         microp = expname.split('.')[0].split('_')[-1]
+#         cumulus = expname.split('.')[-1].split('_')[-1] 
+#         experiment = microp+'_'+cumulus
+#         print(experiment)
         
-        model_data = xr.open_dataset(bench+'/latlon.nc')
-        TimeIndexer = 'Time'
-        LatIndexer, LonIndexer = 'latitude', 'longitude'
-        markerfacecolor='None'
-        lw = 2
+#         model_data = xr.open_dataset(bench+'/latlon.nc')
+#         TimeIndexer = 'Time'
+#         LatIndexer, LonIndexer = 'latitude', 'longitude'
+#         markerfacecolor='None'
+#         lw = 2
         
-        model_data = model_data.assign_coords({"Time":times}).sel(
-            latitude=slice(-20,-35),longitude=slice(-55,-30))
+#         model_data = model_data.assign_coords({"Time":times}).sel(
+#             latitude=slice(-20,-35),longitude=slice(-55,-30))
         
-        pressure = (model_data['pressure'] * units(model_data['pressure'].units)
-                    ).metpy.convert_units('hPa')
-        z = model_data.zgrid.expand_dims({'Time':times})
-        zlevs = np.arange(0,3100,100) * units.m
-        pres_height = interplevel(pressure, z[:,:-1], zlevs)
-        slp = pres_height.isel(level=1)
+#         pressure = (model_data['pressure'] * units(model_data['pressure'].units)
+#                     ).metpy.convert_units('hPa')
+#         z = model_data.zgrid.expand_dims({'Time':times})
+#         zlevs = np.arange(0,3100,100) * units.m
+#         pres_height = interplevel(pressure, z[:,:-1], zlevs)
+#         slp = pres_height.isel(level=1)
             
-    else:
-        expname,microp,cumulus = 'ERA','ERA','ERA'
-        print('ERA5')
+#     else:
+#         expname,microp,cumulus = 'ERA','ERA','ERA'
+#         print('ERA5')
         
-        TimeIndexer = 'time'
-        markerfacecolor='tab:blue'
-        lw=3
+#         TimeIndexer = 'time'
+#         markerfacecolor='tab:blue'
+#         lw=3
         
-        model_data = xr.open_dataset(bench, engine='cfgrib',
-                                     filter_by_keys={'typeOfLevel': 'surface'})
-        model_data = model_data.sel(time=slice(times[0],times[-1]),
-            latitude=slice(-20,-35),longitude=slice(-55,-30))
-        slp = model_data.msl
+#         model_data = xr.open_dataset(bench, engine='cfgrib',
+#                                      filter_by_keys={'typeOfLevel': 'surface'})
+#         model_data = model_data.sel(time=slice(times[0],times[-1]),
+#             latitude=slice(-20,-35),longitude=slice(-55,-30))
+#         slp = model_data.msl
     
-    track = get_track(slp, TimeIndexer)
+#     track = get_track(slp, TimeIndexer)
     
-    lons, lats, min_slp = track['lon'], track['lat'], track['min_zeta']
+#     lons, lats, min_slp = track['lon'], track['lat'], track['min_zeta']
         
-    ls = lines[microp]
-    marker = markers[microp]
-    color = colors[cumulus]
+#     ls = lines[microp]
+#     marker = markers[microp]
+#     color = colors[cumulus]
     
-    ax.plot(lons,lats,zorder=100,markeredgecolor=color,marker=marker,
-                markerfacecolor='None',linewidth=lw, linestyle=ls,
-                c=color, label=expname)
-    ax.scatter(lons.iloc[0],lats.iloc[0], s=150, marker=marker, color='gray')
-    ax.scatter(lons.iloc[-1],lats.iloc[-1], s=150, marker=marker,
-               facecolor=color, zorder=100)
+#     ax.plot(lons,lats,zorder=100,markeredgecolor=color,marker=marker,
+#                 markerfacecolor='None',linewidth=lw, linestyle=ls,
+#                 c=color, label=expname)
+#     ax.scatter(lons.iloc[0],lats.iloc[0], s=150, marker=marker, color='gray')
+#     ax.scatter(lons.iloc[-1],lats.iloc[-1], s=150, marker=marker,
+#                facecolor=color, zorder=100)
 
-labels, handles = zip(*[(k, mpatches.Rectangle((0, 0), 1, 1, facecolor=v)) for k,v in colors.items()])
-legend1 = pyplot.legend(handles, labels, loc=4,
-                        framealpha=1, bbox_to_anchor=(1.105, 0.27))
+# labels, handles = zip(*[(k, mpatches.Rectangle((0, 0), 1, 1, facecolor=v)) for k,v in colors.items()])
+# legend1 = pyplot.legend(handles, labels, loc=4,
+#                         framealpha=1, bbox_to_anchor=(1.105, 0.27))
 
-custom_lines = []
-lebels = []
-for line, marker in zip(lines,markers):
-    custom_lines.append(Line2D([0], [0], color='k', lw=1,
-                            linestyle=lines[line], marker=markers[marker]))
-    lebels.append(line)
-legend2 = pyplot.legend(custom_lines, lebels, loc=4, framealpha=1,
-                        bbox_to_anchor=(1.11, 0.1))
-ax.add_artist(legend1)
-ax.add_artist(legend2)
+# custom_lines = []
+# lebels = []
+# for line, marker in zip(lines,markers):
+#     custom_lines.append(Line2D([0], [0], color='k', lw=1,
+#                             linestyle=lines[line], marker=markers[marker]))
+#     lebels.append(line)
+# legend2 = pyplot.legend(custom_lines, lebels, loc=4, framealpha=1,
+#                         bbox_to_anchor=(1.11, 0.1))
+# ax.add_artist(legend1)
+# ax.add_artist(legend2)
 
-if args.output is not None:
-    fname = args.output
-else:
-    fname = (args.bench_directory).split('/')[-2].split('.nc')[0]
-fname += '_track'
-plt.savefig(fname+'.png', dpi=500)
-print(fname+'.png created!')
+# if args.output is not None:
+#     fname = args.output
+# else:
+#     fname = (args.bench_directory).split('/')[-2].split('.nc')[0]
+# fname += '_track'
+# plt.savefig(fname+'.png', dpi=500)
+# print(fname+'.png created!')
 
 # =============================================================================
 # Each subplot has one experiment
@@ -223,6 +224,7 @@ benchs = glob.glob(args.bench_directory+'/run*')
 plt.close('all')
 fig = plt.figure(figsize=(16.5, 13))
 gs = gridspec.GridSpec(6, 5)
+datacrs = ccrs.PlateCarree()
 if args.ERA5:
     era_data = xr.open_dataset(args.ERA5, engine='cfgrib',
                                  filter_by_keys={'typeOfLevel': 'surface'})
@@ -230,12 +232,13 @@ if args.ERA5:
         latitude=slice(-20,-35),longitude=slice(-55,-30))
     era_slp = era_data.msl
     era_track = get_track(era_slp, 'time')
-    era_lons, era_lats, min_slp = track['lon'], track['lat'], track['min_zeta']
+    era_lons, era_lats, min_slp = era_track['lon'], era_track['lat'], era_track['min_zeta']
 
 i = 0
 for row in range(6):
     for col in range(5):
 
+        bench = benchs[i]
         ax = fig.add_subplot(gs[row, col], projection=datacrs,frameon=True)
         ax.set_extent([-55, -30, -20, -35], crs=datacrs) 
         ax.coastlines(zorder = 1)
@@ -261,19 +264,18 @@ for row in range(6):
         
         ax.text(-50,-22,experiment,bbox=dict(facecolor='w', alpha=0.5))
         
-        if i == 0:
-            model_data = xr.open_dataset(bench+'/latlon.nc')
-            model_data = model_data.assign_coords({"Time":times}).sel(
-                latitude=slice(-20,-35),longitude=slice(-55,-30))
-            pressure = (model_data['pressure'] * units(model_data['pressure'].units)
-                        ).metpy.convert_units('hPa')
-            z = model_data.zgrid.expand_dims({'Time':times})
-            zlevs = np.arange(0,3100,100) * units.m
-            pres_height = interplevel(pressure, z[:,:-1], zlevs)
-            slp = pres_height.isel(level=1)
-            
-            track = get_track(slp, 'Time')
-            lons, lats, min_slp = track['lon'], track['lat'], track['min_zeta']
+        model_data = xr.open_dataset(bench+'/latlon.nc')
+        model_data = model_data.assign_coords({"Time":times}).sel(
+            latitude=slice(-20,-35),longitude=slice(-55,-30))
+        pressure = (model_data['pressure'] * units(model_data['pressure'].units)
+                    ).metpy.convert_units('hPa')
+        z = model_data.zgrid.expand_dims({'Time':times})
+        zlevs = np.arange(0,3100,100) * units.m
+        pres_height = interplevel(pressure, z[:,:-1], zlevs)
+        slp = pres_height.isel(level=1)
+        
+        track = get_track(slp, 'Time')
+        lons, lats, min_slp = track['lon'], track['lat'], track['min_zeta']
         
         ls = lines[microp]
         marker = markers[microp]
