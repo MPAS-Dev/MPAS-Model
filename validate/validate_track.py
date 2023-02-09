@@ -190,8 +190,8 @@ for bench in benchs:
                 c=color, label=expname)
     ax.scatter(lons.iloc[0],lats.iloc[0], s=150, marker=marker,
                 edgecolor='gray',facecolor='gray')
-    ax.scatter(lons.iloc[-1],lats.iloc[-1], s=150, markeredgecolor=color,
-                edgecolor='k',facecolor='gray')
+    ax.scatter(lons.iloc[-1],lats.iloc[-1], s=150,
+                edgecolor=color,facecolor='gray')
 
 labels, handles = zip(*[(k, mpatches.Rectangle((0, 0), 1, 1, facecolor=v)) for k,v in colors.items()])
 legend1 = pyplot.legend(handles, labels, loc=4,
