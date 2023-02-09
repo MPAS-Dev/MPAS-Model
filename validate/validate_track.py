@@ -146,7 +146,7 @@ for col in range(3):
         experiment = microp+'_'+cumulus
         print(experiment)
         
-        model_data = xr.open_dataset(model_output)
+        model_data = xr.open_dataset(bench+'/latlon.nc')
         model_data = model_data.assign_coords({"Time":times}).sel(
             latitude=slice(-20,-35),longitude=slice(-55,-30))
         
@@ -158,7 +158,7 @@ for col in range(3):
         slp = pres_height.isel(level=1)
         track = get_track(slp, 'Time')
         
-        lons, lats, min_zeta = track['lon'], track['lat'], track['min_zeta']
+        lons, lats, min_slp = track['lon'], track['lat'], track['min_zeta']
         
         ax.plot(lons,lats,'-',c='k')
         
@@ -174,8 +174,7 @@ for col in range(3):
         ax.scatter(lons.iloc[-1],lats.iloc[-1], s=100,
                     edgecolor='k',facecolor='gray')
         
-        ax = plt.gca()
-        
+
         i+=1
     
 plt.savefig('test_track.png', dpi=500)
