@@ -222,7 +222,7 @@ times = get_times_nml(namelist,model_data)
 
 benchs = glob.glob(args.bench_directory+'/run*')
 plt.close('all')
-fig = plt.figure(figsize=(16, 13))
+fig = plt.figure(figsize=(10, 13))
 gs = gridspec.GridSpec(6, 3)
 datacrs = ccrs.PlateCarree()
 if args.ERA5:
@@ -236,7 +236,7 @@ if args.ERA5:
 
 i = 0
 for row in range(6):
-    for col in range(5):
+    for col in range(3):
 
         bench = benchs[i]
         ax = fig.add_subplot(gs[row, col], projection=datacrs,frameon=True)
