@@ -106,7 +106,9 @@ args = parser.parse_args()
 
 ## Start the code ##
 benchs = glob.glob(args.bench_directory+'/run*')
-# benchs = glob.glob('/home/daniloceano/Documents/MPAS/MPAS-BR/benchmarks/Catarina_physics-test/Catarina_250-8km.microp_scheme.convection_scheme/run*')
+if args.ERA5:
+    benchs.append(args.ERA5)
+
 # Dummy for getting model times
 model_output = benchs[0]+'/latlon.nc'
 namelist_path = benchs[0]+"/namelist.atmosphere"
@@ -114,8 +116,11 @@ namelist_path = benchs[0]+"/namelist.atmosphere"
 model_data = xr.open_dataset(model_output)
 namelist = f90nml.read(glob.glob(namelist_path)[0])
 times = get_times_nml(namelist,model_data)
-# start_date = times[0]
 
+
+# =============================================================================
+# One plot for all experiments
+# =============================================================================
 plt.close('all')
 fig = plt.figure(figsize=(15, 12))
 datacrs = ccrs.PlateCarree()
@@ -130,9 +135,6 @@ gl.xlabel_style = {'size': 14, 'color': '#383838'}
 gl.ylabel_style = {'size': 14, 'color': '#383838'}
 gl.bottom_labels = None
 gl.right_labels = None
-
-if args.ERA5:
-    benchs.append(args.ERA5)
 
 
 for bench in benchs:   
@@ -178,9 +180,7 @@ for bench in benchs:
     track = get_track(slp, TimeIndexer)
     
     lons, lats, min_slp = track['lon'], track['lat'], track['min_zeta']
-    
-    ax.plot(lons,lats,'-',c='k')
-    
+        
     ls = lines[microp]
     marker = markers[microp]
     color = colors[cumulus]
@@ -211,6 +211,91 @@ if args.output is not None:
     fname = args.output
 else:
     fname = (args.bench_directory).split('/')[-2].split('.nc')[0]
-    fname += '_track'
+fname += '_track'
+plt.savefig(fname+'.png', dpi=500)
+print(fname+'.png created!')
+
+# =============================================================================
+# Each subplot has one experiment
+# =============================================================================
+
+benchs = glob.glob(args.bench_directory+'/run*')
+plt.close('all')
+fig = plt.figure(figsize=(16.5, 13))
+gs = gridspec.GridSpec(6, 5)
+if args.ERA5:
+    era_data = xr.open_dataset(args.ERA5, engine='cfgrib',
+                                 filter_by_keys={'typeOfLevel': 'surface'})
+    era_data = era_data.sel(time=slice(times[0],times[-1]),
+        latitude=slice(-20,-35),longitude=slice(-55,-30))
+    era_slp = era_data.msl
+    era_track = get_track(era_slp, 'time')
+    era_lons, era_lats, min_slp = track['lon'], track['lat'], track['min_zeta']
+
+i = 0
+for row in range(6):
+    for col in range(5):
+
+        ax = fig.add_subplot(gs[row, col], projection=datacrs,frameon=True)
+        ax.set_extent([-55, -30, -20, -35], crs=datacrs) 
+        ax.coastlines(zorder = 1)
+        ax.add_feature(cartopy.feature.LAND)
+        ax.add_feature(cartopy.feature.OCEAN,facecolor=("lightblue"))
+        gl = ax.gridlines(draw_labels=True,zorder=2,linestyle='dashed',alpha=0.8,
+                     color='#383838')
+        gl.xlabel_style = {'size': 12, 'color': '#383838'}
+        gl.ylabel_style = {'size': 12, 'color': '#383838'}
+        gl.bottom_labels = None
+        gl.right_labels = None
+        if row != 0:
+            gl.top_labels = None
+        if col != 0:
+            gl.left_labels = None
+        
+        
+        expname = bench.split('/')[-1].split('run.')[-1]
+        microp = expname.split('.')[0].split('_')[-1]
+        cumulus = expname.split('.')[-1].split('_')[-1] 
+        experiment = microp+'_'+cumulus
+        print(experiment)
+        
+        ax.text(-50,-22,experiment,bbox=dict(facecolor='e', alpha=0.5))
+        
+        if i == 0:
+            model_data = xr.open_dataset(bench+'/latlon.nc')
+            model_data = model_data.assign_coords({"Time":times}).sel(
+                latitude=slice(-20,-35),longitude=slice(-55,-30))
+            pressure = (model_data['pressure'] * units(model_data['pressure'].units)
+                        ).metpy.convert_units('hPa')
+            z = model_data.zgrid.expand_dims({'Time':times})
+            zlevs = np.arange(0,3100,100) * units.m
+            pres_height = interplevel(pressure, z[:,:-1], zlevs)
+            slp = pres_height.isel(level=1)
+            
+            track = get_track(slp, 'Time')
+            lons, lats, min_slp = track['lon'], track['lat'], track['min_zeta']
+        
+        ls = lines[microp]
+        marker = markers[microp]
+        color = colors[cumulus]
+        
+        if args.ERA5:
+            ax.plot(era_lons,era_lats,zorder=100,markeredgecolor='k',
+                    marker='o',markerfacecolor='None',
+                    linewidth=0.75, linestyle='solid',
+                        c='gray', label=expname)
+        ax.plot(lons,lats,zorder=100,markeredgecolor=color,marker=marker,
+                    markerfacecolor='None',linewidth=0.5, linestyle=ls,
+                    c=color, label=expname)
+        
+        i+=1
+        
+plt.tight_layout()
+plt.subplots_adjust(left=0.1,top=0.9)
+if args.output is not None:
+    fname = args.output
+else:
+    fname = (args.bench_directory).split('/')[-2].split('.nc')[0]
+fname += '_track2'
 plt.savefig(fname+'.png', dpi=500)
 print(fname+'.png created!')
