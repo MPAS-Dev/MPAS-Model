@@ -33,16 +33,13 @@ from matplotlib import rcParams
 import cartopy.crs as ccrs
 import cartopy
 
-colors = {'INMET':'tab:blue', 'fritsch':'tab:orange', 'ERA':'tab:green',
-          'tiedtke':'tab:red', 'ntiedtke':'tab:purple', 'freitas':'tab:brown',
-          'off':'tab:pink'}
+colors = {'ERA':'tab:blue', 'fritsch':'tab:orange','tiedtke':'tab:red',
+          'ntiedtke':'tab:purple', 'freitas':'tab:brown','off':'tab:green'}
 
-lines = {'INMET':'solid', 'wsm6':'dashed', 'ERA':'dotted',
-         'thompson':'dashdot', 'kessler':(0, (3, 1, 1, 1)),
-         'off':(0, (3, 1, 1, 1, 1, 1))}
+lines = {'ERA':'solid', 'wsm6':'dashed','thompson':'dashdot',
+         'kessler':(0, (3, 1, 1, 1)),'off':(0, (3, 1, 1, 1, 1, 1))}
 
-markers = {'INMET':'o', 'wsm6':'x', 'ERA':'s', 'thompson':'P',
-          'kessler':'D','off':'v'}
+markers = {'ERA':'o', 'wsm6':'x', 'thompson':'P','kessler':'D','off':'s'}
 
 
 def get_times_nml(namelist,model_data):
@@ -83,8 +80,6 @@ def get_track(track_variable, TimeIndexer):
     track.index = times
     
     return track
-    
-
 
 ## Workspace ##
 work_dir = os.getenv('MPAS_DIR')
@@ -133,13 +128,13 @@ gl.ylabel_style = {'size': 14, 'color': '#383838'}
 gl.bottom_labels = None
 gl.right_labels = None
 
-i = 0
-for col in range(3):
-    for row in range(6):
-# for col in range(1):
-#     for row in range(1):        
+if args.ERA5:
+    benchs.append(args.ERA5)
+
+for bench in benchs:   
+    
+    if bench != benchs[-1]:
         
-        bench = benchs[i]
         expname = bench.split('/')[-1].split('run.')[-1]
         microp = expname.split('.')[0].split('_')[-1]
         cumulus = expname.split('.')[-1].split('_')[-1] 
@@ -147,6 +142,9 @@ for col in range(3):
         print(experiment)
         
         model_data = xr.open_dataset(bench+'/latlon.nc')
+        TimeIndexer = 'Time'
+        LatIndexer, LonIndexer = 'latitude', 'longitude'
+        
         model_data = model_data.assign_coords({"Time":times}).sel(
             latitude=slice(-20,-35),longitude=slice(-55,-30))
         
@@ -156,25 +154,35 @@ for col in range(3):
         zlevs = np.arange(0,3100,100) * units.m
         pres_height = interplevel(pressure, z[:,:-1], zlevs)
         slp = pres_height.isel(level=1)
-        track = get_track(slp, 'Time')
-        
-        lons, lats, min_slp = track['lon'], track['lat'], track['min_zeta']
-        
-        ax.plot(lons,lats,'-',c='k')
-        
-        ls = lines[microp]
-        marker = markers[microp]
-        color = colors[cumulus]
-        
-        ax.plot(lons,lats,zorder=100,markeredgecolor=color,marker=marker,
-                    markerfacecolor='None',linewidth=2, linestyle=ls,
-                    c=color)
-        ax.scatter(lons.iloc[0],lats.iloc[0], s=100,
-                    edgecolor='gray',facecolor='gray')
-        ax.scatter(lons.iloc[-1],lats.iloc[-1], s=100,
-                    edgecolor='k',facecolor='gray')
-        
+            
+    else:
+        expname,microp,cumulus = 'ERA','ERA','ERA'
+        print('ERA5')
+        model_data = xr.open_dataset(bench)
+        TimeIndexer = 'time'
+        model_data = model_data.sel(time=slice(times[0],times[1]),
+            latitude=slice(-20,-35),longitude=slice(-55,-30))
+        slp = model_data.msl
+    
+    track = get_track(slp, TimeIndexer)
+    
+    lons, lats, min_slp = track['lon'], track['lat'], track['min_zeta']
+    
+    ax.plot(lons,lats,'-',c='k')
+    
+    ls = lines[microp]
+    marker = markers[microp]
+    color = colors[cumulus]
+    
+    pl = ax.plot(lons,lats,zorder=100,markeredgecolor=color,marker=marker,
+                markerfacecolor='None',linewidth=2, linestyle=ls,
+                c=color)
+    ax.scatter(lons.iloc[0],lats.iloc[0], s=100,
+                edgecolor='gray',facecolor='gray')
+    ax.scatter(lons.iloc[-1],lats.iloc[-1], s=100,
+                edgecolor='k',facecolor='gray')
+    
+    plt.legend(pl)
 
-        i+=1
     
 plt.savefig('test_track.png', dpi=500)
