@@ -190,8 +190,7 @@ for bench in benchs:
                 c=color, label=expname)
     ax.scatter(lons.iloc[0],lats.iloc[0], s=150, marker=marker,
                 edgecolor='gray',facecolor='gray')
-    ax.scatter(lons.iloc[-1],lats.iloc[-1], s=150,
-                edgecolor=color,facecolor='gray')
+    ax.scatter(lons.iloc[-1],lats.iloc[-1], s=150, facecolor=color, zorder=100)
 
 labels, handles = zip(*[(k, mpatches.Rectangle((0, 0), 1, 1, facecolor=v)) for k,v in colors.items()])
 legend1 = pyplot.legend(handles, labels, loc=4,
@@ -212,5 +211,6 @@ if args.output is not None:
     fname = args.output
 else:
     fname = (args.bench_directory).split('/')[-2].split('.nc')[0]
+    fname += '_track'
 plt.savefig(fname+'.png', dpi=500)
 print(fname+'.png created!')
