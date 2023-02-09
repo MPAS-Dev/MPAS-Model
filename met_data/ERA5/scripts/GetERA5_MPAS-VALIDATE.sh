@@ -20,10 +20,10 @@ MM2=`echo $DATE2 | cut -c5-6`
 DD2=`echo $DATE2 | cut -c7-8`
 
 # Grib data
-Nort=0
-West=-120
-Sout=-70
-East=0
+Nort=-10
+West=-70
+Sout=-50
+East=0-10
 
 sed -e "s/DATE1/${DATE1}/g;s/DATE2/${DATE2}/g;s/Nort/${Nort}/g;s/West/${West}/g;s/Sout/${Sout}/g;s/East/${East}/g;" GetERA5-sl.py > GetERA5-${DATE1}-${DATE2}-sl.py
 
