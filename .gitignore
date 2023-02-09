@@ -59,4 +59,11 @@ stream_list.*
 *.i
 *.i90
 
+# Authenticator file for downloading ERA5 data with cds api
+.cdsapirc
+
+# Python cache
+/pycache/*
+*/pycache/*
+
 src/core_*/inc
