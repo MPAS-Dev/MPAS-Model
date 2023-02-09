@@ -28,7 +28,10 @@ from scipy.signal import savgol_filter
 
 import matplotlib.gridspec as gridspec
 import matplotlib.pyplot as plt
+import matplotlib.patches as mpatches
 from matplotlib import rcParams
+from matplotlib.lines import Line2D
+from matplotlib import pyplot
 
 import cartopy.crs as ccrs
 import cartopy
@@ -131,6 +134,7 @@ gl.right_labels = None
 if args.ERA5:
     benchs.append(args.ERA5)
 
+
 for bench in benchs:   
     
     if bench != benchs[-1]:
@@ -179,15 +183,32 @@ for bench in benchs:
     marker = markers[microp]
     color = colors[cumulus]
     
-    pl = ax.plot(lons,lats,zorder=100,markeredgecolor=color,marker=marker,
+    ax.plot(lons,lats,zorder=100,markeredgecolor=color,marker=marker,
                 markerfacecolor='None',linewidth=2, linestyle=ls,
-                c=color)
+                c=color, label=expname)
     ax.scatter(lons.iloc[0],lats.iloc[0], s=100,
                 edgecolor='gray',facecolor='gray')
     ax.scatter(lons.iloc[-1],lats.iloc[-1], s=100,
                 edgecolor='k',facecolor='gray')
-    
-#plt.legend(pl)
 
-    
-plt.savefig('test_track.png', dpi=500)
+labels, handles = zip(*[(k, mpatches.Rectangle((0, 0), 1, 1, facecolor=v)) for k,v in colors.items()])
+legend1 = pyplot.legend(handles, labels, loc=4,
+                        framealpha=1, bbox_to_anchor=(1.105, 0.27))
+
+custom_lines = []
+lebels = []
+for line, marker in zip(lines,markers):
+    custom_lines.append(Line2D([0], [0], color='k', lw=1,
+                            linestyle=lines[line], marker=markers[marker]))
+    lebels.append(line)
+legend2 = pyplot.legend(custom_lines, lebels, loc=4, framealpha=1,
+                        bbox_to_anchor=(1.11, 0.1))
+ax.add_artist(legend1)
+ax.add_artist(legend2)
+
+if args.output is not None:
+    fname = args.output
+else:
+    fname = (args.bench_directory).split('/')[-2].split('.nc')[0]
+plt.savefig(fname+'.png', dpi=500)
+print(fname+'.png created!')
