@@ -222,8 +222,8 @@ times = get_times_nml(namelist,model_data)
 
 benchs = glob.glob(args.bench_directory+'/run*')
 plt.close('all')
-fig = plt.figure(figsize=(16.5, 13))
-gs = gridspec.GridSpec(6, 5)
+fig = plt.figure(figsize=(16, 13))
+gs = gridspec.GridSpec(6, 3)
 datacrs = ccrs.PlateCarree()
 if args.ERA5:
     era_data = xr.open_dataset(args.ERA5, engine='cfgrib',
