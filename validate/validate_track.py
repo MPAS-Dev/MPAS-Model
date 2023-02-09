@@ -259,7 +259,7 @@ for row in range(6):
         experiment = microp+'_'+cumulus
         print(experiment)
         
-        ax.text(-50,-22,experiment,bbox=dict(facecolor='e', alpha=0.5))
+        ax.text(-50,-22,experiment,bbox=dict(facecolor='w', alpha=0.5))
         
         if i == 0:
             model_data = xr.open_dataset(bench+'/latlon.nc')
