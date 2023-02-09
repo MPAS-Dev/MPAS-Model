@@ -144,6 +144,7 @@ for bench in benchs:
         model_data = xr.open_dataset(bench+'/latlon.nc')
         TimeIndexer = 'Time'
         LatIndexer, LonIndexer = 'latitude', 'longitude'
+        markerfacecolor='None'
         
         model_data = model_data.assign_coords({"Time":times}).sel(
             latitude=slice(-20,-35),longitude=slice(-55,-30))
@@ -158,9 +159,13 @@ for bench in benchs:
     else:
         expname,microp,cumulus = 'ERA','ERA','ERA'
         print('ERA5')
-        model_data = xr.open_dataset(bench, engine='cfgrib')
+        
         TimeIndexer = 'time'
-        model_data = model_data.sel(time=slice(times[0],times[1]),
+        markerfacecolor='tab:blue'
+        
+        model_data = xr.open_dataset(bench, engine='cfgrib',
+                                     filter_by_keys={'typeOfLevel': 'surface'})
+        model_data = model_data.sel(time=slice(times[0],times[-1]),
             latitude=slice(-20,-35),longitude=slice(-55,-30))
         slp = model_data.msl
     
