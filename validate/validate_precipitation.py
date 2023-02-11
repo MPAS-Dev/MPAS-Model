@@ -14,6 +14,8 @@ import pandas as pd
 import xarray as xr
 import cmocean.cm as cmo
 
+from mpl_toolkits.axes_grid1 import make_axes_locatable
+
 import matplotlib.gridspec as gridspec
 import matplotlib.pyplot as plt
 import matplotlib.colors as colors
@@ -125,10 +127,12 @@ for col in range(3):
             if ax == ax1:
                 print('Plotting accumulate prec..')
                 cf1 = ax.contourf(lon, lat, acc_prec, cmap=cmo.rain, vmin=0)
-                cax = fig1.add_axes([ax1.get_position().x1+0.01,
-                                    ax1.get_position().y0,0.02,
-                                    ax1.get_position().height])
-                fig1.colorbar(cf1, shrink=0.9, orientation='vertical')
+                # cax = fig1.add_axes([ax1.get_position().x1+0.01,
+                #                     ax1.get_position().y0,0.02,
+                #                     ax1.get_position().height])'
+                divider = make_axes_locatable(ax1)
+                cax = divider.append_axes('right', size='5%', pad=0.05)
+                fig1.colorbar(cf1, cax=cax, orientation='vertical')
             else:
                 print('Plotting bias..')
                 acc_prec_interp = acc_prec.interp(latitude=imerg_accprec.lat,
@@ -143,7 +147,7 @@ for col in range(3):
         i+=1
     
 cb_axes = fig2.add_axes([0.85, 0.18, 0.04, 0.6])
-fig2.colorbar(cf2, cax=cb_axes, orientation="vertical")    
+fig2.colorbar(cf2, cax=cb_axes, orientation="vertical", norm=norm)    
 
 fig1.subplots_adjust(wspace=0.4,hspace=-0.15)
 fig2.subplots_adjust(wspace=0.1,hspace=-0.3, right=0.8)
@@ -172,10 +176,10 @@ gl.right_labels = None
 gl.top_labels = None
 cf = ax.contourf(imerg_accprec.lon, imerg_accprec.lat,
                  imerg_accprec.T, cmap=cmo.rain, vmin=0)
-cax = fig1.add_axes([ax.get_position().x1+0.01,
-                    ax1.get_position().y0,0.02,
-                    ax1.get_position().height])
-fig.colorbar(cf, cax=cax)
+# cax = fig1.add_axes([ax.get_position().x1+0.01,
+#                     ax1.get_position().y0,0.02,
+#                     ax1.get_position().height])
+fig.colorbar(cf)
 ax.coastlines(zorder = 1)
 
 imergname = args.imerg.split('/')[-1].split('.nc')[0]
