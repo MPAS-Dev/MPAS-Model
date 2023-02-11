@@ -20,6 +20,8 @@ import cmocean.cm as cmo
 
 import matplotlib.gridspec as gridspec
 import matplotlib.pyplot as plt
+import matplotlib.colors as colors
+
 
 import cartopy.crs as ccrs
 
@@ -73,6 +75,7 @@ imerg = xr.open_dataset(args.imerg).sel(lat=slice(model_data.latitude[-1],
                                                   model_data.longitude[-1]))
 imerg_accprec = imerg.precipitationCal.cumsum(dim='time')[-1]
 print(imerg_accprec)
+
 i = 0
 for col in range(3):
     for row in range(6):
@@ -125,22 +128,28 @@ for col in range(3):
             
             if ax == ax1:
                 print('Plotting accumulate prec..')
-                cf1 = ax.contourf(lon, lat, acc_prec, cmap=cmo.rain, vmin=0)
+                cf1 = ax.contourf(lon, lat, acc_prec, cmap=cmo.rain,
+                                  vmin=0, vmax=25)
+                fig1.colorbar(cf1, orientation="vertical")
             else:
                 print('Plotting bias..')
                 acc_prec_interp = acc_prec.interp(latitude=imerg_accprec.lat,
                                                   longitude=imerg_accprec.lon,
                                                   method='cubic') 
+                norm = colors.TwoSlopeNorm(vmin=-700, vcenter=0, vmax=700)
                 cf2 = ax.contourf(imerg_accprec.lon, imerg_accprec.lat,
                                  acc_prec_interp-imerg_accprec,
-                                 cmap=cmo.balance_r, vmin=0)
+                                 cmap=cmo.balance_r, norm=norm)
             ax.coastlines(zorder = 1)
         
         i+=1
-    
+ 
+cb_axes = fig2.add_axes([0.93, 0.18, 0.04, 0.6])
+fig2.colorbar(cf2, cax=cb_axes, orientation="vertical")    
+
 for fig, ax, cf in zip([fig1, fig2], [ax1, ax2], [cf1, cf2]):
-    cb_axes = fig.add_axes([0.9, 0.18, 0.04, 0.6])
-    fig.colorbar(cf, cax=cb_axes, orientation="vertical")
+    # cb_axes = fig.add_axes([0.9, 0.18, 0.04, 0.6])
+    # fig.colorbar(cf, cax=cb_axes, orientation="vertical")
     fig.subplots_adjust(wspace=0.1,hspace=0)
     
 if args.output is not None:
