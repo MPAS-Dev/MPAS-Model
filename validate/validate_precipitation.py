@@ -149,8 +149,8 @@ for col in range(3):
 cb_axes = fig2.add_axes([0.93, 0.18, 0.04, 0.6])
 fig2.colorbar(cf2, cax=cb_axes, orientation="vertical")    
 
-fig1.subplots_adjust(wspace=0.1,hspace=0)
-fig2.subplots_adjust(wspace=0.1,hspace=0,right=0.9)
+fig1.subplots_adjust(wspace=0.23,hspace=-0.05)
+fig2.subplots_adjust(wspace=0.1,hspace=-0.1,left=-0.05, right=0.83)
     
 if args.output is not None:
     fname = args.output
