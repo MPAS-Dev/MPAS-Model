@@ -10,16 +10,13 @@ import argparse
 import f90nml
 import datetime
 
+import numpy as np
 import pandas as pd
 import xarray as xr
 import cmocean.cm as cmo
 
-from mpl_toolkits.axes_grid1 import make_axes_locatable
-
 import matplotlib.gridspec as gridspec
 import matplotlib.pyplot as plt
-import matplotlib.colors as colors
-
 
 import cartopy.crs as ccrs
 
@@ -127,26 +124,23 @@ for col in range(3):
             if ax == ax1:
                 print('Plotting accumulate prec..')
                 cf1 = ax.contourf(lon, lat, acc_prec, cmap=cmo.rain, vmin=0)
-                # cax = fig1.add_axes([ax1.get_position().x1+0.01,
-                #                     ax1.get_position().y0,0.02,
-                #                     ax1.get_position().height])'
-                fig1.colorbar(cf1, ax=ax1, fraction=0.064, pad=0.1,
+                fig1.colorbar(cf1, ax=ax1, fraction=0.03, pad=0.1,
                               orientation='vertical')
             else:
                 print('Plotting bias..')
                 acc_prec_interp = acc_prec.interp(latitude=imerg_accprec.lat,
                                                   longitude=imerg_accprec.lon,
                                                   method='cubic') 
-                norm = colors.TwoSlopeNorm(vmin=-500, vcenter=0, vmax=500)
                 cf2 = ax.contourf(imerg_accprec.lon, imerg_accprec.lat,
                                  acc_prec_interp-imerg_accprec,
-                                 cmap=cmo.balance_r, norm=norm)
+                                 cmap=cmo.balance_r,
+                                 levels=np.linspace(-500,500,21))
             ax.coastlines(zorder = 1)
         
         i+=1
     
 cb_axes = fig2.add_axes([0.85, 0.18, 0.04, 0.6])
-fig2.colorbar(cf2, cax=cb_axes, orientation="vertical", norm=norm)    
+fig2.colorbar(cf2, cax=cb_axes, orientation="vertical")    
 
 fig1.subplots_adjust(wspace=0.4,hspace=-0.15)
 fig2.subplots_adjust(wspace=0.1,hspace=-0.3, right=0.8)
