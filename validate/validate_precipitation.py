@@ -64,7 +64,7 @@ namelist = f90nml.read(glob.glob(namelist_path)[0])
 times = get_times_nml(namelist,model_data)
 
 plt.close('all')
-fig1 = plt.figure(figsize=(8, 16))
+fig1 = plt.figure(figsize=(10, 16))
 fig2 = plt.figure(figsize=(8, 16))
 gs1 = gridspec.GridSpec(6, 3)
 gs2 = gridspec.GridSpec(6, 3)
@@ -128,7 +128,7 @@ for col in range(3):
             
             if ax == ax1:
                 print('Plotting accumulate prec..')
-                cf1 = ax.contourf(lon, lat, acc_prec, cmap=cmo.rain)
+                cf1 = ax.contourf(lon, lat, acc_prec, cmap=cmo.rain, vmin=0)
                 cax = fig1.add_axes([ax1.get_position().x1+0.01,
                                     ax1.get_position().y0,0.02,
                                     ax1.get_position().height])
