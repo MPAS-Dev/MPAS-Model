@@ -142,7 +142,7 @@ for col in range(3):
         
         i+=1
     
-cb_axes = fig2.add_axes([0.93, 0.18, 0.04, 0.6])
+cb_axes = fig2.add_axes([0.85, 0.18, 0.04, 0.6])
 fig2.colorbar(cf2, cax=cb_axes, orientation="vertical")    
 
 fig1.subplots_adjust(wspace=0.35,hspace=-0.05)
@@ -156,3 +156,25 @@ fname1 = fname+'_acc_prec'
 fname2 = fname+'_acc_prec_bias'
 fig1.savefig(fname1+'.png', dpi=500)
 fig2.savefig(fname2+'.png', dpi=500)
+
+## IMERG PLOT $$
+plt.close('all')
+fig = plt.figure(figsize=(10, 10))
+datacrs = ccrs.PlateCarree()
+ax = fig.add_subplot(111, projection=datacrs,frameon=True)
+ax.set_extent([-55, -30, -20, -35], crs=datacrs) 
+gl = ax.gridlines(draw_labels=True,zorder=2,linestyle='dashed',
+                  alpha=0.8, color='#383838')
+gl.xlabel_style = {'size': 12, 'color': '#383838'}
+gl.ylabel_style = {'size': 12, 'color': '#383838'}
+gl.right_labels = None
+gl.top_labels = None
+cf = ax.contourf(lon, lat, imerg_accprec, cmap=cmo.rain, vmin=0)
+cax = fig1.add_axes([ax1.get_position().x1+0.01,
+                    ax1.get_position().y0,0.02,
+                    ax1.get_position().height])
+fig.colorbar(cf, cax=cax)
+ax.coastlines(zorder = 1)
+
+imergname = args.imerg.split('/')[-1].split('.nc')[0]
+fig.savefig(imergname+'.png', dpi=500)
