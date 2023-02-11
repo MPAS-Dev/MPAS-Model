@@ -38,15 +38,6 @@ def get_times_nml(namelist,model_data):
     times = pd.date_range(start_date,finish_date,periods=len(model_data.Time)+1)[1:]
     return times
 
-
-## Workspace ##
-work_dir = os.getenv('MPAS_DIR')
-if work_dir is None:
-    print('Error: MPAS_DIR environment variable not defined! It should direct\
-to the MPAS-BR path')
-    sys.exit(-1)
-INMET_dir = work_dir+'/met_data/INMET/'
-
 ## Parser options ##
 parser = argparse.ArgumentParser()
 
