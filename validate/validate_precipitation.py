@@ -13,6 +13,7 @@ import argparse
 import f90nml
 import datetime
 
+import numpy as np
 import pandas as pd
 import xarray as xr
 import cmocean.cm as cmo
@@ -67,8 +68,8 @@ gs1 = gridspec.GridSpec(6, 3)
 gs2 = gridspec.GridSpec(6, 3)
 datacrs = ccrs.PlateCarree()
 
-imerg = xr.open_dataset(args.imerg).sel(lat=slice(model_data.latitude[0],
-                 model_data.latitude[0]),lon=slice(model_data.longitude[-1],
+imerg = xr.open_dataset(args.imerg).sel(lat=slice(model_data.latitude[-1],
+                 model_data.latitude[0]),lon=slice(model_data.longitude[0],
                                                   model_data.longitude[-1]))
 imerg_accprec = imerg.precipitationCal.cumsum(dim='time')[-1]
 print(imerg_accprec)
@@ -81,7 +82,7 @@ for col in range(3):
         microp = expname.split('.')[0].split('_')[-1]
         cumulus = expname.split('.')[-1].split('_')[-1] 
         experiment = microp+'_'+cumulus
-        print(experiment)
+        print('\n',experiment)
         
         model_data = xr.open_dataset(bench+'/latlon.nc')
         model_data = model_data.assign_coords({"Time":times})
@@ -97,7 +98,10 @@ for col in range(3):
         elif ('rainnc' not in model_data.variables
             ) and ('rainc' in model_data.variables):
             acc_prec = model_data['rainc'] 
-            
+        elif ('rainnc' not in model_data.variables
+            ) and ('rainc' not in model_data.variables):
+            acc_prec = model_data.uReconstructMeridional[0]*0
+  
         acc_prec = acc_prec[-1]
         lon, lat = acc_prec.longitude, acc_prec.latitude
         
@@ -117,7 +121,7 @@ for col in range(3):
             if col != 0:
                 gl.left_labels = None
         
-            ax.text(-59,-19,experiment)
+            ax.text(-50,-19,experiment)
             
             if ax == ax1:
                 print('Plotting accumulate prec..')
@@ -135,9 +139,9 @@ for col in range(3):
         i+=1
     
 for fig, ax, cf in zip([fig1, fig2], [ax1, ax2], [cf1, cf2]):
-    cb_axes = fig.add_axes([0.83, 0.18, 0.02, 0.6])
+    cb_axes = fig.add_axes([0.9, 0.18, 0.04, 0.6])
     fig.colorbar(cf, cax=cb_axes, orientation="vertical")
-    fig.subplots_adjust(wspace=-0.5,hspace=0.3)
+    fig.subplots_adjust(wspace=0.1,hspace=0)
     
 if args.output is not None:
     fname = args.output
