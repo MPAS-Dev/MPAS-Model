@@ -128,13 +128,13 @@ for col in range(3):
                 cax = fig1.add_axes([ax1.get_position().x1+0.01,
                                     ax1.get_position().y0,0.02,
                                     ax1.get_position().height])
-                fig1.colorbar(cf1, cax=cax)
+                fig1.colorbar(cf1, shrink=0.9, orientation='vertical')
             else:
                 print('Plotting bias..')
                 acc_prec_interp = acc_prec.interp(latitude=imerg_accprec.lat,
                                                   longitude=imerg_accprec.lon,
                                                   method='cubic') 
-                norm = colors.TwoSlopeNorm(vmin=-700, vcenter=0, vmax=700)
+                norm = colors.TwoSlopeNorm(vmin=-500, vcenter=0, vmax=500)
                 cf2 = ax.contourf(imerg_accprec.lon, imerg_accprec.lat,
                                  acc_prec_interp-imerg_accprec,
                                  cmap=cmo.balance_r, norm=norm)
@@ -145,8 +145,8 @@ for col in range(3):
 cb_axes = fig2.add_axes([0.85, 0.18, 0.04, 0.6])
 fig2.colorbar(cf2, cax=cb_axes, orientation="vertical")    
 
-fig1.subplots_adjust(wspace=0.35,hspace=-0.05)
-fig2.subplots_adjust(wspace=0.1,hspace=-0.15, right=0.8)
+fig1.subplots_adjust(wspace=0.4,hspace=-0.15)
+fig2.subplots_adjust(wspace=0.1,hspace=-0.3, right=0.8)
     
 if args.output is not None:
     fname = args.output
@@ -158,7 +158,7 @@ fig1.savefig(fname1+'.png', dpi=500)
 fig2.savefig(fname2+'.png', dpi=500)
 
 ## IMERG PLOT $$
-print('Plotting CHIRPS data..')
+print('\nPlotting CHIRPS data..')
 plt.close('all')
 fig = plt.figure(figsize=(10, 10))
 datacrs = ccrs.PlateCarree()
@@ -172,7 +172,7 @@ gl.right_labels = None
 gl.top_labels = None
 cf = ax.contourf(imerg_accprec.lon, imerg_accprec.lat,
                  imerg_accprec.T, cmap=cmo.rain, vmin=0)
-cax = fig1.add_axes([ax1.get_position().x1+0.01,
+cax = fig1.add_axes([ax.get_position().x1+0.01,
                     ax1.get_position().y0,0.02,
                     ax1.get_position().height])
 fig.colorbar(cf, cax=cax)
