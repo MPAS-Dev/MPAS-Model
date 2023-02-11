@@ -158,6 +158,7 @@ fig1.savefig(fname1+'.png', dpi=500)
 fig2.savefig(fname2+'.png', dpi=500)
 
 ## IMERG PLOT $$
+print('Plotting CHIRPS data..')
 plt.close('all')
 fig = plt.figure(figsize=(10, 10))
 datacrs = ccrs.PlateCarree()
@@ -169,7 +170,8 @@ gl.xlabel_style = {'size': 12, 'color': '#383838'}
 gl.ylabel_style = {'size': 12, 'color': '#383838'}
 gl.right_labels = None
 gl.top_labels = None
-cf = ax.contourf(lon, lat, imerg_accprec, cmap=cmo.rain, vmin=0)
+cf = ax.contourf(imerg_accprec.lon, imerg_accprec.lat,
+                 imerg_accprec.T, cmap=cmo.rain, vmin=0)
 cax = fig1.add_axes([ax1.get_position().x1+0.01,
                     ax1.get_position().y0,0.02,
                     ax1.get_position().height])
