@@ -129,7 +129,10 @@ for col in range(3):
             if ax == ax1:
                 print('Plotting accumulate prec..')
                 cf1 = ax.contourf(lon, lat, acc_prec, cmap=cmo.rain)
-                fig1.colorbar(cf1, orientation="vertical", size="5%")
+                cax = fig1.add_axes([ax1.get_position().x1+0.01,
+                                    ax1.get_position().y0,0.02,
+                                    ax1.get_position().height])
+                fig1.colorbar(cf1, cax=cax)
             else:
                 print('Plotting bias..')
                 acc_prec_interp = acc_prec.interp(latitude=imerg_accprec.lat,
