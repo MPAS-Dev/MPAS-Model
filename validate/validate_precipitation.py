@@ -6,28 +6,21 @@ Created on Wed Feb  8 09:52:10 2023
 @author: daniloceano
 """
 
-import sys
 import os
+import sys
 import glob
 import argparse
 import f90nml
 import datetime
 
 import pandas as pd
-import numpy as np
-import numpy as np
 import xarray as xr
 import cmocean.cm as cmo
 
-import metpy.calc as mpcalc
-from metpy.units import units
-
 import matplotlib.gridspec as gridspec
 import matplotlib.pyplot as plt
-from matplotlib import rcParams
 
 import cartopy.crs as ccrs
-import cartopy
 
 def get_times_nml(namelist,model_data):
     ## Identify time range of simulation using namelist ##
@@ -41,63 +34,33 @@ def get_times_nml(namelist,model_data):
     # Get simulation finish date as object and string
     finish_date  = start_date + datetime.timedelta(days=run_duration.day,
                                                    hours=run_duration.hour)
-    finish_date_str = finish_date.strftime('%Y-%m-%d_%H:%M:%S')
     ## Create a range of dates ##
     times = pd.date_range(start_date,finish_date,periods=len(model_data.Time)+1)[1:]
     return times
 
-def plot_track(lons, lats, min_zeta, fname):
-    ax.set_extent([-80, 40, 0, -70], crs=datacrs) 
-    ax.coastlines(zorder = 1)
-    ax.add_feature(cartopy.feature.LAND)
-    ax.add_feature(cartopy.feature.OCEAN,facecolor=("lightblue"))
-    gl = ax.gridlines(draw_labels=True,zorder=2,linestyle='dashed',alpha=0.8,
-                 color='#383838')
-    gl.xlabel_style = {'size': 14, 'color': '#383838'}
-    gl.ylabel_style = {'size': 14, 'color': '#383838'}
-    gl.bottom_labels = None
-    gl.right_labels = None
-    ax.plot(lons,lats,'-',c='k')
-    scatter = ax.scatter(lons,lats,zorder=100,cmap=cmo.deep_r,c=min_zeta)
-    plt.colorbar(scatter, pad=0.07, orientation='vertical',fraction=0.026,
-                      label=' 850 hPa vorticity (ζ)')
 
-def plot_prec(acc_prec):
-    ax.set_extent([-80, 40, 0, -70], crs=datacrs) 
-    ax.coastlines(zorder = 1)
-    gl = ax.gridlines(draw_labels=True,zorder=2,linestyle='dashed',alpha=0.8,
-                 color='#383838')
-    gl.xlabel_style = {'size': 14, 'color': '#383838'}
-    gl.ylabel_style = {'size': 14, 'color': '#383838'}
-    gl.bottom_labels = None
-    gl.right_labels = None
-    lon, lat = acc_prec.longitude, acc_prec.latitude
-    cf = ax.contourf(lon, lat, acc_prec, cmap=cmo.rain, vmin=0)
-    plt.colorbar(cf, pad=0.07, orientation='vertical',fraction=0.026)
+## Workspace ##
+work_dir = os.getenv('MPAS_DIR')
+if work_dir is None:
+    print('Error: MPAS_DIR environment variable not defined! It should direct\
+to the MPAS-BR path')
+    sys.exit(-1)
+INMET_dir = work_dir+'/met_data/INMET/'
 
-# ## Workspace ##
-# work_dir = os.getenv('MPAS_DIR')
-# if work_dir is None:
-#     print('Error: MPAS_DIR environment variable not defined! It should direct\
-# to the MPAS-BR path')
-#     sys.exit(-1)
-# INMET_dir = work_dir+'/met_data/INMET/'
+## Parser options ##
+parser = argparse.ArgumentParser()
 
-# ## Parser options ##
-# parser = argparse.ArgumentParser()
+parser.add_argument('-bdir','--bench_directory', type=str, required=True,
+                        help='''path to benchmark directory''')
+parser.add_argument('-i','--imerg', type=str, default=None, required=True,
+                        help='''path to IMERG data''')
+parser.add_argument('-o','--output', type=str, default=None,
+                        help='''output name to append file''')
 
-# parser.add_argument('-bdir','--bench_directory', type=str, required=True,
-#                         help='''path to benchmark directory''')
-
-# parser.add_argument('-o','--output', type=str, default=None,
-#                         help='''output name to append file''')
-# parser.add_argument('-e','--ERA5', type=str, default=None,
-#                         help='''wether to validade with ERA5 data''')
-# args = parser.parse_args()
+args = parser.parse_args()
 
 ## Start the code ##
-#benchs = glob.glob(args.bench_directory+'/run*')
-benchs = glob.glob('/home/daniloceano/Documents/MPAS/MPAS-BR/benchmarks/Catarina_physics-test/Catarina_250-8km.microp_scheme.convection_scheme/run*')
+benchs = glob.glob(args.bench_directory+'/run*')
 # Dummy for getting model times
 model_output = benchs[0]+'/latlon.nc'
 namelist_path = benchs[0]+"/namelist.atmosphere"
@@ -105,34 +68,91 @@ namelist_path = benchs[0]+"/namelist.atmosphere"
 model_data = xr.open_dataset(model_output)
 namelist = f90nml.read(glob.glob(namelist_path)[0])
 times = get_times_nml(namelist,model_data)
-# start_date = times[0]
 
 plt.close('all')
-fig = plt.figure(figsize=(15, 12))
-gs = gridspec.GridSpec(6, 3)
+fig1 = plt.figure(figsize=(8, 16))
+fig2 = plt.figure(figsize=(8, 16))
+gs1 = gridspec.GridSpec(6, 3)
+gs2 = gridspec.GridSpec(6, 3)
 datacrs = ccrs.PlateCarree()
-# for bench in range(18):
+
+imerg = xr.open_dataset(args.imerg).sel(lat=slice(model_data.latitude[0],
+                 model_data.latitude[-1]),lon=slice(model_data.longitude[0],
+                                                  model_data.longitude[-1]))
+imerg_accprec = imerg.precipitationCal.cumsum(dim='time')[-1]
+
+i = 0
 for col in range(3):
     for row in range(6):
         
-        model_data = xr.open_dataset(model_output)
-        model_data = model_data.assign_coords({"Time":times})
-        ax = fig.add_subplot(gs[row, col], projection=datacrs,frameon=True)
+        bench = benchs[i]
+        expname = bench.split('/')[-1].split('run.')[-1]
+        microp = expname.split('.')[0].split('_')[-1]
+        cumulus = expname.split('.')[-1].split('_')[-1] 
+        experiment = microp+'_'+cumulus
+        print(experiment)
         
+        model_data = xr.open_dataset(bench+'/latlon.nc')
+        model_data = model_data.assign_coords({"Time":times})
+    
         if ('rainnc' in model_data.variables
             ) and ('rainc' in model_data.variables):
-            prec = model_data['rainnc']+model_data['rainc']
+            acc_prec = model_data['rainnc']+model_data['rainc']
         # Get only micrphysics precipitation
         elif ('rainnc' in model_data.variables
             ) and ('rainc' not in model_data.variables):
-            prec = model_data['rainnc']
+            acc_prec = model_data['rainnc']
         # Get convective precipitation
         elif ('rainnc' not in model_data.variables
             ) and ('rainc' in model_data.variables):
-            prec = model_data['rainc'] 
+            acc_prec = model_data['rainc'] 
+            
+        acc_prec = acc_prec[-1]
+        lon, lat = acc_prec.longitude, acc_prec.latitude
         
-        acc_prec = prec.cumsum()[-1]
-        plot_prec(acc_prec)
+        ax1 = fig1.add_subplot(gs1[row, col], projection=datacrs,frameon=True)
+        ax2 = fig2.add_subplot(gs1[row, col], projection=datacrs,frameon=True)
+        
+        for ax in [ax1,ax2]:
+            ax.set_extent([-55, -30, -20, -35], crs=datacrs) 
+            gl = ax.gridlines(draw_labels=True,zorder=2,linestyle='dashed',
+                              alpha=0.8, color='#383838')
+            gl.xlabel_style = {'size': 12, 'color': '#383838'}
+            gl.ylabel_style = {'size': 12, 'color': '#383838'}
+            gl.right_labels = None
+            gl.top_labels = None
+            if row != 5:
+                gl.bottom_labels = None
+            if col != 0:
+                gl.left_labels = None
+        
+            ax.text(-59,-19,experiment)
+            
+            if ax == ax1:
+                print('Plotting accumulate prec..')
+                cf1 = ax.contourf(lon, lat, acc_prec, cmap=cmo.rain, vmin=0)
+            else:
+                print('Plotting bias..')
+                acc_prec_interp = acc_prec.interp(latitude=imerg_accprec.lat,
+                                                  longitude=imerg_accprec.lon,
+                                                  method='cubic') 
+                cf2 = ax.contourf(imerg_accprec.lon, imerg_accprec.lat,
+                                 acc_prec_interp-imerg_accprec,
+                                 cmap=cmo.balance_r, vmin=0)
+            ax.coastlines(zorder = 1)
+        
+        i+=1
     
-plt.tight_layout()
-plt.savefig('test.png', dpi=500)
+for fig, ax, cf in zip([fig1, fig2], [ax1, ax2], [cf1, cf2]):
+    cb_axes = fig.add_axes([0.83, 0.18, 0.02, 0.6])
+    fig.colorbar(cf, cax=cb_axes, orientation="vertical")
+    fig.subplots_adjust(wspace=-0.5,hspace=0.3)
+    
+if args.output is not None:
+    fname = args.output
+else:
+    fname = (args.bench_directory).split('/')[-2].split('.nc')[0]
+fname1 = fname+'_acc_prec'
+fname2 = fname+'_acc_prec_bias'
+fig1.savefig(fname1+'.png', dpi=500)
+fig2.savefig(fname2+'.png', dpi=500)
