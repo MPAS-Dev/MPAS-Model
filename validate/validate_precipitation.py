@@ -130,9 +130,8 @@ for col in range(3):
                 # cax = fig1.add_axes([ax1.get_position().x1+0.01,
                 #                     ax1.get_position().y0,0.02,
                 #                     ax1.get_position().height])'
-                divider = make_axes_locatable(ax1)
-                cax = divider.append_axes('right', size='5%', pad=0.05)
-                fig1.colorbar(cf1, cax=cax, orientation='vertical')
+                fig1.colorbar(cf1, ax=ax1, fraction=0.064, pad=0.1,
+                              orientation='vertical')
             else:
                 print('Plotting bias..')
                 acc_prec_interp = acc_prec.interp(latitude=imerg_accprec.lat,
