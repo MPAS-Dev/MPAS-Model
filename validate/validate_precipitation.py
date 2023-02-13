@@ -123,8 +123,7 @@ for col in range(3):
             
             if ax == ax1:
                 print('Plotting accumulate prec..')
-                cf1 = ax.contourf(lon, lat, acc_prec, cmap=cmo.rain, vmin=0,
-                                  levels=np.linspace(0,acc_prec.max(),21))
+                cf1 = ax.contourf(lon, lat, acc_prec, cmap=cmo.rain, vmin=0)
                 fig1.colorbar(cf1, ax=ax1, fraction=0.03, pad=0.1,
                               orientation='vertical')
             else:
