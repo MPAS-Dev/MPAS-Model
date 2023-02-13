@@ -17,10 +17,14 @@ import cmocean.cm as cmo
 
 import matplotlib.gridspec as gridspec
 import matplotlib.pyplot as plt
+import matplotlib.patches as mpatches
+
+from matplotlib.lines import Line2D
+from matplotlib import pyplot
 
 import cartopy.crs as ccrs
 
-from scipy.stats import gamma
+import scipy.stats as stats
 
 def get_times_nml(namelist,model_data):
     ## Identify time range of simulation using namelist ##
@@ -165,6 +169,7 @@ fname1 = fname+'_acc_prec'
 fname2 = fname+'_acc_prec_bias'
 fig1.savefig(fname1+'.png', dpi=500)
 fig2.savefig(fname2+'.png', dpi=500)
+print(fname1,'and',fname1,'saved')
 
 # =============================================================================
 # Plot IMERG ac prec
@@ -189,32 +194,63 @@ ax.coastlines(zorder = 1)
 
 imergname = args.imerg.split('/')[-1].split('.nc')[0]
 fig.savefig(imergname+'.png', dpi=500)
+print(imergname,'saved')
 
-# # =============================================================================
-# # PDFs 
-# # =============================================================================
-# print('\nPlotting PDFs..')
-# plt.close('all')
-# fig = plt.figure(figsize=(10, 16))
-# gs = gridspec.GridSpec(6, 3)
+# =============================================================================
+# PDFs 
+# =============================================================================
 
-# i = 0
-# for col in range(3):
-#     for row in range(6):
-        
-#         bench = benchs[i]
-#         experiment = get_exp_name(bench)
-#         print('\n',experiment)
-        
-#         model_data = xr.open_dataset(bench+'/latlon.nc')
-#         model_data = model_data.assign_coords({"Time":times})
+colors = {'ERA':'k', 'fritsch':'tab:orange','tiedtke':'tab:red',
+          'ntiedtke':'tab:purple', 'freitas':'tab:brown','off':'tab:green'}
+
+lines = {'ERA':'solid', 'wsm6':'dashed','thompson':'dashdot',
+         'kessler':(0, (3, 1, 1, 1)),'off':(0, (3, 1, 1, 1, 1, 1))}
+
+markers = {'ERA':'o', 'wsm6':'x', 'thompson':'P','kessler':'D','off':'s'}
+
+print('\nPlotting PDFs..')
+plt.close('all')
+fig = plt.figure(figsize=(10, 10))
+ax = fig.add_subplot(111,frameon=True)
+
+for bench in benchs:
+    experiment = get_exp_name(bench)
+    print('\n',experiment)
     
-#         acc_prec = get_model_accprec(model_data)
-#         lon, lat = acc_prec.longitude, acc_prec.latitude
-        
-#         ax = fig.add_subplot(gs[row, col], projection=datacrs,frameon=True)
-        
-#         acc_prec_interp = acc_prec.interp(latitude=imerg_accprec.lat,
-#                                           longitude=imerg_accprec.lon,
-#                                           method='cubic')
-        
+    model_data = xr.open_dataset(bench+'/latlon.nc')
+    model_data = model_data.assign_coords({"Time":times})
+
+    acc_prec = get_model_accprec(model_data)
+    lon, lat = acc_prec.longitude, acc_prec.latitude
+            
+    acc_prec = acc_prec.values.flatten()
+    
+    params = stats.gamma.fit(acc_prec)
+    x = np.linspace(stats.gamma.ppf(0.01, *params), stats.gamma.ppf(0.99, *params), 25)
+    pdf = stats.gamma.pdf(x, *params)
+    
+    ls = lines[experiment.split('_')[0]]
+    marker = markers[experiment.split('_')[0]]
+    color = colors[experiment.split('_')[1]]
+    
+    # Plot the PDF
+    ax.plot(x, pdf, 'r-', lw=2, alpha=0.6, linestyle=ls, c=color,
+             label=experiment)
+
+labels, handles = zip(*[(k, mpatches.Rectangle((0, 0), 1, 1, facecolor=v)) for k,v in colors.items()])
+legend1 = pyplot.legend(handles, labels, loc=4,
+                        framealpha=1, bbox_to_anchor=(1.105, 0.27))
+
+custom_lines = []
+lebels = []
+for line, marker in zip(lines,markers):
+    custom_lines.append(Line2D([0], [0], color='k', lw=1,
+                            linestyle=lines[line], marker=markers[marker]))
+    lebels.append(line)
+legend2 = pyplot.legend(custom_lines, lebels, loc=4, framealpha=1,
+                        bbox_to_anchor=(1.11, 0.1))
+ax.add_artist(legend1)
+ax.add_artist(legend2)
+
+fig.savefig(fname+'_PDF.png', dpi=500)    
+print(fname+'_PDF','saved')
