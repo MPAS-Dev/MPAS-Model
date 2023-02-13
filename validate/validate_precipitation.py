@@ -20,6 +20,8 @@ import matplotlib.pyplot as plt
 
 import cartopy.crs as ccrs
 
+from scipy.stats import gamma
+
 def get_times_nml(namelist,model_data):
     ## Identify time range of simulation using namelist ##
     # Get simulation start and end dates as strings
@@ -35,6 +37,29 @@ def get_times_nml(namelist,model_data):
     ## Create a range of dates ##
     times = pd.date_range(start_date,finish_date,periods=len(model_data.Time)+1)[1:]
     return times
+
+def get_exp_name(bench):
+    expname = bench.split('/')[-1].split('run.')[-1]
+    microp = expname.split('.')[0].split('_')[-1]
+    cumulus = expname.split('.')[-1].split('_')[-1] 
+    return microp+'_'+cumulus
+
+def get_model_accprec(model_data):
+    if ('rainnc' in model_data.variables
+        ) and ('rainc' in model_data.variables):
+        acc_prec = model_data['rainnc']+model_data['rainc']
+    # Get only micrphysics precipitation
+    elif ('rainnc' in model_data.variables
+        ) and ('rainc' not in model_data.variables):
+        acc_prec = model_data['rainnc']
+    # Get convective precipitation
+    elif ('rainnc' not in model_data.variables
+        ) and ('rainc' in model_data.variables):
+        acc_prec = model_data['rainc'] 
+    elif ('rainnc' not in model_data.variables
+        ) and ('rainc' not in model_data.variables):
+        acc_prec = model_data.uReconstructMeridional[0]*0
+    return acc_prec[-1]
 
 ## Parser options ##
 parser = argparse.ArgumentParser()
@@ -58,6 +83,10 @@ model_data = xr.open_dataset(model_output)
 namelist = f90nml.read(glob.glob(namelist_path)[0])
 times = get_times_nml(namelist,model_data)
 
+
+# =============================================================================
+# Plot acc prec maps and bias
+# =============================================================================
 plt.close('all')
 fig1 = plt.figure(figsize=(10, 16))
 fig2 = plt.figure(figsize=(8, 16))
@@ -76,31 +105,13 @@ for col in range(3):
     for row in range(6):
         
         bench = benchs[i]
-        expname = bench.split('/')[-1].split('run.')[-1]
-        microp = expname.split('.')[0].split('_')[-1]
-        cumulus = expname.split('.')[-1].split('_')[-1] 
-        experiment = microp+'_'+cumulus
+        experiment = get_exp_name(bench)
         print('\n',experiment)
         
         model_data = xr.open_dataset(bench+'/latlon.nc')
         model_data = model_data.assign_coords({"Time":times})
     
-        if ('rainnc' in model_data.variables
-            ) and ('rainc' in model_data.variables):
-            acc_prec = model_data['rainnc']+model_data['rainc']
-        # Get only micrphysics precipitation
-        elif ('rainnc' in model_data.variables
-            ) and ('rainc' not in model_data.variables):
-            acc_prec = model_data['rainnc']
-        # Get convective precipitation
-        elif ('rainnc' not in model_data.variables
-            ) and ('rainc' in model_data.variables):
-            acc_prec = model_data['rainc'] 
-        elif ('rainnc' not in model_data.variables
-            ) and ('rainc' not in model_data.variables):
-            acc_prec = model_data.uReconstructMeridional[0]*0
-  
-        acc_prec = acc_prec[-1]
+        acc_prec = get_model_accprec(model_data)
         lon, lat = acc_prec.longitude, acc_prec.latitude
         
         ax1 = fig1.add_subplot(gs1[row, col], projection=datacrs,frameon=True)
@@ -155,7 +166,9 @@ fname2 = fname+'_acc_prec_bias'
 fig1.savefig(fname1+'.png', dpi=500)
 fig2.savefig(fname2+'.png', dpi=500)
 
-## IMERG PLOT $$
+# =============================================================================
+# Plot IMERG ac prec
+# =============================================================================
 print('\nPlotting CHIRPS data..')
 plt.close('all')
 fig = plt.figure(figsize=(10, 10))
@@ -176,3 +189,32 @@ ax.coastlines(zorder = 1)
 
 imergname = args.imerg.split('/')[-1].split('.nc')[0]
 fig.savefig(imergname+'.png', dpi=500)
+
+# # =============================================================================
+# # PDFs 
+# # =============================================================================
+# print('\nPlotting PDFs..')
+# plt.close('all')
+# fig = plt.figure(figsize=(10, 16))
+# gs = gridspec.GridSpec(6, 3)
+
+# i = 0
+# for col in range(3):
+#     for row in range(6):
+        
+#         bench = benchs[i]
+#         experiment = get_exp_name(bench)
+#         print('\n',experiment)
+        
+#         model_data = xr.open_dataset(bench+'/latlon.nc')
+#         model_data = model_data.assign_coords({"Time":times})
+    
+#         acc_prec = get_model_accprec(model_data)
+#         lon, lat = acc_prec.longitude, acc_prec.latitude
+        
+#         ax = fig.add_subplot(gs[row, col], projection=datacrs,frameon=True)
+        
+#         acc_prec_interp = acc_prec.interp(latitude=imerg_accprec.lat,
+#                                           longitude=imerg_accprec.lon,
+#                                           method='cubic')
+        
