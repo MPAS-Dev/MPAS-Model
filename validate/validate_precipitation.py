@@ -123,7 +123,8 @@ for col in range(3):
             
             if ax == ax1:
                 print('Plotting accumulate prec..')
-                cf1 = ax.contourf(lon, lat, acc_prec, cmap=cmo.rain, vmin=0)
+                cf1 = ax.contourf(lon, lat, acc_prec, cmap=cmo.rain, vmin=0,
+                                  levels=np.linspace(0,acc_prec.max(),21))
                 fig1.colorbar(cf1, ax=ax1, fraction=0.03, pad=0.1,
                               orientation='vertical')
             else:
@@ -169,10 +170,8 @@ gl.ylabel_style = {'size': 12, 'color': '#383838'}
 gl.right_labels = None
 gl.top_labels = None
 cf = ax.contourf(imerg_accprec.lon, imerg_accprec.lat,
-                 imerg_accprec.T, cmap=cmo.rain, vmin=0)
-# cax = fig1.add_axes([ax.get_position().x1+0.01,
-#                     ax1.get_position().y0,0.02,
-#                     ax1.get_position().height])
+                 imerg_accprec.T, cmap=cmo.rain, vmin=0,
+                 levels=np.linspace(0,imerg_accprec.T.max(),21))
 fig.colorbar(cf, ax=ax, fraction=0.03, pad=0.1)
 ax.coastlines(zorder = 1)
 
