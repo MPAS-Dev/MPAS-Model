@@ -221,23 +221,25 @@ for bench in benchs:
     model_data = model_data.assign_coords({"Time":times})
 
     acc_prec = get_model_accprec(model_data)
-    lon, lat = acc_prec.longitude, acc_prec.latitude
-            
-    acc_prec = acc_prec.values.flatten()
+    acc_prec_interp = acc_prec.interp(latitude=imerg_accprec.lat,
+                                      longitude=imerg_accprec.lon,
+                                      method='cubic').values.flatten()
     
-    params = stats.gamma.fit(acc_prec)
-    x = np.linspace(stats.gamma.ppf(0.01, *params), stats.gamma.ppf(0.99, *params), 25)
-    pdf = stats.gamma.pdf(x, *params)
+    if experiment != 'off_off':
     
-    ls = lines[experiment.split('_')[0]]
-    marker = markers[experiment.split('_')[0]]
-    color = colors[experiment.split('_')[1]]
-    
-    # Plot the PDF
-    ax.plot(x, pdf, 'r-', lw=2, alpha=0.6, linestyle=ls, c=color,
-             label=experiment)
+        params = stats.gamma.fit(acc_prec_interp)
+        x = np.linspace(stats.gamma.ppf(0.01, *params), stats.gamma.ppf(0.99, *params), 25)
+        pdf = stats.gamma.pdf(x, *params)
+        
+        ls = lines[experiment.split('_')[0]]
+        marker = markers[experiment.split('_')[0]]
+        color = colors[experiment.split('_')[1]]
+        ax.plot(x, pdf, lw=2, alpha=0.6, linestyle=ls, c=color,
+                label=experiment)
 
-labels, handles = zip(*[(k, mpatches.Rectangle((0, 0), 1, 1, facecolor=v)) for k,v in colors.items()])
+labels, handles = zip(
+    *[(k, mpatches.Rectangle((0, 0), 1, 1, facecolor=v)
+       ) for k,v in colors.items()])
 legend1 = pyplot.legend(handles, labels, loc=4,
                         framealpha=1, bbox_to_anchor=(1.105, 0.27))
 
