@@ -135,7 +135,7 @@ for col in range(3):
                 cf2 = ax.contourf(imerg_accprec.lon, imerg_accprec.lat,bias,
                                  cmap=cmo.balance_r,
                                  levels=np.linspace(-700,400,21))
-                print('bias limits:',bias.min(), bias.max())
+                print('bias limits:',float(bias.min()), float(bias.max()))
             ax.coastlines(zorder = 1)
         
         i+=1
