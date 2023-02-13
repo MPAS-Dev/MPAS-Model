@@ -219,17 +219,17 @@ for bench in benchs:
     
     if bench == args.imerg:
         experiment = 'IMERG_IMERG'
+        acc_prec_interp = imerg_accprec
     else:
         experiment = get_exp_name(bench)
-    print('\n',experiment)
-    
-    model_data = xr.open_dataset(bench+'/latlon.nc')
-    model_data = model_data.assign_coords({"Time":times})
+        model_data = xr.open_dataset(bench+'/latlon.nc')
+        model_data = model_data.assign_coords({"Time":times})
 
-    acc_prec = get_model_accprec(model_data)
-    acc_prec_interp = acc_prec.interp(latitude=imerg_accprec.lat,
-                                      longitude=imerg_accprec.lon,
-                                      method='cubic').values.flatten()
+        acc_prec = get_model_accprec(model_data)
+        acc_prec_interp = acc_prec.interp(latitude=imerg_accprec.lat,
+                                          longitude=imerg_accprec.lon,
+                                          method='cubic').values.flatten()
+    print('\n',experiment)
     
     if experiment != 'off_off':
     
