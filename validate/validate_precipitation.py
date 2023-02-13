@@ -309,6 +309,7 @@ fig.savefig(fname+'_PDF.png', dpi=500)
 print(fname+'_PDF','saved')
 
 ## Plot Taylor Diagrams ##
+ccoef, crmsd, sdev = np.array(ccoef),np.array(crmsd),np.array(sdev)
 print('plotting taylor diagrams..')
 fig = plt.figure(figsize=(10,10))
 plot_taylor(sdev,crmsd,ccoef,list(data.keys()))
