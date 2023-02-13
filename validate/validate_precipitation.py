@@ -15,16 +15,12 @@ import pandas as pd
 import xarray as xr
 import cmocean.cm as cmo
 
+import scipy.stats as st
+
 import matplotlib.gridspec as gridspec
 import matplotlib.pyplot as plt
-import matplotlib.patches as mpatches
-
-from matplotlib.lines import Line2D
-from matplotlib import pyplot
 
 import cartopy.crs as ccrs
-
-import scipy.stats as stats
 
 def get_times_nml(namelist,model_data):
     ## Identify time range of simulation using namelist ##
@@ -86,7 +82,6 @@ namelist_path = benchs[0]+"/namelist.atmosphere"
 model_data = xr.open_dataset(model_output)
 namelist = f90nml.read(glob.glob(namelist_path)[0])
 times = get_times_nml(namelist,model_data)
-
 
 # =============================================================================
 # Plot acc prec maps and bias
@@ -197,68 +192,71 @@ fig.savefig(imergname+'.png', dpi=500)
 print(imergname,'saved')
 
 # =============================================================================
-# PDFs 
+# PDFs
 # =============================================================================
+nbins = 100
+params_imerg = st.gamma.fit(imerg_accprec)
+x_imerg = np.linspace(st.gamma.ppf(0.01, *params_imerg),
+                st.gamma.ppf(0.99, *params_imerg), nbins)
+pdf_imerg = st.gamma.pdf(x_imerg, *params_imerg)
 
-colors = {'IMERG':'k', 'fritsch':'tab:orange','tiedtke':'tab:red',
-          'ntiedtke':'tab:purple', 'freitas':'tab:brown','off':'tab:green'}
-
-lines = {'IMERG':'solid', 'wsm6':'dashed','thompson':'dashdot',
-         'kessler':(0, (3, 1, 1, 1)),'off':(0, (3, 1, 1, 1, 1, 1))}
-
-markers = {'IMERG':'o', 'wsm6':'x', 'thompson':'P','kessler':'D','off':'s'}
-
-print('\nPlotting PDFs..')
 plt.close('all')
-fig = plt.figure(figsize=(10, 10))
-ax = fig.add_subplot(111,frameon=True)
+fig = plt.figure(figsize=(10, 16))
+gs = gridspec.GridSpec(6, 3)
 
-benchs.append(args.imerg)
-
-for bench in benchs:
+i = 0
+for col in range(3):
+    for row in range(6):
     
-    if bench == args.imerg:
-        experiment = 'IMERG_IMERG'
-        acc_prec_interp = imerg_accprec.values.flatten()
-    else:
-        experiment = get_exp_name(bench)
-        model_data = xr.open_dataset(bench+'/latlon.nc')
-        model_data = model_data.assign_coords({"Time":times})
-
-        acc_prec = get_model_accprec(model_data)
-        acc_prec_interp = acc_prec.interp(latitude=imerg_accprec.lat,
-                                          longitude=imerg_accprec.lon,
-                                          method='cubic').values.flatten()
-    print('\n',experiment)
+        ax = fig.add_subplot(gs[row, col], frameon=True)
     
-    if experiment != 'off_off':
-    
-        params = stats.gamma.fit(acc_prec_interp)
-        x = np.linspace(stats.gamma.ppf(0.01, *params), stats.gamma.ppf(0.99, *params), 10)
-        pdf = stats.gamma.pdf(x, *params)
+        try:
+            bench = benchs[i]
+            experiment = get_exp_name(bench)
+            
+            model_data = xr.open_dataset(bench+'/latlon.nc')
+            model_data = model_data.assign_coords({"Time":times})
+            
+            acc_prec = get_model_accprec(model_data)
+            prec = acc_prec.interp(latitude=imerg_accprec.lat,
+                                              longitude=imerg_accprec.lon,
+                                              method='cubic')
+            
+        except:
+            prec = prec*np.random.rand(prec.shape[0],
+                                               prec.shape[1])
+            experiment = 'dummy'+str(i)
+         
+        print('\n',experiment)
         
-        ls = lines[experiment.split('_')[0]]
-        marker = markers[experiment.split('_')[0]]
-        color = colors[experiment.split('_')[1]]
-        ax.plot(x, pdf, lw=2, alpha=0.6, linestyle=ls, c=color,
-                label=experiment)
+        params = st.gamma.fit(prec)
+        x = np.linspace(st.gamma.ppf(0.01, *params),
+                        st.gamma.ppf(0.99, *params), nbins)
+        pdf = st.gamma.pdf(x, *params)
 
-labels, handles = zip(
-    *[(k, mpatches.Rectangle((0, 0), 1, 1, facecolor=v)
-       ) for k,v in colors.items()])
-legend1 = pyplot.legend(handles, labels, loc=4,
-                        framealpha=1, bbox_to_anchor=(1.105, 0.27))
+        # Plot imerg PDF
+        ax.plot(x_imerg, pdf_imerg, 'tab:blue', lw=0.5, alpha=0.3,
+                label='IMERG', zorder=1)
+        ax.fill_between(x_imerg, pdf_imerg, 0, alpha=0.3,
+                        facecolor='tab:blue',zorder=2)
+        # Plot MPAS PDF
+        ax.plot(x, pdf, 'tab:red', lw=0.5, alpha=0.3, label=experiment,
+                zorder=100)
+        ax.fill_between(x, pdf, 0, alpha=0.3, facecolor='tab:red',
+                        zorder=101)
+                
+        # ax.set_xscale('log')
+        ax.set_yscale('log')         
+        ax.legend()
+        
+        i+=1
 
-custom_lines = []
-lebels = []
-for line, marker in zip(lines,markers):
-    custom_lines.append(Line2D([0], [0], color='k', lw=1,
-                            linestyle=lines[line], marker=markers[marker]))
-    lebels.append(line)
-legend2 = pyplot.legend(custom_lines, lebels, loc=4, framealpha=1,
-                        bbox_to_anchor=(1.11, 0.1))
-ax.add_artist(legend1)
-ax.add_artist(legend2)
+fig.subplots_adjust(hspace=0.25)
 
+if args.output is not None:
+    fname = args.output
+else:
+    fname = (args.bench_directory).split('/')[-2].split('.nc')[0]
 fig.savefig(fname+'_PDF.png', dpi=500)    
 print(fname+'_PDF','saved')
+
