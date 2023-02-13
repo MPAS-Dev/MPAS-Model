@@ -131,10 +131,11 @@ for col in range(3):
                 acc_prec_interp = acc_prec.interp(latitude=imerg_accprec.lat,
                                                   longitude=imerg_accprec.lon,
                                                   method='cubic') 
-                cf2 = ax.contourf(imerg_accprec.lon, imerg_accprec.lat,
-                                 acc_prec_interp-imerg_accprec,
+                bias = acc_prec_interp-imerg_accprec
+                cf2 = ax.contourf(imerg_accprec.lon, imerg_accprec.lat,bias,
                                  cmap=cmo.balance_r,
                                  levels=np.linspace(-500,500,21))
+                print('bias limits:',bias.min(), bias.max())
             ax.coastlines(zorder = 1)
         
         i+=1
@@ -172,7 +173,7 @@ cf = ax.contourf(imerg_accprec.lon, imerg_accprec.lat,
 # cax = fig1.add_axes([ax.get_position().x1+0.01,
 #                     ax1.get_position().y0,0.02,
 #                     ax1.get_position().height])
-fig.colorbar(cf)
+fig.colorbar(cf, ax=ax, fraction=0.03, pad=0.1)
 ax.coastlines(zorder = 1)
 
 imergname = args.imerg.split('/')[-1].split('.nc')[0]
