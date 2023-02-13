@@ -200,21 +200,27 @@ print(imergname,'saved')
 # PDFs 
 # =============================================================================
 
-colors = {'ERA':'k', 'fritsch':'tab:orange','tiedtke':'tab:red',
+colors = {'IMERG':'k', 'fritsch':'tab:orange','tiedtke':'tab:red',
           'ntiedtke':'tab:purple', 'freitas':'tab:brown','off':'tab:green'}
 
-lines = {'ERA':'solid', 'wsm6':'dashed','thompson':'dashdot',
+lines = {'IMERG':'solid', 'wsm6':'dashed','thompson':'dashdot',
          'kessler':(0, (3, 1, 1, 1)),'off':(0, (3, 1, 1, 1, 1, 1))}
 
-markers = {'ERA':'o', 'wsm6':'x', 'thompson':'P','kessler':'D','off':'s'}
+markers = {'IMERG':'o', 'wsm6':'x', 'thompson':'P','kessler':'D','off':'s'}
 
 print('\nPlotting PDFs..')
 plt.close('all')
 fig = plt.figure(figsize=(10, 10))
 ax = fig.add_subplot(111,frameon=True)
 
+benchs.append(args.imerg)
+
 for bench in benchs:
-    experiment = get_exp_name(bench)
+    
+    if bench == args.imerg:
+        experiment = 'IMERG_IMERG'
+    else:
+        experiment = get_exp_name(bench)
     print('\n',experiment)
     
     model_data = xr.open_dataset(bench+'/latlon.nc')
@@ -228,7 +234,7 @@ for bench in benchs:
     if experiment != 'off_off':
     
         params = stats.gamma.fit(acc_prec_interp)
-        x = np.linspace(stats.gamma.ppf(0.01, *params), stats.gamma.ppf(0.99, *params), 25)
+        x = np.linspace(stats.gamma.ppf(0.01, *params), stats.gamma.ppf(0.99, *params), 10)
         pdf = stats.gamma.pdf(x, *params)
         
         ls = lines[experiment.split('_')[0]]
