@@ -14,13 +14,14 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 import cmocean.cm as cmo
+import cartopy.crs as ccrs
 
 import scipy.stats as st
+import skill_metrics as sm
 
 import matplotlib.gridspec as gridspec
 import matplotlib.pyplot as plt
-
-import cartopy.crs as ccrs
+from matplotlib import rcParams
 
 def get_times_nml(namelist,model_data):
     ## Identify time range of simulation using namelist ##
@@ -61,6 +62,38 @@ def get_model_accprec(model_data):
         acc_prec = model_data.uReconstructMeridional[0]*0
     return acc_prec[-1]
 
+def plot_taylor(sdevs,crmsds,ccoefs,experiments):
+    '''
+    Produce the Taylor diagram
+    Label the points and change the axis options for SDEV, CRMSD, and CCOEF.
+    Increase the upper limit for the SDEV axis and rotate the CRMSD contour 
+    labels (counter-clockwise from x-axis). Exchange color and line style
+    choices for SDEV, CRMSD, and CCOEFF variables to show effect. Increase
+    the line width of all lines.
+    For an exhaustive list of options to customize your diagram, 
+    please call the function at a Python command line:
+    >> taylor_diagram
+    '''
+    # Set the figure properties (optional)
+    rcParams.update({'font.size': 14}) # font size of axes text
+    STDmax = round(np.amax(sdevs))
+    RMSmax = round(np.amax(crmsds))
+    tickRMS = np.linspace(0,round(RMSmax*1.2,1),6)
+    axismax = round(STDmax*1.2,1)
+    sm.taylor_diagram(sdevs,crmsds,ccoefs,
+                      markerLabelColor = 'b', 
+                      markerLabel = experiments,
+                      markerColor = 'r', markerLegend = 'on', markerSize = 15, 
+                      tickRMS = tickRMS, titleRMS = 'off', widthRMS = 2.0,
+                      colRMS = '#728B92', styleRMS = '--',  
+                      widthSTD = 2, styleSTD = '--', colSTD = '#8A8A8A',
+                      titleSTD = 'on',
+                      colCOR = 'k', styleCOR = '-',
+                      widthCOR = 1.0, titleCOR = 'off',
+                      colObs = 'k', markerObs = '^',
+                      titleOBS = 'IMERG', styleObs =':',
+                      axismax = axismax, alpha = 1)
+
 ## Parser options ##
 parser = argparse.ArgumentParser()
 
@@ -83,9 +116,34 @@ model_data = xr.open_dataset(model_output)
 namelist = f90nml.read(glob.glob(namelist_path)[0])
 times = get_times_nml(namelist,model_data)
 
+imerg = xr.open_dataset(args.imerg).sel(lat=slice(model_data.latitude[-1],
+                 model_data.latitude[0]),lon=slice(model_data.longitude[0],
+                                                  model_data.longitude[-1]))
+imerg_accprec = imerg.precipitationCal.cumsum(dim='time')[-1]
+
+print('Opening all data and putting it into a dictionary...')
+data = {}
+data['IMERG'] = imerg_accprec
+for bench in benchs:
+    
+    experiment = get_exp_name(bench)
+    print(experiment)
+    
+    model_data = xr.open_dataset(bench+'/latlon.nc')
+    model_data = model_data.assign_coords({"Time":times})
+
+    acc_prec = get_model_accprec(model_data)
+    acc_prec_interp = acc_prec.interp(latitude=imerg_accprec.lat,
+                                      longitude=imerg_accprec.lon,
+                                      method='cubic')
+    data[experiment] = {}
+    data[experiment]['data'] = acc_prec
+    data[experiment]['interp'] = acc_prec_interp
+
 # =============================================================================
 # Plot acc prec maps and bias
 # =============================================================================
+print('\nPlotting maps...')
 plt.close('all')
 fig1 = plt.figure(figsize=(10, 16))
 fig2 = plt.figure(figsize=(8, 16))
@@ -97,7 +155,6 @@ imerg = xr.open_dataset(args.imerg).sel(lat=slice(model_data.latitude[-1],
                  model_data.latitude[0]),lon=slice(model_data.longitude[0],
                                                   model_data.longitude[-1]))
 imerg_accprec = imerg.precipitationCal.cumsum(dim='time')[-1]
-print(imerg_accprec)
 
 i = 0
 for col in range(3):
@@ -107,11 +164,8 @@ for col in range(3):
         experiment = get_exp_name(bench)
         print('\n',experiment)
         
-        model_data = xr.open_dataset(bench+'/latlon.nc')
-        model_data = model_data.assign_coords({"Time":times})
-    
-        acc_prec = get_model_accprec(model_data)
-        lon, lat = acc_prec.longitude, acc_prec.latitude
+        prec = data[experiment]['data']
+        prec_interp = data[experiment]['interp']
         
         ax1 = fig1.add_subplot(gs1[row, col], projection=datacrs,frameon=True)
         ax2 = fig2.add_subplot(gs1[row, col], projection=datacrs,frameon=True)
@@ -133,15 +187,13 @@ for col in range(3):
             
             if ax == ax1:
                 print('Plotting accumulate prec..')
-                cf1 = ax.contourf(lon, lat, acc_prec, cmap=cmo.rain, vmin=0)
+                cf1 = ax.contourf(prec.longitude, prec.latitude, prec,
+                                  cmap=cmo.rain, vmin=0)
                 fig1.colorbar(cf1, ax=ax1, fraction=0.03, pad=0.1,
                               orientation='vertical')
             else:
                 print('Plotting bias..')
-                acc_prec_interp = acc_prec.interp(latitude=imerg_accprec.lat,
-                                                  longitude=imerg_accprec.lon,
-                                                  method='cubic') 
-                bias = acc_prec_interp-imerg_accprec
+                bias = prec_interp-imerg_accprec
                 cf2 = ax.contourf(imerg_accprec.lon, imerg_accprec.lat,bias,
                                  cmap=cmo.balance_r,
                                  levels=np.linspace(-700,400,21))
@@ -205,6 +257,8 @@ plt.close('all')
 fig = plt.figure(figsize=(10, 16))
 gs = gridspec.GridSpec(6, 3)
 
+ccoef, crmsd, sdev = [], [], []
+
 i = 0
 for col in range(3):
     for row in range(6):
@@ -215,17 +269,19 @@ for col in range(3):
         experiment = get_exp_name(bench)
         print('\n',experiment)
         
+        reference = imerg_accprec.values.ravel()
+        predicted = prec_interp.values.ravel()
+        
+        stats = sm.taylor_statistics(predicted,reference)
+        ccoef.append(stats['ccoef'][1])
+        crmsd.append(stats['crmsd'][1])
+        sdev.append(stats['sdev'][1])
+        
         if experiment != 'off_off':
         
-            model_data = xr.open_dataset(bench+'/latlon.nc')
-            model_data = model_data.assign_coords({"Time":times})
+            prec_interp = data[experiment]['interp']
             
-            acc_prec = get_model_accprec(model_data)
-            prec = acc_prec.interp(latitude=imerg_accprec.lat,
-                                              longitude=imerg_accprec.lon,
-                                              method='cubic')
-            
-            params = st.gamma.fit(prec.values.ravel())
+            params = st.gamma.fit(prec_interp.values.ravel())
             x = np.linspace(st.gamma.ppf(0.01, *params),
                             st.gamma.ppf(0.99, *params), nbins)
             pdf = st.gamma.pdf(x, *params)
@@ -247,12 +303,15 @@ for col in range(3):
             
             i+=1
             
+            
 fig.subplots_adjust(hspace=0.25)
-
-if args.output is not None:
-    fname = args.output
-else:
-    fname = (args.bench_directory).split('/')[-2].split('.nc')[0]
 fig.savefig(fname+'_PDF.png', dpi=500)    
 print(fname+'_PDF','saved')
 
+## Plot Taylor Diagrams ##
+print('plotting taylor diagrams..')
+fig = plt.figure(figsize=(10,10))
+plot_taylor(sdev,crmsd,ccoef,list(data.keys()))
+plt.tight_layout(w_pad=0.1)
+fig.savefig(fname+'_taylor.png', dpi=500)    
+print(fname+'_taylor created!')
