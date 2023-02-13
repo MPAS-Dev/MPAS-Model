@@ -153,11 +153,6 @@ gs1 = gridspec.GridSpec(6, 3)
 gs2 = gridspec.GridSpec(6, 3)
 datacrs = ccrs.PlateCarree()
 
-imerg = xr.open_dataset(args.imerg).sel(lat=slice(model_data.latitude[-1],
-                 model_data.latitude[0]),lon=slice(model_data.longitude[0],
-                                                  model_data.longitude[-1]))
-imerg_accprec = imerg.precipitationCal.cumsum(dim='time')[-1]
-
 i = 0
 for col in range(3):
     for row in range(6):
