@@ -195,7 +195,7 @@ print(imergname,'saved')
 # PDFs
 # =============================================================================
 nbins = 100
-params_imerg = st.gamma.fit(imerg_accprec)
+params_imerg = st.gamma.fit(imerg_accprec.values.ravel())
 x_imerg = np.linspace(st.gamma.ppf(0.01, *params_imerg),
                 st.gamma.ppf(0.99, *params_imerg), nbins)
 pdf_imerg = st.gamma.pdf(x_imerg, *params_imerg)
@@ -210,26 +210,19 @@ for col in range(3):
     
         ax = fig.add_subplot(gs[row, col], frameon=True)
     
-        try:
-            bench = benchs[i]
-            experiment = get_exp_name(bench)
-            
-            model_data = xr.open_dataset(bench+'/latlon.nc')
-            model_data = model_data.assign_coords({"Time":times})
-            
-            acc_prec = get_model_accprec(model_data)
-            prec = acc_prec.interp(latitude=imerg_accprec.lat,
-                                              longitude=imerg_accprec.lon,
-                                              method='cubic')
-            
-        except:
-            prec = prec*np.random.rand(prec.shape[0],
-                                               prec.shape[1])
-            experiment = 'dummy'+str(i)
-         
+        bench = benchs[i]
+        experiment = get_exp_name(bench)
         print('\n',experiment)
         
-        params = st.gamma.fit(prec)
+        model_data = xr.open_dataset(bench+'/latlon.nc')
+        model_data = model_data.assign_coords({"Time":times})
+        
+        acc_prec = get_model_accprec(model_data)
+        prec = acc_prec.interp(latitude=imerg_accprec.lat,
+                                          longitude=imerg_accprec.lon,
+                                          method='cubic')
+        
+        params = st.gamma.fit(prec.values.ravel())
         x = np.linspace(st.gamma.ppf(0.01, *params),
                         st.gamma.ppf(0.99, *params), nbins)
         pdf = st.gamma.pdf(x, *params)
