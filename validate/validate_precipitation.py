@@ -194,6 +194,7 @@ print(imergname,'saved')
 # =============================================================================
 # PDFs
 # =============================================================================
+print('\nPlotting PDFs..')
 nbins = 100
 params_imerg = st.gamma.fit(imerg_accprec.values.ravel())
 x_imerg = np.linspace(st.gamma.ppf(0.01, *params_imerg),
@@ -214,36 +215,38 @@ for col in range(3):
         experiment = get_exp_name(bench)
         print('\n',experiment)
         
-        model_data = xr.open_dataset(bench+'/latlon.nc')
-        model_data = model_data.assign_coords({"Time":times})
+        if experiment != 'off_off':
         
-        acc_prec = get_model_accprec(model_data)
-        prec = acc_prec.interp(latitude=imerg_accprec.lat,
-                                          longitude=imerg_accprec.lon,
-                                          method='cubic')
-        
-        params = st.gamma.fit(prec.values.ravel())
-        x = np.linspace(st.gamma.ppf(0.01, *params),
-                        st.gamma.ppf(0.99, *params), nbins)
-        pdf = st.gamma.pdf(x, *params)
-
-        # Plot imerg PDF
-        ax.plot(x_imerg, pdf_imerg, 'tab:blue', lw=0.5, alpha=0.3,
-                label='IMERG', zorder=1)
-        ax.fill_between(x_imerg, pdf_imerg, 0, alpha=0.3,
-                        facecolor='tab:blue',zorder=2)
-        # Plot MPAS PDF
-        ax.plot(x, pdf, 'tab:red', lw=0.5, alpha=0.3, label=experiment,
-                zorder=100)
-        ax.fill_between(x, pdf, 0, alpha=0.3, facecolor='tab:red',
-                        zorder=101)
-                
-        # ax.set_xscale('log')
-        ax.set_yscale('log')         
-        ax.legend()
-        
-        i+=1
-
+            model_data = xr.open_dataset(bench+'/latlon.nc')
+            model_data = model_data.assign_coords({"Time":times})
+            
+            acc_prec = get_model_accprec(model_data)
+            prec = acc_prec.interp(latitude=imerg_accprec.lat,
+                                              longitude=imerg_accprec.lon,
+                                              method='cubic')
+            
+            params = st.gamma.fit(prec.values.ravel())
+            x = np.linspace(st.gamma.ppf(0.01, *params),
+                            st.gamma.ppf(0.99, *params), nbins)
+            pdf = st.gamma.pdf(x, *params)
+    
+            # Plot imerg PDF
+            ax.plot(x_imerg, pdf_imerg, 'tab:blue', lw=0.5, alpha=0.3,
+                    label='IMERG', zorder=1)
+            ax.fill_between(x_imerg, pdf_imerg, 0, alpha=0.3,
+                            facecolor='tab:blue',zorder=2)
+            # Plot MPAS PDF
+            ax.plot(x, pdf, 'tab:red', lw=0.5, alpha=0.3, label=experiment,
+                    zorder=100)
+            ax.fill_between(x, pdf, 0, alpha=0.3, facecolor='tab:red',
+                            zorder=101)
+                    
+            # ax.set_xscale('log')
+            ax.set_yscale('log')         
+            ax.legend()
+            
+            i+=1
+            
 fig.subplots_adjust(hspace=0.25)
 
 if args.output is not None:
