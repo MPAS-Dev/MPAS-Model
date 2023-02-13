@@ -223,7 +223,7 @@ for bench in benchs:
     else:
         experiment = get_exp_name(bench)
         model_data = xr.open_dataset(bench+'/latlon.nc')
-        model_data = model_data.assign_coords({"Time":times})
+        model_data = model_data.assign_coords({"Time":times}).values.flatten()
 
         acc_prec = get_model_accprec(model_data)
         acc_prec_interp = acc_prec.interp(latitude=imerg_accprec.lat,
