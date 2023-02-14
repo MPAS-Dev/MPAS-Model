@@ -155,8 +155,8 @@ for bench in benchs:
 # =============================================================================
 print('\nPlotting maps...')
 plt.close('all')
-fig1 = plt.figure(figsize=(8, 16))
-fig2 = plt.figure(figsize=(8, 16))
+fig1 = plt.figure(figsize=(8, 14))
+fig2 = plt.figure(figsize=(8, 14))
 gs1 = gridspec.GridSpec(6, 3)
 gs2 = gridspec.GridSpec(6, 3)
 datacrs = ccrs.PlateCarree()
