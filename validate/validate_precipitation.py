@@ -137,6 +137,7 @@ for bench in benchs:
     model_data = model_data.assign_coords({"Time":times})
 
     acc_prec = get_model_accprec(model_data)
+    acc_prec = acc_prec.where(acc_prec > 0, 0)
     acc_prec_interp = acc_prec.interp(latitude=imerg_accprec.lat,
                                       longitude=imerg_accprec.lon,
                                       method='cubic')
@@ -272,7 +273,8 @@ for col in range(3):
         predicted = data[experiment]['interp'].values.ravel()
         
         stats = sm.taylor_statistics(predicted,reference)
-        print(stats)
+        print('Correlation, RMSE and SDev:',
+              stats['ccoef'][1],(stats['crmsd'][1]),stats['sdev'][1])
         ccoef.append(stats['ccoef'][1])
         crmsd.append(stats['crmsd'][1])
         sdev.append(stats['sdev'][1])
