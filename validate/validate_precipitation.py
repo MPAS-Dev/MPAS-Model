@@ -193,7 +193,7 @@ for col in range(3):
                 cf1 = ax.contourf(prec.longitude, prec.latitude, prec,
                                   cmap=cmo.rain, levels=prec_levels)
                 fig1.colorbar(cf1, ax=ax1, fraction=0.03, pad=0.1,
-                              orientation='vertical', levels=prec_levels)
+                              orientation='vertical')
             else:
                 print('Plotting bias..')
                 bias = prec_interp-imerg_accprec
