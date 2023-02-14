@@ -121,7 +121,9 @@ last_day = datetime.datetime.strftime(times[-2], '%Y-%m-%d')
 imerg = xr.open_dataset(args.imerg).sel(lat=slice(model_data.latitude[-1],
                  model_data.latitude[0]),lon=slice(model_data.longitude[0],
                 model_data.longitude[-1])).sel(time=slice(first_day,last_day))
+print('Using IMERG data for times:',imerg.time)                                             
 imerg_accprec = imerg.precipitationCal.cumsum(dim='time')[-1]
+print('Maximum acc prec:',imerg_accprec.max())
 
 print('Opening all data and putting it into a dictionary...')
 data = {}
@@ -218,7 +220,7 @@ print(fname1,'and',fname1,'saved')
 # =============================================================================
 # Plot IMERG ac prec
 # =============================================================================
-print('\nPlotting CHIRPS data..')
+print('\nPlotting IMERG data..')
 plt.close('all')
 fig = plt.figure(figsize=(10, 10))
 datacrs = ccrs.PlateCarree()
