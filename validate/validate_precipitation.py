@@ -284,7 +284,7 @@ for col in range(3):
         
         if experiment != 'off_off':
         
-            prec_interp = data[experiment]['interp']
+            prec_interp = data[experiment]['data']
             
             params = st.gamma.fit(prec_interp.values.ravel())
             x = np.linspace(st.gamma.ppf(0.01, *params),
