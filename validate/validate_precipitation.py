@@ -140,7 +140,7 @@ for bench in benchs:
     acc_prec_interp = acc_prec.interp(latitude=imerg_accprec.lat,
                                       longitude=imerg_accprec.lon,
                                       method='cubic',assume_sorted=False)
-    # acc_prec_interp = acc_prec_interp.where(acc_prec >= 0, 0)
+    interp =  acc_prec_interp.where(acc_prec_interp >=0, 0)
     
     print('limits for prec data:',float(acc_prec.min()),float(acc_prec.max()))
     print('limits for interp prec data:',float(acc_prec_interp.min()),
@@ -148,7 +148,7 @@ for bench in benchs:
     
     data[experiment] = {}
     data[experiment]['data'] = acc_prec
-    data[experiment]['interp'] = acc_prec_interp
+    data[experiment]['interp'] = interp
 
 # =============================================================================
 # Plot acc prec maps and bias
@@ -201,7 +201,7 @@ for col in range(3):
                               orientation='vertical')
             else:
                 print('Plotting bias..')
-                bias = prec_interp.where(prec_interp>=0,0)-imerg_accprec
+                bias = prec_interp-imerg_accprec
                 cf2 = ax.contourf(imerg_accprec.lon, imerg_accprec.lat,bias,
                                  cmap=cmo.balance_r,
                                  levels=bias_levels)
@@ -278,9 +278,7 @@ for col in range(3):
         print('\n',experiment)
         
         reference = imerg_accprec.values.ravel()
-        interp =  data[experiment]['interp'].where(
-            data[experiment]['interp'] >=0, 0)
-        predicted = interp.values.ravel()
+        predicted =  data[experiment]['interp'].values.ravel()
         
         stats = sm.taylor_statistics(predicted,reference)
         print('Correlation, RMSE and SDev:',
@@ -290,10 +288,8 @@ for col in range(3):
         sdev.append(stats['sdev'][1])
         
         if experiment != 'off_off':
-        
-            prec_interp = data[experiment]['interp']
-            
-            params = st.gamma.fit(prec_interp.values.ravel())
+                    
+            params = st.gamma.fit(predicted)
             x = np.linspace(st.gamma.ppf(0.01, *params),
                             st.gamma.ppf(0.99, *params), nbins)
             pdf = st.gamma.pdf(x, *params)
