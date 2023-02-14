@@ -124,12 +124,6 @@ imerg = xr.open_dataset(args.imerg).sel(lat=slice(model_data.latitude[-1],
 print('Using IMERG data from',first_day,'to',last_day)                                             
 imerg_accprec = imerg.precipitationCal.cumsum(dim='time')[-1]
 print('Maximum acc prec:',float(imerg_accprec.max()))
-imerg_accprec_interp = imerg_accprec.coarsen(lat=3,lon=3, boundary='trim').mean()
-imerg_accprec_interp = imerg_accprec_interp.interp(lat=model_data.latitude,
-                                  lon=model_data.longitude,
-                                  method='cubic')
-print('Maximum interp acc prec:',float(imerg_accprec_interp.max()))
-
 print('Opening all data and putting it into a dictionary...')
 data = {}
 data['IMERG'] = imerg_accprec
@@ -138,22 +132,23 @@ for bench in benchs:
     experiment = get_exp_name(bench)
     print('\n',experiment)
     
-    model_data = xr.open_dataset(bench+'/latlon.nc')
+    model_data = xr.open_dataset(bench+'/latlon.nc').chunk({"Time": -1})
     model_data = model_data.assign_coords({"Time":times})
 
     acc_prec = get_model_accprec(model_data)
     acc_prec = acc_prec.where(acc_prec >= 0, 0)
-    # acc_prec_interp = acc_prec.interp(latitude=imerg_accprec.lat,
-    #                                   longitude=imerg_accprec.lon,
-    #                                   method='cubic')
+    acc_prec_interp = acc_prec.interp(latitude=imerg_accprec.lat,
+                                      longitude=imerg_accprec.lon,
+                                      method='cubic',assume_sorted=False)
+    # acc_prec_interp = acc_prec_interp.where(acc_prec >= 0, 0)
     
     print('limits for prec data:',float(acc_prec.min()),float(acc_prec.max()))
-    # print('limits for interp prec data:',float(acc_prec_interp.min()),
-    #       float(acc_prec_interp.max()))
+    print('limits for interp prec data:',float(acc_prec_interp.min()),
+          float(acc_prec_interp.max()))
     
     data[experiment] = {}
     data[experiment]['data'] = acc_prec
-    # data[experiment]['interp'] = acc_prec_interp
+    data[experiment]['interp'] = acc_prec_interp
 
 # =============================================================================
 # Plot acc prec maps and bias
@@ -206,7 +201,7 @@ for col in range(3):
                               orientation='vertical')
             else:
                 print('Plotting bias..')
-                bias = prec_interp-imerg_accprec
+                bias = prec_interp.where(prec_interp>=0,0)-imerg_accprec
                 cf2 = ax.contourf(imerg_accprec.lon, imerg_accprec.lat,bias,
                                  cmap=cmo.balance_r,
                                  levels=bias_levels)
@@ -283,7 +278,9 @@ for col in range(3):
         print('\n',experiment)
         
         reference = imerg_accprec.values.ravel()
-        predicted = data[experiment]['interp'].values.ravel()
+        interp =  data[experiment]['interp'].where(
+            data[experiment]['interp'] >=0, 0)
+        predicted = interp.values.ravel()
         
         stats = sm.taylor_statistics(predicted,reference)
         print('Correlation, RMSE and SDev:',
