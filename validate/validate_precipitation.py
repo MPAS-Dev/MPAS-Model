@@ -137,19 +137,19 @@ for bench in benchs:
     model_data = model_data.assign_coords({"Time":times})
 
     acc_prec = get_model_accprec(model_data)
-    acc_prec = acc_prec.where(acc_prec > 0, 0)
     acc_prec_interp = acc_prec.interp(latitude=imerg_accprec.lat,
                                       longitude=imerg_accprec.lon,
                                       method='cubic')
-    acc_prec = acc_prec.where(acc_prec > 0, 0)
-    
     data[experiment] = {}
     data[experiment]['data'] = acc_prec
     data[experiment]['interp'] = acc_prec_interp
     
-    print('limits for prec data:',acc_prec.min(),acc_prec.max())
-    print('limits for interp prec data:',acc_prec_interp.min(),
-          acc_prec_interp.max())
+    print('limits for prec data:',float(acc_prec.min()),float(acc_prec.max()))
+    print('limits for interp prec data:',float(acc_prec_interp.min()),
+          float(acc_prec_interp.max()))
+    
+    acc_prec_interp = acc_prec_interp.where(acc_prec >= 0, 0)
+    acc_prec = acc_prec.where(acc_prec >= 0, 0)
 
 # =============================================================================
 # Plot acc prec maps and bias
