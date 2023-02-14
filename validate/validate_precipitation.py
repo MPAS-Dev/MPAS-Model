@@ -121,7 +121,7 @@ last_day = datetime.datetime.strftime(times[-2], '%Y-%m-%d')
 imerg = xr.open_dataset(args.imerg).sel(lat=slice(model_data.latitude[-1],
                  model_data.latitude[0]),lon=slice(model_data.longitude[0],
                 model_data.longitude[-1])).sel(time=slice(first_day,last_day))
-print('Using IMERG data for times:',float(imerg.time[0]),float(imerg.time[-1]))                                             
+print('Using IMERG data for times:',str(imerg.time[0]),str(imerg.time[-1]))                                             
 imerg_accprec = imerg.precipitationCal.cumsum(dim='time')[-1]
 print('Maximum acc prec:',float(imerg_accprec.max()))
 
@@ -155,6 +155,9 @@ fig2 = plt.figure(figsize=(8, 16))
 gs1 = gridspec.GridSpec(6, 3)
 gs2 = gridspec.GridSpec(6, 3)
 datacrs = ccrs.PlateCarree()
+
+prec_levels = np.linspace(0,420,100)
+bias_levels = np.linspace(-700,400,100)
 
 i = 0
 for col in range(3):
@@ -196,7 +199,7 @@ for col in range(3):
                 bias = prec_interp-imerg_accprec
                 cf2 = ax.contourf(imerg_accprec.lon, imerg_accprec.lat,bias,
                                  cmap=cmo.balance_r,
-                                 levels=np.linspace(-700,400,21))
+                                 levels=bias_levels)
                 print('bias limits:',float(bias.min()), float(bias.max()))
             ax.coastlines(zorder = 1)
         
