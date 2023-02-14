@@ -124,7 +124,8 @@ imerg = xr.open_dataset(args.imerg).sel(lat=slice(model_data.latitude[-1],
 print('Using IMERG data from',first_day,'to',last_day)                                             
 imerg_accprec = imerg.precipitationCal.cumsum(dim='time')[-1]
 print('Maximum acc prec:',float(imerg_accprec.max()))
-imerg_accprec_interp = imerg_accprec.interp(lat=model_data.latitude,
+imerg_accprec_interp = imerg_accprec.coarsen(lat=3,lon=3, boundary='trim').mean()
+imerg_accprec_interp = imerg_accprec_interp.interp(lat=model_data.latitude,
                                   lon=model_data.longitude,
                                   method='cubic')
 print('Maximum interp acc prec:',float(imerg_accprec_interp.max()))
