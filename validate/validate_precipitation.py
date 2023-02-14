@@ -118,12 +118,16 @@ times = get_times_nml(namelist,model_data)
 
 first_day = datetime.datetime.strftime(times[0], '%Y-%m-%d')
 last_day = datetime.datetime.strftime(times[-2], '%Y-%m-%d')
-imerg = xr.open_dataset(args.imerg).sel(lat=slice(model_data.latitude[-1],
-                 model_data.latitude[0]),lon=slice(model_data.longitude[0],
+imerg = xr.open_dataset(args.imerg).sel(lat=slice(model_data.latitude[0],
+                 model_data.latitude[-1]),lon=slice(model_data.longitude[0],
                 model_data.longitude[-1])).sel(time=slice(first_day,last_day))
 print('Using IMERG data from',first_day,'to',last_day)                                             
 imerg_accprec = imerg.precipitationCal.cumsum(dim='time')[-1]
 print('Maximum acc prec:',float(imerg_accprec.max()))
+imerg_accprec_interp = imerg_accprec.interp(lat=model_data.latitude,
+                                  lon=model_data.longitude,
+                                  method='cubic')
+print('Maximum interp acc prec:',float(imerg_accprec_interp.max()))
 
 print('Opening all data and putting it into a dictionary...')
 data = {}
@@ -137,20 +141,18 @@ for bench in benchs:
     model_data = model_data.assign_coords({"Time":times})
 
     acc_prec = get_model_accprec(model_data)
-    acc_prec_interp = acc_prec.interp(latitude=imerg_accprec.lat,
-                                      longitude=imerg_accprec.lon,
-                                      method='cubic')
+    acc_prec = acc_prec.where(acc_prec >= 0, 0)
+    # acc_prec_interp = acc_prec.interp(latitude=imerg_accprec.lat,
+    #                                   longitude=imerg_accprec.lon,
+    #                                   method='cubic')
     
     print('limits for prec data:',float(acc_prec.min()),float(acc_prec.max()))
-    print('limits for interp prec data:',float(acc_prec_interp.min()),
-          float(acc_prec_interp.max()))
-    
-    acc_prec_interp = acc_prec_interp.where(acc_prec >= 0, 0)
-    acc_prec = acc_prec.where(acc_prec >= 0, 0)
+    # print('limits for interp prec data:',float(acc_prec_interp.min()),
+    #       float(acc_prec_interp.max()))
     
     data[experiment] = {}
     data[experiment]['data'] = acc_prec
-    data[experiment]['interp'] = acc_prec_interp
+    # data[experiment]['interp'] = acc_prec_interp
 
 # =============================================================================
 # Plot acc prec maps and bias
