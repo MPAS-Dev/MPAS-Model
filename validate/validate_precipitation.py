@@ -121,7 +121,7 @@ last_day = datetime.datetime.strftime(times[-2], '%Y-%m-%d')
 imerg = xr.open_dataset(args.imerg).sel(lat=slice(model_data.latitude[-1],
                  model_data.latitude[0]),lon=slice(model_data.longitude[0],
                 model_data.longitude[-1])).sel(time=slice(first_day,last_day))
-print('Using IMERG data for times:',str(imerg.time[0]),str(imerg.time[-1]))                                             
+print('Using IMERG data from',first_day,'to',last_day)                                             
 imerg_accprec = imerg.precipitationCal.cumsum(dim='time')[-1]
 print('Maximum acc prec:',float(imerg_accprec.max()))
 
@@ -191,9 +191,9 @@ for col in range(3):
             if ax == ax1:
                 print('Plotting accumulate prec..')
                 cf1 = ax.contourf(prec.longitude, prec.latitude, prec,
-                                  cmap=cmo.rain, vmin=0)
+                                  cmap=cmo.rain, levels=prec_levels)
                 fig1.colorbar(cf1, ax=ax1, fraction=0.03, pad=0.1,
-                              orientation='vertical')
+                              orientation='vertical', levels=prec_levels)
             else:
                 print('Plotting bias..')
                 bias = prec_interp-imerg_accprec
