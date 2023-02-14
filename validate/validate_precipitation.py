@@ -140,9 +140,6 @@ for bench in benchs:
     acc_prec_interp = acc_prec.interp(latitude=imerg_accprec.lat,
                                       longitude=imerg_accprec.lon,
                                       method='cubic')
-    data[experiment] = {}
-    data[experiment]['data'] = acc_prec
-    data[experiment]['interp'] = acc_prec_interp
     
     print('limits for prec data:',float(acc_prec.min()),float(acc_prec.max()))
     print('limits for interp prec data:',float(acc_prec_interp.min()),
@@ -150,6 +147,10 @@ for bench in benchs:
     
     acc_prec_interp = acc_prec_interp.where(acc_prec >= 0, 0)
     acc_prec = acc_prec.where(acc_prec >= 0, 0)
+    
+    data[experiment] = {}
+    data[experiment]['data'] = acc_prec
+    data[experiment]['interp'] = acc_prec_interp
 
 # =============================================================================
 # Plot acc prec maps and bias
