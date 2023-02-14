@@ -141,6 +141,8 @@ for bench in benchs:
     acc_prec_interp = acc_prec.interp(latitude=imerg_accprec.lat,
                                       longitude=imerg_accprec.lon,
                                       method='cubic')
+    acc_prec = acc_prec.where(acc_prec > 0, 0)
+    
     data[experiment] = {}
     data[experiment]['data'] = acc_prec
     data[experiment]['interp'] = acc_prec_interp
@@ -284,7 +286,7 @@ for col in range(3):
         
         if experiment != 'off_off':
         
-            prec_interp = data[experiment]['data']
+            prec_interp = data[experiment]['interp']
             
             params = st.gamma.fit(prec_interp.values.ravel())
             x = np.linspace(st.gamma.ppf(0.01, *params),
