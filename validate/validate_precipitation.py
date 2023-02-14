@@ -161,8 +161,8 @@ gs1 = gridspec.GridSpec(6, 3)
 gs2 = gridspec.GridSpec(6, 3)
 datacrs = ccrs.PlateCarree()
 
-prec_levels = np.arange(0,424,4)
-bias_levels = np.arange(-700,410,10)
+prec_levels = np.arange(0,425,4)
+bias_levels = np.arange(-700,411,10)
 
 i = 0
 for col in range(3):
@@ -285,26 +285,17 @@ for col in range(3):
         sdev.append(stats['sdev'][1])
         
         if experiment != 'off_off':
-                    
-            params = st.weibull_min.fit(predicted)
-            x = np.linspace(st.weibull_min.ppf(0.01, *params),
-                            st.weibull_min.ppf(0.99, *params), nbins)
-            pdf = st.weibull_min.pdf(x, *params)
-    
-            # Plot imerg PDF
-            ax.plot(x_imerg, pdf_imerg, 'tab:blue', lw=0.5, alpha=0.3,
-                    label='IMERG', zorder=1)
-            ax.fill_between(x_imerg, pdf_imerg, 0, alpha=0.3,
-                            facecolor='tab:blue',zorder=2)
-            # Plot MPAS PDF
-            ax.plot(x, pdf, 'tab:red', lw=0.5, alpha=0.3, label=experiment,
-                    zorder=100)
-            ax.fill_between(x, pdf, 0, alpha=0.3, facecolor='tab:red',
-                            zorder=101)
-                    
+                 
+            ax.hist(reference, bins=nbins, color='k', lw=0.5, alpha=0.3,
+                    label='IMERG', zorder=1) 
+            
+            ax.hist(predicted, bins=nbins, color='tab:red',  lw=0.5, alpha=0.3,
+                    label=experiment, zorder=100)
+
             # ax.set_xscale('log')
-            ax.set_yscale('log')         
-            ax.legend()
+            ax.set_yscale('log')  
+            ax.text
+            ax.text(50, len(reference)*.1,experiment)
             
             i+=1
             
