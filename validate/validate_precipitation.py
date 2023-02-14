@@ -124,7 +124,7 @@ imerg = xr.open_dataset(args.imerg).sel(lat=slice(model_data.latitude[-1],
 print('Using IMERG data from',first_day,'to',last_day)                                             
 imerg_accprec = imerg.precipitationCal.cumsum(dim='time')[-1]
 print('Maximum acc prec:',float(imerg_accprec.max()))
-print('Opening all data and putting it into a dictionary...')
+print('\nOpening all data and putting it into a dictionary...')
 data = {}
 data['IMERG'] = imerg_accprec
 for bench in benchs:
@@ -239,8 +239,8 @@ gl.ylabel_style = {'size': 12, 'color': '#383838'}
 gl.right_labels = None
 gl.top_labels = None
 cf = ax.contourf(imerg_accprec.lon, imerg_accprec.lat,
-                 imerg_accprec.T, cmap=cmo.rain, vmin=0,
-                 levels=np.linspace(0,imerg_accprec.T.max(),21))
+                 imerg_accprec.T, cmap=cmo.rain,
+                 levels=np.arange(0,imerg_accprec.max()+2,2))
 fig.colorbar(cf, ax=ax, fraction=0.03, pad=0.1)
 ax.coastlines(zorder = 1)
 
