@@ -155,8 +155,8 @@ for bench in benchs:
 # =============================================================================
 print('\nPlotting maps...')
 plt.close('all')
-fig1 = plt.figure(figsize=(8, 14))
-fig2 = plt.figure(figsize=(8, 14))
+fig1 = plt.figure(figsize=(10, 10))
+fig2 = plt.figure(figsize=(10, 10))
 gs1 = gridspec.GridSpec(6, 3)
 gs2 = gridspec.GridSpec(6, 3)
 datacrs = ccrs.PlateCarree()
@@ -211,7 +211,7 @@ for col in range(3):
 for fig, cf in zip([fig1, fig2], [cf1, cf2]):
     cb_axes = fig.add_axes([0.85, 0.18, 0.04, 0.6])
     fig.colorbar(cf, cax=cb_axes, orientation="vertical") 
-    fig.subplots_adjust(wspace=0.1,hspace=-0.5, right=0.8)
+    fig.subplots_adjust(wspace=0.1,hspace=0, right=0.8)
     
 if args.output is not None:
     fname = args.output
