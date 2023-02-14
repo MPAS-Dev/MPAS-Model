@@ -155,7 +155,7 @@ for bench in benchs:
 # =============================================================================
 print('\nPlotting maps...')
 plt.close('all')
-fig1 = plt.figure(figsize=(10, 16))
+fig1 = plt.figure(figsize=(8, 16))
 fig2 = plt.figure(figsize=(8, 16))
 gs1 = gridspec.GridSpec(6, 3)
 gs2 = gridspec.GridSpec(6, 3)
@@ -175,10 +175,10 @@ for col in range(3):
         prec = data[experiment]['data']
         prec_interp = data[experiment]['interp']
         
-        ax1 = fig1.add_subplot(gs1[row, col], projection=datacrs,frameon=True)
-        ax2 = fig2.add_subplot(gs1[row, col], projection=datacrs,frameon=True)
-        
-        for ax in [ax1,ax2]:
+        for fig in [fig1,fig2]:
+            
+            ax = fig.add_subplot(gs1[row, col], projection=datacrs,frameon=True)
+            
             ax.set_extent([-55, -30, -20, -35], crs=datacrs) 
             gl = ax.gridlines(draw_labels=True,zorder=2,linestyle='dashed',
                               alpha=0.8, color='#383838')
@@ -193,12 +193,11 @@ for col in range(3):
         
             ax.text(-50,-19,experiment)
             
-            if ax == ax1:
+            if fig == fig1:
                 print('Plotting accumulate prec..')
                 cf1 = ax.contourf(prec.longitude, prec.latitude, prec,
                                   cmap=cmo.rain, levels=prec_levels)
-                fig1.colorbar(cf1, ax=ax1, fraction=0.03, pad=0.1,
-                              orientation='vertical')
+                print('prec limits:',float(prec.min()), float(prec.max()))
             else:
                 print('Plotting bias..')
                 bias = prec_interp-imerg_accprec
@@ -207,14 +206,12 @@ for col in range(3):
                                  levels=bias_levels)
                 print('bias limits:',float(bias.min()), float(bias.max()))
             ax.coastlines(zorder = 1)
-        
         i+=1
-    
-cb_axes = fig2.add_axes([0.85, 0.18, 0.04, 0.6])
-fig2.colorbar(cf2, cax=cb_axes, orientation="vertical")    
 
-fig1.subplots_adjust(wspace=0.4,hspace=-0.15)
-fig2.subplots_adjust(wspace=0.1,hspace=-0.3, right=0.8)
+for fig, cf in zip([fig1, fig2], [cf1, cf2]):
+    cb_axes = fig.add_axes([0.85, 0.18, 0.04, 0.6])
+    fig.colorbar(cf, cax=cb_axes, orientation="vertical") 
+    fig.subplots_adjust(wspace=0.1,hspace=-0.3, right=0.8)
     
 if args.output is not None:
     fname = args.output
@@ -316,7 +313,9 @@ fig.subplots_adjust(hspace=0.25)
 fig.savefig(fname+'_PDF.png', dpi=500)    
 print(fname+'_PDF','saved')
 
-## Plot Taylor Diagrams ##
+# =============================================================================
+# Plot Taylor Diagrams ##
+# =============================================================================
 ccoef, crmsd, sdev = np.array(ccoef),np.array(crmsd),np.array(sdev)
 print('plotting taylor diagrams..')
 fig = plt.figure(figsize=(10,10))
