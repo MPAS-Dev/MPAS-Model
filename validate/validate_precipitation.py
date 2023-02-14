@@ -211,7 +211,7 @@ for col in range(3):
 for fig, cf in zip([fig1, fig2], [cf1, cf2]):
     cb_axes = fig.add_axes([0.85, 0.18, 0.04, 0.6])
     fig.colorbar(cf, cax=cb_axes, orientation="vertical") 
-    fig.subplots_adjust(wspace=0.1,hspace=-0.3, right=0.8)
+    fig.subplots_adjust(wspace=0.1,hspace=-0.5, right=0.8)
     
 if args.output is not None:
     fname = args.output
@@ -286,11 +286,11 @@ for col in range(3):
         
         if experiment != 'off_off':
                  
-            ax.hist(reference, bins=nbins, color='k', lw=0.5, alpha=0.3,
-                    label='IMERG', zorder=1) 
+            ax.hist(reference, bins=nbins, color='k', lw=1, alpha=0.3,
+                    density=True, histtype='step',label='IMERG', zorder=1) 
             
-            ax.hist(predicted, bins=nbins, color='tab:red',  lw=0.5, alpha=0.3,
-                    label=experiment, zorder=100)
+            ax.hist(predicted, bins=nbins, color='tab:red',  lw=1, alpha=0.3,
+                    density=True, histtype='step', label=experiment, zorder=100)
 
             # ax.set_xscale('log')
             ax.set_yscale('log')  
