@@ -161,8 +161,8 @@ gs1 = gridspec.GridSpec(6, 3)
 gs2 = gridspec.GridSpec(6, 3)
 datacrs = ccrs.PlateCarree()
 
-prec_levels = np.linspace(0,420,100)
-bias_levels = np.linspace(-700,400,100)
+prec_levels = np.arange(0,424,4)
+bias_levels = np.arange(-700,410,10)
 
 i = 0
 for col in range(3):
@@ -253,10 +253,10 @@ print(imergname,'saved')
 # =============================================================================
 print('\nPlotting PDFs..')
 nbins = 100
-params_imerg = st.gamma.fit(imerg_accprec.values.ravel())
-x_imerg = np.linspace(st.gamma.ppf(0.01, *params_imerg),
-                st.gamma.ppf(0.99, *params_imerg), nbins)
-pdf_imerg = st.gamma.pdf(x_imerg, *params_imerg)
+params_imerg = st.weibull_min.fit(imerg_accprec.values.ravel())
+x_imerg = np.linspace(st.weibull_min.ppf(0.01, *params_imerg),
+                st.weibull_min.ppf(0.99, *params_imerg), nbins)
+pdf_imerg = st.weibull_min.pdf(x_imerg, *params_imerg)
 
 plt.close('all')
 fig = plt.figure(figsize=(10, 16))
@@ -286,10 +286,10 @@ for col in range(3):
         
         if experiment != 'off_off':
                     
-            params = st.gamma.fit(predicted)
-            x = np.linspace(st.gamma.ppf(0.01, *params),
-                            st.gamma.ppf(0.99, *params), nbins)
-            pdf = st.gamma.pdf(x, *params)
+            params = st.weibull_min.fit(predicted)
+            x = np.linspace(st.weibull_min.ppf(0.01, *params),
+                            st.weibull_min.ppf(0.99, *params), nbins)
+            pdf = st.weibull_min.pdf(x, *params)
     
             # Plot imerg PDF
             ax.plot(x_imerg, pdf_imerg, 'tab:blue', lw=0.5, alpha=0.3,
