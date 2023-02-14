@@ -131,7 +131,7 @@ data['IMERG'] = imerg_accprec
 for bench in benchs:
     
     experiment = get_exp_name(bench)
-    print(experiment)
+    print('\n',experiment)
     
     model_data = xr.open_dataset(bench+'/latlon.nc')
     model_data = model_data.assign_coords({"Time":times})
@@ -146,6 +146,10 @@ for bench in benchs:
     data[experiment] = {}
     data[experiment]['data'] = acc_prec
     data[experiment]['interp'] = acc_prec_interp
+    
+    print('limits for prec data:',acc_prec.min(),acc_prec.max())
+    print('limits for interp prec data:',acc_prec_interp.min(),
+          acc_prec_interp.max())
 
 # =============================================================================
 # Plot acc prec maps and bias
