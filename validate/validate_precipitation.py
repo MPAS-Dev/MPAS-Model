@@ -121,9 +121,9 @@ last_day = datetime.datetime.strftime(times[-2], '%Y-%m-%d')
 imerg = xr.open_dataset(args.imerg).sel(lat=slice(model_data.latitude[-1],
                  model_data.latitude[0]),lon=slice(model_data.longitude[0],
                 model_data.longitude[-1])).sel(time=slice(first_day,last_day))
-print('Using IMERG data for times:',imerg.time)                                             
+print('Using IMERG data for times:',float(imerg.time[0]),float(imerg.time[-1]))                                             
 imerg_accprec = imerg.precipitationCal.cumsum(dim='time')[-1]
-print('Maximum acc prec:',imerg_accprec.max())
+print('Maximum acc prec:',float(imerg_accprec.max()))
 
 print('Opening all data and putting it into a dictionary...')
 data = {}
@@ -269,9 +269,10 @@ for col in range(3):
         print('\n',experiment)
         
         reference = imerg_accprec.values.ravel()
-        predicted = prec_interp.values.ravel()
+        predicted = data[experiment]['interp'].values.ravel()
         
         stats = sm.taylor_statistics(predicted,reference)
+        print(stats)
         ccoef.append(stats['ccoef'][1])
         crmsd.append(stats['crmsd'][1])
         sdev.append(stats['sdev'][1])
