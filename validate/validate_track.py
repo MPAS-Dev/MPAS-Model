@@ -37,6 +37,14 @@ lines = {'ERA':'solid', 'wsm6':'dashed','thompson':'dashdot',
 
 markers = {'ERA':'o', 'wsm6':'x', 'thompson':'P','kessler':'D','off':'s'}
 
+colors = {'convection':'k', 'mesoscale':'tab:orange','tiedtke':'tab:red',
+          'ntiedtke':'tab:purple', 'freitas':'tab:brown','off':'tab:green'}
+
+lines = {'convection':'solid', 'mesoscale':'dashed','thompson':'dashdot',
+         'kessler':(0, (3, 1, 1, 1)),'off':(0, (3, 1, 1, 1, 1, 1))}
+
+markers = {'convection':'o', 'mesoscale':'x', 'thompson':'P','kessler':'D','off':'s'}
+
 
 def get_times_nml(namelist,model_data):
     ## Identify time range of simulation using namelist ##
@@ -71,7 +79,7 @@ def get_track(track_variable, TimeIndexer):
         lons.append(float(ivar['longitude'][loc['longitude']]))
     
     track = pd.DataFrame([lons, lats, min_var]).transpose()
-    track.columns = ['lon','lat','min_zeta']
+    track.columns = ['lon','lat','min']
     track.index = times
     
     return track
@@ -109,8 +117,10 @@ times = get_times_nml(namelist,model_data)
 
 plt.close('all')
 fig = plt.figure(figsize=(15, 12))
+fig2 = plt.figure(figsize=(10, 13))
 datacrs = ccrs.PlateCarree()
 ax = fig.add_subplot(1, 1, 1, projection=datacrs)
+ax2 =  fig2.add_subplot(1, 1, 1)
 ax.set_extent([-55, -30, -20, -35], crs=datacrs) 
 ax.coastlines(zorder = 1)
 ax.add_feature(cartopy.feature.LAND)
@@ -123,7 +133,7 @@ gl.bottom_labels = None
 gl.right_labels = None
 
 
-for bench in benchs:   
+for bench in benchs[:1]:   
     
     if bench != benchs[-1]:
         
@@ -133,7 +143,8 @@ for bench in benchs:
         experiment = microp+'_'+cumulus
         print(experiment)
         
-        model_data = xr.open_dataset(bench+'/latlon.nc')
+        model_data = xr.open_dataset(bench+'/latlon.nc').sortby(
+            'latitude', ascending=False)
         TimeIndexer = 'Time'
         LatIndexer, LonIndexer = 'latitude', 'longitude'
         markerfacecolor='None'
@@ -165,7 +176,7 @@ for bench in benchs:
     
     track = get_track(slp, TimeIndexer)
     
-    lons, lats, min_slp = track['lon'], track['lat'], track['min_zeta']
+    lons, lats, min_slp = track['lon'], track['lat'], track['min']
         
     ls = lines[microp]
     marker = markers[microp]
@@ -177,6 +188,8 @@ for bench in benchs:
     ax.scatter(lons.iloc[0],lats.iloc[0], s=150, marker=marker, color='gray')
     ax.scatter(lons.iloc[-1],lats.iloc[-1], s=150, marker=marker,
                 facecolor=color, zorder=100)
+    
+    ax2.plot(track.index,track['min'],linestyle=ls,c=color, marker=marker)
 
 labels, handles = zip(*[(k, mpatches.Rectangle((0, 0), 1, 1, facecolor=v)) for k,v in colors.items()])
 legend1 = pyplot.legend(handles, labels, loc=4,
@@ -190,15 +203,20 @@ for line, marker in zip(lines,markers):
     lebels.append(line)
 legend2 = pyplot.legend(custom_lines, lebels, loc=4, framealpha=1,
                         bbox_to_anchor=(1.11, 0.1))
+
 ax.add_artist(legend1)
 ax.add_artist(legend2)
+ax2.add_artist(legend1)
+ax2.add_artist(legend2)
 
 if args.output is not None:
     fname = args.output
 else:
     fname = (args.bench_directory).split('/')[-2].split('.nc')[0]
 fname += '_track'
-plt.savefig(fname+'.png', dpi=500)
+fname2 = fname+'_min'
+fig.savefig(fname+'.png', dpi=500)
+fig2.savefig(fname2+'.png', dpi=500)
 print(fname+'.png created!')
 
 # =============================================================================
@@ -240,7 +258,6 @@ for row in range(6):
         if col != 0:
             gl.left_labels = None
         
-        
         expname = bench.split('/')[-1].split('run.')[-1]
         microp = expname.split('.')[0].split('_')[-1]
         cumulus = expname.split('.')[-1].split('_')[-1] 
@@ -260,7 +277,7 @@ for row in range(6):
         slp = pres_height.isel(level=1)
         
         track = get_track(slp, 'Time')
-        lons, lats, min_slp = track['lon'], track['lat'], track['min_zeta']
+        lons, lats, min_slp = track['lon'], track['lat'], track['min']
         
         ls = lines[microp]
         marker = markers[microp]
@@ -271,6 +288,7 @@ for row in range(6):
                     marker='o',markerfacecolor='None',
                     linewidth=0.75, linestyle='solid',
                         c='gray', label=expname)
+            
         ax.plot(lons,lats,zorder=100,markeredgecolor=color,marker=marker,
                     markerfacecolor='None',linewidth=0.5, linestyle=ls,
                     c=color, label=expname)
