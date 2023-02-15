@@ -29,6 +29,9 @@ from matplotlib import pyplot
 import cartopy.crs as ccrs
 import cartopy
 
+import dask
+import dask.distributed
+
 colors = {'ERA':'k', 'fritsch':'tab:orange','tiedtke':'tab:red',
           'ntiedtke':'tab:purple', 'freitas':'tab:brown','off':'tab:green'}
 
@@ -36,7 +39,6 @@ lines = {'ERA':'solid', 'wsm6':'dashed','thompson':'dashdot',
          'kessler':(0, (3, 1, 1, 1)),'off':(0, (3, 1, 1, 1, 1, 1))}
 
 markers = {'ERA':'o', 'wsm6':'x', 'thompson':'P','kessler':'D','off':'s'}
-
 
 
 def get_times_nml(namelist,model_data):
@@ -54,6 +56,19 @@ def get_times_nml(namelist,model_data):
     ## Create a range of dates ##
     times = pd.date_range(start_date,finish_date,periods=len(model_data.Time)+1)[1:]
     return times
+
+@dask.delayed
+def open_dataset_with_dask(bench, times):
+    return xr.open_dataset(bench+'/latlon.nc').sortby(
+            'latitude', ascending=False).sel(
+                latitude=slice(-20,-35),longitude=slice(-55,-30)
+                ).assign_coords({"Time":times})
+
+def pressure_to_slp(pressure,z, zlevs):
+    pres_height = interplevel(pressure, z[:,:-1], zlevs)
+    slp = pres_height.isel(level=1)
+    return slp
+
 
 def get_track(track_variable, TimeIndexer):
         
@@ -98,11 +113,17 @@ if args.ERA5:
 # Dummy for getting model times
 model_output = benchs[0]+'/latlon.nc'
 namelist_path = benchs[0]+"/namelist.atmosphere"
+
 # open data and namelist
 model_data = xr.open_dataset(model_output)
 namelist = f90nml.read(glob.glob(namelist_path)[0])
 times = get_times_nml(namelist,model_data)
 
+# For interpolating pressure from height to isobaric
+z = model_data.zgrid.expand_dims({'Time':times})
+zmax = float(z.max())
+dz = 100
+zlevs = np.arange(0, zmax, dz) * units.m
 
 # =============================================================================
 # One plot for all experiments
@@ -136,22 +157,14 @@ for bench in benchs:
         experiment = microp+'_'+cumulus
         print(experiment)
         
-        model_data = xr.open_dataset(bench+'/latlon.nc').sortby(
-            'latitude', ascending=False)
+        model_data = open_dataset_with_dask(bench,times).compute()
         TimeIndexer = 'Time'
         LatIndexer, LonIndexer = 'latitude', 'longitude'
-        markerfacecolor='None'
-        lw = 2
-        
-        model_data = model_data.assign_coords({"Time":times}).sel(
-            latitude=slice(-20,-35),longitude=slice(-55,-30))
+        markerfacecolor, lw ='None', 2
         
         pressure = (model_data['pressure'] * units(model_data['pressure'].units)
                     ).metpy.convert_units('hPa')
-        z = model_data.zgrid.expand_dims({'Time':times})
-        zlevs = np.arange(0,3100,100) * units.m
-        pres_height = interplevel(pressure, z[:,:-1], zlevs)
-        slp = pres_height.isel(level=1)
+        slp = pressure_to_slp(pressure,z, zlevs)
             
     else:
         expname,microp,cumulus = 'ERA','ERA','ERA'
@@ -162,9 +175,9 @@ for bench in benchs:
         lw=3
         
         model_data = xr.open_dataset(bench, engine='cfgrib',
-                                      filter_by_keys={'typeOfLevel': 'surface'})
-        model_data = model_data.sel(time=slice(times[0],times[-1]),
-            latitude=slice(-20,-35),longitude=slice(-55,-30))
+                        filter_by_keys={'typeOfLevel': 'surface'}
+                        ).sel(time=slice(times[0],times[-1]),
+                        latitude=slice(-20,-35),longitude=slice(-55,-30))
         slp = model_data.msl
     
     track = get_track(slp, TimeIndexer)
