@@ -37,13 +37,6 @@ lines = {'ERA':'solid', 'wsm6':'dashed','thompson':'dashdot',
 
 markers = {'ERA':'o', 'wsm6':'x', 'thompson':'P','kessler':'D','off':'s'}
 
-colors = {'convection':'k', 'mesoscale':'tab:orange','tiedtke':'tab:red',
-          'ntiedtke':'tab:purple', 'freitas':'tab:brown','off':'tab:green'}
-
-lines = {'convection':'solid', 'mesoscale':'dashed','thompson':'dashdot',
-         'kessler':(0, (3, 1, 1, 1)),'off':(0, (3, 1, 1, 1, 1, 1))}
-
-markers = {'convection':'o', 'mesoscale':'x', 'thompson':'P','kessler':'D','off':'s'}
 
 
 def get_times_nml(namelist,model_data):
@@ -133,7 +126,7 @@ gl.bottom_labels = None
 gl.right_labels = None
 
 
-for bench in benchs[:1]:   
+for bench in benchs:   
     
     if bench != benchs[-1]:
         
