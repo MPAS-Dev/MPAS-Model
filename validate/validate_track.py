@@ -169,10 +169,12 @@ zlevs = np.arange(0, zmax, dz) * units.m
 print('\nOpening all data and putting it into a dictionary...')
 data = {}
 data['ERA'] = {}
-data['ERA']['slp'] = xr.open_dataset(args.ERA5, engine='cfgrib',
+mslp = xr.open_dataset(args.ERA5, engine='cfgrib',
                 filter_by_keys={'typeOfLevel': 'surface'}
                 ).sel(time=slice(times[0],times[-1]),
                 latitude=slice(-20,-35),longitude=slice(-55,-30)).msl
+mslp = (mslp * units(mslp.units)).metpy.convert_units('hPa')                    
+data['ERA']['slp'] = mslp
 data['ERA']['track'] = get_track(data['ERA']['slp'], 'time')                                          
                       
 for bench in benchs:
@@ -185,6 +187,7 @@ for bench in benchs:
     pressure = (model_data['pressure'] * units(model_data['pressure'].units)
                ).metpy.convert_units('hPa')
     slp = pressure_to_slp(pressure,z, zlevs)
+    slp = (slp * units(slp.units)).metpy.convert_units('hPa')          
     print('tracking the system...')
     track = get_track(slp, 'Time')
     
@@ -208,13 +211,18 @@ for exp in data:
     track = data[exp]['track']
     lons, lats, min_slp = track['lon'], track['lat'], track['min']
     
-    microp, cumulus = exp.split('_')[0], exp.split('_')[1]
+    if exp == 'ERA':
+        microp, cumulus = 'ERA', 'ERA'
+        zorder=100
+    else:
+        microp, cumulus = exp.split('_')[0], exp.split('_')[1]
+        zorder=1
     ls = lines[microp]
     marker = markers[microp]
     color = colors[cumulus]
-    
-    ax.plot(lons,lats,zorder=100,markeredgecolor=color,marker=marker,
-                markerfacecolor='None',linewidth=1.5, linestyle=ls,
+
+    ax.plot(lons ,lats, markeredgecolor=color, marker=marker, zorder=zorder,
+                markerfacecolor='None', linewidth=1.5, linestyle=ls,
                 c=color, label=exp)
     ax.scatter(lons.iloc[0],lats.iloc[0], s=150, marker=marker, color='gray')
     ax.scatter(lons.iloc[-1],lats.iloc[-1], s=150, marker=marker,
@@ -256,7 +264,7 @@ for row in range(6):
         
         ax.text(-50,-22,experiment,bbox=dict(facecolor='w', alpha=0.5))
         
-        model_data = data[experiment]['data']
+        model_data = data[experiment]['slp']
         track = data[experiment]['track']
         
         lons, lats, min_slp = track['lon'], track['lat'], track['min']
@@ -270,8 +278,8 @@ for row in range(6):
                     c=color, label=expname)
         
         if args.ERA5:
-            track_era = data['ERA5']['track']
-            lons_era, lats_era = track_era.lons, track_era.lats
+            track_era = data['ERA']['track']
+            lons_era, lats_era = track_era.lon, track_era.lat
             ax.plot(lons_era,lats_era,zorder=1,markeredgecolor='k',
                     marker='o',markerfacecolor='None',
                     linewidth=0.75, linestyle='solid',
@@ -285,23 +293,37 @@ print(fname2+'.png created!')
 # =============================================================================
 # Plot minimum slp
 # =============================================================================
+print('plotting minimum SLP..')
 fig = plt.figure(figsize=(10, 13))
 ax = fig.add_subplot(1, 1, 1)
 
 for exp in data:   
     
+    print(exp)
+    
     slp = data[exp]['slp']
     track = data[exp]['track']
+    
+    track.index = pd.DatetimeIndex(track.index)
+    track = track.resample('1H').mean()
+    
     time, min_slp = track.index, track['min']
     
-    microp, cumulus = exp.split('_')[0], exp.split('_')[1]
+    print('data range:',min_slp.min(),'to',min_slp.max())
+    
+    if exp == 'ERA':
+        microp, cumulus = 'ERA', 'ERA'
+        zorder=100
+    else:
+        microp, cumulus = exp.split('_')[0], exp.split('_')[1]
+        
     ls = lines[microp]
     marker = markers[microp]
     color = colors[cumulus]
     
-    ax.plot(time,min_slp,markeredgecolor=color,marker=marker,
-                markerfacecolor='None',linewidth=1.5, linestyle=ls,
-                c=color, label=exp)
+    ax.plot(time,min_slp, markeredgecolor=color, marker=marker,
+                markerfacecolor='None', linewidth=1.5, linestyle=ls,
+                c=color, label=exp, zorder=zorder)
     
 legend1, legend2 = make_legend(colors,markers,lines)
 ax.add_artist(legend1)
