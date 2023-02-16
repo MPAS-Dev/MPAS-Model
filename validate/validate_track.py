@@ -187,7 +187,7 @@ for bench in benchs:
     pressure = (model_data['pressure'] * units(model_data['pressure'].units)
                ).metpy.convert_units('hPa')
     slp = pressure_to_slp(pressure,z, zlevs)
-    slp = (slp * units(slp.units)).metpy.convert_units('hPa')          
+    slp = slp * units('hPa')       
     print('tracking the system...')
     track = get_track(slp, 'Time')
     
