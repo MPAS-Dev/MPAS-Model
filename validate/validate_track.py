@@ -169,11 +169,11 @@ zlevs = np.arange(0, zmax, dz) * units.m
 print('\nOpening all data and putting it into a dictionary...')
 data = {}
 data['ERA'] = {}
-data['ERA']['data'] = xr.open_dataset(args.ERA5, engine='cfgrib',
+data['ERA']['slp'] = xr.open_dataset(args.ERA5, engine='cfgrib',
                 filter_by_keys={'typeOfLevel': 'surface'}
                 ).sel(time=slice(times[0],times[-1]),
                 latitude=slice(-20,-35),longitude=slice(-55,-30)).msl
-track = get_track(data['ERA']['data'], 'time')                                          
+track = get_track(data['ERA']['slp'], 'time')                                          
                       
 for bench in benchs:
     
