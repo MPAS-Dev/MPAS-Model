@@ -40,13 +40,6 @@ lines = {'ERA':'solid', 'wsm6':'dashed','thompson':'dashdot',
 
 markers = {'ERA':'o', 'wsm6':'x', 'thompson':'P','kessler':'D','off':'s'}
 
-colors = {'ERA':'k', 'convection':'tab:orange','mesoscale':'tab:red',
-          'ntiedtke':'tab:purple', 'freitas':'tab:brown','off':'tab:green'}
-
-lines = {'ERA':'solid', 'convection':'dashed','mesoscale':'dashdot',
-         'kessler':(0, (3, 1, 1, 1)),'off':(0, (3, 1, 1, 1, 1, 1))}
-
-markers = {'ERA':'o', 'convection':'x', 'mesoscale':'P','kessler':'D','off':'s'}
 
 def get_exp_name(bench):
     expname = bench.split('/')[-1].split('run.')[-1]
