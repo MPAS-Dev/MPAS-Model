@@ -173,7 +173,7 @@ data['ERA']['slp'] = xr.open_dataset(args.ERA5, engine='cfgrib',
                 filter_by_keys={'typeOfLevel': 'surface'}
                 ).sel(time=slice(times[0],times[-1]),
                 latitude=slice(-20,-35),longitude=slice(-55,-30)).msl
-track = get_track(data['ERA']['slp'], 'time')                                          
+data['ERA']['track'] = get_track(data['ERA']['slp'], 'time')                                          
                       
 for bench in benchs:
     
