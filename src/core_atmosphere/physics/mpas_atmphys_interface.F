@@ -770,24 +770,26 @@
 
 !check that the pressure in the layer above the surface is greater than that in the layer
 !above it:
-!!!!$acc update host(pressure_b,pressure_p,pres_p,dz_p,rho_p,th_p,t_p,qv_p)
-!!! do j = jts,jte
-!!! do i = its,ite
-!!!    if(pres_p(i,1,j) .le. pres_p(i,2,j)) then
-!!!       call mpas_log_write('')
-!!!       call mpas_log_write('--- subroutine MPAS_to_phys - pressure(1) < pressure(2):')
-!!!       call mpas_log_write('i      =$i', intArgs=(/i/))
-!!!       call mpas_log_write('latCell=$r', realArgs=(/latCell(i)/degrad/))
-!!!       call mpas_log_write('lonCell=$r', realArgs=(/lonCell(i)/degrad/))
-!!!       do k = kts,kte
-!!!          call mpas_log_write('$i $i $i $r $r $r $r $r $r $r $r', intArgs=(/j,i,k/),&
-!!!             realArgs=(/dz_p(i,k,j),pressure_b(k,i),pressure_p(k,i),pres_p(i,k,j), &
-!!!                        rho_p(i,k,j),th_p(i,k,j),t_p(i,k,j),qv_p(i,k,j)/))
-!!!       enddo
-!!!!      call mpas_log_write('pressure increasing with height', messageType=MPAS_LOG_CRIT)
-!!!    endif
-!!! enddo
-!!! enddo
+!!$acc update host(pressure_b,pressure_p,pres_p,dz_p,rho_p,th_p,t_p,qv_p)
+#ifndef MPAS_OPENACC
+ do j = jts,jte
+ do i = its,ite
+    if(pres_p(i,1,j) .le. pres_p(i,2,j)) then
+       call mpas_log_write('')
+       call mpas_log_write('--- subroutine MPAS_to_phys - pressure(1) < pressure(2):')
+       call mpas_log_write('i      =$i', intArgs=(/i/))
+       call mpas_log_write('latCell=$r', realArgs=(/latCell(i)/degrad/))
+       call mpas_log_write('lonCell=$r', realArgs=(/lonCell(i)/degrad/))
+       do k = kts,kte
+          call mpas_log_write('$i $i $i $r $r $r $r $r $r $r $r', intArgs=(/j,i,k/),&
+             realArgs=(/dz_p(i,k,j),pressure_b(k,i),pressure_p(k,i),pres_p(i,k,j), &
+                        rho_p(i,k,j),th_p(i,k,j),t_p(i,k,j),qv_p(i,k,j)/))
+       enddo
+!      call mpas_log_write('pressure increasing with height', messageType=MPAS_LOG_CRIT)
+    endif
+ enddo
+ enddo
+#endif
 
 !interpolation of pressure and temperature from theta points to w points:
  do j = jts,jte
