@@ -10,6 +10,7 @@ dummy:
 	echo "****** compiling physics ******"
 
 OBJS_init = \
+	ccpp_kinds.o             \
 	mpas_atmphys_constants.o \
 	mpas_atmphys_date_time.o \
 	mpas_atmphys_functions.o \
