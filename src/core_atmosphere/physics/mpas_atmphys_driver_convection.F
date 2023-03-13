@@ -120,7 +120,7 @@
  if(.not.allocated(pratec_p)   ) allocate(pratec_p(ims:ime,jms:jme)          )
  if(.not.allocated(raincv_p)   ) allocate(raincv_p(ims:ime,jms:jme)          )
 
-!$acc parallel vector_length(32)
+!$acc parallel vector_length(128)
 !$acc loop gang vector collapse(2)
  do j = jts,jte
  do i = its,ite
@@ -130,7 +130,7 @@
  enddo
 !$acc end parallel
 
-!$acc parallel vector_length(32)
+!$acc parallel vector_length(128)
 !$acc loop gang vector collapse(3)
  do j = jts,jte
  do k = kts,kte
@@ -211,7 +211,7 @@
        if(.not.allocated(rucuten_p)    ) allocate(rucuten_p(ims:ime,kms:kme,jms:jme)    )
        if(.not.allocated(rvcuten_p)    ) allocate(rvcuten_p(ims:ime,kms:kme,jms:jme)    )
 
-!$acc parallel vector_length(32)
+!$acc parallel vector_length(128)
 !$acc loop gang vector collapse(2)
        do j = jts,jte
        do i = its,ite
@@ -222,7 +222,7 @@
        enddo
 !$acc end parallel
 
-!$acc parallel vector_length(32)
+!$acc parallel vector_length(128)
 !$acc loop gang vector collapse(3)
        do j = jts,jte
        do k = kts,kte
@@ -254,7 +254,7 @@
              if(.not.allocated(rqvften_p)) allocate(rqvften_p(ims:ime,kms:kme,jms:jme))
              if(.not.allocated(rthften_p)) allocate(rthften_p(ims:ime,kms:kme,jms:jme))
 
-!$acc parallel vector_length(32)
+!$acc parallel vector_length(128)
 !$acc loop gang vector collapse(3)
              do j = jts,jte
              do k = kts,kte
@@ -472,7 +472,7 @@
  curr_secs   = -1
  cudtacttime = -1
  adapt_step_flag = .false.
-!$acc parallel vector_length(32)
+!$acc parallel vector_length(128)
 !$acc loop gang vector collapse(2)
  do j = jts, jte
  do i = its, ite
