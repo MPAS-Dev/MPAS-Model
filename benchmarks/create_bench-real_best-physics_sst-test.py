@@ -292,7 +292,7 @@ def run(par1,par2):
         
     b_name = grid_name+".best-physics_sst"
     b_dir = b_main_dir+"/"+b_name
-    b_full_name = b_dir+"/run."+".best-physics_sst"+"_microp"+str(par1)+\
+    b_full_name = b_dir+"/run."+"best-physics_sst"+"_microp"+str(par1)+\
         ".cu_"+str(par2)
 
     str_opt = {"input":{}, "output":{}, "restart" : {},
@@ -342,7 +342,7 @@ elif args.sfc:
 # 5 ===========================================================================     
 #Make sure the init test exists!
 elif args.run:
-    for par1, par2 in itertools.product(loop_parameter1, loop_parameter2):
+    for par1, par2 in zip(loop_parameter1, loop_parameter2):
         opts = run(par1,par2)
         nml_opts, b_full_name, str_opt = opts[0], opts[1], opts[2]
         b_init = bench.Bench(args,
