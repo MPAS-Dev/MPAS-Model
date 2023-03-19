@@ -138,7 +138,7 @@ geog_data_path = '/p1-nemo/danilocs/mpas/mpas_tutorial/geog/'
 met_prefix = 'ERA5'
 sfc_prefix = 'SST'
 # Interval of the SST files
-sfc_interval = 'none'
+sfc_interval = 21600
 # Model timestep
 dt = 48
 # SST Update on or off
