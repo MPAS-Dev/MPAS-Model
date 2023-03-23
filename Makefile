@@ -108,6 +108,36 @@ titan-cray:   # BUILDTARGET (deprecated) Cray compilers with options for ORNL Ti
 	"OPENMP = $(OPENMP)" \
 	"CPPFLAGS = $(MODEL_FORMULATION) -D_MPI" )
 
+nvhpc:   # BUILDTARGET NVIDIA HPC SDK
+	( $(MAKE) all \
+	"FC_PARALLEL = mpifort" \
+	"CC_PARALLEL = mpicc" \
+	"CXX_PARALLEL = mpic++" \
+	"FC_SERIAL = nvfortran" \
+	"CC_SERIAL = nvc" \
+	"CXX_SERIAL = nvc++" \
+	"FFLAGS_PROMOTION = -r8" \
+	"FFLAGS_OPT = -gopt -O4 -byteswapio -Mfree" \
+	"CFLAGS_OPT = -gopt -O3" \
+	"CXXFLAGS_OPT = -gopt -O3" \
+	"LDFLAGS_OPT = -gopt -O3" \
+	"FFLAGS_DEBUG = -O0 -g -Mbounds -Mchkptr -byteswapio -Mfree -Ktrap=divz,fp,inv,ovf -traceback" \
+	"CFLAGS_DEBUG = -O0 -g -traceback" \
+	"CXXFLAGS_DEBUG = -O0 -g -traceback" \
+	"LDFLAGS_DEBUG = -O0 -g -Mbounds -Mchkptr -Ktrap=divz,fp,inv,ovf -traceback" \
+	"FFLAGS_OMP = -mp" \
+	"CFLAGS_OMP = -mp" \
+	"FFLAGS_ACC = -Mnofma -acc -gpu=cc70,cc80 -Minfo=accel" \
+	"CFLAGS_ACC =" \
+	"PICFLAG = -fpic" \
+	"BUILD_TARGET = $(@)" \
+	"CORE = $(CORE)" \
+	"DEBUG = $(DEBUG)" \
+	"USE_PAPI = $(USE_PAPI)" \
+	"OPENMP = $(OPENMP)" \
+	"OPENACC = $(OPENACC)" \
+	"CPPFLAGS = $(MODEL_FORMULATION) -D_MPI -DCPRPGI" )
+
 pgi:   # BUILDTARGET PGI compiler suite
 	( $(MAKE) all \
 	"FC_PARALLEL = mpif90" \
