@@ -707,8 +707,8 @@
  enddo
 !$acc end parallel
  enddo
-!$acc update host(qv_p,qc_p,qr_p,qi_p,qs_p,qg_p,u_p,v_p, &
-!$acc zz_p,rho_p,th_p,t_p,pi_p,pres_p,zmid_p,dz_p)
+!!!$acc update host(qv_p,qc_p,qr_p,qi_p,qs_p,qg_p,u_p,v_p, &
+!!!$acc zz_p,rho_p,th_p,t_p,pi_p,pres_p,zmid_p,dz_p)
 
  pbl_select: select case (trim(pbl_scheme))
     case("bl_mynn")
@@ -766,11 +766,12 @@
  enddo
 !$acc end parallel
  enddo
-!$acc update host(znu_p,w_p,z_p)
+!!!$acc update host(znu_p,w_p,z_p)
 
 !check that the pressure in the layer above the surface is greater than that in the layer
 !above it:
-!$acc update host(pressure_b,pressure_p)
+!!$acc update host(pressure_b,pressure_p,pres_p,dz_p,rho_p,th_p,t_p,qv_p)
+#ifndef MPAS_OPENACC
  do j = jts,jte
  do i = its,ite
     if(pres_p(i,1,j) .le. pres_p(i,2,j)) then
@@ -788,6 +789,7 @@
     endif
  enddo
  enddo
+#endif
 
 !interpolation of pressure and temperature from theta points to w points:
  do j = jts,jte
@@ -844,7 +846,7 @@
  enddo
 !$acc end parallel
  enddo
-!$acc update host(fzm_p,fzp_p,t2_p,pres2_p,psfc_p)
+!!!$acc update host(fzm_p,fzp_p,t2_p,pres2_p,psfc_p)
 
 !calculation of the hydrostatic pressure:
  do j = jts,jte
@@ -904,8 +906,8 @@
  enddo
 !$acc end parallel
  enddo
-!$acc update host(pres2_hyd_p,pres2_hydd_p,pres_hyd_p, &
-!$acc pres_hydd_p,psfc_hyd_p,psfc_hydd_p,znu_hyd_p)
+!!!$acc update host(pres2_hyd_p,pres2_hydd_p,pres_hyd_p, &
+!!!$acc pres_hydd_p,psfc_hyd_p,psfc_hydd_p,znu_hyd_p)
 
 !save the model-top pressure:
  do j = jts,jte
