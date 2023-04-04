@@ -229,7 +229,7 @@
 
         <nml_record name="interpolation_control" in_defaults="true">
 
-                <nml_option name="config_extrap_airtemp"        type="character"     default_value="linear"
+                <nml_option name="config_extrap_airtemp"        type="character"     default_value="lapse-rate"
                      units="-"
                      description="Method of extrapolation of air temperature above/below first-guess levels."
                      possible_values="`constant' (last valid value), `linear' (linear extrapolation based on last two values), `lapse-rate' (0.0065 K/m from last valid value)"/>
