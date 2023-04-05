@@ -155,6 +155,7 @@
 !
       REAL(KIND=RKIND) FUNCTION RSLF(P,T)
 
+!$acc routine seq
       IMPLICIT NONE
       REAL(KIND=RKIND), INTENT(IN):: P, T
       REAL(KIND=RKIND):: ESL,X
@@ -190,6 +191,7 @@
 !
       REAL(KIND=RKIND) FUNCTION RSIF(P,T)
 
+!$acc routine seq
       IMPLICIT NONE
       REAL(KIND=RKIND), INTENT(IN):: P, T
       REAL(KIND=RKIND):: ESI,X

@@ -452,24 +452,29 @@
  call mpas_pool_get_array_gpu(diag_physics,'rainncv'   ,rainncv   )
  call mpas_pool_get_array_gpu(diag_physics,'snowncv'   ,snowncv   )
  call mpas_pool_get_array_gpu(diag_physics,'sr'        ,sr        )
-!$acc update host(graupelncv, rainncv, snowncv, sr)
+!$acc data present(graupelncv, rainncv, snowncv, sr)
 
 !variables common to all cloud microphysics schemes:
+!$acc parallel vector_length(32)
+!$acc loop gang vector collapse(2)
  do j = jts, jte
  do i = its, ite
     rainncv_p(i,j) = 0._RKIND
     rainnc_p(i,j)  = 0._RKIND
  enddo
  enddo
-
+!$acc loop gang vector
  do i = its,ite
     rainncv(i) = 0._RKIND
  enddo
+ !$acc end parallel
 
 !variables specific to different cloud microphysics schemes:
  microp_select: select case(microp_scheme)
 
     case ("mp_thompson","mp_wsm6")
+!$acc parallel vector_length(32)
+!$acc loop gang vector collapse(2)
        do j = jts, jte
        do i = its, ite
           snowncv_p(i,j)    = 0._RKIND
@@ -479,17 +484,18 @@
           sr_p(i,j)         = 0._RKIND
        enddo
        enddo
-
+!$acc loop gang vector
        do i = its,ite
           snowncv(i)    = 0._RKIND
           graupelncv(i) = 0._RKIND
           sr(i)         = 0._RKIND
        enddo 
+!$acc end parallel
 
     case default
 
  end select microp_select
-
+!$acc end data
  end subroutine precip_from_MPAS
 
 !=================================================================================================================
@@ -508,6 +514,7 @@
  integer,dimension(:),pointer:: i_rainnc
 
  real(kind=RKIND),pointer:: config_bucket_rainnc
+  real(kind=RKIND):: sconfig_bucket_rainnc
  real(kind=RKIND),dimension(:),pointer:: precipw
  real(kind=RKIND),dimension(:),pointer:: graupelnc,rainnc,snownc
  real(kind=RKIND),dimension(:),pointer:: graupelncv,rainncv,snowncv,sr
@@ -521,6 +528,8 @@
  call mpas_pool_get_config(configs,'config_microp_scheme',microp_scheme       )
  call mpas_pool_get_config(configs,'config_bucket_rainnc',config_bucket_rainnc)
 
+sconfig_bucket_rainnc = config_bucket_rainnc
+
  call mpas_pool_get_array_gpu(diag_physics,'i_rainnc'  ,i_rainnc  )
  call mpas_pool_get_array_gpu(diag_physics,'precipw'   ,precipw   )
  call mpas_pool_get_array_gpu(diag_physics,'graupelnc' ,graupelnc )
@@ -531,15 +540,21 @@
  call mpas_pool_get_array_gpu(diag_physics,'snowncv'   ,snowncv   )
  call mpas_pool_get_array_gpu(diag_physics,'sr'        ,sr        )
 
+!$acc parallel vector_length(32)
+!$acc loop gang vector
  do i = its,ite
     precipw(i) = 0._RKIND    
  enddo
+ !$acc end parallel
 
 !variables common to all cloud microphysics schemes:
  do j = jts,jte
+!$acc parallel vector_length(32)
+!$acc loop gang vector private(rho_a)
  do i = its,ite
 
     !precipitable water:
+    !$acc loop seq
     do k = kts,kte
        rho_a = rho_p(i,k,j) / (1._RKIND + qv_p(i,k,j))
        precipw(i) = precipw(i) + qv_p(i,k,j) * rho_a * dz_p(i,k,j)
@@ -551,13 +566,14 @@
     !accumulated precipitation:
     rainnc(i) = rainnc(i) + rainncv(i)
 
-   if(l_acrain .and. config_bucket_rainnc.gt.0._RKIND .and. &
-      rainnc(i).gt.config_bucket_rainnc) then
+   if(l_acrain .and. sconfig_bucket_rainnc.gt.0._RKIND .and. &
+      rainnc(i).gt.sconfig_bucket_rainnc) then
       i_rainnc(i) = i_rainnc(i) + 1
-      rainnc(i)   = rainnc(i) - config_bucket_rainnc
+      rainnc(i)   = rainnc(i) - sconfig_bucket_rainnc
    endif
  
  enddo
+ !$acc end parallel
  enddo
 
 !variables specific to different cloud microphysics schemes:
@@ -565,6 +581,8 @@
 
     case ("mp_thompson","mp_wsm6")
        do j = jts,jte
+!$acc parallel vector_length(32)
+!$acc loop gang vector
        do i = its,ite
           !time-step precipitation:
           snowncv(i)    = snownc_p(i,j)
@@ -575,14 +593,15 @@
           snownc(i)    = snownc(i) + snowncv(i)
           graupelnc(i) = graupelnc(i) + graupelncv(i)
        enddo
+!$acc end parallel
        enddo
 
     case default
 
  end select microp_select_init
 
-!$acc update device(i_rainnc, precipw, graupelnc, graupelncv, rainnc, rainncv, &
-!$acc               snownc, snowncv, sr)
+!!$acc update device(i_rainnc, precipw, graupelnc, graupelncv, rainnc, rainncv, &
+!!$acc               snownc, snowncv, sr)
  end subroutine precip_to_MPAS
 
 !=================================================================================================================
@@ -602,7 +621,10 @@
 
 !local variables and arrays:
  integer:: i,j,k,kp
+ integer,dimension(:),allocatable::wkp
  real(kind=RKIND),dimension(:),allocatable:: qv1d,qc1d,qr1d,qs1d,qg1d,t1d,p1d,nr1d,dBZ1d,zp
+ real(kind=RKIND),dimension(:,:),allocatable:: wqv1d,wqc1d,wqr1d,wqs1d,wqg1d,wt1d,wp1d,wnr1d,wdBZ1d,wzp
+ real(kind=RKIND),dimension(:),allocatable:: ww1,ww2
  real(kind=RKIND):: w1,w2
 
 !-----------------------------------------------------------------------------------------------------------------
@@ -612,7 +634,7 @@
  call mpas_pool_get_array_gpu(diag_physics,'refl10cm_max',refl10cm_max)
  call mpas_pool_get_array_gpu(diag_physics,'refl10cm_1km',refl10cm_1km)
  call mpas_pool_get_array_gpu(diag_physics,'refl10cm_1km_max',refl10cm_1km_max)
-!$acc update host(refl10cm_max, refl10cm_1km, refl10cm_1km_max)
+!!$acc update host(refl10cm_max, refl10cm_1km, refl10cm_1km_max)
 
  microp_select: select case(microp_scheme)
 
@@ -621,51 +643,69 @@
                                  'with kessler cloud microphysics')
 
     case ("mp_wsm6")
-       if(.not.allocated(p1d)  ) allocate(p1d(kts:kte)  )
-       if(.not.allocated(t1d)  ) allocate(t1d(kts:kte)  )
-       if(.not.allocated(qv1d) ) allocate(qv1d(kts:kte) )
-       if(.not.allocated(qr1d) ) allocate(qr1d(kts:kte) )
-       if(.not.allocated(qs1d) ) allocate(qs1d(kts:kte) )
-       if(.not.allocated(qg1d) ) allocate(qg1d(kts:kte) )
-       if(.not.allocated(dBz1d)) allocate(dBZ1d(kts:kte))
-       if(.not.allocated(zp)   ) allocate(zp(kts:kte)   )
+       if(.not.allocated(wp1d)  ) allocate(wp1d(kts:kte,its:ite)  )
+       if(.not.allocated(wt1d)  ) allocate(wt1d(kts:kte,its:ite)  )
+       if(.not.allocated(wqv1d) ) allocate(wqv1d(kts:kte,its:ite) )
+       if(.not.allocated(wqr1d) ) allocate(wqr1d(kts:kte,its:ite) )
+       if(.not.allocated(wqs1d) ) allocate(wqs1d(kts:kte,its:ite) )
+       if(.not.allocated(wqg1d) ) allocate(wqg1d(kts:kte,its:ite) )
+       if(.not.allocated(wdBz1d)) allocate(wdBZ1d(kts:kte,its:ite))
+       if(.not.allocated(wzp)   ) allocate(wzp(kts:kte,its:ite)   )
+       if(.not.allocated(ww1)   ) allocate(ww1(its:ite)   )
+       if(.not.allocated(ww2)   ) allocate(ww2(its:ite)   )
+       if(.not.allocated(wkp)   ) allocate(wkp(its:ite)   )
+
+!$acc enter data create(wqv1d,wqr1d,wqs1d,wqg1d,wt1d,wp1d,wdBZ1d,wzp,ww1,ww2,wkp)
 
        do j = jts,jte
+!$acc parallel vector_length(32)
+!$acc loop gang vector collapse(2)
        do i = its,ite
           do k = kts,kte
-             p1d(k) = pres_p(i,k,j)
-             t1d(k) = th_p(i,k,j) * pi_p(i,k,j)
-             qv1d(k)  = qv_p(i,k,j)
-             qr1d(k)  = qr_p(i,k,j)
-             qs1d(k)  = qs_p(i,k,j)
-             qg1d(k)  = qg_p(i,k,j)
-             dBZ1d(k) = -35._RKIND
-             zp(k) = z_p(i,k,j) - z_p(i,1,j)+0.5*dz_p(i,1,j) ! height AGL
+             wp1d(k,i) = pres_p(i,k,j)
+             wt1d(k,i) = th_p(i,k,j) * pi_p(i,k,j)
+             wqv1d(k,i)  = qv_p(i,k,j)
+             wqr1d(k,i)  = qr_p(i,k,j)
+             wqs1d(k,i)  = qs_p(i,k,j)
+             wqg1d(k,i)  = qg_p(i,k,j)
+             wdBZ1d(k,i) = -35._RKIND
+             wzp(k,i) = z_p(i,k,j) - z_p(i,1,j)+0.5*dz_p(i,1,j) ! height AGL
           enddo
+       enddo
+!$acc end parallel
 
-          call refl10cm_wsm6(qv1d,qr1d,qs1d,qg1d,t1d,p1d,dBZ1d,kts,kte,i,j)
+          call refl10cm_wsm6_1(wqv1d,wqr1d,wqs1d,wqg1d,wt1d,wp1d,wdBZ1d,kts,kte,its,ite,i,j)
 
-          kp = 1
+!$acc parallel vector_length(32)
+!$acc loop gang vector
+       do i = its, ite
+          wkp(i) = 1
           do k = kts,kte
-             dBZ1d(k) = max(-35._RKIND,dBZ1d(k))
-             if(zp(k) .lt. 1000.) kp = k
+             wdBZ1d(k,i) = max(-35._RKIND,wdBZ1d(k,i))
+             if(wzp(k,i) .lt. 1000.) wkp(i) = k
           enddo
-          refl10cm_max(i) = maxval(dBZ1d(:))
-          w1 = (zp(kp+1)-1000.)/(zp(kp+1)-zp(kp))
-          w2 = 1.0 - w1
-          refl10cm_1km(i) = w1*dBZ1d(kp) + w2*dBZ1d(kp+1)
+          refl10cm_max(i) = maxval(wdBZ1d(:,i))
+          ww1(i) = (wzp(kp+1,i)-1000.)/(wzp(kp+1,i)-wzp(kp,i))
+          ww2(i) = 1.0 - ww1(i)
+          refl10cm_1km(i) = ww1(i)*wdBZ1d(kp,i) + ww2(i)*wdBZ1d(kp+1,i)
           refl10cm_1km_max(i) = max(refl10cm_1km_max(i),refl10cm_1km(i))
        enddo
+!$acc end parallel
        enddo
 
-       if(allocated(p1d)  ) deallocate(p1d  )
-       if(allocated(t1d)  ) deallocate(t1d  )
-       if(allocated(qv1d) ) deallocate(qv1d )
-       if(allocated(qr1d) ) deallocate(qr1d )
-       if(allocated(qs1d) ) deallocate(qs1d )
-       if(allocated(qg1d) ) deallocate(qg1d )
-       if(allocated(dBz1d)) deallocate(dBZ1d)
-       if(allocated(zp)   ) deallocate(zp   )
+!$acc exit data delete(wqv1d,wqr1d,wqs1d,wqg1d,wt1d,wp1d,wdBZ1d,wzp,ww1,ww2,wkp)
+
+       if(allocated(wp1d)  ) deallocate(wp1d  )
+       if(allocated(wt1d)  ) deallocate(wt1d  )
+       if(allocated(wqv1d) ) deallocate(wqv1d )
+       if(allocated(wqr1d) ) deallocate(wqr1d )
+       if(allocated(wqs1d) ) deallocate(wqs1d )
+       if(allocated(wqg1d) ) deallocate(wqg1d )
+       if(allocated(wdBz1d)) deallocate(wdBZ1d)
+       if(allocated(wzp)   ) deallocate(wzp   )
+       if(allocated(ww1)   ) deallocate(ww1   )
+       if(allocated(ww2)   ) deallocate(ww2   )
+       if(allocated(wkp)   ) deallocate(wkp   )
 
     case ("mp_thompson")
        if(.not.allocated(p1d)  ) allocate(p1d(kts:kte)  )
@@ -724,12 +764,16 @@
 
  end select microp_select
 
-!$acc update device(refl10cm_max, refl10cm_1km, refl10cm_1km_max)
+!!$acc update device(refl10cm_max, refl10cm_1km, refl10cm_1km_max)
  end subroutine compute_radar_reflectivity
 
 !=================================================================================================================
  subroutine compute_relhum(diag,its,ite)
 !=================================================================================================================
+
+use mpas_atmphys_functions, only: rsif
+!! real, external :: RSIF
+!$acc routine(rsif) seq
 
 !input arguments:
  integer,intent(in):: its,ite
@@ -744,44 +788,43 @@
  integer:: i,j,k
 
  real(kind=RKIND):: tempc, rh
- real(kind=RKIND),dimension(:),allocatable:: qv1d,qvs1d,t1d,p1d
+ real(kind=RKIND):: qv,qvs,t,p
 
 !-----------------------------------------------------------------------------------------------------------------
 
  call mpas_pool_get_array_gpu(diag,'relhum',relhum)
-!$acc update host(relhum)
+!!$acc update host(relhum)
+!$acc parallel vector_length(32)
+!$acc loop gang vector
  do k = kts,kte
     do i = its,ite
        relhum(k,i) = 0._RKIND
     enddo
  enddo
+!$acc end parallel
 
- if(.not.allocated(p1d)  ) allocate(p1d(kts:kte)  )
- if(.not.allocated(t1d)  ) allocate(t1d(kts:kte)  )
- if(.not.allocated(qv1d) ) allocate(qv1d(kts:kte) )
- if(.not.allocated(qvs1d)) allocate(qvs1d(kts:kte))
 
  do j = jts,jte
+ !$acc parallel vector_length(32)
+!$acc loop gang vector collapse(2) private(p,t,tempc,qvs,qv)
  do i = its,ite
     do k = kts,kte
-       p1d(k)  = pres_p(i,k,j)
-       t1d(k)  = th_p(i,k,j) * pi_p(i,k,j)
-       tempc   = t1d(k) - 273.16_RKIND
-       qvs1d(k) = rslf(p1d(k),t1d(k))
-       if(tempc .le. 0._RKIND) qvs1d(k) = rsif(p1d(k),t1d(k))
-       qv1d(k) = qv_p(i,k,j)
-       relhum(k,i) = qv1d(k) / qvs1d(k)
+       p  = pres_p(i,k,j)
+       t  = th_p(i,k,j) * pi_p(i,k,j)
+       tempc   = t - 273.16_RKIND
+       qvs = rslf(p,t)
+       if(tempc .le. 0._RKIND) qvs = rsif(p,t)
+       qv = qv_p(i,k,j)
+       relhum(k,i) = qv / qvs
        relhum(k,i) = relhum(k,i) * 100._RKIND
     enddo
  enddo
+!$acc end parallel
  enddo
 
- if(allocated(p1d)  ) deallocate(p1d  )
- if(allocated(t1d)  ) deallocate(t1d  )
- if(allocated(qv1d) ) deallocate(qv1d )
- if(allocated(qvs1d)) deallocate(qvs1d)
 
-!$acc update device(relhum)
+
+!!$acc update device(relhum)
  end subroutine compute_relhum
 
 !=================================================================================================================
