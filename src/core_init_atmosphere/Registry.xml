@@ -93,6 +93,11 @@
                      description="Number of halo layers for fields"
                      possible_values="Integer values, typically 2 or 3; DO NOT CHANGE"/>
 
+                <nml_option name="config_interface_projection" type="character"     default_value="linear_interpolation"
+                     units="-"
+                     description="projecting layer values to the interface, linear vertical interpolation or integral" 
+                     possible_values="'linear_interpolation' or 'layer_integral' (layer average value)"/>
+
         </nml_record>
 
         <nml_record name="dimensions" in_defaults="true">
