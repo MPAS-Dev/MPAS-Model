@@ -1612,6 +1612,9 @@
                 <var name="pv_cell" type="real" dimensions="nVertLevels nCells Time" units="s^{-1} kg^{-1} m^3"
                      description="absolute vorticity/rho_zz averaged to the cell center from the vertices"/>
 
+                <var name="dtheta_dt_mp" type="real" dimensions="nVertLevels nCells Time" units="K s^{-1}"
+                     description="Potential temperature heating rate from microphysics"/>
+
                 <!-- reconstructed horizontal velocity vectors at cell centers -->
                 <var name="uReconstructX" type="real" dimensions="nVertLevels nCells Time" units="m s^{-1}"
                      description="Cartesian x-component of reconstructed horizontal velocity at cell centers"/>

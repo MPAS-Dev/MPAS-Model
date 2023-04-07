@@ -36,9 +36,6 @@
         <var name="depv_dt_cu" type="real" dimensions="nVertLevels nCells Time" units="PVU s^{-1}"
              description="Diabatic EPV tendency from convection"/>
 
-        <var name="dtheta_dt_mp" type="real" dimensions="nVertLevels nCells Time" units="K s^{-1}"
-             description="Potential temperature heating rate from microphysics"/>
-
         <var name="depv_dt_mp" type="real" dimensions="nVertLevels nCells Time" units="PVU s^{-1}"
              description="Diabatic EPV tendency from microphysics"/>
 
