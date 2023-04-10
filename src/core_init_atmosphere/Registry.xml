@@ -412,6 +412,8 @@
                         <var name="advCells" packages="gwd_stage_in;vertical_stage_in;met_stage_in"/>
                         <var name="defc_a" packages="gwd_stage_in;vertical_stage_in;met_stage_in"/>
                         <var name="defc_b" packages="gwd_stage_in;vertical_stage_in;met_stage_in"/>
+                        <var name="cell_gradient_coef_x" packages="gwd_stage_in;vertical_stage_in;met_stage_in"/>
+                        <var name="cell_gradient_coef_y" packages="gwd_stage_in;vertical_stage_in;met_stage_in"/>
                         <var name="coeffs_reconstruct" packages="gwd_stage_in;vertical_stage_in;met_stage_in"/>
                         <var name="cf1" packages="met_stage_in"/>
                         <var name="cf2" packages="met_stage_in"/>
@@ -510,6 +512,8 @@
                         <var name="advCells"/>
                         <var name="defc_a"/>
                         <var name="defc_b"/>
+                        <var name="cell_gradient_coef_x"/>
+                        <var name="cell_gradient_coef_y"/>
                         <var name="coeffs_reconstruct"/>
                         <var name="cf1" packages="vertical_stage_out;met_stage_out"/>
                         <var name="cf2" packages="vertical_stage_out;met_stage_out"/>
@@ -866,6 +870,12 @@
 
                 <var name="defc_b" type="real" dimensions="maxEdges nCells" units="unitless"
                      description="Coefficients for computing the diagonal components of the horizontal deformation"/>
+
+                <var name="cell_gradient_coef_x" type="real" dimensions="maxEdges nCells" units="m^-1"
+                     description="Coefficients for computing the x (zonal) derivative of a cell-centered variable"/>
+
+                <var name="cell_gradient_coef_y" type="real" dimensions="maxEdges nCells" units="m^-1"
+                     description="Coefficients for computing the y (meridional) derivative of a cell-centered variable"/>
 
                 <!-- arrays required for reconstruction of velocity field -->
                 <var name="coeffs_reconstruct" type="real" dimensions="R3 maxEdges nCells" units="unitless"
