@@ -3857,8 +3857,6 @@ module atm_time_integration
 
       real (kind=RKIND), dimension(:,:), pointer :: rr_save
 
-
-      real (kind=RKIND), dimension(:,:), pointer :: tend_rtheta_adv     ! needed for Tiedtke convection scheme
       real (kind=RKIND), dimension(:,:), pointer :: rthdynten => null() ! needed for Grell-Freitas convection scheme
 
       real (kind=RKIND), dimension(:,:,:), pointer :: scalars
@@ -3952,7 +3950,6 @@ module atm_time_integration
       call mpas_pool_get_array(diag, 'h_divergence', h_divergence)
       call mpas_pool_get_array(diag, 'exner', exner)
 
-      call mpas_pool_get_array(diag, 'tend_rtheta_adv', tend_rtheta_adv)
       if (associated(tend_physics)) then
          call mpas_pool_get_array(tend_physics, 'rthdynten', rthdynten)
       end if
@@ -4060,7 +4057,7 @@ module atm_time_integration
          config_h_theta_eddy_visc4, config_h_mom_eddy_visc4, config_visc4_2dsmag, config_len_disp, rk_step, dt, &
          config_mpas_cam_coef, &
          config_rayleigh_damp_u, config_rayleigh_damp_u_timescale_days, config_number_rayleigh_damp_u_levels, &
-         tend_rtheta_adv, rthdynten, &
+         rthdynten, &
          cellStart, cellEnd, vertexStart, vertexEnd, edgeStart, edgeEnd, &
          cellSolveStart, cellSolveEnd, vertexSolveStart, vertexSolveEnd, edgeSolveStart, edgeSolveEnd)
 
@@ -4087,7 +4084,7 @@ module atm_time_integration
       config_h_theta_eddy_visc4, config_h_mom_eddy_visc4, config_visc4_2dsmag, config_len_disp, rk_step, dt, &
       config_mpas_cam_coef, &
       config_rayleigh_damp_u, config_rayleigh_damp_u_timescale_days, config_number_rayleigh_damp_u_levels, &
-      tend_rtheta_adv, rthdynten, &
+      rthdynten, &
       cellStart, cellEnd, vertexStart, vertexEnd, edgeStart, edgeEnd, &
       cellSolveStart, cellSolveEnd, vertexSolveStart, vertexSolveEnd, edgeSolveStart, edgeSolveEnd)
 
@@ -4212,7 +4209,6 @@ module atm_time_integration
       real (kind=RKIND), intent(in) :: config_rayleigh_damp_u_timescale_days
       integer, intent(in) :: config_number_rayleigh_damp_u_levels
 
-      real (kind=RKIND), dimension(nVertLevels,nCells+1) :: tend_rtheta_adv
       real (kind=RKIND), dimension(nVertLevels,nCells+1) :: rthdynten
 
       integer, intent(in) :: cellStart, cellEnd, vertexStart, vertexEnd, edgeStart, edgeEnd
@@ -4940,7 +4936,6 @@ module atm_time_integration
 !DIR$ IVDEP
          do k=1,nVertLevels
             tend_theta(k,iCell) = tend_theta(k,iCell)*invAreaCell(iCell) -rdzw(k)*(wdtz(k+1)-wdtz(k))
-            tend_rtheta_adv(k,iCell) = tend_theta(k,iCell)   !  this is for the Tiedke scheme
             rthdynten(k,iCell) = tend_theta(k,iCell)/rho_zz(k,iCell)  !  this is for the Grell-Freitas scheme
             tend_theta(k,iCell) = tend_theta(k,iCell) + rho_zz(k,iCell)*rt_diabatic_tend(k,iCell)
          end do

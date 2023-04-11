@@ -99,7 +99,6 @@
  real(kind=RKIND),dimension(:,:),pointer:: rthratenlw,rthratensw                                    
  real(kind=RKIND),dimension(:,:),pointer:: rthdynten
  
- real(kind=RKIND),dimension(:,:),pointer:: tend_rtheta_adv
  real(kind=RKIND),dimension(:,:),pointer:: tend_u_phys !nick
  real(kind=RKIND),dimension(:,:),pointer  :: tend_theta,tend_theta_euler,tend_diabatic,tend_u
  real(kind=RKIND),dimension(:,:,:),pointer:: tend_scalars
@@ -126,8 +125,6 @@
  call mpas_pool_get_array(state, 'scalars', scalars, 1)
  call mpas_pool_get_array(state, 'rho_zz', mass, 2)
  call mpas_pool_get_array(diag , 'rho_edge', mass_edge)
-
- call mpas_pool_get_array(diag , 'tend_rtheta_adv', tend_rtheta_adv)
 
  call mpas_pool_get_array(diag , 'tend_u_phys', tend_u_phys) !nick
 
@@ -214,7 +211,7 @@
                            tend_th, tend_scalars, mass, rthblten, rqvblten, rqcblten, rqiblten, rniblten, &
                            rthcuten, rqvcuten, rqccuten, rqrcuten, rqicuten, rqscuten, &
                            rthratenlw, rthratensw, rthdynten, &
-                           tend_u_phys, tend_rtheta_adv, tend_diabatic, &
+                           tend_u_phys, tend_diabatic, &
                            theta_m, scalars, &
                            tend_rtheta_physics, &
                            tend_theta_euler &
@@ -271,7 +268,7 @@
                                  tend_th, tend_scalars, mass, rthblten, rqvblten, rqcblten, rqiblten, rniblten, &
                                  rthcuten, rqvcuten, rqccuten, rqrcuten, rqicuten, rqscuten, &
                                  rthratenlw, rthratensw, rthdynten, &
-                                 tend_u_phys, tend_rtheta_adv, tend_diabatic, &
+                                 tend_u_phys, tend_diabatic, &
                                  theta_m, scalars, tend_theta, tend_theta_euler &
                                 )
 !==================================================================================================
@@ -315,7 +312,6 @@
     real (kind=RKIND), dimension(nVertLevels,nCells+1), intent(in) :: rthratensw
     real (kind=RKIND), dimension(nVertLevels,nCells+1), intent(inout) :: rthdynten
     real (kind=RKIND), dimension(nVertLevels,nEdges+1), intent(inout) :: tend_u_phys
-    real (kind=RKIND), dimension(nVertLevels,nCells+1), intent(in) :: tend_rtheta_adv
     real (kind=RKIND), dimension(nVertLevels,nCells+1), intent(in) :: tend_diabatic
     real (kind=RKIND), dimension(nVertLevels,nCells+1), intent(in) :: theta_m
     real (kind=RKIND), dimension(num_scalars,nVertLevels,nCells+1), intent(in) :: scalars

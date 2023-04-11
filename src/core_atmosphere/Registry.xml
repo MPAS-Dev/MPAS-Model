@@ -1730,9 +1730,6 @@
                 <var name="kdiff" type="real" dimensions="nVertLevels nCells Time" units="m^2 s^{-1}"
                      description="Smagorinsky horizontal eddy viscosity"/>
 
-                <var name="tend_rtheta_adv" type="real" dimensions="nVertLevels nCells Time" units="kg K m^{-3} s^{-1}"
-                     description="flux divergence for rho*theta_m/zz, used in the Tiedtke convective parameterization"/>
-
                 <var name="surface_pressure" type="real" dimensions="nCells Time" units="Pa"
                      description="Diagnosed surface pressure"/>
 
