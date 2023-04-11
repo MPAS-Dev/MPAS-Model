@@ -43,9 +43,6 @@
 !   Laura D. Fowler (laura@ucar.edu) / 2016-03-22.
 ! * modified the sourcecode to accomodate the packages "cu_kain_fritsch_in" and "cu_tiedtke_in".
 !   Laura D. Fowler (laura@ucar.edu) / 2016-03-24.
-! * added the calculation of rthdynten which is the tendency of potential temperature due to horizontal and
-!   vertical advections needed in the Grell-Freitas scheme.
-!   Laura D. Fowler (laura@ucar.edu) / 2016-03-30.
 ! * added the option bl_mynn for the calculation of the tendency for the cloud ice number concentration.
 !   Laura D. Fowler (laura@ucar.edu) / 2016-04-11.
 ! * in subroutine physics_get_tend_work, added the option cu_ntiedtke in the calculation of rucuten_Edge.
@@ -97,10 +94,9 @@
                                            rqrcuten,rqicuten,rqscuten, &
                                            rucuten,rvcuten
  real(kind=RKIND),dimension(:,:),pointer:: rthratenlw,rthratensw                                    
- real(kind=RKIND),dimension(:,:),pointer:: rthdynten
  
  real(kind=RKIND),dimension(:,:),pointer:: tend_u_phys !nick
- real(kind=RKIND),dimension(:,:),pointer  :: tend_theta,tend_theta_euler,tend_diabatic,tend_u
+ real(kind=RKIND),dimension(:,:),pointer  :: tend_theta,tend_theta_euler,tend_u
  real(kind=RKIND),dimension(:,:,:),pointer:: tend_scalars
  real(kind=RKIND):: coeff
 
@@ -154,9 +150,6 @@
  call mpas_pool_get_array(tend_physics, 'rqrcuten', rqrcuten)
  call mpas_pool_get_array(tend_physics, 'rqicuten', rqicuten)
  call mpas_pool_get_array(tend_physics, 'rqscuten', rqscuten)
- call mpas_pool_get_array(tend_physics, 'rthdynten', rthdynten)
-
- call mpas_pool_get_array(tend,'rt_diabatic_tend',tend_diabatic)
 
  call mpas_pool_get_array(tend_physics, 'rthratenlw', rthratenlw)
  call mpas_pool_get_array(tend_physics, 'rthratensw', rthratensw)
@@ -189,7 +182,6 @@
  if (.not. associated(rqrcuten)) allocate(rqrcuten(0,0))
  if (.not. associated(rqscuten)) allocate(rqscuten(0,0))
  if (.not. associated(rniblten)) allocate(rniblten(0,0))
- if (.not. associated(rthdynten)) allocate(rthdynten(0,0))
  if (.not. associated(rublten)) allocate(rublten(0,0))
  if (.not. associated(rvblten)) allocate(rvblten(0,0))
  if (.not. associated(rthblten)) allocate(rthblten(0,0))
@@ -210,8 +202,8 @@
                            rucuten, rvcuten, rucuten_Edge, &
                            tend_th, tend_scalars, mass, rthblten, rqvblten, rqcblten, rqiblten, rniblten, &
                            rthcuten, rqvcuten, rqccuten, rqrcuten, rqicuten, rqscuten, &
-                           rthratenlw, rthratensw, rthdynten, &
-                           tend_u_phys, tend_diabatic, &
+                           rthratenlw, rthratensw, &
+                           tend_u_phys, &
                            theta_m, scalars, &
                            tend_rtheta_physics, &
                            tend_theta_euler &
@@ -226,7 +218,6 @@
  if (size(rqrcuten) == 0) deallocate(rqrcuten)
  if (size(rqscuten) == 0) deallocate(rqscuten)
  if (size(rniblten) == 0) deallocate(rniblten)
- if (size(rthdynten) == 0) deallocate(rthdynten)
  if (size(rublten) == 0) deallocate(rublten)
  if (size(rvblten) == 0) deallocate(rvblten)
  if (size(rthblten) == 0) deallocate(rthblten)
@@ -267,8 +258,8 @@
                                  rucuten, rvcuten, rucuten_Edge, &
                                  tend_th, tend_scalars, mass, rthblten, rqvblten, rqcblten, rqiblten, rniblten, &
                                  rthcuten, rqvcuten, rqccuten, rqrcuten, rqicuten, rqscuten, &
-                                 rthratenlw, rthratensw, rthdynten, &
-                                 tend_u_phys, tend_diabatic, &
+                                 rthratenlw, rthratensw, &
+                                 tend_u_phys, &
                                  theta_m, scalars, tend_theta, tend_theta_euler &
                                 )
 !==================================================================================================
@@ -310,9 +301,7 @@
     real (kind=RKIND), dimension(nVertLevels,nCells+1), intent(in) :: rqscuten
     real (kind=RKIND), dimension(nVertLevels,nCells+1), intent(in) :: rthratenlw
     real (kind=RKIND), dimension(nVertLevels,nCells+1), intent(in) :: rthratensw
-    real (kind=RKIND), dimension(nVertLevels,nCells+1), intent(inout) :: rthdynten
     real (kind=RKIND), dimension(nVertLevels,nEdges+1), intent(inout) :: tend_u_phys
-    real (kind=RKIND), dimension(nVertLevels,nCells+1), intent(in) :: tend_diabatic
     real (kind=RKIND), dimension(nVertLevels,nCells+1), intent(in) :: theta_m
     real (kind=RKIND), dimension(num_scalars,nVertLevels,nCells+1), intent(in) :: scalars
     real (kind=RKIND), dimension(nVertLevels,nCells+1), intent(inout) :: tend_theta
