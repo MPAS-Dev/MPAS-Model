@@ -74,7 +74,11 @@ module mpas_framework
 
       type (domain_type), pointer :: domain
 
+#ifdef MPAS_PIO_SUPPORT
       type (iosystem_desc_t), optional, pointer :: io_system
+#else
+      integer, optional, pointer :: io_system
+#endif
       character(len=*), intent(in), optional :: calendar
 
       character(len=StrKIND), pointer :: config_calendar_type
@@ -154,7 +158,11 @@ module mpas_framework
 
       type (dm_info), pointer :: dminfo
       type (domain_type), pointer :: domain
+#ifdef MPAS_PIO_SUPPORT
       type (iosystem_desc_t), optional, pointer :: io_system
+#else
+      integer, optional, pointer :: io_system
+#endif
 
       call MPAS_io_finalize(domain % ioContext, .false.)
 

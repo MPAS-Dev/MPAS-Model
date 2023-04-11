@@ -27,8 +27,10 @@ module mpas_derived_types
 
    use mpas_kind_types
 
+#ifdef MPAS_PIO_SUPPORT
    use pio
    use pio_types
+#endif
 
    use ESMF
 

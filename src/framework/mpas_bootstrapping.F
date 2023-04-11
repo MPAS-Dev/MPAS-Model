@@ -78,14 +78,20 @@ module mpas_bootstrapping
    !-----------------------------------------------------------------------
    subroutine mpas_bootstrap_framework_phase1(domain, mesh_filename, mesh_iotype, pio_file_desc) !{{{
 
+#ifdef MPAS_PIO_SUPPORT
       use pio, only : file_desc_t
+#endif
 
       implicit none
 
       type (domain_type), pointer :: domain
       character(len=*), intent(in) :: mesh_filename
       integer, intent(in) :: mesh_iotype
+#ifdef MPAS_PIO_SUPPORT
       type (file_desc_t), intent(inout), optional :: pio_file_desc
+#else
+      integer, intent(inout), optional :: pio_file_desc
+#endif
 
       type (block_type), pointer :: readingBlock
 
@@ -445,12 +451,18 @@ module mpas_bootstrapping
 
       use mpas_stream_manager
       use mpas_stream_list
+#ifdef MPAS_PIO_SUPPORT
       use pio, only : file_desc_t
+#endif
 
       implicit none
 
       type (domain_type), pointer :: domain
+#ifdef MPAS_PIO_SUPPORT
       type (file_desc_t), intent(inout), optional :: pio_file_desc
+#else
+      integer, intent(inout), optional :: pio_file_desc
+#endif
 
       type (mpas_pool_type), pointer :: readableDimensions
       type (mpas_pool_type), pointer :: streamDimensions
