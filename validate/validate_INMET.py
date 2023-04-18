@@ -109,11 +109,10 @@ def df_data(model_data,inmet_data,variable,times,lat_station,lon_station):
         elif variable == 'v component':
             inmet_var = pd.Series(v, index=inmet_data.index)
     # Else, get mean values between model time steps
-    else:
+    elif variable == 'temperature' or variable == 'dew point':
         inmet_var = inmet_var.mean()[inmet_variables[variable]]
-        
     inmet_df = pd.DataFrame(inmet_var.rename('value'))
-    inmet_df = inmet_df.replace(-99999, np.nan, inplace=True)
+    inmet_df.replace(-9999, np.nan, inplace=True)
     inmet_df['source'],inmet_df['variable'] = 'INMET', variable
     station_df = pd.concat([inmet_df,mpas_df])
     # Add date as column and revert indexes to a range of numbers
