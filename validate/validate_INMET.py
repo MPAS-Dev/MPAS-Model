@@ -30,25 +30,31 @@ import matplotlib.pyplot as plt
 import metpy.calc as mpcalc
 import seaborn as sns
 from metpy.units import units
+from metpy.calc import wind_components
 import numpy as np
 
 def df_data(model_data,inmet_data,variable,times,lat_station,lon_station):
     # Dictionaries containing naming convections for each variable
     model_variables = {'temperature':'t2m', 'pressure':'surface_pressure'}
     inmet_variables = {'temperature':
-                       'TEMPERATURA DO AR - BULBO SECO, HORARIA (°C)',
-                       'precipitation':'PRECIPITAÇÃO TOTAL, HORÁRIO (mm)',
+                           'TEMPERATURA DO AR - BULBO SECO, HORARIA (°C)',
+                       'precipitation':
+                           'PRECIPITAÇÃO TOTAL, HORÁRIO (mm)',
                        'pressure':
                        'PRESSAO ATMOSFERICA AO NIVEL DA ESTACAO, HORARIA (mB)',
-                       'windspeed':'VENTO, VELOCIDADE HORARIA (m/s)'}
+                       'windspeed':
+                           'VENTO, VELOCIDADE HORARIA (m/s)',
+                       'dew point':
+                           'TEMPERATURA DO PONTO DE ORVALHO (°C)'}
     
     # Get model data for the gridpoint closest to station   
     model_station = model_data.sel(latitude=lat_station,
                 method='nearest').sel(longitude=lon_station,method='nearest')
     
-    # If windpeed, calculate from components
-    if variable == 'windspeed':
-        model_var = mpcalc.wind_speed(model_station['u10'],model_station['v10'])
+    if variable == 'u component':
+        model_var = model_station['u10']
+    elif variable == 'v component':
+        model_var = model_station['v10']
     # Sum grid-scale and convective precipitation
     elif variable == 'precipitation':
         model_var = model_station['rainnc']+model_station['rainc']
@@ -58,6 +64,11 @@ def df_data(model_data,inmet_data,variable,times,lat_station,lon_station):
             (model_station['surface_pressure']/100)*units('hPa'),
             model_station['zgrid'][0]*units('m'),
             model_station['t2m']*units('K'))
+    elif variable == 'dew point':
+        model_var = mpcalc.dewpoint_from_specific_humidity(
+            model_station['surface_pressure'] * units.Pa,
+            model_station['t2m'] * units.K,
+            model_station['q2'] * units('kg kg^{-1}'))
     else:
         model_var = model_station[model_variables[variable]]
     
@@ -84,11 +95,25 @@ def df_data(model_data,inmet_data,variable,times,lat_station,lon_station):
     # If using precipitation, get accumulated values between model time steps
     if variable == 'precipitation':
         inmet_var = inmet_var.sum()[inmet_variables[variable]].cumsum()
+    elif variable == 'u component' or variable == 'v component':
+        inmet_data = inmet_data[
+            (inmet_data['DATA (YYYY-MM-DD)_HORA (UTC)'] >= times[0]) &
+            (inmet_data['DATA (YYYY-MM-DD)_HORA (UTC)'] <= times[-1])
+            ].resample(dt).mean()
+        u, v = wind_components(
+          inmet_data['VENTO, VELOCIDADE HORARIA (m/s)'].values * units('m/s'),
+          inmet_data['VENTO, DIREÇÃO HORARIA (gr) (° (gr))'].values
+                                                              * units.deg)
+        if variable == 'u component':
+            inmet_var = pd.Series(u, index=inmet_data.index)
+        elif variable == 'v component':
+            inmet_var = pd.Series(v, index=inmet_data.index)
     # Else, get mean values between model time steps
     else:
         inmet_var = inmet_var.mean()[inmet_variables[variable]]
         
     inmet_df = pd.DataFrame(inmet_var.rename('value'))
+    inmet_df = inmet_df.replace(-99999, np.nan, inplace=True)
     inmet_df['source'],inmet_df['variable'] = 'INMET', variable
     station_df = pd.concat([inmet_df,mpas_df])
     # Add date as column and revert indexes to a range of numbers
@@ -195,10 +220,11 @@ with open(station_file, 'r',encoding='latin-1') as file:
 ## Plot with Seaborn
 sns.set_theme(style="ticks")
 
-variables = ['temperature','precipitation','windspeed','pressure']
-fig, axes = plt.subplots(2, 2, figsize=(18, 10))
+variables = ['temperature','precipitation','dew point','pressure',
+             'u component', 'v component']
+fig, axes = plt.subplots(3, 2, figsize=(18, 10))
 i = 0
-for row in range(2):
+for row in range(3):
     for col in range(2):
         var = variables[i]
         data_n_loc = df_data(model_data, station_data, var, times,
