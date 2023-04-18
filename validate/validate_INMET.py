@@ -34,6 +34,9 @@ from metpy.calc import wind_components
 import numpy as np
 
 def df_data(model_data,inmet_data,variable,times,lat_station,lon_station):
+    
+    inmet_data.replace(-9999, np.nan, inplace=True)
+    
     # Dictionaries containing naming convections for each variable
     model_variables = {'temperature':'t2m', 'pressure':'surface_pressure'}
     inmet_variables = {'temperature':
@@ -113,7 +116,6 @@ def df_data(model_data,inmet_data,variable,times,lat_station,lon_station):
         inmet_var = inmet_var.mean()[inmet_variables[variable]]
         
     inmet_df = pd.DataFrame(inmet_var.rename('value'))
-    inmet_df.replace(-9999, np.nan, inplace=True)
     inmet_df['source'],inmet_df['variable'] = 'INMET', variable
     station_df = pd.concat([inmet_df,mpas_df])
     # Add date as column and revert indexes to a range of numbers
