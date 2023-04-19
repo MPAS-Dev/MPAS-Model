@@ -309,7 +309,8 @@ module atm_time_integration
       real (kind=RKIND), dimension(:,:), pointer :: u, uReconstructZonal, uReconstructMeridional, uReconstructX, uReconstructY, uReconstructZ
       real (kind=RKIND), dimension(:,:,:), pointer :: scalars, scalars_1, scalars_2
 
-      real (kind=RKIND), dimension(:,:), pointer :: rqvdynten
+      real (kind=RKIND), dimension(:,:), pointer :: rqvdynten, rthdynten, theta_m
+      real (kind=RKIND) :: theta_local, fac_m
 
 #ifndef MPAS_CAM_DYCORE
       ! Used in allocating scratch fields for physics tendencies
@@ -356,6 +357,7 @@ module atm_time_integration
       ! Note: nCellsSolve and nVerticesSolve are not currently used in this function
       !
       call mpas_pool_get_dimension(mesh, 'nCells', nCells)
+      call mpas_pool_get_dimension(mesh, 'nCellsSolve', nCellsSolve)
       call mpas_pool_get_dimension(mesh, 'nEdges', nEdges)
       call mpas_pool_get_dimension(mesh, 'nVertices', nVertices)
       call mpas_pool_get_dimension(mesh, 'nVertLevels', nVertLevels)
@@ -1113,11 +1115,15 @@ module atm_time_integration
       call mpas_pool_get_array(state, 'scalars', scalars_1, 1)
       call mpas_pool_get_array(state, 'scalars', scalars_2, 2)
 
-      if(config_convection_scheme == 'cu_grell_freitas'          .or. &
-         config_convection_scheme == 'cu_tiedtke'                .or. &
+      if(config_convection_scheme == 'cu_grell_freitas' .or. &
          config_convection_scheme == 'cu_ntiedtke') then
 
          call mpas_pool_get_array(tend_physics, 'rqvdynten', rqvdynten)
+         call mpas_pool_get_array(state, 'theta_m', theta_m, 2)
+
+         if (associated(tend_physics)) then
+            call mpas_pool_get_array(tend_physics, 'rthdynten', rthdynten)
+         end if
 
          !NOTE: The calculation of the tendency due to horizontal and vertical advection for the water vapor mixing ratio
          !requires that the subroutine atm_advance_scalars_mono was called on the third Runge Kutta step, so that a halo
@@ -1127,6 +1133,15 @@ module atm_time_integration
          else
             rqvdynten(:,:) = 0._RKIND
          end if
+
+         do k = 1, nVertLevels
+            do iCell = 1, nCellsSolve
+               fac_m = 1._RKIND/(1._RKIND + rv/rgas*scalars_2(index_qv,k,iCell))
+               theta_local = theta_m(k,iCell)*fac_m
+               rthdynten(k,iCell) = fac_m*(rthdynten(k,iCell)-theta_local*rv/rgas*rqvdynten(k,iCell))
+            end do
+         end do
+
       end if
 
       !simply set to zero negative mixing ratios of different water species (for now):
@@ -3857,7 +3872,7 @@ module atm_time_integration
 
       real (kind=RKIND), dimension(:,:), pointer :: rr_save
 
-      real (kind=RKIND), dimension(:,:), pointer :: rthdynten => null() ! needed for Grell-Freitas convection scheme
+      real (kind=RKIND), dimension(:,:), pointer :: rthdynten => null()
 
       real (kind=RKIND), dimension(:,:,:), pointer :: scalars
 
@@ -4247,7 +4262,6 @@ module atm_time_integration
       flux3(q_im2, q_im1, q_i, q_ip1, ua, coef3) =              &
                 flux4(q_im2, q_im1, q_i, q_ip1, ua) +           &
                 coef3*abs(ua)*((q_ip1 - q_im2)-3.*(q_i-q_im1))/12.0
-
 
       prandtl_inv = 1.0_RKIND / prandtl
       invDt = 1.0_RKIND / dt
@@ -4936,7 +4950,7 @@ module atm_time_integration
 !DIR$ IVDEP
          do k=1,nVertLevels
             tend_theta(k,iCell) = tend_theta(k,iCell)*invAreaCell(iCell) -rdzw(k)*(wdtz(k+1)-wdtz(k))
-            rthdynten(k,iCell) = tend_theta(k,iCell)/rho_zz(k,iCell)  !  this is for the Grell-Freitas scheme
+            rthdynten(k,iCell)  = (tend_theta(k,iCell)-tend_rho(k,iCell)*theta_m(k,iCell))/rho_zz(k,iCell)
             tend_theta(k,iCell) = tend_theta(k,iCell) + rho_zz(k,iCell)*rt_diabatic_tend(k,iCell)
          end do
       end do
