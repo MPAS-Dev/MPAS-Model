@@ -19,7 +19,7 @@
 
  implicit none
  private
- public :: init_atm_case_sfc, interp_sfc_to_MPAS
+ public :: init_atm_case_sfc, interp_sfc_to_MPAS, init_atm_case_soilndg, interp_soilndg_to_MPAS
 
 
  contains
@@ -277,6 +277,249 @@
  end subroutine interp_sfc_to_MPAS
 
 !==================================================================================================
+ subroutine init_atm_case_soilndg(domain, dminfo, stream_manager, mesh, fg, state, dims, configs)
+!==================================================================================================
+
+ use mpas_stream_manager
+
+ implicit none
+
+!input arguments:
+ type (domain_type), intent(inout) :: domain
+ type (dm_info), intent(in)        :: dminfo
+ type (MPAS_streamManager_type), intent(inout) :: stream_manager
+ type (mpas_pool_type), intent(inout) :: mesh
+ type (mpas_pool_type), intent(inout) :: fg
+ type (mpas_pool_type), intent(inout) :: state
+ type (mpas_pool_type), intent(in)    :: dims
+ type (mpas_pool_type), intent(in)    :: configs
+
+!local variables:
+ type (MPAS_Time_type)  :: curr_time, next_time, stop_time
+ character(len=StrKIND) :: timeStringC, timeStringN, timeStop
+
+ character(len=StrKIND), pointer :: config_sfc_prefix, config_sfc_prefix_hires
+ character(len=StrKIND), pointer :: xtime
+ integer :: ierr, count
+ 
+
+!==================================================================================================
+
+
+ call mpas_pool_get_config(configs, 'config_sfc_prefix', config_sfc_prefix)
+ call mpas_pool_get_config(configs, 'config_sfc_prefix_hires', config_sfc_prefix_hires)
+
+ call mpas_pool_get_array(state, 'xtime', xtime)
+
+!loop over all times:
+ curr_time = mpas_get_clock_time(domain % clock, MPAS_NOW) 
+ stop_time = mpas_get_clock_time(domain % clock, MPAS_STOP_TIME) 
+ count = 1
+ do while (curr_time <= stop_time)
+
+    if(count > 1) then
+      curr_time = next_time
+    end if
+
+    call mpas_get_time(curr_time, dateTimeString=timeStringC)
+    call mpas_get_time(stop_time, dateTimeString=timeStop)
+    xtime = timeStringC
+
+    call mpas_advance_clock(domain % clock)
+    next_time = mpas_get_clock_time(domain % clock, MPAS_NOW) 
+    call mpas_get_time(next_time, dateTimeString=timeStringN)
+
+    ! Read the T2, RH2 and SNOW analyses from the surface file, and interpolate the data to the MPAS grid. 
+    ! If hires analysis is specified do blending with coarse analysis. If default of NONE, only interp
+    ! the main analysis. Note that hires analysis needs to be placed on a global lat-lon grid using wgrib2
+    ! 
+    if(trim(config_sfc_prefix_hires) == "NONE") then
+      call interp_soilndg_to_MPAS(timeStringN(1:13), mesh, fg, dims, dminfo, config_sfc_prefix, 1)
+    else
+      call mpas_log_write('Blending hires '//trim(config_sfc_prefix_hires)//' with '//trim(config_sfc_prefix))
+      call interp_soilndg_to_MPAS(timeStringN(1:13), mesh, fg, dims, dminfo, config_sfc_prefix_hires, 1)
+      call interp_soilndg_to_MPAS(timeStringN(1:13), mesh, fg, dims, dminfo, config_sfc_prefix, 0)
+    endif
+    
+
+    !write the interpolated T2, RH2 and SNOW analyses in MPAS output file:
+    call mpas_stream_mgr_write(stream_manager, streamID='soilndg', ierr=ierr)
+    call mpas_stream_mgr_reset_alarms(stream_manager, streamID='soilndg', direction=MPAS_STREAM_OUTPUT, ierr=ierr)
+
+    count = count +1
+    
+ end do
+
+ end subroutine init_atm_case_soilndg
+
+!==================================================================================================
+ subroutine interp_soilndg_to_MPAS(timeString, mesh, fg, dims, dminfo, config_sfc_prefix, firstpass)
+!==================================================================================================
+
+ use mpas_dmpar 
+
+ implicit none
+
+!input arguments:
+ character(len=*), intent(in)      :: timeString
+ type (mpas_pool_type), intent(in) :: mesh
+ type (mpas_pool_type), intent(in) :: dims
+ type (dm_info), intent(in)        :: dminfo
+ character(len=*), intent(in)      :: config_sfc_prefix
+ integer, intent(in)               :: firstpass
+ 
+!inout arguments:
+ type (mpas_pool_type), intent(inout) :: fg
+
+
+!local variables:
+ type(met_data) :: field !real*4 meteorological data.
+
+ integer :: istatus
+ integer :: masked
+ integer, dimension(5) :: interp_list
+ integer, dimension(:), pointer :: mask_array
+ logical :: have_landmask
+
+ real(kind=RKIND) :: fillval, maskval, msgval
+ real(kind=RKIND), dimension(:,:), allocatable :: maskslab
+
+ integer, dimension(:), pointer :: landmask
+ real(kind=RKIND), dimension(:), pointer :: destField1d
+ real(kind=RKIND), dimension(:), pointer :: t2anl, rh2anl, snoanl
+
+ integer, pointer :: nCells
+
+!==================================================================================================
+
+ call mpas_pool_get_array(mesh, 'landmask', mask_array)
+ call mpas_pool_get_array(mesh, 'landmask', landmask)
+ call mpas_pool_get_array(fg, 't2anl', t2anl)
+ call mpas_pool_get_array(fg, 'rh2anl', rh2anl)
+ call mpas_pool_get_array(fg, 'snoanl', snoanl)
+
+ call mpas_pool_get_dimension(dims, 'nCells', nCells)
+
+!open intermediate file:
+ call read_met_init(trim(config_sfc_prefix),.false.,timeString,istatus)
+ if(istatus /= 0) then
+    call mpas_log_write('********************************************************************************', messageType=MPAS_LOG_ERR)
+    call mpas_log_write('Error opening surface file '//trim(config_sfc_prefix)//':'//timeString(1:13),      messageType=MPAS_LOG_ERR)
+    call mpas_log_write('********************************************************************************', messageType=MPAS_LOG_CRIT)
+ else
+    call mpas_log_write('Processing file '//trim(config_sfc_prefix)//':'//timeString(1:13))
+ end if
+
+!scan through all fields in the file, looking for the LANDSEA field:
+ have_landmask = .false.
+ call read_next_met_field(field,istatus)
+ do while (istatus == 0)
+    if(index(field % field, 'LANDSEA') /= 0) then
+       have_landmask = .true.
+       if(.not.allocated(maskslab)) allocate(maskslab(-2:field % nx+3, field % ny))
+       maskslab(1:field % nx, 1:field % ny) = field % slab(1:field % nx, 1:field % ny)
+       maskslab(0, 1:field % ny)  = field % slab(field % nx, 1:field % ny)
+       maskslab(-1, 1:field % ny) = field % slab(field % nx-1, 1:field % ny)
+       maskslab(-2, 1:field % ny) = field % slab(field % nx-2, 1:field % ny)
+       maskslab(field % nx+1, 1:field % ny) = field % slab(1, 1:field % ny)
+       maskslab(field % nx+2, 1:field % ny) = field % slab(2, 1:field % ny)
+       maskslab(field % nx+3, 1:field % ny) = field % slab(3, 1:field % ny)
+!      write(0,*) 'minval, maxval of LANDSEA = ', minval(maskslab), maxval(maskslab)
+    end if
+    deallocate(field % slab)
+    call read_next_met_field(field,istatus)
+ end do
+ call read_met_close()
+
+!read sea-surface temperatures and seaice data. open intermediate file:
+ call read_met_init(trim(config_sfc_prefix),.false.,timeString(1:13),istatus)
+ if(istatus /= 0) then
+    call mpas_log_write('********************************************************************************', messageType=MPAS_LOG_ERR)
+    call mpas_log_write('Error opening surface file '//trim(config_sfc_prefix)//':'//timeString(1:13),      messageType=MPAS_LOG_ERR)
+    call mpas_log_write('********************************************************************************', messageType=MPAS_LOG_CRIT)
+ end if
+
+!scan through all fields in the file, looking for the T2, RH2 and SNOWH
+ call read_next_met_field(field,istatus)
+ do while (istatus == 0)
+
+    if(index(field % field, 'T2') /= 0) then
+       call mpas_log_write('... Processing T2:')
+       if(firstpass == 1) then
+          t2anl(1:nCells) = 0.0_RKIND
+       end if
+       destField1d => t2anl
+
+       !interpolation to the MPAS grid:
+       interp_list(1) = FOUR_POINT
+       interp_list(2) = W_AVERAGE4
+       interp_list(3) = SEARCH
+       interp_list(4) = N_NEIGHBOR
+       msgval  = -1.0e30_R4KIND  !missing value
+       masked  = 1
+       maskval = 1.0_RKIND
+       fillval = 0.0_RKIND
+       call interp_to_MPAS2(mesh,nCells,field,destField1d,interp_list,msgval,masked,maskval,fillval, &
+                           mask_array)
+       deallocate(field%slab)
+        
+    ! 2-m Rel. Hum. (RH2 in Ungrib file)
+    else if(index(field % field, 'RH2') /= 0) then
+       call mpas_log_write('... Processing RH2:')
+       if(firstpass == 1) then
+          rh2anl(1:nCells) = 0.0_RKIND
+       end if
+       destField1d => rh2anl
+
+       !interpolation to the MPAS grid:
+       interp_list(1) = FOUR_POINT
+       interp_list(2) = W_AVERAGE4
+       interp_list(3) = SEARCH
+       interp_list(4) = N_NEIGHBOR
+       msgval  = -1.0e30_R4KIND  !missing value
+       masked  = 1
+       maskval = 1.0_RKIND
+       fillval = 0.0_RKIND
+       call interp_to_MPAS2(mesh,nCells,field,destField1d,interp_list,msgval,masked,maskval,fillval, &
+                           mask_array)
+       deallocate(field%slab)
+        
+    ! Snow water (SNOW in Ungrib file)
+    else if(index(field % field, 'SNOW') /= 0) then
+       call mpas_log_write('... Processing SNOW:')
+       if(firstpass == 1) then
+          snoanl(1:nCells) = 0.0_RKIND
+       end if
+       destField1d => snoanl
+
+       !interpolation to the MPAS grid:
+       interp_list(1) = FOUR_POINT
+       interp_list(2) = W_AVERAGE4
+       interp_list(3) = SEARCH
+       interp_list(4) = N_NEIGHBOR
+       msgval  = -1.0e30_R4KIND  !missing value
+       masked  = 1
+       maskval = 1.0_RKIND
+       fillval = 0.0_RKIND
+       call interp_to_MPAS2(mesh,nCells,field,destField1d,interp_list,msgval,masked,maskval,fillval, &
+                           mask_array)
+       deallocate(field%slab)
+        
+    else
+       deallocate(field%slab)
+
+    end if
+
+    call read_next_met_field(field,istatus)
+ end do
+
+!close intermediate file:
+ call read_met_close()
+ if(allocated(maskslab)) deallocate(maskslab)
+
+ end subroutine interp_soilndg_to_MPAS
+
+!==================================================================================================
  subroutine interp_to_MPAS(mesh,nCells,field,destField1d,interp_list,msgval,masked,maskval,fillval, &
                            mask_array,maskslab)
 !==================================================================================================
@@ -383,6 +626,122 @@
  deallocate(rslab)
 
  end subroutine interp_to_MPAS
+
+!==================================================================================================
+ subroutine interp_to_MPAS2(mesh,nCells,field,destField1d,interp_list,msgval,masked,maskval,fillval, &
+                           mask_array,maskslab)
+!==================================================================================================
+
+!input arguments:
+ type (mpas_pool_type), intent(in) :: mesh
+ integer, intent(in) :: nCells
+ type (met_data), intent(in)  :: field !real*4 meteorological data.
+
+ integer, intent(in) :: masked
+ integer, dimension(5), intent(in) :: interp_list
+ integer, dimension(:), intent(in), pointer :: mask_array
+
+ real(kind=RKIND), intent(in) :: fillval, maskval, msgval
+ real(kind=RKIND), intent(in), dimension(*), optional :: maskslab
+
+!inout arguments:
+ real(kind=RKIND), intent(inout), dimension(:), pointer :: destField1d
+
+!local variables:
+ type(proj_info) :: proj
+ integer :: i, nInterpPoints
+ real(kind=RKIND) :: lat,lon,x,y, tmpfield
+ real(kind=RKIND), dimension(:,:), allocatable :: rslab
+
+ real(kind=RKIND), dimension(:), pointer :: latPoints, lonPoints
+ real(kind=RKIND), dimension(:), pointer :: latCell, lonCell
+ 
+!--------------------------------------------------------------------------------------------------
+
+ call mpas_pool_get_array(mesh, 'latCell', latCell)
+ call mpas_pool_get_array(mesh, 'lonCell', lonCell)
+
+ call map_init(proj)   
+ if(field % iproj == PROJ_LATLON) then
+    call map_set(PROJ_LATLON, proj, &
+                 latinc = real(field % deltalat,RKIND), &
+                 loninc = real(field % deltalon,RKIND), &
+                 knowni = 1.0_RKIND, &
+                 knownj = 1.0_RKIND, &
+                 lat1 = real(field % startlat,RKIND), &
+                 lon1 = real(field % startlon,RKIND))
+!   write(0,*) '--- The projection is PROJ_LATLON.'
+ else if(field % iproj == PROJ_GAUSS) then
+    call map_set(PROJ_GAUSS, proj, &
+                 nlat = nint(field % deltalat), &
+                 loninc = 360.0_RKIND / real(field % nx,RKIND), &
+                 lat1 = real(field % startlat,RKIND), &
+                 lon1 = real(field % startlon,RKIND))
+!   write(0,*) '--- The projection is PROJ_GAUSS.'
+ else if(field % iproj == PROJ_PS) then
+    call map_set(PROJ_PS, proj, &
+                 dx = real(field % dx,RKIND), &
+                 truelat1 = real(field % truelat1,RKIND), &
+                 stdlon = real(field % xlonc,RKIND), &
+                 knowni = real(field % nx / 2.0,RKIND), &
+                 knownj = real(field % ny / 2.0,RKIND), &
+                 lat1 = real(field % startlat,RKIND), &
+                 lon1 = real(field % startlon,RKIND))
+!   write(0,*) '--- The projection is PROJ_PS.'
+ end if
+
+ nInterpPoints = nCells
+ latPoints => latCell
+ lonPoints => lonCell
+
+ allocate(rslab(-2:field % nx+3, field % ny))
+ rslab(1:field % nx, 1:field % ny) = field % slab(1:field % nx, 1:field % ny)
+ rslab( 0, 1:field % ny) = field % slab(field % nx  , 1:field % ny)
+ rslab(-1, 1:field % ny) = field % slab(field % nx-1, 1:field % ny)
+ rslab(-2, 1:field % ny) = field % slab(field % nx-2, 1:field % ny)
+ rslab(field % nx+1, 1:field % ny) = field % slab(1, 1:field % ny)
+ rslab(field % nx+2, 1:field % ny) = field % slab(2, 1:field % ny)
+ rslab(field % nx+3, 1:field % ny) = field % slab(3, 1:field % ny)
+
+ do i = 1,nInterpPoints
+    if(mask_array(i) /= masked) then
+       lat = latPoints(i) * DEG_PER_RAD
+       lon = lonPoints(i) * DEG_PER_RAD
+       call latlon_to_ij(proj, lat, lon, x, y)
+       if(y <= 0.5) then
+          y = 1.0
+       else if(y >= real(field%ny)+0.5) then
+          y = real(field % ny)
+       end if
+       if(x < 0.5) then
+          lon = lon + 360.0
+          call latlon_to_ij(proj, lat, lon, x, y)
+       else if (x >= real(field%nx)+0.5) then
+          lon = lon - 360.0
+          call latlon_to_ij(proj, lat, lon, x, y)
+       end if
+
+       if(present(maskslab)) then
+          if(destField1d(i) == 0.0 .or. destField1d(i) > 999999999999 ) then
+             destField1d(i) = interp_sequence(x,y,1,rslab,-2,field%nx+3,1,field%ny,1,1, &
+                                              msgval,interp_list,4,maskval=maskval,mask_array=maskslab)
+          else
+          endif                  
+       else
+          if(destField1d(i) == 0.0 .or. destField1d(i) > 999999999999 ) then
+             destField1d(i) = interp_sequence(x,y,1,rslab,-2,field%nx+3,1,field%ny,1,1, &
+                                              msgval,interp_list,4,maskval=maskval)
+          else
+          endif                  
+       end if
+    else
+      destField1d(i) = fillval
+    end if
+
+ end do
+ deallocate(rslab)
+
+ end subroutine interp_to_MPAS2
 
 !==================================================================================================
  end module mpas_init_atm_surface

@@ -38,6 +38,10 @@
                      description="The number of months in a year"/>
                 <dim name="nSoilLevels"        definition="namelist:num_soil_layers"
                      description="The number of soil layers used by the land-surface scheme"/>
+                <dim name="nSoilCat"           definition="namelist:num_soil_cat"
+                     description="The number of soil type categories used by the land-surface scheme"/>
+                <dim name="nLandCat"           definition="namelist:num_land_cat"
+                     description="The number of land use categories used by the land-surface scheme"/>
                 <dim name="nLags"              definition="namelist:input_soil_temperature_lag"
                      description="The number of days affecting the deep soil temperature"/>
                 <dim name="nOznLevels"         definition="namelist:noznlev"
@@ -484,16 +488,20 @@
 
 #ifdef DO_PHYSICS
 			<var name="isltyp"/>
+			<var name="soiltypf"/>
 			<var name="ivgtyp"/>
+			<var name="landusef"/>
 			<var name="mminlu"/>
 			<var name="isice_lu"/>
 			<var name="iswater_lu"/>
+			<var name="ismax_lu"/>
 			<var name="landmask"/>
 			<var name="shdmin"/>
 			<var name="shdmax"/>
 			<var name="snoalb"/>
 			<var name="albedo12m"/>
 			<var name="greenfrac"/>
+			<var name="lai12m"/>
 			<var name="sfc_albbck"/>
 			<var name="skintemp"/>
 			<var name="snow"/>
@@ -502,6 +510,7 @@
 			<var name="sst"/>
 			<var name="tmn"/>
 			<var name="vegfra"/>
+			<var name="lai_modis"/>
 			<var name="seaice"/>
 			<var name="xice"/>
 			<var name="xland"/>
@@ -707,6 +716,9 @@
 			<var name="q2"/>
 			<var name="t2m"/>
 			<var name="th2m"/>
+			<var name="t2anl2"/>
+			<var name="rh2anl2"/>
+			<var name="snoanl2"/>
 			<var name="dusfcg"/>
 			<var name="dvsfcg"/>
 			<var name="dtaux3d"/>
@@ -802,16 +814,20 @@
 			<var name="rthratensw"/>
 			<var name="rthratenlw"/>
 			<var name="isltyp"/>
+			<var name="soiltypf"/>
 			<var name="ivgtyp"/>
+			<var name="landusef"/>
 			<var name="mminlu"/>
 			<var name="isice_lu"/>
 			<var name="iswater_lu"/>
+			<var name="ismax_lu"/>
 			<var name="landmask"/>
 			<var name="shdmin"/>
 			<var name="shdmax"/>
 			<var name="snoalb"/>
 			<var name="albedo12m"/>
 			<var name="greenfrac"/>
+			<var name="lai12m"/>
 			<var name="sfc_albbck"/>
 			<var name="skintemp"/>
 			<var name="snow"/>
@@ -820,6 +836,12 @@
 			<var name="sst"/>
 			<var name="tmn"/>
 			<var name="vegfra"/>
+			<var name="lai_modis"/>
+			<var name="lai_px"/>
+			<var name="vegpx"/>
+			<var name="wfc_px"/>
+			<var name="wwlt_px"/>
+			<var name="wsat_px"/>
 			<var name="seaice"/>
 			<var name="xice"/>
 			<var name="xland"/>
@@ -949,7 +971,9 @@
 			<var name="u10"/>
 			<var name="v10"/>
 			<var name="q2"/>
+			<var name="rh2anl"/>
 			<var name="t2m"/>
+			<var name="t2anl"/>
 			<var name="th2m"/>
 			<var name="gsw"/>
 			<var name="glw"/>
@@ -959,12 +983,15 @@
 			<var name="mminlu"/>
 			<var name="isice_lu"/>
 			<var name="iswater_lu"/>
+			<var name="ismax_lu"/>
 			<var name="xland"/>
 			<var name="skintemp"/>
 			<var name="snow"/>
 			<var name="snowh"/>
 			<var name="sst"/>
 			<var name="vegfra"/>
+			<var name="vegpx"/>
+			<var name="znt"/>
 			<var name="xice"/>
 			<var name="sh2o"/>
 			<var name="smois"/>
@@ -1110,6 +1137,20 @@
 #ifdef DO_PHYSICS
 			<var name="sst"/>
 			<var name="xice"/>
+#endif
+		</stream>
+
+		<stream name="soilndg" 
+                        type="input" 
+                        filename_template="x1.40962.soilndg_update.nc" 
+                        input_interval="none"
+                        filename_interval="none"
+                        runtime_format="separate_file">
+
+#ifdef DO_PHYSICS
+			<var name="t2anl"/>
+			<var name="rh2anl"/>
+			<var name="snoanl"/>
 #endif
 		</stream>
 
@@ -1895,8 +1936,18 @@
 
                 <nml_option name="num_soil_layers" type="integer" default_value="4" in_defaults="false"
                      units="-"
-                     description="number of soil layers in Noah land surface scheme"
-                     possible_values="Positive integers. For Noah LSM, must be set to 4."/>
+                     description="number of soil layers used in land surface scheme"
+                     possible_values="Positive integers; 4 for Noah LSM, 2 for PX LSM."/>
+
+                <nml_option name="num_land_cat" type="integer" default_value="40" in_defaults="false"
+                     units="-"
+                     description="number of land use categories used in land surface scheme"
+                     possible_values="Positive integer values."/>
+
+                <nml_option name="num_soil_cat" type="integer" default_value="16" in_defaults="false"
+                     units="-"
+                     description="number of soil type categories used in land surface scheme"
+                     possible_values="Positive integer values"/>
 
                 <nml_option name="months" type="integer" default_value="12" in_defaults="false"
                      units="-"
@@ -1952,6 +2003,11 @@
                      description="logical for configuration of deep soil temperatures"
                      possible_values=".true. for slowly time-varying deep soil temperatures; .false. otherwise"/>
 
+                <nml_option name="config_soilndg_update" type="logical" default_value="false"
+                     units="-"
+                     description="logical for updating nudging of soil moisture and temperature"
+                     possible_values=".true. for updating nudging of soil moisture and temperature; .false. otherwise"/>
+
                 <nml_option name="config_o3climatology" type="logical" default_value="true" in_defaults="false"
                      units="-"
                      description="logical for configuration of input ozone data in RRMTG long- and short-wave radiation"
@@ -1971,6 +2027,26 @@
                      units="-"
                      description="number of microphysics time-steps per physics time-steps"
                      possible_values="Positive integers"/>
+
+                <nml_option name="config_soilndg_interval" type="character" default_value="03:00:00"
+                     units="-"
+                     description="time interval between nudging of soil moisture and temperature"
+                     possible_values="`DD_HH:MM:SS' or `none'"/>
+
+                <nml_option name="config_px_soilndg" type="integer" default_value="0"
+                     units="-"
+                     description="enable P-X soil nudging with a 1"
+                     possible_values="0 or 1"/>
+
+                <nml_option name="config_px_smoisinit" type="integer" default_value="0"
+                     units="-"
+                     description="enable P-X soil moisture initialization with a 1"
+                     possible_values="0 or 1"/>
+
+                <nml_option name="config_px_modis_veg" type="integer" default_value="0"
+                     units="-"
+                     description="enable MODIS vegetation LAI and vegF in P-X with a 1"
+                     possible_values="0 or 1"/>
 
                 <nml_option name="config_radtlw_interval" type="character" default_value="00:30:00"
                      units="-"
@@ -2025,7 +2101,7 @@
                 <nml_option name="config_lsm_scheme" type="character" default_value="suite" in_defaults="false"
                      units="-"
                      description="configuration for land-surface schemes"
-                     possible_values="`suite',`noah',`off'"/>
+                     possible_values="`suite',`noah',`px',`off'"/>
 
                 <nml_option name="config_pbl_scheme" type="character" default_value="suite" in_defaults="false"
                      units="-"
@@ -2056,6 +2132,16 @@
                      units="-"
                      description="configuration for surface layer-scheme"
                      possible_values="`suite',`sf_monin_obukhov',`sf_mynn',`off'"/>
+
+                <nml_option name="config_landuse_data" type="character" default_value="USGS"
+                     units="-"
+                     description="The land use classification to use"
+                     possible_values="`USGS' or `MODIFIED\_IGBP\_MODIS\_NOAH' or `NLCD40'"/>
+
+                <nml_option name="config_frac_landuse" type="logical" default_value="false" in_defaults="false"
+                     units="-"
+                     description="logical for configuration of fractional land use"
+                     possible_values=".true. for fractional land use; .false. for dominant land use"/>
 
                 <nml_option name="config_gfconv_closure_deep" type="integer" default_value="0" in_defaults="false"
                      units="-"
@@ -2526,6 +2612,64 @@
                      description="2-meter potential temperature"/>
 
 
+                <!-- P-X Nudging Parameters: values for temporal interpolation updated each surface update (t indep.), interpolated values t dependent for output -->
+                <var name="t2anl1" type="real" dimensions="nCells" units="K"
+                     description="2-meter temperature analysis valid previous to current time step (for interp)"/>
+
+                <var name="t2anl2" type="real" dimensions="nCells" units="K"
+                     description="2-meter temperature analysis valid after current time step (for interp)"/>
+
+                <var name="rh2anl1" type="real" dimensions="nCells" units="percent"
+                     description="2-meter relative humidity analysis valid previous to current time step (for interp)"/>
+
+                <var name="rh2anl2" type="real" dimensions="nCells" units="percent"
+                     description="2-meter relative humidity analysis valid after current time step (for interp)"/>
+
+                <var name="snoanl1" type="real" dimensions="nCells" units="kg m^{-2}"
+                     description="snow water equivalent valid previous to current time step (for interp)"/>
+
+                <var name="snoanl2" type="real" dimensions="nCells" units="kg m^{-2}"
+                     description="snow water equivalent valid after current time step (for interp)"/>
+
+
+                <!-- PX LSM parameters not orignially in MPAS -->
+                <var name="ra" type="real" dimensions="nCells Time" units="s m^{-1}"
+                     description="aerodynamic resistance"/>
+
+                <var name="rs" type="real" dimensions="nCells Time" units="s m^{-1}"
+                     description="surface resistance"/>
+
+                <var name="imperv" type="real" dimensions="nCells Time" units="percent"
+                     description="impervious surface fraction"/>
+
+                <var name="canfra" type="real" dimensions="nCells Time" units="percent"
+                     description="satellite canopy fraction"/>
+
+                <var name="vegpx" type="real" dimensions="nCells Time" units="area area^{-1}"
+                     description="vegetation fraction for PX LSM"/>
+
+                <var name="lai_px" type="real" dimensions="nCells Time" units="m^{2} m^{-2}"
+                     description="computed leaf area index for PX LSM"/>
+
+                <var name="wwlt_px" type="real" dimensions="nCells Time" units="m^{3} m^{-3}"
+                     description="computed soil wilting point for PX LSM"/>
+
+                <var name="wfc_px" type="real" dimensions="nCells Time" units="m^{3} m^{-3}"
+                     description="computed soil field capacity for PX LSM"/>
+
+                <var name="wsat_px" type="real" dimensions="nCells Time" units="m^{3} m^{-3}"
+                     description="computed soil saturation for PX LSM"/>
+
+                <var name="clay_px" type="real" dimensions="nCells Time" units="unitless"
+                     description="aggregated soil clay fraction for PX LSM"/>
+
+                <var name="csand_px" type="real" dimensions="nCells Time" units="unitless"
+                     description="aggregated soil coarse sand fraction for PX LSM"/>
+
+                <var name="fmsand_px" type="real" dimensions="nCells Time" units="unitless"
+                     description="aggregated soil fine-medium sand fraction for PX LSM"/>
+
+
                 <!-- ================================================================================================== -->
                 <!-- ... PARAMETERIZATION OF GRAVITY WAVE DRAG OVER OROGRAPHY:                                          -->
                 <!-- ================================================================================================== -->
@@ -2808,7 +2952,7 @@
                 <var name="grdflx" type="real" dimensions="nCells Time" units="W m^{-2}"
                      description="ground heat flux"/>
 
-                <var name="lai" type="real" dimensions="nCells Time" units="m^{-2} m^{-2}"
+                <var name="lai" type="real" dimensions="nCells Time" units="m^{2} m^{-2}"
                      description="leaf area index"/>
 
                 <var name="noahres" type="real" dimensions="nCells Time" units="W m^{-2}"
@@ -3045,8 +3189,14 @@
                 <var name="isltyp" type="integer" dimensions="nCells" units="unitless"
                      description="dominant soil category"/>
 
+                <var name="soiltypf" type="real" dimensions="nSoilCat nCells" units="unitless"
+                     description="grid cell fractional soil type"/>
+
                 <var name="ivgtyp" type="integer" dimensions="nCells" units="unitless"
                      description="dominant vegetation category"/>
+
+                <var name="landusef" type="real" dimensions="nLandCat nCells" units="unitless"
+                     description="grid cell fractional landuse"/>
 
                 <var name="mminlu" type="text" dimensions="" units="unitless"
                      description="land use classification"/>
@@ -3057,13 +3207,16 @@
                 <var name="iswater_lu" name_in_code="iswater" type="integer" dimensions="" units="unitless" default_value="16"
                      description="Index category for water"/>
 
+                <var name="ismax_lu" type="integer" dimensions="" units="unitless" default_value="24"
+                     description="Maximum number of land use categories"/>
+
                 <var name="landmask" type="integer"  dimensions="nCells" units="unitless"
                      description="land-ocean mask (1=land ; 0=ocean)"/>
 
-                <var name="shdmin" type="real" dimensions="nCells" units="unitless"
+                <var name="shdmin" type="real" dimensions="nCells" units="percent"
                      description="minimum fractional coverage of annual green vegetation fraction"/>
 
-                <var name="shdmax" type="real" dimensions="nCells" units="unitless"
+                <var name="shdmax" type="real" dimensions="nCells" units="percent"
                      description="maximum fractional coverage of annual green vegetation fraction"/>
 
                 <var name="snoalb" type="real"  dimensions="nCells" units="unitless"
@@ -3072,11 +3225,14 @@
                 <var name="ter" type="real" dimensions="nCells" units="m"
                      description="terrain height"/>
 
-                <var name="albedo12m" type="real" dimensions="nMonths nCells" units="unitless"
+                <var name="albedo12m" type="real" dimensions="nMonths nCells" units="percent"
                      description="monthly-mean climatological surface albedo"/>
 
-                <var name="greenfrac" type="real" dimensions="nMonths nCells" units="unitless"
+                <var name="greenfrac" type="real" dimensions="nMonths nCells" units="percent"
                      description="monthly-mean climatological greeness fraction"/>
+
+                <var name="lai12m" type="real" dimensions="nMonths nCells" units="m^{2} m^{-2}"
+                     description="monthly-mean climatological leaf area index"/>
 
                 <var name="dzs" type="real" dimensions="nSoilLevels nCells Time" units="m"
                      description="soil layer thickness"/>
@@ -3102,8 +3258,11 @@
                 <var name="tmn" type="real" dimensions="nCells Time" units="K"
                      description="deep soil temperature"/>
 
-                <var name="vegfra" type="real" dimensions="nCells Time" units="unitless"
+                <var name="vegfra" type="real" dimensions="nCells Time" units="percent"
                      description="vegetation fraction"/>
+
+                <var name="lai_modis" type="real" dimensions="nCells Time" units="m^{2} m^{-2}"
+                     description="leaf area index"/>
 
                 <var name="seaice" type="real" dimensions="nCells Time" units="unitless"
                      description="sea-ice flag (0=no seaice; =1 otherwise)"/>
@@ -3125,6 +3284,15 @@
 
                 <var name="tslb" type="real" dimensions="nSoilLevels nCells Time" units="K"
                      description="soil layer temperature"/>
+
+                <var name="t2anl" type="real" dimensions="nCells Time" units="K"
+                     description="2-meter temperature analysis (interpolated to model time step during run)"/>
+
+                <var name="rh2anl" type="real" dimensions="nCells Time" units="percent"
+                     description="2-meter relative humidity analysis (interpolated to model time step during run)"/>
+
+                <var name="snoanl" type="real" dimensions="nCells Time" units="kg m^{-2}"
+                     description="snow water equivalent analysis (interpolated to model time step during run)"/>
 
 
                 <!-- ================================================================================================== -->

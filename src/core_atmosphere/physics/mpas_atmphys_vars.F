@@ -54,6 +54,8 @@
 ! * added the variables qvrad_p,qcrad_p,qirad_p, and qsrad_p which are the water vapor,cloud water,cloud ice,
 !   and snow mixing ratios local to the calculation of the cloud fraction, and used in the radiation codes.
 !   Laura D. Fowler (laura@ucar.edu) / 2016-07-08.
+! * added P-X LSM and soil nudging arrays and control variables.
+!   Robert C. Gilliam (gilliam.robert@epa.gov) / 2016-09-09.
 ! * added the variables rqvften and rthften which are the forcing tendencies needed to run the "new" Tiedtke
 !   parameterization of convection.
 !   Laura D. Fowler (laura@ucar.edu) / 2016-09-20.
@@ -107,6 +109,8 @@
 ! * added local variables for the mass-weighted mean velocities for rain, cloud ice, snow, and graupel from the
 !   Thompson cloud microphysics scheme.
 !   Laura D. Fowler (laura@ucar.edu) / 2017-04-19.
+! * added MODIS LAI and vegetation fraction, plus soil type fraction, arrays for P-X LSM.
+!   Jerold A. Herwehe (herwehe.jerry@epa.gov) / 2018-08-28.
 ! * added the local variables cosa_p and sina_p needed in call to subroutine gwdo after updating module_bl_gwdo.F
 !   to that of WRF version 4.0.2
 !   Laura D. Fowler (laura@ucar.edu) / 2019-01-30.
@@ -204,7 +208,7 @@
     znu_hyd_p          !(pres_hyd_p / P0) needed in the Tiedtke convection scheme              [Pa]
 
 !=================================================================================================================
-!... variables related to ozone climatlogy:
+!... variables related to ozone climatology:
 !=================================================================================================================
 
  real(kind=RKIND),dimension(:,:,:),allocatable:: &
@@ -658,7 +662,9 @@
                        !albedos as functions of the land surface scheme.
 
  integer,public:: &
-    num_soils          !number of soil layers                                                                  [-]
+    num_soils,        &!number of soil layers                                                                  [-]
+    num_soilc,        &!number of soil type categories                                                         [-]
+    num_landu          !number of land use classes                                                             [-]
     
  integer,dimension(:,:),allocatable:: &
     isltyp_p,         &!dominant soil type category                                                            [-]
@@ -670,7 +676,9 @@
     smcrel_p,         &!soil moisture threshold below which transpiration starts to stress                     [-]
     sh2o_p,           &!unfrozen soil moisture content                                       [volumetric fraction]
     smois_p,          &!soil moisture                                                        [volumetric fraction]
-    tslb_p             !soil temperature                                                                       [K]
+    tslb_p,           &!soil temperature                                                                       [K]
+    soiltypf_p,       &!fractional soil type category                                                          [-]
+    landusef_p         !fractional land use class                                                              [-]
 
  real(kind=RKIND),dimension(:,:),allocatable:: &
     acsnom_p,         &!accumulated melted snow                                                           [kg m-2]
@@ -678,14 +686,14 @@
     canwat_p,         &!canopy water                                                                      [kg m-2]
     chklowq_p,        &!surface saturation flag                                                                [-]
     grdflx_p,         &!ground heat flux                                                                   [W m-2]
-    lai_p,            &!leaf area index                                                                        [-]
+    lai_p,            &!leaf area index                                                                   [m2 m-2]
     noahres_p,        &!residual of the noah land-surface scheme energy budget                             [W m-2]
     potevp_p,         &!potential evaporation                                                              [W m-2]
     qz0_p,            &!specific humidity at znt                                                         [kg kg-1]
     rainbl_p,         &!
     sfcrunoff_p,      &!surface runoff                                                                     [m s-1]
-    shdmin_p,         &!minimum areal fractional coverage of annual green vegetation                           [-]
-    shdmax_p,         &!maximum areal fractional coverage of annual green vegetation                           [-]
+    shdmin_p,         &!minimum areal fractional coverage of annual green vegetation                           [%]
+    shdmax_p,         &!maximum areal fractional coverage of annual green vegetation                           [%]
     smstav_p,         &!moisture availability                                                                  [-]
     smstot_p,         &!total moisture                                                                    [m3 m-3]
     snopcx_p,         &!snow phase change heat flux                                                        [W m-2]
@@ -695,7 +703,29 @@
     swdown_p,         &!downward shortwave flux at the surface                                             [W m-2]
     udrunoff_p,       &!sub-surface runoff                                                                 [m s-1]
     tmn_p,            &!soil temperature at lower boundary                                                     [K]
-    vegfra_p,         &!vegetation fraction                                                                    [-]
+    vegfra_p,         &!vegetation fraction                                                                    [%]
+    rs_p,             &!Stomatal resistance for P-X LSM                                                        [-]
+    ra_p,             &!Aerodynamic resistance for P-X LSM                                                     [-]
+    imperv_p,         &!Impervious surface fraction for P-X LSM                                                [%]
+    canfra_p,         &!Canopy fraction for P-X LSM                                                            [%]
+    vegpx_p,          &!Pleim-Xiu fractional landuse weighted veg fraction                                     [%]
+    lai_modis_p,      &!leaf area index from MODIS                                                        [m2 m-2]
+    lai_px_p,         &!Computed leaf area index for P-X LSM                                              [m2 m-2]
+    wwlt_px_p,        &!Computed soil wilting point for P-X LSM                                           [m3 m-3]
+    wfc_px_p,         &!Computed soil field capacity for P-X LSM                                          [m3 m-3]
+    wsat_px_p,        &!Computed soil saturation for P-X LSM                                              [m3 m-3]
+    clay_px_p,        &!Aggregated soil clay fraction for P-X LSM                                              [-]
+    csand_px_p,       &!Aggregated soil coarse sand fraction for P-X LSM                                       [-]
+    fmsand_px_p,      &!Aggregated soil fine-medium sand fraction for P-X LSM                                  [-]
+    t2anl_p,          &!2-m temperature analysis at current timestep                                           [K]
+    t2anl1_p,         &!2-m temperature analysis prior read interval from soilndg file                         [K]
+    t2anl2_p,         &!2-m temperature analysis next read interval from soilndg file                          [K]
+    rh2anl_p,         &!2-m RH analysis at current timestep                                                    [%]
+    rh2anl1_p,        &!2-m RH analysis prior read interval from soilndg file                                  [%]
+    rh2anl2_p,        &!2-m RH analysis next read interval from soilndg file                                   [%]
+    snoanl_p,         &!Snow analysis at current timestep                                                 [kg m-2]
+    snoanl1_p,        &!Snow analysis prior read interval from soilndg file                               [kg m-2]
+    snoanl2_p,        &!Snow analysis next read interval from soilndg file                                [kg m-2]
     z0_p               !background roughness length                                                            [m]
 
  real(kind=RKIND),dimension(:,:),allocatable:: &

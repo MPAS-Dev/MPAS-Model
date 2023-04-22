@@ -59,6 +59,8 @@
 !   Laura D. Fowler (laura@ucar.edu) / 2016-03-31.
 ! * added the options sf_mynn and bl_mynn and for the MYNN parameterization from WRF version 3.6.1.
 !   Laura D. Fowler (laura@ucar.edu) / 2016-04-11.
+! * added Pleim-Xiu LSM scheme option px.
+!   Robert Gilliam (gilliam.robert@epa.gov) / 2016-09-19.
 ! * added the option cu_ntiedtke for the "new" Tiedtke parameterization of convection from WRF version 3.8.1.
 !   Laura D. Fowler (laura@ucar.edu) / 2016-09-19.
 ! * added the physics suite "convection_scale_aware" (see below for the physics options used in the suite).
@@ -278,7 +280,8 @@
                              'set config_sfclayer_scheme different than off')
     
  elseif(.not. (config_lsm_scheme .eq. 'off ' .or. &
-               config_lsm_scheme .eq. 'noah')) then
+               config_lsm_scheme .eq. 'noah' .or. &
+               config_lsm_scheme .eq. 'px')) then
  
     write(mpas_err_message,'(A,A10)') 'illegal value for land surface scheme: ', &
           trim(config_lsm_scheme)
@@ -356,6 +359,15 @@
              dzs(2,iCell) = 0.30_RKIND
              dzs(3,iCell) = 0.60_RKIND
              dzs(4,iCell) = 1.00_RKIND
+          enddo
+
+       case("px")
+       !initialize the thickness of the soil layers for the PX scheme:
+          do iCell = 1, nCells
+             if(landmask(iCell) == 1) then  
+                dzs(1,iCell) = 0.01_RKIND
+                dzs(2,iCell) = 0.99_RKIND
+             endif
           enddo
 
        case default
