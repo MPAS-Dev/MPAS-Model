@@ -20,7 +20,8 @@
  public:: physics_update_sst,         &
           physics_update_sstskin,     &
           physics_update_surface,     &
-          physics_update_deepsoiltemp
+          physics_update_deepsoiltemp,&
+          physics_update_soilndg
 
 
 !Update surface boundary conditions.
@@ -33,6 +34,7 @@
 ! physics_update_sst         : update the sea-surface temperatures.
 ! physics_update_sstskin     : add a diurnal cycle to the sea-surface temperatures.
 ! physics_update_deepsoiltemp: update the deep soil temperatures.
+! physics_update_soilndg     : use data assimilation to nudge soil physics for retrospective simulations.
 !
 ! add-ons and modifications to sourcecode:
 ! ----------------------------------------
@@ -40,11 +42,17 @@
 !   Laura D. Fowler (laura@ucar.edu) / 2013-08-24.
 ! * modified sourcecode to use pools.
 !   Laura D. Fowler (laura@ucar.edu) / 2014-05-15.
+! * added subroutine physics_update_soilndg.
+!   Jon Pleim (pleim.jon@epa.gov) and Rob Gilliam (gilliam.robert@epa.gov) / 2016-09-16
 ! * now use isice and iswater initialized in the init file instead of initialized in mpas_atmphys_landuse.F.
 !   Laura D. Fowler (laura@ucar.edu) / 2017-01-13.
 ! * corrected the initialization of the soil temperature tslb over ocean points for exact restartability, and
 !   for consistency with module_sf_noahdrv.F when itimestep = 1.
 !   Laura D. Fowler (laura@ucar.edu) / 2017-08-29.
+! * for use with PX LSM, changed tslb back to sst over ocean points.
+!   Jerold A. Herwehe (herwehe.jerry@epa.gov) / 2020-01-23.
+! * added lai_modis interpolated from MODIS climatological monthly mean LAI for use by PX LSM.
+!   Jerold A. Herwehe (herwehe.jerry@epa.gov) / 2020-02-27.
 
 
  contains
@@ -72,6 +80,8 @@
  real(kind=RKIND),dimension(:,:),pointer:: albedo12m
  real(kind=RKIND),dimension(:)  ,pointer:: vegfra,shdmin,shdmax
  real(kind=RKIND),dimension(:,:),pointer:: greenfrac
+ real(kind=RKIND),dimension(:)  ,pointer:: lai_modis
+ real(kind=RKIND),dimension(:,:),pointer:: lai12m
  
 !local variables:
  integer:: iCell
@@ -88,6 +98,9 @@
  call mpas_pool_get_array(sfc_input,'vegfra'    , vegfra    )
  call mpas_pool_get_array(sfc_input,'shdmin'    , shdmin    )
  call mpas_pool_get_array(sfc_input,'shdmax'    , shdmax    )
+
+ call mpas_pool_get_array(sfc_input,'lai12m'    , lai12m    )
+ call mpas_pool_get_array(sfc_input,'lai_modis' , lai_modis )
 
 !updates the surface background albedo for the current date as a function of the monthly-mean
 !surface background albedo valid on the 15th day of the month, if config_sfc_albedo is true:
@@ -108,15 +121,20 @@
  call monthly_interp_to_date(nCellsSolve,current_date,greenfrac,vegfra)
  call monthly_min_max(nCellsSolve,greenfrac,shdmin,shdmax)
 
+!updates the leaf area index for the current date as a function of the monthly-mean MODIS LAI
+!valid on the 15th day of the month.
+ call monthly_interp_to_date(nCellsSolve,current_date,lai12m,lai_modis)
+
  end subroutine physics_update_surface
 
 !=================================================================================================================
- subroutine physics_update_sst(dminfo,config_frac_seaice,mesh,sfc_input,diag_physics)
+ subroutine physics_update_sst(dminfo,config_frac_seaice,mesh,configs,sfc_input,diag_physics)
 !=================================================================================================================
 
 !input arguments:
  type(dm_info),intent(in):: dminfo
  type(mpas_pool_type),intent(in):: mesh
+ type(mpas_pool_type),intent(in):: configs
  logical,intent(in):: config_frac_seaice
 
 !inout arguments:
@@ -127,12 +145,15 @@
  integer,pointer:: nCellsSolve,nSoilLevels
  integer,pointer:: isice,iswater
 
- real(kind=RKIND),dimension(:),pointer  :: sfc_albbck,sst,snow,tmn,tsk,vegfra,xice,seaice
+ real(kind=RKIND),dimension(:),pointer  :: sfc_albbck,sst,snow,tmn,tsk,vegfra,xice,seaice,lai_modis
  real(kind=RKIND),dimension(:),pointer  :: snowc,snowh
  real(kind=RKIND),dimension(:,:),pointer:: tslb,sh2o,smois
 
  real(kind=RKIND),dimension(:),pointer:: sfc_albedo,sfc_emiss,sfc_emibck
  real(kind=RKIND),dimension(:),pointer:: xicem,xland
+
+!local pointers:
+ character(len=StrKIND),pointer:: config_lsm_scheme
 
 !local variables:
  integer:: icheck
@@ -146,6 +167,8 @@
 
 !-----------------------------------------------------------------------------------------------------------------
 
+ call mpas_pool_get_config(configs,'config_lsm_scheme',config_lsm_scheme)
+
  call mpas_pool_get_dimension(mesh,'nCellsSolve',nCellsSolve)
  call mpas_pool_get_dimension(mesh,'nSoilLevels',nSoilLevels)
 
@@ -155,6 +178,7 @@
  call mpas_pool_get_array(sfc_input,'ivgtyp'    ,ivgtyp    )
  call mpas_pool_get_array(sfc_input,'landmask'  ,landmask  )
  call mpas_pool_get_array(sfc_input,'vegfra'    ,vegfra    )
+ call mpas_pool_get_array(sfc_input,'lai_modis' ,lai_modis )
  call mpas_pool_get_array(sfc_input,'sfc_albbck',sfc_albbck)
  call mpas_pool_get_array(sfc_input,'sst'       ,sst       )
  call mpas_pool_get_array(sfc_input,'tmn'       ,tmn       )
@@ -216,11 +240,12 @@
 
        nb_to_land = nb_to_land + 1
     !... sea-ice points are converted to land points:
-       ivgtyp(iCell) = isice
-       isltyp(iCell) = 16
-       vegfra(iCell) = 0._RKIND
-       xland(iCell)  = 1._RKIND
-       tmn(iCell)    = 271.4_RKIND
+       ivgtyp(iCell)    = isice
+       isltyp(iCell)    = 16
+       vegfra(iCell)    = 0._RKIND
+       lai_modis(iCell) = 0._RKIND
+       xland(iCell)     = 1._RKIND
+       tmn(iCell)       = 271.4_RKIND
 
        do iSoil = 1, nSoilLevels
           tslb(iSoil,iCell)  = tsk(iCell)
@@ -241,11 +266,12 @@
 
        nb_to_ocean = nb_to_ocean + 1
        !land points turn to water points:
-       ivgtyp(iCell) = iswater
-       isltyp(iCell) = 14
-       vegfra(iCell) = 0._RKIND
-       xland(iCell)  = 2._RKIND
-       tmn(iCell)    = sst(iCell)
+       ivgtyp(iCell)    = iswater
+       isltyp(iCell)    = 14
+       vegfra(iCell)    = 0._RKIND
+       lai_modis(iCell) = 0._RKIND
+       xland(iCell)     = 2._RKIND
+       tmn(iCell)       = sst(iCell)
 
        snowc(iCell) = 0
        snow(iCell)  = 0.0_RKIND
@@ -270,9 +296,15 @@
 
     if(xland(iCell) >= 1.5_RKIND) then
        tsk(iCell)    = sst(iCell)
-       do iSoil = 1, nSoilLevels
-          tslb(iSoil,iCell) = 273.16
-       enddo 
+       if(trim(config_lsm_scheme) .eq. "px") then
+         do iSoil = 1, nSoilLevels
+            tslb(iSoil,iCell) = sst(iCell)
+         enddo
+       else
+         do iSoil = 1, nSoilLevels
+            tslb(iSoil,iCell) = 273.16
+         enddo
+       endif
     endif
  enddo
 !call mpas_log_write('')
@@ -566,6 +598,74 @@
  endif !end of day
 
  end subroutine physics_update_deepsoiltemp
+
+!==================================================================================================
+ subroutine physics_update_soilndg(dminfo,mesh,configs,sfc_input,diag_physics,itimestep)
+!==================================================================================================
+
+!input arguments:
+ type(dm_info),intent(in)       :: dminfo
+ type(mpas_pool_type),intent(in):: mesh
+ integer,intent(in)             :: itimestep
+ type(mpas_pool_type),intent(in):: configs
+
+!inout arguments:
+ type(mpas_pool_type),intent(inout):: sfc_input
+ type(mpas_pool_type),intent(inout):: diag_physics
+
+!local pointers:
+ logical,pointer:: config_do_restart
+
+ integer,pointer:: nCellsSolve
+
+ real(kind=RKIND),dimension(:),pointer  :: t2anl,rh2anl,snoanl
+ real(kind=RKIND),dimension(:),pointer  :: t2anl1,rh2anl1,snoanl1
+ real(kind=RKIND),dimension(:),pointer  :: t2anl2,rh2anl2,snoanl2
+ 
+!local variables:
+ integer:: iCell
+
+!--------------------------------------------------------------------------------------------------
+
+ call mpas_pool_get_config(configs,'config_do_restart' ,config_do_restart )
+
+ call mpas_pool_get_dimension(mesh,'nCellsSolve',nCellsSolve)
+
+ call mpas_pool_get_array(sfc_input,'t2anl'    ,t2anl    )    
+ call mpas_pool_get_array(sfc_input,'rh2anl'   ,rh2anl    )    
+ call mpas_pool_get_array(sfc_input,'snoanl'   ,snoanl    )    
+
+ call mpas_pool_get_array(diag_physics,'t2anl1',t2anl1)
+ call mpas_pool_get_array(diag_physics,'t2anl2',t2anl2)
+ call mpas_pool_get_array(diag_physics,'rh2anl1',rh2anl1)
+ call mpas_pool_get_array(diag_physics,'rh2anl2',rh2anl2)
+ call mpas_pool_get_array(diag_physics,'snoanl1',snoanl1)
+ call mpas_pool_get_array(diag_physics,'snoanl2',snoanl2)
+
+! call mpas_log_write('')
+! call mpas_log_write('--- enter subroutine physics_update_soilndg:')
+
+ if(itimestep .eq. 1 .and. .not. config_do_restart) then
+    do iCell = 1, nCellsSolve
+       t2anl1(iCell)  = t2anl(iCell)
+       t2anl2(iCell)  = t2anl(iCell)
+       rh2anl1(iCell) = rh2anl(iCell)
+       rh2anl2(iCell) = rh2anl(iCell)
+       snoanl1(iCell) = snoanl(iCell)
+       snoanl2(iCell) = snoanl(iCell)    
+    enddo
+ else
+    do iCell = 1, nCellsSolve
+       t2anl1(iCell)  = t2anl2(iCell)
+       t2anl2(iCell)  = t2anl(iCell)
+       rh2anl1(iCell) = rh2anl2(iCell)
+       rh2anl2(iCell) = rh2anl(iCell)
+       snoanl1(iCell) = snoanl2(iCell)
+       snoanl2(iCell) = snoanl(iCell)
+    enddo
+ endif
+
+ end subroutine physics_update_soilndg
 
 !=================================================================================================================
  end module mpas_atmphys_update_surface

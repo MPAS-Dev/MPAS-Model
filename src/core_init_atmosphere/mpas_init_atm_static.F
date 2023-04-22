@@ -88,9 +88,11 @@
  ! 12.1.2.2 of the Fortran standard) and currently, only PGI does not support this, so
  ! use module level variables for now...
  !
+ real (kind=RKIND), dimension(:,:), pointer :: landusef
+ real (kind=RKIND), dimension(:,:), pointer :: soiltypf
  integer (kind=I8KIND), dimension(:), pointer :: ter_integer
  integer, dimension(:), pointer :: lu_index
- integer, dimension(:), pointer :: soilcat_top
+ integer, dimension(:), pointer :: soilcat
  integer, dimension(:), pointer :: nhs
  integer, dimension(:,:), allocatable:: ncat
  ! Landmask is used by the accumulation function for maxsnoalb so it needs to be a global variable
@@ -148,6 +150,7 @@
 
  integer, pointer :: isice_lu, iswater_lu
  integer :: iswater_soil
+ integer, pointer :: ismax_lu
  integer, pointer :: nCells, nCellsSolve, nEdges, nVertices, maxEdges
  logical, pointer :: on_a_sphere
  real (kind=RKIND), pointer :: sphere_radius
@@ -171,12 +174,16 @@
  integer (kind=I8KIND), dimension(:), pointer :: snoalb_integer
  real (kind=RKIND), dimension(:), pointer :: shdmin, shdmax
  real (kind=RKIND), dimension(:,:), pointer :: greenfrac
+ real (kind=RKIND), dimension(:,:), pointer :: lai12m
+ integer (kind=I8KIND), dimension(:,:), pointer :: lai12m_int
  real (kind=RKIND), dimension(:,:), pointer :: albedo12m
  integer (kind=I8KIND), dimension(:,:), pointer :: albedo12m_int
+ real (kind=RKIND), dimension(:,:), pointer :: landusef
+ real (kind=RKIND), dimension(:,:), pointer :: soiltypf
  real (kind=RKIND) :: fillval
  real (kind=RKIND), pointer :: missing_value
  integer, dimension(:), pointer :: lu_index
- integer, dimension(:), pointer :: soilcat_top
+ integer, dimension(:), pointer :: soilcat
  integer, dimension(:), pointer :: landmask
  integer, dimension(:), pointer :: bdyMaskCell
  character(len=StrKIND), pointer :: mminlu
@@ -254,13 +261,17 @@
  call mpas_pool_get_array(mesh, 'verticesOnCell', verticesOnCell)
 
  call mpas_pool_get_array(mesh, 'lu_index', lu_index)
+ call mpas_pool_get_array(mesh, 'landusef', landusef)
  call mpas_pool_get_array(mesh, 'mminlu', mminlu)
  call mpas_pool_get_array(mesh, 'isice_lu', isice_lu)
  call mpas_pool_get_array(mesh, 'iswater_lu', iswater_lu)
- call mpas_pool_get_array(mesh, 'soilcat_top', soilcat_top)
+ call mpas_pool_get_array(mesh, 'ismax_lu', ismax_lu)
+ call mpas_pool_get_array(mesh, 'soilcat', soilcat)
+ call mpas_pool_get_array(mesh, 'soiltypf', soiltypf)
  call mpas_pool_get_array(mesh, 'landmask', landmask)
  call mpas_pool_get_array(mesh, 'snoalb', snoalb)
  call mpas_pool_get_array(mesh, 'greenfrac', greenfrac)
+ call mpas_pool_get_array(mesh, 'lai12m', lai12m)
  call mpas_pool_get_array(mesh, 'albedo12m', albedo12m)
  call mpas_pool_get_array(mesh, 'shdmin', shdmin)
  call mpas_pool_get_array(mesh, 'shdmax', shdmax)
@@ -340,11 +351,14 @@
        write(mminlu,'(a)') 'USGS'
     case('MODIFIED_IGBP_MODIS_NOAH')
        write(mminlu,'(a)') 'MODIFIED_IGBP_MODIS_NOAH'
+    case('NLCD40')
+       write(mminlu,'(a)') 'NLCD40'
     case default
          call mpas_log_write('*****************************************************************', messageType=MPAS_LOG_ERR)
          call mpas_log_write('Invalid land use dataset '''//trim(config_landuse_data) &
                                        //''' selected for config_landuse_data',                   messageType=MPAS_LOG_ERR)
-         call mpas_log_write('   Possible options are: ''USGS'', ''MODIFIED_IGBP_MODIS_NOAH''',   messageType=MPAS_LOG_ERR)
+         call mpas_log_write('   Possible options are: ''USGS'', ''MODIFIED_IGBP_MODIS_NOAH'', ', messageType=MPAS_LOG_ERR)
+         call mpas_log_write('                         or ''NLCD40'''                           , messageType=MPAS_LOG_ERR)
          call mpas_log_write('*****************************************************************', messageType=MPAS_LOG_ERR)
          call mpas_log_write('Please correct the namelist.', messageType=MPAS_LOG_CRIT)
  end select surface_input_select0
@@ -383,46 +397,80 @@
     case('MODIFIED_IGBP_MODIS_NOAH')
        call mpas_log_write('Using 20-class MODIS 30-arc-second land cover dataset')
        geog_sub_path = 'modis_landuse_20class_30s/'
+    case('NLCD40')
+       call mpas_log_write('Using 20-class MODIS 30-arc-second land cover dataset for most of globe')
+       geog_sub_path = 'modis_landuse_20class_30s/'
     case default
        call mpas_log_write('*****************************************************************', messageType=MPAS_LOG_ERR)
        call mpas_log_write('Invalid land use dataset '''//trim(config_landuse_data) &
                                      //''' selected for config_landuse_data',                   messageType=MPAS_LOG_ERR)
-       call mpas_log_write('   Possible options are: ''USGS'', ''MODIFIED_IGBP_MODIS_NOAH''',   messageType=MPAS_LOG_ERR)
+       call mpas_log_write('   Possible options are: ''USGS'', ''MODIFIED_IGBP_MODIS_NOAH'', ', messageType=MPAS_LOG_ERR)
+       call mpas_log_write('                         or ''NLCD40'''                           , messageType=MPAS_LOG_ERR)
        call mpas_log_write('*****************************************************************', messageType=MPAS_LOG_ERR)
        call mpas_log_write('Please correct the namelist.', messageType=MPAS_LOG_CRIT)
  end select surface_input_select1
 
  call mpas_log_write('--- start interpolate LU_INDEX')
- call interp_landuse(mesh, tree, trim(config_geog_data_path)//trim(geog_sub_path), isice_lu, iswater_lu)
+ call interp_landuse(mesh, tree, trim(config_geog_data_path)//trim(geog_sub_path), isice_lu, iswater_lu, ismax_lu, configs)
  call mpas_log_write('--- end interpolate LU_INDEX')
 
-!
-! Interpolate SOILCAT_TOP
-!
- geog_sub_path = 'soiltype_top_30s/'
+ if (config_landuse_data == 'NLCD40') then
+    ! Incorporate NLCD fractional percentage land use for CONUS, with MODIS for rest of world
+    call mpas_log_write('Overlaying 40-class NLCD 9-arc-second land cover dataset for CONUS')
+    geog_sub_path = 'nlcd2011_ll_9s/'
+    call mpas_log_write('--- start interpolate NLCD LU_INDEX for CONUS')
+    call interp_landuse2(mesh, dims, configs, trim(config_geog_data_path)//trim(geog_sub_path), isice_lu, iswater_lu, ismax_lu)
+    call mpas_log_write('--- end interpolate NLCD LU_INDEX for CONUS')
+ end if
 
- call mpas_log_write('--- start interpolate SOILCAT_TOP')
- call interp_soilcat(mesh, tree, trim(config_geog_data_path)//trim(geog_sub_path), iswater_soil)
- call mpas_log_write('--- end interpolate SOILCAT_TOP')
+!
+! Interpolate SOILCAT
+!
+ surface_input_select2: select case(trim(config_landuse_data))
+    case('USGS')
+       geog_sub_path = 'soiltype_top_30s/'
+    case('MODIFIED_IGBP_MODIS_NOAH')
+       geog_sub_path = 'soiltype_top_30s/'
+    case('NLCD40')
+       geog_sub_path = 'soiltype_bot_30s/'
+    case default
+ end select surface_input_select2
+
+ call mpas_log_write('--- start interpolate SOILCAT')
+ call interp_soilcat(mesh, tree, trim(config_geog_data_path)//trim(geog_sub_path), iswater_soil, configs)
+ call mpas_log_write('--- end interpolate SOILCAT')
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! KLUDGE TO FIX SOIL TYPE OVER ANTARCTICA
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
- where (lu_index == isice_lu) soilcat_top = 16
+! where (lu_index == isice_lu) soilcat = 16
+ do iCell = 1,nCells
+    if (lu_index(iCell) == isice_lu) then
+       do i = 1,16
+          soiltypf(i,iCell) = 0.0
+       end do
+       soilcat(iCell) = 16
+       soiltypf(soilcat(iCell),iCell) = 1.0
+    end if
+ end do
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! CORRECT INCONSISTENT SOIL AND LAND USE DATA
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
  do iCell = 1,nCells
     if (lu_index(iCell) == iswater_lu .or. &
-        soilcat_top(iCell) == iswater_soil) then
+        soilcat(iCell) == iswater_soil) then
         if (lu_index(iCell) /= iswater_lu) then
             call mpas_log_write('Turning lu_index into water at $i', intArgs=(/iCell/))
+            landusef(lu_index(iCell),iCell) = 0.0
             lu_index(iCell) = iswater_lu
+            landusef(lu_index(iCell),iCell) = 1.0  ! Currently defines dominant land use fraction only
+            soiltypf(soilcat(iCell),iCell) = 1.0   ! Currently defines dominant soil type fraction only
         end if
-        if (soilcat_top(iCell) /= iswater_soil) then
-            call mpas_log_write('Turning soilcat_top into water at $i', intArgs=(/iCell/))
-            soilcat_top(iCell) = iswater_soil
+        if (soilcat(iCell) /= iswater_soil) then
+            call mpas_log_write('Turning soilcat into water at $i', intArgs=(/iCell/))
+            soilcat(iCell) = iswater_soil
+            soiltypf(soilcat(iCell),iCell) = 1.0   ! Currently defines dominant soil type fraction only
         end if
     end if
  end do
@@ -917,6 +965,150 @@
  end if
 
  call mpas_log_write('--- end interpolate GREENFRAC')
+
+
+!
+! Interpolate LAI
+!
+
+ call mpas_log_write('Using MODIS LAI 30-arc-second data for climatological monthly leaf area index')
+
+ geog_sub_path = 'lai_modis_30s/'
+
+ ierr = mgr % init(trim(config_geog_data_path)//trim(geog_sub_path))
+ if (ierr /= 0) then
+    call mpas_log_write('Error occurred when initalizing the interpolation of monthly leaf area index (lai12m)', &
+                         messageType=MPAS_LOG_CRIT)
+ endif
+
+ call mpas_pool_get_config(mgr % pool, 'tile_bdr', tile_bdr)
+ call mpas_pool_get_config(mgr % pool, 'tile_x', tile_nx)
+ call mpas_pool_get_config(mgr % pool, 'tile_y', tile_ny)
+ call mpas_pool_get_config(mgr % pool, 'tile_z', tile_nz)
+ call mpas_pool_get_config(mgr % pool, 'missing_value', missing_value)
+ call mpas_pool_get_config(mgr % pool, 'scale_factor', scalefactor_ptr)
+ scalefactor = scalefactor_ptr
+
+ allocate(nhs(nCells))
+ allocate(lai12m_int(tile_nz, nCells))
+ nhs(:) = 0
+ lai12m(:,:) = 0.0
+ lai12m_int(:,:) = 0_I8KIND
+ fillval = 0.0
+
+ do iCell = 1, nCells
+     if (nhs(iCell) == 0) then
+         tile => null()
+         ierr = mgr % get_tile(latCell(iCell), lonCell(iCell), tile)
+         if (ierr /= 0 .or. .not. associated(tile)) then
+             call mpas_log_write('Could not get tile that contained cell $i', intArgs=(/iCell/), messageType=MPAS_LOG_CRIT)
+         end if
+
+         ierr = mgr % push_tile(tile)
+         if (ierr /= 0) then
+             call mpas_log_write("Error pushing this tile onto the stack: "//trim(tile % fname), messageType=MPAS_LOG_CRIT)
+         end if
+     end if
+
+     do while (.not. mgr % is_stack_empty())
+         tile => mgr % pop_tile()
+
+         if (tile % is_processed) then
+             cycle
+         end if
+
+         call mpas_log_write('Processing tile: '//trim(tile % fname))
+
+         all_pixels_mapped_to_halo_cells = .true.
+
+         do j = tile_bdr + 1, tile_ny + tile_bdr, 1
+             do i = tile_bdr + 1, tile_nx + tile_bdr, 1
+
+                 call mgr % tile_to_latlon(tile, j, i, lat_pt, lon_pt)
+                 call mpas_latlon_to_xyz(xPixel, yPixel, zPixel, sphere_radius, lat_pt, lon_pt)
+                 call mpas_kd_search(tree, (/xPixel, yPixel, zPixel/), res, max_distance=max_kdtree_distance2)
+
+                 if (.not. associated(res)) cycle
+
+                 !
+                 ! This field only matters for land cells, and for all but the outermost boundary cells,
+                 ! we can safely assume that the nearest model grid cell contains the pixel (else, a different
+                 ! cell would be nearest)
+                 !
+                 if (landMask(res % id) == 1 .and. bdyMaskCell(res % id) < nBdyLayers) then
+                     do k = 1, tile_nz
+                         if (tile % tile(i, j, k) == missing_value) then
+                             i8val = int(fillval, kind=I8KIND)
+                         else
+                             i8val = int(tile % tile(i,j,k), kind=I8KIND)
+                         end if
+                         lai12m_int(k, res % id) = lai12m_int(k, res % id) + i8val
+                     end do
+                     nhs(res % id) = nhs(res % id) + 1
+
+                     if (res % id <= nCellsSolve) then
+                         all_pixels_mapped_to_halo_cells = .false.
+                     end if
+
+                 ! For outermost land cells, additional work is needed to verify that the pixel
+                 ! actually lies within the nearest cell
+                 else if (landMask(res % id) == 1) then
+                     if (mpas_in_cell(xPixel, yPixel, zPixel, xCell(res % id), yCell(res % id), zCell(res % id), &
+                                       nEdgesOnCell(res % id), verticesOnCell(:,res % id), xVertex, yVertex, zVertex)) then
+                         do k = 1, tile_nz
+                             if (tile % tile(i, j, k) == missing_value) then
+                                 i8val = int(fillval, kind=I8KIND)
+                             else
+                                 i8val = int(tile % tile(i,j,k), kind=I8KIND)
+                             end if
+                             lai12m_int(k, res % id) = lai12m_int(k, res % id) + i8val
+                         end do
+                         nhs(res % id) = nhs(res % id) + 1
+
+                         if (res % id <= nCellsSolve) then
+                             all_pixels_mapped_to_halo_cells = .false.
+                         end if
+                     end if
+                 end if
+             end do
+         end do
+
+         tile % is_processed = .true.
+
+         if (.not. all_pixels_mapped_to_halo_cells) then
+             ierr = mgr % push_neighbors(tile)
+             if (ierr /= 0) then
+                 call mpas_log_write("Error pushing the tile neighbors of: "//trim(tile%fname), messageType=MPAS_LOG_CRIT)
+             end if
+         end if
+
+     end do
+ end do
+
+ do iCell = 1, nCells
+     ! For land points that have no overlap with valid data, and for water points,
+     ! just use the fill value...
+     if (nhs(iCell) == 0) then
+         lai12m(:,iCell) = fillval
+     else
+         lai12m(:,iCell) = real(real(lai12m_int(:,iCell), kind=R8KIND) / real(nhs(iCell), kind=R8KIND), kind=RKIND)
+         lai12m(:,iCell) = lai12m(:,iCell) * scalefactor
+     end if
+     if (lu_index(iCell) == isice_lu) then
+         lai12m(:,iCell) = fillval
+     end if
+ end do
+
+ deallocate(nhs)
+ deallocate(lai12m_int)
+
+ ierr = mgr % finalize()
+ if (ierr /= 0) then
+    call mpas_log_write('Error occurred when finalizing the interpolation of monthly leaf area index (lai12m)', &
+                         messageType=MPAS_LOG_CRIT)
+ endif
+
+ call mpas_log_write('--- end interpolate LAI')
 
 
 !
@@ -1562,16 +1754,18 @@
  !> that isice and iswater are in the dataset's index file.
  !
  !-----------------------------------------------------------------------
- subroutine interp_landuse(mesh, kdtree, geog_data_path, isice_lu, iswater_lu)
+ subroutine interp_landuse(mesh, kdtree, geog_data_path, isice_lu, iswater_lu, ismax_lu, configs)
 
      implicit none
 
      ! Input variables
      type (mpas_pool_type), intent(inout) :: mesh
      type (mpas_kd_type), pointer, intent(in) :: kdtree
+     type (mpas_pool_type), intent(in) :: configs
      character (len=*), intent(in) :: geog_data_path
      integer, intent(out) :: isice_lu
      integer, intent(out) :: iswater_lu
+     integer, intent(out) :: ismax_lu
 
      ! Local variables
      type (mpas_geotile_mgr_type) :: mgr
@@ -1579,9 +1773,12 @@
      integer, pointer :: isice_lu_ptr
      integer, pointer :: iswater_lu_ptr
 
+     logical, pointer :: config_frac_landuse
+
      real (kind=RKIND), pointer :: scalefactor
 
-     integer :: iCell
+     integer :: ncattot
+     integer :: i, iCell
      integer :: ierr
 
      ierr = mgr % init(trim(geog_data_path))
@@ -1590,28 +1787,52 @@
          return ! Program execution should not reach this statement since the preceding message is a critical error
      end if
 
+     call mpas_pool_get_config(configs, 'config_frac_landuse', config_frac_landuse)
+
      call mpas_pool_get_dimension(mesh, 'nCells', nCells)
      call mpas_pool_get_array(mesh, 'lu_index', lu_index)
+     call mpas_pool_get_array(mesh, 'landusef', landusef)
      call mpas_pool_get_config(mgr % pool, 'scale_factor', scalefactor)
      call mpas_pool_get_config(mgr % pool, 'category_min', category_min)
      call mpas_pool_get_config(mgr % pool, 'category_max', category_max)
      call mpas_pool_get_config(mgr % pool, 'isice', isice_lu_ptr)
      call mpas_pool_get_config(mgr % pool, 'iswater', iswater_lu_ptr)
 
+
      isice_lu = isice_lu_ptr
      iswater_lu = iswater_lu_ptr
+     ismax_lu = category_max
 
      allocate(ncat(category_min:category_max, nCells))
      ncat(:,:) = 0
+     landusef(:,:) = 0.0
 
      call init_atm_map_static_data(mesh, mgr, kdtree, categorical_interp_criteria, categorical_interp_accumulation)
 
-     do iCell = 1, nCells
-         ! Because maxloc returns the location of the maximum value of an array as if the
-         ! starting index of the array is 1, and dataset categories do not necessarily start
-         ! at 1, we need to use category_min to ensure the correct category location is chosen.
-         lu_index(iCell) = maxloc(ncat(:,iCell), dim=1) - 1 + category_min
-     end do
+     if (.not. config_frac_landuse) then  ! compute dominant land use
+         do iCell = 1, nCells
+             ! Because maxloc returns the location of the maximum value of an array as if the
+             ! starting index of the array is 1, and dataset categories do not necessarily start
+             ! at 1, we need to use category_min to ensure the correct category location is chosen.
+             lu_index(iCell) = maxloc(ncat(:,iCell), dim=1) - 1 + category_min
+             landusef(lu_index(iCell),iCell) = 1.0  ! defines dominant land use only
+         end do
+     else                                 ! compute fractional land use
+         do iCell = 1, nCells
+             ! Note that lu_index currently defines dominant land use only for ivgtyp, where 
+             ! ivgtyp is used by Noah LSM (and PX LSM when landusef=0 everywhere).
+             lu_index(iCell) = maxloc(ncat(:,iCell), dim=1) - 1 + category_min
+             ncattot = 0
+             do i = 1,ismax_lu
+                 ncattot = ncattot + ncat(i,iCell)
+             end do
+             do i = 1,ismax_lu
+                 if (ncat(i,iCell) > 0) then
+                     landusef(i,iCell) = real(ncat(i,iCell))/ncattot  ! defines fractional land use for PX LSM
+                 end if
+             end do
+         end do
+     end if
      deallocate(ncat)
 
      ierr = mgr % finalize()
@@ -1624,6 +1845,172 @@
      nullify(category_max)
 
  end subroutine interp_landuse
+
+ !***********************************************************************
+ !
+ !  routine interp_landuse2
+ !
+ !> \brief   Interpolate NLCD land use for CONUS
+ !> \details
+ !> Interpolate NLCD land use by using the nlcd2011_ll_9s/ dataset. Then
+ !> overlay the interpolated NLCD data onto CONUS, leaving the previously-
+ !> interpolated MODIS land use in place over the rest of the globe.
+ !
+ !-----------------------------------------------------------------------
+ subroutine interp_landuse2(mesh, dims, configs, geog_data_path, isice_lu, iswater_lu, ismax_lu)
+
+     implicit none
+
+     ! Input variables
+     type (mpas_pool_type), intent(inout) :: mesh
+     type (mpas_pool_type), intent(in) :: dims
+     type (mpas_pool_type), intent(in) :: configs
+     character (len=*), intent(in) :: geog_data_path
+     integer, intent(inout) :: isice_lu
+     integer, intent(inout) :: iswater_lu
+     integer, intent(inout) :: ismax_lu
+
+     ! Local variables
+     type (mpas_geotile_mgr_type) :: mgr
+     character (len=StrKIND) :: fname
+     character (kind=c_char), dimension(StrKIND+1) :: c_fname
+     real (kind=c_float), dimension(:,:,:), pointer, contiguous :: rarray
+     real (kind=RKIND) :: scalefactor
+     real (kind=RKIND) :: dx, dy
+     real (kind=RKIND) :: lat_pt, lon_pt
+     real (kind=RKIND) :: start_lat, start_lon
+     real (kind=RKIND), dimension(:), pointer :: latCell, lonCell
+     integer, pointer :: nCells, maxEdges
+     integer, dimension(:), pointer :: nEdgesOnCell
+     integer, dimension(:,:), pointer :: cellsOnCell
+     integer (c_int) :: endian, isigned, istatus, wordsize
+     integer (c_int) :: nx, ny, nz
+     integer:: i,j,k
+     integer:: iCell,iPoint,iTileStart,iTileEnd,jTileStart,jTileEnd,iEnd,jEnd
+     type (c_ptr) :: rarray_ptr
+
+     logical, pointer :: config_frac_landuse
+
+     integer :: ncattot
+     integer :: ierr
+
+     ierr = mgr % init(trim(geog_data_path))
+     if (ierr /= 0) then
+         call mpas_log_write("Error occured initalizing interpolation for "//trim(geog_data_path), messageType=MPAS_LOG_CRIT)
+         return ! Program execution should not reach this statement since the preceding message is a critical error
+     end if
+
+     call mpas_pool_get_config(configs, 'config_frac_landuse', config_frac_landuse)
+
+     call mpas_pool_get_dimension(dims, 'nCells', nCells)
+     call mpas_pool_get_dimension(dims, 'maxEdges', maxEdges)
+     call mpas_pool_get_array(mesh, 'nEdgesOnCell', nEdgesOnCell)
+     call mpas_pool_get_array(mesh, 'cellsOnCell', cellsOnCell)
+     call mpas_pool_get_array(mesh, 'latCell', latCell)
+     call mpas_pool_get_array(mesh, 'lonCell', lonCell)
+     call mpas_pool_get_array(mesh, 'lu_index', lu_index)
+     call mpas_pool_get_array(mesh, 'landusef', landusef)
+     call mpas_pool_get_config(mgr % pool, 'category_min', category_min)
+
+     ismax_lu = 40
+     iswater_lu = 17 
+     isice_lu = 15
+     nx = 6000
+     ny = 3800
+     nz = 40
+     isigned  = 0
+     endian   = 0
+     wordsize = 2
+     scalefactor = 0.1
+     dx = 0.0025
+     dy = 0.0025
+     start_lat = 9.00125000
+     start_lon = -139.99875000
+     jEnd = 19001
+     iEnd = 30001
+     allocate(rarray(nx,ny,nz))
+     allocate(ncat(ismax_lu,nCells))
+     ncat(:,:) = 0
+
+     rarray_ptr = c_loc(rarray)
+
+     do jTileStart = 1,jEnd,ny
+         jTileEnd = jTileStart + ny - 1
+
+         do iTileStart = 1,iEnd,nx
+             iTileEnd = iTileStart + nx - 1
+             write(fname,'(a,i5.5,a1,i5.5,a1,i5.5,a1,i5.5)') trim(geog_data_path), &
+                   iTileStart,'-',iTileEnd,'.',jTileStart,'-',jTileEnd
+             call mpas_log_write(trim(fname))
+             call mpas_f_to_c_string(fname, c_fname)
+
+             call read_geogrid(c_fname,rarray_ptr,nx,ny,nz,isigned,endian, &
+                               wordsize,istatus)
+             call init_atm_check_read_error(istatus, fname)
+             rarray(:,:,:) = rarray(:,:,:) * real(scalefactor, kind=c_float)  ! rarray contains fractional % (0-100) land use by category
+
+             iPoint = 1
+             do k=1,nz
+                 do j=1,ny
+                     do i=1,nx
+                         ! Check if the NLCD dataset has zeros
+                         if (nint(rarray(i,j,k)) == 0) cycle
+
+                         lat_pt = start_lat + (jTileStart + j - 2) * dy
+                         lon_pt = start_lon + (iTileStart + i - 2) * dx
+                         lat_pt = lat_pt * PI / 180.0
+                         lon_pt = lon_pt * PI / 180.0
+
+                         iPoint = nearest_cell(lat_pt,lon_pt,iPoint,nCells,maxEdges, &
+                                               nEdgesOnCell,cellsOnCell, &
+                                               latCell,lonCell)
+                         ncat(k,iPoint) = ncat(k,iPoint) + 1
+                     end do
+                 end do
+             end do
+
+         end do
+     end do
+
+     if (.not. config_frac_landuse) then  ! compute dominant NLCD land use for CONUS
+         do iCell = 1, nCells
+             if (maxloc(ncat(:,iCell), dim=1) < 21) cycle  ! do not change MODIS land use outside CONUS
+             ! Because maxloc returns the location of the maximum value of an array as if the
+             ! starting index of the array is 1, and dataset categories do not necessarily start
+             ! at 1, we need to use category_min to ensure the correct category location is chosen.
+             lu_index(iCell) = maxloc(ncat(:,iCell), dim=1) - 1 + category_min
+             landusef(lu_index(iCell),iCell) = 1.0  ! defines dominant NLCD land use only
+         end do
+     else                                 ! compute fractional NLCD land use for CONUS
+         do iCell = 1, nCells
+             if (maxloc(ncat(:,iCell), dim=1) < 21) cycle  ! do not change MODIS land use outide CONUS
+             ! Note that lu_index currently defines dominant land use only for ivgtyp, where 
+             ! ivgtyp is used by Noah LSM (and PX LSM when landusef=0 everywhere).
+             lu_index(iCell) = maxloc(ncat(:,iCell), dim=1) - 1 + category_min
+             ncattot = 0
+             do i = 1,ismax_lu
+                 ncattot = ncattot + ncat(i,iCell)
+             end do
+             do i = 1,ismax_lu
+                 if (ncat(i,iCell) > 0) then
+                     do j = 1,ismax_lu
+                         landusef(j,iCell) = 0.0 ! clear MODIS landusef if NLCD (CONUS) cell
+                     end do
+                 end if
+             end do
+             do i = 1,ismax_lu
+                 if (ncat(i,iCell) > 0) then
+                     landusef(i,iCell) = real(ncat(i,iCell))/ncattot  ! defines fractional land use for PX LSM
+                 end if
+             end do
+         end do
+     end if
+     deallocate(rarray)
+     deallocate(ncat)
+
+     nullify(category_min)
+
+ end subroutine interp_landuse2
 
  !***********************************************************************
  !
@@ -1643,13 +2030,14 @@
  !> iswater is present in the dataset's index file.
  !>
  !-----------------------------------------------------------------------
- subroutine interp_soilcat(mesh, kdtree, geog_data_path, iswater_soil)
+ subroutine interp_soilcat(mesh, kdtree, geog_data_path, iswater_soil, configs)
 
      implicit none
 
      ! Input variables
      type (mpas_pool_type), intent(inout) :: mesh
      type (mpas_kd_type), pointer, intent(in) :: kdtree
+     type (mpas_pool_type), intent(in) :: configs
      character (len=*), intent(in) :: geog_data_path
      integer, intent(out) :: iswater_soil
 
@@ -1660,7 +2048,10 @@
 
      real (kind=RKIND), pointer :: scalefactor
 
-     integer :: iCell
+     logical, pointer :: config_frac_landuse
+
+     integer :: ncattot
+     integer :: i, iCell
      integer :: ierr
 
      ierr = mgr % init(trim(geog_data_path))
@@ -1669,8 +2060,11 @@
          return
      end if
 
+     call mpas_pool_get_config(configs, 'config_frac_landuse', config_frac_landuse)
+
      call mpas_pool_get_dimension(mesh, 'nCells', nCells)
-     call mpas_pool_get_array(mesh, 'soilcat_top', soilcat_top)
+     call mpas_pool_get_array(mesh, 'soilcat', soilcat)
+     call mpas_pool_get_array(mesh, 'soiltypf', soiltypf)
      call mpas_pool_get_config(mgr % pool, 'scale_factor', scalefactor)
      call mpas_pool_get_config(mgr % pool, 'category_min', category_min)
      call mpas_pool_get_config(mgr % pool, 'category_max', category_max)
@@ -1680,15 +2074,39 @@
 
      allocate(ncat(category_min:category_max, nCells))
      ncat(:,:) = 0
+     soiltypf(:,:) = 0.0
 
      call init_atm_map_static_data(mesh, mgr, kdtree, categorical_interp_criteria, categorical_interp_accumulation)
 
-     do iCell = 1, nCells
-        ! Because maxloc returns the location of the maximum value of an array as if the
-        ! starting index of the array is 1, and dataset categories do not necessarily start
-        ! at 1, we need to use category_min to ensure the correct category location is chosen.
-        soilcat_top(iCell) = maxloc(ncat(:,iCell), dim=1) - 1 + category_min
-     end do
+     if(.not. config_frac_landuse) then  ! compute dominant soil type for dominant land use
+         do iCell = 1, nCells
+             ! Because maxloc returns the location of the maximum value of an array as if the
+             ! starting index of the array is 1, and dataset categories do not necessarily start
+             ! at 1, we need to use category_min to ensure the correct category location is chosen.
+             soilcat(iCell) = maxloc(ncat(:,iCell), dim=1) - 1 + category_min
+             soiltypf(soilcat(iCell),iCell) = 1.0  ! defines dominant soil type only
+         end do
+     else                                ! compute fractional soil type for fractional land use
+         do iCell = 1,nCells
+             soilcat(iCell) = 1
+             do i = 2,16
+                 if(ncat(i,iCell) > ncat(soilcat(iCell),iCell)) then
+                     soilcat(iCell) = i      ! currently defines dominant soil type only for isltyp
+                 end if
+             end do
+         end do
+         do iCell = 1,nCells
+             ncattot = 0
+             do i = 1,16
+                 ncattot = ncattot + ncat(i,iCell)
+             end do
+             do i = 1,16
+                 if(ncat(i,iCell) > 0) then
+                     soiltypf(i,iCell) = real(ncat(i,iCell))/ncattot  ! defines fractional soil type for PX LSM
+                 end if
+             end do
+         end do
+     end if
      deallocate(ncat)
 
      ierr = mgr % finalize()

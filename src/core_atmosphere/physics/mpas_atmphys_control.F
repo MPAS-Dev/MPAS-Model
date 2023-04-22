@@ -59,6 +59,10 @@
 !   Laura D. Fowler (laura@ucar.edu) / 2016-03-31.
 ! * added the options sf_mynn and bl_mynn and for the MYNN parameterization from WRF version 3.6.1.
 !   Laura D. Fowler (laura@ucar.edu) / 2016-04-11.
+! * added 'epa_aq_reference' physics suite.
+!   Hosein Foroutan (foroutan.hosein@epa.gov) / 2016-05-04.
+! * added Pleim-Xiu LSM scheme option px and added FDDA analysis nudging option.
+!   Robert Gilliam (gilliam.robert@epa.gov) / 2016-09-19.
 ! * added the option cu_ntiedtke for the "new" Tiedtke parameterization of convection from WRF version 3.8.1.
 !   Laura D. Fowler (laura@ucar.edu) / 2016-09-19.
 ! * added the physics suite "convection_scale_aware" (see below for the physics options used in the suite).
@@ -94,7 +98,8 @@
                                   config_radt_cld_scheme,   &
                                   config_radt_lw_scheme,    &
                                   config_radt_sw_scheme,    &
-                                  config_sfclayer_scheme
+                                  config_sfclayer_scheme,   &
+                                  config_fdda_scheme
 
 !-----------------------------------------------------------------------------------------------------------------
 !call mpas_log_write('')
@@ -110,6 +115,7 @@
  call mpas_pool_get_config(configs,'config_radt_lw_scheme'   ,config_radt_lw_scheme   )
  call mpas_pool_get_config(configs,'config_radt_sw_scheme'   ,config_radt_sw_scheme   )
  call mpas_pool_get_config(configs,'config_sfclayer_scheme'  ,config_sfclayer_scheme  )
+ call mpas_pool_get_config(configs,'config_fdda_scheme'      ,config_fdda_scheme      )
 
  call mpas_log_write('')
  call mpas_log_write('----- Setting up physics suite '''//trim(config_physics_suite)//''' -----')
@@ -128,6 +134,7 @@
     if (trim(config_radt_cld_scheme)   == 'suite') config_radt_cld_scheme   = 'cld_fraction'
     if (trim(config_sfclayer_scheme)   == 'suite') config_sfclayer_scheme   = 'sf_monin_obukhov'
     if (trim(config_lsm_scheme)        == 'suite') config_lsm_scheme        = 'noah'
+    if (trim(config_fdda_scheme)       == 'suite') config_fdda_scheme       = 'off'
 
  else if (trim(config_physics_suite) == 'convection_permitting') then
 
@@ -140,6 +147,20 @@
     if (trim(config_radt_cld_scheme)   == 'suite') config_radt_cld_scheme   = 'cld_fraction'
     if (trim(config_sfclayer_scheme)   == 'suite') config_sfclayer_scheme   = 'sf_mynn'
     if (trim(config_lsm_scheme)        == 'suite') config_lsm_scheme        = 'noah'
+    if (trim(config_fdda_scheme)       == 'suite') config_fdda_scheme       = 'off'
+
+ else if (trim(config_physics_suite) == 'epa_aq_reference') then
+
+    if (trim(config_microp_scheme)     == 'suite') config_microp_scheme     = 'mp_wsm6'
+    if (trim(config_convection_scheme) == 'suite') config_convection_scheme = 'cu_kain_fritsch'
+    if (trim(config_pbl_scheme)        == 'suite') config_pbl_scheme        = 'bl_acm'
+    if (trim(config_gwdo_scheme)       == 'suite') config_gwdo_scheme       = 'bl_ysu_gwdo'
+    if (trim(config_radt_lw_scheme)    == 'suite') config_radt_lw_scheme    = 'rrtmg_lw'
+    if (trim(config_radt_sw_scheme)    == 'suite') config_radt_sw_scheme    = 'rrtmg_sw'
+    if (trim(config_radt_cld_scheme)   == 'suite') config_radt_cld_scheme   = 'cld_fraction'
+    if (trim(config_sfclayer_scheme)   == 'suite') config_sfclayer_scheme   = 'sf_pxsfclay'
+    if (trim(config_lsm_scheme)        == 'suite') config_lsm_scheme        = 'px'
+    if (trim(config_fdda_scheme)       == 'suite') config_fdda_scheme       = 'analysis'
 
  else if (trim(config_physics_suite) == 'none') then
 
@@ -152,6 +173,7 @@
     if (trim(config_radt_cld_scheme)   == 'suite') config_radt_cld_scheme   = 'off'
     if (trim(config_sfclayer_scheme)   == 'suite') config_sfclayer_scheme   = 'off'
     if (trim(config_lsm_scheme)        == 'suite') config_lsm_scheme        = 'off'
+    if (trim(config_fdda_scheme)       == 'suite') config_fdda_scheme       = 'off'
 
  else
 
@@ -160,6 +182,17 @@
     call physics_error_fatal(mpas_err_message)
 
  end if
+
+!fdda scheme:
+ if(.not. (config_fdda_scheme .eq. 'off'        .or. &
+           config_fdda_scheme .eq. 'analysis'   .or. &
+           config_fdda_scheme .eq. 'scaled'     )) then
+
+    write(mpas_err_message,'(A,A10)') 'illegal value for config_fdda_scheme:', &
+          trim(config_fdda_scheme)
+    call physics_error_fatal(mpas_err_message)
+
+ endif
 
 !cloud microphysics scheme:
  if(.not. (config_microp_scheme .eq. 'off'         .or. &
@@ -278,7 +311,8 @@
                              'set config_sfclayer_scheme different than off')
     
  elseif(.not. (config_lsm_scheme .eq. 'off ' .or. &
-               config_lsm_scheme .eq. 'noah')) then
+               config_lsm_scheme .eq. 'noah' .or. &
+               config_lsm_scheme .eq. 'px')) then
  
     write(mpas_err_message,'(A,A10)') 'illegal value for land surface scheme: ', &
           trim(config_lsm_scheme)
@@ -307,6 +341,7 @@
  call mpas_log_write('    config_radt_sw_scheme      = '//trim(config_radt_sw_scheme))
  call mpas_log_write('    config_sfclayer_scheme     = '//trim(config_sfclayer_scheme))
  call mpas_log_write('    config_lsm_scheme          = '//trim(config_lsm_scheme))
+ call mpas_log_write('    config_fdda_scheme         = '//trim(config_fdda_scheme))
  call mpas_log_write('')
 
  end subroutine physics_namelist_check
@@ -356,6 +391,15 @@
              dzs(2,iCell) = 0.30_RKIND
              dzs(3,iCell) = 0.60_RKIND
              dzs(4,iCell) = 1.00_RKIND
+          enddo
+
+       case("px")
+       !initialize the thickness of the soil layers for the PX scheme:
+          do iCell = 1, nCells
+             if(landmask(iCell) == 1) then  
+                dzs(1,iCell) = 0.01_RKIND
+                dzs(2,iCell) = 0.99_RKIND
+             endif
           enddo
 
        case default
