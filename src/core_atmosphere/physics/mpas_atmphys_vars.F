@@ -110,6 +110,9 @@
 ! * added the local variables cosa_p and sina_p needed in call to subroutine gwdo after updating module_bl_gwdo.F
 !   to that of WRF version 4.0.2
 !   Laura D. Fowler (laura@ucar.edu) / 2019-01-30.
+! * added the local variables swddir,swddni,and swddif which are output to subroutine rrtmg_swrad and now input
+!   to the updated module_sf_noahdrv.F.
+!   Laura D. Fowler (laura@ucar.edu) / 2023-04-21.
 
 
 !=================================================================================================================
@@ -541,6 +544,11 @@
     swvisdif_p,       &!visible diffuse downward flux                                       [W m-2]
     swnirdir_p,       &!near-IR direct downward flux                                        [W m-2]
     swnirdif_p         !near-IR diffuse downward flux                                       [W m-2]
+
+ real(kind=RKIND),dimension(:,:),allocatable:: &
+    swddir_p,         &!
+    swddni_p,         &!
+    swddif_p           !
 
  real(kind=RKIND),dimension(:,:,:),allocatable:: &
     swdnflx_p,        &!
