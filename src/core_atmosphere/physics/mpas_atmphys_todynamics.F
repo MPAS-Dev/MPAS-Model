@@ -235,6 +235,7 @@
  do i = 1, nEdgesScalar+1
  do k = 1, nVertLevels
     tend_ru_physics(k,i) = 0._RKIND
+    tend_u_phys(k,i) = 0._RKIND
  enddo
  enddo
 !$acc loop gang vector collapse(3)
