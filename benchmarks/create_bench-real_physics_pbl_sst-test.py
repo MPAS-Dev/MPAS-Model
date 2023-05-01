@@ -176,7 +176,7 @@ def static_interp():
     nml_init_opts["preproc_stages"]["config_input_sst"] = False
     nml_init_opts["preproc_stages"]["config_frac_seaice"] = False
 
-    b_name = grid_name+".best-physics_sst"
+    b_name = grid_name+".physics-pbl_sst"
 
     b_dir = b_main_dir+"/"+b_name
 
