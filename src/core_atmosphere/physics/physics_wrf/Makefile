@@ -7,6 +7,7 @@ dummy:
 
 OBJS = \
 	libmassv.o                     \
+	module_bep_bem_helper.o        \
 	module_bl_gwdo.o               \
 	module_bl_mynn.o               \
 	module_bl_ysu.o                \
@@ -69,9 +70,11 @@ module_ra_rrtmg_sw.o: \
 	module_ra_rrtmg_vinterp.o
 
 module_sf_bep.o: \
+	module_bep_bem_helper.o \
 	module_sf_urban.o
 
 module_sf_bep_bem.o: \
+	module_bep_bem_helper.o \
 	module_sf_bem.o \
 	module_sf_urban.o
 

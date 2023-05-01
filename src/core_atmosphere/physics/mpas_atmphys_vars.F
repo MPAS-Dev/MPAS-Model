@@ -649,7 +649,7 @@
 !=================================================================================================================
 
  logical,parameter:: &
-    ua_phys=.false.    !option to activate UA Noah changes: a different snow-cover physics in the land-surface
+    ua_phys = .false.  !option to activate UA Noah changes: a different snow-cover physics in the land-surface
                        !scheme. That option is not currently implemented in MPAS.
 
  integer,parameter:: &
@@ -659,6 +659,9 @@
 
  integer,parameter:: &
     fasdas = 0         !for WRF surface data assimilation system (not used in MPAS).
+
+ integer,parameter:: &
+    nurb = 1           !generic dimension for all dimensions needed to run the urban physics.
 
  integer,public:: &
     sf_surface_physics !used to define the land surface scheme by a number instead of name. It
@@ -727,13 +730,6 @@
  real(kind=RKIND),dimension(:,:),allocatable:: &
     frc_urb_p,        &!urban fraction                                                                         [-]
     ust_urb_p          !urban u* in similarity theory                                                        [m/s]
-
-!.. arrays needed in the argument list in the call to the Noah LSM hydrology model: note that these arrays are
-!.. initialized to zero since we do not run a hydrology model:
- real(kind=RKIND),dimension(:,:),allocatable:: &
-    infxsrt_p,        &!timestep infiltration excess                                                          [mm]
-    sfcheadrt_p,      &!surface water detph                                                                   [mm]
-    soldrain_p         !soil column drainage                                                                  [mm]
 
 !=================================================================================================================
 !.. variables and arrays related to surface characteristics:

@@ -210,7 +210,7 @@
                                      therin(ic,is),scfx(ic,is),sfhc(ic,is)
        enddo
 !      do ic = 1, lucats
-!         call mpas_log_write('$i $r $r $r $r $r $r $r $r', intArgs=(/ic/), &
+!         call mpas_log_write('$i $r $r $r $r $r $r $r', intArgs=(/ic/), &
 !                realArgs=(/albd(ic,is),slmo(ic,is),sfem(ic,is),sfz0(ic,is), &
 !                therin(ic,is),scfx(ic,is),sfhc(ic,is)/))
 !      enddo
