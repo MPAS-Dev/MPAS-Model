@@ -215,7 +215,7 @@ def init_interp():
     nml_init_opts["decomposition"]["config_block_decomp_file_prefix"] = \
         grid_dir+grid_name+'.graph.info.part.'
 
-    b_name = grid_name+".best-physics_sst"
+    b_name = grid_name+".physics-pbl_sst"
 
     b_dir = b_main_dir+"/"+b_name
     
@@ -256,7 +256,7 @@ def sfc_update():
     nml_init_opts["decomposition"]["config_block_decomp_file_prefix"] = \
         grid_dir+grid_name+'.graph.info.part.'
 
-    b_name = grid_name+".best-physics_sst"
+    b_name = grid_name+".physics-pbl_sst"
 
     b_dir = b_main_dir+"/"+b_name
 
@@ -293,7 +293,7 @@ def run(par1,par2, par3):
     nml_opts["physics"]["config_convection_scheme"] = par2
     nml_opts["physics"]["config_pbl_scheme"] = par3
         
-    b_name = grid_name+".best-physics_sst"
+    b_name = grid_name+".physics-pbl_sst"
     b_dir = b_main_dir+"/"+b_name
     b_full_name = b_dir+"/run."+"best-physics_sst"+"_microp"+str(par1)+\
         ".cu_"+str(par2)
