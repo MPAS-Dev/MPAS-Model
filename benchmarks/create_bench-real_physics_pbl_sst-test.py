@@ -295,8 +295,8 @@ def run(par1,par2, par3):
         
     b_name = grid_name+".physics-pbl_sst"
     b_dir = b_main_dir+"/"+b_name
-    b_full_name = b_dir+"/run."+"best-physics_sst"+"_"+str(par1)+\
-        "._"+str(par2)+"._"+str(par3)
+    b_full_name = b_dir+"/run."+"best-physics_sst"+"."+str(par1)+\
+        "."+str(par2)+"."+str(par3)
 
     str_opt = {"input":{}, "output":{}, "restart" : {},
                "diagnostics" : {}, "surface" : {}}
