@@ -345,7 +345,7 @@ elif args.sfc:
 # 5 ===========================================================================     
 #Make sure the init test exists!
 elif args.run:
-    for par1, par2, par3 in zip(loop_parameter1, loop_parameter2, loop_parameter3):
+    for par1, par2, par3 in itertools.product(loop_parameter1, loop_parameter2, loop_parameter3):
         opts = run(par1,par2, par3)
         nml_opts, b_full_name, str_opt = opts[0], opts[1], opts[2]
         b_init = bench.Bench(args,
