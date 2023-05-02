@@ -147,9 +147,9 @@ sst_update = True
 # 2 ===========================================================================
 ## LOOP OVER DESIRED OPTIONS ##
 # Microphysics parametrization choice
-loop_parameter1 = ['mp_thompson','mp_thompson','mp_wsm6']
+loop_parameter1 = ['mp_thompson','mp_wsm6']
 # Convective parametrization choice
-loop_parameter2 = ["cu_ntiedtke",'cu_tiedtke', 'cu_ntiedtke']
+loop_parameter2 = ["cu_ntiedtke",'cu_tiedtke', 'cu_grell_freitas']
 # Boundary layer choice
 loop_parameter3 = ["bl_ysu",'bl_mynn']
 
