@@ -40,6 +40,8 @@ module mpas_derived_types
 
 #include "mpas_field_types.inc"
 
+#include "mpas_halo_types.inc"
+
 #include "mpas_pool_types.inc"
 
 #include "mpas_particle_list_types.inc"
