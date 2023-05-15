@@ -5,7 +5,8 @@ all: dummy physics_mmm
 dummy:
 	echo "****** compiling physics_mmm ******"
 
-OBJS =
+OBJS = \
+	bl_gwdo.o
 
 physics_mmm: $(OBJS)
 	ar -ru ./../libphys.a $(OBJS)
