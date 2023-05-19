@@ -8,7 +8,8 @@ dummy:
 OBJS = \
 	bl_gwdo.o \
 	bl_ysu.o \
-	cu_ntiedtke.o
+	cu_ntiedtke.o \
+	sf_sfclayrev.o
 
 physics_mmm: $(OBJS)
 	ar -ru ./../libphys.a $(OBJS)
