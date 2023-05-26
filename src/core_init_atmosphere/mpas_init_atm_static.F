@@ -561,7 +561,7 @@
                     end if
                 end do
             end do
-
+            deallocate(tile % tile)
             tile % is_processed = .true.
 
             if (.not. all_pixels_mapped_to_halo_cells) then
@@ -795,7 +795,7 @@
                     end if
                 end do
             end do
-
+            deallocate(tile % tile)
             tile % is_processed = .true.
 
             if (.not. all_pixels_mapped_to_halo_cells) then
@@ -1028,7 +1028,7 @@
                     end if
                 end do
             end do
-
+            deallocate(tile % tile)
             tile % is_processed = .true.
 
             if (.not. all_pixels_mapped_to_halo_cells) then
@@ -1341,9 +1341,8 @@
                     end if
                 end do
             end do
-
-            tile % is_processed = .true.
-
+            deallocate(tile % tile)
+            tile % is_processed = .true. 
             !
             ! If at least one pixel maps to an owned cell (i.e. <= nCellsSolve) then
             ! it is possible that the neighboring tiles might contain pixels that map
