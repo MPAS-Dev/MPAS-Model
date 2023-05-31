@@ -338,8 +338,10 @@ module mpas_geotile_manager
         do i = 0, mgr % nTileX
             do j = 0, mgr % nTileY
                 if (associated(mgr % hash(i, j) % ptr)) then
+                  if (associated(mgr % hash(i, j) % ptr % tile)) then
                     deallocate(mgr % hash(i, j) % ptr % tile)
-                    deallocate(mgr % hash(i, j) % ptr)
+                  endif
+                  deallocate(mgr % hash(i, j) % ptr)
                 endif
             enddo
         enddo
