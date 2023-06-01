@@ -537,6 +537,8 @@ contains
                                                                      buoy_ysu
    real,    dimension( ims:ime )             ::                       pblh_ysu,&
                                                                       vconvfx
+  real, dimension( kts:kte  ) :: thvx_1d,tke_1d,dzq_1d
+  real, dimension( kts:kte+1) :: zq_1d
 !
 !-------------------------------------------------------------------------------
 !
@@ -1326,8 +1328,16 @@ contains
       enddo
  !Hybrid pblh of MYNN
  !tke is q2
-      CALL GET_PBLH(KTS,KTE,pblh_ysu(i),thvx(i,kts:kte),&
-      &    tke_ysu(i,kts:kte),zq(i,kts:kte+1),dzq(i,kts:kte),xland(i))
+!     CALL GET_PBLH(KTS,KTE,pblh_ysu(i),thvx(i,kts:kte),&
+!     &    tke_ysu(i,kts:kte),zq(i,kts:kte+1),dzq(i,kts:kte),xland(i))
+      do k = kts,kte
+         thvx_1d(k) = thvx(i,k)
+         tke_1d(k)  = tke_ysu(i,k)
+         zq_1d(k)   = zq(i,k)
+         dzq_1d(k)  = dzq(i,k)
+      enddo
+      zq_1d(kte+1) = zq(i,kte+1)
+      call get_pblh(kts,kte,pblh_ysu(i),thvx_1d,tke_1d,zq_1d,dzq_1d,xland(i))
 
 !--- end of paj tke
 ! compute vconv
