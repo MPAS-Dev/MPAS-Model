@@ -608,7 +608,10 @@ module mpas_isobaric_diagnostics
         do iCell = 1, nCells
            w1 = (height(k,iCell)-height(k-1,iCell)) / (height(k+1,iCell)-height(k-1,iCell))
            w2 = (height(k+1,iCell)-height(k,iCell)) / (height(k+1,iCell)-height(k-1,iCell))
-           pressure2(k,iCell) = w1*pressure(k,iCell) + w2*pressure(k-1,iCell)
+           ! pressure2(k,iCell) = w1*pressure(k,iCell) + w2*pressure(k-1,iCell)
+           !
+           ! switch to use ln(pressure) for more accurate vertical interpolation, WCS 20230407
+           pressure2(k,iCell) = exp(w1*log(pressure(k,iCell))+w2*log(pressure(k-1,iCell)))
         enddo
         enddo
         k = 1
@@ -618,7 +621,10 @@ module mpas_isobaric_diagnostics
            z2 = 0.5*(height(k+1,iCell)+height(k+2,iCell))
            w1 = (z0-z2)/(z1-z2)
            w2 = 1.-w1
-           pressure2(k,iCell) = w1*pressure(k,iCell)+w2*pressure(k+1,iCell)
+           ! pressure2(k,iCell) = w1*pressure(k,iCell)+w2*pressure(k+1,iCell)
+           !
+           ! switch to use ln(pressure) for more accurate vertical interpolation, WCS 20230407
+           pressure2(k,iCell) = exp(w1*log(pressure(k,iCell))+w2*log(pressure(k+1,iCell)))
         enddo
        
        !calculation of total pressure at cell vertices (at mass points):
