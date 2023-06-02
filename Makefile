@@ -658,6 +658,7 @@ CPPINCLUDES =
 FCINCLUDES =
 LIBS =
 
+ifneq "$(PIO)" ""
 #
 # Regardless of PIO library version, look for a lib subdirectory of PIO path
 # NB: PIO_LIB is used later, so we don't just set LIBS directly
@@ -701,6 +702,11 @@ ifneq ($(wildcard $(PIO_LIB)/libpioc\.*), )
 endif
 ifneq ($(wildcard $(PIO_LIB)/libgptl\.*), )
 	LIBS += -lgptl
+endif
+
+else # Not using PIO, using SMIOL
+	LIBS += -L$(PWD)/src/external/SMIOL -lsmiolf -lsmiol
+	FCINCLUDES += -I$(PWD)/src/external/SMIOL
 endif
 
 ifneq "$(NETCDF)" ""
@@ -1205,10 +1211,10 @@ endif
 		    rm -f pio[12].f90 pio[12].x; $\
 		fi $\
 	))
-	$(if $(findstring 1,$(PIO_VERS)), $(eval PIO_MESSAGE = "Using the PIO 1.x library."), )
+	$(if $(findstring 1,$(PIO_VERS)), $(eval IO_MESSAGE = "Using the PIO 1.x library."), )
 	$(if $(findstring 1,$(PIO_VERS)), $(info PIO 1.x detected.))
 	$(if $(findstring 2,$(PIO_VERS)), $(eval override CPPFLAGS += -DUSE_PIO2), )
-	$(if $(findstring 2,$(PIO_VERS)), $(eval PIO_MESSAGE = "Using the PIO 2.x library."), )
+	$(if $(findstring 2,$(PIO_VERS)), $(eval IO_MESSAGE = "Using the PIO 2.x library."), )
 	$(if $(findstring 2,$(PIO_VERS)), $(info PIO 2.x detected.))
 	@#
 	@# A .piotest.log file exists iff no working PIO library was detected
@@ -1219,7 +1225,17 @@ endif
 	    exit 1; \
 	fi
 
-mpas_main: openmp_test openacc_test pio_test
+ifneq "$(PIO)" ""
+MAIN_DEPS = openmp_test openacc_test pio_test
+override CPPFLAGS += "-DMPAS_PIO_SUPPORT"
+else
+MAIN_DEPS = openmp_test openacc_test
+IO_MESSAGE = "Using the SMIOL library."
+override CPPFLAGS += "-DMPAS_SMIOL_SUPPORT"
+endif
+
+
+mpas_main: $(MAIN_DEPS)
 ifeq "$(AUTOCLEAN)" "true"
 	$(RM) .mpas_core_*
 endif
@@ -1263,7 +1279,7 @@ ifeq "$(AUTOCLEAN)" "true"
 endif
 	@echo $(GEN_F90_MESSAGE)
 	@echo $(TIMER_MESSAGE)
-	@echo $(PIO_MESSAGE)
+	@echo $(IO_MESSAGE)
 	@echo "*******************************************************************************"
 clean:
 	cd src; $(MAKE) clean RM="$(RM)" CORE="$(CORE)"

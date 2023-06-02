@@ -91,7 +91,11 @@ module mpas_io_streams
       logical, intent(in), optional :: clobberRecords
       logical, intent(in), optional :: clobberFiles
       logical, intent(in), optional :: truncateFiles
+#ifdef MPAS_PIO_SUPPORT
       type (file_desc_t), intent(inout), optional :: pio_file_desc
+#else
+      integer, optional :: pio_file_desc
+#endif
       integer, intent(out), optional :: ierr
 
       integer :: io_err

@@ -384,11 +384,15 @@ module init_atm_core_interface
 #else
                           'optimize')
 #endif
-      call mpas_log_write('  PIO version: ' // &
+      call mpas_log_write('  I/O layer: ' // &
+#ifdef MPAS_PIO_SUPPORT
 #ifdef USE_PIO2
-                          '2.x')
+                          'PIO 2.x')
 #else
-                          '1.x')
+                          'PIO 1.x')
+#endif
+#else
+                          'SMIOL')
 #endif
       call mpas_log_write('')
 
