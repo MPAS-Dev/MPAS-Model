@@ -52,6 +52,9 @@
 ! * In subroutine physics_init_seaice, removed the initialization of isice_lu since it is now defined in
 !   Registry.xml and initialized in subroutine init_atm_static.
 !   Laura D. Fowler (laura@ucar.edu) / 2017-01-12.
+! * In subroutine physics_init_seaice, added the initialization of the annual maximum snow albedo over seaice
+!   points to 0.75.
+! * Laura D. Fowler (laura@ucar.edu) / 2022-03-15).
 
 
  contains
@@ -597,7 +600,7 @@
  real(kind=RKIND):: xice_threshold
  real(kind=RKIND):: mid_point_depth
  real(kind=RKIND),dimension(:),pointer  :: vegfra
- real(kind=RKIND),dimension(:),pointer  :: seaice,xice
+ real(kind=RKIND),dimension(:),pointer  :: seaice,snoalb,xice
  real(kind=RKIND),dimension(:),pointer  :: skintemp,tmn,xland
  real(kind=RKIND),dimension(:,:),pointer:: tslb,smois,sh2o,smcrel
 
@@ -625,6 +628,7 @@
  call mpas_pool_get_array(mesh, 'landmask', landmask)
  call mpas_pool_get_array(mesh, 'lu_index', ivgtyp)
  call mpas_pool_get_array(mesh, 'soilcat_top', isltyp)
+ call mpas_pool_get_array(mesh, 'snoalb', snoalb)
 
  call mpas_pool_get_array(input, 'seaice', seaice)
  call mpas_pool_get_array(input, 'xice', xice)
@@ -669,6 +673,7 @@
        if(landmask(iCell) .eq. 0) tmn(iCell) = 271.4_RKIND
        ivgtyp(iCell) = isice_lu
        isltyp(iCell) = 16
+       snoalb(iCell) = 0.75
        vegfra(iCell) = 0._RKIND
        xland(iCell)  = 1._RKIND
 
