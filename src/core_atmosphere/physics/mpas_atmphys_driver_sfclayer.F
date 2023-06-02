@@ -200,9 +200,16 @@
           if(.not.allocated(fm_sea)) allocate(fm_sea(ims:ime,jms:jme))
        endif
 
-       if(.not.allocated(waterdepth_p)) allocate(waterdepth_p(ims:ime,jms:jme))
-       if(.not.allocated(lakedepth_p) ) allocate(lakedepth_p(ims:ime,jms:jme) )
-       if(.not.allocated(lakemask_p)  ) allocate(lakemask_p(ims:ime,jms:jme)  )
+       sfclayer2_select: select case(sfclayer_scheme)
+
+          case("sf_monin_obukhov_rev")
+             if(.not.allocated(waterdepth_p)) allocate(waterdepth_p(ims:ime,jms:jme))
+             if(.not.allocated(lakedepth_p) ) allocate(lakedepth_p(ims:ime,jms:jme) )
+             if(.not.allocated(lakemask_p)  ) allocate(lakemask_p(ims:ime,jms:jme)  )
+
+          case default
+
+       end select sfclayer2_select
 
     case("sf_mynn")
        if(.not.allocated(snowh_p)) allocate(snowh_p(ims:ime,jms:jme))
@@ -321,9 +328,16 @@
           if(allocated(fm_sea)) deallocate(fm_sea)
        endif
 
-       if(allocated(waterdepth_p)) deallocate(waterdepth_p)
-       if(allocated(lakedepth_p) ) deallocate(lakedepth_p )
-       if(allocated(lakemask_p)  ) deallocate(lakemask_p  )
+       sfclayer2_select: select case(sfclayer_scheme)
+
+          case("sf_monin_obukhov_rev")
+             if(allocated(waterdepth_p)) deallocate(waterdepth_p)
+             if(allocated(lakedepth_p) ) deallocate(lakedepth_p )
+             if(allocated(lakemask_p)  ) deallocate(lakemask_p  )
+
+          case default
+
+       end select sfclayer2_select
 
     case("sf_mynn")
        if(allocated(snowh_p)) deallocate(snowh_p)
