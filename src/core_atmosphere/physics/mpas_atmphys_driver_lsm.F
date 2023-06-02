@@ -93,6 +93,10 @@
 ! * added call to seaice_noah to include the parameterization of seaice for the updated Noah land surface
 !   scheme.
 !   Laura D. Fowler (laura@ucar.edu) / 2017-02-19.
+! * the initialization of the variable albsi_p is switched from sfc_albedo_seaice (which is originally
+!   initialized to albbck to seaice_albedo_default. Note that albsi_p is not used if seaice_albedo_opt = 0.
+!   Laura D. Fowler (laura@ucar.edu) / 2020-05-10.
+
 
 !
 ! DOCUMENTATION:
@@ -313,9 +317,8 @@
 
  real(kind=RKIND),dimension(:),pointer  :: acsnom,acsnow,canwat,chs,chs2,chklowq,cpm,cqs2,glw,   &
                                            grdflx,gsw,hfx,lai,lh,noahres,potevp,qfx,qgh,qsfc,    &
-                                           br,sfc_albedo,sfc_albedo_seaice,sfc_emibck,sfc_emiss, &
-                                           sfcrunoff,smstav,smstot,snotime,snopcx,sr,udrunoff,   &
-                                           z0,znt
+                                           br,sfc_albedo,sfc_emibck,sfc_emiss,sfcrunoff,smstav,  &
+                                           smstot,snotime,snopcx,sr,udrunoff,z0,znt
  real(kind=RKIND),dimension(:),pointer  :: shdmin,shdmax,snoalb,sfc_albbck,snow,snowc,snowh,tmn, &
                                            skintemp,vegfra,xice,xland
  real(kind=RKIND),dimension(:),pointer  :: t2m,th2m,q2
@@ -354,7 +357,6 @@
  call mpas_pool_get_array(diag_physics,'qsfc'             ,qsfc             )
  call mpas_pool_get_array(diag_physics,'br'               ,br               )
  call mpas_pool_get_array(diag_physics,'sfc_albedo'       ,sfc_albedo       )
- call mpas_pool_get_array(diag_physics,'sfc_albedo_seaice',sfc_albedo_seaice)
  call mpas_pool_get_array(diag_physics,'sfc_emibck'       ,sfc_emibck       )
  call mpas_pool_get_array(diag_physics,'sfc_emiss'        ,sfc_emiss        )
  call mpas_pool_get_array(diag_physics,'sfcrunoff'        ,sfcrunoff        )
@@ -507,7 +509,7 @@
     !seaice thickness.
     do j = jts,jte
     do i = its,ite
-       albsi_p(i,j)    = sfc_albedo_seaice(i)
+       albsi_p(i,j)    = seaice_albedo_default
        icedepth_p(i,j) = seaice_thickness_default
        snowsi_p(i,j)   = seaice_snowdepth_min
     enddo

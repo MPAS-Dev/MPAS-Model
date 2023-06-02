@@ -110,6 +110,10 @@
 ! * added the local variables cosa_p and sina_p needed in call to subroutine gwdo after updating module_bl_gwdo.F
 !   to that of WRF version 4.0.2
 !   Laura D. Fowler (laura@ucar.edu) / 2019-01-30.
+! * reverted the option seaice_albedo_opt = 2 to seaic_albedo_opt = 0 since MPAS does not currently support the
+!   input of "observed" 2D seaice albedos. In conjunction with this update, we also change the initialization of
+!   albsi from albbck to seaice_albedo_default.
+!   Laura D. Fowler (laura@ucar.edu) / 2022-05-10.
 
 
 !=================================================================================================================
@@ -489,10 +493,12 @@
 
 !=================================================================================================================
 !... variables and arrays related to parameterization of seaice:
+!... the options set for seaice_albedo_opt, seaice_thickness_opt, and seaicesnowdepth_opt must not be changed
+!    since they are the only ones currently available.
 !=================================================================================================================
 
  integer,parameter:: &
-    seaice_albedo_opt    = 2           !option to set albedo over sea ice.
+    seaice_albedo_opt    = 0           !option to set albedo over sea ice.
                                        !0 = seaice albedo is constant set in seaice_albedo_default.
                                        !1 = seaice albedo is f(Tair,Tskin,Tsnow), following Mill (2011).
                                        !2 = seaice albedo is read in from input variable albsi.
