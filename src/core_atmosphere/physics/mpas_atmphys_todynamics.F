@@ -61,6 +61,7 @@
 !=================================================================================================================
    
  use mpas_atm_dimensions
+ use mpas_dmpar, only : mpas_dmpar_exch_group_full_halo_exch
 
 !input variables:
  type(block_type),intent(in),target:: block
@@ -328,6 +329,7 @@
     !add coupled tendencies due to PBL processes:
     if (config_pbl_scheme .ne. 'off') then
        if (rk_step == 1 .and. dynamics_substep == 1) then
+          call mpas_dmpar_exch_group_full_halo_exch(block % domain, 'physics:blten')
           call tend_toEdges(block,mesh,rublten,rvblten,rublten_Edge)
 
           !MGD for PV budget? should a similar line be in the cumulus section below?
@@ -388,6 +390,7 @@
     
            case('cu_tiedtke','cu_ntiedtke')
               if (rk_step == 1 .and. dynamics_substep == 1) then
+                 call mpas_dmpar_exch_group_full_halo_exch(block % domain, 'physics:cuten')
                  call tend_toEdges(block,mesh,rucuten,rvcuten,rucuten_Edge)
                  
                  tend_u_phys(1:nVertLevels,1:nEdges) = tend_u_phys(1:nVertLevels,1:nEdges) &
@@ -448,14 +451,11 @@
  real(kind=RKIND),intent(out),dimension(:,:):: U_tend
 
 !local variables:
- type (field2DReal), pointer :: tempField
- type (field2DReal), target :: tempFieldTarget
  integer:: iCell,iEdge,k,j
  integer:: cell1, cell2
  integer,pointer:: nCells,nCellsSolve,nEdges
  integer,dimension(:,:),pointer:: cellsOnEdge
 
- real(kind=RKIND),dimension(:,:),pointer:: Ux_tend_halo,Uy_tend_halo
  real(kind=RKIND), dimension(:,:), pointer :: east, north, edgeNormalVectors
 
  
@@ -471,42 +471,22 @@
 
  call mpas_pool_get_array(mesh, 'cellsOnEdge', cellsOnEdge)
 
- Ux_tend_halo => Ux_tend
- Uy_tend_halo => Uy_tend
-
- tempField => tempFieldTarget 
- tempField % block => block
- tempField % dimSizes(1) = nVertLevels
- tempField % dimSizes(2) = nCellsSolve
- tempField % sendList => block % parinfo % cellsToSend
- tempField % recvList => block % parinfo % cellsToRecv
- tempField % copyList => block % parinfo % cellsToCopy
- tempField % prev => null()
- tempField % next => null()
- tempField % isActive = .true.
-
- tempField % array => Ux_tend_halo
- call mpas_dmpar_exch_halo_field(tempField)
- 
- tempField % array => Uy_tend_halo
- call mpas_dmpar_exch_halo_field(tempField)
-
  do iEdge = 1, nEdges
     cell1 = cellsOnEdge(1,iEdge)
     cell2 = cellsOnEdge(2,iEdge)
                            
-    U_tend(:,iEdge) =  Ux_tend_halo(:,cell1) * 0.5 * (edgeNormalVectors(1,iEdge) * east(1,cell1)   &
-                                                   +  edgeNormalVectors(2,iEdge) * east(2,cell1)   &
-                                                   +  edgeNormalVectors(3,iEdge) * east(3,cell1))  &
-                     + Uy_tend_halo(:,cell1) * 0.5 * (edgeNormalVectors(1,iEdge) * north(1,cell1)   &
-                                                   +  edgeNormalVectors(2,iEdge) * north(2,cell1)   &
-                                                   +  edgeNormalVectors(3,iEdge) * north(3,cell1))  &
-                     + Ux_tend_halo(:,cell2) * 0.5 * (edgeNormalVectors(1,iEdge) * east(1,cell2)   &
-                                                   +  edgeNormalVectors(2,iEdge) * east(2,cell2)   &
-                                                   +  edgeNormalVectors(3,iEdge) * east(3,cell2))  &
-                     + Uy_tend_halo(:,cell2) * 0.5 * (edgeNormalVectors(1,iEdge) * north(1,cell2)   &
-                                                   +  edgeNormalVectors(2,iEdge) * north(2,cell2)   &
-                                                   +  edgeNormalVectors(3,iEdge) * north(3,cell2))
+    U_tend(:,iEdge) =  Ux_tend(:,cell1) * 0.5 * (edgeNormalVectors(1,iEdge) * east(1,cell1)   &
+                                              +  edgeNormalVectors(2,iEdge) * east(2,cell1)   &
+                                              +  edgeNormalVectors(3,iEdge) * east(3,cell1))  &
+                     + Uy_tend(:,cell1) * 0.5 * (edgeNormalVectors(1,iEdge) * north(1,cell1)   &
+                                              +  edgeNormalVectors(2,iEdge) * north(2,cell1)   &
+                                              +  edgeNormalVectors(3,iEdge) * north(3,cell1))  &
+                     + Ux_tend(:,cell2) * 0.5 * (edgeNormalVectors(1,iEdge) * east(1,cell2)   &
+                                              +  edgeNormalVectors(2,iEdge) * east(2,cell2)   &
+                                              +  edgeNormalVectors(3,iEdge) * east(3,cell2))  &
+                     + Uy_tend(:,cell2) * 0.5 * (edgeNormalVectors(1,iEdge) * north(1,cell2)   &
+                                              +  edgeNormalVectors(2,iEdge) * north(2,cell2)   &
+                                              +  edgeNormalVectors(3,iEdge) * north(3,cell2))
  end do
  
  end subroutine tend_toEdges
