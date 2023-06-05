@@ -9,12 +9,22 @@ OBJS = \
 	bl_gwdo.o \
 	bl_ysu.o \
 	cu_ntiedtke.o \
-	sf_sfclayrev.o
+	sf_sfclayrev.o \
+	module_libmassv.o \
+	mp_radar.o \
+	mp_wsm6_effectRad.o \
+	mp_wsm6.o
 
 physics_mmm: $(OBJS)
 	ar -ru ./../libphys.a $(OBJS)
 
 # DEPENDENCIES:
+mp_wsm6_effectRad.o: \
+	mp_wsm6.o
+
+mp_wsm6.o: \
+	mp_radar.o \
+	module_libmassv.o
 
 clean:
 	$(RM) *.f90 *.o *.mod
