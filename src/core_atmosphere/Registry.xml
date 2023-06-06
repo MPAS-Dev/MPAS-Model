@@ -805,6 +805,23 @@
 			<var name="rniblten"/>
 			<var name="rthratensw"/>
 			<var name="rthratenlw"/>
+<<<<<<< atmosphere/develop-EPA_FDDA
+			<var name="rthfddaten"/>
+			<var name="rqvfddaten"/>
+			<var name="rufddaten"/>
+			<var name="rvfddaten"/>
+			<var name="th_fdda_old"/>
+			<var name="qv_fdda_old"/>
+			<var name="u_fdda_old"/>
+			<var name="v_fdda_old"/>
+			<var name="th_fdda_new"/>
+			<var name="qv_fdda_new"/>
+			<var name="u_fdda_new"/>
+			<var name="v_fdda_new"/>
+			<var name="pin"/>
+			<var name="ozmixm"/>
+=======
+>>>>>>> develop
 			<var name="isltyp"/>
 			<var name="ivgtyp"/>
 			<var name="mminlu"/>
@@ -1115,6 +1132,18 @@
 			<var name="sst"/>
 			<var name="xice"/>
 #endif
+		</stream>
+
+		<stream name="fdda" 
+                        type="input" 
+                        filename_template="x1.40962.fdda.nc" 
+                        input_interval="6:00:00"
+                        immutable="true">
+
+			<var name="qv_fdda_new"/>
+			<var name="th_fdda_new"/>
+			<var name="u_fdda_new"/>
+			<var name="v_fdda_new"/>
 		</stream>
 
 	        <stream name="iau" 
@@ -1537,6 +1566,34 @@
 
                 </var_array>
 #endif
+        </var_struct>
+
+        <var_struct name="fdda" time_levs="1">
+
+                <var name="qv_fdda_new" type="real" dimensions="nVertLevels nCells Time" units="kg kg^{-1}"
+                     description="new water vapor mixing ratio for FDDA grid nudging"/>
+
+                <var name="th_fdda_new" type="real" dimensions="nVertLevels nCells Time" units="K"
+                     description="new potential temperature for FDDA grid nudging"/>
+
+                <var name="u_fdda_new" type="real" dimensions="nVertLevels nCells Time" units="m s^{-1}"
+                     description="new zonal wind component for FDDA grid nudging"/>
+
+                <var name="v_fdda_new" type="real" dimensions="nVertLevels nCells Time" units="m s^{-1}"
+                     description="new meridional wind component for FDDA grid nudging"/>
+
+                <var name="qv_fdda_old" type="real" dimensions="nVertLevels nCells Time" units="kg kg^{-1}"
+                     description="old water vapor mixing ratio for FDDA grid nudging"/>
+
+                <var name="th_fdda_old" type="real" dimensions="nVertLevels nCells Time" units="K"
+                     description="old potential temperature for FDDA grid nudging"/>
+
+                <var name="u_fdda_old" type="real" dimensions="nVertLevels nCells Time" units="m s^{-1}"
+                     description="old zonal wind component for FDDA grid nudging"/>
+
+                <var name="v_fdda_old" type="real" dimensions="nVertLevels nCells Time" units="m s^{-1}"
+                     description="old meridional wind component for FDDA grid nudging"/>
+
         </var_struct>
 
         <var_struct name="diag" time_levs="1">
@@ -2094,6 +2151,86 @@
                      units="-"
                      description="threshold above which the accumulated grid-scale precipitation is reset"
                      possible_values="Positive real values"/>
+
+                <nml_option name="config_fdda_scheme" type="character" default_value="suite" in_defaults="false"
+                     units="-"
+                     description="configuration for four-dimensional data assimilation"
+                     possible_values="`suite',`analysis',`scaled',`off'"/>
+
+                <nml_option name="config_fdda_int" type="real" default_value="21600." in_defaults="false"
+                     units="s"
+                     description="nudging time interval"
+                     possible_values="Positive real values"/>
+
+                <nml_option name="config_fdda_scale_min" type="real" default_value="0." in_defaults="false"
+                     units="-"
+                     description="nudging scale factor minimum"
+                     possible_values="Positive real values"/>
+
+                <nml_option name="config_fdda_scale_max" type="real" default_value="100000." in_defaults="false"
+                     units="-"
+                     description="nudging scale factor maximum"
+                     possible_values="Positive real values"/>
+
+                <nml_option name="config_fdda_t" type="logical" default_value="false" in_defaults="false"
+                     units="-"
+                     description="whether to enable temperature nudging"
+                     possible_values=".true. or .false."/>
+
+                <nml_option name="config_fdda_t_coef" type="real" default_value="3.0e-4" in_defaults="false"
+                     units="s^{-1}"
+                     description="nudging coefficient for temperature"
+                     possible_values="Positive real values"/>
+
+                <nml_option name="config_fdda_t_in_pbl" type="logical" default_value="true" in_defaults="false"
+                     units="-"
+                     description="whether to enable temperature nudging within the PBL"
+                     possible_values=".true. or .false."/>
+
+                <nml_option name="config_fdda_t_min_layer" type="integer" default_value="0" in_defaults="false"
+                     units="-"
+                     description="model level above which nudging is enabled for temperature"
+                     possible_values="Positive integers"/>
+
+                <nml_option name="config_fdda_q" type="logical" default_value="false" in_defaults="false"
+                     units="-"
+                     description="whether to enable water vapor nudging"
+                     possible_values=".true. or .false."/>
+
+                <nml_option name="config_fdda_q_coef" type="real" default_value="3.0e-4" in_defaults="false"
+                     units="s^{-1}"
+                     description="nudging coefficient for water vapor"
+                     possible_values="Positive real values"/>
+
+                <nml_option name="config_fdda_q_in_pbl" type="logical" default_value="true" in_defaults="false"
+                     units="-"
+                     description="whether to enable water vapor nudging within the PBL"
+                     possible_values=".true. or .false."/>
+
+                <nml_option name="config_fdda_q_min_layer" type="integer" default_value="0" in_defaults="false"
+                     units="-"
+                     description="model level above which nudging is enabled for water vapor"
+                     possible_values="Positive integers"/>
+
+                <nml_option name="config_fdda_uv" type="logical" default_value="false" in_defaults="false"
+                     units="-"
+                     description="whether to enable u and v nudging"
+                     possible_values=".true. or .false."/>
+
+                <nml_option name="config_fdda_uv_coef" type="real" default_value="3.0e-4" in_defaults="false"
+                     units="s^{-1}"
+                     description="nudging coefficient for u and v"
+                     possible_values="Positive real values"/>
+
+                <nml_option name="config_fdda_uv_in_pbl" type="logical" default_value="true" in_defaults="false"
+                     units="-"
+                     description="whether to enable u and v nudging within the PBL"
+                     possible_values=".true. or .false."/>
+
+                <nml_option name="config_fdda_uv_min_layer" type="integer" default_value="0" in_defaults="false"
+                     units="-"
+                     description="model level above which nudging is enabled for u and v"
+                     possible_values="Positive integers"/>
 
                 <nml_option name="config_oml1d" type="logical" default_value="false" in_defaults="false"
                      units="-"
@@ -2933,6 +3070,25 @@
                      persistence="scratch" />
  
 #ifdef DO_PHYSICS
+                <!-- ================================================================================================== -->
+                <!-- TENDENCIES FROM FOUR DIMENSIONAL DATA ASSIMILATION:                                                -->
+                <!-- ================================================================================================== -->
+
+                <var name="rthfddaten" type="real" dimensions="nVertLevels nCells Time" units="K s^{-1}"
+                     description="tendency of potential temperature due to FDDA"/>
+
+                <var name="rqvfddaten" type="real" dimensions="nVertLevels nCells Time" units="kg kg^{-1} s^{-1}"
+                     description="tendency of water vapor mixing ratio due to FDDA"/>
+
+                <var name="rufddaten" type="real" dimensions="nVertLevels nCells Time" units="m s^{-1}"
+                     description="tendency of zonal wind component due to FDDA"/>
+
+                <var name="rvfddaten" type="real" dimensions="nVertLevels nCells Time" units="m s^{-1}"
+                     description="tendency of meridional wind component due to FDDA"/>
+
+	        <var name="rufddaten_Edge" type="real" dimensions="nVertLevels nEdges Time"/>
+
+
                 <!-- ================================================================================================== -->
                 <!-- TENDENCIES FROM PARAMETERIZATION OF CONVECTION:                                                    -->
                 <!-- ================================================================================================== -->

@@ -49,6 +49,8 @@
 !   Laura D. Fowler (laura@ucar.edu) / 2014-09-18.
 ! * renamed "wsm6" to "mp_wsm6" and "kessler" to "mp_kessler".
 !   Laura D. Fowler (laura@ucar.edu) / 2016-03-09.
+! * added four-dimensional data assimilation scheme (based on WRF FDDA scheme). 
+!   O. Russell Bullock Jr. (bullock.russell@epa.gov) / 2016-03-21.
 ! * renamed "kain_fritsch" to "cu_kain_fritsch" and "tiedtke" to "cu_tiedtke".
 !   Laura D. Fowler (laura@ucar.edu) / 2016-03-22.
 ! * renamed "ysu" to "bl_ysu", "ysu_gwdo" to "bl_gwdo_ysu", and "monin_obukhov" to "sf_monin_obukhov".
@@ -94,7 +96,8 @@
                                   config_radt_cld_scheme,   &
                                   config_radt_lw_scheme,    &
                                   config_radt_sw_scheme,    &
-                                  config_sfclayer_scheme
+                                  config_sfclayer_scheme,   &
+                                  config_fdda_scheme
 
 !-----------------------------------------------------------------------------------------------------------------
 !call mpas_log_write('')
@@ -110,6 +113,7 @@
  call mpas_pool_get_config(configs,'config_radt_lw_scheme'   ,config_radt_lw_scheme   )
  call mpas_pool_get_config(configs,'config_radt_sw_scheme'   ,config_radt_sw_scheme   )
  call mpas_pool_get_config(configs,'config_sfclayer_scheme'  ,config_sfclayer_scheme  )
+ call mpas_pool_get_config(configs,'config_fdda_scheme'      ,config_fdda_scheme      )
 
  call mpas_log_write('')
  call mpas_log_write('----- Setting up physics suite '''//trim(config_physics_suite)//''' -----')
@@ -128,6 +132,7 @@
     if (trim(config_radt_cld_scheme)   == 'suite') config_radt_cld_scheme   = 'cld_fraction'
     if (trim(config_sfclayer_scheme)   == 'suite') config_sfclayer_scheme   = 'sf_monin_obukhov'
     if (trim(config_lsm_scheme)        == 'suite') config_lsm_scheme        = 'noah'
+    if (trim(config_fdda_scheme)       == 'suite') config_fdda_scheme       = 'off'
 
  else if (trim(config_physics_suite) == 'convection_permitting') then
 
@@ -140,6 +145,7 @@
     if (trim(config_radt_cld_scheme)   == 'suite') config_radt_cld_scheme   = 'cld_fraction'
     if (trim(config_sfclayer_scheme)   == 'suite') config_sfclayer_scheme   = 'sf_mynn'
     if (trim(config_lsm_scheme)        == 'suite') config_lsm_scheme        = 'noah'
+    if (trim(config_fdda_scheme)       == 'suite') config_fdda_scheme       = 'off'
 
  else if (trim(config_physics_suite) == 'none') then
 
@@ -152,6 +158,7 @@
     if (trim(config_radt_cld_scheme)   == 'suite') config_radt_cld_scheme   = 'off'
     if (trim(config_sfclayer_scheme)   == 'suite') config_sfclayer_scheme   = 'off'
     if (trim(config_lsm_scheme)        == 'suite') config_lsm_scheme        = 'off'
+    if (trim(config_fdda_scheme)       == 'suite') config_fdda_scheme       = 'off'
 
  else
 
@@ -160,6 +167,17 @@
     call physics_error_fatal(mpas_err_message)
 
  end if
+
+!fdda scheme:
+ if(.not. (config_fdda_scheme .eq. 'off'        .or. &
+           config_fdda_scheme .eq. 'analysis'   .or. &
+           config_fdda_scheme .eq. 'scaled'     )) then
+
+    write(mpas_err_message,'(A,A10)') 'illegal value for config_fdda_scheme:', &
+          trim(config_fdda_scheme)
+    call physics_error_fatal(mpas_err_message)
+
+ endif
 
 !cloud microphysics scheme:
  if(.not. (config_microp_scheme .eq. 'off'         .or. &
@@ -307,6 +325,7 @@
  call mpas_log_write('    config_radt_sw_scheme      = '//trim(config_radt_sw_scheme))
  call mpas_log_write('    config_sfclayer_scheme     = '//trim(config_sfclayer_scheme))
  call mpas_log_write('    config_lsm_scheme          = '//trim(config_lsm_scheme))
+ call mpas_log_write('    config_fdda_scheme         = '//trim(config_fdda_scheme))
  call mpas_log_write('')
 
  end subroutine physics_namelist_check
