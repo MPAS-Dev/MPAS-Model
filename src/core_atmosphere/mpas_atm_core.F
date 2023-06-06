@@ -31,9 +31,11 @@ module atm_core
 
    type (MPAS_Clock_type), pointer :: clock
    procedure (halo_exchange_routine), pointer :: exchange_halo_group
+   character(len=StrKIND), pointer :: config_halo_exch_method
 
    private :: exchange_halo_group
    private :: atm_build_halo_groups, atm_destroy_halo_groups
+   private :: config_halo_exch_method
 
 
    contains
@@ -1437,117 +1439,138 @@ module atm_core
       type (domain_type), intent(inout) :: domain
       integer, intent(inout) :: ierr
 
-
       !
-      ! Set up halo exchange groups used during atmosphere core initialization
+      ! Determine from the namelist option config_halo_exch_method which halo exchange method to employ
       !
-      call mpas_dmpar_exch_group_create(domain, 'initialization:u')
-      call mpas_dmpar_exch_group_add_field(domain, 'initialization:u', 'u', timeLevel=1, haloLayers=(/1,2,3/))
+      call mpas_pool_get_config(domain % blocklist % configs, 'config_halo_exch_method', config_halo_exch_method)
 
-      call mpas_dmpar_exch_group_create(domain, 'initialization:pv_edge,ru,rw')
-      call mpas_dmpar_exch_group_add_field(domain, 'initialization:pv_edge,ru,rw', 'pv_edge', timeLevel=1, haloLayers=(/1,2,3/))
-      call mpas_dmpar_exch_group_add_field(domain, 'initialization:pv_edge,ru,rw', 'ru', timeLevel=1, haloLayers=(/1,2,3/))
-      call mpas_dmpar_exch_group_add_field(domain, 'initialization:pv_edge,ru,rw', 'rw', timeLevel=1, haloLayers=(/1,2/))
+      if (trim(config_halo_exch_method) == 'mpas_dmpar') then
+         call mpas_log_write('')
+         call mpas_log_write('*** Using ''mpas_dmpar'' routines for exchanging halos')
+         call mpas_log_write('')
 
-      !
-      ! Set up halo exchange groups used by dynamics
-      !
-      call mpas_dmpar_exch_group_create(domain, 'dynamics:theta_m,scalars,pressure_p,rtheta_p')
-      call mpas_dmpar_exch_group_add_field(domain, 'dynamics:theta_m,scalars,pressure_p,rtheta_p', 'theta_m', &
-                                           timeLevel=1, haloLayers=(/1,2/))
-      call mpas_dmpar_exch_group_add_field(domain, 'dynamics:theta_m,scalars,pressure_p,rtheta_p', 'scalars', &
-                                           timeLevel=1, haloLayers=(/1,2/))
-      call mpas_dmpar_exch_group_add_field(domain, 'dynamics:theta_m,scalars,pressure_p,rtheta_p', 'pressure_p', &
-                                           timeLevel=1, haloLayers=(/1,2/))
-      call mpas_dmpar_exch_group_add_field(domain, 'dynamics:theta_m,scalars,pressure_p,rtheta_p', 'rtheta_p', &
-                                           timeLevel=1, haloLayers=(/1,2/))
+         !
+         ! Set up halo exchange groups used during atmosphere core initialization
+         !
+         call mpas_dmpar_exch_group_create(domain, 'initialization:u')
+         call mpas_dmpar_exch_group_add_field(domain, 'initialization:u', 'u', timeLevel=1, haloLayers=(/1,2,3/))
 
-      !CR: SMALLER STENCIL?: call mpas_dmpar_exch_halo_field(block % diag % rw_p, (/ 1 /))
-      !CR: SMALLER STENCIL?: call mpas_dmpar_exch_halo_field(block % diag % ru_p, (/ 2 /))
-      call mpas_dmpar_exch_group_create(domain, 'dynamics:rw_p,ru_p,rho_pp,rtheta_pp')
-      call mpas_dmpar_exch_group_add_field(domain, 'dynamics:rw_p,ru_p,rho_pp,rtheta_pp', 'rw_p', &
-                                           timeLevel=1, haloLayers=(/1/))
-      call mpas_dmpar_exch_group_add_field(domain, 'dynamics:rw_p,ru_p,rho_pp,rtheta_pp', 'ru_p', &
-                                           timeLevel=1, haloLayers=(/2/))
-      call mpas_dmpar_exch_group_add_field(domain, 'dynamics:rw_p,ru_p,rho_pp,rtheta_pp', 'rho_pp', &
-                                           timeLevel=1, haloLayers=(/1,2/))
-      call mpas_dmpar_exch_group_add_field(domain, 'dynamics:rw_p,ru_p,rho_pp,rtheta_pp', 'rtheta_pp', &
-                                           timeLevel=1, haloLayers=(/2/))
+         call mpas_dmpar_exch_group_create(domain, 'initialization:pv_edge,ru,rw')
+         call mpas_dmpar_exch_group_add_field(domain, 'initialization:pv_edge,ru,rw', 'pv_edge', timeLevel=1, haloLayers=(/1,2,3/))
+         call mpas_dmpar_exch_group_add_field(domain, 'initialization:pv_edge,ru,rw', 'ru', timeLevel=1, haloLayers=(/1,2,3/))
+         call mpas_dmpar_exch_group_add_field(domain, 'initialization:pv_edge,ru,rw', 'rw', timeLevel=1, haloLayers=(/1,2/))
 
-      call mpas_dmpar_exch_group_create(domain, 'dynamics:w,pv_edge,rho_edge')
-      call mpas_dmpar_exch_group_add_field(domain, 'dynamics:w,pv_edge,rho_edge', 'w', &
-                                           timeLevel=2, haloLayers=(/1,2/))
-      call mpas_dmpar_exch_group_add_field(domain, 'dynamics:w,pv_edge,rho_edge', 'pv_edge', &
-                                           timeLevel=1, haloLayers=(/1,2/))
-      call mpas_dmpar_exch_group_add_field(domain, 'dynamics:w,pv_edge,rho_edge', 'rho_edge', &
-                                           timeLevel=1, haloLayers=(/1,2/))
+         !
+         ! Set up halo exchange groups used by dynamics
+         !
+         call mpas_dmpar_exch_group_create(domain, 'dynamics:theta_m,scalars,pressure_p,rtheta_p')
+         call mpas_dmpar_exch_group_add_field(domain, 'dynamics:theta_m,scalars,pressure_p,rtheta_p', 'theta_m', &
+                                              timeLevel=1, haloLayers=(/1,2/))
+         call mpas_dmpar_exch_group_add_field(domain, 'dynamics:theta_m,scalars,pressure_p,rtheta_p', 'scalars', &
+                                              timeLevel=1, haloLayers=(/1,2/))
+         call mpas_dmpar_exch_group_add_field(domain, 'dynamics:theta_m,scalars,pressure_p,rtheta_p', 'pressure_p', &
+                                              timeLevel=1, haloLayers=(/1,2/))
+         call mpas_dmpar_exch_group_add_field(domain, 'dynamics:theta_m,scalars,pressure_p,rtheta_p', 'rtheta_p', &
+                                              timeLevel=1, haloLayers=(/1,2/))
 
-      call mpas_dmpar_exch_group_create(domain, 'dynamics:w,pv_edge,rho_edge,scalars')
-      call mpas_dmpar_exch_group_add_field(domain, 'dynamics:w,pv_edge,rho_edge,scalars', 'w', &
-                                           timeLevel=2, haloLayers=(/1,2/))
-      call mpas_dmpar_exch_group_add_field(domain, 'dynamics:w,pv_edge,rho_edge,scalars', 'pv_edge', &
-                                           timeLevel=1, haloLayers=(/1,2/))
-      call mpas_dmpar_exch_group_add_field(domain, 'dynamics:w,pv_edge,rho_edge,scalars', 'rho_edge', &
-                                           timeLevel=1, haloLayers=(/1,2/))
-      call mpas_dmpar_exch_group_add_field(domain, 'dynamics:w,pv_edge,rho_edge,scalars', 'scalars', &
-                                           timeLevel=2, haloLayers=(/1,2/))
+         !CR: SMALLER STENCIL?: call mpas_dmpar_exch_halo_field(block % diag % rw_p, (/ 1 /))
+         !CR: SMALLER STENCIL?: call mpas_dmpar_exch_halo_field(block % diag % ru_p, (/ 2 /))
+         call mpas_dmpar_exch_group_create(domain, 'dynamics:rw_p,ru_p,rho_pp,rtheta_pp')
+         call mpas_dmpar_exch_group_add_field(domain, 'dynamics:rw_p,ru_p,rho_pp,rtheta_pp', 'rw_p', &
+                                              timeLevel=1, haloLayers=(/1/))
+         call mpas_dmpar_exch_group_add_field(domain, 'dynamics:rw_p,ru_p,rho_pp,rtheta_pp', 'ru_p', &
+                                              timeLevel=1, haloLayers=(/2/))
+         call mpas_dmpar_exch_group_add_field(domain, 'dynamics:rw_p,ru_p,rho_pp,rtheta_pp', 'rho_pp', &
+                                              timeLevel=1, haloLayers=(/1,2/))
+         call mpas_dmpar_exch_group_add_field(domain, 'dynamics:rw_p,ru_p,rho_pp,rtheta_pp', 'rtheta_pp', &
+                                              timeLevel=1, haloLayers=(/2/))
 
-      call mpas_dmpar_exch_group_create(domain, 'dynamics:theta_m,pressure_p,rtheta_p')
-      call mpas_dmpar_exch_group_add_field(domain, 'dynamics:theta_m,pressure_p,rtheta_p', 'theta_m', &
-                                           timeLevel=2, haloLayers=(/1,2/))
-      call mpas_dmpar_exch_group_add_field(domain, 'dynamics:theta_m,pressure_p,rtheta_p', 'pressure_p', &
-                                           timeLevel=1, haloLayers=(/1,2/))
-      call mpas_dmpar_exch_group_add_field(domain, 'dynamics:theta_m,pressure_p,rtheta_p', 'rtheta_p', &
-                                           timeLevel=1, haloLayers=(/1,2/))
+         call mpas_dmpar_exch_group_create(domain, 'dynamics:w,pv_edge,rho_edge')
+         call mpas_dmpar_exch_group_add_field(domain, 'dynamics:w,pv_edge,rho_edge', 'w', &
+                                              timeLevel=2, haloLayers=(/1,2/))
+         call mpas_dmpar_exch_group_add_field(domain, 'dynamics:w,pv_edge,rho_edge', 'pv_edge', &
+                                              timeLevel=1, haloLayers=(/1,2/))
+         call mpas_dmpar_exch_group_add_field(domain, 'dynamics:w,pv_edge,rho_edge', 'rho_edge', &
+                                              timeLevel=1, haloLayers=(/1,2/))
+
+         call mpas_dmpar_exch_group_create(domain, 'dynamics:w,pv_edge,rho_edge,scalars')
+         call mpas_dmpar_exch_group_add_field(domain, 'dynamics:w,pv_edge,rho_edge,scalars', 'w', &
+                                              timeLevel=2, haloLayers=(/1,2/))
+         call mpas_dmpar_exch_group_add_field(domain, 'dynamics:w,pv_edge,rho_edge,scalars', 'pv_edge', &
+                                              timeLevel=1, haloLayers=(/1,2/))
+         call mpas_dmpar_exch_group_add_field(domain, 'dynamics:w,pv_edge,rho_edge,scalars', 'rho_edge', &
+                                              timeLevel=1, haloLayers=(/1,2/))
+         call mpas_dmpar_exch_group_add_field(domain, 'dynamics:w,pv_edge,rho_edge,scalars', 'scalars', &
+                                              timeLevel=2, haloLayers=(/1,2/))
+
+         call mpas_dmpar_exch_group_create(domain, 'dynamics:theta_m,pressure_p,rtheta_p')
+         call mpas_dmpar_exch_group_add_field(domain, 'dynamics:theta_m,pressure_p,rtheta_p', 'theta_m', &
+                                              timeLevel=2, haloLayers=(/1,2/))
+         call mpas_dmpar_exch_group_add_field(domain, 'dynamics:theta_m,pressure_p,rtheta_p', 'pressure_p', &
+                                              timeLevel=1, haloLayers=(/1,2/))
+         call mpas_dmpar_exch_group_add_field(domain, 'dynamics:theta_m,pressure_p,rtheta_p', 'rtheta_p', &
+                                              timeLevel=1, haloLayers=(/1,2/))
 
 
-      call mpas_dmpar_exch_group_create(domain, 'dynamics:exner')
-      call mpas_dmpar_exch_group_add_field(domain, 'dynamics:exner', 'exner', timeLevel=1, haloLayers=(/1,2/))
+         call mpas_dmpar_exch_group_create(domain, 'dynamics:exner')
+         call mpas_dmpar_exch_group_add_field(domain, 'dynamics:exner', 'exner', timeLevel=1, haloLayers=(/1,2/))
 
-      call mpas_dmpar_exch_group_create(domain, 'dynamics:tend_u')
-      call mpas_dmpar_exch_group_add_field(domain, 'dynamics:tend_u', 'tend_u', timeLevel=1, haloLayers=(/1/))
+         call mpas_dmpar_exch_group_create(domain, 'dynamics:tend_u')
+         call mpas_dmpar_exch_group_add_field(domain, 'dynamics:tend_u', 'tend_u', timeLevel=1, haloLayers=(/1/))
 
-      call mpas_dmpar_exch_group_create(domain, 'dynamics:rho_pp')
-      call mpas_dmpar_exch_group_add_field(domain, 'dynamics:rho_pp', 'rho_pp', timeLevel=1, haloLayers=(/1/))
+         call mpas_dmpar_exch_group_create(domain, 'dynamics:rho_pp')
+         call mpas_dmpar_exch_group_add_field(domain, 'dynamics:rho_pp', 'rho_pp', timeLevel=1, haloLayers=(/1/))
 
-      call mpas_dmpar_exch_group_create(domain, 'dynamics:rtheta_pp')
-      call mpas_dmpar_exch_group_add_field(domain, 'dynamics:rtheta_pp', 'rtheta_pp', timeLevel=1, haloLayers=(/1/))
+         call mpas_dmpar_exch_group_create(domain, 'dynamics:rtheta_pp')
+         call mpas_dmpar_exch_group_add_field(domain, 'dynamics:rtheta_pp', 'rtheta_pp', timeLevel=1, haloLayers=(/1/))
 
-      call mpas_dmpar_exch_group_create(domain, 'dynamics:u_123')
-      call mpas_dmpar_exch_group_add_field(domain, 'dynamics:u_123', 'u', timeLevel=2, haloLayers=(/1,2,3/))
+         call mpas_dmpar_exch_group_create(domain, 'dynamics:u_123')
+         call mpas_dmpar_exch_group_add_field(domain, 'dynamics:u_123', 'u', timeLevel=2, haloLayers=(/1,2,3/))
 
-      call mpas_dmpar_exch_group_create(domain, 'dynamics:u_3')
-      call mpas_dmpar_exch_group_add_field(domain, 'dynamics:u_3', 'u', timeLevel=2, haloLayers=(/3/))
+         call mpas_dmpar_exch_group_create(domain, 'dynamics:u_3')
+         call mpas_dmpar_exch_group_add_field(domain, 'dynamics:u_3', 'u', timeLevel=2, haloLayers=(/3/))
 
-      call mpas_dmpar_exch_group_create(domain, 'dynamics:scalars')
-      call mpas_dmpar_exch_group_add_field(domain, 'dynamics:scalars', 'scalars', timeLevel=2, haloLayers=(/1,2/))
+         call mpas_dmpar_exch_group_create(domain, 'dynamics:scalars')
+         call mpas_dmpar_exch_group_add_field(domain, 'dynamics:scalars', 'scalars', timeLevel=2, haloLayers=(/1,2/))
 
-      call mpas_dmpar_exch_group_create(domain, 'dynamics:scalars_old')
-      call mpas_dmpar_exch_group_add_field(domain, 'dynamics:scalars_old', 'scalars', timeLevel=1, haloLayers=(/1,2/))
+         call mpas_dmpar_exch_group_create(domain, 'dynamics:scalars_old')
+         call mpas_dmpar_exch_group_add_field(domain, 'dynamics:scalars_old', 'scalars', timeLevel=1, haloLayers=(/1,2/))
 
-      call mpas_dmpar_exch_group_create(domain, 'dynamics:w')
-      call mpas_dmpar_exch_group_add_field(domain, 'dynamics:w', 'w', timeLevel=2, haloLayers=(/1,2/))
+         call mpas_dmpar_exch_group_create(domain, 'dynamics:w')
+         call mpas_dmpar_exch_group_add_field(domain, 'dynamics:w', 'w', timeLevel=2, haloLayers=(/1,2/))
 
-      call mpas_dmpar_exch_group_create(domain, 'dynamics:scale')
-      call mpas_dmpar_exch_group_add_field(domain, 'dynamics:scale', 'scale', timeLevel=1, haloLayers=(/1,2/))
+         call mpas_dmpar_exch_group_create(domain, 'dynamics:scale')
+         call mpas_dmpar_exch_group_add_field(domain, 'dynamics:scale', 'scale', timeLevel=1, haloLayers=(/1,2/))
 
 #ifdef DO_PHYSICS
-      !
-      ! Set up halo exchange groups used by physics
-      !
-      call mpas_dmpar_exch_group_create(domain, 'physics:blten')
-      call mpas_dmpar_exch_group_add_field(domain, 'physics:blten', 'rublten', timeLevel=1, haloLayers=(/1,2/))
-      call mpas_dmpar_exch_group_add_field(domain, 'physics:blten', 'rvblten', timeLevel=1, haloLayers=(/1,2/))
+         !
+         ! Set up halo exchange groups used by physics
+         !
+         call mpas_dmpar_exch_group_create(domain, 'physics:blten')
+         call mpas_dmpar_exch_group_add_field(domain, 'physics:blten', 'rublten', timeLevel=1, haloLayers=(/1,2/))
+         call mpas_dmpar_exch_group_add_field(domain, 'physics:blten', 'rvblten', timeLevel=1, haloLayers=(/1,2/))
 
-      call mpas_dmpar_exch_group_create(domain, 'physics:cuten')
-      call mpas_dmpar_exch_group_add_field(domain, 'physics:cuten', 'rucuten', timeLevel=1, haloLayers=(/1,2/))
-      call mpas_dmpar_exch_group_add_field(domain, 'physics:cuten', 'rvcuten', timeLevel=1, haloLayers=(/1,2/))
+         call mpas_dmpar_exch_group_create(domain, 'physics:cuten')
+         call mpas_dmpar_exch_group_add_field(domain, 'physics:cuten', 'rucuten', timeLevel=1, haloLayers=(/1,2/))
+         call mpas_dmpar_exch_group_add_field(domain, 'physics:cuten', 'rvcuten', timeLevel=1, haloLayers=(/1,2/))
 #endif
 
-      !
-      ! Set routine to exchange a halo group
-      !
-      exchange_halo_group => mpas_dmpar_exch_group_full_halo_exch
+         !
+         ! Set routine to exchange a halo group
+         !
+         exchange_halo_group => mpas_dmpar_exch_group_full_halo_exch
+
+      else
+
+         !
+         ! Invalid method for exchanging halos
+         !
+         ierr = 1
+         call mpas_log_write('Invalid method for exchanging halos specified by ''config_halo_exch_method'': ' // &
+                             trim(config_halo_exch_method), messageType=MPAS_LOG_ERR)
+         return
+
+      end if
 
       ierr = 0
 
@@ -1575,39 +1598,50 @@ module atm_core
       integer, intent(inout) :: ierr
 
 
-      !
-      ! Destroy halo exchange groups used only during initialization
-      !
-      call mpas_dmpar_exch_group_destroy(domain, 'initialization:u')
-      call mpas_dmpar_exch_group_destroy(domain, 'initialization:pv_edge,ru,rw')
+      if (trim(config_halo_exch_method) == 'mpas_dmpar') then
+         !
+         ! Destroy halo exchange groups used only during initialization
+         !
+         call mpas_dmpar_exch_group_destroy(domain, 'initialization:u')
+         call mpas_dmpar_exch_group_destroy(domain, 'initialization:pv_edge,ru,rw')
 
-      !
-      ! Destroy halo exchange groups used by dynamics
-      !
-      call mpas_dmpar_exch_group_destroy(domain, 'dynamics:theta_m,scalars,pressure_p,rtheta_p')
-      call mpas_dmpar_exch_group_destroy(domain, 'dynamics:rw_p,ru_p,rho_pp,rtheta_pp')
-      call mpas_dmpar_exch_group_destroy(domain, 'dynamics:w,pv_edge,rho_edge')
-      call mpas_dmpar_exch_group_destroy(domain, 'dynamics:w,pv_edge,rho_edge,scalars')
-      call mpas_dmpar_exch_group_destroy(domain, 'dynamics:theta_m,pressure_p,rtheta_p')
+         !
+         ! Destroy halo exchange groups used by dynamics
+         !
+         call mpas_dmpar_exch_group_destroy(domain, 'dynamics:theta_m,scalars,pressure_p,rtheta_p')
+         call mpas_dmpar_exch_group_destroy(domain, 'dynamics:rw_p,ru_p,rho_pp,rtheta_pp')
+         call mpas_dmpar_exch_group_destroy(domain, 'dynamics:w,pv_edge,rho_edge')
+         call mpas_dmpar_exch_group_destroy(domain, 'dynamics:w,pv_edge,rho_edge,scalars')
+         call mpas_dmpar_exch_group_destroy(domain, 'dynamics:theta_m,pressure_p,rtheta_p')
 
-      call mpas_dmpar_exch_group_destroy(domain, 'dynamics:exner')
-      call mpas_dmpar_exch_group_destroy(domain, 'dynamics:tend_u')
-      call mpas_dmpar_exch_group_destroy(domain, 'dynamics:rho_pp')
-      call mpas_dmpar_exch_group_destroy(domain, 'dynamics:rtheta_pp')
-      call mpas_dmpar_exch_group_destroy(domain, 'dynamics:u_123')
-      call mpas_dmpar_exch_group_destroy(domain, 'dynamics:u_3')
-      call mpas_dmpar_exch_group_destroy(domain, 'dynamics:scalars')
-      call mpas_dmpar_exch_group_destroy(domain, 'dynamics:scalars_old')
-      call mpas_dmpar_exch_group_destroy(domain, 'dynamics:w')
-      call mpas_dmpar_exch_group_destroy(domain, 'dynamics:scale')
+         call mpas_dmpar_exch_group_destroy(domain, 'dynamics:exner')
+         call mpas_dmpar_exch_group_destroy(domain, 'dynamics:tend_u')
+         call mpas_dmpar_exch_group_destroy(domain, 'dynamics:rho_pp')
+         call mpas_dmpar_exch_group_destroy(domain, 'dynamics:rtheta_pp')
+         call mpas_dmpar_exch_group_destroy(domain, 'dynamics:u_123')
+         call mpas_dmpar_exch_group_destroy(domain, 'dynamics:u_3')
+         call mpas_dmpar_exch_group_destroy(domain, 'dynamics:scalars')
+         call mpas_dmpar_exch_group_destroy(domain, 'dynamics:scalars_old')
+         call mpas_dmpar_exch_group_destroy(domain, 'dynamics:w')
+         call mpas_dmpar_exch_group_destroy(domain, 'dynamics:scale')
 
 #ifdef DO_PHYSICS
-      !
-      ! Destroy halo exchange groups used by physics
-      !
-      call mpas_dmpar_exch_group_destroy(domain, 'physics:blten')
-      call mpas_dmpar_exch_group_destroy(domain, 'physics:cuten')
+         !
+         ! Destroy halo exchange groups used by physics
+         !
+         call mpas_dmpar_exch_group_destroy(domain, 'physics:blten')
+         call mpas_dmpar_exch_group_destroy(domain, 'physics:cuten')
 #endif
+
+      else
+
+         !
+         ! Invalid method for exchanging halos - an error should have already occurred in atm_build_halo_groups()
+         !
+         ierr = 1
+         return
+
+      end if
 
       ierr = 0
 
