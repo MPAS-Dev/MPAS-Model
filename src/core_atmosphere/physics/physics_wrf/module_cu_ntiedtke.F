@@ -159,13 +159,12 @@
  errmsg = ' '
  errflg = 0
 
- call cu_ntiedtke_init(cp,rd,rv,xlv,xls,xlf,grav,errmsg,errflg)
-!call cu_ntiedtke_init( &
-!                      con_cp  = cp  , cond_rd = rd  , con_rv   = rv   , con_xlv = xlv    , &
-!                      con_xls = xls , con_xlf = xlf , con_grav = grav , errmsg  = errmgs , &
-!                      errflg  = errflg                                                     &
-!                     )
-
+!call cu_ntiedtke_init(cp,rd,rv,xlv,xls,xlf,grav,errmsg,errflg)
+ call cu_ntiedtke_init( &
+                       con_cp  = cp  , con_rd = rd   , con_rv   = rv   , con_xlv = xlv    , &
+                       con_xls = xls , con_xlf = xlf , con_grav = grav , errmsg  = errmsg , &
+                       errflg  = errflg                                                     &
+                      )
 
  do j = jts,jte
     do i = its,ite
@@ -206,10 +205,6 @@
        enddo
     enddo
 
-!   call cu_ntiedtke_timestep_init(its,ite,kts,kte,im,kx,kx1,itimestep,stepcu,dt,grav,xland_hv,dz_hv, &
-!                   prsl_hv,prsi_hv,t_hv,rho_hv,qv_hv,qc_hv,qi_hv,u_hv,v_hv,w_hv,qvften_hv,thften_hv, &
-!                   qvftenz,thftenz,slimsk,delt,prsl,ghtl,tf,qvf,qcf,qif,uf,vf,prsi,ghti,omg,         &
-!                   errmsg,errflg)
     call cu_ntiedtke_timestep_init( &
                      its    = its       , ite     = ite     , kts     = kts     , kte       = kte       , &
                      im     = im        , kx      = kx      , kx1     = kx1     , itimestep = itimestep , &
@@ -224,8 +219,6 @@
                      errmsg = errmsg    , errflg  = errflg                                                &
                                   )
 
-!   call cu_ntiedtke_run(uf,vf,tf,qvf,qcf,qif,qvftenz,thftenz,ghtl,ghti,omg,prsl,prsi,qfx_hv,hfx_hv, &
-!                        rn,slimsk,im,kx,kx1,delt,dx_hv,errmsg,errflg)
     call cu_ntiedtke_run( &
                      pu   = uf     , pv   = vf     , pt     = tf      , pqv    = qvf     , &
                      pqc  = qcf    , pqi  = qif    , pqvf   = qvftenz , ptf    = thftenz , &
@@ -235,9 +228,6 @@
                      dt   = delt   , dx   = dx_hv  , errmsg = errmsg  , errflg = errflg    &
                         )
 
-!   call cu_ntiedtke_timestep_final(its,ite,kts,kte,stepcu,dt,pi_hv,qv_hv,qc_hv,qi_hv,t_hv,u_hv,v_hv, &
-!                    qvf,qcf,qif,tf,uf,vf,rn,raincv_hv,pratec_hv,rthcuten_hv,rqvcuten_hv,rqccuten_hv, &
-!                    rqicuten_hv,rucuten_hv,rvcuten_hv,errmsg,errflg)
     call cu_ntiedtke_timestep_final( &
                      its      = its         , ite      = ite         , kts      = kts         , kte      = kte         , &
                      stepcu   = stepcu      , dt       = dt          , exner    = pi_hv       , qv       = qv_hv       , &
