@@ -382,7 +382,7 @@
                 <nml_option name="config_halo_exch_method" type="character" default_value="mpas_dmpar"
                      units="-"
                      description="Method to use for exchanging halos"
-                     possible_values="`mpas_dmpar'"/>
+                     possible_values="`mpas_dmpar', `mpas_halo'"/>
         </nml_record>
 
 <!-- **************************************************************************************** -->
