@@ -4,15 +4,16 @@ ifeq ($(CORE),atmosphere)
 COREDEF = -Dmpas
 endif
 
-all: lookup_tables core_physics_init core_physics_wrf core_physics
+all: lookup_tables core_physics_init core_physics_mmm core_physics_wrf core_physics
 
 dummy:
 	echo "****** compiling physics ******"
 
 OBJS_init = \
-	mpas_atmphys_constants.o     \
-	mpas_atmphys_date_time.o     \
-	mpas_atmphys_functions.o     \
+	ccpp_kinds.o             \
+	mpas_atmphys_constants.o \
+	mpas_atmphys_date_time.o \
+	mpas_atmphys_functions.o \
 	mpas_atmphys_utilities.o
 
 OBJS = \
@@ -47,6 +48,9 @@ OBJS = \
 
 lookup_tables:
 	./checkout_data_files.sh
+
+core_physics_mmm: core_physics_init
+	(cd physics_mmm; $(MAKE) all)
 
 core_physics_wrf: core_physics_init
 	(cd physics_wrf; $(MAKE) all COREDEF="$(COREDEF)")
@@ -194,6 +198,7 @@ mpas_atmphys_update.o: \
 clean:
 	$(RM) *.o *.mod *.f90 libphys.a
 	( cd physics_wrf; $(MAKE) clean )
+	( cd physics_mmm; $(MAKE) clean )
 	@# Certain systems with intel compilers generate *.i files
 	@# This removes them during the clean process
 	$(RM) *.i
@@ -202,7 +207,7 @@ clean:
 	$(RM) $@ $*.mod
 ifeq "$(GEN_F90)" "true"
 	$(CPP) $(CPPFLAGS) $(COREDEF) $(HYDROSTATIC) $(CPPINCLUDES) $< > $*.f90
-	$(FC) $(FFLAGS) -c $*.f90 $(FCINCLUDES) -I./physics_wrf -I.. -I../../framework -I../../external/esmf_time_f90
+	$(FC) $(FFLAGS) -c $*.f90 $(FCINCLUDES) -I./physics_mmm -I./physics_wrf -I.. -I../../framework -I../../external/esmf_time_f90
 else
-	$(FC) $(CPPFLAGS) $(COREDEF) $(HYDROSATIC) $(FFLAGS) -c $*.F $(CPPINCLUDES) $(FCINCLUDES) -I./physics_wrf -I.. -I../../framework -I../../external/esmf_time_f90
+	$(FC) $(CPPFLAGS) $(COREDEF) $(HYDROSATIC) $(FFLAGS) -c $*.F $(CPPINCLUDES) $(FCINCLUDES) -I./physics_mmm -I./physics_wrf -I.. -I../../framework -I../../external/esmf_time_f90
 endif
