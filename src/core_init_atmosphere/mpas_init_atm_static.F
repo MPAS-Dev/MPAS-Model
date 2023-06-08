@@ -563,6 +563,7 @@
             end do
 
             tile % is_processed = .true.
+            deallocate(tile % tile)
 
             if (.not. all_pixels_mapped_to_halo_cells) then
                 ierr = mgr % push_neighbors(tile)
@@ -797,6 +798,7 @@
             end do
 
             tile % is_processed = .true.
+            deallocate(tile % tile)
 
             if (.not. all_pixels_mapped_to_halo_cells) then
                 ierr = mgr % push_neighbors(tile)
@@ -1030,6 +1032,7 @@
             end do
 
             tile % is_processed = .true.
+            deallocate(tile % tile)
 
             if (.not. all_pixels_mapped_to_halo_cells) then
                 ierr = mgr % push_neighbors(tile)
@@ -1343,6 +1346,7 @@
             end do
 
             tile % is_processed = .true.
+            deallocate(tile % tile)
 
             !
             ! If at least one pixel maps to an owned cell (i.e. <= nCellsSolve) then
