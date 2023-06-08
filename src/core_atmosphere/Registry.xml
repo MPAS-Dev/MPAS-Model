@@ -474,6 +474,10 @@
 			<var name="deriv_two"/>
 			<var name="defc_a"/>
 			<var name="defc_b"/>
+#ifdef MPAS_CAM_DYCORE
+			<var name="cell_gradient_coef_x"/>
+			<var name="cell_gradient_coef_y"/>
+#endif
 			<var name="coeffs_reconstruct"/>
 			<var_array name="scalars"/>
 			<var name="initial_time"/>
@@ -605,6 +609,10 @@
 			<var name="deriv_two"/>
 			<var name="defc_a"/>
 			<var name="defc_b"/>
+#ifdef MPAS_CAM_DYCORE
+			<var name="cell_gradient_coef_x"/>
+			<var name="cell_gradient_coef_y"/>
+#endif
 			<var name="coeffs_reconstruct"/>
 			<var_array name="scalars"/>
 			<var name="initial_time"/>
@@ -1397,6 +1405,14 @@
 
                 <var name="defc_b" type="real" dimensions="maxEdges nCells" units="unitless"
                      description="Coefficients for computing the diagonal components of the horizontal deformation"/>
+
+#ifdef MPAS_CAM_DYCORE
+                <var name="cell_gradient_coef_x" type="real" dimensions="maxEdges nCells" units="m^-1"
+                     description="Coefficients for computing the x (zonal) derivative of a cell-centered variable"/>
+
+                <var name="cell_gradient_coef_y" type="real" dimensions="maxEdges nCells" units="m^-1"
+                     description="Coefficients for computing the y (meridional) derivative of a cell-centered variable"/>
+#endif
 
                 <!-- Arrays required for reconstruction of velocity field -->
                 <var name="coeffs_reconstruct" type="real" dimensions="R3 maxEdges nCells" units="unitless"
