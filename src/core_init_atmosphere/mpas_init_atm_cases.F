@@ -2712,6 +2712,7 @@ module init_atm_cases
 
       real (kind=RKIND), dimension(:), pointer :: sst
       real (kind=RKIND), dimension(:), pointer :: seaice
+      real (kind=RKIND), dimension(:), pointer :: icedepth
       real (kind=RKIND), dimension(:), pointer :: xice
       real (kind=RKIND), dimension(:,:), pointer :: u
       real (kind=RKIND), dimension(:,:), pointer :: w
@@ -2864,6 +2865,7 @@ module init_atm_cases
       call mpas_pool_get_array(fg, 'sst', sst)
       call mpas_pool_get_array(fg, 'xice', xice)
       call mpas_pool_get_array(fg, 'seaice', seaice)
+      call mpas_pool_get_array(fg, 'icedepth', icedepth)
       call mpas_pool_get_array(fg, 'st_fg', st_fg)
       call mpas_pool_get_array(fg, 'sm_fg', sm_fg)
       call mpas_pool_get_array(fg, 'psfc', psfc)
@@ -6260,6 +6262,95 @@ call mpas_log_write('Done with soil consistency check')
          deallocate(field % slab)
          call read_next_met_field(field, istatus)
       end do
+
+      call read_met_close()
+
+      !
+      ! Get sea ice thickness  from a separate file
+      !
+      call read_met_init('ICET', .true., config_start_time(1:13), istatus)
+
+      if (istatus /= 0) then
+         call mpas_log_write('ICET file not found...')
+      end if
+
+      if (istatus == 0) then
+         call read_next_met_field(field, istatus)
+         do while (istatus == 0)
+            if (index(field % field, 'ICETHICK') /= 0) then
+
+               call mpas_log_write('PROCESSING sea ice thickness')
+
+               !
+               ! Set up projection
+               !
+               call map_init(proj)
+          
+               if (field % iproj == PROJ_LATLON) then
+                  call map_set(PROJ_LATLON, proj, &
+                               latinc = real(field % deltalat,RKIND), &
+                               loninc = real(field % deltalon,RKIND), &
+                               knowni = 1.0_RKIND, &
+                               knownj = 1.0_RKIND, &
+                               lat1 = real(field % startlat,RKIND), &
+                               lon1 = real(field % startlon,RKIND))
+               else
+                  call mpas_log_write('We were expecting sea ice thickness field to be on a lat-lon projection...', messageType=MPAS_LOG_CRIT)
+               end if
+
+               if (index(field % field, 'ICETHICK') /= 0) then
+                  nInterpPoints = nCells
+                  latPoints => latCell
+                  lonPoints => lonCell
+                  ndims = 1
+               end if
+   
+               interp_list(1) = n_neighbor
+               interp_list(2) = 0
+   
+               masked = 1
+               fillval = 0.
+               msgval = -30000.
+               mask_array => landmask
+
+               allocate(rslab(field % nx, field % ny))
+               rslab(:,:) = field % slab(:,:)
+               do i=1,nInterpPoints
+                  if (mask_array(i) /= masked) then
+                     lat = latPoints(i)*DEG_PER_RAD
+                     lon = lonPoints(i)*DEG_PER_RAD
+                     call latlon_to_ij(proj, lat, lon, x, y)
+                     if (x < 0.5) then
+                        lon = lon + 360.0
+                        call latlon_to_ij(proj, lat, lon, x, y)
+                     else if (x >= real(field%nx)+0.5) then
+                        lon = lon - 360.0
+                        call latlon_to_ij(proj, lat, lon, x, y)
+                     end if
+                     if (y < 0.5) then
+                        y = 1.0
+                     else if (y >= real(field%ny)+0.5) then
+                        y = real(field%ny)
+                     end if
+                     if (ndims == 1) then
+                        icedepth(i) = interp_sequence(x, y, 1, rslab, 1, field % nx, 1, field % ny, 1, 1, msgval, interp_list, 1)
+                        if (icedepth(i) == msgval) icedepth(i) = fillval
+                        if (icedepth(i) < 0. ) icedepth(i) = 0.
+                     end if
+                  else
+                     if (ndims == 1) then
+                        icedepth(i) = fillval
+                     end if
+                  end if
+               end do
+               deallocate(rslab)
+               call mpas_log_write('PROCESSED sea ice thickness')
+            end if
+      
+            deallocate(field % slab)
+            call read_next_met_field(field, istatus)
+         end do
+      end if
 
       call read_met_close()
 

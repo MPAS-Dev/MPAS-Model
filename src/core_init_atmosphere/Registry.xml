@@ -547,6 +547,7 @@
                         <var name="snowh" packages="met_stage_out"/>
                         <var name="xice" packages="met_stage_out"/>
                         <var name="seaice" packages="met_stage_out"/>
+                        <var name="icedepth" packages="met_stage_out"/>
                         <var name="vegfra" packages="met_stage_out"/>
                         <var name="sfc_albbck" packages="met_stage_out"/>
                         <var name="xland" packages="met_stage_out"/>
@@ -1036,6 +1037,9 @@
 
                 <var name="xice" type="real" dimensions="nCells Time" units="unitless"
                      description="fractional area coverage of sea-ice"/>
+
+                <var name="icedepth" type="real" dimensions="nCells Time" units="m" default_value="0."
+                     description="Sea ice thickness in initial field, e.g.,from HYCOM"/>
 
                 <var name="seaice" type="real" dimensions="nCells Time" units="unitless"
                      description="sea-ice flag (0=no seaice; =1 otherwise)"/>

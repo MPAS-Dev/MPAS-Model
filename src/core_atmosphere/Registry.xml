@@ -498,6 +498,7 @@
 			<var name="tmn"/>
 			<var name="vegfra"/>
 			<var name="seaice"/>
+			<var name="icedepth"/>
 			<var name="xice"/>
 			<var name="xland"/>
 			<var name="u10"/>
@@ -823,6 +824,7 @@
 			<var name="tmn"/>
 			<var name="vegfra"/>
 			<var name="seaice"/>
+			<var name="icedepth"/>
 			<var name="xice"/>
 			<var name="xland"/>
 			<var name="dzs"/>
@@ -1076,6 +1078,7 @@
 			<var name="h_oml_initial"/>
 			<var name="hu_oml"/>
 			<var name="hv_oml"/>
+			<var name="icedepth"/>
 		</stream>
 
 		<stream name="surface" 
@@ -2062,6 +2065,11 @@
                      units="s"
                      description="Relaxation time to initial values in 1-d OML"
                      possible_values="Non-negative real values"/>
+
+                <nml_option name="icedepth_external" type="logical" default_value="false" in_defaults="false"
+                     units="-"
+                     description="Whether sea ice thickness from external data sets is used"
+                     possible_values=".true. or .false."/>
         </nml_record>
 
         <var_struct name="diag_physics" time_levs="1">
@@ -3037,6 +3045,9 @@
 
                 <var name="tmn" type="real" dimensions="nCells Time" units="K"
                      description="deep soil temperature"/>
+
+                <var name="icedepth" type="real" dimensions="nCells Time" units="m"
+                     description="Sea ice thickness"/>
 
                 <var name="vegfra" type="real" dimensions="nCells Time" units="unitless"
                      description="vegetation fraction"/>
