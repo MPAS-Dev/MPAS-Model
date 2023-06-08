@@ -189,6 +189,7 @@
 !pbl scheme:
  if(.not. (config_pbl_scheme .eq. 'off'     .or. &
            config_pbl_scheme .eq. 'bl_mynn' .or. &
+           config_pbl_scheme .eq. 'bl_shinhong' .or. &
            config_pbl_scheme .eq. 'bl_ysu')) then
 
     write(mpas_err_message,'(A,A10)') 'illegal value for pbl_scheme: ', &
@@ -265,7 +266,7 @@
  else
     if(config_pbl_scheme == 'bl_mynn') then
        config_sfclayer_scheme = 'sf_mynn'
-    elseif(config_pbl_scheme == 'bl_ysu') then
+    elseif(config_pbl_scheme == 'bl_ysu' .OR. config_pbl_scheme == 'bl_shinhong') then
        config_sfclayer_scheme = 'sf_monin_obukhov'
     endif
  endif
