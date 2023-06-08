@@ -2069,7 +2069,7 @@
                 <nml_option name="icedepth_external" type="logical" default_value="false" in_defaults="false"
                      units="-"
                      description="Whether sea ice thickness from external data sets is used"
-                     possible_values="`.true. or .false."/>
+                     possible_values=".true. or .false."/>
         </nml_record>
 
         <var_struct name="diag_physics" time_levs="1">
