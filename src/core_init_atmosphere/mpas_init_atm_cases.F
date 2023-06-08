@@ -6310,7 +6310,7 @@ call mpas_log_write('Done with soil consistency check')
    
                masked = 1
                fillval = 0.
-               msgval = -30000. !Thomas default was 0.0
+               msgval = -30000.
                mask_array => landmask
 
                allocate(rslab(field % nx, field % ny))
