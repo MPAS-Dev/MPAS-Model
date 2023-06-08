@@ -307,7 +307,7 @@
  logical,pointer:: config_frac_seaice
 
  character(len=StrKIND),pointer:: config_microp_scheme,    &
-                                  config_convection_scheme
+                                  config_convection_scheme, icedepth_external
 
  integer,dimension(:),pointer:: isltyp,ivgtyp
 
@@ -317,7 +317,7 @@
                                            sfcrunoff,smstav,smstot,snotime,snopcx,sr,udrunoff,   &
                                            z0,znt
  real(kind=RKIND),dimension(:),pointer  :: shdmin,shdmax,snoalb,sfc_albbck,snow,snowc,snowh,tmn, &
-                                           skintemp,vegfra,xice,xland
+                                           skintemp,vegfra,xice,xland, icedepth
  real(kind=RKIND),dimension(:),pointer  :: t2m,th2m,q2
  real(kind=RKIND),dimension(:),pointer  :: raincv,rainncv
  real(kind=RKIND),dimension(:,:),pointer:: sh2o,smcrel,smois,tslb,dzs
@@ -332,6 +332,7 @@
  call mpas_pool_get_config(configs,'config_frac_seaice'      ,config_frac_seaice      )
  call mpas_pool_get_config(configs,'config_convection_scheme',config_convection_scheme)
  call mpas_pool_get_config(configs,'config_microp_scheme'    ,config_microp_scheme    )
+ call mpas_pool_get_config(configs,'icedepth_external'    ,icedepth_external    )
 
  call mpas_pool_get_array(diag_physics,'acsnom'           ,acsnom           )
  call mpas_pool_get_array(diag_physics,'acsnow'           ,acsnow           )
@@ -388,6 +389,7 @@
  call mpas_pool_get_array(sfc_input,'smcrel'    ,smcrel    )
  call mpas_pool_get_array(sfc_input,'smois'     ,smois     )
  call mpas_pool_get_array(sfc_input,'tslb'      ,tslb      )
+ call mpas_pool_get_array(sfc_input,'icedepth'  ,icedepth  )
 
 !In Registry.xml, dzs is a function of nCells. In the Noah lsm scheme, dzs is independent
 !of cell locations:
@@ -508,7 +510,11 @@
     do j = jts,jte
     do i = its,ite
        albsi_p(i,j)    = sfc_albedo_seaice(i)
+      IF(icedepth_external) THEN
+       icedepth_p(i,j) = icedepth(i)
+      ELSE
        icedepth_p(i,j) = seaice_thickness_default
+      ENDIF
        snowsi_p(i,j)   = seaice_snowdepth_min
     enddo
     enddo
