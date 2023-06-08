@@ -127,7 +127,7 @@
 
 ! if ocean point, call the 1d ocean mixed layer model 
      if( xland(iCell) .gt. 1.5) then
-       f_coriolis = 2.*omega*cos(latCell(iCell))
+       f_coriolis = 2.*omega*sin(latCell(iCell))
        call oml1d( t_oml(iCell), t_oml_initial(iCell), h_oml(iCell), h_oml_initial(iCell),  &
                    hu_oml(iCell), hv_oml(iCell), skintemp(iCell), hfx(iCell),               &
                    lh(iCell), gsw(iCell), glw(iCell), t_oml_200m_initial(iCell),            &
