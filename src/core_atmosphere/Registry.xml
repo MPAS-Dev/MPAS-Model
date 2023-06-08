@@ -2174,19 +2174,19 @@
                      description="precipitable water"/>
 
                 <var name="clwp" type="real" dimensions="nCells Time" units="kg m^{-2}"
-                     description="Cloud liquid water path from MP"/>
+                     description="Cloud liquid water path from Microphysics"/>
 
 		<var name="iwp" type="real" dimensions="nCells Time" units="kg m^{-2}"
-                     description="Cloud ice path from MP"/>
+                     description="Cloud ice path from Microphysics"/>
 
 		<var name="grwp" type="real" dimensions="nCells Time" units="kg m^{-2}"
-                     description="Vertically integrated graupel from MP"/>
+                     description="Vertically integrated graupel from Microphysics"/>
 
 		<var name="snowp" type="real" dimensions="nCells Time" units="kg m^{-2}"
-                     description="vertically integrated snow from MP"/>
+                     description="vertically integrated snow from Microphysics"/>
 
 		<var name="rwp" type="real" dimensions="nCells Time" units="kg m^{-2}"
-                     description="Vertically integrated rain water from MP"/>
+                     description="Vertically integrated rain water from Microphysics"/>
 
                 <!-- ================================================================================================== -->
                 <!-- ... PARAMETERIZATION OF CONVECTION:                                                                -->
