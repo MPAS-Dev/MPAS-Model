@@ -483,6 +483,7 @@ module init_atm_cases
       real (kind=RKIND), dimension(:), pointer :: xVertex, yVertex, zVertex
       real (kind=RKIND), dimension(:), pointer :: dcEdge, dvEdge, areaCell, areaTriangle
       real (kind=RKIND), dimension(:,:), pointer :: kiteAreasOnVertex
+      real (kind=RKIND), pointer :: nominalMinDc
 
       real (kind=RKIND), dimension(:), pointer :: latCell, latVertex, lonVertex, latEdge, lonEdge
       real (kind=RKIND), dimension(:), pointer :: fEdge, fVertex
@@ -517,6 +518,7 @@ module init_atm_cases
       call mpas_pool_get_array(mesh, 'areaCell', areaCell)
       call mpas_pool_get_array(mesh, 'areaTriangle', areaTriangle)
       call mpas_pool_get_array(mesh, 'kiteAreasOnVertex', kiteAreasOnVertex)
+      call mpas_pool_get_array(mesh, 'nominalMinDc', nominalMinDc)
       call mpas_pool_get_config(mesh, 'on_a_sphere', on_a_sphere)
       call mpas_pool_get_config(mesh, 'sphere_radius', sphere_radius)
 
@@ -534,6 +536,7 @@ module init_atm_cases
       areaCell(:) = areaCell(:) * sphere_radius**2.0
       areaTriangle(:) = areaTriangle(:) * sphere_radius**2.0
       kiteAreasOnVertex(:,:) = kiteAreasOnVertex(:,:) * sphere_radius**2.0
+      nominalMinDc = nominalMinDc * sphere_radius
 
       call mpas_pool_get_array(mesh, 'weightsOnEdge', weightsOnEdge)
       call mpas_pool_get_array(mesh, 'nEdgesOnEdge', nEdgesOnEdge)
@@ -1403,6 +1406,7 @@ module init_atm_cases
       real (kind=RKIND), dimension(:), pointer :: xVertex, yVertex, zVertex
       real (kind=RKIND), dimension(:), pointer :: dcEdge, dvEdge, areaCell, areaTriangle
       real (kind=RKIND), dimension(:,:), pointer :: kiteAreasOnVertex
+      real (kind=RKIND), pointer :: nominalMinDc
       logical, pointer :: on_a_sphere
       real (kind=RKIND), pointer :: sphere_radius
 
@@ -1425,6 +1429,7 @@ module init_atm_cases
       call mpas_pool_get_array(mesh, 'areaCell', areaCell)
       call mpas_pool_get_array(mesh, 'areaTriangle', areaTriangle)
       call mpas_pool_get_array(mesh, 'kiteAreasOnVertex', kiteAreasOnVertex)
+      call mpas_pool_get_array(mesh, 'nominalMinDc', nominalMinDc)
 
       call mpas_pool_get_config(mesh, 'on_a_sphere', on_a_sphere)
       call mpas_pool_get_config(mesh, 'sphere_radius', sphere_radius)
@@ -1450,6 +1455,7 @@ module init_atm_cases
       areaCell(:) = areaCell(:) * a_scale**2.0
       areaTriangle(:) = areaTriangle(:) * a_scale**2.0
       kiteAreasOnVertex(:,:) = kiteAreasOnVertex(:,:) * a_scale**2.0
+      nominalMinDc = nominalMinDc * a_scale
 
       call mpas_pool_get_array(mesh, 'weightsOnEdge', weightsOnEdge)
       call mpas_pool_get_array(mesh, 'nEdgesOnEdge', nEdgesOnEdge)
@@ -2005,6 +2011,7 @@ module init_atm_cases
       real (kind=RKIND), dimension(:), pointer :: xVertex, yVertex, zVertex
       real (kind=RKIND), dimension(:), pointer :: dcEdge, dvEdge, areaCell, areaTriangle
       real (kind=RKIND), dimension(:,:), pointer :: kiteAreasOnVertex
+      real (kind=RKIND), pointer :: nominalMinDc
       logical, pointer :: on_a_sphere
       real (kind=RKIND), pointer :: sphere_radius
       real (kind=RKIND), pointer :: config_coef_3rd_order
@@ -2031,6 +2038,7 @@ module init_atm_cases
       call mpas_pool_get_array(mesh, 'areaCell', areaCell)
       call mpas_pool_get_array(mesh, 'areaTriangle', areaTriangle)
       call mpas_pool_get_array(mesh, 'kiteAreasOnVertex', kiteAreasOnVertex)
+      call mpas_pool_get_array(mesh, 'nominalMinDc', nominalMinDc)
 
       call mpas_pool_get_config(mesh, 'on_a_sphere', on_a_sphere)
       call mpas_pool_get_config(mesh, 'sphere_radius', sphere_radius)
@@ -2072,6 +2080,7 @@ module init_atm_cases
       areaCell(:) = areaCell(:) * a_scale**2.0
       areaTriangle(:) = areaTriangle(:) * a_scale**2.0
       kiteAreasOnVertex(:,:) = kiteAreasOnVertex(:,:) * a_scale**2.0
+      nominalMinDc = nominalMinDc * a_scale
 
       
       call mpas_pool_get_dimension(mesh, 'nEdges', nEdges)
@@ -5857,6 +5866,7 @@ call mpas_log_write('Done with soil consistency check')
       real(kind=RKIND), dimension(:), pointer :: xVertex, yVertex, zVertex
       real(kind=RKIND), dimension(:), pointer :: dcEdge, dvEdge, areaCell, areaTriangle
       real(kind=RKIND), dimension(:,:), pointer :: kiteAreasOnVertex
+      real(kind=RKIND), pointer :: nominalMinDc
 
       real(kind=RKIND), dimension(:), pointer :: fEdge, fVertex
       real(kind=RKIND), dimension(:), pointer :: latEdge
@@ -5943,6 +5953,7 @@ call mpas_log_write('Done with soil consistency check')
       call mpas_pool_get_array(mesh, 'areaCell', areaCell)
       call mpas_pool_get_array(mesh, 'areaTriangle', areaTriangle)
       call mpas_pool_get_array(mesh, 'kiteAreasOnVertex', kiteAreasOnVertex)
+      call mpas_pool_get_array(mesh, 'nominalMinDc', nominalMinDc)
       call mpas_pool_get_config(mesh, 'on_a_sphere', on_a_sphere)
       call mpas_pool_get_config(mesh, 'sphere_radius', sphere_radius)
 
@@ -5960,6 +5971,7 @@ call mpas_log_write('Done with soil consistency check')
       areaCell(:) = areaCell(:) * sphere_radius**2
       areaTriangle(:) = areaTriangle(:) * sphere_radius**2
       kiteAreasOnVertex(:,:) = kiteAreasOnVertex(:,:) * sphere_radius**2
+      nominalMinDc = nominalMinDc * sphere_radius
 
 
       !
