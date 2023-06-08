@@ -472,6 +472,8 @@
  character(len=StrKIND),pointer:: microp_scheme
  integer,pointer:: nCellsSolve
  real,dimension(:),pointer:: graupelncv,rainncv,snowncv,sr
+ real(kind=RKIND),dimension(:),pointer:: clwp, grwp,snowp
+ real(kind=RKIND),dimension(:),pointer:: iwp,rwp
 
 !local variables and arrays:
  integer:: i,j
@@ -554,6 +556,11 @@
 
  call mpas_pool_get_array(diag_physics,'i_rainnc'  ,i_rainnc  )
  call mpas_pool_get_array(diag_physics,'precipw'   ,precipw   )
+ call mpas_pool_get_array(diag_physics,'clwp'      ,clwp      )
+ call mpas_pool_get_array(diag_physics,'iwp'       ,iwp       )
+ call mpas_pool_get_array(diag_physics,'grwp'      ,grwp      )
+ call mpas_pool_get_array(diag_physics,'snowp'     ,snowp     )
+ call mpas_pool_get_array(diag_physics,'rwp'       ,rwp       )
  call mpas_pool_get_array(diag_physics,'graupelnc' ,graupelnc )
  call mpas_pool_get_array(diag_physics,'graupelncv',graupelncv)
  call mpas_pool_get_array(diag_physics,'rainnc'    ,rainnc    )
@@ -564,6 +571,11 @@
 
  do i = its,ite
     precipw(i) = 0._RKIND
+    clwp(i) = 0._RKIND    
+    iwp(i) = 0._RKIND 
+    rwp(i) = 0._RKIND    
+    snowp(i) = 0._RKIND    
+    grwp(i) = 0._RKIND  
  enddo
 
 !variables common to all cloud microphysics schemes:
@@ -574,6 +586,11 @@
     do k = kts,kte
        rho_a = rho_p(i,k,j) / (1._RKIND + qv_p(i,k,j))
        precipw(i) = precipw(i) + qv_p(i,k,j) * rho_a * dz_p(i,k,j)
+       clwp(i) = clwp(i) + qc_p(i,k,j) * rho_a * dz_p(i,k,j)
+       iwp(i) = iwp(i) + qi_p(i,k,j) * rho_a * dz_p(i,k,j)
+       rwp(i) = rwp(i) + qr_p(i,k,j) * rho_a * dz_p(i,k,j)
+       snowp(i) = snowp(i) + qs_p(i,k,j) * rho_a * dz_p(i,k,j)
+       grwp(i) = grwp(i) + qg_p(i,k,j) * rho_a * dz_p(i,k,j)
     enddo
 
     !time-step precipitation:
