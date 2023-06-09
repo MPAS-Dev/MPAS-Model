@@ -114,6 +114,9 @@
 !   input of "observed" 2D seaice albedos. In conjunction with this update, we also change the initialization of
 !   albsi from albbck to seaice_albedo_default.
 !   Laura D. Fowler (laura@ucar.edu) / 2022-05-10.
+! * added the local parameters flag_bep and idiff in the call to subroutine ysu to update the YSU PBL scheme to
+!   that of WRF version 4.4.1.
+!   Laura D. Fowler (laura@ucar.edu) / 2023-05-15.
 
 
 !=================================================================================================================
@@ -347,6 +350,14 @@
 !=================================================================================================================
 !... variables and arrays related to parameterization of pbl:
 !=================================================================================================================
+
+ logical,parameter:: &
+    flag_bep = .false. !flag to use BEP/BEP+BEM for use in the YSU PBL scheme (with urban physics). since we do
+                       !not run urban physics, flag_bep is always set to false.
+
+ integer,parameter:: &
+    idiff = 0          !BEP/BEM+BEM diffusion flag for use in the YSU PBL scheme (with urban physics). since we
+                       !do not run urban physics, idiff is set to zero.
 
  integer:: ysu_pblmix
 
