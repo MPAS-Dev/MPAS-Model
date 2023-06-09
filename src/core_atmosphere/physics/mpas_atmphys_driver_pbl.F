@@ -13,6 +13,7 @@
 
  use mpas_atmphys_constants
  use mpas_atmphys_vars
+ use mpas_constants
 
 !wrf physics:
  use module_bl_mynn
