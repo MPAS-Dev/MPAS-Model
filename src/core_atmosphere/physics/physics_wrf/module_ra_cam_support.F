@@ -263,7 +263,7 @@ real(r8) :: gdst(ndstsz, nspint) ! dust asymmetry parameter
       real(r8) cplol    ! constant for ozone path length integral
 
 !From ghg_surfvals.F90 module
-   real(r8) :: co2vmr = 3.550e-4         ! co2   volume mixing ratio
+   real(r8) :: co2vmr = 3.950e-4         ! co2   volume mixing ratio
    real(r8) :: n2ovmr = 0.311e-6         ! n2o   volume mixing ratio
    real(r8) :: ch4vmr = 1.714e-6         ! ch4   volume mixing ratio
    real(r8) :: f11vmr = 0.280e-9         ! cfc11 volume mixing ratio
