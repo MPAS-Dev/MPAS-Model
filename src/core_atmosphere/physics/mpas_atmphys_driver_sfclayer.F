@@ -558,12 +558,24 @@
              fh_sea(i,j) = fh(i)
              fm_sea(i,j) = fm(i)
           endif
+       enddo
+       enddo
 
-          waterdepth_p(i,j) = 0._RKIND
-          lakedepth_p(i,j)  = 0._RKIND
-          lakemask_p(i,j)   = 0._RKIND
-       enddo
-       enddo
+       sfclayer2_select: select case(sfclayer_scheme)
+
+          case("sf_monin_obukhov_rev")
+
+             do j = jts,jte
+             do i = its,ite
+                waterdepth_p(i,j) = 0._RKIND
+                lakedepth_p(i,j)  = 0._RKIND
+                lakemask_p(i,j)   = 0._RKIND
+             enddo
+             enddo
+
+          case default
+
+       end select sfclayer2_select
 
     case("sf_mynn")
        !input variables:
