@@ -964,7 +964,10 @@
 !=================================================================================================================
  real(kind=kind_phys) function zolri(ri,z,z0)
  real(kind=kind_phys),intent(in):: ri,z,z0
+
+ integer:: iter
  real(kind=kind_phys):: fx1,fx2,x1,x2
+
 
  if(ri.lt.0.)then
     x1=-5.
@@ -976,7 +979,9 @@
 
  fx1=zolri2(x1,ri,z,z0)
  fx2=zolri2(x2,ri,z,z0)
+ iter = 0
  do while (abs(x1 - x2) > 0.01)
+ if (iter .eq. 10) return
 !check added for potential divide by zero (2019/11)
     if(fx1.eq.fx2)return
     if(abs(fx2).lt.abs(fx1))then
@@ -988,6 +993,7 @@
        fx2=zolri2(x2,ri,z,z0)
        zolri=x2
     endif
+    iter = iter + 1
  enddo
 
  return
