@@ -886,7 +886,7 @@
             ids = ids , ide = ide , jds = jds , jde = jde , kds = kds , kde = kde ,      &
             ims = ims , ime = ime , jms = jms , jme = jme , kms = kms , kme = kme ,      &
             its = its , ite = ite , jts = jts , jte = jte , kts = kts , kte = kte ,      &
-            co2_local = co2_local , n2o_local = n2o_local, ch4_local = ch4_local         )                       )
+            co2_local = co2_local , n2o_local = n2o_local, ch4_local = ch4_local         )
        call mpas_timer_stop('RRTMG_lw')
 
     case ("cam_lw")
