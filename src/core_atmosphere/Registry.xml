@@ -264,6 +264,11 @@
                      description="Coefficient for scaling the 2nd-order horizontal mixing in the mpas_cam absorbing layer"
                      possible_values="0 $\leq$ config_mpas_cam_coef $\leq$ 1, standard value is 0.2"/>
 
+                <nml_option name="config_number_cam_damping_levels" type="integer" default_value="4" in_defaults="false"
+                     units="-"
+                     description="Number of layers in which to apply cam 2nd-order horizontal filter top of model; viscosity linearly ramps to zero by layer number from the top"
+                     possible_values="Positive integer values"/>
+
                 <nml_option name="config_rayleigh_damp_u" type="logical" default_value="false" in_defaults="false"
                      units="-"
                      description="Whether to apply Rayleigh damping on horizontal velocity in the top-most model levels. The number of levels is specified by the config_number_rayleigh_damp_u_levels option, and the damping timescale is specified by the config_rayleigh_damp_u_timescale_days option."
@@ -276,7 +281,7 @@
 
                 <nml_option name="config_number_rayleigh_damp_u_levels" type="integer" default_value="6" in_defaults="false"
                      units="-"
-                     description="Number layers in which to apply Rayleigh damping on horizontal velocity at top of model; damping linearly ramps to zero by layer number from the top"
+                     description="Number of layers in which to apply Rayleigh damping on horizontal velocity at top of model; damping linearly ramps to zero by layer number from the top"
                      possible_values="Positive integer values"/>
         </nml_record>
 
@@ -469,6 +474,10 @@
 			<var name="deriv_two"/>
 			<var name="defc_a"/>
 			<var name="defc_b"/>
+#ifdef MPAS_CAM_DYCORE
+			<var name="cell_gradient_coef_x"/>
+			<var name="cell_gradient_coef_y"/>
+#endif
 			<var name="coeffs_reconstruct"/>
 			<var_array name="scalars"/>
 			<var name="initial_time"/>
@@ -600,6 +609,10 @@
 			<var name="deriv_two"/>
 			<var name="defc_a"/>
 			<var name="defc_b"/>
+#ifdef MPAS_CAM_DYCORE
+			<var name="cell_gradient_coef_x"/>
+			<var name="cell_gradient_coef_y"/>
+#endif
 			<var name="coeffs_reconstruct"/>
 			<var_array name="scalars"/>
 			<var name="initial_time"/>
@@ -758,7 +771,6 @@
 			<var name="noahres"/>
 			<var name="potevp"/>
 			<var name="sfc_albedo"/>
-			<var name="sfc_albedo_seaice"/>
 			<var name="sfc_emiss"/>
 			<var name="sfc_emibck"/>
 			<var name="sfcrunoff"/>
@@ -983,48 +995,107 @@
 
                         <!-- Begin isobaric diagnostics defined in diagnostics/Registry_isobaric.xml -->
 			<var name="mslp"/>
+			<var name="relhum_50hPa"/>
+			<var name="relhum_100hPa"/>
 			<var name="relhum_200hPa"/>
 			<var name="relhum_250hPa"/>
 			<var name="relhum_500hPa"/>
 			<var name="relhum_700hPa"/>
 			<var name="relhum_850hPa"/>
 			<var name="relhum_925hPa"/>
+			<var name="dewpoint_50hPa"/>
+			<var name="dewpoint_100hPa"/>
 			<var name="dewpoint_200hPa"/>
 			<var name="dewpoint_250hPa"/>
 			<var name="dewpoint_500hPa"/>
 			<var name="dewpoint_700hPa"/>
 			<var name="dewpoint_850hPa"/>
 			<var name="dewpoint_925hPa"/>
+			<var name="temperature_20hPa"/>
+			<var name="temperature_50hPa"/>
+			<var name="temperature_100hPa"/>
 			<var name="temperature_200hPa"/>
 			<var name="temperature_250hPa"/>
+			<var name="temperature_300hPa"/>
+			<var name="temperature_400hPa"/>
 			<var name="temperature_500hPa"/>
+			<var name="temperature_600hPa"/>
 			<var name="temperature_700hPa"/>
+			<var name="temperature_800hPa"/>
 			<var name="temperature_850hPa"/>
 			<var name="temperature_925hPa"/>
+			<var name="temperature_950hPa"/>
+			<var name="temperature_1000hPa"/>
+			<var name="height_20hPa"/>
+			<var name="height_50hPa"/>
+			<var name="height_100hPa"/>
 			<var name="height_200hPa"/>
 			<var name="height_250hPa"/>
+			<var name="height_300hPa"/>
+			<var name="height_400hPa"/>
 			<var name="height_500hPa"/>
+			<var name="height_600hPa"/>
 			<var name="height_700hPa"/>
+			<var name="height_800hPa"/>
 			<var name="height_850hPa"/>
 			<var name="height_925hPa"/>
+			<var name="height_950hPa"/>
+			<var name="height_1000hPa"/>
+			<var name="uzonal_20hPa"/>
+			<var name="uzonal_50hPa"/>
+			<var name="uzonal_100hPa"/>
 			<var name="uzonal_200hPa"/>
 			<var name="uzonal_250hPa"/>
+			<var name="uzonal_300hPa"/>
+			<var name="uzonal_400hPa"/>
 			<var name="uzonal_500hPa"/>
+			<var name="uzonal_600hPa"/>
 			<var name="uzonal_700hPa"/>
+			<var name="uzonal_800hPa"/>
 			<var name="uzonal_850hPa"/>
 			<var name="uzonal_925hPa"/>
+			<var name="uzonal_950hPa"/>
+			<var name="uzonal_1000hPa"/>
+			<var name="umeridional_20hPa"/>
+			<var name="umeridional_50hPa"/>
+			<var name="umeridional_100hPa"/>
 			<var name="umeridional_200hPa"/>
 			<var name="umeridional_250hPa"/>
+			<var name="umeridional_300hPa"/>
+			<var name="umeridional_400hPa"/>
 			<var name="umeridional_500hPa"/>
+			<var name="umeridional_600hPa"/>
 			<var name="umeridional_700hPa"/>
+			<var name="umeridional_800hPa"/>
 			<var name="umeridional_850hPa"/>
 			<var name="umeridional_925hPa"/>
+			<var name="umeridional_950hPa"/>
+			<var name="umeridional_1000hPa"/>
++			<var name="qv_20hPa"/>
++			<var name="qv_50hPa"/>
++			<var name="qv_100hPa"/>
++			<var name="qv_200hPa"/>
++			<var name="qv_250hPa"/>
++			<var name="qv_300hPa"/>
++			<var name="qv_400hPa"/>
++			<var name="qv_500hPa"/>
++			<var name="qv_600hPa"/>
++			<var name="qv_700hPa"/>
++			<var name="qv_800hPa"/>
++			<var name="qv_850hPa"/>
++			<var name="qv_925hPa"/>
++			<var name="qv_950hPa"/>
++			<var name="qv_1000hPa"/>
+			<var name="w_50hPa"/>
+			<var name="w_100hPa"/>
 			<var name="w_200hPa"/>
 			<var name="w_250hPa"/>
 			<var name="w_500hPa"/>
 			<var name="w_700hPa"/>
 			<var name="w_850hPa"/>
 			<var name="w_925hPa"/>
+			<var name="vorticity_50hPa"/>
+			<var name="vorticity_100hPa"/>
 			<var name="vorticity_200hPa"/>
 			<var name="vorticity_250hPa"/>
 			<var name="vorticity_500hPa"/>
@@ -1378,6 +1449,14 @@
                 <var name="defc_b" type="real" dimensions="maxEdges nCells" units="unitless"
                      description="Coefficients for computing the diagonal components of the horizontal deformation"/>
 
+#ifdef MPAS_CAM_DYCORE
+                <var name="cell_gradient_coef_x" type="real" dimensions="maxEdges nCells" units="m^-1"
+                     description="Coefficients for computing the x (zonal) derivative of a cell-centered variable"/>
+
+                <var name="cell_gradient_coef_y" type="real" dimensions="maxEdges nCells" units="m^-1"
+                     description="Coefficients for computing the y (meridional) derivative of a cell-centered variable"/>
+#endif
+
                 <!-- Arrays required for reconstruction of velocity field -->
                 <var name="coeffs_reconstruct" type="real" dimensions="R3 maxEdges nCells" units="unitless"
                      description="Coefficients to reconstruct velocity vectors at cell centers"/>
@@ -1596,6 +1675,9 @@
                 <var name="pv_cell" type="real" dimensions="nVertLevels nCells Time" units="s^{-1} kg^{-1} m^3"
                      description="absolute vorticity/rho_zz averaged to the cell center from the vertices"/>
 
+                <var name="dtheta_dt_mp" type="real" dimensions="nVertLevels nCells Time" units="K s^{-1}"
+                     description="Potential temperature heating rate from microphysics"/>
+
                 <!-- reconstructed horizontal velocity vectors at cell centers -->
                 <var name="uReconstructX" type="real" dimensions="nVertLevels nCells Time" units="m s^{-1}"
                      description="Cartesian x-component of reconstructed horizontal velocity at cell centers"/>
@@ -1713,9 +1795,6 @@
 
                 <var name="kdiff" type="real" dimensions="nVertLevels nCells Time" units="m^2 s^{-1}"
                      description="Smagorinsky horizontal eddy viscosity"/>
-
-                <var name="tend_rtheta_adv" type="real" dimensions="nVertLevels nCells Time" units="kg K m^{-3} s^{-1}"
-                     description="flux divergence for rho*theta_m/zz, used in the Tiedtke convective parameterization"/>
 
                 <var name="surface_pressure" type="real" dimensions="nCells Time" units="Pa"
                      description="Diagnosed surface pressure"/>
@@ -1855,6 +1934,12 @@
                         <var name="lbc_ni" name_in_code="ni" array_group="number" packages="bl_mynn_in;mp_thompson_in" units="m^{-3} s^{-1}"
                              description="Lateral boundary tendency of ice number concentration"/>
                 </var_array>
+        </var_struct>
+
+        <var_struct name="halo_scratch" time_levs="1">
+                <var name="scale" type="real" dimensions="nVertLevels TWO nCells" units="-"
+                     description="Scaling coefficients for monotonic-limited horizontal fluxes"
+                     persistence="scratch" />
         </var_struct>
 
 
@@ -2803,9 +2888,6 @@
 
                 <var name="sfc_albedo" type="real" dimensions="nCells Time" units="unitless"
                      description="surface albedo"/>
-
-                <var name="sfc_albedo_seaice" type="real" dimensions="nCells Time" units="unitless"
-                     description="surface albedo over seaice"/>
 
                 <var name="sfc_emiss" type="real" dimensions="nCells Time" units="unitless"
                      description="surface emissivity"/>
