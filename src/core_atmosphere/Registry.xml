@@ -490,6 +490,7 @@
 			<var name="rho_base"/>
 			<var name="theta_base"/>
 			<var name="surface_pressure"/>
+                        <var name="ter"/>
 
 #ifdef DO_PHYSICS
 			<var name="isltyp"/>
@@ -857,6 +858,7 @@
 			<var name="h_oml_initial"/>
 			<var name="hu_oml"/>
 			<var name="hv_oml"/>
+                        <var name="ter"/>
 #endif
 		</stream>
 
@@ -1122,6 +1124,7 @@
 			<var name="q2"/>
 			<var name="t2m"/>
 			<var name="th2m"/>
+			<var name="ust"/>
 #endif
 
                         <!-- Begin convective diagnostics defined in diagnostics/Registry_convective.xml -->
@@ -1142,6 +1145,15 @@
 			<var name="updraft_helicity_max"/>
 			<var name="w_velocity_max"/>
 			<var name="wind_speed_level1_max"/>
+			<var name="fzlev"/>
+			<var name="speed_surface"/>
+			<var name="heatidx"/>
+			<var name="temp_wet"/>
+			<var name="relhum_2m"/>
+			<var name="ivt"/>
+			<var name="ztd"/>
+			<var name="ter"/>
+			<var name="gust_10m"/>
                         <!-- End convective diagnostics defined in diagnostics/Registry_convective.xml -->
 
 #ifdef DO_PHYSICS
