@@ -48,17 +48,32 @@
 ! * in subroutine physics_get_tend_work, added the option cu_ntiedtke in the calculation of rucuten_Edge.
 !   Laura D. Fowler (laura@ucar.edu) / 2016-10-28.
 
+ !
+ ! Abstract interface for routine used to communicate halos of fields
+ ! in a named group
+ !
+ abstract interface
+    subroutine halo_exchange_routine(domain, halo_group, ierr)
+
+       use mpas_derived_types, only : domain_type
+
+       type (domain_type), intent(inout) :: domain
+       character(len=*), intent(in) :: halo_group
+       integer, intent(out), optional :: ierr
+
+    end subroutine halo_exchange_routine
+ end interface
+
 
  contains
 
  
 !=================================================================================================================
  subroutine physics_get_tend( block, mesh, state, diag, tend, tend_physics, configs, rk_step, dynamics_substep, &
-                              tend_ru_physics, tend_rtheta_physics, tend_rho_physics )
+                              tend_ru_physics, tend_rtheta_physics, tend_rho_physics, exchange_halo_group )
 !=================================================================================================================
    
  use mpas_atm_dimensions
- use mpas_dmpar, only : mpas_dmpar_exch_group_full_halo_exch
 
 !input variables:
  type(block_type),intent(in),target:: block
@@ -67,6 +82,7 @@
  type(mpas_pool_type),intent(in):: configs
  integer, intent(in):: rk_step
  integer, intent(in):: dynamics_substep
+ procedure (halo_exchange_routine) :: exchange_halo_group
 
 !inout variables:
  type(mpas_pool_type),intent(inout):: diag
@@ -207,7 +223,8 @@
                            tend_u_phys, &
                            theta_m, scalars, &
                            tend_rtheta_physics, &
-                           tend_theta_euler &
+                           tend_theta_euler, &
+                           exchange_halo_group &
                            )
 
  !
@@ -261,7 +278,8 @@
                                  rthcuten, rqvcuten, rqccuten, rqrcuten, rqicuten, rqscuten, &
                                  rthratenlw, rthratensw, &
                                  tend_u_phys, &
-                                 theta_m, scalars, tend_theta, tend_theta_euler &
+                                 theta_m, scalars, tend_theta, tend_theta_euler, &
+                                 exchange_halo_group &
                                 )
 !==================================================================================================
 
@@ -307,6 +325,7 @@
     real (kind=RKIND), dimension(num_scalars,nVertLevels,nCells+1), intent(in) :: scalars
     real (kind=RKIND), dimension(nVertLevels,nCells+1), intent(inout) :: tend_theta
     real (kind=RKIND), dimension(nVertLevels,nCells+1), intent(in) :: tend_theta_euler
+    procedure (halo_exchange_routine) :: exchange_halo_group
 
     integer :: i, k
     real (kind=RKIND) :: coeff
@@ -314,7 +333,7 @@
     !add coupled tendencies due to PBL processes:
     if (config_pbl_scheme .ne. 'off') then
        if (rk_step == 1 .and. dynamics_substep == 1) then
-          call mpas_dmpar_exch_group_full_halo_exch(block % domain, 'physics:blten')
+          call exchange_halo_group(block % domain, 'physics:blten')
           call tend_toEdges(block,mesh,rublten,rvblten,rublten_Edge)
 
           !MGD for PV budget? should a similar line be in the cumulus section below?
@@ -375,7 +394,7 @@
     
            case('cu_tiedtke','cu_ntiedtke')
               if (rk_step == 1 .and. dynamics_substep == 1) then
-                 call mpas_dmpar_exch_group_full_halo_exch(block % domain, 'physics:cuten')
+                 call exchange_halo_group(block % domain, 'physics:cuten')
                  call tend_toEdges(block,mesh,rucuten,rvcuten,rucuten_Edge)
                  
                  tend_u_phys(1:nVertLevels,1:nEdges) = tend_u_phys(1:nVertLevels,1:nEdges) &
