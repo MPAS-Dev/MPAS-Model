@@ -72,6 +72,8 @@
 ! * modified logic in subroutine physics_tables_init so that the Thompson microphysics tables are read in each
 !   MPI task.
 !   Laura D. Fowler (laura@ucar.edu) / 2016-12-30.
+! * added the option sf_monin_obukhov_rev to run the revised surface layer scheme with the YSU PBL scheme.
+!   Laura D. Fowler (laura@ucar.edu) / 2023-05-15.
 
 
  contains
@@ -255,9 +257,10 @@
  endif
 
 !surface-layer scheme:
- if(.not. (config_sfclayer_scheme .eq. 'off'     .or. &
-           config_sfclayer_scheme .eq. 'sf_mynn' .or. &
-           config_sfclayer_scheme .eq. 'sf_monin_obukhov')) then
+ if(.not. (config_sfclayer_scheme .eq. 'off'              .or. &
+           config_sfclayer_scheme .eq. 'sf_mynn'          .or. &
+           config_sfclayer_scheme .eq. 'sf_monin_obukhov' .or. &
+           config_sfclayer_scheme .eq. 'sf_monin_obukhov_rev')) then
  
     write(mpas_err_message,'(A,A10)') 'illegal value for surface layer scheme: ', &
           trim(config_sfclayer_scheme)
@@ -266,7 +269,12 @@
     if(config_pbl_scheme == 'bl_mynn') then
        config_sfclayer_scheme = 'sf_mynn'
     elseif(config_pbl_scheme == 'bl_ysu') then
-       config_sfclayer_scheme = 'sf_monin_obukhov'
+       if(config_sfclayer_scheme /= 'sf_monin_obukhov' .and. &
+          config_sfclayer_scheme /= 'sf_monin_obukhov_rev') then
+          write(mpas_err_message,'(A,A10)') 'wrong choice for surface layer scheme with YSU PBL: ', &
+                trim(config_sfclayer_scheme)
+          call physics_error_fatal(mpas_err_message)
+       endif
     endif
  endif
 

@@ -39,6 +39,7 @@ OBJS = \
         module_sf_noah_seaice_drv.o    \
 	module_sf_oml.o                \
 	module_sf_sfclay.o             \
+	module_sf_sfclayrev.o          \
 	module_sf_urban.o
 
 physics_wrf: $(OBJS)

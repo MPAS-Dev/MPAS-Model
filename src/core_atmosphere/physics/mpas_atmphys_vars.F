@@ -116,6 +116,8 @@
 !   Laura D. Fowler (laura@ucar.edu) / 2022-05-10.
 ! * added the local parameters flag_bep and idiff in the call to subroutine ysu to update the YSU PBL scheme to
 !   that of WRF version 4.4.1.
+! * added local flags and variables needed to initialize and run the revised version of the MONIN-OBUKHOV surface
+!   layer scheme from the WRF version 4.4.1.
 !   Laura D. Fowler (laura@ucar.edu) / 2023-05-15.
 
 
@@ -489,6 +491,26 @@
  real(kind=RKIND),dimension(:,:),allocatable:: &
     fh_p,             &!integrated stability function for heat                                                 [-]
     fm_p               !integrated stability function for momentum                                             [-]
+
+!... variables and arrays only in the revised version of monin_obukhov (module_sf_sfclayrev.F) to include the
+!    shallow water roughness scheme:
+ integer,parameter:: &
+    bathymetry_flag = 0!this flag is set to 1 if input bathymetry data is available (this option is not available
+                       !in MPAS and therefore set to 0 by default.
+ integer,parameter:: &
+    shalwater_flag  = 0!this flag is set to 1 to run the shallow water roughness scheme (this option is not
+                       !available in MPAS and therefore set to 0 by default.
+ integer,parameter:: &
+    lakemodel_flag  = 0!this flag is set to 1 to run the lake model physics (this option is not available in MPAS
+                       !and therefore set to 0 by default.
+
+ real(kind=RKIND),parameter:: &
+    shalwater_depth = 0!constant shallow water depth needed to run the shallow water roughness scheme.
+
+ real(kind=RKIND),dimension(:,:),allocatable:: &
+    waterdepth_p,     &!depth of water needed to run the shallow water roughness scheme.
+    lakedepth_p,      &!depth of lakes needed to run the lake model physics.
+    lakemask_p         !mask needed to detect the location of lakes to run the lake model physics.
 
 !... arrays only in mynn surface layer scheme (module_sf_mynn.F):
  real(kind=RKIND),dimension(:,:),allocatable:: &
