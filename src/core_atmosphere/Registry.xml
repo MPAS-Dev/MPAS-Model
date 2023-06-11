@@ -142,10 +142,10 @@
                      description="Formulation of horizontal mixing"
                      possible_values="`2d_fixed' or `2d_smagorinsky'"/>
 
-                <nml_option name="config_len_disp" type="real" default_value="120000.0"
+                <nml_option name="config_len_disp" type="real" default_value="0.0" in_defaults="false"
                      units="m"
                      description="Horizontal length scale, used by the Smagorinsky formulation of horizontal diffusion and by 3-d divergence damping"
-                     possible_values="Positive real values"/>
+                     possible_values="Positive real values. A zero value implies that the length scale is prescribed by the nominalMinDc value in the input file."/>
 
                 <nml_option name="config_visc4_2dsmag" type="real" default_value="0.05"
                      units="-"
@@ -457,6 +457,7 @@
 			<var name="fEdge"/>
 			<var name="fVertex"/>
 			<var name="meshDensity"/>
+			<var name="nominalMinDc"/>
 			<var name="bdyMaskCell"/>
 			<var name="bdyMaskEdge"/>
 			<var name="bdyMaskVertex"/>
@@ -592,6 +593,7 @@
 			<var name="fEdge"/>
 			<var name="fVertex"/>
 			<var name="meshDensity"/>
+			<var name="nominalMinDc"/>
 			<var name="bdyMaskCell"/>
 			<var name="bdyMaskEdge"/>
 			<var name="bdyMaskVertex"/>
@@ -1304,6 +1306,9 @@
 
                 <var name="meshDensity" type="real" dimensions="nCells" units="unitless"
                      description="Mesh density function (used when generating the mesh) evaluated at a cell"/>
+
+                <var name="nominalMinDc" type="real" dimensions="" units="m"
+                     description="Nominal minimum dcEdge value where meshDensity == 1.0"/>
 
                 <var name="meshScalingDel2" type="real" dimensions="nEdges" units="unitless"
                      description="Scaling coefficient for $\nabla^2$ eddy viscosity"/>

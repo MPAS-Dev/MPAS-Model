@@ -71,6 +71,9 @@ module atm_core
       character (len=StrKIND), pointer :: initial_time1, initial_time2
       type (MPAS_Time_Type) :: startTime
 
+      real (kind=RKIND), pointer :: nominalMinDc
+      real (kind=RKIND), pointer :: config_len_disp
+
       integer, pointer :: nVertLevels, maxEdges, maxEdges2, num_scalars
       character (len=ShortStrKIND) :: init_stream_name
       real (kind=R8KIND) :: input_start_time, input_stop_time
@@ -148,6 +151,56 @@ module atm_core
       call MPAS_stream_mgr_reset_alarms(domain % streamManager, streamID='input', direction=MPAS_STREAM_INPUT, ierr=ierr)
       call MPAS_stream_mgr_reset_alarms(domain % streamManager, streamID='restart', direction=MPAS_STREAM_INPUT, ierr=ierr)
       call mpas_log_write(' ----- done reading initial state -----')
+
+
+      !
+      ! Determine horizontal length scale used by horizontal diffusion and 3-d divergence damping
+      !
+      call mpas_pool_get_subpool(domain % blocklist % structs, 'mesh', mesh)
+      nullify(nominalMinDc)
+      call mpas_pool_get_array(mesh, 'nominalMinDc', nominalMinDc)
+
+      nullify(config_len_disp)
+      call mpas_pool_get_config(domain % blocklist % configs, 'config_len_disp', config_len_disp)
+
+      call mpas_log_write('')
+
+      !
+      ! If config_len_disp was specified as a valid value, use that
+      !
+      if (config_len_disp > 0.0_RKIND) then
+         call mpas_log_write('Setting nominalMinDc to $r based on namelist option config_len_disp', realArgs=[config_len_disp])
+
+         !
+         ! But if nominalMinDc was available in the input file and is different, print a warning
+         !
+         if (nominalMinDc > 0.0_RKIND .and. abs(nominalMinDc - config_len_disp) > 1.0e-6_RKIND * config_len_disp) then
+            call mpas_log_write('nominalMinDc was read from input file as a positive value ($r) that differs', &
+                                realArgs=[nominalMinDc], messageType=MPAS_LOG_WARN)
+            call mpas_log_write('from the specified config_len_disp value ($r)', &
+                                realArgs=[config_len_disp], messageType=MPAS_LOG_WARN)
+         end if
+
+         nominalMinDc = config_len_disp
+
+      !
+      ! Otherwise, try to use nominalMinDc
+      !
+      else
+         if (nominalMinDc > 0.0_RKIND) then
+            call mpas_log_write('Setting config_len_disp to $r based on nominalMinDc value in input file', realArgs=[nominalMinDc])
+            config_len_disp = nominalMinDc
+         else
+            call mpas_log_write('Both config_len_disp and nominalMinDc are <= 0.0.', messageType=MPAS_LOG_ERR)
+            call mpas_log_write('Please either specify config_len_disp in the &nhyd_model namelist group,', &
+                                messageType=MPAS_LOG_ERR)
+            call mpas_log_write('or use an input file that provides a valid value for the nominalMinDc variable.', &
+                                messageType=MPAS_LOG_ERR)
+            ierr = 1
+            return
+         end if
+      end if
+
 
       !
       ! Read all other inputs
