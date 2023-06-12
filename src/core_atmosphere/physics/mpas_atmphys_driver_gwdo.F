@@ -311,7 +311,7 @@
        call gwdo ( &
                   p3d       = pres_hydd_p , p3di      = pres2_hydd_p , pi3d    = pi_p      , &
                   u3d       = u_p         , v3d       = v_p          , t3d     = t_p       , & 
-                  qv3d      = qv_p        , z         = z_p          , rublten = rublten_p , &
+                  qv3d      = qv_p        , z         = zmid_p       , rublten = rublten_p , &
                   rvblten   = rvblten_p   , dtaux3d   = dtaux3d_p    , dtauy3d = dtauy3d_p , &
                   dusfcg    = dusfcg_p    , dvsfcg    = dvsfcg_p     , kpbl2d  = kpbl_p    , &
                   itimestep = itimestep   , dt        = dt_pbl       , dx      = dx_p      , & 
