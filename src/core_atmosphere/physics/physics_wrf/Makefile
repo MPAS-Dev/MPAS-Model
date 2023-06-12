@@ -18,7 +18,6 @@ OBJS = \
 	module_cu_ntiedtke.o           \
 	module_cu_kfeta.o              \
 	module_mp_kessler.o            \
-	module_mp_radar.o              \
 	module_mp_thompson.o           \
 	module_mp_thompson_cldfra3.o   \
 	module_mp_wsm6.o               \
@@ -51,12 +50,6 @@ module_bl_mynn.o: \
 
 module_cam_support.o: \
 	module_cam_shr_kind_mod.o
-
-module_mp_thompson.o: \
-	module_mp_radar.o
-
-module_mp_wsm6.o: \
-	module_mp_radar.o
 
 module_ra_cam.o: \
 	module_cam_support.o \

@@ -19,7 +19,9 @@
 !wrf physics:
  use module_mp_kessler
  use module_mp_thompson
- use module_mp_wsm6
+ use module_mp_wsm6,only: wsm6
+ use mp_wsm6,only: mp_wsm6_init,refl10cm_wsm6
+
 
  implicit none
  private
@@ -256,7 +258,15 @@
 !local pointer:
  character(len=StrKIND),pointer:: microp_scheme
 
+!CCPP-compliant flags:
+ character(len=StrKIND):: errmsg
+ integer:: errflg
+
 !-----------------------------------------------------------------------------------------------------------------
+
+!initialization of CCPP-compliant flags:
+ errmsg = ' '
+ errflg = 0
 
  call mpas_pool_get_config(configs,'config_microp_scheme',microp_scheme)
 
@@ -267,7 +277,8 @@
         call init_thompson_clouddroplets_forMPAS(mesh,sfc_input,diag_physics)
 
      case("mp_wsm6")
-        call wsm6init(rho_a,rho_r,rho_s,cliq,cpv,hail_opt,.false.)
+        call mp_wsm6_init(den0=rho_a,denr=rho_r,dens=rho_s,cl=cliq,cpv=cpv, &
+                          hail_opt=hail_opt,errmsg=errmsg,errflg=errflg)
 
      case default
 
@@ -301,9 +312,17 @@
 !local variables and arrays:
  integer:: istep
 
+!CCPP-compliant flags:
+ character(len=StrKIND):: errmsg
+ integer:: errflg
+
 !-----------------------------------------------------------------------------------------------------------------
 !call mpas_log_write('')
 !call mpas_log_write('---enter subroutine driver_microphysics:')
+
+!initialization of CCPP-compliant flags:
+ errmsg = ' '
+ errflg = 0
 
  call mpas_pool_get_config(configs,'config_microp_scheme',microp_scheme)
 
@@ -363,27 +382,30 @@
        call mpas_timer_stop('Thompson')
 
     case ("mp_wsm6")
-       call mpas_timer_start('WSM6')
+       call mpas_timer_start('mp_wsm6')
        call wsm6( &
-                  th       = th_p        , q          = qv_p         , qc       = qc_p      , &
-                  qr       = qr_p        , qi         = qi_p         , qs       = qs_p      , &
-                  qg       = qg_p        , den        = rho_p        , pii      = pi_p      , &
-                  p        = pres_p      , delz       = dz_p         , delt     = dt_microp , &
-                  g        = gravity     , cpd        = cp           , cpv      = cpv       , &
-                  rd       = R_d         , rv         = R_v          , t0c      = svpt0     , &
-                  ep1      = ep_1        , ep2        = ep_2         , qmin     = epsilon   , &
-                  xls      = xls         , xlv0       = xlv          , xlf0     = xlf       , &
-                  den0     = rho_a       , denr       = rho_w        , cliq     = cliq      , &
-                  cice     = cice        , psat       = psat         , rain     = rainnc_p  , &
-                  rainncv  = rainncv_p   , snow       = snownc_p     , snowncv  = snowncv_p , &
-                  graupel  = graupelnc_p , graupelncv = graupelncv_p , sr       = sr_p      , &
-                  re_cloud = recloud_p   , re_ice     = reice_p      , re_snow  = resnow_p  , &
-                  has_reqc = has_reqc    , has_reqi   = has_reqi     , has_reqs = has_reqs  , &
-                  ids = ids , ide = ide , jds = jds , jde = jde , kds = kds , kde = kde     , &
-                  ims = ims , ime = ime , jms = jms , jme = jme , kms = kms , kme = kme     , &
-                  its = its , ite = ite , jts = jts , jte = jte , kts = kts , kte = kte       &
+                  th        = th_p        , q          = qv_p         , qc        = qc_p      , &
+                  qr        = qr_p        , qi         = qi_p         , qs        = qs_p      , &
+                  qg        = qg_p        , den        = rho_p        , pii       = pi_p      , &
+                  p         = pres_p      , delz       = dz_p         , delt      = dt_microp , &
+                  g         = gravity     , cpd        = cp           , cpv       = cpv       , &
+                  rd        = R_d         , rv         = R_v          , t0c       = svpt0     , &
+                  ep1       = ep_1        , ep2        = ep_2         , qmin      = epsilon   , &
+                  xls       = xls         , xlv0       = xlv          , xlf0      = xlf       , &
+                  den0      = rho_a       , denr       = rho_w        , cliq      = cliq      , &
+                  cice      = cice        , psat       = psat         , rain      = rainnc_p  , &
+                  rainncv   = rainncv_p   , snow       = snownc_p     , snowncv   = snowncv_p , &
+                  graupel   = graupelnc_p , graupelncv = graupelncv_p , sr        = sr_p      , &
+                  re_cloud  = recloud_p   , re_ice     = reice_p      , re_snow   = resnow_p  , &
+                  has_reqc  = has_reqc    , has_reqi   = has_reqi     , has_reqs  = has_reqs  , &
+                  re_qc_bg  = re_qc_bg    , re_qi_bg   = re_qi_bg     , re_qs_bg  = re_qs_bg  , &
+                  re_qc_max = re_qc_max   , re_qi_max  = re_qi_max    , re_qs_max = re_qs_max , &
+                  errmsg    = errmsg      , errflg     = errflg                               , &
+                  ids = ids , ide = ide , jds = jds , jde = jde , kds = kds , kde = kde       , &
+                  ims = ims , ime = ime , jms = jms , jme = jme , kms = kms , kme = kme       , &
+                  its = its , ite = ite , jts = jts , jte = jte , kts = kts , kte = kte         &
                )
-       call mpas_timer_stop('WSM6')
+       call mpas_timer_stop('mp_wsm6')
 
     case default
 
@@ -640,7 +662,7 @@
              zp(k) = z_p(i,k,j) - z_p(i,1,j)+0.5*dz_p(i,1,j) ! height AGL
           enddo
 
-          call refl10cm_wsm6(qv1d,qr1d,qs1d,qg1d,t1d,p1d,dBZ1d,kts,kte,i,j)
+          call refl10cm_wsm6(qv1d,qr1d,qs1d,qg1d,t1d,p1d,dBZ1d,kts,kte)
 
           kp = 1
           do k = kts,kte

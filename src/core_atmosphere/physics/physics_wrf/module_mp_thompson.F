@@ -64,7 +64,7 @@
       use mpas_atmphys_functions, only: gammp,wgamma,rslf,rsif
       use mpas_atmphys_utilities
       use mpas_io_units, only : mpas_new_unit, mpas_release_unit
-      use module_mp_radar
+      use mp_radar
 
       implicit none
       logical, parameter, private:: iiwarm = .false.
