@@ -278,7 +278,12 @@
                      units="-"
                      description="Whether to switch sea-ice threshold from 0.5 to 0.02"
                      possible_values="true or false"/>
+        </nml_record>
 
+        <nml_record name="physics" in_defaults="false">
+                <nml_option name="config_tsk_seaice_threshold" type="real" default_value="100." units="K"
+                     description="surface temperature threshold below which water points are set to seaice points"
+                     possible_values="Positive real values"/>
         </nml_record>
 
         <nml_record name="io" in_defaults="true">
