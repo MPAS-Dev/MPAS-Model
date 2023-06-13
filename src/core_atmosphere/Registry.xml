@@ -2669,6 +2669,15 @@
                 <var name="acswuptc" type="real" dimensions="nCells Time" units="W m^{-2}"
                      description="accumulated clear-sky upward top-of-atmosphere shortwave radiation flux"/>
 
+                <var name="swddir" type="real" dimensions="nCells Time" units="W m^{-2}"
+                     description="shortwave surface downward direct irradiance"/>
+
+                <var name="swddni" type="real" dimensions="nCells Time" units="W m^{-2}"
+                     description="shortwave surface downward direct normal irradiance"/>
+
+                <var name="swddif" type="real" dimensions="nCells Time" units="W m^{-2}"
+                     description="shortwave surface downward diffuse irradiance"/>
+
                 <var name="gsw" type="real" dimensions="nCells Time" units="W m^{-2}"
                      description="net surface shortwave radiation flux"/>
 

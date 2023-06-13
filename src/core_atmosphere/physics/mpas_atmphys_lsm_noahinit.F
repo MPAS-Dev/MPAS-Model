@@ -215,11 +215,13 @@
  character(len=*),intent(inout):: mminlu, mminsl
 
 !local variables:
- character*128:: mess , message
+ character*128:: mess,message
+ character*128:: astring
 
- integer,parameter:: open_ok = 0
+ integer,parameter:: open_ok  = 0
+ integer,parameter:: loop_max = 10
  integer:: lumatch,iindex,lc,num_slope
- integer:: read_unit, istat
+ integer:: istat,loop_count,read_unit
 
 !-----SPECIFY VEGETATION RELATED CHARACTERISTICS :
 !ALBBCK: SFC albedo (in percentage)
@@ -261,8 +263,10 @@
                                 'failure opening VEGPARM.TBL')
 
     lumatch=0
+
+    loop_count = 0
+    read(read_unit,fmt='(A)',end=2002) astring
     find_lutype : do while (lumatch == 0)
-       read(read_unit,*,end=2002)
        read(read_unit,*,end=2002) lutype
        read(read_unit,*) lucats,iindex
 
@@ -272,10 +276,17 @@
           call physics_message(mess)
           lumatch=1
        else
+          loop_count = loop_count + 1
           call physics_message('    skipping over lutype = ' // trim ( lutype ))
-          do lc = 1, lucats+20
-             read(read_unit,*)
-          enddo
+
+          find_vegetation_parameter_flag: do
+             read(read_unit,fmt='(A)',end=2002) astring
+             if(astring(1:21) .eq. 'Vegetation Parameters') then
+                exit find_vegetation_parameter_flag
+             elseif(loop_count .ge. loop_max) then
+                call physics_error_fatal('too many loops in VEGPARM.TBL')
+             endif
+          enddo find_vegetation_parameter_flag
        endif
     enddo find_lutype
 
@@ -307,6 +318,7 @@
                      albedomintbl(lc),albedomaxtbl(lc),z0mintbl(lc),z0maxtbl(lc),ztopvtbl(lc), &
                      zbotvtbl(lc)
        enddo
+
        read (read_unit,*)
        read (read_unit,*)topt_data
        read (read_unit,*)
@@ -322,11 +334,27 @@
        read (read_unit,*)
        read (read_unit,*)
        read (read_unit,*)
-       read (read_unit,*)low_density_residential
+       read (read_unit,*)lcz_1
        read (read_unit,*)
-       read (read_unit,*)high_density_residential
+       read (read_unit,*)lcz_2
        read (read_unit,*)
-       read (read_unit,*)high_intensity_industrial
+       read (read_unit,*)lcz_3
+       read (read_unit,*)
+       read (read_unit,*)lcz_4
+       read (read_unit,*)
+       read (read_unit,*)lcz_5
+       read (read_unit,*)
+       read (read_unit,*)lcz_6
+       read (read_unit,*)
+       read (read_unit,*)lcz_7
+       read (read_unit,*)
+       read (read_unit,*)lcz_8
+       read (read_unit,*)
+       read (read_unit,*)lcz_9
+       read (read_unit,*)
+       read (read_unit,*)lcz_10
+       read (read_unit,*)
+       read (read_unit,*)lcz_11
     endif
 
     2002 continue
@@ -364,9 +392,17 @@
  DM_BCAST_REAL(rsmax_data)
  DM_BCAST_INTEGER(bare)
  DM_BCAST_INTEGER(natural)
- DM_BCAST_INTEGER(low_density_residential)
- DM_BCAST_INTEGER(high_density_residential)
- DM_BCAST_INTEGER(high_intensity_industrial)
+ DM_BCAST_INTEGER(lcz_1)
+ DM_BCAST_INTEGER(lcz_2)
+ DM_BCAST_INTEGER(lcz_3)
+ DM_BCAST_INTEGER(lcz_4)
+ DM_BCAST_INTEGER(lcz_5)
+ DM_BCAST_INTEGER(lcz_6)
+ DM_BCAST_INTEGER(lcz_7)
+ DM_BCAST_INTEGER(lcz_8)
+ DM_BCAST_INTEGER(lcz_9)
+ DM_BCAST_INTEGER(lcz_10)
+ DM_BCAST_INTEGER(lcz_11)
 
 !call mpas_log_write(' LUTYPE  = '//trim(lutype))
 !call mpas_log_write(' LUCATS  = $i',intArgs=(/lucats/))
@@ -379,16 +415,24 @@
 !call mpas_log_write(' RSMAX_DATA  = $r',realArgs=(/rsmax_data/))
 !call mpas_log_write(' BARE        = $i',intArgs=(/bare/))
 !call mpas_log_write(' NATURAL     = $i',intArgs=(/natural/))
-!call mpas_log_write(' LOW_DENSITY_RESIDENTIAL   = $i , intArgs=(/low_density_residential/))
-!call mpas_log_write(' HIGH_DENSITY_RESIDENTIAL  = $i , intArgs=(/high_density_residential/))
-!call mpas_log_write(' HIGH_DENSITY_INDUSTRIAL   = $i , intArgs=(/high_density_industrial/))
+!call mpas_log_write(' LCZ_1       = $i', intArgs=(/lcz_1/))
+!call mpas_log_write(' LCZ_2       = $i', intArgs=(/lcz_2/))
+!call mpas_log_write(' LCZ_3       = $i', intArgs=(/lcz_3/))
+!call mpas_log_write(' LCZ_4       = $i', intArgs=(/lcz_4/))
+!call mpas_log_write(' LCZ_5       = $i', intArgs=(/lcz_5/))
+!call mpas_log_write(' LCZ_6       = $i', intArgs=(/lcz_6/))
+!call mpas_log_write(' LCZ_7       = $i', intArgs=(/lcz_7/))
+!call mpas_log_write(' LCZ_8       = $i', intArgs=(/lcz_8/))
+!call mpas_log_write(' LCZ_9       = $i', intArgs=(/lcz_9/))
+!call mpas_log_write(' LCZ_10      = $i', intArgs=(/lcz_10/))
+!call mpas_log_write(' LCZ_11      = $i', intArgs=(/lcz_11/))
 !call mpas_log_write('')
 !do lc = 1, lucats
 !   call mpas_log_write('$i $r $r $r $r $r $r $r $r $r $r $r $r $r $r $r $r $r', intArgs=(/lc/),     &
 !                realArgs=(/shdtbl(lc),float(nrotbl(lc)),rstbl(lc),rgltbl(lc),hstbl(lc),snuptbl(lc), &
 !                maxalb(lc),laimintbl(lc),laimaxtbl(lc),emissmintbl(lc),emissmaxtbl(lc),             &
 !                albedomintbl(lc),albedomaxtbl(lc),z0mintbl(lc),z0maxtbl(lc),ztopvtbl(lc),           &
-!                zbottvtbl(lc)/))
+!                zbotvtbl(lc)/))
 !enddo
  call mpas_log_write('    end read VEGPARM.TBL')
 

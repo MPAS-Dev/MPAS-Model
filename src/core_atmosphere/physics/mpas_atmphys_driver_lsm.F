@@ -96,6 +96,8 @@
 ! * the initialization of the variable albsi_p is switched from sfc_albedo_seaice (which is originally
 !   initialized to albbck to seaice_albedo_default. Note that albsi_p is not used if seaice_albedo_opt = 0.
 !   Laura D. Fowler (laura@ucar.edu) / 2020-05-10.
+! * replaced the option "noah" with "sf_noah" to run the NOAH land surface scheme.
+!   Laura D. Fowler (laura@ucar.edu) / 2022-02-18.
 
 
 !
@@ -166,6 +168,8 @@
  if(.not.allocated(snowc_p)     ) allocate(snowc_p(ims:ime,jms:jme)     )
  if(.not.allocated(snowh_p)     ) allocate(snowh_p(ims:ime,jms:jme)     )
  if(.not.allocated(sr_p)        ) allocate(sr_p(ims:ime,jms:jme)        )
+ if(.not.allocated(swddir_p)    ) allocate(swddir_p(ims:ime,jms:jme)    )
+ if(.not.allocated(swddif_p)    ) allocate(swddif_p(ims:ime,jms:jme)    )
  if(.not.allocated(swdown_p)    ) allocate(swdown_p(ims:ime,jms:jme)    )
  if(.not.allocated(tmn_p)       ) allocate(tmn_p(ims:ime,jms:jme)       )
  if(.not.allocated(tsk_p)       ) allocate(tsk_p(ims:ime,jms:jme)       )
@@ -185,9 +189,6 @@
  if(.not.allocated(frc_urb_p)   ) allocate(frc_urb_p(ims:ime,jms:jme)   )
  if(.not.allocated(ust_urb_p)   ) allocate(ust_urb_p(ims:ime,jms:jme)   )
  if(.not.allocated(utype_urb_p) ) allocate(utype_urb_p(ims:ime,jms:jme) )
- if(.not.allocated(infxsrt_p)   ) allocate(infxsrt_p(ims:ime,jms:jme)   )
- if(.not.allocated(sfcheadrt_p) ) allocate(sfcheadrt_p(ims:ime,jms:jme) )
- if(.not.allocated(soldrain_p)  ) allocate(soldrain_p(ims:ime,jms:jme)  )
 
  if(config_frac_seaice) then
     if(.not.allocated(tsk_sea)   ) allocate(tsk_sea(ims:ime,jms:jme)   )
@@ -254,6 +255,8 @@
  if(allocated(snowc_p)     ) deallocate(snowc_p     )
  if(allocated(snowh_p)     ) deallocate(snowh_p     )
  if(allocated(sr_p)        ) deallocate(sr_p        )
+ if(allocated(swddir_p)    ) deallocate(swddir_p    )
+ if(allocated(swddif_p)    ) deallocate(swddif_p    )
  if(allocated(swdown_p)    ) deallocate(swdown_p    )
  if(allocated(tmn_p)       ) deallocate(tmn_p       )
  if(allocated(tsk_p)       ) deallocate(tsk_p       )
@@ -273,9 +276,6 @@
  if(allocated(frc_urb_p)   ) deallocate(frc_urb_p   )
  if(allocated(ust_urb_p)   ) deallocate(ust_urb_p   )
  if(allocated(utype_urb_p) ) deallocate(utype_urb_p )
- if(allocated(infxsrt_p)   ) deallocate(infxsrt_p   )
- if(allocated(sfcheadrt_p) ) deallocate(sfcheadrt_p )
- if(allocated(soldrain_p)  ) deallocate(soldrain_p  )
 
  if(config_frac_seaice) then
     if(allocated(chs_sea)   ) deallocate(chs_sea   )
@@ -318,7 +318,8 @@
  real(kind=RKIND),dimension(:),pointer  :: acsnom,acsnow,canwat,chs,chs2,chklowq,cpm,cqs2,glw,   &
                                            grdflx,gsw,hfx,lai,lh,noahres,potevp,qfx,qgh,qsfc,    &
                                            br,sfc_albedo,sfc_emibck,sfc_emiss,sfcrunoff,smstav,  &
-                                           smstot,snotime,snopcx,sr,udrunoff,z0,znt
+                                           smstot,snotime,snopcx,sr,swddif,swddir,udrunoff,      &
+                                           z0,znt
  real(kind=RKIND),dimension(:),pointer  :: shdmin,shdmax,snoalb,sfc_albbck,snow,snowc,snowh,tmn, &
                                            skintemp,vegfra,xice,xland
  real(kind=RKIND),dimension(:),pointer  :: t2m,th2m,q2
@@ -364,6 +365,8 @@
  call mpas_pool_get_array(diag_physics,'smstot'           ,smstot           )
  call mpas_pool_get_array(diag_physics,'snotime'          ,snotime          )
  call mpas_pool_get_array(diag_physics,'snopcx'           ,snopcx           )
+ call mpas_pool_get_array(diag_physics,'swddif'           ,swddif           )
+ call mpas_pool_get_array(diag_physics,'swddir'           ,swddir           )
  call mpas_pool_get_array(diag_physics,'udrunoff'         ,udrunoff         )
  call mpas_pool_get_array(diag_physics,'z0'               ,z0               )
  call mpas_pool_get_array(diag_physics,'znt'              ,znt              )
@@ -438,6 +441,8 @@
     smstot_p(i,j)     = smstot(i)
     snotime_p(i,j)    = snotime(i)
     snopcx_p(i,j)     = snopcx(i)
+    swddif_p(i,j)     = swddif(i)
+    swddir_p(i,j)     = swddir(i)
     udrunoff_p(i,j)   = udrunoff(i)
     z0_p(i,j)         = z0(i)
     znt_p(i,j)        = znt(i)
@@ -471,13 +476,9 @@
     !initialization of arrays to run the Noah LSM urban parameterization (not currently
     frc_urb_p(i,j)    = 0._RKIND
     ust_urb_p(i,j)    = 0._RKIND
-    utype_urb_p(i,j)  = low_density_residential
+    utype_urb_p(i,j)  = 0
 
-    !initialization of arrays to run the Noah LSM hydrological parameterization (not currently
-    !implemented in MPAS):
-    infxsrt_p(i,j)    = 0._RKIND
-    sfcheadrt_p(i,j)  = 0._RKIND
-    soldrain_p(i,j)   = 0._RKIND
+    if(swddir_p(i,j).gt.0.) call mpas_log_write('--- sw: $i $r $r',intArgs=(/i/),realArgs=(/swddir_p(i,j),swddif_p(i,j)/))
  enddo
  enddo
 
@@ -762,7 +763,7 @@
 
  lsm_select: select case (trim(lsm_scheme))
 
-    case ("noah")
+    case ("sf_noah")
        call noah_init_forMPAS(dminfo,mesh,configs,diag_physics,sfc_input)
     
     case default
@@ -809,8 +810,8 @@
 !call to land-surface scheme:
  lsm_select: select case (trim(lsm_scheme))
 
-    case("noah")
-       call mpas_timer_start('Noah')
+    case("sf_noah")
+       call mpas_timer_start('sf_noah')
        call lsm( &
                 dz8w        = dz_p        , p8w3d       = pres2_hyd_p  , t3d       = t_p          , &
                 qv3d        = qv_p        , xland       = xland_p      , xice      = xice_p       , &
@@ -837,18 +838,21 @@
                 opt_thcnd   = opt_thcnd   , ua_phys     = ua_phys      , flx4_2d   = flxsnow_p    , &
                 fvb_2d      = fvbsnow_p   , fbur_2d     = fbursnow_p   , fgsn_2d   = fgsnsnow_p   , &
                 utype_urb2d = utype_urb_p , frc_urb2d   = frc_urb_p    , ust_urb2d = ust_urb_p    , &
-                infxsrt     = infxsrt_p   , sfcheadrt   = sfcheadrt_p  , soldrain  = soldrain_p   , &
-                fasdas      = fasdas      , julian      = 0            , julyr     = 0            , &
+                swddir      = swddir_p    , swddif      = swddif_p     , fasdas    = fasdas       , &
+                julian      = 0           , julyr       = 0            ,                            &
+                num_soil_layers  = num_soils         ,                                              &
                 xice_threshold   = xice_threshold    ,                                              &
                 usemonalb        = config_sfc_albedo ,                                              &
-                mminlu           = mminlu ,                                                         &
-                num_soil_layers  = num_soils ,                                                      &
-                num_roof_layers  = num_soils ,                                                      &
-                num_wall_layers  = num_soils ,                                                      &
-                num_road_layers  = num_soils ,                                                      &
-                num_urban_layers = num_soils ,                                                      &
-                num_urban_hi     = num_soils ,                                                      &
-                sf_urban_physics = sf_urban_physics ,                                               &
+                mminlu           = mminlu            ,                                              &
+                sf_urban_physics = sf_urban_physics  ,                                              &
+                num_roof_layers  = nurb , num_wall_layers = nurb  ,                                 &
+                num_road_layers  = nurb , num_urban_hi    = nurb  ,                                 &
+                num_urban_ndm    = nurb , urban_map_zrd   = nurb  ,                                 &
+                urban_map_zwd    = nurb , urban_map_gd    = nurb  ,                                 &
+                urban_map_zd     = nurb , urban_map_zdf   = nurb  ,                                 &
+                urban_map_bd     = nurb , urban_map_wd    = nurb  ,                                 &
+                urban_map_gbd    = nurb , urban_map_fbd   = nurb  ,                                 &
+                urban_map_zgrd   = nurb ,                                                           &
                 ids = ids , ide = ide , jds = jds , jde = jde , kds = kds , kde = kde ,             &
                 ims = ims , ime = ime , jms = jms , jme = jme , kms = kms , kme = kme ,             &
                 its = its , ite = ite , jts = jts , jte = jte , kts = kts , kte = kte               &
@@ -895,7 +899,7 @@
                 ims = ims , ime = ime , jms = jms , jme = jme , kms = kms , kme = kme ,           &
                 its = its , ite = ite , jts = jts , jte = jte , kts = kts , kte = kte             &
                     )
-       call mpas_timer_stop('Noah')
+       call mpas_timer_stop('sf_noah')
                 
 
     case default
