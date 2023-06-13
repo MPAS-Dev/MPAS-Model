@@ -389,6 +389,7 @@
                         <var name="cellsOnVertex"/>
                         <var name="kiteAreasOnVertex"/>
                         <var name="meshDensity"/>
+                        <var name="nominalMinDc"/>
                         <var name="bdyMaskCell"/>
                         <var name="bdyMaskEdge"/>
                         <var name="bdyMaskVertex"/>
@@ -487,6 +488,7 @@
                         <var name="cellsOnVertex"/>
                         <var name="kiteAreasOnVertex"/>
                         <var name="meshDensity"/>
+                        <var name="nominalMinDc"/>
                         <var name="bdyMaskCell"/>
                         <var name="bdyMaskEdge"/>
                         <var name="bdyMaskVertex"/>
@@ -733,6 +735,9 @@
 
                 <var name="meshDensity" type="real" dimensions="nCells" units="unitless"
                      description="Mesh density function (used when generating the mesh) evaluated at a cell"/>
+
+                <var name="nominalMinDc" type="real" dimensions="" units="m"
+                     description="Nominal minimum dcEdge value where meshDensity == 1.0"/>
 
                 <!-- coefficients for vertical extrapolation to the surface -->
                 <var name="cf1" type="real" dimensions="" units="unitless"
