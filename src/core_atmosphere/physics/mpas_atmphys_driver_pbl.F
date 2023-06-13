@@ -13,10 +13,12 @@
 
  use mpas_atmphys_constants
  use mpas_atmphys_vars
+ use mpas_constants
 
 !wrf physics:
  use module_bl_mynn
  use module_bl_ysu
+ use module_bl_shinhong
 
  implicit none
  private
@@ -131,6 +133,24 @@
        !from radiation schemes:
        if(.not.allocated(rthraten_p)) allocate(rthraten_p(ims:ime,kms:kme,jms:jme))
 
+   case("bl_shinhong")
+       !from surface-layer model:
+       if(.not.allocated(br_p)    ) allocate(br_p(ims:ime,jms:jme)          )
+       if(.not.allocated(ctopo_p) ) allocate(ctopo_p(ims:ime,jms:jme)       )
+       if(.not.allocated(ctopo2_p)) allocate(ctopo2_p(ims:ime,jms:jme)      )
+       if(.not.allocated(psih_p)  ) allocate(psih_p(ims:ime,jms:jme)        )
+       if(.not.allocated(psim_p)  ) allocate(psim_p(ims:ime,jms:jme)        )
+       if(.not.allocated(regime_p)) allocate(regime_p(ims:ime,jms:jme)      )
+       if(.not.allocated(u10_p)   ) allocate(u10_p(ims:ime,jms:jme)         )
+       if(.not.allocated(v10_p)   ) allocate(v10_p(ims:ime,jms:jme)         )
+       if(.not.allocated(exch_p)  ) allocate(exch_p(ims:ime,kms:kme,jms:jme))
+       !from radiation schemes:
+       if(.not.allocated(rthraten_p)) allocate(rthraten_p(ims:ime,kms:kme,jms:jme))
+       if(.not.allocated(dx_p)   ) allocate(dx_p(ims:ime,jms:jme)   )
+       if(.not.allocated(coriolis_pbl_p)   ) allocate(coriolis_pbl_p(ims:ime,jms:jme)   )
+       if(.not.allocated(elpbl_p) ) allocate(elpbl_p(ims:ime,kms:kme,jms:jme) )
+       if(.not.allocated(tkepbl_p)) allocate(tkepbl_p(ims:ime,kms:kme,jms:jme))
+
     case("bl_mynn")
        if(.not.allocated(dx_p)   ) allocate(dx_p(ims:ime,jms:jme)   )
        if(.not.allocated(ch_p)   ) allocate(ch_p(ims:ime,jms:jme)   )
@@ -219,6 +239,25 @@
        !from radiation schemes:
        if(allocated(rthraten_p)) deallocate(rthraten_p)
 
+   case("bl_shinhong")
+       !from surface-layer model:
+       if(allocated(br_p)    ) deallocate(br_p    )
+       if(allocated(ctopo_p) ) deallocate(ctopo_p )
+       if(allocated(ctopo2_p)) deallocate(ctopo2_p)
+       if(allocated(psih_p)  ) deallocate(psih_p  )
+       if(allocated(psim_p)  ) deallocate(psim_p  )
+       if(allocated(regime_p)) deallocate(regime_p)
+       if(allocated(u10_p)   ) deallocate(u10_p   )
+       if(allocated(v10_p)   ) deallocate(v10_p   )
+       if(allocated(exch_p)  ) deallocate(exch_p  )
+       !from radiation schemes:
+       if(allocated(rthraten_p)) deallocate(rthraten_p)
+!
+       if(allocated(dx_p)   ) deallocate(dx_p   )
+       if(allocated(elpbl_p) ) deallocate(elpbl_p )
+       if(allocated(tkepbl_p)) deallocate(tkepbl_p)
+       if(allocated(coriolis_pbl_p)) deallocate(coriolis_pbl_p)
+
     case("bl_mynn")
        if(allocated(dx_p)   ) deallocate(dx_p   )
        if(allocated(ch_p)   ) deallocate(ch_p   )
@@ -251,7 +290,7 @@
  end subroutine deallocate_pbl
 
 !=================================================================================================================
- subroutine pbl_from_MPAS(configs,mesh,sfc_input,diag_physics,tend_physics,its,ite)
+ subroutine pbl_from_MPAS(configs,mesh,sfc_input,diag_physics,tend_physics,its,ite,itimestep)
 !=================================================================================================================
 
 !input arguments:
@@ -283,9 +322,18 @@
  real(kind=RKIND),dimension(:),pointer  :: ch,qsfc,qcg,rmol,skintemp
  real(kind=RKIND),dimension(:,:),pointer:: cov,qke,qsq,tsq,sh3d,tke_pbl,qke_adv,el_pbl
 
+!local pointers for Shin-Hong scheme
+ real(kind=RKIND), dimension(:)  , pointer:: latCell
+ logical,pointer:: config_do_restart
+ integer,intent(in):: itimestep
+ real(kind=RKIND),dimension(:,:),pointer:: kzh,kzm,kzq
+ real(kind=RKIND),dimension(:,:),pointer:: rublten,rvblten,rthblten,rqvblten,rqcblten,rqiblten, &
+                                           rniblten
+
 !-----------------------------------------------------------------------------------------------------------------
 
  call mpas_pool_get_config(configs,'config_pbl_scheme',pbl_scheme)
+ call mpas_pool_get_config(configs,'config_do_restart',config_do_restart)
 
  call mpas_pool_get_array(diag_physics,'hfx'   ,hfx   )
  call mpas_pool_get_array(diag_physics,'hpbl'  ,hpbl  )
@@ -295,8 +343,18 @@
  call mpas_pool_get_array(diag_physics,'znt'   ,znt   )
  call mpas_pool_get_array(diag_physics,'delta' ,delta )
  call mpas_pool_get_array(diag_physics,'wstar' ,wstar )
+ call mpas_pool_get_array(diag_physics,'kzh'  ,kzh  )
+ call mpas_pool_get_array(diag_physics,'kzm'  ,kzm  )
+ call mpas_pool_get_array(diag_physics,'kzq'  ,kzq  )
 
  call mpas_pool_get_array(sfc_input   ,'xland' ,xland )
+
+ call mpas_pool_get_array(tend_physics,'rublten' ,rublten )
+ call mpas_pool_get_array(tend_physics,'rvblten' ,rvblten )
+ call mpas_pool_get_array(tend_physics,'rthblten',rthblten)
+ call mpas_pool_get_array(tend_physics,'rqvblten',rqvblten)
+ call mpas_pool_get_array(tend_physics,'rqcblten',rqcblten)
+ call mpas_pool_get_array(tend_physics,'rqiblten',rqiblten)
 
  do j = jts,jte
  do i = its,ite
@@ -355,6 +413,57 @@
        do i = its,ite
           exch_p(i,k,j)     = 0._RKIND
           rthraten_p(i,k,j) = rthratenlw(k,i) + rthratensw(k,i) 
+       enddo
+       enddo
+       enddo
+
+   case("bl_shinhong")
+       call mpas_pool_get_config(configs,'config_len_disp',len_disp)
+       call mpas_pool_get_array(mesh,'meshDensity',meshDensity)
+       call mpas_pool_get_array(diag_physics,'el_pbl'  ,el_pbl  )
+       call mpas_pool_get_array(diag_physics,'tke_pbl' ,tke_pbl )
+
+       call mpas_pool_get_array(diag_physics,'br'    ,br    )
+       call mpas_pool_get_array(diag_physics,'fm'    ,fm    )
+       call mpas_pool_get_array(diag_physics,'fh'    ,fh    )
+       call mpas_pool_get_array(diag_physics,'regime',regime)
+       call mpas_pool_get_array(diag_physics,'u10'   ,u10   )
+       call mpas_pool_get_array(diag_physics,'v10'   ,v10   )
+
+       call mpas_pool_get_array(tend_physics,'rthratenlw',rthratenlw)
+       call mpas_pool_get_array(tend_physics,'rthratensw',rthratensw)
+
+       call mpas_pool_get_array(mesh,'latCell'      ,latCell )
+
+       do j = jts,jte
+       do i = its,ite
+          !from surface-layer model:
+          br_p(i,j)     = br(i)
+          psim_p(i,j)   = fm(i)
+          psih_p(i,j)   = fh(i)
+          regime_p(i,j) = regime(i)
+          u10_p(i,j)    = u10(i)
+          v10_p(i,j)    = v10(i)
+          !initialization for YSU PBL scheme:
+          ctopo_p(i,j)  = 1._RKIND
+          ctopo2_p(i,j) = 1._RKIND
+          dx_p(i,j)    = len_disp / meshDensity(i)**0.25
+          coriolis_pbl_p(i,j) =  2.*omega*sin(latCell(i))
+       enddo
+       enddo
+
+       do j = jts,jte
+       do k = kts,kte
+       do i = its,ite
+          exch_p(i,k,j)     = 0._RKIND
+          rthraten_p(i,k,j) = rthratenlw(k,i) + rthratensw(k,i) 
+          elpbl_p(i,k,j)    = el_pbl(k,i)
+         if(config_do_restart .or. itimestep > 1)THEN
+          tkepbl_p(i,k,j)   = tke_pbl(k,i)
+         else
+         tkepbl_p(i,k,j)   = 0.01/2. ! from SH init
+         endif
+        
        enddo
        enddo
        enddo
@@ -421,6 +530,8 @@
  do j = jts,jte
  do k = kts,kte
  do i = its,ite
+
+IF(.not. config_do_restart)THEN
     rublten_p(i,k,j)  = 0._RKIND
     rvblten_p(i,k,j)  = 0._RKIND
     rthblten_p(i,k,j) = 0._RKIND
@@ -431,6 +542,19 @@
     kzh_p(i,k,j)    = 0._RKIND
     kzm_p(i,k,j)    = 0._RKIND
     kzq_p(i,k,j)    = 0._RKIND
+ELSE
+    rublten_p(i,k,j)  = rublten(k,i)
+    rvblten_p(i,k,j)  = rvblten(k,i)
+    rthblten_p(i,k,j) = rthblten(k,i)
+    rqvblten_p(i,k,j) = rqvblten(k,i)
+    rqcblten_p(i,k,j) = rqcblten(k,i)
+    rqiblten_p(i,k,j) = rqiblten(k,i)
+
+    kzh_p(i,k,j)    = kzh(k,i)
+    kzm_p(i,k,j)    = kzm(k,i)
+    kzq_p(i,k,j)    = kzq(k,i)
+ENDIF
+
  enddo
  enddo
  enddo
@@ -529,6 +653,21 @@
        enddo
        enddo
 
+   case("bl_shinhong")
+       call mpas_pool_get_array(diag_physics,'exch_h',exch_h)
+       call mpas_pool_get_array(diag_physics,'el_pbl'  ,el_pbl  )
+       call mpas_pool_get_array(diag_physics,'tke_pbl' ,tke_pbl )
+
+       do j = jts,jte
+       do k = kts,kte
+       do i = its,ite
+          exch_h(k,i) = exch_p(i,k,j)
+          el_pbl(k,i)   = elpbl_p(i,k,j)
+          tke_pbl(k,i)  = tkepbl_p(i,k,j)
+       enddo
+       enddo
+       enddo
+
     case("bl_mynn")
        call mpas_pool_get_array(diag_physics,'el_pbl'  ,el_pbl  )
        call mpas_pool_get_array(diag_physics,'cov'     ,cov     )
@@ -597,6 +736,7 @@
 !local variables:
  integer:: initflag
  integer:: i,k,j
+ integer,pointer :: shinhong_tke_diag
 
 !-----------------------------------------------------------------------------------------------------------------
 !call mpas_log_write('')
@@ -604,9 +744,10 @@
 
  call mpas_pool_get_config(configs,'config_do_restart',config_do_restart)
  call mpas_pool_get_config(configs,'config_pbl_scheme',pbl_scheme       )
+ call mpas_pool_get_config(configs,'shinhong_tke_diag',shinhong_tke_diag       )
 
 !copy MPAS arrays to local arrays:
- call pbl_from_MPAS(configs,mesh,sfc_input,diag_physics,tend_physics,its,ite)
+ call pbl_from_MPAS(configs,mesh,sfc_input,diag_physics,tend_physics,its,ite,itimestep)
 
  initflag = 1
  if(config_do_restart .or. itimestep > 1) initflag = 0
@@ -640,6 +781,34 @@
                  its = its , ite = ite , jts = jts , jte = jte , kts = kts , kte = kte    &
                 )
        call mpas_timer_stop('YSU')
+
+   case("bl_shinhong")
+       call mpas_timer_start('SHINHONG')
+       call shinhong ( &
+                 p3d      = pres_hyd_p , p3di     = pres2_hyd_p , psfc     = psfc_p     , &
+                 th3d     = th_p       , t3d      = t_p         , dz8w     = dz_p       , &
+                 pi3d     = pi_p       , u3d      = u_p         , v3d      = v_p        , &
+                 qv3d     = qv_p       , qc3d     = qc_p        , qi3d     = qi_p       , &
+                 rublten  = rublten_p  , rvblten  = rvblten_p   , rthblten = rthblten_p , &
+                 rqvblten = rqvblten_p , rqcblten = rqcblten_p  , rqiblten = rqiblten_p , & 
+                 flag_qi  = f_qi       , cp       = cp          , g        = gravity    , &
+                 rovcp    = rcp        , rd       = R_d         , rovg     = rdg        , & 
+                 ep1      = ep_1       , ep2      = ep_2        , karman   = karman     , &
+                 xlv      = xlv        , rv       = R_v         , znt      = znt_p      , &
+                 ust      = ust_p      , hpbl     = hpbl_p      , psim     = psim_p     , &
+                 psih     = psih_p     , xland    = xland_p     , hfx      = hfx_p      , &
+                 qfx      = qfx_p      , wspd     = wspd_p      , br       = br_p       , &
+                 dt       = dt_pbl     , kpbl2d   = kpbl_p      , exch_h   = kzh_p      , &
+                 wstar    = wstar_p     , delta    = delta_p    , &
+                 u10      = u10_p      , v10      = v10_p       , ctopo    = ctopo_p    , &
+                 ctopo2   = ctopo2_p   , regime   = regime_p    ,                         &
+                 ids = ids , ide = ide , jds = jds , jde = jde , kds = kds , kde = kde  , &
+                 ims = ims , ime = ime , jms = jms , jme = jme , kms = kms , kme = kme  , &
+                 its = its , ite = ite , jts = jts , jte = jte , kts = kts , kte = kte  , &
+                 dx = dx_p(1,1) , dy = dx_p(1,1) , shinhong_tke_diag = shinhong_tke_diag, &
+                 el_pbl   = elpbl_p , &
+                 tke_pbl  = tkepbl_p , corf = coriolis_pbl_p)
+       call mpas_timer_stop('SHINHONG')
 
     case("bl_mynn")
        call mpas_timer_start('MYNN_pbl')
