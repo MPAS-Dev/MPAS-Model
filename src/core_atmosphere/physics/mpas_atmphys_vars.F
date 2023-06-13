@@ -375,6 +375,7 @@
     kzh_p,            &!
     kzm_p,            &!
     kzq_p              !
+ real(kind=RKIND),dimension(:,:),allocatable:: coriolis_pbl_p
 
 !... MYNN PBL scheme (module_bl_mynn.F):
  integer,parameter:: grav_settling = 0
