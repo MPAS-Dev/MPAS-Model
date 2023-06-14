@@ -4,6 +4,7 @@
 # Sources for all libraries used in this script can be found at
 # Updated by P. Peixoto on Feb 2022 based on mduda's original script
 # updated on Sep 2022 to download and install gcc-8
+# updated by F.A.V.B. Alves on June 2023 to address some issues when system's gcc version is >=13
 
 BASEDIR=$PWD
 
@@ -96,6 +97,14 @@ if [[ $packtoinstall = "gcc" ]] ; then
    ./contrib/download_prerequisites
    ./configure --prefix=${LIBBASE} --enable-languages=c,c++,fortran --disable-multilib
    make -j 4
+   retVal=$?
+   # @FAVBA I couldn't compile gcc8.5.0 with gcc13 unless I disabled some options. If compilation fails, tries compiling with nls and libsanitizer disabled
+   if [ $retVal -ne 0 ]; then
+      ./configure --prefix=${LIBBASE} --enable-languages=c,c++,fortran --disable-multilib --disable-nls --disable-libsanitizer
+      make -j 4
+      retVal2=$?
+      [ $retVal2 -ne 0 ] && echo "Compilation of gcc 8.5.0 failed" && exit $retVal2
+   fi
    #make check
    make install
    #make testing
@@ -259,6 +268,14 @@ if [ $packtoinstall = "all" ] || [ $packtoinstall = "pio" ] ; then
     export FC=$MPI_FC
     cmake -DNetCDF_C_PATH=$NETCDF -DNetCDF_Fortran_PATH=$NETCDF -DPnetCDF_PATH=$PNETCDF -DHDF5_PATH=$NETCDF -DCMAKE_INSTALL_PREFIX=$LIBBASE -DPIO_USE_MALLOC=ON -DCMAKE_VERBOSE_MAKEFILE=1 -DPIO_ENABLE_TIMING=OFF $PIOSRC
     make
+    retVal=$?
+    # @FAVBA newer cmake version (mine was v3.26.4) didn't work with gcc 8.5.0 for me. If cmake configuration fails, tries configuring using 'autoreconf' and 'configure'
+    if [ $retVal -ne 0 ]; then
+	make clean
+        autoreconf -if
+	    LIBRARY_PATH=$LIBBASE/lib CPATH=$LIBBASE/include ./configure --prefix=${LIBBASE} --disable-timing --enable-fortran
+	    LIBRARY_PATH=$LIBBASE/lib CPATH=$LIBBASE/include make
+    fi
     #make check
     make install
     cd ..
