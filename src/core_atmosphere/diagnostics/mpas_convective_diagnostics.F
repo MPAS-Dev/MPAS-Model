@@ -405,6 +405,18 @@ module mpas_convective_diagnostics
             allocate(t_in(nVertLevels))
             allocate(td_in(nVertLevels))
 
+            ctt = 0._RKIND
+            ctpres = 0._RKIND
+            ivt = 0._RKIND
+            ztd = 0._RKIND
+            cape = 0._RKIND
+            cin = 0._RKIND
+            gust_10m = 0._RKIND
+            fzlev = 0._RKIND
+            relhum_2m = 0._RKIND
+            heatidx = 0._RKIND
+            temp_wet = 0._RKIND
+
             do iCell = 1,nCells
             do k = 1,nVertLevels
                 temperature(k,iCell) = (theta_m(k,iCell)/(1._RKIND+rvord*scalars(index_qv,k,iCell)))*exner(k,iCell)
