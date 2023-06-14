@@ -682,7 +682,7 @@ module atm_time_integration
 
 !$OMP PARALLEL DO
                do thread=1,nThreads
-                  call atm_bdy_adjust_dynamics_relaxzone_tend( tend, state, diag, mesh, nVertLevels, dt,                   &
+                  call atm_bdy_adjust_dynamics_relaxzone_tend( block % configs, tend, state, diag, mesh, nVertLevels, dt,  &
                                                                ru_driving_values, rt_driving_values, rho_driving_values,   &
                                                                cellThreadStart(thread), cellThreadEnd(thread),             &
                                                                edgeThreadStart(thread), edgeThreadEnd(thread),             &
@@ -5761,7 +5761,7 @@ module atm_time_integration
 
 !-------------------------------------------------------------------------
 
-   subroutine atm_bdy_adjust_dynamics_relaxzone_tend( tend, state, diag, mesh, nVertLevels, dt,                                             &
+   subroutine atm_bdy_adjust_dynamics_relaxzone_tend( config, tend, state, diag, mesh, nVertLevels, dt,                                             &
                                                       ru_driving_values, rt_driving_values, rho_driving_values,                                     &
                                                       cellStart, cellEnd, edgeStart, edgeEnd,                               &
                                                       cellSolveStart, cellSolveEnd, edgeSolveStart, edgeSolveEnd )
@@ -5774,6 +5774,7 @@ module atm_time_integration
       !
       !  WCS Fall 2016
 
+      type (mpas_pool_type), intent(in) :: config
       type (mpas_pool_type), intent(in) :: state
       type (mpas_pool_type), intent(inout) :: tend
       type (mpas_pool_type), intent(in) :: diag
@@ -5795,6 +5796,7 @@ module atm_time_integration
       
 
       real (kind=RKIND) :: edge_sign, laplacian_filter_coef, rayleigh_damping_coef, r_dc, r_dv, invArea
+      real (kind=RKIND), pointer :: divdamp_coef
       real (kind=RKIND), dimension(nVertLevels) :: divergence1, divergence2, vorticity1, vorticity2      
       integer :: iCell, iEdge, i, k, cell1, cell2, iEdge_vort, iEdge_div
       integer :: vertex1, vertex2, iVertex
@@ -5829,6 +5831,8 @@ module atm_time_integration
       call mpas_pool_get_array(mesh, 'edgesOnVertex', edgesOnVertex)
       call mpas_pool_get_array(mesh, 'nEdgesOnCell',nEdgesOnCell)
       call mpas_pool_get_array(mesh, 'verticesOnEdge', verticesOnEdge)
+
+      call mpas_pool_get_config(config, 'config_relax_zone_divdamp_coef', divdamp_coef)
       
       !  First, Rayleigh damping terms for ru, rtheta_m and rho_zz
 
@@ -5940,8 +5944,9 @@ module atm_time_integration
             ! Compute diffusion, computed as \nabla divergence - k \times \nabla vorticity
             !
              do k=1,nVertLevels
-                tend_ru(k,iEdge) = tend_ru(k,iEdge) + laplacian_filter_coef * (  4.0*( divergence2(k) - divergence1(k) ) * r_dc  &
-                                                                                    -( vorticity2(k)  - vorticity1(k)  ) * r_dv )
+                tend_ru(k,iEdge) = tend_ru(k,iEdge) + laplacian_filter_coef &
+                                                      * (divdamp_coef * (divergence2(k) - divergence1(k)) * r_dc  &
+                                                                       -(vorticity2(k)  - vorticity1(k))  * r_dv)
              end do
 
           end if  !  end test for relaxation-zone edge
