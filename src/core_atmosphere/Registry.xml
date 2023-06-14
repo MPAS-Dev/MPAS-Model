@@ -107,32 +107,32 @@
                      description="When config_split_dynamics_transport = T, the number of RK steps per transport step"
                      possible_values="Positive integer values"/>
 
-                <nml_option name="config_h_mom_eddy_visc2" type="real" default_value="0.0"
+                <nml_option name="config_h_mom_eddy_visc2" type="real" default_value="0.0" in_defaults="false"
                      units="m^2 s^{-1}"
                      description="$\nabla^2$ eddy viscosity for horizontal diffusion of momentum"
                      possible_values="Positive real values"/>
 
-                <nml_option name="config_h_mom_eddy_visc4" type="real" default_value="0.0"
+                <nml_option name="config_h_mom_eddy_visc4" type="real" default_value="0.0" in_defaults="false"
                      units="m^4 s^{-1}"
                      description="$\nabla^4$ eddy hyper-viscosity for horizontal diffusion of momentum"
                      possible_values="Positive real values"/>
 
-                <nml_option name="config_v_mom_eddy_visc2" type="real" default_value="0.0"
+                <nml_option name="config_v_mom_eddy_visc2" type="real" default_value="0.0" in_defaults="false"
                      units="m^2 s^{-1}"
                      description="$\nabla^2$ eddy viscosity for vertical diffusion of momentum"
                      possible_values="Positive real values"/>
 
-                <nml_option name="config_h_theta_eddy_visc2" type="real" default_value="0.0"
+                <nml_option name="config_h_theta_eddy_visc2" type="real" default_value="0.0" in_defaults="false"
                      units="m^2 s^{-1}"
                      description="$\nabla^2$ eddy viscosity for horizontal diffusion of theta"
                      possible_values="Positive real values"/>
 
-                <nml_option name="config_h_theta_eddy_visc4" type="real" default_value="0.0"
+                <nml_option name="config_h_theta_eddy_visc4" type="real" default_value="0.0" in_defaults="false"
                      units="m^4 s^{-1}"
                      description="$\nabla^4$ eddy hyper-viscosity for horizontal diffusion of theta"
                      possible_values="Positive real values"/>
 
-                <nml_option name="config_v_theta_eddy_visc2" type="real" default_value="0.0"
+                <nml_option name="config_v_theta_eddy_visc2" type="real" default_value="0.0" in_defaults="false"
                      units="m^2 s^{-1}"
                      description="$\nabla^2$ eddy viscosity for vertical diffusion of theta"
                      possible_values="Positive real values"/>
@@ -157,37 +157,37 @@
                      description="Scaling factor for the divergent component of $\nabla^4 u$ calculation"
                      possible_values="Positive real values"/>
 
-                <nml_option name="config_w_adv_order" type="integer" default_value="3"
+                <nml_option name="config_w_adv_order" type="integer" default_value="3" in_defaults="false"
                      units="-"
                      description="Horizontal advection order for w"
                      possible_values="2, 3, or 4"/>
 
-                <nml_option name="config_theta_adv_order" type="integer" default_value="3"
+                <nml_option name="config_theta_adv_order" type="integer" default_value="3" in_defaults="false"
                      units="-"
                      description="Horizontal advection order for theta"
                      possible_values="2, 3, or 4"/>
 
-                <nml_option name="config_scalar_adv_order" type="integer" default_value="3"
+                <nml_option name="config_scalar_adv_order" type="integer" default_value="3" in_defaults="false"
                      units="-"
                      description="Horizontal advection order for scalars"
                      possible_values="2, 3, or 4"/>
 
-                <nml_option name="config_u_vadv_order" type="integer" default_value="3"
+                <nml_option name="config_u_vadv_order" type="integer" default_value="3" in_defaults="false"
                      units="-"
                      description="Vertical advection order for normal velocities (u)"
                      possible_values="2, 3, or 4"/>
 
-                <nml_option name="config_w_vadv_order" type="integer" default_value="3"
+                <nml_option name="config_w_vadv_order" type="integer" default_value="3" in_defaults="false"
                      units="-"
                      description="Vertical advection order for w"
                      possible_values="2, 3, or 4"/>
 
-                <nml_option name="config_theta_vadv_order" type="integer" default_value="3"
+                <nml_option name="config_theta_vadv_order" type="integer" default_value="3" in_defaults="false"
                      units="-"
                      description="Vertical advection order for theta"
                      possible_values="2, 3, or 4"/>
 
-                <nml_option name="config_scalar_vadv_order" type="integer" default_value="3"
+                <nml_option name="config_scalar_vadv_order" type="integer" default_value="3" in_defaults="false"
                      units="-"
                      description="Vertical advection order for scalars"
                      possible_values="2, 3, or 4"/>
@@ -197,7 +197,7 @@
                      description="Whether to advect scalar fields"
                      possible_values=".true. or .false."/>
 
-                <nml_option name="config_positive_definite" type="logical" default_value="false"
+                <nml_option name="config_positive_definite" type="logical" default_value="false" in_defaults="false"
                      units="-"
                      description="Whether to enable positive-definite advection of scalars"
                      possible_values=".true. or .false."/>
