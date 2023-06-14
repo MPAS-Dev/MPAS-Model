@@ -98,6 +98,69 @@ module atm_time_integration
    contains
 
 
+   !***********************************************************************
+   !
+   !  routine mpas_atm_dynamics_checks
+   !
+   !> \brief   Checks compatibility of dynamics settings
+   !> \author  Michael Duda
+   !> \date    14 June 2023
+   !> \details
+   !>  This routine checks that dynamics settings are valid.
+   !>  Specifically,the following are checked by this routine:
+   !>
+   !>  1) config_positive_definite == .false.
+   !>
+   !>  At present only a warning is printed in the case of a failed check,
+   !>  and a value of 0 is always returned by the ierr argument. However,
+   !>  warnings may be escalated to errors in future.
+   !
+   !-----------------------------------------------------------------------
+   subroutine mpas_atm_dynamics_checks(dminfo, blockList, streamManager, ierr)
+
+       use mpas_log, only : mpas_log_write
+       use mpas_derived_types, only : dm_info, block_type, MPAS_LOG_WARN
+       use mpas_pool_routines, only : mpas_pool_get_config
+
+       implicit none
+
+       type (dm_info), pointer :: dminfo
+       type (block_type), pointer :: blockList
+       type (MPAS_streamManager_type), pointer :: streamManager
+       integer, intent(out) :: ierr
+
+       logical, pointer :: config_positive_definite
+
+
+       call mpas_log_write('')
+       call mpas_log_write('Checking consistency of dynamics settings...')
+
+       !
+       ! Check that config_positive_definite == .false., since the positive-definite advection
+       ! option is currently unimplemented.
+       !
+       nullify(config_positive_definite)
+       call mpas_pool_get_config(blocklist % configs, 'config_positive_definite', config_positive_definite)
+
+       if (config_positive_definite) then
+           call mpas_log_write('The positive definite advection option is currently unimplemented, and', &
+                               messageType=MPAS_LOG_WARN)
+           call mpas_log_write('setting config_positive_definite = true will enable monotonic advection.', &
+                               messageType=MPAS_LOG_WARN)
+           call mpas_log_write('Please remove the specification of config_positive_definite from the', &
+                               messageType=MPAS_LOG_WARN)
+           call mpas_log_write('&nhyd_model namelist group.', &
+                               messageType=MPAS_LOG_WARN)
+       end if
+
+       call mpas_log_write(' ----- done checking dynamics settings -----')
+       call mpas_log_write('')
+
+       ierr = 0
+
+   end subroutine mpas_atm_dynamics_checks
+
+
    !----------------------------------------------------------------------------
    !  routine MPAS_atm_dynamics_init
    !
