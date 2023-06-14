@@ -246,6 +246,11 @@
                      units="-"
                      description="Number of halo layers for fields"
                      possible_values="Integer values, typically 2 or 3; DO NOT CHANGE"/>
+
+                <nml_option name="config_relax_zone_divdamp_coef" type="real" default_value="6.0" in_defaults="false"
+                     units="-"
+                     description="Coefficient for the divergent component of the Laplacian filter of momentum in the relaxation zone"
+                     possible_values="Positive real values"/>
         </nml_record>
 
         <nml_record name="damping" in_defaults="true">
