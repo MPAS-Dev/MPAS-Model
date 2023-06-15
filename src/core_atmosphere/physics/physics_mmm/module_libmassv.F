@@ -14,6 +14,8 @@
     module procedure vsqrt_s
  end interface
 
+ integer, parameter, private :: R4KIND = selected_real_kind(6)
+ integer, parameter, private :: R8KIND = selected_real_kind(12)
 
  contains
 
@@ -22,14 +24,14 @@
  subroutine vrec_d(y,x,n)
 !=================================================================================================================
  integer,intent(in):: n
- real*8,dimension(*),intent(in):: x
- real*8,dimension(*),intent(out):: y
+ real(kind=R8KIND),dimension(*),intent(in):: x
+ real(kind=R8KIND),dimension(*),intent(out):: y
 
  integer:: j
 !-----------------------------------------------------------------------------------------------------------------
 
  do j=1,n
-    y(j)=1.d0/x(j)
+    y(j)=real(1.0,kind=R8KIND)/x(j)
  enddo
 
  end subroutine vrec_d
@@ -38,14 +40,14 @@
  subroutine vrec_s(y,x,n)
 !=================================================================================================================
  integer,intent(in):: n
- real*4,dimension(*),intent(in):: x
- real*4,dimension(*),intent(out):: y
+ real(kind=R4KIND),dimension(*),intent(in):: x
+ real(kind=R4KIND),dimension(*),intent(out):: y
 
  integer:: j
 !-----------------------------------------------------------------------------------------------------------------
 
  do j=1,n
-    y(j)=1.e0/x(j)
+    y(j)=real(1.0,kind=R4KIND)/x(j)
  enddo
 
  end subroutine vrec_s
@@ -54,8 +56,8 @@
  subroutine vsqrt_d(y,x,n)
 !=================================================================================================================
  integer,intent(in):: n
- real*8,dimension(*),intent(in):: x
- real*8,dimension(*),intent(out):: y
+ real(kind=R8KIND),dimension(*),intent(in):: x
+ real(kind=R8KIND),dimension(*),intent(out):: y
 
  integer:: j
 !-----------------------------------------------------------------------------------------------------------------
@@ -71,8 +73,8 @@
 !=================================================================================================================
 
  integer,intent(in):: n
- real*4,dimension(*),intent(in):: x
- real*4,dimension(*),intent(out):: y
+ real(kind=R4KIND),dimension(*),intent(in):: x
+ real(kind=R4KIND),dimension(*),intent(out):: y
 
  integer:: j
 
