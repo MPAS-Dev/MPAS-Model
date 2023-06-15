@@ -2527,9 +2527,10 @@
       implicit none
 
 !--- input arguments:
+      integer,intent(in):: klon
       logical,intent(in),dimension(klon):: ldcum
 
-      integer,intent(in):: klev,klon
+      integer,intent(in):: klev
       integer,intent(in),dimension(klon):: lndj
       integer,intent(in),dimension(klon):: kcbot,kctop
 
@@ -2737,9 +2738,10 @@
       implicit none
 
 !--- input arguments:
+      integer,intent(in)::klon
       logical,intent(in),dimension(klon):: lddraf
 
-      integer,intent(in)::klev,klon
+      integer,intent(in)::klev
 
       real(kind=kind_phys),intent(in),dimension(klon,klev):: ptenh,pqenh,puen,pven
       real(kind=kind_phys),intent(in),dimension(klon,klev):: pgeo,pmfu
@@ -2980,9 +2982,10 @@
       implicit none
 
 !--- input arguments:
+      integer,intent(in):: klon
       logical,intent(in),dimension(klon):: ldcum
 
-      integer,intent(in):: klev,klon
+      integer,intent(in):: klev
       integer,intent(in),dimension(klon):: lndj
       integer,intent(in),dimension(klon):: kcbot,kctop,kdtop
 
@@ -3237,9 +3240,10 @@
     implicit none
 
 !--- input arguments:
+    integer,intent(in):: klon
     logical,intent(in),dimension(klon):: ldcum,lddraf
 
-    integer,intent(in):: klon,klev,ktopm2
+    integer,intent(in):: klev,ktopm2
     integer,intent(in),dimension(klon):: kctop,kdtop
 
     real(kind=kind_phys),intent(in):: ztmst
@@ -3323,8 +3327,9 @@
     implicit none
 
 !--- input arguments:
+    integer,intent(in):: klon
     logical,intent(in),dimension(klon):: ldcum
-    integer,intent(in):: klon,klev,ktopm2
+    integer,intent(in):: klev,ktopm2
     integer,intent(in),dimension(klon):: ktype,kcbot,kctop
 
     real(kind=kind_phys),intent(in):: ztmst
@@ -3466,8 +3471,9 @@
       implicit none   
                  
 !--- input arguments:
+      integer,intent(in):: klon
       logical,intent(in),dimension(klon):: ldflag
-      integer,intent(in):: kcall,kk,klev,klon
+      integer,intent(in):: kcall,kk,klev
 
       real(kind=kind_phys),intent(in),dimension(klon):: psp
 
@@ -3597,8 +3603,9 @@
 ! ----------------------------------------------------------------
 
 !--- input arguments:
+      integer,intent(in):: klon
       logical,intent(in),dimension(klon):: ldcum
-      integer,intent(in):: klon,kk,klev,klevm1
+      integer,intent(in):: kk,klev,klevm1
 
       real(kind=kind_phys),intent(in),dimension(klon,klev):: pten,pqen,pqsen,pgeo,pverv
       real(kind=kind_phys),intent(in),dimension(klon,klev):: puen,pven ! not used.
@@ -3657,9 +3664,10 @@
 
 !--- input arguments:
        logical,intent(in):: ldwork
+       integer,intent(in):: klon
        logical,intent(in),dimension(klon):: ldcum
 
-       integer,intent(in):: klon,klev,kk
+       integer,intent(in):: klev,kk
        integer,intent(in),dimension(klon):: kcbot
 
        real(kind=kind_phys),intent(in),dimension(klon,klev):: pmfu
