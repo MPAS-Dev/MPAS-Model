@@ -30,6 +30,9 @@
 !.. calculations based on 50 individual size bins of the distributions.
 !+---+-----------------------------------------------------------------+
 
+ integer, parameter, private :: R4KIND = selected_real_kind(6)
+ integer, parameter, private :: R8KIND = selected_real_kind(12)
+
  integer,parameter,public:: nrbins = 50
  integer,parameter,public:: slen = 20
  character(len=slen), public:: &
@@ -38,7 +41,7 @@
               mixingrulestring_g, matrixstring_g, inclusionstring_g,   &
               hoststring_g, hostmatrixstring_g, hostinclusionstring_g
 
- complex*16,public:: m_w_0, m_i_0
+ complex(kind=R8KIND),public:: m_w_0, m_i_0
 
  double precision,dimension(nrbins+1),public:: xxdx
  double precision,dimension(nrbins),public:: xxds,xdts,xxdg,xdtg
@@ -123,7 +126,7 @@
  xxdx(1) = 100.d-6
  xxdx(nrbins+1) = 0.02d0
  do n = 2, nrbins
-    xxdx(n) = dexp(dfloat(n-1)/dfloat(nrbins) &
+    xxdx(n) = dexp(real(n-1,kind=R8KIND)/real(nrbins,kind=R8KIND) &
             * dlog(xxdx(nrbins+1)/xxdx(1)) +dlog(xxdx(1)))
  enddo
  do n = 1, nrbins
@@ -135,7 +138,7 @@
  xxdx(1) = 100.d-6
  xxdx(nrbins+1) = 0.05d0
  do n = 2, nrbins
-    xxdx(n) = dexp(dfloat(n-1)/dfloat(nrbins) &
+    xxdx(n) = dexp(real(n-1,kind=R8KIND)/real(nrbins,kind=R8KIND) &
             * dlog(xxdx(nrbins+1)/xxdx(1)) +dlog(xxdx(1)))
  enddo
  do n = 1, nrbins
@@ -196,7 +199,7 @@
  character(len=*), intent(in):: mixingrule, matrix, inclusion, &
                                 host, hostmatrix, hostinclusion
 
- complex*16,intent(in):: m_w, m_i
+ complex(kind=R8KIND),intent(in):: m_w, m_i
 
  double precision, intent(in):: x_g, a_geo, b_geo, fmelt, lambda, meltratio_outside
 
@@ -206,7 +209,7 @@
 !--- local variables:
  integer:: error
 
- complex*16:: m_core, m_air
+ complex(kind=R8KIND):: m_core, m_air
 
  double precision, parameter:: pix=3.1415926535897932384626434d0
  double precision:: d_large, d_g, rhog, x_w, xw_a, fm, fmgrenz, &
@@ -340,7 +343,7 @@
  end function gammln
       
 !=================================================================================================================
- complex*16 function get_m_mix_nested (m_a, m_i, m_w, volair,      &
+ complex(kind=R8KIND) function get_m_mix_nested (m_a, m_i, m_w, volair,      &
                 volice, volwater, mixingrule, host, matrix,        &
                 inclusion, hostmatrix, hostinclusion, cumulerror)
  implicit none
@@ -350,7 +353,7 @@
  character(len=*),intent(in):: mixingrule, host, matrix,          &
                    inclusion, hostmatrix, hostinclusion
 
- complex*16,intent(in):: m_a, m_i, m_w
+ complex(kind=R8KIND),intent(in):: m_a, m_i, m_w
 
  double precision,intent(in):: volice, volair, volwater
 
@@ -360,7 +363,7 @@
 !--- local variables:
  integer:: error
 
- complex*16:: mtmp
+ complex(kind=R8KIND):: mtmp
 
   double precision:: vol1, vol2
 
@@ -481,7 +484,7 @@
  end function get_m_mix_nested
 
 !=================================================================================================================
- complex*16 function get_m_mix (m_a, m_i, m_w, volair, volice, &
+ complex(kind=R8KIND) function get_m_mix (m_a, m_i, m_w, volair, volice, &
                       volwater, mixingrule, matrix, inclusion, &
                       error)
  implicit none
@@ -490,7 +493,7 @@
 !--- input arguments:
  character(len=*),intent(in):: mixingrule, matrix, inclusion
 
- complex*16, intent(in):: m_a, m_i, m_w
+ complex(kind=R8KIND), intent(in):: m_a, m_i, m_w
 
  double precision, intent(in):: volice, volair, volwater
 
@@ -531,7 +534,7 @@
  end function get_m_mix
 
 !=================================================================================================================
- complex*16 function m_complex_maxwellgarnett(vol1, vol2, vol3, &
+ complex(kind=R8KIND) function m_complex_maxwellgarnett(vol1, vol2, vol3, &
                                   m1, m2, m3, inclusion, error)
  implicit none
 !=================================================================================================================
@@ -539,7 +542,7 @@
 !--- input arguments:
  character(len=*),intent(in):: inclusion
 
- complex*16,intent(in):: m1,m2,m3
+ complex(kind=R8KIND),intent(in):: m1,m2,m3
 
  double precision,intent(in):: vol1,vol2,vol3
 
@@ -548,7 +551,7 @@
  integer,intent(out):: error
 
 !--- local variables:
- complex*16 :: beta2, beta3, m1t, m2t, m3t
+ complex(kind=R8KIND) :: beta2, beta3, m1t, m2t, m3t
 
 !-----------------------------------------------------------------------------------------------------------------
 
@@ -576,7 +579,7 @@
  else
     write(radar_debug,*) 'M_COMPLEX_MAXWELLGARNETT: ', 'unknown inclusion: ', inclusion
     call physics_message(radar_debug)
-    m_complex_maxwellgarnett=dcmplx(-999.99d0,-999.99d0)
+    m_complex_maxwellgarnett=cmplx(-999.99d0,-999.99d0,kind=R8KIND)
     error = 1
     return
  endif
@@ -587,7 +590,7 @@
  end function m_complex_maxwellgarnett
 
 !=================================================================================================================
- complex*16 function m_complex_water_ray(lambda,t)
+ complex(kind=R8KIND) function m_complex_water_ray(lambda,t)
  implicit none
 !=================================================================================================================
 
@@ -603,7 +606,7 @@
  double precision,parameter:: pix=3.1415926535897932384626434d0
  double precision:: epsinf,epss,epsr,epsi
  double precision:: alpha,lambdas,sigma,nenner
- complex*16,parameter:: i = (0d0,1d0)
+ complex(kind=R8KIND),parameter:: i = (0d0,1d0)
 
 !-----------------------------------------------------------------------------------------------------------------
 
@@ -627,7 +630,7 @@
  end function m_complex_water_ray
 
 !=================================================================================================================
- complex*16 function m_complex_ice_maetzler(lambda,t)
+ complex(kind=R8KIND) function m_complex_ice_maetzler(lambda,t)
  implicit none
 !=================================================================================================================
       
