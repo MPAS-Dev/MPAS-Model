@@ -110,6 +110,18 @@
 ! * added the local variables cosa_p and sina_p needed in call to subroutine gwdo after updating module_bl_gwdo.F
 !   to that of WRF version 4.0.2
 !   Laura D. Fowler (laura@ucar.edu) / 2019-01-30.
+! * reverted the option seaice_albedo_opt = 2 to seaic_albedo_opt = 0 since MPAS does not currently support the
+!   input of "observed" 2D seaice albedos. In conjunction with this update, we also change the initialization of
+!   albsi from albbck to seaice_albedo_default.
+!   Laura D. Fowler (laura@ucar.edu) / 2022-05-10.
+! * added the local parameters flag_bep and idiff in the call to subroutine ysu to update the YSU PBL scheme to
+!   that of WRF version 4.4.1.
+! * added local flags and variables needed to initialize and run the revised version of the MONIN-OBUKHOV surface
+!   layer scheme from the WRF version 4.4.1.
+!   Laura D. Fowler (laura@ucar.edu) / 2023-05-15.
+! * added the local variables swddir,swddni,and swddif which are output to subroutine rrtmg_swrad and now input
+!   to the updated module_sf_noahdrv.F.
+!   Laura D. Fowler (laura@ucar.edu) / 2023-04-21.
 
 
 !=================================================================================================================
@@ -344,6 +356,14 @@
 !... variables and arrays related to parameterization of pbl:
 !=================================================================================================================
 
+ logical,parameter:: &
+    flag_bep = .false. !flag to use BEP/BEP+BEM for use in the YSU PBL scheme (with urban physics). since we do
+                       !not run urban physics, flag_bep is always set to false.
+
+ integer,parameter:: &
+    idiff = 0          !BEP/BEM+BEM diffusion flag for use in the YSU PBL scheme (with urban physics). since we
+                       !do not run urban physics, idiff is set to zero.
+
  integer:: ysu_pblmix
 
  integer,dimension(:,:),allocatable:: &
@@ -475,6 +495,26 @@
     fh_p,             &!integrated stability function for heat                                                 [-]
     fm_p               !integrated stability function for momentum                                             [-]
 
+!... variables and arrays only in the revised version of monin_obukhov (module_sf_sfclayrev.F) to include the
+!    shallow water roughness scheme:
+ integer,parameter:: &
+    bathymetry_flag = 0!this flag is set to 1 if input bathymetry data is available (this option is not available
+                       !in MPAS and therefore set to 0 by default.
+ integer,parameter:: &
+    shalwater_flag  = 0!this flag is set to 1 to run the shallow water roughness scheme (this option is not
+                       !available in MPAS and therefore set to 0 by default.
+ integer,parameter:: &
+    lakemodel_flag  = 0!this flag is set to 1 to run the lake model physics (this option is not available in MPAS
+                       !and therefore set to 0 by default.
+
+ real(kind=RKIND),parameter:: &
+    shalwater_depth = 0!constant shallow water depth needed to run the shallow water roughness scheme.
+
+ real(kind=RKIND),dimension(:,:),allocatable:: &
+    waterdepth_p,     &!depth of water needed to run the shallow water roughness scheme.
+    lakedepth_p,      &!depth of lakes needed to run the lake model physics.
+    lakemask_p         !mask needed to detect the location of lakes to run the lake model physics.
+
 !... arrays only in mynn surface layer scheme (module_sf_mynn.F):
  real(kind=RKIND),dimension(:,:),allocatable:: &
     ch_p,             &!surface exchange coeff for heat                                                      [m/s]
@@ -489,10 +529,12 @@
 
 !=================================================================================================================
 !... variables and arrays related to parameterization of seaice:
+!... the options set for seaice_albedo_opt, seaice_thickness_opt, and seaicesnowdepth_opt must not be changed
+!    since they are the only ones currently available.
 !=================================================================================================================
 
  integer,parameter:: &
-    seaice_albedo_opt    = 2           !option to set albedo over sea ice.
+    seaice_albedo_opt    = 0           !option to set albedo over sea ice.
                                        !0 = seaice albedo is constant set in seaice_albedo_default.
                                        !1 = seaice albedo is f(Tair,Tskin,Tsnow), following Mill (2011).
                                        !2 = seaice albedo is read in from input variable albsi.
@@ -541,6 +583,11 @@
     swvisdif_p,       &!visible diffuse downward flux                                       [W m-2]
     swnirdir_p,       &!near-IR direct downward flux                                        [W m-2]
     swnirdif_p         !near-IR diffuse downward flux                                       [W m-2]
+
+ real(kind=RKIND),dimension(:,:),allocatable:: &
+    swddir_p,         &!
+    swddni_p,         &!
+    swddif_p           !
 
  real(kind=RKIND),dimension(:,:,:),allocatable:: &
     swdnflx_p,        &!
@@ -641,7 +688,7 @@
 !=================================================================================================================
 
  logical,parameter:: &
-    ua_phys=.false.    !option to activate UA Noah changes: a different snow-cover physics in the land-surface
+    ua_phys = .false.  !option to activate UA Noah changes: a different snow-cover physics in the land-surface
                        !scheme. That option is not currently implemented in MPAS.
 
  integer,parameter:: &
@@ -651,6 +698,9 @@
 
  integer,parameter:: &
     fasdas = 0         !for WRF surface data assimilation system (not used in MPAS).
+
+ integer,parameter:: &
+    nurb = 1           !generic dimension for all dimensions needed to run the urban physics.
 
  integer,public:: &
     sf_surface_physics !used to define the land surface scheme by a number instead of name. It
@@ -719,13 +769,6 @@
  real(kind=RKIND),dimension(:,:),allocatable:: &
     frc_urb_p,        &!urban fraction                                                                         [-]
     ust_urb_p          !urban u* in similarity theory                                                        [m/s]
-
-!.. arrays needed in the argument list in the call to the Noah LSM hydrology model: note that these arrays are
-!.. initialized to zero since we do not run a hydrology model:
- real(kind=RKIND),dimension(:,:),allocatable:: &
-    infxsrt_p,        &!timestep infiltration excess                                                          [mm]
-    sfcheadrt_p,      &!surface water detph                                                                   [mm]
-    soldrain_p         !soil column drainage                                                                  [mm]
 
 !=================================================================================================================
 !.. variables and arrays related to surface characteristics:

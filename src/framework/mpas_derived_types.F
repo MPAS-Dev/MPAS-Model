@@ -27,16 +27,16 @@ module mpas_derived_types
 
    use mpas_kind_types
 
+#ifdef MPAS_PIO_SUPPORT
    use pio
    use pio_types
+#endif
+
+#ifdef MPAS_SMIOL_SUPPORT
+   use smiolf, only : SMIOLf_context, SMIOLf_decomp, SMIOLf_file, SMIOL_offset_kind
+#endif
 
    use ESMF
-   use ESMF_BaseMod
-   use ESMF_Stubs
-   use ESMF_CalendarMod
-   use ESMF_ClockMod
-   use ESMF_TimeMod
-   use ESMF_TimeIntervalMod
 
 #include "mpas_attlist_types.inc"
 
@@ -45,6 +45,8 @@ module mpas_derived_types
 #include "mpas_dmpar_types.inc"
 
 #include "mpas_field_types.inc"
+
+#include "mpas_halo_types.inc"
 
 #include "mpas_pool_types.inc"
 

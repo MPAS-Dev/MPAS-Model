@@ -52,6 +52,13 @@
 ! * In subroutine physics_init_seaice, removed the initialization of isice_lu since it is now defined in
 !   Registry.xml and initialized in subroutine init_atm_static.
 !   Laura D. Fowler (laura@ucar.edu) / 2017-01-12.
+! * In subroutine physics_init_seaice, added the initialization of the annual maximum snow albedo over seaice
+!   points to 0.75.
+! * Laura D. Fowler (laura@ucar.edu) / 2022-03-15).
+! * In subroutine physics_init_seaice, corrected the initialization of seaice points when the surface
+!   temperature was originally colder than 271K. We now use the seaice threshold config_tsk_seaice_threshold
+!   that has a default value set to 100K. This leads to decreased seaice at high latitudes.
+!   Laura D. Fowler (laura@ucar.edu) / 2022-03-25.
 
 
  contains
@@ -596,8 +603,9 @@
 
  real(kind=RKIND):: xice_threshold
  real(kind=RKIND):: mid_point_depth
+ real(kind=RKIND),pointer:: tsk_seaice_threshold
  real(kind=RKIND),dimension(:),pointer  :: vegfra
- real(kind=RKIND),dimension(:),pointer  :: seaice,xice
+ real(kind=RKIND),dimension(:),pointer  :: seaice,snoalb,xice
  real(kind=RKIND),dimension(:),pointer  :: skintemp,tmn,xland
  real(kind=RKIND),dimension(:,:),pointer:: tslb,smois,sh2o,smcrel
 
@@ -608,15 +616,15 @@
 !note that this threshold is also defined in module_physics_vars.F.It is defined here to avoid
 !adding "use module_physics_vars" since this subroutine is only used for the initialization of
 !a "real" forecast with $CORE = init_nhyd_atmos.
- real(kind=RKIND),parameter:: xice_tsk_threshold = 271.
  real(kind=RKIND),parameter:: total_depth        = 3.   ! 3-meter soil depth.
 
 !-----------------------------------------------------------------------------------------------------------------
 !call mpas_log_write('')
 !call mpas_log_write('--- enter physics_init_seaice:')
 
- call mpas_pool_get_config(configs, 'config_frac_seaice', config_frac_seaice)
- call mpas_pool_get_config(configs, 'config_landuse_data', config_landuse_data)
+ call mpas_pool_get_config(configs, 'config_frac_seaice'         , config_frac_seaice)
+ call mpas_pool_get_config(configs, 'config_tsk_seaice_threshold', tsk_seaice_threshold)
+ call mpas_pool_get_config(configs, 'config_landuse_data'        , config_landuse_data)
 
  call mpas_pool_get_dimension(dims, 'nCellsSolve', nCellsSolve)
  call mpas_pool_get_dimension(dims, 'nSoilLevels', nSoilLevels)
@@ -625,6 +633,7 @@
  call mpas_pool_get_array(mesh, 'landmask', landmask)
  call mpas_pool_get_array(mesh, 'lu_index', ivgtyp)
  call mpas_pool_get_array(mesh, 'soilcat_top', isltyp)
+ call mpas_pool_get_array(mesh, 'snoalb', snoalb)
 
  call mpas_pool_get_array(input, 'seaice', seaice)
  call mpas_pool_get_array(input, 'xice', xice)
@@ -656,19 +665,21 @@
  endif
  call mpas_log_write('--- config_frac_seaice      : $l', logicArgs=(/config_frac_seaice/))
  call mpas_log_write('--- xice_threshold          : $r', realArgs=(/xice_threshold/))
+ call mpas_log_write('--- tsk_seaice_threshold    : $r', realArgs=(/tsk_seaice_threshold/))
 
 !convert seaice points to land points when the sea-ice fraction is greater than the
 !prescribed threshold:
  num_seaice_changes = 0
  do iCell = 1, nCellsSolve
     if(xice(iCell) .ge. xice_threshold .or. &
-      (landmask(iCell).eq.0 .and. skintemp(iCell).lt.xice_tsk_threshold)) then
+      (landmask(iCell).eq.0 .and. skintemp(iCell).lt.tsk_seaice_threshold)) then
 
        num_seaice_changes = num_seaice_changes + 1
        !... sea-ice points are converted to land points:
        if(landmask(iCell) .eq. 0) tmn(iCell) = 271.4_RKIND
        ivgtyp(iCell) = isice_lu
        isltyp(iCell) = 16
+       snoalb(iCell) = 0.75
        vegfra(iCell) = 0._RKIND
        xland(iCell)  = 1._RKIND
 

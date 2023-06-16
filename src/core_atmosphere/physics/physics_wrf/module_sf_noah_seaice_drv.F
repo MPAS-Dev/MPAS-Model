@@ -1,12 +1,16 @@
+!=================================================================================================================
 module module_sf_noah_seaice_drv
+
+!reference: WRF-v4.5.1
+!Laura D. Fowler (laura@ucar.edu)/2023-04-21.
 #if defined(mpas)
 use mpas_atmphys_utilities, only: physics_message,physics_error_fatal
-#define FATAL_ERROR(M) call physics_error_fatal( M )
-#define WRITE_MESSAGE(M) call physics_message( M )
+#define FATAL_ERROR(M) call physics_error_fatal(M)
+#define WRITE_MESSAGE(M) call physics_message(M)
 #else
 use module_wrf_error
-#define FATAL_ERROR(M) call wrf_error_fatal( M )
-#define WRITE_MESSAGE(M) call wrf_message( M )
+#define FATAL_ERROR(M) call wrf_error_fatal(M)
+#define WRITE_MESSAGE(M) call wrf_message(M)
 #endif
   use module_sf_noah_seaice
   implicit none
@@ -77,7 +81,8 @@ contains
          &                                               RAINBL, &
          &                                             SNOALB2D, &
          &                                                 XICE, &
-         &                                                  RIB
+         &                                                  RIB, &
+         &                                                  CHS
 
     LOGICAL, INTENT (IN)      :: FRPCPN
     REAL   , INTENT (IN)      :: DT
@@ -96,25 +101,29 @@ contains
          &                                                  TSK, &
          &                                                SNOWC, &
          &                                              SNOWH2D, &
-         &                                                  CHS, &
-         &                                                 CQS2
+!        &                                                  CHS, &
+         &                                                 CQS2, &
+                                                         ACSNOW, &
+                                                         ACSNOM, &
+                                                      SFCRUNOFF
+
+    REAL,    OPTIONAL, DIMENSION( ims:ime, jms:jme )           , &
+         &   INTENT(INOUT)    ::                         POTEVP, &
+                                                         SNOPCX
 
     REAL,    DIMENSION( ims:ime, jms:jme )                     , &
          &   INTENT (OUT)     ::                            HFX, &
          &                                                   LH, &
          &                                                  QFX, &
          &                                                  ZNT, &
-         &                                               POTEVP, &
          &                                               GRDFLX, &
          &                                                 QSFC, &
-         &                                               ACSNOW, &
-         &                                               ACSNOM, &
-         &                                               SNOPCX, &
-         &                                            SFCRUNOFF, &
-         &                                              NOAHRES, &
          &                                                 CHS2
 
-    REAL,    DIMENSION( ims:ime, jms:jme )                      ,&
+    REAL,    OPTIONAL, DIMENSION( ims:ime, jms:jme )           , &
+         &   INTENT (OUT)     ::                        NOAHRES
+
+    REAL,    DIMENSION( ims:ime, jms:jme )                     , &
          &   INTENT(INOUT)    ::                         SNOWSI
 
     REAL,    DIMENSION( ims:ime, jms:jme )                     , &
@@ -442,7 +451,6 @@ contains
           LH(I,J)     = ETA
           HFX(I,J)    = SHEAT
           QFX(I,J)    = ETA_KINEMATIC
-          POTEVP(I,J) = POTEVP(I,J) + ETP*FDTW
           GRDFLX(I,J) = SSOIL
 
           ! Exchange Coefficients
@@ -458,6 +466,11 @@ contains
               SNOWSI(I,J) = SNOWONSI
           ENDIF
 
+          ! Accumulated potential evaporation.
+          IF ( PRESENT(POTEVP) ) THEN
+              POTEVP(I,J) = POTEVP(I,J) + ETP*FDTW
+          ENDIF
+
           ! Accumulated snow precipitation.
           IF ( FFROZP .GT. 0.5 ) THEN
              ACSNOW(I,J) = ACSNOW(I,J) + PRCP * DT
@@ -467,7 +480,9 @@ contains
           ACSNOM(I,J) = ACSNOM(I,J) + SNOMLT * 1000.
 
           ! Accumulated snow-melt energy.
-          SNOPCX(I,J) = SNOPCX(I,J) - SNOMLT/FDTLIW
+          IF ( PRESENT(SNOPCX) ) THEN
+              SNOPCX(I,J) = SNOPCX(I,J) - SNOMLT/FDTLIW
+          ENDIF
 
           ! Surface runoff
           SFCRUNOFF(I,J) = SFCRUNOFF(I,J) + RUNOFF1 * DT * 1000.0
@@ -475,10 +490,12 @@ contains
           !
           ! Residual of surface energy balance terms
           !
-          NOAHRES(I,J) = ( SOLNET + LWDN ) &
-               &         - SHEAT + SSOIL - ETA &
-               &         - ( EMISSI * STBOLT * (T1**4) ) &
-               &         - FLX1 - FLX2 - FLX3
+          IF ( PRESENT(NOAHRES) ) THEN
+             NOAHRES(I,J) = ( SOLNET + LWDN )               &
+                            - SHEAT + SSOIL - ETA           &
+                            - ( EMISSI * STBOLT * (T1**4) ) &
+                            - FLX1 - FLX2 - FLX3
+          ENDIF
 #if defined(wrfmodel)
 #if (NMM_CORE != 1)
           IF ( ( SF_URBAN_PHYSICS == NOAHUCMSCHEME ) .OR. &

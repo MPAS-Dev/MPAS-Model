@@ -47,6 +47,23 @@ module mpas_stream_manager
               MPAS_get_stream_filename, &
               MPAS_build_stream_filename
 
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    !
+    !                  IMPORTANT NOTE for {pre,post}write_reindex
+    !
+    ! Caution is needed if calling the {pre,post}write_reindex routines directly
+    ! from outside of the stream manager. These two routines make use of module
+    ! state to save and retrieve pointers to the original indexing arrays. Problems
+    ! can arise, for example, if external code calls prewrite_reindex, then makes
+    ! a call to write output streams via the stream manager: in this case, pointers
+    ! set by the external call to prewrite_reindex will be overwritten by the
+    ! internal call to prewrite_reindex within mpas_stream_mgr_write.
+    !
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    public :: prewrite_reindex, &    ! Please see note above...
+              postwrite_reindex, &   ! Please see note above...
+              postread_reindex
+
     private
 
     interface MPAS_stream_mgr_set_property
@@ -4814,6 +4831,10 @@ module mpas_stream_manager
     !>  indexed fields in module variables *_save, and allocate new arrays for
     !>  the fields, which are set to contain global indices.
     !>  This routine should be called immediately before a write of a stream.
+    !>
+    !>  IMPORTANT NOTE: Before calling this routine from outside of the stream
+    !>                  manager module, please read the "IMPORTANT NOTE" near
+    !>                  the top of this module where this routine is made public.
     !
     !-----------------------------------------------------------------------
     subroutine prewrite_reindex(allFields, streamFields) !{{{
@@ -5113,6 +5134,10 @@ module mpas_stream_manager
     !> 
     !>  NB: Even if the write of a stream fails, it is important to stil call
     !>      this routine to reset the connectivity fields to contain local indices.
+    !>
+    !>  IMPORTANT NOTE: Before calling this routine from outside of the stream
+    !>                  manager module, please read the "IMPORTANT NOTE" near
+    !>                  the top of this module where this routine is made public.
     !
     !-----------------------------------------------------------------------
     subroutine postwrite_reindex(allFields, streamFields) !{{{

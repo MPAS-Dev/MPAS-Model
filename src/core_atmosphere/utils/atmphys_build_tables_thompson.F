@@ -25,85 +25,91 @@
  subroutine build_tables_thompson
 !=================================================================================================================
 
+ use mpas_io_units, only : mpas_new_unit, mpas_release_unit
+
 !local variables:
  logical, parameter:: l_mp_tables = .false.
  integer:: istatus
+ integer:: mp_unit
 
 !-----------------------------------------------------------------------------------------------------------------
 
 !--- partial initialization before building the look-up tables:
  call thompson_init(l_mp_tables)
 
+ call mpas_new_unit(mp_unit, unformatted = .true.)
+
 !--- building look-up table for rain collecting graupel:
  write(0,*)
  write(0,*) '--- building MP_THOMPSON_QRacrQG_DATA.DBL'
- open(unit=11,file='MP_THOMPSON_QRacrQG_DATA.DBL',form='unformatted',status='new',iostat=istatus)
+ open(unit=mp_unit,file='MP_THOMPSON_QRacrQG_DATA.DBL',form='unformatted',status='new',iostat=istatus)
  if (istatus /= 0) then
     call print_parallel_mesg('MP_THOMPSON_QRacrQG_DATA.DBL')
     return
  end if
  call qr_acr_qg
- write(11) tcg_racg
- write(11) tmr_racg
- write(11) tcr_gacr
- write(11) tmg_gacr
- write(11) tnr_racg
- write(11) tnr_gacr
- close(unit=11)
+ write(mp_unit) tcg_racg
+ write(mp_unit) tmr_racg
+ write(mp_unit) tcr_gacr
+ write(mp_unit) tmg_gacr
+ write(mp_unit) tnr_racg
+ write(mp_unit) tnr_gacr
+ close(unit=mp_unit)
 
 !--- building look-up table for rain collecting snow:
  write(0,*)
  write(0,*) '--- building MP_THOMPSON_QRacrQS_DATA.DBL'
- open(unit=11,file='MP_THOMPSON_QRacrQS_DATA.DBL',form='unformatted',status='new',iostat=istatus)
+ open(unit=mp_unit,file='MP_THOMPSON_QRacrQS_DATA.DBL',form='unformatted',status='new',iostat=istatus)
  if (istatus /= 0) then
     call print_parallel_mesg('MP_THOMPSON_QRacrQS_DATA.DBL')
     return
  end if
  call qr_acr_qs
- write(11)tcs_racs1
- write(11)tmr_racs1
- write(11)tcs_racs2
- write(11)tmr_racs2
- write(11)tcr_sacr1
- write(11)tms_sacr1
- write(11)tcr_sacr2
- write(11)tms_sacr2
- write(11)tnr_racs1
- write(11)tnr_racs2
- write(11)tnr_sacr1
- write(11)tnr_sacr2
- close(unit=11)
+ write(mp_unit)tcs_racs1
+ write(mp_unit)tmr_racs1
+ write(mp_unit)tcs_racs2
+ write(mp_unit)tmr_racs2
+ write(mp_unit)tcr_sacr1
+ write(mp_unit)tms_sacr1
+ write(mp_unit)tcr_sacr2
+ write(mp_unit)tms_sacr2
+ write(mp_unit)tnr_racs1
+ write(mp_unit)tnr_racs2
+ write(mp_unit)tnr_sacr1
+ write(mp_unit)tnr_sacr2
+ close(unit=mp_unit)
 
 !--- building look-up table for freezing of cloud droplets:
  write(0,*)
  write(0,*) '--- building MP_THOMPSON_freezeH2O_DATA.DBL'
- open(unit=11,file='MP_THOMPSON_freezeH2O_DATA.DBL',form='unformatted',status='new',iostat=istatus)
+ open(unit=mp_unit,file='MP_THOMPSON_freezeH2O_DATA.DBL',form='unformatted',status='new',iostat=istatus)
  if (istatus /= 0) then
     call print_parallel_mesg('MP_THOMPSON_freezeH2O_DATA.DBL')
     return
  end if
  call freezeH2O
- write(11) tpi_qrfz
- write(11) tni_qrfz
- write(11) tpg_qrfz
- write(11) tnr_qrfz
- write(11) tpi_qcfz
- write(11) tni_qcfz
- close(unit=11)
+ write(mp_unit) tpi_qrfz
+ write(mp_unit) tni_qrfz
+ write(mp_unit) tpg_qrfz
+ write(mp_unit) tnr_qrfz
+ write(mp_unit) tpi_qcfz
+ write(mp_unit) tni_qcfz
+ close(unit=mp_unit)
  
 !--- building look-up table for autoconversion of cloud ice to snow:
  write(0,*)
  write(0,*) '--- building MP_THOMPSON_QIautQS_DATA.DBL'
- open(unit=11,file='MP_THOMPSON_QIautQS_DATA.DBL',form='unformatted',status='new',iostat=istatus)
+ open(unit=mp_unit,file='MP_THOMPSON_QIautQS_DATA.DBL',form='unformatted',status='new',iostat=istatus)
  if (istatus /= 0) then
     call print_parallel_mesg('MP_THOMPSON_QIautQS_DATA.DBL')
     return
  end if
  call qi_aut_qs
- write(11) tpi_ide
- write(11) tps_iaus
- write(11) tni_iaus
- close(unit=11)
+ write(mp_unit) tpi_ide
+ write(mp_unit) tps_iaus
+ write(mp_unit) tni_iaus
+ close(unit=mp_unit)
+ call mpas_release_unit(mp_unit)
 
  write(0,*)
  write(0,*) 'Finished building all tables.'

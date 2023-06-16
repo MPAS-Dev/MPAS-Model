@@ -5,7 +5,7 @@
 ! Additional copyright and license information can be found in the LICENSE file
 ! distributed with this code, or at http://mpas-dev.github.com/license.html
 !
-module pv_diagnostics
+module mpas_pv_diagnostics
 
     use mpas_derived_types, only : MPAS_pool_type, MPAS_clock_type
     use mpas_kind_types, only : RKIND
@@ -13,8 +13,10 @@ module pv_diagnostics
     type (MPAS_pool_type), pointer :: mesh
     type (MPAS_pool_type), pointer :: state
     type (MPAS_pool_type), pointer :: diag
+#ifdef DO_PHYSICS
     type (MPAS_pool_type), pointer :: tend
     type (MPAS_pool_type), pointer :: tend_physics
+#endif
 
     type (MPAS_clock_type), pointer :: clock
 
@@ -57,8 +59,10 @@ module pv_diagnostics
         call mpas_pool_get_subpool(all_pools, 'mesh', mesh)
         call mpas_pool_get_subpool(all_pools, 'state', state)
         call mpas_pool_get_subpool(all_pools, 'diag', diag)
+#ifdef DO_PHYSICS
         call mpas_pool_get_subpool(all_pools, 'tend', tend)
         call mpas_pool_get_subpool(all_pools, 'tend_physics', tend_physics)
+#endif
 
         clock => simulation_clock
    
@@ -100,6 +104,7 @@ module pv_diagnostics
         need_iLev_DT = MPAS_field_will_be_written('iLev_DT')
         need_any_diags = need_any_diags .or. need_iLev_DT
 
+#ifdef DO_PHYSICS
         need_tend_lw = MPAS_field_will_be_written('depv_dt_lw')
         need_any_diags = need_any_diags .or. need_tend_lw
         need_any_budget = need_any_budget .or. need_tend_lw
@@ -133,13 +138,16 @@ module pv_diagnostics
         need_tend_fric_pv = MPAS_field_will_be_written('depv_dt_fric_pv')
         need_any_diags = need_any_diags .or. need_tend_fric_pv
         need_any_budget = need_any_budget .or. need_tend_fric_pv
+#endif
 
         if (need_any_diags) then
             call atm_compute_pv_diagnostics(state, 1, diag, mesh)
         end if
+#ifdef DO_PHYSICS
         if (need_any_budget) then
             call atm_compute_pvBudget_diagnostics(state, 1, diag, mesh, tend, tend_physics)
         end if
+#endif
    
     end subroutine pv_diagnostics_compute
 
@@ -1639,4 +1647,4 @@ module pv_diagnostics
    
    end subroutine atm_compute_pvBudget_diagnostics
 
-end module pv_diagnostics
+end module mpas_pv_diagnostics

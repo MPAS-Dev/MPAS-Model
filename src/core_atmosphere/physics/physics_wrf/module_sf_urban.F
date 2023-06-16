@@ -1,12 +1,15 @@
 MODULE module_sf_urban
+
+!reference: WRF-v4.5.1
+!Laura D. Fowler (laura@ucar.edu)/2023-04-21.
 #if defined(mpas)
 use mpas_atmphys_utilities, only: physics_message,physics_error_fatal
-#define FATAL_ERROR(M) call physics_error_fatal( M )
-#define WRITE_MESSAGE(M) call physics_message( M )
+#define FATAL_ERROR(M) call physics_error_fatal(M)
+#define WRITE_MESSAGE(M) call physics_message(M)
 #else
 use module_wrf_error
-#define FATAL_ERROR(M) call wrf_error_fatal( M )
-#define WRITE_MESSAGE(M) call wrf_message( M )
+#define FATAL_ERROR(M) call wrf_error_fatal(M)
+#define WRITE_MESSAGE(M) call wrf_message(M)
 #endif
 
 !===============================================================================
@@ -35,6 +38,8 @@ use module_wrf_error
    REAL, ALLOCATABLE, DIMENSION(:) :: FRC_URB_TBL
 
    REAL, ALLOCATABLE, DIMENSION(:) :: COP_TBL
+   REAL, ALLOCATABLE, DIMENSION(:) :: BLDAC_FRC_TBL
+   REAL, ALLOCATABLE, DIMENSION(:) :: COOLED_FRC_TBL
    REAL, ALLOCATABLE, DIMENSION(:) :: PWIN_TBL
    REAL, ALLOCATABLE, DIMENSION(:) :: BETA_TBL
    INTEGER, ALLOCATABLE, DIMENSION(:) :: SW_COND_TBL
@@ -45,6 +50,11 @@ use module_wrf_error
    REAL, ALLOCATABLE, DIMENSION(:) :: TARGHUM_TBL
    REAL, ALLOCATABLE, DIMENSION(:) :: GAPHUM_TBL
    REAL, ALLOCATABLE, DIMENSION(:) :: PERFLO_TBL
+   REAL, ALLOCATABLE, DIMENSION(:) :: PV_FRAC_ROOF_TBL !GRZ
+   REAL, ALLOCATABLE, DIMENSION(:) :: GR_FRAC_ROOF_TBL !GRZ
+   INTEGER :: GR_FLAG_TBL !GRZ
+   INTEGER :: GR_TYPE_TBL !GRZ
+   REAL, DIMENSION(1:24)           :: IRHO_TBL
    REAL, ALLOCATABLE, DIMENSION(:) :: HSESF_TBL
 
    REAL, ALLOCATABLE, DIMENSION(:) :: CAPR_TBL, CAPB_TBL, CAPG_TBL
@@ -679,7 +689,7 @@ use module_wrf_error
    SIGMA_ZED = stdh_urb
 
  !Calculate Wind Direction and Assign Appropriae lf_urb
-   !WDR = (180.0/PI)*ATAN2(U10,V10)
+   WDR = (180.0/PI)*ATAN2(U10,V10)
    
    IF(WDR.ge.0.0.and.WDR.lt.22.5)THEN
      lambda_f = lf_urb(1)
@@ -691,7 +701,7 @@ use module_wrf_error
      lambda_f = lf_urb(1)
    ELSEIF(WDR.gt.22.5.and.WDR.le.67.5)THEN
      lambda_f = lf_urb(2)
-   ELSEIF(WDR.ge.-67.5.and.WDR.lt.-22.5)THEN
+   ELSEIF(WDR.ge.-157.5.and.WDR.lt.-112.5)THEN
      lambda_f = lf_urb(2)
    ELSEIF(WDR.gt.67.5.and.WDR.le.112.5)THEN
      lambda_f = lf_urb(3)
@@ -699,7 +709,7 @@ use module_wrf_error
      lambda_f = lf_urb(3)
    ELSEIF(WDR.gt.112.5.and.WDR.le.157.5)THEN
      lambda_f = lf_urb(4)
-   ELSEIF(WDR.ge.-157.5.and.WDR.lt.-112.5)THEN
+   ELSEIF(WDR.ge.-67.5.and.WDR.lt.-22.5)THEN
      lambda_f = lf_urb(4)
    ELSE
      lambda_f = lf_urb(1)
@@ -1160,7 +1170,7 @@ use module_wrf_error
      END DO
        ! Update temperature in soil layer
        CALL SHFLX (SSOILR,TGRL,SMR,SMCMAX,NGR,TGRP,DELT,YY,ZZ1,ZSOILR,       &
-                   TRLEND,ZBOT,SMCWLT,DF1,QUARTZ,CSOIL,CAPR)
+                  TRLEND,ZBOT,SMCWLT,DF1,QUARTZ,CSOIL,CAPR)
    FLXTHGR=HGR/RHO/CP/100.
    FLXHUMGR=ELEGR/RHO/EL/100.
 ELSE
@@ -1940,7 +1950,7 @@ ENDIF
 !
 !===============================================================================
    SUBROUTINE urban_param_init(DZR,DZB,DZG,num_soil_layers, &
-                               sf_urban_physics)
+                               sf_urban_physics,use_wudapt_lcz)
 !                              num_roof_layers,num_wall_layers,num_road_layers)
 
    IMPLICIT NONE
@@ -1954,6 +1964,7 @@ ENDIF
    REAL, DIMENSION(1:num_soil_layers), INTENT(INOUT) :: DZB
    REAL, DIMENSION(1:num_soil_layers), INTENT(INOUT) :: DZG
    INTEGER,                            INTENT(IN)    :: SF_URBAN_PHYSICS
+   INTEGER,                            INTENT(IN)    :: USE_WUDAPT_LCZ !AndreaLCZ
 
    INTEGER :: LC, K
    INTEGER :: IOSTATUS, ALLOCATE_STATUS
@@ -1989,8 +2000,10 @@ ENDIF
    num_road_layers = num_soil_layers
 
 
-   ICATE=0
+   ICATE=0  
 
+   
+  if(USE_WUDAPT_LCZ.eq.0)then   !AndreaLCZ
    OPEN (UNIT=11,                &
          FILE='URBPARM.TBL', &
          ACCESS='SEQUENTIAL',    &
@@ -1999,9 +2012,24 @@ ENDIF
          POSITION='REWIND',      &
          IOSTAT=IOSTATUS)
 
-   IF (IOSTATUS > 0) THEN
-   FATAL_ERROR('ERROR OPEN URBPARM.TBL')
-   ENDIF
+         IF (IOSTATUS > 0) THEN
+         FATAL_ERROR('Error opening URBPARM.TBL. Make sure URBPARM.TBL (found in run/) is linked to the running directory.')
+         ENDIF
+
+ else
+   OPEN (UNIT=11,                &
+         FILE='URBPARM_LCZ.TBL', &
+         ACCESS='SEQUENTIAL',    &
+         STATUS='OLD',           &
+         ACTION='READ',          &
+         POSITION='REWIND',      &
+         IOSTAT=IOSTATUS)
+
+         IF (IOSTATUS > 0) THEN
+         FATAL_ERROR('Error opening URBPARM_LCZ.TBL. Make sure URBPARM_LCZ.TBL (found in run/) is linked to the running directory.')
+         ENDIF
+ endif
+ 
 
    READLOOP : do 
       read(11,'(A512)', iostat=iostatus) string
@@ -2109,6 +2137,10 @@ ENDIF
             if(allocate_status /= 0) FATAL_ERROR('Error allocating HPERCENT_BIN_TBL in urban_param_init')
             ALLOCATE( COP_TBL(ICATE), stat=allocate_status )
             if(allocate_status /= 0) FATAL_ERROR('Error allocating COP_TBL in urban_param_init')
+            ALLOCATE( BLDAC_FRC_TBL(ICATE), stat=allocate_status )
+            if(allocate_status /= 0) FATAL_ERROR('Error allocating BLDAC_FRC_TBL in urban_param_init')
+            ALLOCATE( COOLED_FRC_TBL(ICATE), stat=allocate_status )
+            if(allocate_status /= 0) FATAL_ERROR('Error allocating COOLED_FRC_TBL in urban_param_init')
             ALLOCATE( PWIN_TBL(ICATE), stat=allocate_status )
             if(allocate_status /= 0) FATAL_ERROR('Error allocating PWIN_TBL in urban_param_init')
             ALLOCATE( BETA_TBL(ICATE), stat=allocate_status )
@@ -2131,6 +2163,11 @@ ENDIF
             if(allocate_status /= 0) FATAL_ERROR('Error allocating PERFLO_TBL in urban_param_init')
             ALLOCATE( HSESF_TBL(ICATE), stat=allocate_status )
             if(allocate_status /= 0) FATAL_ERROR('Error allocating HSESF_TBL in urban_param_init')
+            ALLOCATE( PV_FRAC_ROOF_TBL(ICATE), stat=allocate_status )
+            if(allocate_status /= 0) FATAL_ERROR('Error allocating PV_FRAC_ROOF_TBL in urban_param_init')
+            ALLOCATE( GR_FRAC_ROOF_TBL(ICATE), stat=allocate_status )
+            if(allocate_status /= 0) FATAL_ERROR('Error allocating GR_FRAC_ROOF_TBL in urban_param_init')
+
          endif
          numdir_tbl = 0
          street_direction_tbl = -1.E36
@@ -2295,6 +2332,10 @@ ENDIF
          read(string(indx+1:),*) Z0R_tbl(1:icate)
       else if ( name == "COP") then
          read(string(indx+1:),*) cop_tbl(1:icate)
+      else if ( name == "BLDAC_FRC") then
+         read(string(indx+1:),*) bldac_frc_tbl(1:icate)
+      else if ( name == "COOLED_FRC") then
+         read(string(indx+1:),*) cooled_frc_tbl(1:icate)
       else if ( name == "PWIN") then
          read(string(indx+1:),*) pwin_tbl(1:icate)
       else if ( name == "BETA") then
@@ -2319,6 +2360,17 @@ ENDIF
          read(string(indx+1:),*) hsequip_tbl(1:24)
       else if (name == "HSEQUIP_SCALE_FACTOR") then
          read(string(indx+1:),*) hsesf_tbl(1:icate)
+      else if (name == "IRHO") then
+         read(string(indx+1:),*) IRHO_TBL(1:24)
+       else if ( name == "PV_FRAC_ROOF") then
+         read(string(indx+1:),*) pv_frac_roof_tbl(1:icate)
+     else if ( name == "GR_FRAC_ROOF") then
+         read(string(indx+1:),*) gr_frac_roof_tbl(1:icate)
+      else if (name == "GR_FLAG") then
+         read(string(indx+1:),*) gr_flag_tbl
+      else if (name == "GR_TYPE") then
+         read(string(indx+1:),*) gr_type_tbl
+
 !end BEP         
       else
          FATAL_ERROR('URBPARM.TBL: Unrecognized NAME = "'//trim(name)//'" in Subr URBAN_PARAM_INIT')
@@ -2410,18 +2462,25 @@ ENDIF
 !===========================================================================
    SUBROUTINE urban_var_init(ISURBAN, TSURFACE0_URB,TLAYER0_URB,TDEEP0_URB,IVGTYP,  & ! in
                              ims,ime,jms,jme,kms,kme,num_soil_layers,         & ! in
-!                             num_roof_layers,num_wall_layers,num_road_layers, & ! in
-!                              num_roof_layers,num_wall_layers,num_road_layers, & !urban
-                             LOW_DENSITY_RESIDENTIAL,                    &
-		             HIGH_DENSITY_RESIDENTIAL,                   &
-		             HIGH_INTENSITY_INDUSTRIAL,                    &
+                             LCZ_1,LCZ_2,LCZ_3,LCZ_4,LCZ_5,                &
+                             LCZ_6,LCZ_7,LCZ_8,LCZ_9,LCZ_10,LCZ_11,        & 
                              restart,sf_urban_physics,                     & !in
                              XXXR_URB2D,XXXB_URB2D,XXXG_URB2D,XXXC_URB2D,  & ! inout
                              TR_URB2D,TB_URB2D,TG_URB2D,TC_URB2D,QC_URB2D, & ! inout
                              TRL_URB3D,TBL_URB3D,TGL_URB3D,                & ! inout
                              SH_URB2D,LH_URB2D,G_URB2D,RN_URB2D,           & ! inout
                              TS_URB2D,                                     & ! inout
-                             num_urban_layers,                             & ! in
+                             num_urban_ndm,                                & ! in
+                             urban_map_zrd,                                & ! in
+                             urban_map_zwd,                                & ! in
+                             urban_map_gd,                                 & ! in
+                             urban_map_zd,                                 & ! in
+                             urban_map_zdf,                                & ! in
+                             urban_map_bd,                                 & ! in
+                             urban_map_wd,                                 & ! in
+                             urban_map_gbd,                                & ! in
+                             urban_map_fbd,                                & ! in
+                             urban_map_zgrd,                                & ! in
                              num_urban_hi,                                 & ! in
                              TRB_URB4D,TW1_URB4D,TW2_URB4D,TGB_URB4D,      & ! inout
                              TLEV_URB3D,QLEV_URB3D,                        & ! inout
@@ -2431,6 +2490,11 @@ ENDIF
                              SFVENT_URB3D,LFVENT_URB3D,                    & ! inout
                              SFWIN1_URB3D,SFWIN2_URB3D,                    & ! inout
                              SFW1_URB3D,SFW2_URB3D,SFR_URB3D,SFG_URB3D,    & ! inout
+                             EP_PV_URB3D,T_PV_URB3D,                       & !GRZ
+                             TRV_URB4D,QR_URB4D,QGR_URB3D,TGR_URB3D,       & !GRZ
+                             DRAIN_URB4D,DRAINGR_URB3D,SFRV_URB3D,         & !GRZ
+                             LFRV_URB3D,DGR_URB3D,DG_URB3D,LFR_URB3D,LFG_URB3D,&!GRZ
+                             SMOIS_URB,                                    &
                              LP_URB2D,HI_URB2D,LB_URB2D,                   & ! inout
                              HGT_URB2D,MH_URB2D,STDH_URB2D,                & ! inout
                              LF_URB2D,                                     & ! inout
@@ -2441,13 +2505,23 @@ ENDIF
                              A_E_BEP,B_U_BEP,B_V_BEP,                      & ! inout multi-layer urban
                              B_T_BEP,B_Q_BEP,B_E_BEP,DLG_BEP,              & ! inout multi-layer urban
                              DL_U_BEP,SF_BEP,VL_BEP,                       & ! inout multi-layer urban
-                             FRC_URB2D, UTYPE_URB2D)                         ! inout
+                             FRC_URB2D, UTYPE_URB2D,USE_WUDAPT_LCZ)                         ! inout
    IMPLICIT NONE
 
-   INTEGER, INTENT(IN) :: ISURBAN, sf_urban_physics
-   INTEGER, INTENT(IN) :: LOW_DENSITY_RESIDENTIAL, HIGH_DENSITY_RESIDENTIAL, HIGH_INTENSITY_INDUSTRIAL
+   INTEGER, INTENT(IN) :: ISURBAN, sf_urban_physics,use_wudapt_lcz
+   INTEGER, INTENT(IN) :: LCZ_1,LCZ_2,LCZ_3,LCZ_4,LCZ_5,LCZ_6,LCZ_7,LCZ_8,LCZ_9,LCZ_10,LCZ_11
    INTEGER, INTENT(IN) :: ims,ime,jms,jme,kms,kme,num_soil_layers
-   INTEGER, INTENT(IN) :: num_urban_layers                            !multi-layer urban
+   INTEGER, INTENT(IN) :: num_urban_ndm
+   INTEGER, INTENT(IN) :: urban_map_zrd
+   INTEGER, INTENT(IN) :: urban_map_zwd
+   INTEGER, INTENT(IN) :: urban_map_gd
+   INTEGER, INTENT(IN) :: urban_map_zd
+   INTEGER, INTENT(IN) :: urban_map_zdf
+   INTEGER, INTENT(IN) :: urban_map_bd
+   INTEGER, INTENT(IN) :: urban_map_wd
+   INTEGER, INTENT(IN) :: urban_map_gbd
+   INTEGER, INTENT(IN) :: urban_map_fbd
+   INTEGER, INTENT(IN) :: urban_map_zgrd
    INTEGER, INTENT(IN) :: num_urban_hi                                !multi-layer urban
 !   INTEGER, INTENT(IN) :: num_roof_layers, num_wall_layers, num_road_layers
 
@@ -2492,28 +2566,43 @@ ENDIF
    REAL, DIMENSION( ims:ime, jms:jme ), INTENT(INOUT) :: TS_URB2D
 
 ! multi-layer UCM variables
-   REAL, DIMENSION(ims:ime, 1:num_urban_layers, jms:jme), INTENT(INOUT) :: TRB_URB4D
-   REAL, DIMENSION(ims:ime, 1:num_urban_layers, jms:jme), INTENT(INOUT) :: TW1_URB4D
-   REAL, DIMENSION(ims:ime, 1:num_urban_layers, jms:jme), INTENT(INOUT) :: TW2_URB4D
-   REAL, DIMENSION(ims:ime, 1:num_urban_layers, jms:jme), INTENT(INOUT) :: TGB_URB4D
-   REAL, DIMENSION(ims:ime, 1:num_urban_layers, jms:jme), INTENT(INOUT) :: TLEV_URB3D
-   REAL, DIMENSION(ims:ime, 1:num_urban_layers, jms:jme), INTENT(INOUT) :: QLEV_URB3D
-   REAL, DIMENSION( ims:ime, 1:num_urban_layers, jms:jme ), INTENT(INOUT) :: TW1LEV_URB3D
-   REAL, DIMENSION( ims:ime, 1:num_urban_layers, jms:jme ), INTENT(INOUT) :: TW2LEV_URB3D
-   REAL, DIMENSION( ims:ime, 1:num_urban_layers, jms:jme ), INTENT(INOUT) :: TGLEV_URB3D
-   REAL, DIMENSION( ims:ime, 1:num_urban_layers, jms:jme ), INTENT(INOUT) :: TFLEV_URB3D
+   REAL, DIMENSION(ims:ime, 1:urban_map_zrd, jms:jme), INTENT(INOUT) :: TRB_URB4D
+   REAL, DIMENSION(ims:ime, 1:urban_map_zwd, jms:jme), INTENT(INOUT) :: TW1_URB4D
+   REAL, DIMENSION(ims:ime, 1:urban_map_zwd, jms:jme), INTENT(INOUT) :: TW2_URB4D
+   REAL, DIMENSION(ims:ime, 1:urban_map_gd , jms:jme), INTENT(INOUT) :: TGB_URB4D
+   REAL, DIMENSION(ims:ime, 1:urban_map_bd , jms:jme), INTENT(INOUT) :: TLEV_URB3D
+   REAL, DIMENSION(ims:ime, 1:urban_map_bd , jms:jme), INTENT(INOUT) :: QLEV_URB3D
+   REAL, DIMENSION(ims:ime, 1:urban_map_wd , jms:jme), INTENT(INOUT) :: TW1LEV_URB3D
+   REAL, DIMENSION(ims:ime, 1:urban_map_wd , jms:jme), INTENT(INOUT) :: TW2LEV_URB3D
+   REAL, DIMENSION(ims:ime, 1:urban_map_gbd, jms:jme), INTENT(INOUT) :: TGLEV_URB3D
+   REAL, DIMENSION(ims:ime, 1:urban_map_fbd, jms:jme), INTENT(INOUT) :: TFLEV_URB3D
    REAL, DIMENSION( ims:ime, jms:jme ), INTENT(INOUT) :: LF_AC_URB3D
    REAL, DIMENSION( ims:ime, jms:jme ), INTENT(INOUT) :: SF_AC_URB3D
    REAL, DIMENSION( ims:ime, jms:jme ), INTENT(INOUT) :: CM_AC_URB3D
    REAL, DIMENSION( ims:ime, jms:jme ), INTENT(INOUT) :: SFVENT_URB3D
    REAL, DIMENSION( ims:ime, jms:jme ), INTENT(INOUT) :: LFVENT_URB3D
-   REAL, DIMENSION( ims:ime, 1:num_urban_layers, jms:jme ), INTENT(INOUT) :: SFWIN1_URB3D
-   REAL, DIMENSION( ims:ime, 1:num_urban_layers, jms:jme ), INTENT(INOUT) :: SFWIN2_URB3D
-   REAL, DIMENSION(ims:ime, 1:num_urban_layers, jms:jme), INTENT(INOUT) :: SFW1_URB3D
-   REAL, DIMENSION(ims:ime, 1:num_urban_layers, jms:jme), INTENT(INOUT) :: SFW2_URB3D
-   REAL, DIMENSION(ims:ime, 1:num_urban_layers, jms:jme), INTENT(INOUT) :: SFR_URB3D
-   REAL, DIMENSION(ims:ime, 1:num_urban_layers, jms:jme), INTENT(INOUT) :: SFG_URB3D
-   REAL, DIMENSION( ims:ime,1:num_urban_hi, jms:jme), INTENT(INOUT) :: HI_URB2D
+   REAL, DIMENSION( ims:ime, 1:urban_map_wd, jms:jme), INTENT(INOUT) :: SFWIN1_URB3D
+   REAL, DIMENSION( ims:ime, 1:urban_map_wd, jms:jme), INTENT(INOUT) :: SFWIN2_URB3D
+   REAL, DIMENSION(ims:ime, 1:urban_map_zd , jms:jme), INTENT(INOUT) :: SFW1_URB3D
+   REAL, DIMENSION(ims:ime, 1:urban_map_zd , jms:jme), INTENT(INOUT) :: SFW2_URB3D
+   REAL, DIMENSION(ims:ime, 1:urban_map_zdf, jms:jme), INTENT(INOUT) :: SFR_URB3D
+   REAL, DIMENSION(ims:ime, 1:num_urban_ndm, jms:jme), INTENT(INOUT) :: SFG_URB3D
+   REAL, DIMENSION( ims:ime, jms:jme ), INTENT(INOUT) :: EP_PV_URB3D!GRZ
+   REAL, DIMENSION( ims:ime, 1:urban_map_zdf,jms:jme ), INTENT(INOUT) :: T_PV_URB3D!GRZ
+   REAL, DIMENSION( ims:ime, 1:urban_map_zgrd, jms:jme),INTENT(INOUT) :: TRV_URB4D ! GRZ
+   REAL, DIMENSION( ims:ime, 1:urban_map_zgrd, jms:jme),INTENT(INOUT) :: QR_URB4D ! GRZ
+   REAL, DIMENSION( ims:ime,jms:jme), INTENT(INOUT) :: QGR_URB3D ! GRZ
+   REAL, DIMENSION( ims:ime,jms:jme), INTENT(INOUT) :: TGR_URB3D ! GRZ
+   REAL, DIMENSION( ims:ime, 1:urban_map_zdf, jms:jme),INTENT(INOUT) :: DRAIN_URB4D !GRZ
+   REAL, DIMENSION( ims:ime, jms:jme ), INTENT(INOUT) :: DRAINGR_URB3D   !GRZ
+   REAL, DIMENSION( ims:ime, 1:urban_map_zdf, jms:jme),INTENT(INOUT) :: SFRV_URB3D !GRZ
+   REAL, DIMENSION( ims:ime, 1:urban_map_zdf, jms:jme),INTENT(INOUT) :: LFRV_URB3D ! GRZ
+   REAL, DIMENSION( ims:ime, 1:urban_map_zdf, jms:jme ),INTENT(INOUT) :: DGR_URB3D !GRZ
+   REAL, DIMENSION( ims:ime, 1:num_urban_ndm, jms:jme ),INTENT(INOUT) :: DG_URB3D !GRZ
+   REAL, DIMENSION( ims:ime, 1:urban_map_zdf, jms:jme ),INTENT(INOUT) :: LFR_URB3D !GRZ
+   REAL, DIMENSION( ims:ime, 1:num_urban_ndm, jms:jme ), INTENT(INOUT) :: LFG_URB3D !GRZ
+   REAL, DIMENSION( ims:ime, 1:num_soil_layers, jms:jme ), INTENT(IN) ::SMOIS_URB
+   REAL, DIMENSION( ims:ime,1:num_urban_hi , jms:jme), INTENT(INOUT) :: HI_URB2D
    REAL, DIMENSION( ims:ime, jms:jme ), INTENT(INOUT) :: LP_URB2D
    REAL, DIMENSION( ims:ime, jms:jme ), INTENT(INOUT) :: LB_URB2D
    REAL, DIMENSION( ims:ime, jms:jme ), INTENT(INOUT) :: HGT_URB2D
@@ -2561,10 +2650,41 @@ ENDIF
 !m
 !FS   FRC_URB2D(I,J)=0.
       UTYPE_URB2D(I,J)=0
-      SWITCH_URB=0
+      SWITCH_URB=1
 
             IF( IVGTYP(I,J) == ISURBAN)  THEN
-               UTYPE_URB2D(I,J) = 2  ! for default. high-intensity
+               IF(use_wudapt_lcz==0) THEN
+                  UTYPE_URB2D(I,J) = 2  ! for default. high-intensity
+               ELSE
+                  UTYPE_URB2D(I,J) = 5  ! for default. high-intensity
+               ENDIF
+            ELSE IF( IVGTYP(I,J) == LCZ_1) THEN
+               UTYPE_URB2D(I,J) = 1
+            ELSE IF( IVGTYP(I,J) == LCZ_2) THEN
+               UTYPE_URB2D(I,J) = 2
+            ELSE IF( IVGTYP(I,J) == LCZ_3) THEN
+               UTYPE_URB2D(I,J) = 3
+            ELSE IF( IVGTYP(I,J) == LCZ_4) THEN
+               UTYPE_URB2D(I,J) = 4
+            ELSE IF( IVGTYP(I,J) == LCZ_5) THEN
+               UTYPE_URB2D(I,J) = 5
+            ELSE IF( IVGTYP(I,J) == LCZ_6) THEN
+               UTYPE_URB2D(I,J) = 6
+            ELSE IF( IVGTYP(I,J) == LCZ_7) THEN
+               UTYPE_URB2D(I,J) = 7
+            ELSE IF( IVGTYP(I,J) == LCZ_8) THEN
+               UTYPE_URB2D(I,J) = 8
+            ELSE IF( IVGTYP(I,J) == LCZ_9) THEN
+               UTYPE_URB2D(I,J) = 9
+            ELSE IF( IVGTYP(I,J) == LCZ_10) THEN
+               UTYPE_URB2D(I,J) = 10
+            ELSE IF( IVGTYP(I,J) == LCZ_11) THEN
+               UTYPE_URB2D(I,J) = 11
+            ELSE
+               SWITCH_URB=0
+            ENDIF
+
+            IF (SWITCH_URB == 1) THEN
                UTYPE_URB = UTYPE_URB2D(I,J)  ! for default. high-intensity
                IF (HGT_URB2D(I,J)>0.) THEN
                   CONTINUE
@@ -2594,117 +2714,7 @@ ENDIF
                   WRITE(mesg,*) 'WARNING, THE URBAN FRACTION WILL BE READ FROM URBPARM.TBL'
                   WRITE_MESSAGE(mesg)
                   FRC_URB2D(I,J) = FRC_URB_TBL(UTYPE_URB)
-                ENDIF           
-               SWITCH_URB=1
-            ENDIF 
-
-            IF( IVGTYP(I,J) == LOW_DENSITY_RESIDENTIAL) THEN
-               UTYPE_URB2D(I,J) = 1  ! low-intensity residential
-               UTYPE_URB = UTYPE_URB2D(I,J)  ! low-intensity residential
-               IF (HGT_URB2D(I,J)>0.) THEN
-                  CONTINUE
-               ELSE
-                  WRITE(mesg,*) 'USING DEFAULT URBAN MORPHOLOGY'
-                  WRITE_MESSAGE(mesg)
-                  LP_URB2D(I,J)=0.
-                  LB_URB2D(I,J)=0.
-                  HGT_URB2D(I,J)=0.
-                  IF ( sf_urban_physics == 1 ) THEN
-                     MH_URB2D(I,J)=0.
-                     STDH_URB2D(I,J)=0.
-                     DO K=1,4
-                       LF_URB2D(I,K,J)=0.
-                     ENDDO
-                  ELSE IF ( ( sf_urban_physics == 2 ) .or. ( sf_urban_physics == 3 ) ) THEN
-                     DO K=1,num_urban_hi
-                        HI_URB2D(I,K,J)=0.
-                     ENDDO
-                  ENDIF
-               ENDIF
-                IF (FRC_URB2D(I,J)>0.and.FRC_URB2D(I,J)<=1.) THEN
-                  CONTINUE
-                ELSE
-                  WRITE(mesg,*) 'WARNING, FRC_URB2D = 0 BUT IVGTYP IS URBAN'
-                  WRITE_MESSAGE(mesg)
-                  WRITE(mesg,*) 'WARNING, THE URBAN FRACTION WILL BE READ FROM URBPARM.TBL'
-                  WRITE_MESSAGE(mesg)
-                  FRC_URB2D(I,J) = FRC_URB_TBL(UTYPE_URB)
-                ENDIF         
-              SWITCH_URB=1
-            ENDIF
-
-           IF( IVGTYP(I,J) == HIGH_DENSITY_RESIDENTIAL) THEN
-               UTYPE_URB2D(I,J) = 2  ! high-intensity
-               UTYPE_URB = UTYPE_URB2D(I,J)  ! high-intensity
-              IF (HGT_URB2D(I,J)>0.) THEN
-                  CONTINUE
-               ELSE
-                  WRITE(mesg,*) 'USING DEFAULT URBAN MORPHOLOGY'
-                  WRITE_MESSAGE(mesg)
-                  LP_URB2D(I,J)=0.
-                  LB_URB2D(I,J)=0.
-                  HGT_URB2D(I,J)=0.
-                  IF ( sf_urban_physics == 1 ) THEN
-                     MH_URB2D(I,J)=0.
-                     STDH_URB2D(I,J)=0.
-                     DO K=1,4
-                       LF_URB2D(I,K,J)=0.
-                     ENDDO
-                  ELSE IF ( ( sf_urban_physics == 2 ) .or. ( sf_urban_physics == 3 ) ) THEN
-                     DO K=1,num_urban_hi
-                        HI_URB2D(I,K,J)=0.
-                     ENDDO
-                  ENDIF
-               ENDIF
-                IF (FRC_URB2D(I,J)>0.and.FRC_URB2D(I,J)<=1.) THEN
-                  CONTINUE
-                ELSE
-                  WRITE(mesg,*) 'WARNING, FRC_URB2D = 0 BUT IVGTYP IS URBAN'
-                  WRITE_MESSAGE(mesg)
-                  WRITE(mesg,*) 'WARNING, THE URBAN FRACTION WILL BE READ FROM URBPARM.TBL'
-                  WRITE_MESSAGE(mesg)
-                  FRC_URB2D(I,J) = FRC_URB_TBL(UTYPE_URB)
                 ENDIF
-              SWITCH_URB=1
-            ENDIF
-
-            IF( IVGTYP(I,J) == HIGH_INTENSITY_INDUSTRIAL) THEN
-               UTYPE_URB2D(I,J) = 3  !  Commercial/Industrial/Transportation
-               UTYPE_URB = UTYPE_URB2D(I,J)  !  Commercial/Industrial/Transportation
-              IF (HGT_URB2D(I,J)>0.) THEN
-                  CONTINUE
-               ELSE
-                  WRITE(mesg,*) 'USING DEFAULT URBAN MORPHOLOGY'
-                  WRITE_MESSAGE(mesg)
-                  LP_URB2D(I,J)=0.
-                  LB_URB2D(I,J)=0.
-                  HGT_URB2D(I,J)=0.
-                  IF ( sf_urban_physics == 1 ) THEN
-                     MH_URB2D(I,J)=0.
-                     STDH_URB2D(I,J)=0.
-                     DO K=1,4
-                       LF_URB2D(I,K,J)=0.
-                     ENDDO
-                  ELSE IF ( ( sf_urban_physics == 2 ) .or. ( sf_urban_physics == 3 ) ) THEN
-                     DO K=1,num_urban_hi
-                        HI_URB2D(I,K,J)=0.
-                     ENDDO
-                  ENDIF
-               ENDIF
-                IF (FRC_URB2D(I,J)>0.and.FRC_URB2D(I,J)<=1.) THEN
-                  CONTINUE
-                ELSE
-                  WRITE(mesg,*) 'WARNING, FRC_URB2D = 0 BUT IVGTYP IS URBAN'
-                  WRITE_MESSAGE(mesg)
-                  WRITE(mesg,*) 'WARNING, THE URBAN FRACTION WILL BE READ FROM URBPARM.TBL'
-                  WRITE_MESSAGE(mesg)
-                  FRC_URB2D(I,J) = FRC_URB_TBL(UTYPE_URB)
-                ENDIF
-               SWITCH_URB=1
-            ENDIF
-
-            IF (SWITCH_URB==1) THEN
-                CONTINUE
             ELSE
                 FRC_URB2D(I,J)=0.
                 LP_URB2D(I,J)=0.
@@ -2796,31 +2806,21 @@ ENDIF
       END DO
       
 ! multi-layer urban
-!      IF( sf_urban_physics .EQ. 2)THEN
        IF((SF_URBAN_PHYSICS.eq.2).OR.(SF_URBAN_PHYSICS.eq.3)) THEN
-      DO k=1,num_urban_layers
-!        TRB_URB4D(I,k,J)=TSURFACE0_URB(I,J)
-!        TW1_URB4D(I,k,J)=TSURFACE0_URB(I,J)
-!        TW2_URB4D(I,k,J)=TSURFACE0_URB(I,J)
-!        TGB_URB4D(I,k,J)=TSURFACE0_URB(I,J)
-!MT        TRB_URB4D(I,K,J)=tlayer0_urb(I,1,J)
-!MT        TW1_URB4D(I,K,J)=tlayer0_urb(I,1,J)
-!MT        TW2_URB4D(I,K,J)=tlayer0_urb(I,1,J)
         IF (UTYPE_URB2D(I,J) > 0) THEN
-           TRB_URB4D(I,K,J)=TBLEND_TBL(UTYPE_URB2D(I,J))
-           TW1_URB4D(I,K,J)=TBLEND_TBL(UTYPE_URB2D(I,J))
-           TW2_URB4D(I,K,J)=TBLEND_TBL(UTYPE_URB2D(I,J))
+           TRB_URB4D(I,:,J)=TBLEND_TBL(UTYPE_URB2D(I,J))
+           TW1_URB4D(I,:,J)=TBLEND_TBL(UTYPE_URB2D(I,J))
+           TW2_URB4D(I,:,J)=TBLEND_TBL(UTYPE_URB2D(I,J))
         ELSE
-           TRB_URB4D(I,K,J)=tlayer0_urb(I,1,J)
-           TW1_URB4D(I,K,J)=tlayer0_urb(I,1,J)
-           TW2_URB4D(I,K,J)=tlayer0_urb(I,1,J)
+           TRB_URB4D(I,:,J)=tlayer0_urb(I,1,J)
+           TW1_URB4D(I,:,J)=tlayer0_urb(I,1,J)
+           TW2_URB4D(I,:,J)=tlayer0_urb(I,1,J)
         ENDIF
-        TGB_URB4D(I,K,J)=tlayer0_urb(I,1,J)
-        SFW1_URB3D(I,K,J)=0.
-        SFW2_URB3D(I,K,J)=0.
-        SFR_URB3D(I,K,J)=0.
-        SFG_URB3D(I,K,J)=0.
-      ENDDO
+        TGB_URB4D(I,:,J)=tlayer0_urb(I,1,J)
+        SFW1_URB3D(I,:,J)=0.
+        SFW2_URB3D(I,:,J)=0.
+        SFR_URB3D(I,:,J)=0.
+        SFG_URB3D(I,:,J)=0.
        
        ENDIF 
               
@@ -2830,22 +2830,40 @@ ENDIF
          CM_AC_URB3D(I,J)=0.
          SFVENT_URB3D(I,J)=0.
          LFVENT_URB3D(I,J)=0.
+         EP_PV_URB3D(I,J)=0.
+         T_PV_URB3D(I,:,J)=tlayer0_urb(I,1,J)
+         TGR_URB3D(I,J)=tlayer0_urb(I,1,J)
+         QR_URB4D(I,:,J)=SMOIS_URB(I,1,J)
+         DRAIN_URB4D(I,:,J)=0. !GRZ
+         SFRV_URB3D(I,:,J)=0.                !GRZ
+         LFRV_URB3D(I,:,J)=0.                !GRZ
+         DGR_URB3D(I,:,J)=0.  !GRZ
+         DG_URB3D(I,:,J)=0.
+         LFR_URB3D(I,:,J)=0.
+         LFG_URB3D(I,:,J)=0.
+         QGR_URB3D(I,J)=SMOIS_URB(I,1,J)  !GRZ
+         TGR_URB3D(I,J)=0.
+         DRAINGR_URB3D(I,J)=0. !GRZ
 
-         DO K=1,num_urban_layers
-            TLEV_URB3D(I,K,J)=tlayer0_urb(I,1,J)
-            TW1LEV_URB3D(I,K,J)=tlayer0_urb(I,1,J)
-            TW2LEV_URB3D(I,K,J)=tlayer0_urb(I,1,J)
-            TGLEV_URB3D(I,K,J)=tlayer0_urb(I,1,J)
-            TFLEV_URB3D(I,K,J)=tlayer0_urb(I,1,J)
-            QLEV_URB3D(I,K,J)=0.01
-            SFWIN1_URB3D(I,K,J)=0.
-            SFWIN2_URB3D(I,K,J)=0.
+       IF (UTYPE_URB2D(I,J) > 0) THEN
+        TRV_URB4D(I,:,J)=TBLEND_TBL(UTYPE_URB2D(I,J))
+       ELSE
+       TRV_URB4D(I,:,J)=tlayer0_urb(I,1,J) !GRZ
+      ENDIF
+
+            TLEV_URB3D(I,:,J)=tlayer0_urb(I,1,J)
+            TW1LEV_URB3D(I,:,J)=tlayer0_urb(I,1,J)
+            TW2LEV_URB3D(I,:,J)=tlayer0_urb(I,1,J)
+            TGLEV_URB3D(I,:,J)=tlayer0_urb(I,1,J)
+            TFLEV_URB3D(I,:,J)=tlayer0_urb(I,1,J)
+            QLEV_URB3D(I,:,J)=0.01
+            SFWIN1_URB3D(I,:,J)=0.
+            SFWIN2_URB3D(I,:,J)=0.
 !rm         LF_AC_URB3D(I,J)=0.
 !rm         SF_AC_URB3D(I,J)=0.
 !rm         CM_AC_URB3D(I,J)=0.
 !rm         SFVENT_URB3D(I,J)=0.
 !rm         LFVENT_URB3D(I,J)=0.
-         ENDDO
 
       endif
 
@@ -2873,6 +2891,8 @@ ENDIF
 
       IF (CHECK.EQ.0)THEN
       IF(IVGTYP(I,J).EQ.1)THEN
+        write(mesg,*) 'Sample of Urban settings'
+        WRITE_MESSAGE(mesg)
         write(mesg,*) 'TSURFACE0_URB',TSURFACE0_URB(I,J)
         WRITE_MESSAGE(mesg)
         write(mesg,*) 'TDEEP0_URB', TDEEP0_URB(I,J)

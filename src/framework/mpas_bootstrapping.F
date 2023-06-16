@@ -76,13 +76,22 @@ module mpas_bootstrapping
    !>            mpas_initialize_vectors()
    !
    !-----------------------------------------------------------------------
-   subroutine mpas_bootstrap_framework_phase1(domain, mesh_filename, mesh_iotype) !{{{
+   subroutine mpas_bootstrap_framework_phase1(domain, mesh_filename, mesh_iotype, pio_file_desc) !{{{
+
+#ifdef MPAS_PIO_SUPPORT
+      use pio, only : file_desc_t
+#endif
 
       implicit none
 
       type (domain_type), pointer :: domain
       character(len=*), intent(in) :: mesh_filename
       integer, intent(in) :: mesh_iotype
+#ifdef MPAS_PIO_SUPPORT
+      type (file_desc_t), intent(inout), optional :: pio_file_desc
+#else
+      integer, intent(inout), optional :: pio_file_desc
+#endif
 
       type (block_type), pointer :: readingBlock
 
@@ -147,7 +156,8 @@ module mpas_bootstrapping
       nHalos = config_num_halos
 
 
-      inputHandle = MPAS_io_open(trim(mesh_filename), MPAS_IO_READ, mesh_iotype, domain % ioContext, ierr=ierr)
+      inputHandle = MPAS_io_open(trim(mesh_filename), MPAS_IO_READ, mesh_iotype, domain % ioContext, &
+                                 pio_file_desc=pio_file_desc, ierr=ierr)
       if (ierr /= MPAS_IO_NOERR) then
          call mpas_log_write('Could not open input file '''//trim(mesh_filename)//''' to read mesh fields', MPAS_LOG_CRIT)
       else
@@ -437,14 +447,22 @@ module mpas_bootstrapping
    !>  and allocating all fields and structs.
    !
    !-----------------------------------------------------------------------
-   subroutine mpas_bootstrap_framework_phase2(domain) !{{{
+   subroutine mpas_bootstrap_framework_phase2(domain, pio_file_desc) !{{{
 
       use mpas_stream_manager
       use mpas_stream_list
+#ifdef MPAS_PIO_SUPPORT
+      use pio, only : file_desc_t
+#endif
 
       implicit none
 
       type (domain_type), pointer :: domain
+#ifdef MPAS_PIO_SUPPORT
+      type (file_desc_t), intent(inout), optional :: pio_file_desc
+#else
+      integer, intent(inout), optional :: pio_file_desc
+#endif
 
       type (mpas_pool_type), pointer :: readableDimensions
       type (mpas_pool_type), pointer :: streamDimensions
@@ -474,105 +492,182 @@ module mpas_bootstrapping
       call mpas_log_write(' ')
       call mpas_log_write(' ')
 
-      ! Reading dimensions from streams
-      call mpas_log_write('Reading dimensions from input streams ...')
-      call mpas_stream_mgr_begin_iteration(domain % streamManager)
-      do while ( mpas_stream_mgr_get_next_stream(domain % streamManager, streamID = streamName, directionProperty = streamDirection, &
-                                                 activeProperty = streamActive) )
+      if (present(pio_file_desc)) then
+         call mpas_log_write('Reading dimensions from external PIO file handle ...')
 
-         if ( streamActive .and. ( streamDirection == MPAS_STREAM_INPUT .or. streamDirection == MPAS_STREAM_INPUT_OUTPUT ) ) then
+         ! Build stream dimension pool from the list of fields
+         call mpas_pool_create_pool(streamDimensions)
 
-            call mpas_stream_mgr_begin_iteration(domain % streamManager, streamID=streamName)
-
-            ! Build stream dimension pool from the list of fields
-            call mpas_pool_create_pool(streamDimensions)
-
-            do while ( mpas_stream_mgr_get_next_field(domain % streamManager, streamName, fieldName, isActive=fieldActive) )
-
-               if (fieldActive) then
-                  call get_dimlist_for_field(domain % blocklist % allFields, fieldName, dimNames)
-
-                  do i=1,size(dimNames)
-                     call mpas_pool_get_dimension(streamDimensions, dimNames(i), dimValue)
-                     if ( .not. associated(dimValue) ) then
-                        call mpas_pool_add_dimension(streamDimensions, dimNames(i), MPAS_MISSING_DIM)
-                     end if
-                  end do
-                  deallocate(dimNames)
-               end if
-
-            end do
-
-            ! Determine stream filename
-            call mpas_get_stream_filename(domain % streamManager, streamID = streamName, filename = streamFilename, ierr = err_local)
-
-            ! Determine stream io_type
-            call MPAS_stream_mgr_get_property(domain % streamManager, streamName, &
-                                              MPAS_STREAM_PROPERTY_IOTYPE, ioType, ierr = err_local)
-
-            ! Try to open file
-            inputHandle = MPAS_io_open(trim(streamFilename), MPAS_IO_READ, ioType, domain % ioContext, ierr = err_local)
-
-            ! If to determine if file was opened or not.
-            if ( err_local == MPAS_IO_NOERR ) then
-
-               call mpas_log_write(' ')
-               call mpas_log_write('----- reading dimensions from stream '''//trim(streamName)//''' using file ' &
-                                    //trim(streamFilename) )
-
-               ! Iterate over list of dimensions we determined we need from the above loop
-               call mpas_pool_begin_iteration(streamDimensions)
-               do while ( mpas_pool_get_next_member(streamDimensions, poolItr) )
-                  if ( poolItr % memberType == MPAS_POOL_DIMENSION ) then
-                     ! Try to read the dimension
-                     call mpas_io_inq_dim(inputHandle, trim(poolItr % memberName), tempDim, ierr = err_local)
-
-                     ! Check to see if the dimension has already been defined
-                     call mpas_pool_get_dimension(readableDimensions, poolItr % memberName, dimValue)
-
-                     ! If to see if dimension was read or not
-                     if ( err_local == MPAS_IO_NOERR ) then
-                        call mpas_log_write('       ' // trim(poolItr % memberName) // ' = $i', intArgs=(/tempDim/) )
-
-                        if ( .not. associated(dimValue) ) then
-                           call mpas_pool_add_dimension(readableDimensions, poolItr % memberName, tempDim)
-                        else if ( dimValue /= tempDim .and. dimValue == MPAS_MISSING_DIM ) then
-                           dimValue = tempDim
-                        else if ( dimValue /= tempDim ) then
-                           call mpas_log_write('Dimension ' // trim(poolItr % membername) &
-                                                // ' was read with an inconsistent value.', MPAS_LOG_CRIT)
-                        end if
-                     else
-                        call mpas_log_write('       ' // trim(poolItr % memberName) // ' *** not found in stream ***')
-                     end if
-
+         call mpas_pool_begin_iteration(domain % blocklist % allFields)
+         do while ( mpas_pool_get_next_member(domain % blocklist % allFields, poolItr) )
+            if ( poolItr % memberType == MPAS_POOL_FIELD ) then
+               call get_dimlist_for_field(domain % blocklist % allFields, poolItr % memberName, dimNames)
+               do i=1,size(dimNames)
+                  call mpas_pool_get_dimension(streamDimensions, dimNames(i), dimValue)
+                  if ( .not. associated(dimValue) ) then
+                     call mpas_pool_add_dimension(streamDimensions, dimNames(i), MPAS_MISSING_DIM)
                   end if
                end do
-
-               ! Close file
-               call mpas_io_close(inputHandle)
-            else
-               call mpas_log_write(' ')
-               call mpas_log_write('  *** unable to open input file '//trim(streamFilename)//' for stream ''' &
-                                    //trim(streamName)//'''')
             end if
+         end do
 
-            ! Destroy pool that contains list of streams dimensions
-            call mpas_pool_destroy_pool(streamDimensions)
+         ioType = MPAS_IO_NETCDF  ! ioType is not actually used when an external PIO file_desc_t is provided to MPAS_io_open
+         inputHandle = MPAS_io_open('FILENAME_NOT_USED', MPAS_IO_READ, ioType, domain % ioContext, pio_file_desc = pio_file_desc, ierr = err_local)
 
-         else if ( .not. streamActive .and. ( streamDirection == MPAS_STREAM_INPUT .or. streamDirection == MPAS_STREAM_INPUT_OUTPUT ) ) then
+         ! If to determine if file was opened or not.
+         if ( err_local == MPAS_IO_NOERR ) then
 
             call mpas_log_write(' ')
-            call mpas_log_write('----- skipping inactive stream '''//trim(streamName)//'''')
-            
+
+            ! Iterate over list of dimensions we determined we need from the above loop
+            call mpas_pool_begin_iteration(streamDimensions)
+            do while ( mpas_pool_get_next_member(streamDimensions, poolItr) )
+               if ( poolItr % memberType == MPAS_POOL_DIMENSION ) then
+                  ! Try to read the dimension
+                  call mpas_io_inq_dim(inputHandle, trim(poolItr % memberName), tempDim, ierr = err_local)
+
+                  ! Check to see if the dimension has already been defined
+                  call mpas_pool_get_dimension(readableDimensions, poolItr % memberName, dimValue)
+
+                  ! If to see if dimension was read or not
+                  if ( err_local == MPAS_IO_NOERR ) then
+                     call mpas_log_write('       ' // trim(poolItr % memberName) // ' = $i', intArgs=(/tempDim/) )
+
+                     if ( .not. associated(dimValue) ) then
+                        call mpas_pool_add_dimension(readableDimensions, poolItr % memberName, tempDim)
+                     else if ( dimValue /= tempDim .and. dimValue == MPAS_MISSING_DIM ) then
+                        dimValue = tempDim
+                     else if ( dimValue /= tempDim ) then
+                        call mpas_log_write('Dimension ' // trim(poolItr % membername) &
+                                             // ' was read with an inconsistent value.', MPAS_LOG_CRIT)
+                     end if
+                  else
+                     call mpas_log_write('       ' // trim(poolItr % memberName) // ' *** not found in stream ***')
+                  end if
+
+               end if
+            end do
+
+            ! Close file
+            call MPAS_io_close(inputHandle)
+
          end if
 
-      end do
+         ! Destroy pool that contains list of streams dimensions
+         call mpas_pool_destroy_pool(streamDimensions)
 
-      call mpas_log_write(' ')
-      call mpas_log_write('----- done reading dimensions from input streams -----')
-      call mpas_log_write(' ')
-      call mpas_log_write(' ')
+      else
+
+         ! Reading dimensions from streams
+         call mpas_log_write('Reading dimensions from input streams ...')
+         call mpas_stream_mgr_begin_iteration(domain % streamManager)
+         do while ( mpas_stream_mgr_get_next_stream(domain % streamManager, streamID = streamName, directionProperty = streamDirection, &
+                                                    activeProperty = streamActive) )
+
+            if ( streamActive .and. ( streamDirection == MPAS_STREAM_INPUT .or. streamDirection == MPAS_STREAM_INPUT_OUTPUT ) ) then
+
+               call mpas_stream_mgr_begin_iteration(domain % streamManager, streamID=streamName)
+
+               ! Build stream dimension pool from the list of fields
+               call mpas_pool_create_pool(streamDimensions)
+
+               do while ( mpas_stream_mgr_get_next_field(domain % streamManager, streamName, fieldName, isActive=fieldActive) )
+
+                  if (fieldActive) then
+                     call get_dimlist_for_field(domain % blocklist % allFields, fieldName, dimNames)
+
+                     do i=1,size(dimNames)
+                        call mpas_pool_get_dimension(streamDimensions, dimNames(i), dimValue)
+                        if ( .not. associated(dimValue) ) then
+                           call mpas_pool_add_dimension(streamDimensions, dimNames(i), MPAS_MISSING_DIM)
+                        end if
+                     end do
+                     deallocate(dimNames)
+                  end if
+
+               end do
+
+               ! Determine stream filename
+               call mpas_get_stream_filename(domain % streamManager, streamID = streamName, filename = streamFilename, ierr = err_local)
+
+               ! Determine stream io_type
+               call MPAS_stream_mgr_get_property(domain % streamManager, streamName, &
+                                              MPAS_STREAM_PROPERTY_IOTYPE, ioType, ierr = err_local)
+
+               ! Try to open file
+               inputHandle = MPAS_io_open(trim(streamFilename), MPAS_IO_READ, ioType, domain % ioContext, ierr = err_local)
+
+               ! If to determine if file was opened or not.
+               if ( err_local == MPAS_IO_NOERR ) then
+
+                  call mpas_log_write(' ')
+                  call mpas_log_write('----- reading dimensions from stream '''//trim(streamName)//''' using file ' &
+                                       //trim(streamFilename) )
+
+                  ! Iterate over list of dimensions we determined we need from the above loop
+                  call mpas_pool_begin_iteration(streamDimensions)
+                  do while ( mpas_pool_get_next_member(streamDimensions, poolItr) )
+                     if ( poolItr % memberType == MPAS_POOL_DIMENSION ) then
+                        ! Try to read the dimension
+                        call mpas_io_inq_dim(inputHandle, trim(poolItr % memberName), tempDim, ierr = err_local)
+
+                        ! Check to see if the dimension has already been defined
+                        call mpas_pool_get_dimension(readableDimensions, poolItr % memberName, dimValue)
+
+                        ! If to see if dimension was read or not
+                        if ( err_local == MPAS_IO_NOERR ) then
+                           call mpas_log_write('       ' // trim(poolItr % memberName) // ' = $i', intArgs=(/tempDim/) )
+
+                           if ( .not. associated(dimValue) ) then
+                              call mpas_pool_add_dimension(readableDimensions, poolItr % memberName, tempDim)
+                           else if ( dimValue /= tempDim .and. dimValue == MPAS_MISSING_DIM ) then
+                              dimValue = tempDim
+                           else if ( dimValue /= tempDim ) then
+                              call mpas_log_write('Dimension ' // trim(poolItr % membername) &
+                                                   // ' was read with an inconsistent value.', MPAS_LOG_CRIT)
+                           end if
+                        else
+                           call mpas_log_write('       ' // trim(poolItr % memberName) // ' *** not found in stream ***')
+                           call mpas_log_write('')
+                           call mpas_log_write("At least one fields to be read from the '" // trim(streamName) &
+                                               // "' stream is dimensioned", messageType=MPAS_LOG_ERR)
+                           call mpas_log_write("by '" // trim(poolItr % memberName) // "', but the '" &
+                                               // trim(poolItr % memberName) // "' dimension is not defined", &
+                                               messageType=MPAS_LOG_ERR)
+                           call mpas_log_write('in the file '//trim(streamFilename), messageType=MPAS_LOG_ERR)
+                           call mpas_log_write("Please check the input file(s) to be read by the '" // trim(streamName) &
+                                               // "' input stream.", messageType=MPAS_LOG_CRIT)
+                        end if
+
+                     end if
+                  end do
+
+                  ! Close file
+                  call mpas_io_close(inputHandle)
+               else
+                  call mpas_log_write(' ')
+                  call mpas_log_write('  *** unable to open input file '//trim(streamFilename)//' for stream ''' &
+                                       //trim(streamName)//'''')
+               end if
+
+               ! Destroy pool that contains list of streams dimensions
+               call mpas_pool_destroy_pool(streamDimensions)
+
+            else if ( .not. streamActive .and. ( streamDirection == MPAS_STREAM_INPUT .or. streamDirection == MPAS_STREAM_INPUT_OUTPUT ) ) then
+
+               call mpas_log_write(' ')
+               call mpas_log_write('----- skipping inactive stream '''//trim(streamName)//'''')
+            
+            end if
+
+         end do
+
+         call mpas_log_write(' ')
+         call mpas_log_write('----- done reading dimensions from input streams -----')
+         call mpas_log_write(' ')
+         call mpas_log_write(' ')
+
+      end if
 
       call mpas_pool_set_error_level(err_level)
 

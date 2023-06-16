@@ -17,7 +17,11 @@
  use init_atm_llxy
  use mpas_c_interfacing, only : mpas_f_to_c_string
 
+ use mpas_geometry_utils, only : mpas_in_cell
  use mpas_atmphys_utilities
+
+ use mpas_kd_tree, only : mpas_kd_type, mpas_kd_construct, mpas_kd_free, mpas_kd_search
+ use mpas_geotile_manager, only : mpas_geotile_mgr_type, mpas_geotile_type, mpas_latlon_to_xyz
 
  use iso_c_binding, only : c_char, c_int, c_float, c_loc, c_ptr
 
@@ -28,9 +32,14 @@
           nearest_cell,              &
           sphere_distance
 
+!constants
+ integer, parameter :: nBdyLayers = 7   ! The number of relaxation layers plus the number of specified layers
+                                        ! This value is used in determining whether extra checks are needed
+                                        ! in the remapping of terrain, land use, and soil category pixels
+
  interface
     subroutine read_geogrid(fname, rarray, nx, ny, nz, isigned, endian, &
-                            scalefactor, wordsize, status) bind(C)
+                            wordsize, status) bind(C)
        use iso_c_binding, only : c_char, c_int, c_float, c_ptr
        character (c_char), dimension(*), intent(in) :: fname
        type (c_ptr), value :: rarray
@@ -39,11 +48,58 @@
        integer (c_int), intent(in), value :: nz
        integer (c_int), intent(in), value :: isigned
        integer (c_int), intent(in), value :: endian
-       real (c_float), intent(in), value :: scalefactor
        integer (c_int), intent(in), value :: wordsize
        integer (c_int), intent(inout) :: status
     end subroutine read_geogrid
  end interface
+
+ ! Abstract interface for determining if the cell, iCell, needs to be added to the stack
+ ! for processing. If an interface returns .true., it will indicate to the calling code
+ ! that the cell has not received any mappings and needs to be processed. Returning .false.
+ ! will indicate that the cell has received mappings and does not need to be processed.
+ abstract interface
+    function interp_criteria_function(iCell)
+        integer, intent(in) :: iCell
+        logical :: interp_criteria_function
+    end function interp_criteria_function
+ end interface
+
+ ! Abstract interface to accumulate pixel values with the cell they map to. Depending on
+ ! the dataset, values may need to be accumulated in different ways (continuous vs.
+ ! categorical) or specific values of a dataset may need to be ignored (for instance,
+ ! ignoring pixels over water), this routine allows interpolations to differ according
+ ! to each dataset's needs
+ abstract interface
+    subroutine interp_accumulation_function(iCell, pixel)
+        use mpas_derived_types, only : I8KIND
+        integer, intent(in) :: iCell
+        ! Note: Datasets that are have one grid point in the z direction (tile_z = 1)
+        ! will need to access pixel values as pixel(1)
+        integer (kind=I8KIND), dimension(:), intent(in) :: pixel
+    end subroutine interp_accumulation_function
+ end interface
+
+ !
+ ! Module level variables needed for the unified static interpolation function. This is not
+ ! ideal, a better solution would be to have these variables reside in each interpolation
+ ! function (e.g. interp_terrain) and then have the criteria and accumulation functions
+ ! be internal/nested subroutines; however, passing a nested subroutine (internal
+ ! subroutine) as an actual argument is not allowed in the 2003 standard (Section
+ ! 12.1.2.2 of the Fortran standard) and currently, only PGI does not support this, so
+ ! use module level variables for now...
+ !
+ integer (kind=I8KIND), dimension(:), pointer :: ter_integer
+ integer, dimension(:), pointer :: lu_index
+ integer, dimension(:), pointer :: soilcat_top
+ integer, dimension(:), pointer :: nhs
+ integer, dimension(:,:), allocatable:: ncat
+ ! Landmask is used by the accumulation function for maxsnoalb so it needs to be a global variable
+ integer, dimension(:), pointer :: landmask
+
+ integer, pointer :: category_min
+ integer, pointer :: category_max
+
+ real(kind=RKIND) :: max_kdtree_distance2
 
  contains
 
@@ -55,11 +111,6 @@
  type (mpas_pool_type), intent(inout) :: mesh
  type (mpas_pool_type), intent(in) :: dims
  type (mpas_pool_type), intent(in) :: configs
-
-!constants
- integer, parameter :: nBdyLayers = 7   ! The number of relaxation layers plus the number of specified layers
-                                        ! This value is used in determining whether extra checks are needed
-                                        ! in the remapping of terrain, land use, and soil category pixels
 
 !local variables:
  type(proj_info):: proj
@@ -75,34 +126,29 @@
  character(len=StrKIND+1) :: geog_data_path      ! same as config_geog_data_path, but guaranteed to have a trailing slash
  character(len=StrKIND+1) :: geog_sub_path       ! subdirectory names in config_geog_data_path, with trailing slash
 
- integer:: ismax_lu
-
  integer(c_int):: nx,ny,nz
  integer(c_int):: endian,isigned,istatus,wordsize
  integer:: i,j,k
  integer :: ii, jj
- integer:: iCell,iEdge,iVtx,iPoint,iTileStart,iTileEnd,jTileStart,jTileEnd
+ integer:: iCell,iEdge,iVtx
  integer,dimension(5) :: interp_list
  integer,dimension(:),allocatable  :: nhs
- integer,dimension(:,:),allocatable:: ncat
       
- real(kind=c_float):: scalefactor
+ real(kind=RKIND), pointer :: scalefactor_ptr
+ real(kind=RKIND) :: scalefactor
  real(kind=c_float),dimension(:,:,:),pointer,contiguous :: rarray
  type(c_ptr) :: rarray_ptr
 
- real(kind=RKIND):: start_lat
- real(kind=RKIND):: start_lon
-
  integer, pointer :: supersample_fac
 
- real(kind=RKIND):: lat,lon,x,y,z
+ real(kind=RKIND):: lat,lon,x,y
  real(kind=RKIND):: lat_pt,lon_pt
- real(kind=RKIND),dimension(:,:),allocatable  :: soiltemp_1deg
  real(kind=RKIND),dimension(:,:),allocatable  :: maxsnowalb
  real(kind=RKIND),dimension(:,:,:),allocatable:: vegfra
 
  integer, pointer :: isice_lu, iswater_lu
- integer, pointer :: nCells, nEdges, nVertices, maxEdges
+ integer :: iswater_soil
+ integer, pointer :: nCells, nCellsSolve, nEdges, nVertices, maxEdges
  logical, pointer :: on_a_sphere
  real (kind=RKIND), pointer :: sphere_radius
  
@@ -119,14 +165,17 @@
  real (kind=RKIND), dimension(:), pointer :: latVertex, lonVertex
  real (kind=RKIND), dimension(:), pointer :: latEdge, lonEdge
  real (kind=RKIND), dimension(:), pointer :: fEdge, fVertex
+ real (kind=RKIND), pointer :: nominalMinDc
 
- real (kind=RKIND), dimension(:), pointer :: ter
- real (kind=RKIND), dimension(:), pointer :: soiltemp
+ integer (kind=I8KIND), dimension(:,:), pointer :: greenfrac_int
  real (kind=RKIND), dimension(:), pointer :: snoalb
+ integer (kind=I8KIND), dimension(:), pointer :: snoalb_integer
  real (kind=RKIND), dimension(:), pointer :: shdmin, shdmax
  real (kind=RKIND), dimension(:,:), pointer :: greenfrac
  real (kind=RKIND), dimension(:,:), pointer :: albedo12m
- real (kind=RKIND) :: msgval, fillval
+ integer (kind=I8KIND), dimension(:,:), pointer :: albedo12m_int
+ real (kind=RKIND) :: fillval
+ real (kind=RKIND), pointer :: missing_value
  integer, dimension(:), pointer :: lu_index
  integer, dimension(:), pointer :: soilcat_top
  integer, dimension(:), pointer :: landmask
@@ -134,6 +183,23 @@
  character(len=StrKIND), pointer :: mminlu
 
  real (kind=RKIND) :: xPixel, yPixel, zPixel
+
+ type (mpas_kd_type), dimension(:), pointer :: kd_points
+ type (mpas_kd_type), pointer :: tree
+ type (mpas_kd_type), pointer :: res
+
+ type (mpas_geotile_mgr_type) :: mgr
+ type (mpas_geotile_type), pointer :: tile
+
+ integer (kind=I8KIND) :: i8val
+ integer, pointer :: tile_bdr
+ integer, pointer :: tile_nx, tile_ny, tile_nz
+ integer, pointer :: tile_z_start, tile_z_end
+
+ logical :: all_pixels_mapped_to_halo_cells
+ integer :: ierr
+
+ real(kind=RKIND) :: max_diameter
 
 !--------------------------------------------------------------------------------------------------
 
@@ -188,14 +254,12 @@
  call mpas_pool_get_array(mesh, 'cellsOnCell', cellsOnCell)
  call mpas_pool_get_array(mesh, 'verticesOnCell', verticesOnCell)
 
- call mpas_pool_get_array(mesh, 'ter', ter)
  call mpas_pool_get_array(mesh, 'lu_index', lu_index)
  call mpas_pool_get_array(mesh, 'mminlu', mminlu)
  call mpas_pool_get_array(mesh, 'isice_lu', isice_lu)
  call mpas_pool_get_array(mesh, 'iswater_lu', iswater_lu)
  call mpas_pool_get_array(mesh, 'soilcat_top', soilcat_top)
  call mpas_pool_get_array(mesh, 'landmask', landmask)
- call mpas_pool_get_array(mesh, 'soiltemp', soiltemp)
  call mpas_pool_get_array(mesh, 'snoalb', snoalb)
  call mpas_pool_get_array(mesh, 'greenfrac', greenfrac)
  call mpas_pool_get_array(mesh, 'albedo12m', albedo12m)
@@ -206,9 +270,12 @@
  call mpas_pool_get_config(mesh, 'sphere_radius', sphere_radius)
 
  call mpas_pool_get_dimension(dims, 'nCells', nCells)
+ call mpas_pool_get_dimension(dims, 'nCellsSolve', nCellsSolve)
  call mpas_pool_get_dimension(dims, 'nEdges', nEdges)
  call mpas_pool_get_dimension(dims, 'nVertices', nVertices)
  call mpas_pool_get_dimension(dims, 'maxEdges', maxEdges)
+
+ call mpas_pool_get_array(mesh, 'nominalMinDc', nominalMinDc)
 
  xCell = xCell * sphere_radius
  yCell = yCell * sphere_radius
@@ -224,6 +291,32 @@
  areaCell = areaCell * sphere_radius**2.0
  areaTriangle = areaTriangle * sphere_radius**2.0
  kiteAreasOnVertex = kiteAreasOnVertex * sphere_radius**2.0
+
+ nominalMinDc = nominalMinDc * sphere_radius
+
+!
+! Set max squared distance for k-d tree search to twice the squared cell diameter
+! The factor of two is simply a safety factor to account for possible inaccuracies
+! in the distance function used in the k-d tree
+!
+ max_diameter = max_cell_diameter(nCells, nEdgesOnCell, verticesOnCell, latCell, lonCell, &
+                                  latVertex, lonVertex, sphere_radius)
+ max_kdtree_distance2 = 2.0_RKIND * max_diameter**2
+
+!
+! Initialize the KD-Tree
+!
+ allocate(kd_points(nCells))
+ do i = 1, nCells
+     allocate(kd_points(i) % point(3))
+     kd_points(i) % point = (/xCell(i), yCell(i), zCell(i)/)
+     kd_points(i) % id = i ! Cell ID
+ enddo
+ tree => null()
+ tree => mpas_kd_construct(kd_points, 3)
+ if (.not. associated(tree)) then
+     call mpas_log_write('Error creating the KD-Tree for static interpolation', messageType=MPAS_LOG_CRIT)
+ endif
 
 
 !
@@ -249,14 +342,8 @@
 !
  surface_input_select0: select case(trim(config_landuse_data))
     case('USGS')
-       isice_lu = 24
-       iswater_lu = 16
-       ismax_lu = 24
        write(mminlu,'(a)') 'USGS'
     case('MODIFIED_IGBP_MODIS_NOAH')
-       isice_lu = 15
-       iswater_lu = 17
-       ismax_lu = 20
        write(mminlu,'(a)') 'MODIFIED_IGBP_MODIS_NOAH'
     case default
          call mpas_log_write('*****************************************************************', messageType=MPAS_LOG_ERR)
@@ -267,36 +354,16 @@
          call mpas_log_write('Please correct the namelist.', messageType=MPAS_LOG_CRIT)
  end select surface_input_select0
 
-
 !
 ! Interpolate HGT
 !
-!nx = 126
-!ny = 126
- nx = 1206
- ny = 1206
- nz = 1
- isigned  = 1
- endian   = 0
- wordsize = 2
- scalefactor = 1.0
- allocate(rarray(nx,ny,nz))
- allocate(nhs(nCells))
- nhs(:) = 0
- ter(:) = 0.0
-
- rarray_ptr = c_loc(rarray)
-
- start_lat = -89.99583
  select case(trim(config_topo_data))
     case('GTOPO30')
        call mpas_log_write('Using GTOPO30 terrain dataset')
        geog_sub_path = 'topo_30s/'
-       start_lon = -179.99583
     case('GMTED2010')
        call mpas_log_write('Using GMTED2010 terrain dataset')
        geog_sub_path = 'topo_gmted2010_30s/'
-       start_lon = 0.004166667
     case('default')
        call mpas_log_write('*****************************************************************', messageType=MPAS_LOG_ERR)
        call mpas_log_write('Invalid topography dataset '''//trim(config_topo_data) &
@@ -306,66 +373,8 @@
        call mpas_log_write('Please correct the namelist.', messageType=MPAS_LOG_CRIT)
  end select
 
- do jTileStart = 1,20401,ny-6
-    jTileEnd = jTileStart + ny - 1 - 6
-
-    do iTileStart=1,42001,nx-6
-       iTileEnd = iTileStart + nx - 1 - 6
-       write(fname,'(a,i5.5,a1,i5.5,a1,i5.5,a1,i5.5)') trim(geog_data_path)//trim(geog_sub_path), &
-                    iTileStart,'-',iTileEnd,'.',jTileStart,'-',jTileEnd
-       call mpas_log_write(trim(fname))
-       call mpas_f_to_c_string(fname, c_fname)
-
-       call read_geogrid(c_fname,rarray_ptr,nx,ny,nz,isigned,endian, &
-                         scalefactor,wordsize,istatus)
-       call init_atm_check_read_error(istatus, fname)
-
-       iPoint = 1
-       do j=4,ny-3
-       do i=4,nx-3
-          lat_pt = start_lat + (jTileStart + j - 5) * 0.0083333333
-          lon_pt = start_lon + (iTileStart + i - 5) * 0.0083333333
-          lat_pt = lat_pt * PI / 180.0
-          lon_pt = lon_pt * PI / 180.0
-
-          iPoint = nearest_cell(lat_pt,lon_pt,iPoint,nCells,maxEdges, &
-                                nEdgesOnCell,cellsOnCell, &
-                                latCell,lonCell)
-
-          !
-          ! For all but the outermost boundary cells, we can safely assume that the nearest
-          ! model grid cell contains the pixel (else, a different cell would be nearest)
-          !
-          if (bdyMaskCell(iPoint) < nBdyLayers) then
-             ter(iPoint) = ter(iPoint) + rarray(i,j,1)
-             nhs(iPoint) = nhs(iPoint) + 1
-
-          ! For outermost boundary cells, additional work is needed to verify that the pixel
-          ! actually lies within the nearest cell
-          else
-             zPixel = sphere_radius * sin(lat_pt)                  ! Model cell coordinates assume a "full" sphere radius
-             xPixel = sphere_radius * cos(lon_pt) * cos(lat_pt)    ! at this point, so we need to ues the same radius
-             yPixel = sphere_radius * sin(lon_pt) * cos(lat_pt)    ! for source pixel coordinates
-
-             if (in_cell(xPixel, yPixel, zPixel, xCell(iPoint), yCell(iPoint), zCell(iPoint), &
-                         nEdgesOnCell(iPoint), verticesOnCell(:,iPoint), xVertex, yVertex, zVertex)) then
-
-                ter(iPoint) = ter(iPoint) + rarray(i,j,1)
-                nhs(iPoint) = nhs(iPoint) + 1
-
-             end if
-          end if
-       end do
-       end do
-
-    end do
- end do
-
- do iCell = 1,nCells
-    ter(iCell) = ter(iCell) / real(nhs(iCell))
- end do
- deallocate(rarray)
- deallocate(nhs)
+ call mpas_log_write('--- start interpolate TER')
+ call interp_terrain(mesh, tree, trim(geog_data_path)//trim(geog_sub_path))
  call mpas_log_write('--- end interpolate TER')
 
 
@@ -387,173 +396,19 @@
        call mpas_log_write('*****************************************************************', messageType=MPAS_LOG_ERR)
        call mpas_log_write('Please correct the namelist.', messageType=MPAS_LOG_CRIT)
  end select surface_input_select1
- nx = 1200
- ny = 1200
- nz = 1
- isigned  = 1
- endian   = 0
- wordsize = 1
- scalefactor = 1.0
- allocate(rarray(nx,ny,nz))
- allocate(ncat(ismax_lu,nCells))
- ncat(:,:) = 0
- lu_index(:) = 0.0
 
- rarray_ptr = c_loc(rarray)
-
- do jTileStart = 1,20401,ny
-    jTileEnd = jTileStart + ny - 1
-
-    do iTileStart = 1,42001,nx
-       iTileEnd = iTileStart + nx - 1
-       write(fname,'(a,i5.5,a1,i5.5,a1,i5.5,a1,i5.5)') trim(geog_data_path)// &
-             trim(geog_sub_path),iTileStart,'-',iTileEnd,'.',jTileStart,'-',jTileEnd
-       call mpas_log_write(trim(fname))
-       call mpas_f_to_c_string(fname, c_fname)
-
-       call read_geogrid(c_fname,rarray_ptr,nx,ny,nz,isigned,endian, &
-                         scalefactor,wordsize,istatus)
-       call init_atm_check_read_error(istatus, fname)
-
-       iPoint = 1
-       do j=1,ny
-       do i=1,nx
-!
-! The MODIS dataset appears to have zeros at the South Pole, possibly other places, too
-!
-if (rarray(i,j,1) == 0) cycle
-
-          lat_pt = -89.99583  + (jTileStart + j - 2) * 0.0083333333
-          lon_pt = -179.99583 + (iTileStart + i - 2) * 0.0083333333
-          lat_pt = lat_pt * PI / 180.0
-          lon_pt = lon_pt * PI / 180.0
-
-          iPoint = nearest_cell(lat_pt,lon_pt,iPoint,nCells,maxEdges, &
-                                nEdgesOnCell,cellsOnCell, &
-                                latCell,lonCell)
-
-          !
-          ! For all but the outermost boundary cells, we can safely assume that the nearest
-          ! model grid cell contains the pixel (else, a different cell would be nearest)
-          !
-          if (bdyMaskCell(iPoint) < nBdyLayers) then
-             ncat(int(rarray(i,j,1)),iPoint) = ncat(int(rarray(i,j,1)),iPoint) + 1
-
-          ! For outermost boundary cells, additional work is needed to verify that the pixel
-          ! actually lies within the nearest cell
-          else
-             zPixel = sphere_radius * sin(lat_pt)                  ! Model cell coordinates assume a "full" sphere radius
-             xPixel = sphere_radius * cos(lon_pt) * cos(lat_pt)    ! at this point, so we need to ues the same radius
-             yPixel = sphere_radius * sin(lon_pt) * cos(lat_pt)    ! for source pixel coordinates
-
-             if (in_cell(xPixel, yPixel, zPixel, xCell(iPoint), yCell(iPoint), zCell(iPoint), &
-                         nEdgesOnCell(iPoint), verticesOnCell(:,iPoint), xVertex, yVertex, zVertex)) then
-
-                ncat(int(rarray(i,j,1)),iPoint) = ncat(int(rarray(i,j,1)),iPoint) + 1
-
-             end if
-          end if
-       end do
-       end do
-
-    end do
- end do
-
- do iCell = 1,nCells
-    lu_index(iCell) = 1
-    do i = 2,ismax_lu
-       if(ncat(i,iCell) > ncat(lu_index(iCell),iCell)) then
-          lu_index(iCell) = i
-       end if
-    end do
- end do
- deallocate(rarray)
- deallocate(ncat)
+ call mpas_log_write('--- start interpolate LU_INDEX')
+ call interp_landuse(mesh, tree, trim(geog_data_path)//trim(geog_sub_path), isice_lu, iswater_lu)
  call mpas_log_write('--- end interpolate LU_INDEX')
-
 
 !
 ! Interpolate SOILCAT_TOP
 !
- nx = 1200
- ny = 1200
- nz = 1
- isigned     = 1
- endian      = 0
- wordsize    = 1
- scalefactor = 1.0
- allocate(rarray(nx,ny,nz))
- allocate(ncat(16,nCells))
- ncat(:,:) = 0
- soilcat_top(:) = 0.0
+ geog_sub_path = 'soiltype_top_30s/'
 
- rarray_ptr = c_loc(rarray)
-
- do jTileStart = 1,20401,ny
-    jTileEnd = jTileStart + ny - 1
-
-    do iTileStart = 1,42001,nx
-       iTileEnd = iTileStart + nx - 1
-       write(fname,'(a,i5.5,a1,i5.5,a1,i5.5,a1,i5.5)') trim(geog_data_path)// &
-             'soiltype_top_30s/',iTileStart,'-',iTileEnd,'.',jTileStart,'-',jTileEnd
-       call mpas_log_write(trim(fname))
-       call mpas_f_to_c_string(fname, c_fname)
-
-       call read_geogrid(c_fname,rarray_ptr,nx,ny,nz,isigned,endian, &
-                         scalefactor,wordsize,istatus)
-       call init_atm_check_read_error(istatus, fname)
-
-       iPoint = 1
-       do j=1,ny
-       do i=1,nx
-          lat_pt = -89.99583  + (jTileStart + j - 2) * 0.0083333333
-          lon_pt = -179.99583 + (iTileStart + i - 2) * 0.0083333333
-          lat_pt = lat_pt * PI / 180.0
-          lon_pt = lon_pt * PI / 180.0
-
-          iPoint = nearest_cell(lat_pt,lon_pt,iPoint,nCells,maxEdges, &
-                                nEdgesOnCell,cellsOnCell, &
-                                latCell,lonCell)
-
-          !
-          ! For all but the outermost boundary cells, we can safely assume that the nearest
-          ! model grid cell contains the pixel (else, a different cell would be nearest)
-          !
-          if (bdyMaskCell(iPoint) < nBdyLayers) then
-             ncat(int(rarray(i,j,1)),iPoint) = ncat(int(rarray(i,j,1)),iPoint) + 1
-
-          ! For outermost boundary cells, additional work is needed to verify that the pixel
-          ! actually lies within the nearest cell
-          else
-             zPixel = sphere_radius * sin(lat_pt)                  ! Model cell coordinates assume a "full" sphere radius
-             xPixel = sphere_radius * cos(lon_pt) * cos(lat_pt)    ! at this point, so we need to ues the same radius
-             yPixel = sphere_radius * sin(lon_pt) * cos(lat_pt)    ! for source pixel coordinates
-
-             if (in_cell(xPixel, yPixel, zPixel, xCell(iPoint), yCell(iPoint), zCell(iPoint), &
-                         nEdgesOnCell(iPoint), verticesOnCell(:,iPoint), xVertex, yVertex, zVertex)) then
-
-                ncat(int(rarray(i,j,1)),iPoint) = ncat(int(rarray(i,j,1)),iPoint) + 1
-
-             end if
-          end if
-       end do
-       end do
-
-    end do
- end do
-
- do iCell = 1,nCells
-    soilcat_top(iCell) = 1
-    do i = 2,16
-       if(ncat(i,iCell) > ncat(soilcat_top(iCell),iCell)) then
-          soilcat_top(iCell) = i
-       end if
-    end do
- end do
- deallocate(rarray)
- deallocate(ncat)
+ call mpas_log_write('--- start interpolate SOILCAT_TOP')
+ call interp_soilcat(mesh, tree, trim(geog_data_path)//trim(geog_sub_path), iswater_soil)
  call mpas_log_write('--- end interpolate SOILCAT_TOP')
-
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! KLUDGE TO FIX SOIL TYPE OVER ANTARCTICA
@@ -565,14 +420,14 @@ if (rarray(i,j,1) == 0) cycle
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
  do iCell = 1,nCells
     if (lu_index(iCell) == iswater_lu .or. &
-        soilcat_top(iCell) == 14) then
+        soilcat_top(iCell) == iswater_soil) then
         if (lu_index(iCell) /= iswater_lu) then
             call mpas_log_write('Turning lu_index into water at $i', intArgs=(/iCell/))
             lu_index(iCell) = iswater_lu
         end if
-        if (soilcat_top(iCell) /= 14) then
+        if (soilcat_top(iCell) /= iswater_soil) then
             call mpas_log_write('Turning soilcat_top into water at $i', intArgs=(/iCell/))
-            soilcat_top(iCell) = 14
+            soilcat_top(iCell) = iswater_soil
         end if
     end if
  end do
@@ -581,87 +436,16 @@ if (rarray(i,j,1) == 0) cycle
 !
 ! Derive LANDMASK
 !
- landmask(:) = 0
- do iCell=1, nCells
-    if (lu_index(iCell) /= iswater_lu) landmask(iCell) = 1
- end do
+ call mpas_log_write('--- start interpolate LANDMASK')
+ call derive_landmask(mesh, dims, iswater_lu)
  call mpas_log_write('--- end interpolate LANDMASK')
 
 
 !
 ! Interpolate SOILTEMP:
 !
- nx = 186
- ny = 186
- nz = 1
- isigned  = 0
- endian   = 0
- wordsize = 2
- scalefactor = 0.01
- allocate(rarray(nx,ny,nz))
- allocate(soiltemp_1deg(-2:363,-2:183))
- soiltemp(:) = 0.0
-
- rarray_ptr = c_loc(rarray)
-
- call map_set(PROJ_LATLON, proj,  &
-              latinc = 1.0_RKIND, &
-              loninc = 1.0_RKIND, &
-              knowni = 1.0_RKIND, &
-              knownj = 1.0_RKIND, &
-              lat1 = -89.5_RKIND, &
-              lon1 = -179.5_RKIND)
-
- write(fname,'(a,i5.5,a1,i5.5,a1,i5.5,a1,i5.5)') trim(geog_data_path)// &
-       'soiltemp_1deg/',1,'-',180,'.',1,'-',180
- call mpas_log_write(trim(fname))
- call mpas_f_to_c_string(fname, c_fname)
-
- call read_geogrid(c_fname,rarray_ptr,nx,ny,nz,isigned, endian, &
-                   scalefactor,wordsize,istatus)
- call init_atm_check_read_error(istatus, fname)
- soiltemp_1deg(-2:180,-2:183) = rarray(1:183,1:186,1)
-
- write(fname,'(a,i5.5,a1,i5.5,a1,i5.5,a1,i5.5)') trim(geog_data_path)// &
-            'soiltemp_1deg/',181,'-',360,'.',1,'-',180
- call mpas_log_write(trim(fname))
- call mpas_f_to_c_string(fname, c_fname)
-
- call read_geogrid(c_fname,rarray_ptr,nx,ny,nz,isigned,endian, &
-                        scalefactor,wordsize,istatus)
- call init_atm_check_read_error(istatus,fname)
- soiltemp_1deg(181:363,-2:183) = rarray(4:186,1:186,1)
-
- interp_list(1) = FOUR_POINT
- interp_list(2) = W_AVERAGE4
- interp_list(3) = W_AVERAGE16
- interp_list(4) = SEARCH
- interp_list(5) = 0
-
- do iCell = 1,nCells
-  
-    if(landmask(iCell) == 1) then
-       lat = latCell(iCell) * DEG_PER_RAD
-       lon = lonCell(iCell) * DEG_PER_RAD
-       call latlon_to_ij(proj, lat, lon, x, y)
-       if(x < 0.5) then
-          lon = lon + 360.0
-          call latlon_to_ij(proj, lat, lon, x, y)
-       else if (x >= 360.5) then
-          lon = lon - 360.0
-          call latlon_to_ij(proj, lat, lon, x, y)
-       end if
-       if (y < 1.0) y = 1.0
-       if (y > 179.0) y = 179.0
-       soiltemp(iCell) = interp_sequence(x,y,1,soiltemp_1deg,-2,363,-2,183, &
-                                           1,1,0.0_RKIND,interp_list,1)
-    else
-       soiltemp(iCell) = 0.0
-    end if
-
- end do
- deallocate(rarray)
- deallocate(soiltemp_1deg)
+ call mpas_log_write('--- start interpolate SOILTEMP')
+ call interp_soiltemp(mesh, dims, configs)
  call mpas_log_write('--- end interpolate SOILTEMP')
 
 
@@ -670,106 +454,155 @@ if (rarray(i,j,1) == 0) cycle
 !
  if (trim(config_maxsnowalbedo_data) == 'MODIS') then
 
+    geog_sub_path = 'maxsnowalb_modis/'
+
     call mpas_log_write('Using MODIS 0.05-deg data for maximum snow albedo')
     if (supersample_fac > 1) then
        call mpas_log_write('   Dataset will be supersampled by a factor of $i', intArgs=(/supersample_fac/))
     end if
 
-    nx = 1206
-    ny = 1206
-    nz = 1
-    isigned  = 1
-    endian   = 0
-    wordsize = 2
-    scalefactor = 0.01
-    msgval = real(-999.0,kind=R4KIND)*real(0.01,kind=R4KIND)
-    fillval = 0.0
-    allocate(rarray(nx,ny,nz))
+    ierr = mgr % init(trim(geog_data_path)//trim(geog_sub_path))
+    if (ierr /= 0) then
+       call mpas_log_write('Error occurred when initializing the interpolation of snow albedo (snoalb)', &
+                            messageType=MPAS_LOG_CRIT)
+    endif
+
+    call mpas_pool_get_config(mgr % pool, 'tile_bdr', tile_bdr)
+    call mpas_pool_get_config(mgr % pool, 'tile_x', tile_nx)
+    call mpas_pool_get_config(mgr % pool, 'tile_y', tile_ny)
+    call mpas_pool_get_config(mgr % pool, 'missing_value', missing_value)
+    call mpas_pool_get_config(mgr % pool, 'scale_factor', scalefactor_ptr)
+    scalefactor = scalefactor_ptr
+
     allocate(nhs(nCells))
-    nhs(:) = 0
+    allocate(snoalb_integer(nCells))
+    snoalb_integer(:) = 0
     snoalb(:) = 0.0
+    nhs(:) = 0
+    fillval = 0.0
 
-    rarray_ptr = c_loc(rarray)
+    do iCell = 1, nCells
+        if (nhs(iCell) == 0) then
+            tile => null()
+            ierr = mgr % get_tile(latCell(iCell), lonCell(iCell), tile)
+            if (ierr /= 0 .or. .not. associated(tile)) then
+                call mpas_log_write('Could not get tile that contained cell $i', intArgs=(/iCell/), messageType=MPAS_LOG_CRIT)
+            end if
 
-    start_lat = 90.0 - 0.05 * 0.5 / supersample_fac
-    start_lon = -180.0 + 0.05 * 0.5 / supersample_fac
-    geog_sub_path = 'maxsnowalb_modis/'
+            ierr = mgr % push_tile(tile)
+            if (ierr /= 0) then
+                call mpas_log_write("Error pushing this tile onto the stack: "//trim(tile%fname), messageType=MPAS_LOG_CRIT)
+            end if
+        end if
 
-    do jTileStart = 1,02401,ny-6
-       jTileEnd = jTileStart + ny - 1 - 6
+        do while (.not. mgr % is_stack_empty())
+            tile => mgr % pop_tile()
 
-       do iTileStart=1,06001,nx-6
-          iTileEnd = iTileStart + nx - 1 - 6
-          write(fname,'(a,i5.5,a1,i5.5,a1,i5.5,a1,i5.5)') trim(geog_data_path)//trim(geog_sub_path), &
-                       iTileStart,'-',iTileEnd,'.',jTileStart,'-',jTileEnd
-          call mpas_log_write(trim(fname))
-          call mpas_f_to_c_string(fname, c_fname)
+            if (tile % is_processed) then
+                cycle
+            end if
 
-          call read_geogrid(c_fname,rarray_ptr,nx,ny,nz,isigned,endian, &
-                            scalefactor,wordsize,istatus)
-          call init_atm_check_read_error(istatus, fname)
+            call mpas_log_write('Processing tile: '//trim(tile % fname))
 
-          iPoint = 1
-          do j=supersample_fac * 3 + 1, supersample_fac * (ny-3)
-          do i=supersample_fac * 3 + 1, supersample_fac * (nx-3)
-             ii = (i - 1) / supersample_fac + 1
-             jj = (j - 1) / supersample_fac + 1
+            all_pixels_mapped_to_halo_cells = .true.
 
-             lat_pt = start_lat - (supersample_fac*(jTileStart-1) + j - (supersample_fac*3+1)) * 0.05 / supersample_fac
-             lon_pt = start_lon + (supersample_fac*(iTileStart-1) + i - (supersample_fac*3+1)) * 0.05 / supersample_fac
-             lat_pt = lat_pt * PI / 180.0
-             lon_pt = lon_pt * PI / 180.0
+            do j = supersample_fac * tile_bdr + 1, supersample_fac * (tile_ny + tile_bdr), 1
+                do i = supersample_fac * tile_bdr + 1, supersample_fac * (tile_nx + tile_bdr), 1
 
-             iPoint = nearest_cell(lat_pt,lon_pt,iPoint,nCells,maxEdges, &
-                                   nEdgesOnCell,cellsOnCell, &
-                                   latCell,lonCell)
-             if (rarray(ii,jj,1) /= msgval) then
+                    ii = (i - 1) / supersample_fac + 1
+                    jj = (j - 1) / supersample_fac + 1
 
-                !
-                ! This field only matters for land cells, and for all but the outermost boundary cells,
-                ! we can safely assume that the nearest model grid cell contains the pixel (else, a different
-                ! cell would be nearest)
-                !
-                if (landmask(iPoint) == 1 .and. bdyMaskCell(iPoint) < nBdyLayers) then
-                   snoalb(iPoint) = snoalb(iPoint) + rarray(ii,jj,1)
-                   nhs(iPoint) = nhs(iPoint) + 1
+                    i8val = int(tile % tile(ii, jj, 1), kind=I8KIND)
 
-                ! For outermost land cells, additional work is needed to verify that the pixel
-                ! actually lies within the nearest cell
-                else if (landmask(iPoint) == 1) then
-                   zPixel = sphere_radius * sin(lat_pt)                  ! Model cell coordinates assume a "full" sphere radius
-                   xPixel = sphere_radius * cos(lon_pt) * cos(lat_pt)    ! at this point, so we need to ues the same radius
-                   yPixel = sphere_radius * sin(lon_pt) * cos(lat_pt)    ! for source pixel coordinates
+                    call mgr % tile_to_latlon(tile, j, i, lat_pt, lon_pt, supersample_fac)
+                    call mpas_latlon_to_xyz(xPixel, yPixel, zPixel, sphere_radius, lat_pt, lon_pt)
+                    call mpas_kd_search(tree, (/xPixel, yPixel, zPixel/), res, max_distance=max_kdtree_distance2)
 
-                   if (in_cell(xPixel, yPixel, zPixel, xCell(iPoint), yCell(iPoint), zCell(iPoint), &
-                               nEdgesOnCell(iPoint), verticesOnCell(:,iPoint), xVertex, yVertex, zVertex)) then
-                      snoalb(iPoint) = snoalb(iPoint) + rarray(ii,jj,1)
-                      nhs(iPoint) = nhs(iPoint) + 1
-                   end if
+                    if (.not. associated(res)) cycle
+
+                    if (bdyMaskCell(res % id) < nBdyLayers) then
+                        !
+                        ! This field only matters for land cells, and for all but the outermost boundary cells,
+                        ! we can safely assume that the nearest model grid cell contains the pixel (else, a different
+                        ! cell would be nearest).
+                        !
+                        ! Since values in i8val are not yet scaled, we can compare them to missing_value, which
+                        ! also is not scaled, without scaling either value
+                        if (landmask(res % id) == 1 .and. i8val /= int(missing_value, kind=I8KIND)) then
+                            snoalb_integer(res % id) = snoalb_integer(res % id) + i8val
+                            nhs(res % id) = nhs(res % id) + 1
+                        end if
+
+                        !
+                        ! When a pixel maps to a non-land cell or is a missing value, the values are not accumulated
+                        ! above; however, these pixels may still reside in an owned cell, in which case we will still need
+                        ! to push the tile's neighbors onto the stack for processing.
+                        !
+                        if (res % id <= nCellsSolve) then
+                            all_pixels_mapped_to_halo_cells = .false.
+                        end if
+                    ! For outermost cells, additional work is needed to verify that the pixel
+                    ! actually lies within the nearest cell
+                    else
+                        if (mpas_in_cell(xPixel, yPixel, zPixel, xCell(res % id), yCell(res % id), zCell(res % id), &
+                                          nEdgesOnCell(res % id), verticesOnCell(:,res % id), xVertex, yVertex, zVertex)) then
+
+                            ! Since values in i8val are not yet scaled, we can compare them to missing_value, which
+                            ! also is not scaled, without scaling either value
+                            if (landmask(res % id) == 1 .and. i8val /= int(missing_value, kind=I8KIND)) then
+                                snoalb_integer(res % id) = snoalb_integer(res % id) + i8val
+                                nhs(res % id) = nhs(res % id) + 1
+                            end if
+
+                            !
+                            ! When a pixel maps to a non-land cell or is a missing value, the values are not accumulated
+                            ! above; however, these pixels may still reside in an owned cell, in which case we will still need
+                            ! to push the tile's neighbors onto the stack for processing.
+                            !
+                            if (res % id <= nCellsSolve) then
+                                all_pixels_mapped_to_halo_cells = .false.
+                            end if
+                        end if
+                    end if
+                end do
+            end do
+
+            tile % is_processed = .true.
+            deallocate(tile % tile)
+
+            if (.not. all_pixels_mapped_to_halo_cells) then
+                ierr = mgr % push_neighbors(tile)
+                if (ierr /= 0) then
+                    call mpas_log_write("Error pushing the tile neighbors of: "//trim(tile%fname), messageType=MPAS_LOG_CRIT)
                 end if
-             end if
-          end do
-          end do
-
-       end do
+            end if
+        end do
     end do
 
-    do iCell = 1,nCells
-       !
-       ! Mismatches in land mask can lead to MPAS land points with no maximum snow albedo.
-       ! Ideally, we would perform a search for nearby valid albedos, but for now using
-       ! the fill value will at least allow the model to run. In general, the number of cells
-       ! to be treated in this way tends to be a very small fraction of the total number of cells.
-       !
-       if (nhs(iCell) == 0) then
-          snoalb(iCell) = fillval
-       else
-          snoalb(iCell) = snoalb(iCell) / real(nhs(iCell))
-       end if
-       snoalb(iCell) = 0.01_RKIND * snoalb(iCell)        ! Convert from percent to fraction
+    do iCell = 1, nCells
+        !
+        ! Mismatches in land mask can lead to MPAS land points with no maximum snow albedo.
+        ! Ideally, we would perform a search for nearby valid albedos, but for now using
+        ! the fill value will at least allow the model to run. In general, the number of cells
+        ! to be treated in this way tends to be a very small fraction of the total number of cells.
+        !
+        if (nhs(iCell) == 0) then
+            snoalb(iCell) = fillval
+        else
+            snoalb(iCell) = real(real(snoalb_integer(iCell), kind=R8KIND) / real(nhs(iCell), kind=R8KIND), kind=RKIND)
+            snoalb(iCell) = snoalb(iCell) * scalefactor
+            snoalb(iCell) = 0.01_RKIND * snoalb(iCell) ! Convert from percent to fraction
+        endif
     end do
-    deallocate(rarray)
+
     deallocate(nhs)
+    deallocate(snoalb_integer)
+
+    ierr = mgr % finalize()
+    if (ierr /= 0) then
+       call mpas_log_write('Error occurred when finalizing the interpolation of snow albedo (snoalb)', &
+                            messageType=MPAS_LOG_CRIT)
+    endif
 
  else if (trim(config_maxsnowalbedo_data) == 'NCEP') then
 
@@ -802,8 +635,9 @@ if (rarray(i,j,1) == 0) cycle
     call mpas_f_to_c_string(fname, c_fname)
 
     call read_geogrid(c_fname,rarray_ptr,nx,ny,nz,isigned,endian, &
-                      scalefactor,wordsize,istatus)
+                      wordsize,istatus)
     call init_atm_check_read_error(istatus,fname)
+    rarray(:,:,:) = rarray(:,:,:) * real(scalefactor, kind=c_float)
     maxsnowalb(-2:180,-2:183) = rarray(1:183,1:186,1)
 
     write(fname,'(a,i5.5,a1,i5.5,a1,i5.5,a1,i5.5)') trim(geog_data_path)// &
@@ -812,8 +646,9 @@ if (rarray(i,j,1) == 0) cycle
     call mpas_f_to_c_string(fname, c_fname)
 
     call read_geogrid(c_fname,rarray_ptr,nx,ny,nz,isigned,endian, &
-                      scalefactor,wordsize,istatus)
+                      wordsize,istatus)
     call init_atm_check_read_error(istatus, fname)
+    rarray(:,:,:) = rarray(:,:,:) * real(scalefactor, kind=c_float)
     maxsnowalb(181:363,-2:183) = rarray(4:186,1:186,1)
 
     interp_list(1) = FOUR_POINT
@@ -869,103 +704,137 @@ if (rarray(i,j,1) == 0) cycle
 
     call mpas_log_write('Using MODIS FPAR 30-arc-second data for climatological monthly vegetation fraction')
 
-    nx = 1200
-    ny = 1200
-    nz = 12
-    isigned  = 0
-    endian   = 0
-    wordsize = 1
-    scalefactor = 1.0
-    msgval = 200.0
-    fillval = 0.0
-    allocate(rarray(nx,ny,nz))
-    allocate(nhs(nCells))
-    nhs(:) = 0
-    greenfrac(:,:) = 0.0
-
-    rarray_ptr = c_loc(rarray)
-
-    start_lat = -89.99583
-    start_lon = -179.99583
     geog_sub_path = 'greenfrac_fpar_modis/'
 
-    do jTileStart = 1,20401,ny
-       jTileEnd = jTileStart + ny - 1
+    ierr = mgr % init(trim(geog_data_path)//trim(geog_sub_path))
+    if (ierr /= 0) then
+       call mpas_log_write('Error occurred when initalizing the interpolation of monthly vegetation fraction (greenfrac)', &
+                            messageType=MPAS_LOG_CRIT)
+    endif
 
-       do iTileStart=1,42001,nx
-          iTileEnd = iTileStart + nx - 1
-          write(fname,'(a,i5.5,a1,i5.5,a1,i5.5,a1,i5.5)') trim(geog_data_path)//trim(geog_sub_path), &
-                       iTileStart,'-',iTileEnd,'.',jTileStart,'-',jTileEnd
-          call mpas_log_write(trim(fname))
-          call mpas_f_to_c_string(fname, c_fname)
+    call mpas_pool_get_config(mgr % pool, 'tile_bdr', tile_bdr)
+    call mpas_pool_get_config(mgr % pool, 'tile_x', tile_nx)
+    call mpas_pool_get_config(mgr % pool, 'tile_y', tile_ny)
+    call mpas_pool_get_config(mgr % pool, 'tile_z', tile_nz)
+    call mpas_pool_get_config(mgr % pool, 'missing_value', missing_value)
 
-          call read_geogrid(c_fname,rarray_ptr,nx,ny,nz,isigned,endian, &
-                            scalefactor,wordsize,istatus)
-          call init_atm_check_read_error(istatus, fname)
+    allocate(nhs(nCells))
+    allocate(greenfrac_int(tile_nz, nCells))
+    nhs(:) = 0
+    greenfrac(:,:) = 0.0
+    greenfrac_int(:,:) = 0_I8KIND
+    fillval = 0.0
 
-          iPoint = 1
-          do j=1,ny
-          do i=1,nx
-             lat_pt = start_lat + (jTileStart + j - 2) * 0.0083333333
-             lon_pt = start_lon + (iTileStart + i - 2) * 0.0083333333
-             lat_pt = lat_pt * PI / 180.0
-             lon_pt = lon_pt * PI / 180.0
+    do iCell = 1, nCells
+        if (nhs(iCell) == 0) then
+            tile => null()
+            ierr = mgr % get_tile(latCell(iCell), lonCell(iCell), tile)
+            if (ierr /= 0 .or. .not. associated(tile)) then
+                call mpas_log_write('Could not get tile that contained cell $i', intArgs=(/iCell/), messageType=MPAS_LOG_CRIT)
+            end if
 
-             iPoint = nearest_cell(lat_pt,lon_pt,iPoint,nCells,maxEdges, &
-                                   nEdgesOnCell,cellsOnCell, &
-                                   latCell,lonCell)
+            ierr = mgr % push_tile(tile)
+            if (ierr /= 0) then
+                call mpas_log_write("Error pushing this tile onto the stack: "//trim(tile % fname), messageType=MPAS_LOG_CRIT)
+            end if
+        end if
 
-             !
-             ! This field only matters for land cells, and for all but the outermost boundary cells,
-             ! we can safely assume that the nearest model grid cell contains the pixel (else, a different
-             ! cell would be nearest)
-             !
-             if (landmask(iPoint) == 1 .and. bdyMaskCell(iPoint) < nBdyLayers) then
-                do k=1,nz
-                   if (rarray(i,j,k) == msgval) then
-                      rarray(i,j,k) = fillval
-                   end if
-                   greenfrac(k,iPoint) = greenfrac(k,iPoint) + rarray(i,j,k)
+        do while (.not. mgr % is_stack_empty())
+            tile => mgr % pop_tile()
+
+            if (tile % is_processed) then
+                cycle
+            end if
+
+            call mpas_log_write('Processing tile: '//trim(tile % fname))
+
+            all_pixels_mapped_to_halo_cells = .true.
+
+            do j = tile_bdr + 1, tile_ny + tile_bdr, 1
+                do i = tile_bdr + 1, tile_nx + tile_bdr, 1
+
+                    call mgr % tile_to_latlon(tile, j, i, lat_pt, lon_pt)
+                    call mpas_latlon_to_xyz(xPixel, yPixel, zPixel, sphere_radius, lat_pt, lon_pt)
+                    call mpas_kd_search(tree, (/xPixel, yPixel, zPixel/), res, max_distance=max_kdtree_distance2)
+
+                    if (.not. associated(res)) cycle
+
+                    !
+                    ! This field only matters for land cells, and for all but the outermost boundary cells,
+                    ! we can safely assume that the nearest model grid cell contains the pixel (else, a different
+                    ! cell would be nearest)
+                    !
+                    if (landMask(res % id) == 1 .and. bdyMaskCell(res % id) < nBdyLayers) then
+                        do k = 1, tile_nz
+                            if (tile % tile(i, j, k) == missing_value) then
+                                i8val = int(fillval, kind=I8KIND)
+                            else
+                                i8val = int(tile % tile(i,j,k), kind=I8KIND)
+                            end if
+                            greenfrac_int(k, res % id) = greenfrac_int(k, res % id) + i8val
+                        end do
+                        nhs(res % id) = nhs(res % id) + 1
+
+                        if (res % id <= nCellsSolve) then
+                            all_pixels_mapped_to_halo_cells = .false.
+                        end if
+
+                    ! For outermost land cells, additional work is needed to verify that the pixel
+                    ! actually lies within the nearest cell
+                    else if (landMask(res % id) == 1) then
+                        if (mpas_in_cell(xPixel, yPixel, zPixel, xCell(res % id), yCell(res % id), zCell(res % id), &
+                                          nEdgesOnCell(res % id), verticesOnCell(:,res % id), xVertex, yVertex, zVertex)) then
+                            do k = 1, tile_nz
+                                if (tile % tile(i, j, k) == missing_value) then
+                                    i8val = int(fillval, kind=I8KIND)
+                                else
+                                    i8val = int(tile % tile(i,j,k), kind=I8KIND)
+                                end if
+                                greenfrac_int(k, res % id) = greenfrac_int(k, res % id) + i8val
+                            end do
+                            nhs(res % id) = nhs(res % id) + 1
+
+                            if (res % id <= nCellsSolve) then
+                                all_pixels_mapped_to_halo_cells = .false.
+                            end if
+                        end if
+                    end if
                 end do
-                nhs(iPoint) = nhs(iPoint) + 1
+            end do
 
-             ! For outermost land cells, additional work is needed to verify that the pixel
-             ! actually lies within the nearest cell
-             else if (landmask(iPoint) == 1) then
-                zPixel = sphere_radius * sin(lat_pt)                  ! Model cell coordinates assume a "full" sphere radius
-                xPixel = sphere_radius * cos(lon_pt) * cos(lat_pt)    ! at this point, so we need to ues the same radius
-                yPixel = sphere_radius * sin(lon_pt) * cos(lat_pt)    ! for source pixel coordinates
+            tile % is_processed = .true.
+            deallocate(tile % tile)
 
-                if (in_cell(xPixel, yPixel, zPixel, xCell(iPoint), yCell(iPoint), zCell(iPoint), &
-                            nEdgesOnCell(iPoint), verticesOnCell(:,iPoint), xVertex, yVertex, zVertex)) then
-                   do k=1,nz
-                      if (rarray(i,j,k) == msgval) then
-                         rarray(i,j,k) = fillval
-                      end if
-                      greenfrac(k,iPoint) = greenfrac(k,iPoint) + rarray(i,j,k)
-                   end do
-                   nhs(iPoint) = nhs(iPoint) + 1
+            if (.not. all_pixels_mapped_to_halo_cells) then
+                ierr = mgr % push_neighbors(tile)
+                if (ierr /= 0) then
+                    call mpas_log_write("Error pushing the tile neighbors of: "//trim(tile%fname), messageType=MPAS_LOG_CRIT)
                 end if
-             end if
-          end do
-          end do
+            end if
 
-       end do
+        end do
     end do
 
-    do iCell = 1,nCells
-       ! For land points that have no overlap with valid data, and for water points,
-       ! just use the fill value...
-       if (nhs(iCell) == 0) then
-          greenfrac(:,iCell) = fillval
-       else
-          greenfrac(:,iCell) = greenfrac(:,iCell) / real(nhs(iCell))
-       end if
-       shdmin(iCell) = minval(greenfrac(:,iCell))
-       shdmax(iCell) = maxval(greenfrac(:,iCell))
+    do iCell = 1, nCells
+        ! For land points that have no overlap with valid data, and for water points,
+        ! just use the fill value...
+        if (nhs(iCell) == 0) then
+            greenfrac(:,iCell) = fillval
+        else
+            greenfrac(:,iCell) = real(real(greenfrac_int(:,iCell), kind=R8KIND) / real(nhs(iCell), kind=R8KIND), kind=RKIND)
+        end if
+        shdmin(iCell) = minval(greenfrac(:,iCell))
+        shdmax(iCell) = maxval(greenfrac(:,iCell))
     end do
-    deallocate(rarray)
+
     deallocate(nhs)
+    deallocate(greenfrac_int)
+
+    ierr = mgr % finalize()
+    if (ierr /= 0) then
+       call mpas_log_write('Error occurred when finalizing the interpolation of monthly vegetation fraction (greenfrac)', &
+                            messageType=MPAS_LOG_CRIT)
+    endif
 
  else if (trim(config_vegfrac_data) == 'NCEP') then
 
@@ -998,8 +867,9 @@ if (rarray(i,j,1) == 0) cycle
     call mpas_f_to_c_string(fname, c_fname)
 
     call read_geogrid(c_fname,rarray_ptr,nx,ny,nz,isigned,endian, &
-                      scalefactor,wordsize,istatus)
+                      wordsize,istatus)
     call init_atm_check_read_error(istatus,fname)
+    rarray(:,:,:) = rarray(:,:,:) * real(scalefactor, kind=c_float)
     vegfra(-2:1250,-2:1253,1:12) = rarray(1:1253,1:1256,1:12)
 
     write(fname,'(a,i5.5,a1,i5.5,a1,i5.5,a1,i5.5)') trim(geog_data_path)// &
@@ -1008,8 +878,9 @@ if (rarray(i,j,1) == 0) cycle
     call mpas_f_to_c_string(fname, c_fname)
 
     call read_geogrid(c_fname,rarray_ptr,nx,ny,nz,isigned,endian, &
-                      scalefactor,wordsize,istatus)
+                      wordsize,istatus)
     call init_atm_check_read_error(istatus,fname)
+    rarray(:,:,:) = rarray(:,:,:) * real(scalefactor, kind=c_float)
     vegfra(1251:2503,-2:1253,1:12) = rarray(4:1256,1:1256,1:12)
 
     do iCell = 1,nCells
@@ -1065,107 +936,139 @@ if (rarray(i,j,1) == 0) cycle
        call mpas_log_write('   Dataset will be supersampled by a factor of $i', intArgs=(/supersample_fac/))
     end if
 
-    nx = 1206
-    ny = 1206
-    nz = 12
-    isigned  = 1
-    endian   = 0
-    wordsize = 2
-    scalefactor = 0.01
-    msgval = real(-999.0,kind=R4KIND)*real(0.01,kind=R4KIND)
-    fillval = 8.0
-    allocate(rarray(nx,ny,nz))
-    allocate(nhs(nCells))
-    nhs(:) = 0
-    albedo12m(:,:) = 0.0
-
-    rarray_ptr = c_loc(rarray)
-
-    start_lat = 90.0 - 0.05 * 0.5 / supersample_fac
-    start_lon = -180.0 + 0.05 * 0.5 / supersample_fac
     geog_sub_path = 'albedo_modis/'
 
-    do jTileStart = 1,02401,ny-6
-       jTileEnd = jTileStart + ny - 1 - 6
+    ierr = mgr % init(trim(geog_data_path)//trim(geog_sub_path))
+    if (ierr /= 0) then
+       call mpas_log_write('Error occurred when initalizing the interpolation of monthly albedo (albedo12m)', &
+                            messageType=MPAS_LOG_CRIT)
+    endif
 
-       do iTileStart=1,06001,nx-6
-          iTileEnd = iTileStart + nx - 1 - 6
-          write(fname,'(a,i5.5,a1,i5.5,a1,i5.5,a1,i5.5)') trim(geog_data_path)//trim(geog_sub_path), &
-                       iTileStart,'-',iTileEnd,'.',jTileStart,'-',jTileEnd
-          call mpas_log_write(trim(fname))
-          call mpas_f_to_c_string(fname, c_fname)
+    call mpas_pool_get_config(mgr % pool, 'tile_bdr', tile_bdr)
+    call mpas_pool_get_config(mgr % pool, 'tile_x', tile_nx)
+    call mpas_pool_get_config(mgr % pool, 'tile_y', tile_ny)
+    call mpas_pool_get_config(mgr % pool, 'tile_z_start', tile_z_start)
+    call mpas_pool_get_config(mgr % pool, 'tile_z_end', tile_z_end)
+    call mpas_pool_get_config(mgr % pool, 'missing_value', missing_value)
+    call mpas_pool_get_config(mgr % pool, 'scale_factor', scalefactor_ptr)
+    scalefactor = scalefactor_ptr
 
-          call read_geogrid(c_fname,rarray_ptr,nx,ny,nz,isigned,endian, &
-                            scalefactor,wordsize,istatus)
-          call init_atm_check_read_error(istatus, fname)
+    allocate(albedo12m_int(tile_z_start:tile_z_end, nCells))
+    allocate(nhs(nCells))
+    albedo12m_int(:,:) = 0
+    albedo12m(:,:) = 0.0
+    nhs(:) = 0
+    fillval = 8.0
 
-          iPoint = 1
-          do j=supersample_fac * 3 + 1, supersample_fac * (ny-3)
-          do i=supersample_fac * 3 + 1, supersample_fac * (nx-3)
-             ii = (i - 1) / supersample_fac + 1
-             jj = (j - 1) / supersample_fac + 1
+    do iCell = 1, nCells
+        if (nhs(iCell) == 0) then
+            tile => null()
+            ierr = mgr % get_tile(latCell(iCell), lonCell(iCell), tile)
+            if (ierr /= 0 .or. .not. associated(tile)) then
+                call mpas_log_write('Could not get tile that contained cell $i', intArgs=(/iCell/), messageType=MPAS_LOG_CRIT)
+            end if
 
-             lat_pt = start_lat - (supersample_fac*(jTileStart-1) + j - (supersample_fac*3+1)) * 0.05 / supersample_fac
-             lon_pt = start_lon + (supersample_fac*(iTileStart-1) + i - (supersample_fac*3+1)) * 0.05 / supersample_fac
-             lat_pt = lat_pt * PI / 180.0
-             lon_pt = lon_pt * PI / 180.0
+            ierr = mgr % push_tile(tile)
+            if (ierr /= 0) then
+                call mpas_log_write("Error pushing this tile onto the stack: "//trim(tile % fname), messageType=MPAS_LOG_CRIT)
+            end if
+        end if
 
-             iPoint = nearest_cell(lat_pt,lon_pt,iPoint,nCells,maxEdges, &
-                                   nEdgesOnCell,cellsOnCell, &
-                                   latCell,lonCell)
+        do while (.not. mgr % is_stack_empty())
+            tile => mgr % pop_tile()
 
-             !
-             ! This field only matters for land cells, and for all but the outermost boundary cells,
-             ! we can safely assume that the nearest model grid cell contains the pixel (else, a different
-             ! cell would be nearest)
-             !
-             if (landmask(iPoint) == 1 .and. bdyMaskCell(iPoint) < nBdyLayers) then
-                do k=1,nz
-                   if (rarray(ii,jj,k) == msgval) then
-                      rarray(ii,jj,k) = fillval
-                   end if
-                   albedo12m(k,iPoint) = albedo12m(k,iPoint) + rarray(ii,jj,k)
+            if (tile % is_processed) then
+                cycle
+            end if
+
+            call mpas_log_write('Processing tile: '//trim(tile % fname))
+
+            all_pixels_mapped_to_halo_cells = .true.
+
+            do j = supersample_fac * tile_bdr + 1, supersample_fac * (tile_ny + tile_bdr), 1
+                do i = supersample_fac * tile_bdr + 1, supersample_fac * (tile_nx + tile_bdr), 1
+
+                    ii = (i - 1) / supersample_fac + 1
+                    jj = (j - 1) / supersample_fac + 1
+
+                    call mgr % tile_to_latlon(tile, j, i, lat_pt, lon_pt, supersample_fac)
+                    call mpas_latlon_to_xyz(xPixel, yPixel, zPixel, sphere_radius, lat_pt, lon_pt)
+                    call mpas_kd_search(tree, (/xPixel, yPixel, zPixel/), res, max_distance=max_kdtree_distance2)
+
+                    if (.not. associated(res)) cycle
+
+                    if (bdyMaskCell(res % id) < nBdyLayers) then
+                        if (landMask(res % id) == 1) then
+                            do k = tile_z_start, tile_z_end
+                                if (tile % tile(ii, jj, k) == missing_value) then
+                                    i8val = int(fillval, kind=I8KIND)
+                                else
+                                    i8val = int(tile % tile(ii,jj,k), kind=I8KIND)
+                                end if
+                                albedo12m_int(k, res % id) = albedo12m_int(k, res % id) + i8val
+                            end do
+                            nhs(res % id) = nhs(res % id) + 1
+                        end if
+
+                        if (res % id <= nCellsSolve) then
+                            all_pixels_mapped_to_halo_cells = .false.
+                        end if
+                    else
+                        if (mpas_in_cell(xPixel, yPixel, zPixel, xCell(res % id), yCell(res % id), zCell(res % id), &
+                                         nEdgesOnCell(res % id), verticesOnCell(:,res % id), xVertex, yVertex, zVertex)) then
+                            if (landMask(res % id) == 1) then
+                                do k = tile_z_start, tile_z_end
+                                    if (tile % tile(ii, jj, k) == missing_value) then
+                                        i8val = int(fillval, kind=I8KIND)
+                                    else
+                                        i8val = int(tile % tile(ii,jj,k), kind=I8KIND)
+                                    end if
+                                    albedo12m_int(k, res % id) = albedo12m_int(k, res % id) + i8val
+                                end do
+                                nhs(res % id) = nhs(res % id) + 1
+                            end if
+
+                            if (res % id <= nCellsSolve) then
+                                all_pixels_mapped_to_halo_cells = .false.
+                            end if
+                        end if
+                    end if
                 end do
-                nhs(iPoint) = nhs(iPoint) + 1
+            end do
 
-             ! For outermost land cells, additional work is needed to verify that the pixel
-             ! actually lies within the nearest cell
-             else if (landmask(iPoint) == 1) then
-                zPixel = sphere_radius * sin(lat_pt)                  ! Model cell coordinates assume a "full" sphere radius
-                xPixel = sphere_radius * cos(lon_pt) * cos(lat_pt)    ! at this point, so we need to ues the same radius
-                yPixel = sphere_radius * sin(lon_pt) * cos(lat_pt)    ! for source pixel coordinates
+            tile % is_processed = .true.
+            deallocate(tile % tile)
 
-                if (in_cell(xPixel, yPixel, zPixel, xCell(iPoint), yCell(iPoint), zCell(iPoint), &
-                            nEdgesOnCell(iPoint), verticesOnCell(:,iPoint), xVertex, yVertex, zVertex)) then
-                   do k=1,nz
-                      if (rarray(ii,jj,k) == msgval) then
-                         rarray(ii,jj,k) = fillval
-                      end if
-                      albedo12m(k,iPoint) = albedo12m(k,iPoint) + rarray(ii,jj,k)
-                   end do
-                   nhs(iPoint) = nhs(iPoint) + 1
+            if (.not. all_pixels_mapped_to_halo_cells) then
+                ierr = mgr % push_neighbors(tile)
+                if (ierr /= 0) then
+                    call mpas_log_write("error pushing the tile neighbors of: "//trim(tile%fname), messagetype=MPAS_LOG_CRIT)
                 end if
-             end if
-          end do
-          end do
+            end if
 
-       end do
+        end do
     end do
 
-    do iCell = 1,nCells
-       ! For land points that have no overlap with valid data, and for water points,
-       ! just use the fill value...
-       if (nhs(iCell) == 0) then
-          albedo12m(:,iCell) = fillval
-       else
-          albedo12m(:,iCell) = albedo12m(:,iCell) / real(nhs(iCell))
-       end if
-       if (lu_index(iCell) == isice_lu) then
-          albedo12m(:,iCell) = 70.0
-       end if
+    do iCell = 1, nCells
+        if (nhs(iCell) == 0) then
+            albedo12m(:,iCell) = fillVal
+        else
+            albedo12m(:,iCell) = real(real(albedo12m_int(:,iCell), kind=R8KIND) / real(nhs(iCell), kind=R8KIND), kind=RKIND)
+            albedo12m(:,iCell) = albedo12m(:,iCell) * scalefactor
+        end if
+        if (lu_index(iCell) == isice_lu) then
+            albedo12m(:,iCell) = 70.0 ! TODO: Where does this come from?
+        endif
     end do
-    deallocate(rarray)
+
     deallocate(nhs)
+    deallocate(albedo12m_int)
+
+    ierr = mgr % finalize()
+    if (ierr /= 0) then
+       call mpas_log_write('Error occurred when finalizing the interpolation of monthly albedo (albedo12m)', &
+                            messageType=MPAS_LOG_CRIT)
+    endif
 
  else if (trim(config_albedo_data) == 'NCEP') then
 
@@ -1198,8 +1101,9 @@ if (rarray(i,j,1) == 0) cycle
     call mpas_f_to_c_string(fname, c_fname)
 
     call read_geogrid(c_fname,rarray_ptr,nx,ny,nz,isigned,endian, &
-                      scalefactor, wordsize, istatus)
+                      wordsize, istatus)
     call init_atm_check_read_error(istatus,fname)
+    rarray(:,:,:) = rarray(:,:,:) * real(scalefactor, kind=c_float)
     vegfra(-2:1250,-2:1253,1:12) = rarray(1:1253,1:1256,1:12)
 
     write(fname,'(a,i5.5,a1,i5.5,a1,i5.5,a1,i5.5)') trim(geog_data_path)// &
@@ -1208,8 +1112,9 @@ if (rarray(i,j,1) == 0) cycle
     call mpas_f_to_c_string(fname, c_fname)
 
     call read_geogrid(c_fname,rarray_ptr,nx,ny,nz,isigned,endian, &
-                      scalefactor,wordsize,istatus)
+                      wordsize,istatus)
     call init_atm_check_read_error(istatus,fname)
+    rarray(:,:,:) = rarray(:,:,:) * real(scalefactor, kind=c_float)
     vegfra(1251:2503,-2:1253,1:12) = rarray(4:1256,1:1256,1:12)
 
     do iCell = 1,nCells
@@ -1251,8 +1156,726 @@ if (rarray(i,j,1) == 0) cycle
 
  call mpas_log_write('--- end interpolate ALBEDO12M')
 
+!
+! Deallocate and free the KD Tree
+!
+ call mpas_kd_free(tree)
+ deallocate(kd_points)
+
 
  end subroutine init_atm_static
+
+
+ !***********************************************************************
+ !
+ !  routine init_atm_map_static_data
+ !
+ !> \brief   Map values of static datasets to cells
+ !> \author  Miles Curry
+ !> \date    25 January 2020
+ !> \details
+ !>  Given a initialized geotile manager object, an initialized KD tree of cell centers
+ !> (xCell, yCell, zCell), and two function pointers, this subroutine maps pixels of a
+ !> Geogrid binary format dataset to the cells they reside in. The geogrid binary format
+ !> is described in Chapter 3 of the WRF User's Guide. Because this routine uses a K-Dimensional
+ !> tree to map pixels to cells, it can safely map datasets to MPAS meshes in parallel.
+ !>
+ !> The interp_criteria procedure will need to match the interp_criteria_function abstract
+ !> interface. The procedure is used to determine if the tile that contains iCell has been
+ !> processed or not. If it has not, then the tile will be added to the process stack for
+ !> processing. If a cell has not received any mappings than it is possible the tile that
+ !> contains that cell has not processed. In that case, the function should return .true. to add
+ !> the tile to the stack. A value of .false. will signify that the cell has received values, and
+ !> thus, that the tile that contains that cell does not need to be processed. Different datasets
+ !> may need to implement this function differently (e.g. continuous vs categorical).
+ !>
+ !> The accumulation_method procedure will be called with the mappings between pixel values
+ !> and the cells in which they map to. Currently, the accumulation_method does not need to
+ !> return any values.
+ !>
+ !> If supersample_fac is present each pixel will be subdivided into supersampel_fac ^ 2
+ !> sub-pixels.
+ !
+ !-----------------------------------------------------------------------
+ subroutine init_atm_map_static_data(mesh, mgr, kdtree, interp_criteria, accumulation_method, supersample_fac)
+
+    implicit none
+
+    ! Input variables
+    type (mpas_pool_type), intent(in) :: mesh
+    type (mpas_geotile_mgr_type), intent(in) :: mgr
+    type (mpas_kd_type), pointer, intent(in) :: kdtree
+    procedure (interp_criteria_function) :: interp_criteria
+    procedure (interp_accumulation_function) :: accumulation_method
+    integer, intent(in), optional :: supersample_fac
+
+    ! Local variables
+    integer, pointer :: nCells
+    integer, pointer :: nCellsSolve
+    integer, dimension(:), pointer :: bdyMaskCell
+    integer, dimension(:), pointer :: nEdgesOnCell
+    integer, dimension(:,:), pointer :: verticesOnCell
+    real (kind=RKIND), dimension(:), pointer :: xCell, yCell, zCell
+    real (kind=RKIND), dimension(:), pointer :: xVertex, yVertex, zVertex
+    real (kind=RKIND), pointer :: sphere_radius
+    real (kind=RKIND), dimension(:), pointer :: latCell, lonCell
+
+    integer, pointer :: tile_bdr
+    integer, pointer :: tile_nx, tile_ny
+    integer, pointer :: tile_z_start, tile_z_end
+    integer :: supersample_fac_lcl
+    integer :: subsample_fac
+
+    real (kind=RKIND) :: lat
+    real (kind=RKIND) :: lon
+    real (kind=RKIND) :: xPixel, yPixel, zPixel
+    real (kind=RKIND), pointer :: scale_factor
+
+    integer :: iCell
+    integer :: i, ii
+    integer :: j, jj
+
+    logical :: all_pixels_mapped_to_halo_cells
+
+    type (mpas_geotile_type), pointer :: tile
+    type (mpas_kd_type), pointer :: res
+
+    integer :: ierr
+
+    call mpas_pool_get_dimension(mesh, 'nCells', nCells)
+    call mpas_pool_get_dimension(mesh, 'nCellsSolve', nCellsSolve)
+    call mpas_pool_get_config(mesh, 'sphere_radius', sphere_radius)
+
+    call mpas_pool_get_array(mesh, 'latCell', latCell)
+    call mpas_pool_get_array(mesh, 'lonCell', lonCell)
+    call mpas_pool_get_array(mesh, 'bdyMaskCell', bdyMaskCell)
+    call mpas_pool_get_array(mesh, 'xCell', xCell)
+    call mpas_pool_get_array(mesh, 'yCell', yCell)
+    call mpas_pool_get_array(mesh, 'zCell', zCell)
+    call mpas_pool_get_array(mesh, 'xVertex', xVertex)
+    call mpas_pool_get_array(mesh, 'yVertex', yVertex)
+    call mpas_pool_get_array(mesh, 'zVertex', zVertex)
+    call mpas_pool_get_array(mesh, 'nEdgesOnCell', nEdgesOnCell)
+    call mpas_pool_get_array(mesh, 'verticesOnCell', verticesOnCell)
+    call mpas_pool_get_array(mesh, 'bdyMaskCell', bdyMaskCell)
+
+    call mpas_pool_get_config(mgr % pool, 'tile_bdr', tile_bdr)
+    call mpas_pool_get_config(mgr % pool, 'tile_x', tile_nx)
+    call mpas_pool_get_config(mgr % pool, 'tile_y', tile_ny)
+    call mpas_pool_get_config(mgr % pool, 'tile_z_start', tile_z_start)
+    call mpas_pool_get_config(mgr % pool, 'tile_z_end', tile_z_end)
+    call mpas_pool_get_config(mgr % pool, 'scale_factor', scale_factor)
+
+    if (present(supersample_fac)) then
+        supersample_fac_lcl = supersample_fac
+    else
+        supersample_fac_lcl = 1
+    end if
+
+    if (supersample_fac_lcl > 1) then
+       call mpas_log_write('   Dataset will be supersampled by a factor of $i', intArgs=(/supersample_fac_lcl/))
+    end if
+
+    ! Subsample_fac should always be 1, else datasets will not be fully interpolated.
+    subsample_fac = 1
+
+    do iCell = 1, nCells
+        !
+        ! Insure all cells receive values by loading tiles that have not received values and
+        ! pushing them onto the stack.
+        !
+        if (interp_criteria(iCell)) then
+            tile => null()
+            ierr = mgr % get_tile(latCell(iCell), lonCell(iCell), tile)
+            if (ierr /= 0 .or. .not. associated(tile)) then
+                call mpas_log_write('Could not get tile that contained cell $i', intArgs=(/iCell/), messageType=MPAS_LOG_ERR)
+                return
+            end if
+            ierr = mgr % push_tile(tile)
+        end if
+
+        !
+        ! Process each tile by removing it from the stack. Determine the closest cell center to each tile
+        ! pixel by using a KD search and pass the pixel value and the closest cell center id to the
+        ! accumulation routine.
+        !
+        do while (.not. mgr % is_stack_empty())
+            tile => mgr % pop_tile()
+
+            if (tile % is_processed) then
+                cycle
+            end if
+
+            call mpas_log_write('Processing tile: '//trim(tile % fname))
+            all_pixels_mapped_to_halo_cells = .true.
+
+            do j = supersample_fac_lcl * tile_bdr + 1, supersample_fac_lcl * (tile_ny + tile_bdr), subsample_fac
+                do i = supersample_fac_lcl * tile_bdr + 1, supersample_fac_lcl * (tile_nx + tile_bdr), subsample_fac
+
+                    ! Supersample coordinates
+                    ii = (i - 1) / supersample_fac_lcl + 1
+                    jj = (j - 1) / supersample_fac_lcl + 1
+
+                    call mgr % tile_to_latlon(tile, j, i, lat, lon, supersample_fac_lcl)
+                    call mpas_latlon_to_xyz(xPixel, yPixel, zPixel, sphere_radius, lat, lon)
+                    call mpas_kd_search(kdtree, (/xPixel, yPixel, zPixel/), res, max_distance=max_kdtree_distance2)
+
+                    if (.not. associated(res)) cycle
+
+                    !
+                    ! For outermost boundary cells, extra work is needed to be done to determine if a pixel actually
+                    ! lies within the cell returned by mpas_kd_search
+                    !
+                    if (bdyMaskCell(res % id) == nBdyLayers) then
+                        ! mpas_in_cell could be included in the if statement above, but calling it is expensive and the Fortran
+                        ! standard does not require compilers to short circuit compound conditionals.
+                        if (.not. mpas_in_cell(xPixel, yPixel, zPixel, xCell(res % id), yCell(res % id), zCell(res % id), &
+                                               nEdgesOnCell(res % id), verticesOnCell(:,res % id), xVertex, yVertex, zVertex)) then
+                            !
+                            ! This pixel lies outside of res % cell and outside of the limited-area region, no further processing is
+                            ! needed
+                            !
+                            cycle
+                        end if
+                    end if
+
+                    !
+                    ! Send the entire pixel column to the accumulation method
+                    !
+                    call accumulation_method(res % id, int(tile % tile(ii,jj,:), kind=I8KIND))
+
+                    if (res % id <= nCellsSolve) then
+                        all_pixels_mapped_to_halo_cells = .false.
+                    end if
+                end do
+            end do
+
+            tile % is_processed = .true.
+            deallocate(tile % tile)
+
+            !
+            ! If at least one pixel maps to an owned cell (i.e. <= nCellsSolve) then
+            ! it is possible that the neighboring tiles might contain pixels that map
+            ! to this process' compute cells, so add them to the stack.
+            !
+            if (.not. all_pixels_mapped_to_halo_cells) then
+                ierr = mgr % push_neighbors(tile)
+            end if
+        end do
+    end do
+
+ end subroutine init_atm_map_static_data
+
+
+!--------------------------------------------------------------------------------------------------
+! Terrain interpolation
+!--------------------------------------------------------------------------------------------------
+
+ !***********************************************************************
+ !
+ !  routine continuous_interp_criteria
+ !
+ !> \brief   Continuous dataset interpolation criteria
+ !> \author  Miles Curry
+ !> \date    25 January 2020
+ !> \details
+ !> This routine can be used to determine if the tile that contains iCell needs
+ !> to be loaded and processed by init_atm_map_static_data for continuous datasets.
+ !
+ !-----------------------------------------------------------------------
+ function continuous_interp_criteria(iCell)
+
+     integer, intent(in) :: iCell
+     logical :: continuous_interp_criteria
+
+     continuous_interp_criteria = .false.
+
+     if (nhs(iCell) == 0) then
+         continuous_interp_criteria = .true.
+     end if
+
+ end function continuous_interp_criteria
+
+
+ !***********************************************************************
+ !
+ !  routine terrain_interp_accumulation
+ !
+ !> \brief   Accumulate terrain dataset values
+ !> \author  Miles Curry
+ !> \date    25 January 2020
+ !> \details
+ !> This routine accumulates terrain values for the init_atm_map_static_data unified
+ !> function.
+ !
+ !-----------------------------------------------------------------------
+ subroutine terrain_interp_accumulation(iCell, pixel)
+
+     integer, intent(in) ::iCell
+     integer (kind=I8KIND), dimension(:), intent(in) :: pixel
+
+     ter_integer(iCell) = ter_integer(iCell) + int(pixel(1), kind=I8KIND)
+     nhs(iCell) = nhs(iCell) + 1
+
+ end subroutine terrain_interp_accumulation
+
+
+ !***********************************************************************
+ !
+ !  routine interp_terrain
+ !
+ !> \brief   Interpolate terrain
+ !> \author  Miles Curry
+ !> \date    25 January 2020
+ !> \details
+ !> Interpolate terrain by using the init_atm_map_static_data routine and
+ !> accumulating pixel values into cells using terrain_interp_accumulation.
+ !> mesh, should be a mpas_pool that contains ter and the nCells dimension. kdtree
+ !> should be a initialized kdtree of (xCell, yCell, zCell), and geog_data_path
+ !> should be the path to the terrain dataset.
+ !
+ !-----------------------------------------------------------------------
+ subroutine interp_terrain(mesh, kdtree, geog_data_path)
+
+    implicit none
+
+    ! Input variables
+    type (mpas_pool_type), intent(inout) :: mesh
+    type (mpas_kd_type), pointer, intent(in) :: kdtree
+    character (len=*), intent(in) :: geog_data_path
+
+    ! Local variables
+    type (mpas_geotile_mgr_type) :: mgr
+    integer, pointer :: nCells
+
+    real (kind=RKIND), dimension(:), pointer :: ter
+
+    real (kind=RKIND), pointer :: scalefactor
+
+    integer :: iCell
+    integer :: ierr
+
+    ierr = mgr % init(trim(geog_data_path))
+    if (ierr /= 0) then
+        call mpas_log_write("Error occurred initializing interpolation for "//trim(geog_data_path), messageType=MPAS_LOG_CRIT)
+        return ! Program execution should not reach this statement since the preceding message is a critical error
+    end if
+
+    call mpas_pool_get_dimension(mesh, 'nCells', nCells)
+    call mpas_pool_get_array(mesh, 'ter', ter)
+    call mpas_pool_get_config(mgr % pool, 'scale_factor', scalefactor)
+
+    allocate(ter_integer(nCells))
+    allocate(nhs(nCells))
+
+    !
+    ! Store tile values as a I8KIND integer temporarily to avoid floating
+    ! point round off differences and to have +/- 9.22x10^18 range of representative
+    ! values. For example, a 120 km mesh with a 1 meter data set with 6 decimal of
+    ! precision will allow for values of 180x10^12.
+    !
+    ter(:) = 0.0
+    ter_integer(:) = 0
+    nhs(:) = 0
+
+    call init_atm_map_static_data(mesh, mgr, kdtree, continuous_interp_criteria, terrain_interp_accumulation)
+
+    do iCell = 1, nCells
+       ter(iCell) = real(real(ter_integer(iCell), kind=R8KIND) / real(nhs(iCell), kind=R8KIND), kind=RKIND)
+       ter(iCell) = ter(iCell) * scalefactor
+    end do
+
+    deallocate(ter_integer)
+    deallocate(nhs)
+
+    ierr = mgr % finalize()
+    if (ierr /= 0) then
+        call mpas_log_write("Error occurred finalizing interpolation for "//trim(geog_data_path), messageType=MPAS_LOG_CRIT)
+        return ! Program execution should not reach this statement since the preceding message is a critical error
+    end if
+
+ end subroutine interp_terrain
+
+!--------------------------------------------------------------------------------------------------
+! Categorical interpolations - Landuse and Soiltype
+!--------------------------------------------------------------------------------------------------
+
+ !***********************************************************************
+ !
+ !  routine categorical_interp_criteria
+ !
+ !> \brief   Categorical dataset interp criteria
+ !> \author  Miles Curry
+ !> \date    25 January 2020
+ !> \details
+ !> This routine can be used to determine if the tile that contains iCell needs
+ !> to be loaded and processed by init_atm_map_static_data for categorical datasets.
+ !
+ !-----------------------------------------------------------------------
+ function categorical_interp_criteria(iCell)
+
+     integer, intent(in) :: iCell
+     logical :: categorical_interp_criteria
+
+     categorical_interp_criteria = .false.
+
+     if (all(ncat(:,iCell) == 0)) then
+         categorical_interp_criteria = .true.
+     end if
+
+ end function categorical_interp_criteria
+
+ !***********************************************************************
+ !
+ !  routine categorical_interp_accumulation
+ !
+ !> \brief   Accumulate categorical dataset values
+ !> \author  Miles Curry
+ !> \date    25 January 2020
+ !> \details
+ !> This routine accumulates categorical values for the init_atm_map_static_data unified
+ !> function.
+ !
+ !-----------------------------------------------------------------------
+ subroutine categorical_interp_accumulation(iCell, cat)
+
+     integer, intent(in) :: iCell
+     integer (kind=I8KIND), dimension(:), intent(in) :: cat
+     ! Use the module level category_min and category_max variables
+
+    !
+    ! Currently, the MODIS landuse dataset has zeros at the South Pole, and possibly other
+    ! places, so we need a check on the validity of the category to be accumulated.
+    !
+     if (cat(1) >= category_min .and. cat(1) <= category_max) then
+        ncat(cat(1), iCell) = ncat(cat(1), iCell) + 1
+     end if
+
+ end subroutine categorical_interp_accumulation
+
+ !***********************************************************************
+ !
+ !  routine interp_landuse
+ !
+ !> \brief   Interpolate landuse
+ !> \author  Miles Curry
+ !> \date    25 January 2020
+ !> \details
+ !> Interpolate landuse by using the init_atm_map_static_data routine and
+ !> accumulating the pixel values into each cell using categorical_interp_accumulation.
+ !>
+ !> mesh should be a mpas_pool that contains nCells and lu_index, kdtree should be an
+ !> initialized mpas_kd_type tree with (xCell, yCell, zCell), and geog_data_path
+ !> should be the path to the landuse dataset. The values used by this dataset to
+ !> specify water and ice values will be set in isice_lu, iswater_lu, assuming
+ !> that isice and iswater are in the dataset's index file.
+ !
+ !-----------------------------------------------------------------------
+ subroutine interp_landuse(mesh, kdtree, geog_data_path, isice_lu, iswater_lu)
+
+     implicit none
+
+     ! Input variables
+     type (mpas_pool_type), intent(inout) :: mesh
+     type (mpas_kd_type), pointer, intent(in) :: kdtree
+     character (len=*), intent(in) :: geog_data_path
+     integer, intent(out) :: isice_lu
+     integer, intent(out) :: iswater_lu
+
+     ! Local variables
+     type (mpas_geotile_mgr_type) :: mgr
+     integer, pointer :: nCells
+     integer, pointer :: isice_lu_ptr
+     integer, pointer :: iswater_lu_ptr
+
+     real (kind=RKIND), pointer :: scalefactor
+
+     integer :: iCell
+     integer :: ierr
+
+     ierr = mgr % init(trim(geog_data_path))
+     if (ierr /= 0) then
+         call mpas_log_write("Error occured initalizing interpolation for "//trim(geog_data_path), messageType=MPAS_LOG_CRIT)
+         return ! Program execution should not reach this statement since the preceding message is a critical error
+     end if
+
+     call mpas_pool_get_dimension(mesh, 'nCells', nCells)
+     call mpas_pool_get_array(mesh, 'lu_index', lu_index)
+     call mpas_pool_get_config(mgr % pool, 'scale_factor', scalefactor)
+     call mpas_pool_get_config(mgr % pool, 'category_min', category_min)
+     call mpas_pool_get_config(mgr % pool, 'category_max', category_max)
+     call mpas_pool_get_config(mgr % pool, 'isice', isice_lu_ptr)
+     call mpas_pool_get_config(mgr % pool, 'iswater', iswater_lu_ptr)
+
+     isice_lu = isice_lu_ptr
+     iswater_lu = iswater_lu_ptr
+
+     allocate(ncat(category_min:category_max, nCells))
+     ncat(:,:) = 0
+
+     call init_atm_map_static_data(mesh, mgr, kdtree, categorical_interp_criteria, categorical_interp_accumulation)
+
+     do iCell = 1, nCells
+         ! Because maxloc returns the location of the maximum value of an array as if the
+         ! starting index of the array is 1, and dataset categories do not necessarily start
+         ! at 1, we need to use category_min to ensure the correct category location is chosen.
+         lu_index(iCell) = maxloc(ncat(:,iCell), dim=1) - 1 + category_min
+     end do
+     deallocate(ncat)
+
+     ierr = mgr % finalize()
+     if (ierr /= 0) then
+         call mpas_log_write("Error occured finalizing interpolation for "//trim(geog_data_path), messageType=MPAS_LOG_CRIT)
+         return ! Program execution should not reach this statement since the preceding message is a critical error
+     end if
+
+     nullify(category_min)
+     nullify(category_max)
+
+ end subroutine interp_landuse
+
+ !***********************************************************************
+ !
+ !  routine interp_soilcat
+ !
+ !> \brief   Interpolate soiltop category
+ !> \author  Miles Curry
+ !> \date    25 January 2020
+ !> \details
+ !> Interpolate soil category top by using the init_atm_map_static_data routine and
+ !> accumulating the pixel values into each cell using category_interp_accumulation.
+ !>
+ !> mesh should be an mpas_pool that contains and lu_index, kdtree should be an
+ !> initialized mpas_kd_type tree with (xCell, yCell, zCell), and geog_data_path
+ !> should be the path to the landuse dataset.The values used by this dataset to
+ !> signify water will be set in iswater_soil, assuming that
+ !> iswater is present in the dataset's index file.
+ !>
+ !-----------------------------------------------------------------------
+ subroutine interp_soilcat(mesh, kdtree, geog_data_path, iswater_soil)
+
+     implicit none
+
+     ! Input variables
+     type (mpas_pool_type), intent(inout) :: mesh
+     type (mpas_kd_type), pointer, intent(in) :: kdtree
+     character (len=*), intent(in) :: geog_data_path
+     integer, intent(out) :: iswater_soil
+
+     ! Local variables
+     type (mpas_geotile_mgr_type) :: mgr
+     integer, pointer :: nCells
+     integer, pointer :: iswater_soil_ptr
+
+     real (kind=RKIND), pointer :: scalefactor
+
+     integer :: iCell
+     integer :: ierr
+
+     ierr = mgr % init(trim(geog_data_path))
+     if (ierr /= 0) then
+         call mpas_log_write("Error occured initalizing interpolation for "//trim(geog_data_path), messageType=MPAS_LOG_CRIT)
+         return
+     end if
+
+     call mpas_pool_get_dimension(mesh, 'nCells', nCells)
+     call mpas_pool_get_array(mesh, 'soilcat_top', soilcat_top)
+     call mpas_pool_get_config(mgr % pool, 'scale_factor', scalefactor)
+     call mpas_pool_get_config(mgr % pool, 'category_min', category_min)
+     call mpas_pool_get_config(mgr % pool, 'category_max', category_max)
+     call mpas_pool_get_config(mgr % pool, 'isoilwater', iswater_soil_ptr)
+
+     iswater_soil = iswater_soil_ptr
+
+     allocate(ncat(category_min:category_max, nCells))
+     ncat(:,:) = 0
+
+     call init_atm_map_static_data(mesh, mgr, kdtree, categorical_interp_criteria, categorical_interp_accumulation)
+
+     do iCell = 1, nCells
+        ! Because maxloc returns the location of the maximum value of an array as if the
+        ! starting index of the array is 1, and dataset categories do not necessarily start
+        ! at 1, we need to use category_min to ensure the correct category location is chosen.
+        soilcat_top(iCell) = maxloc(ncat(:,iCell), dim=1) - 1 + category_min
+     end do
+     deallocate(ncat)
+
+     ierr = mgr % finalize()
+     if (ierr /= 0) then
+         call mpas_log_write("Error occured finalizing interpolation for "//trim(geog_data_path), messageType=MPAS_LOG_CRIT)
+         return
+     end if
+
+     nullify(category_min)
+     nullify(category_max)
+
+ end subroutine interp_soilcat
+
+ !***********************************************************************
+ !
+ !  routine derive_landmask
+ !
+ !> \brief   Derive the landmask field
+ !> \details
+ !> Derive the landmask field from lu_index. mesh should be an mpas_pool
+ !> that contains landmask, and lu_index. iswater_lu should be the value that
+ !> the landuse dataset uses to signify water. Before calling this function,
+ !> the landuse dataset will need to be successfully interpolated to lu_index.
+ !
+ !-----------------------------------------------------------------------
+ subroutine derive_landmask(mesh, dims, iswater_lu)
+
+    implicit none
+
+    ! Input variables
+    type (mpas_pool_type), intent(inout) :: mesh
+    type (mpas_pool_type), intent(in) :: dims
+    integer, intent(in) :: iswater_lu
+
+    ! Local variables
+    integer :: iCell
+    integer, pointer :: nCells
+    integer, dimension(:), pointer :: lu_index
+
+    call mpas_pool_get_dimension(dims, 'nCells', nCells)
+    call mpas_pool_get_array(mesh, 'landmask', landmask)
+    call mpas_pool_get_array(mesh, 'lu_index', lu_index)
+
+    !
+    ! Derive LANDMASK
+    !
+    landmask(:) = 0
+    do iCell=1, nCells
+       if (lu_index(iCell) /= iswater_lu) landmask(iCell) = 1
+    end do
+
+ end subroutine derive_landmask
+
+ !***********************************************************************
+ !
+ !  routine interp_soiltemp
+ !
+ !> \brief   Interpolate soil temperature
+ !> \details
+ !> Interpolate soil temperature by using the soiltemp_1deg/ dataset. The mesh
+ !> pool should contain latCell, lonCell and soiltemp, dims should contain nCells,
+ !> and the configs pool should contain config_geog_data_path.
+ !
+ !-----------------------------------------------------------------------
+ subroutine interp_soiltemp(mesh, dims, configs)
+
+     implicit none
+
+     ! Input variables
+     type (mpas_pool_type), intent(inout) :: mesh
+     type (mpas_pool_type), intent(in) :: dims
+     type (mpas_pool_type), intent(in) :: configs
+
+     ! Local variables
+     type (proj_info) :: proj
+     character (len=StrKIND) :: fname
+     character (kind=c_char), dimension(StrKIND+1) :: c_fname
+     character(len=StrKIND), pointer :: config_geog_data_path
+     character(len=StrKIND+1) :: geog_data_path ! same as config_geog_data_path, but guaranteed to have a trailing slash
+     real (kind=c_float), dimension(:,:,:), pointer, contiguous :: rarray
+     real (kind=RKIND) :: scalefactor
+     real (kind=RKIND), dimension(:), pointer ::latCell, lonCell
+     real (kind=RKIND) :: lat, lon, x, y
+     real (kind=RKIND), dimension(:,:), allocatable  :: soiltemp_1deg
+     real (kind=RKIND), dimension(:), pointer :: soiltemp
+     integer :: i, iCell
+     integer, pointer :: nCells
+     integer, dimension(5) :: interp_list
+     integer (c_int) :: endian, isigned, istatus, wordsize
+     integer (c_int) :: nx, ny, nz
+     type (c_ptr) :: rarray_ptr
+
+     call mpas_pool_get_dimension(dims, 'nCells', nCells)
+     call mpas_pool_get_array(mesh, 'latCell', latCell)
+     call mpas_pool_get_array(mesh, 'lonCell', lonCell)
+     call mpas_pool_get_array(mesh, 'soiltemp', soiltemp)
+     call mpas_pool_get_config(configs, 'config_geog_data_path', config_geog_data_path)
+
+     write(geog_data_path, '(a)') config_geog_data_path
+     i = len_trim(geog_data_path)
+     if (geog_data_path(i:i) /= '/') then
+        geog_data_path(i+1:i+1) = '/'
+     end if
+
+     nx = 186
+     ny = 186
+     nz = 1
+     isigned  = 0
+     endian   = 0
+     wordsize = 2
+     scalefactor = 0.01
+     allocate(rarray(nx,ny,nz))
+     allocate(soiltemp_1deg(-2:363,-2:183))
+     soiltemp(:) = 0.0
+
+     rarray_ptr = c_loc(rarray)
+
+     call map_set(PROJ_LATLON, proj,  &
+                  latinc = 1.0_RKIND, &
+                  loninc = 1.0_RKIND, &
+                  knowni = 1.0_RKIND, &
+                  knownj = 1.0_RKIND, &
+                  lat1 = -89.5_RKIND, &
+                  lon1 = -179.5_RKIND)
+
+     write(fname,'(a,i5.5,a1,i5.5,a1,i5.5,a1,i5.5)') trim(geog_data_path)// &
+           'soiltemp_1deg/',1,'-',180,'.',1,'-',180
+     call mpas_log_write(trim(fname))
+     call mpas_f_to_c_string(fname, c_fname)
+
+     call read_geogrid(c_fname,rarray_ptr,nx,ny,nz,isigned, endian, &
+                       wordsize,istatus)
+     call init_atm_check_read_error(istatus, fname)
+     rarray(:,:,:) = rarray(:,:,:) * real(scalefactor, kind=c_float)
+     soiltemp_1deg(-2:180,-2:183) = rarray(1:183,1:186,1)
+
+     write(fname,'(a,i5.5,a1,i5.5,a1,i5.5,a1,i5.5)') trim(geog_data_path)// &
+                'soiltemp_1deg/',181,'-',360,'.',1,'-',180
+     call mpas_log_write(trim(fname))
+     call mpas_f_to_c_string(fname, c_fname)
+
+     call read_geogrid(c_fname,rarray_ptr,nx,ny,nz,isigned,endian, &
+                       wordsize,istatus)
+     call init_atm_check_read_error(istatus,fname)
+     rarray(:,:,:) = rarray(:,:,:) * real(scalefactor, kind=c_float)
+     soiltemp_1deg(181:363,-2:183) = rarray(4:186,1:186,1)
+
+     interp_list(1) = FOUR_POINT
+     interp_list(2) = W_AVERAGE4
+     interp_list(3) = W_AVERAGE16
+     interp_list(4) = SEARCH
+     interp_list(5) = 0
+
+     do iCell = 1,nCells
+        if(landmask(iCell) == 1) then
+           lat = latCell(iCell) * DEG_PER_RAD
+           lon = lonCell(iCell) * DEG_PER_RAD
+           call latlon_to_ij(proj, lat, lon, x, y)
+           if(x < 0.5) then
+              lon = lon + 360.0
+              call latlon_to_ij(proj, lat, lon, x, y)
+           else if (x >= 360.5) then
+              lon = lon - 360.0
+              call latlon_to_ij(proj, lat, lon, x, y)
+           end if
+           if (y < 1.0) y = 1.0
+           if (y > 179.0) y = 179.0
+           soiltemp(iCell) = interp_sequence(x,y,1,soiltemp_1deg,-2,363,-2,183, &
+                                               1,1,0.0_RKIND,interp_list,1)
+        else
+           soiltemp(iCell) = 0.0
+        end if
+
+     end do
+     deallocate(rarray)
+     deallocate(soiltemp_1deg)
+
+ end subroutine interp_soiltemp
 
 !==================================================================================================
  subroutine init_atm_check_read_error(istatus, fname)
@@ -1327,145 +1950,39 @@ if (rarray(i,j,1) == 0) cycle
 
  end function sphere_distance
 
+!==================================================================================================
+ real (kind=RKIND) function max_cell_diameter(nCells, nEdgesOnCell, verticesOnCell, latCell, lonCell, &
+                                              latVertex, lonVertex, sphere_radius) result(max_diameter)
 
-!-----------------------------------------------------------------------
-!  routine mirror_point
-!
-!> \brief Finds the "mirror" of a point about a great-circle arc
-!> \author Michael Duda
-!> \date   7 March 2019
-!> \details
-!>  Given the endpoints of a great-circle arc (A,B) and a point, computes
-!>  the location of the point on the opposite side of the arc along a great-
-!>  circle arc that intersects (A,B) at a right angle, and such that the arc
-!>  between the point and its mirror is bisected by (A,B).
-!>
-!>  Assumptions: A, B, and the point to be reflected all lie on the surface
-!>  of the unit sphere.
-!
-!-----------------------------------------------------------------------
-subroutine mirror_point(xPoint, yPoint, zPoint, xA, yA, zA, xB, yB, zB, xMirror, yMirror, zMirror)
+! Calculate upper bound on maximum diameter of any cell in block owned by this task
+!==================================================================================================
+ implicit none
 
-   implicit none
+ ! Arguments
+ integer, intent(in) :: nCells
+ integer, dimension(:), intent(in) :: nEdgesOnCell
+ integer, dimension(:,:), intent(in) :: verticesOnCell
+ real(kind=RKIND), dimension(:), intent(in) :: latCell, lonCell
+ real(kind=RKIND), dimension(:), intent(in) :: latVertex, lonVertex
+ real(kind=RKIND), intent(in) :: sphere_radius
 
-   real(kind=RKIND), intent(in) :: xPoint, yPoint, zPoint
-   real(kind=RKIND), intent(in) :: xA, yA, zA
-   real(kind=RKIND), intent(in) :: xB, yB, zB
-   real(kind=RKIND), intent(out) :: xMirror, yMirror, zMirror
-
-   real(kind=RKIND) :: alpha
-
-   !
-   ! Find the spherical angle between arcs AP and AB (where P is the point to be reflected)
-   !
-   alpha = sphere_angle(xA, yA, zA, xPoint, yPoint, zPoint, xB, yB, zB)
-
-   !
-   ! Rotate the point to be reflected by twice alpha about the vector from the origin to A
-   !
-   call rotate_about_vector(xPoint, yPoint, zPoint, 2.0_RKIND * alpha, 0.0_RKIND, 0.0_RKIND, 0.0_RKIND, &
-                            xA, yA, zA, xMirror, yMirror, zMirror)
-
-end subroutine mirror_point
+ ! Local variables
+ integer :: iCell, j
 
 
-!-----------------------------------------------------------------------
-!  routine rotate_about_vector
-!
-!> \brief Rotates a point about a vector in R3
-!> \author Michael Duda
-!> \date   7 March 2019
-!> \details
-!>  Rotates the point (x,y,z) through an angle theta about the vector
-!>  originating at (a, b, c) and having direction (u, v, w).
-!
-!>  Reference: https://sites.google.com/site/glennmurray/Home/rotation-matrices-and-formulas/rotation-about-an-arbitrary-axis-in-3-dimensions
-!
-!-----------------------------------------------------------------------
-subroutine rotate_about_vector(x, y, z, theta, a, b, c, u, v, w, xp, yp, zp)
+ max_diameter = 0.0_RKIND
+ do iCell = 1, nCells
+    do j = 1, nEdgesOnCell(iCell)
+       max_diameter = max(max_diameter, &
+                          sphere_distance(latCell(iCell), lonCell(iCell), &
+                                          latVertex(verticesOnCell(j,iCell)), lonVertex(verticesOnCell(j,iCell)), &
+                                          sphere_radius))
+    end do
+ end do
 
-   implicit none
+ max_diameter = 2.0_RKIND * max_diameter
 
-   real (kind=RKIND), intent(in) :: x, y, z, theta, a, b, c, u, v, w
-   real (kind=RKIND), intent(out) :: xp, yp, zp
-
-   real (kind=RKIND) :: vw2, uw2, uv2
-   real (kind=RKIND) :: m
-
-   vw2 = v**2.0 + w**2.0
-   uw2 = u**2.0 + w**2.0
-   uv2 = u**2.0 + v**2.0
-   m = sqrt(u**2.0 + v**2.0 + w**2.0)
-
-   xp = (a*vw2 + u*(-b*v-c*w+u*x+v*y+w*z) + ((x-a)*vw2+u*(b*v+c*w-v*y-w*z))*cos(theta) + m*(-c*v+b*w-w*y+v*z)*sin(theta))/m**2.0
-   yp = (b*uw2 + v*(-a*u-c*w+u*x+v*y+w*z) + ((y-b)*uw2+v*(a*u+c*w-u*x-w*z))*cos(theta) + m*( c*u-a*w+w*x-u*z)*sin(theta))/m**2.0
-   zp = (c*uv2 + w*(-a*u-b*v+u*x+v*y+w*z) + ((z-c)*uv2+w*(a*u+b*v-u*x-v*y))*cos(theta) + m*(-b*u+a*v-v*x+u*y)*sin(theta))/m**2.0
-
-end subroutine rotate_about_vector
-
-
-!-----------------------------------------------------------------------
-!  routine in_cell
-!
-!> \brief Determines whether a point is within a Voronoi cell
-!> \author Michael Duda
-!> \date   7 March 2019
-!> \details
-!>  Given a point on the surface of the sphere, the corner points of a Voronoi
-!>  cell, and the generating point for that Voronoi cell, determines whether
-!>  the given point is within the Voronoi cell.
-!
-!-----------------------------------------------------------------------
-logical function in_cell(xPoint, yPoint, zPoint, xCell, yCell, zCell, &
-                         nEdgesOnCell, verticesOnCell, xVertex, yVertex, zVertex)
-
-   use mpas_geometry_utils, only : mpas_arc_length
-
-   implicit none
-
-   real(kind=RKIND), intent(in) :: xPoint, yPoint, zPoint
-   real(kind=RKIND), intent(in) :: xCell, yCell, zCell
-   integer, intent(in) :: nEdgesOnCell
-   integer, dimension(:), intent(in) :: verticesOnCell
-   real(kind=RKIND), dimension(:), intent(in) :: xVertex, yVertex, zVertex
-
-   integer :: i
-   integer :: vtx1, vtx2
-   real(kind=RKIND) :: xNeighbor, yNeighbor, zNeighbor
-   real(kind=RKIND) :: inDist, outDist
-   real(kind=RKIND) :: radius
-   real(kind=RKIND) :: radius_inv
-
-   radius = sqrt(xCell * xCell + yCell * yCell + zCell * zCell)
-   radius_inv = 1.0_RKIND / radius
-
-   inDist = mpas_arc_length(xPoint, yPoint, zPoint, xCell, yCell, zCell)
-
-   in_cell = .true.
-
-   do i=1,nEdgesOnCell
-      vtx1 = verticesOnCell(i)
-      vtx2 = verticesOnCell(mod(i,nEdgesOnCell)+1)
-
-      call mirror_point(xCell*radius_inv, yCell*radius_inv, zCell*radius_inv, &
-                        xVertex(vtx1)*radius_inv, yVertex(vtx1)*radius_inv, zVertex(vtx1)*radius_inv, &
-                        xVertex(vtx2)*radius_inv, yVertex(vtx2)*radius_inv, zVertex(vtx2)*radius_inv, &
-                        xNeighbor, yNeighbor, zNeighbor)
-
-      xNeighbor = xNeighbor * radius
-      yNeighbor = yNeighbor * radius
-      zNeighbor = zNeighbor * radius
-
-      outDist = mpas_arc_length(xPoint, yPoint, zPoint, xNeighbor, yNeighbor, zNeighbor)
-
-      if (outDist < inDist) then
-         in_cell = .false.
-         return
-      end if
-
-   end do
-
-end function in_cell
+ end function max_cell_diameter
 
 
 !==================================================================================================
