@@ -308,9 +308,6 @@
                                                              frcurb_hv
 
 
-   call mpas_log_write(' ')
-   call mpas_log_write('--- enter subroutine ysu:')
-
    do j = jts,jte
 !
       !  Assign input data to local tile-sized arrays.
