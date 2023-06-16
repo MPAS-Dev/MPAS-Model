@@ -478,7 +478,6 @@
     ust_urb_p(i,j)    = 0._RKIND
     utype_urb_p(i,j)  = 0
 
-    if(swddir_p(i,j).gt.0.) call mpas_log_write('--- sw: $i $r $r',intArgs=(/i/),realArgs=(/swddir_p(i,j),swddif_p(i,j)/))
  enddo
  enddo
 
