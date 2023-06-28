@@ -1634,8 +1634,8 @@
                 <var name="vorticity" type="real" dimensions="nVertLevels nVertices Time" units="s^{-1}"
                      description="Relative vorticity at vertices"/>
 
-                <var name="pv_edge" type="real" dimensions="nVertLevels nEdges Time" units="s^{-1} kg^{-1} m^3"
-                     description="absolute vorticity/rho_zz averaged to the cell edge from the vertices"/>
+                <var name="pv_edge" type="real" dimensions="nVertLevels nEdges Time" units="s^{-1}"
+                     description="absolute vertical vorticity averaged to the cell edge from the vertices"/>
 
                 <var name="rho_edge" type="real" dimensions="nVertLevels nEdges Time" units="kg m^{-3}"
                      description="rho_zz averaged from cell centers to the cell edge"/>
@@ -1643,11 +1643,11 @@
                 <var name="ke" type="real" dimensions="nVertLevels nCells Time" units="m^2 s^{-2}"
                      description="Kinetic energy at a cell center"/>
 
-                <var name="pv_vertex" type="real" dimensions="nVertLevels nVertices Time" units="s^{-1} kg^{-1} m^3"
-                     description="absolute vorticity/rho_zz at a vertex"/>
+                <var name="pv_vertex" type="real" dimensions="nVertLevels nVertices Time" units="s^{-1}"
+                     description="absolute vertical vorticity at a vertex"/>
 
-                <var name="pv_cell" type="real" dimensions="nVertLevels nCells Time" units="s^{-1} kg^{-1} m^3"
-                     description="absolute vorticity/rho_zz averaged to the cell center from the vertices"/>
+                <var name="pv_cell" type="real" dimensions="nVertLevels nCells Time" units="s^{-1}"
+                     description="absolute vertical vorticity averaged to the cell center from the vertices"/>
 
                 <var name="dtheta_dt_mp" type="real" dimensions="nVertLevels nCells Time" units="K s^{-1}"
                      description="Potential temperature heating rate from microphysics"/>
