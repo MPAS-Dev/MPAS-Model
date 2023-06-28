@@ -1360,10 +1360,10 @@
                      description="Reciprocal dzu"/>
 
                 <var name="fzm" type="real" dimensions="nVertLevels" units="unitless"
-                     description="Weight for linear interpolation to w(k) point for u(k) level variable"/>
+                     description="Weight for interpolation to w(k) point for u(k) level variable"/>
 
                 <var name="fzp" type="real" dimensions="nVertLevels" units="unitless"
-                     description="Weight for linear interpolation to w(k) point for u(k-1) level variable"/>
+                     description="Weight for interpolation to w(k) point for u(k-1) level variable"/>
 
                 <var name="zxu" type="real" dimensions="nVertLevels nEdges" units="unitless"
                      description="dz/dx on horizontal coordinate surfaces at u levels"/>
