@@ -1791,8 +1791,8 @@
                 <var name="tend_theta" name_in_code="theta_m" type="real" dimensions="nVertLevels nCells Time" units="kg K m^{-3} s^{-1}"
                      description="tendency of coupled potential temperature rho*theta_m/zz from dynamics and physics, updated each RK step"/>
 
-                <var name="rt_diabatic_tend" type="real" dimensions="nVertLevels nCells Time" units="kg K s^{-1}"
-                     description="Tendency of coupled potential temperature from physics"/>
+                <var name="rt_diabatic_tend" type="real" dimensions="nVertLevels nCells Time" units="K s^{-1}"
+                     description="Tendency of modified potential temperature due to cloud microphysics"/>
 
                 <var name="euler_tend_u" name_in_code="u_euler" type="real" dimensions="nVertLevels nEdges Time" units="m s^{-2}"
                      description="Tendency of u from dynamics"/>
