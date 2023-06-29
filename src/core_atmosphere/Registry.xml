@@ -2950,7 +2950,7 @@
 
         <var_struct name="tend_physics" time_levs="1">
 
-                <var name="tend_ru_physics" type="real" dimensions="nVertLevels nEdges Time" units="kg m^{-2} s^{-1}"
+                <var name="tend_ru_physics" type="real" dimensions="nVertLevels nEdges Time" units="kg m^{-2} s^{-2}"
                      description="Total horizontal momentum tendency from physics"
                      persistence="scratch" />
 
