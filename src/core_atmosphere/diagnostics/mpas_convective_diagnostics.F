@@ -5,10 +5,10 @@
 ! Additional copyright and license information can be found in the LICENSE file
 ! distributed with this code, or at http://mpas-dev.github.com/license.html
 !
-module convective_diagnostics
+module mpas_convective_diagnostics
 
     use mpas_derived_types, only : MPAS_pool_type, MPAS_clock_type, MPAS_LOG_ERR, MPAS_LOG_CRIT
-    use mpas_kind_types, only : RKIND
+    use mpas_kind_types, only : RKIND, R8KIND
     use mpas_log, only : mpas_log_write
 
     type (MPAS_pool_type), pointer :: mesh
@@ -669,7 +669,7 @@ module convective_diagnostics
     real (kind=RKIND) :: th1,p1,t1,qv1,ql1,qi1,b1,pi1,thv1,qt,dp,dz,ps,frac
     real (kind=RKIND) :: th2,p2,t2,qv2,ql2,qi2,b2,pi2,thv2
     real (kind=RKIND) :: thlast,fliq,fice,tbar,qvbar,qlbar,qibar,lhv,lhs,lhf,rm,cpm
-    real*8 :: avgth,avgqv
+    real (kind=R8KIND) :: avgth,avgqv
 !    real (kind=RKIND) :: getqvs,getqvi,getthe
 
 !-----------------------------------------------------------------------
@@ -1096,4 +1096,4 @@ module convective_diagnostics
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 !-----------------------------------------------------------------------
 
-end module convective_diagnostics
+end module mpas_convective_diagnostics

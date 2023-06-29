@@ -82,7 +82,9 @@
 !   Laura D. Fowler (laura@ucar.edu) / 2017-02-10.
 ! * since we removed the local variable radt_sw_scheme from mpas_atmphys_vars.F, now defines radt_sw_scheme
 !   as a pointer to config_radt_sw_scheme.
-!   Laura D. Fowler (laura@ucar.edu) / 2917-02-16.
+!   Laura D. Fowler (laura@ucar.edu) / 2017-02-16.
+! * added the variables swddir,swddni,swddif for use in the updated version of the Noah LSM.
+!   Laura D. Fowler (laura@ucar.edu) / 2023-04-21.
 
 
  contains
@@ -144,6 +146,10 @@
        if(.not.allocated(swvisdif_p)   ) allocate(swvisdif_p(ims:ime,jms:jme)              )
        if(.not.allocated(swnirdir_p)   ) allocate(swnirdir_p(ims:ime,jms:jme)              )
        if(.not.allocated(swnirdif_p)   ) allocate(swnirdif_p(ims:ime,jms:jme)              )
+
+       if(.not.allocated(swddir_p)     ) allocate(swddir_p(ims:ime,jms:jme)                )
+       if(.not.allocated(swddni_p)     ) allocate(swddni_p(ims:ime,jms:jme)                )
+       if(.not.allocated(swddif_p)     ) allocate(swddif_p(ims:ime,jms:jme)                )
 
        if(.not.allocated(swdnflx_p)    ) allocate(swdnflx_p(ims:ime,kms:kme+1,jms:jme)     )
        if(.not.allocated(swdnflxc_p)   ) allocate(swdnflxc_p(ims:ime,kms:kme+1,jms:jme)    )
@@ -249,6 +255,14 @@
        if(allocated(alswvisdif_p) ) deallocate(alswvisdif_p )
        if(allocated(alswnirdir_p) ) deallocate(alswnirdir_p )
        if(allocated(alswnirdif_p) ) deallocate(alswnirdif_p )
+       if(allocated(swvisdir_p)   ) deallocate(swvisdir_p   )
+       if(allocated(swvisdif_p)   ) deallocate(swvisdif_p   )
+       if(allocated(swnirdir_p)   ) deallocate(swnirdir_p   )
+       if(allocated(swnirdif_p)   ) deallocate(swnirdif_p   )
+
+       if(allocated(swddir_p)     ) deallocate(swddir_p     )
+       if(allocated(swddni_p)     ) deallocate(swddni_p     )
+       if(allocated(swddif_p)     ) deallocate(swddif_p     )
 
        if(allocated(swdnflx_p)    ) deallocate(swdnflx_p    )
        if(allocated(swdnflxc_p)   ) deallocate(swdnflxc_p   )
@@ -400,6 +414,9 @@
     swupbc_p(i,j)   = 0.0_RKIND
     swupt_p(i,j)    = 0.0_RKIND
     swuptc_p(i,j)   = 0.0_RKIND
+    swddir_p(i,j)   = 0.0_RKIND
+    swddni_p(i,j)   = 0.0_RKIND
+    swddif_p(i,j)   = 0.0_RKIND
  enddo
 
  do k = kts,kte
@@ -589,10 +606,13 @@
 
 !local pointers:
  real(kind=RKIND),dimension(:),pointer  :: coszr,gsw,swcf,swdnb,swdnbc,swdnt,swdntc, &
-                                           swupb,swupbc,swupt,swuptc
+                                           swupb,swupbc,swupt,swuptc,swddir,swddni,  &
+                                           swddif
  real(kind=RKIND),dimension(:,:),pointer:: rthratensw
 
 !-----------------------------------------------------------------------------------------------------------------
+!call mpas_log_write(' ')
+!call mpas_log_write('--- enter subroutine radiation_sw_to_MPAS:')
 
  call mpas_pool_get_array(diag_physics,'coszr'     ,coszr     )
  call mpas_pool_get_array(diag_physics,'gsw'       ,gsw       )
@@ -602,9 +622,12 @@
  call mpas_pool_get_array(diag_physics,'swdnt'     ,swdnt     )
  call mpas_pool_get_array(diag_physics,'swdntc'    ,swdntc    )
  call mpas_pool_get_array(diag_physics,'swupb'     ,swupb     )
- call mpas_pool_get_array(diag_physics,'swupbc'    , swupbc   )
+ call mpas_pool_get_array(diag_physics,'swupbc'    ,swupbc    )
  call mpas_pool_get_array(diag_physics,'swupt'     ,swupt     )
  call mpas_pool_get_array(diag_physics,'swuptc'    ,swuptc    )
+ call mpas_pool_get_array(diag_physics,'swddir'    ,swddir    )
+ call mpas_pool_get_array(diag_physics,'swddni'    ,swddni    )
+ call mpas_pool_get_array(diag_physics,'swddif'    ,swddif    )
  call mpas_pool_get_array(tend_physics,'rthratensw',rthratensw)
 
  do j = jts,jte
@@ -621,6 +644,9 @@
     swupbc(i) = swupbc_p(i,j)
     swupt(i)  = swupt_p(i,j)
     swuptc(i) = swuptc_p(i,j)
+    swddir(i) = swddir_p(i,j)
+    swddni(i) = swddni_p(i,j)
+    swddif(i) = swddif_p(i,j)
  enddo
 
  do k = kts,kte
@@ -630,6 +656,9 @@
  enddo
 
  enddo
+
+!call mpas_log_write('--- enter subroutine radiation_sw_to_MPAS:')
+!call mpas_log_write(' ')
 
  end subroutine radiation_sw_to_MPAS
 
@@ -760,6 +789,7 @@
               re_snow    = resnow_p     , swupt      = swupt_p       , swuptc   = swuptc_p , &
               swdnt      = swdnt_p      , swdntc     = swdntc_p      , swupb    = swupb_p  , &
               swupbc     = swupbc_p     , swdnb      = swdnb_p       , swdnbc   = swdnbc_p , &
+              swddir     = swddir_p     , swddni     = swddni_p      , swddif   = swddif_p , &
               ids = ids , ide = ide , jds = jds , jde = jde , kds = kds , kde = kde ,        &
               ims = ims , ime = ime , jms = jms , jme = jme , kms = kms , kme = kme ,        &
               its = its , ite = ite , jts = jts , jte = jte , kts = kts , kte = kte          &

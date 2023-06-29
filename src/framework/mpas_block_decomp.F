@@ -98,7 +98,6 @@ module mpas_block_decomp
 
         if (dminfo % my_proc_id == IO_NODE) then
 
-           iunit = 50 + dminfo % my_proc_id
            if (dminfo % total_blocks < 10) then
               write(filename,'(a,i1)') trim(blockFilePrefix), dminfo % total_blocks
            else if (dminfo % total_blocks < 100) then
@@ -117,6 +116,7 @@ module mpas_block_decomp
               write(filename,'(a,i8)') trim(blockFilePrefix), dminfo % total_blocks
            end if
 
+           call mpas_new_unit(iunit)
            open(unit=iunit, file=trim(filename), form='formatted', status='old', iostat=istatus)
 
            if (istatus /= 0) then
@@ -194,6 +194,7 @@ module mpas_block_decomp
                                    global_start, local_nvertices, global_list, local_block_list)
 
            close(unit=iunit)
+           call mpas_release_unit(iunit)
 
         else
 
@@ -661,7 +662,6 @@ module mpas_block_decomp
          allocate(block_counter(dminfo % nProcs))
          block_counter = 0
 
-         iounit = 51 + dminfo % my_proc_id
          if (dminfo % nProcs < 10) then
             write(filename,'(a,i1)') trim(procFilePrefix), dminfo % nProcs
          else if (dminfo % nProcs < 100) then
@@ -678,6 +678,7 @@ module mpas_block_decomp
             write(filename,'(a,i7)') trim(procFilePrefix), dminfo % nProcs
          end if        
 
+         call mpas_new_unit(iounit)
          open(unit=iounit, file=trim(filename), form='formatted', status='old', iostat=istatus)
 
          do i=1,dminfo % total_blocks
@@ -690,6 +691,7 @@ module mpas_block_decomp
          end do
 
          close(unit=iounit)
+         call mpas_release_unit(iounit)
          deallocate(block_counter)
          call mpas_dmpar_bcast_ints(dminfo, dminfo % total_blocks, dminfo % block_proc_list)
          call mpas_dmpar_bcast_ints(dminfo, dminfo % total_blocks, dminfo % block_local_id_list)

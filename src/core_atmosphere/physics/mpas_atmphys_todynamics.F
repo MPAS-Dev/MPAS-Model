@@ -43,13 +43,26 @@
 !   Laura D. Fowler (laura@ucar.edu) / 2016-03-22.
 ! * modified the sourcecode to accomodate the packages "cu_kain_fritsch_in" and "cu_tiedtke_in".
 !   Laura D. Fowler (laura@ucar.edu) / 2016-03-24.
-! * added the calculation of rthdynten which is the tendency of potential temperature due to horizontal and
-!   vertical advections needed in the Grell-Freitas scheme.
-!   Laura D. Fowler (laura@ucar.edu) / 2016-03-30.
 ! * added the option bl_mynn for the calculation of the tendency for the cloud ice number concentration.
 !   Laura D. Fowler (laura@ucar.edu) / 2016-04-11.
 ! * in subroutine physics_get_tend_work, added the option cu_ntiedtke in the calculation of rucuten_Edge.
 !   Laura D. Fowler (laura@ucar.edu) / 2016-10-28.
+
+ !
+ ! Abstract interface for routine used to communicate halos of fields
+ ! in a named group
+ !
+ abstract interface
+    subroutine halo_exchange_routine(domain, halo_group, ierr)
+
+       use mpas_derived_types, only : domain_type
+
+       type (domain_type), intent(inout) :: domain
+       character(len=*), intent(in) :: halo_group
+       integer, intent(out), optional :: ierr
+
+    end subroutine halo_exchange_routine
+ end interface
 
 
  contains
@@ -57,7 +70,7 @@
  
 !=================================================================================================================
  subroutine physics_get_tend( block, mesh, state, diag, tend, tend_physics, configs, rk_step, dynamics_substep, &
-                              tend_ru_physics, tend_rtheta_physics, tend_rho_physics )
+                              tend_ru_physics, tend_rtheta_physics, tend_rho_physics, exchange_halo_group )
 !=================================================================================================================
    
  use mpas_atm_dimensions
@@ -69,6 +82,7 @@
  type(mpas_pool_type),intent(in):: configs
  integer, intent(in):: rk_step
  integer, intent(in):: dynamics_substep
+ procedure (halo_exchange_routine) :: exchange_halo_group
 
 !inout variables:
  type(mpas_pool_type),intent(inout):: diag
@@ -97,11 +111,9 @@
                                            rqrcuten,rqicuten,rqscuten, &
                                            rucuten,rvcuten
  real(kind=RKIND),dimension(:,:),pointer:: rthratenlw,rthratensw                                    
- real(kind=RKIND),dimension(:,:),pointer:: rthdynten
  
- real(kind=RKIND),dimension(:,:),pointer:: tend_rtheta_adv
  real(kind=RKIND),dimension(:,:),pointer:: tend_u_phys !nick
- real(kind=RKIND),dimension(:,:),pointer  :: tend_theta,tend_theta_euler,tend_diabatic,tend_u
+ real(kind=RKIND),dimension(:,:),pointer  :: tend_theta,tend_theta_euler,tend_u
  real(kind=RKIND),dimension(:,:,:),pointer:: tend_scalars
  real(kind=RKIND):: coeff
 
@@ -126,8 +138,6 @@
  call mpas_pool_get_array(state, 'scalars', scalars, 1)
  call mpas_pool_get_array(state, 'rho_zz', mass, 2)
  call mpas_pool_get_array(diag , 'rho_edge', mass_edge)
-
- call mpas_pool_get_array(diag , 'tend_rtheta_adv', tend_rtheta_adv)
 
  call mpas_pool_get_array(diag , 'tend_u_phys', tend_u_phys) !nick
 
@@ -157,9 +167,6 @@
  call mpas_pool_get_array(tend_physics, 'rqrcuten', rqrcuten)
  call mpas_pool_get_array(tend_physics, 'rqicuten', rqicuten)
  call mpas_pool_get_array(tend_physics, 'rqscuten', rqscuten)
- call mpas_pool_get_array(tend_physics, 'rthdynten', rthdynten)
-
- call mpas_pool_get_array(tend,'rt_diabatic_tend',tend_diabatic)
 
  call mpas_pool_get_array(tend_physics, 'rthratenlw', rthratenlw)
  call mpas_pool_get_array(tend_physics, 'rthratensw', rthratensw)
@@ -192,7 +199,6 @@
  if (.not. associated(rqrcuten)) allocate(rqrcuten(0,0))
  if (.not. associated(rqscuten)) allocate(rqscuten(0,0))
  if (.not. associated(rniblten)) allocate(rniblten(0,0))
- if (.not. associated(rthdynten)) allocate(rthdynten(0,0))
  if (.not. associated(rublten)) allocate(rublten(0,0))
  if (.not. associated(rvblten)) allocate(rvblten(0,0))
  if (.not. associated(rthblten)) allocate(rthblten(0,0))
@@ -213,11 +219,12 @@
                            rucuten, rvcuten, rucuten_Edge, &
                            tend_th, tend_scalars, mass, rthblten, rqvblten, rqcblten, rqiblten, rniblten, &
                            rthcuten, rqvcuten, rqccuten, rqrcuten, rqicuten, rqscuten, &
-                           rthratenlw, rthratensw, rthdynten, &
-                           tend_u_phys, tend_rtheta_adv, tend_diabatic, &
+                           rthratenlw, rthratensw, &
+                           tend_u_phys, &
                            theta_m, scalars, &
                            tend_rtheta_physics, &
-                           tend_theta_euler &
+                           tend_theta_euler, &
+                           exchange_halo_group &
                            )
 
  !
@@ -229,7 +236,6 @@
  if (size(rqrcuten) == 0) deallocate(rqrcuten)
  if (size(rqscuten) == 0) deallocate(rqscuten)
  if (size(rniblten) == 0) deallocate(rniblten)
- if (size(rthdynten) == 0) deallocate(rthdynten)
  if (size(rublten) == 0) deallocate(rublten)
  if (size(rvblten) == 0) deallocate(rvblten)
  if (size(rthblten) == 0) deallocate(rthblten)
@@ -270,9 +276,10 @@
                                  rucuten, rvcuten, rucuten_Edge, &
                                  tend_th, tend_scalars, mass, rthblten, rqvblten, rqcblten, rqiblten, rniblten, &
                                  rthcuten, rqvcuten, rqccuten, rqrcuten, rqicuten, rqscuten, &
-                                 rthratenlw, rthratensw, rthdynten, &
-                                 tend_u_phys, tend_rtheta_adv, tend_diabatic, &
-                                 theta_m, scalars, tend_theta, tend_theta_euler &
+                                 rthratenlw, rthratensw, &
+                                 tend_u_phys, &
+                                 theta_m, scalars, tend_theta, tend_theta_euler, &
+                                 exchange_halo_group &
                                 )
 !==================================================================================================
 
@@ -313,14 +320,12 @@
     real (kind=RKIND), dimension(nVertLevels,nCells+1), intent(in) :: rqscuten
     real (kind=RKIND), dimension(nVertLevels,nCells+1), intent(in) :: rthratenlw
     real (kind=RKIND), dimension(nVertLevels,nCells+1), intent(in) :: rthratensw
-    real (kind=RKIND), dimension(nVertLevels,nCells+1), intent(inout) :: rthdynten
     real (kind=RKIND), dimension(nVertLevels,nEdges+1), intent(inout) :: tend_u_phys
-    real (kind=RKIND), dimension(nVertLevels,nCells+1), intent(in) :: tend_rtheta_adv
-    real (kind=RKIND), dimension(nVertLevels,nCells+1), intent(in) :: tend_diabatic
     real (kind=RKIND), dimension(nVertLevels,nCells+1), intent(in) :: theta_m
     real (kind=RKIND), dimension(num_scalars,nVertLevels,nCells+1), intent(in) :: scalars
     real (kind=RKIND), dimension(nVertLevels,nCells+1), intent(inout) :: tend_theta
     real (kind=RKIND), dimension(nVertLevels,nCells+1), intent(in) :: tend_theta_euler
+    procedure (halo_exchange_routine) :: exchange_halo_group
 
     integer :: i, k
     real (kind=RKIND) :: coeff
@@ -328,6 +333,7 @@
     !add coupled tendencies due to PBL processes:
     if (config_pbl_scheme .ne. 'off') then
        if (rk_step == 1 .and. dynamics_substep == 1) then
+          call exchange_halo_group(block % domain, 'physics:blten')
           call tend_toEdges(block,mesh,rublten,rvblten,rublten_Edge)
 
           !MGD for PV budget? should a similar line be in the cumulus section below?
@@ -388,6 +394,7 @@
     
            case('cu_tiedtke','cu_ntiedtke')
               if (rk_step == 1 .and. dynamics_substep == 1) then
+                 call exchange_halo_group(block % domain, 'physics:cuten')
                  call tend_toEdges(block,mesh,rucuten,rvcuten,rucuten_Edge)
                  
                  tend_u_phys(1:nVertLevels,1:nEdges) = tend_u_phys(1:nVertLevels,1:nEdges) &
@@ -448,14 +455,11 @@
  real(kind=RKIND),intent(out),dimension(:,:):: U_tend
 
 !local variables:
- type (field2DReal), pointer :: tempField
- type (field2DReal), target :: tempFieldTarget
  integer:: iCell,iEdge,k,j
  integer:: cell1, cell2
  integer,pointer:: nCells,nCellsSolve,nEdges
  integer,dimension(:,:),pointer:: cellsOnEdge
 
- real(kind=RKIND),dimension(:,:),pointer:: Ux_tend_halo,Uy_tend_halo
  real(kind=RKIND), dimension(:,:), pointer :: east, north, edgeNormalVectors
 
  
@@ -471,42 +475,22 @@
 
  call mpas_pool_get_array(mesh, 'cellsOnEdge', cellsOnEdge)
 
- Ux_tend_halo => Ux_tend
- Uy_tend_halo => Uy_tend
-
- tempField => tempFieldTarget 
- tempField % block => block
- tempField % dimSizes(1) = nVertLevels
- tempField % dimSizes(2) = nCellsSolve
- tempField % sendList => block % parinfo % cellsToSend
- tempField % recvList => block % parinfo % cellsToRecv
- tempField % copyList => block % parinfo % cellsToCopy
- tempField % prev => null()
- tempField % next => null()
- tempField % isActive = .true.
-
- tempField % array => Ux_tend_halo
- call mpas_dmpar_exch_halo_field(tempField)
- 
- tempField % array => Uy_tend_halo
- call mpas_dmpar_exch_halo_field(tempField)
-
  do iEdge = 1, nEdges
     cell1 = cellsOnEdge(1,iEdge)
     cell2 = cellsOnEdge(2,iEdge)
                            
-    U_tend(:,iEdge) =  Ux_tend_halo(:,cell1) * 0.5 * (edgeNormalVectors(1,iEdge) * east(1,cell1)   &
-                                                   +  edgeNormalVectors(2,iEdge) * east(2,cell1)   &
-                                                   +  edgeNormalVectors(3,iEdge) * east(3,cell1))  &
-                     + Uy_tend_halo(:,cell1) * 0.5 * (edgeNormalVectors(1,iEdge) * north(1,cell1)   &
-                                                   +  edgeNormalVectors(2,iEdge) * north(2,cell1)   &
-                                                   +  edgeNormalVectors(3,iEdge) * north(3,cell1))  &
-                     + Ux_tend_halo(:,cell2) * 0.5 * (edgeNormalVectors(1,iEdge) * east(1,cell2)   &
-                                                   +  edgeNormalVectors(2,iEdge) * east(2,cell2)   &
-                                                   +  edgeNormalVectors(3,iEdge) * east(3,cell2))  &
-                     + Uy_tend_halo(:,cell2) * 0.5 * (edgeNormalVectors(1,iEdge) * north(1,cell2)   &
-                                                   +  edgeNormalVectors(2,iEdge) * north(2,cell2)   &
-                                                   +  edgeNormalVectors(3,iEdge) * north(3,cell2))
+    U_tend(:,iEdge) =  Ux_tend(:,cell1) * 0.5 * (edgeNormalVectors(1,iEdge) * east(1,cell1)   &
+                                              +  edgeNormalVectors(2,iEdge) * east(2,cell1)   &
+                                              +  edgeNormalVectors(3,iEdge) * east(3,cell1))  &
+                     + Uy_tend(:,cell1) * 0.5 * (edgeNormalVectors(1,iEdge) * north(1,cell1)   &
+                                              +  edgeNormalVectors(2,iEdge) * north(2,cell1)   &
+                                              +  edgeNormalVectors(3,iEdge) * north(3,cell1))  &
+                     + Ux_tend(:,cell2) * 0.5 * (edgeNormalVectors(1,iEdge) * east(1,cell2)   &
+                                              +  edgeNormalVectors(2,iEdge) * east(2,cell2)   &
+                                              +  edgeNormalVectors(3,iEdge) * east(3,cell2))  &
+                     + Uy_tend(:,cell2) * 0.5 * (edgeNormalVectors(1,iEdge) * north(1,cell2)   &
+                                              +  edgeNormalVectors(2,iEdge) * north(2,cell2)   &
+                                              +  edgeNormalVectors(3,iEdge) * north(3,cell2))
  end do
  
  end subroutine tend_toEdges

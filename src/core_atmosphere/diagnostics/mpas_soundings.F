@@ -5,7 +5,7 @@
 ! Additional copyright and license information can be found in the LICENSE file
 ! distributed with this code, or at http://mpas-dev.github.com/license.html
 !
-module soundings
+module mpas_soundings
 
     use mpas_kind_types, only : RKIND, StrKIND
     use mpas_derived_types, only : MPAS_pool_type, MPAS_clock_type
@@ -50,11 +50,12 @@ module soundings
     !-----------------------------------------------------------------------
     subroutine soundings_setup(configs, all_pools, simulation_clock, dminfo)
 
-        use mpas_derived_types, only : MPAS_pool_type, MPAS_clock_type, dm_info
-        use mpas_pool_routines, only : mpas_pool_get_subpool, mpas_pool_get_dimension, mpas_pool_get_array, mpas_pool_get_config
+        use mpas_derived_types, only : MPAS_pool_type, MPAS_clock_type, dm_info, MPAS_POOL_SILENT
+        use mpas_pool_routines, only : mpas_pool_get_subpool, mpas_pool_get_dimension, mpas_pool_get_array, mpas_pool_get_config, &
+                                       mpas_pool_get_error_level, mpas_pool_set_error_level
         use mpas_io_units, only :  mpas_new_unit, mpas_release_unit
-        use mpas_timekeeping, only : MPAS_timeInterval_type, MPAS_time_type, MPAS_set_timeInterval, &
-                                     MPAS_get_clock_time, MPAS_add_clock_alarm, MPAS_NOW
+        use mpas_derived_types, only : MPAS_Time_type, MPAS_TimeInterval_type, MPAS_NOW
+        use mpas_timekeeping, only : MPAS_set_timeInterval, MPAS_get_clock_time, MPAS_add_clock_alarm
         use mpas_dmpar, only : IO_NODE, mpas_dmpar_bcast_int, mpas_dmpar_bcast_logical, mpas_dmpar_bcast_char
 
         implicit none
@@ -67,6 +68,7 @@ module soundings
         character(len=StrKIND), pointer :: soundingInterval
 
         integer :: i, ierr
+        integer :: err_level
         integer :: sndUnit
         real (kind=RKIND) :: station_lat, station_lon
         character (len=StrKIND) :: tempstr
@@ -87,8 +89,30 @@ module soundings
         call mpas_pool_get_subpool(all_pools, 'state', state)
         call mpas_pool_get_subpool(all_pools, 'diag', diag)
 
+        !
+        ! Query the config_sounding_interval namelist option without triggering
+        ! warning messages if no such option exists
+        !
+        nullify(soundingInterval)
+        err_level = mpas_pool_get_error_level()
+        call mpas_pool_set_error_level(MPAS_POOL_SILENT)
         call mpas_pool_get_config(configs, 'config_sounding_interval', soundingInterval)
+        call mpas_pool_set_error_level(err_level)
 
+        !
+        ! If the config_sounding_interval namelist option was not found, just return
+        ! This may happen if MPAS-A is built within another system where, e.g., only
+        ! dynamics namelist options are available
+        !
+        if (.not. associated(soundingInterval)) then
+            call mpas_log_write('config_sounding_interval is not a namelist option...')
+            return
+        end if
+
+        !
+        ! If the config_sounding_interval namelist option is 'none', no soundings
+        ! will to be produced
+        !
         if (trim(soundingInterval) == 'none') then
             return
         end if
@@ -205,9 +229,10 @@ module soundings
 
         use mpas_derived_types, only : MPAS_pool_type
         use mpas_pool_routines, only : MPAS_pool_get_dimension, MPAS_pool_get_array
-        use mpas_timekeeping, only : MPAS_time_type, MPAS_is_alarm_ringing, MPAS_reset_clock_alarm, MPAS_get_clock_time, &
-                                     MPAS_get_time, MPAS_NOW
+        use mpas_derived_types, only : MPAS_Time_type, MPAS_NOW
+        use mpas_timekeeping, only : MPAS_is_alarm_ringing, MPAS_reset_clock_alarm, MPAS_get_clock_time, MPAS_get_time
         use mpas_constants, only : rvord
+        use mpas_io_units, only: mpas_new_unit, mpas_release_unit
 
         implicit none
 
@@ -220,6 +245,7 @@ module soundings
         type (MPAS_time_type) :: now
         character(len=StrKIND) :: nowString
         integer :: yyyy, mm, dd, h, m, s
+        integer :: sndUnit
         character(len=StrKIND) :: fname
         character(len=10) :: stid
 
@@ -247,16 +273,17 @@ module soundings
 !                    call mpas_log_write('Writing sounding for station '//trim(stationNames(iStn)))
 
                     write(fname,'(a,i4.4,i2.2,i2.2,i2.2,i2.2,a)') trim(stationNames(iStn))//'.', yyyy, mm, dd, h, m, '.snd'
-                    open(97,file=trim(fname),form='formatted',status='replace')
+                    call mpas_new_unit(sndUnit)
+                    open(sndUnit,file=trim(fname),form='formatted',status='replace')
 
                     write(stid,'(a)') trim(stationNames(iStn))
 
-                    write(97,'(a)') '  SNPARM = PRES;HGHT;TMPC;DWPC;DRCT;SPED;'
-                    write(97,'(a)') ''
-                    write(97,'(a,i2.2,i2.2,i2.2,a,i2.2,i2.2)') ' STID = '//stid//'  STNM = 99999       TIME = ', mod(yyyy,100), mm, dd,'/', h, m
-                    write(97,'(a,f6.2,a,f7.2,a)') ' SLAT = ', stationLats(iStn), '      SLON = ', stationLons(iStn), '     SELV =    -999'
-                    write(97,'(a)') ''
-                    write(97,'(a)') '      PRES      HGHT     TMPC     DWPC     DRCT     SPED'
+                    write(sndUnit,'(a)') '  SNPARM = PRES;HGHT;TMPC;DWPC;DRCT;SPED;'
+                    write(sndUnit,'(a)') ''
+                    write(sndUnit,'(a,i2.2,i2.2,i2.2,a,i2.2,i2.2)') ' STID = '//stid//'  STNM = 99999       TIME = ', mod(yyyy,100), mm, dd,'/', h, m
+                    write(sndUnit,'(a,f6.2,a,f7.2,a)') ' SLAT = ', stationLats(iStn), '      SLON = ', stationLons(iStn), '     SELV =    -999'
+                    write(sndUnit,'(a)') ''
+                    write(sndUnit,'(a)') '      PRES      HGHT     TMPC     DWPC     DRCT     SPED'
 
                     do k=1,nVertLevels
                         tmpc = theta_m(k,stationCells(iStn)) / (1.0_RKIND + rvord * scalars(index_qv,k,stationCells(iStn))) * exner(k,stationCells(iStn))
@@ -281,7 +308,7 @@ module soundings
                             end if
                             dir = dir * 180.0_RKIND / pi_const
                         end if
-                        write(97,'(f10.2,f10.2,f9.2,f9.2,f9.2,f9.2)') &
+                        write(sndUnit,'(f10.2,f10.2,f9.2,f9.2,f9.2,f9.2)') &
                                     pres, &
                                     0.5 * (zgrid(k,stationCells(iStn)) + zgrid(k+1,stationCells(iStn))), &               ! Avg to layer midpoint
                                     tmpc, &
@@ -290,7 +317,8 @@ module soundings
                                     spd
                     end do
 
-                    close(97)
+                    close(sndUnit)
+                    call mpas_release_unit(sndUnit)
                 end if
             end do
 
@@ -463,4 +491,4 @@ module soundings
 
       END FUNCTION RSIF
 
-end module soundings
+end module mpas_soundings

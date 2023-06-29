@@ -13,6 +13,14 @@ module mpas_atm_boundaries
     use mpas_pool_routines, only : mpas_pool_get_array, mpas_pool_get_dimension, mpas_pool_get_subpool, mpas_pool_shift_time_levels
     use mpas_kind_types, only : RKIND, StrKIND
     use mpas_timekeeping, only : mpas_get_clock_time, mpas_get_timeInterval, mpas_set_time, operator(-)
+#ifdef __NVCOMPILER
+    !
+    ! Some versions of the nvfortran compiler complain about the illegal use
+    ! of an operator on a derived type if the following specific
+    ! implementation of the (-) operator is not explicitly imported
+    !
+    use mpas_timekeeping, only : sub_t_t
+#endif
 
     ! Important note: At present, the code in mpas_atm_setup_bdy_masks for
     ! deriving the nearestRelaxationCell field assumes that nSpecZone == 2
