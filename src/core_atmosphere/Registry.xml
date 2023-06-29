@@ -1350,13 +1350,13 @@
                 <var name="zgrid" type="real" dimensions="nVertLevelsP1 nCells" units="m MSL"
                      description="Geometric height of layer interfaces"/>
 
-                <var name="rdzw" type="real" dimensions="nVertLevels" units="unitless"
+                <var name="rdzw" type="real" dimensions="nVertLevels" units="m^{-1}"
                      description="Reciprocal dzw"/>
 
-                <var name="dzu" type="real" dimensions="nVertLevels" units="unitless"
+                <var name="dzu" type="real" dimensions="nVertLevels" units="m"
                      description="d(zeta) at w levels"/>
 
-                <var name="rdzu" type="real" dimensions="nVertLevels" units="unitless"
+                <var name="rdzu" type="real" dimensions="nVertLevels" units="m^{-1}"
                      description="Reciprocal dzu"/>
 
                 <var name="fzm" type="real" dimensions="nVertLevels" units="unitless"
