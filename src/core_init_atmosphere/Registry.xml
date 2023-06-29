@@ -842,15 +842,15 @@
                      description="Geometric height of layer interfaces"
                      packages="vertical_stage_out;met_stage_out"/>
 
-                <var name="rdzw" type="real" dimensions="nVertLevels" units="unitless"
+                <var name="rdzw" type="real" dimensions="nVertLevels" units="m^{-1}"
                      description="Reciprocal dzw"
                      packages="vertical_stage_out;met_stage_out"/>
 
-                <var name="dzu" type="real" dimensions="nVertLevels" units="unitless"
+                <var name="dzu" type="real" dimensions="nVertLevels" units="m"
                      description="d(zeta) at w levels"
                      packages="vertical_stage_out;met_stage_out"/>
 
-                <var name="rdzu" type="real" dimensions="nVertLevels" units="unitless"
+                <var name="rdzu" type="real" dimensions="nVertLevels" units="m^{-1}"
                      description="Reciprocal dzu"
                      packages="vertical_stage_out;met_stage_out"/>
 
