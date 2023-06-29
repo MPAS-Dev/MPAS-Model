@@ -1303,10 +1303,10 @@
                 <var name="kiteAreasOnVertex" type="real" dimensions="vertexDegree nVertices" units="m^2"
                      description="Intersection areas between primal (Voronoi) and dual (triangular) mesh cells"/>
 
-                <var name="fEdge" type="real" dimensions="nEdges" units="unitless"
+                <var name="fEdge" type="real" dimensions="nEdges" units="s^{-1}"
                      description="Coriolis parameter at an edge"/>
 
-                <var name="fVertex" type="real" dimensions="nVertices" units="unitless"
+                <var name="fVertex" type="real" dimensions="nVertices" units="s^{-1}"
                      description="Coriolis parameter at a vertex"/>
 
                 <var name="meshDensity" type="real" dimensions="nCells" units="unitless"
