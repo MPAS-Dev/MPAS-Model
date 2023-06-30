@@ -91,10 +91,11 @@ module test_core_field_tests
       integer :: threadNum
 
       iErr = 0
+      threadErrs = 0
 
-      threadNum = mpas_threading_get_thread_num()
+      threadNum = mpas_threading_get_thread_num() + 1
 
-      if ( threadNum == 0 ) then
+      if ( threadNum == 1 ) then
          allocate(srcList)
          nullify(destList)
 
