@@ -124,8 +124,8 @@ print(f"Working directory: {work_dir}")
 # ## DEFINE PARAMETERS FOR NAMELIST.INIT ##
 # define grid
 grid_name = "petropolis_250-1km"
-grid_dir = f"{work_dir}/grids/grids/res250-1km_rad250km/"
-graph_file_path =  f"{grid_dir}/res250-1km_rad250km_graph.info.part"
+grid_dir = f"{work_dir}/grids/grids/res250-1km_rad200km/"
+graph_file_path =  f"{grid_dir}/res250-1km_rad200km_graph.info.part"
 
 # benchmarks options
 b_main_dir_name = args.name
