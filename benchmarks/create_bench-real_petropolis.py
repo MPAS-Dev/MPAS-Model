@@ -129,7 +129,7 @@ graph_file_path =  os.path.join(grid_dir, "res250-1km_rad250km_graph.info.part")
 
 # benchmarks options
 b_main_dir_name = args.name
-b_main_dir =  f"{work_dir}/benchmarks/{b_main_dir_name}")
+b_main_dir =  f"{work_dir}/benchmarks/{b_main_dir_name}"
 b_name = f"{grid_name}.physics-test"
 b_dir = f"{b_main_dir}/{b_name}"
 print(f"\nName of main benchmark directory: {b_main_dir_name}, directory: {b_main_dir}")
