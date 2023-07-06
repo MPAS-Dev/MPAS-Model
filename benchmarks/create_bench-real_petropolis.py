@@ -124,7 +124,7 @@ print(f"\nWorking directory: {work_dir}")
 # ## DEFINE PARAMETERS FOR NAMELIST.INIT ##
 # define grid
 grid_name = "petropolis_250-1km"
-grid_dir = f"{work_dir}/grids/grids/petropolis_250-1km/"
+grid_dir = f"{work_dir}/grids/grids/res250-1km_rad250km/"
 graph_file_path =  os.path.join(grid_dir, "res250-1km_rad250km_graph.info.part")
 
 # benchmarks options
