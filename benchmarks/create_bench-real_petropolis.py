@@ -187,7 +187,7 @@ def static_interp():
 
     str_init_opt = {"input":{}, "output":{}}
 
-    str_init_opt["input"]["filename_template"] = os.path.join({grid_dir}, f"{grid_name}.grid.nc")
+    str_init_opt["input"]["filename_template"] = os.path.join(grid_dir, f"{grid_name}.grid.nc")
     str_init_opt["output"]["filename_template"] = os.path.join(b_dir, f"/init/{b_name}.static.nc")
     str_init_opt["output"]["clobber_mode"] = "overwrite"
 
