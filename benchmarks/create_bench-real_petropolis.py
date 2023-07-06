@@ -125,7 +125,7 @@ print(f"\nWorking directory: {work_dir}")
 # define grid
 grid_name = "petropolis_250-1km"
 grid_dir = f"{work_dir}/grids/grids/res250-1km_rad250km/"
-graph_file_path =  os.path.join(grid_dir, "res250-1km_rad250km_graph.info.part")
+graph_file_path =  f"{grid_dir}/res250-1km_rad250km_graph.info.part"
 
 # benchmarks options
 b_main_dir_name = args.name
@@ -133,7 +133,7 @@ b_main_dir =  f"{work_dir}/benchmarks/{b_main_dir_name}"
 b_name = f"{grid_name}.physics-test"
 b_dir = f"{b_main_dir}/{b_name}"
 print(f"\nName of main benchmark directory: {b_main_dir_name}, directory: {b_main_dir}")
-print(f"\nbenchmarks name: {b_name}, directory: {b_dir}")
+print(f"\nBenchmarks name: {b_name}, directory: {b_dir}")
 
 # define dates in format: 'YYYY-MM-DD_hh:mm:ss'
 init_date = '2022-02-15_00:00:00'
@@ -190,8 +190,8 @@ def static_interp():
 
     str_init_opt = {"input":{}, "output":{}}
 
-    str_init_opt["input"]["filename_template"] = os.path.join(grid_dir, f"{grid_name}.grid.nc")
-    str_init_opt["output"]["filename_template"] = os.path.join(b_dir, f"/init/{b_name}.static.nc")
+    str_init_opt["input"]["filename_template"] = f"{grid_dir}/{grid_name}.grid.nc"
+    str_init_opt["output"]["filename_template"] = f"{b_dir}/init/{b_name}.static.nc"
     str_init_opt["output"]["clobber_mode"] = "overwrite"
 
     return nml_init_opts, b_dir, str_init_opt
@@ -223,8 +223,8 @@ def init_interp():
     
     str_init_opt = {"input":{}, "output":{}}
 
-    str_init_opt["input"]["filename_template"] = os.path.join({grid_dir}, f"{grid_name}.static.nc")
-    str_init_opt["output"]["filename_template"] = os.path.join(b_dir, f"/init/{b_name}.init.nc")
+    str_init_opt["input"]["filename_template"] = f"{grid_dir}/{grid_name}.static.nc"
+    str_init_opt["output"]["filename_template"] = f"{b_dir}/init/{b_name}.init.nc"
     str_init_opt["output"]["clobber_mode"] = "overwrite"
 
     return nml_init_opts, b_dir, str_init_opt
@@ -258,11 +258,11 @@ def sfc_update():
     str_init_opt = {"input":{}, "output":{}, "surface":{}}
 
     # Setup grid and init file
-    str_init_opt["input"]["filename_template"] = os.path.join({grid_dir}, f"{grid_name}.static.nc")
-    str_init_opt["output"]["filename_template"] = os.path.join(b_dir, f"/init/{b_name}.init.nc")
+    str_init_opt["input"]["filename_template"] = f"{grid_dir}/{grid_name}.static.nc"
+    str_init_opt["output"]["filename_template"] = f"{b_dir}/init/{b_name}.init.nc"
     str_init_opt["output"]["clobber_mode"] = "overwrite"    
     # Setup surface update file
-    str_init_opt["surface"]["filename_template"] = os.path.join(b_dir, f"/init/{b_name}.sfc_update.nc")
+    str_init_opt["surface"]["filename_template"] = f"{b_dir}/init/{b_name}.sfc_update.nc"
     str_init_opt["surface"]["filename_interval"] = str(sfc_interval)
     str_init_opt["surface"]["output_interval"] = str(sfc_interval)
     str_init_opt["surface"]["clobber_mode"] = "overwrite"
@@ -285,7 +285,7 @@ def run(par1,par2):
     nml_opts["physics"]["config_microp_scheme"] = par1
     nml_opts["physics"]["config_convection_scheme"] = par2
         
-    b_full_name = os.path.join(b_dir, f"run.{b_name}.microp_{par1}.cu_{par2}")
+    b_full_name = f"{b_dir}/run.{b_name}.microp_{par1}.cu_{par2}"
 
     str_opt = {
         "input":{},
@@ -294,13 +294,13 @@ def run(par1,par2):
         "diagnostics" : {},
         "surface" : {}}
     
-    str_opt["input"]["filename_template"] = os.path.join(b_dir, f"/init/{b_name}.init.nc")
-    str_opt["output"]["filename_template"] = os.path.join(b_full_name, "/history.$Y-$M-$D_$h.$m.$s.nc")
+    str_opt["input"]["filename_template"] = f"{b_dir}/init/{b_name}.init.nc"
+    str_opt["output"]["filename_template"] = f"{b_full_name}/history.$Y-$M-$D_$h.$m.$s.nc"
     str_opt["output"]["output_interval"] = "1:00:00"
-    str_opt["surface"]["filename_template"] = os.path.join(b_dir, f"/init/{b_name}.sfc_update.nc")
+    str_opt["surface"]["filename_template"] = f"{b_dir}/init/{b_name}.sfc_update.nc"
     str_opt["surface"]["filename_interval"] = str(sfc_interval)
     str_opt["surface"]["input_interval"] = str(sfc_interval)
-    str_opt["diagnostics"]["filename_template"] = os.path.join(b_full_name, "/diag.nc")
+    str_opt["diagnostics"]["filename_template"] = f"{b_full_name}/diag.nc"
     str_opt["diagnostics"]["output_interval"] = "3:00:00"
     str_opt["diagnostics"]["clobber_mode"] = "overwrite"
     
