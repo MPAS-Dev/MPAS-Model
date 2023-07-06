@@ -116,38 +116,50 @@ import mpas_benchmarks_RealCase as bench
 # Get args: init or run core
 args = bench.call_parser()
 
-
 # Workspace
 work_dir = os.getenv('MPAS_DIR')
-b_name = args.name
-b_main_dir = work_dir+"/benchmarks/"+b_name
 
 # 1 ===========================================================================
 # ## DEFINE PARAMETERS FOR NAMELIST.INIT ##
 # define grid
 grid_name = "petropolis_250-1km"
-grid_dir = work_dir+"/grids/grids/petropolis_250-1km/"
+grid_dir = os.path.join(work_dir, "/grids/grids/petropolis_250-1km/")
+graph_file_path =  os.path.join(grid_dir, "res250-1km_rad250km_graph.info.part")
+
+# benchmarks options
+b_name = args.name
+b_main_dir =  os.path.join(work_dir, f"/benchmarks/{b_name}")
+b_name = f"{grid_name}.physics-test"
+b_dir = f"{b_main_dir}/{b_name}"
+
 # define dates in format: 'YYYY-MM-DD_hh:mm:ss'
 init_date = '2022-02-15_00:00:00'
 run_duration = '1_00:00:00'
 len_disp = 100.0
 n_vert_levels = 72
+
 # path to geographical data
 geog_data_path = '/p1-nemo/danilocs/mpas/mpas_tutorial/geog/'
+
 # prefix used to generate intermediatie files with ungrib.exe
 met_prefix = 'ERA5'
 sfc_prefix = 'SST'
+
 # Interval of the SST files
 sfc_interval = 21600
+
 # Model timestep
 dt = 6
+
 # SST Update on or off
 sst_update = True
 
 # 2 ===========================================================================
 ## LOOP OVER DESIRED OPTIONS ##
+
 # Microphysics parametrization choice
 loop_parameter1 = ['mp_thompson','mp_thompson','mp_wsm6']
+
 # Convective parametrization choice
 loop_parameter2 = ["cu_ntiedtke",'cu_tiedtke', 'cu_ntiedtke']
 
@@ -164,8 +176,7 @@ def static_interp():
     nml_init_opts["dimensions"]["config_nfglevels"] = 1
     nml_init_opts["dimensions"]["config_nfgsoillevels"] = 1
     ## Be careful to path to files for land files!! ##
-    nml_init_opts["data_sources"]["config_geog_data_path"] = \
-        '/p1-nemo/danilocs/mpas/mpas_tutorial/geog/'
+    nml_init_opts["data_sources"]["config_geog_data_path"] = geog_data_path
     # Enable and disable steps of pre-processing fields
     nml_init_opts["preproc_stages"]["config_static_interp"] = True
     nml_init_opts["preproc_stages"]["config_native_gwd_static"] = True
@@ -174,14 +185,10 @@ def static_interp():
     nml_init_opts["preproc_stages"]["config_input_sst"] = False
     nml_init_opts["preproc_stages"]["config_frac_seaice"] = False
 
-    b_name = grid_name+".petropolis_physics-test"
-
-    b_dir = b_main_dir+"/"+b_name
-
     str_init_opt = {"input":{}, "output":{}}
 
-    str_init_opt["input"]["filename_template"] = grid_dir+"/"+grid_name+".grid.nc"
-    str_init_opt["output"]["filename_template"] = b_dir+"/init/"+b_name+".static.nc"
+    str_init_opt["input"]["filename_template"] = os.path.join({grid_dir}, f"{grid_name}.grid.nc")
+    str_init_opt["output"]["filename_template"] = os.path.join(b_dir, f"/init/{b_name}.static.nc")
     str_init_opt["output"]["clobber_mode"] = "overwrite"
 
     return nml_init_opts, b_dir, str_init_opt
@@ -210,18 +217,12 @@ def init_interp():
     nml_init_opts["preproc_stages"]["config_input_sst"] = False
     nml_init_opts["preproc_stages"]["config_frac_seaice"] = False
     # Decomposition file for running in parallel
-    nml_init_opts["decomposition"]["config_block_decomp_file_prefix"] = \
-        grid_dir+grid_name+'.graph.info.part.'
-
-    b_name = grid_name+".physics-test"
-
-    b_dir = b_main_dir+"/"+b_name
+    nml_init_opts["decomposition"]["config_block_decomp_file_prefix"] = graph_file_path
     
-
     str_init_opt = {"input":{}, "output":{}}
 
-    str_init_opt["input"]["filename_template"] = b_dir+"/init/"+b_name+".static.nc"
-    str_init_opt["output"]["filename_template"] = b_dir+"/init/"+b_name+".init.nc"
+    str_init_opt["input"]["filename_template"] = os.path.join({grid_dir}, f"{grid_name}.static.nc")
+    str_init_opt["output"]["filename_template"] = os.path.join(b_dir, f"/init/{b_name}.init.nc")
     str_init_opt["output"]["clobber_mode"] = "overwrite"
 
     return nml_init_opts, b_dir, str_init_opt
@@ -251,22 +252,16 @@ def sfc_update():
     nml_init_opts["preproc_stages"]["config_input_sst"] = True
     nml_init_opts["preproc_stages"]["config_frac_seaice"] = True
     # Decomposition file for running in parallel
-    nml_init_opts["decomposition"]["config_block_decomp_file_prefix"] = \
-        grid_dir+grid_name+'.graph.info.part.'
-
-    b_name = grid_name+".petropolis_physics-test"
-
-    b_dir = b_main_dir+"/"+b_name
+    nml_init_opts["decomposition"]["config_block_decomp_file_prefix"] = graph_file_path
 
     str_init_opt = {"input":{}, "output":{}, "surface":{}}
 
     # Setup grid and init file
-    str_init_opt["input"]["filename_template"] = b_dir+"/init/"+b_name+".static.nc"
-    str_init_opt["output"]["filename_template"] = b_dir+"/init/"+b_name+".init.nc"
+    str_init_opt["input"]["filename_template"] = os.path.join({grid_dir}, f"{grid_name}.static.nc")
+    str_init_opt["output"]["filename_template"] = os.path.join(b_dir, f"/init/{b_name}.init.nc")
     str_init_opt["output"]["clobber_mode"] = "overwrite"    
     # Setup surface update file
-    str_init_opt["surface"]["filename_template"] = \
-        b_dir+"/init/"+b_name+".sfc_update.nc"
+    str_init_opt["surface"]["filename_template"] = os.path.join(b_dir, f"/init/{b_name}.sfc_update.nc")
     str_init_opt["surface"]["filename_interval"] = str(sfc_interval)
     str_init_opt["surface"]["output_interval"] = str(sfc_interval)
     str_init_opt["surface"]["clobber_mode"] = "overwrite"
@@ -284,8 +279,7 @@ def run(par1,par2):
     nml_opts["nhyd_model"]["config_run_duration"] = run_duration
     nml_opts["nhyd_model"]["config_len_disp"] = len_disp
     nml_opts["nhyd_model"]["config_visc4_2dsmag"] = 0.05
-    nml_opts["decomposition"]["config_block_decomp_file_prefix"] =\
-        grid_dir+"/"+grid_name+".graph.info.part."
+    nml_opts["decomposition"]["config_block_decomp_file_prefix"] = graph_file_path
     nml_opts["physics"]["config_sst_update"] = sst_update
     nml_opts["physics"]["config_microp_scheme"] = par1
     nml_opts["physics"]["config_convection_scheme"] = par2
