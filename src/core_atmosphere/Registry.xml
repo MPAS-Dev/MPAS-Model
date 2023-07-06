@@ -2962,6 +2962,9 @@
                      description="Total dry air tendency from physics"
                      persistence="scratch" />
 
+                <var name="rthdynten" type="real" dimensions="nVertLevels nCells Time" units="K s^{-1}"
+                     description="tendency of temperature due to horizontal and vertical advections"/>
+
                 <!-- Scratch variables used when propagating cell-centered winds to edges -->
                 <var name="tend_uzonal" type="real" dimensions="nVertLevels nCells Time" units="m s^{-1} s^{-1}"
                      description="Total cell-centered zonal wind tendency from physics"
@@ -3005,10 +3008,6 @@
                 <!-- TIEDTKE AND GRELL -->
                 <var name="rqvdynten" type="real" dimensions="nVertLevels nCells Time" units="kg kg^{-1} s^{-1}"
                      description="tendency of water vapor due to horizontal and vertical advections"
-                     packages="cu_grell_freitas_in;cu_tiedtke_in"/>
-
-                <var name="rthdynten" type="real" dimensions="nVertLevels nCells Time" units="K s^{-1}"
-                     description="tendency of temperature due to horizontal and vertical advections"
                      packages="cu_grell_freitas_in;cu_tiedtke_in"/>
 
                 <var name="rucuten" type="real" dimensions="nVertLevels nCells Time" units="m s^{-1} s^{-1}"
