@@ -65,5 +65,19 @@ stream_list.*
 # Python cache
 /pycache/*
 */pycache/*
+benchmarks/__pycache__/*
+grids/utilities/jigsaw/__pycache__/*
+post_proc/py/geometry_lat_lon_2d_plot/__pycache__/*
 
 src/core_*/inc
+.DS_Store
+
+# Ignore figures generated
+grids/utilities/jigsaw/Catarina_250-8km/*e.png
+post_proc/py/geometry_lat_lon_2d_plot/*.png
+grids/utilities/jigsaw/Catarina_250-8km/*.png
+
+# ignore grids generated
+grids/utilities/jigsaw/Catarina_250-8km/
+grids/utilities/jigsaw/test
+post_proc/py/geometry_lat_lon_2d_plot/patches
