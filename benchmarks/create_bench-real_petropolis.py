@@ -311,6 +311,7 @@ def run(par1,par2):
 if args.static:
     opts = static_interp()
     nml_init_opts, b_dir, str_init_opt = opts[0], opts[1], opts[2]
+    print(f"benchmark directory: {b_dir}")
     b_init = bench.Bench(args, dummy_string="Init", b_dir=b_dir)
     b_init.set_options(nml_init_opts, str_init_opt, f"{b_dir}/init")
     print("Benchmark dir:", b_dir)
