@@ -213,7 +213,7 @@ def init_interp():
     nml_init_opts["decomposition"]["config_block_decomp_file_prefix"] = \
         grid_dir+grid_name+'.graph.info.part.'
 
-    b_name = grid_name+".petropolis_physics-test"
+    b_name = grid_name+".physics-test"
 
     b_dir = b_main_dir+"/"+b_name
     
