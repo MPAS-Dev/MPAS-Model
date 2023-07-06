@@ -127,10 +127,12 @@ grid_dir = os.path.join(work_dir, "/grids/grids/petropolis_250-1km/")
 graph_file_path =  os.path.join(grid_dir, "res250-1km_rad250km_graph.info.part")
 
 # benchmarks options
-b_name = args.name
-b_main_dir =  os.path.join(work_dir, f"./benchmarks/{b_name}")
+b_main_dir_name = args.name
+b_main_dir =  os.path.join(work_dir, f"/benchmarks/{b_main_dir_name}")
 b_name = f"{grid_name}.physics-test"
 b_dir = f"{b_main_dir}/{b_name}"
+print(f"Name of main benchmark directory: {b_main_dir_name}, directory: {b_main_dir}")
+print(f"benchmarks name: {b_name}, directory: {b_dir}")
 
 # define dates in format: 'YYYY-MM-DD_hh:mm:ss'
 init_date = '2022-02-15_00:00:00'
