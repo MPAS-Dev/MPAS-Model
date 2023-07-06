@@ -207,8 +207,7 @@ def init_interp():
     nml_init_opts["dimensions"]["config_nfglevels"] = 38
     nml_init_opts["dimensions"]["config_nfgsoillevels"] = 4
     ## Be careful to path to files for land files!! ##
-    nml_init_opts["data_sources"]["config_met_prefix"] = \
-        work_dir+"/input_data/"+met_prefix
+    nml_init_opts["data_sources"]["config_met_prefix"] = os.path.join(work_dir, f"input_data/{met_prefix}")
     # Enable and disable steps of pre-processing fields
     nml_init_opts["preproc_stages"]["config_static_interp"] = False
     nml_init_opts["preproc_stages"]["config_native_gwd_static"] = False
@@ -284,22 +283,22 @@ def run(par1,par2):
     nml_opts["physics"]["config_microp_scheme"] = par1
     nml_opts["physics"]["config_convection_scheme"] = par2
         
-    b_name = grid_name+".petropolis_physics-test"
-    b_dir = b_main_dir+"/"+b_name
-    b_full_name = b_dir+"/run."+"best-physics_sst"+"_microp"+str(par1)+\
-        ".cu_"+str(par2)
+    b_full_name = os.path.join(b_dir, f"run.{b_name}.microp_{par1}.cu_{par2}")
 
-    str_opt = {"input":{}, "output":{}, "restart" : {},
-               "diagnostics" : {}, "surface" : {}}
+    str_opt = {
+        "input":{},
+        "output":{},
+        "restart" : {},
+        "diagnostics" : {},
+        "surface" : {}}
     
-    str_opt["input"]["filename_template"] = b_dir+"/init/"+b_name+".init.nc"
-    str_opt["output"]["filename_template"] = b_full_name+"/history.$Y-$M-$D_$h.$m.$s.nc"
+    str_opt["input"]["filename_template"] = os.path.join(b_dir, f"/init/{b_name}.init.nc")
+    str_opt["output"]["filename_template"] = os.path.join(b_full_name, "/history.$Y-$M-$D_$h.$m.$s.nc")
     str_opt["output"]["output_interval"] = "1:00:00"
-    str_opt["surface"]["filename_template"] = \
-        b_dir+"/init/"+b_name+".sfc_update.nc"
+    str_opt["surface"]["filename_template"] = os.path.join(b_dir, f"/init/{b_name}.sfc_update.nc")
     str_opt["surface"]["filename_interval"] = str(sfc_interval)
     str_opt["surface"]["input_interval"] = str(sfc_interval)
-    str_opt["diagnostics"]["filename_template"] = b_full_name+"/diag.nc"
+    str_opt["diagnostics"]["filename_template"] = os.path.join(b_full_name, "/diag.nc")
     str_opt["diagnostics"]["output_interval"] = "3:00:00"
     str_opt["diagnostics"]["clobber_mode"] = "overwrite"
     
@@ -311,7 +310,7 @@ if args.static:
     opts = static_interp()
     nml_init_opts, b_dir, str_init_opt = opts[0], opts[1], opts[2]
     b_init = bench.Bench(args, dummy_string="Init", b_dir=b_dir)
-    b_init.set_options(nml_init_opts, str_init_opt, b_dir+"/init")
+    b_init.set_options(nml_init_opts, str_init_opt, f"{b_dir}/init")
     print("Benchmark dir:", b_dir)
  
 # Setup for vertical grid generation and initial field interpolation
@@ -320,7 +319,7 @@ elif args.init:
     opts = init_interp()
     nml_init_opts, b_dir, str_init_opt = opts[0], opts[1], opts[2]
     b_init = bench.Bench(args, dummy_string="Init", b_dir=b_dir)
-    b_init.set_options(nml_init_opts, str_init_opt, b_dir+"/init")
+    b_init.set_options(nml_init_opts, str_init_opt, f"{b_dir}/init")
     print("Benchmark dir:", b_dir)
     
 # Setup for generating periodic SST and sea-ice Updates
@@ -329,7 +328,7 @@ elif args.sfc:
     opts = sfc_update()
     nml_init_opts, b_dir, str_init_opt = opts[0], opts[1], opts[2]
     b_init = bench.Bench(args, dummy_string="Init", b_dir=b_dir)
-    b_init.set_options(nml_init_opts, str_init_opt, b_dir+"/init")
+    b_init.set_options(nml_init_opts, str_init_opt, f"{b_dir}/init")
     print("Benchmark dir:", b_dir)
 
 
