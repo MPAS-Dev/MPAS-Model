@@ -124,7 +124,7 @@ print(f"\nWorking directory: {work_dir}")
 # ## DEFINE PARAMETERS FOR NAMELIST.INIT ##
 # define grid
 grid_name = "petropolis_250-1km"
-grid_dir = os.path.join(work_dir, "/grids/grids/petropolis_250-1km/")
+grid_dir = f"{work_dir}/grids/grids/petropolis_250-1km/"
 graph_file_path =  os.path.join(grid_dir, "res250-1km_rad250km_graph.info.part")
 
 # benchmarks options
@@ -210,7 +210,7 @@ def init_interp():
     nml_init_opts["dimensions"]["config_nfglevels"] = 38
     nml_init_opts["dimensions"]["config_nfgsoillevels"] = 4
     ## Be careful to path to files for land files!! ##
-    nml_init_opts["data_sources"]["config_met_prefix"] = os.path.join(work_dir, f"input_data/{met_prefix}")
+    nml_init_opts["data_sources"]["config_met_prefix"] = f"{work_dir}/input_data/{met_prefix}"
     # Enable and disable steps of pre-processing fields
     nml_init_opts["preproc_stages"]["config_static_interp"] = False
     nml_init_opts["preproc_stages"]["config_native_gwd_static"] = False
@@ -243,8 +243,7 @@ def sfc_update():
     nml_init_opts["nhyd_model"]["config_start_time"] = init_date
     nml_init_opts["nhyd_model"]["config_stop_time"] = finish_date
     ## Be careful with the interval for updating the sfc conditions
-    nml_init_opts["data_sources"]["config_sfc_prefix"] = \
-        work_dir+"/input_data/"+sfc_prefix
+    nml_init_opts["data_sources"]["config_sfc_prefix"] = f"{work_dir}/input_data/{sfc_prefix}"
     nml_init_opts["data_sources"]["config_fg_interval"] = sfc_interval
     # Enable and disable steps of pre-processing fields
     nml_init_opts["preproc_stages"]["config_static_interp"] = False
