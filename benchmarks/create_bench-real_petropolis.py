@@ -118,7 +118,7 @@ args = bench.call_parser()
 
 # Workspace
 work_dir = os.getenv('MPAS_DIR')
-print(f"\nWorking directory: {work_dir}")
+print(f"Working directory: {work_dir}")
 
 # 1 ===========================================================================
 # ## DEFINE PARAMETERS FOR NAMELIST.INIT ##
@@ -132,8 +132,8 @@ b_main_dir_name = args.name
 b_main_dir =  f"{work_dir}/benchmarks/{b_main_dir_name}"
 b_name = f"{grid_name}.physics-test"
 b_dir = f"{b_main_dir}/{b_name}"
-print(f"\nName of main benchmark directory: {b_main_dir_name}, directory: {b_main_dir}")
-print(f"\nBenchmarks name: {b_name}, directory: {b_dir}")
+print(f"Name of main benchmark directory: {b_main_dir_name}, directory: {b_main_dir}")
+print(f"Benchmarks name: {b_name}, directory: {b_dir}")
 
 # define dates in format: 'YYYY-MM-DD_hh:mm:ss'
 init_date = '2022-02-15_00:00:00'
