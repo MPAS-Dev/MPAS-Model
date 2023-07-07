@@ -190,7 +190,7 @@ def static_interp():
 
     str_init_opt = {"input":{}, "output":{}}
 
-    str_init_opt["input"]["filename_template"] = f"{grid_dir}/{grid_name}.grid.nc"
+    str_init_opt["input"]["filename_template"] = f"{grid_dir}/{b_name}.grid.nc"
     str_init_opt["output"]["filename_template"] = f"{b_dir}/init/{b_name}.static.nc"
     str_init_opt["output"]["clobber_mode"] = "overwrite"
 
@@ -223,7 +223,7 @@ def init_interp():
     
     str_init_opt = {"input":{}, "output":{}}
 
-    str_init_opt["input"]["filename_template"] = f"{b_dir}/init/grid_name}.static.nc"
+    str_init_opt["input"]["filename_template"] = f"{b_dir}/init/{b_name}.static.nc"
     str_init_opt["output"]["filename_template"] = f"{b_dir}/init/{b_name}.init.nc"
     str_init_opt["output"]["clobber_mode"] = "overwrite"
 
