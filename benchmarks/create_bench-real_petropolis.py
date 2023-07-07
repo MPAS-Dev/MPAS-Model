@@ -136,7 +136,7 @@ print(f"Name of main benchmark directory: {b_main_dir_name}, directory: {b_main_
 print(f"Benchmarks name: {b_name}, directory: {b_dir}")
 
 # define dates in format: 'YYYY-MM-DD_hh:mm:ss'
-init_date = '2022-15-00_00:00:00'
+init_date = '2022-02-15_00:00:00'
 run_duration = '1_00:00:00'
 len_disp = 100.0
 n_vert_levels = 72
@@ -258,7 +258,7 @@ def sfc_update():
     str_init_opt = {"input":{}, "output":{}, "surface":{}}
 
     # Setup grid and init file
-    str_init_opt["input"]["filename_template"] = f"{b_dir}/init/{grid_name}.static.nc"
+    str_init_opt["input"]["filename_template"] = f"{b_dir}/init/{b_name}.static.nc"
     str_init_opt["output"]["filename_template"] = f"{b_dir}/init/{b_name}.init.nc"
     str_init_opt["output"]["clobber_mode"] = "overwrite"    
     # Setup surface update file
