@@ -125,7 +125,7 @@ print(f"Working directory: {work_dir}")
 # define grid
 grid_name = "petropolis_250-4km"
 grid_dir = f"{work_dir}/grids/grids/res250-4km_rad250km/"
-graph_file_path =  f"{grid_dir}/res250-4km_rad250km_graph.info.part"
+graph_file_path =  f"{grid_dir}/res250-4km_rad250km_graph.info.part."
 
 # benchmarks options
 b_main_dir_name = args.name
@@ -152,7 +152,7 @@ sfc_prefix = 'SST'
 sfc_interval = 21600
 
 # Model timestep
-dt = 6
+dt = 24
 
 # SST Update on or off
 sst_update = True
