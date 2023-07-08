@@ -31,8 +31,8 @@ DATADIR=$MPAS_DIR/met_data/ERA5/DATA
 cd $CODEDIR
 
 # Specify dates
-DATE1=20220215
-DATE2=20220216
+DATE1=20040324
+DATE2=20040329
 HH1=00
 YY1=`echo $DATE1 | cut -c1-4`
 MM1=`echo $DATE1 | cut -c5-6`
@@ -48,13 +48,6 @@ West=-180
 Sout=-90
 East=180
 
-
-# Get surface and pressure level data just for the initial time
-sed -e "s/DATE1/${DATE1}/g;s/HH1/${HH1}/g;s/Nort/${Nort}/g;s/West/${West}/g;s/Sout/${Sout}/g;s/East/${East}/g;" GetERA5-sl_init.py > GetERA5-${DATE1}${HH1}00-sl_init.py
-python GetERA5-${DATE1}${HH1}00-sl_init.py
-sed -e "s/DATE1/${DATE1}/g;s/HH1/${HH1}/g;s/Nort/${Nort}/g;s/West/${West}/g;s/Sout/${Sout}/g;s/East/${East}/g;" GetERA5-pl_init.py > GetERA5-${DATE1}${HH1}00-pl_init.py
-python GetERA5-${DATE1}${HH1}00-pl_init.py
-
 # get SST, land-sea and sea-ice data for all time steps
 sed -e "s/DATE1/${DATE1}/g;s/DATE2/${DATE2}/g;s/Nort/${Nort}/g;s/West/${West}/g;s/Sout/${Sout}/g;s/East/${East}/g;" GetERA5-sst.py > GetERA5-${DATE1}-${DATE2}-sst.py
 python GetERA5-${DATE1}-${DATE2}-sst.py
@@ -63,10 +56,10 @@ python GetERA5-${DATE1}-${DATE2}-sst.py
 mkdir -p ${DATADIR}/$YY1
 
 # Move data to DATA directory
-mv ERA5-${DATE1}-${HH1}00-sl.grib ERA5-${DATE1}-${HH1}00-pl.grib ERA5-${DATE1}-${DATE2}-sst.grib ${DATADIR}/$YY1/
+mv ERA5-${DATE1}-${DATE2}-sst.grib ${DATADIR}/$YY1/
 
 # Store scripts for downloading data for future use 
 mkdir -p ${CODEDIR}/APIs
-mv GetERA5-${DATE1}${HH1}00-sl_init.py GetERA5-${DATE1}${HH1}00-pl_init.py GetERA5-${DATE1}-${DATE2}-sst.py ${CODEDIR}/APIs/
+mv GetERA5-${DATE1}-${DATE2}-sst.py ${CODEDIR}/APIs/
 
 exit 0

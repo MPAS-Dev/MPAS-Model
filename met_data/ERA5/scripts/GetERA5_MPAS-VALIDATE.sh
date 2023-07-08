@@ -10,8 +10,8 @@ DATADIR=$MPAS_DIR/met_data/ERA5/DATA
 source activate root
 cd $CODEDIR
 
-DATE1=20040321
-DATE2=20040323
+DATE1=20040324
+DATE2=20040329
 YY1=`echo $DATE1 | cut -c1-4`
 MM1=`echo $DATE1 | cut -c5-6`
 DD1=`echo $DATE1 | cut -c7-8`

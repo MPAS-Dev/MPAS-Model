@@ -1,6 +1,6 @@
-tartlat=-15
+startlat=-15
 endlat=-45
 startlon=-60
 endlon=-20
-nlat=240
-nlon=320
+nlat=416
+nlon=555
