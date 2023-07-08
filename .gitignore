@@ -76,8 +76,35 @@ src/core_*/inc
 grids/utilities/jigsaw/Catarina_250-8km/*e.png
 post_proc/py/geometry_lat_lon_2d_plot/*.png
 grids/utilities/jigsaw/Catarina_250-8km/*.png
+post_proc/py/grid_maps/*.png
 
 # ignore grids generated
 grids/utilities/jigsaw/Catarina_250-8km/
 grids/utilities/jigsaw/test
+grids/utilities/jigsaw/catarina_150-12km/*
+grids/utilities/jigsaw/Catarina_160-8km/*
+grids/utilities/jigsaw/cyclones_test/*
 post_proc/py/geometry_lat_lon_2d_plot/patches
+grids/grids/Catarina_250-8km/*
+grids/grids/res*/*
+grids/grids/x1.*.cvt.part.*
+
+
+# ignore benchmarks created
+benchmarks/Catarina_physics-test/*
+benchmarks/Petropolis_2022/*
+VERSION
+
+
+# ignore input data
+input_data/ERA5*
+input_data/SST*
+
+# others
+local_software/gcc-8.5.0/*
+local_software/libs/
+local_software/ncarsources
+local_software/gccsources/
+local_software/people/*
+met_data/ERA5/scripts/APIs/*
+default_inputs/target_domain.Catarina
