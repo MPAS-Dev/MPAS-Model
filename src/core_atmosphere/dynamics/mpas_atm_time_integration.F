@@ -1142,9 +1142,7 @@ module atm_time_integration
          call mpas_pool_get_array(tend_physics, 'rqvdynten', rqvdynten)
          call mpas_pool_get_array(state, 'theta_m', theta_m, 2)
 
-         if (associated(tend_physics)) then
-            call mpas_pool_get_array(tend_physics, 'rthdynten', rthdynten)
-         end if
+         call mpas_pool_get_array(tend_physics, 'rthdynten', rthdynten)
 
          !NOTE: The calculation of the tendency due to horizontal and vertical advection for the water vapor mixing ratio
          !requires that the subroutine atm_advance_scalars_mono was called on the third Runge Kutta step, so that a halo
@@ -3888,7 +3886,7 @@ module atm_time_integration
 
       real (kind=RKIND), dimension(:,:), pointer :: rr_save
 
-      real (kind=RKIND), dimension(:,:), pointer :: rthdynten => null()
+      real (kind=RKIND), dimension(:,:), pointer :: rthdynten
 
       real (kind=RKIND), dimension(:,:,:), pointer :: scalars
 
@@ -3930,8 +3928,6 @@ module atm_time_integration
       logical, pointer :: config_rayleigh_damp_u
       real (kind=RKIND), pointer :: config_rayleigh_damp_u_timescale_days
       integer, pointer :: config_number_rayleigh_damp_u_levels, config_number_cam_damping_levels
-
-      logical :: inactive_rthdynten
 
 
       call mpas_pool_get_config(mesh, 'sphere_radius', r_earth)
@@ -3982,9 +3978,7 @@ module atm_time_integration
       call mpas_pool_get_array(diag, 'h_divergence', h_divergence)
       call mpas_pool_get_array(diag, 'exner', exner)
 
-      if (associated(tend_physics)) then
-         call mpas_pool_get_array(tend_physics, 'rthdynten', rthdynten)
-      end if
+      call mpas_pool_get_array(tend_physics, 'rthdynten', rthdynten)
 
       call mpas_pool_get_array(mesh, 'weightsOnEdge', weightsOnEdge)
       call mpas_pool_get_array(mesh, 'cellsOnEdge', cellsOnEdge)
@@ -4061,18 +4055,6 @@ module atm_time_integration
       call mpas_pool_get_array(mesh, 'cf2', cf2)
       call mpas_pool_get_array(mesh, 'cf3', cf3)
 
-      !
-      ! rthdynten is currently associated with packages, and if those packages
-      ! are not active at run-time, we need to produce an rthdynten array for
-      ! use in the atm_compute_dyn_tend_work routine
-      !
-      inactive_rthdynten = .false.
-      if (.not. associated(rthdynten)) then
-         allocate(rthdynten(nVertLevels,nCells+1))
-         rthdynten(:,nCells+1) = 0.0_RKIND
-         inactive_rthdynten = .true.
-      end if
-
       call atm_compute_dyn_tend_work(nCells, nEdges, nVertices, nVertLevels, &
          nCellsSolve, nEdgesSolve, vertexDegree, maxEdges, maxEdges2, num_scalars, moist_start, moist_end, &
          fEdge, dvEdge, dcEdge, invDcEdge, invDvEdge, invAreaCell, invAreaTriangle, meshScalingDel2, meshScalingDel4, &
@@ -4093,10 +4075,6 @@ module atm_time_integration
          rthdynten, &
          cellStart, cellEnd, vertexStart, vertexEnd, edgeStart, edgeEnd, &
          cellSolveStart, cellSolveEnd, vertexSolveStart, vertexSolveEnd, edgeSolveStart, edgeSolveEnd)
-
-      if (inactive_rthdynten) then
-         deallocate(rthdynten)
-      end if
 
    end subroutine atm_compute_dyn_tend
 

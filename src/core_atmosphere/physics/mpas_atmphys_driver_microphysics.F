@@ -216,9 +216,9 @@
        if(allocated(graupelncv_p) ) deallocate(graupelncv_p )
 
        !cloud water,cloud ice,and snow effective radii:
-       if(.not.allocated(recloud_p) ) allocate(recloud_p(ims:ime,kms:kme,jms:jme) )
-       if(.not.allocated(reice_p)   ) allocate(reice_p(ims:ime,kms:kme,jms:jme)   )
-       if(.not.allocated(resnow_p)  ) allocate(resnow_p(ims:ime,kms:kme,jms:jme)  )
+       if(allocated(recloud_p) ) deallocate(recloud_p )
+       if(allocated(reice_p)   ) deallocate(reice_p   )
+       if(allocated(resnow_p)  ) deallocate(resnow_p  )
 
     microp2_select: select case(microp_scheme)
 
