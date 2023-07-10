@@ -18,6 +18,9 @@
 #define STR(s) #s
 #define MACRO_TO_STR(s) STR(s)
 
+#define NUM_MODIFIED_ATTRS 1
+#define NUM_IGNORED_ATTRS 6
+
 void write_model_variables(ezxml_t registry){/*{{{*/
 	const char * suffix = MACRO_TO_STR(MPAS_NAMELIST_SUFFIX);
 	const char * exe_name = MACRO_TO_STR(MPAS_EXE_NAME);
@@ -83,6 +86,79 @@ int write_field_pointer_arrays(FILE* fd){/*{{{*/
 	return 0;
 }/*}}}*/
 
+// Checks for a string in a list of strings.
+// Returns the index of the string if it does exist in the array,
+// and -1 if it does not appear in the array.
+int find_string_in_array(char *input_string, char *array[]){
+  int i;
+  for (i = 0; array[i] != NULL; i++ ){
+    if (strcmp(input_string, array[i]) == 0){
+      return i;
+    }
+  }
+  return -1;
+}
+
+// Add an attribute to the generated fortran code.
+// This handles the fortprint and all associated things
+void fortprint_add_attribute(FILE *fd, char* index, char *att_name, char *pointer_name_arr, char *temp_str){
+  fortprintf(fd, "      call mpas_add_att(%s %% attLists(%s) %% attList, '%s', '%s')\n", pointer_name_arr,
+                                                                                         index,
+                                                                                         att_name,
+                                                                                         temp_str);
+  return;
+}
+
+// Helper function to change attribute names in accordance with
+// "attrs_to_modify" within the "add_attribute_if_not_ignored" function
+void modify_attr(char* attr, const char* array[NUM_MODIFIED_ATTRS][2], size_t rows) {
+  for (size_t i = 0; i < rows; i++) {
+    if (strcmp(attr, array[i][0]) == 0) {
+        strcpy(attr, array[i][1]);
+        return;
+        }
+    }
+}
+
+void add_attribute_if_not_ignored(FILE *fd, char* index, char *att_name, char *pointer_name_arr, char *temp_str){
+  // Will certainly be faster to pass a pointer to this array than reconstruct
+  // it
+  const char *attrs_to_ignore[NUM_IGNORED_ATTRS][1024] = {
+    "name",
+    "type",
+    "dimensions",
+    "units",
+    "persistence",
+    "packages"
+  };
+
+  const char *attrs_to_modify[NUM_MODIFIED_ATTRS][2] = {
+    {"description", "long_name"}
+  };
+  
+  modify_attr(att_name, attrs_to_modify, NUM_MODIFIED_ATTRS);
+
+  if (find_string_in_array(att_name, attrs_to_ignore) == -1){
+      char *string, *tofree, *token;
+			string = strdup(temp_str);
+			tofree = string;
+			token = strsep(&string, "'");
+
+			sprintf(temp_str, "%s", token);
+
+			while ( ( token = strsep(&string, "'") ) != NULL ) {
+				sprintf(temp_str, "%s''%s", temp_str, token);
+			}
+      free(tofree);
+
+    fortprint_add_attribute(fd, index, att_name, pointer_name_arr, temp_str);
+  }
+  else{
+    printf("Ignoring variable with name %s\n", att_name);
+  }
+
+  return;
+}
 
 int set_pointer_name(int type, int ndims, char *pointer_name, int time_levs){/*{{{*/
 
@@ -1389,10 +1465,9 @@ int parse_var_array(FILE *fd, ezxml_t registry, ezxml_t superStruct, ezxml_t var
 				}
 
 				free(tofree);
-
-				fortprintf(fd, "         call mpas_add_att(%s %% attLists(const_index) %% attList, 'long_name', '%s')\n", pointer_name_arr, temp_str);
+        add_attribute_if_not_ignored(fd, "const_index", "long_name", pointer_name_arr, temp_str);
+				//fortprintf(fd, "         call mpas_add_att(%s %% attLists(const_index) %% attList, 'long_name', '%s')\n", pointer_name_arr, temp_str);
 			}
-
 			if ( varunits != NULL ) {
 				string = strdup(varunits);
 				tofree = string;
@@ -1405,12 +1480,13 @@ int parse_var_array(FILE *fd, ezxml_t registry, ezxml_t superStruct, ezxml_t var
 				}
 
 				free(tofree);
-
-				fortprintf(fd, "         call mpas_add_att(%s %% attLists(const_index) %% attList, 'units', '%s')\n", pointer_name_arr, temp_str);
+        add_attribute_if_not_ignored(fd, "const_index", "units", pointer_name_arr, temp_str);
+				//fortprintf(fd, "         call mpas_add_att(%s %% attLists(const_index) %% attList, 'units', '%s')\n", pointer_name_arr, temp_str);
 			}
 
 			if ( vararrmissingval ) {
-				fortprintf(fd, "         call mpas_add_att(%s %% attLists(const_index) %% attList, '_FillValue', %s)\n", pointer_name_arr, missing_value);
+        add_attribute_if_not_ignored(fd, "const_index", "_FillValue", pointer_name_arr, temp_str);
+				//fortprintf(fd, "         call mpas_add_att(%s %% attLists(const_index) %% attList, '_FillValue', %s)\n", pointer_name_arr, missing_value);
 			}
 			fortprintf(fd, "         %s %% missingValue = %s\n", pointer_name_arr, missing_value);
 			fortprintf(fd, "         %s %% constituentNames(const_index) = '%s'\n", pointer_name_arr, varname);
@@ -1487,6 +1563,7 @@ int parse_var(FILE *fd, ezxml_t registry, ezxml_t superStruct, ezxml_t currentVa
 	char package_spacing[1024];
 	char default_value[1024];
 	char missing_value[1024];
+  
 
 	var_xml = currentVar;
 
@@ -1604,7 +1681,12 @@ int parse_var(FILE *fd, ezxml_t registry, ezxml_t superStruct, ezxml_t currentVa
 		fortprintf(fd, "      allocate(%s %% attLists(1))\n", pointer_name_arr);
 		fortprintf(fd, "      allocate(%s %% attLists(1) %% attList)\n", pointer_name_arr);
 
-		if ( varunits != NULL ) {
+    char **attr;
+    for (attr = var_xml->attr; attr && *attr; attr+=2) {
+      add_attribute_if_not_ignored(fd, "1", attr[0], pointer_name_arr, attr[1]);
+    }
+
+    if ( varunits != NULL ) {
 			string = strdup(varunits);
 			tofree = string;
 			token = strsep(&string, "'");
@@ -1616,28 +1698,12 @@ int parse_var(FILE *fd, ezxml_t registry, ezxml_t superStruct, ezxml_t currentVa
 			}
 
 			free(tofree);
-
 			fortprintf(fd, "      call mpas_add_att(%s %% attLists(1) %% attList, 'units', '%s')\n", pointer_name_arr, temp_str);
 		}
 
-		if ( vardesc != NULL ) {
-			string = strdup(vardesc);
-			tofree = string;
-			token = strsep(&string, "'");
-
-			sprintf(temp_str, "%s", token);
-
-			while ( ( token = strsep(&string, "'") ) != NULL ) {
-				sprintf(temp_str, "%s''%s", temp_str, token);
-			}
-
-			free(tofree);
-
-			fortprintf(fd, "      call mpas_add_att(%s %% attLists(1) %% attList, 'long_name', '%s')\n", pointer_name_arr, temp_str);
-		}
-
 		if ( varmissingval != NULL ) {
-			fortprintf(fd, "      call mpas_add_att(%s %% attLists(1) %% attList, '_FillValue', %s)\n", pointer_name_arr, missing_value);
+			add_attribute_if_not_ignored(fd, "1", "_FillValue", pointer_name_arr, missing_value);
+      //fortprintf(fd, "      call mpas_add_att(%s %% attLists(1) %% attList, '_FillValue', %s)\n", pointer_name_arr, missing_value);
 		}
 		fortprintf(fd, "      %s %% missingValue = %s\n", pointer_name_arr, missing_value);
 
