@@ -19,7 +19,7 @@
 #define MACRO_TO_STR(s) STR(s)
 
 #define NUM_MODIFIED_ATTRS 1
-#define NUM_IGNORED_ATTRS 6
+#define NUM_IGNORED_ATTRS 5
 
 void write_model_variables(ezxml_t registry){/*{{{*/
 	const char * suffix = MACRO_TO_STR(MPAS_NAMELIST_SUFFIX);
@@ -89,9 +89,9 @@ int write_field_pointer_arrays(FILE* fd){/*{{{*/
 // Checks for a string in a list of strings.
 // Returns the index of the string if it does exist in the array,
 // and -1 if it does not appear in the array.
-int find_string_in_array(char *input_string, char *array[]){
+int find_string_in_array(char *input_string, const char *array[]){
   int i;
-  for (i = 0; array[i] != NULL; i++ ){
+  for (i = 0; i < NUM_IGNORED_ATTRS; i++ ){
     if (strcmp(input_string, array[i]) == 0){
       return i;
     }
@@ -120,14 +120,25 @@ void modify_attr(char* attr, const char* array[NUM_MODIFIED_ATTRS][2], size_t ro
     }
 }
 
+void escape_quotes(const char *string_in, char* string_out){
+      char *string, *tofree, *token;
+			string = strdup(string_in);
+			tofree = string;
+			token = strsep(&string, "'");
+			sprintf(string_out, "%s", token);
+			while ( ( token = strsep(&string, "'") ) != NULL ) {
+				sprintf(string_out, "%s''%s", string_out, token);
+			}
+      free(tofree);
+}
+
 void add_attribute_if_not_ignored(FILE *fd, char* index, char *att_name, char *pointer_name_arr, char *temp_str){
   // Will certainly be faster to pass a pointer to this array than reconstruct
   // it
-  const char *attrs_to_ignore[NUM_IGNORED_ATTRS][1024] = {
+  const char *attrs_to_ignore[NUM_IGNORED_ATTRS] = {
     "name",
     "type",
     "dimensions",
-    "units",
     "persistence",
     "packages"
   };
@@ -137,26 +148,10 @@ void add_attribute_if_not_ignored(FILE *fd, char* index, char *att_name, char *p
   };
   
   modify_attr(att_name, attrs_to_modify, NUM_MODIFIED_ATTRS);
-
   if (find_string_in_array(att_name, attrs_to_ignore) == -1){
-      char *string, *tofree, *token;
-			string = strdup(temp_str);
-			tofree = string;
-			token = strsep(&string, "'");
-
-			sprintf(temp_str, "%s", token);
-
-			while ( ( token = strsep(&string, "'") ) != NULL ) {
-				sprintf(temp_str, "%s''%s", temp_str, token);
-			}
-      free(tofree);
-
+    escape_quotes(temp_str, temp_str);
     fortprint_add_attribute(fd, index, att_name, pointer_name_arr, temp_str);
   }
-  else{
-    printf("Ignoring variable with name %s\n", att_name);
-  }
-
   return;
 }
 
@@ -1092,7 +1087,7 @@ int parse_var_array(FILE *fd, ezxml_t registry, ezxml_t superStruct, ezxml_t var
 	const char *structname, *structlevs, *structpackages;
 	const char *substructname;
 	const char *vararrname, *vararrtype, *vararrdims, *vararrpersistence, *vararrdefaultval, *vararrpackages, *vararrmissingval;
-	const char *varname, *varpersistence, *vartype, *vardims, *varunits, *vardesc, *vararrgroup, *varstreams, *vardefaultval, *varpackages;
+	const char *varname, *varpersistence, *vartype, *vardims, *vararrgroup, *varstreams, *vardefaultval, *varpackages;
 	const char *varname2, *vararrgroup2, *vararrname_in_code;
 	const char *varname_in_code;
 	const char *streamname, *streamname2;
@@ -1109,7 +1104,8 @@ int parse_var_array(FILE *fd, ezxml_t registry, ezxml_t superStruct, ezxml_t var
 	int i, skip_var, skip_stream;
 	int ndims, type, hasTime, decomp, in_stream;
 	int persistence;
-	char *string, *tofree, *token;
+	char **attr;
+  char *string, *tofree, *token;
 	char temp_str[1024];
 	char pointer_name[1024];
 	char pointer_name_arr[1024];
@@ -1440,54 +1436,14 @@ int parse_var_array(FILE *fd, ezxml_t registry, ezxml_t superStruct, ezxml_t var
 		fortprintf(fd, "      end do\n");
 
 		for(var_xml = ezxml_child(var_arr_xml, "var"); var_xml; var_xml = var_xml->next){
-			varname = ezxml_attr(var_xml, "name");
-			varname_in_code = ezxml_attr(var_xml, "name_in_code");
-			vardesc = ezxml_attr(var_xml, "description");
-			varunits = ezxml_attr(var_xml, "units");
-
-			if(!varname_in_code){
-				varname_in_code = ezxml_attr(var_xml, "name");
-			}
-
 			fortprintf(fd, "      if (associated(newSubPool)) then\n");
 			fortprintf(fd, "         call mpas_pool_get_dimension(newSubPool, 'index_%s', const_index)\n", varname_in_code);
 			fortprintf(fd, "      end if\n");
 			fortprintf(fd, "      if (const_index > 0) then\n", spacing);
-			if ( vardesc != NULL ) {
-				string = strdup(vardesc);
-				tofree = string;
 
-				token = strsep(&string, "'");
-				sprintf(temp_str, "%s", token);
-
-				while ( ( token = strsep(&string, "'") ) != NULL ) {
-					sprintf(temp_str, "%s''%s", temp_str, token);
-				}
-
-				free(tofree);
-        add_attribute_if_not_ignored(fd, "const_index", "long_name", pointer_name_arr, temp_str);
-				//fortprintf(fd, "         call mpas_add_att(%s %% attLists(const_index) %% attList, 'long_name', '%s')\n", pointer_name_arr, temp_str);
-			}
-			if ( varunits != NULL ) {
-				string = strdup(varunits);
-				tofree = string;
-
-				token = strsep(&string, "'");
-				sprintf(temp_str, "%s", token);
-
-				while ( ( token = strsep(&string, "'") ) != NULL ) {
-					sprintf(temp_str, "%s''%s", temp_str, token);
-				}
-
-				free(tofree);
-        add_attribute_if_not_ignored(fd, "const_index", "units", pointer_name_arr, temp_str);
-				//fortprintf(fd, "         call mpas_add_att(%s %% attLists(const_index) %% attList, 'units', '%s')\n", pointer_name_arr, temp_str);
-			}
-
-			if ( vararrmissingval ) {
-        add_attribute_if_not_ignored(fd, "const_index", "_FillValue", pointer_name_arr, temp_str);
-				//fortprintf(fd, "         call mpas_add_att(%s %% attLists(const_index) %% attList, '_FillValue', %s)\n", pointer_name_arr, missing_value);
-			}
+      for (attr = var_xml->attr; attr && *attr; attr+=2) {
+        add_attribute_if_not_ignored(fd, "const_index", attr[0], pointer_name_arr, attr[1]);
+      }
 			fortprintf(fd, "         %s %% missingValue = %s\n", pointer_name_arr, missing_value);
 			fortprintf(fd, "         %s %% constituentNames(const_index) = '%s'\n", pointer_name_arr, varname);
 			fortprintf(fd, "      end if\n", spacing);
@@ -1543,7 +1499,7 @@ int parse_var(FILE *fd, ezxml_t registry, ezxml_t superStruct, ezxml_t currentVa
 	const char *structtimelevs, *vartimelevs;
 	const char *structname, *structlevs, *structpackages;
 	const char *substructname;
-	const char *varname, *varpersistence, *vartype, *vardims, *varunits, *vardesc, *vararrgroup, *varstreams, *vardefaultval, *varpackages, *varmissingval;
+	const char *varname, *varpersistence, *vartype, *vardims, *vararrgroup, *varstreams, *vardefaultval, *varpackages, *varmissingval;
 	const char *varname2, *vararrgroup2;
 	const char *varname_in_code;
 	const char *streamname, *streamname2;
@@ -1571,140 +1527,117 @@ int parse_var(FILE *fd, ezxml_t registry, ezxml_t superStruct, ezxml_t currentVa
 	structtimelevs = ezxml_attr(superStruct, "time_levs");
 
 	// Define independent variables
-	varname = ezxml_attr(var_xml, "name");
-	vartype = ezxml_attr(var_xml, "type");
-	vardims = ezxml_attr(var_xml, "dimensions");
-	varpersistence = ezxml_attr(var_xml, "persistence");
-	varpackages = ezxml_attr(var_xml, "packages");
-	vardefaultval = ezxml_attr(var_xml, "default_value");
-	vartimelevs = ezxml_attr(var_xml, "time_levs");
-	varname_in_code = ezxml_attr(var_xml, "name_in_code");
-	varunits = ezxml_attr(var_xml, "units");
-	vardesc = ezxml_attr(var_xml, "description");
-	varmissingval = ezxml_attr(var_xml, "missing_value");
+  varname = ezxml_attr(var_xml, "name");
+  vartype = ezxml_attr(var_xml, "type");
+  vardims = ezxml_attr(var_xml, "dimensions");
+  varpersistence = ezxml_attr(var_xml, "persistence");
+  varpackages = ezxml_attr(var_xml, "packages");
+  vardefaultval = ezxml_attr(var_xml, "default_value");
+  vartimelevs = ezxml_attr(var_xml, "time_levs");
+  varname_in_code = ezxml_attr(var_xml, "name_in_code");
+  varmissingval = ezxml_attr(var_xml, "missing_value");
+  
+  if(!varname_in_code){
+    varname_in_code = ezxml_attr(var_xml, "name");
+  }
 
-	if(!varname_in_code){
-		varname_in_code = ezxml_attr(var_xml, "name");
-	}
+  if(!vartimelevs){
+    vartimelevs = ezxml_attr(superStruct, "time_levs");
+  }
 
-	if(!vartimelevs){
-		vartimelevs = ezxml_attr(superStruct, "time_levs");
-	}
+  if(vartimelevs){
+    time_levs = atoi(vartimelevs);
+    if(time_levs < 1){
+      time_levs = 1;
+    }
+  } else {
+    time_levs = 1;
+  }
 
-	if(vartimelevs){
-		time_levs = atoi(vartimelevs);
-		if(time_levs < 1){
-			time_levs = 1;
-		}
-	} else {
-		time_levs = 1;
-	}
+  persistence = check_persistence(varpersistence);
 
-	persistence = check_persistence(varpersistence);
+  fortprintf(fd, "! Define variable %s\n", varname);
 
-	fortprintf(fd, "! Define variable %s\n", varname);
+  // Determine field type and default value.
+  get_field_information(vartype, vardefaultval, default_value, varmissingval, missing_value, &type);
 
-	// Determine field type and default value.
-	get_field_information(vartype, vardefaultval, default_value, varmissingval, missing_value, &type);
+  // If a default_value is not specified, but a missing_value is, then set the
+  // default_value (defaultValue) to missing_value
+  if(!vardefaultval && varmissingval) {
+    snprintf(default_value, 1024, "%s ! defaultValue taking specified missing_value", missing_value);
+  }
 
-	// If a default_value is not specified, but a missing_value is, then set the
-	// default_value (defaultValue) to missing_value
-	if(!vardefaultval && varmissingval) {
-		snprintf(default_value, 1024, "%s ! defaultValue taking specified missing_value", missing_value);
-	}
+  // Determine ndims, hasTime, and decomp type
+  build_dimension_information(registry, var_xml, &ndims, &hasTime, &decomp);
 
-	// Determine ndims, hasTime, and decomp type
-	build_dimension_information(registry, var_xml, &ndims, &hasTime, &decomp);
+  // Determine name of pointer for this field.
+  set_pointer_name(type, ndims, pointer_name, time_levs);
+  if (time_levs > 1) {
+    fortprintf(fd, "      allocate(%s(%d))\n", pointer_name, time_levs);
+  } else {
+    fortprintf(fd, "      allocate(%s)\n", pointer_name);
+  }
 
-	// Determine name of pointer for this field.
-	set_pointer_name(type, ndims, pointer_name, time_levs);
-	if (time_levs > 1) {
-		fortprintf(fd, "      allocate(%s(%d))\n", pointer_name, time_levs);
-	} else {
-		fortprintf(fd, "      allocate(%s)\n", pointer_name);
-	}
+  for(time_lev = 1; time_lev <= time_levs; time_lev++){
+    if (time_levs > 1) {
+      snprintf(pointer_name_arr, 1024, "%s(%d)", pointer_name, time_lev);
+    } else {
+      snprintf(pointer_name_arr, 1024, "%s", pointer_name);
+    }
+    fortprintf(fd, "\n");
+    fortprintf(fd, "! Setting up time level %d\n", time_lev);
+    fortprintf(fd, "      %s %% fieldName = '%s'\n", pointer_name_arr, varname);
+    fortprintf(fd, "      %s %% isVarArray = .false.\n", pointer_name_arr);
+    if (decomp != -1) {
+      fortprintf(fd, "      %s %% isDecomposed = .true.\n", pointer_name_arr);
+    } else {
+      fortprintf(fd, "      %s %% isDecomposed = .false.\n", pointer_name_arr);
+    }
 
-	for(time_lev = 1; time_lev <= time_levs; time_lev++){
-		if (time_levs > 1) {
-			snprintf(pointer_name_arr, 1024, "%s(%d)", pointer_name, time_lev);
-		} else {
-			snprintf(pointer_name_arr, 1024, "%s", pointer_name);
-		}
-		fortprintf(fd, "\n");
-		fortprintf(fd, "! Setting up time level %d\n", time_lev);
-		fortprintf(fd, "      %s %% fieldName = '%s'\n", pointer_name_arr, varname);
-		fortprintf(fd, "      %s %% isVarArray = .false.\n", pointer_name_arr);
-		if (decomp != -1) {
-			fortprintf(fd, "      %s %% isDecomposed = .true.\n", pointer_name_arr);
-		} else {
-			fortprintf(fd, "      %s %% isDecomposed = .false.\n", pointer_name_arr);
-		}
+    if(hasTime) {
+      fortprintf(fd, "      %s %% hasTimeDimension = .true.\n", pointer_name_arr);
+    } else {
+      fortprintf(fd, "      %s %% hasTimeDimension = .false.\n", pointer_name_arr);
+    }
 
-		if(hasTime) {
-			fortprintf(fd, "      %s %% hasTimeDimension = .true.\n", pointer_name_arr);
-		} else {
-			fortprintf(fd, "      %s %% hasTimeDimension = .false.\n", pointer_name_arr);
-		}
+    if(ndims > 0){
+      if(persistence == SCRATCH){
+        fortprintf(fd, "      %s %% isPersistent = .false.\n", pointer_name_arr);
+        fortprintf(fd, "      %s %% isActive = .false.\n", pointer_name_arr);
+      } else {
+        fortprintf(fd, "      %s %% isPersistent = .true.\n", pointer_name_arr);
+        fortprintf(fd, "      %s %% isActive = .false.\n", pointer_name_arr);
+      }
 
-		if(ndims > 0){
-			if(persistence == SCRATCH){
-				fortprintf(fd, "      %s %% isPersistent = .false.\n", pointer_name_arr);
-				fortprintf(fd, "      %s %% isActive = .false.\n", pointer_name_arr);
-			} else {
-				fortprintf(fd, "      %s %% isPersistent = .true.\n", pointer_name_arr);
-				fortprintf(fd, "      %s %% isActive = .false.\n", pointer_name_arr);
-			}
+      // Setup dimensions
+      fortprintf(fd, "! Setting up dimensions\n");
+      string = strdup(vardims);
+      tofree = string;
+      i = 1;
+      token = strsep(&string, " ");
+      if(strncmp(token, "Time", 1024) != 0){
+        fortprintf(fd, "      %s %% dimNames(%d) = '%s'\n", pointer_name_arr, i, token);
+        i++;
+      }
+      while( (token = strsep(&string, " ")) != NULL){
+        if(strncmp(token, "Time", 1024) != 0){
+          fortprintf(fd, "      %s %% dimNames(%d) = '%s'\n", pointer_name_arr, i, token);
+          i++;
+        }
+      }
+      free(tofree);
+    }
 
-			// Setup dimensions
-			fortprintf(fd, "! Setting up dimensions\n");
-			string = strdup(vardims);
-			tofree = string;
-			i = 1;
-			token = strsep(&string, " ");
-			if(strncmp(token, "Time", 1024) != 0){
-				fortprintf(fd, "      %s %% dimNames(%d) = '%s'\n", pointer_name_arr, i, token);
-				i++;
-			}
-			while( (token = strsep(&string, " ")) != NULL){
-				if(strncmp(token, "Time", 1024) != 0){
-					fortprintf(fd, "      %s %% dimNames(%d) = '%s'\n", pointer_name_arr, i, token);
-					i++;
-				}
-			}
-			free(tofree);
-		}
-
-		fortprintf(fd, "      %s %% defaultValue = %s\n", pointer_name_arr, default_value);
-		if ( ndims == 0 ) {
-			fortprintf(fd, "      %s %% scalar = %s\n", pointer_name_arr, default_value);
-		}
-		fortprintf(fd, "      allocate(%s %% attLists(1))\n", pointer_name_arr);
-		fortprintf(fd, "      allocate(%s %% attLists(1) %% attList)\n", pointer_name_arr);
-
+    fortprintf(fd, "      %s %% defaultValue = %s\n", pointer_name_arr, default_value);
+    if ( ndims == 0 ) {
+      fortprintf(fd, "      %s %% scalar = %s\n", pointer_name_arr, default_value);
+    }
+    fortprintf(fd, "      allocate(%s %% attLists(1))\n", pointer_name_arr);
+    fortprintf(fd, "      allocate(%s %% attLists(1) %% attList)\n", pointer_name_arr);
     char **attr;
     for (attr = var_xml->attr; attr && *attr; attr+=2) {
       add_attribute_if_not_ignored(fd, "1", attr[0], pointer_name_arr, attr[1]);
     }
-
-    if ( varunits != NULL ) {
-			string = strdup(varunits);
-			tofree = string;
-			token = strsep(&string, "'");
-
-			sprintf(temp_str, "%s", token);
-
-			while ( ( token = strsep(&string, "'") ) != NULL ) {
-				sprintf(temp_str, "%s''%s", temp_str, token);
-			}
-
-			free(tofree);
-			fortprintf(fd, "      call mpas_add_att(%s %% attLists(1) %% attList, 'units', '%s')\n", pointer_name_arr, temp_str);
-		}
-
-		if ( varmissingval != NULL ) {
-			add_attribute_if_not_ignored(fd, "1", "_FillValue", pointer_name_arr, missing_value);
-      //fortprintf(fd, "      call mpas_add_att(%s %% attLists(1) %% attList, '_FillValue', %s)\n", pointer_name_arr, missing_value);
-		}
 		fortprintf(fd, "      %s %% missingValue = %s\n", pointer_name_arr, missing_value);
 
 		fortprintf(fd, "      %s %% block => block\n", pointer_name_arr);
