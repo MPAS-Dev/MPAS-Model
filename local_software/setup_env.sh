@@ -33,7 +33,7 @@ export PNETCDF_PATH=${LIBBASE}
 export PIO_PATH=${LIBBASE}
 
 
-host=`hostname`
+host='nemo'
 if [[ $host == mac* ]]; then
 	echo "DETECTED MAC CLUSTER (AMD), LOADING STUFF"
 
@@ -176,6 +176,20 @@ elif [[ $host == nemo ]]; then
         export FFLAGS="-g -fbacktrace"
         export FCFLAGS="-g -fbacktrace"
         export F77FLAGS="-g -fbacktrace"
+
+
+        BASEDIR=/p1-nemo/danilocs/mpas/MPAS-BRv8/local_software/
+        export LIBSRC_GCC=$BASEDIR/gccsources/
+        export LIBBASE=$BASEDIR/libs
+        export LIBBASEGCC=$BASEDIR/libs-gcc
+       
+        export PATH=${LIBBASE}/bin:$PATH
+        export PATH=${LIBBASEGCC}/bin:$PATH
+        export LD_LIBRARY_PATH=${LIBBASE}/lib/:$LD_LIBRARY_PATH
+        export LD_LIBRARY_PATH=${LIBBASE}/lib64/:$LD_LIBRARY_PATH
+        export LD_LIBRARY_PATH=${LIBBASEGCC}/lib/gcc/x86_64-pc-linux-gnu/:$LD_LIBRARY_PATH
+        export LD_LIBRARY_PATH=${LIBBASEGCC}/lib64/:$LD_LIBRARY_PATH
+        export LD_LIBRARY_PATH=${LIBBASEGCC}/lib:$LD_LIBRARY_PATH
 
 else
 	echo "********************************************************"
