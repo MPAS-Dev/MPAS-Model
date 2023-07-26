@@ -103,7 +103,7 @@ input_data/SST*
 # others
 local_software/gcc-8.5.0/*
 local_software/libs/
-local_software/libs-gcc # for using in Nemo
+local_software/libs-gcc/ # for using in Nemo
 local_software/ncarsources
 local_software/gccsources/
 local_software/people/*
