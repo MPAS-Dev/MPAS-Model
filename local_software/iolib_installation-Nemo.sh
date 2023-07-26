@@ -5,6 +5,7 @@
 # Updated by P. Peixoto on Feb 2022 based on mduda's original script
 # updated on Sep 2022 to download and install gcc-8
 # updated by F.A.V.B. Alves on June 2023 to address some issues when system's gcc version is >=13
+# Updated by D. C. de Souza on July 2023
 
 BASEDIR=$PWD/
 
