@@ -34,7 +34,8 @@ OBJS = mpas_kind_types.o \
        xml_stream_parser.o \
        regex_matching.o \
        mpas_log.o \
-       mpas_halo.o
+       mpas_halo.o \
+       mpas_string_utils.o
 
 all: framework $(DEPS)
 
@@ -78,7 +79,7 @@ mpas_dmpar.o: mpas_sort.o mpas_kind_types.o mpas_derived_types.o mpas_hash.o mpa
 
 mpas_sort.o: mpas_kind_types.o mpas_log.o
 
-mpas_timekeeping.o: mpas_kind_types.o mpas_derived_types.o mpas_dmpar.o mpas_threading.o mpas_log.o
+mpas_timekeeping.o: mpas_string_utils.o mpas_kind_types.o mpas_derived_types.o mpas_dmpar.o mpas_threading.o mpas_log.o
 
 mpas_timer.o: mpas_kind_types.o mpas_dmpar.o mpas_threading.o mpas_log.o
 
