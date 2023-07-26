@@ -177,8 +177,7 @@ elif [[ $host == nemo ]]; then
         export FCFLAGS="-g -fbacktrace"
         export F77FLAGS="-g -fbacktrace"
 
-
-        BASEDIR=/p1-nemo/danilocs/mpas/MPAS-BRv8/local_software/
+        BASEDIR=$PWD/local_software/
         export LIBSRC_GCC=$BASEDIR/gccsources/
         export LIBBASE=$BASEDIR/libs
         export LIBBASEGCC=$BASEDIR/libs-gcc
