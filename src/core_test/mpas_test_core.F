@@ -93,7 +93,8 @@ module test_core
       use test_core_streams, only : test_core_streams_test
       use test_core_sorting, only : test_core_test_sorting
       use mpas_halo_testing, only : mpas_halo_tests
-   
+      use test_core_string_utils, only : mpas_test_string_utils
+
       implicit none
    
       type (domain_type), intent(inout) :: domain
@@ -167,6 +168,10 @@ module test_core
          call mpas_log_write('Stream I/O tests: FAILURE', MPAS_LOG_ERR)
       end if
 
+      ! Run string util tests
+      call mpas_log_write('')
+      call mpas_test_string_utils(iErr)
+      call mpas_log_write('')
 
       call test_core_test_intervals(domain, threadErrs, iErr)
 
