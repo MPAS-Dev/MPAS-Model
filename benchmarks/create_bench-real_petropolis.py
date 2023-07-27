@@ -123,9 +123,9 @@ print(f"Working directory: {work_dir}")
 # 1 ===========================================================================
 # ## DEFINE PARAMETERS FOR NAMELIST.INIT ##
 # define grid
-grid_name = "petropolis_250-4km"
-grid_dir = f"{work_dir}/grids/grids/res250-4km_rad250km/"
-graph_file_path =  f"{grid_dir}/res250-4km_rad250km_graph.info.part."
+grid_name = "petropolis_250-1km"
+grid_dir = f"{work_dir}/grids/grids/res250-1km_rad250km/"
+graph_file_path =  f"{grid_dir}/res250-1km_rad250km_graph.info.part."
 
 # benchmarks options
 b_main_dir_name = args.name
@@ -170,7 +170,8 @@ loop_parameter2 = ["off", 'cu_ntiedtke', 'cu_tiedtke']
 def static_interp():
     
     nml_init_opts = {"nhyd_model":{}, "dimensions": {}, 
-                     "data_sources":{}, "preproc_stages": {}}
+                     "data_sources":{}, "preproc_stages": {},
+                     "decomposition":{}}
     # Real-data initialization case
     nml_init_opts["nhyd_model"]["config_init_case"] = 7
     # Should be set to 1 for this step (see doc)  
@@ -187,10 +188,12 @@ def static_interp():
     nml_init_opts["preproc_stages"]["config_met_interp"] = False
     nml_init_opts["preproc_stages"]["config_input_sst"] = False
     nml_init_opts["preproc_stages"]["config_frac_seaice"] = False
+    # Decomposition file for running in parallel
+    nml_init_opts["decomposition"]["config_block_decomp_file_prefix"] = graph_file_path
 
     str_init_opt = {"input":{}, "output":{}}
 
-    str_init_opt["input"]["filename_template"] = f"{grid_dir}/{b_name}.grid.nc"
+    str_init_opt["input"]["filename_template"] = f"{grid_dir}/{grid_name}.grid.nc"
     str_init_opt["output"]["filename_template"] = f"{b_dir}/init/{b_name}.static.nc"
     str_init_opt["output"]["clobber_mode"] = "overwrite"
 
