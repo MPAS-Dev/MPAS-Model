@@ -1,8 +1,20 @@
-#-------------------------------------------------
-#  Script to generate namelists and stream for MPAS
-#  Author: P. Peixoto <ppeixoto@usp.br>
-#  Last update: Mar 2022
-# --------------------------------------------------
+# **************************************************************************** #
+#                                                                              #
+#                                                         :::      ::::::::    #
+#    run_bench-real.py                                  :+:      :+:    :+:    #
+#                                                     +:+ +:+         +:+      #
+#    By: Danilo <danilo.oceano@gmail.com>           +#+  +:+       +#+         #
+#                                                 +#+#+#+#+#+   +#+            #
+#    Created: 2022/11/01 12:00:00 by Danilo            #+#    #+#              #
+#    Updated: 2023/07/26 18:00:19 by Danilo           ###   ########.fr        #
+#                                                                              #
+# **************************************************************************** #
+
+#-------------------------------------------------------------------------------
+#  Script to generate namelists and stream for MPAS for real cases
+#  Based on P.Peixoto's run_bench.py script
+#-------------------------------------------------------------------------------
+
 import os
 import sys
 import subprocess
