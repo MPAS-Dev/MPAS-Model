@@ -190,6 +190,8 @@ elif [[ $host == nemo ]]; then
         export LD_LIBRARY_PATH=${LIBBASEGCC}/lib64/:$LD_LIBRARY_PATH
         export LD_LIBRARY_PATH=${LIBBASEGCC}/lib:$LD_LIBRARY_PATH
 
+        export PATH=${PWD}/MPAS-Tools/mesh_tools/grid_rotate:${PATH}
+
 else
 	echo "********************************************************"
 	echo "****************** ENVIRONMENT UNKNOWN *****************"
