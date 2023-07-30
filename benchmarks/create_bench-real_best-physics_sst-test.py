@@ -6,7 +6,7 @@
 #    By: Danilo  <danilo.oceano@gmail.com>          +#+  +:+       +#+         #
 #                                                 +#+#+#+#+#+   +#+            #
 #    Created: 2023/03/18 18:48:09 by Danilo            #+#    #+#              #
-#    Updated: 2023/07/30 18:25:24 by Danilo           ###   ########.fr        #
+#    Updated: 2023/07/30 18:35:15 by Danilo           ###   ########.fr        #
 #                                                                              #
 # **************************************************************************** #
 
@@ -138,9 +138,9 @@ print(f"Name of main benchmark directory: {b_main_dir_name}, directory: {b_main_
 print(f"Benchmarks name: {b_name}, directory: {b_dir}")
 
 # define dates in format: 'YYYY-MM-DD_hh:mm:ss'
-init_date = '2022-02-15_00:00:00'
-run_duration = '1_00:00:00'
-len_disp = 100.0
+init_date = '2004-03-21_00:00:00'
+run_duration = '2_00:00:00'
+len_disp = 800.0
 n_vert_levels = 72
 
 # path to geographical data
