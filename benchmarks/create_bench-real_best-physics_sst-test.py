@@ -1,8 +1,16 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-"""
-Created on Sat Mar 18 18:48:09 2023
+# **************************************************************************** #
+#                                                                              #
+#                                                         :::      ::::::::    #
+#    create_bench-real_best-physics_sst-test.py         :+:      :+:    :+:    #
+#                                                     +:+ +:+         +:+      #
+#    By: Danilo  <danilo.oceano@gmail.com>          +#+  +:+       +#+         #
+#                                                 +#+#+#+#+#+   +#+            #
+#    Created: 2023/03/18 18:48:09 by Danilo            #+#    #+#              #
+#    Updated: 2023/07/30 18:25:24 by Danilo           ###   ########.fr        #
+#                                                                              #
+# **************************************************************************** #
 
+"""
 Created by:
     Danilo Couto de Souza
     Universidade de São Paulo (USP)
@@ -99,12 +107,6 @@ This will create a list of subdirectories (benchmarks), one for each
     python run_bench-real.py --run --name test \
     --bdir cyclone_bench/x1.10242.len_disp.visc4_2dsmag
 
--------------------------------------------------------------------------------
-
-TO DO: Read loop_parameters from a text file. Use default_inputs for defining 
-    the parameters for creating the benchmarks, instead of specifying them here.
-
-@author: daniloceano
 """
 
 import os
@@ -116,46 +118,62 @@ import mpas_benchmarks_RealCase as bench
 # Get args: init or run core
 args = bench.call_parser()
 
-
 # Workspace
 work_dir = os.getenv('MPAS_DIR')
-b_name = args.name
-b_main_dir = work_dir+"/benchmarks/"+b_name
+print(f"Working directory: {work_dir}")
 
 # 1 ===========================================================================
 # ## DEFINE PARAMETERS FOR NAMELIST.INIT ##
 # define grid
 grid_name = "Catarina_250-8km"
-grid_dir = work_dir+"/grids/grids/Catarina_250-8km/"
+grid_dir = f"{work_dir}/grids/grids/Catarina_250-8km/"
+graph_file_path =  f"{grid_dir}/Catarina_250-8km.graph.info.part."
+
+# benchmarks options
+b_main_dir_name = args.name
+b_main_dir =  f"{work_dir}/benchmarks/{b_main_dir_name}"
+b_name = f"{grid_name}.physics-test"
+b_dir = f"{b_main_dir}/{b_name}"
+print(f"Name of main benchmark directory: {b_main_dir_name}, directory: {b_main_dir}")
+print(f"Benchmarks name: {b_name}, directory: {b_dir}")
+
 # define dates in format: 'YYYY-MM-DD_hh:mm:ss'
-init_date = '2004-03-21_00:00:00'
-run_duration = '2_00:00:00'
-len_disp = 800.0
+init_date = '2022-02-15_00:00:00'
+run_duration = '1_00:00:00'
+len_disp = 100.0
 n_vert_levels = 72
+
 # path to geographical data
 geog_data_path = '/p1-nemo/danilocs/mpas/mpas_tutorial/geog/'
+
 # prefix used to generate intermediatie files with ungrib.exe
 met_prefix = 'ERA5'
 sfc_prefix = 'SST'
+
 # Interval of the SST files
-sfc_interval = 21600
+sfc_interval = 3600
+
 # Model timestep
-dt = 48
+dt = 30
+
 # SST Update on or off
 sst_update = True
 
 # 2 ===========================================================================
 ## LOOP OVER DESIRED OPTIONS ##
+
 # Microphysics parametrization choice
-loop_parameter1 = ['mp_thompson','mp_thompson','mp_wsm6']
+loop_parameter1 = ['mp_thompson', 'mp_wsm6', 'mp_kessler']
+
 # Convective parametrization choice
-loop_parameter2 = ["cu_ntiedtke",'cu_tiedtke', 'cu_ntiedtke']
+loop_parameter2 = ["off", 'cu_ntiedtke', 'cu_tiedtke', 'cu_grell_freitas','cu_kain_fritsch']
 
 # 3 ===========================================================================
 def static_interp():
     
     nml_init_opts = {"nhyd_model":{}, "dimensions": {}, 
-                     "data_sources":{}, "preproc_stages": {}}
+                     "data_sources":{}, "preproc_stages": {},
+                     "decomposition":{}}
     # Real-data initialization case
     nml_init_opts["nhyd_model"]["config_init_case"] = 7
     # Should be set to 1 for this step (see doc)  
@@ -164,8 +182,7 @@ def static_interp():
     nml_init_opts["dimensions"]["config_nfglevels"] = 1
     nml_init_opts["dimensions"]["config_nfgsoillevels"] = 1
     ## Be careful to path to files for land files!! ##
-    nml_init_opts["data_sources"]["config_geog_data_path"] = \
-        '/p1-nemo/danilocs/mpas/mpas_tutorial/geog/'
+    nml_init_opts["data_sources"]["config_geog_data_path"] = geog_data_path
     # Enable and disable steps of pre-processing fields
     nml_init_opts["preproc_stages"]["config_static_interp"] = True
     nml_init_opts["preproc_stages"]["config_native_gwd_static"] = True
@@ -173,15 +190,13 @@ def static_interp():
     nml_init_opts["preproc_stages"]["config_met_interp"] = False
     nml_init_opts["preproc_stages"]["config_input_sst"] = False
     nml_init_opts["preproc_stages"]["config_frac_seaice"] = False
-
-    b_name = grid_name+".best-physics_sst"
-
-    b_dir = b_main_dir+"/"+b_name
+    # Decomposition file for running in parallel
+    nml_init_opts["decomposition"]["config_block_decomp_file_prefix"] = graph_file_path
 
     str_init_opt = {"input":{}, "output":{}}
 
-    str_init_opt["input"]["filename_template"] = grid_dir+"/"+grid_name+".grid.nc"
-    str_init_opt["output"]["filename_template"] = b_dir+"/init/"+b_name+".static.nc"
+    str_init_opt["input"]["filename_template"] = f"{grid_dir}/{grid_name}.grid.nc"
+    str_init_opt["output"]["filename_template"] = f"{b_dir}/init/{b_name}.static.nc"
     str_init_opt["output"]["clobber_mode"] = "overwrite"
 
     return nml_init_opts, b_dir, str_init_opt
@@ -200,8 +215,7 @@ def init_interp():
     nml_init_opts["dimensions"]["config_nfglevels"] = 38
     nml_init_opts["dimensions"]["config_nfgsoillevels"] = 4
     ## Be careful to path to files for land files!! ##
-    nml_init_opts["data_sources"]["config_met_prefix"] = \
-        work_dir+"/input_data/"+met_prefix
+    nml_init_opts["data_sources"]["config_met_prefix"] = f"{work_dir}/input_data/{met_prefix}"
     # Enable and disable steps of pre-processing fields
     nml_init_opts["preproc_stages"]["config_static_interp"] = False
     nml_init_opts["preproc_stages"]["config_native_gwd_static"] = False
@@ -210,18 +224,12 @@ def init_interp():
     nml_init_opts["preproc_stages"]["config_input_sst"] = False
     nml_init_opts["preproc_stages"]["config_frac_seaice"] = False
     # Decomposition file for running in parallel
-    nml_init_opts["decomposition"]["config_block_decomp_file_prefix"] = \
-        grid_dir+grid_name+'.graph.info.part.'
-
-    b_name = grid_name+".best-physics_sst"
-
-    b_dir = b_main_dir+"/"+b_name
+    nml_init_opts["decomposition"]["config_block_decomp_file_prefix"] = graph_file_path
     
-
     str_init_opt = {"input":{}, "output":{}}
 
-    str_init_opt["input"]["filename_template"] = b_dir+"/init/"+b_name+".static.nc"
-    str_init_opt["output"]["filename_template"] = b_dir+"/init/"+b_name+".init.nc"
+    str_init_opt["input"]["filename_template"] = f"{b_dir}/init/{b_name}.static.nc"
+    str_init_opt["output"]["filename_template"] = f"{b_dir}/init/{b_name}.init.nc"
     str_init_opt["output"]["clobber_mode"] = "overwrite"
 
     return nml_init_opts, b_dir, str_init_opt
@@ -240,8 +248,7 @@ def sfc_update():
     nml_init_opts["nhyd_model"]["config_start_time"] = init_date
     nml_init_opts["nhyd_model"]["config_stop_time"] = finish_date
     ## Be careful with the interval for updating the sfc conditions
-    nml_init_opts["data_sources"]["config_sfc_prefix"] = \
-        work_dir+"/input_data/"+sfc_prefix
+    nml_init_opts["data_sources"]["config_sfc_prefix"] = f"{work_dir}/input_data/{sfc_prefix}"
     nml_init_opts["data_sources"]["config_fg_interval"] = sfc_interval
     # Enable and disable steps of pre-processing fields
     nml_init_opts["preproc_stages"]["config_static_interp"] = False
@@ -251,22 +258,16 @@ def sfc_update():
     nml_init_opts["preproc_stages"]["config_input_sst"] = True
     nml_init_opts["preproc_stages"]["config_frac_seaice"] = True
     # Decomposition file for running in parallel
-    nml_init_opts["decomposition"]["config_block_decomp_file_prefix"] = \
-        grid_dir+grid_name+'.graph.info.part.'
-
-    b_name = grid_name+".best-physics_sst"
-
-    b_dir = b_main_dir+"/"+b_name
+    nml_init_opts["decomposition"]["config_block_decomp_file_prefix"] = graph_file_path
 
     str_init_opt = {"input":{}, "output":{}, "surface":{}}
 
     # Setup grid and init file
-    str_init_opt["input"]["filename_template"] = b_dir+"/init/"+b_name+".static.nc"
-    str_init_opt["output"]["filename_template"] = b_dir+"/init/"+b_name+".init.nc"
+    str_init_opt["input"]["filename_template"] = f"{b_dir}/init/{b_name}.static.nc"
+    str_init_opt["output"]["filename_template"] = f"{b_dir}/init/{b_name}.init.nc"
     str_init_opt["output"]["clobber_mode"] = "overwrite"    
     # Setup surface update file
-    str_init_opt["surface"]["filename_template"] = \
-        b_dir+"/init/"+b_name+".sfc_update.nc"
+    str_init_opt["surface"]["filename_template"] = f"{b_dir}/init/{b_name}.sfc_update.nc"
     str_init_opt["surface"]["filename_interval"] = str(sfc_interval)
     str_init_opt["surface"]["output_interval"] = str(sfc_interval)
     str_init_opt["surface"]["clobber_mode"] = "overwrite"
@@ -284,28 +285,27 @@ def run(par1,par2):
     nml_opts["nhyd_model"]["config_run_duration"] = run_duration
     nml_opts["nhyd_model"]["config_len_disp"] = len_disp
     nml_opts["nhyd_model"]["config_visc4_2dsmag"] = 0.05
-    nml_opts["decomposition"]["config_block_decomp_file_prefix"] =\
-        grid_dir+"/"+grid_name+".graph.info.part."
+    nml_opts["decomposition"]["config_block_decomp_file_prefix"] = graph_file_path
     nml_opts["physics"]["config_sst_update"] = sst_update
     nml_opts["physics"]["config_microp_scheme"] = par1
     nml_opts["physics"]["config_convection_scheme"] = par2
         
-    b_name = grid_name+".best-physics_sst"
-    b_dir = b_main_dir+"/"+b_name
-    b_full_name = b_dir+"/run."+"best-physics_sst"+"_microp"+str(par1)+\
-        ".cu_"+str(par2)
+    b_full_name = f"{b_dir}/run.{b_name}.{par1}.{par2}"
 
-    str_opt = {"input":{}, "output":{}, "restart" : {},
-               "diagnostics" : {}, "surface" : {}}
+    str_opt = {
+        "input":{},
+        "output":{},
+        "restart" : {},
+        "diagnostics" : {},
+        "surface" : {}}
     
-    str_opt["input"]["filename_template"] = b_dir+"/init/"+b_name+".init.nc"
-    str_opt["output"]["filename_template"] = b_full_name+"/history.$Y-$M-$D_$h.$m.$s.nc"
+    str_opt["input"]["filename_template"] = f"{b_dir}/init/{b_name}.init.nc"
+    str_opt["output"]["filename_template"] = f"{b_full_name}/history.$Y-$M-$D_$h.$m.$s.nc"
     str_opt["output"]["output_interval"] = "1:00:00"
-    str_opt["surface"]["filename_template"] = \
-        b_dir+"/init/"+b_name+".sfc_update.nc"
+    str_opt["surface"]["filename_template"] = f"{b_dir}/init/{b_name}.sfc_update.nc"
     str_opt["surface"]["filename_interval"] = str(sfc_interval)
     str_opt["surface"]["input_interval"] = str(sfc_interval)
-    str_opt["diagnostics"]["filename_template"] = b_full_name+"/diag.nc"
+    str_opt["diagnostics"]["filename_template"] = f"{b_full_name}/diag.nc"
     str_opt["diagnostics"]["output_interval"] = "3:00:00"
     str_opt["diagnostics"]["clobber_mode"] = "overwrite"
     
@@ -316,8 +316,9 @@ def run(par1,par2):
 if args.static:
     opts = static_interp()
     nml_init_opts, b_dir, str_init_opt = opts[0], opts[1], opts[2]
+    print(f"benchmark directory: {b_dir}")
     b_init = bench.Bench(args, dummy_string="Init", b_dir=b_dir)
-    b_init.set_options(nml_init_opts, str_init_opt, b_dir+"/init")
+    b_init.set_options(nml_init_opts, str_init_opt, f"{b_dir}/init")
     print("Benchmark dir:", b_dir)
  
 # Setup for vertical grid generation and initial field interpolation
@@ -326,7 +327,7 @@ elif args.init:
     opts = init_interp()
     nml_init_opts, b_dir, str_init_opt = opts[0], opts[1], opts[2]
     b_init = bench.Bench(args, dummy_string="Init", b_dir=b_dir)
-    b_init.set_options(nml_init_opts, str_init_opt, b_dir+"/init")
+    b_init.set_options(nml_init_opts, str_init_opt, f"{b_dir}/init")
     print("Benchmark dir:", b_dir)
     
 # Setup for generating periodic SST and sea-ice Updates
@@ -335,14 +336,14 @@ elif args.sfc:
     opts = sfc_update()
     nml_init_opts, b_dir, str_init_opt = opts[0], opts[1], opts[2]
     b_init = bench.Bench(args, dummy_string="Init", b_dir=b_dir)
-    b_init.set_options(nml_init_opts, str_init_opt, b_dir+"/init")
+    b_init.set_options(nml_init_opts, str_init_opt, f"{b_dir}/init")
     print("Benchmark dir:", b_dir)
 
 
 # 5 ===========================================================================     
 #Make sure the init test exists!
 elif args.run:
-    for par1, par2 in zip(loop_parameter1, loop_parameter2):
+    for par1, par2 in itertools.product(loop_parameter1, loop_parameter2):
         opts = run(par1,par2)
         nml_opts, b_full_name, str_opt = opts[0], opts[1], opts[2]
         b_init = bench.Bench(args,
@@ -360,4 +361,3 @@ elif args.run:
                 
         else:
             print("Argument not recognized!")
-
