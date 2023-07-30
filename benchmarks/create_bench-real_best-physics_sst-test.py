@@ -6,7 +6,7 @@
 #    By: Danilo  <danilo.oceano@gmail.com>          +#+  +:+       +#+         #
 #                                                 +#+#+#+#+#+   +#+            #
 #    Created: 2023/03/18 18:48:09 by Danilo            #+#    #+#              #
-#    Updated: 2023/07/30 18:44:04 by Danilo           ###   ########.fr        #
+#    Updated: 2023/07/30 20:39:22 by Danilo           ###   ########.fr        #
 #                                                                              #
 # **************************************************************************** #
 
@@ -113,12 +113,12 @@ import os
 import shutil
 import itertools
 import datetime
-from datetime import datetime, timedelta
+from datetime import timedelta
 import mpas_benchmarks_RealCase as bench
 
 def compute_dates(init_date, run_duration):
     # Parse the init_date in the format 'YYYY-MM-DD_hh:mm:ss'
-    init_date_obj = datetime.strptime(init_date, '%Y-%m-%d_%H:%M:%S')
+    init_date_obj = datetime.datetime.strptime(init_date, '%Y-%m-%d_%H:%M:%S')
     
     # Parse the run_duration in the format 'days_hours:minutes:seconds'
     days, time = run_duration.split('_')
