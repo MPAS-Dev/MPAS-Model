@@ -6,7 +6,7 @@
 #    By: Danilo  <danilo.oceano@gmail.com>          +#+  +:+       +#+         #
 #                                                 +#+#+#+#+#+   +#+            #
 #    Created: 2023/03/18 18:48:09 by Danilo            #+#    #+#              #
-#    Updated: 2023/07/30 18:35:15 by Danilo           ###   ########.fr        #
+#    Updated: 2023/07/30 18:42:22 by Danilo           ###   ########.fr        #
 #                                                                              #
 # **************************************************************************** #
 
@@ -113,7 +113,27 @@ import os
 import shutil
 import itertools
 import datetime
+from datetime import datetime, timedelta
 import mpas_benchmarks_RealCase as bench
+
+def compute_dates(init_date, run_duration):
+    # Parse the init_date in the format 'YYYY-MM-DD_hh:mm:ss'
+    init_date_obj = datetime.strptime(init_date, '%Y-%m-%d_%H:%M:%S')
+    
+    # Parse the run_duration in the format 'days_hours:minutes:seconds'
+    days, time = run_duration.split('_')
+    run_duration_obj = timedelta(days=int(days), hours=int(time.split(':')[0]), 
+                                 minutes=int(time.split(':')[1]), seconds=int(time.split(':')[2]))
+    
+    # Compute the end date by adding the run_duration to the init_date
+    end_date_obj = init_date_obj + run_duration_obj
+    
+    # Format the start date and end date as 'MMDD'
+    start_date = init_date_obj.strftime('%m%d')
+    end_date = end_date_obj.strftime('%m%d')
+    
+    return start_date, end_date
+
 
 # Get args: init or run core
 args = bench.call_parser()
@@ -129,19 +149,21 @@ grid_name = "Catarina_250-8km"
 grid_dir = f"{work_dir}/grids/grids/Catarina_250-8km/"
 graph_file_path =  f"{grid_dir}/Catarina_250-8km.graph.info.part."
 
-# benchmarks options
-b_main_dir_name = args.name
-b_main_dir =  f"{work_dir}/benchmarks/{b_main_dir_name}"
-b_name = f"{grid_name}.physics-test"
-b_dir = f"{b_main_dir}/{b_name}"
-print(f"Name of main benchmark directory: {b_main_dir_name}, directory: {b_main_dir}")
-print(f"Benchmarks name: {b_name}, directory: {b_dir}")
-
 # define dates in format: 'YYYY-MM-DD_hh:mm:ss'
 init_date = '2004-03-21_00:00:00'
 run_duration = '2_00:00:00'
 len_disp = 800.0
 n_vert_levels = 72
+
+# benchmarks options
+b_main_dir_name = args.name
+b_main_dir =  f"{work_dir}/benchmarks/{b_main_dir_name}"
+
+start_date, end_date = compute_dates(init_date, run_duration)
+b_name = f"{start_date}-{end_date}.physics-test"
+b_dir = f"{b_main_dir}/{b_name}"
+print(f"Name of main benchmark directory: {b_main_dir_name}, directory: {b_main_dir}")
+print(f"Benchmarks name: {b_name}, directory: {b_dir}")
 
 # path to geographical data
 geog_data_path = '/p1-nemo/danilocs/mpas/mpas_tutorial/geog/'
