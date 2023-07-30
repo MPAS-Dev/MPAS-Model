@@ -6,7 +6,7 @@
 #    By: Danilo  <danilo.oceano@gmail.com>          +#+  +:+       +#+         #
 #                                                 +#+#+#+#+#+   +#+            #
 #    Created: 2023/03/18 18:48:09 by Danilo            #+#    #+#              #
-#    Updated: 2023/07/30 18:43:08 by Danilo           ###   ########.fr        #
+#    Updated: 2023/07/30 18:44:04 by Danilo           ###   ########.fr        #
 #                                                                              #
 # **************************************************************************** #
 
@@ -160,7 +160,7 @@ b_main_dir_name = args.name
 b_main_dir =  f"{work_dir}/benchmarks/{b_main_dir_name}"
 
 start_date, end_date = compute_dates(init_date, run_duration)
-b_name = f"{start_date}-{end_date}.physics-test"
+b_name = f"{start_date}-{end_date}"
 
 b_dir = f"{b_main_dir}/{b_name}"
 print(f"Name of main benchmark directory: {b_main_dir_name}, directory: {b_main_dir}")
