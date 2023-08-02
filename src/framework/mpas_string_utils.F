@@ -68,5 +68,39 @@ module mpas_string_utils
 
     end subroutine mpas_split_string
 
+    !-----------------------------------------------------------------------
+    !  routine mpas_string_replace
+    !
+    !> \brief Returns string with charToReplace replaced with targetChar
+    !> \author Matthew Dimond
+    !> \date   07/26/2023
+    !> \details This function replaces all characters matching charToReplace in
+    !>          "string" with the char "targetChar" after trimming "string"
+    !
+    !-----------------------------------------------------------------------
+    function mpas_string_replace(string, charToReplace, targetChar) result(stringOut)
+
+        implicit none
+
+        ! Arguments
+        character(len=*), intent(in) :: string 
+        character, intent(in) :: targetChar, charToReplace
+
+        ! Local variables
+        integer :: i
+
+        ! Result
+        character(len=len_trim(string)) :: stringOut
+
+        stringOut = trim(string)
+
+        do i = 1, len_trim(string)
+            if (string(i:i) == charToReplace) then
+                stringOut(i:i) = targetChar
+            end if
+        end do
+
+    end function mpas_string_replace
+
 end module mpas_string_utils
 
