@@ -16,6 +16,66 @@ module test_core_string_utils
 
     contains
 
+    subroutine mpas_test_string_replace(err)
+
+        use mpas_string_utils, only : mpas_string_replace
+
+        implicit none
+
+        ! Arguments
+        integer, intent(out) :: err
+
+        ! Local variables
+        character(len=StrKIND) :: testString
+        character(len=StrKIND) :: outString
+        character :: targetCharacter, toReplace
+
+        err = 0
+
+        ! Basic functionality
+        testString = 'Test_String'
+        targetCharacter = '-'
+        toReplace = '_'
+        outString = mpas_string_replace(testString, toReplace, targetCharacter)
+        if (trim(outString) /= 'Test-String') then
+            err = err + 1
+            call mpas_log_write('FAILED TO REPLACE STRING #1 CORRECTLY', &
+                                MPAS_LOG_ERR)
+        end if
+
+        ! Whitespace replacement
+        testString = 'Test String'
+        targetCharacter = '-'
+        toReplace = ' '
+        outString = mpas_string_replace(testString, toReplace, targetCharacter)
+        if (trim(outString) /= 'Test-String') then
+            err = err + 1
+            call mpas_log_write('FAILED TO REPLACE STRING #2 CORRECTLY', &
+                                MPAS_LOG_ERR)
+        end if
+
+        ! Consecutive charcters
+        testString = 'Test__String'
+        toReplace = '_'
+        outString = mpas_string_replace(testString, toReplace, targetCharacter)
+        if (trim(outString) /= 'Test--String') then
+            err = err + 1
+            call mpas_log_write('FAILED TO REPLACE STRING #3 CORRECTLY', &
+                                MPAS_LOG_ERR)
+        end if
+
+        ! No Replacement
+        testString = 'Test String'
+        toReplace = '-'
+        outString = mpas_string_replace(testString, toReplace, targetCharacter)
+        if (trim(outString) /= 'Test String') then
+            err = err + 1
+            call mpas_log_write('FAILED TO REPLACE STRING #4 CORRECTLY', &
+                                MPAS_LOG_ERR)
+        end if
+
+    end subroutine mpas_test_string_replace
+
     subroutine mpas_test_split_string(err)
 
         use mpas_string_utils, only : mpas_split_string
@@ -108,6 +168,14 @@ module test_core_string_utils
             call mpas_log_write('   mpas_split_string: SUCCESS')
         else
             call mpas_log_write('   mpas_split_string: FAILURE', MPAS_LOG_ERR)
+        end if
+
+        call mpas_test_string_replace(err)
+        if (err == 0) then
+            call mpas_log_write('   mpas_string_replace: SUCCESS')
+        else
+            call mpas_log_write('   mpas_string_replace: FAILURE', &
+                                MPAS_LOG_ERR)
         end if
 
     end subroutine mpas_test_string_utils
