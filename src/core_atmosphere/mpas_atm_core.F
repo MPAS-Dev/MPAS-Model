@@ -51,6 +51,8 @@ module atm_core
       use mpas_atm_threading, only : mpas_atm_threading_init
       use atm_time_integration, only : mpas_atm_dynamics_init
       use mpas_timer, only : mpas_timer_start, mpas_timer_stop
+      use mpas_attlist, only : mpas_modify_att
+      use mpas_string_utils, only : mpas_string_replace
 
       implicit none
 
@@ -67,12 +69,14 @@ module atm_core
       type (mpas_pool_type), pointer :: mesh
       type (mpas_pool_type), pointer :: diag
       type (field2DReal), pointer :: u_field, pv_edge_field, ru_field, rw_field
+      type (field0DReal), pointer :: Time_field
       character (len=StrKIND), pointer :: xtime
       character (len=StrKIND), pointer :: initial_time1, initial_time2
       type (MPAS_Time_Type) :: startTime
 
       real (kind=RKIND), pointer :: nominalMinDc
       real (kind=RKIND), pointer :: config_len_disp
+      real (kind=RKIND), pointer :: Time
 
       integer, pointer :: nVertLevels, maxEdges, maxEdges2, num_scalars
       character (len=ShortStrKIND) :: init_stream_name
@@ -269,7 +273,12 @@ module atm_core
          call mpas_pool_get_array(state, 'initial_time', initial_time2, 2)
          initial_time2 = initial_time1
 
-         block => block % next
+         ! Set the units to be cf compliant 'seconds since <cf-timestamp>'
+         call mpas_pool_get_field(state, 'Time', Time_field)
+         call mpas_modify_att(Time_field % attLists(1) % attList, 'units', &
+              'seconds since ' // mpas_string_replace(initial_time1, '_', ' '))
+
+          block => block % next
       end do
 
       call exchange_halo_group(domain, 'initialization:pv_edge,ru,rw')
