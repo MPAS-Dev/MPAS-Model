@@ -99,6 +99,7 @@ VERSION
 # ignore input data
 input_data/ERA5*
 input_data/SST*
+INMET_*.CSV
 
 # others
 local_software/gcc-8.5.0/*
