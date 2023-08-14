@@ -44,13 +44,16 @@
  type (mpas_pool_type), intent(in)    :: configs
 
 !local variables:
- type (MPAS_Time_type)  :: curr_time, stop_time
+ type (MPAS_Time_type)  :: curr_time, stop_time, start_time
+ type (MPAS_TimeInterval_type) :: time_since_start
  character(len=StrKIND) :: timeString
+ real (kind=RKIND) :: dt
 
  character(len=StrKIND), pointer :: config_sfc_prefix
  character(len=StrKIND), pointer :: xtime
+ real (kind=RKIND), pointer :: Time
  integer :: ierr
- 
+
 
 !==================================================================================================
 
@@ -58,14 +61,20 @@
  call mpas_pool_get_config(configs, 'config_sfc_prefix', config_sfc_prefix)
 
  call mpas_pool_get_array(state, 'xtime', xtime)
+ call mpas_pool_get_array(state, 'Time', Time)
 
 !loop over all times:
  curr_time = mpas_get_clock_time(domain % clock, MPAS_NOW) 
  stop_time = mpas_get_clock_time(domain % clock, MPAS_STOP_TIME) 
+ start_time = mpas_get_clock_time(domain % clock, MPAS_START_TIME)
 
  do while (curr_time <= stop_time)
     call mpas_get_time(curr_time, dateTimeString=timeString)
     xtime = timeString
+
+    time_since_start = curr_time - start_time
+    call mpas_get_timeInterval(time_since_start, dt=dt)
+    Time = dt
 
 !   call mpas_log_write('Processing '//trim(config_sfc_prefix)//':'//timeString(1:13))
 
