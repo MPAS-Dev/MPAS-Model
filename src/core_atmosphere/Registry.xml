@@ -1,5 +1,5 @@
 <?xml version="1.0"?>
-<registry model="mpas" core="atmosphere" core_abbrev="atm" version="8.0.0">
+<registry model="mpas" core="atmosphere" core_abbrev="atm" version="8.0.1">
 
 <!-- **************************************************************************************** -->
 <!-- ************************************** Dimensions ************************************** -->
@@ -1686,8 +1686,8 @@
                 <var name="vorticity" type="real" dimensions="nVertLevels nVertices Time" units="s^{-1}"
                      description="Relative vorticity at vertices"/>
 
-                <var name="pv_edge" type="real" dimensions="nVertLevels nEdges Time" units="s^{-1} kg^{-1} m^3"
-                     description="absolute vorticity/rho_zz averaged to the cell edge from the vertices"/>
+                <var name="pv_edge" type="real" dimensions="nVertLevels nEdges Time" units="s^{-1}"
+                     description="absolute vertical vorticity averaged to the cell edge from the vertices"/>
 
                 <var name="rho_edge" type="real" dimensions="nVertLevels nEdges Time" units="kg m^{-3}"
                      description="rho_zz averaged from cell centers to the cell edge"/>
@@ -1695,11 +1695,11 @@
                 <var name="ke" type="real" dimensions="nVertLevels nCells Time" units="m^2 s^{-2}"
                      description="Kinetic energy at a cell center"/>
 
-                <var name="pv_vertex" type="real" dimensions="nVertLevels nVertices Time" units="s^{-1} kg^{-1} m^3"
-                     description="absolute vorticity/rho_zz at a vertex"/>
+                <var name="pv_vertex" type="real" dimensions="nVertLevels nVertices Time" units="s^{-1}"
+                     description="absolute vertical vorticity at a vertex"/>
 
-                <var name="pv_cell" type="real" dimensions="nVertLevels nCells Time" units="s^{-1} kg^{-1} m^3"
-                     description="absolute vorticity/rho_zz averaged to the cell center from the vertices"/>
+                <var name="pv_cell" type="real" dimensions="nVertLevels nCells Time" units="s^{-1}"
+                     description="absolute vertical vorticity averaged to the cell center from the vertices"/>
 
                 <var name="dtheta_dt_mp" type="real" dimensions="nVertLevels nCells Time" units="K s^{-1}"
                      description="Potential temperature heating rate from microphysics"/>
@@ -1843,8 +1843,8 @@
                 <var name="tend_theta" name_in_code="theta_m" type="real" dimensions="nVertLevels nCells Time" units="kg K m^{-3} s^{-1}"
                      description="tendency of coupled potential temperature rho*theta_m/zz from dynamics and physics, updated each RK step"/>
 
-                <var name="rt_diabatic_tend" type="real" dimensions="nVertLevels nCells Time" units="kg K s^{-1}"
-                     description="Tendency of coupled potential temperature from physics"/>
+                <var name="rt_diabatic_tend" type="real" dimensions="nVertLevels nCells Time" units="K s^{-1}"
+                     description="Tendency of modified potential temperature due to cloud microphysics"/>
 
                 <var name="euler_tend_u" name_in_code="u_euler" type="real" dimensions="nVertLevels nEdges Time" units="m s^{-2}"
                      description="Tendency of u from dynamics"/>
@@ -3131,6 +3131,9 @@
                      description="Total dry air tendency from physics"
                      persistence="scratch" />
 
+                <var name="rthdynten" type="real" dimensions="nVertLevels nCells Time" units="K s^{-1}"
+                     description="tendency of temperature due to horizontal and vertical advections"/>
+
                 <!-- Scratch variables used when propagating cell-centered winds to edges -->
                 <var name="tend_uzonal" type="real" dimensions="nVertLevels nCells Time" units="m s^{-1} s^{-1}"
                      description="Total cell-centered zonal wind tendency from physics"
@@ -3174,10 +3177,6 @@
                 <!-- TIEDTKE AND GRELL -->
                 <var name="rqvdynten" type="real" dimensions="nVertLevels nCells Time" units="kg kg^{-1} s^{-1}"
                      description="tendency of water vapor due to horizontal and vertical advections"
-                     packages="cu_grell_freitas_in;cu_tiedtke_in"/>
-
-                <var name="rthdynten" type="real" dimensions="nVertLevels nCells Time" units="K s^{-1}"
-                     description="tendency of temperature due to horizontal and vertical advections"
                      packages="cu_grell_freitas_in;cu_tiedtke_in"/>
 
                 <var name="rucuten" type="real" dimensions="nVertLevels nCells Time" units="m s^{-1} s^{-1}"

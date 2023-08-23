@@ -4653,77 +4653,45 @@ module mpas_io
          local_precision = MPAS_IO_NATIVE_PRECISION
       end if
 
-      ! Query attribute value
 #ifdef MPAS_PIO_SUPPORT
+      ! Query attribute value
       pio_ierr = PIO_inq_att(handle % pio_file, varid, attName, xtype, len)
       if (pio_ierr /= PIO_noerr) then
          if (present(ierr)) ierr = MPAS_IO_ERR_PIO
          return
       end if
-#endif
 
       if ((local_precision == MPAS_IO_SINGLE_PRECISION) .and. &
           (MPAS_IO_NATIVE_PRECISION /= MPAS_IO_SINGLE_PRECISION)) then
 
-#ifdef MPAS_PIO_SUPPORT
          if (xtype /= PIO_REAL) then
             if (present(ierr)) ierr=MPAS_IO_ERR_WRONG_ATT_TYPE
             return
          end if
          pio_ierr = PIO_get_att(handle % pio_file, varid, attName, singleVal)
-#endif
-
-#ifdef MPAS_SMIOL_SUPPORT
-         if (present(fieldname)) then
-            local_ierr = SMIOLf_inquire_att(handle % smiol_file, trim(fieldname), trim(attName), singleVal)
-         else
-            local_ierr = SMIOLf_inquire_att(handle % smiol_file, '', trim(attName), singleVal)
-         end if
-#endif
 
          attValue = real(singleVal,RKIND)
 
       else if ((local_precision == MPAS_IO_DOUBLE_PRECISION) .and. &
           (MPAS_IO_NATIVE_PRECISION /= MPAS_IO_DOUBLE_PRECISION)) then
 
-#ifdef MPAS_PIO_SUPPORT
          if (xtype /= PIO_DOUBLE) then
             if (present(ierr)) ierr=MPAS_IO_ERR_WRONG_ATT_TYPE
             return
          end if
          pio_ierr = PIO_get_att(handle % pio_file, varid, attName, doubleVal)
-#endif
-
-#ifdef MPAS_SMIOL_SUPPORT
-         if (present(fieldname)) then
-            local_ierr = SMIOLf_inquire_att(handle % smiol_file, trim(fieldname), trim(attName), doubleVal)
-         else
-            local_ierr = SMIOLf_inquire_att(handle % smiol_file, '', trim(attName), doubleVal)
-         end if
-#endif
 
          attValue = real(doubleVal,RKIND)
 
       else
 
-#ifdef MPAS_PIO_SUPPORT
          if (xtype /= PIO_DOUBLE .and. xtype /= PIO_REAL) then
             if (present(ierr)) ierr=MPAS_IO_ERR_WRONG_ATT_TYPE
             return
          end if
          pio_ierr = PIO_get_att(handle % pio_file, varid, attName, attValue)
-#endif
-
-#ifdef MPAS_SMIOL_SUPPORT
-         if (present(fieldname)) then
-            local_ierr = SMIOLf_inquire_att(handle % smiol_file, trim(fieldname), trim(attName), attValue)
-         else
-            local_ierr = SMIOLf_inquire_att(handle % smiol_file, '', trim(attName), attValue)
-         end if
-#endif
 
       end if
-#ifdef MPAS_PIO_SUPPORT
       if (pio_ierr /= PIO_noerr) then
          if (present(ierr)) ierr = MPAS_IO_ERR_PIO
          return
@@ -4731,14 +4699,65 @@ module mpas_io
 #endif
 
 #ifdef MPAS_SMIOL_SUPPORT
+      !
+      ! Try to read the attribute in the MPAS native precision
+      !
+      if (present(fieldname)) then
+         local_ierr = SMIOLf_inquire_att(handle % smiol_file, trim(fieldname), &
+                                         trim(attName), attValue)
+      else
+         local_ierr = SMIOLf_inquire_att(handle % smiol_file, '', &
+                                         trim(attName), attValue)
+      end if
+
+      !
+      ! If that fails, perhaps the attribute is in a different precision from
+      ! the native MPAS precision
+      !
+      if (local_ierr == SMIOL_WRONG_ARG_TYPE) then
+         if (MPAS_IO_NATIVE_PRECISION == MPAS_IO_DOUBLE_PRECISION) then
+
+            !
+            ! Try again, but read a single-precision value
+            !
+            if (present(fieldname)) then
+               local_ierr = SMIOLf_inquire_att(handle % smiol_file, trim(fieldname), &
+                                               trim(attName), singleVal)
+            else
+               local_ierr = SMIOLf_inquire_att(handle % smiol_file, '', &
+                                               trim(attName), singleVal)
+            end if
+            attValue = real(singleVal,RKIND)
+
+         else
+
+            !
+            ! Try again, but read a double-precision value
+            !
+            if (present(fieldname)) then
+               local_ierr = SMIOLf_inquire_att(handle % smiol_file, trim(fieldname), &
+                                               trim(attName), doubleVal)
+            else
+               local_ierr = SMIOLf_inquire_att(handle % smiol_file, '', &
+                                               trim(attName), doubleVal)
+            end if
+            attValue = real(doubleVal,RKIND)
+
+         end if
+      end if
+
+      !
+      ! If all of the above were unsuccessful, set attValue to a fill value
+      ! and return an error
+      !
       if (local_ierr /= SMIOL_SUCCESS) then
+         attValue = MPAS_REAL_FILLVAL
          if (local_ierr == SMIOL_WRONG_ARG_TYPE) then
             if (present(ierr)) ierr = MPAS_IO_ERR_WRONG_ATT_TYPE
-            return
          else
             if (present(ierr)) ierr = MPAS_IO_ERR_PIO
-            return
          end if
+         return
       end if
 #endif
 
