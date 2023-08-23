@@ -13,7 +13,9 @@ OBJS = \
 	module_libmassv.o \
 	mp_radar.o \
 	mp_wsm6_effectRad.o \
-	mp_wsm6.o
+	mp_wsm6.o \
+	mp_nssl.o \
+	module_mp_nssl_2mom.o
 
 physics_mmm: $(OBJS)
 	ar -ru ./../libphys.a $(OBJS)
@@ -26,6 +28,9 @@ mp_wsm6.o: \
 	mp_radar.o \
 	module_libmassv.o
 
+mp_nssl.o: \
+	module_mp_nssl_2mom.o
+
 clean:
 	$(RM) *.f90 *.o *.mod
 	@# Certain systems with intel compilers generate *.i files
@@ -37,5 +42,5 @@ ifeq "$(GEN_F90)" "true"
 	$(CPP) $(CPPFLAGS) $(COREDEF) $(CPPINCLUDES) $< > $*.f90
 	$(FC) $(FFLAGS) -c $*.f90 $(FCINCLUDES) -I.. -I../../../framework -I../../../external/esmf_time_f90
 else
-	$(FC) $(CPPFLAGS) $(COREDEF) $(FFLAGS) -c $*.F $(CPPINCLUDES) $(FCINCLUDES) -I.. -I../../../framework -I../../../external/esmf_time_f90
+	$(FC) $(CPPFLAGS)  $(COREDEF) $(FFLAGS) -c $*.F $(CPPINCLUDES) $(FCINCLUDES) -I.. -I../../../framework -I../../../external/esmf_time_f90
 endif

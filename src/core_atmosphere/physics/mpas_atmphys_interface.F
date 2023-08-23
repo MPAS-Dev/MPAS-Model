@@ -485,7 +485,8 @@
 
 !local pointers:
  character(len=StrKIND),pointer:: microp_scheme
- character(len=StrKIND),pointer:: nssl_moments
+ logical,pointer:: config_nssl_3moment
+ logical,pointer:: config_nssl_hail_on, config_nssl_ccn_on
  integer,pointer:: index_qv,index_qc,index_qr,index_qi,index_qs,index_qg,index_qh
  integer,pointer:: index_zrw,index_zgw,index_zhw
  integer,pointer:: index_ni,index_nr,index_nc,index_ns,index_ng,index_nh,index_nccn
@@ -507,7 +508,9 @@
 !-----------------------------------------------------------------------------------------------------------------
 
  call mpas_pool_get_config(configs,'config_microp_scheme',microp_scheme)
- call mpas_pool_get_config(configs,'config_nssl_moments',nssl_moments)
+ call mpas_pool_get_config(configs,'config_nssl_3moment',config_nssl_3moment)
+ call mpas_pool_get_config(configs,'config_nssl_hail_on',config_nssl_hail_on)
+ call mpas_pool_get_config(configs,'config_nssl_ccn_on',config_nssl_ccn_on)
 
  call mpas_pool_get_array(mesh,'zgrid',zgrid)
  call mpas_pool_get_array(mesh,'zz'   ,zz   )
@@ -623,30 +626,36 @@
           enddo
 
        case("mp_nssl2m")
-          qh   => scalars(index_qh,:,:)
           ni   => scalars(index_ni,:,:)
           nr   => scalars(index_nr,:,:)
           nc   => scalars(index_nc,:,:)
           ns   => scalars(index_ns,:,:)
           ng   => scalars(index_ng,:,:)
-          nh   => scalars(index_nh,:,:)
-          nccn => scalars(index_nccn,:,:)
+          IF ( config_nssl_ccn_on ) THEN
+           nccn => scalars(index_nccn,:,:)
+          ENDIF
           volg => scalars(index_volg,:,:)
-          volh => scalars(index_volh,:,:)
+          IF ( config_nssl_hail_on ) THEN
+            qh   => scalars(index_qh,:,:)
+            nh   => scalars(index_nh,:,:)
+            volh => scalars(index_volh,:,:)
+          ENDIF
 
           do j = jts, jte
           do k = kts, kte
           do i = its, ite
+            IF ( config_nssl_hail_on ) THEN
              qh_p(i,k,j) = qh(k,i)
+             nh_p(i,k,j) = nh(k,i)
+             volh_p(i,k,j) = volh(k,i)
+            ENDIF
              ni_p(i,k,j) = ni(k,i)
              nr_p(i,k,j) = nr(k,i)
              nc_p(i,k,j) = nc(k,i)
              ns_p(i,k,j) = ns(k,i)
              ng_p(i,k,j) = ng(k,i)
-             nh_p(i,k,j) = nh(k,i)
              nccn_p(i,k,j) = nccn(k,i)
              volg_p(i,k,j) = volg(k,i)
-             volh_p(i,k,j) = volh(k,i)
              rainprod_p(i,k,j) = rainprod(k,i)
              evapprod_p(i,k,j) = evapprod(k,i)
              refl10cm_p(i,k,j) = refl10cm(k,i)
@@ -654,16 +663,20 @@
           enddo
           enddo
           
-          IF ( nssl_moments == 'nssl3m' ) THEN
+          IF ( config_nssl_3moment ) THEN
             zrw   => scalars(index_zrw,:,:)
             zgw   => scalars(index_zgw,:,:)
-            zhw   => scalars(index_zhw,:,:)
+            IF ( config_nssl_hail_on ) THEN
+             zhw   => scalars(index_zhw,:,:)
+            ENDIF
             do j = jts, jte
             do k = kts, kte
             do i = its, ite
                zrw_p(i,k,j) = zrw(k,i)
                zgw_p(i,k,j) = zgw(k,i)
-               zhw_p(i,k,j) = zhw(k,i)
+               IF ( config_nssl_hail_on ) THEN
+                 zhw_p(i,k,j) = zhw(k,i)
+               ENDIF
             enddo
             enddo
             enddo
@@ -699,7 +712,8 @@
 
 !local pointers:
  character(len=StrKIND),pointer:: microp_scheme
- character(len=StrKIND),pointer:: nssl_moments
+ logical,pointer:: config_nssl_3moment
+ logical,pointer:: config_nssl_hail_on, config_nssl_ccn_on
  integer,pointer:: index_qv,index_qc,index_qr,index_qi,index_qs,index_qg,index_qh
  integer,pointer:: index_zrw,index_zgw,index_zhw
  integer,pointer:: index_ni,index_nr,index_nc,index_ns,index_ng,index_nh,index_nccn
@@ -725,7 +739,9 @@
 !-----------------------------------------------------------------------------------------------------------------
 
  call mpas_pool_get_config(configs,'config_microp_scheme',microp_scheme)
- call mpas_pool_get_config(configs,'config_nssl_moments',nssl_moments)
+ call mpas_pool_get_config(configs,'config_nssl_3moment',config_nssl_3moment)
+ call mpas_pool_get_config(configs,'config_nssl_hail_on',config_nssl_hail_on)
+ call mpas_pool_get_config(configs,'config_nssl_ccn_on',config_nssl_ccn_on)
 
  call mpas_pool_get_array(mesh,'zz'   ,zz   )
  call mpas_pool_get_array(mesh,'zgrid',zgrid)
@@ -871,30 +887,36 @@
 
        case("mp_nssl2m")
 
-          qh   => scalars(index_qh,:,:)
+          IF ( config_nssl_hail_on ) THEN
+            qh   => scalars(index_qh,:,:)
+            nh   => scalars(index_nh,:,:)
+            volh => scalars(index_volh,:,:)
+          ENDIF
           ni   => scalars(index_ni,:,:)
           nr   => scalars(index_nr,:,:)
           nc   => scalars(index_nc,:,:)
           ns   => scalars(index_ns,:,:)
           ng   => scalars(index_ng,:,:)
-          nh   => scalars(index_nh,:,:)
-          nccn => scalars(index_nccn,:,:)
+          IF ( config_nssl_ccn_on ) THEN
+            nccn => scalars(index_nccn,:,:)
+          ENDIF
           volg => scalars(index_volg,:,:)
-          volh => scalars(index_volh,:,:)
 
           do j = jts, jte
           do k = kts, kte
           do i = its, ite
-             qh(k,i) = qh_p(i,k,j)
+             IF ( config_nssl_hail_on ) THEN
+              qh(k,i) = qh_p(i,k,j)
+              nh(k,i) = nh_p(i,k,j)
+              volh(k,i) = volh_p(i,k,j)
+             ENDIF
              ni(k,i) = ni_p(i,k,j)
              nr(k,i) = nr_p(i,k,j)
              nc(k,i) = nc_p(i,k,j)
              ns(k,i) = ns_p(i,k,j)
              ng(k,i) = ng_p(i,k,j)
-             nh(k,i) = nh_p(i,k,j)
              nccn(k,i) = nccn_p(i,k,j)
              volg(k,i) = volg_p(i,k,j)
-             volh(k,i) = volh_p(i,k,j)
              rainprod(k,i) = rainprod_p(i,k,j)
              evapprod(k,i) = evapprod_p(i,k,j)
              refl10cm(k,i) = refl10cm_p(i,k,j)
@@ -902,16 +924,20 @@
           enddo
           enddo
 
-          IF ( nssl_moments == 'nssl3m' ) THEN
+          IF ( config_nssl_3moment ) THEN
             zrw   => scalars(index_zrw,:,:)
             zgw   => scalars(index_zgw,:,:)
-            zhw   => scalars(index_zhw,:,:)
+            IF ( config_nssl_hail_on ) THEN
+              zhw   => scalars(index_zhw,:,:)
+            ENDIF
             do j = jts, jte
             do k = kts, kte
             do i = its, ite
                zrw(k,i) = zrw_p(i,k,j)
                zgw(k,i) = zgw_p(i,k,j)
-               zhw(k,i) = zhw_p(i,k,j)
+               IF ( config_nssl_hail_on ) THEN
+                zhw(k,i) = zhw_p(i,k,j)
+               ENDIF
             enddo
             enddo
             enddo

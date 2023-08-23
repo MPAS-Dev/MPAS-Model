@@ -34,10 +34,11 @@
 
 !local variables:
  character(len=StrKIND),pointer:: config_microp_scheme
- character(len=StrKIND),pointer:: config_nssl_moments
+ logical,pointer:: config_nssl_hail_on, config_nssl_ccn_on
+ logical,pointer:: config_nssl_3moment
  character(len=StrKIND),pointer:: config_convection_scheme
  character(len=StrKIND),pointer:: config_pbl_scheme
- logical,pointer:: mp_kessler_in,mp_thompson_in,mp_wsm6_in,mp_nssl2m_in,nssl3m_in
+ logical,pointer:: mp_kessler_in,mp_thompson_in,mp_wsm6_in,mp_nssl2m_in,nssl3m_in,nssl_hail_in,nssl3m_hail_in,nssl_ccn_in
  logical,pointer:: cu_grell_freitas_in,cu_kain_fritsch_in,cu_tiedtke_in
  logical,pointer:: bl_mynn_in,bl_ysu_in
 
@@ -56,7 +57,9 @@
 
  call mpas_pool_get_config(configs,'config_microp_scheme',config_microp_scheme)
 
- call mpas_pool_get_config(configs,'config_nssl_moments',config_nssl_moments)
+ call mpas_pool_get_config(configs,'config_nssl_3moment',config_nssl_3moment)
+ call mpas_pool_get_config(configs,'config_nssl_hail_on',config_nssl_hail_on)
+ call mpas_pool_get_config(configs,'config_nssl_ccn_on',config_nssl_ccn_on)
 
  nullify(mp_kessler_in)
  call mpas_pool_get_package(packages,'mp_kessler_inActive',mp_kessler_in)
@@ -72,6 +75,14 @@
 
  nullify(nssl3m_in)
  call mpas_pool_get_package(packages,'nssl3m_inActive',nssl3m_in)
+
+ nullify(nssl_hail_in)
+ call mpas_pool_get_package(packages,'nssl_hail_inActive',nssl_hail_in)
+ nullify(nssl3m_hail_in)
+ call mpas_pool_get_package(packages,'nssl3m_hail_inActive',nssl3m_hail_in)
+
+ nullify(nssl_ccn_in)
+ call mpas_pool_get_package(packages,'nssl_ccn_inActive',nssl_ccn_in)
 
  if(.not.associated(mp_kessler_in)  .or. &
     .not.associated(mp_thompson_in) .or. &
@@ -89,6 +100,9 @@
  mp_wsm6_in              = .false.
  mp_nssl2m_in            = .false.
  nssl3m_in               = .false.
+ nssl_hail_in            = .false.
+ nssl3m_hail_in          = .false.
+ nssl_ccn_in             = .false.
 
  if(config_microp_scheme == 'mp_kessler') then
     mp_kessler_in = .true.
@@ -98,8 +112,17 @@
     mp_wsm6_in = .true.
  elseif(config_microp_scheme == 'mp_nssl2m') then
     mp_nssl2m_in = .true.
-    IF ( config_nssl_moments == 'nssl3m' ) THEN
+    IF ( config_nssl_hail_on ) THEN
+      nssl_hail_in = .true.
+    ENDIF
+    IF ( config_nssl_ccn_on ) THEN
+      nssl_ccn_in = .true.
+    ENDIF
+    IF ( config_nssl_3moment ) THEN
       nssl3m_in = .true.
+      IF ( config_nssl_hail_on ) THEN
+        nssl3m_hail_in = .true.
+      ENDIF
     ENDIF
  endif
 
@@ -107,7 +130,10 @@
  call mpas_log_write('    mp_thompson_in          = $l', logicArgs=(/mp_thompson_in/))
  call mpas_log_write('    mp_wsm6_in              = $l', logicArgs=(/mp_wsm6_in/))
  call mpas_log_write('    mp_nssl2m_in            = $l', logicArgs=(/mp_nssl2m_in/))
+ call mpas_log_write('    nssl_hail_in            = $l', logicArgs=(/nssl_hail_in/))
+ call mpas_log_write('    nssl_ccn_in             = $l', logicArgs=(/nssl_ccn_in/))
  call mpas_log_write('    nssl3m_in               = $l', logicArgs=(/nssl3m_in/))
+ call mpas_log_write('    nssl3m_hail_in          = $l', logicArgs=(/nssl3m_hail_in/))
 
 !--- initialization of all packages for parameterizations of convection:
 

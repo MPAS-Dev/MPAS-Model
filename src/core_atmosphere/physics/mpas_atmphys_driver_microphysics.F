@@ -20,7 +20,8 @@
 !wrf physics:
  use module_mp_kessler
  use module_mp_thompson
- use module_mp_nssl_2mom
+ use module_mp_nssl_2mom, only : nssl_2mom_driver
+ use mp_nssl, only: mp_nssl_init
  use module_mp_wsm6,only: wsm6
  use mp_wsm6,only: mp_wsm6_init,refl10cm_wsm6
 
@@ -104,12 +105,12 @@
 
 !local pointers:
  character(len=StrKIND),pointer:: microp_scheme
- character(len=StrKIND),pointer:: nssl_moments
+ logical,pointer:: config_nssl_3moment
 
 !-----------------------------------------------------------------------------------------------------------------
 
  call mpas_pool_get_config(configs,'config_microp_scheme',microp_scheme)
- call mpas_pool_get_config(configs,'config_nssl_moments',nssl_moments)
+ call mpas_pool_get_config(configs,'config_nssl_3moment',config_nssl_3moment)
 
 !sounding variables:
  if(.not.allocated(rho_p)    ) allocate(rho_p(ims:ime,kms:kme,jms:jme) )
@@ -163,6 +164,7 @@
           if(.not.allocated(refl10cm_p)) allocate(refl10cm_p(ims:ime,kms:kme,jms:jme))
 
        case("mp_nssl2m")
+         ! allocate all possible arrays even if not used since they are always passed to the driver
           if(.not.allocated(qh_p)        ) allocate(qh_p(ims:ime,kms:kme,jms:jme))
           !number concentrations:
           if(.not.allocated(nc_p) ) allocate(nc_p(ims:ime,kms:kme,jms:jme))
@@ -181,11 +183,9 @@
           if(.not.allocated(evapprod_p)) allocate(evapprod_p(ims:ime,kms:kme,jms:jme))
           if(.not.allocated(refl10cm_p)) allocate(refl10cm_p(ims:ime,kms:kme,jms:jme))
 
-          IF ( nssl_moments == 'nssl3m' ) THEN
             if(.not.allocated(zrw_p) ) allocate(zrw_p(ims:ime,kms:kme,jms:jme))
             if(.not.allocated(zgw_p) ) allocate(zgw_p(ims:ime,kms:kme,jms:jme))
             if(.not.allocated(zhw_p) ) allocate(zhw_p(ims:ime,kms:kme,jms:jme))
-          ENDIF
        case default
 
     end select microp2_select
@@ -205,12 +205,12 @@
 
 !local pointers:
  character(len=StrKIND),pointer:: microp_scheme
- character(len=StrKIND),pointer:: nssl_moments
+ logical,pointer:: config_nssl_3moment
 
 !-----------------------------------------------------------------------------------------------------------------
 
  call mpas_pool_get_config(configs,'config_microp_scheme',microp_scheme)
- call mpas_pool_get_config(configs,'config_nssl_moments',nssl_moments)
+ call mpas_pool_get_config(configs,'config_nssl_3moment',config_nssl_3moment)
 
 !sounding variables:
  if(allocated(rho_p)     ) deallocate(rho_p     )
@@ -281,11 +281,9 @@
           if(allocated(evapprod_p)) deallocate(evapprod_p)
           if(allocated(refl10cm_p)) deallocate(refl10cm_p)
 
-          IF ( nssl_moments == 'nssl3m' ) THEN
             if(allocated(zrw_p) ) deallocate(zrw_p)
             if(allocated(zgw_p) ) deallocate(zgw_p)
             if(allocated(zhw_p) ) deallocate(zhw_p)
-          ENDIF
 
        case default
 
@@ -312,10 +310,13 @@
 
 !local pointer:
  character(len=StrKIND),pointer:: microp_scheme
- character(len=StrKIND),pointer:: nssl_moments
+ logical,pointer:: config_nssl_3moment
+ logical,pointer:: config_nssl_hail_on, config_nssl_ccn_on
+ real,pointer:: config_nssl_cccn, config_nssl_alphah, config_nssl_alphahl
+ real,pointer:: config_nssl_alphar, config_nssl_ehw0, config_nssl_ehlw0
  
  logical :: outputon = .false.
-
+ integer :: i
 !CCPP-compliant flags:
  character(len=StrKIND):: errmsg
  integer:: errflg
@@ -327,7 +328,15 @@
  errflg = 0
 
  call mpas_pool_get_config(configs,'config_microp_scheme',microp_scheme)
- call mpas_pool_get_config(configs,'config_nssl_moments',nssl_moments)
+ call mpas_pool_get_config(configs,'config_nssl_3moment',config_nssl_3moment)
+ call mpas_pool_get_config(configs,'config_nssl_hail_on',config_nssl_hail_on)
+ call mpas_pool_get_config(configs,'config_nssl_ccn_on',config_nssl_ccn_on)
+ call mpas_pool_get_config(configs,'config_nssl_cccn',config_nssl_cccn)
+ call mpas_pool_get_config(configs,'config_nssl_alphah',config_nssl_alphah)
+ call mpas_pool_get_config(configs,'config_nssl_alphahl',config_nssl_alphahl)
+ call mpas_pool_get_config(configs,'config_nssl_alphar',config_nssl_alphar)
+ call mpas_pool_get_config(configs,'config_nssl_ehw0',config_nssl_ehw0)
+ call mpas_pool_get_config(configs,'config_nssl_ehlw0',config_nssl_ehlw0)
 
   microp_select: select case(microp_scheme)
 
@@ -340,11 +349,16 @@
                           hail_opt=hail_opt,errmsg=errmsg,errflg=errflg)
 
      case("mp_nssl2m")
-        IF ( nssl_moments == 'nssl3m' ) THEN
-          CALL nssl_2mom_init(ipctmp=8,mixphase=0,ihvol=1, myrank=dminfo % my_proc_id, mpiroot = IO_NODE)
-        ELSE
-          CALL nssl_2mom_init(ipctmp=5,mixphase=0,ihvol=1, myrank=dminfo % my_proc_id, mpiroot = IO_NODE)
-        ENDIF
+       i = 1 ! always treat CCN as CCNA (for now)
+       call mp_nssl_init( errflg=errflg, errmsg=errmsg, threads=1, restart=.false., &
+                              mpirank = dminfo%my_proc_id, mpiroot = IO_NODE,    &
+                              con_g=gravity, con_rd=R_d, con_cp=cp, con_rv=R_v,  &
+                              con_t0c=t00, con_cliq=cliq, con_csol=cice, con_eps=ep_2,   &
+                              imp_physics=18, imp_physics_nssl=18,  &
+                              nssl_cccn=config_nssl_cccn, nssl_alphah=config_nssl_alphah, nssl_alphahl=config_nssl_alphahl, &
+                              nssl_alphar=config_nssl_alphar, nssl_ehw0=config_nssl_ehw0, nssl_ehlw0=config_nssl_ehlw0,   &
+                              nssl_ccn_on=config_nssl_ccn_on, nssl_hail_on=config_nssl_hail_on, nssl_invertccn=.false., &
+                              nssl_3moment=config_nssl_3moment, nssl_ccn_is_ccna=i )
      
      case default
 
@@ -374,7 +388,6 @@
 
 !local pointers:
  character(len=StrKIND),pointer:: microp_scheme
- character(len=StrKIND),pointer:: nssl_moments
 
 !local variables and arrays:
  integer:: istep
@@ -392,7 +405,6 @@
  errflg = 0
 
  call mpas_pool_get_config(configs,'config_microp_scheme',microp_scheme)
- call mpas_pool_get_config(configs,'config_nssl_moments',nssl_moments)
 
 !... allocation of microphysics arrays:
 !$OMP MASTER
@@ -405,6 +417,11 @@
 
 !... initialization of soundings for non-hydrostatic dynamical cores.
  call microphysics_from_MPAS(configs,mesh,state,time_lev,diag,diag_physics,its,ite)
+
+! Note that array limits are set in mpas_atmphys_manager.F as
+! ims=1   ; ime = nCellsSolve
+! jms=1   ; jme=1
+! kms=1   ; kme = nVertLevels+1
 
 !... call to different cloud microphysics schemes:
  microp_select: select case(microp_scheme)
@@ -478,7 +495,6 @@
 
     case ("mp_nssl2m")
        call mpas_timer_start('NSSL2M')
-        IF ( nssl_moments == 'nssl3m' ) THEN
           call nssl_2mom_driver( &
                   th        = th_p        , qv         = qv_p         , qc         = qc_p         , &
                   qr        = qr_p        , qi         = qi_p         , qs         = qs_p         , &
@@ -498,31 +514,8 @@
                   ntmul      = n_microp   , ntcnt      = 1            , lastloop   = .true.       , &
                   ids = ids , ide = ide , jds = jds , jde = jde , kds = kds , kde = kde           , &
                   ims = ims , ime = ime , jms = jms , jme = jme , kms = kms , kme = kme           , &
-                  its = its , ite = ite , jts = jts , jte = jte , kts = kts , kte = kte             &
-                           )
-
-        ELSE
-          call nssl_2mom_driver( &
-                  th        = th_p        , qv         = qv_p         , qc         = qc_p         , &
-                  qr        = qr_p        , qi         = qi_p         , qs         = qs_p         , &
-                  qh        = qg_p        , qhl        = qh_p         , cn         = nccn_p       , &
-                  ccw       = nc_p        , crw        = nr_p         , cci        = ni_p         , &
-                  csw       = ns_p        , chw        = ng_p         , chl        = nh_p         , &
-                  vhw       = volg_p      , vhl        = volh_p       , dn         = rho_p        , &
-                  pii       = pi_p        , p          = pres_p       , dz         = dz_p         , &
-                  w         = w_p         , dtp        = dt_microp    , itimestep  = itimestep    , &
-                  rainnc    = rainnc_p    , rainncv    = rainncv_p    , snownc     = snownc_p     , &
-                  snowncv   = snowncv_p   , grplnc     = graupelnc_p  , grplncv    = graupelncv_p , &
-                  sr        = sr_p        , rainprod   = rainprod_p   , evapprod   = evapprod_p   , &
-                  re_cloud  = recloud_p   , re_ice     = reice_p      , re_snow    = resnow_p     , &
-                  has_reqc  = has_reqc    , has_reqi   = has_reqi     , has_reqs   = has_reqs     , &
-                  diagflag  = l_diags     , dbz        = refl10cm_p   , &
-                  ntmul      = n_microp   , ntcnt      = 1            , lastloop   = .true.       , &
-                  ids = ids , ide = ide , jds = jds , jde = jde , kds = kds , kde = kde           , &
-                  ims = ims , ime = ime , jms = jms , jme = jme , kms = kms , kme = kme           , &
-                  its = its , ite = ite , jts = jts , jte = jte , kts = kts , kte = kte             &
-                           )
-          ENDIF
+                  its = its , ite = ite , jts = jts , jte = jte , kts = kts , kte = kte           , &
+                  errmsg    = errmsg      , errflg     = errflg    )
 
        call mpas_timer_stop('NSSL2M')
 
@@ -581,7 +574,6 @@
 
 !local pointers:
  character(len=StrKIND),pointer:: microp_scheme
- character(len=StrKIND),pointer:: nssl_moments
  integer,pointer:: nCellsSolve
  real,dimension(:),pointer:: graupelncv,rainncv,snowncv,sr
 
@@ -591,7 +583,6 @@
 !-----------------------------------------------------------------------------------------------------------------
 
  call mpas_pool_get_config(configs,'config_microp_scheme',microp_scheme)
- call mpas_pool_get_config(configs,'config_nssl_moments',nssl_moments)
 
  call mpas_pool_get_array(diag_physics,'graupelncv',graupelncv)
  call mpas_pool_get_array(diag_physics,'rainncv'   ,rainncv   )
@@ -649,7 +640,6 @@
 
 !local pointers:
  character(len=StrKIND),pointer:: microp_scheme
- character(len=StrKIND),pointer:: nssl_moments
  integer,dimension(:),pointer:: i_rainnc
 
  real(kind=RKIND),pointer:: config_bucket_rainnc
@@ -664,7 +654,6 @@
 !-----------------------------------------------------------------------------------------------------------------
 
  call mpas_pool_get_config(configs,'config_microp_scheme',microp_scheme       )
- call mpas_pool_get_config(configs,'config_nssl_moments',nssl_moments)
  call mpas_pool_get_config(configs,'config_bucket_rainnc',config_bucket_rainnc)
 
  call mpas_pool_get_array(diag_physics,'i_rainnc'  ,i_rainnc  )
@@ -742,7 +731,6 @@
 
 !local pointers:
  character(len=StrKIND),pointer:: microp_scheme
- character(len=StrKIND),pointer:: nssl_moments
  real(kind=RKIND),dimension(:),pointer:: refl10cm_max,refl10cm_1km,refl10cm_1km_max
 
 !local variables and arrays:
@@ -753,7 +741,6 @@
 !-----------------------------------------------------------------------------------------------------------------
 
  call mpas_pool_get_config(configs,'config_microp_scheme',microp_scheme)
- call mpas_pool_get_config(configs,'config_nssl_moments',nssl_moments) ! not needed?
 
  call mpas_pool_get_array(diag_physics,'refl10cm_max',refl10cm_max)
  call mpas_pool_get_array(diag_physics,'refl10cm_1km',refl10cm_1km)
