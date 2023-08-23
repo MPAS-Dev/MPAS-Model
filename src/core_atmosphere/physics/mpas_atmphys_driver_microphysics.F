@@ -186,6 +186,10 @@
             if(.not.allocated(zrw_p) ) allocate(zrw_p(ims:ime,kms:kme,jms:jme))
             if(.not.allocated(zgw_p) ) allocate(zgw_p(ims:ime,kms:kme,jms:jme))
             if(.not.allocated(zhw_p) ) allocate(zhw_p(ims:ime,kms:kme,jms:jme))
+
+          if(.not.allocated(hailnc_p) ) allocate(hailnc_p(ims:ime,jms:jme) )
+          if(.not.allocated(hailncv_p)) allocate(hailncv_p(ims:ime,jms:jme))
+
        case default
 
     end select microp2_select
@@ -284,6 +288,9 @@
             if(allocated(zrw_p) ) deallocate(zrw_p)
             if(allocated(zgw_p) ) deallocate(zgw_p)
             if(allocated(zhw_p) ) deallocate(zhw_p)
+
+          if(allocated(hailnc_p)  ) deallocate(hailnc_p  )
+          if(allocated(hailncv_p) ) deallocate(hailncv_p )
 
        case default
 
@@ -507,6 +514,7 @@
                   w         = w_p         , dtp        = dt_microp    , itimestep  = itimestep    , &
                   rainnc    = rainnc_p    , rainncv    = rainncv_p    , snownc     = snownc_p     , &
                   snowncv   = snowncv_p   , grplnc     = graupelnc_p  , grplncv    = graupelncv_p , &
+                  hailnc     = hailnc_p   , hailncv    = hailncv_p    ,                             &
                   sr        = sr_p        , rainprod   = rainprod_p   , evapprod   = evapprod_p   , &
                   re_cloud  = recloud_p   , re_ice     = reice_p      , re_snow    = resnow_p     , &
                   has_reqc  = has_reqc    , has_reqi   = has_reqi     , has_reqs   = has_reqs     , &
@@ -575,7 +583,7 @@
 !local pointers:
  character(len=StrKIND),pointer:: microp_scheme
  integer,pointer:: nCellsSolve
- real,dimension(:),pointer:: graupelncv,rainncv,snowncv,sr
+ real,dimension(:),pointer:: graupelncv,rainncv,snowncv,sr,hailncv
 
 !local variables and arrays:
  integer:: i,j
@@ -588,6 +596,10 @@
  call mpas_pool_get_array(diag_physics,'rainncv'   ,rainncv   )
  call mpas_pool_get_array(diag_physics,'snowncv'   ,snowncv   )
  call mpas_pool_get_array(diag_physics,'sr'        ,sr        )
+
+ IF ( microp_scheme == "mp_nssl2m" ) THEN
+ call mpas_pool_get_array(diag_physics,'hailncv',hailncv)
+ ENDIF
 
 !variables common to all cloud microphysics schemes:
  do j = jts, jte
@@ -620,6 +632,18 @@
           graupelncv(i) = 0._RKIND
           sr(i)         = 0._RKIND
        enddo
+       
+       IF ( microp_scheme == "mp_nssl2m" ) THEN
+       do j = jts, jte
+       do i = its, ite
+          hailncv_p(i,j) = 0._RKIND
+          hailnc_p(i,j)  = 0._RKIND
+       enddo
+       enddo
+       do i = its,ite
+          hailncv(i) = 0._RKIND
+       enddo
+       ENDIF
 
     case default
 
@@ -644,8 +668,8 @@
 
  real(kind=RKIND),pointer:: config_bucket_rainnc
  real(kind=RKIND),dimension(:),pointer:: precipw
- real(kind=RKIND),dimension(:),pointer:: graupelnc,rainnc,snownc
- real(kind=RKIND),dimension(:),pointer:: graupelncv,rainncv,snowncv,sr
+ real(kind=RKIND),dimension(:),pointer:: graupelnc,rainnc,snownc,hailnc
+ real(kind=RKIND),dimension(:),pointer:: graupelncv,rainncv,snowncv,sr,hailncv
 
 !local variables and arrays:
  integer:: i,j,k
@@ -666,6 +690,11 @@
  call mpas_pool_get_array(diag_physics,'snowncv'   ,snowncv   )
  call mpas_pool_get_array(diag_physics,'sr'        ,sr        )
 
+ IF ( microp_scheme == "mp_nssl2m" ) THEN
+ call mpas_pool_get_array(diag_physics,'hailnc' ,hailnc )
+ call mpas_pool_get_array(diag_physics,'hailncv',hailncv)
+ ENDIF
+ 
  do i = its,ite
     precipw(i) = 0._RKIND
  enddo
@@ -711,6 +740,18 @@
           graupelnc(i) = graupelnc(i) + graupelncv(i)
        enddo
        enddo
+
+       IF ( microp_scheme == "mp_nssl2m" ) THEN
+       do j = jts,jte
+       do i = its,ite
+          !time-step precipitation:
+          hailncv(i) = hailnc_p(i,j)
+
+          !accumulated precipitation:
+          hailnc(i) = hailnc(i) + hailncv(i)
+       enddo
+       enddo
+       ENDIF
 
     case default
 

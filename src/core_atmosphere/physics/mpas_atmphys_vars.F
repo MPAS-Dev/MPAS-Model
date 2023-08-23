@@ -266,6 +266,8 @@
     snowncv_p,        &!
     graupelnc_p,      &!
     graupelncv_p,     &!
+    hailnc_p,         &
+    hailncv_p,        &
     sr_p
 
 !... added for the thompson and wsm6 cloud microphysics:

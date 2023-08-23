@@ -2373,6 +2373,10 @@
                      description="time-step grid-scale precipitation of graupel"
                      packages="mp_thompson_in;mp_wsm6_in;mp_nssl2m_in"/>
 
+                <var name="hailncv" type="real" dimensions="nCells Time" units="mm"
+                     description="time-step grid-scale precipitation of hail"
+                     packages="mp_nssl2m_in"/>
+
                 <var name="rainnc" type="real" dimensions="nCells Time" units="mm"
                      description="accumulated total grid-scale precipitation"
                      packages="mp_kessler_in;mp_thompson_in;mp_wsm6_in;mp_nssl2m_in"/>
@@ -2384,6 +2388,10 @@
                 <var name="graupelnc" type="real" dimensions="nCells Time" units="mm"
                      description="accumulated grid-scale precipitation of graupel"
                      packages="mp_thompson_in;mp_wsm6_in;mp_nssl2m_in"/>
+
+                <var name="hailnc" type="real" dimensions="nCells Time" units="mm"
+                     description="accumulated grid-scale precipitation of hail"
+                     packages="mp_nssl2m_in"/>
 
                 <var name="rainprod" type="real" dimensions="nVertLevels nCells Time" units="s^{-1}"
                      description="rain production rate"
