@@ -1000,6 +1000,7 @@ override CPPFLAGS += -DMPAS_BUILD_TARGET=$(BUILD_TARGET)
 ifeq ($(wildcard src/core_$(CORE)), ) # CHECK FOR EXISTENCE OF CORE DIRECTORY
 
 all: core_error
+clean: core_error
 
 else
 
@@ -1324,8 +1325,7 @@ clean_core:
 else # CORE IF
 
 all: error
-clean: errmsg
-	exit 1
+clean: error
 error: errmsg
 	@echo "************ ERROR ************"
 	@echo "No CORE specified. Quitting."

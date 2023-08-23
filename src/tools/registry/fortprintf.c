@@ -25,7 +25,7 @@ int nbuf = 0;
 
 int fortprintf(FILE * fd, char * str, ...)/*{{{*/
 {
-	int i, nl, sp, sp_inquotes, inquotes, q;
+	int i, nl, sp, sp_inquotes, indoublequotes, inquotes;
 	int lastchar;
 	int errorcode;
 	va_list ap;
@@ -52,32 +52,36 @@ int fortprintf(FILE * fd, char * str, ...)/*{{{*/
 	nbuf = nbuf + i;
 
 	inquotes = 0;
-	q = -1;
+	indoublequotes = 0;
 
 	do {
 
 		nl = sp = -1;
-
 		/* Scan through the max line length - 1 (since we may have to add an & character) or the end of the buffer, whichever comes first */
 		for (i=0; i<MAX_LINE_LEN-1 && i<nbuf; i++) {
 			lastchar = (i == nbuf-1) ? 1 : 0;
 			if (fbuffer[i] == '\'') {
 				if ( fbuffer[i+1] != '\'' || lastchar ) {
 					inquotes = (inquotes + 1) % 2;
-					q = inquotes ? i : -1;
 				} else if ( !lastchar && fbuffer[i+1] == '\'' ) {
+					i++;
+				}
+			} else if (fbuffer[i] == '"') {
+				if ( fbuffer[i + 1] != '"' || lastchar ) {
+					indoublequotes = (indoublequotes + 1) % 2;
+				} else if ( !lastchar && fbuffer[i+1] == '"' ) {
 					i++;
 				}
 			}
 			if (fbuffer[i] == '\n') nl = i;                                                               /* The last occurrence of a newline */
 			if (fbuffer[i] == ' ' && !lastchar && fbuffer[i+1] != '&') {                             /* The last occurrence of a space */
 				sp = i;
-				sp_inquotes = inquotes;
+				sp_inquotes = (inquotes || indoublequotes);                                          /* Remember whether the break is in quotes or not */
 			}
 		}
 
 #ifdef FORTPRINTF_DEBUG
-		printf("1: i = %d, nl = %d, sp = %d, fbuffer[i] = %c, inquotes = %d\n", i, nl, sp, fbuffer[i], inquotes);
+		printf("1: i = %d, nl = %d, sp = %d, fbuffer[i] = %c, inquotes = %d, indoublequotes = %d\n", i, nl, sp, fbuffer[i], inquotes, indoublequotes);
 #endif
 
 		/* If we haven't reached the column limit, don't consider breaking the line yet */
@@ -112,20 +116,19 @@ int fortprintf(FILE * fd, char * str, ...)/*{{{*/
 		else if (sp >= 0) {
 			snprintf(printbuf, sp+2, "%s", fbuffer);
 			i = sp+1;
-			if (sp_inquotes && (sp > q)) printbuf[i++] = '\'';
 			printbuf[i++] = '&';
 			printbuf[i++] = '\n';
+
+			/* If we are in a character context, add an ampersand at the start
+			 of the next line */
+			if (sp_inquotes) {
+				printbuf[i++] = '&';
+			}
+
 			printbuf[i++] = '\0';
 			fprintf(fd, "%s", printbuf);
 			sp++;
 			i = 0;
-			if (sp_inquotes && (sp > q)) {
-				inquotes = (inquotes + 1) % 2;
-				fbuffer[i++] = '/';
-				fbuffer[i++] = '/';
-				fbuffer[i++] = '\'';
-			}
-
 			/* Shift unprinted contents of fortran buffer to the beginning */
 			for ( ; sp<nbuf; i++, sp++)
 				fbuffer[i] = fbuffer[sp];
@@ -337,9 +340,23 @@ int main()/*{{{*/
 	fclose(foo);
 
 	/* Tests a line with double quotes and a line break after the double quotes */
-	foo = fopen("test22.inc", "w");
+	foo = fopen("test23.inc", "w");
 	err = fortprintf(foo, "\'1234567\'\'890 1234567890\'");
-	print_result(22, err);
+	print_result(23, err);
+	fortprint_flush(foo);
+	fclose(foo);
+	
+	/* Tests a line with true double quotes */
+	foo = fopen("test24.inc", "w");
+	err = fortprintf(foo, "\"123456789012345678901234\"");
+	print_result(24, err);
+	fortprint_flush(foo);
+	fclose(foo);
+	
+	/* Tests a line with double and single quotes */
+	foo = fopen("test25.inc", "w");
+	err = fortprintf(foo, "\"12345'12345'12345'12345'\"");
+	print_result(25, err);
 	fortprint_flush(foo);
 	fclose(foo);
 

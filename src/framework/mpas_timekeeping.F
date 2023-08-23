@@ -12,6 +12,7 @@ module mpas_timekeeping
    use mpas_dmpar
    use mpas_threading
    use mpas_log
+   use mpas_string_utils, only : mpas_split_string
 
    use ESMF
 
@@ -2107,40 +2108,6 @@ module mpas_timekeeping
 !      mod % ti = mod(ti1 % ti, ti2 % ti)
 !
 !   end function mod
-
-
-   subroutine mpas_split_string(string, delimiter, subStrings)   
-      
-      implicit none
-      
-      character(len=*), intent(in) :: string
-      character, intent(in) :: delimiter
-      character(len=*), pointer, dimension(:) :: subStrings
-      
-      integer :: i, start, index
-
-      index = 1
-      do i = 1, len(string)
-         if(string(i:i) == delimiter) then
-            index = index + 1
-         end if
-      end do
-
-      allocate(subStrings(1:index))
-
-      start = 1
-      index = 1
-      do i = 1, len(string)
-         if(string(i:i) == delimiter) then
-               subStrings(index) = string(start:i-1) 
-               index = index + 1
-               start = i + 1
-         end if
-      end do
-      subStrings(index) = string(start:len(string)) 
-      
-   end subroutine mpas_split_string
-
 
     subroutine mpas_get_month_day(YYYY, DoY, month, day)
        
