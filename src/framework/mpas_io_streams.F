@@ -1758,7 +1758,7 @@ module mpas_io_streams
          !
 !call mpas_log_write('... defining var to low-level interface with ndims $i', intArgs=(/ndims/))
 
-         call MPAS_io_def_var(stream % fileHandle, trim(fieldName), fieldType, dimNamesLocal(1:ndims), stream%ioFormat, precision=precision, ierr=io_err)
+         call MPAS_io_def_var(stream % fileHandle, trim(fieldName), fieldType, dimNamesLocal(1:ndims), precision=precision, ierr=io_err)
          call MPAS_io_err_mesg(io_err, .false.)
          if (io_err /= MPAS_IO_NOERR) then
             if (present(ierr)) ierr = MPAS_IO_ERR

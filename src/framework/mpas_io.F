@@ -1087,9 +1087,7 @@ module mpas_io
    end subroutine MPAS_io_inq_var
 
 
-   subroutine MPAS_io_def_var(handle, fieldname, fieldtype, dimnames, ioFormat, precision, ierr) ! io_type
-
-      use pio_nf
+   subroutine MPAS_io_def_var(handle, fieldname, fieldtype, dimnames, precision, ierr)
 
       implicit none
 
@@ -1097,7 +1095,6 @@ module mpas_io
       character (len=*), intent(in) :: fieldname
       integer, intent(in) :: fieldtype
       character (len=StrKIND), dimension(:), intent(in) :: dimnames
-      integer, intent(in) :: ioFormat
       integer, intent(in), optional :: precision
       integer, intent(out), optional :: ierr
 
@@ -1114,8 +1111,6 @@ module mpas_io
       type (fieldlist_type), pointer :: field_cursor
       type (dimlist_type), pointer :: dim_cursor
       integer, dimension(:), pointer :: dimids
-      integer, allocatable, dimension(:) :: chunksizes, dimsizes
-      logical :: cellflag
       integer :: local_precision
 
 
@@ -1232,7 +1227,6 @@ module mpas_io
 
       allocate(dimids(ndims))
       allocate(new_fieldlist_node % fieldhandle % dims(ndims))
-      cellflag = .false.
       do i = 1, ndims
          dim_cursor => handle % dimlist_head
          do while (associated(dim_cursor))
@@ -1255,9 +1249,7 @@ module mpas_io
             return
 !            call mpas_log_write('Error finding dimension '//trim(dimnames(i))//' for field '//trim(fieldname), MPAS_LOG_ERR)
          end if
-         IF ( trim(dimnames(i)) == 'nCells' ) cellflag = .true.
       end do
-
 
       ! Convert from MPAS type
       if (new_fieldlist_node % fieldhandle % field_type == MPAS_IO_DOUBLE) then
@@ -1316,48 +1308,6 @@ module mpas_io
          pio_ierr = PIO_def_var(handle % pio_file, trim(fieldname), pio_type, new_fieldlist_node % fieldhandle % field_desc)
       else
          pio_ierr = PIO_def_var(handle % pio_file, trim(fieldname), pio_type, dimids, new_fieldlist_node % fieldhandle % field_desc)
-         if (pio_ierr /= PIO_noerr) then
-            if (present(ierr)) ierr = MPAS_IO_ERR_PIO
-            return
-         end if
-         IF ( ioformat == MPAS_IO_NETCDF4 .and.   &
-              ( pio_type == PIO_real .or. pio_type == PIO_double .or. pio_type == PIO_int) .and.  &
-                ndims > 1  ) THEN ! any(dimids(:)==2) .and. any(dimids(:)==3)
-         ! dminfo % nprocs  is  ioContext % dminfo % nprocs
-         ! write(0,*) 'numprocs = ',numprocs
-         ! write(0,*) 'dimids = ',dimids
-         IF ( cellflag ) THEN
-           allocate( dimsizes(ndims) )
-           allocate(chunksizes(ndims))
-           do i = 1, ndims
-             IF ( trim(dimnames(i)) == 'Time' ) THEN
-                dimsizes(i) = 1
-             ELSE
-               pio_ierr = PIO_inq_dimlen(handle % pio_file, dimids(i), dimsizes(i) )
-             ENDIF
-           end do
-
-           DO i = 1,ndims
-             IF ( trim(dimnames(i) )  == 'nCells' ) THEN
-               chunksizes(i) = dimsizes(i)/numprocs
-             ELSE
-               chunksizes(i) = dimsizes(i)
-             ENDIF
-           
-           ENDDO
-           ! write(0,*) 'chunksizes = ',chunksizes
-           pio_ierr = pio_def_var_chunking(handle % pio_file, new_fieldlist_node % fieldhandle % field_desc, storage=0, chunksizes=chunksizes)
-           
-           
-           deallocate( chunksizes, dimsizes ) 
-         ENDIF
-         pio_ierr = pio_def_var_deflate(handle % pio_file, new_fieldlist_node % fieldhandle % field_desc, shuffle=1, deflate=1, deflate_level=1)
-            if (pio_ierr /= PIO_noerr) then
-              call mpas_log_write('error from pio_def_var_deflate, var = '//trim(fieldname) )
-            ELSE
-             ! call mpas_log_write('OK setting pio_def_var_deflate, var = '//trim(fieldname) )
-            ENDIF
-         ENDIF
       end if
       if (pio_ierr /= PIO_noerr) then
          if (present(ierr)) ierr = MPAS_IO_ERR_PIO
