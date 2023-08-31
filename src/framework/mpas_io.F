@@ -6375,10 +6375,11 @@ module mpas_io
    end function MPAS_io_handle_dminfo
 
 
-   subroutine MPAS_io_err_mesg(ierr, fatal)
+   subroutine MPAS_io_err_mesg(ioContext, ierr, fatal)
 
       implicit none
 
+      type (mpas_io_context_type), intent(inout) :: ioContext
       integer, intent(in) :: ierr
       logical, intent(in) :: fatal
 
@@ -6407,6 +6408,10 @@ module mpas_io
 #ifdef MPAS_SMIOL_SUPPORT
             call mpas_log_write('MPAS IO Error: SMIOL error $i: '//trim(SMIOLf_error_string(io_global_err)), &
                                 messageType=MPAS_LOG_ERR, intArgs=[io_global_err])
+            if (io_global_err == SMIOL_LIBRARY_ERROR) then
+               call mpas_log_write('Library error message: '// &
+                                   trim(SMIOLf_lib_error_string(ioContext % smiol_context)), messageType=MPAS_LOG_ERR)
+            end if
 #endif
          case (MPAS_IO_ERR_DATA_MODE)
             call mpas_log_write('MPAS IO Error: Cannot define in data mode', MPAS_LOG_ERR)
