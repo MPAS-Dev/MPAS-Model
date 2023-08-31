@@ -139,8 +139,8 @@ const char * modify_attr(const char *attr, const char *array[][2], size_t rows) 
 // characters. Returns 1 if the buffer is too small for the result. 
 int escape_quotes(const char * stringIn, char * result, size_t bufferSize){
 	size_t resultIndex = 0;
-	
-	for (size_t i = 0; i < strlen(stringIn) + 1; i++) {
+	size_t i;
+	for (i = 0; i < strlen(stringIn) + 1; i++) {
 		if ( stringIn[i] == '\'' ) {
 			if (resultIndex >= bufferSize) return 1;
 			result[resultIndex++] = '\'';
