@@ -445,6 +445,10 @@ module mpas_io
             else
                call mpas_log_write(trim(SMIOLf_error_string(local_ierr)), messageType=MPAS_LOG_ERR)
             end if
+
+            io_global_err = local_ierr
+            if (present(ierr)) ierr = MPAS_IO_ERR_BACKEND
+            return
          end if
 #endif
          MPAS_io_open % external_file_desc = .false.
@@ -750,6 +754,10 @@ module mpas_io
          else
             call mpas_log_write(trim(SMIOLf_error_string(local_ierr)), messageType=MPAS_LOG_ERR)
          end if
+
+         io_global_err = local_ierr
+         if (present(ierr)) ierr = MPAS_IO_ERR_BACKEND
+         return
       end if
 #endif
 #ifdef MPAS_PIO_SUPPORT
@@ -1010,6 +1018,10 @@ module mpas_io
             else
                call mpas_log_write(trim(SMIOLf_error_string(local_ierr)), messageType=MPAS_LOG_ERR)
             end if
+
+            io_global_err = local_ierr
+            if (present(ierr)) ierr = MPAS_IO_ERR_BACKEND
+            return
          end if
          do i=1,new_fieldlist_node % fieldhandle % ndims
             new_fieldlist_node % fieldhandle % dims(i) % dimname = smiol_dimnames(i)
@@ -1025,6 +1037,10 @@ module mpas_io
                else
                   call mpas_log_write(trim(SMIOLf_error_string(local_ierr)), messageType=MPAS_LOG_ERR)
                end if
+
+               io_global_err = local_ierr
+               if (present(ierr)) ierr = MPAS_IO_ERR_BACKEND
+               return
             end if
             new_fieldlist_node % fieldhandle % dims(i) % dimsize = smiol_dimlen
             if (new_fieldlist_node % fieldhandle % dims(i) % is_unlimited_dim) then
@@ -1344,6 +1360,10 @@ module mpas_io
          else
             call mpas_log_write(trim(SMIOLf_error_string(local_ierr)), messageType=MPAS_LOG_ERR)
          end if
+
+         io_global_err = local_ierr
+         if (present(ierr)) ierr = MPAS_IO_ERR_BACKEND
+         return
       end if
 #endif
 
@@ -1695,6 +1715,10 @@ module mpas_io
          else
             call mpas_log_write(trim(SMIOLf_error_string(local_ierr)), messageType=MPAS_LOG_ERR)
          end if
+
+         io_global_err = local_ierr
+         if (present(ierr)) ierr = MPAS_IO_ERR_BACKEND
+         return
       end if
 #endif
 
@@ -1842,6 +1866,10 @@ module mpas_io
             else
                call mpas_log_write(trim(SMIOLf_error_string(local_ierr)), messageType=MPAS_LOG_ERR)
             end if
+
+            io_global_err = local_ierr
+            if (present(ierr)) ierr = MPAS_IO_ERR_BACKEND
+            return
          end if
 #endif
 
@@ -2718,6 +2746,10 @@ module mpas_io
          else
             call mpas_log_write(trim(SMIOLf_error_string(local_ierr)), messageType=MPAS_LOG_ERR)
          end if
+
+         io_global_err = local_ierr
+         if (present(ierr)) ierr = MPAS_IO_ERR_BACKEND
+         return
       end if
 #endif
 
@@ -3121,6 +3153,10 @@ module mpas_io
             else
                call mpas_log_write(trim(SMIOLf_error_string(local_ierr)), messageType=MPAS_LOG_ERR)
             end if
+
+            io_global_err = local_ierr
+            if (present(ierr)) ierr = MPAS_IO_ERR_BACKEND
+            return
          end if
 #endif
 
@@ -3987,6 +4023,10 @@ module mpas_io
          else
             call mpas_log_write(trim(SMIOLf_error_string(local_ierr)), messageType=MPAS_LOG_ERR)
          end if
+
+         io_global_err = local_ierr
+         if (present(ierr)) ierr = MPAS_IO_ERR_BACKEND
+         return
       end if
 #endif
 
@@ -5291,6 +5331,10 @@ module mpas_io
          else
             call mpas_log_write(trim(SMIOLf_error_string(local_ierr)), messageType=MPAS_LOG_ERR)
          end if
+
+         io_global_err = local_ierr
+         if (present(ierr)) ierr = MPAS_IO_ERR_BACKEND
+         return
       end if
 #endif
 
@@ -5670,6 +5714,10 @@ module mpas_io
          else
             call mpas_log_write(trim(SMIOLf_error_string(local_ierr)), messageType=MPAS_LOG_ERR)
          end if
+
+         io_global_err = local_ierr
+         if (present(ierr)) ierr = MPAS_IO_ERR_BACKEND
+         return
       end if
 #endif
 
@@ -6076,6 +6124,10 @@ module mpas_io
          else
             call mpas_log_write(trim(SMIOLf_error_string(local_ierr)), messageType=MPAS_LOG_ERR)
          end if
+
+         io_global_err = local_ierr
+         if (present(ierr)) ierr = MPAS_IO_ERR_BACKEND
+         return
       end if
 #endif
 
@@ -6146,6 +6198,10 @@ module mpas_io
          else
             call mpas_log_write(trim(SMIOLf_error_string(local_ierr)), messageType=MPAS_LOG_ERR)
          end if
+
+         io_global_err = local_ierr
+         if (present(ierr)) ierr = MPAS_IO_ERR_BACKEND
+         return
       end if
 #endif
 
@@ -6235,6 +6291,10 @@ module mpas_io
          else
             call mpas_log_write(trim(SMIOLf_error_string(local_ierr)), messageType=MPAS_LOG_ERR)
          end if
+
+         io_global_err = local_ierr
+         if (present(ierr)) ierr = MPAS_IO_ERR_BACKEND
+         return
       end if
 #endif
 
@@ -6293,6 +6353,9 @@ module mpas_io
             local_ierr = SMIOLf_finalize(ioContext % smiol_context)
             if (local_ierr /= SMIOL_SUCCESS) then
                call mpas_log_write('SMIOLf_free_decomp failed with code $i', intArgs=[local_ierr], messageType=MPAS_LOG_ERR)
+               io_global_err = local_ierr
+               if (present(ierr)) ierr = MPAS_IO_ERR_BACKEND
+               return
             end if
 #endif
          end if
