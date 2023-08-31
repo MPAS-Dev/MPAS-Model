@@ -49,7 +49,7 @@
                          MPAS_IO_ERR_INVALID_FORMAT = -2, &
                          MPAS_IO_ERR_LONG_FILENAME  = -3, &
                          MPAS_IO_ERR_UNINIT_HANDLE  = -4, &
-                         MPAS_IO_ERR_PIO            = -5, &
+                         MPAS_IO_ERR_BACKEND        = -5, &
                          MPAS_IO_ERR_DATA_MODE      = -6, &
                          MPAS_IO_ERR_NOWRITE        = -7, &
                          MPAS_IO_ERR_REDEF_DIM      = -8, &
