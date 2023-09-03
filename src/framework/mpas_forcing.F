@@ -17,6 +17,7 @@ module mpas_forcing
 #define FORCING_WARNING_WRITE(M) call mpas_log_write( M , messageType=MPAS_LOG_WARN)
 #define FORCING_ERROR_WRITE(M) call mpas_log_write( M , messageType=MPAS_LOG_ERR)
 
+  use mpas_kind_types
   use mpas_derived_types
   use mpas_field_routines
   use mpas_pool_routines
@@ -250,7 +251,7 @@ contains
     ! forward variable interval function
     interface
        function variable_interval_forward(currentTime) result(variableInterval)
-         use mpas_timekeeping
+         use mpas_derived_types
          type(MPAS_Time_type), intent(in) :: currentTime
          type(MPAS_TimeInterval_type) :: variableInterval
        end function variable_interval_forward
@@ -259,7 +260,7 @@ contains
     ! backward variable interval function
     interface
        function variable_interval_backward(currentTime) result(variableInterval)
-         use mpas_timekeeping
+         use mpas_derived_types
          type(MPAS_Time_type), intent(in) :: currentTime
          type(MPAS_TimeInterval_type) :: variableInterval
        end function variable_interval_backward
@@ -424,7 +425,7 @@ contains
     ! forward variable interval function
     interface
        function variable_interval_forward(currentTime) result(variableInterval)
-         use mpas_timekeeping
+         use mpas_derived_types
          type(MPAS_Time_type), intent(in) :: currentTime
          type(MPAS_TimeInterval_type) :: variableInterval
        end function variable_interval_forward
@@ -433,7 +434,7 @@ contains
     ! backward variable interval function
     interface
        function variable_interval_backward(currentTime) result(variableInterval)
-         use mpas_timekeeping
+         use mpas_derived_types
          type(MPAS_Time_type), intent(in) :: currentTime
          type(MPAS_TimeInterval_type) :: variableInterval
        end function variable_interval_backward
@@ -587,7 +588,7 @@ contains
     ! forward variable interval function
     interface
        function variable_interval_forward(currentTime) result(variableInterval)
-         use mpas_timekeeping
+         use mpas_derived_types
          type(MPAS_Time_type), intent(in) :: currentTime
          type(MPAS_TimeInterval_type) :: variableInterval
        end function variable_interval_forward
@@ -596,7 +597,7 @@ contains
     ! backward variable interval function
     interface
        function variable_interval_backward(currentTime) result(variableInterval)
-         use mpas_timekeeping
+         use mpas_derived_types
          type(MPAS_Time_type), intent(in) :: currentTime
          type(MPAS_TimeInterval_type) :: variableInterval
        end function variable_interval_backward
