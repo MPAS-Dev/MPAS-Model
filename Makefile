@@ -831,6 +831,9 @@ ifeq "$(OPENMP_OFFLOAD)" "true"
 	LDFLAGS += $(LDFLAGS_GPU)
 endif #OPENMP_OFFLOAD IF
 
+ifneq (,$(filter-out double single,$(PRECISION)))
+$(error PRECISION should be "", "single", or "double"; received value "$(PRECISION)")
+endif
 ifeq "$(PRECISION)" "double"
 	FFLAGS += $(FFLAGS_PROMOTION)
 	PRECISION_MESSAGE="MPAS was built with default double-precision reals."
