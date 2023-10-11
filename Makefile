@@ -831,14 +831,18 @@ ifeq "$(OPENMP_OFFLOAD)" "true"
 	LDFLAGS += $(LDFLAGS_GPU)
 endif #OPENMP_OFFLOAD IF
 
-ifeq "$(PRECISION)" "single"
+ifneq (,$(filter-out double single,$(PRECISION)))
+$(error PRECISION should be "", "single", or "double"; received value "$(PRECISION)")
+endif
+ifeq "$(PRECISION)" "double"
+	FFLAGS += $(FFLAGS_PROMOTION)
+	PRECISION_MESSAGE="MPAS was built with default double-precision reals."
+else
+$(if $(PRECISION),$(info NOTE: PRECISION=single is unnecessary, single is the default))
 	CFLAGS += "-DSINGLE_PRECISION"
 	CXXFLAGS += "-DSINGLE_PRECISION"
 	override CPPFLAGS += "-DSINGLE_PRECISION"
 	PRECISION_MESSAGE="MPAS was built with default single-precision reals."
-else
-	FFLAGS += $(FFLAGS_PROMOTION)
-	PRECISION_MESSAGE="MPAS was built with default double-precision reals."
 endif #PRECISION IF
 
 ifeq "$(USE_PAPI)" "true"
@@ -1353,7 +1357,7 @@ errmsg:
 	@echo "                    TIMER_LIB=tau - Uses TAU for the timer interface instead of the native interface"
 	@echo "    OPENMP=true   - builds and links with OpenMP flags. Default is to not use OpenMP."
 	@echo "    OPENACC=true  - builds and links with OpenACC flags. Default is to not use OpenACC."
-	@echo "    PRECISION=single - builds with default single-precision real kind. Default is to use double-precision."
+	@echo "    PRECISION=double - builds with default double-precision real kind. Default is to use single-precision."
 	@echo "    SHAREDLIB=true - generate position-independent code suitable for use in a shared library. Default is false."
 	@echo ""
 	@echo "Ensure that NETCDF, PNETCDF, PIO, and PAPI (if USE_PAPI=true) are environment variables"
