@@ -72,9 +72,12 @@ module init_atm_cases
 
       character(len=StrKIND), pointer :: mminlu
       character(len=StrKIND), pointer :: xtime
+      real (kind=RKIND) :: dt
+      real (kind=RKIND), pointer :: Time
 
-      type (MPAS_Time_type)  :: curr_time, stop_time
+      type (MPAS_Time_type)  :: curr_time, stop_time, start_time
       type (MPAS_TimeInterval_type)  :: clock_interval, lbc_stream_interval, surface_stream_interval
+      type (MPAS_TimeInterval_type)  :: time_since_start
       character(len=StrKIND) :: timeString
 
       integer, pointer :: nCells
@@ -297,6 +300,7 @@ module init_atm_cases
 
          curr_time = mpas_get_clock_time(domain % clock, MPAS_NOW)
          stop_time = mpas_get_clock_time(domain % clock, MPAS_STOP_TIME)
+         start_time = mpas_get_clock_time(domain % clock, MPAS_START_TIME)
 
          do while (curr_time <= stop_time)
 
@@ -309,6 +313,7 @@ module init_atm_cases
                call mpas_pool_get_subpool(block_ptr % structs, 'lbc_state', lbc_state)
 
                call mpas_pool_get_array(state, 'xtime', xtime)
+               call mpas_pool_get_array(state, 'Time', Time)
 
                call mpas_pool_get_dimension(block_ptr % dimensions, 'nCells', nCells)
                call mpas_pool_get_dimension(block_ptr % dimensions, 'nEdges', nEdges)
@@ -316,6 +321,9 @@ module init_atm_cases
 
                call mpas_get_time(curr_time, dateTimeString=timeString)
                xtime = timeString   ! Set field valid time, xtime, to the current time in the time loop
+               time_since_start = curr_time - start_time
+               call mpas_get_TimeInterval(time_since_start, dt=dt)
+               Time = dt
 
                call init_atm_case_lbc(timeString, block_ptr, mesh, nCells, nEdges, nVertLevels, fg, state, &
                                       diag, lbc_state, block_ptr % dimensions, block_ptr % configs)
