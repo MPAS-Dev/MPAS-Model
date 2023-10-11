@@ -3973,12 +3973,13 @@ module mpas_stream_manager
            !
            ! Exchange halos for all decomposed fields in this stream
            !
-           call exch_all_halos(manager % allFields, stream % field_pool, stream % timeLevel, local_ierr)
+           call exch_all_halos(manager % allFields, manager % allPackages, stream % field_pool, stream % field_pkg_pool, &
+                               stream % timeLevel, local_ierr)
 
            !
            ! For any connectivity arrays in this stream, convert global indices to local indices
            !
-           call postread_reindex(manager % allFields, stream % field_pool)
+           call postread_reindex(manager % allFields, manager % allPackages, stream % field_pool, stream % field_pkg_pool)
         end if
 
     end subroutine read_stream !}}}
@@ -4646,12 +4647,14 @@ module mpas_stream_manager
     !>  This routine performs a halo exchange of each decomposed field within a stream.
     !
     !-----------------------------------------------------------------------
-    subroutine exch_all_halos(allFields, streamFields, timeLevel, ierr) !{{{
+    subroutine exch_all_halos(allFields, allPackages, streamFields, fieldPkgPool, timeLevel, ierr) !{{{
 
         implicit none
 
         type (mpas_pool_type), pointer :: allFields
+        type (mpas_pool_type), pointer :: allPackages
         type (mpas_pool_type), pointer :: streamFields
+        type (mpas_pool_type), pointer :: fieldPkgPool
         integer, intent(in) :: timeLevel
         integer, intent(out) :: ierr
 
@@ -4667,6 +4670,10 @@ module mpas_stream_manager
         type (field2DInteger), pointer :: int2DField
         type (field3DInteger), pointer :: int3DField
 
+        character (len=StrKIND), pointer :: packages
+        logical :: active_field
+        integer :: err_level
+
 
         ierr = MPAS_STREAM_MGR_NOERR
 
@@ -4676,6 +4683,26 @@ module mpas_stream_manager
 
             ! Note: in a stream's field_pool, the names of fields are stored as configs
             if ( fieldItr % memberType == MPAS_POOL_CONFIG ) then
+
+                !
+                ! Check whether the field is active in this stream
+                !
+                err_level = mpas_pool_get_error_level()
+                call mpas_pool_set_error_level(MPAS_POOL_SILENT)
+
+                nullify(packages)
+                call mpas_pool_get_config(fieldPkgPool, trim(fieldItr % memberName)//':packages', packages)
+                if (associated(packages)) then
+                    active_field = parse_package_list(allPackages, trim(packages))
+                else
+                    active_field = .true.
+                end if
+                call mpas_pool_set_error_level(err_level)
+
+                if (.not. active_field) then
+                    STREAM_DEBUG_WRITE('-- '//trim(fieldItr % memberName)//' not active in stream and halo will not be exchanged')
+                    cycle
+                end if
 
                 call mpas_pool_get_field_info(allFields, fieldItr % memberName, fieldInfo)
 
@@ -5312,12 +5339,14 @@ module mpas_stream_manager
     !>  This routine should be called immediately after a read of a stream.
     !
     !-----------------------------------------------------------------------
-    subroutine postread_reindex(allFields, streamFields) !{{{
+    subroutine postread_reindex(allFields, allPackages, streamFields, fieldPkgPool) !{{{
 
         implicit none
 
         type (mpas_pool_type), pointer :: allFields
+        type (mpas_pool_type), pointer :: allPackages
         type (mpas_pool_type), pointer :: streamFields
+        type (mpas_pool_type), pointer :: fieldPkgPool
 
         type (mpas_pool_iterator_type) :: fieldItr
         type (mpas_pool_field_info_type) :: fieldInfo
@@ -5332,6 +5361,10 @@ module mpas_stream_manager
         logical :: skip_field
         integer :: i, j, k
 
+        character (len=StrKIND), pointer :: packages
+        logical :: active_field
+        integer :: err_level
+
 
         call mpas_pool_get_field(allFields, 'indexToCellID', indexToCellID)
         call mpas_pool_get_field(allFields, 'indexToEdgeID', indexToEdgeID)
@@ -5343,6 +5376,26 @@ module mpas_stream_manager
 
             ! Note: in a stream's field_pool, the names of fields are stored as configs
             if ( fieldItr % memberType == MPAS_POOL_CONFIG ) then
+
+                !
+                ! Check whether the field is active in this stream
+                !
+                err_level = mpas_pool_get_error_level()
+                call mpas_pool_set_error_level(MPAS_POOL_SILENT)
+
+                nullify(packages)
+                call mpas_pool_get_config(fieldPkgPool, trim(fieldItr % memberName)//':packages', packages)
+                if (associated(packages)) then
+                    active_field = parse_package_list(allPackages, trim(packages))
+                else
+                    active_field = .true.
+                end if
+                call mpas_pool_set_error_level(err_level)
+
+                if (.not. active_field) then
+                    STREAM_DEBUG_WRITE('-- '//trim(fieldItr % memberName)//' not active in stream and will not be reindexed')
+                    cycle
+                end if
 
                 call mpas_pool_get_field_info(allFields, fieldItr % memberName, fieldInfo)
 
