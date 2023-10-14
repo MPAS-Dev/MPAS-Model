@@ -15,8 +15,8 @@ module atm_time_integration
    use mpas_dmpar
    use mpas_vector_reconstruction
    ! Added only clause to keep xlf90 from getting confused from the overloaded abs intrinsic in mpas_timekeeping
-   use mpas_timekeeping, only: MPAS_Time_type, MPAS_TimeInterval_type, &
-                               mpas_set_time, mpas_set_timeInterval, mpas_get_time, operator(+), add_t_ti
+   use mpas_derived_types, only : MPAS_Time_type, MPAS_TimeInterval_type, MPAS_NOW
+   use mpas_timekeeping, only: mpas_set_time, mpas_set_timeInterval, mpas_get_time, operator(+)
    use mpas_timer
 
 #ifdef DO_PHYSICS
@@ -29,10 +29,26 @@ module atm_time_integration
    
    use mpas_atm_iau  
 
+   !
+   ! Abstract interface for routine used to communicate halos of fields
+   ! in a named group
+   !
+   abstract interface
+      subroutine halo_exchange_routine(domain, halo_group, ierr)
+
+         use mpas_derived_types, only : domain_type
+
+         type (domain_type), intent(inout) :: domain
+         character(len=*), intent(in) :: halo_group
+         integer, intent(out), optional :: ierr
+
+      end subroutine halo_exchange_routine
+   end interface
+
    integer :: timerid, secs, u_secs
 
    ! Used to store physics tendencies for dynamics variables
-   real (kind=RKIND), allocatable, dimension(:,:) :: tend_ru_physics, tend_rtheta_physics, tend_rho_physics
+   real (kind=RKIND), dimension(:,:), pointer :: tend_ru_physics, tend_rtheta_physics, tend_rho_physics
    
    ! Used in compute_dyn_tend
    real (kind=RKIND), allocatable, dimension(:,:) :: qtot 
@@ -48,13 +64,11 @@ module atm_time_integration
    ! Used in atm_advance_scalars_mono
    real (kind=RKIND), dimension(:,:), allocatable :: scalar_old_arr, scalar_new_arr
    real (kind=RKIND), dimension(:,:), allocatable :: s_max_arr, s_min_arr
-   real (kind=RKIND), dimension(:,:,:), allocatable :: scale_array
    real (kind=RKIND), dimension(:,:), allocatable :: flux_array
    real (kind=RKIND), dimension(:,:), allocatable :: flux_upwind_tmp_arr
    real (kind=RKIND), dimension(:,:), allocatable :: flux_tmp_arr
    real (kind=RKIND), dimension(:,:), allocatable :: wdtn_arr
    real (kind=RKIND), dimension(:,:), allocatable :: rho_zz_int
-   real (kind=RKIND), dimension(:,:,:), allocatable :: scalar_tend_array
 
    real (kind=RKIND), dimension(:,:,:), allocatable :: scalars_driving ! regional_MPAS addition 
    real (kind=RKIND), dimension(:,:), allocatable :: ru_driving_tend ! regional_MPAS addition 
@@ -71,7 +85,7 @@ module atm_time_integration
    real (kind=RKIND), allocatable, dimension(:,:) :: ke_edge
 
    type (MPAS_Clock_type), pointer, private :: clock
-   type (block_type), pointer, private :: blocklist
+   type (block_type), pointer, private :: block
 
 
    ! Used for Rayleigh damping on u
@@ -84,7 +98,160 @@ module atm_time_integration
    contains
 
 
-   subroutine atm_timestep(domain, dt, nowTime, itimestep)
+   !***********************************************************************
+   !
+   !  routine mpas_atm_dynamics_checks
+   !
+   !> \brief   Checks compatibility of dynamics settings
+   !> \author  Michael Duda
+   !> \date    14 June 2023
+   !> \details
+   !>  This routine checks that dynamics settings are valid.
+   !>  Specifically,the following are checked by this routine:
+   !>
+   !>  1) config_positive_definite == .false.
+   !>
+   !>  At present only a warning is printed in the case of a failed check,
+   !>  and a value of 0 is always returned by the ierr argument. However,
+   !>  warnings may be escalated to errors in future.
+   !
+   !-----------------------------------------------------------------------
+   subroutine mpas_atm_dynamics_checks(dminfo, blockList, streamManager, ierr)
+
+       use mpas_log, only : mpas_log_write
+       use mpas_derived_types, only : dm_info, block_type, MPAS_LOG_WARN
+       use mpas_pool_routines, only : mpas_pool_get_config
+
+       implicit none
+
+       type (dm_info), pointer :: dminfo
+       type (block_type), pointer :: blockList
+       type (MPAS_streamManager_type), pointer :: streamManager
+       integer, intent(out) :: ierr
+
+       logical, pointer :: config_positive_definite
+
+
+       call mpas_log_write('')
+       call mpas_log_write('Checking consistency of dynamics settings...')
+
+       !
+       ! Check that config_positive_definite == .false., since the positive-definite advection
+       ! option is currently unimplemented.
+       !
+       nullify(config_positive_definite)
+       call mpas_pool_get_config(blocklist % configs, 'config_positive_definite', config_positive_definite)
+
+       if (config_positive_definite) then
+           call mpas_log_write('The positive definite advection option is currently unimplemented, and', &
+                               messageType=MPAS_LOG_WARN)
+           call mpas_log_write('setting config_positive_definite = true will enable monotonic advection.', &
+                               messageType=MPAS_LOG_WARN)
+           call mpas_log_write('Please remove the specification of config_positive_definite from the', &
+                               messageType=MPAS_LOG_WARN)
+           call mpas_log_write('&nhyd_model namelist group.', &
+                               messageType=MPAS_LOG_WARN)
+       end if
+
+       call mpas_log_write(' ----- done checking dynamics settings -----')
+       call mpas_log_write('')
+
+       ierr = 0
+
+   end subroutine mpas_atm_dynamics_checks
+
+
+   !----------------------------------------------------------------------------
+   !  routine MPAS_atm_dynamics_init
+   !
+   !> \brief Initialize the dynamics
+   !> \date  28 July 2021
+   !> \details
+   !>  Prepare the dynamics component of MPAS-Atmosphere for time integration.
+   !>  This may involve, for example, allocating dynamics-local storage or
+   !>  initializing data structures used throughout the dynamics. Since this
+   !>  routine is called once before the first integration step, the work done
+   !>  by this routine is generally persistent across all calls to the dynamical
+   !>  core, in contrast to work that is performed at the beginning of each call
+   !>  to the dynamical core.
+   !
+   !----------------------------------------------------------------------------
+   subroutine mpas_atm_dynamics_init(domain)
+
+      implicit none
+
+      type (domain_type), intent(inout) :: domain
+
+#ifdef MPAS_CAM_DYCORE
+      ! Used in allocating scratch fields for physics tendencies
+      type (mpas_pool_type), pointer :: tend_physics
+      type (field2DReal), pointer :: tend_ru_physicsField, tend_rtheta_physicsField, tend_rho_physicsField
+#endif
+
+
+#ifdef MPAS_CAM_DYCORE
+      nullify(tend_physics)
+      call mpas_pool_get_subpool(domain % blocklist % structs, 'tend_physics', tend_physics)
+
+      call mpas_pool_get_field(tend_physics, 'tend_rtheta_physics', tend_rtheta_physicsField)
+      call mpas_allocate_scratch_field(tend_rtheta_physicsField)
+
+      call mpas_pool_get_field(tend_physics, 'tend_rho_physics', tend_rho_physicsField)
+      call mpas_allocate_scratch_field(tend_rho_physicsField)
+
+      call mpas_pool_get_field(tend_physics, 'tend_ru_physics', tend_ru_physicsField)
+      call mpas_allocate_scratch_field(tend_ru_physicsField)
+#endif
+
+   end subroutine mpas_atm_dynamics_init
+
+
+   !----------------------------------------------------------------------------
+   !  routine MPAS_atm_dynamics_finalize
+   !
+   !> \brief Finalize the dynamics
+   !> \author Michael Duda
+   !> \date   28 July 2021
+   !> \details
+   !>  Finalizes the dynamics component of MPAS-Atmosphere by, for example,
+   !>  freeing up dynamics-local memory and shut down infrastructure used only
+   !>  in the dynamics component of MPAS-Atmosphere. This routine is called once
+   !>  after the last integration step, and the work done here is usually the
+   !>  inverse of that done in the mpas_atm_dynamics_init routine (e.g.,
+   !>  deallocating memory that was allocated by mpas_atm_dynamics_init).
+   !
+   !----------------------------------------------------------------------------
+   subroutine mpas_atm_dynamics_finalize(domain)
+
+      implicit none
+
+      type (domain_type), intent(inout) :: domain
+
+#ifdef MPAS_CAM_DYCORE
+      ! Used in allocating scratch fields for physics tendencies
+      type (mpas_pool_type), pointer :: tend_physics
+      type (field2DReal), pointer :: tend_ru_physicsField, tend_rtheta_physicsField, tend_rho_physicsField
+#endif
+
+
+#ifdef MPAS_CAM_DYCORE
+      nullify(tend_physics)
+      call mpas_pool_get_subpool(domain % blocklist % structs, 'tend_physics', tend_physics)
+
+      call mpas_pool_get_field(tend_physics, 'tend_rtheta_physics', tend_rtheta_physicsField)
+      call mpas_deallocate_scratch_field(tend_rtheta_physicsField)
+
+      call mpas_pool_get_field(tend_physics, 'tend_rho_physics', tend_rho_physicsField)
+      call mpas_deallocate_scratch_field(tend_rho_physicsField)
+
+      call mpas_pool_get_field(tend_physics, 'tend_ru_physics', tend_ru_physicsField)
+      call mpas_deallocate_scratch_field(tend_ru_physicsField)
+#endif
+
+   end subroutine mpas_atm_dynamics_finalize
+
+
+   subroutine atm_timestep(domain, dt, nowTime, itimestep, exchange_halo_group)
    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 
    ! Advance model state forward in time by the specified time step
    !
@@ -100,9 +267,9 @@ module atm_time_integration
       real (kind=RKIND), intent(in) :: dt
       type (MPAS_Time_type), intent(in) :: nowTime
       integer, intent(in) :: itimestep
+      procedure (halo_exchange_routine) :: exchange_halo_group
 
 
-      type (block_type), pointer :: block
       type (MPAS_Time_type) :: currTime
       type (MPAS_TimeInterval_type) :: dtInterval
       character (len=StrKIND), pointer :: xtime
@@ -112,13 +279,13 @@ module atm_time_integration
 
 
       clock => domain % clock
-      blocklist => domain % blocklist
+      block => domain % blocklist
 
-      call mpas_pool_get_config(domain % blocklist % configs, 'config_time_integration', config_time_integration)
-      call mpas_pool_get_config(domain % blocklist % configs, 'config_apply_lbcs', config_apply_lbcs)
+      call mpas_pool_get_config(block % configs, 'config_time_integration', config_time_integration)
+      call mpas_pool_get_config(block % configs, 'config_apply_lbcs', config_apply_lbcs)
 
       if (trim(config_time_integration) == 'SRK3') then
-         call atm_srk3(domain, dt, itimestep)
+         call atm_srk3(domain, dt, itimestep, exchange_halo_group)
       else
          call mpas_log_write('Unknown time integration option '//trim(config_time_integration), messageType=MPAS_LOG_ERR)
          call mpas_log_write('Currently, only ''SRK3'' is supported.', messageType=MPAS_LOG_CRIT)
@@ -128,18 +295,14 @@ module atm_time_integration
       currTime = nowTime + dtInterval
       call mpas_get_time(currTime, dateTimeString=xtime_new)
 
-      block => domain % blocklist
-      do while (associated(block))
-         call mpas_pool_get_subpool(block % structs, 'state', state)
-         call mpas_pool_get_array(state, 'xtime', xtime, 2)
-         xtime = xtime_new
-         block => block % next
-      end do
+      call mpas_pool_get_subpool(block % structs, 'state', state)
+      call mpas_pool_get_array(state, 'xtime', xtime, 2)
+      xtime = xtime_new
 
    end subroutine atm_timestep
 
 
-   subroutine atm_srk3(domain, dt, itimestep)
+   subroutine atm_srk3(domain, dt, itimestep, exchange_halo_group)
    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 
    ! Advance model state forward in time by the specified time step using 
    !   time-split RK3 scheme
@@ -158,10 +321,10 @@ module atm_time_integration
       type (domain_type), intent(inout) :: domain
       real (kind=RKIND), intent(in) :: dt
       integer, intent(in) :: itimestep
+      procedure (halo_exchange_routine) :: exchange_halo_group
 
       integer :: thread
       integer :: iCell, k, iEdge
-      type (block_type), pointer :: block
 
       integer, pointer :: nThreads
       integer, dimension(:), pointer :: cellThreadStart, cellThreadEnd
@@ -203,29 +366,20 @@ module atm_time_integration
       type (mpas_pool_type), pointer :: diag_physics
       type (mpas_pool_type), pointer :: mesh
       type (mpas_pool_type), pointer :: tend
-      type (mpas_pool_type), pointer :: tend_physics
+      type (mpas_pool_type), pointer :: tend_physics => null()
       type (mpas_pool_type), pointer :: lbc  ! regional_MPAS addition
-
-      type (field2DReal), pointer :: theta_m_field
-      type (field3DReal), pointer :: scalars_field
-      type (field2DReal), pointer :: pressure_p_field
-      type (field2DReal), pointer :: rtheta_p_field
-      type (field2DReal), pointer :: rtheta_pp_field
-      type (field2DReal), pointer :: tend_u_field
-      type (field2DReal), pointer :: u_field
-      type (field2DReal), pointer :: w_field
-      type (field2DReal), pointer :: rw_p_field
-      type (field2DReal), pointer :: ru_p_field
-      type (field2DReal), pointer :: rho_pp_field
-      type (field2DReal), pointer :: pv_edge_field
-      type (field2DReal), pointer :: rho_edge_field
-      type (field2DReal), pointer :: exner_field
 
       real (kind=RKIND), dimension(:,:), pointer :: w
       real (kind=RKIND), dimension(:,:), pointer :: u, uReconstructZonal, uReconstructMeridional, uReconstructX, uReconstructY, uReconstructZ
       real (kind=RKIND), dimension(:,:,:), pointer :: scalars, scalars_1, scalars_2
 
-      real (kind=RKIND), dimension(:,:), pointer :: rqvdynten
+      real (kind=RKIND), dimension(:,:), pointer :: rqvdynten, rthdynten, theta_m
+      real (kind=RKIND) :: theta_local, fac_m
+
+#ifndef MPAS_CAM_DYCORE
+      ! Used in allocating scratch fields for physics tendencies
+      type (field2DReal), pointer :: tend_ru_physicsField, tend_rtheta_physicsField, tend_rho_physicsField
+#endif
 
       real (kind=RKIND)  :: time_dyn_step
       logical, parameter :: debug = .false.
@@ -234,48 +388,103 @@ module atm_time_integration
       !
       ! Retrieve configuration options
       !
-      call mpas_pool_get_config(domain % blocklist % configs, 'config_number_of_sub_steps', config_number_of_sub_steps)
-      call mpas_pool_get_config(domain % blocklist % configs, 'config_time_integration_order', config_time_integration_order)
-      call mpas_pool_get_config(domain % blocklist % configs, 'config_scalar_advection', config_scalar_advection)
-      call mpas_pool_get_config(domain % blocklist % configs, 'config_positive_definite', config_positive_definite)
-      call mpas_pool_get_config(domain % blocklist % configs, 'config_monotonic', config_monotonic)
-      call mpas_pool_get_config(domain % blocklist % configs, 'config_dt', config_dt)
-      call mpas_pool_get_config(domain % blocklist % configs, 'config_microp_scheme', config_microp_scheme)
-      call mpas_pool_get_config(domain % blocklist % configs, 'config_convection_scheme', config_convection_scheme)
-      call mpas_pool_get_config(domain % blocklist % configs, 'config_IAU_option', config_IAU_option)
-
+      call mpas_pool_get_config(block % configs, 'config_number_of_sub_steps', config_number_of_sub_steps)
+      call mpas_pool_get_config(block % configs, 'config_time_integration_order', config_time_integration_order)
+      call mpas_pool_get_config(block % configs, 'config_scalar_advection', config_scalar_advection)
+      call mpas_pool_get_config(block % configs, 'config_positive_definite', config_positive_definite)
+      call mpas_pool_get_config(block % configs, 'config_monotonic', config_monotonic)
+      call mpas_pool_get_config(block % configs, 'config_dt', config_dt)
+      call mpas_pool_get_config(block % configs, 'config_IAU_option', config_IAU_option)
       !  config variables for dynamics-transport splitting, WCS 18 November 2014
-      call mpas_pool_get_config(domain % blocklist % configs, 'config_split_dynamics_transport', config_split_dynamics_transport)
-      call mpas_pool_get_config(domain % blocklist % configs, 'config_dynamics_split_steps', config_dynamics_split)
+      call mpas_pool_get_config(block % configs, 'config_split_dynamics_transport', config_split_dynamics_transport)
+      call mpas_pool_get_config(block % configs, 'config_dynamics_split_steps', config_dynamics_split)
+      !  config variables for cloud microphysics
+#ifdef DO_PHYSICS
+      call mpas_pool_get_config(block % configs, 'config_microp_scheme', config_microp_scheme)
+      call mpas_pool_get_config(block % configs, 'config_convection_scheme', config_convection_scheme)
+#endif
 
       !
       ! Retrieve field structures
       !
-      call mpas_pool_get_subpool(domain % blocklist % structs, 'state', state)
-      call mpas_pool_get_subpool(domain % blocklist % structs, 'diag', diag)
+      call mpas_pool_get_subpool(block % structs, 'state', state)
+      call mpas_pool_get_subpool(block % structs, 'mesh', mesh)
+      call mpas_pool_get_subpool(block % structs, 'diag', diag)
+      call mpas_pool_get_subpool(block % structs, 'tend', tend)
+      call mpas_pool_get_subpool(block % structs, 'tend_physics', tend_physics)
+#ifdef DO_PHYSICS
+      call mpas_pool_get_subpool(block % structs, 'diag_physics', diag_physics)
+#endif
 
       !
-      ! Retrieve fields
+      ! Retrieve dimensions
+      ! Note: nCellsSolve and nVerticesSolve are not currently used in this function
       !
-      call mpas_pool_get_field(state, 'theta_m', theta_m_field, 1)
-      call mpas_pool_get_field(state, 'scalars', scalars_field, 1)
-      call mpas_pool_get_field(diag, 'pressure_p', pressure_p_field)
-      call mpas_pool_get_field(diag, 'rtheta_p', rtheta_p_field)
+      call mpas_pool_get_dimension(mesh, 'nCells', nCells)
+      call mpas_pool_get_dimension(mesh, 'nCellsSolve', nCellsSolve)
+      call mpas_pool_get_dimension(mesh, 'nEdges', nEdges)
+      call mpas_pool_get_dimension(mesh, 'nVertices', nVertices)
+      call mpas_pool_get_dimension(mesh, 'nVertLevels', nVertLevels)
+
+      !call mpas_pool_get_dimension(mesh, 'nCellsSolve', nCellsSolve)
+      call mpas_pool_get_dimension(mesh, 'nEdgesSolve', nEdgesSolve)
+      !call mpas_pool_get_dimension(mesh, 'nVerticesSolve', nVerticesSolve)
+
+      call mpas_pool_get_dimension(block % dimensions, 'nThreads', nThreads)
+
+      call mpas_pool_get_dimension(block % dimensions, 'cellThreadStart', cellThreadStart)
+      call mpas_pool_get_dimension(block % dimensions, 'cellThreadEnd', cellThreadEnd)
+      call mpas_pool_get_dimension(block % dimensions, 'cellSolveThreadStart', cellSolveThreadStart)
+      call mpas_pool_get_dimension(block % dimensions, 'cellSolveThreadEnd', cellSolveThreadEnd)
+
+      call mpas_pool_get_dimension(block % dimensions, 'vertexThreadStart', vertexThreadStart)
+      call mpas_pool_get_dimension(block % dimensions, 'vertexThreadEnd', vertexThreadEnd)
+      call mpas_pool_get_dimension(block % dimensions, 'vertexSolveThreadStart', vertexSolveThreadStart)
+      call mpas_pool_get_dimension(block % dimensions, 'vertexSolveThreadEnd', vertexSolveThreadEnd)
+
+      call mpas_pool_get_dimension(block % dimensions, 'edgeThreadStart', edgeThreadStart)
+      call mpas_pool_get_dimension(block % dimensions, 'edgeThreadEnd', edgeThreadEnd)
+      call mpas_pool_get_dimension(block % dimensions, 'edgeSolveThreadStart', edgeSolveThreadStart)
+      call mpas_pool_get_dimension(block % dimensions, 'edgeSolveThreadEnd', edgeSolveThreadEnd)
+
+
+#ifdef DO_PHYSICS
+      call mpas_pool_get_dimension(state, 'index_qv', index_qv)
+#endif
+      if (config_apply_lbcs) then
+         call mpas_pool_get_dimension(state, 'num_scalars', num_scalars)
+         call mpas_pool_get_dimension(state, 'index_qv', index_qv)
+         call mpas_pool_get_dimension(state, 'index_qc', index_qc)
+         call mpas_pool_get_dimension(state, 'index_qr', index_qr)
+         call mpas_pool_get_dimension(state, 'index_qi', index_qi)
+         call mpas_pool_get_dimension(state, 'index_qs', index_qs)
+         call mpas_pool_get_dimension(state, 'index_qg', index_qg)  
+         call mpas_pool_get_dimension(state, 'index_nr', index_nr)
+         call mpas_pool_get_dimension(state, 'index_ni', index_ni)
+      endif
 
       !
       ! allocate storage for physics tendency save
       !
-      call mpas_pool_get_dimension(state, 'nCells', nCells)
-      call mpas_pool_get_dimension(state, 'nEdges', nEdges)
-      call mpas_pool_get_dimension(state, 'nVertLevels', nVertLevels)
-
       allocate(qtot(nVertLevels,nCells+1))
       qtot(:,nCells+1) = 0.0_RKIND
-      allocate(tend_rtheta_physics(nVertLevels,nCells+1))
+
+#ifndef MPAS_CAM_DYCORE
+      call mpas_pool_get_field(tend_physics, 'tend_rtheta_physics', tend_rtheta_physicsField)
+      call mpas_allocate_scratch_field(tend_rtheta_physicsField)
+
+      call mpas_pool_get_field(tend_physics, 'tend_rho_physics', tend_rho_physicsField)
+      call mpas_allocate_scratch_field(tend_rho_physicsField)
+
+      call mpas_pool_get_field(tend_physics, 'tend_ru_physics', tend_ru_physicsField)
+      call mpas_allocate_scratch_field(tend_ru_physicsField)
+#endif
+
+      call mpas_pool_get_array(tend_physics, 'tend_rtheta_physics', tend_rtheta_physics)
       tend_rtheta_physics(:,nCells+1) = 0.0_RKIND
-      allocate(tend_rho_physics(nVertLevels,nCells+1))
+      call mpas_pool_get_array(tend_physics, 'tend_rho_physics', tend_rho_physics)
       tend_rho_physics(:,nCells+1) = 0.0_RKIND
-      allocate(tend_ru_physics(nVertLevels,nEdges+1))
+      call mpas_pool_get_array(tend_physics, 'tend_ru_physics', tend_ru_physics)
       tend_ru_physics(:,nEdges+1) = 0.0_RKIND
 
       !
@@ -324,130 +533,55 @@ module atm_time_integration
         number_sub_steps(3) = number_of_sub_steps
 
       end if
-        
-! theta_m
-      call mpas_dmpar_exch_halo_field(theta_m_field)
- 
-! scalars
-      call mpas_dmpar_exch_halo_field(scalars_field)
 
-! pressure_p
-      call mpas_dmpar_exch_halo_field(pressure_p_field)
-
-! rtheta_p
-      call mpas_dmpar_exch_halo_field(rtheta_p_field)
-
+      !
+      ! Communicate halos for theta_m, scalars, pressure_p, and rtheta_p
+      !
+      call exchange_halo_group(domain, 'dynamics:theta_m,scalars,pressure_p,rtheta_p')
 
       call mpas_timer_start('atm_rk_integration_setup')
 
-      block => domain % blocklist
-      do while (associated(block))
-         call mpas_pool_get_subpool(block % structs, 'state', state)
-         call mpas_pool_get_subpool(block % structs, 'diag', diag)
-         ! mesh is needed for atm_compute_moist_coefficients
-         call mpas_pool_get_subpool(block % structs, 'mesh', mesh)
-
-         call mpas_pool_get_dimension(block % dimensions, 'nThreads', nThreads)
-
-         call mpas_pool_get_dimension(block % dimensions, 'cellThreadStart', cellThreadStart)
-         call mpas_pool_get_dimension(block % dimensions, 'cellThreadEnd', cellThreadEnd)
-         call mpas_pool_get_dimension(block % dimensions, 'cellSolveThreadStart', cellSolveThreadStart)
-         call mpas_pool_get_dimension(block % dimensions, 'cellSolveThreadEnd', cellSolveThreadEnd)
-
-         call mpas_pool_get_dimension(block % dimensions, 'vertexThreadStart', vertexThreadStart)
-         call mpas_pool_get_dimension(block % dimensions, 'vertexThreadEnd', vertexThreadEnd)
-         call mpas_pool_get_dimension(block % dimensions, 'vertexSolveThreadStart', vertexSolveThreadStart)
-         call mpas_pool_get_dimension(block % dimensions, 'vertexSolveThreadEnd', vertexSolveThreadEnd)
-
-         call mpas_pool_get_dimension(block % dimensions, 'edgeThreadStart', edgeThreadStart)
-         call mpas_pool_get_dimension(block % dimensions, 'edgeThreadEnd', edgeThreadEnd)
-         call mpas_pool_get_dimension(block % dimensions, 'edgeSolveThreadStart', edgeSolveThreadStart)
-         call mpas_pool_get_dimension(block % dimensions, 'edgeSolveThreadEnd', edgeSolveThreadEnd)
-
 !$OMP PARALLEL DO
-         do thread=1,nThreads
-            call atm_rk_integration_setup(state, diag, &
-                                          cellThreadStart(thread), cellThreadEnd(thread), &
-                                          vertexThreadStart(thread), vertexThreadEnd(thread), &
-                                          edgeThreadStart(thread), edgeThreadEnd(thread), &
-                                          cellSolveThreadStart(thread), cellSolveThreadEnd(thread), &
-                                          vertexSolveThreadStart(thread), vertexSolveThreadEnd(thread), &
-                                          edgeSolveThreadStart(thread), edgeSolveThreadEnd(thread))
-         end do
+      do thread=1,nThreads
+         call atm_rk_integration_setup(state, diag, &
+                                       cellThreadStart(thread), cellThreadEnd(thread), &
+                                       vertexThreadStart(thread), vertexThreadEnd(thread), &
+                                       edgeThreadStart(thread), edgeThreadEnd(thread), &
+                                       cellSolveThreadStart(thread), cellSolveThreadEnd(thread), &
+                                       vertexSolveThreadStart(thread), vertexSolveThreadEnd(thread), &
+                                       edgeSolveThreadStart(thread), edgeSolveThreadEnd(thread))
+      end do
 !$OMP END PARALLEL DO
 
-         block => block % next
-      end do
       call mpas_timer_stop('atm_rk_integration_setup')
 
       call mpas_timer_start('atm_compute_moist_coefficients')
-      block => domain % blocklist
-      do while (associated(block))
-         call mpas_pool_get_subpool(block % structs, 'state', state)
-         call mpas_pool_get_subpool(block % structs, 'diag', diag)
-         ! mesh is needed for atm_compute_moist_coefficients
-         call mpas_pool_get_subpool(block % structs, 'mesh', mesh)
-
-         call mpas_pool_get_dimension(block % dimensions, 'nThreads', nThreads)
-
-         call mpas_pool_get_dimension(block % dimensions, 'cellThreadStart', cellThreadStart)
-         call mpas_pool_get_dimension(block % dimensions, 'cellThreadEnd', cellThreadEnd)
-         call mpas_pool_get_dimension(block % dimensions, 'cellSolveThreadStart', cellSolveThreadStart)
-         call mpas_pool_get_dimension(block % dimensions, 'cellSolveThreadEnd', cellSolveThreadEnd)
-
-         call mpas_pool_get_dimension(block % dimensions, 'vertexThreadStart', vertexThreadStart)
-         call mpas_pool_get_dimension(block % dimensions, 'vertexThreadEnd', vertexThreadEnd)
-         call mpas_pool_get_dimension(block % dimensions, 'vertexSolveThreadStart', vertexSolveThreadStart)
-         call mpas_pool_get_dimension(block % dimensions, 'vertexSolveThreadEnd', vertexSolveThreadEnd)
-
-         call mpas_pool_get_dimension(block % dimensions, 'edgeThreadStart', edgeThreadStart)
-         call mpas_pool_get_dimension(block % dimensions, 'edgeThreadEnd', edgeThreadEnd)
-         call mpas_pool_get_dimension(block % dimensions, 'edgeSolveThreadStart', edgeSolveThreadStart)
-         call mpas_pool_get_dimension(block % dimensions, 'edgeSolveThreadEnd', edgeSolveThreadEnd)
 
 !$OMP PARALLEL DO
-         do thread=1,nThreads
-            call atm_compute_moist_coefficients( block % dimensions, state, diag, mesh, &     !MGD could do away with dimensions arg
-                                                 cellThreadStart(thread), cellThreadEnd(thread), &
-                                                 vertexThreadStart(thread), vertexThreadEnd(thread), &
-                                                 edgeThreadStart(thread), edgeThreadEnd(thread), &
-                                                 cellSolveThreadStart(thread), cellSolveThreadEnd(thread), &
-                                                 vertexSolveThreadStart(thread), vertexSolveThreadEnd(thread), &
-                                                 edgeSolveThreadStart(thread), edgeSolveThreadEnd(thread))
-         end do
+      do thread=1,nThreads
+         call atm_compute_moist_coefficients( block % dimensions, state, diag, mesh, &     !MGD could do away with dimensions arg
+                                              cellThreadStart(thread), cellThreadEnd(thread), &
+                                              vertexThreadStart(thread), vertexThreadEnd(thread), &
+                                              edgeThreadStart(thread), edgeThreadEnd(thread), &
+                                              cellSolveThreadStart(thread), cellSolveThreadEnd(thread), &
+                                              vertexSolveThreadStart(thread), vertexSolveThreadEnd(thread), &
+                                              edgeSolveThreadStart(thread), edgeSolveThreadEnd(thread))
+      end do
 !$OMP END PARALLEL DO
 
-         block => block % next
-      end do
       call mpas_timer_stop('atm_compute_moist_coefficients')
 
 #ifdef DO_PHYSICS
       call mpas_timer_start('physics_get_tend')
-      block => domain % blocklist
-      do while (associated(block))
-         call mpas_pool_get_subpool(block % structs, 'mesh', mesh)
-         call mpas_pool_get_subpool(block % structs, 'state', state)
-         call mpas_pool_get_subpool(block % structs, 'diag', diag)
-         call mpas_pool_get_subpool(block % structs, 'tend', tend)
-         call mpas_pool_get_subpool(block % structs, 'tend_physics', tend_physics)
-         rk_step = 1
-         dynamics_substep = 1
-         call physics_get_tend( block, &
-                                 mesh, &
-                                state, &     
-                                 diag, &
-                                 tend, &
-                         tend_physics, &
-                      block % configs, &
-                              rk_step, &
-                     dynamics_substep, &
-                      tend_ru_physics, &
-                  tend_rtheta_physics, &
-                     tend_rho_physics )
-         block => block % next
-      end do
+      rk_step = 1
+      dynamics_substep = 1
+      call physics_get_tend( block, mesh, state, diag, tend, tend_physics, &
+                             block % configs, rk_step, dynamics_substep, &
+                             tend_ru_physics, tend_rtheta_physics, tend_rho_physics, &
+                             exchange_halo_group )
       call mpas_timer_stop('physics_get_tend')
 #else
+#ifndef MPAS_CAM_DYCORE
       !
       ! If no physics are being used, simply zero-out the physics tendency fields
       !
@@ -455,17 +589,14 @@ module atm_time_integration
       tend_rtheta_physics(:,:) = 0.0_RKIND
       tend_rho_physics(:,:) = 0.0_RKIND
 #endif
+#endif
 
       !
       ! IAU - Incremental Analysis Update
       !
       if (trim(config_IAU_option) /= 'off') then
-         block => domain % blocklist
-         do while (associated(block))
-            call atm_add_tend_anal_incr(block % configs, block % structs, itimestep, dt, &
-                                        tend_ru_physics, tend_rtheta_physics, tend_rho_physics)
-            block => block % next
-        end do
+         call atm_add_tend_anal_incr(block % configs, block % structs, itimestep, dt, &
+                                     tend_ru_physics, tend_rtheta_physics, tend_rho_physics)
       end if
 
 
@@ -474,43 +605,20 @@ module atm_time_integration
          !  Compute the coefficients for the vertically implicit solve in the acoustic step.
          !  These coefficients will work for the first acoustic step in all cases.
          call mpas_timer_start('atm_compute_vert_imp_coefs')
-         block => domain % blocklist
-         do while (associated(block))
-            call mpas_pool_get_subpool(block % structs, 'mesh', mesh)
-            call mpas_pool_get_subpool(block % structs, 'state', state)
-            call mpas_pool_get_subpool(block % structs, 'diag', diag)
-            call mpas_pool_get_subpool(block % structs, 'tend', tend)
 
-            call mpas_pool_get_dimension(mesh, 'nVertLevels', nVertLevels)
-
-            call mpas_pool_get_dimension(block % dimensions, 'nThreads', nThreads)
-
-            call mpas_pool_get_dimension(block % dimensions, 'cellThreadStart', cellThreadStart)
-            call mpas_pool_get_dimension(block % dimensions, 'cellThreadEnd', cellThreadEnd)
-            call mpas_pool_get_dimension(block % dimensions, 'cellSolveThreadStart', cellSolveThreadStart)
-            call mpas_pool_get_dimension(block % dimensions, 'cellSolveThreadEnd', cellSolveThreadEnd)
-
-            call mpas_pool_get_dimension(block % dimensions, 'edgeThreadStart', edgeThreadStart)
-            call mpas_pool_get_dimension(block % dimensions, 'edgeThreadEnd', edgeThreadEnd)
-            call mpas_pool_get_dimension(block % dimensions, 'edgeSolveThreadStart', edgeSolveThreadStart)
-            call mpas_pool_get_dimension(block % dimensions, 'edgeSolveThreadEnd', edgeSolveThreadEnd)
-
-            rk_step = 1
+         rk_step = 1
 !$OMP PARALLEL DO
-            do thread=1,nThreads
-               call atm_compute_vert_imp_coefs( state, mesh, diag, block % configs, nVertLevels, rk_sub_timestep(rk_step), &
-                                          cellThreadStart(thread), cellThreadEnd(thread), &
-                                          edgeThreadStart(thread), edgeThreadEnd(thread), &
-                                          cellSolveThreadStart(thread), cellSolveThreadEnd(thread), &
-                                          edgeSolveThreadStart(thread), edgeSolveThreadEnd(thread))
-            end do
-!$OMP END PARALLEL DO
-            block => block % next
+         do thread=1,nThreads
+            call atm_compute_vert_imp_coefs( state, mesh, diag, block % configs, nVertLevels, rk_sub_timestep(rk_step), &
+                                       cellThreadStart(thread), cellThreadEnd(thread), &
+                                       edgeThreadStart(thread), edgeThreadEnd(thread), &
+                                       cellSolveThreadStart(thread), cellSolveThreadEnd(thread), &
+                                       edgeSolveThreadStart(thread), edgeSolveThreadEnd(thread))
          end do
+!$OMP END PARALLEL DO
          call mpas_timer_stop('atm_compute_vert_imp_coefs')
 
-         call mpas_pool_get_field(diag, 'exner', exner_field)
-         call mpas_dmpar_exch_halo_field(exner_field)
+         call exchange_halo_group(domain, 'dynamics:exner')
 
 
          !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 
@@ -524,109 +632,55 @@ module atm_time_integration
 
               !  Compute the coefficients for the vertically implicit solve in the acoustic step.
               !  These coefficients will work for the 2nd and 3rd acoustic steps (dt is the same for both).
-              block => domain % blocklist
-              do while (associated(block))
-                 call mpas_pool_get_subpool(block % structs, 'mesh', mesh)
-                 call mpas_pool_get_subpool(block % structs, 'state', state)
-                 call mpas_pool_get_subpool(block % structs, 'diag', diag)
-                 call mpas_pool_get_subpool(block % structs, 'tend', tend)
-   
-                 call mpas_pool_get_dimension(mesh, 'nVertLevels', nVertLevels)
-
-                 call mpas_pool_get_dimension(block % dimensions, 'nThreads', nThreads)
-
-                 call mpas_pool_get_dimension(block % dimensions, 'cellThreadStart', cellThreadStart)
-                 call mpas_pool_get_dimension(block % dimensions, 'cellThreadEnd', cellThreadEnd)
-                 call mpas_pool_get_dimension(block % dimensions, 'cellSolveThreadStart', cellSolveThreadStart)
-                 call mpas_pool_get_dimension(block % dimensions, 'cellSolveThreadEnd', cellSolveThreadEnd)
-
-                 call mpas_pool_get_dimension(block % dimensions, 'edgeThreadStart', edgeThreadStart)
-                 call mpas_pool_get_dimension(block % dimensions, 'edgeThreadEnd', edgeThreadEnd)
-                 call mpas_pool_get_dimension(block % dimensions, 'edgeSolveThreadStart', edgeSolveThreadStart)
-                 call mpas_pool_get_dimension(block % dimensions, 'edgeSolveThreadEnd', edgeSolveThreadEnd)
-
 !$OMP PARALLEL DO
-                 do thread=1,nThreads
-                    call atm_compute_vert_imp_coefs( state, mesh, diag, block % configs, nVertLevels, rk_sub_timestep(rk_step), &
-                                                     cellThreadStart(thread), cellThreadEnd(thread), &
-                                                     edgeThreadStart(thread), edgeThreadEnd(thread), &
-                                                     cellSolveThreadStart(thread), cellSolveThreadEnd(thread), &
-                                                     edgeSolveThreadStart(thread), edgeSolveThreadEnd(thread))
-                 end do
-!$OMP END PARALLEL DO
-                 block => block % next
+              do thread=1,nThreads
+                 call atm_compute_vert_imp_coefs( state, mesh, diag, block % configs, nVertLevels, rk_sub_timestep(rk_step), &
+                                                  cellThreadStart(thread), cellThreadEnd(thread), &
+                                                  edgeThreadStart(thread), edgeThreadEnd(thread), &
+                                                  cellSolveThreadStart(thread), cellSolveThreadEnd(thread), &
+                                                  edgeSolveThreadStart(thread), edgeSolveThreadEnd(thread))
               end do
+!$OMP END PARALLEL DO
             end if  
 
             call mpas_timer_start('atm_compute_dyn_tend')
-            block => domain % blocklist
-            do while (associated(block))
-               call mpas_pool_get_subpool(block % structs, 'state', state)
-               call mpas_pool_get_subpool(block % structs, 'diag', diag)
-               call mpas_pool_get_subpool(block % structs, 'mesh', mesh)
-               call mpas_pool_get_subpool(block % structs, 'tend', tend)
-               call mpas_pool_get_subpool(block % structs, 'tend_physics', tend_physics)
    
-               call mpas_pool_get_dimension(mesh, 'nCells', nCells)
-               call mpas_pool_get_dimension(mesh, 'nEdges', nEdges)
-               call mpas_pool_get_dimension(mesh, 'nVertices', nVertices)
-               call mpas_pool_get_dimension(mesh, 'nVertLevels', nVertLevels)
-
-               call mpas_pool_get_dimension(block % dimensions, 'nThreads', nThreads)
-
-               call mpas_pool_get_dimension(block % dimensions, 'cellThreadStart', cellThreadStart)
-               call mpas_pool_get_dimension(block % dimensions, 'cellThreadEnd', cellThreadEnd)
-               call mpas_pool_get_dimension(block % dimensions, 'cellSolveThreadStart', cellSolveThreadStart)
-               call mpas_pool_get_dimension(block % dimensions, 'cellSolveThreadEnd', cellSolveThreadEnd)
-
-               call mpas_pool_get_dimension(block % dimensions, 'vertexThreadStart', vertexThreadStart)
-               call mpas_pool_get_dimension(block % dimensions, 'vertexThreadEnd', vertexThreadEnd)
-               call mpas_pool_get_dimension(block % dimensions, 'vertexSolveThreadStart', vertexSolveThreadStart)
-               call mpas_pool_get_dimension(block % dimensions, 'vertexSolveThreadEnd', vertexSolveThreadEnd)
-
-               call mpas_pool_get_dimension(block % dimensions, 'edgeThreadStart', edgeThreadStart)
-               call mpas_pool_get_dimension(block % dimensions, 'edgeThreadEnd', edgeThreadEnd)
-               call mpas_pool_get_dimension(block % dimensions, 'edgeSolveThreadStart', edgeSolveThreadStart)
-               call mpas_pool_get_dimension(block % dimensions, 'edgeSolveThreadEnd', edgeSolveThreadEnd)
-
-               allocate(delsq_theta(nVertLevels,nCells+1))
-               delsq_theta(:,nCells+1) = 0.0_RKIND
-               allocate(delsq_w(nVertLevels,nCells+1))
-               delsq_w(:,nCells+1) = 0.0_RKIND
-!!               allocate(qtot(nVertLevels,nCells+1))  ! initializing this earlier in solution sequence
-               allocate(delsq_divergence(nVertLevels,nCells+1))
-               delsq_divergence(:,nCells+1) = 0.0_RKIND
-               allocate(delsq_u(nVertLevels,nEdges+1))
-               delsq_u(:,nEdges+1) = 0.0_RKIND
-!!               allocate(delsq_circulation(nVertLevels,nVertices+1))  ! no longer used -> removed 
-               allocate(delsq_vorticity(nVertLevels,nVertices+1))
-               delsq_vorticity(:,nVertices+1) = 0.0_RKIND
-               allocate(dpdz(nVertLevels,nCells+1))
-               dpdz(:,nCells+1) = 0.0_RKIND
+            allocate(delsq_theta(nVertLevels,nCells+1))
+            delsq_theta(:,nCells+1) = 0.0_RKIND
+            allocate(delsq_w(nVertLevels,nCells+1))
+            delsq_w(:,nCells+1) = 0.0_RKIND
+!!            allocate(qtot(nVertLevels,nCells+1))  ! initializing this earlier in solution sequence
+            allocate(delsq_divergence(nVertLevels,nCells+1))
+            delsq_divergence(:,nCells+1) = 0.0_RKIND
+            allocate(delsq_u(nVertLevels,nEdges+1))
+            delsq_u(:,nEdges+1) = 0.0_RKIND
+!!            allocate(delsq_circulation(nVertLevels,nVertices+1))  ! no longer used -> removed 
+            allocate(delsq_vorticity(nVertLevels,nVertices+1))
+            delsq_vorticity(:,nVertices+1) = 0.0_RKIND
+            allocate(dpdz(nVertLevels,nCells+1))
+            dpdz(:,nCells+1) = 0.0_RKIND
 
 !$OMP PARALLEL DO
-               do thread=1,nThreads
-                  call atm_compute_dyn_tend( tend, tend_physics, state, diag, mesh, block % configs, nVertLevels, rk_step, dt, & 
-                                             cellThreadStart(thread), cellThreadEnd(thread), &
-                                             vertexThreadStart(thread), vertexThreadEnd(thread), &
-                                             edgeThreadStart(thread), edgeThreadEnd(thread), &
-                                             cellSolveThreadStart(thread), cellSolveThreadEnd(thread), &
-                                             vertexSolveThreadStart(thread), vertexSolveThreadEnd(thread), &
-                                             edgeSolveThreadStart(thread), edgeSolveThreadEnd(thread))
-               end do
+            do thread=1,nThreads
+               call atm_compute_dyn_tend( tend, tend_physics, state, diag, mesh, block % configs, nVertLevels, rk_step, dt, & 
+                                          cellThreadStart(thread), cellThreadEnd(thread), &
+                                          vertexThreadStart(thread), vertexThreadEnd(thread), &
+                                          edgeThreadStart(thread), edgeThreadEnd(thread), &
+                                          cellSolveThreadStart(thread), cellSolveThreadEnd(thread), &
+                                          vertexSolveThreadStart(thread), vertexSolveThreadEnd(thread), &
+                                          edgeSolveThreadStart(thread), edgeSolveThreadEnd(thread))
+            end do
 !$OMP END PARALLEL DO
 
-               deallocate(delsq_theta)
-               deallocate(delsq_w)
-!!               deallocate(qtot)  ! deallocation after dynamics step complete, see below
-               deallocate(delsq_divergence)
-               deallocate(delsq_u)
-!!               deallocate(delsq_circulation)    ! no longer used -> removed 
-               deallocate(delsq_vorticity)
-               deallocate(dpdz)
+            deallocate(delsq_theta)
+            deallocate(delsq_w)
+!!            deallocate(qtot)  ! deallocation after dynamics step complete, see below
+            deallocate(delsq_divergence)
+            deallocate(delsq_u)
+!!            deallocate(delsq_circulation)    ! no longer used -> removed 
+            deallocate(delsq_vorticity)
+            deallocate(dpdz)
    
-               block => block % next
-            end do
             call mpas_timer_stop('atm_compute_dyn_tend')
 
 
@@ -637,145 +691,72 @@ module atm_time_integration
             !***********************************
 
 ! tend_u
-            call mpas_pool_get_subpool(domain % blocklist % structs, 'tend', tend)
-            call mpas_pool_get_field(tend, 'u', tend_u_field)
-            call mpas_dmpar_exch_halo_field(tend_u_field, (/ 1 /))
+            call exchange_halo_group(domain, 'dynamics:tend_u')
    
             call mpas_timer_start('small_step_prep')
-
-            block => domain % blocklist
-            do while (associated(block))
-               call mpas_pool_get_subpool(block % structs, 'mesh', mesh)
-               call mpas_pool_get_subpool(block % structs, 'state', state)
-               call mpas_pool_get_subpool(block % structs, 'diag', diag)
-               call mpas_pool_get_subpool(block % structs, 'tend', tend)
    
-               call mpas_pool_get_dimension(mesh, 'nVertLevels', nVertLevels)
-
-               call mpas_pool_get_dimension(block % dimensions, 'nThreads', nThreads)
-
-               call mpas_pool_get_dimension(block % dimensions, 'cellThreadStart', cellThreadStart)
-               call mpas_pool_get_dimension(block % dimensions, 'cellThreadEnd', cellThreadEnd)
-               call mpas_pool_get_dimension(block % dimensions, 'cellSolveThreadStart', cellSolveThreadStart)
-               call mpas_pool_get_dimension(block % dimensions, 'cellSolveThreadEnd', cellSolveThreadEnd)
-
-               call mpas_pool_get_dimension(block % dimensions, 'edgeThreadStart', edgeThreadStart)
-               call mpas_pool_get_dimension(block % dimensions, 'edgeThreadEnd', edgeThreadEnd)
-               call mpas_pool_get_dimension(block % dimensions, 'edgeSolveThreadStart', edgeSolveThreadStart)
-               call mpas_pool_get_dimension(block % dimensions, 'edgeSolveThreadEnd', edgeSolveThreadEnd)
-               
 !$OMP PARALLEL DO
-               do thread=1,nThreads
-                  call atm_set_smlstep_pert_variables( tend, diag, mesh, block % configs, &
-                                             cellThreadStart(thread), cellThreadEnd(thread), &
-                                             edgeThreadStart(thread), edgeThreadEnd(thread), &
-                                             cellSolveThreadStart(thread), cellSolveThreadEnd(thread), &
-                                             edgeSolveThreadStart(thread), edgeSolveThreadEnd(thread))
-               end do
-!$OMP END PARALLEL DO
-               block => block % next
+            do thread=1,nThreads
+               call atm_set_smlstep_pert_variables( tend, diag, mesh, block % configs, &
+                                          cellThreadStart(thread), cellThreadEnd(thread), &
+                                          edgeThreadStart(thread), edgeThreadEnd(thread), &
+                                          cellSolveThreadStart(thread), cellSolveThreadEnd(thread), &
+                                          edgeSolveThreadStart(thread), edgeSolveThreadEnd(thread))
             end do
+!$OMP END PARALLEL DO
             call mpas_timer_stop('small_step_prep')
 
           
 !------------------------------------------------------------------------------------------------------------------------
 
             if (config_apply_lbcs) then  ! adjust boundary tendencies for regional_MPAS dry dynamics in the specified zone
-
-               block => domain % blocklist
-               do while (associated(block))
-
-                  call mpas_pool_get_subpool(block % structs, 'mesh', mesh)
-                  call mpas_pool_get_subpool(block % structs, 'tend', tend)
    
-                  call mpas_pool_get_dimension(mesh, 'nCells', nCells)
-                  call mpas_pool_get_dimension(mesh, 'nEdges', nEdges)
-                  call mpas_pool_get_dimension(mesh, 'nVertLevels', nVertLevels)
-                  call mpas_pool_get_dimension(block % dimensions, 'nThreads', nThreads)
-
-                  call mpas_pool_get_dimension(block % dimensions, 'cellThreadStart', cellThreadStart)
-                  call mpas_pool_get_dimension(block % dimensions, 'cellThreadEnd', cellThreadEnd)
-                  call mpas_pool_get_dimension(block % dimensions, 'cellSolveThreadStart', cellSolveThreadStart)
-                  call mpas_pool_get_dimension(block % dimensions, 'cellSolveThreadEnd', cellSolveThreadEnd)
-
-                  call mpas_pool_get_dimension(block % dimensions, 'edgeThreadStart', edgeThreadStart)
-                  call mpas_pool_get_dimension(block % dimensions, 'edgeThreadEnd', edgeThreadEnd)
-                  call mpas_pool_get_dimension(block % dimensions, 'edgeSolveThreadStart', edgeSolveThreadStart)
-                  call mpas_pool_get_dimension(block % dimensions, 'edgeSolveThreadEnd', edgeSolveThreadEnd)
-
-                  allocate(ru_driving_tend(nVertLevels,nEdges+1))
-                  allocate(rt_driving_tend(nVertLevels,nCells+1))
-                  allocate(rho_driving_tend(nVertLevels,nCells+1))
-                  ru_driving_tend(1:nVertLevels,1:nEdges+1) =  mpas_atm_get_bdy_tend( clock, domain % blocklist, nVertLevels, nEdges, 'ru', 0.0_RKIND )
-                  rt_driving_tend(1:nVertLevels,1:nCells+1) =  mpas_atm_get_bdy_tend( clock, domain % blocklist, nVertLevels, nCells, 'rtheta_m', 0.0_RKIND )
-                  rho_driving_tend(1:nVertLevels,1:nCells+1) =  mpas_atm_get_bdy_tend( clock, domain % blocklist, nVertLevels, nCells, 'rho_zz', 0.0_RKIND )
+               allocate(ru_driving_tend(nVertLevels,nEdges+1))
+               allocate(rt_driving_tend(nVertLevels,nCells+1))
+               allocate(rho_driving_tend(nVertLevels,nCells+1))
+               ru_driving_tend(1:nVertLevels,1:nEdges+1) =  mpas_atm_get_bdy_tend( clock, block, nVertLevels, nEdges, 'ru', 0.0_RKIND )
+               rt_driving_tend(1:nVertLevels,1:nCells+1) =  mpas_atm_get_bdy_tend( clock, block, nVertLevels, nCells, 'rtheta_m', 0.0_RKIND )
+               rho_driving_tend(1:nVertLevels,1:nCells+1) =  mpas_atm_get_bdy_tend( clock, block, nVertLevels, nCells, 'rho_zz', 0.0_RKIND )
 !$OMP PARALLEL DO
-                  do thread=1,nThreads
-                     call atm_bdy_adjust_dynamics_speczone_tend( tend, mesh, block % configs, nVertLevels,                 &
-                                                                 ru_driving_tend, rt_driving_tend, rho_driving_tend,       &
-                                                                 cellThreadStart(thread), cellThreadEnd(thread),           &
-                                                                 edgeThreadStart(thread), edgeThreadEnd(thread),           &
-                                                                 cellSolveThreadStart(thread), cellSolveThreadEnd(thread), &
-                                                                 edgeSolveThreadStart(thread), edgeSolveThreadEnd(thread) )
-                  end do
+               do thread=1,nThreads
+                  call atm_bdy_adjust_dynamics_speczone_tend( tend, mesh, block % configs, nVertLevels,                 &
+                                                              ru_driving_tend, rt_driving_tend, rho_driving_tend,       &
+                                                              cellThreadStart(thread), cellThreadEnd(thread),           &
+                                                              edgeThreadStart(thread), edgeThreadEnd(thread),           &
+                                                              cellSolveThreadStart(thread), cellSolveThreadEnd(thread), &
+                                                              edgeSolveThreadStart(thread), edgeSolveThreadEnd(thread) )
+               end do
 !$OMP END PARALLEL DO
 
-                  deallocate(ru_driving_tend)
-                  deallocate(rt_driving_tend)
-                  deallocate(rho_driving_tend)
-                  block => block % next
-               end do
+               deallocate(ru_driving_tend)
+               deallocate(rt_driving_tend)
+               deallocate(rho_driving_tend)
 
 ! -------- next, add in the tendencies for the horizontal filters and Rayleigh damping.  We will keep the spec zone and relax zone adjustments separate for now...
-               
-               block => domain % blocklist
-               do while (associated(block))
-                  call mpas_pool_get_subpool(block % structs, 'state', state)
-                  call mpas_pool_get_subpool(block % structs, 'diag', diag)
-                  call mpas_pool_get_subpool(block % structs, 'mesh', mesh)
-                  call mpas_pool_get_subpool(block % structs, 'tend', tend)
-   
-                  call mpas_pool_get_dimension(mesh, 'nCells', nCells)
-                  call mpas_pool_get_dimension(mesh, 'nEdges', nEdges)
-                  call mpas_pool_get_dimension(mesh, 'nVertLevels', nVertLevels)
-                  call mpas_pool_get_dimension(block % dimensions, 'nThreads', nThreads)
 
-                  call mpas_pool_get_dimension(block % dimensions, 'cellThreadStart', cellThreadStart)
-                  call mpas_pool_get_dimension(block % dimensions, 'cellThreadEnd', cellThreadEnd)
-                  call mpas_pool_get_dimension(block % dimensions, 'cellSolveThreadStart', cellSolveThreadStart)
-                  call mpas_pool_get_dimension(block % dimensions, 'cellSolveThreadEnd', cellSolveThreadEnd)
+               allocate(ru_driving_values(nVertLevels,nEdges+1))
+               allocate(rt_driving_values(nVertLevels,nCells+1))
+               allocate(rho_driving_values(nVertLevels,nCells+1))
 
-                  call mpas_pool_get_dimension(block % dimensions, 'edgeThreadStart', edgeThreadStart)
-                  call mpas_pool_get_dimension(block % dimensions, 'edgeThreadEnd', edgeThreadEnd)
-                  call mpas_pool_get_dimension(block % dimensions, 'edgeSolveThreadStart', edgeSolveThreadStart)
-                  call mpas_pool_get_dimension(block % dimensions, 'edgeSolveThreadEnd', edgeSolveThreadEnd)
-
-                  allocate(ru_driving_values(nVertLevels,nEdges+1))
-                  allocate(rt_driving_values(nVertLevels,nCells+1))
-                  allocate(rho_driving_values(nVertLevels,nCells+1))
-
-                  time_dyn_step = dt_dynamics*real(dynamics_substep-1) + rk_timestep(rk_step)
-                  ru_driving_values(1:nVertLevels,1:nEdges+1) =  mpas_atm_get_bdy_state( clock, domain % blocklist, nVertLevels, nEdges, 'ru', time_dyn_step )
-                  rt_driving_values(1:nVertLevels,1:nCells+1) =  mpas_atm_get_bdy_state( clock, domain % blocklist, nVertLevels, nCells, 'rtheta_m', time_dyn_step )
-                  rho_driving_values(1:nVertLevels,1:nCells+1) =  mpas_atm_get_bdy_state( clock, domain % blocklist, nVertLevels, nCells, 'rho_zz', time_dyn_step )
+               time_dyn_step = dt_dynamics*real(dynamics_substep-1) + rk_timestep(rk_step)
+               ru_driving_values(1:nVertLevels,1:nEdges+1) =  mpas_atm_get_bdy_state( clock, block, nVertLevels, nEdges, 'ru', time_dyn_step )
+               rt_driving_values(1:nVertLevels,1:nCells+1) =  mpas_atm_get_bdy_state( clock, block, nVertLevels, nCells, 'rtheta_m', time_dyn_step )
+               rho_driving_values(1:nVertLevels,1:nCells+1) =  mpas_atm_get_bdy_state( clock, block, nVertLevels, nCells, 'rho_zz', time_dyn_step )
 
 !$OMP PARALLEL DO
-                  do thread=1,nThreads
-                     call atm_bdy_adjust_dynamics_relaxzone_tend( tend, state, diag, mesh, nVertLevels, dt,                   &
-                                                                  ru_driving_values, rt_driving_values, rho_driving_values,   &
-                                                                  cellThreadStart(thread), cellThreadEnd(thread),             &
-                                                                  edgeThreadStart(thread), edgeThreadEnd(thread),             &
-                                                                  cellSolveThreadStart(thread), cellSolveThreadEnd(thread),   &
-                                                                  edgeSolveThreadStart(thread), edgeSolveThreadEnd(thread) )
-                  end do
+               do thread=1,nThreads
+                  call atm_bdy_adjust_dynamics_relaxzone_tend( block % configs, tend, state, diag, mesh, nVertLevels, dt,  &
+                                                               ru_driving_values, rt_driving_values, rho_driving_values,   &
+                                                               cellThreadStart(thread), cellThreadEnd(thread),             &
+                                                               edgeThreadStart(thread), edgeThreadEnd(thread),             &
+                                                               cellSolveThreadStart(thread), cellSolveThreadEnd(thread),   &
+                                                               edgeSolveThreadStart(thread), edgeSolveThreadEnd(thread) )
+               end do
 !$OMP END PARALLEL DO
 
-                  deallocate(ru_driving_values)
-                  deallocate(rt_driving_values)
-                  deallocate(rho_driving_values)
-                  block => block % next
-               end do
-
+               deallocate(ru_driving_values)
+               deallocate(rt_driving_values)
+               deallocate(rho_driving_values)
 
             end if  ! regional_MPAS addition
 
@@ -787,146 +768,66 @@ module atm_time_integration
 
             do small_step = 1, number_sub_steps(rk_step)
 
-               call mpas_pool_get_subpool(domain % blocklist % structs, 'diag', diag)
-               call mpas_pool_get_field(diag, 'rho_pp', rho_pp_field)
-               call mpas_dmpar_exch_halo_field(rho_pp_field, (/ 1 /))
+               call exchange_halo_group(domain, 'dynamics:rho_pp')
 
                call mpas_timer_start('atm_advance_acoustic_step')
-               block => domain % blocklist
-               do while (associated(block))
-                  call mpas_pool_get_subpool(block % structs, 'mesh', mesh)
-                  call mpas_pool_get_subpool(block % structs, 'state', state)
-                  call mpas_pool_get_subpool(block % structs, 'diag', diag)
-                  call mpas_pool_get_subpool(block % structs, 'tend', tend)
-
-                  call mpas_pool_get_dimension(mesh, 'nCells', nCells)
-                  call mpas_pool_get_dimension(mesh, 'nVertLevels', nVertLevels)
-
-                  call mpas_pool_get_dimension(block % dimensions, 'nThreads', nThreads)
-
-                  call mpas_pool_get_dimension(block % dimensions, 'cellThreadStart', cellThreadStart)
-                  call mpas_pool_get_dimension(block % dimensions, 'cellThreadEnd', cellThreadEnd)
-                  call mpas_pool_get_dimension(block % dimensions, 'cellSolveThreadStart', cellSolveThreadStart)
-                  call mpas_pool_get_dimension(block % dimensions, 'cellSolveThreadEnd', cellSolveThreadEnd)
-
-                  call mpas_pool_get_dimension(block % dimensions, 'vertexThreadStart', vertexThreadStart)
-                  call mpas_pool_get_dimension(block % dimensions, 'vertexThreadEnd', vertexThreadEnd)
-                  call mpas_pool_get_dimension(block % dimensions, 'vertexSolveThreadStart', vertexSolveThreadStart)
-                  call mpas_pool_get_dimension(block % dimensions, 'vertexSolveThreadEnd', vertexSolveThreadEnd)
-
-                  call mpas_pool_get_dimension(block % dimensions, 'edgeThreadStart', edgeThreadStart)
-                  call mpas_pool_get_dimension(block % dimensions, 'edgeThreadEnd', edgeThreadEnd)
-                  call mpas_pool_get_dimension(block % dimensions, 'edgeSolveThreadStart', edgeSolveThreadStart)
-                  call mpas_pool_get_dimension(block % dimensions, 'edgeSolveThreadEnd', edgeSolveThreadEnd)
 
 !$OMP PARALLEL DO
-                  do thread=1,nThreads
-                     call atm_advance_acoustic_step( state, diag, tend,  mesh, block % configs, nCells, nVertLevels, &
-                                             rk_sub_timestep(rk_step), small_step, &
-                                             cellThreadStart(thread), cellThreadEnd(thread), &
-                                             vertexThreadStart(thread), vertexThreadEnd(thread), &
-                                             edgeThreadStart(thread), edgeThreadEnd(thread), &
-                                             cellSolveThreadStart(thread), cellSolveThreadEnd(thread), &
-                                             vertexSolveThreadStart(thread), vertexSolveThreadEnd(thread), &
-                                             edgeSolveThreadStart(thread), edgeSolveThreadEnd(thread))
-                  end do
+               do thread=1,nThreads
+                  call atm_advance_acoustic_step( state, diag, tend,  mesh, block % configs, nCells, nVertLevels, &
+                                          rk_sub_timestep(rk_step), small_step, &
+                                          cellThreadStart(thread), cellThreadEnd(thread), &
+                                          vertexThreadStart(thread), vertexThreadEnd(thread), &
+                                          edgeThreadStart(thread), edgeThreadEnd(thread), &
+                                          cellSolveThreadStart(thread), cellSolveThreadEnd(thread), &
+                                          vertexSolveThreadStart(thread), vertexSolveThreadEnd(thread), &
+                                          edgeSolveThreadStart(thread), edgeSolveThreadEnd(thread))
+               end do
 !$OMP END PARALLEL DO
 
-                  block => block % next
-               end do
                call mpas_timer_stop('atm_advance_acoustic_step')
 
   
 ! rtheta_pp
 ! This is the only communications needed during the acoustic steps because we solve for u on all edges of owned cells
 
-               call mpas_pool_get_subpool(domain % blocklist % structs, 'diag', diag)
-               call mpas_pool_get_field(diag, 'rtheta_pp', rtheta_pp_field)
-               call mpas_dmpar_exch_halo_field(rtheta_pp_field, (/ 1 /))
+               call exchange_halo_group(domain, 'dynamics:rtheta_pp')
 
 !  complete update of horizontal momentum by including 3d divergence damping at the end of the acoustic step
 
                call mpas_timer_start('atm_divergence_damping_3d')
-               block => domain % blocklist
-               do while (associated(block))
-                  call mpas_pool_get_subpool(block % structs, 'mesh', mesh)
-                  call mpas_pool_get_subpool(block % structs, 'state', state)
-                  call mpas_pool_get_subpool(block % structs, 'diag', diag)
-
-                  call mpas_pool_get_dimension(block % dimensions, 'nThreads', nThreads)
-                  call mpas_pool_get_dimension(block % dimensions, 'edgeThreadStart', edgeThreadStart)
-                  call mpas_pool_get_dimension(block % dimensions, 'edgeThreadEnd', edgeThreadEnd)
 
 !$OMP PARALLEL DO
-                  do thread=1,nThreads
-                     call atm_divergence_damping_3d( state, diag, mesh, block % configs, rk_sub_timestep(rk_step), &
-                                                     edgeThreadStart(thread), edgeThreadEnd(thread) )
-                  end do
+               do thread=1,nThreads
+                  call atm_divergence_damping_3d( state, diag, mesh, block % configs, rk_sub_timestep(rk_step), &
+                                                  edgeThreadStart(thread), edgeThreadEnd(thread) )
+               end do
 !$OMP END PARALLEL DO
 
-                  block => block % next
-               end do
                call mpas_timer_stop('atm_divergence_damping_3d')
 
             end do  ! end of acoustic steps loop
 
-            !CR: SMALLER STENCIL?: call mpas_dmpar_exch_halo_field(block % diag % rw_p, (/ 1 /))
-            call mpas_pool_get_subpool(domain % blocklist % structs, 'diag', diag)
-            call mpas_pool_get_field(diag, 'rw_p', rw_p_field)
-            call mpas_dmpar_exch_halo_field(rw_p_field)
-
-            !CR: SMALLER STENCIL?: call mpas_dmpar_exch_halo_field(block % diag % ru_p, (/ 2 /))
-            call mpas_pool_get_field(diag, 'ru_p', ru_p_field)
-            call mpas_dmpar_exch_halo_field(ru_p_field)
-
-            call mpas_pool_get_field(diag, 'rho_pp', rho_pp_field)
-            call mpas_dmpar_exch_halo_field(rho_pp_field)
-
-            ! the second layer of halo cells must be exchanged before calling atm_recover_large_step_variables
-            call mpas_pool_get_field(diag, 'rtheta_pp', rtheta_pp_field)
-            call mpas_dmpar_exch_halo_field(rtheta_pp_field, (/ 2 /))
+            !
+            ! Communicate halos for rw_p[1,2], ru_p[1,2], rho_pp[1,2], rtheta_pp[2]
+            !
+            call exchange_halo_group(domain, 'dynamics:rw_p,ru_p,rho_pp,rtheta_pp')
 
             call mpas_timer_start('atm_recover_large_step_variables')
-            block => domain % blocklist
-            do while (associated(block))
-
-               call mpas_pool_get_subpool(block % structs, 'mesh', mesh)
-               call mpas_pool_get_subpool(block % structs, 'state', state)
-               call mpas_pool_get_subpool(block % structs, 'diag', diag)
-               call mpas_pool_get_subpool(block % structs, 'tend', tend)
-
-               call mpas_pool_get_dimension(block % dimensions, 'nThreads', nThreads)
-
-               call mpas_pool_get_dimension(block % dimensions, 'cellThreadStart', cellThreadStart)
-               call mpas_pool_get_dimension(block % dimensions, 'cellThreadEnd', cellThreadEnd)
-               call mpas_pool_get_dimension(block % dimensions, 'cellSolveThreadStart', cellSolveThreadStart)
-               call mpas_pool_get_dimension(block % dimensions, 'cellSolveThreadEnd', cellSolveThreadEnd)
-
-               call mpas_pool_get_dimension(block % dimensions, 'vertexThreadStart', vertexThreadStart)
-               call mpas_pool_get_dimension(block % dimensions, 'vertexThreadEnd', vertexThreadEnd)
-               call mpas_pool_get_dimension(block % dimensions, 'vertexSolveThreadStart', vertexSolveThreadStart)
-               call mpas_pool_get_dimension(block % dimensions, 'vertexSolveThreadEnd', vertexSolveThreadEnd)
-
-               call mpas_pool_get_dimension(block % dimensions, 'edgeThreadStart', edgeThreadStart)
-               call mpas_pool_get_dimension(block % dimensions, 'edgeThreadEnd', edgeThreadEnd)
-               call mpas_pool_get_dimension(block % dimensions, 'edgeSolveThreadStart', edgeSolveThreadStart)
-               call mpas_pool_get_dimension(block % dimensions, 'edgeSolveThreadEnd', edgeSolveThreadEnd)
 
 !$OMP PARALLEL DO
-               do thread=1,nThreads
-                  call atm_recover_large_step_variables( state, diag, tend, mesh, block % configs, rk_timestep(rk_step), &
-                                             number_sub_steps(rk_step), rk_step, &
-                                             cellThreadStart(thread), cellThreadEnd(thread), &
-                                             vertexThreadStart(thread), vertexThreadEnd(thread), &
-                                             edgeThreadStart(thread), edgeThreadEnd(thread), &
-                                             cellSolveThreadStart(thread), cellSolveThreadEnd(thread), &
-                                             vertexSolveThreadStart(thread), vertexSolveThreadEnd(thread), &
-                                             edgeSolveThreadStart(thread), edgeSolveThreadEnd(thread))
-               end do
+            do thread=1,nThreads
+               call atm_recover_large_step_variables( state, diag, tend, mesh, block % configs, rk_timestep(rk_step), &
+                                          number_sub_steps(rk_step), rk_step, &
+                                          cellThreadStart(thread), cellThreadEnd(thread), &
+                                          vertexThreadStart(thread), vertexThreadEnd(thread), &
+                                          edgeThreadStart(thread), edgeThreadEnd(thread), &
+                                          cellSolveThreadStart(thread), cellSolveThreadEnd(thread), &
+                                          vertexSolveThreadStart(thread), vertexSolveThreadEnd(thread), &
+                                          edgeSolveThreadStart(thread), edgeSolveThreadEnd(thread))
+            end do
 !$OMP END PARALLEL DO
 
-               block => block % next
-            end do
             call mpas_timer_stop('atm_recover_large_step_variables')
 
 !-------------------------------------------------------------------
@@ -935,46 +836,34 @@ module atm_time_integration
 
                ! First, (re)set the value of u and ru in the specified zone at the outermost edge (we will reset all for now).
                ! atm_recover_large_step_variables will not have set outermost edge velocities correctly.
-               
-               block => domain % blocklist
-               do while (associated(block))
+               call mpas_pool_get_array(state, 'u', u, 2)
+               call mpas_pool_get_array(mesh, 'bdyMaskEdge', bdyMaskEdge)
 
-                  call mpas_pool_get_subpool(block % structs, 'state', state)
-                  call mpas_pool_get_subpool(block % structs, 'mesh', mesh)
-                  call mpas_pool_get_subpool(block % structs, 'diag', diag)
-                  call mpas_pool_get_dimension(mesh, 'nEdges', nEdges)
-                  call mpas_pool_get_dimension(state, 'nEdgesSolve', nEdgesSolve)
-                  call mpas_pool_get_dimension(mesh, 'nVertLevels', nVertLevels)
-                  call mpas_pool_get_array(state, 'u', u, 2)
-                  call mpas_pool_get_array(mesh, 'bdyMaskEdge', bdyMaskEdge)
+               allocate(ru_driving_values(nVertLevels,nEdges+1))
 
-                  allocate(ru_driving_values(nVertLevels,nEdges+1))
+               time_dyn_step = dt_dynamics*real(dynamics_substep-1) + rk_timestep(rk_step)
 
-                  time_dyn_step = dt_dynamics*real(dynamics_substep-1) + rk_timestep(rk_step)
-
-                  ru_driving_values(1:nVertLevels,1:nEdges+1) =  mpas_atm_get_bdy_state( clock, domain % blocklist, nVertLevels, nEdges, 'u', time_dyn_step )
-                  ! do this inline at present - it is simple enough
-                  do iEdge = 1, nEdgesSolve
-                     if(bdyMaskEdge(iEdge) > nRelaxZone) then
-                        do k = 1, nVertLevels
-                           u(k,iEdge) = ru_driving_values(k,iEdge)
-                        end do
-                     end if
-                  end do
-
-                  ru_driving_values(1:nVertLevels,1:nEdges+1) =  mpas_atm_get_bdy_state( clock, domain % blocklist, nVertLevels, nEdges, 'ru', time_dyn_step )
-                  call mpas_pool_get_array(diag, 'ru', u)
-                  ! do this inline at present - it is simple enough
-                  do iEdge = 1, nEdges
-                     if(bdyMaskEdge(iEdge) > nRelaxZone) then
-                        do k = 1, nVertLevels
-                           u(k,iEdge) = ru_driving_values(k,iEdge)
-                        end do
-                     end if
-                  end do
-                  
-                  block => block % next
+               ru_driving_values(1:nVertLevels,1:nEdges+1) =  mpas_atm_get_bdy_state( clock, block, nVertLevels, nEdges, 'u', time_dyn_step )
+               ! do this inline at present - it is simple enough
+               do iEdge = 1, nEdgesSolve
+                  if(bdyMaskEdge(iEdge) > nRelaxZone) then
+                     do k = 1, nVertLevels
+                        u(k,iEdge) = ru_driving_values(k,iEdge)
+                     end do
+                  end if
                end do
+
+               ru_driving_values(1:nVertLevels,1:nEdges+1) =  mpas_atm_get_bdy_state( clock, block, nVertLevels, nEdges, 'ru', time_dyn_step )
+               call mpas_pool_get_array(diag, 'ru', u)
+               ! do this inline at present - it is simple enough
+               do iEdge = 1, nEdges
+                  if(bdyMaskEdge(iEdge) > nRelaxZone) then
+                     do k = 1, nVertLevels
+                        u(k,iEdge) = ru_driving_values(k,iEdge)
+                     end do
+                  end if
+               end do
+               
                deallocate(ru_driving_values)
 
             end if  ! regional_MPAS addition
@@ -982,310 +871,125 @@ module atm_time_integration
 !-------------------------------------------------------------------
             
             ! u
-            !CR: SMALLER STENCIL?: call mpas_dmpar_exch_halo_field(block % state % time_levs(2) % state % u, (/ 3 /))
-            call mpas_pool_get_subpool(domain % blocklist % structs, 'state', state)
-            call mpas_pool_get_field(state, 'u', u_field, 2)
-            call mpas_dmpar_exch_halo_field(u_field)
+            if (config_apply_lbcs) then
+               call exchange_halo_group(domain, 'dynamics:u_123')
+            else
+               call exchange_halo_group(domain, 'dynamics:u_3')
+            end if
 
             ! scalar advection: RK3 scheme of Skamarock and Gassmann (2011). 
             ! PD or monotonicity constraints applied only on the final Runge-Kutta substep.
 
             if (config_scalar_advection .and. (.not. config_split_dynamics_transport) ) then
 
-               if (rk_step < 3 .or. (.not. config_monotonic .and. .not. config_positive_definite)) then
-                  call mpas_timer_start('atm_advance_scalars')
-               else
-                  call mpas_timer_start('atm_advance_scalars_mono')
-               end if
-               block => domain % blocklist
-               do while (associated(block))
-                  call mpas_pool_get_subpool(block % structs, 'tend', tend)
-                  call mpas_pool_get_subpool(block % structs, 'state', state)
-                  call mpas_pool_get_subpool(block % structs, 'diag', diag)
-                  call mpas_pool_get_subpool(block % structs, 'mesh', mesh)
-
-                  call mpas_pool_get_dimension(mesh, 'nCells', nCells)
-                  call mpas_pool_get_dimension(mesh, 'nEdges', nEdges)
-                  call mpas_pool_get_dimension(mesh, 'nVertLevels', nVertLevels)
-                  call mpas_pool_get_dimension(state, 'num_scalars', num_scalars)
-
-                  call mpas_pool_get_dimension(block % dimensions, 'nThreads', nThreads)
-
-                  call mpas_pool_get_dimension(block % dimensions, 'cellThreadStart', cellThreadStart)
-                  call mpas_pool_get_dimension(block % dimensions, 'cellThreadEnd', cellThreadEnd)
-                  call mpas_pool_get_dimension(block % dimensions, 'cellSolveThreadStart', cellSolveThreadStart)
-                  call mpas_pool_get_dimension(block % dimensions, 'cellSolveThreadEnd', cellSolveThreadEnd)
-
-                  call mpas_pool_get_dimension(block % dimensions, 'vertexThreadStart', vertexThreadStart)
-                  call mpas_pool_get_dimension(block % dimensions, 'vertexThreadEnd', vertexThreadEnd)
-                  call mpas_pool_get_dimension(block % dimensions, 'vertexSolveThreadStart', vertexSolveThreadStart)
-                  call mpas_pool_get_dimension(block % dimensions, 'vertexSolveThreadEnd', vertexSolveThreadEnd)
-
-                  call mpas_pool_get_dimension(block % dimensions, 'edgeThreadStart', edgeThreadStart)
-                  call mpas_pool_get_dimension(block % dimensions, 'edgeThreadEnd', edgeThreadEnd)
-                  call mpas_pool_get_dimension(block % dimensions, 'edgeSolveThreadStart', edgeSolveThreadStart)
-                  call mpas_pool_get_dimension(block % dimensions, 'edgeSolveThreadEnd', edgeSolveThreadEnd)
-
-                  allocate(scalar_old_arr(nVertLevels,nCells+1))
-                  scalar_old_arr(:,nCells+1) = 0.0_RKIND
-                  allocate(scalar_new_arr(nVertLevels,nCells+1))
-                  scalar_new_arr(:,nCells+1) = 0.0_RKIND
-                  allocate(s_max_arr(nVertLevels,nCells+1))
-                  s_max_arr(:,nCells+1) = 0.0_RKIND
-                  allocate(s_min_arr(nVertLevels,nCells+1))
-                  s_min_arr(:,nCells+1) = 0.0_RKIND
-                  allocate(scale_array(nVertLevels,2,nCells+1))
-                  scale_array(:,:,nCells+1) = 0.0_RKIND
-                  allocate(flux_array(nVertLevels,nEdges+1))
-                  flux_array(:,nEdges+1) = 0.0_RKIND
-                  allocate(wdtn_arr(nVertLevels+1,nCells+1))
-                  wdtn_arr(:,nCells+1) = 0.0_RKIND
-                  if (rk_step < 3 .or. (.not. config_monotonic .and. .not. config_positive_definite)) then
-                     allocate(horiz_flux_array(num_scalars,nVertLevels,nEdges+1))
-                     horiz_flux_array(:,:,nEdges+1) = 0.0_RKIND
-                  else
-                     allocate(flux_upwind_tmp_arr(nVertLevels,nEdges+1))
-                     flux_upwind_tmp_arr(:,nEdges+1) = 0.0_RKIND
-                     allocate(flux_tmp_arr(nVertLevels,nEdges+1))
-                     flux_tmp_arr(:,nEdges+1) = 0.0_RKIND
-                  end if
-
-                  !
-                  ! Note: The advance_scalars_mono routine can be used without limiting, and thus, encompasses 
-                  !       the functionality of the advance_scalars routine; however, it is noticeably slower, 
-                  !       so we use the advance_scalars routine for the first two RK substeps.
-                  !
-!$OMP PARALLEL DO
-                  do thread=1,nThreads
-                     if (rk_step < 3 .or. (.not. config_monotonic .and. .not. config_positive_definite)) then
-                        call atm_advance_scalars( tend, state, diag, mesh, block % configs, num_scalars, nCells, nVertLevels, rk_timestep(rk_step), &
-                                                cellThreadStart(thread), cellThreadEnd(thread), &
-                                                vertexThreadStart(thread), vertexThreadEnd(thread), &
-                                                edgeThreadStart(thread), edgeThreadEnd(thread), &
-                                                cellSolveThreadStart(thread), cellSolveThreadEnd(thread), &
-                                                vertexSolveThreadStart(thread), vertexSolveThreadEnd(thread), &
-                                                edgeSolveThreadStart(thread), edgeSolveThreadEnd(thread), &
-                                                horiz_flux_array, rk_step, config_time_integration_order, &
-                                                advance_density=.false. )
-                     else
-         
-                        block % domain = domain 
-                        call atm_advance_scalars_mono( block, tend, state, diag, mesh, block % configs, nCells, nEdges, nVertLevels, rk_timestep(rk_step), &
-                                                cellThreadStart(thread), cellThreadEnd(thread), &
-                                                vertexThreadStart(thread), vertexThreadEnd(thread), &
-                                                edgeThreadStart(thread), edgeThreadEnd(thread), &
-                                                cellSolveThreadStart(thread), cellSolveThreadEnd(thread), &
-                                                vertexSolveThreadStart(thread), vertexSolveThreadEnd(thread), &
-                                                edgeSolveThreadStart(thread), edgeSolveThreadEnd(thread), &
-                                                scalar_old_arr, scalar_new_arr, s_max_arr, s_min_arr, wdtn_arr, &
-                                                scale_array, flux_array, flux_upwind_tmp_arr, flux_tmp_arr, &
-                                                advance_density=.false.)
-                     end if
-                  end do
-!$OMP END PARALLEL DO
-
-                  deallocate(scalar_old_arr)
-                  deallocate(scalar_new_arr)
-                  deallocate(s_max_arr)
-                  deallocate(s_min_arr)
-                  deallocate(scale_array)
-                  deallocate(flux_array)
-                  deallocate(wdtn_arr)
-                  if (rk_step < 3 .or. (.not. config_monotonic .and. .not. config_positive_definite)) then
-                     deallocate(horiz_flux_array)
-                  else
-                     deallocate(flux_upwind_tmp_arr)
-                     deallocate(flux_tmp_arr)
-                  end if
-
-                  block => block % next
-               end do
-               if (rk_step < 3 .or. (.not. config_monotonic .and. .not. config_positive_definite)) then
-                  call mpas_timer_stop('atm_advance_scalars')
-               else
-                  call mpas_timer_stop('atm_advance_scalars_mono')
-               end if
+               call advance_scalars('scalars', domain, rk_step, rk_timestep, config_monotonic, config_positive_definite, &
+                                    config_time_integration_order, config_split_dynamics_transport, exchange_halo_group)
 
                if (config_apply_lbcs) then  ! adjust boundary tendencies for regional_MPAS scalar transport
 
-                  call mpas_pool_get_field(state, 'scalars', scalars_field, 2)  ! need to fill halo for horizontal filter
-                  call mpas_dmpar_exch_halo_field(scalars_field)
+                  call exchange_halo_group(domain, 'dynamics:scalars')
 
-                  block => domain % blocklist
-                  do while (associated(block))
+                  allocate(scalars_driving(num_scalars,nVertLevels,nCells+1))
 
-                     call mpas_pool_get_subpool(block % structs, 'state', state)
-                     call mpas_pool_get_subpool(block % structs, 'diag', diag)
-                     call mpas_pool_get_subpool(block % structs, 'mesh', mesh)
-   
-                     call mpas_pool_get_dimension(mesh, 'nVertLevels', nVertLevels)
-                     call mpas_pool_get_dimension(mesh, 'nCells', nCells)
-                     call mpas_pool_get_dimension(state, 'num_scalars', num_scalars)
-                     allocate(scalars_driving(num_scalars,nVertLevels,nCells+1))
-
-
-                     !  get the scalar values driving the regional boundary conditions
-                     !
-                     call mpas_pool_get_dimension(state, 'index_qv', index_qv)
-                     call mpas_pool_get_dimension(state, 'index_qc', index_qc)
-                     call mpas_pool_get_dimension(state, 'index_qr', index_qr)
-                     call mpas_pool_get_dimension(state, 'index_qi', index_qi)
-                     call mpas_pool_get_dimension(state, 'index_qs', index_qs)
-                     call mpas_pool_get_dimension(state, 'index_qg', index_qg)  
-                     call mpas_pool_get_dimension(state, 'index_nr', index_nr)
-                     call mpas_pool_get_dimension(state, 'index_ni', index_ni)
-
-                     call mpas_pool_get_dimension(block % dimensions, 'nThreads', nThreads)
-
-                     call mpas_pool_get_dimension(block % dimensions, 'cellThreadStart', cellThreadStart)
-                     call mpas_pool_get_dimension(block % dimensions, 'cellThreadEnd', cellThreadEnd)
-                     call mpas_pool_get_dimension(block % dimensions, 'cellSolveThreadStart', cellSolveThreadStart)
-                     call mpas_pool_get_dimension(block % dimensions, 'cellSolveThreadEnd', cellSolveThreadEnd)
-
-                     if (index_qv > 0) then
-                        scalars_driving(index_qv,1:nVertLevels,1:nCells+1) = mpas_atm_get_bdy_state( clock, domain % blocklist, nVertLevels, nCells, 'qv', rk_timestep(rk_step) )
-                     end if
-                     if (index_qc > 0) then
-                        scalars_driving(index_qc,1:nVertLevels,1:nCells+1) = mpas_atm_get_bdy_state( clock, domain % blocklist, nVertLevels, nCells, 'qc', rk_timestep(rk_step) )
-                     end if
-                     if (index_qr > 0) then
-                        scalars_driving(index_qr,1:nVertLevels,1:nCells+1) = mpas_atm_get_bdy_state( clock, domain % blocklist, nVertLevels, nCells, 'qr', rk_timestep(rk_step) )
-                     end if
-                     if (index_qi > 0) then
-                        scalars_driving(index_qi,1:nVertLevels,1:nCells+1) = mpas_atm_get_bdy_state( clock, domain % blocklist, nVertLevels, nCells, 'qi', rk_timestep(rk_step) )
-                     end if
-                     if (index_qs > 0) then
-                        scalars_driving(index_qs,1:nVertLevels,1:nCells+1) = mpas_atm_get_bdy_state( clock, domain % blocklist, nVertLevels, nCells, 'qs', rk_timestep(rk_step) )
-                     end if
-                     if (index_qg > 0) then
-                        scalars_driving(index_qg,1:nVertLevels,1:nCells+1) = mpas_atm_get_bdy_state( clock, domain % blocklist, nVertLevels, nCells, 'qg', rk_timestep(rk_step) )
-                     end if
-                     if (index_nr > 0) then
-                        scalars_driving(index_nr,1:nVertLevels,1:nCells+1) = mpas_atm_get_bdy_state( clock, domain % blocklist, nVertLevels, nCells, 'nr', rk_timestep(rk_step) )
-                     end if
-                     if (index_ni > 0) then
-                        scalars_driving(index_ni,1:nVertLevels,1:nCells+1) = mpas_atm_get_bdy_state( clock, domain % blocklist, nVertLevels, nCells, 'ni', rk_timestep(rk_step) )
-                     end if
+                  !  get the scalar values driving the regional boundary conditions
+                  !
+                  if (index_qv > 0) then
+                     scalars_driving(index_qv,1:nVertLevels,1:nCells+1) = mpas_atm_get_bdy_state( clock, block, nVertLevels, nCells, 'qv', rk_timestep(rk_step) )
+                  end if
+                  if (index_qc > 0) then
+                     scalars_driving(index_qc,1:nVertLevels,1:nCells+1) = mpas_atm_get_bdy_state( clock, block, nVertLevels, nCells, 'qc', rk_timestep(rk_step) )
+                  end if
+                  if (index_qr > 0) then
+                     scalars_driving(index_qr,1:nVertLevels,1:nCells+1) = mpas_atm_get_bdy_state( clock, block, nVertLevels, nCells, 'qr', rk_timestep(rk_step) )
+                  end if
+                  if (index_qi > 0) then
+                     scalars_driving(index_qi,1:nVertLevels,1:nCells+1) = mpas_atm_get_bdy_state( clock, block, nVertLevels, nCells, 'qi', rk_timestep(rk_step) )
+                  end if
+                  if (index_qs > 0) then
+                     scalars_driving(index_qs,1:nVertLevels,1:nCells+1) = mpas_atm_get_bdy_state( clock, block, nVertLevels, nCells, 'qs', rk_timestep(rk_step) )
+                  end if
+                  if (index_qg > 0) then
+                     scalars_driving(index_qg,1:nVertLevels,1:nCells+1) = mpas_atm_get_bdy_state( clock, block, nVertLevels, nCells, 'qg', rk_timestep(rk_step) )
+                  end if
+                  if (index_nr > 0) then
+                     scalars_driving(index_nr,1:nVertLevels,1:nCells+1) = mpas_atm_get_bdy_state( clock, block, nVertLevels, nCells, 'nr', rk_timestep(rk_step) )
+                  end if
+                  if (index_ni > 0) then
+                     scalars_driving(index_ni,1:nVertLevels,1:nCells+1) = mpas_atm_get_bdy_state( clock, block, nVertLevels, nCells, 'ni', rk_timestep(rk_step) )
+                  end if
                   
-                     !$OMP PARALLEL DO
-                     do thread=1,nThreads
-                        call atm_bdy_adjust_scalars( state, diag, mesh, block % configs, scalars_driving, nVertLevels, dt, rk_timestep(rk_step), &
-                                                     cellThreadStart(thread), cellThreadEnd(thread), &
-                                                     cellSolveThreadStart(thread), cellSolveThreadEnd(thread) )
-                     end do
-                     !$OMP END PARALLEL DO
-
-                     deallocate(scalars_driving)
-
-                     block => block % next
+                  !$OMP PARALLEL DO
+                  do thread=1,nThreads
+                     call atm_bdy_adjust_scalars( state, diag, mesh, block % configs, scalars_driving, nVertLevels, dt, rk_timestep(rk_step), &
+                                                  cellThreadStart(thread), cellThreadEnd(thread), &
+                                                  cellSolveThreadStart(thread), cellSolveThreadEnd(thread) )
                   end do
+                  !$OMP END PARALLEL DO
+
+                  deallocate(scalars_driving)
+
 
                end if  ! regional_MPAS addition
 
             end if
 
             call mpas_timer_start('atm_compute_solve_diagnostics')
-            block => domain % blocklist
-            do while (associated(block))
-               call mpas_pool_get_subpool(block % structs, 'state', state)
-               call mpas_pool_get_subpool(block % structs, 'diag', diag)
-               call mpas_pool_get_subpool(block % structs, 'mesh', mesh)
-   
-               call mpas_pool_get_dimension(state, 'nEdges', nEdges)
-               call mpas_pool_get_dimension(state, 'nVertices', nVertices)
-               call mpas_pool_get_dimension(state, 'nVertLevels', nVertLevels)
 
-               call mpas_pool_get_dimension(block % dimensions, 'nThreads', nThreads)
-
-               call mpas_pool_get_dimension(block % dimensions, 'cellThreadStart', cellThreadStart)
-               call mpas_pool_get_dimension(block % dimensions, 'cellThreadEnd', cellThreadEnd)
-
-               call mpas_pool_get_dimension(block % dimensions, 'vertexThreadStart', vertexThreadStart)
-               call mpas_pool_get_dimension(block % dimensions, 'vertexThreadEnd', vertexThreadEnd)
-
-               call mpas_pool_get_dimension(block % dimensions, 'edgeThreadStart', edgeThreadStart)
-               call mpas_pool_get_dimension(block % dimensions, 'edgeThreadEnd', edgeThreadEnd)
-
-               allocate(ke_vertex(nVertLevels,nVertices+1))
-               ke_vertex(:,nVertices+1) = 0.0_RKIND
-               allocate(ke_edge(nVertLevels,nEdges+1))
-               ke_edge(:,nEdges+1) = 0.0_RKIND
+            allocate(ke_vertex(nVertLevels,nVertices+1))
+            ke_vertex(:,nVertices+1) = 0.0_RKIND
+            allocate(ke_edge(nVertLevels,nEdges+1))
+            ke_edge(:,nEdges+1) = 0.0_RKIND
    
 !$OMP PARALLEL DO
-               do thread=1,nThreads
-                  call atm_compute_solve_diagnostics(dt, state, 2, diag, mesh, block % configs, &
-                                                     cellThreadStart(thread), cellThreadEnd(thread), &
-                                                     vertexThreadStart(thread), vertexThreadEnd(thread), &
-                                                     edgeThreadStart(thread), edgeThreadEnd(thread), rk_step)
-               end do
+            do thread=1,nThreads
+               call atm_compute_solve_diagnostics(dt, state, 2, diag, mesh, block % configs, &
+                                                  cellThreadStart(thread), cellThreadEnd(thread), &
+                                                  vertexThreadStart(thread), vertexThreadEnd(thread), &
+                                                  edgeThreadStart(thread), edgeThreadEnd(thread), rk_step)
+            end do
 !$OMP END PARALLEL DO
 
-               deallocate(ke_vertex)
-               deallocate(ke_edge)
+            deallocate(ke_vertex)
+            deallocate(ke_edge)
 
-               block => block % next
-            end do
             call mpas_timer_stop('atm_compute_solve_diagnostics')
 
-
-            ! w
-            call mpas_pool_get_subpool(domain % blocklist % structs, 'state', state)
-            call mpas_pool_get_field(state, 'w', w_field, 2)
-            call mpas_dmpar_exch_halo_field(w_field)
-
-            ! pv_edge
-            call mpas_pool_get_subpool(domain % blocklist % structs, 'diag', diag)
-            call mpas_pool_get_field(diag, 'pv_edge', pv_edge_field)
-            call mpas_dmpar_exch_halo_field(pv_edge_field)
-
-            ! rho_edge
-            call mpas_pool_get_field(diag, 'rho_edge', rho_edge_field)
-            call mpas_dmpar_exch_halo_field(rho_edge_field)
-
-            ! scalars
             if (config_scalar_advection .and. (.not. config_split_dynamics_transport) ) then
-               call mpas_pool_get_field(state, 'scalars', scalars_field, 2)
-               call mpas_dmpar_exch_halo_field(scalars_field)
+               !
+               ! Communicate halos for w[1,2], pv_edge[1,2], rho_edge[1,2], scalars[1,2]
+               !
+               call exchange_halo_group(domain, 'dynamics:w,pv_edge,rho_edge,scalars')
+            else
+               !
+               ! Communicate halos for w[1,2], pv_edge[1,2], rho_edge[1,2]
+               !
+               call exchange_halo_group(domain, 'dynamics:w,pv_edge,rho_edge')
             end if
 
             ! set the zero-gradient condition on w for regional_MPAS
             
             if ( config_apply_lbcs ) then  ! regional_MPAS addition
-              block => domain % blocklist
-              do while (associated(block))
 
-                call mpas_pool_get_subpool(block % structs, 'mesh', mesh)
-                call mpas_pool_get_subpool(block % structs, 'state', state)
-                call mpas_pool_get_dimension(block % dimensions, 'nThreads', nThreads)
-
-                call mpas_pool_get_dimension(block % dimensions, 'cellSolveThreadStart', cellSolveThreadStart)
-                call mpas_pool_get_dimension(block % dimensions, 'cellSolveThreadEnd', cellSolveThreadEnd)
 !$OMP PARALLEL DO
-                do thread=1,nThreads
-                   call atm_zero_gradient_w_bdy( state, mesh, &
-                                                 cellSolveThreadStart(thread), cellSolveThreadEnd(thread) )
-                end do
+              do thread=1,nThreads
+                 call atm_zero_gradient_w_bdy( state, mesh, &
+                                               cellSolveThreadStart(thread), cellSolveThreadEnd(thread) )
+              end do
 !$OMP END PARALLEL DO
 
-                block => block % next
-              end do
-
               ! w halo values needs resetting after regional boundary update
-              call mpas_pool_get_subpool(domain % blocklist % structs, 'state', state)
-              call mpas_pool_get_field(state, 'w', w_field, 2)
-              call mpas_dmpar_exch_halo_field(w_field)
+              call exchange_halo_group(domain, 'dynamics:w')
 
             end if ! end of regional_MPAS addition 
 
          end do RK3_DYNAMICS
 
          if (dynamics_substep < dynamics_split) then
-            call mpas_pool_get_subpool(domain % blocklist % structs, 'state', state)
-            call mpas_pool_get_field(state, 'theta_m', theta_m_field, 2)
 
-            call mpas_dmpar_exch_halo_field(theta_m_field)
-            call mpas_dmpar_exch_halo_field(pressure_p_field)
-            call mpas_dmpar_exch_halo_field(rtheta_p_field)
+            !
+            ! Communicate halos for theta_m[1,2], pressure_p[1,2], and rtheta_p[1,2]
+            !
+            call exchange_halo_group(domain, 'dynamics:theta_m,pressure_p,rtheta_p')
 
             !
             ! Note: A halo exchange for 'exner' here as well as after the call
@@ -1302,51 +1006,32 @@ module atm_time_integration
          !  Notes:  physics tendencies for scalars should be OK coming out of dynamics
 
          call mpas_timer_start('atm_rk_dynamics_substep_finish')
-         block => domain % blocklist
-         do while (associated(block))
-            call mpas_pool_get_subpool(block % structs, 'state', state)
-            call mpas_pool_get_subpool(block % structs, 'diag', diag)
-
-            call mpas_pool_get_dimension(block % dimensions, 'nThreads', nThreads)
-
-            call mpas_pool_get_dimension(block % dimensions, 'cellThreadStart', cellThreadStart)
-            call mpas_pool_get_dimension(block % dimensions, 'cellThreadEnd', cellThreadEnd)
-            call mpas_pool_get_dimension(block % dimensions, 'cellSolveThreadStart', cellSolveThreadStart)
-            call mpas_pool_get_dimension(block % dimensions, 'cellSolveThreadEnd', cellSolveThreadEnd)
-
-            call mpas_pool_get_dimension(block % dimensions, 'vertexThreadStart', vertexThreadStart)
-            call mpas_pool_get_dimension(block % dimensions, 'vertexThreadEnd', vertexThreadEnd)
-            call mpas_pool_get_dimension(block % dimensions, 'vertexSolveThreadStart', vertexSolveThreadStart)
-            call mpas_pool_get_dimension(block % dimensions, 'vertexSolveThreadEnd', vertexSolveThreadEnd)
-
-            call mpas_pool_get_dimension(block % dimensions, 'edgeThreadStart', edgeThreadStart)
-            call mpas_pool_get_dimension(block % dimensions, 'edgeThreadEnd', edgeThreadEnd)
-            call mpas_pool_get_dimension(block % dimensions, 'edgeSolveThreadStart', edgeSolveThreadStart)
-            call mpas_pool_get_dimension(block % dimensions, 'edgeSolveThreadEnd', edgeSolveThreadEnd)
 
 !$OMP PARALLEL DO
-            do thread=1,nThreads
-               call atm_rk_dynamics_substep_finish(state, diag, dynamics_substep, dynamics_split, &
-                                                cellThreadStart(thread), cellThreadEnd(thread), &
-                                                vertexThreadStart(thread), vertexThreadEnd(thread), &
-                                                edgeThreadStart(thread), edgeThreadEnd(thread), &
-                                                cellSolveThreadStart(thread), cellSolveThreadEnd(thread), &
-                                                vertexSolveThreadStart(thread), vertexSolveThreadEnd(thread), &
-                                                edgeSolveThreadStart(thread), edgeSolveThreadEnd(thread))
-            end do
+         do thread=1,nThreads
+            call atm_rk_dynamics_substep_finish(state, diag, dynamics_substep, dynamics_split, &
+                                             cellThreadStart(thread), cellThreadEnd(thread), &
+                                             vertexThreadStart(thread), vertexThreadEnd(thread), &
+                                             edgeThreadStart(thread), edgeThreadEnd(thread), &
+                                             cellSolveThreadStart(thread), cellSolveThreadEnd(thread), &
+                                             vertexSolveThreadStart(thread), vertexSolveThreadEnd(thread), &
+                                             edgeSolveThreadStart(thread), edgeSolveThreadEnd(thread))
+         end do
 !$OMP END PARALLEL DO
 
-            block => block % next
-         end do
          call mpas_timer_stop('atm_rk_dynamics_substep_finish')
 
       end do DYNAMICS_SUBSTEPS
 
 
       deallocate(qtot)  !  we are finished with these now
-      deallocate(tend_rtheta_physics)
-      deallocate(tend_rho_physics)
-      deallocate(tend_ru_physics)
+
+#ifndef MPAS_CAM_DYCORE
+      call mpas_deallocate_scratch_field(tend_rtheta_physicsField)
+      call mpas_deallocate_scratch_field(tend_rho_physicsField)
+      call mpas_deallocate_scratch_field(tend_ru_physicsField)
+#endif
+
 
       !
       !  split transport, at present RK3
@@ -1363,212 +1048,60 @@ module atm_time_integration
          RK3_SPLIT_TRANSPORT : do rk_step = 1, 3  ! Runge-Kutta loop
 
 
-            if (rk_step < 3 .or. (.not. config_monotonic .and. .not. config_positive_definite)) then
-               call mpas_timer_start('atm_advance_scalars')
-            else
-               call mpas_timer_start('atm_advance_scalars_mono')
-            end if
-            block => domain % blocklist
-            do while (associated(block))
-               call mpas_pool_get_subpool(block % structs, 'tend', tend)
-               call mpas_pool_get_subpool(block % structs, 'state', state)
-               call mpas_pool_get_subpool(block % structs, 'diag', diag)
-               call mpas_pool_get_subpool(block % structs, 'mesh', mesh)
-
-               call mpas_pool_get_dimension(mesh, 'nCells', nCells)
-               call mpas_pool_get_dimension(mesh, 'nEdges', nEdges)
-               call mpas_pool_get_dimension(mesh, 'nVertLevels', nVertLevels)
-               call mpas_pool_get_dimension(state, 'num_scalars', num_scalars)
-
-               call mpas_pool_get_dimension(block % dimensions, 'nThreads', nThreads)
-
-               call mpas_pool_get_dimension(block % dimensions, 'cellThreadStart', cellThreadStart)
-               call mpas_pool_get_dimension(block % dimensions, 'cellThreadEnd', cellThreadEnd)
-               call mpas_pool_get_dimension(block % dimensions, 'cellSolveThreadStart', cellSolveThreadStart)
-               call mpas_pool_get_dimension(block % dimensions, 'cellSolveThreadEnd', cellSolveThreadEnd)
-
-               call mpas_pool_get_dimension(block % dimensions, 'vertexThreadStart', vertexThreadStart)
-               call mpas_pool_get_dimension(block % dimensions, 'vertexThreadEnd', vertexThreadEnd)
-               call mpas_pool_get_dimension(block % dimensions, 'vertexSolveThreadStart', vertexSolveThreadStart)
-               call mpas_pool_get_dimension(block % dimensions, 'vertexSolveThreadEnd', vertexSolveThreadEnd)
-
-               call mpas_pool_get_dimension(block % dimensions, 'edgeThreadStart', edgeThreadStart)
-               call mpas_pool_get_dimension(block % dimensions, 'edgeThreadEnd', edgeThreadEnd)
-               call mpas_pool_get_dimension(block % dimensions, 'edgeSolveThreadStart', edgeSolveThreadStart)
-               call mpas_pool_get_dimension(block % dimensions, 'edgeSolveThreadEnd', edgeSolveThreadEnd)
-
-               allocate(scalar_old_arr(nVertLevels,nCells+1))
-               scalar_old_arr(:,nCells+1) = 0.0_RKIND
-               allocate(scalar_new_arr(nVertLevels,nCells+1))
-               scalar_new_arr(:,nCells+1) = 0.0_RKIND
-               allocate(s_max_arr(nVertLevels,nCells+1))
-               s_max_arr(:,nCells+1) = 0.0_RKIND
-               allocate(s_min_arr(nVertLevels,nCells+1))
-               s_min_arr(:,nCells+1) = 0.0_RKIND
-               allocate(scale_array(nVertLevels,2,nCells+1))
-               scale_array(:,:,nCells+1) = 0.0_RKIND
-               allocate(flux_array(nVertLevels,nEdges+1))
-               flux_array(:,nEdges+1) = 0.0_RKIND
-               allocate(wdtn_arr(nVertLevels+1,nCells+1))
-               wdtn_arr(:,nCells+1) = 0.0_RKIND
-               allocate(rho_zz_int(nVertLevels,nCells+1))
-               rho_zz_int(:,nCells+1) = 0.0_RKIND
-               allocate(scalar_tend_array(num_scalars,nVertLevels,nCells+1))
-               scalar_tend_array(:,:,nCells+1) = 0.0_RKIND
-               if (rk_step < 3 .or. (.not. config_monotonic .and. .not. config_positive_definite)) then
-                  allocate(horiz_flux_array(num_scalars,nVertLevels,nEdges+1))
-                  horiz_flux_array(:,:,nEdges+1) = 0.0_RKIND
-               else
-                  allocate(flux_upwind_tmp_arr(nVertLevels,nEdges+1))
-                  flux_upwind_tmp_arr(:,nEdges+1) = 0.0_RKIND
-                  allocate(flux_tmp_arr(nVertLevels,nEdges+1))
-                  flux_tmp_arr(:,nEdges+1) = 0.0_RKIND
-               end if
-
-               !
-               ! Note: The advance_scalars_mono routine can be used without limiting, and thus, encompasses 
-               !       the functionality of the advance_scalars routine; however, it is noticeably slower, 
-               !       so we use the advance_scalars routine for the first two RK substeps.
-               !
-
-               !  The latest version of atm_advance_scalars does not need the arrays scalar_tend_array or rho_zz_int
-               !  We can remove scalar_tend_array????  WCS 20160921
-!$OMP PARALLEL DO
-               do thread=1,nThreads
-                  if (rk_step < 3 .or. (.not. config_monotonic .and. .not. config_positive_definite)) then
-                     call atm_advance_scalars( tend, state, diag, mesh, block % configs, num_scalars, nCells, nVertLevels, rk_timestep(rk_step), &
-                                             cellThreadStart(thread), cellThreadEnd(thread), &
-                                             vertexThreadStart(thread), vertexThreadEnd(thread), &
-                                             edgeThreadStart(thread), edgeThreadEnd(thread), &
-                                             cellSolveThreadStart(thread), cellSolveThreadEnd(thread), &
-                                             vertexSolveThreadStart(thread), vertexSolveThreadEnd(thread), &
-                                             edgeSolveThreadStart(thread), edgeSolveThreadEnd(thread), &
-                                             horiz_flux_array, rk_step, config_time_integration_order, &
-                                             advance_density=.true., scalar_tend=scalar_tend_array, rho_zz_int=rho_zz_int )
-                  else
-      
-                     block % domain = domain 
-                     call atm_advance_scalars_mono( block, tend, state, diag, mesh, block % configs, nCells, nEdges, nVertLevels, rk_timestep(rk_step), &
-                                             cellThreadStart(thread), cellThreadEnd(thread), &
-                                             vertexThreadStart(thread), vertexThreadEnd(thread), &
-                                             edgeThreadStart(thread), edgeThreadEnd(thread), &
-                                             cellSolveThreadStart(thread), cellSolveThreadEnd(thread), &
-                                             vertexSolveThreadStart(thread), vertexSolveThreadEnd(thread), &
-                                             edgeSolveThreadStart(thread), edgeSolveThreadEnd(thread), &
-                                             scalar_old_arr, scalar_new_arr, s_max_arr, s_min_arr, wdtn_arr, &
-                                             scale_array, flux_array, flux_upwind_tmp_arr, flux_tmp_arr, &
-                                             advance_density=.true., rho_zz_int=rho_zz_int)
-                  end if
-               end do
-!$OMP END PARALLEL DO
-
-               deallocate(scalar_old_arr)
-               deallocate(scalar_new_arr)
-               deallocate(s_max_arr)
-               deallocate(s_min_arr)
-               deallocate(scale_array)
-               deallocate(flux_array)
-               deallocate(wdtn_arr)
-               deallocate(rho_zz_int)
-               deallocate(scalar_tend_array)
-               if (rk_step < 3 .or. (.not. config_monotonic .and. .not. config_positive_definite)) then
-                  deallocate(horiz_flux_array)
-               else
-                  deallocate(flux_upwind_tmp_arr)
-                  deallocate(flux_tmp_arr)
-               end if
-
-               block => block % next
-            end do
-            if (rk_step < 3 .or. (.not. config_monotonic .and. .not. config_positive_definite)) then
-               call mpas_timer_stop('atm_advance_scalars')
-            else
-               call mpas_timer_stop('atm_advance_scalars_mono')
-            end if
-
-!------------------------------------------------------------------------------------------------------------------------
+            call advance_scalars('scalars', domain, rk_step, rk_timestep, config_monotonic, config_positive_definite, &
+                                 config_time_integration_order, config_split_dynamics_transport, exchange_halo_group)
 
             if (config_apply_lbcs) then  ! adjust boundary tendencies for regional_MPAS scalar transport
 
-               call mpas_pool_get_field(state, 'scalars', scalars_field, 2)  ! need to fill halo for horizontal filter
-               call mpas_dmpar_exch_halo_field(scalars_field)
-
-               block => domain % blocklist
-               do while (associated(block))
-
-                  call mpas_pool_get_subpool(block % structs, 'state', state)
-                  call mpas_pool_get_subpool(block % structs, 'diag', diag)
-                  call mpas_pool_get_subpool(block % structs, 'mesh', mesh)
+               ! need to fill halo for horizontal filter
+               call exchange_halo_group(domain, 'dynamics:scalars')
    
-                  call mpas_pool_get_dimension(mesh, 'nVertLevels', nVertLevels)
-                  call mpas_pool_get_dimension(mesh, 'nCells', nCells)
-                  call mpas_pool_get_dimension(state, 'num_scalars', num_scalars)
-                  allocate(scalars_driving(num_scalars,nVertLevels,nCells+1))
+               allocate(scalars_driving(num_scalars,nVertLevels,nCells+1))
 
-
-                  !  get the scalar values driving the regional boundary conditions
-                  !
-                  call mpas_pool_get_dimension(state, 'index_qv', index_qv)
-                  call mpas_pool_get_dimension(state, 'index_qc', index_qc)
-                  call mpas_pool_get_dimension(state, 'index_qr', index_qr)
-                  call mpas_pool_get_dimension(state, 'index_qi', index_qi)
-                  call mpas_pool_get_dimension(state, 'index_qs', index_qs)
-                  call mpas_pool_get_dimension(state, 'index_qg', index_qg)  
-                  call mpas_pool_get_dimension(state, 'index_nr', index_nr)
-                  call mpas_pool_get_dimension(state, 'index_ni', index_ni)
-
-                  call mpas_pool_get_dimension(block % dimensions, 'nThreads', nThreads)
-
-                  call mpas_pool_get_dimension(block % dimensions, 'cellThreadStart', cellThreadStart)
-                  call mpas_pool_get_dimension(block % dimensions, 'cellThreadEnd', cellThreadEnd)
-                  call mpas_pool_get_dimension(block % dimensions, 'cellSolveThreadStart', cellSolveThreadStart)
-                  call mpas_pool_get_dimension(block % dimensions, 'cellSolveThreadEnd', cellSolveThreadEnd)
-
-                  if (index_qv > 0) then
-                     scalars_driving(index_qv,1:nVertLevels,1:nCells+1) = mpas_atm_get_bdy_state( clock, domain % blocklist, nVertLevels, nCells, 'qv', rk_timestep(rk_step) )
-                  end if
-                  if (index_qc > 0) then
-                     scalars_driving(index_qc,1:nVertLevels,1:nCells+1) = mpas_atm_get_bdy_state( clock, domain % blocklist, nVertLevels, nCells, 'qc', rk_timestep(rk_step) )
-                  end if
-                  if (index_qr > 0) then
-                     scalars_driving(index_qr,1:nVertLevels,1:nCells+1) = mpas_atm_get_bdy_state( clock, domain % blocklist, nVertLevels, nCells, 'qr', rk_timestep(rk_step) )
-                  end if
-                  if (index_qi > 0) then
-                     scalars_driving(index_qi,1:nVertLevels,1:nCells+1) = mpas_atm_get_bdy_state( clock, domain % blocklist, nVertLevels, nCells, 'qi', rk_timestep(rk_step) )
-                  end if
-                  if (index_qs > 0) then
-                     scalars_driving(index_qs,1:nVertLevels,1:nCells+1) = mpas_atm_get_bdy_state( clock, domain % blocklist, nVertLevels, nCells, 'qs', rk_timestep(rk_step) )
-                  end if
-                  if (index_qg > 0) then
-                     scalars_driving(index_qg,1:nVertLevels,1:nCells+1) = mpas_atm_get_bdy_state( clock, domain % blocklist, nVertLevels, nCells, 'qg', rk_timestep(rk_step) )
-                  end if
-                  if (index_nr > 0) then
-                     scalars_driving(index_nr,1:nVertLevels,1:nCells+1) = mpas_atm_get_bdy_state( clock, domain % blocklist, nVertLevels, nCells, 'nr', rk_timestep(rk_step) )
-                  end if
-                  if (index_ni > 0) then
-                     scalars_driving(index_ni,1:nVertLevels,1:nCells+1) = mpas_atm_get_bdy_state( clock, domain % blocklist, nVertLevels, nCells, 'ni', rk_timestep(rk_step) )
-                  end if
-                  
+               !  get the scalar values driving the regional boundary conditions
+               !
+               if (index_qv > 0) then
+                  scalars_driving(index_qv,1:nVertLevels,1:nCells+1) = mpas_atm_get_bdy_state( clock, block, nVertLevels, nCells, 'qv', rk_timestep(rk_step) )
+               end if
+               if (index_qc > 0) then
+                  scalars_driving(index_qc,1:nVertLevels,1:nCells+1) = mpas_atm_get_bdy_state( clock, block, nVertLevels, nCells, 'qc', rk_timestep(rk_step) )
+               end if
+               if (index_qr > 0) then
+                  scalars_driving(index_qr,1:nVertLevels,1:nCells+1) = mpas_atm_get_bdy_state( clock, block, nVertLevels, nCells, 'qr', rk_timestep(rk_step) )
+               end if
+               if (index_qi > 0) then
+                  scalars_driving(index_qi,1:nVertLevels,1:nCells+1) = mpas_atm_get_bdy_state( clock, block, nVertLevels, nCells, 'qi', rk_timestep(rk_step) )
+               end if
+               if (index_qs > 0) then
+                  scalars_driving(index_qs,1:nVertLevels,1:nCells+1) = mpas_atm_get_bdy_state( clock, block, nVertLevels, nCells, 'qs', rk_timestep(rk_step) )
+               end if
+               if (index_qg > 0) then
+                  scalars_driving(index_qg,1:nVertLevels,1:nCells+1) = mpas_atm_get_bdy_state( clock, block, nVertLevels, nCells, 'qg', rk_timestep(rk_step) )
+               end if
+               if (index_nr > 0) then
+                  scalars_driving(index_nr,1:nVertLevels,1:nCells+1) = mpas_atm_get_bdy_state( clock, block, nVertLevels, nCells, 'nr', rk_timestep(rk_step) )
+               end if
+               if (index_ni > 0) then
+                  scalars_driving(index_ni,1:nVertLevels,1:nCells+1) = mpas_atm_get_bdy_state( clock, block, nVertLevels, nCells, 'ni', rk_timestep(rk_step) )
+               end if
+               
 !$OMP PARALLEL DO
-                  do thread=1,nThreads
-                     call atm_bdy_adjust_scalars( state, diag, mesh, block % configs, scalars_driving, nVertLevels, dt, rk_timestep(rk_step), &
-                                                  cellThreadStart(thread), cellThreadEnd(thread), &
-                                                  cellSolveThreadStart(thread), cellSolveThreadEnd(thread) )
-                  end do
+               do thread=1,nThreads
+                  call atm_bdy_adjust_scalars( state, diag, mesh, block % configs, scalars_driving, nVertLevels, dt, rk_timestep(rk_step), &
+                                               cellThreadStart(thread), cellThreadEnd(thread), &
+                                               cellSolveThreadStart(thread), cellSolveThreadEnd(thread) )
+               end do
 !$OMP END PARALLEL DO
 
-                  deallocate(scalars_driving)
+               deallocate(scalars_driving)
 
-                  block => block % next
-               end do
 
             end if  ! regional_MPAS addition
 
 !------------------------------------------------------------------------------------------------------------------------
 
             if (rk_step < 3) then
-               call mpas_pool_get_field(state, 'scalars', scalars_field, 2)
-               call mpas_dmpar_exch_halo_field(scalars_field)
+               call exchange_halo_group(domain, 'dynamics:scalars')
             end if
 
          end do RK3_SPLIT_TRANSPORT
@@ -1578,29 +1111,21 @@ module atm_time_integration
       !
       ! reconstruct full velocity vectors at cell centers:
       !
-      block => domain % blocklist
-      do while (associated(block))
-         call mpas_pool_get_subpool(block % structs, 'state', state)
-         call mpas_pool_get_subpool(block % structs, 'diag', diag)
-         call mpas_pool_get_subpool(block % structs, 'mesh', mesh)
+      call mpas_pool_get_array(state, 'u', u, 2)
+      call mpas_pool_get_array(diag, 'uReconstructX', uReconstructX)
+      call mpas_pool_get_array(diag, 'uReconstructY', uReconstructY)
+      call mpas_pool_get_array(diag, 'uReconstructZ', uReconstructZ)
+      call mpas_pool_get_array(diag, 'uReconstructZonal', uReconstructZonal)
+      call mpas_pool_get_array(diag, 'uReconstructMeridional', uReconstructMeridional)
 
-         call mpas_pool_get_array(state, 'u', u, 2)
-         call mpas_pool_get_array(diag, 'uReconstructX', uReconstructX)
-         call mpas_pool_get_array(diag, 'uReconstructY', uReconstructY)
-         call mpas_pool_get_array(diag, 'uReconstructZ', uReconstructZ)
-         call mpas_pool_get_array(diag, 'uReconstructZonal', uReconstructZonal)
-         call mpas_pool_get_array(diag, 'uReconstructMeridional', uReconstructMeridional)
+      call mpas_reconstruct(mesh, u,                &
+                            uReconstructX,          &
+                            uReconstructY,          &
+                            uReconstructZ,          &
+                            uReconstructZonal,      &
+                            uReconstructMeridional  &
+                           )
 
-         call mpas_reconstruct(mesh, u,                &
-                               uReconstructX,          &
-                               uReconstructY,          &
-                               uReconstructZ,          &
-                               uReconstructZonal,      &
-                               uReconstructMeridional  &
-                              )
-
-         block => block % next
-      end do
 
       !
       ! call to parameterizations of cloud microphysics. calculation of the tendency of water vapor to horizontal and
@@ -1608,57 +1133,51 @@ module atm_time_integration
       !
 
 #ifdef DO_PHYSICS
-      block => domain % blocklist
-      do while(associated(block))
+      call mpas_pool_get_array(state, 'scalars', scalars_1, 1)
+      call mpas_pool_get_array(state, 'scalars', scalars_2, 2)
 
-         call mpas_pool_get_subpool(block % structs, 'mesh', mesh)
-         call mpas_pool_get_subpool(block % structs, 'state', state)
-         call mpas_pool_get_subpool(block % structs, 'diag', diag)
-         call mpas_pool_get_subpool(block % structs, 'diag_physics', diag_physics)
-         call mpas_pool_get_subpool(block % structs, 'tend_physics', tend_physics)
-         call mpas_pool_get_subpool(block % structs, 'tend', tend)
-         call mpas_pool_get_array(state, 'scalars', scalars_1, 1)
-         call mpas_pool_get_array(state, 'scalars', scalars_2, 2)
-         call mpas_pool_get_dimension(state, 'index_qv', index_qv)
+      if(config_convection_scheme == 'cu_grell_freitas' .or. &
+         config_convection_scheme == 'cu_ntiedtke') then
 
-         call mpas_pool_get_dimension(block % dimensions, 'nThreads', nThreads)
+         call mpas_pool_get_array(tend_physics, 'rqvdynten', rqvdynten)
+         call mpas_pool_get_array(state, 'theta_m', theta_m, 2)
 
-         call mpas_pool_get_dimension(block % dimensions, 'cellSolveThreadStart', cellSolveThreadStart)
-         call mpas_pool_get_dimension(block % dimensions, 'cellSolveThreadEnd', cellSolveThreadEnd)
+         call mpas_pool_get_array(tend_physics, 'rthdynten', rthdynten)
 
-         if(config_convection_scheme == 'cu_grell_freitas'          .or. &
-            config_convection_scheme == 'cu_tiedtke'                .or. &
-            config_convection_scheme == 'cu_ntiedtke') then
-
-            call mpas_pool_get_array(tend_physics, 'rqvdynten', rqvdynten)
-
-            !NOTE: The calculation of the tendency due to horizontal and vertical advection for the water vapor mixing ratio
-            !requires that the subroutine atm_advance_scalars_mono was called on the third Runge Kutta step, so that a halo
-            !update for the scalars at time_levs(1) is applied. A halo update for the scalars at time_levs(2) is done above. 
-            if (config_monotonic) then
-               rqvdynten(:,:) = ( scalars_2(index_qv,:,:) - scalars_1(index_qv,:,:) ) / config_dt
-            else
-               rqvdynten(:,:) = 0._RKIND
-            end if
+         !NOTE: The calculation of the tendency due to horizontal and vertical advection for the water vapor mixing ratio
+         !requires that the subroutine atm_advance_scalars_mono was called on the third Runge Kutta step, so that a halo
+         !update for the scalars at time_levs(1) is applied. A halo update for the scalars at time_levs(2) is done above. 
+         if (config_monotonic) then
+            rqvdynten(:,:) = ( scalars_2(index_qv,:,:) - scalars_1(index_qv,:,:) ) / config_dt
+         else
+            rqvdynten(:,:) = 0._RKIND
          end if
 
-         !simply set to zero negative mixing ratios of different water species (for now):
-         where ( scalars_2(:,:,:) < 0.0)  &
-            scalars_2(:,:,:) = 0.0
-
-         !call microphysics schemes:
-         if (trim(config_microp_scheme) /= 'off')  then
-            call mpas_timer_start('microphysics')
-!$OMP PARALLEL DO
-            do thread=1,nThreads
-               call driver_microphysics ( block % configs, mesh, state, 2, diag, diag_physics, tend, itimestep, &
-                                          cellSolveThreadStart(thread), cellSolveThreadEnd(thread))
+         do k = 1, nVertLevels
+            do iCell = 1, nCellsSolve
+               fac_m = 1._RKIND/(1._RKIND + rv/rgas*scalars_2(index_qv,k,iCell))
+               theta_local = theta_m(k,iCell)*fac_m
+               rthdynten(k,iCell) = fac_m*(rthdynten(k,iCell)-theta_local*rv/rgas*rqvdynten(k,iCell))
             end do
+         end do
+
+      end if
+
+      !simply set to zero negative mixing ratios of different water species (for now):
+      where ( scalars_2(:,:,:) < 0.0)  &
+         scalars_2(:,:,:) = 0.0
+
+      !call microphysics schemes:
+      if (trim(config_microp_scheme) /= 'off')  then
+        call mpas_timer_start('microphysics')
+!$OMP PARALLEL DO
+        do thread=1,nThreads
+           call driver_microphysics ( block % configs, mesh, state, 2, diag, diag_physics, tend, itimestep, &
+                                      cellSolveThreadStart(thread), cellSolveThreadEnd(thread))
+        end do
 !$OMP END PARALLEL DO
-            call mpas_timer_stop('microphysics')
-         end if
-         block => block % next
-      end do
+        call mpas_timer_stop('microphysics')
+      end if
 
       !
       ! Note: A halo exchange for 'exner' here as well as at the end of
@@ -1671,129 +1190,247 @@ module atm_time_integration
 
       if (config_apply_lbcs) then  ! reset boundary values of rtheta in the specified zone - microphysics has messed with them
 
-         block => domain % blocklist
-         do while (associated(block))
-            call mpas_pool_get_subpool(block % structs, 'state', state)
-            call mpas_pool_get_subpool(block % structs, 'diag', diag)
-            call mpas_pool_get_subpool(block % structs, 'mesh', mesh)
+        allocate(rt_driving_values(nVertLevels,nCells+1))
+        allocate(rho_driving_values(nVertLevels,nCells+1))
+        time_dyn_step = dt  ! end of full timestep values
 
-            call mpas_pool_get_dimension(mesh, 'nCells', nCells)
-            call mpas_pool_get_dimension(mesh, 'nVertLevels', nVertLevels)
-            call mpas_pool_get_dimension(block % dimensions, 'nThreads', nThreads)
-
-            call mpas_pool_get_dimension(block % dimensions, 'cellThreadStart', cellThreadStart)
-            call mpas_pool_get_dimension(block % dimensions, 'cellThreadEnd', cellThreadEnd)
-            call mpas_pool_get_dimension(block % dimensions, 'cellSolveThreadStart', cellSolveThreadStart)
-            call mpas_pool_get_dimension(block % dimensions, 'cellSolveThreadEnd', cellSolveThreadEnd)
-
-            allocate(rt_driving_values(nVertLevels,nCells+1))
-            allocate(rho_driving_values(nVertLevels,nCells+1))
-            time_dyn_step = dt  ! end of full timestep values
-
-            rt_driving_values(1:nVertLevels,1:nCells+1) =  mpas_atm_get_bdy_state( clock, domain % blocklist, nVertLevels, nCells, 'rtheta_m', time_dyn_step )
-            rho_driving_values(1:nVertLevels,1:nCells+1) =  mpas_atm_get_bdy_state( clock, domain % blocklist, nVertLevels, nCells, 'rho_zz', time_dyn_step )
+        rt_driving_values(1:nVertLevels,1:nCells+1) =  mpas_atm_get_bdy_state( clock, block, nVertLevels, nCells, 'rtheta_m', time_dyn_step )
+        rho_driving_values(1:nVertLevels,1:nCells+1) =  mpas_atm_get_bdy_state( clock, block, nVertLevels, nCells, 'rho_zz', time_dyn_step )
 
 !$OMP PARALLEL DO
-            do thread=1,nThreads
-               call atm_bdy_reset_speczone_values( state, diag, mesh, nVertLevels, &
-                                                   rt_driving_values, rho_driving_values,                        &
-                                                   cellThreadStart(thread), cellThreadEnd(thread),               &
-                                                   cellSolveThreadStart(thread), cellSolveThreadEnd(thread) )
-            end do
+        do thread=1,nThreads
+           call atm_bdy_reset_speczone_values( state, diag, mesh, nVertLevels, &
+                                               rt_driving_values, rho_driving_values,                        &
+                                               cellThreadStart(thread), cellThreadEnd(thread),               &
+                                               cellSolveThreadStart(thread), cellSolveThreadEnd(thread) )
+        end do
 !$OMP END PARALLEL DO
 
-            deallocate(rt_driving_values)
-            deallocate(rho_driving_values)
-            block => block % next
-
-         end do
+        deallocate(rt_driving_values)
+        deallocate(rho_driving_values)
 
       end if  ! regional_MPAS addition
 
 
       if (config_apply_lbcs) then  ! adjust boundary values for regional_MPAS scalar transport
 
-         call mpas_pool_get_field(state, 'scalars', scalars_field, 2)  ! need to fill halo for horizontal filter
-         call mpas_dmpar_exch_halo_field(scalars_field)
+         call exchange_halo_group(domain, 'dynamics:scalars')
 
-         block => domain % blocklist
-         do while (associated(block))
+         allocate(scalars_driving(num_scalars,nVertLevels,nCells+1))
 
-            call mpas_pool_get_subpool(block % structs, 'state', state)
-            call mpas_pool_get_subpool(block % structs, 'mesh', mesh)
-   
-            call mpas_pool_get_dimension(mesh, 'nVertLevels', nVertLevels)
-            call mpas_pool_get_dimension(mesh, 'nCells', nCells)
-            call mpas_pool_get_dimension(state, 'num_scalars', num_scalars)
-            allocate(scalars_driving(num_scalars,nVertLevels,nCells+1))
-
-
-            !  get the scalar values driving the regional boundary conditions
-            !
-            call mpas_pool_get_dimension(state, 'index_qv', index_qv)
-            call mpas_pool_get_dimension(state, 'index_qc', index_qc)
-            call mpas_pool_get_dimension(state, 'index_qr', index_qr)
-            call mpas_pool_get_dimension(state, 'index_qi', index_qi)
-            call mpas_pool_get_dimension(state, 'index_qs', index_qs)
-            call mpas_pool_get_dimension(state, 'index_qg', index_qg)  
-            call mpas_pool_get_dimension(state, 'index_nr', index_nr)
-            call mpas_pool_get_dimension(state, 'index_ni', index_ni)
-
-            call mpas_pool_get_dimension(block % dimensions, 'nThreads', nThreads)
-
-            call mpas_pool_get_dimension(block % dimensions, 'cellThreadStart', cellThreadStart)
-            call mpas_pool_get_dimension(block % dimensions, 'cellThreadEnd', cellThreadEnd)
-            call mpas_pool_get_dimension(block % dimensions, 'cellSolveThreadStart', cellSolveThreadStart)
-            call mpas_pool_get_dimension(block % dimensions, 'cellSolveThreadEnd', cellSolveThreadEnd)
-
-            call mpas_pool_get_dimension(block % dimensions, 'vertexThreadStart', vertexThreadStart)
-            call mpas_pool_get_dimension(block % dimensions, 'vertexThreadEnd', vertexThreadEnd)
-            call mpas_pool_get_dimension(block % dimensions, 'vertexSolveThreadStart', vertexSolveThreadStart)
-            call mpas_pool_get_dimension(block % dimensions, 'vertexSolveThreadEnd', vertexSolveThreadEnd)
-
-            if (index_qv > 0) then
-               scalars_driving(index_qv,1:nVertLevels,1:nCells+1) = mpas_atm_get_bdy_state( clock, domain % blocklist, nVertLevels, nCells, 'qv', dt )
-            end if
-            if (index_qc > 0) then
-               scalars_driving(index_qc,1:nVertLevels,1:nCells+1) = mpas_atm_get_bdy_state( clock, domain % blocklist, nVertLevels, nCells, 'qc', dt )
-            end if
-            if (index_qr > 0) then
-               scalars_driving(index_qr,1:nVertLevels,1:nCells+1) = mpas_atm_get_bdy_state( clock, domain % blocklist, nVertLevels, nCells, 'qr', dt )
-            end if
-            if (index_qi > 0) then
-               scalars_driving(index_qi,1:nVertLevels,1:nCells+1) = mpas_atm_get_bdy_state( clock, domain % blocklist, nVertLevels, nCells, 'qi', dt )
-            end if
-            if (index_qs > 0) then
-               scalars_driving(index_qs,1:nVertLevels,1:nCells+1) = mpas_atm_get_bdy_state( clock, domain % blocklist, nVertLevels, nCells, 'qs', dt )
-            end if
-            if (index_qg > 0) then
-               scalars_driving(index_qg,1:nVertLevels,1:nCells+1) = mpas_atm_get_bdy_state( clock, domain % blocklist, nVertLevels, nCells, 'qg', dt )
-            end if
-            if (index_nr > 0) then
-               scalars_driving(index_nr,1:nVertLevels,1:nCells+1) = mpas_atm_get_bdy_state( clock, domain % blocklist, nVertLevels, nCells, 'nr', dt )
-            end if
-            if (index_ni > 0) then
-               scalars_driving(index_ni,1:nVertLevels,1:nCells+1) = mpas_atm_get_bdy_state( clock, domain % blocklist, nVertLevels, nCells, 'ni', dt )
-            end if
+         !  get the scalar values driving the regional boundary conditions
+         !
+         if (index_qv > 0) then
+            scalars_driving(index_qv,1:nVertLevels,1:nCells+1) = mpas_atm_get_bdy_state( clock, block, nVertLevels, nCells, 'qv', dt )
+         end if
+         if (index_qc > 0) then
+            scalars_driving(index_qc,1:nVertLevels,1:nCells+1) = mpas_atm_get_bdy_state( clock, block, nVertLevels, nCells, 'qc', dt )
+         end if
+         if (index_qr > 0) then
+            scalars_driving(index_qr,1:nVertLevels,1:nCells+1) = mpas_atm_get_bdy_state( clock, block, nVertLevels, nCells, 'qr', dt )
+         end if
+         if (index_qi > 0) then
+            scalars_driving(index_qi,1:nVertLevels,1:nCells+1) = mpas_atm_get_bdy_state( clock, block, nVertLevels, nCells, 'qi', dt )
+         end if
+         if (index_qs > 0) then
+            scalars_driving(index_qs,1:nVertLevels,1:nCells+1) = mpas_atm_get_bdy_state( clock, block, nVertLevels, nCells, 'qs', dt )
+         end if
+         if (index_qg > 0) then
+            scalars_driving(index_qg,1:nVertLevels,1:nCells+1) = mpas_atm_get_bdy_state( clock, block, nVertLevels, nCells, 'qg', dt )
+         end if
+         if (index_nr > 0) then
+            scalars_driving(index_nr,1:nVertLevels,1:nCells+1) = mpas_atm_get_bdy_state( clock, block, nVertLevels, nCells, 'nr', dt )
+         end if
+         if (index_ni > 0) then
+            scalars_driving(index_ni,1:nVertLevels,1:nCells+1) = mpas_atm_get_bdy_state( clock, block, nVertLevels, nCells, 'ni', dt )
+         end if
       
 !$OMP PARALLEL DO
-            do thread=1,nThreads
-               call atm_bdy_set_scalars( state, mesh, scalars_driving, nVertLevels, &
-                                         cellThreadStart(thread), cellThreadEnd(thread), &
-                                         cellSolveThreadStart(thread), cellSolveThreadEnd(thread) )
-            end do
+         do thread=1,nThreads
+            call atm_bdy_set_scalars( state, mesh, scalars_driving, nVertLevels, &
+                                      cellThreadStart(thread), cellThreadEnd(thread), &
+                                      cellSolveThreadStart(thread), cellSolveThreadEnd(thread) )
+         end do
 !$OMP END PARALLEL DO
 
-            deallocate(scalars_driving)
-
-            block => block % next
-         end do
+         deallocate(scalars_driving)
 
       end if  ! regional_MPAS addition
 
       call summarize_timestep(domain)
 
    end subroutine atm_srk3
+
+
+   !-----------------------------------------------------------------------
+   !  routine advance_scalars
+   !
+   !> \brief Advance the scalar fields
+   !> \date 10 February 2020
+   !> \details
+   !>  Manages the advance of the model scalar fields, taking into account
+   !>  runtime selection of monotonicity and scalar transport splitting.
+   !>
+   !>  The first argument, field_name, indicates the base name for the array
+   !>  of scalars to be advected. It is assumed that, if the name of
+   !>  the array is XYZ, then there will exist:
+   !>
+   !>  (1) An array in the 'state' pool named XYZ with dimensions
+   !>      (num_XYZ, nVertLevels, nCells) and two time levels
+   !>
+   !>  (2) A dimension, num_XYZ, in the 'state' pool
+   !>
+   !>  (3) An array in the 'tend' pool named XYZ_tend with dimensions
+   !>      (num_XYZ, nVertLevels, nCells) and one time level
+   !>
+   !>  The scalars arrays can either be var_arrays formed from multiple
+   !>  constituents, each with dimensions (nVertLevels, nCells), or they can
+   !>  simply be vars with dimensions (num_???, nVertLevels, nCells).
+   !
+   !-----------------------------------------------------------------------
+   subroutine advance_scalars(field_name, domain, rk_step, rk_timestep, config_monotonic, config_positive_definite, &
+                              config_time_integration_order, config_split_dynamics_transport, exchange_halo_group)
+
+      implicit none
+
+      ! Arguments
+      character(len=*), intent(in) :: field_name
+      type (domain_type), intent(inout) :: domain
+      integer, intent(in) :: rk_step
+      real(kind=RKIND), dimension(:), intent(in) :: rk_timestep
+      logical, intent(in) :: config_monotonic
+      logical, intent(in) :: config_positive_definite
+      integer, intent(in) :: config_time_integration_order
+      logical, intent(in) :: config_split_dynamics_transport
+      procedure (halo_exchange_routine) :: exchange_halo_group
+
+      ! Local variables
+      integer :: thread
+
+      type (mpas_pool_type), pointer :: tend
+      type (mpas_pool_type), pointer :: state
+      type (mpas_pool_type), pointer :: diag
+      type (mpas_pool_type), pointer :: mesh
+      type (mpas_pool_type), pointer :: halo_scratch
+
+      integer, pointer :: nCells
+      integer, pointer :: nEdges
+      integer, pointer :: nVertLevels
+      integer, pointer :: num_scalars
+
+      integer, pointer :: nThreads
+      integer, dimension(:), pointer :: cellThreadStart
+      integer, dimension(:), pointer :: cellThreadEnd
+      integer, dimension(:), pointer :: cellSolveThreadStart
+      integer, dimension(:), pointer :: cellSolveThreadEnd
+      integer, dimension(:), pointer :: edgeThreadStart
+      integer, dimension(:), pointer :: edgeThreadEnd
+
+
+      if (rk_step < 3 .or. (.not. config_monotonic .and. .not. config_positive_definite)) then
+         call mpas_timer_start('atm_advance_scalars')
+      else
+         call mpas_timer_start('atm_advance_scalars_mono')
+      end if
+
+      call mpas_pool_get_subpool(block % structs, 'tend', tend)
+      call mpas_pool_get_subpool(block % structs, 'state', state)
+      call mpas_pool_get_subpool(block % structs, 'diag', diag)
+      call mpas_pool_get_subpool(block % structs, 'mesh', mesh)
+      call mpas_pool_get_subpool(block % structs, 'halo_scratch', halo_scratch)
+
+      call mpas_pool_get_dimension(mesh, 'nCells', nCells)
+      call mpas_pool_get_dimension(mesh, 'nEdges', nEdges)
+      call mpas_pool_get_dimension(mesh, 'nVertLevels', nVertLevels)
+      call mpas_pool_get_dimension(state, 'num_scalars', num_scalars)
+
+      call mpas_pool_get_dimension(block % dimensions, 'nThreads', nThreads)
+
+      call mpas_pool_get_dimension(block % dimensions, 'cellThreadStart', cellThreadStart)
+      call mpas_pool_get_dimension(block % dimensions, 'cellThreadEnd', cellThreadEnd)
+      call mpas_pool_get_dimension(block % dimensions, 'cellSolveThreadStart', cellSolveThreadStart)
+      call mpas_pool_get_dimension(block % dimensions, 'cellSolveThreadEnd', cellSolveThreadEnd)
+
+      call mpas_pool_get_dimension(block % dimensions, 'edgeThreadStart', edgeThreadStart)
+      call mpas_pool_get_dimension(block % dimensions, 'edgeThreadEnd', edgeThreadEnd)
+
+      allocate(scalar_old_arr(nVertLevels,nCells+1))
+      scalar_old_arr(:,nCells+1) = 0.0_RKIND
+      allocate(scalar_new_arr(nVertLevels,nCells+1))
+      scalar_new_arr(:,nCells+1) = 0.0_RKIND
+      allocate(s_max_arr(nVertLevels,nCells+1))
+      s_max_arr(:,nCells+1) = 0.0_RKIND
+      allocate(s_min_arr(nVertLevels,nCells+1))
+      s_min_arr(:,nCells+1) = 0.0_RKIND
+      allocate(flux_array(nVertLevels,nEdges+1))
+      flux_array(:,nEdges+1) = 0.0_RKIND
+      allocate(wdtn_arr(nVertLevels+1,nCells+1))
+      wdtn_arr(:,nCells+1) = 0.0_RKIND
+      if (config_split_dynamics_transport) then
+         allocate(rho_zz_int(nVertLevels,nCells+1))
+         rho_zz_int(:,nCells+1) = 0.0_RKIND
+      else
+         allocate(rho_zz_int(1,1))
+      end if
+      if (rk_step < 3 .or. (.not. config_monotonic .and. .not. config_positive_definite)) then
+         allocate(horiz_flux_array(num_scalars,nVertLevels,nEdges+1))
+         horiz_flux_array(:,:,nEdges+1) = 0.0_RKIND
+      else
+         allocate(flux_upwind_tmp_arr(nVertLevels,nEdges+1))
+         flux_upwind_tmp_arr(:,nEdges+1) = 0.0_RKIND
+         allocate(flux_tmp_arr(nVertLevels,nEdges+1))
+         flux_tmp_arr(:,nEdges+1) = 0.0_RKIND
+      end if
+
+      !
+      ! Note: The advance_scalars_mono routine can be used without limiting, and thus, encompasses 
+      !       the functionality of the advance_scalars routine; however, it is noticeably slower, 
+      !       so we use the advance_scalars routine for the first two RK substeps.
+      !
+      !$OMP PARALLEL DO
+      do thread=1,nThreads
+         if (rk_step < 3 .or. (.not. config_monotonic .and. .not. config_positive_definite)) then
+            call atm_advance_scalars(field_name, tend, state, diag, mesh, block % configs, rk_timestep(rk_step), &
+                                     edgeThreadStart(thread), edgeThreadEnd(thread), &
+                                     cellSolveThreadStart(thread), cellSolveThreadEnd(thread), &
+                                     horiz_flux_array, rk_step, config_time_integration_order, &
+                                     advance_density=config_split_dynamics_transport)
+         else
+            call atm_advance_scalars_mono(field_name, block, tend, state, diag, mesh, halo_scratch, &
+                                          block % configs, rk_timestep(rk_step), &
+                                          cellThreadStart(thread), cellThreadEnd(thread), &
+                                          edgeThreadStart(thread), edgeThreadEnd(thread), &
+                                          cellSolveThreadStart(thread), cellSolveThreadEnd(thread), &
+                                          scalar_old_arr, scalar_new_arr, s_max_arr, s_min_arr, wdtn_arr, &
+                                          flux_array, flux_upwind_tmp_arr, flux_tmp_arr, &
+                                          exchange_halo_group, &
+                                          advance_density=config_split_dynamics_transport, rho_zz_int=rho_zz_int)
+         end if
+      end do
+      !$OMP END PARALLEL DO
+
+      deallocate(scalar_old_arr)
+      deallocate(scalar_new_arr)
+      deallocate(s_max_arr)
+      deallocate(s_min_arr)
+      deallocate(flux_array)
+      deallocate(wdtn_arr)
+      deallocate(rho_zz_int)
+
+      if (rk_step < 3 .or. (.not. config_monotonic .and. .not. config_positive_definite)) then
+         deallocate(horiz_flux_array)
+      else
+         deallocate(flux_upwind_tmp_arr)
+         deallocate(flux_tmp_arr)
+      end if
+
+      if (rk_step < 3 .or. (.not. config_monotonic .and. .not. config_positive_definite)) then
+         call mpas_timer_stop('atm_advance_scalars')
+      else
+         call mpas_timer_stop('atm_advance_scalars_mono')
+      end if
+
+   end subroutine advance_scalars
 
 
    subroutine atm_rk_integration_setup( state, diag, &
@@ -3099,47 +2736,45 @@ module atm_time_integration
    end subroutine atm_recover_large_step_variables_work
 
 
-   subroutine atm_advance_scalars( tend, state, diag, mesh, configs, num_scalars, nCells, nVertLevels, dt, &
-                                   cellStart, cellEnd, vertexStart, vertexEnd, edgeStart, edgeEnd, &
-                                   cellSolveStart, cellSolveEnd, vertexSolveStart, vertexSolveEnd, edgeSolveStart, edgeSolveEnd, &
-                                   horiz_flux_arr, rk_step, config_time_integration_order, advance_density, scalar_tend, rho_zz_int)
-   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 
+   !-----------------------------------------------------------------------
+   !  routine atm_advance_scalars
    !
-   ! Integrate scalar equations - explicit transport plus other tendencies
+   !> \brief Integrate scalar equations - explicit transport plus other tendencies
+   !> \date 18 November 2014
+   !> \details
+   !>  This routine is a wrapper for atm_advance_scalars_work and is primarily
+   !>  intended to allow pointers to fields to be dereferenced through the call
+   !>  to the work routine.
    !
-   !  Wrapper for atm_advance_scalars_work() to de-reference pointers
-   !
-   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 
+   !-----------------------------------------------------------------------
+   subroutine atm_advance_scalars(field_name, tend, state, diag, mesh, configs, dt, &
+                                  edgeStart, edgeEnd, &
+                                  cellSolveStart, cellSolveEnd, &
+                                  horiz_flux_arr, rk_step, config_time_integration_order, advance_density)
 
       implicit none
 
+      ! Arguments
+      character(len=*), intent(in) :: field_name
       type (mpas_pool_type), intent(in) :: tend
       type (mpas_pool_type), intent(inout) :: state
       type (mpas_pool_type), intent(in) :: diag
       type (mpas_pool_type), intent(in) :: mesh
       type (mpas_pool_type), intent(in) :: configs
-      integer, intent(in) :: num_scalars      ! for allocating stack variables
-      integer, intent(in) :: nCells           ! for allocating stack variables
-      integer, intent(in) :: nVertLevels      ! for allocating stack variables
       integer, intent(in) :: rk_step    !  rk substep we are integrating
       integer, intent(in) :: config_time_integration_order  ! time integration order
       real (kind=RKIND) :: dt
-      integer, intent(in) :: cellStart, cellEnd, vertexStart, vertexEnd, edgeStart, edgeEnd
-      integer, intent(in) :: cellSolveStart, cellSolveEnd, vertexSolveStart, vertexSolveEnd, edgeSolveStart, edgeSolveEnd
+      integer, intent(in) :: edgeStart, edgeEnd
+      integer, intent(in) :: cellSolveStart, cellSolveEnd
       logical, intent(in), optional :: advance_density
-      real (kind=RKIND), dimension(:,:,:), intent(inout), optional :: scalar_tend
-      real (kind=RKIND), dimension(:,:), intent(inout), optional :: rho_zz_int
 
-      integer :: i, j, iCell, iAdvCell, iEdge, k, iScalar, cell1, cell2
+
+      ! Local variables
       real (kind=RKIND), dimension(:), pointer :: invAreaCell
-      real (kind=RKIND) :: rho_zz_new_inv
-
-      real (kind=RKIND) :: scalar_weight
 
       real (kind=RKIND), dimension(:,:,:), pointer :: scalar_old, scalar_new, scalar_tend_save
-      real (kind=RKIND), dimension(:,:,:), pointer :: deriv_two
-      real (kind=RKIND), dimension(:,:), pointer :: uhAvg, rho_zz_old, rho_zz_new, wwAvg, rho_edge, zgrid, kdiff
-      real (kind=RKIND), dimension(:), pointer :: dvEdge, qv_init
+      real (kind=RKIND), dimension(:,:), pointer :: uhAvg, rho_zz_old, rho_zz_new, wwAvg
+      real (kind=RKIND), dimension(:), pointer :: dvEdge
       integer, dimension(:,:), pointer :: cellsOnEdge
       real (kind=RKIND), dimension(:,:,:), intent(inout) :: horiz_flux_arr
 
@@ -3147,15 +2782,17 @@ module atm_time_integration
       integer, dimension(:), pointer :: nAdvCellsForEdge, nEdgesOnCell
       real (kind=RKIND), dimension(:,:), pointer :: adv_coefs, adv_coefs_3rd, edgesOnCell_sign
 
-      real (kind=RKIND), dimension( num_scalars, nVertLevels + 1 ) :: wdtn
-      integer, pointer :: nCellsSolve, nEdges
+      integer, pointer :: nCells
+      integer, pointer :: nEdges
+      integer, pointer :: num_scalars
 
-      real (kind=RKIND), dimension(:), pointer :: fnm, fnp, rdnw, meshScalingDel2, meshScalingDel4
+      real (kind=RKIND), dimension(:), pointer :: fnm, fnp, rdnw
       real (kind=RKIND), pointer :: coef_3rd_order
 
       integer, dimension(:), pointer :: bdyMaskCell, bdyMaskEdge    ! regional_MPAS addition
 
       logical :: local_advance_density
+
 
       if (present(advance_density)) then
          local_advance_density = advance_density
@@ -3165,144 +2802,120 @@ module atm_time_integration
 
       call mpas_pool_get_config(configs, 'config_coef_3rd_order', coef_3rd_order)
 
-      call mpas_pool_get_array(state, 'scalars', scalar_old, 1)
-      call mpas_pool_get_array(state, 'scalars', scalar_new, 2)
+      call mpas_pool_get_array(state, trim(field_name), scalar_old, 1)
+      call mpas_pool_get_array(state, trim(field_name), scalar_new, 2)
       call mpas_pool_get_array(state, 'rho_zz', rho_zz_old, 1)
       call mpas_pool_get_array(state, 'rho_zz', rho_zz_new, 2)
 
-      call mpas_pool_get_array(diag, 'kdiff', kdiff)
       call mpas_pool_get_array(diag, 'ruAvg', uhAvg)
       call mpas_pool_get_array(diag, 'wwAvg', wwAvg)
 
-      call mpas_pool_get_array(mesh, 'deriv_two', deriv_two)
       call mpas_pool_get_array(mesh, 'dvEdge', dvEdge)
       call mpas_pool_get_array(mesh, 'cellsOnEdge', cellsOnEdge)
       call mpas_pool_get_array(mesh, 'edgesOnCell', edgesOnCell)
       call mpas_pool_get_array(mesh, 'nEdgesOnCell', nEdgesOnCell)
       call mpas_pool_get_array(mesh, 'edgesOnCell_sign', edgesOnCell_sign)
       call mpas_pool_get_array(mesh, 'invAreaCell', invAreaCell)
-      call mpas_pool_get_array(tend, 'scalars_tend', scalar_tend_save)
-
-      call mpas_pool_get_array(tend, 'scalars_tend', scalar_tend_save)  ! regional_MPAS addition
+      call mpas_pool_get_array(tend, trim(field_name)//'_tend', scalar_tend_save)
       
       call mpas_pool_get_array(mesh, 'fzm', fnm)
       call mpas_pool_get_array(mesh, 'fzp', fnp)
       call mpas_pool_get_array(mesh, 'rdzw', rdnw)
-      call mpas_pool_get_array(mesh, 'meshScalingDel2', meshScalingDel2)
-      call mpas_pool_get_array(mesh, 'meshScalingDel4', meshScalingDel4)
 
       call mpas_pool_get_array(mesh, 'nAdvCellsForEdge', nAdvCellsForEdge)
       call mpas_pool_get_array(mesh, 'advCellsForEdge', advCellsForEdge)
       call mpas_pool_get_array(mesh, 'adv_coefs', adv_coefs)
       call mpas_pool_get_array(mesh, 'adv_coefs_3rd', adv_coefs_3rd)
 
-      call mpas_pool_get_array(diag, 'rho_edge', rho_edge)
-      call mpas_pool_get_array(mesh, 'qv_init', qv_init)
-      call mpas_pool_get_array(mesh, 'zgrid', zgrid)
-
-      call mpas_pool_get_dimension(mesh, 'nCellsSolve', nCellsSolve)
+      call mpas_pool_get_dimension(mesh, 'nCells', nCells)
       call mpas_pool_get_dimension(mesh, 'nEdges', nEdges)
+      call mpas_pool_get_dimension(state, 'num_'//trim(field_name), num_scalars)
 
       call mpas_pool_get_array(mesh, 'bdyMaskCell', bdyMaskCell)
       call mpas_pool_get_array(mesh, 'bdyMaskEdge', bdyMaskEdge)
 
-      if (local_advance_density) then
-      call atm_advance_scalars_work(num_scalars, nCells, nVertLevels, dt, &
-             cellStart, cellEnd, vertexStart, vertexEnd, edgeStart, edgeEnd, &
-             cellSolveStart, cellSolveEnd, vertexSolveStart, vertexSolveEnd, edgeSolveStart, edgeSolveEnd, &
-             coef_3rd_order, scalar_old, scalar_new, rho_zz_old, rho_zz_new, kdiff, &
-             uhAvg, wwAvg, deriv_two, dvEdge, &
+      call atm_advance_scalars_work(nCells, num_scalars, dt, &
+             edgeStart, edgeEnd, &
+             cellSolveStart, cellSolveEnd, &
+             coef_3rd_order, scalar_old, scalar_new, rho_zz_old, rho_zz_new, &
+             uhAvg, wwAvg, dvEdge, &
              cellsOnEdge, edgesOnCell, nEdgesOnCell, edgesOnCell_sign, invAreaCell, &
-             scalar_tend_save, fnm, fnp, rdnw, meshScalingDel2, meshScalingDel4, &
+             scalar_tend_save, fnm, fnp, rdnw, &
              bdyMaskCell, bdyMaskEdge, &
-             nAdvCellsForEdge, advCellsForEdge, adv_coefs, adv_coefs_3rd, rho_edge, qv_init, zgrid, &
-             nCellsSolve, nEdges, horiz_flux_arr, rk_step, config_time_integration_order, &
-             local_advance_density, scalar_tend, rho_zz_int)
-      else
-      call atm_advance_scalars_work(num_scalars, nCells, nVertLevels, dt, &
-             cellStart, cellEnd, vertexStart, vertexEnd, edgeStart, edgeEnd, &
-             cellSolveStart, cellSolveEnd, vertexSolveStart, vertexSolveEnd, edgeSolveStart, edgeSolveEnd, &
-             coef_3rd_order, scalar_old, scalar_new, rho_zz_old, rho_zz_new, kdiff, &
-             uhAvg, wwAvg, deriv_two, dvEdge, &
-             cellsOnEdge, edgesOnCell, nEdgesOnCell, edgesOnCell_sign, invAreaCell, &
-             scalar_tend_save, fnm, fnp, rdnw, meshScalingDel2, meshScalingDel4, &
-             bdyMaskCell, bdyMaskEdge, &
-             nAdvCellsForEdge, advCellsForEdge, adv_coefs, adv_coefs_3rd, rho_edge, qv_init, zgrid, &
-             nCellsSolve, nEdges, horiz_flux_arr, rk_step, config_time_integration_order, &
+             nAdvCellsForEdge, advCellsForEdge, adv_coefs, adv_coefs_3rd, &
+             nEdges, horiz_flux_arr, rk_step, config_time_integration_order, &
              local_advance_density)
-      end if
 
    end subroutine atm_advance_scalars
 
 
-   subroutine atm_advance_scalars_work( num_scalars_dummy, nCells, nVertLevels_dummy, dt, &
-             cellStart, cellEnd, vertexStart, vertexEnd, edgeStart, edgeEnd, &
-             cellSolveStart, cellSolveEnd, vertexSolveStart, vertexSolveEnd, edgeSolveStart, edgeSolveEnd, &
-             coef_3rd_order, scalar_old, scalar_new, rho_zz_old, rho_zz_new, kdiff, &
-             uhAvg, wwAvg, deriv_two, dvEdge, &
+   !-----------------------------------------------------------------------
+   !  routine atm_advance_scalars_work
+   !
+   !> \brief Integrate scalar equations - explicit transport plus other tendencies
+   !> \date 18 November 2014
+   !> \details
+   !>  This transport routine is similar to the original atm_advance_scalars, except
+   !>  it also advances (re-integrates) the density.  This re-integration allows the scalar
+   !>  transport routine to use a different timestep than the dry dynamics, and also makes
+   !>  possible a spatial splitting of the scalar transport integration (and density
+   !>  integration).  The current integration is, however, not spatially split.
+   !>
+   !>  WCS 18 November 2014
+   !>
+   !>  Input: s - current model state, 
+   !>             including tendencies from sources other than resolved transport.
+   !>         grid - grid metadata
+   !>
+   !>  input scalars in state are uncoupled (i.e. not mulitplied by density)
+   !>
+   !>  Output: updated uncoupled scalars (scalars in state).
+   !>  Note: scalar tendencies are also modified by this routine.
+   !>
+   !>  This routine DOES NOT apply any positive definite or monotonic renormalizations.
+   !>
+   !>  The transport scheme is from Skamarock and Gassmann MWR 2011.
+   !
+   !-----------------------------------------------------------------------
+   subroutine atm_advance_scalars_work(nCells, num_scalars, dt, &
+             edgeStart, edgeEnd, &
+             cellSolveStart, cellSolveEnd, &
+             coef_3rd_order, scalar_old, scalar_new, rho_zz_old, rho_zz_new, &
+             uhAvg, wwAvg, dvEdge, &
              cellsOnEdge, edgesOnCell, nEdgesOnCell, edgesOnCell_sign, invAreaCell, &
-             scalar_tend_save, fnm, fnp, rdnw, meshScalingDel2, meshScalingDel4, &
+             scalar_tend_save, fnm, fnp, rdnw, &
              bdyMaskCell, bdyMaskEdge, &
-             nAdvCellsForEdge, advCellsForEdge, adv_coefs, adv_coefs_3rd, rho_edge, qv_init, zgrid, &
-             nCellsSolve, nEdges, horiz_flux_arr, rk_step, config_time_integration_order, &
-             advance_density, scalar_tend, rho_zz_int)
-   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 
-   !
-   ! Integrate scalar equations - explicit transport plus other tendencies
-   !
-   !  this transport routine is similar to the original atm_advance_scalars, except it also advances
-   !  (re-integrates) the density.  This re-integration allows the scalar transport routine to use a different 
-   !  timestep than the dry dynamics, and also makes possible a spatial splitting of the scalar transport integration
-   !  (and density integration).  The current integration is, however, not spatially split.
-   !
-   !  WCS 18 November 2014
-   !-----------------------
-   ! Input: s - current model state, 
-   !            including tendencies from sources other than resolved transport.
-   !        grid - grid metadata
-   !
-   ! input scalars in state are uncoupled (i.e. not mulitplied by density)
-   ! 
-   ! Output: updated uncoupled scalars (scalars in state).
-   ! Note: scalar tendencies are also modified by this routine.
-   !
-   ! This routine DOES NOT apply any positive definite or monotonic renormalizations.
-   !
-   ! The transport scheme is from Skamarock and Gassmann MWR 2011.
-   !
-   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 
+             nAdvCellsForEdge, advCellsForEdge, adv_coefs, adv_coefs_3rd, &
+             nEdges, horiz_flux_arr, rk_step, config_time_integration_order, &
+             advance_density)
 
-      use mpas_atm_dimensions
+      use mpas_atm_dimensions, only : nVertLevels
 
       implicit none
 
-      integer, intent(in) :: num_scalars_dummy ! for allocating stack variables
       integer, intent(in) :: nCells           ! for allocating stack variables
-      integer, intent(in) :: nVertLevels_dummy ! for allocating stack variables
+      integer, intent(in) :: nEdges            ! for allocating stack variables
+      integer, intent(in) :: num_scalars
       real (kind=RKIND), intent(in) :: dt
-      integer, intent(in) :: cellStart, cellEnd, vertexStart, vertexEnd, edgeStart, edgeEnd
-      integer, intent(in) :: cellSolveStart, cellSolveEnd, vertexSolveStart, vertexSolveEnd, edgeSolveStart, edgeSolveEnd
+      integer, intent(in) :: edgeStart, edgeEnd
+      integer, intent(in) :: cellSolveStart, cellSolveEnd
       integer, intent(in) :: rk_step, config_time_integration_order
       logical, intent(in) :: advance_density
       real (kind=RKIND), dimension(:,:,:), intent(in) :: scalar_old
       real (kind=RKIND), dimension(:,:,:), intent(inout) :: scalar_new
       real (kind=RKIND), dimension(num_scalars,nVertLevels,nCells+1), intent(inout) :: scalar_tend_save
-      real (kind=RKIND), dimension(:,:,:), intent(in) :: deriv_two
       real (kind=RKIND), dimension(:,:), intent(in) :: rho_zz_old
-      real (kind=RKIND), dimension(:,:), intent(in) :: uhAvg, wwAvg, rho_edge, zgrid, rho_zz_new, kdiff
-      real (kind=RKIND), dimension(:), intent(in) :: dvEdge, qv_init
+      real (kind=RKIND), dimension(:,:), intent(in) :: uhAvg, wwAvg, rho_zz_new
+      real (kind=RKIND), dimension(:), intent(in) :: dvEdge
       integer, dimension(:,:), intent(in) :: cellsOnEdge
       integer, dimension(:,:), intent(in) :: advCellsForEdge, edgesOnCell
       integer, dimension(:), intent(in) :: nAdvCellsForEdge, nEdgesOnCell
       real (kind=RKIND), dimension(:,:), intent(in) :: adv_coefs, adv_coefs_3rd, edgesOnCell_sign
-      real (kind=RKIND), dimension(:), intent(in) :: fnm, fnp, rdnw, meshScalingDel2, meshScalingDel4
+      real (kind=RKIND), dimension(:), intent(in) :: fnm, fnp, rdnw
       real (kind=RKIND), intent(in) :: coef_3rd_order
       real (kind=RKIND), dimension(num_scalars,nVertLevels,nEdges+1), intent(inout) :: horiz_flux_arr
-      real (kind=RKIND), dimension(num_scalars,nVertLevels,nCells+1), intent(inout), optional :: scalar_tend
-      real (kind=RKIND), dimension(nVertLevels,nCells+1), intent(inout), optional :: rho_zz_int
       real (kind=RKIND), dimension(:), intent(in) :: invAreaCell
       integer, dimension(:), intent(in) :: bdyMaskCell, bdyMaskEdge ! regional_MPAS addition
-      integer, intent(in) :: nCellsSolve, nEdges
 
       integer :: i, j, iCell, iAdvCell, iEdge, k, iScalar, cell1, cell2
       real (kind=RKIND) :: rho_zz_new_inv
@@ -3335,7 +2948,6 @@ module atm_time_integration
       !
       ! Runge Kutta integration, so we compute fluxes from scalar_new values, update starts from scalar_old
       !
-      !  horizontal flux divergence, accumulate in scalar_tend
 
 
       !  horiz_flux_arr stores the value of the scalar at the edge.
@@ -3506,44 +3118,47 @@ module atm_time_integration
    end subroutine atm_advance_scalars_work
 
 
-   subroutine atm_advance_scalars_mono(block, tend, state, diag, mesh, configs, nCells, nEdges, nVertLevels_dummy, dt, &
-                                   cellStart, cellEnd, vertexStart, vertexEnd, edgeStart, edgeEnd, &
-                                   cellSolveStart, cellSolveEnd, vertexSolveStart, vertexSolveEnd, edgeSolveStart, edgeSolveEnd, &
-                                   scalar_old, scalar_new, s_max, s_min, wdtn, scale_arr, flux_arr, &
-                                   flux_upwind_tmp, flux_tmp, advance_density, rho_zz_int)
-   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 
+   !-----------------------------------------------------------------------
+   !  routine atm_advance_scalars_mono
    !
-   ! Integrate scalar equations - transport plus other tendencies
+   !> \brief Integrate scalar equations - transport plus other tendencies
+   !> \date 18 November 2014
+   !> \details
+   !>  This routine is a wrapper for atm_advance_scalars_mono_work and is primarily
+   !>  intended to allow pointers to fields to be dereferenced through the call
+   !>  to the work routine.
    !
-   !  wrapper routine for atm_advance_scalars_mono_work
-   !
-   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 
-
-      use mpas_atm_dimensions
+   !-----------------------------------------------------------------------
+   subroutine atm_advance_scalars_mono(field_name, block, tend, state, diag, mesh, halo_scratch, configs, dt, &
+                                       cellStart, cellEnd, edgeStart, edgeEnd, &
+                                       cellSolveStart, cellSolveEnd, &
+                                       scalar_old, scalar_new, s_max, s_min, wdtn, flux_arr, &
+                                       flux_upwind_tmp, flux_tmp, exchange_halo_group, advance_density, rho_zz_int)
 
       implicit none
 
+      ! Arguments
+      character(len=*), intent(in) :: field_name
       type (block_type), intent(inout), target :: block
       type (mpas_pool_type), intent(in)    :: tend
       type (mpas_pool_type), intent(inout) :: state
       type (mpas_pool_type), intent(in)    :: diag
       type (mpas_pool_type), intent(in)    :: mesh
+      type (mpas_pool_type), intent(in)    :: halo_scratch
       type (mpas_pool_type), intent(in)    :: configs
-      integer, intent(in)                  :: nCells           ! for allocating stack variables
-      integer, intent(in)                  :: nEdges           ! for allocating stack variables
-      integer, intent(in)                  :: nVertLevels_dummy      ! for allocating stack variables
       real (kind=RKIND), intent(in)        :: dt
-      integer, intent(in) :: cellStart, cellEnd, vertexStart, vertexEnd, edgeStart, edgeEnd
-      integer, intent(in) :: cellSolveStart, cellSolveEnd, vertexSolveStart, vertexSolveEnd, edgeSolveStart, edgeSolveEnd
-      real (kind=RKIND), dimension(nVertLevels,nCells+1), intent(inout) :: scalar_old, scalar_new
-      real (kind=RKIND), dimension(nVertLevels,nCells+1), intent(inout) :: s_max, s_min
-      real (kind=RKIND), dimension(nVertLevels+1,nCells+1), intent(inout) :: wdtn
-      real (kind=RKIND), dimension(nVertLevels,2,nCells+1), intent(inout) :: scale_arr
-      real (kind=RKIND), dimension(nVertLevels,nEdges+1), intent(inout) :: flux_arr
-      real (kind=RKIND), dimension(nVertLevels,nEdges+1), intent(inout) :: flux_upwind_tmp, flux_tmp
+      integer, intent(in) :: cellStart, cellEnd, edgeStart, edgeEnd
+      integer, intent(in) :: cellSolveStart, cellSolveEnd
+      real (kind=RKIND), dimension(:,:), intent(inout) :: scalar_old, scalar_new
+      real (kind=RKIND), dimension(:,:), intent(inout) :: s_max, s_min
+      real (kind=RKIND), dimension(:,:), intent(inout) :: wdtn
+      real (kind=RKIND), dimension(:,:), intent(inout) :: flux_arr
+      real (kind=RKIND), dimension(:,:), intent(inout) :: flux_upwind_tmp, flux_tmp
+      procedure (halo_exchange_routine) :: exchange_halo_group
       logical, intent(in), optional :: advance_density
-      real (kind=RKIND), dimension(nVertLevels,nCells+1), intent(inout), optional :: rho_zz_int
+      real (kind=RKIND), dimension(:,:), intent(inout), optional :: rho_zz_int
 
+      ! Local variables
       real (kind=RKIND), dimension(:,:,:), pointer :: scalar_tend
       real (kind=RKIND), dimension(:,:), pointer :: uhAvg, rho_zz_old, rho_zz_new, wwAvg
       real (kind=RKIND), dimension(:), pointer :: dvEdge, invAreaCell
@@ -3557,25 +3172,35 @@ module atm_time_integration
 
       integer, dimension(:), pointer :: bdyMaskCell, bdyMaskEdge  ! regional_MPAS addition
 
+      integer, pointer :: nCells
+      integer, pointer :: nEdges
       integer, pointer :: nCellsSolve
+      integer, pointer :: num_scalars
 
       real (kind=RKIND), dimension(:), pointer :: fnm, fnp, rdnw
       integer, dimension(:), pointer :: nEdgesOnCell
       real (kind=RKIND), pointer :: coef_3rd_order
 
+      type (field3DReal), pointer :: scale
+      real (kind=RKIND), dimension(:,:,:), pointer :: scale_arr
+
+
       call mpas_pool_get_config(configs, 'config_coef_3rd_order', coef_3rd_order)
 
+      call mpas_pool_get_dimension(mesh, 'nCells', nCells)
+      call mpas_pool_get_dimension(mesh, 'nEdges', nEdges)
       call mpas_pool_get_dimension(mesh, 'nCellsSolve', nCellsSolve)
+      call mpas_pool_get_dimension(state, 'num_'//trim(field_name), num_scalars)
 
       call mpas_pool_get_array(diag, 'ruAvg', uhAvg)
       call mpas_pool_get_array(diag, 'wwAvg', wwAvg)
 
-      call mpas_pool_get_array(tend, 'scalars_tend', scalar_tend)
+      call mpas_pool_get_array(tend, trim(field_name)//'_tend', scalar_tend)
 
       call mpas_pool_get_array(state, 'rho_zz', rho_zz_old, 1)
       call mpas_pool_get_array(state, 'rho_zz', rho_zz_new, 2)
-      call mpas_pool_get_array(state, 'scalars', scalars_old, 1)
-      call mpas_pool_get_array(state, 'scalars', scalars_new, 2)
+      call mpas_pool_get_array(state, trim(field_name), scalars_old, 1)
+      call mpas_pool_get_array(state, trim(field_name), scalars_new, 2)
 
       call mpas_pool_get_array(mesh, 'invAreaCell', invAreaCell)
       call mpas_pool_get_array(mesh, 'dvEdge', dvEdge)
@@ -3595,60 +3220,70 @@ module atm_time_integration
       call mpas_pool_get_array(mesh, 'bdyMaskCell', bdyMaskCell)  ! MPAS_regional addition
       call mpas_pool_get_array(mesh, 'bdyMaskEdge', bdyMaskEdge)  ! MPAS_regional addition
 
-      call atm_advance_scalars_mono_work(block, state, nCells, nEdges, nVertLevels, dt, &
-                                   cellStart, cellEnd, vertexStart, vertexEnd, edgeStart, edgeEnd, &
-                                   cellSolveStart, cellSolveEnd, vertexSolveStart, vertexSolveEnd, edgeSolveStart, edgeSolveEnd, &
-                                   coef_3rd_order, nCellsSolve, num_scalars, uhAvg, wwAvg, scalar_tend, rho_zz_old, &
+      call mpas_pool_get_field(halo_scratch, 'scale', scale)
+      call mpas_allocate_scratch_field(scale)
+      call mpas_pool_get_array(halo_scratch, 'scale', scale_arr)
+
+      call atm_advance_scalars_mono_work(block, state, nCells, nEdges, num_scalars, dt, &
+                                   cellStart, cellEnd, edgeStart, edgeEnd, &
+                                   cellSolveStart, cellSolveEnd, &
+                                   coef_3rd_order, nCellsSolve, uhAvg, wwAvg, scalar_tend, rho_zz_old, &
                                    rho_zz_new, scalars_old, scalars_new, invAreaCell, dvEdge, cellsOnEdge, cellsOnCell, &
                                    edgesOnCell, edgesOnCell_sign, nEdgesOnCell, fnm, fnp, rdnw, nAdvCellsForEdge, &
                                    advCellsForEdge, adv_coefs, adv_coefs_3rd, scalar_old, scalar_new, s_max, s_min, &
                                    wdtn, scale_arr, flux_arr, flux_upwind_tmp, flux_tmp, &
                                    bdyMaskCell, bdyMaskEdge, &
-                                   advance_density, rho_zz_int)
+                                   exchange_halo_group, advance_density, rho_zz_int)
+
+      call mpas_deallocate_scratch_field(scale)
 
    end subroutine atm_advance_scalars_mono
 
 
-   subroutine atm_advance_scalars_mono_work(block, state, nCells, nEdges, nVertLevels_dummy, dt, &
-                                   cellStart, cellEnd, vertexStart, vertexEnd, edgeStart, edgeEnd, &
-                                   cellSolveStart, cellSolveEnd, vertexSolveStart, vertexSolveEnd, edgeSolveStart, edgeSolveEnd, &
-                                   coef_3rd_order, nCellsSolve, num_scalars_dummy, uhAvg, wwAvg, scalar_tend, rho_zz_old, &
+   !-----------------------------------------------------------------------
+   !  routine atm_advance_scalars_mono_work
+   !
+   !> \brief Integrate scalar equations - transport plus other tendencies
+   !> \date 18 November 2014
+   !> \details
+   !>  This transport routine is similar to the original atm_advance_scalars_mono_work,
+   !>  except it also advances (re-integrates) the density.  This re-integration allows
+   !>  the scalar transport routine to use a different timestep than the dry dynamics,
+   !>  and also makes possible a spatial splitting of the scalar transport integration
+   !>  (and density integration).  The current integration is, however, not spatially split.
+   !>
+   !>  WCS 18 November 2014
+   !>
+   !>
+   !>  Input: s - current model state, 
+   !>             including tendencies from sources other than resolved transport.
+   !>         grid - grid metadata
+   !>
+   !>  input scalars in state are uncoupled (i.e. not mulitplied by density)
+   !>
+   !>  Output: updated uncoupled scalars (scalars in s_new).
+   !>  Note: scalar tendencies are also modified by this routine.
+   !>
+   !>  This routine DOES apply positive definite or monotonic renormalizations.
+   !>
+   !>  The transport scheme is from Skamarock and Gassmann MWR 2011.
+   !>
+   !>  The positive-definite or monotonic renormalization is from Zalesak JCP 1979
+   !>  as used in the RK3 scheme as described in Wang et al MWR 2009
+   !
+   !-----------------------------------------------------------------------
+   subroutine atm_advance_scalars_mono_work(block, state, nCells, nEdges, num_scalars, dt, &
+                                   cellStart, cellEnd, edgeStart, edgeEnd, &
+                                   cellSolveStart, cellSolveEnd, &
+                                   coef_3rd_order, nCellsSolve, uhAvg, wwAvg, scalar_tend, rho_zz_old, &
                                    rho_zz_new, scalars_old, scalars_new, invAreaCell, dvEdge, cellsOnEdge, cellsOnCell, &
                                    edgesOnCell, edgesOnCell_sign, nEdgesOnCell, fnm, fnp, rdnw, nAdvCellsForEdge, &
                                    advCellsForEdge, adv_coefs, adv_coefs_3rd, scalar_old, scalar_new, s_max, s_min, &
                                    wdtn, scale_arr, flux_arr, flux_upwind_tmp, flux_tmp, &
                                    bdyMaskCell, bdyMaskEdge, &
-                                   advance_density, rho_zz_int)
-   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 
-   !
-   ! Integrate scalar equations - transport plus other tendencies
-   !
-   !  this transport routine is similar to the original atm_advance_scalars_mono_work, except it also advances
-   !  (re-integrates) the density.  This re-integration allows the scalar transport routine to use a different 
-   !  timestep than the dry dynamics, and also makes possible a spatial splitting of the scalar transport integration
-   !  (and density integration).  The current integration is, however, not spatially split.
-   !
-   !  WCS 18 November 2014
-   !-----------------------
-   !
-   ! Input: s - current model state, 
-   !            including tendencies from sources other than resolved transport.
-   !        grid - grid metadata
-   !
-   ! input scalars in state are uncoupled (i.e. not mulitplied by density)
-   ! 
-   ! Output: updated uncoupled scalars (scalars in s_new).
-   ! Note: scalar tendencies are also modified by this routine.
-   !
-   ! This routine DOES apply positive definite or monotonic renormalizations.
-   !
-   ! The transport scheme is from Skamarock and Gassmann MWR 2011.
-   !
-   ! The positive-definite or monotonic renormalization is from Zalesak JCP 1979
-   !   as used in the RK3 scheme as described in Wang et al MWR 2009
-   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 
+                                   exchange_halo_group, advance_density, rho_zz_int)
 
-      use mpas_atm_dimensions
+      use mpas_atm_dimensions, only : nVertLevels
 
       implicit none
 
@@ -3656,10 +3291,11 @@ module atm_time_integration
       type (mpas_pool_type), intent(inout) :: state
       integer, intent(in)                  :: nCells           ! for allocating stack variables
       integer, intent(in)                  :: nEdges           ! for allocating stack variables
-      integer, intent(in)                  :: nVertLevels_dummy ! for allocating stack variables
+      integer, intent(in)                  :: num_scalars
       real (kind=RKIND), intent(in)        :: dt
-      integer, intent(in) :: cellStart, cellEnd, vertexStart, vertexEnd, edgeStart, edgeEnd
-      integer, intent(in) :: cellSolveStart, cellSolveEnd, vertexSolveStart, vertexSolveEnd, edgeSolveStart, edgeSolveEnd
+      integer, intent(in) :: cellStart, cellEnd, edgeStart, edgeEnd
+      integer, intent(in) :: cellSolveStart, cellSolveEnd
+      procedure (halo_exchange_routine) :: exchange_halo_group
       logical, intent(in), optional :: advance_density
       real (kind=RKIND), dimension(nVertLevels,nCells+1), intent(inout), optional :: rho_zz_int
 
@@ -3686,19 +3322,17 @@ module atm_time_integration
       real (kind=RKIND), dimension(nVertLevels,nCells+1), intent(inout) :: scalar_old, scalar_new
       real (kind=RKIND), dimension(nVertLevels,nCells+1), intent(inout) :: s_max, s_min
       real (kind=RKIND), dimension(nVertLevels+1,nCells+1), intent(inout) :: wdtn
-      real (kind=RKIND), dimension(nVertLevels,2,nCells+1), intent(inout), target :: scale_arr
+      real (kind=RKIND), dimension(nVertLevels,2,nCells+1), intent(inout) :: scale_arr
       real (kind=RKIND), dimension(nVertLevels,nEdges+1), intent(inout) :: flux_arr
       real (kind=RKIND), dimension(nVertLevels,nEdges+1), intent(inout) :: flux_upwind_tmp, flux_tmp
       type (field3DReal), pointer :: scalars_old_field
 
-      type (field3DReal), pointer :: tempField
-      type (field3DReal), target :: tempFieldTarget
-
-
       integer, parameter :: SCALE_IN = 1, SCALE_OUT = 2
 
-      integer, intent(in) :: nCellsSolve, num_scalars_dummy
+      integer, intent(in) :: nCellsSolve
+#ifdef DEBUG_TRANSPORT
       integer :: icellmax, kmax
+#endif
 
       real (kind=RKIND), dimension(nVertLevels), intent(in) :: fnm, fnp, rdnw
       integer, dimension(:), intent(in) :: nEdgesOnCell
@@ -3707,7 +3341,10 @@ module atm_time_integration
 
       real (kind=RKIND), dimension(nVertLevels) :: flux_upwind_arr
       real (kind=RKIND) :: flux3, flux4, flux_upwind
-      real (kind=RKIND) :: q_im2, q_im1, q_i, q_ip1, ua, coef3, scmin,scmax
+      real (kind=RKIND) :: q_im2, q_im1, q_i, q_ip1, ua, coef3
+#ifdef DEBUG_TRANSPORT
+      real (kind=RKIND) :: scmin,scmax
+#endif
       real (kind=RKIND) :: scale_factor
 
       logical :: local_advance_density
@@ -3754,7 +3391,7 @@ module atm_time_integration
 
 !$OMP BARRIER
 !$OMP MASTER
-      call mpas_dmpar_exch_halo_field(scalars_old_field)
+      call exchange_halo_group(block % domain, 'dynamics:scalars_old')
 !$OMP END MASTER
 !$OMP BARRIER
 
@@ -3769,11 +3406,8 @@ module atm_time_integration
          end if
 
          !  begin with update of density
-         do iCell=cellStart,cellEnd
-            rho_zz_int(:,iCell) = 0.0
-         end do
-!$OMP BARRIER
          do iCell=cellSolveStart,cellSolveEnd
+            rho_zz_int(:,iCell) = 0.0
             do i=1,nEdgesOnCell(iCell)
                iEdge = edgesOnCell(i,iCell)
    
@@ -4081,21 +3715,7 @@ module atm_time_integration
          !
 !$OMP BARRIER
 !$OMP MASTER
-         tempField => tempFieldTarget
-
-         tempField % block => block
-         tempField % dimSizes(1) = nVertLevels
-         tempField % dimSizes(2) = 2
-         tempField % dimSizes(3) = nCells
-         tempField % sendList => block % parinfo % cellsToSend
-         tempField % recvList => block % parinfo % cellsToRecv
-         tempField % copyList => block % parinfo % cellsToCopy
-         tempField % prev => null()
-         tempField % next => null()
-         tempField % isActive = .true.
-
-         tempField % array => scale_arr
-         call mpas_dmpar_exch_halo_field(tempField, (/ 1 /))
+         call exchange_halo_group(block % domain, 'dynamics:scale')
 !$OMP END MASTER
 !$OMP BARRIER
 
@@ -4236,7 +3856,7 @@ module atm_time_integration
       ! Dummy arguments
       !
       type (mpas_pool_type), intent(inout) :: tend
-      type (mpas_pool_type), intent(inout) :: tend_physics
+      type (mpas_pool_type), pointer :: tend_physics
       type (mpas_pool_type), intent(in) :: state
       type (mpas_pool_type), intent(in) :: diag
       type (mpas_pool_type), intent(in) :: mesh
@@ -4266,9 +3886,7 @@ module atm_time_integration
 
       real (kind=RKIND), dimension(:,:), pointer :: rr_save
 
-
-      real (kind=RKIND), dimension(:,:), pointer :: tend_rtheta_adv  ! needed for Tiedtke convection scheme
-      real (kind=RKIND), dimension(:,:), pointer :: rthdynten  ! needed for Grell-Freitas convection scheme
+      real (kind=RKIND), dimension(:,:), pointer :: rthdynten
 
       real (kind=RKIND), dimension(:,:,:), pointer :: scalars
 
@@ -4309,9 +3927,7 @@ module atm_time_integration
       real (kind=RKIND), pointer :: config_mpas_cam_coef
       logical, pointer :: config_rayleigh_damp_u
       real (kind=RKIND), pointer :: config_rayleigh_damp_u_timescale_days
-      integer, pointer :: config_number_rayleigh_damp_u_levels
-
-      logical :: inactive_rthdynten
+      integer, pointer :: config_number_rayleigh_damp_u_levels, config_number_cam_damping_levels
 
 
       call mpas_pool_get_config(mesh, 'sphere_radius', r_earth)
@@ -4332,6 +3948,7 @@ module atm_time_integration
       call mpas_pool_get_config(configs, 'config_rayleigh_damp_u', config_rayleigh_damp_u)
       call mpas_pool_get_config(configs, 'config_rayleigh_damp_u_timescale_days', config_rayleigh_damp_u_timescale_days)
       call mpas_pool_get_config(configs, 'config_number_rayleigh_damp_u_levels', config_number_rayleigh_damp_u_levels)
+      call mpas_pool_get_config(configs, 'config_number_cam_damping_levels', config_number_cam_damping_levels)
 
       call mpas_pool_get_array(state, 'rho_zz', rho_zz, 2)
       call mpas_pool_get_array(state, 'u', u, 2)
@@ -4361,7 +3978,6 @@ module atm_time_integration
       call mpas_pool_get_array(diag, 'h_divergence', h_divergence)
       call mpas_pool_get_array(diag, 'exner', exner)
 
-      call mpas_pool_get_array(diag, 'tend_rtheta_adv', tend_rtheta_adv)
       call mpas_pool_get_array(tend_physics, 'rthdynten', rthdynten)
 
       call mpas_pool_get_array(mesh, 'weightsOnEdge', weightsOnEdge)
@@ -4439,18 +4055,6 @@ module atm_time_integration
       call mpas_pool_get_array(mesh, 'cf2', cf2)
       call mpas_pool_get_array(mesh, 'cf3', cf3)
 
-      !
-      ! rthdynten is currently associated with packages, and if those packages
-      ! are not active at run-time, we need to produce an rthdynten array for
-      ! use in the atm_compute_dyn_tend_work routine
-      !
-      inactive_rthdynten = .false.
-      if (.not. associated(rthdynten)) then
-         allocate(rthdynten(nVertLevels,nCells+1))
-         rthdynten(:,nCells+1) = 0.0_RKIND
-         inactive_rthdynten = .true.
-      end if
-
       call atm_compute_dyn_tend_work(nCells, nEdges, nVertices, nVertLevels, &
          nCellsSolve, nEdgesSolve, vertexDegree, maxEdges, maxEdges2, num_scalars, moist_start, moist_end, &
          fEdge, dvEdge, dcEdge, invDcEdge, invDvEdge, invAreaCell, invAreaTriangle, meshScalingDel2, meshScalingDel4, &
@@ -4466,14 +4070,11 @@ module atm_time_integration
          config_h_mom_eddy_visc2, config_v_mom_eddy_visc2, config_h_theta_eddy_visc2, config_v_theta_eddy_visc2, &
          config_h_theta_eddy_visc4, config_h_mom_eddy_visc4, config_visc4_2dsmag, config_len_disp, rk_step, dt, &
          config_mpas_cam_coef, &
-         config_rayleigh_damp_u, config_rayleigh_damp_u_timescale_days, config_number_rayleigh_damp_u_levels, &
-         tend_rtheta_adv, rthdynten, &
+         config_rayleigh_damp_u, config_rayleigh_damp_u_timescale_days, & 
+         config_number_rayleigh_damp_u_levels, config_number_cam_damping_levels, &
+         rthdynten, &
          cellStart, cellEnd, vertexStart, vertexEnd, edgeStart, edgeEnd, &
          cellSolveStart, cellSolveEnd, vertexSolveStart, vertexSolveEnd, edgeSolveStart, edgeSolveEnd)
-
-      if (inactive_rthdynten) then
-         deallocate(rthdynten)
-      end if
 
    end subroutine atm_compute_dyn_tend
 
@@ -4493,8 +4094,9 @@ module atm_time_integration
       config_h_mom_eddy_visc2, config_v_mom_eddy_visc2, config_h_theta_eddy_visc2, config_v_theta_eddy_visc2, &
       config_h_theta_eddy_visc4, config_h_mom_eddy_visc4, config_visc4_2dsmag, config_len_disp, rk_step, dt, &
       config_mpas_cam_coef, &
-      config_rayleigh_damp_u, config_rayleigh_damp_u_timescale_days, config_number_rayleigh_damp_u_levels, &
-      tend_rtheta_adv, rthdynten, &
+      config_rayleigh_damp_u, config_rayleigh_damp_u_timescale_days, &
+      config_number_rayleigh_damp_u_levels, config_number_cam_damping_levels, &
+      rthdynten, &
       cellStart, cellEnd, vertexStart, vertexEnd, edgeStart, edgeEnd, &
       cellSolveStart, cellSolveEnd, vertexSolveStart, vertexSolveEnd, edgeSolveStart, edgeSolveEnd)
 
@@ -4617,9 +4219,8 @@ module atm_time_integration
 
       logical, intent(in) :: config_rayleigh_damp_u
       real (kind=RKIND), intent(in) :: config_rayleigh_damp_u_timescale_days
-      integer, intent(in) :: config_number_rayleigh_damp_u_levels
+      integer, intent(in) :: config_number_rayleigh_damp_u_levels, config_number_cam_damping_levels
 
-      real (kind=RKIND), dimension(nVertLevels,nCells+1) :: tend_rtheta_adv
       real (kind=RKIND), dimension(nVertLevels,nCells+1) :: rthdynten
 
       integer, intent(in) :: cellStart, cellEnd, vertexStart, vertexEnd, edgeStart, edgeEnd
@@ -4645,7 +4246,7 @@ module atm_time_integration
       real (kind=RKIND) :: h_theta_eddy_visc4, v_theta_eddy_visc2
       real (kind=RKIND) :: u_diffusion
 
-      real (kind=RKIND) :: kdiffu, z1, z2, z3, z4, zm, z0, zp, rayleigh_coef_inverse
+      real (kind=RKIND) :: kdiffu, z1, z2, z3, z4, zm, z0, zp, rayleigh_coef_inverse, visc2cam
 
       real (kind=RKIND), dimension( nVertLevels ) :: rayleigh_damp_coef
 
@@ -4658,7 +4259,6 @@ module atm_time_integration
       flux3(q_im2, q_im1, q_i, q_ip1, ua, coef3) =              &
                 flux4(q_im2, q_im1, q_i, q_ip1, ua) +           &
                 coef3*abs(ua)*((q_ip1 - q_im2)-3.*(q_i-q_im1))/12.0
-
 
       prandtl_inv = 1.0_RKIND / prandtl
       invDt = 1.0_RKIND / dt
@@ -4709,12 +4309,14 @@ module atm_time_integration
 
             do iCell = cellStart,cellEnd
                !
-               ! 2nd-order filter for top absorbing layer as in CAM-SE :  WCS 10 May 2017
+               ! 2nd-order filter for top absorbing layer similar to that in CAM-SE :  WCS 10 May 2017, modified 7 April 2023
                ! From MPAS-CAM V4.0 code, with addition to config-specified coefficient (V4.0_coef = 0.2; SE_coef = 1.0)
                !
-               kdiff(nVertLevels-2,iCell) = max(kdiff(nVertLevels-2,iCell),    2.0833*config_len_disp*config_mpas_cam_coef)
-               kdiff(nVertLevels-1,iCell) = max(kdiff(nVertLevels-1,iCell),2.0*2.0833*config_len_disp*config_mpas_cam_coef)
-               kdiff(nVertLevels  ,iCell) = max(kdiff(nVertLevels  ,iCell),4.0*2.0833*config_len_disp*config_mpas_cam_coef)
+               do k = nVertLevels-config_number_cam_damping_levels + 1, nVertLevels
+                  visc2cam = 4.0*2.0833*config_len_disp*config_mpas_cam_coef
+                  visc2cam = visc2cam*(1.0-real(nVertLevels-k)/real(config_number_cam_damping_levels))
+                  kdiff(k  ,iCell) = max(kdiff(nVertLevels  ,iCell),visc2cam)
+               end do
             end do
 
          end if
@@ -5347,8 +4949,7 @@ module atm_time_integration
 !DIR$ IVDEP
          do k=1,nVertLevels
             tend_theta(k,iCell) = tend_theta(k,iCell)*invAreaCell(iCell) -rdzw(k)*(wdtz(k+1)-wdtz(k))
-            tend_rtheta_adv(k,iCell) = tend_theta(k,iCell)   !  this is for the Tiedke scheme
-            rthdynten(k,iCell) = tend_theta(k,iCell)/rho_zz(k,iCell)  !  this is for the Grell-Freitas scheme
+            rthdynten(k,iCell)  = (tend_theta(k,iCell)-tend_rho(k,iCell)*theta_m(k,iCell))/rho_zz(k,iCell)
             tend_theta(k,iCell) = tend_theta(k,iCell) + rho_zz(k,iCell)*rt_diabatic_tend(k,iCell)
          end do
       end do
@@ -6201,7 +5802,7 @@ module atm_time_integration
 
 !-------------------------------------------------------------------------
 
-   subroutine atm_bdy_adjust_dynamics_relaxzone_tend( tend, state, diag, mesh, nVertLevels, dt,                                             &
+   subroutine atm_bdy_adjust_dynamics_relaxzone_tend( config, tend, state, diag, mesh, nVertLevels, dt,                                             &
                                                       ru_driving_values, rt_driving_values, rho_driving_values,                                     &
                                                       cellStart, cellEnd, edgeStart, edgeEnd,                               &
                                                       cellSolveStart, cellSolveEnd, edgeSolveStart, edgeSolveEnd )
@@ -6214,6 +5815,7 @@ module atm_time_integration
       !
       !  WCS Fall 2016
 
+      type (mpas_pool_type), intent(in) :: config
       type (mpas_pool_type), intent(in) :: state
       type (mpas_pool_type), intent(inout) :: tend
       type (mpas_pool_type), intent(in) :: diag
@@ -6235,6 +5837,7 @@ module atm_time_integration
       
 
       real (kind=RKIND) :: edge_sign, laplacian_filter_coef, rayleigh_damping_coef, r_dc, r_dv, invArea
+      real (kind=RKIND), pointer :: divdamp_coef
       real (kind=RKIND), dimension(nVertLevels) :: divergence1, divergence2, vorticity1, vorticity2      
       integer :: iCell, iEdge, i, k, cell1, cell2, iEdge_vort, iEdge_div
       integer :: vertex1, vertex2, iVertex
@@ -6269,6 +5872,8 @@ module atm_time_integration
       call mpas_pool_get_array(mesh, 'edgesOnVertex', edgesOnVertex)
       call mpas_pool_get_array(mesh, 'nEdgesOnCell',nEdgesOnCell)
       call mpas_pool_get_array(mesh, 'verticesOnEdge', verticesOnEdge)
+
+      call mpas_pool_get_config(config, 'config_relax_zone_divdamp_coef', divdamp_coef)
       
       !  First, Rayleigh damping terms for ru, rtheta_m and rho_zz
 
@@ -6380,8 +5985,9 @@ module atm_time_integration
             ! Compute diffusion, computed as \nabla divergence - k \times \nabla vorticity
             !
              do k=1,nVertLevels
-                tend_ru(k,iEdge) = tend_ru(k,iEdge) + laplacian_filter_coef * (  ( divergence2(k) - divergence1(k) ) * r_dc  &
-                                                                                -( vorticity2(k)  - vorticity1(k)  ) * r_dv )
+                tend_ru(k,iEdge) = tend_ru(k,iEdge) + laplacian_filter_coef &
+                                                      * (divdamp_coef * (divergence2(k) - divergence1(k)) * r_dc  &
+                                                                       -(vorticity2(k)  - vorticity1(k))  * r_dv)
              end do
 
           end if  !  end test for relaxation-zone edge
@@ -6686,8 +6292,6 @@ module atm_time_integration
        logical, pointer :: config_print_detailed_minmax_vel
        logical, pointer :: config_print_global_minmax_sca
 
-       type (block_type), pointer :: block
-
        integer :: iCell, k, iEdge, iScalar
        integer, pointer :: num_scalars, nCellsSolve, nEdgesSolve, nVertLevels
 
@@ -6714,273 +6318,262 @@ module atm_time_integration
        real (kind=RKIND), dimension(:,:), pointer :: u, v, uReconstructZonal, uReconstructMeridional, uReconstructX, uReconstructY, uReconstructZ
        real (kind=RKIND), dimension(:,:,:), pointer :: scalars, scalars_1, scalars_2
 
-       call mpas_pool_get_config(domain % blocklist % configs, 'config_print_global_minmax_vel', config_print_global_minmax_vel)
-       call mpas_pool_get_config(domain % blocklist % configs, 'config_print_detailed_minmax_vel', config_print_detailed_minmax_vel)
-       call mpas_pool_get_config(domain % blocklist % configs, 'config_print_global_minmax_sca', config_print_global_minmax_sca)
+       call mpas_pool_get_config(block % configs, 'config_print_global_minmax_vel', config_print_global_minmax_vel)
+       call mpas_pool_get_config(block % configs, 'config_print_detailed_minmax_vel', config_print_detailed_minmax_vel)
+       call mpas_pool_get_config(block % configs, 'config_print_global_minmax_sca', config_print_global_minmax_sca)
 
       if (config_print_detailed_minmax_vel) then
          call mpas_log_write('')
 
-         block => domain % blocklist
-         do while (associated(block))
-            call mpas_pool_get_subpool(block % structs, 'state', state)
-            call mpas_pool_get_subpool(block % structs, 'diag', diag)
-            call mpas_pool_get_subpool(block % structs, 'mesh', mesh)
+         call mpas_pool_get_subpool(block % structs, 'state', state)
+         call mpas_pool_get_subpool(block % structs, 'diag', diag)
+         call mpas_pool_get_subpool(block % structs, 'mesh', mesh)
 
-            call mpas_pool_get_array(state, 'w', w, 2)
-            call mpas_pool_get_array(state, 'u', u, 2)
-            call mpas_pool_get_array(diag, 'v', v)
-            call mpas_pool_get_array(mesh, 'indexToCellID', indexToCellID)
-            call mpas_pool_get_array(mesh, 'latCell', latCell)
-            call mpas_pool_get_array(mesh, 'lonCell', lonCell)
-            call mpas_pool_get_array(mesh, 'latEdge', latEdge)
-            call mpas_pool_get_array(mesh, 'lonEdge', lonEdge)
-            call mpas_pool_get_dimension(state, 'nCellsSolve', nCellsSolve)
-            call mpas_pool_get_dimension(state, 'nEdgesSolve', nEdgesSolve)
-            call mpas_pool_get_dimension(state, 'nVertLevels', nVertLevels)
+         call mpas_pool_get_array(state, 'w', w, 2)
+         call mpas_pool_get_array(state, 'u', u, 2)
+         call mpas_pool_get_array(diag, 'v', v)
+         call mpas_pool_get_array(mesh, 'indexToCellID', indexToCellID)
+         call mpas_pool_get_array(mesh, 'latCell', latCell)
+         call mpas_pool_get_array(mesh, 'lonCell', lonCell)
+         call mpas_pool_get_array(mesh, 'latEdge', latEdge)
+         call mpas_pool_get_array(mesh, 'lonEdge', lonEdge)
+         call mpas_pool_get_dimension(state, 'nCellsSolve', nCellsSolve)
+         call mpas_pool_get_dimension(state, 'nEdgesSolve', nEdgesSolve)
+         call mpas_pool_get_dimension(state, 'nVertLevels', nVertLevels)
 
-            scalar_min = 1.0e20
-            indexMax = -1
-            kMax = -1
-            latMax = 0.0
-            lonMax = 0.0
-            do iCell = 1, nCellsSolve
-            do k = 1, nVertLevels
-               if (w(k,iCell) < scalar_min) then
-                  scalar_min = w(k,iCell)
-                  indexMax = iCell
-                  kMax = k
-                  latMax = latCell(iCell)
-                  lonMax = lonCell(iCell)
-               end if
-            end do
-            end do
-            localVals(1) = scalar_min
-            localVals(2) = real(indexMax,kind=RKIND)
-            localVals(3) = real(kMax,kind=RKIND)
-            localVals(4) = latMax
-            localVals(5) = lonMax
-            call mpas_dmpar_minattributes_real(domain % dminfo, scalar_min, localVals, globalVals)
-            global_scalar_min = globalVals(1)
-            indexMax_global = int(globalVals(2))
-            kMax_global = int(globalVals(3))
-            latMax_global = globalVals(4)
-            lonMax_global = globalVals(5)
-            latMax_global = latMax_global * 180.0_RKIND / pi_const
-            lonMax_global = lonMax_global * 180.0_RKIND / pi_const
-            if (lonMax_global > 180.0) then
-               lonMax_global = lonMax_global - 360.0
+         scalar_min = 1.0e20
+         indexMax = -1
+         kMax = -1
+         latMax = 0.0
+         lonMax = 0.0
+         do iCell = 1, nCellsSolve
+         do k = 1, nVertLevels
+            if (w(k,iCell) < scalar_min) then
+               scalar_min = w(k,iCell)
+               indexMax = iCell
+               kMax = k
+               latMax = latCell(iCell)
+               lonMax = lonCell(iCell)
             end if
-            ! format statement should be '(a,f9.4,a,i4,a,f7.3,a,f8.3,a)'
-            call mpas_log_write(' global min w: $r k=$i, $r lat, $r lon', intArgs=(/kMax_global/), &
-                                realArgs=(/global_scalar_min, latMax_global, lonMax_global/))
+         end do
+         end do
+         localVals(1) = scalar_min
+         localVals(2) = real(indexMax,kind=RKIND)
+         localVals(3) = real(kMax,kind=RKIND)
+         localVals(4) = latMax
+         localVals(5) = lonMax
+         call mpas_dmpar_minattributes_real(domain % dminfo, scalar_min, localVals, globalVals)
+         global_scalar_min = globalVals(1)
+         indexMax_global = int(globalVals(2))
+         kMax_global = int(globalVals(3))
+         latMax_global = globalVals(4)
+         lonMax_global = globalVals(5)
+         latMax_global = latMax_global * 180.0_RKIND / pi_const
+         lonMax_global = lonMax_global * 180.0_RKIND / pi_const
+         if (lonMax_global > 180.0) then
+            lonMax_global = lonMax_global - 360.0
+         end if
+         ! format statement should be '(a,f9.4,a,i4,a,f7.3,a,f8.3,a)'
+         call mpas_log_write(' global min w: $r k=$i, $r lat, $r lon', intArgs=(/kMax_global/), &
+                             realArgs=(/global_scalar_min, latMax_global, lonMax_global/))
 
-            scalar_max = -1.0e20
-            indexMax = -1
-            kMax = -1
-            latMax = 0.0
-            lonMax = 0.0
-            do iCell = 1, nCellsSolve
-            do k = 1, nVertLevels
-               if (w(k,iCell) > scalar_max) then
-                  scalar_max = w(k,iCell)
-                  indexMax = iCell
-                  kMax = k
-                  latMax = latCell(iCell)
-                  lonMax = lonCell(iCell)
-               end if
-            end do
-            end do
-            localVals(1) = scalar_max
-            localVals(2) = real(indexMax,kind=RKIND)
-            localVals(3) = real(kMax,kind=RKIND)
-            localVals(4) = latMax
-            localVals(5) = lonMax
-            call mpas_dmpar_maxattributes_real(domain % dminfo, scalar_max, localVals, globalVals)
-            global_scalar_max = globalVals(1)
-            indexMax_global = int(globalVals(2))
-            kMax_global = int(globalVals(3))
-            latMax_global = globalVals(4)
-            lonMax_global = globalVals(5)
-            latMax_global = latMax_global * 180.0_RKIND / pi_const
-            lonMax_global = lonMax_global * 180.0_RKIND / pi_const
-            if (lonMax_global > 180.0) then
-               lonMax_global = lonMax_global - 360.0
+         scalar_max = -1.0e20
+         indexMax = -1
+         kMax = -1
+         latMax = 0.0
+         lonMax = 0.0
+         do iCell = 1, nCellsSolve
+         do k = 1, nVertLevels
+            if (w(k,iCell) > scalar_max) then
+               scalar_max = w(k,iCell)
+               indexMax = iCell
+               kMax = k
+               latMax = latCell(iCell)
+               lonMax = lonCell(iCell)
             end if
-            ! format statement should be '(a,f9.4,a,i4,a,f7.3,a,f8.3,a)'
-            call mpas_log_write(' global max w: $r k=$i, $r lat, $r lon', intArgs=(/kMax_global/), &
-                                realArgs=(/global_scalar_max, latMax_global, lonMax_global/))
+         end do
+         end do
+         localVals(1) = scalar_max
+         localVals(2) = real(indexMax,kind=RKIND)
+         localVals(3) = real(kMax,kind=RKIND)
+         localVals(4) = latMax
+         localVals(5) = lonMax
+         call mpas_dmpar_maxattributes_real(domain % dminfo, scalar_max, localVals, globalVals)
+         global_scalar_max = globalVals(1)
+         indexMax_global = int(globalVals(2))
+         kMax_global = int(globalVals(3))
+         latMax_global = globalVals(4)
+         lonMax_global = globalVals(5)
+         latMax_global = latMax_global * 180.0_RKIND / pi_const
+         lonMax_global = lonMax_global * 180.0_RKIND / pi_const
+         if (lonMax_global > 180.0) then
+            lonMax_global = lonMax_global - 360.0
+         end if
+         ! format statement should be '(a,f9.4,a,i4,a,f7.3,a,f8.3,a)'
+         call mpas_log_write(' global max w: $r k=$i, $r lat, $r lon', intArgs=(/kMax_global/), &
+                             realArgs=(/global_scalar_max, latMax_global, lonMax_global/))
 
-            scalar_min = 1.0e20
-            indexMax = -1
-            kMax = -1
-            latMax = 0.0
-            lonMax = 0.0
-            do iEdge = 1, nEdgesSolve
-            do k = 1, nVertLevels
-               if (u(k,iEdge) < scalar_min) then
-                  scalar_min = u(k,iEdge)
-                  indexMax = iEdge
-                  kMax = k
-                  latMax = latEdge(iEdge)
-                  lonMax = lonEdge(iEdge)
-               end if
-            end do
-            end do
-            localVals(1) = scalar_min
-            localVals(2) = real(indexMax,kind=RKIND)
-            localVals(3) = real(kMax,kind=RKIND)
-            localVals(4) = latMax
-            localVals(5) = lonMax
-            call mpas_dmpar_minattributes_real(domain % dminfo, scalar_min, localVals, globalVals)
-            global_scalar_min = globalVals(1)
-            indexMax_global = int(globalVals(2))
-            kMax_global = int(globalVals(3))
-            latMax_global = globalVals(4)
-            lonMax_global = globalVals(5)
-            latMax_global = latMax_global * 180.0_RKIND / pi_const
-            lonMax_global = lonMax_global * 180.0_RKIND / pi_const
-            if (lonMax_global > 180.0) then
-               lonMax_global = lonMax_global - 360.0
+         scalar_min = 1.0e20
+         indexMax = -1
+         kMax = -1
+         latMax = 0.0
+         lonMax = 0.0
+         do iEdge = 1, nEdgesSolve
+         do k = 1, nVertLevels
+            if (u(k,iEdge) < scalar_min) then
+               scalar_min = u(k,iEdge)
+               indexMax = iEdge
+               kMax = k
+               latMax = latEdge(iEdge)
+               lonMax = lonEdge(iEdge)
             end if
-            ! format statement should be '(a,f9.4,a,i4,a,f7.3,a,f8.3,a)'
-            call mpas_log_write(' global min u: $r k=$i, $r lat, $r lon', intArgs=(/kMax_global/), &
-                                realArgs=(/global_scalar_min, latMax_global, lonMax_global/))
+         end do
+         end do
+         localVals(1) = scalar_min
+         localVals(2) = real(indexMax,kind=RKIND)
+         localVals(3) = real(kMax,kind=RKIND)
+         localVals(4) = latMax
+         localVals(5) = lonMax
+         call mpas_dmpar_minattributes_real(domain % dminfo, scalar_min, localVals, globalVals)
+         global_scalar_min = globalVals(1)
+         indexMax_global = int(globalVals(2))
+         kMax_global = int(globalVals(3))
+         latMax_global = globalVals(4)
+         lonMax_global = globalVals(5)
+         latMax_global = latMax_global * 180.0_RKIND / pi_const
+         lonMax_global = lonMax_global * 180.0_RKIND / pi_const
+         if (lonMax_global > 180.0) then
+            lonMax_global = lonMax_global - 360.0
+         end if
+         ! format statement should be '(a,f9.4,a,i4,a,f7.3,a,f8.3,a)'
+         call mpas_log_write(' global min u: $r k=$i, $r lat, $r lon', intArgs=(/kMax_global/), &
+                             realArgs=(/global_scalar_min, latMax_global, lonMax_global/))
 
-            scalar_max = -1.0e20
-            indexMax = -1
-            kMax = -1
-            latMax = 0.0
-            lonMax = 0.0
-            do iEdge = 1, nEdgesSolve
-            do k = 1, nVertLevels
-               if (u(k,iEdge) > scalar_max) then
-                  scalar_max = u(k,iEdge)
-                  indexMax = iEdge
-                  kMax = k
-                  latMax = latEdge(iEdge)
-                  lonMax = lonEdge(iEdge)
-               end if
-            end do
-            end do
-            localVals(1) = scalar_max
-            localVals(2) = real(indexMax,kind=RKIND)
-            localVals(3) = real(kMax,kind=RKIND)
-            localVals(4) = latMax
-            localVals(5) = lonMax
-            call mpas_dmpar_maxattributes_real(domain % dminfo, scalar_max, localVals, globalVals)
-            global_scalar_max = globalVals(1)
-            indexMax_global = int(globalVals(2))
-            kMax_global = int(globalVals(3))
-            latMax_global = globalVals(4)
-            lonMax_global = globalVals(5)
-            latMax_global = latMax_global * 180.0_RKIND / pi_const
-            lonMax_global = lonMax_global * 180.0_RKIND / pi_const
-            if (lonMax_global > 180.0) then
-               lonMax_global = lonMax_global - 360.0
+         scalar_max = -1.0e20
+         indexMax = -1
+         kMax = -1
+         latMax = 0.0
+         lonMax = 0.0
+         do iEdge = 1, nEdgesSolve
+         do k = 1, nVertLevels
+            if (u(k,iEdge) > scalar_max) then
+               scalar_max = u(k,iEdge)
+               indexMax = iEdge
+               kMax = k
+               latMax = latEdge(iEdge)
+               lonMax = lonEdge(iEdge)
             end if
-            ! format statement should be '(a,f9.4,a,i4,a,f7.3,a,f8.3,a)'
-            call mpas_log_write(' global max u: $r k=$i, $r lat, $r lon', intArgs=(/kMax_global/), &
-                                realArgs=(/global_scalar_max, latMax_global, lonMax_global/))
+         end do
+         end do
+         localVals(1) = scalar_max
+         localVals(2) = real(indexMax,kind=RKIND)
+         localVals(3) = real(kMax,kind=RKIND)
+         localVals(4) = latMax
+         localVals(5) = lonMax
+         call mpas_dmpar_maxattributes_real(domain % dminfo, scalar_max, localVals, globalVals)
+         global_scalar_max = globalVals(1)
+         indexMax_global = int(globalVals(2))
+         kMax_global = int(globalVals(3))
+         latMax_global = globalVals(4)
+         lonMax_global = globalVals(5)
+         latMax_global = latMax_global * 180.0_RKIND / pi_const
+         lonMax_global = lonMax_global * 180.0_RKIND / pi_const
+         if (lonMax_global > 180.0) then
+            lonMax_global = lonMax_global - 360.0
+         end if
+         ! format statement should be '(a,f9.4,a,i4,a,f7.3,a,f8.3,a)'
+         call mpas_log_write(' global max u: $r k=$i, $r lat, $r lon', intArgs=(/kMax_global/), &
+                             realArgs=(/global_scalar_max, latMax_global, lonMax_global/))
 
-            scalar_max = -1.0e20
-            indexMax = -1
-            kMax = -1
-            latMax = 0.0
-            lonMax = 0.0
-            do iEdge = 1, nEdgesSolve
-            do k = 1, nVertLevels
-               spd = sqrt(u(k,iEdge)*u(k,iEdge) + v(k,iEdge)*v(k,iEdge))
-               if (spd > scalar_max) then
-                  scalar_max = spd
-                  indexMax = iEdge
-                  kMax = k
-                  latMax = latEdge(iEdge)
-                  lonMax = lonEdge(iEdge)
-               end if
-            end do
-            end do
-            localVals(1) = scalar_max
-            localVals(2) = real(indexMax,kind=RKIND)
-            localVals(3) = real(kMax,kind=RKIND)
-            localVals(4) = latMax
-            localVals(5) = lonMax
-            call mpas_dmpar_maxattributes_real(domain % dminfo, scalar_max, localVals, globalVals)
-            global_scalar_max = globalVals(1)
-            indexMax_global = int(globalVals(2))
-            kMax_global = int(globalVals(3))
-            latMax_global = globalVals(4)
-            lonMax_global = globalVals(5)
-            latMax_global = latMax_global * 180.0_RKIND / pi_const
-            lonMax_global = lonMax_global * 180.0_RKIND / pi_const
-            if (lonMax_global > 180.0) then
-               lonMax_global = lonMax_global - 360.0
+         scalar_max = -1.0e20
+         indexMax = -1
+         kMax = -1
+         latMax = 0.0
+         lonMax = 0.0
+         do iEdge = 1, nEdgesSolve
+         do k = 1, nVertLevels
+            spd = sqrt(u(k,iEdge)*u(k,iEdge) + v(k,iEdge)*v(k,iEdge))
+            if (spd > scalar_max) then
+               scalar_max = spd
+               indexMax = iEdge
+               kMax = k
+               latMax = latEdge(iEdge)
+               lonMax = lonEdge(iEdge)
             end if
-            ! format statement should be '(a,f9.4,a,i4,a,f7.3,a,f8.3,a)'
-            call mpas_log_write(' global max wsp: $r k=$i, $r lat, $r lon', intArgs=(/kMax_global/), &
-                                realArgs=(/global_scalar_max, latMax_global, lonMax_global/))
+         end do
+         end do
+         localVals(1) = scalar_max
+         localVals(2) = real(indexMax,kind=RKIND)
+         localVals(3) = real(kMax,kind=RKIND)
+         localVals(4) = latMax
+         localVals(5) = lonMax
+         call mpas_dmpar_maxattributes_real(domain % dminfo, scalar_max, localVals, globalVals)
+         global_scalar_max = globalVals(1)
+         indexMax_global = int(globalVals(2))
+         kMax_global = int(globalVals(3))
+         latMax_global = globalVals(4)
+         lonMax_global = globalVals(5)
+         latMax_global = latMax_global * 180.0_RKIND / pi_const
+         lonMax_global = lonMax_global * 180.0_RKIND / pi_const
+         if (lonMax_global > 180.0) then
+            lonMax_global = lonMax_global - 360.0
+         end if
+         ! format statement should be '(a,f9.4,a,i4,a,f7.3,a,f8.3,a)'
+         call mpas_log_write(' global max wsp: $r k=$i, $r lat, $r lon', intArgs=(/kMax_global/), &
+                             realArgs=(/global_scalar_max, latMax_global, lonMax_global/))
 
-            !
-            ! Check for NaNs
-            !
-            do iCell = 1, nCellsSolve
-            do k = 1, nVertLevels
-               if (ieee_is_nan(w(k,iCell))) then
-                  call mpas_log_write('NaN detected in ''w'' field.', messageType=MPAS_LOG_CRIT)
-               end if
-            end do
-            end do
+         !
+         ! Check for NaNs
+         !
+         do iCell = 1, nCellsSolve
+         do k = 1, nVertLevels
+            if (ieee_is_nan(w(k,iCell))) then
+               call mpas_log_write('NaN detected in ''w'' field.', messageType=MPAS_LOG_CRIT)
+            end if
+         end do
+         end do
 
-            do iEdge = 1, nEdgesSolve
-            do k = 1, nVertLevels
-               if (ieee_is_nan(u(k,iEdge))) then
-                  call mpas_log_write('NaN detected in ''u'' field.', messageType=MPAS_LOG_CRIT)
-               end if
-            end do
-            end do
-
-            block => block % next
+         do iEdge = 1, nEdgesSolve
+         do k = 1, nVertLevels
+            if (ieee_is_nan(u(k,iEdge))) then
+               call mpas_log_write('NaN detected in ''u'' field.', messageType=MPAS_LOG_CRIT)
+            end if
+         end do
          end do
 
       else if (config_print_global_minmax_vel) then
          call mpas_log_write('')
 
-         block => domain % blocklist
-         do while (associated(block))
-            call mpas_pool_get_subpool(block % structs, 'state', state)
+         call mpas_pool_get_subpool(block % structs, 'state', state)
+         call mpas_pool_get_array(state, 'w', w, 2)
+         call mpas_pool_get_array(state, 'u', u, 2)
+         call mpas_pool_get_dimension(state, 'nCellsSolve', nCellsSolve)
+         call mpas_pool_get_dimension(state, 'nEdgesSolve', nEdgesSolve)
+         call mpas_pool_get_dimension(state, 'nVertLevels', nVertLevels)
 
-            call mpas_pool_get_array(state, 'w', w, 2)
-            call mpas_pool_get_array(state, 'u', u, 2)
-            call mpas_pool_get_dimension(state, 'nCellsSolve', nCellsSolve)
-            call mpas_pool_get_dimension(state, 'nEdgesSolve', nEdgesSolve)
-            call mpas_pool_get_dimension(state, 'nVertLevels', nVertLevels)
-
-            scalar_min = 0.0
-            scalar_max = 0.0
-            do iCell = 1, nCellsSolve
-            do k = 1, nVertLevels
-               scalar_min = min(scalar_min, w(k,iCell))
-               scalar_max = max(scalar_max, w(k,iCell))
-            end do
-            end do
-            call mpas_dmpar_min_real(domain % dminfo, scalar_min, global_scalar_min)
-            call mpas_dmpar_max_real(domain % dminfo, scalar_max, global_scalar_max)
-            call mpas_log_write('global min, max w $r $r', realArgs=(/global_scalar_min, global_scalar_max/))
-
-            scalar_min = 0.0
-            scalar_max = 0.0
-            do iEdge = 1, nEdgesSolve
-            do k = 1, nVertLevels
-               scalar_min = min(scalar_min, u(k,iEdge))
-               scalar_max = max(scalar_max, u(k,iEdge))
-            end do
-            end do
-            call mpas_dmpar_min_real(domain % dminfo, scalar_min, global_scalar_min)
-            call mpas_dmpar_max_real(domain % dminfo, scalar_max, global_scalar_max)
-            call mpas_log_write('global min, max u $r $r', realArgs=(/global_scalar_min, global_scalar_max/))
-
-            block => block % next
+         scalar_min = 0.0
+         scalar_max = 0.0
+         do iCell = 1, nCellsSolve
+         do k = 1, nVertLevels
+            scalar_min = min(scalar_min, w(k,iCell))
+            scalar_max = max(scalar_max, w(k,iCell))
          end do
+         end do
+         call mpas_dmpar_min_real(domain % dminfo, scalar_min, global_scalar_min)
+         call mpas_dmpar_max_real(domain % dminfo, scalar_max, global_scalar_max)
+         call mpas_log_write('global min, max w $r $r', realArgs=(/global_scalar_min, global_scalar_max/))
+
+         scalar_min = 0.0
+         scalar_max = 0.0
+         do iEdge = 1, nEdgesSolve
+         do k = 1, nVertLevels
+            scalar_min = min(scalar_min, u(k,iEdge))
+            scalar_max = max(scalar_max, u(k,iEdge))
+         end do
+         end do
+         call mpas_dmpar_min_real(domain % dminfo, scalar_min, global_scalar_min)
+         call mpas_dmpar_max_real(domain % dminfo, scalar_max, global_scalar_max)
+         call mpas_log_write('global min, max u $r $r', realArgs=(/global_scalar_min, global_scalar_max/))
       end if
 
       if (config_print_global_minmax_sca) then
@@ -6988,30 +6581,24 @@ module atm_time_integration
             call mpas_log_write('')
          end if
 
-         block => domain % blocklist
-         do while (associated(block))
-            call mpas_pool_get_subpool(block % structs, 'state', state)
+         call mpas_pool_get_subpool(block % structs, 'state', state)
+         call mpas_pool_get_array(state, 'scalars', scalars, 2)
+         call mpas_pool_get_dimension(state, 'nCellsSolve', nCellsSolve)
+         call mpas_pool_get_dimension(state, 'nVertLevels', nVertLevels)
+         call mpas_pool_get_dimension(state, 'num_scalars', num_scalars)
 
-            call mpas_pool_get_array(state, 'scalars', scalars, 2)
-            call mpas_pool_get_dimension(state, 'nCellsSolve', nCellsSolve)
-            call mpas_pool_get_dimension(state, 'nVertLevels', nVertLevels)
-            call mpas_pool_get_dimension(state, 'num_scalars', num_scalars)
-
-            do iScalar = 1, num_scalars
-               scalar_min = 0.0
-               scalar_max = 0.0
-               do iCell = 1, nCellsSolve
-               do k = 1, nVertLevels
-                  scalar_min = min(scalar_min, scalars(iScalar,k,iCell))
-                  scalar_max = max(scalar_max, scalars(iScalar,k,iCell))
-               end do
-               end do
-               call mpas_dmpar_min_real(domain % dminfo, scalar_min, global_scalar_min)
-               call mpas_dmpar_max_real(domain % dminfo, scalar_max, global_scalar_max)
-               call mpas_log_write(' global min, max scalar $i $r $r', intArgs=(/iScalar/), realArgs=(/global_scalar_min, global_scalar_max/))
+         do iScalar = 1, num_scalars
+            scalar_min = 0.0
+            scalar_max = 0.0
+            do iCell = 1, nCellsSolve
+            do k = 1, nVertLevels
+               scalar_min = min(scalar_min, scalars(iScalar,k,iCell))
+               scalar_max = max(scalar_max, scalars(iScalar,k,iCell))
             end do
-
-            block => block % next
+            end do
+            call mpas_dmpar_min_real(domain % dminfo, scalar_min, global_scalar_min)
+            call mpas_dmpar_max_real(domain % dminfo, scalar_max, global_scalar_max)
+            call mpas_log_write(' global min, max scalar $i $r $r', intArgs=(/iScalar/), realArgs=(/global_scalar_min, global_scalar_max/))
          end do
       end if
 

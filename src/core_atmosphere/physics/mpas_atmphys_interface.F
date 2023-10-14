@@ -638,6 +638,7 @@
  real(kind=RKIND),dimension(:,:),pointer  :: zz,exner,exner_b,pressure_b,rtheta_p,rtheta_b
  real(kind=RKIND),dimension(:,:),pointer  :: rho_zz,theta_m,pressure_p
  real(kind=RKIND),dimension(:,:),pointer  :: rt_diabatic_tend
+ real(kind=RKIND),dimension(:,:),pointer  :: dtheta_dt_mp
  real(kind=RKIND),dimension(:,:),pointer  :: qv,qc,qr,qi,qs,qg
  real(kind=RKIND),dimension(:,:),pointer  :: ni,nr
  real(kind=RKIND),dimension(:,:),pointer  :: rainprod,evapprod
@@ -663,6 +664,7 @@
  call mpas_pool_get_array(diag,'rtheta_base'     ,rtheta_b        )
  call mpas_pool_get_array(diag,'rtheta_p'        ,rtheta_p        )
  call mpas_pool_get_array(diag,'surface_pressure',surface_pressure)
+ call mpas_pool_get_array(diag,'dtheta_dt_mp'    ,dtheta_dt_mp    )
 
  call mpas_pool_get_array(diag_physics,'rainprod',rainprod)
  call mpas_pool_get_array(diag_physics,'evapprod',evapprod)
@@ -695,14 +697,21 @@
  do j = jts,jte
  do k = kts,kte
  do i = its,ite
+
+    !initializes tendency of coupled potential temperature potential temperature, and
+    !potential temperature heating rate from microphysics:
+    rt_diabatic_tend(k,i) = theta_m(k,i)
+    dtheta_dt_mp(k,i)     = theta_m(k,i)/(1._RKIND+rvord*qv(k,i))
+
+    !updates water vapor, cloud liquid water, rain mixing ratios, modified potential temperature,
+    !tendency of coupled potential temperature, and potential temperature heating rate from microphysics:
     qv(k,i) = qv_p(i,k,j)
     qc(k,i) = qc_p(i,k,j)
     qr(k,i) = qr_p(i,k,j)
 
-    !potential temperature and diabatic forcing:
-    rt_diabatic_tend(k,i) = theta_m(k,i)
-    theta_m(k,i) = th_p(i,k,j) * (1. + R_v/R_d * qv_p(i,k,j))
-    rt_diabatic_tend(k,i) = (theta_m(k,i) - rt_diabatic_tend(k,i)) / dt_dyn
+    theta_m(k,i) = th_p(i,k,j) * (1._RKIND+rvord*qv_p(i,k,j))
+    rt_diabatic_tend(k,i) = (theta_m(k,i) - rt_diabatic_tend(k,i))/dt_dyn
+    dtheta_dt_mp(k,i)     = (theta_m(k,i)/(1._RKIND+rvord*qv(k,i))-dtheta_dt_mp(k,i))/(dt_dyn)
 
     !density-weighted perturbation potential temperature:
     rtheta_p(k,i) = rho_zz(k,i) * theta_m(k,i) - rtheta_b(k,i)

@@ -15,6 +15,10 @@
       ! Store exchange group information here
       type (mpas_exchange_group), pointer :: exchangeGroups => null()
 
+      ! Storage for halo exchange groups
+      type (mpas_pool_type), pointer :: haloGroupPool => null()   ! Only used internally by mpas_halo module
+      type (mpas_halo_group), pointer :: haloGroups => null()     ! Head pointer of linked list of halo groups
+
       ! Domain specific constants
       logical :: on_a_sphere = .true.
       logical :: is_periodic = .false.
@@ -25,6 +29,9 @@
       character (len=StrKIND) :: streams_filename = '' !< Constant: Name of stream configuration file
       character (len=StrKIND) :: mesh_spec = '' !< mesh_spec attribute, read in from input file.
       character (len=StrKIND) :: parent_id = '' !< parent_id attribute, read in from input file.
+
+      ! Unique global ID number for this domain
+      integer :: domainID
 
       ! Pointer to timer root
       type (mpas_timer_root), pointer :: timer_root => null()

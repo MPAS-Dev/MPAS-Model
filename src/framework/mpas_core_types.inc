@@ -23,7 +23,7 @@
    abstract interface
       function mpas_setup_packages_function(configs, packages, iocontext) result(iErr)
          import mpas_pool_type
-		 import mpas_io_context_type
+         import mpas_io_context_type
 
          type (mpas_pool_type), intent(inout) :: configs
          type (mpas_pool_type), intent(inout) :: packages
@@ -64,12 +64,13 @@
    end interface
 
    abstract interface
-      function mpas_setup_log_function(logInfo, domain) result(iErr)
+      function mpas_setup_log_function(logInfo, domain, unitNumbers) result(iErr)
          import mpas_log_type
          import domain_type
 
          type (mpas_log_type), pointer, intent(inout) :: logInfo
          type (domain_type), pointer, intent(in) :: domain
+         integer, dimension(2), intent(in), optional :: unitNumbers
          integer :: iErr
       end function mpas_setup_log_function
    end interface
@@ -105,15 +106,15 @@
 
    abstract interface
       function mpas_setup_decomposed_dimensions_function(block, streamManager, readDimensions, dimensionPool, totalBlocks) result(iErr)
-		 import block_type
-		 import mpas_streamManager_type
+         import block_type
+         import mpas_streamManager_type
          import mpas_pool_type
 
-		 type (block_type), intent(inout) :: block
-		 type (mpas_streamManager_type), intent(inout) :: streamManager
+         type (block_type), intent(inout) :: block
+         type (mpas_streamManager_type), intent(inout) :: streamManager
          type (mpas_pool_type), intent(inout) :: readDimensions
          type (mpas_pool_type), intent(inout) :: dimensionPool
-		 integer, intent(in) :: totalBlocks
+         integer, intent(in) :: totalBlocks
          integer :: iErr
       end function mpas_setup_decomposed_dimensions_function
    end interface
@@ -151,6 +152,7 @@
       character (len=StrKIND) :: modelVersion !< Constant: Version number
       character (len=StrKIND) :: executableName !< Constant: Name of executable generated at build time.
       character (len=StrKIND) :: git_version !< Constant: Version string from git-describe.
+      character (len=StrKIND) :: build_target !< Constant: Build target from top-level Makefile.
       character (len=StrKIND*2) :: history !< History attribute, read in from input file.
       character (len=StrKIND) :: Conventions !< Conventions attribute, read in from input file.
       character (len=StrKIND) :: source !< source attribute, read in from input file.

@@ -72,6 +72,10 @@
 ! * modified logic in subroutine physics_tables_init so that the Thompson microphysics tables are read in each
 !   MPI task.
 !   Laura D. Fowler (laura@ucar.edu) / 2016-12-30.
+! * added the option sf_monin_obukhov_rev to run the revised surface layer scheme with the YSU PBL scheme.
+!   Laura D. Fowler (laura@ucar.edu) / 2023-05-15.
+! * replaced the option "noah" with "sf_noah" to run the NOAH land surface scheme.
+!   Laura D. Fowler (laura@ucar.edu) / 2022-02-18.
 
 
  contains
@@ -127,7 +131,7 @@
     if (trim(config_radt_sw_scheme)    == 'suite') config_radt_sw_scheme    = 'rrtmg_sw'
     if (trim(config_radt_cld_scheme)   == 'suite') config_radt_cld_scheme   = 'cld_fraction'
     if (trim(config_sfclayer_scheme)   == 'suite') config_sfclayer_scheme   = 'sf_monin_obukhov'
-    if (trim(config_lsm_scheme)        == 'suite') config_lsm_scheme        = 'noah'
+    if (trim(config_lsm_scheme)        == 'suite') config_lsm_scheme        = 'sf_noah'
 
  else if (trim(config_physics_suite) == 'convection_permitting') then
 
@@ -139,7 +143,7 @@
     if (trim(config_radt_sw_scheme)    == 'suite') config_radt_sw_scheme    = 'rrtmg_sw'
     if (trim(config_radt_cld_scheme)   == 'suite') config_radt_cld_scheme   = 'cld_fraction'
     if (trim(config_sfclayer_scheme)   == 'suite') config_sfclayer_scheme   = 'sf_mynn'
-    if (trim(config_lsm_scheme)        == 'suite') config_lsm_scheme        = 'noah'
+    if (trim(config_lsm_scheme)        == 'suite') config_lsm_scheme        = 'sf_noah'
 
  else if (trim(config_physics_suite) == 'none') then
 
@@ -255,9 +259,10 @@
  endif
 
 !surface-layer scheme:
- if(.not. (config_sfclayer_scheme .eq. 'off'     .or. &
-           config_sfclayer_scheme .eq. 'sf_mynn' .or. &
-           config_sfclayer_scheme .eq. 'sf_monin_obukhov')) then
+ if(.not. (config_sfclayer_scheme .eq. 'off'              .or. &
+           config_sfclayer_scheme .eq. 'sf_mynn'          .or. &
+           config_sfclayer_scheme .eq. 'sf_monin_obukhov' .or. &
+           config_sfclayer_scheme .eq. 'sf_monin_obukhov_rev')) then
  
     write(mpas_err_message,'(A,A10)') 'illegal value for surface layer scheme: ', &
           trim(config_sfclayer_scheme)
@@ -266,7 +271,12 @@
     if(config_pbl_scheme == 'bl_mynn') then
        config_sfclayer_scheme = 'sf_mynn'
     elseif(config_pbl_scheme == 'bl_ysu') then
-       config_sfclayer_scheme = 'sf_monin_obukhov'
+       if(config_sfclayer_scheme /= 'sf_monin_obukhov' .and. &
+          config_sfclayer_scheme /= 'sf_monin_obukhov_rev') then
+          write(mpas_err_message,'(A,A10)') 'wrong choice for surface layer scheme with YSU PBL: ', &
+                trim(config_sfclayer_scheme)
+          call physics_error_fatal(mpas_err_message)
+       endif
     endif
  endif
 
@@ -278,7 +288,7 @@
                              'set config_sfclayer_scheme different than off')
     
  elseif(.not. (config_lsm_scheme .eq. 'off ' .or. &
-               config_lsm_scheme .eq. 'noah')) then
+               config_lsm_scheme .eq. 'sf_noah')) then
  
     write(mpas_err_message,'(A,A10)') 'illegal value for land surface scheme: ', &
           trim(config_lsm_scheme)
@@ -349,7 +359,7 @@
 
     lsm_select: select case(trim(config_lsm_scheme))
 
-       case("noah")
+       case("sf_noah")
        !initialize the thickness of the soil layers for the Noah scheme:
           do iCell = 1, nCells
              dzs(1,iCell) = 0.10_RKIND
@@ -448,6 +458,9 @@
  real (kind=RKIND) :: maxvar2d_local, maxvar2d_global
  real (kind=RKIND), dimension(:), pointer :: var2d
  integer, pointer :: nCellsSolve
+ integer, pointer :: iswater_lu
+ integer, pointer, dimension(:) :: ivgtyp
+ integer :: all_water, iall_water
  character (len=StrKIND), pointer :: gwdo_scheme
  type (block_type), pointer :: block
  type (mpas_pool_type), pointer :: meshPool
@@ -473,7 +486,22 @@
 
      call mpas_dmpar_max_real(dminfo, maxvar2d_local, maxvar2d_global)
 
-     if (maxvar2d_global <= 0.0_RKIND) then
+     !
+     ! The GWDO check below can fail on regional simulations that are completely above
+     ! water. So, check to see if the simulation is completely above water and do not
+     ! throw the error if it is.
+     !
+     call mpas_pool_get_array(sfc_inputPool, 'iswater', iswater_lu)
+     call mpas_pool_get_array(sfc_inputPool, 'ivgtyp', ivgtyp)
+     if (all(ivgtyp(1:nCellsSolve) == iswater_lu)) then
+         all_water = 1 ! All water
+     else
+         all_water = 0 ! Land present
+     end if
+
+     call mpas_dmpar_min_int(dminfo, all_water, iall_water)
+
+     if (maxvar2d_global <= 0.0_RKIND .and. iall_water /= 1) then
          call mpas_log_write('*******************************************************************************', &
                              messageType=MPAS_LOG_ERR)
          call mpas_log_write('The GWDO scheme requires valid var2d, con, oa{1,2,3,4}, and ol{1,2,3,4} fields,', &
