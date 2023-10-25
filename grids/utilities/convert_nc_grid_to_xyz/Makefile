@@ -8,6 +8,11 @@ FFLAGS = -ffree-line-length-none
 
 #NETCDF=/usr
 NETCDF:= $(shell nc-config --prefix)
+
+## Important: remmenber to set the enviroment for NETCDF usage
+## export LD_LIBRARY_PATH=`nc-config --libdir`:$LD_LIBRARY_PATH
+
+
 ############### There is generally no need to make modifications below this line ###############
 
 
@@ -27,4 +32,4 @@ convert_grid_to_xyz: convert_grid_to_xyz.f90
 	$(FC) convert_grid_to_xyz.f90 -o convert_grid_to_xyz $(FFLAGS) -I$(NETCDF)/include -L$(NETCDF)/lib $(NCLIBS)
 
 clean:
-	rm convert_grid_to_hcm
+	rm convert_grid_to_xyz

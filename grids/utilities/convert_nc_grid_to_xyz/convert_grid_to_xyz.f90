@@ -94,7 +94,7 @@ contains
       end if
 
       if(trim(newFilename) == "") then
-         write(0,*) "Error: no distination file was specified"
+         write(0,*) "Error: no destination file was specified"
          return
       end if
 
