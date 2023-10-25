@@ -126,7 +126,7 @@ def colorvalue(val, cmap='Spectral', vmin=None, vmax=None):
     :return: cm(norm_val): color
     """
     # Get a colormap instance, defaulting to rc values if name is None.
-    cm = mpl.cm.get_cmap(cmap, None)
+    cm = mpl.colormaps[cmap] #cm.get_cmap(cmap, None)
     if vmin is None:
         vmin = xr.DataArray.min().values  # min value of the array
     if vmax is None:
