@@ -63,7 +63,7 @@ if [[ $host == mac* ]]; then
 	export MPIF90=mpif90
 	export MPIF77=mpif77
 	export MPICC=mpicc
-	
+
 	
 elif [[ $host == bgq* ]]; then
 
@@ -191,6 +191,7 @@ elif [[ $host == nemo ]]; then
         export LD_LIBRARY_PATH=${LIBBASEGCC}/lib:$LD_LIBRARY_PATH
 
         export PATH=${PWD}/MPAS-Tools/mesh_tools/grid_rotate:${PATH}
+        export PATH="/p1-nemo/danilocs/mpas/convert_mpas:$PATH"
 
 else
 	echo "********************************************************"
