@@ -12,6 +12,7 @@
  use mpas_atmphys_date_time
  use mpas_atmphys_constants
  use mpas_atmphys_utilities
+ use mpas_io_units, only: mpas_new_unit, mpas_release_unit
 
 !wrf physics:
  use module_ra_cam_support, only: r8, getfactors
@@ -74,9 +75,7 @@
  real(kind=RKIND),dimension(:,:,:),pointer:: ozmixm
 
 !local variables:
- integer,parameter:: pin_unit = 27
- integer,parameter:: lat_unit = 28
- integer,parameter:: oz_unit  = 29
+ integer :: pin_unit, lat_unit, oz_unit
  integer,parameter:: open_ok  = 0
 
  integer:: i,i1,i2,istat,k,j,m
@@ -100,6 +99,7 @@
  call mpas_pool_get_array(mesh,'lonCell',lonCell)
 
 !-- read in ozone pressure data:
+ call mpas_new_unit(pin_unit)
  open(pin_unit,file='OZONE_PLEV.TBL',action='READ',status='OLD',iostat=istat)
  if(istat /= open_ok) &
     call physics_error_fatal('subroutine oznini: ' // &
@@ -108,8 +108,10 @@
     read(pin_unit,*) pin(k)
  enddo
  close(pin_unit)
+ call mpas_release_unit(pin_unit)
 
 !-- read in ozone lat data:
+ call mpas_new_unit(lat_unit)
  open(lat_unit, file='OZONE_LAT.TBL',action='READ',status='OLD',iostat=istat) 
  if(istat /= open_ok) &
     call physics_error_fatal('subroutine oznini: ' // &
@@ -119,8 +121,10 @@
 !   call mpas_log_write('$i $r', intArgs=(/j/), realArgs=(/lat_ozone(j)/))
  enddo
  close(lat_unit)
+ call mpas_release_unit(lat_unit)
 
 !-- read in ozone data:
+ call mpas_new_unit(oz_unit)
  open(oz_unit,file='OZONE_DAT.TBL',action='READ',status='OLD',iostat=istat)
  if(istat /= open_ok) &
     call physics_error_fatal('subroutine oznini: ' // &
@@ -137,6 +141,7 @@
  enddo
  enddo
  close(oz_unit)
+ call mpas_release_unit(oz_unit)
 
 !INTERPOLATION OF INPUT OZONE DATA TO MPAS GRID:
 !call mpas_log_write('max latCell=$r', realArgs=(/maxval(latCell)/degrad/))

@@ -1,12 +1,16 @@
+!=================================================================================================================
 MODULE module_sf_noahlsm
+
+!reference: WRF-v4.5.1
+!Laura D. Fowler (laura@ucar.edu)/2023-04-21.
 #if defined(mpas)
 use mpas_atmphys_constants,only: CP=>cp,R_D=>R_d,XLF=>xlf,XLV=>xlv,RHOWATER=>rho_w,STBOLT=>stbolt,KARMAN=>karman
 use mpas_atmphys_utilities, only: physics_error_fatal
-#define FATAL_ERROR(M) call physics_error_fatal( M )
+#define FATAL_ERROR(M) call physics_error_fatal(M)
 #else
 USE module_model_constants, only : CP, R_D, XLF, XLV, RHOWATER, STBOLT, KARMAN
 use module_wrf_error
-#define FATAL_ERROR(M) call wrf_error_fatal( M )
+#define FATAL_ERROR(M) call wrf_error_fatal(M)
 #endif
 
 !ckay=KIRAN ALAPATY @ US EPA -- November 01, 2015
@@ -29,7 +33,7 @@ use module_wrf_error
 ! VEGETATION PARAMETERS
         INTEGER :: LUCATS , BARE
         INTEGER :: NATURAL
-        INTEGER :: LOW_DENSITY_RESIDENTIAL, HIGH_DENSITY_RESIDENTIAL, HIGH_INTENSITY_INDUSTRIAL
+        INTEGER :: LCZ_1,LCZ_2,LCZ_3,LCZ_4,LCZ_5,LCZ_6,LCZ_7,LCZ_8,LCZ_9,LCZ_10,LCZ_11
         integer, PARAMETER :: NLUS=50
         CHARACTER(LEN=256) LUTYPE
         INTEGER, DIMENSION(1:NLUS) :: NROTBL
@@ -96,7 +100,7 @@ CONTAINS
                        SFHEAD1RT,                                       &    !I
                        INFXS1RT,ETPND1,OPT_THCND,AOASIS                 &    !P
                       ,XSDA_QFX,HFX_PHY,QFX_PHY,XQNORM                  &    !fasdas
-                      ,fasdas,HCPCT_FASDAS                              )    !fasdas
+                      ,fasdas,HCPCT_FASDAS,IRRIGATION_CHANNEL           )    !fasdas
 
 ! ----------------------------------------------------------------------
 ! SUBROUTINE SFLX - UNIFIED NOAHLSM VERSION 1.0 JULY 2007
@@ -322,7 +326,7 @@ CONTAINS
 
       REAL, INTENT(IN)   :: SHDMIN,SHDMAX,DT,DQSDT2,LWDN,PRCP,PRCPRAIN,     &
                             Q2,Q2SAT,SFCPRS,SFCSPD,SFCTMP, SNOALB,          &
-                            SOLDN,SOLNET,TBOT,TH2,ZLVL,                     &
+                            SOLDN,SOLNET,TBOT,TH2,ZLVL,                            &
                             FFROZP,AOASIS
       REAL, INTENT(OUT)  :: EMBRD
       REAL, INTENT(OUT)  :: ALBEDO
@@ -385,6 +389,9 @@ CONTAINS
 !
 !  END FASDAS
 !
+! IRRIGATION
+  REAL, OPTIONAL,   INTENT(INOUT)  :: IRRIGATION_CHANNEL
+
 ! ----------------------------------------------------------------------
 !   INITIALIZATION
 ! ----------------------------------------------------------------------
@@ -769,7 +776,8 @@ CONTAINS
                             QUARTZ,FXEXP,CSOIL,                          &
                             BETA,DRIP,DEW,FLX1,FLX3,VEGTYP,ISURBAN,      &
                             SFHEAD1RT,INFXS1RT,ETPND1,SOILTYP,OPT_THCND  &
-                           ,XSDA_QFX,QFX_PHY,XQNORM,fasdas,HCPCT_FASDAS  ) !fasdas
+                           ,XSDA_QFX,QFX_PHY,XQNORM,fasdas,HCPCT_FASDAS,IRRIGATION_CHANNEL  ) !fasdas
+
             ETA_KINEMATIC = ETA
          ELSE
             CALL SNOPAC (ETP,ETA,PRCP,PRCPF,SNOWNG,SMC,SMCMAX,SMCWLT,    &
@@ -1908,7 +1916,8 @@ CONTAINS
                          QUARTZ,FXEXP,CSOIL,                            &
                          BETA,DRIP,DEW,FLX1,FLX3,VEGTYP,ISURBAN,        &
                          SFHEAD1RT,INFXS1RT,ETPND1,SOILTYP,OPT_THCND    &
-                        ,XSDA_QFX,QFX_PHY,XQNORM,fasdas,HCPCT_FASDAS    ) !fasdas
+                        ,XSDA_QFX,QFX_PHY,XQNORM,fasdas,HCPCT_FASDAS    &
+                        ,IRRIGATION_CHANNEL    ) !fasdas
 
 ! ----------------------------------------------------------------------
 ! SUBROUTINE NOPAC
@@ -1949,6 +1958,7 @@ CONTAINS
       REAL , DIMENSION(1:NSOIL)  ::  EFT(NSOIL), wetty(1:NSOIL)
       REAL                       ::  EFDIR, EFC, EALL_now
       REAL, INTENT(  OUT)        ::  HCPCT_FASDAS
+      REAL, INTENT(IN),OPTIONAL  ::  IRRIGATION_CHANNEL
 !
 ! END FASDAS
 !
@@ -2044,7 +2054,7 @@ CONTAINS
                       SHDFAC,CMCMAX,                                    &
                       RUNOFF1,RUNOFF2,RUNOFF3,                          &
                       EDIR1,EC1,ET1,                                    &
-                      DRIP, SFHEAD1RT,INFXS1RT)
+                      DRIP, SFHEAD1RT,INFXS1RT,IRRIGATION_CHANNEL)
 
 ! ----------------------------------------------------------------------
 ! CONVERT MODELED EVAPOTRANSPIRATION FROM  M S-1  TO  KG M-2 S-1.
@@ -2107,7 +2117,7 @@ CONTAINS
                       SHDFAC,CMCMAX,                                    &
                       RUNOFF1,RUNOFF2,RUNOFF3,                          &
                       EDIR1,EC1,ET1,                                    &
-                      DRIP, SFHEAD1RT,INFXS1RT)
+                      DRIP, SFHEAD1RT,INFXS1RT,IRRIGATION_CHANNEL)
 
 ! ----------------------------------------------------------------------
 ! CONVERT MODELED EVAPOTRANSPIRATION FROM 'M S-1' TO 'KG M-2 S-1'.
@@ -2666,7 +2676,8 @@ CONTAINS
      &                   SHDFAC,CMCMAX,                                 &
      &                   RUNOFF1,RUNOFF2,RUNOFF3,                       &
      &                   EDIR,EC,ET,                                    &
-     &                   DRIP, SFHEAD1RT,INFXS1RT)
+     &                   DRIP, SFHEAD1RT,INFXS1RT,                      &
+                         IRRIGATION_CHANNEL )
 
 ! ----------------------------------------------------------------------
 ! SUBROUTINE SMFLX
@@ -2689,11 +2700,11 @@ CONTAINS
       REAL, DIMENSION(1:NSOIL), INTENT(IN)   :: ET,ZSOIL
       REAL, DIMENSION(1:NSOIL), INTENT(INOUT):: SMC, SH2O
       REAL, DIMENSION(1:NSOIL)             :: AI, BI, CI, STCF,RHSTS, RHSTT, &
-                                              SICE, SH2OA, SH2OFG
+                                              SICE, SH2OA, SH2OFG, SH2OIN
       REAL                  :: DUMMY, EXCESS,FRZFACT,PCPDRP,RHSCT,TRHSCT
       REAL :: FAC2
       REAL :: FLIMIT
-
+      REAL, INTENT(IN),OPTIONAL      :: IRRIGATION_CHANNEL
       REAL,    INTENT(INOUT)                 :: SFHEAD1RT,INFXS1RT
 
 ! ----------------------------------------------------------------------
@@ -2720,7 +2731,9 @@ CONTAINS
 ! ----------------------------------------------------------------------
       IF (EXCESS > CMCMAX) DRIP = EXCESS - CMCMAX
       PCPDRP = (1. - SHDFAC) * PRCP1+ DRIP / DT
-
+      IF(PRESENT(IRRIGATION_CHANNEL)) THEN
+         IF (IRRIGATION_CHANNEL.NE.0.)PCPDRP =PCPDRP+ 0.001*IRRIGATION_CHANNEL !conversion of units
+      END IF
 ! ----------------------------------------------------------------------
 ! STORE ICE CONTENT AT EACH SOIL LAYER BEFORE CALLING SRT and SSTEP
 !
@@ -2784,7 +2797,8 @@ CONTAINS
                     DWSAT,DKSAT,SMCMAX,BEXP,RUNOFF1,                    &
                     RUNOFF2,DT,SMCWLT,SLOPE,KDT,FRZFACT,SICE,AI,BI,CI,  &
                     SFHEAD1RT,INFXS1RT)
-         CALL SSTEP (SH2O,SH2O,CMC,RHSTT,RHSCT,DT,NSOIL,SMCMAX,         &
+         SH2OIN=SH2O
+         CALL SSTEP (SH2O,SH2OIN,CMC,RHSTT,RHSCT,DT,NSOIL,SMCMAX,       &
                         CMCMAX,RUNOFF3,ZSOIL,SMC,SICE,AI,BI,CI,INFXS1RT)
 
       ELSE
@@ -2792,7 +2806,8 @@ CONTAINS
                     DWSAT,DKSAT,SMCMAX,BEXP,RUNOFF1,                    &
                     RUNOFF2,DT,SMCWLT,SLOPE,KDT,FRZFACT,SICE,AI,BI,CI,  &
                    SFHEAD1RT,INFXS1RT)
-         CALL SSTEP (SH2O,SH2O,CMC,RHSTT,RHSCT,DT,NSOIL,SMCMAX,         &
+         SH2OIN=SH2O
+         CALL SSTEP (SH2O,SH2OIN,CMC,RHSTT,RHSCT,DT,NSOIL,SMCMAX,       &
                      CMCMAX,RUNOFF3,ZSOIL,SMC,SICE,AI,BI,CI,INFXS1RT)
 !      RUNOF = RUNOFF
 

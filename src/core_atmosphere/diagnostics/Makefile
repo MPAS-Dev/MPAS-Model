@@ -5,18 +5,21 @@
 #
 DIAGNOSTIC_MODULES = \
 	mpas_atm_diagnostic_template.o \
-	isobaric_diagnostics.o \
-	convective_diagnostics.o \
-	pv_diagnostics.o \
-	soundings.o \
+	mpas_isobaric_diagnostics.o \
+	mpas_cloud_diagnostics.o \
+	mpas_convective_diagnostics.o \
+	mpas_pv_diagnostics.o \
+	mpas_soundings.o \
 
-isobaric_diagnostics.o: mpas_atm_diagnostics_utils.o
+mpas_isobaric_diagnostics.o: mpas_atm_diagnostics_utils.o
 
-convective_diagnostics.o: mpas_atm_diagnostics_utils.o
+mpas_cloud_diagnostics.o: mpas_atm_diagnostics_utils.o
 
-pv_diagnostics.o: mpas_atm_diagnostics_utils.o
+mpas_convective_diagnostics.o: mpas_atm_diagnostics_utils.o
 
-soundings.o:
+mpas_pv_diagnostics.o: mpas_atm_diagnostics_utils.o
+
+mpas_soundings.o:
 
 
 ################### Generally no need to modify below here ###################
@@ -24,7 +27,7 @@ soundings.o:
 
 OBJS = mpas_atm_diagnostics_manager.o mpas_atm_diagnostics_utils.o
 
-all: $(DIAGNOSTIC_MODULS) $(OBJS)
+all: $(DIAGNOSTIC_MODULES) $(OBJS)
 
 mpas_atm_diagnostics_manager.o: mpas_atm_diagnostics_utils.o $(DIAGNOSTIC_MODULES)
 

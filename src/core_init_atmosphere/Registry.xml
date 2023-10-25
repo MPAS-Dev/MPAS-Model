@@ -1,5 +1,5 @@
 <?xml version="1.0"?>
-<registry model="mpas" core="init_atmosphere" core_abbrev="init_atm" version="7.3">
+<registry model="mpas" core="init_atmosphere" core_abbrev="init_atm" version="8.0.1">
 
 <!-- **************************************************************************************** -->
 <!-- ************************************** Dimensions ************************************** -->
@@ -60,7 +60,8 @@
                                         6 = mountain wave, \newline
                                         7 = real-data initial conditions from, e.g., GFS, \newline
                                         8 = surface field (SST, sea-ice) update file for use with real-data simulations \newline
-                                        9 = lateral boundary conditions update file for use with real-data simulations"
+                                        9 = lateral boundary conditions update file for use with real-data simulations \newline
+                                        13 = CAM-MPAS 3-d grid with specified topography and zeta levels"
                      possible_values="1 -- 9"/>
 
                 <nml_option name="config_calendar_type" type="character" default_value="gregorian" in_defaults="false"
@@ -92,6 +93,11 @@
                      units="-"
                      description="Number of halo layers for fields"
                      possible_values="Integer values, typically 2 or 3; DO NOT CHANGE"/>
+
+                <nml_option name="config_interface_projection" type="character"     default_value="linear_interpolation"
+                     units="-"
+                     description="projecting layer values to the interface, linear vertical interpolation or integral" 
+                     possible_values="'linear_interpolation' or 'layer_integral' (layer average value)"/>
 
                <!-- ************************************** PXT-ADDED************************************ -->
                <nml_option name="config_hcm_staggering"        type="logical"       default_value="false" in_defaults="true"
@@ -237,7 +243,7 @@
 
         <nml_record name="interpolation_control" in_defaults="true">
 
-                <nml_option name="config_extrap_airtemp"        type="character"     default_value="linear"
+                <nml_option name="config_extrap_airtemp"        type="character"     default_value="lapse-rate"
                      units="-"
                      description="Method of extrapolation of air temperature above/below first-guess levels."
                      possible_values="`constant' (last valid value), `linear' (linear extrapolation based on last two values), `lapse-rate' (0.0065 K/m from last valid value)"/>
@@ -280,7 +286,12 @@
                      units="-"
                      description="Whether to switch sea-ice threshold from 0.5 to 0.02"
                      possible_values="true or false"/>
+        </nml_record>
 
+        <nml_record name="physics" in_defaults="false">
+                <nml_option name="config_tsk_seaice_threshold" type="real" default_value="100." units="K"
+                     description="surface temperature threshold below which water points are set to seaice points"
+                     possible_values="Positive real values"/>
         </nml_record>
 
         <nml_record name="io" in_defaults="true">
@@ -335,6 +346,7 @@
                 <package name="vertical_stage_out" description="Active only if a vertical grid is being generated"/>
                 <package name="met_stage_in" description="Active only if meteorological fields are being interpolated"/>
                 <package name="met_stage_out" description="Active only if meteorological fields are being interpolated"/>
+                <package name="first_guess_field" description="3-d atmospheric or land-surface fields on first-guess levels"/>
         </packages>
 
 
@@ -385,6 +397,7 @@
                         <var name="cellsOnVertex"/>
                         <var name="kiteAreasOnVertex"/>
                         <var name="meshDensity"/>
+                        <var name="nominalMinDc"/>
                         <var name="bdyMaskCell"/>
                         <var name="bdyMaskEdge"/>
                         <var name="bdyMaskVertex"/>
@@ -417,14 +430,14 @@
                         <var name="ol3" packages="vertical_stage_in;met_stage_in"/>
                         <var name="ol4" packages="vertical_stage_in;met_stage_in"/>
                         <var name="deriv_two" packages="gwd_stage_in;vertical_stage_in;met_stage_in"/>
-                        <var name="advCells" packages="gwd_stage_in;vertical_stage_in;met_stage_in"/>
                         <var name="defc_a" packages="gwd_stage_in;vertical_stage_in;met_stage_in"/>
                         <var name="defc_b" packages="gwd_stage_in;vertical_stage_in;met_stage_in"/>
+                        <var name="cell_gradient_coef_x" packages="gwd_stage_in;vertical_stage_in;met_stage_in"/>
+                        <var name="cell_gradient_coef_y" packages="gwd_stage_in;vertical_stage_in;met_stage_in"/>
                         <var name="coeffs_reconstruct" packages="gwd_stage_in;vertical_stage_in;met_stage_in"/>
                         <var name="cf1" packages="met_stage_in"/>
                         <var name="cf2" packages="met_stage_in"/>
                         <var name="cf3" packages="met_stage_in"/>
-                        <var name="hx" packages="met_stage_in"/>
                         <var name="zgrid" packages="met_stage_in"/>
                         <var name="rdzw" packages="met_stage_in"/>
                         <var name="dzu" packages="met_stage_in"/>
@@ -483,6 +496,7 @@
                         <var name="cellsOnVertex"/>
                         <var name="kiteAreasOnVertex"/>
                         <var name="meshDensity"/>
+                        <var name="nominalMinDc"/>
                         <var name="bdyMaskCell"/>
                         <var name="bdyMaskEdge"/>
                         <var name="bdyMaskVertex"/>
@@ -515,14 +529,14 @@
                         <var name="ol3" packages="gwd_stage_out;vertical_stage_out;met_stage_out"/>
                         <var name="ol4" packages="gwd_stage_out;vertical_stage_out;met_stage_out"/>
                         <var name="deriv_two"/>
-                        <var name="advCells"/>
                         <var name="defc_a"/>
                         <var name="defc_b"/>
+                        <var name="cell_gradient_coef_x"/>
+                        <var name="cell_gradient_coef_y"/>
                         <var name="coeffs_reconstruct"/>
                         <var name="cf1" packages="vertical_stage_out;met_stage_out"/>
                         <var name="cf2" packages="vertical_stage_out;met_stage_out"/>
                         <var name="cf3" packages="vertical_stage_out;met_stage_out"/>
-                        <var name="hx" packages="vertical_stage_out;met_stage_out"/>
                         <var name="zgrid" packages="vertical_stage_out;met_stage_out"/>
                         <var name="rdzw" packages="vertical_stage_out;met_stage_out"/>
                         <var name="dzu" packages="vertical_stage_out;met_stage_out"/>
@@ -730,6 +744,9 @@
                 <var name="meshDensity" type="real" dimensions="nCells" units="unitless"
                      description="Mesh density function (used when generating the mesh) evaluated at a cell"/>
 
+                <var name="nominalMinDc" type="real" dimensions="" units="m"
+                     description="Nominal minimum dcEdge value where meshDensity == 1.0"/>
+
                 <!-- coefficients for vertical extrapolation to the surface -->
                 <var name="cf1" type="real" dimensions="" units="unitless"
                      description="Surface interpolation weight for level k=1 value"/>
@@ -743,6 +760,9 @@
                 <!-- static terrestrial fields -->
                 <var name="ter" type="real" dimensions="nCells" units="m"
                      description="terrain height"/>
+
+                <var name="PHIS" type="real" dimensions="nCells" units="m^2 s^{-2}"
+                     description="CAM Surface geopotential"/>
 
                 <var name="landmask" type="integer"  dimensions="nCells" units="unitless"
                      description="land-ocean mask (1=land ; 0=ocean)"/>
@@ -782,84 +802,110 @@
 
                 <!-- GWDO fields -->
                 <var name="var2d" type="real" dimensions="nCells" units="m"
-                     description="standard deviation of subgrid-scale orography"/>
+                     description="standard deviation of subgrid-scale orography"
+                     packages="gwd_stage_out;vertical_stage_out;met_stage_out"/>
 
                 <var name="con" type="real" dimensions="nCells" units="unitless"
-                     description="orographic convexity"/>
+                     description="orographic convexity"
+                     packages="gwd_stage_out;vertical_stage_out;met_stage_out"/>
 
                 <var name="oa1" type="real" dimensions="nCells" units="unitless"
-                     description="asymmetry of subgrid-scale orography for westerly flow"/>
+                     description="asymmetry of subgrid-scale orography for westerly flow"
+                     packages="gwd_stage_out;vertical_stage_out;met_stage_out"/>
 
                 <var name="oa2" type="real" dimensions="nCells" units="unitless"
-                     description="asymmetry of subgrid-scale orography for southerly flow"/>
+                     description="asymmetry of subgrid-scale orography for southerly flow"
+                     packages="gwd_stage_out;vertical_stage_out;met_stage_out"/>
 
                 <var name="oa3" type="real" dimensions="nCells" units="unitless"
-                     description="asymmetry of subgrid-scale orography for south-westerly flow"/>
+                     description="asymmetry of subgrid-scale orography for south-westerly flow"
+                     packages="gwd_stage_out;vertical_stage_out;met_stage_out"/>
 
                 <var name="oa4" type="real" dimensions="nCells" units="unitless"
-                     description="asymmetry of subgrid-scale orography for north-westerly flow"/>
+                     description="asymmetry of subgrid-scale orography for north-westerly flow"
+                     packages="gwd_stage_out;vertical_stage_out;met_stage_out"/>
 
                 <var name="ol1" type="real" dimensions="nCells" units="unitless"
-                     description="effective orographic length for westerly flow"/>
+                     description="effective orographic length for westerly flow"
+                     packages="gwd_stage_out;vertical_stage_out;met_stage_out"/>
 
                 <var name="ol2" type="real" dimensions="nCells" units="unitless"
-                     description="effective orographic length for southerly flow"/>
+                     description="effective orographic length for southerly flow"
+                     packages="gwd_stage_out;vertical_stage_out;met_stage_out"/>
 
                 <var name="ol3" type="real" dimensions="nCells" units="unitles"
-                     description="effective orographic length for south-westerly flow"/>
+                     description="effective orographic length for south-westerly flow"
+                     packages="gwd_stage_out;vertical_stage_out;met_stage_out"/>
 
                 <var name="ol4" type="real" dimensions="nCells" units="unitless"
-                     description="effective orographic length for north-westerly flow"/>
+                     description="effective orographic length for north-westerly flow"
+                     packages="gwd_stage_out;vertical_stage_out;met_stage_out"/>
 
                 <!-- description of the vertical grid structure -->
                 <var name="hx" type="real" dimensions="nVertLevelsP1 nCells" units="m"
-                     description="terrain influence in vertical coordinate, $h_s(x,y,\zeta)$ in Klemp (MWR 2011)"/>
+                     description="terrain influence in vertical coordinate, $h_s(x,y,\zeta)$ in Klemp (MWR 2011)"
+                     packages="vertical_stage_out;met_stage_out"/>
 
                 <var name="zgrid" type="real" dimensions="nVertLevelsP1 nCells" units="m MSL"
-                     description="Geometric height of layer interfaces"/>
+                     description="Geometric height of layer interfaces"
+                     packages="vertical_stage_out;met_stage_out"/>
 
                 <var name="rdzw" type="real" dimensions="nVertLevels" units="unitless"
-                     description="Reciprocal dzw"/>
+                     description="Reciprocal dzw"
+                     packages="vertical_stage_out;met_stage_out"/>
 
                 <var name="dzu" type="real" dimensions="nVertLevels" units="unitless"
-                     description="d(zeta) at w levels"/>
+                     description="d(zeta) at w levels"
+                     packages="vertical_stage_out;met_stage_out"/>
 
                 <var name="rdzu" type="real" dimensions="nVertLevels" units="unitless"
-                     description="Reciprocal dzu"/>
+                     description="Reciprocal dzu"
+                     packages="vertical_stage_out;met_stage_out"/>
 
                 <var name="fzm" type="real" dimensions="nVertLevels" units="unitless"
-                     description="Weight for linear interpolation to w(k) point for u(k) level variable"/>
+                     description="Weight for linear interpolation to w(k) point for u(k) level variable"
+                     packages="vertical_stage_out;met_stage_out"/>
 
                 <var name="fzp" type="real" dimensions="nVertLevels" units="unitless"
-                     description="Weight for linear interpolation to w(k) point for u(k-1) level variable"/>
+                     description="Weight for linear interpolation to w(k) point for u(k-1) level variable"
+                     packages="vertical_stage_out;met_stage_out"/>
 
                 <var name="zxu" type="real" dimensions="nVertLevels nEdges" units="unitless"
-                     description="dz/dx on horizontal coordinate surfaces at u levels"/>
+                     description="dz/dx on horizontal coordinate surfaces at u levels"
+                     packages="vertical_stage_out;met_stage_out"/>
 
                 <var name="zz" type="real" dimensions="nVertLevels nCells" units="unitless"
-                     description="d(zeta)/dz, vertical metric term"/>
+                     description="d(zeta)/dz, vertical metric term"
+                     packages="vertical_stage_out;met_stage_out"/>
 
                 <var name="zb" type="real" dimensions="nVertLevelsP1 TWO nEdges" units="unitless"
-                     description="Coefficients for contribution from u to omega diagnosis, edge-oriented"/>
+                     description="Coefficients for contribution from u to omega diagnosis, edge-oriented"
+                     packages="vertical_stage_out;met_stage_out"/>
 
                 <var name="zb3" type="real" dimensions="nVertLevelsP1 TWO nEdges" units="unitless"
-                     description="Coefficients for 3rd-order correction to contribution from u to omega diagnosis, edge-oriented"/>
+                     description="Coefficients for 3rd-order correction to contribution from u to omega diagnosis, edge-oriented"
+                     packages="vertical_stage_out;met_stage_out"/>
 
                 <!-- W-Rayleigh damping coefficient -->
                 <var name="dss" type="real" dimensions="nVertLevels nCells" units="unitless"
-                     description="w-damping coefficient"/>
+                     description="w-damping coefficient"
+                     packages="vertical_stage_out;met_stage_out"/>
 
                 <var name="u_init" type="real" dimensions="nVertLevels" units="m s^{-1}"
-                     description="u reference profile"/>
+                     description="u reference profile"
+                     packages="met_stage_out"/>
 
                 <var name="v_init" type="real" dimensions="nVertLevels" units="m s^{-1}"
-                     description="v reference profile"/>
+                     description="v reference profile"
+                     packages="met_stage_out"/>
 
                 <var name="t_init" type="real" dimensions="nVertLevels nCells" units="K"
-                     description="theta reference profile"/>
+                     description="theta reference profile"
+                     packages="met_stage_out"/>
 
                 <var name="qv_init" type="real" dimensions="nVertLevels" units="kg kg^{-1}"
-                     description="qv reference profile"/>
+                     description="qv reference profile"
+                     packages="met_stage_out"/>
 
                 <!-- variables needed for advection -->
                 <var name="deriv_two" type="real" dimensions="FIFTEEN TWO nEdges" units="unitless"
@@ -874,6 +920,12 @@
 
                 <var name="defc_b" type="real" dimensions="maxEdges nCells" units="unitless"
                      description="Coefficients for computing the diagonal components of the horizontal deformation"/>
+
+                <var name="cell_gradient_coef_x" type="real" dimensions="maxEdges nCells" units="m^-1"
+                     description="Coefficients for computing the x (zonal) derivative of a cell-centered variable"/>
+
+                <var name="cell_gradient_coef_y" type="real" dimensions="maxEdges nCells" units="m^-1"
+                     description="Coefficients for computing the y (meridional) derivative of a cell-centered variable"/>
 
                 <!-- arrays required for reconstruction of velocity field -->
                 <var name="coeffs_reconstruct" type="real" dimensions="R3 maxEdges nCells" units="unitless"
@@ -897,18 +949,22 @@
                      description="Model valid time"/>
 
                 <var name="u" type="real" dimensions="nVertLevels nEdges Time" units="m s^{-1}"
-                     description="Horizontal normal velocity at edges"/>
+                     description="Horizontal normal velocity at edges"
+                     packages="met_stage_out"/>
 
                 <var name="w" type="real" dimensions="nVertLevelsP1 nCells Time" units="m s^{-1}"
-                     description="Vertical velocity at vertical cell faces"/>
+                     description="Vertical velocity at vertical cell faces"
+                     packages="met_stage_out"/>
 
                 <var name="rho_zz" type="real" dimensions="nVertLevels nCells Time" units="kg m^{-3}"
-                     description="Dry air density divided by d(zeta)/dz"/>
+                     description="Dry air density divided by d(zeta)/dz"
+                     packages="met_stage_out"/>
 
                 <var name="theta_m" type="real" dimensions="nVertLevels nCells Time" units="K"
-                     description="Moist potential temperature: theta*(1+q_v*R_v/R_d)"/>
+                     description="Moist potential temperature: theta*(1+q_v*R_v/R_d)"
+                     packages="met_stage_out"/>
 
-                <var_array name="scalars" type="real" dimensions="nVertLevels nCells Time">
+                <var_array name="scalars" type="real" dimensions="nVertLevels nCells Time" packages="met_stage_out">
                         <var name="qv" array_group="moist" units="kg kg^{-1}"
                              description="Water vapor mixing ratio"/>
 
@@ -921,7 +977,8 @@
 
                 <!-- Climatology for ocean mixed-layer depth -->
                 <var name="h_oml_initial" type="real" dimensions="nCells Time" units="m"
-                     description="Initial depth of ocean mix layer"/>
+                     description="Initial depth of ocean mix layer"
+                     packages="met_stage_out"/>
         </var_struct>
 
         <var_struct name="lbc_state" time_levs="1">
@@ -958,204 +1015,268 @@
 
                 <!-- horizontally interpolated from first-guess data -->
                 <var name="u_fg" name_in_code="u" type="real" dimensions="nFGLevels nEdges Time" units="m s^{-1}"
-                     description="First guess zonal wind component"/>
+                     description="First guess zonal wind component"
+                     packages="first_guess_field"/>
 
                 <var name="v_fg" name_in_code="v" type="real" dimensions="nFGLevels nEdges Time" units="m s^{-1}"
-                     description="First guess merdian wind component"/>
+                     description="First guess merdian wind component"
+                     packages="first_guess_field"/>
 
                 <var name="t_fg" name_in_code="t" type="real" dimensions="nFGLevels nCells Time" units="K"
-                     description="First guess temperature"/>
+                     description="First guess temperature"
+                     packages="first_guess_field"/>
 
                 <var name="p_fg" name_in_code="p" type="real" dimensions="nFGLevels nCells Time" units="Pa"
-                     description="First guess pressure"/>
+                     description="First guess pressure"
+                     packages="first_guess_field"/>
 
                 <var name="z_fg" name_in_code="z" type="real" dimensions="nFGLevels nCells Time" units="m"
-                     description="First guess geopotential height"/>
+                     description="First guess geopotential height"
+                     packages="first_guess_field"/>
 
                 <var name="rh_fg" name_in_code="rh" type="real" dimensions="nFGLevels nCells Time" units="percent"
-                     description="First guess relative humidity with respect to liquid water"/>
+                     description="First guess relative humidity with respect to liquid water"
+                     packages="first_guess_field"/>
 
                 <var name="sh_fg" name_in_code="sh" type="real" dimensions="nFGLevels nCells Time" units="kg kg^{-1}"
-                     description="First guess specific humidity"/>
+                     description="First guess specific humidity"
+                     packages="first_guess_field"/>
 
                 <var name="soilz_fg" name_in_code="soilz" type="real" dimensions="nCells Time" units="m"
-                     description="First guess soil height"/>
+                     description="First guess soil height"
+                     packages="first_guess_field"/>
 
                 <var name="psfc_fg" name_in_code="psfc" type="real" dimensions="nCells Time" units="Pa"
-                     description="First guess surface pressure"/>
+                     description="First guess surface pressure"
+                     packages="first_guess_field"/>
 
                 <var name="pmsl_fg" name_in_code="pmsl" type="real" dimensions="nCells Time" units="Pa"
-                     description="First guess mean sea level pressure"/>
+                     description="First guess mean sea level pressure"
+                     packages="first_guess_field"/>
 
                 <var name="dz_fg" type="real" dimensions="nFGSoilLevels nCells Time" units="cm"
-                     description="First guess depth of soil layer bottom"/>
+                     description="First guess depth of soil layer bottom"
+                     packages="first_guess_field"/>
 
                 <var name="dzs_fg" type="real" dimensions="nFGSoilLevels nCells Time" units="cm"
-                     description="First guess soil layer thickness"/>
+                     description="First guess soil layer thickness"
+                     packages="first_guess_field"/>
 
                 <var name="zs_fg" type="real" dimensions="nFGSoilLevels nCells Time" units="cm"
-                     description="First guess depth of centers of soil levels"/>
+                     description="First guess depth of centers of soil levels"
+                     packages="first_guess_field"/>
 
                 <var name="st_fg" type="real" dimensions="nFGSoilLevels nCells Time" units="k"
-                     description="First guess soil temperature"/>
+                     description="First guess soil temperature"
+                     packages="first_guess_field"/>
 
                 <var name="sm_fg" type="real" dimensions="nFGSoilLevels nCells Time" units="m^{3} m^{-3}"
-                     description="First guess soil moisture"/>
+                     description="First guess soil moisture"
+                     packages="first_guess_field"/>
 
                 <!-- horizontally interpolated from first-guess data, and should be read in by model -->
                 <var name="dz" type="real" dimensions="nSoilLevels nCells Time" units="m"
-                     description="depth of soil layer bottom"/>
+                     description="depth of soil layer bottom"
+                     packages="met_stage_out"/>
 
                 <var name="dzs" type="real" dimensions="nSoilLevels nCells Time" units="m"
-                     description="soil layer thickness"/>
+                     description="soil layer thickness"
+                     packages="met_stage_out"/>
 
                 <var name="zs" type="real" dimensions="nSoilLevels nCells Time" units="m"
-                     description="depth of centers of soil layers"/>
+                     description="depth of centers of soil layers"
+                     packages="met_stage_out"/>
 
                 <var name="sh2o" type="real" dimensions="nSoilLevels nCells Time" units="m3 m^{-3}"
-                     description="soil equivalent liquid water "/>
+                     description="soil equivalent liquid water "
+                     packages="met_stage_out"/>
 
                 <var name="smois" type="real" dimensions="nSoilLevels nCells Time" units="m3 m^{-3}"
-                     description="soil moisture"/>
+                     description="soil moisture"
+                     packages="met_stage_out"/>
 
                 <var name="tslb" type="real" dimensions="nSoilLevels nCells Time" units="K"
-                     description="soil layer temperature"/>
+                     description="soil layer temperature"
+                     packages="met_stage_out"/>
 
                 <var name="smcrel" type="real" dimensions="nSoilLevels nCells Time" units="m3 m^{-3}"
-                     description="soil moisture threshold below which transpiration begins to stress"/>
+                     description="soil moisture threshold below which transpiration begins to stress"
+                     packages="met_stage_out"/>
 
                 <var name="tmn" type="real" dimensions="nCells Time" units="K"
-                     description="deep soil temperature"/>
+                     description="deep soil temperature"
+                     packages="met_stage_out"/>
 
                 <var name="skintemp" type="real" dimensions="nCells Time" units="K"
-                     description="ground or water surface temperature"/>
+                     description="ground or water surface temperature"
+                     packages="met_stage_out"/>
 
                 <var name="sst" type="real" dimensions="nCells Time" units="K"
-                     description="sea-surface temperature"/>
+                     description="sea-surface temperature"
+                     packages="met_stage_out;sfc_update"/>
 
                 <var name="snow" type="real" dimensions="nCells Time" units="kg m^{-2}"
-                     description="snow water equivalent"/>
+                     description="snow water equivalent"
+                     packages="met_stage_out"/>
 
                 <var name="snowc" type="real" dimensions="nCells Time" units="unitless"
-                     description="flag for snow on ground (=0 no snow; =1,otherwise"/>
+                     description="flag for snow on ground (=0 no snow; =1,otherwise"
+                     packages="met_stage_out"/>
 
                 <var name="snowh" type="real" dimensions="nCells Time" units="m"
-                     description="physical snow depth"/>
+                     description="physical snow depth"
+                     packages="met_stage_out"/>
 
                 <var name="xice" type="real" dimensions="nCells Time" units="unitless"
-                     description="fractional area coverage of sea-ice"/>
+                     description="fractional area coverage of sea-ice"
+                     packages="met_stage_out;sfc_update"/>
 
                 <var name="seaice" type="real" dimensions="nCells Time" units="unitless"
-                     description="sea-ice flag (0=no seaice; =1 otherwise)"/>
+                     description="sea-ice flag (0=no seaice; =1 otherwise)"
+                     packages="met_stage_out"/>
 
                 <var name="gfs_z" type="real" dimensions="nVertLevels nCells Time" units="m"
-                     description="geopotential height vertically interpolated from first guess"/>
+                     description="geopotential height vertically interpolated from first guess"
+                     packages="met_stage_out"/>
 
                 <var name="vegfra" type="real" dimensions="nCells Time" units="unitless"
-                     description="vegetation fraction"/>
+                     description="vegetation fraction"
+                     packages="met_stage_out"/>
 
                 <var name="sfc_albbck" type="real" dimensions="nCells Time" units="unitless"
-                     description="background surface albedo"/>
+                     description="background surface albedo"
+                     packages="met_stage_out"/>
 
                 <var name="xland" type="real" dimensions="nCells Time" units="unitless"
-                     description="land-ocean mask (1=land including sea-ice ; 2=ocean)"/>
+                     description="land-ocean mask (1=land including sea-ice ; 2=ocean)"
+                     packages="met_stage_out"/>
 
                 <!-- diagnostic fields that we get from first-guess data, and which we want to have at model initial output time -->
                 <var name="u10" type="real" dimensions="nCells Time" units="m s^{-1}"
-                     description="10-meter zonal wind"/>
+                     description="10-meter zonal wind"
+                     packages="met_stage_out"/>
 
                 <var name="v10" type="real" dimensions="nCells Time" units="m s^{-1}"
-                     description="10-meter meridional wind"/>
+                     description="10-meter meridional wind"
+                     packages="met_stage_out"/>
 
                 <var name="q2" type="real" dimensions="nCells Time" units="kg kg^{-1}"
-                     description="2-meter specific humidity"/>
+                     description="2-meter specific humidity"
+                     packages="met_stage_out"/>
 
                 <var name="rh2" type="real" dimensions="nCells Time" units="percent"
-                     description="2-meter relative humidity"/>
+                     description="2-meter relative humidity"
+                     packages="met_stage_out"/>
 
                 <var name="t2m" type="real" dimensions="nCells Time" units="K"
-                     description="2-meter temperature"/>
+                     description="2-meter temperature"
+                     packages="met_stage_out"/>
 
         </var_struct>
 
         <var_struct name="diag" time_levs="1">
                 <var name="pressure_p" type="real" dimensions="nVertLevels nCells Time" units="Pa"
-                     description="Perturbation pressure"/>
+                     description="Perturbation pressure"
+                     packages="met_stage_out"/>
 
                 <var name="rho" type="real" dimensions="nVertLevels nCells Time" units="kg m^{-3}"
-                     description="Dry air density"/>
+                     description="Dry air density"
+                     packages="met_stage_out"/>
 
                 <var name="theta" type="real" dimensions="nVertLevels nCells Time" units="K"
-                     description="Potential temperature"/>
+                     description="Potential temperature"
+                     packages="met_stage_out"/>
 
                 <var name="v" type="real" dimensions="nVertLevels nEdges Time" units="m s^{-1}"
-                     description="Horizontal tangential velocity at edges"/>
+                     description="Horizontal tangential velocity at edges"
+                     packages="met_stage_out"/>
 
                 <var name="relhum" type="real" dimensions="nVertLevels nCells Time" units="percent"
-                     description="Relative humidity"/>
+                     description="Relative humidity"
+                     packages="met_stage_out"/>
 
                 <var name="spechum" type="real" dimensions="nVertLevels nCells Time" units="kg kg^{-1}"
-                     description="Specific humidity"/>
+                     description="Specific humidity"
+                     packages="met_stage_out"/>
 
                 <!-- reconstructed horizontal velocity vectors at cell centers -->
                 <var name="uReconstructX" type="real" dimensions="nVertLevels nCells Time" units="m s^{-1}"
-                     description="Cartesian x-component of reconstructed horizontal velocity at cell centers"/>
+                     description="Cartesian x-component of reconstructed horizontal velocity at cell centers"
+                     packages="met_stage_out"/>
 
                 <var name="uReconstructY" type="real" dimensions="nVertLevels nCells Time" units="m s^{-1}"
-                     description="Cartesian y-component of reconstructed horizontal velocity at cell centers"/>
+                     description="Cartesian y-component of reconstructed horizontal velocity at cell centers"
+                     packages="met_stage_out"/>
 
                 <var name="uReconstructZ" type="real" dimensions="nVertLevels nCells Time" units="m s^{-1}"
-                     description="Cartesian z-component of reconstructed horizontal velocity at cell centers"/>
+                     description="Cartesian z-component of reconstructed horizontal velocity at cell centers"
+                     packages="met_stage_out"/>
 
                 <var name="uReconstructZonal" type="real" dimensions="nVertLevels nCells Time" units="m s^{-1}"
-                     description="Zonal component of reconstructed horizontal velocity at cell centers"/>
+                     description="Zonal component of reconstructed horizontal velocity at cell centers"
+                     packages="met_stage_out"/>
 
                 <var name="uReconstructMeridional" type="real" dimensions="nVertLevels nCells Time" units="m s^{-1}"
-                     description="Meridional component of reconstructed horizontal velocity at cell centers"/>
+                     description="Meridional component of reconstructed horizontal velocity at cell centers"
+                     packages="met_stage_out"/>
 
                 <var name="exner" type="real" dimensions="nVertLevels nCells Time" units="unitless"
-                     description="Exner function"/>
+                     description="Exner function"
+                     packages="met_stage_out"/>
 
                 <var name="exner_base" type="real" dimensions="nVertLevels nCells Time" units="unitless"
-                     description="Base-state Exner function"/>
+                     description="Base-state Exner function"
+                     packages="met_stage_out"/>
 
                 <var name="rtheta_base" type="real" dimensions="nVertLevels nCells Time" units="kg K m^{-3}"
-                     description="reference state rho*theta/zz"/>
+                     description="reference state rho*theta/zz"
+                     packages="met_stage_out"/>
 
                 <var name="pressure" type="real" dimensions="nVertLevels nCells Time" units="Pa"
-                     description="Pressure"/>
+                     description="Pressure"
+                     packages="met_stage_out"/>
 
                 <var name="pressure_base" type="real" dimensions="nVertLevels nCells Time" units="Pa"
-                     description="Base state pressure"/>
+                     description="Base state pressure"
+                     packages="met_stage_out"/>
 
                 <var name="rho_base" type="real" dimensions="nVertLevels nCells Time" units="kg m^{-3}"
-                     description="Base state dry air density"/>
+                     description="Base state dry air density"
+                     packages="met_stage_out"/>
 
                 <var name="theta_base" type="real" dimensions="nVertLevels nCells Time" units="K"
-                     description="Base state potential temperature"/>
+                     description="Base state potential temperature"
+                     packages="met_stage_out"/>
 
                 <var name="cqw" type="real" dimensions="nVertLevels nCells Time" units="unitless"
-                     description="rho_d/rho_m at w points"/>
+                     description="rho_d/rho_m at w points"
+                     packages="met_stage_out"/>
 
                 <var name="surface_pressure" type="real" dimensions="nCells Time" units="Pa"
-                     description="Diagnosed surface pressure"/>
+                     description="Diagnosed surface pressure"
+                     packages="met_stage_out"/>
 
                 <!-- coupled variables needed by the solver, but not output -->
                 <var name="ru" type="real" dimensions="nVertLevels nEdges Time" units="kg m^{-2} s^{-1}"
-                     description="horizontal momentum at cell edge (rho*u/zz)"/>
+                     description="horizontal momentum at cell edge (rho*u/zz)"
+                     packages="met_stage_out"/>
 
                 <var name="rw" type="real" dimensions="nVertLevelsP1 nCells Time" units="kg m^{-2} s^{-1}"
-                     description="rho*omega/zz carried at w points"/>
+                     description="rho*omega/zz carried at w points"
+                     packages="met_stage_out"/>
 
                 <var name="rtheta_p" type="real" dimensions="nVertLevels nCells Time" units="kg K m^{-3}"
-                     description="rho*theta_m/zz perturbation from the reference state value"/>
+                     description="rho*theta_m/zz perturbation from the reference state value"
+                     packages="met_stage_out"/>
 
                 <var name="rho_p" type="real" dimensions="nVertLevels nCells Time" units="kg m^{-3}"
-                     description="rho/zz perturbation from the reference state value, advanced over acoustic steps"/>
+                     description="rho/zz perturbation from the reference state value, advanced over acoustic steps"
+                     packages="met_stage_out"/>
         </var_struct>
 
         <var_struct name="diag_physics" time_levs="1">
                 <var name="precipw" type="real" dimensions="nCells Time" units="kg m^{-2}"
-                     description="precipitable water"/>
+                     description="precipitable water"
+                     packages="met_stage_out"/>
         </var_struct>
 </registry>

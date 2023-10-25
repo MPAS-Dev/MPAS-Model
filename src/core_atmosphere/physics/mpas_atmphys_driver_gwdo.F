@@ -60,6 +60,8 @@
 ! * modified the call to subroutine gwdo following the update of module_gwdo.F to that
 !   of WRF version 4.0.2.
 !   Laura D. Fowler (laura@ucar.edu) / 2019-01-30.
+! * added the flags errmsg and errflg in the call to subroutine gwdo for compliance with the CCPP framework.
+!   Laura D. Fowler (laura@ucar.edu) / 2023-05-15.
 
 
  contains
@@ -285,9 +287,17 @@
  integer:: i,iCell,iEdge
  real(kind=RKIND),dimension(:),allocatable:: dx_max
 
+!CCPP-compliant flags:
+ character(len=StrKIND):: errmsg
+ integer:: errflg
+
 !-----------------------------------------------------------------------------------------------------------------
 !call mpas_log_write('')
 !call mpas_log_write('--- enter subroutine driver_gwdo:')
+
+!initialization of CCPP-compliant flags:
+ errmsg = ' '
+ errflg = 0
 
  call mpas_pool_get_config(configs,'config_gwdo_scheme',gwdo_scheme)
 
@@ -301,7 +311,7 @@
        call gwdo ( &
                   p3d       = pres_hydd_p , p3di      = pres2_hydd_p , pi3d    = pi_p      , &
                   u3d       = u_p         , v3d       = v_p          , t3d     = t_p       , & 
-                  qv3d      = qv_p        , z         = z_p          , rublten = rublten_p , &
+                  qv3d      = qv_p        , z         = zmid_p       , rublten = rublten_p , &
                   rvblten   = rvblten_p   , dtaux3d   = dtaux3d_p    , dtauy3d = dtauy3d_p , &
                   dusfcg    = dusfcg_p    , dvsfcg    = dvsfcg_p     , kpbl2d  = kpbl_p    , &
                   itimestep = itimestep   , dt        = dt_pbl       , dx      = dx_p      , & 
@@ -311,6 +321,7 @@
                   oa2d2     = oa2_p       , oa2d3     = oa3_p        , oa2d4   = oa4_p     , &
                   ol2d1     = ol1_p       , ol2d2     = ol2_p        , ol2d3   = ol3_p     , & 
                   ol2d4     = ol4_p       , sina      = sina_p       , cosa    = cosa_p    , &
+                  errmsg    = errmsg      , errflg    = errflg       ,                       &
                   ids = ids , ide = ide , jds = jds , jde = jde , kds = kds , kde = kde ,    &
                   ims = ims , ime = ime , jms = jms , jme = jme , kms = kms , kme = kme ,    &
                   its = its , ite = ite , jts = jts , jte = jte , kts = kts , kte = kte      &

@@ -19,7 +19,7 @@
  use module_cu_gf
  use module_cu_kfeta
  use module_cu_tiedtke
- use module_cu_ntiedtke
+ use module_cu_ntiedtke,only: cu_ntiedtke_driver
 
  implicit none
  private
@@ -435,9 +435,17 @@
  real(kind=RKIND):: cudt
  real(kind=RKIND):: cudtacttime
 
+!CCPP-compliant flags:
+ character(len=StrKIND):: errmsg
+ integer:: errflg
+
 !-----------------------------------------------------------------------------------------------------------------
 !call mpas_log_write('')
 !call mpas_log_write('--- enter subroutine driver_convection:')
+
+!initialization of CCPP-compliant flags:
+ errmsg = ' '
+ errflg = 0
 
  call mpas_pool_get_config(configs,'config_gfconv_closure_deep',gfconv_closure_deep)
  call mpas_pool_get_config(configs,'config_gfconv_closure_shallow',gfconv_closure_shallow)
@@ -569,8 +577,8 @@
        call mpas_timer_stop('Tiedtke')
 
     case("cu_ntiedtke")
-       call mpas_timer_start('New_Tiedtke')
-       call cu_ntiedtke( &
+       call mpas_timer_start('cu_ntiedtke')
+       call cu_ntiedtke_driver( &
              pcps      = pres_hyd_p  , p8w         = pres2_hyd_p ,                   &
              t3d       = t_p         , dz8w        = dz_p        ,                   &
              dt        = dt_dyn      , itimestep   = initflag    ,                   &
@@ -588,12 +596,16 @@
              f_qs      = f_qs        , rthcuten    = rthcuten_p  ,                   &
              rqvcuten  = rqvcuten_p  , rqccuten    = rqccuten_p  ,                   &
              rqicuten  = rqicuten_p  , rucuten     = rucuten_p   ,                   &
-             rvcuten   = rvcuten_p   ,                                               &
+             rvcuten   = rvcuten_p   , grav        = gravity     ,                   &
+             xlf       = xlf         , xls         = xls         ,                   &
+             xlv       = xlv         , rd          = R_d         ,                   &
+             rv        = R_v         , cp          = cp          ,                   &
+             errmsg    = errmsg      , errflg      = errflg      ,                   &
              ids = ids , ide = ide , jds = jds , jde = jde , kds = kds , kde = kde , &
              ims = ims , ime = ime , jms = jms , jme = jme , kms = kds , kme = kme , &
              its = its , ite = ite , jts = jts , jte = jte , kts = kts , kte = kte   &
                               )
-       call mpas_timer_stop('New_Tiedtke')
+       call mpas_timer_stop('cu_ntiedtke')
 
     case default
 

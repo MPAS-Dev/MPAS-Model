@@ -1,12 +1,16 @@
+!=================================================================================================================
 MODULE module_sf_noahlsm_glacial_only
+
+!reference: WRF-v4.5.1
+!Laura D. Fowler (laura@ucar.edu)/2023-04-21.
 #if defined(mpas)
 use mpas_atmphys_constants
 use mpas_atmphys_utilities, only: physics_error_fatal
-#define FATAL_ERROR(M) call physics_error_fatal( M )
+#define FATAL_ERROR(M) call physics_error_fatal(M)
 #else
 use module_model_constants
 use module_wrf_error
-#define FATAL_ERROR(M) call wrf_error_fatal( M )
+#define FATAL_ERROR(M) call wrf_error_fatal(M)
 #endif
 
   USE module_sf_noahlsm, ONLY : RD, SIGMA, CPH2O, CPICE, LSUBF, EMISSI_S, ROSR12

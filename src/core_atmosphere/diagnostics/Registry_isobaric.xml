@@ -16,6 +16,12 @@
         <var name="mslp" type="real" dimensions="nCells Time" units="Pa"
              description="Mean sea-level pressure"/>
 
+        <var name="temperature_50hPa" type="real" dimensions="nCells Time" units="K"
+             description="Temperature vertically interpolated to 50 hPa"/>
+
+        <var name="temperature_100hPa" type="real" dimensions="nCells Time" units="K"
+             description="Temperature vertically interpolated to 100 hPa"/>
+
         <var name="temperature_200hPa" type="real" dimensions="nCells Time" units="K"
              description="Temperature vertically interpolated to 200 hPa"/>
 
@@ -33,6 +39,12 @@
 
         <var name="temperature_925hPa" type="real" dimensions="nCells Time" units="K"
              description="Temperature vertically interpolated to 925 hPa"/>
+
+        <var name="relhum_50hPa" type="real" dimensions="nCells Time" units="percent"
+             description="Relative humidity vertically interpolated to 50 hPa"/>
+
+        <var name="relhum_100hPa" type="real" dimensions="nCells Time" units="percent"
+             description="Relative humidity vertically interpolated to 100 hPa"/>
 
         <var name="relhum_200hPa" type="real" dimensions="nCells Time" units="percent"
              description="Relative humidity vertically interpolated to 200 hPa"/>
@@ -52,6 +64,12 @@
         <var name="relhum_925hPa" type="real" dimensions="nCells Time" units="percent"
              description="Relative humidity vertically interpolated to 925 hPa"/>
 
+        <var name="dewpoint_50hPa" type="real" dimensions="nCells Time" units="K"
+             description="Dewpoint temperature vertically interpolated to 50 hPa"/>
+
+        <var name="dewpoint_100hPa" type="real" dimensions="nCells Time" units="K"
+             description="Dewpoint temperature vertically interpolated to 100 hPa"/>
+
         <var name="dewpoint_200hPa" type="real" dimensions="nCells Time" units="K"
              description="Dewpoint temperature vertically interpolated to 200 hPa"/>
 
@@ -69,6 +87,12 @@
 
         <var name="dewpoint_925hPa" type="real" dimensions="nCells Time" units="K"
              description="Dewpoint temperature vertically interpolated to 925 hPa"/>
+
+        <var name="height_50hPa" type="real" dimensions="nCells Time" units="m"
+             description="Geometric height interpolated to 50 hPa"/>
+
+        <var name="height_100hPa" type="real" dimensions="nCells Time" units="m"
+             description="Geometric height interpolated to 100 hPa"/>
 
         <var name="height_200hPa" type="real" dimensions="nCells Time" units="m"
              description="Geometric height interpolated to 200 hPa"/>
@@ -88,6 +112,12 @@
         <var name="height_925hPa" type="real" dimensions="nCells Time" units="m"
              description="Geometric height interpolated to 925 hPa"/>
 
+        <var name="uzonal_50hPa" type="real" dimensions="nCells Time" units="m s^{-1}"
+             description="Reconstructed zonal wind at cell centers, vertically interpolated to 50 hPa"/>
+
+        <var name="uzonal_100hPa" type="real" dimensions="nCells Time" units="m s^{-1}"
+             description="Reconstructed zonal wind at cell centers, vertically interpolated to 100 hPa"/>
+
         <var name="uzonal_200hPa" type="real" dimensions="nCells Time" units="m s^{-1}"
              description="Reconstructed zonal wind at cell centers, vertically interpolated to 200 hPa"/>
 
@@ -105,6 +135,12 @@
 
         <var name="uzonal_925hPa" type="real" dimensions="nCells Time" units="m s^{-1}"
              description="Reconstructed zonal wind at cell centers, vertically interpolated to 925 hPa"/>
+
+        <var name="umeridional_50hPa" type="real" dimensions="nCells Time" units="m s^{-1}"
+             description="Reconstructed meridional wind at cell centers, vertically interpolated to 50 hPa"/>
+
+        <var name="umeridional_100hPa" type="real" dimensions="nCells Time" units="m s^{-1}"
+             description="Reconstructed meridional wind at cell centers, vertically interpolated to 100 hPa"/>
 
         <var name="umeridional_200hPa" type="real" dimensions="nCells Time" units="m s^{-1}"
              description="Reconstructed meridional wind at cell centers, vertically interpolated to 200 hPa"/>
@@ -124,6 +160,12 @@
         <var name="umeridional_925hPa" type="real" dimensions="nCells Time" units="m s^{-1}"
              description="Reconstructed meridional wind at cell centers, vertically interpolated to 925 hPa"/>
 
+        <var name="w_50hPa" type="real" dimensions="nCells Time" units="m s^{-1}"
+             description="Vertical velocity vertically interpolated to 50 hPa"/>
+
+        <var name="w_100hPa" type="real" dimensions="nCells Time" units="m s^{-1}"
+             description="Vertical velocity vertically interpolated to 100 hPa"/>
+
         <var name="w_200hPa" type="real" dimensions="nCells Time" units="m s^{-1}"
              description="Vertical velocity vertically interpolated to 200 hPa"/>
 
@@ -141,6 +183,12 @@
 
         <var name="w_925hPa" type="real" dimensions="nCells Time" units="m s^{-1}"
              description="Vertical velocity vertically interpolated to 925 hPa"/>
+
+        <var name="vorticity_50hPa" type="real" dimensions="nVertices Time" units="s^{-1}"
+             description="Relative vorticity vertically interpolated to 50 hPa"/>
+
+        <var name="vorticity_100hPa" type="real" dimensions="nVertices Time" units="s^{-1}"
+             description="Relative vorticity vertically interpolated to 100 hPa"/>
 
         <var name="vorticity_200hPa" type="real" dimensions="nVertices Time" units="s^{-1}"
              description="Relative vorticity vertically interpolated to 200 hPa"/>
