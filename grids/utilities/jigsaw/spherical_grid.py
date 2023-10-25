@@ -142,7 +142,7 @@ for creating plots)",
     
     parser.add_argument(
         "-g", "--grid", dest="opt",
-        required=False, default="icos", type=str,
+        required=True, default="icos", type=str,
         help="""Grid option: \n 
         "unif": Uniform resolution spherical grid (hand tune \
 cellWidthVsLatLon function) \n
