@@ -150,7 +150,7 @@ grid_dir = f"{work_dir}/grids/grids/Catarina_250-8km/"
 graph_file_path =  f"{grid_dir}/Catarina_250-8km.graph.info.part."
 
 # define dates in format: 'YYYY-MM-DD_hh:mm:ss'
-init_date = '2004-03-21_00:00:00'
+init_date = '2004-03-23_00:00:00'
 run_duration = '2_00:00:00'
 len_disp = 800.0
 n_vert_levels = 72
