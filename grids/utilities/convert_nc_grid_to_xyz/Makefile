@@ -6,7 +6,8 @@ FFLAGS = -ffree-line-length-none
 #FC = ifort
 #FFLAGS = -FR
 
-NETCDF=/usr
+#NETCDF=/usr
+NETCDF:= $(shell nc-config --prefix)
 ############### There is generally no need to make modifications below this line ###############
 
 
