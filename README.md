@@ -1,10 +1,18 @@
 MPAS-v8.0.1 + Contributions 
+===========================
+
+MPAS-BR
 =======
+MPAS-BR is a fork from MPAS-Dev intended for the further development of the 
+Model for Prediction Across Scales by the Brazilian research community for 
+research purposes.
 
-(For contributions, see:
-MPAS_BR_contributions.txt and specific contributions in MPAS-BR-contributions-AUTHOR.md  files)
+For instructions on how to contribute to MPAS-BR, see MPAS_BR_contributions.txt. 
+For a description of contributions made so far, see MPAS-BR-contributions-AUTHOR.md.
+For documentation on how to build and run MPAS-BR, see docs/mpas_br.
 
-====
+INTRODUCTION TO MPAS
+====================
 
 The Model for Prediction Across Scales (MPAS) is a collaborative project for
 developing atmosphere, ocean, and other earth-system simulation components for
