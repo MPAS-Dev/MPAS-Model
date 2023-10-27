@@ -33,7 +33,8 @@ export PNETCDF_PATH=${LIBBASE}
 export PIO_PATH=${LIBBASE}
 
 
-host='nemo'
+#host='nemo'
+host=`hostname`
 if [[ $host == mac* ]]; then
 	echo "DETECTED MAC CLUSTER (AMD), LOADING STUFF"
 
