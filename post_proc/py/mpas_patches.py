@@ -238,11 +238,18 @@ def plot_var_in_patch(var, patch_collection, label, title, outfile):
     fig = plt.figure()
     ax = plt.gca()
 
+    #bmap = Basemap(projection='cyl', 
+    #           llcrnrlat=-90,
+    #           urcrnrlat=90,
+    #           llcrnrlon=0,
+    #           urcrnrlon=360,
+    #           resolution='l')
+
     bmap = Basemap(projection='cyl', 
                llcrnrlat=-90,
                urcrnrlat=90,
-               llcrnrlon=0,
-               urcrnrlon=360,
+               llcrnrlon=-180,
+               urcrnrlon=180,
                resolution='l')
 
     bmap.drawcoastlines()

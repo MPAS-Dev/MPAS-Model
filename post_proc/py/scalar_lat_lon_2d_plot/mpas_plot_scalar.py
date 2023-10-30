@@ -18,7 +18,7 @@ it takes to on subsequent visualiations.
 This file was created with great help and reference from:
 * https://github.com/lmadaus/mpas_python
 
-* Edited by P. Peixoto on Feb 2022
+* Edited by P. Peixoto on Oct 2023
 
 '''
 
@@ -129,7 +129,7 @@ patch_collection = get_mpas_patches(mesh, type=patchtype, pickleFile=None)
 '''
 Select levels and time instants for plotting
 '''
-levels = [1] #range(nlevels)
+levels = [1, 5, 10, 20] #range(nlevels)
 times = range(ntimes)
 for l in levels:
     for t in times:
