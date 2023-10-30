@@ -97,7 +97,7 @@ class Bench:
             make_args.append("gfortran")
             make_args.append("CORE="+self.core0)
             make_args.append("OPENMP=true")
-            make_args.append("USE_PIO2=true")
+            #make_args.append("USE_PIO2=true")
             make_args.append("AUTOCLEAN=true")
 
             with subprocess.Popen(make_args, stdout = subprocess.PIPE, stderr=subprocess.PIPE, cwd=self.work_dir, shell=False) as p:
