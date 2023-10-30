@@ -1,0 +1,53 @@
+<streams>
+
+<immutable_stream name="input"
+                  type="input"
+                  filename_template="x1.40962.init.nc"
+                  input_interval="initial_only"/>
+
+<immutable_stream name="restart"
+                  type="input;output"
+                  filename_template="restart.$Y-$M-$D_$h.$m.$s.nc"
+                  input_interval="initial_only"
+                  output_interval="5_00:00:00"/>
+
+<stream name="output"
+        type="output"
+        filename_template="output.nc"
+        filename_interval="none"
+        output_interval="24:00:00">
+
+    <file name="stream_list.atmosphere.output"/>
+
+</stream>
+
+<stream name="diagnostics"
+        type="output"
+        filename_template="diag.$Y-$M-$D_$h.$m.$s.nc"
+        output_interval="none" >
+
+</stream>
+
+<stream name="surface"
+        type="input"
+        filename_template="x1.40962.sfc_update.nc"
+        filename_interval="none"
+        input_interval="none">
+
+</stream>
+
+<immutable_stream name="iau"
+                  type="input"
+                  filename_template="AmB.$Y-$M-$D_$h.$m.$s.nc"
+                  filename_interval="none"
+                  packages="iau"
+                  input_interval="initial_only" />
+
+<immutable_stream name="lbc_in"
+                  type="input"
+                  filename_template="lbc.$Y-$M-$D_$h.$m.$s.nc"
+                  filename_interval="input_interval"
+                  packages="limited_area"
+                  input_interval="none" />
+
+</streams>

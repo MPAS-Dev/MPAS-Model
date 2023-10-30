@@ -1,0 +1,12 @@
+The Jablonowski and Williamson baroclinic wave test case.
+
+Steps to run this test case:
+
+1. Link the init_atmosphere_model and atmosphere_model executables from the top-level MPAS directory.
+
+2. Run init_atmosphere_model to create initial conditions.
+   The log file may show WARNING messages; these can generally be ignored.
+
+3. Run atmosphere_model
+
+4. Run the bwave_surface_p.ncl script to produce plots of surface pressure each simulated day.
