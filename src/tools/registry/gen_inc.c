@@ -363,12 +363,14 @@ int build_struct_package_lists(ezxml_t currentPosition, char * out_packages){/*{
 				if(out_packages[0] == '\0'){
 					sprintf(out_packages, "%s", token);
 				} else if(add_package_to_list(token, out_packages)){
-					sprintf(out_packages, "%s;%s", out_packages, token);
+					strcat(out_packages, ";");
+					strcat(out_packages, token);
 				}
 
 				while( (token = strsep(&string, ";")) != NULL){
 					if(add_package_to_list(token, out_packages)){
-						sprintf(out_packages, "%s;%s", out_packages, token);
+						strcat(out_packages, ";");
+						strcat(out_packages, token);
 					}
 				}
 
@@ -387,12 +389,14 @@ int build_struct_package_lists(ezxml_t currentPosition, char * out_packages){/*{
 					if(out_packages[0] == '\0'){
 						sprintf(out_packages, "%s", token);
 					} else if(add_package_to_list(token, out_packages)){
-						sprintf(out_packages, "%s;%s", out_packages, token);
+						strcat(out_packages, ";");
+						strcat(out_packages, token);
 					}
 
 					while( (token = strsep(&string, ";")) != NULL){
 						if(add_package_to_list(token, out_packages)){
-							sprintf(out_packages, "%s;%s", out_packages, token);
+							strcat(out_packages, ";");
+							strcat(out_packages, token);
 						}
 					}
 
@@ -413,12 +417,14 @@ int build_struct_package_lists(ezxml_t currentPosition, char * out_packages){/*{
 				if(out_packages[0] == '\0'){
 					sprintf(out_packages, "%s", token);
 				} else if(add_package_to_list(token, out_packages)){
-					sprintf(out_packages, "%s;%s", out_packages, token);
+					strcat(out_packages, ";");
+					strcat(out_packages, token);
 				}
 
 				while( (token = strsep(&string, ";")) != NULL){
 					if(add_package_to_list(token, out_packages)){
-						sprintf(out_packages, "%s;%s", out_packages, token);
+						strcat(out_packages, ";");
+						strcat(out_packages, token);
 					}
 				}
 
