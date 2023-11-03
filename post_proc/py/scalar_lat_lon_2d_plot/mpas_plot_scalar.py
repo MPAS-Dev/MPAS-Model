@@ -109,7 +109,11 @@ if nFiles>1:
 dims = var.dimensions
 shap = var.shape
 
-nlevels = shap[2]
+try: 
+    nlevels = shap[2] #3D variable
+except:
+    nlevels = 0 # 2D variable
+
 ntimes = shap[0]
 print("nlevels:", nlevels)
 if 'nEdges' in dims:
@@ -129,7 +133,11 @@ patch_collection = get_mpas_patches(mesh, type=patchtype, pickleFile=None)
 '''
 Select levels and time instants for plotting
 '''
-levels = [1, 5, 10, 20] #range(nlevels)
+if nlevels>0:
+    levels = range(nlevels)
+else:
+    levels = [-1]
+
 times = range(ntimes)
 for l in levels:
     for t in times:
@@ -137,11 +145,17 @@ for l in levels:
         if nFiles==1:
             title = variable+' at time '+str(t)+' and at level '+str(l)
             outfile = dir+"/"+variable+'_'+str(t)+'_'+str(l)+'.png'
-            var_tmp = var[t,:,l]
+            if l == -1:
+                var_tmp = var[t,:]
+            else:
+                var_tmp = var[t,:,l]
         else:
             title = variable+' diff at time '+str(t)+' and at level '+str(l)
             outfile = dir+"/"+variable+'_diff_'+str(t)+'_'+str(l)+'.png'
-            var_tmp = vars[1][t,:,l]-var[t,:,l]
+            if l == -1:
+                var_tmp = vars[1][t,:]-var[t,:]
+            else:
+                var_tmp = vars[1][t,:,l]-var[t,:,l]
 
         print("Creating a plot of ", title, outfile)
         #Plot variables in patches
