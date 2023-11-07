@@ -73,13 +73,19 @@ def add_mpas_mesh_variables(ds, full=True, **kwargs):
 
 
 def open_mpas_file(file, **kwargs):
+
     ds = xr.open_dataset(file)
+
     ds = add_mpas_mesh_variables(ds, **kwargs)
+
     return ds
 
 def start_cartopy_map_axis(zorder=1):
+
     ax = plt.axes(projection=ccrs.PlateCarree())  # projection type
+    
     add_cartopy_details(ax, zorder=zorder)
+
     return ax
 
 def add_cartopy_details(ax, zorder=1):
@@ -107,16 +113,19 @@ def set_plot_kwargs(da=None, list_darrays=None, **kwargs):
     vmin = plot_kwargs.get('vmin', None)
     if vmin is None:
         if da is not None:
-            vmin = np.min(da)
+            vmin = da.min().values   
+            #vmin = np.min(da)
         elif list_darrays is not None:
             vmin = np.min([v.min() for v in list_darrays if v is not None])
+
     if vmin is not None:
         plot_kwargs['vmin'] = vmin
 
     vmax = plot_kwargs.get('vmax', None)
     if vmax is None:
         if da is not None:
-            vmax = np.max(da)
+            vmax = da.max().values   
+            #vmax = np.max(da)
         elif list_darrays is not None:
             vmax = np.max([v.max() for v in list_darrays if v is not None])
 
@@ -125,101 +134,98 @@ def set_plot_kwargs(da=None, list_darrays=None, **kwargs):
 
     return plot_kwargs
 
-def colorvalue(val, cmap='Spectral', vmin=None, vmax=None):
+def colorvalue(val, da, vmin=None, vmax=None, cmap='Spectral'):
     """
     Given a value and the range max, min, it returns the associated
     color of the desired cmap.
     :param val: float
-    :param cmap: str
+    :param da: xarray data
     :param vmin: float (default None)
     :param vmax: float (default None)
+    :param cmap: str
     :return: cm(norm_val): color
     """
+    
     # Get a colormap instance, defaulting to rc values if name is None.
     cm = mpl.colormaps[cmap] #cm.get_cmap(cmap, None)
     if vmin is None:
-        vmin = xr.DataArray.min().values  # min value of the array
+        vmin = da.min().values #xr.DataArray.min().values  # min value of the array
     if vmax is None:
-        vmax = xr.DataArray.max().values  # max value of the array
+        vmax = da.max().values #xr.DataArray.max().values  # max value of the array
+
     if vmin == vmax:
         # A class which, when called, linearly normalizes data into the
         # [0.0, 1.0] interval.
-        norm_val = mpl.colors.Normalize(vmin=vmin - 1, vmax=vmax + 1,
-                                        clip=True)(val)
+        norm_val = mpl.colors.Normalize(vmin=vmin - 1, vmax=vmax + 1, clip=True)(val)
     else:
-        norm_val = mpl.colors.Normalize(vmin=vmin, vmax=vmax,
-                                        clip=True)(val)
+        norm_val = mpl.colors.Normalize(vmin=vmin, vmax=vmax, clip=True)(val)
+        
     return cm(norm_val)
 
-def plot_cells_mpas(ds, vname, ax, **plot_kwargs):
-    
+def plot_cells_mpas(da, ds, ax, **plot_kwargs):
+    # da: specific xarray to be plotted (time/level filtered)
+    # ds: general xarray with grid structure, require for grid propreties
+
     # ax = start_cartopy_map_axis()
     print("Generating grid plot and plotting variable. This may take a while...")
     for cell in tqdm(ds['nCells'].values):
-        value = ds[vname].sel(nCells=cell)
 
-        vals = ds['verticesOnCell'].sel(nCells=cell).values
+        value = da.sel(nCells=cell)
+
+        vertices = ds['verticesOnCell'].sel(nCells=cell).values
         num_sides = int(ds['nEdgesOnCell'].sel(nCells=cell))
         
-        if 0 in vals[:num_sides]:
+        if 0 in vertices[:num_sides]:
             # Border cell
             continue
 
         # Cel indexation in MPAS starts in 1 (saved in verticesOnCell), 
         #  but for indexing in XARRAY starts with 0 (so -1 the indexes)
-        vals = vals[:num_sides] - 1
+        vertices = vertices[:num_sides] - 1
         
-        lats = ds['latitudeVertex'].sel(nVertices=vals)
-        lons = ds['longitudeVertex'].sel(nVertices=vals)
+        lats = ds['latitudeVertex'].sel(nVertices=vertices)
+        lons = ds['longitudeVertex'].sel(nVertices=vertices)
         
-        color = colorvalue(value, **plot_kwargs)
+        #Set color
+        maxval = da.max().values
+        minval = da.min().values
+        color = colorvalue(value, da, vmin=minval, vmax=maxval)
         
-        # If vertices are near +/-180 long, caropy doesn't known the periodicity
-        #     so plots horizontal lines crossing the globe. 
-        # Avoid cells near the boarder
-        #if all(j for j in lons >= -178) and all(j for j in lons <= 178):
-            #ax.fill(lons, lats, edgecolor=None, linewidth=1, facecolor=color)
-
         # Check if there are polygons at the boarder of the map (+/- 180 longitude)
         # Shift +360 deg the negative longitude
         if max(lons) > 170 and min(lons) < -170 :
             lons = xr.where(lons >= 170.0, lons - 360.0, lons)
-                    
+            
         ax.fill(lons, lats, edgecolor='grey', linewidth=0.1, facecolor=color)
         
     return
 
-def plot_dual_mpas(ds, vname, ax, **plot_kwargs):
-
+def plot_dual_mpas(da, ds, ax, **plot_kwargs):
 
     #Loop over all Voronoi cell vertices - which are triangle circumcentres
     print("Generating grid plot and plotting variable. This may take a while...")
     for vertex in tqdm(ds['nVertices'].values):
 
         #Triangle value
-        value = ds[vname].sel(nVertices=vertex)
+        value = da.sel(nVertices=vertex)
 
         #The triangle is formed by connecting 3 cell nodes
-        vals = ds['cellsOnVertex'].sel(nVertices=vertex).values
+        cells = ds['cellsOnVertex'].sel(nVertices=vertex).values
         
-        if 0 in vals:
+        if 0 in cells:
             # Border triangle
             continue
 
         #Indexing given from mpas starts in 1, so adjust to start in 0
-        vals = vals - 1
-        lats = ds['latitude'].sel(nCells=vals)
-        lons = ds['longitude'].sel(nCells=vals)
+        cells = cells - 1
+        lats = ds['latitude'].sel(nCells=cells)
+        lons = ds['longitude'].sel(nCells=cells)
         
-        color = colorvalue(value, **plot_kwargs)
-
-        # If vertices are near +/-180 long, caropy doesn't known the periodicity
-        #     so plots horizontal lines crossing the globe. 
-        # Avoid cells near the boarder
-        # Legacy solution
-        #if all(j for j in lons >= -175) and all(j for j in lons <= 175):
-        #    ax.fill(lons, lats, edgecolor='grey', linewidth=0.1, facecolor=color)
-
+        #Set color
+        maxval = da.max().values
+        minval = da.min().values        
+        color = colorvalue(value, da, vmin=minval, vmax=maxval)
+        
         # Check if there are polygons at the boarder of the map (+/- 180 longitude)
         # Shift +360 deg the negative longitude
         if max(lons) > 170 and min(lons) < -170 :
@@ -279,63 +285,64 @@ def close_plot(fig=None, size_fig=None, pdf=None, outfile=None,
     plt.close()
 
 
-def plot_mpas_darray(ds, vname, ax=None, outfile=None, title=None, **kwargs):
+def plot_mpas_darray(ds, vname, time=None, level=None, ax=None, outfile=None, title=None, **kwargs):
     
     ## plot_mpas_darray
-    if vname not in ds.data_vars:
-            print('Unplottable Data Array ' + vname)
-            print(ds)
-            
     da = ds[vname]
     
-    for coord in ['Time', 'nVertLevels']:
-        if coord in da.dims:
-            print('Selecting first slice for ' + coord + '.')
-            da = da.isel({coord: 0})      
+    if 'Time' in da.dims:
+        print()    
+        if time not in da['Time'].values:
+            print("Proposed time slice not available:", time," Timesteps:", da['Time'].values)
+            print("  Setting time slice to zero.")
+            time = 0
+        else:
+            print('Selecting time slice '+ str(time) + '.')
+
+        da = da.isel({'Time': time})      
+
     
-    # final = False
-    # if ax is None:
-    #     final = True
-    #     ax = start_cartopy_map_axis()
-        
+    if 'nVertLevels' in da.dims:
+        print()    
+        if level not in da['nVertLevels'].values:
+            print("Proposed vertical level slice not available.", level," Levels:", da['nVertLevels'].values)
+            print("  Setting level to zero.")
+            level = 0
+        else:
+            print('Selecting vertical level '+ str(time) + '.')
+
+        da = da.isel({'nVertLevels': level})      
+    print("\n Data to be plotted")    
+    print(da)
+    print()
+
     ax.set_extent([-180.0, 180,-90.0, 90.0], crs=ccrs.PlateCarree())
-    
-    # Enlarge slightly to get the points near boarder of +/- 180 deg longitude
-    #ax.set_extent([-182.0, 180,-90.0, 90.0], crs=ccrs.PlateCarree())
     
     plot_kwargs = set_plot_kwargs(da=da, **kwargs)
     
-    if 'nCells' in ds[vname].dims:
-        plot_cells_mpas(ds, vname, ax, **plot_kwargs)
-    elif 'nVertices' in ds[vname].dims:
-        plot_dual_mpas(ds, vname, ax, **plot_kwargs)
-    else:
+    if 'nCells' in da.dims: #Plot on Voronoi cells
+        plot_cells_mpas(da, ds, ax, **plot_kwargs)
+
+    elif 'nVertices' in da.dims: #Plot on Triangles
+        plot_dual_mpas(da, ds, ax, **plot_kwargs)
+
+    else: # TO DO: Implement ploting edge quantities
         print('WARNING  Impossible to plot!')
     
         
-    units = da.attrs.get('units', '')
-    name = kwargs.get('name', '')
-    ncells = str(len(da.values.flatten()))
     if title == None:
-        #title = kwargs.get('title', '')
-        #title = title.replace('<VAR>', vname).replace('<UNITS>', units)
-        #title = title.replace('<NAME>', name).replace('<NCELLS>', ncells)
         title = vname
     
     ax.set_title(title)
     
-    # if final:
-    #     title_legend = kwargs.get('title_legend', '<VAR>: <UNITS>')
-    #     title_legend = title_legend.replace('<VAR>', vname)
-    #     title_legend = title_legend.replace('<UNITS>', units)
-    #     add_colorbar(ax, label=title_legend, **plot_kwargs)
-    
-    #     close_plot(outfile=outfile)
+    add_colorbar(ax, label=vname + ' (' + da.attrs.get('units', '') + ')', **plot_kwargs)
+
+    return 
 
 def view_mpas_mesh(mpas_grid_file, outfile=None,
-                            do_plot_resolution_rings=True,
                             vname='resolution',
-                            border_radius=None,
+                            time=None,
+                            level=None,
                             **kwargs):
     
     ds = open_mpas_file(mpas_grid_file)
@@ -348,23 +355,18 @@ def view_mpas_mesh(mpas_grid_file, outfile=None,
     units = ds[vname].attrs.get('units', '')
     ncells = str(len(ds[vname].values.flatten()))
     name = os.path.basename(mpas_grid_file)
-    print(units, ncells, name, ds[vname])
+    print(vname, units, ncells, name, ds[vname])
 
     ax = start_cartopy_map_axis(zorder=2)
-    plot_kwargs = set_plot_kwargs(da=ds[vname])
-    
-     # --------
+
     tit = vname + ': ' + name + ' (' + str(ncells) + ')'
-    array_plot_kwgs = {**plot_kwargs}
-    if 'border_radius' in kwargs:
-        if kwargs['border_radius'] is not None:
-            array_plot_kwgs['border_radius'] = kwargs['border_radius']
+    if time is not None:
+        tit = tit + " Timestep="+str(time)
+    if level is not None:
+        tit = tit + " Level="+str(level)
+                
+    plot_mpas_darray(ds, vname, time=time, level=level, ax=ax, title=tit)
     
-    plot_mpas_darray(ds, vname, ax=ax, title=tit,
-                     border_radius=border_radius, **array_plot_kwgs)
-    
-            
-    add_colorbar(ax, label=vname + ' (' + units + ')', **plot_kwargs)
     close_plot(outfile=outfile)
         
     
@@ -395,9 +397,21 @@ if __name__ == "__main__":
         "-v", "--var", type=str, default='resolution',
         help="Variable to be plotted",
     )
+
+    parser.add_argument(
+        "-l", "--level", type=int, default=None,
+        help="Vertical level",
+    )
+
+    parser.add_argument(
+        "-t", "--time", type=int, default=None,
+        help="Time step",
+    )
+
     args = parser.parse_args()
     
+
     if not os.path.exists(args.infile):
         raise IOError('File does not exist: ' + args.infile)
     
-    view_mpas_mesh(args.infile, outfile=args.outfile, vname=args.var)
+    view_mpas_mesh(args.infile, outfile=args.outfile, time=args.time, level=args.level, vname=args.var)
