@@ -4362,4 +4362,56 @@ module mpas_io_streams
 
    end subroutine put_get_field_atts
 
+   function mpas_field_list_get_largest_field_size(fieldList, dmInfo) result(maxSize)
+      implicit none
+      type (field_list_type), pointer :: fieldList
+      type (dm_info) :: dmInfo
+
+      integer(kind=I8KIND) :: maxSize
+      integer(kind=I8KIND) :: fieldSize
+      character (len=strKIND) :: fieldNameOut
+      type (field_list_type), pointer :: fieldCursor
+
+      maxSize = 0
+
+      if (.not. associated(fieldList)) return
+
+      fieldCursor => fieldList
+
+      do while (associated(fieldCursor))
+         select case (fieldCursor % field_type)
+            case (FIELD_0D_INT)
+               call mpas_dmpar_sum_int8(dmInfo, sizeof(fieldCursor % int0dField % scalar), fieldSize)
+            case (FIELD_1D_INT)
+               call mpas_dmpar_sum_int8(dmInfo, sizeof(fieldCursor % int1dField % array), fieldSize)
+            case (FIELD_2D_INT)
+               call mpas_dmpar_sum_int8(dmInfo, sizeof(fieldCursor % int2dField % array), fieldSize)
+            case (FIELD_3D_INT)
+               call mpas_dmpar_sum_int8(dmInfo, sizeof(fieldCursor % int3dField % array), fieldSize)
+            case (FIELD_0D_REAL)
+               call mpas_dmpar_sum_int8(dmInfo, sizeof(fieldCursor % real0dField % scalar), fieldSize)
+            case (FIELD_1D_REAL)
+               call mpas_dmpar_sum_int8(dmInfo, sizeof(fieldCursor % real1dField % array), fieldSize)
+            case (FIELD_2D_REAL)
+               call mpas_dmpar_sum_int8(dmInfo, sizeof(fieldCursor % real2dField % array), fieldSize)
+            case (FIELD_3D_REAL)
+               call mpas_dmpar_sum_int8(dmInfo, sizeof(fieldCursor % real3dField % array), fieldSize)
+            case (FIELD_4D_REAL)
+               call mpas_dmpar_sum_int8(dmInfo, sizeof(fieldCursor % real4dField % array), fieldSize)
+            case (FIELD_5D_REAL)
+               call mpas_dmpar_sum_int8(dmInfo, sizeof(fieldCursor % real5dField % array), fieldSize)
+            case (FIELD_0D_CHAR)
+               call mpas_dmpar_sum_int8(dmInfo, sizeof(fieldCursor % char0dField % scalar), fieldSize)
+            case (FIELD_1D_CHAR)
+               call mpas_dmpar_sum_int8(dmInfo, sizeof(fieldCursor % char1dField % array), fieldSize)
+         end select
+
+         if (fieldSize > maxSize) then
+             maxSize = fieldSize
+         end if
+
+         fieldCursor => fieldCursor % next
+      end do
+   end function mpas_field_list_get_largest_field_size
+
 end module mpas_io_streams

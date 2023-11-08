@@ -3051,6 +3051,38 @@ module mpas_stream_manager
 
     end subroutine MPAS_stream_mgr_block_write !}}}
 
+    !-----------------------------------------------------------------------
+    !  function get_max_field_size
+    !
+    !> \brief Get the size of the largest field in a stream
+    !> \author Mathtew Dimond
+    !> \date   19 October 2023
+    !> \details
+    !>  Private function to get the size as a 64 bit int of the largest
+    !   field in a stream
+    !
+    !-----------------------------------------------------------------------
+    recursive function get_max_field_size(stream, ierr) result(maxFieldSize)!{{{
+
+        implicit none
+
+        type (MPAS_stream_list_type), intent(inout) :: stream
+        integer, intent(out) :: ierr
+        integer(kind=I8KIND):: maxFieldSize
+
+        ierr = 0
+
+        if (.not. associated(stream % stream)) return
+
+        maxFieldSize = mpas_field_list_get_largest_field_size(stream % stream % fieldList, mpas_io_handle_dminfo(stream % stream % fileHandle))
+
+        ! If there are streams inside of this stream, recurse in to them.
+        ! Unwind by getting the max of each substream and the current
+        ! stream.
+        if (associated(stream % next)) then
+            maxFieldSize = max(maxFieldSize, get_max_field_size(stream % next, ierr))
+        end if
+    end function get_max_field_size !}}}
 
     !-----------------------------------------------------------------------
     !  routine write_stream
@@ -3087,6 +3119,7 @@ module mpas_stream_manager
         logical :: ringing_alarm, recordSeek, swapRecords
         logical :: clobberRecords, clobberFiles, truncateFiles
         integer :: maxRecords, tempRecord
+        integer(kind=I8KIND) :: maxVarSize
         integer :: local_ierr, threadNum
 
         threadNum = mpas_threading_get_thread_num()
@@ -3153,6 +3186,11 @@ module mpas_stream_manager
            end if
 
            !
+           ! Get size of the largest variable in the stream
+           !
+
+           maxVarSize = get_max_field_size(stream, ierr)
+
            ! If the stream is not valid, assume that we have not yet written this
            ! stream, in which case we create the stream from scratch
            !
