@@ -6,6 +6,7 @@ Script to plot sclar fields on native MPAS grids
 Originally From: ??
 Edited: Danilo  <danilo.oceano@gmail.com>  in 2023
 Last edited: Nov 2023 by P. Peixoto (ppeixoto@usp.br)
+Last edited: Nov 2023 by F.A.V.B. Alves (fbalves@usp.br)
 
 """
 
@@ -113,7 +114,7 @@ def set_plot_kwargs(da=None, list_darrays=None, **kwargs):
     vmin = plot_kwargs.get('vmin', None)
     if vmin is None:
         if da is not None:
-            vmin = da.min().values   
+            vmin,_ = get_vim_vmax(da)   
             #vmin = np.min(da)
         elif list_darrays is not None:
             vmin = np.min([v.min() for v in list_darrays if v is not None])
@@ -124,7 +125,7 @@ def set_plot_kwargs(da=None, list_darrays=None, **kwargs):
     vmax = plot_kwargs.get('vmax', None)
     if vmax is None:
         if da is not None:
-            vmax = da.max().values   
+            _,vmax = get_vim_vmax(da)   
             #vmax = np.max(da)
         elif list_darrays is not None:
             vmax = np.max([v.max() for v in list_darrays if v is not None])
@@ -134,6 +135,37 @@ def set_plot_kwargs(da=None, list_darrays=None, **kwargs):
 
     return plot_kwargs
 
+def get_vim_vmax(da):
+    #Returns good vmin and vmax values to plot da field
+
+    truemaxval = da.max().values
+    trueminval = da.min().values
+
+    # Use same range for negative and positive values (zero will always have the same color)
+    if (trueminval <= 0) and (truemaxval > 0):
+        if truemaxval > abs(trueminval):
+            slice = da.values[ da.values > 0]
+        else:
+            slice = -da.values[ da.values < 0]
+        sigma = np.std(slice)
+        m = np.mean(slice)
+        maxval = min(truemaxval,m+3*sigma)
+        minval = -maxval
+ 
+    # Clip values at mean + 3*std so we still get good color resolution if the solution has a small number of very large numbers
+    elif (truemaxval >= 0):
+        minval = trueminval
+        sigma = np.std(da.values)
+        m = np.mean(da.values)
+        maxval = min(truemaxval,m+3*sigma)
+    else:
+        maxval = truemaxval
+        sigma = np.std(da.values)
+        m = np.mean(da.values)
+        minval = max(trueminval,m-3*sigma)
+
+    return minval, maxval
+ 
 def colorvalue(val, da, vmin=None, vmax=None, cmap='Spectral'):
     """
     Given a value and the range max, min, it returns the associated
@@ -188,9 +220,7 @@ def plot_cells_mpas(da, ds, ax, plotEdge=True, **plot_kwargs):
         lons = ds['longitudeVertex'].sel(nVertices=vertices)
         
         #Set color
-        maxval = da.max().values
-        minval = da.min().values
-        color = colorvalue(value, da, vmin=minval, vmax=maxval)
+        color = colorvalue(value, da, vmin=plot_kwargs['vmin'], vmax=plot_kwargs['vmax'])
         
         # Check if there are polygons at the boarder of the map (+/- 180 longitude)
         # Shift +360 deg the negative longitude
@@ -230,9 +260,7 @@ def plot_dual_mpas(da, ds, ax, plotEdge=True, **plot_kwargs):
         lons = ds['longitude'].sel(nCells=cells)
         
         #Set color
-        maxval = da.max().values
-        minval = da.min().values        
-        color = colorvalue(value, da, vmin=minval, vmax=maxval)
+        color = colorvalue(value, da, vmin=plot_kwargs['vmin'], vmax=plot_kwargs['vmax'])
         
         # Check if there are polygons at the boarder of the map (+/- 180 longitude)
         # Shift +360 deg the negative longitude
@@ -300,7 +328,7 @@ def close_plot(fig=None, size_fig=None, pdf=None, outfile=None,
     plt.close()
 
 
-def plot_mpas_darray(ds, vname, time=None, level=None, ax=None, outfile=None, title=None, **kwargs):
+def plot_mpas_darray(ds, vname, time=None, level=None, ax=None, outfile=None, title=None, plotEdge=True, **kwargs):
     
     ## plot_mpas_darray
     da = ds[vname]
@@ -336,10 +364,10 @@ def plot_mpas_darray(ds, vname, time=None, level=None, ax=None, outfile=None, ti
     plot_kwargs = set_plot_kwargs(da=da, **kwargs)
     
     if 'nCells' in da.dims: #Plot on Voronoi cells
-        plot_cells_mpas(da, ds, ax, **plot_kwargs)
+        plot_cells_mpas(da, ds, ax, plotEdge, **plot_kwargs)
 
     elif 'nVertices' in da.dims: #Plot on Triangles
-        plot_dual_mpas(da, ds, ax, **plot_kwargs)
+        plot_dual_mpas(da, ds, ax, plotEdge, **plot_kwargs)
 
     else: # TO DO: Implement ploting edge quantities
         print('WARNING  Impossible to plot!')
@@ -358,6 +386,7 @@ def view_mpas_mesh(mpas_grid_file, outfile=None,
                             vname='resolution',
                             time=None,
                             level=None,
+                            plotEdge=True,
                             **kwargs):
     
     ds = open_mpas_file(mpas_grid_file)
@@ -380,7 +409,7 @@ def view_mpas_mesh(mpas_grid_file, outfile=None,
     if level is not None:
         tit = tit + " Level="+str(level)
                 
-    plot_mpas_darray(ds, vname, time=time, level=level, ax=ax, title=tit)
+    plot_mpas_darray(ds, vname, time=time, level=level, ax=ax, title=tit, plotEdge=plotEdge)
     
     close_plot(outfile=outfile)
         
@@ -423,10 +452,20 @@ if __name__ == "__main__":
         help="Time step",
     )
 
+    parser.add_argument(
+        "-g", "--grid", type=str, default='yes',
+        help="Draw grid edges: yes or no",
+    )
+
     args = parser.parse_args()
     
 
     if not os.path.exists(args.infile):
         raise IOError('File does not exist: ' + args.infile)
-    
-    view_mpas_mesh(args.infile, outfile=args.outfile, time=args.time, level=args.level, vname=args.var)
+
+    if args.grid in ['no', 'No', 'N', 'n']:
+        plotEdge=False
+    else:
+        plotEdge=True
+
+    view_mpas_mesh(args.infile, outfile=args.outfile, time=args.time, level=args.level, vname=args.var, plotEdge=plotEdge)
