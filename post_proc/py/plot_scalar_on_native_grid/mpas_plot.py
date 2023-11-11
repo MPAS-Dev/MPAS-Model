@@ -162,9 +162,10 @@ def colorvalue(val, da, vmin=None, vmax=None, cmap='Spectral'):
         
     return cm(norm_val)
 
-def plot_cells_mpas(da, ds, ax, **plot_kwargs):
+def plot_cells_mpas(da, ds, ax, plotEdge=True, **plot_kwargs):
     # da: specific xarray to be plotted (time/level filtered)
     # ds: general xarray with grid structure, require for grid propreties
+    # plotEdge: wether the cell edge should be visible or not. For high-resolution grids figure looks better if plotEdge=False
 
     # ax = start_cartopy_map_axis()
     print("Generating grid plot and plotting variable. This may take a while...")
@@ -195,12 +196,19 @@ def plot_cells_mpas(da, ds, ax, **plot_kwargs):
         # Shift +360 deg the negative longitude
         if max(lons) > 170 and min(lons) < -170 :
             lons = xr.where(lons >= 170.0, lons - 360.0, lons)
-            
-        ax.fill(lons, lats, edgecolor='grey', linewidth=0.1, facecolor=color)
+
+        if plotEdge:
+            edgecolor = 'grey'
+            lw = 0.1
+        else:
+            edgecolor = None   
+            lw = None
+
+        ax.fill(lons, lats, edgecolor=edgecolor, linewidth=lw, facecolor=color)
         
     return
 
-def plot_dual_mpas(da, ds, ax, **plot_kwargs):
+def plot_dual_mpas(da, ds, ax, plotEdge=True, **plot_kwargs):
 
     #Loop over all Voronoi cell vertices - which are triangle circumcentres
     print("Generating grid plot and plotting variable. This may take a while...")
@@ -231,8 +239,15 @@ def plot_dual_mpas(da, ds, ax, **plot_kwargs):
         if max(lons) > 170 and min(lons) < -170 :
             lons = xr.where(lons >= 170.0, lons - 360.0, lons)
 
+        if plotEdge:
+            edgecolor = 'grey'
+            lw = 0.1
+        else:
+            edgecolor = None   
+            lw = None
+
         # Plot polygons and variable
-        ax.fill(lons, lats, edgecolor='grey', linewidth=0.1, facecolor=color)
+        ax.fill(lons, lats, edgecolor=edgecolor, linewidth=lw, facecolor=color)
     
     return
         
