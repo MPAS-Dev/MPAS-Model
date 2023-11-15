@@ -47,6 +47,7 @@ module mpas_subdriver
       use mpas_timekeeping, only : mpas_get_clock_time, mpas_get_time
       use mpas_bootstrapping, only : mpas_bootstrap_framework_phase1, mpas_bootstrap_framework_phase2
       use mpas_log
+      use mpas_stream_inquiry, only : MPAS_stream_inquiry_new_streaminfo
  
       implicit none
 
@@ -248,6 +249,19 @@ module mpas_subdriver
 
       call mpas_framework_init_phase2(domain_ptr)
 
+      !
+      ! Before defining packages, initialize the stream inquiry instance for the domain
+      !
+      domain_ptr % streamInfo => MPAS_stream_inquiry_new_streaminfo()
+      if (.not. associated(domain_ptr % streamInfo)) then
+         call mpas_log_write('Failed to instantiate streamInfo object for core '//trim(domain_ptr % core % coreName), &
+                             messageType=MPAS_LOG_CRIT)
+      end if
+      if (domain_ptr % streamInfo % init(domain_ptr % dminfo % comm, domain_ptr % streams_filename) /= 0) then
+         call mpas_log_write('Initialization of streamInfo object failed for core '//trim(domain_ptr % core % coreName), &
+                             messageType=MPAS_LOG_CRIT)
+      end if
+
       ierr = domain_ptr % core % define_packages(domain_ptr % packages)
       if ( ierr /= 0 ) then
          call mpas_log_write('Package definition failed for core '//trim(domain_ptr % core % coreName), messageType=MPAS_LOG_CRIT)
@@ -425,6 +439,12 @@ module mpas_subdriver
       ! Finalize infrastructure
       !
       call MPAS_stream_mgr_finalize(domain_ptr % streamManager)
+
+      if (domain_ptr % streamInfo % finalize() /= 0) then
+         call mpas_log_write('Finalization of streamInfo object failed for core '//trim(domain_ptr % core % coreName), &
+                             messageType=MPAS_LOG_ERR)
+      end if
+      deallocate(domain_ptr % streamInfo)
 
       ! Print out log stats and close log file
       !   (Do this after timer stats are printed and stream mgr finalized,
