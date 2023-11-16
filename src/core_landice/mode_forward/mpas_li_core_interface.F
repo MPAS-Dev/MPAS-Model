@@ -90,10 +90,11 @@ module li_core_interface
 !>   *not* allocated until after this routine is called.
 !
 !-----------------------------------------------------------------------
-   function li_setup_packages(configPool, packagePool, iocontext) result(ierr)
+   function li_setup_packages(configPool, streamInfo, packagePool, iocontext) result(ierr)
 
       implicit none
       type (mpas_pool_type), intent(inout) :: configPool
+      type (MPAS_streamInfo_type), intent(inout) :: streamInfo
       type (mpas_pool_type), intent(inout) :: packagePool
       type (mpas_io_context_type), intent(inout) :: iocontext
       integer :: ierr

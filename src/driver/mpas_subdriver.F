@@ -267,7 +267,8 @@ module mpas_subdriver
          call mpas_log_write('Package definition failed for core '//trim(domain_ptr % core % coreName), messageType=MPAS_LOG_CRIT)
       end if
 
-      ierr = domain_ptr % core % setup_packages(domain_ptr % configs, domain_ptr % packages, domain_ptr % iocontext)
+      ierr = domain_ptr % core % setup_packages(domain_ptr % configs, domain_ptr % streamInfo, domain_ptr % packages, &
+                                                domain_ptr % iocontext)
       if ( ierr /= 0 ) then
          call mpas_log_write('Package setup failed for core '//trim(domain_ptr % core % coreName), messageType=MPAS_LOG_CRIT)
       end if
