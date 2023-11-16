@@ -44,11 +44,13 @@
    end interface
 
    abstract interface
-      function mpas_get_mesh_stream_function(configs, stream) result(iErr)
+      function mpas_get_mesh_stream_function(configs, streamInfo, stream) result(iErr)
          use mpas_kind_types
          import mpas_pool_type
+         import mpas_streaminfo_type
 
          type (mpas_pool_type), intent(inout) :: configs
+         type (mpas_streaminfo_type), intent(inout) :: streamInfo
          character (len=StrKIND), intent(out) :: stream
          integer :: iErr
       end function mpas_get_mesh_stream_function

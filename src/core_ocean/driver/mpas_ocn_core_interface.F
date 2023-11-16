@@ -530,7 +530,7 @@ module ocn_core_interface
    !>  are available.
    !
    !-----------------------------------------------------------------------
-   function ocn_get_mesh_stream(configs, stream) result(ierr)!{{{
+   function ocn_get_mesh_stream(configs, streamInfo, stream) result(ierr)!{{{
 
       use mpas_derived_types
       use mpas_pool_routines
@@ -538,6 +538,7 @@ module ocn_core_interface
       implicit none
 
       type (mpas_pool_type), intent(inout) :: configs
+      type (MPAS_streamInfo_type), intent(inout) :: streamInfo
       character(len=StrKIND), intent(out) :: stream
       integer :: ierr
 

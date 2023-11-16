@@ -237,11 +237,12 @@ module li_core_interface
    !>  are available.
    !
    !-----------------------------------------------------------------------
-   function li_get_mesh_stream(configs, stream) result(ierr)
+   function li_get_mesh_stream(configs, streamInfo, stream) result(ierr)
 
       implicit none
 
       type (mpas_pool_type), intent(inout) :: configs
+      type (MPAS_streamInfo_type), intent(inout) :: streamInfo
       character(len=StrKIND), intent(out) :: stream
       integer :: ierr
 

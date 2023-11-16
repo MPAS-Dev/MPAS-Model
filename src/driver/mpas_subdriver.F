@@ -297,7 +297,7 @@ module mpas_subdriver
       ! Using information from the namelist, a graph.info file, and a file containing
       !    mesh fields, build halos and allocate blocks in the domain
       !
-      ierr = domain_ptr % core % get_mesh_stream(domain_ptr % configs, mesh_stream)
+      ierr = domain_ptr % core % get_mesh_stream(domain_ptr % configs, domain_ptr % streamInfo, mesh_stream)
       if ( ierr /= 0 ) then
          call mpas_log_write('Failed to find mesh stream for core '//trim(domain_ptr % core % coreName), messageType=MPAS_LOG_CRIT)
       end if
