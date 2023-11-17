@@ -123,6 +123,7 @@ module atm_core_interface
       logical, pointer :: limited_areaActive
       logical, pointer :: config_apply_lbcs
       logical, pointer :: config_jedi_da, jedi_daActive
+      logical, pointer :: no_invariant_streamActive
       integer :: local_ierr
 
       ierr = 0
@@ -173,6 +174,20 @@ module atm_core_interface
          call mpas_log_write('Package setup failed for ''jedi_da''. '// &
               'Either ''jedi_da'' is not a package, or ''config_jedi_da'' is not a namelist option.', &
               messageType=MPAS_LOG_ERR)
+      end if
+
+      !
+      ! Separate time-invariant stream
+      !
+      nullify(no_invariant_streamActive)
+      call mpas_pool_get_package(packages, 'no_invariant_streamActive', no_invariant_streamActive)
+
+      if (associated(no_invariant_streamActive)) then
+         no_invariant_streamActive = .true.
+      else
+         ierr = ierr + 1
+         call mpas_log_write("Package setup failed for 'no_invariant_stream'. 'no_invariant_stream' is not a package.", &
+                             messageType=MPAS_LOG_ERR)
       end if
 
 #ifdef DO_PHYSICS
