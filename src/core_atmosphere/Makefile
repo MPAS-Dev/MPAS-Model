@@ -26,7 +26,7 @@ core_reg:
 core_input_gen:
 	if [ ! -e default_inputs ]; then  mkdir default_inputs; fi
 	( cd default_inputs; $(NL_GEN) ../Registry_processed.xml namelist.atmosphere in_defaults=true )
-	( cd default_inputs; $(ST_GEN) ../Registry_processed.xml streams.atmosphere stream_list.atmosphere. listed )
+	( cd default_inputs; $(ST_GEN) ../Registry_processed.xml streams.atmosphere stream_list.atmosphere. listed in_defaults=true)
 
 gen_includes: core_reg
 	(if [ ! -d inc ]; then mkdir -p inc; fi) # To generate *.inc files
