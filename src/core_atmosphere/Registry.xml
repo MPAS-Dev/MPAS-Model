@@ -419,7 +419,8 @@
                         type="input" 
                         filename_template="invariant.nc" 
                         input_interval="none"
-                        immutable="true">
+                        immutable="true"
+                        in_defaults="false">
 
 			<var name="latCell"/>
 			<var name="lonCell"/>
