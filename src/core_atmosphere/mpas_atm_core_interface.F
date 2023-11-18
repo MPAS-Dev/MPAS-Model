@@ -124,6 +124,7 @@ module atm_core_interface
       logical, pointer :: config_apply_lbcs
       logical, pointer :: config_jedi_da, jedi_daActive
       logical, pointer :: no_invariant_streamActive
+      character(len=StrKIND) :: attvalue
       integer :: local_ierr
 
       ierr = 0
@@ -184,6 +185,11 @@ module atm_core_interface
 
       if (associated(no_invariant_streamActive)) then
          no_invariant_streamActive = .true.
+         if (streamInfo % query('invariant', attname='input_interval', attvalue=attvalue)) then
+            if (trim(attvalue) == 'initial_only') then
+               no_invariant_streamActive = .false.
+            end if
+         end if
       else
          ierr = ierr + 1
          call mpas_log_write("Package setup failed for 'no_invariant_stream'. 'no_invariant_stream' is not a package.", &
@@ -366,8 +372,21 @@ module atm_core_interface
       integer :: ierr
 
       logical, pointer :: config_do_restart
+      character(len=StrKIND) :: attvalue
 
       ierr = 0
+
+      !
+      ! If the 'invariant' stream is defined in the streams XML file with an
+      ! input_interval of 'initial_only', then use the 'invariant' stream to
+      ! get mesh information
+      !
+      if (streamInfo % query('invariant', attname='input_interval', attvalue=attvalue)) then
+         if (trim(attvalue) == 'initial_only') then
+            write(stream,'(a)') 'invariant'
+            return
+         end if
+      end if
 
       call mpas_pool_get_config(configs, 'config_do_restart', config_do_restart)
 
