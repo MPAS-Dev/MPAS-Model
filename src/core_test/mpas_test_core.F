@@ -95,6 +95,7 @@ module test_core
       use mpas_halo_testing, only : mpas_halo_tests
       use test_core_string_utils, only : mpas_test_string_utils
       use mpas_test_core_dmpar, only : mpas_test_dmpar
+      use mpas_test_core_stream_inquiry, only : mpas_test_stream_inquiry
 
       implicit none
    
@@ -179,6 +180,18 @@ module test_core
       !
       call mpas_log_write('')
       iErr = mpas_test_dmpar(domain % dminfo)
+      if (iErr == 0) then
+          call mpas_log_write('All tests PASSED')
+      else
+          call mpas_log_write('$i tests FAILED', intArgs=[iErr])
+      end if
+      call mpas_log_write('')
+
+      !
+      ! Run mpas_stream_inquiry tests
+      !
+      call mpas_log_write('')
+      iErr = mpas_test_stream_inquiry(domain % dminfo)
       if (iErr == 0) then
           call mpas_log_write('All tests PASSED')
       else
