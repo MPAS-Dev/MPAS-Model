@@ -1,6 +1,6 @@
 # mpas-tools-br
 
-This is a [Singularity](https://docs.sylabs.io/guides/3.7/user-guide/index.html) definition file to build a Singularity Image Format (SIF) for use with the [MPAS-BR](https://github.com/pedrospeixoto/MPAS-BR) distribution. You can use Singularity to download a base Linux image that can be custom-tailored to install the software you need in the container (see the [SingularityRecipe](https://github.com/cfbastarz/SingularityRecipe) with and example). The instructions used in this README file use the provided definition file [`mpas-tools-br.def`](local_software/mpas-tools-br/mpas-tools-br.def) to build the container image for use with the MPAS-BR repository.
+This is a [Singularity](https://docs.sylabs.io/guides/3.7/user-guide/index.html) definition file to build a Singularity Image Format (SIF) for use with the [MPAS-BR](https://github.com/pedrospeixoto/MPAS-BR) distribution. You can use Singularity to download a base Linux image that can be custom-tailored to install the software you need in the container (see the [SingularityRecipe](https://github.com/cfbastarz/SingularityRecipe) with and example). The instructions used in this README file use the provided definition file [`mpas-tools-br.def`](https://github.com/cfbastarz/SingularityContainers/blob/main/mpas-tools-br/mpas-tools-br.def) to build the container image for use with the MPAS-BR repository.
 
 The key idea is to provide a base system as a common ground, where all users will find the tools needed to run the MPAS-BR software. By doing so, users can avoid common mistakes in system configuration.
 
@@ -29,7 +29,7 @@ conda install -c conda-forge singularity
 
 **Note:** See the end of the next section on how to install singularity in Mac OS X.
 
-Next, create `cache` and `tmp` directories and instruct Singularity to use them during the building process. This might avoid potential problems with the image size:
+Next, create `cache` and `tmp` directories and instruct Singularity to use them during the building process. This might avoid potential problems memory usage and with the image size:
 
 ```bash
 mkdir -p $HOME/cache
@@ -89,6 +89,8 @@ ID  |GROUP   |LINK    |TYPE
 4   |1       |NONE    |FS
 Container verified: mpas-tools-br_latest.sif
 ```
+
+**Note:** Sometimes this checking can fail.
 
 #### Installing Singularity in Mac OS X
 
@@ -195,7 +197,14 @@ At this point, you already have all the software needed to run the MPAS-BR. By f
     display $HOME/MPAS-BR/grids/utilities/jigsaw/unif240km/unif240km_mpas.jpg
     ```
 
-4. Prepare the initial fields:
+4. Test the `metis` to create a grid partition
+
+    ```bash
+    cd $HOME/MPAS-BR/grids/utilities/jigsaw/unif240km
+    gpmetis -minconn -contig -niter=200 unif240km_graph.info 4
+    ```
+
+5. Prepare the initial fields:
 
     ```bash
     cd $HOME/MPAS-BR/benchmarks/monan-class-example/jw_baroclinic_wave
@@ -204,7 +213,9 @@ At this point, you already have all the software needed to run the MPAS-BR. By f
     ./init_atmosphere_model
     ```
 
-5. Plot the initial fields and some grid properties:
+6. Plot the initial fields and some grid properties:
+
+    **Note:** once the figure opens up and if it has several levels, hit the spacebar to loop through levels.
 
     ```bash
     python3 ../../../post_proc/py/scalar_lat_lon_2d_plot/mpas_plot_scalar.py -v theta x1.40962.init.nc
@@ -230,4 +241,116 @@ At this point, you already have all the software needed to run the MPAS-BR. By f
     display triangleQuality.jpg
     ```
 
-carlos.bastarz@inpe.br (09/11/2023)
+7. Prepare the initial fields using `mpirun`:
+
+    **Note:** In step 5, we already created the initial fields for MPAS, but this time we will do it again by using the grid partition prepared in step 4 using `metis`.
+
+    ```bash
+    cd $HOME/MPAS-BR/benchmarks/monan-class-example/jw_baroclinic_wave
+    mpirun -n 4 ./init_atmosphere_model
+    ```
+
+8. Check the created MPAS input file:
+
+    ```bash
+    cd $HOME/MPAS-BR/benchmarks/monan-class-example/jw_baroclinic_wave
+    ncdump -h x1.40962.init.nc
+    ```
+
+9. Check the model log for errors:
+
+    You should thoroughly check the file! As a shortcut, check the number of `Error messages` (must be 0) at the end of the file:
+
+    ```bash
+    cd $HOME/MPAS-BR/benchmarks/monan-class-example/jw_baroclinic_wave
+    cat log.init_atmosphere.0000.out | grep 'Error messages ='
+    ```
+
+    **Note:** Since we already run the `init_atmosphere_model`, the file `x1.40962.init.nc` is already on disk and MPAS will throw an error message:
+
+    ```bash
+    ERROR: Writing to stream 'output' would clobber file 'x1.40962.init.nc'
+    ERROR:     but clobber_mode is set to 'never_modify'.
+    ```
+    To avoid this, you can rename the file: `mv x1.40962.init.nc x1.40962.init.nc.bak` and run the model again in order to create the initial conditions again using the partitioned grid created with the `metis` software.
+
+10. JW Baroclinic Instability simulation:
+
+    Prepare the Initial Conditions:
+
+    Change the namelists to use the `unif240km_mpas.nc` and `unif240km_jw-bi.init.nc` files as input and output streams, respectivally:
+
+    ```bash
+    cd $HOME/MPAS-BR/benchmarks/monan-class-example/jw_baroclinic_wave
+    ```
+
+    * In `namelist.init_atmosphere`, change the option `config_block_decomp_file_prefix` from `x1.40962.graph.info.part.` to `unif240km_graph.info.part.`;
+    * In `streams.init_atmosphere`:
+        * In the `immutable_stream name="input"` section, change the option `filename_template` from `x1.40962.grid.nc` to `unif240km_mpas.nc`;
+        * In the `immutable_stream name="output"` section, change the option `filename_template` from `x1.40962.init.nc` to `unif240km_jw-bi.init.nc`. 
+
+    Link the `unif240km_mpas.nc` and `unif240km_graph.info.part.4` files from the `jigsaw/unif240km` directory:
+
+    ```bash
+    cd $HOME/MPAS-BR/benchmarks/monan-class-example/jw_baroclinic_wave
+    
+    ln -s $HOME/MPAS-BR/grids/utilities/jigsaw/unif240km/unif240km_mpas.nc .
+    ln -s $HOME/MPAS-BR/grids/utilities/jigsaw/unif240km/unif240km_graph.info.part.4 .
+    ```
+
+    Run the model:
+    
+    ```bash
+    mpirun -n 4 ./init_atmosphere_model
+    ```
+    Check the results:
+
+    * Check for error in the `log.init_atmosphere.0000.out` file `cat log.init_atmosphere.0000.out | grep 'Error messages ='` (it should return `Error messages =                     0`).
+    * The file `unif240km_jw-bi.init.nc` must be created upon the `init_atmosphere_model` completion;
+
+    Link the `atmosphere_model` executable:
+
+    ```bash
+    cd $HOME/MPAS-BR/benchmarks/monan-class-example/jw_baroclinic_wave
+    ln -s ../../../atmosphere_model .
+    ```
+
+    Modify the MPAS namelists:
+
+    * Make changes to `namelist.atmosphere`, `streams.atmosphere` and `stream_list.atmosphere.output` namelists (for reference, take a look in the namelists folder at this repo).
+
+    Run the Atmosphere Model:
+
+    ```bash 
+    mpirun -n 4 ./atmosphere_model
+    ```
+
+    Upon `atmosphere_model` completion, there will be created the following files:
+
+    * Restart files:
+        * `restart.0000-01-06_00.00.00.nc`
+        * `restart.0000-01-11_00.00.00.nc`
+        * `restart.0000-01-16_00.00.00.nc`
+        * `restart_timestamp`
+    * Output file: `output_unif240km_jw-bi.nc`
+    * Output log file: `log.atmosphere.0000.out` (should output `Error messages =                     0` at the end) 
+
+    Plot some of the output fields (for level 0 and timestep 12):
+
+    ```bash
+    cd $HOME/MPAS-BR/benchmarks/monan-class-example/jw_baroclinic_wave
+
+    python3 ../../../post_proc/py/plot_scalar_on_native_grid/mpas_plot.py -v vorticity -f output_unif240km_jw-bi.nc -l 0 -t 12 -o unif240km_jw-bi-vorticity-l0_t12.jpg
+    display unif240km_jw-bi-vorticity-l0_t12.jpg
+
+    python3 ../../../post_proc/py/plot_scalar_on_native_grid/mpas_plot.py -v uReconstructZonal -f output_unif240km_jw-bi.nc -l 0 -t 12 -o unif240km_jw-bi-uReconstructZonal-l0_t12.jpg
+    display unif240km_jw-bi-uReconstructZonal-l0_t12.jpg
+
+    python3 ../../../post_proc/py/plot_scalar_on_native_grid/mpas_plot.py -v uReconstructMeridional -f output_unif240km_jw-bi.nc -l 0 -t 12 -o unif240km_jw-bi-uReconstructMeridional-l0_t12.jpg
+    display unif240km_jw-bi-uReconstructMeridional-l0_t12.jpg
+
+    python3 ../../../post_proc/py/plot_scalar_on_native_grid/mpas_plot.py -v pressure -f output_unif240km_jw-bi.nc -l 0 -t 12 -o unif240km_jw-bi-pressure-l0_t12.jpg
+    display unif240km_jw-bi-pressure-l0_t12.jpg
+    ```
+
+carlos.bastarz@inpe.br (21/11/2023)
