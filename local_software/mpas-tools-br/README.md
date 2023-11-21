@@ -116,7 +116,7 @@ Next, bootstrap a Linux base system where Singularity will be installed:
 vagrant init sylabs/singularity-3.7-ubuntu-bionic64
 ```
 
-The previous command will create a `Vagrantfile` with the definitions of your virtual machine (you can further customize to use more cores and RAM from the host; by default, it will use just 1 core and 1GB of RAM).
+The previous command will create a `Vagrantfile` with the definitions of your virtual machine (you can further customize to use more cores and RAM from the host; by default, it will use just 1 core and 1GB of RAM). Take a look at a customized `Vagrantfile` inside this repo to use more cores and RAM.
 
 To initialize the virtual machine, use the command:
 
@@ -154,6 +154,7 @@ Next, source the Miniconda environment variables to activate the `mpas-tools` en
 
 ```bash
 source /opt/miniconda/etc/profile.d/conda.sh
+
 conda activate mpas-tools
 ```
 
@@ -168,6 +169,7 @@ To run the MPAS-BR software, choose a path and clone the repository. Here we'll 
 
 ```bash
 cd $HOME
+
 git clone https://github.com/pedrospeixoto/MPAS-BR.git
 ```
 
@@ -177,6 +179,7 @@ At this point, you already have all the software needed to run the MPAS-BR. By f
 
     ```bash
     cd $HOME/MPAS-BR
+
     make gfortran CORE=init_atmosphere PNETCDF=/usr
     make gfortran CORE=atmosphere AUTOCLEAN=true PNETCDF=/usr
     ```
@@ -185,6 +188,7 @@ At this point, you already have all the software needed to run the MPAS-BR. By f
 
     ```bash
     cd $HOME/MPAS-BR/grids/utilities/jigsaw
+
     python3 spherical_grid.py -g unif -o unif240km -r 240 -l 240
     ```
 
@@ -192,6 +196,7 @@ At this point, you already have all the software needed to run the MPAS-BR. By f
 
     ```bash
     cd $HOME/MPAS-BR/post_proc/py/grid_maps
+
     python3 mpas_plot_grid.py -g ../../../grids/utilities/jigsaw/unif240km/unif240km_mpas.nc -o ../../../grids/utilities/jigsaw/unif240km/unif240km_mpas.jpg
 
     display $HOME/MPAS-BR/grids/utilities/jigsaw/unif240km/unif240km_mpas.jpg
@@ -201,6 +206,7 @@ At this point, you already have all the software needed to run the MPAS-BR. By f
 
     ```bash
     cd $HOME/MPAS-BR/grids/utilities/jigsaw/unif240km
+
     gpmetis -minconn -contig -niter=200 unif240km_graph.info 4
     ```
 
@@ -210,6 +216,7 @@ At this point, you already have all the software needed to run the MPAS-BR. By f
     cd $HOME/MPAS-BR/benchmarks/monan-class-example/jw_baroclinic_wave
 
     ln -s $HOME/MPAS-BR/init_atmosphere_model .
+
     ./init_atmosphere_model
     ```
 
@@ -218,6 +225,8 @@ At this point, you already have all the software needed to run the MPAS-BR. By f
     **Note:** once the figure opens up and if it has several levels, hit the spacebar to loop through levels.
 
     ```bash
+    cd $HOME/MPAS-BR/benchmarks/monan-class-example/jw_baroclinic_wave
+
     python3 ../../../post_proc/py/scalar_lat_lon_2d_plot/mpas_plot_scalar.py -v theta x1.40962.init.nc
 
     display figures/theta/theta_0_*
@@ -243,17 +252,17 @@ At this point, you already have all the software needed to run the MPAS-BR. By f
 
 7. Prepare the initial fields using `mpirun`:
 
-    **Note:** In step 5, we already created the initial fields for MPAS, but this time we will do it again by using the grid partition prepared in step 4 using `metis`.
+    **Note:** In step 5, we already created the initial fields for MPAS, but this time we will do it again by using the grid partition prepared in step 4 using the `metis` software.
 
     ```bash
     cd $HOME/MPAS-BR/benchmarks/monan-class-example/jw_baroclinic_wave
+
     mpirun -n 4 ./init_atmosphere_model
     ```
 
 8. Check the created MPAS input file:
 
     ```bash
-    cd $HOME/MPAS-BR/benchmarks/monan-class-example/jw_baroclinic_wave
     ncdump -h x1.40962.init.nc
     ```
 
@@ -262,30 +271,24 @@ At this point, you already have all the software needed to run the MPAS-BR. By f
     You should thoroughly check the file! As a shortcut, check the number of `Error messages` (must be 0) at the end of the file:
 
     ```bash
-    cd $HOME/MPAS-BR/benchmarks/monan-class-example/jw_baroclinic_wave
     cat log.init_atmosphere.0000.out | grep 'Error messages ='
     ```
 
-    **Note:** Since we already run the `init_atmosphere_model`, the file `x1.40962.init.nc` is already on disk and MPAS will throw an error message:
+    **Note:** Since we already run the `init_atmosphere_model` executable, the file `x1.40962.init.nc` is already on disk and MPAS will throw an error message:
 
     ```bash
     ERROR: Writing to stream 'output' would clobber file 'x1.40962.init.nc'
     ERROR:     but clobber_mode is set to 'never_modify'.
     ```
-    To avoid this, you can rename the file: `mv x1.40962.init.nc x1.40962.init.nc.bak` and run the model again in order to create the initial conditions again using the partitioned grid created with the `metis` software.
+
+    To avoid this, you can rename the file: `mv x1.40962.init.nc x1.40962.init.nc.bak` and run the model again to create the initial conditions using the partitioned grid.
 
 10. JW Baroclinic Instability simulation:
 
-    Prepare the Initial Conditions:
+    Prepare the initial conditions. Change the namelists to use the `unif240km_mpas.nc` and `unif240km_jw-bi.init.nc` files as input and output streams, respectivelly:
 
-    Change the namelists to use the `unif240km_mpas.nc` and `unif240km_jw-bi.init.nc` files as input and output streams, respectivally:
-
-    ```bash
-    cd $HOME/MPAS-BR/benchmarks/monan-class-example/jw_baroclinic_wave
-    ```
-
-    * In `namelist.init_atmosphere`, change the option `config_block_decomp_file_prefix` from `x1.40962.graph.info.part.` to `unif240km_graph.info.part.`;
-    * In `streams.init_atmosphere`:
+    * In `namelist.init_atmosphere` file, change the option `config_block_decomp_file_prefix` from `x1.40962.graph.info.part.` to `unif240km_graph.info.part.`;
+    * In `streams.init_atmosphere` file:
         * In the `immutable_stream name="input"` section, change the option `filename_template` from `x1.40962.grid.nc` to `unif240km_mpas.nc`;
         * In the `immutable_stream name="output"` section, change the option `filename_template` from `x1.40962.init.nc` to `unif240km_jw-bi.init.nc`. 
 
@@ -298,28 +301,30 @@ At this point, you already have all the software needed to run the MPAS-BR. By f
     ln -s $HOME/MPAS-BR/grids/utilities/jigsaw/unif240km/unif240km_graph.info.part.4 .
     ```
 
-    Run the model:
+    Run the `init_atmosphere_model` executable to prepare the initial conditions:
     
     ```bash
     mpirun -n 4 ./init_atmosphere_model
     ```
+
     Check the results:
 
-    * Check for error in the `log.init_atmosphere.0000.out` file `cat log.init_atmosphere.0000.out | grep 'Error messages ='` (it should return `Error messages =                     0`).
-    * The file `unif240km_jw-bi.init.nc` must be created upon the `init_atmosphere_model` completion;
+    * Check for errors in the `log.init_atmosphere.0000.out` file: `cat log.init_atmosphere.0000.out | grep 'Error messages ='` (it should return `Error messages =                     0`).
+    * The file `unif240km_jw-bi.init.nc` must be created upon the `init_atmosphere_model` completion.
 
     Link the `atmosphere_model` executable:
 
     ```bash
     cd $HOME/MPAS-BR/benchmarks/monan-class-example/jw_baroclinic_wave
+
     ln -s ../../../atmosphere_model .
     ```
 
     Modify the MPAS namelists:
 
-    * Make changes to `namelist.atmosphere`, `streams.atmosphere` and `stream_list.atmosphere.output` namelists (for reference, take a look in the namelists folder at this repo).
+    * Make changes to `namelist.atmosphere`, `streams.atmosphere` and `stream_list.atmosphere.output` namelists (for reference, take a look in the namelists folder inside this repo).
 
-    Run the Atmosphere Model:
+    Run the atmosphere model:
 
     ```bash 
     mpirun -n 4 ./atmosphere_model
@@ -328,12 +333,12 @@ At this point, you already have all the software needed to run the MPAS-BR. By f
     Upon `atmosphere_model` completion, there will be created the following files:
 
     * Restart files:
-        * `restart.0000-01-06_00.00.00.nc`
-        * `restart.0000-01-11_00.00.00.nc`
-        * `restart.0000-01-16_00.00.00.nc`
-        * `restart_timestamp`
-    * Output file: `output_unif240km_jw-bi.nc`
-    * Output log file: `log.atmosphere.0000.out` (should output `Error messages =                     0` at the end) 
+        * `restart.0000-01-06_00.00.00.nc`;
+        * `restart.0000-01-11_00.00.00.nc`;
+        * `restart.0000-01-16_00.00.00.nc`;
+        * `restart_timestamp`;
+    * Output file: `output_unif240km_jw-bi.nc`;
+    * Output log file: `log.atmosphere.0000.out` (it must output `Error messages =                     0` at the end).
 
     Plot some of the output fields (for level 0 and timestep 12):
 
@@ -341,15 +346,19 @@ At this point, you already have all the software needed to run the MPAS-BR. By f
     cd $HOME/MPAS-BR/benchmarks/monan-class-example/jw_baroclinic_wave
 
     python3 ../../../post_proc/py/plot_scalar_on_native_grid/mpas_plot.py -v vorticity -f output_unif240km_jw-bi.nc -l 0 -t 12 -o unif240km_jw-bi-vorticity-l0_t12.jpg
+
     display unif240km_jw-bi-vorticity-l0_t12.jpg
 
     python3 ../../../post_proc/py/plot_scalar_on_native_grid/mpas_plot.py -v uReconstructZonal -f output_unif240km_jw-bi.nc -l 0 -t 12 -o unif240km_jw-bi-uReconstructZonal-l0_t12.jpg
+
     display unif240km_jw-bi-uReconstructZonal-l0_t12.jpg
 
     python3 ../../../post_proc/py/plot_scalar_on_native_grid/mpas_plot.py -v uReconstructMeridional -f output_unif240km_jw-bi.nc -l 0 -t 12 -o unif240km_jw-bi-uReconstructMeridional-l0_t12.jpg
+
     display unif240km_jw-bi-uReconstructMeridional-l0_t12.jpg
 
     python3 ../../../post_proc/py/plot_scalar_on_native_grid/mpas_plot.py -v pressure -f output_unif240km_jw-bi.nc -l 0 -t 12 -o unif240km_jw-bi-pressure-l0_t12.jpg
+
     display unif240km_jw-bi-pressure-l0_t12.jpg
     ```
 
