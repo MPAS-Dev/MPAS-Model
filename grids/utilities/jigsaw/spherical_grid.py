@@ -68,14 +68,20 @@ def main(args):
             cellWidth, lon, lat = jutil.cellWidthVsLatLon(args.r)
         elif (args.opt=="localref"):
             cellWidth, lon, lat = jutil.localrefVsLatLon(args.r, l=args.l,
-                        radius_low=args.rad, transition_radius=args.tr,p=p)
+                        radius_high=args.rad, transition_radius=args.tr, 
+                        clon = args.clon, clat=args.clat, p=p)
 
         mesh_file = jutil.jigsaw_gen_sph_grid(cellWidth, lon, lat, basename=out_basepath) 
 
     elif(args.opt=="icos"):
-
+        
+        if int(args.l) > 11:
+            print("Please provide a reasonable refinment level - from 1 to 15. Current value too large ", int(args.l))
+            print(" Setting level to 4")
+            args.l = 4
+            
         #Icosahedral grid
-        mesh_file = jutil.jigsaw_gen_icos_grid(basename=out_basepath, level=4)
+        mesh_file = jutil.jigsaw_gen_icos_grid(basename=out_basepath, level=int(args.l))
         
     else:
         print("Unknown option")
@@ -109,8 +115,9 @@ choice, see -g (default: 30 km)",
     parser.add_argument(
         "-l", "--low", dest="l", 
         required=False, default=150, type=float,
-        help="Global grid spacing (resolution area) - only valid for localref\
-grid option, see -g (default: 150 km)",
+        help="Level of refinement on icosahedral grid, or global grid spacing \
+            (resolution area) for localref\
+            grid option, see -g (default: 150 km)",
         metavar="FLOAT")
     
     parser.add_argument(
@@ -125,6 +132,20 @@ for localref grid option, see -g (default: 50 km)",
         required=False, default=600, type=float,
         help="radius of transition zone between high and low resolution in km \
 - only valid for local ref grid option, see -g (default: 600 km)",
+        metavar="FLOAT")
+    
+    parser.add_argument(
+        "-clat",  "--center_latitude", dest="clat",
+        required=False, default=0.0, type=float,
+        help="Latitude (in degrees) of centre point of refinement \
+- only valid for local ref grid option, see -g (default: 0 deg)",
+        metavar="FLOAT")
+    
+    parser.add_argument(
+        "-clon",  "--center_longitude", dest="clon",
+        required=False, default=0.0, type=float,
+        help="Longitude (in degrees) of centre point of refinement \
+- only valid for local ref grid option, see -g (default: 0 deg)",
         metavar="FLOAT")
     
     parser.add_argument(
