@@ -1,0 +1,24 @@
+<streams>
+
+<immutable_stream name="input"
+                  type="input"
+                  filename_template="unif240km_jw-bi.init.nc"
+                  input_interval="initial_only"/>
+
+<immutable_stream name="restart"
+                  type="input;output"
+                  filename_template="restart.$Y-$M-$D_$h.$m.$s.nc"
+                  input_interval="initial_only"
+                  output_interval="5_00:00:00"/>
+
+<stream name="output"
+        type="output"
+        filename_template="output_unif240km_jw-bi.nc"
+        filename_interval="none"
+        output_interval="24:00:00">
+
+    <file name="stream_list.atmosphere.output"/>
+
+</stream>
+
+</streams>
