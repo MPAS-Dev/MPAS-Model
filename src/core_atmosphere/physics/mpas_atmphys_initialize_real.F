@@ -174,7 +174,10 @@
     else
        snowc(iCell) = 0._RKIND
     endif
-    snowh(iCell) = snow(iCell) * 5.0_RKIND / 1000._RKIND
+    IF(snowh(iCell) .eq. 0. .and. snow(iCell) > 0.)THEN
+    call mpas_log_write('--- caluculate snow depth based on Hill et al.,2019, The Cryosphere, 13-----')
+    snowh(iCell) = (10.**(((log10(snow(icell))-log10(0.146_RKIND))/1.102_RKIND)))/1000._RKIND
+    ENDIF
  enddo
 
 !initialization of soil layers properties:
