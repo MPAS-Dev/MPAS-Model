@@ -263,10 +263,10 @@ def jigsaw_gen_sph_grid(cellWidth, x, y, earth_radius=6371.0e3,
     opts.hfun_hmax = float("inf")
     opts.hfun_hmin = 0.0
     opts.mesh_dims = +2  # 2-dim. simplexes
-    opts.mesh_iter = 500000
+    opts.mesh_iter = 5000000
     opts.optm_qlim = 0.9375
     opts.optm_qtol = 1.0e-6
-    opts.optm_iter = 500000
+    opts.optm_iter = 5000000
     opts.verbosity = +1
     jig.savejig(opts.jcfg_file, opts)
     
@@ -293,8 +293,8 @@ def jigsaw_gen_icos_grid(basename="mesh", level=4):
 
     opts.hfun_hmax = +1.
     opts.mesh_dims = +2                 # 2-dim. simplexes
-    opts.optm_iter = +512
-    opts.optm_qtol = +1.0E-06
+    opts.optm_iter = +5120
+    opts.optm_qtol = +1.0E-08
     
     jig.cmd.icosahedron(opts, level, icos)    
 
