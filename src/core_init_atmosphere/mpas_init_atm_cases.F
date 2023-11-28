@@ -2380,6 +2380,19 @@ module init_atm_cases
             rr (k,i) = p (k,i)**(1./rcv)/((rgas/p0)*t (k,i)*zz(k,i))-rb(k,i)
             cqw(k,i) = 1.
          end do
+!
+!!!JBK Mods to removed reference state
+!
+         do k=1,nz1
+            rr (k,i) = rb(k,i)+rr(k,i)
+            rb (k,i) = 0.
+            rtb(k,i) = 0.
+            pb (k,i) = 0.
+            tb (k,i) = 0.
+         end do
+!
+!!!JBK
+!
       end do
 
        call mpas_log_write(' ***** base state sounding ***** ')
