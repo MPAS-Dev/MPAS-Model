@@ -4,55 +4,32 @@ This is a [Singularity](https://docs.sylabs.io/guides/3.7/user-guide/index.html)
 
 The key idea is to provide a base system as a common ground, where all users will find the tools needed to run the MPAS-BR software. By doing so, users can avoid common mistakes in system configuration.
 
-An introduction to Singularity, its purpose, goals, and characteristics, is provided in [Singularity: Scientific containers for mobility of compute](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC5426675/pdf/pone.0177459.pdf).
+An introduction to Singularity, its purpose, goals, and characteristics, are provided in [Singularity: Scientific containers for mobility of compute](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC5426675/pdf/pone.0177459.pdf).
+
+## Singularity and Apptainer
+
+Recently, Singularity was renamed as Apptainer. Apptainer is the open source version of Singularity and as such, is maintaned as hosted by the [Linux Foundation](https://www.linuxfoundation.org/). Singularity and Apptainer are full compatible and share the same software infrastructure with different roadmaps.
+
+Information on Apptainer, its principles and goals are provided in [https://apptainer.org/news/community-announcement-20211130/](https://apptainer.org/news/community-announcement-20211130/).
 
 ## Software available
 
-The `mpas-tools-br` comes with the [MPAS-Tools](https://github.com/MPAS-Dev/MPAS-Tools) pre-installed with software like `jigsaw` and other tools needed to construct grids for the MPAS model. Take a look at the contents of the `mpas-tools-br.def` file to get a list of the software shipped within the container.
+The `mpas-tools-br` comes with the [MPAS-Tools](https://github.com/MPAS-Dev/MPAS-Tools) pre-installed with software like `jigsaw` (v0.9.14) and other tools needed to construct grids for the MPAS model. Take a look at the contents of the `mpas-tools-br.def` file to get a list of the software shipped within the container.
 
 * Base system: Ubuntu Linux 20.04;
-* Compilers: GNU Fortran, C, and C++ version 11;
+* Compilers: GNU Fortran, C, and C++ v11.4.0;
 * Miniconda Python distribution;
-* `mpas-tools` Python environment.
+* `mpas-tools` Python environment with MPAS-Tools [v0.27.0](https://github.com/MPAS-Dev/MPAS-Tools/releases/tag/0.27.0) installed among several other packages.
 
-## Building the SIF image
-
-If you want to customize the `mpas-tools-br.def` bootstrap file to build your container, make the desired modifications, and follow the provided instructions. If you just want to use the container, skip to the next section ([Using the container to run the MPAS-BR](#using-the-container-to-run-the-mpas-br)).
-
-To build the Singularity container using the bootstrap file, first, you need to install Singularity. If you have Anaconda/Miniconda Python installed on a Linux or Windows WSL machine, create an environment and install Singularity in it:
-
-```bash
-conda create -n singularity
-conda activate singularity
-conda install -c conda-forge singularity
-```
-
-**Note:** See the end of the next section on how to install singularity in Mac OS X.
-
-Next, create `cache` and `tmp` directories and instruct Singularity to use them during the building process. This might avoid potential problems memory usage and with the image size:
-
-```bash
-mkdir -p $HOME/cache
-mkdir -p $HOME/tmp
-
-export SINGULARITY_DISABLE_CACHE=false
-export SINGULARITY_CACHEDIR=$HOME/cache
-export SINGULARITY_TMPDIR=$HOME/tmp
-```
-
-Next, build the SIF image as follows:
-
-```bash
-singularity build --fakeroot mpas-tools-br.sif mpas-tools-br.def
-```
-
-**Note:** The build process might take >30min depending on your machine.
+Instructions on how to build yourself a SIF image is provided in the section [Building the SIF image](#building-the-sif-image).
 
 ## Using the container to run the MPAS-BR
 
 ### Pulling the Container
 
-As shown in the previous section, to create and run the container, you need to install Singularity. Again, if you have Anaconda/Miniconda Python installed on Linux or Windows WSL, create an environment and install Singularity in it. If you want to run Singularity images within Mac OS X, you will need VirtualBox, and we will leave the instructions to do so at the end of this section.
+In order to use the `mpas-tool-br` container, you will need to install Singularity. If you have Anaconda/Miniconda Python installed on Linux or Windows WSL, create an environment and install Singularity in it. If you want to run Singularity images within Mac OS X, you will need VirtualBox. We provide instructions at the end of this section.
+
+**Note:** For this tutorial, we will use Singularity v3.7 (or greater) from the [Conda-Forge](https://conda-forge.org/) and, by the time of this writing, [Apptainer v1.2.5](https://github.com/apptainer/apptainer/releases/tag/v1.2.5) was already released. Feel free to choose which software version to use and make the changes accordingly (i.e., replace the `singularity` command by `apptainer` and environment variables with the prefix `SINGULARITY_` to `APPTAINER_`). You may find it easier to install Apptainer through you favourite software packaging system (e.g., `apt`, `rpm`). See the [Apptainer releases page](https://github.com/apptainer/apptainer/releases) for futher details.
 
 First, create a Conda environment to install Singularity:
 
@@ -132,7 +109,7 @@ vagrant ssh
 
 **Note:** If you want to open another terminal session to use Singularity (within the virtual machine), just issue the command `vagrant ssh` at the same place the `Vagrantfile` is. Once all work is done, just shut down the virtual machine with the command `vagrant halt`. If you want to start over, just do `vagrant up` and `vagrant ssh`. This is the way to use VirtualBox without the graphical interface.
 
-### Running the MPAS-BR inside the container
+## Running the MPAS-BR inside the container
 
 In this section, it shows how to use the `mpas-tools-br_latest.sif` container to run the MPAS-BR software.
 
@@ -362,4 +339,37 @@ At this point, you already have all the software needed to run the MPAS-BR. By f
     display unif240km_jw-bi-pressure-l0_t12.jpg
     ```
 
-carlos.bastarz@inpe.br (21/11/2023)
+# Building the SIF image
+
+If you want to customize the `mpas-tools-br.def` bootstrap file to build your own container, make the desired modifications, and follow the provided instructions. You may also want to tweak the Python `environment.yml` file (used during the container build process) to, e.g., change the MPAS-Tools version.
+
+To build the Singularity container using the bootstrap file, first, you need to install Singularity. If you have Anaconda/Miniconda Python installed on a Linux or Windows WSL machine, create an environment and install Singularity in it:
+
+```bash
+conda create -n singularity
+conda activate singularity
+conda install -c conda-forge singularity
+```
+
+**Note:** See the section [Installing Singularity in Mac OS X](#installing-singularity-in-mac-os-x) on how to install singularity in Mac OS X.
+
+Next, create `cache` and `tmp` directories and instruct Singularity to use them during the building process. This might avoid potential problems memory usage and with the image size:
+
+```bash
+mkdir -p $HOME/cache
+mkdir -p $HOME/tmp
+
+export SINGULARITY_DISABLE_CACHE=false
+export SINGULARITY_CACHEDIR=$HOME/cache
+export SINGULARITY_TMPDIR=$HOME/tmp
+```
+
+Next, build the SIF image as follows:
+
+```bash
+singularity build --fakeroot mpas-tools-br.sif mpas-tools-br.def
+```
+
+**Note:** The build process might take >30min depending on your machine.
+
+carlos.bastarz@inpe.br (04/12/2023)
