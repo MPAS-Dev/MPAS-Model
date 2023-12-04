@@ -1,6 +1,6 @@
 # mpas-tools-br
 
-This is a [Singularity](https://docs.sylabs.io/guides/3.7/user-guide/index.html) definition file to build a Singularity Image Format (SIF) for use with the [MPAS-BR](https://github.com/pedrospeixoto/MPAS-BR) distribution. You can use Singularity to download a base Linux image that can be custom-tailored to install the software you need in the container (see the [SingularityRecipe](https://github.com/cfbastarz/SingularityRecipe) with and example). The instructions used in this README file use the provided definition file [`mpas-tools-br.def`](https://github.com/cfbastarz/SingularityContainers/blob/main/mpas-tools-br/mpas-tools-br.def) to build the container image for use with the MPAS-BR repository.
+This is a [Singularity](https://docs.sylabs.io/guides/3.7/user-guide/index.html) definition file to build a Singularity Image Format (SIF) for use with the [MPAS-BR](https://github.com/pedrospeixoto/MPAS-BR) distribution. You can use Singularity to download a base Linux image that can be custom-tailored to install the software you need in the container (see the [SingularityRecipe](https://github.com/cfbastarz/SingularityRecipe) with and example). The instructions used in this README file use the provided definition file `mpas-tools-br.def` to build the container image for use with the MPAS-BR repository.
 
 The key idea is to provide a base system as a common ground, where all users will find the tools needed to run the MPAS-BR software. By doing so, users can avoid common mistakes in system configuration.
 
