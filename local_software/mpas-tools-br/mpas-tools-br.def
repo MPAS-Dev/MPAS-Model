@@ -1,0 +1,100 @@
+Bootstrap: docker
+From: ubuntu:22.04
+
+%help
+    Container para a utilização dos códigos do repositório MPAS-BR. 
+    Ao carregar o shell, utilize os comandos
+    "source /opt/miniconda/etc/profile.d/conda.sh" e
+    "conda activate mpas-tools"
+    para ativar o ambiente "mpas-tools".
+
+%setup
+    cd $SINGULARITY_ROOTFS/root
+    touch .condarc
+
+%post
+    # Base system
+
+    apt-get -y update
+    apt-get -y upgrade
+
+    export DEBIAN_FRONTEND=noninteractive
+
+    apt install -y build-essential
+    apt install -y automake autoconf autoconf-archive libtool pkg-config
+    apt install -y libssl-dev uuid-dev libgpgme11-dev squashfs-tools
+    apt install -y wget gpg
+    apt install -y git
+    apt install -y subversion
+    apt install -y cmake
+    apt install -y vim
+    apt install -y unzip
+    apt install -y gcc-11 g++-11 gfortran-11
+    apt install -y libstdc++-9-dev manpages-dev
+    apt install -y libhugetlbfs0 libhugetlbfs-dev libblas3 liblapack3
+    apt install -y grads ncl-ncarg cdo nco ncview
+    apt install -y glueviz libjpeg8 imagemagick
+    apt install -y libopenmpi-dev pnetcdf-bin libpnetcdf-dev
+    apt install -y metis
+    apt install -y apt-transport-https
+
+    update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-11 100
+    update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-11 100
+    update-alternatives --install /usr/bin/gfortran gfortran /usr/bin/gfortran-11 100
+    update-alternatives --auto gcc
+    update-alternatives --auto g++
+    update-alternatives --auto gfortran
+
+    # VSCode
+
+    cd $SINGULARITY_ROOTFS/opt
+
+    wget -qO- https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor > packages.microsoft.gpg
+    install -D -o root -g root -m 644 packages.microsoft.gpg /etc/apt/keyrings/packages.microsoft.gpg
+    sh -c 'echo "deb [arch=amd64,arm64,armhf signed-by=/etc/apt/keyrings/packages.microsoft.gpg] https://packages.microsoft.com/repos/code stable main" > /etc/apt/sources.list.d/vscode.list'
+    rm -f packages.microsoft.gpg
+
+    apt-get -y update
+
+    apt install -y code 
+
+    # Miniconda
+
+    cd $SINGULARITY_ROOTFS/opt
+
+    wget -c https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh 
+
+    /bin/bash Miniconda3-latest-Linux-x86_64.sh -bfp $SINGULARITY_ROOTFS/opt/miniconda
+
+    rm $SINGULARITY_ROOTFS/opt/Miniconda3-latest-Linux-x86_64.sh
+
+    export CONDA_ALWAYS_YES="true"
+
+    . $SINGULARITY_ROOTFS/opt/miniconda/etc/profile.d/conda.sh
+
+    conda config --file /.condarc --add channels defaults
+    conda config --file /.condarc --add channels conda-forge
+
+    conda update conda
+
+    # MPAS-Tools conda env
+
+    cd $SINGULARITY_ROOTFS/opt
+
+    wget -c https://raw.githubusercontent.com/cfbastarz/AmbientesAnaconda/main/mpas-tools/environment.yml
+    conda env create -f environment.yml
+
+    conda activate mpas-tools
+
+    conda install -y -c conda-forge geopy
+    conda install -c conda-forge gh
+
+    pip install icosphere
+
+    ldconfig
+
+    # Cleaning up
+
+    apt-get -y autoremove
+    apt-get -y autoclean
+    apt-get -y clean
