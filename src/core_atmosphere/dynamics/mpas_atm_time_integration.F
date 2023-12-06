@@ -1635,16 +1635,14 @@ module atm_time_integration
 
 !!!JBK-vepssm and reference sounding                                                    
       real (kind=RKIND), dimension(:), pointer :: etp, etm, ewp, ewm
-      logical,                         pointer :: reference_sounding
+      integer,	      	      	       pointer :: reference_sounding_switch    
       call mpas_pool_get_array(mesh, 'etp', etp)                                                                                            
       call mpas_pool_get_array(mesh, 'etm', etm)                                                                                            
       call mpas_pool_get_array(mesh, 'ewp', ewp)                                                                                            
       call mpas_pool_get_array(mesh, 'ewm', ewm)                                                                                            
-      call mpas_pool_get_config(configs, 'config_reference_sounding', reference_sounding)
-!!!JBK                                                                                                                                      
-
+      call mpas_pool_get_array(mesh, 'reference_sounding_switch', reference_sounding_switch) 
       call mpas_pool_get_config(configs, 'config_epssm', epssm)
-
+!!!JBK
       call mpas_pool_get_array(mesh, 'rdzu', rdzu)
       call mpas_pool_get_array(mesh, 'rdzw', rdzw)
       call mpas_pool_get_array(mesh, 'fzm', fzm)
@@ -1674,13 +1672,12 @@ module atm_time_integration
       call mpas_pool_get_dimension(state, 'moist_start', moist_start)
       call mpas_pool_get_dimension(state, 'moist_end', moist_end)
 
-
       call atm_compute_vert_imp_coefs_work(nCells, moist_start, moist_end, dts, epssm, &
                                    zz, cqw, p, t, rb, rtb, pb, rt, cofwr, cofwz, coftz, cofwt, &
                                    a_tri, alpha_tri, gamma_tri, cofrz, rdzw, fzm, fzp, rdzu, scalars, &
                                    cellStart, cellEnd, edgeStart, edgeEnd, &
 !!!JBK
-                                   etp, etm, ewp, ewm, reference_sounding,    &
+                                   etp, etm, ewp, ewm, reference_sounding_switch,    &
 !!!JBK
                                    cellSolveStart, cellSolveEnd, edgeSolveStart, edgeSolveEnd)
 
@@ -1693,7 +1690,7 @@ module atm_time_integration
                                    a_tri, alpha_tri, gamma_tri, cofrz, rdzw, fzm, fzp, rdzu, scalars, &
                                    cellStart, cellEnd, edgeStart, edgeEnd, &
 !!!JBK
-                                   etp, etm, ewp, ewm, reference_sounding,    &
+                                   etp, etm, ewp, ewm, reference_sounding_switch,    &
 !!!JBK
                                    cellSolveStart, cellSolveEnd, edgeSolveStart, edgeSolveEnd)
 
@@ -1737,7 +1734,7 @@ module atm_time_integration
       real (kind=RKIND), dimension(nVertLevels  ) :: etp,etm
       real (kind=RKIND), dimension(nVertLevels+1) :: ewp,ewm
 !!!JBK Swith to use reference sounding and perturbation thermodynamic variables
-      logical :: reference_sounding
+      integer                                     :: reference_sounding_switch
 !!!JBK
 
 
@@ -1793,8 +1790,8 @@ module atm_time_integration
          coftz(nVertLevels+1,iCell) = 0.0
 !DIR$ IVDEP
 
-!!!JBK Mod to use full variables and log(p)
-       if(reference_sounding)  then
+!!!JBK Mod to use either reference sounding or full variables and log(p)
+       if(reference_sounding_switch.eq.1)  then
 !!!JBK
          do k=1,nVertLevels
 
@@ -4087,13 +4084,12 @@ module atm_time_integration
       real (kind=RKIND), pointer :: config_h_theta_eddy_visc2, config_v_theta_eddy_visc2
 
       real (kind=RKIND), pointer :: config_mpas_cam_coef
-      logical, pointer :: config_rayleigh_damp_u
+      logical,           pointer :: config_rayleigh_damp_u
       real (kind=RKIND), pointer :: config_rayleigh_damp_u_timescale_days
-      integer, pointer :: config_number_rayleigh_damp_u_levels, config_number_cam_damping_levels
-!!!JBK - Mod for reference sounding switch
-      logical,           pointer :: reference_sounding
+      integer,           pointer :: config_number_rayleigh_damp_u_levels, config_number_cam_damping_levels
+!!!JBK - Mod for reference sounding
+      integer,           pointer :: reference_sounding_switch
 !!!JBK end
-
 
       call mpas_pool_get_config(mesh, 'sphere_radius', r_earth)
       call mpas_pool_get_config(configs, 'config_coef_3rd_order', coef_3rd_order)
@@ -4114,9 +4110,7 @@ module atm_time_integration
       call mpas_pool_get_config(configs, 'config_rayleigh_damp_u_timescale_days', config_rayleigh_damp_u_timescale_days)
       call mpas_pool_get_config(configs, 'config_number_rayleigh_damp_u_levels', config_number_rayleigh_damp_u_levels)
       call mpas_pool_get_config(configs, 'config_number_cam_damping_levels', config_number_cam_damping_levels)
-!!!JBK Mod foe reference sounding switch
-      call mpas_pool_get_config(configs, 'config_reference_sounding', reference_sounding)
-!!!JBK end
+
       call mpas_pool_get_array(state, 'rho_zz', rho_zz, 2)
       call mpas_pool_get_array(state, 'u', u, 2)
       call mpas_pool_get_array(state, 'w', w, 2)
@@ -4146,7 +4140,9 @@ module atm_time_integration
       call mpas_pool_get_array(diag, 'exner', exner)
 
       call mpas_pool_get_array(tend_physics, 'rthdynten', rthdynten)
-
+!!!JBK Mod for reference_sounding_switch
+      call mpas_pool_get_array(mesh, 'reference_sounding_switch', reference_sounding_switch)   
+!!!
       call mpas_pool_get_array(mesh, 'weightsOnEdge', weightsOnEdge)
       call mpas_pool_get_array(mesh, 'cellsOnEdge', cellsOnEdge)
       call mpas_pool_get_array(mesh, 'cellsOnCell', cellsOnCell)
@@ -4239,8 +4235,8 @@ module atm_time_integration
          config_mpas_cam_coef, &
          config_rayleigh_damp_u, config_rayleigh_damp_u_timescale_days, & 
          config_number_rayleigh_damp_u_levels, config_number_cam_damping_levels, &
-!!!JBK - Mod for reference sounding switch
-         reference_sounding,  &
+!!!JBK - Mod for reference sounding
+         reference_sounding_switch,  &
 !!!JBK end
          rthdynten, &
          cellStart, cellEnd, vertexStart, vertexEnd, edgeStart, edgeEnd, &
@@ -4267,8 +4263,8 @@ module atm_time_integration
       config_rayleigh_damp_u, config_rayleigh_damp_u_timescale_days, &
       config_number_rayleigh_damp_u_levels, config_number_cam_damping_levels, &
 
-!!!JBK - Mod for reference sounding switch
-      reference_sounding,  &
+!!!JBK - Mod for reference sounding
+      reference_sounding_switch,  &
 !!!JBK end
       rthdynten, &
       cellStart, cellEnd, vertexStart, vertexEnd, edgeStart, edgeEnd, &
@@ -4428,11 +4424,11 @@ module atm_time_integration
       real (kind=RKIND) :: q_im2, q_im1, q_i, q_ip1, ua, coef3
 
 !!!JBK - mod for reference sounding switch
-      logical           :: reference_sounding
-!     Declaration for plog                                                                                                                                     
+      integer           :: reference_sounding_switch
+!     Declaration for plog                      
       real (kind=RKIND) :: p0
       real (kind=RKIND), dimension(nVertLevels,nCells+1) :: plog
-!!!JBK end                                                                                                                                                        
+!!!JBK end                       
       flux4(q_im2, q_im1, q_i, q_ip1, ua) =                     &
                 ua*( 7.*(q_i + q_im1) - (q_ip1 + q_im2) )/12.0
 
@@ -4449,10 +4445,10 @@ module atm_time_integration
 
       if (rk_step == 1) then
 
-        p0 = 1.0e+05  ! this should come from somewhere else...                                                                                                
+        p0 = 1.0e+05  ! this should come from somewhere else...              
 
 !!!JBK - Temporary mod to print reference_sounding
-        call mpas_log_write('reference_sounding = $l ', logicArgs=(/reference_sounding/))
+        call mpas_log_write('reference_sounding_switch = $i ', intArgs=(/reference_sounding_switch/))
 !!!JBK end
 
 !         tend_u_euler(1:nVertLevels,edgeStart:edgeEnd) = 0.0
@@ -4556,7 +4552,7 @@ module atm_time_integration
           do k = 1,nVertLevels
              tend_rho(k,iCell) = -h_divergence(k,iCell)-rdzw(k)*(rw(k+1,iCell)-rw(k,iCell)) + tend_rho_physics(k,iCell)
           end do
-          if(reference_sounding)  then
+          if(reference_sounding_switch.eq.1)  then
              do k = 1,nVertLevels
                 dpdz(k,iCell) = -gravity*(rb(k,iCell)*(qtot(k,iCell)) + rr_save(k,iCell)*(1.+qtot(k,iCell)))
              end do
@@ -4591,7 +4587,7 @@ module atm_time_integration
 !               tend_u_euler(k,iEdge) =  - cqu(k,iEdge)*( (pp(k,cell2)-pp(k,cell1))*invDcEdge(iEdge)/(.5*(zz(k,cell2)+zz(k,cell1))) &
 !                                              -0.5*zxu(k,iEdge)*(dpdz(k,cell1)+dpdz(k,cell2)) )
 !            end do
-            if(reference_sounding)  then
+            if(reference_sounding_switch.eq.1)  then
                do k=1,nVertLevels
                   tend_u_euler(k,iEdge) =  - cqu(k,iEdge)*((pp(k,cell2)-pp(k,cell1))*invDcEdge(iEdge)  &
                                                       /(.5*(zz(k,cell2)+zz(k,cell1)))                  &
@@ -5017,7 +5013,7 @@ module atm_time_integration
 !                                         - (fzm(k)*dpdz(k,iCell) + fzp(k)*dpdz(k-1,iCell)) )  ! dpdz is the buoyancy term here.
 !            end do
 
-            if(reference_sounding)  then
+            if(reference_sounding_switch.eq.1)  then
                do k=2,nVertLevels
                   tend_w_euler(k,iCell) = tend_w_euler(k,iCell)                             - cqw(k,iCell)     &
                                                                       *(rdzu(k)*(pp(k,iCell)-pp(k-1,iCell))    & 

@@ -1284,7 +1284,7 @@ module atm_core
 
      enddo
  
-! Height dependent values of epssm
+! Height dependent values of epssm; profiles stored in etp, etm, ewp, and ewm, 
 
      do k = 1,nVertLevels
         if(height_u_levels(k).le.transition_lower_bound) then

@@ -197,11 +197,6 @@
                      description="Whether to advect scalar fields"
                      possible_values=".true. or .false."/>
 
-                <nml_option name="config_reference_sounding" type="logical" default_value="true"
-                     units="-"
-                     description="Whether a reference sounding is used for thermodynamic variables"
-                     possible_values=".true. or .false."/>
-
                 <nml_option name="config_positive_definite" type="logical" default_value="false" in_defaults="false"
                      units="-"
                      description="Whether to enable positive-definite advection of scalars"
@@ -256,7 +251,8 @@
                      units="-"
                      description="Coefficient for the divergent component of the Laplacian filter of momentum in the relaxation zone"
                      possible_values="Positive real values"/>
-        </nml_record>
+
+	      </nml_record>
 
         <nml_record name="damping" in_defaults="true">
                 <nml_option name="config_zd" type="real" default_value="22000.0"
@@ -516,6 +512,7 @@
 			<var name="deriv_two"/>
 			<var name="defc_a"/>
 			<var name="defc_b"/>
+			<var name="reference_sounding_switch"/> 
 #ifdef MPAS_CAM_DYCORE
 			<var name="cell_gradient_coef_x"/>
 			<var name="cell_gradient_coef_y"/>
@@ -656,6 +653,7 @@
 			<var name="deriv_two"/>
 			<var name="defc_a"/>
 			<var name="defc_b"/>
+			<var name="reference_sounding_switch"/> 
 #ifdef MPAS_CAM_DYCORE
 			<var name="cell_gradient_coef_x"/>
 			<var name="cell_gradient_coef_y"/>
@@ -1444,6 +1442,9 @@
 
                 <var name="qv_init" type="real" dimensions="nVertLevels" units="kg kg^{-1}"
                      description="qv reference profile"/>
+
+                <var name="reference_sounding_switch" type="integer" dimensions="" units="unitless" default_value="1" 
+                     description="Switch to designate a reference sounding is used (1) or full variables (0)"/>       
 
                 <!-- Space needed for advection -->
                 <var name="deriv_two" type="real" dimensions="FIFTEEN TWO nEdges" units="unitless"
