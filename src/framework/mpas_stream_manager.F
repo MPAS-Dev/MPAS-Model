@@ -3052,39 +3052,6 @@ module mpas_stream_manager
     end subroutine MPAS_stream_mgr_block_write !}}}
 
     !-----------------------------------------------------------------------
-    !  function get_max_field_size
-    !
-    !> \brief Get the size of the largest field in a stream
-    !> \author Mathtew Dimond
-    !> \date   19 October 2023
-    !> \details
-    !>  Private function to get the size as a 64 bit int of the largest
-    !   field in a stream
-    !
-    !-----------------------------------------------------------------------
-    recursive function get_max_field_size(stream, ierr) result(maxFieldSize)!{{{
-
-        implicit none
-
-        type (MPAS_stream_list_type), intent(inout) :: stream
-        integer, intent(out) :: ierr
-        integer(kind=I8KIND):: maxFieldSize
-
-        ierr = 0
-
-        if (.not. associated(stream % stream)) return
-
-        maxFieldSize = mpas_field_list_get_largest_field_size(stream % stream % fieldList, mpas_io_handle_dminfo(stream % stream % fileHandle))
-
-        ! If there are streams inside of this stream, recurse in to them.
-        ! Unwind by getting the max of each substream and the current
-        ! stream.
-        if (associated(stream % next)) then
-            maxFieldSize = max(maxFieldSize, get_max_field_size(stream % next, ierr))
-        end if
-    end function get_max_field_size !}}}
-
-    !-----------------------------------------------------------------------
     !  routine write_stream
     !
     !> \brief Handle the writing of a stream pointed to by the stream list node
@@ -3185,11 +3152,7 @@ module mpas_stream_manager
                truncateFiles = .false.
            end if
 
-           !
-           ! Get size of the largest variable in the stream
-           !
 
-           maxVarSize = get_max_field_size(stream, ierr)
 
            ! If the stream is not valid, assume that we have not yet written this
            ! stream, in which case we create the stream from scratch
@@ -3260,7 +3223,7 @@ module mpas_stream_manager
                        STREAM_DEBUG_WRITE(' -- Setting record to: $i' COMMA intArgs=(/stream % nRecords/))
                    end if
                end if
-
+               maxVarSize = get_stream_largest_var(stream, manager % allFields, manager % allPackages, timeLevel, manager % ioContext % dminfo, local_ierr)
                call build_stream(stream, MPAS_STREAM_OUTPUT, manager % allFields, manager % allPackages, timeLevel, mgLevel, local_ierr)
                if (local_ierr /= MPAS_STREAM_NOERR) then
                    ierr = MPAS_STREAM_MGR_ERROR
@@ -4416,6 +4379,210 @@ module mpas_stream_manager
 
     end subroutine build_stream !}}}
 
+   function get_var_size(dimensions, dimlist, dminfo, typesize) result (var_size)
+      implicit none
+      integer (kind=I8KIND) :: var_size
+      integer, intent(in) :: typesize
+      type (mpas_pool_type), intent(in) :: dimensions
+      character(len=*), dimension(:) :: dimList
+      type (dm_info), intent(in) :: dminfo
+      
+      integer, pointer :: dimLen
+      integer :: dimLenGlobal
+      integer :: i
+      var_size = 1_I8KIND
+
+      do i = 1, size(dimList)
+         if (is_decomposed_dim(dimlist(i))) then
+            call mpas_pool_get_dimension(dimensions, trim(dimlist(i))//'Solve', dimlen)
+            call mpas_dmpar_sum_int(dminfo, dimLen, dimLenGlobal)
+            var_size = var_size * dimLenGlobal
+         else
+            call mpas_pool_get_dimension(dimensions, trim(dimlist(i)), dimlen)
+            var_size = var_size * dimLenGlobal
+         end if
+      end do
+   end function get_var_size
+   
+    !-----------------------------------------------------------------------
+    !  routine stream_get_largest_var
+    !
+    !> \brief This is a utility routine to build a stream type from a pool representing a stream.
+    !> \author Michael Duda, Doug Jacobsen
+    !> \date   07/23/2014
+    !> \details 
+    !>  This routine will take as input a pool representing a stream.
+    !>  It will then generate a stream type based on this pool, and return that.
+    !-----------------------------------------------------------------------
+    function get_stream_largest_var(stream, allFields, allPackages, timeLevelIn, dmInfo, ierr)  result(maxVarSize) !{{{
+
+        implicit none
+
+        type (dm_info), intent(in) :: dminfo
+        type (MPAS_stream_list_type), intent(inout) :: stream
+        type (MPAS_Pool_type), intent(in) :: allFields
+        type (MPAS_Pool_type), intent(in) :: allPackages
+        integer, intent(in) :: timeLevelIn
+        integer, intent(out) :: ierr
+
+
+        type (MPAS_Pool_type) :: dims
+        type (MPAS_Pool_iterator_type) :: itr
+        type (mpas_pool_field_info_type) :: info
+        integer :: timeLevel
+
+        type (field5DReal), pointer :: real5d
+        type (field4DReal), pointer :: real4d
+        type (field3DReal), pointer :: real3d
+        type (field2DReal), pointer :: real2d
+        type (field1DReal), pointer :: real1d
+        type (field0DReal), pointer :: real0d
+
+        type (field3DInteger), pointer :: int3d
+        type (field2DInteger), pointer :: int2d
+        type (field1DInteger), pointer :: int1d
+        type (field0DInteger), pointer :: int0d
+
+        type (field1DChar), pointer :: char1d
+        type (field0DChar), pointer :: char0d
+
+        integer (KIND=I8KIND) :: maxVarSize
+        integer (KIND=I8KIND) :: varSize
+
+        real (KIND=RKIND) :: sampleReal
+        integer :: sampleInt
+        character :: sampleChar
+
+        integer :: realSize
+        integer :: intSize
+        integer :: charSize
+
+        integer :: local_ierr
+
+        character (len=StrKIND), pointer :: packages
+        logical :: active_field
+        integer :: err_level
+
+        ierr = MPAS_STREAM_MGR_NOERR
+
+        realSize = storage_size(sampleReal)
+        intSize = storage_size(sampleInt)
+        charSize = storage_size(sampleChar)
+
+        maxVarSize = 1_I8KIND
+
+        call mpas_pool_begin_iteration(stream % field_pool)
+
+        FIELD_LOOP: do while ( mpas_pool_get_next_member(stream % field_pool, itr) )
+
+            if (itr % memberType == MPAS_POOL_CONFIG) then
+
+                err_level = mpas_pool_get_error_level()
+                call mpas_pool_set_error_level(MPAS_POOL_SILENT)
+
+                nullify(packages)
+                call mpas_pool_get_config(stream % field_pkg_pool, trim(itr % memberName)//':packages', packages)
+                if (associated(packages)) then
+                    active_field = parse_package_list(allPackages, trim(packages))
+                else
+                    active_field = .true.
+                end if
+                call mpas_pool_set_error_level(err_level)
+
+                STREAM_DEBUG_WRITE('Is field '''//trim(itr % memberName)//''' active in stream '''//trim(stream % name)//'? $l' COMMA logicArgs=(/active_field/))
+
+                if (.not. active_field) cycle FIELD_LOOP
+
+                ! To avoid accidentally matching in case statements below...
+                info % fieldType = -1
+
+                call mpas_pool_get_field_info(allFields, itr % memberName, info)
+
+                ! Set time level to read
+                if (info % nTimeLevels >= timeLevelIn) then
+                    timeLevel = timeLevelIn
+                else
+                    timeLevel = 1
+                end if
+
+                select case (info % fieldType)
+                    case (MPAS_POOL_REAL)
+                        select case (info % nDims)
+                            case (0)
+                                varSize = realSize
+                            case (1)
+                                call mpas_pool_get_field(allFields, itr % memberName, real1d, timeLevel)
+                                varSize = get_var_size(real1d % block % dimensions, &
+                                                       real1d % dimNames, &
+                                                       dmInfo, &
+                                                       realSize)
+                            case (2)
+                                call mpas_pool_get_field(allFields, itr % memberName, real2d, timeLevel)
+                                varSize = get_var_size(real2d % block % dimensions, &
+                                                       real2d % dimNames, &
+                                                       dmInfo, &
+                                                       realSize)
+                            case (3)
+                                call mpas_pool_get_field(allFields, itr % memberName, real3d, timeLevel)
+                                varSize = get_var_size(real3d % block % dimensions, &
+                                                       real3d % dimNames, &
+                                                       dmInfo, &
+                                                       realSize)
+                            case (4)
+                                call mpas_pool_get_field(allFields, itr % memberName, real4d, timeLevel)
+                                varSize = get_var_size(real4d % block % dimensions, &
+                                                       real4d % dimNames, &
+                                                       dmInfo, &
+                                                       realSize)
+                            case (5)
+                                call mpas_pool_get_field(allFields, itr % memberName, real5d, timeLevel)
+                                varSize = get_var_size(real5d % block % dimensions, &
+                                                       real5d % dimNames, &
+                                                       dmInfo, &
+                                                       realSize)
+                        end select
+                    case (MPAS_POOL_INTEGER)
+                        select case (info % nDims)
+                            case (0)
+                                varSize = intSize
+                            case (1)
+                                call mpas_pool_get_field(allFields, itr % memberName, int1d, timeLevel)
+                                varSize = get_var_size(int1d % block % dimensions, &
+                                                       int1d % dimNames, &
+                                                       dmInfo, &
+                                                       intSize)
+                            case (2)
+                                call mpas_pool_get_field(allFields, itr % memberName, int2d, timeLevel)
+                                varSize = get_var_size(int2d % block % dimensions, &
+                                                       int2d % dimNames, &
+                                                       dmInfo, &
+                                                       intSize)
+                            case (3)
+                                call mpas_pool_get_field(allFields, itr % memberName, int3d, timeLevel)
+                                varSize = get_var_size(int3d % block % dimensions, &
+                                                       int3d % dimNames, &
+                                                       dmInfo, &
+                                                       intSize)
+                        end select
+                    case (MPAS_POOL_CHARACTER)
+                        select case (info % nDims)
+                            case (0)
+                                varSize = charSize
+                            case (1)
+                                call mpas_pool_get_field(allFields, itr % memberName, char1d, timeLevel)
+                                varSize = get_var_size(char1d % block % dimensions, &
+                                                       char1d % dimNames, &
+                                                       dmInfo, &
+                                                       charSize)
+                        end select
+                end select
+                if (varSize > maxVarSize) then
+                    maxVarSize = varSize
+                end if
+            end if
+        end do FIELD_LOOP
+
+    end function get_stream_largest_var !}}}
 
     !-----------------------------------------------------------------------
     !  routine update_stream
@@ -5926,7 +6093,7 @@ module mpas_stream_manager
        return
 
     end function MPAS_stream_mgr_stream_exists!}}}
- 
+    
 
 end module mpas_stream_manager
 
