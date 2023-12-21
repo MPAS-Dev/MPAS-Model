@@ -23,6 +23,11 @@ module test_core_halo_exch
 
    public :: test_core_halo_exch_test
 
+   interface check_results
+      procedure check_results_real
+      procedure check_results_int
+   end interface
+
    contains
 
    !***********************************************************************
@@ -51,7 +56,7 @@ module test_core_halo_exch
 
       call mpas_timer_start('halo exch tests')
       if ( threadNum == 0 ) then
-         call mpas_log_write(' - Performing exchange group tests')
+         call mpas_log_write(' - Performing group halo exchange tests')
       end if
       call test_core_halo_exch_group_test(domain, threadErrs, iErr)
       call mpas_threading_barrier()
@@ -104,8 +109,7 @@ module test_core_halo_exch
       integer, dimension(:), intent(out) :: threadErrs
       integer, intent(out) :: err
 
-      type (block_type), pointer :: block
-      type (mpas_pool_type), pointer :: meshPool, haloExchTestPool
+      type (mpas_pool_type), pointer :: haloExchTestPool
 
       type (field5DReal), pointer :: real5DField
       type (field4DReal), pointer :: real4DField
@@ -115,27 +119,6 @@ module test_core_halo_exch
       type (field3DInteger), pointer :: int3DField
       type (field2DInteger), pointer :: int2DField
       type (field1DInteger), pointer :: int1DField
-
-      real (kind=RKIND), dimension(:, :, :, :, :), pointer :: real5D
-      real (kind=RKIND), dimension(:, :, :, :), pointer :: real4D
-      real (kind=RKIND), dimension(:, :, :), pointer :: real3D
-      real (kind=RKIND), dimension(:, :), pointer :: real2D
-      real (kind=RKIND), dimension(:), pointer :: real1D
-
-      real (kind=RKIND) :: realValue
-      integer :: integerValue
-
-      integer, dimension(:, :, :), pointer :: int3D
-      integer, dimension(:, :), pointer :: int2D
-      integer, dimension(:), pointer :: int1D
-
-      integer :: i, j, k, l, m
-      integer :: iDim1, iDim2, iDim3, iDim4, iDim5
-      integer, pointer :: nCells, nEdges, nVertices
-      integer, pointer :: nCellsSolve, nEdgesSolve, nVerticesSolve
-      integer, dimension(:), pointer :: indexToCellID
-      integer, dimension(:), pointer :: indexToEdgeID
-      integer, dimension(:), pointer :: indexToVertexID
 
       integer :: threadNum
 
@@ -690,6 +673,11 @@ module test_core_halo_exch
          call mpas_pool_get_dimension(meshPool, 'nCellsSolve', nCellsSolve)
          call mpas_pool_get_dimension(meshPool, 'nEdgesSolve', nEdgesSolve)
          call mpas_pool_get_dimension(meshPool, 'nVerticesSolve', nVerticesSolve)
+#ifdef HALO_EXCH_DEBUG
+         call mpas_log_write('  halo meshPool nCells:$i nEdges:$i nVertices:$i nCellsSolve:$i ' &
+            // 'nEdgesSolve:$i nVerticesSolve:$i', &
+            intArgs=(/nCells, nEdges, nVertices, nCellsSolve, nEdgesSolve, nVerticesSolve/))
+#endif
 
          ! Fill persistent cell fields
          call mpas_pool_get_array(haloExchTestPool, 'cellPersistReal5D', real5D)
@@ -993,6 +981,161 @@ module test_core_halo_exch
    end subroutine test_core_halo_exch_setup_fields!}}}
 
    !***********************************************************************
+   !  routine check_results_real
+   !
+   !> \brief   Verify the provided result matches the provided expected value
+   !> \details 
+   !>  Intended to be called via the "check_results" interface.
+   !>  return 0 if the actual value matches the provided value,
+   !>  return 1 if there is no match
+   !>  writes to the log if there is a mismatch if compiled with HALO_EXCH_DEBUG
+   !-----------------------------------------------------------------------
+   integer function check_results_real(label, actual, desired) 
+      character (len=*), intent(in) :: label  !< name of item being compared
+      real(kind=RKIND), intent(in) :: actual !< the actual value to check
+      real(kind=RKIND), intent(in) :: desired !< the expected value
+
+      character (len=StrKIND) :: message
+      message = '  halo error '
+
+      check_results_real = 0
+      if ( actual /= desired ) then
+         check_results_real = 1
+#ifdef HALO_EXCH_DEBUG
+         message = trim(message)//label
+         call mpas_log_write('    '//trim(message)//' -- actual:$r desired:$r', &
+               realArgs=(/actual,desired/))
+#endif
+      end if
+   end function check_results_real
+
+   !***********************************************************************
+   !  routine check_results_int
+   !
+   !> \brief   Verify the provided result matches the provided expected value
+   !> \details 
+   !>  Intended to be called via the "check_results" interface.
+   !>  return 0 if the actual value matches the provided value,
+   !>  return 1 if they do not match.
+   !>  writes to the log if there is a mismatch if compiled with HALO_EXCH_DEBUG
+   !-----------------------------------------------------------------------
+   integer function check_results_int(label, actual, desired) 
+      character (len=*), intent(in) :: label  !< name of item being compared
+      integer, intent(in) :: actual !< the actual value to check
+      integer, intent(in) :: desired !< the expected value
+
+      character (len=StrKIND) :: message
+      message = '  halo error '
+
+      check_results_int = 0
+      if ( actual /= desired ) then
+         check_results_int = 1
+#ifdef HALO_EXCH_DEBUG
+         message = trim(message)//label
+         call mpas_log_write('    '//trim(message)//' -- actual:$i desired:$i', &
+               intArgs=(/actual,desired/))
+#endif
+      end if
+   end function check_results_int
+
+   !***********************************************************************
+   !  routine computeErrors
+   !
+   !> \brief   Check provided data arrays for unexpected values
+   !> \details 
+   !>  Goes through the provided data arrays, comparing data elements with corresponding
+   !>  values in an array of expected values.
+   !>  The differences are accumulated in two output arrays, one for the provided
+   !>  real array inputs, and one for the provided integer array inputs.
+   !-----------------------------------------------------------------------
+   subroutine computeErrors(nColumns, expectedValues, real5D, real4D, real3D, real2D, real1D, &
+                            int3d, int2d, int1d, &
+                            realDiffs, intDiffs)
+      integer, intent(in) :: nColumns !< the outermost dimension size to be checked
+      integer, dimension(:), pointer, intent(in) :: expectedValues !< an array of expected values
+      !< the following are multi-dimension arrays whose elements are checked
+      real (kind=RKIND), dimension(:, :, :, :, :), pointer, intent(in) :: real5D
+      real (kind=RKIND), dimension(:, :, :, :), pointer, intent(in) :: real4D
+      real (kind=RKIND), dimension(:, :, :), pointer, intent(in) :: real3D
+      real (kind=RKIND), dimension(:, :), pointer, intent(in) :: real2D
+      real (kind=RKIND), dimension(:), pointer, intent(in) :: real1D
+      integer, dimension(:, :, :), pointer, intent(in) :: int3D
+      integer, dimension(:, :), pointer, intent(in) :: int2D
+      integer, dimension(:), pointer, intent(in) :: int1D
+      !< output array of accumlated differences for the provided real input arrays
+      real (kind=RKIND), dimension(5), intent(out) :: realDiffs
+      !< output array of accumlated differences for the provided integer input arrays
+      integer, dimension(3), intent(out) :: intDiffs
+
+      integer :: iDim2, iDim3, iDim4, iDim5
+      integer :: i, j, k, l, m
+      integer integerCellId
+      real (kind=RKIND) realCellId
+
+      iDim2 = size(real5D, dim=4)
+      iDim3 = size(real5D, dim=3)
+      iDim4 = size(real5D, dim=2)
+      iDim5 = size(real5D, dim=1)
+
+      realDiffs = 0.0_RKIND
+      intDiffs = 0
+
+      do i = 1, nColumns
+         realCellId = real(expectedValues(i), kind=RKIND)
+         integerCellId = expectedValues(i)
+         do j = 1, iDim2
+            do k = 1, iDim3
+               do l = 1, iDim4
+                  do m = 1, iDim5
+                     realDiffs(5)= realDiffs(5) + real5D(m, l, k, j, i) - realCellId
+                  end do
+                  realDiffs(4) = realDiffs(4) + real4D(l, k, j, i) - realCellId
+               end do
+               realDiffs(3) = realDiffs(3) + real3D(k, j, i) - realCellId
+               intDiffs(3) = intDiffs(3) + int3D(k, j, i) - integerCellId
+            end do
+            realDiffs(2) = realDiffs(2) + real2D(j, i) - realCellId
+            intDiffs(2) = intDiffs(2) + int2D(j, i) - integerCellId
+         end do
+         realDiffs(1) = realDiffs(1) + real1D(i) - realCellId
+         intDiffs(1) = intDiffs(1) + int1D(i) - integerCellId
+      end do
+   end subroutine computeErrors
+
+   !***********************************************************************
+   !  routine checkErrors
+   !
+   !> \brief   Check provided error arrays for non-zero contents
+   !> \details 
+   !>  Goes through the provided error arrays looking for non-zero elements.
+   !>  Non-zero elements indicate errors
+   !>  values in an array of expected values.
+   !>  The differences are accumulated in two output arrays, one for the provided
+   !>  real array inputs, and one for the provided integer array inputs.
+   !-----------------------------------------------------------------------
+   subroutine checkErrors(realErrors, intErrors, threadErrs, threadNum)
+      !< arrays to check for non-zero entries (assumed to be errors)
+      real (kind=RKIND), dimension(5), intent(out) :: realErrors
+      integer, dimension(3), intent(out) :: intErrors
+
+      !< array of error codes to be returned. If any input array has one or more errors
+      !< the corresponding entry in this array will be non-zero
+      integer, dimension(:), intent(inout) :: threadErrs
+      integer, intent(in) :: threadNum !< the currently running thread
+
+      threadErrs(threadNum) = 0
+
+      threadErrs(threadNum) = ior(threadErrs(threadNum), check_results(' real5D', realErrors(5), 0.0_RKIND))
+      threadErrs(threadNum) = ior(threadErrs(threadNum), check_results(' real4D', realErrors(4), 0.0_RKIND))
+      threadErrs(threadNum) = ior(threadErrs(threadNum), check_results(' real3D', realErrors(3), 0.0_RKIND))
+      threadErrs(threadNum) = ior(threadErrs(threadNum), check_results(' real2D', realErrors(2), 0.0_RKIND))
+      threadErrs(threadNum) = ior(threadErrs(threadNum), check_results(' real1D', realErrors(1), 0.0_RKIND))
+      threadErrs(threadNum) = ior(threadErrs(threadNum), check_results(' int3D', intErrors(3), 0))
+      threadErrs(threadNum) = ior(threadErrs(threadNum), check_results(' int3D', intErrors(2), 0))
+      threadErrs(threadNum) = ior(threadErrs(threadNum), check_results(' int3D', intErrors(1), 0))
+   end subroutine checkErrors
+
+   !***********************************************************************
    !
    !  routine test_core_halo_exch_validate_fields
    !
@@ -1030,6 +1173,9 @@ module test_core_halo_exch
       real (kind=RKIND), dimension(:, :, :), pointer :: real3D
       real (kind=RKIND), dimension(:, :), pointer :: real2D
       real (kind=RKIND), dimension(:), pointer :: real1D
+
+      real (kind=RKIND), dimension(5) :: realDiffs
+      integer, dimension(3) :: intDiffs
 
       real (kind=RKIND) :: realValue
       integer :: integerValue
@@ -1072,6 +1218,7 @@ module test_core_halo_exch
          indexToCellID( nCells + 1 ) = 0
          indexToEdgeID( nEdges + 1 ) = 0
          indexToVertexID( nVertices + 1 ) = 0
+         realDiffs = 0.0_RKIND
 
          ! Compare persistent cell fields
          call mpas_pool_get_array(haloExchTestPool, 'cellPersistReal5D', real5D)
@@ -1083,76 +1230,24 @@ module test_core_halo_exch
          call mpas_pool_get_array(haloExchTestPool, 'cellPersistInt2D', int2D)
          call mpas_pool_get_array(haloExchTestPool, 'cellPersistInt1D', int1D)
 
-         ! Subtract index from all peristent cell fields
-         iDim1 = size(real5D, dim=5)
-         iDim2 = size(real5D, dim=4)
-         iDim3 = size(real5D, dim=3)
-         iDim4 = size(real5D, dim=2)
-         iDim5 = size(real5D, dim=1)
-
-         !$omp do schedule(runtime) private(j, k, l, m, realValue, integerValue)
-         do i = 1, iDim1
-            realValue = real(indexToCellID(i), kind=RKIND)
-            integerValue = indexToCellID(i)
-            do j = 1, iDim2
-               do k = 1, iDim3
-                  do l = 1, iDim4
-                     do m = 1, iDim5
-                        real5D(m, l, k, j, i) = real5D(m, l, k, j, i) - realValue
-                     end do
-                     real4D(l, k, j, i) = real4D(l, k, j, i) - realValue
-                  end do
-                  real3D(k, j, i) = real3D(k, j, i) - realValue
-                  int3D(k, j, i) = int3D(k, j, i) - integerValue
-               end do
-               real2D(j, i) = real2D(j, i) - realValue
-               int2D(j, i) = int2D(j, i) - integerValue
-            end do
-            real1D(i) = real1D(i) - realValue
-            int1D(i) = int1D(i) - integerValue
-         end do
-         !$omp end do
-
          ! Validate that all differences are zero.
 #ifdef HALO_EXCH_DEBUG
          call mpas_log_write('     -- Testing persistent cell fields')
 #endif
-         if ( sum(real5D) /= 0.0_RKIND ) then
-            threadErrs(threadNum) = 1
-         end if
+         ! Compute the errors in the results of the halo exchange
+         call computeErrors(nCells, indexToCellId, real5D, real4D, real3D, real2D, real1D, &
+                            int3d, int2d, int1d, &
+                            realDiffs, intDiffs)
 
-         if ( sum(real4D) /= 0.0_RKIND ) then
-            threadErrs(threadNum) = 1
-         end if
+         ! Verify the error fields
+         call checkErrors(realDiffs, intDiffs, threadErrs, threadNum)
 
-         if ( sum(real3D) /= 0.0_RKIND ) then
-            threadErrs(threadNum) = 1
-         end if
-
-         if ( sum(real2D) /= 0.0_RKIND ) then
-            threadErrs(threadNum) = 1
-         end if
-
-         if ( sum(real1D) /= 0.0_RKIND ) then
-            threadErrs(threadNum) = 1
-         end if
-
-         if ( sum(int3D) /= 0 ) then
-            threadErrs(threadNum) = 1
-         end if
-
-         if ( sum(int2D) /= 0 ) then
-            threadErrs(threadNum) = 1
-         end if
-
-         if ( sum(int1D) /= 0 ) then
-            threadErrs(threadNum) = 1
-         end if
 #ifdef HALO_EXCH_DEBUG
          call mpas_log_write('     -- Test result: $i', intArgs=(/threadErrs(threadNum)/))
 #endif
 
          ! Compare persistent edge fields
+         threadErrs = 0
          call mpas_pool_get_array(haloExchTestPool, 'edgePersistReal5D', real5D)
          call mpas_pool_get_array(haloExchTestPool, 'edgePersistReal4D', real4D)
          call mpas_pool_get_array(haloExchTestPool, 'edgePersistReal3D', real3D)
@@ -1162,76 +1257,25 @@ module test_core_halo_exch
          call mpas_pool_get_array(haloExchTestPool, 'edgePersistInt2D', int2D)
          call mpas_pool_get_array(haloExchTestPool, 'edgePersistInt1D', int1D)
 
-         ! Subtract index from all peristent edge fields
-         iDim1 = size(real5D, dim=5)
-         iDim2 = size(real5D, dim=4)
-         iDim3 = size(real5D, dim=3)
-         iDim4 = size(real5D, dim=2)
-         iDim5 = size(real5D, dim=1)
-
-         !$omp do schedule(runtime) private(j, k, l, m, realValue, integerValue)
-         do i = 1, iDim1
-            realValue = real(indexToEdgeID(i), kind=RKIND)
-            integerValue = indexToEdgeID(i)
-            do j = 1, iDim2
-               do k = 1, iDim3
-                  do l = 1, iDim4
-                     do m = 1, iDim5
-                        real5D(m, l, k, j, i) = real5D(m, l, k, j, i) - realValue
-                     end do
-                     real4D(l, k, j, i) = real4D(l, k, j, i) - realValue
-                  end do
-                  real3D(k, j, i) = real3D(k, j, i) - realValue
-                  int3D(k, j, i) = int3D(k, j, i) - integerValue
-               end do
-               real2D(j, i) = real2D(j, i) - realValue
-               int2D(j, i) = int2D(j, i) - integerValue
-            end do
-            real1D(i) = real1D(i) - realValue
-            int1D(i) = int1D(i) - integerValue
-         end do
-         !$omp end do
 
          ! Validate that all differences are zero.
 #ifdef HALO_EXCH_DEBUG
          call mpas_log_write('     -- Testing persistent Edge fields')
 #endif
-         if ( sum(real5D) /= 0.0_RKIND ) then
-            threadErrs(threadNum) = 1
-         end if
+         ! Compute the errors in the results of the halo exchange
+         call computeErrors(nEdges, indexToEdgeId, real5D, real4D, real3D, real2D, real1D, &
+                            int3d, int2d, int1d, &
+                            realDiffs, intDiffs)
 
-         if ( sum(real4D) /= 0.0_RKIND ) then
-            threadErrs(threadNum) = 1
-         end if
+         ! Verify the error fields
+         call checkErrors(realDiffs, intDiffs, threadErrs, threadNum)
 
-         if ( sum(real3D) /= 0.0_RKIND ) then
-            threadErrs(threadNum) = 1
-         end if
-
-         if ( sum(real2D) /= 0.0_RKIND ) then
-            threadErrs(threadNum) = 1
-         end if
-
-         if ( sum(real1D) /= 0.0_RKIND ) then
-            threadErrs(threadNum) = 1
-         end if
-
-         if ( sum(int3D) /= 0 ) then
-            threadErrs(threadNum) = 1
-         end if
-
-         if ( sum(int2D) /= 0 ) then
-            threadErrs(threadNum) = 1
-         end if
-
-         if ( sum(int1D) /= 0 ) then
-            threadErrs(threadNum) = 1
-         end if
 #ifdef HALO_EXCH_DEBUG
          call mpas_log_write('     -- Test result: $i', intArgs=(/threadErrs(threadNum)/))
 #endif
 
          ! Compare persistent vertex fields
+         threadErrs = 0
          call mpas_pool_get_array(haloExchTestPool, 'vertexPersistReal5D', real5D)
          call mpas_pool_get_array(haloExchTestPool, 'vertexPersistReal4D', real4D)
          call mpas_pool_get_array(haloExchTestPool, 'vertexPersistReal3D', real3D)
@@ -1241,68 +1285,25 @@ module test_core_halo_exch
          call mpas_pool_get_array(haloExchTestPool, 'vertexPersistInt2D', int2D)
          call mpas_pool_get_array(haloExchTestPool, 'vertexPersistInt1D', int1D)
 
-         ! Subtract index from all peristent vertex fields
-         iDim1 = size(real5D, dim=5)
-         iDim2 = size(real5D, dim=4)
-         iDim3 = size(real5D, dim=3)
-         iDim4 = size(real5D, dim=2)
-         iDim5 = size(real5D, dim=1)
-
-         !$omp do schedule(runtime) private(j, k, l, m, realValue, integerValue)
-         do i = 1, iDim1
-            realValue = real(indexToVertexID(i), kind=RKIND)
-            integerValue = indexToVertexID(i)
-            do j = 1, iDim2
-               do k = 1, iDim3
-                  do l = 1, iDim4
-                     do m = 1, iDim5
-                        real5D(m, l, k, j, i) = real5D(m, l, k, j, i) - realValue
-                     end do
-                     real4D(l, k, j, i) = real4D(l, k, j, i) - realValue
-                  end do
-                  real3D(k, j, i) = real3D(k, j, i) - realValue
-                  int3D(k, j, i) = int3D(k, j, i) - integerValue
-               end do
-               real2D(j, i) = real2D(j, i) - realValue
-               int2D(j, i) = int2D(j, i) - integerValue
-            end do
-            real1D(i) = real1D(i) - realValue
-            int1D(i) = int1D(i) - integerValue
-         end do
-         !$omp end do
 
          ! Validate that all differences are zero.
 #ifdef HALO_EXCH_DEBUG
          call mpas_log_write('     -- Testing persistent Vertex fields')
 #endif
-         if ( sum(real5D) /= 0.0_RKIND ) then
-            threadErrs(threadNum) = 1
-         end if
+         ! Compute the errors in the results of the halo exchange
+         call computeErrors(nVertices, indexToVertexId, real5D, real4D, real3D, real2D, real1D, &
+                            int3d, int2d, int1d, &
+                            realDiffs, intDiffs)
 
-         if ( sum(real4D) /= 0.0_RKIND ) then
-            threadErrs(threadNum) = 1
-         end if
+         ! Verify the error fields
+         call checkErrors(realDiffs, intDiffs, threadErrs, threadNum)
 
-         if ( sum(real3D) /= 0.0_RKIND ) then
-            threadErrs(threadNum) = 1
-         end if
-
-         if ( sum(real2D) /= 0.0_RKIND ) then
-            threadErrs(threadNum) = 1
-         end if
-
-         if ( sum(real1D) /= 0.0_RKIND ) then
-            threadErrs(threadNum) = 1
-         end if
-
-         if ( sum(int3D) /= 0 ) then
-            threadErrs(threadNum) = 1
-         end if
 #ifdef HALO_EXCH_DEBUG
          call mpas_log_write('     -- Test result: $i', intArgs=(/threadErrs(threadNum)/))
 #endif
 
          ! Compare scratch cell fields
+         threadErrs = 0
          call mpas_pool_get_array(haloExchTestPool, 'cellScratchReal5D', real5D)
          call mpas_pool_get_array(haloExchTestPool, 'cellScratchReal4D', real4D)
          call mpas_pool_get_array(haloExchTestPool, 'cellScratchReal3D', real3D)
@@ -1312,76 +1313,24 @@ module test_core_halo_exch
          call mpas_pool_get_array(haloExchTestPool, 'cellScratchInt2D', int2D)
          call mpas_pool_get_array(haloExchTestPool, 'cellScratchInt1D', int1D)
 
-         ! Subtract index from all peristent cell fields
-         iDim1 = size(real5D, dim=5)
-         iDim2 = size(real5D, dim=4)
-         iDim3 = size(real5D, dim=3)
-         iDim4 = size(real5D, dim=2)
-         iDim5 = size(real5D, dim=1)
-
-         !$omp do schedule(runtime) private(j, k, l, m, realValue, integerValue)
-         do i = 1, iDim1
-            realValue = real(indexToCellID(i), kind=RKIND)
-            integerValue = indexToCellID(i)
-            do j = 1, iDim2
-               do k = 1, iDim3
-                  do l = 1, iDim4
-                     do m = 1, iDim5
-                        real5D(m, l, k, j, i) = real5D(m, l, k, j, i) - realValue
-                     end do
-                     real4D(l, k, j, i) = real4D(l, k, j, i) - realValue
-                  end do
-                  real3D(k, j, i) = real3D(k, j, i) - realValue
-                  int3D(k, j, i) = int3D(k, j, i) - integerValue
-               end do
-               real2D(j, i) = real2D(j, i) - realValue
-               int2D(j, i) = int2D(j, i) - integerValue
-            end do
-            real1D(i) = real1D(i) - realValue
-            int1D(i) = int1D(i) - integerValue
-         end do
-         !$omp end do
 
          ! Validate that all differences are zero.
 #ifdef HALO_EXCH_DEBUG
          call mpas_log_write('     -- Testing scratch cell fields')
 #endif
-         if ( sum(real5D) /= 0.0_RKIND ) then
-            threadErrs(threadNum) = 1
-         end if
+         call computeErrors(nCells, indexToCellId, real5D, real4D, real3D, real2D, real1D, &
+                            int3d, int2d, int1d, &
+                            realDiffs, intDiffs)
 
-         if ( sum(real4D) /= 0.0_RKIND ) then
-            threadErrs(threadNum) = 1
-         end if
+         ! Verify the error fields
+         call checkErrors(realDiffs, intDiffs, threadErrs, threadNum)
 
-         if ( sum(real3D) /= 0.0_RKIND ) then
-            threadErrs(threadNum) = 1
-         end if
-
-         if ( sum(real2D) /= 0.0_RKIND ) then
-            threadErrs(threadNum) = 1
-         end if
-
-         if ( sum(real1D) /= 0.0_RKIND ) then
-            threadErrs(threadNum) = 1
-         end if
-
-         if ( sum(int3D) /= 0 ) then
-            threadErrs(threadNum) = 1
-         end if
-
-         if ( sum(int2D) /= 0 ) then
-            threadErrs(threadNum) = 1
-         end if
-
-         if ( sum(int1D) /= 0 ) then
-            threadErrs(threadNum) = 1
-         end if
 #ifdef HALO_EXCH_DEBUG
          call mpas_log_write('     -- Test result: $i', intArgs=(/threadErrs(threadNum)/))
 #endif
 
          ! Compare scratch edge fields
+         threadErrs = 0
          call mpas_pool_get_array(haloExchTestPool, 'edgeScratchReal5D', real5D)
          call mpas_pool_get_array(haloExchTestPool, 'edgeScratchReal4D', real4D)
          call mpas_pool_get_array(haloExchTestPool, 'edgeScratchReal3D', real3D)
@@ -1391,76 +1340,25 @@ module test_core_halo_exch
          call mpas_pool_get_array(haloExchTestPool, 'edgeScratchInt2D', int2D)
          call mpas_pool_get_array(haloExchTestPool, 'edgeScratchInt1D', int1D)
 
-         ! Subtract index from all peristent edge fields
-         iDim1 = size(real5D, dim=5)
-         iDim2 = size(real5D, dim=4)
-         iDim3 = size(real5D, dim=3)
-         iDim4 = size(real5D, dim=2)
-         iDim5 = size(real5D, dim=1)
-
-         !$omp do schedule(runtime) private(j, k, l, m)
-         do i = 1, iDim1
-            realValue = real(indexToEdgeID(i), kind=RKIND)
-            integerValue = indexToEdgeID(i)
-            do j = 1, iDim2
-               do k = 1, iDim3
-                  do l = 1, iDim4
-                     do m = 1, iDim5
-                        real5D(m, l, k, j, i) = real5D(m, l, k, j, i) - realValue
-                     end do
-                     real4D(l, k, j, i) = real4D(l, k, j, i) - realValue
-                  end do
-                  real3D(k, j, i) = real3D(k, j, i) - realValue
-                  int3D(k, j, i) = int3D(k, j, i) - integerValue
-               end do
-               real2D(j, i) = real2D(j, i) - realValue
-               int2D(j, i) = int2D(j, i) - integerValue
-            end do
-            real1D(i) = real1D(i) - realValue
-            int1D(i) = int1D(i) - integerValue
-         end do
-         !$omp end do
 
          ! Validate that all differences are zero.
 #ifdef HALO_EXCH_DEBUG
          call mpas_log_write('     -- Testing scratch edge fields')
 #endif
-         if ( sum(real5D) /= 0.0_RKIND ) then
-            threadErrs(threadNum) = 1
-         end if
+         ! Compute the errors in the results of the halo exchange
+         call computeErrors(nEdges, indexToEdgeId, real5D, real4D, real3D, real2D, real1D, &
+                            int3d, int2d, int1d, &
+                            realDiffs, intDiffs)
 
-         if ( sum(real4D) /= 0.0_RKIND ) then
-            threadErrs(threadNum) = 1
-         end if
+         ! Verify the error fields
+         call checkErrors(realDiffs, intDiffs, threadErrs, threadNum)
 
-         if ( sum(real3D) /= 0.0_RKIND ) then
-            threadErrs(threadNum) = 1
-         end if
-
-         if ( sum(real2D) /= 0.0_RKIND ) then
-            threadErrs(threadNum) = 1
-         end if
-
-         if ( sum(real1D) /= 0.0_RKIND ) then
-            threadErrs(threadNum) = 1
-         end if
-
-         if ( sum(int3D) /= 0 ) then
-            threadErrs(threadNum) = 1
-         end if
-
-         if ( sum(int2D) /= 0 ) then
-            threadErrs(threadNum) = 1
-         end if
-
-         if ( sum(int1D) /= 0 ) then
-            threadErrs(threadNum) = 1
-         end if
 #ifdef HALO_EXCH_DEBUG
-         call mpas_log_write('     -- Test result: $i', intArgs=(/threadErrs(threadNum)/)
+         call mpas_log_write('     -- Test result: $i', intArgs=(/threadErrs(threadNum)/))
 #endif
 
          ! Compare scratch vertex fields
+         threadErrs = 0
          call mpas_pool_get_array(haloExchTestPool, 'vertexScratchReal5D', real5D)
          call mpas_pool_get_array(haloExchTestPool, 'vertexScratchReal4D', real4D)
          call mpas_pool_get_array(haloExchTestPool, 'vertexScratchReal3D', real3D)
@@ -1470,71 +1368,18 @@ module test_core_halo_exch
          call mpas_pool_get_array(haloExchTestPool, 'vertexScratchInt2D', int2D)
          call mpas_pool_get_array(haloExchTestPool, 'vertexScratchInt1D', int1D)
 
-         ! Subtract index from all peristent vertex fields
-         iDim1 = size(real5D, dim=5)
-         iDim2 = size(real5D, dim=4)
-         iDim3 = size(real5D, dim=3)
-         iDim4 = size(real5D, dim=2)
-         iDim5 = size(real5D, dim=1)
-
-         !$omp do schedule(runtime) private(j, k, l, m, realValue, integerValue)
-         do i = 1, iDim1
-            realValue = real(indexToVertexID(i), kind=RKIND)
-            integerValue = indexToVertexID(i)
-            do j = 1, iDim2
-               do k = 1, iDim3
-                  do l = 1, iDim4
-                     do m = 1, iDim4
-                        real5D(m, l, k, j, i) = real5D(m, l, k, j, i) - realValue
-                     end do
-                     real4D(l, k, j, i) = real4D(l, k, j, i) - realValue
-                  end do
-                  real3D(k, j, i) = real3D(k, j, i) - realValue
-                  int3D(k, j, i) = int3D(k, j, i) - integerValue
-               end do
-               real2D(j, i) = real2D(j, i) - realValue
-               int2D(j, i) = int2D(j, i) - integerValue
-            end do
-            real1D(i) = real1D(i) - realValue
-            int1D(i) = int1D(i) - integerValue
-         end do
-         !$omp end do
-
          ! Validate that all differences are zero.
 #ifdef HALO_EXCH_DEBUG
          call mpas_log_write('     -- Testing scratch vertex fields')
 #endif
-         if ( sum(real5D) /= 0.0_RKIND ) then
-            threadErrs(threadNum) = 1
-         end if
+         ! Compute the errors in the results of the halo exchange
+         call computeErrors(nVertices, indexToVertexId, real5D, real4D, real3D, real2D, real1D, &
+                            int3d, int2d, int1d, &
+                            realDiffs, intDiffs)
 
-         if ( sum(real4D) /= 0.0_RKIND ) then
-            threadErrs(threadNum) = 1
-         end if
+         ! Verify the error fields
+         call checkErrors(realDiffs, intDiffs, threadErrs, threadNum)
 
-         if ( sum(real3D) /= 0.0_RKIND ) then
-            threadErrs(threadNum) = 1
-         end if
-
-         if ( sum(real2D) /= 0.0_RKIND ) then
-            threadErrs(threadNum) = 1
-         end if
-
-         if ( sum(real1D) /= 0.0_RKIND ) then
-            threadErrs(threadNum) = 1
-         end if
-
-         if ( sum(int3D) /= 0 ) then
-            threadErrs(threadNum) = 1
-         end if
-
-         if ( sum(int2D) /= 0 ) then
-            threadErrs(threadNum) = 1
-         end if
-
-         if ( sum(int1D) /= 0 ) then
-            threadErrs(threadNum) = 1
-         end if
 #ifdef HALO_EXCH_DEBUG
          call mpas_log_write('     -- Test result: $i', intArgs=(/threadErrs(threadNum)/))
 #endif
