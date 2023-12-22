@@ -193,7 +193,11 @@ module mpas_io
 #ifdef MPAS_PIO_SUPPORT
          allocate(ioContext % pio_iosystem)
          call PIO_init(ioContext % dminfo % my_proc_id, &  ! comp_rank
+#ifdef MPAS_USE_MPI_F08
+                       ioContext % dminfo % comm % mpi_val, &  ! comp_comm
+#else
                        ioContext % dminfo % comm,       &  ! comp_comm
+#endif
                        io_task_count,             &     ! num_iotasks
                        0,                         &     ! num_aggregator
                        io_task_stride,            &     ! stride
@@ -203,7 +207,11 @@ module mpas_io
 
 #ifdef MPAS_SMIOL_SUPPORT
          allocate(ioContext % smiol_context)
+#ifdef MPAS_USE_MPI_F08
+         local_ierr = SMIOLf_init(ioContext % dminfo % comm % mpi_val, &
+#else
          local_ierr = SMIOLf_init(ioContext % dminfo % comm, &
+#endif
                                   io_task_count, &
                                   io_task_stride, &
                                   iocontext % smiol_context)

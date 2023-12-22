@@ -29,10 +29,14 @@ module mpas_abort
       use mpas_kind_types, only : StrKIND
       use mpas_io_units, only : mpas_new_unit
       use mpas_threading, only : mpas_threading_get_thread_num
-   
+
 #ifdef _MPI
 #ifndef NOMPIMOD
+#ifdef MPAS_USE_MPI_F08
+      use mpi_f08
+#else
       use mpi
+#endif
 #endif
 #endif
    
