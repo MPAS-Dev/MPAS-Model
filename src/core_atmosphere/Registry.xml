@@ -265,23 +265,23 @@
                      description="Maximum w-damping coefficient at model top"
                      possible_values="0 $\leq$ config_xnutr $\leq$ 1"/>
 
-                <nml_option name="config_min_coeff" type="real" default_value="0.1"
+                <nml_option name="config_epssm_minimum" type="real" default_value="0.1"
                      units="-"
                      description="Value of epssm below transition zone"
                      possible_values="Positive real values between 0 and 1"/>
 
-                <nml_option name="config_max_coeff" type="real" default_value="0.1"
+                <nml_option name="config_epssm_maximum" type="real" default_value="0.1"
                      units="-"
                      description="Value of epssm above transition zone"
                      possible_values="Positive real values between 0 and 1"/>
 
-                <nml_option name="config_transition_lower_bound" type="real" default_value="10000."
-                     units="-"
+                <nml_option name="config_epssm_transition_bottom_z" type="real" default_value="10000."
+                     units="m"
                      description="Height MSL of bottom of transition zone for epssm"
                      possible_values="Positive real values"/>
 
-                <nml_option name="config_transition_upper_bound" type="real" default_value="20000."
-                     units="-"
+                <nml_option name="config_epssm_transition_top_z" type="real" default_value="20000."
+                     units="m"
                      description="Height MSL of top of transition zone for epssm"
                      possible_values="Positive real values"/>
 
@@ -1385,16 +1385,16 @@
                      description="Reciprocal dzw"/>
 
                 <var name="etp" type="real" dimensions="nVertLevels" units="unitless"
-                     description="coeff for variable epssm"/>
+                     description="etp = (1+epssm(z))/2 at theta point"/>
 
                 <var name="etm" type="real" dimensions="nVertLevels" units="unitless"
-                     description="coeff for variable epssm"/>
+                     description="etm = (1-epssm(z))/2 at theta point"/>
 
                 <var name="ewp" type="real" dimensions="nVertLevelsP1" units="unitless"
-                     description="coeff for variable epssm"/>
+                     description="ewp = (1+epssm(z))/2 at w point"/>
 
                 <var name="ewm" type="real" dimensions="nVertLevelsP1" units="unitless"
-                     description="coeff for variable epssm"/>
+                     description="ewm = (1-epssm(z))/2 at w point"/>
 
                 <var name="dzu" type="real" dimensions="nVertLevels" units="unitless"
                      description="d(zeta) at w levels"/>

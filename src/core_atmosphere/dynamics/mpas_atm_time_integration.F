@@ -94,9 +94,6 @@ module atm_time_integration
    ! if damping in the model changed with the simulation calendar
    real (kind=RKIND), parameter, private :: seconds_per_day = 86400.0_RKIND
 
-   !WCM_epssm                                                                                                                                   
-!   real (kind=RKIND), dimension(:), allocatable :: ewp, ewm, etp, etm ! variable_epssm                                                          
-
    contains
 
 
@@ -422,16 +419,6 @@ module atm_time_integration
 #ifdef DO_PHYSICS
       call mpas_pool_get_subpool(block % structs, 'diag_physics', diag_physics)
 #endif
-!----------------------                                                                                                                         
-!SK_epssm: setting the 'mesh' pool pointer                                                                                                      
-      call mpas_pool_get_subpool(domain % blocklist % structs, 'mesh', mesh)                                                                    
-!----------------------------                                                                                                                   
-
-!------------------------                                                                                                                       
-!SK_epssm: added this to retrieve the pointer for rdzw                                                                                          
-      call mpas_pool_get_array(mesh, 'rdzw', rdzw)
-!------------------                                                                                                                             
-
       !
       ! Retrieve dimensions
       ! Note: nCellsSolve and nVerticesSolve are not currently used in this function
@@ -502,14 +489,6 @@ module atm_time_integration
       tend_rho_physics(:,nCells+1) = 0.0_RKIND
       call mpas_pool_get_array(tend_physics, 'tend_ru_physics', tend_ru_physics)
       tend_ru_physics(:,nEdges+1) = 0.0_RKIND
-
-      ! WCS_epssm                                                                                                                               
-      ! allocate storage for epssm column arrays and set values                                                                                 
-!      allocate(ewp(nVertLevels+1))
-!      allocate(ewm(nVertLevels+1))
-!      allocate(etp(nVertLevels))
-!      allocate(etm(nVertLevels))
-!      call set_epssm(ewp,ewm,etp,etm,nVertLevels,rdzw)
 
       !
       ! Initialize RK weights
@@ -1281,12 +1260,6 @@ module atm_time_integration
 
       end if  ! regional_MPAS addition
 
-      ! WCS_epssm                                                                                                                               
-!      deallocate(ewp)
-!      deallocate(ewm)
-!      deallocate(etp)
-!      deallocate(etm)
-
       call summarize_timestep(domain)
 
    end subroutine atm_srk3
@@ -1745,16 +1718,6 @@ module atm_time_integration
       real (kind=RKIND) :: dtseps, c2, qtotal, rcv
       real (kind=RKIND), dimension( nVertLevels ) :: b_tri, c_tri
 
-!  temporary print to check etm and ewm
-
-      integer :: iprint=0      
-      if(iprint.eq.0) then
-         do k=1,nVertLevels
-            call mpas_log_write(' k, etp(k), ewp(k) = $i $r $r', intArgs=(/k/), realArgs=(/etp(k),ewp(k)/)) 
-         end do
-         iprint = 1
-      end if 
-
       !  set coefficients
       dtseps = .5*dts*(1.+epssm)
       rcv = rgas/(cp-rgas)
@@ -1771,18 +1734,11 @@ module atm_time_integration
 
 !DIR$ IVDEP
          do k=2,nVertLevels
-          
-  ! WCS_epssm                                                                                                                         
-            ! cofwr(k,iCell) =.5*dtseps*gravity*(fzm(k)*zz(k,iCell)+fzp(k)*zz(k-1,iCell))                                                       
             cofwr(k,iCell) = 0.5*gravity*(fzm(k)*zz(k,iCell)+fzp(k)*zz(k-1,iCell))                                                              
          end do
          coftz(1,iCell) = 0.0
 !DIR$ IVDEP
          do k=2,nVertLevels
-            ! WCS_epssm                                                                                                                         
-            ! cofwz(k,iCell) = dtseps*c2*(fzm(k)*zz(k,iCell)+fzp(k)*zz(k-1,iCell))  &                                                           
-            !      *rdzu(k)*cqw(k,iCell)*(fzm(k)*p (k,iCell)+fzp(k)*p (k-1,iCell))                                                              
-            ! coftz(k,iCell) = dtseps*   (fzm(k)*t (k,iCell)+fzp(k)*t (k-1,iCell))                                                              
             cofwz(k,iCell) = c2*(fzm(k)*zz(k,iCell)+fzp(k)*zz(k-1,iCell))  &                                                                    
                  *rdzu(k)*cqw(k,iCell)*(fzm(k)*p (k,iCell)+fzp(k)*p (k-1,iCell))                                                                
             coftz(k,iCell) = (fzm(k)*t (k,iCell)+fzp(k)*t (k-1,iCell))
@@ -1801,9 +1757,6 @@ module atm_time_integration
 !            end do
             qtotal = qtot(k,iCell)
 
-            ! WCS_epssm                                                                                                                         
-            ! cofwt(k,iCell) = .5*dtseps*rcv*zz(k,iCell)*gravity*rb(k,iCell)/(1.+qtotal)  &                                                     
-            !                     *p(k,iCell)/((rtb(k,iCell)+rt(k,iCell))*pb(k,iCell))                                                          
             cofwt(k,iCell) = .5*rcv*zz(k,iCell)*gravity*rb(k,iCell)/(1.+qtotal)  &                                                              
                                 *p(k,iCell)/((rtb(k,iCell)+rt(k,iCell))*pb(k,iCell))                                                            
 
@@ -1829,40 +1782,24 @@ module atm_time_integration
            a_tri(k,iCell) = -cofwz(k  ,iCell)* coftz(k-1,iCell)*rdzw(k-1)*zz(k-1,iCell)   &                                                     
                          +cofwr(k  ,iCell)* cofrz(k-1  )                       &                                                                
                          -cofwt(k-1,iCell)* coftz(k-1,iCell)*rdzw(k-1)
-
-            ! WCS_epssm                                                                                                                         
             a_tri(k,iCell) = a_tri(k,iCell)*etp(k-1)*ewp(k-1)
 
-            ! WiCS_epssm                                                                                                                        
-            ! b_tri(k) = 1.                                                  &                                                                  
-            !              +cofwz(k  ,iCell)*(coftz(k  ,iCell)*rdzw(k  )*zz(k  ,iCell)   &                                                      
-            !                           +coftz(k  ,iCell)*rdzw(k-1)*zz(k-1,iCell))   &                                                          
-            !              -coftz(k  ,iCell)*(cofwt(k  ,iCell)*rdzw(k  )             &                                                          
-            !                            -cofwt(k-1,iCell)*rdzw(k-1))            &                                                              
-            !              +cofwr(k,  iCell)*(cofrz(k    )-cofrz(k-1))                                                                          
             b_tri(k) =   +cofwz(k  ,iCell)*coftz(k,iCell)*                           &                                                          
                              ( etp(k  )*rdzw(k  )*zz(k  ,iCell)                      &                                                          
                               +etp(k-1)*rdzw(k-1)*zz(k-1,iCell))                     &                                                          
                          -coftz(k  ,iCell)*( etp(k  )*cofwt(k  ,iCell)*rdzw(k  )     &                                                          
                                             -etp(k-1)*cofwt(k-1,iCell)*rdzw(k-1))    &                                                          
                          +cofwr(k,  iCell)*(etp(k)*cofrz(k    )-etp(k-1)*cofrz(k-1))                                                            
-            ! WCS_epssm                                                                                                                         
             b_tri(k) =   b_tri(k)*ewp(k)
 
             c_tri(k) =   -cofwz(k  ,iCell)* coftz(k+1,iCell)*rdzw(k  )*zz(k  ,iCell)   &                                                        
                          -cofwr(k  ,iCell)* cofrz(k    )                       &                                                                
                          +cofwt(k  ,iCell)* coftz(k+1,iCell)*rdzw(k  )
-
-            ! WCS_epssm                                                                                                                         
             c_tri(k) =   c_tri(k)*etp(k)*ewp(k+1)
          end do
-         ! WCS_epssm                                                                                                                            
          c_tri(nVertLevels) = 0.0
 !MGD VECTOR DEPENDENCE
          do k=2,nVertLevels
-            ! WCS_epssm                                                                                                                         
-            ! alpha_tri(k,iCell) = 1./(b_tri(k)-a_tri(k,iCell)*gamma_tri(k-1,iCell))                                                            
-            ! gamma_tri(k,iCell) = c_tri(k)*alpha_tri(k,iCell)                                                                                  
             alpha_tri(k,iCell) = 1./(1.0+(dts**2)*(b_tri(k)-a_tri(k,iCell)*gamma_tri(k-1,iCell)))                                               
             gamma_tri(k,iCell) = (dts**2)*c_tri(k)*alpha_tri(k,iCell)
          end do
@@ -2285,16 +2222,6 @@ module atm_time_integration
       real (kind=RKIND) :: pgrad, flux, resm, rdts
 
 
-!  temporary print to check etm and ewm
-
-      integer :: iprint=0      
-      if(iprint.eq.0) then
-         do k=1,nVertLevels
-            call mpas_log_write(' k, etm(k), ewm(k) = $i $r $r', intArgs=(/k/), realArgs=(/etm(k),ewm(k)/)) 
-         end do
-         iprint = 1
-      end if 
-
       rcv = rgas / (cp - rgas)
       c2 = cp * rcv
       resm = (1.0 - epssm) / (1.0 + epssm)
@@ -2407,15 +2334,8 @@ module atm_time_integration
 
 !DIR$ IVDEP
          do k=1, nVertLevels
-            ! WCS_epssm                                                                                                                         
-            ! rs(k) = rho_pp(k,iCell) + dts*tend_rho(k,iCell) + rs(k)                  &                                                        
-            !                 - cofrz(k)*resm*(rw_p(k+1,iCell)-rw_p(k,iCell))                                                                   
             rs(k) = rho_pp(k,iCell) + dts*tend_rho(k,iCell) + rs(k)                  &                                                          
                             - dts*cofrz(k)*(ewm(k+1)*rw_p(k+1,iCell)-ewm(k)*rw_p(k,iCell))                                                      
-            ! WCS_epssm                                                                                                                         
-            ! ts(k) = rtheta_pp(k,iCell) + dts*tend_rt(k,iCell) + ts(k)                &                                                        
-            !                    - resm*rdzw(k)*( coftz(k+1,iCell)*rw_p(k+1,iCell)     &                                                        
-            !                                    -coftz(k,iCell)*rw_p(k,iCell))                                                                 
             ts(k) = rtheta_pp(k,iCell) + dts*tend_rt(k,iCell) + ts(k)                &                                                          
                                     - dts*rdzw(k)*( ewm(k+1)*coftz(k+1,iCell)*rw_p(k+1,iCell) &                                                 
                                                    -ewm(k  )*coftz(k,iCell)*rw_p(k,iCell))                                                      
@@ -2423,23 +2343,11 @@ module atm_time_integration
 
 !DIR$ IVDEP
          do k=2, nVertLevels
-            ! WCS_epssm                                                                                                                         
-            ! wwavg(k,iCell) = wwavg(k,iCell) + 0.5*(1.0-epssm)*rw_p(k,iCell)                                                                   
             wwavg(k,iCell) = wwavg(k,iCell) + ewm(k)*rw_p(k,iCell)
          end do
 
 !DIR$ IVDEP
          do k=2, nVertLevels
-           ! WCS_epssm                                                                                                                          
-            ! rw_p(k,iCell) = rw_p(k,iCell) +  dts*tend_rw(k,iCell)                       &                                                     
-            !            - cofwz(k,iCell)*((zz(k  ,iCell)*ts(k)                           &                                                     
-            !                          -zz(k-1,iCell)*ts(k-1))                            &                                                     
-            !                    +resm*(zz(k  ,iCell)*rtheta_pp(k  ,iCell)                &                                                     
-            !                          -zz(k-1,iCell)*rtheta_pp(k-1,iCell)))              &                                                     
-            !            - cofwr(k,iCell)*((rs(k)+rs(k-1))                                &                                                     
-            !                    +resm*(rho_pp(k,iCell)+rho_pp(k-1,iCell)))               &                                                     
-            !            + cofwt(k  ,iCell)*(ts(k  )+resm*rtheta_pp(k  ,iCell))           &                                                     
-            !            + cofwt(k-1,iCell)*(ts(k-1)+resm*rtheta_pp(k-1,iCell))                                                                 
             rw_p(k,iCell) = rw_p(k,iCell) +  dts*(tend_rw(k,iCell)                          &                                                   
                        - cofwz(k,iCell)*(( etp(k  )*zz(k  ,iCell)*ts(k)                     &                                                   
                                           -etp(k-1)*zz(k-1,iCell)*ts(k-1))                  &                                                   
@@ -2457,8 +2365,6 @@ module atm_time_integration
 
 !MGD VECTOR DEPENDENCE
          do k=2,nVertLevels
-           ! WCS_epssm                                                                                                                          
-            ! rw_p(k,iCell) = (rw_p(k,iCell)-a_tri(k,iCell)*rw_p(k-1,iCell))*alpha_tri(k,iCell)                                                 
             rw_p(k,iCell) = (rw_p(k,iCell)-(dts**2)*a_tri(k,iCell)*rw_p(k-1,iCell))*alpha_tri(k,iCell)                                          
 
          end do
@@ -2482,8 +2388,6 @@ module atm_time_integration
          ! accumulate (rho*omega)' for use later in scalar transport
 !DIR$ IVDEP
          do k=2,nVertLevels
-           ! WCS_epssm                                                                                                                          
-            ! wwAvg(k,iCell) = wwAvg(k,iCell) + 0.5*(1.0+epssm)*rw_p(k,iCell)                                                                   
             wwAvg(k,iCell) = wwAvg(k,iCell) + ewp(k)*rw_p(k,iCell)
          end do
 
@@ -2491,10 +2395,6 @@ module atm_time_integration
 
 !DIR$ IVDEP
          do k=1,nVertLevels
-           ! WCS_epssm                                                                                                                          
-            ! rho_pp(k,iCell) = rs(k) - cofrz(k) *(rw_p(k+1,iCell)-rw_p(k  ,iCell))                                                             
-            ! rtheta_pp(k,iCell) = ts(k) - rdzw(k)*(coftz(k+1,iCell)*rw_p(k+1,iCell)  &                                                         
-            !                    -coftz(k  ,iCell)*rw_p(k  ,iCell))                                                                             
             rho_pp(k,iCell) = rs(k) - dts*cofrz(k) *( ewp(k+1)*rw_p(k+1,iCell)  &                                                               
                                                      -ewp(k  )*rw_p(k  ,iCell))                                                                 
             rtheta_pp(k,iCell) = ts(k) - dts*rdzw(k)*( ewp(k+1)*coftz(k+1,iCell)*rw_p(k+1,iCell)  &                                             
@@ -2507,8 +2407,6 @@ module atm_time_integration
                rho_pp(k,iCell) = rho_pp(k,iCell) + dts*tend_rho(k,iCell)
                rtheta_pp(k,iCell) = rtheta_pp(k,iCell) + dts*tend_rt(k,iCell)
                rw_p(k,iCell) = rw_p(k,iCell) + dts*tend_rw(k,iCell)
-               ! WCS_epssm                                                                                                                      
-               ! wwAvg(k,iCell) = wwAvg(k,iCell) + 0.5*(1.0+epssm)*rw_p(k,iCell)                                                                
                wwAvg(k,iCell) = wwAvg(k,iCell) + ewp(k)*rw_p(k,iCell)
             end do
 
@@ -6837,148 +6735,5 @@ module atm_time_integration
       end if
 
    end subroutine summarize_timestep
-
-!----------------------                                                                                                                         
-!-----------------------                                                                                                                        
-   subroutine set_epssm(ewp,ewm,etp,etm,n,rdzw)
-   implicit none
-   integer :: n
-   real (kind=RKIND), dimension(n+1) :: ewp, ewm
-   real (kind=RKIND), dimension(n  ) :: etp, etm
-!-----------------------                                                                                                                        
-!SK_epssm: added rdzw to the function call                                                                                                      
-   real (kind=RKIND), dimension(n) :: rdzw
-
-!----------------------------------                                                                                                             
-!SK_epssm: created local variables                                                                                                              
-   real(kind=RKIND), dimension(n):: height_u_levels
-   real(kind=RKIND), dimension(n+1):: height_w_levels
-   real (kind=RKIND), dimension(n) :: epssm_coeff_u
-   real (kind=RKIND), dimension(n+1):: epssm_coeff_w
-   real (kind=RKIND) :: max_coeff, min_coeff, transition_width, transition_point                                                                
-   integer :: ilevel
-!--------------------                                                                                                                           
-! SK_epssm: commented this out since we are transitiong to height based epssm                                                                   
-!   real (kind=RKIND), parameter :: epssm_b = 0.1                                                                                               
-
-!------------------                                                                                                                             
-!SK_epssm: intialization                                                                                                                        
-   epssm_coeff_u = 0.0_RKIND
-   epssm_coeff_w = 0.0_RKIND
-   height_u_levels = 0.0_RKIND
-   height_w_levels= 0.0_RKIND
-
-!!!   transition_point = 60000.0_RKIND ! Changed the value for WACCM simulations                                          
-   transition_point = 10500.0_RKIND ! (Model top 21K) ! Height of center of transition zone                                         
-!!!   transition_width  =20000.0_RKIND ! Changed the value for WACCM simulations                                         
-   transition_width  = 5000.0_RKIND ! (Model top 21K) ! Width of transition zone                                        
-   min_coeff = 0.1_RKIND ! Value of epssm below transition zone                        
-   max_coeff = 0.5_RKIND ! Value of epssm above transition zone
-!---------------------                                                                                                                          
-!---------------------                                                                                                                          
-!SK_epssm                                                                                                                                       
-! calculate height at levels                                                                                                                    
-   call calculate_computational_height(n, rdzw, height_u_levels, height_w_levels)                                                               
-! call the ramping function                                                                                                                     
-  call calculate_coef_height(n,height_u_levels, min_coeff,&
-                             & max_coeff, transition_width, transition_point,epssm_coeff_u)                                                     
-  call calculate_coef_height(n+1,height_w_levels, min_coeff,&
-                             & max_coeff, transition_width, transition_point,epssm_coeff_w)                                                     
-!--------------------------------                                                                                                               
-!SK_epssm: commented the lines below so that we can have epssm varying with height                                                              
-!   etp(:) = 0.5*(1.0+epssm_b)                                                                                                                  
-!   etm(:) = 0.5*(1.0-epssm_b)                                                                                                                  
-!   ewp(:) = 0.5*(1.0+epssm_b)                                                                                                                  
-!   ewm(:) = 0.5*(1.0-epssm_b)                                                                                                                  
-! SK_epssm: Not sure about the epssm_coeff value I am using for ewp and ewm                                                                     
-    do ilevel =1, n
-      etp(ilevel) = 0.5*(1.0 + epssm_coeff_u(ilevel))
-      etm(ilevel) = 0.5*(1.0 - epssm_coeff_u(ilevel))
-      ewp(ilevel) = 0.5*(1.0 + epssm_coeff_w(ilevel))
-      ewm(ilevel) = 0.5*(1.0 - epssm_coeff_w(ilevel))
-
-      call mpas_log_write('ilevel, height_u_levels, etp, etm, height_w_levels, ewp, ewm $i $r $r $r $r $r $r', intARgs=(/ilevel/),   &
-                                                                       realArgs=(/height_u_levels(ilevel),etp(ilevel),etm(ilevel),   &   
-                                                                                  height_w_levels(ilevel),ewp(ilevel),ewm(ilevel)/))   
-    enddo
-    ewp(n+1) = 0.5*(1.0 + epssm_coeff_w(n+1))
-    ewm(n+1) = 0.5*(1.0 - epssm_coeff_w(n+1))
-
-   end subroutine set_epssm
-
-!----------------                                                                                                                               
-!SK_epssm                                                                                                                                       
-  subroutine calculate_computational_height(nVertLevels,rdzw,height_u_levels, height_w_levels)                                                  
-     integer, intent(in) ::  nVertLevels
-     real (kind=RKIND), dimension( nVertLevels ), intent(in) ::  rdzw
-     real (kind=RKIND), dimension( nVertLevels ), intent(inout) :: height_u_levels                                                              
-     real (kind=RKIND), dimension( nVertLevels+1 ), intent(inout) :: height_w_levels                                                            
-
-!define variables                                                                                                                               
-     integer k
-!initialization                                                                                                                                 
-     height_w_levels(:) = 0.0_RKIND
-
-!calculate the computational height at u and w levels                                                                                           
-!DIR$ IVDEP                                                                                                                                     
-     do k =1, nVertLevels
-       height_w_levels(k+1) = height_w_levels(k) + 1.0_RKIND/rdzw(k)
-       height_u_levels(k) = 0.5*(height_w_levels(k+1) + height_w_levels(k))                                                                     
-!       call mpas_log_write('test $i $r', intARgs=(/k/),realArgs=(/rdzw(k)/))                                                                   
-     enddo
-
-!   do k =1, nVertLevels                                                                                                                        
-!       call mpas_log_write('test1 $i $r $r $r', intARgs=(/k/),realArgs=(/height_u_levels(k),&                                                  
-!                         height_w_levels(k),height_w_levels(k+1)/))                                                                            
-!  enddo                                                                                                                                        
-
-  end subroutine calculate_computational_height
-
-! ramp a value base on height                                                                                                                   
-   subroutine calculate_coef_height(nVertLevels,height_levels, min_coeff,&                                                                      
-                             & max_coeff, transition_width, transition_point,damp_coeff)                                                        
-         integer, intent(in)::nVertLevels
-         real (kind=RKIND) :: max_coeff, min_coeff, transition_width, transition_point                                                          
-         real (kind=RKIND), dimension(nVertLevels), intent (in) :: height_levels                                                                
-         real (kind=RKIND), dimension(nVertLevels), intent (out) :: damp_coeff                                                                  
-! local parameters                                                                                                                              
-         integer :: k, counter_transition
-         real (kind=RKIND) :: dx,x, transition_lower_bound, transition_upper_bound                                                              
-! initialization                                                                                                                                
-         damp_coeff = 0.0_RKIND
-         counter_transition = 0
-         dx = 0.0_RKIND
-         x = -pii/2.0_RKIND
-         transition_lower_bound = transition_point - transition_width*0.5_RKIND                                                                 
-         transition_upper_bound = transition_point + transition_width*0.5_RKIND                                                                 
-
-! calculate how many levels are in the transition region                                                                                        
-         do k =1, nVertLevels
-            if(((height_levels(k)-transition_lower_bound)>= 0.0_RKIND).and.((height_levels(k)-transition_upper_bound)<=0.0_RKIND)) then         
-                  counter_transition = counter_transition +1
-            endif
-         enddo
-         dx = pii/REAL(counter_transition-1)
-!         call mpas_log_write('check $i $r $r $r $r', intARgs=(/counter_transition/),realArgs=(/dx,x,transition_lower_bound,transition_upper_bound/))
-! start calculating the coefficient                                                                                                             
-         do k =1, nVertLevels
-           if((height_levels(k)-transition_lower_bound) < 0.0_RKIND ) then                                                                      
-               damp_coeff(k)= min_coeff
-           elseif((height_levels(k)-transition_upper_bound) > 0.0_RKIND ) then                                                                  
-               damp_coeff(k) =max_coeff
-           else
-!!!JK_epssm
-!              alternative calculation of damp_coeff in transition zone
-!              damp_coeff(k) = min_coeff+ (sin(x)+1)*0.5_RKIND*(max_coeff-min_coeff)                                                            
-!              x = x + dx
-!
-               x = (height_levels(k)-transition_lower_bound)/transition_width
-               damp_coeff(k) = min_coeff + sin(0.5_RKIND*pii*x)**2*(max_coeff-min_coeff)
-!!!JK_epssm  end 
-           endif
-!           call mpas_log_write('damping factor $i $r $r', intARgs=(/k/),realArgs=(/damp_coeff(k), height_levels(k)/))                          
-         enddo
-
-   end subroutine calculate_coef_height
 
 end module atm_time_integration

@@ -1244,10 +1244,10 @@ module atm_core
       call mpas_pool_get_array(mesh, 'etm', etm)
       call mpas_pool_get_array(mesh, 'ewp', ewp)
       call mpas_pool_get_array(mesh, 'ewm', ewm)
-      call mpas_pool_get_config(configs, 'config_min_coeff', min_coeff)
-      call mpas_pool_get_config(configs, 'config_max_coeff', max_coeff)
-      call mpas_pool_get_config(configs, 'config_transition_lower_bound', transition_lower_bound)
-      call mpas_pool_get_config(configs, 'config_transition_upper_bound', transition_upper_bound)
+      call mpas_pool_get_config(configs, 'config_epssm_minimum', min_coeff)
+      call mpas_pool_get_config(configs, 'config_epssm_maximum', max_coeff)
+      call mpas_pool_get_config(configs, 'config_epssm_transition_bottom_z', transition_lower_bound)
+      call mpas_pool_get_config(configs, 'config_epssm_transition_top_z', transition_upper_bound)
 !!!JBK
       call mpas_pool_get_config(configs, 'config_zd', config_zd)
       call mpas_pool_get_config(configs, 'config_xnutr', config_xnutr)
@@ -1265,12 +1265,6 @@ module atm_core
          end do
       end do
 
-!!!JBK-vepssm - code to compute variable epssm profiles at model startup
-
-!      min_coeff = 0.1_RKIND
-!      max_coeff = 0.5_RKIND
-!      transition_lower_bound =  8000._RKIND
-!      transition_upper_bound = 13000._RKIND
       transition_width = transition_upper_bound - transition_lower_bound
 
 ! initialization for heights of coordinate at u and w levels  
@@ -1279,9 +1273,6 @@ module atm_core
      do k =1, nVertLevels
        height_w_levels(k+1) = height_w_levels(k) + 1.0_RKIND/rdzw(k)
        height_u_levels(k) = 0.5*(height_w_levels(k+1) + height_w_levels(k)) 
-
-!       call mpas_log_write('test $i $r', intARgs=(/k/),realArgs=(/rdzw(k)/))
-
      enddo
  
 ! Height dependent values of epssm; profiles stored in etp, etm, ewp, and ewm, 
