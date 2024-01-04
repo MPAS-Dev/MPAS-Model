@@ -413,6 +413,7 @@ module mpas_subdriver
 
       use mpas_stream_manager, only : MPAS_stream_mgr_finalize
       use mpas_log, only : mpas_log_finalize, mpas_log_info
+      use mpas_derived_types, only : MPAS_streamInfo_type
 
       implicit none
 
@@ -420,6 +421,7 @@ module mpas_subdriver
       type (domain_type), intent(inout), pointer :: domain_ptr
 
       integer :: iErr
+      type (MPAS_streamInfo_type), pointer :: streamInfo
 
 
       !
@@ -440,7 +442,8 @@ module mpas_subdriver
       !
       call MPAS_stream_mgr_finalize(domain_ptr % streamManager)
 
-      if (domain_ptr % streamInfo % finalize() /= 0) then
+      streamInfo => domain_ptr % streamInfo
+      if (streamInfo % finalize() /= 0) then
          call mpas_log_write('Finalization of streamInfo object failed for core '//trim(domain_ptr % core % coreName), &
                              messageType=MPAS_LOG_ERR)
       end if
