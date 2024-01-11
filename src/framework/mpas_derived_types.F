@@ -25,6 +25,8 @@
 !-----------------------------------------------------------------------
 module mpas_derived_types
 
+   use iso_c_binding, only : c_ptr, c_null_ptr
+
    use mpas_kind_types
 
 #ifdef MPAS_PIO_SUPPORT
@@ -69,6 +71,8 @@ module mpas_derived_types
 #include "mpas_block_types.inc"
 
 #include "mpas_decomp_types.inc"
+
+#include "mpas_stream_inquiry_types.inc"
 
 #include "mpas_domain_types.inc"
 
