@@ -1117,35 +1117,35 @@ module test_core_halo_exch
 #ifdef HALO_EXCH_DEBUG
          call mpas_log_write('     -- Testing persistent cell fields')
 #endif
-         if ( sum(real5D) /= 0.0_RKIND ) then
+         if ( sum(real5D(:,:,:,:,1:nCells)) /= 0.0_RKIND ) then
             threadErrs(threadNum) = 1
          end if
 
-         if ( sum(real4D) /= 0.0_RKIND ) then
+         if ( sum(real4D(:,:,:,1:nCells)) /= 0.0_RKIND ) then
             threadErrs(threadNum) = 1
          end if
 
-         if ( sum(real3D) /= 0.0_RKIND ) then
+         if ( sum(real3D(:,:,1:nCells)) /= 0.0_RKIND ) then
             threadErrs(threadNum) = 1
          end if
 
-         if ( sum(real2D) /= 0.0_RKIND ) then
+         if ( sum(real2D(:,1:nCells)) /= 0.0_RKIND ) then
             threadErrs(threadNum) = 1
          end if
 
-         if ( sum(real1D) /= 0.0_RKIND ) then
+         if ( sum(real1D(1:nCells)) /= 0.0_RKIND ) then
             threadErrs(threadNum) = 1
          end if
 
-         if ( sum(int3D) /= 0 ) then
+         if ( sum(int3D(:,:,1:nCells)) /= 0 ) then
             threadErrs(threadNum) = 1
          end if
 
-         if ( sum(int2D) /= 0 ) then
+         if ( sum(int2D(:,1:nCells)) /= 0 ) then
             threadErrs(threadNum) = 1
          end if
 
-         if ( sum(int1D) /= 0 ) then
+         if ( sum(int1D(1:nCells)) /= 0 ) then
             threadErrs(threadNum) = 1
          end if
 #ifdef HALO_EXCH_DEBUG
@@ -1196,35 +1196,35 @@ module test_core_halo_exch
 #ifdef HALO_EXCH_DEBUG
          call mpas_log_write('     -- Testing persistent Edge fields')
 #endif
-         if ( sum(real5D) /= 0.0_RKIND ) then
+         if ( sum(real5D(:,:,:,:,1:nEdges)) /= 0.0_RKIND ) then
             threadErrs(threadNum) = 1
          end if
 
-         if ( sum(real4D) /= 0.0_RKIND ) then
+         if ( sum(real4D(:,:,:,1:nEdges)) /= 0.0_RKIND ) then
             threadErrs(threadNum) = 1
          end if
 
-         if ( sum(real3D) /= 0.0_RKIND ) then
+         if ( sum(real3D(:,:,1:nEdges)) /= 0.0_RKIND ) then
             threadErrs(threadNum) = 1
          end if
 
-         if ( sum(real2D) /= 0.0_RKIND ) then
+         if ( sum(real2D(:,1:nEdges)) /= 0.0_RKIND ) then
             threadErrs(threadNum) = 1
          end if
 
-         if ( sum(real1D) /= 0.0_RKIND ) then
+         if ( sum(real1D(1:nEdges)) /= 0.0_RKIND ) then
             threadErrs(threadNum) = 1
          end if
 
-         if ( sum(int3D) /= 0 ) then
+         if ( sum(int3D(:,:,1:nEdges)) /= 0 ) then
             threadErrs(threadNum) = 1
          end if
 
-         if ( sum(int2D) /= 0 ) then
+         if ( sum(int2D(:,1:nEdges)) /= 0 ) then
             threadErrs(threadNum) = 1
          end if
 
-         if ( sum(int1D) /= 0 ) then
+         if ( sum(int1D(1:nEdges)) /= 0 ) then
             threadErrs(threadNum) = 1
          end if
 #ifdef HALO_EXCH_DEBUG
@@ -1275,27 +1275,35 @@ module test_core_halo_exch
 #ifdef HALO_EXCH_DEBUG
          call mpas_log_write('     -- Testing persistent Vertex fields')
 #endif
-         if ( sum(real5D) /= 0.0_RKIND ) then
+         if ( sum(real5D(:,:,:,:,1:nVertices)) /= 0.0_RKIND ) then
             threadErrs(threadNum) = 1
          end if
 
-         if ( sum(real4D) /= 0.0_RKIND ) then
+         if ( sum(real4D(:,:,:,1:nVertices)) /= 0.0_RKIND ) then
             threadErrs(threadNum) = 1
          end if
 
-         if ( sum(real3D) /= 0.0_RKIND ) then
+         if ( sum(real3D(:,:,1:nVertices)) /= 0.0_RKIND ) then
             threadErrs(threadNum) = 1
          end if
 
-         if ( sum(real2D) /= 0.0_RKIND ) then
+         if ( sum(real2D(:,1:nVertices)) /= 0.0_RKIND ) then
             threadErrs(threadNum) = 1
          end if
 
-         if ( sum(real1D) /= 0.0_RKIND ) then
+         if ( sum(real1D(1:nVertices)) /= 0.0_RKIND ) then
             threadErrs(threadNum) = 1
          end if
 
-         if ( sum(int3D) /= 0 ) then
+         if ( sum(int3D(:,:,1:nVertices)) /= 0 ) then
+            threadErrs(threadNum) = 1
+         end if
+
+         if ( sum(int2D(:,1:nVertices)) /= 0 ) then
+            threadErrs(threadNum) = 1
+         end if
+
+         if ( sum(int1D(1:nVertices)) /= 0 ) then
             threadErrs(threadNum) = 1
          end if
 #ifdef HALO_EXCH_DEBUG
@@ -1346,35 +1354,35 @@ module test_core_halo_exch
 #ifdef HALO_EXCH_DEBUG
          call mpas_log_write('     -- Testing scratch cell fields')
 #endif
-         if ( sum(real5D) /= 0.0_RKIND ) then
+         if ( sum(real5D(:,:,:,:,1:nCells)) /= 0.0_RKIND ) then
             threadErrs(threadNum) = 1
          end if
 
-         if ( sum(real4D) /= 0.0_RKIND ) then
+         if ( sum(real4D(:,:,:,1:nCells)) /= 0.0_RKIND ) then
             threadErrs(threadNum) = 1
          end if
 
-         if ( sum(real3D) /= 0.0_RKIND ) then
+         if ( sum(real3D(:,:,1:nCells)) /= 0.0_RKIND ) then
             threadErrs(threadNum) = 1
          end if
 
-         if ( sum(real2D) /= 0.0_RKIND ) then
+         if ( sum(real2D(:,1:nCells)) /= 0.0_RKIND ) then
             threadErrs(threadNum) = 1
          end if
 
-         if ( sum(real1D) /= 0.0_RKIND ) then
+         if ( sum(real1D(1:nCells)) /= 0.0_RKIND ) then
             threadErrs(threadNum) = 1
          end if
 
-         if ( sum(int3D) /= 0 ) then
+         if ( sum(int3D(:,:,1:nCells)) /= 0 ) then
             threadErrs(threadNum) = 1
          end if
 
-         if ( sum(int2D) /= 0 ) then
+         if ( sum(int2D(:,1:nCells)) /= 0 ) then
             threadErrs(threadNum) = 1
          end if
 
-         if ( sum(int1D) /= 0 ) then
+         if ( sum(int1D(1:nCells)) /= 0 ) then
             threadErrs(threadNum) = 1
          end if
 #ifdef HALO_EXCH_DEBUG
@@ -1425,35 +1433,35 @@ module test_core_halo_exch
 #ifdef HALO_EXCH_DEBUG
          call mpas_log_write('     -- Testing scratch edge fields')
 #endif
-         if ( sum(real5D) /= 0.0_RKIND ) then
+         if ( sum(real5D(:,:,:,:,1:nEdges)) /= 0.0_RKIND ) then
             threadErrs(threadNum) = 1
          end if
 
-         if ( sum(real4D) /= 0.0_RKIND ) then
+         if ( sum(real4D(:,:,:,1:nEdges)) /= 0.0_RKIND ) then
             threadErrs(threadNum) = 1
          end if
 
-         if ( sum(real3D) /= 0.0_RKIND ) then
+         if ( sum(real3D(:,:,1:nEdges)) /= 0.0_RKIND ) then
             threadErrs(threadNum) = 1
          end if
 
-         if ( sum(real2D) /= 0.0_RKIND ) then
+         if ( sum(real2D(:,1:nEdges)) /= 0.0_RKIND ) then
             threadErrs(threadNum) = 1
          end if
 
-         if ( sum(real1D) /= 0.0_RKIND ) then
+         if ( sum(real1D(1:nEdges)) /= 0.0_RKIND ) then
             threadErrs(threadNum) = 1
          end if
 
-         if ( sum(int3D) /= 0 ) then
+         if ( sum(int3D(:,:,1:nEdges)) /= 0 ) then
             threadErrs(threadNum) = 1
          end if
 
-         if ( sum(int2D) /= 0 ) then
+         if ( sum(int2D(:,1:nEdges)) /= 0 ) then
             threadErrs(threadNum) = 1
          end if
 
-         if ( sum(int1D) /= 0 ) then
+         if ( sum(int1D(1:nEdges)) /= 0 ) then
             threadErrs(threadNum) = 1
          end if
 #ifdef HALO_EXCH_DEBUG
@@ -1504,35 +1512,35 @@ module test_core_halo_exch
 #ifdef HALO_EXCH_DEBUG
          call mpas_log_write('     -- Testing scratch vertex fields')
 #endif
-         if ( sum(real5D) /= 0.0_RKIND ) then
+         if ( sum(real5D(:,:,:,:,1:nVertices)) /= 0.0_RKIND ) then
             threadErrs(threadNum) = 1
          end if
 
-         if ( sum(real4D) /= 0.0_RKIND ) then
+         if ( sum(real4D(:,:,:,1:nVertices)) /= 0.0_RKIND ) then
             threadErrs(threadNum) = 1
          end if
 
-         if ( sum(real3D) /= 0.0_RKIND ) then
+         if ( sum(real3D(:,:,1:nVertices)) /= 0.0_RKIND ) then
             threadErrs(threadNum) = 1
          end if
 
-         if ( sum(real2D) /= 0.0_RKIND ) then
+         if ( sum(real2D(:,1:nVertices)) /= 0.0_RKIND ) then
             threadErrs(threadNum) = 1
          end if
 
-         if ( sum(real1D) /= 0.0_RKIND ) then
+         if ( sum(real1D(1:nVertices)) /= 0.0_RKIND ) then
             threadErrs(threadNum) = 1
          end if
 
-         if ( sum(int3D) /= 0 ) then
+         if ( sum(int3D(:,:,1:nVertices)) /= 0 ) then
             threadErrs(threadNum) = 1
          end if
 
-         if ( sum(int2D) /= 0 ) then
+         if ( sum(int2D(:,1:nVertices)) /= 0 ) then
             threadErrs(threadNum) = 1
          end if
 
-         if ( sum(int1D) /= 0 ) then
+         if ( sum(int1D(1:nVertices)) /= 0 ) then
             threadErrs(threadNum) = 1
          end if
 #ifdef HALO_EXCH_DEBUG
