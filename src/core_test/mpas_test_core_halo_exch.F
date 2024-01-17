@@ -104,8 +104,7 @@ module test_core_halo_exch
       integer, dimension(:), intent(out) :: threadErrs
       integer, intent(out) :: err
 
-      type (block_type), pointer :: block
-      type (mpas_pool_type), pointer :: meshPool, haloExchTestPool
+      type (mpas_pool_type), pointer :: haloExchTestPool
 
       type (field5DReal), pointer :: real5DField
       type (field4DReal), pointer :: real4DField
@@ -115,27 +114,6 @@ module test_core_halo_exch
       type (field3DInteger), pointer :: int3DField
       type (field2DInteger), pointer :: int2DField
       type (field1DInteger), pointer :: int1DField
-
-      real (kind=RKIND), dimension(:, :, :, :, :), pointer :: real5D
-      real (kind=RKIND), dimension(:, :, :, :), pointer :: real4D
-      real (kind=RKIND), dimension(:, :, :), pointer :: real3D
-      real (kind=RKIND), dimension(:, :), pointer :: real2D
-      real (kind=RKIND), dimension(:), pointer :: real1D
-
-      real (kind=RKIND) :: realValue
-      integer :: integerValue
-
-      integer, dimension(:, :, :), pointer :: int3D
-      integer, dimension(:, :), pointer :: int2D
-      integer, dimension(:), pointer :: int1D
-
-      integer :: i, j, k, l, m
-      integer :: iDim1, iDim2, iDim3, iDim4, iDim5
-      integer, pointer :: nCells, nEdges, nVertices
-      integer, pointer :: nCellsSolve, nEdgesSolve, nVerticesSolve
-      integer, dimension(:), pointer :: indexToCellID
-      integer, dimension(:), pointer :: indexToEdgeID
-      integer, dimension(:), pointer :: indexToVertexID
 
       integer :: threadNum
 
@@ -1155,15 +1133,10 @@ module test_core_halo_exch
       real (kind=RKIND), dimension(:, :), pointer :: real2D
       real (kind=RKIND), dimension(:), pointer :: real1D
 
-      real (kind=RKIND) :: realValue
-      integer :: integerValue
-
       integer, dimension(:, :, :), pointer :: int3D
       integer, dimension(:, :), pointer :: int2D
       integer, dimension(:), pointer :: int1D
 
-      integer :: i, j, k, l, m
-      integer :: iDim1, iDim2, iDim3, iDim4, iDim5
       integer, pointer :: nCells, nEdges, nVertices
       integer, pointer :: nCellsSolve, nEdgesSolve, nVerticesSolve
       integer, dimension(:), pointer :: indexToCellID
@@ -1207,13 +1180,6 @@ module test_core_halo_exch
          call mpas_pool_get_array(haloExchTestPool, 'cellPersistInt2D', int2D)
          call mpas_pool_get_array(haloExchTestPool, 'cellPersistInt1D', int1D)
 
-         ! Subtract index from all peristent cell fields
-         iDim1 = size(real5D, dim=5)
-         iDim2 = size(real5D, dim=4)
-         iDim3 = size(real5D, dim=3)
-         iDim4 = size(real5D, dim=2)
-         iDim5 = size(real5D, dim=1)
-
          ! Validate that all differences are zero.
 #ifdef HALO_EXCH_DEBUG
          call mpas_log_write('     -- Testing persistent cell fields')
@@ -1234,13 +1200,6 @@ module test_core_halo_exch
          call mpas_pool_get_array(haloExchTestPool, 'edgePersistInt3D', int3D)
          call mpas_pool_get_array(haloExchTestPool, 'edgePersistInt2D', int2D)
          call mpas_pool_get_array(haloExchTestPool, 'edgePersistInt1D', int1D)
-
-         ! Subtract index from all peristent edge fields
-         iDim1 = size(real5D, dim=5)
-         iDim2 = size(real5D, dim=4)
-         iDim3 = size(real5D, dim=3)
-         iDim4 = size(real5D, dim=2)
-         iDim5 = size(real5D, dim=1)
 
          ! Validate that all differences are zero.
 #ifdef HALO_EXCH_DEBUG
@@ -1263,13 +1222,6 @@ module test_core_halo_exch
          call mpas_pool_get_array(haloExchTestPool, 'vertexPersistInt2D', int2D)
          call mpas_pool_get_array(haloExchTestPool, 'vertexPersistInt1D', int1D)
 
-         ! Subtract index from all peristent vertex fields
-         iDim1 = size(real5D, dim=5)
-         iDim2 = size(real5D, dim=4)
-         iDim3 = size(real5D, dim=3)
-         iDim4 = size(real5D, dim=2)
-         iDim5 = size(real5D, dim=1)
-
          ! Validate that all differences are zero.
 #ifdef HALO_EXCH_DEBUG
          call mpas_log_write('     -- Testing persistent Vertex fields')
@@ -1290,13 +1242,6 @@ module test_core_halo_exch
          call mpas_pool_get_array(haloExchTestPool, 'cellScratchInt3D', int3D)
          call mpas_pool_get_array(haloExchTestPool, 'cellScratchInt2D', int2D)
          call mpas_pool_get_array(haloExchTestPool, 'cellScratchInt1D', int1D)
-
-         ! Subtract index from all peristent cell fields
-         iDim1 = size(real5D, dim=5)
-         iDim2 = size(real5D, dim=4)
-         iDim3 = size(real5D, dim=3)
-         iDim4 = size(real5D, dim=2)
-         iDim5 = size(real5D, dim=1)
 
          ! Validate that all differences are zero.
 #ifdef HALO_EXCH_DEBUG
@@ -1319,13 +1264,6 @@ module test_core_halo_exch
          call mpas_pool_get_array(haloExchTestPool, 'edgeScratchInt2D', int2D)
          call mpas_pool_get_array(haloExchTestPool, 'edgeScratchInt1D', int1D)
 
-         ! Subtract index from all peristent edge fields
-         iDim1 = size(real5D, dim=5)
-         iDim2 = size(real5D, dim=4)
-         iDim3 = size(real5D, dim=3)
-         iDim4 = size(real5D, dim=2)
-         iDim5 = size(real5D, dim=1)
-
          ! Validate that all differences are zero.
 #ifdef HALO_EXCH_DEBUG
          call mpas_log_write('     -- Testing scratch edge fields')
@@ -1346,13 +1284,6 @@ module test_core_halo_exch
          call mpas_pool_get_array(haloExchTestPool, 'vertexScratchInt3D', int3D)
          call mpas_pool_get_array(haloExchTestPool, 'vertexScratchInt2D', int2D)
          call mpas_pool_get_array(haloExchTestPool, 'vertexScratchInt1D', int1D)
-
-         ! Subtract index from all peristent vertex fields
-         iDim1 = size(real5D, dim=5)
-         iDim2 = size(real5D, dim=4)
-         iDim3 = size(real5D, dim=3)
-         iDim4 = size(real5D, dim=2)
-         iDim5 = size(real5D, dim=1)
 
          ! Validate that all differences are zero.
 #ifdef HALO_EXCH_DEBUG
