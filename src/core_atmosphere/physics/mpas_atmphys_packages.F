@@ -112,18 +112,18 @@
     mp_wsm6_in = .true.
  elseif(config_microp_scheme == 'mp_nssl2m') then
     mp_nssl2m_in = .true.
-    IF ( config_nssl_hail_on ) THEN
+    if( config_nssl_hail_on ) then
       nssl_hail_in = .true.
-    ENDIF
-    IF ( config_nssl_ccn_on ) THEN
+    endif
+    if( config_nssl_ccn_on ) then
       nssl_ccn_in = .true.
-    ENDIF
-    IF ( config_nssl_3moment ) THEN
+    endif
+    if( config_nssl_3moment ) then
       nssl3m_in = .true.
-      IF ( config_nssl_hail_on ) THEN
+      if( config_nssl_hail_on ) then
         nssl3m_hail_in = .true.
-      ENDIF
-    ENDIF
+      endif
+    endif
  endif
 
  call mpas_log_write('    mp_kessler_in           = $l', logicArgs=(/mp_kessler_in/))
