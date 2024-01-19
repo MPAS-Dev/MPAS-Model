@@ -71,6 +71,19 @@
 			<var name="cellsOnVertex"/>
 			<var name="kiteAreasOnVertex"/>
 		</stream>
+
+                <!-- A mutable stream used for testing the stream inquiry functionality -->
+                <!-- This stream is never actually read by the test core -->
+		<stream name="mutable_test"
+		        type="input"
+		        filename_template="mutable_test.nc"
+		        filename_interval="none"
+		        input_interval="none"
+		        immutable="false"
+                        runtime_format="single_file">
+
+			<var name="xtime"/>
+		</stream>
 	</streams>
 	<var_struct name="model" time_levs="1">
 		<var name="xtime"                             type="text"     dimensions="Time"/>

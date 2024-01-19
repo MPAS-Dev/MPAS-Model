@@ -500,6 +500,7 @@
 			<var_array name="scalars"/>
 			<var name="initial_time"/>
 			<var name="xtime"/>
+			<var name="Time"/>
 			<var name="u"/>
 			<var name="w"/>
 			<var name="rho"/>
@@ -636,6 +637,7 @@
 			<var_array name="scalars"/>
 			<var name="initial_time"/>
 			<var name="xtime"/>
+			<var name="Time"/>
 			<var name="u"/>
 			<var name="w"/>
 			<var name="rho_zz"/>
@@ -927,6 +929,7 @@
 			<var name="zz"/>
 			<var name="initial_time"/>
 			<var name="xtime"/>
+			<var name="Time"/>
 			<var name="u"/>
 			<var name="w"/>
 			<var name="pressure"/>
@@ -1011,6 +1014,7 @@
 
 			<var name="initial_time"/>
 			<var name="xtime"/>
+			<var name="Time"/>
 
                         <!-- Begin isobaric diagnostics defined in diagnostics/Registry_isobaric.xml -->
 			<var name="mslp"/>
@@ -1483,6 +1487,9 @@
 
                 <var name="xtime" type="text" dimensions="Time" units="YYYY-MM-DD_hh:mm:ss"
                      description="Model valid time"/>
+
+                <var name="Time" type="real" dimensions="Time" units="seconds since YYYY-MM-DD hh:mm:ss"
+                    description="CF-compliant valid time" standard_name="time"/>
 
                 <!-- Prognostic variables: read from input, saved in restart, and written to output -->
                 <var name="u" type="real" dimensions="nVertLevels nEdges Time" units="m s^{-1}"

@@ -16,6 +16,8 @@ module init_atm_core
       use mpas_derived_types
       use mpas_stream_manager
       use mpas_io_streams, only : MPAS_STREAM_NEAREST
+      use mpas_attlist, only : mpas_modify_att
+      use mpas_string_utils, only : mpas_string_replace
       use init_atm_cases
    
       implicit none
@@ -25,6 +27,7 @@ module init_atm_core
 
       type (block_type), pointer :: block
       type (mpas_pool_type), pointer :: state, mesh 
+      type (field0DReal), pointer :: Time_field
       character (len=StrKIND), pointer :: xtime
       character (len=StrKIND), pointer :: initial_time
       character (len=StrKIND), pointer :: config_start_time
@@ -38,6 +41,7 @@ module init_atm_core
       do while (associated(block))
          call mpas_pool_get_subpool(block % structs, 'state', state)
          call mpas_pool_get_subpool(block % structs, 'mesh', mesh)
+         call mpas_pool_get_field(state, 'Time', Time_field)
          call mpas_pool_get_array(state, 'xtime', xtime)
          call mpas_pool_get_array(state, 'initial_time', initial_time)
          call mpas_pool_get_config(mesh, 'sphere_radius', sphere_radius)
@@ -48,6 +52,10 @@ module init_atm_core
          initial_time = config_start_time
          domain % sphere_radius = a      ! Appears in output files
          sphere_radius = a               ! Used in setting up test cases
+
+         ! Set Time units to be cf compliant 'seconds since <cf-timestamp>'
+         call mpas_modify_att(Time_field % attLists(1) % attlist, 'units', &
+             'seconds since ' // mpas_string_replace(initial_time, '_', ' '))
 
          block => block % next
       end do 

@@ -274,6 +274,8 @@ module atm_time_integration
       type (MPAS_TimeInterval_type) :: dtInterval
       character (len=StrKIND), pointer :: xtime
       character (len=StrKIND) :: xtime_new
+      real (kind=RKIND), pointer :: Time
+      real (kind=RKIND) :: Time_new
       type (mpas_pool_type), pointer :: state
       character (len=StrKIND), pointer :: config_time_integration
 
@@ -298,6 +300,14 @@ module atm_time_integration
       call mpas_pool_get_subpool(block % structs, 'state', state)
       call mpas_pool_get_array(state, 'xtime', xtime, 2)
       xtime = xtime_new
+
+      ! Get CF-compliant time at current timestep
+      call mpas_pool_get_array(state, 'Time', Time, 1)
+      Time_new = Time + dt
+
+      ! Write CF-compliant time for advanced timestep
+      call mpas_pool_get_array(state, 'Time', Time, 2)
+      Time = Time_new
 
    end subroutine atm_timestep
 

@@ -3363,7 +3363,7 @@ module mpas_stream_manager
            !
            if ( .not. stream % blockWrite ) then
               STREAM_DEBUG_WRITE(' -- Prewrite reindex for stream ' // trim(stream % name))
-              call prewrite_reindex(manager % allFields, stream % field_pool)
+              call prewrite_reindex(manager % allFields, manager % allPackages, stream % field_pool, stream % field_pkg_pool)
            end if
 
            ! 
@@ -3973,12 +3973,13 @@ module mpas_stream_manager
            !
            ! Exchange halos for all decomposed fields in this stream
            !
-           call exch_all_halos(manager % allFields, stream % field_pool, stream % timeLevel, local_ierr)
+           call exch_all_halos(manager % allFields, manager % allPackages, stream % field_pool, stream % field_pkg_pool, &
+                               stream % timeLevel, local_ierr)
 
            !
            ! For any connectivity arrays in this stream, convert global indices to local indices
            !
-           call postread_reindex(manager % allFields, stream % field_pool)
+           call postread_reindex(manager % allFields, manager % allPackages, stream % field_pool, stream % field_pkg_pool)
         end if
 
     end subroutine read_stream !}}}
@@ -4646,12 +4647,14 @@ module mpas_stream_manager
     !>  This routine performs a halo exchange of each decomposed field within a stream.
     !
     !-----------------------------------------------------------------------
-    subroutine exch_all_halos(allFields, streamFields, timeLevel, ierr) !{{{
+    subroutine exch_all_halos(allFields, allPackages, streamFields, fieldPkgPool, timeLevel, ierr) !{{{
 
         implicit none
 
         type (mpas_pool_type), pointer :: allFields
+        type (mpas_pool_type), pointer :: allPackages
         type (mpas_pool_type), pointer :: streamFields
+        type (mpas_pool_type), pointer :: fieldPkgPool
         integer, intent(in) :: timeLevel
         integer, intent(out) :: ierr
 
@@ -4667,6 +4670,10 @@ module mpas_stream_manager
         type (field2DInteger), pointer :: int2DField
         type (field3DInteger), pointer :: int3DField
 
+        character (len=StrKIND), pointer :: packages
+        logical :: active_field
+        integer :: err_level
+
 
         ierr = MPAS_STREAM_MGR_NOERR
 
@@ -4676,6 +4683,26 @@ module mpas_stream_manager
 
             ! Note: in a stream's field_pool, the names of fields are stored as configs
             if ( fieldItr % memberType == MPAS_POOL_CONFIG ) then
+
+                !
+                ! Check whether the field is active in this stream
+                !
+                err_level = mpas_pool_get_error_level()
+                call mpas_pool_set_error_level(MPAS_POOL_SILENT)
+
+                nullify(packages)
+                call mpas_pool_get_config(fieldPkgPool, trim(fieldItr % memberName)//':packages', packages)
+                if (associated(packages)) then
+                    active_field = parse_package_list(allPackages, trim(packages))
+                else
+                    active_field = .true.
+                end if
+                call mpas_pool_set_error_level(err_level)
+
+                if (.not. active_field) then
+                    STREAM_DEBUG_WRITE('-- '//trim(fieldItr % memberName)//' not active in stream and halo will not be exchanged')
+                    cycle
+                end if
 
                 call mpas_pool_get_field_info(allFields, fieldItr % memberName, fieldInfo)
 
@@ -4837,7 +4864,7 @@ module mpas_stream_manager
     !>                  the top of this module where this routine is made public.
     !
     !-----------------------------------------------------------------------
-    subroutine prewrite_reindex(allFields, streamFields) !{{{
+    subroutine prewrite_reindex(allFields, allPackages, streamFields, fieldPkgPool) !{{{
 
         implicit none
 
@@ -4846,7 +4873,9 @@ module mpas_stream_manager
         integer, parameter :: UNUSED_VERTEX = 0
 
         type (mpas_pool_type), pointer :: allFields
+        type (mpas_pool_type), pointer :: allPackages
         type (mpas_pool_type), pointer :: streamFields
+        type (mpas_pool_type), pointer :: fieldPkgPool
 
         type (mpas_pool_iterator_type) :: fieldItr
         type (mpas_pool_field_info_type) :: fieldInfo
@@ -4868,6 +4897,11 @@ module mpas_stream_manager
                    handle_edgesOnEdge, handle_cellsOnVertex, handle_edgesOnVertex
 
         integer :: i, j, threadNum
+
+        character (len=StrKIND), pointer :: packages
+        logical :: active_field
+        integer :: err_level
+
 
         threadNum = mpas_threading_get_thread_num()
 
@@ -4898,6 +4932,27 @@ module mpas_stream_manager
 
                ! Note: in a stream's field_pool, the names of fields are stored as configs
                if ( fieldItr % memberType == MPAS_POOL_CONFIG ) then
+
+                   !
+                   ! Check whether the field is active in this stream
+                   !
+                   err_level = mpas_pool_get_error_level()
+                   call mpas_pool_set_error_level(MPAS_POOL_SILENT)
+
+                   nullify(packages)
+                   call mpas_pool_get_config(fieldPkgPool, trim(fieldItr % memberName)//':packages', packages)
+                   if (associated(packages)) then
+                       active_field = parse_package_list(allPackages, trim(packages))
+                   else
+                       active_field = .true.
+                   end if
+                   call mpas_pool_set_error_level(err_level)
+
+                   if (.not. active_field) then
+                       STREAM_DEBUG_WRITE('-- '//trim(fieldItr % memberName)//' not active in stream and will not be reindexed')
+                       cycle
+                   end if
+
                    call mpas_pool_get_field_info(allFields, fieldItr % memberName, fieldInfo)
 
                    if (trim(fieldItr % memberName) == 'cellsOnCell') then
@@ -4959,6 +5014,7 @@ module mpas_stream_manager
                call mpas_pool_get_dimension(indexToCellID % block % dimensions, 'vertexDegree', vertexDegree)
 
                if (associated(cellsOnCell)) then
+                   STREAM_DEBUG_WRITE('  -- reindexing cellsOnCell from local to global indices')
                    cellsOnCell_ptr % array => cellsOnCell % array
                    allocate(cellsOnCell % array(maxEdges, nCells+1))
 
@@ -4979,6 +5035,7 @@ module mpas_stream_manager
                end if
 
                if (associated(edgesOnCell)) then
+                   STREAM_DEBUG_WRITE('  -- reindexing edgesOnCell from local to global indices')
                    edgesOnCell_ptr % array => edgesOnCell % array
                    allocate(edgesOnCell % array(maxEdges, nCells+1))
 
@@ -4999,6 +5056,7 @@ module mpas_stream_manager
                end if
 
                if (associated(verticesOnCell)) then
+                   STREAM_DEBUG_WRITE('  -- reindexing verticesOnCell from local to global indices')
                    verticesOnCell_ptr % array => verticesOnCell % array
                    allocate(verticesOnCell % array(maxEdges, nCells+1))
 
@@ -5019,6 +5077,7 @@ module mpas_stream_manager
                end if
 
                if (associated(cellsOnEdge)) then
+                   STREAM_DEBUG_WRITE('  -- reindexing cellsOnEdge from local to global indices')
                    cellsOnEdge_ptr % array => cellsOnEdge % array
                    allocate(cellsOnEdge % array(2, nEdges+1))
 
@@ -5036,6 +5095,7 @@ module mpas_stream_manager
                end if
 
                if (associated(verticesOnEdge)) then
+                   STREAM_DEBUG_WRITE('  -- reindexing verticesOnEdge from local to global indices')
                    verticesOnEdge_ptr % array => verticesOnEdge % array
                    allocate(verticesOnEdge % array(2, nEdges+1))
 
@@ -5053,6 +5113,7 @@ module mpas_stream_manager
                end if
 
                if (associated(edgesOnEdge)) then
+                   STREAM_DEBUG_WRITE('  -- reindexing edgesOnEdge from local to global indices')
                    edgesOnEdge_ptr % array => edgesOnEdge % array
                    allocate(edgesOnEdge % array(maxEdges2, nEdges+1))
 
@@ -5073,6 +5134,7 @@ module mpas_stream_manager
                end if
 
                if (associated(cellsOnVertex)) then
+                   STREAM_DEBUG_WRITE('  -- reindexing cellsOnVertex from local to global indices')
                    cellsOnVertex_ptr % array => cellsOnVertex % array
                    allocate(cellsOnVertex % array(vertexDegree, nVertices+1))
 
@@ -5091,6 +5153,7 @@ module mpas_stream_manager
                end if
 
                if (associated(edgesOnVertex)) then
+                   STREAM_DEBUG_WRITE('  -- reindexing edgesOnVertex from local to global indices')
                    edgesOnVertex_ptr % array => edgesOnVertex % array
                    allocate(edgesOnVertex % array(vertexDegree, nVertices+1))
 
@@ -5211,6 +5274,7 @@ module mpas_stream_manager
            do while (associated(indexToCellID))
 
                if (associated(cellsOnCell)) then
+                   STREAM_DEBUG_WRITE('  -- restoring cellsOnCell to local indices')
                    deallocate(cellsOnCell % array)
                    cellsOnCell % array => cellsOnCell_ptr % array
                    nullify(cellsOnCell_ptr % array)
@@ -5219,6 +5283,7 @@ module mpas_stream_manager
                end if
 
                if (associated(edgesOnCell)) then
+                   STREAM_DEBUG_WRITE('  -- restoring edgesOnCell to local indices')
                    deallocate(edgesOnCell % array)
                    edgesOnCell % array => edgesOnCell_ptr % array
                    nullify(edgesOnCell_ptr % array)
@@ -5227,6 +5292,7 @@ module mpas_stream_manager
                end if
 
                if (associated(verticesOnCell)) then
+                   STREAM_DEBUG_WRITE('  -- restoring verticesOnCell to local indices')
                    deallocate(verticesOnCell % array)
                    verticesOnCell % array => verticesOnCell_ptr % array
                    nullify(verticesOnCell_ptr % array)
@@ -5235,6 +5301,7 @@ module mpas_stream_manager
                end if
 
                if (associated(cellsOnEdge)) then
+                   STREAM_DEBUG_WRITE('  -- restoring cellsOnEdge to local indices')
                    deallocate(cellsOnEdge % array)
                    cellsOnEdge % array => cellsOnEdge_ptr % array
                    nullify(cellsOnEdge_ptr % array)
@@ -5243,6 +5310,7 @@ module mpas_stream_manager
                end if
 
                if (associated(verticesOnEdge)) then
+                   STREAM_DEBUG_WRITE('  -- restoring verticesOnEdge to local indices')
                    deallocate(verticesOnEdge % array)
                    verticesOnEdge % array => verticesOnEdge_ptr % array
                    nullify(verticesOnEdge_ptr % array)
@@ -5251,6 +5319,7 @@ module mpas_stream_manager
                end if
 
                if (associated(edgesOnEdge)) then
+                   STREAM_DEBUG_WRITE('  -- restoring edgesOnEdge to local indices')
                    deallocate(edgesOnEdge % array)
                    edgesOnEdge % array => edgesOnEdge_ptr % array
                    nullify(edgesOnEdge_ptr % array)
@@ -5259,6 +5328,7 @@ module mpas_stream_manager
                end if
 
                if (associated(cellsOnVertex)) then
+                   STREAM_DEBUG_WRITE('  -- restoring cellsOnVertex to local indices')
                    deallocate(cellsOnVertex % array)
                    cellsOnVertex % array => cellsOnVertex_ptr % array
                    nullify(cellsOnVertex_ptr % array)
@@ -5267,6 +5337,7 @@ module mpas_stream_manager
                end if
 
                if (associated(edgesOnVertex)) then
+                   STREAM_DEBUG_WRITE('  -- restoring edgesOnVertex to local indices')
                    deallocate(edgesOnVertex % array)
                    edgesOnVertex % array => edgesOnVertex_ptr % array
                    nullify(edgesOnVertex_ptr % array)
@@ -5312,12 +5383,14 @@ module mpas_stream_manager
     !>  This routine should be called immediately after a read of a stream.
     !
     !-----------------------------------------------------------------------
-    subroutine postread_reindex(allFields, streamFields) !{{{
+    subroutine postread_reindex(allFields, allPackages, streamFields, fieldPkgPool) !{{{
 
         implicit none
 
         type (mpas_pool_type), pointer :: allFields
+        type (mpas_pool_type), pointer :: allPackages
         type (mpas_pool_type), pointer :: streamFields
+        type (mpas_pool_type), pointer :: fieldPkgPool
 
         type (mpas_pool_iterator_type) :: fieldItr
         type (mpas_pool_field_info_type) :: fieldInfo
@@ -5332,6 +5405,10 @@ module mpas_stream_manager
         logical :: skip_field
         integer :: i, j, k
 
+        character (len=StrKIND), pointer :: packages
+        logical :: active_field
+        integer :: err_level
+
 
         call mpas_pool_get_field(allFields, 'indexToCellID', indexToCellID)
         call mpas_pool_get_field(allFields, 'indexToEdgeID', indexToEdgeID)
@@ -5344,12 +5421,32 @@ module mpas_stream_manager
             ! Note: in a stream's field_pool, the names of fields are stored as configs
             if ( fieldItr % memberType == MPAS_POOL_CONFIG ) then
 
+                !
+                ! Check whether the field is active in this stream
+                !
+                err_level = mpas_pool_get_error_level()
+                call mpas_pool_set_error_level(MPAS_POOL_SILENT)
+
+                nullify(packages)
+                call mpas_pool_get_config(fieldPkgPool, trim(fieldItr % memberName)//':packages', packages)
+                if (associated(packages)) then
+                    active_field = parse_package_list(allPackages, trim(packages))
+                else
+                    active_field = .true.
+                end if
+                call mpas_pool_set_error_level(err_level)
+
+                if (.not. active_field) then
+                    STREAM_DEBUG_WRITE('-- '//trim(fieldItr % memberName)//' not active in stream and will not be reindexed')
+                    cycle
+                end if
+
                 call mpas_pool_get_field_info(allFields, fieldItr % memberName, fieldInfo)
 
                 skip_field = .false.
                 if (trim(fieldItr % memberName) == 'cellsOnCell') then
 
-                    STREAM_DEBUG_WRITE('-- Reindexing cellsOnCell')
+                    STREAM_DEBUG_WRITE(' -- Reindexing cellsOnCell')
 
                     ! Get pointer to the field to be reindexed
                     call mpas_pool_get_field(allFields, 'cellsOnCell', int2DField)
@@ -5365,7 +5462,7 @@ module mpas_stream_manager
 
                 else if (trim(fieldItr % memberName) == 'edgesOnCell') then
 
-                    STREAM_DEBUG_WRITE('-- Reindexing edgesOnCell')
+                    STREAM_DEBUG_WRITE(' -- Reindexing edgesOnCell')
 
                     ! Get pointer to the field to be reindexed
                     call mpas_pool_get_field(allFields, 'edgesOnCell', int2DField)
@@ -5381,7 +5478,7 @@ module mpas_stream_manager
 
                 else if (trim(fieldItr % memberName) == 'verticesOnCell') then
 
-                    STREAM_DEBUG_WRITE('-- Reindexing verticesOnCell')
+                    STREAM_DEBUG_WRITE(' -- Reindexing verticesOnCell')
 
                     ! Get pointer to the field to be reindexed
                     call mpas_pool_get_field(allFields, 'verticesOnCell', int2DField)
@@ -5397,7 +5494,7 @@ module mpas_stream_manager
 
                 else if (trim(fieldItr % memberName) == 'cellsOnEdge') then
 
-                    STREAM_DEBUG_WRITE('-- Reindexing cellsOnEdge')
+                    STREAM_DEBUG_WRITE(' -- Reindexing cellsOnEdge')
 
                     ! Get pointer to the field to be reindexed
                     call mpas_pool_get_field(allFields, 'cellsOnEdge', int2DField)
@@ -5413,7 +5510,7 @@ module mpas_stream_manager
 
                 else if (trim(fieldItr % memberName) == 'verticesOnEdge') then
 
-                    STREAM_DEBUG_WRITE('-- Reindexing verticesOnEdge')
+                    STREAM_DEBUG_WRITE(' -- Reindexing verticesOnEdge')
 
                     ! Get pointer to the field to be reindexed
                     call mpas_pool_get_field(allFields, 'verticesOnEdge', int2DField)
@@ -5429,7 +5526,7 @@ module mpas_stream_manager
 
                 else if (trim(fieldItr % memberName) == 'edgesOnEdge') then
 
-                    STREAM_DEBUG_WRITE('-- Reindexing edgesOnEdge')
+                    STREAM_DEBUG_WRITE(' -- Reindexing edgesOnEdge')
 
                     ! Get pointer to the field to be reindexed
                     call mpas_pool_get_field(allFields, 'edgesOnEdge', int2DField)
@@ -5445,7 +5542,7 @@ module mpas_stream_manager
 
                 else if (trim(fieldItr % memberName) == 'cellsOnVertex') then
 
-                    STREAM_DEBUG_WRITE('-- Reindexing cellsOnVertex')
+                    STREAM_DEBUG_WRITE(' -- Reindexing cellsOnVertex')
 
                     ! Get pointer to the field to be reindexed
                     call mpas_pool_get_field(allFields, 'cellsOnVertex', int2DField)
@@ -5461,7 +5558,7 @@ module mpas_stream_manager
 
                 else if (trim(fieldItr % memberName) == 'edgesOnVertex') then
 
-                    STREAM_DEBUG_WRITE('-- Reindexing edgesOnVertex')
+                    STREAM_DEBUG_WRITE(' -- Reindexing edgesOnVertex')
 
                     ! Get pointer to the field to be reindexed
                     call mpas_pool_get_field(allFields, 'edgesOnVertex', int2DField)

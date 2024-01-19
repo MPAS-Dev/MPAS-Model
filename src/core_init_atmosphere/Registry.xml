@@ -182,6 +182,11 @@
                      description="The supersampling factor to be used for MODIS maximum snow albedo and monthly albedo datasets (case 7 only)"
                      possible_values="Positive integer values"/>
 
+                <nml_option name="config_30s_supersample_factor"    type="integer"       default_value="1"
+                     units="-"
+                     description="The supersampling factor to be used for 30s terrain, MODIS land use, soil category, and MODIS FPAR monthly vegetation fraction (case 7 only)"
+                     possible_values="Positive integer values"/>
+
                 <nml_option name="config_use_spechumd"          type="logical"       default_value="false"
                      units="-"
                      description="Whether to use specific-humidity as the first-guess moisture variable. If this option is False, relative humidity will be used."
@@ -452,6 +457,7 @@
 
                         <var name="initial_time" packages="met_stage_out"/>
                         <var name="xtime"/>
+                        <var name="Time"/>
                         <var name="latCell"/>
                         <var name="lonCell"/>
                         <var name="xCell"/>
@@ -588,6 +594,7 @@
                         immutable="true">
 
 			<var name="xtime"/>
+			<var name="Time"/>
 			<var name="sst"/>
 			<var name="xice"/>
 		</stream>
@@ -601,6 +608,7 @@
                         immutable="true">
 
 			<var name="xtime"/>
+			<var name="Time"/>
 			<var_struct name="lbc_state"/>
 		</stream>
 
@@ -939,6 +947,9 @@
 
                 <var name="xtime" type="text" dimensions="Time" units="YYYY-MM-DD_hh:mm:ss"
                      description="Model valid time"/>
+
+                <var name="Time" type="real" dimensions="Time" units="seconds since YYYY-MM-DD hh:mm:ss"
+                     description="CF-compliant valid time" standard_name="time"/>
 
                 <var name="u" type="real" dimensions="nVertLevels nEdges Time" units="m s^{-1}"
                      description="Horizontal normal velocity at edges"

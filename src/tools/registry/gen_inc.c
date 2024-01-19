@@ -139,8 +139,8 @@ const char * modify_attr(const char *attr, const char *array[][2], size_t rows) 
 // characters. Returns 1 if the buffer is too small for the result. 
 int escape_quotes(const char * stringIn, char * result, size_t bufferSize){
 	size_t resultIndex = 0;
-	
-	for (size_t i = 0; i < strlen(stringIn) + 1; i++) {
+	size_t i;
+	for (i = 0; i < strlen(stringIn) + 1; i++) {
 		if ( stringIn[i] == '\'' ) {
 			if (resultIndex >= bufferSize) return 1;
 			result[resultIndex++] = '\'';
@@ -167,17 +167,23 @@ void add_attribute_if_not_ignored(FILE *fd, char *index, char *att_name, char *p
 			"ERROR: Failed to allocate memory while escaping quotes for att_value %s of att %s\n",
 			att_value,
 			att_name);
+		free(escaped_value);
+		free(escaped_name);
 		return;
 	} else if (escaped_name == NULL) {
 		fprintf(stderr,
 			"ERROR: Failed to allocate memory while escaping quotes for att_name of att %s\n",
 			att_name);
+		free(escaped_value);
+		free(escaped_name);
 		return;
 	}
 
 
 	// Return early if we want to ignore the attribute
 	if (find_string_in_array(att_name, ATTRS_TO_IGNORE, NUM_IGNORED_ATTRS) >= 0){
+		free(escaped_value);
+		free(escaped_name);
 		return;
 	}
 
@@ -196,6 +202,8 @@ void add_attribute_if_not_ignored(FILE *fd, char *index, char *att_name, char *p
 			"ERROR: Buffer too small to escape quotes for att_value %s of att %s\n",
 			att_value,
 			att_name);
+		free(escaped_value);
+		free(escaped_name);
 		return;
 	}
 
@@ -205,6 +213,8 @@ void add_attribute_if_not_ignored(FILE *fd, char *index, char *att_name, char *p
 		fprintf(stderr,
 			"ERROR: Buffer too small to escape quotes for att_name of att %s\n",
 			att_name);
+		free(escaped_value);
+		free(escaped_name);
 		return;
 	}
 	// Write the add_att code 
@@ -291,16 +301,18 @@ int add_package_to_list(const char * package, const char * package_list){/*{{{*/
 	token = strsep(&string, ";");
 
 	if(strcmp(package, token) == 0){
+		free(tofree);
 		return 0;
 	}
 
 	while( (token = strsep(&string, ";")) != NULL){
 		if(strcmp(package, token) == 0){
-
+			free(tofree);
 			return 0;
 		}
 	}
 
+	free(tofree);
 	return 1;
 }/*}}}*/
 
@@ -363,12 +375,14 @@ int build_struct_package_lists(ezxml_t currentPosition, char * out_packages){/*{
 				if(out_packages[0] == '\0'){
 					sprintf(out_packages, "%s", token);
 				} else if(add_package_to_list(token, out_packages)){
-					sprintf(out_packages, "%s;%s", out_packages, token);
+					strcat(out_packages, ";");
+					strcat(out_packages, token);
 				}
 
 				while( (token = strsep(&string, ";")) != NULL){
 					if(add_package_to_list(token, out_packages)){
-						sprintf(out_packages, "%s;%s", out_packages, token);
+						strcat(out_packages, ";");
+						strcat(out_packages, token);
 					}
 				}
 
@@ -387,12 +401,14 @@ int build_struct_package_lists(ezxml_t currentPosition, char * out_packages){/*{
 					if(out_packages[0] == '\0'){
 						sprintf(out_packages, "%s", token);
 					} else if(add_package_to_list(token, out_packages)){
-						sprintf(out_packages, "%s;%s", out_packages, token);
+						strcat(out_packages, ";");
+						strcat(out_packages, token);
 					}
 
 					while( (token = strsep(&string, ";")) != NULL){
 						if(add_package_to_list(token, out_packages)){
-							sprintf(out_packages, "%s;%s", out_packages, token);
+							strcat(out_packages, ";");
+							strcat(out_packages, token);
 						}
 					}
 
@@ -413,12 +429,14 @@ int build_struct_package_lists(ezxml_t currentPosition, char * out_packages){/*{
 				if(out_packages[0] == '\0'){
 					sprintf(out_packages, "%s", token);
 				} else if(add_package_to_list(token, out_packages)){
-					sprintf(out_packages, "%s;%s", out_packages, token);
+					strcat(out_packages, ";");
+					strcat(out_packages, token);
 				}
 
 				while( (token = strsep(&string, ";")) != NULL){
 					if(add_package_to_list(token, out_packages)){
-						sprintf(out_packages, "%s;%s", out_packages, token);
+						strcat(out_packages, ";");
+						strcat(out_packages, token);
 					}
 				}
 
@@ -1291,6 +1309,7 @@ int parse_var_array(FILE *fd, ezxml_t registry, ezxml_t superStruct, ezxml_t var
 				while( (token = strsep(&string, ";")) != NULL){
 					fortprintf(fd, " .or. %sActive", token);
 				}
+				free(tofree);
 
 				fortprintf(fd, ") then\n");
 				snprintf(sub_spacing, 1024, "   ");
@@ -1356,6 +1375,7 @@ int parse_var_array(FILE *fd, ezxml_t registry, ezxml_t superStruct, ezxml_t var
 							while( (token = strsep(&string, ";")) != NULL){
 								fortprintf(fd, " .or. %sActive", token);
 							}
+							free(tofree);
 
 							fortprintf(fd, ") then\n");
 							snprintf(sub_spacing, 1024, "   ");
@@ -1547,6 +1567,7 @@ int parse_var_array(FILE *fd, ezxml_t registry, ezxml_t superStruct, ezxml_t var
 		while( (token = strsep(&string, ";")) != NULL){
 			fortprintf(fd, " .or. %sActive", token);
 		}
+		free(tofree);
 		fortprintf(fd, ") then\n");
 	}
 
@@ -1743,6 +1764,7 @@ int parse_var(FILE *fd, ezxml_t registry, ezxml_t superStruct, ezxml_t currentVa
 		while( (token = strsep(&string, ";")) != NULL){
 			fortprintf(fd, " .or. %sActive", token);
 		}
+		free(tofree);
 
 		fortprintf(fd, ") then\n");
 	}

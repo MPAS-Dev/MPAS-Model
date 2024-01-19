@@ -140,6 +140,7 @@
  type(c_ptr) :: rarray_ptr
 
  integer, pointer :: supersample_fac
+ integer, pointer :: supersample_fac_30s
 
  real(kind=RKIND):: lat,lon,x,y
  real(kind=RKIND):: lat_pt,lon_pt
@@ -214,6 +215,7 @@
  call mpas_pool_get_config(configs, 'config_albedo_data', config_albedo_data)
  call mpas_pool_get_config(configs, 'config_maxsnowalbedo_data', config_maxsnowalbedo_data)
  call mpas_pool_get_config(configs, 'config_supersample_factor', supersample_fac)
+ call mpas_pool_get_config(configs, 'config_30s_supersample_factor', supersample_fac_30s)
 
  write(geog_data_path, '(a)') config_geog_data_path
  i = len_trim(geog_data_path)
@@ -374,7 +376,8 @@
  end select
 
  call mpas_log_write('--- start interpolate TER')
- call interp_terrain(mesh, tree, trim(geog_data_path)//trim(geog_sub_path))
+ call interp_terrain(mesh, tree, trim(geog_data_path)//trim(geog_sub_path), &
+                     supersample_fac=supersample_fac_30s)
  call mpas_log_write('--- end interpolate TER')
 
 
@@ -398,7 +401,8 @@
  end select surface_input_select1
 
  call mpas_log_write('--- start interpolate LU_INDEX')
- call interp_landuse(mesh, tree, trim(geog_data_path)//trim(geog_sub_path), isice_lu, iswater_lu)
+ call interp_landuse(mesh, tree, trim(geog_data_path)//trim(geog_sub_path), isice_lu, iswater_lu, &
+                     supersample_fac=supersample_fac_30s)
  call mpas_log_write('--- end interpolate LU_INDEX')
 
 !
@@ -407,7 +411,8 @@
  geog_sub_path = 'soiltype_top_30s/'
 
  call mpas_log_write('--- start interpolate SOILCAT_TOP')
- call interp_soilcat(mesh, tree, trim(geog_data_path)//trim(geog_sub_path), iswater_soil)
+ call interp_soilcat(mesh, tree, trim(geog_data_path)//trim(geog_sub_path), iswater_soil, &
+                     supersample_fac=supersample_fac_30s)
  call mpas_log_write('--- end interpolate SOILCAT_TOP')
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -704,6 +709,10 @@
 
     call mpas_log_write('Using MODIS FPAR 30-arc-second data for climatological monthly vegetation fraction')
 
+    if (supersample_fac_30s > 1) then
+       call mpas_log_write('   Dataset will be supersampled by a factor of $i', intArgs=(/supersample_fac_30s/))
+    end if
+
     geog_sub_path = 'greenfrac_fpar_modis/'
 
     ierr = mgr % init(trim(geog_data_path)//trim(geog_sub_path))
@@ -750,10 +759,13 @@
 
             all_pixels_mapped_to_halo_cells = .true.
 
-            do j = tile_bdr + 1, tile_ny + tile_bdr, 1
-                do i = tile_bdr + 1, tile_nx + tile_bdr, 1
+            do j = supersample_fac_30s * tile_bdr + 1, supersample_fac_30s * (tile_ny + tile_bdr), 1
+                do i = supersample_fac_30s * tile_bdr + 1, supersample_fac_30s * (tile_nx + tile_bdr), 1
 
-                    call mgr % tile_to_latlon(tile, j, i, lat_pt, lon_pt)
+                    ii = (i - 1) / supersample_fac_30s + 1
+                    jj = (j - 1) / supersample_fac_30s + 1
+
+                    call mgr % tile_to_latlon(tile, j, i, lat_pt, lon_pt, supersample_fac_30s)
                     call mpas_latlon_to_xyz(xPixel, yPixel, zPixel, sphere_radius, lat_pt, lon_pt)
                     call mpas_kd_search(tree, (/xPixel, yPixel, zPixel/), res, max_distance=max_kdtree_distance2)
 
@@ -766,10 +778,10 @@
                     !
                     if (landMask(res % id) == 1 .and. bdyMaskCell(res % id) < nBdyLayers) then
                         do k = 1, tile_nz
-                            if (tile % tile(i, j, k) == missing_value) then
+                            if (tile % tile(ii, jj, k) == missing_value) then
                                 i8val = int(fillval, kind=I8KIND)
                             else
-                                i8val = int(tile % tile(i,j,k), kind=I8KIND)
+                                i8val = int(tile % tile(ii, jj, k), kind=I8KIND)
                             end if
                             greenfrac_int(k, res % id) = greenfrac_int(k, res % id) + i8val
                         end do
@@ -785,10 +797,10 @@
                         if (mpas_in_cell(xPixel, yPixel, zPixel, xCell(res % id), yCell(res % id), zCell(res % id), &
                                           nEdgesOnCell(res % id), verticesOnCell(:,res % id), xVertex, yVertex, zVertex)) then
                             do k = 1, tile_nz
-                                if (tile % tile(i, j, k) == missing_value) then
+                                if (tile % tile(ii, jj, k) == missing_value) then
                                     i8val = int(fillval, kind=I8KIND)
                                 else
-                                    i8val = int(tile % tile(i,j,k), kind=I8KIND)
+                                    i8val = int(tile % tile(ii, jj, k), kind=I8KIND)
                                 end if
                                 greenfrac_int(k, res % id) = greenfrac_int(k, res % id) + i8val
                             end do
@@ -1435,7 +1447,7 @@
  !> should be the path to the terrain dataset.
  !
  !-----------------------------------------------------------------------
- subroutine interp_terrain(mesh, kdtree, geog_data_path)
+ subroutine interp_terrain(mesh, kdtree, geog_data_path, supersample_fac)
 
     implicit none
 
@@ -1443,6 +1455,7 @@
     type (mpas_pool_type), intent(inout) :: mesh
     type (mpas_kd_type), pointer, intent(in) :: kdtree
     character (len=*), intent(in) :: geog_data_path
+    integer, intent(in), optional :: supersample_fac
 
     ! Local variables
     type (mpas_geotile_mgr_type) :: mgr
@@ -1478,7 +1491,8 @@
     ter_integer(:) = 0
     nhs(:) = 0
 
-    call init_atm_map_static_data(mesh, mgr, kdtree, continuous_interp_criteria, terrain_interp_accumulation)
+    call init_atm_map_static_data(mesh, mgr, kdtree, continuous_interp_criteria, terrain_interp_accumulation, &
+                                  supersample_fac=supersample_fac)
 
     do iCell = 1, nCells
        ter(iCell) = real(real(ter_integer(iCell), kind=R8KIND) / real(nhs(iCell), kind=R8KIND), kind=RKIND)
@@ -1571,7 +1585,7 @@
  !> that isice and iswater are in the dataset's index file.
  !
  !-----------------------------------------------------------------------
- subroutine interp_landuse(mesh, kdtree, geog_data_path, isice_lu, iswater_lu)
+ subroutine interp_landuse(mesh, kdtree, geog_data_path, isice_lu, iswater_lu, supersample_fac)
 
      implicit none
 
@@ -1581,6 +1595,7 @@
      character (len=*), intent(in) :: geog_data_path
      integer, intent(out) :: isice_lu
      integer, intent(out) :: iswater_lu
+     integer, intent(in), optional :: supersample_fac
 
      ! Local variables
      type (mpas_geotile_mgr_type) :: mgr
@@ -1613,7 +1628,8 @@
      allocate(ncat(category_min:category_max, nCells))
      ncat(:,:) = 0
 
-     call init_atm_map_static_data(mesh, mgr, kdtree, categorical_interp_criteria, categorical_interp_accumulation)
+     call init_atm_map_static_data(mesh, mgr, kdtree, categorical_interp_criteria, categorical_interp_accumulation, &
+                                   supersample_fac=supersample_fac)
 
      do iCell = 1, nCells
          ! Because maxloc returns the location of the maximum value of an array as if the
@@ -1652,7 +1668,7 @@
  !> iswater is present in the dataset's index file.
  !>
  !-----------------------------------------------------------------------
- subroutine interp_soilcat(mesh, kdtree, geog_data_path, iswater_soil)
+ subroutine interp_soilcat(mesh, kdtree, geog_data_path, iswater_soil, supersample_fac)
 
      implicit none
 
@@ -1661,6 +1677,7 @@
      type (mpas_kd_type), pointer, intent(in) :: kdtree
      character (len=*), intent(in) :: geog_data_path
      integer, intent(out) :: iswater_soil
+     integer, intent(in), optional :: supersample_fac
 
      ! Local variables
      type (mpas_geotile_mgr_type) :: mgr
@@ -1690,7 +1707,8 @@
      allocate(ncat(category_min:category_max, nCells))
      ncat(:,:) = 0
 
-     call init_atm_map_static_data(mesh, mgr, kdtree, categorical_interp_criteria, categorical_interp_accumulation)
+     call init_atm_map_static_data(mesh, mgr, kdtree, categorical_interp_criteria, categorical_interp_accumulation, &
+                                   supersample_fac=supersample_fac)
 
      do iCell = 1, nCells
         ! Because maxloc returns the location of the maximum value of an array as if the
