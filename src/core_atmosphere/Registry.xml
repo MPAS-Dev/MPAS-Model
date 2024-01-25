@@ -251,7 +251,8 @@
                      units="-"
                      description="Coefficient for the divergent component of the Laplacian filter of momentum in the relaxation zone"
                      possible_values="Positive real values"/>
-        </nml_record>
+
+	      </nml_record>
 
         <nml_record name="damping" in_defaults="true">
                 <nml_option name="config_zd" type="real" default_value="22000.0"
@@ -263,6 +264,26 @@
                      units="-"
                      description="Maximum w-damping coefficient at model top"
                      possible_values="0 $\leq$ config_xnutr $\leq$ 1"/>
+
+                <nml_option name="config_epssm_minimum" type="real" default_value="0.1"
+                     units="-"
+                     description="Value of epssm below transition zone"
+                     possible_values="Positive real values between 0 and 1"/>
+
+                <nml_option name="config_epssm_maximum" type="real" default_value="0.1"
+                     units="-"
+                     description="Value of epssm above transition zone"
+                     possible_values="Positive real values between 0 and 1"/>
+
+                <nml_option name="config_epssm_transition_bottom_z" type="real" default_value="10000."
+                     units="m"
+                     description="Height MSL of bottom of transition zone for epssm"
+                     possible_values="Positive real values"/>
+
+                <nml_option name="config_epssm_transition_top_z" type="real" default_value="20000."
+                     units="m"
+                     description="Height MSL of top of transition zone for epssm"
+                     possible_values="Positive real values"/>
 
                 <nml_option name="config_mpas_cam_coef" type="real" default_value="0.0" in_defaults="false"
                      units="-"
@@ -471,6 +492,10 @@
 			<var name="cf3"/>
 			<var name="zgrid"/>
 			<var name="rdzw"/>
+			<var name="etp"/>
+			<var name="etm"/>
+			<var name="ewp"/>
+			<var name="ewm"/>
 			<var name="dzu"/>
 			<var name="rdzu"/>
 			<var name="fzm"/>
@@ -487,6 +512,7 @@
 			<var name="deriv_two"/>
 			<var name="defc_a"/>
 			<var name="defc_b"/>
+			<var name="reference_sounding_switch"/> 
 #ifdef MPAS_CAM_DYCORE
 			<var name="cell_gradient_coef_x"/>
 			<var name="cell_gradient_coef_y"/>
@@ -608,6 +634,10 @@
 			<var name="cf3"/>
 			<var name="zgrid"/>
 			<var name="rdzw"/>
+			<var name="etp"/>
+			<var name="etm"/>
+			<var name="ewp"/>
+			<var name="ewm"/>
 			<var name="dzu"/>
 			<var name="rdzu"/>
 			<var name="fzm"/>
@@ -624,6 +654,7 @@
 			<var name="deriv_two"/>
 			<var name="defc_a"/>
 			<var name="defc_b"/>
+			<var name="reference_sounding_switch"/> 
 #ifdef MPAS_CAM_DYCORE
 			<var name="cell_gradient_coef_x"/>
 			<var name="cell_gradient_coef_y"/>
@@ -1357,6 +1388,18 @@
                 <var name="rdzw" type="real" dimensions="nVertLevels" units="unitless"
                      description="Reciprocal dzw"/>
 
+                <var name="etp" type="real" dimensions="nVertLevels" units="unitless"
+                     description="etp = (1+epssm(z))/2 at theta point"/>
+
+                <var name="etm" type="real" dimensions="nVertLevels" units="unitless"
+                     description="etm = (1-epssm(z))/2 at theta point"/>
+
+                <var name="ewp" type="real" dimensions="nVertLevelsP1" units="unitless"
+                     description="ewp = (1+epssm(z))/2 at w point"/>
+
+                <var name="ewm" type="real" dimensions="nVertLevelsP1" units="unitless"
+                     description="ewm = (1-epssm(z))/2 at w point"/>
+
                 <var name="dzu" type="real" dimensions="nVertLevels" units="unitless"
                      description="d(zeta) at w levels"/>
 
@@ -1403,6 +1446,9 @@
 
                 <var name="qv_init" type="real" dimensions="nVertLevels" units="kg kg^{-1}"
                      description="qv reference profile"/>
+
+                <var name="reference_sounding_switch" type="integer" dimensions="" units="unitless" default_value="1" 
+                     description="Switch to designate a reference sounding is used (1) or full variables (0)"/>       
 
                 <!-- Space needed for advection -->
                 <var name="deriv_two" type="real" dimensions="FIFTEEN TWO nEdges" units="unitless"

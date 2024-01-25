@@ -2013,7 +2013,10 @@ module init_atm_cases
 
       integer, dimension(nCells, 2) :: next_cell
       logical, parameter :: terrain_smooth = .false.
-
+!!!JBK reference sounding
+      logical,                         pointer :: config_reference_sounding
+      integer,                         pointer :: reference_sounding_switch
+!!!
       real (kind=RKIND), dimension(:), pointer :: xCell, yCell, zCell
       real (kind=RKIND), dimension(:), pointer :: xEdge, yEdge, zEdge
       real (kind=RKIND), dimension(:), pointer :: xVertex, yVertex, zVertex
@@ -2054,7 +2057,10 @@ module init_atm_cases
       call mpas_pool_get_config(configs, 'config_coef_3rd_order', config_coef_3rd_order)
       call mpas_pool_get_config(configs, 'config_theta_adv_order', config_theta_adv_order)
       call mpas_pool_get_config(configs, 'config_interface_projection', config_interface_projection)
-
+!!!JBK reference sounding switch
+      call mpas_pool_get_config(configs, 'config_reference_sounding', config_reference_sounding)
+      call mpas_pool_get_array(mesh, 'reference_sounding_switch', reference_sounding_switch)
+!!!      
       call mpas_pool_get_array(mesh, 'weightsOnEdge', weightsOnEdge)
       call mpas_pool_get_array(mesh, 'nEdgesOnEdge', nEdgesOnEdge)
       call mpas_pool_get_array(mesh, 'edgesOnEdge', edgesOnEdge)
@@ -2143,7 +2149,13 @@ module init_atm_cases
 
       call atm_initialize_advection_rk(mesh, nCells, nEdges, maxEdges, on_a_sphere, sphere_radius )
       call atm_initialize_deformation_weights(mesh, nCells, on_a_sphere, sphere_radius)
-
+!!!JBK
+      if(config_reference_sounding)  then
+         reference_sounding_switch = 1
+      else
+         reference_sounding_switch = 0
+      end if
+!!!      
       xnutr = 0.1
       zd = 10500.
 
@@ -2388,6 +2400,21 @@ module init_atm_cases
             rr (k,i) = p (k,i)**(1./rcv)/((rgas/p0)*t (k,i)*zz(k,i))-rb(k,i)
             cqw(k,i) = 1.
          end do
+!
+!!!JBK Mods to remove reference state
+!
+         if(reference_sounding_switch.eq.0)  then    
+            do k=1,nz1
+               rr (k,i) = rb(k,i)+rr(k,i)
+               rb (k,i) = 0.
+               rtb(k,i) = 0.
+               pb (k,i) = 0.
+               tb (k,i) = 0.
+            end do
+         end if
+!
+!!!JBK
+!
       end do
 
        call mpas_log_write(' ***** base state sounding ***** ')

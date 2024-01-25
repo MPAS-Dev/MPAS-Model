@@ -555,7 +555,7 @@ module atm_core
    
       call atm_compute_mesh_scaling(mesh, block % configs)
 
-      call atm_compute_damping_coefs(mesh, block % configs)
+      call atm_compute_damping_coefs(mesh, block % configs, nVertLevels)
 
       !
       ! Set up mask fields used in limited-area simulations
@@ -1211,31 +1211,50 @@ module atm_core
    end subroutine atm_compute_signs
 
 
-   subroutine atm_compute_damping_coefs(mesh, configs)
+   subroutine atm_compute_damping_coefs(mesh, configs, nVertLevels)
 
       implicit none
 
       type (mpas_pool_type), intent(inout) :: mesh
       type (mpas_pool_type), intent(in) :: configs
 
-      integer :: iCell, k
-      integer, pointer :: nCells, nVertLevels
+      integer :: iCell, k, nVertLevels
+      integer, pointer :: nCells
       real (kind=RKIND), pointer :: config_xnutr, config_zd
       real (kind=RKIND) :: z, zt, m1, pii
       real (kind=RKIND), dimension(:,:), pointer :: dss, zgrid
       real (kind=RKIND), dimension(:), pointer :: meshDensity
       real (kind=RKIND) :: dx_scale_power
 
+!!!JBK-vepssm
+      real (kind=RKIND), dimension(:), pointer :: rdzw, etp, etm, ewp, ewm
+      real (kind=RKIND), dimension(nVertLevels)          :: height_u_levels, epssm_coeff_u            
+      real (kind=RKIND), dimension(nVertLevels+1)        :: height_w_levels, epssm_coeff_w
+      real (kind=RKIND), pointer  :: max_coeff, min_coeff, transition_lower_bound, transition_upper_bound
+      real (kind=RKIND)  ::  transition_width 
+!!!JBK
+
       m1 = -1.0
       pii = acos(m1)
 
       call mpas_pool_get_dimension(mesh, 'nCells', nCells)
-      call mpas_pool_get_dimension(mesh, 'nVertLevels', nVertLevels)
+!      call mpas_pool_get_dimension(mesh, 'nVertLevels', nVertLevels)
 
       call mpas_pool_get_array(mesh, 'meshDensity', meshDensity)
       call mpas_pool_get_array(mesh, 'dss', dss)
       call mpas_pool_get_array(mesh, 'zgrid', zgrid)
 
+!!!JBK-vepssm
+      call mpas_pool_get_array(mesh, 'rdzw', rdzw)
+      call mpas_pool_get_array(mesh, 'etp', etp)
+      call mpas_pool_get_array(mesh, 'etm', etm)
+      call mpas_pool_get_array(mesh, 'ewp', ewp)
+      call mpas_pool_get_array(mesh, 'ewm', ewm)
+      call mpas_pool_get_config(configs, 'config_epssm_minimum', min_coeff)
+      call mpas_pool_get_config(configs, 'config_epssm_maximum', max_coeff)
+      call mpas_pool_get_config(configs, 'config_epssm_transition_bottom_z', transition_lower_bound)
+      call mpas_pool_get_config(configs, 'config_epssm_transition_top_z', transition_upper_bound)
+!!!JBK
       call mpas_pool_get_config(configs, 'config_zd', config_zd)
       call mpas_pool_get_config(configs, 'config_xnutr', config_xnutr)
 
@@ -1251,6 +1270,44 @@ module atm_core
             end if
          end do
       end do
+
+      transition_width = transition_upper_bound - transition_lower_bound
+
+! initialization for heights of coordinate at u and w levels  
+
+     height_w_levels(:) = 0.0_RKIND
+     do k =1, nVertLevels
+       height_w_levels(k+1) = height_w_levels(k) + 1.0_RKIND/rdzw(k)
+       height_u_levels(k) = 0.5*(height_w_levels(k+1) + height_w_levels(k)) 
+     enddo
+ 
+! Height dependent values of epssm; profiles stored in etp, etm, ewp, and ewm, 
+
+     do k = 1,nVertLevels
+        if(height_u_levels(k).le.transition_lower_bound) then
+           epssm_coeff_u(k) = min_coeff
+        else if(height_u_levels(k).ge.transition_upper_bound)  then
+           epssm_coeff_u(k) = max_coeff
+        else   
+           z = (height_u_levels(k)-transition_lower_bound)/transition_width
+           epssm_coeff_u(k) = min_coeff + sin(0.5_RKIND*pii*z)**2*(max_coeff-min_coeff)
+        end if 
+        etp(k) = 0.5*(1.0 + epssm_coeff_u(k)) 
+        etm(k) = 0.5*(1.0 - epssm_coeff_u(k)) 
+     end do
+     do k= 1,nVertlevels+1
+        if(height_w_levels(k).le.transition_lower_bound) then
+           epssm_coeff_w(k) = min_coeff
+        else if(height_w_levels(k).ge.transition_upper_bound)  then
+           epssm_coeff_w(k) = max_coeff
+        else   
+           z = (height_w_levels(k)-transition_lower_bound)/transition_width
+           epssm_coeff_w(k) = min_coeff + sin(0.5_RKIND*pii*z)**2*(max_coeff-min_coeff)
+        end if 
+        ewp(k) = 0.5*(1.0 + epssm_coeff_w(k)) 
+        ewm(k) = 0.5*(1.0 - epssm_coeff_w(k)) 
+     end do
+!!!JBK
 
    end subroutine atm_compute_damping_coefs
 
