@@ -470,9 +470,20 @@ module atm_time_integration
          call mpas_pool_get_dimension(state, 'index_qr', index_qr)
          call mpas_pool_get_dimension(state, 'index_qi', index_qi)
          call mpas_pool_get_dimension(state, 'index_qs', index_qs)
-         call mpas_pool_get_dimension(state, 'index_qg', index_qg)  
+         call mpas_pool_get_dimension(state, 'index_qg', index_qg)
+         call mpas_pool_get_dimension(state, 'index_qh', index_qh)
+         call mpas_pool_get_dimension(state, 'index_nc', index_nc)
          call mpas_pool_get_dimension(state, 'index_nr', index_nr)
          call mpas_pool_get_dimension(state, 'index_ni', index_ni)
+         call mpas_pool_get_dimension(state, 'index_ns', index_ns)
+         call mpas_pool_get_dimension(state, 'index_ng', index_ng)
+         call mpas_pool_get_dimension(state, 'index_nh', index_nh)
+         call mpas_pool_get_dimension(state, 'index_nccn', index_nccn)
+         call mpas_pool_get_dimension(state, 'index_volg', index_volg)
+         call mpas_pool_get_dimension(state, 'index_volh', index_volh)
+         call mpas_pool_get_dimension(state, 'index_zrw', index_zrw)
+         call mpas_pool_get_dimension(state, 'index_zgw', index_zgw)
+         call mpas_pool_get_dimension(state, 'index_zhw', index_zhw)
       endif
 
       !
