@@ -6773,7 +6773,7 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
         !if (.not. associated(commListPtr % rbuffer)) then
         !   allocate(tempRbuffer(commListPtr % nList))
         !   commListPtr % rbuffer => tempRbuffer
-        !$acc enter data create(tempRbuffer)
+        !!$acc enter data create(tempRbuffer)
         !else 
         !   tempRbuffer => commListPtr % rbuffer
         !end if
@@ -7689,7 +7689,7 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
         !if (.not. associated(commListPtr % rbuffer)) then
         !   allocate(tempRbuffer(commListPtr % nList))
         !   commListPtr % rbuffer => tempRbuffer
-        !$acc enter data create(tempRbuffer)
+        !!$acc enter data create(tempRbuffer)
         !else 
         !   tempRbuffer => commListPtr % rbuffer
         !end if
@@ -8615,7 +8615,7 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
         !if (.not. associated(commListPtr % rbuffer)) then
         !   allocate(tempRbuffer(commListPtr % nList))
         !   commListPtr % rbuffer => tempRbuffer
-        !$acc enter data create(tempRbuffer)
+        !!$acc enter data create(tempRbuffer)
         !else 
         !   tempRbuffer => commListPtr % rbuffer
         !end if
