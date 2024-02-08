@@ -1406,9 +1406,7 @@ module atm_time_integration
                      wdtn_arr(levelsIdx,tmpnCells+1) = 0.0_RKIND
                   enddo
 !$acc end parallel
-!$acc parallel num_gangs(1) num_workers(1) vector_length(1)
                   wdtn_arr(tmpnVertLevels+1,tmpnCells+1) = 0.0_RKIND
-!$acc end parallel
                   if (rk_step < 3 .or. (.not. config_monotonic .and. .not. config_positive_definite)) then
 !$acc parallel
 !$acc loop gang worker vector collapse(2)
@@ -1873,9 +1871,7 @@ module atm_time_integration
                      enddo
                   enddo
 !$acc end parallel
-!$acc parallel num_gangs(1) num_workers(1) vector_length(1)
                   wdtn_arr(tmpnVertLevels+1,tmpnCells+1) = 0.0_RKIND
-!$acc end parallel
                   if (rk_step < 3 .or. (.not. config_monotonic .and. .not. config_positive_definite)) then
 !$acc parallel
 !$acc loop gang worker vector collapse(2)
