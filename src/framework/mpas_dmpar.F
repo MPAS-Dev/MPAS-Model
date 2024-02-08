@@ -6449,7 +6449,7 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
         if (.not. associated(commListPtr % rbuffer)) then
            allocate(tempRbuffer(commListPtr % nList))
            commListPtr % rbuffer => tempRbuffer
-        !$acc enter data create(tempRbuffer)
+           !$acc enter data create(tempRbuffer)
         else 
            tempRbuffer => commListPtr % rbuffer
         end if
@@ -6465,7 +6465,7 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
         if (.not. associated(commListPtr % rbuffer)) then
            allocate(tempRbuffer(commListPtr % nList))
            commListPtr % rbuffer => tempRbuffer
-        !$acc enter data create(tempRbuffer)
+           !$acc enter data create(tempRbuffer)
         else 
            tempRbuffer => commListPtr % rbuffer
         end if
@@ -6493,7 +6493,7 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
         counter=counter+1
         commListPtr => commListPtr % next
       end do
-!$acc wait
+      !$acc wait
       commListPtr => sendList
       do while(associated(commListPtr))
         tempRbuffer => commListPtr % rbuffer
@@ -6515,23 +6515,23 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
       localMax=maxval(gpu_nList_recv(:))
       do while(associated(commListPtr))
         tempRbuffer => commListPtr % rbuffer
-          !$acc data present(tempRbuffer,array,compactHaloInfo,dimsizes, nHaloLayers,dimSizes,gpu_idx_recv,gpu_bufferOffset_recv,gpu_nList_recv) async(counter+1)
-          !$acc parallel num_workers(4) vector_length(128) async(counter+1)
-          !$acc loop independent collapse(2) gang worker vector
-          do iHalo = 1, nHaloLayers
-           do i = 1, localMax
-             if(i<=gpu_nList_recv(counter*nHaloLayers+iHalo)) then
-                array(compactHaloInfo(gpu_idx_recv(counter*nHaloLayers+iHalo) + gpu_nList_recv(counter*nHaloLayers+iHalo) + i)) &
-                = tempRbuffer(compactHaloInfo(gpu_idx_recv(counter*nHaloLayers+iHalo) + i) + gpu_bufferOffset_recv(counter*nHaloLayers+iHalo))
-             end if
-            end do
+        !$acc data present(tempRbuffer,array,compactHaloInfo,dimsizes, nHaloLayers,dimSizes,gpu_idx_recv,gpu_bufferOffset_recv,gpu_nList_recv) async(counter+1)
+        !$acc parallel num_workers(4) vector_length(128) async(counter+1)
+        !$acc loop independent collapse(2) gang worker vector
+        do iHalo = 1, nHaloLayers
+         do i = 1, localMax
+           if(i<=gpu_nList_recv(counter*nHaloLayers+iHalo)) then
+              array(compactHaloInfo(gpu_idx_recv(counter*nHaloLayers+iHalo) + gpu_nList_recv(counter*nHaloLayers+iHalo) + i)) &
+              = tempRbuffer(compactHaloInfo(gpu_idx_recv(counter*nHaloLayers+iHalo) + i) + gpu_bufferOffset_recv(counter*nHaloLayers+iHalo))
+           end if
           end do
-          !$acc end parallel
-          !$acc end data
+        end do
+        !$acc end parallel
+        !$acc end data
         commListPtr => commListPtr % next
         counter=counter+1
       end do
-!$acc wait
+      !$acc wait
 
       ! wait for mpi_isend to finish.
       commListPtr => sendList
@@ -6540,8 +6540,8 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
         commListPtr => commListPtr % next
       end do
      ! Destroy commLists.
-!     call mpas_dmpar_destroy_communication_list(sendList)
-!     call mpas_dmpar_destroy_communication_list(recvList)
+     ! call mpas_dmpar_destroy_communication_list(sendList)
+     ! call mpas_dmpar_destroy_communication_list(recvList)
 #endif
 
      deallocate(haloLayers)
@@ -6672,8 +6672,8 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
         commListPtr => commListPtr % next
       end do
      ! Destroy commLists.
-!     call mpas_dmpar_destroy_communication_list(sendList)
-!     call mpas_dmpar_destroy_communication_list(recvList)
+     ! call mpas_dmpar_destroy_communication_list(sendList)
+     ! call mpas_dmpar_destroy_communication_list(recvList)
 #endif
 
      deallocate(haloLayers)
@@ -6754,13 +6754,13 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
       allocate(gpu_nList_recv(nHaloLayers*memoryCount_recv))
       commListPtr => recvList
       do while(associated(commListPtr))
-      !  if (.not. associated(commListPtr % rbuffer)) then
-      !     allocate(tempRbuffer(commListPtr % nList))
-      !     commListPtr % rbuffer => tempRbuffer
-        !!$acc enter data create(tempRbuffer)
-       ! else 
-           !tempRbuffer => commListPtr % rbuffer
-       ! end if
+        ! if (.not. associated(commListPtr % rbuffer)) then
+        !    allocate(tempRbuffer(commListPtr % nList))
+        !    commListPtr % rbuffer => tempRbuffer
+        !    !$acc enter data create(tempRbuffer)
+        ! else 
+        !    tempRbuffer => commListPtr % rbuffer
+        ! end if
         nullify(commListPtr % ibuffer)
         commListPtr => commListPtr % next
       end do
@@ -6770,13 +6770,13 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
       memoryCounter=0
       idx = 11   ! First endPointID to send to
       do while(associated(commListPtr))
-        !if (.not. associated(commListPtr % rbuffer)) then
-        !   allocate(tempRbuffer(commListPtr % nList))
-        !   commListPtr % rbuffer => tempRbuffer
-        !!$acc enter data create(tempRbuffer)
-        !else 
-        !   tempRbuffer => commListPtr % rbuffer
-        !end if
+        ! if (.not. associated(commListPtr % rbuffer)) then
+        !    allocate(tempRbuffer(commListPtr % nList))
+        !    commListPtr % rbuffer => tempRbuffer
+        !    !$acc enter data create(tempRbuffer)
+        ! else 
+        !    tempRbuffer => commListPtr % rbuffer
+        ! end if
         nullify(commListPtr % ibuffer)
         bufferOffset = 0
         if (commListPtr % procID /= compactHaloInfo(idx)) then
@@ -6892,8 +6892,8 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
       end do
 
      ! Destroy commLists.
-!     call mpas_dmpar_destroy_communication_list(sendList)
-!     call mpas_dmpar_destroy_communication_list(recvList)
+     ! call mpas_dmpar_destroy_communication_list(sendList)
+     ! call mpas_dmpar_destroy_communication_list(recvList)
 #endif
 
      deallocate(haloLayers)
@@ -6974,12 +6974,12 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
       allocate(gpu_nList_recv(nHaloLayers*memoryCount_recv))
       commListPtr => recvList
       do while(associated(commListPtr))
-      !  if (.not. associated(commListPtr % rbuffer)) then
-      !     allocate(tempRbuffer(commListPtr % nList))
-      !     commListPtr % rbuffer => tempRbuffer
-       ! else 
-           !tempRbuffer => commListPtr % rbuffer
-       ! end if
+        ! if (.not. associated(commListPtr % rbuffer)) then
+        !    allocate(tempRbuffer(commListPtr % nList))
+        !    commListPtr % rbuffer => tempRbuffer
+        ! else 
+        !    tempRbuffer => commListPtr % rbuffer
+        ! end if
         nullify(commListPtr % ibuffer)
         commListPtr => commListPtr % next
       end do
@@ -6989,12 +6989,12 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
       memoryCounter=0
       idx = 11   ! First endPointID to send to
       do while(associated(commListPtr))
-        !if (.not. associated(commListPtr % rbuffer)) then
-        !   allocate(tempRbuffer(commListPtr % nList))
-        !   commListPtr % rbuffer => tempRbuffer
-        !else 
-        !   tempRbuffer => commListPtr % rbuffer
-        !end if
+        ! if (.not. associated(commListPtr % rbuffer)) then
+        !    allocate(tempRbuffer(commListPtr % nList))
+        !    commListPtr % rbuffer => tempRbuffer
+        ! else 
+        !    tempRbuffer => commListPtr % rbuffer
+        ! end if
         nullify(commListPtr % ibuffer)
         bufferOffset = 0
         if (commListPtr % procID /= compactHaloInfo(idx)) then
@@ -7361,7 +7361,7 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
         if (.not. associated(commListPtr % rbuffer)) then
            allocate(tempRbuffer(commListPtr % nList))
            commListPtr % rbuffer => tempRbuffer
-        !$acc enter data create(tempRbuffer)
+           !$acc enter data create(tempRbuffer)
         else 
            tempRbuffer => commListPtr % rbuffer
         end if
@@ -7377,7 +7377,7 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
         if (.not. associated(commListPtr % rbuffer)) then
            allocate(tempRbuffer(commListPtr % nList))
            commListPtr % rbuffer => tempRbuffer
-        !$acc enter data create(tempRbuffer)
+           !$acc enter data create(tempRbuffer)
         else 
            tempRbuffer => commListPtr % rbuffer
         end if
@@ -7407,7 +7407,7 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
         counter=counter+1
         commListPtr => commListPtr % next
       end do
-!$acc wait
+      !$acc wait
       commListPtr => sendList
       do while(associated(commListPtr))
         tempRbuffer => commListPtr % rbuffer
@@ -7429,25 +7429,25 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
       localMax=maxval(gpu_nList_recv(:))
       do while(associated(commListPtr))
         tempRbuffer => commListPtr % rbuffer
-          !$acc data present(tempRbuffer,array,compactHaloInfo,dimsizes, nHaloLayers,dimSizes,gpu_idx_recv,gpu_bufferOffset_recv,gpu_nList_recv) async(counter+1)
-          !$acc parallel num_workers(4) vector_length(128) async(counter+1)
-          !$acc loop independent collapse(3) gang worker vector
-          do iHalo = 1, nHaloLayers
-           do i = 1, localMax 
-             do j = 1, dimSizes(1)
-               if(i<=gpu_nList_recv(counter*nHaloLayers+iHalo)) then
-                array(j, compactHaloInfo(gpu_idx_recv(counter*nHaloLayers+iHalo) + gpu_nList_recv(counter*nHaloLayers+iHalo) + i)) &
-                = tempRbuffer((compactHaloInfo(gpu_idx_recv(counter*nHaloLayers+iHalo) + i)-1)*dimSizes(1) + j + gpu_bufferOffset_recv(counter*nHaloLayers+iHalo))
-               end if
-             end do
-            end do
+        !$acc data present(tempRbuffer,array,compactHaloInfo,dimsizes, nHaloLayers,dimSizes,gpu_idx_recv,gpu_bufferOffset_recv,gpu_nList_recv) async(counter+1)
+        !$acc parallel num_workers(4) vector_length(128) async(counter+1)
+        !$acc loop independent collapse(3) gang worker vector
+        do iHalo = 1, nHaloLayers
+         do i = 1, localMax 
+           do j = 1, dimSizes(1)
+             if(i<=gpu_nList_recv(counter*nHaloLayers+iHalo)) then
+              array(j, compactHaloInfo(gpu_idx_recv(counter*nHaloLayers+iHalo) + gpu_nList_recv(counter*nHaloLayers+iHalo) + i)) &
+              = tempRbuffer((compactHaloInfo(gpu_idx_recv(counter*nHaloLayers+iHalo) + i)-1)*dimSizes(1) + j + gpu_bufferOffset_recv(counter*nHaloLayers+iHalo))
+             end if
+           end do
           end do
-          !$acc end parallel
-          !$acc end data
+        end do
+        !$acc end parallel
+        !$acc end data
         commListPtr => commListPtr % next
         counter=counter+1
       end do
-!$acc wait
+      !$acc wait
 
       ! wait for mpi_isend to finish.
       commListPtr => sendList
@@ -7456,8 +7456,8 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
         commListPtr => commListPtr % next
       end do
      ! Destroy commLists.
-!     call mpas_dmpar_destroy_communication_list(sendList)
-!     call mpas_dmpar_destroy_communication_list(recvList)
+     ! call mpas_dmpar_destroy_communication_list(sendList)
+     ! call mpas_dmpar_destroy_communication_list(recvList)
 #endif
 
      deallocate(haloLayers)
@@ -7670,13 +7670,13 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
       allocate(gpu_nList_recv(nHaloLayers*memoryCount_recv))
       commListPtr => recvList
       do while(associated(commListPtr))
-      !  if (.not. associated(commListPtr % rbuffer)) then
-      !     allocate(tempRbuffer(commListPtr % nList))
-      !     commListPtr % rbuffer => tempRbuffer
-        !!$acc enter data create(tempRbuffer)
-       ! else 
-           !tempRbuffer => commListPtr % rbuffer
-       ! end if
+        ! if (.not. associated(commListPtr % rbuffer)) then
+        !    allocate(tempRbuffer(commListPtr % nList))
+        !    commListPtr % rbuffer => tempRbuffer
+        !    !$acc enter data create(tempRbuffer)
+        ! else 
+        !    tempRbuffer => commListPtr % rbuffer
+        ! end if
         nullify(commListPtr % ibuffer)
         commListPtr => commListPtr % next
       end do
@@ -7686,13 +7686,13 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
       memoryCounter=0
       idx = 11   ! First endPointID to send to
       do while(associated(commListPtr))
-        !if (.not. associated(commListPtr % rbuffer)) then
-        !   allocate(tempRbuffer(commListPtr % nList))
-        !   commListPtr % rbuffer => tempRbuffer
-        !!$acc enter data create(tempRbuffer)
-        !else 
-        !   tempRbuffer => commListPtr % rbuffer
-        !end if
+        ! if (.not. associated(commListPtr % rbuffer)) then
+        !    allocate(tempRbuffer(commListPtr % nList))
+        !    commListPtr % rbuffer => tempRbuffer
+        !    !$acc enter data create(tempRbuffer)
+        ! else 
+        !    tempRbuffer => commListPtr % rbuffer
+        ! end if
         nullify(commListPtr % ibuffer)
         bufferOffset = 0
         if (commListPtr % procID /= compactHaloInfo(idx)) then
@@ -7808,8 +7808,8 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
       end do
 
      ! Destroy commLists.
-!     call mpas_dmpar_destroy_communication_list(sendList)
-!     call mpas_dmpar_destroy_communication_list(recvList)
+     ! call mpas_dmpar_destroy_communication_list(sendList)
+     ! call mpas_dmpar_destroy_communication_list(recvList)
 #endif
 
      deallocate(haloLayers)
@@ -8276,7 +8276,7 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
         if (.not. associated(commListPtr % rbuffer)) then
            allocate(tempRbuffer(commListPtr % nList))
            commListPtr % rbuffer => tempRbuffer
-        !$acc enter data create(tempRbuffer)
+           !$acc enter data create(tempRbuffer)
         else 
            tempRbuffer => commListPtr % rbuffer
         end if
@@ -8292,7 +8292,7 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
         if (.not. associated(commListPtr % rbuffer)) then
            allocate(tempRbuffer(commListPtr % nList))
            commListPtr % rbuffer => tempRbuffer
-        !$acc enter data create(tempRbuffer)
+           !$acc enter data create(tempRbuffer)
         else 
            tempRbuffer => commListPtr % rbuffer
         end if
@@ -8325,7 +8325,7 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
         counter=counter+1
         commListPtr => commListPtr % next
       end do
-!$acc wait
+      !$acc wait
       commListPtr => sendList
       do while(associated(commListPtr))
         tempRbuffer => commListPtr % rbuffer
@@ -8347,28 +8347,28 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
       localMax=maxval(gpu_nList_recv(:))
       do while(associated(commListPtr))
         tempRbuffer => commListPtr % rbuffer
-          !$acc data present(tempRbuffer,array,compactHaloInfo,dimsizes, nHaloLayers,dimSizes,gpu_idx_recv,gpu_bufferOffset_recv,gpu_nList_recv) async(counter+1)
-          !$acc parallel num_workers(8) vector_length(128) async(counter+1)
-          !$acc loop independent collapse(4) gang worker vector
-          !!$acc kernels async(counter+1)
-          do iHalo = 1, nHaloLayers
-           do i = 1, localMax 
-             do j = 1, dimSizes(2)
-               do k = 1, dimSizes(1)
-                 if(i<=gpu_nList_recv(counter*nHaloLayers+iHalo)) then
-                    array(k, j, compactHaloInfo(gpu_idx_recv(counter*nHaloLayers+iHalo) + gpu_nList_recv(counter*nHaloLayers+iHalo) + i)) = tempRbuffer((compactHaloInfo(gpu_idx_recv(counter*nHaloLayers+iHalo) + i)-1)*dimSizes(1) * dimSizes(2) + (j-1) * dimSizes(1) + k + gpu_bufferOffset_recv(counter*nHaloLayers+iHalo))
-                 end if
-               end do
+        !$acc data present(tempRbuffer,array,compactHaloInfo,dimsizes, nHaloLayers,dimSizes,gpu_idx_recv,gpu_bufferOffset_recv,gpu_nList_recv) async(counter+1)
+        !$acc parallel num_workers(8) vector_length(128) async(counter+1)
+        !$acc loop independent collapse(4) gang worker vector
+        !!$acc kernels async(counter+1)
+        do iHalo = 1, nHaloLayers
+         do i = 1, localMax 
+           do j = 1, dimSizes(2)
+             do k = 1, dimSizes(1)
+               if(i<=gpu_nList_recv(counter*nHaloLayers+iHalo)) then
+                  array(k, j, compactHaloInfo(gpu_idx_recv(counter*nHaloLayers+iHalo) + gpu_nList_recv(counter*nHaloLayers+iHalo) + i)) = tempRbuffer((compactHaloInfo(gpu_idx_recv(counter*nHaloLayers+iHalo) + i)-1)*dimSizes(1) * dimSizes(2) + (j-1) * dimSizes(1) + k + gpu_bufferOffset_recv(counter*nHaloLayers+iHalo))
+               end if
              end do
-            end do
+           end do
           end do
-          !!$acc end kernels
-          !$acc end parallel
-          !$acc end data
+        end do
+        !!$acc end kernels
+        !$acc end parallel
+        !$acc end data
         commListPtr => commListPtr % next
         counter=counter+1
       end do
-!$acc wait
+      !$acc wait
 
       ! wait for mpi_isend to finish.
       commListPtr => sendList
@@ -8377,8 +8377,8 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
         commListPtr => commListPtr % next
       end do
      ! Destroy commLists.
-!     call mpas_dmpar_destroy_communication_list(sendList)
-!     call mpas_dmpar_destroy_communication_list(recvList)
+     ! call mpas_dmpar_destroy_communication_list(sendList)
+     ! call mpas_dmpar_destroy_communication_list(recvList)
 #endif
 
      deallocate(haloLayers)
@@ -8596,13 +8596,13 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
       allocate(gpu_nList_recv(nHaloLayers*memoryCount_recv))
       commListPtr => recvList
       do while(associated(commListPtr))
-      !  if (.not. associated(commListPtr % rbuffer)) then
-      !     allocate(tempRbuffer(commListPtr % nList))
-      !     commListPtr % rbuffer => tempRbuffer
-        !!$acc enter data create(tempRbuffer)
-       ! else 
-           !tempRbuffer => commListPtr % rbuffer
-       ! end if
+        ! if (.not. associated(commListPtr % rbuffer)) then
+        !    allocate(tempRbuffer(commListPtr % nList))
+        !    commListPtr % rbuffer => tempRbuffer
+        !    !$acc enter data create(tempRbuffer)
+        ! else 
+        !    tempRbuffer => commListPtr % rbuffer
+        ! end if
         nullify(commListPtr % ibuffer)
         commListPtr => commListPtr % next
       end do
@@ -8612,13 +8612,13 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
       memoryCounter=0
       idx = 11   ! First endPointID to send to
       do while(associated(commListPtr))
-        !if (.not. associated(commListPtr % rbuffer)) then
-        !   allocate(tempRbuffer(commListPtr % nList))
-        !   commListPtr % rbuffer => tempRbuffer
-        !!$acc enter data create(tempRbuffer)
-        !else 
-        !   tempRbuffer => commListPtr % rbuffer
-        !end if
+        ! if (.not. associated(commListPtr % rbuffer)) then
+        !    allocate(tempRbuffer(commListPtr % nList))
+        !    commListPtr % rbuffer => tempRbuffer
+        !    !$acc enter data create(tempRbuffer)
+        ! else 
+        !    tempRbuffer => commListPtr % rbuffer
+        ! end if
         nullify(commListPtr % ibuffer)
         bufferOffset = 0
         if (commListPtr % procID /= compactHaloInfo(idx)) then
@@ -8734,8 +8734,8 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
       end do
 
      ! Destroy commLists.
-!     call mpas_dmpar_destroy_communication_list(sendList)
-!     call mpas_dmpar_destroy_communication_list(recvList)
+     ! call mpas_dmpar_destroy_communication_list(sendList)
+     ! call mpas_dmpar_destroy_communication_list(recvList)
 #endif
 
      deallocate(haloLayers)
