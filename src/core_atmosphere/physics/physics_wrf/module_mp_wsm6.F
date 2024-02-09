@@ -583,11 +583,9 @@ CONTAINS
 !----------------------------------------------------------------
 !     compute the minor time steps.
 !
-!$acc parallel num_gangs(1) num_workers(1) vector_length(1)
       loops = max(nint(delt/dtcldcr),1)
       dtcld = delt/loops
       if(delt.le.dtcldcr) dtcld = delt
-!$acc end parallel
 !
       do loop = 1,loops
 !
@@ -627,7 +625,6 @@ CONTAINS
 ! Inline expansion for fpvs
 !         qs(i,k,1) = fpvs(t(i,k),0,rd,rv,cpv,cliq,cice,xlv0,xls,psat,t0c)
 !         qs(i,k,2) = fpvs(t(i,k),1,rd,rv,cpv,cliq,cice,xlv0,xls,psat,t0c)
-!$acc parallel num_gangs(1) num_workers(1) vector_length(1)
       hsub = xls
       hvap = xlv0
       cvap = cpv
@@ -638,7 +635,6 @@ CONTAINS
       dldti=cvap-cice
       xai=-dldti/rv
       xbi=xai+hsub/(rv*ttp)
-!$acc end parallel
 !$acc parallel vector_length(32)
 !$acc loop gang vector collapse(2) private(tr)
       do k = kts, kte
@@ -1558,7 +1554,6 @@ CONTAINS
 ! Inline expansion for fpvs
 !         qs(i,k,1) = fpvs(t(i,k),0,rd,rv,cpv,cliq,cice,xlv0,xls,psat,t0c)
 !         qs(i,k,2) = fpvs(t(i,k),1,rd,rv,cpv,cliq,cice,xlv0,xls,psat,t0c)
-!$acc parallel num_gangs(1) num_workers(1) vector_length(1)
       hsub = xls
       hvap = xlv0
       cvap = cpv
@@ -1569,7 +1564,6 @@ CONTAINS
       dldti=cvap-cice
       xai=-dldti/rv
       xbi=xai+hsub/(rv*ttp)
-!$acc end parallel
 !$acc parallel vector_length(32)
 !$acc loop gang vector collapse(2) private(tr)
       do k = kts, kte
