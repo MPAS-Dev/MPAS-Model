@@ -538,8 +538,7 @@
              svpt0           = svpt0           , stepcu    = n_cu       ,            &
              cu_act_flag     = cu_act_flag     , warm_rain = warm_rain  ,            &
              cutop           = cutop_p         , cubot     = cubot_p    ,            &
-             qv              = qv_p            , f_qv      = f_qv       ,            &
-             f_qc            = f_qc            , f_qr      = f_qr       ,            &
+             qv              = qv_p            , f_qr      = f_qr       ,            &
              f_qi            = f_qi            , f_qs      = f_qs       ,            &
              rthcuten        = rthcuten_p      , rqvcuten  = rqvcuten_p ,            &
              rqccuten        = rqccuten_p      , rqrcuten  = rqrcuten_p ,            &
