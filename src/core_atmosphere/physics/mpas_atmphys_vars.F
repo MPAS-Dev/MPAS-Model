@@ -122,6 +122,8 @@
 ! * added the local variables swddir,swddni,and swddif which are output to subroutine rrtmg_swrad and now input
 !   to the updated module_sf_noahdrv.F.
 !   Laura D. Fowler (laura@ucar.edu) / 2023-04-21.
+! * removed the variable f_qv which is not used in any of the ./physics_wrf modules.
+!   Laura D. Fowler (laura@ucar.edu) / 2024-02-13.
 
 
 !=================================================================================================================
@@ -229,7 +231,7 @@
 !          that the ice phase is included (except for the Kessler scheme which includes water
 !          clouds only.
 
-!    f_qv,f_qc,f_qr,f_qi,f_qs,f_qg: These logicals were initially defined in WRF to determine
+!    f_qc,f_qr,f_qi,f_qs,f_qg: These logicals were initially defined in WRF to determine
 !          which kind of hydrometeors are present. Here, we assume that all six water species
 !          are present, even if their mixing ratios and number concentrations are zero.
 
@@ -239,7 +241,6 @@
     warm_rain=.false.  !warm-phase cloud microphysics only (used in WRF).
 
  logical,parameter:: &
-    f_qv = .true.,    &!
     f_qc = .true.,    &!
     f_qr = .true.,    &!
     f_qi = .true.,    &!
