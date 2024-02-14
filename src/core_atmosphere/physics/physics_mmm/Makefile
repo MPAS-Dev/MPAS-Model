@@ -9,11 +9,14 @@ OBJS = \
 	bl_gwdo.o \
 	bl_ysu.o \
 	cu_ntiedtke.o \
-	sf_sfclayrev.o \
-	module_libmassv.o \
 	mp_radar.o \
 	mp_wsm6_effectRad.o \
-	mp_wsm6.o
+	mp_wsm6.o \
+	mynn_shared.o \
+	sf_mynn.o \
+	sf_sfclayrev.o \
+	module_libmassv.o \
+
 
 physics_mmm: $(OBJS)
 	ar -ru ./../libphys.a $(OBJS)
@@ -25,6 +28,9 @@ mp_wsm6_effectRad.o: \
 mp_wsm6.o: \
 	mp_radar.o \
 	module_libmassv.o
+
+sf_mynn.o: \
+	mynn_shared.o
 
 clean:
 	$(RM) *.f90 *.o *.mod

@@ -128,6 +128,8 @@
 !   initialized in mpas_atmphys_init.F (see subroutine init_physics_flags). also renamed f_qnc to f_nc, and f_qni
 !   to f_ni.
 !   Laura D. Fowler (laura@ucar.edu) / 2024-02-14.
+! * added the variable spp_pbl needed in the updated version of the MYNN surface layer scheme.
+!   Laura D. Fowler (laura@ucar.edu) / 2024-02-14.
 
 
 !=================================================================================================================
@@ -398,6 +400,7 @@
     kzq_p              !
 
 !... MYNN PBL scheme (module_bl_mynn.F):
+ integer,parameter:: spp_pbl       = 0          !generate array with random perturbations (0=off,1=on).
  integer,parameter:: grav_settling = 0
 
  logical,parameter:: bl_mynn_tkeadvect = .false.!

@@ -40,7 +40,8 @@ OBJS = \
 	module_sf_oml.o                \
 	module_sf_sfclay.o             \
 	module_sf_sfclayrev.o          \
-	module_sf_urban.o
+	module_sf_urban.o              \
+	sf_mynn_pre.o
 
 physics_wrf: $(OBJS)
 	ar -ru ./../libphys.a $(OBJS)
@@ -73,8 +74,7 @@ module_sf_bep_bem.o: \
 	module_sf_urban.o
 
 module_sf_mynn.o: \
-	module_bl_mynn.o \
-	module_sf_sfclay.o
+	sf_mynn_pre.o
 
 module_sf_noahdrv.o: \
 	module_sf_bem.o \
