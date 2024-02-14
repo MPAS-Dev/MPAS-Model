@@ -17,6 +17,7 @@
  use mpas_atmphys_driver_radiation_lw, only: init_radiation_lw
  use mpas_atmphys_driver_radiation_sw, only: init_radiation_sw
  use mpas_atmphys_driver_sfclayer
+ use mpas_atmphys_vars,only: f_qc,f_qr,f_qi,f_qs,f_qg,f_nc,f_ni
 
  use mpas_atmphys_landuse
  use mpas_atmphys_o3climatology
@@ -64,6 +65,8 @@
 ! * removed the calculation of the variable dcEdge_m which is no longer needed in the different physics
 !   parameterizations.
 !   Laura D. Fowler (laura@ucar.edu) / 2016-10-18.
+! * added the subroutine init_physics_flags to initialize f_qc,f_qr,f_qi,f_qs,f_qg,f_nc,and f_ni.
+!   Laura D. Fowler (laura@ucar.edu) / 2024-02-14.
 
 
  contains
@@ -213,6 +216,9 @@
 !initialization of east-north directions to convert u-tendencies from cell centers to cell
 !edges:
  call init_dirs_forphys(mesh)
+
+!initialization of logical flags for cloud mixing ratios:
+ call init_physics_flags(state,f_qc,f_qr,f_qi,f_qs,f_qg,f_nc,f_ni)
 
 !initialization of counters i_rainc and i_rainnc. i_rainc and i_rainnc track the number of
 !times the accumulated convective (rainc) and grid-scale (rainnc) rain exceed the prescribed
@@ -396,6 +402,51 @@
 ! call mpas_log_write('')
 
  end subroutine physics_init
+
+!=================================================================================================================
+ subroutine init_physics_flags(state,f_qc,f_qr,f_qi,f_qs,f_qg,f_nc,f_ni)
+!=================================================================================================================
+
+!input arguments:
+ type(mpas_pool_type),intent(in):: state
+
+!output arguments:
+ logical,intent(out):: f_qc,f_qr,f_qi,f_qs,f_qg
+ logical,intent(out):: f_nc,f_ni
+
+!local pointers:
+ integer,pointer:: index_qc,index_qr,index_qi,index_qs,index_qg
+ integer,pointer:: index_ni
+
+!-----------------------------------------------------------------------------------------------------------------
+
+!initializes the logicals assigned to mixing ratios:
+ f_qc = .false.
+ f_qr = .false.
+ f_qi = .false.
+ f_qs = .false.
+ f_qg = .false.
+ call mpas_pool_get_dimension(state,'index_qc',index_qc)
+ call mpas_pool_get_dimension(state,'index_qr',index_qr)
+ call mpas_pool_get_dimension(state,'index_qi',index_qi)
+ call mpas_pool_get_dimension(state,'index_qs',index_qs)
+ call mpas_pool_get_dimension(state,'index_qg',index_qg)
+
+ if(index_qc .gt. -1) f_qc = .true.
+ if(index_qr .gt. -1) f_qr = .true.
+ if(index_qi .gt. -1) f_qi = .true.
+ if(index_qs .gt. -1) f_qs = .true.
+ if(index_qg .gt. -1) f_qg = .true.
+
+!initializes the logical assigned to number concentrations: note that for now, the number concentration of cloud
+!water droplets (nc) is not defined in Registry.xml. therefore f_nc is set to false by default.
+ f_nc = .false.
+ f_ni = .false.
+ call mpas_pool_get_dimension(state,'index_ni',index_ni)
+
+ if(index_ni .gt. -1) f_ni = .true.
+
+ end subroutine init_physics_flags
 
 !=================================================================================================================
  subroutine init_dirs_forphys(mesh)

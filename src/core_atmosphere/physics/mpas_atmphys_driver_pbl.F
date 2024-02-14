@@ -73,6 +73,8 @@
 !   errmsg and errflg in the call to subroutine ysu for compliance with the CCPP framework. also removed local
 !   variable regime_p which is no longer needed in the call to subroutine ysu.
 !   Laura D. Fowler (laura@ucar.edu) / 2023-05-15.
+! * in the call to subroutine mynn_bl_driver,renamed f_qnc to f_nc, and f_qni to f_ni.
+!   Laura D. Fowler (laura@ucar.edu) / 2024-02-24.
 
 
  contains
@@ -659,8 +661,8 @@
                  qi       = qi_p        , qni      = ni_p        , rho      = rho_p      , &
                  du       = rublten_p   , dv       = rvblten_p   , dth      = rthblten_p , &
                  dqv      = rqvblten_p  , dqc      = rqcblten_p  , dqi      = rqiblten_p , &
-                 dqni     = rniblten_p  , flag_qc  = f_qc        , flag_qnc = f_qnc      , &
-                 flag_qi  = f_qi        , flag_qni = f_qni       , kpbl     = kpbl_p     , &
+                 dqni     = rniblten_p  , flag_qc  = f_qc        , flag_qnc = f_nc       , &
+                 flag_qi  = f_qi        , flag_qni = f_ni        , kpbl     = kpbl_p     , &
                  pblh     = hpbl_p      , xland    = xland_p     , ts       = tsk_p      , &
                  hfx      = hfx_p       , qfx      = qfx_p       , ch       = ch_p       , &
                  sh3d     = sh3d_p      , tsq      = tsq_p       , qsq      = qsq_p      , &

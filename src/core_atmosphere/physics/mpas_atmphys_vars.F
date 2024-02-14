@@ -124,6 +124,10 @@
 !   Laura D. Fowler (laura@ucar.edu) / 2023-04-21.
 ! * removed the variable f_qv which is not used in any of the ./physics_wrf modules.
 !   Laura D. Fowler (laura@ucar.edu) / 2024-02-13.
+! * removed the definition of f_qc,f_qr,f_qi,f_qs,f_qg,f_nc,and f_ni as parameters. these variables are now
+!   initialized in mpas_atmphys_init.F (see subroutine init_physics_flags). also renamed f_qnc to f_nc, and f_qni
+!   to f_ni.
+!   Laura D. Fowler (laura@ucar.edu) / 2024-02-14.
 
 
 !=================================================================================================================
@@ -231,25 +235,21 @@
 !          that the ice phase is included (except for the Kessler scheme which includes water
 !          clouds only.
 
-!    f_qc,f_qr,f_qi,f_qs,f_qg: These logicals were initially defined in WRF to determine
-!          which kind of hydrometeors are present. Here, we assume that all six water species
-!          are present, even if their mixing ratios and number concentrations are zero.
-
 !=================================================================================================================
 
  logical,parameter:: &
     warm_rain=.false.  !warm-phase cloud microphysics only (used in WRF).
 
- logical,parameter:: &
-    f_qc = .true.,    &!
-    f_qr = .true.,    &!
-    f_qi = .true.,    &!
-    f_qs = .true.,    &!
-    f_qg = .true.      !
+ logical:: &
+    f_qc,             &!parameter set to true to include the cloud water mixing ratio.
+    f_qr,             &!parameter set to true to include the rain mixing ratio.
+    f_qi,             &!parameter set to true to include the cloud ice mixing ratio.
+    f_qs,             &!parameter set to true to include the snow minxg ratio.
+    f_qg               !parameter set to true to include the graupel mixing ratio.
 
- logical,parameter:: &
-    f_qnc = .true.,   &!
-    f_qni = .true.     !
+ logical:: &
+    f_nc,             &!parameter set to true to include the cloud water droplet number concentration.
+    f_ni               !parameter set to true to include the cloud ice crystal number concentration.
 
  real(kind=RKIND),dimension(:,:,:),allocatable:: &
     f_ice,            &!fraction of cloud ice (used in WRF only).
