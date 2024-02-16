@@ -1257,11 +1257,42 @@ endif
 	    exit 1; \
 	fi
 
+
+mpi_f08_test:
+	@#
+	@# MPAS_MPI_F08 will be set to:
+	@#  0 if no mpi_f08 module support was detected
+	@#  1 if the MPI library provides an mpi_f08 module
+	@#
+	$(info Checking for mpi_f08 support...)
+	$(eval MPAS_MPI_F08 := $(shell $\
+		printf "program main\n$\
+		        &   use mpi_f08, only : MPI_Init, MPI_Comm\n$\
+		        &   integer :: ierr\n$\
+		        &   type (MPI_Comm) :: comm\n$\
+		        &   call MPI_Init(ierr)\n$\
+		        end program main\n" | sed 's/&/ /' > mpi_f08.f90; $\
+		$\
+		$(FC) mpi_f08.f90 -o mpi_f08.x $(FFLAGS) $(LDFLAGS) > /dev/null 2>&1; $\
+		mpi_f08_status=$$?; $\
+		rm -f mpi_f08.f90 mpi_f08.x; $\
+		if [ $$mpi_f08_status -eq 0 ]; then $\
+		    printf "1"; $\
+		else $\
+		    printf "0"; $\
+		fi $\
+	))
+	$(if $(findstring 0,$(MPAS_MPI_F08)), $(eval MPI_F08_MESSAGE = "Using the mpi module."), )
+	$(if $(findstring 0,$(MPAS_MPI_F08)), $(info No working mpi_f08 module detected; using mpi module.))
+	$(if $(findstring 1,$(MPAS_MPI_F08)), $(eval override CPPFLAGS += -DMPAS_USE_MPI_F08), )
+	$(if $(findstring 1,$(MPAS_MPI_F08)), $(eval MPI_F08_MESSAGE = "Using the mpi_f08 module."), )
+	$(if $(findstring 1,$(MPAS_MPI_F08)), $(info mpi_f08 module detected.))
+
 ifneq "$(PIO)" ""
-MAIN_DEPS = openmp_test openacc_test pio_test
+MAIN_DEPS = openmp_test openacc_test pio_test mpi_f08_test
 override CPPFLAGS += "-DMPAS_PIO_SUPPORT"
 else
-MAIN_DEPS = openmp_test openacc_test
+MAIN_DEPS = openmp_test openacc_test mpi_f08_test
 IO_MESSAGE = "Using the SMIOL library."
 override CPPFLAGS += "-DMPAS_SMIOL_SUPPORT"
 endif
@@ -1300,6 +1331,7 @@ endif
 	@echo $(PRECISION_MESSAGE)
 	@echo $(DEBUG_MESSAGE)
 	@echo $(PARALLEL_MESSAGE)
+	@echo $(MPI_F08_MESSAGE)
 	@echo $(PAPI_MESSAGE)
 	@echo $(TAU_MESSAGE)
 	@echo $(OPENMP_MESSAGE)
