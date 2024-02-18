@@ -147,6 +147,7 @@ mpas_atmphys_init.o: \
 	mpas_atmphys_driver_convection.o \
 	mpas_atmphys_driver_lsm.o \
 	mpas_atmphys_driver_microphysics.o \
+	mpas_atmphys_driver_pbl.o \
 	mpas_atmphys_driver_radiation_lw.o \
 	mpas_atmphys_driver_radiation_sw.o \
 	mpas_atmphys_driver_sfclayer.o \
