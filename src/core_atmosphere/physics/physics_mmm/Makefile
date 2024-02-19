@@ -7,6 +7,8 @@ dummy:
 
 OBJS = \
 	bl_gwdo.o \
+	bl_mynn.o \
+	bl_mynn_subroutines.o \
 	bl_ysu.o \
 	cu_ntiedtke.o \
 	mp_radar.o \
@@ -22,6 +24,12 @@ physics_mmm: $(OBJS)
 	ar -ru ./../libphys.a $(OBJS)
 
 # DEPENDENCIES:
+bl_mynn.o: \
+	bl_mynn_subroutines.o
+
+bl_mynn_subroutines.o: \
+	mynn_shared.o
+
 mp_wsm6_effectRad.o: \
 	mp_wsm6.o
 

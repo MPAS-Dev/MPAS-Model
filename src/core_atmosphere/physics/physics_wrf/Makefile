@@ -41,6 +41,8 @@ OBJS = \
 	module_sf_sfclay.o             \
 	module_sf_sfclayrev.o          \
 	module_sf_urban.o              \
+	bl_mynn_post.o                 \
+	bl_mynn_pre.o                  \
 	sf_mynn_pre.o
 
 physics_wrf: $(OBJS)
@@ -48,7 +50,8 @@ physics_wrf: $(OBJS)
 
 # DEPENDENCIES:
 module_bl_mynn.o: \
-	module_cam_error_function.o
+	bl_mynn_post.o \
+	bl_mynn_pre.o
 
 module_cam_support.o: \
 	module_cam_shr_kind_mod.o
