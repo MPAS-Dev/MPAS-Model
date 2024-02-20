@@ -313,7 +313,7 @@
 !            Revision option bl_mynn_cloudpdf = 2, which now ensures cloud fractions for all
 !                optically relevant mixing ratios (tip from Greg Thompson). Also, added flexibility
 !                for tuning near-surface cloud fractions to remove excess fog/low ceilings.
-!            Now outputs all SGS cloud mixing ratios as grid-mean values, not in-cloud. This 
+!            Now outputs all SGS cloud mixing ratios as grid-mean values, not in-cloud. This
 !                results in a change in the pre-radiation code to no longer multiply mixing ratios
 !                by cloud fractions.
 !            Bug fix for the momentum transport.
@@ -1611,7 +1611,7 @@ CONTAINS
     real(kind_phys), dimension(kts:kte+1), intent(in) :: zw
     real(kind_phys), intent(in)       :: rmo,flt,fltv,flq,                 &
          &Psig_bl,Psig_shcu,xland,dx,zi
-    real(kind_phys), dimension(kts:kte), intent(in) :: u,v,thl,thetav,qw,  & 
+    real(kind_phys), dimension(kts:kte), intent(in) :: u,v,thl,thetav,qw,  &
          &ql,vt,vq,qke,tsq,qsq,cov,cldfra_bl1D,edmf_w1,edmf_a1,            &
          &TKEprodTD
 
@@ -2166,7 +2166,7 @@ CONTAINS
        &            qWT1D, qDISS1D,tke_budget)  !! TKE budget  (Puhales, 2020)
 
 !-------------------------------------------------------------------
-    integer, intent(in) :: kts,kte    
+    integer, intent(in) :: kts,kte
 
 #ifdef HARDCODE_VERTICAL
 # define kts 1
@@ -2184,8 +2184,8 @@ CONTAINS
     real(kind_phys), dimension(kts:kte+1), intent(inout) :: s_awqke,s_aw
     
     !!  TKE budget  (Puhales, 2020, WRF 4.2.1)  << EOB 
-    real(kind_phys), dimension(kts:kte), intent(out) :: qWT1D, qDISS1D  
-    real(kind_phys), dimension(kts:kte) :: tke_up,dzinv  
+    real(kind_phys), dimension(kts:kte), intent(out) :: qWT1D, qDISS1D
+    real(kind_phys), dimension(kts:kte) :: tke_up,dzinv
     !! >> EOB
     
     integer :: k
@@ -2872,7 +2872,7 @@ CONTAINS
            endif
 
            !In saturated grid cells, use average of SGS and resolved values
-           !if ( qc(k) > 1.e-6 ) ql_water = 0.5 * ( ql_water + qc(k) ) 
+           !if ( qc(k) > 1.e-6 ) ql_water = 0.5 * ( ql_water + qc(k) )
            !ql_ice is actually the total frozen condensate (snow+ice),
            !if ( (qi(k)+qs(k)) > 1.e-9 ) ql_ice = 0.5 * ( ql_ice + (qi(k)+qs(k)) )
 
@@ -3865,7 +3865,7 @@ ENDIF
            &             + xlscp/exner(k)*sqi(k)
 
          t  = th_new*exner(k)
-         qsat = qsat_blend(t,t0c,tice,p(k)) 
+         qsat = qsat_blend(t,t0c,tice,p(k))
          !SATURATED VAPOR PRESSURE
          !esat=esat_blend(t,t0c,tice)
          !SATURATED SPECIFIC HUMIDITY
@@ -4216,7 +4216,7 @@ ENDIF
     real(kind_phys), dimension(kts:kte) :: a,b,c,d,x
     real(kind_phys):: rhs,dztop
     real(kind_phys):: t,dzk
-    real(kind_phys):: hght 
+    real(kind_phys):: hght
     real(kind_phys):: khdz_old, khdz_back
     integer :: k,kk,kmaxfire                         ! JLS 12/21/21
     integer :: ic  ! Chemical array loop index
@@ -4677,7 +4677,7 @@ ENDIF
             ! output info
                  & maxwidth,ktop,maxmf,ztop,    &
             ! inputs for stochastic perturbations
-                 & spp_pbl,rstoch_col           ) 
+                 & spp_pbl,rstoch_col           )
 
   ! inputs:
      integer, intent(in) :: ii
@@ -4754,7 +4754,7 @@ ENDIF
      real(kind_phys), parameter :: Atot = 0.10 ! Maximum total fractional area of all updrafts
      real(kind_phys), parameter :: lmax = 1000.! diameter of largest plume (absolute maximum, can be smaller)
      real(kind_phys), parameter :: lmin = 300. ! diameter of smallest plume (absolute minimum, can be larger)
-     real(kind_phys), parameter :: dlmin = 0.  ! delta increase in the diameter of smallest plume (large fltv) 
+     real(kind_phys), parameter :: dlmin = 0.  ! delta increase in the diameter of smallest plume (large fltv)
      real(kind_phys)            :: minwidth    ! actual width of smallest plume
      real(kind_phys)            :: dl          ! variable increment of plume size
      real(kind_phys), parameter :: dcut = 1.2  ! max diameter of plume to parameterize relative to dx (km)
@@ -4935,7 +4935,7 @@ ENDIF
      hux = -0.005  ! LAND    ! dT/dz must be < - 0.5 K per 100 m.
   endif
   tvs = ts*(1.0+p608*qv(kts))
-  do k=1,max(1,k50-1) !use "-1" because k50 used interface heights (zw). 
+  do k=1,max(1,k50-1) !use "-1" because k50 used interface heights (zw).
     if (k == 1) then
       if ((thv(k)-tvs)/(0.5*dz(k)) < hux) then
         superadiabatic = .true.
@@ -4964,7 +4964,7 @@ ENDIF
   ! Criteria (1)
     maxwidth = min(dx*dcut, lmax)
   !Criteria (2)
-    maxwidth = min(maxwidth, 1.1_kind_phys*PBLH) 
+    maxwidth = min(maxwidth, 1.1_kind_phys*PBLH)
   ! Criteria (3)
     if ((landsea-1.5) .lt. 0) then  !land
        maxwidth = MIN(maxwidth, 0.5_kind_phys*cloud_base)
@@ -4984,7 +4984,7 @@ ENDIF
     minwidth = lmin
     !allow min plume size to increase in large flux conditions (eddy diffusivity should be
     !large enough to handle the representation of small plumes).
-    if (maxwidth .ge. (lmax - 1.0) .and. fltv .gt. 0.2)minwidth = lmin + dlmin*min((fltv-0.2)/0.3, 1._kind_phys) 
+    if (maxwidth .ge. (lmax - 1.0) .and. fltv .gt. 0.2)minwidth = lmin + dlmin*min((fltv-0.2)/0.3, 1._kind_phys)
 
     if (maxwidth .le. minwidth) then ! deactivate MF component
        nup2 = 0
@@ -5581,7 +5581,7 @@ IF (nup2 > 0) THEN
    ENDIF !end subsidence/env detranment
 
    !First, compute exner, plume theta, and dz centered at interface
-   !Here, k=1 is the top of the first model layer. These values do not 
+   !Here, k=1 is the top of the first model layer. These values do not
    !need to be defined at k=kte (unused level).
    DO K=KTS,KTE-1
        exneri(k) = (exner(k)*dz(k+1)+exner(k+1)*dz(k))/(dz(k+1)+dz(k))
@@ -5621,7 +5621,7 @@ IF (nup2 > 0) THEN
                                                                 ! CB02, Eqn. 4
             cpm = cp + qt(k)*cpv                                ! CB02, sec. 2, para. 1
             a   = 1./(1. + xl*rsl/cpm)                          ! CB02 variable "a"
-            b9  = a*rsl                                         ! CB02 variable "b" 
+            b9  = a*rsl                                         ! CB02 variable "b"
 
             q2p  = xlvcp/exner(k)
             pt = thl(k) +q2p*QCp*Aup ! potential temp (env + plume)
@@ -5732,7 +5732,7 @@ ENDIF  !end nup2 > 0
 
 !modify output (negative: dry plume, positive: moist plume)
 if (ktop > 0) then
-   maxqc = maxval(edmf_qc(1:ktop)) 
+   maxqc = maxval(edmf_qc(1:ktop))
    if ( maxqc < 1.E-8) maxmf = -1.0*maxmf
 endif
 
@@ -5961,10 +5961,10 @@ SUBROUTINE DDMF_JPL(kts,kte,dt,zw,dz,p,              &
             & dp,                    &   !diameter of plume
             & dl,                    &   !diameter increment
             & Adn                        !total area of downdrafts
-   !additional printouts for debugging 
+   !additional printouts for debugging
         integer, parameter :: debug_mf=0
 
-   dl = (1000.-500.)/real(ndown) 
+   dl = (1000.-500.)/real(ndown)
    pwmin=-3. ! drawing from the negative tail -3sigma to -1sigma
    pwmax=-1.
 
@@ -6035,7 +6035,7 @@ SUBROUTINE DDMF_JPL(kts,kte,dt,zw,dz,p,              &
    enddo
    F0 = max(F0, 1.0)
 
-   !Allow the total fractional area of the downdrafts to be proportional 
+   !Allow the total fractional area of the downdrafts to be proportional
    !to the radiative forcing:
    !for  50 W/m2, Adn = 0.10
    !for 100 W/m2, Adn = 0.15
@@ -6106,7 +6106,7 @@ SUBROUTINE DDMF_JPL(kts,kte,dt,zw,dz,p,              &
 
          !DOWNW(ki,I)=0.5*(wlv+wtv)
          DOWNW(ki,I)=wlv
-         !multiply downa by cloud fraction, so it's impact will diminish if 
+         !multiply downa by cloud fraction, so it's impact will diminish if
          !clouds are mixed away over the course of the longer radiation time step
          !DOWNA(ki,I)=0.5*ERF(wtv/(sqrt(2.)*sigmaW))-0.5*ERF(wlv/(sqrt(2.)*sigmaW))
          DOWNA(ki,I)=Adn/real(NDOWN)
