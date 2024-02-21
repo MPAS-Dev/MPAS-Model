@@ -485,16 +485,28 @@ module mpas_halo
     !-----------------------------------------------------------------------
     subroutine mpas_halo_exch_group_full_halo_exch(domain, groupName, iErr)
 
+#ifdef MPAS_USE_MPI_F08
+        use mpi_f08
+#else
         use mpi
+#endif
         use mpas_derived_types, only : domain_type, mpas_halo_group, MPAS_HALO_REAL, MPAS_LOG_CRIT
         use mpas_pool_routines, only : mpas_pool_get_array
         use mpas_log, only : mpas_log_write
 
         ! Parameters
+#ifdef MPAS_USE_MPI_F08
+#ifdef SINGLE_PRECISION
+        type (MPI_Datatype), parameter :: MPI_REALKIND = MPI_REAL
+#else
+        type (MPI_Datatype), parameter :: MPI_REALKIND = MPI_DOUBLE_PRECISION
+#endif
+#else
 #ifdef SINGLE_PRECISION
         integer, parameter :: MPI_REALKIND = MPI_REAL
 #else
         integer, parameter :: MPI_REALKIND = MPI_DOUBLE_PRECISION
+#endif
 #endif
 
         ! Arguments
@@ -508,7 +520,12 @@ module mpas_halo
         integer :: i1, i2, j, iNeighbor, iReq
         integer :: iHalo, iEndp
         integer :: nHalos, nSendEndpts, nRecvEndpts
-        integer :: rank, comm
+        integer :: rank
+#ifdef MPAS_USE_MPI_F08
+        type (MPI_Comm) :: comm
+#else
+        integer :: comm
+#endif
         integer :: mpi_ierr
         type (mpas_halo_group), pointer :: group
         integer, dimension(:), pointer :: compactHaloInfo
@@ -550,7 +567,11 @@ module mpas_halo
         ! the group; all fields should be using the same communicator, so this should not
         ! be problematic
         !
+#ifdef MPAS_USE_MPI_F08
+        comm % mpi_val = group % fields(1) % compactHaloInfo(7)
+#else
         comm = group % fields(1) % compactHaloInfo(7)
+#endif
         rank = group % fields(1) % compactHaloInfo(8)
 
 
@@ -992,7 +1013,11 @@ module mpas_halo
         ! 7-8: Add MPI info
         !
         idx = 7
+#ifdef MPAS_USE_MPI_F08
+        compactHaloInfo(idx) = domain % dminfo % comm % mpi_val
+#else
         compactHaloInfo(idx) = domain % dminfo % comm
+#endif
         idx = idx + 1
         compactHaloInfo(idx) = domain % dminfo % my_proc_id
         idx = idx + 1

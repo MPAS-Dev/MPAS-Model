@@ -31,7 +31,11 @@ module mpas_dmpar
 
 #ifdef _MPI
 #ifndef NOMPIMOD
+#ifdef MPAS_USE_MPI_F08
+   use mpi_f08
+#else
    use mpi
+#endif
 #endif
 #endif
 
@@ -42,15 +46,30 @@ module mpas_dmpar
 #ifdef NOMPIMOD
 include 'mpif.h'
 #endif
+#ifdef MPAS_USE_MPI_F08
+   type (MPI_Datatype), parameter :: MPI_INTEGERKIND = MPI_INTEGER
+   type (MPI_Datatype), parameter :: MPI_2INTEGERKIND = MPI_2INTEGER
+#else
    integer, parameter :: MPI_INTEGERKIND = MPI_INTEGER
    integer, parameter :: MPI_2INTEGERKIND = MPI_2INTEGER
+#endif
 
 #ifdef SINGLE_PRECISION
+#ifdef MPAS_USE_MPI_F08
+   type (MPI_Datatype), parameter :: MPI_REALKIND = MPI_REAL
+   type (MPI_Datatype), parameter :: MPI_2REALKIND = MPI_2REAL
+#else
    integer, parameter :: MPI_REALKIND = MPI_REAL
    integer, parameter :: MPI_2REALKIND = MPI_2REAL
+#endif
+#else
+#ifdef MPAS_USE_MPI_F08
+   type (MPI_Datatype), parameter :: MPI_REALKIND = MPI_DOUBLE_PRECISION
+   type (MPI_Datatype), parameter :: MPI_2REALKIND = MPI_2DOUBLE_PRECISION
 #else
    integer, parameter :: MPI_REALKIND = MPI_DOUBLE_PRECISION
    integer, parameter :: MPI_2REALKIND = MPI_2DOUBLE_PRECISION
+#endif
 #endif
 #endif
 
@@ -232,12 +251,16 @@ include 'mpif.h'
 !>  It also setups of the domain information structure.
 !
 !-----------------------------------------------------------------------
-   subroutine mpas_dmpar_init(dminfo, mpi_comm)!{{{
+   subroutine mpas_dmpar_init(dminfo, external_comm)!{{{
 
       implicit none
 
       type (dm_info), intent(inout) :: dminfo !< Input/Output: Domain information
-      integer, intent(in), optional :: mpi_comm !< Input - Optional: externally-supplied MPI communicator
+#ifdef MPAS_USE_MPI_F08
+      type (MPI_Comm), intent(in), optional :: external_comm !< Input - Optional: externally-supplied MPI communicator
+#else
+      integer, intent(in), optional :: external_comm !< Input - Optional: externally-supplied MPI communicator
+#endif
 
 #ifdef _MPI
       integer :: mpi_rank, mpi_size
@@ -246,13 +269,13 @@ include 'mpif.h'
       integer :: desiredThreadLevel, threadLevel
 #endif
 
-      if ( present(mpi_comm) ) then
+      if ( present(external_comm) ) then
          dminfo % initialized_mpi = .false.
 #ifdef MPAS_OPENMP
          desiredThreadLevel = MPI_THREAD_FUNNELED
          call MPI_Query_thread(threadLevel, mpi_ierr)
 #endif
-         call MPI_Comm_dup(mpi_comm, dminfo % comm, mpi_ierr)
+         call MPI_Comm_dup(external_comm, dminfo % comm, mpi_ierr)
       else
          dminfo % initialized_mpi = .true.
 #ifdef MPAS_OPENMP
@@ -1540,7 +1563,12 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
       type (field0dInteger), pointer :: offsetCursor, ownedLimitCursor
       integer :: nOwnedBlocks, nNeededBlocks
       integer :: nOwnedList, nNeededList
-      integer :: mpi_ierr, mpi_rreq, mpi_sreq
+      integer :: mpi_ierr
+#ifdef MPAS_USE_MPI_F08
+      type (MPI_Request) :: mpi_rreq, mpi_sreq
+#else
+      integer :: mpi_rreq, mpi_sreq
+#endif
 
       type (hashtable) :: neededHash
       integer :: nUniqueNeededList, threadNum
@@ -10073,7 +10101,11 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
             call mpas_log_write('         proc: $i', intArgs=(/commListPtr % procID/))
             call mpas_log_write('         size check: $i $i', intArgs=(/commListPtr % nlist, size( commListPtr % rbuffer )/))
             call mpas_log_write('         bufferOffset: $i', intArgs=(/commListPtr % bufferOffset/))
+#ifdef MPAS_USE_MPI_F08
+            call mpas_log_write('         reqId: $i', intArgs=(/commListPtr % reqId % mpi_val/))
+#else
             call mpas_log_write('         reqId: $i', intArgs=(/commListPtr % reqId/))
+#endif
             call mpas_log_write('         ibuffer assc: $l', logicArgs=(/ associated( commListPtr % ibuffer ) /) )
             call mpas_log_write('         rbuffer assc: $l', logicArgs=(/ associated( commListPtr % rbuffer ) /) )
             call mpas_log_write('         next assc: $l', logicArgs=(/ associated( commListPtr % next ) /) )
@@ -10092,7 +10124,11 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
             call mpas_log_write('         proc: $i', intArgs=(/ commListPtr % procID /) )
             call mpas_log_write('         size check: $i $i', intArgs=(/ commListPtr % nlist, size( commListPtr % rbuffer ) /) )
             call mpas_log_write('         bufferOffset: $i', intArgs=(/ commListPtr % bufferOffset /) )
+#ifdef MPAS_USE_MPI_F08
+            call mpas_log_write('         reqId: $i', intArgs=(/ commListPtr % reqId % mpi_val /) )
+#else
             call mpas_log_write('         reqId: $i', intArgs=(/ commListPtr % reqId /) )
+#endif
             call mpas_log_write('         ibuffer assc: $l', logicArgs=(/ associated( commListPtr % ibuffer ) /) )
             call mpas_log_write('         rbuffer assc: $l', logicArgs=(/ associated( commListPtr % rbuffer ) /) )
             call mpas_log_write('         next assc: $l', logicArgs=(/ associated( commListPtr % next ) /) )

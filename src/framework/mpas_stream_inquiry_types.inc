@@ -7,10 +7,17 @@
    end type MPAS_streamInfo_type
 
    abstract interface
-      function streaminfo_init_function(this, mpi_comm, stream_filename) result(ierr)
+      function streaminfo_init_function(this, comm, stream_filename) result(ierr)
+#ifdef MPAS_USE_MPI_F08
+         use mpi_f08, only : MPI_Comm
+#endif
          import MPAS_streamInfo_type
          class (MPAS_streamInfo_type) :: this
-         integer, intent(in) :: mpi_comm
+#ifdef MPAS_USE_MPI_F08
+         type (MPI_Comm), intent(in) :: comm
+#else
+         integer, intent(in) :: comm
+#endif
          character(len=*), intent(in) :: stream_filename
          integer :: ierr
       end function streaminfo_init_function

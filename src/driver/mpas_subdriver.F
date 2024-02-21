@@ -39,8 +39,11 @@ module mpas_subdriver
    contains
 
 
-   subroutine mpas_init(corelist, domain_ptr, mpi_comm, namelistFileParam, streamsFileParam)
+   subroutine mpas_init(corelist, domain_ptr, external_comm, namelistFileParam, streamsFileParam)
 
+#ifdef MPAS_USE_MPI_F08
+      use mpi_f08, only : MPI_Comm
+#endif
       use mpas_stream_manager, only : MPAS_stream_mgr_init, MPAS_build_stream_filename, MPAS_stream_mgr_validate_streams
       use iso_c_binding, only : c_char, c_loc, c_ptr, c_int
       use mpas_c_interfacing, only : mpas_f_to_c_string, mpas_c_to_f_string
@@ -53,7 +56,11 @@ module mpas_subdriver
 
       type (core_type), intent(inout), pointer :: corelist
       type (domain_type), intent(inout), pointer :: domain_ptr
-      integer, intent(in), optional :: mpi_comm
+#ifdef MPAS_USE_MPI_F08
+      type (MPI_Comm), intent(in), optional :: external_comm
+#else
+      integer, intent(in), optional :: external_comm
+#endif
       character(len=*), intent(in), optional :: namelistFileParam
       character(len=*), intent(in), optional :: streamsFileParam
 
@@ -192,7 +199,7 @@ module mpas_subdriver
       !
       ! Initialize infrastructure
       !
-      call mpas_framework_init_phase1(domain_ptr % dminfo, mpi_comm=mpi_comm)
+      call mpas_framework_init_phase1(domain_ptr % dminfo, external_comm=external_comm)
 
 
 #ifdef CORE_ATMOSPHERE
@@ -304,7 +311,11 @@ module mpas_subdriver
 
       call mpas_f_to_c_string(domain_ptr % streams_filename, c_filename)
       call mpas_f_to_c_string(mesh_stream, c_mesh_stream)
+#ifdef MPAS_USE_MPI_F08
+      c_comm = domain_ptr % dminfo % comm % mpi_val
+#else
       c_comm = domain_ptr % dminfo % comm
+#endif
       call xml_stream_get_attributes(c_filename, c_mesh_stream, c_comm, &
                                      c_mesh_filename_temp, c_ref_time_temp, &
                                      c_filename_interval_temp, c_iotype, c_ierr)
