@@ -1,0 +1,10 @@
+target_sources(${MPAS_EXE_NAME}
+               PUBLIC
+                  bl_gwdo.F
+                  bl_ysu.F
+                  cu_ntiedtke.F
+                  module_libmassv.F
+                  mp_radar.F
+                  mp_wsm6_effectRad.F
+                  mp_wsm6.F
+                  sf_sfclayrev.F)

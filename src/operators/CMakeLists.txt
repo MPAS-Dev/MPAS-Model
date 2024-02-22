@@ -1,0 +1,12 @@
+target_sources(${MPAS_EXE_NAME}
+               PUBLIC
+                  mpas_geometry_utils.F
+                  mpas_matrix_operations.F
+                  mpas_rbf_interpolation.F
+                  mpas_spline_interpolation.F
+                  mpas_tensor_operations.F
+                  mpas_tracer_advection_helpers.F
+                  mpas_tracer_advection_mono.F
+                  mpas_tracer_advection_std.F
+                  mpas_vector_operations.F
+                  mpas_vector_reconstruction.F)

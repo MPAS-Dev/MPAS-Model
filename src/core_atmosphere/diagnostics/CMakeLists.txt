@@ -1,0 +1,10 @@
+target_sources(${MPAS_EXE_NAME}
+               PUBLIC
+                  mpas_atm_diagnostics_manager.F
+                  mpas_atm_diagnostics_utils.F
+                  mpas_atm_diagnostic_template.F
+                  mpas_cloud_diagnostics.F
+                  mpas_convective_diagnostics.F
+                  mpas_isobaric_diagnostics.F
+                  mpas_pv_diagnostics.F
+                  mpas_soundings.F)
