@@ -17,8 +17,7 @@ OBJS = \
 	mynn_shared.o \
 	sf_mynn.o \
 	sf_sfclayrev.o \
-	module_libmassv.o \
-
+	module_libmassv.o
 
 physics_mmm: $(OBJS)
 	ar -ru ./../libphys.a $(OBJS)
