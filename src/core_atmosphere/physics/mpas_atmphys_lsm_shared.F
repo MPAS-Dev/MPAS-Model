@@ -6,7 +6,7 @@
 ! distributed with this code, or at http://mpas-dev.github.com/license.html
 !
 !=================================================================================================================
- module mpas_atmphys_driver_lsm_shared
+ module mpas_atmphys_lsm_shared
  use mpas_kind_types
 
 
@@ -57,7 +57,7 @@
  end subroutine correct_tsk_over_seaice
 
 !=================================================================================================================
- end module mpas_atmphys_driver_lsm_shared
+ end module mpas_atmphys_lsm_shared
 !=================================================================================================================
 
 

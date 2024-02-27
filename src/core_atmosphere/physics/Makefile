@@ -36,6 +36,7 @@ OBJS = \
 	mpas_atmphys_interface.o           \
 	mpas_atmphys_landuse.o             \
 	mpas_atmphys_lsm_noahinit.o        \
+	mpas_atmphys_lsm_shared.o          \
 	mpas_atmphys_manager.o             \
 	mpas_atmphys_o3climatology.o       \
 	mpas_atmphys_packages.o            \
@@ -104,6 +105,7 @@ mpas_atmphys_driver_lsm.o: \
 	mpas_atmphys_constants.o \
 	mpas_atmphys_landuse.o \
 	mpas_atmphys_lsm_noahinit.o \
+	mpas_atmphys_lsm_shared.o \
 	mpas_atmphys_vars.o
 
 mpas_atmphys_driver_microphysics.o: \
