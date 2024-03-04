@@ -1,33 +1,26 @@
-# Makefile 
-#
-.SUFFIXES:
-.SUFFIXES: .o .F90
+.SUFFIXES: .F90 .o
 
-include ../../hrldas/user_build_options
+all: dummy utility
 
-OBJS = Machine.o \
-       CheckNanMod.o
-#      ErrorHandleMod.o
+dummy:
+	echo "****** compiling physics_noahmp/utility ******"
 
-all:	$(OBJS)
+OBJS =  Machine.o \
+	CheckNanMod.o
 
-.F90.o:
-	@echo ""
-	$(RM) $(*).f90
-	$(CPP) $(CPPFLAGS) $(*).F90 > $(*).f90
-	$(COMPILERF90) -c $(F90FLAGS) $(FREESOURCE) $(NETCDFMOD) $(*).f90
-	@echo ""
+utility: $(OBJS)
+	ar -ru ./../../libphys.a $(OBJS)
 
-#
-# This command cleans up object (etc) files:
-#
+# DEPENDENCIES:
+CheckNanMod.o: \
+	Machine.o
 
 clean:
-	rm -f *.o *.mod *.exe *.f90
+	$(RM) *.f90 *.o *.mod
+	@# Certain systems with intel compilers generate *.i files
+	@# This removes them during the clean process
+	$(RM) *.i
 
-#
-# Dependencies:
-#
-CheckNanMod.o: Machine.o
-
+.F90.o:
+	$(FC) $(CPPFLAGS) $(COREDEF) $(FFLAGS) -c $*.F90 $(CPPINCLUDES) $(FCINCLUDES) -I../../../../framework
 

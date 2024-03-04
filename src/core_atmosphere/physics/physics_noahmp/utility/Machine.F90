@@ -1,4 +1,5 @@
 module Machine
+use mpas_kind_types,only: RKIND
 
 !!! define machine-related constants and parameters
 !!! To define real data type precision, use "-DOUBLE_PREC" in CPPFLAG in user_build_options file
@@ -12,12 +13,7 @@ module Machine
   save
   private
 
-#ifdef DOUBLE_PREC
-  integer, public, parameter :: kind_noahmp = 8 ! double precision
-#else
-  integer, public, parameter :: kind_noahmp = 4 ! single precision
-#endif
-
+  integer,                public, parameter :: kind_noahmp = RKIND
   integer,                public, parameter :: undefined_int  = -9999       ! undefined integer for variable initialization
   real(kind=kind_noahmp), public, parameter :: undefined_real = -9999.0     ! undefined real for variable initializatin
   integer,                public, parameter :: undefined_int_neg  = -9999   ! undefined integer negative for variable initialization

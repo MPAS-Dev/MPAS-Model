@@ -1,160 +1,140 @@
-# Makefile 
-#
-.SUFFIXES:
-.SUFFIXES: .o .F90
+.SUFFIXES: .F90 .o
 
-include ../../hrldas/user_build_options
+all: dummy src
 
-OBJS = ConstantDefineMod.o \
-       ConfigVarType.o \
-       ForcingVarType.o \
-       EnergyVarType.o \
-       WaterVarType.o \
-       BiochemVarType.o \
-       NoahmpVarType.o \
-       ConfigVarInitMod.o \
-       ForcingVarInitMod.o \
-       EnergyVarInitMod.o \
-       WaterVarInitMod.o \
-       BiochemVarInitMod.o \
-       CanopyHydrologyMod.o \
-       GroundWaterTopModelMod.o \
-       IrrigationFloodMod.o \
-       IrrigationInfilPhilipMod.o \
-       IrrigationMicroMod.o \
-       MatrixSolverTriDiagonalMod.o \
-       RunoffSubSurfaceDrainageMod.o \
-       RunoffSubSurfaceEquiWaterTableMod.o \
-       RunoffSubSurfaceGroundWaterMod.o \
-       RunoffSubSurfaceShallowMmfMod.o \
-       RunoffSurfaceBatsMod.o \
-       RunoffSurfaceDynamicVicMod.o \
-       RunoffSurfaceExcessDynamicVicMod.o \
-       RunoffSurfaceFreeDrainMod.o \
-       RunoffSurfaceTopModelEquiMod.o \
-       RunoffSurfaceTopModelGrdMod.o \
-       RunoffSurfaceTopModelMmfMod.o \
-       RunoffSurfaceVicMod.o \
-       RunoffSurfaceXinAnJiangMod.o \
-       ShallowWaterTableMmfMod.o \
-       SnowfallBelowCanopyMod.o \
-       SnowLayerCombineMod.o \
-       SnowLayerDivideMod.o \
-       SnowLayerWaterComboMod.o \
-       SnowpackCompactionMod.o \
-       SnowpackHydrologyMod.o \
-       SnowWaterMainMod.o \
-       SoilHydraulicPropertyMod.o \
-       SoilMoistureSolverMod.o \
-       SoilWaterDiffusionRichardsMod.o \
-       SoilWaterInfilGreenAmptMod.o \
-       SoilWaterInfilPhilipMod.o \
-       SoilWaterInfilSmithParlangeMod.o \
-       SoilWaterMainMod.o \
-       TileDrainageEquiDepthMod.o \
-       TileDrainageHooghoudtMod.o \
-       TileDrainageSimpleMod.o \
-       WaterMainMod.o \
-       WaterTableDepthSearchMod.o \
-       WaterTableEquilibriumMod.o \
-       IrrigationTriggerMod.o \
-       IrrigationSprinklerMod.o \
-       CanopyWaterInterceptMod.o \
-       PrecipitationHeatAdvectMod.o \
-       SnowThermalPropertyMod.o \
-       SoilThermalPropertyMod.o \
-       GroundThermalPropertyMod.o \
-       EnergyMainMod.o \
-       NoahmpMainMod.o \
-       SnowAgingBatsMod.o \
-       SnowAlbedoBatsMod.o \
-       SnowAlbedoClassMod.o \
-       GroundAlbedoMod.o \
-       CanopyRadiationTwoStreamMod.o \
-       SurfaceAlbedoMod.o \
-       SurfaceRadiationMod.o \
-       HumiditySaturationMod.o \
-       ResistanceAboveCanopyChen97Mod.o \
-       ResistanceAboveCanopyMostMod.o \
-       ResistanceCanopyStomataBallBerryMod.o \
-       ResistanceCanopyStomataJarvisMod.o \
-       ResistanceLeafToGroundMod.o \
-       VaporPressureSaturationMod.o \
-       SurfaceEnergyFluxVegetatedMod.o \
-       ResistanceBareGroundChen97Mod.o \
-       ResistanceBareGroundMostMod.o \
-       SurfaceEnergyFluxBareGroundMod.o \
-       SoilSnowTemperatureMainMod.o \
-       SoilSnowTemperatureSolverMod.o \
-       SoilSnowThermalDiffusionMod.o \
-       SoilSnowWaterPhaseChangeMod.o \
-       SoilWaterSupercoolKoren99Mod.o \
-       SoilWaterSupercoolNiu06Mod.o \
-       SnowCoverGroundNiu07Mod.o \
-       GroundRoughnessPropertyMod.o \
-       SurfaceEmissivityMod.o \
-       PsychrometricVariableMod.o \
-       ResistanceGroundEvaporationMod.o \
-       SoilWaterTranspirationMod.o \
-       AtmosForcingMod.o \
-       PhenologyMainMod.o \
-       BiochemCropMainMod.o \
-       BiochemNatureVegMainMod.o \
-       CarbonFluxCropMod.o \
-       CarbonFluxNatureVegMod.o \
-       CropGrowDegreeDayMod.o \
-       CropPhotosynthesisMod.o \
-       IrrigationPrepareMod.o \
-       BalanceErrorCheckMod.o \
-       GeneralInitMod.o \
-       GroundWaterMmfMod.o \
-       BalanceErrorCheckGlacierMod.o \
-       EnergyMainGlacierMod.o \
-       GeneralInitGlacierMod.o \
-       GlacierIceThermalPropertyMod.o \
-       GlacierPhaseChangeMod.o \
-       GlacierTemperatureMainMod.o \
-       GlacierTemperatureSolverMod.o \
-       GlacierThermalDiffusionMod.o \
-       GroundAlbedoGlacierMod.o \
-       GroundRoughnessPropertyGlacierMod.o \
-       GroundThermalPropertyGlacierMod.o \
-       NoahmpMainGlacierMod.o \
-       PrecipitationHeatAdvectGlacierMod.o \
-       PsychrometricVariableGlacierMod.o \
-       ResistanceGroundEvaporationGlacierMod.o \
-       SnowCoverGlacierMod.o \
-       SnowWaterMainGlacierMod.o \
-       SnowpackHydrologyGlacierMod.o \
-       SurfaceAlbedoGlacierMod.o \
-       SurfaceEmissivityGlacierMod.o \
-       SurfaceEnergyFluxGlacierMod.o \
-       SurfaceRadiationGlacierMod.o \
-       WaterMainGlacierMod.o
+dummy:
+	echo "****** compiling physics_noahmp/utility ******"
 
-all:	$(OBJS)
+OBJS =  ConstantDefineMod.o \
+	ConfigVarType.o \
+	ForcingVarType.o \
+	EnergyVarType.o \
+	WaterVarType.o \
+	BiochemVarType.o \
+	NoahmpVarType.o \
+	ConfigVarInitMod.o \
+	ForcingVarInitMod.o \
+	EnergyVarInitMod.o \
+	WaterVarInitMod.o \
+	BiochemVarInitMod.o \
+	CanopyHydrologyMod.o \
+	GroundWaterTopModelMod.o \
+	IrrigationFloodMod.o \
+	IrrigationInfilPhilipMod.o \
+	IrrigationMicroMod.o \
+	MatrixSolverTriDiagonalMod.o \
+	RunoffSubSurfaceDrainageMod.o \
+	RunoffSubSurfaceEquiWaterTableMod.o \
+	RunoffSubSurfaceGroundWaterMod.o \
+	RunoffSubSurfaceShallowMmfMod.o \
+	RunoffSurfaceBatsMod.o \
+	RunoffSurfaceDynamicVicMod.o \
+	RunoffSurfaceExcessDynamicVicMod.o \
+	RunoffSurfaceFreeDrainMod.o \
+	RunoffSurfaceTopModelEquiMod.o \
+	RunoffSurfaceTopModelGrdMod.o \
+	RunoffSurfaceTopModelMmfMod.o \
+	RunoffSurfaceVicMod.o \
+	RunoffSurfaceXinAnJiangMod.o \
+	ShallowWaterTableMmfMod.o \
+	SnowfallBelowCanopyMod.o \
+	SnowLayerCombineMod.o \
+	SnowLayerDivideMod.o \
+	SnowLayerWaterComboMod.o \
+	SnowpackCompactionMod.o \
+	SnowpackHydrologyMod.o \
+	SnowWaterMainMod.o \
+	SoilHydraulicPropertyMod.o \
+	SoilMoistureSolverMod.o \
+	SoilWaterDiffusionRichardsMod.o \
+	SoilWaterInfilGreenAmptMod.o \
+	SoilWaterInfilPhilipMod.o \
+	SoilWaterInfilSmithParlangeMod.o \
+	SoilWaterMainMod.o \
+	TileDrainageEquiDepthMod.o \
+	TileDrainageHooghoudtMod.o \
+	TileDrainageSimpleMod.o \
+	WaterMainMod.o \
+	WaterTableDepthSearchMod.o \
+	WaterTableEquilibriumMod.o \
+	IrrigationTriggerMod.o \
+	IrrigationSprinklerMod.o \
+	CanopyWaterInterceptMod.o \
+	PrecipitationHeatAdvectMod.o \
+	SnowThermalPropertyMod.o \
+	SoilThermalPropertyMod.o \
+	GroundThermalPropertyMod.o \
+	EnergyMainMod.o \
+	NoahmpMainMod.o \
+	SnowAgingBatsMod.o \
+	SnowAlbedoBatsMod.o \
+	SnowAlbedoClassMod.o \
+	GroundAlbedoMod.o \
+	CanopyRadiationTwoStreamMod.o \
+	SurfaceAlbedoMod.o \
+	SurfaceRadiationMod.o \
+	HumiditySaturationMod.o \
+	ResistanceAboveCanopyChen97Mod.o \
+	ResistanceAboveCanopyMostMod.o \
+	ResistanceCanopyStomataBallBerryMod.o \
+	ResistanceCanopyStomataJarvisMod.o \
+	ResistanceLeafToGroundMod.o \
+	VaporPressureSaturationMod.o \
+	SurfaceEnergyFluxVegetatedMod.o \
+	ResistanceBareGroundChen97Mod.o \
+	ResistanceBareGroundMostMod.o \
+	SurfaceEnergyFluxBareGroundMod.o \
+	SoilSnowTemperatureMainMod.o \
+	SoilSnowTemperatureSolverMod.o \
+	SoilSnowThermalDiffusionMod.o \
+	SoilSnowWaterPhaseChangeMod.o \
+	SoilWaterSupercoolKoren99Mod.o \
+	SoilWaterSupercoolNiu06Mod.o \
+	SnowCoverGroundNiu07Mod.o \
+	GroundRoughnessPropertyMod.o \
+	SurfaceEmissivityMod.o \
+	PsychrometricVariableMod.o \
+	ResistanceGroundEvaporationMod.o \
+	SoilWaterTranspirationMod.o \
+	AtmosForcingMod.o \
+	PhenologyMainMod.o \
+	BiochemCropMainMod.o \
+	BiochemNatureVegMainMod.o \
+	CarbonFluxCropMod.o \
+	CarbonFluxNatureVegMod.o \
+	CropGrowDegreeDayMod.o \
+	CropPhotosynthesisMod.o \
+	IrrigationPrepareMod.o \
+	BalanceErrorCheckMod.o \
+	GeneralInitMod.o \
+	BalanceErrorCheckGlacierMod.o \
+	EnergyMainGlacierMod.o \
+	GeneralInitGlacierMod.o \
+	GlacierIceThermalPropertyMod.o \
+	GlacierPhaseChangeMod.o \
+	GlacierTemperatureMainMod.o \
+	GlacierTemperatureSolverMod.o \
+	GlacierThermalDiffusionMod.o \
+	GroundAlbedoGlacierMod.o \
+	GroundRoughnessPropertyGlacierMod.o \
+	GroundThermalPropertyGlacierMod.o \
+	NoahmpMainGlacierMod.o \
+	PrecipitationHeatAdvectGlacierMod.o \
+	PsychrometricVariableGlacierMod.o \
+	ResistanceGroundEvaporationGlacierMod.o \
+	SnowCoverGlacierMod.o \
+	SnowWaterMainGlacierMod.o \
+	SnowpackHydrologyGlacierMod.o \
+	SurfaceAlbedoGlacierMod.o \
+	SurfaceEmissivityGlacierMod.o \
+	SurfaceEnergyFluxGlacierMod.o \
+	SurfaceRadiationGlacierMod.o \
+	WaterMainGlacierMod.o
 
-GroundWaterMmfMod.o: GroundWaterMmfMod.F90
-	@echo ""
-	$(RM) GroundWaterMmfMod.f90
-	$(CPP) $(CPPFLAGS) $(*).F90 > $(*).f90
-	$(COMPILERF90) -c -I../../hrldas/MPP -I. -I../../hrldas/Utility_routines \
-        -I../utility -I../drivers/hrldas $(F90FLAGS) $(FREESOURCE) $(NETCDFMOD) $(*).f90
-	@echo ""
+src: $(OBJS)
+	ar -ru ./../../libphys.a $(OBJS)
 
-.F90.o:
-	@echo ""
-	$(RM) $(*).f90
-	$(CPP) $(CPPFLAGS) $(*).F90 > $(*).f90
-	$(COMPILERF90) -c -I. -I../utility -I../drivers/hrldas $(F90FLAGS) $(FREESOURCE) $(NETCDFMOD) $(*).f90
-	@echo ""
-
-clean:
-	rm -f *.o *.mod *.exe *.f90
-
-#
-# Dependencies:
-#
+# DEPENDENCIES:
 
 ConstantDefineMod.o:                  ../utility/Machine.o
 ConfigVarType.o:                      ../utility/Machine.o
@@ -349,4 +329,13 @@ SurfaceEnergyFluxGlacierMod.o:           ../utility/Machine.o NoahmpVarType.o Co
                                          VaporPressureSaturationMod.o ResistanceBareGroundMostMod.o
 SurfaceRadiationGlacierMod.o:            ../utility/Machine.o NoahmpVarType.o ConstantDefineMod.o
 WaterMainGlacierMod.o:                   ../utility/Machine.o NoahmpVarType.o ConstantDefineMod.o SnowWaterMainGlacierMod.o
+
+clean:
+	$(RM) *.f90 *.o *.mod
+	@# Certain systems with intel compilers generate *.i files
+	@# This removes them during the clean process
+	$(RM) *.i
+
+.F90.o:
+	$(FC) $(CPPFLAGS) $(COREDEF) $(FFLAGS) -c $*.F90 $(CPPINCLUDES) $(FCINCLUDES) -I../utility -I../../../../framework
 

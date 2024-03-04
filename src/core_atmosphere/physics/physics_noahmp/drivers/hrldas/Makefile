@@ -1,46 +1,33 @@
-# Makefile 
-#
-.SUFFIXES:
 .SUFFIXES: .o .F90
 
-include ../../../hrldas/user_build_options
+all: dummy driver
 
-OBJS = NoahmpGroundwaterInitMod.o \
-       NoahmpSnowInitMod.o \
-       NoahmpInitMainMod.o \
-       NoahmpDriverMainMod.o \
-       NoahmpIOVarType.o \
-       NoahmpIOVarInitMod.o \
-       NoahmpReadTableMod.o \
-       NoahmpReadNamelistMod.o \
-       ConfigVarOutTransferMod.o \
-       ForcingVarOutTransferMod.o \
-       EnergyVarOutTransferMod.o \
-       WaterVarOutTransferMod.o \
-       BiochemVarOutTransferMod.o \
-       ConfigVarInTransferMod.o \
-       ForcingVarInTransferMod.o \
-       EnergyVarInTransferMod.o \
-       WaterVarInTransferMod.o \
-       BiochemVarInTransferMod.o \
-       PedoTransferSR2006Mod.o
+dummy:
+	echo "****** compiling physics_noahmp/drivers ******"
 
-all:	$(OBJS)
+OBJS =  NoahmpSnowInitMod.o \
+	NoahmpInitMainMod.o \
+	NoahmpDriverMainMod.o \
+	NoahmpIOVarType.o \
+	NoahmpIOVarInitMod.o \
+	NoahmpReadTableMod.o \
+	NoahmpReadNamelistMod.o \
+	ConfigVarOutTransferMod.o \
+	ForcingVarOutTransferMod.o \
+	EnergyVarOutTransferMod.o \
+	WaterVarOutTransferMod.o \
+	BiochemVarOutTransferMod.o \
+	ConfigVarInTransferMod.o \
+	ForcingVarInTransferMod.o \
+	EnergyVarInTransferMod.o \
+	WaterVarInTransferMod.o \
+	BiochemVarInTransferMod.o \
+	PedoTransferSR2006Mod.o
 
-.F90.o:
-	@echo ""
-	$(RM) $(*).f90
-	$(CPP) $(CPPFLAGS) $(*).F90 > $(*).f90
-	$(COMPILERF90) -c -I. -I../../src -I../../utility -I../../../hrldas/Utility_routines \
-                          -I../../../hrldas/MPP $(F90FLAGS) $(FREESOURCE) $(NETCDFMOD) $(*).f90
-	@echo ""
+driver: $(OBJS)
+	ar -ru ./../../../libphys.a $(OBJS)
 
-clean:
-	rm -f *.o *.mod *.exe *.f90
-
-#
-# Dependencies:
-#
+# DEPENDENCIES:
 
 NoahmpIOVarType.o:          ../../utility/Machine.o
 NoahmpIOVarInitMod.o:       ../../utility/Machine.o NoahmpIOVarType.o
@@ -57,11 +44,8 @@ ForcingVarInTransferMod.o:  ../../utility/Machine.o NoahmpIOVarType.o ../../src/
 EnergyVarInTransferMod.o:   ../../utility/Machine.o NoahmpIOVarType.o ../../src/NoahmpVarType.o
 BiochemVarInTransferMod.o:  ../../utility/Machine.o NoahmpIOVarType.o ../../src/NoahmpVarType.o
 WaterVarInTransferMod.o:    ../../utility/Machine.o NoahmpIOVarType.o ../../src/NoahmpVarType.o PedoTransferSR2006Mod.o
-NoahmpGroundwaterInitMod.o: ../../../hrldas/Utility_routines/module_domain.o \
-                            ../../utility/Machine.o NoahmpIOVarType.o ../../src/GroundWaterMmfMod.o 
 NoahmpSnowInitMod.o:        ../../utility/Machine.o NoahmpIOVarType.o
-NoahmpInitMainMod.o:        ../../utility/Machine.o NoahmpIOVarType.o NoahmpSnowInitMod.o \
-                            ../../../hrldas/Utility_routines/module_wrf_utilities.o
+NoahmpInitMainMod.o:        ../../utility/Machine.o NoahmpIOVarType.o NoahmpSnowInitMod.o
 NoahmpDriverMainMod.o:      ../../utility/Machine.o ../../src/NoahmpVarType.o NoahmpIOVarType.o \
                             ../../src/ConfigVarInitMod.o \
                             ../../src/EnergyVarInitMod.o ../../src/ForcingVarInitMod.o \
@@ -71,6 +55,14 @@ NoahmpDriverMainMod.o:      ../../utility/Machine.o ../../src/NoahmpVarType.o No
                             WaterVarOutTransferMod.o BiochemVarOutTransferMod.o \
                             ForcingVarOutTransferMod.o ConfigVarInTransferMod.o \
                             ForcingVarInTransferMod.o EnergyVarInTransferMod.o \
-                            WaterVarInTransferMod.o BiochemVarInTransferMod.o \
-                            ../../../hrldas/Utility_routines/module_ra_gfdleta.o
+                            WaterVarInTransferMod.o BiochemVarInTransferMod.o
+
+clean:
+	$(RM) *.f90 *.o *.mod
+	@# Certain systems with intel compilers generate *.i files
+	@# This removes them during the clean process
+	$(RM) *.i
+
+.F90.o:
+	$(FC) $(CPPFLAGS) $(COREDEF) $(FFLAGS) -c $*.F90 $(CPPINCLUDES) $(FCINCLUDES) -I. -I../../utility -I../../src -I../../../../../framework
 

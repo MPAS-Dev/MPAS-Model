@@ -4,7 +4,7 @@ ifeq ($(CORE),atmosphere)
 COREDEF = -Dmpas
 endif
 
-all: lookup_tables core_physics_init core_physics_mmm core_physics_wrf core_physics
+all: lookup_tables core_physics_init core_physics_mmm core_physics_wrf core_physics_noahmp core_physics
 
 dummy:
 	echo "****** compiling physics ******"
@@ -56,6 +56,11 @@ core_physics_mmm: core_physics_init
 
 core_physics_wrf: core_physics_init core_physics_mmm
 	(cd physics_wrf; $(MAKE) all COREDEF="$(COREDEF)")
+
+core_physics_noahmp:
+	(cd physics_noahmp/utility; $(MAKE) all COREDEF="$(COREDEF)")
+	(cd physics_noahmp/src; $(MAKE) all COREDEF="$(COREDEF)")
+	(cd physics_noahmp/drivers/hrldas; $(MAKE) all COREDEF="$(COREDEF)")
 
 core_physics_init: $(OBJS_init)
 	ar -ru libphys.a $(OBJS_init)
@@ -209,6 +214,9 @@ clean:
 	$(RM) *.o *.mod *.f90 libphys.a
 	( cd physics_wrf; $(MAKE) clean )
 	( cd physics_mmm; $(MAKE) clean )
+	( cd physics_noahmp/drivers/hrldas; $(MAKE) clean )
+	( cd physics_noahmp/src; $(MAKE) clean )
+	( cd physics_noahmp/utility; $(MAKE) clean )
 	@# Certain systems with intel compilers generate *.i files
 	@# This removes them during the clean process
 	$(RM) *.i
