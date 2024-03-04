@@ -10,6 +10,7 @@ OBJS =  NoahmpSnowInitMod.o \
 	NoahmpDriverMainMod.o \
 	NoahmpIOVarType.o \
 	NoahmpIOVarInitMod.o \
+	NoahmpIOVarFinalizeMod.o \
 	NoahmpReadTableMod.o \
 	NoahmpReadNamelistMod.o \
 	ConfigVarOutTransferMod.o \
@@ -31,6 +32,7 @@ driver: $(OBJS)
 
 NoahmpIOVarType.o:          ../../utility/Machine.o
 NoahmpIOVarInitMod.o:       ../../utility/Machine.o NoahmpIOVarType.o
+NoahmpIOVarFinalizeMod.o:   ../../utility/Machine.o NoahmpIOVarType.o
 NoahmpReadTableMod.o:       ../../utility/Machine.o NoahmpIOVarType.o
 NoahmpReadNamelistMod.o:    ../../utility/Machine.o NoahmpIOVarType.o
 PedoTransferSR2006Mod.o:    ../../utility/Machine.o NoahmpIOVarType.o
