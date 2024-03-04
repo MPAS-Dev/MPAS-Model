@@ -36,7 +36,6 @@ contains
 ! -------------------------------------------------------------------------
     associate(                                                         &
               I               => noahmp%config%domain%GridIndexI      ,&
-              J               => noahmp%config%domain%GridIndexJ      ,&
               NumSnowLayerMax => noahmp%config%domain%NumSnowLayerMax ,&
               NumSoilLayer    => noahmp%config%domain%NumSoilLayer    ,&
               VegType         => noahmp%config%domain%VegType         ,&
@@ -48,49 +47,49 @@ contains
 ! -------------------------------------------------------------------------
 
     ! water state variables
-    noahmp%water%state%CanopyLiqWater                     = NoahmpIO%CANLIQXY   (I,J)
-    noahmp%water%state%CanopyIce                          = NoahmpIO%CANICEXY   (I,J)
-    noahmp%water%state%CanopyWetFrac                      = NoahmpIO%FWETXY     (I,J)
-    noahmp%water%state%SnowWaterEquiv                     = NoahmpIO%SNOW       (I,J)
-    noahmp%water%state%SnowWaterEquivPrev                 = NoahmpIO%SNEQVOXY   (I,J) 
-    noahmp%water%state%SnowDepth                          = NoahmpIO%SNOWH      (I,J)
-    noahmp%water%state%IrrigationFracFlood                = NoahmpIO%FIFRACT    (I,J)
-    noahmp%water%state%IrrigationAmtFlood                 = NoahmpIO%IRWATFI    (I,J)
-    noahmp%water%state%IrrigationFracMicro                = NoahmpIO%MIFRACT    (I,J)
-    noahmp%water%state%IrrigationAmtMicro                 = NoahmpIO%IRWATMI    (I,J) 
-    noahmp%water%state%IrrigationFracSprinkler            = NoahmpIO%SIFRACT    (I,J)
-    noahmp%water%state%IrrigationAmtSprinkler             = NoahmpIO%IRWATSI    (I,J)  
-    noahmp%water%state%WaterTableDepth                    = NoahmpIO%ZWTXY      (I,J) 
-    noahmp%water%state%SoilMoistureToWT                   = NoahmpIO%SMCWTDXY   (I,J)
-    noahmp%water%state%TileDrainFrac                      = NoahmpIO%TD_FRACTION(I,J)
-    noahmp%water%state%WaterStorageAquifer                = NoahmpIO%WAXY       (I,J)
-    noahmp%water%state%WaterStorageSoilAqf                = NoahmpIO%WTXY       (I,J)
-    noahmp%water%state%WaterStorageLake                   = NoahmpIO%WSLAKEXY   (I,J)
-    noahmp%water%state%IrrigationFracGrid                 = NoahmpIO%IRFRACT    (I,J)
-    noahmp%water%state%IrrigationCntSprinkler             = NoahmpIO%IRNUMSI    (I,J)     
-    noahmp%water%state%IrrigationCntMicro                 = NoahmpIO%IRNUMMI    (I,J)
-    noahmp%water%state%IrrigationCntFlood                 = NoahmpIO%IRNUMFI    (I,J)
-    noahmp%water%state%SnowIce     (-NumSnowLayerMax+1:0) = NoahmpIO%SNICEXY    (I,-NumSnowLayerMax+1:0,J)
-    noahmp%water%state%SnowLiqWater(-NumSnowLayerMax+1:0) = NoahmpIO%SNLIQXY    (I,-NumSnowLayerMax+1:0,J)
-    noahmp%water%state%SoilLiqWater      (1:NumSoilLayer) = NoahmpIO%SH2O       (I,1:NumSoilLayer,J)
-    noahmp%water%state%SoilMoisture      (1:NumSoilLayer) = NoahmpIO%SMOIS      (I,1:NumSoilLayer,J)    
-    noahmp%water%state%SoilMoistureEqui  (1:NumSoilLayer) = NoahmpIO%SMOISEQ    (I,1:NumSoilLayer,J)
+    noahmp%water%state%CanopyLiqWater                     = NoahmpIO%CANLIQXY   (I)
+    noahmp%water%state%CanopyIce                          = NoahmpIO%CANICEXY   (I)
+    noahmp%water%state%CanopyWetFrac                      = NoahmpIO%FWETXY     (I)
+    noahmp%water%state%SnowWaterEquiv                     = NoahmpIO%SNOW       (I)
+    noahmp%water%state%SnowWaterEquivPrev                 = NoahmpIO%SNEQVOXY   (I) 
+    noahmp%water%state%SnowDepth                          = NoahmpIO%SNOWH      (I)
+    noahmp%water%state%IrrigationFracFlood                = NoahmpIO%FIFRACT    (I)
+    noahmp%water%state%IrrigationAmtFlood                 = NoahmpIO%IRWATFI    (I)
+    noahmp%water%state%IrrigationFracMicro                = NoahmpIO%MIFRACT    (I)
+    noahmp%water%state%IrrigationAmtMicro                 = NoahmpIO%IRWATMI    (I) 
+    noahmp%water%state%IrrigationFracSprinkler            = NoahmpIO%SIFRACT    (I)
+    noahmp%water%state%IrrigationAmtSprinkler             = NoahmpIO%IRWATSI    (I)  
+    noahmp%water%state%WaterTableDepth                    = NoahmpIO%ZWTXY      (I) 
+    noahmp%water%state%SoilMoistureToWT                   = NoahmpIO%SMCWTDXY   (I)
+    noahmp%water%state%TileDrainFrac                      = NoahmpIO%TD_FRACTION(I)
+    noahmp%water%state%WaterStorageAquifer                = NoahmpIO%WAXY       (I)
+    noahmp%water%state%WaterStorageSoilAqf                = NoahmpIO%WTXY       (I)
+    noahmp%water%state%WaterStorageLake                   = NoahmpIO%WSLAKEXY   (I)
+    noahmp%water%state%IrrigationFracGrid                 = NoahmpIO%IRFRACT    (I)
+    noahmp%water%state%IrrigationCntSprinkler             = NoahmpIO%IRNUMSI    (I)     
+    noahmp%water%state%IrrigationCntMicro                 = NoahmpIO%IRNUMMI    (I)
+    noahmp%water%state%IrrigationCntFlood                 = NoahmpIO%IRNUMFI    (I)
+    noahmp%water%state%SnowIce     (-NumSnowLayerMax+1:0) = NoahmpIO%SNICEXY    (I,-NumSnowLayerMax+1:0)
+    noahmp%water%state%SnowLiqWater(-NumSnowLayerMax+1:0) = NoahmpIO%SNLIQXY    (I,-NumSnowLayerMax+1:0)
+    noahmp%water%state%SoilLiqWater      (1:NumSoilLayer) = NoahmpIO%SH2O       (I,1:NumSoilLayer)
+    noahmp%water%state%SoilMoisture      (1:NumSoilLayer) = NoahmpIO%SMOIS      (I,1:NumSoilLayer)    
+    noahmp%water%state%SoilMoistureEqui  (1:NumSoilLayer) = NoahmpIO%SMOISEQ    (I,1:NumSoilLayer)
     noahmp%water%state%RechargeGwDeepWT                   = 0.0
     noahmp%water%state%RechargeGwShallowWT                = 0.0
 #ifdef WRF_HYDRO
-    noahmp%water%state%WaterTableHydro                    = NoahmpIO%ZWATBLE2D  (I,J)
-    noahmp%water%state%WaterHeadSfc                       = NoahmpIO%sfcheadrt  (I,J)
+    noahmp%water%state%WaterTableHydro                    = NoahmpIO%ZWATBLE2D  (I)
+    noahmp%water%state%WaterHeadSfc                       = NoahmpIO%sfcheadrt  (I)
 #endif
 
     ! water flux variables
-    noahmp%water%flux%EvapSoilSfcLiqAcc                   = NoahmpIO%ACC_QSEVAXY (I,J)
-    noahmp%water%flux%SoilSfcInflowAcc                    = NoahmpIO%ACC_QINSURXY(I,J)
-    noahmp%water%flux%SfcWaterTotChgAcc                   = NoahmpIO%ACC_DWATERXY(I,J)
-    noahmp%water%flux%PrecipTotAcc                        = NoahmpIO%ACC_PRCPXY  (I,J)
-    noahmp%water%flux%EvapCanopyNetAcc                    = NoahmpIO%ACC_ECANXY  (I,J)
-    noahmp%water%flux%TranspirationAcc                    = NoahmpIO%ACC_ETRANXY (I,J)
-    noahmp%water%flux%EvapGroundNetAcc                    = NoahmpIO%ACC_EDIRXY  (I,J)
-    noahmp%water%flux%TranspWatLossSoilAcc(1:NumSoilLayer)= NoahmpIO%ACC_ETRANIXY(I,1:NumSoilLayer,J)
+    noahmp%water%flux%EvapSoilSfcLiqAcc                   = NoahmpIO%ACC_QSEVAXY (I)
+    noahmp%water%flux%SoilSfcInflowAcc                    = NoahmpIO%ACC_QINSURXY(I)
+    noahmp%water%flux%SfcWaterTotChgAcc                   = NoahmpIO%ACC_DWATERXY(I)
+    noahmp%water%flux%PrecipTotAcc                        = NoahmpIO%ACC_PRCPXY  (I)
+    noahmp%water%flux%EvapCanopyNetAcc                    = NoahmpIO%ACC_ECANXY  (I)
+    noahmp%water%flux%TranspirationAcc                    = NoahmpIO%ACC_ETRANXY (I)
+    noahmp%water%flux%EvapGroundNetAcc                    = NoahmpIO%ACC_EDIRXY  (I)
+    noahmp%water%flux%TranspWatLossSoilAcc(1:NumSoilLayer)= NoahmpIO%ACC_ETRANIXY(I,1:NumSoilLayer)
 
     ! water parameter variables
     noahmp%water%param%DrainSoilLayerInd                  = NoahmpIO%DRAIN_LAYER_OPT_TABLE
@@ -161,42 +160,42 @@ contains
     ! spatial varying soil texture and properties directly from input
     if ( noahmp%config%nmlist%OptSoilProperty == 4 ) then
        ! 3D soil properties
-       noahmp%water%param%SoilExpCoeffB          = NoahmpIO%BEXP_3D  (I,1:NumSoilLayer,J) ! C-H B exponent
-       noahmp%water%param%SoilMoistureDry        = NoahmpIO%SMCDRY_3D(I,1:NumSoilLayer,J) ! Soil Moisture Limit: Dry
-       noahmp%water%param%SoilMoistureWilt       = NoahmpIO%SMCWLT_3D(I,1:NumSoilLayer,J) ! Soil Moisture Limit: Wilt
-       noahmp%water%param%SoilMoistureFieldCap   = NoahmpIO%SMCREF_3D(I,1:NumSoilLayer,J) ! Soil Moisture Limit: Reference
-       noahmp%water%param%SoilMoistureSat        = NoahmpIO%SMCMAX_3D(I,1:NumSoilLayer,J) ! Soil Moisture Limit: Max
-       noahmp%water%param%SoilWatConductivitySat = NoahmpIO%DKSAT_3D (I,1:NumSoilLayer,J) ! Saturated Soil Conductivity
-       noahmp%water%param%SoilWatDiffusivitySat  = NoahmpIO%DWSAT_3D (I,1:NumSoilLayer,J) ! Saturated Soil Diffusivity
-       noahmp%water%param%SoilMatPotentialSat    = NoahmpIO%PSISAT_3D(I,1:NumSoilLayer,J) ! Saturated Matric Potential
-       noahmp%water%param%SoilConductivityRef    = NoahmpIO%REFDK_2D (I,J)                ! Reference Soil Conductivity
-       noahmp%water%param%SoilInfilFacRef        = NoahmpIO%REFKDT_2D(I,J)                ! Soil Infiltration Parameter
+       noahmp%water%param%SoilExpCoeffB          = NoahmpIO%BEXP_3D  (I,1:NumSoilLayer) ! C-H B exponent
+       noahmp%water%param%SoilMoistureDry        = NoahmpIO%SMCDRY_3D(I,1:NumSoilLayer) ! Soil Moisture Limit: Dry
+       noahmp%water%param%SoilMoistureWilt       = NoahmpIO%SMCWLT_3D(I,1:NumSoilLayer) ! Soil Moisture Limit: Wilt
+       noahmp%water%param%SoilMoistureFieldCap   = NoahmpIO%SMCREF_3D(I,1:NumSoilLayer) ! Soil Moisture Limit: Reference
+       noahmp%water%param%SoilMoistureSat        = NoahmpIO%SMCMAX_3D(I,1:NumSoilLayer) ! Soil Moisture Limit: Max
+       noahmp%water%param%SoilWatConductivitySat = NoahmpIO%DKSAT_3D (I,1:NumSoilLayer) ! Saturated Soil Conductivity
+       noahmp%water%param%SoilWatDiffusivitySat  = NoahmpIO%DWSAT_3D (I,1:NumSoilLayer) ! Saturated Soil Diffusivity
+       noahmp%water%param%SoilMatPotentialSat    = NoahmpIO%PSISAT_3D(I,1:NumSoilLayer) ! Saturated Matric Potential
+       noahmp%water%param%SoilConductivityRef    = NoahmpIO%REFDK_2D (I)                ! Reference Soil Conductivity
+       noahmp%water%param%SoilInfilFacRef        = NoahmpIO%REFKDT_2D(I)                ! Soil Infiltration Parameter
        ! 2D additional runoff6~8 parameters
-       noahmp%water%param%InfilFacVic            = NoahmpIO%BVIC_2D (I,J)                 ! VIC model infiltration parameter
-       noahmp%water%param%TensionWatDistrInfl    = NoahmpIO%AXAJ_2D (I,J)                 ! Xinanjiang: Tension water distribution inflection parameter
-       noahmp%water%param%TensionWatDistrShp     = NoahmpIO%BXAJ_2D (I,J)                 ! Xinanjiang: Tension water distribution shape parameter
-       noahmp%water%param%FreeWatDistrShp        = NoahmpIO%XXAJ_2D (I,J)                 ! Xinanjiang: Free water distribution shape parameter
-       noahmp%water%param%InfilFacDynVic         = NoahmpIO%BDVIC_2D(I,J)                 ! VIC model infiltration parameter
-       noahmp%water%param%InfilCapillaryDynVic   = NoahmpIO%GDVIC_2D(I,J)                 ! Mean Capillary Drive for infiltration models
-       noahmp%water%param%InfilHeteroDynVic      = NoahmpIO%BBVIC_2D(I,J)                 ! DVIC heterogeniety parameter for infiltraton
+       noahmp%water%param%InfilFacVic            = NoahmpIO%BVIC_2D (I)                 ! VIC model infiltration parameter
+       noahmp%water%param%TensionWatDistrInfl    = NoahmpIO%AXAJ_2D (I)                 ! Xinanjiang: Tension water distribution inflection parameter
+       noahmp%water%param%TensionWatDistrShp     = NoahmpIO%BXAJ_2D (I)                 ! Xinanjiang: Tension water distribution shape parameter
+       noahmp%water%param%FreeWatDistrShp        = NoahmpIO%XXAJ_2D (I)                 ! Xinanjiang: Free water distribution shape parameter
+       noahmp%water%param%InfilFacDynVic         = NoahmpIO%BDVIC_2D(I)                 ! VIC model infiltration parameter
+       noahmp%water%param%InfilCapillaryDynVic   = NoahmpIO%GDVIC_2D(I)                 ! Mean Capillary Drive for infiltration models
+       noahmp%water%param%InfilHeteroDynVic      = NoahmpIO%BBVIC_2D(I)                 ! DVIC heterogeniety parameter for infiltraton
        ! 2D irrigation params
-       noahmp%water%param%IrriFracThreshold      = NoahmpIO%IRR_FRAC_2D  (I,J)            ! irrigation Fraction
-       noahmp%water%param%IrriStopDayBfHarvest   = NoahmpIO%IRR_HAR_2D   (I,J)            ! number of days before harvest date to stop irrigation 
-       noahmp%water%param%IrriTriggerLaiMin      = NoahmpIO%IRR_LAI_2D   (I,J)            ! Minimum lai to trigger irrigation
-       noahmp%water%param%SoilWatDeficitAllow    = NoahmpIO%IRR_MAD_2D   (I,J)            ! management allowable deficit (0-1)
-       noahmp%water%param%IrriFloodLossFrac      = NoahmpIO%FILOSS_2D    (I,J)            ! fraction of flood irrigation loss (0-1) 
-       noahmp%water%param%IrriSprinklerRate      = NoahmpIO%SPRIR_RATE_2D(I,J)            ! mm/h, sprinkler irrigation rate
-       noahmp%water%param%IrriMicroRate          = NoahmpIO%MICIR_RATE_2D(I,J)            ! mm/h, micro irrigation rate
-       noahmp%water%param%IrriFloodRateFac       = NoahmpIO%FIRTFAC_2D   (I,J)            ! flood application rate factor
-       noahmp%water%param%IrriStopPrecipThr      = NoahmpIO%IR_RAIN_2D   (I,J)            ! maximum precipitation to stop irrigation trigger
+       noahmp%water%param%IrriFracThreshold      = NoahmpIO%IRR_FRAC_2D  (I)            ! irrigation Fraction
+       noahmp%water%param%IrriStopDayBfHarvest   = NoahmpIO%IRR_HAR_2D   (I)            ! number of days before harvest date to stop irrigation 
+       noahmp%water%param%IrriTriggerLaiMin      = NoahmpIO%IRR_LAI_2D   (I)            ! Minimum lai to trigger irrigation
+       noahmp%water%param%SoilWatDeficitAllow    = NoahmpIO%IRR_MAD_2D   (I)            ! management allowable deficit (0-1)
+       noahmp%water%param%IrriFloodLossFrac      = NoahmpIO%FILOSS_2D    (I)            ! fraction of flood irrigation loss (0-1) 
+       noahmp%water%param%IrriSprinklerRate      = NoahmpIO%SPRIR_RATE_2D(I)            ! mm/h, sprinkler irrigation rate
+       noahmp%water%param%IrriMicroRate          = NoahmpIO%MICIR_RATE_2D(I)            ! mm/h, micro irrigation rate
+       noahmp%water%param%IrriFloodRateFac       = NoahmpIO%FIRTFAC_2D   (I)            ! flood application rate factor
+       noahmp%water%param%IrriStopPrecipThr      = NoahmpIO%IR_RAIN_2D   (I)            ! maximum precipitation to stop irrigation trigger
        ! 2D tile drainage parameters
-       noahmp%water%param%LateralWatCondFac      = NoahmpIO%KLAT_FAC (I,J)                ! factor multiplier to hydraulic conductivity
-       noahmp%water%param%DrainFacSoilWat        = NoahmpIO%TDSMC_FAC(I,J)                ! factor multiplier to field capacity
-       noahmp%water%param%TileDrainCoeffSp       = NoahmpIO%TD_DC    (I,J)                ! drainage coefficient for simple
-       noahmp%water%param%TileDrainCoeff         = NoahmpIO%TD_DCOEF (I,J)                ! drainge coefficient for Hooghoudt 
-       noahmp%water%param%TileDrainDepth         = NoahmpIO%TD_DDRAIN(I,J)                ! depth of drain
-       noahmp%water%param%DrainTubeRadius        = NoahmpIO%TD_RADI  (I,J)                ! tile tube radius
-       noahmp%water%param%DrainTubeDist          = NoahmpIO%TD_SPAC  (I,J)                ! tile spacing
+       noahmp%water%param%LateralWatCondFac      = NoahmpIO%KLAT_FAC (I)                ! factor multiplier to hydraulic conductivity
+       noahmp%water%param%DrainFacSoilWat        = NoahmpIO%TDSMC_FAC(I)                ! factor multiplier to field capacity
+       noahmp%water%param%TileDrainCoeffSp       = NoahmpIO%TD_DC    (I)                ! drainage coefficient for simple
+       noahmp%water%param%TileDrainCoeff         = NoahmpIO%TD_DCOEF (I)                ! drainge coefficient for Hooghoudt 
+       noahmp%water%param%TileDrainDepth         = NoahmpIO%TD_DDRAIN(I)                ! depth of drain
+       noahmp%water%param%DrainTubeRadius        = NoahmpIO%TD_RADI  (I)                ! tile tube radius
+       noahmp%water%param%DrainTubeDist          = NoahmpIO%TD_SPAC  (I)                ! tile spacing
     endif
 
     ! derived water parameters
@@ -217,16 +216,16 @@ contains
     endif
 
     noahmp%water%state%SnowIceFracPrev = 0.0
-    noahmp%water%state%SnowIceFracPrev(NumSnowLayerNeg+1:0) = NoahmpIO%SNICEXY(I,NumSnowLayerNeg+1:0,J) /  & 
-                                                              (NoahmpIO%SNICEXY(I,NumSnowLayerNeg+1:0,J) + &
-                                                               NoahmpIO%SNLIQXY(I,NumSnowLayerNeg+1:0,J))
+    noahmp%water%state%SnowIceFracPrev(NumSnowLayerNeg+1:0) = NoahmpIO%SNICEXY(I,NumSnowLayerNeg+1:0) /  & 
+                                                              (NoahmpIO%SNICEXY(I,NumSnowLayerNeg+1:0) + &
+                                                               NoahmpIO%SNLIQXY(I,NumSnowLayerNeg+1:0))
 
     if ( (noahmp%config%nmlist%OptSoilProperty == 3) .and. (.not. noahmp%config%domain%FlagUrban) ) then
        if (.not. allocated(SoilSand)) allocate( SoilSand(1:NumSoilLayer) )
        if (.not. allocated(SoilClay)) allocate( SoilClay(1:NumSoilLayer) )
        if (.not. allocated(SoilOrg) ) allocate( SoilOrg (1:NumSoilLayer) )
-       SoilSand = 0.01 * NoahmpIO%soilcomp(I,1:NumSoilLayer,J)
-       SoilClay = 0.01 * NoahmpIO%soilcomp(I,(NumSoilLayer+1):(NumSoilLayer*2),J)
+       SoilSand = 0.01 * NoahmpIO%soilcomp(I,1:NumSoilLayer)
+       SoilClay = 0.01 * NoahmpIO%soilcomp(I,(NumSoilLayer+1):(NumSoilLayer*2))
        SoilOrg  = 0.0
        if (noahmp%config%nmlist%OptPedotransfer == 1) &
           call PedoTransferSR2006(NoahmpIO,noahmp,SoilSand,SoilClay,SoilOrg)

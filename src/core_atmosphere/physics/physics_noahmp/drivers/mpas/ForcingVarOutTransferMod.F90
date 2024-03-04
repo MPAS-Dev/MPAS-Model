@@ -26,16 +26,15 @@ contains
 
 ! -------------------------------------------------------------------------
     associate(                                                         &
-              I               => noahmp%config%domain%GridIndexI      ,&
-              J               => noahmp%config%domain%GridIndexJ       &
+              I               => noahmp%config%domain%GridIndexI       &
              )
 ! -------------------------------------------------------------------------
 
-    NoahmpIO%FORCTLSM  (I,J) = noahmp%forcing%TemperatureAirRefHeight
-    NoahmpIO%FORCQLSM  (I,J) = noahmp%forcing%SpecHumidityRefHeight
-    NoahmpIO%FORCPLSM  (I,J) = noahmp%forcing%PressureAirRefHeight
-    NoahmpIO%FORCWLSM  (I,J) = sqrt(noahmp%forcing%WindEastwardRefHeight**2 + &
-                                    noahmp%forcing%WindNorthwardRefHeight**2)
+    NoahmpIO%FORCTLSM  (I) = noahmp%forcing%TemperatureAirRefHeight
+    NoahmpIO%FORCQLSM  (I) = noahmp%forcing%SpecHumidityRefHeight
+    NoahmpIO%FORCPLSM  (I) = noahmp%forcing%PressureAirRefHeight
+    NoahmpIO%FORCWLSM  (I) = sqrt(noahmp%forcing%WindEastwardRefHeight**2 + &
+                                  noahmp%forcing%WindNorthwardRefHeight**2)
 
     end associate
 

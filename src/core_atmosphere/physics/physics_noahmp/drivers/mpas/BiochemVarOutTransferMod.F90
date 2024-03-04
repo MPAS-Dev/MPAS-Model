@@ -26,27 +26,26 @@ contains
 
 ! ---------------------------------------------------------------------
     associate(                                         &
-              I    => noahmp%config%domain%GridIndexI ,&
-              J    => noahmp%config%domain%GridIndexJ  &
+              I    => noahmp%config%domain%GridIndexI  &
              )
 ! ---------------------------------------------------------------------
 
     ! biochem state variables
-    NoahmpIO%LFMASSXY(I,J) = noahmp%biochem%state%LeafMass
-    NoahmpIO%RTMASSXY(I,J) = noahmp%biochem%state%RootMass
-    NoahmpIO%STMASSXY(I,J) = noahmp%biochem%state%StemMass
-    NoahmpIO%WOODXY  (I,J) = noahmp%biochem%state%WoodMass
-    NoahmpIO%STBLCPXY(I,J) = noahmp%biochem%state%CarbonMassDeepSoil
-    NoahmpIO%FASTCPXY(I,J) = noahmp%biochem%state%CarbonMassShallowSoil
-    NoahmpIO%GDDXY   (I,J) = noahmp%biochem%state%GrowDegreeDay
-    NoahmpIO%PGSXY   (I,J) = noahmp%biochem%state%PlantGrowStage
-    NoahmpIO%GRAINXY (I,J) = noahmp%biochem%state%GrainMass
+    NoahmpIO%LFMASSXY(I) = noahmp%biochem%state%LeafMass
+    NoahmpIO%RTMASSXY(I) = noahmp%biochem%state%RootMass
+    NoahmpIO%STMASSXY(I) = noahmp%biochem%state%StemMass
+    NoahmpIO%WOODXY  (I) = noahmp%biochem%state%WoodMass
+    NoahmpIO%STBLCPXY(I) = noahmp%biochem%state%CarbonMassDeepSoil
+    NoahmpIO%FASTCPXY(I) = noahmp%biochem%state%CarbonMassShallowSoil
+    NoahmpIO%GDDXY   (I) = noahmp%biochem%state%GrowDegreeDay
+    NoahmpIO%PGSXY   (I) = noahmp%biochem%state%PlantGrowStage
+    NoahmpIO%GRAINXY (I) = noahmp%biochem%state%GrainMass
 
     ! biochem flux variables
-    NoahmpIO%NEEXY   (I,J) = noahmp%biochem%flux%NetEcoExchange
-    NoahmpIO%GPPXY   (I,J) = noahmp%biochem%flux%GrossPriProduction
-    NoahmpIO%NPPXY   (I,J) = noahmp%biochem%flux%NetPriProductionTot
-    NoahmpIO%PSNXY   (I,J) = noahmp%biochem%flux%PhotosynTotal
+    NoahmpIO%NEEXY   (I) = noahmp%biochem%flux%NetEcoExchange
+    NoahmpIO%GPPXY   (I) = noahmp%biochem%flux%GrossPriProduction
+    NoahmpIO%NPPXY   (I) = noahmp%biochem%flux%NetPriProductionTot
+    NoahmpIO%PSNXY   (I) = noahmp%biochem%flux%PhotosynTotal
 
     end associate
 

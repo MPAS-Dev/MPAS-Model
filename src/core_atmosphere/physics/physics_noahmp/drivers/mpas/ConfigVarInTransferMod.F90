@@ -29,7 +29,6 @@ contains
 ! --------------------------------------------------------------------- 
     associate(                                      &
               I               => NoahmpIO%I        ,&
-              J               => NoahmpIO%J        ,&
               NumSnowLayerMax => NoahmpIO%NSNOW    ,&
               NumSoilLayer    => NoahmpIO%NSOIL     &
              )
@@ -68,7 +67,7 @@ contains
     noahmp%config%domain%FlagSoilProcess             = NoahmpIO%calculate_soil
     noahmp%config%domain%NumSoilTimeStep             = NoahmpIO%soil_update_steps
     noahmp%config%domain%NumSnowLayerMax             = NoahmpIO%NSNOW
-    noahmp%config%domain%NumSnowLayerNeg             = NoahmpIO%ISNOWXY(I,J)
+    noahmp%config%domain%NumSnowLayerNeg             = NoahmpIO%ISNOWXY(I)
     noahmp%config%domain%NumSoilLayer                = NoahmpIO%NSOIL
     noahmp%config%domain%GridIndexI                  = NoahmpIO%I
     noahmp%config%domain%GridIndexJ                  = NoahmpIO%J
@@ -76,15 +75,15 @@ contains
     noahmp%config%domain%SoilTimeStep                = NoahmpIO%DTBL * NoahmpIO%soil_update_steps
     noahmp%config%domain%GridSize                    = NoahmpIO%DX
     noahmp%config%domain%LandUseDataName             = NoahmpIO%LLANDUSE
-    noahmp%config%domain%VegType                     = NoahmpIO%IVGTYP(I,J)
-    noahmp%config%domain%CropType                    = NoahmpIO%CROPCAT(I,J)
+    noahmp%config%domain%VegType                     = NoahmpIO%IVGTYP(I)
+    noahmp%config%domain%CropType                    = NoahmpIO%CROPCAT(I)
     noahmp%config%domain%IndicatorIceSfc             = NoahmpIO%ICE
     noahmp%config%domain%DayJulianInYear             = NoahmpIO%JULIAN
     noahmp%config%domain%NumDayInYear                = NoahmpIO%YEARLEN
-    noahmp%config%domain%Latitude                    = NoahmpIO%XLAT(I,J)
-    noahmp%config%domain%RefHeightAboveSfc           = NoahmpIO%DZ8W(I,1,J)*0.5
-    noahmp%config%domain%ThicknessAtmosBotLayer      = NoahmpIO%DZ8W(I,1,J)
-    noahmp%config%domain%CosSolarZenithAngle         = NoahmpIO%COSZEN(I,J) 
+    noahmp%config%domain%Latitude                    = NoahmpIO%XLAT(I)
+    noahmp%config%domain%RefHeightAboveSfc           = NoahmpIO%DZ8W(I,1)*0.5
+    noahmp%config%domain%ThicknessAtmosBotLayer      = NoahmpIO%DZ8W(I,1)
+    noahmp%config%domain%CosSolarZenithAngle         = NoahmpIO%COSZEN(I) 
     noahmp%config%domain%IndexWaterPoint             = NoahmpIO%ISWATER_TABLE
     noahmp%config%domain%IndexBarrenPoint            = NoahmpIO%ISBARREN_TABLE
     noahmp%config%domain%IndexIcePoint               = NoahmpIO%ISICE_TABLE
@@ -113,48 +112,47 @@ contains
     noahmp%config%domain%DepthSnowSoilLayer    (:)   = undefined_real
 
     if ( noahmp%config%nmlist%OptSoilProperty == 1 ) then
-       noahmp%config%domain%SoilType(1:NumSoilLayer) = NoahmpIO%ISLTYP(I,J)  ! soil type same in all layers
+       noahmp%config%domain%SoilType(1:NumSoilLayer) = NoahmpIO%ISLTYP(I)  ! soil type same in all layers
     elseif ( noahmp%config%nmlist%OptSoilProperty == 2 ) then
-       noahmp%config%domain%SoilType(1) = nint(NoahmpIO%SOILCL1(I,J))        ! soil type in layer1
-       noahmp%config%domain%SoilType(2) = nint(NoahmpIO%SOILCL2(I,J))        ! soil type in layer2
-       noahmp%config%domain%SoilType(3) = nint(NoahmpIO%SOILCL3(I,J))        ! soil type in layer3
-       noahmp%config%domain%SoilType(4) = nint(NoahmpIO%SOILCL4(I,J))        ! soil type in layer4
+       noahmp%config%domain%SoilType(1) = nint(NoahmpIO%SOILCL1(I))        ! soil type in layer1
+       noahmp%config%domain%SoilType(2) = nint(NoahmpIO%SOILCL2(I))        ! soil type in layer2
+       noahmp%config%domain%SoilType(3) = nint(NoahmpIO%SOILCL3(I))        ! soil type in layer3
+       noahmp%config%domain%SoilType(4) = nint(NoahmpIO%SOILCL4(I))        ! soil type in layer4
     elseif ( noahmp%config%nmlist%OptSoilProperty == 3 ) then
-       noahmp%config%domain%SoilType(1:NumSoilLayer) = NoahmpIO%ISLTYP(I,J)  ! to initialize with default
+       noahmp%config%domain%SoilType(1:NumSoilLayer) = NoahmpIO%ISLTYP(I)  ! to initialize with default
     endif 
        
     noahmp%config%domain%DepthSoilLayer(1:NumSoilLayer) = NoahmpIO%ZSOIL(1:NumSoilLayer)
     noahmp%config%domain%DepthSnowSoilLayer(-NumSnowLayerMax+1:NumSoilLayer) = &
-                         NoahmpIO%ZSNSOXY(I,-NumSnowLayerMax+1:NumSoilLayer,J)
+                         NoahmpIO%ZSNSOXY(I,-NumSnowLayerMax+1:NumSoilLayer)
 
     ! treatment for urban point
-    if ( (NoahmpIO%IVGTYP(I,J) == NoahmpIO%ISURBAN_TABLE) .or. (NoahmpIO%IVGTYP(I,J) > NoahmpIO%URBTYPE_beg) ) then
-       if ( NoahmpIO%SF_URBAN_PHYSICS == 0 ) then
-           noahmp%config%domain%VegType = NoahmpIO%ISURBAN_TABLE  ! treat as bulk urban point
-           noahmp%config%domain%FlagUrban = .true.
+    if ( (NoahmpIO%IVGTYP(I) == NoahmpIO%ISURBAN_TABLE) .or. (NoahmpIO%IVGTYP(I) > NoahmpIO%URBTYPE_beg) ) then
+       noahmp%config%domain%FlagUrban = .true. 
+       if(NoahmpIO%SF_URBAN_PHYSICS == 0 ) then
+           noahmp%config%domain%VegType = NoahmpIO%ISURBAN_TABLE
        else
-           noahmp%config%domain%VegType = NoahmpIO%NATURAL_TABLE  ! set rural vegetation type based on table natural
-                                                                  ! urban is handled by explicit urban scheme outside Noah-MP
-           NoahmpIO%GVFMAX(I,J)         = 0.96 * 100.0            ! unit: %
+           noahmp%config%domain%VegType = NoahmpIO%NATURAL_TABLE  ! set urban vegetation type based on table natural
+           NoahmpIO%GVFMAX(I)         = 0.96 * 100.0            ! unit: %
        endif         
     endif
 
     ! treatment for crop point
     noahmp%config%domain%CropType = 0
-    if ( (NoahmpIO%IOPT_CROP > 0) .and. (NoahmpIO%IVGTYP(I,J) == NoahmpIO%ISCROP_TABLE) ) &
+    if ( (NoahmpIO%IOPT_CROP > 0) .and. (NoahmpIO%IVGTYP(I) == NoahmpIO%ISCROP_TABLE) ) &
        noahmp%config%domain%CropType = NoahmpIO%DEFAULT_CROP_TABLE   
        
-    if ( (NoahmpIO%IOPT_CROP > 0) .and. (NoahmpIO%CROPCAT(I,J) > 0) ) then
-       noahmp%config%domain%CropType = NoahmpIO%CROPCAT(I,J)
+    if ( (NoahmpIO%IOPT_CROP > 0) .and. (NoahmpIO%CROPCAT(I) > 0) ) then
+       noahmp%config%domain%CropType = NoahmpIO%CROPCAT(I)
        noahmp%config%domain%VegType  = NoahmpIO%ISCROP_TABLE
-       NoahmpIO%VEGFRA(I,J)          = 0.95 * 100.0              ! unit: %
-       NoahmpIO%GVFMAX(I,J)          = 0.95 * 100.0              ! unit: %
+       NoahmpIO%VEGFRA(I)          = 0.95 * 100.0              ! unit: %
+       NoahmpIO%GVFMAX(I)          = 0.95 * 100.0              ! unit: %
     endif
 
     ! correct inconsistent soil type
-    if ( any(noahmp%config%domain%SoilType == 14) .and. (NoahmpIO%XICE(I,J) == 0.0) ) then
+    if ( any(noahmp%config%domain%SoilType == 14) .and. (NoahmpIO%XICE(I) == 0.0) ) then
        write(*,*) "SOIL TYPE FOUND TO BE WATER AT A LAND-POINT"
-       write(*,*) "RESET SOIL type to SANDY CLAY LOAM at grid = ", I, J
+       write(*,*) "RESET SOIL type to SANDY CLAY LOAM at grid = ", I
        noahmp%config%domain%SoilType = 7
     endif
 

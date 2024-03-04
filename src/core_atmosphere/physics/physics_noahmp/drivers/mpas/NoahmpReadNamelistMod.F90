@@ -103,10 +103,6 @@ contains
     character(len=256)      :: external_lai_filename_template     = " "
     character(len=256)      :: agdata_flnm                        = " "
     character(len=256)      :: tdinput_flnm                       = " "
-    integer                 :: xstart                             = 1
-    integer                 :: ystart                             = 1
-    integer                 :: xend                               = 0
-    integer                 :: yend                               = 0
     integer, parameter      :: MAX_SOIL_LEVELS                    = 10     ! maximum soil levels in namelist
     real(kind=kind_noahmp), dimension(MAX_SOIL_LEVELS) :: soil_thick_input ! depth to soil interfaces from namelist [m]
     
@@ -135,8 +131,7 @@ contains
          split_output_count,                                                              & 
          khour, kday, zlvl, hrldas_setup_file,                                            &
          spatial_filename, agdata_flnm, tdinput_flnm,                                     &
-         external_veg_filename_template, external_lai_filename_template,                  &
-         xstart, xend, ystart, yend
+         external_veg_filename_template, external_lai_filename_template
 
 
     !---------------------------------------------------------------
@@ -390,10 +385,6 @@ contains
     NoahmpIO%external_lai_filename_template    = external_lai_filename_template
     NoahmpIO%agdata_flnm                       = agdata_flnm
     NoahmpIO%tdinput_flnm                      = tdinput_flnm
-    NoahmpIO%xstart                            = xstart
-    NoahmpIO%ystart                            = ystart
-    NoahmpIO%xend                              = xend
-    NoahmpIO%yend                              = yend
     NoahmpIO%MAX_SOIL_LEVELS                   = MAX_SOIL_LEVELS
     NoahmpIO%soil_thick_input                  = soil_thick_input 
  

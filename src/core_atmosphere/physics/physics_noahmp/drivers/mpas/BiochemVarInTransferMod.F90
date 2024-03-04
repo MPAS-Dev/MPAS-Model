@@ -29,7 +29,6 @@ contains
 ! -------------------------------------------------------------------------
     associate(                                                   &
               I            => noahmp%config%domain%GridIndexI   ,&
-              J            => noahmp%config%domain%GridIndexJ   ,&
               VegType      => noahmp%config%domain%VegType      ,&
               CropType     => noahmp%config%domain%CropType     ,&
               OptCropModel => noahmp%config%nmlist%OptCropModel  &
@@ -37,15 +36,15 @@ contains
 ! -------------------------------------------------------------------------
 
     ! biochem state variables
-    noahmp%biochem%state%PlantGrowStage             = NoahmpIO%PGSXY   (I,J)   
-    noahmp%biochem%state%LeafMass                   = NoahmpIO%LFMASSXY(I,J)
-    noahmp%biochem%state%RootMass                   = NoahmpIO%RTMASSXY(I,J)
-    noahmp%biochem%state%StemMass                   = NoahmpIO%STMASSXY(I,J) 
-    noahmp%biochem%state%WoodMass                   = NoahmpIO%WOODXY  (I,J) 
-    noahmp%biochem%state%CarbonMassDeepSoil         = NoahmpIO%STBLCPXY(I,J) 
-    noahmp%biochem%state%CarbonMassShallowSoil      = NoahmpIO%FASTCPXY(I,J)
-    noahmp%biochem%state%GrainMass                  = NoahmpIO%GRAINXY (I,J)  
-    noahmp%biochem%state%GrowDegreeDay              = NoahmpIO%GDDXY   (I,J)  
+    noahmp%biochem%state%PlantGrowStage             = NoahmpIO%PGSXY   (I)   
+    noahmp%biochem%state%LeafMass                   = NoahmpIO%LFMASSXY(I)
+    noahmp%biochem%state%RootMass                   = NoahmpIO%RTMASSXY(I)
+    noahmp%biochem%state%StemMass                   = NoahmpIO%STMASSXY(I) 
+    noahmp%biochem%state%WoodMass                   = NoahmpIO%WOODXY  (I) 
+    noahmp%biochem%state%CarbonMassDeepSoil         = NoahmpIO%STBLCPXY(I) 
+    noahmp%biochem%state%CarbonMassShallowSoil      = NoahmpIO%FASTCPXY(I)
+    noahmp%biochem%state%GrainMass                  = NoahmpIO%GRAINXY (I)  
+    noahmp%biochem%state%GrowDegreeDay              = NoahmpIO%GDDXY   (I)  
     noahmp%biochem%state%NitrogenConcFoliage        = 1.0  ! for now, set to nitrogen saturation
 
     ! biochem parameter variables
@@ -122,24 +121,24 @@ contains
        noahmp%biochem%param%TurnoverCoeffRootCrop   = NoahmpIO%RT_OVRC_TABLE  (CropType,:)
 
        if ( OptCropModel == 1 ) then
-          noahmp%biochem%param%DatePlanting         = NoahmpIO%PLANTING(I,J)
-          noahmp%biochem%param%DateHarvest          = NoahmpIO%HARVEST(I,J)
-          noahmp%biochem%param%GrowDegDayEmerg      = NoahmpIO%SEASON_GDD(I,J) / 1770.0 * &
+          noahmp%biochem%param%DatePlanting         = NoahmpIO%PLANTING(I)
+          noahmp%biochem%param%DateHarvest          = NoahmpIO%HARVEST(I)
+          noahmp%biochem%param%GrowDegDayEmerg      = NoahmpIO%SEASON_GDD(I) / 1770.0 * &
                                                       noahmp%biochem%param%GrowDegDayEmerg
-          noahmp%biochem%param%GrowDegDayInitVeg    = NoahmpIO%SEASON_GDD(I,J) / 1770.0 * &
+          noahmp%biochem%param%GrowDegDayInitVeg    = NoahmpIO%SEASON_GDD(I) / 1770.0 * &
                                                       noahmp%biochem%param%GrowDegDayInitVeg
-          noahmp%biochem%param%GrowDegDayPostVeg    = NoahmpIO%SEASON_GDD(I,J) / 1770.0 * &
+          noahmp%biochem%param%GrowDegDayPostVeg    = NoahmpIO%SEASON_GDD(I) / 1770.0 * &
                                                       noahmp%biochem%param%GrowDegDayPostVeg
-          noahmp%biochem%param%GrowDegDayInitReprod = NoahmpIO%SEASON_GDD(I,J) / 1770.0 * &
+          noahmp%biochem%param%GrowDegDayInitReprod = NoahmpIO%SEASON_GDD(I) / 1770.0 * &
                                                       noahmp%biochem%param%GrowDegDayInitReprod
-          noahmp%biochem%param%GrowDegDayMature     = NoahmpIO%SEASON_GDD(I,J) / 1770.0 * &
+          noahmp%biochem%param%GrowDegDayMature     = NoahmpIO%SEASON_GDD(I) / 1770.0 * &
                                                       noahmp%biochem%param%GrowDegDayMature
         endif
     endif ! activate crop parameters
 
     if ( noahmp%config%nmlist%OptIrrigation == 2 ) then
-       noahmp%biochem%param%DatePlanting = NoahmpIO%PLANTING(I,J)
-       noahmp%biochem%param%DateHarvest  = NoahmpIO%HARVEST (I,J)
+       noahmp%biochem%param%DatePlanting = NoahmpIO%PLANTING(I)
+       noahmp%biochem%param%DateHarvest  = NoahmpIO%HARVEST (I)
     endif
     
     end associate
