@@ -23,6 +23,8 @@
  public:: physics_timetracker,physics_run_init
 
  integer, public:: year                 !Current year.
+ integer, public:: month                !Current month.
+ integer, public:: day                  !Current day of the month.
  integer, public:: julday               !Initial Julian day.
  real(kind=RKIND), public:: curr_julday !Current Julian day (= 0.0 at 0Z on January 1st).
  real(kind=RKIND), public:: gmt         !Greenwich mean time hour of model start (hr)
@@ -200,7 +202,7 @@
 !update the current julian day and current year:
 
  currTime = mpas_get_clock_time(clock,MPAS_NOW,ierr)
- call mpas_get_time(curr_time=currTime,dateTimeString=timeStamp,YYYY=yr,H=h,M=m, &
+ call mpas_get_time(curr_time=currTime,dateTimeString=timeStamp,YYYY=yr,MM=month,DD=day,H=h,M=m, &
                     S=s,S_n=s_n,S_d=s_d,DoY=DoY,ierr=ierr)
 
  utc_h = real(h) + real(m) / 60.0 + real(s + s_n / s_d) / 3600.0
