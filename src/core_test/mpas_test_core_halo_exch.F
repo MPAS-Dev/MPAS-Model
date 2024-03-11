@@ -7,6 +7,7 @@
 !
 
 !#define HALO_EXCH_DEBUG
+!#define HALO_EXCH_DEBUG_VERBOSE
 
 module test_core_halo_exch
 
@@ -51,7 +52,7 @@ module test_core_halo_exch
 
       call mpas_timer_start('halo exch tests')
       if ( threadNum == 0 ) then
-         call mpas_log_write(' - Performing exchange group tests')
+         call mpas_log_write(' - Performing group halo exchange tests')
       end if
       call test_core_halo_exch_group_test(domain, threadErrs, iErr)
       call mpas_threading_barrier()
@@ -115,6 +116,7 @@ module test_core_halo_exch
       type (field2DInteger), pointer :: int2DField
       type (field1DInteger), pointer :: int1DField
 
+      integer :: iErr
       integer :: threadNum
 
       threadNum = mpas_threading_get_thread_num() + 1
@@ -247,8 +249,11 @@ module test_core_halo_exch
 
       call mpas_threading_barrier()
 
-      call test_core_halo_exch_validate_fields(domain, threadErrs, err)
+      call test_core_halo_exch_validate_fields(domain, threadErrs, iErr)
+      err = ior(err, iErr)
 
+      call test_halo_adj_exch_fields(domain, threadErrs, iErr)
+      err = ior(err, iErr)
    end subroutine test_core_halo_exch_full_test!}}}
 
 
@@ -983,6 +988,7 @@ module test_core_halo_exch
    !-----------------------------------------------------------------------
    function computeErrors(nColumns, expectedValues, real5D, real4D, real3D, real2D, real1D, &
                           int3d, int2d, int1d) result(errorCode)
+
       integer, intent(in) :: nColumns !< the outermost dimension size to be checked
       integer, dimension(:), pointer, intent(in) :: expectedValues !< an array of expected values
       !< the following are multi-dimension arrays whose elements are checked
@@ -1370,5 +1376,224 @@ module test_core_halo_exch
 
    end subroutine test_core_halo_exch_validate_fields!}}}
 
+   !***********************************************************************
+   !> \brief   Identify cells which are adjacent to the cells with the provided cellMask/
+   !> \Author Michael Duda
+   !> \details 
+   !>  This function identifies cells which are adjacent to cells with the provided mask.
+   !>  Such cells will be marked with with cellMask+1.
+   !>  Only cells which have no mask are considered.
+   !-----------------------------------------------------------------------
+   function mark_interior_cells(cellMask, sentinelValue, cellsOnCell, nEdgesOnCell) result(nCellsMarked)
+
+      !< array of masks, where a value of zero means the cell won't be updated by the halo adjoint exchange
+      integer, dimension(:), intent(inout) :: cellMask
+      integer, intent(in) :: sentinelValue !< the value to look for being adjacent to
+      integer, dimension(:,:), intent(in) :: cellsOnCell   !< array containing adjacent cells for each cell
+      integer, dimension(:), intent(in) :: nEdgesOnCell  !< array containing edges for each cell
+
+      integer :: iCell, j, nCellsMarked
+
+      nCellsMarked = 0
+      do iCell = 1, size(cellMask)
+         if (cellMask(iCell) == 0) then
+            do j = 1, nEdgesOnCell(iCell)
+               if (cellMask(cellsOnCell(j, iCell)) == sentinelValue) then
+                  cellMask(iCell) = sentinelValue + 1
+                  nCellsMarked = nCellsMarked + 1
+#ifdef HALO_EXCH_DEBUG_VERBOSE
+                  call mpas_log_write(' mark_interior iCell:$i abuts:$i', &
+                          intArgs = (/iCell, cellsOnCell(j,iCell)/))
+#endif
+                   exit
+               end if
+            end do
+         end if
+      end do
+#ifdef HALO_EXCH_DEBUG_VERBOSE
+      call mpas_log_write(' mark_interior nCellsMarked:$i sentinel:$i', &
+          intArgs=(/nCellsMarked, sentinelValue/))
+#endif
+
+   end function mark_interior_cells
+
+   !***********************************************************************
+   !> \brief   Identify interior and edge cells
+   !> \Author Michael Duda, Jim Wittig
+   !> \details 
+   !>  This function identifies cells which are on the interior, vs cells on the edge
+   !>  (cells with neighbors which aren't in this block).
+   !>  Returns a vector of flags corresponding to the array of cells, where a value of zero indicates
+   !>  the cell is interior, and a value of non-zero indicates
+   !>    1. the cell is a halo cell (not owned by this block)
+   !>    2. the cell is on an edge of this block (adjacent to a halo cell), or
+   !>    3. the cell is adjacent to an edge cell, or
+   !>    4. the cell is adjacent to a cell which is adjacent to an edge
+   !>  This identifies cells which should be updated via the halo adjoint exchange.
+   !>  Cells marked with a 2 should get updated via halo layer 1.
+   !>  Cells marked with a 3 should get updated via halo layer 2, etc.
+   !>  
+   !-----------------------------------------------------------------------
+   function findExteriorCells(nCellsSolve, nCells, cellsOnCell, edgesOnCell, nHaloLayers) &
+      result(exteriorCells)
+
+      integer, intent(in) :: nCellsSolve !< the number of cells in this block
+      integer, intent(in) :: nCells !< total number of cells (cells in this block plus halo cells)
+      integer, dimension(:,:), intent(in) :: cellsOnCell !< array with adjacent cells for each cell
+      integer, dimension(:), intent(in) :: edgesOnCell !< array with edges for each cell
+      integer, intent(in) :: nHaloLayers  !< the number of halo layers
+
+      integer, dimension(:), allocatable :: exteriorCells
+      integer nInterior, nEdge, nLayers
+
+      allocate(exteriorCells(nCells))
+      exteriorCells(1:nCellsSolve) = 0 !< mark all owned cells as interior
+      exteriorCells(nCellsSolve+1:nCells) = 1 !< mark all halo cells as edge
+      nInterior = 0
+      nEdge = 0
+#ifdef HALO_EXCH_DEBUG_VERBOSE
+      call mpas_log_write(' halo cellsOnCell($i x $i)', &
+         intArgs=(/size(cellsOnCell, dim=1), size(cellsOnCell, dim=2)/))
+#endif
+      
+      ! At this point, only halo cells are marked 1, and all owned cells are marked 0
+      ! for each halo layer, mark cells adjacent to already marked cells with next highest marker
+      do nLayers = 1, nHaloLayers
+         nEdge = nEdge + mark_interior_cells(exteriorCells(1:nCells), nLayers, cellsOnCell, edgesOnCell)
+      end do
+
+      nInterior = nCellsSolve - nEdge
+
+#ifdef HALO_EXCH_DEBUG_VERBOSE
+      call mpas_log_write(' halo nInterior:$i nEdge:$i', intArgs=(/nInterior, nEdge/))
+#endif
+   end function findExteriorCells
+
+   !***********************************************************************
+   !> \brief   MPAS Test Core halo adjoint exchange
+   !> \details 
+   !>  This routine applies the halo adjoint function to a 2D array and verifies
+   !>  interior cell's values don't change, and border cell's values are modified.
+   !>  It assumes a halo exchange has already been applied.
+   !>  Returns 0 on success, non-0 on failure.
+   !-----------------------------------------------------------------------
+   subroutine test_halo_adj_exch_fields(domain, threadErrs, err)
+
+      type (domain_type), intent(inout) :: domain
+      integer, dimension(:), intent(out) :: threadErrs
+      integer, intent(out) :: err
+
+      type (block_type), pointer :: block
+      type (mpas_pool_type), pointer :: meshPool, haloExchTestPool
+      type (field2DReal), pointer :: real2DField
+      real (kind=RKIND), dimension(:, :), pointer :: real2D
+      real (kind=RKIND), dimension(:, :), allocatable :: real2Dorig
+      integer, dimension(:,:), pointer :: cellsOnCell
+      integer, dimension(:), pointer :: nEdgesOnCell
+      integer, dimension(:), allocatable :: exteriorCells
+      integer, pointer :: nCells, nCellsSolve
+      integer :: iCell, iEdgeOnCell, nInterior, nEdge, nHaloLayers
+
+      err = 0
+      ! get a variable to call the adjoint halo on
+      block => domain % blocklist
+
+      call mpas_pool_get_subpool(block % structs, 'haloExchTest', haloExchTestPool)
+      call mpas_pool_get_subpool(block % structs, 'mesh', meshPool)
+      call mpas_pool_get_field(haloExchTestPool, 'cellPersistReal2D', real2DField)
+      call mpas_pool_get_dimension(haloExchTestPool, 'nCells', nCells)
+      call mpas_pool_get_dimension(haloExchTestPool, 'nCellsSolve', nCellsSolve)
+#ifdef HALO_EXCH_DEBUG_VERBOSE
+      call mpas_log_write(' test_halo_adj_exch_fields nCellsSolve:$i nCells:$i', &
+         intArgs=(/nCellsSolve, nCells/))
+#endif
+
+      ! make a copy of the data before applying the adjoint halo
+      call mpas_pool_get_array(haloExchTestPool, 'cellPersistReal2D', real2D)
+      allocate(real2Dorig(size(real2D, 2), size(real2D, 1)))
+      real2Dorig = real2D
+
+      ! find cells with adjoining ghost cells
+      call MPAS_pool_get_array(meshPool, 'cellsOnCell', cellsOnCell)
+      call MPAS_pool_get_array(meshPool, 'nEdgesOnCell', nEdgesOnCell)
+#ifdef HALO_EXCH_DEBUG_VERBOSE
+      call mpas_log_write(' halo_adj_ cellsOnCell size:$ix$i', &
+         intArgs=(/size(cellsOnCell,2), size(cellsOnCell, 1)/))
+#endif
+
+      nHaloLayers = size(real2DField % sendList % halos)
+      exteriorCells = findExteriorCells(nCellsSolve, nCells, cellsOnCell, nEdgesOnCell, nHaloLayers)
+
+      ! run the adjoint halo, this will update owned cells
+      call mpas_dmpar_exch_halo_adj_field(real2DField)
+
+      do while ( associated(block) )
+
+         ! get the real2D array after calling mpas_dmpar_exch_halo_adj_field
+         call mpas_pool_get_array(haloExchTestPool, 'cellPersistReal2D', real2D)
+
+         ! check the adjoint halo operation populated fields correctly
+         err = check_adjoint_values(nCellsSolve, real2Dorig, real2D, exteriorCells)
+         block => block % next
+      end do
+   end subroutine test_halo_adj_exch_fields
+
+   !***********************************************************************
+   !> \brief   MPAS Test check pre & post adjoint exchange values
+   !> \details 
+   !>  This routine checks the pre-adjoint halo exchange values aganst
+   !>  post-adjoint halo exhange values.
+   !>  Interior cell's values aren't expected to change, and border cell's values are 
+   !> expected to change.
+   !>  Returns 0 on success, non-0 on failure.
+   !-----------------------------------------------------------------------
+   integer function check_adjoint_values(nCellsSolve, orig, adjoint, exteriorCells) 
+
+      integer, pointer, intent(in) :: nCellsSolve !< the number of local owned cells
+      real (kind=RKIND), dimension(:,:), intent(in) :: orig !< values of the cells before applying the adjoint exchange
+      real (kind=RKIND), dimension(:,:), intent(in) :: adjoint !< values of cells after applying the adjoint exchange
+      integer, dimension(:), intent(in) :: exteriorCells !< array indicating a cell is interior or on the edge
+
+      integer :: i, j, nError, nInterior, nEdge
+      integer :: iDim1, iDim2
+
+      nError = 0
+      iDim1 = nCellsSolve
+      iDim2 = size(orig, dim=1)
+      nInterior = 0
+      nEdge = 0
+
+      do i = 1, iDim1
+         do j = 1, iDim2
+            if (exteriorCells(i) == 0) then
+               if (j == 1) then
+                  nInterior = nInterior + 1
+                  ! interior cells shouldn't have changed
+                  if (orig(j, i) /= adjoint(j, i)) then
+                     call mpas_log_write(' halo changed value for interior cell at:$i:$i orig:$r new:$r', &
+                        intArgs=(/j,i/), realArgs=(/orig(j,i), adjoint(j,i)/))
+                     nError = nError + 1
+                  end if
+               end if
+            else
+               if (j == 1) then
+                  nEdge = nEdge + 1
+                  ! edge cells should change
+                  if (orig(j, i) == adjoint(j, i)) then
+                     call mpas_log_write(' halo unchanged value for edge cell at:$i:$i $r vs $r', &
+                        intArgs=(/i,j/), realArgs=(/orig(j, i), adjoint(j, i)/))
+                     nError = nError + 1
+                  end if
+               end if
+            end if
+         end do
+      end do
+#ifdef HALO_EXCH_DEBUG_VERBOSE
+      call mpas_log_write('  halo nInterior:$i nEdge:$i, nError:$i', &
+         intArgs=(/nInterior, nEdge, nError/))
+#endif
+
+      check_adjoint_values = nError
+   end function check_adjoint_values
 
 end module test_core_halo_exch
