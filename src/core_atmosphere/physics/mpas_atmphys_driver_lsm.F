@@ -99,6 +99,9 @@
 !   Laura D. Fowler (laura@ucar.edu) / 2020-05-10.
 ! * replaced the option "noah" with "sf_noah" to run the NOAH land surface scheme.
 !   Laura D. Fowler (laura@ucar.edu) / 2022-02-18.
+! * moved the call to sfcdiags from subroutine driver_lsm to subroutine lsm_to_MPAS. this allows t2m, th2m,
+!   and q2 to be correctly computed over seaice points.
+!   Laura D. Fowler (laura@ucar.edu) / 2024-03-12.
 
 
 !
@@ -669,6 +672,16 @@
     enddo
  endif
 
+ call sfcdiags( &
+          hfx   = hfx_p  , qfx     = qfx_p   , tsk  = tsk_p , qsfc = qsfc_p , chs = chs_p , &
+          chs2  = chs2_p , cqs2    = cqs2_p  , t2   = t2m_p , th2  = th2m_p , q2  = q2_p  , &
+          psfc  = psfc_p , t3d     = t_p     , qv3d = qv_p  , cp   = cp     , R_d = R_d   , &
+          rovcp = rcp    , ua_phys = ua_phys                                              , &
+          ids = ids , ide = ide , jds = jds , jde = jde , kds = kds , kde = kde ,           &
+          ims = ims , ime = ime , jms = jms , jme = jme , kms = kms , kme = kme ,           &
+          its = its , ite = ite , jts = jts , jte = jte , kts = kts , kte = kte             &
+              )
+
 !--- update all land-surface variables:
  do j = jts,jte
  do n = 1,num_soils
@@ -891,18 +904,7 @@
                 its = its , ite = ite , jts = jts , jte = jte , kts = kts , kte = kte    &
                           )
        endif
-
-       call sfcdiags( &
-                hfx   = hfx_p  , qfx     = qfx_p   , tsk  = tsk_p , qsfc = qsfc_p , chs = chs_p , &
-                chs2  = chs2_p , cqs2    = cqs2_p  , t2   = t2m_p , th2  = th2m_p , q2  = q2_p  , &
-                psfc  = psfc_p , t3d     = t_p     , qv3d = qv_p  , cp   = cp     , R_d = R_d   , &
-                rovcp = rcp    , ua_phys = ua_phys                                              , &
-                ids = ids , ide = ide , jds = jds , jde = jde , kds = kds , kde = kde ,           &
-                ims = ims , ime = ime , jms = jms , jme = jme , kms = kms , kme = kme ,           &
-                its = its , ite = ite , jts = jts , jte = jte , kts = kts , kte = kte             &
-                    )
        call mpas_timer_stop('sf_noah')
-                
 
     case default
 
