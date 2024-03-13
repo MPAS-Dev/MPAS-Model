@@ -29,6 +29,7 @@ OBJS = \
 	mpas_atmphys_driver_pbl.o          \
 	mpas_atmphys_driver_radiation_lw.o \
 	mpas_atmphys_driver_radiation_sw.o \
+	mpas_atmphys_driver_seaice.o       \
 	mpas_atmphys_driver_sfclayer.o     \
 	mpas_atmphys_finalize.o            \
 	mpas_atmphys_init.o                \
@@ -82,6 +83,7 @@ mpas_atmphys_driver.o: \
 	mpas_atmphys_driver_pbl.o \
 	mpas_atmphys_driver_radiation_lw.o \
 	mpas_atmphys_driver_radiation_sw.o \
+	mpas_atmphys_driver_seaice.o \
 	mpas_atmphys_driver_sfclayer.o \
 	mpas_atmphys_driver_oml.o \
 	mpas_atmphys_constants.o \
@@ -105,7 +107,6 @@ mpas_atmphys_driver_lsm.o: \
 	mpas_atmphys_constants.o \
 	mpas_atmphys_landuse.o \
 	mpas_atmphys_lsm_noahinit.o \
-	mpas_atmphys_lsm_shared.o \
 	mpas_atmphys_vars.o
 
 mpas_atmphys_driver_microphysics.o: \
@@ -183,6 +184,11 @@ mpas_atmphys_rrtmg_lwinit.o: \
 mpas_atmphys_rrtmg_swinit.o: \
 	mpas_atmphys_constants.o \
 	mpas_atmphys_utilities.o
+
+mpas_atmphys_driver_seaice.o: \
+	mpas_atmphys_constants.o \
+	mpas_atmphys_lsm_shared.o \
+	mpas_atmphys_vars.o
 
 mpas_atmphys_todynamics.o: \
 	mpas_atmphys_constants.o \
