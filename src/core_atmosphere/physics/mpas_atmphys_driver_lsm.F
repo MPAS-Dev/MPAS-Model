@@ -14,6 +14,7 @@
  use mpas_atmphys_constants
  use mpas_atmphys_landuse, only: isurban
  use mpas_atmphys_lsm_noahinit
+ use mpas_atmphys_lsm_shared,only: correct_tsk_over_seaice
  use mpas_atmphys_vars
 
 !wrf physics
@@ -98,6 +99,9 @@
 !   Laura D. Fowler (laura@ucar.edu) / 2020-05-10.
 ! * replaced the option "noah" with "sf_noah" to run the NOAH land surface scheme.
 !   Laura D. Fowler (laura@ucar.edu) / 2022-02-18.
+! * moved the call to sfcdiags from subroutine driver_lsm to subroutine lsm_to_MPAS. this allows t2m, th2m,
+!   and q2 to be correctly computed over seaice points.
+!   Laura D. Fowler (laura@ucar.edu) / 2024-03-12.
 
 
 !
@@ -646,6 +650,39 @@
  call mpas_pool_get_array(sfc_input,'smois'        ,smois     )
  call mpas_pool_get_array(sfc_input,'tslb'         ,tslb      )
 
+!--- weigh local variables needed in the calculation of t2m, th2m, and q2 over seaice points:
+ if(config_frac_seaice) then
+    do j = jts,jte
+    do i = its,ite
+       if(xice_p(i,j).ge.xice_threshold .and. xice_p(i,j).le.1._RKIND) then
+          chs_p(i,j)  = xice_p(i,j)*chs_p(i,j)  + (1._RKIND-xice_p(i,j))*chs_sea(i,j)
+          chs2_p(i,j) = xice_p(i,j)*chs2_p(i,j) + (1._RKIND-xice_p(i,j))*chs2_sea(i,j)
+          cqs2_p(i,j) = xice_p(i,j)*cqs2_p(i,j) + (1._RKIND-xice_p(i,j))*cqs2_sea(i,j)
+          cpm_p(i,j)  = xice_p(i,j)*cpm_p(i,j)  + (1._RKIND-xice_p(i,j))*cpm_sea(i,j)
+          hfx_p(i,j)  = xice_p(i,j)*hfx_p(i,j)  + (1._RKIND-xice_p(i,j))*hfx_sea(i,j)
+          lh_p(i,j)   = xice_p(i,j)*lh_p(i,j)   + (1._RKIND-xice_p(i,j))*lh_sea(i,j)
+          qfx_p(i,j)  = xice_p(i,j)*qfx_p(i,j)  + (1._RKIND-xice_p(i,j))*qfx_sea(i,j)
+          qgh_p(i,j)  = xice_p(i,j)*qgh_p(i,j)  + (1._RKIND-xice_p(i,j))*qgh_sea(i,j)
+          qsfc_p(i,j) = xice_p(i,j)*qsfc_p(i,j) + (1._RKIND-xice_p(i,j))*qsfc_sea(i,j)
+          tsk_p(i,j)  = xice_p(i,j)*tsk_p(i,j)  + (1._RKIND-xice_p(i,j))*tsk_sea(i,j)
+          sfc_albedo_p(i,j) = xice_p(i,j)*sfc_albedo_p(i,j) + (1._RKIND-xice_p(i,j))*0.08_RKIND
+          sfc_emiss_p(i,j)  = xice_p(i,j)*sfc_emiss_p(i,j)  + (1._RKIND-xice_p(i,j))*0.98_RKIND
+       endif
+    enddo
+    enddo
+ endif
+
+ call sfcdiags( &
+          hfx   = hfx_p  , qfx     = qfx_p   , tsk  = tsk_p , qsfc = qsfc_p , chs = chs_p , &
+          chs2  = chs2_p , cqs2    = cqs2_p  , t2   = t2m_p , th2  = th2m_p , q2  = q2_p  , &
+          psfc  = psfc_p , t3d     = t_p     , qv3d = qv_p  , cp   = cp     , R_d = R_d   , &
+          rovcp = rcp    , ua_phys = ua_phys                                              , &
+          ids = ids , ide = ide , jds = jds , jde = jde , kds = kds , kde = kde ,           &
+          ims = ims , ime = ime , jms = jms , jme = jme , kms = kms , kme = kme ,           &
+          its = its , ite = ite , jts = jts , jte = jte , kts = kts , kte = kte             &
+              )
+
+!--- update all land-surface variables:
  do j = jts,jte
  do n = 1,num_soils
  do i = its,ite
@@ -706,27 +743,6 @@
     xland(i)      = xland_p(i,j)
  enddo
  enddo
-
- if(config_frac_seaice) then
-    do j = jts,jte
-    do i = its,ite
-       if(xice_p(i,j).ge.xice_threshold .and. xice_p(i,j).le.1._RKIND) then
-          chs(i)        = xice_p(i,j)*chs_p(i,j)  + (1._RKIND-xice_p(i,j))*chs_sea(i,j)
-          chs2(i)       = xice_p(i,j)*chs2_p(i,j) + (1._RKIND-xice_p(i,j))*chs2_sea(i,j)
-          cqs2(i)       = xice_p(i,j)*cqs2_p(i,j) + (1._RKIND-xice_p(i,j))*cqs2_sea(i,j)
-          cpm(i)        = xice_p(i,j)*cpm_p(i,j)  + (1._RKIND-xice_p(i,j))*cpm_sea(i,j)
-          hfx(i)        = xice_p(i,j)*hfx_p(i,j)  + (1._RKIND-xice_p(i,j))*hfx_sea(i,j)
-          lh(i)         = xice_p(i,j)*lh_p(i,j)   + (1._RKIND-xice_p(i,j))*lh_sea(i,j)
-          qfx(i)        = xice_p(i,j)*qfx_p(i,j)  + (1._RKIND-xice_p(i,j))*qfx_sea(i,j)
-          qgh(i)        = xice_p(i,j)*qgh_p(i,j)  + (1._RKIND-xice_p(i,j))*qgh_sea(i,j)
-          qsfc(i)       = xice_p(i,j)*qsfc_p(i,j) + (1._RKIND-xice_p(i,j))*qsfc_sea(i,j)
-          skintemp(i)   = xice_p(i,j)*tsk_p(i,j)  + (1._RKIND-xice_p(i,j))*tsk_sea(i,j)
-          sfc_albedo(i) = xice_p(i,j)*sfc_albedo_p(i,j) + (1._RKIND-xice_p(i,j))*0.08_RKIND
-          sfc_emiss(i)  = xice_p(i,j)*sfc_emiss_p(i,j)  + (1._RKIND-xice_p(i,j))*0.98_RKIND
-       endif
-    enddo
-    enddo
- endif
 
  if(config_microp_scheme .ne. 'off') then
     call mpas_pool_get_array(diag_physics,'sr',sr) 
@@ -888,18 +904,7 @@
                 its = its , ite = ite , jts = jts , jte = jte , kts = kts , kte = kte    &
                           )
        endif
-
-       call sfcdiags( &
-                hfx   = hfx_p  , qfx     = qfx_p   , tsk  = tsk_p , qsfc = qsfc_p , chs = chs_p , &
-                chs2  = chs2_p , cqs2    = cqs2_p  , t2   = t2m_p , th2  = th2m_p , q2  = q2_p  , &
-                psfc  = psfc_p , t3d     = t_p     , qv3d = qv_p  , cp   = cp     , R_d = R_d   , &
-                rovcp = rcp    , ua_phys = ua_phys                                              , &
-                ids = ids , ide = ide , jds = jds , jde = jde , kds = kds , kde = kde ,           &
-                ims = ims , ime = ime , jms = jms , jme = jme , kms = kms , kme = kme ,           &
-                its = its , ite = ite , jts = jts , jte = jte , kts = kts , kte = kte             &
-                    )
        call mpas_timer_stop('sf_noah')
-                
 
     case default
 
@@ -911,44 +916,6 @@
 !call mpas_log_write('--- end subroutine driver_lsm.')
 
  end subroutine driver_lsm
-
-!=================================================================================================================
- subroutine correct_tsk_over_seaice(ims,ime,jms,jme,its,ite,jts,jte,xice_thresh,xice,tsk,tsk_sea,tsk_ice)
-!=================================================================================================================
-
-!input arguments:
- integer,intent(in):: ims,ime,its,ite,jms,jme,jts,jte
- real(kind=RKIND),intent(in):: xice_thresh
- real(kind=RKIND),intent(in),dimension(ims:ime,jms:jme):: tsk,xice
-
-!inout arguments:
- real(kind=RKIND),intent(inout),dimension(ims:ime,jms:jme):: tsk_sea,tsk_ice
-
-!local variables:
- integer:: i,j
-
-!-----------------------------------------------------------------------------------------------------------------
-
-!initialize the local sea-surface temperature and local sea-ice temperature to the local surface
-!temperature:
- do j = jts,jte
- do i = its,ite
-    tsk_sea(i,j) = tsk(i,j)
-    tsk_ice(i,j) = tsk(i,j)
-
-    if(xice(i,j).ge.xice_thresh .and. xice(i,j).le.1._RKIND) then
-       !over sea-ice grid cells, limit sea-surface temperatures to temperatures warmer than 271.4:
-       tsk_sea(i,j) = max(tsk_sea(i,j),271.4_RKIND)
-
-       !over sea-ice grid cells, avoids unphysically too cold sea-ice temperatures for grid cells
-       !with small sea-ice fractions:
-       if(xice(i,j).lt.0.2_RKIND .and. tsk_ice(i,j).lt.253.15_RKIND) tsk_ice(i,j) = 253.15_RKIND
-       if(xice(i,j).lt.0.1_RKIND .and. tsk_ice(i,j).lt.263.15_RKIND) tsk_ice(i,j) = 263.15_RKIND
-    endif
- enddo
- enddo
-
- end subroutine correct_tsk_over_seaice
 
 !=================================================================================================================
  end module mpas_atmphys_driver_lsm
