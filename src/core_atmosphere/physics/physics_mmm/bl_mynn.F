@@ -188,7 +188,7 @@
     flag_qc,flag_qi,flag_qs,flag_qoz,flag_qnc,flag_qni,flag_qnifa,flag_qnwfa,flag_qnbca
 
 
- logical,intent(in):: bl_mynn_tkeadvect
+ logical,intent(in):: bl_mynn_tkeadvect,bl_mynn_tkebudget
 
  logical,intent(in):: &
     restart,cycling
@@ -201,7 +201,7 @@
  integer,intent(in):: &
     bl_mynn_cloudpdf,bl_mynn_mixlength,bl_mynn_stfunc,bl_mynn_topdown,bl_mynn_edmf,      &
     bl_mynn_edmf_dd,bl_mynn_edmf_mom,bl_mynn_edmf_tke,bl_mynn_output,bl_mynn_mixscalars, &
-    bl_mynn_cloudmix,bl_mynn_mixqt,bl_mynn_tkebudget
+    bl_mynn_cloudmix,bl_mynn_mixqt
  
  real(kind=kind_phys),intent(in):: &
     bl_mynn_closure,scaleaware
@@ -777,7 +777,7 @@
        enddo
     endif
     !Joe-TKE budget:
-    if(bl_mynn_tkebudget == 1) then
+    if(bl_mynn_tkebudget) then
        do k = kts,kte
           dqke1(k) = qke1(k)
        enddo
@@ -1159,7 +1159,7 @@
     !the TKE budget is now given in m**2/s**-3 (Puhales, 2020):
     if(present(qwt)   .and. present(qbuoy) .and. present(qshear) .and. &
        present(qdiss) .and. present(dqke)) then
-       if(bl_mynn_tkebudget == 1) then
+       if(bl_mynn_tkebudget) then
           !lower boundary condtions (using similarity relationships such as the prognostic equation for Qke)
           k = kts
           qshear1(k) = 4.*(ust1**3*phi_m/(karman*dz1(k)))-qshear1(k+1) ! staggered
