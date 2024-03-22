@@ -247,6 +247,8 @@
 
 
 !local variables and arrays:
+ logical:: mynn_tkebudget_l
+
  integer:: i,k,j
 
  integer:: dheat_opt
@@ -300,6 +302,9 @@
 
  errmsg = " "
  errflg = 0
+
+ mynn_tkebudget_l = .false.
+ if(bl_mynn_tkebudget == 1) mynn_tkebudget_l = .true.
 
  dheat_opt  = bl_mynn_dheat_opt
  scaleaware = real(bl_mynn_scaleaware,kind_phys)
@@ -542,7 +547,7 @@
             frp       = frp_hv    , vdep    = vd_hv                                    &
 #endif
            ,bl_mynn_tkeadvect  = bl_mynn_tkeadvect  , &
-            bl_mynn_tkebudget  = bl_mynn_tkebudget  , &
+            bl_mynn_tkebudget  = mynn_tkebudget_l   , &
             bl_mynn_cloudpdf   = bl_mynn_cloudpdf   , &
             bl_mynn_mixlength  = bl_mynn_mixlength  , &
             bl_mynn_stfunc     = bl_mynn_stfunc     , &
