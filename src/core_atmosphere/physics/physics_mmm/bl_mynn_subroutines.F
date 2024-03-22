@@ -1572,7 +1572,7 @@ CONTAINS
 !! - Production terms of TKE,\f$\theta^{'2}\f$,\f$q^{'2}\f$, and \f$\theta^{'}q^{'}\f$
 !! are calculated.
 !! - Eddy diffusivity \f$K_h\f$ and eddy viscosity \f$K_m\f$ are calculated.
-!! - TKE budget terms are calculated (if the namelist parameter \p tke_budget 
+!! - TKE budget terms are calculated (if the namelist parameter \p bl_mynn_tkebudget
 !! is set to True)
   SUBROUTINE  mym_turbulence (                                &
     &            kts,kte,                                     &
@@ -1587,7 +1587,7 @@ CONTAINS
     &            El,                                          &
     &            Dfm, Dfh, Dfq, Tcd, Qcd, Pdk, Pdt, Pdq, Pdc, &
     &            qWT1D,qSHEAR1D,qBUOY1D,qDISS1D,              &
-    &            tke_budget,                                  &
+    &            bl_mynn_tkebudget,                           &
     &            Psig_bl,Psig_shcu,cldfra_bl1D,               &
     &            bl_mynn_mixlength,                           &
     &            edmf_w1,edmf_a1,                             &
@@ -1603,7 +1603,8 @@ CONTAINS
 # define kte HARDCODE_VERTICAL
 #endif
 
-    integer, intent(in)               :: bl_mynn_mixlength,tke_budget
+    logical, intent(in)               :: bl_mynn_tkebudget
+    integer, intent(in)               :: bl_mynn_mixlength
     real(kind_phys), intent(in)       :: closure
     real(kind_phys), dimension(kts:kte),   intent(in) :: dz
     real(kind_phys), dimension(kts:kte+1), intent(in) :: zw
@@ -2040,7 +2041,7 @@ CONTAINS
        dfq(k) =     dfm(k)
 !  Modified: Dec/22/2005, up to here
 
-   IF (tke_budget .eq. 1) THEN
+   IF (bl_mynn_tkebudget) THEN
        !TKE BUDGET
 !       dudz = ( u(k)-u(k-1) )/dzk
 !       dvdz = ( v(k)-v(k-1) )/dzk
@@ -2161,7 +2162,7 @@ CONTAINS
        &            pdk, pdt, pdq, pdc,                                 &
        &            qke, tsq, qsq, cov,                                 &
        &            s_aw,s_awqke,bl_mynn_edmf_tke,                      &
-       &            qWT1D, qDISS1D,tke_budget)  !! TKE budget  (Puhales, 2020)
+       &            qWT1D, qDISS1D,bl_mynn_tkebudget)  !! TKE budget  (Puhales, 2020)
 
 !-------------------------------------------------------------------
     integer, intent(in) :: kts,kte
@@ -2171,8 +2172,9 @@ CONTAINS
 # define kte HARDCODE_VERTICAL
 #endif
 
+    logical, intent(in) :: bl_mynn_tkebudget
     real(kind_phys), intent(in)    :: closure
-    integer, intent(in) :: bl_mynn_edmf_tke,tke_budget
+    integer, intent(in) :: bl_mynn_edmf_tke
     real(kind_phys), dimension(kts:kte), intent(in) :: dz, dfq, el, rho
     real(kind_phys), dimension(kts:kte), intent(inout) :: pdk, pdt, pdq, pdc
     real(kind_phys), intent(in)    :: flt, flq, pmz, phh
@@ -2323,7 +2325,7 @@ CONTAINS
       
    
 !!  TKE budget  (Puhales, 2020, WRF 4.2.1)  << EOB 
-    IF (tke_budget .eq. 1) THEN
+    IF (bl_mynn_tkebudget) THEN
        !! TKE Vertical transport << EOBvt
         tke_up=0.5*qke
         dzinv=1./dz
