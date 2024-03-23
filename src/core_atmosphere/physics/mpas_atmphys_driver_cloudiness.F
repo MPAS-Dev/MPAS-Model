@@ -51,7 +51,10 @@
 !   Laura D. Fowler (laura@ucar.edu) / 2016-07-05.
 ! * since we removed the local variable radt_cld_scheme from mpas_atmphys_vars.F, now defines radt_cld_scheme
 !   as a pointer to config_radt_cld_scheme.
-!   Laura D. Fowler (laura@ucar.edu) / 2917-02-16.
+!   Laura D. Fowler (laura@ucar.edu) / 2017-02-16.
+! * this is a bug fix. dx_p is converted from meters to kilometers prior to calling the thompson parameterization
+!   of the cloud fraction.
+!   Laura D. Fowler (laura@ucar.edu) / 2024-03-23.
 
 
  contains
@@ -119,6 +122,8 @@
  do j = jts,jte
     do i = its,ite
        dx_p(i,j)    = len_disp / meshDensity(i)**0.25
+       !conversion of dx_p from meters to kilometers.
+       dx_p(i,j)    = dx_p(i,j)*0.001
        xland_p(i,j) = xland(i)
     enddo
 
