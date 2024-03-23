@@ -365,12 +365,6 @@
  real(kind=kind_phys),dimension(kts:kte+1):: &
     sd_aw1,sd_awthl1,sd_awqt1,sd_awqv1,sd_awqc1,sd_awu1,sd_awv1,sd_awqke1
 
-!JOE-add GRIMS parameters & variables
- real(kind=kind_phys),parameter::  d1 = 0.02, d2 = 0.05, d3 = 0.001
- real(kind=kind_phys),parameter::  h1 = 0.33333335, h2 = 0.6666667
- real(kind=kind_phys):: govrth,sflux,bfx0,wstar3,wm2,wm3,delb
-!JOE-end GRIMS
-
 !JOE-top-down diffusion
  logical :: cloudflg
  integer :: kk,kminrad
