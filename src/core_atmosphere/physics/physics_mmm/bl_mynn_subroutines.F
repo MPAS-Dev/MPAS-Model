@@ -6534,7 +6534,7 @@ END FUNCTION phih
 
        !entrainment from PBL top thermals
        wm3    = grav/thetav(k)*bfx0*MIN(pblh,1500.) ! this is wstar3(i)
-       wm2    = wm2 + wm3**twothirds
+!      wm2    = wm2 + wm3**twothirds
        bfxpbl = - ent_eff * bfx0
        dthvx  = max(thetav(k+1)-thetav(k),0.1)
        we     = max(bfxpbl/dthvx,-sqrt(wm3**twothirds))
