@@ -187,7 +187,7 @@
  logical,intent(in):: &
     flag_qc,flag_qi,flag_qs,flag_qoz,flag_qnc,flag_qni,flag_qnifa,flag_qnwfa,flag_qnbca
 
-
+ logical,intent(in):: bl_mynn_mixscalars,bl_mynn_cloudmix,bl_mynn_mixqt
  logical,intent(in):: bl_mynn_tkeadvect,bl_mynn_tkebudget
 
  logical,intent(in):: &
@@ -200,8 +200,7 @@
 
  integer,intent(in):: &
     bl_mynn_cloudpdf,bl_mynn_mixlength,bl_mynn_stfunc,bl_mynn_topdown,bl_mynn_edmf,      &
-    bl_mynn_edmf_dd,bl_mynn_edmf_mom,bl_mynn_edmf_tke,bl_mynn_output,bl_mynn_mixscalars, &
-    bl_mynn_cloudmix,bl_mynn_mixqt
+    bl_mynn_edmf_dd,bl_mynn_edmf_mom,bl_mynn_edmf_tke,bl_mynn_output
  
  real(kind=kind_phys),intent(in):: &
     bl_mynn_closure,scaleaware
@@ -1088,42 +1087,42 @@
        rthblten(i,k) = dth1(k)
        rqvblten(i,k) = dqv1(k)
     enddo
-    if(bl_mynn_cloudmix > 0 .and. flag_qc) then       
+    if(bl_mynn_cloudmix .and. flag_qc) then       
        do k = kts,kte
           rqcblten(i,k) = dqc1(k)
        enddo
     endif
-    if(bl_mynn_cloudmix > 0 .and. flag_qi) then
+    if(bl_mynn_cloudmix .and. flag_qi) then
        do k = kts,kte
          rqiblten(i,k) = dqi1(k)
        enddo
     endif
-    if(bl_mynn_cloudmix > 0 .and. flag_qs) then
+    if(bl_mynn_cloudmix .and. flag_qs) then
        do k = kts,kte
          rqsblten(i,k) = dqs1(k)
        enddo
     endif
-    if(bl_mynn_cloudmix > 0 .and. bl_mynn_mixscalars > 0 .and. flag_qnc) then
+    if(bl_mynn_cloudmix .and. bl_mynn_mixscalars .and. flag_qnc) then
        do k = kts,kte
           rqncblten(i,k) = dqnc1(k)
        enddo
     endif
-    if(bl_mynn_cloudmix > 0 .and. bl_mynn_mixscalars > 0 .and. flag_qni) then
+    if(bl_mynn_cloudmix .and. bl_mynn_mixscalars .and. flag_qni) then
        do k = kts,kte
           rqniblten(i,k) = dqni1(k)
        enddo
     endif
-    if(bl_mynn_cloudmix > 0 .and. bl_mynn_mixscalars > 0 .and. flag_qnifa) then
+    if(bl_mynn_cloudmix .and. bl_mynn_mixscalars .and. flag_qnifa) then
        do k = kts,kte
           rqnifablten(i,k) = dqnifa1(k)
        enddo
     endif
-    if(bl_mynn_cloudmix > 0 .and. bl_mynn_mixscalars > 0 .and. flag_qnwfa) then
+    if(bl_mynn_cloudmix .and. bl_mynn_mixscalars .and. flag_qnwfa) then
        do k = kts,kte
           rqnwfablten(i,k) = dqnwfa1(k)
        enddo
     endif
-    if(bl_mynn_cloudmix > 0 .and. bl_mynn_mixscalars > 0 .and. flag_qnbca) then
+    if(bl_mynn_cloudmix .and. bl_mynn_mixscalars .and. flag_qnbca) then
        do k = kts,kte
           rqnbcablten(i,k) = dqnbca1(k)
        enddo
