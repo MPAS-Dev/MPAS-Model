@@ -187,7 +187,7 @@
  logical,intent(in):: &
     flag_qc,flag_qi,flag_qs,flag_qoz,flag_qnc,flag_qni,flag_qnifa,flag_qnwfa,flag_qnbca
 
- logical,intent(in):: bl_mynn_edmf,bl_mynn_edmf_dd
+ logical,intent(in):: bl_mynn_edmf,bl_mynn_edmf_dd,bl_mynn_edmf_mom,bl_mynn_edmf_tke
  logical,intent(in):: bl_mynn_mixscalars,bl_mynn_cloudmix,bl_mynn_mixqt
  logical,intent(in):: bl_mynn_tkeadvect,bl_mynn_tkebudget
 
@@ -200,8 +200,7 @@
     initflag,icloud_bl,spp_pbl,dheat_opt
 
  integer,intent(in):: &
-    bl_mynn_cloudpdf,bl_mynn_mixlength,bl_mynn_stfunc,bl_mynn_topdown, &
-    bl_mynn_edmf_mom,bl_mynn_edmf_tke,bl_mynn_output
+    bl_mynn_cloudpdf,bl_mynn_mixlength,bl_mynn_stfunc,bl_mynn_topdown,bl_mynn_output
  
  real(kind=kind_phys),intent(in):: &
     bl_mynn_closure,scaleaware

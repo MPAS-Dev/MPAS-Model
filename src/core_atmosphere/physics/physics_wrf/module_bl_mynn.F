@@ -247,7 +247,7 @@
 
 
 !local variables and arrays:
- logical:: mynn_edmf_l,mynn_edmf_dd_l
+ logical:: mynn_edmf_l,mynn_edmf_dd_l,mynn_edmf_mom_l,mynn_edmf_tke_l
  logical:: mynn_mixscalars_l,mynn_mixclouds_l,mynn_mixqt_l
  logical:: mynn_tkebudget_l
 
@@ -305,17 +305,21 @@
  errmsg = " "
  errflg = 0
 
- mynn_edmf_l    = .false.
- mynn_edmf_dd_l = .false.
- if(bl_mynn_edmf    == 1) mynn_edmf_l    = .true.
- if(bl_mynn_edmf_dd == 1) mynn_edmf_dd_l = .true.
+ mynn_edmf_l     = .false.
+ mynn_edmf_dd_l  = .false.
+ mynn_edmf_mom_l = .false.
+ mynn_edmf_tke_l = .false.
+ if(bl_mynn_edmf     == 1) mynn_edmf_l     = .true.
+ if(bl_mynn_edmf_dd  == 1) mynn_edmf_dd_l  = .true.
+ if(bl_mynn_edmf_mom == 1) mynn_edmf_mom_l = .true.
+ if(bl_mynn_edmf_tke == 1) mynn_edmf_tke_l = .true.
 
  mynn_mixscalars_l = .false.
  mynn_mixclouds_l  = .false.
  mynn_mixqt_l      = .false.
  if(bl_mynn_mixscalars == 1) mynn_mixscalars_l = .true.
  if(bl_mynn_cloudmix   == 1) mynn_mixclouds_l  = .true.
- if(bl_mynn_mixqt == 1    ) mynn_mixqt_l       = .true.
+ if(bl_mynn_mixqt      == 1) mynn_mixqt_l       = .true.
 
  mynn_tkebudget_l = .false.
  if(bl_mynn_tkebudget == 1) mynn_tkebudget_l = .true.
@@ -569,8 +573,8 @@
             bl_mynn_closure    = bl_mynn_closure    , &
             bl_mynn_edmf       = mynn_edmf_l        , &
             bl_mynn_edmf_dd    = mynn_edmf_dd_l     , &
-            bl_mynn_edmf_mom   = bl_mynn_edmf_mom   , &
-            bl_mynn_edmf_tke   = bl_mynn_edmf_tke   , &
+            bl_mynn_edmf_mom   = mynn_edmf_mom_l    , &
+            bl_mynn_edmf_tke   = mynn_edmf_tke_l    , &
             bl_mynn_mixscalars = mynn_mixscalars_l  , &
             bl_mynn_output     = bl_mynn_output     , &
             bl_mynn_cloudmix   = mynn_mixclouds_l   , &
