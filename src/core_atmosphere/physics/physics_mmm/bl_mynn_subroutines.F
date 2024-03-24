@@ -210,8 +210,8 @@
 !                cloud species (default = 1: on). 
 !            Added mass-flux option (bl_mynn_edmf, = .true. for DMP mass-flux, .false.: off).
 !                Related options: 
-!                 bl_mynn_edmf_mom = 1 : activate momentum transport in MF scheme
-!                 bl_mynn_edmf_tke = 1 : activate TKE transport in MF scheme
+!                 bl_mynn_edmf_mom = .true. : activate momentum transport in MF scheme
+!                 bl_mynn_edmf_tke = .true. : activate TKE transport in MF scheme
 !            Added mixing length option (bl_mynn_mixlength, see notes below)
 !            Added more sophisticated saturation checks, following Thompson scheme
 !            Added new cloud PDF option (bl_mynn_cloudpdf = 2) from Chaboureau
@@ -277,7 +277,7 @@
 !            Tweak to calculation of KPBL - urged by Laura Fowler - to make more intuitive.
 !            Tweak to temperature range of blending for saturation check (water to ice). This
 !                slightly reduces excessive SGS clouds in polar region. No impact warm clouds. 
-!            Added namelist option bl_mynn_output (0 or 1) to suppress or activate the
+!            Added namelist option bl_mynn_output (.false. or .true.) to suppress or activate the
 !                allocation and output of 10 3D variables. Most people will want this
 !                set to 0 (default) to save memory and disk space.
 !            Added new array qi_bl as opposed to using qc_bl for both SGS qc and qi. This
@@ -2172,9 +2172,8 @@ CONTAINS
 # define kte HARDCODE_VERTICAL
 #endif
 
-    logical, intent(in) :: bl_mynn_tkebudget
+    logical, intent(in) :: bl_mynn_edmf_tke,bl_mynn_tkebudget
     real(kind_phys), intent(in)    :: closure
-    integer, intent(in) :: bl_mynn_edmf_tke
     real(kind_phys), dimension(kts:kte), intent(in) :: dz, dfq, el, rho
     real(kind_phys), dimension(kts:kte), intent(inout) :: pdk, pdt, pdq, pdc
     real(kind_phys), intent(in)    :: flt, flq, pmz, phh
@@ -2198,7 +2197,7 @@ CONTAINS
     real(kind_phys), dimension(kts:kte+1) :: rhoz,kqdz,kmdz
 
     ! REGULATE THE MOMENTUM MIXING FROM THE MASS-FLUX SCHEME (on or off)
-    IF (bl_mynn_edmf_tke == 0) THEN
+    IF (.not. bl_mynn_edmf_tke) THEN
        onoff=0.0
     ELSE
        onoff=1.0
@@ -3027,7 +3026,7 @@ CONTAINS
 # define kte HARDCODE_VERTICAL
 #endif
 
-    integer, intent(in) :: bl_mynn_edmf_mom
+    logical, intent(in) :: bl_mynn_edmf_mom
     logical, intent(in) :: bl_mynn_mixscalars,bl_mynn_cloudmix,bl_mynn_mixqt
     logical, intent(in) :: FLAG_QI,FLAG_QNI,FLAG_QC,FLAG_QS,              &
          &FLAG_QNC,FLAG_QNWFA,FLAG_QNIFA,FLAG_QNBCA,FLAG_OZONE
@@ -3084,9 +3083,9 @@ CONTAINS
     dztop=.5*(dz(kte)+dz(kte-1))
 
     ! REGULATE THE MOMENTUM MIXING FROM THE MASS-FLUX SCHEME (on or off)
-    ! Note that s_awu and s_awv already come in as 0.0 if bl_mynn_edmf_mom == 0, so
+    ! Note that s_awu and s_awv already come in as 0.0 if bl_mynn_edmf_mom == .false., so
     ! we only need to zero-out the MF term
-    IF (bl_mynn_edmf_mom == 0) THEN
+    IF (.not. bl_mynn_edmf_mom) THEN
        onoff=0.0
     ELSE
        onoff=1.0
@@ -4679,8 +4678,8 @@ ENDIF
 
   ! inputs:
      integer, intent(in) :: ii
-     integer, intent(in) :: KTS,KTE,KPBL,momentum_opt,tke_opt
-     logical, intent(in) :: scalar_opt
+     integer, intent(in) :: KTS,KTE,KPBL
+     logical, intent(in) :: momentum_opt,scalar_opt,tke_opt
 
 #ifdef HARDCODE_VERTICAL
 # define kts 1
@@ -5381,7 +5380,7 @@ IF (nup2 > 0) THEN
       ENDDO
    ENDDO
    !momentum
-   if (momentum_opt > 0) then
+   if (momentum_opt) then
       do i=1,nup
          do k=kts,kte-1
             s_awu(k+1)  = s_awu(k+1)   + rhoz(k)*UPA(K,i)*UPW(K,i)*UPU(K,i)*Psig_w
@@ -5390,7 +5389,7 @@ IF (nup2 > 0) THEN
       enddo
    endif
    !tke
-   if (tke_opt > 0) then
+   if (tke_opt) then
       do i=1,nup
          do k=kts,kte-1
             s_awqke(k+1)= s_awqke(k+1) + rhoz(k)*UPA(K,i)*UPW(K,i)*UPQKE(K,i)*Psig_w
@@ -5446,11 +5445,11 @@ IF (nup2 > 0) THEN
        s_awqnwfa = s_awqnwfa*adjustment
        s_awqnifa = s_awqnifa*adjustment
        s_awqnbca = s_awqnbca*adjustment
-       IF (momentum_opt > 0) THEN
+       IF (momentum_opt) THEN
           s_awu  = s_awu*adjustment
           s_awv  = s_awv*adjustment
        ENDIF
-       IF (tke_opt > 0) THEN
+       IF (tke_opt) THEN
           s_awqke= s_awqke*adjustment
        ENDIF
        IF ( mix_chem ) THEN
@@ -5560,7 +5559,7 @@ IF (nup2 > 0) THEN
           det_sqc(k)=Cdet*(envm_sqc(k)-qc(k))*envi_a(k)*Psig_w
        ENDDO
 
-       IF (momentum_opt > 0) THEN
+       IF (momentum_opt) THEN
          sub_u(kts)=0.5*envi_w(kts)*envi_a(kts)*                               &
                     (rho(kts+1)*u(kts+1)-rho(kts)*u(kts))/dzi(kts)/rhoz(k)
          sub_v(kts)=0.5*envi_w(kts)*envi_a(kts)*                               &
