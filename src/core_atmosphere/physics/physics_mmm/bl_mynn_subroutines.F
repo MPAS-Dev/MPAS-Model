@@ -208,7 +208,7 @@
 !            Added Tripoli and Cotton (1981) correction.
 !            Added namelist option bl_mynn_cloudmix to test effect of mixing
 !                cloud species (default = 1: on). 
-!            Added mass-flux option (bl_mynn_edmf, = 1 for DMP mass-flux, 0: off).
+!            Added mass-flux option (bl_mynn_edmf, = .true. for DMP mass-flux, .false.: off).
 !                Related options: 
 !                 bl_mynn_edmf_mom = 1 : activate momentum transport in MF scheme
 !                 bl_mynn_edmf_tke = 1 : activate TKE transport in MF scheme
@@ -3016,7 +3016,6 @@ CONTAINS
        &cldfra_bl1d,                          &
        &bl_mynn_cloudmix,                     &
        &bl_mynn_mixqt,                        &
-       &bl_mynn_edmf,                         &
        &bl_mynn_edmf_mom,                     &
        &bl_mynn_mixscalars                    )
 
@@ -3028,7 +3027,7 @@ CONTAINS
 # define kte HARDCODE_VERTICAL
 #endif
 
-    integer, intent(in) :: bl_mynn_edmf,bl_mynn_edmf_mom
+    integer, intent(in) :: bl_mynn_edmf_mom
     logical, intent(in) :: bl_mynn_mixscalars,bl_mynn_cloudmix,bl_mynn_mixqt
     logical, intent(in) :: FLAG_QI,FLAG_QNI,FLAG_QC,FLAG_QS,              &
          &FLAG_QNC,FLAG_QNWFA,FLAG_QNIFA,FLAG_QNBCA,FLAG_OZONE
@@ -4624,7 +4623,7 @@ ENDIF
 !! dmp_mf() calculates the nonlocal turbulent transport from the dynamic
 !! multiplume mass-flux scheme as well as the shallow-cumulus component of 
 !! the subgrid clouds. Note that this mass-flux scheme is called when the
-!! namelist paramter \p bl_mynn_edmf is set to 1 (recommended).
+!! namelist paramter \p bl_mynn_edmf is set to true (recommended).
 !!
 !! Much thanks to Kay Suslj of NASA-JPL for contributing the original version
 !! of this mass-flux scheme. Considerable changes have been made from it's

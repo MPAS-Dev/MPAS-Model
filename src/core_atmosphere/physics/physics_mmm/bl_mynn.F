@@ -187,6 +187,7 @@
  logical,intent(in):: &
     flag_qc,flag_qi,flag_qs,flag_qoz,flag_qnc,flag_qni,flag_qnifa,flag_qnwfa,flag_qnbca
 
+ logical,intent(in):: bl_mynn_edmf,bl_mynn_edmf_dd
  logical,intent(in):: bl_mynn_mixscalars,bl_mynn_cloudmix,bl_mynn_mixqt
  logical,intent(in):: bl_mynn_tkeadvect,bl_mynn_tkebudget
 
@@ -199,8 +200,8 @@
     initflag,icloud_bl,spp_pbl,dheat_opt
 
  integer,intent(in):: &
-    bl_mynn_cloudpdf,bl_mynn_mixlength,bl_mynn_stfunc,bl_mynn_topdown,bl_mynn_edmf,      &
-    bl_mynn_edmf_dd,bl_mynn_edmf_mom,bl_mynn_edmf_tke,bl_mynn_output
+    bl_mynn_cloudpdf,bl_mynn_mixlength,bl_mynn_stfunc,bl_mynn_topdown, &
+    bl_mynn_edmf_mom,bl_mynn_edmf_tke,bl_mynn_output
  
  real(kind=kind_phys),intent(in):: &
     bl_mynn_closure,scaleaware
@@ -882,7 +883,7 @@
 
 
     !--- calls subroutine dmp_mf():
-    if(bl_mynn_edmf > 0) then
+    if(bl_mynn_edmf) then
        call dmp_mf( i,                             &
                 kts,kte,delt,zw,dz1,p1,rho1,       &
                 bl_mynn_edmf_mom,                  &
@@ -923,7 +924,7 @@
                 maxmf1,ztop_plume1,                &
                 spp_pbl,rstoch_col)
 
-       if(bl_mynn_edmf_dd == 1) then
+       if(bl_mynn_edmf_dd) then
           call ddmf_jpl(kts,kte,delt,zw,dz1,p1,         &
                     u1,v1,th1,thl,thetav,tk1,           &
                     sqw,sqv1,sqc1,rho1,ex1,             &
@@ -1029,7 +1030,6 @@
               cldfra_bl1,                        &
               bl_mynn_cloudmix,                  &
               bl_mynn_mixqt,                     &
-              bl_mynn_edmf,                      &
               bl_mynn_edmf_mom,                  &
               bl_mynn_mixscalars)
 
@@ -1192,7 +1192,7 @@
 
 
     !optional inout arrays for updraft/downdraft properties:
-    if(bl_mynn_output > 0 .and. bl_mynn_edmf > 0) then
+    if(bl_mynn_edmf .and. bl_mynn_output > 0) then
        do k = kts,kte
           edmf_a(i,k)   = edmf_a1(k)
           edmf_w(i,k)   = edmf_w1(k)
@@ -1219,7 +1219,7 @@
           det_sqv(i,k)  = 0._kind_phys
        enddo
     endif
-    if(bl_mynn_output > 0 .and. bl_mynn_edmf_dd > 0) then
+    if(bl_mynn_edmf_dd .and. bl_mynn_output > 0) then
        if(present(edmf_a_dd)   .and. present(edmf_w_dd)   .and. present(edmf_qt_dd) .and. &
           present(edmf_thl_dd) .and. present(edmf_ent_dd) .and. present(edmf_qc_dd)) then
           do k = kts,kte
