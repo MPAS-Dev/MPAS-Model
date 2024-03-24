@@ -247,6 +247,7 @@
 
 
 !local variables and arrays:
+ logical:: mynn_mixscalars_l,mynn_mixclouds_l,mynn_mixqt_l
  logical:: mynn_tkebudget_l
 
  integer:: i,k,j
@@ -302,6 +303,13 @@
 
  errmsg = " "
  errflg = 0
+
+ mynn_mixscalars_l = .false.
+ mynn_mixclouds_l  = .false.
+ mynn_mixqt_l      = .false.
+ if(bl_mynn_mixscalars == 1) mynn_mixscalars_l = .true.
+ if(bl_mynn_cloudmix   == 1) mynn_mixclouds_l  = .true.
+ if(bl_mynn_mixqt == 1    ) mynn_mixqt_l       = .true.
 
  mynn_tkebudget_l = .false.
  if(bl_mynn_tkebudget == 1) mynn_tkebudget_l = .true.
@@ -557,10 +565,10 @@
             bl_mynn_edmf_dd    = bl_mynn_edmf_dd    , &
             bl_mynn_edmf_mom   = bl_mynn_edmf_mom   , &
             bl_mynn_edmf_tke   = bl_mynn_edmf_tke   , &
-            bl_mynn_mixscalars = bl_mynn_mixscalars , &
+            bl_mynn_mixscalars = mynn_mixscalars_l  , &
             bl_mynn_output     = bl_mynn_output     , &
-            bl_mynn_cloudmix   = bl_mynn_cloudmix   , &
-            bl_mynn_mixqt      = bl_mynn_mixqt      , &
+            bl_mynn_cloudmix   = mynn_mixclouds_l   , &
+            bl_mynn_mixqt      = mynn_mixqt_l       , &
             its = its , ite = ite , kts = kts , kte = kte , kme = kme , errmsg = errmsg , errflg = errflg )
 
 
