@@ -258,7 +258,7 @@
 !            Changed mass-flux scheme to be integrated on interface levels instead of
 !                mass levels - impact is small
 !            Added option to mix 2nd moments in MYNN as opposed to the scalar_pblmix option.
-!                - activated with bl_mynn_mixscalars = 1; this sets scalar_pblmix = 0
+!                - activated with bl_mynn_mixscalars = .true.; this sets scalar_pblmix = 0
 !                - added tridagonal solver used in scalar_pblmix option to duplicate tendencies
 !                - this alone changes the interface call considerably from v4.0.
 !            Slight revision to TKE production due to radiation cooling at top of clouds
@@ -3028,9 +3028,8 @@ CONTAINS
 # define kte HARDCODE_VERTICAL
 #endif
 
-    integer, intent(in) :: bl_mynn_cloudmix,bl_mynn_mixqt,                &
-                           bl_mynn_edmf,bl_mynn_edmf_mom,                 &
-                           bl_mynn_mixscalars
+    integer, intent(in) :: bl_mynn_edmf,bl_mynn_edmf_mom
+    logical, intent(in) :: bl_mynn_mixscalars,bl_mynn_cloudmix,bl_mynn_mixqt
     logical, intent(in) :: FLAG_QI,FLAG_QNI,FLAG_QC,FLAG_QS,              &
          &FLAG_QNC,FLAG_QNWFA,FLAG_QNIFA,FLAG_QNBCA,FLAG_OZONE
 
@@ -3323,7 +3322,7 @@ CONTAINS
        thl(k)=x(k)
     ENDDO
 
-IF (bl_mynn_mixqt > 0) THEN
+IF (bl_mynn_mixqt) THEN
  !============================================
  ! MIX total water (sqw = sqc + sqv + sqi)
  ! NOTE: no total water tendency is output; instead, we must calculate
@@ -3388,12 +3387,12 @@ ELSE
     sqw2=sqw
 ENDIF
 
-IF (bl_mynn_mixqt == 0) THEN
+IF (.not. bl_mynn_mixqt) THEN
 !============================================
 ! cloud water ( sqc ). If mixing total water (bl_mynn_mixqt > 0),
 ! then sqc will be backed out of saturation check (below).
 !============================================
-  IF (bl_mynn_cloudmix > 0 .AND. FLAG_QC) THEN
+  IF (bl_mynn_cloudmix .AND. FLAG_QC) THEN
 
     k=kts
 
@@ -3447,7 +3446,7 @@ IF (bl_mynn_mixqt == 0) THEN
   ENDIF
 ENDIF
 
-IF (bl_mynn_mixqt == 0) THEN
+IF (.not. bl_mynn_mixqt) THEN
   !============================================
   ! MIX WATER VAPOR ONLY ( sqv ). If mixing total water (bl_mynn_mixqt > 0),
   ! then sqv will be backed out of saturation check (below).
@@ -3526,7 +3525,7 @@ ENDIF
 !============================================
 ! MIX CLOUD ICE ( sqi )                      
 !============================================
-IF (bl_mynn_cloudmix > 0 .AND. FLAG_QI) THEN
+IF (bl_mynn_cloudmix .AND. FLAG_QI) THEN
 
     k=kts
 !rho-weighted:
@@ -3576,7 +3575,7 @@ ENDIF
 ! MIX SNOW ( sqs )
 !============================================
 !hard-code to not mix snow
-IF (bl_mynn_cloudmix > 0 .AND. .false.) THEN
+IF (bl_mynn_cloudmix .AND. .false.) THEN
 
     k=kts
 !rho-weighted:
@@ -3612,8 +3611,8 @@ ENDIF
 !!============================================
 !! cloud ice number concentration (qni)
 !!============================================
-IF (bl_mynn_cloudmix > 0 .AND. FLAG_QNI .AND. &
-      bl_mynn_mixscalars > 0) THEN
+IF (bl_mynn_cloudmix .AND. FLAG_QNI .AND. &
+      bl_mynn_mixscalars) THEN
 
     k=kts
 
@@ -3653,8 +3652,8 @@ ENDIF
 !! cloud water number concentration (qnc)     
 !! include non-local transport                
 !!============================================
-  IF (bl_mynn_cloudmix > 0 .AND. FLAG_QNC .AND. &
-      bl_mynn_mixscalars > 0) THEN
+  IF (bl_mynn_cloudmix .AND. FLAG_QNC .AND. &
+      bl_mynn_mixscalars) THEN
 
     k=kts
 
@@ -3693,8 +3692,8 @@ ENDIF
 !============================================
 ! Water-friendly aerosols ( qnwfa ).
 !============================================
-IF (bl_mynn_cloudmix > 0 .AND. FLAG_QNWFA .AND. &
-      bl_mynn_mixscalars > 0) THEN
+IF (bl_mynn_cloudmix .AND. FLAG_QNWFA .AND. &
+      bl_mynn_mixscalars) THEN
 
     k=kts
 
@@ -3735,8 +3734,8 @@ ENDIF
 !============================================
 ! Ice-friendly aerosols ( qnifa ).
 !============================================
-IF (bl_mynn_cloudmix > 0 .AND. FLAG_QNIFA .AND. &
-      bl_mynn_mixscalars > 0) THEN
+IF (bl_mynn_cloudmix .AND. FLAG_QNIFA .AND. &
+      bl_mynn_mixscalars) THEN
 
    k=kts
 
@@ -3777,8 +3776,8 @@ ENDIF
 !============================================
 ! Black-carbon aerosols ( qnbca ).           
 !============================================
-IF (bl_mynn_cloudmix > 0 .AND. FLAG_QNBCA .AND. &
-      bl_mynn_mixscalars > 0) THEN
+IF (bl_mynn_cloudmix .AND. FLAG_QNBCA .AND. &
+      bl_mynn_mixscalars) THEN
 
    k=kts
 
@@ -3858,7 +3857,7 @@ ENDIF
 !! Note that the momentum tendencies are calculated above.
 !!============================================
 
-   IF (bl_mynn_mixqt > 0) THEN 
+   IF (bl_mynn_mixqt) THEN
       DO k=kts,kte
          !compute updated theta using updated thl and old condensate
          th_new = thl(k) + xlvcp/exner(k)*sqc(k) &
@@ -3896,7 +3895,7 @@ ENDIF
        !if (sqv2(k) < 0.0)print*,"neg qv:",sqv2(k),k
     ENDDO
 
-    IF (bl_mynn_cloudmix > 0) THEN
+    IF (bl_mynn_cloudmix) THEN
       !=====================
       ! CLOUD WATER TENDENCY
       !=====================
@@ -3915,7 +3914,7 @@ ENDIF
       !===================
       ! CLOUD WATER NUM CONC TENDENCY
       !===================
-      IF (FLAG_QNC .AND. bl_mynn_mixscalars > 0) THEN
+      IF (FLAG_QNC .AND. bl_mynn_mixscalars) THEN
          DO k=kts,kte
            Dqnc(k) = (qnc2(k)-qnc(k))/delt
            !IF(Dqnc(k)*delt + qnc(k) < 0.)Dqnc(k)=-qnc(k)/delt
@@ -3956,7 +3955,7 @@ ENDIF
       !===================
       ! CLOUD ICE NUM CONC TENDENCY
       !===================
-      IF (FLAG_QNI .AND. bl_mynn_mixscalars > 0) THEN
+      IF (FLAG_QNI .AND. bl_mynn_mixscalars) THEN
          DO k=kts,kte
            Dqni(k)=(qni2(k)-qni(k))/delt
            !IF(Dqni(k)*delt + qni(k) < 0.)Dqni(k)=-qni(k)/delt
@@ -3967,7 +3966,7 @@ ENDIF
          ENDDO
       ENDIF
     ELSE !-MIX CLOUD SPECIES?
-      !CLOUDS ARE NOT NIXED (when bl_mynn_cloudmix == 0)
+      !CLOUDS ARE NOT MIXED (when bl_mynn_cloudmix == .false.)
       DO k=kts,kte
          Dqc(k) =0.
          Dqnc(k)=0.
@@ -4019,7 +4018,7 @@ ENDIF
     ! AEROSOL TENDENCIES
     !===================
     IF (FLAG_QNWFA .AND. FLAG_QNIFA .AND. &
-        bl_mynn_mixscalars > 0) THEN
+        bl_mynn_mixscalars) THEN
        DO k=kts,kte
           !=====================
           ! WATER-friendly aerosols
@@ -4040,7 +4039,7 @@ ENDIF
     !========================
     ! BLACK-CARBON TENDENCIES
     !========================
-    IF (FLAG_QNBCA .AND. bl_mynn_mixscalars > 0) THEN
+    IF (FLAG_QNBCA .AND. bl_mynn_mixscalars) THEN
        DO k=kts,kte
           Dqnbca(k)=(qnbca2(k) - qnbca(k))/delt
        ENDDO
@@ -4681,7 +4680,8 @@ ENDIF
 
   ! inputs:
      integer, intent(in) :: ii
-     integer, intent(in) :: KTS,KTE,KPBL,momentum_opt,tke_opt,scalar_opt
+     integer, intent(in) :: KTS,KTE,KPBL,momentum_opt,tke_opt
+     logical, intent(in) :: scalar_opt
 
 #ifdef HARDCODE_VERTICAL
 # define kts 1
@@ -5409,7 +5409,7 @@ IF (nup2 > 0) THEN
       enddo
    endif
 
-   if (scalar_opt > 0) then
+   if (scalar_opt) then
       do k=kts,kte
          do I=1,nup
             s_awqnc(k+1)  = s_awqnc(K+1)   + rhoz(k)*UPA(K,i)*UPW(K,i)*UPQNC(K,i)*Psig_w
