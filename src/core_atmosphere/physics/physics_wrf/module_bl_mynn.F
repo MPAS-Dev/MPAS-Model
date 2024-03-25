@@ -224,7 +224,7 @@
     exch_h,      &!
     exch_m        !
 
- real(kind=kind_phys),intent(out),dimension(ims:ime,kms:kme,jms:jme):: &
+ real(kind=kind_phys),intent(out),dimension(ims:ime,kms:kme,jms:jme),optional:: &
     dqke,        &!
     qwt,         &!
     qshear,      &!
@@ -689,13 +689,21 @@
        do i = its,ite
           exch_h(i,k,j) = exchh_hv(i,k)
           exch_m(i,k,j) = exchm_hv(i,k)
-          dqke(i,k,j)   = dqke_hv(i,k)
-          qwt(i,k,j)    = qwt_hv(i,k)
-          qshear(i,k,j) = qshear_hv(i,k)
-          qbuoy(i,k,j)  = qbuoy_hv(i,k)
-          qdiss(i,k,j)  = qdiss_hv(i,k)
        enddo
     enddo
+
+    if(present(qwt)   .and. present(qbuoy) .and. present(qshear) .and. &
+       present(qdiss) .and. present(dqke)) then
+       do k = kts,kte
+          do i = its,ite
+             dqke(i,k,j)   = dqke_hv(i,k)
+             qwt(i,k,j)    = qwt_hv(i,k)
+             qshear(i,k,j) = qshear_hv(i,k)
+             qbuoy(i,k,j)  = qbuoy_hv(i,k)
+             qdiss(i,k,j)  = qdiss_hv(i,k)
+          enddo
+       enddo
+    endif
 
  enddo
 

@@ -444,6 +444,12 @@
 
  do i = its,ite
 
+    if(present(dqke)) then
+       do k = kts,kte
+          dqke(i,k) = qke(i,k)
+       enddo
+    endif
+
 !--- initialization of 2D inout tendencies:
     do k = kts,kte
        rublten(i,k)     = 0._kind_phys

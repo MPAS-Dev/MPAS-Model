@@ -774,8 +774,8 @@
  integer:: errflg
 
 !-----------------------------------------------------------------------------------------------------------------
- call mpas_log_write('')
- call mpas_log_write('--- enter subroutine driver_pbl:')
+!call mpas_log_write('')
+!call mpas_log_write('--- enter subroutine driver_pbl:')
 
 !initialization of CCPP-compliant flags:
  errmsg = ' '
@@ -870,7 +870,6 @@
        call mpas_log_write('--- f_nifa = $l',logicArgs=(/f_nifa/))
        call mpas_log_write('--- f_nwfa = $l',logicArgs=(/f_nwfa/))
        call mpas_log_write('--- f_nbca = $l',logicArgs=(/f_nbca/))
-       call mpas_log_write(' ')
 
        call mpas_timer_start('bl_mynn')
        call mynn_bl_driver( &
@@ -928,6 +927,8 @@
                   errmsg = errmsg , errflg = errflg                                                    &
                           )
        call mpas_timer_stop('bl_mynn')
+       call mpas_log_write('--- exit subroutine mynn_bl_driver:')
+       call mpas_log_write(' ')
 
     case default
 
@@ -936,7 +937,7 @@
 !copy local arrays to MPAS grid:
  call pbl_to_MPAS(configs,diag_physics,tend_physics,its,ite)
 
- call mpas_log_write('--- end subroutine driver_pbl.')
+!call mpas_log_write('--- end subroutine driver_pbl.')
 
  end subroutine driver_pbl
 
