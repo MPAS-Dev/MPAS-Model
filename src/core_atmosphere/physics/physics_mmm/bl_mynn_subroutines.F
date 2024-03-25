@@ -355,8 +355,6 @@ MODULE bl_mynn_subroutines
 !===================================================================
 ! From here on, these are MYNN-specific parameters:
 ! The parameters below depend on stability functions of module_sf_mynn.
-  real(kind_phys), parameter :: cphm_st=5.0, cphm_unst=16.0, &
-                                cphh_st=5.0, cphh_unst=16.0
 
 ! Closure constants
   real(kind_phys), parameter ::  &
