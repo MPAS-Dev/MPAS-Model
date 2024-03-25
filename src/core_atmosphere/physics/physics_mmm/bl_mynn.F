@@ -153,15 +153,15 @@
              bl_mynn_closure   , bl_mynn_stfunc     , bl_mynn_topdown    , &
              bl_mynn_edmf      , bl_mynn_edmf_dd    , bl_mynn_edmf_mom   , &
              bl_mynn_edmf_tke  , bl_mynn_mixscalars , bl_mynn_output     , &
-             bl_mynn_cloudmix  , bl_mynn_mixqt      , edmf_a             , &
-             edmf_w            , edmf_qt            , edmf_thl           , &
-             edmf_ent          , edmf_qc            , sub_thl            , &
-             sub_sqv           , det_thl            , det_sqv            , &
-             edmf_a_dd         , edmf_w_dd          , edmf_qt_dd         , &
-             edmf_thl_dd       , edmf_ent_dd        , edmf_qc_dd         , &
-             maxwidth          , maxmf              , ztop_plume         , &
-             ktop_plume        , spp_pbl            , pattern_spp_pbl    , &
-             rthraten          , scaleaware         , dheat_opt          , &
+             bl_mynn_cloudmix  , bl_mynn_mixqt      , bl_mynn_scaleaware , &
+             bl_mynn_dheatopt  , edmf_a             , edmf_w             , &
+             edmf_qt           , edmf_thl           , edmf_ent           , &
+             edmf_qc           , sub_thl            , sub_sqv            , &
+             det_thl           , det_sqv            , edmf_a_dd          , &
+             edmf_w_dd         , edmf_qt_dd         , edmf_thl_dd        , &
+             edmf_ent_dd       , edmf_qc_dd         , maxwidth           , &
+             maxmf             , ztop_plume         , ktop_plume         , &
+             spp_pbl           , pattern_spp_pbl    , rthraten           , &
              flag_qc           , flag_qi            , flag_qs            , &
              flag_qnc          , flag_qni           , flag_qnwfa         , &
              flag_qnifa        , flag_qnbca         , flag_qoz           , &
@@ -190,6 +190,7 @@
  logical,intent(in):: bl_mynn_edmf,bl_mynn_edmf_dd,bl_mynn_edmf_mom,bl_mynn_edmf_tke
  logical,intent(in):: bl_mynn_mixscalars,bl_mynn_cloudmix,bl_mynn_mixqt
  logical,intent(in):: bl_mynn_tkeadvect,bl_mynn_tkebudget
+ logical,intent(in):: bl_mynn_output,bl_mynn_dheatopt,bl_mynn_scaleaware,bl_mynn_topdown
 
  logical,intent(in):: &
     restart,cycling
@@ -197,13 +198,13 @@
  integer,intent(in):: its,ite,kts,kte,kme
 
  integer,intent(in):: &
-    initflag,icloud_bl,spp_pbl,dheat_opt
+    initflag,icloud_bl,spp_pbl
 
  integer,intent(in):: &
-    bl_mynn_cloudpdf,bl_mynn_mixlength,bl_mynn_stfunc,bl_mynn_topdown,bl_mynn_output
+    bl_mynn_cloudpdf,bl_mynn_mixlength,bl_mynn_stfunc
  
  real(kind=kind_phys),intent(in):: &
-    bl_mynn_closure,scaleaware
+    bl_mynn_closure
 
  real(kind=kind_phys),intent(in):: &
     delt
@@ -743,7 +744,7 @@
        call get_pblh(kts,kte,pblh1,thetav,qke1,zw,dz1,xland1,kpbl1)
 
        !--- computes the similarity functions:
-       if(scaleaware > 0.) then
+       if(bl_mynn_scaleaware) then
           call scale_aware(dx1,pblh1,psig_bl,psig_shcu)
        else
           psig_bl = 1._kind_phys
@@ -793,7 +794,7 @@
     call get_pblh(kts,kte,pblh1,thetav,qke1,zw,dz1,xland1,kpbl1)
 
     !--- computes the similarity functions:
-    if(scaleaware > 0.) then
+    if(bl_mynn_scaleaware) then
        call scale_aware(dx1,pblh1,psig_bl,psig_shcu)
     else
        psig_bl   = 1._kind_phys
@@ -865,8 +866,8 @@
 
 
     !add TKE source driven by cloud top cooling. calculate the buoyancy production of tke from cloud-top
-    !cooling when bl_mynn_topdown =1.
-    if(bl_mynn_topdown > 0)then
+    !cooling when bl_mynn_topdown = .true.
+    if(bl_mynn_topdown)then
        call topdown_cloudrad(kts,kte,dz1,zw,fltv,             &
                     xland1,kpbl1,pblh1,                       &
                     sqc1,sqi1,sqw,thl,th1,ex1,p1,rho1,thetav, &
@@ -976,7 +977,7 @@
               s_aw1,s_awqke1,bl_mynn_edmf_tke,   &
               qwt1,qdiss1,bl_mynn_tkebudget)      ! TKE budget (Puhales 2020)
 
-    if(dheat_opt > 0) then
+    if(bl_mynn_dheatopt) then
        do k = kts,kte-1
           !set max dissipative heating rate to 7.2 K per hour
           diss_heat(k) = min(max(1.0*(qke1(k)**1.5)/(b1*max(0.5*(el_pbl1(k)+el_pbl1(k+1)),1.))/cp,0.0),0.002)
@@ -1191,7 +1192,7 @@
 
 
     !optional inout arrays for updraft/downdraft properties:
-    if(bl_mynn_edmf .and. bl_mynn_output > 0) then
+    if(bl_mynn_edmf .and. bl_mynn_output) then
        do k = kts,kte
           edmf_a(i,k)   = edmf_a1(k)
           edmf_w(i,k)   = edmf_w1(k)
@@ -1218,7 +1219,7 @@
           det_sqv(i,k)  = 0._kind_phys
        enddo
     endif
-    if(bl_mynn_edmf_dd .and. bl_mynn_output > 0) then
+    if(bl_mynn_edmf_dd .and. bl_mynn_output) then
        if(present(edmf_a_dd)   .and. present(edmf_w_dd)   .and. present(edmf_qt_dd) .and. &
           present(edmf_thl_dd) .and. present(edmf_ent_dd) .and. present(edmf_qc_dd)) then
           do k = kts,kte
