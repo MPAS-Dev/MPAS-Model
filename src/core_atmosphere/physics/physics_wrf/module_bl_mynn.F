@@ -250,6 +250,7 @@
  logical:: mynn_edmf_l,mynn_edmf_dd_l,mynn_edmf_mom_l,mynn_edmf_tke_l
  logical:: mynn_mixscalars_l,mynn_mixclouds_l,mynn_mixqt_l
  logical:: mynn_tkebudget_l
+ logical:: mynn_output_l,mynn_dheatopt_l,mynn_scaleaware_l,mynn_topdown_l
 
  integer:: i,k,j
 
@@ -257,7 +258,7 @@
  integer,dimension(its:ite):: &
     kpbl_hv,ktopplume_hv
 
- real(kind=kind_phys):: denom,scaleaware
+ real(kind=kind_phys):: denom
 
  real(kind=kind_phys),dimension(its:ite):: &
     dx_hv,xland_hv,ps_hv,ts_hv,qsfc_hv,ust_hv,ch_hv,hfx_hv,qfx_hv, &
@@ -324,8 +325,16 @@
  mynn_tkebudget_l = .false.
  if(bl_mynn_tkebudget == 1) mynn_tkebudget_l = .true.
 
- dheat_opt  = bl_mynn_dheat_opt
- scaleaware = real(bl_mynn_scaleaware,kind_phys)
+ mynn_output_l     = .false.
+ mynn_dheatopt_l   = .false.
+ mynn_scaleaware_l = .false.
+ mynn_topdown_l    = .false.
+ if(bl_mynn_output     == 1) mynn_output_l     = .true.
+ if(bl_mynn_dheat_opt  == 1) mynn_dheatopt_l   = .true.
+ if(bl_mynn_scaleaware == 1) mynn_scaleaware_l = .true.
+ if(bl_mynn_topdown    == 1) mynn_topdown_l    = .true.
+
+ dheat_opt = bl_mynn_dheat_opt
 
  do j = jts,jte
 
@@ -557,7 +566,7 @@
             flag_qc         = f_qc           , flag_qi     = f_qi           , flag_qs     = f_qs          , &
             flag_qoz        = f_qoz          , flag_qnc    = f_nc           , flag_qni    = f_ni          , &
             flag_qnwfa      = f_nwfa         , flag_qnifa  = f_nifa         , flag_qnbca  = f_nbca        , &
-            pattern_spp_pbl = pattern_spp_hv , scaleaware  = scaleaware     , dheat_opt   = dheat_opt                                                                         &
+            pattern_spp_pbl = pattern_spp_hv                                                                &
 #if(WRF_CHEM == 1)
            ,mix_chem  = mix_chem  , enh_mix = enh_mix , rrfs_sd     = rrfs_sd        , &
             smoke_dbg = smoke_dbg , nchem   = nchem   , kdvel       = kdvel          , &
@@ -569,14 +578,16 @@
             bl_mynn_cloudpdf   = bl_mynn_cloudpdf   , &
             bl_mynn_mixlength  = bl_mynn_mixlength  , &
             bl_mynn_stfunc     = bl_mynn_stfunc     , &
-            bl_mynn_topdown    = bl_mynn_topdown    , &
+            bl_mynn_dheatopt   = mynn_dheatopt_l    , &
+            bl_mynn_scaleaware = mynn_scaleaware_l  , &
+            bl_mynn_topdown    = mynn_topdown_l     , &
             bl_mynn_closure    = bl_mynn_closure    , &
             bl_mynn_edmf       = mynn_edmf_l        , &
             bl_mynn_edmf_dd    = mynn_edmf_dd_l     , &
             bl_mynn_edmf_mom   = mynn_edmf_mom_l    , &
             bl_mynn_edmf_tke   = mynn_edmf_tke_l    , &
             bl_mynn_mixscalars = mynn_mixscalars_l  , &
-            bl_mynn_output     = bl_mynn_output     , &
+            bl_mynn_output     = mynn_output_l      , &
             bl_mynn_cloudmix   = mynn_mixclouds_l   , &
             bl_mynn_mixqt      = mynn_mixqt_l       , &
             its = its , ite = ite , kts = kts , kte = kte , kme = kme , errmsg = errmsg , errflg = errflg )
