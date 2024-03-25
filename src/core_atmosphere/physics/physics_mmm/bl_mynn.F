@@ -173,14 +173,6 @@
              its, ite , kts , kte , kme , errmsg , errflg                  &
             )    
 
-!subroutine bl_mynn_run &
-!            rqozblten         ,
-!            its, ite , kts , kte , kme , errmsg , errflg                  &
-!           )
-
-! SUBROUTINE mynn_bl_driver(            &
-!      &dozone,                         &
-
 !=================================================================================================================
 
 !input arguments:
