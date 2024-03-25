@@ -61,7 +61,7 @@ CONTAINS
 
       hu1=huml
       hv1=hvml
-      rhoair=1.
+      rhoair=1.2
       rhowater=1000.
       cwater=4200.
 ! Deep ocean lapse rate (K/m) - from Rich
