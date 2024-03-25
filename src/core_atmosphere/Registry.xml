@@ -2111,7 +2111,7 @@
                      description="option to switch flux profile relationship for surface (0:Dyer-Hicks, 1:Cheng-Brustaert"
                      possible_values="0,1"/>
 
-                <nml_option name="config_mynn_topdown" type="integer" default_value="1" in_defaults="false"
+                <nml_option name="config_mynn_topdown" type="integer" default_value="0" in_defaults="false"
                      units="-"
                      description="option to add top-down diffusion driven by cloud-top radiative cooling"
                      possible_values="0,1"/>
