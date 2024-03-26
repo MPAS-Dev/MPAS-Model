@@ -41,7 +41,7 @@
 !   Laura D. Fowler (laura@ucar.edu) / 2014-09-18.
 ! * renamed "tiedtke" with "cu_tiedtke".
 !   Laura D. Fowler (laura@ucar.edu) / 2016-03-22.
-! * modified the sourcecode to accomodate the packages "cu_kain_fritsch_in" and "cu_tiedtke_in".
+! * modified the sourcecode to accomodate the packages "cu_kain_fritsch_in" and "cu_ntiedtke_in".
 !   Laura D. Fowler (laura@ucar.edu) / 2016-03-24.
 ! * added the option bl_mynn for the calculation of the tendency for the cloud ice number concentration.
 !   Laura D. Fowler (laura@ucar.edu) / 2016-04-11.

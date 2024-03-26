@@ -85,6 +85,8 @@
 !   Laura D. Fowler (laura@ucar.edu) / 2017-02-16.
 ! * added the variables swddir,swddni,swddif for use in the updated version of the Noah LSM.
 !   Laura D. Fowler (laura@ucar.edu) / 2023-04-21.
+! * removed the variables f_qv and f_qg in the call to subroutine camrad.
+!   Laura D. Fowler (laura@ucar.edu) / 2024-02-13.
 
 
  contains
@@ -821,10 +823,9 @@
                 rho_phy       = rho_p         , qv3d          = qv_p          ,              & 
                 qc3d          = qc_p          , qr3d          = qr_p          ,              &
                 qi3d          = qi_p          , qs3d          = qs_p          ,              &
-                qg3d          = qg_p          , f_qv          = f_qv          ,              &
-                f_qc          = f_qc          , f_qr          = f_qr          ,              &
-                f_qi          = f_qi          , f_qs          = f_qs          ,              &
-                f_qg          = f_qg          , f_ice_phy     = f_ice         ,              &
+                qg3d          = qg_p          , f_qc          = f_qc          ,              &
+                f_qr          = f_qr          , f_qi          = f_qi          ,              &
+                f_qs          = f_qs          , f_ice_phy     = f_ice         ,              &
                 f_rain_phy    = f_rain        , cldfra        = cldfrac_p     ,              &
                 xland         = xland_p       , xice          = xice_p        ,              &
                 num_months    = num_months    , levsiz        = num_oznlevels ,              & 
