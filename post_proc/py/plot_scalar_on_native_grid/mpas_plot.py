@@ -7,6 +7,7 @@ Originally From: ??
 Edited: Danilo  <danilo.oceano@gmail.com>  in 2023
 Last edited: Nov 2023 by P. Peixoto (ppeixoto@usp.br)
 Last edited: Nov 2023 by F.A.V.B. Alves (fbalves@usp.br)
+Last edited: Mar 2024 by G. Torres Mendonça (guilherme.torresmendonca@ime.usp.br)
 
 """
 
@@ -337,7 +338,8 @@ def close_plot(fig=None, size_fig=None, pdf=None, outfile=None,
     plt.close()
 
 
-def plot_mpas_darray(ds, vname, time=None, level=None, ax=None, outfile=None, title=None, plotEdge=True, clip=False, **kwargs):
+def plot_mpas_darray(ds, vname, time=None, level=None, ax=None, outfile=None, 
+                     title=None, plotEdge=True, clip=False, gridfile=None, **kwargs):
     
     ## plot_mpas_darray
     da = ds[vname]
@@ -397,6 +399,7 @@ def view_mpas_mesh(mpas_grid_file, outfile=None,
                             level=None,
                             plotEdge=True,
                             clip=False,
+                            gridfile=None,
                             **kwargs):
     
     ds = open_mpas_file(mpas_grid_file)
@@ -419,7 +422,9 @@ def view_mpas_mesh(mpas_grid_file, outfile=None,
     if level is not None:
         tit = tit + " Level="+str(level)
                 
-    plot_mpas_darray(ds, vname, time=time, level=level, ax=ax, title=tit, plotEdge=plotEdge,clip=clip)
+    plot_mpas_darray(ds, vname, time=time, level=level, ax=ax, 
+                     title=tit, plotEdge=plotEdge, clip=clip,
+                     gridfile=gridfile)
     
     close_plot(outfile=outfile)
         
@@ -472,6 +477,10 @@ if __name__ == "__main__":
         help="Clip values grater than (expected_val + 4*std): yes or no",
     )
 
+    parser.add_argument(
+        "-gf", "--gridfile", type=str, default=None,
+        help="Name of a MPAS data file that contains grid properties (.nc)",
+    )
 
     args = parser.parse_args()
     
@@ -489,4 +498,6 @@ if __name__ == "__main__":
     else:
         clip=False
 
-    view_mpas_mesh(args.infile, outfile=args.outfile, time=args.time, level=args.level, vname=args.var, plotEdge=plotEdge,clip=clip)
+    view_mpas_mesh(args.infile, outfile=args.outfile, time=args.time, 
+                   level=args.level, vname=args.var, plotEdge=plotEdge,
+                   clip=clip, gridfile=args.gridfile)
