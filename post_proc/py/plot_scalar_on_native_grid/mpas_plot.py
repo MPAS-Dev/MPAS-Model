@@ -22,6 +22,7 @@ import matplotlib.pyplot as plt
 import cartopy.crs as ccrs
 import cartopy.feature as cfeature
 from geopy.distance import distance
+import pandas as pd
 
 import argparse
 
@@ -204,10 +205,30 @@ def colorvalue(val, da, vmin=None, vmax=None, cmap='Spectral'):
         
     return cm(norm_val)
 
-def plot_cells_mpas(da, ds, ax, plotEdge=True, **plot_kwargs):
+def plot_cells_mpas(da, ds, ax, plotEdge=True, gridfile=None, **plot_kwargs):
     # da: specific xarray to be plotted (time/level filtered)
     # ds: general xarray with grid structure, require for grid propreties
     # plotEdge: wether the cell edge should be visible or not. For high-resolution grids figure looks better if plotEdge=False
+
+    if ['verticesOnCell','nEdges'] in ds:
+        print ("verticesOnCell and nEdges found in dataset.")
+    else:
+        print ("verticesOnCell and nEdges found in dataset."+ 
+               "Trying to recover them from additional grid file.")
+        try:
+            print ("ds before:", ds)
+            # Open additional grid file
+            ds_grid = open_mpas_file(gridfile)
+            # Convert xarray datasets to pandas dataframes
+            df1 = ds.to_dataframe()
+            df2 = ds_grid[['verticesOnCell','nEdgesOnCell','nCells']].to_dataframe()
+            # Merge dataframes based on nCells
+            merged_df = pd.merge(df1, df2, on='nCells')
+            # Convert merged dataframe back to xarray dataset
+            ds = merged_df.to_xarray()
+            print ("ds after:", ds)
+        except:
+            raise RuntimeError("Recovery of verticesOnCell and nEdges didn't work.")
 
     # ax = start_cartopy_map_axis()
     print("Generating grid plot and plotting variable. This may take a while...")
@@ -375,7 +396,7 @@ def plot_mpas_darray(ds, vname, time=None, level=None, ax=None, outfile=None,
     plot_kwargs = set_plot_kwargs(da=da, clip=clip, **kwargs)
     
     if 'nCells' in da.dims: #Plot on Voronoi cells
-        plot_cells_mpas(da, ds, ax, plotEdge, **plot_kwargs)
+        plot_cells_mpas(da, ds, ax, plotEdge, gridfile=gridfile, **plot_kwargs)
 
     elif 'nVertices' in da.dims: #Plot on Triangles
         plot_dual_mpas(da, ds, ax, plotEdge, **plot_kwargs)
