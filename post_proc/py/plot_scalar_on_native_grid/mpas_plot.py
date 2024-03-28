@@ -211,8 +211,9 @@ def plot_cells_mpas(da, ds, ax, plotEdge=True, gridfile=None, **plot_kwargs):
     # plotEdge: wether the cell edge should be visible or not. For high-resolution grids figure looks better if plotEdge=False
 
     # Check if grid properties needed for plotting are in ds
-    grid_properties = 'verticesOnCell nEdges latitudeVertex longitudeVertex'
-    if grid_properties in ds.keys():
+    grid_properties = ['verticesOnCell', 'nEdgesOnCell']
+
+    if set(grid_properties).issubset(set(ds.keys())):
         print (f"{grid_properties} found in dataset.")
         ds_grid = ds
     else:
@@ -221,7 +222,7 @@ def plot_cells_mpas(da, ds, ax, plotEdge=True, gridfile=None, **plot_kwargs):
         try:
             # Open additional grid file
             ds_grid = open_mpas_file(gridfile)
-            if grid_properties in ds_grid.keys():
+            if set(grid_properties).issubset(set(ds_grid.keys())):
                 print (f"{grid_properties} found in additional grid file.")
         except:
             raise RuntimeError(f"Recovery of {grid_properties} failed.")
