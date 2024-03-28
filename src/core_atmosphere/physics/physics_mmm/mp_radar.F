@@ -1,7 +1,6 @@
 !=================================================================================================================
  module mp_radar
  use ccpp_kinds,only: kind_phys 
- use mpas_atmphys_utilities
 
  implicit none
  private
@@ -376,7 +375,7 @@
  if (host .eq. 'air') then
     if (matrix .eq. 'air') then
        write(radar_debug,*) 'GET_M_MIX_NESTED: bad matrix: ', matrix
-       call physics_message(radar_debug)
+!      call physics_message(radar_debug)
        cumulerror = cumulerror + 1
     else
        vol1 = volice / MAX(volice+volwater,1d-10)
@@ -397,7 +396,7 @@
           cumulerror = cumulerror + error
        else
           write(radar_debug,*) 'GET_M_MIX_NESTED: bad hostmatrix: ', hostmatrix
-          call physics_message(radar_debug)
+!         call physics_message(radar_debug)
           cumulerror = cumulerror + 1
        endif
     endif
@@ -406,7 +405,7 @@
 
     if (matrix .eq. 'ice') then
        write(radar_debug,*) 'GET_M_MIX_NESTED: bad matrix: ', matrix
-       call physics_message(radar_debug)
+!      call physics_message(radar_debug)
        cumulerror = cumulerror + 1
     else
        vol1 = volair / MAX(volair+volwater,1d-10)
@@ -427,7 +426,7 @@
           cumulerror = cumulerror + error          
        else
           write(radar_debug,*) 'GET_M_MIX_NESTED: bad hostmatrix: ', hostmatrix
-          call physics_message(radar_debug)
+!         call physics_message(radar_debug)
           cumulerror = cumulerror + 1
        endif
     endif
@@ -436,7 +435,7 @@
 
     if (matrix .eq. 'water') then
        write(radar_debug,*) 'GET_M_MIX_NESTED: bad matrix: ', matrix
-       call physics_message(radar_debug)
+!      call physics_message(radar_debug)
        cumulerror = cumulerror + 1
     else
        vol1 = volair / MAX(volice+volair,1d-10)
@@ -457,7 +456,7 @@
           cumulerror = cumulerror + error          
        else
           write(radar_debug,*) 'GET_M_MIX_NESTED: bad hostmatrix: ', hostmatrix
-          call physics_message(radar_debug)
+!         call physics_message(radar_debug)
           cumulerror = cumulerror + 1
        endif
     endif
@@ -471,13 +470,13 @@
         
  else
     write(radar_debug,*) 'GET_M_MIX_NESTED: unknown matrix: ', host
-    call physics_message(radar_debug)
+!   call physics_message(radar_debug)
     cumulerror = cumulerror + 1
  endif
 
  if (cumulerror .ne. 0) then
     write(radar_debug,*) 'get_m_mix_nested: error encountered'
-    call physics_message(radar_debug)
+!   call physics_message(radar_debug)
     get_m_mix_nested = cmplx(1.0d0,0.0d0)    
  endif
 
@@ -516,19 +515,19 @@
                    m_a, m_w, m_i, inclusion, error)
     else
        write(radar_debug,*) 'GET_M_MIX: unknown matrix: ', matrix
-       call physics_message(radar_debug)
+!      call physics_message(radar_debug)
        error = 1
     endif
 
  else
     write(radar_debug,*) 'GET_M_MIX: unknown mixingrule: ', mixingrule
-    call physics_message(radar_debug)
+!   call physics_message(radar_debug)
     error = 2
  endif
 
  if (error .ne. 0) then
     write(radar_debug,*) 'GET_M_MIX: error encountered'
-    call physics_message(radar_debug)
+!   call physics_message(radar_debug)
  endif
 
  end function get_m_mix
@@ -560,7 +559,7 @@
  if (dabs(vol1+vol2+vol3-1.0d0) .gt. 1d-6) then
     write(radar_debug,*) 'M_COMPLEX_MAXWELLGARNETT: sum of the ', &
                     'partial volume fractions is not 1...ERROR'
-    call physics_message(radar_debug)
+!   call physics_message(radar_debug)
     m_complex_maxwellgarnett = CMPLX(-999.99d0,-999.99d0)
     error = 1
     return
@@ -578,7 +577,7 @@
     beta3 = 2.0d0*m1t/(m3t-m1t) * (m3t/(m3t-m1t)*LOG(m3t/m1t)-1.0d0)
  else
     write(radar_debug,*) 'M_COMPLEX_MAXWELLGARNETT: ', 'unknown inclusion: ', inclusion
-    call physics_message(radar_debug)
+!   call physics_message(radar_debug)
     m_complex_maxwellgarnett=cmplx(-999.99d0,-999.99d0,kind=R8KIND)
     error = 1
     return

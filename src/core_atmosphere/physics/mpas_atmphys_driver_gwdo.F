@@ -307,7 +307,7 @@
  gwdo_select: select case (trim(gwdo_scheme))
 
     case("bl_ysu_gwdo")
-       call mpas_timer_start('bl_ysu_gwdo')
+       call mpas_timer_start('bl_gwdo')
        call gwdo ( &
                   p3d       = pres_hydd_p , p3di      = pres2_hydd_p , pi3d    = pi_p      , &
                   u3d       = u_p         , v3d       = v_p          , t3d     = t_p       , & 
@@ -326,7 +326,7 @@
                   ims = ims , ime = ime , jms = jms , jme = jme , kms = kms , kme = kme ,    &
                   its = its , ite = ite , jts = jts , jte = jte , kts = kts , kte = kte      &
                  )
-       call mpas_timer_stop('bl_ysu_gwdo')
+       call mpas_timer_stop('bl_gwdo')
 
      case default
 

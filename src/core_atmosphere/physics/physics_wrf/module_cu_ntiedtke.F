@@ -159,7 +159,6 @@
  errmsg = ' '
  errflg = 0
 
-!call cu_ntiedtke_init(cp,rd,rv,xlv,xls,xlf,grav,errmsg,errflg)
  call cu_ntiedtke_init( &
                        con_cp  = cp  , con_rd = rd   , con_rv   = rv   , con_xlv = xlv    , &
                        con_xls = xls , con_xlf = xlf , con_grav = grav , errmsg  = errmsg , &
