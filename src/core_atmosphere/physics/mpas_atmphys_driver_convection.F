@@ -521,7 +521,7 @@
        endif
 
        call mpas_timer_start('Kain-Fritsch')
-       call  kf_eta_cps ( &
+       call kf_eta_cps ( &
              pcps            = pres_hyd_p      , t         = t_p        ,            &
              dt              = dt_dyn          , ktau      = ktau       ,            &
              dxCell          = dx_p            , areaCell  = area_p     ,            &
@@ -570,7 +570,7 @@
              f_qi        = f_qi        , rthcuten  = rthcuten_p    ,                 &
              rqvcuten    = rqvcuten_p  , rqccuten  = rqccuten_p    ,                 &
              rqicuten    = rqicuten_p  , rucuten   = rucuten_p     ,                 &
-             rvcuten   = rvcuten_p     ,                                             &
+             rvcuten     = rvcuten_p   ,                                             &
              ids = ids , ide = ide , jds = jds , jde = jde , kds = kds , kde = kde , &
              ims = ims , ime = ime , jms = jms , jme = jme , kms = kds , kme = kme , &
              its = its , ite = ite , jts = jts , jte = jte , kts = kts , kte = kte   &
