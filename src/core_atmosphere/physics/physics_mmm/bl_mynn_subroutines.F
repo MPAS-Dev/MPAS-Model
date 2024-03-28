@@ -323,7 +323,7 @@
 ! Many of these changes are now documented in references listed above.
 !====================================================================
 MODULE bl_mynn_subroutines
-  use mpas_kind_types,only: kind_phys => RKIND
+  use mpas_kind_types,only: kind_phys => RKIND,kind_phys8 => R8KIND
   use bl_mynn_common,only: &
          b1        , b2       ,  cice    , cliq      , cp      , &
          cpv       , ep_2     ,  ep_3    , grav      , gtr     , &
@@ -1634,13 +1634,13 @@ CONTAINS
 
     real(kind_phys)::  a2fac, duz, ri !JOE-Canuto/Kitamura mod
 
-    real:: auh,aum,adh,adm,aeh,aem,Req,Rsl,Rsl2,                           &
+    real(kind_phys):: auh,aum,adh,adm,aeh,aem,Req,Rsl,Rsl2,                &
            gmelq,sm20,sh20,sm25max,sh25max,sm25min,sh25min,                &
            sm_pbl,sh_pbl,zi2,wt,slht,wtpr
 
-    DOUBLE PRECISION  q2sq, t2sq, r2sq, c2sq, elsq, gmel, ghel
-    DOUBLE PRECISION  q3sq, t3sq, r3sq, c3sq, dlsq, qdiv
-    DOUBLE PRECISION  e1, e2, e3, e4, enum, eden, wden
+    real(kind=kind_phys8):: q2sq, t2sq, r2sq, c2sq, elsq, gmel, ghel
+    real(kind=kind_phys8):: q3sq, t3sq, r3sq, c3sq, dlsq, qdiv
+    real(kind=kind_phys8):: e1, e2, e3, e4, enum, eden, wden
 
 !   Stochastic
     integer,         intent(in)                   ::    spp_pbl
@@ -1812,7 +1812,7 @@ CONTAINS
        END IF !end Helfand & Labraga check
 
        !Impose broad limits on Sh and Sm:
-       gmelq    = MAX(gmel/q3sq, 1e-8)
+       gmelq    = MAX(gmel/q3sq, 1d-8)
        sm25max  = 4.  !MIN(sm20*3.0, SQRT(.1936/gmelq))
        sh25max  = 4.  !MIN(sh20*3.0, 0.76*b2)
        sm25min  = 0.0 !MAX(sm20*0.1, 1e-6)
