@@ -210,7 +210,7 @@ def plot_cells_mpas(da, ds, ax, plotEdge=True, gridfile=None, **plot_kwargs):
     # ds: general xarray with grid structure, require for grid propreties
     # plotEdge: wether the cell edge should be visible or not. For high-resolution grids figure looks better if plotEdge=False
 
-    # Check if grid properties needed for plotting are in ds
+    # GTM: check if grid properties needed for plotting are in ds
     grid_properties = ['verticesOnCell', 'nEdgesOnCell']
 
     if set(grid_properties).issubset(set(ds.keys())):
@@ -233,6 +233,7 @@ def plot_cells_mpas(da, ds, ax, plotEdge=True, gridfile=None, **plot_kwargs):
 
         value = da.sel(nCells=cell)
 
+        # GTM: now grid properties are taken from ds_grid, defined above
         vertices = ds_grid['verticesOnCell'].sel(nCells=cell).values
         num_sides = int(ds_grid['nEdgesOnCell'].sel(nCells=cell))
     
@@ -495,6 +496,7 @@ if __name__ == "__main__":
         help="Clip values grater than (expected_val + 4*std): yes or no",
     )
 
+    # GTM: option to supply additional file containing grid properties of infile
     parser.add_argument(
         "-gf", "--gridfile", type=str, default=None,
         help="Name of additional file that contains grid properties of MPAS"
