@@ -210,25 +210,21 @@ def plot_cells_mpas(da, ds, ax, plotEdge=True, gridfile=None, **plot_kwargs):
     # ds: general xarray with grid structure, require for grid propreties
     # plotEdge: wether the cell edge should be visible or not. For high-resolution grids figure looks better if plotEdge=False
 
-    if ['verticesOnCell','nEdges'] in ds:
-        print ("verticesOnCell and nEdges found in dataset.")
+    # Check if grid properties needed for plotting are in ds
+    grid_properties = 'verticesOnCell nEdges latitudeVertex longitudeVertex'
+    if grid_properties in ds.keys():
+        print (f"{grid_properties} found in dataset.")
+        ds_grid = ds
     else:
-        print ("verticesOnCell and nEdges found in dataset."+ 
+        print (f"{grid_properties} not found in dataset. "+ 
                "Trying to recover them from additional grid file.")
         try:
-            print ("ds before:", ds)
             # Open additional grid file
             ds_grid = open_mpas_file(gridfile)
-            # Convert xarray datasets to pandas dataframes
-            df1 = ds.to_dataframe()
-            df2 = ds_grid[['verticesOnCell','nEdgesOnCell','nCells']].to_dataframe()
-            # Merge dataframes based on nCells
-            merged_df = pd.merge(df1, df2, on='nCells')
-            # Convert merged dataframe back to xarray dataset
-            ds = merged_df.to_xarray()
-            print ("ds after:", ds)
+            if grid_properties in ds_grid.keys():
+                print (f"{grid_properties} found in additional grid file.")
         except:
-            raise RuntimeError("Recovery of verticesOnCell and nEdges didn't work.")
+            raise RuntimeError(f"Recovery of {grid_properties} failed.")
 
     # ax = start_cartopy_map_axis()
     print("Generating grid plot and plotting variable. This may take a while...")
@@ -236,9 +232,9 @@ def plot_cells_mpas(da, ds, ax, plotEdge=True, gridfile=None, **plot_kwargs):
 
         value = da.sel(nCells=cell)
 
-        vertices = ds['verticesOnCell'].sel(nCells=cell).values
-        num_sides = int(ds['nEdgesOnCell'].sel(nCells=cell))
-        
+        vertices = ds_grid['verticesOnCell'].sel(nCells=cell).values
+        num_sides = int(ds_grid['nEdgesOnCell'].sel(nCells=cell))
+    
         if 0 in vertices[:num_sides]:
             # Border cell
             continue
@@ -246,9 +242,9 @@ def plot_cells_mpas(da, ds, ax, plotEdge=True, gridfile=None, **plot_kwargs):
         # Cel indexation in MPAS starts in 1 (saved in verticesOnCell), 
         #  but for indexing in XARRAY starts with 0 (so -1 the indexes)
         vertices = vertices[:num_sides] - 1
-        
-        lats = ds['latitudeVertex'].sel(nVertices=vertices)
-        lons = ds['longitudeVertex'].sel(nVertices=vertices)
+    
+        lats = ds_grid['latitudeVertex'].sel(nVertices=vertices)
+        lons = ds_grid['longitudeVertex'].sel(nVertices=vertices)
         
         #Set color
         color = colorvalue(value, da, vmin=plot_kwargs['vmin'], vmax=plot_kwargs['vmax'])
@@ -500,7 +496,8 @@ if __name__ == "__main__":
 
     parser.add_argument(
         "-gf", "--gridfile", type=str, default=None,
-        help="Name of a MPAS data file that contains grid properties (.nc)",
+        help="Name of additional file that contains grid properties of MPAS"
+        + " infile (.nc; for use only when infile does not contain these properties)",
     )
 
     args = parser.parse_args()
