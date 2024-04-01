@@ -20,9 +20,6 @@ import numpy as np
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import cartopy.crs as ccrs
-import cartopy.feature as cfeature
-from geopy.distance import distance
-import pandas as pd
 
 import argparse
 
