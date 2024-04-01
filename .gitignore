@@ -68,6 +68,7 @@ stream_list.*
 benchmarks/__pycache__/*
 grids/utilities/jigsaw/__pycache__/*
 post_proc/py/geometry_lat_lon_2d_plot/__pycache__/*
+post_proc/py/__pycache__/
 
 src/core_*/inc
 .DS_Store
@@ -110,3 +111,4 @@ local_software/gccsources/
 local_software/people/*
 met_data/ERA5/scripts/APIs/*
 .vscode
+grids/utilities/convert_nc_grid_to_xyz/convert_grid_to_xyz

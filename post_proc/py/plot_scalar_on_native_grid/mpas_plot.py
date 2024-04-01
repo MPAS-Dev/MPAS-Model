@@ -7,6 +7,7 @@ Originally From: ??
 Edited: Danilo  <danilo.oceano@gmail.com>  in 2023
 Last edited: Nov 2023 by P. Peixoto (ppeixoto@usp.br)
 Last edited: Nov 2023 by F.A.V.B. Alves (fbalves@usp.br)
+Last edited: Mar 2024 by G. Torres Mendonça (guilherme.torresmendonca@ime.usp.br)
 
 """
 
@@ -19,8 +20,6 @@ import numpy as np
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import cartopy.crs as ccrs
-import cartopy.feature as cfeature
-from geopy.distance import distance
 
 import argparse
 
@@ -203,10 +202,27 @@ def colorvalue(val, da, vmin=None, vmax=None, cmap='Spectral'):
         
     return cm(norm_val)
 
-def plot_cells_mpas(da, ds, ax, plotEdge=True, **plot_kwargs):
+def plot_cells_mpas(da, ds, ax, plotEdge=True, gridfile=None, **plot_kwargs):
     # da: specific xarray to be plotted (time/level filtered)
     # ds: general xarray with grid structure, require for grid propreties
     # plotEdge: wether the cell edge should be visible or not. For high-resolution grids figure looks better if plotEdge=False
+
+    # GTM: check if grid properties needed for plotting are in ds
+    grid_properties = ['verticesOnCell', 'nEdgesOnCell']
+
+    if set(grid_properties).issubset(set(ds.keys())):
+        print (f"{grid_properties} found in dataset.")
+        ds_grid = ds
+    else:
+        print (f"{grid_properties} not found in dataset. "+ 
+               "Trying to recover them from additional grid file.")
+        try:
+            # Open additional grid file
+            ds_grid = open_mpas_file(gridfile)
+            if set(grid_properties).issubset(set(ds_grid.keys())):
+                print (f"{grid_properties} found in additional grid file.")
+        except:
+            raise RuntimeError(f"Recovery of {grid_properties} failed.")
 
     # ax = start_cartopy_map_axis()
     print("Generating grid plot and plotting variable. This may take a while...")
@@ -214,9 +230,10 @@ def plot_cells_mpas(da, ds, ax, plotEdge=True, **plot_kwargs):
 
         value = da.sel(nCells=cell)
 
-        vertices = ds['verticesOnCell'].sel(nCells=cell).values
-        num_sides = int(ds['nEdgesOnCell'].sel(nCells=cell))
-        
+        # GTM: now grid properties are taken from ds_grid, defined above
+        vertices = ds_grid['verticesOnCell'].sel(nCells=cell).values
+        num_sides = int(ds_grid['nEdgesOnCell'].sel(nCells=cell))
+    
         if 0 in vertices[:num_sides]:
             # Border cell
             continue
@@ -224,9 +241,9 @@ def plot_cells_mpas(da, ds, ax, plotEdge=True, **plot_kwargs):
         # Cel indexation in MPAS starts in 1 (saved in verticesOnCell), 
         #  but for indexing in XARRAY starts with 0 (so -1 the indexes)
         vertices = vertices[:num_sides] - 1
-        
-        lats = ds['latitudeVertex'].sel(nVertices=vertices)
-        lons = ds['longitudeVertex'].sel(nVertices=vertices)
+    
+        lats = ds_grid['latitudeVertex'].sel(nVertices=vertices)
+        lons = ds_grid['longitudeVertex'].sel(nVertices=vertices)
         
         #Set color
         color = colorvalue(value, da, vmin=plot_kwargs['vmin'], vmax=plot_kwargs['vmax'])
@@ -337,7 +354,8 @@ def close_plot(fig=None, size_fig=None, pdf=None, outfile=None,
     plt.close()
 
 
-def plot_mpas_darray(ds, vname, time=None, level=None, ax=None, outfile=None, title=None, plotEdge=True, clip=False, **kwargs):
+def plot_mpas_darray(ds, vname, time=None, level=None, ax=None, outfile=None, 
+                     title=None, plotEdge=True, clip=False, gridfile=None, **kwargs):
     
     ## plot_mpas_darray
     da = ds[vname]
@@ -373,7 +391,7 @@ def plot_mpas_darray(ds, vname, time=None, level=None, ax=None, outfile=None, ti
     plot_kwargs = set_plot_kwargs(da=da, clip=clip, **kwargs)
     
     if 'nCells' in da.dims: #Plot on Voronoi cells
-        plot_cells_mpas(da, ds, ax, plotEdge, **plot_kwargs)
+        plot_cells_mpas(da, ds, ax, plotEdge, gridfile=gridfile, **plot_kwargs)
 
     elif 'nVertices' in da.dims: #Plot on Triangles
         plot_dual_mpas(da, ds, ax, plotEdge, **plot_kwargs)
@@ -397,6 +415,7 @@ def view_mpas_mesh(mpas_grid_file, outfile=None,
                             level=None,
                             plotEdge=True,
                             clip=False,
+                            gridfile=None,
                             **kwargs):
     
     ds = open_mpas_file(mpas_grid_file)
@@ -419,7 +438,9 @@ def view_mpas_mesh(mpas_grid_file, outfile=None,
     if level is not None:
         tit = tit + " Level="+str(level)
                 
-    plot_mpas_darray(ds, vname, time=time, level=level, ax=ax, title=tit, plotEdge=plotEdge,clip=clip)
+    plot_mpas_darray(ds, vname, time=time, level=level, ax=ax, 
+                     title=tit, plotEdge=plotEdge, clip=clip,
+                     gridfile=gridfile)
     
     close_plot(outfile=outfile)
         
@@ -472,6 +493,12 @@ if __name__ == "__main__":
         help="Clip values grater than (expected_val + 4*std): yes or no",
     )
 
+    # GTM: option to supply additional file containing grid properties of infile
+    parser.add_argument(
+        "-gf", "--gridfile", type=str, default=None,
+        help="Name of additional file that contains grid properties of MPAS"
+        + " infile (.nc; for use only when infile does not contain these properties)",
+    )
 
     args = parser.parse_args()
     
@@ -489,4 +516,6 @@ if __name__ == "__main__":
     else:
         clip=False
 
-    view_mpas_mesh(args.infile, outfile=args.outfile, time=args.time, level=args.level, vname=args.var, plotEdge=plotEdge,clip=clip)
+    view_mpas_mesh(args.infile, outfile=args.outfile, time=args.time, 
+                   level=args.level, vname=args.var, plotEdge=plotEdge,
+                   clip=clip, gridfile=args.gridfile)
