@@ -69,6 +69,7 @@ benchmarks/__pycache__/*
 grids/utilities/jigsaw/__pycache__/*
 post_proc/py/geometry_lat_lon_2d_plot/__pycache__/*
 post_proc/py/__pycache__/
+post_proc/py/time_series_compare/__pycache__
 
 src/core_*/inc
 .DS_Store
