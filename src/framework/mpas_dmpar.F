@@ -6213,11 +6213,11 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
    !> \details
    !>  This routine handles the adjoint of halo exchange communication of an input field across all processors.
    !>  It accumulates the values of owned point with the values of halos. It is based on mpas_dmpar_exch_halo_field2d_real.
-   !
-   !> Note the number of halo layers impacts the number of cells which will be updated by this routine:
-   !> The first halo layer will update the owned 'edge' cells, where 'edge' cells are adjacent to ghost cells.
-   !> The second halo layer will update owned cells which are adjacent to the 'edge' cells.
-   !> The third halo layer will update owned cells which are adjacent to the cells updated by the seconds halo layer, etc.
+   !>
+   !>  Note the number of halo layers impacts the number of cells which will be updated by this routine:
+   !>  The first halo layer will update the owned 'edge' cells, where 'edge' cells are adjacent to ghost cells.
+   !>  The second halo layer will update owned cells which are adjacent to the 'edge' cells.
+   !>  The third halo layer will update owned cells which are adjacent to the cells updated by the seconds halo layer, etc.
    !-----------------------------------------------------------------------
    subroutine mpas_dmpar_exch_halo_adj_field2d_real(field, haloLayersIn)!{{{
 
