@@ -12,15 +12,10 @@ python3 mpas_time_series_at_point.py --dir /path/to/data
 Guilherme Torres Mendonça (guilherme.torresmendonca@ime.usp.br)
 March 2024
 """
-import xarray as xr
 import numpy as np
 import matplotlib.pyplot as plt
-import cfgrib
-from haversine import haversine
 import argparse
-import pandas as pd
-from utils import (
-    add_mpas_mesh_variables, 
+from utils import ( 
     create_datetime_range,
     concat_mpas_output,
     cs_string_to_list,
