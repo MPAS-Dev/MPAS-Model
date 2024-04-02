@@ -25,7 +25,7 @@ import os
 
 # Create ArgumentParser object
 parser = argparse.ArgumentParser(description=
-                                 'plotting time series for a certain variable at a' 
+                                 'plotting time series for a list of variables at a' 
                                 +'particular point and time period.')
 # Input arguments
 parser.add_argument('--dir', default=os.getcwd(), type=str, 
