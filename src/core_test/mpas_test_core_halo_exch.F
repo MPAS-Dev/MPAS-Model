@@ -81,6 +81,16 @@ module test_core_halo_exch
          err = ior(err, iErr)
       end if
 
+      if ( threadNum == 0 ) then
+         call mpas_log_write(' - Performing halo exchange adjoint tests')
+      end if
+      call test_halo_adj_exch_fields(domain, threadErrs, iErr)
+      call mpas_threading_barrier()
+      if ( threadNum == 0 ) then
+         call mpas_log_write('    -- Return code: $i', intArgs=(/iErr/))
+         err = ior(err, iErr)
+      end if
+
       call mpas_timer_stop('halo exch tests')
 
    end subroutine test_core_halo_exch_test!}}}
@@ -252,8 +262,6 @@ module test_core_halo_exch
       call test_core_halo_exch_validate_fields(domain, threadErrs, iErr)
       err = ior(err, iErr)
 
-      call test_halo_adj_exch_fields(domain, threadErrs, iErr)
-      err = ior(err, iErr)
    end subroutine test_core_halo_exch_full_test!}}}
 
 
