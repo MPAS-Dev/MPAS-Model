@@ -4,9 +4,9 @@
 Script to plot time series for a list of variables at a 
 particular point (lon,lat,vertlevel) and time period.
 
-Usage:
+Usage (optional input arguments may be given, see below):
 python3 mpas_time_series_at_point.py --dir /path/to/data
---stream history --t0 '2021-01-01 00:00:00' --tf '2021-01-02 18:00:00' 
+--stream history --lat -2.12 --lon -59.00 --t0 '2021-01-01 00:00:00' --tf '2021-01-02 18:00:00' 
 --dt 10800 --var swdnb,swupb
 
 Guilherme Torres Mendonça (guilherme.torresmendonca@ime.usp.br)
