@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Script to plot time series for a certain variable at a 
+Script to plot time series for a list of variables at a 
 particular point (lon,lat,vertlevel) and time period.
 
 Usage:
