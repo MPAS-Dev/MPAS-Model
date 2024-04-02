@@ -1385,24 +1385,37 @@ module test_core_halo_exch
    end subroutine test_core_halo_exch_validate_fields!}}}
 
    !***********************************************************************
-   !> \brief   Identify cells which are adjacent to the cells with the provided cellMask/
-   !> \Author Michael Duda
+   !> \brief  Identify cells that are adjacent to other marked cells
+   !> \author Michael Duda
+   !> \date   24 January 2024
    !> \details 
-   !>  This function identifies cells which are adjacent to cells with the provided mask.
-   !>  Such cells will be marked with with cellMask+1.
-   !>  Only cells which have no mask are considered.
+   !>  Given a cell mask field, cellMask, and a specified (positive) non-zero mask
+   !>  value, sentinelValue, this routine sets the cell mask field to (sentinelValue+1)
+   !>  for all cells that are (1) adjacent to cells with the sentinelValue mask value
+   !>  and (2) that have an initial cellMask value of zero.
+   !>
+   !>  Cell adjacency is determined by the cellsOnCell and nEdgesOnCell fields.
+   !>
+   !>  This routine returns the total number of cells that were marked as being
+   !>  adjacent to cells with the sentinelValue mask value.
    !-----------------------------------------------------------------------
    function mark_interior_cells(cellMask, sentinelValue, cellsOnCell, nEdgesOnCell) result(nCellsMarked)
 
-      !< array of masks, where a value of zero means the cell won't be updated by the halo adjoint exchange
-      integer, dimension(:), intent(inout) :: cellMask
-      integer, intent(in) :: sentinelValue !< the value to look for being adjacent to
-      integer, dimension(:,:), intent(in) :: cellsOnCell   !< array containing adjacent cells for each cell
-      integer, dimension(:), intent(in) :: nEdgesOnCell  !< array containing edges for each cell
+      ! Arguments
+      integer, dimension(:), intent(inout) :: cellMask !< mask field
+      integer, intent(in) :: sentinelValue             !< value in mask field for which adjacent cells are marked
+      integer, dimension(:,:), intent(in) :: cellsOnCell !< indices of cell neighbors for each cell
+      integer, dimension(:), intent(in) :: nEdgesOnCell  !< number of cell neighbors for each cell
 
-      integer :: iCell, j, nCellsMarked
+      ! Return value
+      integer :: nCellsMarked
+
+      ! Local variables
+      integer :: iCell, j
+
 
       nCellsMarked = 0
+
       do iCell = 1, size(cellMask)
          if (cellMask(iCell) == 0) then
             do j = 1, nEdgesOnCell(iCell)
@@ -1418,6 +1431,7 @@ module test_core_halo_exch
             end do
          end if
       end do
+
 #ifdef HALO_EXCH_DEBUG_VERBOSE
       call mpas_log_write(' mark_interior nCellsMarked:$i sentinel:$i', &
           intArgs=(/nCellsMarked, sentinelValue/))
@@ -1426,32 +1440,40 @@ module test_core_halo_exch
    end function mark_interior_cells
 
    !***********************************************************************
-   !> \brief   Identify interior and edge cells
-   !> \Author Michael Duda, Jim Wittig
+   !> \brief  Identify cells in the outermost N layers of owned cells in a block
+   !> \author Jim Wittig, Michael Duda
+   !> \date   29 January 2024
    !> \details 
-   !>  This function identifies cells which are on the interior, vs cells on the edge
-   !>  (cells with neighbors which aren't in this block).
-   !>  Returns a vector of flags corresponding to the array of cells, where a value of zero indicates
-   !>  the cell is interior, and a value of non-zero indicates
+   !>  This function identifies cells that are in the outermost N layers of owned
+   !>  cells in a block, where N is the number of halo layers (nHaloLayers). The
+   !>  function returns an array of values indicating the location of a cell.
+   !>  In the returned array, a value of zero indicates that the cell is not in
+   !>  the outermost N layers of owned cells, and non-zero values indicate:
    !>    1. the cell is a halo cell (not owned by this block)
-   !>    2. the cell is on an edge of this block (adjacent to a halo cell), or
-   !>    3. the cell is adjacent to an edge cell, or
-   !>    4. the cell is adjacent to a cell which is adjacent to an edge
-   !>  This identifies cells which should be updated via the halo adjoint exchange.
-   !>  Cells marked with a 2 should get updated via halo layer 1.
-   !>  Cells marked with a 3 should get updated via halo layer 2, etc.
+   !>    2. the cell is a distance of 1 away from a halo cell (i.e., adjacent to a halo cell)
+   !>    3. the cell is a distance of 2 away from a halo cell (i.e., adjacent to a cell marked '2')
+   !>    4. the cell is a distance of 3 away from a halo cell (i.e., adjacent to a cell marked '3')
+   !>
+   !>  The result of this routine may be used to determine which cells will be modified
+   !>  by the adjoint of a halo exchange; for example:
+   !>   - cells marked with a 2 will be updated from halo layer 1,
+   !>   - cells marked with a 3 will be updated from halo layer 2, etc.
    !>  
    !-----------------------------------------------------------------------
    function findExteriorCells(nCellsSolve, nCells, cellsOnCell, edgesOnCell, nHaloLayers) &
       result(exteriorCells)
 
+      ! Arguments
       integer, intent(in) :: nCellsSolve !< the number of cells in this block
       integer, intent(in) :: nCells !< total number of cells (cells in this block plus halo cells)
       integer, dimension(:,:), intent(in) :: cellsOnCell !< array with adjacent cells for each cell
       integer, dimension(:), intent(in) :: edgesOnCell !< array with edges for each cell
       integer, intent(in) :: nHaloLayers  !< the number of halo layers
 
+      ! Return value
       integer, dimension(:), allocatable :: exteriorCells
+
+      ! Local variables
       integer nInterior, nEdge, nLayers
 
       allocate(exteriorCells(nCells))
@@ -1475,22 +1497,33 @@ module test_core_halo_exch
 #ifdef HALO_EXCH_DEBUG_VERBOSE
       call mpas_log_write(' halo nInterior:$i nEdge:$i', intArgs=(/nInterior, nEdge/))
 #endif
+
    end function findExteriorCells
 
    !***********************************************************************
-   !> \brief   MPAS Test Core halo adjoint exchange
+   !> \brief  MPAS Test Core halo adjoint exchange
+   !> \author Jim Wittig
+   !> \date   29 January 2024
    !> \details 
-   !>  This routine applies the halo adjoint function to a 2D array and verifies
-   !>  interior cell's values don't change, and border cell's values are modified.
-   !>  It assumes a halo exchange has already been applied.
-   !>  Returns 0 on success, non-0 on failure.
+   !>  This routine applies the adjoint of a halo exchangeto a 2-d array and
+   !>  verifies that (1) the values for cells more than a distance N away from
+   !>  a halo cell do not change (where N is the number of halo layers), and
+   !>  (2) cells within a distance of N from a halo cell are updated.
+   !>
+   !>  This routine assumes that a halo exchange has already been applied to
+   !>  the cellPersistReal2D field before this routine has been called.
+   !>
+   !>  Upon success, a value of 0 is returned; otherwise, a non-zero status
+   !>  code is returned.
    !-----------------------------------------------------------------------
    subroutine test_halo_adj_exch_fields(domain, threadErrs, err)
 
+      ! Arguments
       type (domain_type), intent(inout) :: domain
       integer, dimension(:), intent(out) :: threadErrs
       integer, intent(out) :: err
 
+      ! Local variables
       type (block_type), pointer :: block
       type (mpas_pool_type), pointer :: meshPool, haloExchTestPool
       type (field2DReal), pointer :: real2DField
@@ -1503,6 +1536,7 @@ module test_core_halo_exch
       integer :: iCell, iEdgeOnCell, nInterior, nEdge, nHaloLayers
 
       err = 0
+
       ! get a variable to call the adjoint halo on
       block => domain % blocklist
 
@@ -1544,15 +1578,18 @@ module test_core_halo_exch
          err = check_adjoint_values(nCellsSolve, real2Dorig, real2D, exteriorCells)
          block => block % next
       end do
+
    end subroutine test_halo_adj_exch_fields
 
    !***********************************************************************
-   !> \brief   MPAS Test check pre & post adjoint exchange values
+   !> \brief  MPAS Test check pre and post adjoint exchange values
+   !> \author Jim Wittig
+   !> \date   29 January 2024
    !> \details 
    !>  This routine checks the pre-adjoint halo exchange values aganst
    !>  post-adjoint halo exhange values.
    !>  Interior cell's values aren't expected to change, and border cell's values are 
-   !> expected to change.
+   !>  expected to change.
    !>  Returns 0 on success, non-0 on failure.
    !-----------------------------------------------------------------------
    integer function check_adjoint_values(nCellsSolve, orig, adjoint, exteriorCells) 
@@ -1602,6 +1639,7 @@ module test_core_halo_exch
 #endif
 
       check_adjoint_values = nError
+
    end function check_adjoint_values
 
 end module test_core_halo_exch
