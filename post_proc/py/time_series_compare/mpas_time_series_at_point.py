@@ -90,10 +90,10 @@ datetime_list = create_datetime_range(
 plt.figure()
 for var in vars_list:
     # Try choosing nVertLevels
-    #try:
-    #    y_series = ds[var].sel(nCells=nCells,nVertLevels=vertlevel).values
-    #except: 
-    y_series = ds[var].sel(nCells=nCells).values
+    try:
+        y_series = ds[var].sel(nCells=nCells,nVertLevels=vertlevel).values
+    except: 
+        y_series = ds[var].sel(nCells=nCells).values
     plt.plot(datetime_list,y_series,linestyle='-',label=var)
 plt.tick_params(axis='both', which='major', labelsize=12)
 plt.xticks(np.arange(min(ds.Time), max(ds.Time)+1,1),
