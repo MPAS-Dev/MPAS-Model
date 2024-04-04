@@ -116,11 +116,13 @@
 ! initialize jmonth and jday:
  jmonth = NoahmpIO%month
  jday   = NoahmpIO%day
+ call mpas_log_write('--- NoahmpIO%itimestep         = $i',intArgs=(/NoahmpIO%itimestep/))
  call mpas_log_write('--- NoahmpIO%yearlen           = $i',intargs=(/NoahmpIO%yearlen/))
  call mpas_log_write('--- NoahmpIO%yr                = $i',intargs=(/NoahmpIO%yr/))
  call mpas_log_write('--- NoahmpIO%month             = $i',intargs=(/jmonth/))
  call mpas_log_write('--- NoahmpIO%day               = $i',intargs=(/jday/))
  call mpas_log_write('--- NoahmpIO%julian            = $r',realargs=(/NoahmpIO%julian/))
+ call mpas_log_write('--- NoahmpIO%xice_threshold    = $r',realargs=(/NoahmpIO%xice_threshold/))
  call mpas_log_write(' ')
 
 ! depth to soil interfaces (<0) [m]
