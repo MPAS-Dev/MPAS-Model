@@ -22,6 +22,7 @@
 
  use mpas_atmphys_landuse
  use mpas_atmphys_o3climatology
+ use mpas_atmphys_lsm_noahmpinit,only: init_lsm_noahmp
 
  implicit none
  private
@@ -68,14 +69,16 @@
 !   Laura D. Fowler (laura@ucar.edu) / 2016-10-18.
 ! * added the subroutine init_physics_flags to initialize f_qc,f_qr,f_qi,f_qs,f_qg,f_nc,and f_ni.
 !   Laura D. Fowler (laura@ucar.edu) / 2024-02-14.
+! * added call to subroutine init_lsm_noahmp to initialize the Noah-MP land surface scheme.
+!   Laura D. Fowler (laura@ucar.edu) / 2024-03-11.
 
 
  contains
 
 
 !=================================================================================================================
- subroutine physics_init(dminfo,clock,configs,mesh,diag,tend,state,time_lev,diag_physics, &
-                         atm_input,sfc_input)
+ subroutine physics_init(dminfo,clock,configs,mesh,diag,tend,state,time_lev,diag_physics,diag_physics_noahmp, &
+                         atm_input,sfc_input,output_noahmp)
 !=================================================================================================================
 
 !input arguments:
@@ -91,8 +94,10 @@
  type(mpas_pool_type),intent(inout):: diag
  type(mpas_pool_type),intent(inout):: tend
  type(mpas_pool_type),intent(inout):: diag_physics
+ type(mpas_pool_type),intent(inout):: diag_physics_noahmp
  type(mpas_pool_type),intent(inout):: atm_input
  type(mpas_pool_type),intent(inout):: sfc_input
+ type(mpas_pool_type),intent(inout):: output_noahmp
 
 !local pointers:
  logical,pointer:: config_do_restart,       &
@@ -372,10 +377,13 @@
  if(config_sfclayer_scheme .ne. 'off') call init_sfclayer(configs)
 
 !initialization of land-surface model:
-!if(.not. config_do_restart) then
-!   if(config_lsm_scheme .ne. 'off') call init_lsm(dminfo,mesh,configs,diag_physics,sfc_input)
-!endif
- if(config_lsm_scheme .ne. 'off') call init_lsm(dminfo,mesh,configs,diag_physics,sfc_input)
+ if(config_lsm_scheme .ne. 'off') then
+    if(config_lsm_scheme .eq. 'sf_noah') then
+       call init_lsm(dminfo,mesh,configs,diag_physics,sfc_input)
+    elseif(config_lsm_scheme .eq. 'sf_noahmp') then
+       call init_lsm_noahmp(configs,mesh,diag_physics,diag_physics_noahmp,output_noahmp,sfc_input)
+    endif
+ endif
 
 !initialization of shortwave radiation processes:
  init_done = .false.
