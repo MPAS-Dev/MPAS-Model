@@ -147,7 +147,6 @@
        else
           NoahmpIO%waxy(i)   = 0.0
           NoahmpIO%wtxy(i)   = 0.0
-          NoahmpIO%areaxy(i) = (NoahmpIO%dx*NoahmpIO%dy) / (NoahmpIO%msftx(i)*NoahmpIO%msfty(i))
        endif
 
        urbanpt_flag = .false.
