@@ -231,7 +231,7 @@
 
  integer,pointer:: nsoilcomps
  integer,dimension(:),pointer:: isltyp,ivgtyp
- integer,dimension(:),pointer:: isnowxy,cropcat
+ integer,dimension(:),pointer:: isnowxy
  integer,dimension(:),pointer:: irnumsi,irnummi,irnumfi
  
  real(kind=RKIND),pointer:: dt
@@ -249,7 +249,6 @@
  
  real(kind=RKIND),dimension(:,:),pointer:: dzs,sh2o,smois,tslb
  real(kind=RKIND),dimension(:,:),pointer:: snicexy,snliqxy,tsnoxy,zsnsoxy
- real(kind=RKIND),dimension(:,:),pointer:: croptype
 
 !local variables and pointers:
  logical,pointer:: do_restart
@@ -348,7 +347,6 @@
  call mpas_pool_get_array(diag_physics_noahmp,'canliqxy',canliqxy)
  call mpas_pool_get_array(diag_physics_noahmp,'chxy'    ,chxy    )
  call mpas_pool_get_array(diag_physics_noahmp,'cmxy'    ,cmxy    )
- call mpas_pool_get_array(diag_physics_noahmp,'cropcat' ,cropcat )
  call mpas_pool_get_array(diag_physics_noahmp,'eahxy'   ,eahxy   )
  call mpas_pool_get_array(diag_physics_noahmp,'fastcpxy',fastcpxy)
  call mpas_pool_get_array(diag_physics_noahmp,'fwetxy'  ,fwetxy  )
@@ -370,8 +368,6 @@
  call mpas_pool_get_array(diag_physics_noahmp,'wtxy'    ,wtxy    )
  call mpas_pool_get_array(diag_physics_noahmp,'xsaixy'  ,xsaixy  )
  call mpas_pool_get_array(diag_physics_noahmp,'zwtxy'   ,zwtxy   )
-
- call mpas_pool_get_array(diag_physics_noahmp,'croptype',croptype)
 
  call mpas_pool_get_array(diag_physics_noahmp,'irnumsi' ,irnumsi )
  call mpas_pool_get_array(diag_physics_noahmp,'irwatsi' ,irwatsi )
@@ -420,9 +416,10 @@
 
 !--- update of all time-varying Noah-MP variables:
  do i = its,ite
-    snow(i)  = mpas_noahmp%snow(i)   ! in mm (check unit in noahmp driver).
-    snowh(i) = mpas_noahmp%snowh(i)  ! in m  (check unit in noahmp driver).
-    snowc(i) = 0._RKIND
+    isnowxy(i) = mpas_noahmp%isnowxy(i)
+    snow(i)    = mpas_noahmp%snow(i)   ! in mm (check unit in noahmp driver).
+    snowh(i)   = mpas_noahmp%snowh(i)  ! in m  (check unit in noahmp driver).
+    snowc(i)   = 0._RKIND
     if(snow(i) .gt. 0._RKIND) snowc(i) = 1.
 
     do ns = 1,nsoil
@@ -447,15 +444,6 @@
        zsnsoxy(ns,i) = mpas_noahmp%zsnsoxy(i,n)
     enddo
  enddo
- do i = its,ite
-    if(snow(i).gt.0._RKIND) then
-       do ns = 1, nsnow
-          call mpas_log_write('--- snow > zero: $i $i $i $r $r $r $r $r $r',intArgs=(/i,ns,isnowxy(i)/), &
-                   realArgs=(/xland(i),snow(i),tsnoxy(ns,i),snicexy(ns,i),snliqxy(ns,i),zsnsoxy(ns,i)/))
-       enddo
-    endif
- enddo
-
 
  do i = its,ite
     canwat(i) = mpas_noahmp%canwat(i)
@@ -467,7 +455,6 @@
     canliqxy(i) = mpas_noahmp%canliqxy(i)
     chxy(i)     = mpas_noahmp%chxy(i)
     cmxy(i)     = mpas_noahmp%cmxy(i)
-    cropcat(i)  = mpas_noahmp%cropcat(i)
     eahxy(i)    = mpas_noahmp%eahxy(i)
     fastcpxy(i) = mpas_noahmp%fastcpxy(i)
     fwetxy(i)   = mpas_noahmp%fwetxy(i)
