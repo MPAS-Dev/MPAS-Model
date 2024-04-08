@@ -71,14 +71,14 @@
  real(kind=RKIND),dimension(:),pointer:: acsnom,acsnow,canwat,hfx,qfx,qsfc,lh,grdflx,sfc_albedo,sfc_emiss,  &
                                          sfcrunoff,skintemp,smstav,smstot,udrunoff,snow,snowc,snowh,lai,z0, &
                                          znt
- real(kind=RKIND),dimension(:,:),pointer:: sh2o,smois,tslb,smoiseq
+ real(kind=RKIND),dimension(:,:),pointer:: sh2o,smois,tslb
 
 
 !--- local INOUT pointers (with no Noah LSM equivalent as defined in WRF):
  integer,dimension(:),pointer:: isnowxy
- real(kind=RKIND),dimension(:),pointer:: tvxy,tgxy,canicexy,canliqxy,eahxy,tahxy,cmxy,chxy,fwetxy,sneqvoxy,     &
-                                         alboldxy,qsnowxy,qrainxy,wslakexy,zwtxy,waxy,wtxy,smcwtdxy,deeprechxy, &
-                                         rechxy,lfmassxy,rtmassxy,stmassxy,woodxy,grainxy,gddxy,stblcpxy,       &
+ real(kind=RKIND),dimension(:),pointer:: tvxy,tgxy,canicexy,canliqxy,eahxy,tahxy,cmxy,chxy,fwetxy,sneqvoxy, &
+                                         alboldxy,qsnowxy,qrainxy,wslakexy,zwtxy,waxy,wtxy,deeprechxy,      &
+                                         rechxy,lfmassxy,rtmassxy,stmassxy,woodxy,grainxy,gddxy,stblcpxy,   &
                                          fastcpxy,xsaixy,taussxy
  real(kind=RKIND),dimension(:,:),pointer:: tsnoxy,zsnsoxy,snicexy,snliqxy
 
@@ -252,7 +252,6 @@
  call mpas_pool_get_array(diag_physics,'z0'        ,z0        )
  call mpas_pool_get_array(diag_physics,'znt'       ,znt       )
 
- call mpas_pool_get_array(diag_physics_noahmp,'smoiseq',smoiseq)
 
  do i = its,ite
     mpas_noahmp%tsk(i)       = skintemp(i)
@@ -283,7 +282,6 @@
        mpas_noahmp%sh2o(i,ns)    = sh2o(ns,i)
        mpas_noahmp%smois(i,ns)   = smois(ns,i)
        mpas_noahmp%tslb(i,ns)    = tslb(ns,i)
-       mpas_noahmp%smoiseq(i,ns) = smoiseq(ns,i)
     enddo
  enddo
 
@@ -308,7 +306,6 @@
  call mpas_pool_get_array(diag_physics_noahmp,'zwtxy'     ,zwtxy      )
  call mpas_pool_get_array(diag_physics_noahmp,'waxy'      ,waxy       )
  call mpas_pool_get_array(diag_physics_noahmp,'wtxy'      ,wtxy       )
- call mpas_pool_get_array(diag_physics_noahmp,'smcwtdxy'  ,smcwtdxy   )
  call mpas_pool_get_array(diag_physics_noahmp,'deeprechxy',deeprechxy )
  call mpas_pool_get_array(diag_physics_noahmp,'rechxy'    ,rechxy     )
  call mpas_pool_get_array(diag_physics_noahmp,'tsnoxy'    ,tsnoxy     )
@@ -345,7 +342,6 @@
     mpas_noahmp%zwtxy(i)      = zwtxy(i)
     mpas_noahmp%waxy(i)       = waxy(i)
     mpas_noahmp%wtxy(i)       = wtxy(i)
-    mpas_noahmp%smcwtdxy(i)   = smcwtdxy(i)
     mpas_noahmp%deeprechxy(i) = deeprechxy(i)
     mpas_noahmp%rechxy(i)     = rechxy(i)
     mpas_noahmp%lfmassxy(i)   = lfmassxy(i)
@@ -375,28 +371,6 @@
        mpas_noahmp%zsnsoxy(i,n) = zsnsoxy(ns,i)
     enddo
  enddo
-
-!do i = its,ite
-!   if(snow(i) .le. 0._RKIND) then
-!      do ns = 1,nsnow
-!         n = ns - nsnow
-!         call mpas_log_write('--- snow = zero: $i $i $i $r $r $r $r $r $r',intArgs=(/i,ns,isnowxy(i)/), &
-!                           realArgs=(/mpas_noahmp%xland(i),mpas_noahmp%snow(i),mpas_noahmp%tsnoxy(i,n), &
-!                           mpas_noahmp%snicexy(i,n),mpas_noahmp%snliqxy(i,n),mpas_noahmp%zsnsoxy(i,n)/))
-!      enddo
-!      call mpas_log_write(' ')
-!   endif
-!enddo
-!call mpas_log_write('--- start pool:')
-!do i = its,ite
-!   if(snow(i) .gt. 0._RKIND) then
-!      do ns = 1, nsnow
-!         call mpas_log_write('--- snow > zero: $i $i $i $r $r $r $r $r $r',intArgs=(/i,ns,isnowxy(i)/), &
-!                           realArgs=(/xland(i),snow(i),tsnoxy(i,n), &
-!                           mpas_noahmp%snicexy(i,n),mpas_noahmp%snliqxy(i,n),mpas_noahmp%zsnsoxy(i,n)/))
-!      enddo
-!   endif
-!enddo
 
 
 !--- initialization of OUT (with no Noah LSM equivalent as defined in WRF), i.e.
@@ -699,14 +673,14 @@
  real(kind=RKIND),dimension(:),pointer:: acsnom,acsnow,canwat,hfx,qfx,qsfc,lh,grdflx,sfc_albedo,sfc_emiss,  &
                                          sfcrunoff,skintemp,smstav,smstot,udrunoff,snow,snowc,snowh,lai,z0, &
                                          znt
- real(kind=RKIND),dimension(:,:),pointer:: sh2o,smois,tslb,smoiseq
+ real(kind=RKIND),dimension(:,:),pointer:: sh2o,smois,tslb
 
 
  !--- local INOUT pointers (with no Noah LSM equivalent as defined in WRF):
  integer,dimension(:),pointer:: isnowxy
- real(kind=RKIND),dimension(:),pointer:: tvxy,tgxy,canicexy,canliqxy,eahxy,tahxy,cmxy,chxy,fwetxy,sneqvoxy,     &
-                                         alboldxy,qsnowxy,qrainxy,wslakexy,zwtxy,waxy,wtxy,smcwtdxy,deeprechxy, &
-                                         rechxy,lfmassxy,rtmassxy,stmassxy,woodxy,grainxy,gddxy,stblcpxy,       &
+ real(kind=RKIND),dimension(:),pointer:: tvxy,tgxy,canicexy,canliqxy,eahxy,tahxy,cmxy,chxy,fwetxy,sneqvoxy, &
+                                         alboldxy,qsnowxy,qrainxy,wslakexy,zwtxy,waxy,wtxy,deeprechxy,      &
+                                         rechxy,lfmassxy,rtmassxy,stmassxy,woodxy,grainxy,gddxy,stblcpxy,   &
                                          fastcpxy,xsaixy,taussxy
  real(kind=RKIND),dimension(:,:),pointer:: tsnoxy,zsnsoxy,snicexy,snliqxy
 
@@ -769,7 +743,6 @@
  call mpas_pool_get_array(diag_physics,'z0'        ,z0        )
  call mpas_pool_get_array(diag_physics,'znt'       ,znt       )
 
- call mpas_pool_get_array(diag_physics_noahmp,'smoiseq',smoiseq)
 
  do i = its,ite
     skintemp(i)   = mpas_noahmp%tsk(i)
@@ -800,7 +773,6 @@
        sh2o(ns,i)    = mpas_noahmp%sh2o(i,ns)
        smois(ns,i)   = mpas_noahmp%smois(i,ns)
        tslb(ns,i)    = mpas_noahmp%tslb(i,ns)
-       smoiseq(ns,i) = mpas_noahmp%smoiseq(i,ns)
     enddo
  enddo
 
@@ -825,7 +797,6 @@
  call mpas_pool_get_array(diag_physics_noahmp,'zwtxy'     ,zwtxy      )
  call mpas_pool_get_array(diag_physics_noahmp,'waxy'      ,waxy       )
  call mpas_pool_get_array(diag_physics_noahmp,'wtxy'      ,wtxy       )
- call mpas_pool_get_array(diag_physics_noahmp,'smcwtdxy'  ,smcwtdxy   )
  call mpas_pool_get_array(diag_physics_noahmp,'deeprechxy',deeprechxy )
  call mpas_pool_get_array(diag_physics_noahmp,'rechxy'    ,rechxy     )
  call mpas_pool_get_array(diag_physics_noahmp,'tsnoxy'    ,tsnoxy     )
@@ -862,7 +833,6 @@
     zwtxy(i)      = mpas_noahmp%zwtxy(i)
     waxy(i)       = mpas_noahmp%waxy(i)
     wtxy(i)       = mpas_noahmp%wtxy(i)
-    smcwtdxy(i)   = mpas_noahmp%smcwtdxy(i)
     deeprechxy(i) = mpas_noahmp%deeprechxy(i)
     rechxy(i)     = mpas_noahmp%rechxy(i)
     lfmassxy(i)   = mpas_noahmp%lfmassxy(i)
@@ -890,25 +860,6 @@
        n = ns - nsoil + 1
        zsnsoxy(ns,i) = mpas_noahmp%zsnsoxy(i,n)
     enddo
- enddo
-
-!do i = its,ite
-!   if(snow(i) .le. 0._RKIND) then
-!      do ns = 1,nsnow
-!         call mpas_log_write('--- snow = zero: $i $i $i $r $r $r $r $r $r',intArgs=(/i,ns,isnowxy(i)/), &
-!                 realArgs=(/xland(i),snow(i),tsnoxy(ns,i),snicexy(ns,i),snliqxy(ns,i),zsnsoxy(ns,i)/))
-!      enddo
-!      call mpas_log_write(' ')
-!   endif
-!enddo
- do i = its,ite
-    if(snow(i) .gt. 0._RKIND) then
-       do ns = 1,nsnow
-          call mpas_log_write('--- snow > zero: $i $i $i $r $r $r $r $r $r',intArgs=(/i,ns,isnowxy(i)/), &
-                  realArgs=(/xland(i),snow(i),tsnoxy(ns,i),snicexy(ns,i),snliqxy(ns,i),zsnsoxy(ns,i)/))
-       enddo
-       call mpas_log_write(' ')
-    endif
  enddo
 
 
