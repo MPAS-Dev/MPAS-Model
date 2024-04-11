@@ -80,7 +80,8 @@
 
  if(config_microp_scheme == 'mp_kessler') then
     mp_kessler_in = .true.
- elseif(config_microp_scheme == 'mp_thompson') then
+ elseif(config_microp_scheme == 'mp_thompson' .or. &
+        config_microp_scheme == 'mp_thompson_aerosols') then
     mp_thompson_in = .true.
  elseif(config_microp_scheme == 'mp_wsm6') then
     mp_wsm6_in = .true.
