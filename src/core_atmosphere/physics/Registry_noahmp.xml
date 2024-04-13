@@ -106,12 +106,12 @@
 
       <nml_option name="config_noahmp_iopt_tbot" type="integer" default_value="2"
            units="-"
-           description="option for lower borunday of soil temperature"
+           description="option for lower boundary of soil temperature"
            possible_values="0 or 1"/>
 
       <nml_option name="config_noahmp_iopt_stc" type="integer" default_value="1"
            units="-"
-           description="option for soil/snow time scheme"
+           description="option for soil or snow time scheme"
            possible_values="0 or 1"/>
 
       <nml_option name="config_noahmp_iopt_gla" type="integer" default_value="1"
@@ -359,10 +359,10 @@
                 description="2-meter water vapor mixing ratio over canopy" missing_value="-9999.0"/>
 
       <var name="q2mbxy" type="real" dimensions="nCells Time" units="kg kg^{-1}"
-                description="2-meter water vapor mixing ratio ovrer bare ground" missing_value="-9999.0"/>
+                description="2-meter water vapor mixing ratio over bare ground" missing_value="-9999.0"/>
 
       <var name="tradxy" type="real" dimensions="nCells Time" units="K"
-                description="surfrac radiative temperature" missing_value="-9999.0"/>
+                description="surface radiative temperature" missing_value="-9999.0"/>
 
       <var name="neexy"  type="real" dimensions="nCells Time" units="g m^{-2} s^{-1} C"
                 description="net ecosystem exchange" missing_value="-9999.0"/>
@@ -374,7 +374,7 @@
                 description="net primary productivity" missing_value="-9999.0"/>
 
       <var name="fvegxy" type="real" dimensions="nCells Time" units="-"
-                description="NOAHMP vegetation fraction"i missing_value="-9999.0"/>
+                description="NOAHMP vegetation fraction" missing_value="-9999.0"/>
 
       <var name="runsfxy" type="real" dimensions="nCells Time" units="mm s^{-1}"
                 description="surface runoff" missing_value="-9999.0"/>
@@ -392,7 +392,7 @@
                 description="transpiration rate" missing_value="-9999.0"/>
 
       <var name="fsaxy" type="real" dimensions="nCells Time" units="W m^{-2}"
-                description="total absorbed solar radiation" missing_value="-9999.0""/>
+                description="total absorbed solar radiation" missing_value="-9999.0"/>
 
       <var name="firaxy" type="real" dimensions="nCells Time" units="W m^{-2}"
                 description="total net longwave radiation" missing_value="-9999.0"/>
@@ -425,7 +425,7 @@
                 description="ground temperature under canopy" missing_value="-9999.0"/>
 
       <var name="tgbxy" type="real" dimensions="nCells Time" units="K"
-                description="bare gorund temperature" mising_value="-9999.0"/>
+                description="bare ground temperature" missing_value="-9999.0"/>
 
       <var name="chvxy" type="real" dimensions="nCells Time" units="s m^{-1}"
                 description="vegetation heat exchange coefficient" missing_value="-9999.0"/>
