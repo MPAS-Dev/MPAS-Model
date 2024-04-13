@@ -55,5 +55,28 @@
         <var name="wind_speed_level1_max"  type="real"     dimensions="nCells Time" units="m s^{-1}"
              description="Maximum wind speed in lowest model level since last output"/>
 
+        <var name="fzlev"                   type="real"     dimensions="nCells Time" units="m" missing_value="-999."
+             description="Height of freezing level"/>
+
+        <var name="ztd"                   type="real"     dimensions="nCells Time" units="cm"
+             description="Zenith total delay"/>
+
+        <var name="ivt"                   type="real"     dimensions="nCells Time" units="kg m^{-1} s^{-1}"
+             description="Vertically integrated water vapor flux up to 250hPa"/>
+
+        <var name="temp_wet"                   type="real"     dimensions="nCells Time" units="K" missing_value="-9999."
+             description="Wet bulb temperature"/>
+
+        <var name="relhum_2m"                   type="real"     dimensions="nCells Time" units="Percent"
+             description="2-m relative humidity"/>
+
+        <var name="gust_10m" type="real" dimensions="nCells Time"  units="m s^{-1}"
+             description="10-meter wind gust following COSMO model approach"/>
+
+        <var name="speed_surface"           type="real"     dimensions="nCells Time" units="m s^{-1}"
+             description="wind speed at midpoint of lowest model layer"/>
+
+        <var name="heatidx"                   type="real"     dimensions="nCells Time" units="K"
+             description="NOAA heat index"/>
 </var_struct>
 

@@ -515,6 +515,7 @@
 			<var name="rho_base"/>
 			<var name="theta_base"/>
 			<var name="surface_pressure"/>
+                        <var name="ter"/>
 
 #ifdef DO_PHYSICS
 			<var name="isltyp"/>
@@ -837,6 +838,7 @@
 			<var name="h_oml_initial"/>
 			<var name="hu_oml"/>
 			<var name="hv_oml"/>
+                        <var name="ter"/>
 #endif
 		</stream>
 
@@ -993,38 +995,81 @@
 			<var name="dewpoint_700hPa"/>
 			<var name="dewpoint_850hPa"/>
 			<var name="dewpoint_925hPa"/>
+			<var name="temperature_20hPa"/>
 			<var name="temperature_50hPa"/>
 			<var name="temperature_100hPa"/>
 			<var name="temperature_200hPa"/>
 			<var name="temperature_250hPa"/>
+			<var name="temperature_300hPa"/>
+			<var name="temperature_400hPa"/>
 			<var name="temperature_500hPa"/>
+			<var name="temperature_600hPa"/>
 			<var name="temperature_700hPa"/>
+			<var name="temperature_800hPa"/>
 			<var name="temperature_850hPa"/>
 			<var name="temperature_925hPa"/>
+			<var name="temperature_950hPa"/>
+			<var name="temperature_1000hPa"/>
+			<var name="height_20hPa"/>
 			<var name="height_50hPa"/>
 			<var name="height_100hPa"/>
 			<var name="height_200hPa"/>
 			<var name="height_250hPa"/>
+			<var name="height_300hPa"/>
+			<var name="height_400hPa"/>
 			<var name="height_500hPa"/>
+			<var name="height_600hPa"/>
 			<var name="height_700hPa"/>
+			<var name="height_800hPa"/>
 			<var name="height_850hPa"/>
 			<var name="height_925hPa"/>
+			<var name="height_950hPa"/>
+			<var name="height_1000hPa"/>
+			<var name="uzonal_20hPa"/>
 			<var name="uzonal_50hPa"/>
 			<var name="uzonal_100hPa"/>
 			<var name="uzonal_200hPa"/>
 			<var name="uzonal_250hPa"/>
+			<var name="uzonal_300hPa"/>
+			<var name="uzonal_400hPa"/>
 			<var name="uzonal_500hPa"/>
+			<var name="uzonal_600hPa"/>
 			<var name="uzonal_700hPa"/>
+			<var name="uzonal_800hPa"/>
 			<var name="uzonal_850hPa"/>
 			<var name="uzonal_925hPa"/>
+			<var name="uzonal_950hPa"/>
+			<var name="uzonal_1000hPa"/>
+			<var name="umeridional_20hPa"/>
 			<var name="umeridional_50hPa"/>
 			<var name="umeridional_100hPa"/>
 			<var name="umeridional_200hPa"/>
 			<var name="umeridional_250hPa"/>
+			<var name="umeridional_300hPa"/>
+			<var name="umeridional_400hPa"/>
 			<var name="umeridional_500hPa"/>
+			<var name="umeridional_600hPa"/>
 			<var name="umeridional_700hPa"/>
+			<var name="umeridional_800hPa"/>
 			<var name="umeridional_850hPa"/>
 			<var name="umeridional_925hPa"/>
+			<var name="umeridional_950hPa"/>
+			<var name="umeridional_1000hPa"/>
++			<var name="qv_20hPa"/>
++			<var name="qv_50hPa"/>
++			<var name="qv_100hPa"/>
++			<var name="qv_200hPa"/>
++			<var name="qv_250hPa"/>
++			<var name="qv_300hPa"/>
++			<var name="qv_400hPa"/>
++			<var name="qv_500hPa"/>
++			<var name="qv_600hPa"/>
++			<var name="qv_700hPa"/>
++			<var name="qv_800hPa"/>
++			<var name="qv_850hPa"/>
++			<var name="qv_925hPa"/>
++			<var name="qv_950hPa"/>
++			<var name="qv_1000hPa"/>
 			<var name="w_50hPa"/>
 			<var name="w_100hPa"/>
 			<var name="w_200hPa"/>
@@ -1061,6 +1106,7 @@
 			<var name="q2"/>
 			<var name="t2m"/>
 			<var name="th2m"/>
+			<var name="ust"/>
 #endif
 
                         <!-- Begin convective diagnostics defined in diagnostics/Registry_convective.xml -->
@@ -1081,6 +1127,15 @@
 			<var name="updraft_helicity_max"/>
 			<var name="w_velocity_max"/>
 			<var name="wind_speed_level1_max"/>
+			<var name="fzlev"/>
+			<var name="speed_surface"/>
+			<var name="heatidx"/>
+			<var name="temp_wet"/>
+			<var name="relhum_2m"/>
+			<var name="ivt"/>
+			<var name="ztd"/>
+			<var name="ter"/>
+			<var name="gust_10m"/>
                         <!-- End convective diagnostics defined in diagnostics/Registry_convective.xml -->
 
 #ifdef DO_PHYSICS

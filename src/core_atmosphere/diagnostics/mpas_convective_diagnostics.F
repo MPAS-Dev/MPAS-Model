@@ -14,6 +14,8 @@ module mpas_convective_diagnostics
     type (MPAS_pool_type), pointer :: mesh
     type (MPAS_pool_type), pointer :: state
     type (MPAS_pool_type), pointer :: diag
+    type (MPAS_pool_type), pointer :: diag_physics
+    type (MPAS_pool_type), pointer :: sfc_input
 
     type (MPAS_clock_type), pointer :: clock
 
@@ -65,6 +67,8 @@ module mpas_convective_diagnostics
         call mpas_pool_get_subpool(all_pools, 'mesh', mesh)
         call mpas_pool_get_subpool(all_pools, 'state', state)
         call mpas_pool_get_subpool(all_pools, 'diag', diag)
+        call mpas_pool_get_subpool(all_pools, 'diag_physics', diag_physics)
+        call mpas_pool_get_subpool(all_pools, 'sfc_input', sfc_input)
 
         clock => simulation_clock
 
@@ -240,6 +244,17 @@ module mpas_convective_diagnostics
         real (kind=RKIND), dimension(:), pointer :: cin
         real (kind=RKIND), dimension(:), pointer :: lcl
         real (kind=RKIND), dimension(:), pointer :: lfc
+        real (kind=RKIND), dimension(:), pointer :: fzlev
+        real (kind=RKIND), dimension(:), pointer :: speed_surface
+        real (kind=RKIND), dimension(:), pointer :: heatidx
+        real (kind=RKIND), dimension(:), pointer :: ivt
+        real (kind=RKIND), dimension(:), pointer :: ztd
+        real (kind=RKIND), dimension(:), pointer :: latCell
+        real (kind=RKIND), dimension(:), pointer :: terrain
+        real (kind=RKIND), dimension(:), pointer :: gust_10m
+        real (kind=RKIND), dimension(:), pointer :: ust
+        real (kind=RKIND), dimension(:), pointer :: v10
+        real (kind=RKIND), dimension(:), pointer :: u10
         real (kind=RKIND), dimension(:), pointer :: srh_0_1km
         real (kind=RKIND), dimension(:), pointer :: srh_0_3km
         real (kind=RKIND), dimension(:), pointer :: uzonal_surface
@@ -271,13 +286,16 @@ module mpas_convective_diagnostics
         real (kind=RKIND), dimension(:), allocatable :: dudz, dvdz, zp
         real (kind=RKIND), dimension(:), allocatable :: zrel, srh
         real (kind=RKIND), dimension(:), allocatable :: p_in, t_in, td_in
+        real (kind=RKIND)            :: part1, part2
+        real (kind=RKIND)            :: zf, zhd, zdiff, zwd_sfc, term1, term2
 
         real (kind=RKIND), dimension(:,:), allocatable :: temperature, dewpoint
 
-        real (kind=RKIND) :: evp
+        real (kind=RKIND) :: evp, tf2, tf, rh2, pressure_in
 
         logical :: need_cape, need_cin, need_lcl, need_lfc, need_srh_01km, need_srh_03km, need_uzonal_sfc, need_uzonal_1km, &
-                   need_uzonal_6km, need_umerid_sfc, need_umerid_1km, need_umerid_6km, need_tsfc, need_tdsfc
+                   need_uzonal_6km, need_umerid_sfc, need_umerid_1km, need_umerid_6km, need_tsfc, need_tdsfc, need_fzlev , &
+                   need_speed_surface, need_heatidx, need_temp_wet, need_ivt, need_ztd
         logical :: need_any_diags
 
         need_any_diags = .false.
@@ -311,17 +329,46 @@ module mpas_convective_diagnostics
         need_tdsfc = MPAS_field_will_be_written('dewpoint_surface')
         need_any_diags = need_any_diags .or. need_tdsfc
 
+        need_fzlev = MPAS_field_will_be_written('fzlev')
+        need_any_diags = need_any_diags .or. need_fzlev
+        need_speed_surface = MPAS_field_will_be_written('speed_surface')
+        need_any_diags = need_any_diags .or. need_speed_surface
+        need_heatidx = MPAS_field_will_be_written('heatidx')
+        need_any_diags = need_any_diags .or. need_heatidx
+        need_temp_wet = MPAS_field_will_be_written('temp_wet')
+        need_any_diags = need_any_diags .or. need_temp_wet
+        need_ivt = MPAS_field_will_be_written('ivt')
+        need_any_diags = need_any_diags .or. need_ivt
+        need_ztd = MPAS_field_will_be_written('ztd')
+        need_any_diags = need_any_diags .or. need_ztd
+
         if (need_any_diags) then
 
             call mpas_pool_get_dimension(mesh, 'nCells', nCells)
             call mpas_pool_get_dimension(mesh, 'nCellsSolve', nCellsSolve)
             call mpas_pool_get_dimension(mesh, 'nVertLevels', nVertLevels)
             call mpas_pool_get_dimension(mesh, 'nVertLevelsP1', nVertLevelsP1)
+            call mpas_pool_get_array(mesh, 'latCell', latCell)
 
             call mpas_pool_get_array(diag, 'cape', cape)
             call mpas_pool_get_array(diag, 'cin',  cin)
             call mpas_pool_get_array(diag, 'lcl',  lcl)
             call mpas_pool_get_array(diag, 'lfc',  lfc)
+            call mpas_pool_get_array(diag, 'fzlev',  fzlev)
+            call mpas_pool_get_array(diag, 'speed_surface',  speed_surface)
+            call mpas_pool_get_array(diag, 'heatidx',  heatidx)
+            call mpas_pool_get_array(diag_physics, 't2m',  t2m)
+            call mpas_pool_get_array(diag_physics, 'q2',  q2)
+            call mpas_pool_get_array(diag_physics, 'ust',  ust)
+            call mpas_pool_get_array(diag_physics, 'v10',  v10)
+            call mpas_pool_get_array(diag_physics, 'u10',  u10)
+            call mpas_pool_get_array(diag, 'surface_pressure',  surface_pressure)
+            call mpas_pool_get_array(diag, 'relhum_2m',  relhum_2m)
+            call mpas_pool_get_array(diag, 'temp_wet',  temp_wet)
+            call mpas_pool_get_array(diag, 'ivt',  ivt)
+            call mpas_pool_get_array(diag, 'ztd',  ztd)
+            call mpas_pool_get_array(sfc_input, 'ter',  terrain)
+            call mpas_pool_get_array(diag, 'gust_10m',  gust_10m)
             call mpas_pool_get_array(diag, 'srh_0_1km', srh_0_1km)
             call mpas_pool_get_array(diag, 'srh_0_3km', srh_0_3km)
             call mpas_pool_get_array(diag, 'uzonal_surface', uzonal_surface)
@@ -358,6 +405,18 @@ module mpas_convective_diagnostics
             allocate(t_in(nVertLevels))
             allocate(td_in(nVertLevels))
 
+            ctt = 0._RKIND
+            ctpres = 0._RKIND
+            ivt = 0._RKIND
+            ztd = 0._RKIND
+            cape = 0._RKIND
+            cin = 0._RKIND
+            gust_10m = 0._RKIND
+            fzlev = 0._RKIND
+            relhum_2m = 0._RKIND
+            heatidx = 0._RKIND
+            temp_wet = 0._RKIND
+
             do iCell = 1,nCells
             do k = 1,nVertLevels
                 temperature(k,iCell) = (theta_m(k,iCell)/(1._RKIND+rvord*scalars(index_qv,k,iCell)))*exner(k,iCell)
@@ -384,6 +443,7 @@ module mpas_convective_diagnostics
               umeridional_surface(iCell) = umeridional(1,iCell)
               temperature_surface(iCell) = temperature(1,iCell)
               dewpoint_surface(iCell) = dewpoint(1,iCell)
+              speed_surface(iCell) = sqrt(uzonal_surface(iCell)**2. + umeridional_surface(iCell)**2.)
               if (need_uzonal_1km) then
                   uzonal_1km(iCell)      = column_height_value(uzonal(1:nVertLevels,iCell),      zp, 1000.0_RKIND, nVertLevels)
               end if
@@ -470,6 +530,111 @@ module mpas_convective_diagnostics
 
                 end do
             end if
+
+           if (need_ivt .or. need_ztd) then
+                do iCell=1, nCellsSolve
+                    p_in(1:nVertLevels) = (pressure_p(1:nVertLevels,iCell) + pressure_base(1:nVertLevels,iCell))
+                    t_in(1:nVertLevels) = temperature(1:nVertLevels,iCell)
+                    qvapor_in(1:nVertLevels) = scalars(index_qv,1:nVertLevels,iCell)
+                    !for IVT
+                    part1=0._RKIND
+                    part2=0._RKIND
+                    do k = 1,nVertLevels-1
+                    if(p_in(k+1) >= 25000.0_RKIND)THEN
+                    part1 = part1 + uzonal(k,iCell)*scalars(index_qv,k,iCell) * (p_in(k+1) - p_in(k))
+                    part2 = part2 + umeridional(k,iCell)*scalars(index_qv,k,iCell) * (p_in(k+1) - p_in(k))
+                    ivt(iCell) = sqrt((part1/9.806)**2+(part2/9.806)**2)
+                    endif
+                    enddo
+
+                   !for ZTD
+                   part1=0._RKIND
+                   part2=0._RKIND
+                   zwd_sfc = 0._RKIND
+!                 Saastamoinen
+                   zf = 1. - 2.66e-3*cos(2.*latCell(iCell))-2.8e-7*terrain(iCell)
+                   zhd = 2.2768e-5*surface_pressure(iCell)/zf
+
+                   do k = 1,nVertLevels-1
+                   zdiff = (height(k+1,iCell) - height(k,iCell))/0.622_RKIND
+                   part1 = p_in(k)*qvapor_in(k)/t_in(k)
+                   term1 = part1 * zdiff * 2.21e-7
+                   term2 = part1 * zdiff * 3.739e-3 / t_in(k)
+                   zwd_sfc = zwd_sfc + term1+term2
+                   enddo
+                   ztd(iCell) = (zwd_sfc + zhd)*100.0_RKIND
+                   gust_10m(iCell) = sqrt(u10(iCell)*u10(iCell)+v10(iCell)*v10(iCell))+ (3.*2.4*ust(iCell))
+                end do ! cells
+            end if
+
+! from WRF
+       IF (need_fzlev) then
+        fzlev = -999._RKIND
+        do iCell = 1,nCells
+         do k = 1,nVertLevels
+           IF (temperature(k,icell) .lt. 273.15_RKIND) THEN
+           ! Freezing level calculation
+           ! --------------------------
+            IF (fzlev (icell) .eq. -999._RKIND) THEN  ! At freezing level
+              IF (k .ne. 1) THEN  ! If not at surface, interpolate.
+                fzlev (icell) = height (k-1,icell) + &
+                               ((273.15_RKIND - temperature (k-1,icell)) &
+                              /(temperature (k,icell) - temperature (k-1,icell))) &
+                              *(height (k,icell) - height (k-1,icell))
+              ELSE  ! If at surface, use first level.
+                fzlev(icell) = height (k,icell)
+              ENDIF
+            ENDIF
+           ENDIF
+         enddo
+        enddo
+       ENDIF
+
+      DO iCell = 1, nCells
+       IF(t2m(iCell) > 273.15_RKIND )THEN
+       relhum_2m(iCell) = 0.263*surface_pressure(iCell)*q2(iCell)*(exp(17.625*(t2m(iCell)-273.15_RKIND)/(t2m(iCell)-30.1)))**(-1.)
+       ELSE IF( t2m(iCell) .le. 273.15_RKIND) THEN
+!     https://journals.ametsoc.org/view/journals/apme/57/6/jamc-d-17-0334.1.xml
+       relhum_2m(iCell) = 0.263*surface_pressure(iCell)*q2(iCell)*(exp(22.587*(t2m(iCell)-273.15_RKIND)/(t2m(iCell)+0.71)))**(-1.)
+       ENDIF
+      ENDDO
+      where(relhum_2m > 100.) relhum_2m = 100._RKIND
+
+      IF (need_heatidx) then
+       do iCell = 1,nCells
+       IF ( t2m(icell) > 294.26111) THEN
+         tF   = ( (t2m(icell) - 273.15_RKIND) * (REAL (9)/REAL (5))  ) + REAL ( 32 )
+         tF2  = tF ** 2
+         rh2  = relhum_2m(iCell)/100. ** 2
+         heatidx(icell) =  -42.379 &
+          +  (  2.04901523   * tF              ) &
+          +  ( 10.14333127   * relhum_2m(iCell)/100.              ) &
+          -  (  0.22475541   * tF  * relhum_2m(iCell)/100.        ) &
+          -  (  6.83783E-03  * tF2             ) &
+          -  (  5.481717E-02 * rh2             ) &
+          +  (  1.22874E-03  * tF2 * relhum_2m(iCell)/100.        ) &
+          +  (  8.5282E-04   * tF  * rh2       ) &
+          -  (  1.99E-06     * tF2 * rh2       )
+         heatidx(icell) = ((heatidx(icell) - REAL (32)) * (REAL (5)/REAL (9))) + 273.15_RKIND
+       ELSE
+         heatidx(icell) = t2m(icell)
+       END IF
+       enddo
+      ENDIF
+
+      IF(need_temp_wet)THEN
+!     Stull 2011: doi:10.1175/JAMC-D-11-0143.1
+       DO iCell =1, nCells
+        IF(t2m(iCell) > 253.15 .AND.  relhum_2m(iCell) .ge. 5. .AND. relhum_2m(iCell) .le. 99.)THEN
+        temp_wet(iCell) = (t2m(iCell)-273.15_RKIND)*atan(0.151977*sqrt(relhum_2m(iCell)+8.313659)) &
+        + atan(t2m(iCell)-273.15_RKIND+relhum_2m(iCell))&
+        - atan(relhum_2m(iCell)-1.676331)+0.00391838*((relhum_2m(iCell))**(1.5))*atan(0.023101*relhum_2m(iCell)) &
+        - 4.686035 +273.15_RKIND
+        ELSE
+        temp_wet(iCell) = -9999._RKIND
+        ENDIF
+       ENDDO
+      ENDIF
 
             deallocate(temperature)
             deallocate(dewpoint)
