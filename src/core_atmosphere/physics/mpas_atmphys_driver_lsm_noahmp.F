@@ -669,7 +669,6 @@
 
 
 !--- local INOUT pointers (with generic LSM equivalent as defined in WRF):
- real(kind=RKIND),dimension(:),pointer:: xland
  real(kind=RKIND),dimension(:),pointer:: acsnom,acsnow,canwat,hfx,qfx,qsfc,lh,grdflx,sfc_albedo,sfc_emiss,  &
                                          sfcrunoff,skintemp,smstav,smstot,udrunoff,snow,snowc,snowh,lai,z0, &
                                          znt
@@ -716,7 +715,6 @@
 
 !--- update of INOUT variables (with generic LSM equivalent as defined in WRF), i.e. see
 !    lines 162-184 in module NoahmpIOVarType.F90):
- call mpas_pool_get_array(sfc_input,'xland'   ,xland   )
  call mpas_pool_get_array(sfc_input,'skintemp',skintemp)
  call mpas_pool_get_array(sfc_input,'snowc'   ,snowc   )
  call mpas_pool_get_array(sfc_input,'snow'    ,snow    )
