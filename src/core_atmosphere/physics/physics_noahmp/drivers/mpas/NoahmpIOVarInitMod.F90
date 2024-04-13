@@ -831,17 +831,13 @@ contains
        NoahmpIO%lfg_urb3d     = undefined_real_neg
     endif
 
-    NoahmpIO%xland             = 1.0      ! water = 2.0, land = 1.0
-    NoahmpIO%xice              = 0.0      ! fraction of grid that is seaice
-    NoahmpIO%xice_threshold    = 0.5      ! fraction of grid determining seaice (from wrf)
     NoahmpIO%slopetyp          = 1        ! soil parameter slope type
     NoahmpIO%soil_update_steps = 1        ! number of model time step to update soil proces
     NoahmpIO%calculate_soil    = .false.  ! index for if do soil process
-    NoahmpIO%itimestep         = 0        ! model time step count
 
 #ifdef WRF_HYDRO
     NoahmpIO%infxsrt         = 0.0
-    NoahmpIO%sfcheadrt       = 0.0 
+    NoahmpIO%sfcheadrt       = 0.0
     NoahmpIO%soldrain        = 0.0
     NoahmpIO%qtiledrain      = 0.0
     NoahmpIO%zwatble2d       = 0.0
