@@ -24,7 +24,7 @@
                 ,u3d,v3d,w,t3d,qv3d,qc3d,qi3d,pi3d,rho3d &
                 ,qvften,thften                           &
                 ,dz8w,pcps,p8w,xland,cu_act_flag,dx      &
-                ,f_qv,f_qc,f_qr,f_qi,f_qs                &
+                ,f_qc,f_qi                               &
                 ,grav,xlf,xls,xlv,rd,rv,cp               &
                 ,rthcuten,rqvcuten,rqccuten,rqicuten     &
                 ,rucuten,rvcuten                         &
@@ -86,7 +86,7 @@
 !-----------------------------------------------------------------------------------------------------------------
 
 !--- input arguments:
- logical,intent(in),optional:: f_qv,f_qc,f_qr,f_qi,f_qs
+ logical,intent(in),optional:: f_qc,f_qi
 
  integer,intent(in):: ids,ide,jds,jde,kds,kde, &
                       ims,ime,jms,jme,kms,kme, &
@@ -159,7 +159,6 @@
  errmsg = ' '
  errflg = 0
 
-!call cu_ntiedtke_init(cp,rd,rv,xlv,xls,xlf,grav,errmsg,errflg)
  call cu_ntiedtke_init( &
                        con_cp  = cp  , con_rd = rd   , con_rv   = rv   , con_xlv = xlv    , &
                        con_xls = xls , con_xlf = xlf , con_grav = grav , errmsg  = errmsg , &

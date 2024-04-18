@@ -1,6 +1,5 @@
 !=================================================================================================================
  module sf_sfclayrev
- use mpas_log
  use ccpp_kinds,only: kind_phys
 
  implicit none

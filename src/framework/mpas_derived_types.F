@@ -25,6 +25,8 @@
 !-----------------------------------------------------------------------
 module mpas_derived_types
 
+   use iso_c_binding, only : c_ptr, c_null_ptr
+
    use mpas_kind_types
 
 #ifdef MPAS_PIO_SUPPORT
@@ -34,6 +36,10 @@ module mpas_derived_types
 
 #ifdef MPAS_SMIOL_SUPPORT
    use smiolf, only : SMIOLf_context, SMIOLf_decomp, SMIOLf_file, SMIOL_offset_kind
+#endif
+
+#ifdef MPAS_USE_MPI_F08
+   use mpi_f08, only : MPI_Request, MPI_Comm, MPI_Info
 #endif
 
    use ESMF
@@ -69,6 +75,8 @@ module mpas_derived_types
 #include "mpas_block_types.inc"
 
 #include "mpas_decomp_types.inc"
+
+#include "mpas_stream_inquiry_types.inc"
 
 #include "mpas_domain_types.inc"
 

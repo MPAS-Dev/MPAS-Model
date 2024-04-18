@@ -20,7 +20,7 @@ gnu:   # BUILDTARGET GNU Fortran, C, and C++ compilers
 	"CFLAGS_OPT = -O3" \
 	"CXXFLAGS_OPT = -O3" \
 	"LDFLAGS_OPT = -O3" \
-	"FFLAGS_DEBUG = -g -ffree-line-length-none -fconvert=big-endian -ffree-form -fcheck=all -fbacktrace -ffpe-trap=invalid,zero,overflow" \
+	"FFLAGS_DEBUG = -std=f2008 -g -ffree-line-length-none -fconvert=big-endian -ffree-form -fcheck=all -fbacktrace -ffpe-trap=invalid,zero,overflow" \
 	"CFLAGS_DEBUG = -g" \
 	"CXXFLAGS_DEBUG = -g" \
 	"LDFLAGS_DEBUG = -g" \
@@ -654,6 +654,33 @@ cray:   # BUILDTARGET Cray Programming Environment
 	"OPENMP = $(OPENMP)" \
 	"CPPFLAGS = $(MODEL_FORMULATION) -D_MPI" )
 
+intel:   # BUILDTARGET Intel oneAPI Fortran, C, and C++ compiler suite
+	( $(MAKE) all \
+	"FC_PARALLEL = mpifort" \
+	"CC_PARALLEL = mpicc" \
+	"CXX_PARALLEL = mpic++" \
+	"FC_SERIAL = ifx" \
+	"CC_SERIAL = icx" \
+	"CXX_SERIAL = icpx" \
+	"FFLAGS_PROMOTION = -real-size 64" \
+	"FFLAGS_OPT = -O3 -convert big_endian -free -align array64byte" \
+	"CFLAGS_OPT = -O3" \
+	"CXXFLAGS_OPT = -O3" \
+	"LDFLAGS_OPT = -O3" \
+	"FFLAGS_DEBUG = -g -convert big_endian -free -check all -fpe0 -traceback" \
+	"CFLAGS_DEBUG = -g -traceback" \
+	"CXXFLAGS_DEBUG = -g -traceback" \
+	"LDFLAGS_DEBUG = -g -fpe0 -traceback" \
+	"FFLAGS_OMP = -qopenmp" \
+	"CFLAGS_OMP = -qopenmp" \
+	"PICFLAG = -fpic" \
+	"BUILD_TARGET = $(@)" \
+	"CORE = $(CORE)" \
+	"DEBUG = $(DEBUG)" \
+	"USE_PAPI = $(USE_PAPI)" \
+	"OPENMP = $(OPENMP)" \
+	"CPPFLAGS = $(MODEL_FORMULATION) -D_MPI" )
+
 CPPINCLUDES =
 FCINCLUDES =
 LIBS =
@@ -831,14 +858,18 @@ ifeq "$(OPENMP_OFFLOAD)" "true"
 	LDFLAGS += $(LDFLAGS_GPU)
 endif #OPENMP_OFFLOAD IF
 
-ifeq "$(PRECISION)" "single"
+ifneq (,$(filter-out double single,$(PRECISION)))
+$(error PRECISION should be "", "single", or "double"; received value "$(PRECISION)")
+endif
+ifeq "$(PRECISION)" "double"
+	FFLAGS += $(FFLAGS_PROMOTION)
+	PRECISION_MESSAGE="MPAS was built with default double-precision reals."
+else
+$(if $(PRECISION),$(info NOTE: PRECISION=single is unnecessary, single is the default))
 	CFLAGS += "-DSINGLE_PRECISION"
 	CXXFLAGS += "-DSINGLE_PRECISION"
 	override CPPFLAGS += "-DSINGLE_PRECISION"
 	PRECISION_MESSAGE="MPAS was built with default single-precision reals."
-else
-	FFLAGS += $(FFLAGS_PROMOTION)
-	PRECISION_MESSAGE="MPAS was built with default double-precision reals."
 endif #PRECISION IF
 
 ifeq "$(USE_PAPI)" "true"
@@ -996,6 +1027,7 @@ override CPPFLAGS += -DMPAS_BUILD_TARGET=$(BUILD_TARGET)
 ifeq ($(wildcard src/core_$(CORE)), ) # CHECK FOR EXISTENCE OF CORE DIRECTORY
 
 all: core_error
+clean: core_error
 
 else
 
@@ -1074,70 +1106,70 @@ ifeq "$(OPENACC)" "true"
 	@# See whether the test programs can be compiled
 	@#
 	@echo "Checking [$(BUILD_TARGET)] compilers for OpenACC support..."
-	@( $(SCC) openacc.c $(CPPINCLUDES) $(CFLAGS) $(LDFLAGS) $(LIBS) -o openacc_c.out > openacc_c.log 2>&1; \
+	@( $(SCC) openacc.c $(CPPINCLUDES) $(CFLAGS) $(LDFLAGS) -o openacc_c.out > openacc_c.log 2>&1; \
 	   if [ $$? -eq 0 ]; then \
 	       echo "=> $(SCC) can compile test OpenACC program"; \
 	   else \
 	       echo "*********************************************************"; \
 	       echo "ERROR: Test OpenACC C program could not be compiled by $(SCC)."; \
 	       echo "Following compilation command failed with errors:" ; \
-	       echo "$(SCC) openacc.c $(CPPINCLUDES) $(CFLAGS) $(LDFLAGS) $(LIBS) -o openacc_c.out"; \
+	       echo "$(SCC) openacc.c $(CPPINCLUDES) $(CFLAGS) $(LDFLAGS) -o openacc_c.out"; \
 	       echo ""; \
 	       echo "Test program openacc.c and output openacc_c.log have been left"; \
 	       echo "in the top-level MPAS directory for further debugging"; \
 	       echo "*********************************************************"; \
 	      rm -f openacc.f90 openacc_[cf].out openacc_f.log; exit 1; \
 	   fi )
-	@( $(CC) openacc.c $(CPPINCLUDES) $(CFLAGS) $(LDFLAGS) $(LIBS) -o openacc_c.out > openacc_c.log 2>&1; \
+	@( $(CC) openacc.c $(CPPINCLUDES) $(CFLAGS) $(LDFLAGS) -o openacc_c.out > openacc_c.log 2>&1; \
 	   if [ $$? -eq 0 ] ; then \
 	       echo "=> $(CC) can compile test OpenACC program"; \
 	   else \
 	       echo "*********************************************************"; \
 	       echo "ERROR: Test OpenACC C program could not be compiled by $(CC)."; \
 	       echo "Following compilation command failed with errors:" ; \
-	       echo "$(CC) openacc.c $(CPPINCLUDES) $(CFLAGS) $(LDFLAGS) $(LIBS) -o openacc_c.out"; \
+	       echo "$(CC) openacc.c $(CPPINCLUDES) $(CFLAGS) $(LDFLAGS) -o openacc_c.out"; \
 	       echo ""; \
 	       echo "Test program openacc.c and output openacc_c.log have been left"; \
 	       echo "in the top-level MPAS directory for further debugging"; \
 	       echo "*********************************************************"; \
 	      rm -f openacc.f90 openacc_[cf].out openacc_f.log; exit 1; \
 	   fi )
-	@( $(CXX) openacc.c $(CPPINCLUDES) $(CFLAGS) $(LDFLAGS) $(LIBS) -o openacc_c.out > openacc_c.log 2>&1; \
+	@( $(CXX) openacc.c $(CPPINCLUDES) $(CFLAGS) $(LDFLAGS) -o openacc_c.out > openacc_c.log 2>&1; \
 	   if [ $$? -eq 0 ] ; then \
 	       echo "=> $(CXX) can compile test OpenACC program"; \
 	   else \
 	       echo "*********************************************************"; \
 	       echo "ERROR: Test OpenACC C program could not be compiled by $(CXX)."; \
 	       echo "Following compilation command failed with errors:" ; \
-	       echo "$(CXX) openacc.c $(CPPINCLUDES) $(CFLAGS) $(LDFLAGS) $(LIBS) -o openacc_c.out"; \
+	       echo "$(CXX) openacc.c $(CPPINCLUDES) $(CFLAGS) $(LDFLAGS) -o openacc_c.out"; \
 	       echo ""; \
 	       echo "Test program openacc.c and output openacc_c.log have been left"; \
 	       echo "in the top-level MPAS directory for further debugging"; \
 	       echo "*********************************************************"; \
 	      rm -f openacc.f90 openacc_[cf].out openacc_f.log; exit 1; \
 	   fi )
-	@( $(SFC) openacc.f90 $(FCINCLUDES) $(FFLAGS) $(LDFLAGS) $(LIBS) -o openacc_f.out > openacc_f.log 2>&1; \
+	@( $(SFC) openacc.f90 $(FCINCLUDES) $(FFLAGS) $(LDFLAGS) -o openacc_f.out > openacc_f.log 2>&1; \
 	   if [ $$? -eq 0 ] ; then \
 	       echo "=> $(SFC) can compile test OpenACC program"; \
 	   else \
 	       echo "*********************************************************"; \
 	       echo "ERROR: Test OpenACC Fortran program could not be compiled by $(SFC)."; \
 	       echo "Following compilation command failed with errors:" ; \
-	       echo "$(SFC) openacc.f90 $(FCINCLUDES) $(FFLAGS) $(LDFLAGS) $(LIBS) -o openacc_f.out"; \
+	       echo "$(SFC) openacc.f90 $(FCINCLUDES) $(FFLAGS) $(LDFLAGS) -o openacc_f.out"; \
 	       echo ""; \
 	       echo "Test program openacc.f90 and output openacc_f.log have been left"; \
 	       echo "in the top-level MPAS directory for further debugging"; \
 	       echo "*********************************************************"; \
 	      rm -f openacc.c openacc_[cf].out openacc_c.log; exit 1; \
 	   fi )
-	@( $(FC) openacc.f90 $(FCINCLUDES) $(FFLAGS) $(LDFLAGS) $(LIBS) -o openacc_f.out > openacc_f.log 2>&1; \
+	@( $(FC) openacc.f90 $(FCINCLUDES) $(FFLAGS) $(LDFLAGS) -o openacc_f.out > openacc_f.log 2>&1; \
 	   if [ $$? -eq 0 ] ; then \
 	       echo "=> $(FC) can compile test OpenACC program"; \
 	   else \
 	       echo "*********************************************************"; \
 	       echo "ERROR: Test OpenACC Fortran program could not be compiled by $(FC)."; \
 	       echo "Following compilation command failed with errors:" ; \
-	       echo "$(FC) openacc.f90 $(FCINCLUDES) $(FFLAGS) $(LDFLAGS) $(LIBS) -o openacc_f.out"; \
+	       echo "$(FC) openacc.f90 $(FCINCLUDES) $(FFLAGS) $(LDFLAGS) -o openacc_f.out"; \
 	       echo ""; \
 	       echo "Test program openacc.f90 and output openacc_f.log have been left"; \
 	       echo "in the top-level MPAS directory for further debugging"; \
@@ -1225,11 +1257,42 @@ endif
 	    exit 1; \
 	fi
 
+
+mpi_f08_test:
+	@#
+	@# MPAS_MPI_F08 will be set to:
+	@#  0 if no mpi_f08 module support was detected
+	@#  1 if the MPI library provides an mpi_f08 module
+	@#
+	$(info Checking for mpi_f08 support...)
+	$(eval MPAS_MPI_F08 := $(shell $\
+		printf "program main\n$\
+		        &   use mpi_f08, only : MPI_Init, MPI_Comm\n$\
+		        &   integer :: ierr\n$\
+		        &   type (MPI_Comm) :: comm\n$\
+		        &   call MPI_Init(ierr)\n$\
+		        end program main\n" | sed 's/&/ /' > mpi_f08.f90; $\
+		$\
+		$(FC) mpi_f08.f90 -o mpi_f08.x $(FFLAGS) $(LDFLAGS) > /dev/null 2>&1; $\
+		mpi_f08_status=$$?; $\
+		rm -f mpi_f08.f90 mpi_f08.x; $\
+		if [ $$mpi_f08_status -eq 0 ]; then $\
+		    printf "1"; $\
+		else $\
+		    printf "0"; $\
+		fi $\
+	))
+	$(if $(findstring 0,$(MPAS_MPI_F08)), $(eval MPI_F08_MESSAGE = "Using the mpi module."), )
+	$(if $(findstring 0,$(MPAS_MPI_F08)), $(info No working mpi_f08 module detected; using mpi module.))
+	$(if $(findstring 1,$(MPAS_MPI_F08)), $(eval override CPPFLAGS += -DMPAS_USE_MPI_F08), )
+	$(if $(findstring 1,$(MPAS_MPI_F08)), $(eval MPI_F08_MESSAGE = "Using the mpi_f08 module."), )
+	$(if $(findstring 1,$(MPAS_MPI_F08)), $(info mpi_f08 module detected.))
+
 ifneq "$(PIO)" ""
-MAIN_DEPS = openmp_test openacc_test pio_test
+MAIN_DEPS = openmp_test openacc_test pio_test mpi_f08_test
 override CPPFLAGS += "-DMPAS_PIO_SUPPORT"
 else
-MAIN_DEPS = openmp_test openacc_test
+MAIN_DEPS = openmp_test openacc_test mpi_f08_test
 IO_MESSAGE = "Using the SMIOL library."
 override CPPFLAGS += "-DMPAS_SMIOL_SUPPORT"
 endif
@@ -1268,6 +1331,7 @@ endif
 	@echo $(PRECISION_MESSAGE)
 	@echo $(DEBUG_MESSAGE)
 	@echo $(PARALLEL_MESSAGE)
+	@echo $(MPI_F08_MESSAGE)
 	@echo $(PAPI_MESSAGE)
 	@echo $(TAU_MESSAGE)
 	@echo $(OPENMP_MESSAGE)
@@ -1320,8 +1384,7 @@ clean_core:
 else # CORE IF
 
 all: error
-clean: errmsg
-	exit 1
+clean: error
 error: errmsg
 	@echo "************ ERROR ************"
 	@echo "No CORE specified. Quitting."
@@ -1353,7 +1416,7 @@ errmsg:
 	@echo "                    TIMER_LIB=tau - Uses TAU for the timer interface instead of the native interface"
 	@echo "    OPENMP=true   - builds and links with OpenMP flags. Default is to not use OpenMP."
 	@echo "    OPENACC=true  - builds and links with OpenACC flags. Default is to not use OpenACC."
-	@echo "    PRECISION=single - builds with default single-precision real kind. Default is to use double-precision."
+	@echo "    PRECISION=double - builds with default double-precision real kind. Default is to use single-precision."
 	@echo "    SHAREDLIB=true - generate position-independent code suitable for use in a shared library. Default is false."
 	@echo ""
 	@echo "Ensure that NETCDF, PNETCDF, PIO, and PAPI (if USE_PAPI=true) are environment variables"

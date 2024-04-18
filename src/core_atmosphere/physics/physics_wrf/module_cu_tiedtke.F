@@ -142,7 +142,7 @@ contains
                 ,its,ite, jts,jte, kts,kte                      &
                 ,rthcuten,rqvcuten,rqccuten,rqicuten            &
                 ,rucuten, rvcuten                               &
-                ,f_qv    ,f_qc    ,f_qr    ,f_qi    ,f_qs       &
+                ,f_qc ,f_qi                                     &
                                                                 )
 
 !-------------------------------------------------------------------
@@ -254,12 +254,9 @@ contains
 ! to determine at run-time whether a particular tracer is in
 ! use or not.
 !
-     logical, optional ::                                    &
-                                                   f_qv      &
-                                                  ,f_qc      &
-                                                  ,f_qr      &
-                                                  ,f_qi      &
-                                                  ,f_qs
+     logical, optional ::                               &
+                                        f_qc                            &
+                                       ,f_qi
  
 !--------------------------- local vars ------------------------------
 

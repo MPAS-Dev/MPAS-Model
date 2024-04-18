@@ -41,7 +41,7 @@
 !   Laura D. Fowler (laura@ucar.edu) / 2014-09-18.
 ! * renamed "tiedtke" with "cu_tiedtke".
 !   Laura D. Fowler (laura@ucar.edu) / 2016-03-22.
-! * modified the sourcecode to accomodate the packages "cu_kain_fritsch_in" and "cu_tiedtke_in".
+! * modified the sourcecode to accomodate the packages "cu_kain_fritsch_in" and "cu_ntiedtke_in".
 !   Laura D. Fowler (laura@ucar.edu) / 2016-03-24.
 ! * added the option bl_mynn for the calculation of the tendency for the cloud ice number concentration.
 !   Laura D. Fowler (laura@ucar.edu) / 2016-04-11.
@@ -105,7 +105,7 @@
  real(kind=RKIND),dimension(:,:),pointer:: theta_m       ! time level 1
  real(kind=RKIND),dimension(:,:,:),pointer:: scalars
  real(kind=RKIND),dimension(:,:),pointer:: rthblten,rqvblten,rqcblten, &
-                                           rqiblten,rublten,rvblten
+                                           rqiblten,rqsblten,rublten,rvblten
  real(kind=RKIND),dimension(:,:),pointer:: rniblten
  real(kind=RKIND),dimension(:,:),pointer:: rthcuten,rqvcuten,rqccuten, &
                                            rqrcuten,rqicuten,rqscuten, &
@@ -156,6 +156,7 @@
  call mpas_pool_get_array(tend_physics, 'rqvblten', rqvblten)
  call mpas_pool_get_array(tend_physics, 'rqcblten', rqcblten)
  call mpas_pool_get_array(tend_physics, 'rqiblten', rqiblten)
+ call mpas_pool_get_array(tend_physics, 'rqsblten', rqsblten)
  call mpas_pool_get_array(tend_physics, 'rniblten', rniblten)
 
  call mpas_pool_get_array(tend_physics, 'rucuten', rucuten)
@@ -194,21 +195,22 @@
  ! we need to make their pointers associated here to avoid triggering run-time
  ! checks when calling physics_get_tend_work
  !
- if (.not. associated(rucuten)) allocate(rucuten(0,0))
- if (.not. associated(rvcuten)) allocate(rvcuten(0,0))
- if (.not. associated(rqrcuten)) allocate(rqrcuten(0,0))
- if (.not. associated(rqscuten)) allocate(rqscuten(0,0))
- if (.not. associated(rniblten)) allocate(rniblten(0,0))
- if (.not. associated(rublten)) allocate(rublten(0,0))
- if (.not. associated(rvblten)) allocate(rvblten(0,0))
+ if (.not. associated(rublten))  allocate(rublten(0,0) )
+ if (.not. associated(rvblten))  allocate(rvblten(0,0) )
  if (.not. associated(rthblten)) allocate(rthblten(0,0))
  if (.not. associated(rqvblten)) allocate(rqvblten(0,0))
  if (.not. associated(rqcblten)) allocate(rqcblten(0,0))
  if (.not. associated(rqiblten)) allocate(rqiblten(0,0))
+ if (.not. associated(rqsblten)) allocate(rqsblten(0,0))
+ if (.not. associated(rniblten)) allocate(rniblten(0,0))
+ if (.not. associated(rucuten))  allocate(rucuten(0,0) )
+ if (.not. associated(rvcuten))  allocate(rvcuten(0,0) )
  if (.not. associated(rthcuten)) allocate(rthcuten(0,0))
  if (.not. associated(rqvcuten)) allocate(rqvcuten(0,0))
  if (.not. associated(rqccuten)) allocate(rqccuten(0,0))
  if (.not. associated(rqicuten)) allocate(rqicuten(0,0))
+ if (.not. associated(rqrcuten)) allocate(rqrcuten(0,0))
+ if (.not. associated(rqscuten)) allocate(rqscuten(0,0))
 
  call physics_get_tend_work(block, mesh, nCells, nEdges, nCellsSolve, nEdgesSolve, &
                            rk_step, dynamics_substep, &
@@ -217,7 +219,7 @@
                            rublten, rvblten, mass_edge, rublten_Edge, &
                            tend_ru_physics, &
                            rucuten, rvcuten, rucuten_Edge, &
-                           tend_th, tend_scalars, mass, rthblten, rqvblten, rqcblten, rqiblten, rniblten, &
+                           tend_th, tend_scalars, mass, rthblten, rqvblten, rqcblten, rqiblten, rqsblten, rniblten, &
                            rthcuten, rqvcuten, rqccuten, rqrcuten, rqicuten, rqscuten, &
                            rthratenlw, rthratensw, &
                            tend_u_phys, &
@@ -231,21 +233,22 @@
  ! Clean up any pointers that were allocated with zero size before the call to
  ! physics_get_tend_work
  !
- if (size(rucuten) == 0) deallocate(rucuten)
- if (size(rvcuten) == 0) deallocate(rvcuten)
- if (size(rqrcuten) == 0) deallocate(rqrcuten)
- if (size(rqscuten) == 0) deallocate(rqscuten)
- if (size(rniblten) == 0) deallocate(rniblten)
- if (size(rublten) == 0) deallocate(rublten)
- if (size(rvblten) == 0) deallocate(rvblten)
+ if (size(rublten)  == 0) deallocate(rublten )
+ if (size(rvblten)  == 0) deallocate(rvblten )
  if (size(rthblten) == 0) deallocate(rthblten)
  if (size(rqvblten) == 0) deallocate(rqvblten)
  if (size(rqcblten) == 0) deallocate(rqcblten)
  if (size(rqiblten) == 0) deallocate(rqiblten)
+ if (size(rqsblten) == 0) deallocate(rqsblten)
+ if (size(rniblten) == 0) deallocate(rniblten)
+ if (size(rucuten)  == 0) deallocate(rucuten )
+ if (size(rvcuten)  == 0) deallocate(rvcuten )
  if (size(rthcuten) == 0) deallocate(rthcuten)
  if (size(rqvcuten) == 0) deallocate(rqvcuten)
  if (size(rqccuten) == 0) deallocate(rqccuten)
  if (size(rqicuten) == 0) deallocate(rqicuten)
+ if (size(rqrcuten) == 0) deallocate(rqrcuten)
+ if (size(rqscuten) == 0) deallocate(rqscuten)
 
 ! deallocate(theta)
  deallocate(tend_th)
@@ -274,7 +277,7 @@
                                  index_qv, index_qc, index_qr, index_qi, index_qs, index_ni, &
                                  rublten, rvblten, mass_edge, rublten_Edge, tend_u, &
                                  rucuten, rvcuten, rucuten_Edge, &
-                                 tend_th, tend_scalars, mass, rthblten, rqvblten, rqcblten, rqiblten, rniblten, &
+                                 tend_th, tend_scalars, mass, rthblten, rqvblten, rqcblten, rqiblten, rqsblten, rniblten, &
                                  rthcuten, rqvcuten, rqccuten, rqrcuten, rqicuten, rqscuten, &
                                  rthratenlw, rthratensw, &
                                  tend_u_phys, &
@@ -311,6 +314,7 @@
     real (kind=RKIND), dimension(nVertLevels,nCells+1), intent(in) :: rqvblten
     real (kind=RKIND), dimension(nVertLevels,nCells+1), intent(in) :: rqcblten
     real (kind=RKIND), dimension(nVertLevels,nCells+1), intent(in) :: rqiblten
+    real (kind=RKIND), dimension(nVertLevels,nCells+1), intent(in) :: rqsblten
     real (kind=RKIND), dimension(nVertLevels,nCells+1), intent(in) :: rniblten
     real (kind=RKIND), dimension(nVertLevels,nCells+1), intent(in) :: rthcuten
     real (kind=RKIND), dimension(nVertLevels,nCells+1), intent(in) :: rqvcuten
@@ -361,6 +365,7 @@
 
              do i = 1, nCellsSolve
              do k = 1, nVertLevels
+                tend_scalars(index_qs,k,i) = tend_scalars(index_qs,k,i) + rqsblten(k,i)*mass(k,i)
                 tend_scalars(index_ni,k,i) = tend_scalars(index_ni,k,i) + rniblten(k,i)*mass(k,i)
              enddo
              enddo

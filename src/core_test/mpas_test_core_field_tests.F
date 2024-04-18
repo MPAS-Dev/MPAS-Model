@@ -82,19 +82,21 @@ module test_core_field_tests
       integer, intent(out) :: ierr
 
       type ( att_list_type ), pointer :: srcList, destList
-      integer :: srcInt, destInt
-      integer, dimension(:), pointer :: srcIntA, destIntA
-      real (kind=RKIND) :: srcReal, destReal
+      integer :: srcInt, destInt, modifyInt
+      integer, dimension(:), pointer :: srcIntA, destIntA, modifyIntA
+      real (kind=RKIND) :: srcReal, destReal, modifyReal
       real (kind=RKIND), dimension(:), pointer :: srcRealA, destRealA
-      character (len=StrKIND) :: srcText, destText
+      real (kind=RKIND), dimension(:), pointer :: modifyRealA
+      character (len=StrKIND) :: srcText, destText, modifyText
 
       integer :: threadNum
 
       iErr = 0
+      threadErrs = 0
 
-      threadNum = mpas_threading_get_thread_num()
+      threadNum = mpas_threading_get_thread_num() + 1
 
-      if ( threadNum == 0 ) then
+      if ( threadNum == 1 ) then
          allocate(srcList)
          nullify(destList)
 
@@ -153,9 +155,61 @@ module test_core_field_tests
             call mpas_log_write('      Duplicate string does not match', MPAS_LOG_ERR)
          end if
 
+         deallocate(destIntA)
+         deallocate(destRealA)
+         allocate(modifyIntA(3))
+         allocate(modifyRealA(5))
+
+         modifyInt = 2
+         modifyIntA(:) = 2
+         modifyReal = 2.0_RKIND
+         modifyRealA(:) = 2.0_RKIND
+         modifyText = 'Modified'
+
+         call mpas_modify_att(srcList, 'testInt', modifyInt)
+         call mpas_modify_att(srcList, 'testIntA', modifyIntA)
+         call mpas_modify_att(srcList, 'testReal', modifyReal)
+         call mpas_modify_att(srcList, 'testRealA', modifyRealA)
+         call mpas_modify_att(srcList, 'testText', modifyText)
+
+         call mpas_get_att(srcList, 'testInt', destInt)
+         call mpas_get_att(srcList, 'testIntA', destIntA)
+         call mpas_get_att(srcList, 'testReal', destReal)
+         call mpas_get_att(srcList, 'testRealA', destRealA)
+         call mpas_get_att(srcList, 'testText', destText)
+
+         if ( destInt /= modifyInt ) then
+            threadErrs( threadNum ) = 1
+            call mpas_log_write('     Int not modified correctly', MPAS_LOG_ERR)
+         end if
+
+         if (sum(destIntA) /= sum(modifyIntA)) then  
+            threadErrs( threadNum ) = 1
+            call mpas_log_write('     IntA not modified correctly', MPAS_LOG_ERR)
+         end if
+
+         if ( destReal /= modifyReal ) then
+            threadErrs( threadNum ) = 1
+            call mpas_log_write('     Real not modified correctly', MPAS_LOG_ERR)
+         end if
+
+         if ( sum(destRealA) /= sum(modifyRealA) ) then
+            threadErrs( threadNum ) = 1
+            call mpas_log_write('     RealA not modified correctly', MPAS_LOG_ERR)
+         end if
+
+         if ( trim(destText) /= trim(modifyText)  ) then
+            threadErrs( threadNum ) = 1
+            call mpas_log_write('     Text not modified correctly', MPAS_LOG_ERR)
+         end if
+
          call mpas_deallocate_attlist(srcList)
          call mpas_deallocate_attlist(destList)
-
+        
+         deallocate(destIntA)
+         deallocate(destRealA)
+         deallocate(modifyRealA)
+         deallocate(modifyIntA)
          deallocate(srcIntA)
          deallocate(srcRealA)
       end if

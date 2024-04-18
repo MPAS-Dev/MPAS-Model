@@ -17,6 +17,7 @@
  use mpas_atmphys_driver_pbl
  use mpas_atmphys_driver_radiation_lw
  use mpas_atmphys_driver_radiation_sw 
+ use mpas_atmphys_driver_seaice,only: allocate_seaice,deallocate_seaice,driver_seaice
  use mpas_atmphys_driver_sfclayer
  use mpas_atmphys_driver_oml
  use mpas_atmphys_constants
@@ -270,14 +271,23 @@
 
     !call to land-surface scheme:
     if(config_lsm_scheme .ne. 'off') then
-       call allocate_lsm(config_frac_seaice)
+       call allocate_lsm
 !$OMP PARALLEL DO
        do thread=1,nThreads
           call driver_lsm(itimestep,block%configs,mesh,diag_physics,sfc_input, &
                           cellSolveThreadStart(thread), cellSolveThreadEnd(thread))
        end do
 !$OMP END PARALLEL DO
-       call deallocate_lsm(config_frac_seaice)
+       call deallocate_lsm
+
+       call allocate_seaice
+!$OMP PARALLEL DO
+       do thread=1,nThreads
+          call driver_seaice(block%configs,diag_physics,sfc_input, &
+                             cellSolveThreadStart(thread),cellSolveThreadEnd(thread))
+       enddo
+!$OMP END PARALLEL DO
+       call deallocate_seaice
     endif
 
     !call to pbl schemes:

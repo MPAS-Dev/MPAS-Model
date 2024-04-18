@@ -204,7 +204,7 @@ subroutine camrad(RTHRATENLW,RTHRATENSW,                           &
                      GSW,GLW,XLAT,XLONG,                           &
                      ALBEDO,t_phy,TSK,EMISS,                       &
                      QV3D,QC3D,QR3D,QI3D,QS3D,QG3D,                &
-                     F_QV,F_QC,F_QR,F_QI,F_QS,F_QG,                &
+                     F_QC,F_QR,F_QI,F_QS,                          &
                      f_ice_phy,f_rain_phy,                         &
                      p_phy,p8w,z,pi_phy,rho_phy,dz8w,               &
                      CLDFRA,XLAND,XICE,SNOW,                        &
@@ -233,7 +233,7 @@ subroutine camrad(RTHRATENLW,RTHRATENSW,                           &
    INTEGER,    INTENT(IN   ) ::        ids,ide, jds,jde, kds,kde, &
                                        ims,ime, jms,jme, kms,kme, &
                                        its,ite, jts,jte, kts,kte
-   LOGICAL,    INTENT(IN   ) ::        F_QV,F_QC,F_QR,F_QI,F_QS,F_QG
+   LOGICAL,    INTENT(IN   ) ::        F_QC,F_QR,F_QI,F_QS
    LOGICAL,    INTENT(INout) ::        doabsems
    LOGICAL,    INTENT(IN   ) ::        dolw,dosw
 
