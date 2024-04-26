@@ -11,13 +11,13 @@
  use mpas_pool_routines
  use mpas_timekeeping
 
- use mpas_atmphys_driver_convection, only: init_convection
+ use mpas_atmphys_driver_convection,only: init_convection
  use mpas_atmphys_driver_lsm,only: init_lsm
- use mpas_atmphys_driver_microphysics
+ use mpas_atmphys_driver_microphysics,only: init_microphysics
  use mpas_atmphys_driver_pbl,only: init_pbl
- use mpas_atmphys_driver_radiation_lw, only: init_radiation_lw
- use mpas_atmphys_driver_radiation_sw, only: init_radiation_sw
- use mpas_atmphys_driver_sfclayer
+ use mpas_atmphys_driver_radiation_lw,only: init_radiation_lw
+ use mpas_atmphys_driver_radiation_sw,only: init_radiation_sw
+ use mpas_atmphys_driver_sfclayer,only: init_sfclayer
  use mpas_atmphys_vars,only: f_qc,f_qr,f_qi,f_qs,f_qg,f_qoz,f_nc,f_ni,f_nifa,f_nwfa,f_nbca
 
  use mpas_atmphys_landuse
@@ -95,8 +95,9 @@
  type(mpas_pool_type),intent(inout):: sfc_input
 
 !local pointers:
- logical,pointer:: config_do_restart,       &
-                   config_o3climatology
+ logical,pointer:: config_do_restart,    &
+                   config_o3climatology, &
+                   config_oml1d
 
  character(len=StrKIND),pointer::            &
                    config_convection_scheme, &
@@ -108,39 +109,35 @@
                    config_radt_sw_scheme
 
  integer,pointer:: nCellsSolve,nLags
- integer,dimension(:),pointer  :: i_rainc,i_rainnc
- integer,dimension(:),pointer  :: i_acswdnb,i_acswdnbc,i_acswdnt,i_acswdntc, &
-                                  i_acswupb,i_acswupbc,i_acswupt,i_acswuptc, &
-                                  i_aclwdnb,i_aclwdnbc,i_aclwdnt,i_aclwdntc, &
-                                  i_aclwupb,i_aclwupbc,i_aclwupt,i_aclwuptc
+ integer,dimension(:),pointer:: i_rainc,i_rainnc
+ integer,dimension(:),pointer:: i_acswdnb,i_acswdnbc,i_acswdnt,i_acswdntc, &
+                                i_acswupb,i_acswupbc,i_acswupt,i_acswuptc, &
+                                i_aclwdnb,i_aclwdnbc,i_aclwdnt,i_aclwdntc, &
+                                i_aclwupb,i_aclwupbc,i_aclwupt,i_aclwuptc
 
- real(kind=RKIND),dimension(:),pointer  :: acswdnb,acswdnbc,acswdnt,acswdntc,  &
-                                           acswupb,acswupbc,acswupt,acswuptc,  &
-                                           aclwdnb,aclwdnbc,aclwdnt,aclwdntc,  &
-                                           aclwupb,aclwupbc,aclwupt,aclwuptc
- real(kind=RKIND),dimension(:),pointer  :: nsteps_accum,ndays_accum,tday_accum, &
-                                           tyear_accum,tyear_mean
- real(kind=RKIND),dimension(:),pointer  :: sst,sstsk,tmn,xice,xicem
+ real(kind=RKIND),dimension(:),pointer:: acswdnb,acswdnbc,acswdnt,acswdntc, &
+                                         acswupb,acswupbc,acswupt,acswuptc, &
+                                         aclwdnb,aclwdnbc,aclwdnt,aclwdntc, &
+                                         aclwupb,aclwupbc,aclwupt,aclwuptc
+ real(kind=RKIND),dimension(:),pointer:: nsteps_accum,ndays_accum,tday_accum, &
+                                         tyear_accum,tyear_mean
+ real(kind=RKIND),dimension(:),pointer:: sst,sstsk,tmn,xice,xicem
  real(kind=RKIND),dimension(:,:),pointer:: tlag
 
- real(kind=RKIND),dimension(:),pointer  :: t_oml, t_oml_initial, t_oml_200m_initial
- real(kind=RKIND),dimension(:),pointer  :: h_oml, h_oml_initial, hu_oml, hv_oml
- real(kind=RKIND), pointer :: config_oml_hml0
- integer,pointer:: nCells
- logical,pointer:: config_oml1d
- 
- 
+ real(kind=RKIND),pointer:: config_oml_hml0
+ real(kind=RKIND),dimension(:),pointer:: t_oml,t_oml_initial,t_oml_200m_initial
+ real(kind=RKIND),dimension(:),pointer:: h_oml,h_oml_initial,hu_oml,hv_oml
 
 !local variables and arrays:
  type(MPAS_Time_Type):: currTime
 
  logical:: init_done
  integer:: ierr,julday 
- integer:: iCell,iLag,iEdge,nEdges_m
+ integer:: iCell,iLag
 
 !-----------------------------------------------------------------------------------------------------------------
-! call mpas_log_write('')
-! call mpas_log_write('--- enter subroutine physics_init:')
+!call mpas_log_write('')
+!call mpas_log_write('--- enter subroutine physics_init:')
 
  call mpas_pool_get_config(configs,'config_do_restart'       ,config_do_restart       )
  call mpas_pool_get_config(configs,'config_o3climatology'    ,config_o3climatology    )
@@ -211,7 +208,6 @@
  call mpas_pool_get_array(diag_physics,'hv_oml'            ,hv_oml)
  call mpas_pool_get_config(configs,'config_oml1d'          ,config_oml1d  )
  call mpas_pool_get_config(configs,'config_oml_hml0'       ,config_oml_hml0  )
- call mpas_pool_get_dimension(mesh,'nCells',nCells)
 
  currTime = mpas_get_clock_time(clock,MPAS_NOW,ierr)
  call mpas_get_time(curr_time=currTime,DoY=julday,ierr=ierr)
@@ -284,7 +280,7 @@
 
 !initialization of xicem:
  if(.not.config_do_restart) then
-!    call mpas_log_write('--- initialization of xicem:')
+!   call mpas_log_write('--- initialization of xicem:')
     do iCell = 1, nCellsSolve
        xicem(iCell) = xice(iCell)
     enddo
@@ -294,47 +290,47 @@
 !sea-surface temperature is applied. This avoids having the array sstsk equal to
 !zero over land:
  if(.not. config_do_restart) then
-!    call mpas_log_write('--- initialization of sstsk:')
+!   call mpas_log_write('--- initialization of sstsk:')
     do iCell = 1, nCellsSolve
        sstsk(iCell) = sst(iCell)
     enddo
  endif
 
-! initialized the 1D ocean mixed-layer model  (code from wrf module_sf_oml)
- if (config_oml1d) then
-   if (.not. config_do_restart) then
-      call mpas_log_write('--- initialization of 1D ocean mixed layer model ')
-      do iCell = 1, nCellsSolve
-        t_oml(iCell) = sst(iCell)
-        t_oml_initial(iCell) = sst(iCell)
-      end do
-      if (config_oml_hml0 .gt. 0) then
-        do iCell = 1, nCellsSolve
-          h_oml(iCell) = config_oml_hml0
-          h_oml_initial(iCell) = config_oml_hml0
-          hu_oml(iCell) = 0.
-          hv_oml(iCell) = 0.
-          t_oml_200m_initial(iCell) = sst(iCell) - 5.
-        end do
-      else if (config_oml_hml0 .eq. 0) then
-! initializing with climatological mixed layer depth only
-        do iCell = 1, nCellsSolve
-          h_oml(iCell) = h_oml_initial(iCell)
-          hu_oml(iCell) = 0.
-          hv_oml(iCell) = 0.
-          t_oml_200m_initial(iCell) = sst(iCell) - 5.
-        end do
-      else
-        do iCell = 1, nCellsSolve
-          h_oml(iCell) = h_oml_initial(iCell)
-          ! WRF COMMENT:
-          ! fill in near coast area with SST: 200 K was set as missing value in ocean pre-processing code
-          if( (t_oml_200m_initial(iCell) > 200.) .and. (t_oml_200m_initial(iCell) <= 200.) )  &
-               t_oml_200m_initial(iCell) = sst(iCell)
-        end do
-      end if
-   end if
- end if
+!initialized the 1D ocean mixed-layer model (code from wrf module_sf_oml):
+ if(config_oml1d) then
+    if(.not. config_do_restart) then
+       call mpas_log_write('--- initialization of 1D ocean mixed layer model ')
+       do iCell = 1, nCellsSolve
+          t_oml(iCell) = sst(iCell)
+          t_oml_initial(iCell) = sst(iCell)
+       enddo
+       if(config_oml_hml0 .gt. 0) then
+          do iCell = 1, nCellsSolve
+             h_oml(iCell) = config_oml_hml0
+             h_oml_initial(iCell) = config_oml_hml0
+             hu_oml(iCell) = 0.
+             hv_oml(iCell) = 0.
+             t_oml_200m_initial(iCell) = sst(iCell) - 5.
+          enddo
+       elseif(config_oml_hml0 .eq. 0) then
+! initializing with climatological mixed layer depth only:
+          do iCell = 1, nCellsSolve
+             h_oml(iCell) = h_oml_initial(iCell)
+             hu_oml(iCell) = 0.
+             hv_oml(iCell) = 0.
+             t_oml_200m_initial(iCell) = sst(iCell) - 5.
+          enddo
+       else
+          do iCell = 1, nCellsSolve
+             h_oml(iCell) = h_oml_initial(iCell)
+             ! WRF COMMENT:
+             ! fill in near coast area with SST: 200 K was set as missing value in ocean pre-processing code
+             if( (t_oml_200m_initial(iCell) > 200.) .and. (t_oml_200m_initial(iCell) <= 200.) )  &
+                  t_oml_200m_initial(iCell) = sst(iCell)
+          enddo
+       endif
+    endif
+ endif
 
 !initialization of temperatures needed for updating the deep soil temperature:
  if(.not. config_do_restart) then
@@ -363,7 +359,7 @@
 
 !initialization of cloud microphysics processes:
  if(config_microp_scheme .ne. 'off') &
-    call microphysics_init(dminfo,configs,mesh,sfc_input,diag_physics)
+    call init_microphysics(dminfo,configs,mesh,state,time_lev,sfc_input,diag_physics)
 
 !initialization of PBL processes:
  if(config_pbl_scheme .ne. 'off') call init_pbl(configs)

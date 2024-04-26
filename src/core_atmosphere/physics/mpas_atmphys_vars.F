@@ -204,6 +204,7 @@
     qg_p               !graupel mixing ratio                                                [kg/kg]
 
  real(kind=RKIND),dimension(:,:,:),allocatable:: &
+    nc_p,             &!cloud water droplet number concentration                             [#/kg]
     ni_p,             &!cloud ice crystal number concentration                               [#/kg]
     nr_p               !rain drop number concentration                                       [#/kg]
 
@@ -247,7 +248,7 @@
     f_qc,             &!parameter set to true to include the cloud water mixing ratio.
     f_qr,             &!parameter set to true to include the rain mixing ratio.
     f_qi,             &!parameter set to true to include the cloud ice mixing ratio.
-    f_qs,             &!parameter set to true to include the snow minxg ratio.
+    f_qs,             &!parameter set to true to include the snow mixing ratio.
     f_qg,             &!parameter set to true to include the graupel mixing ratio.
     f_qoz              !parameter set to true to include the ozone mixing ratio.
 
@@ -271,15 +272,11 @@
     graupelncv_p,     &!
     sr_p
 
-!... added for the thompson and wsm6 cloud microphysics:
  integer:: & 
     has_reqc,         &!
     has_reqi,         &!
     has_reqs
 
- real(kind=RKIND),dimension(:,:),allocatable:: &
-    ntc_p,            &!
-    muc_p              !
  real(kind=RKIND),dimension(:,:,:),allocatable:: &
     rainprod_p,       &!
     evapprod_p,       &!
@@ -287,6 +284,17 @@
     reice_p,          &!
     resnow_p,         &!
     refl10cm_p         !
+
+!... for Thompson cloud microphysics parameterization, including aerosol-aware option:
+ real(kind=RKIND),dimension(:,:),allocatable:: &
+    ntc_p,            &!
+    muc_p,            &!
+    nifa2d_p,         &!surface emission of "ice-friendly" aerosols                                     [#/kg-1/s]
+    nwfa2d_p           !surface emission of "water-friendly" aerosols                                   [#/kg-1/s]
+
+ real(kind=RKIND),dimension(:,:,:),allocatable:: &
+    nifa_p,           &!"ice-friendly" number concentration                                                 [#/kg]
+    nwfa_p             !"water-friendly" number concentration                                               [#/kg]
 
 !=================================================================================================================
 !... variables and arrays related to parameterization of convection:

@@ -1182,7 +1182,7 @@ module atm_time_integration
         call mpas_timer_start('microphysics')
 !$OMP PARALLEL DO
         do thread=1,nThreads
-           call driver_microphysics ( block % configs, mesh, state, 2, diag, diag_physics, tend, itimestep, &
+           call driver_microphysics ( block % configs, mesh, state, 2, diag, diag_physics, tend_physics, tend, itimestep, &
                                       cellSolveThreadStart(thread), cellSolveThreadEnd(thread))
         end do
 !$OMP END PARALLEL DO
