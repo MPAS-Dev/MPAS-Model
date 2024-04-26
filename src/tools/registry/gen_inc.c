@@ -801,7 +801,6 @@ int parse_namelist_records_from_registry(ezxml_t registry)/*{{{*/
 
 		if(in_subpool){
 			fortprintf(fd, "\n");
-			fortprintf(fd, "      allocate(recordPool)\n");
 			fortprintf(fd, "      call mpas_pool_create_pool(recordPool)\n");
 			fortprintf(fd, "      call mpas_pool_add_subpool(configPool, '%s', recordPool)\n", nmlrecname);
 			fortprintf(fd, "\n");
@@ -1886,7 +1885,6 @@ int parse_struct(FILE *fd, ezxml_t registry, ezxml_t superStruct, int subpool, c
 	fortprintf(fd, "\n");
 
 	// Setup new pool to be added into structPool
-	fortprintf(fd, "      allocate(newSubPool)\n");
 	fortprintf(fd, "      call mpas_pool_create_pool(newSubPool)\n");
 	fortprintf(fd, "      call mpas_pool_add_subpool(structPool, '%s', newSubPool)\n", structnameincode);
 	fortprintf(fd, "      call mpas_pool_add_subpool(block %% allStructs, '%s', newSubPool)\n", structname);

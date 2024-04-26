@@ -561,6 +561,7 @@
      hgamt(i)  = 0.
      hgamq(i)  = 0.
      wscale(i) = 0.
+     we(i)     = 0.
      kpbl(i)   = 1
      hpbl(i)   = zq(i,1)
      zl1(i)    = za(i,1)
