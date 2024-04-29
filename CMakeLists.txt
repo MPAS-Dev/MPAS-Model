@@ -14,6 +14,7 @@ if(MPAS_CORES MATCHES " ") #Convert strings separated with spaces to CMake list 
     string(REPLACE " " ";" MPAS_CORES ${MPAS_CORES})
     set(MPAS_CORES ${MPAS_CORES} CACHE STRING "MPAS cores to build. Options: ${MPAS_ALL_CORES}" FORCE)
 endif()
+option(DO_PHYSICS "Use built-in physics schemes." TRUE) #TODO: Check with Michael is this option is needed and if the description makes sense.
 option(MPAS_DOUBLE_PRECISION "Use double precision 64-bit Floating point." TRUE)
 option(MPAS_PROFILE "Enable GPTL profiling" OFF)
 option(MPAS_OPENMP "Enable OpenMP" OFF)
@@ -99,9 +100,6 @@ macro(mpas_fortran_target _tgt)
     set_target_properties(${_tgt} PROPERTIES Fortran_FORMAT FREE)
     target_compile_definitions(${_tgt} PRIVATE _MPI=1)
     target_compile_definitions(${_tgt} PRIVATE USE_PIO2=1)
-    if(NOT MPAS_DOUBLE_PRECISION)
-      target_compile_definitions(${_tgt} PRIVATE "-DSINGLE_PRECISION")
-    endif()
 
     # Enable OpenMP support
     if(MPAS_OPENMP)
@@ -189,8 +187,11 @@ macro(mpas_core_target)
     file(MAKE_DIRECTORY ${CORE_DATADIR})
 
     #Process registry and generate includes, namelists, and streams
+    if (${DO_PHYSICS})
+        set(CPP_EXTRA_FLAGS ${CPP_EXTRA_FLAGS} -DDO_PHYSICS)
+    endif()
 add_custom_command(OUTPUT Registry_processed.xml
-                       COMMAND ${CPP_EXECUTABLE} -E -P ${CPP_EXTRA_FLAGS} -DDO_PHYSICS ${CMAKE_CURRENT_SOURCE_DIR}/Registry.xml > Registry_processed.xml
+                       COMMAND ${CPP_EXECUTABLE} -E -P ${CPP_EXTRA_FLAGS} ${CMAKE_CURRENT_SOURCE_DIR}/Registry.xml > Registry_processed.xml
                        COMMENT "CORE ${_ARG_CORE}: Pre-Process Registry"
                        DEPENDS Registry.xml)
     add_custom_command(OUTPUT ${_ARG_INCLUDES}

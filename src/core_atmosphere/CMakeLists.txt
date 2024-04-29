@@ -13,7 +13,7 @@ set(_atm_core_physics_srcs
         mpas_atmphys_finalize.F
         mpas_atmphys_functions.F
         mpas_atmphys_init_microphysics.F
-#        mpas_atmphys_initialize_real.F
+        #        mpas_atmphys_initialize_real.F
         mpas_atmphys_interface.F
         mpas_atmphys_landuse.F
         mpas_atmphys_lsm_noahinit.F
@@ -159,16 +159,41 @@ add_library(core_atmosphere ${_atm_core_srcs}
         ${_atm_core_diagnostics_srcs}
         ${_atm_core_dynamics_srcs})
 
-mpas_core_target(CORE atmosphere TARGET core_atmosphere INCLUDES ${atm_core_inc})
-
-target_compile_definitions(core_atmosphere PRIVATE DO_PHYSICS)
-target_compile_definitions(core_atmosphere PRIVATE MPAS_BUILD_TARGET=gnu)
-target_compile_definitions(core_atmosphere PRIVATE USE_PIO2)
-target_compile_definitions(core_atmosphere PRIVATE SINGLE_PRECISION)
-target_compile_definitions(core_atmosphere PRIVATE MPAS_PIO_SUPPORT)
-target_compile_definitions(core_atmosphere PRIVATE MPAS_DEBUG)
+if (${DO_PHYSICS})
+    target_compile_definitions(core_atmosphere PRIVATE DO_PHYSICS)
+endif ()
+if (MPAS_DOUBLE_PRECISION)
+    set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -fdefault-real-8 -fdefault-double-8")
+else ()
+    target_compile_definitions(core_atmosphere PRIVATE SINGLE_PRECISION)
+endif ()
+if (${CMAKE_BUILD_TYPE} MATCHES "Debug")
+    target_compile_definitions(core_atmosphere PRIVATE MPAS_DEBUG)
+endif ()
+if (${PIO_FOUND})
+    FILE(STRINGS ${PIO_PREFIX}/lib/libpio.settings PIO_SETTINGS)
+    foreach (setting ${PIO_SETTINGS})
+        string(FIND ${setting} "PIO Version" found)
+        if (${found} GREATER -1)
+            string(FIND ${setting} "2." pos)
+            if (${pos} GREATER -1)
+                set(PIO_VERSION 2)
+            else ()
+                set(PIO_VERSION 1)
+            endif ()
+            break()
+        endif ()
+    endforeach ()
+    if (${PIO_VERSION} EQUAL 1)
+        target_compile_definitions(core_atmosphere PRIVATE USE_PIO1)
+    else ()
+        target_compile_definitions(core_atmosphere PRIVATE USE_PIO2)
+    endif ()
+    target_compile_definitions(core_atmosphere PRIVATE MPAS_PIO_SUPPORT)
+endif ()
 target_compile_definitions(core_atmosphere PRIVATE mpas=1)
-target_compile_definitions(core_atmosphere PRIVATE MPAS_NATIVE_TIMERS)
+target_compile_definitions(framework PRIVATE MPAS_NATIVE_TIMERS)
+mpas_core_target(CORE atmosphere TARGET core_atmosphere INCLUDES ${atm_core_inc})
 
 #Get physics_wrf tables from MPAS-Data
 include(FetchContent)
