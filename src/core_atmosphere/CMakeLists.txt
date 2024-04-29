@@ -161,8 +161,14 @@ add_library(core_atmosphere ${_atm_core_srcs}
 
 mpas_core_target(CORE atmosphere TARGET core_atmosphere INCLUDES ${atm_core_inc})
 
-target_compile_definitions(core_atmosphere PRIVATE DO_PHYSICS=1)
+target_compile_definitions(core_atmosphere PRIVATE DO_PHYSICS)
+target_compile_definitions(core_atmosphere PRIVATE MPAS_BUILD_TARGET=gnu)
+target_compile_definitions(core_atmosphere PRIVATE USE_PIO2)
+target_compile_definitions(core_atmosphere PRIVATE SINGLE_PRECISION)
+target_compile_definitions(core_atmosphere PRIVATE MPAS_PIO_SUPPORT)
+target_compile_definitions(core_atmosphere PRIVATE MPAS_DEBUG)
 target_compile_definitions(core_atmosphere PRIVATE mpas=1)
+target_compile_definitions(core_atmosphere PRIVATE MPAS_NATIVE_TIMERS)
 
 #Get physics_wrf tables from MPAS-Data
 include(FetchContent)
@@ -178,6 +184,7 @@ FetchContent_Declare(mpas_data
         GIT_PROGRESS True
         GIT_SHALLOW True)
 FetchContent_Populate(mpas_data)
+message(STATUS "MPAS-Data source dir: ${mpas_data_SOURCE_DIR}")
 set(_physics_wrf_datadir ${mpas_data_SOURCE_DIR}/atmosphere/physics_wrf/files)
 file(GLOB _physics_wrf_data RELATIVE ${_physics_wrf_datadir} "${_physics_wrf_datadir}/*")
 file(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/${PROJECT_NAME}/core_atmosphere)

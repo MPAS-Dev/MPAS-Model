@@ -1,7 +1,6 @@
 ## MPAS-Model
 cmake_minimum_required(VERSION 3.12)
-project(MPAS LANGUAGES C Fortran VERSION 7.0 DESCRIPTION "MPAS - Model for Prediction Across Scales")
-
+project(MPAS LANGUAGES C Fortran VERSION 8.0 DESCRIPTION "MPAS - Model for Prediction Across Scales")
 ### Global Configuration
 
 list(INSERT CMAKE_MODULE_PATH 0 ${CMAKE_CURRENT_SOURCE_DIR}/cmake/Modules)
@@ -190,8 +189,8 @@ macro(mpas_core_target)
     file(MAKE_DIRECTORY ${CORE_DATADIR})
 
     #Process registry and generate includes, namelists, and streams
-    add_custom_command(OUTPUT Registry_processed.xml
-                       COMMAND ${CPP_EXECUTABLE} -E -P ${CPP_EXTRA_FLAGS} ${CMAKE_CURRENT_SOURCE_DIR}/Registry.xml > Registry_processed.xml
+add_custom_command(OUTPUT Registry_processed.xml
+                       COMMAND ${CPP_EXECUTABLE} -E -P ${CPP_EXTRA_FLAGS} -DDO_PHYSICS ${CMAKE_CURRENT_SOURCE_DIR}/Registry.xml > Registry_processed.xml
                        COMMENT "CORE ${_ARG_CORE}: Pre-Process Registry"
                        DEPENDS Registry.xml)
     add_custom_command(OUTPUT ${_ARG_INCLUDES}

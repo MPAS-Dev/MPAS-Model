@@ -37,6 +37,14 @@ set(_mpas_framework_src
         stream_inquiry.c)
 
 add_library(framework ${_mpas_framework_src})
+target_compile_definitions(framework PRIVATE DO_PHYSICS)
+target_compile_definitions(framework PRIVATE MPAS_BUILD_TARGET=gnu)
+target_compile_definitions(framework PRIVATE USE_PIO2)
+target_compile_definitions(framework PRIVATE SINGLE_PRECISION)
+target_compile_definitions(framework PRIVATE MPAS_PIO_SUPPORT)
+target_compile_definitions(framework PRIVATE MPAS_DEBUG)
+target_compile_definitions(framework PRIVATE mpas=1)
+target_compile_definitions(framework PRIVATE MPAS_NATIVE_TIMERS)
 mpas_fortran_target(framework)
 add_library(${PROJECT_NAME}::framework ALIAS framework)
 
