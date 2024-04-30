@@ -1352,7 +1352,7 @@ module atm_time_integration
       call mpas_pool_get_dimension(mesh, 'nCells', nCells)
       call mpas_pool_get_dimension(mesh, 'nEdges', nEdges)
       call mpas_pool_get_dimension(mesh, 'nVertLevels', nVertLevels)
-      call mpas_pool_get_dimension(state, 'num_scalars', num_scalars)
+      call mpas_pool_get_dimension(state, 'num_'//trim(field_name), num_scalars)
 
       call mpas_pool_get_dimension(block % dimensions, 'nThreads', nThreads)
 
@@ -3234,7 +3234,7 @@ module atm_time_integration
       call mpas_allocate_scratch_field(scale)
       call mpas_pool_get_array(halo_scratch, 'scale', scale_arr)
 
-      call atm_advance_scalars_mono_work(block, state, nCells, nEdges, num_scalars, dt, &
+      call atm_advance_scalars_mono_work(field_name, block, state, nCells, nEdges, num_scalars, dt, &
                                    cellStart, cellEnd, edgeStart, edgeEnd, &
                                    cellSolveStart, cellSolveEnd, &
                                    coef_3rd_order, nCellsSolve, uhAvg, wwAvg, scalar_tend, rho_zz_old, &
@@ -3282,7 +3282,7 @@ module atm_time_integration
    !>  as used in the RK3 scheme as described in Wang et al MWR 2009
    !
    !-----------------------------------------------------------------------
-   subroutine atm_advance_scalars_mono_work(block, state, nCells, nEdges, num_scalars, dt, &
+   subroutine atm_advance_scalars_mono_work(field_name, block, state, nCells, nEdges, num_scalars, dt, &
                                    cellStart, cellEnd, edgeStart, edgeEnd, &
                                    cellSolveStart, cellSolveEnd, &
                                    coef_3rd_order, nCellsSolve, uhAvg, wwAvg, scalar_tend, rho_zz_old, &
@@ -3297,6 +3297,7 @@ module atm_time_integration
 
       implicit none
 
+      character(len=*), intent(in) :: field_name
       type (block_type), intent(inout), target :: block
       type (mpas_pool_type), intent(inout) :: state
       integer, intent(in)                  :: nCells           ! for allocating stack variables
@@ -3401,7 +3402,7 @@ module atm_time_integration
 
 !$OMP BARRIER
 !$OMP MASTER
-      call exchange_halo_group(block % domain, 'dynamics:scalars_old')
+      call exchange_halo_group(block % domain, 'dynamics:'//trim(field_name)//'_old')
 !$OMP END MASTER
 !$OMP BARRIER
 
