@@ -57,6 +57,9 @@
  end subroutine bl_mynn_post_finalize
 
 !=================================================================================================================
+!>\section arg_table_bl_mynn_post_run
+!!\html\include bl_mynn_post_run.html
+!!
  subroutine bl_mynn_post_run(its,ite,kte,f_qc,f_qi,f_qs,delt,qv,qc,qi,qs,dqv,dqc,dqi,dqs,errmsg,errflg)
 !=================================================================================================================
 

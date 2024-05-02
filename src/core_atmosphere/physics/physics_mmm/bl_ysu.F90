@@ -5,23 +5,60 @@
 
  implicit none
  private
- public:: bl_ysu_run          ,    &
-          bl_ysu_init         ,    &
-          bl_ysu_final        ,    &
-          bl_ysu_timestep_init,    &
-          bl_ysu_timestep_final
+ public:: bl_ysu_run,     &
+          bl_ysu_init,    &
+          bl_ysu_finalize
 
 
  contains
 
 
 !=================================================================================================================
+!>\section arg_table_bl_ysu_init
+!!\html\include bl_ysu_init.html
+!!
+ subroutine bl_ysu_init(errmsg,errflg)
+!=================================================================================================================
+
+!--- output arguments:
+ character(len=*),intent(out):: errmsg
+ integer,intent(out):: errflg
+
+!-----------------------------------------------------------------------------------------------------------------
+
+ errmsg = 'bl_ysu_init OK'
+ errflg = 0
+
+ end subroutine bl_ysu_init
+
+!=================================================================================================================
+!>\section arg_table_bl_ysu_finalize
+!!\html\include bl_ysu_finalize.html
+!!
+ subroutine bl_ysu_finalize(errmsg,errflg)
+!=================================================================================================================
+
+!--- output arguments:
+ character(len=*),intent(out):: errmsg
+ integer,intent(out):: errflg
+
+!-----------------------------------------------------------------------------------------------------------------
+
+ errmsg = 'bl_ysu_finalize OK'
+ errflg = 0
+
+ end subroutine bl_ysu_finalize
+
+!=================================================================================================================
+!>\section arg_table_bl_ysu_run
+!!\html\include bl_ysu_run.html
+!!
    subroutine bl_ysu_run(ux,vx,tx,qvx,qcx,qix,nmix,qmix,p2d,p2di,pi2d,     &
                          f_qc,f_qi,                                        &
                          utnp,vtnp,ttnp,qvtnp,qctnp,qitnp,qmixtnp,         &
                          cp,g,rovcp,rd,rovg,ep1,ep2,karman,xlv,rv,         &
                          dz8w2d,psfcpa,                                    &
-                         znt,ust,hpbl,psim,psih,                           &
+                         znt,ust,hpbl,dusfc,dvsfc,dtsfc,dqsfc,psim,psih,   &
                          xland,hfx,qfx,wspd,br,                            &
                          dt,kpbl1d,                                        &
                          exch_hx,exch_mx,                                  &
@@ -119,7 +156,7 @@
 !
    integer,  intent(in   )   ::     its,ite,kte,kme
 
-   integer,  intent(in)      ::     ysu_topdown_pblmix 
+   logical,  intent(in)      ::     ysu_topdown_pblmix
 !
    integer,  intent(in)      ::     nmix
 !
@@ -129,20 +166,20 @@
 !
    logical,  intent(in )     ::     f_qc, f_qi
 !
-   real(kind=kind_phys),     dimension( its:ite, kts:kte )                   , &
+   real(kind=kind_phys),     dimension( its:,: )                             , &
              intent(in)      ::                                        dz8w2d, &
                                                                          pi2d
 !
-   real(kind=kind_phys),     dimension( its:ite, kts:kte )                   , &
+   real(kind=kind_phys),     dimension( its:,: )                             , &
              intent(in   )   ::                                            tx, &
                                                                           qvx, &
                                                                           qcx, &
                                                                           qix
 !
-   real(kind=kind_phys),     dimension( its:ite, kts:kte, nmix )             , &
+   real(kind=kind_phys),     dimension( its:,:,: )                           , &
              intent(in   )   ::                                          qmix
 !
-   real(kind=kind_phys),     dimension( its:ite, kts:kte )                   , &
+   real(kind=kind_phys),     dimension( its:,: )                             , &
              intent(out  )   ::                                          utnp, &
                                                                          vtnp, &
                                                                          ttnp, &
@@ -150,46 +187,52 @@
                                                                         qctnp, &
                                                                         qitnp
 !
-   real(kind=kind_phys),     dimension( its:ite, kts:kte, nmix )             , &
+   real(kind=kind_phys),     dimension( its:,:,: )                           , &
              intent(out  )   ::                                       qmixtnp
 !
-   real(kind=kind_phys),     dimension( its:ite, kms:kme )                   , &
+   real(kind=kind_phys),     dimension( its:,: )                             , &
              intent(in   )   ::                                          p2di
 !
-   real(kind=kind_phys),     dimension( its:ite, kts:kte )                   , &
+   real(kind=kind_phys),     dimension( its:,: )                             , &
              intent(in   )   ::                                           p2d
 !
-   real(kind=kind_phys),     dimension( its:ite )                            , &
+   real(kind=kind_phys),     dimension( its: )                               , &
              intent(out  )   ::                                          hpbl
 !
-   real(kind=kind_phys),     dimension( its:ite )                            , &
+   real(kind=kind_phys),     dimension( its: )                               , &
+             intent(out  ), optional ::                                 dusfc, &
+                                                                        dvsfc, &
+                                                                        dtsfc, &
+                                                                        dqsfc
+!
+   real(kind=kind_phys),     dimension( its: )                               , &
              intent(in   )   ::                                           ust, &
                                                                           znt
-   real(kind=kind_phys),     dimension( its:ite )                            , &
+   real(kind=kind_phys),     dimension( its: )                               , &
              intent(in   )   ::                                         xland, &
                                                                           hfx, &
                                                                           qfx
 !
-   real(kind=kind_phys),     dimension( its:ite ), intent(in   )   ::    wspd
-   real(kind=kind_phys),     dimension( its:ite ), intent(in  )    ::      br
+   real(kind=kind_phys),     dimension( its: ), intent(in   )    ::      wspd
+   real(kind=kind_phys),     dimension( its: ), intent(in   )    ::        br
 !
-   real(kind=kind_phys),     dimension( its:ite ), intent(in   )   ::    psim, &
+   real(kind=kind_phys),     dimension( its: ), intent(in   )    ::      psim, &
                                                                          psih
 !
-   real(kind=kind_phys),     dimension( its:ite ), intent(in   )   ::  psfcpa
-   integer,  dimension( its:ite ), intent(out  )   ::                  kpbl1d
+   real(kind=kind_phys),     dimension( its: ), intent(in   )    ::    psfcpa
+   integer,  dimension( its: ), intent(out  )   ::                     kpbl1d
 !
-   real(kind=kind_phys),     dimension( its:ite, kts:kte )                   , &
+   real(kind=kind_phys),     dimension( its:,: )                             , &
              intent(in   )   ::                                            ux, &
                                                                            vx, &
                                                                       rthraten
-   real(kind=kind_phys),     dimension( its:ite )                            , &
+   real(kind=kind_phys),     dimension( its: )                               , &
              optional                                                        , &
              intent(in   )   ::                                         ctopo, &
                                                                        ctopo2
 !
    logical,  intent(in   )   ::                                      flag_bep
-   real(kind=kind_phys),     dimension( its:ite, kts:kte )                   , &
+   real(kind=kind_phys),     dimension( its:,: )                             , &
              optional                                                        , &
              intent(in   )   ::                                           a_u, &
                                                                           a_v, &
@@ -205,7 +248,7 @@
                                                                           vlk, &
                                                                           dlu, &
                                                                           dlg
-   real(kind=kind_phys),     dimension( its:ite )                            , &
+   real(kind=kind_phys),     dimension( its: )                               , &
              optional                                                        , &
              intent(in   )   ::                                        frcurb
 !
@@ -235,8 +278,6 @@
                                                                   hgamt,hgamq, &
                                                                     brdn,brup, &
                                                                     phim,phih, &
-                                                                  dusfc,dvsfc, &
-                                                                  dtsfc,dqsfc, &
                                                                         prpbl, &
                                                               wspd1,thermalli
 !
@@ -551,10 +592,10 @@
    enddo
 !
    do i = its,ite
-     dusfc(i) = 0.
-     dvsfc(i) = 0.
-     dtsfc(i) = 0.
-     dqsfc(i) = 0.
+      if(present(dusfc)) dusfc(i) = 0.
+      if(present(dvsfc)) dvsfc(i) = 0.
+      if(present(dtsfc)) dtsfc(i) = 0.
+      if(present(dqsfc)) dqsfc(i) = 0.
    enddo
 !
    do i = its,ite
@@ -689,7 +730,7 @@
 !
 !     enhance pbl by theta-li
 !
-   if (ysu_topdown_pblmix.eq.1)then
+   if (ysu_topdown_pblmix)then
      do i = its,ite
         kpblold(i) = kpbl(i)
         definebrup=.false.
@@ -796,7 +837,7 @@
        bfxpbl(i) = -0.15*thvx(i,1)/g*wm3/hpbl(i)
        dthvx(i)  = max(thvx(i,k+1)-thvx(i,k),tmin)
        we(i) = max(bfxpbl(i)/dthvx(i),-sqrt(wm2(i)))
-       if((qcxl(i,k)+qixl(i,k)).gt.0.01e-3.and.ysu_topdown_pblmix.eq.1)then
+       if((qcxl(i,k)+qixl(i,k)).gt.0.01e-3.and.ysu_topdown_pblmix)then
            if ( kpbl(i) .ge. 2) then
                 cloudflg(i)=.true. 
                 templ=thlix(i,k)*(p2di(i,k+1)/100000)**rovcp
@@ -1061,11 +1102,11 @@
 #if (NEED_B4B_DURING_CCPP_TESTING == 1)
        ttend = (f1(i,k)-thx(i,k)+300.)*rdt*pi2d(i,k)
        ttnp(i,k) = ttend
-       dtsfc(i) = dtsfc(i)+ttend*cont*del(i,k)/pi2d(i,k)
+       if(present(dtsfc)) dtsfc(i) = dtsfc(i)+ttend*cont*del(i,k)/pi2d(i,k)
 #elif (NEED_B4B_DURING_CCPP_TESTING != 1)
        ttend = (f1(i,k)-thx(i,k)+300.)*rdt
        ttnp(i,k) = ttend
-       dtsfc(i) = dtsfc(i)+ttend*cont*del(i,k)
+       if(present(dtsfc)) dtsfc(i) = dtsfc(i)+ttend*cont*del(i,k)
 #endif
      enddo
    enddo
@@ -1138,7 +1179,7 @@
       do k = kte,kts,-1
          qtend = (f1(i,k)-qvx(i,k))*rdt
          qvtnp(i,k) = qtend
-         dqsfc(i)   = dqsfc(i)+qtend*conq*del(i,k)
+         if(present(dqsfc)) dqsfc(i)   = dqsfc(i)+qtend*conq*del(i,k)
       enddo
    enddo
 
@@ -1353,8 +1394,8 @@
        vtend = (f2(i,k)-vx(i,k))*rdt
        utnp(i,k) = utend
        vtnp(i,k) = vtend
-       dusfc(i) = dusfc(i) + utend*conwrc*del(i,k)
-       dvsfc(i) = dvsfc(i) + vtend*conwrc*del(i,k)
+       if(present(dusfc)) dusfc(i) = dusfc(i) + utend*conwrc*del(i,k)
+       if(present(dvsfc)) dvsfc(i) = dvsfc(i) + vtend*conwrc*del(i,k)
      enddo
    enddo
 !
@@ -1379,59 +1420,6 @@
    end subroutine bl_ysu_run
 
 !=================================================================================================================
-  subroutine bl_ysu_init (errmsg, errflg)
-
-    character(len=*),        intent(out)   :: errmsg
-    integer,                 intent(out)   :: errflg
-
-    ! This routine currently does nothing
-
-    errmsg = ''
-    errflg = 0
-
-  end subroutine bl_ysu_init
-
-!=================================================================================================================
-  subroutine bl_ysu_final (errmsg, errflg)
-
-    character(len=*),        intent(out)   :: errmsg
-    integer,                 intent(out)   :: errflg
-
-    ! This routine currently does nothing
-
-    errmsg = ''
-    errflg = 0
-
-  end subroutine bl_ysu_final
-
-!=================================================================================================================
-  subroutine bl_ysu_timestep_init (errmsg, errflg)
-
-    character(len=*),        intent(out)   :: errmsg
-    integer,                 intent(out)   :: errflg
-
-    ! This routine currently does nothing
-
-    errmsg = ''
-    errflg = 0
-
-  end subroutine bl_ysu_timestep_init
-
-!=================================================================================================================
-  subroutine bl_ysu_timestep_final (errmsg, errflg)
-
-    character(len=*),        intent(out)   :: errmsg
-    integer,                 intent(out)   :: errflg
-
-    ! This routine currently does nothing
-
-    errmsg = ''
-    errflg = 0
-
-  end subroutine bl_ysu_timestep_final
-!-------------------------------------------------------------------------------
-!
-!-------------------------------------------------------------------------------
    subroutine tridi2n(cl,cm,cm1,cu,r1,r2,au,f1,f2,its,ite,kts,kte,nt)
 !-------------------------------------------------------------------------------
    implicit none
