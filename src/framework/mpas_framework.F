@@ -184,4 +184,78 @@ module mpas_framework
 
    end subroutine mpas_framework_finalize!}}}
 
+
+!-----------------------------------------------------------------------
+!  routine mpas_framework_report_settings
+!
+!> \brief Report information about compile- and run-time settings to the log file
+!> \author Michael Duda
+!> \date 1 May 2024
+!> \details
+!>  This routine writes information about compile-time and run-time settings for
+!>  an MPAS core to the log file.
+!
+!-----------------------------------------------------------------------  
+   subroutine mpas_framework_report_settings(domain)
+
+#ifdef MPAS_OPENMP
+      use mpas_threading, only : mpas_threading_get_num_threads
+#endif
+  
+      implicit none
+
+      type (domain_type), pointer :: domain
+
+
+      call mpas_log_write('')
+      call mpas_log_write('Output from ''git describe --dirty'': '//trim(domain % core % git_version))
+
+      call mpas_log_write('')
+      call mpas_log_write('Compile-time options:')
+      call mpas_log_write('  Build target: '//trim(domain % core % build_target))
+      call mpas_log_write('  OpenMP support: ' // &
+#ifdef MPAS_OPENMP
+                          'yes')
+#else
+                          'no')
+#endif
+      call mpas_log_write('  OpenACC support: ' // &
+#ifdef MPAS_OPENACC
+                          'yes')
+#else
+                          'no')
+#endif
+      call mpas_log_write('  Default real precision: ' // &
+#ifdef SINGLE_PRECISION
+                          'single')
+#else
+                          'double')
+#endif
+      call mpas_log_write('  Compiler flags: ' // &
+#ifdef MPAS_DEBUG
+                          'debug')
+#else
+                          'optimize')
+#endif
+      call mpas_log_write('  I/O layer: ' // &
+#ifdef MPAS_PIO_SUPPORT
+#ifdef USE_PIO2
+                          'PIO 2.x')
+#else
+                          'PIO 1.x')
+#endif
+#else
+                          'SMIOL')
+#endif
+      call mpas_log_write('')
+
+      call mpas_log_write('Run-time settings:')
+      call mpas_log_write('  MPI task count: $i', intArgs=[domain % dminfo % nprocs])
+#ifdef MPAS_OPENMP
+      call mpas_log_write('  OpenMP max threads: $i', intArgs=[mpas_threading_get_max_threads()])
+#endif
+      call mpas_log_write('')
+
+   end subroutine mpas_framework_report_settings
+
 end module mpas_framework
