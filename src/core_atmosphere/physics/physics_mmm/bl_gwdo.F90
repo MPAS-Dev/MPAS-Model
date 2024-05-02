@@ -1,17 +1,57 @@
-module bl_gwdo
-use ccpp_kinds,only: kind_phys 
-!===============================================================================
-   IMPLICIT NONE
-   PRIVATE
-   PUBLIC :: bl_gwdo_run
-   PUBLIC :: bl_gwdo_init
-   PUBLIC :: bl_gwdo_final
-   PUBLIC :: bl_gwdo_timestep_init
-   PUBLIC :: bl_gwdo_timestep_final
+!=================================================================================================================
+ module bl_gwdo
+ use ccpp_kinds,only: kind_phys
 
-contains
-!-------------------------------------------------------------------------------
-!-------------------------------------------------------------------------------
+ implicit none
+ private
+ public:: bl_gwdo_run,     &
+          bl_gwdo_init,    &
+          bl_gwdo_finalize
+
+
+ contains
+
+
+!=================================================================================================================
+!>\section arg_table_bl_gwdo_init
+!!\html\include bl_gwdo_init.html
+!!
+ subroutine bl_gwdo_init(errmsg,errflg)
+!=================================================================================================================
+
+!--- output arguments:
+ character(len=*),intent(out):: errmsg
+ integer,intent(out):: errflg
+
+!-----------------------------------------------------------------------------------------------------------------
+
+ errmsg = 'bl_gwdo_init OK'
+ errflg = 0
+
+ end subroutine bl_gwdo_init
+
+!=================================================================================================================
+!>\section arg_table_bl_gwdo_finalize
+!!\html\include bl_gwdo_finalize.html
+!!
+ subroutine bl_gwdo_finalize(errmsg,errflg)
+!=================================================================================================================
+
+!--- output arguments:
+ character(len=*),intent(out):: errmsg
+ integer,intent(out):: errflg
+
+!-----------------------------------------------------------------------------------------------------------------
+
+ errmsg = 'bl_gwdo_finalize OK'
+ errflg = 0
+
+ end subroutine bl_gwdo_finalize
+
+!=================================================================================================================
+!>\section arg_table_bl_gwdo_run
+!!\html\include bl_gwdo_run.html
+!!
    subroutine bl_gwdo_run(sina, cosa,                                          &
                      rublten,rvblten,                                          &
                      dtaux3d,dtauy3d,                                          &
@@ -75,25 +115,24 @@ contains
 !    dusfc, dvsfc     - gw stress
 !
 !-------------------------------------------------------------------------------
-   use ccpp_kinds, only: kind_phys
    implicit none
 !
    integer, parameter                                                :: kts = 1
    integer                                           , intent(in   ) :: its, ite, kte, kme
    real(kind=kind_phys)                              , intent(in   ) :: g_, pi_, rd_, rv_, fv_,&
                                                                         cp_, deltim
-   real(kind=kind_phys), dimension(its:ite)          , intent(in   ) :: dxmeter
-   real(kind=kind_phys), dimension(its:ite,kts:kte)  , intent(inout) :: rublten, rvblten
-   real(kind=kind_phys), dimension(its:ite,kts:kte)  , intent(  out) :: dtaux3d, dtauy3d
-   real(kind=kind_phys), dimension(its:ite)          , intent(  out) :: dusfcg, dvsfcg
-   real(kind=kind_phys), dimension(its:ite)          , intent(in   ) :: sina, cosa
-   real(kind=kind_phys), dimension(its:ite,kts:kte)  , intent(in   ) :: uproj, vproj
-   real(kind=kind_phys), dimension(its:ite,kts:kte)  , intent(in   ) :: t1, q1, prslk, zl 
+   real(kind=kind_phys), dimension(its:)             , intent(in   ) :: dxmeter
+   real(kind=kind_phys), dimension(its:,:)           , intent(inout) :: rublten, rvblten
+   real(kind=kind_phys), dimension(its:,:)           , intent(  out) :: dtaux3d, dtauy3d
+   real(kind=kind_phys), dimension(its:)             , intent(  out) :: dusfcg, dvsfcg
+   real(kind=kind_phys), dimension(its:)             , intent(in   ) :: sina, cosa
+   real(kind=kind_phys), dimension(its:,:)           , intent(in   ) :: uproj, vproj
+   real(kind=kind_phys), dimension(its:,:)           , intent(in   ) :: t1, q1, prslk, zl
 !
-   real(kind=kind_phys), dimension(its:ite,kts:kte)  , intent(in   ) :: prsl
-   real(kind=kind_phys), dimension(its:ite,kts:kme)  , intent(in   ) :: prsi
+   real(kind=kind_phys), dimension(its:,:)           , intent(in   ) :: prsl
+   real(kind=kind_phys), dimension(its:,:)           , intent(in   ) :: prsi
 !
-   real(kind=kind_phys), dimension(its:ite)          , intent(in   ) :: var, oc1, &
+   real(kind=kind_phys), dimension(its:)             , intent(in   ) :: var, oc1, &
                                                                         oa2d1, oa2d2, oa2d3, oa2d4, &
                                                                         ol2d1, ol2d2, ol2d3, ol2d4
    character(len=*)                                  , intent(  out) :: errmsg
@@ -603,57 +642,8 @@ contains
    return                                                            
    end subroutine bl_gwdo_run
 
-!-------------------------------------------------------------------------------
-  subroutine bl_gwdo_init (errmsg, errflg)
 
-    character(len=*),        intent(out)   :: errmsg
-    integer,                 intent(out)   :: errflg
+!=================================================================================================================
+ end module bl_gwdo
+!=================================================================================================================
 
-    ! This routine currently does nothing
-
-    errmsg = ''
-    errflg = 0
-
-  end subroutine bl_gwdo_init
-
-!-------------------------------------------------------------------------------
-  subroutine bl_gwdo_final (errmsg, errflg)
-
-    character(len=*),        intent(out)   :: errmsg
-    integer,                 intent(out)   :: errflg
-
-    ! This routine currently does nothing
-
-    errmsg = ''
-    errflg = 0
-
-  end subroutine bl_gwdo_final
-
-!-------------------------------------------------------------------------------
-  subroutine bl_gwdo_timestep_init (errmsg, errflg)
-
-    character(len=*),        intent(out)   :: errmsg
-    integer,                 intent(out)   :: errflg
-
-    ! This routine currently does nothing
-
-    errmsg = ''
-    errflg = 0
-
-  end subroutine bl_gwdo_timestep_init
-
-!-------------------------------------------------------------------------------
-  subroutine bl_gwdo_timestep_final (errmsg, errflg)
-
-    character(len=*),        intent(out)   :: errmsg
-    integer,                 intent(out)   :: errflg
-
-    ! This routine currently does nothing
-
-    errmsg = ''
-    errflg = 0
-
-  end subroutine bl_gwdo_timestep_final
-
-!-------------------------------------------------------------------------------
-end module bl_gwdo
