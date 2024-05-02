@@ -66,17 +66,18 @@
 
  implicit none
  private
- public:: cu_ntiedtke_run,           &
-          cu_ntiedtke_init,          &
-          cu_ntiedtke_final,         &
-          cu_ntiedtke_timestep_init, &
-          cu_ntiedtke_timestep_final
+ public:: cu_ntiedtke_run,     &
+          cu_ntiedtke_init,    &
+          cu_ntiedtke_finalize
 
 
  contains
 
 
 !=================================================================================================================
+!>\section arg_table_cu_ntiedtke_init
+!!\html\include cu_ntiedtke_init.html
+!!
  subroutine cu_ntiedtke_init(con_cp,con_rd,con_rv,con_xlv,con_xls,con_xlf,con_grav,errmsg,errflg)
 !=================================================================================================================
 
@@ -122,7 +123,10 @@
  end subroutine cu_ntiedtke_init
 
 !=================================================================================================================
- subroutine cu_ntiedtke_final(errmsg,errflg)
+!>\section arg_table_cu_ntiedtke_finalize
+!!\html\include cu_ntiedtke_finalize.html
+!!
+ subroutine cu_ntiedtke_finalize(errmsg,errflg)
 !=================================================================================================================
 
 !--- output arguments:
@@ -131,189 +135,10 @@
 
 !-----------------------------------------------------------------------------------------------------------------
 
- errmsg = 'cu_ntiedtke_final OK'
+ errmsg = 'cu_ntiedtke_finalize OK'
  errflg = 0
 
- end subroutine cu_ntiedtke_final
-
-!=================================================================================================================
- subroutine cu_ntiedtke_timestep_init(its,ite,kts,kte,im,kx,kx1,itimestep,stepcu,dt,grav,xland,dz,pres,presi, &
-                        t,rho,qv,qc,qi,u,v,w,qvften,thften,qvftenz,thftenz,slimsk,delt,prsl,ghtl,tf,qvf,qcf,  &
-                        qif,uf,vf,prsi,ghti,omg,errmsg,errflg)
-!=================================================================================================================
-
-!--- input arguments:
- integer,intent(in):: its,ite,kts,kte
- integer,intent(in):: itimestep
- integer,intent(in):: stepcu
-
- real(kind=kind_phys),intent(in):: dt,grav
- real(kind=kind_phys),intent(in),dimension(its:ite):: xland
- real(kind=kind_phys),intent(in),dimension(its:ite,kts:kte):: dz,pres,t,rho,qv,qc,qi,u,v
- real(kind=kind_phys),intent(inout),dimension(its:ite,kts:kte):: qvften,thften
- real(kind=kind_phys),intent(in),dimension(its:ite,kts:kte+1):: presi,w
-
-!--- inout arguments:
- integer,intent(inout):: im,kx,kx1
- integer,intent(inout),dimension(its:ite):: slimsk
-
- real(kind=kind_phys),intent(inout):: delt
- real(kind=kind_phys),intent(inout),dimension(its:ite,kts:kte):: tf,qvf,qcf,qif,uf,vf
- real(kind=kind_phys),intent(inout),dimension(its:ite,kts:kte):: ghtl,omg,prsl
- real(kind=kind_phys),intent(inout),dimension(its:ite,kts:kte):: qvftenz,thftenz
- real(kind=kind_phys),intent(inout),dimension(its:ite,kts:kte+1):: ghti,prsi
-
-!--- output arguments:
- character(len=*),intent(out):: errmsg
- integer,intent(out):: errflg
-
-!--- local variables and arrays:
- integer:: i,k,pp,zz
-
- real(kind=kind_phys),dimension(its:ite,kts:kte):: zl,dot
- real(kind=kind_phys),dimension(its:ite,kts:kte+1):: zi
-
-!-----------------------------------------------------------------------------------------------------------------
-
- im  = ite-its+1
- kx  = kte-kts+1
- kx1 = kx+1
-
- delt  = dt*stepcu
-
- do i = its,ite
-    slimsk(i) = (abs(xland(i)-2.))
- enddo
-
- k = kts
- do i = its,ite
-    zi(i,k) = 0.
- enddo
- do k = kts,kte
-    do i = its,ite
-       zi(i,k+1) = zi(i,k)+dz(i,k)
-    enddo
- enddo
- do k = kts,kte
-    do i = its,ite
-       zl(i,k)  = 0.5*(zi(i,k)+zi(i,k+1))
-       dot(i,k) = -0.5*grav*rho(i,k)*(w(i,k)+w(i,k+1))
-    enddo
- enddo
-
- pp = 0
- do k = kts,kte+1
-    zz = kte + 1 - pp
-    do i = its,ite
-       ghti(i,zz) = zi(i,k)
-       prsi(i,zz) = presi(i,k)
-    enddo
-    pp = pp + 1
- enddo
- pp = 0
- do k = kts,kte
-    zz = kte-pp
-    do i = its,ite
-       ghtl(i,zz) = zl(i,k)
-       omg(i,zz)  = dot(i,k)
-       prsl(i,zz) = pres(i,k)
-    enddo
-    pp = pp + 1
- enddo
-
- pp = 0
- do k = kts,kte
-    zz = kte-pp
-    do i = its,ite
-       tf(i,zz)  = t(i,k)
-       qvf(i,zz) = qv(i,k)
-       qcf(i,zz) = qc(i,k)
-       qif(i,zz) = qi(i,k)
-       uf(i,zz)  = u(i,k)
-       vf(i,zz)  = v(i,k)
-    enddo
-    pp = pp + 1
- enddo
-
- if(itimestep == 1) then
-    do k = kts,kte
-       do i = its,ite
-          qvftenz(i,k) = 0.
-          thftenz(i,k) = 0.
-       enddo
-    enddo
- else
-    pp = 0
-    do k = kts,kte
-       zz = kte-pp
-       do i = its,ite
-          qvftenz(i,zz) = qvften(i,k)
-          thftenz(i,zz) = thften(i,k)
-       enddo
-       pp = pp + 1
-    enddo
- endif
-
- errmsg = 'cu_ntiedtke_timestep_init OK'
- errflg = 0
-
- end subroutine cu_ntiedtke_timestep_init
-
-!=================================================================================================================
- subroutine cu_ntiedtke_timestep_final(its,ite,kts,kte,stepcu,dt,exner,qv,qc,qi,t,u,v,qvf,qcf,qif,tf,uf,vf,rn, &
-                              raincv,pratec,rthcuten,rqvcuten,rqccuten,rqicuten,rucuten,rvcuten,errmsg,errflg)
-!=================================================================================================================
-
-!--- input arguments:
- integer,intent(in):: its,ite,kts,kte
- integer,intent(in):: stepcu
-
- real(kind=kind_phys),intent(in):: dt
- real(kind=kind_phys),intent(in),dimension(its:ite):: rn
- real(kind=kind_phys),intent(in),dimension(its:ite,kts:kte):: exner,qv,qc,qi,t,u,v,qvf,qcf,qif,tf,uf,vf
-
-!--- inout arguments:
- real(kind=kind_phys),intent(inout),dimension(its:ite):: raincv,pratec
- real(kind=kind_phys),intent(inout),dimension(its:ite,kts:kte):: rqvcuten,rqccuten,rqicuten
- real(kind=kind_phys),intent(inout),dimension(its:ite,kts:kte):: rthcuten,rucuten,rvcuten
-
-!--- output arguments:
- character(len=*),intent(out):: errmsg
- integer,intent(out):: errflg
-
-!--- local variables and arrays:
- integer:: i,k,pp,zz
-
- real(kind=kind_phys):: delt,rdelt
-
-!-----------------------------------------------------------------------------------------------------------------
-
- delt  = dt*stepcu
- rdelt = 1./delt
-
- do i = its,ite
-    raincv(i) = rn(i)/stepcu
-    pratec(i) = rn(i)/(stepcu*dt)
- enddo
-
- pp = 0
- do k = kts,kte
-    zz = kte - pp
-    do i = its,ite
-       rthcuten(i,k) = (tf(i,zz)-t(i,k))/exner(i,k)*rdelt
-       rqvcuten(i,k) = (qvf(i,zz)-qv(i,k))*rdelt
-       rqccuten(i,k) = (qcf(i,zz)-qc(i,k))*rdelt
-       rqicuten(i,k) = (qif(i,zz)-qi(i,k))*rdelt
-       rucuten(i,k)  = (uf(i,zz)-u(i,k))*rdelt
-       rvcuten(i,k)  = (vf(i,zz)-v(i,k))*rdelt
-    enddo
-    pp = pp + 1
- enddo
-
- errmsg = 'cu_ntiedtke_timestep_final OK'
- errflg = 0
-
- end subroutine cu_ntiedtke_timestep_final
+ end subroutine cu_ntiedtke_finalize
 
 !=================================================================================================================
 !     level 1 subroutine 'cu_ntiedkte_run'
@@ -359,18 +184,18 @@
 
 !--- input arguments:
       integer,intent(in):: lq,km,km1
-      integer,intent(in),dimension(lq):: lndj
+      integer,intent(in),dimension(:):: lndj
 
       real(kind=kind_phys),intent(in):: dt
-      real(kind=kind_phys),intent(in),dimension(lq):: dx
-      real(kind=kind_phys),intent(in),dimension(lq):: evap,hfx
-      real(kind=kind_phys),intent(in),dimension(lq,km):: pqvf,ptf
-      real(kind=kind_phys),intent(in),dimension(lq,km):: poz,pomg,pap
-      real(kind=kind_phys),intent(in),dimension(lq,km1):: pzz,paph
+      real(kind=kind_phys),intent(in),dimension(:):: dx
+      real(kind=kind_phys),intent(in),dimension(:):: evap,hfx
+      real(kind=kind_phys),intent(in),dimension(:,:):: pqvf,ptf
+      real(kind=kind_phys),intent(in),dimension(:,:):: poz,pomg,pap
+      real(kind=kind_phys),intent(in),dimension(:,:):: pzz,paph
 
 !--- inout arguments:
-      real(kind=kind_phys),intent(inout),dimension(lq):: zprecc
-      real(kind=kind_phys),intent(inout),dimension(lq,km):: pu,pv,pt,pqv,pqc,pqi
+      real(kind=kind_phys),intent(inout),dimension(:):: zprecc
+      real(kind=kind_phys),intent(inout),dimension(:,:):: pu,pv,pt,pqv,pqc,pqi
 
 !--- output arguments:
       character(len=*),intent(out):: errmsg
