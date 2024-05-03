@@ -98,7 +98,9 @@
  logical,pointer:: config_do_restart,  &
                    config_frac_seaice, &
                    config_sfc_albedo
-
+#ifdef MPAS_JEDI
+  logical,pointer:: config_do_DAcycling
+#endif
  character(len=StrKIND),pointer:: mminlu
 
  integer,pointer:: nCells
@@ -133,6 +135,9 @@
 !call mpas_log_write('--- enter subroutine landuse_init_forMPAS:')
 
  call mpas_pool_get_config(configs,'config_do_restart' ,config_do_restart )
+#ifdef MPAS_JEDI
+    call mpas_pool_get_config(configs,'config_do_DAcycling',config_do_DAcycling)
+#endif
  call mpas_pool_get_config(configs,'config_frac_seaice',config_frac_seaice)
  call mpas_pool_get_config(configs,'config_sfc_albedo' ,config_sfc_albedo )
 

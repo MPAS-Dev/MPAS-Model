@@ -372,6 +372,9 @@ module atm_core_interface
       integer :: ierr
 
       logical, pointer :: config_do_restart
+#ifdef MPAS_JEDI
+       logical, pointer :: config_do_restart
+#endif
       character(len=StrKIND) :: attvalue
 
       ierr = 0
