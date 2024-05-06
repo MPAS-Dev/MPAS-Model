@@ -45,7 +45,8 @@ OBJS = \
 	bl_mynn_pre.o                  \
 	cu_ntiedtke_post.o             \
 	cu_ntiedtke_pre.o	       \
-	sf_mynn_pre.o
+	sf_mynn_pre.o                  \
+	sf_sfclayrev_pre.o
 
 
 physics_wrf: $(OBJS)
@@ -85,6 +86,9 @@ module_sf_bep_bem.o: \
 
 module_sf_mynn.o: \
 	sf_mynn_pre.o
+
+module_sf_sfclayrev.o: \
+	sf_sfclayrev_pre.o
 
 module_sf_noahdrv.o: \
 	module_sf_bem.o \

@@ -4,11 +4,9 @@
 
  implicit none
  private
- public:: sf_sfclayrev_run,           &
-          sf_sfclayrev_init,          &
-          sf_sfclayrev_final,         &
-          sf_sfclayrev_timestep_init, &
-          sf_sfclayrev_timestep_final
+ public:: sf_sfclayrev_run,     &
+          sf_sfclayrev_init,    &
+          sf_sfclayrev_finalize
 
 
  real(kind=kind_phys),parameter:: vconvc= 1.
@@ -22,58 +20,9 @@
 
 
 !=================================================================================================================
- subroutine sf_sfclayrev_timestep_init(dz2d,u2d,v2d,qv2d,p2d,t2d,dz1d,u1d,v1d,qv1d,p1d,t1d, &
-                                       its,ite,kts,kte,errmsg,errflg)
-!=================================================================================================================
-
-!--- input arguments:
- integer,intent(in):: its,ite,kts,kte
-
- real(kind=kind_phys),intent(in),dimension(its:ite,kts:kte):: &
-    dz2d,u2d,v2d,qv2d,p2d,t2d
-
-!--- output arguments:
- character(len=*),intent(out):: errmsg
- integer,intent(out):: errflg
-
- real(kind=kind_phys),intent(out),dimension(its:ite):: &
-    dz1d,u1d,v1d,qv1d,p1d,t1d
-
-!--- local variables:
- integer:: i
-
-!-----------------------------------------------------------------------------------------------------------------
-
- do i = its,ite
-    dz1d(i) = dz2d(i,kts)
-    u1d(i)  = u2d(i,kts)
-    v1d(i)  = v2d(i,kts)
-    qv1d(i) = qv2d(i,kts)
-    p1d(i)  = p2d(i,kts)
-    t1d(i)  = t2d(i,kts)
- enddo
-
- errmsg = 'sf_sfclayrev_timestep_init OK'
- errflg = 0
-
- end subroutine sf_sfclayrev_timestep_init
-
-!=================================================================================================================
- subroutine sf_sfclayrev_timestep_final(errmsg,errflg)
-!=================================================================================================================
-
-!--- output arguments:
- character(len=*),intent(out):: errmsg
- integer,intent(out):: errflg
-
-!-----------------------------------------------------------------------------------------------------------------
-
- errmsg = 'sf_sfclayrev_timestep_final OK'
- errflg = 0
-
- end subroutine sf_sfclayrev_timestep_final
-
-!=================================================================================================================
+!>\section arg_table_sf_sfclayrev_init
+!!\html\include sf_sfclayrev_init.html
+!!
  subroutine sf_sfclayrev_init(errmsg,errflg)
 !=================================================================================================================
 
@@ -105,7 +54,10 @@
  end subroutine sf_sfclayrev_init
 
 !=================================================================================================================
- subroutine sf_sfclayrev_final(errmsg,errflg)
+!>\section arg_table_sf_sfclayrev_finalize
+!!\html\include sf_sfclayrev_finalize.html
+!!
+ subroutine sf_sfclayrev_finalize(errmsg,errflg)
 !=================================================================================================================
 
 !--- output arguments:
@@ -114,12 +66,15 @@
 
 !-----------------------------------------------------------------------------------------------------------------
 
- errmsg = 'sf_sfclayrev_final OK'
+ errmsg = 'sf_sfclayrev_finalize OK'
  errflg = 0
 
- end subroutine sf_sfclayrev_final
+ end subroutine sf_sfclayrev_finalize
 
 !=================================================================================================================
+!>\section arg_table_sf_sfclayrev_run
+!!\html\include sf_sfclayrev_run.html
+!!
  subroutine sf_sfclayrev_run(ux,vx,t1d,qv1d,p1d,dz8w1d,                &
                              cp,g,rovcp,r,xlv,psfcpa,chs,chs2,cqs2,    &
                              cpm,pblh,rmol,znt,ust,mavail,zol,mol,     &
@@ -128,8 +83,8 @@
                              u10,v10,th2,t2,q2,flhc,flqc,qgh,          &
                              qsfc,lh,gz1oz0,wspd,br,isfflx,dx,         &
                              svp1,svp2,svp3,svpt0,ep1,ep2,             &
-                             karman,eomeg,stbolt,p1000mb,              &
-                             shalwater_z0,water_depth,shalwater_depth, & 
+                             karman,p1000mb,lakemask,                  &
+                             shalwater_z0,water_depth,                 &
                              isftcflx,iz0tlnd,scm_force_flux,          &
                              ustm,ck,cka,cd,cda,                       &
                              its,ite,errmsg,errflg                     &
@@ -137,28 +92,28 @@
 !=================================================================================================================
 
 !--- input arguments:
- integer,intent(in):: its,ite
+ logical,intent(in):: isfflx
+ logical,intent(in):: shalwater_z0
+ logical,intent(in),optional:: scm_force_flux
 
- integer,intent(in):: isfflx
- integer,intent(in):: shalwater_z0 
+ integer,intent(in):: its,ite
  integer,intent(in),optional:: isftcflx, iz0tlnd
- integer,intent(in),optional:: scm_force_flux
 
  real(kind=kind_phys),intent(in):: svp1,svp2,svp3,svpt0
- real(kind=kind_phys),intent(in):: ep1,ep2,karman,eomeg,stbolt
- real(kind=kind_phys),intent(in):: P1000mb
+ real(kind=kind_phys),intent(in):: ep1,ep2,karman
+ real(kind=kind_phys),intent(in):: p1000mb
  real(kind=kind_phys),intent(in):: cp,g,rovcp,r,xlv
- real(kind=kind_phys),intent(in):: shalwater_depth 
 
- real(kind=kind_phys),intent(in),dimension(its:ite):: &
+ real(kind=kind_phys),intent(in),dimension(its:):: &
     mavail,     &
     pblh,       &
     psfcpa,     &
     tsk,        &
     xland,      &
+    lakemask,   &
     water_depth
 
- real(kind=kind_phys),intent(in),dimension(its:ite):: &
+ real(kind=kind_phys),intent(in),dimension(its:):: &
     dx,         &
     dz8w1d,     &    
     ux,         &
@@ -171,7 +126,7 @@
  character(len=*),intent(out):: errmsg
  integer,intent(out):: errflg
 
- real(kind=kind_phys),intent(out),dimension(its:ite):: &
+ real(kind=kind_phys),intent(out),dimension(its:):: &
     lh,         &
     u10,        &
     v10,        &
@@ -179,14 +134,14 @@
     t2,         &
     q2
 
- real(kind=kind_phys),intent(out),dimension(its:ite),optional:: &
+ real(kind=kind_phys),intent(out),dimension(its:),optional:: &
     ck,         &
     cka,        &
     cd,         &
     cda
 
 !--- inout arguments:
- real(kind=kind_phys),intent(inout),dimension(its:ite):: &
+ real(kind=kind_phys),intent(inout),dimension(its:):: &
     regime,     &
     hfx,        &
     qfx,        &
@@ -211,7 +166,7 @@
     flqc,       &
     qgh
 
- real(kind=kind_phys),intent(inout),dimension(its:ite),optional:: &
+ real(kind=kind_phys),intent(inout),dimension(its:),optional:: &
     ustm
 
 !--- local variables:
@@ -219,6 +174,7 @@
 
  real(kind=kind_phys),parameter:: xka = 2.4e-5
  real(kind=kind_phys),parameter:: prt = 1.
+ real(kind=kind_phys),parameter:: salinity_factor = 0.98
 
  real(kind=kind_phys):: pl,thcon,tvcon,e1
  real(kind=kind_phys):: zl,tskv,dthvdz,dthvm,vconv,rzol,rzol2,rzol10,zol2,zol10
@@ -320,9 +276,11 @@
     thvx(i)=thx(i)*tvcon                                               
     scr4(i)=scr3(i)*tvcon                                              
  50 continue                                                                 
-!                                                                                
+!
  do 60 i=its,ite
     e1=svp1*exp(svp2*(tgdsa(i)-svpt0)/(tgdsa(i)-svp3))                       
+    !the saturation vapor pressure for salty water is on average 2% lower
+    if(xland(i).gt.1.5 .and. lakemask(i).eq.0.) e1=e1*salinity_factor
     !for land points qsfc can come from previous time step
     if(xland(i).gt.1.5.or.qsfc(i).le.0.0)qsfc(i)=ep2*e1/(psfc(i)-e1)                                                 
 !QGH CHANGED TO USE LOWEST-LEVEL AIR TEMP CONSISTENT WITH MYJSFC CHANGE
@@ -333,7 +291,7 @@
     cpm(i)=cp*(1.+0.8*qx(i))                                   
  60 continue                                                                   
  80 continue
-                                                                                 
+
 !-----COMPUTE THE HEIGHT OF FULL- AND HALF-SIGMA LEVELS ABOVE GROUND             
 !     LEVEL, AND THE LAYER THICKNESSES.                                          
                                                                                  
@@ -823,7 +781,7 @@
                                                                                   
 !-----COMPUTE THE SURFACE SENSIBLE AND LATENT HEAT FLUXES:                       
  if(present(scm_force_flux) ) then
-    if(scm_force_flux.eq.1) goto 350
+    if(scm_force_flux) goto 350
     endif
     do i = its,ite
        qfx(i)=0.                                                              
@@ -831,15 +789,15 @@
     enddo
  350 continue                                                                   
 
- if(isfflx.eq.0) goto 410                                                
-                                                                                 
+ if(.not. isfflx) goto 410
+
 !-----OVER WATER, ALTER ROUGHNESS LENGTH (ZNT) ACCORDING TO WIND (UST).          
  do 360 i = its,ite
     if((xland(i)-1.5).ge.0)then                                            
 !      znt(i)=czo*ust(i)*ust(i)/g+ozo                                   
        ! PSH - formulation for depth-dependent roughness from
        ! ... Jimenez and Dudhia, 2018
-       if(shalwater_z0 .eq. 1) then
+       if(shalwater_z0) then
           znt(i) = depth_dependent_z0(water_depth(i),znt(i),ust(i))
        else
           !Since V3.7 (ref: EC Physics document for Cy36r1)
@@ -892,15 +850,15 @@
 !IF(IDRY.EQ.1)GOTO 390                                                
 !                                                                                
  if(present(scm_force_flux)) then
-    if(scm_force_flux.eq.1) goto 405
+    if(scm_force_flux) goto 405
     endif
 
     do 370 i = its,ite
        qfx(i)=flqc(i)*(qsfc(i)-qx(i))                                     
-       qfx(i)=amax1(qfx(i),0.)                                            
+!      qfx(i)=amax1(qfx(i),0.)                                            
        lh(i)=xlv*qfx(i)
     370 continue                                                                 
-                                                                                
+
 !-----COMPUTE SURFACE HEAT FLUX:                                                 
 !                                                                                
     390 continue                                                                 
@@ -915,7 +873,7 @@
 !         endif 
        elseif(xland(i)-1.5.lt.0.)then                                       
           hfx(i)=flhc(i)*(thgb(i)-thx(i))                                
-          hfx(i)=amax1(hfx(i),-250.)                                       
+!         hfx(i)=amax1(hfx(i),-250.)                                       
        endif                                                                  
    400 continue                                                                 
 
@@ -942,7 +900,7 @@
       cqs2(i)=ust(i)*karman/denomq2(i)
          chs2(i)=ust(i)*karman/denomt2(i)
    enddo
-                                                                        
+
    410 continue                                                                   
 
 !jdf
