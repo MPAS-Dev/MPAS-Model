@@ -48,8 +48,8 @@ restart_timestamp
 *.TBL
 *DATA*
 
-# Ignore MPAS core build files.
-.mpas_core_*
+# Files for detecting whether builds of cores or shared framework can be reused
+.build_opts*
 
 # Ignore all runtime config files
 namelist.*
