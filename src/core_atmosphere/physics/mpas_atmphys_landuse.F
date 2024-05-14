@@ -98,6 +98,7 @@
  logical,pointer:: config_do_restart,  &
                    config_frac_seaice, &
                    config_sfc_albedo
+
  character(len=StrKIND),pointer:: mminlu
 
  integer,pointer:: nCells

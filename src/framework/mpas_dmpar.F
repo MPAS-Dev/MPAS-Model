@@ -170,14 +170,6 @@ include 'mpif.h'
       module procedure mpas_dmpar_exch_halo_field5d_real
    end interface
 
-   interface mpas_dmpar_exch_halo_adj_field
-      module procedure mpas_dmpar_exch_halo_adj_field2d_real
-   end interface
-
-   public :: mpas_dmpar_exch_halo_adj_field
-
-   private :: mpas_dmpar_exch_halo_adj_field2d_real
-
    public :: mpas_dmpar_exch_halo_field
 
    private :: mpas_dmpar_exch_halo_field1d_integer
