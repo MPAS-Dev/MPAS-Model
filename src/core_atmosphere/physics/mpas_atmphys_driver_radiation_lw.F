@@ -418,7 +418,7 @@
 
     case("rrtmg_lw")
        microp_select: select case(microp_scheme)
-          case("mp_thompson","mp_wsm6")
+          case("mp_thompson","mp_thompson_aerosols","mp_wsm6")
              if(config_microp_re) then
                 call mpas_pool_get_array(diag_physics,'re_cloud',re_cloud)
                 call mpas_pool_get_array(diag_physics,'re_ice'  ,re_ice  )
@@ -690,7 +690,7 @@
     case("rrtmg_lw")
 
        microp_select: select case(microp_scheme)
-          case("mp_thompson","mp_wsm6")
+          case("mp_thompson","mp_thompson_aerosols","mp_wsm6")
              call mpas_pool_get_array(diag_physics,'rre_cloud',rre_cloud)
              call mpas_pool_get_array(diag_physics,'rre_ice'  ,rre_ice  )
              call mpas_pool_get_array(diag_physics,'rre_snow' ,rre_snow )
