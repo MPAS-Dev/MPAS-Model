@@ -1605,6 +1605,14 @@
                 <var name="vorticity" type="real" dimensions="nVertLevels nVertices Time" units="s^{-1}"
                      description="Relative vorticity at vertices"/>
 
+                <var name="stream_function" type="real" dimensions="nVertLevels nCells Time" units="m^2 s^{-1}"
+                     description="Stream function"
+                     packages="jedi_da"/>
+
+                <var name="velocity_potential" type="real" dimensions="nVertLevels nCells Time" units="m^2 s^{-1}"
+                     description="Velocity potential"
+                     packages="jedi_da"/>
+
                 <var name="pv_edge" type="real" dimensions="nVertLevels nEdges Time" units="s^{-1}"
                      description="absolute vertical vorticity averaged to the cell edge from the vertices"/>
 
