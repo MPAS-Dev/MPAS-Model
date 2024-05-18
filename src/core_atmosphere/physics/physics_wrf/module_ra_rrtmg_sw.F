@@ -9840,6 +9840,13 @@ use module_ra_rrtmg_vinterp,only: vinterp_ozn
 !>     microphysics scheme as inputs to the subroutine rrtmg_swrad. revised the initialization of arrays rel,
 !>     rei, and res, accordingly.
 !>     Laura D. Fowler (laura@ucar.edu) / 2016-07-07.
+!>   * added the optional arguments, tauaer3d, ssaaer3d, and asyaer3d to include the optical depth, single
+!>     scattering albedo, and asymmetry factor of aerosols. to date, the only kind of aerosols included in MPAS
+!>     are the "water-friendly" and "ice-friendly" aerosols used in the Thompson cloud microphysics scheme.
+!>     Laura D. Fowler (laura@ucar.edu) / 2024-05-16.
+!>   * added the option aer_opt in the argument list. revised the initialization of arrays tauaer,ssaaer, and
+!>     asmaer to include the optical properties of aerosols.
+!>     Laura D. Fowler (laura@ucar.edu) / 2024-05-16.
 !MPAS specfic end.
 
 #else
@@ -9873,6 +9880,7 @@ CONTAINS
                        noznlevels,pin,o3clim,gsw,swcf,rthratensw,      &
                        has_reqc,has_reqi,has_reqs,re_cloud,            &
                        re_ice,re_snow,                                 &
+                       aer_opt,tauaer3d,ssaaer3d,asyaer3d,             &
                        swupt,swuptc,swdnt,swdntc,                      &
                        swupb,swupbc,swdnb,swdnbc,                      &
                        swupflx, swupflxc, swdnflx, swdnflxc,           &
@@ -9908,6 +9916,12 @@ CONTAINS
  integer,intent(in):: noznlevels
  real,intent(in),dimension(1:noznlevels),optional:: pin
  real,intent(in),dimension(ims:ime,1:noznlevels,jms:jme),optional:: o3clim
+
+!--- additional input arguments of the aerosol optical depth, single scattering albedo, and asymmetry factor. to
+!    date, the only kind of aerosols included in MPAS are the "water-friendly" and "ice-friendly" aerosols used
+!    in the Thompson cloud microphysics scheme:
+ integer,intent(in),optional:: aer_opt
+ real,intent(in),dimension(ims:ime,kms:kme,jms:jme,1:nbndsw),optional:: tauaer3d,ssaaer3d,asyaer3d
 
 !--- inout arguments:
  real,intent(inout),dimension(ims:ime,jms:jme):: coszr,gsw,swcf
@@ -9967,7 +9981,6 @@ CONTAINS
 !--- additional local variables related to the implementation of aerosols in rrtmg_swrad in WRF 3.8.
 !    In WRF 3.8, these variables are in the argument list of subroutine rrtmg_swrad, but are made
 !    local here:
- integer:: aer_opt 
  real,dimension(1,kts:kte+1,naerec):: ecaer
 
 !--- set trace gas volume mixing ratios, 2005 values, IPCC (2007):
@@ -10131,7 +10144,6 @@ CONTAINS
           enddo
 
           !--- initialization of aerosol optical properties:
-          aer_opt = 0
           do n = 1, ncol
              do k = 1, nlay
                 do na = 1, naerec
@@ -10367,13 +10379,27 @@ CONTAINS
                       fsfcmcl)
 
           !--- initialization of aerosol optical properties:
-          do nb = 1, nbndsw
-             do k = kts, kte+1
+          if(present(tauaer3d) .and. present(ssaaer3d) .and. present(asyaer3d)) then
+             do nb = 1, nbndsw
+                do k = kts, kte
+                   tauaer(ncol,k,nb) = tauaer3d(i,k,j,nb)
+                   ssaaer(ncol,k,nb) = ssaaer3d(i,k,j,nb)
+                   asmaer(ncol,k,nb) = asyaer3d(i,k,j,nb)
+                enddo
+                k = kte+1
                 tauaer(ncol,k,nb) = 0.
                 ssaaer(ncol,k,nb) = 1.
                 asmaer(ncol,k,nb) = 0.
              enddo
-          enddo
+          else
+             do nb = 1, nbndsw
+                do k = kts, kte+1
+                   tauaer(ncol,k,nb) = 0.
+                   ssaaer(ncol,k,nb) = 1.
+                   asmaer(ncol,k,nb) = 0.
+                enddo
+             enddo
+          endif
 
           do na = 1, naerec
              do k = kts, kte+1

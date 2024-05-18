@@ -599,6 +599,35 @@
     icedepth_p         !seaice thickness                                                                       [m]
 
 !=================================================================================================================
+!... variables and arrays related to the calculation of the optical properties of aerosols: to date, the only kind
+!    of aerosols included in MPAS are the "water-friendly" and "ice-friendly" aerosols used in the Thompson cloud
+!    cloud microphysics scheme.
+!=================================================================================================================
+
+ integer,parameter:: taer_aod550_opt = 2!input option for nwfa, nifa optical depth at 500 nm.
+ integer,parameter:: taer_angexp_opt = 3!input option for nwfa, nifa aerosol Angstrom exponent.
+ integer,parameter:: taer_ssa_opt    = 3!input option for nwfa, nifa aerosol single-scattering albedo.
+ integer,parameter:: taer_asy_opt    = 3!input option for nwfa, nifa aerosol asymmetry factor.
+
+ integer:: aer_opt                      !=[0,3]  : 0 for no aerosols, 3 for "water-" and "ice-friendly" aerosols.
+ integer,dimension(:,:),allocatable:: &
+                     taer_type_p        !=[1,2,3]: 1 for rural, 2 is urban and 3 is maritime in WRF. In MPAS,
+                                        !aer_type is initialized as a function of landmask (=1 over land; =2 over
+                                        !oceans.
+
+ real(kind=RKIND),parameter:: aer_aod550_val = 0.12
+ real(kind=RKIND),parameter:: aer_angexp_val = 1.3
+ real(kind=RKIND),parameter:: aer_ssa_val    = 0.85
+ real(kind=RKIND),parameter:: aer_asy_val    = 0.9
+
+ real(kind=RKIND),dimension(:,:),allocatable  ::   taod5502d_p!total aerosol optical depth at 550 nm           [-]
+ real(kind=RKIND),dimension(:,:,:),allocatable::   taod5503d_p!aerosol optical depth at 550 nm                 [-]
+
+ real(kind=RKIND),dimension(:,:,:,:),allocatable:: tauaer_p   !aerosol optical depth in RRTMG SW               [-]
+ real(kind=RKIND),dimension(:,:,:,:),allocatable:: ssaaer_p   !aerosol single scatterin albedo in RRTMG SW     [-]
+ real(kind=RKIND),dimension(:,:,:,:),allocatable:: asyaer_p   !aerosol asymmetry factor in RRTMG SW            [-]
+
+!=================================================================================================================
 !... variables and arrays related to parameterization of short-wave radiation:
 !=================================================================================================================
 
