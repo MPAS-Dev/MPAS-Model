@@ -419,7 +419,7 @@
 
 !local pointers:
  integer,pointer:: index_qc,index_qr,index_qi,index_qs,index_qg
- integer,pointer:: index_ni
+ integer,pointer:: index_nc,index_ni,index_nifa,index_nwfa
 
 !-----------------------------------------------------------------------------------------------------------------
 
@@ -443,15 +443,20 @@
  if(index_qg .gt. -1) f_qg = .true.
 
 !initializes the logical assigned to number concentrations:
- f_nc   = .false. !nc is not defined in Registry.xml - therefore f_nc is initialized to false.
+ f_nc   = .false.
  f_ni   = .false.
- f_nifa = .false. !nifa is not defined in Registry.xml - therefore f_nc is initialized to false.
- f_nwfa = .false. !nwfa is not defined in Registry.xml - therefore f_nc is initialized to false.
+ f_nifa = .false.
+ f_nwfa = .false.
  f_nbca = .false. !nbca is not defined in Registry.xml - therefore f_nc is initialized to false.
+ call mpas_pool_get_dimension(state,'index_nc'  ,index_nc  )
+ call mpas_pool_get_dimension(state,'index_ni'  ,index_ni  )
+ call mpas_pool_get_dimension(state,'index_nifa',index_nifa)
+ call mpas_pool_get_dimension(state,'index_nwfa',index_nwfa)
 
- call mpas_pool_get_dimension(state,'index_ni',index_ni)
-
- if(index_ni .gt. -1) f_ni = .true.
+ if(index_nc   .gt. -1) f_nc   = .true.
+ if(index_ni   .gt. -1) f_ni   = .true.
+ if(index_nifa .gt. -1) f_nifa = .true.
+ if(index_nwfa .gt. -1) f_nwfa = .true.
 
  end subroutine init_physics_flags
 
