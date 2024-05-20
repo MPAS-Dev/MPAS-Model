@@ -422,7 +422,27 @@
                         input_interval="none"
                         immutable="true"
                         in_defaults="false">
-
+			<var name="isltyp"/>
+			<var name="ivgtyp"/>
+			<var name="mminlu"/>
+			<var name="isice_lu"/>
+			<var name="iswater_lu"/>
+			<var name="landmask"/>
+			<var name="shdmin"/>
+			<var name="shdmax"/>
+			<var name="snoalb"/>
+			<var name="albedo12m"/>
+			<var name="greenfrac"/>
+			<var name="var2d"/>
+			<var name="con"/>
+			<var name="oa1"/>
+			<var name="oa2"/>
+			<var name="oa3"/>
+			<var name="oa4"/>
+			<var name="ol1"/>
+			<var name="ol2"/>
+			<var name="ol3"/>
+			<var name="ol4"/>
 			<var name="latCell"/>
 			<var name="lonCell"/>
 			<var name="xCell"/>
@@ -517,17 +537,6 @@
 			<var name="surface_pressure"/>
 
 #ifdef DO_PHYSICS
-			<var name="isltyp"/>
-			<var name="ivgtyp"/>
-			<var name="mminlu"/>
-			<var name="isice_lu"/>
-			<var name="iswater_lu"/>
-			<var name="landmask"/>
-			<var name="shdmin"/>
-			<var name="shdmax"/>
-			<var name="snoalb"/>
-			<var name="albedo12m"/>
-			<var name="greenfrac"/>
 			<var name="sfc_albbck"/>
 			<var name="skintemp"/>
 			<var name="snow"/>
@@ -548,16 +557,6 @@
 			<var name="sh2o"/>
 			<var name="smois"/>
 			<var name="tslb"/>
-			<var name="var2d"/>
-			<var name="con"/>
-			<var name="oa1"/>
-			<var name="oa2"/>
-			<var name="oa3"/>
-			<var name="oa4"/>
-			<var name="ol1"/>
-			<var name="ol2"/>
-			<var name="ol3"/>
-			<var name="ol4"/>
 			<var name="h_oml_initial"/>
 #endif
 		</stream>
