@@ -201,7 +201,7 @@
  real(kind=kind_phys),intent(in):: &
     delt
 
- real(kind=kind_phys),intent(in),dimension(its:ite):: &
+ real(kind=kind_phys),intent(in),dimension(its:):: &
     dx,          &!
     xland,       &!
     ps,          &!
@@ -217,7 +217,7 @@
     voce,        &!
     znt           !
 
- real(kind=kind_phys),intent(in),dimension(its:ite,kts:kte):: &
+ real(kind=kind_phys),intent(in),dimension(its:,:):: &
     dz,          &!
     u,           &!
     v,           &!
@@ -228,7 +228,7 @@
     rho,         &!
     rthraten      !
 
- real(kind=kind_phys),intent(in),dimension(its:ite,kts:kte):: &
+ real(kind=kind_phys),intent(in),dimension(its:,:):: &
     sqv,         &!
     sqc,         &!
     sqi,         &!
@@ -240,26 +240,26 @@
     qnbca,       &!
     qozone        !
 
- real(kind=kind_phys),intent(in),dimension(its:ite,kts:kte):: &
+ real(kind=kind_phys),intent(in),dimension(its:,:):: &
     pattern_spp_pbl
 
- real(kind=kind_phys),intent(in),dimension(its:ite,kts:kme):: &
+ real(kind=kind_phys),intent(in),dimension(its:,:):: &
     w             !
 
 !inout arguments:
- integer,intent(inout),dimension(its:ite):: &
+ integer,intent(inout),dimension(its:):: &
     kpbl,        &!
     ktop_plume    !
 
- real(kind=kind_phys),intent(inout),dimension(its:ite):: &
+ real(kind=kind_phys),intent(inout),dimension(its:):: &
     pblh
 
- real(kind=kind_phys),intent(inout),dimension(its:ite,kts:kte):: &
+ real(kind=kind_phys),intent(inout),dimension(its:,:):: &
     cldfra_bl,   &!
     qc_bl,       &!
     qi_bl         !
 
- real(kind=kind_phys),intent(inout),dimension(its:ite,kts:kte):: &
+ real(kind=kind_phys),intent(inout),dimension(its:,:):: &
     el_pbl,      &!
     qke,         &!
     qke_adv,     &!
@@ -269,7 +269,7 @@
     sh,          &!
     sm            !
 
- real(kind=kind_phys),intent(inout),dimension(its:ite,kts:kte):: &
+ real(kind=kind_phys),intent(inout),dimension(its:,:):: &
     rublten,     &!
     rvblten,     &!
     rthblten,    &!
@@ -284,7 +284,7 @@
     rqnbcablten, &!
     rqozblten     !
 
- real(kind=kind_phys),intent(inout),dimension(its:ite,kts:kte):: &
+ real(kind=kind_phys),intent(inout),dimension(its:,:):: &
     edmf_a,      &!
     edmf_w,      &!
     edmf_qt,     &!
@@ -296,7 +296,7 @@
     det_thl,     &!
     det_sqv       !
 
- real(kind=kind_phys),intent(inout),dimension(its:ite,kts:kte),optional:: &
+ real(kind=kind_phys),intent(inout),dimension(its:,:),optional:: &
     edmf_a_dd,   &!
     edmf_w_dd,   &!
     edmf_qt_dd,  &!
@@ -312,16 +312,16 @@
  integer,intent(out):: &
     errflg        ! output error flag (-).
 
- real(kind=kind_phys),intent(out),dimension(its:ite):: &
+ real(kind=kind_phys),intent(out),dimension(:):: &
     maxwidth,   &!
     maxmf,      &!
     ztop_plume
 
- real(kind=kind_phys),intent(out),dimension(its:ite,kts:kte):: &
+ real(kind=kind_phys),intent(out),dimension(its:,:):: &
     exch_h,      &!
     exch_m        !
 
- real(kind=kind_phys),intent(out),dimension(its:ite,kts:kte),optional:: &
+ real(kind=kind_phys),intent(out),dimension(its:,:),optional:: &
     dqke,        &!
     qwt,         &!
     qshear,      &!
