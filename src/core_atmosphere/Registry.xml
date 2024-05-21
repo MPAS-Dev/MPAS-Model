@@ -1135,6 +1135,7 @@
 
                 </stream>
 
+#ifdef MPAS_JEDI
 		<stream name="da_state"
                         type="input;output"
                         filename_template="mpasout.$Y-$M-$D_$h.$m.$s.nc"
@@ -1201,6 +1202,7 @@
 			<var name="tslb"/>
 			<var name="h_oml_initial"/>
                 </stream>
+#endif
 	</streams>
 
 
