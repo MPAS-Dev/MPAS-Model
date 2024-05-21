@@ -1,5 +1,5 @@
 <?xml version="1.0"?>
-<registry model="mpas" core="atmosphere" core_abbrev="atm" version="8.1.0">
+<registry model="mpas" core="atmosphere" core_abbrev="atm" version="8.0.2">
 
 <!-- **************************************************************************************** -->
 <!-- ************************************** Dimensions ************************************** -->
@@ -416,33 +416,13 @@
 <!-- **************************************************************************************** -->
 
 	<streams>
-		<stream name="invariant"
-                        type="input"
-                        filename_template="invariant.nc"
+		<stream name="invariant" 
+                        type="input" 
+                        filename_template="invariant.nc" 
                         input_interval="none"
                         immutable="true"
                         in_defaults="false">
-			<var name="isltyp"/>
-			<var name="ivgtyp"/>
-			<var name="mminlu"/>
-			<var name="isice_lu"/>
-			<var name="iswater_lu"/>
-			<var name="landmask"/>
-			<var name="shdmin"/>
-			<var name="shdmax"/>
-			<var name="snoalb"/>
-			<var name="albedo12m"/>
-			<var name="greenfrac"/>
-			<var name="var2d"/>
-			<var name="con"/>
-			<var name="oa1"/>
-			<var name="oa2"/>
-			<var name="oa3"/>
-			<var name="oa4"/>
-			<var name="ol1"/>
-			<var name="ol2"/>
-			<var name="ol3"/>
-			<var name="ol4"/>
+
 			<var name="latCell"/>
 			<var name="lonCell"/>
 			<var name="xCell"/>
@@ -513,9 +493,9 @@
 
                 </stream>
 
-		<stream name="input"
-                        type="input"
-                        filename_template="x1.40962.init.nc"
+		<stream name="input" 
+                        type="input" 
+                        filename_template="x1.40962.init.nc" 
                         input_interval="initial_only"
                         immutable="true">
 
@@ -537,6 +517,17 @@
 			<var name="surface_pressure"/>
 
 #ifdef DO_PHYSICS
+			<var name="isltyp"/>
+			<var name="ivgtyp"/>
+			<var name="mminlu"/>
+			<var name="isice_lu"/>
+			<var name="iswater_lu"/>
+			<var name="landmask"/>
+			<var name="shdmin"/>
+			<var name="shdmax"/>
+			<var name="snoalb"/>
+			<var name="albedo12m"/>
+			<var name="greenfrac"/>
 			<var name="sfc_albbck"/>
 			<var name="skintemp"/>
 			<var name="snow"/>
@@ -557,15 +548,25 @@
 			<var name="sh2o"/>
 			<var name="smois"/>
 			<var name="tslb"/>
+			<var name="var2d"/>
+			<var name="con"/>
+			<var name="oa1"/>
+			<var name="oa2"/>
+			<var name="oa3"/>
+			<var name="oa4"/>
+			<var name="ol1"/>
+			<var name="ol2"/>
+			<var name="ol3"/>
+			<var name="ol4"/>
 			<var name="h_oml_initial"/>
 #endif
 		</stream>
 
-		<stream name="restart"
-                        type="input;output"
-                        filename_template="restart.$Y-$M-$D_$h.$m.$s.nc"
-                        input_interval="initial_only"
-                        output_interval="1_00:00:00"
+		<stream name="restart" 
+                        type="input;output" 
+                        filename_template="restart.$Y-$M-$D_$h.$m.$s.nc" 
+                        input_interval="initial_only" 
+                        output_interval="1_00:00:00" 
                         immutable="true">
 
 			<stream name="invariant" packages="no_invariant_stream"/>
@@ -839,9 +840,9 @@
 #endif
 		</stream>
 
-		<stream name="output"
-                        type="output"
-                        filename_template="history.$Y-$M-$D_$h.$m.$s.nc"
+		<stream name="output" 
+                        type="output" 
+                        filename_template="history.$Y-$M-$D_$h.$m.$s.nc" 
                         output_interval="6:00:00"
                         runtime_format="separate_file">
 
@@ -964,9 +965,9 @@
 #endif
 		</stream>
 
-		<stream name="diagnostics"
-                        type="output"
-                        filename_template="diag.$Y-$M-$D_$h.$m.$s.nc"
+		<stream name="diagnostics" 
+                        type="output" 
+                        filename_template="diag.$Y-$M-$D_$h.$m.$s.nc" 
                         output_interval="3:00:00"
                         runtime_format="separate_file">
 
@@ -1093,9 +1094,9 @@
 #endif
 		</stream>
 
-		<stream name="surface"
-                        type="input"
-                        filename_template="x1.40962.sfc_update.nc"
+		<stream name="surface" 
+                        type="input" 
+                        filename_template="x1.40962.sfc_update.nc" 
                         input_interval="none"
                         filename_interval="none"
                         runtime_format="separate_file">
@@ -1106,9 +1107,9 @@
 #endif
 		</stream>
 
-	        <stream name="iau"
-                        type="input"
-                        filename_template="x1.40962.AmB.$Y-$M-$D_$h.$m.$s.nc"
+	        <stream name="iau" 
+                        type="input" 
+                        filename_template="x1.40962.AmB.$Y-$M-$D_$h.$m.$s.nc" 
                         input_interval="initial_only"
                         filename_interval="none"
                         immutable="true"
@@ -1122,7 +1123,7 @@
                         type="input"
                         filename_template="lbc.$Y-$M-$D_$h.$m.$s.nc"
                         filename_interval="input_interval"
-                        input_interval="3:00:00"
+                        input_interval="3:00:00" 
                         runtime_format="single_file"
                         immutable="true"
                         packages="limited_area">
@@ -1134,75 +1135,6 @@
                         <var_array name="lbc_scalars" />
 
                 </stream>
-
-#ifdef MPAS_JEDI
-		<stream name="da_state"
-                        type="input;output"
-                        filename_template="mpasout.$Y-$M-$D_$h.$m.$s.nc"
-                        input_interval="initial_only"
-                        output_interval="0_06:00:00"
-                        immutable="true"
-                        packages="jedi_da">
-
-			<var_array name="scalars"/>
-			<var name="initial_time"/>
-			<var name="xtime"/>
-			<var name="cldfrac"/>
-			<var name="re_cloud" packages="mp_thompson_in;mp_wsm6_in"/>
-			<var name="re_ice" packages="mp_thompson_in;mp_wsm6_in"/>
-			<var name="re_snow" packages="mp_thompson_in;mp_wsm6_in"/>
-			<var name="u"/>
-			<var name="w"/>
-			<var name="rho"/>
-			<var name="pressure_p"/>
-			<var name="pressure_base"/>
-			<var name="theta"/>
-			<var name="relhum"/>
-			<var name="rho_base"/>
-			<var name="theta_base"/>
-			<var name="uReconstructZonal"/>
-			<var name="uReconstructMeridional"/>
-			<var name="surface_pressure"/>
-			<var name="refl10cm_max"/>
-			<var name="rainc"/>
-			<var name="rainnc"/>
-			<var name="lai"/>
-			<var name="isice_lu"/>
-			<var name="iswater_lu"/>
-			<var name="sfc_albbck"/>
-			<var name="sfc_albedo"/>
-			<var name="sfc_emibck"/>
-			<var name="mavail"/>
-			<var name="sfc_emiss"/>
-			<var name="thc"/>
-			<var name="ust"/>
-			<var name="xicem"/>
-			<var name="z0"/>
-			<var name="znt"/>
-			<var name="skintemp"/>
-			<var name="snow"/>
-			<var name="snowc"/>
-			<var name="snowh"/>
-			<var name="sst"/>
-			<var name="tmn"/>
-			<var name="vegfra"/>
-			<var name="seaice"/>
-			<var name="xice"/>
-			<var name="xland"/>
-			<var name="u10"/>
-			<var name="v10"/>
-			<var name="q2"/>
-			<var name="t2m"/>
-			<var name="precipw"/>
-			<var name="dzs"/>
-			<var name="zs"/>
-			<var name="ter"/>
-			<var name="sh2o"/>
-			<var name="smois"/>
-			<var name="tslb"/>
-			<var name="h_oml_initial"/>
-                </stream>
-#endif
 	</streams>
 
 
@@ -1531,7 +1463,7 @@
                      description="Moist potential temperature: theta*(1+q_v*R_v/R_d)"/>
 
                 <!-- When MPAS-A is used as a dycore in CAM, scalars are allocated at runtime via -->
-                <!-- a call to the atm_allocate_scalars routine from setup_block. The specific    -->
+                <!-- a call to the atm_allocate_scalars routine from setup_block. The specific    --> 
                 <!-- constituent at each position in the scalars array is later set by code in    -->
                 <!-- the CAM-MPAS interface layer.                                                -->
 #ifndef MPAS_CAM_DYCORE
@@ -1672,14 +1604,6 @@
 
                 <var name="vorticity" type="real" dimensions="nVertLevels nVertices Time" units="s^{-1}"
                      description="Relative vorticity at vertices"/>
-
-                <var name="stream_function" type="real" dimensions="nVertLevels nCells Time" units="m^2 s^{-1}"
-                     description="Stream function"
-                     packages="jedi_da"/>
-
-                <var name="velocity_potential" type="real" dimensions="nVertLevels nCells Time" units="m^2 s^{-1}"
-                     description="Velocity potential"
-                     packages="jedi_da"/>
 
                 <var name="pv_edge" type="real" dimensions="nVertLevels nEdges Time" units="s^{-1}"
                      description="absolute vertical vorticity averaged to the cell edge from the vertices"/>
@@ -1824,7 +1748,7 @@
 
         <var_struct name="tend" time_levs="1">
 
-
+                
                 <!-- tendencies for prognostic variables -->
                 <var name="tend_u" name_in_code="u" type="real" dimensions="nVertLevels nEdges Time" units="m s^{-2}"
                      description="Tendency of u from dynamics"/>
@@ -1860,7 +1784,7 @@
                      description="Tendency of surface pressure"/>
 
                 <!-- When MPAS-A is used as a dycore in CAM, scalars are allocated at runtime via -->
-                <!-- a call to the atm_allocate_scalars routine from setup_block. The specific    -->
+                <!-- a call to the atm_allocate_scalars routine from setup_block. The specific    --> 
                 <!-- constituent at each position in the scalars array is later set by code in    -->
                 <!-- the CAM-MPAS interface layer.                                                -->
 #ifndef MPAS_CAM_DYCORE
@@ -1893,7 +1817,7 @@
                              description="Tendency of cloud ice number concentration multiplied by dry air density divided by d(zeta)/dz"
                              packages="bl_mynn_in;mp_thompson_in"/>
 
-                        <var name="tend_nr" name_in_code="nr" array_group="number" units="nb m^{-3} s^{-1}"
+                        <var name="tend_nr" name_in_code="nr" array_group="number" units="nb m^{-3} s^{-1}" 
                              description="Tendency of rain number concentration multiplied by dry air density divided by d(zeta)/dz"
                              packages="mp_thompson_in"/>
                 </var_array>
@@ -2011,7 +1935,7 @@
                      possible_values="Positive integers"/>
 
                 <!-- NAMELIST VARIABLES ADDED FOR PHYSICS CONFIGURATION: -->
-
+                
                 <nml_option name="config_frac_seaice" type="logical" default_value="true" in_defaults="false"
                      units="-"
                      description="logical for configuration of fractional sea-ice"
@@ -2263,7 +2187,7 @@
 
                 <nml_option name="config_oml_hml0" type="real" default_value="30.0" in_defaults="false"
                      units="m"
-                     description="If greater than zero, provides the constant, initial mixed-layer depth; if zero, initial mixed-layer depth will be taken from the `oml_initial` field."
+                     description="If greater than zero, provides the constant, initial mixed-layer depth; if zero, initial mixed-layer depth will be taken from the `oml_initial` field." 
                      possible_values="Non-negative real values"/>
 
                 <nml_option name="config_oml_gamma" type="real" default_value="0.14" in_defaults="false"
@@ -3160,7 +3084,7 @@
                 <var name="tend_umerid" type="real" dimensions="nVertLevels nCells Time" units="m s^{-1} s^{-1}"
                      description="Total cell-centered meridional wind tendency from physics"
                      persistence="scratch" />
-
+ 
 #ifdef DO_PHYSICS
                 <!-- ================================================================================================== -->
                 <!-- TENDENCIES FROM PARAMETERIZATION OF CONVECTION:                                                    -->
@@ -3403,7 +3327,7 @@
 #endif
 
         <var_struct name="tend_iau" time_levs="1" packages="iau">
-
+			
                 <!-- analysis increments; read from iau input -->
                 <var name="u_amb"     name_in_code="u" type="real" dimensions="nVertLevels nEdges Time" units="m s^{-1}"
                      description="Horizontal normal velocity increment"/>

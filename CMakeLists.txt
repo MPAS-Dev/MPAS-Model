@@ -15,7 +15,6 @@ if(MPAS_CORES MATCHES " ") #Convert strings separated with spaces to CMake list 
     set(MPAS_CORES ${MPAS_CORES} CACHE STRING "MPAS cores to build. Options: ${MPAS_ALL_CORES}" FORCE)
 endif()
 option(DO_PHYSICS "Use built-in physics schemes." TRUE)
-option(MPAS_JEDI "Include MPAS-JEDI specific streams in registry." FALSE)
 option(MPAS_DOUBLE_PRECISION "Use double precision 64-bit Floating point." TRUE)
 option(MPAS_PROFILE "Enable GPTL profiling" OFF)
 option(MPAS_OPENMP "Enable OpenMP" OFF)
@@ -23,7 +22,6 @@ option(BUILD_SHARED_LIBS "Build shared libraries" ON)
 
 message(STATUS "[OPTION] MPAS_CORES: ${MPAS_CORES}")
 message(STATUS "[OPTION] MPAS_DOUBLE_PRECISION: ${MPAS_DOUBLE_PRECISION}")
-message(STATUS "[OPTION] MPAS_JEDI: ${MPAS_JEDI}")
 message(STATUS "[OPTION] MPAS_PROFILE: ${MPAS_PROFILE}")
 message(STATUS "[OPTION] MPAS_OPENMP: ${MPAS_OPENMP}")
 message(STATUS "[OPTION] BUILD_SHARED_LIBS: ${BUILD_SHARED_LIBS}")
@@ -191,9 +189,6 @@ macro(mpas_core_target)
     #Process registry and generate includes, namelists, and streams
     if (${DO_PHYSICS})
         set(CPP_EXTRA_FLAGS ${CPP_EXTRA_FLAGS} -DDO_PHYSICS)
-    endif()
-    if (${MPAS_JEDI})
-        set(CPP_EXTRA_FLAGS ${CPP_EXTRA_FLAGS} -DMPAS_JEDI)
     endif()
 add_custom_command(OUTPUT Registry_processed.xml
                        COMMAND ${CPP_EXECUTABLE} -E -P ${CPP_EXTRA_FLAGS} ${CMAKE_CURRENT_SOURCE_DIR}/Registry.xml > Registry_processed.xml
