@@ -1553,7 +1553,6 @@
                               description="Mixing ratios of passive tracer 20"/>
                 </var_array>
 
-                </var_array>
 #endif
 
 #ifdef DO_PHYSICS

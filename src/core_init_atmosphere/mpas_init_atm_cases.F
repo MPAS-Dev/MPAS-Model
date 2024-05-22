@@ -76,7 +76,7 @@ module init_atm_cases
       real (kind=RKIND), pointer :: Time
 
       type (MPAS_Time_type)  :: curr_time, stop_time, start_time
-      type (MPAS_TimeInterval_type)  :: clock_interval, lbc_stream_interval, surface_stream_interval
+      type (MPAS_TimeInterval_type)  :: clock_interval, lbc_stream_interval, surface_stream_interval, chem_stream_interval
       type (MPAS_TimeInterval_type)  :: time_since_start
       character(len=StrKIND) :: timeString
 
