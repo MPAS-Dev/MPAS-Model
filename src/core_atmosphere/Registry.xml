@@ -1116,6 +1116,73 @@
                         <var_array name="lbc_scalars" />
 
                 </stream>
+
+		<stream name="da_state"
+                        type="input;output"
+                        filename_template="mpasout.$Y-$M-$D_$h.$m.$s.nc"
+                        input_interval="initial_only"
+                        output_interval="0_06:00:00"
+                        immutable="true"
+                        packages="jedi_da">
+
+			<var_array name="scalars"/>
+			<var name="initial_time"/>
+			<var name="xtime"/>
+			<var name="cldfrac"/>
+			<var name="re_cloud" packages="mp_thompson_in;mp_wsm6_in"/>
+			<var name="re_ice" packages="mp_thompson_in;mp_wsm6_in"/>
+			<var name="re_snow" packages="mp_thompson_in;mp_wsm6_in"/>
+			<var name="u"/>
+			<var name="w"/>
+			<var name="rho"/>
+			<var name="pressure_p"/>
+			<var name="pressure_base"/>
+			<var name="theta"/>
+			<var name="relhum"/>
+			<var name="rho_base"/>
+			<var name="theta_base"/>
+			<var name="uReconstructZonal"/>
+			<var name="uReconstructMeridional"/>
+			<var name="surface_pressure"/>
+			<var name="refl10cm_max"/>
+			<var name="rainc"/>
+			<var name="rainnc"/>
+			<var name="lai"/>
+			<var name="isice_lu"/>
+			<var name="iswater_lu"/>
+			<var name="sfc_albbck"/>
+			<var name="sfc_albedo"/>
+			<var name="sfc_emibck"/>
+			<var name="mavail"/>
+			<var name="sfc_emiss"/>
+			<var name="thc"/>
+			<var name="ust"/>
+			<var name="xicem"/>
+			<var name="z0"/>
+			<var name="znt"/>
+			<var name="skintemp"/>
+			<var name="snow"/>
+			<var name="snowc"/>
+			<var name="snowh"/>
+			<var name="sst"/>
+			<var name="tmn"/>
+			<var name="vegfra"/>
+			<var name="seaice"/>
+			<var name="xice"/>
+			<var name="xland"/>
+			<var name="u10"/>
+			<var name="v10"/>
+			<var name="q2"/>
+			<var name="t2m"/>
+			<var name="precipw"/>
+			<var name="dzs"/>
+			<var name="zs"/>
+			<var name="ter"/>
+			<var name="sh2o"/>
+			<var name="smois"/>
+			<var name="tslb"/>
+			<var name="h_oml_initial"/>
+                </stream>
 	</streams>
 
 
