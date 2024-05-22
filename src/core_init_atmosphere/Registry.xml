@@ -609,9 +609,61 @@
 
 			<var name="xtime"/>
 			<var name="Time"/>
+               <var name="latCell"/>
+               <var name="lonCell"/>
+               <var name="bdyMaskCell"/>
+               <var name="bdyMaskEdge"/>
+               <var name="bdyMaskVertex"/>
 			<var_struct name="lbc_state"/>
 		</stream>
 
+          # For PT Transport
+		<stream name="chem_flxs" 
+                        type="output" 
+                        filename_template="chem_flx.$Y-$M-$D_$h.$m.$s.nc"
+                        output_interval="3:00:00"
+                        filename_interval="output_interval"
+                        immutable="true">
+
+          		    <var name="xtime"/>
+                        <var name="latCell"/>
+                        <var name="lonCell"/>
+                        <var name="xCell"/>
+                        <var name="yCell"/>
+                        <var name="zCell"/>
+                        <var name="indexToCellID"/>
+                        <var name="latEdge"/>
+                        <var name="lonEdge"/>
+                        <var name="xEdge"/>
+                        <var name="yEdge"/>
+                        <var name="zEdge"/>
+                        <var name="indexToEdgeID"/>
+                        <var name="latVertex"/>
+                        <var name="lonVertex"/>
+                        <var name="xVertex"/>
+                        <var name="yVertex"/>
+                        <var name="zVertex"/>
+                        <var name="indexToVertexID"/>
+                        <var name="cellsOnEdge"/>
+                        <var name="nEdgesOnCell"/>
+                        <var name="nEdgesOnEdge"/>
+                        <var name="edgesOnCell"/>
+                        <var name="edgesOnEdge"/>
+                        <var name="weightsOnEdge"/>
+                        <var name="dvEdge"/>
+                        <var name="dcEdge"/>
+                        <var name="angleEdge"/>
+                        <var name="areaCell"/>
+                        <var name="areaTriangle"/>
+                        <var name="cellsOnCell"/>
+                        <var name="verticesOnCell"/>
+                        <var name="verticesOnEdge"/>
+                        <var name="edgesOnVertex"/>
+                        <var name="cellsOnVertex"/>
+                        <var_array name="tracers_fluxes"/>
+
+
+		</stream>
 	</streams>
 
 
@@ -976,6 +1028,91 @@
 
                         <var name="qr" array_group="moist" units="kg kg^{-1}"
                              description="Rain water mixing ratio"/>
+
+
+                        <var name="tracer_1" name_in_code="tracer_1" array_group="passive" units="kg kg^{-1}"
+                             description="Mixing ratios of passive tracer 1"/>
+                        <var name="tracer_2" name_in_code="tracer_2" array_group="passive" units="kg kg^{-1}"
+                             description="Mixing ratios of passive tracer 2"/>
+                        <var name="tracer_3" name_in_code="tracer_3" array_group="passive" units="kg kg^{-1}"
+                             description="Mixing ratios of passive tracer 3"/>
+                        <var name="tracer_4" name_in_code="tracer_4" array_group="passive" units="kg kg^{-1}"
+                             description="Mixing ratios of passive tracer 4"/>
+                        <var name="tracer_5" name_in_code="tracer_5" array_group="passive" units="kg kg^{-1}"
+                             description="Mixing ratios of passive tracer 5"/>
+                        <var name="tracer_6" name_in_code="tracer_6" array_group="passive" units="kg kg^{-1}"
+                             description="Mixing ratios of passive tracer 6"/>
+                        <var name="tracer_7" name_in_code="tracer_7" array_group="passive" units="kg kg^{-1}"
+                             description="Mixing ratios of passive tracer 7"/>
+                        <var name="tracer_8" name_in_code="tracer_8" array_group="passive" units="kg kg^{-1}"
+                             description="Mixing ratios of passive tracer 8"/>
+                        <var name="tracer_9" name_in_code="tracer_9" array_group="passive" units="kg kg^{-1}"
+                             description="Mixing ratios of passive tracer 9"/>
+                        <var name="tracer_10" name_in_code="tracer_10" array_group="passive" units="kg kg^{-1}"
+                             description="Mixing ratios of passive tracer 10"/>
+                        <var name="tracer_11" name_in_code="tracer_11" array_group="passive" units="kg kg^{-1}"
+                             description="Mixing ratios of passive tracer 11"/>
+                        <var name="tracer_12" name_in_code="tracer_12" array_group="passive" units="kg kg^{-1}"
+                             description="Mixing ratios of passive tracer 12"/>
+                        <var name="tracer_13" name_in_code="tracer_13" array_group="passive" units="kg kg^{-1}"
+                             description="Mixing ratios of passive tracer 13"/>
+                        <var name="tracer_14" name_in_code="tracer_14" array_group="passive" units="kg kg^{-1}"
+                             description="Mixing ratios of passive tracer 14"/>
+                        <var name="tracer_15" name_in_code="tracer_15" array_group="passive" units="kg kg^{-1}"
+                             description="Mixing ratios of passive tracer 15"/>
+                        <var name="tracer_16" name_in_code="tracer_16" array_group="passive" units="kg kg^{-1}"
+                             description="Mixing ratios of passive tracer 16"/>
+                        <var name="tracer_17" name_in_code="tracer_17" array_group="passive" units="kg kg^{-1}"
+                             description="Mixing ratios of passive tracer 17"/>
+                        <var name="tracer_18" name_in_code="tracer_18" array_group="passive" units="kg kg^{-1}"
+                             description="Mixing ratios of passive tracer 18"/>
+                        <var name="tracer_19" name_in_code="tracer_19" array_group="passive" units="kg kg^{-1}"
+                             description="Mixing ratios of passive tracer 19"/>
+                        <var name="tracer_20" name_in_code="tracer_20" array_group="passive" units="kg kg^{-1}"
+                             description="Mixing ratios of passive tracer 20"/>
+                </var_array>
+               # For PT Transport
+                <var_array name="tracers_fluxes" type="real" dimensions="nVertLevels nCells Time">
+                       <var name="tracerflx_1" array_group="passive" units="kg m^{-2} s^{-1}"
+                             description="Fluxes of passive tracer 1"/>                   
+                        <var name="tracerflx_2" array_group="passive" units="kg m^{-2} s^{-1}"
+                             description="Fluxes of passive tracer 2"/>                   
+                        <var name="tracerflx_3" array_group="passive" units="kg m^{-2} s^{-1}"
+                             description="Fluxes of passive tracer 3"/>                   
+                        <var name="tracerflx_4" array_group="passive" units="kg m^{-2} s^{-1}"
+                             description="Fluxes of passive tracer 4"/>                   
+                        <var name="tracerflx_5" array_group="passive" units="kg m^{-2} s^{-1}"
+                             description="Fluxes of passive tracer 5"/>                   
+                        <var name="tracerflx_6" array_group="passive" units="kg m^{-2} s^{-1}"
+                             description="Fluxes of passive tracer 6"/>                   
+                        <var name="tracerflx_7" array_group="passive" units="kg m^{-2} s^{-1}"
+                             description="Fluxes of passive tracer 7"/>                   
+                        <var name="tracerflx_8" array_group="passive" units="kg m^{-2} s^{-1}"
+                             description="Fluxes of passive tracer 8"/>                   
+                        <var name="tracerflx_9" array_group="passive" units="kg m^{-2} s^{-1}"
+                             description="Fluxes of passive tracer 9"/>                   
+                        <var name="tracerflx_10" array_group="passive" units="kg m^{-2} s^{-1}"
+                             description="Fluxes of passive tracer 10"/>                   
+                        <var name="tracerflx_11" array_group="passive" units="kg m^{-2} s^{-1}"
+                             description="Fluxes of passive tracer 11"/>                   
+                        <var name="tracerflx_12" array_group="passive" units="kg m^{-2} s^{-1}"
+                             description="Fluxes of passive tracer 12"/>                   
+                        <var name="tracerflx_13" array_group="passive" units="kg m^{-2} s^{-1}"
+                             description="Fluxes of passive tracer 13"/>                   
+                        <var name="tracerflx_14" array_group="passive" units="kg m^{-2} s^{-1}"
+                             description="Fluxes of passive tracer 14"/>                   
+                        <var name="tracerflx_15" array_group="passive" units="kg m^{-2} s^{-1}"
+                             description="Fluxes of passive tracer 15"/>                   
+                        <var name="tracerflx_16" array_group="passive" units="kg m^{-2} s^{-1}"
+                             description="Fluxes of passive tracer 16"/>                   
+                        <var name="tracerflx_17" array_group="passive" units="kg m^{-2} s^{-1}"
+                             description="Fluxes of passive tracer 17"/>                   
+                        <var name="tracerflx_18" array_group="passive" units="kg m^{-2} s^{-1}"
+                             description="Fluxes of passive tracer 18"/>                   
+                        <var name="tracerflx_19" array_group="passive" units="kg m^{-2} s^{-1}"
+                             description="Fluxes of passive tracer 19"/>                   
+                        <var name="tracerflx_20" array_group="passive" units="kg m^{-2} s^{-1}"
+                             description="Fluxes of passive tracer 20"/>                   
                 </var_array>
 
                 <!-- Climatology for ocean mixed-layer depth -->
@@ -1010,6 +1147,48 @@
 
                         <var name="lbc_qr" array_group="moist" units="kg kg^{-1}"
                              description="Rain water mixing ratio on lateral boundary cells"/>
+                         # For PT Transport
+                        <var name="lbc_tracer_1" name_in_code="tracer_1" array_group="passive" units="kg kg^{-1}"
+                             description="Mixing ratios of passive tracer 1 on lateral boundary cells"/>
+                        <var name="lbc_tracer_2" name_in_code="tracer_2" array_group="passive" units="kg kg^{-1}"
+                             description="Mixing ratios of passive tracer 2 on lateral boundary cells"/>
+                        <var name="lbc_tracer_3" name_in_code="tracer_3" array_group="passive" units="kg kg^{-1}"
+                             description="Mixing ratios of passive tracer 3 on lateral boundary cells"/>
+                        <var name="lbc_tracer_4" name_in_code="tracer_4" array_group="passive" units="kg kg^{-1}"
+                             description="Mixing ratios of passive tracer 4 on lateral boundary cells"/>
+                        <var name="lbc_tracer_5" name_in_code="tracer_5" array_group="passive" units="kg kg^{-1}"
+                             description="Mixing ratios of passive tracer 5 on lateral boundary cells"/>
+                        <var name="lbc_tracer_6" name_in_code="tracer_6" array_group="passive" units="kg kg^{-1}"
+                             description="Mixing ratios of passive tracer 6 on lateral boundary cells"/>
+                        <var name="lbc_tracer_7" name_in_code="tracer_7" array_group="passive" units="kg kg^{-1}"
+                             description="Mixing ratios of passive tracer 7 on lateral boundary cells"/>
+                        <var name="lbc_tracer_8" name_in_code="tracer_8" array_group="passive" units="kg kg^{-1}"
+                             description="Mixing ratios of passive tracer 8 on lateral boundary cells"/>
+                        <var name="lbc_tracer_9" name_in_code="tracer_9" array_group="passive" units="kg kg^{-1}"
+                             description="Mixing ratios of passive tracer 9 on lateral boundary cells"/>
+                        <var name="lbc_tracer_10" name_in_code="tracer_10" array_group="passive" units="kg kg^{-1}"
+                             description="Mixing ratios of passive tracer 10 on lateral boundary cells"/>
+                        <var name="lbc_tracer_11" name_in_code="tracer_11" array_group="passive" units="kg kg^{-1}"
+                             description="Mixing ratios of passive tracer 11 on lateral boundary cells"/>
+                        <var name="lbc_tracer_12" name_in_code="tracer_12" array_group="passive" units="kg kg^{-1}"
+                             description="Mixing ratios of passive tracer 12 on lateral boundary cells"/>
+                        <var name="lbc_tracer_13" name_in_code="tracer_13" array_group="passive" units="kg kg^{-1}"
+                             description="Mixing ratios of passive tracer 13 on lateral boundary cells"/>
+                        <var name="lbc_tracer_14" name_in_code="tracer_14" array_group="passive" units="kg kg^{-1}"
+                             description="Mixing ratios of passive tracer 14 on lateral boundary cells"/>
+                        <var name="lbc_tracer_15" name_in_code="tracer_15" array_group="passive" units="kg kg^{-1}"
+                             description="Mixing ratios of passive tracer 15 on lateral boundary cells"/>
+                        <var name="lbc_tracer_16" name_in_code="tracer_16" array_group="passive" units="kg kg^{-1}"
+                             description="Mixing ratios of passive tracer 16 on lateral boundary cells"/>
+                        <var name="lbc_tracer_17" name_in_code="tracer_17" array_group="passive" units="kg kg^{-1}"
+                             description="Mixing ratios of passive tracer 17 on lateral boundary cells"/>
+                        <var name="lbc_tracer_18" name_in_code="tracer_18" array_group="passive" units="kg kg^{-1}"
+                             description="Mixing ratios of passive tracer 18 on lateral boundary cells"/>
+                        <var name="lbc_tracer_19" name_in_code="tracer_19" array_group="passive" units="kg kg^{-1}"
+                             description="Mixing ratios of passive tracer 19 on lateral boundary cells"/>
+                        <var name="lbc_tracer_20" name_in_code="tracer_20" array_group="passive" units="kg kg^{-1}"
+                             description="Mixing ratios of passive tracer 20 on lateral boundary cells"/>
+
                 </var_array>
 
         </var_struct>

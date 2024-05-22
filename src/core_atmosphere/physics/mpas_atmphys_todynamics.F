@@ -115,6 +115,7 @@
  real(kind=RKIND),dimension(:,:),pointer:: tend_u_phys !nick
  real(kind=RKIND),dimension(:,:),pointer  :: tend_theta,tend_theta_euler,tend_u
  real(kind=RKIND),dimension(:,:,:),pointer:: tend_scalars
+ real(kind=RKIND),dimension(:,:,:),pointer:: tracers_fluxes
  real(kind=RKIND):: coeff
 
  real(kind=RKIND):: tem
@@ -122,6 +123,51 @@
 
  real(kind=RKIND),dimension(:,:),allocatable:: theta,tend_th
 
+!!! Calls needed for PT transport
+ integer, pointer :: index_tracer_1
+ integer, pointer :: index_tracer_2
+ integer, pointer :: index_tracer_3
+ integer, pointer :: index_tracer_4
+ integer, pointer :: index_tracer_5
+ integer, pointer :: index_tracer_6
+ integer, pointer :: index_tracer_7
+ integer, pointer :: index_tracer_8
+ integer, pointer :: index_tracer_9
+ integer, pointer :: index_tracer_10
+ integer, pointer :: index_tracer_11
+ integer, pointer :: index_tracer_12
+ integer, pointer :: index_tracer_13
+ integer, pointer :: index_tracer_14
+ integer, pointer :: index_tracer_15
+ integer, pointer :: index_tracer_16
+ integer, pointer :: index_tracer_17
+ integer, pointer :: index_tracer_18
+ integer, pointer :: index_tracer_19
+ integer, pointer :: index_tracer_20
+
+ integer, pointer :: index_tracerflx_1
+ integer, pointer :: index_tracerflx_2
+ integer, pointer :: index_tracerflx_3
+ integer, pointer :: index_tracerflx_4
+ integer, pointer :: index_tracerflx_5
+ integer, pointer :: index_tracerflx_6
+ integer, pointer :: index_tracerflx_7
+ integer, pointer :: index_tracerflx_8
+ integer, pointer :: index_tracerflx_9
+ integer, pointer :: index_tracerflx_10
+ integer, pointer :: index_tracerflx_11
+ integer, pointer :: index_tracerflx_12
+ integer, pointer :: index_tracerflx_13
+ integer, pointer :: index_tracerflx_14
+ integer, pointer :: index_tracerflx_15
+ integer, pointer :: index_tracerflx_16
+ integer, pointer :: index_tracerflx_17
+ integer, pointer :: index_tracerflx_18
+ integer, pointer :: index_tracerflx_19
+ integer, pointer :: index_tracerflx_20
+
+ real(kind=RKIND),dimension(:,:),pointer:: zz
+ real(kind=RKIND),dimension(:,:),pointer:: zgrid
 
 !=================================================================================================================
  call mpas_pool_get_dimension(mesh, 'nCells', nCells)
@@ -176,7 +222,7 @@
  call mpas_pool_get_array(tend,'theta_m'     , tend_theta     )
  call mpas_pool_get_array(tend,'theta_euler' ,tend_theta_euler)
  call mpas_pool_get_array(tend,'scalars_tend',tend_scalars    )
-
+ call mpas_pool_get_array(tend,'tracers_fluxes', tracers_fluxes    )
 !initialize the tendency for the potential temperature and all scalars due to PBL, convection,
 !and longwave and shortwave radiation:
 ! allocate(theta(nVertLevels,nCellsSolve)  )
@@ -228,6 +274,80 @@
                            tend_theta_euler, &
                            exchange_halo_group &
                            )
+
+
+!!! Calls for PT transport
+ call mpas_pool_get_dimension(state, 'index_tracer_1', index_tracer_1)
+ call mpas_pool_get_dimension(state, 'index_tracer_2', index_tracer_2)
+ call mpas_pool_get_dimension(state, 'index_tracer_3', index_tracer_3)
+ call mpas_pool_get_dimension(state, 'index_tracer_4', index_tracer_4)
+ call mpas_pool_get_dimension(state, 'index_tracer_5', index_tracer_5)
+ call mpas_pool_get_dimension(state, 'index_tracer_6', index_tracer_6)
+ call mpas_pool_get_dimension(state, 'index_tracer_7', index_tracer_7)
+ call mpas_pool_get_dimension(state, 'index_tracer_8', index_tracer_8)
+ call mpas_pool_get_dimension(state, 'index_tracer_9', index_tracer_9)
+ call mpas_pool_get_dimension(state, 'index_tracer_10', index_tracer_10)
+ call mpas_pool_get_dimension(state, 'index_tracer_11', index_tracer_11)
+ call mpas_pool_get_dimension(state, 'index_tracer_12', index_tracer_12)
+ call mpas_pool_get_dimension(state, 'index_tracer_13', index_tracer_13)
+ call mpas_pool_get_dimension(state, 'index_tracer_14', index_tracer_14)
+ call mpas_pool_get_dimension(state, 'index_tracer_15', index_tracer_15)
+ call mpas_pool_get_dimension(state, 'index_tracer_16', index_tracer_16)
+ call mpas_pool_get_dimension(state, 'index_tracer_17', index_tracer_17)
+ call mpas_pool_get_dimension(state, 'index_tracer_18', index_tracer_18)
+ call mpas_pool_get_dimension(state, 'index_tracer_19', index_tracer_19)
+ call mpas_pool_get_dimension(state, 'index_tracer_20', index_tracer_20)
+
+ call mpas_pool_get_dimension(tend, 'index_tracerflx_1', index_tracerflx_1)
+ call mpas_pool_get_dimension(tend, 'index_tracerflx_2', index_tracerflx_2)
+ call mpas_pool_get_dimension(tend, 'index_tracerflx_3', index_tracerflx_3)
+ call mpas_pool_get_dimension(tend, 'index_tracerflx_4', index_tracerflx_4)
+ call mpas_pool_get_dimension(tend, 'index_tracerflx_5', index_tracerflx_5)
+ call mpas_pool_get_dimension(tend, 'index_tracerflx_6', index_tracerflx_6)
+ call mpas_pool_get_dimension(tend, 'index_tracerflx_7', index_tracerflx_7)
+ call mpas_pool_get_dimension(tend, 'index_tracerflx_8', index_tracerflx_8)
+ call mpas_pool_get_dimension(tend, 'index_tracerflx_9', index_tracerflx_9)
+ call mpas_pool_get_dimension(tend, 'index_tracerflx_10', index_tracerflx_10)
+ call mpas_pool_get_dimension(tend, 'index_tracerflx_11', index_tracerflx_11)
+ call mpas_pool_get_dimension(tend, 'index_tracerflx_12', index_tracerflx_12)
+ call mpas_pool_get_dimension(tend, 'index_tracerflx_13', index_tracerflx_13)
+ call mpas_pool_get_dimension(tend, 'index_tracerflx_14', index_tracerflx_14)
+ call mpas_pool_get_dimension(tend, 'index_tracerflx_15', index_tracerflx_15)
+ call mpas_pool_get_dimension(tend, 'index_tracerflx_16', index_tracerflx_16)
+ call mpas_pool_get_dimension(tend, 'index_tracerflx_17', index_tracerflx_17)
+ call mpas_pool_get_dimension(tend, 'index_tracerflx_18', index_tracerflx_18)
+ call mpas_pool_get_dimension(tend, 'index_tracerflx_19', index_tracerflx_19)
+ call mpas_pool_get_dimension(tend, 'index_tracerflx_20', index_tracerflx_20)
+
+ call mpas_pool_get_array(mesh, 'zz', zz)
+ call mpas_pool_get_array(mesh, 'zgrid', zgrid)
+
+call mpas_log_write('init/flx = $r $r', &
+                     realArgs=(/tend_scalars(index_tracer_1,0,20),tracers_fluxes(index_tracerflx_1,0,20)/))
+
+ do i = 1, nCellsSolve
+    do k = 1, nVertLevels
+       tend_scalars(index_tracer_1,k,i) = tend_scalars(index_tracer_1,k,i) + tracers_fluxes(index_tracerflx_1,k,i) / (zgrid(k+1,i) - zgrid(k,i)) / zz(k,i)
+       tend_scalars(index_tracer_2,k,i) = tend_scalars(index_tracer_2,k,i) + tracers_fluxes(index_tracerflx_2,k,i) / (zgrid(k+1,i) - zgrid(k,i)) / zz(k,i)
+       tend_scalars(index_tracer_4,k,i) = tend_scalars(index_tracer_4,k,i) + tracers_fluxes(index_tracerflx_3,k,i) / (zgrid(k+1,i) - zgrid(k,i)) / zz(k,i)
+       tend_scalars(index_tracer_5,k,i) = tend_scalars(index_tracer_5,k,i) + tracers_fluxes(index_tracerflx_4,k,i) / (zgrid(k+1,i) - zgrid(k,i)) / zz(k,i)
+       tend_scalars(index_tracer_6,k,i) = tend_scalars(index_tracer_6,k,i) + tracers_fluxes(index_tracerflx_5,k,i) / (zgrid(k+1,i) - zgrid(k,i)) / zz(k,i)
+       tend_scalars(index_tracer_7,k,i) = tend_scalars(index_tracer_7,k,i) + tracers_fluxes(index_tracerflx_6,k,i) / (zgrid(k+1,i) - zgrid(k,i)) / zz(k,i)
+       tend_scalars(index_tracer_8,k,i) = tend_scalars(index_tracer_8,k,i) + tracers_fluxes(index_tracerflx_8,k,i) / (zgrid(k+1,i) - zgrid(k,i)) / zz(k,i)
+       tend_scalars(index_tracer_9,k,i) = tend_scalars(index_tracer_9,k,i) + tracers_fluxes(index_tracerflx_9,k,i) / (zgrid(k+1,i) - zgrid(k,i)) / zz(k,i)
+       tend_scalars(index_tracer_10,k,i) = tend_scalars(index_tracer_10,k,i) + tracers_fluxes(index_tracerflx_10,k,i) / (zgrid(k+1,i) - zgrid(k,i)) / zz(k,i)
+       tend_scalars(index_tracer_11,k,i) = tend_scalars(index_tracer_11,k,i) + tracers_fluxes(index_tracerflx_11,k,i) / (zgrid(k+1,i) - zgrid(k,i)) / zz(k,i)
+       tend_scalars(index_tracer_12,k,i) = tend_scalars(index_tracer_12,k,i) + tracers_fluxes(index_tracerflx_12,k,i) / (zgrid(k+1,i) - zgrid(k,i)) / zz(k,i)
+       tend_scalars(index_tracer_13,k,i) = tend_scalars(index_tracer_13,k,i) + tracers_fluxes(index_tracerflx_13,k,i) / (zgrid(k+1,i) - zgrid(k,i)) / zz(k,i)
+       tend_scalars(index_tracer_14,k,i) = tend_scalars(index_tracer_14,k,i) + tracers_fluxes(index_tracerflx_14,k,i) / (zgrid(k+1,i) - zgrid(k,i)) / zz(k,i)
+       tend_scalars(index_tracer_15,k,i) = tend_scalars(index_tracer_15,k,i) + tracers_fluxes(index_tracerflx_15,k,i) / (zgrid(k+1,i) - zgrid(k,i)) / zz(k,i)
+       tend_scalars(index_tracer_16,k,i) = tend_scalars(index_tracer_16,k,i) + tracers_fluxes(index_tracerflx_16,k,i) / (zgrid(k+1,i) - zgrid(k,i)) / zz(k,i)
+       tend_scalars(index_tracer_17,k,i) = tend_scalars(index_tracer_17,k,i) + tracers_fluxes(index_tracerflx_17,k,i) / (zgrid(k+1,i) - zgrid(k,i)) / zz(k,i)
+       tend_scalars(index_tracer_18,k,i) = tend_scalars(index_tracer_18,k,i) + tracers_fluxes(index_tracerflx_18,k,i) / (zgrid(k+1,i) - zgrid(k,i)) / zz(k,i)
+       tend_scalars(index_tracer_19,k,i) = tend_scalars(index_tracer_19,k,i) + tracers_fluxes(index_tracerflx_19,k,i) / (zgrid(k+1,i) - zgrid(k,i)) / zz(k,i)
+       tend_scalars(index_tracer_20,k,i) = tend_scalars(index_tracer_20,k,i) + tracers_fluxes(index_tracerflx_20,k,i) / (zgrid(k+1,i) - zgrid(k,i)) / zz(k,i)
+    end do
+ end do
 
  !
  ! Clean up any pointers that were allocated with zero size before the call to

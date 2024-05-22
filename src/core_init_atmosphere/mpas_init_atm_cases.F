@@ -242,7 +242,11 @@ module init_atm_cases
 
             call init_atm_case_gfs(block_ptr, mesh, nCells, nEdges, nVertLevels, fg, state, &
                                    diag, diag_physics, block_ptr % dimensions, block_ptr % configs)
-            
+
+            call mpas_log_write('************************* Tracers *************************')
+            call init_tracers(mesh, state)
+            call mpas_log_write('*********************** End Tracers *************************')
+
             if (config_met_interp) then
                call physics_initialize_real(mesh, fg, domain % dminfo, block_ptr % dimensions, block_ptr % configs)
             end if
@@ -346,6 +350,52 @@ module init_atm_cases
          !
          call mpas_stream_mgr_reset_alarms(stream_manager, streamID='lbc', direction=MPAS_STREAM_OUTPUT, ierr=ierr)
 
+      else if (config_init_case == 10 ) then
+
+         call mpas_log_write('tracer fluxes initialization test case ')
+         clock_interval = mpas_get_clock_timestep(domain % clock, ierr=ierr)
+         chem_stream_interval = MPAS_stream_mgr_get_stream_interval(stream_manager, 'chem_flxs', MPAS_STREAM_OUTPUT, ierr)
+         if (clock_interval /= chem_stream_interval) then
+            call mpas_log_write('****************************************************************',   messageType=MPAS_LOG_ERR)
+            call mpas_log_write('The intermediate file interval specified by ''config_fg_interval''', messageType=MPAS_LOG_ERR)
+            call mpas_log_write('does not match the output_interval for the ''chem_flxs'' stream.',         messageType=MPAS_LOG_ERR)
+            call mpas_log_write('Please correct the namelist.init_atmosphere and/or',                 messageType=MPAS_LOG_ERR)
+            call mpas_log_write('streams.init_atmosphere files.',                                     messageType=MPAS_LOG_ERR)
+            call mpas_log_write('****************************************************************',   messageType=MPAS_LOG_CRIT)
+         end if
+         curr_time = mpas_get_clock_time(domain % clock, MPAS_NOW)
+         stop_time = mpas_get_clock_time(domain % clock, MPAS_STOP_TIME)
+         start_time = mpas_get_clock_time(domain % clock, MPAS_START_TIME)
+         do while (curr_time <= stop_time)
+            block_ptr => domain % blocklist
+            do while (associated(block_ptr))
+               call mpas_pool_get_subpool(block_ptr % structs, 'mesh', mesh)
+               call mpas_pool_get_subpool(block_ptr % structs, 'state', state)
+               call mpas_pool_get_subpool(block_ptr % structs, 'diag', diag)
+               call mpas_pool_get_subpool(block_ptr % structs, 'lbc_state', lbc_state)
+
+               call mpas_pool_get_array(state, 'xtime', xtime)
+               call mpas_pool_get_array(state, 'Time', Time)
+               call mpas_pool_get_dimension(block_ptr % dimensions, 'nCells', nCells)
+               call mpas_pool_get_dimension(block_ptr % dimensions, 'nEdges', nEdges)
+               call mpas_pool_get_dimension(block_ptr % dimensions, 'nVertLevels', nVertLevels)
+
+               call mpas_get_time(curr_time, dateTimeString=timeString)
+               xtime = timeString   ! Set field valid time, xtime, to the current time in the time loop
+               time_since_start = curr_time - start_time
+               call mpas_get_TimeInterval(time_since_start, dt=dt)
+               Time = dt
+
+               call init_emissions(timeString, block_ptr, stream_manager, mesh, nCells, nEdges, nVertLevels, state, block_ptr % dimensions)
+               block_ptr => block_ptr % next
+            end do
+            call mpas_stream_mgr_write(stream_manager, streamID='chem_flxs', ierr=ierr)
+            call mpas_stream_mgr_reset_alarms(stream_manager, streamID='chem_flxs', direction=MPAS_STREAM_OUTPUT, ierr=ierr)
+
+            call mpas_advance_clock(domain % clock)
+            curr_time = mpas_get_clock_time(domain % clock, MPAS_NOW)
+         end do
+
       else if (config_init_case == 13 ) then
 
          call mpas_log_write(' CAM-MPAS grid ')
@@ -378,7 +428,7 @@ module init_atm_cases
       else
 
          call mpas_log_write(' ***********************************************************', messageType=MPAS_LOG_ERR)
-         call mpas_log_write(' Only test cases 1 through 9 and 13 are currently supported.', messageType=MPAS_LOG_ERR)
+         call mpas_log_write(' Only test cases 1 through 10 and 13 are currently supported.', messageType=MPAS_LOG_ERR)
          call mpas_log_write(' ***********************************************************', messageType=MPAS_LOG_CRIT)
 
       end if
@@ -7134,5 +7184,194 @@ call mpas_log_write('Done with soil consistency check')
 
    end function read_text_array
 
+
+  !!! Function to initialiaze tracers for PT Transport
+   subroutine init_tracers(mesh, state)
+
+       implicit none
+
+       type (mpas_pool_type), intent(in) :: mesh
+       type (mpas_pool_type), intent(inout) :: state
+
+       integer, pointer :: nCells
+       integer, pointer :: nVertLevels
+
+       integer, pointer :: index_tracer_1
+       integer, pointer :: index_tracer_2
+       integer, pointer :: index_tracer_3
+       integer, pointer :: index_tracer_4
+       integer, pointer :: index_tracer_5
+       integer, pointer :: index_tracer_6
+       integer, pointer :: index_tracer_7
+       integer, pointer :: index_tracer_8
+       integer, pointer :: index_tracer_9
+       integer, pointer :: index_tracer_10
+       integer, pointer :: index_tracer_11
+       integer, pointer :: index_tracer_12
+       integer, pointer :: index_tracer_13
+       integer, pointer :: index_tracer_14
+       integer, pointer :: index_tracer_15
+       integer, pointer :: index_tracer_16
+       integer, pointer :: index_tracer_17
+       integer, pointer :: index_tracer_18
+       integer, pointer :: index_tracer_19
+       integer, pointer :: index_tracer_20
+
+       integer :: k, iCell
+
+       real (kind=RKIND), dimension(:), pointer :: latCell
+       real (kind=RKIND), dimension(:), pointer :: lonCell
+       real (kind=RKIND), dimension(:,:,:), pointer :: scalars
+
+       call mpas_log_write('====== Handling tracer initialization ======')
+
+       call mpas_pool_get_dimension(mesh, 'nCells', nCells)
+       call mpas_pool_get_dimension(mesh, 'nVertLevels', nVertLevels)
+
+       call mpas_pool_get_dimension(state, 'index_tracer_1', index_tracer_1)
+       call mpas_pool_get_dimension(state, 'index_tracer_2', index_tracer_2)
+       call mpas_pool_get_dimension(state, 'index_tracer_3', index_tracer_3)
+       call mpas_pool_get_dimension(state, 'index_tracer_4', index_tracer_4)
+       call mpas_pool_get_dimension(state, 'index_tracer_5', index_tracer_5)
+       call mpas_pool_get_dimension(state, 'index_tracer_6', index_tracer_6)
+       call mpas_pool_get_dimension(state, 'index_tracer_7', index_tracer_7)
+       call mpas_pool_get_dimension(state, 'index_tracer_8', index_tracer_8)
+       call mpas_pool_get_dimension(state, 'index_tracer_9', index_tracer_9)
+       call mpas_pool_get_dimension(state, 'index_tracer_10', index_tracer_10)
+       call mpas_pool_get_dimension(state, 'index_tracer_11', index_tracer_11)
+       call mpas_pool_get_dimension(state, 'index_tracer_12', index_tracer_12)
+       call mpas_pool_get_dimension(state, 'index_tracer_13', index_tracer_13)
+       call mpas_pool_get_dimension(state, 'index_tracer_14', index_tracer_14)
+       call mpas_pool_get_dimension(state, 'index_tracer_15', index_tracer_15)
+       call mpas_pool_get_dimension(state, 'index_tracer_16', index_tracer_16)
+       call mpas_pool_get_dimension(state, 'index_tracer_17', index_tracer_17)
+       call mpas_pool_get_dimension(state, 'index_tracer_18', index_tracer_18)
+       call mpas_pool_get_dimension(state, 'index_tracer_19', index_tracer_19)
+       call mpas_pool_get_dimension(state, 'index_tracer_20', index_tracer_20)
+
+       call mpas_pool_get_array(state, 'scalars', scalars)
+
+       call mpas_pool_get_array(mesh, 'latCell', latCell)
+       call mpas_pool_get_array(mesh, 'lonCell', lonCell)
+
+       do iCell = 1, nCells
+          do k = 1, nVertLevels
+             scalars(index_tracer_1,k,iCell) = 300.
+             scalars(index_tracer_2,k,iCell) = 300.
+             scalars(index_tracer_3,k,iCell) = 300.
+             scalars(index_tracer_4,k,iCell) = 300.
+             scalars(index_tracer_5,k,iCell) = 300.
+             scalars(index_tracer_6,k,iCell) = 300.
+             scalars(index_tracer_7,k,iCell) = 300.
+             scalars(index_tracer_8,k,iCell) = 300.
+             scalars(index_tracer_9,k,iCell) = 300.
+             scalars(index_tracer_10,k,iCell) = 300.
+             scalars(index_tracer_11,k,iCell) = 300.
+             scalars(index_tracer_12,k,iCell) = 300.
+             scalars(index_tracer_13,k,iCell) = 300.
+             scalars(index_tracer_14,k,iCell) = 300.
+             scalars(index_tracer_15,k,iCell) = 300.
+             scalars(index_tracer_16,k,iCell) = 300.
+             scalars(index_tracer_17,k,iCell) = 300.
+             scalars(index_tracer_18,k,iCell) = 300.
+             scalars(index_tracer_19,k,iCell) = 300.
+             scalars(index_tracer_20,k,iCell) = 300.
+          end do
+      end do
+
+   end subroutine init_tracers
+
+subroutine init_emissions(timestamp, block, stream_manager, mesh, nCells, nEdges, nVertLevels, state, dims)
+
+   use mpas_stream_manager
+   implicit none
+   character(len=*), intent(in) :: timestamp
+   type (block_type), intent(inout), target :: block
+   type (MPAS_streamManager_type), intent(inout) :: stream_manager
+   type (mpas_pool_type), intent(in) :: mesh
+   integer, intent(in) :: nCells
+   integer, intent(in) :: nEdges
+   integer, intent(in) :: nVertLevels
+   type (mpas_pool_type), intent(inout) :: state
+   type (mpas_pool_type), intent(inout):: dims
+
+   integer :: k, iCell
+   integer :: ierr
+
+   real (kind=RKIND), dimension(:), pointer :: latCell
+   real (kind=RKIND), dimension(:), pointer :: lonCell
+   real (kind=RKIND), dimension(:,:,:), pointer :: tracers_fluxes
+   integer, pointer :: index_tracerflx_1
+   integer, pointer :: index_tracerflx_2
+   integer, pointer :: index_tracerflx_3
+   integer, pointer :: index_tracerflx_4
+   integer, pointer :: index_tracerflx_5
+   integer, pointer :: index_tracerflx_6
+   integer, pointer :: index_tracerflx_7
+   integer, pointer :: index_tracerflx_8
+   integer, pointer :: index_tracerflx_9
+   integer, pointer :: index_tracerflx_10
+   integer, pointer :: index_tracerflx_11
+   integer, pointer :: index_tracerflx_12
+   integer, pointer :: index_tracerflx_13
+   integer, pointer :: index_tracerflx_14
+   integer, pointer :: index_tracerflx_15
+   integer, pointer :: index_tracerflx_16
+   integer, pointer :: index_tracerflx_17
+   integer, pointer :: index_tracerflx_18
+   integer, pointer :: index_tracerflx_19
+   integer, pointer :: index_tracerflx_20
+
+   call mpas_log_write(' Initializing fluxes at time'//trim(timestamp))
+   call mpas_pool_get_array(state, 'tracers_fluxes', tracers_fluxes)
+   call mpas_pool_get_array(mesh, 'latCell', latCell)
+   call mpas_pool_get_array(mesh, 'lonCell', lonCell)
+
+   call mpas_pool_get_dimension(state, 'index_tracerflx_1', index_tracerflx_1)
+   call mpas_pool_get_dimension(state, 'index_tracerflx_2', index_tracerflx_2)
+   call mpas_pool_get_dimension(state, 'index_tracerflx_3', index_tracerflx_3)
+   call mpas_pool_get_dimension(state, 'index_tracerflx_4', index_tracerflx_4)
+   call mpas_pool_get_dimension(state, 'index_tracerflx_5', index_tracerflx_5)
+   call mpas_pool_get_dimension(state, 'index_tracerflx_6', index_tracerflx_6)
+   call mpas_pool_get_dimension(state, 'index_tracerflx_7', index_tracerflx_7)
+   call mpas_pool_get_dimension(state, 'index_tracerflx_8', index_tracerflx_8)
+   call mpas_pool_get_dimension(state, 'index_tracerflx_9', index_tracerflx_9)
+   call mpas_pool_get_dimension(state, 'index_tracerflx_10', index_tracerflx_10)
+   call mpas_pool_get_dimension(state, 'index_tracerflx_11', index_tracerflx_11)
+   call mpas_pool_get_dimension(state, 'index_tracerflx_12', index_tracerflx_12)
+   call mpas_pool_get_dimension(state, 'index_tracerflx_13', index_tracerflx_13)
+   call mpas_pool_get_dimension(state, 'index_tracerflx_14', index_tracerflx_14)
+   call mpas_pool_get_dimension(state, 'index_tracerflx_15', index_tracerflx_15)
+   call mpas_pool_get_dimension(state, 'index_tracerflx_16', index_tracerflx_16)
+   call mpas_pool_get_dimension(state, 'index_tracerflx_17', index_tracerflx_17)
+   call mpas_pool_get_dimension(state, 'index_tracerflx_18', index_tracerflx_18)
+   call mpas_pool_get_dimension(state, 'index_tracerflx_19', index_tracerflx_19)
+   call mpas_pool_get_dimension(state, 'index_tracerflx_20', index_tracerflx_20)
+   do iCell = 1, nCells
+      do k = 1, nVertLevels
+         tracers_fluxes(index_tracerflx_1,k,iCell) = 0.
+         tracers_fluxes(index_tracerflx_2,k,iCell) = 0.
+         tracers_fluxes(index_tracerflx_3,k,iCell) = 0.
+         tracers_fluxes(index_tracerflx_4,k,iCell) = 0.
+         tracers_fluxes(index_tracerflx_5,k,iCell) = 0.
+         tracers_fluxes(index_tracerflx_6,k,iCell) = 0.
+         tracers_fluxes(index_tracerflx_7,k,iCell) = 0.
+         tracers_fluxes(index_tracerflx_8,k,iCell) = 0.
+         tracers_fluxes(index_tracerflx_9,k,iCell) = 0.
+         tracers_fluxes(index_tracerflx_10,k,iCell) = 0.
+         tracers_fluxes(index_tracerflx_11,k,iCell) = 0.
+         tracers_fluxes(index_tracerflx_12,k,iCell) = 0.
+         tracers_fluxes(index_tracerflx_13,k,iCell) = 0.
+         tracers_fluxes(index_tracerflx_14,k,iCell) = 0.
+         tracers_fluxes(index_tracerflx_15,k,iCell) = 0.
+         tracers_fluxes(index_tracerflx_16,k,iCell) = 0.
+         tracers_fluxes(index_tracerflx_17,k,iCell) = 0.
+         tracers_fluxes(index_tracerflx_18,k,iCell) = 0.
+         tracers_fluxes(index_tracerflx_19,k,iCell) = 0.
+         tracers_fluxes(index_tracerflx_20,k,iCell) = 0.
+      end do
+end do
+
+end subroutine init_emissions
 
 end module init_atm_cases

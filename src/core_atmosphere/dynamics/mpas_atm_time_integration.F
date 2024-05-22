@@ -369,6 +369,11 @@ module atm_time_integration
       integer, pointer :: num_scalars, index_qv, nCells, nCellsSolve, nEdges, nEdgesSolve, nVertices, nVerticesSolve, nVertLevels
       integer, pointer :: index_qc, index_qr, index_qi, index_qs, index_qg, index_nr, index_ni
 
+      !!! Calls for PT transport
+      integer, pointer :: index_tracer_1, index_tracer_2, index_tracer_3, index_tracer_4, index_tracer_5, index_tracer_6, index_tracer_7, index_tracer_8, index_tracer_9
+      integer, pointer :: index_tracer_10, index_tracer_11, index_tracer_12, index_tracer_13, index_tracer_14, index_tracer_15, index_tracer_16
+      integer, pointer :: index_tracer_17, index_tracer_18, index_tracer_19, index_tracer_20
+
       character(len=StrKIND), pointer :: config_IAU_option
 
       type (mpas_pool_type), pointer :: state
@@ -471,6 +476,27 @@ module atm_time_integration
          call mpas_pool_get_dimension(state, 'index_qg', index_qg)  
          call mpas_pool_get_dimension(state, 'index_nr', index_nr)
          call mpas_pool_get_dimension(state, 'index_ni', index_ni)
+         !!! Calls for PT Transport
+         call mpas_pool_get_dimension(state, 'index_tracer_1', index_tracer_1)
+         call mpas_pool_get_dimension(state, 'index_tracer_2', index_tracer_2)
+         call mpas_pool_get_dimension(state, 'index_tracer_3', index_tracer_3)
+         call mpas_pool_get_dimension(state, 'index_tracer_4', index_tracer_4)
+         call mpas_pool_get_dimension(state, 'index_tracer_5', index_tracer_5)
+         call mpas_pool_get_dimension(state, 'index_tracer_6', index_tracer_6)
+         call mpas_pool_get_dimension(state, 'index_tracer_7', index_tracer_7)
+         call mpas_pool_get_dimension(state, 'index_tracer_8', index_tracer_8)
+         call mpas_pool_get_dimension(state, 'index_tracer_9', index_tracer_9)
+         call mpas_pool_get_dimension(state, 'index_tracer_10', index_tracer_10)
+         call mpas_pool_get_dimension(state, 'index_tracer_11', index_tracer_11)
+         call mpas_pool_get_dimension(state, 'index_tracer_12', index_tracer_12)
+         call mpas_pool_get_dimension(state, 'index_tracer_13', index_tracer_13)
+         call mpas_pool_get_dimension(state, 'index_tracer_14', index_tracer_14)
+         call mpas_pool_get_dimension(state, 'index_tracer_15', index_tracer_15)
+         call mpas_pool_get_dimension(state, 'index_tracer_16', index_tracer_16)
+         call mpas_pool_get_dimension(state, 'index_tracer_17', index_tracer_17)
+         call mpas_pool_get_dimension(state, 'index_tracer_18', index_tracer_18)
+         call mpas_pool_get_dimension(state, 'index_tracer_19', index_tracer_19)
+         call mpas_pool_get_dimension(state, 'index_tracer_20', index_tracer_20)
       endif
 
       !
@@ -927,7 +953,67 @@ module atm_time_integration
                   if (index_ni > 0) then
                      scalars_driving(index_ni,1:nVertLevels,1:nCells+1) = mpas_atm_get_bdy_state( clock, block, nVertLevels, nCells, 'ni', rk_timestep(rk_step) )
                   end if
-                  
+                  if (index_tracer_1 > 0) then
+                     scalars_driving(index_tracer_1,1:nVertLevels,1:nCells+1) = mpas_atm_get_bdy_state( clock, block, nVertLevels, nCells, 'tracer_1', rk_timestep(rk_step) )
+                  end if
+                  if (index_tracer_2 > 0) then
+                     scalars_driving(index_tracer_2,1:nVertLevels,1:nCells+1) = mpas_atm_get_bdy_state( clock, block, nVertLevels, nCells, 'tracer_2', rk_timestep(rk_step) )
+                  end if
+                  if (index_tracer_3 > 0) then
+                     scalars_driving(index_tracer_3,1:nVertLevels,1:nCells+1) = mpas_atm_get_bdy_state( clock, block, nVertLevels, nCells, 'tracer_3', rk_timestep(rk_step) )
+                  end if
+                  if (index_tracer_4 > 0) then
+                     scalars_driving(index_tracer_4,1:nVertLevels,1:nCells+1) = mpas_atm_get_bdy_state( clock, block, nVertLevels, nCells, 'tracer_4', rk_timestep(rk_step) )
+                  end if
+                  if (index_tracer_5 > 0) then
+                     scalars_driving(index_tracer_5,1:nVertLevels,1:nCells+1) = mpas_atm_get_bdy_state( clock, block, nVertLevels, nCells, 'tracer_5', rk_timestep(rk_step) )
+                  end if
+                  if (index_tracer_6 > 0) then
+                     scalars_driving(index_tracer_6,1:nVertLevels,1:nCells+1) = mpas_atm_get_bdy_state( clock, block, nVertLevels, nCells, 'tracer_6', rk_timestep(rk_step) )
+                  end if
+                  if (index_tracer_7 > 0) then
+                     scalars_driving(index_tracer_7,1:nVertLevels,1:nCells+1) = mpas_atm_get_bdy_state( clock, block, nVertLevels, nCells, 'tracer_7', rk_timestep(rk_step) )
+                  end if
+                  if (index_tracer_8 > 0) then
+                     scalars_driving(index_tracer_8,1:nVertLevels,1:nCells+1) = mpas_atm_get_bdy_state( clock, block, nVertLevels, nCells, 'tracer_8', rk_timestep(rk_step) )
+                  end if
+                  if (index_tracer_9 > 0) then
+                     scalars_driving(index_tracer_9,1:nVertLevels,1:nCells+1) = mpas_atm_get_bdy_state( clock, block, nVertLevels, nCells, 'tracer_9', rk_timestep(rk_step) )
+                  end if
+                  if (index_tracer_10 > 0) then
+                     scalars_driving(index_tracer_10,1:nVertLevels,1:nCells+1) = mpas_atm_get_bdy_state( clock, block, nVertLevels, nCells, 'tracer_10', rk_timestep(rk_step) )
+                  end if
+                  if (index_tracer_11 > 0) then
+                     scalars_driving(index_tracer_11,1:nVertLevels,1:nCells+1) = mpas_atm_get_bdy_state( clock, block, nVertLevels, nCells, 'tracer_11', rk_timestep(rk_step) )
+                  end if
+                  if (index_tracer_12 > 0) then
+                     scalars_driving(index_tracer_12,1:nVertLevels,1:nCells+1) = mpas_atm_get_bdy_state( clock, block, nVertLevels, nCells, 'tracer_12', rk_timestep(rk_step) )
+                  end if
+                  if (index_tracer_13 > 0) then
+                     scalars_driving(index_tracer_13,1:nVertLevels,1:nCells+1) = mpas_atm_get_bdy_state( clock, block, nVertLevels, nCells, 'tracer_13', rk_timestep(rk_step) )
+                  end if
+                  if (index_tracer_14 > 0) then
+                     scalars_driving(index_tracer_14,1:nVertLevels,1:nCells+1) = mpas_atm_get_bdy_state( clock, block, nVertLevels, nCells, 'tracer_14', rk_timestep(rk_step) )
+                  end if
+                  if (index_tracer_15 > 0) then
+                     scalars_driving(index_tracer_15,1:nVertLevels,1:nCells+1) = mpas_atm_get_bdy_state( clock, block, nVertLevels, nCells, 'tracer_15', rk_timestep(rk_step) )
+                  end if
+                  if (index_tracer_16 > 0) then
+                     scalars_driving(index_tracer_16,1:nVertLevels,1:nCells+1) = mpas_atm_get_bdy_state( clock, block, nVertLevels, nCells, 'tracer_16', rk_timestep(rk_step) )
+                  end if
+                  if (index_tracer_17 > 0) then
+                     scalars_driving(index_tracer_17,1:nVertLevels,1:nCells+1) = mpas_atm_get_bdy_state( clock, block, nVertLevels, nCells, 'tracer_17', rk_timestep(rk_step) )
+                  end if
+                  if (index_tracer_18 > 0) then
+                     scalars_driving(index_tracer_18,1:nVertLevels,1:nCells+1) = mpas_atm_get_bdy_state( clock, block, nVertLevels, nCells, 'tracer_18', rk_timestep(rk_step) )
+                  end if
+                  if (index_tracer_19 > 0) then
+                     scalars_driving(index_tracer_19,1:nVertLevels,1:nCells+1) = mpas_atm_get_bdy_state( clock, block, nVertLevels, nCells, 'tracer_19', rk_timestep(rk_step) )
+                  end if
+                  if (index_tracer_20 > 0) then
+                     scalars_driving(index_tracer_20,1:nVertLevels,1:nCells+1) = mpas_atm_get_bdy_state( clock, block, nVertLevels, nCells, 'tracer_20', rk_timestep(rk_step) )
+                  end if
+
                   !$OMP PARALLEL DO
                   do thread=1,nThreads
                      call atm_bdy_adjust_scalars( state, diag, mesh, block % configs, scalars_driving, nVertLevels, dt, rk_timestep(rk_step), &
@@ -1094,7 +1180,70 @@ module atm_time_integration
                if (index_ni > 0) then
                   scalars_driving(index_ni,1:nVertLevels,1:nCells+1) = mpas_atm_get_bdy_state( clock, block, nVertLevels, nCells, 'ni', rk_timestep(rk_step) )
                end if
+               !!! Calls for PT transport
+               if (index_tracer_1 > 0) then
+                  scalars_driving(index_tracer_1,1:nVertLevels,1:nCells+1) = mpas_atm_get_bdy_state( clock, block, nVertLevels, nCells, 'tracer_1', rk_timestep(rk_step) )
+               end if
                
+               if (index_tracer_2 > 0) then
+                  scalars_driving(index_tracer_2,1:nVertLevels,1:nCells+1) = mpas_atm_get_bdy_state( clock, block, nVertLevels, nCells, 'tracer_2', rk_timestep(rk_step) )
+               end if
+               if (index_tracer_3 > 0) then
+                  scalars_driving(index_tracer_3,1:nVertLevels,1:nCells+1) = mpas_atm_get_bdy_state( clock, block, nVertLevels, nCells, 'tracer_3', rk_timestep(rk_step) )
+               end if
+               if (index_tracer_4 > 0) then
+                  scalars_driving(index_tracer_4,1:nVertLevels,1:nCells+1) = mpas_atm_get_bdy_state( clock, block, nVertLevels, nCells, 'tracer_4', rk_timestep(rk_step) )
+               end if
+               if (index_tracer_5 > 0) then
+                  scalars_driving(index_tracer_5,1:nVertLevels,1:nCells+1) = mpas_atm_get_bdy_state( clock, block, nVertLevels, nCells, 'tracer_5', rk_timestep(rk_step) )
+               end if
+               if (index_tracer_6 > 0) then
+                  scalars_driving(index_tracer_6,1:nVertLevels,1:nCells+1) = mpas_atm_get_bdy_state( clock, block, nVertLevels, nCells, 'tracer_6', rk_timestep(rk_step) )
+               end if
+               if (index_tracer_7 > 0) then
+                  scalars_driving(index_tracer_7,1:nVertLevels,1:nCells+1) = mpas_atm_get_bdy_state( clock, block, nVertLevels, nCells, 'tracer_7', rk_timestep(rk_step) )
+               end if
+               if (index_tracer_8 > 0) then
+                  scalars_driving(index_tracer_8,1:nVertLevels,1:nCells+1) = mpas_atm_get_bdy_state( clock, block, nVertLevels, nCells, 'tracer_8', rk_timestep(rk_step) )
+               end if
+               if (index_tracer_9 > 0) then
+                  scalars_driving(index_tracer_9,1:nVertLevels,1:nCells+1) = mpas_atm_get_bdy_state( clock, block, nVertLevels, nCells, 'tracer_9', rk_timestep(rk_step) )
+               end if
+               if (index_tracer_10 > 0) then
+                  scalars_driving(index_tracer_10,1:nVertLevels,1:nCells+1) = mpas_atm_get_bdy_state( clock, block, nVertLevels, nCells, 'tracer_10', rk_timestep(rk_step) )
+               end if
+               if (index_tracer_11 > 0) then
+                  scalars_driving(index_tracer_11,1:nVertLevels,1:nCells+1) = mpas_atm_get_bdy_state( clock, block, nVertLevels, nCells, 'tracer_11', rk_timestep(rk_step) )
+               end if
+               if (index_tracer_12 > 0) then
+                  scalars_driving(index_tracer_12,1:nVertLevels,1:nCells+1) = mpas_atm_get_bdy_state( clock, block, nVertLevels, nCells, 'tracer_12', rk_timestep(rk_step) )
+               end if
+               if (index_tracer_13 > 0) then
+                  scalars_driving(index_tracer_13,1:nVertLevels,1:nCells+1) = mpas_atm_get_bdy_state( clock, block, nVertLevels, nCells, 'tracer_13', rk_timestep(rk_step) )
+               end if
+               if (index_tracer_14 > 0) then
+                  scalars_driving(index_tracer_14,1:nVertLevels,1:nCells+1) = mpas_atm_get_bdy_state( clock, block, nVertLevels, nCells, 'tracer_14', rk_timestep(rk_step) )
+               end if
+               if (index_tracer_15 > 0) then
+                  scalars_driving(index_tracer_15,1:nVertLevels,1:nCells+1) = mpas_atm_get_bdy_state( clock, block, nVertLevels, nCells, 'tracer_15', rk_timestep(rk_step) )
+               end if
+               if (index_tracer_16 > 0) then
+                  scalars_driving(index_tracer_16,1:nVertLevels,1:nCells+1) = mpas_atm_get_bdy_state( clock, block, nVertLevels, nCells, 'tracer_16', rk_timestep(rk_step) )
+               end if
+               if (index_tracer_17 > 0) then
+                  scalars_driving(index_tracer_17,1:nVertLevels,1:nCells+1) = mpas_atm_get_bdy_state( clock, block, nVertLevels, nCells, 'tracer_17', rk_timestep(rk_step) )
+               end if
+               if (index_tracer_18 > 0) then
+                  scalars_driving(index_tracer_18,1:nVertLevels,1:nCells+1) = mpas_atm_get_bdy_state( clock, block, nVertLevels, nCells, 'tracer_18', rk_timestep(rk_step) )
+               end if
+               if (index_tracer_19 > 0) then
+                  scalars_driving(index_tracer_19,1:nVertLevels,1:nCells+1) = mpas_atm_get_bdy_state( clock, block, nVertLevels, nCells, 'tracer_19', rk_timestep(rk_step) )
+               end if
+               if (index_tracer_20 > 0) then
+                  scalars_driving(index_tracer_20,1:nVertLevels,1:nCells+1) = mpas_atm_get_bdy_state( clock, block, nVertLevels, nCells, 'tracer_20', rk_timestep(rk_step) )
+               end if
+
+
 !$OMP PARALLEL DO
                do thread=1,nThreads
                   call atm_bdy_adjust_scalars( state, diag, mesh, block % configs, scalars_driving, nVertLevels, dt, rk_timestep(rk_step), &
@@ -1254,7 +1403,67 @@ module atm_time_integration
          if (index_ni > 0) then
             scalars_driving(index_ni,1:nVertLevels,1:nCells+1) = mpas_atm_get_bdy_state( clock, block, nVertLevels, nCells, 'ni', dt )
          end if
-      
+         !!! Calls for PT transport
+         if (index_tracer_1 > 0) then
+            scalars_driving(index_tracer_1,1:nVertLevels,1:nCells+1) = mpas_atm_get_bdy_state( clock, block, nVertLevels, nCells, 'tracer_1', dt )
+         end if
+         if (index_tracer_2 > 0) then
+            scalars_driving(index_tracer_2,1:nVertLevels,1:nCells+1) = mpas_atm_get_bdy_state( clock, block, nVertLevels, nCells, 'tracer_2', dt )
+         end if
+         if (index_tracer_3 > 0) then
+            scalars_driving(index_tracer_3,1:nVertLevels,1:nCells+1) = mpas_atm_get_bdy_state( clock, block, nVertLevels, nCells, 'tracer_3', dt )
+         end if
+         if (index_tracer_4 > 0) then
+            scalars_driving(index_tracer_4,1:nVertLevels,1:nCells+1) = mpas_atm_get_bdy_state( clock, block, nVertLevels, nCells, 'tracer_4', dt )
+         end if
+         if (index_tracer_5 > 0) then
+            scalars_driving(index_tracer_5,1:nVertLevels,1:nCells+1) = mpas_atm_get_bdy_state( clock, block, nVertLevels, nCells, 'tracer_5', dt )
+         end if
+         if (index_tracer_6 > 0) then
+            scalars_driving(index_tracer_6,1:nVertLevels,1:nCells+1) = mpas_atm_get_bdy_state( clock, block, nVertLevels, nCells, 'tracer_6', dt )
+         end if
+         if (index_tracer_7 > 0) then
+            scalars_driving(index_tracer_7,1:nVertLevels,1:nCells+1) = mpas_atm_get_bdy_state( clock, block, nVertLevels, nCells, 'tracer_7', dt )
+         end if
+         if (index_tracer_8 > 0) then
+            scalars_driving(index_tracer_8,1:nVertLevels,1:nCells+1) = mpas_atm_get_bdy_state( clock, block, nVertLevels, nCells, 'tracer_8', dt )
+         end if
+         if (index_tracer_9 > 0) then
+            scalars_driving(index_tracer_9,1:nVertLevels,1:nCells+1) = mpas_atm_get_bdy_state( clock, block, nVertLevels, nCells, 'tracer_9', dt )
+         end if
+         if (index_tracer_10 > 0) then
+            scalars_driving(index_tracer_10,1:nVertLevels,1:nCells+1) = mpas_atm_get_bdy_state( clock, block, nVertLevels, nCells, 'tracer_10', dt )
+         end if
+         if (index_tracer_11 > 0) then
+            scalars_driving(index_tracer_11,1:nVertLevels,1:nCells+1) = mpas_atm_get_bdy_state( clock, block, nVertLevels, nCells, 'tracer_11', dt )
+         end if
+         if (index_tracer_12 > 0) then
+            scalars_driving(index_tracer_12,1:nVertLevels,1:nCells+1) = mpas_atm_get_bdy_state( clock, block, nVertLevels, nCells, 'tracer_12', dt )
+         end if
+         if (index_tracer_13 > 0) then
+            scalars_driving(index_tracer_13,1:nVertLevels,1:nCells+1) = mpas_atm_get_bdy_state( clock, block, nVertLevels, nCells, 'tracer_13', dt )
+         end if
+         if (index_tracer_14 > 0) then
+            scalars_driving(index_tracer_14,1:nVertLevels,1:nCells+1) = mpas_atm_get_bdy_state( clock, block, nVertLevels, nCells, 'tracer_14', dt )
+         end if
+         if (index_tracer_15 > 0) then
+            scalars_driving(index_tracer_15,1:nVertLevels,1:nCells+1) = mpas_atm_get_bdy_state( clock, block, nVertLevels, nCells, 'tracer_15', dt )
+         end if
+         if (index_tracer_16 > 0) then
+            scalars_driving(index_tracer_16,1:nVertLevels,1:nCells+1) = mpas_atm_get_bdy_state( clock, block, nVertLevels, nCells, 'tracer_16', dt )
+         end if
+         if (index_tracer_17 > 0) then
+            scalars_driving(index_tracer_17,1:nVertLevels,1:nCells+1) = mpas_atm_get_bdy_state( clock, block, nVertLevels, nCells, 'tracer_17', dt )
+         end if
+         if (index_tracer_18 > 0) then
+            scalars_driving(index_tracer_18,1:nVertLevels,1:nCells+1) = mpas_atm_get_bdy_state( clock, block, nVertLevels, nCells, 'tracer_18', dt )
+         end if
+         if (index_tracer_19 > 0) then
+            scalars_driving(index_tracer_19,1:nVertLevels,1:nCells+1) = mpas_atm_get_bdy_state( clock, block, nVertLevels, nCells, 'tracer_19', dt )
+         end if
+         if (index_tracer_20 > 0) then
+            scalars_driving(index_tracer_20,1:nVertLevels,1:nCells+1) = mpas_atm_get_bdy_state( clock, block, nVertLevels, nCells, 'tracer_20', dt )
+         end if      
 !$OMP PARALLEL DO
          do thread=1,nThreads
             call atm_bdy_set_scalars( state, mesh, scalars_driving, nVertLevels, &
