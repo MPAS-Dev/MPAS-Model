@@ -7,9 +7,9 @@
 
  implicit none
  private
- public:: mp_wsm6_run,   &
-          mp_wsm6_init,  &
-          mp_wsm6_final, &
+ public:: mp_wsm6_run,      &
+          mp_wsm6_init,     &
+          mp_wsm6_finalize, &
           refl10cm_wsm6
 
  real(kind=kind_phys),parameter,private:: dtcldcr = 120.    ! maximum time step for minor loops
@@ -67,6 +67,9 @@
 
 
 !=================================================================================================================
+!>\section arg_table_mp_wsm6_init
+!!\html\include mp_wsm6_init.html
+!!
  subroutine mp_wsm6_init(den0,denr,dens,cl,cpv,hail_opt,errmsg,errflg)
 !=================================================================================================================
 
@@ -186,7 +189,10 @@
  end subroutine mp_wsm6_init
 
 !=================================================================================================================
- subroutine mp_wsm6_final(errmsg,errflg)
+!>\section arg_table_mp_wsm6_finalize
+!!\html\include mp_wsm6_finalize.html
+!!
+ subroutine mp_wsm6_finalize(errmsg,errflg)
 !=================================================================================================================
 
 !--- output arguments:
@@ -195,12 +201,15 @@
 
 !-----------------------------------------------------------------------------------------------------------------
 
- errmsg = 'mp_wsm6_final OK'
+ errmsg = 'mp_wsm6_finalize OK'
  errflg = 0
 
- end subroutine mp_wsm6_final
+ end subroutine mp_wsm6_finalize
 
 !=================================================================================================================
+!>\section arg_table_mp_wsm6_run
+!!\html\include mp_wsm6_run.html
+!!
  subroutine mp_wsm6_run(t,q,qc,qi,qr,qs,qg,den,p,delz,delt,   &
                         g,cpd,cpv,rd,rv,t0c,ep1,ep2,qmin,xls, &
                         xlv0,xlf0,den0,denr,cliq,cice,psat,   &
@@ -250,7 +259,7 @@
 !input arguments:
  integer,intent(in):: its,ite,kts,kte
 
- real(kind=kind_phys),intent(in),dimension(its:ite,kts:kte)::     &
+ real(kind=kind_phys),intent(in),dimension(its:,:)::              &
                                                              den, &
                                                                p, &
                                                             delz
@@ -275,30 +284,29 @@
                                                             denr
 
 !inout arguments:
- real(kind=kind_phys),intent(inout),dimension(its:ite,kts:kte)::  &
+ real(kind=kind_phys),intent(inout),dimension(its:,:)::           &
                                                                t
-real(kind=kind_phys),intent(inout),dimension(its:ite,kts:kte)::   &
+ real(kind=kind_phys),intent(inout),dimension(its:,:)::           &
                                                                q, &
                                                               qc, &
                                                               qi, &
                                                               qr, &
                                                               qs, &
                                                               qg
-real(kind=kind_phys),intent(inout),dimension(its:ite)::           &
+ real(kind=kind_phys),intent(inout),dimension(its:)::             &
                                                             rain, &
                                                          rainncv, &
                                                               sr
 
-real(kind=kind_phys),intent(inout),dimension(its:ite),optional::  &
+ real(kind=kind_phys),intent(inout),dimension(its:),optional::    &
                                                             snow, &
                                                          snowncv
-real(kind=kind_phys),intent(inout),dimension(its:ite),optional::  &
+
+ real(kind=kind_phys),intent(inout),dimension(its:),optional::    &
                                                          graupel, &
                                                       graupelncv
 
-
- real(kind=kind_phys),intent(inout),dimension(its:ite,kts:kte),   &
-    optional::                                                    &
+ real(kind=kind_phys),intent(inout),dimension(its:,:),optional::  &
                                                       rainprod2d, &
                                                       evapprod2d
 
