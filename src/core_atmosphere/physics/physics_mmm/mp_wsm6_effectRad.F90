@@ -1,6 +1,6 @@
 !=================================================================================================================
  module mp_wsm6_effectrad
- use ccpp_kinds,only: kind_phys
+ use ccpp_kind_types,only: kind_phys
 
 
  use mp_wsm6,only: alpha,n0s,n0smax,pidn0s,pidnc
@@ -8,15 +8,18 @@
 
  implicit none
  private
- public:: mp_wsm6_effectRad_run,  &
-          mp_wsm6_effectrad_init, &
-          mp_wsm6_effectRad_final
+ public:: mp_wsm6_effectRad_run,     &
+          mp_wsm6_effectrad_init,    &
+          mp_wsm6_effectRad_finalize
 
 
  contains
 
 
 !=================================================================================================================
+!>\section arg_table_mp_wsm6_effectRad_init
+!!\html\include mp_wsm6_effectRad_init.html
+!!
  subroutine mp_wsm6_effectRad_init(errmsg,errflg)
 !=================================================================================================================
 
@@ -32,7 +35,10 @@
  end subroutine mp_wsm6_effectRad_init
 
 !=================================================================================================================
- subroutine mp_wsm6_effectRad_final(errmsg,errflg)
+!>\section arg_table_mp_wsm6_effectRad_finalize
+!!\html\include mp_wsm6_effectRad_finalize.html
+!!
+ subroutine mp_wsm6_effectRad_finalize(errmsg,errflg)
 !=================================================================================================================
 
 !output arguments:
@@ -41,12 +47,15 @@
 
 !-----------------------------------------------------------------------------------------------------------------
 
- errmsg = 'mp_wsm6_effectRad_final OK'
+ errmsg = 'mp_wsm6_effectRad_finalize OK'
  errflg = 0
 
- end subroutine mp_wsm6_effectRad_final
+ end subroutine mp_wsm6_effectRad_finalize
 
 !=================================================================================================================
+!>\section arg_table_mp_wsm6_effectRad_run
+!!\html\include mp_wsm6_effectRad_run.html
+!!
  subroutine mp_wsm6_effectRad_run(do_microp_re,t,qc,qi,qs,rho,qmin,t0c,re_qc_bg,re_qi_bg,re_qs_bg, &
                                   re_qc_max,re_qi_max,re_qs_max,re_qc,re_qi,re_qs,its,ite,kts,kte, &
                                   errmsg,errflg)
@@ -67,14 +76,14 @@
  real(kind=kind_phys),intent(in):: t0c
  real(kind=kind_phys),intent(in):: re_qc_bg,re_qi_bg,re_qs_bg
  real(kind=kind_phys),intent(in):: re_qc_max,re_qi_max,re_qs_max
- real(kind=kind_phys),dimension(its:ite,kts:kte),intent(in)::  t
- real(kind=kind_phys),dimension(its:ite,kts:kte),intent(in)::  qc
- real(kind=kind_phys),dimension(its:ite,kts:kte),intent(in)::  qi
- real(kind=kind_phys),dimension(its:ite,kts:kte),intent(in)::  qs
- real(kind=kind_phys),dimension(its:ite,kts:kte),intent(in)::  rho
- real(kind=kind_phys),dimension(its:ite,kts:kte),intent(inout):: re_qc
- real(kind=kind_phys),dimension(its:ite,kts:kte),intent(inout):: re_qi
- real(kind=kind_phys),dimension(its:ite,kts:kte),intent(inout):: re_qs
+ real(kind=kind_phys),dimension(its:,:),intent(in)::  t
+ real(kind=kind_phys),dimension(its:,:),intent(in)::  qc
+ real(kind=kind_phys),dimension(its:,:),intent(in)::  qi
+ real(kind=kind_phys),dimension(its:,:),intent(in)::  qs
+ real(kind=kind_phys),dimension(its:,:),intent(in)::  rho
+ real(kind=kind_phys),dimension(its:,:),intent(inout):: re_qc
+ real(kind=kind_phys),dimension(its:,:),intent(inout):: re_qi
+ real(kind=kind_phys),dimension(its:,:),intent(inout):: re_qs
 
 !...Output arguments:
  character(len=*),intent(out):: errmsg

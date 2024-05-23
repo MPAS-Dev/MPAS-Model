@@ -1,6 +1,6 @@
 !=================================================================================================================
  module bl_gwdo
- use ccpp_kinds,only: kind_phys
+ use ccpp_kind_types,only: kind_phys
 
  implicit none
  private

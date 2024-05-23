@@ -1,6 +1,6 @@
 !=================================================================================================================
  module mp_wsm6
- use ccpp_kinds,only: kind_phys
+ use ccpp_kind_types,only: kind_phys
  use module_libmassv,only: vrec,vsqrt
 
  use mp_radar

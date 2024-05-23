@@ -1,6 +1,6 @@
 !=================================================================================================================
  module bl_mynn
- use mpas_kind_types,only: kind_phys => RKIND
+ use ccpp_kind_types,only: kind_phys
 
  use bl_mynn_common,only: &
         cp      , cpv       , cliq      , cice , ep_1 , ep_2  , ep_3  , grav   , karman , p1000mb , &

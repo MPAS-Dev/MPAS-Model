@@ -58,7 +58,7 @@
 !NOTE: This code was primarily tested in combination with the RUC LSM.
 !      Performance with the Noah (or other) LSM is relatively unknown.
 !-------------------------------------------------------------------
-  use ccpp_kinds,only: kind_phys
+  use ccpp_kind_types,only: kind_phys
   use mynn_shared,only: esat_blend,qsat_blend,xl_blend
 
   implicit none

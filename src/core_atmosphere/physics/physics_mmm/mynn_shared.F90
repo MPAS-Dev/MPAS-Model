@@ -1,6 +1,6 @@
 !=================================================================================================================
  module mynn_shared
- use mpas_kind_types,only: kind_phys => RKIND
+ use ccpp_kind_types,only: kind_phys
 
  implicit none
  private

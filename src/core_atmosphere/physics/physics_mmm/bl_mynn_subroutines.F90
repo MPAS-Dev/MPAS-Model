@@ -1,6 +1,6 @@
 !=================================================================================================================
  module bl_mynn_common
- use mpas_kind_types,only: kind_phys => RKIND
+ use ccpp_kind_types,only: kind_phys
 
  implicit none
  save
@@ -323,7 +323,7 @@
 ! Many of these changes are now documented in references listed above.
 !====================================================================
 MODULE bl_mynn_subroutines
-  use mpas_kind_types,only: kind_phys => RKIND,kind_phys8 => R8KIND
+  use ccpp_kind_types,only: kind_phys,kind_phys8
   use bl_mynn_common,only: &
          b1        , b2       ,  cice    , cliq      , cp      , &
          cpv       , ep_2     ,  ep_3    , grav      , gtr     , &

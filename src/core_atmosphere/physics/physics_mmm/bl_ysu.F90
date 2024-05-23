@@ -1,7 +1,7 @@
 #define  NEED_B4B_DURING_CCPP_TESTING 1
 !=================================================================================================================
  module bl_ysu
- use ccpp_kinds,only: kind_phys
+ use ccpp_kind_types,only: kind_phys
 
  implicit none
  private

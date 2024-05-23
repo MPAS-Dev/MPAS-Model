@@ -1,6 +1,6 @@
 !=================================================================================================================
  module cu_ntiedtke_common
- use ccpp_kinds,only: kind_phys
+ use ccpp_kind_types,only: kind_phys
 
 
  implicit none
@@ -60,7 +60,7 @@
 !=================================================================================================================
 
  module cu_ntiedtke
- use ccpp_kinds,only: kind_phys
+ use ccpp_kind_types,only: kind_phys
  use cu_ntiedtke_common
 
 
