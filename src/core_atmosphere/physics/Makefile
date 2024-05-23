@@ -52,7 +52,7 @@ lookup_tables:
 	./checkout_data_files.sh
 
 core_physics_mmm: core_physics_init
-	(cd physics_mmm; $(MAKE) all)
+	(cd physics_mmm; $(MAKE) -f Makefile.mpas all)
 
 core_physics_wrf: core_physics_init core_physics_mmm
 	(cd physics_wrf; $(MAKE) all COREDEF="$(COREDEF)")
@@ -208,7 +208,7 @@ mpas_atmphys_update.o: \
 clean:
 	$(RM) *.o *.mod *.f90 libphys.a
 	( cd physics_wrf; $(MAKE) clean )
-	( cd physics_mmm; $(MAKE) clean )
+	( cd physics_mmm; $(MAKE) -f Makefile.mpas clean )
 	@# Certain systems with intel compilers generate *.i files
 	@# This removes them during the clean process
 	$(RM) *.i
