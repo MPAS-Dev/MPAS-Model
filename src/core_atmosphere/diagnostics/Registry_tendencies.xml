@@ -1,0 +1,484 @@
+<var_struct name="diag" time_levs="1">
+
+	<!-- MW: added this for PV  -->
+	<var name="rw_tend_dyn_large" type="real" dimensions="nVertLevelsP1 nCells Time" units="kg m^{-2} s^{-1}"
+	     description="Coupled vertical momentum tendency due to large-time-step dynamics tendency"
+             packages="tendencies"/>
+
+	<var name="rw_tend_dyn_small" type="real" dimensions="nVertLevelsP1 nCells Time" units="kg m^{-2} s^{-1}"
+	     description="Coupled vertical momentum tendency due to small-time-step dynamics tendency"
+             packages="tendencies"/>
+
+	<var name="rw_tend_diff" type="real" dimensions="nVertLevelsP1 nCells Time" units="kg m^{-2} s^{-1}"
+	     description="Coupled vertical momentum tendency from (horiz) diffusion"
+             packages="tendencies"/>
+
+	<var name="w_tend_dcpl" type="real" dimensions="nVertLevelsP1 nCells Time" units="m s^{-1}"
+	     description="Vertical velocity tendency component from decoupling from mass"
+             packages="tendencies"/>
+
+	<var name="dthetam_dt_dyn" type="real" dimensions="nVertLevels nCells Time" units="K s^{-1}"
+	     description="Moist potential temperature dynamic tendency (large+small+dcpl)"
+             packages="tendencies"/>
+
+	<var name="dthetam_dt_mix" type="real" dimensions="nVertLevels nCells Time" units="K s^{-1}"
+	     description="Moist potential temperature explicit diffusion tendency (diff)"
+             packages="tendencies"/>
+
+	<var name="dqv_dt_dyn" type="real" dimensions="nVertLevels nCells Time" units="kg kg^{-1} s^{-1}"
+	     description="Water vapor advective tendency"
+             packages="tendencies"/>
+
+	<var name="du_dt_dyn" type="real" dimensions="nVertLevels nEdges Time" units="m s^{-2}"
+	     description="Horizontal winds dynamics tendency"
+             packages="tendencies"/>
+
+	<var name="du_dt_dyn_zonal" type="real" dimensions="nVertLevels nCells Time" units="m s^{-2}"
+	     description="Zonal winds dynamics tendency (reconstructed in PV code)"
+             packages="tendencies"/>
+
+	<var name="du_dt_dyn_meridional" type="real" dimensions="nVertLevels nCells Time" units="m s^{-2}"
+	     description="Meridional winds dynamics tendency (reconstructed in PV code)"
+             packages="tendencies"/>
+
+	<var name="dw_dt_dyn" type="real" dimensions="nVertLevelsP1 nCells Time" units="m s^{-2}"
+	     description="Vertical winds dynamics tendency"
+             packages="tendencies"/>
+
+
+	<!-- MW: Initial Tendency Method: variables for accumulated tendencies-->
+	<!-- Note:    not meant to be output -->
+
+	<!-- momentum -->
+	<var name="ru_tend_dyn_large" type="real" dimensions="nVertLevels nEdges Time" units="kg m^{-2} s^{-1}"
+	     description="Coupled horizontal momentum large-time-step dynamic tendency"
+             packages="tendencies"/>
+
+	<var name="ru_tend_dyn_small" type="real" dimensions="nVertLevels nEdges Time" units="kg m^{-2} s^{-1}"
+	     description="Coupled horizontal momentum acoustic time-step dynamic tendency"
+             packages="tendencies"/>
+
+	<var name="ru_tend_diff" type="real" dimensions="nVertLevels nEdges Time" units="kg m^{-2} s^{-1}"
+	     description="Coupled horizontal momentum tendency from diffusion"
+             packages="tendencies"/>
+
+	<!-- added for PV diagnostics -->
+	<var name="pv_vertex_dyn" type="real" dimensions="nVertLevels nVertices Time" units="s^{-1} kg^{-1} m^3"
+	     description="absolute vorticity/rho_zz at a vertex after dynamics"
+             packages="tendencies"/>
+
+	<var name="u_tend_diff" type="real" dimensions="nVertLevels nEdges Time" units="m s^{-2}"
+	     description="Uncoupled horizontal momentum tendency from diffusion"
+             packages="tendencies"/>
+
+	<var name="u_tend_diff_reconstructZonal" type="real" dimensions="nVertLevels nCells Time" units="m s^{-2}"
+	     description="Uncoupled horizontal momentum tendency from diffusion"
+             packages="tendencies"/>
+
+	<var name="u_tend_diff_reconstructMeridional" type="real" dimensions="nVertLevels nCells Time" units="m s^{-2}"
+	     description="Uncoupled horizontal momentum tendency from diffusion"
+             packages="tendencies"/>
+
+	<var name="w_tend_diff" type="real" dimensions="nVertLevelsP1 nCells Time" units="m s^{-2}"
+	     description="Uncoupled vertical momentum tendency from diffusion"
+             packages="tendencies"/>
+
+	<var name="u_dyn" type= "real" dimensions="nVertLevels nEdges Time" units="m s^{-1}"
+	     description="Uncoupled horizontal velocity field after dynamics"
+             packages="tendencies"/>
+
+	<var name="uReconstructX_dyn" type= "real" dimensions="nVertLevels nCells Time" units="m s^{-1}"
+	     description="Uncoupled horizontal velocity field after dynamics"
+             packages="tendencies"/>
+
+	<var name="uReconstructY_dyn" type= "real" dimensions="nVertLevels nCells Time" units="m s^{-1}"
+	     description="Uncoupled horizontal velocity field after dynamics"
+             packages="tendencies"/>
+
+	<var name="uReconstructZ_dyn" type= "real" dimensions="nVertLevels nCells Time" units="m s^{-1}"
+	     description="Uncoupled horizontal velocity field after dynamics"
+             packages="tendencies"/>
+
+	<var name="uReconstructZonal_dyn" type= "real" dimensions="nVertLevels nCells Time" units="m s^{-1}"
+	     description="Uncoupled horizontal velocity field after dynamics"
+             packages="tendencies"/>
+
+	<var name="uReconstructMeridional_dyn" type= "real" dimensions="nVertLevels nCells Time" units="m s^{-1}"
+	     description="Uncoupled horizontal velocity field after dynamics"
+             packages="tendencies"/>
+
+	<var name="w_dyn" type= "real" dimensions="nVertLevelsP1 nCells Time" units="m s^{-1}"
+	     description="Uncoupled vertical velocity field after dynamics"
+             packages="tendencies"/>
+
+	<var name="theta_dyn" type= "real" dimensions="nVertLevels nCells Time" units="K"
+	     description="Uncoupled potential temperature field after dynamics"
+             packages="tendencies"/>
+
+	<var name="rho_dyn" type= "real" dimensions="nVertLevels nCells Time" units="kg m^{-3}"
+	     description="Dry density field after dynamics"
+             packages="tendencies"/>
+
+	<var name="ru_tend_physics" type="real" dimensions="nVertLevels nEdges Time" units="kg m^{-2} s^{-1}"
+	     description="Coupled horizontal momentum tendency from physics"
+             packages="tendencies"/>
+
+	<var name="ru_tend_smdiv" type="real" dimensions="nVertLevels nEdges Time" units="kg m^{-2} s^{-1}"
+	     description="Coupled horizontal momentum tendency due to divergence damping"
+             packages="tendencies"/>
+
+	<var name="rublten_tend" type="real" dimensions="nVertLevels nEdges Time" units="kg m^{-2} s^{-2}"
+	     description="Coupled horizontal momentum tendency due to PBL (includes GWDO)"
+             packages="tendencies"/>
+
+	<var name="rugwdo_tend" type="real" dimensions="nVertLevels nEdges Time" units="kg m^{-2} s^{-2}"
+	     description="Coupled horizontal momentum tendency due to GWDO scheme"
+             packages="tendencies"/>
+
+	<var name="rucuten_tend" type="real" dimensions="nVertLevels nEdges Time" units="kg m^{-2} s^{-2}"
+	     description="Coupled horizontal momentum tendency due to cumulus scheme"
+             packages="tendencies"/>
+
+	<var name="u_tend_dcpl" type="real" dimensions="nVertLevels nEdges Time" units="m s^{-1}"
+	     description="Horizontal momentum tendency due to dcoupling from mass"
+             packages="tendencies"/>
+
+	<!-- theta -->
+	<var name="rth_tend_dyn_large" type="real" dimensions="nVertLevels nCells Time" units="kg m^{-3} K"
+	     description="Coupled potential temperature large-time-step dynamic tendency"
+             packages="tendencies"/>
+
+	<var name="rth_tend_dyn_small" type="real" dimensions="nVertLevels nCells Time" units="kg m^{-3} K"
+	     description="Coupled potential temperature acoustic time-step dynamic tendency"
+             packages="tendencies"/>
+
+	<var name="rth_tend_diff" type="real" dimensions="nVertLevels nCells Time" units="kg m^{-3} K"
+	     description="Coupled potential temperature tendency from diffusion"
+             packages="tendencies"/>
+
+	<var name="rth_tend_physics" type="real" dimensions="nVertLevels nCells Time" units="kg m^{-3} K"
+	     description="Coupled potential temperature tendency from physics"
+             packages="tendencies"/>
+
+	<var name="rthblten_tend" type="real" dimensions="nVertLevels nCells Time" units="kg m^{-3} K s^{-1}"
+	     description="Coupled potential temperature tendency due to PBL"
+             packages="tendencies"/>
+
+	<var name="rthcuten_tend" type="real" dimensions="nVertLevels nCells Time" units="kg m^{-3} K s^{-1}"
+	     description="Coupled potential temperature tendency due to cumulus scheme"
+             packages="tendencies"/>
+
+	<var name="rthratensw_tend" type="real" dimensions="nVertLevels nCells Time" units="kg m^{-3} K s^{-1}"
+	     description="Coupled potential temperature tendency due to cumulus scheme"
+             packages="tendencies"/>
+
+	<var name="rthratenlw_tend" type="real" dimensions="nVertLevels nCells Time" units="kg m^{-3} K s^{-1}"
+	     description="Coupled potential temperature tendency due to cumulus scheme"
+             packages="tendencies"/>
+
+	<var name="th_tend_dcpl" type="real" dimensions="nVertLevels nCells Time" units="K s^{-1}"
+	     description="Potential temperature tendency due to dcoupling from mass"
+             packages="tendencies"/>
+
+	<!-- qv -->
+	<var name="rqv_tend_diff" type="real" dimensions="nVertLevels nCells Time" units="kg m^{-3} kg kg^{-1}"
+	     description="Coupled water vapor tendency from diffusion"
+             packages="tendencies"/>
+
+	<var name="qvblten_tend" type="real" dimensions="nVertLevels nCells Time" units="kg kg^{-1} s^{-1}"
+	     description="Coupled water vapor tendency due to PBL"
+             packages="tendencies"/>
+
+	<var name="qvcuten_tend" type="real" dimensions="nVertLevels nCells Time" units="kg kg^{-1} s^{-1}"
+	     description="Coupled water vapor tendency due to cumulus scheme"
+             packages="tendencies"/>
+
+	<var name="qv_mp_tend" type="real" dimensions="nVertLevels nCells Time" units="kg kg^{-1} s^{-1}"
+	     description="Water vapor tendency due to microphysics"
+             packages="tendencies"/>
+
+	<!-- Note:    for output --> 
+	<var name="acc_u_tend_dyn_large" type="real" dimensions="nVertLevels nEdges Time" units="m s^{-2}"
+	     description="Accumulated horizontal momentum large-time-step dynamic tendency"
+             packages="tendencies"/>
+
+	<var name="acc_u_tend_dyn_small" type="real" dimensions="nVertLevels nEdges Time" units="m s^{-2}"
+	     description="Accumulated hrizontal momentum acoustic time-step dynamic tendency"
+             packages="tendencies"/>
+
+	<var name="acc_u_tend_diff" type="real" dimensions="nVertLevels nEdges Time" units="m s^{-2}"
+	     description="Accumulated horizontal momentum tendency from diffusion"
+             packages="tendencies"/>
+
+	<var name="acc_u_tend_physics" type="real" dimensions="nVertLevels nEdges Time" units="m s^{-2}"
+	     description="Accumulated horizontal momentum tendency from physics"
+             packages="tendencies"/>
+
+	<var name="acc_u_tend_smdiv" type="real" dimensions="nVertLevels nEdges Time" units="m s^{-2}"
+	     description="Accumulated horizontal momentum tendency due to divergence damping"
+             packages="tendencies"/>
+
+	<var name="acc_ublten" type="real" dimensions="nVertLevels nEdges Time" units="m s^{-2}"
+	     description="Accumulated horizontal momentum tendency due to PBL scheme (includes GWDO) "
+             packages="tendencies"/>
+
+	<var name="acc_ugwdoten" type="real" dimensions="nVertLevels nEdges Time" units="m s^{-2}"
+	     description="Accumulated horizontal momentum tendency due to GWDO scheme "
+             packages="tendencies"/>
+
+	<var name="acc_ucuten" type="real" dimensions="nVertLevels nEdges Time" units="m s^{-2}"
+	     description="Accumulated horizontal momentum tendency due to cumulus scheme"
+             packages="tendencies"/>
+
+	<var name="acc_u_tend_dcpl" type="real" dimensions="nVertLevels nEdges Time" units="m s^{-2}"
+	     description="Accumulated horizontal momentum tendency due to decoupling from mass"
+             packages="tendencies"/>
+
+	<!-- theta -->
+	<var name="acc_th_tend_dyn_large" type="real" dimensions="nVertLevels nCells Time" units="K s^{-1}"
+	     description="Accumulated moist potential temperature large-time-step dynamic tendency"
+             packages="tendencies"/>
+
+	<var name="acc_th_tend_dyn_small" type="real" dimensions="nVertLevels nCells Time" units="K s^{-1}"
+	     description="Accumulated moist potential temperature acoustic time-step dynamic tendency"
+             packages="tendencies"/>
+
+	<var name="acc_th_tend_diff" type="real" dimensions="nVertLevels nCells Time" units="K s^{-1}"
+	     description="Accumulated potential temperature tendency from diffusion"
+             packages="tendencies"/>
+
+	<var name="acc_th_tend_physics" type="real" dimensions="nVertLevels nCells Time" units="K s^{-1}"
+	     description="Accumulated potential temperature tendency from physics"
+             packages="tendencies"/>
+
+	<var name="acc_thblten" type="real" dimensions="nVertLevels nCells Time" units="K s^{-1}"
+	     description="Accumulated potential temperature tendency due to PBL"
+             packages="tendencies"/>
+
+	<var name="acc_thcuten" type="real" dimensions="nVertLevels nCells Time" units="K s^{-1}"
+	     description="Accumulated potential temperature tendency due to cumulus scheme"
+             packages="tendencies"/>
+
+	<var name="acc_thratensw" type="real" dimensions="nVertLevels nCells Time" units="K s^{-1}"
+	     description="Accumulated potential temperature tendency due to cumulus scheme"
+             packages="tendencies"/>
+
+	<var name="acc_thratenlw" type="real" dimensions="nVertLevels nCells Time" units="K s^{-1}"
+	     description="Accumulated potential temperature tendency due to cumulus scheme"
+             packages="tendencies"/>
+
+	<var name="acc_th_tend_diabatic" type="real" dimensions="nVertLevels nCells Time" units="K s^{-1}"
+	     description="Accumulated potential temperature tendency due to latent heat"
+             packages="tendencies"/>
+
+	<var name="acc_th_tend_dcpl" type="real" dimensions="nVertLevels nCells Time" units="K s^{-1}"
+	     description="Accumulated potential temperature tendency due to decoupling from mass"
+             packages="tendencies"/>
+
+	<!-- qv -->
+	<var name="acc_qv_tend_dyn_large" type="real" dimensions="nVertLevels nCells Time" units="kg kg^{-1} s^{-1}"
+	     description="Accumulated water vapor large-time-step dynamic tendency"
+             packages="tendencies"/>
+
+	<var name="acc_qv_tend_diff" type="real" dimensions="nVertLevels nCells Time" units="kg kg^{-1} s^{-1}"
+	     description="Accumulated water vapor tendency from diffusion"
+             packages="tendencies"/>
+
+	<var name="acc_qvblten" type="real" dimensions="nVertLevels nCells Time" units="kg kg^{-1} s^{-1}"
+	     description="Accumulated water vapor tendency due to PBL"
+             packages="tendencies"/>
+
+	<var name="acc_qvcuten" type="real" dimensions="nVertLevels nCells Time" units="kg kg^{-1} s^{-1}"
+	     description="Accumulated water vapor tendency due to cumulus scheme"
+             packages="tendencies"/>
+
+	<var name="acc_qv_mp_tend" type="real" dimensions="nVertLevels nCells Time" units="kg kg^{-1} s^{-1}"
+	     description="Accumulated water vapor tendency due to latent heat"
+             packages="tendencies"/>
+
+	<!-- zonal --> 
+	<var name="acc_u_tend_dyn_large_ReconstructZonal" type="real" dimensions="nVertLevels nCells Time" uzonalnits="m s^{-2}"
+	     description="Accumulated zonal momentum large-time-step dynamic tendency"
+             packages="tendencies"/>
+
+	<var name="acc_u_tend_dyn_small_ReconstructZonal" type="real" dimensions="nVertLevels nCells Time" units="m s^{-2}"
+	     description="Accumulated zonal momentum acoustic time-step dynamic tendency"
+             packages="tendencies"/>
+
+	<var name="acc_u_tend_diff_ReconstructZonal" type="real" dimensions="nVertLevels nCells Time" units="m s^{-2}"
+	     description="Accumulated zonal momentum tendency from diffusion"
+             packages="tendencies"/>
+
+	<var name="acc_u_tend_physics_ReconstructZonal" type="real" dimensions="nVertLevels nCells Time" units="m s^{-2}"
+	     description="Accumulated zonal momentum tendency from physics"
+             packages="tendencies"/>
+
+	<var name="acc_u_tend_smdiv_ReconstructZonal" type="real" dimensions="nVertLevels nCells Time" units="m s^{-2}"
+	     description="Accumulated zonal momentum tendency due to divergence damping"
+             packages="tendencies"/>
+
+	<var name="acc_ublten_ReconstructZonal" type="real" dimensions="nVertLevels nCells Time" units="m s^{-2}"
+	     description="Accumulated zonal momentum tendency due to PBL scheme (includes GWDO) "
+             packages="tendencies"/>
+
+	<var name="acc_ugwdoten_ReconstructZonal" type="real" dimensions="nVertLevels nCells Time" units="m s^{-2}"
+	     description="Accumulated zonal momentum tendency due to GWDO scheme "
+             packages="tendencies"/>
+
+	<var name="acc_ucuten_ReconstructZonal" type="real" dimensions="nVertLevels nCells Time" units="m s^{-2}"
+	     description="Accumulated zonal momentum tendency due to cumulus scheme"
+             packages="tendencies"/>
+
+	<var name="acc_u_tend_dcpl_ReconstructZonal" type="real" dimensions="nVertLevels nCells Time" units="m s^{-2}"
+	     description="Accumulated zonal momentum tendency due to decoupling from mass"
+             packages="tendencies"/>
+
+	<!-- meridional -->
+	<var name="acc_u_tend_dyn_large_ReconstructMeridional" type="real" dimensions="nVertLevels nCells Time" uzonalnits="m s^{-2}"
+	     description="Accumulated meridional momentum large-time-step dynamic tendency"
+             packages="tendencies"/>
+
+	<var name="acc_u_tend_dyn_small_ReconstructMeridional" type="real" dimensions="nVertLevels nCells Time" units="m s^{-2}"
+	     description="Accumulated meridional momentum acoustic time-step dynamic tendency"
+             packages="tendencies"/>
+
+	<var name="acc_u_tend_diff_ReconstructMeridional" type="real" dimensions="nVertLevels nCells Time" units="m s^{-2}"
+	     description="Accumulated meridional momentum tendency from diffusion"
+             packages="tendencies"/>
+
+	<var name="acc_u_tend_physics_ReconstructMeridional" type="real" dimensions="nVertLevels nCells Time" units="m s^{-2}"
+	     description="Accumulated meridional momentum tendency from physics"
+             packages="tendencies"/>
+
+	<var name="acc_u_tend_smdiv_ReconstructMeridional" type="real" dimensions="nVertLevels nCells Time" units="m s^{-2}"
+	     description="Accumulated meridional momentum tendency due to divergence damping"
+             packages="tendencies"/>
+
+	<var name="acc_ublten_ReconstructMeridional" type="real" dimensions="nVertLevels nCells Time" units="m s^{-2}"
+	     description="Accumulated meridional momentum tendency due to PBL scheme (includes GWDO)"
+             packages="tendencies"/>
+
+	<var name="acc_ugwdoten_ReconstructMeridional" type="real" dimensions="nVertLevels nCells Time" units="m s^{-2}"
+	     description="Accumulated meridional momentum tendency due to GWDO scheme "
+             packages="tendencies"/>
+
+	<var name="acc_ucuten_ReconstructMeridional" type="real" dimensions="nVertLevels nCells Time" units="m s^{-2}"
+	     description="Accumulated meridional momentum tendency due to cumulus scheme"
+             packages="tendencies"/>
+
+	<var name="acc_u_tend_dcpl_ReconstructMeridional" type="real" dimensions="nVertLevels nCells Time" units="m s^{-2}"
+	     description="Accumulated meridional momentum tendency due to decoupling from mass"
+             packages="tendencies"/>
+
+	<!-- X -->
+	<var name="acc_u_tend_dyn_large_ReconstructX" type="real" dimensions="nVertLevels nCells Time" uzonalnits="m s^{-2}"
+	     description="Accumulated horizontal momentum large-time-step dynamic tendency"
+             packages="tendencies"/>
+
+	<var name="acc_u_tend_dyn_small_ReconstructX" type="real" dimensions="nVertLevels nCells Time" units="m s^{-2}"
+	     description="Accumulated hrizontal momentum acoustic time-step dynamic tendency"
+             packages="tendencies"/>
+
+	<var name="acc_u_tend_diff_ReconstructX" type="real" dimensions="nVertLevels nCells Time" units="m s^{-2}"
+	     description="Accumulated horizontal momentum tendency from diffusion"
+             packages="tendencies"/>
+
+	<var name="acc_u_tend_physics_ReconstructX" type="real" dimensions="nVertLevels nCells Time" units="m s^{-2}"
+	     description="Accumulated horizontal momentum tendency from physics"
+             packages="tendencies"/>
+
+	<var name="acc_u_tend_smdiv_ReconstructX" type="real" dimensions="nVertLevels nCells Time" units="m s^{-2}"
+	     description="Accumulated horizontal momentum tendency due to divergence damping"
+             packages="tendencies"/>
+
+	<var name="acc_ublten_ReconstructX" type="real" dimensions="nVertLevels nCells Time" units="m s^{-2}"
+	     description="Accumulated horizontal momentum tendency due to PBL scheme (includes GWDO)"
+             packages="tendencies"/>
+
+	<var name="acc_ugwdoten_ReconstructX" type="real" dimensions="nVertLevels nCells Time" units="m s^{-2}"
+	     description="Accumulated horizontal momentum tendency due to GWDO scheme "
+             packages="tendencies"/>
+
+	<var name="acc_ucuten_ReconstructX" type="real" dimensions="nVertLevels nCells Time" units="m s^{-2}"
+	     description="Accumulated horizontal momentum tendency due to cumulus scheme"
+             packages="tendencies"/>
+
+	<var name="acc_u_tend_dcpl_ReconstructX" type="real" dimensions="nVertLevels nCells Time" units="m s^{-2}"
+	     description="Accumulated horizontal momentum tendency due to decoupling from mass"
+             packages="tendencies"/>
+
+	<!-- Y --> 
+	<var name="acc_u_tend_dyn_large_ReconstructY" type="real" dimensions="nVertLevels nCells Time" uzonalnits="m s^{-2}"
+	     description="Accumulated horizontal momentum large-time-step dynamic tendency"
+             packages="tendencies"/>
+
+	<var name="acc_u_tend_dyn_small_ReconstructY" type="real" dimensions="nVertLevels nCells Time" units="m s^{-2}"
+	     description="Accumulated hrizontal momentum acoustic time-step dynamic tendency"
+             packages="tendencies"/>
+
+	<var name="acc_u_tend_diff_ReconstructY" type="real" dimensions="nVertLevels nCells Time" units="m s^{-2}"
+	     description="Accumulated horizontal momentum tendency from diffusion"
+             packages="tendencies"/>
+
+	<var name="acc_u_tend_physics_ReconstructY" type="real" dimensions="nVertLevels nCells Time" units="m s^{-2}"
+	     description="Accumulated horizontal momentum tendency from physics"
+             packages="tendencies"/>
+
+	<var name="acc_u_tend_smdiv_ReconstructY" type="real" dimensions="nVertLevels nCells Time" units="m s^{-2}"
+	     description="Accumulated horizontal momentum tendency due to divergence damping"
+             packages="tendencies"/>
+
+	<var name="acc_ublten_ReconstructY" type="real" dimensions="nVertLevels nCells Time" units="m s^{-2}"
+	     description="Accumulated horizontal momentum tendency due to PBL scheme (includes GWDO)"
+             packages="tendencies"/>
+
+	<var name="acc_ugwdoten_ReconstructY" type="real" dimensions="nVertLevels nCells Time" units="m s^{-2}"
+	     description="Accumulated horizontal momentum tendency due to GWDO scheme "
+             packages="tendencies"/>
+
+	<var name="acc_ucuten_ReconstructY" type="real" dimensions="nVertLevels nCells Time" units="m s^{-2}"
+	     description="Accumulated horizontal momentum tendency due to cumulus scheme"
+             packages="tendencies"/>
+
+	<var name="acc_u_tend_dcpl_ReconstructY" type="real" dimensions="nVertLevels nCells Time" units="m s^{-2}"
+	     description="Accumulated horizontal momentum tendency due to decoupling from mass"
+             packages="tendencies"/>
+
+	<!-- Z --> 
+	<var name="acc_u_tend_dyn_large_ReconstructZ" type="real" dimensions="nVertLevels nCells Time" uzonalnits="m s^{-2}"
+	     description="Accumulated horizontal momentum large-time-step dynamic tendency"
+             packages="tendencies"/>
+
+	<var name="acc_u_tend_dyn_small_ReconstructZ" type="real" dimensions="nVertLevels nCells Time" units="m s^{-2}"
+	     description="Accumulated hrizontal momentum acoustic time-step dynamic tendency"
+             packages="tendencies"/>
+
+	<var name="acc_u_tend_diff_ReconstructZ" type="real" dimensions="nVertLevels nCells Time" units="m s^{-2}"
+	     description="Accumulated horizontal momentum tendency from diffusion"
+             packages="tendencies"/>
+
+	<var name="acc_u_tend_physics_ReconstructZ" type="real" dimensions="nVertLevels nCells Time" units="m s^{-2}"
+	     description="Accumulated horizontal momentum tendency from physics"
+             packages="tendencies"/>
+
+	<var name="acc_u_tend_smdiv_ReconstructZ" type="real" dimensions="nVertLevels nCells Time" units="m s^{-2}"
+	     description="Accumulated horizontal momentum tendency due to divergence damping"
+             packages="tendencies"/>
+
+	<var name="acc_ublten_ReconstructZ" type="real" dimensions="nVertLevels nCells Time" units="m s^{-2}"
+	     description="Accumulated horizontal momentum tendency due to PBL scheme (includes GWDO)"
+             packages="tendencies"/>
+
+	<var name="acc_ugwdoten_ReconstructZ" type="real" dimensions="nVertLevels nCells Time" units="m s^{-2}"
+	     description="Accumulated horizontal momentum tendency due to GWDO scheme "
+             packages="tendencies"/>
+
+	<var name="acc_ucuten_ReconstructZ" type="real" dimensions="nVertLevels nCells Time" units="m s^{-2}"
+	     description="Accumulated horizontal momentum tendency due to cumulus scheme"
+             packages="tendencies"/>
+
+	<var name="acc_u_tend_dcpl_ReconstructZ" type="real" dimensions="nVertLevels nCells Time" units="m s^{-2}"
+	     description="Accumulated horizontal momentum tendency due to decoupling from mass"
+             packages="tendencies"/>
+
+</var_struct>

@@ -19,6 +19,54 @@
 <!-- soundings -->
 #include "Registry_soundings.xml"
 
+<!-- tendencies -->
+#include "Registry_tendencies.xml"
+
+
+<!-- ........................................................................ -->
+<!-- Declare namelist config options for tendency and PV diagnostics packages -->
+<!-- ........................................................................ -->
+<nml_record name="diagnostics" in_defaults="false">
+
+    <!-- NAMELIST VARIABLES ADDED FOR INITIALIZATION OF INITIAL TENDENCY DIAGNOSTICS: -->    
+    <nml_option name="config_tend" type="logical" default_value="false" in_defaults="false"
+         units="-"
+         description="Logical for outputting tendency budget terms for thetam, water-vapor mixing ratio, and reconstructed winds"
+         possible_values=".true. for accumulating tendency terms; .false. otherwise"/>
+
+
+    <!-- NAMELIST VARIABLES ADDED FOR INITIALIZATION OF PV DIAGNOSTICS: -->
+    <nml_option name="config_pv_diag" type="logical" default_value="false" in_defaults="false"
+         units="-"
+         description="Logical for calculation of potential vorticity and variables interpolated to dynamic tropopause"
+         possible_values=".true. for PV diagnostics calculation; .false. otherwise"/>
+
+    <!-- The following are only active when config_pv_diag = True -->
+    <!-- config_pv_tend requires config_tend = True -->
+    <nml_option name="config_pv_tend" type="logical" default_value="false" in_defaults="false"
+         units="-"
+         description="Logical for calculation of potential vorticity tendency diagnostics"
+         possible_values=".true. for PV tendency diagnostics calculation; .false. otherwise"/>
+
+    <nml_option name="config_pv_isobaric" type="logical" default_value="false" in_defaults="false"
+         units="-"
+         description="Logical for interpolation of PV diagnostics onto isobaric levels"
+         possible_values=".true. for PV diagnostics interpolation; .false. otherwise"/>
+
+   <!-- MC_TODO: should only be activated if Thompson MP scheme is used -->
+    <nml_option name="config_pv_microphys" type="logical" default_value="false" in_defaults="false"
+         units="-"
+         description="Logical for calculation of specific process tendencies from Thompson microphysics"
+         possible_values=".true. for PV tendencies from specific mp processes; .false. otherwise"/>
+
+    <!-- MC_TODO: need to deal with restarts; pv_scalars variable defined in Registry.xml -->
+    <nml_option name="config_pv_scalar" type="logical" default_value="false" in_defaults="false"
+         units="-"
+         description="Logical for treating the initial PV field as a passive scalar and transporting it throughout the simulation"
+         possible_values=".true. for calculating scalar PV transport; .false. otherwise"/>
+
+</nml_record>
+
 <!-- ******************************* -->
 <!-- End includes from diagnostics -->
 <!-- ******************************* -->

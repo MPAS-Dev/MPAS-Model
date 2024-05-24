@@ -1,68 +1,428 @@
-<!-- ***************************************** -->
-<!-- PV diagnostics from Nicholas Szapiro (OU) -->
+<!-- ******************************************* -->
+<!-- ........PV diagnostics package............. -->
+<!-- Nick Szapiro, Manda Chasteen, and May Wong  -->
 <!-- Note that 1 PVU = 10^6 K kg^{−1} m^2 s^{−1} -->
-<!-- ***************************************** -->
-
+<!-- ******************************************* -->
 <var_struct name="diag" time_levs="1">
 
+        <!-- 3D PV fields -->
         <var name="ertel_pv" type="real" dimensions="nVertLevels nCells Time" units="PVU"
-             description="Ertel's potential vorticity"/>
+             description="Ertel's potential vorticity (1 PVU = 10^{-6} m^{2} s^{-1} K kg^{-1})"
+             packages="pv_diagnostics"/>
 
-        <var name="u_pv" type="real" dimensions="nCells Time" units="m s^{-1}"
-             description="Zonal wind on dynamic tropopause"/>
+        <var name="ertel_pv_prev" type="real" dimensions="nVertLevels nCells Time" units="PVU"
+             description="Ertel's PV at beginning of previous time step"
+             packages="pv_tendencies"/>
 
-        <var name="v_pv" type="real" dimensions="nCells Time" units="m s^{-1}"
-             description="Meridional wind on dynamic tropopause"/>
 
-        <var name="theta_pv" type="real" dimensions="nCells Time" units="K"
-             description="Potential temperature on dynamic tropopause"/>
-
-        <var name="vort_pv" type="real" dimensions="nCells Time" units="s^{-1}"
-             description="Relative vertical vorticity on dynamic tropopause"/>
-
-        <var name="iLev_DT" type="integer" dimensions="nCells Time" units="-"
-             description="Lowest vertical level at or above dynamic tropopause (.lt.1 if 2 PVU below column; .gt.nLevels if 2PVU above column)"/>
-
-#ifdef DO_PHYSICS
+       <!-- Instantaneous PV tendencies -->
+       <!-- Diabatic -->
         <var name="depv_dt_lw" type="real" dimensions="nVertLevels nCells Time" units="PVU s^{-1}"
-             description="Diabatic EPV tendency from longwave radiation"/>
+             description="Diabatic PV tendency from longwave radiation parameterization scheme"
+             packages="pv_tendencies"/>
 
         <var name="depv_dt_sw" type="real" dimensions="nVertLevels nCells Time" units="PVU s^{-1}"
-             description="Diabatic EPV tendency from shortwave radiation"/>
+             description="Diabatic PV tendency from shortwave radiation parameterization scheme"
+             packages="pv_tendencies"/>
 
         <var name="depv_dt_bl" type="real" dimensions="nVertLevels nCells Time" units="PVU s^{-1}"
-             description="Diabatic EPV tendency from PBL"/>
+             description="Diabatic PV tendency from PBL parameterization scheme"
+             packages="pv_tendencies"/>
 
         <var name="depv_dt_cu" type="real" dimensions="nVertLevels nCells Time" units="PVU s^{-1}"
-             description="Diabatic EPV tendency from convection"/>
+             description="Diabatic PV tendency from cumulus parameterization scheme"
+             packages="pv_tendencies"/>
 
         <var name="depv_dt_mp" type="real" dimensions="nVertLevels nCells Time" units="PVU s^{-1}"
-             description="Diabatic EPV tendency from microphysics"/>
-
-        <var name="dtheta_dt_mix" type="real" dimensions="nVertLevels nCells Time" units="K s^{-1}"
-             description="Potential temperature heating rate from explicit numerical mixing"/>
+             description="Diabatic PV tendency from microphysics parameterization scheme"
+             packages="pv_tendencies"/>
 
         <var name="depv_dt_mix" type="real" dimensions="nVertLevels nCells Time" units="PVU s^{-1}"
-             description="Diabatic EPV tendency from explicit numerical mixing"/>
-
+             description="Diabatic PV tendency from explicit horizontal mixing"
+             packages="pv_tendencies"/>
+    
         <var name="depv_dt_diab" type="real" dimensions="nVertLevels nCells Time" units="PVU s^{-1}"
-             description="Sum of calculated EPV tendencies from diabatic processes"/>
+             description="Sum of calculated PV tendencies from diabatic processes"
+             packages="pv_tendencies"/>
 
+        <!-- Frictional -->
+        <var name="depv_dt_fric_bl" type="real" dimensions="nVertLevels nCells Time" units="PVU s^{-1}"
+             description="Frictional PV tendency from PBL and GWD parameterization schemes"
+             packages="pv_tendencies"/>
+
+        <var name="depv_dt_fric_cu" type="real" dimensions="nVertLevels nCells Time" units="PVU s^{-1}"
+             description="Frictional PV tendency from cumulus parameterization scheme"
+             packages="pv_tendencies"/>
+
+        <var name="depv_dt_fric_mix" type="real" dimensions="nVertLevels nCells Time" units="PVU s^{-1}"
+             description="Frictional PV tendency from explicit horizontal mixing"
+             packages="pv_tendencies"/>
+    
         <var name="depv_dt_fric" type="real" dimensions="nVertLevels nCells Time" units="PVU s^{-1}"
-             description="Sum of calculated EPV tendencies from frictional processes"/>
+             description="Sum of calculated PV tendencies from frictional processes"
+             packages="pv_tendencies"/>
+    
+        <!-- Dynamics -->
+        <var name="depv_dt_dyn" type="real" dimensions="nVertLevels nCells Time" units="PVU s^{-1}"
+             description="PV tendency from dynamics"
+             packages="pv_tendencies"/>
+    
+        <!-- Specific microphysics process PV tendencies: currently only works for Thompson MP scheme -->
+        <var name="depv_dt_mp_evap_cw" type="real" dimensions="nVertLevels nCells Time" units="PVU s^{-1}"
+             description="Diabatic PV tendency from microphysics - net condensation/evaporation of cloud water"
+             packages="pv_microphysics"/>
 
-        <var name="tend_u_phys" type="real" dimensions="nVertLevels nEdges Time" units="m s^{-2}"
-             description="Normal wind tendencies from physics parameterizations"/>
+        <var name="depv_dt_mp_evap_rw" type="real" dimensions="nVertLevels nCells Time" units="PVU s^{-1}"
+             description="Diabatic PV tendency from microphysics - evaporation of rain water"
+             packages="pv_microphysics"/>
 
+        <var name="depv_dt_mp_depo_ice" type="real" dimensions="nVertLevels nCells Time" units="PVU s^{-1}"
+             description="Diabatic PV tendency from microphysics - net deposition/sublimation of all ice hydrometeors"
+             packages="pv_microphysics"/>
+
+        <var name="depv_dt_mp_melt_ice" type="real" dimensions="nVertLevels nCells Time" units="PVU s^{-1}"
+             description="Diabatic PV tendency from microphysics - melting of all ice hydrometeors"
+             packages="pv_microphysics"/>
+
+        <var name="depv_dt_mp_frez_ice" type="real" dimensions="nVertLevels nCells Time" units="PVU s^{-1}"
+             description="Diabatic PV tendency from microphysics - freezing of all ice hydrometeors"
+             packages="pv_microphysics"/>
+
+        <var name="depv_dt_mp_allproc" type="real" dimensions="nVertLevels nCells Time" units="PVU s^{-1}"
+             description="Diabatic PV tendency from summed microphysical processes"
+             packages="pv_microphysics"/>
+
+    
+       <!-- Accumulated PV tendencies -->
+       <!-- Diabatic -->
+        <var name="acc_depv_dt_lw" type="real" dimensions="nVertLevels nCells Time" units="PVU s^{-1}"
+             description="Accumulated diabatic PV tendency from longwave radiation scheme"
+             packages="pv_tendencies"
+             streams="restart"/>
+
+        <var name="acc_depv_dt_sw" type="real" dimensions="nVertLevels nCells Time" units="PVU s^{-1}"
+             description="Accumulated diabatic PV tendency from shortwave radiation scheme"
+             packages="pv_tendencies"
+             streams="restart"/>
+    
+        <var name="acc_depv_dt_bl" type="real" dimensions="nVertLevels nCells Time" units="PVU s^{-1}"
+             description="Accumulated diabatic PV tendency from PBL scheme"
+             packages="pv_tendencies"
+             streams="restart"/>
+    
+        <var name="acc_depv_dt_cu" type="real" dimensions="nVertLevels nCells Time" units="PVU s^{-1}"
+             description="Accumulated diabatic PV tendency from cumulus scheme"
+             packages="pv_tendencies"
+             streams="restart"/>
+    
+        <var name="acc_depv_dt_mp" type="real" dimensions="nVertLevels nCells Time" units="PVU s^{-1}"
+             description="Accumulated diabatic PV tendency from microphysics scheme"
+             packages="pv_tendencies"
+             streams="restart"/>
+    
+        <var name="acc_depv_dt_mix" type="real" dimensions="nVertLevels nCells Time" units="PVU s^{-1}"
+             description="Accumulated diabatic PV tendency from explicit horizontal mixing"
+             packages="pv_tendencies"
+             streams="restart"/>
+    
+        <var name="acc_depv_dt_diab" type="real" dimensions="nVertLevels nCells Time" units="PVU s^{-1}"
+             description="Accumulated sum of calculated PV tendencies from diabatic processes"
+             packages="pv_tendencies"
+             streams="restart"/>
+    
+        <!-- Frictional -->
+        <var name="acc_depv_dt_fric_bl" type="real" dimensions="nVertLevels nCells Time" units="PVU s^{-1}"
+             description="Accumulated frictional PV tendency from PBL and GWD schemes"
+             packages="pv_tendencies"
+             streams="restart"/>
+    
+        <var name="acc_depv_dt_fric_cu" type="real" dimensions="nVertLevels nCells Time" units="PVU s^{-1}"
+             description="Accumulated frictional PV tendency from cumulus scheme"
+             packages="pv_tendencies"
+             streams="restart"/>
+    
+        <var name="acc_depv_dt_fric_mix" type="real" dimensions="nVertLevels nCells Time" units="PVU s^{-1}"
+             description="Accumulated frictional PV tendency from explicit horizontal mixing"
+             packages="pv_tendencies"
+             streams="restart"/>
+    
+        <var name="acc_depv_dt_fric" type="real" dimensions="nVertLevels nCells Time" units="PVU s^{-1}"
+             description="Accumulated sum of calculated PV tendencies from frictional processes"
+             packages="pv_tendencies"
+             streams="restart"/>
+    
+        <!-- Dynamics -->
+        <var name="acc_depv_dt_dyn" type="real" dimensions="nVertLevels nCells Time" units="PVU s^{-1}"
+             description="Accumulated PV tendency from dynamics"
+             packages="pv_tendencies"
+             streams="restart"/>
+    
+       <!-- Specific microphysics process PV tendencies: currently only works for Thompson MP scheme -->
+        <var name="acc_depv_dt_mp_evap_cw" type="real" dimensions="nVertLevels nCells Time" units="PVU s^{-1}"
+             description="Accumulated diabatic PV tendency from microphysics - net condensation/evaporation of cloud water"
+             packages="pv_microphysics"
+             streams="restart"/>
+    
+        <var name="acc_depv_dt_mp_evap_rw" type="real" dimensions="nVertLevels nCells Time" units="PVU s^{-1}"
+             description="Accumulated diabatic PV tendency from microphysics - evaporation of rain water"
+             packages="pv_microphysics"
+             streams="restart"/>
+    
+        <var name="acc_depv_dt_mp_depo_ice" type="real" dimensions="nVertLevels nCells Time" units="PVU s^{-1}"
+             description="Accumulated diabatic PV tendency from microphysics - net deposition/sublimation of all ice hydrometeors"
+             packages="pv_microphysics"
+             streams="restart"/>
+    
+        <var name="acc_depv_dt_mp_melt_ice" type="real" dimensions="nVertLevels nCells Time" units="PVU s^{-1}"
+             description="Accumulated diabatic PV tendency from microphysics - melting of all ice hydrometeors"
+             packages="pv_microphysics"
+             streams="restart"/>
+    
+        <var name="acc_depv_dt_mp_frez_ice" type="real" dimensions="nVertLevels nCells Time" units="PVU s^{-1}"
+             description="Accumulated diabatic PV tendency from microphysics - freezing of all ice hydrometeors"
+             packages="pv_microphysics"
+             streams="restart"/>
+    
+        <var name="acc_depv_dt_mp_allproc" type="real" dimensions="nVertLevels nCells Time" units="PVU s^{-1}"
+             description="Accumulated diabatic PV tendency from summed microphysical processes"
+             packages="pv_microphysics"
+             streams="restart"/>
+
+    
+        <!-- Accumulated latent heating tendencies --> 
+        <var name="acc_dtheta_dt_mp" type="real" dimensions="nVertLevels nCells Time" units="K s^{-1}"
+             description="Accumulated potential temperature tendency due to microphysics scheme"
+             packages="pv_tendencies"
+             streams="restart"/>
+    
+        <var name="acc_dtheta_dt_cu" type="real" dimensions="nVertLevels nCells Time" units="K s^{-1}"
+             description="Accumulated potential temperature tendency due to cumulus scheme"
+             packages="pv_tendencies"
+             streams="restart"/>
+    
+
+        <!-- Static variables on dynamic tropopause -->
+        <var name="iLev_DT" type="integer" dimensions="nCells Time" units="-"
+             description="Lowest vertical model level at or above dynamic tropopause (< 1 if 2 PVU below column; > nVertLevels if 2 PVU above column)"
+             packages="pv_diagnostics"/>
+
+        <var name="iLev_DT_prev" type="integer" dimensions="nCells Time" units="-"
+             description="Lowest vertical level at or above dynamic tropopause at beginning of previous time step"
+             packages="pv_tendencies"/>
+
+        <var name="u_pv" type="real" dimensions="nCells Time" units="m s^{-1}"
+             description="Zonal wind on dynamic tropopause diagnosed at current time step (i.e., iLev_DT)"
+             packages="pv_diagnostics"/>
+
+        <var name="v_pv" type="real" dimensions="nCells Time" units="m s^{-1}"
+             description="Meridional wind on dynamic tropopause diagnosed at current time step (i.e., iLev_DT)"
+             packages="pv_diagnostics"/>
+
+        <var name="theta_pv" type="real" dimensions="nCells Time" units="K"
+             description="Potential temperature on dynamic tropopause diagnosed at current time step (i.e., iLev_DT)"
+             packages="pv_diagnostics"/>
+
+        <var name="vort_pv" type="real" dimensions="nCells Time" units="s^{-1}"
+             description="Relative vertical vorticity on dynamic tropopause diagnosed at current time step (i.e., iLev_DT)"
+             packages="pv_diagnostics"/>
+
+        <var name="pres_pv" type="real" dimensions="nCells Time" units="Pa"
+             description="Pressure of dynamic tropopause diagnosed at current time step (i.e., iLev_DT)"
+             packages="pv_diagnostics"/>
+
+        <var name="height_pv" type="real" dimensions="nCells Time" units="m MSL"
+             description="Geopotential height of dynamic tropopause diagnosed at current time step (i.e., iLev_DT)"
+             packages="pv_diagnostics"/>
+
+    
+        <!-- Instantaneous PV tendencies on dynamic tropopause -->
         <var name="depv_dt_diab_pv" type="real" dimensions="nCells Time" units="PVU s^{-1}"
-             description="Diabatic EPV tendency on dynamic tropopause"/>
+             description="Diabatic PV tendency on dynamic tropopause diagnosed at beginning of previous time step (i.e., iLev_DT_prev)"
+             packages="pv_tendencies"/>
 
         <var name="depv_dt_fric_pv" type="real" dimensions="nCells Time" units="PVU s^{-1}"
-             description="Frictional EPV tendency on dynamic tropopause"/>
-#endif
+             description="Frictional PV tendency on dynamic tropopause diagnosed at beginning of previous time step (i.e., iLev_DT_prev)"
+             packages="pv_tendencies"/>
 
+        <var name="depv_dt_dyn_pv" type="real" dimensions="nCells Time" units="PVU s^{-1}"
+             description="PV tendency from dynamics on dynamic tropopause diagnosed at beginning of previous time step (i.e., iLev_DT_prev)"
+             packages="pv_tendencies"/>
+
+    
+        <!-- Accumulated PV tendencies on dynamic tropopause -->
+        <var name="acc_depv_dt_diab_pv" type="real" dimensions="nCells Time" units="PVU s^{-1}"
+             description="Accumulated diabatic PV tendency on dynamic tropopause"
+             packages="pv_tendencies"
+             streams="restart"/>
+    
+        <var name="acc_depv_dt_fric_pv" type="real" dimensions="nCells Time" units="PVU s^{-1}"
+             description="Accumulated frictional PV tendency on dynamic tropopause"
+             packages="pv_tendencies"
+             streams="restart"/>
+
+        <var name="acc_depv_dt_dyn_pv" type="real" dimensions="nCells Time" units="PVU s^{-1}"
+             description="Accumulated advective PV tendency on dynamic tropopause"
+             packages="pv_tendencies"
+             streams="restart"/>
+
+    
+        <!-- Intermediate static variables --> 
+        <var name="zgrid_cell" type="real" dimensions="nVertLevels nCells Time" units="m"
+             description="Geometric height of cell centers on mass levels"
+             packages="pv_diagnostics"/>
+
+        <var name="wCell" type="real" dimensions="nVertLevels nCells Time" units="m s^{-1}"
+             description="Vertical velocity interpolated to cell centers"
+             packages="pv_diagnostics"/>
+    
+        <var name="dtheta_dz" type="real" dimensions="nVertLevels nCells Time" units="K m^{-1}"
+             description="Vertical gradient of potential temperature"
+             packages="pv_diagnostics"/>
+
+        <var name="uReconstructZonal_prev" type="real" dimensions="nVertLevels nCells Time" units="m s^{-1}"
+             description="Reconstructed zonal wind at beginning of previous time step"
+             packages="pv_tendencies"/>
+
+        <var name="uReconstructMeridional_prev" type="real" dimensions="nVertLevels nCells Time" units="m s^{-1}"
+             description="Reconstructed meridional wind at beginning of previous time step"
+             packages="pv_tendencies"/>
+
+        <var name="wCell_prev" type="real" dimensions="nVertLevels nCells Time" units="m s^{-1}"
+             description="Vertical velocity interpolated to cell centers at beginning of previous time step"
+             packages="pv_tendencies"/>
+
+        <var name="theta_prev" type="real" dimensions="nVertLevels nCells Time" units="K"
+             description="Potential temperature at beginning of previous time step"
+             packages="pv_tendencies"/>
+
+        <var name="rho_prev" type="real" dimensions="nVertLevels nCells Time" units="kg m^{-3}"
+             description="Density at cell center at beginning of previous time step"
+             packages="pv_tendencies"/>
+
+        <var name="qv_prev" type="real" dimensions="nVertLevels nCells Time" units="kg kg^{-1}"
+             description="Water vapor mixing ratio at beginning of the time step"
+             packages="pv_tendencies"/>
+
+        <var name="pv_vertex_prev" type="real" dimensions="nVertLevels nVertices Time" units="s^{-1}"
+             description="Absolute vertical voricity at cell vertices at beginning of previous time step"
+             packages="pv_tendencies"/>
+
+
+       <!-- Intermediate tendency variables --> 
+       <!-- Diabatic and moisture --> 
+       <var name="dtheta_dt_mix" type="real" dimensions="nVertLevels nCells Time" units="K s^{-1}"
+             description="Potential temperature heating rate from explicit horizontal mixing"
+             packages="pv_tendencies"/>
+
+       <var name="dtheta_dt_dyn" type="real" dimensions="nVertLevels nCells Time" units="K s^{-1}"
+             description="Potential temperature tendency from dynamics"
+             packages="pv_tendencies"/>
+
+       <var name="thmblten" type="real" dimensions="nVertLevels nCells Time" units="K s^{-1}"
+             description="Theta_m tendency from PBL scheme calculated over RK timestep integration"
+             packages="pv_tendencies"/>
+
+        <var name="qvblten" type="real" dimensions="nVertLevels nCells Time" units="kg kg^{-1} s^{-1}"
+             description="Mixing ratio tendency from PBL scheme calculated over RK timestep integration"
+             packages="pv_tendencies"/>        
+
+        <var name="dtheta_dt_pbl" type="real" dimensions="nVertLevels nCells Time" units="K s^{-1}"
+             description="Potential temperature tendency from PBL scheme -- derived from theta_m and qv tendencies"
+             packages="pv_tendencies"/>
+
+        <var name="thmcuten" type="real" dimensions="nVertLevels nCells Time" units="K s^{-1}"
+             description="Theta_m tendency from cumulus scheme calculated over RK timestep integration"
+             packages="pv_tendencies"/>
+
+        <var name="qvcuten" type="real" dimensions="nVertLevels nCells Time" units="kg kg^{-1} s^{-1}"
+             description="Mixing ratio tendency from cumulus scheme calculated over RK timestep integration"
+             packages="pv_tendencies"/>
+
+        <var name="dtheta_dt_cu" type="real" dimensions="nVertLevels nCells Time" units="K s^{-1}"
+             description="Potential temperature tendency from cumulus scheme -- derived from theta_m and qv tendencies"
+             packages="pv_tendencies"/>
+
+        <var name="thmlwten" type="real" dimensions="nVertLevels nCells Time" units="K s^{-1}"
+             description="Theta_m tendency from longwave radiation calculated over RK timestep integration"
+             packages="pv_tendencies"/>
+
+       <var name="dtheta_dt_lw" type="real" dimensions="nVertLevels nCells Time" units="K s^{-1}"
+             description="Potential temperature tendency from longwave radiation scheme -- derived from theta_m tendency"
+             packages="pv_tendencies"/>
+
+        <var name="thmswten" type="real" dimensions="nVertLevels nCells Time" units="K s^{-1}"
+             description="Theta_m tendency from shortwave radiation calculated over RK timestep integration"
+             packages="pv_tendencies"/>
+
+        <var name="dtheta_dt_sw" type="real" dimensions="nVertLevels nCells Time" units="K s^{-1}"
+             description="Potential temperature tendency from shortwave radiation scheme -- derived from theta_m tendency"
+             packages="pv_tendencies"/>
+
+        <var name="thmmpten" type="real" dimensions="nVertLevels nCells Time" units="K s^{-1}"
+             description="Theta_m tendency from microphysics scheme"
+             packages="pv_tendencies"/>    
+
+        <var name="qvmpten" type="real" dimensions="nVertLevels nCells Time" units="kg kg^{-1} s^{-1}"
+             description="Mixing ratio tendency from microphysics scheme"
+             packages="pv_tendencies"/>
+
+        <var name="dtheta_dt_mp" type="real" dimensions="nVertLevels nCells Time" units="K s^{-1}"
+             description="Potential temperature tendency from microphysics scheme -- derived from theta_m and qv tendencies"
+             packages="pv_tendencies"/>
+
+
+        <!-- Momentum --> 
+        <!-- Some related tendency variables are included in Registry.xml file (e.g., u_tend_diff) -->
+        <var name="tend_u_pbl" type="real" dimensions="nVertLevels nEdges Time" units="m s^{-2}"
+             description="Normal wind tendencies from PBL and GWD parameterization schemes"
+             packages="pv_tendencies"/>
+
+        <var name="tend_u_cu" type="real" dimensions="nVertLevels nEdges Time" units="m s^{-2}"
+             description="Normal wind tendencies from cumulus parameterization scheme"
+             packages="pv_tendencies"/>
+    
+        <var name="uTend_curl_diff" type="real" dimensions="nVertLevels nVertices Time" units="s^{-2}"
+             description="Curl of the normal wind tendencies from diffusion at the cell vertices"
+             packages="pv_tendencies"/>
+
+        <var name="uTend_curl_pbl" type="real" dimensions="nVertLevels nVertices Time" units="s^{-2}"
+             description="Curl of the normal wind tendencies from PBL+GWD at the cell vertices"
+             packages="pv_tendencies"/>
+
+        <var name="uTend_curl_cu" type="real" dimensions="nVertLevels nVertices Time" units="s^{-2}"
+             description="Curl of the normal wind tendencies from cumulus at the cell vertices"
+             packages="pv_tendencies"/>
+
+        <var name="uTend_curl_dyn" type="real" dimensions="nVertLevels nVertices Time" units="s^{-2}"
+             description="Curl of the normal wind tendencies from dynamics at the cell vertices"
+             packages="pv_tendencies"/>
+
+        <var name="tend_wCell_diff" type="real" dimensions="nVertLevels nCells Time" units="m s^{-2}"
+             description="Uncoupled vertical velocity tendency from mixing interpolated to mass levels"
+             packages="pv_tendencies"/>
+
+        <var name="tenddyn_wCell" type="real" dimensions="nVertLevels nCells Time" units="m s^{-2}"
+             description="Uncoupled vertical velocity tendency from dynamics interpolated to mass levels"
+             packages="pv_tendencies"/>
+
+    
+        <!-- Dynamic tropopause identification routine --> 
         <var name="inTropo" type="integer" dimensions="nVertLevels nCells Time" units="0/1"
-             description="1 if within troposphere based on EPV flood fill"/>
+             description="1 if within troposphere based on PV flood fill"
+             packages="pv_diagnostics"/>
+
+        <var name="candInTropo" type="integer" dimensions="nVertLevels nCells Time" units="0/1"
+             description="1 if candidate of troposphere"
+             packages="pv_diagnostics"/>
+
+        <var name="candInStrato" type="integer" dimensions="nVertLevels nCells Time" units="0/1"
+             description="1 if candidate of stratosphere"
+             packages="pv_diagnostics"/>
+
+
+        <!-- MC: needs to be deleted after further code modifications have been done -->
+        <var name="tend_u_phys" type="real" dimensions="nVertLevels nEdges Time" units="m s^{-2}"
+             description="Normal wind tendencies from physics parameterizations"/>   
 
 </var_struct>
 
