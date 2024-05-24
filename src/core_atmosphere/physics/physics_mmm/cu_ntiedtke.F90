@@ -141,6 +141,9 @@
  end subroutine cu_ntiedtke_finalize
 
 !=================================================================================================================
+!>\section arg_table_cu_ntiedtke_run
+!!\html\include cu_ntiedtke_run.html
+!!
 !     level 1 subroutine 'cu_ntiedkte_run'
       subroutine cu_ntiedtke_run(pu,pv,pt,pqv,pqc,pqi,pqvf,ptf,poz,pzz,pomg, &
      &         pap,paph,evap,hfx,zprecc,lndj,lq,km,km1,dt,dx,errmsg,errflg)
