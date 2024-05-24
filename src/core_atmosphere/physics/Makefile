@@ -4,7 +4,9 @@ ifeq ($(CORE),atmosphere)
 COREDEF = -Dmpas
 endif
 
-all: lookup_tables core_physics_init core_physics_mmm core_physics_wrf core_physics
+all:
+	./../tools/manage_externals/checkout_externals --externals ./../Externals.cfg
+	$(MAKE) lookup_tables core_physics_init core_physics_mmm core_physics_wrf core_physics
 
 dummy:
 	echo "****** compiling physics ******"
@@ -208,7 +210,7 @@ mpas_atmphys_update.o: \
 clean:
 	$(RM) *.o *.mod *.f90 libphys.a
 	( cd physics_wrf; $(MAKE) clean )
-	( cd physics_mmm; $(MAKE) -f Makefile.mpas clean )
+	( if [ -d physics_mmm ]; then cd physics_mmm; $(MAKE) -f Makefile.mpas clean; fi; )
 	@# Certain systems with intel compilers generate *.i files
 	@# This removes them during the clean process
 	$(RM) *.i
