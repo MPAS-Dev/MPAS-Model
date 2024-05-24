@@ -110,6 +110,8 @@ module atm_core_interface
       use mpas_atmphys_packages
 #endif
 
+      use mpas_atm_diagnostics_packages     ! MC added
+
       implicit none
 
       type (mpas_pool_type), intent(inout) :: configs
@@ -207,6 +209,17 @@ module atm_core_interface
          call mpas_log_write('Package setup failed for atmphys in core_atmosphere', messageType=MPAS_LOG_ERR)
       end if
 #endif
+
+
+      ! MC ADDED
+      ! Tendency and PV diagnostics
+      !
+      local_ierr = diagnostics_setup_packages(configs, packages, iocontext)
+      if (local_ierr /= 0) then
+         ierr = ierr + 1
+         call mpas_log_write('Package setup failed for diagnostics in core_atmosphere', messageType=MPAS_LOG_ERR)
+      end if
+
 
    end function atm_setup_packages
 
