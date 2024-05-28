@@ -792,6 +792,7 @@
               swdnt      = swdnt_p      , swdntc     = swdntc_p      , swupb    = swupb_p  , &
               swupbc     = swupbc_p     , swdnb      = swdnb_p       , swdnbc   = swdnbc_p , &
               swddir     = swddir_p     , swddni     = swddni_p      , swddif   = swddif_p , &
+              julian     = curr_julday  ,                                                    &
               ids = ids , ide = ide , jds = jds , jde = jde , kds = kds , kde = kde ,        &
               ims = ims , ime = ime , jms = jms , jme = jme , kms = kms , kme = kme ,        &
               its = its , ite = ite , jts = jts , jte = jte , kts = kts , kte = kte          &
