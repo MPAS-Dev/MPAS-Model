@@ -870,6 +870,7 @@
             rre_snow   = rresnow_p     , lwupt     = lwupt_p     , lwuptc   = lwuptc_p , &
             lwdnt      = lwdnt_p       , lwdntc    = lwdntc_p    , lwupb    = lwupb_p  , &
             lwupbc     = lwupbc_p      , lwdnb     = lwdnb_p     , lwdnbc   = lwdnbc_p , &
+            yr         = year          ,                                                 &
             ids = ids , ide = ide , jds = jds , jde = jde , kds = kds , kde = kde ,      &
             ims = ims , ime = ime , jms = jms , jme = jme , kms = kms , kme = kme ,      &
             its = its , ite = ite , jts = jts , jte = jte , kts = kts , kte = kte        &
