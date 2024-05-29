@@ -43,8 +43,10 @@
 
  call mpas_pool_get_config(configs,'config_microp_scheme',config_microp_scheme)
 
- if(trim(config_microp_scheme) == 'mp_thompson') &
+ if(trim(config_microp_scheme) == 'mp_thompson'         .or. &
+    trim(config_microp_scheme) == 'mp_thompson_aerosols') then
     call mp_thompson_deallocate
+ endif
 
  end subroutine atmphys_finalize
 
