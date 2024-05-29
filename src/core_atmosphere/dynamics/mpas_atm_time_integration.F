@@ -188,6 +188,24 @@ module atm_time_integration
       type (field2DReal), pointer :: tend_ru_physicsField, tend_rtheta_physicsField, tend_rho_physicsField
 #endif
 
+#ifdef MPAS_OPENACC
+      type (mpas_pool_type), pointer :: mesh
+
+      real (kind=RKIND), dimension(:), pointer :: dvEdge
+      integer, dimension(:,:), pointer :: cellsOnCell
+      integer, dimension(:,:), pointer :: cellsOnEdge
+      integer, dimension(:,:), pointer :: advCellsForEdge
+      integer, dimension(:,:), pointer :: edgesOnCell
+      integer, dimension(:), pointer :: nAdvCellsForEdge
+      integer, dimension(:), pointer :: nEdgesOnCell
+      real (kind=RKIND), dimension(:,:), pointer :: adv_coefs
+      real (kind=RKIND), dimension(:,:), pointer :: adv_coefs_3rd
+      real (kind=RKIND), dimension(:,:), pointer :: edgesOnCell_sign
+      real (kind=RKIND), dimension(:), pointer :: invAreaCell
+      integer, dimension(:), pointer :: bdyMaskCell
+      integer, dimension(:), pointer :: bdyMaskEdge
+#endif
+
 
 #ifdef MPAS_CAM_DYCORE
       nullify(tend_physics)
@@ -201,6 +219,50 @@ module atm_time_integration
 
       call mpas_pool_get_field(tend_physics, 'tend_ru_physics', tend_ru_physicsField)
       call mpas_allocate_scratch_field(tend_ru_physicsField)
+#endif
+
+#ifdef MPAS_OPENACC
+      nullify(mesh)
+      call mpas_pool_get_subpool(domain % blocklist % structs, 'mesh', mesh)
+
+      call mpas_pool_get_array(mesh, 'dvEdge', dvEdge)
+      !$acc enter data copyin(dvEdge)
+
+      call mpas_pool_get_array(mesh, 'cellsOnCell', cellsOnCell)
+      !$acc enter data copyin(cellsOnCell)
+
+      call mpas_pool_get_array(mesh, 'cellsOnEdge', cellsOnEdge)
+      !$acc enter data copyin(cellsOnEdge)
+
+      call mpas_pool_get_array(mesh, 'advCellsForEdge', advCellsForEdge)
+      !$acc enter data copyin(advCellsForEdge)
+
+      call mpas_pool_get_array(mesh, 'edgesOnCell', edgesOnCell)
+      !$acc enter data copyin(edgesOnCell)
+
+      call mpas_pool_get_array(mesh, 'nAdvCellsForEdge', nAdvCellsForEdge)
+      !$acc enter data copyin(nAdvCellsForEdge)
+
+      call mpas_pool_get_array(mesh, 'nEdgesOnCell', nEdgesOnCell)
+      !$acc enter data copyin(nEdgesOnCell)
+
+      call mpas_pool_get_array(mesh, 'adv_coefs', adv_coefs)
+      !$acc enter data copyin(adv_coefs)
+
+      call mpas_pool_get_array(mesh, 'adv_coefs_3rd', adv_coefs_3rd)
+      !$acc enter data copyin(adv_coefs_3rd)
+
+      call mpas_pool_get_array(mesh, 'edgesOnCell_sign', edgesOnCell_sign)
+      !$acc enter data copyin(edgesOnCell_sign)
+
+      call mpas_pool_get_array(mesh, 'invAreaCell', invAreaCell)
+      !$acc enter data copyin(invAreaCell)
+
+      call mpas_pool_get_array(mesh, 'bdyMaskCell', bdyMaskCell)
+      !$acc enter data copyin(bdyMaskCell)
+
+      call mpas_pool_get_array(mesh, 'bdyMaskEdge', bdyMaskEdge)
+      !$acc enter data copyin(bdyMaskEdge)
 #endif
 
    end subroutine mpas_atm_dynamics_init
@@ -233,6 +295,24 @@ module atm_time_integration
       type (field2DReal), pointer :: tend_ru_physicsField, tend_rtheta_physicsField, tend_rho_physicsField
 #endif
 
+#ifdef MPAS_OPENACC
+      type (mpas_pool_type), pointer :: mesh
+
+      real (kind=RKIND), dimension(:), pointer :: dvEdge
+      integer, dimension(:,:), pointer :: cellsOnCell
+      integer, dimension(:,:), pointer :: cellsOnEdge
+      integer, dimension(:,:), pointer :: advCellsForEdge
+      integer, dimension(:,:), pointer :: edgesOnCell
+      integer, dimension(:), pointer :: nAdvCellsForEdge
+      integer, dimension(:), pointer :: nEdgesOnCell
+      real (kind=RKIND), dimension(:,:), pointer :: adv_coefs
+      real (kind=RKIND), dimension(:,:), pointer :: adv_coefs_3rd
+      real (kind=RKIND), dimension(:,:), pointer :: edgesOnCell_sign
+      real (kind=RKIND), dimension(:), pointer :: invAreaCell
+      integer, dimension(:), pointer :: bdyMaskCell
+      integer, dimension(:), pointer :: bdyMaskEdge
+#endif
+
 
 #ifdef MPAS_CAM_DYCORE
       nullify(tend_physics)
@@ -246,6 +326,50 @@ module atm_time_integration
 
       call mpas_pool_get_field(tend_physics, 'tend_ru_physics', tend_ru_physicsField)
       call mpas_deallocate_scratch_field(tend_ru_physicsField)
+#endif
+
+#ifdef MPAS_OPENACC
+      nullify(mesh)
+      call mpas_pool_get_subpool(domain % blocklist % structs, 'mesh', mesh)
+
+      call mpas_pool_get_array(mesh, 'dvEdge', dvEdge)
+      !$acc exit data delete(dvEdge)
+
+      call mpas_pool_get_array(mesh, 'cellsOnCell', cellsOnCell)
+      !$acc exit data delete(cellsOnCell)
+
+      call mpas_pool_get_array(mesh, 'cellsOnEdge', cellsOnEdge)
+      !$acc exit data delete(cellsOnEdge)
+
+      call mpas_pool_get_array(mesh, 'advCellsForEdge', advCellsForEdge)
+      !$acc exit data delete(advCellsForEdge)
+
+      call mpas_pool_get_array(mesh, 'edgesOnCell', edgesOnCell)
+      !$acc exit data delete(edgesOnCell)
+
+      call mpas_pool_get_array(mesh, 'nAdvCellsForEdge', nAdvCellsForEdge)
+      !$acc exit data delete(nAdvCellsForEdge)
+
+      call mpas_pool_get_array(mesh, 'nEdgesOnCell', nEdgesOnCell)
+      !$acc exit data delete(nEdgesOnCell)
+
+      call mpas_pool_get_array(mesh, 'adv_coefs', adv_coefs)
+      !$acc exit data delete(adv_coefs)
+
+      call mpas_pool_get_array(mesh, 'adv_coefs_3rd', adv_coefs_3rd)
+      !$acc exit data delete(adv_coefs_3rd)
+
+      call mpas_pool_get_array(mesh, 'edgesOnCell_sign', edgesOnCell_sign)
+      !$acc exit data delete(edgesOnCell_sign)
+
+      call mpas_pool_get_array(mesh, 'invAreaCell', invAreaCell)
+      !$acc exit data delete(invAreaCell)
+
+      call mpas_pool_get_array(mesh, 'bdyMaskCell', bdyMaskCell)
+      !$acc exit data delete(bdyMaskCell)
+
+      call mpas_pool_get_array(mesh, 'bdyMaskEdge', bdyMaskEdge)
+      !$acc exit data delete(bdyMaskEdge)
 #endif
 
    end subroutine mpas_atm_dynamics_finalize
