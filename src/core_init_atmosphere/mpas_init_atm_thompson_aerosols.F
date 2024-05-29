@@ -154,7 +154,7 @@
  enddo
  do iCell = 1, nCells
     sorted_arr(1,1:nGocartLevels) = 0._RKIND
-    sorted_arr(1,1:nGocartLevels) = 0._RKIND
+    sorted_arr(2,1:nGocartLevels) = 0._RKIND
     do k = 1, nGocartLevels
        kk = nGocartLevels + 1 -k
        sorted_arr(1,kk) = pwif_int(k,iCell)
@@ -177,7 +177,7 @@
  enddo
  do iCell = 1, nCells
     sorted_arr(1,1:nGocartLevels) = 0._RKIND
-    sorted_arr(1,1:nGocartLevels) = 0._RKIND
+    sorted_arr(2,1:nGocartLevels) = 0._RKIND
     do k = 1, nGocartLevels
        kk = nGocartLevels + 1 -k
        sorted_arr(1,kk) = pwif_int(k,iCell)
