@@ -15,7 +15,7 @@ module mpas_test_core_openacc
     contains
 
     !-----------------------------------------------------------------------
-    !  routine mpas_test_openacc
+    !  function mpas_test_openacc
     !
     !> \brief Main driver for tests of OpenACC functionality in MPAS
     !> \author G. Dylan Dickerson
@@ -58,7 +58,6 @@ module mpas_test_core_openacc
             ierr_count = ierr_count + 1
             call mpas_log_write('   '//trim(test_log_str)//' - FAILED')
         end if
-        call mpas_log_write('--- End OpenACC tests')
 
         ! Make sure all threads have the max number of tests failed in
         call mpas_dmpar_max_int(domain % dminfo, ierr_count, ierr_global)
@@ -308,46 +307,6 @@ module mpas_test_core_openacc
         !$acc exit data copyout(edge_arr_gpu(:))
 
     end subroutine rep_arrs_work_gpu
-
-
-    !-----------------------------------------------------------------------
-    !  routine openacc_test_stub
-    !
-    !> \brief Stub function as a placeholder for later tests
-    !> \author G. Dylan Dickerson
-    !> \date   14 May 2024
-    !> \details
-    !>  This routine acts similarly to how the implemented routines
-    !>  should.
-    !>
-    !>  Return value: The total number of test that failed on any MPI rank.
-    !
-    !-----------------------------------------------------------------------
-    function openacc_test_stub(dminfo) result(ierr_count)
-
-        use mpas_derived_types, only : dm_info
-        use mpas_kind_types, only : StrKIND
-        use mpas_dmpar, only : mpas_dmpar_max_int
-
-        implicit none
-
-        ! Arguments
-        type (dm_info), intent(inout) :: dminfo
-
-        ! Return value
-        integer :: ierr_count
-
-
-        ierr_count = 0
-
-#ifdef MPAS_OPENACC
-        call mpas_log_write('   in openacc_test_stub and MPAS_OPENACC is defined')
-#else
-        call mpas_log_write('ERROR: in openacc_test_stub and MPAS_OPENACC is not defined')
-        ierr_count = ierr_count + 1
-#endif
-
-    end function openacc_test_stub
 
 
 end module mpas_test_core_openacc
