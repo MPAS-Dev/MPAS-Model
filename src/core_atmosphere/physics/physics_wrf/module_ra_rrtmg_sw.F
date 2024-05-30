@@ -10024,7 +10024,9 @@ CONTAINS
 
        !--- calculate the cosine of the solar zenith angle at the current time step to determine if the sun is
        !    above or below the horizon (xt24 is the fractional part of simulation days plus half of radt in 
-       !    units of minutes, julian is in days, and radt is in minutes). do not call rrtmg_sw is night-time:
+       !    units of minutes, julian is in days, and radt is in minutes). eot (equation of time) is a correction
+       !    of mean solar time due to the difference between that time and the apparent solar time. 
+       !    do not call rrtmg_sw is night-time:
        dorrsw = .true.
        da=6.2831853071795862*(julian-1.)/365.
        eot=(0.000075+0.001868*cos(da)-0.032077*sin(da) &
