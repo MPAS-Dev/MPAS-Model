@@ -110,7 +110,7 @@ module atm_core_interface
       use mpas_atmphys_packages
 #endif
 
-      use mpas_atm_diagnostics_packages     ! MC added
+      use mpas_atm_diagnostics_packages     
 
       implicit none
 

@@ -28,6 +28,10 @@ module mpas_atm_halos
 
    procedure (halo_exchange_routine), pointer :: exchange_halo_group
 
+   ! MC: added logicals for diagnostics packages
+   logical, pointer :: config_tend
+   logical, pointer :: config_pv_diag, config_pv_tend, config_pv_scalar, &
+                       config_pv_microphys   
 
    contains
 
@@ -62,6 +66,8 @@ module mpas_atm_halos
       ! Local variables
       character(len=StrKIND), pointer :: config_halo_exch_method
 
+      ! MC: check for diagnostics packages
+      call mpas_pool_get_config(domain % blocklist % configs, 'config_tend', config_tend)
 
       !
       ! Determine from the namelist option config_halo_exch_method which halo exchange method to employ
@@ -177,7 +183,28 @@ module mpas_atm_halos
          call mpas_dmpar_exch_group_create(domain, 'physics:cuten')
          call mpas_dmpar_exch_group_add_field(domain, 'physics:cuten', 'rucuten', timeLevel=1, haloLayers=(/1,2/))
          call mpas_dmpar_exch_group_add_field(domain, 'physics:cuten', 'rvcuten', timeLevel=1, haloLayers=(/1,2/))
+
 #endif
+         !
+         ! MC: Set up halo exchange groups used by diagnostics packages
+         !
+         if (config_tend) then
+            call mpas_dmpar_exch_group_create(domain, 'physics:bldiff')
+            call mpas_dmpar_exch_group_add_field(domain, 'physics:bldiff', 'rubldiff', timeLevel=1, haloLayers=(/1,2/))
+            call mpas_dmpar_exch_group_add_field(domain, 'physics:bldiff', 'rvbldiff', timeLevel=1, haloLayers=(/1,2/))
+                 
+            call mpas_dmpar_exch_group_create(domain, 'diagnostics:u_tend')   ! MC - called in mpas_atm_time_integration.F, atm_reconstruct_tend
+            call mpas_dmpar_exch_group_add_field(domain, 'diagnostics:u_tend', 'acc_u_tend_dyn_small', timeLevel=1, haloLayers=(/1,2/))
+            call mpas_dmpar_exch_group_add_field(domain, 'diagnostics:u_tend', 'acc_u_tend_dyn_large', timeLevel=1, haloLayers=(/1,2/))
+            call mpas_dmpar_exch_group_add_field(domain, 'diagnostics:u_tend', 'acc_u_tend_diff', timeLevel=1, haloLayers=(/1,2/))
+            call mpas_dmpar_exch_group_add_field(domain, 'diagnostics:u_tend', 'acc_u_tend_physics', timeLevel=1, haloLayers=(/1,2/))
+            call mpas_dmpar_exch_group_add_field(domain, 'diagnostics:u_tend', 'acc_ublten', timeLevel=1, haloLayers=(/1,2/))
+            call mpas_dmpar_exch_group_add_field(domain, 'diagnostics:u_tend', 'acc_ugwdoten', timeLevel=1, haloLayers=(/1,2/))
+            call mpas_dmpar_exch_group_add_field(domain, 'diagnostics:u_tend', 'acc_ucuten', timeLevel=1, haloLayers=(/1,2/))
+            call mpas_dmpar_exch_group_add_field(domain, 'diagnostics:u_tend', 'acc_u_tend_smdiv', timeLevel=1, haloLayers=(/1,2/))
+            call mpas_dmpar_exch_group_add_field(domain, 'diagnostics:u_tend', 'acc_u_tend_dcpl', timeLevel=1, haloLayers=(/1,2/))
+            call mpas_dmpar_exch_group_add_field(domain, 'diagnostics:u_tend', 'du_dt_dyn', timeLevel=1, haloLayers=(/1,2/))
+         end if
 
          !
          ! Set routine to exchange a halo group
@@ -313,6 +340,28 @@ module mpas_atm_halos
 #endif
 
          !
+         ! MC: Set up halo exchange groups used by diagnostics packages
+         !
+         if (config_tend) then
+            call mpas_halo_exch_group_create(domain, 'physics:bldiff')
+            call mpas_halo_exch_group_add_field(domain, 'physics:bldiff', 'rubldiff', timeLevel=1, haloLayers=(/1,2/))
+            call mpas_halo_exch_group_add_field(domain, 'physics:bldiff', 'rvbldiff', timeLevel=1, haloLayers=(/1,2/))
+            call mpas_halo_exch_group_complete(domain, 'physics:bldiff')
+
+            call mpas_halo_exch_group_create(domain, 'diagnostics:u_tend')   ! MC - called in mpas_atm_time_integration.F, atm_reconstruct_tend
+            call mpas_halo_exch_group_add_field(domain, 'diagnostics:u_tend', 'acc_u_tend_dyn_small', timeLevel=1, haloLayers=(/1,2/))
+            call mpas_halo_exch_group_add_field(domain, 'diagnostics:u_tend', 'acc_u_tend_dyn_large', timeLevel=1, haloLayers=(/1,2/))
+            call mpas_halo_exch_group_add_field(domain, 'diagnostics:u_tend', 'acc_u_tend_diff', timeLevel=1, haloLayers=(/1,2/))
+            call mpas_halo_exch_group_add_field(domain, 'diagnostics:u_tend', 'acc_u_tend_physics', timeLevel=1, haloLayers=(/1,2/))
+            call mpas_halo_exch_group_add_field(domain, 'diagnostics:u_tend', 'acc_ublten', timeLevel=1, haloLayers=(/1,2/))
+            call mpas_halo_exch_group_add_field(domain, 'diagnostics:u_tend', 'acc_ugwdoten', timeLevel=1, haloLayers=(/1,2/))
+            call mpas_halo_exch_group_add_field(domain, 'diagnostics:u_tend', 'acc_ucuten', timeLevel=1, haloLayers=(/1,2/))
+            call mpas_halo_exch_group_add_field(domain, 'diagnostics:u_tend', 'acc_u_tend_smdiv', timeLevel=1, haloLayers=(/1,2/))
+            call mpas_halo_exch_group_add_field(domain, 'diagnostics:u_tend', 'acc_u_tend_dcpl', timeLevel=1, haloLayers=(/1,2/))
+            call mpas_halo_exch_group_add_field(domain, 'diagnostics:u_tend', 'du_dt_dyn', timeLevel=1, haloLayers=(/1,2/))
+            call mpas_halo_exch_group_complete(domain, 'diagnostics:u_tend')
+         end if
+         !
          ! Set routine to exchange a halo group
          !
          exchange_halo_group => mpas_halo_exch_group_full_halo_exch
@@ -398,6 +447,14 @@ module mpas_atm_halos
          call mpas_dmpar_exch_group_destroy(domain, 'physics:blten')
          call mpas_dmpar_exch_group_destroy(domain, 'physics:cuten')
 #endif
+         !
+         ! Destroy halo exchange groups used by diagnostics
+         !
+         if (config_tend) then
+            call mpas_dmpar_exch_group_destroy(domain, 'physics:bldiff')
+            call mpas_dmpar_exch_group_destroy(domain, 'diagnostics:u_tend')
+         end if 
+
 
       else if (trim(config_halo_exch_method) == 'mpas_halo') then
 
@@ -434,6 +491,14 @@ module mpas_atm_halos
          call mpas_halo_exch_group_destroy(domain, 'physics:blten')
          call mpas_halo_exch_group_destroy(domain, 'physics:cuten')
 #endif
+
+         !
+         ! MC: Destroy halo exchange groups used by diagnostics
+         !
+         if (config_tend) then
+            call mpas_halo_exch_group_destroy(domain, 'physics:bldiff')
+            call mpas_halo_exch_group_destroy(domain, 'diagnostics:u_tend')
+         end if
 
          call mpas_halo_finalize(domain)
 
