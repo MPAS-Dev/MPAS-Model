@@ -513,6 +513,11 @@
 			<var name="ol2"/>
 			<var name="ol3"/>
 			<var name="ol4"/>
+			<var name="soilcomp"/>
+			<var name="soilcl1"/>
+			<var name="soilcl2"/>
+			<var name="soilcl3"/>
+			<var name="soilcl4"/>
 #endif
 
                 </stream>
@@ -562,11 +567,6 @@
 			<var name="smois"/>
 			<var name="tslb"/>
 			<var name="h_oml_initial"/>
-			<var name="soilcomp"/>
-			<var name="soilcl1"/>
-			<var name="soilcl2"/>
-			<var name="soilcl3"/>
-			<var name="soilcl4"/>
 #endif
 		</stream>
 
