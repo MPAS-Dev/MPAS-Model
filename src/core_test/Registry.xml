@@ -184,7 +184,10 @@
 		<var name="vertexScratchInt3D" persistence="scratch" type="integer" dimensions="vertexDegree maxEdges nVertices"/>
 		<var name="vertexScratchInt2D" persistence="scratch" type="integer" dimensions="maxEdges nVertices"/>
 		<var name="vertexScratchInt1D" persistence="scratch" type="integer" dimensions="nVertices"/>
+	</var_struct>
 
-
+	<var_struct name="openaccTest" time_levs="1">
+		<var name="edge_cpu" type="real" dimensions="nEdges"/>
+		<var name="edge_gpu" type="real" dimensions="nEdges"/>
 	</var_struct>
 </registry>

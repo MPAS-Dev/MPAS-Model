@@ -96,6 +96,7 @@ module test_core
       use test_core_string_utils, only : mpas_test_string_utils
       use mpas_test_core_dmpar, only : mpas_test_dmpar
       use mpas_test_core_stream_inquiry, only : mpas_test_stream_inquiry
+      use mpas_test_core_openacc, only : mpas_test_openacc
 
       implicit none
    
@@ -210,6 +211,23 @@ module test_core
       end do
 
       call mpas_stream_mgr_write(domain % streamManager, forceWriteNow=.true.)
+
+      !
+      ! Run mpas_test_openacc
+      !
+      call mpas_log_write('')
+#ifdef MPAS_OPENACC
+      iErr = mpas_test_openacc(domain)
+      if (iErr == 0) then
+          call mpas_log_write('All tests PASSED')
+      else
+          call mpas_log_write('$i tests FAILED', intArgs=[iErr])
+      end if
+#else
+      call mpas_log_write('MPAS_OPENACC not defined, skipping OpenACC tests')
+#endif
+      call mpas_log_write('')
+
 
       deallocate(threadErrs)
 
