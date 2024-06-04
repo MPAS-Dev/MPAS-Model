@@ -53,7 +53,7 @@
  logical:: lexist
 
 !-----------------------------------------------------------------------------------------------------------------
- call mpas_log_write('--- enter subroutine init_atm_gocart:')
+!call mpas_log_write('--- enter subroutine init_atm_gocart:')
 
 !inquire if the GOCART input file exists:
  filename_gocart = "QNWFA_QNIFA_Monthly_Sigma.dat"
@@ -75,7 +75,7 @@
     call mpas_log_write('nwfa and nifa are set to zero and not interpolated from climatological data.')
  endif
 
- call mpas_log_write('--- end subroutine init_atm_gocart.')
+!call mpas_log_write('--- end subroutine init_atm_gocart.')
  call mpas_log_write(' ')
 
  end subroutine init_atm_thompson_aerosols
@@ -108,7 +108,7 @@
  real(kind=RKIND),dimension(:,:),allocatable:: dummy1
 
 !-----------------------------------------------------------------------------------------------------------------
- call mpas_log_write('--- enter subroutine init_vinterp_gocart:')
+!call mpas_log_write('--- enter subroutine init_vinterp_gocart:')
 
  call mpas_pool_get_dimension(mesh,'nCells'       ,nCells       )
  call mpas_pool_get_dimension(mesh,'nGocartLevels',nGocartLevels)
@@ -199,7 +199,7 @@
  if(allocated(pwif_int)  ) deallocate(pwif_int  )
  if(allocated(sorted_arr)) deallocate(sorted_arr)
  
- call mpas_log_write('--- enter subroutine init_vinterp_gocart:')
+!call mpas_log_write('--- end subroutine init_vinterp_gocart:')
 
  end subroutine init_vinterp_gocart
 
@@ -236,7 +236,7 @@
  real(kind=RKIND),dimension(:,:),allocatable:: maskslab,rslab
 
 !-----------------------------------------------------------------------------------------------------------------
- call mpas_log_write('--- enter subroutine init_hinterp_gocart:')
+!call mpas_log_write('--- enter subroutine init_hinterp_gocart:')
 
  dminfo => block%domain%dminfo
 
@@ -714,7 +714,7 @@
 
  call read_met_close()
 
- call mpas_log_write('--- end subroutine init_hinterp_gocart:')
+!call mpas_log_write('--- end subroutine init_hinterp_gocart:')
 
  end subroutine init_hinterp_gocart
  
