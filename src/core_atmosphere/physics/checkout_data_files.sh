@@ -23,7 +23,7 @@
 ################################################################################
 
 
-mpas_vers="8.0"
+mpas_vers="8.2"
 
 github_org="MPAS-Dev"   # GitHub organization where the MPAS-Data repository is found.
                         # For physics development, it can be helpful for a developer
