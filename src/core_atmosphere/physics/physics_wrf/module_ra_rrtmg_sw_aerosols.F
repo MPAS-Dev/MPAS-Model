@@ -84,12 +84,13 @@ subroutine calc_aerosol_rrtmg_sw(ht,dz8w,p,t3d,qv3d,aer_type,                   
     data (upper_wvl(i),i=1,N_BANDS) /3.846,3.077,2.500,2.150,1.942,1.626,1.299,1.2420,0.7782,0.6250,0.4415,0.3448,0.2632,12.195/
 
     ! I/O variables
+    integer, intent(in) :: ims,ime,jms,jme,kms,kme, &
+                           its,ite,jts,jte,kts,kte
+
     real, dimension(ims:ime, kms:kme, jms:jme), intent(in) :: p,     & ! pressure (Pa)
                                                               t3d,   & ! temperature (K)
                                                               dz8w,  & ! dz between full levels (m)
                                                               qv3d     ! water vapor mixing ratio (kg/kg)
-    integer, intent(in) :: ims,ime,jms,jme,kms,kme, &
-                           its,ite,jts,jte,kts,kte
 !-- MPAS modifications: aer_type is a function of the land-sea mask, and set to 1 over land (or rural classification in WRF),
 !   and set to 0 over oceans (or maritime classification in WRF):
 !   integer, intent(in) :: aer_type
@@ -140,9 +141,9 @@ subroutine calc_aerosol_rrtmg_sw(ht,dz8w,p,t3d,qv3d,aer_type,                   
           if (minval(aod5502d) .lt. 0) then
              FATAL_ERROR('AOD@550 must be positive. Negative value(s) found in auxinput')
           end if
-          call mpas_log_write('--- aer_aod550_opt = $i: AOD@550 nm read from auxinput min = $r  max = $r', &
-                              intArgs=(/aer_aod550_opt/),realArgs=(/minval(aod5502d(its:ite,jts:jte)), &
-                              maxval(aod5502d(its:ite,jts:jte))/))
+!         call mpas_log_write('--- aer_aod550_opt = $i: AOD@550 nm read from auxinput min = $r  max = $r', &
+!                             intArgs=(/aer_aod550_opt/),realArgs=(/minval(aod5502d(its:ite,jts:jte)), &
+!                             maxval(aod5502d(its:ite,jts:jte))/))
        case default
           write(wrf_err_message,*) 'Expected aer_aod550_opt=[1,2]. Got',aer_aod550_opt
           FATAL_ERROR(trim(wrf_err_message))
@@ -209,8 +210,8 @@ subroutine calc_aerosol_rrtmg_sw(ht,dz8w,p,t3d,qv3d,aer_type,                   
 
        case(3)
           ! spectral disaggregation based on a prescribed aerosol type and relative humidity
-          call mpas_log_write('--- aer_angexp_opt = $i: angstrom exponent calculated from RH and aer_type $i', &
-                              intArgs=(/aer_angexp_opt,aer_type/))
+!         call mpas_log_write('--- aer_angexp_opt = $i: angstrom exponent calculated from RH and aer_type $i', &
+!                             intArgs=(/aer_angexp_opt,aer_type/))
           call calc_spectral_aod_rrtmg_sw(ims,ime,jms,jme,kms,kme,      &
                                           its,ite,jts,jte,kts,kte,      &
                                           rh,aer_type,aod5502d,         &
@@ -339,8 +340,8 @@ subroutine calc_aerosol_rrtmg_sw(ht,dz8w,p,t3d,qv3d,aer_type,                   
 
        case(3)
           ! spectral disaggregation based on a prescribed aerosol type and relative humidity
-          call mpas_log_write('--- aer_ssa_opt    = $i: single-scattering albedo calculated from RH and aer_type $i', &
-                              intArgs=(/aer_ssa_opt,aer_type/))
+!         call mpas_log_write('--- aer_ssa_opt    = $i: single-scattering albedo calculated from RH and aer_type $i', &
+!                             intArgs=(/aer_ssa_opt,aer_type/))
           call calc_spectral_ssa_rrtmg_sw(ims,ime,jms,jme,kms,kme,  &
                                           its,ite,jts,jte,kts,kte,  &
                                           rh,aer_type,ssaaer        )
@@ -417,8 +418,8 @@ subroutine calc_aerosol_rrtmg_sw(ht,dz8w,p,t3d,qv3d,aer_type,                   
 
        case(3)
           ! spectral disaggregation based on a prescribed aerosol type and relative humidity
-          call mpas_log_write('--- aer_asy_opt    = $i: asymmetry parameter calculated from RH and aer_type $i', &
-                              intArgs=(/aer_asy_opt,aer_type/))
+!         call mpas_log_write('--- aer_asy_opt    = $i: asymmetry parameter calculated from RH and aer_type $i', &
+!                             intArgs=(/aer_asy_opt,aer_type/))
           call calc_spectral_asy_rrtmg_sw(ims,ime,jms,jme,kms,kme,  &
                                           its,ite,jts,jte,kts,kte,  &
                                           rh,aer_type,asyaer        )
