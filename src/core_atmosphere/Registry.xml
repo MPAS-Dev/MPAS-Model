@@ -397,7 +397,7 @@
         <packages>
                 <package name="mp_kessler_in" description="parameterization of kessler microphysics."/>
                 <package name="mp_thompson_in" description="parameterization of Thompson cloud microphysics."/>
-                <package name="mp_thompson_aers_in" description="parameterization of scale-aware Thompson cloud microphysics."/>
+                <package name="mp_thompson_aers_in" description="parameterization of aerosol-aware Thompson cloud microphysics."/>
                 <package name="mp_wsm6_in" description="parameterization of WSM6 cloud microphysics."/>
                 <package name="cu_grell_freitas_in" description="parameterization of Grell-Freitas convection."/>
                 <package name="cu_kain_fritsch_in" description="parameterization of Kain-Fritsch convection."/>
