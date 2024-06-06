@@ -694,10 +694,10 @@
              endif
 
              if(maskval /= -1.0) then
-                destField3d(nmonths,k,iCell) = interp_sequence(x,y,1,rslab,-2,field%nx+3,1,field%ny,1,1,msgval, \
+                destField3d(nmonths,k,iCell) = interp_sequence(x,y,1,rslab,-2,field%nx+3,1,field%ny,1,1,msgval, &
                                                   interp_list,1,maskval=maskval,mask_array=maskslab)
              else
-                destField3d(nmonths,k,iCell) = interp_sequence(x,y,1,rslab,-2,field%nx+3,1,field%ny,1,1,msgval, \
+                destField3d(nmonths,k,iCell) = interp_sequence(x,y,1,rslab,-2,field%nx+3,1,field%ny,1,1,msgval, &
                                                   interp_list,1)
              endif
           else
