@@ -809,7 +809,7 @@ module mpas_log
 #ifdef _MPI
 #ifndef NOMPIMOD
 #ifdef MPAS_USE_MPI_F08
-      use mpi_f08
+      use mpi_f08, only : MPI_COMM_WORLD, MPI_Abort
 #else
       use mpi
 #endif
