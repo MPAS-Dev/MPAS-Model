@@ -824,11 +824,6 @@
 			<var name="h_oml_initial"/>
 			<var name="hu_oml"/>
 			<var name="hv_oml"/>
-			<var name="soilcomp"/>
-			<var name="soilcl1"/>
-			<var name="soilcl2"/>
-			<var name="soilcl3"/>
-			<var name="soilcl4"/>
 			<var_struct name="diag_physics_noahmp"/>
 #endif
 		</stream>
