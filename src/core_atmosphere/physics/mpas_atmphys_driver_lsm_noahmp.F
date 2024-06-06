@@ -101,7 +101,7 @@
  real(kind=RKIND),dimension(:,:),pointer:: acc_etranixy
 
 !-----------------------------------------------------------------------------------------------------------------
- call mpas_log_write('--- enter subroutine lsm_noahmp_fromMPAS: itimestep = $i',intArgs=(/itimestep/))
+!call mpas_log_write('--- enter subroutine lsm_noahmp_fromMPAS: itimestep = $i',intArgs=(/itimestep/))
 
  call mpas_pool_get_config(configs,'config_do_restart',do_restart)
 
@@ -561,7 +561,7 @@
 !   real(kind=kind_noahmp), allocatable, dimension(:,:)    ::  acc_etranixy
  enddo
 
- call mpas_log_write('--- end subroutine lsm_noahmp_fromMPAS.')
+!call mpas_log_write('--- end subroutine lsm_noahmp_fromMPAS.')
 
  end subroutine lsm_noahmp_fromMPAS
 
@@ -590,7 +590,7 @@
  real(kind=RKIND):: w1,w2,z0,z1,z2
 
 !-----------------------------------------------------------------------------------------------------------------
- call mpas_log_write('--- enter subroutine lsm_noahmp_sounding_fromMPAS: $i',intArgs=(/time_lev/))
+!call mpas_log_write('--- enter subroutine lsm_noahmp_sounding_fromMPAS: $i',intArgs=(/time_lev/))
 
 
 !--- initialization of local dimensions:
@@ -648,7 +648,7 @@
     enddo
  enddo
 
- call mpas_log_write('--- end subroutine lsm_noahmp_sounding_fromMPAS:')
+!call mpas_log_write('--- end subroutine lsm_noahmp_sounding_fromMPAS:')
 
  end subroutine lsm_noahmp_sounding_fromMPAS
 
@@ -702,7 +702,7 @@
  real(kind=RKIND),dimension(:,:),pointer:: acc_etranixy
 
 !-----------------------------------------------------------------------------------------------------------------
- call mpas_log_write('--- enter subroutine lsm_noahmp_toMPAS:')
+!call mpas_log_write('--- enter subroutine lsm_noahmp_toMPAS:')
 
 
 !--- initialization of local dimensions:
@@ -1049,7 +1049,7 @@
 !   real(kind=kind_noahmp), allocatable, dimension(:,:)    ::  acc_etranixy
  enddo
 
- call mpas_log_write('--- end subroutine lsm_noahmp_toMPAS:')
+!call mpas_log_write('--- end subroutine lsm_noahmp_toMPAS:')
 
  end subroutine lsm_noahmp_toMPAS
 
@@ -1075,8 +1075,8 @@
  
 
 !-----------------------------------------------------------------------------------------------------------------
- call mpas_log_write(' ')
- call mpas_log_write('--- enter subroutine driver_lsm_noahmp:')
+!call mpas_log_write(' ')
+!call mpas_log_write('--- enter subroutine driver_lsm_noahmp:')
 
  call lsm_noahmp_fromMPAS(configs,mesh,diag,diag_physics,diag_physics_noahmp,output_noahmp,sfc_input, &
                           state,time_lev,itimestep)
@@ -1085,7 +1085,7 @@
 
  call lsm_noahmp_toMPAS(diag_physics,diag_physics_noahmp,output_noahmp,sfc_input)
 
- call mpas_log_write('--- end subroutine driver_lsm_noahmp:')
+!call mpas_log_write('--- end subroutine driver_lsm_noahmp:')
 
  end subroutine driver_lsm_noahmp
 

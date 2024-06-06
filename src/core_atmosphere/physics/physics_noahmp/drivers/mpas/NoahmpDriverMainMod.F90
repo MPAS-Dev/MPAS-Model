@@ -48,8 +48,8 @@
  real(kind=kind_noahmp), dimension( 1:NoahmpIO%nsoil ) :: clay
  real(kind=kind_noahmp), dimension( 1:NoahmpIO%nsoil ) :: orgm
 ! ---------------------------------------------------------------------------
- call mpas_log_write(' ')
- call mpas_log_write('--- enter subroutine NoahmpDriverMain:')
+!call mpas_log_write(' ')
+!call mpas_log_write('--- enter subroutine NoahmpDriverMain:')
 
 !---------------------------------------------------------------------
 !  Treatment of Noah-MP soil timestep
@@ -85,19 +85,19 @@
  endif
 
  if ( mod(NoahmpIO%itimestep, NoahmpIO%soil_update_steps) == 0 ) NoahmpIO%calculate_soil = .true.
- call mpas_log_write(' ')
- call mpas_log_write('--- enter subroutine noahmpdrivermain:')
- call mpas_log_write('--- NoahmpIO%itimestep         = $i',intArgs=(/NoahmpIO%itimestep/))
- call mpas_log_write('--- NoahmpIO%soiltstep         = $r',realArgs=(/NoahmpIO%soiltstep/))
- call mpas_log_write('--- NoahmpIO%dtbl              = $r',realArgs=(/NoahmpIO%dtbl/))
- call mpas_log_write('--- NoahmpIO%soil_update_steps = $i',intArgs=(/NoahmpIO%soil_update_steps/))
- call mpas_log_write('--- NoahmpIO%calculate_soil    = $l',logicArgs=(/NoahmpIO%calculate_soil/))
- call mpas_log_write(' ')
- call mpas_log_write('--- NoahmpIO%isurban_table     = $i',intArgs=(/NoahmpIO%isurban_table/))
- call mpas_log_write('--- NoahmpIO%urbtype_beg       = $i',intArgs=(/NoahmpIO%urbtype_beg/))
- call mpas_log_write('--- NoahmpIO%sf_urban_physics  = $i',intArgs=(/NoahmpIO%sf_urban_physics/))
- call mpas_log_write('--- NoahmpIO%iri_urban         = $i',intArgs=(/NoahmpIO%iri_urban/))
- call mpas_log_write(' ')
+!call mpas_log_write(' ')
+!call mpas_log_write('--- enter subroutine noahmpdrivermain:')
+!call mpas_log_write('--- NoahmpIO%itimestep         = $i',intArgs=(/NoahmpIO%itimestep/))
+!call mpas_log_write('--- NoahmpIO%soiltstep         = $r',realArgs=(/NoahmpIO%soiltstep/))
+!call mpas_log_write('--- NoahmpIO%dtbl              = $r',realArgs=(/NoahmpIO%dtbl/))
+!call mpas_log_write('--- NoahmpIO%soil_update_steps = $i',intArgs=(/NoahmpIO%soil_update_steps/))
+!call mpas_log_write('--- NoahmpIO%calculate_soil    = $l',logicArgs=(/NoahmpIO%calculate_soil/))
+!call mpas_log_write(' ')
+!call mpas_log_write('--- NoahmpIO%isurban_table     = $i',intArgs=(/NoahmpIO%isurban_table/))
+!call mpas_log_write('--- NoahmpIO%urbtype_beg       = $i',intArgs=(/NoahmpIO%urbtype_beg/))
+!call mpas_log_write('--- NoahmpIO%sf_urban_physics  = $i',intArgs=(/NoahmpIO%sf_urban_physics/))
+!call mpas_log_write('--- NoahmpIO%iri_urban         = $i',intArgs=(/NoahmpIO%iri_urban/))
+!call mpas_log_write(' ')
 
 !---------------------------------------------------------------------
 !  Prepare Noah-MP driver
@@ -118,13 +118,13 @@
 ! initialize jmonth and jday:
  jmonth = NoahmpIO%month
  jday   = NoahmpIO%day
- call mpas_log_write('--- NoahmpIO%yearlen           = $i',intargs=(/NoahmpIO%yearlen/))
- call mpas_log_write('--- NoahmpIO%yr                = $i',intargs=(/NoahmpIO%yr/))
- call mpas_log_write('--- NoahmpIO%month             = $i',intargs=(/jmonth/))
- call mpas_log_write('--- NoahmpIO%day               = $i',intargs=(/jday/))
- call mpas_log_write('--- NoahmpIO%julian            = $r',realargs=(/NoahmpIO%julian/))
- call mpas_log_write('--- NoahmpIO%xice_threshold    = $r',realargs=(/NoahmpIO%xice_threshold/))
- call mpas_log_write(' ')
+!call mpas_log_write('--- NoahmpIO%yearlen           = $i',intargs=(/NoahmpIO%yearlen/))
+!call mpas_log_write('--- NoahmpIO%yr                = $i',intargs=(/NoahmpIO%yr/))
+!call mpas_log_write('--- NoahmpIO%month             = $i',intargs=(/jmonth/))
+!call mpas_log_write('--- NoahmpIO%day               = $i',intargs=(/jday/))
+!call mpas_log_write('--- NoahmpIO%julian            = $r',realargs=(/NoahmpIO%julian/))
+!call mpas_log_write('--- NoahmpIO%xice_threshold    = $r',realargs=(/NoahmpIO%xice_threshold/))
+!call mpas_log_write(' ')
 
 ! depth to soil interfaces (<0) [m]
  NoahmpIO%zsoil(1) = -NoahmpIO%dzs(1)
