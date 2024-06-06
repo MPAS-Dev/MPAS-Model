@@ -47,8 +47,8 @@
  integer:: ns
 
 !-----------------------------------------------------------------------------------------------------------------
- call mpas_log_write(' ')
- call mpas_log_write('--- enter subroutine init_lsm_noahmp:')
+!call mpas_log_write(' ')
+!call mpas_log_write('--- enter subroutine init_lsm_noahmp:')
 
 
 !--- initialize dimensions:
@@ -60,39 +60,39 @@
 
 
 !--- allocate Noahmp arrays:
- call mpas_log_write(' ')
- call mpas_log_write('--- enter subroutine NoahmpIOVarInitDefault:')
+!call mpas_log_write(' ')
+!call mpas_log_write('--- enter subroutine NoahmpIOVarInitDefault:')
  call NoahmpIOVarInitDefault(mpas_noahmp)
- call mpas_log_write('--- end subroutine NoahmpIOVarInitDefault:')
+!call mpas_log_write('--- end subroutine NoahmpIOVarInitDefault:')
 
 
 !--- read NoahmpTable.TBL:
  call mpas_pool_get_array(sfc_input,'mminlu',mminlu)
  mpas_noahmp%llanduse = mminlu
 
- call mpas_log_write(' ')
- call mpas_log_write('--- enter subroutine NoahmpReadTable:')
+!call mpas_log_write(' ')
+!call mpas_log_write('--- enter subroutine NoahmpReadTable:')
  call NoahmpReadTable(mpas_noahmp)
- call mpas_log_write('--- isbarren_table = $i',intArgs=(/mpas_noahmp%isbarren_table/))
- call mpas_log_write('--- isice_table    = $i',intArgs=(/mpas_noahmp%isice_table/)   )
- call mpas_log_write('--- iswater_table  = $i',intArgs=(/mpas_noahmp%iswater_table/) )
- call mpas_log_write('--- isurban_table  = $i',intArgs=(/mpas_noahmp%isurban_table/) )
- call mpas_log_write('--- urbtype_beg    = $i',intArgs=(/mpas_noahmp%urbtype_beg/)   )
- call mpas_log_write('--- slcats_table   = $i',intArgs=(/mpas_noahmp%slcats_table/)  )
- call mpas_log_write(' ')
- do ns = 1,mpas_noahmp%slcats_table
-    call mpas_log_write('--- BEXP,SMCMAX,PSISAT: $i $r $r $r',intArgs=(/ns/),realArgs= &
-                   (/mpas_noahmp%bexp_table(ns),mpas_noahmp%smcmax_table(ns),mpas_noahmp%psisat_table(ns)/))
- enddo
- call mpas_log_write('--- end subroutine NoahmpReadTable:')
+!call mpas_log_write('--- isbarren_table = $i',intArgs=(/mpas_noahmp%isbarren_table/))
+!call mpas_log_write('--- isice_table    = $i',intArgs=(/mpas_noahmp%isice_table/)   )
+!call mpas_log_write('--- iswater_table  = $i',intArgs=(/mpas_noahmp%iswater_table/) )
+!call mpas_log_write('--- isurban_table  = $i',intArgs=(/mpas_noahmp%isurban_table/) )
+!call mpas_log_write('--- urbtype_beg    = $i',intArgs=(/mpas_noahmp%urbtype_beg/)   )
+!call mpas_log_write('--- slcats_table   = $i',intArgs=(/mpas_noahmp%slcats_table/)  )
+!call mpas_log_write(' ')
+!do ns = 1,mpas_noahmp%slcats_table
+!   call mpas_log_write('--- BEXP,SMCMAX,PSISAT: $i $r $r $r',intArgs=(/ns/),realArgs= &
+!                  (/mpas_noahmp%bexp_table(ns),mpas_noahmp%smcmax_table(ns),mpas_noahmp%psisat_table(ns)/))
+!enddo
+!call mpas_log_write('--- end subroutine NoahmpReadTable:')
 
 
 !--- initialize noahmp:
  call noahmp_init(configs,mesh,diag_physics,diag_physics_noahmp,output_noahmp,sfc_input)
 
 
- call mpas_log_write('--- end subroutine init_lsm_noahmp:')
- call mpas_log_write(' ')
+!call mpas_log_write('--- end subroutine init_lsm_noahmp:')
+!call mpas_log_write(' ')
 
  end subroutine init_lsm_noahmp
 
@@ -108,7 +108,7 @@
  integer,pointer:: nSoilLevels,nSnowLevels
 
 !-----------------------------------------------------------------------------------------------------------------
- call mpas_log_write('--- enter subroutine noahmp_read_dimensions:')
+!call mpas_log_write('--- enter subroutine noahmp_read_dimensions:')
 
 
  call mpas_pool_get_dimension(mesh,'nCellsSolve',nCellsSolve)
@@ -124,14 +124,14 @@
  mpas_noahmp%nsoil = nSoilLevels
  mpas_noahmp%nsnow = nSnowLevels
 
- call mpas_log_write('    its = $i   ite = $i', intArgs=(/mpas_noahmp%its,mpas_noahmp%ite/))
- call mpas_log_write('    kts = $i   kte = $i', intArgs=(/mpas_noahmp%kts,mpas_noahmp%kte/))
- call mpas_log_write(' ')
- call mpas_log_write('    nSoilLevels = $i',intArgs=(/mpas_noahmp%nsoil/))
- call mpas_log_write('    nSnowLevels = $i',intArgs=(/mpas_noahmp%nsnow/))
+!call mpas_log_write('    its = $i   ite = $i', intArgs=(/mpas_noahmp%its,mpas_noahmp%ite/))
+!call mpas_log_write('    kts = $i   kte = $i', intArgs=(/mpas_noahmp%kts,mpas_noahmp%kte/))
+!call mpas_log_write(' ')
+!call mpas_log_write('    nSoilLevels = $i',intArgs=(/mpas_noahmp%nsoil/))
+!call mpas_log_write('    nSnowLevels = $i',intArgs=(/mpas_noahmp%nsnow/))
 
 
- call mpas_log_write('--- end subroutine noahmp_read_dimensions:')
+!call mpas_log_write('--- end subroutine noahmp_read_dimensions:')
 
  end subroutine noahmp_read_dimensions
 
@@ -150,8 +150,8 @@
                    iopt_infdv , iopt_tdrn
 
 !-----------------------------------------------------------------------------------------------------------------
- call mpas_log_write(' ')
- call mpas_log_write('--- enter subroutine noahmp_read_namelist:')
+!call mpas_log_write(' ')
+!call mpas_log_write('--- enter subroutine noahmp_read_namelist:')
 
  call mpas_pool_get_config(configs,'config_noahmp_iopt_dveg'  ,iopt_dveg  )
  call mpas_pool_get_config(configs,'config_noahmp_iopt_crs'   ,iopt_crs   )
@@ -208,7 +208,7 @@
  if(iopt_irrm > 0 ) call physics_error_fatal("NOAHmp: irrigation is not an available option. set iopt_irrm = 0")
  if(iopt_tdrn > 0 ) call physics_error_fatal("NOAHmp: drainage is not an available option. set iopt_tdrn = 0"  )
 
- call mpas_log_write('--- end subroutine noahmp_read_namelist:')
+!call mpas_log_write('--- end subroutine noahmp_read_namelist:')
 
  end subroutine noahmp_read_namelist
 
@@ -256,8 +256,8 @@
  integer:: i,its,ite,ns,nsoil,nsnow,nzsnow
 
 !-----------------------------------------------------------------------------------------------------------------
- call mpas_log_write(' ')
- call mpas_log_write('--- enter subroutine noahmp_init:')
+!call mpas_log_write(' ')
+!call mpas_log_write('--- enter subroutine noahmp_init:')
 
 
 !--- initialization of local dimensions:
@@ -496,7 +496,7 @@
  enddo
 
 
- call mpas_log_write('--- end subroutine noahmp_init:')
+!call mpas_log_write('--- end subroutine noahmp_init:')
 
  end subroutine noahmp_init
 
