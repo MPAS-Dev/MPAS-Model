@@ -112,11 +112,13 @@ module init_atm_core_interface
       type (mpas_pool_type), intent(inout) :: packages
       type (mpas_io_context_type), intent(inout) :: iocontext
       integer :: ierr
+      logical :: lexist
 
       logical, pointer :: initial_conds, sfc_update, lbcs
       logical, pointer :: gwd_stage_in, gwd_stage_out, vertical_stage_in, vertical_stage_out, met_stage_in, met_stage_out
       logical, pointer :: config_native_gwd_static, config_static_interp, config_vertical_grid, config_met_interp
       logical, pointer :: first_guess_field
+      logical, pointer :: mp_thompson_aers_in
       integer, pointer :: config_init_case
 
 
@@ -155,6 +157,9 @@ module init_atm_core_interface
       nullify(met_stage_out)
       call mpas_pool_get_package(packages, 'met_stage_outActive', met_stage_out)
 
+      nullify(mp_thompson_aers_in)
+      call mpas_pool_get_package(packages, 'mp_thompson_aers_inActive', mp_thompson_aers_in)
+
       if (.not. associated(initial_conds) .or. &
           .not. associated(sfc_update) .or. &
           .not. associated(gwd_stage_in) .or. &
@@ -162,7 +167,8 @@ module init_atm_core_interface
           .not. associated(vertical_stage_in) .or. &
           .not. associated(vertical_stage_out) .or. &
           .not. associated(met_stage_in) .or. &
-          .not. associated(met_stage_out)) then
+          .not. associated(met_stage_out) .or. &
+          .not. associated(mp_thompson_aers_in)) then
          call mpas_log_write('********************************************************************************', messageType=MPAS_LOG_ERR)
          call mpas_log_write('* Error while setting up packages for init_atmosphere core.',                      messageType=MPAS_LOG_ERR)
          call mpas_log_write('********************************************************************************', messageType=MPAS_LOG_ERR)
@@ -180,8 +186,12 @@ module init_atm_core_interface
 
       if (config_init_case == 9) then
          lbcs = .true.
+         mp_thompson_aers_in = .false.
+         inquire(file="QNWFA_QNIFA_SIGMA_MONTHLY.dat",exist=lexist)
+         if(lexist) mp_thompson_aers_in = .true.
       else
          lbcs = .false.
+         mp_thompson_aers_in = .false.
       end if
 
       if (config_init_case == 7) then
@@ -203,6 +213,10 @@ module init_atm_core_interface
                         (.not. config_static_interp) .and. &
                         (.not. config_vertical_grid)
          met_stage_out = config_met_interp
+
+         mp_thompson_aers_in = .false.
+         inquire(file="QNWFA_QNIFA_SIGMA_MONTHLY.dat",exist=lexist)
+         if(lexist) mp_thompson_aers_in = .true.
 
       else if (config_init_case == 8) then
          gwd_stage_in = .false.
