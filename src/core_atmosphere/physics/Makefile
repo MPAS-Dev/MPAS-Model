@@ -4,13 +4,15 @@ ifeq ($(CORE),atmosphere)
 COREDEF = -Dmpas
 endif
 
-all: lookup_tables core_physics_init core_physics_mmm core_physics_wrf core_physics
+all:
+	./../tools/manage_externals/checkout_externals --externals ./../Externals.cfg
+	$(MAKE) lookup_tables core_physics_init core_physics_mmm core_physics_wrf core_physics
 
 dummy:
 	echo "****** compiling physics ******"
 
 OBJS_init = \
-	ccpp_kinds.o             \
+	ccpp_kind_types.o        \
 	mpas_atmphys_constants.o \
 	mpas_atmphys_date_time.o \
 	mpas_atmphys_functions.o \
@@ -52,7 +54,7 @@ lookup_tables:
 	./checkout_data_files.sh
 
 core_physics_mmm: core_physics_init
-	(cd physics_mmm; $(MAKE) all)
+	(cd physics_mmm; $(MAKE) -f Makefile.mpas all)
 
 core_physics_wrf: core_physics_init core_physics_mmm
 	(cd physics_wrf; $(MAKE) all COREDEF="$(COREDEF)")
@@ -208,7 +210,7 @@ mpas_atmphys_update.o: \
 clean:
 	$(RM) *.o *.mod *.f90 libphys.a
 	( cd physics_wrf; $(MAKE) clean )
-	( cd physics_mmm; $(MAKE) clean )
+	( if [ -d physics_mmm ]; then cd physics_mmm; $(MAKE) -f Makefile.mpas clean; fi; )
 	@# Certain systems with intel compilers generate *.i files
 	@# This removes them during the clean process
 	$(RM) *.i
