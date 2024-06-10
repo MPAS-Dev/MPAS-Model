@@ -56,7 +56,7 @@
 !call mpas_log_write('--- enter subroutine init_atm_gocart:')
 
 !inquire if the GOCART input file exists:
- filename_gocart = "QNWFA_QNIFA_Monthly_Sigma.dat"
+ filename_gocart = "QNWFA_QNIFA_SIGMA_MONTHLY.dat"
 
  inquire(file=filename_gocart,exist=lexist)
  if(lexist) then
@@ -71,7 +71,7 @@
     initial_date = trim(config_start_time)
     call init_vinterp_gocart(initial_date,mesh,diag,state)
  else
-    call mpas_log_write('QNWFA_QNIFA_Monthly_Sigma.dat was not found in local directory:')
+    call mpas_log_write('QNWFA_QNIFA_SIGMA_MONTHLY.dat was not found in local directory:')
     call mpas_log_write('nwfa and nifa are set to zero and not interpolated from climatological data.')
  endif
 
@@ -240,7 +240,7 @@
 
  dminfo => block%domain%dminfo
 
- filename_gocart = "QNWFA_QNIFA_Monthly_Sigma.dat"
+ filename_gocart = "QNWFA_QNIFA_SIGMA_MONTHLY.dat"
 
  call mpas_pool_get_dimension(mesh,'nCells',nCells)
 
