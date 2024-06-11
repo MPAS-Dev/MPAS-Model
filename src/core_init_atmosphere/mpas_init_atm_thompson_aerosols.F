@@ -21,8 +21,7 @@
 
  implicit none
  private
- public:: init_atm_thompson_aerosols
-
+ public:: init_atm_thompson_aerosols,init_atm_thompson_aerosols_lbc
 
 !mpas_init_atm_thompson_aerosols contains the subroutines needed for the interpolation of climatological
 !monthly-averaged hygroscopic ("water friendly") and nonhygroscopic ("ice friendly") aerosols used in the
@@ -56,6 +55,7 @@
 !call mpas_log_write('--- enter subroutine init_atm_gocart:')
 
 !inquire if the GOCART input file exists:
+ lexist = .false.
  filename_gocart = "QNWFA_QNIFA_SIGMA_MONTHLY.dat"
 
  inquire(file=filename_gocart,exist=lexist)
@@ -718,6 +718,142 @@
 
  end subroutine init_hinterp_gocart
  
+!=================================================================================================================
+ subroutine init_atm_thompson_aerosols_lbc(timestamp,mesh,diag,state,lbc_state)
+!=================================================================================================================
+
+!input arguments:
+ character(len=StrKIND),intent(in):: timestamp
+ type(mpas_pool_type),intent(in):: diag
+ type(mpas_pool_type),intent(in):: state
+
+!inout arguments:
+ type(mpas_pool_type),intent(inout):: mesh
+ type(mpas_pool_type),intent(inout):: lbc_state
+
+!local variables and pointers:
+ logical:: lexist
+ character(len=StrKIND):: filename_gocart
+
+ integer,pointer:: nCells,nGocartLevels,nVertLevels,nMonths
+ integer,pointer:: index_nifa,index_nwfa
+ integer:: iCell,k,kk,n
+
+ real(kind=RKIND),dimension(:,:),pointer  :: nifa,nwfa,pressure
+ real(kind=RKIND),dimension(:,:,:),pointer:: nifa_clim,nwfa_clim,pwif_clim
+ real(kind=RKIND),dimension(:,:,:),pointer:: scalars
+
+ real(kind=RKIND):: target_p
+ real(kind=RKIND),dimension(:,:),allocatable:: nifa_int,nwfa_int,pwif_int,sorted_arr
+
+ real(kind=RKIND),dimension(:),allocatable::   dummy2
+ real(kind=RKIND),dimension(:,:),allocatable:: dummy1
+
+!-----------------------------------------------------------------------------------------------------------------
+!call mpas_log_write('--- enter subroutine init_lbc_gocart at time: ' //trim(timestamp))
+
+!inquire if the GOCART input file exists:
+ lexist = .false.
+ filename_gocart = "QNWFA_QNIFA_SIGMA_MONTHLY.dat"
+ inquire(file=filename_gocart,exist=lexist)
+ if(.not. lexist) return
+
+ call mpas_pool_get_dimension(mesh,'nCells'       ,nCells       )
+ call mpas_pool_get_dimension(mesh,'nGocartLevels',nGocartLevels)
+ call mpas_pool_get_dimension(mesh,'nVertLevels'  ,nVertLevels  )
+ call mpas_pool_get_dimension(mesh,'nMonths'      ,nMonths      )
+
+ call mpas_pool_get_dimension(state,'index_nifa',index_nifa)
+ call mpas_pool_get_dimension(state,'index_nwfa',index_nwfa)
+
+ call mpas_pool_get_array(diag,'pressure_base',pressure)
+
+ call mpas_pool_get_array(mesh,'nifa_gocart_clim',nifa_clim)
+ call mpas_pool_get_array(mesh,'nwfa_gocart_clim',nwfa_clim)
+ call mpas_pool_get_array(mesh,'pwif_gocart_clim',pwif_clim)
+
+ call mpas_pool_get_array(lbc_state,'lbc_scalars',scalars)
+ nifa => scalars(index_nifa,:,:)
+ nwfa => scalars(index_nwfa,:,:)
+
+ if(.not.allocated(nifa_int)  ) allocate(nifa_int(nGocartLevels,nCells))
+ if(.not.allocated(nwfa_int)  ) allocate(nwfa_int(nGocartLevels,nCells))
+ if(.not.allocated(pwif_int)  ) allocate(pwif_int(nGocartLevels,nCells))
+ if(.not.allocated(sorted_arr)) allocate(sorted_arr(2,nGocartLevels))
+
+ nifa(:,:) = 0._RKIND
+ nwfa(:,:) = 0._RKIND
+
+!--- interpolation of the monthly-averaged GOCART data to the initial date, and vertical interpolation to the
+!    MPAS levels:
+ if(.not.allocated(dummy2)) allocate(dummy2(nCells))
+ if(.not.allocated(dummy1)) allocate(dummy1(nMonths,nCells))
+
+ do k = 1, nGocartLevels
+    dummy2(1:nCells) = 0._RKIND
+    dummy1(1:nMonths,1:nCells) = pwif_clim(1:nMonths,k,1:nCells)
+    call monthly_interp_to_date(nCells,timestamp,dummy1,dummy2)
+    pwif_int(k,1:nCells) = dummy2(1:nCells)
+ enddo
+
+!--- nifa:
+ do k = 1, nGocartLevels
+    dummy2(1:nCells) = 0._RKIND
+    dummy1(1:nMonths,1:nCells) = nifa_clim(1:nMonths,k,1:nCells)
+    call monthly_interp_to_date(nCells,timestamp,dummy1,dummy2)
+    nifa_int(k,1:nCells) = dummy2(1:nCells)
+ enddo
+ do iCell = 1, nCells
+    sorted_arr(1,1:nGocartLevels) = 0._RKIND
+    sorted_arr(2,1:nGocartLevels) = 0._RKIND
+    do k = 1, nGocartLevels
+       kk = nGocartLevels + 1 -k
+       sorted_arr(1,kk) = pwif_int(k,iCell)
+       sorted_arr(2,kk) = nifa_int(k,iCell)
+    enddo
+    do k = nVertLevels, 1, -1
+       target_p = pressure(k,iCell)
+       nifa(k,iCell) = vertical_interp(target_p,nGocartLevels-1, &
+                                sorted_arr(:,1:nGocartLevels-1),order=1,extrap=0)
+       if(target_p >= pwif_int(1,iCell) .and. k < nVertLevels) nifa(k,iCell) = nifa(k+1,iCell)
+    enddo
+ enddo
+
+!--- nwfa:
+ do k = 1, nGocartLevels
+    dummy2(1:nCells) = 0._RKIND
+    dummy1(1:nMonths,1:nCells) = nwfa_clim(1:nMonths,k,1:nCells)
+    call monthly_interp_to_date(nCells,timestamp,dummy1,dummy2)
+    nwfa_int(k,1:nCells) = dummy2(1:nCells)
+ enddo
+ do iCell = 1, nCells
+    sorted_arr(1,1:nGocartLevels) = 0._RKIND
+    sorted_arr(2,1:nGocartLevels) = 0._RKIND
+    do k = 1, nGocartLevels
+       kk = nGocartLevels + 1 -k
+       sorted_arr(1,kk) = pwif_int(k,iCell)
+       sorted_arr(2,kk) = nwfa_int(k,iCell)
+    enddo
+    do k = nVertLevels, 1, -1
+       target_p = pressure(k,iCell)
+       nwfa(k,iCell) = vertical_interp(target_p,nGocartLevels-1, &
+                                sorted_arr(:,1:nGocartLevels-1),order=1,extrap=0)
+       if(target_p >= pwif_int(1,iCell) .and. k < nVertLevels) nwfa(k,iCell) = nwfa(k+1,iCell)
+    enddo
+ enddo
+
+!--- deallocation of local arrays:
+ if(allocated(dummy1)    ) deallocate(dummy1    )
+ if(allocated(dummy2)    ) deallocate(dummy2    )
+ if(allocated(nifa_int)  ) deallocate(nifa_int  )
+ if(allocated(nwfa_int)  ) deallocate(nwfa_int  )
+ if(allocated(pwif_int)  ) deallocate(pwif_int  )
+ if(allocated(sorted_arr)) deallocate(sorted_arr)
+
+!call mpas_log_write('--- end subroutine init_lbc_gocart:')
+
+ end subroutine init_atm_thompson_aerosols_lbc
+
 !=================================================================================================================
  subroutine read_gocart_init(fg_source,istatus)
 !=================================================================================================================
