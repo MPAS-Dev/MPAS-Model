@@ -33,11 +33,12 @@ int main(int argc, char ** argv)/*{{{*/
 	struct package * pkgs;
 	int err;
 
-	if (argc != 2) {
-		fprintf(stderr,"Reading registry file from standard input\n");
-		regfile = stdin;
+	if (argc < 2) {
+		fprintf(stderr,"\nUsage: %s <Registry file>\n\n", argv[0]);
+		return 1;
 	}
-	else if (!(regfile = fopen(argv[1], "r"))) {
+
+	if (!(regfile = fopen(argv[1], "r"))) {
 		fprintf(stderr,"\nError: Could not open file %s for reading.\n\n", argv[1]);
 		return 1;
 	}   
