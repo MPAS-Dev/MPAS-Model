@@ -407,11 +407,7 @@
  enddo
 
 
- call mpas_log_write(' ')
- call mpas_log_write('--- enter subroutine NoahmpInitMain:')
  call NoahmpInitMain(mpas_noahmp)
- call mpas_log_write('--- end subroutine NoahmpInitMain:')
- call mpas_log_write(' ')
 
 
 !--- update of all time-varying Noah-MP variables:
