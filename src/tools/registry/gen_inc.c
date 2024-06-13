@@ -15,8 +15,8 @@
 #include "fortprintf.h"
 #include "utility.h"
 
-#define STR(s) #s
-#define MACRO_TO_STR(s) STR(s)
+void process_core_macro(const char *macro, const char *val, va_list ap);
+void process_domain_macro(const char *macro, const char *val, va_list ap);
 
 #define NUM_MODIFIED_ATTRS 2
 #define NUM_IGNORED_ATTRS 9
@@ -44,12 +44,7 @@ static const char *ATTRS_TO_MODIFY[NUM_MODIFIED_ATTRS][2] = {
 };
 
 
-void write_model_variables(ezxml_t registry){/*{{{*/
-	const char * suffix = MACRO_TO_STR(MPAS_NAMELIST_SUFFIX);
-	const char * exe_name = MACRO_TO_STR(MPAS_EXE_NAME);
-	const char * git_ver = MACRO_TO_STR(MPAS_GIT_VERSION);
-	const char * build_target = MACRO_TO_STR(MPAS_BUILD_TARGET);
-
+void write_model_variables(ezxml_t registry, int macro_count, const char **macros){/*{{{*/
 	const char *modelname, *corename, *version;
 	FILE *fd;
 
@@ -62,20 +57,43 @@ void write_model_variables(ezxml_t registry){/*{{{*/
 	fortprintf(fd, "       core %% modelName = '%s'\n", modelname);
 	fortprintf(fd, "       core %% coreName = '%s'\n", corename);
 	fortprintf(fd, "       core %% modelVersion = '%s'\n", version);
-	fortprintf(fd, "       core %% executableName = '%s'\n", exe_name);
-	fortprintf(fd, "       core %% git_version = '%s'\n", git_ver);
-	fortprintf(fd, "       core %% build_target = '%s'\n", build_target);
+
+	parse_macros(process_core_macro, macro_count, macros, fd);
 
 	fclose(fd);
 
 	fd = fopen("domain_variables.inc", "w+");
 
-	fortprintf(fd, "       domain %% namelist_filename = 'namelist.%s'\n", suffix);
-	fortprintf(fd, "       domain %% streams_filename = 'streams.%s'\n", suffix);
+	parse_macros(process_domain_macro, macro_count, macros, fd);
 
 	fclose(fd);
 
 }/*}}}*/
+
+
+void process_core_macro(const char *macro, const char *val, va_list ap)
+{
+	FILE *fd = va_arg(ap, FILE *);
+
+	if (strcmp(macro, "MPAS_EXE_NAME") == 0) {
+		fortprintf(fd, "       core %% executableName = '%s'\n", val);
+	} else if (strcmp(macro, "MPAS_GIT_VERSION") == 0) {
+		fortprintf(fd, "       core %% git_version = '%s'\n", val);
+	} else if (strcmp(macro, "MPAS_BUILD_TARGET") == 0) {
+		fortprintf(fd, "       core %% build_target = '%s'\n", val);
+	}
+}
+
+
+void process_domain_macro(const char *macro, const char *val, va_list ap)
+{
+	FILE *fd = va_arg(ap, FILE *);
+
+	if (strcmp(macro, "MPAS_NAMELIST_SUFFIX") == 0) {
+		fortprintf(fd, "       domain %% namelist_filename = 'namelist.%s'\n", val);
+		fortprintf(fd, "       domain %% streams_filename = 'streams.%s'\n", val);
+	}
+}
 
 
 int write_field_pointer_arrays(FILE* fd){/*{{{*/
@@ -2514,5 +2532,3 @@ int parse_structs_from_registry(ezxml_t registry)/*{{{*/
 
 	return 0;
 }/*}}}*/
-
-

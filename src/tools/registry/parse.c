@@ -34,7 +34,9 @@ int main(int argc, char ** argv)/*{{{*/
 	int err;
 
 	if (argc < 2) {
-		fprintf(stderr,"\nUsage: %s <Registry file>\n\n", argv[0]);
+		fprintf(stderr,"\nUsage: %s <Registry file> [macro definitions]\n\n", argv[0]);
+		fprintf(stderr,"   where [macro definitions] may be any number of macro\n");
+		fprintf(stderr,"   definitions of the form -D<macro_name>[=<macro_value>]\n\n");
 		return 1;
 	}
 
@@ -59,7 +61,11 @@ int main(int argc, char ** argv)/*{{{*/
 		return 1;
 	}
 
-	write_model_variables(registry);
+	if (argc > 2) {
+		write_model_variables(registry, (argc-2), (const char**)&argv[2]);
+	} else {
+		write_model_variables(registry, 0, NULL);
+	}
 
 	if (parse_reg_xml(registry)) {
 		fprintf(stderr, "Parsing failed.....\n");
