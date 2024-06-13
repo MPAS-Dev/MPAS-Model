@@ -9,6 +9,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdarg.h>
 #include "ezxml.h"
 #include "registry_types.h"
 
@@ -263,3 +264,78 @@ int check_persistence(const char * persistence){/*{{{*/
 		return PERSISTENT;
 	}
 }/*}}}*/
+
+
+/******************************************************************************
+ *
+ * parse_macros
+ *
+ * Given an array of strings that are assumed to be in the form of C
+ * pre-processor macro definitions, e.g.,
+ *
+ *   { "-DMPAS_NAMELIST_SUFFIX=test",
+ *     "-DSINGLE_PRECISION",
+ *     "-DHISTORY=Not available" }
+ *
+ * which could come from the command-line arguments
+ *
+ *   -DMPAS_NAMELIST_SUFFIX=test -DSINGLE_PRECISION -DHISTORY="Not available"
+ *
+ * this routine parses the macro name and macro definition from each string,
+ * and invokes a callback routine with the macro name and definition. The macro
+ * name is the name of the macro itself, without the "-D" definition prefix.
+ *
+ * Any arguments after the macros argument to this function are passed as a
+ * va_list to the callback.
+ *
+ * For the above array of macro definition strings, the callback would be
+ * invoked three times with the following arguments:
+ *
+ *   "MPAS_NAMELIST_SUFFIX", "test"
+ *   "SINGLE_PRECISION", ""
+ *   "HISTORY", "Not available"
+ *
+ * The callback function may be NULL.
+ *
+ * Upon successful completion, a value of 0 is returned. If errors were
+ * encountered in parsing macro definition strings, a non-zero value is
+ * returned.
+ *
+ ******************************************************************************/
+int parse_macros(void(*callback)(const char *macro, const char *val, va_list ap),
+                 int count, const char **macros, ...)
+{
+	int i;
+
+	for (i = 0; i < count; i++) {
+		char *tmp;
+		char *macrotmp;
+		char *macro;
+		char *val;
+
+		tmp = strdup(macros[i]);
+		macrotmp = strtok_r(tmp, "=", &val);
+
+		if (macrotmp == NULL || val == NULL) {
+			return 1;
+		}
+
+		if (strstr(macrotmp, "-D") == macrotmp) {
+			macro = &macrotmp[2];
+		} else {
+			macro = macrotmp;
+		}
+
+		if (callback != NULL) {
+			va_list ap;
+
+			va_start(ap, macros);
+			callback(macro, val, ap);
+			va_end(ap);
+		}
+
+		free(tmp);
+	}
+
+	return 0;
+}

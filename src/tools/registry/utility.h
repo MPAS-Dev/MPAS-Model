@@ -15,3 +15,5 @@ char * check_packages(ezxml_t registry, char * packages);
 char * check_dimensions(ezxml_t registry, char * dims);
 char * check_streams(ezxml_t registry, char * streams);
 int check_persistence(const char * persistence);
+int parse_macros(void(*callback)(const char *macro, const char *val, va_list ap),
+                 int count, const char **macros, ...);
