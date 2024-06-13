@@ -403,6 +403,7 @@
                 <package name="cu_ntiedtke_in" description="parameterization of Tiedtke convection."/>
                 <package name="bl_ysu_in" description="parameterization of YSU Planetary Boundary Layer."/>
                 <package name="bl_mynn_in" description="parameterization of MYNN Planetary Boundary Layer."/>
+                <package name="sf_noahmp_in" description="parameterization of NOAH-MP land surface scheme."/>
 
                 <package name="iau" description="Incremental Analysis Update"/>
                 <package name="limited_area" description="Limited-area simulations, which have lateral boundaries"/>
@@ -512,6 +513,11 @@
 			<var name="ol2"/>
 			<var name="ol3"/>
 			<var name="ol4"/>
+			<var name="soilcomp"/>
+			<var name="soilcl1"/>
+			<var name="soilcl2"/>
+			<var name="soilcl3"/>
+			<var name="soilcl4"/>
 #endif
 
                 </stream>
@@ -818,6 +824,7 @@
 			<var name="h_oml_initial"/>
 			<var name="hu_oml"/>
 			<var name="hv_oml"/>
+			<var_struct name="diag_physics_noahmp"/>
 #endif
 		</stream>
 
@@ -2036,6 +2043,11 @@
                      units="-"
                      description="logical for turning on/off top-down, radiation_driven mixing"
                      possible_values=".true. to turn on top-down radiation_driven mixing; .false. otherwise"/>
+
+                <nml_option name="config_urban_physics" type="logical" default_value="false" in_defaults="false"
+                     units="-"
+                     description="logical for turn on/off the urban physics parameterization"
+                     possible_values=".true. to turn on the urban physics; .false. otherwise"/>
 
                 <nml_option name="config_n_microp" type="integer" default_value="1" in_defaults="false"
                      units="-"
@@ -3421,5 +3433,6 @@
 <!-- **************************************************************************************** -->
 
 #include "diagnostics/Registry_diagnostics.xml"
+#include "physics/Registry_noahmp.xml"
 
 </registry>

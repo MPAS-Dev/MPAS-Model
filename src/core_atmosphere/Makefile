@@ -42,6 +42,7 @@ physcore: mpas_atm_dimensions.o
 	( mkdir libphys; cd libphys; ar -x ../physics/libphys.a )
 	( cd ../..; ln -sf ./src/core_atmosphere/physics/physics_wrf/files/*TBL .)
 	( cd ../..; ln -sf ./src/core_atmosphere/physics/physics_wrf/files/*DATA* .)
+	( cd ../..; ln -sf ./src/core_atmosphere/physics/physics_noahmp/parameters/*TBL .)
 
 dycore: mpas_atm_dimensions.o $(PHYSCORE)
 	( cd dynamics; $(MAKE) all PHYSICS="$(PHYSICS)" )
